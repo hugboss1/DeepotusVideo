@@ -1690,6 +1690,50 @@ def test_ecrire_version_ajoute_sans_ecraser():
     registre = json.loads((d / "report.json").read_text("utf-8"))
     assert registre["current"] == "model.v2.glb"
     assert fiche["source"]["operation"] == "extraire"
+
+
+def test_la_fiche_d_une_version_decompressee_ne_la_dit_plus_compressee():
+    """Conseil de la revue de la tâche 5, et il porte.
+
+    `extraire` filtre désormais `extensionsRequired`. Une version écrite
+    derrière une extraction qui a laissé la compression au vestiaire ne doit
+    donc PAS être fichée comme encore compressée — sinon `mesh_report` renonce
+    à la géométrie et la fiche ment sur ce qu'on vient d'écrire.
+    """
+    from app.config import settings
+    from app.services import mesh_edit
+    d = settings.outputs_path / "assets3d" / "job_decomp"
+    d.mkdir(parents=True, exist_ok=True)
+
+    # un document mixte : un maillage draco, un maillage libre
+    doc, binc = mesh_edit.lire_glb(_cube())
+    tampon = bytearray(binc)
+    while len(tampon) % 4:
+        tampon.append(0)
+    o = len(tampon)
+    tampon += b"\xAA" * 32
+    doc["bufferViews"].append({"buffer": 0, "byteOffset": o, "byteLength": 32})
+    doc["buffers"][0]["byteLength"] = len(tampon)
+    doc["meshes"][0]["primitives"][0].setdefault("extensions", {})[
+        "KHR_draco_mesh_compression"] = {
+            "bufferView": len(doc["bufferViews"]) - 1,
+            "attributes": {"POSITION": 0}}
+    doc["extensionsUsed"] = ["KHR_draco_mesh_compression"]
+    doc["extensionsRequired"] = ["KHR_draco_mesh_compression"]
+    libre = json.loads(json.dumps(doc["meshes"][0]))
+    libre["primitives"][0].pop("extensions", None)
+    doc["meshes"].append(libre)
+    doc["nodes"].append({"name": "libre", "mesh": 1})
+    doc["scenes"][0]["nodes"] = [0, 1]
+    (d / "model.glb").write_bytes(mesh_edit.ecrire_glb(doc, bytes(tampon)))
+
+    piece = mesh_edit.extraire((d / "model.glb").read_bytes(), [1])
+    fiche = mesh_edit.ecrire_version(
+        "job_decomp", piece, operation="extraire", detail={"noeuds": [1]})
+
+    assert fiche["gltf"]["extensions_required"] == []
+    # et la géométrie est bien calculée, pas abandonnée sur un faux refus
+    assert fiche["geometry"]["tris_lus"] == 12
 ```
 
 - [ ] **Step 2 : lancer le banc et vérifier qu'il échoue**
@@ -1732,7 +1776,7 @@ def ecrire_version(job: str, data: bytes, *, operation: str,
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 39 tests PASS.
+Attendu : 40 tests PASS.
 
 - [ ] **Step 5 : écrire le banc de l'adoption (spec §6.2)**
 
@@ -1813,7 +1857,7 @@ def adopter_meshy(task_id: str, fichier: str = "model.glb") -> str:
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 41 tests PASS.
+Attendu : 42 tests PASS.
 
 - [ ] **Step 8 : commit**
 
@@ -2002,7 +2046,7 @@ def lister() -> list[dict]:
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 43 tests PASS.
+Attendu : 44 tests PASS.
 
 - [ ] **Step 5 : commit**
 
@@ -2185,7 +2229,7 @@ async def etabli_reparer(body: dict):
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 47 tests PASS.
+Attendu : 48 tests PASS.
 
 - [ ] **Step 5 : vérifier qu'on n'a rien cassé ailleurs**
 
