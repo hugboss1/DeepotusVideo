@@ -922,6 +922,32 @@ def test_extraire_refuse_une_selection_vide():
     from app.services import mesh_edit
     with pytest.raises(ValueError, match="aucun noeud retenu"):
         mesh_edit.extraire(_cube_et_sol(), [])
+
+
+def test_extraire_apres_reparer_ne_perd_pas_la_correction():
+    """LE piège que la revue de la tâche 4 a repéré.
+
+    Après `reparer`, la scène a une racine synthétique qui porte la
+    correction, et le maillage est devenu son enfant. Extraire cet enfant en
+    ne recopiant que sa transformation LOCALE ferait ressortir la pièce
+    couchée — mesuré : ((-1,1), (2,4), (-1,1)) au lieu du monde redressé
+    ((-1,1), (-1,1), (2,4)). Un modèle qu'on vient de redresser reviendrait
+    de travers dans Blender, sans le moindre message.
+    """
+    from app.services import mesh_edit, print3d
+    haut = mesh_edit.transformer(_cube(), {"0": {"translation": [0.0, 3.0, 0.0]}})
+    redresse = mesh_edit.reparer(haut, axe_haut="Z")
+    monde = print3d.bbox(print3d.lire_glb_triangles(redresse))
+    assert monde == ((-1.0, 1.0), (-1.0, 1.0), (2.0, 4.0))
+
+    doc, _ = mesh_edit.lire_glb(redresse)
+    racine = doc["scenes"][doc.get("scene", 0)]["nodes"][0]
+    enfant = doc["nodes"][racine]["children"][0]
+
+    piece = mesh_edit.extraire(redresse, [enfant])
+    bb = print3d.bbox(print3d.lire_glb_triangles(piece))
+    for (lo, hi), (alo, ahi) in zip(bb, monde):
+        assert abs(lo - alo) < 1e-9 and abs(hi - ahi) < 1e-9
 ```
 
 - [ ] **Step 2 : lancer le banc et vérifier qu'il échoue**
@@ -1027,6 +1053,79 @@ def _dependances(doc: dict, garder: set[int]) -> dict:
 Ajouter à `backend/app/services/mesh_edit.py` :
 
 ```python
+_IDENTITE = [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
+             0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+
+
+def _mat_mul(a: list, b: list) -> list:
+    """Produit de deux matrices 4×4 COLONNE-majeures (convention glTF).
+
+    `m[c * 4 + r]` = colonne c, ligne r. Le produit `a · b` applique b PUIS a.
+
+    `print3d` a ses propres matrices, mais en LIGNE-majeur pour ses calculs
+    internes. Ici on écrit dans le champ `matrix` d'un nœud glTF, qui est
+    colonne-majeur : convertir d'une convention à l'autre serait plus
+    fragile que de tenir les seize lignes ci-dessous.
+    """
+    out = [0.0] * 16
+    for c in range(4):
+        for r in range(4):
+            out[c * 4 + r] = sum(a[k * 4 + r] * b[c * 4 + k] for k in range(4))
+    return out
+
+
+def _mat_locale(node: dict) -> list:
+    """Transformation locale d'un nœud, en colonne-majeur.
+
+    glTF autorise soit `matrix`, soit un TRS — jamais les deux.
+    """
+    if node.get("matrix"):
+        return [float(x) for x in node["matrix"]]
+    t = node.get("translation") or [0.0, 0.0, 0.0]
+    r = node.get("rotation") or [0.0, 0.0, 0.0, 1.0]
+    s = node.get("scale") or [1.0, 1.0, 1.0]
+    x, y, z, w = (float(v) for v in r)
+    rot = ((1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)),
+           (2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)),
+           (2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)))
+    m = [0.0] * 16
+    for c in range(3):
+        for lig in range(3):
+            m[c * 4 + lig] = rot[lig][c] * float(s[c])
+    m[12], m[13], m[14] = float(t[0]), float(t[1]), float(t[2])
+    m[15] = 1.0
+    return m
+
+
+def _monde_des_ancetres(doc: dict, cible: int) -> list:
+    """Matrice monde des ancêtres STRICTS de `cible` (elle-même exclue).
+
+    Identité si la cible est déjà une racine. C'est cette matrice qu'il faut
+    pré-multiplier dans la racine extraite pour que la pièce sorte là où
+    l'utilisateur la voyait — sans quoi une correction d'assise posée par
+    `reparer` disparaîtrait en silence à la découpe.
+
+    La boucle garde un ensemble de nœuds vus : un `children` cyclique dans un
+    GLB tiers ne doit pas la faire tourner à l'infini.
+    """
+    nodes = _l(doc, "nodes")
+    parent: dict[int, int] = {}
+    for i, n in enumerate(nodes):
+        for c in _l(n, "children"):
+            parent[c] = i
+    chaine: list[int] = []
+    cur = parent.get(cible)
+    vus: set[int] = set()
+    while cur is not None and cur not in vus:
+        vus.add(cur)
+        chaine.append(cur)
+        cur = parent.get(cur)
+    m = list(_IDENTITE)
+    for i in reversed(chaine):          # de la racine vers le parent direct
+        m = _mat_mul(m, _mat_locale(nodes[i]))
+    return m
+
+
 def _carte(ref: set[int]) -> tuple[dict[int, int], list[int]]:
     ordre = sorted(ref)
     return {v: i for i, v in enumerate(ordre)}, ordre
@@ -1169,6 +1268,23 @@ def extraire(data: bytes, noeuds) -> bytes:
         n.pop("camera", None)
         out["nodes"].append(n)
 
+    # Chaque racine extraite absorbe la transformation de ses ANCÊTRES restés
+    # hors sélection. Sans cela, découper un nœud placé sous le nœud
+    # `etabli_correction` de `reparer` ferait perdre la correction EN SILENCE :
+    # mesuré — la pièce ressortait en ((-1,1), (2,4), (-1,1)), c'est-à-dire
+    # couchée, au lieu du monde redressé ((-1,1), (-1,1), (2,4)).
+    for i in sorted({int(x) for x in noeuds}):
+        if i not in m_node:
+            continue
+        a = _monde_des_ancetres(doc, i)
+        if a == _IDENTITE:
+            continue                    # déjà une racine : rien à absorber
+        n = out["nodes"][m_node[i]]
+        locale = _mat_locale(nodes[i])
+        for cle in ("translation", "rotation", "scale"):
+            n.pop(cle, None)
+        n["matrix"] = _mat_mul(a, locale)
+
     racines = [m_node[i] for i in sorted({int(x) for x in noeuds})
                if i in m_node]
     out["scenes"] = [{"nodes": racines}]
@@ -1185,7 +1301,7 @@ def extraire(data: bytes, noeuds) -> bytes:
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 28 tests PASS.
+Attendu : 29 tests PASS.
 
 - [ ] **Step 6 : commit**
 
@@ -1272,7 +1388,7 @@ def ecrire_version(job: str, data: bytes, *, operation: str,
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 29 tests PASS.
+Attendu : 30 tests PASS.
 
 - [ ] **Step 5 : écrire le banc de l'adoption (spec §6.2)**
 
@@ -1353,7 +1469,7 @@ def adopter_meshy(task_id: str, fichier: str = "model.glb") -> str:
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 31 tests PASS.
+Attendu : 32 tests PASS.
 
 - [ ] **Step 8 : commit**
 
@@ -1542,7 +1658,7 @@ def lister() -> list[dict]:
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 33 tests PASS.
+Attendu : 34 tests PASS.
 
 - [ ] **Step 5 : commit**
 
@@ -1725,7 +1841,7 @@ async def etabli_reparer(body: dict):
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 37 tests PASS.
+Attendu : 38 tests PASS.
 
 - [ ] **Step 5 : vérifier qu'on n'a rien cassé ailleurs**
 
