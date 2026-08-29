@@ -1,73 +1,77 @@
-three.js vendorise localement — plan 2026-08-29-etabli-p2-p3-canevas-parties, tache 1
+three.js vendorisé localement — plan 2026-08-29-etabli-p2-p3-canevas-parties, tâche 1
 ========================================================================
 
-Source : paquet npm officiel `three`, recupere via `npm pack three@0.185.1`
+Source : paquet npm officiel `three`, récupéré via `npm pack three@0.185.1`
 puis extraction de l'archive (aucun CDN).
 
 Version exacte : 0.185.1
 Date de vendorisation : 2026-08-29
 
-Poids MESURE (pas estime) :
+Poids MESURÉ (pas estimé) :
   - total des fichiers *.js seuls (commande du plan) : 2 404 643 octets
   - total complet du dossier, .wasm et README inclus : 2 884 323 octets
   - comparaison : model-viewer.min.js = 956 649 octets
 
-Le total *.js seul (2,4 Mo) depasse deja largement les « ~800 Ko a mesurer »
-annonces par la spec : les deux decodeurs Draco (racine + variante gltf)
-pesent a eux seuls environ 1,2 Mo de JS, et leurs .wasm ajoutent encore
-478 Ko. Rien n'a ete ajoute au-dela du strict necessaire (voir plus bas).
+Le total *.js seul (2,4 Mo) dépasse déjà largement les « ~800 Ko à mesurer »
+annoncés par la spec : les deux décodeurs Draco (racine + variante gltf)
+pèsent à eux seuls environ 1,2 Mo de JS, et leurs .wasm ajoutent encore
+478 Ko. Rien n'a été ajouté au-delà du strict nécessaire (voir plus bas).
 
-Fichiers poses
+Fichiers posés
 --------------
   three.module.min.js                              — moteur de rendu (build/three.module.min.js)
-  three.core.min.js                                 — FRERE REQUIS, voir piege ci-dessous
+  three.core.min.js                                 — FRÈRE REQUIS, voir piège ci-dessous
   addons/loaders/GLTFLoader.js                      — examples/jsm/loaders/GLTFLoader.js
   addons/loaders/DRACOLoader.js                     — examples/jsm/loaders/DRACOLoader.js
   addons/controls/OrbitControls.js                  — examples/jsm/controls/OrbitControls.js
   addons/controls/TransformControls.js              — examples/jsm/controls/TransformControls.js
   addons/libs/meshopt_decoder.module.js             — examples/jsm/libs/meshopt_decoder.module.js
-  addons/utils/BufferGeometryUtils.js               — FRERE REQUIS, voir piege ci-dessous
-  addons/utils/SkeletonUtils.js                     — FRERE REQUIS, voir piege ci-dessous
-  addons/libs/draco/ (+ gltf/)                      — dossier complet des decodeurs, README compris
-  importmap.json                                    — resout les specifiers nus "three" et "three/addons/"
+  addons/utils/BufferGeometryUtils.js               — FRÈRE REQUIS, voir piège ci-dessous
+  addons/utils/SkeletonUtils.js                     — FRÈRE REQUIS, voir piège ci-dessous
+  addons/libs/draco/ (+ gltf/)                      — dossier complet des décodeurs, README compris
+  importmap.json                                    — résout les specifiers nus "three" et "three/addons/"
 
-Piege 1 — three.module.min.js n'est pas autonome
+Piège 1 — three.module.min.js n'est pas autonome
 -------------------------------------------------
-Lecture de tete de fichier de build/three.module.min.js : il contient
+Lecture de tête de fichier de build/three.module.min.js : il contient
   import{...}from"./three.core.min.js"
-Le build recent de three est scinde en deux : le module principal et un
-"core" partage. Sans copier three.core.min.js a cote, l'import 404 et
-l'ecran reste noir sans qu'aucune erreur ne remonte au banc de test (qui ne
-verifie qu'une taille de fichier). three.core.min.js lui-meme ne depend
-d'aucun autre fichier (verifie : aucun `from "./..."` dedans).
+Le build récent de three est scindé en deux : le module principal et un
+"core" partagé. Sans copier three.core.min.js à côté, l'import 404 et
+l'écran reste noir sans qu'aucune erreur ne remonte au banc de test (qui ne
+vérifie qu'une taille de fichier). three.core.min.js lui-même ne dépend
+d'aucun autre fichier (vérifié : aucun `from "./..."` dedans).
 
-Piege 2 — GLTFLoader.js importe deux frere non listes dans la tache
+Piège 2 — GLTFLoader.js importe deux frères non listés dans la tâche
 --------------------------------------------------------------------
-Lecture de tete de fichier de examples/jsm/loaders/GLTFLoader.js :
+Lecture de tête de fichier de examples/jsm/loaders/GLTFLoader.js :
   import { toTrianglesDrawMode } from '../utils/BufferGeometryUtils.js';
   import { clone } from '../utils/SkeletonUtils.js';
-Meme categorie de piege que ci-dessus, cote addons cette fois : sans ces
-deux fichiers dans addons/utils/, le chargement de GLTFLoader.js echoue en
-404 des le premier GLB charge. Verifie que ces deux fichiers n'importent
-eux-memes que depuis "three" (specifier nu), donc aucune cascade
-supplementaire.
+Même catégorie de piège que ci-dessus, côté addons cette fois : sans ces
+deux fichiers dans addons/utils/, le chargement de GLTFLoader.js échoue en
+404 dès le premier GLB chargé. Vérifié que ces deux fichiers n'importent
+eux-mêmes que depuis "three" (specifier nu), donc aucune cascade
+supplémentaire. Ces deux fichiers sont désormais épinglés par le banc
+backend/tests/test_etabli_canevas.py (test_les_freres_reclames_par_gltfloader_sont_la),
+tout comme three.core.min.js (test_three_est_vendorise_et_non_pointe_vers_un_cdn) :
+sans ça, un futur nettoyage qui les supprimerait laisserait les tests au
+vert pendant que l'application casse en silence dans le navigateur.
 
-Chemin de decodeur Draco retenu : addons/libs/draco/ (la racine, PAS
+Chemin de décodeur Draco retenu : addons/libs/draco/ (la racine, PAS
 addons/libs/draco/gltf/)
 ------------------------------------------------------------------------
-Le fichier officiel examples/jsm/loaders/GLTFLoader.js documente lui-meme
-l'usage recommande dans son en-tete :
+Le fichier officiel examples/jsm/loaders/GLTFLoader.js documente lui-même
+l'usage recommandé dans son en-tête :
   const dracoLoader = new DRACOLoader();
   dracoLoader.setDecoderPath( '/examples/jsm/libs/draco/' );
   loader.setDRACOLoader( dracoLoader );
 Le README du dossier draco confirme que les deux variantes (racine et
-gltf/) decodent correctement le format utilise par KHR_draco_mesh_compression
+gltf/) décodent correctement le format utilisé par KHR_draco_mesh_compression
 ("Either variation may be used with DRACOLoader") : la variante gltf/ est
-une version alternative des memes decodeurs, pas une dependance separee.
-La tache 3 doit donc appeler :
+une version alternative des mêmes décodeurs, pas une dépendance séparée.
+La tâche 3 doit donc appeler :
   dracoLoader.setDecoderPath('/assets/three/addons/libs/draco/')
 et NON le sous-dossier gltf/.
 
-Rien d'autre n'a ete ajoute : pas de three.webgpu.js, pas d'addons hors de
-la liste demandee, pas de sources non minifiees en double des lors qu'une
-version minifiee existe deja (three.module.min.js / three.core.min.js).
+Rien d'autre n'a été ajouté : pas de three.webgpu.js, pas d'addons hors de
+la liste demandée, pas de sources non minifiées en double dès lors qu'une
+version minifiée existe déjà (three.module.min.js / three.core.min.js).
