@@ -15,7 +15,7 @@ const SEUIL = { triangles: 300000, octets: 80 * 1024 * 1024 };
 
 const S = {
   sources: { jobs: [], meshy: [] },
-  a: null, b: null,          // { job, version, url, libelle, fiche }
+  a: null, b: null,          // { job, meshy, version, url, libelle }
   vueA: null, vueB: null,    // canevas
   enAttente: [],             // corrections non écrites
 };
@@ -53,14 +53,23 @@ function rendreChrono() {
   const blocs = [];
   for (const j of S.sources.jobs) {
     const etapes = j.etapes.map((e) => {
-      const lourd = (e.triangles && e.triangles > SEUIL.triangles)
-        || (e.bytes && e.bytes > SEUIL.octets);
+      /* `triangles` vient du `geo.get("tris_lus")` de mesh_sources, lu SANS
+         validation de type dans le registry.json du job — le fichier même que
+         la doctrine du module décrit comme ouvert aux mains de l'utilisateur.
+         Une CHAÎNE y survit : elle rendrait `lourd` faux en silence (NaN), et
+         `toLocaleString` la recopierait telle quelle dans le balisage, un
+         guillemet compris — mot pour mot le scénario que décrit le commentaire
+         d'esc(). C'était la seule valeur de mesh_sources qui entrait dans
+         innerHTML sans passer par esc() ; un Number() en tête la ramène dans
+         le rang, et l'invariant que ce fichier s'est donné redevient vrai. */
+      const tri = Number(e.triangles) || 0;
+      const lourd = tri > SEUIL.triangles || (e.bytes && e.bytes > SEUIL.octets);
       return `<button class="etape${lourd ? " lourde" : ""}"
         data-job="${esc(j.id)}" data-version="${esc(e.version ?? "")}"
         data-url="${esc(e.url)}" data-libelle="${esc(e.libelle)}"
-        title="${e.triangles ? e.triangles + " triangles · " : ""}${fmtOctets(e.bytes)}">
+        title="${tri ? tri + " triangles · " : ""}${fmtOctets(e.bytes)}">
         <b>${esc(e.libelle)}</b>
-        <span>${e.triangles ? e.triangles.toLocaleString("fr-FR") + " tri" : fmtOctets(e.bytes)}</span>
+        <span>${tri ? tri.toLocaleString("fr-FR") + " tri" : fmtOctets(e.bytes)}</span>
       </button>`;
     }).join("");
     blocs.push(`<section class="job">
@@ -92,7 +101,7 @@ function rendreChrono() {
          ouvrirComparaison() arrive en TÂCHE 5 avec la vue B et la ligne
          d'écart ; d'ici là un alt-clic lève une ReferenceError, et c'est
          délibéré — un bouchon muet ferait croire la comparaison livrée. */
-      if (ev.altKey) ouvrirComparaison(cible);   // eslint-disable-line no-undef
+      if (ev.altKey) ouvrirComparaison(cible);
       else ouvrirPrincipale(cible);
     });
   });
@@ -122,11 +131,21 @@ function ouvrirPrincipale(cible) {
      purement sauté — la chronologie deviendrait muette au premier échec. Le
      refus, lui, est déjà montré dans la barre par _ouvrirPrincipale(). */
   _file = _file.then(() => _ouvrirPrincipale(cible, numero)).catch(() => {});
-  return _file;
+  /* Ce que l'appelant reçoit, puisque trois issues n'ont qu'un seul résultat
+     observable : la promesse rendue dit seulement que la FILE est vide — pas
+     que le modèle est chargé. Un échec est avalé par le `.catch`, une demande
+     dépassée se retire sans rien charger. D'où le booléen : `S.a === cible`
+     est la seule réponse vraie à « est-ce que MA cible est à l'écran ? ». */
+  return _file.then(() => S.a === cible);
 }
 
 async function _ouvrirPrincipale(cible, numero) {
   if (numero !== _demande) return;   // dépassée pendant l'attente : on se retire
+  /* À partir d'ici le modèle affiché va changer, quoi qu'il arrive. Les
+     corrections en attente sont indexées par numéro de nœud DU modèle affiché
+     (`userData.indexGltf`) : les garder ferait écrire les index d'un maillage
+     dans la version d'un AUTRE, sur disque et sans que rien ne grince. */
+  S.enAttente.length = 0;
   const geoBox = $("#barreGeo");
   $("#barreFichier").textContent = cible.url.split("/").pop();
   geoBox.classList.remove("erreur");
@@ -165,6 +184,11 @@ async function amorcer() {
   const box = $("#chrono");
   try {
     S.sources = await jget("/api/etabli/sources");
+    /* rendreChrono() DANS le try : une réponse à laquelle il manquerait
+       `meshy`, ou un job sans `etapes`, lève dans le rendu — et posé hors du
+       try, cet échec laisserait « chargement… » figé pour toujours, ce que ce
+       filet est précisément là pour empêcher. */
+    rendreChrono();
   } catch (e) {
     /* amorcer() tourne à l'IMPORT du module : sans ce filet, la promesse
        rejetée laisse « chargement… » figé pour toujours et le refus ne vit que
@@ -172,9 +196,7 @@ async function amorcer() {
        serveur, il n'a rien à faire dans le balisage. */
     box.innerHTML = '<div class="chrono-vide"></div>';
     box.firstElementChild.textContent = `sources illisibles — ${e.message}`;
-    return;
   }
-  rendreChrono();
 }
 amorcer();
 

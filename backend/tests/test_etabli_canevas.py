@@ -208,17 +208,44 @@ def test_le_redimensionnement_compare_le_tampon_et_non_les_pixels_css():
 
 def test_la_page_lit_la_chronologie_unifiee():
     js = _lire("etabli/etabli.js")
-    assert "/api/etabli/sources" in js
+    assert 'jget("/api/etabli/sources")' in js
+    # et la page l'appelle vraiment : sans cette ligne, elle ne démarre jamais
+    assert "\namorcer();" in js
+    # les libellés viennent du DISQUE — un nom de dossier, un `asset.json`
+    # écrit à la main : sans esc(), une apostrophe double ferme l'attribut qui
+    # les porte et emporte la ligne entière.
+    assert 'data-libelle="${esc(' in js
 
 
 def test_le_seuil_de_charge_est_affiche_et_configurable():
-    """La spec §4.1 : 300 000 triangles ou 80 Mo, montré, jamais caché."""
+    """La spec §4.1 : 300 000 triangles ou 80 Mo, montré, jamais caché.
+
+    Les marqueurs portent sur les COMPARAISONS, pas sur la constante : un
+    « 300 000 » ou un « 80 Mo » écrit en commentaire suffisait à garder ce
+    banc vert alors que le seuil n'était plus affiché nulle part. Vérifié
+    par mutation — `lourd = false` et le bloc de la barre supprimé.
+    """
     js = _lire("etabli/etabli.js")
-    assert "300000" in js.replace("_", "").replace(" ", "")
-    assert "80" in js
-    assert "SEUIL" in js
+    assert "80 * 1024 * 1024" in js
+    assert "geo.tris > SEUIL.triangles" in js     # montré dans la barre du bas
+    assert "e.bytes > SEUIL.octets" in js         # montré sur la puce
 
 
 def test_alt_clic_ouvre_la_comparaison():
     js = _lire("etabli/etabli.js")
-    assert "altKey" in js
+    assert "ev.altKey" in js and "ouvrirComparaison(cible)" in js
+
+
+def test_le_refus_se_voit_et_le_canevas_a_une_hauteur():
+    """Les quatre finesses de la tâche 4, en quatre ancres sur du CODE.
+
+    La file : sans le `.catch`, `_file` reste rejetée pour toujours et la
+    chronologie devient muette au premier échec. Le refus : la classe posée
+    par le JS doit exister dans la CSS, sinon l'échec est invisible. Les
+    hauteurs : sans ces deux maillons, le <canvas> retombe à 300x150.
+    """
+    js, css = _lire("etabli/etabli.js"), _lire("etabli/etabli.css")
+    assert "_file = _file.then(" in js and ").catch(" in js
+    assert 'classList.add("erreur")' in js and "#barreGeo.erreur" in css
+    assert "grid-template-rows: minmax(0, 1fr)" in css
+    assert "position: absolute; inset: 0" in css
