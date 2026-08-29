@@ -1,0 +1,180 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   L'Établi — même famille visuelle que /studio3d.
+   Direction Cinema : tout vient de /shared/deepotus.tokens.css, comme la
+   feuille du 3D Studio. Aucune couleur en dur : les deux pages du 3D Studio
+   doivent se ressembler, et suivre le thème clair du même geste.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@import url("/shared/deepotus.tokens.css");
+
+html, body { height: 100%; overflow: hidden; }
+.hidden { display: none !important; }
+button { font-family: inherit; }
+
+/* ── la grille, et la CHAÎNE DE HAUTEURS ───────────────────────────────────
+   viewer.js pose un contrat d'hôte : `setSize(w, h, false)` ne touche jamais
+   au style, donc le <canvas> ne se dimensionne pas seul — il lit la taille que
+   la mise en page lui donne, et retombe sur 300×150 si elle ne lui en donne
+   aucune. La chaîne qui l'alimente, maillon par maillon :
+
+     html,body height:100%  →  .etabli height:100vh (overflow:hidden)
+       →  la RANGÉE de la grille : `minmax(0, 1fr)`, EXPLICITE
+       →  .centre (élément de grille, étiré) min-height:0
+       →  .vues flex:1 min-height:0
+       →  .vue (élément flex, étiré) position:relative
+       →  .vue canvas position:absolute inset:0
+
+   Deux précautions payées d'avance. La rangée est déclarée plutôt que laissée
+   implicite : une rangée `auto` ne se remplit que par `align-content:stretch`,
+   et ce dépôt a déjà vu une hauteur intrinsèque s'effondrer à ~0 sous un
+   `overflow:hidden` (998 rangées de 2 px dans le sélecteur de bibliothèque) —
+   la leçon retenue fut de POSER les hauteurs. Et le canevas est absolu plutôt
+   qu'en `height:100%` : un pourcentage exige un bloc conteneur à hauteur
+   DÉFINIE, ce qu'un élément flex étiré n'est que par une subtilité de spec ;
+   `inset:0` ne dépend, lui, que du `position:relative` de .vue. */
+.etabli {
+  display: grid;
+  grid-template-columns: 260px 1fr 320px;
+  grid-template-rows: minmax(0, 1fr);
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg-base);
+}
+
+/* ── rail gauche : la vie du modèle ───────────────────────────────────────── */
+.rail-left {
+  min-height: 0; overflow: hidden;    /* le défilement vit sur .chrono */
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 12px; border-right: 1px solid var(--stroke); background: var(--bg-panel);
+}
+.chrono {
+  flex: 1; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.chrono-vide {
+  font-family: var(--f-mono); font-size: 10.5px; color: var(--ink-soft);
+  line-height: 1.5; padding: 4px 2px;
+}
+.chrono-aide {
+  flex: none; padding-top: 9px; border-top: 1px solid var(--stroke);
+  font-family: var(--f-mono); font-size: 10px; color: var(--ink-soft);
+}
+.chrono-aide b { color: var(--ink); font-weight: 500; }
+
+.job {
+  border: 1px solid var(--stroke); border-radius: var(--r);
+  background: var(--bg-panel-2); padding: 9px 10px; flex: none;
+}
+.job-tete {
+  display: flex; align-items: baseline; gap: 8px;
+  font-size: 12px; font-weight: 600; color: var(--ink-strong);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.job-tete span {
+  margin-left: auto; flex: none;
+  font-family: var(--f-mono); font-size: 9.5px; font-weight: 400;
+  color: var(--ink-soft); white-space: nowrap;
+}
+.job-etapes { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+
+.etape {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  padding: 6px 8px; border: 1px solid var(--stroke); border-radius: var(--r-sm);
+  background: var(--bg-panel-3); color: var(--ink);
+  cursor: pointer; text-align: left; max-width: 100%;
+  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.etape:hover { border-color: var(--accent); color: var(--ink-strong); }
+.etape b {
+  font-size: 11.5px; font-weight: 600; max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.etape span {
+  font-family: var(--f-mono); font-size: 9.5px; color: var(--ink-soft);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+/* le seuil est MONTRÉ, jamais bloquant : une bordure et un signe, rien de plus */
+.etape.lourde { border-color: var(--amber); }
+.etape.lourde b::after { content: " ⚠"; color: var(--amber); }
+
+/* ── colonne centrale ─────────────────────────────────────────────────────── */
+.centre { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+
+.head {
+  height: 48px; flex: none; display: flex; align-items: center; gap: 10px;
+  padding: 0 14px; border-bottom: 1px solid var(--stroke); background: var(--bg-panel);
+}
+.head-title {
+  font-family: var(--f-display); font-size: 14px; font-weight: 600;
+  color: var(--ink-strong); white-space: nowrap;
+}
+.head-chip {
+  font-family: var(--f-mono); font-size: 10px; padding: 3px 8px; border-radius: 999px;
+  border: 1px solid var(--accent); color: var(--accent);
+  max-width: 46ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.head-right { margin-left: auto; display: flex; align-items: center; gap: 10px; flex: none; }
+.head-right button {
+  padding: 6px 10px; border-radius: var(--r-sm); border: 1px solid var(--stroke-strong);
+  background: var(--bg-panel-2); color: var(--ink);
+  font-family: var(--f-mono); font-size: 10.5px; cursor: pointer;
+}
+.head-right button:hover { border-color: var(--accent); color: var(--ink-strong); }
+
+.vues { flex: 1; display: flex; gap: 2px; min-height: 0; background: var(--stroke); }
+.vue {
+  position: relative; flex: 1; min-width: 0; min-height: 0; overflow: hidden;
+  background: var(--bg-panel-3);
+}
+/* inset:0 plutôt que 100%/100% : voir la chaîne de hauteurs en tête */
+.vue canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.vue-tag {
+  position: absolute; top: 8px; left: 10px; z-index: 1;
+  font: 600 11px/1 var(--f-mono), ui-monospace, monospace;
+  color: var(--ink-strong); opacity: .6; pointer-events: none;
+}
+
+.ecart {
+  flex: none; padding: 6px 14px; border-top: 1px solid var(--stroke);
+  background: var(--bg-panel-3);
+  font-family: var(--f-mono); font-size: 10.5px; color: var(--ink-soft);
+}
+
+.barre {
+  flex: none; display: flex; gap: 16px; align-items: center;
+  padding: 6px 14px; border-top: 1px solid var(--stroke); background: var(--bg-panel);
+  font: 11px/1.4 var(--f-mono), ui-monospace, monospace;
+  color: var(--ink-soft); font-variant-numeric: tabular-nums;
+}
+.barre > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#barreFichier { color: var(--ink); flex: none; max-width: 34ch; }
+#barreGeo { min-width: 0; }
+/* le refus se VOIT : c'est tout ce que la tâche 4 se permet comme signalement */
+#barreGeo.erreur { color: var(--red); }
+.barre-attente { margin-left: auto; color: var(--accent); flex: none; }
+
+/* ── rail droit : les onglets ─────────────────────────────────────────────── */
+.rail-right {
+  min-height: 0; overflow-y: auto;
+  padding: 12px; border-left: 1px solid var(--stroke); background: var(--bg-panel);
+}
+.onglets { display: flex; gap: 4px; }
+.onglets .on {
+  flex: 1; padding: 7px 4px; border: 1px solid var(--stroke); border-radius: var(--r-sm);
+  background: transparent; color: var(--ink-soft); font-size: 11.5px; cursor: pointer;
+}
+.onglets .on:hover { color: var(--ink-strong); }
+.onglets .on.actif {
+  border-color: var(--accent); background: var(--bg-panel-2);
+  color: var(--ink-strong); font-weight: 600;
+}
+.panneau { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.panneau .vide {
+  font-family: var(--f-mono); font-size: 10.5px; color: var(--ink-soft); line-height: 1.5;
+}
+
+/* Sous 1200px les rails mangent le canevas : on les resserre plutôt que de les
+   escamoter — la chronologie est la colonne vertébrale de la page. */
+@media (max-width: 1200px) {
+  .etabli { grid-template-columns: 210px 1fr 250px; }
+  .head-chip { max-width: 24ch; }
+}

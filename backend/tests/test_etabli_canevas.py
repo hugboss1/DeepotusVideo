@@ -202,3 +202,23 @@ def test_le_redimensionnement_compare_le_tampon_et_non_les_pixels_css():
     """
     js = _lire("lib3d/viewer.js")
     assert "getPixelRatio" in js
+
+
+# ── D. la chronologie ────────────────────────────────────────────────────────
+
+def test_la_page_lit_la_chronologie_unifiee():
+    js = _lire("etabli/etabli.js")
+    assert "/api/etabli/sources" in js
+
+
+def test_le_seuil_de_charge_est_affiche_et_configurable():
+    """La spec §4.1 : 300 000 triangles ou 80 Mo, montré, jamais caché."""
+    js = _lire("etabli/etabli.js")
+    assert "300000" in js.replace("_", "").replace(" ", "")
+    assert "80" in js
+    assert "SEUIL" in js
+
+
+def test_alt_clic_ouvre_la_comparaison():
+    js = _lire("etabli/etabli.js")
+    assert "altKey" in js
