@@ -80,3 +80,50 @@ def ecrire_glb(doc: dict, binc: bytes) -> bytes:
 def _l(doc: dict, cle: str) -> list:
     """Un tableau glTF absent et un tableau vide se traitent pareil."""
     return doc.get(cle) or []
+
+
+def rig_inventory(data: bytes) -> dict:
+    """Os, hiérarchie, skins et clips — chunk JSON seulement.
+
+    Instantané même sur un GLB de 200 Mo, et c'est le but : le panneau Rig doit
+    pouvoir annoncer l'absence de squelette sans rien télécharger.
+    """
+    doc, _ = lire_glb(data)
+    nodes = _l(doc, "nodes")
+    skins = _l(doc, "skins")
+
+    parent: dict[int, int] = {}
+    for i, n in enumerate(nodes):
+        for c in _l(n, "children"):
+            parent[c] = i
+
+    joints: list[int] = []
+    for s in skins:
+        for j in _l(s, "joints"):
+            if j not in joints:
+                joints.append(j)
+
+    os_: list[dict] = []
+    for j in joints:
+        n = nodes[j] if 0 <= j < len(nodes) else {}
+        os_.append({
+            "index": j,
+            "nom": n.get("name") or f"os_{j}",
+            "parent": parent.get(j),
+            "enfants": [c for c in _l(n, "children") if c in joints],
+        })
+
+    clips = [{"nom": a.get("name") or f"clip_{i}",
+              "canaux": len(_l(a, "channels"))}
+             for i, a in enumerate(_l(doc, "animations"))]
+
+    return {
+        "a_squelette": bool(skins),
+        "nb_os": len(joints),
+        "os": os_,
+        "skins": [{"nom": s.get("name") or f"skin_{i}",
+                   "nb_joints": len(_l(s, "joints")),
+                   "racine": s.get("skeleton")}
+                  for i, s in enumerate(skins)],
+        "clips": clips,
+    }

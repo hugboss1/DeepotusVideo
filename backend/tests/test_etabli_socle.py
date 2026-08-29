@@ -93,3 +93,32 @@ def test_des_octets_parasites_apres_la_fin_declaree_sont_ignores():
     doc2, bin2 = mesh_edit.lire_glb(parasite)
     assert doc2 == doc
     assert bin2 == binc          # et surtout : PAS écrasé par le bruit
+
+
+# ── B. inventaire de squelette ───────────────────────────────────────────────
+
+def test_un_maillage_sans_squelette_le_dit():
+    from app.services import mesh_edit
+    inv = mesh_edit.rig_inventory(_cube())
+    assert inv["a_squelette"] is False
+    assert inv["os"] == []
+    assert inv["clips"] == []
+
+
+def test_l_inventaire_lit_les_os_et_leur_hierarchie():
+    from app.services import mesh_edit
+    doc, binc = mesh_edit.lire_glb(_cube())
+    base = len(doc["nodes"])
+    doc["nodes"].append({"name": "hanche", "children": [base + 1]})
+    doc["nodes"].append({"name": "colonne"})
+    doc["skins"] = [{"name": "armature", "joints": [base, base + 1],
+                     "skeleton": base}]
+    doc["nodes"][0]["skin"] = 0
+    doc["animations"] = [{"name": "idle", "channels": [], "samplers": []}]
+    inv = mesh_edit.rig_inventory(mesh_edit.ecrire_glb(doc, binc))
+    assert inv["a_squelette"] is True
+    assert inv["nb_os"] == 2
+    assert [o["nom"] for o in inv["os"]] == ["hanche", "colonne"]
+    assert inv["os"][0]["enfants"] == [base + 1]
+    assert inv["os"][1]["parent"] == base
+    assert inv["clips"] == [{"nom": "idle", "canaux": 0}]
