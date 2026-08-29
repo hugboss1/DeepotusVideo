@@ -475,7 +475,22 @@ if _etabli.is_dir():
 _lib3d = Path(__file__).resolve().parent.parent.parent / "frontend" / "lib3d"
 if _lib3d.is_dir():
     from fastapi.staticfiles import StaticFiles as _SFL3
-    app.mount("/lib3d", _SFL3(directory=str(_lib3d)), name="lib3d")
+
+    class _Lib3dStatic(_SFL3):
+        """no-cache comme /meshy : viewer.js garde un nom stable, et il sera
+        réécrit tout au long de P2+P3 — sans cet en-tête, la fraîcheur
+        heuristique du navigateur peut servir une version périmée sans
+        revalider. Recopié plutôt que factorisé : chaque montage du dépôt
+        reste un bloc supprimable isolément."""
+        async def get_response(self, path, scope):
+            resp = await super().get_response(path, scope)
+            try:
+                resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+            except Exception:
+                pass
+            return resp
+
+    app.mount("/lib3d", _Lib3dStatic(directory=str(_lib3d)), name="lib3d")
     logger.info(f"Serving lib3d from {_lib3d}")
 
 _meshy_client = Path(__file__).resolve().parent.parent.parent / "frontend" / "meshy"

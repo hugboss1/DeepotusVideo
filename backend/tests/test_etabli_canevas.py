@@ -8,8 +8,25 @@ garde un frontend vanilla sans navigateur au banc.
 Run: .\\scripts\\run-tests.ps1 -Filter test_etabli_canevas.py
 """
 import json
+import os
 import pathlib
 import re
+import sys
+import tempfile
+
+# Configuration AVANT tout import de app.main : `settings` est figé au
+# premier import, et la section B en déclenche un. Au niveau module, donc,
+# comme dans test_etabli_socle.py — dans _client() ces lignes arriveraient
+# toujours trop tard en suite complète.
+_tmp = tempfile.mkdtemp()
+os.environ["DATABASE_URL"] = \
+    f"sqlite+aiosqlite:///{pathlib.Path(_tmp, 't.db').as_posix()}"
+os.environ.setdefault("FAL_KEY", "test-key")
+os.environ["IMAGES_FOLDER"] = str(pathlib.Path(_tmp, "images"))
+os.environ["OUTPUTS_FOLDER"] = str(pathlib.Path(_tmp, "outputs"))
+os.environ["VECTOR_FOLDER"] = str(pathlib.Path(_tmp, "vector"))
+pathlib.Path(_tmp, "images").mkdir(exist_ok=True)
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 RACINE = pathlib.Path(__file__).resolve().parent.parent.parent
 FRONT = RACINE / "frontend"
@@ -74,18 +91,11 @@ def test_la_version_et_le_poids_sont_consignes():
 # ── B. montages ──────────────────────────────────────────────────────────────
 
 def _client():
-    import os
-    import sys
-    import tempfile
-    _tmp = tempfile.mkdtemp()
-    os.environ.setdefault("FAL_KEY", "test-key")
-    os.environ["DATABASE_URL"] = \
-        f"sqlite+aiosqlite:///{pathlib.Path(_tmp, 't.db').as_posix()}"
-    os.environ["IMAGES_FOLDER"] = str(pathlib.Path(_tmp, "images"))
-    os.environ["OUTPUTS_FOLDER"] = str(pathlib.Path(_tmp, "outputs"))
-    os.environ["VECTOR_FOLDER"] = str(pathlib.Path(_tmp, "vector"))
-    pathlib.Path(_tmp, "images").mkdir(exist_ok=True)
-    sys.path.insert(0, str(RACINE / "backend"))
+    """Ne fait QUE construire le client : la configuration est posée au
+    niveau module (voir en tête), seule position où elle serve à quelque
+    chose — app.config.settings est figé au PREMIER import de app.main, et
+    une vingtaine de modules de tests/ l'importent dès la collecte.
+    """
     from fastapi.testclient import TestClient
     from app.main import app
     return TestClient(app)
@@ -98,7 +108,7 @@ def test_la_page_etabli_est_servie():
 
 
 def test_lib3d_est_servi_et_partageable():
-    """viewer.js vit hors de la page : c'est la precondition ecrite d'avance
+    """viewer.js vit hors de la page : c'est la précondition écrite d'avance
     de la convergence du Plateau (spec §12)."""
     r = _client().get("/lib3d/viewer.js")
     assert r.status_code == 200
@@ -109,8 +119,10 @@ def test_l_importmap_de_la_page_est_en_ligne_et_conforme_au_fichier():
     """Les import maps EXTERNES (<script type=importmap src=...>) ne sont
     supportées par aucun navigateur : mesure faite dans un vrai navigateur, la
     page reste inerte avec « Failed to resolve module specifier "three" ». La
-    page porte donc sa carte EN LIGNE — et ce banc interdit qu'elle dérive de
-    importmap.json, qui reste la référence du dossier vendorisé.
+    page porte donc sa carte EN LIGNE, et AVANT le premier module — posée
+    après lui, elle arriverait trop tard pour lui. Ce banc interdit en
+    outre qu'elle dérive de importmap.json, la référence du dossier
+    vendorisé.
     """
     # les commentaires sont retirés d'abord : celui de la page CITE la
     # forme fautive `<script type="importmap" src="…">`, et sans ce
@@ -125,3 +137,6 @@ def test_l_importmap_de_la_page_est_en_ligne_et_conforme_au_fichier():
         (FRONT / "dist" / "assets" / "three" / "importmap.json")
         .read_text(encoding="utf-8"))
     assert en_ligne == fichier
+    # et elle doit PRÉCÉDER le premier <script type="module"> : posée après,
+    # elle arrive trop tard, le module ayant déjà tenté sa résolution.
+    assert html.index('type="importmap"') < html.index('type="module"')
