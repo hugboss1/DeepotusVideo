@@ -113,9 +113,13 @@ export function vider(api) {
    Le cadrage est DÉLIBÉRÉMENT invariant par aspect : la position ne dépend que
    de la boîte englobante, donc une vue A cadrée en pleine largeur reste cadrée
    à l'identique une fois réduite de moitié à l'ouverture de B — c'est
-   précisément ce qui rend A et B comparables. Contrepartie mesurée : un
-   canevas plus haut que large (aspect ≈ 0,75) peut rogner d'environ 35 %
-   horizontalement ; la marge de 1,35 absorbe le cas courant. La vraie
+   précisément ce qui rend A et B comparables. Contrepartie CALCULÉE (pire cas,
+   boîte cubique) : la marge effective n'est pas 1,35 mais 1,6875, car
+   position.set() place la caméra à |(0,6 ; 0,45 ; 1)| = 1,25 fois d — ce
+   facteur 1,25, invisible à la lecture, est aujourd'hui la SEULE chose qui
+   empêche le rognage. D'où les seuils : AUCUN rognage au-dessus d'un aspect
+   ≈ 0,81 ; à 0,75 la boîte déborde de 8,4 % et 7,8 % de la largeur sort du
+   champ ; à 0,60 elle déborde de 35,5 % et 26,2 % en sort. La vraie
    correction — tenir compte de l'aspect ET re-cadrer A à l'ouverture de B —
    appartient à la tâche 5, pas ici : un terme en 1/aspect posé seul cadrerait
    A et B à deux distances différentes et casserait la comparaison. */

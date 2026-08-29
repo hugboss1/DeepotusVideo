@@ -146,8 +146,13 @@ def test_l_importmap_de_la_page_est_en_ligne_et_conforme_au_fichier():
 
 def test_le_viewer_branche_les_deux_decodeurs():
     """IMPORTER un décodeur ne le BRANCHE pas : sans setMeshoptDecoder(), le
-    module est bien téléchargé et un GLB meshopt s'affiche NOIR — le mode de
-    panne que nomme déjà la section A. On épingle donc les deux câblages, plus
+    module est bien téléchargé, mais GLTFLoader LÈVE « setMeshoptDecoder must
+    be called before loading compressed files » dès que l'extension figure
+    dans extensionsRequired (côté Draco : « No DRACOLoader instance
+    provided. »). C'est une PROMESSE REJETÉE, pas un rendu noir — le noir est
+    le mode de la section A, décodeurs ABSENTS donc 404. Ici charger() rejette
+    et le canevas reste vide, exactement ce que décrit le commentaire de
+    charger() dans viewer.js. On épingle donc les deux câblages, plus
     le chemin du décodeur Draco : VERSION.txt lui consacre une démonstration
     entière (la RACINE, pas le sous-dossier gltf/), et rien n'empêcherait
     sinon qu'il dérive vers gltf/ ou vers un CDN sans le moindre bruit.
@@ -157,7 +162,8 @@ def test_le_viewer_branche_les_deux_decodeurs():
     assert "DRACOLoader" in js
     assert "setDRACOLoader" in js
     assert "setMeshoptDecoder" in js
-    assert '/assets/three/addons/libs/draco/"' in js
+    assert "/assets/three/addons/libs/draco/" in js   # la racine vendorisée
+    assert "libs/draco/gltf/" not in js               # et PAS le sous-dossier
 
 
 def test_le_viewer_cadre_sur_la_boite_englobante():
