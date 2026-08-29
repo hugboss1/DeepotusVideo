@@ -1061,6 +1061,57 @@ def test_extraire_suit_une_texture_reference_par_une_extension_materiau():
     assert len(sortie["images"]) == 1        # la texture a suivi la pièce
 
 
+def test_extraire_ne_confond_pas_extras_avec_une_texture():
+    """`extras` est de la donnée LIBRE : la spec glTF n'y met aucune
+    structure. Un outil tiers peut y poser une clé finissant par « Texture »
+    portant un `index` qui ne désigne rien — mesuré : IndexError au
+    remappage, un plantage au lieu d'un refus parlant."""
+    from app.services import mesh_edit, print3d
+    doc, binc = mesh_edit.lire_glb(_cube())
+    doc["materials"][0]["extras"] = {
+        "monOutilTexture": {"index": 7, "note": "métadonnée libre"}}
+    source = mesh_edit.ecrire_glb(doc, binc)
+    piece = mesh_edit.extraire(source, [0])
+    assert len(print3d.lire_glb_triangles(piece)) == 12
+    sortie, _ = mesh_edit.lire_glb(piece)
+    # l'extra est recopié tel quel, sans avoir été pris pour une structure
+    assert sortie["materials"][0]["extras"]["monOutilTexture"]["index"] == 7
+
+
+def test_extraire_normalise_un_quaternion_derive_d_un_ancetre():
+    """`_mat_locale` normalise un quaternion non unitaire lu d'un fichier.
+
+    Conséquence MESURÉE et assumée : sur un fichier déjà invalide au sens
+    glTF, la pièce extraite ne coïncide plus avec ce que `print3d` lit de la
+    scène source — le lecteur applique le quaternion brut, donc un
+    cisaillement. On restitue la rotation manifestement voulue plutôt que la
+    déformation, et ce banc épingle ce choix : sans lui, une régression
+    réintroduirait le cisaillement sans que rien ne le voie avant Blender.
+    """
+    from app.services import mesh_edit, print3d
+
+    def scene(q):
+        doc, binc = mesh_edit.lire_glb(_cube())
+        doc["nodes"][0]["translation"] = [0.0, 3.0, 0.0]
+        doc["nodes"].append({"name": "ancetre", "children": [0], "rotation": q})
+        doc["scenes"][0]["nodes"] = [1]
+        return mesh_edit.ecrire_glb(doc, binc)
+
+    r2 = (2 ** 0.5) / 2
+    unitaire = scene([r2, 0.0, 0.0, r2])          # 90° autour de X
+    derive = scene([r2 * 1.2, 0.0, 0.0, r2 * 1.2])   # même rotation, norme 1,2
+
+    # la SOURCE dérivée est bel et bien cisaillée quand on la lit brute
+    bb_source = print3d.bbox(print3d.lire_glb_triangles(derive))
+    assert bb_source[1][0] < -3.0                 # mesuré : -3.2
+
+    # les deux PIÈCES extraites, elles, sont identiques
+    a = print3d.bbox(print3d.lire_glb_triangles(mesh_edit.extraire(unitaire, [0])))
+    b = print3d.bbox(print3d.lire_glb_triangles(mesh_edit.extraire(derive, [0])))
+    for (lo, hi), (alo, ahi) in zip(a, b):
+        assert abs(lo - alo) < 1e-9 and abs(hi - ahi) < 1e-9
+
+
 def test_extraire_refuse_meshopt_au_lieu_de_recopier_de_travers():
     """meshopt place ses octets hors des champs de premier niveau : les
     recopier en aveugle donnerait un fichier faux EN SILENCE. Le refus dit
@@ -1155,6 +1206,13 @@ def _renvois_de_texture(materiau: dict) -> list[dict]:
         cur = pile.pop()
         if isinstance(cur, dict):
             for cle, val in cur.items():
+                if cle == "extras":
+                    # `extras` est de la donnée LIBRE d'application : la spec
+                    # glTF n'y met aucune structure. Un outil tiers peut y
+                    # poser une clé finissant par « Texture » avec un `index`
+                    # qui ne désigne aucune texture — mesuré : IndexError au
+                    # remappage. On ne descend donc jamais dedans.
+                    continue
                 if (isinstance(cle, str) and cle.endswith("Texture")
                         and isinstance(val, dict)
                         and val.get("index") is not None):
@@ -1306,6 +1364,14 @@ def _mat_locale(node: dict) -> list:
     # rendrait inexploitable un GLB tiers un peu dérivé, alors on normalise —
     # et on le dit, pour que l'asymétrie avec `transformer` soit un choix lu
     # et non une incohérence.
+    #
+    # CONSÉQUENCE MESURÉE, à connaître : sur un fichier déjà invalide au sens
+    # glTF, la pièce extraite ne coïncide plus avec ce que
+    # `print3d.lire_glb_triangles` lit de la scène source — le lecteur
+    # applique le quaternion brut, donc le cisaillement. Avec une norme de
+    # 1,2 : source ((-1,1), (-3.2, 0.56), (2.44, 6.2)), pièce extraite
+    # identique au cas unitaire. On restitue la rotation manifestement voulue
+    # plutôt que la déformation ; c'est un choix, pas un hasard.
     norme = (x * x + y * y + z * z + w * w) ** 0.5
     if norme and abs(norme - 1.0) > 1e-6:
         x, y, z, w = x / norme, y / norme, z / norme, w / norme
@@ -1565,6 +1631,11 @@ def extraire(data: bytes, noeuds) -> bytes:
         gardees = [e for e in (doc.get(cle) or []) if e in presentes]
         if gardees:
             out[cle] = gardees
+    # DETTE ASSUMÉE : le sous-objet racine `doc["extensions"]` n'est PAS
+    # recopié. Un nœud portant `KHR_lights_punctual.light` sortirait donc avec
+    # un index qui ne se résout plus. Les générateurs de ce pipeline (Meshy,
+    # Tripo, Rodin) ne posent pas de lumières de scène ; si P4-P5 en amène,
+    # c'est ici qu'il faudra regarder — ne pas supposer que c'est déjà couvert.
     return ecrire_glb(out, bytes(neuf))
 ```
 
@@ -1574,7 +1645,7 @@ def extraire(data: bytes, noeuds) -> bytes:
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 36 tests PASS.
+Attendu : 38 tests PASS.
 
 - [ ] **Step 6 : commit**
 
@@ -1661,7 +1732,7 @@ def ecrire_version(job: str, data: bytes, *, operation: str,
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 37 tests PASS.
+Attendu : 39 tests PASS.
 
 - [ ] **Step 5 : écrire le banc de l'adoption (spec §6.2)**
 
@@ -1742,7 +1813,7 @@ def adopter_meshy(task_id: str, fichier: str = "model.glb") -> str:
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 39 tests PASS.
+Attendu : 41 tests PASS.
 
 - [ ] **Step 8 : commit**
 
@@ -1931,7 +2002,7 @@ def lister() -> list[dict]:
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 41 tests PASS.
+Attendu : 43 tests PASS.
 
 - [ ] **Step 5 : commit**
 
@@ -2114,7 +2185,7 @@ async def etabli_reparer(body: dict):
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 45 tests PASS.
+Attendu : 47 tests PASS.
 
 - [ ] **Step 5 : vérifier qu'on n'a rien cassé ailleurs**
 
