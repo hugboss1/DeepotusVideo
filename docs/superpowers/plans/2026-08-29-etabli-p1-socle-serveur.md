@@ -164,6 +164,24 @@ def test_un_fichier_qui_n_est_pas_un_glb_est_refuse_parlant():
     from app.services import mesh_edit
     with pytest.raises(ValueError, match="magic GLB"):
         mesh_edit.lire_glb(b"ceci n'est pas un GLB")
+
+
+def test_des_octets_parasites_apres_la_fin_declaree_sont_ignores():
+    """Le conteneur GLB déclare sa longueur à l'octet 8, et cette longueur
+    FAIT AUTORITÉ — `print3d._chunks` la respecte déjà.
+
+    Sans cette borne, des octets traînant après la fin (téléchargement
+    rejoué, artefact d'un générateur tiers) seraient lus comme des chunks.
+    Ici la queue imite un chunk BIN vide : sans borne, le tampon déjà lu
+    serait écrasé EN SILENCE, sans la moindre exception."""
+    from app.services import mesh_edit
+    data = _cube()
+    doc, binc = mesh_edit.lire_glb(data)
+    assert binc, "le cube doit avoir un tampon binaire"
+    parasite = data + struct.pack("<I", 0) + b"BIN\x00"
+    doc2, bin2 = mesh_edit.lire_glb(parasite)
+    assert doc2 == doc
+    assert bin2 == binc          # et surtout : PAS écrasé par le bruit
 ```
 
 - [ ] **Step 2 : lancer le banc et vérifier qu'il échoue**
@@ -173,7 +191,7 @@ def test_un_fichier_qui_n_est_pas_un_glb_est_refuse_parlant():
 ```
 
 Attendu : `ModuleNotFoundError: No module named 'app.services.mesh_edit'` sur
-les trois tests.
+les quatre tests.
 
 - [ ] **Step 3 : écrire le module minimal**
 
@@ -188,7 +206,8 @@ navigateur voit et manipule, Python écrit. Aucun GLB n'est jamais produit par
 le client, de sorte que tout artefact reste versionné, fiché par mesh_report,
 et vérifiable par le harnais.
 
-Deux propriétés portent la sûreté du module, et les bancs les épinglent :
+Deux propriétés porteront la sûreté du module, et les bancs des tâches 4 et 5
+de ce plan les épingleront (elles n'existent pas encore à la tâche 1) :
 
 * `extraire` est une RECOPIE D'OCTETS, jamais un décodage de géométrie — les
   bufferViews retenus sont copiés tels quels. L'extraction fonctionne donc sur
@@ -217,13 +236,19 @@ def lire_glb(data: bytes) -> tuple[dict, bytes]:
     """
     if len(data) < 12 or data[:4] != _MAGIC:
         raise ValueError("magic GLB absent — ce fichier n'est pas un .glb")
-    version = struct.unpack_from("<I", data, 4)[0]
+    version, longueur = struct.unpack_from("<II", data, 4)
     if version != 2:
         raise ValueError(f"GLB v{version} non géré (v2 attendu)")
     doc: dict | None = None
     binc = b""
     off = 12
-    while off + 8 <= len(data):
+    # Borner par la longueur DÉCLARÉE dans l'en-tête, comme le fait déjà
+    # `print3d._chunks`. Sans cette borne, des octets parasites après la fin
+    # du conteneur (téléchargement rejoué, artefact d'un générateur tiers)
+    # seraient lus comme des chunks : si les quatre suivants ressemblent à
+    # `BIN\0`, le tampon déjà lu serait écrasé EN SILENCE. Un GLB de 200 Mo
+    # venu de Meshy ou Tripo mérite mieux qu'une corruption muette.
+    while off + 8 <= min(longueur, len(data)):
         clen, ctype = struct.unpack_from("<II", data, off)
         off += 8
         bloc = data[off:off + clen]
@@ -263,7 +288,7 @@ def _l(doc: dict, cle: str) -> list:
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 3 tests PASS.
+Attendu : 4 tests PASS.
 
 - [ ] **Step 5 : commit**
 
@@ -383,7 +408,7 @@ def rig_inventory(data: bytes) -> dict:
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 5 tests PASS.
+Attendu : 6 tests PASS.
 
 - [ ] **Step 5 : commit**
 
@@ -483,7 +508,7 @@ def transformer(data: bytes, transforms: dict) -> bytes:
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 9 tests PASS.
+Attendu : 10 tests PASS.
 
 - [ ] **Step 5 : commit**
 
@@ -624,7 +649,7 @@ def reparer(data: bytes, *, axe_haut: str | None = None,
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 13 tests PASS.
+Attendu : 14 tests PASS.
 
 - [ ] **Step 5 : commit**
 
@@ -964,7 +989,7 @@ def extraire(data: bytes, noeuds) -> bytes:
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 19 tests PASS.
+Attendu : 20 tests PASS.
 
 - [ ] **Step 6 : commit**
 
@@ -1051,7 +1076,7 @@ def ecrire_version(job: str, data: bytes, *, operation: str,
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 20 tests PASS.
+Attendu : 21 tests PASS.
 
 - [ ] **Step 5 : écrire le banc de l'adoption (spec §6.2)**
 
@@ -1132,7 +1157,7 @@ def adopter_meshy(task_id: str, fichier: str = "model.glb") -> str:
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 22 tests PASS.
+Attendu : 23 tests PASS.
 
 - [ ] **Step 8 : commit**
 
@@ -1321,7 +1346,7 @@ def lister() -> list[dict]:
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 24 tests PASS.
+Attendu : 25 tests PASS.
 
 - [ ] **Step 5 : commit**
 
@@ -1504,7 +1529,7 @@ async def etabli_reparer(body: dict):
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 28 tests PASS.
+Attendu : 29 tests PASS.
 
 - [ ] **Step 5 : vérifier qu'on n'a rien cassé ailleurs**
 
