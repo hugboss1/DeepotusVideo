@@ -350,6 +350,32 @@ def test_extraire_refuse_une_selection_vide():
         mesh_edit.extraire(_cube_et_sol(), [])
 
 
+def test_extraire_un_parent_et_son_enfant_ne_double_pas_la_geometrie():
+    """Cocher un parent PUIS son enfant est un geste naturel du panneau
+    Parties. Les lister tous deux comme racines de scène dessinerait l'enfant
+    deux fois — mesuré : 16 triangles au lieu de 14."""
+    from app.services import mesh_edit, print3d
+    doc, binc = mesh_edit.lire_glb(_cube_et_sol())
+    doc["nodes"][0]["children"] = [1]          # le sol devient enfant du cube
+    doc["scenes"][0]["nodes"] = [0]
+    tout = mesh_edit.ecrire_glb(doc, binc)
+    assert len(print3d.lire_glb_triangles(tout)) == 14
+
+    chevauche = mesh_edit.extraire(tout, [0, 1])
+    assert len(print3d.lire_glb_triangles(chevauche)) == 14
+    sortie, _ = mesh_edit.lire_glb(chevauche)
+    assert sortie["scenes"][0]["nodes"] == [0]   # l'enfant n'est PAS une racine
+
+
+def test_extraire_deux_noeuds_disjoints_garde_deux_racines():
+    """Le contre-cas : sans lien de parenté, les deux restent des racines."""
+    from app.services import mesh_edit, print3d
+    deux = mesh_edit.extraire(_cube_et_sol(), [0, 1])
+    assert len(print3d.lire_glb_triangles(deux)) == 14
+    sortie, _ = mesh_edit.lire_glb(deux)
+    assert sortie["scenes"][0]["nodes"] == [0, 1]
+
+
 def test_extraire_apres_reparer_ne_perd_pas_la_correction():
     """LE piège que la revue de la tâche 4 a repéré.
 

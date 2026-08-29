@@ -585,14 +585,38 @@ def extraire(data: bytes, noeuds) -> bytes:
         n.pop("camera", None)
         out["nodes"].append(n)
 
-    # Chaque racine extraite absorbe la transformation de ses ANCÊTRES restés
-    # hors sélection. Sans cela, découper un nœud placé sous le nœud
+    # Une sélection peut contenir un nœud ET l'un de ses descendants — cocher
+    # un parent puis son enfant dans le panneau Parties est un geste naturel.
+    # Les lister tous deux comme racines de scène DOUBLERAIT l'enfant : il
+    # serait dessiné une fois par la racine, une fois par son parent. Mesuré :
+    # 16 triangles au lieu de 14. Seuls les nœuds demandés qui n'ont aucun
+    # ANCÊTRE lui-même demandé sont donc des racines ; les autres restent
+    # atteignables par leur parent.
+    demandes = [i for i in sorted({int(x) for x in noeuds}) if i in m_node]
+    demandes_set = set(demandes)
+    parent_de: dict[int, int] = {}
+    for i, n in enumerate(nodes):
+        for c in _l(n, "children"):
+            parent_de[c] = i
+
+    def _sous_une_autre_demande(i: int) -> bool:
+        vus: set[int] = set()
+        cur = parent_de.get(i)
+        while cur is not None and cur not in vus:
+            if cur in demandes_set:
+                return True
+            vus.add(cur)
+            cur = parent_de.get(cur)
+        return False
+
+    vraies_racines = [i for i in demandes if not _sous_une_autre_demande(i)]
+
+    # Chaque VRAIE racine absorbe la transformation de ses ancêtres restés hors
+    # sélection. Sans cela, découper un nœud placé sous le nœud
     # `etabli_correction` de `reparer` ferait perdre la correction EN SILENCE :
     # mesuré — la pièce ressortait en ((-1,1), (2,4), (-1,1)), c'est-à-dire
     # couchée, au lieu du monde redressé ((-1,1), (-1,1), (2,4)).
-    for i in sorted({int(x) for x in noeuds}):
-        if i not in m_node:
-            continue
+    for i in vraies_racines:
         a = _monde_des_ancetres(doc, i)
         if a == _IDENTITE:
             continue                    # déjà une racine : rien à absorber
@@ -602,9 +626,7 @@ def extraire(data: bytes, noeuds) -> bytes:
             n.pop(cle, None)
         n["matrix"] = _mat_mul(a, locale)
 
-    racines = [m_node[i] for i in sorted({int(x) for x in noeuds})
-               if i in m_node]
-    out["scenes"] = [{"nodes": racines}]
+    out["scenes"] = [{"nodes": [m_node[i] for i in vraies_racines]}]
     out["scene"] = 0
     for cle in ("extensionsUsed", "extensionsRequired"):
         if doc.get(cle):
