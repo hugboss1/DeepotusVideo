@@ -276,12 +276,25 @@ Ces quatre cibles ne sont pas des cibles réseau : ce sont des formats et des
 conventions d'import. L'export écrit donc le bon format, avec le bon axe haut et
 la bonne échelle, et une fiche d'import courte.
 
-| Cible | Écrit localement | Axe / échelle appliqués | Comment ça entre |
+| Cible | Écrit localement | Axe / échelle écrits | Ce que fait l'importeur |
 |---|---|---|---|
-| **Blender 4** | GLB | Y-up, mètres | import natif |
-| **Godot 4** | GLB | Y-up, mètres | natif, déposé dans `res://` |
-| **Unreal 5** | GLB | Z-up, ×100 (cm) | Interchange importe glTF nativement |
+| **Blender 4** | GLB | Y-up, mètres (standard glTF) | convertit lui-même en Z-up (option « +Y up », active par défaut) |
+| **Godot 4** | GLB | Y-up, mètres | Godot est Y-up : rien à convertir |
+| **Unreal 5** | GLB | Y-up, mètres | Interchange convertit en Z-up et met à l'échelle centimètre |
 | **Unity 6** | GLB + note | Y-up, 1 u = 1 m | **greffon requis** — glTFast, gratuit et standard |
+
+> **Correction assumée sur une première rédaction de cette table.** Elle
+> annonçait un axe Z et un facteur ×100 pré-cuits pour Unreal. C'est une
+> erreur : ces importeurs convertissent **déjà** depuis le glTF standard, et
+> pré-cuire la conversion produirait un modèle tourné deux fois et cent fois
+> trop grand. Le défaut correct est donc le **glTF standard pour les quatre**,
+> et ce que l'export apporte n'est pas une rotation mais le bon format, une
+> échelle déclarée en mètres, la fiche d'import qui dit ce que le moteur va
+> faire, et le chemin de dépôt.
+>
+> Les surcharges `axe_haut` et `echelle` restent offertes — elles servent aux
+> pipelines qui désactivent la conversion à l'import — mais elles sont un
+> choix explicite, jamais le défaut.
 
 ### 8.1 La vérité sur le FBX
 
