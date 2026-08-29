@@ -43,6 +43,7 @@ scène qui traverse les trois états :
 |---|---|---|:--:|
 | **Proxy primitif** | `gltf_builder.build_mesh("cube"/"sphere"/"cylinder")`, mis à l'échelle des dimensions déclarées de l'entité | 0 $ | avant toute génération 3D |
 | **Maillage allégé** | le GLB du job `assets3d`, décimé par `mesh_optimize` (preset `prop`, 2 500 tris) | 0 $ (gltfpack local) | dès qu'un maillage existe |
+| **Maillage texturé** | la version Meshy du job (chaîne Tripo → Meshy) | 0 $ | après texturage, pour juger la matière dans le cadre |
 | **Maillage plein** | le GLB tel quel | 0 $ | contrôle final, si la machine suit |
 
 C'est exactement ce que la demande appelle « versions simplifiées » — et le

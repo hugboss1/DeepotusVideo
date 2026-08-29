@@ -656,17 +656,18 @@ async def refine_asset3d_route(job: str, background_tasks: BackgroundTasks,
                  "être rejoué à l'identique. Relance une génération complète.")
 
     # Verrou : sans lui, deux clics rapides lancent DEUX passes HD facturées.
+    # Il couvre AUSSI le texturage Meshy, qui écrit dans le même registre de
+    # versions — deux finitions concurrentes se disputeraient next_version().
     from app.services.storage import JobRecord as _JR, async_session_factory as _sf
-    from sqlalchemy import select as _sel
     async with _sf() as s:
         res = await s.execute(
-            _sel(_JR).where(_JR.provider == "asset3d",
-                            _JR.image_filename == f"asset3d_{Path(job).name}",
-                            _JR.status.notin_(["done", "failed"])))
+            _select(_JR).where(_JR.provider == "asset3d",
+                               _JR.image_filename == f"asset3d_{Path(job).name}",
+                               _JR.status.notin_(["done", "failed"])))
         if res.scalars().first() is not None:
             raise HTTPException(
-                409, "Un raffinement de ce maillage est déjà en cours — "
-                     "attends qu'il finisse (file des rendus).")
+                409, "Une passe de finition de ce maillage est déjà en cours — "
+                     "attends qu'elle finisse (file des rendus).")
 
     job_id = str(uuid4())
     async with async_session_factory() as s:
@@ -712,6 +713,122 @@ async def refine_asset3d_route(job: str, background_tasks: BackgroundTasks,
 
     background_tasks.add_task(_run)
     return {"job_id": job_id, "status": "queued", "source_job": Path(job).name}
+
+
+@router.post("/assets/3d/{job}/texturer")
+async def texturer_asset3d_route(job: str, background_tasks: BackgroundTasks,
+                                 body: dict = None):
+    """Texture chez MESHY un maillage déjà généré — la seconde moitié de la
+    chaîne Tripo → Meshy (Tripo reconstruit le volume depuis 4 vues, Meshy
+    l'habille).
+
+    Body: {resolution?="2k"|"4k"|"8k", pbr?=true, ai_model?="meshy-7",
+    style_prompt?, garder_uv?=false}. Les MÊMES vues qui ont servi à la
+    géométrie servent de référence de style ; `style_prompt` n'est requis que
+    si le job n'a plus aucune vue sur le disque.
+
+    MÊME PORTE que /refine : refusé tant que la géométrie n'est pas approuvée.
+    Écrit model.v{n}.glb — jamais un écrasement. Rend un job_id à poller."""
+    from datetime import datetime as _dtu
+    import json as _json
+    from app.services import asset3d_service as A3
+    from app.services import meshy_service as MS
+    from app.services.storage import JobRecord, async_session_factory
+
+    body = body or {}
+    resolution = str(body.get("resolution") or "2k")
+    if resolution not in ("2k", "4k", "8k"):
+        raise HTTPException(400, "resolution doit être 2k, 4k ou 8k.")
+    if not MS.mock_enabled() and not settings.MESHY_API_KEY.strip():
+        raise HTTPException(
+            400, "MESHY_API_KEY absente — ajoute-la dans les Réglages : le "
+                 "texturage passe par ton compte Meshy, pas par fal.")
+
+    # tout ce qui peut refuser refuse AVANT d'ouvrir un job payant
+    try:
+        man = A3.read_manifest(job)
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+    if not A3.approval(job).get("approved"):
+        raise HTTPException(
+            409, "Géométrie non approuvée : valide le volume "
+                 "(POST .../approve) avant de payer un texturage.")
+    if str(man.get("texturier") or "") == "meshy" \
+            and str(man.get("texture_mode") or "") == f"meshy:{resolution}":
+        raise HTTPException(
+            409, f"Ce maillage est déjà texturé par Meshy en {resolution} — "
+                 "repayer la même passe ne changerait rien.")
+    _d3 = settings.outputs_path / "assets3d" / Path(job).name
+    a_des_vues = any((_d3 / s).is_file() for s in (man.get("shots") or []))
+    if not a_des_vues and not str(body.get("style_prompt") or "").strip():
+        raise HTTPException(
+            400, "Aucune vue conservée sur le disque : donne un `style_prompt` "
+                 "ou relance une génération complète.")
+    async with async_session_factory() as s:
+        res = await s.execute(
+            _select(JobRecord).where(
+                JobRecord.provider == "asset3d",
+                JobRecord.image_filename == f"asset3d_{Path(job).name}",
+                JobRecord.status.notin_(["done", "failed"])))
+        if res.scalars().first() is not None:
+            raise HTTPException(
+                409, "Une passe de finition de ce maillage est déjà en cours — "
+                     "attends qu'elle finisse (file des rendus).")
+
+    from app.services import pricing as _pricing
+    devis = _pricing.estimate({"kind": "asset3d_texture",
+                               "texture_resolution": resolution,
+                               "pbr": bool(body.get("pbr", True))})
+    job_id = str(uuid4())
+    async with async_session_factory() as s:
+        s.add(JobRecord(
+            id=job_id, status=JobStatus.GENERATING_VIDEO.value, progress=10,
+            title=f"3D · texturage Meshy {resolution}",
+            image_filename=f"asset3d_{Path(job).name}",
+            provider="asset3d", current_step="Texturage Meshy"))
+        await s.commit()
+
+    async def on_step(label, pct):
+        async with async_session_factory() as s2:
+            jr2 = await s2.get(JobRecord, job_id)
+            if jr2 is not None:
+                jr2.current_step, jr2.progress = label, int(pct)
+                await s2.commit()
+
+    async def _run():
+        try:
+            r = await A3.texturer_asset3d(
+                job, resolution=resolution, pbr=bool(body.get("pbr", True)),
+                ai_model=str(body.get("ai_model") or "meshy-7"),
+                style_prompt=body.get("style_prompt"),
+                garder_uv=bool(body.get("garder_uv")), on_step=on_step)
+            async with async_session_factory() as s:
+                jr = await s.get(JobRecord, job_id)
+                if jr is not None:
+                    jr.status, jr.progress = JobStatus.DONE.value, 100
+                    jr.final_video_path = str(
+                        settings.outputs_path / "assets3d"
+                        / Path(job).name / r["file"])
+                    jr.current_step = "Complete"
+                    jr.completed_at = _dtu.utcnow()
+                    jr.cost_meta = _json.dumps(
+                        {"job": Path(job).name, "texturier": "meshy",
+                         "meshy_task": r["meshy_task"], "version": r["version"],
+                         "texture_mode": r["texture_mode"]})
+                    await s.commit()
+        except Exception as e:
+            logger.exception(f"asset3d texturer {job_id} failed: {e}")
+            async with async_session_factory() as s:
+                jr = await s.get(JobRecord, job_id)
+                if jr is not None:
+                    jr.status, jr.error = JobStatus.FAILED.value, str(e)
+                    jr.current_step = "Failed"
+                    await s.commit()
+
+    background_tasks.add_task(_run)
+    return {"job_id": job_id, "status": "queued", "source_job": Path(job).name,
+            "texturier": "meshy", "resolution": resolution,
+            "credits": devis.get("credits"), "usd_estime": devis["total_usd"]}
 
 
 @router.post("/assets/3d/{job}/qc")

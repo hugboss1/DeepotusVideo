@@ -1400,3 +1400,232 @@ def test_generation_h31_une_seule_vue_tape_lendpoint_simple():
     assert moteur[0]["arguments"]["image_url"] == "http://fal.test/up.png"
     assert moteur[0]["arguments"]["texture"] is False
     assert A3.read_manifest(j)["stage"] == "draft"
+
+
+# ══ K. la chaîne Tripo → Meshy (29/08) ══════════════════════════════════════
+#
+# Décision utilisateur : Tripo reconstruit le VOLUME depuis 4 vues, Meshy fait
+# la TEXTURE. Tout tourne hors ligne — MESHY_MOCK sert les tâches et les
+# fichiers, fal est stubbé.
+
+def _mock_meshy(monkeypatch, vitesse=0.02):
+    from app.config import settings as _s
+    from app.services import meshy_service as MS
+    monkeypatch.setattr(_s, "MESHY_MOCK", True, raising=False)
+    monkeypatch.setattr(_s, "MESHY_MOCK_SPEED", vitesse, raising=False)
+    monkeypatch.setattr(_s, "MESHY_API_KEY", "test-meshy", raising=False)
+    MS._mock = None                       # relire la vitesse
+    return MS
+
+
+def _job_texturable(nom, monkeypatch):
+    """Un job Tripo H3.1 en géométrie nue, ses 4 vues, sa fiche, APPROUVÉ."""
+    j = _job(nom)
+    d = MR.job_dir(j)
+    shots = ["shot_0.png"]
+    for i in range(1, 5):
+        (d / f"shot_{i}.png").write_bytes(_png(64, 64, (250, 250, 250),
+                                               carre=(16, 16, 47, 47)))
+        shots.append(f"shot_{i}.png")
+    A3.write_manifest(d, {"engine": "tripo-h3.1", "stage": "draft",
+                          "texture_mode": "no", "version": 1, "shots": shots})
+    MR.write_report(j, "model.glb", version=1, avec_silhouettes=False,
+                    extra={"engine": "tripo-h3.1", "texture_mode": "no"})
+    A3.approve(j, True, "volume ok")
+    return j, d
+
+
+def test_le_besoin_hero_decrit_la_chaine_tripo_puis_meshy():
+    h = A3.recommend_engine("hero")
+    assert h["engine"] == "tripo-h3.1"
+    # Tripo ne paie PAS la texture : elle part chez Meshy
+    assert h["opts"]["textures"] is False
+    assert h["opts"]["multiview"] is True and h["opts"]["views"] == 4
+    suite = h["apres_generation"]
+    assert "meshy" in suite["quoi"].lower()
+    assert suite["route"] == "POST /api/assets/3d/{job}/texturer"
+    # le devis : le maillage au palier « sans texture », ET les 4 vues
+    # Seedream qui le nourrissent — les taire ferait mentir la pastille.
+    from app.services.pricing import estimate
+    dev = estimate({"kind": "asset3d", "engine": h["engine"], **h["opts"]})
+    maillage = [l for l in dev["breakdown"] if "3D mesh" in l["label"]][0]
+    assert maillage["usd"] == 0.20
+    vues = [l for l in dev["breakdown"] if "Multi-view" in l["label"]][0]
+    assert vues["units"] == 4
+    assert dev["total_usd"] == round(0.20 + 4 * 0.03, 4)
+    # à comparer aux 0,40 $ que coûterait la texture HD de Tripo seule
+    assert estimate({"kind": "asset3d", "engine": h["engine"],
+                     "textures": True, "quality": "hd",
+                     "multiview": False})["total_usd"] == 0.40
+
+
+def test_le_devis_du_texturage_est_en_credits_meshy():
+    from app.services.pricing import estimate
+    from app.services import meshy_service as MS
+    d2 = estimate({"kind": "asset3d_texture", "texture_resolution": "2k"})
+    assert d2["credits"] == {"meshy": MS.credits_retexture("2k")}
+    assert d2["breakdown"][0]["provider"] == "meshy"
+    assert d2["breakdown"][0]["unit"] == "credits"
+    # 8k coûte plus cher, et la grille PARTAGÉE en est la seule source
+    d8 = estimate({"kind": "asset3d_texture", "texture_resolution": "8k"})
+    assert d8["credits"]["meshy"] == MS.credits_retexture("8k") > d2["credits"]["meshy"]
+    # aucune ligne fal : ce n'est pas fal qui facture
+    assert all(l["provider"] == "meshy" for l in d8["breakdown"])
+
+
+def test_le_texturage_refuse_avant_approbation_de_la_geometrie():
+    import asyncio
+    j = _job("tex_porte")
+    A3.write_manifest(MR.job_dir(j), {"engine": "tripo-h3.1", "stage": "draft",
+                                      "texture_mode": "no", "version": 1,
+                                      "shots": ["shot_0.png"]})
+    raz_calls()
+    with pytest.raises(PermissionError) as ei:
+        asyncio.run(A3.texturer_asset3d(j))
+    assert "approuv" in str(ei.value).lower()
+    assert not CALLS, "rien ne doit être téléversé avant la porte"
+
+
+def test_le_texturage_exige_une_reference_de_style():
+    import asyncio
+    j = _job("tex_sans_vue", avec_ref=False)
+    A3.write_manifest(MR.job_dir(j), {"engine": "tripo-h3.1", "stage": "draft",
+                                      "texture_mode": "no", "version": 1,
+                                      "shots": []})
+    A3.approve(j)
+    raz_calls()
+    with pytest.raises(ValueError) as ei:
+        asyncio.run(A3.texturer_asset3d(j))
+    assert "style" in str(ei.value).lower()
+    assert not CALLS
+
+
+def test_la_chaine_complete_tourne_hors_ligne(monkeypatch):
+    """Tripo (volume) → approbation → Meshy (texture) → nouvelle version.
+    On vérifie ce qui PART chez Meshy, pas seulement que ça revient."""
+    import asyncio
+    MS = _mock_meshy(monkeypatch)
+    j, d = _job_texturable("chaine01", monkeypatch)
+    raz_calls()
+
+    r = asyncio.run(A3.texturer_asset3d(j, resolution="4k", pbr=True))
+
+    # 1. le maillage est arrivé en NOUVELLE version, l'ancienne est intacte
+    assert r["version"] == 2 and r["file"] == "model.v2.glb"
+    assert (d / "model.v2.glb").is_file() and (d / "model.glb").is_file()
+    assert r["texture_mode"] == "meshy:4k"
+
+    # 2. le payload Meshy : maillage EXTERNE + les vues en style
+    t = MS.get_mock().tasks[r["meshy_task"]]
+    assert t["base"] == "openapi/v1/retexture"
+    p = t["payload"]
+    assert p["model_url"] == "http://fal.test/up.png"    # le GLB téléversé
+    assert len(p["multiview_image_urls"]) == 4           # les 4 vues générées
+    assert p["texture_resolution"] == "4k" and p["enable_pbr"] is True
+    assert p["enable_original_uv"] is False              # Tripo nu = pas d'UV
+    assert p["target_formats"] == ["glb"]
+    assert "text_style_prompt" not in p                  # les images priment
+
+    # 3. cinq téléversements : le maillage + les 4 vues, rien de plus
+    assert len([c for c in CALLS if c["kind"] == "upload"]) == 5
+
+    # 4. le manifeste et le registre disent QUI a texturé
+    man = A3.read_manifest(j)
+    assert man["texturier"] == "meshy" and man["meshy_task"] == r["meshy_task"]
+    assert man["engine"] == "tripo-h3.1"      # le moteur de géométrie survit
+    assert man["stage"] == "final" and man["refined_from"] == 1
+    reg = MR.read_registry(j)
+    assert reg["current_version"] == 2 and reg["current"] == "model.v2.glb"
+    v2 = [e for e in reg["entries"] if e["version"] == 2][0]
+    assert v2["source"]["texturier"] == "meshy"
+    assert v2["source"]["engine"] == "tripo-h3.1"
+    # la v1 garde SA provenance : la géométrie nue, pas la texture
+    v1 = [e for e in reg["entries"] if e["version"] == 1][0]
+    assert v1["source"]["texture_mode"] != "meshy:4k"
+
+
+def test_le_texturage_prend_le_maillage_COURANT_pas_le_brouillon(monkeypatch):
+    import asyncio
+    MS = _mock_meshy(monkeypatch)
+    j, d = _job_texturable("chaine02", monkeypatch)
+    # une v2 existe déjà (raffinement Tripo) et devient la courante
+    (d / "model.v2.glb").write_bytes(_glb_texture())
+    MR.write_report(j, "model.v2.glb", version=2, avec_silhouettes=False)
+    assert A3._glb_courant(j) == "model.v2.glb"
+
+    r = asyncio.run(A3.texturer_asset3d(j))
+    assert r["version"] == 3                  # jamais un écrasement
+    assert (d / "model.v3.glb").is_file()
+    assert MR.read_registry(j)["current_version"] == 3
+
+
+def test_route_texturer_annonce_le_cout_et_ferme_ses_portes(monkeypatch):
+    import asyncio
+    import httpx
+    from httpx import ASGITransport
+    from app.main import app
+    from app.services.storage import init_db
+    MS = _mock_meshy(monkeypatch)
+
+    async def scenario():
+        await init_db()
+        raz_calls()
+        j, d = _job_texturable("route_tex", monkeypatch)
+        async with httpx.AsyncClient(transport=ASGITransport(app=app),
+                                     base_url="http://t") as c:
+            # résolution invalide : refus franc
+            r = await c.post(f"/api/assets/3d/{j}/texturer",
+                             json={"resolution": "16k"})
+            assert r.status_code == 400 and "2k" in r.text
+
+            # job inconnu : 404, pas 500
+            assert (await c.post("/api/assets/3d/pas_la/texturer")
+                    ).status_code == 404
+
+            # le corps est OPTIONNEL (tous les champs ont un défaut)
+            r = await c.post(f"/api/assets/3d/{j}/texturer")
+            assert r.status_code == 200, r.text
+            corps = r.json()
+            assert corps["texturier"] == "meshy" and corps["resolution"] == "2k"
+            # le coût est ANNONCÉ avant que la tâche ne parte
+            assert corps["credits"] == {"meshy": MS.credits_retexture("2k")}
+            assert corps["usd_estime"] > 0
+
+        # géométrie non approuvée → 409, aucune dépense
+        j2 = _job("route_tex2")
+        A3.write_manifest(MR.job_dir(j2), {"engine": "tripo-h3.1",
+                                           "texture_mode": "no", "version": 1,
+                                           "shots": ["shot_0.png"]})
+        async with httpx.AsyncClient(transport=ASGITransport(app=app),
+                                     base_url="http://t") as c:
+            r = await c.post(f"/api/assets/3d/{j2}/texturer")
+            assert r.status_code == 409 and "approuv" in r.text.lower()
+
+    asyncio.run(scenario())
+
+
+def test_route_texturer_refuse_sans_cle_meshy(monkeypatch):
+    import asyncio
+    import httpx
+    from httpx import ASGITransport
+    from app.config import settings as _s
+    from app.main import app
+    from app.services import meshy_service as MS
+    from app.services.storage import init_db
+
+    # ni mock, ni clé : le message doit dire que c'est le compte MESHY qui
+    # manque — pas fal, dont la clé est bien là
+    monkeypatch.setattr(_s, "MESHY_MOCK", False, raising=False)
+    monkeypatch.setattr(_s, "MESHY_API_KEY", "", raising=False)
+    MS._mock = None
+
+    async def scenario():
+        await init_db()
+        j, d = _job_texturable("route_tex3", monkeypatch)
+        async with httpx.AsyncClient(transport=ASGITransport(app=app),
+                                     base_url="http://t") as c:
+            r = await c.post(f"/api/assets/3d/{j}/texturer")
+            assert r.status_code == 400
+            assert "MESHY_API_KEY" in r.text and "Meshy" in r.text
+
+    asyncio.run(scenario())

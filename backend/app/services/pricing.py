@@ -332,6 +332,19 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         if op.get("multiview"):
             v = int(op.get("views", 3))
             lines.append(_line("fal", "Multi-view edits", v, "img", v * 0.03))
+    elif kind == "asset3d_texture":
+        # Texturage Meshy d'un maillage DÉJÀ généré (chaîne Tripo → Meshy).
+        # Facturé en CRÉDITS Meshy, jamais en $ chez fal : la grille partagée
+        # de meshy_service est la seule source, la conversion $ reste
+        # directionnelle (meshy_credit_usd, éditable dans les réglages).
+        from app.services import meshy_service as _MS
+        res = str(op.get("texture_resolution") or "2k")
+        cr = _MS.credits_retexture(res)
+        lines.append(_line("meshy", f"Retexture {res}"
+                           + (" PBR" if op.get("pbr", True) else ""),
+                           cr, "credits",
+                           cr * float(p.get("meshy_credit_usd",
+                                            DEFAULTS["meshy_credit_usd"]))))
     elif kind == "sprite2d":
         # Game Assets 2D (Sprite Lab): ffmpeg extraction + PIL assembly are
         # local (free); the only billable part is the per-frame fal remove-bg.

@@ -81,10 +81,22 @@ ENGINES = {
         "note": "multi-vues + texture HD + 5 formats — le plus complet.",
     },
     # Tripo H3.1 — ajouté le 29/08/2026, pages fal relues le jour même.
-    # ATTENTION AU NOM : la spec Magnific §9.1 parle de « Tripo v3.1 ». Cet
-    # endpoint N'EXISTE PAS sur fal (tripo3d/tripo/v3.1 → 404) ; la génération
-    # correspondante y est publiée sous **h3.1**, avec DEUX endpoints séparés
-    # (image unique / multi-vues) là où v2.5 n'en avait qu'un.
+    #
+    # LE NOM : « Tripo v3.1 » (spec Magnific §9.1) et « Tripo3D H3.1 » sont le
+    # MÊME modèle — H3.1 (HD Model) est le nom officiel, v3.1 la façon
+    # informelle de le citer. L'endpoint `tripo3d/tripo/v3.1` n'existe pas sur
+    # fal (404) ; c'est `tripo3d/h3.1/…` qu'il faut appeler, avec DEUX
+    # endpoints séparés (image unique / multi-vues) là où v2.5 n'en avait
+    # qu'un.
+    #
+    # DEUX ÉCARTS avec les fiches produit qui circulent, mesurés sur fal :
+    #   • le multi-vues n'est PAS moins cher ici. Certaines plateformes le
+    #     facturent moitié prix ; la page fal du multiview affiche mot pour
+    #     mot le même tarif que l'image unique (0,20/0,30/0,40 $). C'est fal
+    #     qui facture cette app, donc c'est ce tarif-là qui compte.
+    #   • Tripo accepte jusqu'à 10 vues en direct ; l'endpoint fal en déclare
+    #     « 2 to 4 ». max_images reste donc 4 — le drapeau dit ce que CE
+    #     chemin d'appel permet, pas ce que le modèle sait faire ailleurs.
     # Paramètres relevés sur la page API : image_url | image_urls (2-4, ordre
     # IMPOSÉ [front, left, back, right], front obligatoire), texture (bool),
     # pbr (bool), texture_quality standard|detailed, geometry_quality
@@ -160,13 +172,24 @@ ENGINES = {
 # « comparer les moteurs selon l'asset »). La justification est rendue par
 # l'API et stockée sur le job : une recommandation sans motif est un ordre.
 BESOINS_3D = {
+    # CHAÎNE Tripo → Meshy (décision utilisateur du 29/08) : Tripo reconstruit
+    # le VOLUME depuis 4 vues, Meshy fait la TEXTURE. On ne paie donc pas la
+    # texture Tripo (textures=False, 0,20 $ au lieu de 0,40 $), et les 4 vues
+    # resservent telles quelles comme référence de style chez Meshy.
     "hero": {
         "label": "Hero / personnage détaillé",
         "engine": "tripo-h3.1",
-        "why": "multi-vues sur endpoint dédié (ordre imposé, donc reconstruction "
-               "moins ambiguë) + texture HD, et seul moteur à accepter un seed "
-               "de géométrie — une planche hero se rejoue à l'identique.",
-        "opts": {"multiview": True, "views": 3, "textures": True, "quality": "hd"},
+        "why": "Tripo H3.1 pour le volume — 4 vues sur endpoint dédié, ordre "
+               "imposé donc reconstruction moins ambiguë, et seed de géométrie "
+               "pour rejouer à l'identique. La texture part chez Meshy : "
+               "géométrie nue ici (0,20 $ au lieu de 0,40 $).",
+        "opts": {"multiview": True, "views": 4, "textures": False},
+        "apres_generation": {
+            "quoi": "texturage Meshy (PBR) depuis les MÊMES 4 vues, une fois "
+                    "la géométrie approuvée",
+            "route": "POST /api/assets/3d/{job}/texturer",
+            "body": {"resolution": "2k", "pbr": True},
+        },
     },
     "prop": {
         "label": "Accessoire / objet simple",
@@ -736,4 +759,207 @@ async def refine_asset3d(job: str, quality: str = "hd", on_step=None) -> dict:
     await _step("Complete", 100)
     return {"version": v, "file": dest.name, "engine": engine,
             "texture_mode": cible,
+            "url": f"/api/assets/3d/{job}/version/{v}"}
+
+
+# ── texturage Meshy d'un maillage Tripo (29/08) ─────────────────────────────
+#
+# Décision produit (utilisateur, 29/08) : « utilise tripo pour le 4 vue et
+# bascule sur meshy pour les rendu notamment le texturage des modèles
+# générés. » La chaîne devient donc :
+#
+#   4 vues quasi-orthographiques  (Seedream, déjà là)
+#     → Tripo H3.1 multi-vues, texture=false → GÉOMÉTRIE seule (0,20 $)
+#     → porte humaine : la silhouette se juge sur le brouillon
+#     → Meshy retexture (model_url externe + les MÊMES 4 vues en style)
+#
+# Les vues servent donc DEUX fois : à reconstruire le volume, puis à dire
+# de quoi il a l'air. C'est aussi pourquoi elles imposent « even diffuse
+# lighting, no cast shadow » — une lumière incrustée dans la référence se
+# retrouverait cuite dans la texture.
+#
+# Meshy accepte un maillage ÉTRANGER via `model_url` (docs.meshy.ai/api/
+# retexture : « publicly accessible URL … or a base64-encoded data URI »).
+# Le pont est le stockage fal, qui rend déjà une URL publique pour tout
+# fichier téléversé — même chemin que les images du reste de l'app.
+
+MESHY_RETEXTURE_BASE = "openapi/v1/retexture"
+MESHY_POLL_S = 4.0
+MESHY_POLL_RETRIES = 5
+MESHY_TIMEOUT_S = 1800.0
+
+
+async def _attendre_meshy(base: str, tid: str, on_step=None,
+                          depart: int = 55, fin: int = 85) -> dict:
+    """Attend une tâche Meshy jusqu'à son état terminal.
+
+    Même garantie que la boucle éprouvée du Cardforge (forge3d) : un blip
+    réseau ne tue pas une tâche PAYÉE — les reprises sont bornées ET vivent
+    dans le budget global, au-delà duquel l'échec porte le message littéral.
+    """
+    import asyncio
+    import time
+    from app.services import meshy_service as MS
+
+    periode = 0.05 if MS.mock_enabled() else MESHY_POLL_S
+    budget = time.monotonic() + MESHY_TIMEOUT_S
+    echecs = 0
+    while True:
+        try:
+            task = await MS.get_task(base, tid)
+            echecs = 0
+        except Exception:
+            echecs += 1
+            if echecs > MESHY_POLL_RETRIES or time.monotonic() > budget:
+                raise
+            await asyncio.sleep(min(periode * 2 ** echecs, 30.0))
+            continue
+
+        statut = str(task.get("status") or "")
+        if on_step:
+            try:
+                pct = int(task.get("progress") or 0)
+            except (TypeError, ValueError):
+                pct = 0
+            await on_step(f"Meshy {statut}",
+                          max(depart, min(fin, depart + pct * (fin - depart) // 100)))
+        if statut == "SUCCEEDED":
+            return task
+        if statut in ("FAILED", "CANCELED"):
+            err = task.get("task_error")
+            msg = err.get("message") if isinstance(err, dict) else None
+            raise RuntimeError(f"meshy: {msg or f'tâche {statut}'}")
+        if time.monotonic() > budget:
+            raise RuntimeError(
+                f"meshy: tâche {tid} toujours « {statut} » après "
+                f"{int(MESHY_TIMEOUT_S // 60)} min")
+        await asyncio.sleep(periode)
+
+
+def _glb_courant(job: str) -> str:
+    """Le fichier de maillage que le registre désigne comme courant, sinon
+    model.glb. C'est LUI qu'on texture — pas un brouillon oublié."""
+    try:
+        from app.services import mesh_report
+        reg = mesh_report.read_registry(job)
+        nom = reg.get("current")
+        if nom and (_job_dir(job) / nom).is_file():
+            return nom
+    except Exception:
+        pass
+    return "model.glb"
+
+
+async def texturer_asset3d(job: str, *, resolution: str = "2k",
+                           pbr: bool = True, ai_model: str = "meshy-7",
+                           style_prompt: str | None = None,
+                           garder_uv: bool = False, on_step=None) -> dict:
+    """Texture un maillage existant chez Meshy, et l'ajoute en NOUVELLE version.
+
+    Refuse tant que la géométrie n'est pas approuvée : c'est la même porte que
+    `refine_asset3d`, parce que c'est la même dépense évitable — texturer un
+    volume raté coûte autant que texturer un bon.
+    """
+    import asyncio
+    import shutil
+    from app.services import meshy_service as MS
+
+    async def _step(label, pct):
+        if on_step:
+            await on_step(label, pct)
+
+    d = _job_dir(job)
+    if not d.is_dir():
+        raise FileNotFoundError(f"job 3D inconnu : {job}")
+    man = read_manifest(job)              # FileNotFoundError parlante si absent
+    if not approval(job).get("approved"):
+        raise PermissionError(
+            "Géométrie non approuvée : valide le volume (POST .../approve) "
+            "avant de payer un texturage.")
+
+    nom_glb = _glb_courant(job)
+    src = d / nom_glb
+    if not src.is_file():
+        raise FileNotFoundError(f"{nom_glb} introuvable pour ce job")
+
+    # style : les vues GÉNÉRÉES d'abord (fond propre, lumière plate — donc
+    # aucune ombre cuite dans la texture), la source en repli.
+    vues = [s for s in (man.get("shots") or [])[1:] if (d / s).is_file()][:4]
+    if not vues and (d / "shot_0.png").is_file():
+        vues = ["shot_0.png"]
+    if not vues and not (style_prompt or "").strip():
+        raise ValueError(
+            "Aucune vue conservée et aucun style demandé : Meshy a besoin "
+            "d'au moins une référence (image) ou d'un texte de style.")
+
+    await _step("Envoi du maillage", 20)
+    model_url = await _upload(src)
+    urls_vues = []
+    for v in vues:
+        urls_vues.append(await _upload(d / v))
+
+    payload: dict = {
+        "model_url": model_url,
+        "ai_model": ai_model,
+        "enable_pbr": bool(pbr),
+        "texture_resolution": resolution,
+        # false = Meshy refait ses UV. Un maillage Tripo sans texture n'a pas
+        # d'UV utilisable, donc c'est le défaut correct ici ; l'exposer permet
+        # de le garder quand on texture un maillage DÉJÀ déplié.
+        "enable_original_uv": bool(garder_uv),
+        "target_formats": ["glb"],
+    }
+    if urls_vues:
+        payload["multiview_image_urls"] = urls_vues
+    elif style_prompt:
+        payload["text_style_prompt"] = style_prompt[:600]
+
+    await _step(f"Meshy retexture {resolution}", 45)
+    tid = await MS.create_task(MESHY_RETEXTURE_BASE, payload)
+    # sans cet enregistrement, `repatriate` refuse un id qu'il ne connaît pas
+    await MS.record_created(tid, MESHY_RETEXTURE_BASE, payload)
+
+    task = await _attendre_meshy(MESHY_RETEXTURE_BASE, tid, on_step)
+    await MS.record_state(task, MESHY_RETEXTURE_BASE)
+
+    await _step("Rapatriement", 88)
+    rap = await MS.repatriate(tid)
+    # `files` est {clé: NOM DE FICHIER}, le dossier est à part — les joindre
+    # (un nom seul serait résolu depuis le répertoire courant du process).
+    from pathlib import Path as _P
+    fichiers = rap.get("files") or {}
+    nom = fichiers.get("glb") or next(
+        (v for v in fichiers.values() if str(v).lower().endswith(".glb")), None)
+    if not nom:
+        raise RuntimeError(
+            f"meshy: la tâche {tid} n'a rendu aucun GLB "
+            f"(reçu : {sorted(fichiers) or 'rien'})")
+    local = _P(rap["dir"]) / nom
+    if not local.is_file():
+        raise RuntimeError(f"meshy: {local.name} annoncé mais absent du disque")
+
+    # ── à partir d'ici les crédits sont CONSOMMÉS : le maillage entre dans le
+    # registre du job immédiatement, le reste est best-effort.
+    v = next_version(job)
+    dest = d / f"model.v{v}.glb"
+    await asyncio.to_thread(shutil.copy2, local, dest)
+    write_manifest(d, {**man, "version": v, "stage": "final",
+                       "texture_mode": f"meshy:{resolution}",
+                       "texturier": "meshy", "meshy_task": tid,
+                       "meshy_ai_model": ai_model, "pbr": bool(pbr),
+                       "refined_from": man.get("version", 1),
+                       "file": dest.name})
+    try:
+        from app.services import mesh_report
+        await asyncio.to_thread(
+            mesh_report.write_report, job, dest.name, version=v,
+            extra={"engine": man.get("engine"), "texturier": "meshy",
+                   "texture_mode": f"meshy:{resolution}", "meshy_task": tid,
+                   "refined_from": man.get("version", 1)})
+    except Exception as e:
+        logger.warning(f"mesh_report texturage {job} ignoré : {e}")
+
+    await _step("Complete", 100)
+    return {"version": v, "file": dest.name, "meshy_task": tid,
+            "texture_mode": f"meshy:{resolution}", "pbr": bool(pbr),
             "url": f"/api/assets/3d/{job}/version/{v}"}
