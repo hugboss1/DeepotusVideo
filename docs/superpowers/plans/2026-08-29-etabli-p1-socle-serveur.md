@@ -466,6 +466,54 @@ def test_transformer_refuse_un_vecteur_de_mauvaise_taille():
     from app.services import mesh_edit
     with pytest.raises(ValueError, match="attend 3 valeurs"):
         mesh_edit.transformer(_cube(), {"0": {"translation": [1.0, 2.0]}})
+
+
+def test_transformer_refuse_un_quaternion_non_norme():
+    """glTF exige un quaternion UNITAIRE. Le refuser plutôt que le normaliser
+    en douce : normaliser masquerait le bug amont qui l'a produit."""
+    from app.services import mesh_edit
+    with pytest.raises(ValueError, match="quaternion normé"):
+        mesh_edit.transformer(_cube(), {"0": {"rotation": [0.0, 0.0, 0.0, 2.0]}})
+
+
+def test_transformer_refuse_une_entree_qui_n_est_pas_un_dictionnaire():
+    """Sans ce garde, une liste lève AttributeError — que la route de la
+    tâche 8 ne rattrape pas, et qui sortirait donc en 500 au lieu d'un 400."""
+    from app.services import mesh_edit
+    with pytest.raises(ValueError, match="dictionnaire"):
+        mesh_edit.transformer(_cube(), [{"0": {}}])
+    with pytest.raises(ValueError, match="non numérique"):
+        mesh_edit.transformer(_cube(), {"abc": {"translation": [0.0, 0.0, 0.0]}})
+
+
+def test_transformer_exerce_aussi_rotation_et_echelle():
+    """Les chemins `rotation` et `scale` de `_TAILLES` ne sont exercés par
+    aucun autre banc. TRS glTF = T · R · S : le cube unité mis à l'échelle 2,
+    tourné d'un quart de tour autour de X, puis décalé de +3 en Y."""
+    from app.services import mesh_edit, print3d
+    q = [(2 ** 0.5) / 2, 0.0, 0.0, (2 ** 0.5) / 2]      # 90° autour de X
+    sortie = mesh_edit.transformer(_cube(), {"0": {
+        "translation": [0.0, 3.0, 0.0], "rotation": q, "scale": [2.0, 2.0, 2.0]}})
+    doc, _ = mesh_edit.lire_glb(sortie)
+    assert doc["nodes"][0]["scale"] == [2.0, 2.0, 2.0]
+    bb = print3d.bbox(print3d.lire_glb_triangles(sortie))
+    attendu = ((-2.0, 2.0), (1.0, 5.0), (-2.0, 2.0))
+    for (lo, hi), (alo, ahi) in zip(bb, attendu):
+        assert abs(lo - alo) < 1e-6 and abs(hi - ahi) < 1e-6
+
+
+def test_transformer_retire_une_matrice_preexistante():
+    """glTF interdit de porter `matrix` ET un TRS : la docstring en fait une
+    garantie, ce banc l'épingle."""
+    from app.services import mesh_edit
+    doc, binc = mesh_edit.lire_glb(_cube())
+    doc["nodes"][0]["matrix"] = [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
+                                 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+    avec = mesh_edit.ecrire_glb(doc, binc)
+    sortie, _ = mesh_edit.lire_glb(
+        mesh_edit.transformer(avec, {"0": {"translation": [0.0, 1.0, 0.0]}}))
+    assert "matrix" not in sortie["nodes"][0]
+    assert sortie["nodes"][0]["translation"] == [0.0, 1.0, 0.0]
 ```
 
 - [ ] **Step 2 : lancer le banc et vérifier qu'il échoue**
@@ -482,6 +530,7 @@ Ajouter à `backend/app/services/mesh_edit.py` :
 
 ```python
 _TAILLES = {"translation": 3, "rotation": 4, "scale": 3}
+_TOLERANCE_QUATERNION = 1e-3
 
 
 def transformer(data: bytes, transforms: dict) -> bytes:
@@ -490,11 +539,31 @@ def transformer(data: bytes, transforms: dict) -> bytes:
     N'écrit QUE le document : le tampon binaire ressort identique octet pour
     octet, et le banc l'épingle. `matrix` est retiré du nœud touché — glTF
     interdit de porter à la fois une matrice et un TRS.
+
+    Trois refus explicites plutôt que des corrections silencieuses, parce que
+    cette fonction sera exposée par une route HTTP (tâche 8) qui ne traduit
+    en 400 que les `ValueError` : entrée non-dictionnaire, clé de nœud non
+    numérique, quaternion non normalisé. Normaliser un quaternion en douce
+    masquerait un bug amont ; le refuser le montre.
+
+    `scale` négatif ou nul passe DÉLIBÉRÉMENT : une échelle négative par axe
+    est un TRS glTF valide (effet miroir). `reparer` refuse au contraire une
+    échelle globale ≤ 0. Les deux fonctions n'ont pas la même politique, et
+    c'est voulu — ne pas « harmoniser » sans y repenser.
     """
+    if transforms is None:
+        transforms = {}
+    if not isinstance(transforms, dict):
+        raise ValueError(
+            "transforms attend un dictionnaire noeud -> TRS, reçu "
+            f"{type(transforms).__name__}")
     doc, binc = lire_glb(data)
     nodes = _l(doc, "nodes")
-    for cle, trs in (transforms or {}).items():
-        i = int(cle)
+    for cle, trs in transforms.items():
+        try:
+            i = int(cle)
+        except (TypeError, ValueError):
+            raise ValueError(f"clé de noeud non numérique : {cle!r}") from None
         if not (0 <= i < len(nodes)):
             raise ValueError(f"noeud {i} hors du document ({len(nodes)} noeuds)")
         n = nodes[i]
@@ -505,6 +574,15 @@ def transformer(data: bytes, transforms: dict) -> bytes:
             v = [float(x) for x in trs[champ]]
             if len(v) != taille:
                 raise ValueError(f"{champ} attend {taille} valeurs, reçu {len(v)}")
+            if champ == "rotation":
+                # glTF exige un quaternion UNITAIRE. Non normalisé, il déforme
+                # chez les lecteurs stricts et pas chez les autres : un bug qui
+                # ne se voit qu'à l'export, donc à attraper à l'écriture.
+                norme = sum(x * x for x in v) ** 0.5
+                if abs(norme - 1.0) > _TOLERANCE_QUATERNION:
+                    raise ValueError(
+                        "rotation attend un quaternion normé [x,y,z,w] ; "
+                        f"norme reçue {norme:.4f}")
             n[champ] = v
     return ecrire_glb(doc, binc)
 ```
@@ -515,7 +593,7 @@ def transformer(data: bytes, transforms: dict) -> bytes:
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 10 tests PASS.
+Attendu : 14 tests PASS.
 
 - [ ] **Step 5 : commit**
 
@@ -656,7 +734,7 @@ def reparer(data: bytes, *, axe_haut: str | None = None,
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 14 tests PASS.
+Attendu : 18 tests PASS.
 
 - [ ] **Step 5 : commit**
 
@@ -996,7 +1074,7 @@ def extraire(data: bytes, noeuds) -> bytes:
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 20 tests PASS.
+Attendu : 24 tests PASS.
 
 - [ ] **Step 6 : commit**
 
@@ -1083,7 +1161,7 @@ def ecrire_version(job: str, data: bytes, *, operation: str,
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 21 tests PASS.
+Attendu : 25 tests PASS.
 
 - [ ] **Step 5 : écrire le banc de l'adoption (spec §6.2)**
 
@@ -1164,7 +1242,7 @@ def adopter_meshy(task_id: str, fichier: str = "model.glb") -> str:
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 23 tests PASS.
+Attendu : 27 tests PASS.
 
 - [ ] **Step 8 : commit**
 
@@ -1353,7 +1431,7 @@ def lister() -> list[dict]:
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 25 tests PASS.
+Attendu : 29 tests PASS.
 
 - [ ] **Step 5 : commit**
 
@@ -1536,7 +1614,7 @@ async def etabli_reparer(body: dict):
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 29 tests PASS.
+Attendu : 33 tests PASS.
 
 - [ ] **Step 5 : vérifier qu'on n'a rien cassé ailleurs**
 
