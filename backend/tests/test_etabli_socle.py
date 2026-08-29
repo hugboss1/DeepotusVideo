@@ -750,3 +750,51 @@ def test_la_chronologie_survit_a_un_job_sans_registre():
     assert len(lignes) == 1
     assert lignes[0]["etapes"][0]["version"] == 1
     assert lignes[0]["etapes"][0]["triangles"] is None
+
+
+def test_un_job_abime_n_eteint_pas_toute_la_chronologie():
+    """« Il LIT ce qui existe » a une conséquence : ce dossier est ouvert aux
+    mains de l'utilisateur.
+
+    Mesuré : un seul `model.v2 (1).glb` — le nom que l'explorateur Windows
+    génère tout seul sur une copie — faisait tomber la liste ENTIÈRE, jobs
+    sains compris. La bibliothèque 3D disparaissait de l'écran à cause d'un
+    fichier copié à la main.
+    """
+    from app.config import settings
+    from app.services import mesh_sources
+    sain = settings.outputs_path / "assets3d" / "job_voisin_sain"
+    sain.mkdir(parents=True, exist_ok=True)
+    (sain / "model.glb").write_bytes(_cube())
+
+    abime = settings.outputs_path / "assets3d" / "job_voisin_abime"
+    abime.mkdir(parents=True, exist_ok=True)
+    (abime / "model.glb").write_bytes(_cube())
+    (abime / "model.v2 (1).glb").write_bytes(_cube())
+    (abime / "asset.json").write_text("[1, 2, 3]", encoding="utf-8")
+
+    lignes = mesh_sources.lister()
+    assert "job_voisin_sain" in [x["id"] for x in lignes]
+    # le job abîmé reste listable avec ce qu'on sait en lire, et surtout il
+    # n'emporte pas les autres avec lui
+    abimee = [x for x in lignes if x["id"] == "job_voisin_abime"]
+    assert len(abimee) == 1
+    assert [e["version"] for e in abimee[0]["etapes"]] == [1]
+
+
+def test_les_lignes_des_deux_sources_ont_la_meme_forme():
+    """Le panneau de gauche ne doit pas avoir à distinguer les deux sources :
+    une clé sans valeur vaut `None`, elle n'est pas absente."""
+    from app.config import settings
+    from app.services import mesh_edit, mesh_sources
+    src = settings.outputs_path / "meshy3d" / "tache_forme"
+    src.mkdir(parents=True, exist_ok=True)
+    (src / "model.glb").write_bytes(_cube())
+    job = mesh_edit.adopter_meshy("tache_forme")
+
+    ligne = [x for x in mesh_sources.lister() if x["id"] == job][0]
+    for cle in ("source", "id", "nom", "moteur", "phase", "kind",
+                "adopte_de", "adopte_en", "created_at", "etapes"):
+        assert cle in ligne, cle
+    # l'adoption laisse une trace exploitable pour relier les deux vues
+    assert ligne["adopte_de"] == "meshy3d/tache_forme"
