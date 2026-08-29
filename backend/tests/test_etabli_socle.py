@@ -798,3 +798,106 @@ def test_les_lignes_des_deux_sources_ont_la_meme_forme():
         assert cle in ligne, cle
     # l'adoption laisse une trace exploitable pour relier les deux vues
     assert ligne["adopte_de"] == "meshy3d/tache_forme"
+
+
+# ── H. routes ────────────────────────────────────────────────────────────────
+
+def _client():
+    """`TestClient(app)` sans `with` ne déclenche PAS le `lifespan` de l'appli
+    (donc pas `init_db()`) : sans cette ligne, `/etabli/sources` tombe sur
+    « no such table: meshy_tasks » dans la base sqlite temporaire du banc,
+    alors qu'en vrai la table existe depuis le démarrage du serveur."""
+    import asyncio as _asyncio
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from app.services.storage import init_db
+    _asyncio.run(init_db())
+    return TestClient(app)
+
+
+def test_la_route_sources_rend_la_chronologie():
+    from app.config import settings
+    d = settings.outputs_path / "assets3d" / "job_route"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "model.glb").write_bytes(_cube())
+    r = _client().get("/api/etabli/sources")
+    assert r.status_code == 200
+    ids = [x["id"] for x in r.json()["jobs"]]
+    assert "job_route" in ids
+
+
+def test_la_route_rig_dit_l_absence_de_squelette():
+    from app.config import settings
+    d = settings.outputs_path / "assets3d" / "job_rig"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "model.glb").write_bytes(_cube())
+    r = _client().get("/api/etabli/rig", params={"job": "job_rig", "version": 1})
+    assert r.status_code == 200
+    assert r.json()["a_squelette"] is False
+
+
+def test_la_route_extraire_ecrit_une_version_de_plus():
+    from app.config import settings
+    d = settings.outputs_path / "assets3d" / "job_extr"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "model.glb").write_bytes(_cube_et_sol())
+    r = _client().post("/api/etabli/extraire",
+                       json={"job": "job_extr", "version": 1, "noeuds": [0]})
+    assert r.status_code == 200
+    assert r.json()["version"] == 2
+    assert (d / "model.v2.glb").is_file()
+    assert (d / "model.glb").is_file()          # jamais d'ecrasement
+
+
+def test_la_route_extraire_refuse_un_job_inconnu():
+    r = _client().post("/api/etabli/extraire",
+                       json={"job": "nexiste_pas", "version": 1, "noeuds": [0]})
+    assert r.status_code == 404
+
+
+def test_les_refus_du_socle_sortent_en_400_pas_en_500():
+    """Trois tâches ont durci ces refus POUR ces routes. Si l'une d'elles
+    sortait en 500, tout ce travail serait perdu à la dernière marche."""
+    from app.config import settings
+    d = settings.outputs_path / "assets3d" / "job_400"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "model.glb").write_bytes(_cube())
+    c = _client()
+
+    # transforms qui n'est pas un dictionnaire
+    r = c.post("/api/etabli/transformer",
+               json={"job": "job_400", "version": 1, "transforms": [1, 2]})
+    assert r.status_code == 400, r.text
+
+    # quaternion non normé
+    r = c.post("/api/etabli/transformer",
+               json={"job": "job_400", "version": 1,
+                     "transforms": {"0": {"rotation": [0, 0, 0, 2]}}})
+    assert r.status_code == 400, r.text
+
+    # axe haut inconnu
+    r = c.post("/api/etabli/reparer",
+               json={"job": "job_400", "version": 1, "axe_haut": "Q"})
+    assert r.status_code == 400, r.text
+
+    # echelle de mauvais type
+    r = c.post("/api/etabli/reparer",
+               json={"job": "job_400", "version": 1, "echelle": [1.0]})
+    assert r.status_code == 400, r.text
+
+    # selection vide
+    r = c.post("/api/etabli/extraire",
+               json={"job": "job_400", "version": 1, "noeuds": []})
+    assert r.status_code == 400, r.text
+
+
+def test_la_route_adopter_fait_entrer_une_tache_meshy():
+    from app.config import settings
+    src = settings.outputs_path / "meshy3d" / "tache_route"
+    src.mkdir(parents=True, exist_ok=True)
+    (src / "model.glb").write_bytes(_cube())
+    r = _client().post("/api/etabli/adopter", json={"task_id": "tache_route"})
+    assert r.status_code == 200
+    assert r.json()["job"] == "meshy_tache_route"
+    r = _client().post("/api/etabli/adopter", json={"task_id": "absente"})
+    assert r.status_code == 404

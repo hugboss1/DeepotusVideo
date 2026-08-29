@@ -8717,3 +8717,106 @@ async def finition_upscale_measure(body: dict):
                        "dérive = détail restitué. `gain_nettete` compare à une "
                        "image de taille différente : indicatif seulement, et "
                        "négatif pour un Lanczos, qui lisse sans rien inventer."}
+
+
+# ── l'Établi : inspection et chirurgie de maillage ───────────────────────────
+# Spec docs/superpowers/specs/2026-08-29-etabli-inspecteur-3d-design.md.
+# Le navigateur envoie des PARAMÈTRES ; l'écriture du GLB vit dans mesh_edit.
+
+def _etabli_glb(job: str, version) -> bytes:
+    """Les octets d'une version d'un job, ou un 404 parlant."""
+    from app.services import mesh_report
+    d = mesh_report.job_dir(Path(str(job)).name)
+    v = int(version or 1)
+    nom = "model.glb" if v <= 1 else f"model.v{v}.glb"
+    p = d / nom
+    if not p.is_file():
+        raise HTTPException(404, f"{Path(str(job)).name}/{nom} introuvable")
+    return p.read_bytes()
+
+
+def _etabli_ecrire(job: str, sortie: bytes, operation: str, detail: dict):
+    """Dépose la sortie comme nouvelle version. Les ValueError du socle
+    deviennent des 400 : trois tâches les ont durcies pour cette marche-ci."""
+    from app.services import mesh_edit
+    return mesh_edit.ecrire_version(job, sortie, operation=operation,
+                                    detail=detail)
+
+
+@router.get("/etabli/sources")
+async def etabli_sources(limit: int = 60):
+    """La chronologie unifiée : jobs assets3d et tâches Meshy rapatriées.
+
+    `mesh_sources.lister()` fait de l'E/S disque SYNCHRONE — sans
+    `asyncio.to_thread`, elle gèlerait la boucle d'événements pendant tout le
+    parcours des dossiers, donc toutes les requêtes du serveur.
+    """
+    from app.services import mesh_sources
+    jobs = await asyncio.to_thread(mesh_sources.lister)
+    return {"jobs": jobs, "meshy": await mesh_sources.lister_meshy(limit)}
+
+
+@router.get("/etabli/rig")
+async def etabli_rig(job: str, version: int = 1):
+    from app.services import mesh_edit
+    return mesh_edit.rig_inventory(_etabli_glb(job, version))
+
+
+@router.post("/etabli/adopter")
+async def etabli_adopter(body: dict):
+    """Fait entrer une tâche Meshy dans le monde des jobs (spec §6.2), pour
+    qu'une correction ait où être versionnée."""
+    from app.services import mesh_edit
+    try:
+        job = mesh_edit.adopter_meshy(str(body.get("task_id") or ""),
+                                      str(body.get("fichier") or "model.glb"))
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+    return {"job": job, "version": 1,
+            "url": f"/api/assets/3d/{job}/version/1"}
+
+
+@router.post("/etabli/extraire")
+async def etabli_extraire(body: dict):
+    from app.services import mesh_edit
+    job = Path(str(body.get("job") or "")).name
+    noeuds = body.get("noeuds")
+    data = _etabli_glb(job, body.get("version"))
+    try:
+        sortie = mesh_edit.extraire(data, noeuds or [])
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return _etabli_ecrire(job, sortie, "extraire",
+                          {"noeuds": list(noeuds or [])})
+
+
+@router.post("/etabli/transformer")
+async def etabli_transformer(body: dict):
+    from app.services import mesh_edit
+    job = Path(str(body.get("job") or "")).name
+    data = _etabli_glb(job, body.get("version"))
+    try:
+        sortie = mesh_edit.transformer(data, body.get("transforms"))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return _etabli_ecrire(job, sortie, "transformer",
+                          {"transforms": body.get("transforms") or {}})
+
+
+@router.post("/etabli/reparer")
+async def etabli_reparer(body: dict):
+    from app.services import mesh_edit
+    job = Path(str(body.get("job") or "")).name
+    data = _etabli_glb(job, body.get("version"))
+    try:
+        sortie = mesh_edit.reparer(
+            data, axe_haut=body.get("axe_haut"),
+            echelle=body.get("echelle"),
+            recentrer=bool(body.get("recentrer")))
+    except ValueError as e:
+        # un GLB compressé refuse le RECENTRAGE seul : le message le dit
+        raise HTTPException(400, str(e))
+    return _etabli_ecrire(job, sortie, "reparer",
+                          {"axe_haut": body.get("axe_haut"),
+                           "echelle": body.get("echelle"),
+                           "recentrer": bool(body.get("recentrer"))})
