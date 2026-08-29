@@ -762,26 +762,37 @@ def adopter_meshy(task_id: str, fichier: str = "model.glb") -> str:
     versionnée. Idempotent — adopter deux fois rend le même job.
     """
     import json as _json
+    import shutil
     from pathlib import Path as _Path
 
-    from app.config import settings
-    from app.services import mesh_report
+    from app.services import mesh_report, meshy_service
 
     tid = _Path(str(task_id)).name
-    src = settings.outputs_path / "meshy3d" / tid / _Path(str(fichier)).name
+    # `meshy3d_dir()` est la fonction CANONIQUE de ce chemin. Le reconstruire
+    # à la main marcherait aujourd'hui et désynchroniserait en silence le jour
+    # où la convention de stockage bougerait.
+    src = meshy_service.meshy3d_dir() / tid / _Path(str(fichier)).name
     if not src.is_file():
         raise FileNotFoundError(f"meshy3d/{tid}/{_Path(fichier).name} introuvable")
 
     job = f"meshy_{tid}"
     d = mesh_report.job_dir(job)
     d.mkdir(parents=True, exist_ok=True)
+
+    # Les trois écritures sont gardées SÉPARÉMENT, et c'est le point : une
+    # adoption interrompue entre le binaire et sa fiche laisserait sinon un
+    # job sans fiche pour toujours — le prochain appel verrait le `.glb`
+    # présent et repartirait aussitôt. Ainsi, chaque appel répare ce qui
+    # manque et ne réécrit rien de ce qui est déjà là.
     cible = d / "model.glb"
     if not cible.is_file():
-        cible.write_bytes(src.read_bytes())
+        shutil.copy2(src, cible)          # copie par blocs, mtime préservé
+    if not (d / "asset.json").is_file():
         (d / "asset.json").write_text(_json.dumps({
             "name": job, "engine": "meshy", "stage": "adopte",
             "version": 1, "adopte_de": f"meshy3d/{tid}",
         }, ensure_ascii=False, indent=1), encoding="utf-8")
+    if not (d / "report.json").is_file():
         mesh_report.write_report(job, "model.glb", version=1,
                                  extra={"outil": "etabli",
                                         "operation": "adoption",

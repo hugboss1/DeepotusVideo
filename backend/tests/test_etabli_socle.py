@@ -689,3 +689,32 @@ def test_l_adoption_refuse_une_tache_sans_glb():
     from app.services import mesh_edit
     with pytest.raises(FileNotFoundError):
         mesh_edit.adopter_meshy("tache_absente", "model.glb")
+
+
+def test_une_adoption_interrompue_se_repare_au_passage_suivant():
+    """Les trois écritures sont gardées séparément, et c'est le point.
+
+    Une adoption coupée entre le binaire et sa fiche laisserait sinon un job
+    sans fiche POUR TOUJOURS : le prochain appel verrait le `.glb` présent et
+    repartirait aussitôt. Ici chaque appel répare ce qui manque — et ne
+    réécrit rien de ce qui est déjà là.
+    """
+    from app.config import settings
+    from app.services import mesh_edit
+    src = settings.outputs_path / "meshy3d" / "tache_coupee"
+    src.mkdir(parents=True, exist_ok=True)
+    (src / "model.glb").write_bytes(_cube())
+
+    job = mesh_edit.adopter_meshy("tache_coupee")
+    d = settings.outputs_path / "assets3d" / job
+    empreinte = (d / "model.glb").stat().st_mtime_ns
+
+    # on simule l'interruption : la fiche et le manifeste n'ont pas été écrits
+    (d / "report.json").unlink()
+    (d / "asset.json").unlink()
+
+    assert mesh_edit.adopter_meshy("tache_coupee") == job
+    assert (d / "report.json").is_file()
+    assert (d / "asset.json").is_file()
+    # le binaire, lui, n'a PAS été réécrit
+    assert (d / "model.glb").stat().st_mtime_ns == empreinte
