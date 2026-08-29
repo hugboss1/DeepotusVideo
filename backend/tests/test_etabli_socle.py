@@ -201,3 +201,35 @@ def test_transformer_retire_une_matrice_preexistante():
         mesh_edit.transformer(avec, {"0": {"translation": [0.0, 1.0, 0.0]}}))
     assert "matrix" not in sortie["nodes"][0]
     assert sortie["nodes"][0]["translation"] == [0.0, 1.0, 0.0]
+
+
+# ── D. réparer : assise globale ──────────────────────────────────────────────
+
+def test_reparer_met_a_l_echelle():
+    from app.services import mesh_edit, print3d
+    gros = mesh_edit.reparer(_cube(), echelle=2.0)
+    assert print3d.bbox(print3d.lire_glb_triangles(gros)) == (
+        (-2.0, 2.0), (-2.0, 2.0), (-2.0, 2.0))
+
+
+def test_reparer_bascule_en_z_up():
+    """Un decalage de +3 en Y doit se retrouver en +3 en Z."""
+    from app.services import mesh_edit, print3d
+    haut = mesh_edit.transformer(_cube(), {"0": {"translation": [0.0, 3.0, 0.0]}})
+    zup = mesh_edit.reparer(haut, axe_haut="Z")
+    assert print3d.bbox(print3d.lire_glb_triangles(zup)) == (
+        (-1.0, 1.0), (-1.0, 1.0), (2.0, 4.0))
+
+
+def test_reparer_recentre_sur_l_origine():
+    from app.services import mesh_edit, print3d
+    haut = mesh_edit.transformer(_cube(), {"0": {"translation": [0.0, 3.0, 0.0]}})
+    centre = mesh_edit.reparer(haut, recentrer=True)
+    assert print3d.bbox(print3d.lire_glb_triangles(centre)) == (
+        (-1.0, 1.0), (-1.0, 1.0), (-1.0, 1.0))
+
+
+def test_reparer_refuse_un_axe_inconnu():
+    from app.services import mesh_edit
+    with pytest.raises(ValueError, match="axe haut inconnu"):
+        mesh_edit.reparer(_cube(), axe_haut="Q")

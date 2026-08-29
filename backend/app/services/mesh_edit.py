@@ -192,3 +192,67 @@ def transformer(data: bytes, transforms: dict) -> bytes:
                         f"norme reçue {norme:.4f}")
             n[champ] = v
     return ecrire_glb(doc, binc)
+
+
+# Y-up est la convention glTF ; Z-up est celle de Blender et d'Unreal.
+# La rotation envoie +Y sur +Z : (x, y, z) -> (x, -z, y).
+_ROT = {
+    "Y": ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)),
+    "Z": ((1.0, 0.0, 0.0), (0.0, 0.0, -1.0), (0.0, 1.0, 0.0)),
+}
+
+
+def _matrice(rot, s: float, t) -> list[float]:
+    """Matrice glTF COLONNE-majeure pour p' = R · (s · p) + t.
+
+    Se tromper d'ordre ici donne un modèle couché, et le banc de bascule Z-up
+    est là pour l'attraper.
+    """
+    m = [[rot[r][c] * s for c in range(3)] for r in range(3)]
+    return [m[0][0], m[1][0], m[2][0], 0.0,
+            m[0][1], m[1][1], m[2][1], 0.0,
+            m[0][2], m[1][2], m[2][2], 0.0,
+            float(t[0]), float(t[1]), float(t[2]), 1.0]
+
+
+def reparer(data: bytes, *, axe_haut: str | None = None,
+            echelle: float | None = None, recentrer: bool = False) -> bytes:
+    """Assise globale : axe haut, échelle, recentrage sur l'origine.
+
+    La correction est portée par un nœud racine NEUF qui adopte les racines de
+    la scène — on ne réécrit jamais les transformations existantes, de sorte
+    qu'une réparation reste lisible et annulable dans le document.
+
+    `recentrer` est la seule option qui a besoin de la géométrie : elle passe
+    par `print3d.lire_glb_triangles`, qui refuse un GLB compressé avec un
+    message explicite. Les deux autres options n'ont pas cette limite.
+    """
+    from app.services import print3d
+
+    doc, binc = lire_glb(data)
+    axe = (axe_haut or "Y").upper()
+    if axe not in _ROT:
+        raise ValueError(f"axe haut inconnu : {axe} (attendu Y ou Z)")
+    rot = _ROT[axe]
+    s = 1.0 if echelle is None else float(echelle)
+    if s <= 0:
+        raise ValueError("echelle doit être strictement positive")
+
+    t = [0.0, 0.0, 0.0]
+    if recentrer:
+        tris = print3d.lire_glb_triangles(data)
+        (x0, x1), (y0, y1), (z0, z1) = print3d.bbox(tris)
+        c = ((x0 + x1) / 2.0, (y0 + y1) / 2.0, (z0 + z1) / 2.0)
+        t = [-sum(rot[r][k] * s * c[k] for k in range(3)) for r in range(3)]
+
+    scenes = doc.get("scenes") or [{"nodes": []}]
+    isc = int(doc.get("scene", 0))
+    racines = list(scenes[isc].get("nodes") or [])
+    doc.setdefault("nodes", []).append({
+        "name": "etabli_correction",
+        "children": racines,
+        "matrix": _matrice(rot, s, t),
+    })
+    scenes[isc]["nodes"] = [len(doc["nodes"]) - 1]
+    doc["scenes"] = scenes
+    return ecrire_glb(doc, binc)
