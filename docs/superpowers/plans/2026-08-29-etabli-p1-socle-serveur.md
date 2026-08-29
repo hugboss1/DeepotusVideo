@@ -206,7 +206,7 @@ navigateur voit et manipule, Python écrit. Aucun GLB n'est jamais produit par
 le client, de sorte que tout artefact reste versionné, fiché par mesh_report,
 et vérifiable par le harnais.
 
-Deux propriétés porteront la sûreté du module, et les bancs des tâches 4 et 5
+Deux propriétés porteront la sûreté du module, et les bancs des tâches 3 et 5
 de ce plan les épingleront (elles n'existent pas encore à la tâche 1) :
 
 * `extraire` est une RECOPIE D'OCTETS, jamais un décodage de géométrie — les
