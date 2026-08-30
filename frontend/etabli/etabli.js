@@ -93,7 +93,10 @@ function rendreChrono() {
     /* `data-job`/`data-nom` : les deux noms sous lesquels un job peut arriver
        dans `?job=`. L'id est le nom du DOSSIER (mesh_sources : `d.name`) ; le
        nom vient de `asset.json`, et c'est celui-là que le 3D Studio a en main
-       (S.cfg.name). Ils coïncident souvent, jamais toujours. */
+       (S.cfg.name). Ils coïncident souvent, jamais toujours. — Dans la boucle
+       Meshy juste en dessous, `data-job` porte l'id de la TÂCHE et non un
+       dossier : une tâche Meshy n'est pas encore un job (elle le devient par
+       /api/etabli/adopter), mais elle se laisse viser sous ce nom. */
     blocs.push(`<section class="job" data-job="${esc(j.id)}" data-nom="${esc(j.nom)}">
       <div class="job-tete">${esc(j.nom)}<span>${esc(j.moteur || j.source)}</span></div>
       <div class="job-etapes">${etapes}</div></section>`);

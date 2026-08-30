@@ -113,20 +113,7 @@ select option:disabled { color: var(--ink-muted); }
     repeating-linear-gradient(90deg, color-mix(in srgb, var(--ink-muted) 20%, transparent) 0 1px, transparent 1px 44px),
     repeating-linear-gradient(0deg, color-mix(in srgb, var(--ink-muted) 20%, transparent) 0 1px, transparent 1px 44px);
 }
-.canvas-center {
-  position: relative; display: grid; padding: 12px;
-  /* le graphe fait 892 px depuis le nœud 07, et la fenêtre peut être plus
-     étroite (le hub iframe /studio3d à côté de sa nav). Un `center` simple
-     répartit le débordement des DEUX côtés, or un conteneur en overflow:auto
-     ne fait défiler que vers la droite : la moitié gauche du graphe — les
-     nœuds 00 — deviendrait inatteignable. `safe` retombe sur `start` dès que
-     ça déborde. Les deux déclarations sont VOULUES : la seconde l'emporte là
-     où `safe` se parse, la première tient lieu de repli là où il ne se parse
-     pas (le graphe y reste centré tant qu'il tient, et le débordement y
-     redevient le défaut d'avant le 07 — pas une régression neuve). */
-  justify-items: center;
-  justify-items: safe center;
-}
+.canvas-center { position: relative; display: grid; justify-items: center; padding: 12px; }
 /* 892 = 760 + 132, le bord droit du nœud 07. Les trois largeurs du graphe
    vont ensemble : celle-ci, celle du <svg> ci-dessous et la viewBox de
    index.html. En désaccorder une décroche les huit câbles d'origine. */

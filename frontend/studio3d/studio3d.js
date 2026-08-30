@@ -78,10 +78,8 @@ const EP_LABEL = {
   preview: "/v2/text-to-3d · preview", "preview:image": "/v1/image-to-3d",
   texture: "/v2/text-to-3d · refine", remesh: "/v1/remesh", rig: "/v1/rigging",
   animate: "/v1/animations", export: "/v1/convert",
-  /* la porte n'appelle aucune API — et ce libellé n'est lu par personne
-     aujourd'hui : epOf() ne sert que les phases, et le 07 ne peut pas devenir
-     le nœud actif (voir brancherEtabli). Il est là pour que la carte reste
-     complète, et il dit la vérité : rien ne part vers api.meshy.ai. */
+  /* la porte n'appelle aucune API — entrée non lue (epOf ne sert que les
+     phases), elle garde la carte totale. */
   etabli: "local · inspection",
 };
 const KIND_EP = {   /* journal persistant : kind backend → endpoint court */
@@ -190,19 +188,19 @@ function buildGraph() {
     el.style.cssText = `left:${n.x}px; top:${n.y}px; width:${n.w}px; height:${n.h}px;`;
     el.innerHTML = `
       <div class="node-kicker"><span class="kdot" style="background:var(${n.kind})"></span><span>${n.kicker}</span></div>
-      <div class="node-title" id="nt-${n.id}"></div>
-      <div class="node-sub" id="ns-${n.id}"></div>
+      <div class="node-title" id="nt-${n.id}">${n.door ? "L'Établi" : ""}</div>
+      <div class="node-sub" id="ns-${n.id}">${n.door ? "parties · rig · versions" : ""}</div>
       ${n.mesh ? `<div class="node-mesh" id="nm-${n.id}">en attente</div>` : ""}
       ${n.chips ? `<div class="node-chips" id="nc-${n.id}"></div>` : ""}
       ${n.door
         ? `<div class="node-bottom"><span class="node-door">ouvrir →</span></div>`
         : `<div class="node-bottom">
-        <div class="node-bar"><div id="nb-${n.id}" style="width:0%"></div></div>
-        <div class="node-state">
-          <span class="node-st" id="nst-${n.id}">PENDING</span>
-          <span class="node-cr" id="ncr-${n.id}">—</span>
-        </div>
-      </div>`}
+            <div class="node-bar"><div id="nb-${n.id}" style="width:0%"></div></div>
+            <div class="node-state">
+              <span class="node-st" id="nst-${n.id}">PENDING</span>
+              <span class="node-cr" id="ncr-${n.id}">—</span>
+            </div>
+          </div>`}
       ${n.ports.map(([px, py]) => `<span class="port" style="left:${px}px; top:${py}px; border-color:var(${n.kind})"></span>`).join("")}`;
     /* SOIT les gestionnaires génériques, SOIT la porte — jamais les deux.
        openEditor("etabli") ouvrirait un éditeur de tâche Meshy pour un nœud
@@ -239,7 +237,6 @@ function nodeTitle(id) {
     case "rig": return `Auto-rig ${String(c.heightMeters).replace(".", ",")} m`;
     case "animate": return `${c.animationActions.length} action${c.animationActions.length > 1 ? "s" : ""} Meshy`;
     case "export": return "Livrables";
-    case "etabli": return "L'Établi";
   }
 }
 function nodeSub(id) {
@@ -253,8 +250,6 @@ function nodeSub(id) {
     case "rig": return "/v1/rigging";
     case "animate": return "/v1/animations";
     case "export": return "/v1/convert";
-    /* ce que l'on trouve derrière la porte — pas un endpoint : il n'y en a pas */
-    case "etabli": return "parties · rig · versions";
   }
 }
 function epOf(id) {
@@ -314,16 +309,6 @@ function paramsOf(nodeId, ph) {
   return [];
 }
 
-/* Une PORTE n'est pas une phase. phaseView("etabli") ne lève pas — elle rend
-   un objet par défaut — mais ce qu'elle rend est un PENDING ÉTERNEL, barre à
-   0 % et « 0 cr » sur un nœud qui n'est pas une tâche : un état inventé, donc
-   un mensonge d'interface. La promesse est réduite au vrai — le nom du lieu et
-   ce qu'on y trouve — et rien d'autre n'est peint ici. */
-function peindrePorte(n) {
-  $(`#nt-${n.id}`).textContent = nodeTitle(n.id);
-  $(`#ns-${n.id}`).textContent = nodeSub(n.id);
-}
-
 /* L'Établi s'ouvre dans un NOUVEL ONGLET, et non par location.href.
    /studio3d est réellement iframé : patch_bundle_studio3d.py greffe un
    sous-onglet « 🐙 3D Studio » = `iframe src="/studio3d/"` dans le hub Game
@@ -332,13 +317,17 @@ function peindrePorte(n) {
    détruirait cette page, et avec elle la série Meshy que runPipeline() pilote
    depuis ici. Un onglet — le geste que cardforge fait déjà vers /vectorlab.
    Pas de "noopener" : il forcerait window.open à rendre null, ce qui
-   déclencherait le repli à chaque clic. Même origine, aucun risque. */
+   ferait passer chaque clic pour une fenêtre bloquée. Même origine, aucun
+   risque. Et le repli ne navigue PAS : le faire referait, par variable
+   interposée, exactement ce que ce commentaire écarte — et détruirait au
+   passage une série Meshy payée, en vol dans cette page. On le dit, c'est
+   tout (branche quasi inatteignable : l'iframe n'est pas `sandbox`, et un
+   window.open né d'un clic n'est pas bloqué). */
 function ouvrirEtabli() {
   const q = S.cfg.name ? `?job=${encodeURIComponent(S.cfg.name)}` : "";
   const url = `/etabli/${q}`;
   const onglet = window.open(url, "_blank");
-  /* fenêtre bloquée : naviguer sur place vaut mieux qu'un bouton mort */
-  if (!onglet) location.href = url;
+  if (!onglet) toast("Autorise les fenêtres surgissantes pour ouvrir l'Établi");
 }
 
 /* Le nœud 07 n'est pas une tâche Meshy : il ouvre l'Établi sur le job courant.
@@ -413,7 +402,13 @@ function paint() {
 
   /* nœuds */
   for (const n of NODES) {
-    if (n.door) { peindrePorte(n); continue; }
+    /* Une PORTE n'est pas une phase. phaseView("etabli") ne lève pas — elle
+       rend un objet par défaut — mais ce qu'elle rend est un PENDING ÉTERNEL,
+       barre à 0 % et « 0 cr » sur un nœud qui n'est pas une tâche : un état
+       inventé, donc un mensonge d'interface. Son texte, lui, ne change jamais
+       et se pose une fois pour toutes dans buildGraph() ; il n'y a donc rien à
+       peindre ici, et `#nb-etabli` rendrait `null` si l'on essayait. */
+    if (n.door) continue;
     const p = phaseView(n.phase);
     const col = STC[p.status] || STC.PENDING;
     const el = $(`#node-${n.id}`);

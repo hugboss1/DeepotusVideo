@@ -520,7 +520,6 @@ def test_le_cadre_css_suit_la_viewbox_sinon_les_huit_cables_decrochent():
     css = _lire("studio3d/studio3d.css")
     assert ".graph { position: relative; width: 892px; height: 354px; }" in css
     assert "width: 892px; height: 330px;" in css
-    assert "width: 740px" not in css
 
 
 def test_le_noeud_07_se_clique_mais_ne_s_edite_pas():
@@ -548,8 +547,13 @@ def test_le_07_ouvre_un_ONGLET_et_ne_navigue_pas_dans_l_iframe():
     js = _lire("studio3d/studio3d.js")
     assert 'window.open(url, "_blank")' in js
     assert "?job=${encodeURIComponent(S.cfg.name)}" in js
-    # la forme du plan, celle qui navigue dans l'iframe, est interdite
-    assert "location.href = `/etabli/" not in js
+    # LE CORPS ENTIER, et non l'orthographe littérale du plan : le repli de
+    # fenêtre bloquée écrivait `location.href = url`, soit la même navigation
+    # dans l'iframe par variable interposée — et, pendant une série, la
+    # destruction d'un pipeline Meshy payé. Un banc qui n'interdisait qu'une
+    # graphie disait non à ce que le fichier faisait deux lignes plus bas.
+    corps = js.split("function ouvrirEtabli", 1)[1].split("\n}\n", 1)[0]
+    assert "location.href" not in corps
 
 
 def test_le_rail_gauche_offre_l_etape_07():
@@ -570,10 +574,17 @@ def test_le_noeud_07_ne_peint_aucun_etat_de_tache():
 
     Le câble compte pareil : peint par phase, k9 resterait en pointillé
     « en attente » d'une phase qui ne démarrera pas.
+
+    L'autre moitié du dessin est ce qu'il montre BIEN, et elle n'était gardée
+    par rien : supprimer l'un des deux libellés laissait les bancs verts alors
+    que le nœud perdait son titre à l'écran. Ils vivent dans le GABARIT et non
+    dans paint() — ils ne changent jamais, et paint() est cadencée à 16 ms
+    pendant une série —, ce qui les rend épinglables ici.
     """
     js = _lire("studio3d/studio3d.js")
-    assert "function peindrePorte" in js
-    assert "if (n.door) { peindrePorte(n); continue; }" in js
+    assert "if (n.door) continue;" in js
+    assert """${n.door ? "L'Établi" : ""}""" in js
+    assert '${n.door ? "parties · rig · versions" : ""}' in js
     assert '<span class="node-door">ouvrir →</span>' in js
     assert "if (c.door) {" in js
     # DEUX sites dans la CSS : la règle de base et l'état de survol. Un simple

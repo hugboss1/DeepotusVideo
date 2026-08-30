@@ -42,8 +42,8 @@ function check(label, ok, detail = '') {
   await page.goto(BASE + '/studio3d/', { waitUntil: 'networkidle2', timeout: 30000 });
   await sleep(1800);
   /* 9 depuis « 07 · établi » : la porte vers /etabli. Elle ne porte PAS de
-     .node-st — le contrôle 4 (« toutes les phases SUCCEEDED ») compte donc
-     toujours 8 états, et il le doit : la porte n'est pas une phase. */
+     .node-st — le contrôle 4 (« les 8 phases SUCCEEDED ») en compte donc
+     toujours 8, et il le doit : la porte n'est pas une phase. */
   check('idle: 9 nœuds + 9 câbles',
     await page.$$eval('.node', n => n.length) === 9
     && await page.$$eval('#cables path', n => n.length) === 9);
@@ -83,8 +83,12 @@ function check(label, ok, detail = '') {
     { timeout: 120000 });
   await sleep(1000);
   const states = await page.$$eval('.node-st', els => els.map(e => e.textContent));
-  check('done: toutes les phases SUCCEEDED',
-    states.every(s => s.includes('SUCCEEDED')), states.join(' | '));
+  /* 8 et non 9 : la porte 07 n'emet pas de .node-st (elle n'a pas d'etat).
+     every() rend `true` sur un tableau vide — sans la longueur, ce controle
+     resterait vert si les huit etats disparaissaient du DOM. */
+  check('done: les 8 phases SUCCEEDED',
+    states.length === 8 && states.every(s => s.includes('SUCCEEDED')),
+    states.join(' | '));
   const used = await $t('#mUsed');
   check('done: consommé = estimé (mock fidèle à la grille)', used === est, `${used} vs ${est}`);
   check('done: journal peuplé', await page.$$eval('#journal .jrow', r => r.length) === 4);
