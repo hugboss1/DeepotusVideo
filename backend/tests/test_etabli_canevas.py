@@ -536,24 +536,48 @@ def test_le_noeud_07_se_clique_mais_ne_s_edite_pas():
     assert "if (n.door) brancherEtabli(el);\n    else {" in js
 
 
-def test_le_07_ouvre_un_ONGLET_et_ne_navigue_pas_dans_l_iframe():
-    """/studio3d est RÉELLEMENT iframé : patch_bundle_studio3d.py greffe un
-    sous-onglet « 🐙 3D Studio » = `iframe src="/studio3d/"` dans le hub Game
-    Assets. Un `location.href` chargerait donc l'Établi DANS l'iframe, sous une
-    barre d'onglets annonçant encore « 3D Studio » ; un `window.top.location`
-    détruirait cette page, et avec elle la série Meshy que runPipeline() pilote
-    depuis ici. Un onglet — le geste que cardforge fait déjà vers /vectorlab.
+def test_le_07_navigue_DANS_l_iframe_et_previent_avant_de_tuer_une_serie():
+    """CE BANC A ÉTÉ RETOURNÉ, et il dit pourquoi.
+
+    La tâche 6 ouvrait l'Établi dans un NOUVEL ONGLET, précisément pour ne pas
+    naviguer dans l'iframe : /studio3d est réellement iframé
+    (patch_bundle_studio3d.py greffe un sous-onglet « 3D Studio » =
+    `iframe src="/studio3d/"` dans le hub Game Assets), et y charger l'Établi
+    détruit cette page — avec elle la série Meshy que runPipeline() pilote
+    depuis ici.
+
+    L'utilisateur a tranché autrement, en connaissance de cet écran : « je veux
+    conserver l'atelier dans une vue iframe pour éviter toute confusion, et
+    rajoute du coup un bouton pour revenir au graph ». Un outil qui s'échappe
+    dans un onglet quand tout le reste de l'application vit dans le hub est une
+    confusion de plus ; l'Établi prend donc la place du graphe, et un bouton
+    « ← 3D Studio » l'y ramène (section J).
+
+    CE QUE ÇA COÛTE, et ce n'est pas rien : une série Meshy en vol est PERDUE,
+    crédits déjà consommés compris. Le coût ne se cache pas — il se demande.
+    C'est la garde ci-dessous, épinglée au même titre que la navigation.
     """
     js = _lire("studio3d/studio3d.js")
-    assert 'window.open(url, "_blank")' in js
     assert "?job=${encodeURIComponent(S.cfg.name)}" in js
-    # LE CORPS ENTIER, et non l'orthographe littérale du plan : le repli de
-    # fenêtre bloquée écrivait `location.href = url`, soit la même navigation
-    # dans l'iframe par variable interposée — et, pendant une série, la
-    # destruction d'un pipeline Meshy payé. Un banc qui n'interdisait qu'une
-    # graphie disait non à ce que le fichier faisait deux lignes plus bas.
+    # LE CORPS ENTIER, comme avant le retournement et pour le même motif : ce
+    # qui compte est ce que la fonction FAIT, pas l'orthographe d'un plan.
     corps = js.split("function ouvrirEtabli", 1)[1].split("\n}\n", 1)[0]
-    assert "location.href" not in corps
+    # UNE SEULE instruction de navigation, et elle vaut pour les deux cas :
+    # dans l'iframe quand la page y est embarquée, dans l'onglet sinon. Un
+    # `window.open` de repli rouvrirait par la bande l'onglet qu'on retire.
+    assert "location.href = url;" in corps
+    assert "window.open" not in corps
+    # ET LA GARDE, AVANT la navigation. Une garde posée APRÈS le
+    # `location.href` serait du code mort dans une page déjà en train de
+    # partir : la série serait morte avant que la question soit posée.
+    assert 'S.run && S.run.status === "running"' in corps
+    assert corps.index('S.run.status === "running"') < corps.index("location.href")
+    # `confirm()` et non `toast()` : un toast ne fait qu'annoncer, il ne peut
+    # pas retenir une navigation — et le dépôt confirme ainsi ailleurs
+    # (atelier.js, cardforge/mod-face.js, cardforge/mod-print.js). Un refus
+    # sec, lui, enfermerait l'utilisateur hors de l'Établi pour toute la durée
+    # d'une série, qui se compte en minutes.
+    assert "confirm(" in corps
 
 
 def test_le_rail_gauche_offre_l_etape_07():
@@ -1189,3 +1213,85 @@ def test_les_onglets_du_rail_droit_se_changent_vraiment():
     assert 'data-onglet="fiche"' in html
     assert 'classList.toggle("hidden", cle !== b.dataset.onglet)' in js
     assert '"#panFiche"' in js and '"#panExport"' in js
+# ── J. le retour au 3D Studio ────────────────────────────────────────────────
+
+def test_l_etabli_ramene_au_3D_studio_et_le_bouton_est_a_gauche():
+    """L'Établi remplace le graphe DANS l'iframe du hub (voir section F, banc
+    retourné) : sans porte de sortie, le sous-onglet « 3D Studio » resterait
+    coincé sur l'Établi jusqu'au prochain rechargement du hub. Le bouton EST
+    la moitié de la demande de l'utilisateur, pas un ornement.
+
+    Il vit à GAUCHE, avant le titre : c'est là qu'on cherche la sortie d'un
+    écran, et `.head-right` porte les contrôles de la VUE (« A/B ✕ »), pas la
+    navigation. Mélanger les deux ferait d'un bouton qui quitte la page le
+    voisin immédiat d'un bouton qui ferme un panneau.
+
+    Le style n'est pas réinventé : le bouton PARTAGE la règle de #btnCompare,
+    au sélecteur près. Un bouton d'en-tête qui ne ressemble pas à l'autre
+    bouton d'en-tête est un bouton venu d'ailleurs.
+    """
+    html = _lire("etabli/index.html")
+    js, css = _lire("etabli/etabli.js"), _lire("etabli/etabli.css")
+    assert 'id="btnRetour"' in html
+    assert "← 3D Studio" in html
+    # la PLACE, et non seulement la présence : dans `.head-right` le bouton
+    # serait vert ici sans cette comparaison, et lu comme un contrôle de vue.
+    assert html.index('id="btnRetour"') < html.index('class="head-title"')
+    assert '$("#btnRetour").addEventListener("click"' in js
+    # LES DEUX sélecteurs partagés — base et survol. Sans le second, le bouton
+    # est le seul de l'en-tête qui ne réagit pas au passage du curseur.
+    assert ".head-right button, #btnRetour {" in css
+    assert ".head-right button:hover, #btnRetour:hover" in css
+
+
+def test_le_retour_refuse_de_perdre_les_modifications_en_attente():
+    """`S.enAttente` porte des corrections qui ne sont PAS sur le disque —
+    c'est toute la doctrine de cette page : le bouton met en attente, la porte
+    d'écriture écrit. Partir sur une file pleine les perdrait EN SILENCE, le
+    mode d'échec que ce fichier traque partout ailleurs.
+
+    Refus dans la barre du bas, et non `confirm()` : le dépôt confirme ainsi
+    ailleurs (atelier, cardforge), mais CETTE page a une doctrine écrite —
+    aucune boîte du navigateur, les refus s'écrivent sous la classe `erreur`
+    (voir test_aucun_refus_ne_passe_par_alert, dont le motif — « il bloque la
+    page, il ne ressemble à rien de ce que l'Établi affiche » — vaut mot pour
+    mot pour `confirm`). Et le refus n'enferme personne : ses deux issues,
+    « écrire la version » et « annuler », sont des boutons de CETTE MÊME
+    BARRE, posés à côté du message.
+
+    Enfin la navigation est une adresse ABSOLUE et rien d'autre : /etabli/
+    s'ouvre aussi en direct, et un `window.top` ou un `window.parent` ne
+    marcherait qu'embarqué — ou casserait la page autonome.
+    """
+    js = _lire("etabli/etabli.js")
+    depart = js.split('$("#btnRetour").addEventListener', 1)[1]
+    corps = depart.split("\n});\n", 1)[0]
+    assert "if (S.enAttente.length) {" in corps
+    assert 'location.href = "/studio3d/";' in corps
+    # L'ORDRE est toute l'assertion : un direRefus() posé APRÈS la navigation
+    # écrirait un message dans une page qui part déjà, et la file serait
+    # perdue quand même. Le `return;` doit précéder lui aussi.
+    assert corps.index("direRefus(") < corps.index("location.href")
+    assert corps.index("return;") < corps.index("location.href")
+    # la doctrine de refus de la page, pinglée là où elle se joue
+    assert "confirm(" not in corps
+    # embarqué ET autonome : une seule adresse, aucune supposition de parent
+    assert "window.top" not in corps and "window.parent" not in corps
+    # `?job=` ne repart PAS : le studio a son propre état, et une chaîne de
+    # requête qu'il ne lit pas serait une URL qui promet sans tenir.
+    assert "job=" not in corps
+
+
+def test_le_retour_n_est_branche_qu_une_seule_fois():
+    """Ce fichier a DÉJÀ empilé un écouteur par modèle en le posant dans
+    `etabli:charge`, émis à chaque chargement réussi (voir `_clicBranche`). Le
+    branchement du retour vit donc au PREMIER NIVEAU du module, qui ne
+    s'exécute qu'à l'import : posé dans l'écouteur, trois GLB chargés
+    feraient trois navigations pour un clic.
+    """
+    js = _lire("etabli/etabli.js")
+    assert js.count('$("#btnRetour").addEventListener') == 1
+    # AU PREMIER NIVEAU : la ligne commence en colonne 0. Indentée, elle
+    # serait dans un `function` ou dans l'écouteur `etabli:charge` — et le
+    # simple `count == 1` ci-dessus resterait vert.
+    assert '\n$("#btnRetour").addEventListener' in js

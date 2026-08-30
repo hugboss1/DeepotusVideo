@@ -36,6 +36,12 @@
   <!-- ══════════ centre : le grand canevas ══════════ -->
   <main class="centre">
     <header class="head">
+      <!-- La sortie de l'écran, et elle est à GAUCHE, avant le titre : cette
+           page remplace le graphe DANS l'iframe du hub, elle doit donc rendre
+           la main là où on cherche un retour. `.head-right` porte les
+           contrôles de la VUE (« A/B ✕ ») ; y poser une navigation ferait du
+           bouton qui QUITTE la page le voisin de celui qui ferme un panneau. -->
+      <button id="btnRetour" title="Revenir au graphe du 3D Studio">← 3D Studio</button>
       <span class="head-title">Établi</span>
       <span class="head-chip" id="chipSource">—</span>
       <div class="head-right">

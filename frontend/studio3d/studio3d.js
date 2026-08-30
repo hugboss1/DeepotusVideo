@@ -309,25 +309,46 @@ function paramsOf(nodeId, ph) {
   return [];
 }
 
-/* L'Établi s'ouvre dans un NOUVEL ONGLET, et non par location.href.
-   /studio3d est réellement iframé : patch_bundle_studio3d.py greffe un
-   sous-onglet « 🐙 3D Studio » = `iframe src="/studio3d/"` dans le hub Game
-   Assets. Un location.href chargerait donc l'Établi DANS l'iframe, sous une
-   barre d'onglets annonçant encore « 3D Studio » ; un window.top.location
-   détruirait cette page, et avec elle la série Meshy que runPipeline() pilote
-   depuis ici. Un onglet — le geste que cardforge fait déjà vers /vectorlab.
-   Pas de "noopener" : il forcerait window.open à rendre null, ce qui
-   ferait passer chaque clic pour une fenêtre bloquée. Même origine, aucun
-   risque. Et le repli ne navigue PAS : le faire referait, par variable
-   interposée, exactement ce que ce commentaire écarte — et détruirait au
-   passage une série Meshy payée, en vol dans cette page. On le dit, c'est
-   tout (branche quasi inatteignable : l'iframe n'est pas `sandbox`, et un
-   window.open né d'un clic n'est pas bloqué). */
+/* L'Établi s'ouvre DANS LA FENÊTRE COURANTE — donc DANS l'iframe du hub quand
+   cette page y est embarquée, et dans l'onglet quand /studio3d est ouvert en
+   direct. UNE seule instruction pour les deux cas : `location.href` désigne la
+   fenêtre qui exécute ce script, pas la fenêtre du dessus. Pas de
+   `window.top`, qui casserait l'ouverture en direct ; pas de repli
+   `window.open`, qui rouvrirait par la bande l'onglet qu'on retire ici.
+
+   CE CHOIX RETOURNE CELUI DE LA TÂCHE 6, qui ouvrait un nouvel onglet. Motif :
+   demande explicite de l'utilisateur — « je veux conserver l'atelier dans une
+   vue iframe pour éviter toute confusion, et rajoute du coup un bouton pour
+   revenir au graph ». /studio3d est réellement iframé (patch_bundle_studio3d.py
+   greffe un sous-onglet « 🐙 3D Studio » = `iframe src="/studio3d/"` dans le
+   hub Game Assets) ; l'Établi y prend maintenant la place du graphe, et son
+   en-tête porte un bouton « ← 3D Studio » qui ramène ici.
+
+   CE QUE ÇA COÛTE, et ce n'est pas caché : la série Meshy vit DANS CETTE PAGE
+   (runPipeline / MeshyPipeline). Partir la tue, crédits déjà consommés compris
+   — et Meshy ne rembourse que les tâches ÉCHOUÉES, pas celles qu'on abandonne.
+   D'où la garde : on DEMANDE avant de partir.
+
+   confirm() et non toast() : un toast annonce, il ne retient pas une
+   navigation — celle de #btnReplay refuse d'ailleurs sans rien demander, ce
+   qui va pour un bouton « ↺ » mais enfermerait ici l'utilisateur hors de
+   l'Établi pour toute la durée d'une série, qui se compte en minutes. Et le
+   dépôt confirme ainsi ailleurs : atelier.js, cardforge/mod-face.js,
+   cardforge/mod-print.js. Le modal #confirm de cette page n'est pas
+   réutilisable : il est câblé une fois pour toutes sur runPipeline().
+
+   Et le confirm ARRIVE bien dans l'iframe : patch_bundle_studio3d.py la greffe
+   MÊME ORIGINE et SANS `sandbox` — vérifié ligne par ligne. Un navigateur qui
+   l'étoufferait quand même rendrait `false`, donc `return` : la série survit,
+   et l'échec penche du bon côté. */
 function ouvrirEtabli() {
   const q = S.cfg.name ? `?job=${encodeURIComponent(S.cfg.name)}` : "";
   const url = `/etabli/${q}`;
-  const onglet = window.open(url, "_blank");
-  if (!onglet) toast("Autorise les fenêtres surgissantes pour ouvrir l'Établi");
+  if (S.run && S.run.status === "running"
+      && !confirm("Une série Meshy tourne dans cette page : aller à l'Établi "
+                  + "l'interrompt, et les crédits déjà consommés ne reviennent "
+                  + "pas. Quitter quand même ?")) return;
+  location.href = url;
 }
 
 /* Le nœud 07 n'est pas une tâche Meshy : il ouvre l'Établi sur le job courant.

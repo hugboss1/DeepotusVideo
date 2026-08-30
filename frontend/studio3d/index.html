@@ -43,8 +43,10 @@
     <section class="rail-bottom">
       <div class="dt-label">Étape suivante</div>
       <button class="next-step" id="goSprite">04 · Sprite Sheet →</button>
-      <!-- l'Établi n'est pas un sous-onglet du hub : il s'ouvre dans un
-           onglet (voir ouvrirEtabli), pas via gotoSubtab. -->
+      <!-- l'Établi n'est pas un sous-onglet du hub : il PREND LA PLACE de
+           cette page dans l'iframe (voir ouvrirEtabli) et rend la main par son
+           bouton « ← 3D Studio ». Donc pas de gotoSubtab, qui demanderait au
+           hub de changer d'onglet — l'Établi n'en est pas un. -->
       <button class="next-step" id="goEtabli">07 · Établi 3D →</button>
     </section>
   </aside>

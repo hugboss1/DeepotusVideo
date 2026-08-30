@@ -607,6 +607,45 @@ $("#btnCompare").addEventListener("click", () => {
   fermerComparaison();
 });
 
+/* ── retour au 3D Studio ────────────────────────────────────────────────────
+   L'Établi n'est plus un onglet à part : il PREND LA PLACE du graphe dans
+   l'iframe du hub (voir ouvrirEtabli dans studio3d.js, et la demande de
+   l'utilisateur qui l'a voulu ainsi). Sans ce bouton, le sous-onglet
+   « 3D Studio » resterait sur l'Établi jusqu'au prochain rechargement du hub.
+
+   UNE adresse absolue, et rien d'autre : pas de `window.parent`, pas de
+   `window.top`. /etabli/ s'ouvre AUSSI en direct, et une navigation qui
+   suppose un parent ne marcherait qu'embarquée. `?job=` ne repart pas : le
+   studio a son propre état, et lui rendre une chaîne de requête qu'il ne lit
+   pas ferait une URL qui promet sans tenir.
+
+   Branché ICI, au premier niveau du module — il ne s'exécute qu'à l'import.
+   Posé dans l'écouteur `etabli:charge`, il s'empilerait à chaque modèle chargé
+   (c'est le piège que `_clicBranche` corrige plus bas).
+
+   ET IL REFUSE DE PARTIR SUR UNE FILE PLEINE. `S.enAttente` porte des
+   corrections qui ne sont PAS sur le disque — c'est toute la doctrine de cette
+   page : les boutons mettent en attente, la porte d'écriture écrit. Partir les
+   perdrait EN SILENCE.
+
+   REFUS et non confirm(), et c'est un choix : le dépôt confirme ainsi ailleurs
+   (atelier.js, cardforge), mais CETTE page a une doctrine écrite — aucune
+   boîte du navigateur, les refus s'écrivent dans la barre du bas sous la
+   classe `erreur` (direRefus, et le banc test_aucun_refus_ne_passe_par_alert
+   dont le motif, « il bloque la page, il ne ressemble à rien de ce que
+   l'Établi affiche », vaut mot pour mot pour confirm). Un refus n'enferme
+   personne ici : ses deux issues — « écrire la version » et « annuler » — sont
+   des boutons de CETTE MÊME BARRE, posés à côté du message, et « annuler »
+   vide la file en un clic. Le retour est alors à un second clic. */
+$("#btnRetour").addEventListener("click", () => {
+  if (S.enAttente.length) {
+    direRefus(`${S.enAttente.length} modification(s) non écrite(s) — `
+      + "« écrire la version » ou « annuler » avant de revenir au 3D Studio");
+    return;
+  }
+  location.href = "/studio3d/";
+});
+
 /* ── ?job= : la promesse du lien du 3D Studio, tenue ────────────────────────
    Le nœud « 07 · établi » du graphe amène ici avec `?job=<nom>` en poche.
    Ignorer cette chaîne — ce que faisait la page — déposait l'utilisateur sur
