@@ -138,6 +138,15 @@ button { font-family: inherit; }
   background: var(--bg-panel-3);
   font-family: var(--f-mono); font-size: 10.5px; color: var(--ink-soft);
 }
+/* La hauteur de la boîte est un INVARIANT, pas une coïncidence : le cadrage des
+   deux vues est calculé pendant qu'elle affiche son squelette, et toute rangée
+   qui s'enroulerait plus tard lui reprendrait des pixels APRÈS coup. La plus
+   longue — « dimensions », suffixe d'unité compris — fait ~87 caractères, soit
+   ~548 px : sous une fenêtre d'environ 1036 px elle passait à deux lignes dans
+   le contenu final et pas dans le squelette. On coupe donc plutôt que
+   d'enrouler ; l'en-tête d'etabli.css raconte déjà ce que coûte une hauteur
+   laissée à l'intrinsèque (998 rangées de 2 px). */
+.ecart > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Sans cette règle, l'en-tête « A … → B … » se rend comme une ligne de données
    et les <b> des données sont plus gras que le titre : hiérarchie inversée. */
 .ecart-tete {

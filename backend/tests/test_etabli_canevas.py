@@ -371,10 +371,25 @@ def test_la_boite_d_ecart_prend_sa_hauteur_avant_tout_cadrage():
     trois fois sur trois. Le squelette à tirets donne à la boîte sa hauteur
     FINALE dès le démasquage, comme #vueB juste au-dessus. Un rAF ne
     corrigerait rien : le contenu final arrive après deux requêtes réseau.
+
+    DEUX sites, et on les compte. Le second est perimerEcart() : écrit en
+    `textContent`, il reprenait à la boîte quatre de ses cinq rangées APRÈS
+    que charger() ait cadré la vue A — mêmes 56 px, mêmes 7,6 %, mais TROP
+    PRÈS cette fois, donc ~3,8 % de la largeur rognée à chaque bord. Trop
+    loin ne rogne jamais ; trop près, si. L'ancre d'ordre n'en est pas
+    affectée : index() rend la première occurrence, qui reste le démasquage.
+
+    La règle CSS, elle, rend l'invariant vrai par CONSTRUCTION. Sans elle,
+    « même hauteur » n'est qu'une coïncidence arithmétique : la ligne
+    `dimensions` (~87 caractères, ~548 px, suffixe d'unité compris)
+    s'enroulait sous une fenêtre d'environ 1036 px dans le contenu final et
+    pas dans le squelette — six rangées au lieu de cinq, après le cadrage.
     """
-    js = _lire("etabli/etabli.js")
+    js, css = _lire("etabli/etabli.js"), _lire("etabli/etabli.css")
+    assert js.count("ligneEcart(null") == 2   # démasquage ET péremption
     assert js.index("ligneEcart(null") < js.index("charger(S.vueB") \
         < js.index("cadrer(S.vueA)")
+    assert ".ecart > div" in css              # cinq rangées restent cinq
 
 
 def test_la_vue_B_a_son_propre_verrou_de_serialisation():

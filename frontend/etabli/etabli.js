@@ -439,12 +439,23 @@ async function _ouvrirComparaison(cible, numero) {
    d'être réécrits sous elle. Un commentaire ne remonte pas jusqu'à l'écran, et
    c'est l'écran qui affirme. On ne promet pas une comparaison vivante — la
    recalculer exigerait de relire deux fiches — on promet de ne jamais en
-   afficher une fausse. */
+   afficher une fausse.
+
+   Le SQUELETTE, et non un textContent d'une ligne : la boîte garde ses cinq
+   rangées. Écrite en une ligne, elle rendait 56 px aux vues APRÈS que
+   charger() ait cadré la vue A — mêmes 56 px et mêmes 7,6 % que le défaut que
+   ce commit corrige, mais dans l'autre sens : TROP PRÈS, donc rognant ~3,8 %
+   de la largeur à chaque bord (recul posé 1,4045 contre 1,5107 requis), sur la
+   vue principale d'un modèle que l'utilisateur vient de charger, et jusqu'au
+   prochain alt-clic. Trop loin ne rogne jamais ; trop près, si.
+   Les tirets y sont littéralement vrais : il n'y a plus de comparaison. */
 function perimerEcart() {
   if (!S.b) return;
   const boite = $("#ecart");
   boite.classList.add("erreur");
-  boite.textContent = "la vue A a changé — alt-cliquez pour recomparer";
+  boite.innerHTML =
+    '<div class="ecart-tete">la vue A a changé — alt-cliquez pour recomparer</div>'
+    + ligneEcart(null, null, {}, {});
 }
 
 /* Le bouton est visible dès le chargement de la page, avant qu'il y ait quoi
