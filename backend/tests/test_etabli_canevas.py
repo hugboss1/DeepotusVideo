@@ -626,3 +626,228 @@ def test_le_marquage_du_job_ne_charge_rien_tout_seul():
     corps = js.split("function marquerJobVise", 1)[1].split("\n}\n", 1)[0]
     assert "ouvrirPrincipale" not in corps
     assert "charger(" not in corps
+
+
+# ── H. Parties : selection et isolation ──────────────────────────────────────
+# (le plan appelait cette section « G » ; la lettre etait deja prise par la
+# section ?job=, on enchaine donc sur H.)
+
+def test_les_trois_granularites_de_selection_existent():
+    """EXIGENCE DE SPEC — CE BANC NE GARDE RIEN PAR LUI-MÊME. Les trois mots
+    sont satisfaits par de la PROSE : le commentaire de tête du module en
+    contient déjà deux. Ce dépôt a payé quatre fois cette erreur (un banc de
+    la tâche 3 asserait `"dispose" in js`, satisfait par le mot « disposer »
+    d'un commentaire, et le corps de la fonction pouvait disparaître en
+    restant vert). Ce qui MORD est `..._sont_REELLEMENT_branchees`, plus bas.
+    """
+    js = _lire("lib3d/selection.js")
+    for mot in ("noeud", "maillage", "materiau"):
+        assert mot in js
+
+
+def test_la_selection_se_fait_aussi_au_clic_dans_le_canevas():
+    """EXIGENCE DE SPEC, GARDE FAIBLE : le seul mot « Raycaster » serait
+    satisfait par un import inutilisé. Le banc qui mord sur le clic est
+    `..._est_volontaire_et_ne_vole_pas_l_orbite`.
+    """
+    js = _lire("lib3d/selection.js")
+    assert "Raycaster" in js
+
+
+def test_l_isolation_est_un_affichage_et_n_ecrit_rien():
+    """Isoler ne doit toucher AUCUNE route d'ecriture.
+
+    Les deux premières assertions sont des exigences de spec faibles
+    (« isoler » vit aussi dans les commentaires). La TROISIÈME, elle, est une
+    vraie garde STRUCTURELLE, et la plus précieuse du lot : elle tient la
+    règle « le navigateur voit et manipule, Python écrit » quoi qu'il advienne
+    du corps des fonctions. Ne pas l'affaiblir.
+    """
+    js = _lire("lib3d/selection.js")
+    assert "isoler" in js
+    assert "/api/etabli/extraire" not in js
+    assert "fetch" not in js
+
+
+def test_l_index_de_noeud_gltf_est_conserve_pour_le_serveur():
+    """Le serveur raisonne en index de noeud glTF ; three.js en objets. Sans
+    ce pont, l'extraction viserait le mauvais noeud.
+
+    EXIGENCE DE SPEC, GARDE FAIBLE : « userData » et « indexGltf » se lisent
+    aussi dans un commentaire. C'est
+    `..._vient_de_parser_associations_et_non_des_noms` qui garde la JUSTESSE
+    du pont — la seule chose qui compte ici.
+    """
+    js = _lire("lib3d/selection.js")
+    assert "userData" in js
+    assert "indexGltf" in js
+
+
+def test_les_trois_granularites_sont_REELLEMENT_branchees():
+    """Trois granularités parce que les moteurs ne découpent pas pareil : un
+    modèle Meshy arrive souvent en un nœud UNIQUE à plusieurs matériaux — le
+    lister par nœud n'en montrerait qu'une ligne — quand un Tripo arrive en
+    plusieurs nœuds. Aucune des trois ne suffit seule, donc les trois doivent
+    être PRODUITES, ATTEIGNABLES, et opérantes jusqu'à l'isolation.
+    """
+    sel, js = _lire("lib3d/selection.js"), _lire("etabli/etabli.js")
+    # l'inventaire remplit vraiment les trois listes
+    assert "noeuds.push(" in sel
+    assert "maillages.push(" in sel
+    assert "materiaux.set(" in sel
+    # le panneau sait aller chercher les trois, et offre le choix
+    for cle in ("inv.noeuds", "inv.maillages", "inv.materiaux"):
+        assert cle in js, cle
+    assert '["noeud", "maillage", "materiau"].map' in js
+    # et l'isolation sait retenir un MATÉRIAU par son uuid. Sans cette
+    # branche, cocher un matériau puis isoler passerait le modèle ENTIER en
+    # fantôme : la granularité serait affichée, et inopérante — le pire des
+    # échecs, silencieux.
+    assert "retenu.has(m.uuid)" in sel
+    # et un NŒUD retenu emporte son sous-arbre : un nœud glTF peut n'être
+    # qu'un contenant, sans géométrie propre. Sans la remontée des parents,
+    # le retenir n'isolerait rien et passerait le modèle entier en fantôme.
+    assert "n = n.parent" in sel
+
+
+def test_l_index_glTF_vient_de_parser_associations_et_non_des_noms():
+    """LE pont qui décide quel nœud le serveur extraira (tâche 8). Vérifié
+    dans le GLTFLoader vendorisé (0.185.1) : le parser tient `associations`,
+    une Map Object3D → {nodes, meshes, primitives}, remplie à la construction
+    de la scène (`parser.associations.get( node ).nodes = nodeIndex`) puis
+    RÉDUITE aux objets réellement entrés dans la scène. C'est la
+    correspondance exacte, établie par celui qui a construit les objets.
+
+    La deviner en appariant les NOMS échoue en silence dans au moins trois
+    cas : un nœud sans nom n'obtient jamais d'index ; deux nœuds de même nom
+    reçoivent les leurs dans l'ordre de PARCOURS, qui n'est pas forcément le
+    leur ; un nom porté à la fois par un nœud et par un maillage brouille la
+    carte. L'extraction viserait alors le mauvais maillage, et écrirait un GLB
+    faux sans que rien ne grince.
+    """
+    js = _lire("lib3d/selection.js")
+    assert "parser.associations" in js
+    # Le champ est LU, et c'est bien LUI qui devient l'index. Un simple
+    # `"lien.nodes" in js` restait VERT quand l'affectation prenait une
+    # autre valeur — la garde `lien.nodes === undefined` deux lignes plus
+    # haut suffisait à le satisfaire. Mesuré par mutation, corrigé ici.
+    assert "o.userData.indexGltf = lien.nodes;" in js
+    # la carte du chargeur passe AVANT le repli par nom, qui reste un repli
+    assert js.index("assoc.get(o)") < js.index("parNom.get(")
+    # ATTENTION : la ligne ci-dessus ne garde que l'ordre du TEXTE. Le
+    # gate d'exécution, lui, est ce `return` — sans lui le repli tourne
+    # quand même et réattribue par nom des index que la Map avait déjà
+    # posés justes. Vérifié par mutation : inverser la condition ne
+    # bougeait AUCUNE des autres assertions.
+    assert "if (poses) return;" in js
+    # et la provenance se DÉCLARE : la tâche 8 saura sur quoi elle s'appuie
+    assert "indexGltfSource" in js
+    assert '"associations"' in js and '"nom"' in js
+
+
+def test_le_clic_de_selection_est_volontaire_et_ne_vole_pas_l_orbite():
+    """OrbitControls est branché sur le MÊME canevas (viewer.js le construit
+    avec le <canvas>). Sur un simple `pointerdown`, chaque début de rotation
+    sélectionnerait ce qui passe sous le curseur : on ne pourrait plus tourner
+    le modèle sans le désigner. La sélection réclame donc un aller-retour au
+    même endroit, et le bouton gauche seulement.
+    """
+    js = _lire("lib3d/selection.js")
+    avant, apres = js.split('"pointerup"', 1)
+    # le bouton est filtré au POSER
+    assert "ev.button !== 0" in avant
+    # le rayon n'est tiré qu'au RELEVER, et nulle part avant
+    assert "setFromCamera" in apres
+    assert "setFromCamera" not in avant
+    # et seulement si le pointeur n'a pas dérivé entre les deux
+    assert "const TOLERANCE_CLIC" in js
+    assert "Math.hypot(" in apres and "TOLERANCE_CLIC" in apres
+
+
+def test_le_clic_de_selection_n_est_branche_qu_une_seule_fois():
+    """`etabli:charge` est émis à CHAQUE chargement réussi. Brancher
+    designerAuClic() dans son écouteur sans garde empile un écouteur par
+    modèle : au troisième GLB, un clic tire trois rayons et redessine trois
+    fois le panneau. Le canevas, lui, est créé une fois pour la vie de la page
+    (viewer.js met les deux vues en cache et ne démonte jamais le canevas) :
+    un seul branchement suffit, et il vaut pour tous les modèles suivants.
+    """
+    js = _lire("etabli/etabli.js")
+    assert js.count("designerAuClic(") == 1        # un SEUL site d'appel
+    bloc = js.split('addEventListener("etabli:charge"', 1)[1]
+    assert bloc.index("if (_clicBranche) return;") < bloc.index("designerAuClic(")
+    assert "_clicBranche = true;" in bloc
+
+
+def test_la_selection_ne_survit_pas_au_changement_de_modele():
+    """Les uuid retenus appartiennent au modèle PRÉCÉDENT : gardés, ils ne
+    désignent plus rien — ou pire, désigneront un jour autre chose, et la
+    tâche 8 les enverra tels quels au serveur. Exactement le problème que la
+    tâche 4 a résolu pour S.enAttente, et le même remède : vidés là où le
+    modèle affiché change, quoi qu'il arrive, et donc AVANT le chargement —
+    pas dans un rendu qui n'a lieu qu'en cas de succès.
+    """
+    js = _lire("etabli/etabli.js")
+    assert "SEL.retenus.clear();" in js
+    i_vide = js.index("SEL.retenus.clear();")      # le PREMIER site du fichier
+    assert js.index("S.enAttente.length = 0;") < i_vide
+    assert i_vide < js.index("await charger(S.vueA")
+
+
+def test_le_panneau_Parties_echappe_les_noms_venus_du_GLB():
+    """Les noms de nœuds, de maillages et de matériaux viennent du FICHIER
+    GLB — donc du dehors, au même titre que les libellés du disque de la
+    tâche 4. Ce fichier s'est donné la règle que tout ce qui entre dans
+    innerHTML passe par esc(), et les attributs data- ne font pas exception :
+    c'est même là qu'un guillemet casse la ligne entière.
+    """
+    js = _lire("etabli/etabli.js")
+    assert "esc(x.nom)" in js
+    assert "esc(x.uuid)" in js
+    assert "esc(x.indexGltf" in js
+    corps = js.split("function rendreParties", 1)[1].split("\n}\n", 1)[0]
+    assert '$("#panParties")' in corps
+    assert "box.innerHTML" in corps
+    # aucune interpolation NUE de ce qui vient du fichier
+    assert "${x.nom}" not in corps
+    assert "${x.uuid}" not in corps
+
+
+def test_l_isolation_rend_l_opacite_d_origine_et_reste_un_affichage():
+    """« Tout revoir » ne repose pas une opacité arbitraire : le matériau doit
+    retrouver CELLE QU'IL AVAIT — un verre à 0,4 resterait sinon opaque après
+    une isolation, et le modèle serait durablement faux à l'écran alors même
+    que rien n'a été écrit. D'où une mémoire posée UNE seule fois, avant la
+    première altération.
+    """
+    sel, js = _lire("lib3d/selection.js"), _lire("etabli/etabli.js")
+    assert "m.userData.opaciteOrigine === undefined" in sel
+    assert "m.opacity = dedans ? m.userData.opaciteOrigine : fantome;" in sel
+    assert "m.transparent = dedans ? m.userData.transparentOrigine : true;" in sel
+    # « tout revoir » isole SUR RIEN, ce qui restaure tout
+    assert "isoler(S.vueA, [])" in js
+
+
+def test_le_module_de_selection_est_servi_a_la_page():
+    """La page l'importe par URL ABSOLUE. Non servi, le panneau Parties serait
+    mort-ne et le refus ne vivrait que dans la console du navigateur — nulle
+    part au banc. Le chemin de l'import est epingle avec : les deux ne peuvent
+    plus diverger en silence.
+    """
+    assert '"/lib3d/selection.js"' in _lire("etabli/etabli.js")
+    r = _client().get("/lib3d/selection.js")
+    assert r.status_code == 200
+    assert "export function isoler" in r.text
+
+
+def test_le_module_de_selection_ne_connait_aucune_route():
+    """La règle structurante de la page, vue du navigateur : il voit et
+    manipule, Python écrit. Ce module n'a donc aucune adresse à connaître, ni
+    aucun moyen de fabriquer un GLB. Garde STRUCTURELLE, comme le
+    `"fetch" not in js` plus haut : elle tient même si le corps des fonctions
+    change du tout au tout.
+    """
+    js = _lire("lib3d/selection.js")
+    assert "/api/" not in js
+    assert "GLTFExporter" not in js
+    assert "XMLHttpRequest" not in js

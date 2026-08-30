@@ -6,6 +6,8 @@
    /api/etabli/*, et c'est Python qui écrit, versionne et fiche. */
 "use strict";
 import { creerCanevas, charger, cadrer, vider } from "/lib3d/viewer.js";
+import { indexerNoeuds, inventaire, isoler, surligner, designerAuClic }
+  from "/lib3d/selection.js";
 
 const $ = (s) => document.querySelector(s);
 
@@ -25,6 +27,16 @@ const S = {
   geoA: null, geoB: null,
   enAttente: [],             // corrections non écrites
 };
+
+/* L'état du panneau Parties. Il vit à côté de S plutôt que dedans parce
+   qu'il ne décrit PAS le modèle affiché mais ce que l'utilisateur en a
+   retenu — et parce que la tâche suivante l'enverra au serveur tel quel.
+   `retenus` porte des uuid three.js (d'un maillage ou d'un matériau) ou
+   des index de nœud glTF, selon la granularité, et il reste HOMOGÈNE :
+   changer de granularité le vide, sans quoi une sélection mêlerait trois
+   vocabulaires que rien ne saurait plus démêler. (Même règle que pour S :
+   toute clé se déclare ICI.) */
+const SEL = { granularite: "maillage", retenus: new Set() };
 
 async function jget(p) {
   const r = await fetch(p);
@@ -168,6 +180,12 @@ async function _ouvrirPrincipale(cible, numero) {
      (`userData.indexGltf`) : les garder ferait écrire les index d'un maillage
      dans la version d'un AUTRE, sur disque et sans que rien ne grince. */
   S.enAttente.length = 0;
+  /* Et la sélection du panneau Parties avec elles, pour la même raison :
+     ses uuid désignent les objets du modèle SORTANT, que vider() est sur le
+     point de libérer. Gardés, ils ne désigneraient plus rien — ou pire,
+     désigneraient un jour autre chose, et la tâche 8 les enverrait tels
+     quels au serveur. */
+  SEL.retenus.clear();
   const geoBox = $("#barreGeo");
   $("#barreFichier").textContent = cible.url.split("/").pop();
   geoBox.classList.remove("erreur");
@@ -187,6 +205,7 @@ async function _ouvrirPrincipale(cible, numero) {
        l'endroit où le dépôt met ses refus parlants. */
     S.a = null;                      // rien n'est chargé : ne pas mentir à la suite
     S.geoA = null;                   // ni à la ligne d'écart, qui la lirait
+    rendreParties();                 // ni au panneau, qui listerait un modèle absent
     perimerEcart();                  // ni à l'écran, si une comparaison est ouverte
     $("#chipSource").textContent = "—";
     geoBox.textContent = `échec du chargement — ${e.message}`;
@@ -521,6 +540,113 @@ function marquerJobVise() {
   bloc.scrollIntoView({ block: "nearest" });
 }
 
+/* ── le panneau Parties : nœud, maillage, matériau ──────────────────────────
+   Trois granularités parce que les moteurs ne découpent pas pareil : un modèle
+   Meshy est souvent un nœud UNIQUE à plusieurs matériaux — le lister par nœud
+   n'en montrerait qu'une seule ligne — quand un Tripo arrive en plusieurs
+   nœuds. Aucune des trois ne suffit seule.
+
+   Ce panneau N'ÉCRIT RIEN. Isoler est un AFFICHAGE : les pièces écartées
+   passent en fantôme, aucun GLB n'est fabriqué, aucune route n'est appelée.
+   C'est la règle de tête de ce fichier, et /lib3d/selection.js la tient
+   structurellement — un banc y interdit la moindre requête réseau. */
+
+/* Le clic dans le canevas n'est branché QU'UNE FOIS : voir l'écouteur plus
+   bas, `etabli:charge` est émis à chaque chargement réussi. */
+let _clicBranche = false;
+
+function rendreParties() {
+  const box = $("#panParties");
+  const inv = inventaire(S.vueA);
+  const liste = SEL.granularite === "noeud" ? inv.noeuds
+    : SEL.granularite === "materiau" ? inv.materiaux : inv.maillages;
+  /* esc() partout, attributs data- compris : `nom` vient des noms de nœuds, de
+     maillages et de matériaux DU FICHIER GLB, donc du dehors, exactement comme
+     les libellés du disque de la tâche 4 — et c'est dans un attribut qu'un
+     guillemet casse la ligne entière. `tris`, lui, est compté par selection.js
+     sur les tampons de géométrie : c'est un nombre, et le seul chiffre de ce
+     balisage à n'avoir traversé aucun fichier. */
+  const rangees = liste.map((x) => `
+      <label class="partie">
+        <input type="checkbox" data-uuid="${esc(x.uuid)}"
+               data-index="${esc(x.indexGltf ?? "")}"
+               ${SEL.retenus.has(x.uuid) ? "checked" : ""}>
+        <b>${esc(x.nom)}</b>${x.tris
+          ? `<span>${x.tris.toLocaleString("fr-FR")} tri</span>` : ""}
+      </label>`).join("");
+  /* Les deux boutons sont rendus MÊME quand la liste est vide : ils sont relus
+     juste après par leur id, et un panneau sans eux ferait lever le
+     addEventListener sur null. isoler() garde de son côté le cas « aucun
+     modèle chargé ». */
+  box.innerHTML = `
+    <div class="granularite">
+      ${["noeud", "maillage", "materiau"].map((g) =>
+        `<button data-g="${g}" class="${g === SEL.granularite ? "actif" : ""}">${g}</button>`
+      ).join("")}
+    </div>
+    <div class="parties">${rangees || `<div class="vide">${S.vueA && S.vueA.racine
+      ? "aucune partie à cette granularité" : "aucun modèle chargé"}</div>`}</div>
+    <div class="parties-actions">
+      <button id="btnIsoler">Isoler la sélection</button>
+      <button id="btnToutVoir">Tout revoir</button>
+    </div>`;
+
+  box.querySelectorAll("[data-g]").forEach((b) =>
+    b.addEventListener("click", () => {
+      /* On VIDE en changeant de granularité : l'uuid d'un matériau ne désigne
+         pas un maillage, et une sélection mêlée partirait telle quelle au
+         serveur en tâche 8. */
+      SEL.granularite = b.dataset.g; SEL.retenus.clear(); rendreParties();
+    }));
+  box.querySelectorAll("input[type=checkbox]").forEach((c) =>
+    c.addEventListener("change", () => {
+      if (c.checked) SEL.retenus.add(c.dataset.uuid);
+      else SEL.retenus.delete(c.dataset.uuid);
+    }));
+  $("#btnIsoler").addEventListener("click", () => isoler(S.vueA, [...SEL.retenus]));
+  /* « Tout revoir » n'est pas un second chemin : isoler SUR RIEN restaure, par
+     la ligne de code même qui isole. Les deux ne peuvent donc pas diverger. */
+  $("#btnToutVoir").addEventListener("click", () => isoler(S.vueA, []));
+}
+
+document.addEventListener("etabli:charge", () => {
+  /* Le pont vers le vocabulaire du serveur, refait à CHAQUE modèle : les
+     objets sont neufs, et la Map du chargeur aussi. */
+  indexerNoeuds(S.vueA);
+  rendreParties();
+  /* PIÈGE : cet évènement est émis à chaque chargement RÉUSSI. Brancher
+     l'écouteur de clic ici sans garde en empilerait un par modèle — au
+     troisième GLB, un seul clic tirerait trois rayons et redessinerait trois
+     fois le panneau. Le canevas, lui, est créé UNE fois pour la vie de la
+     page : viewer.js met les deux vues en cache et ne démonte jamais le
+     canevas (« Libère le MODÈLE, pas le CANEVAS »). Un seul branchement suffit
+     donc, et il vaut pour tous les modèles suivants. */
+  if (_clicBranche) return;
+  _clicBranche = true;
+  designerAuClic(S.vueA, $("#vueA canvas"), (obj) => {
+    if (!obj) return;
+    surligner(S.vueA, obj.uuid);
+    if (SEL.granularite !== "maillage") {
+      /* Le clic désigne un MAILLAGE, et rien d'autre : son uuid n'est ni celui
+         d'un matériau, ni un index de nœud. Le mêler à une sélection d'une
+         autre granularité en ferait une liste hétérogène. On bascule, et on
+         repart propre — exactement ce que fait un bouton de granularité. */
+      SEL.granularite = "maillage";
+      SEL.retenus.clear();
+    }
+    SEL.retenus.add(obj.uuid);
+    rendreParties();
+  });
+});
+
+/* Un premier rendu à VIDE, dès l'import : sans lui le panneau Parties reste
+   littéralement blanc jusqu'au premier GLB, entre deux voisins qui, eux,
+   disent ce qu'ils attendent (« le panneau Rig arrive en P4 »). Un panneau
+   muet se lit comme un panneau cassé. Tout ce qu'il touche garde le cas du
+   modèle absent — inventaire() rend trois listes vides, isoler() ne fait
+   rien. */
+rendreParties();
+
 async function amorcer() {
   const box = $("#chrono");
   try {
@@ -546,4 +672,4 @@ async function amorcer() {
 }
 amorcer();
 
-export { S, SEUIL, jget, jpost, ouvrirPrincipale };
+export { S, SEL, SEUIL, jget, jpost, ouvrirPrincipale };

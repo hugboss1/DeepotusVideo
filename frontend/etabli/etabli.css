@@ -196,6 +196,47 @@ button { font-family: inherit; }
   font-family: var(--f-mono); font-size: 10.5px; color: var(--ink-soft); line-height: 1.5;
 }
 
+/* ── panneau Parties : les trois granularités et la liste ──────────────────
+   Sans ces règles le panneau EXISTE et ne se lit pas — le pire des échecs,
+   silencieux : trois boutons nus les uns contre les autres et une liste qui
+   pousse la barre d'actions hors du rail. */
+.granularite { display: flex; gap: 4px; }
+.granularite button {
+  flex: 1; padding: 5px 4px; border: 1px solid var(--stroke); border-radius: var(--r-sm);
+  background: transparent; color: var(--ink-soft); cursor: pointer;
+  font: 10.5px var(--f-mono), ui-monospace, monospace;
+}
+.granularite button:hover { color: var(--ink-strong); }
+.granularite button.actif {
+  border-color: var(--accent); background: var(--bg-panel-2); color: var(--ink-strong);
+}
+/* Hauteur EXPLICITE et défilement PROPRE. Un GLB peut arriver avec plusieurs
+   centaines de maillages ; sans borne, la liste chasse « Isoler » du rail et
+   le bouton devient introuvable. (Et la hauteur est POSÉE plutôt que déduite :
+   ce dépôt a déjà vu une hauteur intrinsèque s'effondrer à zéro sous un
+   overflow:hidden — 998 rangées de 2 px dans le sélecteur de bibliothèque.) */
+.parties {
+  max-height: 46vh; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.partie {
+  display: flex; align-items: center; gap: 6px; min-height: 22px;
+  padding: 3px 5px; border-radius: var(--r-sm); cursor: pointer;
+  font: 11px var(--f-mono), ui-monospace, monospace; color: var(--ink-soft);
+}
+.partie:hover { background: var(--bg-panel-2); }
+.partie b {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; color: var(--ink); font-weight: 500;
+}
+.partie span { flex: none; font-size: 10px; font-variant-numeric: tabular-nums; }
+.parties-actions { display: flex; gap: 6px; }
+.parties-actions button {
+  flex: 1; padding: 6px 4px; border: 1px solid var(--stroke); border-radius: var(--r-sm);
+  background: transparent; color: var(--ink-soft); font-size: 11px; cursor: pointer;
+}
+.parties-actions button:hover { border-color: var(--accent); color: var(--ink-strong); }
+
 /* Sous 1200px les rails mangent le canevas : on les resserre plutôt que de les
    escamoter — la chronologie est la colonne vertébrale de la page. */
 @media (max-width: 1200px) {
