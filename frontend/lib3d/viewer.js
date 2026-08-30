@@ -135,12 +135,14 @@ export function cadrer(api, marge = 1.35) {
   const taille = boite.getSize(new THREE.Vector3());
   const centre = boite.getCenter(new THREE.Vector3());
   const rayon = Math.max(taille.x, taille.y, taille.z) * 0.5 || 1;
-  /* L'aspect est MESURÉ sur le canevas, et non lu dans `camera.aspect` : ce
-     dernier n'est rafraîchi que par redimensionner(), à la prochaine image,
-     alors que le re-cadrage de A arrive juste APRÈS l'affichage de B — il
-     lirait donc l'aspect d'avant, précisément celui qu'on corrige. Lire
-     clientWidth force au passage le calcul de mise en page, donc la mesure est
-     celle de la mise en page nouvelle, pas de l'ancienne. */
+  /* CONTRAT D'APPELANT : cette fonction mesure le DOM TEL QU'IL EST à l'appel.
+     L'aspect est pris sur le canevas plutôt que dans `camera.aspect`, qui n'est
+     rafraîchi qu'à la prochaine image par redimensionner() et retarderait donc
+     d'un tour ; lire clientWidth vide au passage le calcul de mise en page, si
+     bien que la mesure reflète le style DÉJÀ POSÉ. Ce qu'aucune lecture ne peut
+     deviner, en revanche, c'est ce que l'appelant s'apprête ENCORE à insérer :
+     à lui d'appeler cadrer() quand le DOM a sa taille finale, sans quoi le
+     cadrage est juste — pour une mise en page transitoire. */
   const cv = api.renderer.domElement;
   const aspect = (cv.clientWidth || 1) / (cv.clientHeight || 1);
   /* Le cadrage VERTICAL, inchangé, pose la caméra à NORME_DIR·d, ce qui rend
@@ -151,28 +153,22 @@ export function cadrer(api, marge = 1.35) {
      0,813, et LÀ SEULEMENT on recule, du facteur exact qui manque, seuil/aspect.
      Au-dessus du seuil le cadrage ne bouge pas d'un pixel — le `: 1` le dit.
 
-     Ce critère compare des étendues AU PLAN DU CENTRE, la convention que le
-     cadrage vertical suit depuis la tâche 3 ; la perspective, elle, projette le
-     coin le plus PROCHE un peu plus loin encore. Calcul exact des coins d'un
-     cube en NDC (1 = le bord de l'image) : la verticale vaut 1,092 à TOUT
-     aspect — la tolérance que ce cadrage porte depuis toujours — et
-     l'horizontale tombe de 1,952 à 1,114 à l'aspect 0,50, de 1,301 à 1,182 à
-     0,75. Le débordement horizontal rejoint donc l'ordre de grandeur du
-     vertical, et faire mieux exigerait de commencer à reculer dès l'aspect 0,894
-     (là où l'horizontale non corrigée atteint 1,092), c'est-à-dire de changer un
-     cadrage vertical que la tâche ordonne de laisser intact au-dessus de
-     0,813. On corrige donc ce qui est corrigeable sans le casser.
+     Ce critère compare des étendues AU PLAN DU CENTRE ; la perspective, elle,
+     projette le coin le plus PROCHE un peu plus loin encore, et le cadrage
+     vertical porte cette tolérance-là depuis toujours. La correction ramène
+     donc le débordement horizontal à l'ordre de grandeur du vertical, pas à
+     zéro : l'annuler demanderait de reculer bien avant le seuil de rognage,
+     donc de déplacer aussi le cadrage vertical. On corrige ce qui est
+     corrigeable sans casser ce qui marche.
 
-     COMPARABILITÉ, la raison d'être de la vue B : ce facteur ne dépend QUE de
-     l'aspect, du fov et de la marge — jamais des proportions du modèle, alors
-     qu'une largeur projetée mesurée sur CE maillage aurait été plus fine. Le
-     choix est délibéré : A et B partagent le même aspect (deux `flex:1`), donc
-     reçoivent le MÊME recul, et leur distance ne continue de différer que par
-     `rayon` — la normalisation qui les rendait déjà comparables. Un terme
-     mesuré par modèle aurait reculé le plus large des deux et fait croire à
-     l'œil qu'il était le plus petit : la synchronisation des caméras protège
-     la comparaison par un bout, un cadrage qui diverge la détruirait par
-     l'autre. */
+     COMPARABILITÉ : le recul ne dépend QUE de l'aspect, du fov et de la marge —
+     jamais des proportions du modèle, alors qu'une largeur projetée mesurée sur
+     CE maillage aurait été plus fine. C'est délibéré. Deux canevas de même
+     aspect reçoivent ainsi le MÊME recul, et leur distance ne continue de
+     différer que par `rayon` — la normalisation qui rend deux modèles
+     comparables à l'œil. Un terme mesuré par modèle aurait reculé le plus large
+     des deux et fait croire qu'il était le plus petit : un cadrage qui diverge
+     détruit une comparaison aussi sûrement que deux angles de vue différents. */
   const seuil = LARGEUR_PIRE_CAS / (NORME_DIR * marge);
   const recul = aspect < seuil ? seuil / aspect : 1;
   const d = (rayon * marge * recul) / Math.tan((api.camera.fov * Math.PI) / 360);

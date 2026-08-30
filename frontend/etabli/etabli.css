@@ -138,6 +138,16 @@ button { font-family: inherit; }
   background: var(--bg-panel-3);
   font-family: var(--f-mono); font-size: 10.5px; color: var(--ink-soft);
 }
+/* Sans cette règle, l'en-tête « A … → B … » se rend comme une ligne de données
+   et les <b> des données sont plus gras que le titre : hiérarchie inversée. */
+.ecart-tete {
+  color: var(--ink-strong); font-weight: 600; margin-bottom: 3px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* le refus se VOIT — même règle que #barreGeo.erreur, et pour le même motif :
+   un échec de la vue B, ou une ligne d'écart périmée, ne doit pas se lire
+   comme une mesure. */
+.ecart.erreur { color: var(--red); }
 
 .barre {
   flex: none; display: flex; gap: 16px; align-items: center;

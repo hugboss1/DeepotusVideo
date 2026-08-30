@@ -180,6 +180,7 @@ async function _ouvrirPrincipale(cible, numero) {
        l'endroit où le dépôt met ses refus parlants. */
     S.a = null;                      // rien n'est chargé : ne pas mentir à la suite
     S.geoA = null;                   // ni à la ligne d'écart, qui la lirait
+    perimerEcart();                  // ni à l'écran, si une comparaison est ouverte
     $("#chipSource").textContent = "—";
     geoBox.textContent = `échec du chargement — ${e.message}`;
     geoBox.classList.add("erreur");
@@ -190,6 +191,7 @@ async function _ouvrirPrincipale(cible, numero) {
      dispose tant qu'aucune fiche n'existe, et le recalculer exigerait de
      recharger le GLB. */
   S.geoA = geo;
+  perimerEcart();                    // le terme de gauche a changé sous la boîte
   $("#chipSource").textContent = `${cible.job || "meshy"} · ${cible.libelle}`;
   geoBox.textContent =
     `${geo.tris.toLocaleString("fr-FR")} triangles · ${geo.maillages} maillages`;
@@ -215,6 +217,8 @@ function synchroniser(src, dst) {
     if (enCours) return;
     enCours = true;
     dst.camera.position.copy(src.camera.position);
+    /* Redondante avec l'update() ci-dessous, qui refait un lookAt(target) :
+       gardée pour que dst soit juste même avant lui, pas parce qu'il la faut. */
     dst.camera.quaternion.copy(src.camera.quaternion);
     dst.camera.fov = src.camera.fov;
     dst.camera.near = src.camera.near;
@@ -275,7 +279,10 @@ function ligneEcart(fa, fb, geoA, geoB) {
     const d = tb - ta, signe = d >= 0 ? "+" : "";
     /* Le pourcentage n'a de sens que rapporté à quelque chose : sur un A à
        zéro triangle il vaudrait l'infini. */
-    const pct = ta ? ` (${signe}${((d / ta) * 100).toFixed(1)} %)` : "";
+    /* toLocaleString et non toFixed : le reste de la ligne est en français
+       (« 6 240 »), et un « 51900.0 » au milieu jurerait. */
+    const pct = ta ? ` (${signe}${((d / ta) * 100).toLocaleString("fr-FR",
+      { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %)` : "";
     delta = ` <i>${signe}${d.toLocaleString("fr-FR")}${pct}</i>`;
   }
   const dim = (g) => {
@@ -290,9 +297,15 @@ function ligneEcart(fa, fb, geoA, geoB) {
   const sha = (f) => (f && f.sha256
     ? esc(String(f.sha256).slice(0, 10)) + "…" : "—");
   const tex = (f) => chiffre(nombre(f && f.gltf && f.gltf.textures));
+  /* L'unité n'est pas décorative : le commentaire de cadrer() explique qu'un
+     modèle en mètres et un modèle en centimètres donnent l'un un point, l'autre
+     un mur — et cette ligne est justement l'endroit où cet écart se lit. glTF
+     compte en mètres ; un maillage qui n'en tient pas compte se voit ici. */
+  const da = dim(ga), db = dim(gb);
+  const unite = (da !== "—" || db !== "—") ? ' <i>u. glTF (1 = 1 m)</i>' : "";
   return `
     <div><b>triangles</b> ${chiffre(ta)} → ${chiffre(tb)}${delta}</div>
-    <div><b>dimensions</b> ${dim(ga)} → ${dim(gb)}</div>
+    <div><b>dimensions</b> ${da} → ${db}${unite}</div>
     <div><b>textures</b> ${tex(fa)} → ${tex(fb)}</div>
     <div><b>sha256</b> ${sha(fa)} → ${sha(fb)}</div>`;
 }
@@ -330,8 +343,20 @@ async function _ouvrirComparaison(cible, numero) {
      sa taille, donc à cadrer() l'aspect réel de la demi-largeur. Montrée
      après, B serait cadrée sur une largeur qu'elle n'a plus. */
   $("#vueB").classList.remove("hidden");
-  boite.classList.remove("hidden");
-  boite.textContent = "comparaison…";
+  boite.classList.remove("hidden", "erreur");
+  /* Et la boîte d'écart reçoit sa hauteur FINALE tout de suite, sous forme de
+     squelette à tirets : exactement la même doctrine qu'au-dessus, appliquée
+     cette fois à la hauteur. Sans lui, la boîte tient UNE ligne au moment du
+     cadrage et CINQ quand le contenu vrai arrive, deux requêtes réseau plus
+     loin ; elle reprend alors 56 px aux vues, et les deux modèles se retrouvent
+     posés 7,6 % trop loin — mesuré en navigateur (1440×900) : 6,1536 au lieu
+     de 5,7213, trois fois sur trois, l'aspect valant 0,538 au lieu de 0,579.
+     Un requestAnimationFrame n'y changerait rien : aucune image ne sépare le
+     cadrage du réseau. L'écriture finale remplace ensuite un contenu de MÊME
+     hauteur, donc sans saut de caméra — ce qu'aurait coûté l'autre correctif
+     possible, déplacer le cadrage après la réponse du réseau. */
+  boite.innerHTML = '<div class="ecart-tete">comparaison…</div>'
+    + ligneEcart(null, null, {}, {});
   let geoB;
   try {
     if (!S.vueB) {
@@ -348,6 +373,10 @@ async function _ouvrirComparaison(cible, numero) {
     }
     geoB = await charger(S.vueB, cible.url);
   } catch (e) {
+    /* Le jeton d'abord, comme sur le chemin du succès : fermer la comparaison
+       pendant un chargement qui échoue ouvrirait sinon une bande d'erreur pour
+       une comparaison que plus personne n'attend. */
+    if (numero !== _demandeB) return;
     /* Le refus se VOIT, et la page revient à l'état d'avant plutôt que de
        garder une demi-page noire. Il s'affiche dans la ligne d'écart et non
        dans la barre du bas : celle-ci appartient au modèle A, qui n'a pas
@@ -355,6 +384,7 @@ async function _ouvrirComparaison(cible, numero) {
        venant du serveur. */
     fermerComparaison();
     boite.classList.remove("hidden");
+    boite.classList.add("erreur");
     boite.textContent = `échec du chargement de B — ${e.message}`;
     return;
   }
@@ -377,22 +407,44 @@ async function _ouvrirComparaison(cible, numero) {
      partagent donc un seul point de vue dès la première image, celui de A, la
      référence. */
   cadrer(S.vueA);
-  const [fa, fb] = await Promise.all([ficheDe(S.a), ficheDe(S.b)]);
+  /* Le terme de GAUCHE est capturé AVANT l'attente. Les deux files sont
+     indépendantes et s'entrelacent : S.a peut passer de A1 à A2 pendant les
+     deux requêtes, et sans cette capture la boîte afficherait le libellé de A2
+     au-dessus des triangles, des cotes et du sha256 de A1 — une comparaison
+     fausse, exactement ce que ficheDe() refuse quatorze lignes plus haut. */
+  const a = S.a;
+  const [fa, fb] = await Promise.all([ficheDe(a), ficheDe(S.b)]);
   if (numero !== _demandeB) return;   // fermée pendant les deux requêtes
-  if (!S.a) {
-    /* La vue A a échoué pendant que B chargeait — les deux files sont
-       indépendantes et s'entrelacent. Il n'y a plus de terme de gauche à la
+  if (S.a !== a) {
+    /* La vue A a changé — ou échoué, le `!==` couvre le cas null du même
+       geste — pendant que B chargeait. Il n'y a plus de terme de gauche à la
        comparaison : la fermer est la seule réponse vraie. Cette garde est
        posée ICI, après le dernier await, parce que c'est le seul endroit où
        rien ne peut plus changer avant l'écriture. */
     fermerComparaison();
     boite.classList.remove("hidden");
-    boite.textContent = "comparaison abandonnée — la vue A n'a plus de modèle";
+    boite.classList.add("erreur");
+    boite.textContent = "comparaison abandonnée — la vue A a changé";
     return;
   }
+  /* S.a === a ici, la garde vient de le dire : les deux écritures parlent du
+     MÊME modèle. */
   boite.innerHTML =
     `<div class="ecart-tete">A ${esc(S.a.libelle)} → B ${esc(cible.libelle)}</div>`
     + ligneEcart(fa, fb, S.geoA || {}, geoB || {});
+}
+
+/* La ligne d'écart PÉRIME dès que la vue A change de modèle : elle AFFIRME
+   « A <libellé> → B <libellé> » alors que #chipSource et #barreFichier viennent
+   d'être réécrits sous elle. Un commentaire ne remonte pas jusqu'à l'écran, et
+   c'est l'écran qui affirme. On ne promet pas une comparaison vivante — la
+   recalculer exigerait de relire deux fiches — on promet de ne jamais en
+   afficher une fausse. */
+function perimerEcart() {
+  if (!S.b) return;
+  const boite = $("#ecart");
+  boite.classList.add("erreur");
+  boite.textContent = "la vue A a changé — alt-cliquez pour recomparer";
 }
 
 /* Le bouton est visible dès le chargement de la page, avant qu'il y ait quoi

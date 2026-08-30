@@ -264,14 +264,15 @@ def test_le_refus_se_voit_et_le_canevas_a_une_hauteur():
 # ── E. comparaison A/B ───────────────────────────────────────────────────────
 
 def test_les_cameras_des_deux_vues_sont_synchronisees():
-    """Comparer deux etapes sous deux angles differents ne compare rien.
+    """Comparer deux étapes sous deux angles différents ne compare rien.
 
-    On ancre le BRANCHEMENT, pas le mot : `synchroniser` se cable DANS LES
-    DEUX SENS. Une seule direction ferait suivre B quand on tourne A et
-    laisserait A immobile quand on tourne B — la moitie des gestes
-    comparerait alors deux angles differents, ce que cette fonction existe
-    precisement pour empecher. Un `"synchroniser" in js` seul restait vert
-    sur un seul des deux appels.
+    `assert "synchroniser" in js` est le corps littéral du plan, donc une
+    exigence de spec — mais il ne garde RIEN par lui-même : le mot vit aussi
+    dans les commentaires, et il restait vert sur un seul des deux appels.
+    Ce qui mord, ce sont les deux lignes suivantes : le câblage se fait DANS
+    LES DEUX SENS. Une seule direction ferait suivre B quand on tourne A et
+    laisserait A immobile quand on tourne B — un geste sur deux comparerait
+    alors deux angles différents, ce que cette vue existe pour empêcher.
     """
     js = _lire("etabli/etabli.js")
     assert "synchroniser" in js
@@ -280,48 +281,53 @@ def test_les_cameras_des_deux_vues_sont_synchronisees():
 
 
 def test_la_ligne_d_ecart_chiffre_la_comparaison():
+    """Le corps du plan, tel quel — et AUCUN de ses quatre marqueurs ne mord.
+
+    « triangles » et « dimensions » sont les libellés AFFICHÉS ; « sha256 » et
+    « /report » vivent aussi dans les commentaires du fichier. Vérifié par
+    mutation : détourner la requête de `/report` vers `/rapport` laissait les
+    quatre au vert. Le nom de ce banc promet donc plus qu'il ne garde, et
+    c'est dit ici plutôt que dans un commentaire de corps — ce qu'on lit en
+    faisant tourner la suite, c'est le nom et cette docstring. La cinquième
+    assertion, elle, épingle l'APPEL ; les clés lues le sont par le banc
+    suivant, et le repli par celui d'après.
+    """
     js = _lire("etabli/etabli.js")
     for mot in ("triangles", "sha256", "dimensions"):
         assert mot in js
     assert "/report" in js
-    # Les quatre marqueurs ci-dessus sont ceux du plan, et AUCUN ne mord :
-    # « triangles » et « dimensions » sont les libelles affiches, « sha256 »
-    # et « /report » vivent aussi dans les commentaires du fichier. Verifie
-    # par mutation — detourner la requete vers /rapport les laissait tous les
-    # quatre verts. La ligne suivante epingle l'APPEL ; les cles lues, elles,
-    # le sont par le banc suivant.
     assert "/api/assets/3d/${encodeURIComponent(cible.job)}/report" in js
 
 
 def test_la_ligne_d_ecart_lit_les_VRAIES_cles_de_la_fiche():
     """mesh_report nomme le compte `tris_lus` et les cotes `dims` (un objet
-    largeur/hauteur/profondeur). Se tromper de cle afficherait des tirets
-    partout sans rien casser : le banc doit donc ancrer les CLES, pas les
-    libelles affiches, qui satisfont un `in` sans rien prouver.
+    largeur/hauteur/profondeur). Se tromper de clé afficherait des tirets
+    partout sans rien casser : le banc doit donc ancrer les CLÉS, pas les
+    libellés affichés, qui satisfont un `in` sans rien prouver.
+
+    Les deux premières assertions sont celles de la spec, et elles sont
+    satisfaites par le commentaire qui NOMME ces clés — le piège même que ce
+    banc dénonce, vérifié par mutation : renommer la lecture `ga.tris_lus` en
+    `ga.triangles` les laissait vertes. On épingle donc les LECTURES.
     """
     js = _lire("etabli/etabli.js")
     assert "tris_lus" in js
     assert "dims" in js
-    # ...et sur du CODE, pas sur de la prose. Les deux lignes ci-dessus sont
-    # satisfaites par le commentaire qui NOMME ces cles — exactement le piege
-    # que ce banc denonce, et verifie par mutation : renommer la lecture
-    # `ga.tris_lus` en `ga.triangles` les laissait vertes. On epingle donc
-    # les LECTURES elles-memes.
     assert "ga.tris_lus" in js and "gb.tris_lus" in js
     assert "g.dims.largeur" in js
 
 
 def test_la_ligne_d_ecart_se_replie_sur_la_geometrie_du_navigateur():
     """`/api/assets/3d/{job}/report` REND 404 tant qu'aucune fiche n'existe, et
-    ficheDe() avale ce 404 en rendant null. Sans repli, comparer deux etapes
-    sans fiche afficherait des tirets partout — « le pire des echecs :
-    silencieux ». La geometrie que charger() a MESUREE dans le navigateur est
-    donc retenue dans S et passee a ligneEcart, qui la lit quand la fiche
-    manque. On ancre les trois maillons : la declaration, la memorisation, la
-    lecture — chacun se supprime sans bruit.
+    ficheDe() avale ce 404 en rendant null. Sans repli, comparer deux étapes
+    sans fiche n'afficherait que des tirets — « le pire des échecs :
+    silencieux ». La géométrie que charger() a MESURÉE dans le navigateur est
+    donc retenue dans S et passée à ligneEcart, qui la lit quand la fiche
+    manque. On ancre les trois maillons — déclaration, mémorisation, lecture —
+    parce que chacun se supprime sans bruit.
     """
     js = _lire("etabli/etabli.js")
-    assert "geoA: null, geoB: null" in js        # declarees a la ligne de S
+    assert "geoA: null, geoB: null" in js        # déclarées à la ligne de S
     assert "S.geoA = geo" in js                  # la vue A retient sa mesure
     assert "S.geoB = geoB" in js                 # la vue B aussi
     assert "geoA.tris" in js and "geoB.tris" in js   # et le repli les LIT
@@ -330,16 +336,23 @@ def test_la_ligne_d_ecart_se_replie_sur_la_geometrie_du_navigateur():
 
 
 def test_le_cadrage_tient_compte_de_l_aspect_et_A_est_recadree():
-    """Ouvrir la vue B coupe la largeur en deux : c'est cette fonction meme qui
-    fabrique le cas que cadrer() ne savait pas traiter. Mesure en navigateur,
-    fenetre 1440x900 : une vue seule fait 860x824 (aspect 1,04) ; deux vues
-    cote a cote tombent vers 0,5, ou plus d'un tiers de chaque modele sort du
-    cadre — dans la fonction dont le but est de comparer deux modeles.
+    """Ouvrir la vue B coupe la largeur en deux : c'est cette fonction même qui
+    fabrique le cas que cadrer() ne savait pas traiter. Mesuré en navigateur,
+    fenêtre 1440×900 : une vue seule fait 860×824 (aspect 1,04) ; deux vues
+    côte à côte tombent vers 0,58, où un tiers de chaque modèle sortait du
+    cadre — dans la fonction dont le but est de comparer deux modèles. Après
+    correction, les deux tiennent entiers et reçoivent la MÊME distance
+    (4,0740 seul, 5,7213 à deux, identique à 1e-9 entre A et B).
 
     Trois ancres : le cadrage CALCULE le recul (et seulement sous le seuil de
-    rognage), il l'UTILISE dans la distance, et A est RE-cadree — a
-    l'ouverture de B comme a sa fermeture, son aspect changeant dans les deux
-    sens.
+    rognage), il l'UTILISE dans la distance, et A est RE-cadrée — à l'ouverture
+    de B comme à sa fermeture, son aspect changeant dans les deux sens.
+
+    SI LE COMPTE PASSE AU ROUGE : un troisième appel légitime est possible
+    (P4/P5 peuvent re-cadrer ailleurs). Vérifier d'abord que les DEUX sites
+    d'origine sont intacts — l'ouverture dans _ouvrirComparaison() et la
+    fermeture dans fermerComparaison() — puis monter le compte délibérément.
+    Ne jamais remplacer ce `count` par un `in` : c'est lui qui garde la paire.
     """
     vue = _lire("lib3d/viewer.js")
     js = _lire("etabli/etabli.js")
@@ -348,28 +361,86 @@ def test_le_cadrage_tient_compte_de_l_aspect_et_A_est_recadree():
     assert js.count("cadrer(S.vueA)") == 2       # ouverture ET fermeture
 
 
+def test_la_boite_d_ecart_prend_sa_hauteur_avant_tout_cadrage():
+    """Ce banc n'ancre PAS le cadrage : il ancre l'ORDRE dont il dépend.
+
+    Mesure en navigateur (1440×900, deux GLB du dépôt) : la boîte d'écart
+    passe de 1 à 5 lignes, soit 56 px repris aux vues, APRÈS le cadrage —
+    l'aspect mesuré vaut alors 0,538 au lieu de 0,579 et les deux modèles
+    sont posés 7,6 % trop loin (6,1536 au lieu de 5,7213), à la valeur près,
+    trois fois sur trois. Le squelette à tirets donne à la boîte sa hauteur
+    FINALE dès le démasquage, comme #vueB juste au-dessus. Un rAF ne
+    corrigerait rien : le contenu final arrive après deux requêtes réseau.
+    """
+    js = _lire("etabli/etabli.js")
+    assert js.index("ligneEcart(null") < js.index("charger(S.vueB") \
+        < js.index("cadrer(S.vueA)")
+
+
 def test_la_vue_B_a_son_propre_verrou_de_serialisation():
-    """charger() n'est pas re-entrant et le dit : sur deux alt-clics rapides,
-    le vider() du second s'execute pendant que le loadAsync du premier est
+    """charger() n'est pas ré-entrant et le dit : sur deux alt-clics rapides,
+    le vider() du second s'exécute pendant que le loadAsync du premier est
     encore en vol, puis les DEUX font scene.add() — le perdant reste dans le
-    graphe pour toujours. La tache 4 a resolu cela pour la vue A ; B a besoin
-    de la SIENNE, un jeton partage ferait qu'un clic sur A annulerait
-    l'alt-clic sur B qui l'attendait (« seule la derniere demande compte » n'a
-    de sens qu'A L'INTERIEUR d'une vue).
+    graphe pour toujours. La tâche 4 a résolu cela pour la vue A ; B a besoin
+    de la SIENNE, un jeton partagé ferait qu'un clic sur A annule l'alt-clic
+    sur B qui l'attendait (« seule la dernière demande compte » n'a de sens
+    qu'À L'INTÉRIEUR d'une vue).
     """
     js = _lire("etabli/etabli.js")
     assert "_fileB = _fileB.then(" in js
-    # fermer retire les demandes en file : sans cette garde, un chargement en
-    # vol re-ouvrirait la vue B qu'on vient de fermer.
-    assert "numero !== _demandeB" in js
+    # Fermer retire les demandes en file, sinon un chargement en vol rouvrirait
+    # la vue qu'on vient de fermer. QUATRE sites : en tête, dans le `catch`,
+    # après le chargement, après les deux fiches. Le `catch` est le dernier
+    # venu — sans lui, fermer pendant un chargement qui échoue ouvrait une
+    # bande d'erreur pour une comparaison que plus personne n'attend.
+    assert js.count("numero !== _demandeB") == 4
+
+
+def test_la_ligne_d_ecart_ne_melange_jamais_deux_modeles_A():
+    """Les files de A et de B sont indépendantes et s'entrelacent : S.a peut
+    passer de A1 à A2 pendant les deux requêtes /report. Sans capture du terme
+    de gauche, la boîte afficherait le libellé de A2 au-dessus des triangles,
+    des cotes et du sha256 de A1 — « une fiche fausse est pire qu'une fiche
+    absente », la doctrine que ficheDe() invoque quatorze lignes plus haut.
+    Le `!==` couvre du même geste le cas où A a échoué (S.a devenu null).
+    """
+    js = _lire("etabli/etabli.js")
+    assert "const a = S.a;" in js
+    assert "ficheDe(a)" in js
+    assert "if (S.a !== a)" in js
+
+
+def test_le_refus_de_la_vue_B_se_voit_comme_les_autres():
+    """« Le refus se VOIT » : #barreGeo.erreur existe depuis la tâche 4 sous ce
+    commentaire, et la ligne d'écart est le seul refus de la page qui n'y
+    obéissait pas. La classe doit exister dans la CSS — sinon l'échec est
+    invisible — et le JS doit la RETIRER au démasquage comme
+    _ouvrirPrincipale() le fait pour la sienne, faute de quoi une erreur reste
+    accrochée à la comparaison suivante. La page introduit par ailleurs
+    `.ecart-tete` : sans règle, l'en-tête se rend comme une ligne de données et
+    les <b> des données sont plus gras que le titre.
+    """
+    js, css = _lire("etabli/etabli.js"), _lire("etabli/etabli.css")
+    assert ".ecart.erreur" in css and ".ecart-tete {" in css
+    assert 'boite.classList.remove("hidden", "erreur")' in js
+    # On COMPTE les trois sites qui posent la classe sur la boîte d'écart :
+    # l'échec de chargement de B, la comparaison abandonnée, et la péremption.
+    # Un simple `in` était satisfait par le seul perimerEcart() et laissait
+    # retirer la classe des DEUX chemins de refus — vérifié par mutation.
+    # Si ce compte rougit : vérifier que les trois sites sont là, puis le
+    # monter délibérément.
+    assert js.count('boite.classList.add("erreur")') == 3
+    # et la boîte périme quand la vue A change de modèle sous elle
+    assert "function perimerEcart()" in js
+    assert js.count("perimerEcart();") == 2      # succès ET échec de la vue A
 
 
 def test_la_ligne_d_ecart_echappe_ce_qui_vient_du_disque():
-    """Les libelles viennent du DISQUE (nom de dossier, `asset.json` ecrit a
-    la main) et le sha256 d'un `report.json` que la doctrine du module decrit
-    comme ouvert aux mains de l'utilisateur : les trois entrent dans
-    innerHTML. esc() existe dans le fichier depuis la tache 4 ; la ligne
-    d'ecart n'a pas le droit de faire exception.
+    """Les libellés viennent du DISQUE (nom de dossier, `asset.json` écrit à la
+    main) et le sha256 d'un `report.json` que la doctrine du module décrit
+    comme ouvert aux mains de l'utilisateur : les trois entrent dans innerHTML.
+    esc() existe dans le fichier depuis la tâche 4 ; la ligne d'écart n'a pas
+    le droit de faire exception.
     """
     js = _lire("etabli/etabli.js")
     assert "esc(S.a.libelle)" in js
