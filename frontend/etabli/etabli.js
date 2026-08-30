@@ -8,6 +8,7 @@
 import { creerCanevas, charger, cadrer, vider } from "/lib3d/viewer.js";
 import { indexerNoeuds, inventaire, isoler, surligner, designerAuClic }
   from "/lib3d/selection.js";
+import { TransformControls } from "three/addons/controls/TransformControls.js";
 
 const $ = (s) => document.querySelector(s);
 
@@ -47,6 +48,35 @@ const SEL = { granularite: "maillage", retenus: new Set() };
 const LIBELLE_GRANULARITE =
   { noeud: "nœud", maillage: "maillage", materiau: "matériau" };
 
+/* Le gizmo de manipulation, UN pour toute la page : il se branche sur la
+   caméra et sur le canevas de la vue A, l'un et l'autre créés une seule fois
+   (viewer.js met les vues en cache et ne démonte jamais le canevas). */
+let GIZMO = null;
+
+/* Une série d'écritures à la fois — voir ecrireVersion(), qui explique
+   pourquoi le bouton grisé ne suffit pas. */
+let _ecritEnCours = false;
+
+/* L'ORDRE D'ÉCRITURE, et il n'est pas décoratif. `extraire` REMAPPE le
+   document — mesh_edit._carte renumérote les nœuds retenus — tandis que
+   `reparer` AJOUTE un nœud racine en fin de tableau et que `transformer` ne
+   réécrit qu'un champ : ni l'un ni l'autre ne déplace un index existant.
+   Écrire l'extraction avant une transformation ferait donc porter les index
+   du modèle AFFICHÉ sur un document déjà remappé — le mauvais maillage, sur
+   disque, sans que rien ne grince. L'extraction passe en DERNIER, quel que
+   soit l'ordre des clics. */
+const ORDRE_ECRITURE = ["reparer", "transformer", "extraire"];
+
+/* Les trois plumes de P1, ÉCRITES plutôt que composées. Un
+   `/api/etabli/${t.operation}` marcherait aussi bien et rendrait le fichier
+   muet à la recherche plein texte : personne — ni un banc, ni quelqu'un qui
+   cherche « qui appelle extraire ? » — n'y trouverait ces adresses. */
+const ROUTES = {
+  reparer: "/api/etabli/reparer",
+  transformer: "/api/etabli/transformer",
+  extraire: "/api/etabli/extraire",
+};
+
 async function jget(p) {
   const r = await fetch(p);
   if (!r.ok) throw new Error(`${p} → ${r.status}`);
@@ -85,6 +115,19 @@ const nombre = (v) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 };
+
+/* Le dépôt n'a qu'UN endroit pour ses refus, et c'est la barre du bas : c'est
+   là que _ouvrirPrincipale() écrit ses échecs de chargement, sous la classe
+   `erreur` que la feuille peint en rouge. Une boîte d'alerte du navigateur bloquerait la page et
+   ne ressemblerait à rien de ce que l'Établi affiche par ailleurs.
+   Le message est posé en textContent : il vient d'un serveur ou d'un nom de
+   fichier, il n'a rien à faire dans du balisage. Le prochain chargement
+   réussi retire la classe (voir `geoBox.classList.remove("erreur")`). */
+function direRefus(message) {
+  const zone = $("#barreGeo");
+  zone.textContent = message;
+  zone.classList.add("erreur");
+}
 
 /* ── la chronologie : une ligne par job, une puce par étape ────────────────── */
 function rendreChrono() {
@@ -189,6 +232,17 @@ async function _ouvrirPrincipale(cible, numero) {
      (`userData.indexGltf`) : les garder ferait écrire les index d'un maillage
      dans la version d'un AUTRE, sur disque et sans que rien ne grince. */
   S.enAttente.length = 0;
+  /* Vider le tableau ne redessine pas la barre : elle continuerait d'annoncer
+     « 2 modifications en attente » et d'offrir un bouton « écrire la version »
+     pour une file vide. Elle AFFIRME quelque chose — elle se refait ici. */
+  rendreAttente();
+  /* Et le gizmo lâche son nœud, ICI et pas ailleurs : `attach()` en garde une
+     référence FORTE, et le `vider()` de charger() est sur le point d'en
+     disposer géométrie et matériaux. Le gizmo tiendrait alors un objet mort
+     et continuerait de le peindre. L'évènement `etabli:charge` n'arriverait
+     qu'APRÈS le chargement, et seulement en cas de succès : il ne peut pas
+     porter ce détachement. */
+  if (GIZMO) GIZMO.detach();
   /* Et la sélection du panneau Parties avec elles, pour la même raison :
      ses uuid désignent les objets du modèle SORTANT, que vider() est sur le
      point de libérer. Gardés, ils ne désigneraient plus rien — ou pire,
@@ -630,6 +684,331 @@ function rendreParties() {
   /* « Tout revoir » n'est pas un second chemin : isoler SUR RIEN restaure, par
      la ligne de code même qui isole. Les deux ne peuvent donc pas diverger. */
   $("#btnToutVoir").addEventListener("click", () => isoler(S.vueA, []));
+  /* APRÈS le `box.innerHTML =` ci-dessus, et c'est ce qui garde le bouton de
+     s'empiler : le rendu repart d'une page blanche, l'ancien bouton meurt
+     avec le balisage qui le portait. Un seul site d'appel, ici. */
+  brancherSeparer();
+}
+
+/* ── la porte d'écriture : séparer, transformer, réparer ────────────────────
+   TANT QUE « écrire la version » N'A PAS ÉTÉ CLIQUÉ, RIEN N'A BOUGÉ SUR LE
+   DISQUE. Le gizmo, « Séparer » et le bloc Réparer ne font qu'une chose :
+   poser une ligne dans `S.enAttente`. La barre du bas l'énumère, et
+   ecrireVersion() est le seul chemin de cette page vers les trois plumes de
+   P1 — la règle de tête du fichier, tenue par un seul entonnoir. */
+
+/* ── le gizmo ───────────────────────────────────────────────────────────────
+   PIÈGE MESURÉ, ET MUET. Dans le three.js vendorisé (0.185.1),
+   `TransformControls` n'est PLUS un Object3D : le fichier
+   /assets/three/addons/controls/TransformControls.js déclare, ligne 77,
+   `class TransformControls extends Controls`. Or `Object3D.add()` d'un
+   non-Object3D se contente d'un avertissement en console et rend la main sans
+   rien faire — le gizmo ne serait jamais visible, et aucun banc qui lit du
+   texte ne le verrait. Ce qui entre dans la scène est son HELPER :
+   `getHelper()` (ligne 453) rend `this._root` (ligne 455), un
+   `TransformControlsRoot extends Object3D` (ligne 1111) que le constructeur
+   fabrique une fois (lignes 89-90) et qui porte le gizmo et son plan de
+   saisie. Le constructeur branche lui-même ses écouteurs sur le canevas
+   (ligne 418, `this.connect(domElement)`) : rien d'autre à câbler.
+
+   POUR LE RETIRER PROPREMENT, le jour où cette page démonterait sa vue :
+   `S.vueA.scene.remove(GIZMO.getHelper())` puis `GIZMO.dispose()` (ligne 789),
+   qui déconnecte les écouteurs du canevas et appelle `_root.dispose()`
+   (ligne 793, défini ligne 1176) — lequel libère géométries et matériaux du
+   gizmo. On ne le fait nulle part : le canevas vit autant que la page, comme
+   le dit viewer.js (« Libère le MODÈLE, pas le CANEVAS »). */
+function poserGizmo(objet) {
+  /* On REMONTE jusqu'au premier ancêtre qui EST un nœud du document. Un
+     maillage à plusieurs primitives donne, chez GLTFLoader, un Group pour le
+     nœud et un Mesh par primitive ; la primitive n'a pas de `nodes` dans la
+     Map du parser, et indexerNoeuds() refuse délibérément de lui en inventer
+     un. C'est le Group qu'il faut manipuler — c'est lui que le serveur sait
+     nommer. Sans cette remontée, un Meshy à deux matériaux refuserait le
+     gizmo. La remontée s'arrête à la racine du modèle : au-delà commence la
+     scène du canevas. */
+  let noeud = objet;
+  while (noeud && (!noeud.userData || noeud.userData.indexGltf === undefined)) {
+    noeud = noeud === S.vueA.racine ? null : noeud.parent;
+  }
+  if (!noeud) {
+    /* Manipuler ce que le serveur ne sait pas nommer donnerait un glissement
+       joli et sans effet : la file resterait vide, l'utilisateur croirait
+       avoir déplacé quelque chose. On le DIT, et on lâche le gizmo. */
+    if (GIZMO) GIZMO.detach();
+    direRefus("ce maillage n'est rattaché à aucun nœud glTF — "
+      + "rien à envoyer au serveur, donc rien à déplacer");
+    return;
+  }
+  if (!GIZMO) {
+    GIZMO = new TransformControls(S.vueA.camera, S.vueA.renderer.domElement);
+    /* le gizmo et l'orbite se disputent la souris : l'un désarme l'autre */
+    GIZMO.addEventListener("dragging-changed", (e) => {
+      S.vueA.controls.enabled = !e.value;
+    });
+    GIZMO.addEventListener("objectChange", () => {
+      const o = GIZMO.object;
+      if (!o || !o.userData || o.userData.indexGltf === undefined) return;
+      /* Le quaternion part TEL QUEL. `mesh_edit.transformer` refuse un
+         quaternion non normé, en 400, et sa docstring dit pourquoi :
+         « Normaliser un quaternion en douce masquerait un bug amont ; le
+         refuser le montre. » Le normaliser ICI masquerait le même bug d'un
+         cran plus haut. Le refus, lui, remonte jusqu'à la barre du bas par le
+         `catch` d'ecrireVersion() — sans lui, la promesse partirait dans le
+         vide et la barre resterait figée sur « en attente » sans rien dire. */
+      noterAttente("transformer", {
+        [o.userData.indexGltf]: {
+          translation: [o.position.x, o.position.y, o.position.z],
+          rotation: [o.quaternion.x, o.quaternion.y, o.quaternion.z,
+                     o.quaternion.w],
+          scale: [o.scale.x, o.scale.y, o.scale.z],
+        },
+      }, o.userData.indexGltfSource);
+    });
+    S.vueA.scene.add(GIZMO.getHelper());
+  }
+  GIZMO.attach(noeud);
+}
+
+/* Rien n'est écrit tant que le bouton n'est pas cliqué : la file est la
+   mémoire de ce qui attend, et la barre du bas la montre.
+
+   FUSION plutôt que remplacement pour `transformer`, et c'est un piège
+   désarmé : la route accepte un dictionnaire de PLUSIEURS nœuds, et remplacer
+   l'entrée entière perdrait le premier nœud déplacé au profit du second —
+   sans que rien ne le dise, la barre continuant d'annoncer « 1 modification
+   en attente ».
+
+   `reparer` se remplace au contraire, et c'est juste : c'est un réglage
+   d'assise, pas une accumulation. `extraire` se remplace AUSSI, et c'est une
+   décision : sa charge est la sélection VISIBLE du panneau Parties. Cumuler
+   ferait diverger la file de ce que les cases à cocher montrent — on ne
+   pourrait plus retirer un nœud d'une extraction déjà en attente, alors que
+   le décocher est le geste évident. La file dit ce que le panneau dit.
+
+   `source` est la PROVENANCE de l'index (voir indexerNoeuds) : « associations »
+   est la carte du GLTFParser, « nom » une heuristique que son propre
+   commentaire décrit comme faillible en trois cas. Ces index partent au
+   serveur, QUI ÉCRIT UN GLB : un index faux écrirait sur le mauvais maillage
+   sans que rien ne grince. On ne refuse pas — le repli vaut mieux que rien —
+   on le DIT dans la barre avant que le bouton ne soit cliqué. C'est la seule
+   occasion où ce marqueur peut servir ; s'il ne sert pas ici, il ne servira
+   jamais et il ne fallait pas l'écrire. */
+function noterAttente(operation, charge, source) {
+  const doute = source !== undefined && source !== "associations";
+  const i = S.enAttente.findIndex((x) => x.operation === operation);
+  if (i >= 0 && operation === "transformer") {
+    Object.assign(S.enAttente[i].charge, charge);
+    S.enAttente[i].heuristique = S.enAttente[i].heuristique || doute;
+  } else if (i >= 0) {
+    S.enAttente[i] = { operation, charge, heuristique: doute };
+  } else {
+    S.enAttente.push({ operation, charge, heuristique: doute });
+  }
+  rendreAttente();
+}
+
+/* La file dans l'ordre où elle sera ÉCRITE, jamais dans celui des clics.
+   Rendue triée à la barre aussi, pour que ce qu'on lit soit ce qui partira. */
+function fileOrdonnee() {
+  return [...S.enAttente].sort((a, b) =>
+    ORDRE_ECRITURE.indexOf(a.operation) - ORDRE_ECRITURE.indexOf(b.operation));
+}
+
+/* La barre ÉNUMÈRE, elle ne se contente pas de compter : c'est ce détail qui
+   rend la fusion visible — « 2 nœud(s) déplacé(s) » et non deux fois
+   « 1 modification », qui aurait laissé passer l'écrasement en silence. */
+const libelleAttente = (t) =>
+  t.operation === "transformer"
+    ? `${Object.keys(t.charge).length} nœud(s) déplacé(s)`
+    : t.operation === "extraire"
+      ? `${t.charge.length} nœud(s) à séparer`
+      : `assise : axe ${t.charge.axe_haut}, échelle ${t.charge.echelle}`
+        + (t.charge.recentrer ? ", recentré" : "");
+
+function rendreAttente() {
+  const box = $("#barreAttente");
+  if (!S.enAttente.length) { box.innerHTML = ""; return; }
+  const liste = fileOrdonnee().map(libelleAttente).join(" · ");
+  /* esc() comme partout dans ce fichier : `axe_haut` vient d'un <select> et
+     les comptes sont des nombres, mais l'invariant ne se négocie pas au cas
+     par cas — c'est ainsi qu'il survit à la prochaine tâche. */
+  const doute = S.enAttente.some((t) => t.heuristique)
+    ? `<span class="attente-doute">index de nœud déduits d'un NOM — repli heuristique, à vérifier</span>`
+    : "";
+  box.innerHTML = `<b>${S.enAttente.length} modification(s) en attente</b>
+    <span>${esc(liste)}</span>${doute}
+    <button id="btnEcrire">écrire la version</button>
+    <button id="btnAnnuler">annuler</button>`;
+  $("#btnEcrire").addEventListener("click", ecrireVersion);
+  $("#btnAnnuler").addEventListener("click", () => {
+    S.enAttente.length = 0;
+    rendreAttente();
+    /* Le modèle est REchargé : le gizmo a déplacé des objets three.js, et
+       rien d'autre ne saurait leur rendre leur pose. Le geste reste gardé —
+       S.a est null quand le dernier chargement a échoué. */
+    if (S.a) ouvrirPrincipale(S.a);
+  });
+}
+
+async function ecrireVersion() {
+  if (!S.a) { direRefus("aucun modèle chargé — rien à écrire"); return; }
+  /* UN VERROU, et pas seulement le bouton grisé plus bas : le gizmo redessine
+     la barre à chaque glissement (noterAttente() appelle rendreAttente()), et
+     le bouton neuf naîtrait ACTIF au beau milieu des requêtes. Deux séries en
+     vol écriraient deux fois la même correction sous deux numéros de version.
+     Même famille que les files de la vue A et de la vue B. */
+  if (_ecritEnCours) return;
+  _ecritEnCours = true;
+  /* Le bouton, lui, dit à l'écran ce que le verrou fait en coulisse. Il n'est
+     pas réarmé à la main : rendreAttente(), plus bas, refait la barre entière
+     (ou l'efface) dans tous les cas de figure. */
+  const btn = $("#btnEcrire");
+  if (btn) btn.disabled = true;
+  const ecrites = [];
+  let derniere = null, echec = null;
+  try {
+    /* Une étape venue d'une tâche Meshy n'a pas de job où se versionner : on
+       la fait adopter d'abord (spec §6.2). Une seule provenance, pas deux.
+       L'adoption COPIE `model.glb` tel quel (shutil.copy2) : les index de
+       nœud déjà en file restent donc valides sur le job neuf. */
+    if (!S.a.job && S.a.meshy) {
+      const ad = await jpost("/api/etabli/adopter", { task_id: S.a.meshy });
+      S.a = { ...S.a, job: ad.job, version: ad.version, url: ad.url };
+    }
+    /* L'étape « décimée » est un FICHIER À PART (`model.opt.glb`) et n'a pas
+       de numéro : mesh_sources lui donne `version: null`. Or la route retombe
+       sur la version 1 quand le corps n'en porte pas — écrire d'ici partirait
+       du BROUILLON, qui n'a ni la même géométrie ni les mêmes index que ce
+       qui est à l'écran. Un GLB faux, sur disque, en silence. ficheDe()
+       refuse déjà cette étape pour exactement la même raison. */
+    if (!S.a.version) {
+      throw new Error("l'étape « décimée » n'est pas une version numérotée : "
+        + "chargez une version pour la corriger");
+    }
+    const base = { job: S.a.job, version: S.a.version };
+    for (const t of fileOrdonnee()) {
+      const corps = t.operation === "transformer"
+        ? { ...base, transforms: t.charge }
+        : t.operation === "extraire"
+          ? { ...base, noeuds: t.charge }
+          : { ...base, ...t.charge };
+      derniere = await jpost(ROUTES[t.operation], corps);
+      ecrites.push(t.operation);
+      base.version = derniere.version;      /* enchaîner sur la version écrite */
+    }
+  } catch (e) {
+    /* Sans ce bloc, un refus du serveur — un quaternion non normé, un GLB
+       meshopt que l'extraction ne sait pas recopier — partirait dans le vide :
+       la promesse serait rejetée sans témoin, la barre resterait figée sur
+       « en attente », et l'utilisateur ne saurait pas que rien n'a bougé. */
+    echec = e;
+  } finally {
+    /* Le verrou tombe ICI et non à la fin de la fonction : la fenêtre
+       dangereuse est la boucle d'écriture, et un `finally` est le seul endroit
+       dont on sorte à coup sûr — un verrou resté posé condamnerait le bouton
+       pour le reste de la session, ce qui est pire que ce qu'il empêche. */
+    _ecritEnCours = false;
+  }
+  const restantes = fileOrdonnee().map((t) => t.operation)
+    .filter((op) => !ecrites.includes(op));
+  /* La file est vidée DÈS QUE quelque chose a touché le disque, et pas
+     seulement en cas de succès complet : ce qui reste est indexé sur le
+     modèle d'AVANT, et la version qu'on s'apprête à ouvrir n'est plus
+     celui-là. Rejouer le reste depuis l'ancienne version FOURCHERAIT
+     l'historique en silence — deux branches nées de la même base, sans que
+     rien ne le dise. Si RIEN n'a été écrit, rien n'a bougé non plus à
+     l'écran : la file reste intacte, et le refus se lit dans la barre. */
+  if (ecrites.length) S.enAttente.length = 0;
+  rendreAttente();
+  try {
+    /* La chronologie apprend les versions neuves MÊME en cas d'échec
+       partiel : ce qui est passé existe sur disque et doit se voir. */
+    S.sources = await jget("/api/etabli/sources");
+    rendreChrono();
+  } catch { /* la chronologie précédente reste : elle n'a menti sur rien */ }
+  if (derniere) {
+    await ouvrirPrincipale({ ...S.a, version: derniere.version,
+      url: `/api/assets/3d/${S.a.job}/version/${derniere.version}`,
+      libelle: `version ${derniere.version}` });
+  }
+  if (echec) {
+    /* APRÈS le rechargement, et c'est tout le soin : _ouvrirPrincipale()
+       réécrit #barreGeo, donc un refus posé avant lui disparaîtrait sans
+       avoir été lu. On dit ce qui est passé ET ce qui ne l'est pas — un
+       « échec » sec laisserait croire que le disque n'a pas bougé. */
+    direRefus(`écrit : ${ecrites.join(", ") || "rien"}`
+      + ` · abandonné : ${restantes.join(", ") || "rien"}`
+      + ` — ${echec.message}`);
+  }
+}
+
+/* Séparer : la sélection courante part comme nouvelle version. */
+function brancherSeparer() {
+  const b = document.createElement("button");
+  b.id = "btnSeparer";
+  b.textContent = "Séparer la sélection en une version";
+  b.addEventListener("click", () => {
+    /* ICI se rencontrent les deux vocabulaires : `SEL.retenus` porte des uuid
+       three.js, le serveur veut des index de nœud glTF. isoler() refuse
+       délibérément de faire la conversion et son commentaire renvoie à cette
+       porte — « la conversion appartient à qui mêlera les deux vocabulaires ».
+       Un uuid de MATÉRIAU ne se retrouve pas dans le graphe : il tombe donc
+       naturellement, comme un maillage sans index. */
+    let source;
+    const idx = [...SEL.retenus]
+      .map((u) => {
+        let trouve;
+        if (S.vueA && S.vueA.racine) {
+          S.vueA.racine.traverse((o) => { if (o.uuid === u) trouve = o; });
+        }
+        if (!trouve || !trouve.userData) return undefined;
+        if (trouve.userData.indexGltf !== undefined
+            && trouve.userData.indexGltfSource !== "associations") {
+          source = trouve.userData.indexGltfSource;
+        }
+        return trouve.userData.indexGltf;
+      })
+      .filter((x) => x !== undefined);
+    if (!idx.length) {
+      /* La page a déjà une façon de refuser en le disant, et ce n'est pas
+         une boîte modale du navigateur : la barre du bas. */
+      direRefus("aucun nœud glTF dans la sélection — un matériau, ou une "
+        + "primitive de maillage, n'a pas d'index à envoyer");
+      return;
+    }
+    noterAttente("extraire", idx, source);
+  });
+  $("#panParties").querySelector(".parties-actions").appendChild(b);
+}
+
+/* ── le panneau Fiche : réparer l'assise ────────────────────────────────────
+   Trois réglages GLOBAUX, portés par mesh_edit.reparer : l'axe haut, une
+   échelle, un recentrage. Comme partout ailleurs sur cette page, le bouton
+   n'écrit rien — il pose une ligne dans la file. */
+function rendreFiche() {
+  $("#panFiche").innerHTML = `
+    <div class="dt-label">Réparer l'assise</div>
+    <label>axe haut
+      <select id="fAxe"><option value="Y">Y (glTF, Unity, Godot)</option>
+      <option value="Z">Z (Blender, Unreal)</option></select></label>
+    <label>échelle <input id="fEchelle" type="number" step="0.01" value="1"></label>
+    <label><input id="fRecentrer" type="checkbox"> recentrer sur l'origine</label>
+    <button id="fAppliquer">Mettre en attente</button>
+    <p class="note">Le recentrage a besoin de la géométrie : sur un GLB
+      compressé il refuse, en le disant. L'axe et l'échelle passent quand
+      même.</p>`;
+  $("#fAppliquer").addEventListener("click", () => {
+    if (!S.a) { direRefus("aucun modèle chargé — rien à réparer"); return; }
+    /* Les trois clés sont celles que la route attend, au caractère près :
+       `axe_haut`, `echelle`, `recentrer`. Une faute de frappe ici passerait
+       en 200 et ne corrigerait RIEN — la route lit `body.get(...)` et prend
+       un absent pour un « laisse tel quel ». */
+    noterAttente("reparer", {
+      axe_haut: $("#fAxe").value,
+      echelle: Number($("#fEchelle").value) || 1,
+      recentrer: $("#fRecentrer").checked,
+    });
+  });
 }
 
 document.addEventListener("etabli:charge", () => {
@@ -637,6 +1016,10 @@ document.addEventListener("etabli:charge", () => {
      objets sont neufs, et la Map du chargeur aussi. */
   indexerNoeuds(S.vueA);
   rendreParties();
+  /* Et le formulaire d'assise repart à neuf : un axe ou une échelle laissés
+     d'un modèle à l'autre décriraient une correction que personne n'a
+     demandée pour CE maillage-ci. */
+  rendreFiche();
   /* PIÈGE : cet évènement est émis à chaque chargement RÉUSSI. Brancher
      l'écouteur de clic ici sans garde en empilerait un par modèle — au
      troisième GLB, un seul clic tirerait trois rayons et redessinerait trois
@@ -649,6 +1032,10 @@ document.addEventListener("etabli:charge", () => {
   designerAuClic(S.vueA, $("#vueA canvas"), (obj) => {
     if (!obj) return;
     surligner(S.vueA, obj.uuid);
+    /* Le gizmo suit le clic quelle que soit la granularité : déplacer un nœud
+       n'est pas le même geste que le retenir, et le panneau n'a pas à être en
+       mode « maillage » pour qu'on puisse redresser une pièce. */
+    poserGizmo(obj);
     /* Le clic désigne un MAILLAGE, et rien d'autre : son uuid n'est ni celui
        d'un matériau, ni un index de nœud, et `retenus` doit rester homogène.
        Mais hors de la granularité « maillage » on SORT — on ne détruit pas.
@@ -671,6 +1058,30 @@ document.addEventListener("etabli:charge", () => {
    modèle absent — inventaire() rend trois listes vides, isoler() ne fait
    rien. */
 rendreParties();
+/* Et le panneau Fiche pour la même raison : #panFiche naît VIDE dans
+   index.html, et un onglet qu'on ouvre sur du blanc se lit comme un onglet
+   cassé. Le bloc garde le cas du modèle absent — son bouton refuse en le
+   disant. */
+rendreFiche();
+
+/* ── les onglets du rail droit ──────────────────────────────────────────────
+   Les quatre boutons portent `data-onglet` depuis la tâche 2 et PERSONNE ne
+   les écoutait : #panFiche naît `hidden` et le restait. Le bloc « Réparer
+   l'assise » aurait donc été écrit et rendu INATTEIGNABLE — le pire des
+   échecs, silencieux, et sur la moitié de cette tâche. Les panneaux Rig et
+   Export restent des coquilles qui annoncent P4 et P5 ; encore faut-il
+   pouvoir les lire. */
+const PANNEAUX = { parties: "#panParties", rig: "#panRig",
+                   fiche: "#panFiche", export: "#panExport" };
+const ONGLETS = [...document.querySelectorAll(".onglets .on")];
+ONGLETS.forEach((b) => b.addEventListener("click", () => {
+  for (const [cle, sel] of Object.entries(PANNEAUX)) {
+    $(sel).classList.toggle("hidden", cle !== b.dataset.onglet);
+  }
+  /* L'onglet actif se marque ICI et non par un `classList.add` seul : sans le
+     retrait sur les trois autres, deux onglets se diraient actifs. */
+  ONGLETS.forEach((o) => o.classList.toggle("actif", o === b));
+}));
 
 async function amorcer() {
   const box = $("#chrono");

@@ -863,3 +863,291 @@ def test_le_module_de_selection_ne_connait_aucune_route():
     assert "/api/" not in js
     assert "GLTFExporter" not in js
     assert "XMLHttpRequest" not in js
+
+
+# ── I. la porte d'ecriture : separer, transformer, reparer ───────────────────
+# (le plan nommait cette section « I » ; G etait prise par ?job=, H par les
+# Parties. Tant que « ecrire la version » n'a pas ete clique, rien n'a bouge
+# sur le disque : ces bancs gardent cette phrase-la.)
+
+def test_la_page_appelle_les_routes_d_ecriture_de_p1():
+    """EXIGENCE DE SPEC — CE BANC NE GARDE PRESQUE RIEN. Les trois chaînes
+    sont satisfaites par de la PROSE : le commentaire de tête du fichier écrit
+    déjà « /api/etabli/* », et une table de constantes jamais lue les
+    contiendrait tout aussi bien. Ce qui MORD est
+    `..._un_echec_au_milieu_d_une_serie_se_dit_et_ne_fourche_pas`, qui épingle
+    l'APPEL, et `..._l_extraction_est_ecrite_en_DERNIER`, qui épingle l'ordre.
+    """
+    js = _lire("etabli/etabli.js")
+    for route in ("/api/etabli/extraire", "/api/etabli/transformer",
+                  "/api/etabli/reparer"):
+        assert route in js
+
+
+def test_rien_n_est_ecrit_sans_le_bouton():
+    """Les deux premières assertions sont celles du plan, et elles NE GARDENT
+    RIEN : « enAttente » et « btnEcrire » sont deux mots que n'importe quel
+    commentaire satisfait, et ce fichier les écrit tous les deux en prose. La
+    file est gardée par les bancs de fusion, d'ordre et d'échec ci-dessous.
+
+    Les deux dernières mordent, et sur un défaut réel : le gizmo redessine la
+    barre à CHAQUE glissement (noterAttente appelle rendreAttente), si bien que
+    le bouton grisé pendant les requêtes renaît ACTIF au milieu de la série.
+    Deux séries en vol écriraient deux fois la même correction sous deux
+    numéros de version. Le verrou tombe dans un `finally` : posé pour de bon,
+    il condamnerait le bouton pour le reste de la session.
+    """
+    js = _lire("etabli/etabli.js")
+    assert "enAttente" in js
+    assert "btnEcrire" in js
+    assert "if (_ecritEnCours) return;" in js
+    corps = js.split("async function ecrireVersion", 1)[1].split("\n}\n", 1)[0]
+    assert corps.index("} finally {") < corps.index("_ecritEnCours = false;")
+
+
+def test_la_page_ne_fabrique_jamais_un_glb():
+    """Regle de l'option C : pas de GLTFExporter, pas de Blob GLB cote client.
+    Son absence du bundle rend la regle impossible a enfreindre par megarde.
+
+    LA GARDE LA PLUS PRÉCIEUSE DU LOT, et la seule du plan qui morde : elle
+    tient « le navigateur voit et manipule, Python écrit » quoi qu'il advienne
+    du corps des fonctions. Les trois fichiers du canevas sont couverts —
+    selection.js l'est aussi par `..._ne_connait_aucune_route`, et le doublon
+    est délibéré : si ce banc-ci était un jour le seul survivant, il devrait
+    couvrir la chaîne entière à lui seul.
+    """
+    js = _lire("etabli/etabli.js")
+    assert "GLTFExporter" not in js
+    viewer = _lire("lib3d/viewer.js")
+    assert "GLTFExporter" not in viewer
+    assert "GLTFExporter" not in _lire("lib3d/selection.js")
+
+
+def test_les_gizmos_sont_branches():
+    """La première assertion est celle du plan, et elle NE GARDE RIEN : le seul
+    mot « TransformControls » est satisfait par un import inutilisé — ou par le
+    commentaire qui raconte le piège juste au-dessus. Les deux suivantes
+    mordent : sans l'APPEL depuis le clic dans le canevas, et sans l'`attach()`
+    qui suit, poserGizmo() serait du code mort et la page n'aurait aucun gizmo,
+    tout en gardant vert le banc du helper ci-dessous — vérifié par mutation.
+    """
+    js = _lire("etabli/etabli.js")
+    assert "TransformControls" in js
+    bloc = js.split("designerAuClic(", 1)[1]
+    assert "poserGizmo(obj);" in bloc
+    assert "GIZMO.attach(noeud);" in js
+
+
+def test_le_gizmo_entre_dans_la_scene_par_son_HELPER():
+    """PIÈGE FATAL ET MUET. Dans le three.js vendorisé (0.185.1),
+    `TransformControls` n'est PLUS un Object3D : le fichier déclare
+    `class TransformControls extends Controls` (ligne 77). Or `Object3D.add()`
+    d'un non-Object3D se contente d'un avertissement en console et rend la
+    main sans rien faire — le gizmo ne serait JAMAIS visible, et aucun banc
+    qui lit du texte ne le verrait. Ce qui entre dans la scène est son helper :
+    `getHelper()` (ligne 453) rend `this._root` (ligne 455), un
+    `TransformControlsRoot extends Object3D` (ligne 1111).
+    """
+    js = _lire("etabli/etabli.js")
+    assert "S.vueA.scene.add(GIZMO.getHelper());" in js
+    # et surtout PAS l'objet de controle lui-meme, qui ne ferait rien
+    assert "scene.add(GIZMO)" not in js
+
+
+def test_le_gizmo_lache_son_noeud_AVANT_le_chargement_suivant():
+    """`GIZMO.attach(objet)` garde une référence FORTE. Au chargement suivant,
+    `charger()` appelle `vider()`, qui `dispose()` géométries et matériaux : le
+    gizmo tiendrait alors un objet mort et continuerait de le peindre. Le
+    `detach()` doit donc s'exécuter là où le modèle affiché change quoi qu'il
+    arrive — à côté de `S.enAttente.length = 0` et de `SEL.retenus.clear()` —
+    et non dans l'écouteur `etabli:charge`, qui n'arrive qu'APRÈS le
+    chargement et SEULEMENT en cas de succès. Même leçon, troisième fois.
+    """
+    js = _lire("etabli/etabli.js")
+    assert "GIZMO.detach();" in js
+    assert js.index("S.enAttente.length = 0;") < js.index("GIZMO.detach();") \
+        < js.index("await charger(S.vueA")
+
+
+def test_deux_noeuds_deplaces_ne_s_ecrasent_pas():
+    """`findIndex` + remplacement de l'entrée entière perd le premier nœud
+    déplacé au profit du second, en silence : la barre continue d'annoncer
+    « 1 modification en attente » et le serveur ne reçoit qu'un TRS. Or
+    `/api/etabli/transformer` accepte un dictionnaire de PLUSIEURS nœuds. Les
+    charges `transformer` FUSIONNENT donc — `reparer` et `extraire` se
+    remplacent, et le fichier dit pourquoi.
+    """
+    js = _lire("etabli/etabli.js")
+    corps = js.split("function noterAttente", 1)[1].split("\n}\n", 1)[0]
+    assert 'operation === "transformer"' in corps
+    assert "Object.assign(S.enAttente[i].charge, charge)" in corps
+    # La barre ENUMERE, et c'est ce qui rend la fusion visible a l'ecran. On
+    # epingle le COMPTE, pas le libelle : `"nœud(s) déplacé(s)" in js` restait
+    # VERT quand la barre reaffichait « 1 modification » — le commentaire de
+    # libelleAttente cite justement ce libelle. Verifie par mutation.
+    assert "${Object.keys(t.charge).length} nœud(s) déplacé(s)" in js
+
+
+def test_l_extraction_est_ecrite_en_DERNIER_car_elle_renumerote():
+    """`mesh_edit.extraire` REMAPPE le document (`_carte`) : les index de nœud
+    du modèle affiché ne valent plus rien après elle. `reparer` AJOUTE au
+    contraire un nœud racine en fin de tableau et `transformer` ne touche
+    qu'un champ — aucun des deux ne déplace un index existant. Écrire
+    l'extraction avant une transformation ferait donc porter les index du
+    modèle AFFICHÉ sur un document déjà remappé : le mauvais maillage, sur
+    disque, sans que rien ne grince. L'ordre d'écriture est donc FIXE, et ne
+    suit pas l'ordre où l'utilisateur a cliqué.
+    """
+    js = _lire("etabli/etabli.js")
+    assert 'const ORDRE_ECRITURE = ["reparer", "transformer", "extraire"];' in js
+    corps = js.split("async function ecrireVersion", 1)[1].split("\n}\n", 1)[0]
+    assert "ORDRE_ECRITURE" in _lire("etabli/etabli.js")
+    assert "fileOrdonnee()" in corps
+    # et surtout PAS l'ordre d'insertion, qui est celui des clics
+    assert "for (const t of S.enAttente)" not in corps
+
+
+def test_un_echec_au_milieu_d_une_serie_se_dit_et_ne_fourche_pas():
+    """C'EST LA FONCTION QUI ÉCRIT SUR LE DISQUE, et le plan ne lui donnait
+    pas un `try`. Si la troisième de cinq opérations échoue, les deux
+    premières SONT déjà écrites : sans traitement, la file n'est pas vidée, la
+    chronologie n'est pas rafraîchie, et l'utilisateur ne sait ni ce qui est
+    passé ni ce qui reste. Pire, rejouer le reste repartirait de l'ANCIENNE
+    version et forcherait l'historique en silence.
+
+    Le contrat tenu ici : on dit ce qui a été écrit et ce qui ne l'a pas été,
+    la file est vidée dès que quelque chose a touché le disque (ce qui reste
+    est indexé sur le modèle d'avant), et la chronologie apprend les versions
+    neuves même en cas d'échec partiel.
+    """
+    js = _lire("etabli/etabli.js")
+    corps = js.split("async function ecrireVersion", 1)[1].split("\n}\n", 1)[0]
+    assert "try {" in corps and "} catch (e) {" in corps
+    assert "jpost(ROUTES[t.operation], corps)" in corps    # l'APPEL, epingle
+    assert "ecrites.push(t.operation);" in corps           # ce qui EST passe
+    assert "abandonné" in corps                            # et ce qui ne l'est pas
+    assert "direRefus(" in corps                           # le refus se DIT
+    assert "if (ecrites.length) S.enAttente.length = 0;" in corps
+    # le refus est ecrit APRES le rechargement : _ouvrirPrincipale() reecrit
+    # #barreGeo, et un message pose avant lui disparaitrait sans etre lu.
+    # (On vise le refus de SORTIE, pas la garde « aucun modele charge » qui
+    # ouvre la fonction — d'ou le prefixe litteral.)
+    assert corps.index("await ouvrirPrincipale(") < corps.index("direRefus(`écrit :")
+
+
+def test_le_client_ne_normalise_jamais_le_quaternion():
+    """`mesh_edit.transformer` refuse un quaternion non normé en 400, et sa
+    docstring dit pourquoi : « Normaliser un quaternion en douce masquerait un
+    bug amont ; le refuser le montre. » Le client ne doit donc pas le faire
+    non plus — il masquerait le même bug d'un cran plus haut. Le refus, lui,
+    remonte dans la barre du bas par le `catch` gardé ci-dessus.
+    """
+    js = _lire("etabli/etabli.js")
+    assert ".normalize()" not in js
+
+
+def test_aucun_refus_ne_passe_par_alert():
+    """`alert()` n'est pas le geste du dépôt : il bloque la page, il ne
+    ressemble à rien de ce que l'Établi affiche, et la page a DÉJÀ une façon
+    de refuser en le disant — la barre du bas, où `_ouvrirPrincipale()` écrit
+    ses échecs de chargement avec la classe `erreur`.
+    """
+    js = _lire("etabli/etabli.js")
+    assert "alert(" not in js
+    assert "function direRefus(" in js
+    corps = js.split("function brancherSeparer", 1)[1].split("\n}\n", 1)[0]
+    assert "direRefus(" in corps
+
+
+def test_un_index_deduit_d_un_NOM_se_dit_avant_d_ecrire():
+    """selection.js pose `userData.indexGltfSource` : « associations », la
+    carte du GLTFParser, ou « nom », une heuristique que son propre
+    commentaire décrit comme faillible en trois cas. Ces index partent au
+    serveur, QUI ÉCRIT UN GLB — un index faux écrit sur le mauvais maillage
+    sans que rien ne grince. C'est la seule occasion où ce marqueur peut
+    servir ; s'il ne sert pas ici, il ne servira jamais. La page ne refuse
+    pas (le repli vaut mieux que rien), elle le DIT dans la barre.
+    """
+    js, css = _lire("etabli/etabli.js"), _lire("etabli/etabli.css")
+    assert 'indexGltfSource !== "associations"' in js
+    corps = js.split("function rendreAttente", 1)[1].split("\n}\n", 1)[0]
+    # La LECTURE du drapeau, et non le mot : `"heuristique" in corps` restait
+    # VERT quand la condition devenait `false`, le message d'avertissement
+    # contenant lui-meme « repli heuristique ». Verifie par mutation.
+    assert "S.enAttente.some((t) => t.heuristique)" in corps
+    assert "attente-doute" in corps
+    # sans la regle CSS, l'avertissement est ECRIT et se lit comme le reste
+    assert ".attente-doute" in css
+
+
+def test_la_porte_refuse_l_etape_decimee_qui_n_a_pas_de_version():
+    """`mesh_sources` donne `version: null` à l'étape « décimée », qui est un
+    FICHIER À PART (`model.opt.glb`). Or la route retombe sur la version 1
+    quand le corps n'en porte pas : écrire depuis cette étape partirait du
+    BROUILLON, qui n'a ni la même géométrie ni les mêmes index que ce qui est
+    à l'écran — un GLB faux, sur disque, en silence. `ficheDe()` refuse déjà
+    cette étape pour exactement la même raison.
+    """
+    js = _lire("etabli/etabli.js")
+    corps = js.split("async function ecrireVersion", 1)[1].split("\n}\n", 1)[0]
+    assert "if (!S.a.version) {" in corps
+    assert "décimée" in corps
+
+
+def test_la_barre_d_attente_est_redessinee_quand_le_modele_change():
+    """`_ouvrirPrincipale()` vide `S.enAttente` — mais vider le tableau ne
+    redessine pas la barre : elle continuerait d'annoncer « 2 modifications en
+    attente » et d'offrir un bouton « écrire la version » pour une file vide.
+    La barre AFFIRME quelque chose ; elle doit donc être refaite là même où la
+    file est vidée, et avant tout chargement.
+    """
+    js = _lire("etabli/etabli.js")
+    i = js.index("S.enAttente.length = 0;")
+    assert js.index("rendreAttente();", i) < js.index("await charger(S.vueA")
+
+
+def test_le_bouton_Separer_est_refait_a_chaque_rendu_et_ne_s_empile_pas():
+    """`brancherSeparer()` AJOUTE un bouton au panneau. Appelé deux fois sans
+    que le panneau soit réécrit entre-temps, il en empilerait deux — et un
+    clic dans le canevas redessine le panneau. La sûreté vient d'un seul site
+    d'appel, placé APRÈS le `box.innerHTML =` qui repart d'une page blanche :
+    l'ancien bouton meurt avec le balisage qui le portait.
+    """
+    js = _lire("etabli/etabli.js")
+    assert js.count("brancherSeparer();") == 1        # un SEUL site d'appel
+    corps = js.split("function rendreParties", 1)[1].split("\n}\n", 1)[0]
+    assert corps.index("box.innerHTML = `") < corps.index("brancherSeparer();")
+
+
+def test_le_bloc_reparer_met_en_attente_au_lieu_d_ecrire():
+    """Le panneau Fiche règle l'assise — axe haut, échelle, recentrage — et
+    n'écrit RIEN : il pose une ligne dans la file, comme le gizmo et comme
+    « Séparer ». La porte reste le seul chemin vers le disque.
+    """
+    js = _lire("etabli/etabli.js")
+    corps = js.split("function rendreFiche", 1)[1].split("\n}\n", 1)[0]
+    assert '$("#panFiche")' in corps
+    assert 'noterAttente("reparer"' in corps
+    assert "jpost(" not in corps                      # ce panneau n'ecrit pas
+    assert "rendreFiche();" in js                     # et il est APPELE
+    # Les trois reglages de mesh_edit.reparer, aux noms que la route attend —
+    # et on epingle les LIGNES, pas les mots : le commentaire du corps nomme
+    # les trois cles, si bien qu'un `"axe_haut" in corps` restait VERT sur un
+    # `axeHaut:` qui serait passe en 200 sans rien corriger. Par mutation.
+    assert 'axe_haut: $("#fAxe").value,' in corps
+    assert 'echelle: Number($("#fEchelle").value) || 1,' in corps
+    assert 'recentrer: $("#fRecentrer").checked,' in corps
+
+
+def test_les_onglets_du_rail_droit_se_changent_vraiment():
+    """Les quatre boutons portent `data-onglet` depuis la tâche 2 et PERSONNE
+    ne les écoutait : #panFiche naît `hidden` dans index.html et le restait.
+    Le bloc « Réparer l'assise » y aurait donc été écrit et rendu
+    INATTEIGNABLE — le pire des échecs, silencieux, et sur la moitié de cette
+    tâche. Les panneaux Rig et Export restent des coquilles qui annoncent P4
+    et P5 ; encore faut-il pouvoir les lire.
+    """
+    js, html = _lire("etabli/etabli.js"), _lire("etabli/index.html")
+    assert 'data-onglet="fiche"' in html
+    assert 'classList.toggle("hidden", cle !== b.dataset.onglet)' in js
+    assert '"#panFiche"' in js and '"#panExport"' in js

@@ -175,6 +175,21 @@ button { font-family: inherit; }
 /* le refus se VOIT : c'est tout ce que la tâche 4 se permet comme signalement */
 #barreGeo.erreur { color: var(--red); }
 .barre-attente { margin-left: auto; color: var(--accent); flex: none; }
+/* Les deux boutons de la porte d'écriture vivent DANS la barre : sans règle
+   ils prennent le style natif du navigateur — gris clair, bords en relief — et
+   la barre cesse d'être une barre. */
+.barre-attente button {
+  margin-left: 6px; padding: 3px 8px; border-radius: var(--r-sm);
+  border: 1px solid var(--stroke); background: transparent;
+  color: var(--ink-soft); font: inherit; cursor: pointer;
+}
+.barre-attente button:hover { border-color: var(--accent); color: var(--ink-strong); }
+.barre-attente button:disabled { opacity: .5; cursor: default; }
+#btnEcrire { border-color: var(--accent); color: var(--ink-strong); }
+/* Un index de nœud déduit d'un NOM est un repli heuristique, et il part au
+   serveur QUI ÉCRIT UN GLB. L'avertissement ne doit donc pas se lire comme le
+   reste de la barre : sans cette règle il est écrit et invisible. */
+.attente-doute { margin-left: 8px; color: var(--red); }
 
 /* ── rail droit : les onglets ─────────────────────────────────────────────── */
 .rail-right {
@@ -230,12 +245,39 @@ button { font-family: inherit; }
   white-space: nowrap; color: var(--ink); font-weight: 500;
 }
 .partie span { flex: none; font-size: 10px; font-variant-numeric: tabular-nums; }
-.parties-actions { display: flex; gap: 6px; }
+/* La rangée s'ENROULE depuis la porte d'écriture : « Séparer la sélection en
+   une version » est une phrase, pas un verbe, et sur la même ligne que les
+   deux autres elle tombait sous 8 caractères visibles. */
+.parties-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .parties-actions button {
   flex: 1; padding: 6px 4px; border: 1px solid var(--stroke); border-radius: var(--r-sm);
   background: transparent; color: var(--ink-soft); font-size: 11px; cursor: pointer;
 }
 .parties-actions button:hover { border-color: var(--accent); color: var(--ink-strong); }
+#btnSeparer { flex-basis: 100%; }
+
+/* ── panneau Fiche : le bloc « Réparer l'assise » ──────────────────────────
+   Sans ces règles le bloc EXISTE et ne se lit pas — même piège que le panneau
+   Parties : quatre contrôles au style natif du navigateur, collés au bord, et
+   une note aussi grosse que le reste. */
+#panFiche label {
+  display: flex; align-items: center; gap: 8px;
+  font: 11px var(--f-mono), ui-monospace, monospace; color: var(--ink-soft);
+}
+#panFiche select, #panFiche input[type="number"] {
+  flex: 1; min-width: 0; padding: 4px 6px;
+  border: 1px solid var(--stroke); border-radius: var(--r-sm);
+  background: var(--bg-panel-2); color: var(--ink); font: inherit;
+}
+#panFiche button {
+  padding: 6px 8px; border: 1px solid var(--stroke); border-radius: var(--r-sm);
+  background: transparent; color: var(--ink-soft); font-size: 11px; cursor: pointer;
+}
+#panFiche button:hover { border-color: var(--accent); color: var(--ink-strong); }
+#panFiche .note {
+  margin: 0; font: 10.5px/1.5 var(--f-mono), ui-monospace, monospace;
+  color: var(--ink-soft);
+}
 
 /* Sous 1200px les rails mangent le canevas : on les resserre plutôt que de les
    escamoter — la chronologie est la colonne vertébrale de la page. */
