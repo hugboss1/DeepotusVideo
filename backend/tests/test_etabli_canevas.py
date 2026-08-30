@@ -1949,3 +1949,299 @@ def test_l_entree_epouse_la_forme_de_la_carte_3D_du_bundle():
     assert e["bytes"] > 0
     assert e["sha256"]
     assert e["created_at"]
+
+
+# ── L. l'onglet « Établi » du bundle ─────────────────────────────────────────
+# La MOITIÉ BUNDLE de la même demande — la section K a livré la route, celle-ci
+# livre la catégorie qui la montre. Forme choisie : un SEPTIÈME onglet, à côté
+# d'Images / Renders / 3D / Sprites / Audio / Favoris.
+#
+# Greffé par `scripts/patch_bundle_etabli.py`, dernier maillon de la chaîne
+# Bibliothèque (libpicker → libprov → libsend → etabli). Banc MIROIR comme le
+# reste du fichier : il lit le bundle comme du texte.
+
+_BUNDLE_REL = "dist/assets/index-BEOJX8L5.js"
+_PATCHER = RACINE / "scripts" / "patch_bundle_etabli.py"
+
+
+def _bundle() -> str:
+    return _lire(_BUNDLE_REL)
+
+
+def _patcher():
+    """Le patcher CHARGÉ comme un module, jamais lu comme de la prose.
+
+    Ses `PATCHES` sont des données : y poser une assertion, c'est épingler le
+    patch lui-même — pas une phrase de docstring qui le décrirait.
+    """
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("_pb_etabli", _PATCHER)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_les_negations_de_cette_section_n_utilisent_PAS__code():
+    """`_code()` est l'outil des assertions négatives de ce fichier. Sur le
+    BUNDLE MINIFIÉ il est un piège, et cette section s'en passe exprès.
+
+    Il retire les blocs `/* … */`. Un bundle minifié en contient dans des
+    littéraux — regex, chaînes d'URL — sans le `*/` qui va avec : le `re.S`
+    avale alors tout jusqu'au `*/` suivant, des centaines de milliers de
+    caractères plus loin. Mesuré ici plutôt que supposé : l'écran Library
+    ENTIER disparaît, si bien qu'un `assert X not in _code(bundle)` serait vert
+    quoi qu'on écrive dans le patch. Les négations d'ici portent donc sur
+    `_lire`, ce qui est sans risque pour la raison inverse de celle qui a
+    motivé `_code` : un bundle minifié n'a aucune prose française où un
+    marqueur pourrait se satisfaire tout seul.
+    """
+    entier, ampute = _lire(_BUNDLE_REL), _code(_BUNDLE_REL)
+    assert len(entier) - len(ampute) > 400_000
+    # et c'est bien la région patchée qui tombe
+    assert "Object.keys(vo)" in entier
+    assert "Object.keys(vo)" not in ampute
+    assert 'if(m.kind==="asset3d"&&m.short' in entier
+    assert 'if(m.kind==="asset3d"&&m.short' not in ampute
+
+
+def test_l_onglet_sort_de_la_rangee_EXISTANTE_sans_une_ligne_de_markup():
+    """« Respecte le design complet de l'application. » Pris au mot : le patch
+    n'écrit AUCUN composant, AUCUNE CSS, AUCUN style.
+
+    La rangée d'onglets du bundle est `Object.keys(vo).map(...)` — `vo` est
+    l'objet de démonstration. Ajouter une clé y suffit : le bouton « Établi »
+    sort du même `map` que ses six voisins, donc même balise, même typographie,
+    même hauteur, mêmes jetons de couleur, même pastille de compte. Un onglet
+    fabriqué à la main aurait pu se voir ; celui-ci ne le peut pas.
+    """
+    s = _bundle()
+    # la clé, donc le bouton
+    assert ',"3D":[],Sprites:[],Audio:[],Favoris:[],"Établi":[]};' in s
+    # UNE seule rangée, toujours pilotée par `vo`
+    assert s.count("Object.keys(vo)") == 1
+    assert ("children:Object.keys(vo).map(C=>{const Q=(T[C]||[]).length,"
+            "ee=Q>0?Q:vo[C].length;") in s
+    # le gabarit du bouton, INTACT et unique — le nôtre passe par lui
+    assert s.count('onClick:()=>{i(C);dzSFs("")},style:{height:26,'
+                   'padding:"0 10px",background:o===C?"var(--bg-panel-2)"'
+                   ':"transparent"') == 1
+    # et la preuve structurelle : rien de visuel n'est injecté nulle part
+    interdits = ("r.jsx", "style:", "className", "createElement",
+                 "document.head", "borderRadius", "<button", "<div")
+    for tag, _ancre, repl in _patcher().PATCHES:
+        for mot in interdits:
+            assert mot not in repl, (tag, mot)
+
+
+def test_l_onglet_vide_ne_se_remplit_pas_d_items_de_demonstration():
+    """`vo` n'est pas qu'une liste de noms d'onglets : le bundle s'en sert de
+    REPLI quand la catégorie réelle est vide (`Y.length>0?Y:vo[o]`), et il lit
+    `vo[C].length` pour la pastille de compte.
+
+    D'où le tableau VIDE. Une valeur absente ferait lever `vo[C].length` sur la
+    rangée entière — les sept onglets avec —, et une valeur peuplée montrerait
+    des maquettes à qui n'a encore rien produit.
+    """
+    s = _bundle()
+    assert "Y.length>0?Y:vo[o]" in s
+    assert '"Établi":[]' in s
+    assert '"Établi":[{' not in s          # jamais d'items de démonstration
+    assert s.count("Établi") == 2          # la clé de `vo` + celle de `T`
+
+
+def test_la_liste_vient_de_la_route_greffee_sur_le_sondage_EXISTANT():
+    """La catégorie est alimentée par `GET /api/etabli/productions`, lue dans
+    l'effet de sondage QUE `vm` A DÉJÀ — celui qui rafraîchit images, jobs et
+    audio toutes les 8 s, avec son drapeau de montage et son `clearInterval`.
+
+    C'est le chemin que T3 emprunte pour ses jobs, et l'imiter évite d'inventer
+    un cycle de vie : pas de second `useEffect`, pas de second intervalle, pas
+    de second démontage à tenir. Le drapeau `C` est repris tel quel, sinon une
+    réponse en retard écrirait dans un composant démonté.
+    """
+    s = _bundle()
+    assert s.count("/api/etabli/productions") == 1
+    assert s.count("__dzEtabli") == 2      # la définition + l'appel
+    assert "d(W),f(R||[]),__dzEtabli(function(L){if(C)dzEtas(L)})," in s
+    assert '[dzSF,dzSFs]=x.useState(""),[dzEta,dzEtas]=x.useState([]),' in s
+    assert '__dzFavImgHas(z.name))),"Établi":dzEta},Y=T[o]||[],' in s
+    # aucun cycle de vie neuf : la preuve est dans les greffes elles-mêmes
+    for tag, _ancre, repl in _patcher().PATCHES:
+        assert "useEffect" not in repl, tag
+        assert "setInterval" not in repl, tag
+
+
+def test_la_date_ISO_de_la_route_est_repassee_par_mo():
+    """La route rend `date` en ISO BRUT là où T3 envoie à la carte une date
+    déjà passée par `mo()` (« 3h ago »). Sans correction, la carte afficherait
+    `2026-08-30T20:39:30+00:00`.
+
+    L'assertion porte sur la POSITION du champ, pas sur sa présence : le
+    mapping est un `Object.assign({}, z, {…})`, et seul ce qui se trouve dans
+    le TROISIÈME argument écrase la valeur du serveur. Un `date:` resté du côté
+    de `z` ne corrigerait rien.
+    """
+    s = _bundle()
+    i = s.index("function __dzEtabli(cb){")
+    corps = s[i:i + 700]
+    ecrase = corps.split("Object.assign({},z,{", 1)[1]
+    assert ecrase.startswith('date:mo(z&&z.date)||""')
+
+
+def test_un_thumb_NUL_recoit_le_repli_shot_0_que_React_ne_declencherait_pas():
+    """La vignette vaut `null` quand le job n'a ni `preview.png` ni silhouette
+    (section K). La carte 3D a pourtant un repli :
+
+        <img src={C.thumb} onError={… src = "/api/assets/3d/"+C.short+"/shot/0"}>
+
+    Il ne joue JAMAIS sur `null` : React OMET l'attribut `src` quand la valeur
+    est nulle, le navigateur ne demande donc rien et n'émet aucun `error`. La
+    case reste vide, sans que rien ne le signale. Le repli est donc posé À LA
+    LECTURE, avant que la carte ne le voie.
+
+    La carte, elle, n'est pas touchée — les deux assertions du milieu le
+    disent : c'est bien son `onError` qui était impuissant, pas absent.
+    """
+    s = _bundle()
+    assert 'thumb:(z&&z.thumb)||("/api/assets/3d/"+sh+"/shot/0")' in s
+    assert "src:C.thumb,alt:C.name,onError:" in s
+    assert 'ee.currentTarget.src="/api/assets/3d/"+C.short+"/shot/0"' in s
+    # 3 occurrences d'origine + la nôtre
+    assert s.count("/shot/0") == 4
+
+
+def test_le_menu_masque_l_Impression_3D_quand_imprimable_est_faux():
+    """`kind: "asset3d"` fait apparaître « Envoyer vers → Impression 3D » sur
+    toute carte portant un `short`, et ce menu appelle
+    `POST /api/print3d/from-assets3d/<short>` — une route qui lit `model.glb`
+    et JAMAIS `model.v<n>.glb`. Une entrée « v2 · reparer » y ferait imprimer
+    le BROUILLON, en silence, et l'objet sorti de l'imprimante serait faux.
+    `..._une_version_ne_se_donne_pas_pour_imprimable` (section K) le mesure.
+
+    L'onglet masque donc l'entrée. Il ne RÉPARE pas la route d'impression :
+    c'est un autre chantier, et le menu ne sait de toute façon pas transmettre
+    un numéro de version — d'où le pin à 3 ci-dessous, qui dit qu'elle n'a pas
+    bougé.
+
+    Deux détails portent tout :
+      * `!==!1` et non `===!0` dans la garde : les cartes de l'onglet 3D
+        n'ont pas ce champ, `undefined!==false` reste vrai, et leur entrée
+        d'impression survit intacte ;
+      * `===!0` et non `!!` dans le mapping : si la route cessait un jour
+        d'envoyer le champ, le menu se FERMERAIT au lieu de s'ouvrir sur un
+        mensonge.
+    """
+    s = _bundle()
+    assert 'if(m.kind==="asset3d"&&m.short&&m.imprimable!==!1){' in s
+    assert 'if(m.kind==="asset3d"&&m.short){' not in s
+    assert "imprimable:(z&&z.imprimable)===!0" in s
+    assert s.count("__dzPrint3d") == 3
+
+
+def test_les_chips_de_provenance_restent_muettes_sur_l_onglet_Etabli():
+    """`__dzSrcChips` (maillon libprov) ne rend rien hors « Images » et
+    « Renders » : la rangée de filtres ne s'affiche donc pas ici, et c'est bien
+    — les productions de l'Établi ont toutes la même provenance.
+
+    Reste le piège : `dzSF` est remis à zéro au changement d'onglet par ce même
+    libprov. Le patch ne touche ni la garde ni la remise à zéro, si bien qu'on
+    ne peut pas arriver sur « Établi » avec un filtre resté armé, qui viderait
+    la catégorie sans dire pourquoi.
+    """
+    s = _bundle()
+    assert ('function __dzSrcChips(o,T,sf,setSf){'
+            'if(o!=="Images"&&o!=="Renders")return null;') in s
+    assert s.count("__dzSrcChips") == 2
+    assert 'onClick:()=>{i(C);dzSFs("")}' in s
+    for tag, _ancre, repl in _patcher().PATCHES:
+        assert "__dzSrcChips" not in repl, tag
+        assert "dzSFs(" not in repl, tag
+
+
+def test_les_maillons_voisins_de_la_chaine_Bibliotheque_gardent_leurs_comptes():
+    """Un patcher de bundle qui vise mal efface le maillon d'à côté sans un
+    mot. Ces comptes sont ceux que les bancs voisins épinglent déjà
+    (test_library_picker, test_library_provenance, test_library_sendto,
+    test_print3d) ; les répéter ici attrape la casse AU MOMENT où elle se
+    produit, pas trois fichiers plus loin.
+    """
+    s = _bundle()
+    attendus = {
+        "__dzLibPicker": 10, "__dzSrcChips": 2, "__dzSendTo": 2,
+        "__dzPrint3d": 3, "__dzToSpriteLab": 5, "__dzQuickStart": 3,
+        "__dzMontageAdd": 4, "deepotus:select-post": 6,
+        "dz_nav_collapsed": 2, "__dzCatBar": 2,
+    }
+    for jeton, combien in attendus.items():
+        assert s.count(jeton) == combien, jeton
+    # et le patcher porte les mêmes comptes, avant comme après
+    P = _patcher()
+    for _nom, sonde, combien in P.STABLE_PROBES:
+        if sonde in attendus:
+            assert combien == attendus[sonde], sonde
+    for sonde, combien in P.POST_COUNTS:
+        assert s.count(sonde) == combien, sonde
+
+
+def test_le_patcher_etabli_est_un_assert_garde_en_queue_de_chaine():
+    """Le patron du dépôt : une ancre cherchée, une exception bruyante si elle
+    manque ou si elle est ambiguë, une sauvegarde dédiée `.bak_etabli`, un
+    `--check` qui n'écrit rien, et jamais de `repatch_all` sur cette chaîne.
+
+    `apply` est APPELÉE ici, pas lue : c'est la garde elle-même qu'on éprouve,
+    sur une ancre absente puis sur une ancre en double.
+    """
+    import pytest
+    P = _patcher()
+    assert P.TAG == "etabli"
+    assert P.MARKER == "__dzEtabli"
+    assert P.REL_BUNDLE.as_posix() == "frontend/dist/assets/index-BEOJX8L5.js"
+    assert P.deltas() == (P.SPEC_CHAR_DELTA, P.SPEC_BYTE_DELTA)
+    assert P.check_spec_parity() == P.deltas()
+
+    with pytest.raises(SystemExit):
+        P.apply("rien de tel ici", "ancre-absente", "x", "t-absente")
+    with pytest.raises(SystemExit):
+        P.apply("aa", "a", "x", "t-ambigue")
+    assert P.apply("-a-", "a", "b", "t-ok") == "-b-"
+
+    src = _PATCHER.read_text(encoding="utf-8")
+    assert "guard_downstream" in src and "STABLE_PROBES" in src
+    assert '.bak_" + TAG' in src and "--check" in src
+    # CRLF partout : un patch qui normalise les fins de ligne réécrirait tout
+    crlf, lf, cr = P.eol_stats((FRONT / _BUNDLE_REL).read_bytes())
+    assert crlf > 0 and (lf, cr) == (0, 0)
+
+
+def test_le_bundle_livre_est_EXACTEMENT_le_patch_applique_UNE_fois():
+    """L'épingle la plus forte de la section : le bundle versionné n'est pas
+    « un bundle qui contient nos marqueurs », c'est le résultat EXACT des six
+    greffes appliquées une fois à la ligne de base post-libsend.
+
+    Le banc défait le patch (chaque remplacement est unique, donc réversible),
+    vérifie qu'aucune trace ne survit, puis le refait par `apply` — la vraie
+    fonction, avec sa garde d'unicité — et compare caractère à caractère.
+
+    Cela prouve du même coup l'IDEMPOTENCE sans lancer le bundle : chaque
+    remplacement n'existe qu'une fois dans le fichier livré, donc aucune ancre
+    n'y subsiste, donc une seconde application lèverait au lieu de doubler la
+    greffe. Modifier un seul caractère d'un remplacement du patcher rend ce
+    test rouge.
+    """
+    P = _patcher()
+    livre = _bundle()
+
+    nu = livre
+    for tag, ancre, repl in reversed(P.PATCHES):
+        assert nu.count(repl) == 1, tag
+        nu = nu.replace(repl, ancre)
+    assert P.MARKER not in nu
+    assert "Établi" not in nu
+    assert len(livre) - len(nu) == P.SPEC_CHAR_DELTA
+
+    refait = nu
+    for tag, ancre, repl in P.PATCHES:
+        assert refait.count(ancre) == 1, tag
+        refait = P.apply(refait, ancre, repl, tag)
+    assert refait == livre
+    assert livre.count(P.MARKER) == P.MARKER_ATTENDU
