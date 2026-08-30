@@ -8756,6 +8756,188 @@ async def etabli_sources(limit: int = 60):
     return {"jobs": jobs, "meshy": await mesh_sources.lister_meshy(limit)}
 
 
+# ── la catégorie « Établi » de la Bibliothèque ───────────────────────────────
+# « Rajouter les dossiers générés dans une catégorie spécifique de la
+# librairie pour pouvoir facilement la retrouver. » Moitié SERVEUR de cette
+# demande ; l'onglet de la Bibliothèque est écrit ailleurs et ne doit rien
+# avoir à réinventer — d'où la forme de sortie, ci-dessous.
+
+
+def _etabli_vignette(d: Path, job: str, v: int) -> str | None:
+    """L'image à montrer pour une version, ou `None` s'il n'y en a aucune.
+
+    `/api/assets/3d/{job}/preview` ne sert QUE `preview.png`, déposé par le
+    moteur : un job ADOPTÉ n'en a pas un seul, et la carte afficherait une
+    case grise sans qu'aucune erreur ne remonte. La fiche écrite par l'Établi
+    rend en revanche `sil_v<n>/silhouette_face.png`, et cette silhouette-là
+    est celle de la VERSION demandée — elle est donc préférée au rendu du
+    moteur, qui ne montre que le brouillon. L'absence est DITE (`None`)
+    plutôt que servie en lien mort.
+    """
+    if (d / f"sil_v{int(v)}" / "silhouette_face.png").is_file():
+        return f"/api/assets/3d/{job}/silhouette/face?v={int(v)}"
+    if (d / "preview.png").is_file():
+        return f"/api/assets/3d/{job}/preview"
+    return None
+
+
+def _etabli_entree(ligne: dict, etape: dict, operation: str, d: Path) -> dict:
+    """Une production, à la FORME de la carte 3D de la Bibliothèque.
+
+    Le bundle construit son onglet 3D ainsi — `{name, kind, size, date,
+    provider, jobId, short, url, thumb}` — et la carte qui les affiche existe
+    déjà. Épouser cette forme, c'est offrir l'onglet « Établi » sans une
+    ligne de rendu de plus :
+
+      * `kind: "asset3d"` donne la carte 3D ET l'entrée « Envoyer vers →
+        Impression 3D », qui lit `m.short` ;
+      * `short` porte le NOM DE DOSSIER ENTIER, jamais un préfixe de huit.
+        Le bundle coupe `job_id.slice(0, 8)` parce qu'un job `assets3d`
+        normal a pour dossier les 8 premiers caractères de son UUID ; un job
+        adopté s'appelle `meshy_<task_id>` et les routes `/api/assets/3d/…`
+        prennent le segment LITTÉRALEMENT (`Path(job).name`, aucune
+        résolution de préfixe). Couper ici donnerait des vignettes et des
+        téléchargements morts ;
+      * `url` est reprise TELLE QUELLE de `mesh_sources`, seule à savoir
+        composer le lien d'une version — la recomposer ici dupliquerait sa
+        convention de nommage ;
+      * `size` reste vide comme dans le bundle (qui a `go(bytes)` pour ça) et
+        `date` porte l'ISO brut, que l'onglet peut repasser par `mo()`.
+
+    Le reste (`job`, `version`, `operation`, `origine`, `sha256`…) est ce que
+    la carte 3D n'a pas : de quoi retrouver le maillage et distinguer une
+    version ÉCRITE d'une ADOPTION, sans repasser par une autre route.
+    """
+    job = ligne["id"]
+    v = etape["version"]
+    return {
+        "name": f"{ligne['nom']} · v{v} · {operation}",
+        "kind": "asset3d",
+        "size": "",
+        "date": etape["created_at"] or "",
+        "provider": "Établi",
+        "jobId": job,
+        "short": job,
+        "url": etape["url"],
+        "thumb": _etabli_vignette(d, job, v),
+        "job": job,
+        "version": v,
+        "operation": operation,
+        "origine": "adoption" if operation == "adoption" else "version",
+        "fichier": etape["file"],
+        "bytes": etape["bytes"],
+        "sha256": etape["sha256"],
+        "triangles": etape["triangles"],
+        "created_at": etape["created_at"],
+        "moteur": ligne["moteur"],
+    }
+
+
+def _etabli_du_job(ligne: dict) -> list[dict]:
+    """Ce que l'Établi a produit dans UN job. Lève si le job est abîmé.
+
+    La liste est LOCALE et rendue d'un bloc, pour qu'un job cassant à
+    mi-parcours ne laisse pas la moitié de ses entrées dans la liste
+    générale. PRÉCAUTION, et dite comme telle : aucun banc ne l'atteint —
+    la casse mesurable (registre illisible, registre qui n'est pas un objet)
+    survient AVANT la première entrée, et la muter en accumulation directe
+    ne fait rougir personne.
+    """
+    from app.services import mesh_report
+
+    job = ligne["id"]
+    d = mesh_report.job_dir(job)
+    try:
+        registre = mesh_report.read_registry(job)
+    except FileNotFoundError:
+        registre = {}          # aucune fiche : l'Établi n'a rien écrit ici
+    # `[1, 2, 3]` est du JSON VALIDE : `read_registry` ne lève pas dessus, et
+    # le `.get` ci-dessous part alors en AttributeError. C'est voulu — le
+    # filet de l'appelant traite ce dossier comme abîmé.
+    fiches = {str(f.get("file")): f
+              for f in (registre.get("entries") or [])
+              if isinstance(f, dict)}
+
+    out: list[dict] = []
+    vues: set[int] = set()
+    for etape in ligne["etapes"]:
+        v = etape["version"]
+        if v is None:
+            # « décimée » (model.opt.glb) : pas une production de l'Établi.
+            # GARDE DE SÛRETÉ, dite comme telle : ce qui l'exclut vraiment
+            # aujourd'hui est l'absence de fiche `outil == "etabli"` sur ce
+            # fichier — retirer cette ligne seule ne change rien d'observable.
+            # Elle protège l'`int(v)` de la vignette le jour où une fiche
+            # atterrirait sur `model.opt.glb`.
+            continue
+        src = (fiches.get(etape["file"]) or {}).get("source")
+        if not isinstance(src, dict) or src.get("outil") != "etabli":
+            continue
+        out.append(_etabli_entree(
+            ligne, etape, str(src.get("operation") or "?"), d))
+        vues.add(v)
+
+    if ligne["phase"] == "adopte" and 1 not in vues:
+        # adoption dont la fiche manque (écriture interrompue, ou fiche
+        # remplacée) : le `asset.json` suffit à la reconnaître
+        prem = next((e for e in ligne["etapes"] if e["version"] == 1), None)
+        if prem is not None:
+            out.append(_etabli_entree(ligne, prem, "adoption", d))
+    return out
+
+
+def _etabli_productions() -> list[dict]:
+    """Les maillages que l'Établi a produits. SYNCHRONE : lecture de disque.
+
+    Deux marqueurs, posés par P1, et il faut les DEUX :
+
+      1. une version écrite — `mesh_edit.ecrire_version` fait poser à
+         `mesh_report.write_report` un `source: {"outil": "etabli", …}` sur
+         l'entrée de registre de cette version ;
+      2. une tâche Meshy adoptée — `mesh_edit.adopter_meshy` écrit un
+         `asset.json` `stage == "adopte"`.
+
+    L'adoption pose en fait les deux (sa fiche porte `operation: "adoption"`),
+    mais ses trois écritures sont gardées SÉPARÉES exprès : une adoption
+    interrompue laisse l'un sans l'autre. On les additionne donc en
+    dédoublonnant par version, sans quoi la même v1 sortirait deux fois.
+
+    Le brouillon `model.glb` d'un job vient du MOTEUR : il n'entre pas ici,
+    même quand le job contient par ailleurs une production.
+    """
+    from app.services import mesh_sources
+
+    out: list[dict] = []
+    for ligne in mesh_sources.lister():
+        try:
+            out.extend(_etabli_du_job(ligne))
+        except Exception as e:      # noqa: BLE001 — un job abîmé n'éteint pas la liste
+            # Même filet que `mesh_sources.lister()`, pour la même raison :
+            # ce dossier est ouvert aux mains de l'utilisateur. Ce job-ci est
+            # perdu, jamais la catégorie entière — et on le DIT.
+            logger.warning(f"etabli/productions: job {ligne.get('id')} "
+                           f"illisible ({e}) — ignoré")
+
+    # `mesh_sources.lister()` trie par NOM de dossier — un préfixe d'UUID,
+    # donc sans rapport avec le temps, et sa docstring demande à l'appelant de
+    # retrier. Ce que la personne cherche, c'est son DERNIER dossier.
+    out.sort(key=lambda e: (e["created_at"] or "", e["job"], e["version"]),
+             reverse=True)
+    return out
+
+
+@router.get("/etabli/productions")
+async def etabli_productions():
+    """Ce que l'Établi a produit — la catégorie « Établi » de la Bibliothèque.
+
+    `_etabli_productions` fait de l'E/S disque SYNCHRONE (le parcours des
+    dossiers, plus un `report.json` par job) : sans `asyncio.to_thread`, elle
+    gèlerait la boucle d'événements pendant tout le parcours, donc toutes les
+    requêtes du serveur — pas seulement la sienne.
+    """
+    return {"items": await asyncio.to_thread(_etabli_productions)}
+
+
 @router.get("/etabli/rig")
 async def etabli_rig(job: str, version: int = 1):
     from app.services import mesh_edit

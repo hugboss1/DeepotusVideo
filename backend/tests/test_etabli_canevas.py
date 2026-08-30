@@ -1439,3 +1439,348 @@ def test_la_relecture_de_la_configuration_ne_peut_pas_casser_la_page():
     # (Assertion de PROSE, assumee comme telle : elle tient la citation, pas le
     # mecanisme — celui-ci est tenu par les assertions ci-dessus.)
     assert "2026-08-06-preservation-etat-ecrans-design.md" in js
+
+
+# ── K. la catégorie « Établi » de la Bibliothèque ────────────────────────────
+# « Il convient aussi de rajouter les dossiers générés dans une catégorie
+# spécifique de la librairie pour pouvoir facilement la retrouver. » La MOITIÉ
+# SERVEUR de cette demande : une route qui dit ce que l'Établi a produit.
+# L'onglet côté bundle est une autre tâche — rien ici ne le touche.
+
+
+def _glb_de_banc() -> bytes:
+    """Un GLB RÉEL, pas des octets quelconques.
+
+    `mesh_edit.ecrire_version` passe par `mesh_report.write_report`, qui en
+    tire silhouettes et géométrie : c'est cette fiche-là que la route relit.
+    Un faux GLB ferait écrire une fiche dégradée et le banc ne verrait jamais
+    la vignette de silhouette (le cas `prod_vign_rien` ci-dessous s'en sert
+    justement, mais délibérément).
+    """
+    from app.services import gltf_builder
+    return gltf_builder.build_glb({}, None, "cube", "banc")
+
+
+def _job(nom: str):
+    """Un job `assets3d` avec son brouillon — comme en sortie de moteur."""
+    from app.config import settings
+    d = settings.outputs_path / "assets3d" / nom
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "model.glb").write_bytes(_glb_de_banc())
+    return d
+
+
+def _items():
+    r = _client().get("/api/etabli/productions")
+    assert r.status_code == 200
+    return r.json()["items"]
+
+
+def test_la_route_ne_rend_que_les_maillages_ecrits_par_l_etabli():
+    """Le marqueur est `source.outil == "etabli"` dans le registre du job —
+    `mesh_edit.ecrire_version` le pose, personne d'autre.
+
+    Le brouillon `model.glb` d'un job vient du MOTEUR (Tripo, Meshy, Rodin) :
+    ce n'est pas une production de l'Établi, et il doit rester dehors même
+    quand le job en contient une. Un filtre relâché — « tout job qui a une
+    fiche » — rendrait les deux, et la catégorie ne voudrait plus rien dire.
+    """
+    from app.services import mesh_edit
+    _job("prod_libre")                    # brouillon seul : jamais touché
+    _job("prod_atelier")
+    mesh_edit.ecrire_version("prod_atelier", _glb_de_banc(),
+                             operation="reparer", detail={"axe_haut": "Z"})
+
+    cles = {(e["job"], e["version"]) for e in _items()}
+    assert ("prod_atelier", 2) in cles
+    assert ("prod_atelier", 1) not in cles     # le brouillon du moteur
+    assert not [c for c in cles if c[0] == "prod_libre"]
+
+    e = [x for x in _items() if x["job"] == "prod_atelier"][0]
+    assert e["operation"] == "reparer"
+    assert e["origine"] == "version"
+    assert e["fichier"] == "model.v2.glb"
+
+
+def test_une_tache_meshy_adoptee_est_une_production_comptee_UNE_fois():
+    """`adopter_meshy` pose DEUX marqueurs sur le même maillage : un
+    `asset.json` `stage == "adopte"` ET une fiche `outil == "etabli"`,
+    `operation == "adoption"`. Les deux sont nécessaires — l'adoption garde
+    ses trois écritures SÉPARÉES, si bien qu'une adoption interrompue laisse
+    l'un sans l'autre. Les additionner sortirait la même v1 deux fois.
+    """
+    from app.config import settings
+    from app.services import mesh_edit
+    tid = "tache_adoptee_0123456789"
+    src = settings.outputs_path / "meshy3d" / tid
+    src.mkdir(parents=True, exist_ok=True)
+    (src / "model.glb").write_bytes(_glb_de_banc())
+    job = mesh_edit.adopter_meshy(tid)
+
+    miennes = [e for e in _items() if e["job"] == job]
+    assert len(miennes) == 1
+    assert miennes[0]["version"] == 1
+    assert miennes[0]["origine"] == "adoption"
+
+
+def test_l_url_porte_le_nom_de_dossier_ENTIER_et_sert_vraiment_les_octets():
+    """LE PIÈGE DE CETTE TÂCHE. La carte 3D du bundle fabrique ses URL avec
+    `job_id.slice(0, 8)`, parce qu'un job `assets3d` normal a pour dossier les
+    8 premiers caractères de son UUID (POST /api/assets/3d : `short =
+    job_id[:8]`). Un job ADOPTÉ, lui, s'appelle `meshy_<task_id>` : le couper
+    à huit donnerait `meshy_t`, et les routes `/api/assets/3d/{job}/…`
+    prennent le segment LITTÉRALEMENT (`Path(job).name`, aucune résolution de
+    préfixe). La vignette et le téléchargement seraient morts.
+
+    La route rend donc des URL DÉJÀ FAITES, portant le nom de dossier entier,
+    et `short` vaut ce même nom — c'est lui que réclame « Envoyer vers →
+    Impression 3D » (`__dzPrint3d(m.short)` → /api/print3d/from-assets3d/<sh>).
+    """
+    from app.config import settings
+    from app.services import mesh_edit
+    tid = "tache_url_9876543210"
+    src = settings.outputs_path / "meshy3d" / tid
+    src.mkdir(parents=True, exist_ok=True)
+    (src / "model.glb").write_bytes(_glb_de_banc())
+    job = mesh_edit.adopter_meshy(tid)
+    assert len(job) > 8                       # sinon le banc ne prouve rien
+
+    c = _client()
+    e = [x for x in c.get("/api/etabli/productions").json()["items"]
+         if x["job"] == job][0]
+    assert e["url"] == f"/api/assets/3d/{job}/version/1"
+    assert e["short"] == job
+    assert e["short"] != job[:8]
+    # et l'URL n'est pas qu'une chaîne bien formée : elle SERT le maillage
+    r = c.get(e["url"])
+    assert r.status_code == 200
+    assert r.content == _glb_de_banc()
+
+
+def test_l_etape_decimee_n_est_pas_une_production():
+    """`model.opt.glb` sort de l'optimiseur (chantier 10a), porte
+    `version: None` dans la chronologie, et n'a jamais été écrit par
+    l'Établi. Le ranger ici ferait proposer un maillage décimé comme
+    « dossier généré par l'Établi ».
+
+    CE QUI L'EXCLUT, c'est l'absence de fiche `outil == "etabli"` : ce banc
+    rougit quand ce filtre saute (il rend alors [1, 2], et le décimé fait
+    lever `int(None)`). Le `if v is None: continue` de la route est une garde
+    de SÛRETÉ par-dessus — le retirer seul ne change rien d'observable
+    aujourd'hui, et c'est dit ici plutôt que présenté comme mesuré.
+    """
+    from app.services import mesh_edit
+    d = _job("prod_opt")
+    mesh_edit.ecrire_version("prod_opt", _glb_de_banc(),
+                             operation="transformer", detail={})
+    (d / "model.opt.glb").write_bytes(_glb_de_banc())
+
+    miennes = [e for e in _items() if e["job"] == "prod_opt"]
+    assert [e["version"] for e in miennes] == [2]
+    assert all(e["fichier"] != "model.opt.glb" for e in miennes)
+
+
+def test_un_report_illisible_perd_ce_job_seul_et_le_DIT():
+    """Même règle que le filet de `mesh_sources.lister()` : ce dossier est
+    ouvert aux mains de l'utilisateur, un voisin abîmé ne doit pas vider la
+    catégorie de l'écran. Et le job perdu est DIT dans les logs — l'avaler en
+    silence laisserait un dossier introuvable sans la moindre trace.
+
+    Le job abîmé est une ADOPTION, et c'est ce qui rend son absence
+    mesurable : son `asset.json` `stage == "adopte"` suffirait à le faire
+    sortir quand même. Reprendre la lecture avec un registre vide au lieu de
+    passer au job suivant le ferait donc réapparaître — sans ce choix de
+    fixture, l'assertion négative serait vraie des deux côtés de la mutation
+    et ne garderait rien. Perdre l'adoption avec sa fiche est le prix ASSUMÉ :
+    un `report.json` cassé dit que ce dossier n'est plus fiable.
+    """
+    from loguru import logger
+    from app.config import settings
+    from app.services import mesh_edit
+    _job("prod_sain")
+    mesh_edit.ecrire_version("prod_sain", _glb_de_banc(),
+                             operation="reparer", detail={})
+    tid = "tache_cassee_5555555555"
+    src = settings.outputs_path / "meshy3d" / tid
+    src.mkdir(parents=True, exist_ok=True)
+    (src / "model.glb").write_bytes(_glb_de_banc())
+    casse = mesh_edit.adopter_meshy(tid)
+    d = settings.outputs_path / "assets3d" / casse
+    assert (d / "asset.json").is_file()          # le marqueur d'adoption EST là
+    (d / "report.json").write_text("{ ceci n'est pas du JSON", encoding="utf-8")
+
+    dits = []
+    sid = logger.add(dits.append, level="WARNING")
+    try:
+        jobs = {e["job"] for e in _items()}
+    finally:
+        logger.remove(sid)
+
+    assert "prod_sain" in jobs
+    assert casse not in jobs
+    assert any(casse in str(m) for m in dits)
+
+
+def test_un_report_qui_n_est_pas_un_objet_ne_leve_pas():
+    """`read_registry` rend ce que `json.loads` trouve : un `report.json`
+    contenant `[1, 2, 3]` est du JSON VALIDE, il ne déclenche donc aucune
+    `ValueError` — le `.get("entries")` qui suit part en `AttributeError`,
+    d'un TYPE que rien n'attend. C'est le filet PAR JOB qui le rattrape : sans
+    lui, la route entière rend 500 pour UN dossier abîmé.
+    """
+    from app.config import settings
+    from app.services import mesh_edit
+    _job("prod_liste_sain")
+    mesh_edit.ecrire_version("prod_liste_sain", _glb_de_banc(),
+                             operation="reparer", detail={})
+    tid = "tache_liste_4444444444"
+    src = settings.outputs_path / "meshy3d" / tid
+    src.mkdir(parents=True, exist_ok=True)
+    (src / "model.glb").write_bytes(_glb_de_banc())
+    liste = mesh_edit.adopter_meshy(tid)
+    d = settings.outputs_path / "assets3d" / liste
+    (d / "report.json").write_text("[1, 2, 3]", encoding="utf-8")
+
+    # `_items()` exige un 200 ET du JSON : sans la garde de type, la route
+    # entière rend 500 et ces deux lignes tombent ensemble.
+    jobs = {e["job"] for e in _items()}
+    assert "prod_liste_sain" in jobs
+    # adoption comme ci-dessus : sans ce choix, l'absence serait vraie quoi
+    # qu'on mute
+    assert liste not in jobs
+
+
+def test_la_vignette_pointe_sur_une_image_qui_EXISTE_ou_sur_rien():
+    """La carte du bundle affiche `thumb` telle quelle : une URL morte donne
+    une case grise, sans erreur nulle part.
+
+    `/api/assets/3d/{job}/preview` ne sert QUE `preview.png`, que le moteur
+    dépose — un job adopté n'en a aucun. Mais chaque fiche écrite par
+    l'Établi rend, elle, `sil_v<n>/silhouette_face.png` : c'est la vignette
+    honnête d'une production, et la route la PRÉFÈRE. Sans image du tout,
+    `thumb` vaut `null` plutôt qu'un lien cassé.
+
+    `prod_vign_deux` est le cas COURANT — un job de moteur, donc avec son
+    `preview.png`, corrigé ensuite à l'Établi — et le seul où la préférence
+    se mesure : partout ailleurs une seule des deux images existe.
+    """
+    from PIL import Image
+    from app.services import mesh_edit
+    _job("prod_vign_sil")
+    mesh_edit.ecrire_version("prod_vign_sil", _glb_de_banc(),
+                             operation="reparer", detail={})
+    d0 = _job("prod_vign_deux")
+    Image.new("RGB", (1, 1)).save(d0 / "preview.png")
+    mesh_edit.ecrire_version("prod_vign_deux", _glb_de_banc(),
+                             operation="reparer", detail={})
+    # des octets illisibles : la fiche dégrade proprement, donc PAS de
+    # silhouette — c'est ainsi qu'on atteint les deux autres branches
+    d2 = _job("prod_vign_prev")
+    mesh_edit.ecrire_version("prod_vign_prev", b"ceci n'est pas un GLB",
+                             operation="reparer", detail={})
+    Image.new("RGB", (1, 1)).save(d2 / "preview.png")
+    _job("prod_vign_rien")
+    mesh_edit.ecrire_version("prod_vign_rien", b"ceci n'est pas un GLB",
+                             operation="reparer", detail={})
+
+    c = _client()
+    par_job = {e["job"]: e
+               for e in c.get("/api/etabli/productions").json()["items"]}
+    assert par_job["prod_vign_sil"]["thumb"] == \
+        "/api/assets/3d/prod_vign_sil/silhouette/face?v=2"
+    assert par_job["prod_vign_deux"]["thumb"] == \
+        "/api/assets/3d/prod_vign_deux/silhouette/face?v=2"
+    assert par_job["prod_vign_prev"]["thumb"] == \
+        "/api/assets/3d/prod_vign_prev/preview"
+    assert par_job["prod_vign_rien"]["thumb"] is None
+    # et les trois URL servent VRAIMENT une image
+    for j in ("prod_vign_sil", "prod_vign_deux", "prod_vign_prev"):
+        assert c.get(par_job[j]["thumb"]).status_code == 200
+
+
+def test_les_productions_sortent_de_la_plus_recente_a_la_plus_ancienne():
+    """`mesh_sources.lister()` trie par NOM de dossier — un préfixe d'UUID,
+    donc sans rapport avec le temps ; sa docstring demande à l'appelant de
+    retrier. Ce que la personne cherche, c'est son DERNIER dossier.
+
+    Les noms sont choisis pour que l'ordre alphabétique soit l'INVERSE de
+    l'ordre chronologique : sans tri, `prod_a_vieux` sort le premier et
+    l'assertion tombe. Et les `created_at` du registre sont à la seconde, si
+    bien que deux écritures de banc y tombent ensemble : on VIEILLIT donc une
+    fiche déjà écrite par `write_report` — sa forme reste la sienne, seule sa
+    date bouge.
+    """
+    import json as _json
+    from app.services import mesh_edit
+    d = _job("prod_a_vieux")
+    mesh_edit.ecrire_version("prod_a_vieux", _glb_de_banc(),
+                             operation="reparer", detail={})
+    reg = _json.loads((d / "report.json").read_text(encoding="utf-8"))
+    for e in reg["entries"]:
+        e["created_at"] = "2001-01-01T00:00:00+00:00"
+    (d / "report.json").write_text(_json.dumps(reg), encoding="utf-8")
+
+    _job("prod_z_neuf")
+    mesh_edit.ecrire_version("prod_z_neuf", _glb_de_banc(),
+                             operation="reparer", detail={})
+
+    jobs = [e["job"] for e in _items()]
+    assert jobs.index("prod_z_neuf") < jobs.index("prod_a_vieux")
+
+
+def test_la_route_ne_gele_pas_la_boucle_d_evenements():
+    """`mesh_sources.lister()` et la relecture des `report.json` sont de l'E/S
+    disque SYNCHRONE. Appelées directement depuis une coroutine, elles gèlent
+    la boucle pendant tout le parcours des dossiers — donc TOUTES les requêtes
+    du serveur, pas seulement celle-ci. La docstring de `lister()` le dit.
+
+    Marqueur STRUCTUREL, sur l'arbre syntaxique : un `"asyncio.to_thread" in
+    source` serait satisfait par le commentaire qui explique la règle, et ce
+    dépôt a déjà corrigé six bancs pris à ce piège. Ici l'assertion porte sur
+    un APPEL réellement présent dans le corps de la route.
+    """
+    import ast
+    import inspect
+    from app.api import routes
+    arbre = ast.parse(inspect.getsource(routes.etabli_productions))
+    # ce qui est CONFIÉ au fil : `asyncio.to_thread` appelée sur autre chose
+    # laisserait la lecture de disque sur la boucle
+    confie = {ast.unparse(a)
+              for n in ast.walk(arbre)
+              if isinstance(n, ast.Call)
+              and ast.unparse(n.func) == "asyncio.to_thread"
+              for a in n.args}
+    assert "_etabli_productions" in confie
+
+
+def test_l_entree_epouse_la_forme_de_la_carte_3D_du_bundle():
+    """LE CONTRAT AVEC L'AUTRE TÂCHE. L'onglet « Établi » réutilisera la carte
+    EXISTANTE de la Bibliothèque, celle que T3 alimente pour l'onglet 3D :
+
+        {name, kind, size, date, provider, jobId, short, url, thumb}
+
+    D'où `kind: "asset3d"` — c'est lui qui donne la carte 3D et l'entrée
+    « Envoyer vers → Impression 3D » (qui lit `m.short`) sans une ligne de
+    plus. `size` reste vide comme dans T3 (le bundle a `go(bytes)` pour ça) et
+    `date` porte l'ISO brut, que l'onglet peut repasser par `mo()`.
+    """
+    from app.services import mesh_edit
+    _job("prod_forme")
+    mesh_edit.ecrire_version("prod_forme", _glb_de_banc(),
+                             operation="extraire", detail={"noeuds": [0]})
+
+    e = [x for x in _items() if x["job"] == "prod_forme"][0]
+    for cle in ("name", "kind", "size", "date", "provider",
+                "jobId", "short", "url", "thumb"):
+        assert cle in e, cle
+    assert e["kind"] == "asset3d"
+    assert e["provider"] == "Établi"
+    assert e["jobId"] == "prod_forme"
+    # le libellé dit de quel maillage il s'agit : le job, sa version, le geste
+    assert "prod_forme" in e["name"]
+    assert "v2" in e["name"]
+    assert "extraire" in e["name"]
+    # et de quoi retrouver le maillage sans repasser par une autre route
+    assert e["bytes"] > 0
+    assert e["sha256"]
+    assert e["created_at"]
