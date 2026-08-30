@@ -782,6 +782,41 @@ def test_un_job_abime_n_eteint_pas_toute_la_chronologie():
     assert [e["version"] for e in abimee[0]["etapes"]] == [1]
 
 
+def test_un_exposant_unicode_ne_fait_pas_disparaitre_le_job():
+    """`isdigit()` seul n'est pas étanche : `'²'.isdigit()` vaut `True` alors
+    qu'`int('²')` lève.
+
+    Mesuré sur le Python du dépôt : 128 caractères passent `isdigit()` et font
+    lever `int()` — exposants, indices, chiffres cerclés, familles éthiopienne
+    ou brahmi — et TOUS sont non-ASCII. Sans `isascii()`, un `model.v².glb`
+    traverse la garde interne ; le filet extérieur de `lister()` rattrape, mais
+    le job ENTIER disparaît alors de la chronologie au lieu de survivre avec
+    ses versions saines. C'est la promesse de la docstring, tenue jusqu'au bout.
+    """
+    from app.config import settings
+    from app.services import mesh_sources
+
+    # la garde interne rend `None`, elle ne lève pas
+    for nom in ("model.v\u00b2.glb", "model.v\u2082.glb"):
+        assert mesh_sources._numero_de_version(nom) is None, nom
+    # et elle n'exclut aucun nom légitime au passage
+    assert mesh_sources._numero_de_version("model.glb") == 1
+    assert mesh_sources._numero_de_version("model.v2.glb") == 2
+    assert mesh_sources._numero_de_version("model.v10.glb") == 10
+
+    d = settings.outputs_path / "assets3d" / "job_exposant"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "model.glb").write_bytes(_cube())
+    (d / "model.v2.glb").write_bytes(_cube_et_sol())
+    (d / "model.v\u00b2.glb").write_bytes(_cube())
+    (d / "model.v\u2082.glb").write_bytes(_cube())
+
+    ligne = [x for x in mesh_sources.lister() if x["id"] == "job_exposant"]
+    # le job SURVIT : c'est la conséquence qui compte, pas l'absence de levée
+    assert len(ligne) == 1, "le job a disparu de la chronologie"
+    assert [e["version"] for e in ligne[0]["etapes"]] == [1, 2]
+
+
 def test_les_lignes_des_deux_sources_ont_la_meme_forme():
     """Le panneau de gauche ne doit pas avoir à distinguer les deux sources :
     une clé sans valeur vaut `None`, elle n'est pas absente."""

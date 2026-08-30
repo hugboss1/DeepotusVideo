@@ -26,13 +26,17 @@ def _numero_de_version(nom: str) -> int | None:
     copie à la main. Mesuré : sans cette garde, `int()` lève et TOUTE la
     chronologie tombe — y compris les jobs sains d'à côté. La bibliothèque 3D
     entière disparaîtrait de l'écran à cause d'un fichier copié.
+
+    L'`isascii()` n'est pas décoratif : `'²'.isdigit()` vaut `True` alors
+    qu'`int('²')` lève. Mesuré : 128 caractères sont dans ce cas — exposants,
+    indices, chiffres cerclés, éthiopiens, brahmi — et tous sont non-ASCII.
     """
     if nom == "model.glb":
         return 1
     if not (nom.startswith("model.v") and nom.endswith(".glb")):
         return None
     reste = nom[len("model.v"):-len(".glb")]
-    return int(reste) if reste.isdigit() else None
+    return int(reste) if reste.isascii() and reste.isdigit() else None
 
 
 def _versions_du_job(job: str) -> list[dict]:
