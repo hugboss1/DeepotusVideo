@@ -233,7 +233,7 @@ def main():
         if s.count(MARKER):
             raise SystemExit(
                 f"[{TAG}] marqueur deja present x{s.count(MARKER)} dans "
-                f"{src.name} — double application refusee. Une racine d'app "
+                f"{src.name} : double application refusee. Une racine d'app "
                 "installee se met a jour par COPIE du bundle du depot.")
         for tag, anchor, _r in PATCHES:
             n = s.count(anchor)

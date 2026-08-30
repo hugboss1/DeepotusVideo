@@ -2038,12 +2038,20 @@ def test_l_onglet_vide_ne_se_remplit_pas_d_items_de_demonstration():
     REPLI quand la catégorie réelle est vide (`Y.length>0?Y:vo[o]`), et il lit
     `vo[C].length` pour la pastille de compte.
 
-    D'où le tableau VIDE. Une valeur absente ferait lever `vo[C].length` sur la
-    rangée entière — les sept onglets avec —, et une valeur peuplée montrerait
-    des maquettes à qui n'a encore rien produit.
+    D'où le tableau VIDE plutôt qu'une liste peuplée : sans lui, l'onglet
+    montrerait des maquettes à qui n'a encore rien produit, et la pastille
+    afficherait un faux compte.
+
+    Et d'où une CLÉ, plutôt que rien : `C` vient de `Object.keys(vo)`, donc
+    `vo[C]` est toujours défini et une clé absente ne LÈVE pas — elle donne
+    zéro onglet, un patch invisible et muet, plus difficile à repérer qu'un
+    crash. Le bundle porte d'ailleurs un second déréférencement non gardé au
+    site de rendu, `(T[o]||[]).length||vo[o].length`, inatteignable pour
+    exactement la même raison : `o` n'est jamais écrit qu'avec une clé de `vo`.
     """
     s = _bundle()
     assert "Y.length>0?Y:vo[o]" in s
+    assert "return(T[o]||[]).length||vo[o].length," in s
     assert '"Établi":[]' in s
     assert '"Établi":[{' not in s          # jamais d'items de démonstration
     assert s.count("Établi") == 2          # la clé de `vo` + celle de `T`
@@ -2130,9 +2138,19 @@ def test_le_menu_masque_l_Impression_3D_quand_imprimable_est_faux():
       * `===!0` et non `!!` dans le mapping : si la route cessait un jour
         d'envoyer le champ, le menu se FERMERAIT au lieu de s'ouvrir sur un
         mensonge.
+
+    CONSÉQUENCE ASSUMÉE : dans `__dzSendTo`, toutes les cibles sont sous des
+    gardes de `kind`, et `asset3d` n'en a QU'UNE — l'impression. Une production
+    de l'Établi non imprimable obtient donc un menu ENTIÈREMENT VIDE, c'est-à-
+    dire « Aucune cible pour cet asset » : la carte offre un « Envoyer vers… »
+    qui ne peut que décliner. C'est disgracieux, et infiniment préférable à
+    imprimer le brouillon en silence. Cela se corrigera le jour où
+    `print3d_from_assets3d` acceptera un numéro de version, pas avant.
     """
     s = _bundle()
     assert 'if(m.kind==="asset3d"&&m.short&&m.imprimable!==!1){' in s
+    assert ('if(!items.length){__dzToast("Aucune cible pour cet asset");'
+            'return}') in s
     assert 'if(m.kind==="asset3d"&&m.short){' not in s
     assert "imprimable:(z&&z.imprimable)===!0" in s
     assert s.count("__dzPrint3d") == 3
@@ -2222,11 +2240,12 @@ def test_le_bundle_livre_est_EXACTEMENT_le_patch_applique_UNE_fois():
     vérifie qu'aucune trace ne survit, puis le refait par `apply` — la vraie
     fonction, avec sa garde d'unicité — et compare caractère à caractère.
 
-    Cela prouve du même coup l'IDEMPOTENCE sans lancer le bundle : chaque
-    remplacement n'existe qu'une fois dans le fichier livré, donc aucune ancre
-    n'y subsiste, donc une seconde application lèverait au lieu de doubler la
-    greffe. Modifier un seul caractère d'un remplacement du patcher rend ce
-    test rouge.
+    Modifier un seul caractère d'un remplacement du patcher rend ce test rouge.
+
+    Ce test ne dit RIEN de l'idempotence, contrairement à ce qu'affirmait sa
+    première rédaction : trois des six ancres SURVIVENT dans le fichier livré,
+    et c'est `..._l_idempotence_ne_vient_PAS_des_ancres...`, ci-dessous, qui
+    mesure d'où elle vient vraiment.
     """
     P = _patcher()
     livre = _bundle()
@@ -2245,3 +2264,73 @@ def test_le_bundle_livre_est_EXACTEMENT_le_patch_applique_UNE_fois():
         refait = P.apply(refait, ancre, repl, tag)
     assert refait == livre
     assert livre.count(P.MARKER) == P.MARKER_ATTENDU
+
+
+def test_l_idempotence_ne_vient_PAS_des_ancres_mais_du_marqueur_et_du_backup():
+    """Où l'idempotence de ce patcher se trouve vraiment — mesuré, parce que la
+    réponse intuitive est fausse et que la première rédaction du banc s'y était
+    laissé prendre.
+
+    On croirait qu'un patcher assert-garde s'auto-protège : chaque ancre étant
+    consommée par sa greffe, une seconde passe ne trouverait plus rien et
+    lèverait. C'est vrai de E4, E5 et E6, qui REMPLACENT leur ancre. Ce ne
+    l'est pas de E1, E2 et E3, qui greffent par préfixe ou par suffixe : leur
+    remplacement CONTIENT leur ancre, si bien que l'ancre survit intacte dans
+    le fichier livré. Une seconde passe d'`apply` sur le bundle versionné
+    doublerait ces trois greffes SANS RIEN LEVER — le marqueur passerait de 2
+    à 4. C'est mesuré ci-dessous, pas supposé.
+
+    L'idempotence est pourtant réelle (quatre passages, même sha256), mais elle
+    tient à deux gardes du patcher :
+
+      * `shutil.copy2(bak, bundle)` RESTAURE la ligne de base avant de patcher,
+        si bien que chaque passage repart du bundle post-libsend ;
+      * le refus « marqueur présent sans `.bak_etabli` » ferme le seul chemin
+        par lequel on patcherait un fichier déjà patché — celui où la
+        sauvegarde a disparu.
+
+    Le banc les épingle PARCE QUE la docstring fautive nommait le mauvais
+    mécanisme : un mainteneur qui l'aurait crue pouvait retirer la restauration
+    en la jugeant redondante, et le patch se serait mis à doubler en silence.
+
+    Les deux assertions de gardes portent sur l'ARBRE SYNTAXIQUE de `main`, et
+    non sur son texte : un `"shutil.copy2" in source` serait satisfait par la
+    prose ci-dessus. Même raison, et même forme, que
+    `..._la_route_ne_gele_pas_la_boucle_d_evenements` en section K.
+
+    Et la restauration est cherchée DANS LA BRANCHE `else` de
+    `if not bak.exists()`, pas n'importe où : `main` appelle
+    `shutil.copy2(bak, bundle)` une SECONDE fois, pour défaire l'écriture
+    quand la vérification post-patch échoue. Un simple « cet appel existe
+    quelque part » restait vert alors que la restauration d'entrée avait été
+    retirée — mutant mesuré, assertion resserrée.
+    """
+    import ast
+    import inspect
+    P = _patcher()
+    livre = _bundle()
+
+    survivantes = {tag for tag, ancre, _r in P.PATCHES if ancre in livre}
+    assert survivantes == {"E1-lecteur", "E2-etat", "E3-charge"}
+    epuisees = {tag for tag, ancre, _r in P.PATCHES if ancre not in livre}
+    assert epuisees == {"E4-liste", "E5-onglet", "E6-garde-impression"}
+
+    # ce qu'une seconde passe NAÏVE ferait vraiment au bundle livré
+    doublee = livre
+    for _tag, ancre, repl in P.PATCHES:
+        if doublee.count(ancre) == 1:
+            doublee = doublee.replace(ancre, repl)
+    assert doublee.count(P.MARKER) == 2 * P.MARKER_ATTENDU
+    assert len(doublee) > len(livre)
+
+    # les deux gardes qui tiennent l'idempotence, lues sur l'arbre syntaxique
+    arbre = ast.parse(inspect.getsource(P.main))
+    porte = [n for n in ast.walk(arbre) if isinstance(n, ast.If)
+             and ast.unparse(n.test) == "not bak.exists()"]
+    assert len(porte) == 1
+    dans_le_else = {ast.unparse(c) for b in porte[0].orelse
+                    for c in ast.walk(b) if isinstance(c, ast.Call)}
+    assert "shutil.copy2(bak, bundle)" in dans_le_else
+    tests = {ast.unparse(n.test) for n in ast.walk(arbre)
+             if isinstance(n, ast.If)}
+    assert "MARKER in read_src(bundle)" in tests        # l'état ambigu refusé
