@@ -38,6 +38,15 @@ const S = {
    toute clé se déclare ICI.) */
 const SEL = { granularite: "maillage", retenus: new Set() };
 
+/* La clé interne d'une granularité et son LIBELLÉ ne sont pas la même chose.
+   Les clés (« noeud », « materiau ») sont des identifiants sans accents, qui
+   voyagent dans `data-g` et qui partiront un jour au serveur ; le panneau, lui,
+   écrit du français — il dit déjà « Isoler la sélection », et selection.js
+   retombe sur « matériau » ACCENTUÉ pour un matériau sans nom. Sans cette
+   table, l'onglet « materiau » listait des rangées « matériau ». */
+const LIBELLE_GRANULARITE =
+  { noeud: "nœud", maillage: "maillage", materiau: "matériau" };
+
 async function jget(p) {
   const r = await fetch(p);
   if (!r.ok) throw new Error(`${p} → ${r.status}`);
@@ -565,11 +574,20 @@ function rendreParties() {
      les libellés du disque de la tâche 4 — et c'est dans un attribut qu'un
      guillemet casse la ligne entière. `tris`, lui, est compté par selection.js
      sur les tampons de géométrie : c'est un nombre, et le seul chiffre de ce
-     balisage à n'avoir traversé aucun fichier. */
+     balisage à n'avoir traversé aucun fichier.
+
+     ATTRIBUT ABSENT plutôt que VIDE, et c'est un PIÈGE DÉSARMÉ pour la porte
+     d'écriture : un matériau n'a pas d'index de nœud, un maillage non indexé
+     non plus. Émis à vide, `dataset.index` rendrait "" — et `Number("")` vaut
+     ZÉRO, c'est-à-dire LE NŒUD 0 du document, que l'extraction viserait sans
+     que rien ne grince, exactement le mode de défaillance qu'indexerNoeuds()
+     existe pour empêcher. Absent, `dataset.index` vaut undefined,
+     `Number(undefined)` vaut NaN, et la lecture naïve échoue BRUYAMMENT. */
   const rangees = liste.map((x) => `
       <label class="partie">
         <input type="checkbox" data-uuid="${esc(x.uuid)}"
-               data-index="${esc(x.indexGltf ?? "")}"
+               ${x.indexGltf === undefined ? ""
+                 : `data-index="${esc(x.indexGltf)}"`}
                ${SEL.retenus.has(x.uuid) ? "checked" : ""}>
         <b>${esc(x.nom)}</b>${x.tris
           ? `<span>${x.tris.toLocaleString("fr-FR")} tri</span>` : ""}
@@ -581,7 +599,7 @@ function rendreParties() {
   box.innerHTML = `
     <div class="granularite">
       ${["noeud", "maillage", "materiau"].map((g) =>
-        `<button data-g="${g}" class="${g === SEL.granularite ? "actif" : ""}">${g}</button>`
+        `<button data-g="${g}" class="${g === SEL.granularite ? "actif" : ""}">${LIBELLE_GRANULARITE[g]}</button>`
       ).join("")}
     </div>
     <div class="parties">${rangees || `<div class="vide">${S.vueA && S.vueA.racine
@@ -596,7 +614,12 @@ function rendreParties() {
       /* On VIDE en changeant de granularité : l'uuid d'un matériau ne désigne
          pas un maillage, et une sélection mêlée partirait telle quelle au
          serveur en tâche 8. */
-      SEL.granularite = b.dataset.g; SEL.retenus.clear(); rendreParties();
+      SEL.granularite = b.dataset.g; SEL.retenus.clear();
+      /* Le bleu appartenait à la sélection qu'on vient de vider : le laisser
+         ferait croire qu'un maillage est encore retenu. surligner() accepte
+         null et restaure tout — aucune ligne neuve. */
+      surligner(S.vueA, null);
+      rendreParties();
     }));
   box.querySelectorAll("input[type=checkbox]").forEach((c) =>
     c.addEventListener("change", () => {
@@ -626,14 +649,16 @@ document.addEventListener("etabli:charge", () => {
   designerAuClic(S.vueA, $("#vueA canvas"), (obj) => {
     if (!obj) return;
     surligner(S.vueA, obj.uuid);
-    if (SEL.granularite !== "maillage") {
-      /* Le clic désigne un MAILLAGE, et rien d'autre : son uuid n'est ni celui
-         d'un matériau, ni un index de nœud. Le mêler à une sélection d'une
-         autre granularité en ferait une liste hétérogène. On bascule, et on
-         repart propre — exactement ce que fait un bouton de granularité. */
-      SEL.granularite = "maillage";
-      SEL.retenus.clear();
-    }
+    /* Le clic désigne un MAILLAGE, et rien d'autre : son uuid n'est ni celui
+       d'un matériau, ni un index de nœud, et `retenus` doit rester homogène.
+       Mais hors de la granularité « maillage » on SORT — on ne détruit pas.
+       Appuyer sur un bouton de granularité est un changement de mode explicite,
+       où perdre sa sélection est attendu ; cliquer dans le canevas est le geste
+       d'INSPECTION, et TOLERANCE_CLIC fait qu'une orbite presque immobile
+       compte comme un clic. Une sélection de dix matériaux ne doit pas
+       disparaître sur un frôlement. Le surlignage, lui, a déjà eu lieu : on
+       montre ce qui est sous le curseur sans rien retenir. */
+    if (SEL.granularite !== "maillage") return;
     SEL.retenus.add(obj.uuid);
     rendreParties();
   });

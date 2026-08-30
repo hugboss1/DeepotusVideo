@@ -695,6 +695,12 @@ def test_les_trois_granularites_sont_REELLEMENT_branchees():
     assert "noeuds.push(" in sel
     assert "maillages.push(" in sel
     assert "materiaux.set(" in sel
+    # La Map est remplie ci-dessus, encore faut-il qu'elle SORTE. Mutation
+    # confirmée : `materiaux: []` gardait tout le reste vert — la chaîne était
+    # couverte aux deux bouts (production, panneau, isolation) et percée
+    # exactement à la jointure. Un banc qui promet cette couverture dans son
+    # docstring sans la tenir est pire qu'un banc absent.
+    assert "materiaux: [...materiaux.values()]" in sel
     # le panneau sait aller chercher les trois, et offre le choix
     for cle in ("inv.noeuds", "inv.maillages", "inv.materiaux"):
         assert cle in js, cle
@@ -824,6 +830,12 @@ def test_l_isolation_rend_l_opacite_d_origine_et_reste_un_affichage():
     assert "m.userData.opaciteOrigine === undefined" in sel
     assert "m.opacity = dedans ? m.userData.opaciteOrigine : fantome;" in sel
     assert "m.transparent = dedans ? m.userData.transparentOrigine : true;" in sel
+    # surligner() a la MÊME dette, et son échec est plus silencieux encore :
+    # rendre 0x000000 au lieu de l'émission d'origine noircit DÉFINITIVEMENT
+    # une lampe ou un néon — courants sur un Meshy — au premier clic, sans
+    # retour, et l'utilisateur accusera le modèle. Garder l'ancre de l'opacité
+    # et pas celle-ci serait arbitraire : les deux restaurations sont jumelles.
+    assert ": m.userData.emissiveOrigine);" in sel
     # « tout revoir » isole SUR RIEN, ce qui restaure tout
     assert "isoler(S.vueA, [])" in js
 

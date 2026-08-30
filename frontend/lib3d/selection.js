@@ -149,15 +149,17 @@ export function isoler(api, gardes, { fantome = OPACITE_FANTOME } = {}) {
        granularité « nœud » serait offerte et inopérante. La remontée s'arrête
        à la racine du modèle, au-delà commence la scène du canevas.
 
-       PIÈGE DE TYPE, pour qui viendra ensuite : `indexGltf` est un NOMBRE,
-       alors qu'un `dataset.index` relu du DOM est une CHAÎNE. Un Set ne les
-       confond pas — `new Set(["5"]).has(5)` est faux. Le panneau, lui, ne
-       retient que des uuid, tous chaînes : la branche par index n'attend donc
-       que des appelants qui passent de vrais nombres. */
+       `gardes` ne porte QUE des uuid three.js — c'est le vocabulaire du
+       navigateur. Cette fonction n'accepte délibérément pas d'index de nœud :
+       `indexGltf` est un NOMBRE quand un `dataset.index` relu du DOM est une
+       CHAÎNE, et un Set ne les confond pas (`new Set(["5"]).has(5)` est faux).
+       Une branche par index serait donc morte tant que personne ne convertit,
+       et un piège armé le jour où quelqu'un croira qu'elle marche. La
+       conversion appartient à qui mêlera les deux vocabulaires — la porte
+       d'écriture — et c'est là qu'elle se verra. */
     let objetRetenu = tout;
     for (let n = o; n && !objetRetenu; n = n.parent) {
-      objetRetenu = retenu.has(n.uuid)
-        || (n.userData && retenu.has(n.userData.indexGltf));
+      objetRetenu = retenu.has(n.uuid);
       if (n === api.racine) break;
     }
     for (const m of materiauxDe(o)) {
