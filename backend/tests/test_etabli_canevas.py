@@ -38,6 +38,24 @@ def _lire(rel: str) -> str:
     return (FRONT / rel).read_text(encoding="utf-8")
 
 
+def _code(rel: str) -> str:
+    """Le fichier SANS ses commentaires `/* … */`.
+
+    Réservé aux assertions NÉGATIVES, et il leur est indispensable. Ce dépôt
+    commente en expliquant ce qu'il ÉCARTE — « `sessionStorage` et non
+    `localStorage` », « le partage passe par une classe, jamais par
+    `#btnRetour` ». Un `assert "localStorage" not in js` posé sur le fichier
+    entier est donc satisfait par la phrase même qui jure de ne pas s'en
+    servir : le banc dirait rouge à un commentaire et vert à un appel. C'est
+    la cinquième fois que ce dépôt corrige un marqueur satisfait par sa propre
+    prose ; ici la prose faisait l'inverse, mais c'est le même défaut.
+
+    Seuls les blocs `/* … */` tombent : les lignes `//` sont laissées, un
+    retrait naïf couperait la moindre chaîne contenant `//`.
+    """
+    return re.sub(r"/\*.*?\*/", "", _lire(rel), flags=re.S)
+
+
 # ── A. three.js vendorisé ────────────────────────────────────────────────────
 
 def test_three_est_vendorise_et_non_pointe_vers_un_cdn():
@@ -553,9 +571,22 @@ def test_le_07_navigue_DANS_l_iframe_et_previent_avant_de_tuer_une_serie():
     confusion de plus ; l'Établi prend donc la place du graphe, et un bouton
     « ← 3D Studio » l'y ramène (section J).
 
-    CE QUE ÇA COÛTE, et ce n'est pas rien : une série Meshy en vol est PERDUE,
-    crédits déjà consommés compris. Le coût ne se cache pas — il se demande.
-    C'est la garde ci-dessous, épinglée au même titre que la navigation.
+    PARTIR COÛTE DEUX CHOSES, et le banc épingle le traitement des deux.
+
+    La CONFIGURATION du studio (`S.cfg` : prompt, nom, image, modèle,
+    polycount, animations, formats) ne vivait qu'en mémoire — aucune
+    persistance, et le boot ne relit que status/health/balance/tasks. Sous
+    l'ancienne décision la page survivait dans son onglet ; c'est CE
+    retournement qui introduit la perte, et le bouton de retour qui la rend
+    routinière — un aller-retour est le geste normal, la série en vol est
+    l'exception. Elle est donc RÉPARÉE, pas documentée : voir
+    test_le_studio_garde_sa_configuration_entre_deux_visites_a_l_etabli.
+
+    La SÉRIE MESHY EN VOL, elle, est IRRÉDUCTIBLE : un pipeline est une suite
+    d'appels en cours, pas un état ; aucun stockage ne la rattrape, et Meshy ne
+    rembourse que les tâches ÉCHOUÉES, pas celles qu'on abandonne. Ce coût-là
+    ne se répare pas — il se DEMANDE. C'est la garde ci-dessous, épinglée au
+    même titre que la navigation.
     """
     js = _lire("studio3d/studio3d.js")
     assert "?job=${encodeURIComponent(S.cfg.name)}" in js
@@ -572,11 +603,12 @@ def test_le_07_navigue_DANS_l_iframe_et_previent_avant_de_tuer_une_serie():
     # partir : la série serait morte avant que la question soit posée.
     assert 'S.run && S.run.status === "running"' in corps
     assert corps.index('S.run.status === "running"') < corps.index("location.href")
-    # `confirm()` et non `toast()` : un toast ne fait qu'annoncer, il ne peut
-    # pas retenir une navigation — et le dépôt confirme ainsi ailleurs
-    # (atelier.js, cardforge/mod-face.js, cardforge/mod-print.js). Un refus
-    # sec, lui, enfermerait l'utilisateur hors de l'Établi pour toute la durée
-    # d'une série, qui se compte en minutes.
+    # DEMANDER et non refuser, par la règle de réversibilité : on demande quand
+    # le coût est inévitable, on refuse quand le remède est à un clic. Ici
+    # aucun geste ne sauve la série, et un refus sec enfermerait l'utilisateur
+    # hors de l'Établi pour toute la durée d'une série — qui se compte en
+    # minutes. (L'Établi, lui, REFUSE : son remède est dans la barre du bas.
+    # Voir test_le_retour_refuse_de_perdre_les_modifications_en_attente.)
     assert "confirm(" in corps
 
 
@@ -1226,9 +1258,12 @@ def test_l_etabli_ramene_au_3D_studio_et_le_bouton_est_a_gauche():
     navigation. Mélanger les deux ferait d'un bouton qui quitte la page le
     voisin immédiat d'un bouton qui ferme un panneau.
 
-    Le style n'est pas réinventé : le bouton PARTAGE la règle de #btnCompare,
-    au sélecteur près. Un bouton d'en-tête qui ne ressemble pas à l'autre
-    bouton d'en-tête est un bouton venu d'ailleurs.
+    Le style n'est pas réinventé : les deux boutons de l'en-tête partagent UNE
+    règle. Et le partage passe par une CLASSE, jamais par un `id` : `#btnRetour`
+    dans ce sélecteur pèserait 1-0-0 quand `.head-right button` pèse 0-1-1, si
+    bien qu'une surcharge de thème écrite en classes gagnerait contre
+    #btnCompare et perdrait contre #btnRetour — le partage se déferait en
+    silence, ce que ce banc est là pour empêcher.
     """
     html = _lire("etabli/index.html")
     js, css = _lire("etabli/etabli.js"), _lire("etabli/etabli.css")
@@ -1238,10 +1273,18 @@ def test_l_etabli_ramene_au_3D_studio_et_le_bouton_est_a_gauche():
     # serait vert ici sans cette comparaison, et lu comme un contrôle de vue.
     assert html.index('id="btnRetour"') < html.index('class="head-title"')
     assert '$("#btnRetour").addEventListener("click"' in js
+    # LES DEUX boutons portent la classe : c'est elle, et rien d'autre, qui les
+    # rend identiques. Un seul des deux la portant, le partage serait un mot.
+    assert html.count('class="head-btn"') == 2
     # LES DEUX sélecteurs partagés — base et survol. Sans le second, le bouton
     # est le seul de l'en-tête qui ne réagit pas au passage du curseur.
-    assert ".head-right button, #btnRetour {" in css
-    assert ".head-right button:hover, #btnRetour:hover" in css
+    assert ".head-right button, .head-btn {" in css
+    assert ".head-right button:hover, .head-btn:hover" in css
+    # AUCUN `id` dans les RÈGLES : c'est l'assertion qui tient la spécificité.
+    # Elle serait verte si l'on ajoutait `#btnRetour` À CÔTÉ de la classe —
+    # d'où la forme négative. Sur le code seul : le commentaire de la feuille
+    # nomme `#btnRetour` pour dire pourquoi il n'y sert pas (voir _code).
+    assert "#btnRetour" not in _code("etabli/etabli.css")
 
 
 def test_le_retour_refuse_de_perdre_les_modifications_en_attente():
@@ -1250,14 +1293,21 @@ def test_le_retour_refuse_de_perdre_les_modifications_en_attente():
     d'écriture écrit. Partir sur une file pleine les perdrait EN SILENCE, le
     mode d'échec que ce fichier traque partout ailleurs.
 
-    Refus dans la barre du bas, et non `confirm()` : le dépôt confirme ainsi
-    ailleurs (atelier, cardforge), mais CETTE page a une doctrine écrite —
-    aucune boîte du navigateur, les refus s'écrivent sous la classe `erreur`
-    (voir test_aucun_refus_ne_passe_par_alert, dont le motif — « il bloque la
-    page, il ne ressemble à rien de ce que l'Établi affiche » — vaut mot pour
-    mot pour `confirm`). Et le refus n'enferme personne : ses deux issues,
-    « écrire la version » et « annuler », sont des boutons de CETTE MÊME
-    BARRE, posés à côté du message.
+    REFUS et non `confirm()`, par la règle de RÉVERSIBILITÉ : on demande quand
+    le coût est inévitable, on refuse quand le remède est à un clic. C'est la
+    même règle qui fait DEMANDER le 3D Studio avant de venir ici — là-bas une
+    série Meshy en vol meurt quoi qu'on fasse. Ici « écrire la version » et
+    « annuler » sont deux boutons de la barre du bas, frères du
+    `<footer class="barre">` où le refus s'écrit, et « annuler » vide la file
+    en un clic : offrir « pars quand même et perds tout » serait offrir
+    STRICTEMENT PIRE que ce qui est déjà sous les yeux. Que la doctrine
+    anti-`alert` de la page (test_aucun_refus_ne_passe_par_alert) aille dans le
+    même sens est une confirmation, pas l'argument — elle justifierait aussi
+    bien un modal maison, et n'expliquerait pas le droit du studio à demander.
+
+    Et le refus ne DÉSIGNE JAMAIS un bouton grisé : pendant une série
+    d'écritures, `#btnEcrire` est `disabled` alors que la file n'est pas encore
+    vidée. Un refus qui montre du doigt un bouton mort est un refus qui ment.
 
     Enfin la navigation est une adresse ABSOLUE et rien d'autre : /etabli/
     s'ouvre aussi en direct, et un `window.top` ou un `window.parent` ne
@@ -1268,6 +1318,11 @@ def test_le_retour_refuse_de_perdre_les_modifications_en_attente():
     corps = depart.split("\n});\n", 1)[0]
     assert "if (S.enAttente.length) {" in corps
     assert 'location.href = "/studio3d/";' in corps
+    # le message se PLIE au verrou d'écriture. Sans la lecture de
+    # `_ecritEnCours`, il envoie vers « écrire la version » pendant que ce
+    # bouton est `disabled` — la seule fenêtre où son conseil est inapplicable.
+    assert "direRefus(_ecritEnCours" in corps
+    assert "en cours d'écriture" in corps
     # L'ORDRE est toute l'assertion : un direRefus() posé APRÈS la navigation
     # écrirait un message dans une page qui part déjà, et la file serait
     # perdue quand même. Le `return;` doit précéder lui aussi.
@@ -1295,3 +1350,92 @@ def test_le_retour_n_est_branche_qu_une_seule_fois():
     # serait dans un `function` ou dans l'écouteur `etabli:charge` — et le
     # simple `count == 1` ci-dessus resterait vert.
     assert '\n$("#btnRetour").addEventListener' in js
+def test_le_studio_garde_sa_configuration_entre_deux_visites_a_l_etabli():
+    """L'aller-retour 3D Studio → 07 → « ← 3D Studio » est le geste NORMAL, et
+    il rechargeait /studio3d aux valeurs d'usine : `S.cfg` ne vit qu'en
+    mémoire, le boot ne relit que status/health/balance/tasks, et la page ne
+    lit pas `location.search`. Le prompt tapé, le nom de l'asset, l'image
+    choisie dans la Library, le modèle, le polycount, la liste d'animations,
+    les formats d'export — tout repartait à zéro. Sous l'ancienne décision
+    (onglet séparé) la page survivait et tout tenait : c'est le retournement
+    qui a introduit la perte, c'est donc ici qu'elle se répare.
+
+    `sessionStorage` et non `localStorage` : la portée est l'ONGLET, ce qui
+    couvre exactement un aller-retour sans rien imposer à une session future —
+    la portée même retenue par
+    docs/superpowers/specs/2026-08-06-preservation-etat-ecrans-design.md
+    (« En session uniquement »). Cette spec vise les écrans REACT du bundle et
+    les garde en variables de module (`__dzKeep`, scripts/patch_bundle_
+    keepstate.py) : cela survit à un démontage de composant, jamais à une
+    navigation de page. /studio3d est une page autonome — autre outil, même
+    portée, aucune contradiction.
+
+    ET SEULEMENT `S.cfg`. Ressusciter `S.run` ou `S.pipeline` d'une session
+    morte peindrait une progression qui ne progresse plus et des crédits qui ne
+    se consomment plus : un mensonge d'interface, sur ce qui coûte.
+    """
+    js = _lire("studio3d/studio3d.js")
+    # la PORTÉE : l'onglet, pas la machine. `localStorage` imposerait la config
+    # d'aujourd'hui à toutes les sessions futures ; le fichier n'en avait aucun.
+    # Sur le code seul : le commentaire cite `localStorage` pour l'écarter.
+    assert "sessionStorage" in js
+    assert "localStorage" not in _code("studio3d/studio3d.js")
+    # ce qu'on écrit, et RIEN d'autre : la charge est `S.cfg`, nommée.
+    assert "sessionStorage.setItem(CLE_CFG, JSON.stringify(S.cfg))" in js
+    for vivant in ("S.run", "S.pipeline", "S.persisted", "S.balance"):
+        assert f"JSON.stringify({vivant})" not in js
+    # ÉCRIT AVANT DE PARTIR, et l'ordre est toute l'assertion : après le
+    # `location.href`, l'appel serait du code mort dans une page qui part.
+    corps = js.split("function ouvrirEtabli", 1)[1].split("\n}\n", 1)[0]
+    assert "memoriserCfg();" in corps
+    assert corps.index("memoriserCfg();") < corps.index("location.href")
+    # le filet des départs qui ne passent pas par là (rechargement, fermeture)
+    assert 'window.addEventListener("pagehide", memoriserCfg);' in js
+    # RELU AU BOOT, et avant le premier rendu : après, la page clignoterait du
+    # défaut vers la config retrouvée.
+    init = js.split("(function init()", 1)[1]
+    assert init.index("rehydraterCfg();") < init.index("render();")
+
+
+def test_la_relecture_de_la_configuration_ne_peut_pas_casser_la_page():
+    """Un JSON illisible, une clé absente, une forme changée depuis : rien ne
+    doit empêcher /studio3d de démarrer, et rien ne doit faire disparaître un
+    champ que le défaut connaît.
+
+    La FUSION sur le défaut est le cœur : un remplacement en bloc
+    (`S.cfg = lu`) rendrait `undefined` tout champ ajouté au défaut après
+    l'écriture d'un vieux JSON — et tout ce qui le lit casserait, longtemps
+    après, sans rapport visible avec la cause. Le défaut fait la liste des
+    clés ; le stockage ne fournit que des valeurs.
+    """
+    js = _lire("studio3d/studio3d.js")
+    corps = js.split("function rehydraterCfg", 1)[1].split("\n}\n", 1)[0]
+    # un JSON casse ne doit pas remonter : le parse est garde, et la sortie
+    # rend la main au defaut au lieu de laisser `S.cfg` a moitie ecrase.
+    assert "JSON.parse(sessionStorage.getItem(CLE_CFG)" in corps
+    assert "catch { return; }" in corps
+    # LA FUSION, et non le remplacement. `S.cfg = lu` serait vert sur un simple
+    # `"CFG_DEFAUT" in corps` — le defaut etant deja cite par le commentaire.
+    assert "for (const cle of Object.keys(CFG_DEFAUT))" in corps
+    assert "if (lu[cle] === undefined) continue;" in corps
+    assert "S.cfg = lu" not in corps
+    # LE CONTRÔLE DE FORME, étroit et suffisant : `animationActions` et
+    # `exportFormats` sont parcourus sans détour (.map, .join, .includes) par
+    # estimate() et paramsOf(), appelés dès le premier render() — une chaîne à
+    # leur place et la page ne peint plus rien. Un `typeof` général serait
+    # FAUX : `imageUrl` vaut `null` par défaut et une URL est une chaîne, si
+    # bien qu'il rejetterait la valeur même qu'on cherche à retrouver.
+    assert ("if (Array.isArray(lu[cle]) !== Array.isArray(CFG_DEFAUT[cle]))"
+            " continue;") in corps
+    # l'ECRITURE aussi est gardee : `sessionStorage` leve en navigation privee
+    # ou sur quota plein, et un clic sur 07 qui n'aboutit pas serait un bogue.
+    ecrit = js.split("function memoriserCfg", 1)[1].split("\n}\n", 1)[0]
+    assert "try {" in ecrit and "} catch" in ecrit
+    # le DEFAUT est un clone PROFOND : `{ ...S.cfg }` partagerait le tableau
+    # `animationActions`, et le premier geste de l'editeur souillerait le repli.
+    assert "const CFG_DEFAUT = JSON.parse(JSON.stringify(S.cfg));" in js
+    # la spec de preservation d'etat est CITEE : la prochaine main doit savoir
+    # qu'elle existe, qu'elle vise le bundle, et pourquoi elle ne sert pas ici.
+    # (Assertion de PROSE, assumee comme telle : elle tient la citation, pas le
+    # mecanisme — celui-ci est tenu par les assertions ci-dessus.)
+    assert "2026-08-06-preservation-etat-ecrans-design.md" in js

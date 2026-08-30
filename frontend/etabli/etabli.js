@@ -628,19 +628,39 @@ $("#btnCompare").addEventListener("click", () => {
    page : les boutons mettent en attente, la porte d'écriture écrit. Partir les
    perdrait EN SILENCE.
 
-   REFUS et non confirm(), et c'est un choix : le dépôt confirme ainsi ailleurs
-   (atelier.js, cardforge), mais CETTE page a une doctrine écrite — aucune
-   boîte du navigateur, les refus s'écrivent dans la barre du bas sous la
-   classe `erreur` (direRefus, et le banc test_aucun_refus_ne_passe_par_alert
-   dont le motif, « il bloque la page, il ne ressemble à rien de ce que
-   l'Établi affiche », vaut mot pour mot pour confirm). Un refus n'enferme
-   personne ici : ses deux issues — « écrire la version » et « annuler » — sont
-   des boutons de CETTE MÊME BARRE, posés à côté du message, et « annuler »
-   vide la file en un clic. Le retour est alors à un second clic. */
+   REFUS et non confirm(), et la raison n'est pas le style de la page. LA RÈGLE
+   EST LA RÉVERSIBILITÉ : ON DEMANDE QUAND LE COÛT EST INÉVITABLE, ON REFUSE
+   QUAND LE REMÈDE EST À UN CLIC. Le 3D Studio, lui, DEMANDE avant de venir
+   ici, et c'est la même règle qui le veut : une série Meshy en vol meurt quoi
+   qu'on fasse, aucun geste ne la sauve, informer est tout ce qu'on peut faire.
+   Ici c'est l'inverse — « écrire la version » et « annuler » sont deux
+   boutons de la barre du bas, frères du <footer class="barre"> où le refus
+   s'écrit, et « annuler » vide la file en un clic. Offrir « pars quand même et
+   perds tout » serait offrir STRICTEMENT PIRE que ce qui est déjà sous les
+   yeux : un abandon irréversible fondu dans un clic de navigation, quand le
+   bouton d'à côté fait l'abandon proprement et laisse partir juste après.
+
+   (Le retour ⌂ de vectorlab, qui confirme sur `etat.sale`, ne dit pas le
+   contraire : là-bas PARTIR EST le seul moyen d'abandonner un essai — son
+   `#btnAnnuler` est un Ctrl+Z, pas un vidage. Le coût y est donc inévitable au
+   même titre qu'une série Meshy, et la règle rend le même verdict.)
+
+   Que la doctrine anti-`alert` de cette page (test_aucun_refus_ne_passe_par
+   _alert) aille dans le même sens est une confirmation, pas l'argument : elle
+   justifierait aussi bien un modal maison, et elle n'expliquerait pas
+   pourquoi le studio, lui, a le droit de demander. */
 $("#btnRetour").addEventListener("click", () => {
   if (S.enAttente.length) {
-    direRefus(`${S.enAttente.length} modification(s) non écrite(s) — `
-      + "« écrire la version » ou « annuler » avant de revenir au 3D Studio");
+    /* Le message ne DÉSIGNE JAMAIS un bouton grisé : pendant une série
+       d'écritures, `#btnEcrire` est `disabled` alors que la file n'est pas
+       encore vidée (rendreAttente porte l'état du verrou). Fenêtre étroite,
+       mais un refus qui montre du doigt un bouton mort est un refus qui ment.
+       On dit alors la seule chose vraie : c'est en cours, ça va se vider. */
+    direRefus(_ecritEnCours
+      ? `${S.enAttente.length} modification(s) en cours d'écriture — `
+        + "attends la fin de la série avant de revenir au 3D Studio"
+      : `${S.enAttente.length} modification(s) non écrite(s) — `
+        + "« écrire la version » ou « annuler » avant de revenir au 3D Studio");
     return;
   }
   location.href = "/studio3d/";

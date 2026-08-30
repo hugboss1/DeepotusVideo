@@ -118,6 +118,86 @@ const S = {
   libImages: null, pickedImage: null,
 };
 
+/* ── la configuration survit à l'aller-retour vers l'Établi ─────────────────
+   Depuis que le nœud 07 NAVIGUE au lieu d'ouvrir un onglet (voir
+   ouvrirEtabli), revenir ici recharge la page : `S.cfg` repartait aux valeurs
+   d'usine à chaque aller-retour — le prompt tapé, le nom de l'asset, l'image
+   choisie dans la Library, le modèle, le polycount, les animations, les
+   formats d'export. C'est le geste NORMAL, pas l'exception ; la perte serait
+   donc routinière, et c'est cette navigation qui l'a introduite. Elle se
+   RÉPARE ici, elle ne se documente pas.
+
+   `sessionStorage` et non `localStorage` : la portée est l'ONGLET. Elle
+   couvre exactement un aller-retour et n'impose rien à une session future —
+   la même portée que celle retenue par
+   docs/superpowers/specs/2026-08-06-preservation-etat-ecrans-design.md
+   (« En session uniquement »). Cette spec-là, implémentée par
+   scripts/patch_bundle_keepstate.py, garde l'état des écrans REACT DU BUNDLE
+   dans des variables de module (`__dzKeep`) : cela survit au démontage d'un
+   composant, pas à une navigation de page — les variables de module meurent
+   avec le document. /studio3d est une page autonome, servie hors du bundle :
+   son cas demande un autre outil, pas une réimplémentation du sien. Les deux
+   objections que cette spec oppose au disque tombent d'ailleurs ici : `S.cfg`
+   est du JSON pur (le clone ci-dessous le prouve, et lèverait sinon), et rien
+   n'est restauré d'une session morte puisque l'onglet emporte la clé.
+
+   ON NE PERSISTE QUE `S.cfg`. Pas `S.run`, pas `S.pipeline`, pas `persisted`
+   ni `balance` : ce sont des états VIVANTS. Ressusciter une série d'une
+   session morte afficherait une progression qui ne progresse plus et des
+   crédits qui ne se consomment plus — un mensonge d'interface, et le pire de
+   tous puisqu'il porte sur ce qui coûte. Le boot les redemande au serveur
+   (loadStatus, loadHealth, loadBalance, loadTasks), sa seule source de
+   vérité. */
+const CLE_CFG = "dz.studio3d.cfg";
+
+/* Le DÉFAUT, cloné avant toute réhydratation. Clone PROFOND (et non
+   `{ ...S.cfg }`) parce que `animationActions` est un tableau d'objets : une
+   copie de surface partagerait la référence, et le premier geste de l'éditeur
+   souillerait le défaut, qui doit rester le repli. Par JSON plutôt que par
+   structuredClone : c'est le même aller-retour que la persistance, si bien
+   que le jour où l'on glisserait dans `S.cfg` quelque chose de non
+   sérialisable, la page lèverait ICI, au chargement, au lieu de perdre le
+   champ en silence à la navigation. */
+const CFG_DEFAUT = JSON.parse(JSON.stringify(S.cfg));
+
+function memoriserCfg() {
+  /* try/catch, et non un test de disponibilité : en navigation privée, sur
+     quota plein ou stockage bloqué, `sessionStorage` LÈVE — son simple accès
+     lève même dans certains contextes. Perdre la mémoire de la config est un
+     désagrément ; empêcher le clic sur 07 d'aboutir serait un bogue. On
+     avale, et on part quand même. */
+  try {
+    sessionStorage.setItem(CLE_CFG, JSON.stringify(S.cfg));
+  } catch { /* pas de mémoire de session — la config repartira au défaut */ }
+}
+
+function rehydraterCfg() {
+  let lu = null;
+  try {
+    lu = JSON.parse(sessionStorage.getItem(CLE_CFG) || "null");
+  } catch { return; }          /* absent, illisible : on garde le défaut */
+  if (!lu || typeof lu !== "object" || Array.isArray(lu)) return;
+  /* FUSION sur le défaut, clé par clé, et non un remplacement en bloc : un
+     champ AJOUTÉ plus tard au défaut doit survivre à un vieux JSON qui ne le
+     connaît pas — sinon `S.cfg.nouveauChamp` devient undefined et tout ce qui
+     le lit casse —, et une clé d'un vieux JSON que le défaut ne connaît plus
+     ne doit pas ressusciter. Le défaut fait donc la LISTE des clés ; le
+     stockage ne fait que fournir des valeurs. */
+  for (const cle of Object.keys(CFG_DEFAUT)) {
+    if (lu[cle] === undefined) continue;
+    /* Le seul contrôle de FORME, et il est volontairement étroit : tableau
+       contre tableau. `animationActions` et `exportFormats` sont parcourus
+       sans détour (`.map`, `.join`, `.includes`) par estimate() et par
+       paramsOf(), appelés dès le premier render() — une chaîne à leur place
+       et la page ne peint plus du tout. Les autres champs ne risquent qu'une
+       coercition inoffensive, et un `typeof` général serait FAUX : `imageUrl`
+       vaut `null` par défaut et une URL est une chaîne, si bien qu'un contrôle
+       de type rejetterait la valeur même qu'on cherche à retrouver. */
+    if (Array.isArray(lu[cle]) !== Array.isArray(CFG_DEFAUT[cle])) continue;
+    S.cfg[cle] = lu[cle];
+  }
+}
+
 /* estimation : des actions sans rig ne partent jamais (le pipeline les
    saute) — l'estimé ne doit pas les compter non plus. */
 const effCfg = () => ({ ...S.cfg, animationActions: S.cfg.withRig ? S.cfg.animationActions : [] });
@@ -324,18 +404,35 @@ function paramsOf(nodeId, ph) {
    hub Game Assets) ; l'Établi y prend maintenant la place du graphe, et son
    en-tête porte un bouton « ← 3D Studio » qui ramène ici.
 
-   CE QUE ÇA COÛTE, et ce n'est pas caché : la série Meshy vit DANS CETTE PAGE
-   (runPipeline / MeshyPipeline). Partir la tue, crédits déjà consommés compris
-   — et Meshy ne rembourse que les tâches ÉCHOUÉES, pas celles qu'on abandonne.
-   D'où la garde : on DEMANDE avant de partir.
+   PARTIR COÛTE DEUX CHOSES, et elles ne se traitent pas pareil.
 
-   confirm() et non toast() : un toast annonce, il ne retient pas une
-   navigation — celle de #btnReplay refuse d'ailleurs sans rien demander, ce
-   qui va pour un bouton « ↺ » mais enfermerait ici l'utilisateur hors de
-   l'Établi pour toute la durée d'une série, qui se compte en minutes. Et le
-   dépôt confirme ainsi ailleurs : atelier.js, cardforge/mod-face.js,
-   cardforge/mod-print.js. Le modal #confirm de cette page n'est pas
-   réutilisable : il est câblé une fois pour toutes sur runPipeline().
+   1. LA CONFIGURATION — réparée, pas seulement dite. `S.cfg` ne vivait qu'en
+      mémoire ; chaque aller-retour la remettait aux valeurs d'usine. C'est le
+      geste NORMAL, donc la perte la plus fréquente des deux. memoriserCfg()
+      l'écrit en session juste avant de partir, rehydraterCfg() la relit au
+      boot (voir le bloc de persistance en tête de fichier).
+
+   2. LA SÉRIE MESHY EN VOL — IRRÉDUCTIBLE. Elle vit DANS CETTE PAGE
+      (runPipeline / MeshyPipeline) : partir la tue, crédits déjà consommés
+      compris, et Meshy ne rembourse que les tâches ÉCHOUÉES, pas celles qu'on
+      abandonne. Aucun stockage ne rattrape cela — un pipeline est une suite
+      d'appels en cours, pas un état. Rien à sauver, donc rien à proposer.
+
+   D'OÙ L'ASYMÉTRIE AVEC L'ÉTABLI, et la règle qui la porte : ON DEMANDE QUAND
+   LE COÛT EST INÉVITABLE, ON REFUSE QUAND LE REMÈDE EST À UN CLIC. Ici, aucun
+   geste ne sauve la série : informer et laisser choisir est tout ce qu'on peut
+   faire, et refuser sec enfermerait l'utilisateur hors de l'Établi pour toute
+   la durée d'une série — qui se compte en minutes. Là-bas, « écrire la
+   version » et « annuler » sont deux boutons de la barre où le refus s'écrit :
+   proposer « pars et perds tout » y serait offrir strictement pire.
+
+   confirm() plutôt que toast() : un toast annonce, il ne retient pas une
+   navigation. Le geste existe dans le dépôt — mesuré : 16 appels dans 7
+   fichiers de source écrits à la main (atelier.js ×9, cardforge ×3,
+   vectorlab ×4), le plus proche étant le retour ⌂ de vectorlab, qui confirme
+   lui aussi avant de quitter un document modifié. Le modal #confirm de cette
+   page n'est pas réutilisable : il est câblé une fois pour toutes sur
+   runPipeline().
 
    Et le confirm ARRIVE bien dans l'iframe : patch_bundle_studio3d.py la greffe
    MÊME ORIGINE et SANS `sandbox` — vérifié ligne par ligne. Un navigateur qui
@@ -347,7 +444,14 @@ function ouvrirEtabli() {
   if (S.run && S.run.status === "running"
       && !confirm("Une série Meshy tourne dans cette page : aller à l'Établi "
                   + "l'interrompt, et les crédits déjà consommés ne reviennent "
-                  + "pas. Quitter quand même ?")) return;
+                  + "pas. Ta configuration, elle, sera retrouvée au retour. "
+                  + "Quitter quand même ?")) return;
+  /* APRÈS le confirm : mémoriser une config qu'on ne quitte finalement pas
+     serait inoffensif, mais l'ordre dit ce qu'on veut dire — on n'écrit qu'au
+     moment où l'on part pour de bon. Et AVANT la navigation, évidemment : le
+     `pagehide` de l'init est un filet pour les départs qui ne passent pas par
+     ici (rechargement, fermeture), pas le chemin nominal. */
+  memoriserCfg();
   location.href = url;
 }
 
@@ -813,6 +917,10 @@ function gotoSubtab(tab) {
 
 /* ── init ─────────────────────────────────────────────────────────────────── */
 (function init() {
+  /* EN PREMIER, avant buildGraph() et avant le premier render() : les deux
+     peignent `S.cfg`, et une réhydratation d'après coup ferait clignoter la
+     page du défaut vers la config retrouvée. */
+  rehydraterCfg();
   buildGraph();
   const style = document.createElement("style");
   style.textContent = `
@@ -837,6 +945,13 @@ function gotoSubtab(tab) {
   $("#goSprite").addEventListener("click", () => gotoSubtab("sprites"));
   $("#goEtabli").addEventListener("click", ouvrirEtabli);
   $("#engineGoto").addEventListener("click", () => gotoSubtab("3d"));
+
+  /* Le filet des départs qui ne passent pas par ouvrirEtabli() : rechargement,
+     fermeture de l'onglet, retour arrière, gotoSubtab. `pagehide` et non
+     `beforeunload` : ce dernier ne sert vraiment qu'à POSER UNE QUESTION, il
+     évince la page du cache de retour arrière et les navigateurs l'ignorent
+     de plus en plus dans une iframe — or on ne demande rien ici, on écrit. */
+  window.addEventListener("pagehide", memoriserCfg);
 
   render();
   Promise.all([loadStatus(), loadHealth()]).then(async () => {

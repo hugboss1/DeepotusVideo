@@ -118,21 +118,32 @@ button { font-family: inherit; }
   max-width: 46ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .head-right { margin-left: auto; display: flex; align-items: center; gap: 10px; flex: none; }
-/* #btnRetour PARTAGE la règle de #btnCompare plutôt que d'en recopier une :
-   deux boutons dans le même en-tête doivent être le même bouton, et une copie
-   diverge à la première retouche. Il n'est pas DANS `.head-right` — il vit
-   avant le titre, là où on cherche la sortie d'un écran (voir index.html) —
-   d'où le sélecteur ajouté ici et non un simple descendant. */
-.head-right button, #btnRetour {
+/* Les deux boutons de l'en-tête partagent UNE règle plutôt que d'en recopier
+   chacun une : deux boutons du même bandeau doivent être le même bouton, et
+   une copie diverge à la première retouche.
+
+   PAR CLASSE, jamais par `id`. Un `#btnRetour` dans ce sélecteur pèserait
+   1-0-0 quand `.head-right button` pèse 0-1-1 : une surcharge de thème écrite
+   en classes — c'est ainsi que le dépôt les écrit — gagnerait contre
+   #btnCompare et perdrait contre #btnRetour, et les deux boutons cesseraient
+   d'être le même bouton sans que rien ne grince. `.head-btn` les met au même
+   poids. Le descendant `.head-right button` reste, pour qu'un futur bouton
+   déposé dans ce coin sans la classe ne naisse pas nu.
+
+   #btnRetour n'est pas DANS `.head-right` — il vit avant le titre, là où on
+   cherche la sortie d'un écran (voir index.html). */
+.head-right button, .head-btn {
   padding: 6px 10px; border-radius: var(--r-sm); border: 1px solid var(--stroke-strong);
   background: var(--bg-panel-2); color: var(--ink);
   font-family: var(--f-mono); font-size: 10.5px; cursor: pointer;
 }
-.head-right button:hover, #btnRetour:hover { border-color: var(--accent); color: var(--ink-strong); }
-/* enfant DIRECT de `.head`, contrairement à ses voisins que `.head-right`
-   protège déjà : sans cela, un nom de source long dans #chipSource le comprime
-   jusqu'à couper « ← 3D Studio » — la seule sortie de l'écran. */
-#btnRetour { flex: none; white-space: nowrap; }
+.head-right button:hover, .head-btn:hover { border-color: var(--accent); color: var(--ink-strong); }
+/* #btnRetour est enfant DIRECT de `.head`, contrairement à son jumeau que
+   `.head-right { flex: none }` protège déjà : sans cette ligne, un nom de
+   source long dans #chipSource le comprime jusqu'à couper « ← 3D Studio » —
+   la seule sortie de l'écran. Inoffensif sur le jumeau, déjà à `flex: none`
+   par son conteneur. */
+.head-btn { flex: none; white-space: nowrap; }
 
 .vues { flex: 1; display: flex; gap: 2px; min-height: 0; background: var(--stroke); }
 .vue {

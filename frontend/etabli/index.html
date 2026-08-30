@@ -40,12 +40,14 @@
            page remplace le graphe DANS l'iframe du hub, elle doit donc rendre
            la main là où on cherche un retour. `.head-right` porte les
            contrôles de la VUE (« A/B ✕ ») ; y poser une navigation ferait du
-           bouton qui QUITTE la page le voisin de celui qui ferme un panneau. -->
-      <button id="btnRetour" title="Revenir au graphe du 3D Studio">← 3D Studio</button>
+           bouton qui QUITTE la page le voisin de celui qui ferme un panneau.
+           `head-btn` sur les DEUX boutons de l'en-tête : c'est la classe qui
+           les rend identiques, jamais leur `id` — voir etabli.css. -->
+      <button class="head-btn" id="btnRetour" title="Revenir au graphe du 3D Studio">← 3D Studio</button>
       <span class="head-title">Établi</span>
       <span class="head-chip" id="chipSource">—</span>
       <div class="head-right">
-        <button id="btnCompare" title="Fermer la comparaison">A/B ✕</button>
+        <button class="head-btn" id="btnCompare" title="Fermer la comparaison">A/B ✕</button>
       </div>
     </header>
 
