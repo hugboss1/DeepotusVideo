@@ -74,6 +74,11 @@ button { font-family: inherit; }
   font-family: var(--f-mono); font-size: 9.5px; font-weight: 400;
   color: var(--ink-soft); white-space: nowrap;
 }
+/* le bloc désigné par `?job=` (le nœud 07 du 3D Studio). Marquage et rien de
+   plus : la page ne charge rien toute seule. Sans cette règle, marquerJobVise()
+   poserait une classe INVISIBLE — le pire des échecs, le silencieux. */
+.job.vise { border-color: var(--accent); background: var(--bg-panel-3); }
+.job.vise .job-tete { color: var(--accent); }
 .job-etapes { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
 
 .etape {

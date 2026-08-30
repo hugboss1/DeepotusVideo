@@ -461,3 +461,157 @@ def test_la_ligne_d_ecart_echappe_ce_qui_vient_du_disque():
     assert "esc(S.a.libelle)" in js
     assert "esc(cible.libelle)" in js
     assert "esc(String(f.sha256)" in js
+
+
+# ── F. le bout de chaine dans /studio3d ──────────────────────────────────────
+
+def test_le_graphe_porte_le_noeud_07_etabli():
+    js = _lire("studio3d/studio3d.js")
+    assert '"etabli"' in js
+    assert "07 · établi" in js
+
+
+def test_la_viewbox_a_ete_elargie_pour_le_noeud_07():
+    """Le nœud export tenait déjà le bord droit : sans élargissement, le 07
+    serait hors cadre."""
+    html = _lire("studio3d/index.html")
+    assert "0 0 892 330" in html
+
+
+def test_le_noeud_07_ouvre_la_page_etabli():
+    js = _lire("studio3d/studio3d.js")
+    assert "/etabli" in js
+
+
+def test_la_geometrie_du_noeud_07_ferme_le_cadre_a_892():
+    """892 = 760 + 132, et aucun des trois marqueurs ci-dessus ne le prouve.
+
+    « etabli » entre guillemets, le libellé « 07 · établi » et la chaîne
+    « /etabli » vivent tous les trois dans de la PROSE : un commentaire les
+    satisfait sans qu'un seul nœud existe. On épingle donc les nombres de
+    l'entrée NODES, et le câble qui relie le bord droit d'export (740) au port
+    gauche du 07 (760) à mi-hauteur (94 + 164 / 2 = 176).
+
+    La quatrième assertion est la seule que le plan ne demandait pas et la
+    seule qui manquait vraiment : chaque câble du graphe part d'un CENTRE DE
+    PORT — k1 part de 132,88 qui est le port [128, 56] de `prompt` (0 + 128 +
+    3,5 ; 28 + 56 + 3,5, la pastille faisant 7 px). Or `export` ne portait
+    qu'un port d'ENTRÉE, [-4, 78]. Sans le port de sortie [128, 78], k9
+    partirait d'un bord nu, seul câble du graphe à ne pas naître d'une pastille.
+    """
+    js = _lire("studio3d/studio3d.js")
+    assert 'id: "etabli", phase: "etabli", x: 760, y: 94, w: 132, h: 164' in js
+    assert '"M740,176 C750,176 750,176 760,176"' in js
+    assert 'kicker: "07 · établi"' in js
+    assert 'kicker: "06 · export", chips: true, ports: [[-4, 78], [128, 78]] }' in js
+
+
+def test_le_cadre_css_suit_la_viewbox_sinon_les_huit_cables_decrochent():
+    """`.graph svg` porte une LARGEUR EXPLICITE (740 px), pas un 100 %.
+
+    Élargir la seule viewBox à 892 ferait tenir 892 unités dans 740 px :
+    preserveAspectRatio vaut « xMidYMid meet » par défaut, donc tout le dessin
+    rétrécirait de 17 % et descendrait de 28 px — les HUIT câbles d'origine
+    décrocheraient de leurs nœuds. Le conteneur `.graph` fait lui aussi 740 px
+    de large, et le nœud 07 (760 → 892) tomberait entièrement hors de sa boîte.
+    Le plan annonçait « trois constantes, aucune autre géométrie ne bouge » :
+    c'est faux, la CSS porte deux fois la même largeur et doit suivre.
+    """
+    css = _lire("studio3d/studio3d.css")
+    assert ".graph { position: relative; width: 892px; height: 354px; }" in css
+    assert "width: 892px; height: 330px;" in css
+    assert "width: 740px" not in css
+
+
+def test_le_noeud_07_se_clique_mais_ne_s_edite_pas():
+    """La boucle de construction branche SOIT les gestionnaires génériques,
+    SOIT la porte — jamais les deux. `openEditor("etabli")` ouvrirait un
+    éditeur de tâche Meshy pour un nœud qui n'est pas une tâche, et
+    `S.pinned = "etabli"` épinglerait au panneau droit une phase dont aucun
+    pipeline n'émettra jamais l'état.
+    """
+    js = _lire("studio3d/studio3d.js")
+    assert "function brancherEtabli" in js
+    # le `else` est TOUTE l'assertion : sans lui les deux branchements
+    # coexistent et le double-clic ouvre un éditeur pour une porte
+    assert "if (n.door) brancherEtabli(el);\n    else {" in js
+
+
+def test_le_07_ouvre_un_ONGLET_et_ne_navigue_pas_dans_l_iframe():
+    """/studio3d est RÉELLEMENT iframé : patch_bundle_studio3d.py greffe un
+    sous-onglet « 🐙 3D Studio » = `iframe src="/studio3d/"` dans le hub Game
+    Assets. Un `location.href` chargerait donc l'Établi DANS l'iframe, sous une
+    barre d'onglets annonçant encore « 3D Studio » ; un `window.top.location`
+    détruirait cette page, et avec elle la série Meshy que runPipeline() pilote
+    depuis ici. Un onglet — le geste que cardforge fait déjà vers /vectorlab.
+    """
+    js = _lire("studio3d/studio3d.js")
+    assert 'window.open(url, "_blank")' in js
+    assert "?job=${encodeURIComponent(S.cfg.name)}" in js
+    # la forme du plan, celle qui navigue dans l'iframe, est interdite
+    assert "location.href = `/etabli/" not in js
+
+
+def test_le_rail_gauche_offre_l_etape_07():
+    html, js = _lire("studio3d/index.html"), _lire("studio3d/studio3d.js")
+    assert 'id="goEtabli"' in html
+    # `$("#goEtabli")` lèverait si le bouton manquait : les deux vont ensemble
+    assert '$("#goEtabli").addEventListener("click", ouvrirEtabli);' in js
+
+
+def test_le_noeud_07_ne_peint_aucun_etat_de_tache():
+    """Aucun MeshyPipeline n'émettra jamais la phase « etabli ».
+
+    phaseView() ne lève pas pour autant — elle rend un objet par défaut — mais
+    ce qu'elle rend est un PENDING ÉTERNEL, barre à 0 % et « 0 cr ». Un état
+    inventé sur un nœud qui n'est pas une tâche est un mensonge d'interface :
+    la promesse est donc réduite, et ce nœud n'a ni barre, ni état, ni
+    crédits — ni dans le gabarit qui le construit, ni dans paint().
+
+    Le câble compte pareil : peint par phase, k9 resterait en pointillé
+    « en attente » d'une phase qui ne démarrera pas.
+    """
+    js = _lire("studio3d/studio3d.js")
+    assert "function peindrePorte" in js
+    assert "if (n.door) { peindrePorte(n); continue; }" in js
+    assert '<span class="node-door">ouvrir →</span>' in js
+    assert "if (c.door) {" in js
+    # DEUX sites dans la CSS : la règle de base et l'état de survol. Un simple
+    # `".node-door" in css` restait vert quand on retirait la règle de base —
+    # le sélecteur de survol la contient en sous-chaîne. Vérifié par mutation.
+    assert _lire("studio3d/studio3d.css").count(".node-door") == 2
+
+
+# ── G. ?job= : la promesse du lien tenue par la page ─────────────────────────
+
+def test_l_etabli_tient_la_promesse_du_parametre_job():
+    """Le nœud 07 passe `?job=<nom>` ; sans lecture, la page ignorait la chaîne
+    de requête et l'utilisateur atterrissait sur la chronologie entière, sans
+    rapport visible avec le job d'où il venait — une URL qui promet et ne tient
+    pas. La page MARQUE le bloc et y fait défiler.
+
+    Elle n'OUVRE rien : charger() passe par un verrou de sérialisation, et une
+    ouverture surprise au chargement de page serait coûteuse autant que
+    déroutante. Job absent de la chronologie : rien, en silence.
+    """
+    js, css = _lire("etabli/etabli.js"), _lire("etabli/etabli.css")
+    assert 'URLSearchParams(location.search).get("job")' in js
+    assert "function marquerJobVise" in js
+    assert "marquerJobVise();" in js              # et elle est APPELÉE
+    assert 'classList.add("vise")' in js
+    assert "scrollIntoView" in js
+    # sans la règle, le marquage est posé et INVISIBLE — le pire des échecs
+    assert ".job.vise {" in css
+    # les blocs portent de quoi se laisser retrouver : l'id du dossier ET le nom
+    assert 'data-job="${esc(j.id)}" data-nom="${esc(j.nom)}"' in js
+
+
+def test_le_marquage_du_job_ne_charge_rien_tout_seul():
+    """Ce banc garde la RETENUE de la fonction, pas son existence : y glisser
+    un `ouvrirPrincipale(...)` ferait charger un GLB au chargement de la page,
+    par-dessus le verrou de sérialisation et sans que personne l'ait demandé.
+    """
+    js = _lire("etabli/etabli.js")
+    corps = js.split("function marquerJobVise", 1)[1].split("\n}\n", 1)[0]
+    assert "ouvrirPrincipale" not in corps
+    assert "charger(" not in corps

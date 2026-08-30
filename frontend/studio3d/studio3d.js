@@ -19,7 +19,11 @@ const STC = {
 /* durées observées en prod (s) — sert uniquement à l'ETA affichée. */
 const REAL_S = { source: 0, preview: 118, texture: 96, remesh: 22, rig: 34, animate: 17, export: 9 };
 
-/* ── géométrie du graphe : positions EXACTES de la maquette (740 × 354) ──── */
+/* ── géométrie du graphe : positions EXACTES de la maquette (892 × 354) ────
+   740 × 354 à l'origine ; le nœud 07 (760 → 892) a repoussé le bord droit.
+   Les trois largeurs vont ENSEMBLE : ces coordonnées, la viewBox de
+   index.html et les deux `width` de studio3d.css (.graph et .graph svg).
+   En désaccorder une suffit à décrocher les huit câbles d'origine. */
 const NODES = [
   { id: "prompt", phase: "source", x: 0, y: 28, w: 132, h: 120, kind: "--c-text",
     kicker: "00 · prompt", ports: [[128, 56]] },
@@ -35,8 +39,16 @@ const NODES = [
     kicker: "04 · squelette", ports: [[-4, 65], [62, 134], [128, 65]] },
   { id: "animate", phase: "animate", x: 456, y: 190, w: 132, h: 138, kind: "--c-av",
     kicker: "05 · animation", ports: [[62, -4], [128, 65]] },
+  /* le port [128, 78] est le DÉPART de k9 : chaque câble du graphe naît d'un
+     centre de pastille (7 px), et 608 + 128 + 3,5 = 739,5 ≈ 740, à mi-hauteur
+     94 + 78 + 3,5 = 175,5 ≈ 176. Sans lui, k9 partirait d'un bord nu. */
   { id: "export", phase: "export", x: 608, y: 94, w: 132, h: 164, kind: "--c-video",
-    kicker: "06 · export", chips: true, ports: [[-4, 78]] },
+    kicker: "06 · export", chips: true, ports: [[-4, 78], [128, 78]] },
+  /* 07 · l'Établi — une PORTE, pas une phase. `door` le dit à buildGraph() et
+     à paint() : aucun pipeline n'émettra jamais « etabli », donc ce nœud n'a
+     ni barre, ni état, ni crédits, et son clic OUVRE au lieu d'éditer. */
+  { id: "etabli", phase: "etabli", x: 760, y: 94, w: 132, h: 164, kind: "--c-3d",
+    kicker: "07 · établi", door: true, ports: [[-4, 78]] },
 ];
 /* câbles : mêmes attributs d que la maquette — géométrie ET data appariées. */
 const CABLES = [
@@ -48,6 +60,9 @@ const CABLES = [
   { id: "k6", d: "M522,162 C522,172 522,180 522,190", phase: "animate", kind: "--c-av" },
   { id: "k7", d: "M588,259 C598,259 598,176 608,176", phase: "export", kind: "--c-video" },
   { id: "k8", d: "M588,93 C598,93 598,176 608,176", phase: "export", kind: "--c-video" },
+  /* 740 = bord droit d'export, 760 = port du 07, tous deux à mi-hauteur (176).
+     `door` : ce câble ne transporte rien, il ne s'anime donc jamais. */
+  { id: "k9", d: "M740,176 C750,176 750,176 760,176", phase: "etabli", kind: "--c-3d", door: true },
 ];
 const ENGINES3D = [
   { id: "meshy", name: "Meshy", meta: "meshy-6/7 · api" },
@@ -63,6 +78,11 @@ const EP_LABEL = {
   preview: "/v2/text-to-3d · preview", "preview:image": "/v1/image-to-3d",
   texture: "/v2/text-to-3d · refine", remesh: "/v1/remesh", rig: "/v1/rigging",
   animate: "/v1/animations", export: "/v1/convert",
+  /* la porte n'appelle aucune API — et ce libellé n'est lu par personne
+     aujourd'hui : epOf() ne sert que les phases, et le 07 ne peut pas devenir
+     le nœud actif (voir brancherEtabli). Il est là pour que la carte reste
+     complète, et il dit la vérité : rien ne part vers api.meshy.ai. */
+  etabli: "local · inspection",
 };
 const KIND_EP = {   /* journal persistant : kind backend → endpoint court */
   "text-to-3d:preview": "/v2/text-to-3d · preview",
@@ -153,6 +173,9 @@ function buildGraph() {
     const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
     p.setAttribute("d", c.d); p.id = `cable-${c.id}`;
     svg.appendChild(p);
+    /* rien ne circule vers une porte : pas de paquet, donc pas d'élément
+       animé qui resterait invisible pour toujours dans le SVG. */
+    if (c.door) continue;
     const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     dot.setAttribute("r", "3.2"); dot.id = `packet-${c.id}`; dot.style.opacity = "0";
     const mo = document.createElementNS("http://www.w3.org/2000/svg", "animateMotion");
@@ -171,16 +194,25 @@ function buildGraph() {
       <div class="node-sub" id="ns-${n.id}"></div>
       ${n.mesh ? `<div class="node-mesh" id="nm-${n.id}">en attente</div>` : ""}
       ${n.chips ? `<div class="node-chips" id="nc-${n.id}"></div>` : ""}
-      <div class="node-bottom">
+      ${n.door
+        ? `<div class="node-bottom"><span class="node-door">ouvrir →</span></div>`
+        : `<div class="node-bottom">
         <div class="node-bar"><div id="nb-${n.id}" style="width:0%"></div></div>
         <div class="node-state">
           <span class="node-st" id="nst-${n.id}">PENDING</span>
           <span class="node-cr" id="ncr-${n.id}">—</span>
         </div>
-      </div>
+      </div>`}
       ${n.ports.map(([px, py]) => `<span class="port" style="left:${px}px; top:${py}px; border-color:var(${n.kind})"></span>`).join("")}`;
-    el.addEventListener("click", () => { S.pinned = n.id; render(); });
-    el.addEventListener("dblclick", () => openEditor(n.id));
+    /* SOIT les gestionnaires génériques, SOIT la porte — jamais les deux.
+       openEditor("etabli") ouvrirait un éditeur de tâche Meshy pour un nœud
+       qui n'est pas une tâche, et S.pinned = "etabli" épinglerait au panneau
+       droit une phase dont aucun pipeline n'émettra jamais l'état. */
+    if (n.door) brancherEtabli(el);
+    else {
+      el.addEventListener("click", () => { S.pinned = n.id; render(); });
+      el.addEventListener("dblclick", () => openEditor(n.id));
+    }
     g.appendChild(el);
   }
 }
@@ -207,6 +239,7 @@ function nodeTitle(id) {
     case "rig": return `Auto-rig ${String(c.heightMeters).replace(".", ",")} m`;
     case "animate": return `${c.animationActions.length} action${c.animationActions.length > 1 ? "s" : ""} Meshy`;
     case "export": return "Livrables";
+    case "etabli": return "L'Établi";
   }
 }
 function nodeSub(id) {
@@ -220,6 +253,8 @@ function nodeSub(id) {
     case "rig": return "/v1/rigging";
     case "animate": return "/v1/animations";
     case "export": return "/v1/convert";
+    /* ce que l'on trouve derrière la porte — pas un endpoint : il n'y en a pas */
+    case "etabli": return "parties · rig · versions";
   }
 }
 function epOf(id) {
@@ -277,6 +312,40 @@ function paramsOf(nodeId, ph) {
               ["3mf", c.exportFormats.includes("3mf") ? "1 cr · demandé" : "1 cr · opt-in"]];
   }
   return [];
+}
+
+/* Une PORTE n'est pas une phase. phaseView("etabli") ne lève pas — elle rend
+   un objet par défaut — mais ce qu'elle rend est un PENDING ÉTERNEL, barre à
+   0 % et « 0 cr » sur un nœud qui n'est pas une tâche : un état inventé, donc
+   un mensonge d'interface. La promesse est réduite au vrai — le nom du lieu et
+   ce qu'on y trouve — et rien d'autre n'est peint ici. */
+function peindrePorte(n) {
+  $(`#nt-${n.id}`).textContent = nodeTitle(n.id);
+  $(`#ns-${n.id}`).textContent = nodeSub(n.id);
+}
+
+/* L'Établi s'ouvre dans un NOUVEL ONGLET, et non par location.href.
+   /studio3d est réellement iframé : patch_bundle_studio3d.py greffe un
+   sous-onglet « 🐙 3D Studio » = `iframe src="/studio3d/"` dans le hub Game
+   Assets. Un location.href chargerait donc l'Établi DANS l'iframe, sous une
+   barre d'onglets annonçant encore « 3D Studio » ; un window.top.location
+   détruirait cette page, et avec elle la série Meshy que runPipeline() pilote
+   depuis ici. Un onglet — le geste que cardforge fait déjà vers /vectorlab.
+   Pas de "noopener" : il forcerait window.open à rendre null, ce qui
+   déclencherait le repli à chaque clic. Même origine, aucun risque. */
+function ouvrirEtabli() {
+  const q = S.cfg.name ? `?job=${encodeURIComponent(S.cfg.name)}` : "";
+  const url = `/etabli/${q}`;
+  const onglet = window.open(url, "_blank");
+  /* fenêtre bloquée : naviguer sur place vaut mieux qu'un bouton mort */
+  if (!onglet) location.href = url;
+}
+
+/* Le nœud 07 n'est pas une tâche Meshy : il ouvre l'Établi sur le job courant.
+   Simple clic (et non double), parce qu'il ne s'édite pas. */
+function brancherEtabli(el) {
+  el.addEventListener("click", ouvrirEtabli);
+  el.title = "Ouvrir l'Établi : parties, rig, versions, export moteurs";
 }
 
 function paint() {
@@ -344,6 +413,7 @@ function paint() {
 
   /* nœuds */
   for (const n of NODES) {
+    if (n.door) { peindrePorte(n); continue; }
     const p = phaseView(n.phase);
     const col = STC[p.status] || STC.PENDING;
     const el = $(`#node-${n.id}`);
@@ -376,8 +446,17 @@ function paint() {
   /* câbles : PENDING pointillé neutre · actif pointillé animé + paquet ·
      terminé trait plein atténué (codes visuels de la spec §4). */
   for (const c of CABLES) {
-    const p = phaseView(c.phase);
     const path = $(`#cable-${c.id}`);
+    if (c.door) {
+      /* le câble d'une porte ne transporte rien et n'attend rien : trait plein
+         atténué, une fois pour toutes — et surtout jamais le pointillé « en
+         attente » d'une phase qui ne démarrera pas. */
+      path.style.stroke = `var(${c.kind})`;
+      path.style.opacity = "0.5";
+      path.style.strokeDasharray = "0";
+      continue;
+    }
+    const p = phaseView(c.phase);
     const packet = $(`#packet-${c.id}`);
     if (p.status === "IN_PROGRESS") {
       path.style.stroke = `var(${c.kind})`;
@@ -740,6 +819,7 @@ function gotoSubtab(tab) {
   $("#confirmGo").addEventListener("click", () => { $("#confirm").classList.add("hidden"); runPipeline(); });
   $("#modalCancel").addEventListener("click", () => $("#modal").classList.add("hidden"));
   $("#goSprite").addEventListener("click", () => gotoSubtab("sprites"));
+  $("#goEtabli").addEventListener("click", ouvrirEtabli);
   $("#engineGoto").addEventListener("click", () => gotoSubtab("3d"));
 
   render();

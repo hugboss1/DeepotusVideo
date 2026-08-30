@@ -43,6 +43,9 @@
     <section class="rail-bottom">
       <div class="dt-label">Étape suivante</div>
       <button class="next-step" id="goSprite">04 · Sprite Sheet →</button>
+      <!-- l'Établi n'est pas un sous-onglet du hub : il s'ouvre dans un
+           onglet (voir ouvrirEtabli), pas via gotoSubtab. -->
+      <button class="next-step" id="goEtabli">07 · Établi 3D →</button>
     </section>
   </aside>
 
@@ -65,8 +68,13 @@
       <div class="canvas-grid"></div>
       <div class="canvas-center">
         <div class="graph" id="graph">
-          <div class="graph-hint">graphe Meshy · double-clic pour éditer un nœud</div>
-          <svg viewBox="0 0 740 330" id="cables"></svg>
+          <div class="graph-hint">graphe Meshy · double-clic pour éditer un nœud · le 07 s'ouvre d'un simple clic</div>
+          <!-- 892 (et non 740) : le nœud 07 · établi tient le nouveau bord
+               droit. Élargissement à accorder EN MÊME TEMPS que les deux
+               `width` de studio3d.css (.graph et .graph svg) : la largeur y
+               est explicite, et une viewBox seule ferait rétrécir tout le
+               dessin de 17 % dans un cadre resté à 740 px. -->
+          <svg viewBox="0 0 892 330" id="cables"></svg>
           <!-- nœuds injectés par studio3d.js -->
         </div>
       </div>

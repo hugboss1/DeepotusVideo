@@ -41,9 +41,12 @@ function check(label, ok, detail = '') {
   /* — 1 · idle — */
   await page.goto(BASE + '/studio3d/', { waitUntil: 'networkidle2', timeout: 30000 });
   await sleep(1800);
-  check('idle: 8 nœuds + 8 câbles',
-    await page.$$eval('.node', n => n.length) === 8
-    && await page.$$eval('#cables path', n => n.length) === 8);
+  /* 9 depuis « 07 · établi » : la porte vers /etabli. Elle ne porte PAS de
+     .node-st — le contrôle 4 (« toutes les phases SUCCEEDED ») compte donc
+     toujours 8 états, et il le doit : la porte n'est pas une phase. */
+  check('idle: 9 nœuds + 9 câbles',
+    await page.$$eval('.node', n => n.length) === 9
+    && await page.$$eval('#cables path', n => n.length) === 9);
   const est = await $t('#mEstimate');
   check('idle: estimé affiché AVANT toute action', /\d+ cr/.test(est), est);
   check('idle: bouton de lancement porte le coût',

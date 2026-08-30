@@ -90,7 +90,11 @@ function rendreChrono() {
         <span>${tri ? tri.toLocaleString("fr-FR") + " tri" : fmtOctets(e.bytes)}</span>
       </button>`;
     }).join("");
-    blocs.push(`<section class="job">
+    /* `data-job`/`data-nom` : les deux noms sous lesquels un job peut arriver
+       dans `?job=`. L'id est le nom du DOSSIER (mesh_sources : `d.name`) ; le
+       nom vient de `asset.json`, et c'est celui-là que le 3D Studio a en main
+       (S.cfg.name). Ils coïncident souvent, jamais toujours. */
+    blocs.push(`<section class="job" data-job="${esc(j.id)}" data-nom="${esc(j.nom)}">
       <div class="job-tete">${esc(j.nom)}<span>${esc(j.moteur || j.source)}</span></div>
       <div class="job-etapes">${etapes}</div></section>`);
   }
@@ -98,7 +102,7 @@ function rendreChrono() {
     const etapes = t.etapes.map((e) => `<button class="etape"
       data-meshy="${esc(t.id)}" data-url="${esc(e.url)}" data-libelle="${esc(e.libelle)}">
       <b>${esc(e.libelle)}</b><span>${esc(t.phase || t.kind || "meshy")}</span></button>`).join("");
-    blocs.push(`<section class="job">
+    blocs.push(`<section class="job" data-job="${esc(t.id)}" data-nom="${esc(t.nom)}">
       <div class="job-tete">${esc(t.nom)}<span>meshy · ${esc(t.phase || "")}</span></div>
       <div class="job-etapes">${etapes}</div></section>`);
   }
@@ -486,6 +490,34 @@ $("#btnCompare").addEventListener("click", () => {
   fermerComparaison();
 });
 
+/* ── ?job= : la promesse du lien du 3D Studio, tenue ────────────────────────
+   Le nœud « 07 · établi » du graphe amène ici avec `?job=<nom>` en poche.
+   Ignorer cette chaîne — ce que faisait la page — déposait l'utilisateur sur
+   la chronologie ENTIÈRE, sans rapport visible avec le job d'où il venait :
+   une URL qui promet et ne tient pas.
+
+   Ce que l'on tient, et rien de plus : le bloc est MARQUÉ et amené sous les
+   yeux. On n'OUVRE aucun modèle. charger() n'est pas ré-entrant et passe par
+   un verrou de sérialisation ; une ouverture surprise au chargement de la page
+   coûterait le téléchargement d'un GLB que personne n'a demandé, et volerait
+   la première vue à qui venait comparer autre chose.
+
+   Job absent de la chronologie : rien, en silence. Une alerte pour une chaîne
+   de requête que l'utilisateur ne maîtrise pas ne lui apprendrait rien. */
+function marquerJobVise() {
+  const vise = new URLSearchParams(location.search).get("job");
+  if (!vise) return;
+  /* on cherche par dataset et non par sélecteur : un nom de dossier venu du
+     disque peut contenir un guillemet, et `[data-job="…"]` lèverait dessus. */
+  const bloc = [...$("#chrono").querySelectorAll(".job")]
+    .find((s) => s.dataset.job === vise || s.dataset.nom === vise);
+  if (!bloc) return;
+  bloc.classList.add("vise");
+  /* `nearest` : si le bloc est déjà visible, on ne bouge pas la chronologie
+     sous les yeux de quelqu'un qui la lisait. */
+  bloc.scrollIntoView({ block: "nearest" });
+}
+
 async function amorcer() {
   const box = $("#chrono");
   try {
@@ -495,6 +527,11 @@ async function amorcer() {
        try, cet échec laisserait « chargement… » figé pour toujours, ce que ce
        filet est précisément là pour empêcher. */
     rendreChrono();
+    /* APRÈS le rendu : avant, il n'existe aucun bloc à marquer. Et DANS le
+       `try` en connaissance de cause — la fonction ne lit que le DOM que
+       rendreChrono() vient d'écrire, si bien que le seul échec qu'elle puisse
+       produire est celui que « chronologie illisible » décrit justement. */
+    marquerJobVise();
   } catch (e) {
     /* amorcer() tourne à l'IMPORT du module : sans ce filet, la promesse
        rejetée laisse « chargement… » figé pour toujours et le refus ne vit que
