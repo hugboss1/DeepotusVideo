@@ -1133,21 +1133,28 @@ def test_la_barre_d_attente_est_redessinee_quand_le_modele_change():
 
 
 def test_le_bouton_Separer_est_rendu_par_le_gabarit_comme_ses_voisins():
-    """Le bouton fut d'abord AJOUTÉ au panneau par `appendChild`, depuis une
-    fonction à part. Il ne s'empilait pas — mais seulement parce qu'on
-    l'appelait APRÈS le `box.innerHTML` qui repart d'une page blanche : une
-    sûreté qui tenait à un ordre d'appel, donc un danger qu'il fallait garder.
-    Rendu par le gabarit comme `#btnIsoler` et `#btnToutVoir`, et branché à
-    côté d'eux, ce danger n'existe plus — on le RETIRE au lieu de le garder.
-    D'où l'interdiction structurelle du `createElement` : c'est elle qui
-    empêche la fabrique de revenir par la fenêtre.
+    """Le bouton fut d'abord greffé au panneau depuis une fonction à part. Il
+    ne s'empilait pas — mais seulement parce qu'on l'appelait APRÈS le
+    `box.innerHTML` qui repart d'une page blanche : une sûreté qui tenait à un
+    ordre d'appel, donc un danger qu'il fallait garder. Rendu par le gabarit
+    comme `#btnIsoler` et `#btnToutVoir`, et branché à côté d'eux, ce danger
+    n'existe plus — on le RETIRE au lieu de le garder.
+
+    LES DEUX ASSERTIONS SUFFISENT, et ce banc ne va délibérément pas plus
+    loin. Il a un temps interdit `createElement` et `appendChild` dans tout le
+    fichier : une garde qui visait à faux, le danger n'ayant jamais été la
+    primitive mais une mutation du panneau HORS du rendu unique — un
+    `insertAdjacentHTML` serait passé sans être moins dangereux. Elle poussait
+    de surcroît le code à venir vers `innerHTML`, c'est-à-dire vers la
+    primitive qui exige `esc()` partout, quand `createElement` + `textContent`
+    est le chemin sûr ; et elle était unique au dépôt — studio3d.js, la page
+    sœur dont l'Établi se réclame, en compte huit, materialforge.js
+    trente et un.
     """
     js = _lire("etabli/etabli.js")
     corps = js.split("function rendreParties", 1)[1].split("\n}\n", 1)[0]
     assert '<button id="btnSeparer">' in corps
     assert '$("#btnSeparer").addEventListener("click", separerSelection);' in corps
-    assert "appendChild" not in js
-    assert "createElement" not in js
 
 
 def test_le_bloc_reparer_met_en_attente_au_lieu_d_ecrire():

@@ -721,8 +721,7 @@ function rendreParties() {
      comme ses deux voisins, et branché ici : il ne PEUT donc pas s'empiler.
      Il fut un temps greffé au panneau par une fonction à part, et sa sûreté
      dépendait alors de l'endroit d'où on appelait celle-ci — un danger qu'il
-     fallait garder au banc. On retire le danger plutôt que de le garder ; un
-     banc interdit du même geste toute fabrique de nœud dans ce fichier. La
+     fallait garder au banc. On retire le danger plutôt que de le garder. La
      conversion uuid → index, elle, reste dans separerSelection(), avec la
      porte d'écriture à qui elle appartient. */
   $("#btnSeparer").addEventListener("click", separerSelection);

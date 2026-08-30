@@ -180,9 +180,16 @@ button { font-family: inherit; }
    centre 860 px, moins le padding et les `gap`, ~800 px utiles ; la barre
    d'attente non rétractable pèse ~670 px sans l'avertissement heuristique et
    ~1080 px avec. Or la file n'est non vide QU'EN CAS D'ÉCHEC — c'est-à-dire
-   exactement quand #barreGeo a un refus à écrire. Elle se rétracte donc, et
-   c'est l'ÉNUMÉRATION qui cède : jamais les boutons, jamais l'avertissement
-   qui précède une écriture disque. */
+   exactement quand #barreGeo a un refus à écrire. Elle se rétracte donc.
+   Les BOUTONS, eux, ne cèdent jamais : `flex: none`, et c'est un absolu.
+   L'énumération et l'avertissement cèdent tous les DEUX — `flex-shrink` est
+   pondéré par la base, si bien qu'à 3 contre 1 l'avertissement, plus long,
+   absorbe encore près d'un tiers du déficit dès le premier pixel manquant.
+   Il cède plus LENTEMENT, pas en dernier ; ne pas lire cette règle comme une
+   garantie qu'il reste entier. Mesuré à l'écran (1440×900, pire cas : refus,
+   avertissement et deux boutons) : barre 860 et scrollWidth 860, rien hors
+   champ, #barreGeo garde 198 px, l'énumération tombe à 0 et l'avertissement
+   survit à 104 px. */
 .barre-attente {
   margin-left: auto; color: var(--accent);
   flex: 0 1 auto; min-width: 0;
@@ -191,7 +198,7 @@ button { font-family: inherit; }
 .barre-attente > span {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.attente-liste { flex: 0 3 auto; }        /* elle cède la première */
+.attente-liste { flex: 0 3 auto; }        /* elle cède trois fois plus vite */
 /* Les deux boutons de la porte d'écriture vivent DANS la barre : sans règle
    ils prennent le style natif du navigateur — gris clair, bords en relief — et
    la barre cesse d'être une barre. */
@@ -208,11 +215,6 @@ button { font-family: inherit; }
    serveur QUI ÉCRIT UN GLB. L'avertissement ne doit donc pas se lire comme le
    reste de la barre : sans cette règle il est écrit et invisible. */
 .attente-doute { flex: 0 1 auto; margin-left: 8px; color: var(--red); }
-/* Le bouton de séparation est le troisième de la rangée depuis la porte
-   d'écriture, et il porte une phrase : sur la même ligne que ses deux voisins
-   il tombait sous huit caractères visibles. La rangée s'enroule (voir
-   .parties-actions), et lui prend toute la largeur. */
-#btnSeparer { flex-basis: 100%; }
 
 /* ── rail droit : les onglets ─────────────────────────────────────────────── */
 .rail-right {
@@ -268,15 +270,19 @@ button { font-family: inherit; }
   white-space: nowrap; color: var(--ink); font-weight: 500;
 }
 .partie span { flex: none; font-size: 10px; font-variant-numeric: tabular-nums; }
-/* La rangée s'ENROULE depuis la porte d'écriture : « Séparer la sélection en
-   une version » est une phrase, pas un verbe, et sur la même ligne que les
-   deux autres elle tombait sous 8 caractères visibles. */
+/* La rangée s'ENROULE depuis la porte d'écriture — voir #btnSeparer, deux
+   règles plus bas, qui est la raison de cet enroulement. */
 .parties-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .parties-actions button {
   flex: 1; padding: 6px 4px; border: 1px solid var(--stroke); border-radius: var(--r-sm);
   background: transparent; color: var(--ink-soft); font-size: 11px; cursor: pointer;
 }
 .parties-actions button:hover { border-color: var(--accent); color: var(--ink-strong); }
+/* Le troisième bouton de la rangée, venu avec la porte d'écriture, porte une
+   phrase et non un verbe : sur la même ligne que ses deux voisins il tombait
+   sous huit caractères visibles. La rangée s'enroule (ci-dessus), il prend
+   toute la largeur. */
+#btnSeparer { flex-basis: 100%; }
 
 /* ── panneau Fiche : le bloc « Réparer l'assise » ──────────────────────────
    Sans ces règles le bloc EXISTE et ne se lit pas — même piège que le panneau
