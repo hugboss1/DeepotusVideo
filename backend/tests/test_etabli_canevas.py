@@ -1461,6 +1461,22 @@ def _glb_de_banc() -> bytes:
     return gltf_builder.build_glb({}, None, "cube", "banc")
 
 
+def _glb_plus_lourd() -> bytes:
+    """Le même cube PLUS un quad de sol : 14 triangles au lieu de 12.
+
+    Deux maillages qu'on peut distinguer par le COMPTE, sans lire un octet —
+    c'est ce qui permet de dire quelle version l'impression 3D a réellement
+    servie.
+    """
+    import io
+    from PIL import Image
+    from app.services import gltf_builder
+    tampon = io.BytesIO()
+    Image.new("RGBA", (1, 1)).save(tampon, "PNG")
+    return gltf_builder.build_glb({}, None, "cube", "banc",
+                                  stage_png=tampon.getvalue())
+
+
 def _job(nom: str):
     """Un job `assets3d` avec son brouillon — comme en sortie de moteur."""
     from app.config import settings
@@ -1580,26 +1596,53 @@ def test_l_etape_decimee_n_est_pas_une_production():
     assert all(e["fichier"] != "model.opt.glb" for e in miennes)
 
 
-def test_un_report_illisible_perd_ce_job_seul_et_le_DIT():
-    """Même règle que le filet de `mesh_sources.lister()` : ce dossier est
-    ouvert aux mains de l'utilisateur, un voisin abîmé ne doit pas vider la
-    catégorie de l'écran. Et le job perdu est DIT dans les logs — l'avaler en
-    silence laisserait un dossier introuvable sans la moindre trace.
+def test_une_fiche_egaree_sur_le_decime_ne_fait_pas_tomber_le_job():
+    """LA GARDE `v is None`, et ce qu'elle coûte le jour où elle saute.
 
-    Le job abîmé est une ADOPTION, et c'est ce qui rend son absence
-    mesurable : son `asset.json` `stage == "adopte"` suffirait à le faire
-    sortir quand même. Reprendre la lecture avec un registre vide au lieu de
-    passer au job suivant le ferait donc réapparaître — sans ce choix de
-    fixture, l'assertion négative serait vraie des deux côtés de la mutation
-    et ne garderait rien. Perdre l'adoption avec sa fiche est le prix ASSUMÉ :
-    un `report.json` cassé dit que ce dossier n'est plus fiable.
+    `model.opt.glb` porte `version: None` dans la chronologie. Qu'une fiche
+    `outil == "etabli"` atterrisse dessus, et `_etabli_entree` calcule
+    `int(None)` pour la vignette : la lecture du job LÈVE, le filet
+    rattrape, et le job ENTIER quitte la catégorie — sa v2 légitime
+    comprise. Le décimé ne serait pas seulement mal rangé : il emporterait
+    la production qu'on cherchait.
+
+    Aucun appelant ne pose cette fiche aujourd'hui ; c'est une garde, et ce
+    banc la tient plutôt que de la laisser à son commentaire. Sans elle,
+    `miennes` sort vide au lieu de `[2]` — mesuré.
+    """
+    from app.services import mesh_edit, mesh_report
+    d = _job("prod_opt_fiche")
+    mesh_edit.ecrire_version("prod_opt_fiche", _glb_de_banc(),
+                             operation="reparer", detail={})
+    (d / "model.opt.glb").write_bytes(_glb_de_banc())
+    # le VRAI écrivain de fiches, avec le marqueur de l'Établi
+    mesh_report.write_report("prod_opt_fiche", "model.opt.glb", version=3,
+                             avec_silhouettes=False,
+                             extra={"outil": "etabli", "operation": "banc"})
+
+    miennes = [e for e in _items() if e["job"] == "prod_opt_fiche"]
+    assert [e["version"] for e in miennes] == [2]
+
+
+def test_un_report_illisible_est_DIT_sans_faire_disparaitre_le_job():
+    """`mesh_sources._versions_du_job` fait déjà
+    `except (FileNotFoundError, ValueError): pass` : un registre illisible y
+    vaut SANS FICHE, et le job reste listable. La route s'aligne, et c'est
+    le contraire de ce qu'elle faisait d'abord.
+
+    Ce que corrigeait cet alignement était visible et déroutant : le job
+    s'affichait dans la chronologie et dans `/etabli/sources`, et
+    disparaissait du seul onglet « Établi » — alors que son `asset.json`
+    intact disait encore, à lui seul, que l'Établi l'avait adopté. Deux
+    pannes qui disent la même chose ; une seule était rattrapée.
+
+    La fixture est une ADOPTION, et c'est ce qui rend l'assertion mordante :
+    sans ce rattrapage l'entrée disparaît. Le job est nommé dans les logs —
+    un fichier illisible ne s'avale pas en silence pour autant.
     """
     from loguru import logger
     from app.config import settings
     from app.services import mesh_edit
-    _job("prod_sain")
-    mesh_edit.ecrire_version("prod_sain", _glb_de_banc(),
-                             operation="reparer", detail={})
     tid = "tache_cassee_5555555555"
     src = settings.outputs_path / "meshy3d" / tid
     src.mkdir(parents=True, exist_ok=True)
@@ -1612,22 +1655,83 @@ def test_un_report_illisible_perd_ce_job_seul_et_le_DIT():
     dits = []
     sid = logger.add(dits.append, level="WARNING")
     try:
-        jobs = {e["job"] for e in _items()}
+        miennes = [e for e in _items() if e["job"] == casse]
     finally:
         logger.remove(sid)
 
-    assert "prod_sain" in jobs
-    assert casse not in jobs
+    assert len(miennes) == 1
+    assert miennes[0]["origine"] == "adoption"
     assert any(casse in str(m) for m in dits)
 
 
-def test_un_report_qui_n_est_pas_un_objet_ne_leve_pas():
+def test_un_job_sans_fiche_ne_fait_AUCUN_bruit():
+    """Le cas COURANT, et il ne doit pas crier. Un job de moteur n'a pas de
+    `report.json` tant que personne n'a demandé sa fiche : traiter cette
+    absence comme de la casse ferait remonter un WARNING par job sans fiche,
+    À CHAQUE REQUÊTE de la Bibliothèque. `FileNotFoundError` est donc
+    attrapée à part de tout le reste.
+    """
+    from loguru import logger
+    from app.config import settings
+    _job("prod_muet")
+    assert not (settings.outputs_path / "assets3d" / "prod_muet"
+                / "report.json").exists()
+
+    dits = []
+    sid = logger.add(dits.append, level="WARNING")
+    try:
+        _items()
+    finally:
+        logger.remove(sid)
+    assert not [m for m in dits if "prod_muet" in str(m)], dits
+
+
+def test_le_repechage_par_asset_json_rattrape_une_fiche_sans_source():
+    """LA BRANCHE QUE RIEN N'ATTEIGNAIT. `adopter_meshy` écrit les DEUX
+    marqueurs, donc le chemin par fiche gagne toujours et le repêchage par
+    `asset.json` restait du code que l'on pouvait supprimer en entier sans
+    faire rougir un seul banc — mesuré.
+
+    Ses trois écritures sont pourtant gardées séparées EXPRÈS : une adoption
+    interrompue, ou un registre réécrit sans son `source`, laisse le
+    `asset.json` seul à savoir. C'est cet état-là qu'on reconstitue ici, en
+    retirant `source` de la fiche v1 qu'a écrite le vrai producteur.
+    """
+    import json as _json
+    from app.config import settings
+    from app.services import mesh_edit
+    tid = "tache_repechee_7777777777"
+    src = settings.outputs_path / "meshy3d" / tid
+    src.mkdir(parents=True, exist_ok=True)
+    (src / "model.glb").write_bytes(_glb_de_banc())
+    job = mesh_edit.adopter_meshy(tid)
+
+    d = settings.outputs_path / "assets3d" / job
+    reg = _json.loads((d / "report.json").read_text(encoding="utf-8"))
+    for e in reg["entries"]:
+        e.pop("source", None)            # la fiche ne dit plus « etabli »
+    (d / "report.json").write_text(_json.dumps(reg), encoding="utf-8")
+
+    miennes = [e for e in _items() if e["job"] == job]
+    assert len(miennes) == 1
+    assert miennes[0]["origine"] == "adoption"
+    assert miennes[0]["version"] == 1
+
+
+def test_un_registre_d_un_AUTRE_TYPE_perd_ce_job_seul_et_le_DIT():
     """`read_registry` rend ce que `json.loads` trouve : un `report.json`
     contenant `[1, 2, 3]` est du JSON VALIDE, il ne déclenche donc aucune
     `ValueError` — le `.get("entries")` qui suit part en `AttributeError`,
     d'un TYPE que rien n'attend. C'est le filet PAR JOB qui le rattrape : sans
     lui, la route entière rend 500 pour UN dossier abîmé.
+
+    ASYMÉTRIE ASSUMÉE avec le banc précédent : des octets tronqués sont une
+    écriture à moitié faite et valent « sans fiche » ; un registre d'un autre
+    type dit que ce dossier n'est plus ce qu'on croit, et il est perdu. La
+    fixture est une adoption, donc son absence mord : sans le filet, son
+    `asset.json` la ferait sortir quand même.
     """
+    from loguru import logger
     from app.config import settings
     from app.services import mesh_edit
     _job("prod_liste_sain")
@@ -1641,13 +1745,17 @@ def test_un_report_qui_n_est_pas_un_objet_ne_leve_pas():
     d = settings.outputs_path / "assets3d" / liste
     (d / "report.json").write_text("[1, 2, 3]", encoding="utf-8")
 
-    # `_items()` exige un 200 ET du JSON : sans la garde de type, la route
-    # entière rend 500 et ces deux lignes tombent ensemble.
-    jobs = {e["job"] for e in _items()}
+    # `_items()` exige un 200 ET du JSON : sans le filet par job, la route
+    # entière rend 500 et toutes ces lignes tombent ensemble.
+    dits = []
+    sid = logger.add(dits.append, level="WARNING")
+    try:
+        jobs = {e["job"] for e in _items()}
+    finally:
+        logger.remove(sid)
     assert "prod_liste_sain" in jobs
-    # adoption comme ci-dessus : sans ce choix, l'absence serait vraie quoi
-    # qu'on mute
     assert liste not in jobs
+    assert any(liste in str(m) for m in dits)
 
 
 def test_la_vignette_pointe_sur_une_image_qui_EXISTE_ou_sur_rien():
@@ -1703,29 +1811,84 @@ def test_les_productions_sortent_de_la_plus_recente_a_la_plus_ancienne():
     donc sans rapport avec le temps ; sa docstring demande à l'appelant de
     retrier. Ce que la personne cherche, c'est son DERNIER dossier.
 
-    Les noms sont choisis pour que l'ordre alphabétique soit l'INVERSE de
-    l'ordre chronologique : sans tri, `prod_a_vieux` sort le premier et
-    l'assertion tombe. Et les `created_at` du registre sont à la seconde, si
-    bien que deux écritures de banc y tombent ensemble : on VIEILLIT donc une
-    fiche déjà écrite par `write_report` — sa forme reste la sienne, seule sa
-    date bouge.
+    IL EN FAUT TROIS. Avec deux, aucun choix de noms ne mord des deux
+    côtés : ranger le neuf en tête alphabétiquement rend le banc vert quand
+    on retire le tri ENTIER, et le ranger en queue le rend vert quand on
+    retire `created_at` de la clé (il reste alors un tri par nom
+    décroissant). Les deux mutations ont été mesurées. Trois dates dans un
+    ordre qui ne suit NI le nom croissant NI le nom décroissant ferment les
+    deux : attendu `m_neuf, z_moyen, a_vieux` ; par nom croissant on aurait
+    `a_vieux, m_neuf, z_moyen`, par nom décroissant `z_moyen, m_neuf,
+    a_vieux`.
+
+    Les `created_at` du registre sont à la seconde, si bien que deux
+    écritures de banc y tombent ensemble : on VIEILLIT donc des fiches déjà
+    écrites par `write_report` — leur forme reste la leur, seule leur date
+    bouge.
     """
     import json as _json
     from app.services import mesh_edit
-    d = _job("prod_a_vieux")
-    mesh_edit.ecrire_version("prod_a_vieux", _glb_de_banc(),
-                             operation="reparer", detail={})
-    reg = _json.loads((d / "report.json").read_text(encoding="utf-8"))
-    for e in reg["entries"]:
-        e["created_at"] = "2001-01-01T00:00:00+00:00"
-    (d / "report.json").write_text(_json.dumps(reg), encoding="utf-8")
 
-    _job("prod_z_neuf")
-    mesh_edit.ecrire_version("prod_z_neuf", _glb_de_banc(),
-                             operation="reparer", detail={})
+    def _date(nom, quand):
+        d = _job(nom)
+        mesh_edit.ecrire_version(nom, _glb_de_banc(),
+                                 operation="reparer", detail={})
+        if quand:
+            reg = _json.loads((d / "report.json").read_text(encoding="utf-8"))
+            for e in reg["entries"]:
+                e["created_at"] = quand
+            (d / "report.json").write_text(_json.dumps(reg), encoding="utf-8")
 
-    jobs = [e["job"] for e in _items()]
-    assert jobs.index("prod_z_neuf") < jobs.index("prod_a_vieux")
+    _date("prod_a_vieux", "2001-01-01T00:00:00+00:00")
+    _date("prod_z_moyen", "2010-01-01T00:00:00+00:00")
+    _date("prod_m_neuf", None)                       # maintenant
+
+    attendus = ("prod_m_neuf", "prod_z_moyen", "prod_a_vieux")
+    sortis = [e["job"] for e in _items() if e["job"] in attendus]
+    assert sortis == list(attendus)
+
+
+def test_une_version_ne_se_donne_pas_pour_imprimable():
+    """`kind: "asset3d"` fait apparaître « Envoyer vers → Impression 3D » sur
+    toute carte portant un `short`, et ce menu appelle
+    `POST /api/print3d/from-assets3d/<short>`. Or cette route lit `model.stl`
+    sinon `model.glb` — JAMAIS `model.v<n>.glb` — et n'accepte aucun numéro de
+    version : une entrée « v2 · reparer » y ferait imprimer le BROUILLON, en
+    silence, et l'utilisateur tiendrait dans la main un objet faux.
+
+    Le banc le MESURE plutôt que de le croire : la v2 pèse 14 triangles, le
+    brouillon 12, et l'export d'impression en compte 12. `imprimable` dit donc
+    faux sur une version écrite et vrai sur une adoption, dont la v1 EST le
+    maillage que la route servirait. Le jour où `print3d_from_assets3d`
+    apprendra les versions, c'est ce banc qu'il faudra rouvrir.
+    """
+    from app.services import mesh_edit
+    _job("prod_impr")                                  # model.glb : 12 tris
+    mesh_edit.ecrire_version("prod_impr", _glb_plus_lourd(),
+                             operation="reparer", detail={})   # v2 : 14 tris
+
+    c = _client()
+    e = [x for x in c.get("/api/etabli/productions").json()["items"]
+         if x["job"] == "prod_impr"][0]
+    assert e["version"] == 2
+    assert e["triangles"] == 14
+    assert e["imprimable"] is False
+
+    # ce que le menu enverrait vraiment au slicer, mesuré
+    r = c.post(f"/api/print3d/from-assets3d/{e['short']}", json={})
+    assert r.status_code == 200, r.text
+    assert r.json()["triangles"] == 12, "l'impression sert le BROUILLON"
+
+    # une adoption, elle, imprime bien son propre maillage
+    from app.config import settings
+    tid = "tache_impr_3333333333"
+    src = settings.outputs_path / "meshy3d" / tid
+    src.mkdir(parents=True, exist_ok=True)
+    (src / "model.glb").write_bytes(_glb_de_banc())
+    job = mesh_edit.adopter_meshy(tid)
+    a = [x for x in c.get("/api/etabli/productions").json()["items"]
+         if x["job"] == job][0]
+    assert a["imprimable"] is True
 
 
 def test_la_route_ne_gele_pas_la_boucle_d_evenements():
@@ -1759,10 +1922,11 @@ def test_l_entree_epouse_la_forme_de_la_carte_3D_du_bundle():
 
         {name, kind, size, date, provider, jobId, short, url, thumb}
 
-    D'où `kind: "asset3d"` — c'est lui qui donne la carte 3D et l'entrée
-    « Envoyer vers → Impression 3D » (qui lit `m.short`) sans une ligne de
-    plus. `size` reste vide comme dans T3 (le bundle a `go(bytes)` pour ça) et
-    `date` porte l'ISO brut, que l'onglet peut repasser par `mo()`.
+    D'où `kind: "asset3d"` : la carte 3D, sa vignette et son lien, sans une
+    ligne de rendu de plus. Ce qu'il ne donne PAS est mesuré par
+    `..._une_version_ne_se_donne_pas_pour_imprimable`. `size` reste vide comme
+    dans T3 (le bundle a `go(bytes)` pour ça) et `date` porte l'ISO brut, que
+    l'onglet devra repasser par `mo()`.
     """
     from app.services import mesh_edit
     _job("prod_forme")
@@ -1775,6 +1939,7 @@ def test_l_entree_epouse_la_forme_de_la_carte_3D_du_bundle():
         assert cle in e, cle
     assert e["kind"] == "asset3d"
     assert e["provider"] == "Établi"
+    assert "imprimable" in e
     assert e["jobId"] == "prod_forme"
     # le libellé dit de quel maillage il s'agit : le job, sa version, le geste
     assert "prod_forme" in e["name"]

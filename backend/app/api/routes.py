@@ -8773,6 +8773,11 @@ def _etabli_vignette(d: Path, job: str, v: int) -> str | None:
     est celle de la VERSION demandée — elle est donc préférée au rendu du
     moteur, qui ne montre que le brouillon. L'absence est DITE (`None`)
     plutôt que servie en lien mort.
+
+    POUR L'ONGLET : `null` doit être traité EXPLICITEMENT. La carte 3D du
+    bundle porte un repli `onError` vers `shot/0`, mais React omet
+    l'attribut `src` quand la valeur est `null` — aucune requête, donc aucun
+    évènement `error`, donc le repli ne joue jamais.
     """
     if (d / f"sil_v{int(v)}" / "silhouette_face.png").is_file():
         return f"/api/assets/3d/{job}/silhouette/face?v={int(v)}"
@@ -8786,11 +8791,11 @@ def _etabli_entree(ligne: dict, etape: dict, operation: str, d: Path) -> dict:
 
     Le bundle construit son onglet 3D ainsi — `{name, kind, size, date,
     provider, jobId, short, url, thumb}` — et la carte qui les affiche existe
-    déjà. Épouser cette forme, c'est offrir l'onglet « Établi » sans une
-    ligne de rendu de plus :
+    déjà. Épouser cette forme, c'est offrir l'onglet « Établi » sans écrire
+    une carte de plus :
 
-      * `kind: "asset3d"` donne la carte 3D ET l'entrée « Envoyer vers →
-        Impression 3D », qui lit `m.short` ;
+      * `kind: "asset3d"` donne la carte 3D — la vignette, le lien, la
+        silhouette. Voir `imprimable` pour ce qu'il NE donne pas ;
       * `short` porte le NOM DE DOSSIER ENTIER, jamais un préfixe de huit.
         Le bundle coupe `job_id.slice(0, 8)` parce qu'un job `assets3d`
         normal a pour dossier les 8 premiers caractères de son UUID ; un job
@@ -8801,12 +8806,26 @@ def _etabli_entree(ligne: dict, etape: dict, operation: str, d: Path) -> dict:
       * `url` est reprise TELLE QUELLE de `mesh_sources`, seule à savoir
         composer le lien d'une version — la recomposer ici dupliquerait sa
         convention de nommage ;
-      * `size` reste vide comme dans le bundle (qui a `go(bytes)` pour ça) et
-        `date` porte l'ISO brut, que l'onglet peut repasser par `mo()`.
+      * `size` reste vide comme dans le bundle (qui a `go(bytes)` pour ça) ;
+        `date` porte l'ISO BRUT, là où le bundle envoie à sa carte une date
+        déjà passée par `mo()` — l'onglet devra appliquer `mo(created_at)`.
 
-    Le reste (`job`, `version`, `operation`, `origine`, `sha256`…) est ce que
-    la carte 3D n'a pas : de quoi retrouver le maillage et distinguer une
-    version ÉCRITE d'une ADOPTION, sans repasser par une autre route.
+    Le reste est ce que la carte 3D n'a pas : de quoi retrouver le maillage
+    et distinguer une version ÉCRITE d'une ADOPTION, sans repasser par une
+    autre route. `job` y DOUBLE `jobId` à dessein : la carte du bundle parle
+    camelCase, ces champs-ci parlent la langue des routes `/etabli/*` (`job`,
+    `version`, `operation`), et les mélanger dans un même bloc se relit mal.
+    Alias de lecture, donc, assumé comme tel.
+
+    `imprimable` DÉMENT une capacité que `kind: "asset3d"` semble offrir. Le
+    menu « Envoyer vers » propose « Impression 3D » à toute carte `asset3d`
+    portant un `short`, et appelle `POST /api/print3d/from-assets3d/<short>`
+    — or cette route lit `model.stl` sinon `model.glb`, JAMAIS
+    `model.v<n>.glb`, et n'accepte aucun numéro de version. Une entrée
+    « v2 · reparer » y ferait donc imprimer le BROUILLON NON RÉPARÉ, en
+    silence. L'onglet doit masquer l'entrée d'impression quand ce champ est
+    faux ; le rendre vrai pour toutes demanderait d'abord d'apprendre une
+    version à `print3d_from_assets3d`, ce qui n'est pas de cette tâche-ci.
     """
     job = ligne["id"]
     v = etape["version"]
@@ -8824,6 +8843,7 @@ def _etabli_entree(ligne: dict, etape: dict, operation: str, d: Path) -> dict:
         "version": v,
         "operation": operation,
         "origine": "adoption" if operation == "adoption" else "version",
+        "imprimable": v == 1,
         "fichier": etape["file"],
         "bytes": etape["bytes"],
         "sha256": etape["sha256"],
@@ -8834,15 +8854,8 @@ def _etabli_entree(ligne: dict, etape: dict, operation: str, d: Path) -> dict:
 
 
 def _etabli_du_job(ligne: dict) -> list[dict]:
-    """Ce que l'Établi a produit dans UN job. Lève si le job est abîmé.
-
-    La liste est LOCALE et rendue d'un bloc, pour qu'un job cassant à
-    mi-parcours ne laisse pas la moitié de ses entrées dans la liste
-    générale. PRÉCAUTION, et dite comme telle : aucun banc ne l'atteint —
-    la casse mesurable (registre illisible, registre qui n'est pas un objet)
-    survient AVANT la première entrée, et la muter en accumulation directe
-    ne fait rougir personne.
-    """
+    """Ce que l'Établi a produit dans UN job. Lève si le job est abîmé :
+    c'est l'appelant qui tient le filet."""
     from app.services import mesh_report
 
     job = ligne["id"]
@@ -8851,9 +8864,21 @@ def _etabli_du_job(ligne: dict) -> list[dict]:
         registre = mesh_report.read_registry(job)
     except FileNotFoundError:
         registre = {}          # aucune fiche : l'Établi n'a rien écrit ici
-    # `[1, 2, 3]` est du JSON VALIDE : `read_registry` ne lève pas dessus, et
-    # le `.get` ci-dessous part alors en AttributeError. C'est voulu — le
-    # filet de l'appelant traite ce dossier comme abîmé.
+    except ValueError as e:
+        # ALIGNÉ SUR `mesh_sources._versions_du_job`, qui fait exactement ce
+        # `except (FileNotFoundError, ValueError)` : un registre illisible
+        # vaut SANS FICHE, pas dossier perdu. Sans cet alignement, le job
+        # s'affichait dans la chronologie et dans /etabli/sources tout en
+        # disparaissant du seul onglet « Établi » — et une adoption dont le
+        # `asset.json` est intact était perdue avec lui. On le DIT quand même.
+        logger.warning(f"etabli/productions: report.json de {job} illisible "
+                       f"({e}) — lu comme sans fiche")
+        registre = {}
+    # ASYMÉTRIE DÉLIBÉRÉE : `[1, 2, 3]` est du JSON VALIDE — `read_registry`
+    # ne lève pas, et le `.get` ci-dessous part en AttributeError. On ne le
+    # rattrape pas ici : un flux d'octets tronqué est une écriture à
+    # moitié faite, tandis qu'un registre d'un AUTRE TYPE dit que ce dossier
+    # n'est plus ce qu'on croit. Le filet de l'appelant le traite comme abîmé.
     fiches = {str(f.get("file")): f
               for f in (registre.get("entries") or [])
               if isinstance(f, dict)}
@@ -8864,11 +8889,11 @@ def _etabli_du_job(ligne: dict) -> list[dict]:
         v = etape["version"]
         if v is None:
             # « décimée » (model.opt.glb) : pas une production de l'Établi.
-            # GARDE DE SÛRETÉ, dite comme telle : ce qui l'exclut vraiment
-            # aujourd'hui est l'absence de fiche `outil == "etabli"` sur ce
-            # fichier — retirer cette ligne seule ne change rien d'observable.
-            # Elle protège l'`int(v)` de la vignette le jour où une fiche
-            # atterrirait sur `model.opt.glb`.
+            # Ce qui l'exclut aujourd'hui est l'absence de fiche
+            # `outil == "etabli"` sur ce fichier ; cette ligne-ci tient le
+            # jour où une fiche y atterrirait — `int(None)` lèverait dans la
+            # vignette, le filet du job rattraperait, et le job ENTIER
+            # disparaîtrait de la catégorie, sa v2 légitime comprise.
             continue
         src = (fiches.get(etape["file"]) or {}).get("source")
         if not isinstance(src, dict) or src.get("outil") != "etabli":
@@ -8878,8 +8903,10 @@ def _etabli_du_job(ligne: dict) -> list[dict]:
         vues.add(v)
 
     if ligne["phase"] == "adopte" and 1 not in vues:
-        # adoption dont la fiche manque (écriture interrompue, ou fiche
-        # remplacée) : le `asset.json` suffit à la reconnaître
+        # Repêchage : une adoption dont la fiche manque ou a perdu son
+        # `source` (écriture interrompue — `adopter_meshy` garde ses trois
+        # écritures séparées —, ou registre illisible lu comme vide
+        # ci-dessus). Le `asset.json` suffit alors à la reconnaître.
         prem = next((e for e in ligne["etapes"] if e["version"] == 1), None)
         if prem is not None:
             out.append(_etabli_entree(ligne, prem, "adoption", d))
@@ -8921,6 +8948,10 @@ def _etabli_productions() -> list[dict]:
     # `mesh_sources.lister()` trie par NOM de dossier — un préfixe d'UUID,
     # donc sans rapport avec le temps, et sa docstring demande à l'appelant de
     # retrier. Ce que la personne cherche, c'est son DERNIER dossier.
+    # Comparer les ISO en TEXTE est sûr ici : ces dates ont une seule plume,
+    # `mesh_report.report()`, qui écrit toujours
+    # `datetime.now(timezone.utc).isoformat(timespec="seconds")` — même
+    # fuseau `+00:00`, même largeur, donc ordre lexical = ordre du temps.
     out.sort(key=lambda e: (e["created_at"] or "", e["job"], e["version"]),
              reverse=True)
     return out
