@@ -107,30 +107,77 @@ export function vider(api) {
   api.gltf = null;
 }
 
+/* La caméra est posée sur une direction FIXE, en fractions de `d`. Elle est
+   déclarée ICI, et non écrite à la main dans position.set(), parce que les
+   seuils de cadrage ci-dessous s'en DÉDUISENT : les deux ne peuvent donc plus
+   diverger en silence — un 0,6 changé sans son seuil rendrait la garde
+   anti-rognage fausse sans rien casser de visible. */
+const DIR = { x: 0.6, y: 0.45, z: 1 };
+const NORME_DIR = Math.hypot(DIR.x, DIR.y, DIR.z);          // 1,25
+
+/* Demi-largeur projetée du PIRE cas — le cube de côté 2·rayon — en unités de
+   rayon. Dérivation : la caméra regarde le centre depuis DIR, donc son axe z
+   vaut DIR normalisée et son axe droit normalize(up × zcam) avec up = (0,1,0),
+   soit (DIR.z, 0, −DIR.x)/hypot(DIR.x, DIR.z) — sa composante y est NULLE. La
+   demi-largeur projetée d'une boîte de demi-côtés (hx,hy,hz) vaut Σ hi·|ri|,
+   donc au plus rayon·(|rx|+|ry|+|rz|) = (DIR.x + DIR.z)/hypot(DIR.x, DIR.z).
+   Soit 1,6/1,16619 = 1,372 — et 1,372/1,6875 donne bien 0,813, le seuil que
+   la tâche 3 avait CALCULÉ sans le corriger. */
+const LARGEUR_PIRE_CAS = (Math.abs(DIR.x) + Math.abs(DIR.z))
+  / Math.hypot(DIR.x, DIR.z);                               // 1,372
+
 /* Cadre la caméra sur la boîte englobante. Indispensable : un modèle en
    mètres et un modèle en centimètres donneraient l'un un point, l'autre un
-   mur — et deux étapes ne seraient pas comparables à l'œil.
-   Le cadrage est DÉLIBÉRÉMENT invariant par aspect : la position ne dépend que
-   de la boîte englobante, donc une vue A cadrée en pleine largeur reste cadrée
-   à l'identique une fois réduite de moitié à l'ouverture de B — c'est
-   précisément ce qui rend A et B comparables. Contrepartie CALCULÉE (pire cas,
-   boîte cubique) : la marge effective n'est pas 1,35 mais 1,6875, car
-   position.set() place la caméra à |(0,6 ; 0,45 ; 1)| = 1,25 fois d — ce
-   facteur 1,25, invisible à la lecture, est aujourd'hui la SEULE chose qui
-   empêche le rognage. D'où les seuils : AUCUN rognage au-dessus d'un aspect
-   ≈ 0,81 ; à 0,75 la boîte déborde de 8,4 % et 7,8 % de la largeur sort du
-   champ ; à 0,60 elle déborde de 35,5 % et 26,2 % en sort. La vraie
-   correction — tenir compte de l'aspect ET re-cadrer A à l'ouverture de B —
-   appartient à la tâche 5, pas ici : un terme en 1/aspect posé seul cadrerait
-   A et B à deux distances différentes et casserait la comparaison. */
+   mur — et deux étapes ne seraient pas comparables à l'œil. */
 export function cadrer(api, marge = 1.35) {
   if (!api.racine) return null;
   const boite = new THREE.Box3().setFromObject(api.racine);
   const taille = boite.getSize(new THREE.Vector3());
   const centre = boite.getCenter(new THREE.Vector3());
   const rayon = Math.max(taille.x, taille.y, taille.z) * 0.5 || 1;
-  const d = (rayon * marge) / Math.tan((api.camera.fov * Math.PI) / 360);
-  api.camera.position.set(centre.x + d * 0.6, centre.y + d * 0.45, centre.z + d);
+  /* L'aspect est MESURÉ sur le canevas, et non lu dans `camera.aspect` : ce
+     dernier n'est rafraîchi que par redimensionner(), à la prochaine image,
+     alors que le re-cadrage de A arrive juste APRÈS l'affichage de B — il
+     lirait donc l'aspect d'avant, précisément celui qu'on corrige. Lire
+     clientWidth force au passage le calcul de mise en page, donc la mesure est
+     celle de la mise en page nouvelle, pas de l'ancienne. */
+  const cv = api.renderer.domElement;
+  const aspect = (cv.clientWidth || 1) / (cv.clientHeight || 1);
+  /* Le cadrage VERTICAL, inchangé, pose la caméra à NORME_DIR·d, ce qui rend
+     visible une demi-hauteur de NORME_DIR·marge·rayon au plan du centre — soit
+     1,6875·rayon pour la marge par défaut. La demi-largeur visible en vaut
+     `aspect` fois autant, quand le pire cas en réclame LARGEUR_PIRE_CAS·rayon :
+     il y a donc rognage dès que aspect < LARGEUR_PIRE_CAS/(NORME_DIR·marge) =
+     0,813, et LÀ SEULEMENT on recule, du facteur exact qui manque, seuil/aspect.
+     Au-dessus du seuil le cadrage ne bouge pas d'un pixel — le `: 1` le dit.
+
+     Ce critère compare des étendues AU PLAN DU CENTRE, la convention que le
+     cadrage vertical suit depuis la tâche 3 ; la perspective, elle, projette le
+     coin le plus PROCHE un peu plus loin encore. Calcul exact des coins d'un
+     cube en NDC (1 = le bord de l'image) : la verticale vaut 1,092 à TOUT
+     aspect — la tolérance que ce cadrage porte depuis toujours — et
+     l'horizontale tombe de 1,952 à 1,114 à l'aspect 0,50, de 1,301 à 1,182 à
+     0,75. Le débordement horizontal rejoint donc l'ordre de grandeur du
+     vertical, et faire mieux exigerait de commencer à reculer dès l'aspect 0,894
+     (là où l'horizontale non corrigée atteint 1,092), c'est-à-dire de changer un
+     cadrage vertical que la tâche ordonne de laisser intact au-dessus de
+     0,813. On corrige donc ce qui est corrigeable sans le casser.
+
+     COMPARABILITÉ, la raison d'être de la vue B : ce facteur ne dépend QUE de
+     l'aspect, du fov et de la marge — jamais des proportions du modèle, alors
+     qu'une largeur projetée mesurée sur CE maillage aurait été plus fine. Le
+     choix est délibéré : A et B partagent le même aspect (deux `flex:1`), donc
+     reçoivent le MÊME recul, et leur distance ne continue de différer que par
+     `rayon` — la normalisation qui les rendait déjà comparables. Un terme
+     mesuré par modèle aurait reculé le plus large des deux et fait croire à
+     l'œil qu'il était le plus petit : la synchronisation des caméras protège
+     la comparaison par un bout, un cadrage qui diverge la détruirait par
+     l'autre. */
+  const seuil = LARGEUR_PIRE_CAS / (NORME_DIR * marge);
+  const recul = aspect < seuil ? seuil / aspect : 1;
+  const d = (rayon * marge * recul) / Math.tan((api.camera.fov * Math.PI) / 360);
+  api.camera.position.set(
+    centre.x + d * DIR.x, centre.y + d * DIR.y, centre.z + d * DIR.z);
   api.camera.near = Math.max(d / 1000, 0.001);
   api.camera.far = d * 100;
   api.camera.updateProjectionMatrix();

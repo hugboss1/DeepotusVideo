@@ -17,6 +17,12 @@ const S = {
   sources: { jobs: [], meshy: [] },
   a: null, b: null,          // { job, meshy, version, url, libelle }
   vueA: null, vueB: null,    // canevas
+  /* La géométrie que charger() a MESURÉE dans le navigateur, par vue :
+     { tris, maillages, taille, centre, rayon }. Elle est retenue parce que la
+     ligne d'écart en a besoin quand la fiche manque — et elle manque le plus
+     souvent, `/api/assets/3d/{job}/report` rendant 404 tant qu'aucune fiche
+     n'a été écrite. (Règle du fichier : toute clé de S se déclare ICI.) */
+  geoA: null, geoB: null,
   enAttente: [],             // corrections non écrites
 };
 
@@ -46,6 +52,18 @@ const fmtOctets = (n) => !n ? "—"
    entière avec. Échapper coûte trois lignes ; ne pas échapper coûte l'écran. */
 const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => (
   { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+/* Un nombre, ou `null` — jamais NaN, jamais une chaîne. Les chiffres de la
+   ligne d'écart viennent de `report.json`, un fichier de disque que la
+   doctrine du module décrit comme ouvert aux mains de l'utilisateur : « 12 000 »
+   peut donc arriver là où un entier est attendu. Le refuser fait tomber la
+   valeur sur le repli (la mesure du navigateur) au lieu de la recopier telle
+   quelle dans le balisage — la même leçon que le Number() de rendreChrono. */
+const nombre = (v) => {
+  if (v === null || v === undefined || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
 
 /* ── la chronologie : une ligne par job, une puce par étape ────────────────── */
 function rendreChrono() {
@@ -97,10 +115,7 @@ function rendreChrono() {
         url: b.dataset.url,
         libelle: b.dataset.libelle,
       };
-      /* alt-clic : la seconde vue, pour comparer deux étapes (spec §5.1).
-         ouvrirComparaison() arrive en TÂCHE 5 avec la vue B et la ligne
-         d'écart ; d'ici là un alt-clic lève une ReferenceError, et c'est
-         délibéré — un bouchon muet ferait croire la comparaison livrée. */
+      /* alt-clic : la seconde vue, pour comparer deux étapes (spec §5.1). */
       if (ev.altKey) ouvrirComparaison(cible);
       else ouvrirPrincipale(cible);
     });
@@ -164,12 +179,17 @@ async function _ouvrirPrincipale(cible, numero) {
        Sans ce bloc l'échec ne se verrait nulle part : la barre du bas est
        l'endroit où le dépôt met ses refus parlants. */
     S.a = null;                      // rien n'est chargé : ne pas mentir à la suite
+    S.geoA = null;                   // ni à la ligne d'écart, qui la lirait
     $("#chipSource").textContent = "—";
     geoBox.textContent = `échec du chargement — ${e.message}`;
     geoBox.classList.add("erreur");
     return;
   }
   S.a = cible;                       // posé APRÈS le succès, pour la même raison
+  /* Retenue pour la ligne d'écart : c'est le SEUL compte de triangles dont on
+     dispose tant qu'aucune fiche n'existe, et le recalculer exigerait de
+     recharger le GLB. */
+  S.geoA = geo;
   $("#chipSource").textContent = `${cible.job || "meshy"} · ${cible.libelle}`;
   geoBox.textContent =
     `${geo.tris.toLocaleString("fr-FR")} triangles · ${geo.maillages} maillages`;
@@ -179,6 +199,229 @@ async function _ouvrirPrincipale(cible, numero) {
   }
   document.dispatchEvent(new CustomEvent("etabli:charge", { detail: { geo } }));
 }
+
+/* ── la comparaison A/B ─────────────────────────────────────────────────────
+   Deux vues, une seule caméra logique. Comparer deux étapes sous deux angles
+   différents ne compare rien : la synchronisation n'est pas un confort.
+   Elle copie la caméra en ABSOLU (position, cible, fov, near/far) — donc si B
+   est plus gros que A, il déborde du cadre de A, et c'est le but : la
+   différence de taille se VOIT, au lieu d'être annulée par deux cadrages
+   indépendants. */
+function synchroniser(src, dst) {
+  /* Les deux sens sont branchés tête-bêche : sans ce drapeau, l'update() de
+     dst lèverait son propre « change », qui recopierait dst vers src, etc. */
+  let enCours = false;
+  src.controls.addEventListener("change", () => {
+    if (enCours) return;
+    enCours = true;
+    dst.camera.position.copy(src.camera.position);
+    dst.camera.quaternion.copy(src.camera.quaternion);
+    dst.camera.fov = src.camera.fov;
+    dst.camera.near = src.camera.near;
+    dst.camera.far = src.camera.far;
+    dst.camera.updateProjectionMatrix();
+    /* La cible AVANT l'update : OrbitControls.update() redéduit ses
+       coordonnées sphériques de (position − target) à chaque appel, donc une
+       cible non copiée ferait pivoter dst autour de son ancien centre. */
+    dst.controls.target.copy(src.controls.target);
+    dst.controls.update();
+    enCours = false;
+  });
+}
+
+/* La fiche BRUTE du registre — attention, ce n'est PAS le vocabulaire de la
+   chronologie : mesh_sources normalisait vers `triangles`/`bytes`, le registre
+   dit `tris_lus`, `dims`, `gltf.textures`, `sha256`. Deux noms pour les mêmes
+   chiffres ; les mélanger afficherait des tirets sans rien casser. */
+async function ficheDe(cible) {
+  /* Pas de job (une étape Meshy) : aucun registre à interroger. Pas de version
+     (l'étape « décimée », qui est un fichier à part) : le registre est indexé
+     PAR VERSION, et retomber sur la version 1 afficherait le sha256 et les
+     cotes du BROUILLON sous un fichier qui n'est pas lui. Une fiche fausse est
+     pire qu'une fiche absente — le repli garde de toute façon les triangles.
+     Et `cible` peut être null : les files de A et de B sont indépendantes,
+     donc un échec de chargement en A pendant que B charge remet S.a à null
+     sous nos pieds. Sans cette garde, le déréférencement lèverait DANS une
+     promesse que le .catch de la file avale — « comparaison… » resterait figé
+     à l'écran, le refus ne vivant que dans la console. */
+  if (!cible || !cible.job || !cible.version) return null;
+  try {
+    const reg = await jget(
+      `/api/assets/3d/${encodeURIComponent(cible.job)}/report`);
+    return (reg.entries || []).find(
+      (e) => Number(e.version) === Number(cible.version)) || null;
+  } catch { return null; }         /* 404 : aucune fiche encore écrite */
+}
+
+function ligneEcart(fa, fb, geoA, geoB) {
+  const ga = (fa && fa.geometry) || {}, gb = (fb && fb.geometry) || {};
+  /* La fiche nomme le compte `tris_lus` et les cotes `dims` (un OBJET
+     largeur/hauteur/profondeur, pas un tableau) — vérifié dans
+     mesh_report.geometry. Se tromper de clé afficherait « — » partout sans
+     rien casser, ce qui est le pire des échecs : silencieux.
+
+     D'où le REPLI, et d'où le fait qu'il compte vraiment : la route rend 404
+     tant qu'aucune fiche n'existe, et ficheDe() avale ce 404. Deux étapes non
+     fichées — le cas ORDINAIRE — n'auraient donc que des tirets. Or les
+     triangles, eux, viennent d'être mesurés : le navigateur a chargé les deux
+     GLB pour les afficher, et charger() en rend le compte. Seuls les cotes,
+     les textures et le sha256 n'ont aucun équivalent mesuré ici ; eux seuls
+     ont droit au tiret. */
+  const ta = nombre(ga.tris_lus) ?? nombre(geoA.tris);
+  const tb = nombre(gb.tris_lus) ?? nombre(geoB.tris);
+  const chiffre = (n) => (n === null ? "—" : n.toLocaleString("fr-FR"));
+  let delta = "";
+  if (ta !== null && tb !== null) {
+    const d = tb - ta, signe = d >= 0 ? "+" : "";
+    /* Le pourcentage n'a de sens que rapporté à quelque chose : sur un A à
+       zéro triangle il vaudrait l'infini. */
+    const pct = ta ? ` (${signe}${((d / ta) * 100).toFixed(1)} %)` : "";
+    delta = ` <i>${signe}${d.toLocaleString("fr-FR")}${pct}</i>`;
+  }
+  const dim = (g) => {
+    const c = [g.dims && g.dims.largeur, g.dims && g.dims.hauteur,
+               g.dims && g.dims.profondeur].map(nombre);
+    return c.every((x) => x !== null)
+      ? c.map((x) => x.toFixed(3)).join(" × ") : "—";
+  };
+  /* esc() sur le sha256 : il vient de `report.json`, donc du disque, et il
+     entre dans innerHTML — l'invariant que ce fichier s'est donné. Les autres
+     valeurs passent par nombre(), qui ne rend que des nombres. */
+  const sha = (f) => (f && f.sha256
+    ? esc(String(f.sha256).slice(0, 10)) + "…" : "—");
+  const tex = (f) => chiffre(nombre(f && f.gltf && f.gltf.textures));
+  return `
+    <div><b>triangles</b> ${chiffre(ta)} → ${chiffre(tb)}${delta}</div>
+    <div><b>dimensions</b> ${dim(ga)} → ${dim(gb)}</div>
+    <div><b>textures</b> ${tex(fa)} → ${tex(fb)}</div>
+    <div><b>sha256</b> ${sha(fa)} → ${sha(fb)}</div>`;
+}
+
+/* ── le verrou de la vue B ──────────────────────────────────────────────────
+   Le mécanisme de la tâche 4, à la lettre, et pour la même raison : charger()
+   n'est pas ré-entrant, donc deux alt-clics rapprochés recouvriraient deux
+   chargements sur S.vueB et le perdant resterait dans le graphe pour toujours.
+   Mais une file PROPRE à B, et non celle de A : le jeton signifie « seule la
+   dernière demande compte », ce qui n'est vrai qu'À L'INTÉRIEUR d'une vue. Un
+   jeton partagé ferait qu'un clic sur A annule l'alt-clic sur B qui attendait
+   derrière lui, et la comparaison ne s'ouvrirait jamais. */
+let _fileB = Promise.resolve();
+let _demandeB = 0;
+
+function ouvrirComparaison(cible) {
+  const numero = ++_demandeB;
+  _fileB = _fileB.then(() => _ouvrirComparaison(cible, numero)).catch(() => {});
+  /* Même contrat que pour la vue A : la promesse dit que la file est vide, et
+     le booléen répond seul à « est-ce que MA cible est en B ? ». */
+  return _fileB.then(() => S.b === cible);
+}
+
+async function _ouvrirComparaison(cible, numero) {
+  if (numero !== _demandeB) return;   // dépassée ou fermée : on se retire
+  /* Comparer avec rien n'a pas de sens : sans vue A, l'alt-clic vaut le clic.
+     Ce que rend ouvrirPrincipale ne dit PAS que le modèle est chargé — sa
+     promesse dit seulement que la file est vide — donc on ne bâtit RIEN
+     derrière ce await : on rend la main, et le refus éventuel est déjà montré
+     dans la barre du bas par _ouvrirPrincipale(). */
+  if (!S.a) { await ouvrirPrincipale(cible); return; }
+
+  const boite = $("#ecart");
+  /* La vue B est montrée AVANT le chargement : c'est ce qui donne au canevas
+     sa taille, donc à cadrer() l'aspect réel de la demi-largeur. Montrée
+     après, B serait cadrée sur une largeur qu'elle n'a plus. */
+  $("#vueB").classList.remove("hidden");
+  boite.classList.remove("hidden");
+  boite.textContent = "comparaison…";
+  let geoB;
+  try {
+    if (!S.vueB) {
+      /* creerCanevas() DANS le try, comme pour A : c'est le SECOND contexte
+         WebGL de la page, donc le premier à se voir refuser quand la carte
+         est à court — et un refus muet laisserait « comparaison… » figé. */
+      S.vueB = creerCanevas($("#vueB canvas"));
+      /* LES DEUX SENS. Une seule direction ferait suivre B quand on tourne A
+         et laisserait A immobile quand on tourne B : un geste sur deux
+         comparerait alors deux angles différents, ce que cette vue existe
+         précisément pour empêcher. */
+      synchroniser(S.vueA, S.vueB);
+      synchroniser(S.vueB, S.vueA);
+    }
+    geoB = await charger(S.vueB, cible.url);
+  } catch (e) {
+    /* Le refus se VOIT, et la page revient à l'état d'avant plutôt que de
+       garder une demi-page noire. Il s'affiche dans la ligne d'écart et non
+       dans la barre du bas : celle-ci appartient au modèle A, qui n'a pas
+       bougé — y écrire l'échec de B mentirait sur A. textContent, le message
+       venant du serveur. */
+    fermerComparaison();
+    boite.classList.remove("hidden");
+    boite.textContent = `échec du chargement de B — ${e.message}`;
+    return;
+  }
+  if (numero !== _demandeB) {
+    /* Fermée (ou dépassée) pendant le chargement : fermerComparaison() a vidé
+       la vue AVANT que ce modèle-ci n'y entre, il n'a donc personne pour le
+       regarder et personne d'autre pour le libérer. */
+    vider(S.vueB);
+    return;
+  }
+  S.b = cible;
+  S.geoB = geoB;
+  /* B vient de prendre la moitié de la largeur à A : le cadrage de A, calculé
+     en pleine largeur, rogne maintenant d'un bon tiers. cadrer() est conscient
+     de l'aspect depuis cette tâche (la dérivation est dans viewer.js) et, à
+     aspect égal, rend à A et à B le MÊME recul — leur distance ne diffère plus
+     que par leur taille propre, ce qui est justement ce qu'on veut comparer.
+     Ce re-cadrage propage de surcroît la caméra de A vers B par la
+     synchronisation (controls.update() lève un « change ») : les deux vues
+     partagent donc un seul point de vue dès la première image, celui de A, la
+     référence. */
+  cadrer(S.vueA);
+  const [fa, fb] = await Promise.all([ficheDe(S.a), ficheDe(S.b)]);
+  if (numero !== _demandeB) return;   // fermée pendant les deux requêtes
+  if (!S.a) {
+    /* La vue A a échoué pendant que B chargeait — les deux files sont
+       indépendantes et s'entrelacent. Il n'y a plus de terme de gauche à la
+       comparaison : la fermer est la seule réponse vraie. Cette garde est
+       posée ICI, après le dernier await, parce que c'est le seul endroit où
+       rien ne peut plus changer avant l'écriture. */
+    fermerComparaison();
+    boite.classList.remove("hidden");
+    boite.textContent = "comparaison abandonnée — la vue A n'a plus de modèle";
+    return;
+  }
+  boite.innerHTML =
+    `<div class="ecart-tete">A ${esc(S.a.libelle)} → B ${esc(cible.libelle)}</div>`
+    + ligneEcart(fa, fb, S.geoA || {}, geoB || {});
+}
+
+/* Le bouton est visible dès le chargement de la page, avant qu'il y ait quoi
+   que ce soit à fermer : chaque geste est donc gardé, et fermer sur rien ne
+   fait rien. */
+function fermerComparaison() {
+  $("#vueB").classList.add("hidden");
+  $("#ecart").classList.add("hidden");
+  $("#ecart").textContent = "";
+  /* vider() libère le MODÈLE, pas le canevas : la boucle de rendu et le
+     contexte WebGL de B restent vivants, c'est délibéré et documenté dans
+     viewer.js (les deux vues sont mises en cache pour la durée de la page). */
+  if (S.vueB) vider(S.vueB);
+  S.b = null;
+  S.geoB = null;
+  /* A récupère toute la largeur : son aspect change dans CE sens aussi, et le
+     cadrage reculé pour une demi-largeur y laisserait le modèle trop petit. */
+  if (S.vueA) cadrer(S.vueA);
+}
+
+$("#btnCompare").addEventListener("click", () => {
+  /* Le jeton avance ICI et non dans fermerComparaison() : une demande encore
+     en file doit se retirer quand c'est l'UTILISATEUR qui ferme (sinon elle
+     rouvrirait la vue qu'il vient de fermer), mais surtout pas quand c'est un
+     chargement raté qui appelle la même fonction — il annulerait alors
+     l'alt-clic suivant, qui n'a rien à voir avec son échec. */
+  _demandeB++;
+  fermerComparaison();
+});
 
 async function amorcer() {
   const box = $("#chrono");

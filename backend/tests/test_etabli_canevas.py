@@ -259,3 +259,119 @@ def test_le_refus_se_voit_et_le_canevas_a_une_hauteur():
     assert 'classList.add("erreur")' in js and "#barreGeo.erreur" in css
     assert "grid-template-rows: minmax(0, 1fr)" in css
     assert "position: absolute; inset: 0" in css
+
+
+# ── E. comparaison A/B ───────────────────────────────────────────────────────
+
+def test_les_cameras_des_deux_vues_sont_synchronisees():
+    """Comparer deux etapes sous deux angles differents ne compare rien.
+
+    On ancre le BRANCHEMENT, pas le mot : `synchroniser` se cable DANS LES
+    DEUX SENS. Une seule direction ferait suivre B quand on tourne A et
+    laisserait A immobile quand on tourne B — la moitie des gestes
+    comparerait alors deux angles differents, ce que cette fonction existe
+    precisement pour empecher. Un `"synchroniser" in js` seul restait vert
+    sur un seul des deux appels.
+    """
+    js = _lire("etabli/etabli.js")
+    assert "synchroniser" in js
+    assert "synchroniser(S.vueA, S.vueB)" in js
+    assert "synchroniser(S.vueB, S.vueA)" in js
+
+
+def test_la_ligne_d_ecart_chiffre_la_comparaison():
+    js = _lire("etabli/etabli.js")
+    for mot in ("triangles", "sha256", "dimensions"):
+        assert mot in js
+    assert "/report" in js
+    # Les quatre marqueurs ci-dessus sont ceux du plan, et AUCUN ne mord :
+    # « triangles » et « dimensions » sont les libelles affiches, « sha256 »
+    # et « /report » vivent aussi dans les commentaires du fichier. Verifie
+    # par mutation — detourner la requete vers /rapport les laissait tous les
+    # quatre verts. La ligne suivante epingle l'APPEL ; les cles lues, elles,
+    # le sont par le banc suivant.
+    assert "/api/assets/3d/${encodeURIComponent(cible.job)}/report" in js
+
+
+def test_la_ligne_d_ecart_lit_les_VRAIES_cles_de_la_fiche():
+    """mesh_report nomme le compte `tris_lus` et les cotes `dims` (un objet
+    largeur/hauteur/profondeur). Se tromper de cle afficherait des tirets
+    partout sans rien casser : le banc doit donc ancrer les CLES, pas les
+    libelles affiches, qui satisfont un `in` sans rien prouver.
+    """
+    js = _lire("etabli/etabli.js")
+    assert "tris_lus" in js
+    assert "dims" in js
+    # ...et sur du CODE, pas sur de la prose. Les deux lignes ci-dessus sont
+    # satisfaites par le commentaire qui NOMME ces cles — exactement le piege
+    # que ce banc denonce, et verifie par mutation : renommer la lecture
+    # `ga.tris_lus` en `ga.triangles` les laissait vertes. On epingle donc
+    # les LECTURES elles-memes.
+    assert "ga.tris_lus" in js and "gb.tris_lus" in js
+    assert "g.dims.largeur" in js
+
+
+def test_la_ligne_d_ecart_se_replie_sur_la_geometrie_du_navigateur():
+    """`/api/assets/3d/{job}/report` REND 404 tant qu'aucune fiche n'existe, et
+    ficheDe() avale ce 404 en rendant null. Sans repli, comparer deux etapes
+    sans fiche afficherait des tirets partout — « le pire des echecs :
+    silencieux ». La geometrie que charger() a MESUREE dans le navigateur est
+    donc retenue dans S et passee a ligneEcart, qui la lit quand la fiche
+    manque. On ancre les trois maillons : la declaration, la memorisation, la
+    lecture — chacun se supprime sans bruit.
+    """
+    js = _lire("etabli/etabli.js")
+    assert "geoA: null, geoB: null" in js        # declarees a la ligne de S
+    assert "S.geoA = geo" in js                  # la vue A retient sa mesure
+    assert "S.geoB = geoB" in js                 # la vue B aussi
+    assert "geoA.tris" in js and "geoB.tris" in js   # et le repli les LIT
+    # le plan passait `{ tris: null }`, qui annulait le repli qu'il concevait
+    assert "{ tris: null }" not in js
+
+
+def test_le_cadrage_tient_compte_de_l_aspect_et_A_est_recadree():
+    """Ouvrir la vue B coupe la largeur en deux : c'est cette fonction meme qui
+    fabrique le cas que cadrer() ne savait pas traiter. Mesure en navigateur,
+    fenetre 1440x900 : une vue seule fait 860x824 (aspect 1,04) ; deux vues
+    cote a cote tombent vers 0,5, ou plus d'un tiers de chaque modele sort du
+    cadre — dans la fonction dont le but est de comparer deux modeles.
+
+    Trois ancres : le cadrage CALCULE le recul (et seulement sous le seuil de
+    rognage), il l'UTILISE dans la distance, et A est RE-cadree — a
+    l'ouverture de B comme a sa fermeture, son aspect changeant dans les deux
+    sens.
+    """
+    vue = _lire("lib3d/viewer.js")
+    js = _lire("etabli/etabli.js")
+    assert "const recul = aspect < seuil ? seuil / aspect : 1;" in vue
+    assert "rayon * marge * recul" in vue
+    assert js.count("cadrer(S.vueA)") == 2       # ouverture ET fermeture
+
+
+def test_la_vue_B_a_son_propre_verrou_de_serialisation():
+    """charger() n'est pas re-entrant et le dit : sur deux alt-clics rapides,
+    le vider() du second s'execute pendant que le loadAsync du premier est
+    encore en vol, puis les DEUX font scene.add() — le perdant reste dans le
+    graphe pour toujours. La tache 4 a resolu cela pour la vue A ; B a besoin
+    de la SIENNE, un jeton partage ferait qu'un clic sur A annulerait
+    l'alt-clic sur B qui l'attendait (« seule la derniere demande compte » n'a
+    de sens qu'A L'INTERIEUR d'une vue).
+    """
+    js = _lire("etabli/etabli.js")
+    assert "_fileB = _fileB.then(" in js
+    # fermer retire les demandes en file : sans cette garde, un chargement en
+    # vol re-ouvrirait la vue B qu'on vient de fermer.
+    assert "numero !== _demandeB" in js
+
+
+def test_la_ligne_d_ecart_echappe_ce_qui_vient_du_disque():
+    """Les libelles viennent du DISQUE (nom de dossier, `asset.json` ecrit a
+    la main) et le sha256 d'un `report.json` que la doctrine du module decrit
+    comme ouvert aux mains de l'utilisateur : les trois entrent dans
+    innerHTML. esc() existe dans le fichier depuis la tache 4 ; la ligne
+    d'ecart n'a pas le droit de faire exception.
+    """
+    js = _lire("etabli/etabli.js")
+    assert "esc(S.a.libelle)" in js
+    assert "esc(cible.libelle)" in js
+    assert "esc(String(f.sha256)" in js
