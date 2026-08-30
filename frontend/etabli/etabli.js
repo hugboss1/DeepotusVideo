@@ -116,17 +116,50 @@ const nombre = (v) => {
   return Number.isFinite(n) ? n : null;
 };
 
+/* Ce que la barre du bas peut montrer d'un refus sans chasser le reste de la
+   ligne. Le texte entier reste au survol : on ABRÈGE, on ne PERD pas. */
+const LARGEUR_REFUS = 160;
+
 /* Le dépôt n'a qu'UN endroit pour ses refus, et c'est la barre du bas : c'est
    là que _ouvrirPrincipale() écrit ses échecs de chargement, sous la classe
-   `erreur` que la feuille peint en rouge. Une boîte d'alerte du navigateur bloquerait la page et
-   ne ressemblerait à rien de ce que l'Établi affiche par ailleurs.
-   Le message est posé en textContent : il vient d'un serveur ou d'un nom de
-   fichier, il n'a rien à faire dans du balisage. Le prochain chargement
-   réussi retire la classe (voir `geoBox.classList.remove("erreur")`). */
+   `erreur` que la feuille peint en rouge. Une boîte d'alerte du navigateur
+   bloquerait la page et ne ressemblerait à rien de ce que l'Établi affiche
+   par ailleurs. Le message est posé en textContent : il vient d'un serveur ou
+   d'un nom de fichier, il n'a rien à faire dans du balisage.
+
+   ET IL EST BORNÉ ICI, pas dans jpost(). Mesuré : un serveur qui répond 501
+   avec une page HTML fait déverser la page ENTIÈRE dans la barre — un 502 de
+   proxy, une déconnexion, n'importe quel corps non-JSON. jpost() doit rester
+   véridique pour la console et pour tout appelant futur ; c'est le point
+   d'AFFICHAGE qui sait que la barre ne fait qu'une ligne. */
 function direRefus(message) {
   const zone = $("#barreGeo");
-  zone.textContent = message;
+  const texte = String(message ?? "");
+  const ligne = texte.split("\n")[0].trim();
+  zone.textContent = ligne.length > LARGEUR_REFUS
+    ? `${ligne.slice(0, LARGEUR_REFUS)}…` : ligne;
+  zone.title = texte;                 /* le refus entier, au survol */
   zone.classList.add("erreur");
+}
+
+/* Le texte NORMAL de la barre du bas : la mesure du modèle affiché. Il s'écrit
+   à DEUX moments — au chargement, et après un refus TRANSITOIRE dont le geste
+   suivant a réussi (poserGizmo, séparerSelection). Sans ce retour, la classe
+   `erreur` ne périmerait qu'au prochain chargement : la barre resterait rouge
+   sous un geste qui vient de marcher, ce qui est un mensonge de moins d'une
+   seconde mais un mensonge quand même. */
+function direGeometrie() {
+  const zone = $("#barreGeo");
+  zone.classList.remove("erreur");
+  zone.title = "";
+  const geo = S.geoA;
+  if (!geo) { zone.textContent = "—"; return; }
+  zone.textContent =
+    `${geo.tris.toLocaleString("fr-FR")} triangles · ${geo.maillages} maillages`;
+  if (geo.tris > SEUIL.triangles) {
+    zone.textContent +=
+      ` · au-delà du seuil de ${SEUIL.triangles.toLocaleString("fr-FR")}, une version décimée existe peut-être`;
+  }
 }
 
 /* ── la chronologie : une ligne par job, une puce par étape ────────────────── */
@@ -252,6 +285,7 @@ async function _ouvrirPrincipale(cible, numero) {
   const geoBox = $("#barreGeo");
   $("#barreFichier").textContent = cible.url.split("/").pop();
   geoBox.classList.remove("erreur");
+  geoBox.title = "";                 /* le refus entier d'avant, au survol */
   geoBox.textContent = "chargement…";
   let geo;
   try {
@@ -282,12 +316,10 @@ async function _ouvrirPrincipale(cible, numero) {
   S.geoA = geo;
   perimerEcart();                    // le terme de gauche a changé sous la boîte
   $("#chipSource").textContent = `${cible.job || "meshy"} · ${cible.libelle}`;
-  geoBox.textContent =
-    `${geo.tris.toLocaleString("fr-FR")} triangles · ${geo.maillages} maillages`;
-  if (geo.tris > SEUIL.triangles) {
-    geoBox.textContent +=
-      ` · au-delà du seuil de ${SEUIL.triangles.toLocaleString("fr-FR")}, une version décimée existe peut-être`;
-  }
+  /* La mesure passe par direGeometrie(), qui la lit dans S.geoA — posé juste
+     au-dessus. Un seul endroit écrit cette ligne, donc un seul endroit à
+     changer le jour où le seuil se dira autrement. */
+  direGeometrie();
   document.dispatchEvent(new CustomEvent("etabli:charge", { detail: { geo } }));
 }
 
@@ -661,6 +693,7 @@ function rendreParties() {
     <div class="parties-actions">
       <button id="btnIsoler">Isoler la sélection</button>
       <button id="btnToutVoir">Tout revoir</button>
+      <button id="btnSeparer">Séparer la sélection en une version</button>
     </div>`;
 
   box.querySelectorAll("[data-g]").forEach((b) =>
@@ -684,10 +717,15 @@ function rendreParties() {
   /* « Tout revoir » n'est pas un second chemin : isoler SUR RIEN restaure, par
      la ligne de code même qui isole. Les deux ne peuvent donc pas diverger. */
   $("#btnToutVoir").addEventListener("click", () => isoler(S.vueA, []));
-  /* APRÈS le `box.innerHTML =` ci-dessus, et c'est ce qui garde le bouton de
-     s'empiler : le rendu repart d'une page blanche, l'ancien bouton meurt
-     avec le balisage qui le portait. Un seul site d'appel, ici. */
-  brancherSeparer();
+  /* Le bouton de séparation est RENDU par le gabarit ci-dessus, exactement
+     comme ses deux voisins, et branché ici : il ne PEUT donc pas s'empiler.
+     Il fut un temps greffé au panneau par une fonction à part, et sa sûreté
+     dépendait alors de l'endroit d'où on appelait celle-ci — un danger qu'il
+     fallait garder au banc. On retire le danger plutôt que de le garder ; un
+     banc interdit du même geste toute fabrique de nœud dans ce fichier. La
+     conversion uuid → index, elle, reste dans separerSelection(), avec la
+     porte d'écriture à qui elle appartient. */
+  $("#btnSeparer").addEventListener("click", separerSelection);
 }
 
 /* ── la porte d'écriture : séparer, transformer, réparer ────────────────────
@@ -767,6 +805,9 @@ function poserGizmo(objet) {
     S.vueA.scene.add(GIZMO.getHelper());
   }
   GIZMO.attach(noeud);
+  /* Le refus qu'un clic PRÉCÉDENT a pu laisser portait sur un autre maillage :
+     le laisser rouge ferait passer ce geste-ci, qui a réussi, pour un échec. */
+  direGeometrie();
 }
 
 /* Rien n'est écrit tant que le bouton n'est pas cliqué : la file est la
@@ -835,9 +876,16 @@ function rendreAttente() {
   const doute = S.enAttente.some((t) => t.heuristique)
     ? `<span class="attente-doute">index de nœud déduits d'un NOM — repli heuristique, à vérifier</span>`
     : "";
+  /* Le `title` n'est pas décoratif : l'énumération se RÉORDONNE sous les yeux
+     de l'utilisateur (fileOrdonnee), et rien à l'écran ne dirait pourquoi.
+     Le bouton d'écriture, lui, porte l'état du VERROU : rendre la barre est
+     le seul geste qui le montre, et ecrireVersion() la refait des deux côtés
+     de la série. Sans cela, le bouton renaîtrait actif au milieu des requêtes
+     et le clic se solderait par un `return` muet — ce que ce fichier refuse
+     partout ailleurs. */
   box.innerHTML = `<b>${S.enAttente.length} modification(s) en attente</b>
-    <span>${esc(liste)}</span>${doute}
-    <button id="btnEcrire">écrire la version</button>
+    <span class="attente-liste" title="ordre d'écriture imposé : réparer, puis transformer, puis séparer — l'extraction renumérote les nœuds, elle passe donc en dernier">${esc(liste)}</span>${doute}
+    <button id="btnEcrire"${_ecritEnCours ? " disabled" : ""}>écrire la version</button>
     <button id="btnAnnuler">annuler</button>`;
   $("#btnEcrire").addEventListener("click", ecrireVersion);
   $("#btnAnnuler").addEventListener("click", () => {
@@ -852,133 +900,154 @@ function rendreAttente() {
 
 async function ecrireVersion() {
   if (!S.a) { direRefus("aucun modèle chargé — rien à écrire"); return; }
-  /* UN VERROU, et pas seulement le bouton grisé plus bas : le gizmo redessine
-     la barre à chaque glissement (noterAttente() appelle rendreAttente()), et
-     le bouton neuf naîtrait ACTIF au beau milieu des requêtes. Deux séries en
-     vol écriraient deux fois la même correction sous deux numéros de version.
-     Même famille que les files de la vue A et de la vue B. */
+  /* UN VERROU, et il court jusqu'à la QUEUE de la fonction. La fenêtre
+     dangereuse n'est pas la boucle d'écriture : c'est tout l'intervalle où
+     `S.a` ne correspond pas encore au disque. Pendant le rechargement final —
+     le téléchargement d'un GLB, plusieurs secondes sur un modèle lourd — S.a
+     porte encore la cible d'AVANT l'écriture, le gizmo tient encore un nœud
+     du modèle sortant, et rendreAttente() vient de refaire la barre. Un
+     glissement de gizmo dans cette fenêtre repeuple la file et fait renaître
+     un bouton ACTIF ; un clic relancerait la série sur la version d'avant,
+     alors que N+1 existe déjà sur le disque. C'est la fourche même que ce
+     verrou existe pour empêcher.
+
+     Le `return` sec ci-dessous n'est donc jamais le seul refus : le bouton
+     est rendu grisé tant que le verrou tient (voir rendreAttente), et la
+     barre est refaite des DEUX côtés de la série. */
   if (_ecritEnCours) return;
   _ecritEnCours = true;
-  /* Le bouton, lui, dit à l'écran ce que le verrou fait en coulisse. Il n'est
-     pas réarmé à la main : rendreAttente(), plus bas, refait la barre entière
-     (ou l'efface) dans tous les cas de figure. */
-  const btn = $("#btnEcrire");
-  if (btn) btn.disabled = true;
+  rendreAttente();                  /* la barre relit le verrou : le bouton grise */
   const ecrites = [];
-  let derniere = null, echec = null;
+  let derniere = null, echec = null, adopte = false;
   try {
-    /* Une étape venue d'une tâche Meshy n'a pas de job où se versionner : on
-       la fait adopter d'abord (spec §6.2). Une seule provenance, pas deux.
-       L'adoption COPIE `model.glb` tel quel (shutil.copy2) : les index de
-       nœud déjà en file restent donc valides sur le job neuf. */
-    if (!S.a.job && S.a.meshy) {
-      const ad = await jpost("/api/etabli/adopter", { task_id: S.a.meshy });
-      S.a = { ...S.a, job: ad.job, version: ad.version, url: ad.url };
+    try {
+      /* Une étape venue d'une tâche Meshy n'a pas de job où se versionner : on
+         la fait adopter d'abord (spec §6.2). Une seule provenance, pas deux.
+         L'adoption COPIE `model.glb` tel quel (shutil.copy2) : les index de
+         nœud déjà en file restent donc valides sur le job neuf. */
+      if (!S.a.job && S.a.meshy) {
+        const ad = await jpost("/api/etabli/adopter", { task_id: S.a.meshy });
+        /* Et elle a ÉCRIT SUR LE DISQUE : un dossier, une copie du GLB, un
+           registre. Le compte rendu doit le dire, sans quoi « écrit : rien »
+           serait faux au moment même où rendreChrono() fait apparaître le job
+           neuf dans la chronologie, sous les yeux de l'utilisateur. On ne le
+           pousse pas dans `ecrites` pour autant : ce n'est pas une opération
+           de la file, la copie est octet pour octet, les index restent
+           valides — la vider serait la punir pour une réussite. */
+        adopte = true;
+        S.a = { ...S.a, job: ad.job, version: ad.version, url: ad.url };
+      }
+      /* L'étape « décimée » est un FICHIER À PART (`model.opt.glb`) et n'a pas
+         de numéro : mesh_sources lui donne `version: null`. Or la route
+         retombe sur la version 1 quand le corps n'en porte pas — écrire d'ici
+         partirait du BROUILLON, qui n'a ni la même géométrie ni les mêmes
+         index que ce qui est à l'écran. Un GLB faux, sur disque, en silence.
+         ficheDe() refuse déjà cette étape pour exactement la même raison. */
+      if (!S.a.version) {
+        throw new Error("l'étape « décimée » n'est pas une version numérotée : "
+          + "chargez une version pour la corriger");
+      }
+      const base = { job: S.a.job, version: S.a.version };
+      for (const t of fileOrdonnee()) {
+        const corps = t.operation === "transformer"
+          ? { ...base, transforms: t.charge }
+          : t.operation === "extraire"
+            ? { ...base, noeuds: t.charge }
+            : { ...base, ...t.charge };
+        derniere = await jpost(ROUTES[t.operation], corps);
+        ecrites.push(t.operation);
+        /* LE CHAÎNAGE, et c'est lui qui fait de la série une LIGNÉE : sans
+           cette ligne, les trois opérations repartent toutes de la version de
+           départ et écrivent trois versions SŒURS nées du même parent — la
+           deuxième perd la première, la troisième perd les deux, et le
+           registre garde les trois comme si de rien n'était. */
+        base.version = derniere.version;
+      }
+    } catch (e) {
+      /* Sans ce bloc, un refus du serveur — un quaternion non normé, un GLB
+         meshopt que l'extraction ne sait pas recopier — partirait dans le
+         vide : la promesse serait rejetée sans témoin, la barre resterait
+         figée sur « en attente », et l'utilisateur ne saurait pas que rien
+         n'a bougé. */
+      echec = e;
     }
-    /* L'étape « décimée » est un FICHIER À PART (`model.opt.glb`) et n'a pas
-       de numéro : mesh_sources lui donne `version: null`. Or la route retombe
-       sur la version 1 quand le corps n'en porte pas — écrire d'ici partirait
-       du BROUILLON, qui n'a ni la même géométrie ni les mêmes index que ce
-       qui est à l'écran. Un GLB faux, sur disque, en silence. ficheDe()
-       refuse déjà cette étape pour exactement la même raison. */
-    if (!S.a.version) {
-      throw new Error("l'étape « décimée » n'est pas une version numérotée : "
-        + "chargez une version pour la corriger");
+    const restantes = fileOrdonnee().map((t) => t.operation)
+      .filter((op) => !ecrites.includes(op));
+    /* La file est vidée DÈS QUE quelque chose a touché le disque, et pas
+       seulement en cas de succès complet : ce qui reste est indexé sur le
+       modèle d'AVANT, et la version qu'on s'apprête à ouvrir n'est plus
+       celui-là. Rejouer le reste depuis l'ancienne version FOURCHERAIT
+       l'historique en silence — deux branches nées de la même base, sans que
+       rien ne le dise. Si RIEN n'a été écrit, rien n'a bougé non plus à
+       l'écran : la file reste intacte, et le refus se lit dans la barre. */
+    if (ecrites.length) S.enAttente.length = 0;
+    rendreAttente();
+    try {
+      /* La chronologie apprend les versions neuves MÊME en cas d'échec
+         partiel : ce qui est passé existe sur disque et doit se voir. */
+      S.sources = await jget("/api/etabli/sources");
+      rendreChrono();
+    } catch { /* la chronologie précédente reste : elle n'a menti sur rien */ }
+    if (derniere) {
+      await ouvrirPrincipale({ ...S.a, version: derniere.version,
+        url: `/api/assets/3d/${S.a.job}/version/${derniere.version}`,
+        libelle: `version ${derniere.version}` });
     }
-    const base = { job: S.a.job, version: S.a.version };
-    for (const t of fileOrdonnee()) {
-      const corps = t.operation === "transformer"
-        ? { ...base, transforms: t.charge }
-        : t.operation === "extraire"
-          ? { ...base, noeuds: t.charge }
-          : { ...base, ...t.charge };
-      derniere = await jpost(ROUTES[t.operation], corps);
-      ecrites.push(t.operation);
-      base.version = derniere.version;      /* enchaîner sur la version écrite */
+    if (echec) {
+      /* APRÈS le rechargement, et c'est tout le soin : _ouvrirPrincipale()
+         réécrit #barreGeo, donc un refus posé avant lui disparaîtrait sans
+         avoir été lu. On dit ce qui est passé ET ce qui ne l'est pas — un
+         « échec » sec laisserait croire que le disque n'a pas bougé. */
+      direRefus(`écrit : ${ecrites.join(", ") || "rien"}`
+        + (adopte ? ` · adoption faite (job ${S.a.job})` : "")
+        + ` · abandonné : ${restantes.join(", ") || "rien"}`
+        + ` — ${echec.message}`);
     }
-  } catch (e) {
-    /* Sans ce bloc, un refus du serveur — un quaternion non normé, un GLB
-       meshopt que l'extraction ne sait pas recopier — partirait dans le vide :
-       la promesse serait rejetée sans témoin, la barre resterait figée sur
-       « en attente », et l'utilisateur ne saurait pas que rien n'a bougé. */
-    echec = e;
   } finally {
-    /* Le verrou tombe ICI et non à la fin de la fonction : la fenêtre
-       dangereuse est la boucle d'écriture, et un `finally` est le seul endroit
-       dont on sorte à coup sûr — un verrou resté posé condamnerait le bouton
-       pour le reste de la session, ce qui est pire que ce qu'il empêche. */
+    /* Le verrou tombe ici, et pas une ligne plus haut : un `finally` est le
+       seul endroit dont on sorte à coup sûr, et un verrou resté posé
+       condamnerait le bouton pour le reste de la session — pire que ce qu'il
+       empêche. La barre est refaite juste après pour que le bouton, qui
+       porte l'état du verrou, cesse d'être grisé. */
     _ecritEnCours = false;
-  }
-  const restantes = fileOrdonnee().map((t) => t.operation)
-    .filter((op) => !ecrites.includes(op));
-  /* La file est vidée DÈS QUE quelque chose a touché le disque, et pas
-     seulement en cas de succès complet : ce qui reste est indexé sur le
-     modèle d'AVANT, et la version qu'on s'apprête à ouvrir n'est plus
-     celui-là. Rejouer le reste depuis l'ancienne version FOURCHERAIT
-     l'historique en silence — deux branches nées de la même base, sans que
-     rien ne le dise. Si RIEN n'a été écrit, rien n'a bougé non plus à
-     l'écran : la file reste intacte, et le refus se lit dans la barre. */
-  if (ecrites.length) S.enAttente.length = 0;
-  rendreAttente();
-  try {
-    /* La chronologie apprend les versions neuves MÊME en cas d'échec
-       partiel : ce qui est passé existe sur disque et doit se voir. */
-    S.sources = await jget("/api/etabli/sources");
-    rendreChrono();
-  } catch { /* la chronologie précédente reste : elle n'a menti sur rien */ }
-  if (derniere) {
-    await ouvrirPrincipale({ ...S.a, version: derniere.version,
-      url: `/api/assets/3d/${S.a.job}/version/${derniere.version}`,
-      libelle: `version ${derniere.version}` });
-  }
-  if (echec) {
-    /* APRÈS le rechargement, et c'est tout le soin : _ouvrirPrincipale()
-       réécrit #barreGeo, donc un refus posé avant lui disparaîtrait sans
-       avoir été lu. On dit ce qui est passé ET ce qui ne l'est pas — un
-       « échec » sec laisserait croire que le disque n'a pas bougé. */
-    direRefus(`écrit : ${ecrites.join(", ") || "rien"}`
-      + ` · abandonné : ${restantes.join(", ") || "rien"}`
-      + ` — ${echec.message}`);
+    rendreAttente();
   }
 }
 
 /* Séparer : la sélection courante part comme nouvelle version. */
-function brancherSeparer() {
-  const b = document.createElement("button");
-  b.id = "btnSeparer";
-  b.textContent = "Séparer la sélection en une version";
-  b.addEventListener("click", () => {
-    /* ICI se rencontrent les deux vocabulaires : `SEL.retenus` porte des uuid
-       three.js, le serveur veut des index de nœud glTF. isoler() refuse
-       délibérément de faire la conversion et son commentaire renvoie à cette
-       porte — « la conversion appartient à qui mêlera les deux vocabulaires ».
-       Un uuid de MATÉRIAU ne se retrouve pas dans le graphe : il tombe donc
-       naturellement, comme un maillage sans index. */
-    let source;
-    const idx = [...SEL.retenus]
-      .map((u) => {
-        let trouve;
-        if (S.vueA && S.vueA.racine) {
-          S.vueA.racine.traverse((o) => { if (o.uuid === u) trouve = o; });
-        }
-        if (!trouve || !trouve.userData) return undefined;
-        if (trouve.userData.indexGltf !== undefined
-            && trouve.userData.indexGltfSource !== "associations") {
-          source = trouve.userData.indexGltfSource;
-        }
-        return trouve.userData.indexGltf;
-      })
-      .filter((x) => x !== undefined);
-    if (!idx.length) {
-      /* La page a déjà une façon de refuser en le disant, et ce n'est pas
-         une boîte modale du navigateur : la barre du bas. */
-      direRefus("aucun nœud glTF dans la sélection — un matériau, ou une "
-        + "primitive de maillage, n'a pas d'index à envoyer");
-      return;
-    }
-    noterAttente("extraire", idx, source);
-  });
-  $("#panParties").querySelector(".parties-actions").appendChild(b);
+function separerSelection() {
+  /* ICI se rencontrent les deux vocabulaires : `SEL.retenus` porte des uuid
+     three.js, le serveur veut des index de nœud glTF. isoler() refuse
+     délibérément de faire la conversion et son commentaire renvoie à cette
+     porte — « la conversion appartient à qui mêlera les deux vocabulaires ».
+     Un uuid de MATÉRIAU ne se retrouve pas dans le graphe : il tombe donc
+     naturellement, comme un maillage sans index. */
+  let source;
+  const idx = [...SEL.retenus]
+    .map((u) => {
+      let trouve;
+      if (S.vueA && S.vueA.racine) {
+        S.vueA.racine.traverse((o) => { if (o.uuid === u) trouve = o; });
+      }
+      if (!trouve || !trouve.userData) return undefined;
+      if (trouve.userData.indexGltf !== undefined
+          && trouve.userData.indexGltfSource !== "associations") {
+        source = trouve.userData.indexGltfSource;
+      }
+      return trouve.userData.indexGltf;
+    })
+    .filter((x) => x !== undefined);
+  if (!idx.length) {
+    /* La page a déjà une façon de refuser en le disant, et ce n'est pas une
+       boîte modale du navigateur : la barre du bas. */
+    direRefus("aucun nœud glTF dans la sélection — un matériau, ou une "
+      + "primitive de maillage, n'a pas d'index à envoyer");
+    return;
+  }
+  noterAttente("extraire", idx, source);
+  /* Le geste a réussi : un refus rouge laissé par le clic d'avant ne doit pas
+     lui rester accroché. */
+  direGeometrie();
 }
 
 /* ── le panneau Fiche : réparer l'assise ────────────────────────────────────

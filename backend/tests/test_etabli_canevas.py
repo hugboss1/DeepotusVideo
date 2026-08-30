@@ -901,6 +901,11 @@ def test_rien_n_est_ecrit_sans_le_bouton():
     assert "enAttente" in js
     assert "btnEcrire" in js
     assert "if (_ecritEnCours) return;" in js
+    # Et le bouton PORTE l'etat du verrou : sans cet attribut il renait actif
+    # au milieu de la serie, le clic se solde par le `return` muet ci-dessus,
+    # et ce fichier ne se tait nulle part ailleurs. Verifie par mutation :
+    # retirer l'interpolation laissait tout vert.
+    assert '<button id="btnEcrire"${_ecritEnCours ? " disabled" : ""}>' in js
     corps = js.split("async function ecrireVersion", 1)[1].split("\n}\n", 1)[0]
     assert corps.index("} finally {") < corps.index("_ecritEnCours = false;")
 
@@ -1000,8 +1005,14 @@ def test_l_extraction_est_ecrite_en_DERNIER_car_elle_renumerote():
     """
     js = _lire("etabli/etabli.js")
     assert 'const ORDRE_ECRITURE = ["reparer", "transformer", "extraire"];' in js
+    # LE TRI LUI-MEME. Mesure : remplacer le corps de fileOrdonnee() par
+    # `return [...S.enAttente];` remet la file dans l'ordre des CLICS et ne
+    # faisait rougir personne — la table pouvait rester declaree et inerte,
+    # et ce banc restait vert sous un titre qui promettait le contraire.
+    tri = js.split("function fileOrdonnee", 1)[1].split("\n}\n", 1)[0]
+    assert ("ORDRE_ECRITURE.indexOf(a.operation) - "
+            "ORDRE_ECRITURE.indexOf(b.operation)") in tri
     corps = js.split("async function ecrireVersion", 1)[1].split("\n}\n", 1)[0]
-    assert "ORDRE_ECRITURE" in _lire("etabli/etabli.js")
     assert "fileOrdonnee()" in corps
     # et surtout PAS l'ordre d'insertion, qui est celui des clics
     assert "for (const t of S.enAttente)" not in corps
@@ -1025,6 +1036,15 @@ def test_un_echec_au_milieu_d_une_serie_se_dit_et_ne_fourche_pas():
     assert "try {" in corps and "} catch (e) {" in corps
     assert "jpost(ROUTES[t.operation], corps)" in corps    # l'APPEL, epingle
     assert "ecrites.push(t.operation);" in corps           # ce qui EST passe
+    # LE CHAINAGE, sans quoi la serie n'est pas une lignee. Mesure : supprimer
+    # cette ligne fait ecrire trois versions SŒURS nees du meme parent — la
+    # deuxieme perd la premiere, la troisieme perd les deux — et le banc
+    # restait entierement vert. C'est la fourche que ce banc dit empecher.
+    assert "base.version = derniere.version;" in corps
+    # Et l'adoption Meshy, qui CREE un job sur disque (dossier, copie du GLB,
+    # registre), ne se laisse pas resumer par « ecrit : rien » au moment meme
+    # ou rendreChrono() fait apparaitre ce job dans la chronologie.
+    assert "adopte = true;" in corps and "adoption faite" in corps
     assert "abandonné" in corps                            # et ce qui ne l'est pas
     assert "direRefus(" in corps                           # le refus se DIT
     assert "if (ecrites.length) S.enAttente.length = 0;" in corps
@@ -1055,7 +1075,7 @@ def test_aucun_refus_ne_passe_par_alert():
     js = _lire("etabli/etabli.js")
     assert "alert(" not in js
     assert "function direRefus(" in js
-    corps = js.split("function brancherSeparer", 1)[1].split("\n}\n", 1)[0]
+    corps = js.split("function separerSelection", 1)[1].split("\n}\n", 1)[0]
     assert "direRefus(" in corps
 
 
@@ -1070,6 +1090,12 @@ def test_un_index_deduit_d_un_NOM_se_dit_avant_d_ecrire():
     """
     js, css = _lire("etabli/etabli.js"), _lire("etabli/etabli.css")
     assert 'indexGltfSource !== "associations"' in js
+    # LE CALCUL du drapeau, et pas seulement sa lecture. Mesure : `const doute
+    # = false;` dans noterAttente fait disparaitre l'avertissement « index de
+    # nœud deduits d'un NOM » en gardant tout vert — et c'est un avertissement
+    # qui PRECEDE une ecriture disque.
+    note = js.split("function noterAttente", 1)[1].split("\n}\n", 1)[0]
+    assert 'source !== undefined && source !== "associations"' in note
     corps = js.split("function rendreAttente", 1)[1].split("\n}\n", 1)[0]
     # La LECTURE du drapeau, et non le mot : `"heuristique" in corps` restait
     # VERT quand la condition devenait `false`, le message d'avertissement
@@ -1106,17 +1132,22 @@ def test_la_barre_d_attente_est_redessinee_quand_le_modele_change():
     assert js.index("rendreAttente();", i) < js.index("await charger(S.vueA")
 
 
-def test_le_bouton_Separer_est_refait_a_chaque_rendu_et_ne_s_empile_pas():
-    """`brancherSeparer()` AJOUTE un bouton au panneau. Appelé deux fois sans
-    que le panneau soit réécrit entre-temps, il en empilerait deux — et un
-    clic dans le canevas redessine le panneau. La sûreté vient d'un seul site
-    d'appel, placé APRÈS le `box.innerHTML =` qui repart d'une page blanche :
-    l'ancien bouton meurt avec le balisage qui le portait.
+def test_le_bouton_Separer_est_rendu_par_le_gabarit_comme_ses_voisins():
+    """Le bouton fut d'abord AJOUTÉ au panneau par `appendChild`, depuis une
+    fonction à part. Il ne s'empilait pas — mais seulement parce qu'on
+    l'appelait APRÈS le `box.innerHTML` qui repart d'une page blanche : une
+    sûreté qui tenait à un ordre d'appel, donc un danger qu'il fallait garder.
+    Rendu par le gabarit comme `#btnIsoler` et `#btnToutVoir`, et branché à
+    côté d'eux, ce danger n'existe plus — on le RETIRE au lieu de le garder.
+    D'où l'interdiction structurelle du `createElement` : c'est elle qui
+    empêche la fabrique de revenir par la fenêtre.
     """
     js = _lire("etabli/etabli.js")
-    assert js.count("brancherSeparer();") == 1        # un SEUL site d'appel
     corps = js.split("function rendreParties", 1)[1].split("\n}\n", 1)[0]
-    assert corps.index("box.innerHTML = `") < corps.index("brancherSeparer();")
+    assert '<button id="btnSeparer">' in corps
+    assert '$("#btnSeparer").addEventListener("click", separerSelection);' in corps
+    assert "appendChild" not in js
+    assert "createElement" not in js
 
 
 def test_le_bloc_reparer_met_en_attente_au_lieu_d_ecrire():
