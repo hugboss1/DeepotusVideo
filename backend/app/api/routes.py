@@ -8766,23 +8766,45 @@ async def etabli_sources(limit: int = 60):
 def _etabli_vignette(d: Path, job: str, v: int) -> str | None:
     """L'image à montrer pour une version, ou `None` s'il n'y en a aucune.
 
-    `/api/assets/3d/{job}/preview` ne sert QUE `preview.png`, déposé par le
-    moteur : un job ADOPTÉ n'en a pas un seul, et la carte afficherait une
-    case grise sans qu'aucune erreur ne remonte. La fiche écrite par l'Établi
-    rend en revanche `sil_v<n>/silhouette_face.png`, et cette silhouette-là
-    est celle de la VERSION demandée — elle est donc préférée au rendu du
-    moteur, qui ne montre que le brouillon. L'absence est DITE (`None`)
-    plutôt que servie en lien mort.
+    ORDRE : `preview.png` → `shot_0.png` → silhouette → `None`. Il a été
+    RETOURNÉ. La silhouette passait d'abord, au motif qu'elle est celle de
+    la VERSION demandée là où le rendu ne montre que le brouillon —
+    raisonnement juste, résultat faux, et c'est lui qui a produit le
+    défaut : « les nouvelles versions apparaissent bien dans la librairie,
+    mais les illustrations ne se montrent pas », six vignettes blanches
+    sur huit.
+
+    LE RENDU DU MOTEUR D'ABORD, PARCE QU'IL ILLUSTRE.
+    `sil_v<n>/silhouette_face.png` n'est pas une image de l'objet mais un
+    MASQUE de contrôle : `mesh_report.silhouettes()` l'écrit pour la
+    comparaison de silhouette du QC — une forme blanche pleine sur fond
+    noir. Mesuré sur les données de l'utilisateur : 60 % de pixels clairs
+    pour la silhouette, 0 % pour `preview.png`. Elle s'affichait
+    parfaitement ; elle ne montrait rien.
+
+    LE PRIX, ASSUMÉ. `preview.png` et `shot_0.png` sont déposés par le
+    moteur au premier tir : ils montrent la VERSION 1, pas la version
+    listée. C'est acceptable parce que la carte porte déjà le numéro en
+    toutes lettres — « 6e0a8a5f · v5 · transformer » — et qu'une image du
+    bon objet renseigne mieux qu'un masque de la bonne version.
+
+    LA SILHOUETTE RESTE, EN QUEUE. Quand elle sort, c'est qu'il n'y a NI
+    preview NI shot dans le dossier : elle est alors la seule image qui
+    existe, et un masque vaut mieux qu'une case vide. Pis-aller, pas
+    choix — l'état du job `6e0a8a5f`, quatre silhouettes et rien d'autre.
+    L'absence totale est DITE (`None`) plutôt que servie en lien mort.
 
     POUR L'ONGLET : `null` doit être traité EXPLICITEMENT. La carte 3D du
     bundle porte un repli `onError` vers `shot/0`, mais React omet
     l'attribut `src` quand la valeur est `null` — aucune requête, donc aucun
     évènement `error`, donc le repli ne joue jamais.
     """
-    if (d / f"sil_v{int(v)}" / "silhouette_face.png").is_file():
-        return f"/api/assets/3d/{job}/silhouette/face?v={int(v)}"
     if (d / "preview.png").is_file():
         return f"/api/assets/3d/{job}/preview"
+    if (d / "shot_0.png").is_file():
+        return f"/api/assets/3d/{job}/shot/0"
+    if (d / f"sil_v{int(v)}" / "silhouette_face.png").is_file():
+        return f"/api/assets/3d/{job}/silhouette/face?v={int(v)}"
     return None
 
 

@@ -1758,35 +1758,62 @@ def test_un_registre_d_un_AUTRE_TYPE_perd_ce_job_seul_et_le_DIT():
     assert any(liste in str(m) for m in dits)
 
 
-def test_la_vignette_pointe_sur_une_image_qui_EXISTE_ou_sur_rien():
-    """La carte du bundle affiche `thumb` telle quelle : une URL morte donne
-    une case grise, sans erreur nulle part.
+def test_la_vignette_montre_le_RENDU_du_moteur_avant_le_MASQUE_de_controle():
+    """BANC RETOURNÉ. Il épinglait l'ordre INVERSE — silhouette d'abord — et
+    c'est cette préférence-là qui a produit le défaut rapporté : « les
+    nouvelles versions apparaissent bien dans la librairie, mais les
+    illustrations ne se montrent pas ». Six vignettes sur huit étaient des
+    rectangles blancs.
 
-    `/api/assets/3d/{job}/preview` ne sert QUE `preview.png`, que le moteur
-    dépose — un job adopté n'en a aucun. Mais chaque fiche écrite par
-    l'Établi rend, elle, `sil_v<n>/silhouette_face.png` : c'est la vignette
-    honnête d'une production, et la route la PRÉFÈRE. Sans image du tout,
-    `thumb` vaut `null` plutôt qu'un lien cassé.
+    Le raisonnement d'origine se tenait : la silhouette est celle de la
+    VERSION demandée, tandis que le rendu ne montre que le brouillon. La
+    MESURE le dément. `sil_v<n>/silhouette_face.png` n'illustre rien : c'est
+    un MASQUE de contrôle, écrit par `mesh_report.silhouettes()` pour la
+    comparaison de silhouette du QC — une forme blanche pleine sur fond
+    noir. Sur le job réel de l'utilisateur, `sil_v5/silhouette_face.png`
+    compte 60 % de pixels CLAIRS quand son `preview.png` en compte 0 %. La
+    vignette s'affichait parfaitement ; elle ne montrait simplement pas
+    l'objet.
 
-    `prod_vign_deux` est le cas COURANT — un job de moteur, donc avec son
-    `preview.png`, corrigé ensuite à l'Établi — et le seul où la préférence
-    se mesure : partout ailleurs une seule des deux images existe.
+    L'ordre est donc RETOURNÉ : `preview.png` → `shot_0.png` → silhouette →
+    `None`. Le rendu du moteur date du premier tir, il montre la version 1
+    et non la version listée — prix assumé, acceptable parce que la carte
+    DIT le numéro en toutes lettres, « 6e0a8a5f · v5 · transformer », ce que
+    la dernière assertion mesure. La silhouette n'est plus un choix mais un
+    PIS-ALLER : quand elle sort, elle est la seule image du dossier.
+
+    Une URL morte donnerait une case grise sans erreur nulle part : les
+    quatre vignettes non nulles sont donc TIRÉES, pas seulement comparées.
     """
     from PIL import Image
     from app.services import mesh_edit
+
+    def _png(p):
+        Image.new("RGB", (1, 1)).save(p)
+
+    # les TROIS images à la fois : seule fixture où l'ordre ENTIER se mesure
+    d0 = _job("prod_vign_tout")
+    _png(d0 / "preview.png")
+    _png(d0 / "shot_0.png")
+    mesh_edit.ecrire_version("prod_vign_tout", _glb_de_banc(),
+                             operation="reparer", detail={})
+    # sans `preview.png` : le shot du moteur passe AVANT le masque
+    d1 = _job("prod_vign_shot")
+    _png(d1 / "shot_0.png")
+    mesh_edit.ecrire_version("prod_vign_shot", _glb_de_banc(),
+                             operation="reparer", detail={})
+    # ni preview ni shot : la silhouette est la SEULE image du dossier —
+    # l'état du job `6e0a8a5f` de l'utilisateur, quatre silhouettes et rien
+    # d'autre. Elle sort, faute de mieux.
     _job("prod_vign_sil")
     mesh_edit.ecrire_version("prod_vign_sil", _glb_de_banc(),
                              operation="reparer", detail={})
-    d0 = _job("prod_vign_deux")
-    Image.new("RGB", (1, 1)).save(d0 / "preview.png")
-    mesh_edit.ecrire_version("prod_vign_deux", _glb_de_banc(),
-                             operation="reparer", detail={})
     # des octets illisibles : la fiche dégrade proprement, donc PAS de
-    # silhouette — c'est ainsi qu'on atteint les deux autres branches
-    d2 = _job("prod_vign_prev")
+    # silhouette — c'est ainsi qu'on atteint les deux dernières branches
+    d3 = _job("prod_vign_prev")
     mesh_edit.ecrire_version("prod_vign_prev", b"ceci n'est pas un GLB",
                              operation="reparer", detail={})
-    Image.new("RGB", (1, 1)).save(d2 / "preview.png")
+    _png(d3 / "preview.png")
     _job("prod_vign_rien")
     mesh_edit.ecrire_version("prod_vign_rien", b"ceci n'est pas un GLB",
                              operation="reparer", detail={})
@@ -1794,16 +1821,22 @@ def test_la_vignette_pointe_sur_une_image_qui_EXISTE_ou_sur_rien():
     c = _client()
     par_job = {e["job"]: e
                for e in c.get("/api/etabli/productions").json()["items"]}
+    assert par_job["prod_vign_tout"]["thumb"] == \
+        "/api/assets/3d/prod_vign_tout/preview"
+    assert par_job["prod_vign_shot"]["thumb"] == \
+        "/api/assets/3d/prod_vign_shot/shot/0"
     assert par_job["prod_vign_sil"]["thumb"] == \
         "/api/assets/3d/prod_vign_sil/silhouette/face?v=2"
-    assert par_job["prod_vign_deux"]["thumb"] == \
-        "/api/assets/3d/prod_vign_deux/silhouette/face?v=2"
     assert par_job["prod_vign_prev"]["thumb"] == \
         "/api/assets/3d/prod_vign_prev/preview"
     assert par_job["prod_vign_rien"]["thumb"] is None
-    # et les trois URL servent VRAIMENT une image
-    for j in ("prod_vign_sil", "prod_vign_deux", "prod_vign_prev"):
+    # et les quatre URL servent VRAIMENT une image
+    for j in ("prod_vign_tout", "prod_vign_shot", "prod_vign_sil",
+              "prod_vign_prev"):
         assert c.get(par_job[j]["thumb"]).status_code == 200
+    # ce qui rend le prix acceptable : à côté d'une image du brouillon, la
+    # carte porte le numéro de la version qu'elle liste
+    assert "v2" in par_job["prod_vign_tout"]["name"]
 
 
 def test_les_productions_sortent_de_la_plus_recente_a_la_plus_ancienne():
