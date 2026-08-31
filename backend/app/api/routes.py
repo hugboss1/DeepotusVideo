@@ -921,6 +921,44 @@ async def get_asset3d_silhouette(job: str, vue: str, v: int = 1):
     return FileResponse(p, media_type="image/png")
 
 
+def _etabli_vignette_path(job: str, v: int) -> Path:
+    """Le chemin de la vignette d'une version — UN SEUL endroit le compose.
+
+    Écrite par `POST /api/etabli/vignette` (la capture du canevas de l'Établi),
+    servie ci-dessous, préférée par `_etabli_vignette`. Trois endroits qui
+    doivent nommer le même fichier : le nom se décide ici, pas trois fois.
+
+    `Path(job).name` APLATIT — c'est ce qui interdit `../../ailleurs` — et il
+    le fait ICI, ET ICI SEULEMENT. Un second aplatissement chez l'appelant
+    serait du zèle NUISIBLE : mesuré, avec deux gardes en parallèle, en
+    retirer une laissait le banc de traversée entièrement vert, et plus rien
+    ne disait laquelle tenait. La route d'écriture déduit donc son dossier de
+    `p.parent` au lieu de le recomposer.
+    """
+    return (settings.outputs_path / "assets3d" / Path(str(job)).name
+            / f"vignette_v{int(v)}.png")
+
+
+@router.get("/assets/3d/{job}/vignette")
+async def get_asset3d_vignette(job: str, v: int = 1):
+    """La vignette CAPTURÉE par l'Établi au moment de l'écriture d'une version.
+
+    Déclarée AVANT /{fmt} — même règle que /preview et /silhouette : sans cela
+    elle serait avalée comme `fmt="vignette"` et irait chercher un
+    `model.vignette` qui n'existe nulle part. Un banc mesure ce 200.
+
+    404 FRANC quand la version n'a pas été capturée. C'est le cas NORMAL, et
+    ce n'est pas un défaut : la vignette naît à l'écriture SEULEMENT (décision
+    de l'utilisateur), donc toute production antérieure à cette tâche n'en a
+    pas. `_etabli_vignette` ne compose d'ailleurs cette URL que si le fichier
+    est là ; personne ne sert de lien mort.
+    """
+    p = _etabli_vignette_path(job, v)
+    if not p.is_file():
+        raise HTTPException(404, "Not found")
+    return FileResponse(p, media_type="image/png")
+
+
 @router.get("/assets/3d/{job}/{fmt}")
 async def get_asset3d_file(job: str, fmt: str):
     """Stream a generated mesh file (glb|fbx|obj|stl|usdz)."""
@@ -8766,15 +8804,33 @@ async def etabli_sources(limit: int = 60):
 def _etabli_vignette(d: Path, job: str, v: int) -> str | None:
     """L'image à montrer pour une version, ou `None` s'il n'y en a aucune.
 
-    ORDRE : `preview.png` → `shot_0.png` → silhouette → `None`. Il a été
-    RETOURNÉ. La silhouette passait d'abord, au motif qu'elle est celle de
+    ORDRE : vignette du canevas → `preview.png` → `shot_0.png` → silhouette →
+    `None`.
+
+    LA VIGNETTE DU CANEVAS D'ABORD, PARCE QU'ELLE MONTRE CETTE VERSION-CI.
+    C'est la seule image de la liste qui soit une photo du maillage LISTÉ :
+    l'Établi la capture au moment où il écrit la version (voir
+    `etabli_vignette_ecrire`). Elle a été ajoutée parce que la correction
+    d'ordre ci-dessous, juste, était impuissante — sur les trois jobs mesurés
+    de l'utilisateur, un seul portait un vrai rendu de moteur ; un autre avait
+    un `preview.png` ET un `shot_0.png` qui sont le MÊME aplat ambré (14
+    couleurs distinctes) ; le troisième n'avait que des masques. Aucun ordre
+    de préférence n'invente une image absente du disque.
+
+    ELLE NAÎT À L'ÉCRITURE SEULEMENT, décision de l'utilisateur : ni
+    rattrapage à l'ouverture, ni régénération par lots. Les productions
+    antérieures retombent donc sur la suite, inchangée.
+
+    LA SUITE — `preview.png` → `shot_0.png` → silhouette — est celle d'hier,
+    et elle ne bouge pas d'un cran. Elle avait déjà été RETOURNÉE : la
+    silhouette passait d'abord, au motif qu'elle est celle de
     la VERSION demandée là où le rendu ne montre que le brouillon —
     raisonnement juste, résultat faux, et c'est lui qui a produit le
     défaut : « les nouvelles versions apparaissent bien dans la librairie,
     mais les illustrations ne se montrent pas », six vignettes blanches
     sur huit.
 
-    LE RENDU DU MOTEUR D'ABORD, PARCE QU'IL ILLUSTRE.
+    LE RENDU DU MOTEUR AVANT LE MASQUE, PARCE QU'IL ILLUSTRE.
     `sil_v<n>/silhouette_face.png` n'est pas une image de l'objet mais un
     MASQUE de contrôle : `mesh_report.silhouettes()` l'écrit pour la
     comparaison de silhouette du QC — une forme blanche pleine sur fond
@@ -8799,6 +8855,8 @@ def _etabli_vignette(d: Path, job: str, v: int) -> str | None:
     l'attribut `src` quand la valeur est `null` — aucune requête, donc aucun
     évènement `error`, donc le repli ne joue jamais.
     """
+    if _etabli_vignette_path(job, v).is_file():
+        return f"/api/assets/3d/{job}/vignette?v={int(v)}"
     if (d / "preview.png").is_file():
         return f"/api/assets/3d/{job}/preview"
     if (d / "shot_0.png").is_file():
@@ -8989,6 +9047,89 @@ async def etabli_productions():
     requêtes du serveur — pas seulement la sienne.
     """
     return {"items": await asyncio.to_thread(_etabli_productions)}
+
+
+# ── la vignette du canevas : le navigateur voit, PYTHON écrit ────────────────
+# 2 Mio. La page réduit à 512 px de plus grand côté avant d'envoyer — un PNG
+# de cet ordre pèse quelques dizaines de kilo-octets — mais le serveur ne peut
+# pas croire l'appelant sur parole : rien ne garantit que c'est notre page, et
+# un canevas 2000×1500 non réduit ferait plusieurs mégaoctets. La borne laisse
+# une marge large et refuse PARLANT au lieu d'avaler.
+_ETABLI_VIGNETTE_MAX = 2 * 1024 * 1024
+
+
+@router.post("/etabli/vignette")
+async def etabli_vignette_ecrire(request: Request, job: str, version: int):
+    """Dépose la vignette d'une version : le canevas de l'Établi, capturé.
+
+    LA RÈGLE STRUCTURANTE TIENT, ET IL FAUT LE DIRE. « Le navigateur voit et
+    manipule, PYTHON ÉCRIT » (spec §2.1) porte sur l'AUTORITÉ DU MAILLAGE :
+    aucun GLB ne naît côté client, la page ne contient toujours pas l'ombre
+    d'un GLTFExporter, et `test_la_page_ne_fabrique_jamais_un_glb` reste vert.
+    Une vignette PNG n'est pas un maillage — c'est une PHOTO de ce que la page
+    affiche déjà — et le fichier sur le disque est écrit ICI, en Python. Le
+    navigateur voit ; Python écrit. Sans ce paragraphe, le prochain lecteur
+    croira à une entorse.
+
+    À L'ÉCRITURE SEULEMENT, décision de l'utilisateur : la page n'appelle
+    cette route qu'après une écriture réussie, jamais à l'ouverture, jamais
+    par lots. Rien ici ne l'impose — c'est le client qui la tient, et un banc
+    qui compte ses sites d'appel — mais la route n'offre AUCUN moyen de
+    rattraper une lignée entière, et c'est délibéré.
+
+    LES GARDES, dans l'ordre où elles mordent. Une route d'écriture non gardée
+    est une porte ouverte, et celle-ci reçoit des octets venus du navigateur :
+
+      1. `version` doit être un entier — FastAPI le refuse en 422 sinon — et
+         un entier POSITIF : `0` n'est le numéro de rien ;
+      2. `job` est APLATI par `Path(...).name` (dans `_etabli_vignette_path`),
+         ce qui interdit `../../ailleurs` ; un job vide est refusé, sans quoi
+         le chemin dégénérerait en dossier des jobs lui-même ;
+      3. la VERSION DOIT EXISTER sur le disque. Une vignette sans maillage est
+         un mensonge en attente : la carte de la Bibliothèque montrerait une
+         image pour une version que le disque ignore. C'est aussi ce qui
+         empêche de fabriquer un dossier de job à volonté ;
+      4. la TAILLE est bornée AVANT tout examen du contenu — c'est la garde la
+         moins chère, elle passe donc en premier des deux ;
+      5. la SIGNATURE PNG est vérifiée. L'en-tête `Content-Type` ne prouve
+         rien : seul le magic le fait. Même geste que
+         `POST /vector/docs/{doc_id}/vignette`, qui a le même problème.
+
+    ÉCRITURE ATOMIQUE (`.tmp` puis `os.replace`), comme `vector_store` : une
+    écriture interrompue laisserait sinon une vignette tronquée SERVIE — pire
+    qu'une absence, qui est dite proprement.
+    """
+    import os
+    if version < 1:
+        raise HTTPException(400, f"vignette : version {version} — les "
+                                 "versions sont numérotées à partir de 1")
+    if not str(job).strip():
+        raise HTTPException(400, "vignette : `job` est vide")
+    # UN SEUL APLATISSEMENT, celui de `_etabli_vignette_path`, et le dossier
+    # se déduit du chemin plutôt que d'être recomposé. Mesuré : avec un
+    # `Path(job).name` ICI *en plus* de celui du composeur, retirer l'un OU
+    # l'autre laissait le banc de traversée entièrement VERT — deux gardes
+    # parallèles se couvrent l'une l'autre, et plus rien ne dit laquelle
+    # tient. `mesh_report.job_dir()` est évité pour la même raison : il
+    # aplatit lui aussi, et l'aurait masqué une troisième fois.
+    p = _etabli_vignette_path(job, version)
+    d = p.parent
+    glb = d / ("model.glb" if version <= 1 else f"model.v{version}.glb")
+    if not glb.is_file():
+        raise HTTPException(404, f"vignette : {d.name}/{glb.name} introuvable "
+                                 "— une vignette sans maillage ne dit rien")
+    octets = await request.body()
+    if len(octets) > _ETABLI_VIGNETTE_MAX:
+        raise HTTPException(413, f"vignette : {len(octets)} octets, la borne "
+                                 f"est à {_ETABLI_VIGNETTE_MAX // 1024 // 1024}"
+                                 " Mio — réduisez avant d'envoyer")
+    if not octets.startswith(_PNG_MAGIC):
+        raise HTTPException(400, "vignette : un PNG est attendu (signature "
+                                 "absente, l'en-tête ne prouve rien)")
+    tmp = p.parent / f"{p.name}.tmp"
+    tmp.write_bytes(octets)
+    os.replace(tmp, p)
+    return {"ok": True, "fichier": p.name, "octets": len(octets)}
 
 
 @router.get("/etabli/rig")

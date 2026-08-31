@@ -2367,3 +2367,429 @@ def test_l_idempotence_ne_vient_PAS_des_ancres_mais_du_marqueur_et_du_backup():
     tests = {ast.unparse(n.test) for n in ast.walk(arbre)
              if isinstance(n, ast.If)}
     assert "MARKER in read_src(bundle)" in tests        # l'état ambigu refusé
+
+
+# ── M. la vignette du canevas : fabriquée À L'ÉCRITURE ───────────────────────
+# LE DÉFAUT MESURÉ. L'onglet « Établi » montrait des vignettes blanches parce
+# que l'image N'EXISTE PAS SUR LE DISQUE pour la plupart des jobs : sur les
+# trois jobs de l'utilisateur, un seul porte un vrai rendu de moteur
+# (`4fce8946`, 190 couleurs distinctes) ; `7f34b585` a un `preview.png` ET un
+# `shot_0.png` qui sont le MÊME aplat ambré (14 couleurs) ; `6e0a8a5f` n'a ni
+# rendu ni shot, seulement des masques de silhouette. La section K a corrigé
+# l'ORDRE de préférence (`preview` → `shot_0` → silhouette) : juste, mais
+# impuissant — aucun ordre n'invente une image absente.
+#
+# Le remède est de la FABRIQUER : l'Établi affiche déjà le maillage cadré en
+# three.js, il capture son canevas. La règle structurante tient et se dit —
+# « le navigateur voit et manipule, Python écrit » porte sur l'AUTORITÉ DU
+# MAILLAGE, et `test_la_page_ne_fabrique_jamais_un_glb` reste vert : une
+# vignette PNG n'est pas un GLB, et c'est bien Python qui écrit le fichier.
+#
+# À L'ÉCRITURE SEULEMENT — décision de l'utilisateur, gardée par
+# `..._nait_A_L_ECRITURE_SEULEMENT` : aucun rattrapage à l'ouverture, aucun
+# bouton de régénération, aucun traitement par lots.
+
+
+def _png_de_banc(w: int = 8, h: int = 8) -> bytes:
+    """Un PNG RÉEL — la route vérifie la signature, pas la taille."""
+    import io
+    from PIL import Image
+    t = io.BytesIO()
+    Image.new("RGB", (w, h), (30, 80, 140)).save(t, "PNG")
+    return t.getvalue()
+
+
+def _poster_vignette(c, job, version, octets: bytes):
+    return c.post("/api/etabli/vignette",
+                  params={"job": job, "version": version},
+                  content=octets, headers={"Content-Type": "image/png"})
+
+
+def test_la_vignette_du_canevas_est_ecrite_par_PYTHON_et_servie():
+    """LA CHAÎNE ENTIÈRE, FRAPPÉE. Le navigateur envoie les octets d'un PNG ;
+    Python les écrit dans le dossier du job, sous un nom qui porte le NUMÉRO
+    DE VERSION ; une route les rend. Rien ici ne cherche une chaîne dans un
+    fichier : une route d'écriture se teste en la frappant.
+    """
+    from app.config import settings
+    from app.services import mesh_edit
+    _job("vign_canevas")
+    mesh_edit.ecrire_version("vign_canevas", _glb_de_banc(),
+                             operation="reparer", detail={})
+    octets = _png_de_banc()
+
+    c = _client()
+    r = _poster_vignette(c, "vign_canevas", 2, octets)
+    assert r.status_code == 200, r.text
+    assert r.json()["fichier"] == "vignette_v2.png"
+
+    # sur le DISQUE, dans le dossier du job, à l'octet près
+    p = settings.outputs_path / "assets3d" / "vign_canevas" / "vignette_v2.png"
+    assert p.is_file()
+    assert p.read_bytes() == octets
+
+    # et servie
+    g = c.get("/api/assets/3d/vign_canevas/vignette", params={"v": 2})
+    assert g.status_code == 200
+    assert g.headers["content-type"] == "image/png"
+    assert g.content == octets
+    # une version sans vignette ne se sert pas en lien mort
+    assert c.get("/api/assets/3d/vign_canevas/vignette",
+                 params={"v": 7}).status_code == 404
+
+
+def test_la_vignette_du_canevas_passe_AVANT_le_rendu_du_moteur():
+    """L'ORDRE DE PRÉFÉRENCE, RALLONGÉ EN TÊTE. La section K a établi
+    `preview` → `shot_0` → silhouette et cet ordre-là ne bouge pas ; la
+    vignette du canevas se pose AVANT lui, et pour la raison qui a motivé
+    toute la tâche : `preview.png` date du premier tir du moteur, il montre
+    le BROUILLON — quand il montre quelque chose — là où la capture montre la
+    version qui vient d'être écrite.
+
+    La fixture porte les DEUX images du moteur pour que la préséance se
+    mesure : sans la nouvelle branche, `preview.png` gagnerait.
+    """
+    from PIL import Image
+    from app.services import mesh_edit
+    d = _job("vign_avant_preview")
+    Image.new("RGB", (1, 1)).save(d / "preview.png")
+    Image.new("RGB", (1, 1)).save(d / "shot_0.png")
+    mesh_edit.ecrire_version("vign_avant_preview", _glb_de_banc(),
+                             operation="reparer", detail={})
+
+    c = _client()
+    par_job = {e["job"]: e
+               for e in c.get("/api/etabli/productions").json()["items"]}
+    # avant la capture : le rendu du moteur, l'ordre de la section K
+    assert par_job["vign_avant_preview"]["thumb"] == \
+        "/api/assets/3d/vign_avant_preview/preview"
+
+    assert _poster_vignette(c, "vign_avant_preview", 2,
+                            _png_de_banc()).status_code == 200
+    par_job = {e["job"]: e
+               for e in c.get("/api/etabli/productions").json()["items"]}
+    assert par_job["vign_avant_preview"]["thumb"] == \
+        "/api/assets/3d/vign_avant_preview/vignette?v=2"
+    # et l'URL sert VRAIMENT des octets : une URL morte donnerait une case
+    # grise sans erreur nulle part (la leçon de la section K)
+    assert c.get(par_job["vign_avant_preview"]["thumb"]).status_code == 200
+
+
+def test_la_vignette_est_liee_a_SA_version_et_ne_deteint_pas_ailleurs():
+    """Chaque version a la sienne, ou n'en a pas. Une vignette qui déteindrait
+    sur toute la lignée remettrait exactement le défaut d'origine : une image
+    qui ne montre pas ce que la carte annonce. La v3 n'a pas été capturée —
+    elle retombe donc sur le rendu du moteur, et c'est ce qu'on mesure.
+    """
+    from PIL import Image
+    from app.services import mesh_edit
+    d = _job("vign_par_version")
+    Image.new("RGB", (1, 1)).save(d / "preview.png")
+    mesh_edit.ecrire_version("vign_par_version", _glb_de_banc(),
+                             operation="reparer", detail={})       # v2
+    c = _client()
+    assert _poster_vignette(c, "vign_par_version", 2,
+                            _png_de_banc()).status_code == 200
+    mesh_edit.ecrire_version("vign_par_version", _glb_de_banc(),
+                             operation="transformer", detail={})   # v3
+
+    par_v = {e["version"]: e
+             for e in c.get("/api/etabli/productions").json()["items"]
+             if e["job"] == "vign_par_version"}
+    assert par_v[2]["thumb"] == "/api/assets/3d/vign_par_version/vignette?v=2"
+    assert par_v[3]["thumb"] == "/api/assets/3d/vign_par_version/preview"
+
+
+def test_la_route_d_ecriture_verifie_que_c_est_REELLEMENT_un_PNG():
+    """UNE ROUTE D'ÉCRITURE NON GARDÉE EST UNE PORTE OUVERTE. Le corps vient
+    du navigateur : l'en-tête `Content-Type` ne prouve rien, seule la
+    SIGNATURE le fait. Un JPEG, un HTML, un corps vide, huit octets tronqués —
+    chacun refusé PARLANT, et rien sur le disque.
+    """
+    import io
+    from PIL import Image
+    from app.config import settings
+    from app.services import mesh_edit
+    _job("vign_pas_png")
+    mesh_edit.ecrire_version("vign_pas_png", _glb_de_banc(),
+                             operation="reparer", detail={})
+    t = io.BytesIO()
+    Image.new("RGB", (8, 8)).save(t, "JPEG")
+
+    c = _client()
+    for corps in (t.getvalue(), b"<html>pas une image</html>", b"", b"\x89PN"):
+        r = _poster_vignette(c, "vign_pas_png", 2, corps)
+        assert r.status_code == 400, corps[:8]
+        assert "PNG" in r.text
+    assert not (settings.outputs_path / "assets3d" / "vign_pas_png"
+                / "vignette_v2.png").exists()
+
+
+def test_la_route_d_ecriture_borne_la_taille_du_corps():
+    """Le client REDIMENSIONNE avant d'envoyer (512 px de plus grand côté),
+    mais le serveur ne peut pas le croire sur parole : un canevas 2000×1500
+    ferait plusieurs mégaoctets, et rien n'oblige l'appelant à être notre
+    page. La borne est à 2 Mio.
+
+    Le corps du banc porte la SIGNATURE PNG : c'est bien la garde de TAILLE
+    qui doit mordre, pas celle du format — sans quoi ce banc resterait vert
+    en supprimant la borne.
+    """
+    from app.config import settings
+    from app.services import mesh_edit
+    _job("vign_trop_grosse")
+    mesh_edit.ecrire_version("vign_trop_grosse", _glb_de_banc(),
+                             operation="reparer", detail={})
+    enorme = b"\x89PNG\r\n\x1a\n" + b"\0" * (2 * 1024 * 1024)
+
+    r = _poster_vignette(_client(), "vign_trop_grosse", 2, enorme)
+    assert r.status_code == 413, r.status_code
+    assert "Mio" in r.text
+    assert not (settings.outputs_path / "assets3d" / "vign_trop_grosse"
+                / "vignette_v2.png").exists()
+
+
+def test_la_route_d_ecriture_assainit_le_job_et_n_ecrit_que_dans_assets3d():
+    """`Path(...).name`, ou une traversée. `../../evade` doit se réduire au
+    NOM, `evade`, et l'écriture rester sous `outputs/assets3d`.
+
+    Mesure par mutation : sans l'aplatissement, le chemin devient
+    `outputs/assets3d/../../evade/…` — la garde d'existence de la version
+    tombe alors sur un dossier qui n'existe pas, et le 200 attendu ici vire
+    au 404. L'assertion mord des deux côtés.
+    """
+    from app.config import settings
+    from app.services import mesh_edit
+    _job("evade")
+    mesh_edit.ecrire_version("evade", _glb_de_banc(),
+                             operation="reparer", detail={})
+
+    c = _client()
+    r = _poster_vignette(c, "../../evade", 2, _png_de_banc())
+    assert r.status_code == 200, r.text
+    assert (settings.outputs_path / "assets3d" / "evade"
+            / "vignette_v2.png").is_file()
+    # et RIEN au-dessus du dossier des jobs
+    assert not (settings.outputs_path / "vignette_v2.png").exists()
+    assert not (settings.outputs_path.parent / "vignette_v2.png").exists()
+    # un job vide ne fabrique pas de dossier
+    assert _poster_vignette(c, "", 2, _png_de_banc()).status_code == 400
+    assert not (settings.outputs_path / "assets3d"
+                / "vignette_v2.png").exists()
+
+
+def test_la_route_d_ecriture_refuse_une_version_qui_n_existe_pas():
+    """Une vignette sans maillage est un mensonge en attente : la carte de la
+    Bibliothèque la montrerait pour une version que le disque ignore. Le job
+    inconnu, la version absente et la version non entière sont donc refusés
+    AVANT toute écriture — et `0` avec eux, qui n'est le numéro de rien.
+    """
+    from app.config import settings
+    from app.services import mesh_edit
+    _job("vign_version")
+    mesh_edit.ecrire_version("vign_version", _glb_de_banc(),
+                             operation="reparer", detail={})
+    png = _png_de_banc()
+    c = _client()
+
+    assert _poster_vignette(c, "job_inconnu_ici", 1, png).status_code == 404
+    assert _poster_vignette(c, "vign_version", 9, png).status_code == 404
+    assert _poster_vignette(c, "vign_version", 0, png).status_code == 400
+    assert _poster_vignette(c, "vign_version", -3, png).status_code == 400
+    assert _poster_vignette(c, "vign_version", "abc", png).status_code == 422
+    d = settings.outputs_path / "assets3d" / "vign_version"
+    assert not list(d.glob("vignette_*.png"))
+
+
+def test_la_vignette_n_est_pas_capturee_par_la_route_des_formats():
+    """PIÈGE D'ORDRE DE DÉCLARATION, le même que `/preview` porte déjà en
+    commentaire. `GET /assets/3d/{job}/{fmt}` sert `model.<fmt>` : déclarée
+    après lui, la route de la vignette serait avalée comme `fmt="vignette"`
+    et irait chercher un `model.vignette`. Mesuré par mutation : déplacer la
+    déclaration sous `/{fmt}` fait tomber le 200 de la dernière ligne.
+    """
+    from app.services import mesh_edit
+    _job("vign_ordre")
+    mesh_edit.ecrire_version("vign_ordre", _glb_de_banc(),
+                             operation="reparer", detail={})
+    c = _client()
+    assert _poster_vignette(c, "vign_ordre", 2,
+                            _png_de_banc()).status_code == 200
+    # sans `v`, la route retombe sur 1 comme sa sœur silhouette
+    assert c.get("/api/assets/3d/vign_ordre/vignette").status_code == 404
+    assert c.get("/api/assets/3d/vign_ordre/vignette",
+                 params={"v": 2}).status_code == 200
+
+
+# ── M (suite). le côté navigateur : la capture ───────────────────────────────
+# Bancs MIROIRS, comme tout le frontend de ce fichier.
+
+
+def _capture() -> str:
+    """Le corps de `capturerVignette`, commentaires COMPRIS — les assertions
+    d'ordre ci-dessous sont POSITIVES : elles épinglent du code, aucune n'est
+    satisfaite par de la prose. La seule négative de la série passe par
+    `_code()`, comme le veut ce fichier."""
+    js = _lire("etabli/etabli.js")
+    return js.split("async function capturerVignette", 1)[1] \
+             .split("\n}\n", 1)[0]
+
+
+def test_la_capture_REND_le_canevas_avant_de_le_LIRE():
+    """LE PIÈGE PRINCIPAL, ET IL EST MUET. `creerCanevas()` construit son
+    `WebGLRenderer` sans `preserveDrawingBuffer`, donc à `false` : le tampon
+    de dessin est effacé dès que le compositeur l'a pris. Lu à n'importe quel
+    autre moment, le canevas rend une image TRANSPARENTE — c'est-à-dire
+    exactement la vignette blanche que cette tâche existe pour supprimer, mais
+    fabriquée par nos soins et sans la moindre erreur nulle part.
+
+    Le remède ne touche PAS `creerCanevas`, canevas partagé du dépôt dont
+    viewer.js annonce qu'un autre écran le réutilisera : il suffit de rendre
+    et de lire DANS LE MÊME TOUR. L'ordre des deux lignes est donc porteur, et
+    l'absence d'`await` entre elles l'est tout autant — un seul rendrait la
+    main à la boucle d'évènements, qui effacerait le tampon.
+
+    `drawImage` LIT le tampon comme `toDataURL` : `reduireCanevas` tombe sous
+    la même règle et reste SYNCHRONE.
+    """
+    js = _lire("etabli/etabli.js")
+    bloc = _capture()
+    i_rendu = bloc.index("vue.renderer.render(vue.scene, vue.camera);")
+    i_lu = bloc.index("reduireCanevas(vue.renderer.domElement)")
+    assert i_rendu < i_lu
+    assert "await" not in bloc[i_rendu:i_lu]
+    # et la réduction ne rend la main nulle part non plus
+    assert "async function reduireCanevas" not in js
+    reduc = js.split("function reduireCanevas", 1)[1].split("\n}\n", 1)[0]
+    assert "drawImage(source, 0, 0" in reduc
+    assert "await" not in reduc
+
+
+def test_le_gizmo_est_masque_pour_la_capture_et_RETABLI_meme_si_elle_leve():
+    """`poserGizmo()` pose `GIZMO.getHelper()` dans `S.vueA.scene`, et
+    `attach()` le rend visible (TransformControls.js ligne 806) : photographié,
+    il poserait trois flèches rouge/vert/bleu en travers du maillage. On le
+    masque avant le rendu.
+
+    ET ON LE RÉTABLIT DANS UN `finally`. Une capture qui lève — contexte WebGL
+    perdu, canevas de taille nulle — laisserait sinon le gizmo invisible pour
+    le reste de la session : l'utilisateur cliquerait un nœud et ne verrait
+    rien apparaître, sans qu'aucun message ne l'explique.
+    """
+    bloc = _capture()
+    i_masque = bloc.index("if (helper) helper.visible = false;")
+    i_rendu = bloc.index("vue.renderer.render(")
+    i_finally = bloc.index("} finally {")
+    i_retabli = bloc.index("if (helper) helper.visible = visible;")
+    assert i_masque < i_rendu < i_finally < i_retabli
+    # l'état est RELU, pas supposé : attach() le pose, detach() l'efface
+    assert "const visible = helper ? helper.visible : false;" in bloc
+    # et c'est bien le HELPER, l'Object3D de la scène, pas le contrôleur
+    assert "GIZMO.getHelper()" in bloc
+
+
+def test_la_capture_arrive_APRES_la_reouverture_et_si_elle_a_REUSSI():
+    """LE MOMENT. `ecrireVersion()` écrit, rafraîchit la chronologie, puis
+    ROUVRE le modèle sur la version écrite. Capturer avant cette réouverture
+    photographierait la version PRÉCÉDENTE : la vignette mentirait, ce qui est
+    pire que pas de vignette du tout.
+
+    Et SEULEMENT si la réouverture a rendu vrai. `ouvrirPrincipale()` rend une
+    promesse qui vaut `S.a === cible` — elle dit que la FILE est vide, pas
+    qu'un modèle est chargé : un échec est avalé par son `.catch`, une demande
+    dépassée se retire sans rien charger. Sans cette garde, on capturerait un
+    canevas VIDE (charger() vide la vue AVANT d'échouer) et on écrirait la
+    vignette blanche qu'on prétend supprimer.
+    """
+    js = _lire("etabli/etabli.js")
+    corps = js.split("async function ecrireVersion", 1)[1].split("\n}\n", 1)[0]
+    assert "const ouvert = await ouvrirPrincipale(cible);" in corps
+    assert corps.index("const ouvert = await ouvrirPrincipale(cible);") \
+        < corps.index("capturerVignette(")
+    assert "if (ouvert) {" in corps
+    assert corps.index("if (ouvert) {") < corps.index("capturerVignette(")
+
+
+def test_un_echec_de_vignette_ne_fait_jamais_echouer_l_ecriture():
+    """LA VERSION EST ÉCRITE, C'EST CE QUI COMPTE ; la vignette est un
+    agrément. Deux ceintures, et les deux sont nécessaires :
+
+      * `capturerVignette()` attrape ses propres échecs — la fabrication et
+        l'envoi séparément — et les DIT dans la barre du bas, en rappelant que
+        la version, elle, est sur le disque ;
+      * le site d'appel ajoute un `.catch` parce que le `try` d'ecrireVersion
+        n'a PAS de `catch` : un rejet inattendu partirait dans le vide APRÈS
+        une écriture réussie, et rien ne le montrerait.
+    """
+    js = _lire("etabli/etabli.js")
+    corps = js.split("async function ecrireVersion", 1)[1].split("\n}\n", 1)[0]
+    assert "await capturerVignette(cible.job, cible.version).catch(() => {});" \
+        in corps
+    bloc = _capture()
+    assert bloc.count("} catch (e) {") == 2      # la fabrication ET l'envoi
+    assert bloc.count("direRefus(") == 2
+    assert bloc.count("est écrite") == 2         # ce qui n'a PAS échoué
+
+
+def test_la_capture_ne_s_insere_pas_dans_la_file_de_serialisation():
+    """`_ouvrirPrincipale` est protégé par une file de promesses (`_file`) et
+    un jeton (`_demande`). La capture vient APRÈS que la file s'est vidée et
+    ne s'y greffe pas : un `_file = _file.then(...)` ferait attendre tout clic
+    suivant sur un encodage PNG et un aller-retour réseau, et un rejet y
+    laisserait la file rejetée POUR TOUJOURS.
+
+    Assertion NÉGATIVE, donc posée sur `_code()` : ce fichier commente en
+    expliquant ce qu'il écarte, et la prose de la capture contient précisément
+    les deux noms qu'on interdit ici — la dernière ligne le prouve.
+    """
+    code = _code("etabli/etabli.js")
+    bloc = code.split("async function capturerVignette", 1)[1] \
+               .split("\n}\n", 1)[0]
+    assert "_file" not in bloc
+    assert "_demande" not in bloc
+    assert "_file" in _capture()          # le témoin : la prose, elle, en parle
+
+
+def test_la_vignette_est_REDUITE_avant_l_envoi_et_ne_grossit_jamais():
+    """LA TAILLE. Un canevas d'écran fait couramment 2000×1500 sur un écran
+    HiDPI (`setPixelRatio` va jusqu'à 2) : le PNG pèserait plusieurs
+    mégaoctets pour une carte de bibliothèque large de deux cents pixels. 512
+    est la taille des vignettes 3D du dépôt — `mesh_report.SILHOUETTE_PX`, les
+    planches de matériaux — et l'ordre de grandeur d'un `preview.png` de
+    moteur.
+
+    L'aspect est GARDÉ : écraser le rendu dans un carré déformerait les
+    proportions, ce que cette page-ci existe justement pour montrer. Et
+    l'échelle est bornée à 1 — on réduit, on n'agrandit jamais un rendu de
+    400 px en 512 flous.
+
+    C'est le canevas RÉDUIT qui part : blober le canevas source annulerait
+    tout le bénéfice sans que rien ne le dise.
+    """
+    js = _lire("etabli/etabli.js")
+    assert "const VIGNETTE_PX = 512;" in js
+    reduc = js.split("function reduireCanevas", 1)[1].split("\n}\n", 1)[0]
+    assert "Math.min(1, VIGNETTE_PX / Math.max(w, h))" in reduc
+    assert 'document.createElement("canvas")' in reduc
+    bloc = _capture()
+    assert bloc.index("reduireCanevas(") < bloc.index("reduite.toBlob(")
+    assert '"Content-Type": "image/png"' in bloc
+    assert "/api/etabli/vignette?job=" in bloc
+
+
+def test_la_vignette_nait_A_L_ECRITURE_SEULEMENT():
+    """DÉCISION DE L'UTILISATEUR, ET ELLE SE GARDE. Pas de rattrapage à
+    l'ouverture, pas de bouton « régénérer », pas de traitement par lots : ses
+    productions actuelles resteront sans vignette jusqu'à ce qu'il en écrive
+    de neuves, et c'est assumé — le prix achète qu'aucune écriture disque ne
+    le surprenne.
+
+    Ce que ce banc mesure n'est pas une phrase mais un COMPTE : la définition,
+    et UN seul site d'appel. Greffer la capture dans `_ouvrirPrincipale` ou
+    derrière un bouton le ferait passer à trois, et ce banc rougirait.
+    """
+    code = _code("etabli/etabli.js")
+    assert code.count("capturerVignette(") == 2      # la définition + l'appel
+    corps = code.split("async function ecrireVersion", 1)[1] \
+                .split("\n}\n", 1)[0]
+    assert corps.count("capturerVignette(") == 1     # et il est ICI

@@ -1047,9 +1047,33 @@ async function ecrireVersion() {
       rendreChrono();
     } catch { /* la chronologie précédente reste : elle n'a menti sur rien */ }
     if (derniere) {
-      await ouvrirPrincipale({ ...S.a, version: derniere.version,
+      const cible = { ...S.a, version: derniere.version,
         url: `/api/assets/3d/${S.a.job}/version/${derniere.version}`,
-        libelle: `version ${derniere.version}` });
+        libelle: `version ${derniere.version}` };
+      const ouvert = await ouvrirPrincipale(cible);
+      /* LE MOMENT DE LA VIGNETTE, et il n'est pas négociable : APRÈS la
+         réouverture. Capturer plus haut photographierait la version
+         PRÉCÉDENTE — la vignette mentirait, ce qui est pire que pas de
+         vignette du tout. Et SEULEMENT si la réouverture a rendu vrai : ce
+         booléen dit `S.a === cible`, seule réponse honnête à « est-ce que MA
+         cible est à l'écran ? ». Un échec de chargement laisse le canevas
+         VIDE (charger() vide la vue AVANT d'échouer), et on écrirait alors la
+         vignette blanche qu'on prétend supprimer.
+
+         HORS DE LA FILE DE SÉRIALISATION, aussi : l'`await` ci-dessus attend
+         que `_file` se soit vidée, la capture vient APRÈS elle et ne s'y
+         greffe pas. Greffée, elle ferait attendre tout clic suivant sur un
+         encodage PNG et un aller-retour réseau — et un rejet y laisserait la
+         file rejetée pour toujours, comme le dit ouvrirPrincipale().
+
+         LE `.catch` EST UNE CEINTURE, et il en faut une : la capture dit déjà
+         ses échecs dans la barre et ne rejette pas, mais le `try` de cette
+         fonction-ci n'a PAS de `catch`. Un rejet inattendu partirait dans le
+         vide APRÈS une écriture RÉUSSIE. La version est sur le disque, c'est
+         ce qui compte ; la vignette est un agrément. */
+      if (ouvert) {
+        await capturerVignette(cible.job, cible.version).catch(() => {});
+      }
     }
     if (echec) {
       /* APRÈS le rechargement, et c'est tout le soin : _ouvrirPrincipale()
@@ -1069,6 +1093,136 @@ async function ecrireVersion() {
        porte l'état du verrou, cesse d'être grisé. */
     _ecritEnCours = false;
     rendreAttente();
+  }
+}
+
+/* ── la vignette de la version écrite ───────────────────────────────────────
+   POURQUOI ELLE EXISTE, ET C'EST MESURÉ. L'onglet « Établi » de la
+   Bibliothèque montrait des vignettes blanches parce que l'image N'EXISTE PAS
+   SUR LE DISQUE pour la plupart des jobs : sur les trois jobs de
+   l'utilisateur, un seul porte un vrai rendu de moteur (190 couleurs
+   distinctes) ; un autre a un `preview.png` ET un `shot_0.png` qui sont le
+   MÊME aplat ambré (14 couleurs) ; le troisième n'a ni rendu ni shot, rien
+   que des masques de silhouette. L'ordre de préférence du serveur a été
+   corrigé — `preview` → `shot_0` → silhouette — et il était juste, mais aucun
+   ordre n'invente une image absente. Le seul remède est de la FABRIQUER : la
+   page affiche déjà le maillage cadré, elle capture son canevas.
+
+   ET LA RÈGLE STRUCTURANTE TIENT — il faut le dire, sinon le prochain lecteur
+   croira à une entorse. « Le navigateur voit et manipule, PYTHON ÉCRIT »
+   porte sur l'AUTORITÉ DU MAILLAGE : aucun GLB ne naît ici, ce fichier ne
+   contient l'ombre d'aucun exportateur three.js, et le banc
+   `test_la_page_ne_fabrique_jamais_un_glb` reste vert. Une vignette PNG n'est
+   pas un maillage : c'est une PHOTO de ce que le canevas montre déjà, et le
+   fichier sur le disque est écrit par `/api/etabli/vignette`, en Python, dans
+   le dossier du job — le navigateur voit, Python écrit.
+
+   (Ce paragraphe NE NOMME PAS la classe d'export interdite, alors que ce
+   serait plus clair : ce banc-là cherche ce nom dans le fichier ENTIER, et
+   l'écrire ici le ferait rougir sur sa propre prose. Le défaut que ce dépôt a
+   corrigé huit fois, pris à l'envers.)
+
+   À L'ÉCRITURE SEULEMENT. Décision de l'utilisateur, assumée : pas de
+   rattrapage à l'ouverture, pas de bouton « régénérer », pas de traitement
+   par lots. Ses productions actuelles resteront sans vignette jusqu'à ce
+   qu'il en écrive de neuves — le prix achète qu'aucune écriture disque ne le
+   surprenne. Un seul site d'appel, donc, dans ecrireVersion(), et un banc
+   compte les appels pour que cela le reste. */
+
+/* Le plus grand côté de la vignette envoyée. 512 est la taille des vignettes
+   3D du dépôt — `mesh_report.SILHOUETTE_PX`, les planches de matériaux — et
+   l'ordre de grandeur d'un `preview.png` de moteur. Un canevas d'écran fait
+   couramment 2000×1500 sur un écran HiDPI (viewer.js va jusqu'à
+   `setPixelRatio(2)`) : envoyer ce tampon-là ferait plusieurs mégaoctets pour
+   une carte de bibliothèque large de deux cents pixels. */
+const VIGNETTE_PX = 512;
+
+/* Le canevas du rendu, RAMENÉ à la taille d'une vignette.
+
+   SYNCHRONE À DESSEIN. `drawImage` LIT le tampon de dessin du canevas WebGL,
+   exactement comme `toDataURL` : elle tombe sous la même règle que
+   capturerVignette() explique ci-dessous, et un `await` glissé ici rendrait
+   une image transparente.
+
+   L'ASPECT EST GARDÉ, et l'échelle bornée à 1. Écraser le rendu dans un carré
+   déformerait les proportions, ce que cette page-ci existe justement pour
+   montrer ; et on RÉDUIT, on n'agrandit jamais un rendu de 400 px en 512
+   flous. */
+function reduireCanevas(source) {
+  const w = source.width || 1, h = source.height || 1;
+  const k = Math.min(1, VIGNETTE_PX / Math.max(w, h));
+  const hors = document.createElement("canvas");
+  hors.width = Math.max(1, Math.round(w * k));
+  hors.height = Math.max(1, Math.round(h * k));
+  hors.getContext("2d").drawImage(source, 0, 0, hors.width, hors.height);
+  return hors;
+}
+
+/* Fabrique la vignette de la version qui vient d'être écrite, et l'envoie.
+
+   PIÈGE 1, MESURÉ ET MUET : UN CANEVAS WEBGL EST VIDE À LA LECTURE.
+   `creerCanevas()` construit son `WebGLRenderer` sans `preserveDrawingBuffer`,
+   donc à `false` — le tampon de dessin est effacé dès que le compositeur l'a
+   pris. Lu à n'importe quel autre moment, le canevas rend une image
+   TRANSPARENTE, sans la moindre erreur nulle part : ce serait la vignette
+   blanche qu'on prétend supprimer, fabriquée par nos soins. Le remède ne
+   demande PAS de toucher `creerCanevas`, canevas partagé du dépôt dont
+   viewer.js annonce qu'un autre écran le réutilisera un jour : il suffit de
+   RENDRE ET DE LIRE DANS LE MÊME TOUR, sans un seul `await` entre les deux.
+   L'ordre de ces deux lignes est donc porteur, et un banc l'épingle.
+
+   PIÈGE 2 : LE GIZMO EST DANS LA SCÈNE. poserGizmo() y ajoute
+   `GIZMO.getHelper()`, et `attach()` le rend visible : photographié, il
+   poserait trois flèches rouge/vert/bleu en travers du maillage. On le masque
+   avant le rendu et on le rétablit dans un `finally` — Y COMPRIS SI LA
+   CAPTURE LÈVE, sans quoi un contexte WebGL perdu laisserait le gizmo
+   invisible pour le reste de la session : l'utilisateur cliquerait un nœud et
+   ne verrait rien apparaître, sans qu'aucun message ne l'explique. L'état est
+   RELU plutôt que supposé — `detach()` a pu l'effacer entre-temps, et c'est
+   même ce que fait _ouvrirPrincipale() juste avant nous ; ne pas en dépendre
+   coûte une variable et survit au jour où cet ordre changera.
+
+   PIÈGE 3 : UN ÉCHEC DE VIGNETTE N'EST PAS UN ÉCHEC D'ÉCRITURE. La version
+   est sur le disque quoi qu'il arrive ici. Les deux moitiés — fabriquer,
+   envoyer — ont donc chacune leur filet, et le message le rappelle au lieu de
+   laisser croire que la correction a été perdue. */
+async function capturerVignette(job, version) {
+  const vue = S.vueA;
+  /* PIÈGE 4 : LA FILE. Ni `_file` ni `_demande` n'apparaissent ici, et c'est
+     une contrainte, pas un hasard : la file de sérialisation d'ouvrir-
+     Principale() est déjà vidée quand l'appelant nous attend. S'y greffer
+     ferait patienter tout clic suivant sur un encodage PNG et un aller-retour
+     réseau, et un rejet y laisserait la file rejetée pour toujours. */
+  if (!vue || !vue.racine) return;
+  let reduite;
+  const helper = GIZMO ? GIZMO.getHelper() : null;
+  const visible = helper ? helper.visible : false;
+  try {
+    if (helper) helper.visible = false;
+    /* RENDRE, PUIS LIRE — dans cet ordre, dans le même tour, sans attente. */
+    vue.renderer.render(vue.scene, vue.camera);
+    reduite = reduireCanevas(vue.renderer.domElement);
+  } catch (e) {
+    direRefus(`vignette non fabriquée (${e.message}) — la version `
+      + `${version} est écrite`);
+    return;
+  } finally {
+    if (helper) helper.visible = visible;
+  }
+  try {
+    const png = await new Promise((tenir, casser) => reduite.toBlob(
+      (b) => (b ? tenir(b) : casser(new Error("toBlob n'a rien rendu"))),
+      "image/png"));
+    /* Le serveur vérifie la signature PNG, borne la taille, aplatit `job` et
+       exige que la version existe : cet en-tête est une politesse, pas une
+       preuve, et il le sait. */
+    const r = await fetch(`/api/etabli/vignette?job=${encodeURIComponent(job)}`
+      + `&version=${encodeURIComponent(version)}`,
+      { method: "POST", headers: { "Content-Type": "image/png" }, body: png });
+    if (!r.ok) throw new Error((await r.text()).split("\n")[0] || `${r.status}`);
+  } catch (e) {
+    direRefus(`vignette non envoyée (${e.message}) — la version `
+      + `${version} est écrite`);
   }
 }
 
