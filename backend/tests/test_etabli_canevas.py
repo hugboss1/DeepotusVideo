@@ -2578,6 +2578,145 @@ def test_la_route_d_ecriture_assainit_le_job_et_n_ecrit_que_dans_assets3d():
                 / "vignette_v2.png").exists()
 
 
+def test_le_job_ne_peut_pas_remonter_d_un_cran():
+    """`Path(...).name` N'APLATIT PAS `..`, ET LE BANC D'À CÔTÉ NE LE VOYAIT PAS.
+
+    MESURÉ, pas supposé — `pathlib` normalise le point SIMPLE, jamais le
+    point-point :
+
+        Path("../../evade").name -> 'evade'   <- le seul cas d'abord testé
+        Path("..").name          -> '..'      <- passe TEL QUEL
+        Path("a/..").name        -> '..'      <- idem
+        Path(".").name           -> ''
+
+    `job=".."` composait donc `outputs/assets3d/../vignette_v1.png`, et la
+    route répondait 200 en écrivant UN CRAN AU-DESSUS du dossier des jobs.
+    L'évasion est d'un seul cran — `Path("../..").name` vaut encore `..` — et
+    la seule chose qui la bloquait était la garde d'EXISTENCE du maillage : il
+    fallait un `outputs/model.glb`, qu'aucun chemin de code ne crée. Non
+    exploitable en l'état, donc, mais l'invariant qui nous sauvait n'était pas
+    celui que le commentaire désignait — et une garde documentée comme tenant
+    alors qu'elle ne tient pas est ce qui casse au refactor suivant.
+
+    CE BANC ARME LE PIÈGE. Il pose ce `outputs/model.glb` exprès : sans lui,
+    la route refuserait `..` en 404 « maillage introuvable » et le défaut
+    resterait invisible, comme il l'est resté à vingt-quatre mutations.
+
+    LE CORRECTIF N'EST PAS UN SECOND APLATISSEMENT — ce serait le même angle
+    mort en double, et deux gardes IDENTIQUES se couvrent l'une l'autre. Le
+    nom dégénéré se REFUSE. C'est le message qui est épinglé ici, pas
+    seulement le code : la garde de confinement, d'une autre nature, refuse
+    les mêmes entrées en disant AUTRE CHOSE, et il faut pouvoir dire laquelle
+    des deux a parlé.
+    """
+    from app.config import settings
+    from app.services import mesh_edit
+    _job("vign_cran")
+    mesh_edit.ecrire_version("vign_cran", _glb_de_banc(),
+                             operation="reparer", detail={})
+    hors = settings.outputs_path / "model.glb"
+    hors.write_bytes(_glb_de_banc())
+    try:
+        c = _client()
+        for j in ("..", "a/..", "peu/importe/..", ".", ""):
+            r = _poster_vignette(c, j, 1, _png_de_banc())
+            assert r.status_code == 400, (j, r.status_code, r.text[:200])
+            assert "nom de job" in r.text, (j, r.text[:200])
+        # et RIEN au-dessus du dossier des jobs
+        assert not list(settings.outputs_path.glob("vignette_*.png"))
+        # le job honnête, lui, passe toujours
+        assert _poster_vignette(c, "vign_cran", 2,
+                                _png_de_banc()).status_code == 200
+    finally:
+        hors.unlink(missing_ok=True)
+        for x in settings.outputs_path.glob("vignette_*.png"):
+            x.unlink()
+
+
+def test_le_confinement_voit_ce_que_le_NOM_ne_dit_pas():
+    """LA SECONDE GARDE, ET ELLE EST D'UNE AUTRE NATURE — c'est tout l'intérêt.
+
+    Celle du dessus lit le NOM. Celle-ci RÉSOUT le chemin, donc elle voit ce
+    qu'aucune lecture de nom ne peut voir : une jonction (ou un lien) posée
+    dans le dossier des jobs. `vign_jonction` est un nom parfaitement
+    honnête — pas de `..`, pas de séparateur, la première garde le laisse
+    passer — et le chemin sort pourtant du dossier des jobs.
+
+    DEUX GARDES QUI COMPOSENT, PAS QUI SE DOUBLENT, et ce fichier a déjà payé
+    pour connaître la différence : deux `Path(...).name` en parallèle se
+    couvraient si bien qu'en retirer un laissait tout vert. Ici, retirer la
+    garde de NOM rougit le banc du dessus et laisse celui-ci vert ; retirer la
+    garde de CONFINEMENT fait l'inverse. Chacune se prouve seule.
+
+    La jonction est créée par `mklink /J`, qui ne demande aucun privilège sur
+    Windows (mesuré). Là où elle échoue, le banc se retire plutôt que de
+    mentir : il ne prouverait rien de plus en tombant.
+    """
+    import os
+    import subprocess
+    import pytest
+    from app.config import settings
+
+    ailleurs = settings.outputs_path / "hors_des_jobs"
+    ailleurs.mkdir(parents=True, exist_ok=True)
+    # le maillage attendu par la garde d'existence, posé DE L'AUTRE CÔTÉ de
+    # la jonction : sans lui la route refuserait en 404 et ce banc ne dirait
+    # rien du confinement
+    (ailleurs / "model.v2.glb").write_bytes(_glb_de_banc())
+    jobs = settings.outputs_path / "assets3d"
+    jobs.mkdir(parents=True, exist_ok=True)
+    lien = jobs / "vign_jonction"
+    if lien.exists():
+        os.rmdir(lien)
+    fait = subprocess.run(["cmd", "/c", "mklink", "/J", str(lien),
+                           str(ailleurs)], capture_output=True)
+    if fait.returncode != 0:
+        pytest.skip("jonction de répertoire impossible sur cette machine")
+    try:
+        r = _poster_vignette(_client(), "vign_jonction", 2, _png_de_banc())
+        assert r.status_code == 400, (r.status_code, r.text[:200])
+        assert "hors du dossier des jobs" in r.text, r.text[:200]
+        assert not (ailleurs / "vignette_v2.png").exists()
+        # ET LA LECTURE AUSSI. La route de service prend son `job` dans un
+        # segment d'URL, donc du reseau elle aussi : servir un fichier de
+        # l'autre cote de la jonction dirait deja ce qui existe hors du
+        # dossier des jobs. Les deux routes franchissent la meme porte, et
+        # cette assertion est ce qui l'epingle.
+        (ailleurs / "vignette_v2.png").write_bytes(_png_de_banc())
+        g = _client().get("/api/assets/3d/vign_jonction/vignette",
+                          params={"v": 2})
+        assert g.status_code == 400, (g.status_code, g.text[:200])
+    finally:
+        os.rmdir(lien)          # retire la JONCTION, pas sa cible
+        for x in ailleurs.glob("*"):
+            x.unlink()
+        ailleurs.rmdir()
+
+
+def test_la_vignette_s_ecrit_par_un_temporaire_puis_un_remplacement():
+    """L'ÉCRITURE EST ATOMIQUE, ET RIEN NE L'ÉPINGLAIT. Remplacer le couple
+    `tmp` + `replace` par un `p.write_bytes()` direct laissait le banc
+    ENTIÈREMENT vert : une écriture interrompue (disque plein, processus tué)
+    aurait alors laissé une vignette TRONQUÉE que la route sert — pire qu'une
+    absence, qui est dite proprement.
+
+    Rien de ce défaut n'est observable depuis une requête : le banc lit donc
+    la fonction. Mais il la lit en AST, pas en texte — ni les commentaires ni
+    la docstring ne sont des nœuds `ast.Call`, si bien qu'une prose promettant
+    l'atomicité ne peut pas satisfaire cette garde. C'est le `_code()` des
+    bancs frontend, avec l'outil juste pour du Python.
+    """
+    import ast
+    import inspect
+    from app.api import routes
+    arbre = ast.parse(inspect.getsource(routes.etabli_vignette_ecrire))
+    appels = {ast.unparse(n.func) for n in ast.walk(arbre)
+              if isinstance(n, ast.Call)}
+    assert "tmp.write_bytes" in appels
+    assert "tmp.replace" in appels          # os.replace de pathlib, sans import
+    assert "p.write_bytes" not in appels    # l'écriture directe, non atomique
+
+
 def test_la_route_d_ecriture_refuse_une_version_qui_n_existe_pas():
     """Une vignette sans maillage est un mensonge en attente : la carte de la
     Bibliothèque la montrerait pour une version que le disque ignore. Le job

@@ -925,18 +925,69 @@ def _etabli_vignette_path(job: str, v: int) -> Path:
     """Le chemin de la vignette d'une version — UN SEUL endroit le compose.
 
     Écrite par `POST /api/etabli/vignette` (la capture du canevas de l'Établi),
-    servie ci-dessous, préférée par `_etabli_vignette`. Trois endroits qui
+    servie plus bas, préférée par `_etabli_vignette`. Trois endroits qui
     doivent nommer le même fichier : le nom se décide ici, pas trois fois.
 
-    `Path(job).name` APLATIT — c'est ce qui interdit `../../ailleurs` — et il
-    le fait ICI, ET ICI SEULEMENT. Un second aplatissement chez l'appelant
-    serait du zèle NUISIBLE : mesuré, avec deux gardes en parallèle, en
-    retirer une laissait le banc de traversée entièrement vert, et plus rien
-    ne disait laquelle tenait. La route d'écriture déduit donc son dossier de
-    `p.parent` au lieu de le recomposer.
+    IL COMPOSE, IL NE JUGE PAS. `Path(job).name` réduit au nom, ce qui suffit
+    pour un `job` VENU DU DISQUE — `mesh_sources.lister()` ne rend que des noms
+    de dossiers réels, et c'est le seul appelant qui ne passe pas par
+    `_etabli_vignette_cible`. Toute entrée venue du RÉSEAU passe par celle-ci,
+    et pour une raison mesurée que la fonction explique.
     """
     return (settings.outputs_path / "assets3d" / Path(str(job)).name
             / f"vignette_v{int(v)}.png")
+
+
+def _etabli_vignette_cible(job: str, v: int) -> Path:
+    """Le même chemin, pour un `job` VENU DU RÉSEAU — ou un refus parlant.
+
+    DEUX GARDES DE NATURES DIFFÉRENTES, ET C'EST TOUT LE SUJET. Ce fichier a
+    déjà payé pour apprendre que deux gardes IDENTIQUES ne valent pas mieux
+    qu'une : deux `Path(...).name` posés en parallèle se couvraient si bien
+    qu'en retirer un laissait le banc de traversée ENTIÈREMENT VERT, et plus
+    rien ne disait laquelle tenait. Deux gardes de natures différentes, elles,
+    se prouvent SÉPARÉMENT — un banc chacune, une mutation chacune.
+
+    GARDE 1, LE NOM SE REFUSE — il ne s'aplatit pas. MESURÉ : `Path(...).name`
+    normalise le point SIMPLE, JAMAIS le point-point.
+
+        Path("../../evade").name -> 'evade'   (aplati, sans danger)
+        Path("..").name          -> '..'      (PASSE TEL QUEL)
+        Path("a/..").name        -> '..'      (idem)
+        Path(".").name           -> ''
+
+    Un `job=".."` composait donc `outputs/assets3d/../vignette_v1.png` et la
+    route répondait 200 en écrivant UN CRAN AU-DESSUS du dossier des jobs.
+    Portée exacte, pour ne pas dramatiser : l'évasion est d'un SEUL cran
+    (`Path("../..").name` vaut encore `..`), et la seule chose qui la bloquait
+    était la garde d'existence du maillage — il fallait un `outputs/model.glb`,
+    qu'aucun chemin de code ne crée. Non exploitable en l'état, donc ; mais
+    l'invariant qui nous sauvait n'était pas celui que le commentaire
+    désignait, et une garde documentée comme tenant alors qu'elle ne tient pas
+    est exactement ce qui casse au refactor suivant.
+
+    GARDE 2, LE CONFINEMENT — et elle ne regarde pas le nom, elle RÉSOUT le
+    chemin. Elle voit donc ce qu'aucune lecture de nom ne peut voir : une
+    jonction ou un lien posés dans le dossier des jobs. `vign_jonction` est un
+    nom parfaitement honnête, sans `..` ni séparateur — la garde 1 le laisse
+    passer, à juste titre — et le chemin sort pourtant du dossier des jobs.
+    Les deux COMPOSENT au lieu de se doubler : retirer l'une rougit un banc,
+    retirer l'autre en rougit un DIFFÉRENT.
+    """
+    nom = Path(str(job)).name
+    if nom in ("", ".", ".."):
+        raise HTTPException(400, f"vignette : nom de job invalide — "
+                                 f"« {job} » ne désigne aucun dossier de job")
+    # `job` BRUT, et non `nom` : l'aplatissement qui FAÇONNE le chemin vit
+    # dans le composeur, et lui seul. Repasser `nom` ici mettrait deux
+    # `Path(...).name` IDENTIQUES en série — l'un masquerait l'autre à la
+    # mutation, et ce fichier a déjà payé une fois pour cette leçon-là.
+    # Ci-dessus, `.name` ne sert qu'à JUGER ; ici, il ne sert plus du tout.
+    p = _etabli_vignette_path(job, v)
+    racine = (settings.outputs_path / "assets3d").resolve()
+    if racine not in p.resolve().parents:
+        raise HTTPException(400, "vignette : chemin hors du dossier des jobs")
+    return p
 
 
 @router.get("/assets/3d/{job}/vignette")
@@ -952,8 +1003,13 @@ async def get_asset3d_vignette(job: str, v: int = 1):
     de l'utilisateur), donc toute production antérieure à cette tâche n'en a
     pas. `_etabli_vignette` ne compose d'ailleurs cette URL que si le fichier
     est là ; personne ne sert de lien mort.
+
+    `_etabli_vignette_cible` et non `_etabli_vignette_path` : `job` vient ici
+    d'un segment d'URL, donc du réseau, et une LECTURE hors du dossier des
+    jobs dirait déjà quels fichiers existent ailleurs. Les deux routes qui
+    reçoivent un `job` du dehors franchissent la même porte.
     """
-    p = _etabli_vignette_path(job, v)
+    p = _etabli_vignette_cible(job, v)
     if not p.is_file():
         raise HTTPException(404, "Not found")
     return FileResponse(p, media_type="image/png")
@@ -9082,37 +9138,53 @@ async def etabli_vignette_ecrire(request: Request, job: str, version: int):
 
       1. `version` doit être un entier — FastAPI le refuse en 422 sinon — et
          un entier POSITIF : `0` n'est le numéro de rien ;
-      2. `job` est APLATI par `Path(...).name` (dans `_etabli_vignette_path`),
-         ce qui interdit `../../ailleurs` ; un job vide est refusé, sans quoi
-         le chemin dégénérerait en dossier des jobs lui-même ;
+      2. `job` passe par `_etabli_vignette_cible`, qui porte DEUX gardes de
+         natures différentes — le refus des noms dégénérés (`..` survit à
+         `Path(...).name`, mesuré) et le confinement du chemin RÉSOLU sous le
+         dossier des jobs. Le détail, et la mesure, sont chez elle ;
       3. la VERSION DOIT EXISTER sur le disque. Une vignette sans maillage est
          un mensonge en attente : la carte de la Bibliothèque montrerait une
          image pour une version que le disque ignore. C'est aussi ce qui
-         empêche de fabriquer un dossier de job à volonté ;
+         empêche de fabriquer un dossier de job à volonté. ATTENTION : ce
+         n'est PAS une garde de traversée, et l'avoir crue telle a coûté un
+         défaut — voir `_etabli_vignette_cible` ;
       4. la TAILLE est bornée AVANT tout examen du contenu — c'est la garde la
          moins chère, elle passe donc en premier des deux ;
       5. la SIGNATURE PNG est vérifiée. L'en-tête `Content-Type` ne prouve
          rien : seul le magic le fait. Même geste que
          `POST /vector/docs/{doc_id}/vignette`, qui a le même problème.
 
-    ÉCRITURE ATOMIQUE (`.tmp` puis `os.replace`), comme `vector_store` : une
-    écriture interrompue laisserait sinon une vignette tronquée SERVIE — pire
-    qu'une absence, qui est dite proprement.
+    FAIBLESSE CONNUE, ASSUMÉE, ET ÉCRITE ICI POUR QU'ON NE LA « CORRIGE » PAS
+    DE TRAVERS. `await request.body()` bufferise le corps ENTIER avant que la
+    borne de 2 Mio ne morde : un client qui ment peut donc faire allouer plus
+    que la borne. Ce n'est pas corrigé, et c'est délibéré — `routes.py` compte
+    cinq `await request.body()` et celui-ci est le SEUL à borner quoi que ce
+    soit ; passer en `request.stream()` ferait de cette route la seule
+    cérémonieuse au milieu de quatre voisines grandes ouvertes, sur une API
+    sans authentification, atteignable seulement par un processus local (qui a
+    des moyens plus directs) ou par une page du navigateur. Gain nul,
+    incohérence réelle. Un pré-contrôle de `Content-Length` serait une
+    COURTOISIE — un 413 immédiat pour un client honnête — jamais une garde,
+    puisqu'un attaquant ment sur l'en-tête.
+
+    ÉCRITURE ATOMIQUE (`.tmp` puis `Path.replace`, qui est `os.replace`) :
+    une écriture interrompue laisserait sinon une vignette tronquée SERVIE —
+    pire qu'une absence, qui est dite proprement. Un `.tmp` ORPHELIN survit à
+    une interruption et rien ne le nettoie : sans conséquence, la préférence
+    de `_etabli_vignette` nommant des fichiers exacts, et dit plutôt que tu.
     """
-    import os
     if version < 1:
         raise HTTPException(400, f"vignette : version {version} — les "
                                  "versions sont numérotées à partir de 1")
-    if not str(job).strip():
-        raise HTTPException(400, "vignette : `job` est vide")
-    # UN SEUL APLATISSEMENT, celui de `_etabli_vignette_path`, et le dossier
-    # se déduit du chemin plutôt que d'être recomposé. Mesuré : avec un
-    # `Path(job).name` ICI *en plus* de celui du composeur, retirer l'un OU
-    # l'autre laissait le banc de traversée entièrement VERT — deux gardes
-    # parallèles se couvrent l'une l'autre, et plus rien ne dit laquelle
-    # tient. `mesh_report.job_dir()` est évité pour la même raison : il
-    # aplatit lui aussi, et l'aurait masqué une troisième fois.
-    p = _etabli_vignette_path(job, version)
+    # UNE SEULE PORTE POUR LE NOM, et le dossier se déduit du chemin plutôt
+    # que d'être recomposé. Mesuré : avec un `Path(job).name` ICI *en plus* de
+    # celui du composeur, retirer l'un OU l'autre laissait le banc de
+    # traversée entièrement VERT — deux gardes IDENTIQUES se couvrent l'une
+    # l'autre, et plus rien ne dit laquelle tient. `mesh_report.job_dir()` est
+    # évité pour la même raison : il aplatit lui aussi, et l'aurait masqué une
+    # troisième fois. (Les deux gardes de `_etabli_vignette_cible`, elles, ne
+    # sont pas identiques : elles composent, et deux bancs les séparent.)
+    p = _etabli_vignette_cible(job, version)
     d = p.parent
     glb = d / ("model.glb" if version <= 1 else f"model.v{version}.glb")
     if not glb.is_file():
@@ -9128,7 +9200,9 @@ async def etabli_vignette_ecrire(request: Request, job: str, version: int):
                                  "absente, l'en-tête ne prouve rien)")
     tmp = p.parent / f"{p.name}.tmp"
     tmp.write_bytes(octets)
-    os.replace(tmp, p)
+    # `Path.replace` EST `os.replace` — même appel système, même atomicité,
+    # sans l'import local qui a déjà masqué un NameError dans ce dépôt.
+    tmp.replace(p)
     return {"ok": True, "fichier": p.name, "octets": len(octets)}
 
 
