@@ -1357,10 +1357,9 @@ function poserGizmo(objet) {
          que les trois chiffres et la croix du repère restent à la position
          d'AVANT le geste. Une règle qui ne bouge pas sous ce qu'elle mesure
          est pire qu'une règle absente — elle a l'autorité du chiffre.
-         `objectChange` est émis à chaque image de glissement, et lireRepere()
-         ne fait qu'une descente du graphe et une réécriture de deux nœuds : le
-         même ordre de grandeur que le rendu qui suit. */
-      lireRepere();
+         PROGRAMMÉE, ET NON APPELÉE : voir programmerLecture(), qui dit le
+         prix mesuré et pourquoi une lecture par image suffit. */
+      programmerLecture();
     });
     S.vueA.scene.add(GIZMO.getHelper());
   }
@@ -2041,6 +2040,37 @@ function poserCible(brut) {
      lui rester accroché. */
   direGeometrie();
   return true;
+}
+
+/* ── une lecture par IMAGE pendant un glissement ─────────────────────────────
+   LE PRIX EST MESURÉ, et il n'est pas négligeable : sur un modèle de 1 000
+   nœuds, hors navigateur, lireRepere() coûte 0,363 ms à une sélection et
+   2,057 ms à douze (2,068 à vingt-quatre — le palier est celui de
+   LIGNES_REPERE, qui borne les rangées écrites). Soit 12 % d'une trame à
+   60 Hz. Et node ne simule RIEN de ce que le navigateur ajoute : l'affectation
+   d'`innerHTML` y est une affectation de chaîne, là-bas c'est une analyse
+   syntaxique et une remise en page du rail.
+
+   OR `objectChange` EST ÉMIS À CHAQUE MOUVEMENT DE SOURIS, donc possiblement
+   plusieurs fois par image. Appelée directement, la lecture aurait payé ce
+   prix-là autant de fois pour un seul rendu — et les lectures intermédiaires
+   ne seraient jamais apparues à l'écran. On en garde UNE par image, la
+   dernière, ce qui est exactement ce que l'œil peut voir.
+
+   PAS DE MINUTERIE, et c'est le point : `requestAnimationFrame` cale la
+   lecture sur la MÊME horloge que le rendu du canevas, donc les chiffres et le
+   dessin décrivent la même image. Un `setTimeout` les aurait laissés dériver.
+
+   Les cinq autres sites appellent lireRepere() DIRECTEMENT, et c'est voulu :
+   ce sont des gestes uniques — un clic, une case, une cible posée — où
+   attendre une image n'achèterait rien. */
+let _lectureProgrammee = 0;
+function programmerLecture() {
+  if (_lectureProgrammee) return;
+  _lectureProgrammee = requestAnimationFrame(() => {
+    _lectureProgrammee = 0;
+    lireRepere();
+  });
 }
 
 /* Mesure la sélection, écrit les chiffres, et marque le repère 3D.

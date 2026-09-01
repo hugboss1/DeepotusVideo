@@ -501,9 +501,17 @@ const MARQUES_MAX = 24;
    cosinus de l'angle entre l'axe de vue et la normale du plan : c'est
    exactement le facteur d'écrasement de la trame à l'écran. */
 const SEUIL_TRANCHE = 0.25;
-/* De combien un autre plan doit BATTRE le plan courant pour le remplacer.
-   Sans elle, deux plans à égalité — la caméra à 45° entre X et Z — se
-   relaieraient à chaque image, et la trame se reconstruirait en continu. */
+/* LA BANDE MORTE, et elle sert aux DEUX décisions du plan — c'est un correctif,
+   pas une généralisation gratuite. Elle n'était branchée que sur le partage
+   x/z, si bien que le seuil du plancher n'en avait AUCUNE : une caméra qui
+   tremble autour de 14,48° d'élévation (l'angle où |avant·y| vaut 0,25)
+   basculait à CHAQUE image.
+
+   MESURÉ, 200 appels oscillant de ±0,0057° de part et d'autre du seuil :
+   sans la bande 200 bascules, avec la bande 0. Chaque bascule reconstruit
+   jusqu'à 513 lignes, émet `lib3d:graduation` et déclenche donc une relecture
+   complète du rail — le tout dans la boucle de rendu. Le déclencheur réel est
+   une main qui tremble à cette élévation-là : c'est étroit, et c'est réel. */
 const MARGE_TRANCHE = 0.05;
 
 /* PURE. Dans quel PLAN poser la trame : on rend la NORMALE, « x », « y » ou
@@ -535,14 +543,28 @@ const MARGE_TRANCHE = 0.05;
    exactement. Le seuil sépare donc les cinq vues sans les départager de
    justesse.
 
-   PAS DE PAPILLOTEMENT, ET C'EST DÉMONTRABLE plutôt que espéré : la somme des
-   trois cosinus carrés vaut 1, donc le meilleur des trois vaut au moins
-   1/√3 = 0,5774. Quand on quitte le plancher (sous 0,25), le plan retenu est
-   donc TOUJOURS très au-dessus du seuil, et il ne se rendra pas au tour
-   suivant. La marge ne sert qu'au partage entre X et Z. */
+   DEUX PROPRIÉTÉS DISTINCTES, ET LA PREMIÈRE NE DONNE PAS LA SECONDE — c'est
+   l'erreur que la prose de cette fonction a d'abord commise.
+
+   (a) LE PLAN RETENU EST TOUJOURS BIEN EXPOSÉ. La somme des trois cosinus
+       carrés vaut 1, donc le meilleur des trois vaut au moins 1/√3 = 0,5774 :
+       quitter le plancher mène toujours à un plan très au-dessus du seuil.
+       Cela dit que la trame se VOIT ; cela ne dit RIEN de la stabilité de la
+       décision, et l'affirmer était une phrase qui promettait plus que la
+       mesure ne montre.
+
+   (b) LA DÉCISION EST STABLE, et c'est la BANDE MORTE qui l'assure, pas (a).
+       On quitte le plancher sous SEUIL − MARGE et on n'y revient qu'au-dessus
+       de SEUIL : entre 0,20 et 0,25, le plan COURANT gagne, quel qu'il soit.
+       Le partage entre X et Z porte la même bande. Un banc oscille au seuil,
+       dans les deux sens, et compte les bascules. */
 export function planDeTrame(avant, planCourant) {
   const d = { x: Math.abs(avant.x), y: Math.abs(avant.y), z: Math.abs(avant.z) };
-  if (d.y >= SEUIL_TRANCHE) return "y";
+  /* Le plancher qu'on TIENT se défend d'une marge ; celui qu'on a quitté doit
+     franchir le seuil plein pour être repris. */
+  const seuil = planCourant === "y" ? SEUIL_TRANCHE - MARGE_TRANCHE
+    : SEUIL_TRANCHE;
+  if (d.y >= seuil) return "y";
   const meilleur = d.x >= d.z ? "x" : "z";
   if ((planCourant === "x" || planCourant === "z")
       && d[planCourant] >= d[meilleur] - MARGE_TRANCHE) return planCourant;
