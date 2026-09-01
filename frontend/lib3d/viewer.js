@@ -148,6 +148,19 @@ export function vider(api) {
   });
   api.scene.remove(api.racine);
   api.racine = null;
+  /* ET LA MARQUE DU REPÈRE AVEC LUI, parce qu'elle DÉCRIT LE MODÈLE — là où
+     la trame et les axes décrivent le REGARD et survivent délibérément.
+     Sans cette ligne : charger() fait vider() PUIS attend le téléchargement,
+     donc sur un GLB de plusieurs mégaoctets l'écran garde plusieurs secondes
+     la grille, les axes et LES CROIX DE LA SÉLECTION PRÉCÉDENTE, à ses
+     coordonnées, sans maillage autour. Le rail garde lui aussi son ancienne
+     lecture, et c'est le précédent du panneau Parties ; mais les croix, elles,
+     vivent dans le canevas que cette fonction vient d'effacer.
+     ELLE NE PEUT PAS SE RÉPARER SEULE : ce module ne retient pas les points
+     qu'on lui a donnés, il ne saurait pas les redessiner. L'invariant est donc
+     tenu ICI, chez celui qui efface — et non chez l'appelant, qui l'oublierait
+     le jour où un second écran réutilisera ce canevas. */
+  marquerAuRepere(api, []);
   /* `gltf` retient `parser`, donc `parser.json`, les ArrayBuffers du GLB
      ENTIER et le cache d'images : le laisser accroché garderait des centaines
      de Mo côté hôte après une libération censée tout rendre. Le mettre à null
@@ -357,12 +370,9 @@ export function aspectDe(api) {
    exactement ce que la demande réclame — « dans les deux modes de
    manipulation, une graduation visible ».
 
-   AUCUN MILLIMÈTRE N'EST ÉCRIT ICI, et c'est structurel. Un GLB n'a PAS
-   d'échelle : c'est `print3d.mettre_a_l_echelle(tris, cible_mm)` qui en
-   fabrique une, au moment d'écrire un STL, en portant la plus grande dimension
-   à la cible. Tout ce bloc compte donc en unités glTF ; la conversion est
-   offerte séparément par echelleMm(), site canonique de la doctrine, et elle
-   rend `null` tant que personne n'a posé de cible. */
+   AUCUN MILLIMÈTRE N'EST ÉCRIT ICI : tout ce bloc compte en unités glTF. La
+   doctrine — pourquoi un GLB n'a pas d'échelle, et d'où celle-ci peut naître —
+   est écrite UNE FOIS, sur echelleMm(). */
 
 /* Le nombre de pas VISÉS en travers de la hauteur visible. */
 const DIVISIONS_VISEES = 10;
@@ -684,6 +694,10 @@ export function majRepere(api) {
   e.trame = new THREE.GridHelper(cote, 2 * cases,
                                  COULEUR_TRAME_CENTRE, COULEUR_TRAME);
   e.trame.material.transparent = true;
+  /* TROIS OPACITÉS, ET ELLES SE CLASSENT : la trame (0,4) est un fond de
+     lecture, les axes (0,9) sont la référence qu'elle gradue, la marque (0,95)
+     est ce qu'on cherche. Elles décroissent avec l'importance et non au hasard ;
+     égales, la grille couvrirait ses propres axes sur un modèle dense. */
   e.trame.material.opacity = 0.4;
   e.trame.material.depthWrite = false;
   /* LA TRAME SEULE PIVOTE, JAMAIS LE GROUPE : les axes qu'il porte sont ceux du
@@ -693,8 +707,13 @@ export function majRepere(api) {
   e.axes = construireAxes(cases * pas);
   e.groupe.add(e.trame);
   e.groupe.add(e.axes);
+  /* `demiTrame` ET NON `portee` : quarante lignes plus haut, `portee` nomme la
+     distance à COUVRIR (origine → bord du champ) ; ici c'est la demi-étendue
+     de la grille CONSTRUITE, et les deux diffèrent d'un facteur 3,8 à 9,6.
+     Deux grandeurs sous un seul nom finissent par être prises l'une pour
+     l'autre. */
   api.renderer.domElement.dispatchEvent(new CustomEvent("lib3d:graduation", {
-    detail: { pas, cases, plan, portee: cases * pas } }));
+    detail: { pas, cases, plan, demiTrame: cases * pas } }));
   return e;
 }
 
@@ -711,7 +730,15 @@ export function majRepere(api) {
    LE CHEMIN SUIT LE PLAN DE LA TRAME, il n'est pas écrit en dur sur Y : la
    descente longe la NORMALE du plan retenu et les deux jambes ses deux autres
    axes. Figée sur le sol, elle aurait plongé dans le vide dès que la trame
-   bascule en XY — le chemin ne se serait plus rapporté à aucune case. */
+   bascule en XY — le chemin ne se serait plus rapporté à aucune case.
+
+   CE MODULE NE RETIENT PAS LES POINTS, et c'est une limite à connaître : la
+   marque ne peut donc pas se redessiner seule après un changement de plan ou
+   de pas, et c'est l'appelant qui la repose. En revanche elle est EFFACÉE ici,
+   par vider(), et non chez l'appelant — sans quoi le prochain écran qui
+   réutilisera ce canevas partagé hériterait des croix sans hériter de
+   l'écouteur qui les nettoie. La borne à MARQUES_MAX est RENDUE : l'appelant
+   qui la tait laisse croire que tout est marqué. */
 export function marquerAuRepere(api, points) {
   const e = api && _reperes.get(api);
   if (!e) return 0;

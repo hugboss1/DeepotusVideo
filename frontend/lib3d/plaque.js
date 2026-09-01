@@ -546,6 +546,55 @@ export function ranger(api) {
   return true;
 }
 
+/* ── ce que l'étalement a DÉPLACÉ, pour qui doit lire des coordonnées ────────
+   Le décalage d'étalement d'un objet, exprimé DANS LE MONDE, et zéro hors
+   plaque. Elle vit ICI et non chez l'appelant, et c'est le fond de l'affaire :
+   le berceau est un détail INTERNE de ce module — c'est etaler() qui le glisse
+   entre la pièce et son parent, et lui seul qui sait où il est. Une page qui
+   le retrouverait en supposant « le berceau est le parent de la pièce »
+   énoncerait un invariant que rien ne lui garantit ; le jour où l'étalement
+   glisserait un second Group (une teinte, un socle par pièce, l'imbrication
+   qu'évoque déjà le commentaire de piecesDe), ses coordonnées deviendraient
+   fausses DU DÉCALAGE EXACT — donc plausibles, avec l'autorité du chiffre.
+
+   ICI, RIEN N'EST DEVINÉ : `etat.berceaux` retient déjà `{berceau, piece,
+   parent}`, les trois objets dont la réponse a besoin, et montrerPiece() s'en
+   sert deux lignes plus bas.
+
+   POURQUOI CE N'EST PAS UNE SOUSTRACTION NAÏVE. Le berceau porte un décalage
+   LOCAL ; sous un parent qui tourne ou change d'échelle — le cas d'une
+   réparation en Z, où `_ROT["Z"]` n'est plus l'identité — le décalage MONDE en
+   diffère. Avec `berceau.matrixWorld = parent.matrixWorld · T(d)`, la
+   différence des deux colonnes de translation vaut `A_parent · d` : la
+   translation du parent s'annule d'elle-même, et il reste le décalage exact.
+   C'est la même algèbre que versLocalLineaire, prise dans l'autre sens.
+
+   `etale: true` DIT que la lecture n'a PAS pu être corrigée — un nœud qui
+   CONTIENT des pièces, dont la boîte englobe des pièces déjà envolées. On le
+   marque plutôt que de le taire : un chiffre douteux annoncé vaut mieux qu'un
+   chiffre faux muet.
+
+   ELLE NE MODIFIE RIEN, comme tout ce module : elle LIT trois matrices. */
+export function decalageEtalement(api, objet) {
+  const zero = new THREE.Vector3();
+  const etat = api && _etats.get(api);
+  if (!etat) return { decalage: zero, etale: false };
+  /* On remonte jusqu'à une pièce INSCRITE dans l'état — pas jusqu'à un objet
+     qui ressemblerait à une pièce. Les pièces ne s'imbriquent pas (piecesDe
+     l'assure), donc au plus une correspond. */
+  const parPiece = new Map(etat.berceaux.map((e) => [e.piece, e]));
+  let n = objet;
+  while (n && !parPiece.has(n)) n = n.parent;
+  const e = n && parPiece.get(n);
+  /* Un berceau détaché — un vider() passé par là — ne décrit plus rien. */
+  if (!e || e.berceau.parent !== e.parent) return { decalage: zero, etale: !e };
+  return {
+    decalage: e.berceau.getWorldPosition(new THREE.Vector3())
+      .sub(e.parent.getWorldPosition(new THREE.Vector3())),
+    etale: false,
+  };
+}
+
 /* L'œil de la liste. `visible` de three.js, et rien d'autre : ni opacité (qui
    passerait par les matériaux, donc par la limite du partage), ni retrait de
    la scène (qui ferait perdre sa place à la pièce). Restauré par ranger(). */

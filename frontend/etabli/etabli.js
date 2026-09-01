@@ -11,7 +11,8 @@ import { creerCanevas, charger, cadrer, vider, projeter, orienter, cadreOrtho,
   from "/lib3d/viewer.js";
 import { indexerNoeuds, inventaire, isoler, surligner, designerAuClic }
   from "/lib3d/selection.js";
-import { etaler, ranger, estEtalee, montrerPiece } from "/lib3d/plaque.js";
+import { etaler, ranger, estEtalee, montrerPiece, decalageEtalement }
+  from "/lib3d/plaque.js";
 import { TransformControls } from "three/addons/controls/TransformControls.js";
 
 const $ = (s) => document.querySelector(s);
@@ -1703,12 +1704,16 @@ async function capturerVignette(job, version) {
      poseraient un quadrillage en travers de la carte de bibliothèque, dont le
      métier est de montrer un OBJET et non un atelier. Même traitement que le
      gizmo, au même endroit, et l'état d'avant est RENDU par montrerRepere()
-     plutôt que supposé — la vue B n'a pas de repère construit tant qu'elle n'a
-     pas rendu une image, et supposer « visible » la rallumerait de force. */
-  let repereVu = false;
+     plutôt que supposé : une vue dont la boucle n'a pas encore posé de repère
+     rend `false`, et supposer « visible » l'allumerait de force au
+     rétablissement.
+     CAPTURÉ HORS DU `try`, comme la visibilité du gizmo juste au-dessus : à
+     l'intérieur, une instruction levante insérée un jour laisserait la
+     sentinelle à sa valeur par défaut et éteindrait le repère pour toute la
+     session. montrerRepere() ne lève pas, elle lit et écrit un booléen. */
+  const repereVu = montrerRepere(vue, false);
   try {
     if (helper) helper.visible = false;
-    repereVu = montrerRepere(vue, false);
     /* RENDRE, PUIS LIRE — dans cet ordre, dans le même tour, sans attente. */
     vue.renderer.render(vue.scene, vue.camera);
     reduite = reduireCanevas(vue.renderer.domElement);
@@ -1883,53 +1888,22 @@ function plusGrandeDimension() {
   return t ? Math.max(t.x, t.y, t.z) : 0;
 }
 
-/* ── le décalage d'ÉTALEMENT, retranché ─────────────────────────────────────
-   LE PIÈGE DE CE BLOC, et c'est le même que celui du gizmo. Sur la plaque, une
-   pièce n'est PAS là où le modèle la met : plaque.js glisse un BERCEAU entre
-   elle et son parent, et sa boîte monde porte donc un décalage d'AFFICHAGE.
-   Lu tel quel, il donnerait des coordonnées fausses par rapport à l'origine —
-   avec l'autorité du chiffre, et sans que rien ne grince. C'est exactement ce
-   que poserGizmo() refuse de laisser partir au serveur ; on ne l'affiche pas
-   davantage.
+/* ── le décalage d'ÉTALEMENT ────────────────────────────────────────────────
+   IL EST RETRANCHÉ, ET LE CALCUL VIT DANS /lib3d/plaque.js. Sur la plaque, une
+   pièce n'est PAS là où le modèle la met : un BERCEAU s'est glissé entre elle
+   et son parent, et sa boîte monde porte donc un décalage d'AFFICHAGE. Lu tel
+   quel, il donnerait des coordonnées fausses par rapport à l'origine — avec
+   l'autorité du chiffre, et sans que rien ne grince. C'est ce que poserGizmo()
+   refuse de laisser partir au serveur ; on ne l'affiche pas davantage.
 
-   COMMENT ON LE RETRANCHE SANS RIEN SUPPOSER DU NOM DU BERCEAU. Le berceau est
-   le PARENT de la pièce tant que la plaque est étalée — c'est la seule chose
-   que plaque.js promette de sa structure (« berceau.add(m.piece) ;
-   parent.add(berceau) »). On remonte donc de l'objet jusqu'à la première pièce
-   (les clés sont dans PLQ.pieces, remontées par etaler()), et le décalage
-   monde vaut `berceauMonde − parentDuBerceauMonde` : avec
-   `berceau.matrixWorld = parent.matrixWorld · T(d)`, cette différence vaut
-   `A_parent · d`, translation annulée d'elle-même — donc le décalage EXACT,
-   même sous un parent qui tourne ou change d'échelle (le cas d'une réparation
-   en Z, où `_ROT["Z"]` n'est plus l'identité). Un banc l'EXÉCUTE contre le
-   vrai three.js, sous un parent tourné et mis à l'échelle.
-
-   `etale: true` DIT que la lecture n'a PAS pu être corrigée — un nœud qui
-   CONTIENT des pièces, par exemple, dont la boîte englobe des pièces déjà
-   envolées. On le marque plutôt que de le taire : un chiffre douteux annoncé
-   vaut mieux qu'un chiffre faux muet. */
-function decalageEtalement(objet) {
-  const zero = new THREE.Vector3();
-  if (!PLQ.active || !S.vueA || !S.vueA.racine) {
-    return { decalage: zero, etale: false };
-  }
-  const cles = new Set(PLQ.pieces.map((p) => p.cle));
-  let piece = objet;
-  while (piece && piece !== S.vueA.racine
-         && !(piece.userData && cles.has(piece.userData.indexGltf))) {
-    piece = piece.parent;
-  }
-  if (!piece || piece === S.vueA.racine
-      || !piece.parent || !piece.parent.parent) {
-    return { decalage: zero, etale: true };
-  }
-  const berceau = piece.parent;
-  return {
-    decalage: berceau.getWorldPosition(new THREE.Vector3())
-      .sub(berceau.parent.getWorldPosition(new THREE.Vector3())),
-    etale: false,
-  };
-}
+   POURQUOI CETTE PAGE NE LE CALCULE PAS ELLE-MÊME, et c'est un revirement : la
+   première écriture retrouvait le berceau ICI, en supposant qu'il est le PARENT
+   de la pièce. C'est vrai aujourd'hui, et c'est un invariant INTERNE au module
+   d'étalement, que rien ne promettait à ses appelants. Le jour où etaler()
+   glisserait un second Group, toutes les coordonnées lues sur la plaque
+   deviendraient fausses DU DÉCALAGE EXACT — donc plausibles. La question
+   appartient à qui pose le berceau : `etat.berceaux` retient déjà
+   `{berceau, piece, parent}`, et là-bas il n'y a rien à deviner. */
 
 /* Ce que la sélection vaut par rapport à l'ORIGINE : une ligne par retenu.
 
@@ -1962,7 +1936,7 @@ function mesurerRetenus() {
     const boite = new THREE.Box3().setFromObject(o);
     if (boite.isEmpty()) { sansPosition++; continue; }
     const c = boite.getCenter(new THREE.Vector3());
-    const d = decalageEtalement(o);
+    const d = decalageEtalement(S.vueA, o);
     c.sub(d.decalage);
     if (d.etale) etale++;
     lignes.push({
@@ -2007,6 +1981,19 @@ function rendreRepere() {
   $("#rCible").addEventListener("change", () => poserCible($("#rCible").value));
 }
 
+/* LE CHAMP REDIT CE QUI EST APPLIQUÉ, et il le faut après CHAQUE refus.
+   `#rCible` était LU et jamais réécrit — rendreRepere() ne passe qu'à l'import
+   — si bien qu'un refus laissait deux sources de vérité pour la seule valeur
+   d'où des millimètres peuvent naître. Chemin en un geste : cible 63 posée,
+   l'utilisateur tape « -5 » et sort du champ ; `type="number"` rend bien la
+   chaîne « -5 » (le `min` gouverne la VALIDITÉ, pas la valeur), poserCible
+   refuse, et l'écran montre le champ à −5 pendant que le rail annonce « cible
+   63 mm ». Le refus rouge disparaît au clic suivant ; le champ, lui, mentait
+   jusqu'au prochain rechargement de la page. */
+function rendreCible() {
+  $("#rCible").value = REP.cibleMm === null ? "" : REP.cibleMm;
+}
+
 /* Pose (ou retire) la taille cible. Rend un booléen parce que trois issues
    n'ont qu'un résultat observable : posée, retirée, refusée. */
 function poserCible(brut) {
@@ -2025,6 +2012,7 @@ function poserCible(brut) {
   if (!Number.isFinite(cible) || !(cible > 0)) {
     direRefus("taille cible invalide — un nombre de millimètres > 0, ou le "
       + "champ vide pour rester en unités glTF");
+    rendreCible();
     return false;
   }
   if (!(plusGrandeDimension() > 0)) {
@@ -2032,6 +2020,7 @@ function poserCible(brut) {
        acceptée et ne convertirait rien, ce qui est un bouton qui ment. */
     direRefus("aucun modèle mesuré — une taille cible se pose sur la plus "
       + "grande dimension d'un maillage, il en faut un à l'écran");
+    rendreCible();
     return false;
   }
   REP.cibleMm = cible;
@@ -2061,9 +2050,25 @@ function poserCible(brut) {
    lecture sur la MÊME horloge que le rendu du canevas, donc les chiffres et le
    dessin décrivent la même image. Un `setTimeout` les aurait laissés dériver.
 
-   Les cinq autres sites appellent lireRepere() DIRECTEMENT, et c'est voulu :
-   ce sont des gestes uniques — un clic, une case, une cible posée — où
-   attendre une image n'achèterait rien. */
+   LES QUATRE AUTRES SITES appellent lireRepere() DIRECTEMENT, et c'est voulu :
+   ce sont des gestes uniques — un clic, une case, une cible posée, un modèle
+   chargé — où attendre une image n'achèterait rien. Le cinquième, l'écoute du
+   pas, passe ICI : `dispatchEvent` est synchrone et majRepere() vit dans la
+   boucle de rendu, si bien qu'une lecture directe s'exécuterait AU MILIEU de
+   l'image qu'elle décrit.
+
+   POUR LE LOT SUIVANT — LE DÉPLACEMENT AU CLAVIER, et il faut le lire avant
+   d'écrire une flèche. LE PAS QUE CE RAIL AFFICHE EST UN PAS DE VUE : il se
+   déduit de l'étendue visible et change au zoom. Or les déplacements du
+   clavier, eux, ALIMENTENT LA FILE D'ÉCRITURE — contrairement à l'étalement,
+   ils partent sur le disque. « Une flèche = un pas de grille » ferait donc
+   dépendre l'amplitude d'une modification ÉCRITE d'un paramètre de REGARD :
+   deux utilisateurs au même modèle, zoomés différemment, écriraient deux
+   translations différentes. `pasGradue` est pure et exportée : un pas STABLE
+   se tire de `plusGrandeDimension()` sans une ligne de plus.
+   (Et `noterAttente` appelle `rendreAttente()` à CHAQUE fois : sous répétition
+   de touche, c'est trente réécritures du bandeau par seconde. La coalescence
+   ci-dessous est le remède tout prêt.) */
 let _lectureProgrammee = 0;
 function programmerLecture() {
   if (_lectureProgrammee) return;
@@ -2096,7 +2101,13 @@ function lireRepere() {
       : " · aucune taille cible, donc aucun millimètre déduit");
 
   const m = mesurerRetenus();
-  marquerAuRepere(S.vueA, PLQ.active ? [] : m.points);
+  /* LE COMPTE MARQUÉ EST RENDU, ET ON LE LIT. marquerAuRepere() borne le
+     nombre de croix ; laisser cette borne muette serait la faute même que ce
+     bloc reproche au reste — « une mesure qu'on fait et qu'on tait se lit
+     comme une perte ». Et elle est ATTEIGNABLE : le clic dans le canevas
+     AJOUTE à la sélection sans jamais la vider. */
+  const marquees = marquerAuRepere(S.vueA, PLQ.active ? [] : m.points);
+  const tronquees = PLQ.active ? 0 : m.points.length - marquees;
   const visibles = m.lignes.slice(0, LIGNES_REPERE);
   const corps = m.lignes.length
     ? `<div class="repere-tete">x · y · z depuis l'origine, en ${esc(u)}</div>`
@@ -2116,6 +2127,10 @@ function lireRepere() {
       ? `<div class="repere-plus">${m.sansPosition} sélection(s) sans
         position — un matériau n'est pas un volume, un nœud sans géométrie
         n'a pas de boîte</div>` : "")
+    + (tronquees > 0
+      ? `<div class="repere-plus">${tronquees} croix non tracée(s) — au-delà,
+        le repère 3D cesse d'être lisible ; les chiffres, eux, restent</div>`
+      : "")
     + (PLQ.active
       ? `<div class="repere-plus">la plaque est une VUE : les chiffres sont
         ceux du MODÈLE, décalage d'étalement retranché, et le repère 3D ne
@@ -2218,7 +2233,11 @@ rendreFiche();
    pas — le piège que `_clicBranche` corrige plus haut. */
 $("#vueA canvas").addEventListener("lib3d:graduation", (ev) => {
   REP.pas = ev.detail.pas;
-  lireRepere();
+  /* PROGRAMMÉE, comme le glissement, et pour une raison plus forte encore :
+     `dispatchEvent` est SYNCHRONE et majRepere() est appelée DANS la boucle de
+     rendu, si bien qu'une lecture directe exécuterait ses 2 ms au milieu de
+     l'image. Ce site n'est pas un geste unique — c'est du temps de rendu. */
+  programmerLecture();
 });
 
 /* ── les onglets du rail droit ──────────────────────────────────────────────

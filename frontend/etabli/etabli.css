@@ -485,10 +485,17 @@ button { font-family: inherit; }
 }
 /* `tabular-nums` et une largeur FIXE : trois colonnes de chiffres qui
    n'auraient ni l'une ni l'autre ne s'aligneraient pas d'une rangée à la
-   suivante, et une lecture de coordonnées non alignée ne se compare pas. */
+   suivante, et une lecture de coordonnées non alignée ne se compare pas.
+
+   DIX GLYPHES, ET C'EST MESURÉ SUR LE CAS COURANT : un GLB exporté d'un CAD en
+   millimètres donne des coordonnées comme « -1 234,567 », soit dix caractères
+   séparateur de milliers compris. À 8ch le chiffre débordait SANS ELLIPSE —
+   donc rogné en silence, ce qui est le pire des affichages pour une mesure. On
+   élargit, et on pose l'ellipse : un nombre trop long se dit tronqué. */
 .repere-ligne span {
-  flex: none; width: 8ch; text-align: right;
+  flex: none; width: 10ch; text-align: right;
   font-variant-numeric: tabular-nums;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 /* Une lecture que l'étalement n'a pas pu corriger se VOIT douteuse — même
    traitement que `.attente-doute`, et pour le même motif : un chiffre faux
