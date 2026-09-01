@@ -299,16 +299,6 @@ export function cadreOrtho(demiHauteur, aspect) {
   return { left: -dl, right: dl, top: demiHauteur, bottom: -demiHauteur };
 }
 
-/* PURE. La demi-hauteur VISIBLE au plan de la cible, pour l'une ou l'autre
-   projection. C'est la seule grandeur par laquelle une bascule peut promettre
-   « même taille à l'écran », et `zoom` y entre des deux côtés : OrbitControls
-   zoome une ortho par `camera.zoom` et une perspective en la déplaçant, si
-   bien qu'oublier le facteur ferait sauter l'échelle au retour d'un zoom. */
-export function demiHauteurVue(cam, distance) {
-  if (cam.isOrthographicCamera) return (cam.top - cam.bottom) / 2 / cam.zoom;
-  return (distance * Math.tan((cam.fov * Math.PI) / 360)) / cam.zoom;
-}
-
 /* Pose les quatre bords sur la caméra. Séparé de cadreOrtho() pour que la
    règle reste pure et que l'écriture reste un effet. */
 function poserCadreOrtho(cam, demiHauteur, aspect) {
@@ -318,17 +308,32 @@ function poserCadreOrtho(cam, demiHauteur, aspect) {
   cam.updateProjectionMatrix();
 }
 
-/* Les plans de coupe, DÉDUITS de la distance de pose — et par le scalaire
-   HÉRITÉ (distance / NORME_DIR), sans quoi ils bougeraient de 25 % par rapport
-   à ce que la tâche 3 avait posé. Ils valent pour les deux projections : la
-   profondeur occupée par une boîte de rayon `rayon` vue de `distance` ne
-   dépend pas de la façon dont on la projette. Vérification à la marge par
-   défaut : distance = 4,0740·rayon, near = 0,00326·rayon, far = 325,9·rayon,
-   quand le modèle occupe [distance − 1,733·rayon, distance + 1,733·rayon]. */
-function poserCoupe(cam, distance) {
+/* PURE. Les plans de coupe, DÉDUITS de la distance de pose — et par le
+   SCALAIRE HÉRITÉ, distance / NORME_DIR. Ce n'est pas une coquetterie
+   d'écriture : la tâche 3 posait `d = rayon·marge·recul / tan(fov/2)` puis
+   `near = max(d/1000, 0,001)` et `far = d·100`, et cette `d`-là N'ÉTAIT PAS la
+   distance — la caméra était posée à `d·DIR`, de norme 1,25, si bien que la
+   distance vraie valait 1,25·d. Diviser ici est donc ce qui rend les deux
+   plans IDENTIQUES à ceux d'avant cette tâche ; écrire la distance vraie les
+   déplacerait tous les deux de 25 %, sur un cadrage que la demande exige de
+   conserver, et rien à l'écran ne le dirait. Un banc les recalcule par le
+   chemin de la tâche 3 — rayon, marge, recul, fov — sans jamais mentionner
+   NORME_DIR.
+
+   Ils valent pour les deux projections : la profondeur qu'occupe une boîte de
+   rayon `rayon` vue de `distance` ne dépend pas de la façon dont on la
+   projette. Vérification à la marge par défaut : distance = 4,0740·rayon,
+   near = 0,00326·rayon, far = 325,9·rayon, quand le modèle occupe
+   [distance − 1,733·rayon, distance + 1,733·rayon]. */
+export function coupeDe(distance) {
   const d = distance / NORME_DIR;
-  cam.near = Math.max(d / 1000, 0.001);
-  cam.far = d * 100;
+  return { near: Math.max(d / 1000, 0.001), far: d * 100 };
+}
+
+function poserCoupe(cam, distance) {
+  const c = coupeDe(distance);
+  cam.near = c.near;
+  cam.far = c.far;
 }
 
 /* L'aspect du canevas, MESURÉ SUR LE DOM et non lu dans `camera.aspect` : ce
@@ -365,9 +370,11 @@ export function cadrer(api, marge = 1.35) {
      sans qu'aucune erreur ne remonte.
      Sous l'orthographique cette distance n'a AUCUN effet sur l'image — la
      projection est parallèle — mais elle en a deux ailleurs : les plans de
-     coupe, et l'état sphérique d'OrbitControls que la bascule doit pouvoir
-     conserver sans déplacer un pixel. Les deux caméras se posent donc au même
-     endroit, et projeter() n'a plus qu'à changer la projection. */
+     coupe, et l'état sphérique d'OrbitControls, qui déduit son rayon de
+     (position − cible) à chaque update(). Les deux caméras se cadrent donc à
+     la MÊME distance, ce qui laisse à projeter() une bascule qui n'a plus qu'à
+     reporter la pose — sans quoi il lui faudrait la RECALCULER, et ce calcul-là
+     serait écrasé par le cadrage suivant. */
   const distance = cadre.demiHauteur
     / Math.tan((api.cameraPerspective.fov * Math.PI) / 360);
   const n = Math.hypot(o.dir.x, o.dir.y, o.dir.z);
@@ -376,13 +383,16 @@ export function cadrer(api, marge = 1.35) {
     centre.y + (distance * o.dir.y) / n,
     centre.z + (distance * o.dir.z) / n);
   poserCoupe(api.camera, distance);
+  /* LE ZOOM REPART À 1, sous les DEUX projections. OrbitControls zoome une
+     ortho par `camera.zoom`, qui remettrait à l'échelle le cadre qu'on vient
+     de calculer : « Face » atterrirait sur le grossissement du geste d'avant,
+     et deux modèles chargés à la suite ne seraient plus comparables — ce que
+     cadrer() existe pour garantir. La perspective ne se zoome pas ainsi
+     aujourd'hui (la molette y déplace la caméra), mais l'invariant « après
+     cadrer(), zoom vaut 1 » vaut mieux énoncé une fois pour les deux que vrai
+     par accident sur l'une. */
+  api.camera.zoom = 1;
   if (api.camera.isOrthographicCamera) {
-    /* Le zoom d'OrbitControls remettrait à l'échelle un cadre qu'on vient de
-       calculer : le laisser courir ferait atterrir « Face » sur le
-       grossissement du geste d'avant, quand ce bouton promet un point de vue
-       neuf. La perspective n'a pas ce besoin — son zoom à elle est la
-       distance, et on vient de la reposer. */
-    api.camera.zoom = 1;
     poserCadreOrtho(api.camera, cadre.demiHauteur, aspect);
   } else {
     api.camera.updateProjectionMatrix();
@@ -392,11 +402,34 @@ export function cadrer(api, marge = 1.35) {
   return { taille, centre, rayon, demiHauteur: cadre.demiHauteur };
 }
 
-/* ── basculer de projection ─────────────────────────────────────────────────
-   PERSPECTIVE ⇄ ORTHOGRAPHIQUE, sans que le modèle change de taille à l'écran :
-   la demi-hauteur visible au plan de la cible est reportée telle quelle d'une
-   caméra à l'autre. C'est la seule bascule qui ne demande pas à l'œil de
-   retrouver ce qu'il regardait.
+/* ── basculer de projection ────────────────────────────────────────────────
+   CE QU'ELLE FAIT, ET CE QU'ELLE NE FAIT PLUS.
+
+   Elle change la CAMÉRA ACTIVE et lui reporte la POSE de celle qu'elle
+   remplace. Rien d'autre. Le CADRE — bords ou fov, zoom, plans de coupe —
+   appartient à cadrer(), et n'est pas repris ici.
+
+   La première écriture reportait aussi la demi-hauteur visible au plan de la
+   cible, pour que le modèle garde sa taille à l'écran d'une projection à
+   l'autre. C'était juste, c'était mesuré, et c'était INOBSERVABLE : les trois
+   appelants — appliquerVue(), synchroniser() et _ouvrirComparaison(), dans
+   etabli.js — écrasent tous ce cadre à la ligne suivante, par
+   orienter()→cadrer() ou par la recopie de synchronisation. Un calcul que
+   personne ne regarde est une promesse qu'on croira tenue : on la RETIRE
+   plutôt que de l'entretenir et de la garder. (Même doctrine que le `vides` de
+   la plaque, rendu par le module et lu par personne, qu'une tâche précédente a
+   fini par DIRE à l'écran plutôt que par laisser mourir.)
+
+   LA POSE, ELLE, RESTE — parce qu'elle est OBSERVÉE. `api.controls.object =
+   apres` fait aussitôt lire `apres.position` par OrbitControls : une caméra
+   d'arrivée laissée à sa position d'origine ferait sauter le point de vue
+   partout où la bascule n'est PAS suivie d'un cadrage, c'est-à-dire sur une
+   vue sans modèle — le cas exact de _ouvrirComparaison(), qui projette la vue
+   B avant de lui donner son GLB.
+
+   CONTRAT D'APPELANT, donc : appeler cadrer() — ou orienter(), qui cadre —
+   derrière. Sans modèle il n'y a rien à cadrer et le cadre reste celui d'avant,
+   sans conséquence : la scène est vide, et le prochain charger() cadre.
 
    TROIS RÉFÉRENCES DE CAMÉRA VIVENT HORS DE CE MODULE, et chacune est une
    panne SILENCIEUSE si on l'oublie :
@@ -405,39 +438,19 @@ export function cadrer(api, marge = 1.35) {
        rend, et la souris ne fait plus rien de visible.
      — TransformControls, qui garde SA référence pour dimensionner et piquer
        ses poignées. Il n'est pas connu d'ici : c'est à l'appelant de lui
-       repasser `api.camera` — l'Établi le fait, et un banc l'épingle.
-     — la synchronisation A/B, qui recopiait un `fov` qu'une ortho n'a pas.
+       repasser `api.camera` — et à TOUS ses sites, y compris celui de la
+       synchronisation A/B, qui projette la vue A quand c'est B qui bouge.
+     — la synchronisation A/B elle-même, qui recopiait un `fov` qu'une ortho
+       n'a pas.
    La boucle de rendu, elle, lit `api.camera` à chaque image : rien à y faire. */
 export function projeter(api, mode) {
   if (mode !== "perspective" && mode !== "orthographique") return null;
   if (api.projection === mode) return mode;
   const avant = api.camera;
-  const cible = api.controls.target;
-  const distance = avant.position.distanceTo(cible) || 1;
-  const demi = demiHauteurVue(avant, distance);
   const apres = mode === "orthographique"
     ? api.cameraOrthographique : api.cameraPerspective;
   apres.position.copy(avant.position);
   apres.quaternion.copy(avant.quaternion);
-  /* Le zoom repart à 1 : il vient d'être absorbé dans `demi`, et le laisser
-     l'appliquerait une seconde fois. */
-  apres.zoom = 1;
-  if (mode === "orthographique") {
-    poserCadreOrtho(apres, demi, aspectDe(api));
-    poserCoupe(apres, distance);
-  } else {
-    /* Une perspective à fov fixe n'a qu'un seul degré de liberté : sa
-       demi-hauteur se rend en DISTANCE. On la repose donc sur le rayon
-       caméra → cible, à la distance qui rend exactement `demi`. */
-    const d = demi / Math.tan((apres.fov * Math.PI) / 360);
-    const u = new THREE.Vector3().subVectors(avant.position, cible);
-    /* Caméra confondue avec sa cible : la direction n'existe pas, et
-       normalize() rendrait (0, 0, 0), donc une caméra DANS le modèle. */
-    if (u.lengthSq() === 0) u.set(DIR.x, DIR.y, DIR.z);
-    apres.position.copy(cible).addScaledVector(u.normalize(), d);
-    poserCoupe(apres, d);
-    apres.updateProjectionMatrix();
-  }
   api.camera = apres;
   api.projection = mode;
   /* SANS CETTE LIGNE, les contrôles continuent de piloter la caméra reçue au
@@ -462,7 +475,11 @@ export function orienter(api, nom) {
   if (api.racine) { cadrer(api); return nom; }
   /* Pas de modèle : rien à cadrer, mais l'orientation se pose quand même — à
      la distance courante — sinon le premier chargement arriverait sur la vue
-     d'avant et le bouton enfoncé mentirait. */
+     d'avant et le bouton enfoncé mentirait.
+     ET RIEN D'AUTRE : ni bords, ni zoom, ni plans de coupe. Il n'y a aucune
+     boîte à cadrer, donc aucun de ces nombres n'a de valeur juste à écrire ; le
+     cadre reste celui d'avant et la scène est vide. Le prochain charger()
+     appelle cadrer(), qui les pose tous. */
   const o = ORIENTATIONS[nom];
   const cible = api.controls.target;
   const d = api.camera.position.distanceTo(cible) || 1;

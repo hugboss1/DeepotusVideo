@@ -4082,7 +4082,7 @@ def _harnais_vue() -> str:
         bouts.append(m.group(0))
     i = js.index("const ORIENTATIONS = {")
     bouts.append(js[i:js.index("\n};", i) + 3])
-    for f in ("largeurPireCas", "cadrageDe", "cadreOrtho", "demiHauteurVue",
+    for f in ("largeurPireCas", "cadrageDe", "cadreOrtho", "coupeDe",
               "orientationDe"):
         bouts.append(_fonction_viewer(f))
     return "\n".join(bouts) + "\n"
@@ -4361,34 +4361,57 @@ def test_le_HAUT_de_la_vue_DESSUS_est_celui_que_lookAt_produit_VRAIMENT():
     assert orientations["dessus"]["dir"] == {"x": 0, "y": 1, "z": 0}
 
 
-def test_la_bascule_garde_la_TAILLE_A_L_ECRAN_zoom_compris():
-    """La demi-hauteur au plan de la cible est la GRANDEUR COMMUNE aux deux
-    projections : c'est par elle, et seulement par elle, qu'une bascule peut
-    promettre que le modèle ne change pas de taille.
+def test_les_PLANS_DE_COUPE_restent_EXACTEMENT_ceux_de_la_tache_3():
+    """LA MOITIÉ DE L'EXIGENCE QUI N'AVAIT AUCUN GARDE-FOU.
 
-    Les nombres sont délibérément non ronds et le zoom ne vaut PAS 1 : un
-    `/ cam.zoom` oublié d'un côté passerait inaperçu sur un zoom neutre, et
-    l'échelle sauterait au premier retour de bascule. La valeur attendue est
-    calculée ici en degrés (tan(fov/2)), quand la fonction travaille en
-    fov·π/360 — deux écritures du même angle.
+    « Le cadrage conscient de l'aspect doit continuer de valoir » ne parle pas
+    que de la position : `near` et `far` en font partie. La tâche 3 les
+    déduisait d'un scalaire `d = rayon·marge·recul / tan(fov/2)` qui N'ÉTAIT PAS
+    la distance — la caméra était posée à `d·DIR`, de norme 1,25. `coupeDe()`
+    reçoit désormais la distance VRAIE et doit donc la rediviser par 1,25 :
+    l'oublier déplace les deux plans de 25 %, sans qu'un pixel ne bouge à
+    l'écran tant que le modèle reste loin des plans.
+
+    LE SECOND CHEMIN NE MENTIONNE JAMAIS NORME_DIR : il refait `d` par la
+    formule de la tâche 3, à partir du rayon, de la marge, du recul et du fov
+    de 45° — et le recul lui-même vient de `cadrageDe`, exécutée. Les deux
+    routes ne se rejoignent que si le facteur est juste.
     """
-    rendu = json.loads(_node(_harnais_vue() + """
-      const persp = { fov: 45, zoom: 1.4 };
-      const h = demiHauteurVue(persp, 7.3);
-      /* la bascule : la demi-hauteur devient un CADRE… */
-      const c = cadreOrtho(h, 0.58);
-      const ortho = { isOrthographicCamera: true, top: c.top,
-                      bottom: c.bottom, zoom: 1 };
-      /* …et le retour la relit telle quelle. */
-      console.log(JSON.stringify(
-        { h: h, retour: demiHauteurVue(ortho, 999), largeur: c.right }));
+    cas = []
+    for vue in ("libre", "iso", "face", "dessus", "profil"):
+        for rayon, aspect, marge in ((1.3, 0.42, 1.35), (0.37, 1.04, 1.35),
+                                     (12.5, 0.58, 1.9), (0.019, 2.37, 1.0)):
+            cas.append({"vue": vue, "rayon": rayon, "aspect": aspect,
+                        "marge": marge})
+    rendu = json.loads(_node(
+        _harnais_vue() + "const CAS = " + json.dumps(cas) + ";\n" + """
+      console.log(JSON.stringify(CAS.map((c) => {
+        const g = cadrageDe(c.rayon, c.aspect, c.marge, orientationDe(c.vue));
+        /* la distance VRAIE, celle que cadrer() calcule */
+        const distance = g.demiHauteur / Math.tan((45 * Math.PI) / 360);
+        return { recul: g.recul, distance: distance, coupe: coupeDe(distance) };
+      })));
     """))
-    attendu = 7.3 * math.tan(math.radians(45) / 2) / 1.4
-    assert abs(rendu["h"] - attendu) < 1e-12, (rendu["h"], attendu)
-    # ALLER-RETOUR SANS PERTE : c'est la promesse « même taille à l'écran ».
-    assert abs(rendu["retour"] - rendu["h"]) < 1e-12, rendu
-    # et la largeur suit l'aspect, elle, jamais la distance
-    assert abs(rendu["largeur"] - attendu * 0.58) < 1e-12, rendu
+    ecarts = 0
+    for c, r in zip(cas, rendu):
+        # LA FORMULE DE LA TÂCHE 3, mot pour mot, sans NORME_DIR nulle part.
+        d = (c["rayon"] * c["marge"] * r["recul"]) / math.tan(math.radians(22.5))
+        assert abs(r["coupe"]["near"] - max(d / 1000, 0.001)) < 1e-15, (c, r)
+        assert abs(r["coupe"]["far"] - d * 100) < 1e-12 * abs(d * 100), (c, r)
+        # …et la distance vraie en vaut 1,25 fois autant : c'est ce facteur-là
+        # que coupeDe() doit annuler, et le seul endroit où il se lit.
+        assert abs(r["distance"] - 1.25 * d) < 1e-12 * r["distance"], (c, r)
+        if r["coupe"]["near"] > 0.001:
+            ecarts += 1
+    # `near` est borné par le bas à 0,001 : sur un modèle minuscule le plancher
+    # gagne, et un contrôle qui ne verrait QUE ce cas ne mesurerait rien.
+    assert ecarts >= 15, f"seulement {ecarts} cas hors du plancher de near"
+    # Le modèle tient entre les deux plans : la profondeur du pire cas vaut
+    # √3·rayon = 1,733·rayon, contre une distance de 4,0740·rayon.
+    for c, r in zip(cas, rendu):
+        demi_profondeur = math.sqrt(3) * c["rayon"]
+        assert r["coupe"]["near"] < r["distance"] - demi_profondeur, (c, r)
+        assert r["coupe"]["far"] > r["distance"] + demi_profondeur, (c, r)
 
 
 def test_la_boucle_rend_la_CAMERA_ACTIVE_et_les_deux_cameras_sont_declarees():
@@ -4479,7 +4502,14 @@ def test_la_synchronisation_AB_ne_recopie_PAS_un_fov_a_une_ortho():
     """
     js = _code("etabli/etabli.js")
     syn = js.split("function synchroniser(src, dst)", 1)[1].split("\n}\n", 1)[0]
-    assert "if (dst.projection !== src.projection) projeter(dst, src.projection);" in syn
+    assert "if (dst.projection !== src.projection) {" in syn
+    assert "projeter(dst, src.projection);" in syn
+    # ET LE GIZMO AVEC. Le câblage est tête-bêche : dans le sens B → A, c'est
+    # `S.vueA.camera` qui change ici, et le gizmo garderait sinon une caméra que
+    # plus personne ne rend — poignées mal taillées et impossibles à attraper.
+    # Deux sites sur trois étaient traités ; l'oubli était celui-ci.
+    assert "reposerCameraDuGizmo();" in syn
+    assert syn.index("projeter(dst, src.projection);")         < syn.index("reposerCameraDuGizmo();")
     assert "src.camera.isOrthographicCamera" in syn
     assert "cadreOrtho((src.camera.top - src.camera.bottom) / 2, aspectDe(dst))" in syn
     assert "dst.camera.zoom = src.camera.zoom;" in syn
@@ -4646,3 +4676,338 @@ def test_les_vues_nommees_sont_les_axes_DU_MODELE_et_DISENT_le_plan_de_la_plaque
     # restent des axes du modèle.
     vue = _code("lib3d/viewer.js")
     assert "axeEmpile" not in vue and "plaque.js" not in vue
+
+
+# ── O (suite). le point de vue, EXÉCUTÉ CONTRE LE VRAI three.js ──────────────
+# CE QUE LES CONTRÔLES CI-DESSUS NE POUVAIENT PAS VOIR, et il faut le dire.
+# Ils mesurent les règles PURES — le pire cas, le seuil, le cadre, les plans de
+# coupe — et c'est la moitié du travail. L'autre moitié est faite de fonctions
+# qui ÉCRIVENT sur de vrais objets three.js : cadrer() pose une caméra,
+# orienter() la fait recadrer, projeter() la remplace. Un banc de texte ne voit
+# pas une caméra posée au mauvais endroit, et un banc qui n'exerce que les
+# briques ne dit rien de la fonction qui les assemble.
+#
+# Six mutations l'ont prouvé : le facteur 1,25 des plans de coupe retiré, le
+# recadrage d'orienter() court-circuité, le zoom de cadrer() supprimé — trois
+# défauts francs, et le banc restait vert.
+#
+# On charge donc le VRAI viewer.js, avec le VRAI three.js vendorisé, et on
+# projette les huit sommets par la matrice que le GPU utiliserait.
+
+
+_TROIS = FRONT / "dist" / "assets" / "three"
+
+
+def _node_trois(importe: str, source: str) -> str:
+    """Exécute du JS dans node, avec le three.js vendorisé RÉSOLU.
+
+    viewer.js importe « three » et « three/addons/… » — des spécifieurs NUS que
+    la page résout par son import map en ligne et que node ne connaît pas. On
+    lui en donne un : un crochet de résolution (`module.register`) qui renvoie
+    les deux préfixes vers le dossier vendorisé. RIEN N'EST COPIÉ ni réécrit :
+    le module chargé est le fichier livré, à l'octet près, ce qui est tout
+    l'intérêt — un viewer.js recopié puis rafistolé mesurerait la copie.
+
+    OPTIONNEL comme `_node` : sans node, le contrôle se saute plutôt que de
+    rougir pour une raison qui n'est pas la sienne.
+    """
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node absent : la règle ne peut pas être EXÉCUTÉE ici")
+    # `module.register` demande node 20.6. Sauter plutôt que rougir pour une
+    # raison qui n'est pas la sienne — même doctrine que l'absence de node.
+    v = subprocess.run([node, "-v"], capture_output=True, timeout=30)
+    majeure = int(re.match(r"v(\d+)", v.stdout.decode().strip()).group(1))
+    if majeure < 21:
+        pytest.skip(f"node {majeure} : le crochet de résolution demande 20.6+")
+    tmp = pathlib.Path(tempfile.mkdtemp())
+    trois = _TROIS.resolve().as_uri() + "/"
+    (tmp / "resolveur.mjs").write_text(
+        f'const T = {json.dumps(trois)};\n'
+        'const P = "three/addons/";\n'
+        "export function resolve(spec, ctx, next) {\n"
+        '  if (spec === "three") return next(T + "three.module.min.js", ctx);\n'
+        "  if (spec.startsWith(P)) return next(T + \"addons/\""
+        " + spec.slice(P.length), ctx);\n"
+        "  return next(spec, ctx);\n"
+        "}\n", encoding="utf-8")
+    (tmp / "hook.mjs").write_text(
+        'import { register } from "node:module";\n'
+        'register("./resolveur.mjs", import.meta.url);\n', encoding="utf-8")
+    vue = (FRONT / "lib3d" / "viewer.js").resolve().as_uri()
+    tete = (f"import * as THREE from \"three\";\n"
+            f"import {{ OrbitControls }} from"
+            f" \"three/addons/controls/OrbitControls.js\";\n"
+            f"import {{ {importe} }} from {json.dumps(vue)};\n")
+    r = subprocess.run(
+        [node, "--import", (tmp / "hook.mjs").as_uri(),
+         "--input-type=module", "-e", tete + _MONTAGE + source],
+        capture_output=True, timeout=120)
+    shutil.rmtree(tmp, ignore_errors=True)
+    assert r.returncode == 0, r.stderr.decode("utf-8", "replace")[:900]
+    return r.stdout.decode("utf-8", "replace")
+
+
+# Le MONTAGE : `creerCanevas()` moins son WebGLRenderer, qui exige un canevas et
+# un contexte GPU que node n'a pas. Écrit ici EN ENTIER, délibérément — même
+# raison que le `_FAUX_ARBRE` de la section N : c'est la liste exacte de ce que
+# les fonctions exportées ont le droit de supposer, et le jour où elles
+# supposeront davantage, ce harnais rougira au lieu de les laisser dériver. Les
+# clés d'`api`, elles, sont épinglées séparément sur la vraie déclaration par
+# test_la_boucle_rend_la_CAMERA_ACTIVE_et_les_deux_cameras_sont_declarees.
+_MONTAGE = """
+function monter(w, h) {
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(45, w / h, 0.01, 5000);
+  camera.position.set(2.5, 1.8, 3.2);
+  const ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.01, 5000);
+  ortho.position.copy(camera.position);
+  const controls = new OrbitControls(camera, null);
+  controls.enableDamping = true;
+  return { renderer: { domElement: { clientWidth: w, clientHeight: h } },
+           scene, camera, controls, racine: null, gltf: null,
+           cameraPerspective: camera, cameraOrthographique: ortho,
+           projection: "perspective", vue: "libre" };
+}
+/* Une boite ASYMETRIQUE et DECENTREE : trois cotes distincts et un centre hors
+   de l'origine, pour qu'une erreur d'axe ou un centre oublie ne tombe pas sur
+   un zero. rayon = max(cote)/2 = 1,5. */
+function poserModele(api, l, h, p, cx, cy, cz) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(l, h, p),
+                           new THREE.MeshBasicMaterial());
+  m.position.set(cx, cy, cz);
+  const racine = new THREE.Group();
+  racine.add(m);
+  api.scene.add(racine);
+  api.racine = racine;
+  racine.updateMatrixWorld(true);
+}
+/* Les huit sommets, projetes par la matrice que le GPU utiliserait. */
+function projeterBoite(api) {
+  const b = new THREE.Box3().setFromObject(api.racine);
+  api.camera.updateMatrixWorld(true);
+  api.camera.updateProjectionMatrix();
+  let x = 0, y = 0, zmin = Infinity, zmax = -Infinity, nan = false;
+  for (const sx of [b.min.x, b.max.x])
+    for (const sy of [b.min.y, b.max.y])
+      for (const sz of [b.min.z, b.max.z]) {
+        const q = new THREE.Vector3(sx, sy, sz).project(api.camera);
+        if (![q.x, q.y, q.z].every(Number.isFinite)) nan = true;
+        x = Math.max(x, Math.abs(q.x)); y = Math.max(y, Math.abs(q.y));
+        zmin = Math.min(zmin, q.z); zmax = Math.max(zmax, q.z);
+      }
+  return { x, y, zmin, zmax, nan };
+}
+const etat = (api) => ({
+  pos: api.camera.position.toArray(),
+  cible: api.controls.target.toArray(),
+  distance: api.camera.position.distanceTo(api.controls.target),
+  near: api.camera.near, far: api.camera.far, zoom: api.camera.zoom,
+  ortho: !!api.camera.isOrthographicCamera,
+  projection: api.projection, vue: api.vue,
+  pilotee: api.controls.object === api.camera,
+  boite: projeterBoite(api),
+});
+"""
+
+# Les vues, leur seuil et leur projection — recopiés NULLE PART : ils sont lus
+# dans le module par les contrôles purs ci-dessus. Ici on ne se sert que du nom.
+_VUES = ("libre", "iso", "face", "dessus", "profil")
+
+
+def _distance_tache_3(rayon, marge, recul):
+    """La distance de pose, par le chemin de la TÂCHE 3 et lui seul.
+
+    Elle posait `d = rayon·marge·recul / tan(fov/2)` puis la caméra à `d·DIR`,
+    de norme 1,25 : la distance vraie vaut donc 1,25·d. Aucun terme de cette
+    fonction ne vient de viewer.js — c'est ce qui en fait un second chemin.
+    """
+    d = (rayon * marge * recul) / math.tan(math.radians(22.5))
+    return 1.25 * d, d
+
+
+def test_cadrer_POSE_VRAIMENT_la_camera_sous_LES_DEUX_projections():
+    """LE BANC QUI MANQUAIT : cadrer() appelée, pas lue.
+
+    Pour cinq vues et trois aspects — dont la demi-largeur exacte de la
+    comparaison A/B — on enchaîne `projeter()` puis `orienter()`, la séquence
+    même d'appliquerVue(), et on regarde ce que la caméra fait VRAIMENT :
+      — aucun NaN (le mode d'échec de `fov` lu sur une ortho),
+      — les huit sommets DANS le cadre,
+      — les huit sommets ENTRE les plans de coupe,
+      — les contrôles branchés sur la caméra active,
+      — la distance et les plans de coupe ÉGAUX à ce que la tâche 3 posait,
+        recalculés par une formule qui ne mentionne ni NORME_DIR ni demiHauteur.
+    """
+    cas = [{"vue": v, "w": w, "h": h}
+           for v in _VUES for w, h in ((860, 824), (430, 824), (1400, 500))]
+    sortie = json.loads(_node_trois(
+        "projeter, orienter, cadrer, aspectDe, cadrageDe, orientationDe",
+        "const CAS = " + json.dumps(cas) + ";\n" + """
+      console.log(JSON.stringify(CAS.map((c) => {
+        const api = monter(c.w, c.h);
+        poserModele(api, 3, 1.1, 0.4, 7, -2, 0.5);
+        projeter(api, c.vue === "libre" ? "perspective" : "orthographique");
+        orienter(api, c.vue);
+        const g = cadrageDe(1.5, aspectDe(api), 1.35, orientationDe(c.vue));
+        return { ...etat(api), recul: g.recul, seuil: g.seuil };
+      })));
+    """))
+    assert len(sortie) == len(cas)
+    for c, e in zip(cas, sortie):
+        quoi = f"{c['vue']} {c['w']}x{c['h']}"
+        assert not e["boite"]["nan"], quoi
+        assert e["boite"]["x"] <= 1 + 1e-9, f"{quoi} rogne en largeur : {e}"
+        assert e["boite"]["y"] <= 1 + 1e-9, f"{quoi} rogne en hauteur : {e}"
+        assert -1 < e["boite"]["zmin"] and e["boite"]["zmax"] < 1, quoi
+        assert e["pilotee"], f"{quoi} : les contrôles pilotent une autre caméra"
+        assert e["ortho"] == (c["vue"] != "libre"), quoi
+        assert e["vue"] == c["vue"] and e["zoom"] == 1, quoi
+        # LA TÂCHE 3, refaite sans un terme de viewer.js.
+        distance, d3 = _distance_tache_3(1.5, 1.35, e["recul"])
+        assert abs(e["distance"] - distance) < 1e-12 * distance, (quoi, e)
+        assert abs(e["near"] - max(d3 / 1000, 0.001)) < 1e-15, (quoi, e)
+        assert abs(e["far"] - d3 * 100) < 1e-9, (quoi, e)
+    # Le repère de la tâche 3, à la sixième décimale : 4,0740 rayon en vue
+    # libre à l'aspect 860/824. C'est le chiffre du banc d'aspect existant.
+    libre = next(e for c, e in zip(cas, sortie)
+                 if c["vue"] == "libre" and c["w"] == 860)
+    assert abs(libre["distance"] / 1.5 - 4.073985) < 1e-6, libre["distance"]
+
+
+def test_orienter_RECADRE_VRAIMENT_et_ne_pivote_pas_seulement():
+    """« La vue nommée RECADRE, elle ne fait pas que pivoter » — vérifié.
+
+    Ce que le fichier écrit n'était gardé par rien. Court-circuiter le
+    recadrage laissait le banc vert, et le défaut est visible : le pire cas de
+    largeur vaut 1,372·rayon en vue libre contre 1,000 sur un axe, donc les
+    deux vues ne demandent PAS la même distance au même aspect.
+
+    À l'aspect 0,4174 (430 × 1030, sous les deux seuils), la vue libre recule
+    de 0,813030/0,4174 = 1,9478 et la vue de face de 0,592593/0,4174 = 1,4198 :
+    un pivot sans recadrage laisserait la caméra 37 % trop loin. On mesure donc
+    la DIRECTION et la DISTANCE, et le fait que la boîte remplit alors le cadre
+    exactement — un modèle aussi large que son cube englobant touche les deux
+    bords sous le seuil, à 1e-12.
+    """
+    sortie = json.loads(_node_trois("projeter, orienter, cadrageDe, "
+                                    "orientationDe, aspectDe", """
+      const api = monter(430, 1030);
+      poserModele(api, 3, 1.1, 0.4, 7, -2, 0.5);
+      projeter(api, "orthographique");
+      orienter(api, "iso");
+      const avant = etat(api);
+      orienter(api, "face");
+      const apres = etat(api);
+      console.log(JSON.stringify({ aspect: aspectDe(api), avant, apres,
+        reculFace: cadrageDe(1.5, aspectDe(api), 1.35,
+                             orientationDe("face")).recul,
+        reculIso: cadrageDe(1.5, aspectDe(api), 1.35,
+                            orientationDe("iso")).recul }));
+    """))
+    aspect = sortie["aspect"]
+    assert abs(aspect - 430 / 1030) < 1e-12
+    # les deux reculs DIFFÈRENT : sans quoi le contrôle ne discriminerait rien
+    assert sortie["reculIso"] > sortie["reculFace"] * 1.15, sortie
+    # LA DIRECTION : la caméra est passée sur +Z, en face du centre.
+    px, py, pz = sortie["apres"]["pos"]
+    cx, cy, cz = sortie["apres"]["cible"]
+    assert abs(px - cx) < 1e-12 and abs(py - cy) < 1e-12, sortie["apres"]
+    assert pz - cz > 0, sortie["apres"]
+    # LA DISTANCE : celle de « face », pas celle qu'« iso » avait laissée.
+    attendue, _ = _distance_tache_3(1.5, 1.35, sortie["reculFace"])
+    assert abs(sortie["apres"]["distance"] - attendue) < 1e-11, sortie
+    assert abs(sortie["avant"]["distance"] - attendue) > 0.5, \
+        "les deux vues tomberaient à la même distance : rien ne serait mesuré"
+    # ET LE CADRE SUIT : la boîte fait 3 de large pour un rayon de 1,5, donc
+    # elle touche exactement les deux bords sous le seuil.
+    assert abs(sortie["apres"]["boite"]["x"] - 1.0) < 1e-12, sortie["apres"]
+
+
+def test_cadrer_REPART_du_zoom_1_sinon_le_geste_d_avant_deteint():
+    """Le zoom d'OrbitControls vit dans `camera.zoom` sous une ortho, et il
+    survivrait au cadrage : « Face » atterrirait sur le grossissement du geste
+    d'avant, et deux modèles chargés à la suite ne seraient plus comparables —
+    ce que cadrer() existe pour garantir. Mesuré : à zoom 2,3, la boîte occupe
+    2,3 fois le cadre, donc 130 % de sa largeur hors champ.
+    """
+    sortie = json.loads(_node_trois("projeter, orienter, cadrer", """
+      const api = monter(430, 1030);
+      poserModele(api, 3, 1.1, 0.4, 7, -2, 0.5);
+      projeter(api, "orthographique");
+      orienter(api, "face");
+      const cadre = etat(api);
+      /* le geste de l'utilisateur : la molette, sous une ortho */
+      api.camera.zoom = 2.3;
+      api.camera.updateProjectionMatrix();
+      const zoome = etat(api);
+      cadrer(api);
+      console.log(JSON.stringify({ cadre, zoome, rendu: etat(api) }));
+    """))
+    # le zoom SORT bien du cadre — sans quoi le contrôle ne mesurerait rien
+    assert sortie["zoome"]["zoom"] == 2.3
+    assert abs(sortie["zoome"]["boite"]["x"] - 2.3) < 1e-9, sortie["zoome"]
+    # …et cadrer() le reprend
+    assert sortie["rendu"]["zoom"] == 1, sortie["rendu"]
+    assert abs(sortie["rendu"]["boite"]["x"] - 1.0) < 1e-12, sortie["rendu"]
+    assert abs(sortie["rendu"]["distance"] - sortie["cadre"]["distance"]) < 1e-12
+
+
+def test_projeter_REPORTE_LA_POSE_et_ne_calcule_RIEN_de_plus():
+    """LE CONTRAT RÉDUIT, dans les deux sens : ce qu'elle fait, et ce qu'elle
+    ne fait plus.
+
+    ELLE FAIT : changer la caméra active, lui reporter la pose, repointer les
+    contrôles. La pose est OBSERVÉE — `controls.object = apres` fait aussitôt
+    lire `apres.position` par OrbitControls, et une caméra d'arrivée laissée à
+    sa position d'origine ferait sauter le point de vue partout où la bascule
+    n'est pas suivie d'un cadrage : la vue B de _ouvrirComparaison(), qui est
+    projetée avant d'avoir son GLB.
+
+    ELLE NE FAIT PLUS : reporter la demi-hauteur visible. C'était juste et
+    mesuré, et les trois appelants l'écrasaient à la ligne suivante. Le
+    marqueur négatif ci-dessous garde la réduction — sans lui, le calcul
+    inobservable reviendrait à la première retouche, et il faudrait à nouveau
+    l'entretenir sans jamais pouvoir le mesurer.
+    """
+    sortie = json.loads(_node_trois("projeter, orienter, cadrer", """
+      const api = monter(860, 824);
+      poserModele(api, 3, 1.1, 0.4, 7, -2, 0.5);
+      cadrer(api);
+      const persp = etat(api);
+      projeter(api, "orthographique");           /* SANS cadrer derrière */
+      const ortho = etat(api);
+      projeter(api, "perspective");
+      const retour = etat(api);
+      /* et sur une vue SANS modèle — le cas de _ouvrirComparaison() */
+      const vide = monter(430, 824);
+      vide.camera.position.set(11.5, 1.4, 8.1);
+      vide.controls.target.set(7, -2, 0.5);
+      projeter(vide, "orthographique");
+      console.log(JSON.stringify({ persp, ortho, retour,
+        posVide: vide.cameraOrthographique.position.toArray(),
+        piloteeVide: vide.controls.object === vide.cameraOrthographique }));
+    """))
+    # LA POSE EST REPORTÉE, dans les deux sens. À 1e-9 et non à l'égalité :
+    # `controls.update()` réécrit la position en la faisant passer par ses
+    # coordonnées sphériques, et l'aller-retour coûte le dernier bit (mesuré :
+    # 8,1 revient à 8,100000000000001). Sans la recopie, l'écart serait de
+    # plusieurs unités — la caméra d'arrivée est encore à sa pose d'origine.
+    for k in ("ortho", "retour"):
+        for i in range(3):
+            assert abs(sortie[k]["pos"][i] - sortie["persp"]["pos"][i]) < 1e-9,                 (k, sortie[k]["pos"], sortie["persp"]["pos"])
+        assert sortie[k]["pilotee"], k
+    assert sortie["ortho"]["ortho"] is True
+    assert sortie["ortho"]["projection"] == "orthographique"
+    assert sortie["retour"]["ortho"] is False
+    # sur une vue sans modèle, la pose est TOUT ce qui garantit le point de vue
+    for i, v in enumerate((11.5, 1.4, 8.1)):
+        assert abs(sortie["posVide"][i] - v) < 1e-9, sortie["posVide"]
+    assert sortie["piloteeVide"]
+    # LA RÉDUCTION, gardée : plus aucun calcul de cadre dans projeter().
+    proj = _code("lib3d/viewer.js").split(
+        "export function projeter(api, mode)", 1)[1].split("\n}\n", 1)[0]
+    for interdit in ("poserCadreOrtho", "poserCoupe", "cadreOrtho",
+                     "Math.tan", "aspectDe", "zoom"):
+        assert interdit not in proj, \
+            f"projeter() recalcule « {interdit} » — que ses appelants écrasent"

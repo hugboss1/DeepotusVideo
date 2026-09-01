@@ -393,7 +393,19 @@ function synchroniser(src, dst) {
        tourner update() à chaque image. Hors de ce cas, projeter() rend la main
        aussitôt quand le mode est déjà le bon, et la ligne ne coûte qu'une
        comparaison. */
-    if (dst.projection !== src.projection) projeter(dst, src.projection);
+    if (dst.projection !== src.projection) {
+      projeter(dst, src.projection);
+      /* ET LE GIZMO AVEC, PARCE QUE `dst` PEUT ÊTRE LA VUE A. Le câblage est
+         tête-bêche — synchroniser(A, B) ET synchroniser(B, A) — donc dans le
+         second sens c'est `S.vueA.camera` qui change ici. Sans cette ligne, le
+         gizmo garderait une caméra que plus personne ne rend : poignées mal
+         taillées et impossibles à attraper, sans erreur nulle part. C'est
+         exactement le piège que projeter() nomme, traité à DEUX sites sur
+         trois dans la première écriture — l'oubli était ici.
+         reposerCameraDuGizmo() lit S.vueA et rien d'autre : l'appeler quand
+         c'est B qui a bougé ne coûte qu'une affectation identique. */
+      reposerCameraDuGizmo();
+    }
     dst.camera.position.copy(src.camera.position);
     /* Redondante avec l'update() ci-dessous, qui refait un lookAt(target) :
        gardée pour que dst soit juste même avant lui, pas parce qu'il la faut. */
@@ -937,6 +949,13 @@ const TITRE_VUE = {
   profil: "Depuis +X, en orthographique — un axe du modèle, pas de la plaque",
 };
 
+/* CONSÉQUENCE ASSUMÉE, ET ÉCRITE ICI PLUTÔT QUE DÉCOUVERTE À L'USAGE : le
+   libellé se déduit de la PROJECTION, pas de la vue. Depuis « Dessus », qui est
+   orthographique, le bouton dit donc « Perspective » et ramène à « libre » — il
+   faut deux clics pour revenir à l'isométrie. C'est le prix de la règle « chaque
+   vue porte sa projection » (voir PROJECTION_DE_VUE), et c'est le bon prix : un
+   bouton qui dirait « Isométrique » alors que la caméra est DÉJÀ
+   orthographique mentirait sur ce qu'un clic change. */
 function majBoutonProjection() {
   const b = $("#btnProjection");
   const iso = !!(S.vueA && S.vueA.projection === "orthographique");
