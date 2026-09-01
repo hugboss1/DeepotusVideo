@@ -119,6 +119,17 @@
     <div class="panneau hidden" id="panExport">
       <div class="vide">l'export par moteur arrive en P5</div>
     </div>
+
+    <!-- ══ le repère : HORS des onglets, et c'est la décision ══
+         La graduation appartient à la VUE, pas à un onglet : un cinquième
+         panneau l'aurait rendue invisible neuf fois sur dix, au moment même
+         où l'on coche des pièces dans « Parties » pour lire où elles sont.
+         Elle vit donc SOUS les panneaux, toujours affichée — comme la barre du
+         bas l'est pour la mesure du modèle.
+         Et le bloc naît VIDE, comme #panParties et #panFiche : rendreRepere()
+         l'écrit dès l'import du module, deux sources pour un même balisage
+         divergeant à la première retouche. -->
+    <div class="repere" id="repere"></div>
   </aside>
 </div>
 <script type="module" src="etabli.js"></script>

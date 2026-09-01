@@ -431,6 +431,78 @@ button { font-family: inherit; }
   color: var(--ink-soft);
 }
 
+/* ── le repère : le pas de la grille et la sélection depuis l'origine ───────
+   Même doctrine que les deux blocs ci-dessus : sans ces règles le bloc EXISTE
+   et ne se lit pas — trois nombres collés à un nom, un champ au style natif du
+   navigateur, et une liste qui pousse tout hors du rail.
+
+   IL EST SÉPARÉ DES ONGLETS PAR UN FILET, parce qu'il n'en est pas un : il
+   reste affiché quel que soit l'onglet ouvert (voir index.html), et sans
+   séparation il se lirait comme la queue du panneau visible.
+
+   LES HAUTEURS SONT POSÉES, jamais déduites — l'en-tête de cette feuille
+   raconte ce que coûte une hauteur laissée à l'intrinsèque (998 rangées de
+   2 px), et une rangée de coordonnées est encore plus silencieuse qu'une
+   autre : elle contient du texte, elle s'effondre quand même. */
+.repere {
+  margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--stroke);
+  display: flex; flex-direction: column; gap: 7px;
+}
+.repere-pas {
+  font: 10.5px/1.45 var(--f-mono), ui-monospace, monospace;
+  color: var(--ink-soft);
+}
+.repere-pas b { color: var(--ink-strong); font-weight: 600; }
+.repere label {
+  display: flex; align-items: center; gap: 8px;
+  font: 11px var(--f-mono), ui-monospace, monospace; color: var(--ink-soft);
+}
+.repere input[type="number"] {
+  flex: 1; min-width: 0; padding: 4px 6px;
+  border: 1px solid var(--stroke); border-radius: var(--r-sm);
+  background: var(--bg-panel-2); color: var(--ink); font: inherit;
+}
+.repere-tete {
+  font: 600 10px var(--f-mono), ui-monospace, monospace;
+  color: var(--ink-strong); letter-spacing: .04em;
+}
+/* Bornée comme .parties et .plaque-liste : une sélection de cinquante nœuds
+   chasserait sinon la note — et avec elle la seule phrase qui dise d'où les
+   millimètres viennent. */
+.repere-lecture {
+  max-height: 26vh; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.repere-ligne {
+  display: flex; align-items: center; gap: 5px;
+  min-height: 20px; padding: 2px 5px; border-radius: var(--r-sm);
+  font: 10.5px var(--f-mono), ui-monospace, monospace; color: var(--ink-soft);
+}
+.repere-ligne:hover { background: var(--bg-panel-2); }
+.repere-ligne b {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; color: var(--ink); font-weight: 500;
+}
+/* `tabular-nums` et une largeur FIXE : trois colonnes de chiffres qui
+   n'auraient ni l'une ni l'autre ne s'aligneraient pas d'une rangée à la
+   suivante, et une lecture de coordonnées non alignée ne se compare pas. */
+.repere-ligne span {
+  flex: none; width: 8ch; text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+/* Une lecture que l'étalement n'a pas pu corriger se VOIT douteuse — même
+   traitement que `.attente-doute`, et pour le même motif : un chiffre faux
+   annoncé vaut mieux qu'un chiffre faux muet. */
+.repere-ligne.etale b { color: var(--red); }
+.repere-plus, .repere-vide {
+  font: 10px/1.45 var(--f-mono), ui-monospace, monospace; color: var(--ink-soft);
+  padding: 2px 5px;
+}
+.repere-note {
+  margin: 0; font: 10px/1.45 var(--f-mono), ui-monospace, monospace;
+  color: var(--ink-soft);
+}
+
 /* Sous 1200px les rails mangent le canevas : on les resserre plutôt que de les
    escamoter — la chronologie est la colonne vertébrale de la page. */
 @media (max-width: 1200px) {

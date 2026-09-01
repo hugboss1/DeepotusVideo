@@ -61,6 +61,13 @@ def _code(rel: str) -> str:
     return re.sub(r"/\*.*?\*/", "", _lire(rel), flags=re.S)
 
 
+# La fin d'une fonction écrite au premier niveau : une accolade SEULE en
+# colonne 0. Nommée plutôt qu'écrite en clair partout — un littéral à
+# échappement (deux retours à la ligne autour d'une accolade) recopié dix fois
+# finit par en perdre un, et le découpage rend alors la fonction ENTIÈRE.
+FIN_FONCTION = chr(10) + "}" + chr(10)
+
+
 # ── A. three.js vendorisé ────────────────────────────────────────────────────
 
 def test_three_est_vendorise_et_non_pointe_vers_un_cdn():
@@ -5192,3 +5199,704 @@ def test_les_CINQ_VUES_vivent_dans_PLUSIEURS_tables_et_on_les_APPARIE():
         "function appliquerVue(nom)", 1)[1].split("\n}\n", 1)[0]
     assert "if (!PROJECTION_DE_VUE[nom]) {" in applique
     assert "direRefus(" in applique.split("if (!PROJECTION_DE_VUE[nom]) {", 1)[1]
+
+
+# ── P. la graduation, le repère, et les millimètres qu'on n'invente pas ──────
+# Demande de l'utilisateur, mot pour mot : dans les deux modes de manipulation,
+# « une graduation visible » et « la possibilité de visualiser sur un repère 3D
+# la position de chaque sélection par rapport à l'origine ».
+#
+# LE POINT DUR DE LA SECTION, ET IL EST DEHORS : un GLB N'A AUCUNE ÉCHELLE EN
+# MILLIMÈTRES. Celle qui existe dans ce dépôt est fabriquée par
+# `print3d.mettre_a_l_echelle(tris, cible_mm)` au moment d'écrire un STL, en
+# portant la plus grande dimension à la cible. Afficher « 63 mm » sous un
+# modèle que personne n'a mis à l'échelle serait une règle qui MENT — le pire
+# des affichages, puisqu'il a l'autorité du chiffre. Les contrôles ci-dessous
+# tiennent donc les deux moitiés : que la graduation EXISTE et se lise sous les
+# deux projections, et qu'aucun millimètre ne sorte d'ailleurs que d'une taille
+# cible POSÉE, par la règle même que Python appliquera.
+#
+# La moitié géométrique est EXÉCUTÉE, jamais lue : un miroir de texte ne voit
+# pas un pas trop grand, et c'est la leçon que la plaque a payée deux fois.
+
+
+def _constantes_viewer(*noms: str) -> str:
+    """Les constantes de viewer.js, VERBATIM, pour le harnais node.
+
+    Jumeau de `_constantes_plaque`, et pour la même raison : une valeur
+    recopiée dans un banc est une valeur qui dérive, et le harnais mesurerait
+    alors un seuil que le module n'applique plus.
+    """
+    js = _lire("lib3d/viewer.js")
+    bouts = []
+    for n in noms:
+        m = re.search(r"^const " + n + r" = [^\n]*?;", js, re.M)
+        assert m, f"constante {n} introuvable dans viewer.js"
+        bouts.append(m.group(0))
+    return "\n".join(bouts) + "\n"
+
+
+def _mantisse(v: float):
+    """La mantisse 1-2-5 d'un nombre, PAR UN SECOND CHEMIN.
+
+    `pasGradue` la choisit par deux comparaisons sur `brut/décade` ; ici on
+    repart du RÉSULTAT et on le décompose. Les deux chemins ne peuvent pas se
+    tromper de la même façon.
+    """
+    k = math.floor(math.log10(v))
+    m = v / (10.0 ** k)
+    for candidat in (1.0, 2.0, 5.0):
+        if abs(m - candidat) < 1e-9:
+            return candidat
+    return m
+
+
+def test_la_GRADUATION_vit_dans_le_CANEVAS_PARTAGE_et_pas_dans_la_page():
+    """« Dans les deux modes de manipulation » — et c'est la PLACE du code qui
+    le garantit, pas une intention.
+
+    Posée dans /etabli, la règle aurait eu à se souvenir de la projection
+    courante à chaque bascule ; posée dans le canevas PARTAGÉ, elle vaut sous
+    les deux par construction, et le Plateau du jour où il viendra l'aura sans
+    une ligne (spec §12, la condition de convergence écrite d'avance).
+
+    ELLE EST DANS LA BOUCLE, ET C'EST LE SEUL ENDROIT JUSTE : le pas se déduit
+    de l'étendue VISIBLE, qui change à chaque molette. Posé au cadrage, il
+    deviendrait une trame illisible au premier zoom — le contrôle
+    `..._SUIT_le_ZOOM...` le mesure, celui-ci épingle le câblage.
+    """
+    code = _code("lib3d/viewer.js")
+    for f in ("pasGradue", "casesGraduees", "echelleMm", "etendueVisible",
+              "majRepere", "marquerAuRepere", "montrerRepere"):
+        assert f"export function {f}(" in code, f
+    # la boucle gradue AVANT de rendre : après, la trame reconstruite
+    # n'apparaîtrait qu'à l'image suivante.
+    boucle = code.split("(function boucle()", 1)[1].split("})();", 1)[0]
+    assert boucle.index("majRepere(api);") \
+        < boucle.index("renderer.render(scene, api.camera);")
+    # DANS LA SCÈNE, jamais dans le modèle : vider() ne retire que api.racine,
+    # et un repère greffé au modèle disparaîtrait au premier chargement.
+    maj = _fonction_viewer("majRepere")
+    assert "api.scene.add(e.groupe);" in maj
+    assert "new THREE.GridHelper(" in maj
+    # La négative est posée sur un texte AMPUTÉ de ses commentaires : la prose
+    # de cette fonction NOMME `api.racine` pour dire d'où le repère ne vient
+    # pas, et un `not in` nu serait satisfait par cette phrase-là — le défaut
+    # que ce fichier a corrigé neuf fois.
+    assert "api.racine" not in re.sub(r"/\*.*?\*/", "", maj, flags=re.S)
+    assert "api.racine" in maj             # le témoin : la prose, elle, en parle
+    # …et la reconstruction LIBÈRE, sinon dix paliers de zoom laissent dix
+    # trames sur la carte — la fuite même que vider() existe pour empêcher.
+    assert "libererLigne(e.trame);" in maj
+    lib = _fonction_viewer("libererLigne")
+    assert "geometry.dispose()" in lib and "material.dispose()" in lib
+    # LE PIÈGE DE L'ORTHO, une fois de plus : `.fov` sur la caméra active rend
+    # `undefined`, donc NaN, donc pas de graduation et aucune erreur.
+    etendue = _fonction_viewer("etendueVisible")
+    assert "api.cameraPerspective.fov" in etendue
+    assert "cam.isOrthographicCamera" in etendue
+    assert "api.camera.fov" not in code
+    # la page IMPORTE ce que le module offre, et rien de plus
+    js = _lire("etabli/etabli.js")
+    assert "echelleMm, marquerAuRepere, montrerRepere" in js
+
+
+def test_le_PAS_de_graduation_est_EXECUTE_sur_six_decades():
+    """LA RÈGLE DU PAS, EXÉCUTÉE — un miroir de texte ne voit pas un pas faux.
+
+    Quatre propriétés, et aucune n'est la formule recopiée :
+      — la forme 1-2-5, retrouvée en DÉCOMPOSANT le résultat (_mantisse) ;
+      — l'arrondi PAR LE BAS (`pas <= étendue/divisions`), qui est ce qui
+        garantit qu'au moins `divisions` pas tiennent dans le champ ;
+      — le nombre de pas visibles dans [10 ; 25), la seule promesse que la
+        fonction fasse, et elle vaut à TOUS les zooms ;
+      — l'invariance d'échelle et la monotonie, qui sont ce qui fait qu'un
+        zoom continu ne fasse pas sauter la trame en tous sens.
+
+    LES ÉTENDUES SONT IRRATIONNELLES ET BALAYENT SIX DÉCADES, délibérément :
+    sur des puissances de dix rondes, toute erreur de décade tomberait pile sur
+    un palier et le banc serait vert sur un pas dix fois trop grand.
+    """
+    etendues = [7.3e-4 * (1.37 ** i) for i in range(48)]
+    sortie = json.loads(_node(
+        _constantes_viewer("DIVISIONS_VISEES")
+        + _fonction_viewer("pasGradue")
+        + "const E = " + json.dumps(etendues) + ";\n"
+        + "console.log(JSON.stringify({ pas: E.map((e) => pasGradue(e)),"
+          " dix: E.map((e) => pasGradue(e * 10)),"
+          " nul: [pasGradue(0), pasGradue(-1), pasGradue(Infinity),"
+          " pasGradue(NaN), pasGradue(1, 0)] }));"))
+    assert sortie["nul"] == [None] * 5, sortie["nul"]
+    precedent = 0.0
+    for e, pas in zip(etendues, sortie["pas"]):
+        assert pas > 0, (e, pas)
+        assert _mantisse(pas) in (1.0, 2.0, 5.0), (e, pas)
+        # PAR LE BAS : au moins DIVISIONS_VISEES pas dans le champ.
+        assert pas <= e / 10 * (1 + 1e-12), (e, pas)
+        assert 10 <= e / pas < 25, (e, pas, e / pas)
+        assert pas >= precedent, (e, pas, precedent)   # monotone
+        precedent = pas
+    # INVARIANCE D'ÉCHELLE : un modèle en mètres et le même en décimètres
+    # reçoivent la MÊME trame, à un facteur dix près. Sans elle, la graduation
+    # dépendrait de l'unité dans laquelle le GLB a été exporté.
+    for pas, pas10 in zip(sortie["pas"], sortie["dix"]):
+        assert abs(pas10 - pas * 10) < 1e-12 * pas10, (pas, pas10)
+
+
+def test_les_CASES_couvrent_le_CHAMP_et_ne_se_refont_pas_a_chaque_image():
+    """LE COMPTE DE CASES, EXÉCUTÉ. Trois choses en dépendent, et aucune n'est
+    lisible dans du texte :
+
+      — la trame ATTEINT le bord du champ (sinon la règle s'arrête avant ce
+        qu'elle mesure) ET rejoint l'origine quand le modèle en est loin ;
+      — elle est QUANTIFIÉE, sans quoi le compte changerait à chaque image de
+        zoom et la géométrie se reconstruirait soixante fois par seconde ;
+      — elle est BORNÉE, sinon un modèle posé à mille unités de l'origine
+        fabriquerait des dizaines de milliers de segments.
+
+    Le plancher est DÉRIVÉ et non choisi : la demi-hauteur visible vaut au plus
+    12,5 pas (contrôle ci-dessus), donc la demi-largeur au plus 12,5·aspect ;
+    48 couvre les aspects jusqu'à 3,84 quand les trois canevas de cette page
+    valent 1,0437, 0,5218 et 2,8000. On le vérifie sur ces trois-là.
+    """
+    portees = [0.0, 0.3, 3.0, 7.0, 24.0, 40.0, 127.5, 1000.0]
+    sortie = json.loads(_node(
+        _constantes_viewer("CASES_MIN", "CASES_MAX", "CASES_QUANTUM")
+        + _fonction_viewer("casesGraduees")
+        + "const P = " + json.dumps(portees) + ";\n"
+        + "console.log(JSON.stringify({ min: CASES_MIN, max: CASES_MAX,"
+          " q: CASES_QUANTUM, cases: P.map((p) => casesGraduees(0.5, p)),"
+          " nul: [casesGraduees(0, 10), casesGraduees(-1, 10),"
+          " casesGraduees(NaN, 10)] }));"))
+    mini, maxi, quantum = sortie["min"], sortie["max"], sortie["q"]
+    assert sortie["nul"] == [0, 0, 0], sortie["nul"]
+    for portee, cases in zip(portees, sortie["cases"]):
+        assert mini <= cases <= maxi, (portee, cases)
+        assert cases % quantum == 0, (portee, cases)
+        # COUVRE, sauf quand le plafond a parlé — et il le dit alors en
+        # rendant exactement le plafond, pas un compte tronqué au hasard.
+        # COUVRE — sauf quand le plafond a mordu, et il doit alors avoir
+        # VRAIMENT mordu : le quantum seul peut atteindre le plafond sans
+        # rogner quoi que ce soit (portée 127,5 → 255 cases → 256).
+        if cases * 0.5 < portee:
+            assert cases == maxi and portee / 0.5 > maxi, (portee, cases)
+    # LE PLANCHER COUVRE LES TROIS CANEVAS DE CETTE PAGE. 12,5 pas de
+    # demi-hauteur au pire (voir le contrôle du pas), fois l'aspect.
+    for w, h in ((860, 824), (430, 824), (1400, 500)):
+        assert 12.5 * (w / h) <= mini, (w, h, mini)
+
+
+def test_la_graduation_SUIT_le_ZOOM_sous_LES_DEUX_projections():
+    """LE CŒUR DE LA DEMANDE, EXÉCUTÉ CONTRE LE VRAI three.js.
+
+    « Dans les deux modes de manipulation » : on cadre pour de vrai, on zoome,
+    et on regarde le pas que la graduation choisit — sous la perspective ET
+    sous l'orthographique, dont les grandeurs ne sont PAS les mêmes (une ortho
+    rend sa demi-hauteur en BORDS, une perspective en DISTANCE : c'est le piège
+    que cadreOrtho nomme, et le transposer par analogie aurait donné une trame
+    figée sous l'une des deux).
+
+    MESURÉ ICI, sur la boîte 3 × 1,1 × 0,4 du harnais (rayon 1,5) dans un
+    canevas 860 × 824, marge 1,35 — donc une demi-hauteur cadrée de
+    1,25 × 1,5 × 1,35 = 2,53125 :
+
+        zoom 0,5   étendue 10,1250   pas 1,00    10,125 pas visibles
+        zoom 1     étendue  5,0625   pas 0,50    10,125
+        zoom 2     étendue  2,5313   pas 0,20    12,656
+        zoom 4     étendue  1,2656   pas 0,10    12,656
+        zoom 8     étendue  0,6328   pas 0,05    12,656
+
+    et les MÊMES cinq nombres sous l'orthographique, à 1e-12 — c'est cette
+    égalité qui prouve que les deux projections sont graduées par la même
+    étendue et non par deux formules qui se ressembleraient.
+
+    ET LA TRAME NE SE REFAIT PAS POUR RIEN : trois appels au même zoom ne
+    crient qu'UNE fois. Sans le mémo, la géométrie serait reconstruite à chaque
+    image — invisible à l'écran, et payé en continu par le GPU.
+    """
+    zooms = [0.5, 1, 2, 4, 8]
+    sortie = json.loads(_node_trois(
+        "projeter, orienter, cadrer, majRepere, etendueVisible",
+        _table_js("etabli/etabli.js", "PROJECTION_DE_VUE") + "\n"
+        + "const ZOOMS = " + json.dumps(zooms) + ";\n" + """
+      let cris = 0, dernier = null;
+      function monterEcoute(w, h) {
+        const api = monter(w, h);
+        /* Le harnais donne un faux canevas : on lui ajoute le SEUL point de
+           contact que majRepere() ait avec le DOM. S'il en gagnait un second,
+           node leverait ici plutot que de mesurer en silence. */
+        api.renderer.domElement.dispatchEvent = (ev) => {
+          cris++; dernier = ev.detail; return true;
+        };
+        return api;
+      }
+      function serie(projection, vue) {
+        const api = monterEcoute(860, 824);
+        poserModele(api, 3, 1.1, 0.4, 7, -2, 0.5);
+        projeter(api, projection);
+        orienter(api, vue);
+        const cadree = etendueVisible(api).demiHauteur;
+        const pas = ZOOMS.map((z) => {
+          api.camera.zoom = z;
+          api.camera.updateProjectionMatrix();
+          const e = etendueVisible(api);
+          majRepere(api);
+          return { z, demi: e.demiHauteur, pas: dernier.pas,
+                   cases: dernier.cases };
+        });
+        api.camera.zoom = 1;
+        api.camera.updateProjectionMatrix();
+        cris = 0;
+        majRepere(api); majRepere(api); majRepere(api);
+        const groupe = api.scene.children.filter(
+          (o) => o.name === "lib3d-repere");
+        return { cadree, pas, crisIdentiques: cris, groupes: groupe.length,
+                 enfants: groupe[0].children.length };
+      }
+      console.log(JSON.stringify({
+        perspective: serie("perspective", "libre"),
+        ortho: serie("orthographique", "iso"),
+      }));
+    """))
+    attendu = {0.5: 1.0, 1: 0.5, 2: 0.2, 4: 0.1, 8: 0.05}
+    for nom in ("perspective", "ortho"):
+        s = sortie[nom]
+        assert abs(s["cadree"] - 2.53125) < 1e-9, (nom, s["cadree"])
+        for ligne in s["pas"]:
+            quoi = (nom, ligne)
+            assert abs(ligne["pas"] - attendu[ligne["z"]]) < 1e-12, quoi
+            assert 10 <= (2 * ligne["demi"]) / ligne["pas"] < 25, quoi
+            # la trame COUVRE le champ, sinon la règle s'arrête avant ce
+            # qu'elle mesure — le modèle est posé à 7 de l'origine.
+            assert ligne["cases"] * ligne["pas"] >= 7, quoi
+        # UN SEUL groupe dans la scène : un repère par vue, jamais un de plus.
+        assert s["groupes"] == 1, s
+        assert s["enfants"] == 2, s          # la trame ET les trois axes
+        # LE MÉMO : trois appels au même zoom ne reconstruisent qu'une fois
+        # (le premier, qui change de pas depuis le zoom 8 précédent).
+        assert s["crisIdentiques"] == 1, s
+    # LES DEUX PROJECTIONS SONT GRADUÉES PAR LA MÊME ÉTENDUE.
+    for a, b in zip(sortie["perspective"]["pas"], sortie["ortho"]["pas"]):
+        assert abs(a["demi"] - b["demi"]) < 1e-12, (a, b)
+        assert a["pas"] == b["pas"], (a, b)
+
+
+def test_AUCUN_MILLIMETRE_ne_sort_sans_une_TAILLE_CIBLE_posee():
+    """L'ASSERTION LA PLUS IMPORTANTE DE LA TÂCHE, et elle est EXÉCUTÉE.
+
+    Un GLB n'a aucune échelle. La page affiche donc des unités glTF, et ne
+    passe aux millimètres QUE lorsqu'une taille cible a été posée et qu'une
+    échelle a pu en être déduite. Une seule décision porte cela —
+    `enMillimetres()` — et tout ce qui écrit une unité ou convertit un nombre
+    passe par elle : deux littéraux « mm » sur cette page finiraient par se
+    contredire sur une moitié de l'écran.
+
+    LE COMPTE EST RIGIDE, et c'est ce qui mord : `REP.echelle` n'est lu ou
+    écrit qu'en TROIS endroits — la décision, la conversion, et le recalcul de
+    lireRepere(). Un quatrième site est un site qui pourrait afficher un
+    millimètre sans passer par la garde.
+
+    MUTATION VÉRIFIÉE : retirer le `if (!enMillimetres())` de fmtMesure rend
+    « 0,00 » là où l'unité annonce des unités glTF, et le contrôle exécuté
+    ci-dessous rougit.
+    """
+    code = _code("etabli/etabli.js")
+    assert code.count("REP.echelle") == 3, code.count("REP.echelle")
+    decision = _fonction_etabli("enMillimetres")
+    assert "return REP.echelle !== null;" in decision
+    fmt = _fonction_etabli("fmtMesure")
+    assert "if (!enMillimetres()) {" in fmt
+    assert fmt.index("if (!enMillimetres()) {") < fmt.index("REP.echelle")
+    # L'ÉCHELLE EST DÉDUITE, jamais saisie : elle sort d'echelleMm(), qui rend
+    # `null` sans cible > 0 — et elle se REFAIT à chaque lecture, sans quoi un
+    # facteur hérité du modèle précédent survivrait au changement de maillage.
+    lu = _fonction_etabli("lireRepere")
+    assert "REP.echelle = echelleMm(plusGrandeDimension(), REP.cibleMm);" in lu
+    grande = _fonction_etabli("plusGrandeDimension")
+    assert "Math.max(t.x, t.y, t.z)" in grande
+    # …ET ON L'EXÉCUTE. Les trois fonctions sont extraites VERBATIM, `REP` est
+    # la seule chose que le harnais fournisse.
+    sortie = json.loads(_node(
+        "const REP = { echelle: null, cibleMm: null, pas: null };\n"
+        + decision + "\n" + _fonction_etabli("uniteCourante") + "\n" + fmt
+        + """
+      const r = { sansCible: { u: uniteCourante(), v: fmtMesure(1.5) },
+                  pasDeNombre: fmtMesure(NaN) };
+      REP.echelle = 21;
+      r.avecCible = { u: uniteCourante(), v: fmtMesure(1.5) };
+      console.log(JSON.stringify(r));
+    """))
+    assert "mm" not in sortie["sansCible"]["u"], sortie
+    assert "mm" not in sortie["sansCible"]["v"], sortie
+    assert re.search(r"1[.,]500", sortie["sansCible"]["v"]), sortie
+    assert sortie["avecCible"]["u"] == "mm", sortie
+    # 1,5 unité × 21 mm/unité = 31,50 mm — la conversion, pas une décoration.
+    assert re.search(r"31[.,]50", sortie["avecCible"]["v"]), sortie
+    assert sortie["pasDeNombre"] == "—", sortie
+
+
+def test_les_MILLIMETRES_viennent_de_la_MEME_regle_QUE_print3d():
+    """LES DEUX CÔTÉS DE LA CHAÎNE, CONFRONTÉS.
+
+    Le navigateur ne fabrique pas une seconde définition du millimètre : il
+    reprend celle que Python appliquera au moment d'écrire le STL, à savoir
+    `s = cible_mm / plus_grande` où `plus_grande` est la plus grande des trois
+    dimensions de la boîte englobante (print3d.mettre_a_l_echelle). Deux règles
+    voisines auraient divergé en silence — l'écran promettant 63 mm et le
+    slicer en recevant 47.
+
+    On EXÉCUTE donc les deux : `echelleMm` dans node, `mettre_a_l_echelle` en
+    Python sur les mêmes triangles, et on compare le facteur MESURÉ sur le
+    maillage mis à l'échelle. La boîte est 3,0 × 1,1 × 0,4 — trois côtés
+    distincts, pour qu'une erreur d'axe ne tombe pas sur une égalité.
+    """
+    from app.services import print3d as P3
+    tris = [((0.0, 0.0, 0.0), (3.0, 1.1, 0.4), (3.0, 0.0, 0.0)),
+            ((0.0, 0.0, 0.0), (0.0, 1.1, 0.4), (3.0, 1.1, 0.4))]
+    dims = [b[1] - b[0] for b in P3.bbox(tris)]
+    assert dims == [3.0, 1.1, 0.4], dims
+    mis = P3.mettre_a_l_echelle(tris, 63.0)
+    dims_mm = [b[1] - b[0] for b in P3.bbox(mis)]
+    assert abs(max(dims_mm) - 63.0) < 1e-9, dims_mm
+    # le facteur que PYTHON a réellement appliqué, mesuré sur une AUTRE
+    # dimension que celle qui porte la cible.
+    facteur_python = dims_mm[1] / dims[1]
+    sortie = json.loads(_node(
+        _fonction_viewer("echelleMm")
+        + "console.log(JSON.stringify({ e: echelleMm(3.0, 63.0),"
+          " refus: [echelleMm(3, 0), echelleMm(3, -5), echelleMm(3, 'x'),"
+          " echelleMm(3, null), echelleMm(3, undefined), echelleMm(0, 63),"
+          " echelleMm(-2, 63), echelleMm(NaN, 63)] }));"))
+    assert abs(sortie["e"] - facteur_python) < 1e-12, (sortie, facteur_python)
+    assert abs(sortie["e"] - 21.0) < 1e-12, sortie
+    # LA SÉVÉRITÉ DE LA FORGE 3D DES CARTES, reprise à la lettre : un nombre
+    # > 0, sinon rien. `null` et non zéro — un facteur nul écrirait « 0,00 mm »
+    # partout, ce qui est un mensonge de plus, pas un refus.
+    assert sortie["refus"] == [None] * 8, sortie["refus"]
+    # …et le même verdict est écrit dans core.js, d'où la règle est reprise.
+    core = _lire("cardforge/js/core.js")
+    assert "if (!isFinite(mm) || mm <= 0)" in core
+
+
+def test_la_TAILLE_CIBLE_se_pose_dans_le_rail_et_se_REFUSE_en_le_disant():
+    """La cible est la SEULE chose que l'utilisateur pose, et le seul endroit
+    d'où des millimètres puissent naître. Elle se refuse comme tout le reste
+    de cette page : dans la barre du bas, jamais par une boîte du navigateur
+    (test_aucun_refus_ne_passe_par_alert).
+
+    DEUX REFUS, ET LE SECOND N'EST PAS DÉFENSIF : sans modèle mesuré il n'y a
+    pas de dénominateur, la cible serait acceptée et ne convertirait rien —
+    un champ qui ment sur ce qu'il vient de faire.
+
+    `change` ET NON `input`, qui se déclenche à CHAQUE frappe : « 63 »
+    poserait d'abord une échelle à 6, et « 0,5 » traverserait deux refus rouges
+    (« 0 », puis « 0, » que Number() rend zéro) avant d'être accepté. Un refus
+    qui clignote à la frappe est un refus qu'on cesse de lire.
+    """
+    poser = _fonction_etabli("poserCible")
+    assert "if (!Number.isFinite(mm) || !(mm > 0)) {" in poser
+    assert poser.count("direRefus(") == 2
+    # vide = « tel quel », le mot même de la route (cible_mm absent)
+    assert 'if (texte === "") {' in poser
+    assert "REP.cibleMm = null;" in poser
+    rendu = _fonction_etabli("rendreRepere")
+    assert 'id="rCible"' in rendu and 'type="number"' in rendu
+    assert '$("#rCible").addEventListener("change"' in rendu
+    assert '$("#rCible").addEventListener("input"' not in _code("etabli/etabli.js")
+    assert 'poserCible($("#rCible").value)' in rendu
+
+
+def test_la_POSITION_lue_est_celle_du_MODELE_et_NON_de_l_ETALEMENT():
+    """LE PIÈGE LE PLUS CHER DE CETTE TÂCHE, ET IL EST MUET.
+
+    Sur la plaque, une pièce n'est PAS là où le modèle la met : plaque.js
+    glisse un BERCEAU entre elle et son parent, et sa boîte monde porte donc un
+    décalage d'AFFICHAGE. Lu tel quel, il donnerait des coordonnées fausses
+    « par rapport à l'origine » — avec l'autorité du chiffre, et sans que rien
+    ne grince. C'est exactement ce que poserGizmo() refuse de laisser partir au
+    serveur ; on ne l'affiche pas davantage.
+
+    LA CONVERSION N'EST PAS UNE SOUSTRACTION NAÏVE. Le berceau porte un
+    décalage LOCAL ; sous un parent qui tourne et change d'échelle — le cas
+    d'une réparation en Z, où `mesh_edit._ROT["Z"]` n'est plus l'identité — le
+    décalage MONDE en diffère. On exerce donc la fonction sous un parent tourné
+    (0,3 ; −0,7 ; 0,45 rad) et mis à l'échelle (2 ; 0,5 ; 1,75), avec une
+    translation de (−4 ; 9 ; 3) qui doit s'ANNULER d'elle-même — trois
+    asymétries, pour qu'aucune erreur d'indice ne tombe sur un zéro.
+
+    LE SECOND CHEMIN : node rend la matrice monde du parent et la position
+    locale du berceau ; Python refait le produit 3×3 à la main.
+    `getWorldPosition` lit la COLONNE de translation, ce produit lit les trois
+    autres — deux lectures différentes de la même matrice.
+    """
+    local = [0.37, -1.9, 2.6]
+    sortie = json.loads(_node_trois(
+        "cadrer",
+        "const PLQ = { active: true, pieces: [{ cle: 7 }] };\n"
+        "const S = { vueA: null };\n"
+        + _fonction_etabli("decalageEtalement") + "\n"
+        + "const LOCAL = " + json.dumps(local) + ";\n" + """
+      const racine = new THREE.Group();
+      const parent = new THREE.Group();
+      parent.rotation.set(0.3, -0.7, 0.45);
+      parent.scale.set(2, 0.5, 1.75);
+      parent.position.set(-4, 9, 3);
+      racine.add(parent);
+      const berceau = new THREE.Group();
+      berceau.position.set(LOCAL[0], LOCAL[1], LOCAL[2]);
+      parent.add(berceau);
+      const piece = new THREE.Group();
+      piece.userData.indexGltf = 7;
+      berceau.add(piece);
+      const feuille = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1),
+                                     new THREE.MeshBasicMaterial());
+      piece.add(feuille);
+      const enveloppe = new THREE.Group();
+      enveloppe.userData.indexGltf = 13;
+      racine.add(enveloppe);
+      S.vueA = { racine };
+      racine.updateMatrixWorld(true);
+      const lu = (o) => { const d = decalageEtalement(o);
+        return { d: d.decalage.toArray(), etale: d.etale }; };
+      const rangee = { piece: lu(piece), feuille: lu(feuille),
+                       enveloppe: lu(enveloppe),
+                       parent: parent.matrixWorld.elements.slice() };
+      PLQ.active = false;
+      rangee.rangee = lu(feuille);
+      console.log(JSON.stringify(rangee));
+    """))
+    e = sortie["parent"]
+    # LE SECOND CHEMIN : A·d, colonnes du tableau de 16 nombres de three.js.
+    attendu = [sum(e[4 * c + l] * local[c] for c in range(3)) for l in range(3)]
+    for cle in ("piece", "feuille"):
+        mesure = sortie[cle]
+        assert mesure["etale"] is False, (cle, mesure)
+        for a, b in zip(mesure["d"], attendu):
+            assert abs(a - b) < 1e-12, (cle, mesure["d"], attendu)
+    # LA CONVERSION COMPTE VRAIMENT : le décalage monde n'est PAS le local.
+    # Sans elle, un « rendre le décalage tel quel » passerait inaperçu.
+    ecart = math.dist(attendu, local)
+    assert ecart > 1.0, (attendu, local, ecart)
+    # …ET LA TRANSLATION DU PARENT S'ANNULE : (−4 ; 9 ; 3) n'apparaît nulle
+    # part, sans quoi chaque lecture serait décalée du parent tout entier.
+    assert max(abs(v) for v in attendu) < 8, attendu
+    # UN NŒUD QUI N'EST PAS SOUS UNE PIÈCE se DIT douteux plutôt que de rendre
+    # un zéro qu'on prendrait pour une correction faite.
+    assert sortie["enveloppe"]["etale"] is True, sortie["enveloppe"]
+    assert sortie["enveloppe"]["d"] == [0, 0, 0], sortie["enveloppe"]
+    # HORS PLAQUE, rien à retrancher — et surtout pas de faux doute.
+    assert sortie["rangee"] == {"d": [0, 0, 0], "etale": False}, sortie["rangee"]
+    # …et le repère 3D ne MARQUE rien sur la plaque : la croix tomberait à
+    # l'endroit du MODÈLE, c'est-à-dire à côté de la pièce que l'on voit.
+    lu = _fonction_etabli("lireRepere")
+    assert "marquerAuRepere(S.vueA, PLQ.active ? [] : m.points);" in lu
+
+
+def test_la_MARQUE_relie_la_selection_a_l_ORIGINE_et_BORNE_son_compte():
+    """« Visualiser sur un repère 3D la position de chaque sélection par
+    rapport à l'origine » — la seconde moitié de la demande, et trois nombres
+    ne la tiennent pas : il faut que le CHEMIN jusqu'à l'origine se voie.
+
+    Six segments par point, et chacun a sa raison :
+      — la DESCENTE jusqu'au plan de la trame, sans quoi un point flottant en
+        l'air ne se rapporte à aucune case ;
+      — les DEUX JAMBES qui rejoignent l'origine par x puis par z, qui sont la
+        lecture graphique de « à quelle distance » ;
+      — la CROIX, sans laquelle un point posé sur le plan se confond avec le
+        pied de sa propre descente. Elle mesure un quart de PAS, donc elle est
+        à l'échelle de la graduation et non d'un modèle que ce module ne
+        connaît pas.
+    Chaque segment porte la couleur de l'axe qu'il longe — la table est
+    extraite de la source, jamais recopiée.
+
+    ET LE COMPTE EST BORNÉ. Un modèle de la Bibliothèque porte près de mille
+    nœuds ; « tout cocher » fabriquerait six mille segments à chaque redessin
+    du panneau. Au-delà de MARQUES_MAX la lecture n'est de toute façon plus une
+    lecture, et les chiffres du rail s'abrègent au même moment.
+
+    LE SECOND CHEMIN : Python reconstruit l'ensemble des six segments attendus
+    et le compare comme un ENSEMBLE — l'ordre d'émission n'est pas la règle, et
+    l'épingler aurait fait rougir un simple réordonnancement.
+    """
+    q = [1.7, -0.85, 2.35]           # trois coordonnées distinctes et non nulles
+    sortie = json.loads(_node_trois(
+        "cadrer, majRepere, marquerAuRepere",
+        _table_js("lib3d/viewer.js", "COULEUR_AXE") + "\n"
+        + _constantes_viewer("MARQUES_MAX")
+        + "const Q = " + json.dumps(q) + ";\n" + """
+      const api = monter(860, 824);
+      api.renderer.domElement.dispatchEvent = () => true;
+      poserModele(api, 3, 1.1, 0.4, 7, -2, 0.5);
+      cadrer(api);
+      const trace = majRepere(api);
+      const groupe = api.scene.children.find((o) => o.name === "lib3d-repere");
+      const pose = [{ x: Q[0], y: Q[1], z: Q[2] }];
+      const rendu = marquerAuRepere(api, pose);
+      const marque = groupe.children[groupe.children.length - 1];
+      const p = Array.from(marque.geometry.attributes.position.array);
+      const c = Array.from(marque.geometry.attributes.color.array);
+      /* La couleur d'un segment, RETROUVÉE dans la table : on ne recopie pas
+         trois entiers dans le banc, on demande au module lequel c'est. */
+      const teintes = {};
+      for (const axe of ["x", "y", "z"]) {
+        const t = new THREE.Color(COULEUR_AXE[axe]);
+        teintes[axe] = [t.r, t.g, t.b];
+      }
+      const segments = [];
+      for (let i = 0; i < p.length; i += 6) {
+        /* MEME DECALAGE que la position : les deux attributs ont trois
+           composantes par sommet, donc six par segment. */
+        const j = i;
+        let axe = "?";
+        for (const nom of ["x", "y", "z"]) {
+          if (teintes[nom].every((v, k) => Math.abs(v - c[j + k]) < 1e-6)) {
+            axe = nom;
+          }
+        }
+        segments.push({ a: p.slice(i, i + 3), b: p.slice(i + 3, i + 6), axe });
+      }
+      /* LA BORNE : bien plus de points que MARQUES_MAX, tous distincts. */
+      const foule = [];
+      for (let i = 0; i < MARQUES_MAX * 3; i++) {
+        foule.push({ x: i * 0.11, y: i * -0.07, z: i * 0.03 });
+      }
+      const bornes = marquerAuRepere(api, foule);
+      const apresFoule = groupe.children[groupe.children.length - 1]
+        .geometry.attributes.position.count;
+      /* ET LE RETRAIT : une sélection vidée ne laisse pas sa croix derrière. */
+      const vide = marquerAuRepere(api, []);
+      console.log(JSON.stringify({
+        pas: trace.pas, rendu, segments, max: MARQUES_MAX, bornes, apresFoule,
+        vide, enfantsApresVide: groupe.children.length }));
+    """))
+    assert sortie["rendu"] == 1, sortie["rendu"]
+    assert abs(sortie["pas"] - 0.5) < 1e-12, sortie["pas"]
+    croix = sortie["pas"] / 4
+    x, y, z = q
+    # LE SECOND CHEMIN : l'ensemble attendu, écrit d'après la demande et non
+    # d'après le code — la descente, les deux jambes, les trois bras.
+    attendu = {
+        (("y",) + tuple(sorted([(x, y, z), (x, 0.0, z)]))),
+        (("x",) + tuple(sorted([(x, 0.0, z), (0.0, 0.0, z)]))),
+        (("z",) + tuple(sorted([(0.0, 0.0, z), (0.0, 0.0, 0.0)]))),
+        (("x",) + tuple(sorted([(x - croix, y, z), (x + croix, y, z)]))),
+        (("y",) + tuple(sorted([(x, y - croix, z), (x, y + croix, z)]))),
+        (("z",) + tuple(sorted([(x, y, z - croix), (x, y, z + croix)]))),
+    }
+    obtenu = set()
+    for s in sortie["segments"]:
+        bouts = sorted([tuple(round(v, 5) for v in s["a"]),
+                        tuple(round(v, 5) for v in s["b"])])
+        obtenu.add((s["axe"],) + tuple(bouts))
+    # CINQ DÉCIMALES et non quinze : la géométrie est un Float32BufferAttribute,
+    # donc 2,35 y revient 2,349999905. Arrondir plus fin ferait rougir la
+    # simple précision, qui n'est pas la règle qu'on mesure.
+    attendu = {(a[0],) + tuple(tuple(round(v, 5) for v in p) for p in a[1:])
+               for a in attendu}
+    assert len(sortie["segments"]) == 6, sortie["segments"]
+    assert obtenu == attendu, (sorted(obtenu), sorted(attendu))
+    # LA BORNE MORD : trois fois trop de points, et la géométrie s'arrête net.
+    assert sortie["bornes"] == sortie["max"], sortie
+    assert sortie["apresFoule"] == sortie["max"] * 12, sortie   # 6 segments
+    # …et une sélection vidée retire la croix, sans laisser un objet mort.
+    assert sortie["vide"] == 0, sortie
+    assert sortie["enfantsApresVide"] == 2, sortie   # la trame ET les axes
+
+
+def test_le_REPERE_est_MASQUE_pour_la_vignette_et_RETABLI_meme_si_elle_leve():
+    """LA VIGNETTE MONTRE UN OBJET, PAS UN ATELIER. Grille, axes et croix
+    vivent dans `api.scene` — la même scène que la capture photographie :
+    laissés visibles, ils poseraient un quadrillage en travers de la carte de
+    la Bibliothèque, exactement le défaut que le gizmo a déjà valu.
+
+    L'ÉTAT D'AVANT EST RENDU, jamais supposé : `montrerRepere()` rend la
+    visibilité précédente, et une vue dont le repère n'est pas encore construit
+    rend `false`. Supposer « visible » le rallumerait de force sur une vue qui
+    ne l'avait pas.
+
+    ET LE RÉTABLISSEMENT EST DANS LE `finally`, comme celui du gizmo : une
+    capture qui lève laisserait sinon la règle éteinte pour le reste de la
+    session, sans qu'aucun message ne l'explique.
+    """
+    bloc = _capture()
+    i_masque = bloc.index("repereVu = montrerRepere(vue, false);")
+    i_rendu = bloc.index("vue.renderer.render(")
+    i_finally = bloc.index("} finally {")
+    i_retabli = bloc.index("montrerRepere(vue, repereVu);")
+    assert i_masque < i_rendu < i_finally < i_retabli
+    # l'état est RELU, pas supposé — et il vaut `false` par défaut.
+    assert "let repereVu = false;" in bloc
+    montrer = _fonction_viewer("montrerRepere")
+    assert "const avant = e.groupe.visible;" in montrer
+    assert "return avant;" in montrer
+    # et la capture ne gagne AUCUN filet de plus : ses deux `catch` sont ceux
+    # de la fabrication et de l'envoi, et un troisième dirait qu'un échec de
+    # repère est un échec d'écriture. (Le compte des `catch` est tenu par
+    # test_un_echec_de_vignette_ne_fait_jamais_echouer_l_ecriture ; on épingle
+    # ici que le masquage n'a rien ajouté.)
+    nu = _code("etabli/etabli.js").split(
+        "async function capturerVignette", 1)[1].split(FIN_FONCTION, 1)[0]
+    assert nu.count("montrerRepere(") == 2       # masquer, et rétablir
+    assert bloc.count("montrerRepere(") == 3     # …et la prose qui l'explique
+
+
+def test_le_bloc_du_REPERE_est_HORS_des_onglets_et_se_LIT():
+    """« Une graduation VISIBLE » : un cinquième onglet l'aurait cachée neuf
+    fois sur dix, au moment même où l'on coche des pièces dans « Parties » pour
+    lire où elles sont. Le bloc vit donc SOUS les panneaux, toujours affiché —
+    et il n'est PAS dans la table des panneaux, sinon les onglets le
+    masqueraient en passant.
+
+    L'ORDRE DE DÉMARRAGE EST PORTEUR, et c'est un appariement : rendreParties()
+    finit par lireRepere(), qui écrit dans deux zones que rendreRepere() vient
+    de créer. Dans l'autre ordre, la PREMIÈRE ligne du démarrage déréférence
+    `null`, l'import lève, et la page entière reste morte — pas de
+    chronologie, pas de canevas, pas même un refus lisible.
+
+    Et les RÈGLES CSS comptent autant que le balisage : sans elles le bloc
+    EXISTE et ne se lit pas. Les hauteurs sont POSÉES, jamais déduites —
+    l'en-tête d'etabli.css raconte ce que coûte l'intrinsèque (998 rangées de
+    2 px), et trois colonnes de chiffres sans largeur fixe ne s'alignent pas
+    d'une rangée à la suivante.
+    """
+    html, css = _lire("etabli/index.html"), _lire("etabli/etabli.css")
+    js, code = _lire("etabli/etabli.js"), _code("etabli/etabli.js")
+    assert '<div class="repere" id="repere"></div>' in html
+    # HORS des onglets : ni bouton, ni entrée dans la table des panneaux.
+    assert 'data-onglet="repere"' not in html
+    panneaux = code.split("const PANNEAUX = {", 1)[1].split("};", 1)[0]
+    assert "repere" not in panneaux, panneaux
+    assert html.count('class="on"') + html.count('class="on actif"') == 4
+    # L'APPARIEMENT DES DEUX LIGNES DE DÉMARRAGE, ancré en colonne 0 :
+    # `rendreRepere();` n'est appelé qu'ici, mais `rendreParties();` l'est
+    # aussi ailleurs, indenté — une ancre lâche prendrait cet appel-là.
+    assert re.search(r"^rendreRepere\(\);$.*?^rendreParties\(\);$",
+                     js, re.M | re.S), "rendreRepere doit précéder rendreParties"
+    # LES SITES D'APPEL, ET ILS COUVRENT TOUT : la queue de rendreParties
+    # (chargement, clic, granularité, plaque) et la case cochée, qui ne
+    # redessine PAS le panneau et n'y serait donc jamais atteinte.
+    # CINQ appels, et ils s'énumèrent : la queue de rendreParties, la case
+    # cochée, l'écoute du pas, et les DEUX issues de poserCible (posée,
+    # retirée). Un sixième serait un site qui redessine sans qu'on sache
+    # pourquoi ; un quatrième, une sélection qui cesse d'être suivie.
+    assert code.count("lireRepere();") == 5, code.count("lireRepere();")
+    poser = _fonction_etabli("poserCible")
+    assert poser.count("lireRepere();") == 2
+    queue = code.split("$(\"#btnSeparer\").addEventListener", 1)[1]
+    assert "lireRepere();" in queue.split(FIN_FONCTION, 1)[0]
+    cases = code.split('box.querySelectorAll("input[type=checkbox]")', 1)[1] \
+                .split("}));", 1)[0]
+    assert "lireRepere();" in cases
+    # LE PAS VIENT DU MODULE PARTAGÉ, par évènement : la page ne le recalcule
+    # jamais de son côté — deux sources pour un même nombre divergeraient.
+    assert '$("#vueA canvas").addEventListener("lib3d:graduation"' in js
+    assert "REP.pas = ev.detail.pas;" in code
+    assert "pasGradue" not in code
+    # les règles qui rendent le bloc LISIBLE
+    assert ".repere {" in css
+    assert "max-height" in css.split(".repere-lecture {", 1)[1].split("}", 1)[0]
+    ligne = css.split(".repere-ligne {", 1)[1].split("}", 1)[0]
+    assert "min-height: 20px" in ligne
+    colonne = css.split(".repere-ligne span {", 1)[1].split("}", 1)[0]
+    assert "width: 8ch" in colonne and "tabular-nums" in colonne
+    assert ".repere-ligne.etale b" in css

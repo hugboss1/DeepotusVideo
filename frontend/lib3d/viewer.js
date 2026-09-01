@@ -92,6 +92,17 @@ export function creerCanevas(canvas) {
     requestAnimationFrame(boucle);
     redimensionner();
     controls.update();
+    /* LA GRADUATION EST DANS LA BOUCLE, et il le faut : le pas se déduit de
+       l'ÉTENDUE VISIBLE, qui change à chaque molette et à chaque orbite. Posé
+       une fois au cadrage, il deviendrait une trame trop fine au premier
+       dézoom et un quadrillage de deux lignes au premier zoom — une règle
+       qu'on cesse de pouvoir lire est une règle absente.
+       Ce que chaque image paie est une poignée d'opérations flottantes :
+       majRepere() ne RECONSTRUIT la géométrie que lorsque le pas ou le nombre
+       de cases change, ce qui n'arrive qu'en franchissant un palier 1-2-5. Un
+       banc compte les reconstructions et en trouve UNE pour trois appels au
+       même zoom. */
+    majRepere(api);
     /* `api.camera` et NON la variable `camera` de la fermeture : celle-ci
        reste la perspective pour toujours, et la boucle rendrait donc la
        perspective quoi qu'ait fait projeter() — une bascule sans effet, sans
@@ -336,6 +347,286 @@ function poserCoupe(cam, distanceDeCadrage) {
 export function aspectDe(api) {
   const cv = api.renderer.domElement;
   return (cv.clientWidth || 1) / (cv.clientHeight || 1);
+}
+
+/* ── LE REPÈRE : une graduation, trois axes à l'origine, zéro millimètre ────
+
+   POURQUOI ICI, ET NON DANS LA PAGE. Une règle est un accessoire du REGARD,
+   pas de l'écran qui regarde : posée dans le canevas partagé, elle vaut sous
+   les DEUX projections sans qu'aucune page n'ait à s'en souvenir. C'est
+   exactement ce que la demande réclame — « dans les deux modes de
+   manipulation, une graduation visible ».
+
+   AUCUN MILLIMÈTRE N'EST ÉCRIT ICI, et c'est structurel. Un GLB n'a PAS
+   d'échelle : c'est `print3d.mettre_a_l_echelle(tris, cible_mm)` qui en
+   fabrique une, au moment d'écrire un STL, en portant la plus grande dimension
+   à la cible. Tout ce bloc compte donc en unités glTF ; la conversion est
+   offerte séparément par echelleMm(), site canonique de la doctrine, et elle
+   rend `null` tant que personne n'a posé de cible. */
+
+/* Le nombre de pas VISÉS en travers de la hauteur visible. */
+const DIVISIONS_VISEES = 10;
+
+/* PURE. Le pas « rond » d'une graduation, en unités du modèle.
+
+   1-2-5, ET PAR LE BAS. La suite 1, 2, 5 est celle des règles et des axes de
+   graphique ; c'est l'arrondi PAR LE BAS qui décide de quelque chose ici, et
+   il se démontre : avec `pas ≤ étendue/divisions`, la hauteur visible porte
+   TOUJOURS au moins `divisions` pas. Arrondi au plus proche (seuils √2, √10,
+   √50), le pas monterait jusqu'à √2·brut et la hauteur n'en porterait plus que
+   7,07 dans le pire cas — une graduation qui se clairsème au moment même où
+   l'on zoome pour lire est une graduation qui manque.
+
+   CE QUE LE FACTEUR VAUT, EXACTEMENT. Pour n = brut/décade dans [1, 10), le
+   rapport brut/pas vaut n sur [1, 2), n/2 sur [2, 5) et n/5 sur [5, 10) : il
+   vit donc dans [1 ; 2,5). Le nombre de pas VISIBLES vit par conséquent dans
+   [10 ; 25) à `divisions = 10`, quel que soit le zoom — c'est la seule
+   promesse que cette fonction fait, et un banc balaie six décades pour la
+   vérifier par un second chemin.
+
+   `null` SUR UNE ÉTENDUE NULLE, et ce n'est pas de la politesse : log10(0)
+   vaut −∞, `10 ** -Infinity` vaut 0, donc un pas nul, donc une grille de zéro
+   ligne — c'est-à-dire rien à l'écran, sans la moindre erreur nulle part. */
+export function pasGradue(etendue, divisions = DIVISIONS_VISEES) {
+  if (!(etendue > 0) || !Number.isFinite(etendue)) return null;
+  if (!(divisions > 0)) return null;
+  const brut = etendue / divisions;
+  const decade = Math.pow(10, Math.floor(Math.log10(brut)));
+  const n = brut / decade;
+  return (n >= 5 ? 5 : n >= 2 ? 2 : 1) * decade;
+}
+
+/* Les cases de part et d'autre de l'origine : plancher, plafond, quantum. */
+const CASES_MIN = 48;
+const CASES_MAX = 256;
+const CASES_QUANTUM = 16;
+
+/* PURE. Combien de cases la grille porte de CHAQUE CÔTÉ de l'origine.
+
+   LA GRILLE EST CENTRÉE SUR L'ORIGINE, jamais sur le modèle : c'est l'origine
+   que la demande veut voir, et une trame recentrée à chaque orbite ne serait
+   plus un repère mais un tapis. `portee` est donc la distance qui va de
+   l'origine au bord du champ, et le compte s'y ajuste.
+
+   LE PLANCHER À 48 EST DÉRIVÉ, non choisi au doigt. La demi-hauteur visible
+   vaut au plus 12,5 pas (voir pasGradue), donc la demi-largeur au plus
+   12,5·aspect : 48 couvre les aspects jusqu'à 3,84, quand les trois aspects
+   mesurés au banc valent 1,0437, 0,5218 et 2,8000. LE PLAFOND À 256
+   borne le coût quand le modèle est posé loin de l'origine — au-delà la grille
+   cesse de grandir, l'origine sort du champ, et seuls les chiffres restent.
+
+   QUANTIFIÉ PAR 16 : sans cela le compte changerait à chaque image de zoom et
+   la grille se reconstruirait soixante fois par seconde pour deux lignes. */
+export function casesGraduees(pas, portee) {
+  if (!(pas > 0) || !Number.isFinite(pas)) return 0;
+  const brut = Math.max(0, Number(portee) || 0) / pas;
+  const n = Math.ceil(brut / CASES_QUANTUM) * CASES_QUANTUM;
+  return Math.max(CASES_MIN, Math.min(CASES_MAX, n));
+}
+
+/* PURE. LES MILLIMÈTRES PAR UNITÉ glTF — L'UNIQUE SOURCE DE MILLIMÈTRES DE
+   TOUTE LA CHAÎNE NAVIGATEUR, et le site canonique de la doctrine.
+
+   UN GLB N'A AUCUNE ÉCHELLE EN MILLIMÈTRES. Celle qui existe est fabriquée
+   côté serveur par `print3d.mettre_a_l_echelle(tris, cible_mm)`
+   (backend/app/services/print3d.py), et la règle y tient en une ligne :
+   `s = cible_mm / plus_grande`, où `plus_grande` est la plus grande des trois
+   dimensions de la boîte englobante. C'est CETTE règle qui est reprise ici, et
+   un banc l'exécute des deux côtés — node contre Python — plutôt que de croire
+   la présente phrase.
+
+   `null` TANT QU'AUCUNE CIBLE N'EST POSÉE, et `null` aussi sur un maillage
+   sans volume : afficher un chiffre en millimètres sur un modèle qui n'a pas
+   d'échelle serait une règle qui MENT, ce qui est pire qu'une règle muette. La
+   sévérité est celle de la Forge 3D des cartes (cardforge/js/core.js,
+   `print3dFromStl`), qui refuse un `cible_mm` non numérique ou ≤ 0 ; on ne
+   refuse pas plus doucement ici. */
+export function echelleMm(plusGrandeDimension, cibleMm) {
+  const cible = Number(cibleMm);
+  const grande = Number(plusGrandeDimension);
+  if (!Number.isFinite(cible) || !(cible > 0)) return null;
+  if (!Number.isFinite(grande) || !(grande > 0)) return null;
+  return cible / grande;
+}
+
+/* L'ÉTENDUE VISIBLE au plan de la cible, sous l'une OU l'autre projection —
+   c'est elle que la graduation gradue.
+
+   LES DEUX PROJECTIONS N'ONT PAS LA MÊME GRANDEUR, et les confondre serait le
+   piège déjà nommé par cadreOrtho() : une ortho rend sa demi-hauteur en BORDS
+   (reculer ne change rien à son image), une perspective la rend en DISTANCE.
+   Le `zoom` divise dans les deux cas — c'est par lui qu'OrbitControls zoome une
+   ortho, et le cadre calculé par cadrer() en serait sinon démenti.
+
+   `api.cameraPerspective.fov` NOMMÉMENT, jamais `.fov` sur la caméra active :
+   une ortho n'en a pas, la lecture rend `undefined`, la multiplication rend
+   NaN et la graduation disparaît sans qu'aucune erreur ne remonte. Un banc
+   interdit ce fichier de la seconde forme. */
+export function etendueVisible(api) {
+  const cam = api.camera;
+  const zoom = cam.zoom || 1;
+  const demiHauteur = cam.isOrthographicCamera
+    ? ((cam.top - cam.bottom) / 2) / zoom
+    : (cam.position.distanceTo(api.controls.target)
+       * Math.tan((api.cameraPerspective.fov * Math.PI) / 360)) / zoom;
+  return { demiHauteur, demiLargeur: demiHauteur * aspectDe(api) };
+}
+
+/* Les trois axes du MODÈLE, aux couleurs que le gizmo leur donne déjà : les
+   réinventer ferait dire à un X rouge et à un X bleu la même chose sur le même
+   écran. */
+const COULEUR_AXE = { x: 0xd2544e, y: 0x62b56a, z: 0x4d7fd0 };
+/* Les mêmes deux gris que le plateau du dépôt : une seconde palette de grille
+   sur la même page se lirait comme une seconde échelle. */
+const COULEUR_TRAME = 0x333941;
+const COULEUR_TRAME_CENTRE = 0x5b636f;
+/* Au-delà, la lecture n'est plus une lecture : on borne le nombre de marques
+   plutôt que de fabriquer mille segments pour un rail qui en montre douze. */
+const MARQUES_MAX = 24;
+
+/* L'état du repère, par vue. Une WeakMap et non des clés d'`api` : le contrat
+   de forme d'`api` est une surface publique, et trois champs de dessin n'y ont
+   rien à faire. Une vue oubliée n'y retient rien. */
+const _reperes = new WeakMap();
+
+function libererLigne(o) {
+  if (!o) return;
+  if (o.parent) o.parent.remove(o);
+  if (o.geometry) o.geometry.dispose();
+  if (o.material) o.material.dispose();
+}
+
+/* Des segments COLORÉS PAR SOMMET : un seul objet pour les trois axes, un
+   seul pour toutes les marques. Trois LineSegments monochromes auraient coûté
+   trois appels de dessin pour la même image. */
+function segmentsColores(points, couleurs, opacite) {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(points, 3));
+  g.setAttribute("color", new THREE.Float32BufferAttribute(couleurs, 3));
+  return new THREE.LineSegments(g, new THREE.LineBasicMaterial({
+    vertexColors: true, transparent: true, opacity: opacite,
+    /* Le repère ne s'écrit PAS dans le tampon de profondeur : il reste occulté
+       par le maillage (depthTest est laissé actif) sans pour autant découper
+       les faces transparentes qui passeraient derrière lui. */
+    depthWrite: false }));
+}
+
+function construireAxes(portee) {
+  const p = [], c = [];
+  for (const axe of ["x", "y", "z"]) {
+    const u = { x: 0, y: 0, z: 0 };
+    u[axe] = portee;
+    p.push(-u.x, -u.y, -u.z, u.x, u.y, u.z);
+    const t = new THREE.Color(COULEUR_AXE[axe]);
+    c.push(t.r, t.g, t.b, t.r, t.g, t.b);
+  }
+  return segmentsColores(p, c, 0.9);
+}
+
+/* Met la graduation à jour et NE RECONSTRUIT QUE CE QUI CHANGE.
+
+   Le contrat est un mémo : tant que (pas, cases) ne bouge pas, elle ne fait
+   que le calcul des deux règles pures et une comparaison. Quand il bouge, elle
+   libère l'ancienne grille — géométrie ET matériau : dix paliers de zoom
+   laisseraient sinon dix trames sur la carte, exactement la fuite que vider()
+   existe pour empêcher.
+
+   LE PAS EST DIT AU DEHORS par un évènement sur le canevas, et pas autrement :
+   une trame sans échelle chiffrée n'est pas une graduation, mais ce module ne
+   connaît aucun élément de page où l'écrire. Il crie ; la page écoute. */
+export function majRepere(api) {
+  const vue = etendueVisible(api);
+  const pas = pasGradue(2 * vue.demiHauteur);
+  if (!pas) return null;
+  const cible = api.controls.target;
+  /* La portée à couvrir : de l'origine jusqu'au bord du champ. La cible peut
+     être loin de l'origine — une extraction, un modèle non recentré — et une
+     grille dimensionnée sur le seul champ visible ne rejoindrait alors jamais
+     le point dont elle prétend mesurer la distance. */
+  const portee = Math.hypot(cible.x, cible.z)
+    + Math.max(vue.demiHauteur, vue.demiLargeur);
+  const cases = casesGraduees(pas, portee);
+  let e = _reperes.get(api);
+  if (!e) {
+    e = { groupe: new THREE.Group(), trame: null, axes: null, marque: null,
+          pas: 0, cases: 0 };
+    e.groupe.name = "lib3d-repere";
+    /* DANS LA SCÈNE, jamais dans le modèle : vider() ne retire que
+       `api.racine`, et un repère greffé au modèle disparaîtrait au premier
+       chargement sans que personne ne l'ait rangé. */
+    api.scene.add(e.groupe);
+    _reperes.set(api, e);
+  }
+  if (e.pas === pas && e.cases === cases) return e;
+  e.pas = pas;
+  e.cases = cases;
+  libererLigne(e.trame);
+  libererLigne(e.axes);
+  const cote = 2 * cases * pas;
+  e.trame = new THREE.GridHelper(cote, 2 * cases,
+                                 COULEUR_TRAME_CENTRE, COULEUR_TRAME);
+  e.trame.material.transparent = true;
+  e.trame.material.opacity = 0.4;
+  e.trame.material.depthWrite = false;
+  e.axes = construireAxes(cases * pas);
+  e.groupe.add(e.trame);
+  e.groupe.add(e.axes);
+  api.renderer.domElement.dispatchEvent(new CustomEvent("lib3d:graduation", {
+    detail: { pas, cases, portee: cases * pas } }));
+  return e;
+}
+
+/* Marque des points SUR le repère : pour chacun, la descente jusqu'au plan de
+   la trame, puis les deux jambes qui rejoignent l'origine, chacune de la
+   couleur de l'axe qu'elle longe. C'est la lecture graphique de « à quelle
+   distance de l'origine », que trois nombres seuls ne donnent pas.
+
+   Une petite croix marque le point lui-même : sans elle, un point posé sur le
+   plan de la trame se confond avec le pied de sa propre descente. Sa taille
+   est un quart de PAS — donc à l'échelle de la graduation, et non d'un modèle
+   dont ce module ne connaît pas la taille. */
+export function marquerAuRepere(api, points) {
+  const e = api && _reperes.get(api);
+  if (!e) return 0;
+  libererLigne(e.marque);
+  e.marque = null;
+  const liste = (points || []).slice(0, MARQUES_MAX);
+  if (!liste.length) return 0;
+  const p = [], c = [];
+  const pousser = (a, b, teinte) => {
+    p.push(a.x, a.y, a.z, b.x, b.y, b.z);
+    const t = new THREE.Color(teinte);
+    c.push(t.r, t.g, t.b, t.r, t.g, t.b);
+  };
+  const croix = e.pas / 4;
+  for (const q of liste) {
+    const pied = { x: q.x, y: 0, z: q.z };
+    pousser(q, pied, COULEUR_AXE.y);
+    pousser(pied, { x: 0, y: 0, z: q.z }, COULEUR_AXE.x);
+    pousser({ x: 0, y: 0, z: q.z }, { x: 0, y: 0, z: 0 }, COULEUR_AXE.z);
+    for (const axe of ["x", "y", "z"]) {
+      const a = { x: q.x, y: q.y, z: q.z }, b = { x: q.x, y: q.y, z: q.z };
+      a[axe] -= croix;
+      b[axe] += croix;
+      pousser(a, b, COULEUR_AXE[axe]);
+    }
+  }
+  e.marque = segmentsColores(p, c, 0.95);
+  e.groupe.add(e.marque);
+  return liste.length;
+}
+
+/* Montre ou cache le repère ENTIER, et rend l'état d'AVANT — c'est ce retour
+   qui permet à un appelant de le rétablir sans avoir à le supposer. Une
+   photographie du canevas (la vignette de l'Établi) n'a pas à emporter la
+   règle avec le maillage : une carte de bibliothèque montre un objet, pas un
+   atelier. */
+export function montrerRepere(api, visible) {
+  const e = api && _reperes.get(api);
+  if (!e) return false;
+  const avant = e.groupe.visible;
+  e.groupe.visible = !!visible;
+  return avant;
 }
 
 /* Cadre la caméra sur la boîte englobante. Indispensable : un modèle en mètres

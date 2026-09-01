@@ -5,8 +5,10 @@
    envoie des paramètres — une liste de nœuds, une matrice — aux routes
    /api/etabli/*, et c'est Python qui écrit, versionne et fiche. */
 "use strict";
+import * as THREE from "three";
 import { creerCanevas, charger, cadrer, vider, projeter, orienter, cadreOrtho,
-         aspectDe } from "/lib3d/viewer.js";
+         aspectDe, echelleMm, marquerAuRepere, montrerRepere }
+  from "/lib3d/viewer.js";
 import { indexerNoeuds, inventaire, isoler, surligner, designerAuClic }
   from "/lib3d/selection.js";
 import { etaler, ranger, estEtalee, montrerPiece } from "/lib3d/plaque.js";
@@ -62,6 +64,19 @@ const SEL = { granularite: "maillage", retenus: new Set() };
    que pour S : toute clé se déclare ICI.) */
 const PLQ = { active: false, pieces: [], masquees: new Set(),
               teintes: new Map(), partages: 0, vides: 0, axe: null };
+
+/* L'état du REPÈRE, à côté de SEL et de PLQ pour la même raison qu'eux : il ne
+   décrit pas le modèle, il décrit la RÈGLE avec laquelle on le lit.
+
+   `cibleMm` est la seule chose que l'utilisateur POSE, et la seule d'où des
+   millimètres puissent naître (voir echelleMm dans viewer.js : un GLB n'a
+   aucune échelle, et l'inventer serait une règle qui ment). `echelle` en est
+   DÉDUITE et jamais saisie — lireRepere() la recalcule à chaque écriture,
+   pour qu'un changement de modèle ne laisse pas traîner le facteur du
+   précédent. `pas` vient du canevas par l'évènement `lib3d:graduation` : c'est
+   le module partagé qui gradue, cette page ne fait que le dire.
+   (Même règle que pour S : toute clé se déclare ICI.) */
+const REP = { cibleMm: null, echelle: null, pas: null };
 
 /* La clé interne d'une granularité et son LIBELLÉ ne sont pas la même chose.
    Les clés (« noeud », « materiau ») sont des identifiants sans accents, qui
@@ -1210,6 +1225,12 @@ function rendreParties() {
     c.addEventListener("change", () => {
       if (c.checked) SEL.retenus.add(c.dataset.uuid);
       else SEL.retenus.delete(c.dataset.uuid);
+      /* Le repère suit la case cochée, et il ne peut pas suivre autrement :
+         cocher ne redessine PAS ce panneau (rendreParties() perdrait le
+         défilement de la liste sous les doigts), donc le seul autre appel —
+         celui de la queue de rendreParties — n'arriverait jamais. Sans cette
+         ligne, la lecture resterait celle de la sélection d'avant. */
+      lireRepere();
     }));
   /* L'œil ne change QUE `piece.visible` (dans plaque.js), et il ne note son
      basculement que si la pièce a répondu : sur une plaque déjà rangée sous
@@ -1234,6 +1255,14 @@ function rendreParties() {
      conversion uuid → index, elle, reste dans separerSelection(), avec la
      porte d'écriture à qui elle appartient. */
   $("#btnSeparer").addEventListener("click", separerSelection);
+  /* ET LE REPÈRE SE RELIT, en queue de panneau. Tout ce qui change la
+     sélection ou le modèle passe par ici — le chargement, le clic dans le
+     canevas, le changement de granularité, les deux sens de la plaque — sauf
+     la case à cocher, qui a sa propre ligne ci-dessus. DEUX sites pour la
+     SÉLECTION, donc, et ils la couvrent toute : sans eux la lecture décrirait
+     une sélection qui n'existe plus, avec l'autorité du chiffre. (La cible et
+     le pas ont les leurs — cinq en tout, qu'un banc énumère.) */
+  lireRepere();
 }
 
 /* ── la porte d'écriture : séparer, transformer, réparer ────────────────────
@@ -1660,8 +1689,17 @@ async function capturerVignette(job, version) {
   let reduite;
   const helper = GIZMO ? GIZMO.getHelper() : null;
   const visible = helper ? helper.visible : false;
+  /* PIÈGE 5 : LE REPÈRE EST DANS LA SCÈNE, LUI AUSSI. Grille, axes et croix de
+     sélection sont ajoutés à `api.scene` par viewer.js : photographiés, ils
+     poseraient un quadrillage en travers de la carte de bibliothèque, dont le
+     métier est de montrer un OBJET et non un atelier. Même traitement que le
+     gizmo, au même endroit, et l'état d'avant est RENDU par montrerRepere()
+     plutôt que supposé — la vue B n'a pas de repère construit tant qu'elle n'a
+     pas rendu une image, et supposer « visible » la rallumerait de force. */
+  let repereVu = false;
   try {
     if (helper) helper.visible = false;
+    repereVu = montrerRepere(vue, false);
     /* RENDRE, PUIS LIRE — dans cet ordre, dans le même tour, sans attente. */
     vue.renderer.render(vue.scene, vue.camera);
     reduite = reduireCanevas(vue.renderer.domElement);
@@ -1671,6 +1709,7 @@ async function capturerVignette(job, version) {
     return;
   } finally {
     if (helper) helper.visible = visible;
+    montrerRepere(vue, repereVu);
   }
   try {
     const png = await new Promise((tenir, casser) => reduite.toBlob(
@@ -1755,6 +1794,287 @@ function rendreFiche() {
   });
 }
 
+/* ── le repère : la graduation, et la sélection par rapport à l'origine ──────
+   La demande, mot pour mot : « une graduation visible » et « la possibilité de
+   visualiser sur un repère 3D la position de chaque sélection par rapport à
+   l'origine ».
+
+   LA GRILLE ET LES AXES VIVENT DANS LE CANEVAS PARTAGÉ (/lib3d/viewer.js), pas
+   ici : une règle est un accessoire du regard, elle vaut donc sous les deux
+   projections sans que cette page ait à s'en souvenir. Ce bloc-ci porte les
+   CHIFFRES — le pas, les trois coordonnées — et la seule décision que le
+   navigateur ait le droit de prendre sur les millimètres : celle de ne pas en
+   inventer.
+
+   POURQUOI UNE TAILLE CIBLE, ET POURQUOI ELLE EST INDISPENSABLE. Un GLB n'a
+   AUCUNE échelle en millimètres. La seule qui existe dans ce dépôt est
+   fabriquée par `print3d.mettre_a_l_echelle(tris, cible_mm)` au moment d'écrire
+   un STL, et elle porte la PLUS GRANDE DIMENSION à la cible. Écrire « 63 mm »
+   sous une boîte que personne n'a mise à l'échelle serait donc une règle qui
+   MENT — le pire des affichages, puisqu'il a l'autorité du chiffre. Deux voies
+   seulement : les unités glTF, ou une cible POSÉE par l'utilisateur dont les
+   millimètres se DÉDUISENT. C'est la seconde, et elle prépare le départ vers
+   le slicer.
+
+   LA SÉVÉRITÉ EST CELLE DE LA FORGE 3D DES CARTES (cardforge/js/core.js,
+   `print3dFromStl`) : un nombre > 0, sinon un refus. On ne refuse pas plus
+   doucement d'un écran à l'autre pour la même valeur qui part à la même
+   route. */
+
+/* Ce que le rail montre avant d'abréger : au-delà, une liste de coordonnées
+   cesse d'être une lecture et devient un mur. */
+const LIGNES_REPERE = 12;
+
+/* LA SEULE DÉCISION D'AFFICHAGE DE MILLIMÈTRES DE TOUTE LA PAGE, et elle tient
+   en une ligne pour que rien ne puisse la contourner : `REP.echelle` n'est
+   posée que par lireRepere(), à partir d'echelleMm(), qui rend `null` tant
+   qu'aucune cible > 0 n'a été posée sur un modèle mesuré. Tout ce qui écrit
+   une unité ou convertit un nombre passe par ici. */
+function enMillimetres() {
+  return REP.echelle !== null;
+}
+
+/* L'unité COURANTE, écrite en un seul endroit — deux littéraux « mm » sur
+   cette page finiraient par se contredire sur une moitié de l'écran. */
+function uniteCourante() {
+  return enMillimetres() ? "mm" : "u. glTF";
+}
+
+/* Un nombre dans l'unité courante. TROIS décimales en unités glTF, et le
+   chiffre vient de plaque.js : les douze pièces du modèle réel de
+   l'utilisateur mesurent 0,0630 × 0,0880 × 0,0011, si bien que deux décimales
+   feraient disparaître leur épaisseur (0,0011 → 0,00). DEUX en millimètres, où
+   la troisième serait du bruit d'imprimante. */
+function fmtMesure(v) {
+  if (!Number.isFinite(v)) return "—";
+  if (!enMillimetres()) {
+    return v.toLocaleString("fr-FR",
+      { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+  }
+  return (v * REP.echelle).toLocaleString("fr-FR",
+    { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/* Le DÉNOMINATEUR de la règle de print3d, mesuré par le navigateur au
+   CHARGEMENT (charger() rend `taille`) et retenu dans S.geoA. Le serveur, lui,
+   la relira sur le GLB au moment d'écrire : les deux lisent la boîte
+   englobante du MÊME document, l'une par three.js, l'autre par le lecteur GLB
+   de print3d.
+
+   AU CHARGEMENT, ET C'EST CE QUI SAUVE LA PLAQUE : l'empreinte étalée est bien
+   plus large que le modèle assemblé, et un dénominateur mesuré en cours de
+   route ferait fondre l'échelle dès qu'on bascule la vue — les millimètres
+   changeraient sous un geste qui ne modifie rien. `S.geoA` est posé une fois
+   par modèle et ne bouge plus.
+
+   Zéro quand rien n'est chargé — echelleMm() en fait alors `null`, et aucun
+   millimètre n'est affiché. */
+function plusGrandeDimension() {
+  const t = S.geoA && S.geoA.taille;
+  return t ? Math.max(t.x, t.y, t.z) : 0;
+}
+
+/* ── le décalage d'ÉTALEMENT, retranché ─────────────────────────────────────
+   LE PIÈGE DE CE BLOC, et c'est le même que celui du gizmo. Sur la plaque, une
+   pièce n'est PAS là où le modèle la met : plaque.js glisse un BERCEAU entre
+   elle et son parent, et sa boîte monde porte donc un décalage d'AFFICHAGE.
+   Lu tel quel, il donnerait des coordonnées fausses par rapport à l'origine —
+   avec l'autorité du chiffre, et sans que rien ne grince. C'est exactement ce
+   que poserGizmo() refuse de laisser partir au serveur ; on ne l'affiche pas
+   davantage.
+
+   COMMENT ON LE RETRANCHE SANS RIEN SUPPOSER DU NOM DU BERCEAU. Le berceau est
+   le PARENT de la pièce tant que la plaque est étalée — c'est la seule chose
+   que plaque.js promette de sa structure (« berceau.add(m.piece) ;
+   parent.add(berceau) »). On remonte donc de l'objet jusqu'à la première pièce
+   (les clés sont dans PLQ.pieces, remontées par etaler()), et le décalage
+   monde vaut `berceauMonde − parentDuBerceauMonde` : avec
+   `berceau.matrixWorld = parent.matrixWorld · T(d)`, cette différence vaut
+   `A_parent · d`, translation annulée d'elle-même — donc le décalage EXACT,
+   même sous un parent qui tourne ou change d'échelle (le cas d'une réparation
+   en Z, où `_ROT["Z"]` n'est plus l'identité). Un banc l'EXÉCUTE contre le
+   vrai three.js, sous un parent tourné et mis à l'échelle.
+
+   `etale: true` DIT que la lecture n'a PAS pu être corrigée — un nœud qui
+   CONTIENT des pièces, par exemple, dont la boîte englobe des pièces déjà
+   envolées. On le marque plutôt que de le taire : un chiffre douteux annoncé
+   vaut mieux qu'un chiffre faux muet. */
+function decalageEtalement(objet) {
+  const zero = new THREE.Vector3();
+  if (!PLQ.active || !S.vueA || !S.vueA.racine) {
+    return { decalage: zero, etale: false };
+  }
+  const cles = new Set(PLQ.pieces.map((p) => p.cle));
+  let piece = objet;
+  while (piece && piece !== S.vueA.racine
+         && !(piece.userData && cles.has(piece.userData.indexGltf))) {
+    piece = piece.parent;
+  }
+  if (!piece || piece === S.vueA.racine
+      || !piece.parent || !piece.parent.parent) {
+    return { decalage: zero, etale: true };
+  }
+  const berceau = piece.parent;
+  return {
+    decalage: berceau.getWorldPosition(new THREE.Vector3())
+      .sub(berceau.parent.getWorldPosition(new THREE.Vector3())),
+    etale: false,
+  };
+}
+
+/* Ce que la sélection vaut par rapport à l'ORIGINE : une ligne par retenu.
+
+   LE CENTRE DE LA BOÎTE ENGLOBANTE, et non `objet.position` : cette dernière
+   est LOCALE à son parent, si bien qu'une pièce imbriquée sous un nœud
+   d'enveloppe rendrait des coordonnées qui ne parlent d'aucune origine. La
+   boîte, elle, est lue dans le monde — le même repère que la grille.
+
+   `updateMatrixWorld` d'abord, pour la raison qu'etaler() donne déjà : une
+   matrice pas encore recalculée ferait mesurer la pose d'AVANT. */
+function mesurerRetenus() {
+  const lignes = [], points = [];
+  let sansPosition = 0, etale = 0;
+  const racine = S.vueA && S.vueA.racine;
+  if (!racine) return { lignes, points, sansPosition, etale };
+  racine.updateMatrixWorld(true);
+  /* UNE descente pour toute la sélection, et non un traverse() par uuid : la
+     seconde forme est quadratique pour exactement la même réponse. */
+  const trouves = new Map();
+  racine.traverse((o) => {
+    if (SEL.retenus.has(o.uuid)) trouves.set(o.uuid, o);
+  });
+  for (const u of SEL.retenus) {
+    const o = trouves.get(u);
+    /* Un uuid de MATÉRIAU ne se retrouve pas dans le graphe, et un nœud sans
+       géométrie n'a pas de boîte : ni l'un ni l'autre n'a de position à lire.
+       On les COMPTE — la même doctrine que `vides` et `partages` sur la
+       plaque : une mesure qu'on fait et qu'on tait se lit comme une perte. */
+    if (!o) { sansPosition++; continue; }
+    const boite = new THREE.Box3().setFromObject(o);
+    if (boite.isEmpty()) { sansPosition++; continue; }
+    const c = boite.getCenter(new THREE.Vector3());
+    const d = decalageEtalement(o);
+    c.sub(d.decalage);
+    if (d.etale) etale++;
+    lignes.push({
+      nom: o.name || (o.userData && o.userData.indexGltf !== undefined
+        ? `nœud ${o.userData.indexGltf}` : "sans nom"),
+      c, etale: d.etale,
+    });
+    points.push(c);
+  }
+  return { lignes, points, sansPosition, etale };
+}
+
+/* Le bloc statique du rail. Écrit UNE fois, à l'import, exactement comme
+   rendreFiche() : le champ de saisie doit survivre à chaque redessin de la
+   lecture, sinon une taille cible tapée disparaîtrait au premier clic sur une
+   case à cocher. Seules les deux zones nommées ci-dessous sont réécrites. */
+function rendreRepere() {
+  $("#repere").innerHTML = `
+    <div class="dt-label">Repère · origine</div>
+    <div class="repere-pas" id="repereEchelle">—</div>
+    <label>taille cible
+      <input id="rCible" type="number" step="any" min="0" placeholder="mm">
+    </label>
+    <div class="repere-lecture" id="repereLecture"></div>
+    <p class="repere-note">Tout se lit en unités glTF tant qu'aucune taille
+      cible n'est posée : un GLB n'en porte AUCUNE, et c'est le serveur qui en
+      fabrique une pour écrire un STL — la plus grande dimension du modèle
+      devient la cible. Ce champ applique CETTE règle et rien d'autre ; vide,
+      aucun chiffre en millimètres n'est affiché.</p>`;
+  /* `change` ET NON `input`, qui se déclenche à CHAQUE frappe : « 63 » poserait
+     d'abord une échelle à 6 — tous les chiffres de l'écran seraient dix fois
+     trop grands pendant une fraction de seconde — et « 0,5 » traverserait deux
+     refus rouges (« 0 », puis « 0, » que Number() rend zéro) avant d'être
+     accepté. Un refus qui clignote à la frappe est un refus qu'on cesse de
+     lire. `change` attend la sortie du champ ou la touche Entrée. */
+  $("#rCible").addEventListener("change", () => poserCible($("#rCible").value));
+}
+
+/* Pose (ou retire) la taille cible. Rend un booléen parce que trois issues
+   n'ont qu'un résultat observable : posée, retirée, refusée. */
+function poserCible(brut) {
+  const texte = String(brut ?? "").trim();
+  if (texte === "") {
+    /* Vide = « tel quel », le même mot que `cible_mm=None` côté serveur : on
+       revient aux unités glTF, ce qui n'est pas un échec. */
+    REP.cibleMm = null;
+    lireRepere();
+    return true;
+  }
+  const mm = Number(texte);
+  if (!Number.isFinite(mm) || !(mm > 0)) {
+    direRefus("taille cible invalide — un nombre de millimètres > 0, ou le "
+      + "champ vide pour rester en unités glTF");
+    return false;
+  }
+  if (!(plusGrandeDimension() > 0)) {
+    /* Sans modèle mesuré il n'y a pas de dénominateur : la cible serait
+       acceptée et ne convertirait rien, ce qui est un bouton qui ment. */
+    direRefus("aucun modèle mesuré — une taille cible se pose sur la plus "
+      + "grande dimension d'un maillage, il en faut un à l'écran");
+    return false;
+  }
+  REP.cibleMm = mm;
+  lireRepere();
+  /* Le geste a réussi : un refus rouge laissé par le clic d'avant ne doit pas
+     lui rester accroché. */
+  direGeometrie();
+  return true;
+}
+
+/* Mesure la sélection, écrit les chiffres, et marque le repère 3D.
+
+   UN SEUL PASSAGE pour les trois, délibérément : deux mesures séparées
+   pourraient diverger, et l'écran montrerait alors une croix quelque part et
+   des chiffres ailleurs.
+
+   RIEN N'EST MARQUÉ SUR LA PLAQUE, et c'est assumé. Les chiffres, eux, restent
+   justes (le décalage d'étalement est retranché) ; la croix, elle, tomberait à
+   l'endroit du MODÈLE, c'est-à-dire à côté de la pièce que l'utilisateur voit.
+   Une marque qui désigne le vide est pire que pas de marque. */
+function lireRepere() {
+  /* L'ÉCHELLE SE RECALCULE ICI ET NULLE PART AILLEURS : le modèle a pu changer
+     depuis que la cible a été posée, et un facteur hérité du précédent
+     afficherait des millimètres justes pour un maillage absent. */
+  REP.echelle = echelleMm(plusGrandeDimension(), REP.cibleMm);
+  const u = uniteCourante();
+  const pas = REP.pas === null ? "—" : `${fmtMesure(REP.pas)} ${u}`;
+  $("#repereEchelle").innerHTML = `pas de la grille <b>${esc(pas)}</b>`
+    + (enMillimetres()
+      ? ` · cible ${esc(REP.cibleMm)} ${esc(u)} sur la plus grande dimension`
+      : " · aucune taille cible, donc aucun millimètre déduit");
+
+  const m = mesurerRetenus();
+  marquerAuRepere(S.vueA, PLQ.active ? [] : m.points);
+  const visibles = m.lignes.slice(0, LIGNES_REPERE);
+  const corps = m.lignes.length
+    ? `<div class="repere-tete">x · y · z depuis l'origine, en ${esc(u)}</div>`
+      + visibles.map((l) => `
+      <div class="repere-ligne${l.etale ? " etale" : ""}">
+        <b>${esc(l.nom)}${l.etale ? " †" : ""}</b>
+        <span>${esc(fmtMesure(l.c.x))}</span>
+        <span>${esc(fmtMesure(l.c.y))}</span>
+        <span>${esc(fmtMesure(l.c.z))}</span>
+      </div>`).join("")
+    : `<div class="repere-vide">aucune sélection — le repère montre
+        l'origine, ses trois axes et son pas</div>`;
+  const reste = m.lignes.length - visibles.length;
+  const pied = (reste > 0
+      ? `<div class="repere-plus">… et ${reste} autre(s) sélection(s)</div>` : "")
+    + (m.sansPosition
+      ? `<div class="repere-plus">${m.sansPosition} sélection(s) sans
+        position — un matériau n'est pas un volume, un nœud sans géométrie
+        n'a pas de boîte</div>` : "")
+    + (PLQ.active
+      ? `<div class="repere-plus">la plaque est une VUE : les chiffres sont
+        ceux du MODÈLE, décalage d'étalement retranché, et le repère 3D ne
+        marque rien — sa croix tomberait à côté des pièces étalées.${m.etale
+          ? " † cette lecture-là n'a pas pu être corrigée." : ""}</div>` : "");
+  $("#repereLecture").innerHTML = corps + pied;
+}
+
 document.addEventListener("etabli:charge", () => {
   /* Le pont vers le vocabulaire du serveur, refait à CHAQUE modèle : les
      objets sont neufs, et la Map du chargeur aussi. */
@@ -1804,6 +2124,17 @@ document.addEventListener("etabli:charge", () => {
   });
 });
 
+/* LE REPÈRE D'ABORD, ET L'ORDRE EST PORTEUR. rendreParties() finit par
+   lireRepere(), qui écrit dans `#repereEchelle` et `#repereLecture` — deux
+   zones que rendreRepere() vient de créer. Dans l'autre ordre, la toute
+   première ligne de ce démarrage déréférence `null`, l'import du module lève,
+   et la page ENTIÈRE reste morte : pas de chronologie, pas de canevas, pas de
+   refus lisible. Un banc apparie les deux lignes.
+
+   Le bloc naît VIDE dans index.html et se remplit ici, comme #panParties et
+   #panFiche : deux sources pour un même balisage divergent à la première
+   retouche. */
+rendreRepere();
 /* Un premier rendu à VIDE, dès l'import : sans lui le panneau Parties reste
    littéralement blanc jusqu'au premier GLB, entre deux voisins qui, eux,
    disent ce qu'ils attendent (« le panneau Rig arrive en P4 »). Un panneau
@@ -1825,6 +2156,21 @@ majBoutonsVue();
    cassé. Le bloc garde le cas du modèle absent — son bouton refuse en le
    disant. */
 rendreFiche();
+
+/* ── le pas de la graduation, dit par le canevas ────────────────────────────
+   viewer.js gradue et ne connaît aucun élément de cette page : il crie sur le
+   canevas quand le pas change, on écoute. Le sens de la dépendance est celui
+   que la spec §12 impose au canevas PARTAGÉ — la page connaît le module,
+   jamais l'inverse.
+
+   SUR LE CANEVAS DE A, et non sur `document` : la vue B crie aussi, avec SON
+   pas, et le rail ne décrit qu'un modèle. Branché au premier niveau du module
+   (le canevas existe dans index.html avant tout chargement), il ne s'empile
+   pas — le piège que `_clicBranche` corrige plus haut. */
+$("#vueA canvas").addEventListener("lib3d:graduation", (ev) => {
+  REP.pas = ev.detail.pas;
+  lireRepere();
+});
 
 /* ── les onglets du rail droit ──────────────────────────────────────────────
    Les quatre boutons portent `data-onglet` depuis la tâche 2 et PERSONNE ne
