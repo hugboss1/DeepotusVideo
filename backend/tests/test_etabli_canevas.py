@@ -11,8 +11,12 @@ import json
 import os
 import pathlib
 import re
+import shutil
+import subprocess
 import sys
 import tempfile
+
+import pytest
 
 # Configuration AVANT tout import de app.main : `settings` est figé au
 # premier import, et la section B en déclenche un. Au niveau module, donc,
@@ -3268,24 +3272,33 @@ def test_le_rangement_est_par_etageres_recentre_et_MESURABLE():
     assert "const marge = MARGE_RELATIVE * plusGrande;" in code
 
 
-def test_les_pieces_sont_les_noeuds_gltf_LES_PLUS_HAUTS():
-    """Un nœud indexé vivant sous un autre nœud indexé recevrait un SECOND
-    berceau, et son décalage s'ajouterait à celui de son parent : la pièce
-    partirait deux fois plus loin que sa voisine, pour une raison invisible.
+def test_la_regle_des_pieces_est_LA_PROFONDEUR_et_la_GEOMETRIE():
+    """LE MIROIR DE TEXTE de la règle que les quatre bancs exécutés
+    ci-dessous EXERCENT. Il ne garde pas le comportement — eux s'en chargent,
+    et c'est justement parce qu'un miroir de texte NE POUVAIT PAS voir le
+    défaut que la plaque est sortie sans étaler quoi que ce soit. Il garde les
+    deux CLAUSES de la règle, pour qu'aucune ne disparaisse en silence : la
+    géométrie (un pivot vide n'est pas un volume) et la profondeur (un nœud
+    qui en contient un autre est une enveloppe, pas une pièce).
 
-    C'est aussi la granularité que le serveur extrait — une pièce de la plaque
-    est une pièce qu'on peut séparer.
+    Ce banc portait la règle INVERSE — « les nœuds les plus HAUTS » — et il
+    était vert sur elle. Une mesure en navigateur l'a démentie ; on garde la
+    trace de l'échange plutôt que de la remplacer sans un mot.
     """
     code = _code("lib3d/plaque.js")
     pd = code.split("export function piecesDe(api)", 1)[1].split("\n}\n", 1)[0]
     assert "o.userData.indexGltf === undefined" in pd
-    # La BOUCLE entière, et son abandon : `"n = n.parent" in pd` seul restait
-    # vert sur un `n = n.parentEnPanne` — un substring n'est pas une lecture.
-    assert "for (let n = o.parent; n && n !== api.racine; n = n.parent) {" in pd
-    remontee = pd.split("n = n.parent) {", 1)[1]
-    assert "indexGltf !== undefined) return;" in remontee
-    # et une pièce SANS géométrie n'est pas étalée : elle occuperait une case
-    # sans rien y montrer, et son œil ne commanderait rien de visible.
+    # CLAUSE 1 — la géométrie, calculée en une seule descente
+    assert "porteurs.has(o)" in pd
+    assert "o.isMesh && o.geometry" in pd
+    # CLAUSE 2 — la profondeur : on regarde EN DESSOUS, et on renonce
+    assert "if (plusBas) return;" in pd
+    dessous = pd.split("let plusBas = false;", 1)[1]
+    assert "enfant.traverse((n)" in dessous
+    assert "porteurs.has(n)) plusBas = true;" in dessous
+    # et une pièce dont la boîte est vide n'est pas étalée non plus : elle
+    # occuperait une case sans rien y montrer, et son œil ne commanderait
+    # rien de visible.
     assert "boite.isEmpty()" in code
 
 
@@ -3410,3 +3423,457 @@ def test_la_liste_de_la_plaque_echappe_les_noms_venus_du_GLB():
     # aucune interpolation NUE de ce qui vient du fichier
     assert "${x.nom}" not in bloc
     assert "${x.couleur}" not in bloc
+
+
+# ── N (suite). le CHOIX DES PIÈCES, EXÉCUTÉ et non lu ────────────────────────
+# CE QUE LE BANC DE TEXTE N'A PAS PU VOIR, et il faut le dire en tête. La
+# première livraison étalait « les nœuds glTF les plus HAUTS ». Mesurée dans
+# un vrai navigateur sur le modèle réel de l'utilisateur (model.v5.glb, 12
+# pièces, 144 274 triangles), elle rendait UN berceau, décalé de (0, 0) : la
+# carte restait debout, entière, sur le plateau.
+#
+# La cause n'est pas un cas particulier. L'arbre réel est
+#
+#     Group      "carte3d"
+#       Object3D "etabli_correction" [gltf 13]
+#         Object3D "carte3d_1"       [gltf 12]
+#           Mesh "fond-matiere" [gltf 0] … douze maillages [gltf 0..11]
+#
+# et ce nœud d'enveloppe vient de `mesh_edit.reparer`, qui en AJOUTE UN À
+# CHAQUE FOIS (`doc.setdefault("nodes", []).append(...)`). Tout modèle passé
+# par « Réparer l'assise » — le cas COURANT, pas le rare — n'a donc qu'un seul
+# nœud au sommet, et la plaque n'étalait rien pour lui.
+#
+# Les vingt mutations de la section N étaient sérieuses, et le rangement avait
+# été mesuré hors navigateur sur douze boîtes ; le défaut était EN AMONT du
+# rangement, dans le CHOIX DES PIÈCES, et rien ne l'exerçait. La leçon est
+# celle que test_cards_capture a déjà payée : une règle se lit mal et
+# s'EXÉCUTE bien. `piecesDe` ne touche à aucune API de three.js — elle ne lit
+# que `children`, `traverse`, `userData`, `isMesh`, `geometry` — donc elle
+# tourne dans node sur de faux objets, exactement comme rangerEnEtageres() se
+# mesurait déjà.
+
+
+def _fonction_plaque(nom: str) -> str:
+    """La fonction ENTIÈRE de plaque.js, prête à tourner dans node.
+
+    Extraite de la VRAIE source, jamais recopiée ici : une copie de la règle
+    est une règle qui dérive, et le banc jurerait alors sur un texte que
+    personne n'exécute.
+    """
+    js = _lire("lib3d/plaque.js")
+    i = js.index("export function " + nom + "(")
+    j = js.index("\n}\n", i)
+    return js[i:j + 2].replace("export function", "function", 1)
+
+
+def _constantes_plaque(*noms: str) -> str:
+    """Les constantes de plaque.js, VERBATIM, pour le harnais node.
+
+    Elles ne sont PAS recopiées ici : une valeur recopiée est une valeur qui
+    dérive, et le harnais mesurerait alors un seuil que le module n'applique
+    plus. Le défaut s'est présenté tout de suite — le premier harnais avait
+    posé `SEUIL_APLATI = 0.5` à la main dans un banc et l'avait oublié dans
+    l'autre, qui est mort sur un ReferenceError plutôt que de mentir ; la
+    prochaine fois il aurait pu mentir.
+    """
+    js = _lire("lib3d/plaque.js")
+    bouts = []
+    for n in noms:
+        m = re.search(r"^const " + n + r" = .*?;$", js, re.M)
+        assert m, f"constante {n} introuvable dans plaque.js"
+        bouts.append(m.group(0))
+    return "\n".join(bouts) + "\n"
+
+
+def _node(source: str) -> str:
+    """Exécute du JS dans node et rend sa sortie.
+
+    OPTIONNEL, comme le `_node` de test_cards_capture : sur une machine sans
+    node le contrôle se saute plutôt que de rougir pour une raison qui n'est
+    pas la sienne.
+    """
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node absent : la regle ne peut pas etre EXECUTEE ici")
+    r = subprocess.run([node, "-e", source], capture_output=True, timeout=60)
+    assert r.returncode == 0, r.stderr.decode("utf-8", "replace")[:600]
+    return r.stdout.decode("utf-8", "replace")
+
+
+# Le faux Object3D : le contrat MINIMAL que piecesDe consomme. L'écrire en
+# entier ici est délibéré — c'est la liste exacte de ce que la fonction a le
+# droit de supposer, et le jour où elle supposera davantage, ce harnais
+# rougira au lieu de la laisser dépendre en douce de three.js.
+_FAUX_ARBRE = """
+function N(nom, opt) {
+  opt = opt || {};
+  const o = {
+    name: nom, children: [], parent: null,
+    userData: (opt.index === undefined ? {} : { indexGltf: opt.index }),
+    isMesh: !!opt.mesh, geometry: (opt.mesh ? { attributes: {} } : null),
+  };
+  o.traverse = function (f) {
+    f(this);
+    for (const c of this.children) c.traverse(f);
+  };
+  o.add = function (c) { c.parent = this; this.children.push(c); return this; };
+  return o;
+}
+const noms = (l) => l.map((o) => o.name).join(",");
+"""
+
+
+def test_les_pieces_sont_CELLES_DU_PANNEAU_et_non_l_enveloppe_de_reparation():
+    """LE BANC QUI MANQUAIT, ET IL EST EXÉCUTÉ.
+
+    L'arbre est celui du modèle réel de l'utilisateur, enveloppe de
+    `mesh_edit.reparer` comprise. La plaque doit rendre les DOUZE pièces que
+    le panneau Parties montre — `fond-matiere`, `illustration`, `cadre`… — et
+    non l'unique nœud d'enveloppe qui les contient toutes.
+
+    Avant correctif ce banc rendait 1 : vérifié par mutation (rétablir la
+    règle « les plus hauts » le fait rougir).
+    """
+    sortie = _node(_fonction_plaque("piecesDe") + _FAUX_ARBRE + """
+      const racine = N("carte3d");
+      const env = N("etabli_correction", { index: 13 });
+      const grp = N("carte3d_1", { index: 12 });
+      racine.add(env); env.add(grp);
+      const feuilles = ["fond-matiere", "illustration", "cadre",
+        "typographie", "ornements", "lisere",
+        "fond-matiere_verso", "illustration_verso", "cadre_verso",
+        "typographie_verso", "ornements_verso", "lisere_verso"];
+      feuilles.forEach((n, i) => grp.add(N(n, { index: i, mesh: true })));
+      const p = piecesDe({ racine });
+      console.log(p.length + "|" + noms(p));
+    """)
+    combien, noms = sortie.strip().split("|")
+    assert int(combien) == 12, f"{combien} piece(s) au lieu de 12 : {noms}"
+    assert "fond-matiere" in noms and "typographie_verso" in noms
+    # et surtout PAS les contenants : ce sont des enveloppes, pas des volumes.
+    # Les étaler ferait voyager la carte entière d'un bloc — le défaut mesuré.
+    assert "etabli_correction" not in noms
+    assert "carte3d_1" not in noms
+
+
+def test_un_maillage_MULTI_PRIMITIVES_reste_UNE_piece():
+    """LA MÉCANIQUE QU'IL NE FALLAIT PAS CASSER en changeant de cible.
+
+    Chez GLTFLoader, un nœud à plusieurs primitives donne un Group pour le
+    nœud et un Mesh par primitive — et ces Mesh n'ont PAS de `nodes` dans
+    `parser.associations`, indexerNoeuds() refusant délibérément de leur en
+    inventer un. C'est le cas ordinaire d'un Meshy.
+
+    Étaler « les maillages » au sens littéral aurait donc produit des pièces
+    SANS index de nœud : sans clé, pas de teinte stable, pas d'œil, et rien
+    que le serveur sache nommer le jour où on extrait. La pièce reste le
+    NŒUD ; ses primitives voyagent avec lui.
+    """
+    sortie = _node(_fonction_plaque("piecesDe") + _FAUX_ARBRE + """
+      const racine = N("carte3d");
+      const noeud = N("meshy_0", { index: 5 });
+      racine.add(noeud);
+      noeud.add(N("prim_0", { mesh: true }));
+      noeud.add(N("prim_1", { mesh: true }));
+      const p = piecesDe({ racine });
+      console.log(p.length + "|" + noms(p));
+    """)
+    combien, noms = sortie.strip().split("|")
+    assert int(combien) == 1, f"{combien} piece(s) : {noms}"
+    assert noms == "meshy_0"
+
+
+def test_un_noeud_indexe_SANS_geometrie_n_est_pas_une_piece():
+    """Un pivot, un contenant vide : il occuperait une case sans rien y
+    montrer, et son œil ne commanderait rien de visible. Le décor est celui
+    qui piège — le pivot est une FEUILLE indexée, donc « le plus bas » au sens
+    du parcours ; seule la géométrie le disqualifie.
+    """
+    sortie = _node(_fonction_plaque("piecesDe") + _FAUX_ARBRE + """
+      const racine = N("carte3d");
+      racine.add(N("pivot_vide", { index: 7 }));
+      racine.add(N("piece_pleine", { index: 8, mesh: true }));
+      const p = piecesDe({ racine });
+      console.log(p.length + "|" + noms(p));
+    """)
+    combien, noms = sortie.strip().split("|")
+    assert int(combien) == 1, f"{combien} piece(s) : {noms}"
+    assert noms == "piece_pleine"
+
+
+def test_AUCUNE_piece_n_en_contient_une_autre():
+    """LE DANGER QUE L'ANCIENNE RÈGLE GARDAIT, et qui doit rester gardé sous
+    la nouvelle : deux pièces imbriquées recevraient deux berceaux, et le
+    décalage de la fille s'ajouterait à celui de sa mère — elle partirait deux
+    fois plus loin que sa voisine, pour une raison invisible.
+
+    L'ancienne règle (« les plus hauts ») l'interdisait par construction. La
+    nouvelle aussi, par l'argument SYMÉTRIQUE : une pièce n'a aucun nœud
+    indexé porteur en dessous d'elle, donc elle n'en contient aucune. Le banc
+    l'EXÉCUTE sur un arbre à trois étages tous indexés et porteurs, plutôt que
+    de croire l'argument.
+    """
+    sortie = _node(_fonction_plaque("piecesDe") + _FAUX_ARBRE + """
+      const racine = N("r");
+      const a = N("a", { index: 1, mesh: true });
+      const b = N("b", { index: 2, mesh: true });
+      const c = N("c", { index: 3, mesh: true });
+      racine.add(a); a.add(b); b.add(c);
+      const p = piecesDe({ racine });
+      const dedans = p.some((x) => p.some((y) => {
+        if (x === y) return false;
+        let trouve = false;
+        y.traverse((n) => { if (n === x) trouve = true; });
+        return trouve;
+      }));
+      console.log(p.length + "|" + noms(p) + "|" + dedans);
+    """)
+    combien, noms, dedans = sortie.strip().split("|")
+    assert dedans == "false", f"des pieces imbriquees : {noms}"
+    assert int(combien) == 1 and noms == "c"
+
+
+# ── N (suite). le PLAN d'étalement, mesuré sur le GLB réel ───────────────────
+# LA SECONDE ERREUR DE CETTE TÂCHE, et le banc qui la garde.
+#
+# Choisir les bonnes pièces ne suffisait pas : encore fallait-il les étaler
+# dans un plan où elles se voient. La première écriture étalait toujours au
+# SOL (x, z), en supposant des volumes posés sur un plateau d'imprimante. Les
+# douze pièces du modèle réel de l'utilisateur sont des PLANS — mesurées hors
+# navigateur en lisant directement le GLB (assets3d/6e0a8a5f/model.v5.glb,
+# 9 442 200 octets, 14 nœuds, 12 maillages) :
+#
+#     fond-matiere        x=0,0630  y=0,0880  z=0,0000
+#     illustration        x=0,0630  y=0,0880  z=0,0000
+#     cadre               x=0,0630  y=0,0880  z=0,0011
+#     … les douze pareil, épaisseur nulle à un cadre près
+#
+# Leur empreinte AU SOL vaut donc largeur × zéro. Passées au vrai rangeur,
+# elles donnaient DOUZE ÉTAGÈRES D'UNE PIÈCE : douze plans coplanaires empilés
+# le long de l'axe de vue, à 0,0076 l'un de l'autre. La caméra les regarde
+# précisément par cet axe — l'utilisateur aurait revu UNE carte, à peine
+# éventée. Étaler des pièces qui se cachent les unes les autres n'étale rien.
+#
+# Les constantes ci-dessous sont donc des MESURES, pas des exemples. Elles
+# valent contrat : si le rangement cesse un jour de les mettre en grille, ce
+# banc rougit sur le modèle même de l'utilisateur.
+
+# Les douze pièces du modèle réel, telles que lues dans le GLB.
+_CARTE_REELLE = ("[" + ", ".join(
+    "{x: 0.0630, y: 0.0880, z: %s}" % ("0.0011" if i == 3 else "0.0000")
+    for i in range(12)) + "]")
+
+
+def test_le_plan_d_etalement_se_choisit_sur_les_PIECES_et_non_sur_le_sol():
+    """L'axe d'empilement est celui sur lequel les pièces n'ont pas d'étendue.
+
+    Avec HYSTÉRÉSIS : on ne quitte le plancher (y) que pour un modèle
+    FRANCHEMENT aplati. Sans elle, un modèle quasi cubique verrait son plan
+    basculer au gré du bruit de mesure, et deux chargements du même maillage
+    ne se ressembleraient plus — la stabilité que la teinte par angle d'or
+    cherche déjà par ailleurs.
+    """
+    sortie = _node(_constantes_plaque("AXES", "SEUIL_APLATI")
+                   + _fonction_plaque("axeEmpile") + """
+      const rep = (l) => axeEmpile(l);
+      const rep3 = (x, y, z) => rep([{x,y,z},{x,y,z},{x,y,z}]);
+      console.log([
+        rep(%s),          // la carte reelle : plans dans XY
+        rep3(1, 1, 1),    // cubique : on garde le plancher
+        rep3(1, 1, 0.6),  // a peine aplati : hysteresis, plancher
+        rep3(1, 1, 0.2),  // franchement aplati : on bascule
+        rep3(0.1, 1, 1),  // aplati en X
+        rep3(1, 0.2, 1),  // aplati en Y : c'est deja le plancher
+      ].join(","));
+    """ % _CARTE_REELLE)
+    reel, cube, presque, plat, platX, platY = sortie.strip().split(",")
+    # LE CAS QUI COMPTE : le modèle de l'utilisateur s'étale dans SON plan.
+    assert reel == "z", f"la carte reelle s'etalerait dans le plan {reel}"
+    assert cube == "y" and presque == "y"      # hystérésis : le plancher tient
+    assert plat == "z" and platX == "x" and platY == "y"
+
+
+def test_les_douze_pieces_REELLES_forment_une_GRILLE_et_non_une_pile():
+    """LE BANC QUI MANQUAIT LA SECONDE FOIS, et il est exécuté sur les cotes
+    VRAIES. Il enchaîne les deux fonctions pures — le choix du plan puis le
+    rangement — exactement comme etaler() les enchaîne, et vérifie ce que
+    l'utilisateur verra : plusieurs pièces PAR RANGÉE, aucune sur une autre.
+
+    Mesuré après correctif : trois étagères de quatre, empreinte
+    0,2837 × 0,2851 (presque carrée), zéro chevauchement. Avant correctif :
+    douze étagères d'une pièce.
+
+    Le seuil est posé à « au moins trois par rangée » plutôt qu'à « exactement
+    4+4+4 » : c'est la LISIBILITÉ qui est promise, pas un pavage. Une retouche
+    de l'élancement ne doit pas rougir ; un retour à la pile, si.
+    """
+    sortie = _node(
+        _constantes_plaque("AXES", "SEUIL_APLATI", "ELANCEMENT",
+                           "MARGE_RELATIVE")
+        + _fonction_plaque("axeEmpile")
+        + _fonction_plaque("rangerEnEtageres") + """
+      const tailles = %s;
+      const axe = axeEmpile(tailles);
+      const [a1, a2] = AXES.filter((a) => a !== axe);
+      const boites = tailles.map((t, i) => ({ cle: i, l: t[a1], p: t[a2] }));
+      const marge = MARGE_RELATIVE * Math.max(...boites.map(
+        (b) => Math.max(b.l, b.p)));
+      const r = rangerEnEtageres(boites, marge);
+      const rangs = new Map();
+      for (const p of r.places) {
+        const k = (p.z - p.p / 2).toFixed(6);
+        rangs.set(k, (rangs.get(k) || 0) + 1);
+      }
+      let chevauchements = 0;
+      for (let i = 0; i < r.places.length; i++) {
+        for (let j = i + 1; j < r.places.length; j++) {
+          const a = r.places[i], b = r.places[j];
+          if (Math.abs(a.x - b.x) - (a.l + b.l) / 2 < -1e-9
+           && Math.abs(a.z - b.z) - (a.p + b.p) / 2 < -1e-9) chevauchements++;
+        }
+      }
+      console.log([...rangs.values()].join("+") + "|" + chevauchements
+        + "|" + r.largeur.toFixed(4) + "|" + r.profondeur.toFixed(4));
+    """ % _CARTE_REELLE)
+    etageres, chev, largeur, profondeur = sortie.strip().split("|")
+    rangees = [int(n) for n in etageres.split("+")]
+    assert int(chev) == 0, f"des pieces se chevauchent : {etageres}"
+    assert sum(rangees) == 12, etageres
+    # PLUSIEURS par rangée : c'est tout l'écart entre une grille et une pile.
+    assert len(rangees) > 1, f"une seule etagere : {etageres}"
+    assert min(rangees) >= 3, \
+        f"des rangees trop maigres ({etageres}) : on retombe vers la pile"
+    # et l'empreinte reste à peu près carrée — un bandeau de douze cartes
+    # obligerait à dézoomer jusqu'à ne plus rien distinguer.
+    rapport = float(largeur) / float(profondeur)
+    assert 0.4 < rapport < 2.5, f"empreinte {largeur} x {profondeur}"
+
+
+def test_le_plateau_BASCULE_avec_le_plan_et_recule_d_un_cheveu():
+    """La grille de GridHelper naît dans le plan XZ, normale +Y. Laissée là
+    quand les pièces s'étalent dans XY, elle serait vue PAR LA TRANCHE — un
+    trait, sous des cartes qui flottent. Elle bascule donc avec le plan.
+
+    ET ELLE RECULE. Les pièces sont posées AU CONTACT du plateau (leur minimum
+    sur l'axe d'empilement vaut zéro), or les pièces mesurées ont une épaisseur
+    NULLE : coplanaires, la carte et la grille clignoteraient (z-fighting).
+    C'est un défaut qu'aucun banc de texte ne peut voir et qu'un recul d'un
+    cheveu supprime.
+    """
+    code = _code("lib3d/plaque.js")
+    pp = code.split("function poserPlateau", 1)[1].split("\n}\n", 1)[0]
+    assert "groupe.rotation.x = Math.PI / 2;" in pp
+    assert "groupe.rotation.z = -Math.PI / 2;" in pp
+    assert "groupe.position[axe] = -cote * RECUL_PLATEAU;" in pp
+    assert "const RECUL_PLATEAU" in code
+    # et le plan choisi ARRIVE vraiment jusqu'au plateau : sans cet argument,
+    # la grille resterait au sol pendant que les pièces s'étalent ailleurs.
+    assert ("poserPlateau(\n    api, mise.largeur, mise.profondeur, "
+            "mise.marge, mise.axe)") in code
+
+
+def test_la_MISE_EN_PLACE_des_douze_pieces_REELLES_est_EXECUTEE():
+    """LE BANC DE BOUT EN BOUT, sur les cotes VRAIES du modele de
+    l'utilisateur — lues dans son GLB, minimums et centres compris (la douzieme
+    piece, `ornements_verso`, est miroir des onze autres : son centre differe,
+    et c'est elle qui exerce l'arithmetique).
+
+    POURQUOI CE BANC EXISTE. Deux erreurs de suite sont passees dans cette
+    tache : les mauvaises pieces, puis le mauvais plan. Toutes deux vivaient
+    dans le cablage d'etaler(), qui manipule des Object3D et ne tourne donc
+    que dans un navigateur ; aucun miroir de texte ne pouvait les voir. La
+    decision a ete SORTIE dans `disposer`, pure, et la voici EXECUTEE. Ce que
+    ce banc verifie est ce que l'utilisateur verra :
+
+      - l'etalement se fait dans le plan des pieces (z est l'axe d'empilement),
+      - aucune piece n'en recouvre une autre,
+      - plusieurs pieces PAR RANGEE — une grille, pas une pile,
+      - et chacune est posee AU CONTACT du plateau.
+    """
+    sortie = _node(
+        _constantes_plaque("AXES", "SEUIL_APLATI", "ELANCEMENT",
+                           "MARGE_RELATIVE")
+        + _fonction_plaque("axeEmpile")
+        + _fonction_plaque("rangerEnEtageres")
+        + _fonction_plaque("disposer") + """
+      // Les douze pieces de assets3d/6e0a8a5f/model.v5.glb, lues dans le GLB.
+      // Toutes 0,0630 x 0,0880 x ~0 : des PLANS, pas des volumes.
+      const zmin = [-0.00073, -0.00038, -0.00003, -0.00073, 0.00067, 0.00102,
+                    -0.00073, -0.00078, -0.00060, -0.00092, 0.00054, 0.00108];
+      const zhaut = [0, 0, 0, 0.0011, 0, 0, 0, 0, 0, 0, 0, 0];
+      const mesurees = zmin.map((zm, i) => ({
+        cle: i,
+        taille: { x: 0.0630, y: 0.0880, z: zhaut[i] },
+        // la douzieme est miroir : centre oppose en x et en y
+        centre: { x: i === 11 ? -0.01407 : 0.01407,
+                  y: i === 11 ? 0.01213 : -0.01213,
+                  z: zm + zhaut[i] / 2 },
+        bas: { x: i === 11 ? -0.04557 : -0.01743, y: -0.05613 + (i === 11 ? 0.02426 : 0),
+               z: zm },
+      }));
+      const m = disposer(mesurees);
+      const AX = ["x", "y", "z"];
+      const [a1, a2] = AX.filter((a) => a !== m.axe);
+      const boites = mesurees.map((p) => {
+        const d = m.decalages.get(p.cle);
+        return {
+          u: p.centre[a1] + d[a1], v: p.centre[a2] + d[a2],
+          l: p.taille[a1], w: p.taille[a2],
+          contact: p.bas[m.axe] + d[m.axe],
+        };
+      });
+      let chevauchements = 0;
+      for (let i = 0; i < boites.length; i++) {
+        for (let j = i + 1; j < boites.length; j++) {
+          const a = boites[i], b = boites[j];
+          if (Math.abs(a.u - b.u) - (a.l + b.l) / 2 < -1e-9
+           && Math.abs(a.v - b.v) - (a.w + b.w) / 2 < -1e-9) chevauchements++;
+        }
+      }
+      const rangs = new Map();
+      for (const b of boites) {
+        const k = (b.v - b.w / 2).toFixed(6);
+        rangs.set(k, (rangs.get(k) || 0) + 1);
+      }
+      const horsPlateau = boites.filter(
+        (b) => Math.abs(b.contact) > 1e-9).length;
+      console.log([m.axe, chevauchements, [...rangs.values()].join("+"),
+                   horsPlateau, boites.length].join("|"));
+    """)
+    axe, chev, etageres, hors, combien = sortie.strip().split("|")
+    assert int(combien) == 12, combien
+    # LE CAS QUI COMPTE : la carte s'etale dans SON plan, pas au sol.
+    assert axe == "z", f"axe d'empilement {axe}"
+    assert int(chev) == 0, f"des pieces se recouvrent : {etageres}"
+    rangees = [int(n) for n in etageres.split("+")]
+    assert len(rangees) > 1, f"une seule etagere : {etageres}"
+    # PLUSIEURS par rangee : tout l'ecart entre une grille et une pile. Avant
+    # correctif, c'etait douze rangees d'UNE piece.
+    assert min(rangees) >= 3, \
+        f"des rangees trop maigres ({etageres}) : on retombe vers la pile"
+    # et chaque piece touche le plateau : son minimum sur l'axe d'empilement
+    # tombe exactement a zero.
+    assert int(hors) == 0, f"{hors} piece(s) ne touchent pas le plateau"
+
+
+def test_le_cablage_d_etaler_PASSE_par_la_mise_en_place():
+    """Le miroir de texte qui reste, et il ne garde qu'une chose : que le
+    cablage d'etaler() consomme bien `disposer` plutot que de refaire le calcul
+    au sol. Le COMPORTEMENT est garde par le banc execute ci-dessus ; ceci
+    interdit qu'on le contourne.
+    """
+    code = _code("lib3d/plaque.js")
+    et = code.split("export function etaler(api)", 1)[1].split("\n}\n", 1)[0]
+    assert "const mise = disposer(mesurees);" in et
+    assert "const d = mise.decalages.get(m.cle);" in et
+    assert "new THREE.Vector3(d.x, d.y, d.z)" in et
+    # et rien n'est plus decide sur place : ni plan, ni marge, ni rangement
+    for refait in ("axeEmpile(", "rangerEnEtageres(", "MARGE_RELATIVE"):
+        assert refait not in et, refait
+    # `disposer`, elle, ne connait pas three.js : c'est ce qui la rend
+    # mesurable, et c'est la lecon des deux defauts de cette tache.
+    dis = code.split("export function disposer(mesurees)", 1)[1] \
+              .split("\n}\n", 1)[0]
+    assert "THREE." not in dis
+    assert "d[axe] = -m.bas[axe];" in dis

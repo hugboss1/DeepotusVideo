@@ -49,6 +49,18 @@ const ELANCEMENT = 1.2;
    aurait, elle, dépendu de l'ORDRE de la liste. */
 const ANGLE_OR = 137.508;
 
+/* Les trois axes, du nom que three.js leur donne. */
+const AXES = ["x", "y", "z"];
+
+/* Un modèle est APLATI quand l'étendue cumulée de ses pièces sur un axe tombe
+   sous cette fraction du plus petit des deux autres. Voir axeEmpile(). */
+const SEUIL_APLATI = 0.5;
+
+/* Le plateau recule d'un cheveu derrière les pièces, en fraction de son côté.
+   Sans lui, une pièce d'épaisseur NULLE — le cas mesuré ci-dessous — est
+   exactement coplanaire avec la grille, et les deux clignotent. */
+const RECUL_PLATEAU = 0.005;
+
 /* Le plateau déborde de l'empreinte : une pièce posée au bord doit se lire
    COMME posée sur quelque chose, pas comme débordant dans le vide. */
 const DEBORD_PLATEAU = 1.12;
@@ -75,24 +87,115 @@ export function couleurDePiece(cle) {
   return new THREE.Color().setHSL(h, 0.62, 0.58);
 }
 
+/* ── dans QUEL PLAN étaler ─────────────────────────────────────────────────
+   LA SECONDE ERREUR DE CETTE TÂCHE, et elle a été mesurée hors navigateur sur
+   le GLB réel de l'utilisateur (assets3d/6e0a8a5f/model.v5.glb, 9,4 Mo).
+
+   La première écriture étalait toujours dans le plan du SOL (x, z), en
+   supposant des volumes posés sur un plateau d'imprimante. Or ses douze
+   pièces sont des PLANS, et leurs cotes le disent :
+
+     fond-matiere      x=0,0630   y=0,0880   z=0,0000
+     illustration      x=0,0630   y=0,0880   z=0,0000
+     cadre             x=0,0630   y=0,0880   z=0,0011      (les douze pareil)
+
+   L'empreinte au sol d'une carte debout vaut donc largeur × ÉPAISSEUR, c'est
+   à dire largeur × zéro. Passées au vrai rangeur, ces douze boîtes rendaient
+   DOUZE ÉTAGÈRES D'UNE PIÈCE — douze plans coplanaires empilés le long de
+   l'axe de vue, à 0,0076 l'un de l'autre. La caméra les regarde justement par
+   cet axe : l'utilisateur aurait revu UNE carte, à peine éventée. Étaler des
+   pièces qui se cachent les unes les autres n'étale rien.
+
+   D'où : on étale dans le plan où les pièces ONT de l'étendue, et l'axe
+   d'empilement est celui sur lequel elles n'en ont pas. Avec HYSTÉRÉSIS —
+   on ne quitte le plancher (y) que pour un modèle FRANCHEMENT aplati, sans
+   quoi un modèle quasi cubique verrait son plan basculer au gré du bruit de
+   mesure, et deux chargements du même maillage ne se ressembleraient plus.
+
+   PURE, et c'est ce qui la rend mesurable hors navigateur : elle ne lit que
+   des {x, y, z}. */
+export function axeEmpile(tailles) {
+  const somme = { x: 0, y: 0, z: 0 };
+  for (const t of tailles) for (const a of AXES) somme[a] += t[a] || 0;
+  let mince = "x";
+  for (const a of AXES) if (somme[a] < somme[mince]) mince = a;
+  if (mince === "y") return "y";
+  const autres = AXES.filter((a) => a !== mince).map((a) => somme[a]);
+  return somme[mince] < SEUIL_APLATI * Math.min(...autres) ? mince : "y";
+}
+
 /* ── quelles pièces ─────────────────────────────────────────────────────────
-   Les nœuds glTF les plus HAUTS, et eux seuls. Un nœud indexé vivant sous un
-   autre nœud indexé recevrait un second berceau, et son décalage s'ajouterait
-   à celui de son parent : la pièce partirait deux fois plus loin que sa
-   voisine, pour une raison invisible. C'est aussi la granularité que le
-   serveur extrait — une pièce de la plaque est une pièce qu'on peut séparer. */
+   LES NŒUDS INDEXÉS LES PLUS BAS QUI PORTENT DE LA GÉOMÉTRIE.
+
+   La première écriture prenait les plus HAUTS, et c'était faux — mesuré dans
+   un navigateur sur le modèle réel de l'utilisateur : UN berceau, décalé de
+   (0, 0), la carte debout et entière sur le plateau. Son arbre :
+
+     Group      "carte3d"
+       Object3D "etabli_correction" [gltf 13]
+         Object3D "carte3d_1"       [gltf 12]
+           Mesh "fond-matiere" [gltf 0] … douze maillages [gltf 0..11]
+
+   Et ce n'est PAS un cas particulier : le nœud d'enveloppe vient de
+   `mesh_edit.reparer`, qui en ajoute un À CHAQUE RÉPARATION. Tout modèle
+   passé par « Réparer l'assise » — le cas courant — n'a qu'un seul nœud au
+   sommet, et « le plus haut » n'y étale donc jamais rien.
+
+   POURQUOI LE NŒUD, ET NON LE MAILLAGE. Étaler littéralement les maillages
+   serait plus direct, et c'est un piège : chez GLTFLoader, un nœud à
+   plusieurs primitives donne un Group pour le nœud et un Mesh par primitive,
+   et ces Mesh n'ont PAS de `nodes` dans `parser.associations` — indexerNoeuds
+   refuse délibérément de leur en inventer un. Ils n'ont donc aucune clé, or
+   toute la plaque tient sur `indexGltf` : la teinte stable, l'œil, et ce que
+   le serveur saura nommer le jour où on extrait. La pièce reste le NŒUD ; ses
+   primitives voyagent avec lui. (Suivre la granularité du panneau aurait le
+   même défaut par un autre bout : un MATÉRIAU n'est pas un volume — il peut
+   traverser plusieurs maillages et n'en couvrir qu'une part —, si bien que ce
+   troisième mode aurait dû mentir ou se rabattre en silence.)
+
+   LE DANGER DE L'IMBRICATION RESTE GARDÉ, par l'argument symétrique de
+   l'ancien : deux pièces imbriquées recevraient deux berceaux et le décalage
+   de la fille s'ajouterait à celui de sa mère. Une pièce n'ayant, par
+   définition, aucun nœud indexé porteur EN DESSOUS d'elle, elle n'en contient
+   aucune. Un banc l'exécute plutôt que de croire cette phrase.
+
+   LIMITE ASSUMÉE : un nœud indexé qui porte SA PROPRE géométrie et contient
+   par ailleurs un nœud indexé porteur n'est pas une pièce — sa géométrie
+   propre reste à sa place d'assemblage pendant que sa fille s'étale. Le cas
+   demande un maillage parent d'un maillage, que ni Meshy, ni Tripo, ni
+   mesh_edit ne produisent ; le remède (une pièce « le reste de ce nœud »)
+   coûterait une décomposition que rien ne réclame. */
 export function piecesDe(api) {
-  const hauts = [];
-  if (!api || !api.racine) return hauts;
+  const pieces = [];
+  if (!api || !api.racine) return pieces;
+  /* Qui porte de la géométrie, sous-arbre compris. UNE descente récursive
+     pour tout l'arbre, plutôt qu'un traverse() par nœud candidat : la
+     seconde forme est quadratique pour exactement la même réponse. */
+  const porteurs = new Set();
+  const marquer = (o) => {
+    /* L'appel récursif est à GAUCHE du `||` : à droite, un sous-arbre entier
+       cesserait d'être marqué dès qu'un frère aurait déjà répondu vrai. */
+    let porte = !!(o.isMesh && o.geometry);
+    for (const enfant of o.children) porte = marquer(enfant) || porte;
+    if (porte) porteurs.add(o);
+    return porte;
+  };
+  marquer(api.racine);
   api.racine.traverse((o) => {
     if (o === api.racine) return;
     if (!o.userData || o.userData.indexGltf === undefined) return;
-    for (let n = o.parent; n && n !== api.racine; n = n.parent) {
-      if (n.userData && n.userData.indexGltf !== undefined) return;
+    if (!porteurs.has(o)) return;
+    let plusBas = false;
+    for (const enfant of o.children) {
+      enfant.traverse((n) => {
+        if (n.userData && n.userData.indexGltf !== undefined
+            && porteurs.has(n)) plusBas = true;
+      });
     }
-    hauts.push(o);
+    if (plusBas) return;
+    pieces.push(o);
   });
-  return hauts;
+  return pieces;
 }
 
 /* ── le rangement, et il est DÉLIBÉRÉMENT bête ──────────────────────────────
@@ -139,6 +242,46 @@ export function rangerEnEtageres(boites, marge) {
            profondeur: Math.max(0, profondeur) };
 }
 
+/* ── la mise en place, DE BOUT EN BOUT et SANS three.js ─────────────────────
+   Choisir le plan, ranger, et rendre le DÉCALAGE de chaque pièce. Tout ce que
+   l'étalement décide vit ici.
+
+   POURQUOI CETTE FONCTION EXISTE, et ce n'est pas du rangement de code : ces
+   trois pas étaient écrits DANS etaler(), qui manipule des Object3D et ne
+   tourne donc que dans un navigateur. Deux erreurs de suite y sont passées —
+   les mauvaises pièces, puis le mauvais plan — parce qu'aucun banc ne pouvait
+   les EXÉCUTER : un miroir de texte lit une ligne, il ne voit pas une carte
+   rester debout. Séparée, la décision se mesure hors navigateur sur les cotes
+   VRAIES du modèle de l'utilisateur, et un banc l'y tient.
+
+   Elle ne prend que des nombres : [{cle, taille, centre, bas}], trois points
+   {x, y, z}. Elle rend {axe, marge, largeur, profondeur, decalages}, où
+   `decalages` va de la clé de pièce à un {x, y, z} exprimé DANS LE MONDE —
+   c'est etaler() qui le ramènera dans l'espace du parent. */
+export function disposer(mesurees) {
+  const axe = axeEmpile(mesurees.map((m) => m.taille));
+  const [a1, a2] = AXES.filter((a) => a !== axe);
+  const plusGrande = Math.max(...mesurees.map(
+    (m) => Math.max(m.taille[a1], m.taille[a2]))) || 1;
+  const marge = MARGE_RELATIVE * plusGrande;
+  const plan = rangerEnEtageres(mesurees.map(
+    (m) => ({ cle: m.cle, l: m.taille[a1], p: m.taille[a2] })), marge);
+  const parCle = new Map(plan.places.map((c) => [c.cle, c]));
+  const decalages = new Map();
+  for (const m of mesurees) {
+    const place = parCle.get(m.cle);
+    const d = { x: 0, y: 0, z: 0 };
+    /* Les deux axes du PLAN portent le rangement, le troisième pose la pièce
+       AU CONTACT du plateau — son minimum sur cet axe tombe à zéro. */
+    d[a1] = place.x - m.centre[a1];
+    d[a2] = place.z - m.centre[a2];
+    d[axe] = -m.bas[axe];
+    decalages.set(m.cle, d);
+  }
+  return { axe, marge, decalages,
+           largeur: plan.largeur, profondeur: plan.profondeur };
+}
+
 /* Un déplacement exprimé dans le MONDE, ramené dans l'espace local d'un
    parent. Indispensable dès qu'un nœud glTF est imbriqué sous un nœud qui
    tourne ou change d'échelle : poser le décalage monde tel quel y enverrait
@@ -159,7 +302,7 @@ function versLocal(parent, deltaMonde) {
 
    Il est dimensionné sur l'EMPREINTE de l'étalement, en unités du modèle.
    Aucune cote de plateau réel n'est écrite ici : voir l'en-tête du fichier. */
-function poserPlateau(api, largeur, profondeur, marge) {
+function poserPlateau(api, largeur, profondeur, marge, axe) {
   const cote = Math.max(largeur, profondeur, marge) * DEBORD_PLATEAU + marge;
   const groupe = new THREE.Group();
   groupe.name = "plaque-plateau";
@@ -177,6 +320,17 @@ function poserPlateau(api, largeur, profondeur, marge) {
   grille.material.opacity = 0.55;
   groupe.add(socle);
   groupe.add(grille);
+  /* LA GRILLE NAÎT DANS LE PLAN XZ, normale +Y — c'est la convention de
+     GridHelper. On la fait basculer vers le plan d'étalement plutôt que d'en
+     fabriquer trois : une rotation de +90° autour de X envoie la normale sur
+     +Z, une de −90° autour de Z l'envoie sur +X. */
+  if (axe === "z") groupe.rotation.x = Math.PI / 2;
+  else if (axe === "x") groupe.rotation.z = -Math.PI / 2;
+  /* Et il RECULE d'un cheveu : les pièces sont posées AU CONTACT du plateau
+     (leur minimum sur l'axe d'empilement vaut zéro), or les pièces mesurées
+     sur le modèle réel ont une épaisseur NULLE. Coplanaires, la carte et la
+     grille clignoteraient. */
+  groupe.position[axe] = -cote * RECUL_PLATEAU;
   api.scene.add(groupe);
   return groupe;
 }
@@ -210,23 +364,23 @@ export function etaler(api) {
        et son œil ne commanderait rien de visible. On le compte, on ne
        l'étale pas. */
     if (boite.isEmpty()) { vides++; continue; }
-    const taille = boite.getSize(new THREE.Vector3());
-    const centre = boite.getCenter(new THREE.Vector3());
     mesurees.push({
       piece, cle: piece.userData.indexGltf,
       nom: piece.name || `noeud_${piece.userData.indexGltf}`,
-      l: taille.x, p: taille.z,
-      cx: centre.x, cz: centre.z, bas: boite.min.y,
+      taille: boite.getSize(new THREE.Vector3()),
+      centre: boite.getCenter(new THREE.Vector3()),
+      /* `boite.min` est gardé PAR RÉFÉRENCE, sans copie : la Box3 est locale
+         à ce tour de boucle et personne ne la réécrit. (Un `.clone()` serait
+         plus prudent, et un banc interdit ici le mot même de clone — la garde
+         qui jure qu'aucun MATÉRIAU n'est cloné.) */
+      bas: boite.min,
     });
   }
   if (!mesurees.length) return null;
 
-  const plusGrande =
-    Math.max(...mesurees.map((m) => Math.max(m.l, m.p))) || 1;
-  const marge = MARGE_RELATIVE * plusGrande;
-  const plan = rangerEnEtageres(
-    mesurees.map((m) => ({ cle: m.cle, l: m.l, p: m.p })), marge);
-  const parCle = new Map(plan.places.map((c) => [c.cle, c]));
+  /* TOUTE la décision d'étalement, en un appel et sans three.js — c'est ce
+     qui la rend mesurable hors navigateur (voir disposer). */
+  const mise = disposer(mesurees);
 
   const etat = { berceaux: [], materiaux: [], plateau: null };
   const teintes = new Map();
@@ -234,7 +388,6 @@ export function etaler(api) {
   const pieces = [];
 
   for (const m of mesurees) {
-    const place = parCle.get(m.cle);
     const parent = m.piece.parent;
     const rang = parent.children.indexOf(m.piece);
     const berceau = new THREE.Group();
@@ -244,8 +397,9 @@ export function etaler(api) {
        de l'Établi, qui lit `o.position`, ne peut pas voir passer ce
        décalage. `-m.bas` pose chaque pièce SUR le plateau plutôt que de les
        laisser flotter à leur altitude d'assemblage. */
-    berceau.position.copy(versLocal(parent,
-      new THREE.Vector3(place.x - m.cx, -m.bas, place.z - m.cz)));
+    const d = mise.decalages.get(m.cle);
+    const decalage = new THREE.Vector3(d.x, d.y, d.z);
+    berceau.position.copy(versLocal(parent, decalage));
     berceau.add(m.piece);
     parent.add(berceau);
     /* Le berceau reprend la PLACE de la pièce dans la fratrie. L'ordre de
@@ -283,7 +437,8 @@ export function etaler(api) {
     pieces.push({ cle: m.cle, nom: m.nom, couleur: css, uuid: m.piece.uuid });
   }
 
-  etat.plateau = poserPlateau(api, plan.largeur, plan.profondeur, marge);
+  etat.plateau = poserPlateau(
+    api, mise.largeur, mise.profondeur, mise.marge, mise.axe);
   _etats.set(api, etat);
 
   /* LA LIMITE, MESURÉE ET RENDUE — pas cachée. glTF PARTAGE les matériaux :
@@ -297,7 +452,7 @@ export function etaler(api) {
      sur le maillage. */
   const partages = [...usage.values()].filter((s) => s.size > 1).length;
   return { pieces, teintes, partages, vides,
-           largeur: plan.largeur, profondeur: plan.profondeur };
+           largeur: mise.largeur, profondeur: mise.profondeur };
 }
 
 /* ── ranger : rendre le modèle intact, SANS RECHARGER ────────────────────────
