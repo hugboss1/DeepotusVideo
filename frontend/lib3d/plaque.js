@@ -586,8 +586,13 @@ export function decalageEtalement(api, objet) {
   let n = objet;
   while (n && !parPiece.has(n)) n = n.parent;
   const e = n && parPiece.get(n);
-  /* Un berceau détaché — un vider() passé par là — ne décrit plus rien. */
-  if (!e || e.berceau.parent !== e.parent) return { decalage: zero, etale: !e };
+  /* DEUX ÉCHECS, UN SEUL VERDICT. Objet hors de toute pièce, ou berceau
+     détaché par un vider() passé là : dans les deux cas la lecture n'a PAS pu
+     être corrigée, et elle se DIT douteuse. La première écriture rendait
+     `etale: false` sur le berceau détaché — le seul endroit de cette fonction
+     où un état cassé produisait une réponse CONFIANTE, donc un zéro qu'on
+     aurait pris pour une correction faite. */
+  if (!e || e.berceau.parent !== e.parent) return { decalage: zero, etale: true };
   return {
     decalage: e.berceau.getWorldPosition(new THREE.Vector3())
       .sub(e.parent.getWorldPosition(new THREE.Vector3())),

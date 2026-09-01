@@ -7,6 +7,7 @@ garde un frontend vanilla sans navigateur au banc.
 
 Run: .\\scripts\\run-tests.ps1 -Filter test_etabli_canevas.py
 """
+import collections
 import json
 import math
 import os
@@ -5708,6 +5709,16 @@ def test_la_POSITION_lue_est_celle_du_MODELE_et_NON_de_l_ETALEMENT():
       const dits = pieces.map(lu);
       /* un maillage SOUS une piece : il herite de la correction de sa piece */
       const feuille = lu(pieces[0].children[0]);
+      /* UN LEURRE : meme `indexGltf` qu'une piece, mais ce n'est PAS elle.
+         GLTFLoader clone un noeud reference deux fois, et `associations` rend
+         au clone le meme {nodes: i}. Pose APRES l'etalement, il n'est dans
+         aucun berceau. */
+      const leurre = new THREE.Group();
+      leurre.userData.indexGltf = 0;
+      leurre.position.set(3, 3, 3);
+      enveloppe.add(leurre);
+      racine.updateMatrixWorld(true);
+      const leurreLu = lu(leurre);
       /* l'enveloppe CONTIENT des pieces : sa lecture se DIT douteuse */
       const enveloppeLue = lu(enveloppe);
       /* le berceau EST bien le parent aujourd'hui — on le CONSTATE plutot que
@@ -5722,7 +5733,7 @@ def test_la_POSITION_lue_est_celle_du_MODELE_et_NON_de_l_ETALEMENT():
                       monde: pieces.map(monde) };
       console.log(JSON.stringify({ compte, avant, apres, dits, feuille,
                                    enveloppeLue, berceauEstParent, locaux,
-                                   range }));
+                                   leurreLu, range }));
     """))
     assert sortie["compte"] == 3, sortie["compte"]
     assert sortie["berceauEstParent"] is True, sortie
@@ -5752,6 +5763,16 @@ def test_la_POSITION_lue_est_celle_du_MODELE_et_NON_de_l_ETALEMENT():
     # zéro qu'on prendrait pour une correction faite.
     assert sortie["enveloppeLue"]["etale"] is True, sortie["enveloppeLue"]
     assert sortie["enveloppeLue"]["d"] == [0, 0, 0], sortie["enveloppeLue"]
+    # ── L'INDEXATION EST PAR IDENTITÉ D'OBJET, ET C'EST MESURABLE ────────────
+    # Un nœud portant le MÊME `indexGltf` qu'une pièce sans être elle — ce que
+    # GLTFLoader produit en clonant un nœud référencé deux fois, `associations`
+    # rendant au clone le même {nodes: i} — serait ATTRAPÉ par une table à clé,
+    # dont le parent, qui n'est pas un berceau, donnerait un décalage bidon
+    # avec `etale: false` : une réponse confiante et fausse. Par identité, il ne
+    # correspond à rien et se dit douteux. (Le cas n'est pas vérifié sur cette
+    # chaîne d'import ; il est bon marché à fermer, on le ferme.)
+    assert sortie["leurreLu"]["etale"] is True, sortie["leurreLu"]
+    assert sortie["leurreLu"]["d"] == [0, 0, 0], sortie["leurreLu"]
     # RANGÉE, il n'y a plus rien à retrancher — et surtout pas de faux doute.
     assert sortie["range"]["etalee"] is False, sortie["range"]
     assert sortie["range"]["lu"] == {"d": [0, 0, 0], "etale": False}, \
@@ -5782,6 +5803,17 @@ def test_la_POSITION_lue_est_celle_du_MODELE_et_NON_de_l_ETALEMENT():
     # …et le calcul du décalage se fait entre le berceau et le parent INSCRITS
     assert "e.berceau.getWorldPosition" in dec
     assert "e.parent.getWorldPosition" in dec
+    # ── ET LES DEUX ÉCHECS RENDENT LE MÊME VERDICT ──────────────────────────
+    # ASSERTION STRUCTURELLE, et elle ne peut pas être autre chose : l'état
+    # « berceau détaché » est INATTEIGNABLE aujourd'hui — oublierPlaque() fait
+    # ranger() avant tout changement de modèle, et la vue B n'est jamais
+    # étalée. Aucune exécution ne peut donc l'exercer. Il reste que c'était le
+    # seul endroit de cette fonction où un état cassé produisait une réponse
+    # CONFIANTE (`etale: false`), c'est-à-dire un zéro qu'on aurait pris pour
+    # une correction faite. Objet hors pièce ou berceau détaché : dans les deux
+    # cas la lecture n'a pas pu être corrigée, et elle se dit douteuse.
+    assert "return { decalage: zero, etale: true };" in dec
+    assert "etale: !e" not in dec
     # …et le repère 3D ne MARQUE rien sur la plaque : la croix tomberait à
     # l'endroit du MODÈLE, c'est-à-dire à côté de la pièce que l'on voit.
     lu = _fonction_etabli("lireRepere")
@@ -6042,6 +6074,18 @@ def test_le_bloc_du_REPERE_est_HORS_des_onglets_et_se_LIT():
     cases = code.split('box.querySelectorAll("input[type=checkbox]")', 1)[1] \
                 .split("}));", 1)[0]
     assert "lireRepere();" in cases
+    # ── LA NOTE LA PLUS IMPORTANTE DOIT ÊTRE LA PLUS TROUVABLE ──────────────
+    # L'avertissement « pas de vue ≠ pas de modèle » vit dans le docbloc de
+    # programmerLecture(). Or qui câble un déplacement au clavier demande
+    # « d'où vient le pas ? » et atterrit sur la déclaration de REP, mille neuf
+    # cents lignes plus haut — qui ne disait que « il vient de l'évènement ».
+    # Le renvoi est donc épinglé LÀ, sur la clé elle-même : un commentaire que
+    # personne ne trouve est un commentaire qui n'existe pas, et le lot suivant
+    # écrit sur le disque.
+    decl = js.split("const REP = {", 1)[0].rsplit("/*", 1)[1]
+    assert "PAS DE VUE" in decl and "programmerLecture" in decl, decl[-400:]
+    prog = _fonction_etabli("programmerLecture")
+    assert "POUR LE LOT SUIVANT" in _lire("etabli/etabli.js")
     # LE PAS VIENT DU MODULE PARTAGÉ, par évènement : la page ne le recalcule
     # jamais de son côté — deux sources pour un même nombre divergeraient.
     assert '$("#vueA canvas").addEventListener("lib3d:graduation"' in js
@@ -7038,17 +7082,39 @@ def test_le_bloc_du_repere_ne_PEUT_PAS_ecrire_un_millimetre_de_plus():
     # cent lignes plus bas, en est l'exemple mesuré.
     assert len(re.findall(r"(?<![A-Za-z])mm(?![A-Za-z])", fichier)) == 2
     # ── ET UNE GARDE POSITIVE, parce qu'une liste noire ne ferme qu'une
-    # ORTHOGRAPHE. « millimetres », « 0,001 m », une unité inventée demain :
-    # aucune n'est dans la liste. Ce qui ferme la FAMILLE, c'est de compter les
-    # sites autorisés à écrire dans les deux zones du rail. Un seul chacun, et
-    # tous deux dans lireRepere() — qui commence par recalculer `REP.echelle`,
-    # donc rien ne s'y affiche sans être passé par la garde.
+    # ORTHOGRAPHE ────────────────────────────────────────────────────────────
+    # « millimetres », « 0,001 m », une unité inventée demain : aucune n'est
+    # dans la liste noire. Et compter le littéral
+    # `$("#repereEchelle").innerHTML` ne fermait qu'une ÉCRITURE : un
+    # `textContent`, un `insertAdjacentHTML`, un `append`, un `replaceChildren`
+    # sur la même zone n'y entrent pas. MESURÉ — un
+    # `$("#repereEchelle").textContent = (REP.pas * 1000).toFixed(1) +
+    # " millimetres";` inventait des millimètres à partir du SEUL PAS DE LA
+    # GRILLE, sans cible posée, sans toucher `REP.echelle`, et passait les
+    # dix-huit contrôles du repère. Deux orthographes dont l'intersection reste
+    # ouverte ne font pas une garde.
+    #
+    # CE QUI FERME LA FAMILLE : le multi-ensemble des PAIRES zone × verbe DOM.
+    # Tout écrivain neuf apparaît comme une septième paire, quel que soit son
+    # verbe et quel que soit le mot d'unité qu'il épelle. Les six sont
+    # énumérées parce que chacune se justifie ; une septième DOIT se dire.
+    paires = collections.Counter(re.findall(
+        r'[$]\("#(repere[A-Za-z]*|rCible)"\)[.](\w+)', fichier))
+    assert paires == collections.Counter({
+        ("repere", "innerHTML"): 1,         # rendreRepere écrit le bloc
+        ("rCible", "addEventListener"): 1,  # …et branche son champ
+        ("rCible", "value"): 2,             # la lecture du champ, et rendreCible
+        ("repereEchelle", "innerHTML"): 1,  # lireRepere, et elle seule
+        ("repereLecture", "innerHTML"): 1,  # idem
+    }), sorted(paires.items())
+    # …ET LES DEUX ÉCRITURES DU RAIL VIVENT DANS lireRepere(), qui commence par
+    # recalculer `REP.echelle` : rien ne s'y affiche sans être passé par la
+    # garde des millimètres.
     for zone in ('$("#repereEchelle").innerHTML',
                  '$("#repereLecture").innerHTML'):
-        assert fichier.count(zone) == 1, (zone, fichier.count(zone))
         assert zone in lu, zone
-    assert lu.index("REP.echelle = echelleMm(") \
-        < lu.index('$("#repereEchelle").innerHTML')
+    assert lu.index("REP.echelle = echelleMm(") < lu.index(
+        '$("#repereEchelle").innerHTML')
     # LE TÉMOIN : la prose, elle, en parle — et le bloc ENTIER la contient.
     assert " mm" in _bloc_repere(_lire("etabli/etabli.js"))
     # …et le reste de la page n'en écrit pas davantage : `direRefus` dit

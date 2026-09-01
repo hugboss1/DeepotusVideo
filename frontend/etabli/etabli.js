@@ -76,6 +76,13 @@ const PLQ = { active: false, pieces: [], masquees: new Set(),
    pour qu'un changement de modèle ne laisse pas traîner le facteur du
    précédent. `pas` vient du canevas par l'évènement `lib3d:graduation` : c'est
    le module partagé qui gradue, cette page ne fait que le dire.
+
+   `pas` EST UN PAS DE VUE, PAS UN PAS DE MODÈLE — il change au zoom. Qui vient
+   ici pour câbler un déplacement au clavier doit lire l'avertissement complet
+   sur programmerLecture() AVANT d'écrire une flèche : ces déplacements-là
+   partent sur le disque, et les indexer sur un paramètre de REGARD ferait
+   écrire deux translations différentes à deux utilisateurs différemment
+   zoomés.
    (Même règle que pour S : toute clé se déclare ICI.) */
 const REP = { cibleMm: null, echelle: null, pas: null };
 
