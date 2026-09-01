@@ -3397,7 +3397,7 @@ def test_les_noeuds_sans_geometrie_sont_COMPTES_ET_DITS():
     assert "vides++" in _code("lib3d/plaque.js")
     assert "partages, vides," in _code("lib3d/plaque.js")
     # ...REMONTÉ jusqu'à l'état du panneau...
-    assert "PLQ.vides = vue.vides;" in code
+    assert "PLQ.vides = etalement.vides;" in code
     # L'ancre etait `vides: 0 };`, soit la FIN de la declaration de PLQ, et
     # elle a rougi a la tache « vue isometrique », qui y ajoute `axe`. Ce que
     # ce banc veut dire, c'est que `vides` est DECLARE dans PLQ — pas qu'il en
@@ -4055,11 +4055,42 @@ def _fonction_viewer(nom: str) -> str:
 
     Extraite de la VRAIE source, jamais recopiée ici — même règle que
     `_fonction_plaque` : une copie de la règle est une règle qui dérive.
+
+    EXPORTÉE OU NON, indifféremment, et ce n'est pas un détail de confort : la
+    première écriture ne cherchait que « export function », si bien que deux
+    règles internes portaient un `export` dont le SEUL motif était d'être
+    lisibles ici. Un extracteur de banc n'a pas à façonner la surface publique
+    d'un module partagé — il lit, il ne demande rien.
     """
     js = _lire("lib3d/viewer.js")
-    i = js.index("export function " + nom + "(")
-    j = js.index("\n}\n", i)
-    return js[i:j + 2].replace("export function", "function", 1)
+    m = re.search(r"^(?:export )?function " + nom + r"\(", js, re.M)
+    assert m, f"fonction {nom} introuvable dans viewer.js"
+    j = js.index("\n}\n", m.start())
+    return js[m.start():j + 2].replace("export function", "function", 1)
+
+
+def _table_js(rel: str, nom: str) -> str:
+    """Une table `const NOM = { … };` d'un fichier, VERBATIM.
+
+    Même motif que `_constantes_plaque` : recopier une table dans un banc,
+    c'est mesurer un appariement que le code n'applique plus.
+    """
+    js = _lire(rel)
+    i = js.find("const " + nom + " = {")
+    assert i >= 0, f"table {nom} introuvable dans {rel}"
+    return js[i:js.index("};", i) + 2]
+
+
+def _fonction_etabli(nom: str) -> str:
+    """Une fonction d'etabli.js, VERBATIM, pour le harnais node.
+
+    Ancrée en colonne 0 (`\nfunction x(`) : le nom vit aussi indenté ailleurs,
+    et une ancre lâche prendrait un appel pour une définition.
+    """
+    js = _lire("etabli/etabli.js")
+    i = js.find("\nfunction " + nom + "(")
+    assert i >= 0, f"fonction {nom} introuvable dans etabli.js"
+    return js[i:js.index("\n}\n", i) + 2]
 
 
 def _harnais_vue() -> str:
@@ -4080,9 +4111,10 @@ def _harnais_vue() -> str:
         m = re.search(r"^const " + n + r" = [^\n]*?;", js, re.M)
         assert m, f"constante {n} introuvable dans viewer.js"
         bouts.append(m.group(0))
-    i = js.index("const ORIENTATIONS = {")
+    i = js.find("const ORIENTATIONS = {")
+    assert i >= 0, "table ORIENTATIONS introuvable dans viewer.js"
     bouts.append(js[i:js.index("\n};", i) + 3])
-    for f in ("largeurPireCas", "cadrageDe", "cadreOrtho", "coupeDe",
+    for f in ("demiLargeurPireCas", "cadrageDe", "cadreOrtho", "coupeDe",
               "orientationDe"):
         bouts.append(_fonction_viewer(f))
     return "\n".join(bouts) + "\n"
@@ -4124,7 +4156,7 @@ def _extremes_projetes(demis, droite, haut):
     """Les demi-étendues projetées des HUIT SOMMETS d'une boîte centrée.
 
     Huit sommets énumérés, et non une somme Σ hi·|ri| : cette dernière est
-    justement la formule que `largeurPireCas` applique, et la refaire ici
+    justement la formule que `demiLargeurPireCas` applique, et la refaire ici
     n'aurait vérifié qu'une faute de frappe. On projette, on prend le max.
     """
     xs, ys = [], []
@@ -4159,7 +4191,7 @@ def test_le_pire_cas_de_LARGEUR_est_calcule_PAR_VUE_et_retrouve_le_1_372():
     rendu = json.loads(_node(_harnais_vue() + """
       const o = {};
       for (const n of Object.keys(ORIENTATIONS))
-        o[n] = largeurPireCas(ORIENTATIONS[n].dir, ORIENTATIONS[n].haut);
+        o[n] = demiLargeurPireCas(ORIENTATIONS[n].dir, ORIENTATIONS[n].haut);
       console.log(JSON.stringify(o));
     """))
     assert set(rendu) == set(attendu), rendu
@@ -4189,7 +4221,7 @@ def test_le_pire_cas_de_LARGEUR_est_calcule_PAR_VUE_et_retrouve_le_1_372():
                 ((2.3, -1.1, 0.6), (-0.21, 0.77, 0.5))]
     src = _harnais_vue() + "const P = " + json.dumps(
         [[list(d), list(h)] for d, h in obliques]) + ";\n" + """
-      console.log(JSON.stringify(P.map(([d, h]) => largeurPireCas(
+      console.log(JSON.stringify(P.map(([d, h]) => demiLargeurPireCas(
         { x: d[0], y: d[1], z: d[2] }, { x: h[0], y: h[1], z: h[2] }))));
     """
     obtenus = json.loads(_node(src))
@@ -4308,7 +4340,7 @@ def test_toutes_les_vues_nommees_tiennent_VERTICALEMENT_a_la_marge_par_defaut():
 def test_aucune_orientation_n_a_un_HAUT_PARALLELE_a_sa_direction():
     """LE NaN QUI FAIT L'ÉCRAN NOIR, épinglé à sa source.
 
-    `largeurPireCas` divise par la norme de haut × dir. Un `haut` parallèle à
+    `demiLargeurPireCas` divise par la norme de haut × dir. Un `haut` parallèle à
     `dir` — la faute naturelle sur une vue de dessus, où (0,1,0) semble être le
     haut évident — rend ce produit NUL, donc le seuil NaN, donc le recul NaN,
     donc une caméra posée sur trois NaN. Rien ne lève, rien ne s'affiche.
@@ -4317,7 +4349,7 @@ def test_aucune_orientation_n_a_un_HAUT_PARALLELE_a_sa_direction():
       const o = {};
       for (const n of Object.keys(ORIENTATIONS)) {
         const v = ORIENTATIONS[n];
-        const L = largeurPireCas(v.dir, v.haut);
+        const L = demiLargeurPireCas(v.dir, v.haut);
         const c = cadrageDe(1.3, 0.42, 1.35, v);
         o[n] = { fini: Number.isFinite(L) && Number.isFinite(c.demiHauteur),
                  L: L, demi: c.demiHauteur };
@@ -4430,8 +4462,13 @@ def test_la_boucle_rend_la_CAMERA_ACTIVE_et_les_deux_cameras_sont_declarees():
     # …et JAMAIS la variable de fermeture, le défaut que ce banc garde.
     assert "renderer.render(scene, camera)" not in code
     assert "new THREE.OrthographicCamera(" in code
+    # LE FOV, ET C'EST LE SEUL ENDROIT QUI LE TIENT. Le montage du harnais de
+    # bout en bout reprend 45 en dur, et la valeur attendue de la distance
+    # passe par tan(22,5°) : passer le vrai canevas à 60 laisserait tout au
+    # vert, en mesurant une caméra que la page n'a plus.
+    assert "new THREE.PerspectiveCamera(45," in code
     for cle in ("cameraPerspective: camera", "cameraOrthographique: cameraOrtho",
-                'projection: "perspective"', 'vue: "libre"'):
+                'projection: "perspective"', 'vueCadrage: "libre"'):
         assert cle in code, cle
 
 
@@ -4486,7 +4523,9 @@ def test_les_TROIS_references_de_camera_sont_repassees_a_la_bascule():
     # LES DEUX VUES, jamais A seule — et un seul chemin les sert, la bascule
     # n'étant qu'un raccourci vers appliquerVue().
     applique = js.split("function appliquerVue(nom)", 1)[1].split("\n}\n", 1)[0]
-    assert "for (const v of [S.vueA, S.vueB])" in applique
+    # L'ORDRE COMPTE — voir test_appliquerVue_laisse_la_vue_A_REFERENCE, qui le
+    # mesure. Ici on ne garde que la présence des deux.
+    assert "for (const v of [S.vueB, S.vueA])" in applique
     assert "reposerCameraDuGizmo();" in applique
 
 
@@ -4518,11 +4557,11 @@ def test_la_synchronisation_AB_ne_recopie_PAS_un_fov_a_une_ortho():
     assert syn.index("src.camera.isOrthographicCamera") \
         < syn.index("dst.camera.fov = src.camera.fov;")
     # et B naît sur le point de vue de A, AVANT de charger : charger() cadre,
-    # et cadrer() lit `api.vue`.
+    # et cadrer() lit `api.vueCadrage`.
     ouvre = js.split("async function _ouvrirComparaison", 1)[1] \
               .split("\n}\n", 1)[0]
     assert "projeter(S.vueB, S.vueA.projection);" in ouvre
-    assert "orienter(S.vueB, S.vueA.vue);" in ouvre
+    assert "orienter(S.vueB, S.vueA.vueCadrage);" in ouvre
     assert ouvre.index("orienter(S.vueB") < ouvre.index("charger(S.vueB")
 
 
@@ -4557,7 +4596,11 @@ def test_les_DEUX_OPTIONS_sont_offertes_DANS_le_canevas():
     """
     html, css = _lire("etabli/index.html"), _lire("etabli/etabli.css")
     js = _code("etabli/etabli.js")
-    vue_a = html.split('id="vueA"', 1)[1].split("</div>\n      <div class=\"vue hidden\"", 1)[0]
+    # Découpe sur l'ID du VOISIN et non sur son balisage exact : la première
+    # écriture reproduisait l'indentation d'index.html, et un reformatage
+    # l'aurait fait tomber en IndexError nu plutôt qu'en assertion lisible.
+    assert 'id="vueB"' in html
+    vue_a = html.split('id="vueA"', 1)[1].split('id="vueB"', 1)[0]
     assert 'id="vueCam"' in vue_a
     assert 'id="btnProjection"></button>' in vue_a      # il naît SANS texte
     for nom in ("face", "dessus", "profil"):
@@ -4570,6 +4613,13 @@ def test_les_DEUX_OPTIONS_sont_offertes_DANS_le_canevas():
     reg = css.split(".vue-cam {", 1)[1].split("}", 1)[0]
     assert "z-index: 2" in reg and "pointer-events: none" in reg
     assert "pointer-events: auto" in css.split(".cam-btn {", 1)[1].split("}", 1)[0]
+    # LE SURVOL N'IMITE PAS L'ÉTAT COURANT. Les deux règles étaient identiques :
+    # sous le pointeur, un bouton inactif était indiscernable de l'actif — au
+    # moment précis où l'on parcourt la barre pour choisir. Un `:hover` qui
+    # imite l'état courant efface l'état courant.
+    survol = css.split(".cam-btn:hover {", 1)[1].split("}", 1)[0]
+    actif = css.split(".cam-btn.actif {", 1)[1].split("}", 1)[0]
+    assert "background" in actif and "background" not in survol
     # câblage, et les libellés qui naissent vides sont écrits à l'import
     assert '$("#btnProjection").addEventListener("click", basculerProjection);' in js
     assert 'document.querySelectorAll("#vueCam [data-vue]")' in js
@@ -4662,7 +4712,7 @@ def test_les_vues_nommees_sont_les_axes_DU_MODELE_et_DISENT_le_plan_de_la_plaque
     et = plq.split("export function etaler(api)", 1)[1].split("\n}\n", 1)[0]
     assert "axe: mise.axe," in et
     # …REMONTÉ jusqu'à l'état du panneau, et remis à zéro avec la plaque
-    assert "PLQ.axe = vue.axe;" in js
+    assert "PLQ.axe = etalement.axe;" in js
     assert "PLQ.axe = null;" in js
     # …et CONVERTI en nom de vue, jamais recalculé sur place
     assert 'const VUE_DE_PLAQUE = { x: "profil", y: "dessus", z: "face" };' in js
@@ -4672,10 +4722,18 @@ def test_les_vues_nommees_sont_les_axes_DU_MODELE_et_DISENT_le_plan_de_la_plaque
     assert 'b.classList.toggle("plaque", nom === face);' in maj
     assert "regarde la plaque en face" in maj
     assert ".cam-btn.plaque" in css
-    # et les orientations, elles, ne connaissent pas la plaque : les trois vues
-    # restent des axes du modèle.
+    # ET LE MODULE PARTAGÉ NE CONNAÎT PAS LA PLAQUE. L'assertion portait sur
+    # `_code()`, donc sur un texte AMPUTÉ de ses commentaires : elle ne voyait
+    # pas que l'en-tête de viewer.js nommait `VUE_DE_PLAQUE`, un identifiant
+    # d'etabli.js — un module partagé qui documente une page. On garde les deux
+    # moitiés séparément : la DÉPENDANCE se lit dans les imports, la PROSE dans
+    # le fichier entier.
     vue = _code("lib3d/viewer.js")
-    assert "axeEmpile" not in vue and "plaque.js" not in vue
+    assert "axeEmpile" not in vue and "plaque" not in vue
+    for ligne in _lire("lib3d/viewer.js").splitlines():
+        if ligne.startswith("import"):
+            assert "plaque" not in ligne and "etabli" not in ligne, ligne
+    assert "VUE_DE_PLAQUE" not in _lire("lib3d/viewer.js")
 
 
 # ── O (suite). le point de vue, EXÉCUTÉ CONTRE LE VRAI three.js ──────────────
@@ -4714,12 +4772,16 @@ def _node_trois(importe: str, source: str) -> str:
     node = shutil.which("node")
     if not node:
         pytest.skip("node absent : la règle ne peut pas être EXÉCUTÉE ici")
-    # `module.register` demande node 20.6. Sauter plutôt que rougir pour une
-    # raison qui n'est pas la sienne — même doctrine que l'absence de node.
+    # `module.register` demande node 20.6, et pas davantage : node 20 est
+    # encore LTS, et un seuil trop haut sauterait TOUTE la preuve d'exécution
+    # en laissant la suite au vert. Sauter plutôt que rougir pour une raison
+    # qui n'est pas la sienne — même doctrine que l'absence de node.
     v = subprocess.run([node, "-v"], capture_output=True, timeout=30)
-    majeure = int(re.match(r"v(\d+)", v.stdout.decode().strip()).group(1))
-    if majeure < 21:
-        pytest.skip(f"node {majeure} : le crochet de résolution demande 20.6+")
+    m = re.match(r"v(\d+)\.(\d+)", v.stdout.decode().strip())
+    assert m, v.stdout
+    majeure, mineure = int(m.group(1)), int(m.group(2))
+    if (majeure, mineure) < (20, 6):
+        pytest.skip(f"node {majeure}.{mineure} : module.register demande 20.6+")
     tmp = pathlib.Path(tempfile.mkdtemp())
     trois = _TROIS.resolve().as_uri() + "/"
     (tmp / "resolveur.mjs").write_text(
@@ -4767,7 +4829,7 @@ function monter(w, h) {
   return { renderer: { domElement: { clientWidth: w, clientHeight: h } },
            scene, camera, controls, racine: null, gltf: null,
            cameraPerspective: camera, cameraOrthographique: ortho,
-           projection: "perspective", vue: "libre" };
+           projection: "perspective", vueCadrage: "libre" };
 }
 /* Une boite ASYMETRIQUE et DECENTREE : trois cotes distincts et un centre hors
    de l'origine, pour qu'une erreur d'axe ou un centre oublie ne tombe pas sur
@@ -4804,7 +4866,7 @@ const etat = (api) => ({
   distance: api.camera.position.distanceTo(api.controls.target),
   near: api.camera.near, far: api.camera.far, zoom: api.camera.zoom,
   ortho: !!api.camera.isOrthographicCamera,
-  projection: api.projection, vue: api.vue,
+  projection: api.projection, vue: api.vueCadrage,
   pilotee: api.controls.object === api.camera,
   boite: projeterBoite(api),
 });
@@ -4843,11 +4905,12 @@ def test_cadrer_POSE_VRAIMENT_la_camera_sous_LES_DEUX_projections():
            for v in _VUES for w, h in ((860, 824), (430, 824), (1400, 500))]
     sortie = json.loads(_node_trois(
         "projeter, orienter, cadrer, aspectDe, cadrageDe, orientationDe",
-        "const CAS = " + json.dumps(cas) + ";\n" + """
+        _table_js("etabli/etabli.js", "PROJECTION_DE_VUE") + "\n"
+        + "const CAS = " + json.dumps(cas) + ";\n" + """
       console.log(JSON.stringify(CAS.map((c) => {
         const api = monter(c.w, c.h);
         poserModele(api, 3, 1.1, 0.4, 7, -2, 0.5);
-        projeter(api, c.vue === "libre" ? "perspective" : "orthographique");
+        projeter(api, PROJECTION_DE_VUE[c.vue]);
         orienter(api, c.vue);
         const g = cadrageDe(1.5, aspectDe(api), 1.35, orientationDe(c.vue));
         return { ...etat(api), recul: g.recul, seuil: g.seuil };
@@ -5011,3 +5074,116 @@ def test_projeter_REPORTE_LA_POSE_et_ne_calcule_RIEN_de_plus():
                      "Math.tan", "aspectDe", "zoom"):
         assert interdit not in proj, \
             f"projeter() recalcule « {interdit} » — que ses appelants écrasent"
+
+
+def test_appliquerVue_laisse_la_vue_A_REFERENCE_et_pas_l_inverse():
+    """LE DÉFAUT LE PLUS CHER DE CETTE TÂCHE, et rien ne le voyait.
+
+    Chaque `orienter()` finit par un `cadrer()`, donc par un « change » que la
+    synchronisation recopie vers l'AUTRE vue : dans une boucle sur les deux
+    vues, LA DERNIÈRE CADRÉE GAGNE. Traiter A en premier faisait donc gagner B,
+    et la vue A héritait du cadrage de B — position, cible, plans de coupe et
+    bords ortho compris. `_ouvrirComparaison()` dit pourtant le contraire noir
+    sur blanc : A est la référence, et si B est plus gros, c'est B qui déborde.
+
+    MESURÉ ici même, sur le vrai viewer.js, la largeur projetée de A après un
+    clic sur « Face » (1,000 = touche le cadre) :
+
+        B deux fois plus gros, même centre   A = 0,500   (moitié trop petit)
+        B décalé, le cas d'une extraction    A = 4,333   L'ÉCRAN EST NOIR
+
+    Rien ne lève. Dans l'ordre B puis A, A revient à 1,000 dans les deux cas et
+    c'est B qui déborde — ce que la comparaison promet.
+
+    LE HARNAIS EST STRICT, DÉLIBÉRÉMENT : `synchroniser` et `appliquerVue` sont
+    extraites VERBATIM et les cinq fonctions d'écran qu'elles appellent sont des
+    coquilles. Le jour où appliquerVue() en appellera une sixième, node lèvera
+    un ReferenceError et ce contrôle rougira — plutôt que de mesurer en silence
+    une version de la fonction que la page n'a plus.
+    """
+    sortie = json.loads(_node_trois(
+        "projeter as vraiProjeter, orienter, cadrer, cadreOrtho, aspectDe",
+        "let gardeSync = 0;\n"
+        "const projeter = (a, m) => { gardeSync++; return vraiProjeter(a, m); };\n"
+        "const direRefus = () => {}, reposerCameraDuGizmo = () => {},\n"
+        "      majBoutonProjection = () => {}, majBoutonsVue = () => {},\n"
+        "      direGeometrie = () => {};\n"
+        + _table_js("etabli/etabli.js", "PROJECTION_DE_VUE") + "\n"
+        + _fonction_etabli("synchroniser") + "\n"
+        + _fonction_etabli("appliquerVue") + "\n" + """
+      const S = { vueA: null, vueB: null };
+      function largeur(api) { return projeterBoite(api).x; }
+      function scenario(nom, bl, bh, bp, bx, by, bz) {
+        S.vueA = monter(430, 1030); poserModele(S.vueA, 3, 1.1, 0.4, 7, -2, 0.5);
+        S.vueB = monter(430, 1030); poserModele(S.vueB, bl, bh, bp, bx, by, bz);
+        cadrer(S.vueA); cadrer(S.vueB);
+        synchroniser(S.vueA, S.vueB); synchroniser(S.vueB, S.vueA);
+        cadrer(S.vueA);                       /* A est la référence à l'ouverture */
+        const ouverture = largeur(S.vueA);
+        gardeSync = 0;
+        appliquerVue("face");
+        return { nom, ouverture, a: largeur(S.vueA), b: largeur(S.vueB),
+                 gardeSync };
+      }
+      console.log(JSON.stringify([
+        scenario("B deux fois plus gros", 6, 2.2, 0.8, 7, -2, 0.5),
+        scenario("B decale (extraction)", 3, 1.1, 0.4, 12, -2, 0.5),
+      ]));
+    """))
+    assert len(sortie) == 2
+    for r in sortie:
+        # A EST CADRÉE SUR ELLE-MÊME : sa boîte fait 3 de large pour un rayon de
+        # 1,5, donc elle touche exactement les deux bords sous le seuil.
+        assert abs(r["a"] - 1.0) < 1e-9, \
+            f"{r['nom']} : la vue A a pris le cadrage de B ({r['a']})"
+        # …ET LA DIFFÉRENCE DE TAILLE SE VOIT, ce que la comparaison promet.
+        assert r["b"] > r["a"] * 1.5, r
+        # le contrôle ne mesurerait rien si A était déjà cadrée avant le clic
+        assert abs(r["ouverture"] - 1.0) > 0.2, r
+    # LE COMPTE DE LA SECONDE GARDE, celui que le commentaire de synchroniser()
+    # affirme. Trois appels à projeter() par appliquerVue() : DEUX que la boucle
+    # fait elle-même, UN que la synchronisation déclenche parce que la première
+    # vue cadrée lève un « change » alors que l'autre est encore sur l'ancienne
+    # projection. Ce chemin avait été déclaré mort ; il est vivant.
+    for r in sortie:
+        assert r["gardeSync"] == 3, r
+
+
+def test_les_CINQ_VUES_vivent_dans_PLUSIEURS_tables_et_on_les_APPARIE():
+    """UNE SIXIÈME ORIENTATION AJOUTÉE DANS viewer.js SEUL, et rien ne grince.
+
+    `projeter(v, undefined)` : la garde de projeter() rend `null`, la projection
+    ne change pas, `orienter()` cadre quand même, et la vue est rendue sous la
+    MAUVAISE projection. Les `return null` de projeter() et d'orienter() ne
+    gardent rien — personne ne lit leur valeur de retour (et lire celle de
+    projeter() ne dirait rien : elle rend `null` aussi quand le mode est déjà
+    le bon). Deux remèdes, tous deux nécessaires : appliquerVue() REFUSE en le
+    disant, et ce contrôle apparie les tables.
+
+    Les clés ne sont recopiées nulle part : les deux tables sont extraites, le
+    balisage est lu, et c'est leur COMPARAISON qui est l'assertion.
+    """
+    # `_harnais_vue()` plutôt que la table seule : ses entrées citent DIR
+    # et HAUT_Y, que le harnais extrait déjà de la vraie source.
+    cles = json.loads(_node(
+        _harnais_vue()
+        + _table_js("etabli/etabli.js", "PROJECTION_DE_VUE") + "\n"
+        + "console.log(JSON.stringify({ o: Object.keys(ORIENTATIONS),"
+          " p: Object.keys(PROJECTION_DE_VUE) }));"))
+    assert set(cles["o"]) == set(cles["p"]), cles
+    assert len(cles["o"]) == 5, cles
+    # LES BOUTONS sont un SOUS-ensemble : « libre » et « iso » n'en ont pas, la
+    # bascule les porte. Mais aucun bouton ne peut nommer une vue absente.
+    html = _lire("etabli/index.html")
+    js = _lire("etabli/etabli.js")
+    boutons = set(re.findall(r'data-vue="([a-z]+)"', html))
+    titres = set(re.findall(r"^  (\w+): \"Depuis ", _table_js(
+        "etabli/etabli.js", "TITRE_VUE"), re.M))
+    assert boutons == titres, (boutons, titres)
+    assert boutons <= set(cles["p"]), (boutons, cles["p"])
+    assert boutons == {"face", "dessus", "profil"}, boutons
+    # …et le refus, qui rattrape ce que le banc ne peut pas voir à l'exécution.
+    applique = _code("etabli/etabli.js").split(
+        "function appliquerVue(nom)", 1)[1].split("\n}\n", 1)[0]
+    assert "if (!PROJECTION_DE_VUE[nom]) {" in applique
+    assert "direRefus(" in applique.split("if (!PROJECTION_DE_VUE[nom]) {", 1)[1]

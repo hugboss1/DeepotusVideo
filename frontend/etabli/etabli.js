@@ -380,19 +380,17 @@ function synchroniser(src, dst) {
        comparent rien — c'est le même défaut que deux angles différents, et
        c'est exactement ce que cette fonction existe pour empêcher.
 
-       SECONDE GARDE, ET ELLE NE DEVRAIT JAMAIS SERVIR : basculerProjection()
-       projette les DEUX vues d'un même geste, et _ouvrirComparaison() aligne B
-       sur A dès sa naissance, avant tout chargement. Elle est là pour le jour
-       où une troisième route ferait diverger les deux modes — même doctrine
-       que les deux gardes indépendantes de la plaque sur le mode d'échec qui
-       écrit un GLB faux.
-       CE QU'ELLE COÛTE LE JOUR OÙ ELLE SERT : projeter() finit par un
-       controls.update() sur dst, dont le « change » réveille le handler
-       tête-bêche, lequel recopie dst — encore d'un cran en arrière — vers src.
-       Une image de retard, corrigée à la suivante puisque `enableDamping` fait
-       tourner update() à chaque image. Hors de ce cas, projeter() rend la main
-       aussitôt quand le mode est déjà le bon, et la ligne ne coûte qu'une
-       comparaison. */
+       ET CE CHEMIN EST VIVANT — la première écriture le déclarait mort, à tort,
+       et c'est par là que passait le défaut de cadrage d'appliquerVue().
+       COMPTÉ dans node, comparaison ouverte : chaque appliquerVue() le
+       déclenche UNE fois. La mécanique est immédiate à lire une fois vue —
+       appliquerVue() traite les deux vues l'une après l'autre, si bien que le
+       cadrage de la PREMIÈRE lève un « change » alors que la seconde est encore
+       sur l'ancienne projection. Ce n'est donc pas « une image de retard » : la
+       garde s'exécute SYNCHRONIQUEMENT au milieu du geste, et la vue d'en face
+       change de projection avant d'être cadrée à son tour.
+       Elle est donc nécessaire, et non défensive : sans elle, la seconde moitié
+       de la boucle recopierait un cadre ortho sur une caméra à fuite. */
     if (dst.projection !== src.projection) {
       projeter(dst, src.projection);
       /* ET LE GIZMO AVEC, PARCE QUE `dst` PEUT ÊTRE LA VUE A. Le câblage est
@@ -570,14 +568,14 @@ async function _ouvrirComparaison(cible, numero) {
          est à court — et un refus muet laisserait « comparaison… » figé. */
       S.vueB = creerCanevas($("#vueB canvas"));
       /* B NAÎT SUR LE POINT DE VUE DE A, avant tout chargement : charger()
-         cadre, et cadrer() lit `api.vue`. Une vue B née en perspective libre
+         cadre, et cadrer() lit `api.vueCadrage`. Une vue B née en perspective libre
          pendant que A regarde en isométrie serait cadrée de travers, puis
          redressée à la première synchronisation — un saut visible, sur la vue
          dont le métier est justement de comparer. La synchronisation ci-dessous
          ne suffit pas : elle ne parle qu'au premier « change » d'OrbitControls,
          qui arrive APRÈS le cadrage. */
       projeter(S.vueB, S.vueA.projection);
-      orienter(S.vueB, S.vueA.vue);
+      orienter(S.vueB, S.vueA.vueCadrage);
       /* LES DEUX SENS. Une seule direction ferait suivre B quand on tourne A
          et laisserait A immobile quand on tourne B : un geste sur deux
          comparerait alors deux angles différents, ce que cette vue existe
@@ -838,21 +836,21 @@ function basculerPlaque() {
      visuel avant d'être un risque, et parce que deux gardes valent mieux
      qu'une sur le mode d'échec qui écrit un GLB faux. */
   if (GIZMO) GIZMO.detach();
-  const vue = etaler(S.vueA);
-  if (!vue) {
+  const etalement = etaler(S.vueA);
+  if (!etalement) {
     direRefus("aucune pièce mesurable — ce modèle n'expose aucun nœud glTF "
       + "porteur de géométrie, il n'y a rien à étaler");
     return;
   }
   PLQ.active = true;
-  PLQ.pieces = vue.pieces;
-  PLQ.teintes = vue.teintes;
-  PLQ.partages = vue.partages;
+  PLQ.pieces = etalement.pieces;
+  PLQ.teintes = etalement.teintes;
+  PLQ.partages = etalement.partages;
   /* `masquees` n'est PAS vidée ici : oublierPlaque() en répond, et tout
      chemin de sortie de la plaque passe par lui. Une seconde remise à zéro
      ferait chercher au lecteur une divergence qui n'existe pas. */
-  PLQ.vides = vue.vides;
-  PLQ.axe = vue.axe;
+  PLQ.vides = etalement.vides;
+  PLQ.axe = etalement.axe;
   /* L'empreinte étalée est bien plus large que le modèle assemblé : sans
      re-cadrage, la plaque naîtrait pour moitié hors champ. */
   cadrer(S.vueA);
@@ -970,7 +968,7 @@ function majBoutonProjection() {
 }
 
 function majBoutonsVue() {
-  const courante = S.vueA ? S.vueA.vue : null;
+  const courante = S.vueA ? S.vueA.vueCadrage : null;
   const face = PLQ.active ? VUE_DE_PLAQUE[PLQ.axe] : null;
   for (const b of document.querySelectorAll("#vueCam [data-vue]")) {
     const nom = b.dataset.vue;
@@ -1025,9 +1023,34 @@ function appliquerVue(nom) {
     direRefus("aucun modèle chargé — il n'y a pas encore de caméra à orienter");
     return;
   }
+  /* LA TABLE EST INCOMPLÈTE, ET ÇA SE DIT. Une sixième orientation ajoutée dans
+     viewer.js et oubliée ici donnerait `projeter(v, undefined)` : la garde de
+     projeter() rend `null`, la projection ne change pas, orienter() cadre quand
+     même, et la vue est rendue sous la MAUVAISE projection sans un bruit. Les
+     `return null` de projeter() et d'orienter() ne gardent rien — personne ne
+     lit leur valeur de retour. Cette garde-ci, si, et un banc exécuté vérifie
+     de son côté que les deux tables ont les MÊMES clés. */
+  if (!PROJECTION_DE_VUE[nom]) {
+    direRefus(`vue inconnue « ${nom} » — aucune projection ne lui est associée`);
+    return;
+  }
   /* LES DEUX VUES, jamais A seule : la comparaison A/B promet un point de vue
-     unique, et deux projections différentes ne comparent rien. */
-  for (const v of [S.vueA, S.vueB]) {
+     unique, et deux projections différentes ne comparent rien.
+
+     ET B EN PREMIER, A EN DERNIER. L'ORDRE EST LE CORRECTIF, pas un détail de
+     lecture. Chaque orienter() finit par un cadrer(), donc par un « change »
+     que la synchronisation recopie vers l'AUTRE vue : la dernière cadrée est
+     celle qui gagne. A traité en premier faisait donc gagner B, et A héritait
+     du cadrage de B — position, cible, plans de coupe et bords ortho compris.
+     MESURÉ dans node sur le vrai viewer.js, la largeur projetée de A après un
+     clic sur « Face » (1,000 = touche le cadre) :
+       B deux fois plus gros, même centre : A tombe à 0,500 (moitié trop petit)
+       B décalé, le cas d'une extraction : A monte à 4,333 — L'ÉCRAN EST NOIR.
+     Rien ne lève. Dans l'ordre inverse, A revient à 1,000 dans les deux cas et
+     c'est B qui déborde — ce que la comparaison PROMET : « si B est plus gros
+     que A, il déborde du cadre de A, et c'est le but ». _ouvrirComparaison()
+     dit déjà la même chose de son côté : A est la référence. */
+  for (const v of [S.vueB, S.vueA]) {
     if (!v) continue;
     /* PROJETER AVANT D'ORIENTER : orienter() recadre, et le cadre d'une ortho
        ne s'écrit pas comme celui d'une perspective. Dans l'autre ordre, le

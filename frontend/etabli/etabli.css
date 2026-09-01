@@ -188,10 +188,19 @@ button { font-family: inherit; }
   cursor: pointer; white-space: nowrap;
 }
 .cam-btn:hover { border-color: var(--accent); color: var(--ink-strong); }
-/* La vue COURANTE se voit — sans quoi quatre boutons identiques ne disent
-   jamais lequel a été pressé, et « Face » cliqué deux fois passerait pour un
-   bouton mort. */
-.cam-btn.actif { border-color: var(--accent); color: var(--ink-strong); }
+/* Le dernier cadrage demandé se voit — sans quoi trois boutons identiques ne
+   disent jamais lequel a été pressé, et « Face » cliqué deux fois passerait
+   pour un bouton mort. (Trois, et non quatre : #btnProjection ne porte pas
+   cette marque, son LIBELLÉ dit déjà où l'on est.)
+
+   ET LA MARQUE DIFFÈRE DU SURVOL, par le FOND et non par la bordure. Les deux
+   règles étaient identiques : sous le pointeur, un bouton inactif était
+   indiscernable de l'actif — au moment précis où l'on parcourt la barre pour
+   choisir. Un `:hover` qui imite l'état courant efface l'état courant. */
+.cam-btn.actif {
+  border-color: var(--accent); color: var(--ink-strong);
+  background: color-mix(in srgb, var(--accent) 24%, var(--bg-panel-2));
+}
 /* Et la vue qui regarde LA PLAQUE en face, quand elle est étalée : l'axe
    d'empilement est choisi par les pièces (voir axeEmpile), il n'est donc pas
    toujours « dessus ». Un liseré, pas un libellé : le titre du bouton le dit
