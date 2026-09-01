@@ -371,12 +371,28 @@ def test_le_cadrage_tient_compte_de_l_aspect_et_A_est_recadree():
     d'origine sont intacts — l'ouverture dans _ouvrirComparaison() et la
     fermeture dans fermerComparaison() — puis monter le compte délibérément.
     Ne jamais remplacer ce `count` par un `in` : c'est lui qui garde la paire.
+
+    COMPTE MONTÉ À 4, DÉLIBÉRÉMENT (tâche « la plaque »). Les deux appels
+    neufs sont l'entrée et la sortie de la vue « Sur la plaque » : l'empreinte
+    étalée est bien plus large que le modèle assemblé, et l'aspect du modèle
+    change donc dans les deux sens, exactement comme à l'ouverture et à la
+    fermeture de la vue B. La PAIRE d'origine, elle, cesse d'être gardée par
+    le seul total : elle l'est maintenant site par site, ci-dessous — un
+    nombre qui monte à chaque tâche finirait sinon par ne plus rien dire.
     """
     vue = _lire("lib3d/viewer.js")
     js = _lire("etabli/etabli.js")
     assert "const recul = aspect < seuil ? seuil / aspect : 1;" in vue
     assert "rayon * marge * recul" in vue
-    assert js.count("cadrer(S.vueA)") == 2       # ouverture ET fermeture
+    assert js.count("cadrer(S.vueA)") == 4
+    # LES DEUX SITES D'ORIGINE, chacun dans SA fonction — c'est ce que le
+    # compte gardait, et ce qu'il ne garde plus seul.
+    ouvre = js.split("async function _ouvrirComparaison", 1)[1]
+    ouvre = ouvre.split("\n}\n", 1)[0]
+    assert "cadrer(S.vueA);" in ouvre
+    ferme = js.split("function fermerComparaison", 1)[1]
+    ferme = ferme.split("\n}\n", 1)[0]
+    assert "cadrer(S.vueA);" in ferme
 
 
 def test_la_boite_d_ecart_prend_sa_hauteur_avant_tout_cadrage():
@@ -972,16 +988,18 @@ def test_la_page_ne_fabrique_jamais_un_glb():
 
     LA GARDE LA PLUS PRÉCIEUSE DU LOT, et la seule du plan qui morde : elle
     tient « le navigateur voit et manipule, Python écrit » quoi qu'il advienne
-    du corps des fonctions. Les trois fichiers du canevas sont couverts —
-    selection.js l'est aussi par `..._ne_connait_aucune_route`, et le doublon
-    est délibéré : si ce banc-ci était un jour le seul survivant, il devrait
-    couvrir la chaîne entière à lui seul.
+    du corps des fonctions. Les QUATRE fichiers du canevas sont couverts —
+    selection.js l'est aussi par `..._ne_connait_aucune_route` et plaque.js
+    par `test_LA_PLAQUE_N_ECRIT_RIEN...`, et le doublon est délibéré : si ce
+    banc-ci était un jour le seul survivant, il devrait couvrir la chaîne
+    entière à lui seul. TOUT FICHIER NEUF DE /lib3d SE JOINT À CETTE LISTE.
     """
     js = _lire("etabli/etabli.js")
     assert "GLTFExporter" not in js
     viewer = _lire("lib3d/viewer.js")
     assert "GLTFExporter" not in viewer
     assert "GLTFExporter" not in _lire("lib3d/selection.js")
+    assert "GLTFExporter" not in _lire("lib3d/plaque.js")
 
 
 def test_les_gizmos_sont_branches():
@@ -1273,9 +1291,20 @@ def test_l_etabli_ramene_au_3D_studio_et_le_bouton_est_a_gauche():
     # serait vert ici sans cette comparaison, et lu comme un contrôle de vue.
     assert html.index('id="btnRetour"') < html.index('class="head-title"')
     assert '$("#btnRetour").addEventListener("click"' in js
-    # LES DEUX boutons portent la classe : c'est elle, et rien d'autre, qui les
-    # rend identiques. Un seul des deux la portant, le partage serait un mot.
-    assert html.count('class="head-btn"') == 2
+    # TOUS les boutons de l'en-tête portent la classe : c'est elle, et rien
+    # d'autre, qui les rend identiques. Un seul ne la portant pas, le partage
+    # serait un mot.
+    #
+    # COMPTE MONTÉ DE 2 À 3, DÉLIBÉRÉMENT (tâche « la plaque ») : la bascule
+    # « Assemblé / Sur la plaque » est le troisième bouton du bandeau. Et
+    # l'invariant cesse d'être un nombre à retoucher à chaque tâche — la
+    # ligne suivante le rend AUTO-PORTANT : on compare le nombre de boutons
+    # DE L'EN-TÊTE à ceux qui portent la classe. Un quatrième bouton posé
+    # sans elle rougira sans qu'il faille avoir pensé à monter le compte.
+    assert html.count('class="head-btn"') == 3
+    entete = html.split('<header class="head">', 1)[1].split("</header>", 1)[0]
+    entete = re.sub(r"<!--.*?-->", "", entete, flags=re.S)
+    assert entete.count("<button") == entete.count('class="head-btn"')
     # LES DEUX sélecteurs partagés — base et survol. Sans le second, le bouton
     # est le seul de l'en-tête qui ne réagit pas au passage du curseur.
     assert ".head-right button, .head-btn {" in css
@@ -2932,3 +2961,452 @@ def test_la_vignette_nait_A_L_ECRITURE_SEULEMENT():
     corps = code.split("async function ecrireVersion", 1)[1] \
                 .split("\n}\n", 1)[0]
     assert corps.count("capturerVignette(") == 1     # et il est ICI
+
+
+# ── N. la plaque : étaler pour VOIR, jamais pour changer ─────────────────────
+# Demande de l'utilisateur, mot pour mot : « pour pouvoir sélectionner
+# décemment il faut intégrer une étape intermédiaire de visualisation sur
+# plaque pour voir les différents éléments répartis sur la plaque ».
+#
+# LA RÈGLE QUI DOMINE CETTE SECTION : la plaque est une VUE, jamais une
+# mutation. Sans garde, l'utilisateur étale, clique « écrire la version », et
+# son modèle part ÉCLATÉ ET DÉFINITIF sur le disque. Ce n'est pas une
+# intention : les bancs ci-dessous l'épinglent par trois mécanismes
+# indépendants, et chacun a été vérifié par MUTATION.
+
+
+def _plaque_bloc():
+    """Le bloc de la plaque dans etabli.js, COMMENTAIRES RETIRÉS.
+
+    Ce bloc est écrit dans le style du fichier — il EXPLIQUE ce qu'il refuse,
+    et sa prose nomme `noterAttente`, `S.enAttente` et `piece.position`. Un
+    `not in` posé sur le texte entier serait donc satisfait par la phrase même
+    qui jure de ne pas s'en servir : le banc dirait rouge à un commentaire et
+    vert à un appel. C'est le défaut que ce dépôt a corrigé huit fois sur ce
+    chantier ; il ne sera pas commis une neuvième.
+    """
+    code = _code("etabli/etabli.js")
+    # La borne de FIN est le branchement du bouton, dernière ligne du bloc —
+    # et elle est écrite EN ENTIER. Coupée à `$("#btnPlaque")` seul, elle
+    # tombait sur le `const b = $("#btnPlaque")` de majBoutonPlaque, deux
+    # lignes plus bas : l'extrait faisait treize caractères et TOUTES les
+    # assertions négatives posées dessus étaient vertes sur le vide. Mesuré
+    # par mutation (un `noterAttente()` glissé dans basculerPlaque ne faisait
+    # rougir personne), et c'est exactement le défaut que ce chantier a payé
+    # huit fois : un banc satisfait par autre chose que ce qu'il vise.
+    return code.split("function majBoutonPlaque", 1)[1] \
+               .split('$("#btnPlaque").addEventListener', 1)[0]
+
+
+def _plaque_liste():
+    """Le BALISAGE de la liste latérale, commentaires retirés.
+
+    Il vit dans rendreParties() et non dans le bloc ci-dessus : la liste est
+    rendue par le rendu du panneau Parties lui-même, ce qui lui évite un
+    second branchement d'évènements (voir #btnSeparer, l'erreur déjà payée).
+    Extrait précisément, parce que `esc(x.nom)` existe AUSSI dans les rangées
+    ordinaires du panneau : un banc posé sur la fonction entière serait vert
+    même sans la moindre liste de plaque.
+    """
+    code = _code("etabli/etabli.js")
+    return code.split("const plaqueBloc = !PLQ.active", 1)[1] \
+               .split("box.innerHTML", 1)[0]
+
+
+def test_le_module_de_la_plaque_est_servi_et_importe_par_la_page():
+    """Le canevas est PARTAGÉ (spec §12) : ce qui est général vit dans
+    /lib3d, ce qui est propre à l'Établi reste dans /etabli. L'étalement est
+    général — le Plateau du jour où en voudra un. Non servi, le bouton de
+    bascule serait mort-né et le refus ne vivrait que dans la console.
+    """
+    assert '"/lib3d/plaque.js"' in _lire("etabli/etabli.js")
+    r = _client().get("/lib3d/plaque.js")
+    assert r.status_code == 200
+    assert "export function etaler" in r.text
+
+
+def test_LA_PLAQUE_N_ECRIT_RIEN___ni_le_disque_ni_la_file():
+    """L'ASSERTION LA PLUS IMPORTANTE DE LA TÂCHE.
+
+    `S.enAttente` est la file de ce qui partira au serveur, et « écrire la
+    version » est le seul entonnoir de cette page vers les trois plumes de P1.
+    Si l'étalement l'alimentait, il suffirait d'étaler puis d'écrire pour
+    graver un modèle éclaté. Chez Meshy, « Sur la plaque » est un aperçu ; le
+    modèle assemblé reste la vérité.
+
+    Deux gardes STRUCTURELLES, l'une sur chaque moitié de la chaîne : le
+    module ne connaît AUCUNE route et aucun moyen de fabriquer un GLB ; le
+    bloc de la page n'appelle JAMAIS noterAttente() ni ne touche à la file.
+    Elles tiennent même si le corps des fonctions change du tout au tout.
+
+    MUTATION VÉRIFIÉE : glisser `noterAttente("transformer", {});` dans
+    basculerPlaque() fait rougir ce banc, et lui seul de la section.
+    """
+    plaque = _lire("lib3d/plaque.js")
+    assert "fetch" not in plaque
+    assert "/api/" not in plaque
+    assert "XMLHttpRequest" not in plaque
+    assert "GLTFExporter" not in plaque
+    # le module ne connaît même pas le NOM de la file
+    assert "enAttente" not in plaque
+    assert "noterAttente" not in plaque
+    bloc = _plaque_bloc()
+    # L'EXTRAIT COUVRE BIEN LES TROIS FONCTIONS DE BASCULE. Sans cette
+    # vérification, une borne mal placée réduirait le bloc à quelques
+    # caractères et les trois assertions ci-dessous seraient vertes sur du
+    # vide — c'est arrivé, et une mutation l'a montré.
+    for atteste in ("function basculerPlaque", "function quitterPlaque",
+                    "function oublierPlaque", "etaler(S.vueA)"):
+        assert atteste in bloc, atteste
+    assert "noterAttente" not in bloc
+    assert "S.enAttente" not in bloc
+    assert "fetch" not in bloc
+    # le témoin : la prose, elle, en parle — c'est pourquoi _code() est
+    # indispensable au-dessus, et pourquoi ce banc ne s'en satisfait pas.
+    assert "noterAttente" in _lire("etabli/etabli.js")
+
+
+def test_le_decalage_d_etalement_ne_touche_JAMAIS_la_pose_d_une_piece():
+    """LE PIÈGE LE PLUS CHER DE LA TÂCHE, DÉSARMÉ STRUCTURELLEMENT.
+
+    Le seul producteur d'une ligne `transformer` est l'écouteur
+    `objectChange` du gizmo, et il envoie au serveur `[o.position.x, y, z]`.
+    Une pièce déplacée par l'étalement puis saisie au gizmo enverrait donc une
+    translation qui INCLUT le décalage d'étalement — un GLB éclaté sur le
+    disque, sans que rien ne grince.
+
+    Le remède ne demande pas de vigilance : le décalage vit dans un BERCEAU,
+    un Group neuf glissé entre la pièce et son parent, et la pièce garde sa
+    pose au bit près. Le gizmo ne PEUT pas lire un décalage qui n'est pas là.
+
+    MUTATION VÉRIFIÉE : remplacer `berceau.position.copy(` par
+    `m.piece.position.copy(` fait rougir les deux moitiés de ce banc.
+    """
+    code = _code("lib3d/plaque.js")
+    assert "berceau.position.copy(" in code
+    # la pièce n'est JAMAIS écrite — ni translation, ni rotation, ni échelle
+    assert "piece.position" not in code
+    assert "piece.quaternion" not in code
+    assert "piece.scale" not in code
+    assert "piece.matrix" not in code
+    # le témoin : la prose du module NOMME `piece.position.add(...)` pour dire
+    # pourquoi elle ne l'écrit pas. Sans _code(), tout ce banc serait vert sur
+    # sa propre explication.
+    assert "piece.position" in _lire("lib3d/plaque.js")
+    # et le berceau reprend la PLACE de la pièce dans la fratrie : l'ordre de
+    # parcours ordonne le panneau Parties, et une liste qui se réordonne à la
+    # bascule donnerait l'impression que le modèle a changé.
+    assert "parent.children.splice(rang, 0, berceau)" in code
+
+
+def test_le_gizmo_est_refuse_tant_que_la_plaque_est_affichee():
+    """LA SECONDE GARDE, indépendante de la première. Le berceau rend le
+    décalage illisible ; celle-ci empêche carrément de saisir une pièce
+    étalée. Deux mécanismes sur le seul mode d'échec de cette tâche qui écrive
+    un GLB faux — et le refus se DIT, comme partout sur cette page, plutôt que
+    de laisser un clic sans effet.
+
+    MUTATION VÉRIFIÉE : retirer le `if (estEtalee(S.vueA))` de poserGizmo()
+    fait rougir ce banc et aucun autre.
+    """
+    code = _code("etabli/etabli.js")
+    gz = code.split("function poserGizmo(objet)", 1)[1].split("\n}\n", 1)[0]
+    # La garde ENTIÈRE, et son `return` : `"estEtalee(S.vueA)" in gz` seul
+    # restait vert sur un `if (false && estEtalee(S.vueA))`. Mesuré par
+    # mutation.
+    assert "if (estEtalee(S.vueA)) {" in gz
+    garde = gz.split("if (estEtalee(S.vueA)) {", 1)[1].split("  }", 1)[0]
+    assert "GIZMO.detach();" in garde
+    assert "return;" in garde
+    assert "direRefus(" in garde
+    # AVANT la remontée des parents : posée après, la garde laisserait
+    # `attach()` s'exécuter sur le chemin nominal.
+    assert gz.index("estEtalee(S.vueA)") < gz.index("let noeud = objet;")
+    # et le gizmo LÂCHE avant l'étalement, plutôt que de suivre une pièce en
+    # train de s'envoler à l'autre bout de la plaque
+    bp = code.split("function basculerPlaque()", 1)[1].split("\n}\n", 1)[0]
+    assert bp.index("GIZMO.detach();") < bp.index("etaler(S.vueA)")
+    # ET LE CLIC DE DÉSIGNATION SE TAIT. Le refus de poserGizmo() s'écrit en
+    # ROUGE dans la barre du bas, et le clic dans le canevas est justement le
+    # geste que la plaque existe pour servir : désigner une pièce qu'on voit
+    # enfin. Sans cette garde, chaque sélection réussie sur le plateau
+    # peindrait la barre en rouge — un refus qui ment sur un geste qui a
+    # marché. La garde bruyante reste dans poserGizmo pour tout autre appelant.
+    clic = code.split("designerAuClic(S.vueA", 1)[1]
+    assert "if (!estEtalee(S.vueA)) poserGizmo(obj);" in clic
+
+
+def test_l_etalement_se_range_AVANT_tout_changement_de_modele():
+    """Piège hérité, et il se referme sur trois choses à la fois. Les berceaux
+    et les couleurs d'origine sont accrochés aux objets et aux matériaux du
+    modèle SORTANT, que le vider() de charger() est sur le point de libérer ;
+    et le PLATEAU vit dans la scène, que vider() ne touche pas — il ne retire
+    que `api.racine`. Non rangé, le plateau resterait sur la carte pour
+    toujours, et un second étalement en poserait un deuxième par-dessus.
+
+    Même place et même raison que `GIZMO.detach()` et `SEL.retenus.clear()` :
+    là où le modèle affiché change, quoi qu'il arrive, et donc AVANT le
+    chargement — pas dans un rendu qui n'a lieu qu'en cas de succès.
+
+    DÉCISION ASSUMÉE : changer de modèle pendant que la plaque est affichée
+    RAMÈNE à « Assemblé ». Ré-étaler le modèle entrant serait plus doux, et
+    c'est justement ce qu'on refuse — la vue reviendrait éclatée après chaque
+    écriture de version, sur un modèle que l'utilisateur vient d'écrire et
+    qu'il veut voir tel qu'il est sur le disque.
+
+    MUTATION VÉRIFIÉE : retirer l'appel laisse tout le reste vert.
+    """
+    js = _lire("etabli/etabli.js")
+    ouvre = js.split("async function _ouvrirPrincipale", 1)[1].split("\n}\n", 1)[0]
+    assert "oublierPlaque();" in ouvre
+    assert ouvre.index("oublierPlaque();") < ouvre.index("await charger(S.vueA")
+    # et `oublierPlaque` RANGE vraiment, il ne se contente pas d'oublier un
+    # booléen — sans `ranger()`, le plateau survivrait au changement de modèle.
+    ob = js.split("function oublierPlaque()", 1)[1].split("\n}\n", 1)[0]
+    assert "ranger(S.vueA);" in ob
+    assert "PLQ.active = false;" in ob
+
+
+def test_le_retour_a_l_assemble_rend_le_modele_SANS_RECHARGER():
+    """COROLLAIRE DE LA RÈGLE, et il n'est pas une optimisation. Un
+    `ouvrirPrincipale(S.a)` repasserait par le verrou de sérialisation et par
+    un téléchargement du GLB — 9 Mo sur le modèle de l'utilisateur — pour
+    rendre un modèle que personne n'a modifié.
+
+    ranger() défait ce qu'étaler a fait, dans l'ordre inverse et jusqu'au
+    bout : la pièce remise à SA place dans la fratrie, la couleur d'origine
+    rendue au matériau (et sa mémoire EFFACÉE, sans quoi le prochain
+    étalement croirait l'avoir déjà mémorisée et ce matériau ne serait plus
+    jamais restauré), la visibilité restaurée, le plateau libéré.
+
+    MUTATION VÉRIFIÉE : remplacer le corps de quitterPlaque() par
+    `ouvrirPrincipale(S.a)` fait rougir la première moitié ; retirer le
+    `delete mat.userData.couleurOrigine` fait rougir la seconde.
+    """
+    code = _code("etabli/etabli.js")
+    ob = code.split("function oublierPlaque()", 1)[1].split("\n}\n", 1)[0]
+    qt = code.split("function quitterPlaque()", 1)[1].split("\n}\n", 1)[0]
+    for interdit in ("ouvrirPrincipale(", "charger(", "fetch", "jget("):
+        assert interdit not in ob + qt, interdit
+    pl = _code("lib3d/plaque.js")
+    rg = pl.split("export function ranger(api)", 1)[1].split("\n}\n", 1)[0]
+    assert "e.piece.visible = e.visible;" in rg
+    assert "e.parent.children.splice(e.rang, 0, e.piece)" in rg
+    assert "mat.color.setHex(mat.userData.couleurOrigine)" in rg
+    assert "delete mat.userData.couleurOrigine;" in rg
+    # le plateau est LIBÉRÉ, pas seulement retiré : dix bascules laisseraient
+    # sinon dix géométries et dix matériaux sur la carte.
+    assert "o.geometry.dispose()" in rg
+    assert "api.scene.remove(etat.plateau)" in rg
+
+
+def test_la_couleur_d_une_piece_est_STABLE_et_ne_clone_aucun_materiau():
+    """UNE COULEUR PAR PIÈCE, et la même d'un affichage à l'autre : la teinte
+    se DÉDUIT de l'index de nœud glTF par l'angle d'or, elle n'est pas lue
+    dans une palette énumérée — laquelle aurait dépendu de l'ORDRE de la
+    liste, donc du tri par surface, donc de la taille des pièces.
+
+    ET AUCUN CLONE. glTF PARTAGE les matériaux : deux pièces qui se partagent
+    le leur ne peuvent pas recevoir deux couleurs — exactement la limite
+    d'`isoler()`, traitée exactement pareil. On ne clone PAS (il faudrait
+    aussi libérer les clones, et le vider() de viewer.js ne saurait pas les
+    retrouver) : on RÉDUIT LA PROMESSE, on COMPTE les matériaux partagés, et
+    le panneau le DIT. La pastille de la liste, elle, ne ment jamais — elle
+    est calculée, pas lue sur le maillage.
+    """
+    code = _code("lib3d/plaque.js")
+    assert "const ANGLE_OR = 137.508;" in code
+    assert "(((Number(cle) || 0) * ANGLE_OR) % 360) / 360" in code
+    et = code.split("export function etaler(api)", 1)[1].split("\n}\n", 1)[0]
+    # aucun matériau n'est ni cloné ni créé pendant l'étalement
+    assert "clone" not in et
+    assert "Material" not in et
+    # la couleur d'origine est mémorisée UNE fois, avant la première
+    # altération — même dette et même remède que `opaciteOrigine`
+    assert "mat.userData.couleurOrigine === undefined" in et
+    assert "mat.color.copy(teinte)" in et
+    # la limite est COMPTÉE...
+    assert "filter((s) => s.size > 1).length" in code
+    # ...et DITE à l'écran, sans quoi elle serait un commentaire de plus
+    assert "PLQ.partages" in _code("etabli/etabli.js")
+    assert "matériau(x) partagé(s)" in _lire("etabli/etabli.js")
+
+
+def test_le_rangement_est_par_etageres_recentre_et_MESURABLE():
+    """L'algorithme, et il est délibérément bête : boîte englobante par pièce,
+    étagères par ordre de SURFACE DÉCROISSANTE, marge constante. On ne cherche
+    pas l'optimalité — NP-difficile, et surtout illisible : les pièces
+    changeraient de voisin au moindre changement de modèle.
+
+    LA PURETÉ N'EST PAS UN ORNEMENT : sans three.js dans son corps, la
+    fonction se mesure hors navigateur, ce qu'aucun autre morceau de ce
+    canevas ne permet. Mesuré ainsi sur 12 pièces de tailles voisines — le
+    modèle réel de l'utilisateur : 12 cases, ZÉRO chevauchement, empreinte
+    5,176 × 6,876, milieu exactement (0, 0), et le même résultat quel que soit
+    l'ordre d'entrée.
+
+    La MARGE est relative à la plus grande pièce, et c'est une conséquence de
+    l'absence d'échelle : un GLB n'a pas de millimètres, une marge absolue
+    écarterait un modèle de 0,01 unité en poussière tout en collant les pièces
+    d'un modèle de 100. Elle reste CONSTANTE au sens qui compte — une seule
+    valeur pour tout l'étalement.
+    """
+    code = _code("lib3d/plaque.js")
+    assert "export function rangerEnEtageres" in code
+    corps = code.split("export function rangerEnEtageres", 1)[1].split("\n}\n", 1)[0]
+    # pure : mesurable hors navigateur, et c'est cette assertion qui le tient
+    assert "THREE." not in corps
+    # surface DÉCROISSANTE
+    assert "(b.l * b.p) - (a.l * a.p)" in corps
+    # une nouvelle étagère quand la rangée déborde
+    assert "x + b.l > cible" in corps
+    # et l'étalement est RECENTRÉ sur l'origine : le plateau y est posé, et
+    # cadrer() vise la boîte englobante du modèle.
+    assert "p.x -= largeur / 2;" in corps
+    assert "p.z -= profondeur / 2;" in corps
+    # la marge, une seule fois, pour tout l'étalement
+    assert "const marge = MARGE_RELATIVE * plusGrande;" in code
+
+
+def test_les_pieces_sont_les_noeuds_gltf_LES_PLUS_HAUTS():
+    """Un nœud indexé vivant sous un autre nœud indexé recevrait un SECOND
+    berceau, et son décalage s'ajouterait à celui de son parent : la pièce
+    partirait deux fois plus loin que sa voisine, pour une raison invisible.
+
+    C'est aussi la granularité que le serveur extrait — une pièce de la plaque
+    est une pièce qu'on peut séparer.
+    """
+    code = _code("lib3d/plaque.js")
+    pd = code.split("export function piecesDe(api)", 1)[1].split("\n}\n", 1)[0]
+    assert "o.userData.indexGltf === undefined" in pd
+    # La BOUCLE entière, et son abandon : `"n = n.parent" in pd` seul restait
+    # vert sur un `n = n.parentEnPanne` — un substring n'est pas une lecture.
+    assert "for (let n = o.parent; n && n !== api.racine; n = n.parent) {" in pd
+    remontee = pd.split("n = n.parent) {", 1)[1]
+    assert "indexGltf !== undefined) return;" in remontee
+    # et une pièce SANS géométrie n'est pas étalée : elle occuperait une case
+    # sans rien y montrer, et son œil ne commanderait rien de visible.
+    assert "boite.isEmpty()" in code
+
+
+def test_le_plateau_a_sa_grille_et_N_INVENTE_AUCUN_MILLIMETRE():
+    """UN GLB N'A AUCUNE ÉCHELLE EN MM. C'est
+    `print3d.mettre_a_l_echelle(tris, cible_mm)` qui en fabrique une, au
+    moment d'écrire un STL, et la garde du plateau de la Centauri Carbon 2
+    (256 mm, print3d.py) vit LÀ-BAS. Écrire ici « 256 mm » afficherait une
+    cote vraie sur un modèle sans échelle — une règle qui MENT.
+
+    Le plateau se dimensionne donc sur l'empreinte de l'étalement, en unités
+    du modèle. La graduation et la taille cible viennent plus tard.
+
+    Assertions NÉGATIVES, donc posées sur `_code()` : l'en-tête du module
+    explique précisément qu'il n'y a pas de millimètres ici, et nomme les 256
+    pour dire d'où ils ne viennent pas.
+    """
+    code = _code("lib3d/plaque.js")
+    assert "GridHelper" in code
+    # dans la SCÈNE et non dans le modèle : vider() ne retire que api.racine,
+    # un plateau greffé au modèle disparaîtrait sans que personne ne l'ait
+    # rangé — et sans que sa géométrie ne soit libérée.
+    assert "api.scene.add(groupe)" in code
+    for menteur in (" mm", "cible_mm", "256"):
+        assert menteur not in code, menteur
+        assert menteur not in _plaque_bloc(), menteur
+        assert menteur not in _plaque_liste(), menteur
+    # le témoin : la prose, elle, en parle — c'est tout l'objet de son
+    # avertissement.
+    assert " mm" in _lire("lib3d/plaque.js")
+    assert "256" in _lire("lib3d/plaque.js")
+
+
+def test_la_liste_laterale_a_une_pastille_et_un_oeil_par_piece():
+    """« une liste latérale avec un œil pour montrer ou masquer chacune » — la
+    demande. Elle est rendue DANS le panneau Parties, par rendreParties()
+    lui-même : un second panneau aurait dupliqué le branchement des
+    évènements, et ce fichier a déjà payé cette erreur (voir #btnSeparer).
+
+    Et les RÈGLES CSS comptent autant que le balisage : sans elles le bloc
+    EXISTE et ne se lit pas — des pastilles invisibles faute de taille, des
+    œils au style natif du navigateur. Une pastille est un <i> VIDE : sans
+    largeur ni hauteur explicites, elle ne mesure rien et la couleur n'existe
+    pas à l'écran. C'est le pire des échecs, le silencieux.
+    """
+    js, css = _lire("etabli/etabli.js"), _lire("etabli/etabli.css")
+    bloc = _plaque_liste()
+    assert 'class="plaque-oeil"' in bloc
+    assert 'class="pastille"' in bloc
+    # un œil PAR PIÈCE, et il porte la clé de la pièce — sans `data-cle`,
+    # l'écouteur ne saurait pas quelle pièce masquer.
+    assert 'data-cle="${esc(x.cle)}"' in bloc
+    assert "montrerPiece(S.vueA, cle, masquee)" in js
+    # la bascule vit dans l'en-tête, avec les contrôles de la VUE
+    assert 'id="btnPlaque"' in _lire("etabli/index.html")
+    assert '$("#btnPlaque").addEventListener("click", basculerPlaque);' in js
+    # les règles qui rendent le bloc LISIBLE
+    assert ".plaque-oeil {" in css
+    assert ".pastille {" in css
+    assert "width: 10px; height: 10px" in css
+    assert ".plaque-rang {" in css
+    # hauteur POSÉE, jamais déduite : ce dépôt a vu 998 rangées s'effondrer
+    # à 2 px sous un overflow:hidden.
+    assert "min-height: 22px" in css.split(".plaque-rang {", 1)[1]
+    # et la liste borne sa propre hauteur, sinon un modèle à cinquante nœuds
+    # chasse les boutons d'isolation hors du rail
+    assert "max-height" in css.split(".plaque-liste {", 1)[1].split("}", 1)[0]
+
+
+def test_l_oeil_NE_TOUCHE_PAS_a_la_selection_du_panneau_Parties():
+    """LE JUGEMENT DE LA TÂCHE, ÉPINGLÉ. Masquer et retenir ne veulent pas
+    dire la même chose et ne durent pas aussi longtemps : `SEL.retenus` est la
+    CHARGE que separerSelection() convertit en index de nœud et met en file
+    pour le serveur, QUI ÉCRIT UN GLB ; la visibilité est un geste d'écran,
+    qui meurt au retour à « Assemblé ». Les confondre ferait perdre trois
+    pièces d'une extraction à qui masque trois pièces pour mieux voir les
+    autres — en silence, le mode d'échec que cette page traque partout.
+
+    Deux raisons de plus, mécaniques : `SEL.retenus` est VIDÉ à chaque
+    changement de granularité, si bien que l'œil perdrait son état en passant
+    sur l'onglet « matériau » ; et la plaque ne connaît qu'une granularité, le
+    NŒUD, quand le panneau en offre trois.
+
+    CE QUI EST PARTAGÉ, et qui suffit : la COULEUR. Chaque rangée du panneau
+    porte la pastille de la pièce dont elle fait partie, si bien que le nom
+    qu'on coche est visiblement la pièce qu'on voit sur le plateau — sans
+    qu'aucun état ne soit dupliqué.
+
+    MUTATION VÉRIFIÉE : ajouter `SEL.retenus.delete(cle);` dans l'écouteur de
+    l'œil fait rougir ce banc, et lui seul.
+    """
+    code = _code("etabli/etabli.js")
+    oeil = code.split('querySelectorAll(".plaque-oeil")', 1)[1] \
+               .split('$("#btnIsoler")', 1)[0]
+    assert "SEL" not in oeil
+    assert "PLQ.masquees" in oeil
+    # côté module, l'œil ne touche QUE `visible` : ni opacité (qui passerait
+    # par les matériaux, donc par la limite du partage), ni retrait de la
+    # scène (qui ferait perdre sa place à la pièce).
+    pl = _code("lib3d/plaque.js")
+    mp = pl.split("export function montrerPiece", 1)[1].split("\n}\n", 1)[0]
+    assert "e.piece.visible = !!visible;" in mp
+    for interdit in ("opacity", "material", "remove("):
+        assert interdit not in mp, interdit
+    # LE PONT, et il est le seul : la teinte d'une pièce descend sur les
+    # rangées de son sous-arbre. Sans lui, le panneau et la plaque parleraient
+    # des mêmes pièces sans qu'on puisse les rapprocher de l'œil.
+    assert "PLQ.teintes.get(x.uuid)" in code
+    assert "teintes.set(o.uuid, css)" in pl
+
+
+def test_la_liste_de_la_plaque_echappe_les_noms_venus_du_GLB():
+    """Les noms de pièces viennent du FICHIER GLB, donc du dehors. Ce fichier
+    s'est donné la règle que tout ce qui entre dans innerHTML passe par esc(),
+    et les attributs data- ne font pas exception : c'est même là qu'un
+    guillemet casse la ligne entière.
+    """
+    bloc = _plaque_liste()
+    assert "esc(x.nom)" in bloc
+    assert "esc(x.cle)" in bloc
+    assert "esc(x.couleur)" in bloc
+    # aucune interpolation NUE de ce qui vient du fichier
+    assert "${x.nom}" not in bloc
+    assert "${x.couleur}" not in bloc

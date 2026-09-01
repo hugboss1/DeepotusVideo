@@ -304,6 +304,61 @@ button { font-family: inherit; }
    toute la largeur. */
 #btnSeparer { flex-basis: 100%; }
 
+/* ── le bloc « Sur la plaque » du panneau Parties ──────────────────────────
+   Même doctrine que le panneau Parties juste au-dessus : sans ces règles le
+   bloc EXISTE et ne se lit pas — une liste de noms nus, des pastilles
+   invisibles faute de taille, et des œils au style natif du navigateur.
+
+   LA HAUTEUR DES RANGÉES EST POSÉE, pas déduite. Ce dépôt a déjà vu une
+   hauteur intrinsèque s'effondrer à ~0 sous un `overflow:hidden` — 998
+   rangées de 2 px dans le sélecteur de bibliothèque — et la leçon retenue fut
+   de POSER les hauteurs. `.plaque-liste` borne de son côté sa propre hauteur :
+   un modèle à cinquante nœuds chasserait sinon la liste des Parties, et avec
+   elle les boutons d'isolation, hors du rail. */
+.plaque-tete {
+  font: 600 10.5px var(--f-mono), ui-monospace, monospace;
+  color: var(--ink-strong); letter-spacing: .04em;
+}
+.plaque-liste {
+  max-height: 30vh; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.plaque-rang {
+  display: flex; align-items: center; gap: 6px;
+  min-height: 22px; padding: 3px 5px; border-radius: var(--r-sm);
+  font: 11px var(--f-mono), ui-monospace, monospace; color: var(--ink-soft);
+}
+.plaque-rang:hover { background: var(--bg-panel-2); }
+.plaque-rang b {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; color: var(--ink); font-weight: 500;
+}
+/* Une pièce masquée doit se VOIR masquée dans la liste, sinon l'œil est le
+   seul témoin de son propre état et une pièce cachée hors du cadre passe
+   pour absente du modèle. */
+.plaque-rang.masquee b { color: var(--ink-soft); text-decoration: line-through; }
+.plaque-rang.masquee .pastille { opacity: .3; }
+/* La pastille sert DEUX listes — celle de la plaque et les rangées du panneau
+   Parties, qui reçoivent la teinte de la pièce dont elles font partie. Une
+   seule règle, donc : deux copies divergeraient et les deux listes cesseraient
+   de parler de la même couleur. Taille EXPLICITE et `flex: none` : sans elles
+   un <i> vide ne mesure rien et la couleur n'existe pas à l'écran. */
+.pastille {
+  flex: none; width: 10px; height: 10px; border-radius: 3px;
+  border: 1px solid var(--stroke-strong);
+}
+.plaque-oeil {
+  flex: none; width: 22px; padding: 2px 0;
+  border: 1px solid var(--stroke); border-radius: var(--r-sm);
+  background: transparent; color: var(--ink-soft);
+  font: 11px var(--f-mono), ui-monospace, monospace; cursor: pointer;
+}
+.plaque-oeil:hover { border-color: var(--accent); color: var(--ink-strong); }
+.plaque-note {
+  margin: 0; font: 10px/1.45 var(--f-mono), ui-monospace, monospace;
+  color: var(--ink-soft);
+}
+
 /* ── panneau Fiche : le bloc « Réparer l'assise » ──────────────────────────
    Sans ces règles le bloc EXISTE et ne se lit pas — même piège que le panneau
    Parties : quatre contrôles au style natif du navigateur, collés au bord, et

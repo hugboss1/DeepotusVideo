@@ -47,6 +47,18 @@
       <span class="head-title">Établi</span>
       <span class="head-chip" id="chipSource">—</span>
       <div class="head-right">
+        <!-- La bascule « Assemblé / Sur la plaque » est un contrôle de la VUE :
+             sa place est ici, à côté de « A/B ✕ », et non près du bouton qui
+             quitte la page. Elle porte `head-btn` comme ses deux voisins —
+             c'est cette classe, jamais un `id`, qui fait des boutons de
+             l'en-tête le MÊME bouton (voir etabli.css).
+
+             ET ELLE NAÎT SANS TEXTE, délibérément : son libellé et son
+             infobulle changent avec l'état, et majBoutonPlaque() les écrit
+             dès l'import du module — comme #panParties naît vide et se
+             remplit au même moment. Les écrire ICI aussi ferait deux sources
+             pour un seul texte, qui divergeraient à la première retouche. -->
+        <button class="head-btn" id="btnPlaque"></button>
         <button class="head-btn" id="btnCompare" title="Fermer la comparaison">A/B ✕</button>
       </div>
     </header>

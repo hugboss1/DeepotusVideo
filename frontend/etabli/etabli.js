@@ -8,6 +8,7 @@
 import { creerCanevas, charger, cadrer, vider } from "/lib3d/viewer.js";
 import { indexerNoeuds, inventaire, isoler, surligner, designerAuClic }
   from "/lib3d/selection.js";
+import { etaler, ranger, estEtalee, montrerPiece } from "/lib3d/plaque.js";
 import { TransformControls } from "three/addons/controls/TransformControls.js";
 
 const $ = (s) => document.querySelector(s);
@@ -38,6 +39,23 @@ const S = {
    vocabulaires que rien ne saurait plus démêler. (Même règle que pour S :
    toute clé se déclare ICI.) */
 const SEL = { granularite: "maillage", retenus: new Set() };
+
+/* L'état de la PLAQUE. Il vit à côté de SEL, et pour la même raison : il ne
+   décrit pas le modèle mais la façon dont on le REGARDE. Et il est
+   délibérément SÉPARÉ de SEL.retenus — voir le commentaire de rendreParties
+   sur l'œil : masquer une pièce est un geste de vue, la retenir est une
+   charge qui part au serveur. Les confondre ferait perdre une sélection
+   d'extraction en rangeant son écran.
+
+   `masquees` porte des CLÉS DE PIÈCE, c'est-à-dire des index de nœud glTF
+   (des nombres) — pas des uuid : la plaque ne connaît qu'une granularité, le
+   nœud, quelle que soit celle du panneau. `teintes` est la table
+   uuid → couleur CSS que plaque.js rend, et qui couvre tout le sous-arbre de
+   chaque pièce : c'est elle qui permet de peindre la pastille d'un maillage
+   comme celle de son nœud. (Même règle que pour S : toute clé se déclare
+   ICI.) */
+const PLQ = { active: false, pieces: [], masquees: new Set(),
+              teintes: new Map(), partages: 0 };
 
 /* La clé interne d'une granularité et son LIBELLÉ ne sont pas la même chose.
    Les clés (« noeud », « materiau ») sont des identifiants sans accents, qui
@@ -276,6 +294,21 @@ async function _ouvrirPrincipale(cible, numero) {
      qu'APRÈS le chargement, et seulement en cas de succès : il ne peut pas
      porter ce détachement. */
   if (GIZMO) GIZMO.detach();
+  /* Et la PLAQUE se range, ICI aussi et pour une raison de plus : ses berceaux
+     et ses teintes d'origine sont accrochés aux objets et aux matériaux du
+     modèle SORTANT, que le vider() de charger() est sur le point de libérer,
+     et son PLATEAU vit dans la scène — que vider() ne touche pas, puisqu'il ne
+     retire que `api.racine`. Non rangé, il resterait sur la carte pour
+     toujours et un second étalement en poserait un deuxième par-dessus.
+
+     LA DÉCISION, ET ELLE EST ASSUMÉE : changer de modèle pendant que la plaque
+     est affichée RAMÈNE à « Assemblé ». Ré-étaler le modèle entrant serait
+     plus doux, et c'est justement ce qu'on refuse : la vue reviendrait éclatée
+     après chaque écriture de version (ecrireVersion rouvre la version neuve),
+     sur un modèle que l'utilisateur vient d'écrire et qu'il veut voir tel
+     qu'il est sur le disque. Une plaque est la vue D'UN modèle ; l'autre
+     modèle demande un clic. */
+  oublierPlaque();
   /* Et la sélection du panneau Parties avec elles, pour la même raison :
      ses uuid désignent les objets du modèle SORTANT, que vider() est sur le
      point de libérer. Gardés, ils ne désigneraient plus rien — ou pire,
@@ -694,6 +727,110 @@ function marquerJobVise() {
   bloc.scrollIntoView({ block: "nearest" });
 }
 
+/* ── la plaque : une VUE, JAMAIS une mutation ───────────────────────────────
+   « pour pouvoir sélectionner décemment il faut intégrer une étape
+   intermédiaire de visualisation sur plaque » — la demande, mot pour mot.
+   Cocher `fond-matiere`, `illustration`, `cadre` sans voir les pièces, c'est
+   choisir à l'aveugle ; étalées, elles se désignent.
+
+   LA RÈGLE QUI DOMINE CE BLOC : **rien de ce qui suit n'entre dans
+   `S.enAttente`**. Sans cette garde, l'utilisateur étale, clique « écrire la
+   version », et son modèle part ÉCLATÉ ET DÉFINITIF sur le disque. Chez
+   Meshy, « Sur la plaque » est un aperçu ; le modèle assemblé reste la
+   vérité. Ici c'est tenu par TROIS mécanismes indépendants, et non par la
+   présente phrase :
+
+   1. STRUCTUREL — le décalage d'étalement vit dans un BERCEAU (un Group
+      glissé entre la pièce et son parent, voir /lib3d/plaque.js), jamais dans
+      `piece.position`. Or le seul producteur d'une ligne `transformer` est
+      l'écouteur `objectChange` du gizmo, qui lit `o.position` : il ne PEUT
+      pas lire un décalage qui n'y est pas.
+   2. COMPORTEMENTAL — le gizmo est lâché en entrant sur la plaque, et
+      poserGizmo() le refuse tant qu'elle est affichée.
+   3. TEXTUEL — aucune de ces fonctions n'appelle noterAttente(), et
+      plaque.js ne connaît ni `fetch` ni la moindre route.
+
+   Un banc de la section N épingle les trois. */
+
+function majBoutonPlaque() {
+  const b = $("#btnPlaque");
+  /* Le libellé porte la DESTINATION, comme « ← 3D Studio » : ce qu'un clic
+     fait, et non l'état où l'on est — l'état, la vue 3D le crie déjà. */
+  b.textContent = PLQ.active ? "Assemblé" : "Sur la plaque";
+  b.title = PLQ.active
+    ? "Revenir au modèle assemblé — l'étalement n'avait rien modifié"
+    : "Étaler les pièces pour les voir séparément — une VUE : "
+      + "rien n'est modifié, rien n'est écrit";
+}
+
+function basculerPlaque() {
+  if (PLQ.active) { quitterPlaque(); return; }
+  if (!S.vueA || !S.vueA.racine) {
+    direRefus("aucun modèle chargé — rien à étaler sur la plaque");
+    return;
+  }
+  /* LE GIZMO LÂCHE AVANT L'ÉTALEMENT, et c'est le piège le plus cher de cette
+     tâche. Une pièce tenue par le gizmo puis déplacée par l'étalement resterait
+     saisissable : le glissement suivant enverrait au serveur une translation
+     née d'un décalage d'AFFICHAGE. Le berceau de plaque.js rend déjà ce chiffre
+     impossible à lire ; on lâche quand même, parce qu'un gizmo qui suit une
+     pièce en train de s'envoler à l'autre bout de la plaque est un mensonge
+     visuel avant d'être un risque, et parce que deux gardes valent mieux
+     qu'une sur le mode d'échec qui écrit un GLB faux. */
+  if (GIZMO) GIZMO.detach();
+  const vue = etaler(S.vueA);
+  if (!vue) {
+    direRefus("aucune pièce mesurable — ce modèle n'expose aucun nœud glTF "
+      + "porteur de géométrie, il n'y a rien à étaler");
+    return;
+  }
+  PLQ.active = true;
+  PLQ.pieces = vue.pieces;
+  PLQ.teintes = vue.teintes;
+  PLQ.partages = vue.partages;
+  PLQ.masquees.clear();
+  /* L'empreinte étalée est bien plus large que le modèle assemblé : sans
+     re-cadrage, la plaque naîtrait pour moitié hors champ. */
+  cadrer(S.vueA);
+  majBoutonPlaque();
+  rendreParties();
+  /* Le geste a réussi : un refus rouge laissé par le clic d'avant ne doit pas
+     lui rester accroché. */
+  direGeometrie();
+}
+
+/* Revenir à « Assemblé » SANS RECHARGER, et c'est un corollaire de la règle,
+   pas une optimisation. Un `ouvrirPrincipale(S.a)` repasserait par le verrou
+   de sérialisation et par un téléchargement du GLB — 9 Mo sur le modèle de
+   l'utilisateur — pour rendre un modèle que personne n'a modifié. ranger()
+   défait ce qu'étaler a fait, dans l'ordre inverse : le berceau retiré et la
+   pièce remise à SA place dans la fratrie, la couleur d'origine rendue au
+   matériau, la visibilité restaurée, le plateau libéré. */
+function quitterPlaque() {
+  oublierPlaque();
+  /* L'empreinte se rétracte : le cadrage étalé laisserait le modèle assemblé
+     minuscule au centre. Symétrique du re-cadrage de basculerPlaque(). */
+  if (S.vueA) cadrer(S.vueA);
+  rendreParties();
+}
+
+/* Le rangement SEC, sans re-cadrage ni redessin : ce que _ouvrirPrincipale()
+   appelle avant charger(), qui cadre et redessine lui-même. Séparé de
+   quitterPlaque() pour que le chemin du changement de modèle ne cadre pas une
+   vue qui va être vidée à la ligne suivante. */
+function oublierPlaque() {
+  if (!PLQ.active) return;
+  ranger(S.vueA);
+  PLQ.active = false;
+  PLQ.pieces = [];
+  PLQ.teintes = new Map();
+  PLQ.partages = 0;
+  PLQ.masquees.clear();
+  majBoutonPlaque();
+}
+
+$("#btnPlaque").addEventListener("click", basculerPlaque);
+
 /* ── le panneau Parties : nœud, maillage, matériau ──────────────────────────
    Trois granularités parce que les moteurs ne découpent pas pareil : un modèle
    Meshy est souvent un nœud UNIQUE à plusieurs matériaux — le lister par nœud
@@ -733,15 +870,62 @@ function rendreParties() {
         <input type="checkbox" data-uuid="${esc(x.uuid)}"
                ${x.indexGltf === undefined ? ""
                  : `data-index="${esc(x.indexGltf)}"`}
-               ${SEL.retenus.has(x.uuid) ? "checked" : ""}>
+               ${SEL.retenus.has(x.uuid) ? "checked" : ""}>${PLQ.teintes.has(x.uuid)
+          ? `<i class="pastille" style="background:${esc(PLQ.teintes.get(x.uuid))}"></i>`
+          : ""}
         <b>${esc(x.nom)}</b>${x.tris
           ? `<span>${x.tris.toLocaleString("fr-FR")} tri</span>` : ""}
       </label>`).join("");
+  /* ── l'œil, ET POURQUOI IL N'EST PAS BRANCHÉ SUR `SEL.retenus` ────────────
+     La question était posée : brancher la liste latérale sur la sélection
+     existante plutôt qu'en doublon. Réponse : NON pour la VISIBILITÉ, OUI
+     pour l'identité — et voici le partage.
+
+     Masquer et retenir ne veulent pas dire la même chose, et ne durent pas
+     aussi longtemps. `SEL.retenus` est la CHARGE : separerSelection() la
+     convertit en index de nœud et la met en file pour le serveur, QUI ÉCRIT
+     UN GLB. La visibilité est un geste d'écran, qui meurt quand on revient à
+     « Assemblé ». Les confondre donnerait ceci : l'utilisateur masque trois
+     pièces pour mieux voir les autres, et perd trois pièces de son
+     extraction — en silence, exactement le mode d'échec que cette page
+     traque partout ailleurs.
+
+     Deux raisons de plus, mécaniques. `SEL.retenus` est VIDÉ à chaque
+     changement de granularité (l'uuid d'un matériau ne désigne pas un
+     maillage) : l'œil perdrait son état en passant sur l'onglet
+     « matériau ». Et la plaque ne connaît qu'une granularité, le NŒUD, alors
+     que le panneau en offre trois : les lier forcerait le panneau au nœud,
+     ou mêlerait les vocabulaires que SEL.retenus garde homogènes.
+
+     CE QUI EST PARTAGÉ, donc, et qui suffit : la COULEUR. Chaque rangée du
+     panneau — nœud ou maillage — porte la pastille de la pièce à laquelle
+     elle appartient (`PLQ.teintes`, que plaque.js remplit sur tout le
+     sous-arbre). Le nom qu'on coche est visiblement la pièce qu'on voit sur
+     le plateau, sans qu'aucun état ne soit dupliqué ni qu'aucun geste de vue
+     ne puisse abîmer une charge d'écriture. La sélection reste où elle
+     était, dans un seul vocabulaire. */
+  const oeil = (cle) => (PLQ.masquees.has(cle) ? "montrer" : "masquer");
+  const plaqueBloc = !PLQ.active ? "" : `
+    <div class="plaque-tete">Sur la plaque · ${PLQ.pieces.length} pièce(s)</div>
+    <div class="plaque-liste">${PLQ.pieces.map((x) => `
+      <div class="plaque-rang${PLQ.masquees.has(x.cle) ? " masquee" : ""}">
+        <i class="pastille" style="background:${esc(x.couleur)}"></i>
+        <b>${esc(x.nom)}</b>
+        <button class="plaque-oeil" data-cle="${esc(x.cle)}"
+                title="${oeil(x.cle)} cette pièce"
+                aria-label="${oeil(x.cle)} cette pièce"
+        >${PLQ.masquees.has(x.cle) ? "◌" : "◉"}</button>
+      </div>`).join("")}</div>
+    <p class="plaque-note">Vue seulement : le modèle assemblé reste la
+      vérité, rien n'est modifié ni écrit.${PLQ.partages
+        ? ` ${PLQ.partages} matériau(x) partagé(s) entre pièces — leur teinte
+      sur le modèle n'est pas fidèle (le dernier parcouru gagne) ; la
+      pastille, elle, l'est.` : ""}</p>`;
   /* Les deux boutons sont rendus MÊME quand la liste est vide : ils sont relus
      juste après par leur id, et un panneau sans eux ferait lever le
      addEventListener sur null. isoler() garde de son côté le cas « aucun
      modèle chargé ». */
-  box.innerHTML = `
+  box.innerHTML = `${plaqueBloc}
     <div class="granularite">
       ${["noeud", "maillage", "materiau"].map((g) =>
         `<button data-g="${g}" class="${g === SEL.granularite ? "actif" : ""}">${LIBELLE_GRANULARITE[g]}</button>`
@@ -771,6 +955,17 @@ function rendreParties() {
     c.addEventListener("change", () => {
       if (c.checked) SEL.retenus.add(c.dataset.uuid);
       else SEL.retenus.delete(c.dataset.uuid);
+    }));
+  /* L'œil ne change QUE `piece.visible` (dans plaque.js), et il ne note son
+     basculement que si la pièce a répondu : sur une plaque déjà rangée sous
+     nos pieds, la liste et le modèle resteraient sinon en désaccord. */
+  box.querySelectorAll(".plaque-oeil").forEach((b) =>
+    b.addEventListener("click", () => {
+      const cle = Number(b.dataset.cle);
+      const masquee = PLQ.masquees.has(cle);
+      if (!montrerPiece(S.vueA, cle, masquee)) return;
+      if (masquee) PLQ.masquees.delete(cle); else PLQ.masquees.add(cle);
+      rendreParties();
     }));
   $("#btnIsoler").addEventListener("click", () => isoler(S.vueA, [...SEL.retenus]));
   /* « Tout revoir » n'est pas un second chemin : isoler SUR RIEN restaure, par
@@ -814,6 +1009,19 @@ function rendreParties() {
    gizmo. On ne le fait nulle part : le canevas vit autant que la page, comme
    le dit viewer.js (« Libère le MODÈLE, pas le CANEVAS »). */
 function poserGizmo(objet) {
+  /* LA PLAQUE EST UNE VUE : on n'y manipule pas. Un gizmo posé sur une pièce
+     étalée enverrait au serveur une pose née d'un décalage d'AFFICHAGE — le
+     modèle écrit serait éclaté. Le berceau de plaque.js rend déjà ce chiffre
+     illisible (le décalage n'est pas dans `piece.position`), et cette garde
+     ferme la porte une seconde fois : deux mécanismes indépendants sur le
+     seul mode d'échec de cette tâche qui écrive un GLB faux. On le DIT, comme
+     partout sur cette page, plutôt que de laisser un clic sans effet. */
+  if (estEtalee(S.vueA)) {
+    if (GIZMO) GIZMO.detach();
+    direRefus("la plaque est une VUE : revenez à « Assemblé » pour "
+      + "déplacer une pièce");
+    return;
+  }
   /* On REMONTE jusqu'au premier ancêtre qui EST un nœud du document. Un
      maillage à plusieurs primitives donne, chez GLTFLoader, un Group pour le
      nœud et un Mesh par primitive ; la primitive n'a pas de `nodes` dans la
@@ -1315,8 +1523,17 @@ document.addEventListener("etabli:charge", () => {
     surligner(S.vueA, obj.uuid);
     /* Le gizmo suit le clic quelle que soit la granularité : déplacer un nœud
        n'est pas le même geste que le retenir, et le panneau n'a pas à être en
-       mode « maillage » pour qu'on puisse redresser une pièce. */
-    poserGizmo(obj);
+       mode « maillage » pour qu'on puisse redresser une pièce.
+
+       SAUF SUR LA PLAQUE, et le silence est ici la bonne réponse. poserGizmo()
+       refuse déjà l'étalement EN LE DISANT — ce que ce fichier fait partout —
+       mais ce refus-là s'écrit dans la barre du bas, en rouge, et ce chemin-ci
+       est justement celui du geste que la plaque existe pour servir : DÉSIGNER
+       une pièce qu'on voit enfin. Peindre la barre en rouge à chaque clic
+       réussi ferait passer la sélection pour un échec. La garde bruyante reste
+       pour qui appellerait poserGizmo() autrement ; ici on se tait, et le
+       titre du bouton de bascule dit déjà que la plaque ne manipule pas. */
+    if (!estEtalee(S.vueA)) poserGizmo(obj);
     /* Le clic désigne un MAILLAGE, et rien d'autre : son uuid n'est ni celui
        d'un matériau, ni un index de nœud, et `retenus` doit rester homogène.
        Mais hors de la granularité « maillage » on SORT — on ne détruit pas.
@@ -1339,6 +1556,10 @@ document.addEventListener("etabli:charge", () => {
    modèle absent — inventaire() rend trois listes vides, isoler() ne fait
    rien. */
 rendreParties();
+/* Le libellé et l'infobulle du bouton de bascule viennent d'UN seul endroit,
+   majBoutonPlaque(), plutôt que d'être écrits dans index.html PUIS réécrits
+   ici : deux sources pour un même texte divergent à la première retouche. */
+majBoutonPlaque();
 /* Et le panneau Fiche pour la même raison : #panFiche naît VIDE dans
    index.html, et un onglet qu'on ouvre sur du blanc se lit comme un onglet
    cassé. Le bloc garde le cas du modèle absent — son bouton refuse en le
