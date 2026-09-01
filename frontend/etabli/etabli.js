@@ -1351,6 +1351,16 @@ function poserGizmo(objet) {
           scale: [o.scale.x, o.scale.y, o.scale.z],
         },
       }, o.userData.indexGltfSource);
+      /* ET LA LECTURE SUIT LE GESTE. Le gizmo EST l'un des deux modes de
+         manipulation que la demande nomme, et « manipulation MESURÉE » est le
+         titre même de ce lot : sans cette ligne, on tire une poignée pendant
+         que les trois chiffres et la croix du repère restent à la position
+         d'AVANT le geste. Une règle qui ne bouge pas sous ce qu'elle mesure
+         est pire qu'une règle absente — elle a l'autorité du chiffre.
+         `objectChange` est émis à chaque image de glissement, et lireRepere()
+         ne fait qu'une descente du graphe et une réécriture de deux nœuds : le
+         même ordre de grandeur que le rendu qui suit. */
+      lireRepere();
     });
     S.vueA.scene.add(GIZMO.getHelper());
   }
@@ -1982,7 +1992,13 @@ function rendreRepere() {
       cible n'est posée : un GLB n'en porte AUCUNE, et c'est le serveur qui en
       fabrique une pour écrire un STL — la plus grande dimension du modèle
       devient la cible. Ce champ applique CETTE règle et rien d'autre ; vide,
-      aucun chiffre en millimètres n'est affiché.</p>`;
+      aucun chiffre en millimètres n'est affiché.</p>
+    <p class="repere-note">Ce sont des cotes, PAS des coordonnées de plateau :
+      l'export STL recentre en X/Y et pose Z au sol, si bien qu'une pièce lue
+      ici à −31,50 n'arrivera pas à −31,50 dans le slicer. La cible, elle,
+      SURVIT au changement de modèle — c'est ce qu'on veut imprimer, pas une
+      propriété du maillage — et l'échelle est refaite sur le maillage
+      affiché.</p>`;
   /* `change` ET NON `input`, qui se déclenche à CHAQUE frappe : « 63 » poserait
      d'abord une échelle à 6 — tous les chiffres de l'écran seraient dix fois
      trop grands pendant une fraction de seconde — et « 0,5 » traverserait deux
@@ -2003,8 +2019,11 @@ function poserCible(brut) {
     lireRepere();
     return true;
   }
-  const mm = Number(texte);
-  if (!Number.isFinite(mm) || !(mm > 0)) {
+  /* `cible` ET NON `mm` : le bloc du repère s'interdit le littéral « mm »
+     ailleurs que dans uniteCourante(), et un banc l'épingle — un nom de
+     variable suffirait à ouvrir la porte que cette négative ferme. */
+  const cible = Number(texte);
+  if (!Number.isFinite(cible) || !(cible > 0)) {
     direRefus("taille cible invalide — un nombre de millimètres > 0, ou le "
       + "champ vide pour rester en unités glTF");
     return false;
@@ -2016,7 +2035,7 @@ function poserCible(brut) {
       + "grande dimension d'un maillage, il en faut un à l'écran");
     return false;
   }
-  REP.cibleMm = mm;
+  REP.cibleMm = cible;
   lireRepere();
   /* Le geste a réussi : un refus rouge laissé par le clic d'avant ne doit pas
      lui rester accroché. */

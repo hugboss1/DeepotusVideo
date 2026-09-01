@@ -476,16 +476,102 @@ export function etendueVisible(api) {
    réinventer ferait dire à un X rouge et à un X bleu la même chose sur le même
    écran. */
 const COULEUR_AXE = { x: 0xd2544e, y: 0x62b56a, z: 0x4d7fd0 };
-/* Les mêmes deux gris que le plateau du dépôt : une seconde palette de grille
-   sur la même page se lirait comme une seconde échelle. */
-const COULEUR_TRAME = 0x333941;
-const COULEUR_TRAME_CENTRE = 0x5b636f;
+/* LA TRAME DU REPÈRE A SA PROPRE TEINTE, et c'est un revirement assumé. La
+   première écriture reprenait les deux gris du plateau de /lib3d/plaque.js
+   (0x5b636f / 0x333941) en jurant qu'une seconde palette « se lirait comme une
+   seconde échelle ». L'argument était retourné : les deux grilles peuvent être
+   à l'écran EN MÊME TEMPS et n'ont PAS le même pas — celle du plateau se
+   dimensionne sur l'empreinte de l'étalement (24 divisions, aucune graduation),
+   celle-ci porte le pas 1-2-5 que le rail annonce en chiffres. Deux pas
+   différents sous une seule palette, avec un seul pas écrit, c'est exactement
+   la règle qui ment que cette tâche existe pour interdire. Elles se
+   distinguent donc.
+
+   ET LA LIGNE CENTRALE N'EST PAS PLUS CLAIRE QUE LES AUTRES : GridHelper offre
+   d'éclaircir les deux lignes du milieu, or ce sont précisément les axes, que
+   ce module dessine par-dessus en rouge/vert/bleu. Deux marques pour un même
+   centre, dont l'une pâle, ne feraient que brouiller l'autre. */
+const COULEUR_TRAME = 0x2f3a4d;
+const COULEUR_TRAME_CENTRE = COULEUR_TRAME;
 /* Au-delà, la lecture n'est plus une lecture : on borne le nombre de marques
    plutôt que de fabriquer mille segments pour un rail qui en montre douze. */
 const MARQUES_MAX = 24;
 
+/* Sous quelle exposition le plancher cesse d'être lisible. |avant · y| est le
+   cosinus de l'angle entre l'axe de vue et la normale du plan : c'est
+   exactement le facteur d'écrasement de la trame à l'écran. */
+const SEUIL_TRANCHE = 0.25;
+/* De combien un autre plan doit BATTRE le plan courant pour le remplacer.
+   Sans elle, deux plans à égalité — la caméra à 45° entre X et Z — se
+   relaieraient à chaque image, et la trame se reconstruirait en continu. */
+const MARGE_TRANCHE = 0.05;
+
+/* PURE. Dans quel PLAN poser la trame : on rend la NORMALE, « x », « y » ou
+   « z ». `avant` est l'axe de vue (unitaire), `planCourant` celui d'avant.
+
+   LE DÉFAUT QUE CETTE FONCTION CORRIGE ÉTAIT MUET, ET IL EST MESURÉ. La trame
+   naissait toujours dans le plan XZ, celui du sol ; vue par la tranche, une
+   grille est une LIGNE. Hauteur ÉCRAN de la trame (ses sommets projetés par la
+   vraie caméra, en unités de découpage où le cadre en fait 2), boîte
+   3 × 1,1 × 0,4 dans un canevas 860 × 824, les cinq vues nommées :
+
+     vue      trame FIGÉE dans XZ    trame posée par cette fonction
+     libre        2,110·10²                2,110·10²      (plan y)
+     iso          1,548·10¹                1,548·10¹      (plan y)
+     dessus       1,896·10¹                1,896·10¹      (plan y)
+     face         1,161·10⁻¹⁵              1,896·10¹      (plan z)
+     profil       1,161·10⁻¹⁵              1,896·10¹      (plan x)
+
+   Zéro à l'arrondi près sur deux des cinq. Et ce n'est pas un cas de coin : les
+   douze pièces du modèle réel de l'utilisateur mesurent 0,0630 × 0,0880 × ~0,
+   donc `axeEmpile` rend « z », donc c'est « Face » que l'Établi désigne comme
+   la vue qui regarde l'étalement en face — la vue même où la graduation
+   n'existait pas.
+
+   LE PLANCHER GARDE LA PRIORITÉ, et c'est ce qui préserve le point de vue
+   historique : tant que le sol s'expose au-dessus du seuil, c'est lui. |avant·y|
+   vaut 0,3600 en vue libre et 0,5774 en isométrique — tous deux au-dessus de
+   0,25, soit 14,5° d'élévation — quand « face » et « profil » valent zéro
+   exactement. Le seuil sépare donc les cinq vues sans les départager de
+   justesse.
+
+   PAS DE PAPILLOTEMENT, ET C'EST DÉMONTRABLE plutôt que espéré : la somme des
+   trois cosinus carrés vaut 1, donc le meilleur des trois vaut au moins
+   1/√3 = 0,5774. Quand on quitte le plancher (sous 0,25), le plan retenu est
+   donc TOUJOURS très au-dessus du seuil, et il ne se rendra pas au tour
+   suivant. La marge ne sert qu'au partage entre X et Z. */
+export function planDeTrame(avant, planCourant) {
+  const d = { x: Math.abs(avant.x), y: Math.abs(avant.y), z: Math.abs(avant.z) };
+  if (d.y >= SEUIL_TRANCHE) return "y";
+  const meilleur = d.x >= d.z ? "x" : "z";
+  if ((planCourant === "x" || planCourant === "z")
+      && d[planCourant] >= d[meilleur] - MARGE_TRANCHE) return planCourant;
+  return meilleur;
+}
+
+/* PURE. L'axe de vue en coordonnées du MONDE, lu dans `camera.matrixWorld` et
+   nulle part ailleurs. `api.vueCadrage` est le nom du DERNIER CADRAGE demandé
+   et non l'orientation courante — une orbite à la souris ne l'écrit pas — si
+   bien qu'en partir aurait posé la trame de travers dès le premier geste. Le
+   tableau de 16 nombres est rangé en COLONNES : la troisième est l'axe +Z de
+   la caméra, et une caméra regarde vers son −Z. */
+export function axeDeVue(elements) {
+  return { x: -elements[8], y: -elements[9], z: -elements[10] };
+}
+
+/* Les rotations qui portent la trame de son plan natif vers le plan voulu.
+   GridHelper naît dans XZ, normale +Y : +90° autour de X envoie la normale sur
+   +Z, −90° autour de Z l'envoie sur +X. (Même convention que le plateau de
+   /lib3d/plaque.js, et c'est délibéré : deux conventions de bascule pour la
+   même géométrie divergeraient à la première retouche.) */
+const ROTATION_TRAME = {
+  y: { x: 0, y: 0, z: 0 },
+  z: { x: Math.PI / 2, y: 0, z: 0 },
+  x: { x: 0, y: 0, z: -Math.PI / 2 },
+};
+
 /* L'état du repère, par vue. Une WeakMap et non des clés d'`api` : le contrat
-   de forme d'`api` est une surface publique, et trois champs de dessin n'y ont
+   de forme d'`api` est une surface publique, et quatre champs de dessin n'y ont
    rien à faire. Une vue oubliée n'y retient rien. */
 const _reperes = new WeakMap();
 
@@ -542,14 +628,17 @@ export function majRepere(api) {
   /* La portée à couvrir : de l'origine jusqu'au bord du champ. La cible peut
      être loin de l'origine — une extraction, un modèle non recentré — et une
      grille dimensionnée sur le seul champ visible ne rejoindrait alors jamais
-     le point dont elle prétend mesurer la distance. */
-  const portee = Math.hypot(cible.x, cible.z)
+     le point dont elle prétend mesurer la distance.
+     LES TROIS COMPOSANTES, et non les deux du sol : la trame bascule de plan
+     (voir planDeTrame), si bien qu'une cible haute en Y compte autant qu'une
+     cible lointaine en X dès que le plan retenu est XY ou YZ. */
+  const portee = Math.hypot(cible.x, cible.y, cible.z)
     + Math.max(vue.demiHauteur, vue.demiLargeur);
   const cases = casesGraduees(pas, portee);
   let e = _reperes.get(api);
   if (!e) {
     e = { groupe: new THREE.Group(), trame: null, axes: null, marque: null,
-          pas: 0, cases: 0 };
+          pas: 0, cases: 0, plan: "y" };
     e.groupe.name = "lib3d-repere";
     /* DANS LA SCÈNE, jamais dans le modèle : vider() ne retire que
        `api.racine`, et un repère greffé au modèle disparaîtrait au premier
@@ -557,9 +646,16 @@ export function majRepere(api) {
     api.scene.add(e.groupe);
     _reperes.set(api, e);
   }
-  if (e.pas === pas && e.cases === cases) return e;
+  /* `matrixWorld` RELUE ICI : controls.update() pose la position et le
+     quaternion, mais la matrice monde n'est recomposée qu'au rendu — qui vient
+     APRÈS nous dans la boucle. Sans cette ligne, la trame choisirait son plan
+     sur le point de vue de l'image précédente. */
+  api.camera.updateMatrixWorld();
+  const plan = planDeTrame(axeDeVue(api.camera.matrixWorld.elements), e.plan);
+  if (e.pas === pas && e.cases === cases && e.plan === plan) return e;
   e.pas = pas;
   e.cases = cases;
+  e.plan = plan;
   libererLigne(e.trame);
   libererLigne(e.axes);
   const cote = 2 * cases * pas;
@@ -568,11 +664,15 @@ export function majRepere(api) {
   e.trame.material.transparent = true;
   e.trame.material.opacity = 0.4;
   e.trame.material.depthWrite = false;
+  /* LA TRAME SEULE PIVOTE, JAMAIS LE GROUPE : les axes qu'il porte sont ceux du
+     MONDE, et les faire tourner avec elle mettrait un X rouge le long de Z. */
+  const r = ROTATION_TRAME[plan];
+  e.trame.rotation.set(r.x, r.y, r.z);
   e.axes = construireAxes(cases * pas);
   e.groupe.add(e.trame);
   e.groupe.add(e.axes);
   api.renderer.domElement.dispatchEvent(new CustomEvent("lib3d:graduation", {
-    detail: { pas, cases, portee: cases * pas } }));
+    detail: { pas, cases, plan, portee: cases * pas } }));
   return e;
 }
 
@@ -584,7 +684,12 @@ export function majRepere(api) {
    Une petite croix marque le point lui-même : sans elle, un point posé sur le
    plan de la trame se confond avec le pied de sa propre descente. Sa taille
    est un quart de PAS — donc à l'échelle de la graduation, et non d'un modèle
-   dont ce module ne connaît pas la taille. */
+   dont ce module ne connaît pas la taille.
+
+   LE CHEMIN SUIT LE PLAN DE LA TRAME, il n'est pas écrit en dur sur Y : la
+   descente longe la NORMALE du plan retenu et les deux jambes ses deux autres
+   axes. Figée sur le sol, elle aurait plongé dans le vide dès que la trame
+   bascule en XY — le chemin ne se serait plus rapporté à aucune case. */
 export function marquerAuRepere(api, points) {
   const e = api && _reperes.get(api);
   if (!e) return 0;
@@ -599,11 +704,18 @@ export function marquerAuRepere(api, points) {
     c.push(t.r, t.g, t.b, t.r, t.g, t.b);
   };
   const croix = e.pas / 4;
+  const normale = e.plan;
+  const [a1, a2] = ["x", "y", "z"].filter((a) => a !== normale);
   for (const q of liste) {
-    const pied = { x: q.x, y: 0, z: q.z };
-    pousser(q, pied, COULEUR_AXE.y);
-    pousser(pied, { x: 0, y: 0, z: q.z }, COULEUR_AXE.x);
-    pousser({ x: 0, y: 0, z: q.z }, { x: 0, y: 0, z: 0 }, COULEUR_AXE.z);
+    /* Le PIED : le point ramené sur le plan de la trame. Puis on annule a1, puis
+       a2 — et l'on est à l'origine. */
+    const pied = { x: q.x, y: q.y, z: q.z };
+    pied[normale] = 0;
+    const jambe = { x: pied.x, y: pied.y, z: pied.z };
+    jambe[a1] = 0;
+    pousser(q, pied, COULEUR_AXE[normale]);
+    pousser(pied, jambe, COULEUR_AXE[a1]);
+    pousser(jambe, { x: 0, y: 0, z: 0 }, COULEUR_AXE[a2]);
     for (const axe of ["x", "y", "z"]) {
       const a = { x: q.x, y: q.y, z: q.z }, b = { x: q.x, y: q.y, z: q.z };
       a[axe] -= croix;

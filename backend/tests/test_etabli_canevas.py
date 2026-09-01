@@ -5572,7 +5572,16 @@ def test_les_MILLIMETRES_viennent_de_la_MEME_regle_QUE_print3d():
     # LA SÉVÉRITÉ DE LA FORGE 3D DES CARTES, reprise à la lettre : un nombre
     # > 0, sinon rien. `null` et non zéro — un facteur nul écrirait « 0,00 mm »
     # partout, ce qui est un mensonge de plus, pas un refus.
+    #
+    # CES HUIT-LÀ NE SONT EXÉCUTÉES QUE CÔTÉ JS, et il faut le dire : ce qui
+    # est confronté aux deux implémentations est le FACTEUR, une ligne plus
+    # haut. Python refuse de son côté (`mettre_a_l_echelle` lève sur une cible
+    # ≤ 0), mais c'est son banc à lui qui le tient — pas celui-ci.
     assert sortie["refus"] == [None] * 8, sortie["refus"]
+    # …et le refus de Python sur le même cas, pour que la symétrie ne soit pas
+    # qu'une affirmation de commentaire.
+    with pytest.raises(ValueError):
+        P3.mettre_a_l_echelle(tris, 0)
     # …et le même verdict est écrit dans core.js, d'où la règle est reprise.
     core = _lire("cardforge/js/core.js")
     assert "if (!isFinite(mm) || mm <= 0)" in core
@@ -5594,7 +5603,7 @@ def test_la_TAILLE_CIBLE_se_pose_dans_le_rail_et_se_REFUSE_en_le_disant():
     qui clignote à la frappe est un refus qu'on cesse de lire.
     """
     poser = _fonction_etabli("poserCible")
-    assert "if (!Number.isFinite(mm) || !(mm > 0)) {" in poser
+    assert "if (!Number.isFinite(cible) || !(cible > 0)) {" in poser
     assert poser.count("direRefus(") == 2
     # vide = « tel quel », le mot même de la route (cible_mm absent)
     assert 'if (texte === "") {' in poser
@@ -5875,11 +5884,12 @@ def test_le_bloc_du_REPERE_est_HORS_des_onglets_et_se_LIT():
     # LES SITES D'APPEL, ET ILS COUVRENT TOUT : la queue de rendreParties
     # (chargement, clic, granularité, plaque) et la case cochée, qui ne
     # redessine PAS le panneau et n'y serait donc jamais atteinte.
-    # CINQ appels, et ils s'énumèrent : la queue de rendreParties, la case
-    # cochée, l'écoute du pas, et les DEUX issues de poserCible (posée,
-    # retirée). Un sixième serait un site qui redessine sans qu'on sache
-    # pourquoi ; un quatrième, une sélection qui cesse d'être suivie.
-    assert code.count("lireRepere();") == 5, code.count("lireRepere();")
+    # SIX appels, et ils s'énumèrent : la queue de rendreParties, la case
+    # cochée, le glissement du gizmo, l'écoute du pas, et les DEUX issues de
+    # poserCible (posée, retirée). Le compte est rigide POUR QUE l'ajout d'un
+    # septième se dise — c'est lui qui a verrouillé l'oubli du gizmo, et le
+    # mettre à jour fait partie du correctif (voir ..._suit_le_GESTE_du_gizmo).
+    assert code.count("lireRepere();") == 6, code.count("lireRepere();")
     poser = _fonction_etabli("poserCible")
     assert poser.count("lireRepere();") == 2
     queue = code.split("$(\"#btnSeparer\").addEventListener", 1)[1]
@@ -5900,3 +5910,710 @@ def test_le_bloc_du_REPERE_est_HORS_des_onglets_et_se_LIT():
     colonne = css.split(".repere-ligne span {", 1)[1].split("}", 1)[0]
     assert "width: 8ch" in colonne and "tabular-nums" in colonne
     assert ".repere-ligne.etale b" in css
+
+
+# ── P (suite). LES CÂBLAGES, et non plus les seuls calculs ───────────────────
+# CE QUE LA PREMIÈRE ÉCRITURE DE CETTE SECTION A MANQUÉ, et il faut le dire en
+# tête parce que c'est un défaut de MÉTHODE, pas une assertion oubliée. Ses dix
+# contrôles exerçaient les règles PURES — le pas, les cases, l'échelle, le
+# décalage — et rien ne vérifiait qu'elles SERVENT à quelque chose. Une revue a
+# posé vingt-six mutations : dix sont revenues vertes, et toutes les dix
+# portaient sur un câblage, jamais sur un calcul. `decalageEtalement` était
+# exercée mais son USAGE ne l'était pas ; `montrerRepere` était gardée par son
+# APPEL mais pas par son EFFET ; le pas ANNONCÉ était mesuré mais la trame
+# DESSINÉE pouvait porter le double.
+#
+# La règle qu'on en tire, et que les contrôles ci-dessous appliquent : une
+# fonction pure se mesure sur ses nombres, mais une fonction pure ne prouve rien
+# tant que le banc n'a pas lu CE QUI EST DESSINÉ ou CE QUI EST ÉCRIT à l'écran.
+# On lit donc ici la géométrie rendue et le balisage produit, jamais l'intention.
+
+
+def _constantes_etabli(*noms: str) -> str:
+    """Les constantes d'etabli.js, VERBATIM, pour le harnais node.
+
+    Jumeau de `_constantes_viewer` et de `_constantes_plaque`. `LIGNES_REPERE`
+    recopié à la main aurait fait mesurer une borne que la page n'applique
+    plus — et la mutation qui la met à zéro serait repassée au vert.
+    """
+    js = _lire("etabli/etabli.js")
+    bouts = []
+    for n in noms:
+        m = re.search(r"^const " + n + r" = [^\n]*?;", js, re.M)
+        assert m, f"constante {n} introuvable dans etabli.js"
+        bouts.append(m.group(0))
+    return "\n".join(bouts) + "\n"
+
+
+# Le faux rail : le contrat MINIMAL que le bloc du repère consomme du DOM.
+# Écrit ici en entier, comme `_MONTAGE` et `_FAUX_ARBRE` — c'est la liste exacte
+# de ce que ces fonctions ont le droit de supposer, et le jour où elles
+# supposeront davantage, node lèvera au lieu de les laisser dériver.
+_FAUX_RAIL = """
+const zones = {};
+const $ = (s) => (zones[s] = zones[s] || {
+  innerHTML: "", value: "", addEventListener() {} });
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => (
+  { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const direRefus = (m) => { zones.refus = String(m); };
+const direGeometrie = () => {};
+const REP = { cibleMm: null, echelle: null, pas: null };
+const SEL = { granularite: "maillage", retenus: new Set() };
+const PLQ = { active: false, pieces: [], masquees: new Set(),
+              teintes: new Map(), partages: 0, vides: 0, axe: null };
+const S = { vueA: null, geoA: null };
+const lignesLues = () => {
+  const html = zones["#repereLecture"].innerHTML;
+  const nombres = [...html.matchAll(/<span>([^<]*)<\\/span>/g)].map((m) => m[1]);
+  return { rangees: (html.match(/repere-ligne/g) || []).length,
+           nombres, html: html.replace(/\\s+/g, " ").trim() };
+};
+"""
+
+
+def _bloc_repere(js: str = None) -> str:
+    """Le bloc du repère d'etabli.js, des millimètres à la lecture.
+
+    Borné aux DEUX bouts et vérifié : `enMillimetres` l'ouvre, l'écouteur
+    `etabli:charge` qui suit lireRepere() le ferme. Une borne qui raterait
+    rendrait un extrait vide, sur lequel toute négative serait verte — c'est le
+    défaut que `_plaque_bloc` a payé, et sa leçon vaut ici.
+    """
+    code = js if js is not None else _code("etabli/etabli.js")
+    bloc = code.split("function enMillimetres()", 1)[1] \
+               .split('document.addEventListener("etabli:charge"', 1)[0]
+    for temoin in ("function fmtMesure(", "function mesurerRetenus(",
+                   "function lireRepere(", "repere-ligne"):
+        assert temoin in bloc, temoin
+    return bloc
+
+
+def test_la_LECTURE_suit_le_GESTE_du_gizmo():
+    """LE GIZMO EST L'UN DES DEUX MODES DE MANIPULATION, et le lot s'appelle
+    « la manipulation MESURÉE ». Sans cette ligne, on tire une poignée pendant
+    que les trois chiffres et la croix du repère restent à la position d'AVANT
+    le geste : une règle qui ne bouge pas sous ce qu'elle mesure, avec
+    l'autorité du chiffre.
+
+    L'ancrage est DANS l'écouteur `objectChange` et APRÈS `noterAttente(` : la
+    file d'écriture d'abord — c'est elle qui porte la conséquence — la lecture
+    ensuite.
+    """
+    code = _code("etabli/etabli.js")
+    ecouteur = code.split('GIZMO.addEventListener("objectChange"', 1)[1] \
+                   .split("\n    });", 1)[0]
+    assert "noterAttente(" in ecouteur
+    assert "lireRepere();" in ecouteur
+    assert ecouteur.index("noterAttente(") < ecouteur.index("lireRepere();")
+    # SIX sites d'appel, et le compte est rigide POUR QUE l'ajout d'un septième
+    # se dise. Il valait cinq avant ce correctif — la queue de rendreParties, la
+    # case cochée, l'écoute du pas, et les deux issues de poserCible — et c'est
+    # justement ce compte qui verrouillait l'oubli du gizmo : le mettre à jour
+    # fait partie du correctif, pas de son contournement.
+    assert code.count("lireRepere();") == 6, code.count("lireRepere();")
+
+
+def test_la_LECTURE_de_CHAQUE_selection_est_EXECUTEE():
+    """LE CŒUR DE LA DEMANDE, ENFIN EXÉCUTÉ — « la position de CHAQUE sélection
+    par rapport à l'origine ».
+
+    `mesurerRetenus()` n'avait AUCUNE couverture, et quatre mutations la
+    traversaient en vert : le centre de la boîte remplacé par `objet.position`
+    (la lecture cesse d'être rapportée à l'origine), le décalage d'étalement
+    calculé et non retranché, une seule sélection au lieu de toutes, et la
+    borne de lignes mise à zéro. On lit donc ici LE BALISAGE PRODUIT, et non le
+    code qui prétend le produire.
+
+    LE PIÈGE QUE LES DONNÉES DÉSAMORCENT : `objet.position` est LOCALE, et sur
+    un maillage posé à l'origine elle vaut la boîte. Les trois maillages ont
+    donc chacun une géométrie DÉCENTRÉE (`geometry.translate`) ET une pose
+    propre, si bien que `position` ne coïncide avec le centre monde pour aucun
+    des trois — et le troisième vit sous un parent translaté ET mis à l'échelle.
+
+    LE SECOND CHEMIN : Python recompose les centres attendus par une
+    arithmétique de translations et d'échelles, là où three.js passe par un
+    Box3 sur les sommets transformés.
+    """
+    sortie = json.loads(_node_trois(
+        "echelleMm, marquerAuRepere, majRepere, cadrer",
+        _FAUX_RAIL + _constantes_etabli("LIGNES_REPERE")
+        + _fonction_etabli("enMillimetres") + "\n"
+        + _fonction_etabli("uniteCourante") + "\n"
+        + _fonction_etabli("fmtMesure") + "\n"
+        + _fonction_etabli("plusGrandeDimension") + "\n"
+        + _fonction_etabli("decalageEtalement") + "\n"
+        + _fonction_etabli("mesurerRetenus") + "\n"
+        + _fonction_etabli("rendreRepere") + "\n"
+        + _fonction_etabli("poserCible") + "\n"
+        + _fonction_etabli("lireRepere") + "\n" + """
+      const api = monter(860, 824);
+      api.renderer.domElement.dispatchEvent = () => true;
+      const racine = new THREE.Group();
+      const cube = (l, h, p, tx, ty, tz) => new THREE.Mesh(
+        new THREE.BoxGeometry(l, h, p).translate(tx, ty, tz),
+        new THREE.MeshBasicMaterial());
+      /* geometrie DECENTREE + pose propre : `position` ne vaut la boite pour
+         aucun des trois, et le troisieme vit sous un parent transforme. */
+      const m1 = cube(1, 1, 1, 0.7, -0.3, 1.1);
+      m1.name = "fond-matiere"; m1.position.set(2, 1, -4);
+      const m2 = cube(2, 0.5, 3, -1.25, 2.5, 0.4);
+      m2.name = "illustration";
+      const parent = new THREE.Group();
+      parent.position.set(5, -1, 0); parent.scale.set(2, 2, 2);
+      const m3 = cube(1, 1, 1, 0.5, 0.5, 0.5);
+      m3.name = "cadre"; m3.position.set(1, 0, 2);
+      parent.add(m3); racine.add(m1); racine.add(m2); racine.add(parent);
+      api.scene.add(racine); api.racine = racine;
+      racine.updateMatrixWorld(true);
+      S.vueA = api;
+      const boite = new THREE.Box3().setFromObject(racine);
+      S.geoA = { taille: boite.getSize(new THREE.Vector3()) };
+      cadrer(api);
+      /* la boucle de rendu cree le repere : ici on la remplace par un appel. */
+      REP.pas = majRepere(api).pas;
+      rendreRepere();
+
+      const r = { taille: S.geoA.taille.toArray(),
+                  plusGrande: plusGrandeDimension(),
+                  lignes: LIGNES_REPERE };
+      /* LE SECOND REFUS, EXERCE : sans modele mesure il n'y a pas de
+         denominateur, et une cible acceptee ne convertirait rien. */
+      const memoire = S.geoA;
+      S.geoA = null;
+      r.sansModele = { rendu: poserCible("63"), refus: zones.refus,
+                       cible: REP.cibleMm };
+      S.geoA = memoire;
+      zones.refus = undefined;
+      lireRepere();
+      r.vide = lignesLues();
+      /* LES TROIS, dans l'ordre d'insertion du Set. */
+      for (const m of [m1, m2, m3]) SEL.retenus.add(m.uuid);
+      SEL.retenus.add("uuid-d-un-materiau");
+      lireRepere();
+      r.trois = lignesLues();
+      /* LA MEME LECTURE EN MILLIMETRES : la conversion traverse le balisage. */
+      r.pose = poserCible("63");
+      r.mm = lignesLues();
+      r.echelleTete = zones["#repereEchelle"].innerHTML;
+      poserCible("");
+
+      /* LA PLAQUE : m2 recoit un berceau, sa lecture doit rester celle du
+         MODELE. Le berceau prend la place de la piece, comme dans plaque.js. */
+      m2.userData.indexGltf = 4;
+      const berceau = new THREE.Group();
+      berceau.position.set(-6, 3, 2.5);
+      racine.remove(m2); berceau.add(m2); racine.add(berceau);
+      racine.updateMatrixWorld(true);
+      PLQ.active = true; PLQ.pieces = [{ cle: 4 }];
+      lireRepere();
+      r.etalee = lignesLues();
+      const groupe = api.scene.children.find((o) => o.name === "lib3d-repere");
+      r.marquesEtalee = groupe.children.filter((o) => o.isLineSegments).length;
+      PLQ.active = false; PLQ.pieces = [];
+      lireRepere();
+      r.marquesRangee = groupe.children.filter((o) => o.isLineSegments).length;
+
+      /* LA BORNE : quatorze selections pour douze lignes. */
+      SEL.retenus.clear();
+      for (let i = 0; i < 14; i++) {
+        const m = cube(0.2, 0.2, 0.2, 0, 0, 0);
+        m.name = "piece_" + i; m.position.set(i, 0, 0);
+        racine.add(m); SEL.retenus.add(m.uuid);
+      }
+      racine.updateMatrixWorld(true);
+      lireRepere();
+      r.foule = lignesLues();
+      console.log(JSON.stringify(r));
+    """))
+
+    def nombre(s):
+        return float(s.replace("−", "-").replace(" ", "")
+                     .replace(" ", "").replace(",", "."))
+
+    # LE SECOND CHEMIN : les centres monde, recomposés à la main.
+    attendus = [(2 + 0.7, 1 - 0.3, -4 + 1.1),            # m1 : pose + géométrie
+                (-1.25, 2.5, 0.4),                        # m2 : géométrie seule
+                (5 + 2 * (1 + 0.5), -1 + 2 * 0.5, 2 * (2 + 0.5))]   # m3 : parent
+    # …et AUCUN d'eux n'est la `position` de son objet : c'est ce qui rend la
+    # mutation « centre → position » visible.
+    for attendu, pose in zip(attendus, [(2, 1, -4), (0, 0, 0), (1, 0, 2)]):
+        assert attendu != pose, attendu
+
+    # LE SECOND REFUS DE poserCible, EXÉCUTÉ et non compté : sans modèle
+    # mesuré, la cible est REFUSÉE et ne se pose pas. Un simple compte de
+    # `direRefus(` laissait passer la garde neutralisée.
+    sans = sortie["sansModele"]
+    assert sans["rendu"] is False, sans
+    assert sans["cible"] is None, sans
+    assert "aucun modèle mesuré" in (sans["refus"] or ""), sans
+    assert sortie["vide"]["rangees"] == 0, sortie["vide"]
+    assert "aucune sélection" in sortie["vide"]["html"], sortie["vide"]
+
+    trois = sortie["trois"]
+    assert trois["rangees"] == 3, trois        # CHAQUE sélection, pas la première
+    lus = [nombre(v) for v in trois["nombres"]]
+    assert len(lus) == 9, trois
+    for i, attendu in enumerate(attendus):
+        for k in range(3):
+            assert abs(lus[3 * i + k] - attendu[k]) < 5e-4, (i, k, lus, attendus)
+    # le matériau retenu n'a pas de position, et le rail le DIT
+    assert "sans position" in trois["html"], trois["html"]
+    # …et les noms viennent du GLB, pas d'un compteur
+    for nom in ("fond-matiere", "illustration", "cadre"):
+        assert nom in trois["html"], nom
+
+    # LA PLUS GRANDE DIMENSION vient d'un VRAI Box3, pas d'un nombre écrit à la
+    # main : la boîte englobe m1, m2 et m3 transformés.
+    assert abs(sortie["plusGrande"] - max(sortie["taille"])) < 1e-9, sortie
+    assert sortie["plusGrande"] > 8, sortie["taille"]
+
+    # LES MILLIMÈTRES TRAVERSENT LE BALISAGE, et par la seule règle de print3d.
+    assert sortie["pose"] is True, sortie
+    facteur = 63.0 / sortie["plusGrande"]
+    mm = [nombre(v) for v in sortie["mm"]["nombres"]]
+    for i, attendu in enumerate(attendus):
+        for k in range(3):
+            assert abs(mm[3 * i + k] - attendu[k] * facteur) < 5e-3, (i, k, mm)
+    assert "mm" in sortie["echelleTete"], sortie["echelleTete"]
+
+    # LA PLAQUE : le décalage du berceau (−6 ; 3 ; 2,5) est RETRANCHÉ, donc m2
+    # se relit exactement où il était. Sans le `c.sub(...)`, on lirait
+    # (−7,25 ; 5,5 ; 2,9).
+    etalee = [nombre(v) for v in sortie["etalee"]["nombres"]]
+    assert abs(etalee[3] - (-1.25)) < 5e-4, etalee
+    assert abs(etalee[4] - 2.5) < 5e-4, etalee
+    assert abs(etalee[5] - 0.4) < 5e-4, etalee
+    assert "la plaque est une VUE" in sortie["etalee"]["html"]
+    # …et la croix ne marque RIEN sur la plaque, mais revient au rangement.
+    assert sortie["marquesEtalee"] == 2, sortie      # la trame et les axes seuls
+    assert sortie["marquesRangee"] == 3, sortie      # …plus la marque
+
+    # LA BORNE DE LIGNES est celle du module, pas un nombre de banc.
+    foule = sortie["foule"]
+    assert foule["rangees"] == sortie["lignes"], foule
+    assert sortie["lignes"] >= 1, sortie
+    assert f"et {14 - sortie['lignes']} autre(s)" in foule["html"], foule["html"]
+
+
+def test_les_AXES_traversent_l_ORIGINE_et_le_repere_n_est_DECALE_de_rien():
+    """« Par rapport à l'ORIGINE » — encore faut-il que l'origine soit là où le
+    repère la met. Trois mutations passaient : des axes de longueur NULLE (la
+    capacité entièrement absente), des DEMI-DROITES au lieu d'axes (ils ne
+    traversent plus l'origine, et « à gauche de zéro » cesse de se lire), et le
+    groupe entier POSÉ AILLEURS — trame, axes et croix décalés, chaque chiffre
+    du rail démenti par le dessin.
+
+    On lit donc la géométrie rendue : trois segments, chacun de −portée à
+    +portée sur SON axe et nul sur les deux autres, et le groupe à l'identité —
+    position, quaternion, échelle.
+    """
+    sortie = json.loads(_node_trois(
+        "cadrer, majRepere",
+        _table_js("lib3d/viewer.js", "COULEUR_AXE") + "\n" + """
+      const api = monter(860, 824);
+      api.renderer.domElement.dispatchEvent = () => true;
+      poserModele(api, 3, 1.1, 0.4, 7, -2, 0.5);
+      cadrer(api);
+      const e = majRepere(api);
+      const groupe = api.scene.children.find((o) => o.name === "lib3d-repere");
+      groupe.updateMatrixWorld(true);
+      const p = Array.from(e.axes.geometry.attributes.position.array);
+      const c = Array.from(e.axes.geometry.attributes.color.array);
+      const teintes = {};
+      for (const a of ["x", "y", "z"]) {
+        const t = new THREE.Color(COULEUR_AXE[a]);
+        teintes[a] = [t.r, t.g, t.b];
+      }
+      const segments = [];
+      for (let i = 0; i < p.length; i += 6) {
+        let axe = "?";
+        for (const nom of ["x", "y", "z"]) {
+          if (teintes[nom].every((v, k) => Math.abs(v - c[i + k]) < 1e-6)) {
+            axe = nom;
+          }
+        }
+        segments.push({ axe, a: p.slice(i, i + 3), b: p.slice(i + 3, i + 6) });
+      }
+      console.log(JSON.stringify({
+        pas: e.pas, cases: e.cases, segments,
+        pose: groupe.position.toArray(),
+        quat: groupe.quaternion.toArray(),
+        echelle: groupe.scale.toArray(),
+        monde: Array.from(groupe.matrixWorld.elements),
+        /* la trame aussi vit à l'origine : seule sa ROTATION peut bouger */
+        poseTrame: e.trame.position.toArray() }));
+    """))
+    portee = sortie["cases"] * sortie["pas"]
+    assert portee > 0, sortie
+    assert len(sortie["segments"]) == 3, sortie["segments"]
+    rangs = {"x": 0, "y": 1, "z": 2}
+    vus = set()
+    for s in sortie["segments"]:
+        assert s["axe"] in rangs, s
+        vus.add(s["axe"])
+        k = rangs[s["axe"]]
+        # DE −PORTÉE À +PORTÉE : l'axe TRAVERSE l'origine, il n'en part pas.
+        assert abs(s["a"][k] + portee) < 1e-3 * portee, (s, portee)
+        assert abs(s["b"][k] - portee) < 1e-3 * portee, (s, portee)
+        # …et il est NUL sur les deux autres : un axe oblique ne gradue rien.
+        for autre in range(3):
+            if autre == k:
+                continue
+            assert abs(s["a"][autre]) < 1e-9 and abs(s["b"][autre]) < 1e-9, s
+    assert vus == {"x", "y", "z"}, vus
+    # LE GROUPE EST À L'IDENTITÉ : rien n'est décalé, tourné ni mis à l'échelle.
+    assert sortie["pose"] == [0, 0, 0], sortie["pose"]
+    assert sortie["quat"] == [0, 0, 0, 1], sortie["quat"]
+    assert sortie["echelle"] == [1, 1, 1], sortie["echelle"]
+    assert sortie["poseTrame"] == [0, 0, 0], sortie["poseTrame"]
+    identite = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+    assert sortie["monde"] == identite, sortie["monde"]
+
+
+def test_la_TRAME_DESSINEE_porte_le_PAS_ANNONCE():
+    """LA RÈGLE QUI MENT, PRISE EN FLAGRANT DÉLIT — c'est la mutation qui a le
+    plus coûté à la première écriture de cette section.
+
+    `new THREE.GridHelper(cote, 2 * cases)` mis à `cases` : la case dessinée
+    vaut alors DEUX PAS pendant que le rail annonce un pas. Tout était vert —
+    le pas ANNONCÉ était mesuré, l'événement portait le bon nombre, et personne
+    n'avait jamais regardé l'écartement des lignes. Une graduation dont la case
+    ne vaut pas le pas écrit est précisément la règle que cette tâche existe
+    pour interdire.
+
+    On mesure donc l'écartement DANS la géométrie livrée, à trois zooms, et on
+    le compare au pas de l'évènement. Le second chemin est arithmétique : les
+    lignes sont relevées puis différenciées, là où le module les engendre par
+    une multiplication.
+    """
+    sortie = json.loads(_node_trois(
+        "cadrer, majRepere",
+        "let dernier = null;\n" + """
+      function trameDe(api) {
+        const e = majRepere(api);
+        const pos = e.trame.geometry.attributes.position;
+        /* Les lignes PARALLELES a X : leur coordonnee de rangement est z. */
+        const lignes = new Set();
+        for (let i = 0; i < pos.count; i += 2) {
+          const ax = pos.getX(i), bx = pos.getX(i + 1);
+          if (Math.abs(ax - bx) > 1e-6) lignes.add(Math.round(pos.getZ(i) * 1e5));
+        }
+        const rangees = [...lignes].map((v) => v / 1e5).sort((a, b) => a - b);
+        const ecarts = [];
+        for (let i = 1; i < rangees.length; i++) {
+          ecarts.push(rangees[i] - rangees[i - 1]);
+        }
+        return { annonce: dernier.pas, cases: dernier.cases,
+                 lignes: rangees.length,
+                 etendue: rangees[rangees.length - 1] - rangees[0],
+                 ecartMin: Math.min(...ecarts), ecartMax: Math.max(...ecarts) };
+      }
+      const api = monter(860, 824);
+      api.renderer.domElement.dispatchEvent = (ev) => { dernier = ev.detail; };
+      poserModele(api, 3, 1.1, 0.4, 7, -2, 0.5);
+      cadrer(api);
+      const rangs = [];
+      for (const z of [1, 2, 8]) {
+        api.camera.zoom = z;
+        api.camera.updateProjectionMatrix();
+        rangs.push({ z, ...trameDe(api) });
+      }
+      console.log(JSON.stringify(rangs));
+    """))
+    assert len(sortie) == 3, sortie
+    for r in sortie:
+        pas = r["annonce"]
+        assert pas > 0, r
+        # L'ÉCARTEMENT DESSINÉ EST LE PAS ANNONCÉ, à la simple précision près.
+        assert abs(r["ecartMin"] - pas) < 1e-4 * pas, r
+        assert abs(r["ecartMax"] - pas) < 1e-4 * pas, r
+        # …et la trame porte bien DEUX FOIS `cases` cases, donc 2·cases + 1
+        # lignes, d'un bord à l'autre de 2·cases·pas.
+        assert r["lignes"] == 2 * r["cases"] + 1, r
+        assert abs(r["etendue"] - 2 * r["cases"] * pas) < 1e-3 * r["etendue"], r
+    # les trois zooms ne mesurent pas trois fois le même pas
+    assert len({r["annonce"] for r in sortie}) == 3, sortie
+
+
+def test_la_TRAME_du_repere_ne_se_CONFOND_pas_avec_le_plateau():
+    """DEUX GRILLES DE PAS DIFFÉRENTS, ET UN SEUL PAS ANNONCÉ.
+
+    Le plateau de /lib3d/plaque.js et la trame de ce repère peuvent être à
+    l'écran EN MÊME TEMPS, et ils ne portent pas le même pas : le plateau se
+    dimensionne sur l'empreinte de l'étalement (24 divisions, aucune
+    graduation), la trame porte le pas 1-2-5 que le rail annonce en chiffres.
+    Sous une même palette, l'utilisateur lit deux quadrillages et un seul
+    nombre — exactement la règle qui ment que cette tâche interdit.
+
+    La première écriture reprenait les deux gris du plateau en JUSTIFIANT la
+    reprise (« une seconde palette se lirait comme une seconde échelle ») :
+    l'argument était retourné, et c'est le contraire qui est vrai. On apparie
+    donc les deux tables plutôt que de le promettre en prose.
+
+    ET LA LIGNE CENTRALE N'EST PAS PLUS CLAIRE : GridHelper propose d'éclaircir
+    les deux lignes du milieu, or ce sont les axes, que le module dessine
+    par-dessus en rouge/vert/bleu. Deux marques pour un même centre, dont l'une
+    pâle, ne feraient que brouiller l'autre.
+    """
+    vue = _code("lib3d/viewer.js")
+    plq = _code("lib3d/plaque.js")
+    # les couleurs du plateau, lues LÀ-BAS et non recopiées ici
+    grille = re.search(r"new THREE\.GridHelper\([^)]*?"
+                       r"(0x[0-9a-f]{6}), (0x[0-9a-f]{6})\)", plq)
+    assert grille, "GridHelper du plateau introuvable"
+    plateau = {grille.group(1), grille.group(2)}
+    assert len(plateau) == 2, plateau
+    trame = {}
+    for nom in ("COULEUR_TRAME", "COULEUR_TRAME_CENTRE"):
+        m = re.search(r"^const " + nom + r" = ([^\n;]+);", vue, re.M)
+        assert m, nom
+        trame[nom] = m.group(1).strip()
+    assert trame["COULEUR_TRAME"] not in plateau, (trame, plateau)
+    assert trame["COULEUR_TRAME"].startswith("0x"), trame
+    # la ligne centrale EST la trame : les axes marquent déjà le centre.
+    assert trame["COULEUR_TRAME_CENTRE"] == "COULEUR_TRAME", trame
+
+
+def test_le_PLAN_de_la_TRAME_suit_le_REGARD_et_ne_papillote_pas():
+    """« UNE GRADUATION VISIBLE » — et elle ne l'était pas dans deux des cinq
+    vues nommées. La trame naissait dans le plan du sol ; vue par la tranche,
+    une grille est une LIGNE.
+
+    Ce que ce contrôle mesure est la HAUTEUR ÉCRAN de la trame, ses sommets
+    projetés par la vraie caméra, en unités de découpage où le cadre en fait 2 :
+
+        vue      trame FIGÉE dans XZ    trame posée par planDeTrame
+        libre        2,110·10²                2,110·10²      (plan y)
+        iso          1,548·10¹                1,548·10¹      (plan y)
+        dessus       1,896·10¹                1,896·10¹      (plan y)
+        face         1,161·10⁻¹⁵              1,896·10¹      (plan z)
+        profil       1,161·10⁻¹⁵              1,896·10¹      (plan x)
+
+    Et ce n'est pas un cas de coin : `axeEmpile` rend « z » pour les douze
+    pièces du modèle réel (0,0630 × 0,0880 × ~0), donc `VUE_DE_PLAQUE` désigne
+    « Face » comme la vue qui regarde l'étalement en face — celle-là même où la
+    graduation n'existait pas.
+
+    LE PLANCHER GARDE LA PRIORITÉ, ce qui préserve le point de vue historique :
+    |avant·y| vaut 0,3600 en libre et 0,5774 en isométrique, tous deux au-dessus
+    du seuil, quand « face » et « profil » valent zéro exactement.
+
+    PAS DE PAPILLOTEMENT, et on le BALAIE plutôt que de le croire : une orbite
+    complète en élévation, et le plan ne change qu'aux deux passages du seuil.
+    """
+    sortie = json.loads(_node_trois(
+        "projeter, orienter, cadrer, majRepere, marquerAuRepere, planDeTrame,"
+        " axeDeVue",
+        _table_js("etabli/etabli.js", "PROJECTION_DE_VUE") + "\n" + """
+      /* La hauteur ECRAN d'un objet : ses sommets par la vraie matrice. */
+      function hauteurEcran(api, objet) {
+        objet.updateMatrixWorld(true);
+        api.camera.updateMatrixWorld(true);
+        api.camera.updateProjectionMatrix();
+        const pos = objet.geometry.attributes.position;
+        let min = Infinity, max = -Infinity;
+        for (let i = 0; i < pos.count; i++) {
+          const v = new THREE.Vector3().fromBufferAttribute(pos, i)
+            .applyMatrix4(objet.matrixWorld).project(api.camera);
+          min = Math.min(min, v.y); max = Math.max(max, v.y);
+        }
+        return max - min;
+      }
+      const vues = ["libre", "iso", "face", "dessus", "profil"];
+      const rangs = vues.map((vue) => {
+        const api = monter(860, 824);
+        api.renderer.domElement.dispatchEvent = () => true;
+        poserModele(api, 3, 1.1, 0.4, 0, 0, 0);
+        projeter(api, PROJECTION_DE_VUE[vue]);
+        orienter(api, vue);
+        api.camera.updateMatrixWorld(true);
+        const avant = axeDeVue(api.camera.matrixWorld.elements);
+        const e = majRepere(api);
+        const posee = hauteurEcran(api, e.trame);
+        const rot = e.trame.rotation.toArray().slice(0, 3);
+        e.trame.rotation.set(0, 0, 0);         /* l'etat d'AVANT : figee en XZ */
+        const figee = hauteurEcran(api, e.trame);
+        return { vue, plan: e.plan, cosY: Math.abs(avant.y), posee, figee, rot };
+      });
+      /* LE BALAYAGE : une orbite complete en elevation, plan reporte. */
+      let plan = "y";
+      const suite = [];
+      for (let i = 0; i <= 720; i++) {
+        const a = (i / 720) * Math.PI * 2;
+        plan = planDeTrame({ x: Math.cos(a), y: Math.sin(a), z: 0 }, plan);
+        suite.push(plan);
+      }
+      const bascules = suite.filter((p, i) => i && p !== suite[i - 1]).length;
+      /* LE PLAN CHANGE SUR UNE VUE DEJA GRADUEE : pas et cases ne bougent
+         pas d'une vue nommee a l'autre, si bien qu'un memo qui ignore le plan
+         renvoie la trame d'avant et la laisse a plat. On orbite donc SUR PLACE
+         plutot que de repartir d'un canevas neuf. */
+      const suivi = monter(860, 824);
+      suivi.renderer.domElement.dispatchEvent = () => true;
+      poserModele(suivi, 3, 1.1, 0.4, 0, 0, 0);
+      projeter(suivi, PROJECTION_DE_VUE["libre"]); orienter(suivi, "libre");
+      const avantBascule = majRepere(suivi);
+      const memo = { plan: avantBascule.plan, pas: avantBascule.pas,
+                     cases: avantBascule.cases };
+      projeter(suivi, PROJECTION_DE_VUE["face"]); orienter(suivi, "face");
+      const apresBascule = majRepere(suivi);
+      const bascule = { avant: memo, apres: { plan: apresBascule.plan,
+        pas: apresBascule.pas, cases: apresBascule.cases },
+        hauteur: hauteurEcran(suivi, apresBascule.trame) };
+
+      /* LA MARQUE SUIT LE PLAN, elle n'est pas figee sur le sol : en « face »
+         (plan z) la descente doit rejoindre z = 0, pas y = 0 — figee, elle
+         plongerait dans le vide et ne se rapporterait a aucune case. */
+      const enFace = monter(860, 824);
+      enFace.renderer.domElement.dispatchEvent = () => true;
+      poserModele(enFace, 3, 1.1, 0.4, 0, 0, 0);
+      projeter(enFace, PROJECTION_DE_VUE["face"]); orienter(enFace, "face");
+      const eF = majRepere(enFace);
+      marquerAuRepere(enFace, [{ x: 1.7, y: -0.85, z: 2.35 }]);
+      const gF = enFace.scene.children.find((o) => o.name === "lib3d-repere");
+      const mF = gF.children[gF.children.length - 1];
+      const pF = Array.from(mF.geometry.attributes.position.array);
+      const segF = [];
+      for (let i = 0; i < pF.length; i += 6) {
+        segF.push([pF.slice(i, i + 3), pF.slice(i + 3, i + 6)]);
+      }
+      /* LA PORTEE COMPTE LES TROIS AXES : une cible haute en Y est aussi loin
+         de l'origine qu'une cible lointaine en X des que le plan est XY. */
+      const haut = monter(860, 824);
+      haut.renderer.domElement.dispatchEvent = () => true;
+      poserModele(haut, 3, 1.1, 0.4, 0, 40, 0);
+      projeter(haut, PROJECTION_DE_VUE["face"]); orienter(haut, "face");
+      const eH = majRepere(haut);
+      /* L'AXE DE VUE, par un second chemin : getWorldDirection de three.js. */
+      const temoin = monter(860, 824);
+      poserModele(temoin, 3, 1.1, 0.4, 0, 0, 0);
+      projeter(temoin, "orthographique"); orienter(temoin, "iso");
+      temoin.camera.updateMatrixWorld(true);
+      const d = temoin.camera.getWorldDirection(new THREE.Vector3());
+      console.log(JSON.stringify({ rangs, bascules, bascule,
+        planFace: eF.plan, segF, pasFace: eF.pas,
+        porteeHaut: eH.cases * eH.pas, cibleHaut: haut.controls.target.y,
+        axeLu: axeDeVue(temoin.camera.matrixWorld.elements),
+        axeTrois: d.toArray() }));
+    """))
+    attendu = {"libre": "y", "iso": "y", "dessus": "y",
+               "face": "z", "profil": "x"}
+    for r in sortie["rangs"]:
+        quoi = r["vue"]
+        assert r["plan"] == attendu[quoi], (quoi, r)
+        # LA TRAME SE VOIT — dans les cinq vues, et largement.
+        assert r["posee"] > 1.0, (quoi, r)
+        if attendu[quoi] == "y":
+            # le plancher est gardé : rien n'a bougé pour ces trois-là
+            assert abs(r["posee"] - r["figee"]) < 1e-9, (quoi, r)
+            assert r["cosY"] >= 0.25, (quoi, r)
+            assert r["rot"] == [0, 0, 0], (quoi, r)
+        else:
+            # …et là où elle était PLATE, elle ne l'est plus. Le rapport est de
+            # seize ordres de grandeur : ce n'est pas une amélioration, c'est
+            # une capacité qui n'existait pas.
+            assert r["figee"] < 1e-9, (quoi, r)
+            assert r["posee"] / max(r["figee"], 1e-300) > 1e12, (quoi, r)
+            assert r["cosY"] < 1e-9, (quoi, r)
+            assert r["rot"] != [0, 0, 0], (quoi, r)
+    # DEUX BASCULES PAR TOUR, et pas une de plus : le plancher est quitté puis
+    # repris une fois de chaque côté. Un plan qui papillote reconstruirait la
+    # géométrie à chaque image.
+    assert sortie["bascules"] == 4, sortie["bascules"]
+    # LE PLAN BASCULE SUR UNE VUE DÉJÀ GRADUÉE. Le pas et le nombre de cases
+    # sont IDENTIQUES avant et après — c'est ce qui rend le piège muet : un mémo
+    # qui ne compare que ces deux-là rend la trame d'avant, laissée à plat, et
+    # rien ne lève. On vérifie donc que le plan a changé ET que la trame est
+    # redevenue visible.
+    b = sortie["bascule"]
+    assert b["avant"]["plan"] == "y" and b["apres"]["plan"] == "z", b
+    assert b["avant"]["pas"] == b["apres"]["pas"], b
+    assert b["avant"]["cases"] == b["apres"]["cases"], b
+    assert b["hauteur"] > 1.0, b
+    # LA MARQUE SUIT LE PLAN : en « face » la descente rejoint z = 0, et le
+    # pied de la descente n'est PAS sur y = 0. Figée sur le sol, elle aurait
+    # plongé dans le vide sans se rapporter à aucune case.
+    assert sortie["planFace"] == "z", sortie["planFace"]
+    pieds = [b for a, b in sortie["segF"]
+             if abs(a[0] - 1.7) < 1e-4 and abs(a[1] + 0.85) < 1e-4
+             and abs(a[2] - 2.35) < 1e-4]
+    descente = [b for b in pieds if abs(b[2]) < 1e-4]
+    assert descente, sortie["segF"]
+    assert abs(descente[0][0] - 1.7) < 1e-4, descente     # x conservé
+    assert abs(descente[0][1] + 0.85) < 1e-4, descente    # y conservé, PAS mis à 0
+    # LA PORTÉE COMPTE LES TROIS AXES : une cible à 40 en Y est rejointe.
+    assert abs(sortie["cibleHaut"] - 40) < 1e-6, sortie["cibleHaut"]
+    assert sortie["porteeHaut"] >= 40, sortie["porteeHaut"]
+    # L'AXE DE VUE EST CELUI DE three.js, lu par un second chemin.
+    for a, b in zip([sortie["axeLu"]["x"], sortie["axeLu"]["y"],
+                     sortie["axeLu"]["z"]], sortie["axeTrois"]):
+        assert abs(a - b) < 1e-12, (sortie["axeLu"], sortie["axeTrois"])
+
+
+def test_le_bloc_du_repere_ne_PEUT_PAS_ecrire_un_millimetre_de_plus():
+    """LA NÉGATIVE QUI MANQUAIT, et son absence était démontrable : ajouter
+    dans la branche « aucune taille cible » un ` · soit ${(REP.pas *
+    1000).toFixed(1)} mm` passait tous les contrôles. Des millimètres inventés,
+    sans cible, sans toucher `REP.echelle` — donc sous le compte rigide qui
+    était le seul verrou. La couche FORMATAGE était tenue ; la couche ÉCRITURE
+    ne l'était pas.
+
+    Le remède est celui de /lib3d/plaque.js, dont l'en-tête interdit `" mm"`
+    dans tout le module : ici l'unité ne s'écrit QU'À TRAVERS `uniteCourante()`,
+    donc toujours par une interpolation `${…}` — et jamais collée à un espace.
+    Un suffixe en dur en porte forcément un.
+
+    Assertions NÉGATIVES, donc posées sur `_code()` : la prose de ce bloc
+    explique longuement d'où les millimètres viennent, et un `not in` nu serait
+    satisfait par elle. La dernière ligne en fait le témoin.
+    """
+    bloc = _bloc_repere()
+    assert " mm" not in bloc
+    # …et le TOKEN lui-même ne vit qu'en deux endroits nommés : l'unité rendue
+    # par uniteCourante, et l'indice du champ de saisie. Un troisième est un
+    # site qui pourrait écrire un millimètre sans passer par la garde.
+    sites = re.findall(r"(?<![A-Za-z])mm(?![A-Za-z])", bloc)
+    assert len(sites) == 2, (len(sites), sites)
+    assert bloc.count('placeholder="mm"') == 1
+    unite = _fonction_etabli("uniteCourante")
+    assert unite.count('"mm"') == 1
+    # LE TÉMOIN : la prose, elle, en parle — et le bloc ENTIER la contient.
+    assert " mm" in _bloc_repere(_lire("etabli/etabli.js"))
+    # …et le reste de la page n'en écrit pas davantage : `direRefus` dit
+    # « millimètres » en toutes lettres, jamais l'abréviation.
+    assert "millimètres" in _fonction_etabli("poserCible")
+
+
+def test_montrerRepere_ETEINT_VRAIMENT_le_repere():
+    """L'APPEL ÉTAIT GARDÉ, L'EFFET NE L'ÉTAIT PAS. Vider le corps de
+    `montrerRepere()` en gardant les deux littéraux que le banc épinglait
+    laissait tout au vert — et la vignette de la Bibliothèque serait repartie
+    avec un quadrillage en travers du maillage.
+
+    On l'exécute donc : on éteint, on lit `visible`, on rétablit avec ce que la
+    fonction a rendu, et on vérifie que la vue est revenue à son état d'avant.
+    """
+    sortie = json.loads(_node_trois(
+        "cadrer, majRepere, montrerRepere",
+        """
+      const api = monter(860, 824);
+      api.renderer.domElement.dispatchEvent = () => true;
+      poserModele(api, 3, 1.1, 0.4, 7, -2, 0.5);
+      cadrer(api);
+      majRepere(api);
+      const groupe = api.scene.children.find((o) => o.name === "lib3d-repere");
+      const r = { depart: groupe.visible };
+      r.rendu = montrerRepere(api, false);
+      r.eteint = groupe.visible;
+      montrerRepere(api, r.rendu);
+      r.retabli = groupe.visible;
+      /* …et sur une vue SANS repere construit, elle ne ment pas : `false`. */
+      const vierge = monter(430, 824);
+      r.vierge = montrerRepere(vierge, false);
+      console.log(JSON.stringify(r));
+    """))
+    assert sortie["depart"] is True, sortie
+    assert sortie["rendu"] is True, sortie          # l'état d'AVANT, pas un vœu
+    assert sortie["eteint"] is False, sortie        # …et l'effet a bien eu lieu
+    assert sortie["retabli"] is True, sortie
+    assert sortie["vierge"] is False, sortie
