@@ -3355,6 +3355,19 @@ def test_la_liste_laterale_a_une_pastille_et_un_oeil_par_piece():
     # la bascule vit dans l'en-tête, avec les contrôles de la VUE
     assert 'id="btnPlaque"' in _lire("etabli/index.html")
     assert '$("#btnPlaque").addEventListener("click", basculerPlaque);' in js
+    # ET LE LIBELLÉ EST POSÉ AU DÉMARRAGE. index.html livre le bouton SANS
+    # texte, délibérément : son libellé change avec l'état, et deux sources
+    # pour un même texte divergent à la première retouche. Sans cet appel au
+    # premier niveau du module, le bouton de l'en-tête naît VIDE — l'échec
+    # silencieux que ce fichier traque partout. Jumeau exact du
+    # `assert "rendreFiche();" in js  # et il est APPELÉ` de la tâche 2.
+    #
+    # Les ancres de COLONNE 0 ne sont pas décoratives : `majBoutonPlaque();`
+    # est aussi appelé DANS oublierPlaque(), où il est indenté. Un `in js` nu
+    # serait donc satisfait par cet appel-là, et le bouton pourrait naître
+    # vide en gardant le banc vert.
+    assert re.search(r"^rendreParties\(\);$.*?^majBoutonPlaque\(\);$"
+                     r".*?^rendreFiche\(\);$", js, re.M | re.S)
     # les règles qui rendent le bloc LISIBLE
     assert ".plaque-oeil {" in css
     assert ".pastille {" in css
@@ -3366,6 +3379,29 @@ def test_la_liste_laterale_a_une_pastille_et_un_oeil_par_piece():
     # et la liste borne sa propre hauteur, sinon un modèle à cinquante nœuds
     # chasse les boutons d'isolation hors du rail
     assert "max-height" in css.split(".plaque-liste {", 1)[1].split("}", 1)[0]
+
+
+def test_les_noeuds_sans_geometrie_sont_COMPTES_ET_DITS():
+    """`vides` est le jumeau de `partages` : une mesure que la plaque fait et
+    que le panneau doit DIRE. Sur un modèle à pivot vide, le panneau Parties
+    liste treize nœuds et la plaque en montre douze — sans un mot, l'écart se
+    lit comme une pièce perdue.
+
+    Le champ était rendu par `etaler` et lu par PERSONNE. Une surface publique
+    morte est une promesse qu'on croira tenue : soit on la dit, soit on la
+    retire. On la dit, comme `partages`.
+    """
+    js, code = _lire("etabli/etabli.js"), _code("etabli/etabli.js")
+    # il est COMPTÉ dans le module...
+    assert "vides++" in _code("lib3d/plaque.js")
+    assert "partages, vides," in _code("lib3d/plaque.js")
+    # ...REMONTÉ jusqu'à l'état du panneau...
+    assert "PLQ.vides = vue.vides;" in code
+    assert "vides: 0 };" in code
+    # ...et DIT à l'écran, dans la même note que `partages`.
+    liste = _plaque_liste()
+    assert "PLQ.vides" in liste
+    assert "sans géométrie ne sont pas étalés" in js
 
 
 def test_l_oeil_NE_TOUCHE_PAS_a_la_selection_du_panneau_Parties():
@@ -3467,6 +3503,29 @@ def _fonction_plaque(nom: str) -> str:
     return js[i:j + 2].replace("export function", "function", 1)
 
 
+def _resoudre(a, d):
+    """Résout A·x = d par élimination de Gauss avec pivot partiel.
+
+    SECOND ALGORITHME, délibérément : `versLocalLineaire` inverse par les
+    cofacteurs, et recopier cette même algèbre ici n'aurait vérifié qu'une
+    faute de frappe. Deux chemins qui tombent sur le même nombre, c'est une
+    mesure ; un seul chemin écrit deux fois, c'est un écho.
+    """
+    m = [list(ligne) + [v] for ligne, v in zip(a, d)]
+    n = len(m)
+    for col in range(n):
+        piv = max(range(col, n), key=lambda r: abs(m[r][col]))
+        m[col], m[piv] = m[piv], m[col]
+        assert abs(m[col][col]) > 1e-12, "matrice singuliere"
+        for r in range(n):
+            if r == col:
+                continue
+            k = m[r][col] / m[col][col]
+            for c in range(col, n + 1):
+                m[r][c] -= k * m[col][c]
+    return [m[r][n] / m[r][r] for r in range(n)]
+
+
 def _constantes_plaque(*noms: str) -> str:
     """Les constantes de plaque.js, VERBATIM, pour le harnais node.
 
@@ -3495,7 +3554,7 @@ def _node(source: str) -> str:
     """
     node = shutil.which("node")
     if not node:
-        pytest.skip("node absent : la regle ne peut pas etre EXECUTEE ici")
+        pytest.skip("node absent : la règle ne peut pas être EXÉCUTÉE ici")
     r = subprocess.run([node, "-e", source], capture_output=True, timeout=60)
     assert r.returncode == 0, r.stderr.decode("utf-8", "replace")[:600]
     return r.stdout.decode("utf-8", "replace")
@@ -3549,7 +3608,7 @@ def test_les_pieces_sont_CELLES_DU_PANNEAU_et_non_l_enveloppe_de_reparation():
       console.log(p.length + "|" + noms(p));
     """)
     combien, noms = sortie.strip().split("|")
-    assert int(combien) == 12, f"{combien} piece(s) au lieu de 12 : {noms}"
+    assert int(combien) == 12, f"{combien} pièce(s) au lieu de 12 : {noms}"
     assert "fond-matiere" in noms and "typographie_verso" in noms
     # et surtout PAS les contenants : ce sont des enveloppes, pas des volumes.
     # Les étaler ferait voyager la carte entière d'un bloc — le défaut mesuré.
@@ -3580,7 +3639,7 @@ def test_un_maillage_MULTI_PRIMITIVES_reste_UNE_piece():
       console.log(p.length + "|" + noms(p));
     """)
     combien, noms = sortie.strip().split("|")
-    assert int(combien) == 1, f"{combien} piece(s) : {noms}"
+    assert int(combien) == 1, f"{combien} pièce(s) : {noms}"
     assert noms == "meshy_0"
 
 
@@ -3598,7 +3657,7 @@ def test_un_noeud_indexe_SANS_geometrie_n_est_pas_une_piece():
       console.log(p.length + "|" + noms(p));
     """)
     combien, noms = sortie.strip().split("|")
-    assert int(combien) == 1, f"{combien} piece(s) : {noms}"
+    assert int(combien) == 1, f"{combien} pièce(s) : {noms}"
     assert noms == "piece_pleine"
 
 
@@ -3630,7 +3689,7 @@ def test_AUCUNE_piece_n_en_contient_une_autre():
       console.log(p.length + "|" + noms(p) + "|" + dedans);
     """)
     combien, noms, dedans = sortie.strip().split("|")
-    assert dedans == "false", f"des pieces imbriquees : {noms}"
+    assert dedans == "false", f"des pièces imbriquées : {noms}"
     assert int(combien) == 1 and noms == "c"
 
 
@@ -3738,12 +3797,12 @@ def test_les_douze_pieces_REELLES_forment_une_GRILLE_et_non_une_pile():
     """ % _CARTE_REELLE)
     etageres, chev, largeur, profondeur = sortie.strip().split("|")
     rangees = [int(n) for n in etageres.split("+")]
-    assert int(chev) == 0, f"des pieces se chevauchent : {etageres}"
+    assert int(chev) == 0, f"des pièces se chevauchent : {etageres}"
     assert sum(rangees) == 12, etageres
     # PLUSIEURS par rangée : c'est tout l'écart entre une grille et une pile.
-    assert len(rangees) > 1, f"une seule etagere : {etageres}"
+    assert len(rangees) > 1, f"une seule étagère : {etageres}"
     assert min(rangees) >= 3, \
-        f"des rangees trop maigres ({etageres}) : on retombe vers la pile"
+        f"des rangées trop maigres ({etageres}) : on retombe vers la pile"
     # et l'empreinte reste à peu près carrée — un bandeau de douze cartes
     # obligerait à dézoomer jusqu'à ne plus rien distinguer.
     rapport = float(largeur) / float(profondeur)
@@ -3774,22 +3833,22 @@ def test_le_plateau_BASCULE_avec_le_plan_et_recule_d_un_cheveu():
 
 
 def test_la_MISE_EN_PLACE_des_douze_pieces_REELLES_est_EXECUTEE():
-    """LE BANC DE BOUT EN BOUT, sur les cotes VRAIES du modele de
-    l'utilisateur — lues dans son GLB, minimums et centres compris (la douzieme
-    piece, `ornements_verso`, est miroir des onze autres : son centre differe,
-    et c'est elle qui exerce l'arithmetique).
+    """LE BANC DE BOUT EN BOUT, sur les cotes VRAIES du modèle de
+    l'utilisateur — lues dans son GLB, minimums et centres compris (la
+    douzième pièce, `ornements_verso`, est miroir des onze autres : son centre
+    diffère, et c'est elle qui exerce l'arithmétique).
 
-    POURQUOI CE BANC EXISTE. Deux erreurs de suite sont passees dans cette
-    tache : les mauvaises pieces, puis le mauvais plan. Toutes deux vivaient
-    dans le cablage d'etaler(), qui manipule des Object3D et ne tourne donc
+    POURQUOI CE BANC EXISTE. Deux erreurs de suite sont passées dans cette
+    tâche : les mauvaises pièces, puis le mauvais plan. Toutes deux vivaient
+    dans le câblage d'etaler(), qui manipule des Object3D et ne tourne donc
     que dans un navigateur ; aucun miroir de texte ne pouvait les voir. La
-    decision a ete SORTIE dans `disposer`, pure, et la voici EXECUTEE. Ce que
-    ce banc verifie est ce que l'utilisateur verra :
+    décision a été SORTIE dans `disposer`, pure, et la voici EXÉCUTÉE. Ce que
+    ce banc vérifie est ce que l'utilisateur verra :
 
-      - l'etalement se fait dans le plan des pieces (z est l'axe d'empilement),
-      - aucune piece n'en recouvre une autre,
-      - plusieurs pieces PAR RANGEE — une grille, pas une pile,
-      - et chacune est posee AU CONTACT du plateau.
+      - l'étalement se fait dans le plan des pièces (z est l'axe d'empilement),
+      - aucune pièce n'en recouvre une autre,
+      - plusieurs pièces PAR RANGÉE — une grille, pas une pile,
+      - et chacune est posée AU CONTACT du plateau.
     """
     sortie = _node(
         _constantes_plaque("AXES", "SEUIL_APLATI", "ELANCEMENT",
@@ -3797,15 +3856,15 @@ def test_la_MISE_EN_PLACE_des_douze_pieces_REELLES_est_EXECUTEE():
         + _fonction_plaque("axeEmpile")
         + _fonction_plaque("rangerEnEtageres")
         + _fonction_plaque("disposer") + """
-      // Les douze pieces de assets3d/6e0a8a5f/model.v5.glb, lues dans le GLB.
-      // Toutes 0,0630 x 0,0880 x ~0 : des PLANS, pas des volumes.
+      // Les douze pièces de assets3d/6e0a8a5f/model.v5.glb, lues dans le GLB.
+      // Toutes 0,0630 × 0,0880 × ~0 : des PLANS, pas des volumes.
       const zmin = [-0.00073, -0.00038, -0.00003, -0.00073, 0.00067, 0.00102,
                     -0.00073, -0.00078, -0.00060, -0.00092, 0.00054, 0.00108];
       const zhaut = [0, 0, 0, 0.0011, 0, 0, 0, 0, 0, 0, 0, 0];
       const mesurees = zmin.map((zm, i) => ({
         cle: i,
         taille: { x: 0.0630, y: 0.0880, z: zhaut[i] },
-        // la douzieme est miroir : centre oppose en x et en y
+        // la douzième est miroir : centre opposé en x et en y
         centre: { x: i === 11 ? -0.01407 : 0.01407,
                   y: i === 11 ? 0.01213 : -0.01213,
                   z: zm + zhaut[i] / 2 },
@@ -3843,36 +3902,126 @@ def test_la_MISE_EN_PLACE_des_douze_pieces_REELLES_est_EXECUTEE():
     """)
     axe, chev, etageres, hors, combien = sortie.strip().split("|")
     assert int(combien) == 12, combien
-    # LE CAS QUI COMPTE : la carte s'etale dans SON plan, pas au sol.
+    # LE CAS QUI COMPTE : la carte s'étale dans SON plan, pas au sol.
     assert axe == "z", f"axe d'empilement {axe}"
-    assert int(chev) == 0, f"des pieces se recouvrent : {etageres}"
+    assert int(chev) == 0, f"des pièces se recouvrent : {etageres}"
     rangees = [int(n) for n in etageres.split("+")]
-    assert len(rangees) > 1, f"une seule etagere : {etageres}"
-    # PLUSIEURS par rangee : tout l'ecart entre une grille et une pile. Avant
-    # correctif, c'etait douze rangees d'UNE piece.
+    assert len(rangees) > 1, f"une seule étagère : {etageres}"
+    # PLUSIEURS par rangée : tout l'écart entre une grille et une pile. Avant
+    # correctif, c'étaient douze rangées d'UNE pièce.
     assert min(rangees) >= 3, \
-        f"des rangees trop maigres ({etageres}) : on retombe vers la pile"
-    # et chaque piece touche le plateau : son minimum sur l'axe d'empilement
-    # tombe exactement a zero.
-    assert int(hors) == 0, f"{hors} piece(s) ne touchent pas le plateau"
+        f"des rangées trop maigres ({etageres}) : on retombe vers la pile"
+    # et chaque pièce touche le plateau : son minimum sur l'axe d'empilement
+    # tombe exactement à zéro.
+    assert int(hors) == 0, f"{hors} pièce(s) ne touchent pas le plateau"
+
+
+def test_le_decalage_se_convertit_dans_l_espace_du_parent_EN_Z_UP():
+    """LE DERNIER MAILLON DE LA CHAÎNE DE PLACEMENT, et il dormait.
+
+    `versLocal` ramène le décalage d'étalement dans l'espace local du parent.
+    Sur le modèle mesuré il ne fait RIEN : `mesh_edit._ROT["Y"]` est
+    l'identité, donc une réparation en Y à l'échelle 1 le rend transparent, et
+    le remplacer par le décalage brut ne changerait pas un pixel. Une mesure
+    en navigateur ne pouvait donc pas le voir.
+
+    Mais « Z (Blender, Unreal) » est une option de premier rang du panneau
+    Fiche. Choisie, l'enveloppe de réparation porte une rotation de 90° et
+    TOUTES les pièces vivent dessous : cette conversion est alors la seule
+    chose qui tienne, et sans elle l'étalement enverrait chaque pièce à un
+    autre endroit que sa case.
+
+    LA MATRICE N'EST PAS RECOPIÉE ICI : elle est produite par le vrai
+    `_matrice(_ROT[...], s, t)` de mesh_edit. Le jour où la convention Z-up
+    change côté serveur, ce banc suit — une matrice recopiée, elle, aurait
+    mesuré une convention que plus personne n'applique.
+    """
+    from app.services.mesh_edit import _ROT, _matrice
+
+    def js_liste(m):
+        return "[" + ", ".join(repr(float(x)) for x in m) + "]"
+
+    zup = _matrice(_ROT["Z"], 1.0, (0.0, 0.0, 0.0))
+    zup2 = _matrice(_ROT["Z"], 2.0, (7.0, 8.0, 9.0))
+    yup = _matrice(_ROT["Y"], 1.0, (0.0, 0.0, 0.0))
+    # UNE MATRICE QUELCONQUE, et elle n'est pas décorative. Les matrices de
+    # `_matrice` sont creuses — une rotation d'axe porte six zéros — si bien
+    # qu'une faute d'indice tombe le plus souvent sur un zéro et ne se voit
+    # pas. MESURÉ : intervertir les colonnes et les lignes de la lecture
+    # (`e[4]` lu en `e[1]`) laissait ce banc VERT sur les seules matrices de
+    # mesh_edit. Celle-ci a ses neuf coefficients distincts et non nuls, et
+    # une échelle non uniforme : aucune faute d'indice n'y passe.
+    quelconque = [2.0, 0.0, 1.0, 0.0,
+                  1.0, 3.0, 0.0, 0.0,
+                  0.0, 1.0, 4.0, 0.0,
+                  11.0, 12.0, 13.0, 1.0]
+    sortie = _node(_fonction_plaque("versLocalLineaire") + """
+      const p = (o) => [o.x, o.y, o.z].map((v) => v.toFixed(4)).join(",");
+      console.log([
+        p(versLocalLineaire(%s, {x: 3, y: 5, z: 7})),
+        p(versLocalLineaire(%s, {x: 3, y: 5, z: 7})),
+        p(versLocalLineaire(%s, {x: 3, y: 5, z: 7})),
+        p(versLocalLineaire([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+                            {x: 3, y: 5, z: 7})),
+        p(versLocalLineaire(%s, {x: 3, y: 5, z: 7})),
+      ].join("|"));
+    """ % (js_liste(zup), js_liste(zup2), js_liste(yup),
+           js_liste(quelconque)))
+    z, z2, y, degenere, gen = sortie.strip().split("|")
+    # Z-up envoie +Y sur +Z : (x, y, z) -> (x, -z, y). L'inverse rend donc
+    # (3, 5, 7) sous la forme (3, 7, -5).
+    assert z == "3.0000,7.0000,-5.0000", z
+    # l'ÉCHELLE compte aussi, et la TRANSLATION du parent ne doit PAS compter :
+    # un décalage est un vecteur, pas un point.
+    assert z2 == "1.5000,3.5000,-2.5000", z2
+    # en Y-up — le cas mesuré — la conversion est un no-op, et c'est
+    # exactement pourquoi elle a besoin d'un banc plutôt que d'un navigateur.
+    assert y == "3.0000,5.0000,7.0000", y
+    # un parent écrasé à zéro n'a pas d'inverse : on rend le décalage tel quel
+    # plutôt que des NaN, qui feraient disparaître la pièce sans un mot.
+    assert degenere == "3.0000,5.0000,7.0000", degenere
+    # LE CONTRÔLE CROISÉ : la réponse attendue est calculée ICI, par une
+    # élimination de Gauss — un SECOND algorithme, pas la même algèbre des
+    # cofacteurs recopiée en Python, qui n'aurait rien vérifié du tout.
+    a = [[2.0, 1.0, 0.0], [0.0, 3.0, 1.0], [1.0, 0.0, 4.0]]
+    attendu = _resoudre(a, [3.0, 5.0, 7.0])
+    assert gen == ",".join(f"{v:.4f}" for v in attendu), (gen, attendu)
+
+
+def test_le_placement_PASSE_par_le_helper_pur():
+    """Le miroir qui interdit de contourner le helper : sans lui, la
+    conversion retournerait dans du three.js, hors de portée de tout banc —
+    et c'est précisément la catégorie qui a laissé passer deux défauts.
+    """
+    code = _code("lib3d/plaque.js")
+    vl = code.split("function versLocal(parent, deltaMonde)", 1)[1] \
+             .split("\n}\n", 1)[0]
+    assert "versLocalLineaire(parent.matrixWorld.elements, deltaMonde)" in vl
+    # la part calculatoire est PURE : c'est ce qui la rend exécutable
+    pur = code.split("export function versLocalLineaire", 1)[1] \
+              .split("\n}\n", 1)[0]
+    assert "THREE." not in pur
+    # et le placement l'emprunte vraiment
+    et = code.split("export function etaler(api)", 1)[1].split("\n}\n", 1)[0]
+    assert "versLocal(parent, decalage)" in et
 
 
 def test_le_cablage_d_etaler_PASSE_par_la_mise_en_place():
     """Le miroir de texte qui reste, et il ne garde qu'une chose : que le
-    cablage d'etaler() consomme bien `disposer` plutot que de refaire le calcul
-    au sol. Le COMPORTEMENT est garde par le banc execute ci-dessus ; ceci
-    interdit qu'on le contourne.
+    câblage d'etaler() consomme bien `disposer` plutôt que de refaire le
+    calcul au sol. Le COMPORTEMENT est gardé par le banc exécuté plus haut ;
+    celui-ci interdit qu'on le contourne.
     """
     code = _code("lib3d/plaque.js")
     et = code.split("export function etaler(api)", 1)[1].split("\n}\n", 1)[0]
     assert "const mise = disposer(mesurees);" in et
     assert "const d = mise.decalages.get(m.cle);" in et
     assert "new THREE.Vector3(d.x, d.y, d.z)" in et
-    # et rien n'est plus decide sur place : ni plan, ni marge, ni rangement
+    # et rien n'est plus décidé sur place : ni plan, ni marge, ni rangement
     for refait in ("axeEmpile(", "rangerEnEtageres(", "MARGE_RELATIVE"):
         assert refait not in et, refait
-    # `disposer`, elle, ne connait pas three.js : c'est ce qui la rend
-    # mesurable, et c'est la lecon des deux defauts de cette tache.
+    # `disposer`, elle, ne connaît pas three.js : c'est ce qui la rend
+    # mesurable, et c'est la leçon des deux défauts de cette tâche.
     dis = code.split("export function disposer(mesurees)", 1)[1] \
               .split("\n}\n", 1)[0]
     assert "THREE." not in dis

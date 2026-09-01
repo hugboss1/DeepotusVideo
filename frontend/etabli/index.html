@@ -39,10 +39,13 @@
       <!-- La sortie de l'écran, et elle est à GAUCHE, avant le titre : cette
            page remplace le graphe DANS l'iframe du hub, elle doit donc rendre
            la main là où on cherche un retour. `.head-right` porte les
-           contrôles de la VUE (« A/B ✕ ») ; y poser une navigation ferait du
-           bouton qui QUITTE la page le voisin de celui qui ferme un panneau.
-           `head-btn` sur les DEUX boutons de l'en-tête : c'est la classe qui
-           les rend identiques, jamais leur `id` — voir etabli.css. -->
+           contrôles de la VUE — « Sur la plaque » et « A/B ✕ » ; y poser une
+           navigation ferait du bouton qui QUITTE la page le voisin de celui
+           qui ferme un panneau.
+           `head-btn` sur les TROIS boutons de l'en-tête : c'est la classe qui
+           les rend identiques, jamais leur `id` — voir etabli.css. Un banc
+           compare le nombre de `<button>` de l'en-tête à celui des porteurs
+           de la classe, pour qu'un quatrième ne naisse pas nu. -->
       <button class="head-btn" id="btnRetour" title="Revenir au graphe du 3D Studio">← 3D Studio</button>
       <span class="head-title">Établi</span>
       <span class="head-chip" id="chipSource">—</span>

@@ -55,7 +55,7 @@ const SEL = { granularite: "maillage", retenus: new Set() };
    comme celle de son nœud. (Même règle que pour S : toute clé se déclare
    ICI.) */
 const PLQ = { active: false, pieces: [], masquees: new Set(),
-              teintes: new Map(), partages: 0 };
+              teintes: new Map(), partages: 0, vides: 0 };
 
 /* La clé interne d'une granularité et son LIBELLÉ ne sont pas la même chose.
    Les clés (« noeud », « materiau ») sont des identifiants sans accents, qui
@@ -788,7 +788,10 @@ function basculerPlaque() {
   PLQ.pieces = vue.pieces;
   PLQ.teintes = vue.teintes;
   PLQ.partages = vue.partages;
-  PLQ.masquees.clear();
+  /* `masquees` n'est PAS vidée ici : oublierPlaque() en répond, et tout
+     chemin de sortie de la plaque passe par lui. Une seconde remise à zéro
+     ferait chercher au lecteur une divergence qui n'existe pas. */
+  PLQ.vides = vue.vides;
   /* L'empreinte étalée est bien plus large que le modèle assemblé : sans
      re-cadrage, la plaque naîtrait pour moitié hors champ. */
   cadrer(S.vueA);
@@ -825,6 +828,7 @@ function oublierPlaque() {
   PLQ.pieces = [];
   PLQ.teintes = new Map();
   PLQ.partages = 0;
+  PLQ.vides = 0;
   PLQ.masquees.clear();
   majBoutonPlaque();
 }
@@ -917,7 +921,9 @@ function rendreParties() {
         >${PLQ.masquees.has(x.cle) ? "◌" : "◉"}</button>
       </div>`).join("")}</div>
     <p class="plaque-note">Vue seulement : le modèle assemblé reste la
-      vérité, rien n'est modifié ni écrit.${PLQ.partages
+      vérité, rien n'est modifié ni écrit.${PLQ.vides
+        ? ` ${PLQ.vides} nœud(s) sans géométrie ne sont pas étalés : un
+      contenant n'a rien à montrer, et son œil ne commanderait rien.` : ""}${PLQ.partages
         ? ` ${PLQ.partages} matériau(x) partagé(s) entre pièces — leur teinte
       sur le modèle n'est pas fidèle (le dernier parcouru gagne) ; la
       pastille, elle, l'est.` : ""}</p>`;

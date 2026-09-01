@@ -282,15 +282,52 @@ export function disposer(mesurees) {
            largeur: plan.largeur, profondeur: plan.profondeur };
 }
 
-/* Un déplacement exprimé dans le MONDE, ramené dans l'espace local d'un
-   parent. Indispensable dès qu'un nœud glTF est imbriqué sous un nœud qui
-   tourne ou change d'échelle : poser le décalage monde tel quel y enverrait
-   la pièce ailleurs. On transforme deux points et on soustrait — la
-   translation du parent s'annule, sa rotation et son échelle non. */
+/* ── un décalage du MONDE, ramené dans l'espace local d'un parent ──────────
+   DERNIER MAILLON DE LA CHAÎNE DE PLACEMENT, et le plus discret. Un nœud glTF
+   imbriqué sous un nœud qui tourne ou change d'échelle ne reçoit pas le
+   décalage monde tel quel : posé sans conversion, il envoie la pièce
+   ailleurs.
+
+   ET IL DORT SUR LE MODÈLE COURANT. `mesh_edit._ROT["Y"]` est l'IDENTITÉ :
+   sur une réparation en Y à l'échelle 1 — le cas mesuré — cette fonction est
+   un no-op, et la remplacer par le décalage brut ne changerait pas un pixel.
+   Le jour où l'utilisateur choisit « Z (Blender, Unreal) » dans le panneau
+   Fiche, l'enveloppe de réparation porte une rotation de 90° et TOUTES les
+   pièces vivent dessous : elle est alors la seule chose qui tienne. C'est
+   pourquoi sa part calculatoire est PURE et exécutée au banc contre la
+   matrice que `_matrice(_ROT["Z"], s, t)` produit vraiment — la leçon de
+   `disposer`, appliquée au maillon qui restait hors de portée.
+
+   POURQUOI LE BLOC 3×3 SUFFIT. Avec M = [A t ; 0 1], l'inverse vaut
+   [A⁻¹ −A⁻¹t ; 0 1], si bien que M⁻¹·d − M⁻¹·0 = A⁻¹·d : la translation
+   s'annule d'elle-même. On inverse donc A, et rien d'autre. (L'écriture
+   précédente transformait deux points et soustrayait — le même nombre, par
+   un chemin qui traînait la translation pour l'annuler ensuite.)
+
+   `elements` est le tableau de 16 nombres de three.js, rangé en COLONNES. */
+export function versLocalLineaire(elements, d) {
+  const e = elements;
+  const a = e[0], b = e[4], c = e[8];
+  const f = e[1], g = e[5], h = e[9];
+  const i = e[2], j = e[6], k = e[10];
+  const co0 = g * k - h * j, co1 = h * i - f * k, co2 = f * j - g * i;
+  const det = a * co0 + b * co1 + c * co2;
+  /* Un parent écrasé à zéro sur un axe n'a pas d'inverse. On rend alors le
+     décalage TEL QUEL plutôt que des NaN : une pièce mal placée se voit et se
+     corrige, une pièce aux coordonnées NaN disparaît de l'écran sans un mot,
+     et le modèle passerait pour cassé. */
+  if (!det) return { x: d.x, y: d.y, z: d.z };
+  const n = 1 / det;
+  return {
+    x: n * (co0 * d.x + (c * j - b * k) * d.y + (b * h - c * g) * d.z),
+    y: n * (co1 * d.x + (a * k - c * i) * d.y + (c * f - a * h) * d.z),
+    z: n * (co2 * d.x + (b * i - a * j) * d.y + (a * g - b * f) * d.z),
+  };
+}
+
 function versLocal(parent, deltaMonde) {
-  const inv = new THREE.Matrix4().copy(parent.matrixWorld).invert();
-  const origine = new THREE.Vector3(0, 0, 0).applyMatrix4(inv);
-  return deltaMonde.clone().applyMatrix4(inv).sub(origine);
+  const d = versLocalLineaire(parent.matrixWorld.elements, deltaMonde);
+  return new THREE.Vector3(d.x, d.y, d.z);
 }
 
 /* ── le plateau et sa grille ────────────────────────────────────────────────
@@ -348,7 +385,13 @@ export function estEtalee(api) {
 export function etaler(api) {
   if (!api || !api.racine) return null;
   /* Jamais deux étalements empilés : le second mesurerait des boîtes DÉJÀ
-     décalées et enverrait les pièces deux fois plus loin. */
+     décalées et enverrait les pièces deux fois plus loin.
+
+     GARDE DÉFENSIVE, ET AUCUN APPELANT NE L'ATTEINT : basculerPlaque() teste
+     `PLQ.active` avant d'appeler, et les deux états ne peuvent pas diverger
+     — oublierPlaque() les remet à zéro ensemble. Elle est écrite pour qui
+     appellerait etaler() deux fois de suite depuis ailleurs ; elle n'est donc
+     pas mesurée, et il ne faut pas la lire comme si elle l'était. */
   if (_etats.has(api)) ranger(api);
   /* Les boîtes se lisent dans le monde : sans cette mise à jour, une pièce
      dont la matrice n'a pas encore été recalculée serait mesurée à sa pose
