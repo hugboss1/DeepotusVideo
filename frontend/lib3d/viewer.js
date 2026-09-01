@@ -23,6 +23,17 @@ export function creerCanevas(canvas) {
   scene.background = new THREE.Color(0x14161a);
   const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 5000);
   camera.position.set(2.5, 1.8, 3.2);
+  /* LES DEUX CAMÉRAS NAISSENT ENSEMBLE, et l'orthographique n'attend pas le
+     premier clic sur « Isométrique ». Une caméra fabriquée en cours de route
+     arriverait APRÈS OrbitControls, après le gizmo et après le câblage de la
+     comparaison A/B — trois objets qui retiennent chacun une référence de
+     caméra et qu'il faudrait alors penser à prévenir. Elles coûtent une
+     matrice chacune ; le rendu n'en consomme qu'une.
+     Le cadre (-1, 1, 1, -1) est une amorce, pas un choix : cadrer() le réécrit
+     au premier modèle et redimensionner() en refait la largeur à chaque
+     changement de taille. */
+  const cameraOrtho = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.01, 5000);
+  cameraOrtho.position.copy(camera.position);
   const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
 
@@ -33,8 +44,18 @@ export function creerCanevas(canvas) {
 
   /* RÈGLE : toute clé de `api` se déclare ICI, `null` compris — c'est le seul
      endroit lisible où le contrat de forme existe, et s'il cesse d'être
-     exhaustif il ne le redeviendra jamais. */
-  const api = { renderer, scene, camera, controls, racine: null, gltf: null };
+     exhaustif il ne le redeviendra jamais.
+
+     `camera` est la caméra ACTIVE — celle que la boucle rend, celle que le
+     gizmo pique, celle que cadrer() pose. Elle POINTE sur l'une des deux
+     suivantes et n'est jamais un troisième objet : au départ `api.camera ===
+     api.cameraPerspective`, et projeter() la fait basculer. `projection` et
+     `vue` disent en toutes lettres ce que la caméra active est en train de
+     faire — un lecteur ne doit pas avoir à le déduire d'un
+     `isOrthographicCamera`. */
+  const api = { renderer, scene, camera, controls, racine: null, gltf: null,
+                cameraPerspective: camera, cameraOrthographique: cameraOrtho,
+                projection: "perspective", vue: "libre" };
 
   function redimensionner() {
     const w = canvas.clientWidth || 1, h = canvas.clientHeight || 1;
@@ -49,15 +70,30 @@ export function creerCanevas(canvas) {
     const r = renderer.getPixelRatio();
     if (canvas.width !== Math.floor(w * r) || canvas.height !== Math.floor(h * r)) {
       renderer.setSize(w, h, false);
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
+      /* LES DEUX CAMÉRAS, et jamais `api.camera` seule : celle qui dort doit
+         retrouver le bon cadre à l'instant où on bascule dessus, sans quoi le
+         premier clic sur « Isométrique » après un redimensionnement rendrait
+         un modèle étiré.
+         ET SURTOUT : une OrthographicCamera N'A PAS d'`aspect`. Lui en écrire
+         un ne lève rien, ne fait rien et ne se voit nulle part — le modèle
+         reste simplement déformé. Son aspect vit dans left/right, qu'on refait
+         à demi-hauteur CONSTANTE : top/bottom sont la mémoire du cadrage, et
+         un redimensionnement n'a pas à y toucher. */
+      api.cameraPerspective.aspect = w / h;
+      api.cameraPerspective.updateProjectionMatrix();
+      const o = api.cameraOrthographique;
+      poserCadreOrtho(o, (o.top - o.bottom) / 2, w / h);
     }
   }
   (function boucle() {
     requestAnimationFrame(boucle);
     redimensionner();
     controls.update();
-    renderer.render(scene, camera);
+    /* `api.camera` et NON la variable `camera` de la fermeture : celle-ci
+       reste la perspective pour toujours, et la boucle rendrait donc la
+       perspective quoi qu'ait fait projeter() — une bascule sans effet, sans
+       erreur, et sans banc rouge. */
+    renderer.render(scene, api.camera);
   })();
   return api;
 }
@@ -115,71 +151,328 @@ export function vider(api) {
 const DIR = { x: 0.6, y: 0.45, z: 1 };
 const NORME_DIR = Math.hypot(DIR.x, DIR.y, DIR.z);          // 1,25
 
-/* Demi-largeur projetée du PIRE cas — le cube de côté 2·rayon — en unités de
-   rayon. Dérivation : la caméra regarde le centre depuis DIR, donc son axe z
-   vaut DIR normalisée et son axe droit normalize(up × zcam) avec up = (0,1,0),
-   soit (DIR.z, 0, −DIR.x)/hypot(DIR.x, DIR.z) — sa composante y est NULLE. La
-   demi-largeur projetée d'une boîte de demi-côtés (hx,hy,hz) vaut Σ hi·|ri|,
-   donc au plus rayon·(|rx|+|ry|+|rz|) = (DIR.x + DIR.z)/hypot(DIR.x, DIR.z).
-   Soit 1,6/1,16619 = 1,372 — et 1,372/1,6875 donne bien 0,813, le seuil que
-   la tâche 3 avait CALCULÉ sans le corriger. */
-const LARGEUR_PIRE_CAS = (Math.abs(DIR.x) + Math.abs(DIR.z))
-  / Math.hypot(DIR.x, DIR.z);                               // 1,372
+/* ── LE POINT DE VUE : cinq orientations, deux projections ──────────────────
 
-/* Cadre la caméra sur la boîte englobante. Indispensable : un modèle en
-   mètres et un modèle en centimètres donneraient l'un un point, l'autre un
-   mur — et deux étapes ne seraient pas comparables à l'œil. */
+   Les orientations NOMMÉES. `dir` est la direction où se POSE la caméra
+   depuis le centre — elle regarde donc vers −dir — et `haut` la référence de
+   « haut d'écran » dont la géométrie de cadrage a besoin.
+
+   `haut` N'EST JAMAIS ÉCRIT DANS `camera.up`, ET C'EST UN PIÈGE MESURÉ.
+   OrbitControls fige son repère à la CONSTRUCTION : ligne 406 du fichier
+   vendorisé, `this._quat = new Quaternion().setFromUnitVectors(object.up,
+   new Vector3(0, 1, 0))`, et update() ne le recalcule JAMAIS. Écrire
+   `camera.up` après coup laisserait donc l'orbite tourner dans l'ANCIEN
+   repère : le modèle pivoterait de travers sous la souris, sans erreur, sans
+   console, sans banc rouge. `up` reste (0, 1, 0) pour la vie de la page, et un
+   banc interdit à ce fichier de l'écrire.
+
+   D'OÙ VIENT ALORS LE (0, 0, −1) DE « DESSUS » ? De la sécurité de pôle de
+   three.js, et il est mesuré, pas supposé. Posée exactement au-dessus du
+   centre, la caméra a une colatitude nulle ; `Spherical.setFromVector3` rend
+   theta = atan2(0, 0) = 0 et `makeSafe()` relève phi à EPS = 1e-6, si bien que
+   le décalage repart vers +Z. `lookAt` avec up = (0, 1, 0) rend alors la base
+   (droite = +X, haut d'écran = −Z) : c'est exactement ce que décrit
+   `haut: (0, 0, −1)`. Un banc le refait par un second chemin — lookAt
+   reconstruit à la main — plutôt que de nous croire sur parole. Y poser
+   (0, 1, 0), parallèle à `dir`, ferait un produit vectoriel NUL, donc une
+   division par zéro, donc un NaN dans le cadre : écran noir, zéro erreur.
+
+   PAS DE « DERRIÈRE », PAS DE « DESSOUS ». Trois vues et une isométrique,
+   ce que la demande dit ; les faces opposées s'atteignent d'un demi-tour à la
+   souris, et six boutons dans un coin de canevas se lisent moins bien que
+   quatre.
+
+   ET RIEN ICI NE SUIT L'AXE D'EMPILEMENT DE LA PLAQUE. `axeEmpile` de
+   plaque.js choisit son plan d'étalement d'après les pièces — y pour des
+   volumes, z pour les cartes du modèle réel — si bien que « la vue qui regarde
+   la plaque en face » n'est pas toujours « dessus ». Faire suivre les boutons
+   ferait dire à « Dessus » qu'il regarde selon X un jour sur deux : un libellé
+   qui ment. Les trois vues restent donc les axes DU MODÈLE, ceux-là mêmes que
+   le serveur nomme dans `axe_haut` ; c'est l'Établi qui DIT laquelle des trois
+   fait face à la plaque quand elle est étalée (voir VUE_DE_PLAQUE dans
+   etabli.js). */
+const HAUT_Y = { x: 0, y: 1, z: 0 };
+const ORIENTATIONS = {
+  /* « libre » EST la vue historique, au chiffre près : c'est elle que la
+     tâche 3 a mesurée et dont le seuil 0,813 est sorti. */
+  libre:  { dir: DIR,                   haut: HAUT_Y },
+  /* ISOMÉTRIQUE au sens strict : (1, 1, 1) est la seule direction où les trois
+     axes se projettent à la même longueur. La direction historique
+     (0,6 · 0,45 · 1) est un trois-quarts, pas une isométrie — les confondre
+     rendrait le mot faux sur le bouton. */
+  iso:    { dir: { x: 1, y: 1, z: 1 },  haut: HAUT_Y },
+  face:   { dir: { x: 0, y: 0, z: 1 },  haut: HAUT_Y },
+  dessus: { dir: { x: 0, y: 1, z: 0 },  haut: { x: 0, y: 0, z: -1 } },
+  profil: { dir: { x: 1, y: 0, z: 0 },  haut: HAUT_Y },
+};
+
+/* PURE — et c'est ce qui la rend mesurable hors navigateur : elle ne rend que
+   des {x, y, z}. Un nom inconnu retombe sur la vue libre plutôt que de rendre
+   `undefined`, qui ferait sauter cadrer() sur une lecture de `.dir`. */
+export function orientationDe(nom) {
+  return ORIENTATIONS[nom] || ORIENTATIONS.libre;
+}
+
+/* PURE. La demi-largeur projetée du PIRE cas — le cube de côté 2·rayon — en
+   unités de rayon, pour une direction de vue et un haut d'écran donnés.
+
+   Dérivation : la caméra regarde le centre depuis `dir`, donc son axe z vaut
+   `dir` normalisée et son axe droit normalize(haut × zcam). La demi-largeur
+   projetée d'une boîte de demi-côtés (hx, hy, hz) vaut Σ hi·|ri|, donc au plus
+   rayon·(|rx| + |ry| + |rz|) pour le cube.
+
+   GÉNÉRALISE la constante que la tâche 3 avait calculée à la main pour DIR
+   seule, (DIR.x + DIR.z)/hypot(DIR.x, DIR.z) = 1,372 : un banc vérifie que
+   cette fonction rend le MÊME nombre par ce chemin-ci, à 1e-15. Il fallait la
+   généraliser, parce que le pire cas DÉPEND DE LA DIRECTION, et pas qu'un peu
+   — MESURÉ : 1,371989 en vue libre, 1,414214 (√2) en isométrique, 1,000000
+   sur les trois vues d'axe. Garder 1,372 partout aurait rogné l'isométrie de
+   3,1 % en largeur sous le seuil, et reculé les vues d'axe de 37 % pour rien. */
+export function largeurPireCas(dir, haut) {
+  const n = Math.hypot(dir.x, dir.y, dir.z);
+  const z = { x: dir.x / n, y: dir.y / n, z: dir.z / n };
+  /* Le produit vectoriel haut × zcam, écrit à la main : cette règle doit
+     pouvoir tourner dans node, où le spécifieur « three » n'est pas résolu. */
+  const rx = haut.y * z.z - haut.z * z.y;
+  const ry = haut.z * z.x - haut.x * z.z;
+  const rz = haut.x * z.y - haut.y * z.x;
+  const m = Math.hypot(rx, ry, rz);
+  return (Math.abs(rx) + Math.abs(ry) + Math.abs(rz)) / m;
+}
+
+/* PURE. TOUTE la décision de cadrage, en un appel et sans three.js — rendue
+   séparément parce qu'un banc-miroir ne peut pas voir un calcul faux : il faut
+   pouvoir l'EXÉCUTER sur des nombres.
+
+   Rend { seuil, recul, demiHauteur }, où `demiHauteur` est la demi-hauteur
+   VISIBLE au plan du centre. C'est la grandeur COMMUNE aux deux projections,
+   et c'est elle qui permet à l'isométrique de recevoir le même cadrage que la
+   perspective sans transposer une formule par analogie.
+
+   Le cadrage VERTICAL est inchangé depuis la tâche 3 : une demi-hauteur de
+   NORME_DIR·marge·rayon, soit 1,6875·rayon à la marge par défaut. Le facteur
+   NORME_DIR n'est plus la norme d'une direction — les autres vues ont la leur
+   — mais l'ÉCHELLE DE CADRAGE HÉRITÉE ; la changer déplacerait le cadrage de
+   la vue libre, que la tâche 3 a mesuré et que la demande exige de conserver.
+   Il tient debout pour les cinq vues : la demi-hauteur du pire cas vaut
+   1,4269·rayon en libre, 1,6330 en isométrique et 1,0000 sur un axe, toutes
+   sous 1,6875 — l'isométrie étant la plus juste, à 3,3 % de marge.
+
+   La demi-largeur visible en vaut `aspect` fois autant, quand le pire cas en
+   réclame largeurPireCas·rayon : il y a donc rognage dès que aspect <
+   largeurPireCas/(NORME_DIR·marge), et LÀ SEULEMENT on élargit, du facteur
+   exact qui manque, seuil/aspect. Au-dessus du seuil le cadrage ne bouge pas
+   d'un pixel — le `: 1` le dit. Pour la vue libre le seuil vaut 0,813030, à la
+   sixième décimale celui de la tâche 3.
+
+   CE QUE LE PASSAGE À L'ORTHOGRAPHIQUE CHANGE, et il fallait le mesurer : sous
+   perspective ce critère compare des étendues AU PLAN DU CENTRE alors que le
+   coin le plus PROCHE se projette un peu plus loin encore, si bien que la
+   correction ramenait le débordement à l'ordre de grandeur du vertical, pas à
+   zéro. Une projection parallèle n'a pas de coin plus proche : sous
+   l'orthographique le critère est EXACT, et sous le seuil le cube du pire cas
+   touche les deux bords à 1e-15 près. Un banc l'exécute sur les huit sommets.
+
+   COMPARABILITÉ : le recul ne dépend QUE de l'aspect, de la vue et de la marge
+   — jamais des proportions du modèle, alors qu'une largeur projetée mesurée
+   sur CE maillage aurait été plus fine. C'est délibéré. Deux canevas de même
+   aspect reçoivent ainsi le MÊME cadre, et leur échelle ne continue de
+   différer que par `rayon` — la normalisation qui rend deux modèles
+   comparables à l'œil. Un terme mesuré par modèle aurait reculé le plus large
+   des deux et fait croire qu'il était le plus petit : un cadrage qui diverge
+   détruit une comparaison aussi sûrement que deux angles de vue différents. */
+export function cadrageDe(rayon, aspect, marge, orientation) {
+  const seuil = largeurPireCas(orientation.dir, orientation.haut)
+    / (NORME_DIR * marge);
+  const recul = aspect < seuil ? seuil / aspect : 1;
+  return { seuil, recul, demiHauteur: NORME_DIR * (rayon * marge * recul) };
+}
+
+/* PURE. Les quatre bords d'une caméra orthographique, d'une demi-hauteur et
+   d'un aspect. C'EST ICI QUE L'ORTHO DIFFÈRE DE LA PERSPECTIVE : une
+   perspective rend sa demi-hauteur en DISTANCE — reculer agrandit le champ —
+   là où une ortho la rend en BORDS, reculer une ortho ne changeant
+   strictement rien à son image. Transposer la formule de distance par analogie
+   aurait donné une caméra qui ne cadre plus jamais rien. */
+export function cadreOrtho(demiHauteur, aspect) {
+  const dl = demiHauteur * aspect;
+  return { left: -dl, right: dl, top: demiHauteur, bottom: -demiHauteur };
+}
+
+/* PURE. La demi-hauteur VISIBLE au plan de la cible, pour l'une ou l'autre
+   projection. C'est la seule grandeur par laquelle une bascule peut promettre
+   « même taille à l'écran », et `zoom` y entre des deux côtés : OrbitControls
+   zoome une ortho par `camera.zoom` et une perspective en la déplaçant, si
+   bien qu'oublier le facteur ferait sauter l'échelle au retour d'un zoom. */
+export function demiHauteurVue(cam, distance) {
+  if (cam.isOrthographicCamera) return (cam.top - cam.bottom) / 2 / cam.zoom;
+  return (distance * Math.tan((cam.fov * Math.PI) / 360)) / cam.zoom;
+}
+
+/* Pose les quatre bords sur la caméra. Séparé de cadreOrtho() pour que la
+   règle reste pure et que l'écriture reste un effet. */
+function poserCadreOrtho(cam, demiHauteur, aspect) {
+  const c = cadreOrtho(demiHauteur, aspect);
+  cam.left = c.left; cam.right = c.right;
+  cam.top = c.top; cam.bottom = c.bottom;
+  cam.updateProjectionMatrix();
+}
+
+/* Les plans de coupe, DÉDUITS de la distance de pose — et par le scalaire
+   HÉRITÉ (distance / NORME_DIR), sans quoi ils bougeraient de 25 % par rapport
+   à ce que la tâche 3 avait posé. Ils valent pour les deux projections : la
+   profondeur occupée par une boîte de rayon `rayon` vue de `distance` ne
+   dépend pas de la façon dont on la projette. Vérification à la marge par
+   défaut : distance = 4,0740·rayon, near = 0,00326·rayon, far = 325,9·rayon,
+   quand le modèle occupe [distance − 1,733·rayon, distance + 1,733·rayon]. */
+function poserCoupe(cam, distance) {
+  const d = distance / NORME_DIR;
+  cam.near = Math.max(d / 1000, 0.001);
+  cam.far = d * 100;
+}
+
+/* L'aspect du canevas, MESURÉ SUR LE DOM et non lu dans `camera.aspect` : ce
+   dernier n'est rafraîchi qu'à la prochaine image par redimensionner() et
+   retarderait donc d'un tour — et il n'existe pas du tout sur une ortho. Lire
+   clientWidth vide au passage le calcul de mise en page, si bien que la mesure
+   reflète le style DÉJÀ POSÉ. */
+export function aspectDe(api) {
+  const cv = api.renderer.domElement;
+  return (cv.clientWidth || 1) / (cv.clientHeight || 1);
+}
+
+/* Cadre la caméra sur la boîte englobante. Indispensable : un modèle en mètres
+   et un modèle en centimètres donneraient l'un un point, l'autre un mur — et
+   deux étapes ne seraient pas comparables à l'œil.
+
+   CONTRAT D'APPELANT : cette fonction mesure le DOM TEL QU'IL EST à l'appel.
+   Ce qu'aucune lecture ne peut deviner, c'est ce que l'appelant s'apprête
+   ENCORE à insérer : à lui d'appeler cadrer() quand le DOM a sa taille finale,
+   sans quoi le cadrage est juste — pour une mise en page transitoire. */
 export function cadrer(api, marge = 1.35) {
   if (!api.racine) return null;
   const boite = new THREE.Box3().setFromObject(api.racine);
   const taille = boite.getSize(new THREE.Vector3());
   const centre = boite.getCenter(new THREE.Vector3());
   const rayon = Math.max(taille.x, taille.y, taille.z) * 0.5 || 1;
-  /* CONTRAT D'APPELANT : cette fonction mesure le DOM TEL QU'IL EST à l'appel.
-     L'aspect est pris sur le canevas plutôt que dans `camera.aspect`, qui n'est
-     rafraîchi qu'à la prochaine image par redimensionner() et retarderait donc
-     d'un tour ; lire clientWidth vide au passage le calcul de mise en page, si
-     bien que la mesure reflète le style DÉJÀ POSÉ. Ce qu'aucune lecture ne peut
-     deviner, en revanche, c'est ce que l'appelant s'apprête ENCORE à insérer :
-     à lui d'appeler cadrer() quand le DOM a sa taille finale, sans quoi le
-     cadrage est juste — pour une mise en page transitoire. */
-  const cv = api.renderer.domElement;
-  const aspect = (cv.clientWidth || 1) / (cv.clientHeight || 1);
-  /* Le cadrage VERTICAL, inchangé, pose la caméra à NORME_DIR·d, ce qui rend
-     visible une demi-hauteur de NORME_DIR·marge·rayon au plan du centre — soit
-     1,6875·rayon pour la marge par défaut. La demi-largeur visible en vaut
-     `aspect` fois autant, quand le pire cas en réclame LARGEUR_PIRE_CAS·rayon :
-     il y a donc rognage dès que aspect < LARGEUR_PIRE_CAS/(NORME_DIR·marge) =
-     0,813, et LÀ SEULEMENT on recule, du facteur exact qui manque, seuil/aspect.
-     Au-dessus du seuil le cadrage ne bouge pas d'un pixel — le `: 1` le dit.
-
-     Ce critère compare des étendues AU PLAN DU CENTRE ; la perspective, elle,
-     projette le coin le plus PROCHE un peu plus loin encore, et le cadrage
-     vertical porte cette tolérance-là depuis toujours. La correction ramène
-     donc le débordement horizontal à l'ordre de grandeur du vertical, pas à
-     zéro : l'annuler demanderait de reculer bien avant le seuil de rognage,
-     donc de déplacer aussi le cadrage vertical. On corrige ce qui est
-     corrigeable sans casser ce qui marche.
-
-     COMPARABILITÉ : le recul ne dépend QUE de l'aspect, du fov et de la marge —
-     jamais des proportions du modèle, alors qu'une largeur projetée mesurée sur
-     CE maillage aurait été plus fine. C'est délibéré. Deux canevas de même
-     aspect reçoivent ainsi le MÊME recul, et leur distance ne continue de
-     différer que par `rayon` — la normalisation qui rend deux modèles
-     comparables à l'œil. Un terme mesuré par modèle aurait reculé le plus large
-     des deux et fait croire qu'il était le plus petit : un cadrage qui diverge
-     détruit une comparaison aussi sûrement que deux angles de vue différents. */
-  const seuil = LARGEUR_PIRE_CAS / (NORME_DIR * marge);
-  const recul = aspect < seuil ? seuil / aspect : 1;
-  const d = (rayon * marge * recul) / Math.tan((api.camera.fov * Math.PI) / 360);
+  const aspect = aspectDe(api);
+  const o = orientationDe(api.vue);
+  const cadre = cadrageDe(rayon, aspect, marge, o);
+  /* LA DISTANCE EST CELLE DE LA PERSPECTIVE, dans les deux cas — et
+     `api.cameraPerspective.fov` explicitement, JAMAIS `api.camera.fov` : une
+     OrthographicCamera n'a pas de `.fov`, le lire y rend `undefined`, la
+     division rend NaN, `position.set` avale trois NaN et l'écran devient noir
+     sans qu'aucune erreur ne remonte.
+     Sous l'orthographique cette distance n'a AUCUN effet sur l'image — la
+     projection est parallèle — mais elle en a deux ailleurs : les plans de
+     coupe, et l'état sphérique d'OrbitControls que la bascule doit pouvoir
+     conserver sans déplacer un pixel. Les deux caméras se posent donc au même
+     endroit, et projeter() n'a plus qu'à changer la projection. */
+  const distance = cadre.demiHauteur
+    / Math.tan((api.cameraPerspective.fov * Math.PI) / 360);
+  const n = Math.hypot(o.dir.x, o.dir.y, o.dir.z);
   api.camera.position.set(
-    centre.x + d * DIR.x, centre.y + d * DIR.y, centre.z + d * DIR.z);
-  api.camera.near = Math.max(d / 1000, 0.001);
-  api.camera.far = d * 100;
-  api.camera.updateProjectionMatrix();
+    centre.x + (distance * o.dir.x) / n,
+    centre.y + (distance * o.dir.y) / n,
+    centre.z + (distance * o.dir.z) / n);
+  poserCoupe(api.camera, distance);
+  if (api.camera.isOrthographicCamera) {
+    /* Le zoom d'OrbitControls remettrait à l'échelle un cadre qu'on vient de
+       calculer : le laisser courir ferait atterrir « Face » sur le
+       grossissement du geste d'avant, quand ce bouton promet un point de vue
+       neuf. La perspective n'a pas ce besoin — son zoom à elle est la
+       distance, et on vient de la reposer. */
+    api.camera.zoom = 1;
+    poserCadreOrtho(api.camera, cadre.demiHauteur, aspect);
+  } else {
+    api.camera.updateProjectionMatrix();
+  }
   api.controls.target.copy(centre);
   api.controls.update();
-  return { taille, centre, rayon };
+  return { taille, centre, rayon, demiHauteur: cadre.demiHauteur };
+}
+
+/* ── basculer de projection ─────────────────────────────────────────────────
+   PERSPECTIVE ⇄ ORTHOGRAPHIQUE, sans que le modèle change de taille à l'écran :
+   la demi-hauteur visible au plan de la cible est reportée telle quelle d'une
+   caméra à l'autre. C'est la seule bascule qui ne demande pas à l'œil de
+   retrouver ce qu'il regardait.
+
+   TROIS RÉFÉRENCES DE CAMÉRA VIVENT HORS DE CE MODULE, et chacune est une
+   panne SILENCIEUSE si on l'oublie :
+     — OrbitControls, construit avec la caméra. On lui repose `object`
+       ci-dessous ; sans quoi les contrôles pilotent celle que plus personne ne
+       rend, et la souris ne fait plus rien de visible.
+     — TransformControls, qui garde SA référence pour dimensionner et piquer
+       ses poignées. Il n'est pas connu d'ici : c'est à l'appelant de lui
+       repasser `api.camera` — l'Établi le fait, et un banc l'épingle.
+     — la synchronisation A/B, qui recopiait un `fov` qu'une ortho n'a pas.
+   La boucle de rendu, elle, lit `api.camera` à chaque image : rien à y faire. */
+export function projeter(api, mode) {
+  if (mode !== "perspective" && mode !== "orthographique") return null;
+  if (api.projection === mode) return mode;
+  const avant = api.camera;
+  const cible = api.controls.target;
+  const distance = avant.position.distanceTo(cible) || 1;
+  const demi = demiHauteurVue(avant, distance);
+  const apres = mode === "orthographique"
+    ? api.cameraOrthographique : api.cameraPerspective;
+  apres.position.copy(avant.position);
+  apres.quaternion.copy(avant.quaternion);
+  /* Le zoom repart à 1 : il vient d'être absorbé dans `demi`, et le laisser
+     l'appliquerait une seconde fois. */
+  apres.zoom = 1;
+  if (mode === "orthographique") {
+    poserCadreOrtho(apres, demi, aspectDe(api));
+    poserCoupe(apres, distance);
+  } else {
+    /* Une perspective à fov fixe n'a qu'un seul degré de liberté : sa
+       demi-hauteur se rend en DISTANCE. On la repose donc sur le rayon
+       caméra → cible, à la distance qui rend exactement `demi`. */
+    const d = demi / Math.tan((apres.fov * Math.PI) / 360);
+    const u = new THREE.Vector3().subVectors(avant.position, cible);
+    /* Caméra confondue avec sa cible : la direction n'existe pas, et
+       normalize() rendrait (0, 0, 0), donc une caméra DANS le modèle. */
+    if (u.lengthSq() === 0) u.set(DIR.x, DIR.y, DIR.z);
+    apres.position.copy(cible).addScaledVector(u.normalize(), d);
+    poserCoupe(apres, d);
+    apres.updateProjectionMatrix();
+  }
+  api.camera = apres;
+  api.projection = mode;
+  /* SANS CETTE LIGNE, les contrôles continuent de piloter la caméra reçue au
+     constructeur : l'orbite déplace une caméra que plus personne ne rend, et
+     l'écran se fige sans qu'aucune erreur ne remonte. */
+  api.controls.object = apres;
+  api.controls.update();
+  return mode;
+}
+
+/* ── orienter : libre, isométrique, face, dessus, profil ────────────────────
+   La vue nommée RECADRE, elle ne fait pas que pivoter — et c'est nécessaire,
+   pas décoratif : le pire cas de largeur DÉPEND de la direction (1,372 en
+   libre, 1,414 en isométrique, 1,000 sur un axe), si bien qu'un simple pivot
+   laisserait l'isométrie rogner de 3,1 % sous le seuil et les vues d'axe
+   reculées de 37 % pour rien. Le recadrage repose aussi la cible sur le centre
+   du modèle : une vue nommée est un point de vue REMIS À ZÉRO, ce que son
+   bouton promet. */
+export function orienter(api, nom) {
+  if (!ORIENTATIONS[nom]) return null;
+  api.vue = nom;
+  if (api.racine) { cadrer(api); return nom; }
+  /* Pas de modèle : rien à cadrer, mais l'orientation se pose quand même — à
+     la distance courante — sinon le premier chargement arriverait sur la vue
+     d'avant et le bouton enfoncé mentirait. */
+  const o = ORIENTATIONS[nom];
+  const cible = api.controls.target;
+  const d = api.camera.position.distanceTo(cible) || 1;
+  const n = Math.hypot(o.dir.x, o.dir.y, o.dir.z);
+  api.camera.position.set(
+    cible.x + (d * o.dir.x) / n,
+    cible.y + (d * o.dir.y) / n,
+    cible.z + (d * o.dir.z) / n);
+  api.controls.update();
+  return nom;
 }
 
 /* NON RÉ-ENTRANT — l'appelant doit sérialiser (le verrou appartient à

@@ -5,7 +5,8 @@
    envoie des paramètres — une liste de nœuds, une matrice — aux routes
    /api/etabli/*, et c'est Python qui écrit, versionne et fiche. */
 "use strict";
-import { creerCanevas, charger, cadrer, vider } from "/lib3d/viewer.js";
+import { creerCanevas, charger, cadrer, vider, projeter, orienter, cadreOrtho,
+         aspectDe } from "/lib3d/viewer.js";
 import { indexerNoeuds, inventaire, isoler, surligner, designerAuClic }
   from "/lib3d/selection.js";
 import { etaler, ranger, estEtalee, montrerPiece } from "/lib3d/plaque.js";
@@ -52,10 +53,15 @@ const SEL = { granularite: "maillage", retenus: new Set() };
    nœud, quelle que soit celle du panneau. `teintes` est la table
    uuid → couleur CSS que plaque.js rend, et qui couvre tout le sous-arbre de
    chaque pièce : c'est elle qui permet de peindre la pastille d'un maillage
-   comme celle de son nœud. (Même règle que pour S : toute clé se déclare
-   ICI.) */
+   comme celle de son nœud.
+
+   `axe` est l'axe d'EMPILEMENT que plaque.js a choisi d'après les pièces —
+   donc la normale du plan d'étalement, "x", "y" ou "z", et null hors plaque.
+   Il ne décide de RIEN ici : il sert à dire, sur le bouton de vue
+   correspondant, laquelle des trois regarde la plaque en face. (Même règle
+   que pour S : toute clé se déclare ICI.) */
 const PLQ = { active: false, pieces: [], masquees: new Set(),
-              teintes: new Map(), partages: 0, vides: 0 };
+              teintes: new Map(), partages: 0, vides: 0, axe: null };
 
 /* La clé interne d'une granularité et son LIBELLÉ ne sont pas la même chose.
    Les clés (« noeud », « materiau ») sont des identifiants sans accents, qui
@@ -359,8 +365,8 @@ async function _ouvrirPrincipale(cible, numero) {
 /* ── la comparaison A/B ─────────────────────────────────────────────────────
    Deux vues, une seule caméra logique. Comparer deux étapes sous deux angles
    différents ne compare rien : la synchronisation n'est pas un confort.
-   Elle copie la caméra en ABSOLU (position, cible, fov, near/far) — donc si B
-   est plus gros que A, il déborde du cadre de A, et c'est le but : la
+   Elle copie la caméra en ABSOLU (position, cible, cadre, near/far) — donc si
+   B est plus gros que A, il déborde du cadre de A, et c'est le but : la
    différence de taille se VOIT, au lieu d'être annulée par deux cadrages
    indépendants. */
 function synchroniser(src, dst) {
@@ -370,11 +376,44 @@ function synchroniser(src, dst) {
   src.controls.addEventListener("change", () => {
     if (enCours) return;
     enCours = true;
+    /* LA PROJECTION D'ABORD. Deux vues qui ne projettent pas pareil ne
+       comparent rien — c'est le même défaut que deux angles différents, et
+       c'est exactement ce que cette fonction existe pour empêcher.
+
+       SECONDE GARDE, ET ELLE NE DEVRAIT JAMAIS SERVIR : basculerProjection()
+       projette les DEUX vues d'un même geste, et _ouvrirComparaison() aligne B
+       sur A dès sa naissance, avant tout chargement. Elle est là pour le jour
+       où une troisième route ferait diverger les deux modes — même doctrine
+       que les deux gardes indépendantes de la plaque sur le mode d'échec qui
+       écrit un GLB faux.
+       CE QU'ELLE COÛTE LE JOUR OÙ ELLE SERT : projeter() finit par un
+       controls.update() sur dst, dont le « change » réveille le handler
+       tête-bêche, lequel recopie dst — encore d'un cran en arrière — vers src.
+       Une image de retard, corrigée à la suivante puisque `enableDamping` fait
+       tourner update() à chaque image. Hors de ce cas, projeter() rend la main
+       aussitôt quand le mode est déjà le bon, et la ligne ne coûte qu'une
+       comparaison. */
+    if (dst.projection !== src.projection) projeter(dst, src.projection);
     dst.camera.position.copy(src.camera.position);
     /* Redondante avec l'update() ci-dessous, qui refait un lookAt(target) :
        gardée pour que dst soit juste même avant lui, pas parce qu'il la faut. */
     dst.camera.quaternion.copy(src.camera.quaternion);
-    dst.camera.fov = src.camera.fov;
+    dst.camera.zoom = src.camera.zoom;
+    if (src.camera.isOrthographicCamera) {
+      /* UNE ORTHO N'A PAS DE `fov`, et lui en écrire un ne lève rien : la
+         copie serait silencieusement sans effet et les deux vues divergeraient
+         à la première image. Sa grandeur à elle est la DEMI-HAUTEUR, et le
+         cadre se REFAIT sur l'aspect de dst plutôt que d'être recopié —
+         recopier left/right imposerait à B l'aspect de A, ce qui écraserait le
+         modèle B le jour où les deux moitiés cesseront d'être égales. */
+      const c = cadreOrtho((src.camera.top - src.camera.bottom) / 2, aspectDe(dst));
+      dst.camera.left = c.left;
+      dst.camera.right = c.right;
+      dst.camera.top = c.top;
+      dst.camera.bottom = c.bottom;
+    } else {
+      dst.camera.fov = src.camera.fov;
+    }
     dst.camera.near = src.camera.near;
     dst.camera.far = src.camera.far;
     dst.camera.updateProjectionMatrix();
@@ -518,6 +557,15 @@ async function _ouvrirComparaison(cible, numero) {
          WebGL de la page, donc le premier à se voir refuser quand la carte
          est à court — et un refus muet laisserait « comparaison… » figé. */
       S.vueB = creerCanevas($("#vueB canvas"));
+      /* B NAÎT SUR LE POINT DE VUE DE A, avant tout chargement : charger()
+         cadre, et cadrer() lit `api.vue`. Une vue B née en perspective libre
+         pendant que A regarde en isométrie serait cadrée de travers, puis
+         redressée à la première synchronisation — un saut visible, sur la vue
+         dont le métier est justement de comparer. La synchronisation ci-dessous
+         ne suffit pas : elle ne parle qu'au premier « change » d'OrbitControls,
+         qui arrive APRÈS le cadrage. */
+      projeter(S.vueB, S.vueA.projection);
+      orienter(S.vueB, S.vueA.vue);
       /* LES DEUX SENS. Une seule direction ferait suivre B quand on tourne A
          et laisserait A immobile quand on tourne B : un geste sur deux
          comparerait alors deux angles différents, ce que cette vue existe
@@ -792,10 +840,14 @@ function basculerPlaque() {
      chemin de sortie de la plaque passe par lui. Une seconde remise à zéro
      ferait chercher au lecteur une divergence qui n'existe pas. */
   PLQ.vides = vue.vides;
+  PLQ.axe = vue.axe;
   /* L'empreinte étalée est bien plus large que le modèle assemblé : sans
      re-cadrage, la plaque naîtrait pour moitié hors champ. */
   cadrer(S.vueA);
   majBoutonPlaque();
+  /* La plaque vient de choisir son plan : l'un des trois boutons de vue
+     regarde désormais l'étalement en face, et c'est lui qui le dit. */
+  majBoutonsVue();
   rendreParties();
   /* Le geste a réussi : un refus rouge laissé par le clic d'avant ne doit pas
      lui rester accroché. */
@@ -829,11 +881,166 @@ function oublierPlaque() {
   PLQ.teintes = new Map();
   PLQ.partages = 0;
   PLQ.vides = 0;
+  PLQ.axe = null;
   PLQ.masquees.clear();
   majBoutonPlaque();
+  /* Le liseré « fait face à la plaque » s'éteint avec elle : laissé allumé, il
+     désignerait le plan d'un étalement qui n'existe plus. */
+  majBoutonsVue();
 }
 
 $("#btnPlaque").addEventListener("click", basculerPlaque);
+
+/* ── le point de vue : deux projections, trois vues d'axe ───────────────────
+   DEUX OPTIONS, ce que la demande dit : celle qui existait — perspective sur
+   la direction historique — et une ISOMÉTRIQUE. Le bouton porte la
+   DESTINATION comme ses voisins, et chacune de ses deux positions est un point
+   de vue COMPLET : « Isométrique » pose la caméra orthographique sur (1, 1, 1),
+   « Perspective » rend la caméra à fuite sur la direction d'origine. Une
+   bascule qui ne changerait QUE la projection aurait laissé une ortho posée
+   sur un trois-quarts — orthographique, oui, isométrique, non : le mot du
+   bouton aurait été faux.
+
+   LES TROIS VUES D'AXE passent elles aussi en orthographique, et c'est une
+   mesure — 8,6 % de largeur rognée sous perspective — dont la démonstration
+   est sous PROJECTION_DE_VUE, plus bas. La bascule n'est donc qu'un raccourci
+   vers deux des cinq vues, ce qui rend impossible la seule incohérence que
+   deux commandes séparées auraient permise : une projection que la vue ne
+   porte pas.
+
+   ET LES DEUX VUES ENSEMBLE, jamais A seule. La comparaison A/B promet un
+   point de vue unique ; laisser B en perspective pendant que A passe en
+   isométrie comparerait deux projections, ce qui ne compare rien. La
+   synchronisation d'OrbitControls rattraperait la projection au premier
+   « change », mais pas avant, et pas si la souris ne bouge plus. */
+
+/* L'AXE D'EMPILEMENT DE LA PLAQUE → LA VUE QUI LA REGARDE EN FACE.
+   `axeEmpile` choisit son plan d'après les PIÈCES : y pour des volumes posés,
+   z pour les douze cartes du modèle réel de l'utilisateur. « Dessus » n'est
+   donc pas toujours la vue de la plaque, et faire suivre les libellés aurait
+   fait dire à ce bouton qu'il regarde selon X un jour sur deux. Les trois vues
+   restent les axes DU MODÈLE — ceux que le serveur nomme dans `axe_haut` — et
+   c'est cette table qui DIT laquelle tombe en face, sur le bouton lui-même.
+   Les pièces sont posées du côté POSITIF de l'axe (leur minimum y vaut zéro,
+   le plateau recule en dessous), donc la caméra du côté positif les regarde de
+   face et non par le dos. */
+const VUE_DE_PLAQUE = { x: "profil", y: "dessus", z: "face" };
+
+/* Les axes sont ceux DU MODÈLE — ceux-là mêmes que le panneau Fiche nomme dans
+   `axe_haut` — et l'infobulle le dit, parce que rien à l'écran ne distingue un
+   axe du modèle d'un axe de la plaque. Elle dit aussi la projection : une vue
+   d'axe est orthographique (voir PROJECTION_DE_VUE), et l'utilisateur doit
+   savoir pourquoi le bouton d'à côté vient de passer à « Perspective ». */
+const TITRE_VUE = {
+  face: "Depuis +Z, en orthographique — un axe du modèle, pas de la plaque",
+  dessus: "Depuis +Y, en orthographique — un axe du modèle, pas de la plaque",
+  profil: "Depuis +X, en orthographique — un axe du modèle, pas de la plaque",
+};
+
+function majBoutonProjection() {
+  const b = $("#btnProjection");
+  const iso = !!(S.vueA && S.vueA.projection === "orthographique");
+  /* Le libellé porte la DESTINATION, comme « ← 3D Studio » et « Sur la
+     plaque » : ce qu'un clic fait, et non l'état où l'on est — l'état, la vue
+     3D le crie déjà. */
+  b.textContent = iso ? "Perspective" : "Isométrique";
+  b.title = iso
+    ? "Revenir à la caméra à fuite, sur la direction d'origine"
+    : "Caméra orthographique sur (1, 1, 1) : les fuyantes disparaissent, "
+      + "deux longueurs égales se lisent égales où qu'elles soient";
+}
+
+function majBoutonsVue() {
+  const courante = S.vueA ? S.vueA.vue : null;
+  const face = PLQ.active ? VUE_DE_PLAQUE[PLQ.axe] : null;
+  for (const b of document.querySelectorAll("#vueCam [data-vue]")) {
+    const nom = b.dataset.vue;
+    /* Quatre boutons identiques ne disent jamais lequel a été pressé : sans
+       cette marque, « Face » cliqué deux fois passe pour un bouton mort. */
+    b.classList.toggle("actif", nom === courante);
+    b.classList.toggle("plaque", nom === face);
+    b.title = TITRE_VUE[nom] + (nom === face
+      ? " · c'est cette vue qui regarde la plaque en face" : "");
+  }
+}
+
+/* LE GIZMO CAPTURE SA CAMÉRA à la construction et la garde pour dimensionner
+   ses poignées ET pour les piquer au rayon. Sous une caméra qu'il ne connaît
+   pas, elles sont mal taillées et impossibles à attraper — un gizmo visible
+   qui ne répond plus, sans erreur nulle part. `camera` est chez lui une
+   propriété définie qui repropage la valeur au gizmo et à son plan de saisie
+   (TransformControls.js, ligne 103) : lui réaffecter suffit. */
+function reposerCameraDuGizmo() {
+  if (GIZMO && S.vueA) GIZMO.camera = S.vueA.camera;
+}
+
+/* CHAQUE VUE PORTE SA PROJECTION, ET C'EST UNE MESURE, pas un goût.
+
+   Un modèle aussi large que son cube englobant DÉBORDE sous perspective dans
+   une vue d'axe. Mesuré hors navigateur sur une boîte 3 × 1,1 × 0,4 dans un
+   canevas 430 × 824 (la demi-largeur de la comparaison A/B), vue « dessus » :
+   la caméra est posée à 6,940, la face proche à 6,390, et la magnification
+   6,940/6,390 = 1,086 met 8,6 % de la largeur hors du cadre — 4,3 % rognés à
+   chaque bord. La même vue en orthographique tient à 1,000 000, exactement.
+
+   POURQUOI LE ROGNAGE APPARAÎT LÀ ET PAS AILLEURS : le pire cas d'une vue
+   d'axe vaut 1,000·rayon quand celui de la vue libre vaut 1,372, si bien que
+   le cadre d'une vue d'axe est SERRÉ sur le modèle et n'a plus de mou pour
+   absorber la fuite. Le cadrage de la tâche 3 compare des étendues au plan du
+   centre et laisse cette tolérance-là depuis toujours ; l'annuler demanderait
+   de reculer avant le seuil de rognage, donc de déplacer aussi le cadrage
+   vertical, donc de casser ce que la demande exige de conserver.
+
+   Reste à choisir : rogner, ou projeter parallèlement. Face, dessus et profil
+   sont les vues du DESSIN TECHNIQUE — elles existent pour lire une forme sans
+   fuyantes, et Blender fait le même choix depuis toujours (le pavé numérique
+   bascule en orthographique). Elles passent donc en orthographique, et la
+   bascule n'est plus qu'un cas particulier : « libre » est la seule vue à
+   fuite, ce que le bouton dit. */
+const PROJECTION_DE_VUE = { libre: "perspective", iso: "orthographique",
+  face: "orthographique", dessus: "orthographique",
+  profil: "orthographique" };
+
+function appliquerVue(nom) {
+  if (!S.vueA) {
+    direRefus("aucun modèle chargé — il n'y a pas encore de caméra à orienter");
+    return;
+  }
+  /* LES DEUX VUES, jamais A seule : la comparaison A/B promet un point de vue
+     unique, et deux projections différentes ne comparent rien. */
+  for (const v of [S.vueA, S.vueB]) {
+    if (!v) continue;
+    /* PROJETER AVANT D'ORIENTER : orienter() recadre, et le cadre d'une ortho
+       ne s'écrit pas comme celui d'une perspective. Dans l'autre ordre, le
+       cadrage serait fait pour la caméra qu'on s'apprête à quitter. */
+    projeter(v, PROJECTION_DE_VUE[nom]);
+    orienter(v, nom);
+  }
+  reposerCameraDuGizmo();
+  majBoutonProjection();
+  majBoutonsVue();
+  /* Le geste a réussi : un refus rouge laissé par le clic d'avant ne doit pas
+     lui rester accroché. */
+  direGeometrie();
+}
+
+/* La bascule N'EST QU'UN RACCOURCI vers deux des cinq vues — c'est ce qui
+   garantit qu'elle ne peut pas poser une projection que la vue ne porte pas.
+   « Isométrique » emmène sur (1, 1, 1) en orthographique ; « Perspective »
+   ramène EXACTEMENT au point de vue d'avant cette tâche, direction historique
+   comprise. Deux options complètes, comme la demande les dit. */
+function basculerProjection() {
+  if (!S.vueA) {
+    direRefus("aucun modèle chargé — il n'y a pas encore de caméra à basculer");
+    return;
+  }
+  appliquerVue(S.vueA.projection === "orthographique" ? "libre" : "iso");
+}
+
+$("#btnProjection").addEventListener("click", basculerProjection);
+for (const b of document.querySelectorAll("#vueCam [data-vue]")) {
+  b.addEventListener("click", () => appliquerVue(b.dataset.vue));
+}
 
 /* ── le panneau Parties : nœud, maillage, matériau ──────────────────────────
    Trois granularités parce que les moteurs ne découpent pas pareil : un modèle
@@ -1566,6 +1773,11 @@ rendreParties();
    majBoutonPlaque(), plutôt que d'être écrits dans index.html PUIS réécrits
    ici : deux sources pour un même texte divergent à la première retouche. */
 majBoutonPlaque();
+/* Même règle pour le point de vue : #btnProjection naît sans texte et les
+   trois vues d'axe naissent sans marque ni infobulle. Les écrire dans
+   index.html PUIS ici ferait deux sources pour un même texte. */
+majBoutonProjection();
+majBoutonsVue();
 /* Et le panneau Fiche pour la même raison : #panFiche naît VIDE dans
    index.html, et un onglet qu'on ouvre sur du blanc se lit comme un onglet
    cassé. Le bloc garde le cas du modèle absent — son bouton refuse en le

@@ -8,6 +8,7 @@ garde un frontend vanilla sans navigateur au banc.
 Run: .\\scripts\\run-tests.ps1 -Filter test_etabli_canevas.py
 """
 import json
+import math
 import os
 import pathlib
 import re
@@ -3397,7 +3398,13 @@ def test_les_noeuds_sans_geometrie_sont_COMPTES_ET_DITS():
     assert "partages, vides," in _code("lib3d/plaque.js")
     # ...REMONTÉ jusqu'à l'état du panneau...
     assert "PLQ.vides = vue.vides;" in code
-    assert "vides: 0 };" in code
+    # L'ancre etait `vides: 0 };`, soit la FIN de la declaration de PLQ, et
+    # elle a rougi a la tache « vue isometrique », qui y ajoute `axe`. Ce que
+    # ce banc veut dire, c'est que `vides` est DECLARE dans PLQ — pas qu'il en
+    # est la derniere cle. On garde le deux-points, seul a distinguer la
+    # declaration (`vides: 0,`) des remises a zero d'oublierPlaque()
+    # (`PLQ.vides = 0;`), et on lache l'accolade.
+    assert "vides: 0," in code
     # ...et DIT à l'écran, dans la même note que `partages`.
     liste = _plaque_liste()
     assert "PLQ.vides" in liste
@@ -4026,3 +4033,616 @@ def test_le_cablage_d_etaler_PASSE_par_la_mise_en_place():
               .split("\n}\n", 1)[0]
     assert "THREE." not in dis
     assert "d[axe] = -m.bas[axe];" in dis
+
+
+# ── O. le point de vue : perspective ⇄ isométrique, face/dessus/profil ───────
+# CE QUE LE BANC-MIROIR NE PEUT PAS VOIR, et il faut le dire en tête. Une
+# OrthographicCamera n'a ni `fov` ni `aspect` ; lui en lire un rend `undefined`
+# (donc NaN, donc écran noir) et lui en écrire un ne fait RIEN. Aucune de ces
+# deux pannes ne lève, aucune n'apparaît en console, aucune ne rougit un banc
+# de texte. La section se tient donc sur deux jambes :
+#   — des MARQUEURS, pour les câblages qu'un texte peut voir (la boucle rend la
+#     caméra active, les contrôles et le gizmo reçoivent la nouvelle caméra, la
+#     synchronisation A/B ne recopie pas un `fov` à une ortho) ;
+#   — des RÈGLES PURES EXÉCUTÉES dans node, sur des nombres, pour tout ce qui
+#     décide de la géométrie. Le cadrage d'une ortho n'est PAS le cadrage d'une
+#     perspective transposé : la demi-hauteur s'y rend en BORDS et non en
+#     distance, et le seuil de rognage change avec la direction de vue.
+
+
+def _fonction_viewer(nom: str) -> str:
+    """La fonction ENTIÈRE de viewer.js, prête à tourner dans node.
+
+    Extraite de la VRAIE source, jamais recopiée ici — même règle que
+    `_fonction_plaque` : une copie de la règle est une règle qui dérive.
+    """
+    js = _lire("lib3d/viewer.js")
+    i = js.index("export function " + nom + "(")
+    j = js.index("\n}\n", i)
+    return js[i:j + 2].replace("export function", "function", 1)
+
+
+def _harnais_vue() -> str:
+    """Les constantes, la table des orientations et les cinq règles pures de
+    viewer.js, VERBATIM, prêtes pour node.
+
+    Rien n'est recopié : ni DIR, ni NORME_DIR, ni la table. Le harnais de la
+    plaque avait déjà payé la leçon (un SEUIL_APLATI recopié à la main dans un
+    banc et oublié dans l'autre). Ici la table des orientations EST le sujet du
+    contrôle — la recopier reviendrait à mesurer une table que le module
+    n'applique plus.
+    """
+    js = _lire("lib3d/viewer.js")
+    bouts = []
+    for n in ("DIR", "NORME_DIR", "HAUT_Y"):
+        # `[^\n]*?;` et non `.*?;$` : la ligne de NORME_DIR porte un
+        # commentaire `// 1,25` APRÈS le point-virgule.
+        m = re.search(r"^const " + n + r" = [^\n]*?;", js, re.M)
+        assert m, f"constante {n} introuvable dans viewer.js"
+        bouts.append(m.group(0))
+    i = js.index("const ORIENTATIONS = {")
+    bouts.append(js[i:js.index("\n};", i) + 3])
+    for f in ("largeurPireCas", "cadrageDe", "cadreOrtho", "demiHauteurVue",
+              "orientationDe"):
+        bouts.append(_fonction_viewer(f))
+    return "\n".join(bouts) + "\n"
+
+
+def _normaliser(v):
+    n = math.hypot(*v)
+    return [c / n for c in v]
+
+
+def _croix(a, b):
+    """Le produit vectoriel, écrit PAR PERMUTATION CIRCULAIRE.
+
+    viewer.js l'écrit en trois lignes d'indices explicites. Le réécrire ici de
+    la même façon n'aurait vérifié qu'une faute de frappe recopiée ; sous cette
+    forme, un indice interverti là-bas donne un autre nombre ici. Encore
+    faut-il l'exercer sur des vecteurs QUELCONQUES : sur les axes de la table
+    (deux zéros sur trois) toute permutation d'indices rend le MÊME
+    Σ|ri|/|r| — c'est le piège de la matrice creuse, et c'est pour cela que le
+    contrôle ci-dessous tire aussi des directions obliques.
+    """
+    return [a[(i + 1) % 3] * b[(i + 2) % 3] - a[(i + 2) % 3] * b[(i + 1) % 3]
+            for i in range(3)]
+
+
+def _base_lookat(oeil, cible, haut):
+    """La base caméra que produit `Matrix4.lookAt` de three.js.
+
+    Reconstruite ici parce que c'est elle, et non une algèbre de notre choix,
+    qui décide de ce qui se projette où : z = normalize(oeil − cible),
+    x = normalize(haut × z), y = z × x. Rend (droite, haut d'écran, axe de vue).
+    """
+    z = _normaliser([oeil[k] - cible[k] for k in range(3)])
+    x = _normaliser(_croix(haut, z))
+    return x, _croix(z, x), z
+
+
+def _extremes_projetes(demis, droite, haut):
+    """Les demi-étendues projetées des HUIT SOMMETS d'une boîte centrée.
+
+    Huit sommets énumérés, et non une somme Σ hi·|ri| : cette dernière est
+    justement la formule que `largeurPireCas` applique, et la refaire ici
+    n'aurait vérifié qu'une faute de frappe. On projette, on prend le max.
+    """
+    xs, ys = [], []
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            for sz in (-1, 1):
+                p = (sx * demis[0], sy * demis[1], sz * demis[2])
+                xs.append(sum(p[k] * droite[k] for k in range(3)))
+                ys.append(sum(p[k] * haut[k] for k in range(3)))
+    return max(abs(v) for v in xs), max(abs(v) for v in ys)
+
+
+def test_le_pire_cas_de_LARGEUR_est_calcule_PAR_VUE_et_retrouve_le_1_372():
+    """LA CONSTANTE DE LA TÂCHE 3 EST DEVENUE UNE FONCTION, et il le fallait.
+
+    `LARGEUR_PIRE_CAS = 1,372` était juste — pour la SEULE direction que la
+    caméra savait prendre. Une isométrique la voit sous un autre angle et le
+    pire cas y vaut √2 : garder 1,372 aurait rogné l'isométrie de 3,1 % en
+    largeur sous le seuil, sans rien casser de visible sinon un modèle coupé.
+
+    Chaque valeur attendue vient d'une FORME FERMÉE différente, pas de la
+    fonction testée : la formule littérale de la tâche 3 pour la vue libre,
+    √2 pour l'isométrie (le carré de côté 2·rayon vu selon (1,1,1) se projette
+    sur une largeur de 2√2·rayon), et 1 pour les trois vues d'axe — un cube
+    regardé selon un axe se projette sur un carré de son propre côté.
+    """
+    attendu = {
+        "libre": (0.6 + 1) / math.hypot(0.6, 1),    # la formule de la tâche 3
+        "iso": math.sqrt(2),
+        "face": 1.0, "dessus": 1.0, "profil": 1.0,
+    }
+    rendu = json.loads(_node(_harnais_vue() + """
+      const o = {};
+      for (const n of Object.keys(ORIENTATIONS))
+        o[n] = largeurPireCas(ORIENTATIONS[n].dir, ORIENTATIONS[n].haut);
+      console.log(JSON.stringify(o));
+    """))
+    assert set(rendu) == set(attendu), rendu
+    for n, v in attendu.items():
+        assert abs(rendu[n] - v) < 1e-12, f"{n} : {rendu[n]} au lieu de {v}"
+    # Et le SEUIL de la vue libre reste celui que la tâche précédente a mesuré,
+    # 0,813030 — la demande exige que ce cadrage-là continue de valoir.
+    seuils = json.loads(_node(_harnais_vue() + """
+      const o = {};
+      for (const n of Object.keys(ORIENTATIONS))
+        o[n] = cadrageDe(1, 1, 1.35, ORIENTATIONS[n]).seuil;
+      console.log(JSON.stringify(o));
+    """))
+    assert abs(seuils["libre"] - 0.813030) < 1e-6, seuils["libre"]
+    assert abs(seuils["iso"] - 0.838052) < 1e-6, seuils["iso"]
+    assert abs(seuils["face"] - 0.592593) < 1e-6, seuils["face"]
+    # ── ET SUR DES DIRECTIONS OBLIQUES, ce qui est la moitié du contrôle.
+    # Les cinq vues de la table sont des axes ou des diagonales : deux
+    # composantes nulles sur trois dans chaque `haut`, si bien qu'un indice
+    # interverti dans le produit vectoriel rend EXACTEMENT le même nombre —
+    # Σ|ri|/|r| ne dépend pas de l'ordre des composantes. Le contrôle ci-dessus
+    # serait donc vert sur une règle fausse. Ces couples-ci n'ont ni zéro, ni
+    # orthogonalité, ni norme unité, et la valeur attendue vient d'un produit
+    # vectoriel écrit autrement (permutation circulaire, voir _croix).
+    obliques = [((0.31, 0.87, -0.42), (0.13, 0.61, 0.28)),
+                ((-1.7, 0.25, 0.9), (0.4, -0.9, 0.17)),
+                ((2.3, -1.1, 0.6), (-0.21, 0.77, 0.5))]
+    src = _harnais_vue() + "const P = " + json.dumps(
+        [[list(d), list(h)] for d, h in obliques]) + ";\n" + """
+      console.log(JSON.stringify(P.map(([d, h]) => largeurPireCas(
+        { x: d[0], y: d[1], z: d[2] }, { x: h[0], y: h[1], z: h[2] }))));
+    """
+    obtenus = json.loads(_node(src))
+    for (d, h), obtenu in zip(obliques, obtenus):
+        r = _croix(h, _normaliser(d))
+        vise = sum(abs(c) for c in r) / math.hypot(*r)
+        assert abs(obtenu - vise) < 1e-12, (d, h, obtenu, vise)
+    # et ils sont bien tous DIFFÉRENTS : trois fois la même valeur ne
+    # discriminerait rien.
+    assert len(set(round(v, 9) for v in obtenus)) == 3, obtenus
+
+
+def test_le_cadre_ORTHOGRAPHIQUE_contient_la_boite_et_COLLE_au_bord_sous_le_seuil():
+    """LA MESURE QUI DÉCIDE DU CADRAGE ORTHO, exécutée sur des nombres.
+
+    Une ortho ne se cadre pas comme une perspective : reculer une projection
+    parallèle ne change RIEN à son image, si bien que le facteur de recul de la
+    tâche 3 doit s'appliquer aux BORDS et non à la distance. Transposé par
+    analogie, il n'aurait rien fait du tout — sans erreur, sans banc rouge.
+
+    Ce contrôle projette les HUIT SOMMETS et vérifie deux choses :
+      — CONTENANCE : rien ne sort du cadre, pour dix-huit combinaisons de vue,
+        de rayon, d'aspect et de marge, sur trois boîtes dont deux ne sont PAS
+        cubiques (la leçon de la matrice creuse : des données symétriques
+        laissent passer une erreur d'indice) ;
+      — JUSTESSE : sous le seuil, le cube du pire cas touche les deux bords à
+        1e-12 près. C'est le gain propre à l'orthographique — sous perspective
+        le coin le plus proche se projette plus loin, et le critère n'était
+        qu'un ordre de grandeur. Au-dessus du seuil la marge restante vaut
+        exactement seuil/aspect, calculé ici par un second chemin.
+    """
+    vues = ["libre", "iso", "face", "dessus", "profil"]
+    cas = []
+    for v in vues:
+        for rayon, aspect, marge in ((1.3, 0.42, 1.35), (0.37, 0.58, 1.35),
+                                     (12.5, 1.04, 1.35), (1.3, 2.37, 1.9),
+                                     (0.37, 0.813030, 1.35), (12.5, 0.5, 1.0)):
+            cas.append({"vue": v, "rayon": rayon, "aspect": aspect,
+                        "marge": marge})
+    rendu = json.loads(_node(
+        _harnais_vue() + "const CAS = " + json.dumps(cas) + ";\n" + """
+      console.log(JSON.stringify(CAS.map((c) => {
+        const o = orientationDe(c.vue);
+        const g = cadrageDe(c.rayon, c.aspect, c.marge, o);
+        return { seuil: g.seuil, recul: g.recul,
+                 cadre: cadreOrtho(g.demiHauteur, c.aspect) };
+      })));
+    """))
+    assert len(rendu) == len(cas)
+    orientations = json.loads(_node(_harnais_vue()
+        + "console.log(JSON.stringify(ORIENTATIONS));"))
+    colles = 0
+    for c, r in zip(cas, rendu):
+        o = orientations[c["vue"]]
+        dirv = [o["dir"]["x"], o["dir"]["y"], o["dir"]["z"]]
+        hautv = [o["haut"]["x"], o["haut"]["y"], o["haut"]["z"]]
+        droite, haut, _ = _base_lookat(dirv, [0, 0, 0], hautv)
+        ray = c["rayon"]
+        # BOÎTES ASYMÉTRIQUES : la première est le pire cas (le cube), les
+        # deux autres sont plates et posées sur deux axes différents, pour
+        # qu'une erreur d'indice ne tombe pas sur un demi-côté égal.
+        for demis in ((ray, ray, ray), (ray, 0.31 * ray, 0.77 * ray),
+                      (0.19 * ray, 0.62 * ray, ray)):
+            dx, dy = _extremes_projetes(demis, droite, haut)
+            assert dx <= r["cadre"]["right"] * (1 + 1e-12), \
+                f"{c} rogne en largeur : {dx} > {r['cadre']['right']}"
+            assert -dx >= r["cadre"]["left"] * (1 + 1e-12), c
+        # LA JUSTESSE, sur le cube seul — c'est lui que le cadre vise.
+        dx, _ = _extremes_projetes((ray, ray, ray), droite, haut)
+        reste = dx / r["cadre"]["right"]
+        # SECOND CHEMIN : la fraction de cadre occupée vaut seuil/aspect
+        # au-dessus du seuil, et 1 exactement en dessous.
+        attendu = min(1.0, r["seuil"] / c["aspect"])
+        assert abs(reste - attendu) < 1e-12, f"{c} : {reste} au lieu de {attendu}"
+        if c["aspect"] <= r["seuil"]:
+            colles += 1
+            assert abs(dx - r["cadre"]["right"]) < 1e-12 * max(1.0, dx), c
+    # Le contrôle serait vide s'il n'exerçait jamais le cas serré : on compte.
+    assert colles >= 10, f"seulement {colles} cas sous le seuil"
+
+
+def test_toutes_les_vues_nommees_tiennent_VERTICALEMENT_a_la_marge_par_defaut():
+    """LE CADRAGE VERTICAL EST INCHANGÉ — c'était l'exigence — et il fallait
+    vérifier qu'il TIENT ENCORE pour des directions qu'il n'a jamais vues.
+
+    La demi-hauteur reste NORME_DIR·marge·rayon, soit 1,6875·rayon. MESURÉ, la
+    demi-hauteur du pire cas vaut 1,4269·rayon en vue libre (18 % de marge),
+    1,6330 en isométrique (3,3 % — la plus juste des cinq) et 1,0000 sur un
+    axe. Toutes passent. Une sixième vue posée sans ce contrôle pourrait, elle,
+    ne pas passer, et son modèle sortirait par le haut sans que rien ne grince.
+
+    NON GARANTI SOUS LA MARGE PAR DÉFAUT, et c'est dit : à marge = 1, la
+    demi-hauteur tombe à 1,25·rayon et l'isométrie déborde. Aucun appelant ne
+    passe de marge ; le jour où l'un le fera, il lira ceci.
+    """
+    orientations = json.loads(_node(_harnais_vue()
+        + "console.log(JSON.stringify(ORIENTATIONS));"))
+    cadres = json.loads(_node(_harnais_vue() + """
+      const o = {};
+      for (const n of Object.keys(ORIENTATIONS))
+        o[n] = cadrageDe(1, 1.0, 1.35, ORIENTATIONS[n]).demiHauteur;
+      console.log(JSON.stringify(o));
+    """))
+    marges = {}
+    for nom, o in orientations.items():
+        dirv = [o["dir"]["x"], o["dir"]["y"], o["dir"]["z"]]
+        hautv = [o["haut"]["x"], o["haut"]["y"], o["haut"]["z"]]
+        droite, haut, _ = _base_lookat(dirv, [0, 0, 0], hautv)
+        _, dy = _extremes_projetes((1, 1, 1), droite, haut)
+        assert dy <= cadres[nom], f"{nom} deborde par le haut : {dy} > {cadres[nom]}"
+        marges[nom] = cadres[nom] / dy
+    assert abs(marges["iso"] - 1.0334) < 1e-3, marges["iso"]
+    assert abs(marges["libre"] - 1.1827) < 1e-3, marges["libre"]
+
+
+def test_aucune_orientation_n_a_un_HAUT_PARALLELE_a_sa_direction():
+    """LE NaN QUI FAIT L'ÉCRAN NOIR, épinglé à sa source.
+
+    `largeurPireCas` divise par la norme de haut × dir. Un `haut` parallèle à
+    `dir` — la faute naturelle sur une vue de dessus, où (0,1,0) semble être le
+    haut évident — rend ce produit NUL, donc le seuil NaN, donc le recul NaN,
+    donc une caméra posée sur trois NaN. Rien ne lève, rien ne s'affiche.
+    """
+    rendu = json.loads(_node(_harnais_vue() + """
+      const o = {};
+      for (const n of Object.keys(ORIENTATIONS)) {
+        const v = ORIENTATIONS[n];
+        const L = largeurPireCas(v.dir, v.haut);
+        const c = cadrageDe(1.3, 0.42, 1.35, v);
+        o[n] = { fini: Number.isFinite(L) && Number.isFinite(c.demiHauteur),
+                 L: L, demi: c.demiHauteur };
+      }
+      console.log(JSON.stringify(o));
+    """))
+    for nom, v in rendu.items():
+        assert v["fini"], f"{nom} rend un NaN : {v}"
+        assert v["L"] > 0 and v["demi"] > 0, f"{nom} : {v}"
+
+
+def test_le_HAUT_de_la_vue_DESSUS_est_celui_que_lookAt_produit_VRAIMENT():
+    """POURQUOI (0, 0, −1) ET NON (0, 1, 0), refait par un second chemin.
+
+    La vue de dessus pose la caméra exactement au pôle. three.js ne s'y casse
+    pas : `Spherical.setFromVector3` y rend theta = atan2(0, 0) = 0 et
+    `makeSafe()` relève phi à EPS, si bien que le décalage repart vers +Z ; le
+    `lookAt` d'OrbitControls, avec un `up` resté à (0, 1, 0), rend alors la
+    base (droite = +X, haut d'écran = −Z). C'est CE haut-là que la géométrie de
+    cadrage doit connaître, et il n'est pas celui qu'on écrirait d'instinct.
+
+    L'EPS n'est pas recopié : il est LU dans le three.js vendorisé. Une version
+    qui le changerait ferait bouger la mesure, pas le banc.
+    """
+    coeur = (FRONT / "dist" / "assets" / "three" / "three.core.min.js") \
+        .read_text(encoding="utf-8", errors="replace")
+    m = re.search(r"makeSafe\(\)\{const \w+=([0-9.e-]+);", coeur)
+    assert m, "makeSafe() introuvable dans le three.js vendorise"
+    eps = float(m.group(1))
+    assert 0 < eps < 1e-4, eps
+    rayon = 3.0
+    oeil = [0.0, rayon * math.cos(eps), rayon * math.sin(eps)]
+    droite, haut, _ = _base_lookat(oeil, [0, 0, 0], [0, 1, 0])
+    for obtenu, vise in ((droite, (1, 0, 0)), (haut, (0, 0, -1))):
+        for k in range(3):
+            assert abs(obtenu[k] - vise[k]) < 1e-4, (obtenu, vise)
+    # …et c'est exactement ce que la table déclare.
+    orientations = json.loads(_node(_harnais_vue()
+        + "console.log(JSON.stringify(ORIENTATIONS));"))
+    assert orientations["dessus"]["haut"] == {"x": 0, "y": 0, "z": -1}
+    assert orientations["dessus"]["dir"] == {"x": 0, "y": 1, "z": 0}
+
+
+def test_la_bascule_garde_la_TAILLE_A_L_ECRAN_zoom_compris():
+    """La demi-hauteur au plan de la cible est la GRANDEUR COMMUNE aux deux
+    projections : c'est par elle, et seulement par elle, qu'une bascule peut
+    promettre que le modèle ne change pas de taille.
+
+    Les nombres sont délibérément non ronds et le zoom ne vaut PAS 1 : un
+    `/ cam.zoom` oublié d'un côté passerait inaperçu sur un zoom neutre, et
+    l'échelle sauterait au premier retour de bascule. La valeur attendue est
+    calculée ici en degrés (tan(fov/2)), quand la fonction travaille en
+    fov·π/360 — deux écritures du même angle.
+    """
+    rendu = json.loads(_node(_harnais_vue() + """
+      const persp = { fov: 45, zoom: 1.4 };
+      const h = demiHauteurVue(persp, 7.3);
+      /* la bascule : la demi-hauteur devient un CADRE… */
+      const c = cadreOrtho(h, 0.58);
+      const ortho = { isOrthographicCamera: true, top: c.top,
+                      bottom: c.bottom, zoom: 1 };
+      /* …et le retour la relit telle quelle. */
+      console.log(JSON.stringify(
+        { h: h, retour: demiHauteurVue(ortho, 999), largeur: c.right }));
+    """))
+    attendu = 7.3 * math.tan(math.radians(45) / 2) / 1.4
+    assert abs(rendu["h"] - attendu) < 1e-12, (rendu["h"], attendu)
+    # ALLER-RETOUR SANS PERTE : c'est la promesse « même taille à l'écran ».
+    assert abs(rendu["retour"] - rendu["h"]) < 1e-12, rendu
+    # et la largeur suit l'aspect, elle, jamais la distance
+    assert abs(rendu["largeur"] - attendu * 0.58) < 1e-12, rendu
+
+
+def test_la_boucle_rend_la_CAMERA_ACTIVE_et_les_deux_cameras_sont_declarees():
+    """La boucle de rendu tenait la caméra dans sa fermeture. Laissée telle
+    quelle, elle aurait rendu la perspective pour toujours : la bascule aurait
+    changé `api.camera`, `api.projection`, les contrôles — et rien à l'écran.
+
+    Le contrat de forme d'`api` est épinglé au même endroit, parce que c'est la
+    règle que le fichier se donne en toutes lettres (« toute clé de `api` se
+    déclare ICI »). Ce contrôle porte sur du CODE : `_code` retire les blocs de
+    commentaire, sans quoi la prose du fichier — qui nomme ces clés — le
+    satisferait toute seule.
+    """
+    code = _code("lib3d/viewer.js")
+    assert "renderer.render(scene, api.camera);" in code
+    # …et JAMAIS la variable de fermeture, le défaut que ce banc garde.
+    assert "renderer.render(scene, camera)" not in code
+    assert "new THREE.OrthographicCamera(" in code
+    for cle in ("cameraPerspective: camera", "cameraOrthographique: cameraOrtho",
+                'projection: "perspective"', 'vue: "libre"'):
+        assert cle in code, cle
+
+
+def test_le_redimensionnement_ne_pose_JAMAIS_un_aspect_sur_une_ORTHO():
+    """`camera.aspect = w / h` sur une OrthographicCamera ne lève pas, ne fait
+    rien, et ne se voit pas : le modèle reste simplement déformé. Le
+    redimensionnement écrit donc l'aspect sur la perspective NOMMÉMENT, et
+    refait les bords de l'ortho à demi-hauteur constante.
+    """
+    code = _code("lib3d/viewer.js")
+    assert "api.cameraPerspective.aspect = w / h;" in code
+    assert "api.camera.aspect" not in code
+    # la demi-hauteur est RELUE sur la caméra, jamais réinventée : top/bottom
+    # sont la mémoire du cadrage, et un redimensionnement n'y touche pas.
+    assert "poserCadreOrtho(o, (o.top - o.bottom) / 2, w / h);" in code
+
+
+def test_le_cadrage_ne_lit_JAMAIS_le_fov_de_la_camera_ACTIVE():
+    """LE PIÈGE LE PLUS COURT DE CETTE TÂCHE. `api.camera.fov` rend `undefined`
+    sous une ortho, `Math.tan(undefined)` rend NaN, `position.set` avale trois
+    NaN et l'écran devient noir — sans exception, sans console, sans banc rouge.
+    La distance se lit donc sur la caméra PERSPECTIVE, nommément.
+    """
+    code = _code("lib3d/viewer.js")
+    assert "api.cameraPerspective.fov" in code
+    assert "api.camera.fov" not in code
+    # Et le cadre de l'ortho passe par les BORDS, pas par la distance : c'est
+    # la différence qu'une transposition par analogie aurait manquée.
+    cad = code.split("export function cadrer(api, marge = 1.35)", 1)[1] \
+              .split("\n}\n", 1)[0]
+    assert "api.camera.isOrthographicCamera" in cad
+    assert "poserCadreOrtho(api.camera, cadre.demiHauteur, aspect);" in cad
+
+
+def test_les_TROIS_references_de_camera_sont_repassees_a_la_bascule():
+    """OrbitControls, TransformControls et la vue B retiennent chacun LEUR
+    caméra. Aucun des trois oublis ne lève :
+      — les contrôles piloteraient une caméra que personne ne rend (écran figé),
+      — le gizmo taillerait et piquerait ses poignées avec la mauvaise (des
+        poignées visibles et inattrapables),
+      — la vue B resterait en perspective (une comparaison qui ne compare rien).
+    """
+    vue, js = _code("lib3d/viewer.js"), _code("etabli/etabli.js")
+    proj = vue.split("export function projeter(api, mode)", 1)[1] \
+              .split("\n}\n", 1)[0]
+    assert "api.controls.object = apres;" in proj
+    assert "api.camera = apres;" in proj
+    # le gizmo : une propriété DÉFINIE de TransformControls, qui repropage la
+    # caméra au gizmo et à son plan de saisie — lui réaffecter suffit.
+    assert "GIZMO.camera = S.vueA.camera;" in js
+    assert "reposerCameraDuGizmo();" in js
+    # LES DEUX VUES, jamais A seule — et un seul chemin les sert, la bascule
+    # n'étant qu'un raccourci vers appliquerVue().
+    applique = js.split("function appliquerVue(nom)", 1)[1].split("\n}\n", 1)[0]
+    assert "for (const v of [S.vueA, S.vueB])" in applique
+    assert "reposerCameraDuGizmo();" in applique
+
+
+def test_la_synchronisation_AB_ne_recopie_PAS_un_fov_a_une_ortho():
+    """`dst.camera.fov = src.camera.fov` sur deux orthos écrit une propriété
+    que personne ne lit : les deux vues divergeraient à la première image, et
+    c'est exactement ce qu'une comparaison A/B promet de ne jamais faire.
+
+    Le cadre de dst est REFAIT sur SON aspect plutôt que recopié : recopier
+    left/right imposerait à B l'aspect de A. Et la projection s'aligne AVANT le
+    reste, faute de quoi une vue B née pendant que A est en isométrie
+    comparerait deux projections.
+    """
+    js = _code("etabli/etabli.js")
+    syn = js.split("function synchroniser(src, dst)", 1)[1].split("\n}\n", 1)[0]
+    assert "if (dst.projection !== src.projection) projeter(dst, src.projection);" in syn
+    assert "src.camera.isOrthographicCamera" in syn
+    assert "cadreOrtho((src.camera.top - src.camera.bottom) / 2, aspectDe(dst))" in syn
+    assert "dst.camera.zoom = src.camera.zoom;" in syn
+    # le `fov` reste — pour la perspective, et SEULEMENT dans cette branche
+    assert "dst.camera.fov = src.camera.fov;" in syn
+    assert syn.index("src.camera.isOrthographicCamera") \
+        < syn.index("dst.camera.fov = src.camera.fov;")
+    # et B naît sur le point de vue de A, AVANT de charger : charger() cadre,
+    # et cadrer() lit `api.vue`.
+    ouvre = js.split("async function _ouvrirComparaison", 1)[1] \
+              .split("\n}\n", 1)[0]
+    assert "projeter(S.vueB, S.vueA.projection);" in ouvre
+    assert "orienter(S.vueB, S.vueA.vue);" in ouvre
+    assert ouvre.index("orienter(S.vueB") < ouvre.index("charger(S.vueB")
+
+
+def test_le_viewer_n_ecrit_JAMAIS_camera_up():
+    """LA RAISON EST DANS LE FICHIER VENDORISÉ, ligne 406 : OrbitControls fige
+    son repère à la CONSTRUCTION (`_quat` depuis `object.up`) et ne le
+    recalcule jamais dans update(). Écrire `camera.up` après coup laisserait
+    l'orbite tourner dans l'ANCIEN repère — le modèle pivote de travers sous la
+    souris, sans erreur nulle part.
+
+    On vérifie donc DEUX choses : que le module ne l'écrit pas, et que la
+    raison est encore vraie dans le three.js du dépôt.
+    """
+    code = _code("lib3d/viewer.js")
+    for interdit in (".up.set(", ".up.copy(", "camera.up ="):
+        assert interdit not in code, interdit
+    orbit = (FRONT / "dist" / "assets" / "three" / "addons" / "controls"
+             / "OrbitControls.js").read_text(encoding="utf-8")
+    assert "this._quat = new Quaternion().setFromUnitVectors( object.up" in orbit
+    # …et update() ne le refait pas : un seul site d'écriture dans le fichier.
+    assert orbit.count("this._quat = ") == 1
+
+
+def test_les_DEUX_OPTIONS_sont_offertes_DANS_le_canevas():
+    """La demande, à la lettre : « deux options, celui qui existe déjà et une
+    vue isométrique ». Le bouton porte la DESTINATION comme ses voisins, et
+    naît sans texte — majBoutonProjection() l'écrit dès l'import, source unique.
+
+    DANS le canevas, et non dans l'en-tête : deux comptes rigides y veillent
+    (trois `head-btn`, et autant de `<button>` que de porteurs de la classe).
+    Ces boutons portent `cam-btn`.
+    """
+    html, css = _lire("etabli/index.html"), _lire("etabli/etabli.css")
+    js = _code("etabli/etabli.js")
+    vue_a = html.split('id="vueA"', 1)[1].split("</div>\n      <div class=\"vue hidden\"", 1)[0]
+    assert 'id="vueCam"' in vue_a
+    assert 'id="btnProjection"></button>' in vue_a      # il naît SANS texte
+    for nom in ("face", "dessus", "profil"):
+        assert f'data-vue="{nom}"' in vue_a, nom
+    assert html.count('class="cam-btn"') == 4
+    assert "head-btn" not in vue_a
+    # la barre est AU-DESSUS du canevas et ne vole pas l'orbite entre ses
+    # boutons — sans quoi le coin haut-droit cesserait de tourner et de
+    # sélectionner, en silence.
+    reg = css.split(".vue-cam {", 1)[1].split("}", 1)[0]
+    assert "z-index: 2" in reg and "pointer-events: none" in reg
+    assert "pointer-events: auto" in css.split(".cam-btn {", 1)[1].split("}", 1)[0]
+    # câblage, et les libellés qui naissent vides sont écrits à l'import
+    assert '$("#btnProjection").addEventListener("click", basculerProjection);' in js
+    assert 'document.querySelectorAll("#vueCam [data-vue]")' in js
+    assert js.count("majBoutonProjection();") >= 2
+    assert 'b.textContent = iso ? "Perspective" : "Isométrique";' in js
+    # les deux options sont COMPLÈTES : chacune pose sa projection ET sa
+    # direction. Une ortho laissée sur le trois-quarts historique serait
+    # orthographique et non isométrique — le mot du bouton serait faux.
+    bascule = js.split("function basculerProjection()", 1)[1].split("\n}\n", 1)[0]
+    assert 'appliquerVue(S.vueA.projection === "orthographique" ' \
+           '? "libre" : "iso");' in bascule
+    # La bascule N'EST QU'UN RACCOURCI vers deux des cinq vues : elle ne peut
+    # donc pas poser une projection que la vue ne porte pas, ce que deux
+    # commandes séparées auraient permis.
+    assert "projeter(" not in bascule
+
+
+def test_les_vues_d_AXE_sont_ORTHOGRAPHIQUES_et_la_MESURE_le_dit():
+    """LE CHOIX QUE LE PILOTE DE RUNTIME A IMPOSÉ, avec son chiffre.
+
+    Le cadrage de la tâche 3 compare des étendues AU PLAN DU CENTRE et laisse
+    depuis toujours passer la fuite du coin le plus proche. En vue libre elle
+    ne se voyait pas : le pire cas y vaut 1,372·rayon quand le cadre en offre
+    1,6875·aspect, donc du mou. Une vue d'AXE a un pire cas de 1,000·rayon —
+    le cadre y est serré sur le modèle, et le mou disparaît.
+
+    MESURÉ sur une boîte 3 × 1,1 × 0,4 dans un canevas 430 × 824 (la
+    demi-largeur exacte de la comparaison A/B), vue « dessus » : caméra posée à
+    6,940, face proche à 6,390, magnification 1,086 — soit 8,6 % de la largeur
+    hors du cadre, 4,3 % rognés à chaque bord. La même vue en orthographique
+    tient à 1,000000, exactement.
+
+    Corriger la fuite aurait demandé de reculer AVANT le seuil de rognage, donc
+    de déplacer aussi le cadrage vertical, donc de casser ce que la demande
+    exige de conserver. Les trois vues d'axe passent donc en orthographique —
+    ce sont les vues du dessin technique, et Blender fait le même choix.
+
+    Ce contrôle EXÉCUTE les deux projections plutôt que de citer les nombres.
+    """
+    aspect = 430 / 824
+    rayon, profondeur, demi_largeur = 1.5, 0.55, 1.5
+    rendu = json.loads(_node(_harnais_vue()
+        + "const A = " + json.dumps(aspect) + ";\n"
+        + "const R = " + json.dumps(rayon) + ";\n" + """
+      const g = cadrageDe(R, A, 1.35, orientationDe("dessus"));
+      console.log(JSON.stringify({ demi: g.demiHauteur, seuil: g.seuil,
+                                   cadre: cadreOrtho(g.demiHauteur, A) }));
+    """))
+    demi = rendu["demi"]
+    # ORTHOGRAPHIQUE : la demi-largeur du modèle contre celle du cadre.
+    assert abs(demi_largeur / rendu["cadre"]["right"] - 1.0) < 1e-12, rendu
+    # PERSPECTIVE : la distance qui rend cette demi-hauteur, puis la division
+    # par la profondeur — c'est la fuite, et elle sort du cadre.
+    distance = demi / math.tan(math.radians(45) / 2)
+    assert abs(distance - 6.9402) < 1e-3, distance
+    fuite = (demi_largeur * distance) / ((distance - profondeur) * demi * aspect)
+    assert 1.08 < fuite < 1.09, fuite
+    # …et la règle est écrite, pour les cinq vues, en un seul endroit.
+    js = _code("etabli/etabli.js")
+    assert 'const PROJECTION_DE_VUE = { libre: "perspective", ' \
+           'iso: "orthographique",' in js
+    for nom in ("face", "dessus", "profil"):
+        assert f'{nom}: "orthographique"' in js, nom
+    applique = js.split("function appliquerVue(nom)", 1)[1].split("\n}\n", 1)[0]
+    assert "projeter(v, PROJECTION_DE_VUE[nom]);" in applique
+    # PROJETER AVANT D'ORIENTER : orienter() recadre, et le cadre d'une ortho
+    # ne s'écrit pas comme celui d'une perspective.
+    assert applique.index("projeter(v,") < applique.index("orienter(v, nom);")
+
+
+def test_les_vues_nommees_sont_les_axes_DU_MODELE_et_DISENT_le_plan_de_la_plaque():
+    """LA DÉCISION FACE À L'AVERTISSEMENT DE LA TÂCHE PRÉCÉDENTE, épinglée.
+
+    `axeEmpile` choisit le plan d'étalement d'après les PIÈCES : y pour des
+    volumes posés, z pour les douze cartes du modèle réel de l'utilisateur.
+    « Dessus » n'est donc pas toujours la vue qui regarde la plaque en face.
+
+    Deux réponses étaient possibles. Faire suivre les boutons — « Dessus »
+    regarderait selon X un jour sur deux, un libellé qui ment. Ou les garder
+    sur les axes DU MODÈLE, ceux-là mêmes que le serveur nomme dans `axe_haut`,
+    et DIRE laquelle des trois tombe en face. C'est la seconde qui est livrée :
+    l'axe remonte de `etaler()` jusqu'à `PLQ.axe`, et une table le convertit en
+    nom de vue. Les pièces étant posées du côté POSITIF de l'axe (leur minimum
+    y vaut zéro, le plateau recule en dessous), la caméra du côté positif les
+    regarde de face et non par le dos.
+    """
+    plq, js = _code("lib3d/plaque.js"), _code("etabli/etabli.js")
+    css = _lire("etabli/etabli.css")
+    # l'axe est RENDU par le module — il ne l'était pas
+    et = plq.split("export function etaler(api)", 1)[1].split("\n}\n", 1)[0]
+    assert "axe: mise.axe," in et
+    # …REMONTÉ jusqu'à l'état du panneau, et remis à zéro avec la plaque
+    assert "PLQ.axe = vue.axe;" in js
+    assert "PLQ.axe = null;" in js
+    # …et CONVERTI en nom de vue, jamais recalculé sur place
+    assert 'const VUE_DE_PLAQUE = { x: "profil", y: "dessus", z: "face" };' in js
+    assert "axeEmpile" not in js       # la règle reste dans plaque.js
+    maj = js.split("function majBoutonsVue()", 1)[1].split("\n}\n", 1)[0]
+    assert "VUE_DE_PLAQUE[PLQ.axe]" in maj
+    assert 'b.classList.toggle("plaque", nom === face);' in maj
+    assert "regarde la plaque en face" in maj
+    assert ".cam-btn.plaque" in css
+    # et les orientations, elles, ne connaissent pas la plaque : les trois vues
+    # restent des axes du modèle.
+    vue = _code("lib3d/viewer.js")
+    assert "axeEmpile" not in vue and "plaque.js" not in vue

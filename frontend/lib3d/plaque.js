@@ -379,9 +379,15 @@ export function estEtalee(api) {
 /* ── étaler ─────────────────────────────────────────────────────────────────
    Rend le compte rendu que le panneau affiche :
      { pieces: [{cle, nom, couleur}], teintes: Map(uuid → css),
-       partages, largeur, profondeur }
+       partages, vides, largeur, profondeur, axe }
    `teintes` couvre TOUT le sous-arbre de chaque pièce, pour que le panneau
-   Parties sache peindre la pastille d'un maillage comme celle de son nœud. */
+   Parties sache peindre la pastille d'un maillage comme celle de son nœud.
+
+   `axe` EST RENDU, et il ne l'était pas : c'est l'axe d'EMPILEMENT choisi par
+   axeEmpile(), donc la normale du plan d'étalement — l'information sans
+   laquelle personne, hors de ce module, ne peut dire laquelle des vues
+   nommées du canevas regarde la plaque en face. Le calculer une seconde fois
+   au-dehors serait le calculer avec d'autres boîtes ; on le rend. */
 export function etaler(api) {
   if (!api || !api.racine) return null;
   /* Jamais deux étalements empilés : le second mesurerait des boîtes DÉJÀ
@@ -494,7 +500,7 @@ export function etaler(api) {
      pastille de la liste, elle, ne ment jamais : elle est calculée, pas lue
      sur le maillage. */
   const partages = [...usage.values()].filter((s) => s.size > 1).length;
-  return { pieces, teintes, partages, vides,
+  return { pieces, teintes, partages, vides, axe: mise.axe,
            largeur: mise.largeur, profondeur: mise.profondeur };
 }
 

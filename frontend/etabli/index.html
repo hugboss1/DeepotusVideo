@@ -67,7 +67,30 @@
     </header>
 
     <div class="vues" id="vues">
-      <div class="vue" id="vueA"><canvas></canvas><span class="vue-tag">A</span></div>
+      <!-- LE POINT DE VUE VIT DANS LE CANEVAS, et non dans l'en-tête. Deux
+           raisons, et la seconde est mécanique.
+           1. C'est un réglage de l'OUTIL de regard, pas de la page : la main
+              est déjà sur le canevas quand on veut redresser la vue, et
+              l'en-tête porte les trois gestes qui changent ce qu'on REGARDE
+              (quitter, étaler, comparer), pas la façon de le regarder.
+           2. Un banc compare le nombre de `<button>` de l'en-tête à celui des
+              porteurs de `head-btn`, et un autre fixe ce nombre à trois.
+              Poser quatre boutons de plus là-haut aurait fait bouger deux
+              comptes rigides pour un contrôle qui n'appartient pas au bandeau.
+              Ils portent donc `cam-btn`, jamais `head-btn` — voir etabli.css.
+           #btnProjection NAÎT SANS TEXTE, comme #btnPlaque : son libellé porte
+           la DESTINATION et change avec l'état, et majBoutonProjection()
+           l'écrit dès l'import du module. L'écrire ici aussi ferait deux
+           sources pour un seul texte. Les trois autres sont fixes, eux, et se
+           lisent donc dans le balisage. -->
+      <div class="vue" id="vueA"><canvas></canvas><span class="vue-tag">A</span>
+        <div class="vue-cam" id="vueCam">
+          <button class="cam-btn" id="btnProjection"></button>
+          <button class="cam-btn" data-vue="face">Face</button>
+          <button class="cam-btn" data-vue="dessus">Dessus</button>
+          <button class="cam-btn" data-vue="profil">Profil</button>
+        </div>
+      </div>
       <div class="vue hidden" id="vueB"><canvas></canvas><span class="vue-tag">B</span></div>
     </div>
 
