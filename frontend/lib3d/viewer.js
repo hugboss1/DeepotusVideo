@@ -221,8 +221,13 @@ export function orientationDe(nom) {
    GÉNÉRALISE la constante que la tâche 3 avait calculée à la main pour DIR
    seule, (DIR.x + DIR.z)/hypot(DIR.x, DIR.z) = 1,372 : un banc vérifie que
    cette fonction rend le MÊME nombre par ce chemin-ci, à 1e-15. Il fallait la
-   généraliser — le pire cas DÉPEND DE LA DIRECTION, et pas qu'un peu ; les
-   trois valeurs et ce qu'elles coûteraient figées sont sous cadrageDe. */
+   généraliser, parce que le pire cas DÉPEND DE LA DIRECTION, et pas qu'un peu.
+   MESURÉ : 1,371989 en vue libre, 1,414214 (√2) en isométrique, 1,000000 sur
+   les trois vues d'axe. Le figer à 1,372 aurait rogné l'isométrie de 3,1 % en
+   largeur sous le seuil et reculé les vues d'axe de 37 % pour rien.
+   NE PAS CONFONDRE avec le triplet de cadrageDe (1,4269 / 1,6330 / 1,0000) :
+   celui-là est la demi-HAUTEUR du même pire cas, et les deux se ressemblent
+   assez pour être pris l'un pour l'autre. */
 function demiLargeurPireCas(dir, haut) {
   const n = Math.hypot(dir.x, dir.y, dir.z);
   const z = { x: dir.x / n, y: dir.y / n, z: dir.z / n };

@@ -5155,10 +5155,12 @@ def test_les_CINQ_VUES_vivent_dans_PLUSIEURS_tables_et_on_les_APPARIE():
     `projeter(v, undefined)` : la garde de projeter() rend `null`, la projection
     ne change pas, `orienter()` cadre quand même, et la vue est rendue sous la
     MAUVAISE projection. Les `return null` de projeter() et d'orienter() ne
-    gardent rien — personne ne lit leur valeur de retour (et lire celle de
-    projeter() ne dirait rien : elle rend `null` aussi quand le mode est déjà
-    le bon). Deux remèdes, tous deux nécessaires : appliquerVue() REFUSE en le
-    disant, et ce contrôle apparie les tables.
+    gardent RIEN — non parce qu'ils seraient indiscriminants (projeter() rend
+    bien `null` sur ce seul cas, et son mode sinon), mais parce que PERSONNE NE
+    LES LIT : appliquerVue() jette les deux valeurs. Et les lire ne suffirait
+    pas — un `if` muet laisserait le clic sans effet, quand cette page DIT
+    toujours ses refus. Deux remèdes, tous deux nécessaires : appliquerVue()
+    refuse EN LE DISANT, et ce contrôle apparie les tables.
 
     Les clés ne sont recopiées nulle part : les deux tables sont extraites, le
     balisage est lu, et c'est leur COMPARAISON qui est l'assertion.
@@ -5177,7 +5179,10 @@ def test_les_CINQ_VUES_vivent_dans_PLUSIEURS_tables_et_on_les_APPARIE():
     html = _lire("etabli/index.html")
     js = _lire("etabli/etabli.js")
     boutons = set(re.findall(r'data-vue="([a-z]+)"', html))
-    titres = set(re.findall(r"^  (\w+): \"Depuis ", _table_js(
+    # Les CLÉS, pas la prose : la première écriture ancrait le motif sur
+    # « Depuis », si bien qu'une infobulle reformulée aurait fait rougir un
+    # contrôle qui ne parle pas de son texte.
+    titres = set(re.findall(r"^  (\w+):", _table_js(
         "etabli/etabli.js", "TITRE_VUE"), re.M))
     assert boutons == titres, (boutons, titres)
     assert boutons <= set(cles["p"]), (boutons, cles["p"])
