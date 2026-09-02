@@ -9214,9 +9214,11 @@ def _etabli_du_job(ligne: dict) -> list[dict]:
         if not isinstance(src, dict) or src.get("outil") != "etabli":
             continue
         # `src` porte tout le détail de l'opération : pour « couper », le compte
-        # rendu du couteau — nœuds produits, capuchons posés ou non et pourquoi
-        # (format en tête de la section couteau de mesh_edit.py). L'entrée n'en
-        # remonte que le nom ; qui voudra afficher les capuchons le lira ici.
+        # rendu du couteau — nœuds produits (`_avant` / `_apres`), capuchons
+        # posés ou non et pourquoi (format en tête de la section couteau de
+        # mesh_cut.py) — et, pour toute écriture, `depuis` : la version dont
+        # elle part. L'entrée n'en remonte que le nom ; qui voudra afficher les
+        # capuchons ou la lignée le lira ici.
         out.append(_etabli_entree(
             ligne, etape, str(src.get("operation") or "?"), d))
         vues.add(v)
@@ -9409,38 +9411,46 @@ async def etabli_adopter(body: dict):
             "url": f"/api/assets/3d/{job}/version/1"}
 
 
+# LES CINQ ROUTES D'ÉCRITURE PASSENT LA MÊME PORTE, `_etabli_glb_cible` (revue
+# du lot B) : `version` un entier ≥ 1, `job` une chaîne, les deux gardes de
+# chemin, et `depuis` — la version dont l'écriture part — dans la fiche. Avant,
+# les trois routes de P1 prenaient `int(version or 1)` : « 1 », 0, 1,5 ou True
+# écrivaient une version, [1] faisait un 500, et `job = 12` un 404 là où les
+# routes du lot B disaient 400.
+
 @router.post("/etabli/extraire")
 async def etabli_extraire(body: dict):
     from app.services import mesh_edit
-    job = Path(str(body.get("job") or "")).name
+    job, data, depuis = _etabli_glb_cible(body.get("job"), body.get("version"),
+                                          "extraction")
     noeuds = body.get("noeuds")
-    data = _etabli_glb(job, body.get("version"))
     try:
         sortie = mesh_edit.extraire(data, noeuds or [])
     except ValueError as e:
         raise HTTPException(400, str(e))
     return _etabli_ecrire(job, sortie, "extraire",
-                          {"noeuds": list(noeuds or [])})
+                          {"depuis": depuis, "noeuds": list(noeuds or [])})
 
 
 @router.post("/etabli/transformer")
 async def etabli_transformer(body: dict):
     from app.services import mesh_edit
-    job = Path(str(body.get("job") or "")).name
-    data = _etabli_glb(job, body.get("version"))
+    job, data, depuis = _etabli_glb_cible(body.get("job"), body.get("version"),
+                                          "transformation")
     try:
         sortie = mesh_edit.transformer(data, body.get("transforms"))
     except ValueError as e:
         raise HTTPException(400, str(e))
     return _etabli_ecrire(job, sortie, "transformer",
-                          {"transforms": body.get("transforms") or {}})
+                          {"depuis": depuis,
+                           "transforms": body.get("transforms") or {}})
 
 
 @router.post("/etabli/reparer")
 async def etabli_reparer(body: dict):
     from app.services import mesh_edit
-    job = Path(str(body.get("job") or "")).name
-    data = _etabli_glb(job, body.get("version"))
+    job, data, depuis = _etabli_glb_cible(body.get("job"), body.get("version"),
+                                          "réparation")
     try:
         sortie = mesh_edit.reparer(
             data, axe_haut=body.get("axe_haut"),
@@ -9450,7 +9460,8 @@ async def etabli_reparer(body: dict):
         # un GLB compressé refuse le RECENTRAGE seul : le message le dit
         raise HTTPException(400, str(e))
     return _etabli_ecrire(job, sortie, "reparer",
-                          {"axe_haut": body.get("axe_haut"),
+                          {"depuis": depuis,
+                           "axe_haut": body.get("axe_haut"),
                            "echelle": body.get("echelle"),
                            "recentrer": bool(body.get("recentrer"))})
 
@@ -9461,10 +9472,13 @@ async def etabli_reparer(body: dict):
 # leurs corps sont jugés ICI avant toute lecture — `mesh_edit` refuse à son
 # tour en ValueError, traduites en 400.
 
-def _etabli_glb_cible(job, version, quoi: str) -> tuple[str, bytes]:
+def _etabli_glb_cible(job, version, quoi: str) -> tuple[str, bytes, dict]:
     """Les octets d'une version pour un `job` venu du RÉSEAU : les deux gardes
     de `_etabli_cible_sous_jobs`, puis le 404 franc d'un fichier absent. Rend
-    aussi le nom de dossier APLATI, celui sous lequel la version s'écrira."""
+    aussi le nom de dossier APLATI, celui sous lequel la version s'écrira, et
+    `depuis` — {version, fichier} — que chaque route dépose dans la fiche :
+    sans lui, aucune fiche ne disait de quelle version une écriture partait, et
+    le couteau est la première opération qui renomme des pièces."""
     from app.services import mesh_report
     if not isinstance(job, str):
         raise HTTPException(400, f"{quoi} : job « {job} » — le nom du dossier "
@@ -9477,7 +9491,7 @@ def _etabli_glb_cible(job, version, quoi: str) -> tuple[str, bytes]:
         job, lambda j: mesh_report.job_dir(Path(str(j)).name) / nom, quoi)
     if not p.is_file():
         raise HTTPException(404, f"{quoi} : {p.parent.name}/{nom} introuvable")
-    return p.parent.name, p.read_bytes()
+    return p.parent.name, p.read_bytes(), {"version": version, "fichier": nom}
 
 
 def _etabli_vecteur(v, quoi: str, *, direction: bool = False) -> list[float]:
@@ -9498,7 +9512,8 @@ async def etabli_assise(body: dict):
     `/etabli/reparer` dont c'est le geste en un clic — voir
     `mesh_edit.assise` pour l'invariant du nœud de correction NEUF."""
     from app.services import mesh_edit
-    job, data = _etabli_glb_cible(body.get("job"), body.get("version"), "assise")
+    job, data, depuis = _etabli_glb_cible(body.get("job"), body.get("version"),
+                                          "assise")
     normale = _etabli_vecteur(body.get("normale"), "assise : normale",
                               direction=True)
     point = body.get("point")
@@ -9510,7 +9525,7 @@ async def etabli_assise(body: dict):
         # un GLB compressé refuse : la translation de contact lit la géométrie
         raise HTTPException(400, str(e))
     return _etabli_ecrire(job, sortie, "assise",
-                          {"normale": normale, "point": point})
+                          {"depuis": depuis, "normale": normale, "point": point})
 
 
 _ETABLI_GARDER = ("deux", "a", "b")
@@ -9520,16 +9535,19 @@ _ETABLI_GARDER = ("deux", "a", "b")
 async def etabli_couper(body: dict):
     """Le couteau : coupe les nœuds `noeuds` par le plan (`point`, `normale`)
     et écrit une version de plus. `garder` ∈ deux | a | b (a : le côté vers
-    lequel pointe la normale). Le compte rendu de `mesh_edit.couper` — nœuds
-    produits, capuchons posés ou non et pourquoi — devient le `source` de la
-    fiche : c'est là que `/etabli/productions` et la Bibliothèque le lisent,
-    et le format est décrit en tête de la section couteau de mesh_edit.py.
+    lequel pointe la normale). Le compte rendu de `mesh_cut.couper` — nœuds
+    produits (`_avant` / `_apres`), capuchons posés ou non et pourquoi — et
+    `depuis` deviennent le `source` de la fiche : c'est de là que
+    `/etabli/productions` et la Bibliothèque peuvent le lire (l'entrée n'en
+    remonte que le nom), et le format est décrit en tête de la section couteau
+    de mesh_cut.py.
 
     Aucun plan de plaque n'est reporté sur la version coupée, et c'est voulu
     (voir le format du plan) : ses index de nœud ne sont plus ceux d'avant.
     """
-    from app.services import mesh_edit
-    job, data = _etabli_glb_cible(body.get("job"), body.get("version"), "couteau")
+    from app.services import mesh_cut
+    job, data, depuis = _etabli_glb_cible(body.get("job"), body.get("version"),
+                                          "couteau")
     noeuds = body.get("noeuds")
     if not isinstance(noeuds, list) or not noeuds:
         raise HTTPException(400, "couteau : `noeuds` doit être une liste non "
@@ -9546,7 +9564,7 @@ async def etabli_couper(body: dict):
     if garder not in _ETABLI_GARDER:
         raise HTTPException(400, f"couteau : garder « {garder} » — deux, a ou b")
     try:
-        sortie, rapport = mesh_edit.couper(data, noeuds, point, normale, garder)
+        sortie, rapport = mesh_cut.couper(data, noeuds, point, normale, garder)
     except ValueError as e:
         raise HTTPException(400, str(e))
-    return _etabli_ecrire(job, sortie, "couper", rapport)
+    return _etabli_ecrire(job, sortie, "couper", {"depuis": depuis, **rapport})

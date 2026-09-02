@@ -258,9 +258,21 @@ function direRefus(message) {
    `erreur` ne périmerait qu'au prochain chargement : la barre resterait rouge
    sous un geste qui vient de marcher, ce qui est un mensonge de moins d'une
    seconde mais un mensonge quand même. */
+/* Un AVIS : quelque chose a RÉUSSI et doit quand même être lu — un capuchon
+   non posé sur une coupe écrite. Même barre, même bornage que le refus, mais
+   la classe `avis` (ambre) et non `erreur` : peindre en rouge une écriture
+   réussie ferait passer la version pour perdue. */
+function direAvis(message) {
+  direRefus(message);
+  const zone = $("#barreGeo");
+  zone.classList.remove("erreur");
+  zone.classList.add("avis");
+}
+
 function direGeometrie() {
   const zone = $("#barreGeo");
   zone.classList.remove("erreur");
+  zone.classList.remove("avis");
   zone.title = "";
   const geo = S.geoA;
   if (!geo) { zone.textContent = "—"; return; }
@@ -1506,11 +1518,13 @@ function poserSurFace(obj, touche) {
 
    `manip` est le mode du gizmo sur le plan ; `garder` ce qui sera écrit ;
    `noeuds` les index de nœud capturés à l'armement et refaits à chaque
-   changement de sélection ; `plan`, `apercu`, `clones`, `originaux` ce que le
+   changement de sélection — LA source de la coupe, celle que l'aperçu montre :
+   confirmerCoupe() ne relit pas la sélection, ce qui part est ce qu'on voit ;
+   `source` leur provenance (« associations » ou « nom », voir noterAttente) ; `plan`, `apercu`, `clones`, `originaux` ce que le
    rangement doit défaire ; `planA`/`planB` les deux plans de découpe de
    three.js (a : le demi-espace vers lequel pointe la normale, comme au
    serveur). (Même règle que pour S : toute clé se déclare ICI.) */
-const COUTEAU = { manip: "translate", garder: "deux", noeuds: [],
+const COUTEAU = { manip: "translate", garder: "deux", noeuds: [], source: undefined,
                   plan: null, apercu: null, clones: [], originaux: [],
                   planA: new THREE.Plane(), planB: new THREE.Plane(),
                   rayon: 0, ecart: 0 };
@@ -1686,6 +1700,7 @@ function rangerCouteau() {
   }
   COUTEAU.plan = null;
   COUTEAU.noeuds = [];
+  COUTEAU.source = undefined;
 }
 
 function armerCouteau() {
@@ -1698,7 +1713,7 @@ function armerCouteau() {
     direRefus("la plaque est une VUE : revenez à « Assemblé » pour couper");
     return;
   }
-  const { noeuds } = noeudsRetenus();
+  const { noeuds, source } = noeudsRetenus();
   if (!noeuds.length) {
     direRefus("aucune pièce retenue — cochez dans Parties ce que le couteau "
       + "doit couper : il ne tranche jamais tout le modèle par défaut");
@@ -1706,6 +1721,7 @@ function armerCouteau() {
   }
   armerGeste("couteau");
   COUTEAU.noeuds = noeuds;
+  COUTEAU.source = source;
   monterCouteau();
   direGeometrie();
 }
@@ -1714,7 +1730,7 @@ function armerCouteau() {
    ou le couteau se range s'il ne reste rien à couper, en le disant. */
 function reconstruireApercuCoupe() {
   if (GESTE.mode !== "couteau") return;
-  const { noeuds } = noeudsRetenus();
+  const { noeuds, source } = noeudsRetenus();
   if (!noeuds.length) {
     armerGeste("selection");
     direRefus("couteau rangé : plus aucune pièce retenue, il n'y a plus rien à "
@@ -1722,6 +1738,7 @@ function reconstruireApercuCoupe() {
     return;
   }
   COUTEAU.noeuds = noeuds;
+  COUTEAU.source = source;
   monterApercuCoupe();
   majApercuCoupe();
 }
@@ -1753,7 +1770,9 @@ async function confirmerCoupe() {
       + "renumérote les nœuds et ne se met pas en file derrière elles");
     return false;
   }
-  const { noeuds, source } = noeudsRetenus();
+  /* UNE SOURCE : les nœuds de l'APERÇU, pas une relecture de la sélection —
+     ce qui part au serveur est ce que l'écran montre coupé. */
+  const noeuds = COUTEAU.noeuds, source = COUTEAU.source;
   if (!noeuds.length) {
     direRefus("aucune pièce retenue — le couteau ne tranche jamais tout le "
       + "modèle par défaut");
@@ -1796,7 +1815,7 @@ function direBilanCoupe(fiche) {
     }
   }
   if (!manques.length) return;
-  direRefus(`coupe écrite (version ${fiche.version}) — capuchon non posé : `
+  direAvis(`coupe écrite (version ${fiche.version}) — capuchon non posé : `
     + manques.join(" · "));
 }
 
@@ -1806,10 +1825,13 @@ function direBilanCoupe(fiche) {
    recherche du navigateur. Rend vrai quand le geste a été pris. */
 function toucheClavierOutils(ev) {
   if (ev.ctrlKey || ev.metaKey || ev.altKey) return false;
-  const t = ev.target;
-  if (t && (t.isContentEditable
-            || /^(INPUT|TEXTAREA|SELECT)$/i.test(t.tagName || ""))) return false;
   const k = String(ev.key || "");
+  const t = ev.target;
+  /* Échap se prend MÊME depuis un champ : le <select> du couteau garde le
+     focus juste après qu'on a choisi le côté, et Échap y ne fait rien d'autre.
+     Les lettres, elles, restent aux champs. */
+  if (k !== "Escape" && t && (t.isContentEditable
+            || /^(INPUT|TEXTAREA|SELECT)$/i.test(t.tagName || ""))) return false;
   if (k === "Escape") {
     if (GESTE.mode !== "assise" && GESTE.mode !== "couteau") return false;
     armerGeste("selection");
@@ -2396,7 +2418,7 @@ const fmtCoord = (v) => Number(v).toFixed(2);
 const LIBELLES_ATTENTE = {
   transformer: (t) => `${Object.keys(t.charge).length} nœud(s) déplacé(s)`,
   extraire: (t) => `${t.charge.length} nœud(s) à séparer`,
-  reparer: (t) => `assise : axe ${t.charge.axe_haut}, échelle ${t.charge.echelle}`
+  reparer: (t) => `réparer l'assise : axe ${t.charge.axe_haut}, échelle ${t.charge.echelle}`
     + (t.charge.recentrer ? ", recentré" : ""),
   assise: (t) => `posé sur une face (normale ${t.charge.normale.map(fmtCoord).join(", ")})`,
   couper: (t) => `coupe de ${t.charge.noeuds.length} pièce(s) — garder ${t.charge.garder}`,

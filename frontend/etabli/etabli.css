@@ -273,6 +273,9 @@ button { font-family: inherit; }
 #barreGeo { min-width: 0; }
 /* le refus se VOIT : c'est tout ce que la tâche 4 se permet comme signalement */
 #barreGeo.erreur { color: var(--red); }
+/* l'AVIS (une coupe écrite dont un capuchon n'a pas pu être posé) se lit en
+   ambre : c'est un fait à savoir, pas un échec — le rouge dirait « perdu » */
+#barreGeo.avis { color: var(--amber); }
 /* `flex: none` — ce qu'elle portait avant la porte d'écriture — laissait cette
    barre pousser #barreGeo à zéro puis ses propres boutons hors champ, sous
    l'`overflow: hidden` de .etabli. Arithmétique de cette feuille à 1440×900 :

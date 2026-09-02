@@ -33,6 +33,7 @@ PY = sys.executable
 SOCLE = "tests/test_etabli_socle.py"
 CANEVAS = "tests/test_etabli_canevas.py"
 ME = "backend/app/services/mesh_edit.py"
+MC = "backend/app/services/mesh_cut.py"      # le couteau, depuis la revue
 RT = "backend/app/api/routes.py"
 JS = "frontend/etabli/etabli.js"
 
@@ -40,41 +41,41 @@ M = [
     # ── mesh_edit : le capuchon ──────────────────────────────────────────────
     # 0. le capuchon du côté a n'est plus retourné : ses arêtes vont dans le
     #    même sens que la paroi, la moitié n'est plus fermée
-    (ME, "            if inverser:\n                j, k = k, j\n", "",
+    (MC, "            if inverser:\n                j, k = k, j\n", "",
      SOCLE, ["FERMEES"]),
     # 1. « oublie le capuchon » : les triangles ne sont jamais ajoutés
-    (ME, "            if tris_cap:\n                base = [c0.sommet_neuf([",
+    (MC, "            if tris_cap:\n                base = [c0.sommet_neuf([",
      "            if False:\n                base = [c0.sommet_neuf([",
      SOCLE, ["FERMEES", "garder_a_ou_b"]),
     # 2. l'interpolation repart de l'index et non de la position : la section
     #    ne se recoud plus à travers les coutures UV
-    (ME, "            i0, j0 = (cle if pos[cle[0]] <= pos[cle[1]] else (cle[1], cle[0]))",
+    (MC, "            i0, j0 = (cle if pos[cle[0]] <= pos[cle[1]] else (cle[1], cle[0]))",
      "            i0, j0 = cle",
      SOCLE, ["FERMEES"]),
     # 3. la normale du plan est « tournée » au lieu d'être transposée : faux
     #    sous l'échelle non uniforme de la boîte
-    (ME, "    nl = tuple(m[c * 4] * normale[0] + m[c * 4 + 1] * normale[1]\n"
+    (MC, "    nl = tuple(m[c * 4] * normale[0] + m[c * 4 + 1] * normale[1]\n"
          "               + m[c * 4 + 2] * normale[2] for c in range(3))",
      "    nl = tuple(normale)",
      SOCLE, ["FERMEES"]),
     # 4. l'orientation du capuchon jugée constante
-    (ME, "    inverser = (vers[0] * n_unit[0] + vers[1] * n_unit[1]\n"
+    (MC, "    inverser = (vers[0] * n_unit[0] + vers[1] * n_unit[1]\n"
          "                + vers[2] * n_unit[2]) < 0",
      "    inverser = False",
      SOCLE, ["FERMEES"]),
     # 5. une oreille plate ne pose plus son triangle : jonction en T
-    (ME, "        tris.append((ip, i, inx))\n        del idx[k]",
+    (MC, "        tris.append((ip, i, inx))\n        del idx[k]",
      "        if abs(croix(ip, i, inx)) > eps:\n            tris.append((ip, i, inx))\n        del idx[k]",
      SOCLE, ["triangulation_par_oreilles"]),
     # 6. les boucles imbriquées ne sont plus vues : le trou serait bouché
-    (ME, "            if i != j and _dedans_polygone(bj[0], bi):", "            if False:",
+    (MC, "            if i != j and _dedans_polygone(bj[0], bi):", "            if False:",
      SOCLE, ["boucles_imbriquees"]),
     # 7. un plan qui ne traverse rien écrit quand même une version
-    (ME, "    if not traversee:\n        raise ValueError(\"le plan ne traverse aucune des pièces retenues — \"\n"
+    (MC, "    if not traversee:\n        raise ValueError(\"le plan ne traverse aucune des pièces retenues — \"\n"
          "                         \"rien à couper\")\n", "",
      SOCLE, ["ne_sait_pas_couper", "route_couper"]),
     # 8. une pièce entière du côté écarté est gardée quand même
-    (ME, "            produits[i] = [i] if garde else []", "            produits[i] = [i]",
+    (MC, "            produits[i] = [i] if garde else []", "            produits[i] = [i]",
      SOCLE, ["ne_sait_pas_couper"]),
     # ── mesh_edit : l'assise ────────────────────────────────────────────────
     # 9. pas de translation de contact
@@ -100,8 +101,8 @@ M = [
     (RT, "    if direction and all(c == 0 for c in v):", "    if False:",
      SOCLE, ["route_couper"]),
     # 15. le compte rendu du couteau n'est plus écrit dans la fiche
-    (RT, "    return _etabli_ecrire(job, sortie, \"couper\", rapport)",
-     "    return _etabli_ecrire(job, sortie, \"couper\", {})",
+    (RT, "    return _etabli_ecrire(job, sortie, \"couper\", {\"depuis\": depuis, **rapport})",
+     "    return _etabli_ecrire(job, sortie, \"couper\", {\"depuis\": depuis})",
      SOCLE, ["route_couper"]),
     # ── etabli.js : le propriétaire du pointeur ─────────────────────────────
     # 16. quitter le couteau ne le range plus
@@ -171,19 +172,15 @@ M = [
      "<span class=\"outil-couteau\" id=\"couteauBarre\">",
      CANEVAS, ["outils_vivent"]),
     # 32. Ctrl+F arme l'assise au lieu de laisser la recherche du navigateur
-    (JS, "  if (ev.ctrlKey || ev.metaKey || ev.altKey) return false;\n  const t = ev.target;\n"
-         "  if (t && (t.isContentEditable\n            || /^(INPUT|TEXTAREA|SELECT)$/i.test(t.tagName || \"\"))) return false;\n"
-         "  const k = String(ev.key || \"\");",
-     "  const t = ev.target;\n"
-         "  if (t && (t.isContentEditable\n            || /^(INPUT|TEXTAREA|SELECT)$/i.test(t.tagName || \"\"))) return false;\n"
-         "  const k = String(ev.key || \"\");",
+    (JS, "  if (ev.ctrlKey || ev.metaKey || ev.altKey) return false;\n  const k = String(ev.key || \"\");",
+     "  const k = String(ev.key || \"\");",
      CANEVAS, ["outils_vivent"]),
     # 33. la coupe refusée par le serveur reste dans la file
     (JS, "    if (i >= 0) S.enAttente.splice(i, 1);\n", "", CANEVAS, ["REFUSE_sans_piece"]),
     # ── revue du lot B ─────────────────────────────────────────────────────
     # 34. une boucle non triangulable est SAUTÉE : pose reste vrai, triangles
     #     manquants en silence (la mutation verte du relecteur)
-    (ME, '        t = _trianguler(b2)\n        if t is None:',
+    (MC, '        t = _trianguler(b2)\n        if t is None:',
      '        t = _trianguler(b2)\n        if t is None:\n            continue\n        if False:',
      SOCLE, ["boucles_imbriquees"]),
     # 35. l'aperçu visite deux fois les maillages d'un retenu contenu dans un
@@ -196,9 +193,33 @@ M = [
      '    <button id="btnAnnuler">annuler</button>`;',
      CANEVAS, ["REFUSE_sans_piece"]),
     # 37. les triangles plats du capuchon ne sont plus dits
-    (ME, '                           "degeneres": degeneres}',
+    (MC, '                           "degeneres": degeneres}',
      '                           "degeneres": 0}',
      SOCLE, ["boucles_imbriquees"]),
+    # ── seconde revue ────────────────────────────────────────────────────
+    # 38. un triangle coplanaire part toujours côté a : la face confondue
+    #     avec le plan redevient une pièce de volume nul
+    (MC, '                if nx * normale[0] + ny * normale[1] + nz * normale[2] > 0:\n                    cote = b',
+     '                if nx * normale[0] + ny * normale[1] + nz * normale[2] > 0:\n                    cote = a',
+     SOCLE, ["CONFONDUE"]),
+    # 39. plus de seuil : un sommet à 1e-9 du plan fait des aiguilles qui
+    #     s'effondrent à l'écriture f32
+    (MC, '_EPS_PLAN = 1e-7', '_EPS_PLAN = 0.0', SOCLE, ["1e_9"]),
+    # 40. noeud_apres n'est plus traduit : deux espaces d'index sous un nom
+    (MC, '        piece["noeud_apres"] = m_node.get(piece["noeud_avant"])',
+     '        piece["noeud_apres"] = piece["noeud_avant"]',
+     SOCLE, ["deux_espaces"]),
+    # 41. une pièce écartée par garder emporte ses enfants
+    (MC, '        if _l(nodes[i], "children"):\n            nodes[i].pop("mesh", None)\n            piece["contenant"] = True\n            continue\n', '',
+     SOCLE, ["CONTENANT"]),
+    # 42. une route de P1 repasse par l'ancienne porte
+    (RT, '    job, data, depuis = _etabli_glb_cible(body.get("job"), body.get("version"),\n                                          "transformation")',
+     '    job = Path(str(body.get("job") or "")).name\n    data = _etabli_glb(job, body.get("version"))\n    depuis = {"version": 1, "fichier": "model.glb"}',
+     SOCLE, ["cinq_routes"]),
+    # 43. la fiche du couteau ne dit plus d'où elle part
+    (RT, '    return _etabli_ecrire(job, sortie, "couper", {"depuis": depuis, **rapport})',
+     '    return _etabli_ecrire(job, sortie, "couper", rapport)',
+     SOCLE, ["route_couper", "cinq_routes"]),
 ]
 
 

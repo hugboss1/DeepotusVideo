@@ -1117,6 +1117,16 @@ def test_rodrigues_tient_les_cas_alignes_et_opposes():
     assert mesh_edit._rodrigues((0, 1, 0), (0, 1, 0)) == mesh_edit._I3
 
 
+
+# Deux figures qui servent à plusieurs bancs — UNE définition chacune. Le nœud
+# papillon se croise : aucune oreille ne se présente. L'aiguille est une
+# section d'épaisseur quasi nulle (1 sur 8e-13) : l'aire passe encore
+# l'epsilon de la triangulation, plus aucun coin ne le passe.
+_PAPILLON = [(0, 0), (2, 2), (2, 0), (0, 2)]
+_H_AIGUILLE = 8e-13
+_AIGUILLE = [(0, 0), (0.5, 0), (1, 0), (1, _H_AIGUILLE), (0.5, _H_AIGUILLE),
+             (0, _H_AIGUILLE)]
+
 # ── J. le couteau : deux moitiés FERMÉES, ni plus ni moins de volume ─────────
 
 _PLAN_OBLIQUE = ((0.05, -0.03, 0.02), (0.3, 0.5, -0.8))
@@ -1125,8 +1135,8 @@ _PLAN_OBLIQUE = ((0.05, -0.03, 0.02), (0.3, 0.5, -0.8))
 def _plan_de_la_boite(tris):
     """Un plan OBLIQUE (aucune composante nulle) près du centre de la boîte,
     décalé pour qu'il ne passe par aucun sommet ni aucun centre de face."""
-    (x0, x1), (y0, y1), (z0, z1) = __import__("app.services.print3d",
-                                             fromlist=["bbox"]).bbox(tris)
+    from app.services import print3d
+    (x0, x1), (y0, y1), (z0, z1) = print3d.bbox(tris)
     dp, n = _PLAN_OBLIQUE
     c = ((x0 + x1) / 2 + dp[0], (y0 + y1) / 2 + dp[1], (z0 + z1) / 2 + dp[2])
     ln = math.sqrt(sum(v * v for v in n))
@@ -1138,9 +1148,9 @@ def _distance(p, point, normale):
 
 
 def _lire_primitive(doc, binc, pr):
-    from app.services import mesh_edit
-    pos = mesh_edit._lire_accesseur(doc, binc, pr["attributes"]["POSITION"])
-    idx = [t[0] for t in mesh_edit._lire_accesseur(doc, binc, pr["indices"])]
+    from app.services import mesh_cut, mesh_edit
+    pos = mesh_cut._lire_accesseur(doc, binc, pr["attributes"]["POSITION"])
+    idx = [t[0] for t in mesh_cut._lire_accesseur(doc, binc, pr["indices"])]
     return pos, idx
 
 
@@ -1169,7 +1179,7 @@ def _noeud_nomme(doc, nom):
 def _triangles_du_noeud(data, nom):
     """Les triangles MONDE du seul nœud `nom` — par extraction, le lecteur
     éprouvé, et non par un filtre maison."""
-    from app.services import mesh_edit, print3d
+    from app.services import mesh_cut, mesh_edit, print3d
     doc, _ = mesh_edit.lire_glb(data)
     return print3d.lire_glb_triangles(mesh_edit.extraire(data, [_noeud_nomme(doc, nom)]))
 
@@ -1187,7 +1197,7 @@ def test_les_deux_moities_sont_FERMEES_et_leurs_volumes_font_le_volume_d_origine
     signés vaut le volume d'origine à 1e-9 (donc les capuchons sont là ET
     bien orientés), aucun sommet n'est du mauvais côté au-delà de 1e-9, les
     matériaux et le nom sont portés, et le compte rendu dit les capuchons."""
-    from app.services import mesh_edit, print3d
+    from app.services import mesh_cut, mesh_edit, print3d
     boite = _boite_inclinee()
     doc0, binc0 = mesh_edit.lire_glb(boite)
     pos0, _ = _lire_primitive(doc0, binc0, doc0["meshes"][0]["primitives"][0])
@@ -1200,7 +1210,7 @@ def test_les_deux_moities_sont_FERMEES_et_leurs_volumes_font_le_volume_d_origine
     v_avant = _volume(avant)
     assert v_avant > 0.1
 
-    coupe, rapport = mesh_edit.couper(boite, [0], point, normale, "deux")
+    coupe, rapport = mesh_cut.couper(boite, [0], point, normale, "deux")
     doc, binc = mesh_edit.lire_glb(coupe)
     noms = [n.get("name") for n in doc["nodes"]]
     assert noms == ["cube_a", "cube_b"], noms
@@ -1226,10 +1236,10 @@ def test_les_deux_moities_sont_FERMEES_et_leurs_volumes_font_le_volume_d_origine
     # plan de ce que cette quantification permet — mesuré −4,6e-9 en monde,
     # borné par 1e-7 (un demi-ulp de f32 à l'ordre de grandeur 1, fois
     # l'échelle 1,3 et la norme de la normale locale).
-    nl, cl = mesh_edit._plan_local(mesh_edit._mat_locale(doc0["nodes"][0]), point, normale)
-    idx0 = [t[0] for t in mesh_edit._lire_accesseur(doc0, binc0, doc0["meshes"][0]["primitives"][0]["indices"])]
+    nl, cl = mesh_cut._plan_local(mesh_edit._mat_locale(doc0["nodes"][0]), point, normale)
+    idx0 = [t[0] for t in mesh_cut._lire_accesseur(doc0, binc0, doc0["meshes"][0]["primitives"][0]["indices"])]
     d0 = [nl[0] * p[0] + nl[1] * p[1] + nl[2] * p[2] + cl for p in pos0]
-    ca, cb, segs = mesh_edit._decouper_primitive(["POSITION"], [pos0], idx0, d0, None)
+    ca, cb, segs = mesh_cut._decouper_primitive(["POSITION"], [pos0], idx0, d0, None, nl)
     for cote, signe in ((ca, 1), (cb, -1)):
         for p in cote.cols[0]:
             dl = nl[0] * p[0] + nl[1] * p[1] + nl[2] * p[2] + cl
@@ -1250,7 +1260,7 @@ def test_les_deux_moities_sont_FERMEES_et_leurs_volumes_font_le_volume_d_origine
         assert cr["capuchon"]["pose"] is True and cr["capuchon"]["boucles"] == 1
         assert cr["capuchon"]["triangles"] >= 4
         assert 0 <= cr["capuchon"]["degeneres"] < cr["capuchon"]["triangles"]
-        assert cr["noeud"] == _noeud_nomme(doc, f"cube_{cote}")
+        assert cr["noeud_apres"] == _noeud_nomme(doc, f"cube_{cote}")
         assert cr["nom"] == f"cube_{cote}"
     assert rapport["plan"]["repere"] == "monde" and rapport["garder"] == "deux"
     assert rapport["capuchons"]["uv"] == [0, 0]
@@ -1268,16 +1278,16 @@ def test_les_UV_et_normales_interpolees_sont_la_combinaison_barycentrique_de_l_a
     flottant 32 bits près, qui est le format du fichier. La normale est la
     même combinaison, renormée. Les sommets du capuchon, eux, portent l'UV
     (0, 0) et la normale du plan."""
-    from app.services import mesh_edit, print3d
+    from app.services import mesh_cut, mesh_edit, print3d
     boite = _boite_inclinee()
     avant = print3d.lire_glb_triangles(boite)
     point, normale = _plan_de_la_boite(avant)
-    coupe, rapport = mesh_edit.couper(boite, [0], point, normale, "deux")
+    coupe, rapport = mesh_cut.couper(boite, [0], point, normale, "deux")
     doc0, binc0 = mesh_edit.lire_glb(boite)
     pr0 = doc0["meshes"][0]["primitives"][0]
     pos0, idx0 = _lire_primitive(doc0, binc0, pr0)
-    uv0 = mesh_edit._lire_accesseur(doc0, binc0, pr0["attributes"]["TEXCOORD_0"])
-    nrm0 = mesh_edit._lire_accesseur(doc0, binc0, pr0["attributes"]["NORMAL"])
+    uv0 = mesh_cut._lire_accesseur(doc0, binc0, pr0["attributes"]["TEXCOORD_0"])
+    nrm0 = mesh_cut._lire_accesseur(doc0, binc0, pr0["attributes"]["NORMAL"])
     aretes0 = set()
     for k in range(0, len(idx0), 3):
         for e in range(3):
@@ -1288,8 +1298,8 @@ def test_les_UV_et_normales_interpolees_sont_la_combinaison_barycentrique_de_l_a
     for n in doc["nodes"]:
         pr = doc["meshes"][n["mesh"]]["primitives"][0]
         pos, _ = _lire_primitive(doc, binc, pr)
-        uv = mesh_edit._lire_accesseur(doc, binc, pr["attributes"]["TEXCOORD_0"])
-        nrm = mesh_edit._lire_accesseur(doc, binc, pr["attributes"]["NORMAL"])
+        uv = mesh_cut._lire_accesseur(doc, binc, pr["attributes"]["TEXCOORD_0"])
+        nrm = mesh_cut._lire_accesseur(doc, binc, pr["attributes"]["NORMAL"])
         for k, p in enumerate(pos):
             if p in set(pos0):
                 continue
@@ -1322,15 +1332,15 @@ def test_les_UV_et_normales_interpolees_sont_la_combinaison_barycentrique_de_l_a
 
 
 def test_garder_a_ou_b_ne_produit_qu_une_moitie_fermee_et_le_dit():
-    from app.services import mesh_edit, print3d
+    from app.services import mesh_cut, mesh_edit, print3d
     boite = _boite_inclinee()
     avant = print3d.lire_glb_triangles(boite)
     point, normale = _plan_de_la_boite(avant)
-    deux, _ = mesh_edit.couper(boite, [0], point, normale, "deux")
+    deux, _ = mesh_cut.couper(boite, [0], point, normale, "deux")
     va = _volume(_triangles_du_noeud(deux, "cube_a"))
     vb = _volume(_triangles_du_noeud(deux, "cube_b"))
     for cote, attendu in (("a", va), ("b", vb)):
-        seule, rapport = mesh_edit.couper(boite, [0], point, normale, cote)
+        seule, rapport = mesh_cut.couper(boite, [0], point, normale, cote)
         doc, binc = mesh_edit.lire_glb(seule)
         assert [n.get("name") for n in doc["nodes"]] == [f"cube_{cote}"]
         assert _aretes_non_appariees(doc, binc, doc["meshes"][0]) == []
@@ -1344,29 +1354,29 @@ def test_le_couteau_refuse_ce_qu_il_ne_sait_pas_couper_en_le_disant():
     """Aucune sélection, un plan qui ne traverse rien, une normale nulle, un
     `garder` inconnu, un nœud hors document, un contenant sans maillage, un
     GLB compressé : sept refus NOMMÉS — jamais une version écrite pour rien."""
-    from app.services import mesh_edit, print3d
+    from app.services import mesh_cut, mesh_edit, print3d
     boite = _boite_inclinee()
     avant = print3d.lire_glb_triangles(boite)
     point, normale = _plan_de_la_boite(avant)
     with pytest.raises(ValueError, match="jamais tout le modèle"):
-        mesh_edit.couper(boite, [], point, normale)
+        mesh_cut.couper(boite, [], point, normale)
     with pytest.raises(ValueError, match="ne traverse aucune"):
-        mesh_edit.couper(boite, [0], [50.0, 0.0, 0.0], normale)
+        mesh_cut.couper(boite, [0], [50.0, 0.0, 0.0], normale)
     with pytest.raises(ValueError, match="nulle"):
-        mesh_edit.couper(boite, [0], point, [0, 0, 0])
+        mesh_cut.couper(boite, [0], point, [0, 0, 0])
     with pytest.raises(ValueError, match="garder attend"):
-        mesh_edit.couper(boite, [0], point, normale, "c")
+        mesh_cut.couper(boite, [0], point, normale, "c")
     with pytest.raises(ValueError, match="hors du document"):
-        mesh_edit.couper(boite, [4], point, normale)
+        mesh_cut.couper(boite, [4], point, normale)
     with pytest.raises(ValueError, match="entiers"):
-        mesh_edit.couper(boite, ["x"], point, normale)
+        mesh_cut.couper(boite, ["x"], point, normale)
     doc, binc = mesh_edit.lire_glb(boite)
     doc["nodes"].append({"name": "boite", "children": [0]})
     doc["scenes"][0]["nodes"] = [1]
     with pytest.raises(ValueError, match="sans maillage"):
-        mesh_edit.couper(mesh_edit.ecrire_glb(doc, binc), [1], point, normale)
+        mesh_cut.couper(mesh_edit.ecrire_glb(doc, binc), [1], point, normale)
     with pytest.raises(ValueError, match="draco"):
-        mesh_edit.couper(_cube_compresse(), [0], point, normale)
+        mesh_cut.couper(_cube_compresse(), [0], point, normale)
     # une pièce que le plan ne traverse pas est GARDÉE telle quelle si son
     # côté l'est, et une seconde pièce traversée fait quand même une version
     doc, binc = mesh_edit.lire_glb(_cube_et_sol())
@@ -1375,14 +1385,14 @@ def test_le_couteau_refuse_ce_qu_il_ne_sait_pas_couper_en_le_disant():
     (x0, x1), (y0, y1), (z0, z1) = print3d.bbox(tris)
     # le sol est sous le cube : un plan horizontal à mi-cube coupe le cube et
     # laisse le sol entier du côté b
-    coupe, rapport = mesh_edit.couper(deux_pieces, [0, 1], [0.0, 0.0, 0.0],
+    coupe, rapport = mesh_cut.couper(deux_pieces, [0, 1], [0.0, 0.0, 0.0],
                                       [0.0, 1.0, 0.0], "deux")
     sol = next(p for p in rapport["pieces"] if p["nom"] == "stage")
     assert sol["traversee"] is False and sol["entier"] == "b" and sol["retire"] == []
     docc, _ = mesh_edit.lire_glb(coupe)
     assert sorted(n.get("name") for n in docc["nodes"]) == ["cube_a", "cube_b", "stage"]
     # …et `garder="a"` retire le sol, en le disant
-    coupe, rapport = mesh_edit.couper(deux_pieces, [0, 1], [0.0, 0.0, 0.0],
+    coupe, rapport = mesh_cut.couper(deux_pieces, [0, 1], [0.0, 0.0, 0.0],
                                       [0.0, 1.0, 0.0], "a")
     sol = next(p for p in rapport["pieces"] if p["nom"] == "stage")
     assert sol["retire"] == ["b"]
@@ -1397,10 +1407,10 @@ def test_la_triangulation_par_oreilles_couvre_chaque_arete_UNE_fois_et_garde_l_a
     points alignés sur ses bords : n − 2 triangles, chaque arête du polygone
     une fois, aire totale conservée, tous dans le même sens. Un nœud papillon
     (auto-intersection) : None."""
-    from app.services import mesh_edit
+    from app.services import mesh_cut, mesh_edit
     L = [(0, 0), (1, 0), (2, 0), (3, 0), (3, 1), (2, 1), (1, 1), (1, 2), (1, 3),
          (0, 3), (0, 2), (0, 1)]
-    tris = mesh_edit._trianguler(L)
+    tris = mesh_cut._trianguler(L)
     assert tris is not None and len(tris) == len(L) - 2
     aretes = {}
     aire = 0.0
@@ -1421,9 +1431,9 @@ def test_la_triangulation_par_oreilles_couvre_chaque_arete_UNE_fois_et_garde_l_a
         if (j - i) % len(L) != 1:
             assert c == 1 and aretes.get((j, i), 0) == 1, (i, j)
     # le sens inverse donne le même résultat
-    assert len(mesh_edit._trianguler(list(reversed(L)))) == len(L) - 2
-    assert mesh_edit._trianguler([(0, 0), (2, 2), (2, 0), (0, 2)]) is None
-    assert mesh_edit._trianguler([(0, 0), (1, 1), (2, 2)]) is None   # plat
+    assert len(mesh_cut._trianguler(list(reversed(L)))) == len(L) - 2
+    assert mesh_cut._trianguler(_PAPILLON) is None
+    assert mesh_cut._trianguler([(0, 0), (1, 1), (2, 2)]) is None   # plat
     # LE FILET DES OREILLES PLATES, ET IL FAUT UNE AIGUILLE POUR L'ATTEINDRE :
     # tant qu'une oreille convexe passe l'epsilon, elle est prise d'abord
     # (le L ci-dessus n'a jamais coupé d'oreille plate — mutation verte). Une
@@ -1431,9 +1441,8 @@ def test_la_triangulation_par_oreilles_couvre_chaque_arete_UNE_fois_et_garde_l_a
     # l'epsilon, plus aucun coin ne le passe — n'a QUE des oreilles plates :
     # chacune doit émettre son triangle, sinon des arêtes du capuchon restent
     # sans jumelle. n − 2 triangles, chaque arête de la boucle une fois.
-    h = 8e-13
-    aiguille = [(0, 0), (0.5, 0), (1, 0), (1, h), (0.5, h), (0, h)]
-    tris = mesh_edit._trianguler(aiguille)
+    aiguille = _AIGUILLE
+    tris = mesh_cut._trianguler(aiguille)
     assert tris is not None and len(tris) == len(aiguille) - 2, tris
     bords = {}
     for (i, j, k) in tris:
@@ -1449,43 +1458,42 @@ def test_un_capuchon_refuse_les_boucles_imbriquees_et_dit_une_surface_ouverte():
     boucher chacune remplirait le trou. Une chaîne ouverte n'a rien à
     boucher. Dans les deux cas le compte rendu le DIT — jamais de géométrie
     fausse en silence."""
-    from app.services import mesh_edit
+    from app.services import mesh_cut, mesh_edit
     n = (0.0, 0.0, 1.0)
     noms = ["POSITION", "NORMAL", "TEXCOORD_0"]
     ext = [(0, 0, 0), (4, 0, 0), (4, 4, 0), (0, 4, 0)]
     trou = [(1, 1, 0), (1, 3, 0), (3, 3, 0), (3, 1, 0)]
-    s, t, cr = mesh_edit._capuchon([ext, trou], [], n, (0, 0, -1), noms, 1)
+    s, t, cr = mesh_cut._capuchon([ext, trou], [], n, (0, 0, -1), noms, 1)
     assert s == [] and t == [] and cr["pose"] is False
     assert "imbriquées" in cr["raison"] and cr["boucles"] == 2
-    s, t, cr = mesh_edit._capuchon([], [[(0, 0, 0), (1, 0, 0)]], n, (0, 0, -1), noms, 1)
+    s, t, cr = mesh_cut._capuchon([], [[(0, 0, 0), (1, 0, 0)]], n, (0, 0, -1), noms, 1)
     assert cr["pose"] is False and "surface ouverte" in cr["raison"]
     assert cr["ouvertes"] == 1
     # deux boucles DISJOINTES se bouchent toutes les deux
     loin = [(10, 0, 0), (14, 0, 0), (14, 4, 0), (10, 4, 0)]
-    s, t, cr = mesh_edit._capuchon([ext, loin], [], n, (0, 0, -1), noms, 1)
+    s, t, cr = mesh_cut._capuchon([ext, loin], [], n, (0, 0, -1), noms, 1)
     assert cr["pose"] is True and cr["boucles"] == 2 and len(t) == 4
     assert cr["degeneres"] == 0
     assert all(v[1] == (0, 0, -1) and v[2] is None for v in s)
     # LA TROISIÈME RAISON, fermée (revue : la famille des refus n'était couverte
     # qu'aux deux tiers) — une boucle qui se croise, un nœud papillon, ne se
     # triangule pas : pas de capuchon, et c'est DIT
-    papillon = [(0, 0, 0), (2, 2, 0), (2, 0, 0), (0, 2, 0)]
-    s, t, cr = mesh_edit._capuchon([papillon], [], n, (0, 0, -1), noms, 1)
+    papillon = [(x, y, 0) for x, y in _PAPILLON]
+    s, t, cr = mesh_cut._capuchon([papillon], [], n, (0, 0, -1), noms, 1)
     assert s == [] and t == [] and cr["pose"] is False
     assert "non triangulable" in cr["raison"] and cr["boucles"] == 1
     # et une section en AIGUILLE se bouche en DISANT ses triangles plats
-    h = 8e-13
-    aiguille = [(0, 0, 0), (0.5, 0, 0), (1, 0, 0), (1, h, 0), (0.5, h, 0), (0, h, 0)]
-    s, t, cr = mesh_edit._capuchon([aiguille], [], n, (0, 0, -1), noms, 1)
+    aiguille = [(x, y, 0) for x, y in _AIGUILLE]
+    s, t, cr = mesh_cut._capuchon([aiguille], [], n, (0, 0, -1), noms, 1)
     assert cr["pose"] is True and len(t) == 4
     assert 1 <= cr["degeneres"] <= len(t), cr
     # et les boucles se recousent par POSITION, coutures comprises : le même
     # carré décrit par quatre segments dans un ordre quelconque
     segs = [((0, 0, 0), (4, 0, 0)), ((4, 4, 0), (0, 4, 0)),
             ((0, 4, 0), (0, 0, 0)), ((4, 0, 0), (4, 4, 0))]
-    boucles, ouvertes = mesh_edit._boucles(segs)
+    boucles, ouvertes = mesh_cut._boucles(segs)
     assert len(boucles) == 1 and len(boucles[0]) == 4 and ouvertes == []
-    boucles, ouvertes = mesh_edit._boucles(segs[:3])
+    boucles, ouvertes = mesh_cut._boucles(segs[:3])
     assert boucles == [] and len(ouvertes) == 1 and len(ouvertes[0]) == 4
 
 
@@ -1501,7 +1509,7 @@ def test_le_couteau_sur_le_MODELE_REEL_traverse_le_cadre_en_moins_de_5_s_et_dit_
     se coupe en deux pièces SANS capuchon — surface ouverte — et le compte
     rendu le dit. Les douze textures alpha restent référencées."""
     import time
-    from app.services import mesh_edit, print3d
+    from app.services import mesh_cut, mesh_edit, print3d
     if not _MODELE_REEL.is_file():
         pytest.skip(f"modèle réel absent : {_MODELE_REEL}")
     data = _MODELE_REEL.read_bytes()
@@ -1514,7 +1522,7 @@ def test_le_couteau_sur_le_MODELE_REEL_traverse_le_cadre_en_moins_de_5_s_et_dit_
     centre = [(x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2]
     normale = [0.6, 0.7, 0.1]                     # oblique, dans le plan de la carte
     t0 = time.perf_counter()
-    coupe, rapport = mesh_edit.couper(data, [cadre], centre, normale, "deux")
+    coupe, rapport = mesh_cut.couper(data, [cadre], centre, normale, "deux")
     duree = time.perf_counter() - t0
     assert duree < 5.0, duree
     doc, binc = mesh_edit.lire_glb(coupe)
@@ -1524,15 +1532,15 @@ def test_le_couteau_sur_le_MODELE_REEL_traverse_le_cadre_en_moins_de_5_s_et_dit_
         cr = piece["cotes"][cote]
         assert cr["capuchon"]["pose"] is True and cr["capuchon"]["boucles"] == 1
         assert isinstance(cr["capuchon"]["degeneres"], int)
-        n = doc["nodes"][cr["noeud"]]
+        n = doc["nodes"][cr["noeud_apres"]]
         assert n["name"] == f"cadre_{cote}"
         m = doc["meshes"][n["mesh"]]
         assert _aretes_non_appariees(doc, binc, m) == [], cote
         mat = doc["materials"][m["primitives"][0]["material"]]
         assert mat["name"] == "cadre"
         assert "baseColorTexture" in mat["pbrMetallicRoughness"]
-    # les treize nœuds attendus : douze pièces moins le cadre plus ses deux
-    # moitiés, le contenant et la correction d'assise
+    # quinze nœuds : douze pièces moins le cadre, plus ses deux moitiés, le
+    # contenant carte3d et la correction d'assise
     assert len(doc["nodes"]) == 15
     # TOUTES les textures restent référencées par un matériau
     assert len(doc["images"]) == 12
@@ -1541,7 +1549,7 @@ def test_le_couteau_sur_le_MODELE_REEL_traverse_le_cadre_en_moins_de_5_s_et_dit_
     assert refs == set(range(12))
     assert sum(1 for mt in doc["materials"] if mt.get("alphaMode") == "BLEND") == 11
     # LA PLAQUE PLATE : deux pièces, aucun capuchon, et c'est DIT
-    coupe2, rapport2 = mesh_edit.couper(data, [illustration], centre, normale, "deux")
+    coupe2, rapport2 = mesh_cut.couper(data, [illustration], centre, normale, "deux")
     piece2 = rapport2["pieces"][0]
     assert piece2["nom"] == "illustration" and piece2["triangles"] == 2
     for cote in ("a", "b"):
@@ -1551,7 +1559,7 @@ def test_le_couteau_sur_le_MODELE_REEL_traverse_le_cadre_en_moins_de_5_s_et_dit_
         assert cr["capuchon"]["ouvertes"] == 1 and cr["capuchon"]["boucles"] == 0
         assert cr["triangles"] == 3
     doc2, binc2 = mesh_edit.lire_glb(coupe2)
-    n_a = doc2["nodes"][piece2["cotes"]["a"]["noeud"]]
+    n_a = doc2["nodes"][piece2["cotes"]["a"]["noeud_apres"]]
     assert _aretes_non_appariees(doc2, binc2, doc2["meshes"][n_a["mesh"]]) != []
     # et le fichier de l'utilisateur n'a pas bougé d'un octet
     assert hashlib.sha256(_MODELE_REEL.read_bytes()).hexdigest() == sha_avant
@@ -1561,7 +1569,7 @@ def test_le_couteau_sur_le_MODELE_REEL_traverse_le_cadre_en_moins_de_5_s_et_dit_
 
 def test_la_route_assise_ecrit_une_version_posee_et_refuse_les_corps_invalides():
     from app.config import settings
-    from app.services import mesh_edit, print3d
+    from app.services import mesh_cut, mesh_edit, print3d
     d = settings.outputs_path / "assets3d" / "job_assise"
     d.mkdir(parents=True, exist_ok=True)
     boite = _boite_inclinee()
@@ -1573,6 +1581,7 @@ def test_la_route_assise_ecrit_une_version_posee_et_refuse_les_corps_invalides()
                                            "normale": n0, "point": list(avant[0][0])})
     assert r.status_code == 200, r.text
     assert r.json()["version"] == 2 and r.json()["source"]["operation"] == "assise"
+    assert r.json()["source"]["depuis"] == {"version": 1, "fichier": "model.glb"}
     assert r.json()["source"]["normale"] == n0
     apres = print3d.lire_glb_triangles((d / "model.v2.glb").read_bytes())
     assert math.dist(_normale_de(apres[0]), (0.0, -1.0, 0.0)) < 1e-6
@@ -1602,7 +1611,7 @@ def test_la_route_assise_ecrit_une_version_posee_et_refuse_les_corps_invalides()
 
 def test_la_route_couper_ecrit_une_version_avec_son_compte_rendu_et_refuse_les_corps_invalides():
     from app.config import settings
-    from app.services import mesh_edit, print3d
+    from app.services import mesh_cut, mesh_edit, print3d
     d = settings.outputs_path / "assets3d" / "job_couteau"
     d.mkdir(parents=True, exist_ok=True)
     boite = _boite_inclinee()
@@ -1616,14 +1625,15 @@ def test_la_route_couper_ecrit_une_version_avec_son_compte_rendu_et_refuse_les_c
     fiche = r.json()
     assert fiche["version"] == 2 and fiche["source"]["operation"] == "couper"
     src = fiche["source"]
-    assert src["garder"] == "deux" and src["noeuds"] == [0]
+    assert src["garder"] == "deux" and src["noeuds_avant"] == [0]
+    assert src["depuis"] == {"version": 1, "fichier": "model.glb"}
     assert src["plan"]["repere"] == "monde"
     cotes = src["pieces"][0]["cotes"]
     assert cotes["a"]["capuchon"]["pose"] is True
     assert cotes["b"]["capuchon"]["pose"] is True
     doc, _ = mesh_edit.lire_glb((d / "model.v2.glb").read_bytes())
     assert [n["name"] for n in doc["nodes"]] == ["cube_a", "cube_b"]
-    assert doc["nodes"][cotes["a"]["noeud"]]["name"] == "cube_a"
+    assert doc["nodes"][cotes["a"]["noeud_apres"]]["name"] == "cube_a"
     # le registre porte le compte rendu, là où la Bibliothèque le lira
     registre = json.loads((d / "report.json").read_text("utf-8"))
     entree = next(e for e in registre["entries"] if e["version"] == 2)
@@ -1650,3 +1660,194 @@ def test_la_route_couper_ecrit_une_version_avec_son_compte_rendu_et_refuse_les_c
     # `garder` absent vaut « deux »
     r = c.post("/api/etabli/couper", json={k: v for k, v in corps.items() if k != "garder"})
     assert r.status_code == 200 and r.json()["source"]["garder"] == "deux"
+
+
+# ── L. la revue du lot B : ce que le couteau ne savait pas dire ──────────────
+
+def test_une_face_CONFONDUE_avec_le_plan_ne_fait_pas_une_piece_de_volume_nul():
+    """Le cube et le plan y = 1, sa face du dessus dedans. Un triangle dont les
+    trois sommets sont SUR le plan partait côté a comme tout « d ≥ 0 » : quelle
+    que soit la normale du plan, `cube_a` faisait quatre triangles de volume
+    nul, deux arêtes non appariées, deux capuchons « posés » et un compte rendu
+    « traversée » — une feuille double face écrite comme une pièce (revue).
+    Un triangle coplanaire part désormais du côté OPPOSÉ à sa normale : c'est
+    la peau d'un corps qui vit de l'autre côté. Le cube entier part d'un seul
+    côté, et le refus qui existait déjà parle — dans les deux sens du plan,
+    et sur la face du dessous aussi."""
+    from app.services import mesh_cut
+    cube = _cube()
+    for point, normale in (([0, 1, 0], [0, 1, 0]), ([0, 1, 0], [0, -1, 0]),
+                           ([0, -1, 0], [0, 1, 0]), ([0, -1, 0], [0, -1, 0])):
+        with pytest.raises(ValueError, match="ne traverse aucune"):
+            mesh_cut.couper(cube, [0], point, normale)
+    # et le routage lui-même, sur la primitive : la face du dessus (normale
+    # +y) va côté b pour un plan de normale +y, côté a pour −y
+    doc, binc = mesh_edit_lire(cube)
+    pr = doc["meshes"][0]["primitives"][0]
+    pos, idx = _lire_primitive(doc, binc, pr)
+    for ny, attendu in ((1.0, "b"), (-1.0, "a")):
+        d = [ny * (p[1] - 1.0) for p in pos]
+        a, b, segs = mesh_cut._decouper_primitive(["POSITION"], [pos], idx, d, None,
+                                                  (0.0, ny, 0.0))
+        dessus = [k for k in range(0, len(idx), 3)
+                  if all(pos[idx[k + e]][1] == 1.0 for e in range(3))]
+        assert len(dessus) == 2
+        # TOUT part du côté de la matière : les douze triangles, dont la face
+        # du dessus. Les quatre arêtes du dessus sont bien une « section »,
+        # mais d'un seul côté : rien n'est traversé, et couper refuse
+        plein, vide = (b, a) if attendu == "b" else (a, b)
+        assert len(plein.tris) == 12 and len(vide.tris) == 0
+        # …et la « section » n'existe que si les faces latérales sont mixtes :
+        # sous +y les sommets du dessus (d = 0, côté a) font face au reste
+        # (côté b), quatre arêtes ; sous −y tout est d ≥ 0, aucune
+        assert len(segs) == (4 if attendu == "b" else 0)
+
+
+def mesh_edit_lire(data):
+    from app.services import mesh_edit
+    return mesh_edit.lire_glb(data)
+
+
+def test_un_plan_a_1e_9_d_un_sommet_coupe_comme_s_il_passait_par_lui_et_les_moities_sont_FERMEES():
+    """Le plan x + y − z = 1 passe par TROIS sommets du cube et détache le coin
+    (1, 1, −1) : un tétraèdre de volume 8/6. Décalé de 1e-9, il laissait ces
+    trois sommets à un cheveu du plan, classés par signe strict : des aiguilles
+    de 1e-9 qui s'effondrent à l'écriture f32 — 5 arêtes non appariées par
+    moitié, des triangles plats dans la PAROI, sous un compte rendu « fermé »
+    (revue). Tout sommet à moins de 1e-7 · diagonale du plan est ramené dessus
+    AVANT classification : le cas exact, prouvé fermé. Mesuré des deux côtés
+    du décalage : moitiés fermées, volume du coin 4/3 à 1e-9, somme 8. Et le
+    même plan à 1e-9 SOUS la face du dessus (y = 1 − 1e-9) : les quatre sommets
+    reviennent sur le plan, la face devient coplanaire, rien n'est traversé."""
+    from app.services import mesh_cut, print3d
+    cube = _cube()
+    n = [1 / math.sqrt(3), 1 / math.sqrt(3), -1 / math.sqrt(3)]
+    for signe in (1, -1):
+        point = [1 + signe * 1e-9 * n[0], 1 + signe * 1e-9 * n[1], 1 + signe * 1e-9 * n[2]]
+        coupe, rapport = mesh_cut.couper(cube, [0], point, n, "deux")
+        doc, binc = mesh_edit_lire(coupe)
+        assert [x["name"] for x in doc["nodes"]] == ["cube_a", "cube_b"]
+        for x in doc["nodes"]:
+            assert _aretes_non_appariees(doc, binc, doc["meshes"][x["mesh"]]) == [], (signe, x["name"])
+        va = _volume(_triangles_du_noeud(coupe, "cube_a"))
+        vb = _volume(_triangles_du_noeud(coupe, "cube_b"))
+        # 1e-8 et non 1e-9 : le plan EST décalé de 1e-9, le coin l'est d'autant
+        # fois son aire de section (mesuré : 1,7e-9) ; la somme, elle, est exacte
+        assert abs(va - 8.0 / 6.0) < 1e-8, (signe, va)
+        assert abs(va + vb - 8.0) < 1e-9, (signe, va, vb)
+        for cote in ("a", "b"):
+            cap = rapport["pieces"][0]["cotes"][cote]["capuchon"]
+            assert cap["pose"] is True and cap["boucles"] == 1
+            assert 0 <= cap["degeneres"] < cap["triangles"]
+    with pytest.raises(ValueError, match="ne traverse aucune"):
+        mesh_cut.couper(cube, [0], [0, 1 - 1e-9, 0], [0, 1, 0])
+    # le seuil est celui de l'échelle, et il est dit
+    assert mesh_cut._EPS_PLAN == 1e-7
+
+
+def test_le_compte_rendu_nomme_ses_deux_espaces_d_index_et_la_route_dit_depuis():
+    """`noeud_avant` est un index de la version coupée, `noeud_apres` de la
+    version neuve compactée — un même mot pour les deux faisait lire le mauvais
+    nœud : le sol était 1 dans le compte rendu et 0 dans la version écrite
+    (revue). Sur le cube et son sol, plan y = 0 : le sol passe de 1 à 0, le
+    cube coupé n'a plus d'index après, ses moitiés en ont un chacune."""
+    from app.services import mesh_cut
+    coupe, rapport = mesh_cut.couper(_cube_et_sol(), [0, 1], [0.0, 0.0, 0.0],
+                                     [0.0, 1.0, 0.0], "deux")
+    doc, _ = mesh_edit_lire(coupe)
+    noms = [x.get("name") for x in doc["nodes"]]
+    assert rapport["noeuds_avant"] == [0, 1] and "noeuds" not in rapport
+    sol = next(p for p in rapport["pieces"] if p["nom"] == "stage")
+    cube = next(p for p in rapport["pieces"] if p["nom"] == "cube")
+    assert sol["noeud_avant"] == 1 and sol["noeud_apres"] == noms.index("stage") == 0
+    assert cube["noeud_avant"] == 0 and cube["noeud_apres"] is None
+    assert "noeud" not in sol and "noeud" not in cube
+    for cote in ("a", "b"):
+        c = cube["cotes"][cote]
+        assert "noeud" not in c
+        assert noms[c["noeud_apres"]] == f"cube_{cote}"
+
+
+def test_une_piece_ecartee_par_garder_garde_ses_enfants_comme_CONTENANT():
+    """Le sol, entier du côté b, porte un enfant maillé AU-DESSUS du plan, que
+    personne n'a demandé de couper. `garder = "a"` retirait le sol de son parent
+    ENFANTS COMPRIS, et `retire: ["b"]` ne le disait pas (revue). Le sol reste
+    désormais comme contenant sans maillage — le traitement de la pièce
+    traversée dont les deux côtés sont écartés — et le compte rendu le dit."""
+    from app.services import mesh_cut, print3d
+    doc, binc = mesh_edit_lire(_cube_et_sol())
+    doc["nodes"].append({"name": "haut", "mesh": 0, "translation": [0.0, 4.0, 0.0]})
+    doc["nodes"][1]["children"] = [2]
+    data = mesh_edit_ecrire(doc, binc)
+    avant = len(print3d.lire_glb_triangles(data))
+    coupe, rapport = mesh_cut.couper(data, [0, 1], [0.0, 0.0, 0.0], [0.0, 1.0, 0.0], "a")
+    docc, _ = mesh_edit_lire(coupe)
+    noms = sorted(x.get("name") for x in docc["nodes"])
+    assert noms == ["cube_a", "haut", "stage"], noms
+    sol_n = next(x for x in docc["nodes"] if x.get("name") == "stage")
+    assert "mesh" not in sol_n and [docc["nodes"][c]["name"] for c in sol_n["children"]] == ["haut"]
+    sol = next(p for p in rapport["pieces"] if p["nom"] == "stage")
+    assert sol["retire"] == ["b"] and sol["contenant"] is True
+    assert sol["noeud_apres"] == docc["nodes"].index(sol_n)
+    # l'enfant est ENTIER : ses douze triangles sont là, en plus de la moitié
+    tris = print3d.lire_glb_triangles(coupe)
+    haut = _triangles_du_noeud(coupe, "haut")
+    assert len(haut) == 12 and all(v[1] > 2.5 for t in haut for v in t)
+    cube = next(p for p in rapport["pieces"] if p["nom"] == "cube")
+    assert len(tris) == len(haut) + cube["cotes"]["a"]["triangles"]
+    # et sans enfant, la pièce entière écartée disparaît toujours
+    coupe2, rapport2 = mesh_cut.couper(_cube_et_sol(), [0, 1], [0.0, 0.0, 0.0],
+                                       [0.0, 1.0, 0.0], "a")
+    doc2, _ = mesh_edit_lire(coupe2)
+    assert [x.get("name") for x in doc2["nodes"]] == ["cube_a"]
+    sol2 = next(p for p in rapport2["pieces"] if p["nom"] == "stage")
+    assert sol2["retire"] == ["b"] and "contenant" not in sol2 and sol2["noeud_apres"] is None
+
+
+def mesh_edit_ecrire(doc, binc):
+    from app.services import mesh_edit
+    return mesh_edit.ecrire_glb(doc, binc)
+
+
+def test_les_cinq_routes_d_ecriture_jugent_version_et_job_de_la_meme_facon_et_disent_depuis():
+    """Deux politiques pour cinq routes sœurs (revue) : les trois de P1 prenaient
+    `int(version or 1)` — « 1 », 0, 1,5 ou True ÉCRIVAIENT une version, [1]
+    faisait un 500, `job = 12` un 404 là où le lot B disait 400. Toutes passent
+    la même porte, et chaque fiche dit `depuis`, la version dont elle part."""
+    from app.config import settings
+    d = settings.outputs_path / "assets3d" / "job_portes"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "model.glb").write_bytes(_cube())
+    c = _client()
+    corps = {"extraire": {"noeuds": [0]},
+             "transformer": {"transforms": {"0": {"translation": [0, 1, 0]}}},
+             "reparer": {"axe_haut": "Y"}}
+    for route, charge in corps.items():
+        for version in ("1", 0, 1.5, True, [1], None):
+            r = c.post(f"/api/etabli/{route}", json={"job": "job_portes", "version": version, **charge})
+            assert r.status_code == 400, (route, version, r.status_code, r.text)
+            assert "version" in r.text, (route, version, r.text)
+        for job in (12, "..", None):
+            r = c.post(f"/api/etabli/{route}", json={"job": job, "version": 1, **charge})
+            assert r.status_code == 400, (route, job, r.status_code, r.text)
+        r = c.post(f"/api/etabli/{route}", json={"job": "nexiste_pas", "version": 1, **charge})
+        assert r.status_code == 404, (route, r.text)
+    # rien de tout cela n'a écrit
+    assert not (d / "model.v2.glb").exists()
+    # et une écriture valide dit d'où elle part — pour les trois, puis les
+    # deux du lot B sur la version qu'elles viennent d'écrire
+    v = 1
+    for route, charge in corps.items():
+        r = c.post(f"/api/etabli/{route}", json={"job": "job_portes", "version": v, **charge})
+        assert r.status_code == 200, (route, r.text)
+        assert r.json()["source"]["depuis"] == {"version": v, "fichier": "model.glb" if v == 1 else f"model.v{v}.glb"}
+        v = r.json()["version"]
+    r = c.post("/api/etabli/assise", json={"job": "job_portes", "version": v, "normale": [0, 1, 0]})
+    assert r.status_code == 200 and r.json()["source"]["depuis"] == {"version": v, "fichier": f"model.v{v}.glb"}
+    v = r.json()["version"]
+    # le cube, posé par l'assise, va de y = 0 à y = 2 : le plan y = 1 le coupe
+    r = c.post("/api/etabli/couper", json={"job": "job_portes", "version": v, "noeuds": [0],
+                                           "point": [0, 1, 0], "normale": [0, 1, 0]})
+    assert r.status_code == 200, r.text
+    assert r.json()["source"]["depuis"] == {"version": v, "fichier": f"model.v{v}.glb"}
+    assert r.json()["source"]["noeuds_avant"] == [0]

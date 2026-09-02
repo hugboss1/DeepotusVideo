@@ -9318,13 +9318,14 @@ def test_le_couteau_REFUSE_sans_piece_retenue_et_tant_que_la_file_n_est_pas_vide
       const plan = new THREE.Mesh(new THREE.PlaneGeometry(1, 1));
       plan.position.set(1, 2, 3);
       plan.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0.6, 0, 0.8));
-      const COUTEAU = { plan, garder: "a" };
+      /* les nœuds de l'APERÇU sont LA source de la coupe (revue) : pas de
+         relecture de la sélection */
+      const COUTEAU = { plan, garder: "a", noeuds: [3, 5], source: undefined };
       const S = { a: { job: "j", version: 2 }, enAttente: [] };
       let _ecritEnCours = false;
-      let retenus = { noeuds: [3, 5], source: undefined };
-      const noeudsRetenus = () => retenus;
-      const refus = [];
+      const refus = [], avis = [];
       const direRefus = (m) => refus.push(String(m));
+      const direAvis = (m) => avis.push(String(m));
       const rendreAttente = () => {};
       const appels = [];
       let reponse = { ecrites: ["couper"], derniere: { version: 3, source: { pieces: [
@@ -9343,17 +9344,18 @@ def test_le_couteau_REFUSE_sans_piece_retenue_et_tant_que_la_file_n_est_pas_vide
       r.filePleine = { ok: await confirmerCoupe(), appels: appels.length, refus: refus[refus.length - 1] };
       S.enAttente.length = 0;
       /* 2. rien de retenu : refus */
-      retenus = { noeuds: [], source: undefined };
+      COUTEAU.noeuds = [];
       r.rien = { ok: await confirmerCoupe(), appels: appels.length, refus: refus[refus.length - 1] };
-      retenus = { noeuds: [3, 5], source: undefined };
+      COUTEAU.noeuds = [3, 5];
       /* 3. une écriture en cours : refus */
       _ecritEnCours = true;
       r.verrou = { ok: await confirmerCoupe(), appels: appels.length };
       _ecritEnCours = false;
-      /* 4. la coupe part SEULE, et le capuchon manquant se dit */
+      /* 4. la coupe part SEULE, et le capuchon manquant se dit — en AVIS, pas
+         en refus : la version est écrite */
       const nRefus = refus.length;
       r.part = { ok: await confirmerCoupe(), appels: appels.length, file: appels[0],
-                 bilan: refus.slice(nRefus) };
+                 bilan: avis.slice(), refusDePlus: refus.length - nRefus };
       /* 5. refusée par le serveur : la ligne ressort, le mode reste couteau */
       reponse = { ecrites: [], derniere: null, echec: new Error("le plan ne traverse rien") };
       r.refusee = { ok: await confirmerCoupe(), file: S.enAttente.length, mode: GESTE.mode, appels: appels.length };
@@ -9374,9 +9376,17 @@ def test_le_couteau_REFUSE_sans_piece_retenue_et_tant_que_la_file_n_est_pas_vide
     assert op == "couper" and charge["noeuds"] == [3, 5] and charge["garder"] == "a"
     assert charge["point"] == [1, 2, 3]
     assert math.dist(charge["normale"], [0.6, 0, 0.8]) < 1e-9
-    assert len(sortie["part"]["bilan"]) == 1
+    assert len(sortie["part"]["bilan"]) == 1 and sortie["part"]["refusDePlus"] == 0
     assert "capuchon non posé" in sortie["part"]["bilan"][0]
     assert "cadre_b : surface ouverte" in sortie["part"]["bilan"][0]
+    # l'avis n'est pas un refus : classe `avis`, jamais `erreur`, et la
+    # mesure suivante l'efface comme un refus
+    avis_fn = _fonction_etabli("direAvis")
+    assert 'zone.classList.remove("erreur");' in avis_fn and 'zone.classList.add("avis");' in avis_fn
+    assert 'zone.classList.remove("avis");' in _fonction_etabli("direGeometrie")
+    assert "#barreGeo.avis" in _lire("etabli/etabli.css")
+    cc = _fonction_etabli_async("confirmerCoupe")
+    assert "noeudsRetenus()" not in cc and "const noeuds = COUTEAU.noeuds, source = COUTEAU.source;" in cc
     # partie (un appel de plus), refusée, RESSORTIE de la file, le couteau armé
     assert sortie["refusee"] == {"ok": False, "file": 0, "mode": "couteau", "appels": 2}
     assert sortie["desarme"] == {"ok": False, "appels": 2}
@@ -9636,6 +9646,9 @@ def test_les_outils_vivent_DANS_le_canevas_naissent_sans_texte_et_repondent_a_F_
       e = ev("Escape"); r.escape = [toucheClavierOutils(e), e.empeche, GESTE.mode];
       e = ev("f", { ctrlKey: true }); r.ctrlF = [toucheClavierOutils(e), e.empeche];
       e = ev("c", { target: { tagName: "INPUT" } }); r.champ = [toucheClavierOutils(e), e.empeche];
+      /* Échap depuis le <select> du couteau : pris quand même (revue) */
+      GESTE.mode = "couteau";
+      e = ev("Escape", { target: { tagName: "SELECT" } }); r.escapeChamp = [toucheClavierOutils(e), e.empeche, GESTE.mode];
       e = ev("x"); r.autre = [toucheClavierOutils(e), e.empeche];
       r.appels = appels;
       console.log(JSON.stringify(r));
@@ -9644,8 +9657,9 @@ def test_les_outils_vivent_DANS_le_canevas_naissent_sans_texte_et_repondent_a_F_
     assert sortie["escapeSansMode"] == [False, 0]
     assert sortie["escape"] == [True, 1, "selection"]
     assert sortie["ctrlF"] == [False, 0] and sortie["champ"] == [False, 0]
+    assert sortie["escapeChamp"] == [True, 1, "selection"]
     assert sortie["autre"] == [False, 0]
-    assert sortie["appels"] == ["assise", "couteau", "geste:selection"]
+    assert sortie["appels"] == ["assise", "couteau", "geste:selection", "geste:selection"]
     # et majOutils écrit les trois libellés d'après l'état — les mêmes textes
     # d'un mode à l'autre pour le mode inerte
     ecrit = json.loads(_node(_faux_outils() + """
