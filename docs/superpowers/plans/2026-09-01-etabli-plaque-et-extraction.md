@@ -109,14 +109,101 @@ Grille graduée, axes à l'origine, et lecture numérique **x / y / z de la sél
 rapport à l'origine**. Unités glTF, **et mm dès qu'une taille cible est posée** — jamais
 de mm inventés.
 
-## Task 4 — le clavier
+### Task 3 — LIVRÉE (02/09, `9d6d154`), et le retour de l'utilisateur qui réoriente la suite
 
-**Files :** `frontend/etabli/etabli.js` ; banc.
+Livré : grille graduée posée dans le plan le mieux exposé (bande morte contre le
+papillotement), axes à l'origine, croix reliant chaque sélection à l'origine,
+lecture x/y/z suivant le gizmo (coalescée `rAF`), taille cible → millimètres par
+la règle même de `print3d.mettre_a_l_echelle` (confrontée au banc), garde
+positive « un seul écrivain par zone du rail » (paires zone × verbe DOM).
 
-Flèches pour déplacer la sélection au pas de la grille ; un modificateur pour un pas
-fin, un autre pour ×10. Ne pas voler le clavier aux champs de saisie. Les déplacements
-au clavier **sont** des transformations : ils alimentent `enAttente`, contrairement à
-l'étalement.
+**Retour de l'utilisateur, mot pour mot** : « quand je demande "sur la plaque" je
+n'ai pas besoin de voir les repères orthonormés. la plaque devrait être graduée
+sur les côtés pour un repérage des positionnements sur la grille. je dois aussi
+pouvoir déplacer les éléments ou la pièce sur la grille comme le propose la
+plupart des slicers (outils couteau, etc.) ».
+
+Trois conséquences, qui réécrivent la tâche 4 :
+1. **Sur la plaque, pas de repère orthonormé** — ni axes, ni croix, ni grille du
+   repère. La plaque porte sa **propre** graduation, sur ses **bords**, à la
+   façon d'un plateau de slicer (origine à un coin, règles X/Y, contour de la
+   zone imprimable). `montrerRepere(api, false)` à l'entrée, restauration à la
+   sortie ; la lecture x/y/z du rail reste.
+2. **La graduation des bords ne peut pas vivre dans `plaque.js` en mm** — le
+   banc l'interdit (` mm`, `cible_mm`, `256`). Deux voies honnêtes : les règles
+   sont dessinées par `viewer.js`, qui possède déjà `echelleMm` et
+   `pasGradue` ; ou `plaque.js` expose la géométrie des règles et la page
+   fournit les libellés. **Trancher pour la première** : une seule doctrine des
+   unités, un seul site.
+3. **Déplacer sur la grille est un geste de slicer**, pas seulement un geste
+   clavier — voir Task 4.
+
+**Piège hérité pour la tâche 4, écrit dans `programmerLecture()`** : le pas
+affiché est un **pas de VUE** (dérivé de l'étendue visible, il change au zoom).
+Un déplacement écrit sur le disque ne peut pas dépendre d'un paramètre de
+regard : le pas de déplacement se dérive de `plusGrandeDimension()` du modèle,
+`pasGradue` étant pure et exportée.
+
+## Task 4 — la plaque, façon slicer : graduée sur ses bords, et l'on y déplace
+
+**Files :** `frontend/lib3d/plaque.js`, `frontend/lib3d/viewer.js`,
+`frontend/etabli/etabli.js` (+ css/html) ; banc.
+
+**Ce que font les slicers, et que l'utilisateur attend** (OrcaSlicer et Bambu
+Studio partagent la même lignée ; inventaire du wiki OrcaSlicer, section
+*Prepare*, relevé le 02/09/2026) :
+
+| Outil slicer | Geste | Dans l'Établi ? |
+|---|---|---|
+| **Move** (M) | glisser sur le plateau, flèches d'axe, saisie X/Y/Z, « drop to bed » | **OUI — cœur de T4** |
+| **Rotate** (R) | anneaux par axe, Shift = pas de 5°, saisie en degrés | oui, autour de l'axe normal au plateau d'abord |
+| **Scale** (S) | uniforme / par axe, en % ou en mm | déjà couvert par `transformer` + taille cible ; exposer |
+| **Lay on face** (F) | choisir une face → elle devient l'assise | **oui** — c'est « Réparer l'assise » en un clic sur le maillage |
+| Auto-orient / **Auto-arrange** (A) | orientation imprimable ; rangement sur le plateau | l'étalement de T1 EST un arrange naïf ; garder simple |
+| **Split to objects / parts** | séparer les coques disjointes | **c'est T5** (`mesh_edit.extraire`), côté Python |
+| **Cut** (C) | plan de coupe, garder une/deux moitiés, **connecteurs** dovetail / dowel / plug / snap | outil « couteau » demandé — plan de coupe côté navigateur, **coupe côté Python** ; connecteurs = lot ultérieur |
+| **Mesh boolean** | union / différence / intersection entre parties | Python (numpy) ; lot ultérieur |
+| **Measure** | deux points → distance, deux faces → angle | oui, réutilise le repère de T3 |
+| **Emboss** (texte / SVG) | texte en relief, en creux ou modificateur | Card Forge le fait déjà (`extrude`) ; ne pas dupliquer |
+| Support / seam / color / fuzzy / brim-ears **painting** | peinture sur le maillage pour le slicer | **NON** — c'est le métier du slicer, il le fera mieux |
+| Variable layer height | hauteurs de couche par zone | **NON** — slicer |
+| Assembly view | voir les parties éclatées / assemblées | c'est la bascule Assemblé / Sur la plaque de T1 |
+
+**Décision de structure à tenir** : la plaque reste une VUE (règle de ce plan) —
+mais la disposition que l'utilisateur y compose devient un **plan de plaque**
+explicite (par pièce : décalage, rotation autour de la normale), **distinct du
+modèle**, persisté avec la version (`plaque.json` à côté du `.glb`), et
+**consommé par l'extraction** (T5) : c'est exactement la séparation que le 3MF
+fait entre maillage et disposition. `model.vN.glb` ne bouge pas quand on range
+des pièces sur la plaque ; il bouge quand on transforme une pièce en mode
+Assemblé. Un banc épingle les deux chemins.
+
+À livrer, dans cet ordre :
+1. **Repère éteint sur la plaque**, règles graduées sur les bords (viewer.js),
+   origine au coin, libellés en unités du modèle / mm dès que la cible est posée.
+2. **Déplacement à la souris** d'une pièce sur la plaque (plan de la plaque,
+   pas d'élévation), avec **aimantation** au pas de la grille (Shift la coupe),
+   et **au clavier** (flèches = un pas **de modèle**, Alt = pas fin, Ctrl = ×10 ;
+   ne pas voler le clavier aux champs). Rotation autour de la normale par
+   poignée ou saisie. Le tout écrit dans le plan de plaque, jamais dans
+   `S.enAttente`.
+3. **Lay on face** : un clic sur une face en mode Assemblé → `reparer` avec
+   l'axe et le retournement déduits. Écrit, donc `enAttente`.
+4. **Couteau (v1)** : un plan de coupe manipulable (gizmo de plan), aperçu des
+   deux moitiés, puis `POST /api/etabli/couper` qui écrit **deux** pièces dans
+   une version neuve (Python, numpy ; capuchon plan des sections). Sans
+   connecteurs : ils viendront quand le besoin sera réel.
+
+Le déplacement au clavier de l'ancienne rédaction reste, mais **sur la plaque**
+et **dans le plan de plaque** ; en mode Assemblé, le gizmo suffit.
+
+## Task 4-bis — la boîte à outils « avant export », à prioriser dans le balayage
+
+Measure · Mesh boolean · connecteurs du couteau · auto-arrange vrai (étagères →
+nesting) · auto-orient. Aucun ne se lance sans un besoin nommé par
+l'utilisateur ; la session de balayage (voir
+`2026-09-02-balayage-meilleur-de-sa-classe.md`) les mettra en face des
+slicers de référence.
 
 ## Task 5 — extraire, ensemble ou une par une
 
