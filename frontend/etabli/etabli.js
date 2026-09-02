@@ -13,11 +13,10 @@ import { creerCanevas, charger, cadrer, vider, projeter, orienter, cadreOrtho,
 import { indexerNoeuds, inventaire, isoler, surligner, designerAuClic,
          TOLERANCE_CLIC }
   from "/lib3d/selection.js";
-import { etaler, ranger, estEtalee, montrerPiece, decalageEtalement, plateauDe,
-         pieceSous, sousLePointeur, pointSurPlateau, empreinteDe, deplacerPiece,
-         poserCoin,
-         tournerPiece, rotationDe, angleSurPlateau, marquerPiece,
-         dispositionDe, aimanter, axesEcran }
+import { etaler, ranger, estEtalee, montrerPiece, boiteModele, plateauDe,
+         sousLePointeur, pointSurPlateau, empreinteDe, deplacerPiece, poserCoin,
+         poserAngle, rotationDe, angleSurPlateau, marquerPiece, dispositionDe,
+         aimanter, axesEcran }
   from "/lib3d/plaque.js";
 import { TransformControls } from "three/addons/controls/TransformControls.js";
 
@@ -788,6 +787,20 @@ $("#btnCompare").addEventListener("click", () => {
    justifierait aussi bien un modal maison, et elle n'expliquerait pas
    pourquoi le studio, lui, a le droit de demander. */
 $("#btnRetour").addEventListener("click", () => {
+  /* ET LE PLAN DE PLAQUE, PAR LA MÊME RÈGLE. Un glisser puis ce clic dans la
+     fenêtre de coalescence (DELAI_PLAN_MS) : la minuterie mourrait avec la
+     page, la charge ne partirait jamais ; un POST en vol serait annulé par la
+     navigation. La disposition se perdrait EN SILENCE — exactement ce que ce
+     bouton refuse pour la file. On fait partir la charge MAINTENANT et l'on
+     refuse le temps qu'elle arrive : le remède est d'attendre une fraction de
+     seconde, pas de perdre. (pagehide, plus bas, couvre les déchargements
+     que ce bouton ne voit pas.) */
+  if (_envoiPlan || PLQ.aEnvoyer || _envoisEnVol) {
+    envoyerPlan();
+    direRefus("disposition de la plaque en cours d'enregistrement — un "
+      + "instant, puis revenez au 3D Studio");
+    return;
+  }
   if (S.enAttente.length) {
     /* Le message ne DÉSIGNE JAMAIS un bouton grisé : pendant une série
        d'écritures, `#btnEcrire` est `disabled` alors que la file n'est pas
@@ -1039,6 +1052,12 @@ const PAS_ROTATION = 5;
    non un requestAnimationFrame : on borne des requêtes, pas un rendu. */
 const DELAI_PLAN_MS = 300;
 let _envoiPlan = 0;
+/* Les envois se SUIVENT, ils ne se croisent pas : deux POST coalescés partis
+   à 300 ms d'écart pourraient arriver dans le désordre et laisser sur le
+   disque l'avant-dernier plan. Une chaîne de promesses les sérialise ; le
+   compte en vol sert au bouton de retour. */
+let _envoiChaine = Promise.resolve();
+let _envoisEnVol = 0;
 
 /* Le plan d'une version, ou null quand il n'y en a pas (le cas ordinaire, en
    404). Une étape sans job ou sans version n'en a pas non plus — rien à lire.
@@ -1106,16 +1125,37 @@ async function envoyerPlan() {
   const corps = PLQ.aEnvoyer;
   PLQ.aEnvoyer = null;
   if (!corps) return;
-  try {
-    await jpost(ROUTE_PLAQUE, corps);
-    PLQ.sauvegarde = "ok";
-  } catch (e) {
-    PLQ.sauvegarde = "refus";
-    direRefus(`plan de plaque non enregistré (${corps.job} v${corps.version}) `
-      + `— ${e.message}`);
-  }
-  rendreEtatPlan();
+  _envoisEnVol++;
+  const tour = _envoiChaine.then(async () => {
+    try {
+      await jpost(ROUTE_PLAQUE, corps);
+      PLQ.sauvegarde = "ok";
+    } catch (e) {
+      PLQ.sauvegarde = "refus";
+      direRefus(`plan de plaque non enregistré (${corps.job} v${corps.version}) `
+        + `— ${e.message}`);
+    } finally {
+      _envoisEnVol--;
+    }
+    rendreEtatPlan();
+  });
+  _envoiChaine = tour;
+  return tour;
 }
+
+/* LES DÉCHARGEMENTS QU'ON NE CONTRÔLE PAS — le hub qui remplace l'iframe, un
+   onglet fermé, un rechargement : la charge pendante part en `keepalive`, la
+   seule requête que le navigateur laisse finir après le déchargement. Pas de
+   jpost() ici : rien ne pourra plus lire sa réponse ni écrire un refus. */
+window.addEventListener("pagehide", () => {
+  if (_envoiPlan) { clearTimeout(_envoiPlan); _envoiPlan = 0; }
+  const corps = PLQ.aEnvoyer;
+  PLQ.aEnvoyer = null;
+  if (!corps) return;
+  fetch(ROUTE_PLAQUE, { method: "POST", keepalive: true,
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(corps) }).catch(() => {});
+});
 
 /* Les règles du plateau, DESSINÉES par le canevas partagé avec les libellés
    de cette page : fmtMesure() est le seul formateur, uniteCourante() la seule
@@ -1154,7 +1194,7 @@ function poserRotation(brut) {
     rendreRotation();
     return false;
   }
-  if (PLQ.courante === null || !tournerPiece(S.vueA, PLQ.courante, degres)) {
+  if (PLQ.courante === null || !poserAngle(S.vueA, PLQ.courante, degres)) {
     direRefus("aucune pièce courante — cliquez une pièce sur la plaque avant "
       + "de la tourner");
     return false;
@@ -1184,6 +1224,21 @@ function poserRotation(brut) {
    libère. L'anneau tourne la pièce de la différence d'ANGLE autour de son
    centre, Maj arrondit au pas de PAS_ROTATION. Pas d'élévation possible :
    les deux gestes n'écrivent que dans le plan. */
+/* LE GESTE EN COURS, au niveau du module et non dans la fermeture : le
+   sélecteur au clic le consulte au relever — un clic sur l'ANNEAU n'a rien
+   sous `api.racine` et passerait pour un clic dans le vide, qui relâche.
+
+   POUR LE LOT B — à lire avant le couteau et « poser sur une face ». Le rappel
+   du sélecteur au clic (plus bas, dans `etabli:charge`) est DÉJÀ un
+   multiplexeur de modes (vide / pièce / anneau,
+   plaque ou non), et glisserSurPlaque() en est un second sur les mêmes
+   évènements. Un troisième consommateur du pointeur (le couteau) et un
+   troisième cas de clic (« poser sur une face ») feraient trois propriétaires
+   pour un seul pointeur. Le remède est UN propriétaire du « geste en cours »
+   — un objet { quoi, cle, … } que les modes se passent — et non un drapeau de
+   plus par mode ; `_gestePlaque` en est l'amorce, pas l'aboutissement. */
+let _gestePlaque = null;
+
 function glisserSurPlaque(api, canvas) {
   const ndcDe = (ev) => {
     const r = canvas.getBoundingClientRect();
@@ -1203,6 +1258,7 @@ function glisserSurPlaque(api, canvas) {
               rot0: rotationDe(api, cible.cle),
               angle0: angleSurPlateau(api, point, cible.cle),
               coin0: null };
+    _gestePlaque = geste;
     api.controls.enabled = false;
     if (canvas.setPointerCapture) canvas.setPointerCapture(ev.pointerId);
     if (PLQ.courante !== cible.cle) pieceCourante(cible.cle);
@@ -1227,7 +1283,7 @@ function glisserSurPlaque(api, canvas) {
       const angle = angleSurPlateau(api, point, geste.cle);
       let rot = geste.rot0 + (angle - geste.angle0);
       if (ev.shiftKey) rot = Math.round(rot / PAS_ROTATION) * PAS_ROTATION;
-      if (!tournerPiece(api, geste.cle, rot)) return;
+      if (!poserAngle(api, geste.cle, rot)) return;
     } else {
       if (!geste.coin0) return;
       let u = geste.coin0.u + (point.u - geste.point0.u);
@@ -1245,6 +1301,7 @@ function glisserSurPlaque(api, canvas) {
   const finir = (ev) => {
     if (!geste || ev.pointerId !== geste.id) return;
     geste = null;
+    _gestePlaque = null;
     api.controls.enabled = true;
   };
   canvas.addEventListener("pointerup", finir);
@@ -1622,6 +1679,12 @@ function rendreParties() {
       const masquee = PLQ.masquees.has(cle);
       if (!montrerPiece(S.vueA, cle, masquee)) return;
       if (masquee) PLQ.masquees.delete(cle); else PLQ.masquees.add(cle);
+      /* Une pièce qu'on vient de masquer cesse d'être la pièce courante : les
+         flèches et l'anneau pousseraient sinon une pièce qu'on ne voit pas. */
+      if (!masquee && cle === PLQ.courante) {
+        PLQ.courante = null;
+        marquerPiece(S.vueA, null);
+      }
       rendreParties();
     }));
   /* La rangée choisit la pièce courante ; le clic sur l'œil, lui, reste à
@@ -2277,22 +2340,23 @@ function plusGrandeDimension() {
   return t ? Math.max(t.x, t.y, t.z) : 0;
 }
 
-/* ── le décalage d'ÉTALEMENT ────────────────────────────────────────────────
-   IL EST RETRANCHÉ, ET LE CALCUL VIT DANS /lib3d/plaque.js. Sur la plaque, une
-   pièce n'est PAS là où le modèle la met : un BERCEAU s'est glissé entre elle
-   et son parent, et sa boîte monde porte donc un décalage d'AFFICHAGE. Lu tel
-   quel, il donnerait des coordonnées fausses par rapport à l'origine — avec
-   l'autorité du chiffre, et sans que rien ne grince. C'est ce que poserGizmo()
-   refuse de laisser partir au serveur ; on ne l'affiche pas davantage.
+/* ── la pose d'ÉTALEMENT ────────────────────────────────────────────────────
+   ELLE EST DÉFAITE PAR /lib3d/plaque.js, PAS ICI. Sur la plaque, une pièce
+   n'est PAS là où le modèle la met : un BERCEAU l'a déplacée, un PIVOT l'a
+   tournée, et sa boîte monde décrit cet AFFICHAGE. Lue telle quelle, elle
+   donnerait des coordonnées fausses par rapport à l'origine — avec l'autorité
+   du chiffre, et sans que rien ne grince. C'est ce que poserGizmo() refuse de
+   laisser partir au serveur ; on ne l'affiche pas davantage.
 
-   POURQUOI CETTE PAGE NE LE CALCULE PAS ELLE-MÊME, et c'est un revirement : la
-   première écriture retrouvait le berceau ICI, en supposant qu'il est le PARENT
-   de la pièce. C'est vrai aujourd'hui, et c'est un invariant INTERNE au module
-   d'étalement, que rien ne promettait à ses appelants. Le jour où etaler()
-   glisserait un second Group, toutes les coordonnées lues sur la plaque
-   deviendraient fausses DU DÉCALAGE EXACT — donc plausibles. La question
-   appartient à qui pose le berceau : `etat.berceaux` retient déjà
-   `{berceau, piece, parent}`, et là-bas il n'y a rien à deviner. */
+   DEUX REVIREMENTS, ET LE SECOND CORRIGE UN CHIFFRE FAUX. La première écriture
+   retrouvait le berceau ICI en supposant qu'il est le parent de la pièce — un
+   invariant INTERNE au module d'étalement, que rien ne promettait. La seconde
+   retranchait un DÉCALAGE au centre de la boîte monde : juste en translation,
+   FAUX en rotation pour toute pièce non symétrique — la boîte d'une pièce
+   tournée n'a plus le même centre (mesuré : 20 % de la taille d'une pièce en
+   L à 37°, sans †). On demande donc au module la BOÎTE DANS LA POSE ASSEMBLÉE
+   (boiteModele), recomposée maillage par maillage : lui seul sait ce qu'il a
+   appliqué, et il le défait exactement. */
 
 /* Ce que la sélection vaut par rapport à l'ORIGINE : une ligne par retenu.
 
@@ -2322,16 +2386,16 @@ function mesurerRetenus() {
        On les COMPTE — la même doctrine que `vides` et `partages` sur la
        plaque : une mesure qu'on fait et qu'on tait se lit comme une perte. */
     if (!o) { sansPosition++; continue; }
-    const boite = new THREE.Box3().setFromObject(o);
-    if (boite.isEmpty()) { sansPosition++; continue; }
-    const c = boite.getCenter(new THREE.Vector3());
-    const d = decalageEtalement(S.vueA, o);
-    c.sub(d.decalage);
-    if (d.etale) etale++;
+    /* LA BOÎTE DANS LA POSE ASSEMBLÉE, par le module — voir le bloc au-dessus :
+       sur la plaque, une boîte monde décrit l'affichage, pas le modèle. */
+    const lu = boiteModele(S.vueA, o);
+    if (lu.boite.isEmpty()) { sansPosition++; continue; }
+    const c = lu.boite.getCenter(new THREE.Vector3());
+    if (lu.etale) etale++;
     lignes.push({
       nom: o.name || (o.userData && o.userData.indexGltf !== undefined
         ? `nœud ${o.userData.indexGltf}` : "sans nom"),
-      c, etale: d.etale,
+      c, etale: lu.etale,
     });
     points.push(c);
   }
@@ -2530,7 +2594,7 @@ function lireRepere() {
       : "")
     + (PLQ.active
       ? `<div class="repere-plus">la plaque est une VUE : les chiffres sont
-        ceux du MODÈLE, décalage d'étalement retranché, et le repère 3D ne
+        ceux du MODÈLE, étalement et rotation défaits, et le repère 3D ne
         marque rien — sa croix tomberait à côté des pièces étalées.${m.etale
           ? " † cette lecture-là n'a pas pu être corrigée." : ""}</div>` : "");
   $("#repereLecture").innerHTML = corps + pied;
@@ -2556,8 +2620,12 @@ document.addEventListener("etabli:charge", () => {
   _clicBranche = true;
   designerAuClic(S.vueA, $("#vueA canvas"), (obj) => {
     /* Sur la plaque, cliquer le VIDE relâche la pièce courante — le geste des
-       slicers ; cliquer une pièce l'a déjà désignée au poser (glisserSurPlaque). */
+       slicers ; cliquer une pièce l'a déjà désignée au poser (glisserSurPlaque).
+       L'ANNEAU n'est pas le vide : il vit hors d'`api.racine`, ce rayon ne le
+       voit pas, et le geste en cours (encore posé : notre relever passe avant
+       le sien) dit que c'est lui qu'on a cliqué. */
     if (!obj) {
+      if (_gestePlaque && _gestePlaque.quoi === "poignee") return;
       if (estEtalee(S.vueA) && PLQ.courante !== null) pieceCourante(null);
       return;
     }

@@ -3355,7 +3355,7 @@ def test_le_plateau_a_sa_grille_et_N_INVENTE_AUCUN_MILLIMETRE():
     assert "GridHelper" in code
     # le pas du plateau vient de la règle 1-2-5 du canevas partagé, importée —
     # jamais d'une seconde règle écrite ici
-    assert 'import { pasGradue } from "./viewer.js";' in code
+    assert 'import { pasGradue, sensDesRegles } from "./viewer.js";' in code
     assert "pasGradue(brut)" in _fonction_plaque("geometriePlateau")
     # et NI le module du plateau NI le dessinateur des règles ne mettent un
     # nombre en forme : une mise en forme est un site où une unité peut naître
@@ -5335,10 +5335,13 @@ def test_la_GRADUATION_vit_dans_le_CANEVAS_PARTAGE_et_pas_dans_la_page():
     # alors que `planDeTrame` et `axeDeVue` étaient exportées — une surface
     # publique sous-estimée de deux est une surface que personne ne relit.
     # Depuis la plaque façon slicer, TROIS de plus, et pour une seule raison :
-    # les RÈGLES d'un plateau (dessinerRegles, effacerRegles, et la pure
-    # graduationsDe) sont un accessoire du regard, dessiné par le canevas
-    # partagé avec les libellés que la page lui donne — le plateau, lui, reste
-    # dans son module.
+    # les RÈGLES d'un plateau (dessinerRegles, effacerRegles) sont un
+    # accessoire du regard, dessiné par le canevas partagé avec les libellés
+    # que la page lui donne, et sensDesRegles est la pure qui DÉDUIT de la
+    # table des orientations le coin d'origine — exportée parce que c'est la
+    # géométrie du plateau (plaque.js) qui la consomme, une fois, pour que le
+    # coin et les règles n'aient qu'une source. (graduationsDe est interne :
+    # le banc l'extrait par son nom.)
     exportes = set(re.findall(r"^export (?:async )?function (\w+)\(",
                               code, re.M))
     attendus = {"pasGradue", "casesGraduees", "echelleMm", "etendueVisible",
@@ -5346,7 +5349,7 @@ def test_la_GRADUATION_vit_dans_le_CANEVAS_PARTAGE_et_pas_dans_la_page():
                 "montrerRepere", "creerCanevas", "vider", "orientationDe",
                 "cadrageDe", "cadreOrtho", "aspectDe", "cadrer", "projeter",
                 "orienter", "charger", "dessinerRegles", "effacerRegles",
-                "graduationsDe"}
+                "sensDesRegles"}
     assert exportes == attendus, (exportes ^ attendus)
     # la boucle gradue AVANT de rendre : après, la trame reconstruite
     # n'apparaîtrait qu'à l'image suivante.
@@ -5848,7 +5851,13 @@ def test_la_POSITION_lue_est_celle_du_MODELE_et_NON_de_l_ETALEMENT():
     # La page ne peut plus le refaire en supposant « le berceau est le parent
     # de la pièce » : cet invariant est INTERNE au module d'étalement.
     js = _code("etabli/etabli.js")
-    assert "decalageEtalement" in js
+    # Depuis la plaque façon slicer, la page ne retranche plus un DÉCALAGE :
+    # elle demande au module la BOÎTE DANS LA POSE ASSEMBLÉE (boiteModele), la
+    # seule lecture juste pour une pièce TOURNÉE non symétrique — le banc
+    # dédié en fait la preuve sur une pièce en L. decalageEtalement reste
+    # l'API mesurée ici ; la page, elle, ne la recompose pas.
+    assert "boiteModele(S.vueA, o)" in js
+    assert "function boiteModele" not in js
     assert "function decalageEtalement" not in js
     assert "berceau" not in js
     plq = _code("lib3d/plaque.js")
@@ -6398,7 +6407,7 @@ def test_la_LECTURE_de_CHAQUE_selection_est_EXECUTEE():
     """
     sortie = json.loads(_node_trois(
         "echelleMm, marquerAuRepere, majRepere, cadrer, dessinerRegles",
-        _importer_plaque("etaler, ranger, decalageEtalement, plateauDe")
+        _importer_plaque("etaler, ranger, boiteModele, plateauDe")
         + _faux_rail() + _constantes_etabli("LIGNES_REPERE")
         + _fonction_etabli("enMillimetres") + "\n"
         + _fonction_etabli("uniteCourante") + "\n"
@@ -7252,12 +7261,15 @@ def test_montrerRepere_ETEINT_VRAIMENT_le_repere():
 
 
 def _scene_enveloppe() -> str:
-    """Trois pièces de cotes DISTINCTES sous une enveloppe tournée et mise à
+    """Deux pièces de cotes DISTINCTES sous une enveloppe tournée et mise à
     l'échelle (0,3 ; −0,7 ; 0,45 rad — 2 ; 0,5 ; 1,75), translatée de
     (−4 ; 9 ; 3) : le cas d'une réparation en Z, où rien n'est l'identité et
     où une erreur d'axe ou de signe ne peut pas tomber sur un zéro. Le même
     montage que la lecture du rail (section P), pour que les deux parlent des
-    mêmes nombres.
+    mêmes nombres — sauf la pièce 2, devenue un L dans le plan du plateau et
+    posée À PLAT SOUS LA RACINE : la seule pièce dont la boîte tournée change
+    de centre, et sous l'enveloppe tournée l'inflation des boîtes noyait cette
+    asymétrie (écart naïf 0,4 % contre 23,6 % à l'identité, mesuré).
     """
     return """
       const racine = new THREE.Group();
@@ -7275,9 +7287,25 @@ def _scene_enveloppe() -> str:
         g.name = "piece_" + i;
         g.userData.indexGltf = i;
         g.position.set(x, y, z);
-        g.add(new THREE.Mesh(new THREE.BoxGeometry(l, h, p),
-                             new THREE.MeshBasicMaterial()));
-        enveloppe.add(g);
+        /* LA PIECE 2 EST UN L DANS LE PLAN DU PLATEAU (xz, l'axe est y) : un
+           bras le long de x, un bras le long de z, sans symetrie centrale —
+           la boite d'un L tourne n'a plus le meme centre. Une scene faite de
+           boites seules avait laisse passer une lecture fausse de 20 %.
+           ET IL EST A PLAT SOUS LA RACINE, pas sous l'enveloppe : mesure,
+           l'inflation des boites sous l'enveloppe tournee noyait l'asymetrie
+           (ecart naif 0,4 % sous l'enveloppe, 23,6 % a l'identite). */
+        g.add(new THREE.Mesh(new THREE.BoxGeometry(...(i === 2
+          ? [0.7, 0.15, 0.15] : [l, h, p])), new THREE.MeshBasicMaterial()));
+        if (i === 2) {
+          const aile = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.7),
+                                      new THREE.MeshBasicMaterial());
+          aile.name = "aile_2";
+          aile.position.set(0.275, 0, 0.275);
+          g.add(aile);
+          racine.add(g);
+        } else {
+          enveloppe.add(g);
+        }
         return g;
       });
       api.scene.add(racine); api.racine = racine;
@@ -7437,6 +7465,7 @@ def test_le_PLATEAU_est_un_nombre_entier_de_PAS_et_son_pas_est_un_pas_de_PLATEAU
     pur = json.loads(_node(
         _constantes_viewer("DIVISIONS_VISEES")
         + _fonction_viewer("pasGradue")
+        + _harnais_vue() + _fonction_viewer("sensDesRegles")
         + _constantes_plaque("AXES", "DEBORD_PLATEAU", "RECUL_PLATEAU")
         + _fonction_plaque("geometriePlateau") + """
       console.log(JSON.stringify({
@@ -7466,7 +7495,14 @@ def test_le_PLATEAU_est_un_nombre_entier_de_PAS_et_son_pas_est_un_pas_de_PLATEAU
         u, v = [a for a in "xyz" if a != nom]
         assert (g["u"], g["v"]) == (u, v), g
         assert abs(g["niveau"] + g["cote"] * recul) < 1e-15, g
-        assert g["coin"][u] == -g["cote"] / 2 and g["coin"][v] == -g["cote"] / 2, g
+        # LE COIN EST L'ORIGINE DES RÈGLES : ±côté/2 selon le sens dans lequel
+        # chaque axe croît sur la vue de face — pour l'axe x, v (= z) décroît
+        # vers la droite d'écran, l'origine est donc au +z. La table est celle
+        # que le contrôle des règles retrouve par la CAMÉRA (second chemin).
+        sens = {"z": (1, 1), "y": (1, -1), "x": (1, -1)}[nom]
+        assert (g["sens"]["u"], g["sens"]["v"]) == sens, (nom, g["sens"])
+        assert g["coin"][u] == -sens[0] * g["cote"] / 2, (nom, g)
+        assert g["coin"][v] == -sens[1] * g["cote"] / 2, (nom, g)
         assert g["coin"][nom] == g["niveau"], g
     assert pur["nul"]["pas"] is None and pur["nul"]["cases"] == 1, pur["nul"]
     # ── LE PLATEAU DESSINÉ, sur le vrai etaler ──────────────────────────────
@@ -7554,9 +7590,11 @@ def test_les_REGLES_sont_DESSINEES_par_le_canevas_avec_les_LIBELLES_de_la_PAGE()
     textures d'avant (l'évènement dispose de three.js en témoigne).
     """
     sortie = json.loads(_node_trois(
-        "cadrer, projeter, orienter, dessinerRegles, effacerRegles, graduationsDe",
-        _importer_plaque("etaler, plateauDe")
-        + _table_js("etabli/etabli.js", "VUE_DE_PLAQUE") + """
+        "cadrer, projeter, orienter, dessinerRegles, effacerRegles",
+        _importer_plaque("etaler, plateauDe, geometriePlateau")
+        + _table_js("etabli/etabli.js", "VUE_DE_PLAQUE")
+        + _constantes_viewer("LIBELLES_SERRES") + _fonction_viewer("graduationsDe")
+        + """
       const api = monter(860, 824);
       """ + _scene_enveloppe() + """
       etaler(api);
@@ -7585,7 +7623,9 @@ def test_les_REGLES_sont_DESSINEES_par_le_canevas_avec_les_LIBELLES_de_la_PAGE()
       const coinsEcran = {};
       for (const axe of ["x", "y", "z"]) {
         const [u, v] = ["x", "y", "z"].filter((a) => a !== axe);
-        const geo = { axe, u, v, cote: 2.6, cases: 13, pas: 0.2, niveau: -0.013 };
+        /* la geometrie du MODULE, pas une geometrie ecrite a la main : c'est
+           elle qui porte le coin et le sens, et c'est elle qu'on mesure. */
+        const geo = geometriePlateau(2.3, 1.1, 0.2, axe);
         const rr = dessinerRegles(api, geo, (val) => String(val), "u");
         projeter(api, "orthographique");
         orienter(api, VUE_DE_PLAQUE[axe]);
@@ -7598,11 +7638,14 @@ def test_les_REGLES_sont_DESSINEES_par_le_canevas_avec_les_LIBELLES_de_la_PAGE()
         const coinsMonde = [o, o.clone().add(au), o.clone().add(av), o.clone().add(au).add(av)]
           .map((c) => c.toArray());
         coinsEcran[axe] = { coins, coinsMonde, cote: geo.cote, sens: rr.sens,
+          coinGeo: geo.coin, sensGeo: geo.sens,
           bandeU: dirLocal(rr.bandes[0], new THREE.Vector3(1, 0, 0)),
           bandeV: dirLocal(rr.bandes[1], new THREE.Vector3(1, 0, 0)),
           normaleU: dirLocal(rr.bandes[0], new THREE.Vector3(0, 0, 1)),
+          normaleV: dirLocal(rr.bandes[1], new THREE.Vector3(0, 0, 1)),
           hautU: dirLocal(rr.bandes[0], new THREE.Vector3(0, 1, 0)),
-          centreU: rr.bandes[0].position.toArray(), origine: o.toArray() };
+          centreU: rr.bandes[0].position.toArray(),
+          centreV: rr.bandes[1].position.toArray(), origine: o.toArray() };
       }
       const efface = effacerRegles(api);
       console.log(JSON.stringify({
@@ -7634,9 +7677,14 @@ def test_les_REGLES_sont_DESSINEES_par_le_canevas_avec_les_LIBELLES_de_la_PAGE()
         assert xs == sorted(xs) and len(set(xs)) == len(xs), (nom, xs)
         longueur = g["cote"] + 1.2 * g["pas"]
         W = sortie["largeurCanevas"]
+        # retenu au bord par sa PROPRE demi-largeur — celle que le canevas
+        # factice du montage mesure (dix pixels par glyphe) : le « 0 » du coin
+        # reste entier et au plus près de son trait
         for e, k in zip(ecrits[:-1], [k for k in range(len(valeurs)) if k % saut == 0]):
-            attendu = min(W * 0.98, max(W * 0.02, valeurs[k] / longueur * W))
+            demi = 10 * len(e["texte"]) / 2
+            attendu = min(W - demi, max(demi, valeurs[k] / longueur * W))
             assert abs(e["x"] - attendu) < 1e-6, (nom, e, attendu)
+        assert ecrits[0]["x"] == 10 * len(ecrits[0]["texte"]) / 2, ecrits[0]
     # LES SEGMENTS : 4 de contour + 2 traits par graduation, le contour fait
     # le tour du carré depuis l'origine, les traits partent des bords VERS
     # L'EXTÉRIEUR et sont plus longs sous un libellé
@@ -7666,10 +7714,10 @@ def test_les_REGLES_sont_DESSINEES_par_le_canevas_avec_les_LIBELLES_de_la_PAGE()
     # au vert, parce que segments, traits et bandes se lisaient cohérents
     # avec eux-mêmes ; seuls les coins du carré du plateau les rattachent au
     # monde. On les lit sur le contour, dans les deux axes du plan.
-    bord = {round(g["coin"][g["u"]], 6), round(g["coin"][g["u"]] + g["cote"], 6)}
+    bord = {round(g["coin"][g["u"]], 6), round(g["coin"][g["u"]] + su * g["cote"], 6)}
     assert bord == {round(k, 6) for seg in segs[:4] for pt in seg for k in [pt[iu]]}, \
         (bord, segs[:4])
-    bord_v = {round(g["coin"][g["v"]], 6), round(g["coin"][g["v"]] + g["cote"], 6)}
+    bord_v = {round(g["coin"][g["v"]], 6), round(g["coin"][g["v"]] + sv * g["cote"], 6)}
     assert bord_v == {round(pt[iv], 6) for seg in segs[:4] for pt in seg}, (bord_v, segs[:4])
     assert round(o[iu], 6) in bord and round(o[iv], 6) in bord_v, (o, bord, bord_v)
     # MÉMO ET LIBÉRATION
@@ -7691,8 +7739,18 @@ def test_les_REGLES_sont_DESSINEES_par_le_canevas_avec_les_LIBELLES_de_la_PAGE()
         assert abs(c["bandeU"][iu] - c["sens"]["u"]) < 1e-9, (axe, c)
         assert abs(c["bandeV"][iv] - c["sens"]["v"]) < 1e-9, (axe, c)
         assert abs(c["normaleU"][ia] - 1) < 1e-9, (axe, c)
-        # la bande U est HORS du plateau, du côté opposé à v
+        # LES DEUX bandes sont HORS du plateau : U du côté opposé à v, V du
+        # côté opposé à u — la famille se ferme sur les deux, pas sur une
         assert (c["centreU"][iv] - c["origine"][iv]) * c["sens"]["v"] < 0, (axe, c)
+        assert (c["centreV"][iu] - c["origine"][iu]) * c["sens"]["u"] < 0, (axe, c)
+        assert abs(c["normaleV"][ia] - 1) < 1e-9, (axe, c)
+        # …ET L'ORIGINE DESSINÉE EST LE `coin` DE LA GÉOMÉTRIE, à la levée
+        # près sur l'axe : une seule source (mutation verte du premier tour :
+        # viewer.js recalculait ±côté/2 et, pour l'axe y, désignait un autre
+        # coin que `coin`)
+        assert abs(c["origine"][iu] - c["coinGeo"][u]) < 1e-12, (axe, c)
+        assert abs(c["origine"][iv] - c["coinGeo"][v]) < 1e-12, (axe, c)
+        assert c["sens"] == c["sensGeo"], (axe, c)
         # …et les quatre coins dessinés SONT ceux du carré du plateau, centré
         # sur l'origine du monde : ±côté/2 sur u et sur v, rien d'autre
         demi = c["cote"] / 2
@@ -7814,7 +7872,7 @@ def test_la_ROTATION_tourne_autour_du_CENTRE_dans_le_PLAN_et_se_LIT_par_Rodrigue
     """
     sortie = json.loads(_node_trois(
         "cadrer",
-        _importer_plaque("etaler, ranger, plateauDe, empreinteDe, tournerPiece, "
+        _importer_plaque("etaler, ranger, plateauDe, empreinteDe, poserAngle, "
                          "rotationDe, deplacerPiece, decalageEtalement, dispositionDe") + """
       const api = monter(860, 824);
       """ + _scene_enveloppe() + """
@@ -7829,22 +7887,22 @@ def test_la_ROTATION_tourne_autour_du_CENTRE_dans_le_PLAN_et_se_LIT_par_Rodrigue
       const emp0 = empreinteDe(api, 1);
       const d0 = decalageEtalement(api, pieces[1]).decalage.toArray();
       const lin0 = lin(pieces[1]);
-      const ok90 = tournerPiece(api, 1, 90);
+      const ok90 = poserAngle(api, 1, 90);
       racine.updateMatrixWorld(true);
       const emp90 = empreinteDe(api, 1);
-      const ok37 = tournerPiece(api, 1, 37);
+      const ok37 = poserAngle(api, 1, 37);
       racine.updateMatrixWorld(true);
       const emp37 = empreinteDe(api, 1);
       const d37 = decalageEtalement(api, pieces[1]).decalage.toArray();
       const lin37 = lin(pieces[1]);
       const rot37 = rotationDe(api, 1);
-      tournerPiece(api, 1, 370); const rot370 = rotationDe(api, 1);
-      tournerPiece(api, 1, -190); const rotMoins = rotationDe(api, 1);
-      const refus = tournerPiece(api, 1, "abc");
+      poserAngle(api, 1, 370); const rot370 = rotationDe(api, 1);
+      poserAngle(api, 1, -190); const rotMoins = rotationDe(api, 1);
+      const refus = poserAngle(api, 1, "abc");
       const rotApresRefus = rotationDe(api, 1);
-      tournerPiece(api, 1, 37);
+      poserAngle(api, 1, 37);
       deplacerPiece(api, 0, 0.61, 0.13);
-      tournerPiece(api, 2, -120);
+      poserAngle(api, 2, -120);
       racine.updateMatrixWorld(true);
       const avant = [0, 1, 2].map((k) => empreinteDe(api, k));
       const plan = dispositionDe(api);
@@ -7970,6 +8028,42 @@ def test_l_ETALEMENT_applique_le_PLAN_s_il_existe_sinon_dispose_et_le_PLATEAU_ne
     assert avec["g"] == g and ignore["g"] == g, (avec["g"], ignore["g"], g)
 
 
+def _harnais_glisser() -> str:
+    """La scène, le faux canevas à écouteurs, les doublures de la page et la
+    VRAIE glisserSurPlaque, branchée — commun au glisser et à l'anneau, pour
+    que les deux mesurent le même geste sur la même scène."""
+    sel = (FRONT / "lib3d" / "selection.js").resolve().as_uri()
+    return (_importer_plaque("etaler, estEtalee, plateauDe, empreinteDe, sousLePointeur, "
+                             "pointSurPlateau, rotationDe, angleSurPlateau, poserAngle, "
+                             "aimanter, poserCoin, marquerPiece, montrerPiece")
+            + f"import {{ TOLERANCE_CLIC }} from {json.dumps(sel)};\n"
+            + _constantes_etabli("PAS_ROTATION") + """
+      const api = monter(860, 824);
+      """ + _scene_enveloppe() + """
+      etaler(api); racine.updateMatrixWorld(true);
+      const g = plateauDe(api);
+      const PLQ = { courante: null };
+      const courantes = [];
+      let notes = 0;
+      const pieceCourante = (cle) => { PLQ.courante = cle; marquerPiece(api, cle); courantes.push(cle); };
+      const noterPlan = () => { notes++; };
+      const rendreRotation = () => {};
+      let _gestePlaque = null;
+      const canvas = {
+        listeners: {},
+        addEventListener(t, f) { (this.listeners[t] = this.listeners[t] || []).push(f); },
+        getBoundingClientRect() { return { left: 0, top: 0, width: 860, height: 824 }; },
+        captures: 0, setPointerCapture() { this.captures++; },
+      };
+      const fire = (t, ev) => { for (const f of canvas.listeners[t] || []) f(ev); };
+      const px = (p) => { const q = p.clone().project(api.camera);
+        return { clientX: ((q.x + 1) / 2) * 860, clientY: ((1 - q.y) / 2) * 824 }; };
+      const pointMonde = (u, v) => { const w = new THREE.Vector3(); w[g.u] = u; w[g.v] = v; return w; };
+    """ + _fonction_etabli("glisserSurPlaque") + """
+      glisserSurPlaque(api, canvas);
+    """)
+
+
 def test_l_AIMANTATION_aligne_le_COIN_sur_le_pas_du_plateau_et_Maj_la_libere():
     """LE GESTE DES SLICERS, EXÉCUTÉ SUR LA VRAIE glisserSurPlaque : un
     poser sur une pièce coupe l'orbite (`controls.enabled`), un mouvement
@@ -7986,36 +8080,9 @@ def test_l_AIMANTATION_aligne_le_COIN_sur_le_pas_du_plateau_et_Maj_la_libere():
     de Python sur les nombres relevés. La rotation cible est construite avec
     `applyAxisAngle` de three.js — pas avec la formule d'angle du module.
     """
-    sel = (FRONT / "lib3d" / "selection.js").resolve().as_uri()
     sortie = json.loads(_node_trois(
         "cadrer",
-        _importer_plaque("etaler, estEtalee, plateauDe, empreinteDe, sousLePointeur, "
-                         "pointSurPlateau, rotationDe, angleSurPlateau, tournerPiece, "
-                         "aimanter, poserCoin, marquerPiece, montrerPiece")
-        + f"import {{ TOLERANCE_CLIC }} from {json.dumps(sel)};\n"
-        + _constantes_etabli("PAS_ROTATION") + """
-      const api = monter(860, 824);
-      """ + _scene_enveloppe() + """
-      etaler(api); racine.updateMatrixWorld(true);
-      const g = plateauDe(api);
-      const PLQ = { courante: null };
-      const courantes = [];
-      let notes = 0;
-      const pieceCourante = (cle) => { PLQ.courante = cle; marquerPiece(api, cle); courantes.push(cle); };
-      const noterPlan = () => { notes++; };
-      const rendreRotation = () => {};
-      const canvas = {
-        listeners: {},
-        addEventListener(t, f) { (this.listeners[t] = this.listeners[t] || []).push(f); },
-        getBoundingClientRect() { return { left: 0, top: 0, width: 860, height: 824 }; },
-        captures: 0, setPointerCapture() { this.captures++; },
-      };
-      const fire = (t, ev) => { for (const f of canvas.listeners[t] || []) f(ev); };
-      const px = (p) => { const q = p.clone().project(api.camera);
-        return { clientX: ((q.x + 1) / 2) * 860, clientY: ((1 - q.y) / 2) * 824 }; };
-      const pointMonde = (u, v) => { const w = new THREE.Vector3(); w[g.u] = u; w[g.v] = v; return w; };
-    """ + _fonction_etabli("glisserSurPlaque") + """
-      glisserSurPlaque(api, canvas);
+        _harnais_glisser() + """
       const r = { types: Object.keys(canvas.listeners).sort(), g,
                   tolerance: TOLERANCE_CLIC, pasRotation: PAS_ROTATION };
       /* LE POSER SUR UNE PIECE : au centre de la piece 1, sur sa face haute */
@@ -8053,53 +8120,28 @@ def test_l_AIMANTATION_aligne_le_COIN_sur_le_pas_du_plateau_et_Maj_la_libere():
       /* un mouvement APRES le relever ne fait plus rien */
       fire("pointermove", { pointerId: 1, ...px(P0 ? pointMonde(P0.u + 3, P0.v) : c), shiftKey: false });
       r.apres = empreinteDe(api, 1);
-      /* LE VIDE : un coin du canevas, loin des pieces */
-      fire("pointerdown", { button: 0, pointerId: 2, clientX: 3, clientY: 3, shiftKey: false });
-      r.vide = { enabled: api.controls.enabled, sous: sousLePointeur(api, { x: -0.99, y: 0.99 }) };
-      fire("pointerup", { pointerId: 2, button: 0, clientX: 3, clientY: 3 });
+      /* LE VIDE : un point DU PLATEAU, dans son coin, loin des pieces — et
+         non un coin d'ecran dont le rayon rate le plan : la, `pointSurPlateau`
+         rend null et la garde suivante masquerait l'absence de la garde sur
+         la cible (mutation verte du second tour). Le temoin : ce pixel
+         touche bien le plateau et ne touche aucune piece. */
+      const coinVide = pointMonde(g.coin[g.u] + g.sens.u * 0.03 * g.cote,
+                                  g.coin[g.v] + g.sens.v * 0.03 * g.cote);
+      const pv = px(coinVide);
+      const ndcVide = { x: (pv.clientX / 860) * 2 - 1, y: -((pv.clientY / 824) * 2 - 1) };
+      r.videTemoin = { plateau: pointSurPlateau(api, ndcVide) !== null,
+                       piece: sousLePointeur(api, ndcVide) };
+      fire("pointerdown", { button: 0, pointerId: 2, ...pv, shiftKey: false });
+      r.vide = { enabled: api.controls.enabled, sous: sousLePointeur(api, ndcVide) };
+      fire("pointerup", { pointerId: 2, button: 0, ...pv });
       /* UN CLIC (poser + relever au meme endroit) : rien ne bouge */
       const emp1 = empreinteDe(api, 1);
       const c1 = pointMonde(emp1.cu, emp1.cv); c1[g.axe] = emp1.haut;
       fire("pointerdown", { button: 0, pointerId: 3, ...px(c1), shiftKey: false });
       fire("pointerup", { pointerId: 3, button: 0, ...px(c1) });
       r.clic = { emp: empreinteDe(api, 1), enabled: api.controls.enabled };
-      /* L'ANNEAU : la piece 1 est courante, son anneau est visible */
-      const marque = marquerPiece(api, 1);
-      const anneau = nomme("plaque-poignee").children[0].geometry.parameters;
-      const rayon = (anneau.innerRadius + anneau.outerRadius) / 2;
-      const centre = pointMonde(marque.centre.u, marque.centre.v);
-      const n = new THREE.Vector3(); n[g.axe] = 1;
-      const bras = new THREE.Vector3(); bras[g.u] = rayon;
-      const R0 = centre.clone().add(bras);
-      const rot0 = rotationDe(api, 1);
-      const pr0 = px(R0);
-      const ndcR = { x: (pr0.clientX / 860) * 2 - 1, y: -((pr0.clientY / 824) * 2 - 1) };
-      r.sousAnneau = sousLePointeur(api, ndcR);
-      fire("pointerdown", { button: 0, pointerId: 4, ...pr0, shiftKey: false });
-      /* + 37 degres autour de +axe, par three.js */
-      const R1 = centre.clone().add(bras.clone().applyAxisAngle(n, 37 * Math.PI / 180));
-      fire("pointermove", { pointerId: 4, ...px(R1), shiftKey: false });
-      r.tournee = rotationDe(api, 1) - rot0;
-      const R2 = centre.clone().add(bras.clone().applyAxisAngle(n, 42 * Math.PI / 180));
-      fire("pointermove", { pointerId: 4, ...px(R2), shiftKey: true });
-      r.tourneeMaj = rotationDe(api, 1) - rot0;
-      r.centreApres = empreinteDe(api, 1);
-      fire("pointerup", { pointerId: 4, button: 0, ...px(R2) });
       r.notes = notes;
       r.courantes = courantes;
-      /* UNE PIECE MASQUEE PAR L'OEIL ne se saisit pas : sous le pointeur, au
-         centre de la piece 1 masquee, il n'y a plus rien — on ne deplace pas
-         ce qu'on ne voit pas. Et le poser ne coupe plus l'orbite. */
-      montrerPiece(api, 1, false);
-      const emp2 = empreinteDe(api, 1);
-      const c2 = pointMonde(emp2.cu, emp2.cv); c2[g.axe] = emp2.haut;
-      const p2 = px(c2);
-      r.masqueeSous = sousLePointeur(api, { x: (p2.clientX / 860) * 2 - 1, y: -((p2.clientY / 824) * 2 - 1) });
-      marquerPiece(api, null);
-      fire("pointerdown", { button: 0, pointerId: 5, ...p2, shiftKey: false });
-      r.masqueePoser = { enabled: api.controls.enabled };
-      fire("pointerup", { pointerId: 5, button: 0, ...p2 });
-      montrerPiece(api, 1, true);
       console.log(JSON.stringify(r));
     """))
     g = sortie["g"]
@@ -8132,10 +8174,96 @@ def test_l_AIMANTATION_aligne_le_COIN_sur_le_pas_du_plateau_et_Maj_la_libere():
     assert sortie["pendant"] == {"enabled": False, "notes": 2}
     assert sortie["releve"] == {"enabled": True}
     assert sortie["apres"] == sortie["libre"]
-    # LE VIDE ne coupe rien
+    # LE VIDE ne coupe rien — et c'est bien un point du plateau sans pièce
+    assert sortie["videTemoin"] == {"plateau": True, "piece": None}, sortie["videTemoin"]
     assert sortie["vide"] == {"enabled": True, "sous": None}
     # UN CLIC ne bouge rien et rend l'orbite
     assert sortie["clic"]["emp"] == sortie["libre"] and sortie["clic"]["enabled"] is True
+    assert sortie["notes"] == 2                       # deux glissers, rien d'autre
+    assert sortie["courantes"] == [1]                 # désignée une fois, puis déjà courante
+    # ── ET LE CÂBLAGE : une fois, sur le canevas de A, hors du bloc ─────────
+    code = _code("etabli/etabli.js")
+    assert code.count("glisserSurPlaque(") == 2       # la définition et l'appel
+    bloc = code.split('addEventListener("etabli:charge"', 1)[1]
+    assert bloc.index("if (_clicBranche) return;") < bloc.index("glisserSurPlaque(S.vueA")
+    assert "glisserSurPlaque(" not in _plaque_bloc()
+
+
+def test_l_ANNEAU_tourne_la_piece_COURANTE_et_une_piece_MASQUEE_ne_se_saisit_pas():
+    """LE SECOND GESTE DE LA SOURIS, sur la même glisserSurPlaque : le poser
+    sur l'ANNEAU tourne la pièce de la différence d'angle autour de son centre
+    — la cible est construite avec `applyAxisAngle` de three.js, pas avec la
+    formule d'angle du module — et Maj arrondit à PAS_ROTATION. L'anneau garde
+    son RAYON quand la pièce tourne (il respirait : 0,928 → 0,749 entre 0° et
+    45°, la géométrie refaite à chaque mouvement), et un clic sur lui ne
+    relâche pas la pièce courante.
+
+    Et une pièce MASQUÉE par l'œil ne se saisit pas : le raycast de three.js
+    ne saute PAS les objets invisibles (mesuré dans le fichier vendorisé :
+    seul `layers` est testé), c'est le module qui filtre. L'œil qui masque la
+    pièce courante la relâche, sans quoi les flèches pousseraient une pièce
+    qu'on ne voit pas.
+    """
+    sortie = json.loads(_node_trois(
+        "cadrer",
+        _harnais_glisser() + """
+      const r = { g, pasRotation: PAS_ROTATION };
+      r.centreAvant = empreinteDe(api, 1);
+      pieceCourante(1);
+      /* L'ANNEAU : la piece 1 est courante, son anneau est visible */
+      const marque = marquerPiece(api, 1);
+      const anneau = nomme("plaque-poignee").children[0].geometry.parameters;
+      const rayon = (anneau.innerRadius + anneau.outerRadius) / 2;
+      const centre = pointMonde(marque.centre.u, marque.centre.v);
+      const n = new THREE.Vector3(); n[g.axe] = 1;
+      const bras = new THREE.Vector3(); bras[g.u] = rayon;
+      const R0 = centre.clone().add(bras);
+      const rot0 = rotationDe(api, 1);
+      const pr0 = px(R0);
+      const ndcR = { x: (pr0.clientX / 860) * 2 - 1, y: -((pr0.clientY / 824) * 2 - 1) };
+      r.sousAnneau = sousLePointeur(api, ndcR);
+      fire("pointerdown", { button: 0, pointerId: 4, ...pr0, shiftKey: false });
+      /* + 37 degres autour de +axe, par three.js */
+      const R1 = centre.clone().add(bras.clone().applyAxisAngle(n, 37 * Math.PI / 180));
+      fire("pointermove", { pointerId: 4, ...px(R1), shiftKey: false });
+      r.tournee = rotationDe(api, 1) - rot0;
+      const R2 = centre.clone().add(bras.clone().applyAxisAngle(n, 42 * Math.PI / 180));
+      fire("pointermove", { pointerId: 4, ...px(R2), shiftKey: true });
+      r.tourneeMaj = rotationDe(api, 1) - rot0;
+      r.centreApres = empreinteDe(api, 1);
+      fire("pointerup", { pointerId: 4, button: 0, ...px(R2) });
+      r.notes = notes;
+      /* LE RAYON NE RESPIRE PAS : le meme a 0 deg, a 45 deg et a 90 deg */
+      poserAngle(api, 1, 0);
+      const r0 = marquerPiece(api, 1).rayon;
+      poserAngle(api, 1, 45);
+      const r45 = marquerPiece(api, 1).rayon;
+      poserAngle(api, 1, 90);
+      const r90 = marquerPiece(api, 1).rayon;
+      const emp45 = (poserAngle(api, 1, 45), empreinteDe(api, 1));
+      r.rayons = { r0, r45, r90, diagonaleCourante45: Math.hypot(emp45.l, emp45.p) / 2 };
+      /* UNE PIECE MASQUEE PAR L'OEIL ne se saisit pas : sous le pointeur, au
+         centre de la piece 1 masquee, il n'y a plus rien — on ne deplace pas
+         ce qu'on ne voit pas. Et le poser ne coupe plus l'orbite. */
+      /* Le pixel vise le CENTRE MONDE du maillage — toujours dans la boite —
+         et non le haut-centre de son AABB, qui n'est pas sur une boite
+         inclinee sous l'enveloppe : a ce pixel-la, le rayon ne touchait rien,
+         masquee ou pas, et l'assertion etait vide (mutation verte). Le temoin :
+         visible, le meme pixel rend la piece 1. */
+      const cible1 = pieces[1].children[0].getWorldPosition(new THREE.Vector3());
+      const p2 = px(cible1);
+      const ndc2 = { x: (p2.clientX / 860) * 2 - 1, y: -((p2.clientY / 824) * 2 - 1) };
+      r.visibleSous = sousLePointeur(api, ndc2);
+      montrerPiece(api, 1, false);
+      r.masqueeSous = sousLePointeur(api, ndc2);
+      marquerPiece(api, null);
+      fire("pointerdown", { button: 0, pointerId: 5, ...p2, shiftKey: false });
+      r.masqueePoser = { enabled: api.controls.enabled };
+      fire("pointerup", { pointerId: 5, button: 0, ...p2 });
+      montrerPiece(api, 1, true);
+      console.log(JSON.stringify(r));
+    """))
+    g = sortie["g"]
     # L'ANNEAU : sous le pointeur c'est la poignée, et 37° demandés par
     # three.js font 37° au module — le sens est le bon, sur cet axe-là
     assert sortie["sousAnneau"] == {"quoi": "poignee", "cle": 1}
@@ -8143,22 +8271,35 @@ def test_l_AIMANTATION_aligne_le_COIN_sur_le_pas_du_plateau_et_Maj_la_libere():
     assert sortie["tourneeMaj"] == 40, sortie["tourneeMaj"]     # 42 arrondi au pas de 5
     assert sortie["pasRotation"] == 5
     # …et la rotation n'a pas déplacé le centre de la pièce
-    assert abs(sortie["centreApres"]["cu"] - sortie["libre"]["cu"]) < 1e-9
-    assert abs(sortie["centreApres"]["cv"] - sortie["libre"]["cv"]) < 1e-9
-    assert sortie["notes"] == 4                       # deux glissers, deux rotations
-    assert sortie["courantes"] == [1]                 # désignée une fois, puis déjà courante
+    assert abs(sortie["centreApres"]["cu"] - sortie["centreAvant"]["cu"]) < 1e-9
+    assert abs(sortie["centreApres"]["cv"] - sortie["centreAvant"]["cv"]) < 1e-9
+    assert sortie["notes"] == 2                       # deux rotations
+    # LE RAYON NE RESPIRE PAS : identique à 0°, 45° et 90°, alors que
+    # l'empreinte courante à 45° en diffère de plus de 5 % (mesuré : 0,928 → 0,749 avant correctif)
+    r_ = sortie["rayons"]
+    assert r_["r0"] == r_["r45"] == r_["r90"], r_
+    assert abs(r_["diagonaleCourante45"] - r_["r0"] / 1.15) > 0.05 * r_["r0"] / 1.15, r_
     # UNE PIÈCE MASQUÉE PAR L'ŒIL ne se saisit pas, et le poser sur elle ne
     # coupe pas l'orbite : le raycast de three.js ne saute PAS les objets
     # invisibles (mesuré dans le fichier vendorisé : seul `layers` est testé),
     # c'est le module qui filtre.
+    assert sortie["visibleSous"] == {"quoi": "piece", "cle": 1}, sortie["visibleSous"]
     assert sortie["masqueeSous"] is None, sortie["masqueeSous"]
     assert sortie["masqueePoser"] == {"enabled": True}
-    # ── ET LE CÂBLAGE : une fois, sur le canevas de A, hors du bloc ─────────
+    # ── UN CLIC SUR L'ANNEAU NE RELÂCHE PAS : le geste en cours est visible du
+    # sélecteur, qui ne raycaste qu'`api.racine` et prendrait l'anneau pour
+    # le vide ────────────────────────────────────────────────────────────────
     code = _code("etabli/etabli.js")
-    assert code.count("glisserSurPlaque(") == 2       # la définition et l'appel
-    bloc = code.split('addEventListener("etabli:charge"', 1)[1]
-    assert bloc.index("if (_clicBranche) return;") < bloc.index("glisserSurPlaque(S.vueA")
-    assert "glisserSurPlaque(" not in _plaque_bloc()
+    clic = code.split("designerAuClic(S.vueA", 1)[1]
+    assert clic.index('if (_gestePlaque && _gestePlaque.quoi === "poignee") return;') \
+        < clic.index("pieceCourante(null)")
+    gl = _fonction_etabli("glisserSurPlaque")
+    assert "_gestePlaque = geste;" in gl and "_gestePlaque = null;" in gl
+    # ── ET L'ŒIL QUI MASQUE LA PIÈCE COURANTE LA RELÂCHE ────────────────────
+    oeil = code.split('querySelectorAll(".plaque-oeil")', 1)[1] \
+               .split('querySelectorAll(".plaque-rang")', 1)[0]
+    assert "if (!masquee && cle === PLQ.courante) {" in oeil
+    assert "PLQ.courante = null;" in oeil and "marquerPiece(S.vueA, null);" in oeil
 
 
 def test_les_FLECHES_avancent_d_un_pas_de_PLATEAU_suivent_l_ECRAN_et_ne_volent_pas_les_CHAMPS():
@@ -8330,7 +8471,7 @@ def test_le_PLAN_DE_PLAQUE_est_ecrit_par_PYTHON_relu_et_le_MAILLAGE_ne_bouge_pas
     assert p.is_file()
     doc = json.loads(p.read_text(encoding="utf-8"))
     assert doc == {"format": "plaque/1", "job": "plan_plaque", "version": 2,
-                   "axe": "z", "pas": 0.02, "unites": "modele",
+                   "axe": "z", "pas": 0.02, "unites": "modele", "repere": "monde",
                    "pieces": [{"index": 0, "dx": 0.0126, "dy": -0.0473, "rot": 90.0},
                               {"index": 3, "dx": -0.001, "dy": 0.0, "rot": -15.5}]}
     assert not (d / "plaque.v2.json.tmp").exists()
@@ -8338,9 +8479,14 @@ def test_le_PLAN_DE_PLAQUE_est_ecrit_par_PYTHON_relu_et_le_MAILLAGE_ne_bouge_pas
     assert not (d / "model.v3.glb").exists()               # …et aucune version n'est née
     g = c.get("/api/etabli/plaque", params={"job": "plan_plaque", "version": 2})
     assert g.status_code == 200 and g.json() == doc
-    # une version sans plan : 404 franc, le cas ordinaire
+    # une version sans plan : 404 franc, le cas ordinaire — et une version
+    # qui n'est le numéro de rien : 400, à la lecture comme à l'écriture
     assert c.get("/api/etabli/plaque",
                  params={"job": "plan_plaque", "version": 1}).status_code == 404
+    assert c.get("/api/etabli/plaque",
+                 params={"job": "plan_plaque", "version": 0}).status_code == 400
+    assert c.get("/api/etabli/plaque",
+                 params={"job": "plan_plaque", "version": -2}).status_code == 400
     # le plan se RÉÉCRIT (une retouche de plus), en place
     r = _poster_plan(c, _plan_valide("plan_plaque", 2, pieces=[{"index": 5}]))
     assert r.status_code == 200, r.text
@@ -8357,6 +8503,9 @@ def test_le_PLAN_DE_PLAQUE_est_ecrit_par_PYTHON_relu_et_le_MAILLAGE_ne_bouge_pas
                              if k != "version"}, 400),
         ("version 9 absente du disque", _plan_valide("plan_plaque", 9), 404),
         ("job inconnu", _plan_valide("nexiste_pas_plan", 1), 404),
+        ("job absent", {k: v for k, v in _plan_valide("plan_plaque", 2).items()
+                        if k != "job"}, 400),
+        ("job entier", _plan_valide(123, 2), 400),
         ("job ..", _plan_valide("..", 1), 400),
         ("job a/..", _plan_valide("a/..", 1), 400),
         ("job vide", _plan_valide("", 1), 400),
@@ -8409,10 +8558,17 @@ def test_le_PLAN_DE_PLAQUE_est_ecrit_par_PYTHON_relu_et_le_MAILLAGE_ne_bouge_pas
     garde = inspect.getsource(routes._etabli_cible_sous_jobs)
     assert '("", ".", "..")' in garde and ".resolve().parents" in garde
     # ── L'ÉCRITURE EST ATOMIQUE, en AST comme pour la vignette ──────────────
-    arbre = ast.parse(inspect.getsource(routes.etabli_plaque_ecrire))
+    src = inspect.getsource(routes.etabli_plaque_ecrire)
+    arbre = ast.parse(src)
     appels = {ast.unparse(n.func) for n in ast.walk(arbre) if isinstance(n, ast.Call)}
     assert "tmp.write_text" in appels and "tmp.replace" in appels, appels
     assert "p.write_text" not in appels and "p.write_bytes" not in appels, appels
+    # …et `tmp` est un AUTRE chemin que `p` : un `tmp = p` garderait les deux
+    # noms et perdrait l'atomicité
+    affectations = {ast.unparse(n.targets[0]): ast.unparse(n.value)
+                    for n in ast.walk(arbre) if isinstance(n, ast.Assign)
+                    and len(n.targets) == 1}
+    assert affectations.get("tmp") == "d / f\'{p.name}.tmp\'", affectations.get("tmp")
 
 
 def test_le_plan_part_a_la_PREMIERE_RETOUCHE_jamais_a_l_etalement_et_n_entre_pas_dans_la_FILE():
@@ -8469,6 +8625,7 @@ def test_le_plan_part_a_la_PREMIERE_RETOUCHE_jamais_a_l_etalement_et_n_entre_pas
       let rejeter = false;
       const jpost = async (route, corps) => {
         envois.push({ route, corps });
+        if (globalThis.__jpost) return globalThis.__jpost(route, corps);
         if (rejeter) throw new Error("disque plein");
         return {};
       };
@@ -8476,6 +8633,8 @@ def test_le_plan_part_a_la_PREMIERE_RETOUCHE_jamais_a_l_etalement_et_n_entre_pas
       const direRefus = (m) => refus.push(m);
       const rendreEtatPlan = () => {};
       let _envoiPlan = 0;
+      let _envoiChaine = Promise.resolve();
+      let _envoisEnVol = 0;
     """ + _fonction_etabli("noterPlan") + "\n"
         + _fonction_etabli_async("envoyerPlan") + """
       for (let i = 0; i < 100; i++) noterPlan();
@@ -8501,8 +8660,31 @@ def test_le_plan_part_a_la_PREMIERE_RETOUCHE_jamais_a_l_etalement_et_n_entre_pas
       /* hors plaque : rien */
       PLQ.active = false; S.a = { job: "x", version: 1 };
       noterPlan();
+      const apresHorsPlaque = minuteries.length;
+      /* LES ENVOIS SE SUIVENT : un premier POST lent, un second immediat — le
+         second attend le premier, et le compte en vol redescend a zero. */
+      PLQ.active = true; S.a = { job: "chaine", version: 3 };
+      const journal = [];
+      let lent = true;
+      const jpostLent = jpost;
+      const jpostJournal = async (route, corps) => {
+        journal.push(["debut", corps.version, _envoisEnVol]);
+        if (lent) { lent = false; for (let i = 0; i < 50; i++) await Promise.resolve(); }
+        journal.push(["fin", corps.version, _envoisEnVol]);
+        return {};
+      };
+      /* jpost est lu par son nom dans envoyerPlan : on le redirige. */
+      const jpostOriginal = jpost;
+      globalThis.__jpost = jpostJournal;
+      noterPlan();
+      const t1 = envoyerPlan();
+      S.a = { job: "chaine", version: 4 };
+      noterPlan();
+      const t2 = envoyerPlan();
+      await Promise.all([t1, t2]);
       console.log(JSON.stringify({ programmees, delai: minuteries[0].ms, premier, etat1, etat2, etat3,
-        apresHorsPlaque: minuteries.length, DELAI_PLAN_MS }));
+        apresHorsPlaque, DELAI_PLAN_MS, journal, enVolApres: _envoisEnVol,
+        envoisChaine: envois.slice(-2).map((e) => e.corps.version) }));
     """))
     assert sortie["programmees"] == 1, sortie            # cent retouches, une minuterie
     assert sortie["delai"] == sortie["DELAI_PLAN_MS"]
@@ -8515,6 +8697,32 @@ def test_le_plan_part_a_la_PREMIERE_RETOUCHE_jamais_a_l_etalement_et_n_entre_pas
     assert len(sortie["etat2"]["refus"]) == 1 and "disque plein" in sortie["etat2"]["refus"][0]
     assert sortie["etat3"] == {"sauvegarde": "impossible", "minuteries": 2, "envois": 0}
     assert sortie["apresHorsPlaque"] == 2
+    # LES ENVOIS SE SUIVENT : le second POST ne commence qu'après la fin du
+    # premier (deux POST coalescés qui se croiseraient laisseraient sur le
+    # disque l'avant-dernier plan), et le compte en vol redescend à zéro
+    assert [j[0] for j in sortie["journal"]] == ["debut", "fin", "debut", "fin"], sortie["journal"]
+    assert [j[1] for j in sortie["journal"]] == [3, 3, 4, 4], sortie["journal"]
+    assert sortie["journal"][0][2] >= 1 and sortie["enVolApres"] == 0, sortie
+    assert sortie["envoisChaine"] == [3, 4]
+    # ── LE PLAN NE SE PERD PAS À LA SORTIE DE LA PAGE ───────────────────────
+    # Un glisser puis « ← 3D Studio » dans la fenêtre de coalescence : la
+    # minuterie mourrait avec la page. Le bouton fait partir la charge et
+    # REFUSE le temps qu'elle arrive — la règle de la file, appliquée au plan
+    # — AVANT même la garde de la file, et avant la navigation.
+    depart = code.split('$("#btnRetour").addEventListener', 1)[1].split("\n});\n", 1)[0]
+    assert "if (_envoiPlan || PLQ.aEnvoyer || _envoisEnVol) {" in depart
+    garde = depart.split("if (_envoiPlan || PLQ.aEnvoyer || _envoisEnVol) {", 1)[1] \
+                  .split("  }", 1)[0]
+    assert "envoyerPlan();" in garde and "direRefus(" in garde and "return;" in garde
+    assert depart.index("_envoisEnVol") < depart.index("if (S.enAttente.length) {") \
+        < depart.index("location.href")
+    # …et les déchargements que le bouton ne voit pas (le hub qui remplace
+    # l'iframe, un onglet fermé) : la charge pendante part en `keepalive`, la
+    # seule requête que le navigateur laisse finir après le déchargement
+    cache = code.split('window.addEventListener("pagehide"', 1)[1].split("\n});\n", 1)[0]
+    assert "keepalive: true" in cache and "JSON.stringify(corps)" in cache
+    assert "ROUTE_PLAQUE" in cache and "jpost(" not in cache
+    assert "const corps = PLQ.aEnvoyer;" in cache and "PLQ.aEnvoyer = null;" in cache
 
 
 def test_sur_la_plaque_le_rail_annonce_le_PAS_DU_PLATEAU_et_les_regles_portent_la_MEME_unite():
@@ -8528,7 +8736,7 @@ def test_sur_la_plaque_le_rail_annonce_le_PAS_DU_PLATEAU_et_les_regles_portent_l
     """
     sortie = json.loads(_node_trois(
         "echelleMm, marquerAuRepere, majRepere, cadrer, dessinerRegles",
-        _importer_plaque("etaler, ranger, decalageEtalement, plateauDe")
+        _importer_plaque("etaler, ranger, boiteModele, plateauDe")
         + _faux_rail() + _constantes_etabli("LIGNES_REPERE")
         + _fonction_etabli("enMillimetres") + "\n"
         + _fonction_etabli("uniteCourante") + "\n"
@@ -8595,4 +8803,110 @@ def test_sur_la_plaque_le_rail_annonce_le_PAS_DU_PLATEAU_et_les_regles_portent_l
     # de retour à l'Assemblé : le pas de vue, et plus de règles
     assert "pas de la grille" in sortie["apres"]["echelle"]
     assert sortie["apres"]["regles"] is None
+
+
+def test_la_LECTURE_du_rail_reste_celle_du_MODELE_pour_une_piece_TOURNEE_et_ASYMETRIQUE():
+    """LE CHIFFRE FAUX AVEC ASSURANCE, ET LA QUATRIÈME FOIS QUE DES DONNÉES
+    TROP SYMÉTRIQUES LE CACHAIENT. La page lisait « centre de la boîte monde −
+    décalage » : juste en translation, faux dès qu'une pièce NON SYMÉTRIQUE
+    tourne — la rotation se fait autour du centre de la boîte assemblée, et la
+    boîte d'une pièce tournée n'a plus le même centre. Sonde de la revue : une
+    pièce en L large de 1,2, écart 0 avant rotation, 0,241 après 37°, et aucun
+    †. Sur une boîte : 1e-16 — d'où un banc vert sur une scène de boîtes.
+
+    On lit donc la BOÎTE DANS LA POSE ASSEMBLÉE (boiteModele), recomposée
+    maillage par maillage par W⁻¹ ; exacte pour la pièce comme pour l'un de
+    ses maillages (la granularité « maillage » du panneau, la plus courante).
+    Le second chemin est la boîte mesurée AVANT tout étalement, et le témoin
+    est la lecture naïve, qui doit être FAUSSE ici — sinon la scène est encore
+    trop symétrique. Puis le RAIL lui-même, sur le vrai lireRepere.
+    """
+    sortie = json.loads(_node_trois(
+        "cadrer",
+        _importer_plaque("etaler, ranger, boiteModele, decalageEtalement, poserAngle, "
+                         "deplacerPiece") + """
+      const api = monter(860, 824);
+      """ + _scene_enveloppe() + """
+      const boite = (o) => new THREE.Box3().setFromObject(o);
+      const centre = (o) => boite(o).getCenter(new THREE.Vector3()).toArray();
+      const L = pieces[2], aile = L.children[1], boiteSeule = L.children[0];
+      const assemble = { L: centre(L), aile: centre(aile), boite: centre(boiteSeule),
+                         piece1: centre(pieces[1]) };
+      const tailleL = boite(L).getSize(new THREE.Vector3()).toArray();
+      etaler(api); racine.updateMatrixWorld(true);
+      poserAngle(api, 2, 37);
+      deplacerPiece(api, 2, 0.31, -0.17);
+      poserAngle(api, 1, 37);
+      racine.updateMatrixWorld(true);
+      const lu = (o) => { const b = boiteModele(api, o);
+        return { c: b.boite.getCenter(new THREE.Vector3()).toArray(), etale: b.etale,
+                 vide: b.boite.isEmpty() }; };
+      /* la lecture NAIVE d'avant : boite monde moins decalage */
+      const naive = (o) => { const d = decalageEtalement(api, o).decalage;
+        return boite(o).getCenter(new THREE.Vector3()).sub(d).toArray(); };
+      const r = { assemble, tailleL,
+        L: lu(L), aile: lu(aile), boite: lu(boiteSeule), piece1: lu(pieces[1]),
+        naiveL: naive(L), naivePiece1: naive(pieces[1]),
+        enveloppe: lu(enveloppe), horsPlaqueAvant: null };
+      ranger(api); racine.updateMatrixWorld(true);
+      r.rangee = lu(L);
+      console.log(JSON.stringify(r));
+    """))
+    dist = lambda a, b: math.dist(a, b)
+    # LA PIÈCE EN L, TOURNÉE ET DÉPLACÉE : la boîte modèle retrouve le centre
+    # assemblé à 1e-9, pour la pièce, pour son aile, pour sa boîte
+    for nom in ("L", "aile", "boite", "piece1"):
+        assert sortie[nom]["etale"] is False and sortie[nom]["vide"] is False, (nom, sortie[nom])
+        assert dist(sortie[nom]["c"], sortie["assemble"][nom]) < 1e-9, \
+            (nom, sortie[nom]["c"], sortie["assemble"][nom])
+    # LE TÉMOIN : la lecture naïve est FAUSSE sur le L — de plus de 5 % de sa
+    # largeur — et juste sur la boîte symétrique (c'est pourquoi le banc était
+    # vert). Si cette assertion tombe, la scène est redevenue trop symétrique.
+    ecart = dist(sortie["naiveL"], sortie["assemble"]["L"])
+    assert ecart > 0.05 * max(sortie["tailleL"]), (ecart, sortie["tailleL"])
+    assert dist(sortie["naivePiece1"], sortie["assemble"]["piece1"]) < 1e-9
+    # un nœud qui CONTIENT des pièces ne peut pas être recomposé : il le dit
+    assert sortie["enveloppe"]["etale"] is True
+    # rangée, la boîte modèle est la boîte monde, sans doute
+    assert sortie["rangee"]["etale"] is False
+    assert dist(sortie["rangee"]["c"], sortie["assemble"]["L"]) < 1e-9
+    # ── ET LE RAIL, sur le vrai lireRepere : les chiffres écrits sont ceux du
+    # modèle, pièce tournée comprise ───────────────────────────────────────
+    rail = json.loads(_node_trois(
+        "echelleMm, marquerAuRepere, majRepere, cadrer, dessinerRegles",
+        _importer_plaque("etaler, ranger, boiteModele, plateauDe, poserAngle, deplacerPiece")
+        + _faux_rail() + _constantes_etabli("LIGNES_REPERE")
+        + _fonction_etabli("enMillimetres") + "\n"
+        + _fonction_etabli("uniteCourante") + "\n"
+        + _fonction_etabli("fmtMesure") + "\n"
+        + _fonction_etabli("plusGrandeDimension") + "\n"
+        + _fonction_etabli("mesurerRetenus") + "\n"
+        + _fonction_etabli("rendreRepere") + "\n"
+        + _fonction_etabli("graduerPlateau") + "\n"
+        + _fonction_etabli("lireRepere") + "\n" + """
+      const api = monter(860, 824);
+      """ + _scene_enveloppe() + """
+      S.vueA = api;
+      const boite = new THREE.Box3().setFromObject(racine);
+      S.geoA = { taille: boite.getSize(new THREE.Vector3()) };
+      REP.pas = majRepere(api).pas;
+      rendreRepere();
+      const L = pieces[2], aile = L.children[1];
+      const centre = (o) => new THREE.Box3().setFromObject(o).getCenter(new THREE.Vector3()).toArray();
+      const assemble = { L: centre(L), aile: centre(aile) };
+      SEL.retenus.add(L.uuid); SEL.retenus.add(aile.uuid);
+      const et = etaler(api);
+      PLQ.active = true; PLQ.pieces = et.pieces; PLQ.pas = et.plateau.pas;
+      poserAngle(api, 2, 37); deplacerPiece(api, 2, 0.31, -0.17);
+      racine.updateMatrixWorld(true);
+      lireRepere();
+      console.log(JSON.stringify({ assemble, lu: lignesLues() }));
+    """))
+    lus = [_nombre_fr(v) for v in rail["lu"]["nombres"]]
+    assert rail["lu"]["rangees"] == 2 and len(lus) == 6, rail["lu"]
+    for i, nom in enumerate(("L", "aile")):
+        for k in range(3):
+            assert abs(lus[3 * i + k] - rail["assemble"][nom][k]) < 5e-4, \
+                (nom, k, lus, rail["assemble"])
+    assert "†" not in rail["lu"]["html"], rail["lu"]["html"]
 

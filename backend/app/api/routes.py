@@ -1012,16 +1012,37 @@ def _etabli_cible_sous_jobs(job: str, composer, quoi: str) -> Path:
 #   { "format": "plaque/1", "job": "<nom>", "version": N,
 #     "axe": "x" | "y" | "z",      l'axe d'empilement (normale du plateau)
 #     "pas": nombre > 0,           le pas du plateau, en unités du modèle
-#     "unites": "modele",
+#     "unites": "modele", "repere": "monde",
 #     "pieces": [ { "index": i,    index de nœud glTF, entier ≥ 0, unique
 #                   "dx": nombre,  déplacement du centre depuis la pose
 #                   "dy": nombre,  assemblée, sur les deux axes du plan (u, v :
 #                                  l'ordre x, y, z privé de `axe`)
 #                   "rot": degrés } ] }   rotation autour de +axe, sens direct
 #
+# CE QU'IL FAUT SAVOIR POUR L'APPLIQUER, et que le format seul ne dit pas —
+# écrit ici parce que c'est ici que l'extraction viendra le lire :
+#   - dx/dy sont en COORDONNÉES MONDE de la scène glTF (le repère de la scène
+#     chargée), PAS dans le repère local du nœud. Le nœud vit sous
+#     l'enveloppe `etabli_correction` que `mesh_edit.reparer` a tournée
+#     (_ROT["Z"]) et mise à l'échelle : appliquer dx/dy à la translation du
+#     nœud sans les convertir déplacerait toutes les pièces d'une réparation
+#     en Z. Il faut A⁻¹·d, A étant le bloc linéaire de la matrice monde du
+#     PARENT du nœud — ce que frontend/lib3d/plaque.js fait dans
+#     versLocalLineaire.
+#   - `rot` tourne autour de +axe (règle de la main droite, dans le MONDE),
+#     autour du CENTRE de la boîte englobante monde de la pièce dans sa pose
+#     ASSEMBLÉE — ni son pivot glTF, ni l'origine de son repère local. La
+#     matrice à composer sur le nœud est M⁻¹·T(c)·R·T(−c)·M, M étant la
+#     matrice monde du parent (poserPivot, même fichier) ; sous un parent à
+#     échelle non uniforme, ce n'est pas une TRS décomposable.
+#   - la troisième composante — le posé AU CONTACT du plateau, −min de la
+#     boîte sur `axe` — n'est PAS stockée : elle se déduit de la géométrie,
+#     et une rotation autour de la normale ne la change pas.
+#   - le plan porte le NUMÉRO DE VERSION : après une extraction ou un couteau,
+#     la version N+1 n'en a AUCUN, et c'est voulu — ses index de nœud ne sont
+#     plus ceux du plan, un plan hérité poserait les mauvaises pièces.
 # La doctrine du module navigateur (frontend/lib3d/plaque.js, en tête) est le
-# site canonique du format ; ceci en est le miroir côté écriture. L'extraction
-# le consommera pour poser les pièces telles qu'on les a rangées.
+# site canonique du format ; ceci en est le miroir côté écriture.
 
 _ETABLI_AXES = ("x", "y", "z")
 
@@ -1094,6 +1115,11 @@ async def etabli_plaque_ecrire(body: dict):
         raise HTTPException(400, f"plan de plaque : version « {version} » — "
                                  "un entier à partir de 1")
     job = body.get("job")
+    # Une chaîne, sinon `Path(str(None)).name` composerait un dossier « None »
+    # et répondrait 404 « introuvable » à ce qui est une requête malformée.
+    if not isinstance(job, str):
+        raise HTTPException(400, f"plan de plaque : job « {job} » — le nom du "
+                                 "dossier de job est attendu")
     p = _etabli_plaque_cible(job, version)
     d = p.parent
     glb = d / ("model.glb" if version <= 1 else f"model.v{version}.glb")
@@ -1135,7 +1161,7 @@ async def etabli_plaque_ecrire(body: dict):
         propres.append(propre)
     doc = {"format": "plaque/1", "job": d.name, "version": version,
            "axe": axe, "pas": float(pas), "unites": "modele",
-           "pieces": propres}
+           "repere": "monde", "pieces": propres}
     tmp = d / f"{p.name}.tmp"
     tmp.write_text(json.dumps(doc, ensure_ascii=False, indent=1),
                    encoding="utf-8")

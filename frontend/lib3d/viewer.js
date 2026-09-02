@@ -805,9 +805,14 @@ export function montrerRepere(api, visible) {
    FACE, et ce coin se DÉDUIT de la table des orientations plutôt que d'être
    choisi à la main : la vue d'axe posée sur +axe donne le haut d'écran, le
    produit vectoriel donne la droite, et chaque axe du plan croît vers la
-   droite ou vers le haut. C'est ce qui met le « 0 » où un slicer le met — et
-   qui, pour l'axe y, le met du côté −z que la sécurité de pôle de three.js
-   impose (voir ORIENTATIONS.dessus) au lieu d'en haut à gauche.
+   droite ou vers le haut (sensDesRegles, exportée pour cela). C'est ce qui
+   met le « 0 » où un slicer le met — et qui, pour l'axe y, le met du côté −z
+   que la sécurité de pôle de three.js impose (voir ORIENTATIONS.dessus) au
+   lieu d'en haut à gauche. MAIS CE N'EST PAS ICI QUE LE COIN EST POSÉ : c'est
+   la géométrie du plateau (`coin`, `sens`) qui le porte, calculée UNE fois
+   par qui construit le plateau, et cette fonction la LIT. La première
+   écriture recalculait ±côté/2 de son côté, si bien que le `coin` du plateau
+   et l'origine des règles désignaient, pour l'axe y, deux coins différents.
 
    LE TEXTE SE DESSINE SUR UNE TEXTURE DE CANEVAS, une bande par règle, à plat
    dans le plan du plateau comme les chiffres d'un lit de slicer. Un renderer
@@ -818,7 +823,9 @@ export function montrerRepere(api, visible) {
 
    REDESSINÉES SEULEMENT SI QUELQUE CHOSE A CHANGÉ : la géométrie, les textes
    ou l'unité. Le mémo tient sur les chaînes produites, si bien qu'une page qui
-   appelle à chaque lecture du rail ne paie qu'une comparaison. */
+   appelle à chaque lecture du rail ne paie que la mise en forme de dix à
+   vingt-cinq libellés et une comparaison de chaînes — jamais une géométrie ni
+   une texture. */
 
 const _regles = new WeakMap();
 const COULEUR_REGLE = 0xd8dde6;
@@ -832,8 +839,9 @@ const BANDE_PX = { l: 2048, h: 128 };
 const LIBELLES_SERRES = 13;
 
 /* PURE. Les graduations d'un côté : 0, pas, 2·pas, …, jusqu'au côté inclus
-   (à une poussière près), et le saut de libellé. */
-export function graduationsDe(cote, pas) {
+   (à une poussière près), et le saut de libellé. (Interne : le banc l'extrait
+   par son nom, elle n'a pas à ouvrir la surface publique.) */
+function graduationsDe(cote, pas) {
   if (!(pas > 0) || !(cote > 0)) return { valeurs: [], saut: 1 };
   const n = Math.floor(cote / pas + 1e-9);
   const valeurs = [];
@@ -841,10 +849,12 @@ export function graduationsDe(cote, pas) {
   return { valeurs, saut: valeurs.length > LIBELLES_SERRES ? 2 : 1 };
 }
 
-/* PURE. Dans quel sens chaque axe du plan croît sur la vue qui regarde le
-   plateau en face : +1 vers la droite ou le haut de l'écran, −1 sinon. La vue
-   est celle dont `dir` est +axe ; sa droite d'écran vaut (−dir) × haut. */
-function sensDesRegles(axe, u, v) {
+/* PURE, EXPORTÉE : c'est la géométrie du plateau qui en fait son `coin` et
+   son `sens`, une fois. Dans quel sens chaque axe du plan croît sur la vue qui
+   regarde le plateau en face : +1 vers la droite ou le haut de l'écran, −1
+   sinon. La vue est celle dont `dir` est +axe ; sa droite d'écran vaut
+   (−dir) × haut. */
+export function sensDesRegles(axe, u, v) {
   const dir = { x: 0, y: 0, z: 0 };
   dir[axe] = 1;
   const o = Object.values(ORIENTATIONS).find(
@@ -879,9 +889,12 @@ function bandeDeLibelles(api, longueur, largeur, libelles) {
   ctx.textBaseline = "middle";
   ctx.textAlign = "center";
   ctx.font = `${Math.round(cv.height * 0.42)}px ui-monospace, monospace`;
-  const marge = cv.width * 0.02;
   for (const l of libelles) {
-    const x = Math.min(cv.width - marge, Math.max(marge, l.fraction * cv.width));
+    /* Centré sur sa graduation, et retenu au bord de la bande par sa PROPRE
+       demi-largeur : le « 0 » du coin reste entier et au plus près de son
+       trait, au lieu d'être repoussé d'une marge arbitraire. */
+    const demi = ctx.measureText(l.texte).width / 2;
+    const x = Math.min(cv.width - demi, Math.max(demi, l.fraction * cv.width));
     ctx.fillText(l.texte, x, cv.height / 2);
   }
   const texture = new THREE.CanvasTexture(cv);
@@ -914,16 +927,16 @@ function poserBande(bande, origine, dir, dedans, normale, longueur, largeur,
    plateau ou sans pas, et les règles précédentes sont alors effacées. */
 export function dessinerRegles(api, plateau, formater, unite) {
   const g = plateau;
-  if (!api || !g || !(g.pas > 0) || !(g.cote > 0)) {
+  if (!api || !g || !(g.pas > 0) || !(g.cote > 0) || !g.coin || !g.sens) {
     effacerRegles(api);
     return null;
   }
-  const sens = sensDesRegles(g.axe, g.u, g.v);
+  const sens = g.sens;
   const { valeurs, saut } = graduationsDe(g.cote, g.pas);
   const textes = valeurs.map((val, k) => (k % saut === 0
     ? String(formater(val)) : null));
   const cle = JSON.stringify([g.axe, g.u, g.v, g.cote, g.pas, g.niveau,
-                              textes, String(unite ?? "")]);
+                              g.coin, sens, textes, String(unite ?? "")]);
   let e = _regles.get(api);
   if (e && e.cle === cle) return e;
   effacerRegles(api);
@@ -934,9 +947,9 @@ export function dessinerRegles(api, plateau, formater, unite) {
   const normale = vecteurAxe(g.axe, 1);
   const au = vecteurAxe(g.u, sens.u);
   const av = vecteurAxe(g.v, sens.v);
-  const origine = new THREE.Vector3();
-  origine[g.u] = (-sens.u * g.cote) / 2;
-  origine[g.v] = (-sens.v * g.cote) / 2;
+  /* L'origine est le `coin` du plateau, LU et non recalculé (voir l'en-tête),
+     relevé d'un cheveu au-dessus du niveau du plateau. */
+  const origine = new THREE.Vector3(g.coin.x, g.coin.y, g.coin.z);
   origine[g.axe] = niveau;
 
   const pts = [];
