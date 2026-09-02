@@ -387,6 +387,35 @@ button { font-family: inherit; }
    pour absente du modèle. */
 .plaque-rang.masquee b { color: var(--ink-soft); text-decoration: line-through; }
 .plaque-rang.masquee .pastille { opacity: .3; }
+/* La rangée se CLIQUE — elle choisit la pièce courante — et la pièce courante
+   se voit : c'est elle que l'anneau entoure et que les flèches poussent. Sans
+   cette marque, quatre rangées identiques ne diraient jamais laquelle le
+   clavier commande. Même fond que `.cam-btn.actif`, pour la même raison : un
+   état courant se distingue par le fond, pas par la bordure du survol. */
+.plaque-rang { cursor: pointer; }
+.plaque-rang.courante {
+  background: color-mix(in srgb, var(--accent) 24%, var(--bg-panel-2));
+}
+.plaque-rang.courante b { color: var(--ink-strong); }
+/* Les outils de la pièce courante : la saisie en degrés et l'aide des gestes.
+   Le champ prend le style des champs du rail (voir .repere input) plutôt que
+   le natif du navigateur ; l'aide est une note, pas un titre. */
+.plaque-outils {
+  display: flex; flex-direction: column; gap: 4px;
+  font: 10.5px/1.45 var(--f-mono), ui-monospace, monospace; color: var(--ink-soft);
+}
+.plaque-outils label {
+  display: flex; align-items: center; gap: 6px; color: var(--ink-soft);
+}
+.plaque-outils label b {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--ink); font-weight: 500;
+}
+.plaque-outils input[type="number"] {
+  width: 7ch; flex: none; padding: 3px 5px;
+  border: 1px solid var(--stroke); border-radius: var(--r-sm);
+  background: var(--bg-panel-2); color: var(--ink); font: inherit;
+}
 /* La pastille sert DEUX listes — celle de la plaque et les rangées du panneau
    Parties, qui reçoivent la teinte de la pièce dont elles font partie. Une
    seule règle, donc : deux copies divergeraient et les deux listes cesseraient

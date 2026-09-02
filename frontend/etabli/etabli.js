@@ -7,11 +7,17 @@
 "use strict";
 import * as THREE from "three";
 import { creerCanevas, charger, cadrer, vider, projeter, orienter, cadreOrtho,
-         aspectDe, echelleMm, marquerAuRepere, montrerRepere }
+         aspectDe, echelleMm, marquerAuRepere, montrerRepere, dessinerRegles,
+         effacerRegles }
   from "/lib3d/viewer.js";
-import { indexerNoeuds, inventaire, isoler, surligner, designerAuClic }
+import { indexerNoeuds, inventaire, isoler, surligner, designerAuClic,
+         TOLERANCE_CLIC }
   from "/lib3d/selection.js";
-import { etaler, ranger, estEtalee, montrerPiece, decalageEtalement }
+import { etaler, ranger, estEtalee, montrerPiece, decalageEtalement, plateauDe,
+         pieceSous, sousLePointeur, pointSurPlateau, empreinteDe, deplacerPiece,
+         poserCoin,
+         tournerPiece, rotationDe, angleSurPlateau, marquerPiece,
+         dispositionDe, aimanter, axesEcran }
   from "/lib3d/plaque.js";
 import { TransformControls } from "three/addons/controls/TransformControls.js";
 
@@ -61,10 +67,28 @@ const SEL = { granularite: "maillage", retenus: new Set() };
    `axe` est l'axe d'EMPILEMENT que plaque.js a choisi d'après les pièces —
    donc la normale du plan d'étalement, "x", "y" ou "z", et null hors plaque.
    Il ne décide de RIEN ici : il sert à dire, sur le bouton de vue
-   correspondant, laquelle des trois regarde la plaque en face. (Même règle
-   que pour S : toute clé se déclare ICI.) */
+   correspondant, laquelle des trois regarde la plaque en face.
+
+   `pas` EST LE PAS DU PLATEAU — celui des règles dessinées sur ses bords et
+   celui que les flèches du clavier avancent — et il est STABLE tant qu'on ne
+   ré-étale pas, parce qu'il se tire de l'empreinte du modèle (plaque.js,
+   geometriePlateau). Ce n'est PAS `REP.pas`, le pas de VUE du repère, qui
+   change au zoom : la déclaration de REP explique pourquoi les deux ne
+   doivent jamais être confondus, et sur la plaque le repère est éteint.
+   `courante` est la clé de la pièce que les flèches, l'anneau et la saisie
+   de rotation commandent ; `repereAvant` l'état du repère avant la plaque,
+   rendu par montrerRepere() et rétabli tel quel à la sortie ; `enCours` dit
+   qu'un plan est en cours de lecture (le bouton se grise) ; `aEnvoyer` porte
+   le prochain plan à écrire, capturé au geste et envoyé coalescé ;
+   `sauvegarde` est l'état du dernier envoi (null, "ok", "refus",
+   "impossible") ; `planFichier` le nom du fichier où il vit, ou null pour une
+   étape sans version. Rien de tout cela n'entre dans `S.enAttente`. (Même
+   règle que pour S : toute clé se déclare ICI.) */
 const PLQ = { active: false, pieces: [], masquees: new Set(),
-              teintes: new Map(), partages: 0, vides: 0, axe: null };
+              teintes: new Map(), partages: 0, vides: 0, axe: null,
+              pas: null, courante: null, repereAvant: null,
+              planApplique: false, planFichier: null, enCours: false,
+              aEnvoyer: null, sauvegarde: null };
 
 /* L'état du REPÈRE, à côté de SEL et de PLQ pour la même raison qu'eux : il ne
    décrit pas le modèle, il décrit la RÈGLE avec laquelle on le lit.
@@ -838,18 +862,46 @@ function majBoutonPlaque() {
   /* Le libellé porte la DESTINATION, comme « ← 3D Studio » : ce qu'un clic
      fait, et non l'état où l'on est — l'état, la vue 3D le crie déjà. */
   b.textContent = PLQ.active ? "Assemblé" : "Sur la plaque";
-  b.title = PLQ.active
-    ? "Revenir au modèle assemblé — l'étalement n'avait rien modifié"
-    : "Étaler les pièces pour les voir séparément — une VUE : "
-      + "rien n'est modifié, rien n'est écrit";
+  /* Grisé le temps de lire le plan : un second clic pendant l'aller-retour
+     n'étalerait pas deux fois, et le bouton porte l'état plutôt qu'un
+     `return` muet ne le cache — la règle de #btnEcrire. */
+  b.disabled = PLQ.enCours;
+  b.title = PLQ.enCours ? "lecture du plan de plaque…"
+    : PLQ.active
+      ? "Revenir au modèle assemblé — le maillage n'a pas bougé, la "
+        + "disposition reste dans son plan de plaque"
+      : "Étaler les pièces pour les voir et les ranger — une VUE : le "
+        + "maillage n'est jamais modifié, seule la disposition s'écrit";
 }
 
-function basculerPlaque() {
+async function basculerPlaque() {
   if (PLQ.active) { quitterPlaque(); return; }
   if (!S.vueA || !S.vueA.racine) {
     direRefus("aucun modèle chargé — rien à étaler sur la plaque");
     return;
   }
+  /* LE PLAN DE PLAQUE SE LIT AVANT D'ÉTALER — un aller-retour réseau — et le
+     bouton se grise pendant ce temps (voir majBoutonPlaque). `S.a` est
+     capturé AVANT l'attente : si le modèle change pendant qu'on lit, ce plan
+     ne le concerne plus et l'on se retire — la garde que la ligne d'écart
+     pose déjà sur la vue A. */
+  if (PLQ.enCours) return;
+  const cible = S.a;
+  PLQ.enCours = true;
+  majBoutonPlaque();
+  let plan = null;
+  try {
+    plan = await lirePlan(cible);
+  } catch (e) {
+    /* Un plan illisible n'empêche pas de regarder : on étale par défaut et on
+       le DIT — pris pour « pas de plan », un fichier corrompu serait écrasé à
+       la première retouche sans que personne ne l'ait su. */
+    direRefus(`plan de plaque illisible — étalement par défaut (${e.message})`);
+  } finally {
+    PLQ.enCours = false;
+    majBoutonPlaque();
+  }
+  if (S.a !== cible || !S.vueA.racine) return;
   /* LE GIZMO LÂCHE AVANT L'ÉTALEMENT, et c'est le piège le plus cher de cette
      tâche. Une pièce tenue par le gizmo puis déplacée par l'étalement resterait
      saisissable : le glissement suivant enverrait au serveur une translation
@@ -859,7 +911,7 @@ function basculerPlaque() {
      visuel avant d'être un risque, et parce que deux gardes valent mieux
      qu'une sur le mode d'échec qui écrit un GLB faux. */
   if (GIZMO) GIZMO.detach();
-  const etalement = etaler(S.vueA);
+  const etalement = etaler(S.vueA, plan);
   if (!etalement) {
     direRefus("aucune pièce mesurable — ce modèle n'expose aucun nœud glTF "
       + "porteur de géométrie, il n'y a rien à étaler");
@@ -874,6 +926,19 @@ function basculerPlaque() {
      ferait chercher au lecteur une divergence qui n'existe pas. */
   PLQ.vides = etalement.vides;
   PLQ.axe = etalement.axe;
+  /* LE PAS DU PLATEAU, tel que plaque.js l'a tiré de l'empreinte — jamais
+     recalculé ici, jamais `REP.pas` (voir la déclaration de PLQ). */
+  PLQ.pas = etalement.plateau.pas;
+  PLQ.planApplique = etalement.planApplique;
+  PLQ.planFichier = cible && cible.job && cible.version
+    ? `plaque.v${cible.version}.json` : null;
+  /* LE REPÈRE ORTHONORMÉ S'ÉTEINT : sur la plaque, ce sont les règles du
+     plateau qui graduent, et deux quadrillages de pas différents dans la même
+     scène feraient une règle qui ment. L'état d'AVANT est RENDU par
+     montrerRepere(), jamais supposé — la précaution de capturerVignette — et
+     oublierPlaque() le rétablit tel quel. La lecture x/y/z du rail, elle,
+     reste : elle est corrigée du décalage d'étalement. */
+  PLQ.repereAvant = montrerRepere(S.vueA, false);
   /* L'empreinte étalée est bien plus large que le modèle assemblé : sans
      re-cadrage, la plaque naîtrait pour moitié hors champ. */
   cadrer(S.vueA);
@@ -881,6 +946,8 @@ function basculerPlaque() {
   /* La plaque vient de choisir son plan : l'un des trois boutons de vue
      regarde désormais l'étalement en face, et c'est lui qui le dit. */
   majBoutonsVue();
+  /* rendreParties() finit par lireRepere(), qui DESSINE les règles du plateau
+     (graduerPlateau) avec l'unité courante : les règles naissent ici. */
   rendreParties();
   /* Le geste a réussi : un refus rouge laissé par le clic d'avant ne doit pas
      lui rester accroché. */
@@ -908,13 +975,29 @@ function quitterPlaque() {
    vue qui va être vidée à la ligne suivante. */
 function oublierPlaque() {
   if (!PLQ.active) return;
+  /* Le dernier geste part MAINTENANT, avant que ranger() ne défasse ce qu'il
+     décrit : noterPlan() a déjà capturé la charge, seul l'envoi était
+     différé. Rien à envoyer, rien ne part. */
+  envoyerPlan();
+  effacerRegles(S.vueA);
+  marquerPiece(S.vueA, null);
   ranger(S.vueA);
+  /* Le repère revient à son état d'AVANT la plaque — pas à « visible » : une
+     vue qui l'avait éteint le garde éteint. */
+  montrerRepere(S.vueA, PLQ.repereAvant);
   PLQ.active = false;
   PLQ.pieces = [];
   PLQ.teintes = new Map();
   PLQ.partages = 0;
   PLQ.vides = 0;
   PLQ.axe = null;
+  PLQ.pas = null;
+  PLQ.courante = null;
+  PLQ.repereAvant = null;
+  PLQ.planApplique = false;
+  PLQ.planFichier = null;
+  PLQ.aEnvoyer = null;
+  PLQ.sauvegarde = null;
   PLQ.masquees.clear();
   majBoutonPlaque();
   /* Le liseré « fait face à la plaque » s'éteint avec elle : laissé allumé, il
@@ -923,6 +1006,280 @@ function oublierPlaque() {
 }
 
 $("#btnPlaque").addEventListener("click", basculerPlaque);
+
+/* ── déplacer sur la plaque : souris, clavier, anneau — et le PLAN DE PLAQUE ──
+   Le retour de l'utilisateur, mot pour mot : « je dois aussi pouvoir déplacer
+   les éléments ou la pièce sur la grille comme le propose la plupart des
+   slicers ». Trois gestes, ceux d'OrcaSlicer : glisser une pièce dans le plan
+   du plateau (aimantée au pas des règles, Maj la libère), la tourner par un
+   anneau autour d'elle (Maj = pas de 5°) ou en tapant des degrés, la pousser
+   au clavier d'un pas de plateau (Alt = fin, Ctrl = ×10).
+
+   LA RÈGLE DE TÊTE TIENT : rien de tout cela n'entre dans `S.enAttente`, et
+   rien ne touche au maillage. Le geste écrit dans le berceau et le pivot de
+   plaque.js — jamais dans la pièce — et ce qu'il compose est un PLAN DE
+   PLAQUE, distinct du modèle (la séparation maillage / disposition du 3MF),
+   que le serveur écrit à côté du .glb : `POST /api/etabli/plaque`, fichier
+   `plaque.v<N>.json`, format en tête de /lib3d/plaque.js. `model.vN.glb` ne
+   bouge pas quand on range des pièces ici ; il bouge quand on transforme en
+   Assemblé. Le plan n'est écrit qu'à la PREMIÈRE RETOUCHE — on n'écrit pas un
+   fichier pour avoir regardé — et il est relu à l'entrée suivante.
+
+   LE PAS DU CLAVIER EST LE PAS DE PLATEAU (PLQ.pas), jamais le pas de vue du
+   rail : l'avertissement de programmerLecture() sur le déplacement au clavier
+   visait la file d'ÉCRITURE ; ici le déplacement ne part pas dans un GLB, mais
+   la raison vaut quand même — deux utilisateurs zoomés différemment doivent
+   composer la même disposition. */
+
+const ROUTE_PLAQUE = "/api/etabli/plaque";
+/* Le pas de l'anneau sous Maj, en degrés : celui des slicers. */
+const PAS_ROTATION = 5;
+/* Les envois du plan sont COALESCÉS : pendant un glisser, chaque mouvement
+   recompose le plan ; le réseau n'en voit qu'un par fenêtre. Une minuterie et
+   non un requestAnimationFrame : on borne des requêtes, pas un rendu. */
+const DELAI_PLAN_MS = 300;
+let _envoiPlan = 0;
+
+/* Le plan d'une version, ou null quand il n'y en a pas (le cas ordinaire, en
+   404). Une étape sans job ou sans version n'en a pas non plus — rien à lire.
+   Toute autre réponse LÈVE : l'appelant dit alors « illisible » au lieu de
+   prendre un fichier corrompu pour un plan absent. */
+async function lirePlan(cible) {
+  if (!cible || !cible.job || !cible.version) return null;
+  const r = await fetch(`${ROUTE_PLAQUE}?job=${encodeURIComponent(cible.job)}`
+    + `&version=${encodeURIComponent(cible.version)}`);
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error((await r.text()).split("\n")[0] || `${r.status}`);
+  return r.json();
+}
+
+/* Le texte d'état du plan, écrit dans la note de la plaque et remis à jour à
+   chaque envoi. Une seule fonction pour les deux moments : deux textes pour
+   un même état divergeraient. */
+function texteEtatPlan() {
+  if (PLQ.planFichier === null) {
+    return "La disposition ne peut pas être enregistrée : cette étape n'a "
+      + "pas de version numérotée.";
+  }
+  if (PLQ.sauvegarde === "ok") {
+    return `Disposition enregistrée dans ${PLQ.planFichier} — le maillage, `
+      + "lui, n'a pas bougé.";
+  }
+  if (PLQ.sauvegarde === "refus") {
+    return `Disposition NON enregistrée (${PLQ.planFichier}) : voir le refus `
+      + "dans la barre du bas.";
+  }
+  if (PLQ.planApplique) {
+    return `Disposition relue depuis ${PLQ.planFichier}.`;
+  }
+  return `La disposition s'enregistrera dans ${PLQ.planFichier} à la première `
+    + "retouche.";
+}
+
+function rendreEtatPlan() {
+  const zone = document.querySelector("#plqEtat");
+  if (zone) zone.textContent = texteEtatPlan();
+}
+
+/* À CHAQUE RETOUCHE, et seulement là : le plan est recomposé depuis plaque.js
+   et la charge est capturée MAINTENANT — job et version compris — pour que le
+   modèle puisse changer pendant l'attente sans que le plan parte sous un
+   autre nom. Puis un envoi coalescé. */
+function noterPlan() {
+  if (!PLQ.active) return;
+  const plan = dispositionDe(S.vueA);
+  if (!plan) return;
+  if (!S.a || !S.a.job || !S.a.version) {
+    PLQ.sauvegarde = "impossible";
+    rendreEtatPlan();
+    return;
+  }
+  PLQ.aEnvoyer = { job: S.a.job, version: S.a.version, ...plan };
+  if (!_envoiPlan) _envoiPlan = setTimeout(envoyerPlan, DELAI_PLAN_MS);
+}
+
+/* L'envoi lui-même. Il PREND la charge en attente (le prochain geste en
+   capturera une neuve) et dit ses refus dans la barre du bas : un plan qui
+   n'est pas sur le disque doit se savoir avant de quitter la plaque. */
+async function envoyerPlan() {
+  if (_envoiPlan) { clearTimeout(_envoiPlan); _envoiPlan = 0; }
+  const corps = PLQ.aEnvoyer;
+  PLQ.aEnvoyer = null;
+  if (!corps) return;
+  try {
+    await jpost(ROUTE_PLAQUE, corps);
+    PLQ.sauvegarde = "ok";
+  } catch (e) {
+    PLQ.sauvegarde = "refus";
+    direRefus(`plan de plaque non enregistré (${corps.job} v${corps.version}) `
+      + `— ${e.message}`);
+  }
+  rendreEtatPlan();
+}
+
+/* Les règles du plateau, DESSINÉES par le canevas partagé avec les libellés
+   de cette page : fmtMesure() est le seul formateur, uniteCourante() la seule
+   unité — les millimètres n'ont toujours qu'un site. Hors plaque, un plateau
+   null les efface. Appelée par lireRepere(), donc à chaque changement d'unité
+   ou de cible ; le mémo de dessinerRegles() rend l'appel gratuit quand rien
+   n'a changé. */
+function graduerPlateau() {
+  if (!S.vueA) return;
+  dessinerRegles(S.vueA, PLQ.active ? plateauDe(S.vueA) : null,
+                 fmtMesure, uniteCourante());
+}
+
+/* La pièce COURANTE : celle que l'anneau entoure et que le clavier pousse.
+   `null` la relâche. Le panneau se redessine pour la marquer dans la liste. */
+function pieceCourante(cle) {
+  PLQ.courante = cle;
+  marquerPiece(S.vueA, cle);
+  rendreParties();
+}
+
+function rendreRotation() {
+  const zone = document.querySelector("#plqRot");
+  if (!zone) return;
+  zone.value = PLQ.courante === null ? "" : rotationDe(S.vueA, PLQ.courante);
+}
+
+/* La saisie en degrés. Même sévérité que poserCible : un nombre, sinon un
+   refus dans la barre — négatif permis, un angle n'a pas de signe interdit. Le
+   champ REDIT l'angle appliqué après un refus, pour la raison de rendreCible. */
+function poserRotation(brut) {
+  const texte = String(brut ?? "").trim();
+  const degres = Number(texte);
+  if (texte === "" || !Number.isFinite(degres)) {
+    direRefus("rotation invalide — un angle en degrés, positif ou négatif");
+    rendreRotation();
+    return false;
+  }
+  if (PLQ.courante === null || !tournerPiece(S.vueA, PLQ.courante, degres)) {
+    direRefus("aucune pièce courante — cliquez une pièce sur la plaque avant "
+      + "de la tourner");
+    return false;
+  }
+  marquerPiece(S.vueA, PLQ.courante);
+  noterPlan();
+  rendreRotation();
+  direGeometrie();
+  return true;
+}
+
+/* ── la souris : glisser une pièce, tourner par l'anneau ────────────────────
+   Sur le MÊME canevas qu'OrbitControls et que le sélecteur au clic, et sans les
+   casser : le geste ne commence qu'au-delà de TOLERANCE_CLIC pixels, si bien
+   qu'un clic reste un clic — le sélecteur le voit au relever, et rien n'a
+   bougé. Dès le poser sur une pièce, l'orbite est COUPÉE (`controls.enabled`),
+   exactement ce que le gizmo obtient par `dragging-changed` : OrbitControls a
+   déjà reçu ce pointerdown, mais son pointermove se retire dès que `enabled`
+   tombe, et son pointerup remet son état à zéro quoi qu'il en soit. Le vide,
+   lui, tourne toujours le modèle.
+
+   LE PLAN DE GLISSEMENT EST LE PLAN DU PLATEAU, pas l'écran : le point sous le
+   pointeur est projeté sur ce plan (pointSurPlateau), et la pièce suit la
+   DIFFÉRENCE entre ce point et celui du poser — elle ne saute pas sous le
+   curseur. Aimantée par son COIN au pas des règles, depuis le coin des
+   minimums du plateau (le même jeu de traits, voir geometriePlateau) ; Maj
+   libère. L'anneau tourne la pièce de la différence d'ANGLE autour de son
+   centre, Maj arrondit au pas de PAS_ROTATION. Pas d'élévation possible :
+   les deux gestes n'écrivent que dans le plan. */
+function glisserSurPlaque(api, canvas) {
+  const ndcDe = (ev) => {
+    const r = canvas.getBoundingClientRect();
+    return { x: ((ev.clientX - r.left) / r.width) * 2 - 1,
+             y: -((ev.clientY - r.top) / r.height) * 2 + 1 };
+  };
+  let geste = null;
+  canvas.addEventListener("pointerdown", (ev) => {
+    if (ev.button !== 0 || !estEtalee(api)) return;
+    const ndc = ndcDe(ev);
+    const cible = sousLePointeur(api, ndc);
+    if (!cible) return;
+    const point = pointSurPlateau(api, ndc);
+    if (!point) return;
+    geste = { id: ev.pointerId, x0: ev.clientX, y0: ev.clientY,
+              cle: cible.cle, quoi: cible.quoi, point0: point, actif: false,
+              rot0: rotationDe(api, cible.cle),
+              angle0: angleSurPlateau(api, point, cible.cle),
+              coin0: null };
+    api.controls.enabled = false;
+    if (canvas.setPointerCapture) canvas.setPointerCapture(ev.pointerId);
+    if (PLQ.courante !== cible.cle) pieceCourante(cible.cle);
+  });
+  canvas.addEventListener("pointermove", (ev) => {
+    if (!geste || ev.pointerId !== geste.id) return;
+    if (!geste.actif) {
+      if (Math.hypot(ev.clientX - geste.x0, ev.clientY - geste.y0)
+          <= TOLERANCE_CLIC) return;
+      geste.actif = true;
+      /* Le coin est relevé au DÉBUT du geste, pas au poser : entre les deux
+         rien n'a bougé, mais c'est ici que le glissement commence. */
+      const g = plateauDe(api);
+      geste.plateau = g;
+      const emp = g ? empreinteDe(api, geste.cle) : null;
+      geste.coin0 = emp ? { u: emp.u, v: emp.v } : null;
+    }
+    const point = pointSurPlateau(api, ndcDe(ev));
+    const g = geste.plateau;
+    if (!point || !g) return;
+    if (geste.quoi === "poignee") {
+      const angle = angleSurPlateau(api, point, geste.cle);
+      let rot = geste.rot0 + (angle - geste.angle0);
+      if (ev.shiftKey) rot = Math.round(rot / PAS_ROTATION) * PAS_ROTATION;
+      if (!tournerPiece(api, geste.cle, rot)) return;
+    } else {
+      if (!geste.coin0) return;
+      let u = geste.coin0.u + (point.u - geste.point0.u);
+      let v = geste.coin0.v + (point.v - geste.point0.v);
+      if (!ev.shiftKey) {
+        u = aimanter(u, g.coin[g.u], g.pas);
+        v = aimanter(v, g.coin[g.v], g.pas);
+      }
+      if (!poserCoin(api, geste.cle, u, v)) return;
+    }
+    marquerPiece(api, geste.cle);
+    rendreRotation();
+    noterPlan();
+  });
+  const finir = (ev) => {
+    if (!geste || ev.pointerId !== geste.id) return;
+    geste = null;
+    api.controls.enabled = true;
+  };
+  canvas.addEventListener("pointerup", finir);
+  canvas.addEventListener("pointercancel", finir);
+}
+
+/* ── le clavier : un pas de plateau par flèche ──────────────────────────────
+   LES FLÈCHES SUIVENT L'ÉCRAN, pas le nom de la dernière vue : axesEcran()
+   projette la droite et le haut de la caméra sur le plan du plateau, si bien
+   que → pousse toujours vers la droite de ce que l'on voit, quelle que soit
+   l'orbite. Alt = un dixième de pas, Ctrl = dix pas. ET LE CLAVIER N'EST PAS
+   VOLÉ AUX CHAMPS : une flèche dans la taille cible ou dans la rotation reste
+   une flèche de champ. Rend vrai quand le geste a été pris. */
+function toucheClavierPlaque(ev) {
+  if (!PLQ.active || PLQ.courante === null || !S.vueA) return false;
+  const t = ev.target;
+  if (t && (t.isContentEditable
+            || /^(INPUT|TEXTAREA|SELECT)$/i.test(t.tagName || ""))) return false;
+  const fleches = { ArrowRight: ["droite", 1], ArrowLeft: ["droite", -1],
+                    ArrowUp: ["haut", 1], ArrowDown: ["haut", -1] };
+  const f = fleches[ev.key];
+  if (!f) return false;
+  const g = plateauDe(S.vueA);
+  if (!g || !(g.pas > 0)) return false;
+  const pas = g.pas * (ev.altKey ? 0.1 : ev.ctrlKey ? 10 : 1);
+  const dir = axesEcran(S.vueA.camera.matrixWorld.elements, g.axe)[f[0]];
+  const du = dir.axe === g.u ? dir.signe * f[1] * pas : 0;
+  const dv = dir.axe === g.v ? dir.signe * f[1] * pas : 0;
+  if (!deplacerPiece(S.vueA, PLQ.courante, du, dv)) return false;
+  marquerPiece(S.vueA, PLQ.courante);
+  noterPlan();
+  if (ev.preventDefault) ev.preventDefault();
+  return true;
+}
+document.addEventListener("keydown", toucheClavierPlaque);
 
 /* ── le point de vue : deux projections, trois vues d'axe ───────────────────
    DEUX OPTIONS, ce que la demande dit : celle qui existait — perspective sur
@@ -1181,10 +1538,15 @@ function rendreParties() {
      ne puisse abîmer une charge d'écriture. La sélection reste où elle
      était, dans un seul vocabulaire. */
   const oeil = (cle) => (PLQ.masquees.has(cle) ? "montrer" : "masquer");
+  /* La pièce COURANTE se voit dans la liste (classe `courante`) et se choisit
+     en cliquant sa rangée — l'œil garde son propre bouton. Ses outils suivent :
+     la saisie en degrés, et l'aide des gestes quand rien n'est choisi. */
+  const courante = PLQ.pieces.find((x) => x.cle === PLQ.courante) || null;
   const plaqueBloc = !PLQ.active ? "" : `
     <div class="plaque-tete">Sur la plaque · ${PLQ.pieces.length} pièce(s)</div>
     <div class="plaque-liste">${PLQ.pieces.map((x) => `
-      <div class="plaque-rang${PLQ.masquees.has(x.cle) ? " masquee" : ""}">
+      <div class="plaque-rang${PLQ.masquees.has(x.cle) ? " masquee" : ""}${
+          x.cle === PLQ.courante ? " courante" : ""}" data-cle="${esc(x.cle)}">
         <i class="pastille" style="background:${esc(x.couleur)}"></i>
         <b>${esc(x.nom)}</b>
         <button class="plaque-oeil" data-cle="${esc(x.cle)}"
@@ -1192,8 +1554,19 @@ function rendreParties() {
                 aria-label="${oeil(x.cle)} cette pièce"
         >${PLQ.masquees.has(x.cle) ? "◌" : "◉"}</button>
       </div>`).join("")}</div>
-    <p class="plaque-note">Vue seulement : le modèle assemblé reste la
-      vérité, rien n'est modifié ni écrit.${PLQ.vides
+    <div class="plaque-outils">${courante
+      ? `<label>rotation de <b>${esc(courante.nom)}</b>
+           <input id="plqRot" type="number" step="any"
+                  value="${esc(rotationDe(S.vueA, courante.cle))}"> °</label>
+         <span>glisser déplace (aimanté au pas du plateau, Maj libère) ·
+           flèches = un pas, Alt fin, Ctrl ×10 · l'anneau tourne
+           (Maj = ${PAS_ROTATION}°)</span>`
+      : `<span>cliquez une pièce : la glisser la déplace (aimantée au pas du
+           plateau, Maj libère), l'anneau la tourne (Maj = ${PAS_ROTATION}°),
+           les flèches la poussent d'un pas (Alt fin, Ctrl ×10)</span>`}</div>
+    <p class="plaque-note">Vue seulement : le maillage assemblé reste la
+      vérité — déplacer ici n'écrit jamais dans le modèle, seulement dans le
+      plan de plaque. <span id="plqEtat">${esc(texteEtatPlan())}</span>${PLQ.vides
         ? ` ${PLQ.vides} nœud(s) sans géométrie ne sont pas étalés : un
       contenant n'a rien à montrer, et son œil ne commanderait rien.` : ""}${PLQ.partages
         ? ` ${PLQ.partages} matériau(x) partagé(s) entre pièces — leur teinte
@@ -1251,6 +1624,15 @@ function rendreParties() {
       if (masquee) PLQ.masquees.delete(cle); else PLQ.masquees.add(cle);
       rendreParties();
     }));
+  /* La rangée choisit la pièce courante ; le clic sur l'œil, lui, reste à
+     l'œil — sans cette garde, masquer une pièce la rendrait courante. */
+  box.querySelectorAll(".plaque-rang").forEach((r) =>
+    r.addEventListener("click", (ev) => {
+      if (ev.target && ev.target.closest && ev.target.closest(".plaque-oeil")) return;
+      pieceCourante(Number(r.dataset.cle));
+    }));
+  const rot = box.querySelector("#plqRot");
+  if (rot) rot.addEventListener("change", () => poserRotation(rot.value));
   $("#btnIsoler").addEventListener("click", () => isoler(S.vueA, [...SEL.retenus]));
   /* « Tout revoir » n'est pas un second chemin : isoler SUR RIEN restaure, par
      la ligne de code même qui isole. Les deux ne peuvent donc pas diverger. */
@@ -2101,11 +2483,19 @@ function lireRepere() {
      afficherait des millimètres justes pour un maillage absent. */
   REP.echelle = echelleMm(plusGrandeDimension(), REP.cibleMm);
   const u = uniteCourante();
-  const pas = REP.pas === null ? "—" : `${fmtMesure(REP.pas)} ${u}`;
-  $("#repereEchelle").innerHTML = `pas de la grille <b>${esc(pas)}</b>`
+  /* SUR LA PLAQUE, LE PAS AFFICHÉ EST CELUI DU PLATEAU — la grille qu'on voit
+     et que les flèches suivent — et non le pas de vue du repère, éteint : un
+     rail qui annoncerait le pas d'une grille invisible mentirait. */
+  const pasVu = PLQ.active ? PLQ.pas : REP.pas;
+  const pas = Number.isFinite(pasVu) ? `${fmtMesure(pasVu)} ${u}` : "—";
+  $("#repereEchelle").innerHTML = `pas ${PLQ.active ? "du plateau" : "de la grille"} <b>${esc(pas)}</b>`
     + (enMillimetres()
       ? ` · cible ${esc(REP.cibleMm)} ${esc(u)} sur la plus grande dimension`
       : " · aucune taille cible, donc aucun millimètre déduit");
+  /* Les règles du plateau portent la MÊME unité que ce rail, et changent avec
+     elle : c'est ici, après le recalcul de l'échelle, qu'elles se redessinent
+     (mémo dans le canevas — gratuit quand rien n'a changé). */
+  graduerPlateau();
 
   const m = mesurerRetenus();
   /* LE COMPTE MARQUÉ EST RENDU, ET ON LE LIT. marquerAuRepere() borne le
@@ -2165,7 +2555,12 @@ document.addEventListener("etabli:charge", () => {
   if (_clicBranche) return;
   _clicBranche = true;
   designerAuClic(S.vueA, $("#vueA canvas"), (obj) => {
-    if (!obj) return;
+    /* Sur la plaque, cliquer le VIDE relâche la pièce courante — le geste des
+       slicers ; cliquer une pièce l'a déjà désignée au poser (glisserSurPlaque). */
+    if (!obj) {
+      if (estEtalee(S.vueA) && PLQ.courante !== null) pieceCourante(null);
+      return;
+    }
     surligner(S.vueA, obj.uuid);
     /* Le gizmo suit le clic quelle que soit la granularité : déplacer un nœud
        n'est pas le même geste que le retenir, et le panneau n'a pas à être en
@@ -2193,6 +2588,9 @@ document.addEventListener("etabli:charge", () => {
     SEL.retenus.add(obj.uuid);
     rendreParties();
   });
+  /* Et le GLISSER sur la plaque, branché UNE fois lui aussi, sur le même
+     canevas : il ne fait rien hors plaque et laisse le clic au sélecteur. */
+  glisserSurPlaque(S.vueA, $("#vueA canvas"));
 });
 
 /* LE REPÈRE D'ABORD, ET L'ORDRE EST PORTEUR. rendreParties() finit par

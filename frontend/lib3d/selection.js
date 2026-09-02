@@ -15,8 +15,10 @@ const OPACITE_FANTOME = 0.08;
 
 /* Distance MAXIMALE, en pixels CSS, entre le poser et le relever du pointeur
    pour qu'un geste compte comme un clic. Voir designerAuClic() : c'est ce
-   seuil qui sépare « je désigne » de « je tourne le modèle ». */
-const TOLERANCE_CLIC = 4;
+   seuil qui sépare « je désigne » de « je tourne le modèle ». EXPORTÉE : le
+   glisser de la plaque (etabli.js) ne commence qu'au-delà du MÊME seuil, sans
+   quoi un clic et un glisser se disputeraient les quatre premiers pixels. */
+export const TOLERANCE_CLIC = 4;
 
 const _teinte = new THREE.Color(0x4da3ff);
 

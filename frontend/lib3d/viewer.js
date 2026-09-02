@@ -790,6 +790,220 @@ export function montrerRepere(api, visible) {
   return avant;
 }
 
+/* ── LES RÈGLES D'UN PLATEAU : graduation sur les bords, origine à un coin ──
+
+   Ce que dessine un slicer autour de son lit, et pour la même lecture : où une
+   pièce est posée, en chiffres, depuis un coin. Ce module ne connaît PAS le
+   plateau — il en reçoit la géométrie ({ axe, u, v, cote, pas, niveau }) et
+   dessine ; il ne connaît pas davantage les unités — il reçoit un FORMATEUR
+   et une chaîne d'unité, et écrit ce qu'on lui donne, sans convertir, arrondir
+   ni suffixer. La doctrine des millimètres garde ainsi son seul site
+   (echelleMm, et le formateur de la page qui l'applique) ; un banc interdit à
+   ce bloc toute mise en forme de nombre.
+
+   L'ORIGINE EST LE COIN EN BAS À GAUCHE DE LA VUE QUI REGARDE LE PLATEAU EN
+   FACE, et ce coin se DÉDUIT de la table des orientations plutôt que d'être
+   choisi à la main : la vue d'axe posée sur +axe donne le haut d'écran, le
+   produit vectoriel donne la droite, et chaque axe du plan croît vers la
+   droite ou vers le haut. C'est ce qui met le « 0 » où un slicer le met — et
+   qui, pour l'axe y, le met du côté −z que la sécurité de pôle de three.js
+   impose (voir ORIENTATIONS.dessus) au lieu d'en haut à gauche.
+
+   LE TEXTE SE DESSINE SUR UNE TEXTURE DE CANEVAS, une bande par règle, à plat
+   dans le plan du plateau comme les chiffres d'un lit de slicer. Un renderer
+   CSS2D aurait coûté un addon vendorisé de plus pour deux bandes de chiffres.
+   Le canevas 2D vient de `renderer.domElement.ownerDocument` — le seul point
+   de contact de ce bloc avec le DOM, et le montage du banc le fournit : c'est
+   par lui que les bancs LISENT les textes écrits et leur abscisse.
+
+   REDESSINÉES SEULEMENT SI QUELQUE CHOSE A CHANGÉ : la géométrie, les textes
+   ou l'unité. Le mémo tient sur les chaînes produites, si bien qu'une page qui
+   appelle à chaque lecture du rail ne paie qu'une comparaison. */
+
+const _regles = new WeakMap();
+const COULEUR_REGLE = 0xd8dde6;
+/* Les proportions, RELATIVES au côté ou au pas : un GLB n'a pas d'échelle. */
+const LARGEUR_BANDE = 0.07;         // la bande porte-libellés, en côté
+const LONGUEUR_TRAIT = 0.3;         // un trait, en pas ; ×1,6 sous un libellé
+const LEVEE_REGLES = 0.0015;        // au-dessus du niveau du plateau, en côté
+const BANDE_PX = { l: 2048, h: 128 };
+/* Au-delà de ce nombre de traits, un libellé sur deux : cinq glyphes par
+   libellé (« 0,020 ») sur 2048 px se chevauchent à vingt-cinq par bande. */
+const LIBELLES_SERRES = 13;
+
+/* PURE. Les graduations d'un côté : 0, pas, 2·pas, …, jusqu'au côté inclus
+   (à une poussière près), et le saut de libellé. */
+export function graduationsDe(cote, pas) {
+  if (!(pas > 0) || !(cote > 0)) return { valeurs: [], saut: 1 };
+  const n = Math.floor(cote / pas + 1e-9);
+  const valeurs = [];
+  for (let k = 0; k <= n; k++) valeurs.push(k * pas);
+  return { valeurs, saut: valeurs.length > LIBELLES_SERRES ? 2 : 1 };
+}
+
+/* PURE. Dans quel sens chaque axe du plan croît sur la vue qui regarde le
+   plateau en face : +1 vers la droite ou le haut de l'écran, −1 sinon. La vue
+   est celle dont `dir` est +axe ; sa droite d'écran vaut (−dir) × haut. */
+function sensDesRegles(axe, u, v) {
+  const dir = { x: 0, y: 0, z: 0 };
+  dir[axe] = 1;
+  const o = Object.values(ORIENTATIONS).find(
+    (k) => k.dir.x === dir.x && k.dir.y === dir.y && k.dir.z === dir.z)
+    || ORIENTATIONS.libre;
+  const h = o.haut;
+  const droite = { x: -(dir.y * h.z - dir.z * h.y),
+                   y: -(dir.z * h.x - dir.x * h.z),
+                   z: -(dir.x * h.y - dir.y * h.x) };
+  const sensDe = (a) => (Math.abs(droite[a]) >= Math.abs(h[a])
+    ? Math.sign(droite[a]) || 1 : Math.sign(h[a]) || 1);
+  return { u: sensDe(u), v: sensDe(v) };
+}
+
+function vecteurAxe(axe, longueur) {
+  const w = new THREE.Vector3();
+  w[axe] = longueur;
+  return w;
+}
+
+/* Une bande de libellés : les textes sont ÉCRITS à leur fraction de la
+   longueur, sur un canevas 2D qui devient la texture d'un plan. Le canevas
+   garde ses appels (`fillText`) accessibles par `material.map.image` — c'est
+   ce que le banc lit. */
+function bandeDeLibelles(api, longueur, largeur, libelles) {
+  const cv = api.renderer.domElement.ownerDocument.createElement("canvas");
+  cv.width = BANDE_PX.l;
+  cv.height = BANDE_PX.h;
+  const ctx = cv.getContext("2d");
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.fillStyle = "#e6eaf0";
+  ctx.textBaseline = "middle";
+  ctx.textAlign = "center";
+  ctx.font = `${Math.round(cv.height * 0.42)}px ui-monospace, monospace`;
+  const marge = cv.width * 0.02;
+  for (const l of libelles) {
+    const x = Math.min(cv.width - marge, Math.max(marge, l.fraction * cv.width));
+    ctx.fillText(l.texte, x, cv.height / 2);
+  }
+  const texture = new THREE.CanvasTexture(cv);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return new THREE.Mesh(
+    new THREE.PlaneGeometry(longueur, largeur),
+    new THREE.MeshBasicMaterial({ map: texture, transparent: true,
+                                  depthWrite: false, side: THREE.DoubleSide }));
+}
+
+/* Pose une bande le long de `dir` depuis `origine`, HORS du plateau (du côté
+   opposé à `dedans`), à plat : son X local est la direction de lecture, son Z
+   la normale, et son Y en découle — normale × dir —, ce qui est le haut
+   d'écran quand on regarde le plateau en face avec `dir` vers la droite. */
+function poserBande(bande, origine, dir, dedans, normale, longueur, largeur,
+                    espace) {
+  bande.position.copy(origine)
+    .addScaledVector(dir, longueur / 2)
+    .addScaledVector(dedans, -(espace + largeur / 2));
+  const y = new THREE.Vector3().crossVectors(normale, dir);
+  bande.quaternion.setFromRotationMatrix(
+    new THREE.Matrix4().makeBasis(dir, y, normale));
+}
+
+/* Dessine (ou redessine) les règles d'un plateau : contour, traits tous les
+   `pas` depuis l'origine sur les deux bords, libellés et unité sur deux bandes.
+   `formater(valeur)` rend le texte d'une graduation — c'est la page qui le
+   fournit, seule à savoir en quelle unité elle lit. Rend l'état dessiné
+   { groupe, origine, sens, valeurs, textes, traits, bandes } ; `null` sans
+   plateau ou sans pas, et les règles précédentes sont alors effacées. */
+export function dessinerRegles(api, plateau, formater, unite) {
+  const g = plateau;
+  if (!api || !g || !(g.pas > 0) || !(g.cote > 0)) {
+    effacerRegles(api);
+    return null;
+  }
+  const sens = sensDesRegles(g.axe, g.u, g.v);
+  const { valeurs, saut } = graduationsDe(g.cote, g.pas);
+  const textes = valeurs.map((val, k) => (k % saut === 0
+    ? String(formater(val)) : null));
+  const cle = JSON.stringify([g.axe, g.u, g.v, g.cote, g.pas, g.niveau,
+                              textes, String(unite ?? "")]);
+  let e = _regles.get(api);
+  if (e && e.cle === cle) return e;
+  effacerRegles(api);
+
+  const niveau = (Number(g.niveau) || 0) + g.cote * LEVEE_REGLES;
+  const largeur = g.cote * LARGEUR_BANDE;
+  const espace = largeur * 0.25;
+  const normale = vecteurAxe(g.axe, 1);
+  const au = vecteurAxe(g.u, sens.u);
+  const av = vecteurAxe(g.v, sens.v);
+  const origine = new THREE.Vector3();
+  origine[g.u] = (-sens.u * g.cote) / 2;
+  origine[g.v] = (-sens.v * g.cote) / 2;
+  origine[g.axe] = niveau;
+
+  const pts = [];
+  const seg = (a, b) => pts.push(a.x, a.y, a.z, b.x, b.y, b.z);
+  const c1 = origine.clone().addScaledVector(au, g.cote);
+  const c2 = c1.clone().addScaledVector(av, g.cote);
+  const c3 = origine.clone().addScaledVector(av, g.cote);
+  seg(origine, c1); seg(c1, c2); seg(c2, c3); seg(c3, origine);
+  const trait = g.pas * LONGUEUR_TRAIT;
+  valeurs.forEach((val, k) => {
+    const long = trait * (textes[k] === null ? 1 : 1.6);
+    const pu = origine.clone().addScaledVector(au, val);
+    seg(pu, pu.clone().addScaledVector(av, -long));
+    const pv = origine.clone().addScaledVector(av, val);
+    seg(pv, pv.clone().addScaledVector(au, -long));
+  });
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
+  const traits = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({
+    color: COULEUR_REGLE, transparent: true, opacity: 0.85,
+    depthWrite: false }));
+
+  /* La bande dépasse le côté d'un peu plus d'un pas : l'unité s'écrit là,
+     après la dernière graduation, jamais par-dessus elle. */
+  const longueur = g.cote + 1.2 * g.pas;
+  const libelles = [];
+  valeurs.forEach((val, k) => {
+    if (textes[k] !== null) libelles.push({ fraction: val / longueur, texte: textes[k] });
+  });
+  libelles.push({ fraction: (g.cote + 0.6 * g.pas) / longueur,
+                  texte: String(unite ?? "") });
+  const bandeU = bandeDeLibelles(api, longueur, largeur, libelles);
+  poserBande(bandeU, origine, au, av, normale, longueur, largeur, espace);
+  const bandeV = bandeDeLibelles(api, longueur, largeur, libelles);
+  poserBande(bandeV, origine, av, au, normale, longueur, largeur, espace);
+
+  const groupe = new THREE.Group();
+  groupe.name = "lib3d-regles";
+  groupe.add(traits);
+  groupe.add(bandeU);
+  groupe.add(bandeV);
+  groupe.updateMatrixWorld(true);
+  /* DANS LA SCÈNE, comme le repère : vider() ne retire que `api.racine`. */
+  api.scene.add(groupe);
+  e = { groupe, cle, origine, sens, valeurs, textes, traits,
+        bandes: [bandeU, bandeV] };
+  _regles.set(api, e);
+  return e;
+}
+
+/* Efface les règles et LIBÈRE tout — géométries, matériaux et les deux
+   textures : dix redessins laisseraient sinon vingt canevas sur la carte. */
+export function effacerRegles(api) {
+  const e = api && _regles.get(api);
+  if (!e) return false;
+  e.groupe.traverse((o) => {
+    if (o.geometry) o.geometry.dispose();
+    if (o.material) {
+      if (o.material.map) o.material.map.dispose();
+      o.material.dispose();
+    }
+  });
+  api.scene.remove(e.groupe);
+  _regles.delete(api);
+  return true;
+}
+
 /* Cadre la caméra sur la boîte englobante. Indispensable : un modèle en mètres
    et un modèle en centimètres donneraient l'un un point, l'autre un mur.
 

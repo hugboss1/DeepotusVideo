@@ -23,10 +23,43 @@
    `print3d.mettre_a_l_echelle(tris, cible_mm)` qui en fabrique une, au moment
    d'écrire un STL. Tout ce fichier compte donc en UNITÉS DU MODÈLE, et le
    plateau se dimensionne sur l'empreinte de l'étalement — pas sur les 256 mm
-   de la Centauri Carbon 2. La graduation et la taille cible viennent plus
-   tard ; les inventer ici mentirait. */
+   de la Centauri Carbon 2. Ce module EXPOSE la géométrie du plateau (côté,
+   axe, coin d'origine, pas) ; c'est le canevas partagé qui DESSINE les règles
+   et la page qui en écrit les libellés, seule à savoir s'il existe une taille
+   cible. Ainsi rien ici ne peut inventer une unité.
+
+   ON DÉPLACE SUR LA PLAQUE, ET ÇA RESTE UN AFFICHAGE. Comme les slicers : on
+   glisse une pièce dans le plan du plateau, on la tourne autour de la normale.
+   Le geste écrit dans le BERCEAU (translation) et dans un PIVOT (rotation
+   autour du centre de la pièce), jamais dans la pièce — la même raison qu'au
+   paragraphe précédent, et le même banc l'épingle. Ce qu'on compose ainsi est
+   un PLAN DE PLAQUE, distinct du maillage, que la page fait écrire par le
+   serveur (plaque.v<N>.json à côté du .glb) et que l'extraction consommera.
+   Son format, tel que `dispositionDe()` le rend et que le fichier le porte :
+
+     { "format": "plaque/1", "job": "…", "version": N,
+       "axe": "x" | "y" | "z",        l'axe d'EMPILEMENT (normale du plateau)
+       "pas": nombre,                   le pas du plateau, en unités du modèle
+       "unites": "modele",
+       "pieces": [ { "index": i,        l'index de nœud glTF de la pièce
+                     "dx": nombre,      déplacement du CENTRE de la pièce depuis
+                     "dy": nombre,      sa pose assemblée, le long des deux axes
+                                        du plan pris dans l'ordre x, y, z privé
+                                        de `axe` (u, puis v)
+                     "rot": degrés } ]  rotation autour de +axe, sens direct,
+                                        autour du centre de la boîte de la pièce
+     }
+
+   La troisième composante — le posé AU CONTACT du plateau, −min sur `axe` —
+   n'est pas stockée : elle se déduit de la géométrie, et une rotation autour
+   de la normale ne la change pas. */
 "use strict";
 import * as THREE from "three";
+/* Le pas 1-2-5 du canevas partagé, appliqué au CÔTÉ du plateau : c'est un pas
+   de PLATEAU, stable tant qu'on ne ré-étale pas — pas le pas de VUE que
+   majRepere() tire de l'étendue visible et qui change à chaque molette. La
+   règle est la même, l'étendue qu'on lui donne ne l'est pas. */
+import { pasGradue } from "./viewer.js";
 
 /* La marge entre deux pièces, en fraction de la plus grande d'entre elles.
    CONSTANTE au sens qui compte : une seule valeur pour tout l'étalement, la
@@ -64,7 +97,13 @@ const RECUL_PLATEAU = 0.005;
 /* Le plateau déborde de l'empreinte : une pièce posée au bord doit se lire
    COMME posée sur quelque chose, pas comme débordant dans le vide. */
 const DEBORD_PLATEAU = 1.12;
-const DIVISIONS_GRILLE = 24;
+
+/* La poignée de rotation : un anneau autour de la pièce courante, dans le plan
+   du plateau. Son rayon est la demi-diagonale de l'empreinte, majorée de cette
+   fraction ; sa largeur est cette fraction du rayon. Relatifs, comme tout ici. */
+const MARGE_POIGNEE = 1.15;
+const LARGEUR_POIGNEE = 0.12;
+const SEGMENTS_POIGNEE = 64;
 
 /* L'état d'étalement, par vue. Une WeakMap et non une variable de module :
    l'Établi a DEUX canevas (A et B), et le jour où la plaque servirait en B,
@@ -330,6 +369,39 @@ function versLocal(parent, deltaMonde) {
   return new THREE.Vector3(d.x, d.y, d.z);
 }
 
+/* ── la géométrie du plateau ─────────────────────────────────────────────────
+   PURE, et rendue au dehors par plateauDe() : le côté, l'axe d'empilement, les
+   deux axes du plan (u, v — l'ordre x, y, z privé de l'axe), le coin d'origine
+   des règles, le niveau du plateau sous les pièces, et le PAS.
+
+   LE CÔTÉ EST UN NOMBRE ENTIER DE PAS, et c'est ce qui fait de la grille une
+   graduation. Le côté brut vient de l'empreinte de l'étalement (débord et marge
+   compris) ; le pas en est tiré par la règle 1-2-5 du canevas — donc 10 à 25
+   cases par côté, la promesse de pasGradue — puis le côté est arrondi PAR LE
+   HAUT au multiple suivant. Sans cet arrondi, la grille de GridHelper (des
+   cases égales sur le côté) et les règles (des traits tous les `pas` depuis le
+   coin) ne coïncideraient qu'aux coins : deux quadrillages pour une seule
+   graduation, c'est la règle qui ment. L'origine est AU COIN, comme sur un
+   plateau de slicer : une pièce posée au coin se lit (0, 0).
+
+   `cases` vaut 1 et `pas` null sur une empreinte dégénérée (pasGradue rend null
+   sur une étendue nulle) : le plateau existe, il n'est pas gradué. */
+export function geometriePlateau(largeur, profondeur, marge, axe) {
+  const brut = Math.max(largeur, profondeur, marge) * DEBORD_PLATEAU + marge;
+  const pas = pasGradue(brut);
+  /* `- 1e-9` : un côté brut déjà multiple du pas ne doit pas gagner une case
+     de plus par une poussière d'arrondi flottant. */
+  const cases = pas ? Math.ceil(brut / pas - 1e-9) : 1;
+  const cote = pas ? cases * pas : brut;
+  const [u, v] = AXES.filter((a) => a !== axe);
+  const niveau = -cote * RECUL_PLATEAU;
+  const coin = { x: 0, y: 0, z: 0 };
+  coin[u] = -cote / 2;
+  coin[v] = -cote / 2;
+  coin[axe] = niveau;
+  return { axe, u, v, cote, cases, pas, niveau, coin };
+}
+
 /* ── le plateau et sa grille ────────────────────────────────────────────────
    Il vit dans la SCÈNE et non dans le modèle : `vider()` de viewer.js ne
    retire que `api.racine`, et un plateau greffé au modèle disparaîtrait avec
@@ -338,11 +410,15 @@ function versLocal(parent, deltaMonde) {
    laisseraient dix plateaux sur la carte.
 
    Il est dimensionné sur l'EMPREINTE de l'étalement, en unités du modèle.
-   Aucune cote de plateau réel n'est écrite ici : voir l'en-tête du fichier. */
+   Aucune cote de plateau réel n'est écrite ici : voir l'en-tête du fichier.
+   Sa géométrie est retenue sur le groupe (`userData.geometrie`) : c'est elle
+   que plateauDe() rend, et que les règles du canevas graduent. */
 function poserPlateau(api, largeur, profondeur, marge, axe) {
-  const cote = Math.max(largeur, profondeur, marge) * DEBORD_PLATEAU + marge;
+  const g = geometriePlateau(largeur, profondeur, marge, axe);
+  const cote = g.cote;
   const groupe = new THREE.Group();
   groupe.name = "plaque-plateau";
+  groupe.userData.geometrie = g;
   const socle = new THREE.Mesh(
     new THREE.PlaneGeometry(cote, cote),
     new THREE.MeshBasicMaterial({ color: 0x0e1116, transparent: true,
@@ -352,7 +428,9 @@ function poserPlateau(api, largeur, profondeur, marge, axe) {
      (z-fighting), et la grille est ce qui doit se lire. Le décalage est
      relatif au côté, faute d'échelle absolue dans un GLB. */
   socle.position.y = -cote * 0.0008;
-  const grille = new THREE.GridHelper(cote, DIVISIONS_GRILLE, 0x5b636f, 0x333941);
+  /* `g.cases` cases sur `g.cote` : la case dessinée VAUT le pas des règles,
+     par construction de geometriePlateau — c'est tout l'objet de l'arrondi. */
+  const grille = new THREE.GridHelper(cote, g.cases, 0x5b636f, 0x333941);
   grille.material.transparent = true;
   grille.material.opacity = 0.55;
   groupe.add(socle);
@@ -372,6 +450,46 @@ function poserPlateau(api, largeur, profondeur, marge, axe) {
   return groupe;
 }
 
+/* ── le pivot : la rotation d'une pièce autour de SON centre ────────────────
+   POURQUOI UN SECOND GROUPE, et non une rotation posée sur le berceau. Le
+   berceau ne porte qu'une TRANSLATION, et decalageEtalement() en dépend : la
+   différence des positions monde du berceau et de son parent vaut A·d, le
+   décalage exact. Une rotation autour du centre de la pièce exige une
+   translation de compensation (c − R·c) ; posée sur le berceau, elle rendrait
+   cette différence fausse de (R − I)(t − c) — un chiffre plausible, dans le
+   rail, sans que rien ne grince. Le pivot prend donc la rotation, et le
+   berceau reste ce qu'il était : rot = 0 est l'identité, au bit près.
+
+   LA MATRICE EST ÉCRITE À LA MAIN (matrixAutoUpdate = false), et c'est
+   l'algèbre qui l'impose : on veut la pièce tournée dans le MONDE autour de
+   son centre monde c, soit W = T(c)·R·T(−c), donc pivot.matrix = M⁻¹·W·M avec
+   M la matrice monde du parent. Sous un parent qui tourne et change d'échelle
+   — la réparation en Z, dont versLocalLineaire raconte déjà le cas — cette
+   matrice n'est en général PAS une rotation + translation décomposable : la
+   passer par position/quaternion la déformerait en silence. Dans la matrice
+   telle quelle, elle est exacte pour tout parent inversible.
+   Un banc vérifie, sous une enveloppe tournée et mise à l'échelle, que le
+   centre ne bouge pas, que le bas ne bouge pas, et que la direction monde de
+   la pièce a tourné de l'angle demandé — par Rodrigues, en Python. */
+function poserPivot(e, axe) {
+  const n = new THREE.Vector3();
+  n[axe] = 1;
+  const M = e.parent.matrixWorld;
+  const Mi = M.clone().invert();
+  const R = new THREE.Matrix4().makeRotationAxis(n, (e.rot * Math.PI) / 180);
+  const c = e.centre;
+  const Tc = new THREE.Matrix4().makeTranslation(c.x, c.y, c.z);
+  const Tmc = new THREE.Matrix4().makeTranslation(-c.x, -c.y, -c.z);
+  e.pivot.matrix.copy(Mi).multiply(Tc).multiply(R).multiply(Tmc).multiply(M);
+  /* PAS DE `matrixWorldNeedsUpdate = true`, et c'est mesuré : la ligne était
+     là, une mutation l'a mise à `false` sans qu'aucun banc ne rougisse, on
+     l'a retirée. Le berceau, à `matrixAutoUpdate`, se signale à CHAQUE image
+     (updateMatrix() lève le drapeau) et force son sous-arbre ; et
+     updateWorldMatrix(), qu'emploie Box3.setFromObject, ne lit pas le drapeau
+     du tout. Le drapeau ne sert qu'à un objet manuel SANS parent auto — ce
+     que le pivot n'est jamais. */
+}
+
 export function estEtalee(api) {
   return !!(api && _etats.has(api));
 }
@@ -387,8 +505,18 @@ export function estEtalee(api) {
    axeEmpile(), donc la normale du plan d'étalement — l'information sans
    laquelle personne, hors de ce module, ne peut dire laquelle des vues
    nommées du canevas regarde la plaque en face. Le calculer une seconde fois
-   au-dehors serait le calculer avec d'autres boîtes ; on le rend. */
-export function etaler(api) {
+   au-dehors serait le calculer avec d'autres boîtes ; on le rend.
+
+   `plan` EST UN PLAN DE PLAQUE (format en tête de fichier), ou null. Quand il
+   existe et parle du MÊME axe d'empilement, ses pièces prennent leur (dx, dy,
+   rot) au lieu de la place que disposer() leur donnait ; les pièces qu'il ne
+   nomme pas gardent celle de disposer(). Le PLATEAU, lui, se dimensionne
+   toujours sur l'empreinte de disposer() : il ne dépend que du maillage, si
+   bien que deux visites de la même version voient le même plateau, le même
+   pas, les mêmes règles — quoi qu'on ait déplacé entre les deux. Un plan d'un
+   autre axe est IGNORÉ et dit (`planApplique: false`) : ses dx/dy parlent
+   d'axes qui ne sont plus ceux du plateau. */
+export function etaler(api, plan = null) {
   if (!api || !api.racine) return null;
   /* Jamais deux étalements empilés : le second mesurerait des boîtes DÉJÀ
      décalées et enverrait les pièces deux fois plus loin.
@@ -430,8 +558,16 @@ export function etaler(api) {
   /* TOUTE la décision d'étalement, en un appel et sans three.js — c'est ce
      qui la rend mesurable hors navigateur (voir disposer). */
   const mise = disposer(mesurees);
+  const [u, v] = AXES.filter((a) => a !== mise.axe);
+  /* Le plan ne s'applique que s'il parle du même axe : voir le docbloc. */
+  const planApplique = !!(plan && plan.axe === mise.axe
+                          && Array.isArray(plan.pieces));
+  const poses = new Map();
+  if (planApplique) {
+    for (const q of plan.pieces) if (q) poses.set(Number(q.index), q);
+  }
 
-  const etat = { berceaux: [], materiaux: [], plateau: null };
+  const etat = { berceaux: [], materiaux: [], plateau: null, poignee: null };
   const teintes = new Map();
   const usage = new Map();          // uuid de matériau → Set de clés de pièce
   const pieces = [];
@@ -447,9 +583,22 @@ export function etaler(api) {
        décalage. `-m.bas` pose chaque pièce SUR le plateau plutôt que de les
        laisser flotter à leur altitude d'assemblage. */
     const d = mise.decalages.get(m.cle);
+    /* Le plan REMPLACE les deux composantes du plan d'étalement, jamais la
+       troisième : le posé au contact vient toujours de la géométrie. */
+    const pose = poses.get(m.cle);
+    if (pose) {
+      d[u] = Number(pose.dx) || 0;
+      d[v] = Number(pose.dy) || 0;
+    }
     const decalage = new THREE.Vector3(d.x, d.y, d.z);
     berceau.position.copy(versLocal(parent, decalage));
-    berceau.add(m.piece);
+    /* Le PIVOT, entre le berceau et la pièce : voir poserPivot. Il naît à
+       l'identité et ne bouge que si l'on tourne — rot = 0 ne change rien. */
+    const pivot = new THREE.Group();
+    pivot.name = `pivot_${m.cle}`;
+    pivot.matrixAutoUpdate = false;
+    pivot.add(m.piece);
+    berceau.add(pivot);
     parent.add(berceau);
     /* Le berceau reprend la PLACE de la pièce dans la fratrie. L'ordre de
        parcours n'est pas décoratif : c'est lui qui ordonne le panneau
@@ -481,8 +630,19 @@ export function etaler(api) {
       }
     });
 
-    etat.berceaux.push({ berceau, piece: m.piece, parent, rang, cle: m.cle,
-                         visible: m.piece.visible });
+    /* `centre` et `decalage` sont retenus DANS LE MONDE : le premier est le
+       centre assemblé, autour duquel le pivot tourne ; le second est ce que
+       dispositionDe() rend (dx, dy) et ce que deplacerPiece() fait avancer. */
+    /* `m.centre` est gardé PAR RÉFÉRENCE, comme `bas` plus haut : le Vector3
+       est né pour cette pièce et personne ne le réécrit — et le banc des
+       matériaux interdit ici le mot même de clone. */
+    const e = { berceau, pivot, piece: m.piece, parent, rang, cle: m.cle,
+                visible: m.piece.visible, centre: m.centre, decalage, rot: 0 };
+    if (pose && Number.isFinite(Number(pose.rot)) && Number(pose.rot) !== 0) {
+      e.rot = Number(pose.rot);
+      poserPivot(e, mise.axe);
+    }
+    etat.berceaux.push(e);
     pieces.push({ cle: m.cle, nom: m.nom, couleur: css, uuid: m.piece.uuid });
   }
 
@@ -501,7 +661,8 @@ export function etaler(api) {
      sur le maillage. */
   const partages = [...usage.values()].filter((s) => s.size > 1).length;
   return { pieces, teintes, partages, vides, axe: mise.axe,
-           largeur: mise.largeur, profondeur: mise.profondeur };
+           largeur: mise.largeur, profondeur: mise.profondeur,
+           planApplique, plateau: etat.plateau.userData.geometrie };
 }
 
 /* ── ranger : rendre le modèle intact, SANS RECHARGER ────────────────────────
@@ -520,11 +681,14 @@ export function ranger(api) {
        on ne rend alors que ce qui reste à rendre. */
     if (e.berceau.parent === e.parent) {
       e.parent.remove(e.berceau);
+      /* `add()` retire la pièce de son pivot avant de la reposer : la pièce
+         reprend son parent d'origine, sa pose n'ayant jamais bougé. */
       e.parent.add(e.piece);
       const j = e.parent.children.indexOf(e.piece);
       e.parent.children.splice(j, 1);
       e.parent.children.splice(e.rang, 0, e.piece);
     }
+    e.pivot.clear();
     e.berceau.clear();
   }
   for (const mat of etat.materiaux) {
@@ -536,12 +700,13 @@ export function ranger(api) {
     delete mat.userData.couleurOrigine;
     mat.needsUpdate = true;
   }
-  if (etat.plateau) {
-    etat.plateau.traverse((o) => {
+  for (const groupe of [etat.plateau, etat.poignee]) {
+    if (!groupe) continue;
+    groupe.traverse((o) => {
       if (o.geometry) o.geometry.dispose();
       for (const mat of materiauxDe(o)) mat.dispose();
     });
-    api.scene.remove(etat.plateau);
+    api.scene.remove(groupe);
   }
   return true;
 }
@@ -610,4 +775,288 @@ export function montrerPiece(api, cle, visible) {
   if (!e) return false;
   e.piece.visible = !!visible;
   return true;
+}
+
+/* ══ DÉPLACER SUR LA PLAQUE ══════════════════════════════════════════════════
+   Tout ce qui suit ÉCRIT dans le berceau ou dans le pivot, jamais dans la
+   pièce (l'en-tête dit pourquoi), et ne connaît ni route ni file : la page
+   décide quand le plan part au serveur. Les fonctions de DÉCISION — le pas,
+   l'aimantation, l'angle, les axes écran — sont pures et exécutées au banc ;
+   celles qui touchent three.js lisent l'état inscrit par etaler(), jamais une
+   structure devinée (la leçon de decalageEtalement). */
+
+/* L'entrée d'une pièce par sa clé, ou undefined. */
+function entreeDe(etat, cle) {
+  return etat.berceaux.find((x) => x.cle === Number(cle));
+}
+
+/* Le centre COURANT d'une pièce dans le monde : le centre assemblé, plus le
+   décalage. Exact même tournée — le pivot tourne autour de ce point-là. */
+function centreCourant(e) {
+  return e.centre.clone().add(e.decalage);
+}
+
+/* ── la géométrie du plateau, pour qui doit la dessiner ou s'y repérer ─────
+   Voir geometriePlateau() : { axe, u, v, cote, cases, pas, niveau, coin }.
+   `null` hors plaque. */
+export function plateauDe(api) {
+  const etat = api && _etats.get(api);
+  return etat && etat.plateau ? etat.plateau.userData.geometrie : null;
+}
+
+/* ── la pièce à laquelle un objet appartient, par IDENTITÉ ──────────────────
+   Le même parcours que decalageEtalement(), et pour la même raison : un nœud
+   qui porterait le `indexGltf` d'une pièce sans être elle (un clone de
+   GLTFLoader) ne doit correspondre à rien. Rend la clé, ou null. */
+export function pieceSous(api, objet) {
+  const etat = api && _etats.get(api);
+  if (!etat) return null;
+  const parPiece = new Map(etat.berceaux.map((e) => [e.piece, e]));
+  let n = objet;
+  while (n && !parPiece.has(n)) n = n.parent;
+  return n ? parPiece.get(n).cle : null;
+}
+
+/* ── le rayon du pointeur ───────────────────────────────────────────────────
+   `ndc` est le point écran en coordonnées normalisées (−1..1), `api.camera` la
+   caméra ACTIVE — setFromCamera sait piquer sous les deux projections. */
+function rayonDe(api, ndc) {
+  const ray = new THREE.Raycaster();
+  ray.setFromCamera(new THREE.Vector2(ndc.x, ndc.y), api.camera);
+  return ray;
+}
+
+/* Ce que le pointeur touche : la POIGNÉE de rotation d'abord (elle entoure la
+   pièce courante et passe devant), puis la première PIÈCE VISIBLE. Une pièce
+   masquée par l'œil ne se saisit pas : on ne déplace pas ce qu'on ne voit pas.
+   Rend { quoi: "poignee" | "piece", cle } ou null. */
+export function sousLePointeur(api, ndc) {
+  const etat = api && _etats.get(api);
+  if (!etat || !api.racine) return null;
+  const ray = rayonDe(api, ndc);
+  if (etat.poignee && etat.poignee.visible && etat.courante !== null
+      && ray.intersectObject(etat.poignee, true).length) {
+    return { quoi: "poignee", cle: etat.courante };
+  }
+  for (const h of ray.intersectObject(api.racine, true)) {
+    if (!h.object || !h.object.isMesh) continue;
+    const cle = pieceSous(api, h.object);
+    if (cle === null) continue;
+    if (!entreeDe(etat, cle).piece.visible) continue;
+    return { quoi: "piece", cle };
+  }
+  return null;
+}
+
+/* Le point du PLAN DU PLATEAU sous le pointeur, en coordonnées (u, v) du
+   plateau — au niveau des pièces (zéro sur l'axe d'empilement), là où la main
+   les prend. `null` quand le rayon ne le rencontre pas (une vue rasante). */
+export function pointSurPlateau(api, ndc) {
+  const g = plateauDe(api);
+  if (!g) return null;
+  const n = new THREE.Vector3();
+  n[g.axe] = 1;
+  const q = rayonDe(api, ndc).ray.intersectPlane(new THREE.Plane(n, 0),
+                                                new THREE.Vector3());
+  return q ? { u: q[g.u], v: q[g.v] } : null;
+}
+
+/* ── l'empreinte COURANTE d'une pièce sur le plateau ────────────────────────
+   Sa boîte monde, lue MAINTENANT — rotation comprise — et rendue dans les axes
+   du plateau : le coin (u, v) = les minimums, les côtés (l, p), le centre
+   (cu, cv), et l'assise (bas, haut) sur l'axe d'empilement. C'est le coin que
+   l'aimantation aligne sur la grille. */
+export function empreinteDe(api, cle) {
+  const etat = api && _etats.get(api);
+  const e = etat && entreeDe(etat, cle);
+  if (!e || !api.racine) return null;
+  api.racine.updateMatrixWorld(true);
+  const boite = new THREE.Box3().setFromObject(e.piece);
+  if (boite.isEmpty()) return null;
+  const g = etat.plateau.userData.geometrie;
+  return {
+    u: boite.min[g.u], v: boite.min[g.v],
+    l: boite.max[g.u] - boite.min[g.u], p: boite.max[g.v] - boite.min[g.v],
+    cu: (boite.min[g.u] + boite.max[g.u]) / 2,
+    cv: (boite.min[g.v] + boite.max[g.v]) / 2,
+    bas: boite.min[g.axe], haut: boite.max[g.axe],
+  };
+}
+
+/* ── déplacer : du, dv dans les axes du plateau, en unités du modèle ─────────
+   Le berceau avance, la pièce ne bouge pas d'un bit — et decalageEtalement()
+   continue de dire vrai, puisque c'est le berceau qu'il lit. Refuse un
+   berceau détaché (un vider() passé là) plutôt que d'écrire dans le vide. */
+export function deplacerPiece(api, cle, du, dv) {
+  const etat = api && _etats.get(api);
+  const e = etat && entreeDe(etat, cle);
+  if (!e || !Number.isFinite(du) || !Number.isFinite(dv)) return false;
+  if (e.berceau.parent !== e.parent) return false;
+  const g = etat.plateau.userData.geometrie;
+  e.decalage[g.u] += du;
+  e.decalage[g.v] += dv;
+  e.berceau.position.copy(versLocal(e.parent, e.decalage));
+  return true;
+}
+
+/* Poser le COIN de l'empreinte (ses minimums u, v) à un point donné : c'est
+   la forme qu'un glisser aimanté demande — la grille aligne des bords, pas
+   des centres. */
+export function poserCoin(api, cle, u, v) {
+  const emp = empreinteDe(api, cle);
+  if (!emp) return false;
+  return deplacerPiece(api, cle, u - emp.u, v - emp.v);
+}
+
+/* ── tourner : autour de la normale, autour du centre de la pièce ───────────
+   Angle ABSOLU en degrés, ramené dans ]−180, 180] : 370° et 10° sont la même
+   pose, et le plan n'a pas à en porter deux écritures. Voir poserPivot. */
+export function tournerPiece(api, cle, degres) {
+  const etat = api && _etats.get(api);
+  const e = etat && entreeDe(etat, cle);
+  const d = Number(degres);
+  if (!e || !Number.isFinite(d)) return false;
+  let r = ((d % 360) + 360) % 360;
+  if (r > 180) r -= 360;
+  e.rot = r;
+  poserPivot(e, etat.plateau.userData.geometrie.axe);
+  return true;
+}
+
+export function rotationDe(api, cle) {
+  const etat = api && _etats.get(api);
+  const e = etat && entreeDe(etat, cle);
+  return e ? e.rot : null;
+}
+
+/* PURE. L'angle, en degrés et dans le SENS DIRECT autour de +axe, d'un vecteur
+   (du, dv) du plan du plateau.
+
+   LE SIGNE DÉPEND DE L'AXE, et c'est de la géométrie, pas une convention : les
+   axes du plan sont pris dans l'ordre x, y, z privé de l'axe d'empilement, soit
+   (y, z) pour x, (x, z) pour y, (x, y) pour z. Or y × z = +x et x × y = +z,
+   mais x × z = −y : pour l'axe y, atan2(dv, du) tourne dans le sens INVERSE de
+   la rotation que poserPivot applique autour de +y. Sans ce signe, la poignée
+   ferait tourner la pièce à l'envers de la souris sur les modèles posés au sol
+   — et dans le bon sens sur les cartes debout, ce qui rendrait le défaut
+   difficile à croire. */
+export function angleDansLePlan(du, dv, axe) {
+  const signe = axe === "y" ? -1 : 1;
+  return (signe * Math.atan2(dv, du) * 180) / Math.PI;
+}
+
+/* L'angle d'un point du plateau vu depuis le centre COURANT d'une pièce : ce
+   que la poignée compare entre le poser et le mouvement. */
+export function angleSurPlateau(api, point, cle) {
+  const etat = api && _etats.get(api);
+  const e = etat && entreeDe(etat, cle);
+  if (!e || !point) return null;
+  const g = etat.plateau.userData.geometrie;
+  const c = centreCourant(e);
+  return angleDansLePlan(point.u - c[g.u], point.v - c[g.v], g.axe);
+}
+
+/* ── la poignée : un anneau autour de la pièce COURANTE ─────────────────────
+   Dans la SCÈNE, comme le plateau, et rangée avec lui. Un anneau et non trois
+   flèches : sur la plaque on ne fait que deux gestes, glisser et tourner, et
+   la souris les distingue par ce qu'elle attrape — la pièce ou son anneau.
+   `cle` null la cache. Rend { cle, rayon, centre: {u, v} } ou null. */
+export function marquerPiece(api, cle) {
+  const etat = api && _etats.get(api);
+  if (!etat) return null;
+  const e = cle === null || cle === undefined ? null : entreeDe(etat, cle);
+  etat.courante = e ? e.cle : null;
+  if (!e) {
+    if (etat.poignee) etat.poignee.visible = false;
+    return null;
+  }
+  const g = etat.plateau.userData.geometrie;
+  const emp = empreinteDe(api, e.cle);
+  const rayon = emp ? (Math.hypot(emp.l, emp.p) / 2) * MARGE_POIGNEE
+    : (g.pas || 1);
+  if (!etat.poignee) {
+    const groupe = new THREE.Group();
+    groupe.name = "plaque-poignee";
+    const anneau = new THREE.Mesh(
+      new THREE.RingGeometry(1, 1 + LARGEUR_POIGNEE, SEGMENTS_POIGNEE),
+      new THREE.MeshBasicMaterial({ color: 0xf0c060, transparent: true,
+                                    opacity: 0.75, side: THREE.DoubleSide,
+                                    depthTest: false, depthWrite: false }));
+    anneau.userData.rayon = 1;
+    groupe.add(anneau);
+    /* RingGeometry naît dans XY, normale +Z : −90° autour de X l'envoie sur
+       +Y, +90° autour de Y sur +X. (Base différente de celle du plateau, qui
+       part de GridHelper, dans XZ.) */
+    if (g.axe === "y") groupe.rotation.x = -Math.PI / 2;
+    else if (g.axe === "x") groupe.rotation.y = Math.PI / 2;
+    api.scene.add(groupe);
+    etat.poignee = groupe;
+  }
+  const anneau = etat.poignee.children[0];
+  if (anneau.userData.rayon !== rayon) {
+    anneau.geometry.dispose();
+    anneau.geometry = new THREE.RingGeometry(
+      rayon, rayon * (1 + LARGEUR_POIGNEE), SEGMENTS_POIGNEE);
+    anneau.userData.rayon = rayon;
+  }
+  const c = centreCourant(e);
+  const pos = new THREE.Vector3();
+  pos[g.u] = c[g.u];
+  pos[g.v] = c[g.v];
+  etat.poignee.position.copy(pos);
+  etat.poignee.visible = true;
+  etat.poignee.updateMatrixWorld(true);
+  return { cle: e.cle, rayon, centre: { u: c[g.u], v: c[g.v] } };
+}
+
+/* ── le plan de plaque, tel qu'on le compose ────────────────────────────────
+   Le format est en tête de fichier. `null` hors plaque. La page y ajoute job
+   et version et le fait écrire par le serveur ; ce module ne sait ni l'un ni
+   l'autre. */
+export function dispositionDe(api) {
+  const etat = api && _etats.get(api);
+  if (!etat || !etat.plateau) return null;
+  const g = etat.plateau.userData.geometrie;
+  return {
+    axe: g.axe, pas: g.pas,
+    pieces: etat.berceaux.map((e) => ({
+      index: e.cle, dx: e.decalage[g.u], dy: e.decalage[g.v], rot: e.rot })),
+  };
+}
+
+/* PURE. La valeur aimantée au multiple du pas le plus proche, compté depuis
+   une origine — le coin du plateau, pour que les règles et l'aimantation
+   parlent des mêmes traits. Sans pas, la valeur telle quelle. */
+export function aimanter(valeur, origine, pas) {
+  if (!(pas > 0) || !Number.isFinite(valeur)) return valeur;
+  return origine + Math.round((valeur - origine) / pas) * pas;
+}
+
+/* PURE. À quel axe du plateau les flèches DROITE et HAUT de l'écran
+   correspondent, d'après la caméra — et non d'après le nom de la dernière vue
+   demandée, que la première orbite dément. `elements` est le tableau de 16 de
+   `camera.matrixWorld`, en colonnes : la première est l'axe +X de la caméra
+   (la droite de l'écran), la deuxième son +Y (le haut). Chacune est projetée
+   dans le plan du plateau et l'axe dominant l'emporte, avec son signe.
+
+   MESURÉ sur les trois vues d'axe : « face » (axe z) rend droite = +x,
+   haut = +y ; « dessus » (axe y) rend droite = +x, haut = −z — le haut d'écran
+   de cette vue est −Z, ce que viewer.js démontre déjà ; « profil » (axe x)
+   rend droite = −z, haut = +y. Quand les deux tombent sur le même axe (une vue
+   par la tranche), le haut prend l'autre : deux flèches ne peuvent pas
+   commander la même direction. */
+export function axesEcran(elements, axe) {
+  const [u, v] = AXES.filter((a) => a !== axe);
+  const droite = { x: elements[0], y: elements[1], z: elements[2] };
+  const haut = { x: elements[4], y: elements[5], z: elements[6] };
+  const choisir = (vec) => (Math.abs(vec[u]) >= Math.abs(vec[v])
+    ? { axe: u, signe: Math.sign(vec[u]) || 1 }
+    : { axe: v, signe: Math.sign(vec[v]) || 1 });
+  const d = choisir(droite);
+  let h = choisir(haut);
+  if (h.axe === d.axe) {
+    const autre = d.axe === u ? v : u;
+    h = { axe: autre, signe: Math.sign(haut[autre]) || 1 };
+  }
+  return { droite: d, haut: h };
 }

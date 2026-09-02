@@ -974,20 +974,173 @@ def _etabli_vignette_cible(job: str, v: int) -> Path:
     Les deux COMPOSENT au lieu de se doubler : retirer l'une rougit un banc,
     retirer l'autre en rougit un DIFFÉRENT.
     """
+    return _etabli_cible_sous_jobs(job, lambda j: _etabli_vignette_path(j, v),
+                                   "vignette")
+
+
+def _etabli_cible_sous_jobs(job: str, composer, quoi: str) -> Path:
+    """Les deux gardes de `_etabli_vignette_cible`, en UN site — le plan de
+    plaque franchit la même porte, et deux copies des mêmes gardes
+    divergeraient à la première retouche. `composer(job)` compose le chemin
+    à partir du `job` BRUT ; `quoi` préfixe les refus, pour qu'on sache
+    laquelle des deux routes a parlé.
+    """
     nom = Path(str(job)).name
     if nom in ("", ".", ".."):
-        raise HTTPException(400, f"vignette : nom de job invalide — "
+        raise HTTPException(400, f"{quoi} : nom de job invalide — "
                                  f"« {job} » ne désigne aucun dossier de job")
     # `job` BRUT, et non `nom` : l'aplatissement qui FAÇONNE le chemin vit
     # dans le composeur, et lui seul. Repasser `nom` ici mettrait deux
     # `Path(...).name` IDENTIQUES en série — l'un masquerait l'autre à la
     # mutation, et ce fichier a déjà payé une fois pour cette leçon-là.
     # Ci-dessus, `.name` ne sert qu'à JUGER ; ici, il ne sert plus du tout.
-    p = _etabli_vignette_path(job, v)
+    p = composer(job)
     racine = (settings.outputs_path / "assets3d").resolve()
     if racine not in p.resolve().parents:
-        raise HTTPException(400, "vignette : chemin hors du dossier des jobs")
+        raise HTTPException(400, f"{quoi} : chemin hors du dossier des jobs")
     return p
+
+
+# ── le plan de plaque : la DISPOSITION, distincte du maillage ────────────────
+# Ce que l'utilisateur compose « sur la plaque » de l'Établi — où chaque pièce
+# est posée et de combien elle est tournée — vit dans `plaque.v<N>.json`, à
+# côté de `model.v<N>.glb`, et JAMAIS dans le GLB : c'est la séparation que le
+# 3MF fait entre maillage et disposition. Ranger des pièces sur la plaque
+# n'écrit donc pas de version ; transformer en mode Assemblé, si. Le format,
+# tel que le navigateur le compose et que ce fichier l'écrit :
+#
+#   { "format": "plaque/1", "job": "<nom>", "version": N,
+#     "axe": "x" | "y" | "z",      l'axe d'empilement (normale du plateau)
+#     "pas": nombre > 0,           le pas du plateau, en unités du modèle
+#     "unites": "modele",
+#     "pieces": [ { "index": i,    index de nœud glTF, entier ≥ 0, unique
+#                   "dx": nombre,  déplacement du centre depuis la pose
+#                   "dy": nombre,  assemblée, sur les deux axes du plan (u, v :
+#                                  l'ordre x, y, z privé de `axe`)
+#                   "rot": degrés } ] }   rotation autour de +axe, sens direct
+#
+# La doctrine du module navigateur (frontend/lib3d/plaque.js, en tête) est le
+# site canonique du format ; ceci en est le miroir côté écriture. L'extraction
+# le consommera pour poser les pièces telles qu'on les a rangées.
+
+_ETABLI_AXES = ("x", "y", "z")
+
+
+def _etabli_plaque_path(job: str, v: int) -> Path:
+    """Le chemin du plan d'une version — composé ICI et nulle part ailleurs,
+    comme `_etabli_vignette_path` pour la vignette."""
+    return (settings.outputs_path / "assets3d" / Path(str(job)).name
+            / f"plaque.v{int(v)}.json")
+
+
+def _etabli_plaque_cible(job: str, v: int) -> Path:
+    """Le même chemin pour un `job` venu du RÉSEAU : les deux gardes."""
+    return _etabli_cible_sous_jobs(job, lambda j: _etabli_plaque_path(j, v),
+                                   "plan de plaque")
+
+
+def _etabli_nombre(v) -> bool:
+    """Un nombre JSON fini — et PAS un booléen, que Python compte parmi les
+    entiers : `True` passerait pour 1."""
+    return (isinstance(v, (int, float)) and not isinstance(v, bool)
+            and v == v and v not in (float("inf"), float("-inf")))
+
+
+def _etabli_entier(v) -> bool:
+    return isinstance(v, int) and not isinstance(v, bool)
+
+
+@router.get("/etabli/plaque")
+async def etabli_plaque_lire(job: str, version: int):
+    """Relit le plan de plaque d'une version. 404 FRANC quand il n'y en a
+    pas : c'est le cas ordinaire — le plan naît à la première retouche, et
+    une version jamais rangée n'en a pas. Le navigateur étale alors par
+    défaut. Un fichier présent mais illisible est un 500 qui le dit : pris
+    pour un plan absent, il serait écrasé à la retouche suivante."""
+    if version < 1:
+        raise HTTPException(400, f"plan de plaque : version {version} — les "
+                                 "versions sont numérotées à partir de 1")
+    p = _etabli_plaque_cible(job, version)
+    if not p.is_file():
+        raise HTTPException(404, "aucun plan de plaque pour cette version")
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except (ValueError, OSError) as e:
+        raise HTTPException(500, f"plan de plaque illisible ({p.name}) : {e}")
+
+
+@router.post("/etabli/plaque")
+async def etabli_plaque_ecrire(body: dict):
+    """Écrit le plan de plaque d'une version — le navigateur compose, PYTHON
+    ÉCRIT, comme pour la vignette. Ce n'est pas une version : aucun GLB n'est
+    touché, aucune fiche n'est ajoutée au registre.
+
+    LES GARDES, dans l'ordre où elles mordent. `version` doit être un entier
+    ≥ 1 (un `2.0` de JSON est un flottant, refusé) ; `job` franchit les deux
+    gardes de chemin de la vignette (nom dégénéré refusé, chemin résolu
+    confiné) ; la version doit EXISTER sur le disque — un plan sans maillage
+    ne dit rien, et c'est ce qui empêche de fabriquer un dossier de job à
+    volonté ; `axe` ∈ x|y|z ; `pas` un nombre > 0 ; chaque pièce un objet à
+    `index` entier ≥ 0, unique dans le plan, et `dx`/`dy`/`rot` des nombres
+    finis (absents = 0). Rien n'est écrit tant qu'une garde n'a pas fini de
+    mordre.
+
+    ÉCRITURE ATOMIQUE (`.tmp` puis `Path.replace`), pour la raison de la
+    vignette : un plan tronqué serait relu comme un JSON invalide, donc un
+    500 à l'entrée de la plaque suivante.
+    """
+    version = body.get("version")
+    if not _etabli_entier(version) or version < 1:
+        raise HTTPException(400, f"plan de plaque : version « {version} » — "
+                                 "un entier à partir de 1")
+    job = body.get("job")
+    p = _etabli_plaque_cible(job, version)
+    d = p.parent
+    glb = d / ("model.glb" if version <= 1 else f"model.v{version}.glb")
+    if not glb.is_file():
+        raise HTTPException(404, f"plan de plaque : {d.name}/{glb.name} "
+                                 "introuvable — un plan sans maillage ne dit "
+                                 "rien")
+    axe = body.get("axe")
+    if axe not in _ETABLI_AXES:
+        raise HTTPException(400, f"plan de plaque : axe « {axe} » — x, y ou z")
+    pas = body.get("pas")
+    if not _etabli_nombre(pas) or pas <= 0:
+        raise HTTPException(400, f"plan de plaque : pas « {pas} » — un nombre "
+                                 "> 0, en unités du modèle")
+    pieces = body.get("pieces")
+    if not isinstance(pieces, list):
+        raise HTTPException(400, "plan de plaque : `pieces` doit être une liste")
+    propres, vus = [], set()
+    for rang, pc in enumerate(pieces):
+        if not isinstance(pc, dict):
+            raise HTTPException(400, f"plan de plaque : pièce {rang} — un objet "
+                                     "{index, dx, dy, rot} est attendu")
+        index = pc.get("index")
+        if not _etabli_entier(index) or index < 0:
+            raise HTTPException(400, f"plan de plaque : pièce {rang} — index "
+                                     f"« {index} », un entier ≥ 0 (index de "
+                                     "nœud glTF)")
+        if index in vus:
+            raise HTTPException(400, f"plan de plaque : l'index {index} est "
+                                     "posé deux fois")
+        vus.add(index)
+        propre = {"index": index}
+        for cle in ("dx", "dy", "rot"):
+            val = pc.get(cle, 0)
+            if not _etabli_nombre(val):
+                raise HTTPException(400, f"plan de plaque : pièce {index} — "
+                                         f"{cle} « {val} », un nombre fini")
+            propre[cle] = float(val)
+        propres.append(propre)
+    doc = {"format": "plaque/1", "job": d.name, "version": version,
+           "axe": axe, "pas": float(pas), "unites": "modele",
+           "pieces": propres}
+    tmp = d / f"{p.name}.tmp"
+    tmp.write_text(json.dumps(doc, ensure_ascii=False, indent=1),
+                   encoding="utf-8")
+    tmp.replace(p)
+    return {"ok": True, "fichier": p.name, "pieces": len(propres)}
 
 
 @router.get("/assets/3d/{job}/vignette")
