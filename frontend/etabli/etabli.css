@@ -207,6 +207,36 @@ button { font-family: inherit; }
    en toutes lettres à qui survole. */
 .cam-btn.plaque { border-style: dashed; }
 
+/* ── les outils qui écrivent (lot B), posés SUR le canevas ──────────────────
+   En BAS à gauche : `.vue-tag` tient le haut gauche, `.vue-cam` le haut droit.
+   Même mécanique que la barre du point de vue — conteneur transparent aux
+   clics, boutons qui les reprennent, `z-index: 2` au-dessus du canevas — et le
+   même fond opaque, parce qu'ils vivent eux aussi sur un rendu 3D. Ils ne
+   portent ni la classe des boutons de l'en-tête ni celle du point de vue :
+   deux comptes rigides tiennent ces familles. L'état ARMÉ se lit par le fond,
+   comme `.cam-btn.actif`, et pour la même raison. */
+.vue-outils {
+  position: absolute; left: 10px; bottom: 10px; z-index: 2;
+  display: flex; align-items: center; gap: 4px; pointer-events: none;
+}
+.outil-btn, .outil-sel {
+  pointer-events: auto;
+  padding: 4px 8px; border-radius: var(--r-sm);
+  border: 1px solid var(--stroke-strong);
+  background: color-mix(in srgb, var(--bg-panel-2) 82%, transparent);
+  color: var(--ink); font-family: var(--f-mono); font-size: 10px;
+  cursor: pointer; white-space: nowrap;
+}
+.outil-btn:hover { border-color: var(--accent); color: var(--ink-strong); }
+.outil-btn.actif {
+  border-color: var(--accent); color: var(--ink-strong);
+  background: color-mix(in srgb, var(--accent) 24%, var(--bg-panel-2));
+}
+/* La barre du couteau : ses trois contrôles se suivent, et « Couper » porte
+   l'accent parce qu'il ÉCRIT — le même traitement que #btnEcrire. */
+.outil-couteau { display: inline-flex; align-items: center; gap: 4px; }
+.outil-couper { border-color: var(--accent); color: var(--ink-strong); }
+
 .ecart {
   flex: none; padding: 6px 14px; border-top: 1px solid var(--stroke);
   background: var(--bg-panel-3);

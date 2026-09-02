@@ -1091,7 +1091,13 @@ def test_l_extraction_est_ecrite_en_DERNIER_car_elle_renumerote():
     suit pas l'ordre où l'utilisateur a cliqué.
     """
     js = _lire("etabli/etabli.js")
-    assert 'const ORDRE_ECRITURE = ["reparer", "transformer", "extraire"];' in js
+    # CINQ ENTRÉES DEPUIS LE LOT B, et l'ordre est porteur de bout en bout :
+    # `assise` en PREMIER — sa normale et son pivot sont mesurés dans le monde
+    # de la version affichée, que `reparer` (axe Z) change ; `couper` en
+    # DERNIER — et seule, par la garde de confirmerCoupe(), puisqu'elle
+    # renumérote. La section S mesure ces deux raisons.
+    assert ('const ORDRE_ECRITURE = ["assise", "reparer", "transformer", '
+            '"extraire", "couper"];') in js
     # LE TRI LUI-MEME. Mesure : remplacer le corps de fileOrdonnee() par
     # `return [...S.enAttente];` remet la file dans l'ordre des CLICS et ne
     # faisait rougir personne — la table pouvait rester declaree et inerte,
@@ -3091,7 +3097,10 @@ def test_LA_PLAQUE_N_ECRIT_RIEN___ni_le_disque_ni_la_file():
     # par sa propre constante. Le glisser vit HORS du bloc de bascule.
     routes = _table_js("etabli/etabli.js", "ROUTES")
     assert "plaque" not in routes, routes
-    assert routes.count("/api/etabli/") == 3, routes
+    # CINQ PLUMES DEPUIS LE LOT B : `assise` (mise en file comme `reparer`)
+    # et `couper` (qui traverse l'entonnoir SEULE, voir confirmerCoupe). Le
+    # plan de plaque, lui, n'en est toujours pas une.
+    assert routes.count("/api/etabli/") == 5, routes
     assert 'const ROUTE_PLAQUE = "/api/etabli/plaque";' in _code("etabli/etabli.js")
     assert "ROUTE_PLAQUE" not in bloc
 
@@ -3163,7 +3172,9 @@ def test_le_gizmo_est_refuse_tant_que_la_plaque_est_affichee():
     # peindrait la barre en rouge — un refus qui ment sur un geste qui a
     # marché. La garde bruyante reste dans poserGizmo pour tout autre appelant.
     clic = code.split("designerAuClic(S.vueA", 1)[1]
-    assert "if (!estEtalee(S.vueA)) poserGizmo(obj);" in clic
+    # La plaque se lit sur le PROPRIÉTAIRE du pointeur depuis le lot B :
+    # GESTE.mode vaut "glisser" exactement quand la plaque est étalée.
+    assert 'if (GESTE.mode !== "glisser") poserGizmo(obj);' in clic
 
 
 def test_l_etalement_se_range_AVANT_tout_changement_de_modele():
@@ -7388,6 +7399,10 @@ def test_sur_la_plaque_le_REPERE_ORTHONORME_s_eteint_et_revient_a_son_etat_d_AVA
       const envoyerPlan = () => { envois++; };
       const majBoutonPlaque = () => {};
       const majBoutonsVue = () => {};
+      /* le pointeur est RENDU au sélecteur au rangement (lot B) : on note à
+         qui, et le banc l'exige */
+      const gestes = [];
+      const armerGeste = (m) => { gestes.push(m); };
       const PLQ = { active: false, pieces: [], masquees: new Set(),
                     teintes: new Map(), partages: 0, vides: 0, axe: null,
                     pas: null, courante: null, repereAvant: null,
@@ -7416,12 +7431,16 @@ def test_sur_la_plaque_le_REPERE_ORTHONORME_s_eteint_et_revient_a_son_etat_d_AVA
                         poignee: !!nomme("plaque-poignee"),
                         plateau: !!nomme("plaque-plateau"), etalee: estEtalee(api),
                         active: PLQ.active, pas: PLQ.pas, courante: PLQ.courante,
-                        repereAvant: PLQ.repereAvant, envois };
+                        repereAvant: PLQ.repereAvant, envois,
+                        gestes: gestes.splice(0) };
         envois = 0;
         return { pendant, apres };
       }
       console.log(JSON.stringify({ allume: tour(true), eteint: tour(false) }));
     """))
+    # et le pointeur est rendu au sélecteur, une fois, au rangement (lot B)
+    assert sortie["allume"]["apres"]["gestes"] == ["selection"] \
+        == sortie["eteint"]["apres"]["gestes"]
     for etat in ("allume", "eteint"):
         pendant, apres = sortie[etat]["pendant"], sortie[etat]["apres"]
         # PENDANT : le repère est éteint, les règles, la poignée et le plateau
@@ -8048,7 +8067,9 @@ def _harnais_glisser() -> str:
       const pieceCourante = (cle) => { PLQ.courante = cle; marquerPiece(api, cle); courantes.push(cle); };
       const noterPlan = () => { notes++; };
       const rendreRotation = () => {};
-      let _gestePlaque = null;
+      /* le pointeur appartient à la plaque : c'est ce que basculerPlaque()
+         pose par armerGeste("glisser") — ici la scène est étalée à la main */
+      const GESTE = { mode: "glisser", enCours: null };
       const canvas = {
         listeners: {},
         addEventListener(t, f) { (this.listeners[t] = this.listeners[t] || []).push(f); },
@@ -8291,10 +8312,12 @@ def test_l_ANNEAU_tourne_la_piece_COURANTE_et_une_piece_MASQUEE_ne_se_saisit_pas
     # le vide ────────────────────────────────────────────────────────────────
     code = _code("etabli/etabli.js")
     clic = code.split("designerAuClic(S.vueA", 1)[1]
-    assert clic.index('if (_gestePlaque && _gestePlaque.quoi === "poignee") return;') \
+    # Le geste en cours vit dans GESTE.enCours depuis le lot B (un seul
+    # propriétaire du pointeur, voir la section S) — même règle, même ordre.
+    assert clic.index('if (GESTE.enCours && GESTE.enCours.quoi === "poignee") return;') \
         < clic.index("pieceCourante(null)")
     gl = _fonction_etabli("glisserSurPlaque")
-    assert "_gestePlaque = geste;" in gl and "_gestePlaque = null;" in gl
+    assert "GESTE.enCours = geste;" in gl and "GESTE.enCours = null;" in gl
     # …ET CE CORRECTIF DÉPEND DE L'ORDRE DES DEUX BRANCHEMENTS : le sélecteur
     # au clic doit être branché AVANT le glisser pour que son relever voie
     # `_gestePlaque` encore posé (les écouteurs d'un même évènement tirent
@@ -8919,3 +8942,688 @@ def test_la_LECTURE_du_rail_reste_celle_du_MODELE_pour_une_piece_TOURNEE_et_ASYM
                 (nom, k, lus, rail["assemble"])
     assert "†" not in rail["lu"]["html"], rail["lu"]["html"]
 
+
+
+# ── S. le lot B de la plaque façon slicer : l'assise et le couteau ───────────
+# Demande de l'utilisateur, mot pour mot : « je dois aussi pouvoir déplacer
+# les éléments ou la pièce sur la grille comme le propose la plupart des
+# slicers (outils couteau, etc.) ». Le lot A a livré la plaque et le
+# déplacement ; ce lot livre les deux gestes qui ÉCRIVENT — « poser sur une
+# face » et le couteau — et, avant eux, un seul propriétaire du pointeur.
+#
+# La règle de tête ne bouge pas : le navigateur voit et manipule, PYTHON ÉCRIT.
+# L'aperçu du couteau est du clipping three.js sur des clones ; la coupe, la
+# rotation d'assise et les capuchons vivent dans mesh_edit.py, et le banc
+# test_etabli_socle.py (sections I à K) les mesure. Ici, la page.
+
+
+def _selection_uri() -> str:
+    return (FRONT / "lib3d" / "selection.js").resolve().as_uri()
+
+
+def _const_etabli(nom: str) -> str:
+    """Une constante-fonction d'etabli.js (`const x = (…) => …;`), VERBATIM —
+    `_fonction_etabli` ne connaît que l'ancre `function`. Multiligne : la
+    définition court jusqu'au premier `;` en fin de ligne."""
+    m = re.search(r"^const " + nom + r" = [\s\S]*?;$", _lire("etabli/etabli.js"), re.M)
+    assert m, f"constante {nom} introuvable dans etabli.js"
+    return m.group(0) + "\n"
+
+
+def _bloc_outils(js: str = None) -> str:
+    """Le bloc des outils du lot B, de armerGeste() au branchement du bouton
+    « Couper » — borné aux deux bouts et VÉRIFIÉ, la leçon de _plaque_bloc."""
+    code = js if js is not None else _code("etabli/etabli.js")
+    bloc = code.split("function armerGeste(mode)", 1)[1] \
+               .split('$("#btnCouper").addEventListener("click", confirmerCoupe);', 1)[0]
+    for temoin in ("function armerAssise()", "function poserSurFace(",
+                   "function monterCouteau()", "async function confirmerCoupe()",
+                   "function rangerCouteau()", "function toucheClavierOutils("):
+        assert temoin in bloc, temoin
+    return bloc
+
+
+# Le faux DOM des outils : STRICT, comme _FAUX_RAIL — un sélecteur inconnu lève
+# — et AMORCÉ sur les id que porte index.html dans `.vue-outils`, lus dans le
+# gabarit et jamais recopiés ici. Un id renommé d'un seul côté fait lever la
+# doublure comme le navigateur lèverait.
+def _faux_outils() -> str:
+    html = _lire("etabli/index.html")
+    bloc = html.split('<div class="vue-outils"', 1)[1].split("</div>", 1)[0]
+    ids = re.findall(r'id="([^"]+)"', bloc)
+    assert {"btnAssise", "btnCouteau", "couteauBarre", "btnCouteauManip",
+            "couteauGarder", "btnCouper"} <= set(ids), ids
+    return """
+const zones = {};
+const nouvelle = () => ({
+  textContent: "", title: "", _val: "", classes: new Set(), ecoutes: {},
+  get value() { return this._val; }, set value(v) { this._val = String(v); },
+  classList: { toggle(c, on) {
+    if (on === undefined) on = !this._z.classes.has(c);
+    if (on) this._z.classes.add(c); else this._z.classes.delete(c);
+    return on; },
+    contains(c) { return this._z.classes.has(c); } },
+  addEventListener(t, f) { (this.ecoutes[t] = this.ecoutes[t] || []).push(f); },
+});
+for (const id of %s) { const z = nouvelle(); z.classList._z = z; zones["#" + id] = z; }
+zones["#couteauBarre"].classes.add("hidden");
+const $ = (s) => { const z = zones[s]; if (!z) throw new TypeError("selecteur mort : " + s); return z; };
+""" % json.dumps(ids)
+
+
+def test_le_POINTEUR_a_UN_SEUL_proprietaire_consulte_par_tout_ecouteur_et_ecrit_d_un_seul_site():
+    """LE PRÉALABLE DU LOT, et il est structurel. Quatre consommateurs du
+    pointeur sur le canevas A — le sélecteur au clic, le glisser de la plaque,
+    « poser sur une face », le couteau — et UN état qui dit lequel le possède :
+    `GESTE.mode`, écrit par armerGeste() et par personne d'autre, consulté par
+    chaque écouteur de pointeur AVANT d'agir. Fermé par COMPTAGE : chaque
+    `addEventListener("pointer…")` de la page est énuméré, et chacun vit dans
+    une fonction qui consulte le propriétaire avant son premier effet.
+
+    Puis EXÉCUTÉ : armerGeste() range le couteau UNE fois en le quittant et
+    jamais autrement, remet le geste en cours à zéro, refuse un mode inconnu ;
+    et le glisser de la plaque, sur la vraie glisserSurPlaque, ne saisit RIEN
+    quand le pointeur ne lui appartient pas.
+    """
+    js, code = _lire("etabli/etabli.js"), _code("etabli/etabli.js")
+    # LA DÉCLARATION, avec les autres états de la page, et la liste des modes
+    assert 'const GESTE = { mode: "selection", enCours: null };' in js
+    assert 'const MODES_GESTE = ["selection", "glisser", "assise", "couteau"];' in js
+    assert js.index("const REP = {") < js.index("const GESTE = {") < js.index("let GIZMO")
+    # UN SEUL SITE D'ÉCRITURE du propriétaire, et c'est armerGeste
+    ecritures = re.findall(r"GESTE\.mode = (?!=)", code)
+    assert len(ecritures) == 1, ecritures
+    arme = _fonction_etabli("armerGeste")
+    assert "GESTE.mode = mode;" in arme
+    assert arme.index('if (GESTE.mode === "couteau" && mode !== "couteau") rangerCouteau();') \
+        < arme.index("GESTE.mode = mode;") < arme.index("GESTE.enCours = null;")
+    assert "MODES_GESTE.includes(mode)" in arme and "throw new Error(" in arme
+    # le geste en cours n'est écrit que par le glisser (poser, relever) et
+    # remis à zéro par armerGeste
+    gl = _fonction_etabli("glisserSurPlaque")
+    assert len(re.findall(r"GESTE\.enCours = (?!=)", code)) == 3
+    assert gl.count("GESTE.enCours = ") == 2 and arme.count("GESTE.enCours = ") == 1
+    assert "_gestePlaque" not in code                 # l'amorce a été remplacée
+    # CHAQUE ÉCOUTEUR DE POINTEUR consulte le propriétaire — par comptage : ils
+    # sont QUATRE dans la page, tous dans glisserSurPlaque, et le poser lit le
+    # mode avant de chercher quoi que ce soit sous le pointeur
+    sites = [m.start() for m in re.finditer(r'addEventListener\("pointer', code)]
+    assert len(sites) == 4, len(sites)
+    debut = code.index("\nfunction glisserSurPlaque(")
+    fin = code.index(FIN_FONCTION, debut)
+    assert all(debut < s < fin for s in sites), sites
+    poser = gl.split('addEventListener("pointerdown"', 1)[1].split('addEventListener("pointermove"', 1)[0]
+    assert 'GESTE.mode !== "glisser"' in poser
+    assert poser.index('GESTE.mode !== "glisser"') < poser.index("sousLePointeur(")
+    assert "estEtalee(" not in gl              # une seule source de vérité : le mode
+    # le RELEVER du sélecteur (selection.js ne connaît pas GESTE : c'est la
+    # page qui multiplexe) consulte le mode avant tout effet
+    assert "GESTE" not in _code("lib3d/selection.js")
+    clic = code.split("designerAuClic(S.vueA", 1)[1].split("\n  });\n", 1)[0]
+    premier_effet = min(clic.index(x) for x in ("surligner(", "poserGizmo(", "pieceCourante("))
+    assert clic.index('if (GESTE.mode === "couteau") return;') < premier_effet
+    assert clic.index('if (GESTE.mode === "assise") { poserSurFace(obj, touche); return; }') < premier_effet
+    assert clic.index('if (GESTE.mode === "assise")') > clic.index('if (GESTE.mode === "couteau") return;')
+    # et le gizmo — dont TransformControls écoute le même canevas — distingue le
+    # plan de coupe d'un nœud AVANT de mettre quoi que ce soit en file
+    ecouteur = code.split('GIZMO.addEventListener("objectChange"', 1)[1].split("\n    });", 1)[0]
+    assert ecouteur.index("if (o && o === COUTEAU.plan) { majApercuCoupe(); return; }") \
+        < ecouteur.index("noterAttente(")
+    # LES TRANSITIONS : la plaque prend le pointeur après l'étalement et le rend
+    # au rangement ; un changement de modèle rend au sélecteur ; les deux
+    # outils s'arment par armerGeste
+    bp = code.split("function basculerPlaque()", 1)[1].split(FIN_FONCTION, 1)[0]
+    assert bp.index('armerGeste("selection");') < bp.index("etaler(S.vueA, plan)") \
+        < bp.index("PLQ.active = true;") < bp.index('armerGeste("glisser");')
+    ob = code.split("function oublierPlaque()", 1)[1].split(FIN_FONCTION, 1)[0]
+    assert ob.index("PLQ.active = false;") < ob.index('armerGeste("selection");')
+    ouvre = code.split("async function _ouvrirPrincipale(", 1)[1].split(FIN_FONCTION, 1)[0]
+    assert ouvre.index("oublierPlaque();") < ouvre.index('armerGeste("selection");') \
+        < ouvre.index("await charger(S.vueA")
+    assert 'armerGeste("assise");' in _fonction_etabli("armerAssise")
+    assert 'armerGeste("couteau");' in _fonction_etabli("armerCouteau")
+    # ── EXÉCUTÉ : armerGeste range le couteau UNE fois, en le quittant ──────
+    sortie = json.loads(_node(
+        _constantes_etabli("MODES_GESTE") + """
+      const GESTE = { mode: "selection", enCours: null };
+      let ranges = 0, majs = 0;
+      const rangerCouteau = () => { ranges++; };
+      const majOutils = () => { majs++; };
+    """ + _fonction_etabli("armerGeste") + """
+      const r = {};
+      GESTE.enCours = { quoi: "piece", cle: 1 };
+      armerGeste("couteau");
+      r.apresCouteau = { mode: GESTE.mode, ranges, enCours: GESTE.enCours };
+      armerGeste("couteau");            /* rester couteau ne range rien */
+      r.reste = ranges;
+      armerGeste("glisser");
+      r.apresGlisser = { mode: GESTE.mode, ranges };
+      armerGeste("assise"); armerGeste("selection");
+      r.sansCouteau = ranges;
+      try { armerGeste("laser"); r.inconnu = "accepte"; } catch (e) { r.inconnu = e.message; }
+      r.majs = majs;
+      console.log(JSON.stringify(r));
+    """))
+    assert sortie["apresCouteau"] == {"mode": "couteau", "ranges": 0, "enCours": None}
+    assert sortie["reste"] == 0
+    assert sortie["apresGlisser"] == {"mode": "glisser", "ranges": 1}
+    assert sortie["sansCouteau"] == 1
+    assert "inconnu" in sortie["inconnu"] and sortie["majs"] == 5
+    # ── EXÉCUTÉ : le glisser ne saisit RIEN quand le pointeur n'est pas à lui ─
+    glisse = json.loads(_node_trois(
+        "cadrer",
+        _harnais_glisser() + """
+      const cible = pieces[1].children[0].getWorldPosition(new THREE.Vector3());
+      const p = px(cible);
+      const r = {};
+      GESTE.mode = "selection";
+      fire("pointerdown", { button: 0, pointerId: 7, ...p, shiftKey: false });
+      r.horsMode = { enabled: api.controls.enabled, captures: canvas.captures,
+                     enCours: GESTE.enCours, courantes: courantes.length };
+      fire("pointerup", { pointerId: 7, button: 0, ...p });
+      GESTE.mode = "glisser";
+      fire("pointerdown", { button: 0, pointerId: 8, ...p, shiftKey: false });
+      r.enMode = { enabled: api.controls.enabled, captures: canvas.captures,
+                   enCours: GESTE.enCours && GESTE.enCours.quoi, cle: GESTE.enCours && GESTE.enCours.cle };
+      fire("pointerup", { pointerId: 8, button: 0, ...p });
+      r.releve = GESTE.enCours;
+      console.log(JSON.stringify(r));
+    """))
+    assert glisse["horsMode"] == {"enabled": True, "captures": 0, "enCours": None, "courantes": 0}
+    assert glisse["enMode"] == {"enabled": False, "captures": 1, "enCours": "piece", "cle": 1}
+    assert glisse["releve"] is None
+
+
+def test_le_clic_rend_la_NORMALE_MONDE_de_la_face_par_la_MATRICE_NORMALE_et_le_point_touche():
+    """« Poser sur une face » a besoin de ce que designerAuClic ne rendait pas :
+    la face et son point. EXÉCUTÉ sur la vraie designerAuClic, avec le vrai
+    Raycaster de three.js, sur une boîte sous un parent à ÉCHELLE NON UNIFORME
+    (1,3 ; 0,7 ; 0,4) et tourné : la normale rendue est celle du PLAN de la
+    face, calculée ici par un second chemin (le produit vectoriel de deux
+    arêtes MONDE), et elle diffère de plus de 5° de la normale simplement
+    tournée par le quaternion — le témoin qui rend la matrice normale
+    nécessaire. Le point touché est SUR ce plan ; un geste qui dérive au-delà
+    de TOLERANCE_CLIC ne rend rien, comme avant.
+    """
+    sortie = json.loads(_node_trois(
+        "cadrer",
+        f"import {{ designerAuClic, TOLERANCE_CLIC }} from {json.dumps(_selection_uri())};\n" + """
+      const api = monter(860, 824);
+      const racine = new THREE.Group();
+      const parent = new THREE.Group();
+      parent.scale.set(1.3, 0.7, 0.4);
+      parent.rotation.set(0.3, -0.7, 0.45);
+      parent.position.set(0.3, -0.2, 0.5);
+      const boite = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), new THREE.MeshBasicMaterial());
+      boite.name = "boite";
+      /* la boîte est TOURNÉE sous le parent à échelle non uniforme : une face
+         alignée sur les axes de l'échelle garderait sa normale (mesuré : écart
+         1e-6°), et le témoin ne prouverait rien */
+      boite.rotation.set(0.5, 0.3, -0.4);
+      parent.add(boite); racine.add(parent); api.scene.add(racine); api.racine = racine;
+      racine.updateMatrixWorld(true);
+      /* la face +X locale : son centre et deux arêtes, en MONDE */
+      const W = boite.matrixWorld;
+      const monde = (x, y, z) => new THREE.Vector3(x, y, z).applyMatrix4(W);
+      const centre = monde(1, 0, 0);
+      const e1 = monde(1, 1, -1).sub(monde(1, -1, -1));
+      const e2 = monde(1, 1, 1).sub(monde(1, 1, -1));
+      const attendue = new THREE.Vector3().crossVectors(e1, e2).normalize();
+      const tournee = new THREE.Vector3(1, 0, 0).applyQuaternion(boite.getWorldQuaternion(new THREE.Quaternion()));
+      /* la caméra regarde la face en face, pour que le premier impact soit elle */
+      api.camera.position.copy(centre).addScaledVector(attendue, 6);
+      api.camera.lookAt(centre);
+      api.camera.updateMatrixWorld(true); api.camera.updateProjectionMatrix();
+      const q = centre.clone().project(api.camera);
+      const pix = { clientX: ((q.x + 1) / 2) * 860, clientY: ((1 - q.y) / 2) * 824 };
+      const canvas = { listeners: {},
+        addEventListener(t, f) { (this.listeners[t] = this.listeners[t] || []).push(f); },
+        getBoundingClientRect() { return { left: 0, top: 0, width: 860, height: 824 }; } };
+      const fire = (t, ev) => { for (const f of canvas.listeners[t] || []) f(ev); };
+      const recus = [];
+      designerAuClic(api, canvas, (obj, touche) => recus.push({ obj, touche }));
+      fire("pointerdown", { button: 0, pointerId: 1, ...pix });
+      fire("pointerup", { button: 0, pointerId: 1, ...pix });
+      /* un geste qui dérive : une orbite, pas un clic */
+      fire("pointerdown", { button: 0, pointerId: 2, ...pix });
+      fire("pointerup", { button: 0, pointerId: 2, clientX: pix.clientX + TOLERANCE_CLIC + 1, clientY: pix.clientY });
+      /* le vide : un objet null, une touche null */
+      fire("pointerdown", { button: 0, pointerId: 3, clientX: 2, clientY: 2 });
+      fire("pointerup", { button: 0, pointerId: 3, clientX: 2, clientY: 2 });
+      const t = recus[0].touche;
+      const plan = new THREE.Plane().setFromNormalAndCoplanarPoint(attendue, centre);
+      console.log(JSON.stringify({
+        recus: recus.length, nom: recus[0].obj && recus[0].obj.name,
+        normale: t.normale.toArray(), attendue: attendue.toArray(),
+        ecartTournee: THREE.MathUtils.radToDeg(attendue.angleTo(tournee)),
+        surLePlan: Math.abs(plan.distanceToPoint(t.point)), distance: t.distance,
+        face: !!t.face, vide: recus[1], echelle: parent.scale.toArray() }));
+    """))
+    assert sortie["recus"] == 2 and sortie["nom"] == "boite"
+    assert sortie["vide"] == {"obj": None, "touche": None}
+    assert math.dist(sortie["normale"], sortie["attendue"]) < 1e-9, sortie
+    # LE TÉMOIN : la normale tournée par le quaternion est FAUSSE ici de plus de
+    # 5° — sinon la fixture ne prouverait pas que la matrice normale est requise
+    assert sortie["ecartTournee"] > 5, sortie["ecartTournee"]
+    assert sortie["surLePlan"] < 1e-9 and sortie["distance"] > 1
+    assert sortie["face"] is True and sortie["echelle"] == [1.3, 0.7, 0.4]
+    # et la page ne normalise toujours pas un quaternion : la normalisation vit
+    # dans selection.js, sur une normale, où elle est due
+    assert ".normalize()" not in _lire("etabli/etabli.js")
+    sel = _lire("lib3d/selection.js")
+    assert "applyNormalMatrix(_matN.getNormalMatrix(h.object.matrixWorld))" in sel
+    assert "quand(touche ? touche.object : null, touche ? toucheDe(touche) : null);" in sel
+
+
+def test_poser_sur_une_face_MET_EN_ATTENTE_une_assise_ecrite_en_PREMIER_et_desarme():
+    """L'assise est une ÉCRITURE : elle entre dans la file par noterAttente,
+    comme `reparer` dont elle est le geste en un clic, et « écrire la version »
+    l'envoie à `/api/etabli/assise`. Elle se range EN PREMIER de la série : sa
+    normale et son pivot sont mesurés dans le monde de la version AFFICHÉE, et
+    `reparer` (axe Z) change ce monde — écrite après lui, la face serait posée
+    de travers. EXÉCUTÉ sur les vraies noterAttente, fileOrdonnee, poserSurFace,
+    armerGeste et libelleAttente : la charge est {normale, point}, une seconde
+    face REMPLACE la première (un réglage, pas une accumulation), le mode
+    retombe sur « selection » après un clic, le vide refuse en le disant.
+    """
+    js = _lire("etabli/etabli.js")
+    sortie = json.loads(_node(
+        _constantes_etabli("ORDRE_ECRITURE", "MODES_GESTE", "fmtCoord")
+        + _table_js("etabli/etabli.js", "LIBELLES_ATTENTE") + "\n"
+        + _const_etabli("libelleAttente") + """
+      const S = { enAttente: [], a: { job: "j", version: 3 } };
+      const GESTE = { mode: "selection", enCours: null };
+      const refus = [];
+      const direRefus = (m) => refus.push(String(m));
+      const direGeometrie = () => {};
+      const majOutils = () => {};
+      const rangerCouteau = () => {};
+      const rendreAttente = () => {};
+      const GIZMO = { detaches: 0, detach() { this.detaches++; } };
+      const PLQ = { active: false };
+    """ + _fonction_etabli("noterAttente") + _fonction_etabli("fileOrdonnee")
+        + _fonction_etabli("armerGeste") + _fonction_etabli("poserSurFace")
+        + _fonction_etabli("armerAssise") + """
+      S.vueA = { racine: {} };
+      noterAttente("transformer", { 4: { translation: [1, 2, 3] } });
+      noterAttente("reparer", { axe_haut: "Z", echelle: 1, recentrer: false });
+      const r = {};
+      armerAssise();
+      r.arme = { mode: GESTE.mode, detaches: GIZMO.detaches };
+      poserSurFace(null, null);
+      r.vide = { refus: refus.length, file: S.enAttente.length, mode: GESTE.mode };
+      const touche = { normale: { x: 0.6, y: 0.0, z: 0.8 }, point: { x: 1.5, y: -2.25, z: 0.125 } };
+      poserSurFace({ uuid: "m" }, touche);
+      r.pose = { mode: GESTE.mode, ops: fileOrdonnee().map((t) => t.operation),
+                 charge: S.enAttente.find((t) => t.operation === "assise").charge,
+                 libelle: libelleAttente(S.enAttente.find((t) => t.operation === "assise")) };
+      armerAssise();
+      poserSurFace({ uuid: "m" }, { normale: { x: 0, y: -1, z: 0 }, point: { x: 0, y: 0, z: 0 } });
+      r.remplace = { n: S.enAttente.filter((t) => t.operation === "assise").length,
+                     normale: S.enAttente.find((t) => t.operation === "assise").charge.normale,
+                     total: S.enAttente.length };
+      /* armer sur la plaque, ou sans modèle : refus, et le mode ne bouge pas */
+      PLQ.active = true; armerAssise(); r.surPlaque = { mode: GESTE.mode, refus: refus.length };
+      PLQ.active = false; S.vueA = null; armerAssise(); r.sansModele = { mode: GESTE.mode, refus: refus.length };
+      r.refus = refus;
+      console.log(JSON.stringify(r));
+    """))
+    assert sortie["arme"] == {"mode": "assise", "detaches": 1}
+    assert sortie["vide"] == {"refus": 1, "file": 2, "mode": "assise"}
+    assert "FACE" in sortie["refus"][0]
+    assert sortie["pose"]["mode"] == "selection"
+    # EN PREMIER de la série, avant réparer et transformer
+    assert sortie["pose"]["ops"] == ["assise", "reparer", "transformer"]
+    assert sortie["pose"]["charge"] == {"normale": [0.6, 0.0, 0.8], "point": [1.5, -2.25, 0.125]}
+    assert "posé sur une face" in sortie["pose"]["libelle"]
+    assert "0.60, 0.00, 0.80" in sortie["pose"]["libelle"]
+    assert sortie["remplace"] == {"n": 1, "normale": [0, -1, 0], "total": 3}
+    assert sortie["surPlaque"] == {"mode": "selection", "refus": 2}
+    assert sortie["sansModele"] == {"mode": "selection", "refus": 3}
+    # la route, et le corps : l'écriture générique `{ ...base, ...t.charge }`
+    # porte normale et point tels quels, comme les clés de `reparer`
+    corps = js.split("async function ecrireVersion", 1)[1].split("\n}\n", 1)[0]
+    assert ": { ...base, ...t.charge };" in corps
+    routes = _table_js("etabli/etabli.js", "ROUTES")
+    assert 'assise: "/api/etabli/assise",' in routes
+    assert "assise" in _table_js("etabli/etabli.js", "LIBELLES_ATTENTE")
+
+
+def test_le_couteau_REFUSE_sans_piece_retenue_et_tant_que_la_file_n_est_pas_vide_puis_part_SEUL():
+    """LE GESTE LE PLUS DESTRUCTEUR DE LA PAGE, tenu par deux refus et une règle.
+    Rien de retenu : refus — jamais « tout le modèle » par défaut. Une file non
+    vide : refus, « écris d'abord » — la coupe RENUMÉROTE, une transformation
+    en attente viserait après elle le mauvais nœud. Puis la coupe traverse
+    l'entonnoir d'écriture SEULE : noterAttente("couper") immédiatement suivi
+    d'ecrireVersion(), sans bouton entre les deux, et la file ne porte qu'elle
+    au moment de l'appel. Refusée par le serveur, elle RESSORT de la file et
+    le couteau reste armé. Écrite, un capuchon non posé se DIT dans la barre.
+    EXÉCUTÉ sur les vraies confirmerCoupe, noterAttente, direBilanCoupe.
+    """
+    code = _code("etabli/etabli.js")
+    cc = _fonction_etabli_async("confirmerCoupe")
+    assert cc.index("if (S.enAttente.length) {") < cc.index('noterAttente("couper"')
+    # noterAttente puis ecrireVersion DANS LE MÊME SOUFFLE : rien entre les deux
+    assert re.search(r'noterAttente\("couper", \{[^;]*\},\s*source\);\s*const bilan = await ecrireVersion\(\);', cc), cc
+    assert code.count('noterAttente("couper"') == 1            # un seul site
+    assert 'if (i >= 0) S.enAttente.splice(i, 1);' in cc         # ressort de la file
+    bloc = _bloc_outils(code)
+    assert "jpost(" not in bloc and "fetch(" not in bloc         # l'entonnoir, et rien d'autre
+    assert "ecrireVersion()" in bloc and "GLTFExporter" not in bloc
+    sortie = json.loads(_node_trois(
+        "cadrer",
+        _constantes_etabli("ORDRE_ECRITURE") + """
+      const GESTE = { mode: "couteau", enCours: null };
+      const plan = new THREE.Mesh(new THREE.PlaneGeometry(1, 1));
+      plan.position.set(1, 2, 3);
+      plan.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0.6, 0, 0.8));
+      const COUTEAU = { plan, garder: "a" };
+      const S = { a: { job: "j", version: 2 }, enAttente: [] };
+      let _ecritEnCours = false;
+      let retenus = { noeuds: [3, 5], source: undefined };
+      const noeudsRetenus = () => retenus;
+      const refus = [];
+      const direRefus = (m) => refus.push(String(m));
+      const rendreAttente = () => {};
+      const appels = [];
+      let reponse = { ecrites: ["couper"], derniere: { version: 3, source: { pieces: [
+        { nom: "cadre", cotes: { a: { capuchon: { pose: true } },
+                                 b: { capuchon: { pose: false, raison: "surface ouverte : rien à boucher" } } } } ] } }, echec: null };
+      /* la doublure fait ce que le vrai entonnoir fait : la file est vidée dès
+         que quelque chose a touché le disque (voir ecrireVersion) */
+      const ecrireVersion = async () => { appels.push(S.enAttente.map((t) => [t.operation, t.charge]));
+        if (reponse.ecrites.length) S.enAttente.length = 0; return reponse; };
+    """ + _const_etabli("normaleDuPlan") + _fonction_etabli("noterAttente")
+        + _fonction_etabli("fileOrdonnee") + _fonction_etabli("direBilanCoupe")
+        + _fonction_etabli_async("confirmerCoupe") + """
+      const r = {};
+      /* 1. une file non vide : refus, rien ne part */
+      noterAttente("transformer", { 4: { translation: [0, 1, 0] } });
+      r.filePleine = { ok: await confirmerCoupe(), appels: appels.length, refus: refus[refus.length - 1] };
+      S.enAttente.length = 0;
+      /* 2. rien de retenu : refus */
+      retenus = { noeuds: [], source: undefined };
+      r.rien = { ok: await confirmerCoupe(), appels: appels.length, refus: refus[refus.length - 1] };
+      retenus = { noeuds: [3, 5], source: undefined };
+      /* 3. une écriture en cours : refus */
+      _ecritEnCours = true;
+      r.verrou = { ok: await confirmerCoupe(), appels: appels.length };
+      _ecritEnCours = false;
+      /* 4. la coupe part SEULE, et le capuchon manquant se dit */
+      const nRefus = refus.length;
+      r.part = { ok: await confirmerCoupe(), appels: appels.length, file: appels[0],
+                 bilan: refus.slice(nRefus) };
+      /* 5. refusée par le serveur : la ligne ressort, le mode reste couteau */
+      reponse = { ecrites: [], derniere: null, echec: new Error("le plan ne traverse rien") };
+      r.refusee = { ok: await confirmerCoupe(), file: S.enAttente.length, mode: GESTE.mode, appels: appels.length };
+      /* 6. le couteau n'est pas armé */
+      GESTE.mode = "selection";
+      r.desarme = { ok: await confirmerCoupe(), appels: appels.length };
+      console.log(JSON.stringify(r));
+    """))
+    assert sortie["filePleine"]["ok"] is False and sortie["filePleine"]["appels"] == 0
+    assert "écris d'abord" in sortie["filePleine"]["refus"]
+    assert sortie["rien"]["ok"] is False and sortie["rien"]["appels"] == 0
+    assert "jamais tout le modèle" in sortie["rien"]["refus"]
+    assert sortie["verrou"] == {"ok": False, "appels": 0}
+    assert sortie["part"]["ok"] is True and sortie["part"]["appels"] == 1
+    # SEULE dans la file au moment de l'appel, avec la charge du plan
+    assert len(sortie["part"]["file"]) == 1
+    op, charge = sortie["part"]["file"][0]
+    assert op == "couper" and charge["noeuds"] == [3, 5] and charge["garder"] == "a"
+    assert charge["point"] == [1, 2, 3]
+    assert math.dist(charge["normale"], [0.6, 0, 0.8]) < 1e-9
+    assert len(sortie["part"]["bilan"]) == 1
+    assert "capuchon non posé" in sortie["part"]["bilan"][0]
+    assert "cadre_b : surface ouverte" in sortie["part"]["bilan"][0]
+    # partie (un appel de plus), refusée, RESSORTIE de la file, le couteau armé
+    assert sortie["refusee"] == {"ok": False, "file": 0, "mode": "couteau", "appels": 2}
+    assert sortie["desarme"] == {"ok": False, "appels": 2}
+
+
+def test_l_apercu_du_couteau_NE_TOUCHE_PAS_la_geometrie_et_decoupe_de_part_et_d_autre_du_plan():
+    """LE NAVIGATEUR VOIT, IL NE FABRIQUE RIEN. EXÉCUTÉ sur les vraies fonctions
+    du couteau, dans la scène de l'enveloppe tournée : l'aperçu est fait de
+    CLONES qui PARTAGENT la géométrie (la même instance, pas une copie), de
+    matériaux clonés portant chacun un plan de découpe, dans deux groupes
+    écartés de ±e/2 le long de la normale ; les deux plans de découpe sont
+    opposés et décalés du même demi-écart ; les originaux sont masqués le temps
+    de l'aperçu et retrouvent leur visibilité au rangement ; aucune position,
+    aucune matrice du modèle ne bouge ; `garder` masque la moitié écartée ; le
+    plan suit le gizmo ; et le rangement rend au gizmo ses réglages de nœud.
+    """
+    sortie = json.loads(_node_trois(
+        "cadrer",
+        _importer_plaque("etaler") + _faux_outils()
+        + _constantes_etabli("MODES_GESTE", "ECART_APERCU")
+        + _table_js("etabli/etabli.js", "COUTEAU") + "\n" + """
+      const api = monter(860, 824);
+      """ + _scene_enveloppe() + """
+      const GESTE = { mode: "selection", enCours: null };
+      const S = { vueA: api, a: { job: "j", version: 1 } };
+      const PLQ = { active: false };
+      const refus = [];
+      const direRefus = (m) => refus.push(String(m));
+      const direGeometrie = () => {};
+      let retenus = { noeuds: [0, 2], source: undefined };
+      const noeudsRetenus = () => retenus;
+      let GIZMO = null;
+      const journal = [];
+      const assurerGizmo = () => {
+        if (!GIZMO) GIZMO = { object: null, showX: true, showY: true, showZ: true, space: "world", mode: "translate",
+          setSpace(s) { this.space = s; journal.push("space:" + s); },
+          setMode(m) { this.mode = m; journal.push("mode:" + m); },
+          attach(o) { this.object = o; journal.push("attach:" + o.name); },
+          detach() { this.object = null; journal.push("detach"); } };
+        return GIZMO;
+      };
+    """ + "".join(_fonction_etabli(f) + "\n" for f in (
+            "armerGeste", "majOutils", "objetsDesNoeuds", "majAxesGizmo", "monterCouteau",
+            "monterApercuCoupe", "majApercuCoupe", "demonterApercuCoupe", "rangerCouteau",
+            "armerCouteau", "reconstruireApercuCoupe"))
+        + _const_etabli("materiauxDe") + _const_etabli("normaleDuPlan") + """
+      const maillages = [];
+      racine.traverse((o) => { if (o.isMesh) maillages.push(o); });
+      const empreinte = () => maillages.map((m) => ({
+        pos: Array.from(m.geometry.attributes.position.array).reduce((a, b) => a + b, 0),
+        matrice: m.matrixWorld.toArray(), visible: m.visible, geo: m.geometry.uuid, mat: m.material.uuid }));
+      const avant = empreinte();
+      const enfantsAvant = racine.children.length;
+      const r = {};
+      /* rien de retenu : refus, et pas de mode couteau */
+      retenus = { noeuds: [], source: undefined };
+      armerCouteau();
+      r.sansRetenu = { mode: GESTE.mode, refus: refus[refus.length - 1], plan: !!COUTEAU.plan };
+      retenus = { noeuds: [0, 2], source: undefined };
+      armerCouteau();
+      racine.updateMatrixWorld(true); api.scene.updateMatrixWorld(true);
+      const plan = api.scene.children.find((o) => o.name === "couteau-plan");
+      const apercu = api.scene.children.find((o) => o.name === "couteau-apercu");
+      const n = normaleDuPlan();
+      const clones = [];
+      apercu.traverse((o) => { if (o.isMesh) clones.push(o); });
+      const cibles = maillages.filter((m) => [0, 2].includes(m.parent.userData.indexGltf));
+      const [gA, gB] = apercu.children;
+      const disposes = [];
+      for (const c of clones) c.material.addEventListener("dispose", () => disposes.push(c.material.uuid));
+      const cloneDe = (c) => cibles.find((m) => m.geometry === c.geometry);
+      r.arme = {
+        mode: GESTE.mode, plan: !!plan, fleche: plan.children.some((o) => o.name === "couteau-fleche"),
+        normale: n.toArray(), clipping: api.renderer.localClippingEnabled,
+        clones: clones.length, cibles: cibles.length,
+        geometriePartagee: clones.every((c) => !!cloneDe(c)),
+        materiauxClones: clones.every((c) => !maillages.some((m) => m.material === c.material)),
+        unPlanParClone: clones.every((c) => c.material.clippingPlanes && c.material.clippingPlanes.length === 1),
+        cotesA: gA.children.every((c) => c.material.clippingPlanes[0] === COUTEAU.planA),
+        cotesB: gB.children.every((c) => c.material.clippingPlanes[0] === COUTEAU.planB),
+        opposes: COUTEAU.planA.normal.clone().add(COUTEAU.planB.normal).length(),
+        normaleA: COUTEAU.planA.normal.toArray(),
+        ecart: gA.position.clone().sub(gB.position).length(), ecartAttendu: COUTEAU.rayon * ECART_APERCU,
+        ecartLeLongDeN: Math.abs(gA.position.clone().sub(gB.position).dot(n)),
+        planAsurGroupeA: Math.abs(COUTEAU.planA.distanceToPoint(plan.position.clone().add(gA.position))),
+        planBsurGroupeB: Math.abs(COUTEAU.planB.distanceToPoint(plan.position.clone().add(gB.position))),
+        clonesAuMonde: clones.every((c) => { const o = cloneDe(c);
+          const attendu = new THREE.Matrix4().makeTranslation(c.parent.position.x, c.parent.position.y, c.parent.position.z).multiply(o.matrixWorld);
+          return attendu.elements.every((v, i) => Math.abs(v - c.matrixWorld.elements[i]) < 1e-12); }),
+        originauxMasques: cibles.every((m) => !m.visible),
+        autresVisibles: maillages.filter((m) => !cibles.includes(m)).every((m) => m.visible),
+        gizmo: { space: GIZMO.space, mode: GIZMO.mode, objet: GIZMO.object && GIZMO.object.name,
+                 axes: [GIZMO.showX, GIZMO.showY, GIZMO.showZ] },
+        enfantsRacine: racine.children.length, refus: refus.length,
+        bouton: $("#btnCouteau").classes.has("actif"), barre: $("#couteauBarre").classes.has("hidden"),
+      };
+      /* garder « a » : la moitié b se masque */
+      COUTEAU.garder = "a"; majApercuCoupe();
+      r.garderA = { a: gA.visible, b: gB.visible };
+      COUTEAU.garder = "deux"; majApercuCoupe();
+      /* le plan bouge (le gizmo) : les plans de découpe suivent */
+      plan.position.addScaledVector(n, 0.37);
+      plan.rotateX(0.4);
+      majApercuCoupe();
+      const n2 = normaleDuPlan();
+      r.bouge = { normaleSuit: Math.abs(COUTEAU.planA.normal.dot(n2) - 1),
+                  planA: Math.abs(COUTEAU.planA.distanceToPoint(plan.position.clone().add(gA.position))),
+                  planB: Math.abs(COUTEAU.planB.distanceToPoint(plan.position.clone().add(gB.position))),
+                  tourne: n2.angleTo(n) };
+      /* le geste n'a rien écrit dans le modèle */
+      racine.updateMatrixWorld(true);
+      r.modeleIntact = JSON.stringify(empreinte().map((e) => ({ ...e, visible: undefined })))
+        === JSON.stringify(avant.map((e) => ({ ...e, visible: undefined })));
+      /* la sélection change : l'aperçu suit ; vidée, le couteau se range */
+      retenus = { noeuds: [1], source: undefined };
+      reconstruireApercuCoupe();
+      const clones2 = []; api.scene.children.find((o) => o.name === "couteau-apercu").traverse((o) => { if (o.isMesh) clones2.push(o); });
+      r.suit = { clones: clones2.length, cibles: maillages.filter((m) => m.parent.userData.indexGltf === 1).length,
+                 anciensVisibles: cibles.every((m) => m.visible), plan: !!COUTEAU.plan, disposes: disposes.length };
+      retenus = { noeuds: [], source: undefined };
+      reconstruireApercuCoupe();
+      r.vide = { mode: GESTE.mode, refus: refus[refus.length - 1], plan: !!COUTEAU.plan };
+      /* rangé : plus rien dans la scène, tout visible, le gizmo rendu */
+      retenus = { noeuds: [0, 2], source: undefined };
+      armerCouteau(); armerGeste("selection");
+      r.range = { plan: api.scene.children.some((o) => o.name === "couteau-plan"),
+                  apercu: api.scene.children.some((o) => o.name === "couteau-apercu"),
+                  visibles: maillages.every((m) => m.visible), mode: GESTE.mode,
+                  gizmo: { space: GIZMO.space, mode: GIZMO.mode, objet: GIZMO.object, axes: [GIZMO.showX, GIZMO.showY, GIZMO.showZ] },
+                  journalFin: journal.slice(-4), barre: $("#couteauBarre").classes.has("hidden"),
+                  intact: JSON.stringify(empreinte()) === JSON.stringify(avant) };
+      console.log(JSON.stringify(r));
+    """))
+    assert sortie["sansRetenu"]["mode"] == "selection" and sortie["sansRetenu"]["plan"] is False
+    assert "jamais tout le modèle" in sortie["sansRetenu"]["refus"]
+    a = sortie["arme"]
+    assert a["mode"] == "couteau" and a["plan"] and a["fleche"] and a["clipping"] is True
+    assert math.dist(a["normale"], [0, 1, 0]) < 1e-12                 # horizontal au départ
+    assert a["cibles"] == 3 and a["clones"] == 6                     # deux clones par maillage retenu
+    assert a["geometriePartagee"] and a["materiauxClones"] and a["unPlanParClone"]
+    assert a["cotesA"] and a["cotesB"]
+    assert a["opposes"] < 1e-12 and math.dist(a["normaleA"], [0, 1, 0]) < 1e-12
+    assert abs(a["ecart"] - a["ecartAttendu"]) < 1e-12 and a["ecartAttendu"] > 0
+    assert abs(a["ecartLeLongDeN"] - a["ecart"]) < 1e-12
+    assert a["planAsurGroupeA"] < 1e-12 and a["planBsurGroupeB"] < 1e-12
+    assert a["clonesAuMonde"] and a["originauxMasques"] and a["autresVisibles"]
+    assert a["gizmo"] == {"space": "local", "mode": "translate", "objet": "couteau-plan",
+                          "axes": [False, False, True]}
+    assert a["enfantsRacine"] == 2 and a["refus"] == 1     # rien n'a été ajouté sous le modèle
+    assert a["bouton"] is True and a["barre"] is False
+    assert sortie["garderA"] == {"a": True, "b": False}
+    b = sortie["bouge"]
+    assert b["normaleSuit"] < 1e-12 and b["planA"] < 1e-12 and b["planB"] < 1e-12
+    assert b["tourne"] > 0.3
+    assert sortie["modeleIntact"] is True
+    s = sortie["suit"]
+    assert s["cibles"] == 1 and s["clones"] == 2 and s["anciensVisibles"] and s["plan"]
+    assert s["disposes"] == 6                                        # les matériaux clonés d'avant, libérés
+    assert sortie["vide"]["mode"] == "selection" and sortie["vide"]["plan"] is False
+    assert "plus aucune pièce retenue" in sortie["vide"]["refus"]
+    rg = sortie["range"]
+    assert rg["plan"] is False and rg["apercu"] is False and rg["visibles"] and rg["mode"] == "selection"
+    assert rg["gizmo"] == {"space": "world", "mode": "translate", "objet": None, "axes": [True, True, True]}
+    assert rg["barre"] is True and rg["intact"] is True
+
+
+def test_les_outils_vivent_DANS_le_canevas_naissent_sans_texte_et_repondent_a_F_C_Echap():
+    """Les deux boutons et la barre du couteau vivent SUR le canevas A, en bas
+    à gauche, avec leur propre classe — ni celle de l'en-tête ni celle du
+    point de vue, dont les comptes rigides ne bougent pas. Ils naissent SANS
+    texte et majOutils() les écrit à l'import. Le clavier des slicers (F, C,
+    Échap) est EXÉCUTÉ : pris hors des champs, jamais avec un modificateur."""
+    html, css = _lire("etabli/index.html"), _lire("etabli/etabli.css")
+    js, code = _lire("etabli/etabli.js"), _code("etabli/etabli.js")
+    vue_a = html.split('id="vueA"', 1)[1].split('id="vueB"', 1)[0]
+    assert 'id="vueOutils"' in vue_a and vue_a.index('id="vueCam"') < vue_a.index('id="vueOutils"')
+    for vide in ("btnAssise", "btnCouteau", "btnCouteauManip"):
+        assert f'id="{vide}"></button>' in vue_a, vide           # il naît SANS texte
+    assert '<span class="outil-couteau hidden" id="couteauBarre">' in vue_a
+    for v in ("deux", "a", "b"):
+        assert f'<option value="{v}">' in vue_a, v
+    outils = vue_a.split('<div class="vue-outils"', 1)[1]
+    assert outils.count("<button") == outils.count('class="outil-btn')
+    assert "head-btn" not in vue_a and html.count('class="cam-btn"') == 4
+    assert html.count('class="head-btn"') == 3
+    reg = css.split(".vue-outils {", 1)[1].split("}", 1)[0]
+    assert "z-index: 2" in reg and "pointer-events: none" in reg and "bottom" in reg
+    assert "pointer-events: auto" in css.split(".outil-btn, .outil-sel {", 1)[1].split("}", 1)[0]
+    assert "background" in css.split(".outil-btn.actif {", 1)[1].split("}", 1)[0]
+    # branchés au PREMIER NIVEAU, une fois, et écrits à l'import
+    for ligne in ('$("#btnAssise").addEventListener("click", armerAssise);',
+                  '$("#btnCouteau").addEventListener("click", armerCouteau);',
+                  '$("#btnCouper").addEventListener("click", confirmerCoupe);',
+                  'document.addEventListener("keydown", toucheClavierOutils);',
+                  "majOutils();"):
+        assert js.count("\n" + ligne) == 1, ligne
+    assert code.count("majOutils();") >= 2                          # à l'import ET dans armerGeste
+    # ── le clavier, EXÉCUTÉ ─────────────────────────────────────────────────
+    sortie = json.loads(_node(
+        _constantes_etabli("MODES_GESTE") + """
+      const GESTE = { mode: "selection", enCours: null };
+      const appels = [];
+      const armerAssise = () => appels.push("assise");
+      const armerCouteau = () => appels.push("couteau");
+      const armerGeste = (m) => { appels.push("geste:" + m); GESTE.mode = m; };
+      const direGeometrie = () => {};
+    """ + _fonction_etabli("toucheClavierOutils") + """
+      const ev = (key, extra) => ({ key, target: { tagName: "CANVAS" }, empeche: 0,
+                                    preventDefault() { this.empeche++; }, ...extra });
+      const r = {};
+      let e = ev("f"); r.f = [toucheClavierOutils(e), e.empeche];
+      e = ev("C"); r.c = [toucheClavierOutils(e), e.empeche];
+      e = ev("Escape"); r.escapeSansMode = [toucheClavierOutils(e), e.empeche];
+      GESTE.mode = "assise";
+      e = ev("Escape"); r.escape = [toucheClavierOutils(e), e.empeche, GESTE.mode];
+      e = ev("f", { ctrlKey: true }); r.ctrlF = [toucheClavierOutils(e), e.empeche];
+      e = ev("c", { target: { tagName: "INPUT" } }); r.champ = [toucheClavierOutils(e), e.empeche];
+      e = ev("x"); r.autre = [toucheClavierOutils(e), e.empeche];
+      r.appels = appels;
+      console.log(JSON.stringify(r));
+    """))
+    assert sortie["f"] == [True, 1] and sortie["c"] == [True, 1]
+    assert sortie["escapeSansMode"] == [False, 0]
+    assert sortie["escape"] == [True, 1, "selection"]
+    assert sortie["ctrlF"] == [False, 0] and sortie["champ"] == [False, 0]
+    assert sortie["autre"] == [False, 0]
+    assert sortie["appels"] == ["assise", "couteau", "geste:selection"]
+    # et majOutils écrit les trois libellés d'après l'état — les mêmes textes
+    # d'un mode à l'autre pour le mode inerte
+    ecrit = json.loads(_node(_faux_outils() + """
+      const GESTE = { mode: "selection", enCours: null };
+      const COUTEAU = { manip: "translate", garder: "b" };
+    """ + _fonction_etabli("majOutils") + """
+      majOutils();
+      const r = { repos: { a: $("#btnAssise").textContent, c: $("#btnCouteau").textContent,
+                           barre: $("#couteauBarre").classes.has("hidden"), garder: $("#couteauGarder").value,
+                           manip: $("#btnCouteauManip").textContent } };
+      GESTE.mode = "couteau"; COUTEAU.manip = "rotate"; majOutils();
+      r.couteau = { c: $("#btnCouteau").textContent, actif: $("#btnCouteau").classes.has("actif"),
+                    barre: $("#couteauBarre").classes.has("hidden"), manip: $("#btnCouteauManip").textContent };
+      GESTE.mode = "assise"; majOutils();
+      r.assise = { a: $("#btnAssise").textContent, actif: $("#btnAssise").classes.has("actif"),
+                   cActif: $("#btnCouteau").classes.has("actif") };
+      console.log(JSON.stringify(r));
+    """))
+    assert ecrit["repos"] == {"a": "Poser sur une face", "c": "Couteau", "barre": True,
+                              "garder": "b", "manip": "tourner le plan"}
+    assert ecrit["couteau"]["actif"] is True and ecrit["couteau"]["barre"] is False
+    assert ecrit["couteau"]["manip"] == "déplacer le plan" and "Ranger" in ecrit["couteau"]["c"]
+    assert ecrit["assise"]["actif"] is True and ecrit["assise"]["cActif"] is False
+    assert "cliquez une face" in ecrit["assise"]["a"]

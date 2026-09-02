@@ -90,6 +90,32 @@
           <button class="cam-btn" data-vue="dessus">Dessus</button>
           <button class="cam-btn" data-vue="profil">Profil</button>
         </div>
+        <!-- LES OUTILS QUI ÉCRIVENT (lot B) — « poser sur une face » et le
+             couteau — posés SUR le canevas comme le point de vue, et pour la
+             même raison : la main est déjà là. En BAS à gauche, loin de
+             `.vue-cam` (haut droit) et de l'étiquette « A » (haut gauche).
+             Ils portent `outil-btn`, ni la classe des boutons de l'en-tête ni
+             celle du point de vue : deux comptes rigides tiennent ces deux
+             familles, et un outil n'est ni l'une ni l'autre.
+             #btnAssise, #btnCouteau et #btnCouteauManip NAISSENT SANS TEXTE :
+             leur libellé porte l'état du geste, et majOutils() l'écrit dès
+             l'import du module — une seule source. La barre du couteau naît
+             cachée : elle n'a de sens qu'un plan de coupe posé. -->
+        <div class="vue-outils" id="vueOutils">
+          <button class="outil-btn" id="btnAssise"></button>
+          <button class="outil-btn" id="btnCouteau"></button>
+          <span class="outil-couteau hidden" id="couteauBarre">
+            <button class="outil-btn" id="btnCouteauManip"></button>
+            <select class="outil-sel" id="couteauGarder"
+                    title="le côté a est celui que montre la flèche du plan">
+              <option value="deux">garder les deux côtés</option>
+              <option value="a">garder le côté a (flèche)</option>
+              <option value="b">garder le côté b</option>
+            </select>
+            <button class="outil-btn outil-couper" id="btnCouper"
+                    title="Python coupe et écrit une version de plus — refusé tant que des modifications attendent">Couper</button>
+          </span>
+        </div>
       </div>
       <div class="vue hidden" id="vueB"><canvas></canvas><span class="vue-tag">B</span></div>
     </div>

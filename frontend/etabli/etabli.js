@@ -109,6 +109,28 @@ const PLQ = { active: false, pieces: [], masquees: new Set(),
    (Même règle que pour S : toute clé se déclare ICI.) */
 const REP = { cibleMm: null, echelle: null, pas: null };
 
+/* LE PROPRIÉTAIRE DU POINTEUR — un seul, pour quatre modes.
+   Le canevas A reçoit les gestes de QUATRE consommateurs : le sélecteur au
+   clic (selection.js), le glisser de la plaque, « poser sur une face » et le
+   couteau (dont le gizmo écoute le même canevas). Avant le lot B, deux d'entre
+   eux se partageaient le pointeur par un drapeau (`_gestePlaque`) et par
+   l'ORDRE de leurs branchements ; un troisième et un quatrième auraient fait
+   quatre propriétaires pour un pointeur. Ici :
+   - `mode` dit QUI possède le pointeur : "selection" (Assemblé : le clic
+     désigne, le gizmo manipule un nœud), "glisser" (la plaque : le poser
+     saisit une pièce, le clic dans le vide relâche), "assise" (le clic sur
+     une face la met en attente comme assise), "couteau" (le gizmo tient le
+     plan de coupe, le clic ne désigne rien) ;
+   - `enCours` est le geste en train de se faire — { quoi, cle, … }, posé par
+     le glisser au poser et relevé au relever ; le sélecteur le consulte au
+     relever, parce qu'un clic sur l'anneau n'a rien sous `api.racine`.
+   ÉCRIT PAR UN SEUL SITE, armerGeste(), qui range ce que le mode sortant
+   avait posé ; CONSULTÉ par tout écouteur de pointeur avant d'agir — un banc
+   l'épingle par comptage des écouteurs. (Même règle que pour S : toute clé
+   se déclare ICI.) */
+const GESTE = { mode: "selection", enCours: null };
+const MODES_GESTE = ["selection", "glisser", "assise", "couteau"];
+
 /* La clé interne d'une granularité et son LIBELLÉ ne sont pas la même chose.
    Les clés (« noeud », « materiau ») sont des identifiants sans accents, qui
    voyagent dans `data-g` et qui partiront un jour au serveur ; le panneau, lui,
@@ -134,17 +156,31 @@ let _ecritEnCours = false;
    Écrire l'extraction avant une transformation ferait donc porter les index
    du modèle AFFICHÉ sur un document déjà remappé — le mauvais maillage, sur
    disque, sans que rien ne grince. L'extraction passe en DERNIER, quel que
-   soit l'ordre des clics. */
-const ORDRE_ECRITURE = ["reparer", "transformer", "extraire"];
+   soit l'ordre des clics.
+
+   `assise` passe EN PREMIER (lot B) : sa normale et son pivot sont mesurés
+   dans le MONDE de la version affichée, et `reparer` (axe Z, recentrage)
+   change ce monde — écrite après lui, l'assise poserait la face de travers.
+   Écrite avant, elle laisse `reparer` faire sur un modèle déjà posé ce qu'il
+   fait toujours : l'axe, l'échelle, le recentrage. `transformer` ne touche
+   que des repères LOCAUX de nœuds et ne déplace pas ce monde. Comme `reparer`,
+   `assise` ajoute un nœud racine en fin de tableau : aucun index ne bouge.
+   `couper` ferme la liste et n'y voisine avec personne : la coupe RENUMÉROTE
+   (les nœuds coupés disparaissent, deux naissent) et confirmerCoupe() refuse
+   de partir tant que la file n'est pas vide — elle y entre seule, pour la
+   durée de sa propre écriture. */
+const ORDRE_ECRITURE = ["assise", "reparer", "transformer", "extraire", "couper"];
 
 /* Les trois plumes de P1, ÉCRITES plutôt que composées. Un
    `/api/etabli/${t.operation}` marcherait aussi bien et rendrait le fichier
    muet à la recherche plein texte : personne — ni un banc, ni quelqu'un qui
    cherche « qui appelle extraire ? » — n'y trouverait ces adresses. */
 const ROUTES = {
+  assise: "/api/etabli/assise",
   reparer: "/api/etabli/reparer",
   transformer: "/api/etabli/transformer",
   extraire: "/api/etabli/extraire",
+  couper: "/api/etabli/couper",
 };
 
 async function jget(p) {
@@ -361,6 +397,9 @@ async function _ouvrirPrincipale(cible, numero) {
      qu'il est sur le disque. Une plaque est la vue D'UN modèle ; l'autre
      modèle demande un clic. */
   oublierPlaque();
+  /* Et l'OUTIL armé se range — le couteau tient un plan dans la scène et des
+     clones des maillages sortants, que vider() ne connaît pas. */
+  armerGeste("selection");
   /* Et la sélection du panneau Parties avec elles, pour la même raison :
      ses uuid désignent les objets du modèle SORTANT, que vider() est sur le
      point de libérer. Gardés, ils ne désigneraient plus rien — ou pire,
@@ -924,6 +963,9 @@ async function basculerPlaque() {
      visuel avant d'être un risque, et parce que deux gardes valent mieux
      qu'une sur le mode d'échec qui écrit un GLB faux. */
   if (GIZMO) GIZMO.detach();
+  /* L'outil armé se range AVANT l'étalement : le couteau masque ses pièces
+     le temps de l'aperçu, et l'étalement ne doit pas les prendre ainsi. */
+  armerGeste("selection");
   const etalement = etaler(S.vueA, plan);
   if (!etalement) {
     direRefus("aucune pièce mesurable — ce modèle n'expose aucun nœud glTF "
@@ -931,6 +973,8 @@ async function basculerPlaque() {
     return;
   }
   PLQ.active = true;
+  /* LE POINTEUR PASSE À LA PLAQUE : le poser saisit, le clic relâche. */
+  armerGeste("glisser");
   PLQ.pieces = etalement.pieces;
   PLQ.teintes = etalement.teintes;
   PLQ.partages = etalement.partages;
@@ -1012,6 +1056,8 @@ function oublierPlaque() {
   PLQ.aEnvoyer = null;
   PLQ.sauvegarde = null;
   PLQ.masquees.clear();
+  /* Le pointeur revient au sélecteur. */
+  armerGeste("selection");
   majBoutonPlaque();
   /* Le liseré « fait face à la plaque » s'éteint avec elle : laissé allumé, il
      désignerait le plan d'un étalement qui n'existe plus. */
@@ -1232,20 +1278,12 @@ function poserRotation(brut) {
    libère. L'anneau tourne la pièce de la différence d'ANGLE autour de son
    centre, Maj arrondit au pas de PAS_ROTATION. Pas d'élévation possible :
    les deux gestes n'écrivent que dans le plan. */
-/* LE GESTE EN COURS, au niveau du module et non dans la fermeture : le
-   sélecteur au clic le consulte au relever — un clic sur l'ANNEAU n'a rien
-   sous `api.racine` et passerait pour un clic dans le vide, qui relâche.
-
-   POUR LE LOT B — à lire avant le couteau et « poser sur une face ». Le rappel
-   du sélecteur au clic (plus bas, dans `etabli:charge`) est DÉJÀ un
-   multiplexeur de modes (vide / pièce / anneau,
-   plaque ou non), et glisserSurPlaque() en est un second sur les mêmes
-   évènements. Un troisième consommateur du pointeur (le couteau) et un
-   troisième cas de clic (« poser sur une face ») feraient trois propriétaires
-   pour un seul pointeur. Le remède est UN propriétaire du « geste en cours »
-   — un objet { quoi, cle, … } que les modes se passent — et non un drapeau de
-   plus par mode ; `_gestePlaque` en est l'amorce, pas l'aboutissement. */
-let _gestePlaque = null;
+/* LE GESTE EN COURS vit dans GESTE.enCours (déclaré en tête du fichier), et
+   non dans la fermeture : le sélecteur au clic le consulte au relever — un
+   clic sur l'ANNEAU n'a rien sous `api.racine` et passerait pour un clic dans
+   le vide, qui relâche. Et le poser ne saisit une pièce que si le pointeur
+   APPARTIENT à la plaque (GESTE.mode === "glisser") — la règle de tous les
+   écouteurs de pointeur de ce fichier, voir GESTE. */
 
 function glisserSurPlaque(api, canvas) {
   const ndcDe = (ev) => {
@@ -1255,7 +1293,7 @@ function glisserSurPlaque(api, canvas) {
   };
   let geste = null;
   canvas.addEventListener("pointerdown", (ev) => {
-    if (ev.button !== 0 || !estEtalee(api)) return;
+    if (ev.button !== 0 || GESTE.mode !== "glisser") return;
     const ndc = ndcDe(ev);
     const cible = sousLePointeur(api, ndc);
     if (!cible) return;
@@ -1266,7 +1304,7 @@ function glisserSurPlaque(api, canvas) {
               rot0: rotationDe(api, cible.cle),
               angle0: angleSurPlateau(api, point, cible.cle),
               coin0: null };
-    _gestePlaque = geste;
+    GESTE.enCours = geste;
     api.controls.enabled = false;
     if (canvas.setPointerCapture) canvas.setPointerCapture(ev.pointerId);
     if (PLQ.courante !== cible.cle) pieceCourante(cible.cle);
@@ -1309,7 +1347,7 @@ function glisserSurPlaque(api, canvas) {
   const finir = (ev) => {
     if (!geste || ev.pointerId !== geste.id) return;
     geste = null;
-    _gestePlaque = null;
+    GESTE.enCours = null;
     api.controls.enabled = true;
   };
   canvas.addEventListener("pointerup", finir);
@@ -1345,6 +1383,456 @@ function toucheClavierPlaque(ev) {
   return true;
 }
 document.addEventListener("keydown", toucheClavierPlaque);
+
+
+/* ── le propriétaire du pointeur, et les deux outils qui ÉCRIVENT ───────────
+   Lot B de la plaque façon slicer : « poser sur une face » et le couteau. Les
+   deux passent par le serveur — c'est Python qui écrit — et les deux prennent
+   le pointeur du canevas A, que le sélecteur au clic et le glisser de la
+   plaque se partageaient déjà. D'où GESTE (déclaré en tête, avec S, SEL, PLQ
+   et REP), et armerGeste() ci-dessous, SEUL site qui écrive `GESTE.mode`. */
+
+/* Change de propriétaire du pointeur. UN SEUL SITE, pour une raison de plus
+   que la lisibilité : c'est ici, et nulle part ailleurs, que le mode SORTANT
+   range ce qu'il avait posé — le couteau retire son plan, son aperçu et rend
+   au gizmo ses réglages. Un `GESTE.mode = …` écrit ailleurs sauterait ce
+   rangement et laisserait un plan de coupe orphelin dans la scène. Le geste
+   en cours tombe avec le mode : un glisser interrompu par un changement de
+   mode n'a plus de relever qui le concerne. */
+function armerGeste(mode) {
+  if (!MODES_GESTE.includes(mode)) throw new Error(`mode de geste inconnu : ${mode}`);
+  if (GESTE.mode === "couteau" && mode !== "couteau") rangerCouteau();
+  GESTE.mode = mode;
+  GESTE.enCours = null;
+  majOutils();
+}
+
+/* Les libellés des outils, écrits d'UN seul endroit et dès l'import — la
+   règle de majBoutonPlaque() : #btnAssise, #btnCouteau et #btnCouteauManip
+   naissent sans texte dans index.html. Le libellé porte l'ÉTAT du geste pour
+   les deux premiers (un mode armé doit se lire sur le canevas même) et la
+   DESTINATION pour le troisième, comme « Sur la plaque ». */
+function majOutils() {
+  const a = $("#btnAssise"), c = $("#btnCouteau");
+  a.textContent = GESTE.mode === "assise"
+    ? "Poser sur une face : cliquez une face (Échap annule)" : "Poser sur une face";
+  a.title = GESTE.mode === "assise"
+    ? "Cliquez la face du maillage qui doit toucher le sol — Échap pour renoncer"
+    : "Touche F — la face cliquée devient l'assise : le modèle tourne pour "
+      + "qu'elle regarde le bas et se pose au contact (mis en attente, puis "
+      + "écrit par « écrire la version »)";
+  a.classList.toggle("actif", GESTE.mode === "assise");
+  c.textContent = GESTE.mode === "couteau" ? "Ranger le couteau" : "Couteau";
+  c.title = GESTE.mode === "couteau"
+    ? "Retirer le plan de coupe sans rien couper (Échap)"
+    : "Touche C — un plan de coupe sur les pièces RETENUES dans Parties : "
+      + "déplacez-le, tournez-le, puis « Couper » écrit une version où chaque "
+      + "pièce devient deux pièces refermées";
+  c.classList.toggle("actif", GESTE.mode === "couteau");
+  $("#couteauBarre").classList.toggle("hidden", GESTE.mode !== "couteau");
+  $("#btnCouteauManip").textContent =
+    COUTEAU.manip === "translate" ? "tourner le plan" : "déplacer le plan";
+  $("#couteauGarder").value = COUTEAU.garder;
+}
+
+/* Les matériaux d'un objet, qu'il en porte un ou un tableau, jamais de trou.
+   Recopié de selection.js plutôt qu'importé, pour la raison que plaque.js
+   donne : trois lignes contre une surface publique de plus. */
+const materiauxDe = (o) =>
+  (Array.isArray(o.material) ? o.material : [o.material]).filter(Boolean);
+
+/* ── poser sur une face (F) ────────────────────────────────────────────────
+   Le geste des slicers : on arme, on clique une FACE, elle devient l'assise.
+   Un geste = une face : le mode retombe aussitôt, et la ligne d'attente dit
+   ce qui partira — cliquer une autre face après avoir réarmé la REMPLACE
+   (noterAttente remplace `assise`, comme `reparer` : c'est un réglage, pas
+   une accumulation). La normale est celle que selection.js a passée par la
+   matrice normale de l'objet : géométrique, en monde, valide sous une échelle
+   non uniforme. Le serveur en fait une rotation (Rodrigues) dans un nœud de
+   correction NEUF et pose le contact — voir mesh_edit.assise. */
+function armerAssise() {
+  if (GESTE.mode === "assise") { armerGeste("selection"); direGeometrie(); return; }
+  if (!S.vueA || !S.vueA.racine) {
+    direRefus("aucun modèle chargé — rien à poser sur une face");
+    return;
+  }
+  if (PLQ.active) {
+    direRefus("la plaque est une VUE : revenez à « Assemblé » pour poser le "
+      + "modèle sur une face");
+    return;
+  }
+  /* Le gizmo lâche : la face cliquée ne doit pas aussi saisir son nœud. */
+  if (GIZMO) GIZMO.detach();
+  armerGeste("assise");
+  direGeometrie();
+}
+
+function poserSurFace(obj, touche) {
+  if (!obj || !touche || !touche.normale) {
+    direRefus("cliquez une FACE du maillage pour la poser au sol — le vide ne "
+      + "se pose pas (Échap pour renoncer)");
+    return;
+  }
+  if (!S.a) {
+    direRefus("aucun modèle chargé — rien à poser");
+    armerGeste("selection");
+    return;
+  }
+  const n = touche.normale, p = touche.point;
+  noterAttente("assise", { normale: [n.x, n.y, n.z], point: [p.x, p.y, p.z] });
+  armerGeste("selection");
+  direGeometrie();
+}
+
+/* ── le couteau (C) ─────────────────────────────────────────────────────────
+   Un plan de coupe dans le canevas, tenu par le gizmo (translation le long de
+   sa normale, ou rotation), et l'APERÇU des deux moitiés : les pièces
+   retenues sont CLONÉES — même géométrie, matériaux clonés portant un plan de
+   découpe three.js (`clippingPlanes`) — et les deux clones s'écartent d'un
+   cheveu de part et d'autre du plan, comme dans un slicer. Les originaux sont
+   masqués le temps de l'aperçu. RIEN N'EST FABRIQUÉ : la géométrie n'est ni
+   copiée ni modifiée, le navigateur voit ; c'est `POST /api/etabli/couper`
+   qui coupe, et Python qui écrit.
+
+   LE PÉRIMÈTRE EST LA SÉLECTION (SEL.retenus → index de nœud, par la même
+   porte que « Séparer »). Rien de retenu : REFUS, en le disant — un couteau
+   qui tranche tout le modèle sans qu'on l'ait demandé est le geste le plus
+   destructeur de la page. Le côté « a » est celui que montre la flèche (la
+   normale du plan) ; `garder` choisit ce qui est écrit.
+
+   `manip` est le mode du gizmo sur le plan ; `garder` ce qui sera écrit ;
+   `noeuds` les index de nœud capturés à l'armement et refaits à chaque
+   changement de sélection ; `plan`, `apercu`, `clones`, `originaux` ce que le
+   rangement doit défaire ; `planA`/`planB` les deux plans de découpe de
+   three.js (a : le demi-espace vers lequel pointe la normale, comme au
+   serveur). (Même règle que pour S : toute clé se déclare ICI.) */
+const COUTEAU = { manip: "translate", garder: "deux", noeuds: [],
+                  plan: null, apercu: null, clones: [], originaux: [],
+                  planA: new THREE.Plane(), planB: new THREE.Plane(),
+                  rayon: 0, ecart: 0 };
+/* L'écart entre les deux moitiés de l'aperçu, en fraction du rayon des pièces
+   retenues : assez pour lire la coupe, pas assez pour croire à un déplacement.
+   Relatif, comme tout ce qui touche à un GLB sans échelle. */
+const ECART_APERCU = 0.06;
+
+/* Les objets three.js des nœuds glTF demandés — ceux que indexerNoeuds() a
+   marqués, dans le vocabulaire du serveur. */
+function objetsDesNoeuds(noeuds) {
+  const voulus = new Set(noeuds);
+  const trouves = [];
+  if (S.vueA && S.vueA.racine) {
+    S.vueA.racine.traverse((o) => {
+      if (o.userData && voulus.has(o.userData.indexGltf)) trouves.push(o);
+    });
+  }
+  return trouves;
+}
+
+const normaleDuPlan = () =>
+  new THREE.Vector3(0, 0, 1).applyQuaternion(COUTEAU.plan.quaternion);
+
+/* Le gizmo n'offre que ce qui a un sens sur un plan : glisser le long de sa
+   normale (Z local — PlaneGeometry regarde +Z), ou le tourner autour des deux
+   axes du plan. Une rotation autour de la normale ne changerait rien, une
+   translation dans le plan non plus. */
+function majAxesGizmo() {
+  if (!GIZMO) return;
+  const t = COUTEAU.manip === "translate";
+  GIZMO.showX = !t;
+  GIZMO.showY = !t;
+  GIZMO.showZ = t;
+}
+
+function monterCouteau() {
+  const api = S.vueA;
+  api.racine.updateMatrixWorld(true);
+  const boite = new THREE.Box3();
+  for (const o of objetsDesNoeuds(COUTEAU.noeuds)) boite.expandByObject(o);
+  const centre = boite.getCenter(new THREE.Vector3());
+  const rayon = boite.getSize(new THREE.Vector3()).length() / 2 || 1;
+  const plan = new THREE.Mesh(
+    new THREE.PlaneGeometry(rayon * 2.4, rayon * 2.4),
+    new THREE.MeshBasicMaterial({ color: 0x4da3ff, transparent: true,
+                                  opacity: 0.18, side: THREE.DoubleSide,
+                                  depthWrite: false }));
+  plan.name = "couteau-plan";
+  plan.position.copy(centre);
+  /* La normale du plan (+Z local) part sur +Y monde : la coupe HORIZONTALE,
+     celle que les slicers proposent d'abord. */
+  plan.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1),
+                                     new THREE.Vector3(0, 1, 0));
+  /* La flèche montre le côté « a », le long de la normale — enfant du plan,
+     elle tourne avec lui. */
+  const fleche = new THREE.ArrowHelper(new THREE.Vector3(0, 0, 1),
+                                       new THREE.Vector3(), rayon * 0.5,
+                                       0x4da3ff, rayon * 0.12, rayon * 0.06);
+  fleche.name = "couteau-fleche";
+  plan.add(fleche);
+  api.scene.add(plan);
+  COUTEAU.plan = plan;
+  COUTEAU.rayon = rayon;
+  COUTEAU.ecart = rayon * ECART_APERCU;
+  /* Le rendu ne découpe que si on le lui demande ; laissé allumé ensuite, il
+     ne coûte rien à un matériau sans plan de découpe. */
+  api.renderer.localClippingEnabled = true;
+  const g = assurerGizmo();
+  g.setSpace("local");
+  g.setMode(COUTEAU.manip);
+  majAxesGizmo();
+  g.attach(plan);
+  monterApercuCoupe();
+  majApercuCoupe();
+}
+
+/* L'aperçu : deux clones par maillage retenu, l'un découpé du côté a, l'autre
+   du côté b, dans deux groupes que majApercuCoupe() écarte le long de la
+   normale. `clone(false)` : la géométrie est PARTAGÉE (rien n'est copié), les
+   matériaux sont clonés parce que le plan de découpe est une propriété de
+   matériau — et un matériau cloné ne clone pas ses textures. La matrice monde
+   du maillage est POSÉE sur le clone : il est rendu là où l'original l'était,
+   quelle que soit la profondeur de la hiérarchie. */
+function monterApercuCoupe() {
+  demonterApercuCoupe();
+  const apercu = new THREE.Group();
+  apercu.name = "couteau-apercu";
+  const gA = new THREE.Group(), gB = new THREE.Group();
+  gA.name = "couteau-cote-a";
+  gB.name = "couteau-cote-b";
+  apercu.add(gA, gB);
+  S.vueA.racine.updateMatrixWorld(true);
+  for (const o of objetsDesNoeuds(COUTEAU.noeuds)) {
+    o.traverse((m) => {
+      if (!m.isMesh || !m.geometry) return;
+      for (const [groupe, plan] of [[gA, COUTEAU.planA], [gB, COUTEAU.planB]]) {
+        const c = m.clone(false);
+        c.matrixAutoUpdate = false;
+        c.matrix.copy(m.matrixWorld);
+        const mats = materiauxDe(m).map((x) => {
+          const y = x.clone();
+          y.clippingPlanes = [plan];
+          y.clipShadows = false;
+          return y;
+        });
+        c.material = Array.isArray(m.material) ? mats : mats[0];
+        groupe.add(c);
+        COUTEAU.clones.push(c);
+      }
+      COUTEAU.originaux.push({ objet: m, visible: m.visible });
+      m.visible = false;
+    });
+  }
+  S.vueA.scene.add(apercu);
+  COUTEAU.apercu = apercu;
+}
+
+/* Le plan a bougé (gizmo), ou `garder` a changé : les deux plans de découpe
+   et l'écart suivent. Le plan de découpe de la moitié a est DÉCALÉ du même
+   demi-écart que son groupe : la géométrie déplacée de +e/2 découpée en
+   p + n·e/2 montre exactement ce que la géométrie en place découpée en p
+   montrerait. `garder` masque la moitié qui ne sera pas écrite. */
+function majApercuCoupe() {
+  if (!COUTEAU.plan || !COUTEAU.apercu) return;
+  const n = normaleDuPlan(), p = COUTEAU.plan.position;
+  const demi = COUTEAU.ecart / 2;
+  const [gA, gB] = COUTEAU.apercu.children;
+  gA.position.copy(n).multiplyScalar(demi);
+  gB.position.copy(n).multiplyScalar(-demi);
+  COUTEAU.planA.setFromNormalAndCoplanarPoint(n, p.clone().addScaledVector(n, demi));
+  COUTEAU.planB.setFromNormalAndCoplanarPoint(n.clone().negate(),
+                                              p.clone().addScaledVector(n, -demi));
+  gA.visible = COUTEAU.garder !== "b";
+  gB.visible = COUTEAU.garder !== "a";
+}
+
+function demonterApercuCoupe() {
+  if (COUTEAU.apercu && S.vueA) S.vueA.scene.remove(COUTEAU.apercu);
+  /* Les matériaux CLONÉS seulement : géométries et textures sont celles du
+     modèle, que le vider() de viewer.js libère avec lui. */
+  for (const c of COUTEAU.clones) for (const m of materiauxDe(c)) m.dispose();
+  for (const { objet, visible } of COUTEAU.originaux) objet.visible = visible;
+  COUTEAU.apercu = null;
+  COUTEAU.clones = [];
+  COUTEAU.originaux = [];
+}
+
+/* Ce que le mode sortant défait — appelé par armerGeste(), et par lui seul :
+   le plan et sa flèche quittent la scène et libèrent leur géométrie, l'aperçu
+   tombe, les originaux redeviennent visibles, et le gizmo retrouve les
+   réglages avec lesquels poserGizmo() manipule un nœud. */
+function rangerCouteau() {
+  demonterApercuCoupe();
+  if (GIZMO) {
+    GIZMO.detach();
+    GIZMO.setSpace("world");
+    GIZMO.setMode("translate");
+    GIZMO.showX = GIZMO.showY = GIZMO.showZ = true;
+  }
+  if (COUTEAU.plan) {
+    if (S.vueA) S.vueA.scene.remove(COUTEAU.plan);
+    const fleche = COUTEAU.plan.children.find((o) => o.name === "couteau-fleche");
+    if (fleche && fleche.dispose) fleche.dispose();
+    COUTEAU.plan.geometry.dispose();
+    COUTEAU.plan.material.dispose();
+  }
+  COUTEAU.plan = null;
+  COUTEAU.noeuds = [];
+}
+
+function armerCouteau() {
+  if (GESTE.mode === "couteau") { armerGeste("selection"); direGeometrie(); return; }
+  if (!S.vueA || !S.vueA.racine) {
+    direRefus("aucun modèle chargé — rien à couper");
+    return;
+  }
+  if (PLQ.active) {
+    direRefus("la plaque est une VUE : revenez à « Assemblé » pour couper");
+    return;
+  }
+  const { noeuds } = noeudsRetenus();
+  if (!noeuds.length) {
+    direRefus("aucune pièce retenue — cochez dans Parties ce que le couteau "
+      + "doit couper : il ne tranche jamais tout le modèle par défaut");
+    return;
+  }
+  armerGeste("couteau");
+  COUTEAU.noeuds = noeuds;
+  monterCouteau();
+  direGeometrie();
+}
+
+/* La sélection a changé pendant que le couteau est armé : l'aperçu suit —
+   ou le couteau se range s'il ne reste rien à couper, en le disant. */
+function reconstruireApercuCoupe() {
+  if (GESTE.mode !== "couteau") return;
+  const { noeuds } = noeudsRetenus();
+  if (!noeuds.length) {
+    armerGeste("selection");
+    direRefus("couteau rangé : plus aucune pièce retenue, il n'y a plus rien à "
+      + "couper");
+    return;
+  }
+  COUTEAU.noeuds = noeuds;
+  monterApercuCoupe();
+  majApercuCoupe();
+}
+
+/* LA COUPE PART SEULE, IMMÉDIATEMENT — jamais en file derrière d'autres
+   corrections. Elle change la TOPOLOGIE : les nœuds coupés disparaissent,
+   deux naissent, tout est renuméroté ; une transformation en attente,
+   indexée sur le modèle affiché, viserait après elle le mauvais nœud. La
+   règle : on REFUSE tant que la file n'est pas vide (« écris d'abord »), puis
+   la coupe traverse l'entonnoir d'écriture SEULE — noterAttente() puis
+   ecrireVersion() dans le même souffle, sans bouton entre les deux. Passer
+   par l'entonnoir plutôt qu'à côté n'est pas une paresse : c'est lui qui
+   tient le verrou, l'adoption Meshy, le refus de l'étape décimée, la
+   chronologie, la réouverture et la vignette — le code le plus délicat de la
+   page, et le dupliquer pour une seule route l'aurait fait diverger. */
+async function confirmerCoupe() {
+  if (GESTE.mode !== "couteau" || !COUTEAU.plan) {
+    direRefus("le couteau n'est pas armé — « Couteau » pose d'abord le plan de coupe");
+    return false;
+  }
+  if (!S.a) { direRefus("aucun modèle chargé — rien à couper"); return false; }
+  if (_ecritEnCours) {
+    direRefus("une écriture est en cours — attends la fin de la série avant de couper");
+    return false;
+  }
+  if (S.enAttente.length) {
+    direRefus(`${S.enAttente.length} modification(s) en attente — écris d'abord `
+      + "les modifications en attente (« écrire la version ») : la coupe "
+      + "renumérote les nœuds et ne se met pas en file derrière elles");
+    return false;
+  }
+  const { noeuds, source } = noeudsRetenus();
+  if (!noeuds.length) {
+    direRefus("aucune pièce retenue — le couteau ne tranche jamais tout le "
+      + "modèle par défaut");
+    return false;
+  }
+  const n = normaleDuPlan(), p = COUTEAU.plan.position;
+  noterAttente("couper", { noeuds, point: [p.x, p.y, p.z],
+                           normale: [n.x, n.y, n.z], garder: COUTEAU.garder },
+               source);
+  const bilan = await ecrireVersion();
+  if (!bilan || !bilan.ecrites.includes("couper")) {
+    /* Refusée par le serveur (le plan ne traverse rien, un GLB compressé…) :
+       la ligne ressort de la file — elle n'y était que pour ce geste-ci — et
+       le couteau reste armé, le refus est dans la barre, le plan se corrige. */
+    const i = S.enAttente.findIndex((t) => t.operation === "couper");
+    if (i >= 0) S.enAttente.splice(i, 1);
+    rendreAttente();
+    return false;
+  }
+  /* Écrite : ecrireVersion() a rouvert la version neuve, ce qui a rangé le
+     couteau (armerGeste("selection") au changement de modèle). Reste à DIRE
+     ce que le compte rendu porte — un capuchon non posé n'est pas un échec
+     d'écriture, mais l'utilisateur doit le savoir avant d'envoyer au slicer. */
+  direBilanCoupe(bilan.derniere);
+  return true;
+}
+
+/* Le compte rendu du couteau (`source` de la fiche, format en tête de la
+   section couteau de mesh_edit.py) : ce qui n'a PAS été refermé se dit dans
+   la barre du bas, avec la raison du serveur. Tout refermé : la mesure du
+   modèle rechargé suffit. */
+function direBilanCoupe(fiche) {
+  const src = fiche && fiche.source;
+  const manques = [];
+  for (const piece of (src && src.pieces) || []) {
+    for (const [cote, c] of Object.entries(piece.cotes || {})) {
+      if (c.capuchon && c.capuchon.pose === false) {
+        manques.push(`${piece.nom}_${cote} : ${c.capuchon.raison}`);
+      }
+    }
+  }
+  if (!manques.length) return;
+  direRefus(`coupe écrite (version ${fiche.version}) — capuchon non posé : `
+    + manques.join(" · "));
+}
+
+/* ── le clavier des outils : F, C, Échap ────────────────────────────────────
+   Les touches des slicers. Jamais volées aux champs (la règle de
+   toucheClavierPlaque), jamais avec un modificateur — Ctrl+F reste la
+   recherche du navigateur. Rend vrai quand le geste a été pris. */
+function toucheClavierOutils(ev) {
+  if (ev.ctrlKey || ev.metaKey || ev.altKey) return false;
+  const t = ev.target;
+  if (t && (t.isContentEditable
+            || /^(INPUT|TEXTAREA|SELECT)$/i.test(t.tagName || ""))) return false;
+  const k = String(ev.key || "");
+  if (k === "Escape") {
+    if (GESTE.mode !== "assise" && GESTE.mode !== "couteau") return false;
+    armerGeste("selection");
+    direGeometrie();
+  } else if (k === "f" || k === "F") {
+    armerAssise();
+  } else if (k === "c" || k === "C") {
+    armerCouteau();
+  } else {
+    return false;
+  }
+  if (ev.preventDefault) ev.preventDefault();
+  return true;
+}
+document.addEventListener("keydown", toucheClavierOutils);
+
+/* Branchés au PREMIER NIVEAU du module, comme #btnPlaque et #btnRetour : ils
+   ne s'exécutent qu'à l'import, et ne s'empilent donc pas. */
+$("#btnAssise").addEventListener("click", armerAssise);
+$("#btnCouteau").addEventListener("click", armerCouteau);
+$("#btnCouteauManip").addEventListener("click", () => {
+  COUTEAU.manip = COUTEAU.manip === "translate" ? "rotate" : "translate";
+  if (GIZMO && GESTE.mode === "couteau") {
+    GIZMO.setMode(COUTEAU.manip);
+    majAxesGizmo();
+  }
+  majOutils();
+});
+$("#couteauGarder").addEventListener("change", () => {
+  COUTEAU.garder = $("#couteauGarder").value;
+  majApercuCoupe();
+});
+$("#btnCouper").addEventListener("click", confirmerCoupe);
 
 /* ── le point de vue : deux projections, trois vues d'axe ───────────────────
    DEUX OPTIONS, ce que la demande dit : celle qui existait — perspective sur
@@ -1661,6 +2149,8 @@ function rendreParties() {
          pas un maillage, et une sélection mêlée partirait telle quelle au
          serveur en tâche 8. */
       SEL.granularite = b.dataset.g; SEL.retenus.clear();
+      /* Le couteau coupait cette sélection : vidée, il se range en le disant. */
+      reconstruireApercuCoupe();
       /* Le bleu appartenait à la sélection qu'on vient de vider : le laisser
          ferait croire qu'un maillage est encore retenu. surligner() accepte
          null et restaure tout — aucune ligne neuve. */
@@ -1671,6 +2161,8 @@ function rendreParties() {
     c.addEventListener("change", () => {
       if (c.checked) SEL.retenus.add(c.dataset.uuid);
       else SEL.retenus.delete(c.dataset.uuid);
+      /* L'aperçu du couteau suit la sélection, s'il est armé. */
+      reconstruireApercuCoupe();
       /* Le repère suit la case cochée, et il ne peut pas suivre autrement :
          cocher ne redessine PAS ce panneau (rendreParties() perdrait le
          défilement de la liste sous les doigts), donc le seul autre appel —
@@ -1788,6 +2280,18 @@ function poserGizmo(objet) {
       + "rien à envoyer au serveur, donc rien à déplacer");
     return;
   }
+  assurerGizmo();
+  GIZMO.attach(noeud);
+  /* Le refus qu'un clic PRÉCÉDENT a pu laisser portait sur un autre maillage :
+     le laisser rouge ferait passer ce geste-ci, qui a réussi, pour un échec. */
+  direGeometrie();
+}
+
+/* Le gizmo, fabriqué UNE fois pour la page et pour ses DEUX usages : un nœud
+   du modèle (poserGizmo) et le plan de coupe du couteau (monterCouteau). Il se
+   branche sur la caméra et sur le canevas de la vue A, créés une seule fois
+   eux aussi. */
+function assurerGizmo() {
   if (!GIZMO) {
     GIZMO = new TransformControls(S.vueA.camera, S.vueA.renderer.domElement);
     /* le gizmo et l'orbite se disputent la souris : l'un désarme l'autre */
@@ -1796,6 +2300,9 @@ function poserGizmo(objet) {
     });
     GIZMO.addEventListener("objectChange", () => {
       const o = GIZMO.object;
+      /* LE PLAN DE COUPE D'ABORD : il n'a pas d'index de nœud, rien ne part
+         en file — l'aperçu du couteau suit le plan, et c'est tout. */
+      if (o && o === COUTEAU.plan) { majApercuCoupe(); return; }
       if (!o || !o.userData || o.userData.indexGltf === undefined) return;
       /* Le quaternion part TEL QUEL. `mesh_edit.transformer` refuse un
          quaternion non normé, en 400, et sa docstring dit pourquoi :
@@ -1824,10 +2331,7 @@ function poserGizmo(objet) {
     });
     S.vueA.scene.add(GIZMO.getHelper());
   }
-  GIZMO.attach(noeud);
-  /* Le refus qu'un clic PRÉCÉDENT a pu laisser portait sur un autre maillage :
-     le laisser rouge ferait passer ce geste-ci, qui a réussi, pour un échec. */
-  direGeometrie();
+  return GIZMO;
 }
 
 /* Rien n'est écrit tant que le bouton n'est pas cliqué : la file est la
@@ -1878,13 +2382,17 @@ function fileOrdonnee() {
 /* La barre ÉNUMÈRE, elle ne se contente pas de compter : c'est ce détail qui
    rend la fusion visible — « 2 nœud(s) déplacé(s) » et non deux fois
    « 1 modification », qui aurait laissé passer l'écrasement en silence. */
+const fmtCoord = (v) => Number(v).toFixed(2);
+const LIBELLES_ATTENTE = {
+  transformer: (t) => `${Object.keys(t.charge).length} nœud(s) déplacé(s)`,
+  extraire: (t) => `${t.charge.length} nœud(s) à séparer`,
+  reparer: (t) => `assise : axe ${t.charge.axe_haut}, échelle ${t.charge.echelle}`
+    + (t.charge.recentrer ? ", recentré" : ""),
+  assise: (t) => `posé sur une face (normale ${t.charge.normale.map(fmtCoord).join(", ")})`,
+  couper: (t) => `coupe de ${t.charge.noeuds.length} pièce(s) — garder ${t.charge.garder}`,
+};
 const libelleAttente = (t) =>
-  t.operation === "transformer"
-    ? `${Object.keys(t.charge).length} nœud(s) déplacé(s)`
-    : t.operation === "extraire"
-      ? `${t.charge.length} nœud(s) à séparer`
-      : `assise : axe ${t.charge.axe_haut}, échelle ${t.charge.echelle}`
-        + (t.charge.recentrer ? ", recentré" : "");
+  (LIBELLES_ATTENTE[t.operation] || ((x) => x.operation))(t);
 
 function rendreAttente() {
   const box = $("#barreAttente");
@@ -1904,7 +2412,7 @@ function rendreAttente() {
      et le clic se solderait par un `return` muet — ce que ce fichier refuse
      partout ailleurs. */
   box.innerHTML = `<b>${S.enAttente.length} modification(s) en attente</b>
-    <span class="attente-liste" title="ordre d'écriture imposé : réparer, puis transformer, puis séparer — l'extraction renumérote les nœuds, elle passe donc en dernier">${esc(liste)}</span>${doute}
+    <span class="attente-liste" title="ordre d'écriture imposé : poser sur une face, puis réparer, puis transformer, puis séparer — l'assise est mesurée dans le monde affiché, l'extraction renumérote les nœuds">${esc(liste)}</span>${doute}
     <button id="btnEcrire"${_ecritEnCours ? " disabled" : ""}>écrire la version</button>
     <button id="btnAnnuler">annuler</button>`;
   $("#btnEcrire").addEventListener("click", ecrireVersion);
@@ -2056,6 +2564,9 @@ async function ecrireVersion() {
     _ecritEnCours = false;
     rendreAttente();
   }
+  /* Le bilan, pour qui écrit SEUL par cet entonnoir (confirmerCoupe) : ce
+     qui est passé, la dernière fiche rendue, l'échec s'il y en a eu. */
+  return { ecrites, derniere, echec };
 }
 
 /* ── la vignette de la version écrite ───────────────────────────────────────
@@ -2202,16 +2713,19 @@ async function capturerVignette(job, version) {
   }
 }
 
-/* Séparer : la sélection courante part comme nouvelle version. */
-function separerSelection() {
-  /* ICI se rencontrent les deux vocabulaires : `SEL.retenus` porte des uuid
-     three.js, le serveur veut des index de nœud glTF. isoler() refuse
-     délibérément de faire la conversion et son commentaire renvoie à cette
-     porte — « la conversion appartient à qui mêlera les deux vocabulaires ».
-     Un uuid de MATÉRIAU ne se retrouve pas dans le graphe : il tombe donc
-     naturellement, comme un maillage sans index. */
+/* ICI se rencontrent les deux vocabulaires : `SEL.retenus` porte des uuid
+   three.js, le serveur veut des index de nœud glTF. isoler() refuse
+   délibérément de faire la conversion et son commentaire renvoie à cette
+   porte — « la conversion appartient à qui mêlera les deux vocabulaires ».
+   Un uuid de MATÉRIAU ne se retrouve pas dans le graphe : il tombe donc
+   naturellement, comme un maillage sans index.
+
+   Rend { noeuds, source } : les index, et la provenance douteuse s'il y en a
+   une. UNE porte pour « Séparer » ET pour le couteau — deux conversions
+   divergeraient, et c'est un index de nœud qui part écrire un GLB. */
+function noeudsRetenus() {
   let source;
-  const idx = [...SEL.retenus]
+  const noeuds = [...SEL.retenus]
     .map((u) => {
       let trouve;
       if (S.vueA && S.vueA.racine) {
@@ -2225,6 +2739,12 @@ function separerSelection() {
       return trouve.userData.indexGltf;
     })
     .filter((x) => x !== undefined);
+  return { noeuds, source };
+}
+
+/* Séparer : la sélection courante part comme nouvelle version. */
+function separerSelection() {
+  const { noeuds: idx, source } = noeudsRetenus();
   if (!idx.length) {
     /* La page a déjà une façon de refuser en le disant, et ce n'est pas une
        boîte modale du navigateur : la barre du bas. */
@@ -2626,15 +3146,22 @@ document.addEventListener("etabli:charge", () => {
      donc, et il vaut pour tous les modèles suivants. */
   if (_clicBranche) return;
   _clicBranche = true;
-  designerAuClic(S.vueA, $("#vueA canvas"), (obj) => {
+  designerAuClic(S.vueA, $("#vueA canvas"), (obj, touche) => {
+    /* LE MULTIPLEXEUR DES MODES, et il consulte le PROPRIÉTAIRE avant tout —
+       la règle de GESTE. Le couteau tient le pointeur par son gizmo : un clic
+       à côté du plan ne désigne rien, sans quoi la pièce sous le curseur
+       prendrait le gizmo au plan. « Poser sur une face » consomme le clic
+       entier, point et normale compris. */
+    if (GESTE.mode === "couteau") return;
+    if (GESTE.mode === "assise") { poserSurFace(obj, touche); return; }
     /* Sur la plaque, cliquer le VIDE relâche la pièce courante — le geste des
        slicers ; cliquer une pièce l'a déjà désignée au poser (glisserSurPlaque).
        L'ANNEAU n'est pas le vide : il vit hors d'`api.racine`, ce rayon ne le
        voit pas, et le geste en cours (encore posé : notre relever passe avant
        le sien) dit que c'est lui qu'on a cliqué. */
     if (!obj) {
-      if (_gestePlaque && _gestePlaque.quoi === "poignee") return;
-      if (estEtalee(S.vueA) && PLQ.courante !== null) pieceCourante(null);
+      if (GESTE.enCours && GESTE.enCours.quoi === "poignee") return;
+      if (GESTE.mode === "glisser" && PLQ.courante !== null) pieceCourante(null);
       return;
     }
     surligner(S.vueA, obj.uuid);
@@ -2650,7 +3177,7 @@ document.addEventListener("etabli:charge", () => {
        réussi ferait passer la sélection pour un échec. La garde bruyante reste
        pour qui appellerait poserGizmo() autrement ; ici on se tait, et le
        titre du bouton de bascule dit déjà que la plaque ne manipule pas. */
-    if (!estEtalee(S.vueA)) poserGizmo(obj);
+    if (GESTE.mode !== "glisser") poserGizmo(obj);
     /* Le clic désigne un MAILLAGE, et rien d'autre : son uuid n'est ni celui
        d'un matériau, ni un index de nœud, et `retenus` doit rester homogène.
        Mais hors de la granularité « maillage » on SORT — on ne détruit pas.
@@ -2691,6 +3218,9 @@ rendreParties();
    majBoutonPlaque(), plutôt que d'être écrits dans index.html PUIS réécrits
    ici : deux sources pour un même texte divergent à la première retouche. */
 majBoutonPlaque();
+/* Et les outils du lot B, pour la même raison : leurs boutons naissent sans
+   texte, majOutils() les écrit ici. */
+majOutils();
 /* Même règle pour le point de vue : #btnProjection naît sans texte et les
    trois vues d'axe naissent sans marque ni infobulle. Les écrire dans
    index.html PUIS ici ferait deux sources pour un même texte. */

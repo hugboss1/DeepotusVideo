@@ -9213,6 +9213,10 @@ def _etabli_du_job(ligne: dict) -> list[dict]:
         src = (fiches.get(etape["file"]) or {}).get("source")
         if not isinstance(src, dict) or src.get("outil") != "etabli":
             continue
+        # `src` porte tout le détail de l'opération : pour « couper », le compte
+        # rendu du couteau — nœuds produits, capuchons posés ou non et pourquoi
+        # (format en tête de la section couteau de mesh_edit.py). L'entrée n'en
+        # remonte que le nom ; qui voudra afficher les capuchons le lira ici.
         out.append(_etabli_entree(
             ligne, etape, str(src.get("operation") or "?"), d))
         vues.add(v)
@@ -9449,3 +9453,100 @@ async def etabli_reparer(body: dict):
                           {"axe_haut": body.get("axe_haut"),
                            "echelle": body.get("echelle"),
                            "recentrer": bool(body.get("recentrer"))})
+
+
+# ── le lot B de la plaque façon slicer : deux écritures de plus ──────────────
+# « Poser sur une face » et le couteau. Les deux passent la porte de
+# `_etabli_cible_sous_jobs` (nom dégénéré refusé, chemin résolu confiné), et
+# leurs corps sont jugés ICI avant toute lecture — `mesh_edit` refuse à son
+# tour en ValueError, traduites en 400.
+
+def _etabli_glb_cible(job, version, quoi: str) -> tuple[str, bytes]:
+    """Les octets d'une version pour un `job` venu du RÉSEAU : les deux gardes
+    de `_etabli_cible_sous_jobs`, puis le 404 franc d'un fichier absent. Rend
+    aussi le nom de dossier APLATI, celui sous lequel la version s'écrira."""
+    from app.services import mesh_report
+    if not isinstance(job, str):
+        raise HTTPException(400, f"{quoi} : job « {job} » — le nom du dossier "
+                                 "de job est attendu")
+    if not _etabli_entier(version) or version < 1:
+        raise HTTPException(400, f"{quoi} : version « {version} » — un entier "
+                                 "à partir de 1")
+    nom = "model.glb" if version <= 1 else f"model.v{version}.glb"
+    p = _etabli_cible_sous_jobs(
+        job, lambda j: mesh_report.job_dir(Path(str(j)).name) / nom, quoi)
+    if not p.is_file():
+        raise HTTPException(404, f"{quoi} : {p.parent.name}/{nom} introuvable")
+    return p.parent.name, p.read_bytes()
+
+
+def _etabli_vecteur(v, quoi: str, *, direction: bool = False) -> list[float]:
+    """Trois nombres finis — et pour une direction, pas tous nuls."""
+    if not isinstance(v, list) or len(v) != 3 or not all(_etabli_nombre(c) for c in v):
+        raise HTTPException(400, f"{quoi} — trois nombres finis [x, y, z] "
+                                 "sont attendus")
+    if direction and all(c == 0 for c in v):
+        raise HTTPException(400, f"{quoi} — une direction ne peut pas être "
+                                 "(0, 0, 0)")
+    return [float(c) for c in v]
+
+
+@router.post("/etabli/assise")
+async def etabli_assise(body: dict):
+    """Pose le modèle sur la face désignée : `normale` (monde, unitaire ou
+    non) et `point` (le pivot, facultatif). Écrit une version de plus, comme
+    `/etabli/reparer` dont c'est le geste en un clic — voir
+    `mesh_edit.assise` pour l'invariant du nœud de correction NEUF."""
+    from app.services import mesh_edit
+    job, data = _etabli_glb_cible(body.get("job"), body.get("version"), "assise")
+    normale = _etabli_vecteur(body.get("normale"), "assise : normale",
+                              direction=True)
+    point = body.get("point")
+    if point is not None:
+        point = _etabli_vecteur(point, "assise : point")
+    try:
+        sortie = mesh_edit.assise(data, normale=normale, point=point)
+    except ValueError as e:
+        # un GLB compressé refuse : la translation de contact lit la géométrie
+        raise HTTPException(400, str(e))
+    return _etabli_ecrire(job, sortie, "assise",
+                          {"normale": normale, "point": point})
+
+
+_ETABLI_GARDER = ("deux", "a", "b")
+
+
+@router.post("/etabli/couper")
+async def etabli_couper(body: dict):
+    """Le couteau : coupe les nœuds `noeuds` par le plan (`point`, `normale`)
+    et écrit une version de plus. `garder` ∈ deux | a | b (a : le côté vers
+    lequel pointe la normale). Le compte rendu de `mesh_edit.couper` — nœuds
+    produits, capuchons posés ou non et pourquoi — devient le `source` de la
+    fiche : c'est là que `/etabli/productions` et la Bibliothèque le lisent,
+    et le format est décrit en tête de la section couteau de mesh_edit.py.
+
+    Aucun plan de plaque n'est reporté sur la version coupée, et c'est voulu
+    (voir le format du plan) : ses index de nœud ne sont plus ceux d'avant.
+    """
+    from app.services import mesh_edit
+    job, data = _etabli_glb_cible(body.get("job"), body.get("version"), "couteau")
+    noeuds = body.get("noeuds")
+    if not isinstance(noeuds, list) or not noeuds:
+        raise HTTPException(400, "couteau : `noeuds` doit être une liste non "
+                                 "vide d'index de nœud — le couteau ne tranche "
+                                 "jamais tout le modèle par défaut")
+    for n in noeuds:
+        if not _etabli_entier(n) or n < 0:
+            raise HTTPException(400, f"couteau : nœud « {n} » — un entier ≥ 0 "
+                                     "(index de nœud glTF)")
+    point = _etabli_vecteur(body.get("point"), "couteau : point")
+    normale = _etabli_vecteur(body.get("normale"), "couteau : normale",
+                              direction=True)
+    garder = body.get("garder", "deux")
+    if garder not in _ETABLI_GARDER:
+        raise HTTPException(400, f"couteau : garder « {garder} » — deux, a ou b")
+    try:
+        sortie, rapport = mesh_edit.couper(data, noeuds, point, normale, garder)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return _etabli_ecrire(job, sortie, "couper", rapport)

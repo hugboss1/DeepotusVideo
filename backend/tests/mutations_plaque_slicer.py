@@ -190,8 +190,8 @@ M = [
      "    if (canvas.setPointerCapture)",
      ["AIMANTATION"]),
     ("frontend/etabli/etabli.js",
-     "    geste = null;\n    _gestePlaque = null;\n    api.controls.enabled = true;",
-     "    geste = null;\n    _gestePlaque = null;",
+     "    geste = null;\n    GESTE.enCours = null;\n    api.controls.enabled = true;",
+     "    geste = null;\n    GESTE.enCours = null;",
      ["AIMANTATION"]),
     ("frontend/etabli/etabli.js",
      "      if (Math.hypot(ev.clientX - geste.x0, ev.clientY - geste.y0)\n          <= TOLERANCE_CLIC) return;",
@@ -205,17 +205,21 @@ M = [
      "  const pas = g.pas * (ev.altKey ? 0.1 : ev.ctrlKey ? 10 : 1);",
      "  const pas = g.pas;",
      ["FLECHES"]),
+    # ancrée sur la garde de la plaque : depuis le lot B, le clavier des
+    # outils (toucheClavierOutils) garde les champs par les deux mêmes lignes
     ("frontend/etabli/etabli.js",
-     "  if (t && (t.isContentEditable\n            || /^(INPUT|TEXTAREA|SELECT)$/i.test(t.tagName || \"\"))) return false;",
-     "",
+     "  if (!PLQ.active || PLQ.courante === null || !S.vueA) return false;\n  const t = ev.target;\n  if (t && (t.isContentEditable\n            || /^(INPUT|TEXTAREA|SELECT)$/i.test(t.tagName || \"\"))) return false;",
+     "  if (!PLQ.active || PLQ.courante === null || !S.vueA) return false;\n  const t = ev.target;",
      ["FLECHES"]),
     ("frontend/etabli/etabli.js",
      "  const dir = axesEcran(S.vueA.camera.matrixWorld.elements, g.axe)[f[0]];",
      "  const dir = f[0] === \"droite\" ? { axe: g.u, signe: 1 } : { axe: g.v, signe: 1 };",
      ["FLECHES"]),
+    # ancree sur noterPlan() : depuis le lot B, toucheClavierOutils finit par
+    # les deux memes lignes
     ("frontend/etabli/etabli.js",
-     "  if (ev.preventDefault) ev.preventDefault();\n  return true;",
-     "  return true;",
+     "  noterPlan();\n  if (ev.preventDefault) ev.preventDefault();\n  return true;",
+     "  noterPlan();\n  return true;",
      ["FLECHES"]),
     ("frontend/etabli/etabli.js",
      "  PLQ.aEnvoyer = { job: S.a.job, version: S.a.version, ...plan };\n  if (!_envoiPlan) _envoiPlan = setTimeout(envoyerPlan, DELAI_PLAN_MS);",
@@ -283,7 +287,7 @@ M = [
      "    } finally {\n    }",
      ["PREMIERE_RETOUCHE"]),
     ("frontend/etabli/etabli.js",
-     "      if (_gestePlaque && _gestePlaque.quoi === \"poignee\") return;\n",
+     "      if (GESTE.enCours && GESTE.enCours.quoi === \"poignee\") return;\n",
      "",
      ["ANNEAU"]),
     ("frontend/etabli/etabli.js",
@@ -306,16 +310,18 @@ M = [
     #    Deux remplacements (la liste), parce qu'on DÉPLACE l'appel : le relever
     #    du sélecteur ne voit plus `_gestePlaque`, un clic sur l'anneau relâche.
     ("frontend/etabli/etabli.js",
-     [("  _clicBranche = true;\n  designerAuClic(S.vueA, $(\"#vueA canvas\"), (obj) => {",
-       "  _clicBranche = true;\n  glisserSurPlaque(S.vueA, $(\"#vueA canvas\"));\n  designerAuClic(S.vueA, $(\"#vueA canvas\"), (obj) => {"),
+     [("  _clicBranche = true;\n  designerAuClic(S.vueA, $(\"#vueA canvas\"), (obj, touche) => {",
+       "  _clicBranche = true;\n  glisserSurPlaque(S.vueA, $(\"#vueA canvas\"));\n  designerAuClic(S.vueA, $(\"#vueA canvas\"), (obj, touche) => {"),
       ("  glisserSurPlaque(S.vueA, $(\"#vueA canvas\"));\n});",
        "});")],
      None,
      ["ANNEAU"]),
     # ── routes.py ────────────────────────────────────────────────────────────
+    # ancree sur le refus du plan : depuis le lot B, _etabli_glb_cible porte
+    # la meme garde de version
     ("backend/app/api/routes.py",
-     "    if not _etabli_entier(version) or version < 1:",
-     "    if not isinstance(version, (int, float)) or version < 1:",
+     "    if not _etabli_entier(version) or version < 1:\n        raise HTTPException(400, f\"plan de plaque : version « {version} » — \"",
+     "    if not isinstance(version, (int, float)) or version < 1:\n        raise HTTPException(400, f\"plan de plaque : version « {version} » — \"",
      ["PLAN_DE_PLAQUE"]),
     ("backend/app/api/routes.py",
      "    if axe not in _ETABLI_AXES:",

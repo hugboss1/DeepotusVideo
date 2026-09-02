@@ -226,7 +226,12 @@ export function surligner(api, uuid) {
    La sélection est donc VOLONTAIRE : bouton gauche (le droit ouvre le menu
    contextuel, le milieu fait le pan d'OrbitControls), même pointeur, et le
    relever doit se produire à moins de TOLERANCE_CLIC pixels du poser.
-   Au-delà, le geste était une orbite : on ne désigne rien. */
+   Au-delà, le geste était une orbite : on ne désigne rien.
+
+   LE RAPPEL REÇOIT DEUX ARGUMENTS : l'objet (ou null), et la TOUCHE — voir
+   toucheDe() : le point et la normale géométrique de la face, en MONDE. C'est
+   ce que « poser sur une face » envoie au serveur, qui écrit une rotation
+   dessus ; un rappel qui n'en a pas besoin l'ignore. */
 export function designerAuClic(api, canvas, quand) {
   const ray = new THREE.Raycaster();
   const p = new THREE.Vector2();
@@ -254,6 +259,26 @@ export function designerAuClic(api, canvas, quand) {
        ce qui n'en est pas un (une aide, un pivot). */
     const touche = ray.intersectObject(api.racine, true)
       .find((h) => h.object && h.object.isMesh);
-    quand(touche ? touche.object : null);
+    quand(touche ? touche.object : null, touche ? toucheDe(touche) : null);
   });
+}
+
+/* Ce que le rappel reçoit EN PLUS de l'objet : le point touché et la normale
+   GÉOMÉTRIQUE de la face — celle du triangle, que three.js calcule en repère
+   LOCAL de l'objet — tous deux en MONDE. La normale passe par la MATRICE
+   NORMALE de `matrixWorld` (l'inverse transposée du bloc linéaire), et non
+   par le seul quaternion : sous une échelle NON UNIFORME, tourner la normale
+   la fait pencher — mesuré sur une boîte tournée sous une échelle
+   1,3 × 0,7 × 0,4 : la normale tournée s'écarte de la vraie de 24,2°, et une
+   assise écrite dessus poserait le modèle de travers. (Une face ALIGNÉE sur
+   les axes de l'échelle, elle, garde sa normale — c'est pourquoi le banc
+   tourne la boîte sous son parent.) `normale` est null pour une touche sans
+   face (un nuage de points) : l'appelant refuse alors, il n'invente pas. */
+const _matN = new THREE.Matrix3();
+function toucheDe(h) {
+  const normale = h.face
+    ? h.face.normal.clone()
+        .applyNormalMatrix(_matN.getNormalMatrix(h.object.matrixWorld)).normalize()
+    : null;
+  return { point: h.point.clone(), normale, distance: h.distance, face: h.face };
 }
