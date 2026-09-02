@@ -8997,7 +8997,12 @@ async def finition_upscale_measure(body: dict):
 # Le navigateur envoie des PARAMÈTRES ; l'écriture du GLB vit dans mesh_edit.
 
 def _etabli_glb(job: str, version) -> bytes:
-    """Les octets d'une version d'un job, ou un 404 parlant."""
+    """Les octets d'une version d'un job, ou un 404 parlant.
+
+    LE PORTEUR DE LECTURE — `GET /etabli/rig`, dont FastAPI type déjà `job` et
+    `version`. Les cinq routes d'ÉCRITURE passent par `_etabli_glb_cible`, plus
+    bas, qui juge un corps JSON venu du réseau (entier ≥ 1, chaîne, deux gardes
+    de chemin) et rend `depuis`. Deux porteurs, donc, et c'est dit ici."""
     from app.services import mesh_report
     d = mesh_report.job_dir(Path(str(job)).name)
     v = int(version or 1)

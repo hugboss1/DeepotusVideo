@@ -1239,7 +1239,8 @@ def test_les_deux_moities_sont_FERMEES_et_leurs_volumes_font_le_volume_d_origine
     nl, cl = mesh_cut._plan_local(mesh_edit._mat_locale(doc0["nodes"][0]), point, normale)
     idx0 = [t[0] for t in mesh_cut._lire_accesseur(doc0, binc0, doc0["meshes"][0]["primitives"][0]["indices"])]
     d0 = [nl[0] * p[0] + nl[1] * p[1] + nl[2] * p[2] + cl for p in pos0]
-    ca, cb, segs = mesh_cut._decouper_primitive(["POSITION"], [pos0], idx0, d0, None, nl)
+    ca, cb, segs, copl = mesh_cut._decouper_primitive(["POSITION"], [pos0], idx0, d0, None, nl)
+    assert copl == 0                      # aucun triangle dans le plan oblique
     for cote, signe in ((ca, 1), (cb, -1)):
         for p in cote.cols[0]:
             dl = nl[0] * p[0] + nl[1] * p[1] + nl[2] * p[2] + cl
@@ -1673,8 +1674,10 @@ def test_une_face_CONFONDUE_avec_le_plan_ne_fait_pas_une_piece_de_volume_nul():
     Un triangle coplanaire part désormais du côté OPPOSÉ à sa normale : c'est
     la peau d'un corps qui vit de l'autre côté. Le cube entier part d'un seul
     côté, et le refus qui existait déjà parle — dans les deux sens du plan,
-    et sur la face du dessous aussi."""
-    from app.services import mesh_cut
+    et sur la face du dessous aussi. (Le membre NON convexe de la famille — une
+    face confondue qui n'est qu'une partie de la frontière — est la marche,
+    plus bas.)"""
+    from app.services import mesh_cut, mesh_edit
     cube = _cube()
     for point, normale in (([0, 1, 0], [0, 1, 0]), ([0, 1, 0], [0, -1, 0]),
                            ([0, -1, 0], [0, 1, 0]), ([0, -1, 0], [0, -1, 0])):
@@ -1682,13 +1685,14 @@ def test_une_face_CONFONDUE_avec_le_plan_ne_fait_pas_une_piece_de_volume_nul():
             mesh_cut.couper(cube, [0], point, normale)
     # et le routage lui-même, sur la primitive : la face du dessus (normale
     # +y) va côté b pour un plan de normale +y, côté a pour −y
-    doc, binc = mesh_edit_lire(cube)
+    doc, binc = mesh_edit.lire_glb(cube)
     pr = doc["meshes"][0]["primitives"][0]
     pos, idx = _lire_primitive(doc, binc, pr)
     for ny, attendu in ((1.0, "b"), (-1.0, "a")):
         d = [ny * (p[1] - 1.0) for p in pos]
-        a, b, segs = mesh_cut._decouper_primitive(["POSITION"], [pos], idx, d, None,
-                                                  (0.0, ny, 0.0))
+        a, b, segs, copl = mesh_cut._decouper_primitive(["POSITION"], [pos], idx, d, None,
+                                                        (0.0, ny, 0.0))
+        assert copl == 2                  # la face du dessus, comptée
         dessus = [k for k in range(0, len(idx), 3)
                   if all(pos[idx[k + e]][1] == 1.0 for e in range(3))]
         assert len(dessus) == 2
@@ -1703,10 +1707,6 @@ def test_une_face_CONFONDUE_avec_le_plan_ne_fait_pas_une_piece_de_volume_nul():
         assert len(segs) == (4 if attendu == "b" else 0)
 
 
-def mesh_edit_lire(data):
-    from app.services import mesh_edit
-    return mesh_edit.lire_glb(data)
-
 
 def test_un_plan_a_1e_9_d_un_sommet_coupe_comme_s_il_passait_par_lui_et_les_moities_sont_FERMEES():
     """Le plan x + y − z = 1 passe par TROIS sommets du cube et détache le coin
@@ -1719,13 +1719,13 @@ def test_un_plan_a_1e_9_d_un_sommet_coupe_comme_s_il_passait_par_lui_et_les_moit
     du décalage : moitiés fermées, volume du coin 4/3 à 1e-9, somme 8. Et le
     même plan à 1e-9 SOUS la face du dessus (y = 1 − 1e-9) : les quatre sommets
     reviennent sur le plan, la face devient coplanaire, rien n'est traversé."""
-    from app.services import mesh_cut, print3d
+    from app.services import mesh_cut, mesh_edit, print3d
     cube = _cube()
     n = [1 / math.sqrt(3), 1 / math.sqrt(3), -1 / math.sqrt(3)]
     for signe in (1, -1):
         point = [1 + signe * 1e-9 * n[0], 1 + signe * 1e-9 * n[1], 1 + signe * 1e-9 * n[2]]
         coupe, rapport = mesh_cut.couper(cube, [0], point, n, "deux")
-        doc, binc = mesh_edit_lire(coupe)
+        doc, binc = mesh_edit.lire_glb(coupe)
         assert [x["name"] for x in doc["nodes"]] == ["cube_a", "cube_b"]
         for x in doc["nodes"]:
             assert _aretes_non_appariees(doc, binc, doc["meshes"][x["mesh"]]) == [], (signe, x["name"])
@@ -1751,10 +1751,10 @@ def test_le_compte_rendu_nomme_ses_deux_espaces_d_index_et_la_route_dit_depuis()
     nœud : le sol était 1 dans le compte rendu et 0 dans la version écrite
     (revue). Sur le cube et son sol, plan y = 0 : le sol passe de 1 à 0, le
     cube coupé n'a plus d'index après, ses moitiés en ont un chacune."""
-    from app.services import mesh_cut
+    from app.services import mesh_cut, mesh_edit
     coupe, rapport = mesh_cut.couper(_cube_et_sol(), [0, 1], [0.0, 0.0, 0.0],
                                      [0.0, 1.0, 0.0], "deux")
-    doc, _ = mesh_edit_lire(coupe)
+    doc, _ = mesh_edit.lire_glb(coupe)
     noms = [x.get("name") for x in doc["nodes"]]
     assert rapport["noeuds_avant"] == [0, 1] and "noeuds" not in rapport
     sol = next(p for p in rapport["pieces"] if p["nom"] == "stage")
@@ -1774,14 +1774,14 @@ def test_une_piece_ecartee_par_garder_garde_ses_enfants_comme_CONTENANT():
     ENFANTS COMPRIS, et `retire: ["b"]` ne le disait pas (revue). Le sol reste
     désormais comme contenant sans maillage — le traitement de la pièce
     traversée dont les deux côtés sont écartés — et le compte rendu le dit."""
-    from app.services import mesh_cut, print3d
-    doc, binc = mesh_edit_lire(_cube_et_sol())
+    from app.services import mesh_cut, mesh_edit, print3d
+    doc, binc = mesh_edit.lire_glb(_cube_et_sol())
     doc["nodes"].append({"name": "haut", "mesh": 0, "translation": [0.0, 4.0, 0.0]})
     doc["nodes"][1]["children"] = [2]
-    data = mesh_edit_ecrire(doc, binc)
+    data = mesh_edit.ecrire_glb(doc, binc)
     avant = len(print3d.lire_glb_triangles(data))
     coupe, rapport = mesh_cut.couper(data, [0, 1], [0.0, 0.0, 0.0], [0.0, 1.0, 0.0], "a")
-    docc, _ = mesh_edit_lire(coupe)
+    docc, _ = mesh_edit.lire_glb(coupe)
     noms = sorted(x.get("name") for x in docc["nodes"])
     assert noms == ["cube_a", "haut", "stage"], noms
     sol_n = next(x for x in docc["nodes"] if x.get("name") == "stage")
@@ -1798,15 +1798,11 @@ def test_une_piece_ecartee_par_garder_garde_ses_enfants_comme_CONTENANT():
     # et sans enfant, la pièce entière écartée disparaît toujours
     coupe2, rapport2 = mesh_cut.couper(_cube_et_sol(), [0, 1], [0.0, 0.0, 0.0],
                                        [0.0, 1.0, 0.0], "a")
-    doc2, _ = mesh_edit_lire(coupe2)
+    doc2, _ = mesh_edit.lire_glb(coupe2)
     assert [x.get("name") for x in doc2["nodes"]] == ["cube_a"]
     sol2 = next(p for p in rapport2["pieces"] if p["nom"] == "stage")
     assert sol2["retire"] == ["b"] and "contenant" not in sol2 and sol2["noeud_apres"] is None
 
-
-def mesh_edit_ecrire(doc, binc):
-    from app.services import mesh_edit
-    return mesh_edit.ecrire_glb(doc, binc)
 
 
 def test_les_cinq_routes_d_ecriture_jugent_version_et_job_de_la_meme_facon_et_disent_depuis():
@@ -1851,3 +1847,84 @@ def test_les_cinq_routes_d_ecriture_jugent_version_et_job_de_la_meme_facon_et_di
     assert r.status_code == 200, r.text
     assert r.json()["source"]["depuis"] == {"version": v, "fichier": f"model.v{v}.glb"}
     assert r.json()["source"]["noeuds_avant"] == [0]
+
+
+def _marche() -> bytes:
+    """Une MARCHE : un socle 4×4×2 surmonté d'un bloc 2×2×2, UN maillage fermé
+    de 16 sommets et 28 triangles, enroulé vers l'extérieur — le banc le
+    vérifie (0 arête non appariée, volume 40) plutôt que de le supposer. Le
+    dessus du socle est un ANNEAU à y = 2 : une face confondue qui n'est qu'une
+    PARTIE de la frontière entre les deux côtés d'un plan y = 2 — le membre non
+    convexe de la famille, que le cube ne mesurait pas (revue ; sa fixture est
+    reconstruite ici, pas recopiée)."""
+    from app.services import mesh_cut, mesh_edit
+    S = [(0, 0, 0), (4, 0, 0), (4, 0, 4), (0, 0, 4)]      # dessous du socle
+    T = [(0, 2, 0), (4, 2, 0), (4, 2, 4), (0, 2, 4)]      # bord extérieur de l'anneau
+    B = [(1, 2, 1), (3, 2, 1), (3, 2, 3), (1, 2, 3)]      # pied du bloc = bord intérieur
+    U = [(1, 4, 1), (3, 4, 1), (3, 4, 3), (1, 4, 3)]      # dessus du bloc
+    pos = [tuple(float(c) for c in q) for q in S + T + B + U]
+    s, t, b, u = range(0, 4), range(4, 8), range(8, 12), range(12, 16)
+    tris = [(s[0], s[1], s[2]), (s[0], s[2], s[3])]                     # dessous, −y
+    for k in range(4):
+        k1 = (k + 1) % 4
+        tris += [(s[k], t[k], t[k1]), (s[k], t[k1], s[k1])]            # flancs du socle
+    for k in range(4):
+        k1 = (k + 1) % 4
+        tris += [(t[k], b[k], b[k1]), (t[k], b[k1], t[k1])]            # l'anneau, +y
+    for k in range(4):
+        k1 = (k + 1) % 4
+        tris += [(b[k], u[k], u[k1]), (b[k], u[k1], b[k1])]            # flancs du bloc
+    tris += [(u[0], u[3], u[2]), (u[0], u[2], u[1])]                    # dessus, +y
+    assert len(pos) == 16 and len(tris) == 28
+    doc = {"asset": {"version": "2.0"}, "scene": 0, "scenes": [{"nodes": [0]}],
+           "nodes": [{"name": "marche", "mesh": 0}], "meshes": [],
+           "accessors": [], "bufferViews": []}
+    tampon = bytearray()
+    ipos = mesh_cut._ajouter_flottants(doc, tampon, pos, 3, True)
+    iidx = mesh_cut._ajouter_indices(doc, tampon, tris)
+    doc["meshes"].append({"name": "marche", "primitives": [
+        {"attributes": {"POSITION": ipos}, "indices": iidx, "mode": 4}]})
+    doc["buffers"] = [{"byteLength": len(tampon)}]
+    return mesh_edit.ecrire_glb(doc, bytes(tampon))
+
+
+def test_une_face_confondue_PARTIELLE_est_refusee_en_le_disant___la_MARCHE():
+    """LE MEMBRE NON CONVEXE DE LA FAMILLE, mesuré par la revue et pas par moi :
+    le plan y = 2 confondu avec l'anneau du socle, de la matière des deux
+    côtés. Les triangles coplanaires étaient bien AFFECTÉS (l'anneau côté b),
+    mais les segments de section ne naissent que des triangles FENDUS : la
+    boucle était le carré 4×4 extérieur au lieu du pied du bloc, et les deux
+    capuchons se posaient dessus — `marche_a` de volume nul à 8 arêtes non
+    appariées, `marche_b` à 12, sous un compte rendu « posé » ; l'autre sens du
+    plan tombait juste par chance d'orientation. La section juste demande
+    l'adjacence (lot ultérieur) ; d'ici là le couteau REFUSE en le disant, dans
+    les deux sens et à ±1e-9 — le seuil neuf y route. Le témoin d'abord : la
+    fixture est fermée et pèse 40, et un plan qui ne touche aucune face la
+    coupe en deux moitiés fermées de 6 et 34."""
+    from app.services import mesh_cut, mesh_edit, print3d
+    data = _marche()
+    doc, binc = mesh_edit.lire_glb(data)
+    assert _aretes_non_appariees(doc, binc, doc["meshes"][0]) == []
+    tris = print3d.lire_glb_triangles(data)
+    assert len(tris) == 28 and abs(_volume(tris) - 40.0) < 1e-9
+    coupe, rapport = mesh_cut.couper(data, [0], [0, 2.5, 0], [0, 1, 0], "deux")
+    docc, bincc = mesh_edit.lire_glb(coupe)
+    for x in docc["nodes"]:
+        assert _aretes_non_appariees(docc, bincc, docc["meshes"][x["mesh"]]) == [], x["name"]
+    va = _volume(_triangles_du_noeud(coupe, "marche_a"))
+    vb = _volume(_triangles_du_noeud(coupe, "marche_b"))
+    assert abs(va - 6.0) < 1e-9 and abs(vb - 34.0) < 1e-9, (va, vb)
+    # LE PLAN CONFONDU AVEC L'ANNEAU : refus NOMMÉ, dans les deux sens, à ±1e-9
+    for normale in ([0, 1, 0], [0, -1, 0]):
+        for y in (2.0, 2.0 + 1e-9, 2.0 - 1e-9):
+            with pytest.raises(ValueError, match="confondu avec une face") as e:
+                mesh_cut.couper(data, [0], [0, y, 0], normale)
+            assert "marche" in str(e.value) and "8 triangle" in str(e.value)
+            assert "adjacence" in str(e.value)
+    # le cube convexe, lui, garde son refus d'avant : rien n'est traversé
+    with pytest.raises(ValueError, match="ne traverse aucune"):
+        mesh_cut.couper(_cube(), [0], [0, 1, 0], [0, 1, 0])
+    # et le dessus du bloc, confondu avec un plan y = 4, est le cas convexe :
+    # tout part d'un côté, même refus d'avant
+    with pytest.raises(ValueError, match="ne traverse aucune"):
+        mesh_cut.couper(data, [0], [0, 4, 0], [0, 1, 0])

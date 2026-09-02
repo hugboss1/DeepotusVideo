@@ -187,10 +187,12 @@ def _plan_local(m: list, point, normale):
 def _decouper_primitive(noms: list, valeurs: list, indices: list, d: list,
                         i_nrm, normale=None):
     """Répartit et découpe les triangles d'UNE primitive de part et d'autre
-    du plan. Rend (côté a, côté b, segments de section) — les segments sont
-    des paires de POSITIONS, pas d'index : la section se recoud par position,
-    ce qui traverse les coutures UV (deux index pour un même point) et les
-    frontières de primitives.
+    du plan. Rend (côté a, côté b, segments de section, nombre de triangles
+    COPLANAIRES) — les segments sont des paires de POSITIONS, pas d'index : la
+    section se recoud par position, ce qui traverse les coutures UV (deux
+    index pour un même point) et les frontières de primitives. Le compte des
+    coplanaires sert à `couper` : une pièce traversée qui en porte est REFUSÉE
+    (voir là-bas pourquoi la section ne se calcule pas).
 
     Le côté a est d ≥ 0 (le sens de la normale). Un sommet EXACTEMENT sur le
     plan compte donc côté a ; l'intersection d'une arête qui part de lui est
@@ -213,6 +215,7 @@ def _decouper_primitive(noms: list, valeurs: list, indices: list, d: list,
     a, b = _Cote(len(noms)), _Cote(len(noms))
     points: dict = {}
     segments: list = []
+    coplanaires = 0
 
     def inter(i: int, j: int):
         cle = (i, j) if i < j else (j, i)
@@ -267,6 +270,7 @@ def _decouper_primitive(noms: list, valeurs: list, indices: list, d: list,
                 # cube_a, 4 triangles, 2 arêtes non appariées). Du côté opposé
                 # à sa normale, le cube entier part côté b et le refus « ne
                 # traverse aucune pièce » parle.
+                coplanaires += 1
                 (ax, ay, az), (bx, by, bz), (cx, cy, cz) = pos[i0], pos[i1], pos[i2]
                 nx = (by - ay) * (cz - az) - (bz - az) * (cy - ay)
                 ny = (bz - az) * (cx - ax) - (bx - ax) * (cz - az)
@@ -300,7 +304,7 @@ def _decouper_primitive(noms: list, valeurs: list, indices: list, d: list,
             autre.tris.append((x1, qq, x2))
         if v1[ip] != v2[ip]:
             segments.append((v1[ip], v2[ip]))
-    return a, b, segments
+    return a, b, segments, coplanaires
 
 
 def _boucles(segments: list):
@@ -691,6 +695,7 @@ def couper(data: bytes, noeuds, point, normale, garder: str = "deux"):
         cotes = {"a": [], "b": []}          # une entrée par primitive
         segments_mesh: list = []
         total_tris = 0
+        lectures: list = []
         for pr in _l(mesh, "primitives"):
             if pr.get("mode", 4) != 4:
                 raise ValueError(f"noeud {i} ({nom}) : primitive non TRIANGLES "
@@ -718,25 +723,36 @@ def couper(data: bytes, noeuds, point, normale, garder: str = "deux"):
             else:
                 indices = list(range(len(pos)))
             total_tris += len(indices) // 3
+            lectures.append((pr, attrs, noms, valeurs, indices))
+
+        # LE SEUIL DE L'ÉCHELLE : un sommet à quelques ulp f32 du plan est
+        # RAMENÉ dessus avant classification, ce qui le route vers le cas exact
+        # (l'intersection est le sommet lui-même, le triangle plat est écarté),
+        # prouvé fermé. Classé par signe strict, il faisait des aiguilles qui
+        # s'effondrent à l'écriture f32 — revue : plan à 1e-9 d'un sommet, 5
+        # arêtes non appariées par moitié et des triangles plats dans la PAROI,
+        # sous un compte rendu « fermé ». `d` vaut |n_l| fois la distance : le
+        # seuil est mis à la même échelle. Et il est calculé sur la PIÈCE
+        # entière, pas par primitive : la section se recoud par position à
+        # travers les primitives, et un seuil par primitive pouvait ramener un
+        # sommet partagé sur le plan d'un côté et pas de l'autre (chaîne
+        # ouverte — dite, mais évitable).
+        tous = [p for _, _, _, valeurs, _ in lectures for p in valeurs[0]]
+        xs = [p[0] for p in tous]
+        ys = [p[1] for p in tous]
+        zs = [p[2] for p in tous]
+        diag = ((max(xs) - min(xs)) ** 2 + (max(ys) - min(ys)) ** 2
+                + (max(zs) - min(zs)) ** 2) ** 0.5
+        seuil = _EPS_PLAN * diag * ln
+        coplanaires = 0
+        for pr, attrs, noms, valeurs, indices in lectures:
+            pos = valeurs[0]
             d = [nl[0] * p[0] + nl[1] * p[1] + nl[2] * p[2] + cl for p in pos]
-            # LE SEUIL DE L'ÉCHELLE : un sommet à quelques ulp f32 du plan est
-            # RAMENÉ dessus avant classification, ce qui le route vers le cas
-            # exact (l'intersection est le sommet lui-même, le triangle plat
-            # est écarté), prouvé fermé. Classé par signe strict, il faisait
-            # des aiguilles qui s'effondrent à l'écriture f32 — revue : plan à
-            # 1e-9 d'un sommet, 5 arêtes non appariées par moitié et des
-            # triangles plats dans la PAROI, sous un compte rendu « fermé ».
-            # `d` vaut |n_l| fois la distance : le seuil est mis à la même
-            # échelle.
-            xs = [p[0] for p in pos]
-            ys = [p[1] for p in pos]
-            zs = [p[2] for p in pos]
-            diag = ((max(xs) - min(xs)) ** 2 + (max(ys) - min(ys)) ** 2
-                    + (max(zs) - min(zs)) ** 2) ** 0.5
-            seuil = _EPS_PLAN * diag * ln
             d = [0.0 if abs(x) <= seuil else x for x in d]
             i_nrm = noms.index("NORMAL") if "NORMAL" in noms else None
-            ca, cb, segs = _decouper_primitive(noms, valeurs, indices, d, i_nrm, nl)
+            ca, cb, segs, copl = _decouper_primitive(noms, valeurs, indices, d,
+                                                     i_nrm, nl)
+            coplanaires += copl
             largeurs = [len(valeurs[k][0]) if valeurs[k] else
                         _NB_COMPOSANTS[_l(doc, "accessors")[attrs[nm]]["type"]]
                         for k, nm in enumerate(noms)]
@@ -756,6 +772,26 @@ def couper(data: bytes, noeuds, point, normale, garder: str = "deux"):
             rapport_pieces.append(piece)
             produits[i] = [i] if garde else []
             continue
+        # UNE FACE CONFONDUE AVEC LE PLAN, DE LA MATIÈRE DES DEUX CÔTÉS : REFUS.
+        # Les triangles coplanaires sont bien affectés (du côté opposé à leur
+        # normale), mais les segments de section ne naissent que des triangles
+        # FENDUS : sur une face qui n'est qu'une PARTIE de la frontière entre
+        # les deux côtés — l'anneau d'une marche, un décrochement —, la boucle
+        # est fausse (le rebord extérieur, alors que la vraie frontière court
+        # au pied du bloc) et les deux capuchons se posaient dessus sous un
+        # compte rendu « posé » (revue : marche 4×4×2 + 2×2×2, plan y = 2 —
+        # une moitié de volume nul à 8 arêtes non appariées, l'autre à 12). La
+        # section juste demanderait l'ADJACENCE (une arête entre un triangle
+        # coplanaire et un triangle de l'autre côté) : lot ultérieur. D'ici là
+        # on refuse en le disant ; le cube convexe, lui, tombe avant sur « ne
+        # traverse aucune pièce » puisque tout part d'un seul côté.
+        if coplanaires:
+            raise ValueError(
+                f"le plan est confondu avec une face de « {nom} » ({coplanaires} "
+                "triangle(s) dans le plan) et il y a de la matière des deux côtés "
+                "— décale-le d'un cheveu : une face confondue qui n'est qu'une "
+                "partie de la frontière n'a pas de section calculable sans "
+                "adjacence (lot ultérieur)")
         traversee = True
         piece["traversee"] = True
         boucles, ouvertes = _boucles(segments_mesh)

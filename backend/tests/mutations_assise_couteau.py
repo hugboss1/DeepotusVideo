@@ -220,6 +220,12 @@ M = [
     (RT, '    return _etabli_ecrire(job, sortie, "couper", {"depuis": depuis, **rapport})',
      '    return _etabli_ecrire(job, sortie, "couper", rapport)',
      SOCLE, ["route_couper", "cinq_routes"]),
+    # ── dernier tour ────────────────────────────────────────────────────────
+    # 44. une face confondue PARTIELLE (l'anneau de la marche) n'est plus
+    #     refusée : deux capuchons sur une boucle fausse, sous « posé »
+    (MC, '        if coplanaires:\n            raise ValueError(',
+     '        if False:\n            raise ValueError(',
+     SOCLE, ["MARCHE"]),
 ]
 
 
