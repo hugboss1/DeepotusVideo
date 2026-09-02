@@ -1146,7 +1146,15 @@ async function envoyerPlan() {
 /* LES DÉCHARGEMENTS QU'ON NE CONTRÔLE PAS — le hub qui remplace l'iframe, un
    onglet fermé, un rechargement : la charge pendante part en `keepalive`, la
    seule requête que le navigateur laisse finir après le déchargement. Pas de
-   jpost() ici : rien ne pourra plus lire sa réponse ni écrire un refus. */
+   jpost() ici : rien ne pourra plus lire sa réponse ni écrire un refus.
+
+   DEUX LIMITES, ÉCRITES PLUTÔT QUE DÉCOUVERTES. Un POST déjà EN VOL sans
+   keepalive (celui d'envoyerPlan) au moment où le hub remplace l'iframe est
+   annulé par la navigation : la fenêtre est la latence d'un POST local, et
+   seul le bouton de retour la couvre (il refuse tant qu'un envoi est en vol).
+   Et `keepalive` plafonne le corps à 64 Ko — soit environ un millier de
+   pièces à ~60 octets chacune ; au-delà, la requête est refusée avant de
+   partir et le plan ne part pas. Aucun modèle de l'Établi n'en approche. */
 window.addEventListener("pagehide", () => {
   if (_envoiPlan) { clearTimeout(_envoiPlan); _envoiPlan = 0; }
   const corps = PLQ.aEnvoyer;

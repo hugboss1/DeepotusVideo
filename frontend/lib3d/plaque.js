@@ -69,7 +69,14 @@ import * as THREE from "three";
 /* Le pas 1-2-5 du canevas partagé, appliqué au CÔTÉ du plateau : c'est un pas
    de PLATEAU, stable tant qu'on ne ré-étale pas — pas le pas de VUE que
    majRepere() tire de l'étendue visible et qui change à chaque molette. La
-   règle est la même, l'étendue qu'on lui donne ne l'est pas. */
+   règle est la même, l'étendue qu'on lui donne ne l'est pas. Et sensDesRegles
+   dit, d'après la table des orientations du canevas, quel coin du plateau est
+   l'origine des règles.
+   LA FRONTIÈRE TIENT PARCE QUE CES DEUX SYMBOLES SONT PURS — des nombres en
+   entrée, des nombres en sortie, ni état de vue, ni DOM, ni scène. Ce module
+   reste exécutable dans node sans canevas et ne sait rien du regard porté sur
+   lui ; elle cesserait de tenir le jour où l'on importerait d'ici autre chose
+   (majRepere, cadrer, une WeakMap d'état). */
 import { pasGradue, sensDesRegles } from "./viewer.js";
 
 /* La marge entre deux pièces, en fraction de la plus grande d'entre elles.

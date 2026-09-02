@@ -8295,6 +8295,15 @@ def test_l_ANNEAU_tourne_la_piece_COURANTE_et_une_piece_MASQUEE_ne_se_saisit_pas
         < clic.index("pieceCourante(null)")
     gl = _fonction_etabli("glisserSurPlaque")
     assert "_gestePlaque = geste;" in gl and "_gestePlaque = null;" in gl
+    # …ET CE CORRECTIF DÉPEND DE L'ORDRE DES DEUX BRANCHEMENTS : le sélecteur
+    # au clic doit être branché AVANT le glisser pour que son relever voie
+    # `_gestePlaque` encore posé (les écouteurs d'un même évènement tirent
+    # dans l'ordre d'enregistrement). Rien ne l'épinglait — mutation verte du
+    # relecteur : les deux appels échangés, dix-sept verts. C'est l'endroit
+    # exact que le couteau et « poser sur une face » toucheront.
+    bloc = code.split('addEventListener("etabli:charge"', 1)[1]
+    assert bloc.index("designerAuClic(S.vueA") < bloc.index("glisserSurPlaque(S.vueA"), \
+        "le sélecteur au clic doit être branché avant le glisser"
     # ── ET L'ŒIL QUI MASQUE LA PIÈCE COURANTE LA RELÂCHE ────────────────────
     oeil = code.split('querySelectorAll(".plaque-oeil")', 1)[1] \
                .split('querySelectorAll(".plaque-rang")', 1)[0]

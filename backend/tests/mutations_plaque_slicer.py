@@ -18,6 +18,7 @@ Le script VÉRIFIE que la mutation a bien été appliquée (l'ancien texte exist
 une fois), lance le banc ciblé, lit les noms des tests rouges, et remet le
 fichier à l'octet près. Une mutation « verte » est signalée.
 """
+import hashlib
 import json
 import pathlib
 import re
@@ -301,6 +302,16 @@ M = [
      "           \"repere\": \"monde\", \"pieces\": propres}",
      "           \"pieces\": propres}",
      ["PLAN_DE_PLAQUE"]),
+    # ── la 77e, du relecteur : le glisser branché AVANT le sélecteur au clic.
+    #    Deux remplacements (la liste), parce qu'on DÉPLACE l'appel : le relever
+    #    du sélecteur ne voit plus `_gestePlaque`, un clic sur l'anneau relâche.
+    ("frontend/etabli/etabli.js",
+     [("  _clicBranche = true;\n  designerAuClic(S.vueA, $(\"#vueA canvas\"), (obj) => {",
+       "  _clicBranche = true;\n  glisserSurPlaque(S.vueA, $(\"#vueA canvas\"));\n  designerAuClic(S.vueA, $(\"#vueA canvas\"), (obj) => {"),
+      ("  glisserSurPlaque(S.vueA, $(\"#vueA canvas\"));\n});",
+       "});")],
+     None,
+     ["ANNEAU"]),
     # ── routes.py ────────────────────────────────────────────────────────────
     ("backend/app/api/routes.py",
      "    if not _etabli_entier(version) or version < 1:",
@@ -342,11 +353,22 @@ M = [
 
 
 def rouges(k):
+    """Les tests rouges du banc ciblé — et si RIEN n'a tourné, on le dit.
+
+    pytest sort 0 (tout vert) ou 1 (des rouges) quand il a tourné ; 2, 3, 4
+    ou 5 quand la COLLECTE a cassé (une erreur de syntaxe dans routes.py, un
+    import qui lève) ou qu'aucun test ne correspond. Lue comme « aucun
+    FAILED », une collecte cassée passerait pour une mutation VERTE alors
+    que rien n'a été mesuré. On lit donc le code de sortie et les lignes
+    `ERROR`, et l'on rend un troisième état.
+    """
     r = subprocess.run([PY, "-m", "pytest", BANC, "-q", "--no-header",
                         "-p", "no:warnings", "-k", k],
                        capture_output=True, cwd=R / "backend", timeout=900)
     txt = r.stdout.decode("utf-8", "replace")
-    return set(re.findall(r"^FAILED [^:]+::(\w+)", txt, re.M)), txt
+    erreur = (r.returncode not in (0, 1)
+              or bool(re.search(r"^ERROR ", txt, re.M)))
+    return set(re.findall(r"^FAILED [^:]+::(\w+)", txt, re.M)), txt, erreur
 
 
 def main():
@@ -363,22 +385,35 @@ def main():
         # l'octet pres depuis `src`.
         eol = "\r\n" if "\r\n" in brut else "\n"
         txt = brut.replace("\r\n", "\n")
-        assert txt.count(old) == 1, (i, rel, txt.count(old), old[:60])
-        p.write_bytes(txt.replace(old, new).replace("\n", eol).encode("utf-8"))
+        # une mutation est UN remplacement, ou une LISTE de remplacements
+        # appliqués dans l'ordre (quand on déplace un appel, il faut l'ôter
+        # d'un endroit et le poser à un autre)
+        paires = old if isinstance(old, list) else [(old, new)]
+        for o, n_ in paires:
+            assert txt.count(o) == 1, (i, rel, txt.count(o), o[:60])
+            txt = txt.replace(o, n_)
+        sha_avant = hashlib.sha256(src).hexdigest()
+        p.write_bytes(txt.replace("\n", eol).encode("utf-8"))
         try:
             k = " or ".join(attendus) if attendus else \
                 "AIMANTATION or FLECHES or DEPLACE_par or ROTATION_tourne or applique_le_PLAN"
-            rg, sortie = rouges(k)
+            rg, sortie, erreur = rouges(k)
         finally:
             p.write_bytes(src)
-            assert p.read_bytes() == src
+            sha_apres = hashlib.sha256(p.read_bytes()).hexdigest()
+            assert sha_apres == sha_avant, (i, rel, sha_avant, sha_apres)
         manquants = [a for a in attendus if not any(a in n for n in rg)]
-        if attendus:
+        if erreur:
+            verdict = "ERREUR(collecte)"
+            print(sortie[-1200:], file=sys.stderr)
+        elif attendus:
             verdict = "ROUGE" if not manquants else ("VERTE" if not rg else "ROUGE(autres)")
         else:
             verdict = "VERTE(attendue)" if not rg else "ROUGE(inattendu)"
         bilan.append((i, rel, verdict, sorted(rg), manquants))
-        print(f"[{i:2d}] {verdict:16s} {rel:30s} {old.strip()[:50]!r} -> {sorted(rg)}")
+        apercu = paires[0][0].strip()[:50]
+        print(f"[{i:2d}] {verdict:16s} {rel:30s} {apercu!r} -> {sorted(rg)}"
+              f"  sha {sha_avant[:10]}={sha_apres[:10]}")
         sys.stdout.flush()
     print(json.dumps([b[:3] for b in bilan], ensure_ascii=False))
 
