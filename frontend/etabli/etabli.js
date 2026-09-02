@@ -158,18 +158,22 @@ let _ecritEnCours = false;
    disque, sans que rien ne grince. L'extraction passe en DERNIER, quel que
    soit l'ordre des clics.
 
-   `assise` passe EN PREMIER (lot B) : sa normale et son pivot sont mesurés
-   dans le MONDE de la version affichée, et `reparer` (axe Z, recentrage)
-   change ce monde — écrite après lui, l'assise poserait la face de travers.
-   Écrite avant, elle laisse `reparer` faire sur un modèle déjà posé ce qu'il
-   fait toujours : l'axe, l'échelle, le recentrage. `transformer` ne touche
-   que des repères LOCAUX de nœuds et ne déplace pas ce monde. Comme `reparer`,
-   `assise` ajoute un nœud racine en fin de tableau : aucun index ne bouge.
-   `couper` ferme la liste et n'y voisine avec personne : la coupe RENUMÉROTE
+   `transformer` passe EN PREMIER (lot B, revue) : il ne touche que des TRS
+   LOCAUX, par index, que ni `assise` ni `reparer` ne renumérotent — après
+   lui, le monde du fichier est exactement le monde AFFICHÉ, celui où la
+   normale de l'assise et le point cliqué ont été mesurés, et celui que le
+   recentrage de `reparer` doit centrer. Mesuré : `assise` écrite AVANT un
+   `transformer` en attente lisait la géométrie non déplacée et laissait le
+   modèle à min Y = +0,508 au lieu de 0. Puis `assise` avant `reparer` : sa
+   normale vit dans ce monde-là, et `reparer` (axe Z) le change — écrite
+   après lui, la face serait posée de travers ; écrite avant, elle laisse
+   `reparer` faire sur un modèle posé ce qu'il fait toujours. Comme
+   `reparer`, `assise` ajoute un nœud racine en fin de tableau : aucun index
+   ne bouge. `couper` ferme la liste et n'y voisine avec personne : la coupe RENUMÉROTE
    (les nœuds coupés disparaissent, deux naissent) et confirmerCoupe() refuse
    de partir tant que la file n'est pas vide — elle y entre seule, pour la
    durée de sa propre écriture. */
-const ORDRE_ECRITURE = ["assise", "reparer", "transformer", "extraire", "couper"];
+const ORDRE_ECRITURE = ["transformer", "assise", "reparer", "extraire", "couper"];
 
 /* Les trois plumes de P1, ÉCRITES plutôt que composées. Un
    `/api/etabli/${t.operation}` marcherait aussi bien et rendrait le fichier
@@ -1600,26 +1604,32 @@ function monterApercuCoupe() {
   gB.name = "couteau-cote-b";
   apercu.add(gA, gB);
   S.vueA.racine.updateMatrixWorld(true);
+  /* UN ENSEMBLE, pas une liste : deux nœuds retenus dont l'un contient l'autre
+     feraient visiter ses maillages deux fois — six clones au lieu de quatre,
+     et une seconde entrée `{ visible: false }` dans `originaux`, rejouée après
+     la première au rangement : le maillage resterait caché (constaté par la
+     revue sur la scène de l'enveloppe, nœuds 13 et 0). */
+  const maillages = new Set();
   for (const o of objetsDesNoeuds(COUTEAU.noeuds)) {
-    o.traverse((m) => {
-      if (!m.isMesh || !m.geometry) return;
-      for (const [groupe, plan] of [[gA, COUTEAU.planA], [gB, COUTEAU.planB]]) {
-        const c = m.clone(false);
-        c.matrixAutoUpdate = false;
-        c.matrix.copy(m.matrixWorld);
-        const mats = materiauxDe(m).map((x) => {
-          const y = x.clone();
-          y.clippingPlanes = [plan];
-          y.clipShadows = false;
-          return y;
-        });
-        c.material = Array.isArray(m.material) ? mats : mats[0];
-        groupe.add(c);
-        COUTEAU.clones.push(c);
-      }
-      COUTEAU.originaux.push({ objet: m, visible: m.visible });
-      m.visible = false;
-    });
+    o.traverse((m) => { if (m.isMesh && m.geometry) maillages.add(m); });
+  }
+  for (const m of maillages) {
+    for (const [groupe, plan] of [[gA, COUTEAU.planA], [gB, COUTEAU.planB]]) {
+      const c = m.clone(false);
+      c.matrixAutoUpdate = false;
+      c.matrix.copy(m.matrixWorld);
+      const mats = materiauxDe(m).map((x) => {
+        const y = x.clone();
+        y.clippingPlanes = [plan];
+        y.clipShadows = false;
+        return y;
+      });
+      c.material = Array.isArray(m.material) ? mats : mats[0];
+      groupe.add(c);
+      COUTEAU.clones.push(c);
+    }
+    COUTEAU.originaux.push({ objet: m, visible: m.visible });
+    m.visible = false;
   }
   S.vueA.scene.add(apercu);
   COUTEAU.apercu = apercu;
@@ -2411,10 +2421,16 @@ function rendreAttente() {
      de la série. Sans cela, le bouton renaîtrait actif au milieu des requêtes
      et le clic se solderait par un `return` muet — ce que ce fichier refuse
      partout ailleurs. */
-  box.innerHTML = `<b>${S.enAttente.length} modification(s) en attente</b>
-    <span class="attente-liste" title="ordre d'écriture imposé : poser sur une face, puis réparer, puis transformer, puis séparer — l'assise est mesurée dans le monde affiché, l'extraction renumérote les nœuds">${esc(liste)}</span>${doute}
+  /* PENDANT LA SÉRIE, les DEUX boutons se grisent et la barre dit « en cours
+     d'écriture » : un « annuler » actif viderait la file et rechargerait N
+     pendant que le serveur écrit N+1 — constaté sur la coupe, qui traverse
+     l'entonnoir seule et s'y lisait « 1 modification(s) en attente » avec un
+     « annuler » opérant. */
+  const etat = _ecritEnCours ? "en cours d'écriture" : "en attente";
+  box.innerHTML = `<b>${S.enAttente.length} modification(s) ${etat}</b>
+    <span class="attente-liste" title="ordre d'écriture imposé : déplacer, puis poser sur une face, puis réparer, puis séparer — le déplacement rend au fichier le monde affiché, l'assise y est mesurée, l'extraction renumérote les nœuds">${esc(liste)}</span>${doute}
     <button id="btnEcrire"${_ecritEnCours ? " disabled" : ""}>écrire la version</button>
-    <button id="btnAnnuler">annuler</button>`;
+    <button id="btnAnnuler"${_ecritEnCours ? " disabled" : ""}>annuler</button>`;
   $("#btnEcrire").addEventListener("click", ecrireVersion);
   $("#btnAnnuler").addEventListener("click", () => {
     S.enAttente.length = 0;

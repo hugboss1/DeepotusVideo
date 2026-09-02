@@ -941,7 +941,13 @@ def _lire_accesseur(doc: dict, binc: bytes, i: int) -> list[tuple]:
 #                   "cotes": { "a": { "noeud": j,   index dans la version NEUVE
 #                                     "nom": "cadre_a", "triangles": Na,
 #                                     "capuchon": { "pose": true,
-#                                                   "triangles": k, "boucles": 1 }
+#                                                   "triangles": k, "boucles": 1,
+#                                                   "degeneres": d }
+#                                       d triangles d'aire nulle, émis EXPRÈS
+#                                       (une oreille plate, contre la jonction
+#                                       en T) — un slicer les signale et les
+#                                       répare seul ; on le dit plutôt que de
+#                                       le laisser découvrir
 #                                                | { "pose": false,
 #                                                    "raison": "…",
 #                                                    "boucles": 0, "ouvertes": 1 } },
@@ -1305,6 +1311,7 @@ def _capuchon(boucles: list, ouvertes: list, n_unit, vers, noms: list, i_nrm):
                 + vers[2] * n_unit[2]) < 0
     sommets: list = []
     tris: list = []
+    degeneres = 0
     for b3, b2 in zip(boucles, plans2d):
         t = _trianguler(b2)
         if t is None:
@@ -1326,12 +1333,21 @@ def _capuchon(boucles: list, ouvertes: list, n_unit, vers, noms: list, i_nrm):
                 else:
                     v.append(None)      # comblé par des zéros à l'emballage
             sommets.append(v)
+        xs = [p[0] for p in b2]
+        ys = [p[1] for p in b2]
+        eps = _EPS_AIRE * ((max(xs) - min(xs)) ** 2 + (max(ys) - min(ys)) ** 2)
         for (i, j, k) in t:
+            # les triangles d'aire nulle sont COMPTÉS et dits : une oreille
+            # plate émet le sien exprès (voir _trianguler), un slicer le répare
+            (ax, ay), (bx, by), (cx, cy) = b2[i], b2[j], b2[k]
+            if abs((bx - ax) * (cy - ay) - (by - ay) * (cx - ax)) <= eps:
+                degeneres += 1
             if inverser:
                 j, k = k, j
             tris.append((base + i, base + j, base + k))
     return sommets, tris, {"pose": True, "triangles": len(tris),
-                           "boucles": len(boucles), "ouvertes": len(ouvertes)}
+                           "boucles": len(boucles), "ouvertes": len(ouvertes),
+                           "degeneres": degeneres}
 
 
 def _ajouter_vue(doc: dict, tampon: bytearray, octets: bytes, cible: int) -> int:

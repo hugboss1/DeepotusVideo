@@ -125,10 +125,11 @@ M = [
     (JS, "  armerGeste(\"glisser\");\n  PLQ.pieces = etalement.pieces;", "  PLQ.pieces = etalement.pieces;",
      CANEVAS, ["UN_SEUL_proprietaire"]),
     # ── etabli.js : l'assise ────────────────────────────────────────────────
-    # 22. l'assise passe APRÈS réparer : mesurée dans un monde que réparer change
-    (JS, "const ORDRE_ECRITURE = [\"assise\", \"reparer\", \"transformer\", \"extraire\", \"couper\"];",
-     "const ORDRE_ECRITURE = [\"reparer\", \"assise\", \"transformer\", \"extraire\", \"couper\"];",
-     CANEVAS, ["MET_EN_ATTENTE"]),
+    # 22. l'assise passe AVANT le déplacement : elle lirait une géométrie que
+    #     transformer va déplacer (revue : min Y = +0,508)
+    (JS, "const ORDRE_ECRITURE = [\"transformer\", \"assise\", \"reparer\", \"extraire\", \"couper\"];",
+     "const ORDRE_ECRITURE = [\"assise\", \"transformer\", \"reparer\", \"extraire\", \"couper\"];",
+     CANEVAS, ["MET_EN_ATTENTE", "AU_SOL"]),
     # 23. le mode ne retombe pas après la face cliquée
     (JS, "  noterAttente(\"assise\", { normale: [n.x, n.y, n.z], point: [p.x, p.y, p.z] });\n  armerGeste(\"selection\");\n",
      "  noterAttente(\"assise\", { normale: [n.x, n.y, n.z], point: [p.x, p.y, p.z] });\n",
@@ -155,10 +156,10 @@ M = [
          "                                              p.clone().addScaledVector(n, -demi));",
      CANEVAS, ["apercu_du_couteau"]),
     # 28. les clones ne sont pas posés au monde
-    (JS, "        c.matrix.copy(m.matrixWorld);\n", "", CANEVAS, ["apercu_du_couteau"]),
+    (JS, "      c.matrix.copy(m.matrixWorld);\n", "", CANEVAS, ["apercu_du_couteau"]),
     # 29. les originaux restent visibles sous l'aperçu
-    (JS, "      COUTEAU.originaux.push({ objet: m, visible: m.visible });\n      m.visible = false;",
-     "      COUTEAU.originaux.push({ objet: m, visible: m.visible });",
+    (JS, "    COUTEAU.originaux.push({ objet: m, visible: m.visible });\n    m.visible = false;",
+     "    COUTEAU.originaux.push({ objet: m, visible: m.visible });",
      CANEVAS, ["apercu_du_couteau"]),
     # 30. les originaux ne retrouvent pas leur visibilité au rangement
     (JS, "  for (const { objet, visible } of COUTEAU.originaux) objet.visible = visible;\n", "",
@@ -179,6 +180,25 @@ M = [
      CANEVAS, ["outils_vivent"]),
     # 33. la coupe refusée par le serveur reste dans la file
     (JS, "    if (i >= 0) S.enAttente.splice(i, 1);\n", "", CANEVAS, ["REFUSE_sans_piece"]),
+    # ── revue du lot B ─────────────────────────────────────────────────────
+    # 34. une boucle non triangulable est SAUTÉE : pose reste vrai, triangles
+    #     manquants en silence (la mutation verte du relecteur)
+    (ME, '        t = _trianguler(b2)\n        if t is None:',
+     '        t = _trianguler(b2)\n        if t is None:\n            continue\n        if False:',
+     SOCLE, ["boucles_imbriquees"]),
+    # 35. l'aperçu visite deux fois les maillages d'un retenu contenu dans un
+    #     autre : six clones, et l'original reste caché
+    (JS, [('  const maillages = new Set();', '  const maillages = [];'),
+          ('maillages.add(m)', 'maillages.push(m)')],
+     None, CANEVAS, ["apercu_du_couteau"]),
+    # 36. « annuler » reste actif pendant l'écriture
+    (JS, '    <button id="btnAnnuler"${_ecritEnCours ? " disabled" : ""}>annuler</button>`;',
+     '    <button id="btnAnnuler">annuler</button>`;',
+     CANEVAS, ["REFUSE_sans_piece"]),
+    # 37. les triangles plats du capuchon ne sont plus dits
+    (ME, '                           "degeneres": degeneres}',
+     '                           "degeneres": 0}',
+     SOCLE, ["boucles_imbriquees"]),
 ]
 
 

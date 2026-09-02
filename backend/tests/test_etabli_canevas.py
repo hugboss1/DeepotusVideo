@@ -1092,11 +1092,12 @@ def test_l_extraction_est_ecrite_en_DERNIER_car_elle_renumerote():
     """
     js = _lire("etabli/etabli.js")
     # CINQ ENTRÉES DEPUIS LE LOT B, et l'ordre est porteur de bout en bout :
-    # `assise` en PREMIER — sa normale et son pivot sont mesurés dans le monde
-    # de la version affichée, que `reparer` (axe Z) change ; `couper` en
-    # DERNIER — et seule, par la garde de confirmerCoupe(), puisqu'elle
-    # renumérote. La section S mesure ces deux raisons.
-    assert ('const ORDRE_ECRITURE = ["assise", "reparer", "transformer", '
+    # `transformer` en PREMIER — après lui le monde du fichier est le monde
+    # AFFICHÉ, où l'assise est mesurée (revue : écrite avant, l'assise laissait
+    # min Y à +0,508) ; `assise` avant `reparer`, qui change ce monde (axe Z) ;
+    # `couper` en DERNIER — et seule, par la garde de confirmerCoupe(),
+    # puisqu'elle renumérote. La section S EXÉCUTE ces raisons.
+    assert ('const ORDRE_ECRITURE = ["transformer", "assise", "reparer", '
             '"extraire", "couper"];') in js
     # LE TRI LUI-MEME. Mesure : remplacer le corps de fileOrdonnee() par
     # `return [...S.enAttente];` remet la file dans l'ordre des CLICS et ne
@@ -9215,13 +9216,13 @@ def test_le_clic_rend_la_NORMALE_MONDE_de_la_face_par_la_MATRICE_NORMALE_et_le_p
     assert "quand(touche ? touche.object : null, touche ? toucheDe(touche) : null);" in sel
 
 
-def test_poser_sur_une_face_MET_EN_ATTENTE_une_assise_ecrite_en_PREMIER_et_desarme():
+def test_poser_sur_une_face_MET_EN_ATTENTE_une_assise_AVANT_reparer_et_desarme():
     """L'assise est une ÉCRITURE : elle entre dans la file par noterAttente,
     comme `reparer` dont elle est le geste en un clic, et « écrire la version »
-    l'envoie à `/api/etabli/assise`. Elle se range EN PREMIER de la série : sa
-    normale et son pivot sont mesurés dans le monde de la version AFFICHÉE, et
-    `reparer` (axe Z) change ce monde — écrite après lui, la face serait posée
-    de travers. EXÉCUTÉ sur les vraies noterAttente, fileOrdonnee, poserSurFace,
+    l'envoie à `/api/etabli/assise`. Elle se range AVANT `reparer`, qui change
+    (axe Z) le monde où sa normale est mesurée, et APRÈS `transformer`, qui
+    rend au fichier le monde AFFICHÉ — le banc de l'ordre, plus bas, exécute
+    l'enchaînement. EXÉCUTÉ sur les vraies noterAttente, fileOrdonnee, poserSurFace,
     armerGeste et libelleAttente : la charge est {normale, point}, une seconde
     face REMPLACE la première (un réglage, pas une accumulation), le mode
     retombe sur « selection » après un clic, le vide refuse en le disant.
@@ -9272,8 +9273,8 @@ def test_poser_sur_une_face_MET_EN_ATTENTE_une_assise_ecrite_en_PREMIER_et_desar
     assert sortie["vide"] == {"refus": 1, "file": 2, "mode": "assise"}
     assert "FACE" in sortie["refus"][0]
     assert sortie["pose"]["mode"] == "selection"
-    # EN PREMIER de la série, avant réparer et transformer
-    assert sortie["pose"]["ops"] == ["assise", "reparer", "transformer"]
+    # APRÈS le déplacement, AVANT réparer
+    assert sortie["pose"]["ops"] == ["transformer", "assise", "reparer"]
     assert sortie["pose"]["charge"] == {"normale": [0.6, 0.0, 0.8], "point": [1.5, -2.25, 0.125]}
     assert "posé sur une face" in sortie["pose"]["libelle"]
     assert "0.60, 0.00, 0.80" in sortie["pose"]["libelle"]
@@ -9379,6 +9380,33 @@ def test_le_couteau_REFUSE_sans_piece_retenue_et_tant_que_la_file_n_est_pas_vide
     # partie (un appel de plus), refusée, RESSORTIE de la file, le couteau armé
     assert sortie["refusee"] == {"ok": False, "file": 0, "mode": "couteau", "appels": 2}
     assert sortie["desarme"] == {"ok": False, "appels": 2}
+    # ── ET LA BARRE, PENDANT L'ÉCRITURE : « en cours d'écriture », les DEUX
+    # boutons grisés — un « annuler » actif viderait la file et rechargerait N
+    # pendant que le serveur écrit N+1 (revue, constaté sur la coupe) ────────
+    barre = json.loads(_node(
+        _faux_rail() + _constantes_etabli("ORDRE_ECRITURE", "fmtCoord")
+        + _table_js("etabli/etabli.js", "LIBELLES_ATTENTE") + "\n"
+        + _const_etabli("libelleAttente") + _fonction_etabli("fileOrdonnee")
+        + """
+      let _ecritEnCours = false;
+      const ecrireVersion = () => {};
+      const ouvrirPrincipale = () => {};
+      zones["#barreAttente"] = nouvelle();
+    """ + _fonction_etabli("rendreAttente") + """
+      S.enAttente = [{ operation: "couper", charge: { noeuds: [3], garder: "deux" }, heuristique: false }];
+      rendreAttente();
+      const libre = $("#barreAttente").innerHTML;
+      _ecritEnCours = true;
+      rendreAttente();
+      const verrou = $("#barreAttente").innerHTML;
+      console.log(JSON.stringify({ libre, verrou }));
+    """))
+    assert "1 modification(s) en attente" in barre["libre"]
+    assert '<button id="btnEcrire">' in barre["libre"] and '<button id="btnAnnuler">' in barre["libre"]
+    assert "1 modification(s) en cours d'écriture" in barre["verrou"]
+    assert '<button id="btnEcrire" disabled>' in barre["verrou"]
+    assert '<button id="btnAnnuler" disabled>' in barre["verrou"]
+    assert "coupe de 1 pièce(s)" in barre["verrou"]
 
 
 def test_l_apercu_du_couteau_NE_TOUCHE_PAS_la_geometrie_et_decoupe_de_part_et_d_autre_du_plan():
@@ -9498,6 +9526,18 @@ def test_l_apercu_du_couteau_NE_TOUCHE_PAS_la_geometrie_et_decoupe_de_part_et_d_
       retenus = { noeuds: [], source: undefined };
       reconstruireApercuCoupe();
       r.vide = { mode: GESTE.mode, refus: refus[refus.length - 1], plan: !!COUTEAU.plan };
+      /* deux retenus dont l'un CONTIENT l'autre (l'enveloppe 13 et sa pièce 0) :
+         chaque maillage n'est cloné qu'une fois, et tous reviennent visibles
+         (revue : six clones au lieu de quatre, piece_0 restait cachée) */
+      retenus = { noeuds: [13, 0], source: undefined };
+      armerCouteau();
+      const clones3 = [];
+      api.scene.children.find((o) => o.name === "couteau-apercu").traverse((o) => { if (o.isMesh) clones3.push(o); });
+      const sousEnveloppe = maillages.filter((m) => { for (let p = m; p; p = p.parent) { if (p.userData && p.userData.indexGltf === 13) return true; } return false; }).length;
+      const originaux3 = COUTEAU.originaux.length;
+      armerGeste("selection");
+      r.imbriques = { clones: clones3.length, sousEnveloppe, originaux: originaux3,
+                      visibles: maillages.every((m) => m.visible) };
       /* rangé : plus rien dans la scène, tout visible, le gizmo rendu */
       retenus = { noeuds: [0, 2], source: undefined };
       armerCouteau(); armerGeste("selection");
@@ -9536,6 +9576,9 @@ def test_l_apercu_du_couteau_NE_TOUCHE_PAS_la_geometrie_et_decoupe_de_part_et_d_
     assert s["disposes"] == 6                                        # les matériaux clonés d'avant, libérés
     assert sortie["vide"]["mode"] == "selection" and sortie["vide"]["plan"] is False
     assert "plus aucune pièce retenue" in sortie["vide"]["refus"]
+    im = sortie["imbriques"]
+    assert im["sousEnveloppe"] == 2 and im["clones"] == 4 and im["originaux"] == 2, im
+    assert im["visibles"] is True
     rg = sortie["range"]
     assert rg["plan"] is False and rg["apercu"] is False and rg["visibles"] and rg["mode"] == "selection"
     assert rg["gizmo"] == {"space": "world", "mode": "translate", "objet": None, "axes": [True, True, True]}
@@ -9627,3 +9670,55 @@ def test_les_outils_vivent_DANS_le_canevas_naissent_sans_texte_et_repondent_a_F_
     assert ecrit["couteau"]["manip"] == "déplacer le plan" and "Ranger" in ecrit["couteau"]["c"]
     assert ecrit["assise"]["actif"] is True and ecrit["assise"]["cActif"] is False
     assert "cliquez une face" in ecrit["assise"]["a"]
+
+
+def test_l_ORDRE_d_ecriture_pose_l_assise_AU_SOL_meme_avec_un_deplacement_en_attente():
+    """LE DÉFAUT DE LA REVUE, MESURÉ PUIS FERMÉ. La normale et le point d'une
+    assise sont pris dans le monde AFFICHÉ — l'objet déjà déplacé au gizmo,
+    `transformer` en file — alors que mesh_edit.assise lit la géométrie de la
+    version sur disque. Écrite AVANT le déplacement, l'assise posait bien la
+    face vers le bas mais laissait le modèle en l'air (min Y = +0,508 chez le
+    relecteur ; le témoin ci-dessous le remesure). `transformer` passe donc en
+    premier : il ne touche que des TRS locaux par index, que ni `assise` ni
+    `reparer` ne renumérotent, et après lui le fichier EST le monde affiché.
+
+    EXÉCUTÉ dans l'ordre que la page impose — ORDRE_ECRITURE est LU dans
+    etabli.js, jamais recopié — sur les vraies mesh_edit.transformer et
+    mesh_edit.assise : min Y = 0 à 1e-9 et normale (0, −1, 0). Le témoin :
+    l'ordre inverse laisse |min Y| > 0,1.
+    """
+    from app.services import gltf_builder, mesh_edit, print3d
+    js = _lire("etabli/etabli.js")
+    ordre = json.loads(js.split("const ORDRE_ECRITURE = ", 1)[1].split(";", 1)[0])
+    assert ordre.index("transformer") < ordre.index("assise") < ordre.index("reparer") \
+        < ordre.index("extraire") < ordre.index("couper"), ordre
+
+    def normale_de(t):
+        (ax, ay, az), (bx, by, bz), (cx, cy, cz) = t
+        u, v = (bx - ax, by - ay, bz - az), (cx - ax, cy - ay, cz - az)
+        n = (u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0])
+        ln = math.sqrt(sum(c * c for c in n))
+        return [c / ln for c in n]
+
+    cube = gltf_builder.build_glb({}, None, "cube", "banc")
+    q = [0.2, 0.5, -0.3, 0.8]
+    nq = math.sqrt(sum(c * c for c in q))
+    attente = {"0": {"translation": [0.4, 1.1, -0.3], "rotation": [c / nq for c in q]}}
+    # le monde AFFICHÉ : le nœud déplacé au gizmo, pas encore écrit
+    affiche = print3d.lire_glb_triangles(mesh_edit.transformer(cube, attente))
+    normale, point = normale_de(affiche[0]), list(affiche[0][0])
+    assert math.dist(normale, [0, -1, 0]) > 0.5              # une face quelconque
+    plumes = {"transformer": lambda d: mesh_edit.transformer(d, attente),
+              "assise": lambda d: mesh_edit.assise(d, normale=normale, point=point)}
+    data = cube
+    for op in ordre:
+        if op in plumes:
+            data = plumes[op](data)
+    apres = print3d.lire_glb_triangles(data)
+    assert math.dist(normale_de(apres[0]), [0, -1, 0]) < 1e-9
+    assert abs(print3d.bbox(apres)[1][0]) < 1e-9, print3d.bbox(apres)
+    # LE TÉMOIN : l'assise écrite avant le déplacement pose la face vers le
+    # bas… et laisse le modèle en l'air
+    inverse = print3d.lire_glb_triangles(plumes["transformer"](plumes["assise"](cube)))
+    assert math.dist(normale_de(inverse[0]), [0, -1, 0]) < 1e-9
+    assert abs(print3d.bbox(inverse)[1][0]) > 0.1, print3d.bbox(inverse)

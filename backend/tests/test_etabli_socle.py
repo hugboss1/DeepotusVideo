@@ -1249,6 +1249,7 @@ def test_les_deux_moities_sont_FERMEES_et_leurs_volumes_font_le_volume_d_origine
         cr = piece["cotes"][cote]
         assert cr["capuchon"]["pose"] is True and cr["capuchon"]["boucles"] == 1
         assert cr["capuchon"]["triangles"] >= 4
+        assert 0 <= cr["capuchon"]["degeneres"] < cr["capuchon"]["triangles"]
         assert cr["noeud"] == _noeud_nomme(doc, f"cube_{cote}")
         assert cr["nom"] == f"cube_{cote}"
     assert rapport["plan"]["repere"] == "monde" and rapport["garder"] == "deux"
@@ -1463,7 +1464,21 @@ def test_un_capuchon_refuse_les_boucles_imbriquees_et_dit_une_surface_ouverte():
     loin = [(10, 0, 0), (14, 0, 0), (14, 4, 0), (10, 4, 0)]
     s, t, cr = mesh_edit._capuchon([ext, loin], [], n, (0, 0, -1), noms, 1)
     assert cr["pose"] is True and cr["boucles"] == 2 and len(t) == 4
+    assert cr["degeneres"] == 0
     assert all(v[1] == (0, 0, -1) and v[2] is None for v in s)
+    # LA TROISIÈME RAISON, fermée (revue : la famille des refus n'était couverte
+    # qu'aux deux tiers) — une boucle qui se croise, un nœud papillon, ne se
+    # triangule pas : pas de capuchon, et c'est DIT
+    papillon = [(0, 0, 0), (2, 2, 0), (2, 0, 0), (0, 2, 0)]
+    s, t, cr = mesh_edit._capuchon([papillon], [], n, (0, 0, -1), noms, 1)
+    assert s == [] and t == [] and cr["pose"] is False
+    assert "non triangulable" in cr["raison"] and cr["boucles"] == 1
+    # et une section en AIGUILLE se bouche en DISANT ses triangles plats
+    h = 8e-13
+    aiguille = [(0, 0, 0), (0.5, 0, 0), (1, 0, 0), (1, h, 0), (0.5, h, 0), (0, h, 0)]
+    s, t, cr = mesh_edit._capuchon([aiguille], [], n, (0, 0, -1), noms, 1)
+    assert cr["pose"] is True and len(t) == 4
+    assert 1 <= cr["degeneres"] <= len(t), cr
     # et les boucles se recousent par POSITION, coutures comprises : le même
     # carré décrit par quatre segments dans un ordre quelconque
     segs = [((0, 0, 0), (4, 0, 0)), ((4, 4, 0), (0, 4, 0)),
@@ -1508,6 +1523,7 @@ def test_le_couteau_sur_le_MODELE_REEL_traverse_le_cadre_en_moins_de_5_s_et_dit_
     for cote in ("a", "b"):
         cr = piece["cotes"][cote]
         assert cr["capuchon"]["pose"] is True and cr["capuchon"]["boucles"] == 1
+        assert isinstance(cr["capuchon"]["degeneres"], int)
         n = doc["nodes"][cr["noeud"]]
         assert n["name"] == f"cadre_{cote}"
         m = doc["meshes"][n["mesh"]]
