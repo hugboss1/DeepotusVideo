@@ -338,11 +338,19 @@ moteurs sur le même sujet (déjà partiellement fait) · low-poly pour jeu (bud
 de triangles cible) · texture PBR complète vs couleur de sommet.
 
 #### 10f. 3D Studio et l'Établi — inspecter, réparer, préparer
-**Aujourd'hui** : `/studio3d` (graphe de la chaîne 3D, nœud 07 · établi), l'Établi
-(inspecteur : versions, A/B caméras synchronisées, Parties par nœud/maillage/
-matériau, gizmo, plaque étalée, vue isométrique et vues d'axe, graduation et
-lecture x/y/z, taille cible → mm, réparer l'assise, transformer, extraire),
-`print3d` (STL/3MF en mm, garde 256 mm Centauri Carbon 2, relief vitrail).
+**Aujourd'hui** (à jour du 02/09, lots A et B de la tâche 4 livrés) : `/studio3d`
+(graphe de la chaîne 3D, nœud 07 · établi), l'Établi (inspecteur : versions, A/B
+caméras synchronisées, Parties par nœud/maillage/matériau, gizmo, vue
+isométrique et vues d'axe, graduation et lecture x/y/z, taille cible → mm ;
+**plaque façon slicer** : règles graduées sur les bords, glisser aimanté,
+flèches, rotation, plan de plaque `plaque.v<N>.json` distinct du modèle ;
+**poser sur une face** en un clic ; **couteau** avec aperçu par plan de coupe,
+capuchons, refus nommés ; réparer l'assise, transformer, extraire), `print3d`
+(STL/3MF en mm, garde 256 mm Centauri Carbon 2, relief vitrail). **Restent du
+plan Établi** : T5 extraction élément par élément (consomme le plan de plaque)
+et T6 Bibliothèque hiérarchique (lignée par `noeud_avant` / `noeud_apres` et
+`depuis` dans les fiches). Détail et dettes nommées dans
+`2026-09-01-etabli-plaque-et-extraction.md`, « Task 4 — LIVRÉE ».
 **Références** : Blender (tout, mais lourd), Meshmixer (réparation, séparation de
 coques, creusage, supports), MeshLab (mesure, nettoyage, décimation), Microsoft
 3D Builder (réparation en un clic), Netfabb (réparation industrielle, nesting),

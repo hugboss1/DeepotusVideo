@@ -197,6 +197,53 @@ Assemblé. Un banc épingle les deux chemins.
 Le déplacement au clavier de l'ancienne rédaction reste, mais **sur la plaque**
 et **dans le plan de plaque** ; en mode Assemblé, le gizmo suffit.
 
+### Task 4 — LIVRÉE en deux lots (02/09), et ce qu'elle laisse
+
+**Lot A** (`521c8e2`) : repère éteint sur la plaque, règles graduées par
+`viewer.js` sur une géométrie que `plaque.js` expose (`geometriePlateau`, côté
+arrondi au multiple du pas → la grille VAUT les traits des règles), glisser
+aimanté / flèches / anneau de rotation sur un **berceau** (translation) et un
+**pivot** (rotation, matrice manuelle), plan de plaque `plaque.v<N>.json` écrit
+par `GET/POST /api/etabli/plaque` (`"repere": "monde"`, `dx/dy` du centre en
+coordonnées monde, `rot` autour du centre de la boîte assemblée). Aucun plan
+n'existe pour N+1 après une écriture — voulu.
+
+**Lot B** (`f3b4b87`) : `GESTE` propriétaire unique du pointeur (`armerGeste`
+seul écrivain) ; **poser sur une face** — `selection.js` expose `touche.point`
+et `touche.normale` par la **matrice normale** (24,2° d'écart mesuré sous
+échelle non uniforme si l'on prend le quaternion), `mesh_edit.assise` pose une
+rotation de Rodrigues + contact dans un nœud `etabli_correction` neuf ;
+**couteau** — `mesh_cut.py` (stdlib pur, 867 lignes ; `mesh_edit` reste la
+seule plume), aperçu par clones + `clippingPlanes`, coupe des seules pièces
+retenues, capuchons par boucles → oreilles avec `pose:false` et raison dans
+quatre cas (ouverte / imbriquées / non triangulable / **face confondue
+partielle**), `degeneres` compté, `noeud_avant` / `noeud_apres` et
+`depuis: {version, fichier}` dans la fiche de **toutes** les écritures,
+**hors file** (refus tant que `S.enAttente` n'est pas vide). Ordre d'écriture
+`["transformer","assise","reparer","extraire","couper"]` : ce qui **lit** la
+géométrie (contact, recentrage) vient après ce qui déplace — mesuré, l'ancien
+ordre ratait le sol de 0,508 et centrait la géométrie non déplacée.
+
+**Campagnes de mutations DANS LE DÉPÔT** : `backend/tests/mutations_plaque_slicer.py`
+(77) et `mutations_assise_couteau.py` (45), rejouables, remise à l'octet près
+assertée, verdict ERREUR(collecte) sur `returncode`. Précédent à suivre.
+
+**Ce qui reste, nommé** : la section juste d'une face confondue **partielle**
+demande une adjacence (le couteau refuse et dit de décaler le plan) · deux
+lecteurs d'accesseurs (`print3d` ignore `sparse` en silence, `mesh_cut` le
+refuse) à unifier dans le lot qui touchera `print3d` · `assise` + `reparer
+(recentrer)` dans la même file se contredisent par définition, la barre ne le
+dit pas · la lecture chiffrée de la pièce que l'on glisse sur la plaque n'a pas
+été demandée deux fois — à l'utilisateur de dire s'il la veut.
+
+**Leçons de méthode ajoutées à la liste** : mesurer la grandeur qui peut
+tomber à zéro (les DEUX étendues écran) · une doublure ne vaut que si elle est
+appariée au réel · compter les assertions, pas les noms (un patch a supprimé
+un test entier, rattrapé par la campagne) · **énumérer les membres d'une
+famille avant de mesurer le premier** (le cube convexe était fermé, la marche
+ne l'était pas) · une sonde qui ne touche rien doit avoir son jumeau qui
+touche.
+
 ## Task 4-bis — la boîte à outils « avant export », à prioriser dans le balayage
 
 Measure · Mesh boolean · connecteurs du couteau · auto-arrange vrai (étagères →
