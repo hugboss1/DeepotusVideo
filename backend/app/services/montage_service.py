@@ -1361,9 +1361,16 @@ def _subs_ass(payload, canvas: tuple[int, int], stem: str) -> tuple[Path | None,
     segs = S.normalize_segments(segs_in)
     if not segs:
         return None, {}
+    # P2 — animation MOT PAR MOT. `report` dit ce qui a REELLEMENT été gravé :
+    # une réplique trop longue (déjà repliée par ui_wrap_segments) ou dont la
+    # largeur n'a pas pu être mesurée retombe sur le karaoké `\k`. Sans ce
+    # retour, le panneau annoncerait « rebond » sur une piste qui n'en porte
+    # aucun, et rien dans le journal ne le dirait.
+    wa = SU.ui_word_anim(ui)
+    rep: dict = {}
     text = S.to_ass(segs, style, canvas=canvas, karaoke=karaoke,
                     karaoke_mode=SU.ui_karaoke_mode(ui),
-                    anim=SU.ui_anim(ui))
+                    anim=SU.ui_anim(ui), word_anim=wa, report=rep)
     d = settings.outputs_path / "subtitles"
     d.mkdir(parents=True, exist_ok=True)
     p = d / f"{stem}.ass"
@@ -1372,7 +1379,43 @@ def _subs_ass(payload, canvas: tuple[int, int], stem: str) -> tuple[Path | None,
     p.write_text(text, encoding="utf-8", newline="\n")
     info = {"segments": len(segs), "karaoke": karaoke,
             "font": style["font"], "font_fallback": style.get("font_fallback"),
+            "word_anim": wa,
+            "word_segments": rep.get("word_segments", 0),
+            "word_anim_skipped": list(rep.get("word_anim_skipped") or []),
+            "word_anim_broken": list(rep.get("word_anim_broken") or []),
+            "word_anim_unmeasured": list(rep.get("word_anim_unmeasured") or []),
             "unsupported": sorted(SU.ui_unsupported(ui, canvas))}
+    # RESTE ASSUMÉ, dit ici pour n'être pas découvert ailleurs : ce dict ne
+    # quitte pas le serveur. Son unique lecteur en aval est le `logger.info`
+    # du rendu — il n'entre ni dans JobRecord, ni dans la réponse de la route,
+    # ni dans le polling. Le panneau n'apprend donc RIEN d'un rebond qui n'a
+    # pas eu lieu ; seuls les bancs le lisent, sur la valeur de retour.
+    if wa != "none" and info["word_anim_unmeasured"]:
+        info["unsupported"].append("wordAnim:mesure impossible (PIL/fonte)")
+    if wa != "none" and info["word_anim_skipped"]:
+        info["unsupported"].append(
+            "wordAnim:%d réplique(s) ne tiennent pas sur une ligne — karaoké"
+            % len(info["word_anim_skipped"]))
+    if wa != "none" and info["word_anim_broken"]:
+        info["unsupported"].append(
+            "wordAnim:%d réplique(s) dont un mot commence après la fin — karaoké"
+            % len(info["word_anim_broken"]))
+    # L'animation d'ENTRÉE du bloc (fondu, pop) ne se pose pas sur les
+    # répliques animées mot par mot — mesuré : l'ASS sort sans le moindre
+    # `\fad`. On ne la grave pas (un `\fad` par mot doublerait l'entrée du
+    # rebond) ; sans cette ligne le panneau montrait fondu + rebond et le
+    # rendu perdait le fondu, sans un mot.
+    if wa != "none" and info["word_segments"] and SU.ui_anim(ui) != "none":
+        info["unsupported"].append(
+            "anim:l'animation d'entrée du bloc ne se pose pas sur les "
+            "répliques animées mot par mot (un événement ASS par mot)")
+    # « couleur » EST le karaoké : karaoké éteint, elle ne fait plus rien du
+    # tout. Mesuré : ni `\k`, ni `\pos`, et la chip restait allumée dessus
+    # avec son infobulle qui parle de couleur.
+    if not karaoke and str((ui or {}).get("wordAnim") or "") == "couleur":
+        info["unsupported"].append(
+            "wordAnim:« couleur » EST le karaoké — karaoké éteint, aucun mot "
+            "ne change de couleur")
     return p, info
 
 
@@ -1633,7 +1676,10 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                 logger.info(
                     f"montage {short}: gravure de {subs_info['segments']} "
                     f"sous-titres en {subs_info['font']} "
-                    f"(karaoké={subs_info['karaoke']}) → {subs_ass.name}"
+                    f"(karaoké={subs_info['karaoke']}, "
+                    f"mot={subs_info.get('word_anim')} sur "
+                    f"{subs_info.get('word_segments')}/"
+                    f"{subs_info['segments']}) → {subs_ass.name}"
                     + (f" — non gravable : "
                        f"{', '.join(subs_info['unsupported'])}"
                        if subs_info["unsupported"] else ""))

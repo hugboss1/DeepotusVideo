@@ -8328,6 +8328,38 @@ async def subtitles_autofix(request: Request):
     return {"ok": True, "segments": segs, "count": len(segs)}
 
 
+@router.post("/subtitles/emoji-hints")
+async def subtitles_emoji_hints(request: Request):
+    """Emoji suggérés par MOT-CLÉ dans une piste de sous-titres.
+
+    Body : `{segments:[{start,end,text,words?}]}`.
+    Réponse : `{ok, hints:[{t, word, emoji, file, png, url}], count, manifest}`
+    — `t` est le début du MOT, `png` un chemin ABSOLU existant (le Montage le
+    pose tel quel en `src:{file_path:…}` d'un clip d'overlay) et `url` la
+    forme servie au navigateur (`/emoji/<f>.png`, le même dessin que le
+    sélecteur).
+
+    `manifest` est le NOMBRE d'emoji indexés. Sans lui, un manifeste illisible
+    (`emoji_manifest()` rend `{}` sans bruit, et c'est le bon choix : une
+    suggestion ne doit pas empêcher un rendu) sortait `count: 0` — exactement
+    comme un texte sans mot-clé, et l'appelant accusait le texte de
+    l'utilisateur. `manifest: 0` sépare les deux cas.
+
+    Cette route ne MODIFIE rien : elle propose. C'est le Montage qui décide
+    d'en faire des clips, et ces clips s'annulent comme les autres.
+    """
+    from app.services import subtitle_service as S
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+    hints = S.emoji_hints(_subs_body_segments(body))
+    return {"ok": True, "hints": hints, "count": len(hints),
+            "manifest": len(S.emoji_manifest())}
+
+
 # ---------------------------------------------------------------- export ---
 
 _SUBS_MIME = {"srt": "application/x-subrip", "vtt": "text/vtt",

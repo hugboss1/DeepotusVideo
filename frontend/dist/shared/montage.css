@@ -80,3 +80,25 @@
   font-variant-numeric:tabular-nums; width:16px}
 .dzsvm .dzm-hbx:hover:not(:disabled):not([data-arm]){
   border-color:var(--red, #e35d4a); color:var(--red, #e35d4a)}
+
+/* ── P2 : chip « mot : couleur / rebond / glow » et bouton « emoji » ───────
+   Posés dans la barre de transport, à côté de « + vidéo » / « + audio » :
+   le panneau de style vit dans un tiroir que la chaîne de patchs ne peut
+   pas rouvrir sans risque, et un réglage qu'on ne voit pas n'est pas un
+   réglage. Mêmes tokens et mêmes replis que le reste de ce fichier. */
+.dzsvm .dzm-wa{display:inline-flex; gap:4px; align-items:center; flex:none}
+.dzsvm .dzm-walbl{font-size:9px; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--ink4, var(--ink-muted, #55514c));
+  font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace)}
+.dzsvm .dzm-wab{display:inline-flex; gap:2px; align-items:center}
+.dzsvm .dzm-wabtn{width:auto; padding:0 7px; font-size:10px; flex:none;
+  font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace);
+  white-space:nowrap}
+/* l'état RETENU : plein, pas seulement souligné — trois boutons côte à côte
+   dont un seul est vrai, il doit se lire sans hésitation. */
+.dzsvm .dzm-wabtn[data-on]{border-color:transparent;
+  background:var(--accent, #d8a657); color:var(--accent-ink, #17161a)}
+.dzsvm .dzm-emo{width:auto; padding:0 8px; font-size:10px; flex:none;
+  font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace);
+  white-space:nowrap}
+.dzsvm .dzm-emo:disabled{opacity:.45; cursor:default}

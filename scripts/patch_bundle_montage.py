@@ -42,7 +42,10 @@ Sections :
   M8  barre de transport : « + vidéo » / « + audio » ;
   M9a/M9b en-tête de piste : poignée de glisser-déposer et ▲ ▼ ×, posés en
       SURIMPRESSION (l'en-tête fait 88 × 40–54 px et il est plein — mesuré,
-      voir montage.css).
+      voir montage.css) ;
+  M10 (P2) chip « mot : couleur / rebond / glow » + bouton « emoji », posés
+      DANS le remplacement de M8 (l'ancre A_M8 est déjà consommée, et la
+      barre d'outils n'offre pas de seconde ancre unique).
 
 Mécanique identique à patch_bundle_subs.py : restauration du .bak dédié puis
 ré-application, chaque ancre devant apparaître EXACTEMENT une fois, sinon
@@ -127,7 +130,27 @@ R_M7 = ('var np={demo:!1,tracks:svmTracksFrom(d.tracks),'
 # ── M8 : barre de transport ─────────────────────────────────────────────────
 A_M8 = ('r.jsx("button",{className:"svm-tbtn",title:"Raccourcis ("'
         '+svmKeyLabel("keys_panel")+") — personnalisables",')
+
+# ── M10 (P2) : la chip « mot : couleur / rebond / glow » et le bouton emoji ──
+# ELLES VIVENT DANS R_M8, pas dans une section à elles : l'ancre A_M8 est déjà
+# CONSOMMÉE par M8, et il n'existe pas de seconde ancre unique dans cette barre
+# d'outils. Le panneau de style, lui, vit dans un tiroir du bloc `sonvfx` que
+# cette chaîne ne peut pas rouvrir (vingt sections amont s'y trouvent).
+# `DzTracks`, pas `DzMontage` : le bundle déclare DÉJÀ une fonction DzMontage
+# au premier niveau (l'écran Montage lui-même) — redéclarer ce nom est une
+# SyntaxError en sémantique module, celle sous laquelle index.html charge le
+# bundle. C'est ce que `node_check_module` de test_montage_bundle.py garde.
+# Le bouton emoji est RÉVERSIBLE : `pushHistory()` avant l'ajout, donc
+# « annuler » retire les clips posés, et ce sont des clips ordinaires.
+R_M10 = ('r.jsx(DzTracks.WordAnimChip,{value:(proj.subsStyle||{}).wordAnim||"couleur",'
+         'onChange:function(v){subsStyleSet({wordAnim:v})}}),\n'
+         '        r.jsx(DzTracks.EmojiBtn,{segments:subsSegsOf(clips),'
+         'tracks:svmTracksOf(proj),note:fireNote,'
+         'onAdd:function(cs){pushHistory();'
+         'setClips(function(k){return (k||[]).concat(cs)});setDirty(!0)}}),')
+
 R_M8 = ('r.jsx(DzTracks.TrackAdd,{tracks:svmTracksOf(proj),onChange:svmTracksSet}),\n'
+        '        ' + R_M10 + '\n'
         '        /* bouton discret du panneau raccourcis — fin de transport */\n'
         '        ' + A_M8)
 

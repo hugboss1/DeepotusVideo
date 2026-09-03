@@ -5354,6 +5354,8 @@ function DzMontage(props){
             children:"×"})]}),
         /* bouton discret du panneau raccourcis — fin de transport */
         r.jsx(DzTracks.TrackAdd,{tracks:svmTracksOf(proj),onChange:svmTracksSet}),
+        r.jsx(DzTracks.WordAnimChip,{value:(proj.subsStyle||{}).wordAnim||"couleur",onChange:function(v){subsStyleSet({wordAnim:v})}}),
+        r.jsx(DzTracks.EmojiBtn,{segments:subsSegsOf(clips),tracks:svmTracksOf(proj),note:fireNote,onAdd:function(cs){pushHistory();setClips(function(k){return (k||[]).concat(cs)});setDirty(!0)}}),
         /* bouton discret du panneau raccourcis — fin de transport */
         r.jsx("button",{className:"svm-tbtn",title:"Raccourcis ("+svmKeyLabel("keys_panel")+") — personnalisables",
           "aria-label":"Raccourcis clavier","aria-haspopup":"dialog","aria-expanded":kbOn,
@@ -12065,6 +12067,59 @@ function dzmClipsOn(clips,id){
   (clips||[]).forEach(function(c){if(c&&c.tr===id)n++});
   return n}
 
+/* ── P2 : animation des sous-titres MOT PAR MOT ────────────────────────────
+   Trois valeurs seulement, parce que trois seulement se gravent (mesuré à
+   l'image, backend/tests/test_subs_animes.py) :
+     couleur — le karaoké `\k` : le mot actif change de couleur. Rien n'est
+               déplacé, donc une réplique sur plusieurs lignes en profite
+               aussi. C'est le comportement HISTORIQUE, et la valeur par
+               défaut : la chip ne change rien tant qu'on n'y touche pas.
+     rebond  — un événement ASS par mot, posé en \pos, qui entre en
+               grossissant. MESURÉ : 222 px éclairés à 130 ms contre 191 une
+               fois posé, soit ×1,16 (270×480, Anton 52, un mot seul).
+     glow    — même mécanique, le contour pousse puis retombe.
+   Le rebond et le glow ne savent poser qu'UNE ligne : une réplique plus
+   longue que `maxChars` retombe sur la couleur, et le backend le DIT
+   (info.word_anim_skipped). Aucune de ces valeurs ne détruit quoi que ce
+   soit — c'est un champ de style, on revient en arrière en le rechangeant. */
+var DZM_WORD_ANIMS=[
+ {v:"couleur",l:"couleur",t:"Le mot actif change de couleur (karaoké). "+
+   "Rien n'est déplacé : les répliques sur plusieurs lignes en profitent aussi."},
+ {v:"rebond",l:"rebond",t:"Chaque mot entre en grossissant, puis se pose. "+
+   "Mesuré à l'image : 222 pixels éclairés à 130 ms contre 191 une fois posé "+
+   "(×1,16). Réservé aux répliques qui tiennent sur UNE ligne — les autres "+
+   "gardent la couleur."},
+ {v:"glow",l:"glow",t:"Chaque mot pousse son contour puis le laisse "+
+   "retomber. Mêmes limites que le rebond : une seule ligne."}];
+
+/* Les suggestions de POST /api/subtitles/emoji-hints en clips d'overlay.
+   PUR : c'est ce que le banc exécute sous node. La piste visée est la
+   première piste vidéo qui n'est pas V1 — donc la plus haute, celle qui est
+   composée au-dessus de tout (P1). `seq` rend les identifiants uniques d'un
+   appel à l'autre : deux passes sur la même piste ne se marchent pas dessus.
+
+   LES QUATRE NOMBRES CI-DESSOUS SONT DES DÉFAUTS, PAS DES MESURES. 0,8 s à
+   l'écran, 18 % de la largeur, centré en x, à 62 % de la hauteur (donc
+   au-dessus de la bande de sous-titres, qui vit vers 80 %) : ce sont des
+   points de départ choisis pour être visibles, rien d'autre ne les fonde.
+   Le clip qui en sort est un clip ORDINAIRE — il se déplace, se retaille,
+   se supprime, et l'annulation le retire comme n'importe quel autre. */
+function dzmEmojiClips(hints,tracks,seq){
+  var ov=(tracks&&tracks.length?tracks:DZM_DEFAULT_TRACKS).filter(function(t){
+    return t&&t.kind==="video"&&t.id!=="v1"});
+  if(!ov.length)return [];
+  var tr=ov[0].id,n=Number(seq)||0;
+  return (hints||[]).filter(function(h){return h&&h.png}).map(function(h,i){
+    var t0=Number(h.t)||0;
+    /* pas de `is_image` : le backend dérive le genre du SUFFIXE du fichier
+       (_resolve_src puis la sonde) et le frontend ne lit jamais ce champ —
+       le poser ne ferait qu'inventer une source de vérité de plus. */
+    return {id:"emo"+(n+i).toString(36)+"_"+String(h.file||i),tr:tr,
+      label:(h.emoji||"emoji")+" "+(h.word||""),
+      src:{file_path:h.png},
+      start:Math.round(t0*1e3)/1e3,end:Math.round((t0+0.8)*1e3)/1e3,
+      scale:.18,x:.5,y:.62,rotate:0}})}
+
 /* ── composants (r/x du bundle — jamais touchés au chargement) ───────────── */
 
 /* Les deux boutons de la barre de transport. */
@@ -12169,12 +12224,69 @@ function dzmHeadBtns(tr,ts,set,clips,setClips,note){
   return r.jsx(DzmTrackBtns,{tr:tr,tracks:ts,onSet:set,clips:clips,
     setClips:setClips,note:note},"dzmhb")}
 
+/* La chip « mot : couleur / rebond / glow » de la barre de transport. Le
+   panneau de style vit dans un TIROIR qu'on ne peut pas patcher (le bloc
+   correspondant du bundle porte vingt sections que la copie source de
+   son-vfx-montage.js ne sait pas rejouer) : le réglage est donc posé ici,
+   là où il est visible sans ouvrir quoi que ce soit. */
+var DzmWordAnimChip=function(props){
+  var v=String((props&&props.value)||"couleur");
+  function set(nv){if(props&&props.onChange&&nv!==v)props.onChange(nv)}
+  return r.jsxs("span",{className:"dzm-wa",role:"group",
+    "aria-label":"Animation des sous-titres, mot par mot",children:[
+    r.jsx("span",{className:"dzm-walbl","aria-hidden":!0,children:"mot"},"l"),
+    r.jsx("span",{className:"dzm-wab",children:DZM_WORD_ANIMS.map(function(o){
+      return r.jsx("button",{className:"svm-tbtn dzm-wabtn",
+        "data-on":v===o.v?"":void 0,"aria-pressed":v===o.v,
+        title:o.t,onClick:function(){set(o.v)},children:o.l},o.v)})},"b")]})};
+
+/* Le bouton « emoji » : demande les suggestions au backend, les pose en
+   clips d'overlay. RÉVERSIBLE — l'appelant pousse l'historique AVANT
+   d'ajouter, donc « annuler » les retire d'un coup ; et ce sont des clips
+   ordinaires, qui se déplacent et se suppriment comme les autres. */
+var DzmEmojiBtn=function(props){
+  var sb=x.useState(0),busy=sb[0],setBusy=sb[1];
+  function note(m){if(props&&props.note)props.note(m)}
+  function go(){
+    if(busy)return;
+    var segs=(props&&props.segments)||[];
+    if(!segs.length){
+      note("Aucun sous-titre : les emoji se posent sur les MOTS d'une "+
+        "réplique. Écrivez la piste S1 d'abord.");return}
+    if(!props.onAdd){note("Emoji : rien pour recevoir les clips.");return}
+    setBusy(1);
+    fetch("/api/subtitles/emoji-hints",{method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({segments:segs})})
+      .then(function(rp){return rp.json()})
+      .then(function(d){
+        setBusy(0);
+        var hs=(d&&d.hints)||[];
+        if(!hs.length){note("Aucun mot-clé reconnu — les mots suivis sont "+
+          "feu, lune, vague, poulpe, or, fusée.");return}
+        var cs=dzmEmojiClips(hs,props.tracks,Date.now());
+        if(!cs.length){note("Aucune piste vidéo d'overlay pour les poser : "+
+          "ajoutez-en une par « + vidéo ».");return}
+        props.onAdd(cs);
+        note(cs.length+" emoji posé"+(cs.length>1?"s":"")+" sur "+cs[0].tr+
+          " — annuler les retire tous.")})
+      .catch(function(e){setBusy(0);
+        note("Emoji : "+((e&&e.message)||"échec de la requête"))})}
+  return r.jsx("button",{className:"svm-tbtn dzm-emo",disabled:!!busy,
+    title:"Poser un emoji sur les mots-clés des sous-titres (feu, lune, "+
+      "vague, poulpe, or, fusée) — un clip par mot, sur la piste d'overlay "+
+      "la plus haute. Annuler les retire.",
+    "aria-label":"Poser les emoji des mots-clés",
+    onClick:go,children:busy?"…":"emoji"})};
+
 /* ── export contrat ───────────────────────────────────────────────────────── */
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
+  WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   tracksOf:svmTracksOf,from:svmTracksFrom,payload:svmTracksPayload,
   busSync:svmTrackBusSync,skin:dzmSkin,
   move:dzmMove,moveTo:dzmMoveTo,add:dzmAdd,remove:dzmRemove,group:dzmGroup,
-  clipsOn:dzmClipsOn,DEFAULTS:DZM_DEFAULT_TRACKS};
+  clipsOn:dzmClipsOn,emojiClips:dzmEmojiClips,WORD_ANIMS:DZM_WORD_ANIMS,
+  DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;
 
 /*__DZ_MONTAGE_END__*/

@@ -14,11 +14,13 @@ alimente les balises ``\\k`` de l'ASS et le surlignage du mot actif dans
 l'editeur. Quand il manque, `distribute_words` le fabrique proportionnellement
 a la longueur des mots (avec une respiration apres la ponctuation).
 
-Ce module est PUR : aucune I/O, aucun reseau, aucun `settings`. Il ecrit et
-relit des chaines de caracteres, c'est la couche route qui les pose sur le
-disque. Seule dependance optionnelle : PIL, uniquement pour MESURER la largeur
-reelle d'une ligne avec la vraie fonte (controle qualite) — absent, le controle
-retombe sur le comptage de caracteres.
+Ce module ne fait AUCUN reseau et ne lit AUCUN `settings` : il ecrit et relit
+des chaines de caracteres, c'est la couche route qui les pose sur le disque.
+Ses seules lectures de disque portent sur des fichiers EMBARQUES, jamais sur
+les donnees de l'utilisateur : les fontes de `templates/_fonts` (`font_path`,
+`font_line_height`, et PIL — optionnel — pour MESURER la largeur reelle d'une
+ligne ; absent, le controle retombe sur le comptage de caracteres) et le
+manifeste d'emoji de `assets/emoji` (`emoji_hints`).
 
 Trois formats en ecriture :
 
@@ -53,8 +55,10 @@ ffmpeg en `fontsdir=` pour que la resolution ne depende pas du poste.
 """
 from __future__ import annotations
 
+import json
 import math
 import re
+import unicodedata
 from pathlib import Path
 
 __all__ = [
@@ -75,6 +79,8 @@ __all__ = [
     "STYLES", "style_labels", "resolve_style", "ass_unsupported",
     "FONT_FILES", "fonts_dir", "ass_fontsdir", "font_path", "check_fonts",
     "font_line_height",
+    # animation par mot / emoji
+    "WORD_ANIMS", "EMOJI_HINTS", "emoji_dir", "emoji_manifest", "emoji_hints",
     # ffmpeg
     "subtitles_filter",
 ]
@@ -856,9 +862,137 @@ def anim_tag(anim: str | None, ms: int = ANIM_MS) -> str:
     return f(max(40, min(2000, int(ms)))) if f else ""
 
 
+#: Animations par MOT. Contrairement aux animations d'entree ci-dessus, qui
+#: portent sur le BLOC, celles-ci demandent un evenement ASS par mot : `\t`
+#: ne sait animer qu'un evenement entier, jamais une portion de sa ligne.
+#: C'est le prix a payer, et c'est pour cela que la ligne doit tenir sur UNE
+#: ligne (les mots sont poses un a un en `\pos`, ils ne se replient pas).
+WORD_ANIMS = ("none", "rebond", "glow")
+_WORD_TAGS = {
+    "rebond": "\\fscx70\\fscy70\\t(0,120,\\fscx115\\fscy115)"
+              "\\t(120,220,\\fscx100\\fscy100)",
+    "glow": "\\bord1\\t(0,160,\\bord6)\\t(160,320,\\bord2)",
+}
+
+
+def _word_space_px(st: dict, scale: float) -> float | None:
+    """Largeur d'un espace ENTRE deux mots, interlettrage compris.
+
+    `_measure_px(" ")` mesure UN caractere, donc ZERO intervalle : il n'ajoute
+    aucun `spacing`. Or dans la ligne reelle l'espace en porte DEUX (celui qui
+    le precede et celui qui le suit). MESURE, « SOUS LA SURFACE » en Anton 52
+    sur 270x480 a `tracking=3` : somme des mots + 2 espaces = 88,50 px, la
+    meme chaine mesuree d'un coup = 91,50 px, soit 3,00 px perdus sur deux
+    espaces. Avec cette correction l'ecart tombe a 0,00 px. Nul au defaut
+    (`tracking=0`, mesure 81,00 des deux cotes), mais le panneau le regle.
+    """
+    sp = _measure_px(" ", st, scale)
+    return None if sp is None else sp + 2.0 * st.get("spacing", 0.0) * scale
+
+
+def _word_events(seg: dict, st: dict, name: str, canvas: tuple[int, int],
+                 scale: float, word_anim: str) -> list[str]:
+    """Un evenement ASS par mot : le mot apparait a son start, reste jusqu'a la
+    fin de la replique, pose en ``\\pos`` a sa place dans la ligne. Les
+    largeurs viennent de la MEME fonte que libass (`_measure_px`) ; sans PIL
+    (ou sans le fichier de fonte) on rend `[]` et l'appelant retombe sur le
+    karaoke ``\\k`` en le disant dans son rapport.
+
+    L'ancrage est TOUJOURS a gauche (`\\an1/4/7`) : c'est le bord GAUCHE de
+    chaque mot qu'on calcule. `align` ne decide donc que du point de depart
+    de la ligne, exactement comme les marges du style le feraient.
+
+    CE QUI EST PERDU ICI, ET QUI DOIT ETRE DIT. L'animation d'ENTREE du bloc
+    (`anim` / `anim_tag` : fondu, pop) ne se pose PAS sur ces evenements.
+    MESURE : `anim="fondu"` + `wordAnim="rebond"` produit un ASS SANS le
+    moindre `\\fad`, la ou le meme style en karaoke en porte un. On ne le
+    grave pas volontairement — un `\\fad` par mot doublerait l'entree du
+    rebond, mot par mot, ce qui n'est pas ce que l'apercu montre. C'est
+    `_subs_ass` qui le porte dans `unsupported`.
+    """
+    W, H = int(canvas[0] or 1080), int(canvas[1] or 1920)
+    words = _normalize_words(seg.get("words"), seg.get("text", ""),
+                             _f(seg["start"]), _f(seg["end"]))
+    if not words:
+        return []
+    up = bool(st["uppercase"])
+    txts = [(w["w"].upper() if up else w["w"]) for w in words]
+    sp = _word_space_px(st, scale)
+    widths = [_measure_px(t, st, scale) for t in txts]
+    if sp is None or any(x is None for x in widths):
+        return []
+    line_w = sum(widths) + sp * max(0, len(widths) - 1)
+    align = str(st.get("align") or "center")
+    mh = st["margin_h"] * scale
+    if align == "left":
+        x0 = mh
+    elif align == "right":
+        x0 = W - mh - line_w
+    else:
+        x0 = W / 2.0 - line_w / 2.0
+    valign = str(st.get("valign") or "bottom")
+    mv = st["margin_v"] * scale
+    y = (H - mv) if valign == "bottom" else (mv if valign == "top" else H / 2.0)
+    an = {"bottom": 1, "middle": 4, "top": 7}.get(valign, 1)
+    tags = _WORD_TAGS.get(str(word_anim), "")
+    out, x = [], x0
+    for w, t, wd in zip(words, txts, widths):
+        tag = "{\\an%d\\pos(%d,%d)%s}" % (an, int(round(x)), int(round(y)), tags)
+        out.append(
+            f"Dialogue: 1,{_ass_time(_f(w['start']))},{_ass_time(_f(seg['end']))},"
+            f"{name},,0,0,0,,{tag}{_ass_escape(t)}")
+        x += wd + sp
+    return out
+
+
+def _word_anim_fits(seg: dict, st: dict, canvas: tuple[int, int],
+                    scale: float) -> bool:
+    """Une animation par mot ne se pose que sur UNE ligne QUI TIENT DANS LE
+    CADRE. `_word_events` calcule des abscisses sur une seule rangee : un
+    texte deja replie (par `ui_wrap_segments`) sortirait en ligne unique.
+
+    Le compte de CARACTERES ne suffit pas. MESURE, Anton 52 sur 270x480,
+    marges du style a `width:84` (226,4 px utiles) : 28 « M » font 280 px,
+    29 en font 290, 30 en font 300 — les trois passaient le seuil de
+    `chars_per_line` (30) et le premier mot sortait a `\\pos(-5,384)`, hors
+    du cadre a gauche. On mesure donc AUSSI la largeur, avec la meme fonte
+    que libass. Mesure impossible (pas de PIL, pas de fichier de fonte) =>
+    on ne refuse pas ici : `_word_events` rendra `[]` et l'appelant le
+    rangera dans `word_anim_unmeasured`, qui est le fait exact."""
+    t = str(seg.get("text") or "")
+    if "\n" in t or "\\N" in t:
+        return False
+    if len(t) > int(st["chars_per_line"]):
+        return False
+    W = int(canvas[0] or 1080)
+    usable = max(1.0, W - 2.0 * st["margin_h"] * scale)
+    px = _measure_px(t.upper() if st["uppercase"] else t, st, scale)
+    return not (px is not None and px > usable)
+
+
+def _word_calage_casse(seg: dict) -> bool:
+    """Un mot dont le debut tombe SUR (ou apres) la fin de la replique : son
+    evenement serait de duree NULLE et libass ne le dessinerait pas — le mot
+    DISPARAITRAIT du rendu, sans un mot nulle part.
+
+    MESURE, canevas 270x480, segment 0->2 s dont le second mot est cale a
+    9,0 s (ce que `_normalize_words` ramene sur `end`, donc a 2,0->2,0) :
+    61 px eclaires a 1,0 s en « rebond » contre 174 en karaoke, sur trois
+    rendus identiques. Le rapport, lui, annoncait `word_segments: 1` et
+    `word_anim_skipped: []` : tout allait bien, et la moitie de la ligne
+    avait disparu. C'est atteignable d'un geste ordinaire — raccourcir un
+    clip S1 sous un calage plus long. On rend la main au karaoke, qui montre
+    la ligne ENTIERE, et l'appelant le DIT."""
+    end = _f(seg["end"])
+    ws = _normalize_words(seg.get("words"), seg.get("text", ""),
+                          _f(seg["start"]), end)
+    return any(_f(w["start"]) >= end for w in ws)
+
+
 def to_ass(segments, style=None, *, canvas: tuple[int, int] = (1080, 1920),
            karaoke: bool = True, karaoke_mode: str = "bond",
            anim: str = "none", anim_ms: int = ANIM_MS,
+           word_anim: str = "none", report: dict | None = None,
            newline: str = "\n") -> str:
     """Fichier ASS complet — style REEL + karaoke natif.
 
@@ -870,6 +1004,17 @@ def to_ass(segments, style=None, *, canvas: tuple[int, int] = (1080, 1920),
     toutes les mesures du style (corps, contour, ombre, marges, interlettrage),
     exprimees a REF_HEIGHT=1080, sont mises a l'echelle par hauteur/1080 : le
     meme preset rend pareil en 1080p et en 1920 de haut (9:16).
+
+    `word_anim` (voir `WORD_ANIMS`) : « rebond » / « glow » remplacent, pour
+    chaque replique qui s'y prete, la ligne karaoke par UN evenement par mot.
+    `report`, si fourni, recoit ce qui s'est REELLEMENT passe :
+    `{word_anim, word_segments, word_anim_skipped, word_anim_broken,
+    word_anim_unmeasured}` — les trois listes portent les index des repliques
+    retombees sur le karaoke : trop longue ou trop large pour une ligne ; un
+    mot cale APRES la fin de la replique (il serait invisible) ; largeur non
+    mesurable. Sans ce rapport, l'appelant ne pourrait pas distinguer
+    « anime » de « demande, mais pas fait » : c'est exactement le genre de
+    silence qui fait mentir un panneau.
     """
     W, H = int(canvas[0] or 1080), int(canvas[1] or 1920)
     scale = (H / float(REF_HEIGHT)) if H > 0 else 1.0
@@ -892,10 +1037,32 @@ def to_ass(segments, style=None, *, canvas: tuple[int, int] = (1080, 1920),
     default_name = _register(default)
     pre = anim_tag(anim, anim_ms)
 
+    wa = str(word_anim or "none")
+    if wa not in WORD_ANIMS:
+        wa = "none"
+    rep = report if isinstance(report, dict) else {}
+    rep["word_anim"] = wa
+    rep["word_segments"] = 0
+    rep["word_anim_skipped"] = []
+    rep["word_anim_broken"] = []
+    rep["word_anim_unmeasured"] = []
+
     events = []
-    for s in segs:
+    for i, s in enumerate(segs):
         st = resolve_style(s["style"]) if s.get("style") else default
         nm = default_name if st is default else _register(st)
+        if wa != "none":
+            if not _word_anim_fits(s, st, (W, H), scale):
+                rep["word_anim_skipped"].append(i)
+            elif _word_calage_casse(s):
+                rep["word_anim_broken"].append(i)
+            else:
+                wev = _word_events(s, st, nm, (W, H), scale, wa)
+                if wev:
+                    rep["word_segments"] += 1
+                    events.extend(wev)
+                    continue
+                rep["word_anim_unmeasured"].append(i)
         txt = (_karaoke_text(s, karaoke_mode, bool(st["uppercase"])) if karaoke
                else _ass_escape(s["text"].upper() if st["uppercase"] else s["text"]))
         events.append(
@@ -1843,6 +2010,121 @@ def autofix(segments, style=None, *, min_duration: float = MIN_DURATION,
                 out.append(s)
         segs = out
     return normalize_segments(segs)
+
+
+# ---------------------------------------------------------------------------
+# Emoji par mot-cle
+# ---------------------------------------------------------------------------
+
+#: Mot-cle -> EMOJI (le caractere, pas un nom symbolique). ECART ASSUME au
+#: plan, qui ecrivait `{"feu": "fire", ...}` : le manifeste embarque
+#: (app/assets/emoji/manifest.json, celui que sert deja `GET /api/emojis`)
+#: n'indexe QUE le caractere et le nom de fichier Twemoji — il n'y a aucun
+#: nom symbolique a viser. Le caractere est donc la seule cle qui relie une
+#: suggestion au PNG que le rendu posera.
+#: RESTE CONNU : « or » est aussi une conjonction francaise ; la suggestion
+#: se declenchera dessus (MESURE : « or il se trouve que » propose la piece).
+#: C'est la MOINDRE des deux erreurs — un faux positif se voit a l'ecran et se
+#: supprime d'un clic. Le silence, lui, ne se voit pas : voir `_ELISION_RE`,
+#: sans laquelle « la ruée vers l'or » ne proposait rien du tout.
+#: Chaque proposition arrive comme un CLIP ordinaire — elle se deplace, se
+#: supprime et s'annule comme n'importe quel autre.
+EMOJI_HINTS = {
+    "feu": "\U0001F525",       # 🔥
+    "lune": "\U0001F319",      # 🌙
+    "vague": "\U0001F30A",     # 🌊
+    "poulpe": "\U0001F419",    # 🐙
+    "or": "\U0001FA99",        # 🪙
+    "fusée": "\U0001F680",     # 🚀
+}
+
+
+def emoji_dir() -> Path:
+    """Dossier des PNG Twemoji embarques (`backend/app/assets/emoji`).
+
+    C'est le MEME que celui de `GET /api/emojis` (routes.py) et que le
+    serveur statique `/emoji/<f>.png` : le selecteur, la route et le rendu
+    montrent donc le meme dessin. Le plan ecrivait `backend/assets/emoji` —
+    ce dossier n'existe pas dans ce depot (mesure : `backend/assets` est
+    absent, `backend/app/assets/emoji` contient 207 fichiers).
+    """
+    return Path(__file__).resolve().parent.parent / "assets" / "emoji"
+
+
+def emoji_manifest() -> dict:
+    """{caractere: nom de fichier sans extension} du manifeste embarque.
+
+    Rend `{}` si le fichier manque ou n'est pas lisible : une suggestion
+    d'emoji ne doit jamais empecher un montage de se rendre.
+    """
+    p = emoji_dir() / "manifest.json"
+    try:
+        raw = json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    out: dict = {}
+    for cat in raw if isinstance(raw, list) else []:
+        for it in (cat or {}).get("items") or []:
+            e, f = (it or {}).get("e"), (it or {}).get("f")
+            if e and f:
+                out.setdefault(str(e), str(f))
+    return out
+
+
+#: Elision francaise : l'article ou le pronom colle au mot par une apostrophe.
+#: `_fold` ne retirait la ponctuation qu'aux EXTREMITES, donc l'apostrophe
+#: INTERNE restait et « l'or » ne tombait pas sur « or ». MESURE : « la ruée
+#: vers l'or » et « une pièce d'or » ne proposaient RIEN, alors que « or il se
+#: trouve que » proposait la piece. Des deux erreurs c'est celle-la qui coutait
+#: le plus : le faux positif sur la conjonction se voit et se supprime d'un
+#: clic, le silence sur la forme la PLUS COURANTE du nom ne se voit pas.
+#: Verifie : « l'or », « d'or », « L'or » et « l’or » (apostrophe typographique)
+#: donnent « or » ; « aujourd'hui » et « cl'or » restent intacts.
+_ELISION_RE = re.compile(r"^(?:[cdjlmnst]|qu)['’]")
+
+
+def _fold(s) -> str:
+    """Mot ramene a sa forme comparable : minuscules, sans accents, sans la
+    ponctuation qui l'entoure, sans l'elision qui le precede. « Fusée ! »,
+    « fusee », « l'or » et « or » tombent au bon endroit — sinon la
+    suggestion raterait un mot sur deux."""
+    t = unicodedata.normalize("NFD", str(s or "").lower())
+    t = "".join(c for c in t if not unicodedata.combining(c))
+    t = t.strip(" \t\r\n.,;:!?…«»\"'()[]{}-–—")
+    return _ELISION_RE.sub("", t)
+
+
+def emoji_hints(segments, hints: dict | None = None) -> list[dict]:
+    """Suggestions d'emoji par MOT-CLE : `[{t, word, emoji, file, png, url}]`.
+
+    `t` est le debut du MOT (pas de la replique) : c'est la seule date a
+    laquelle poser l'image ait un sens. `png` est un chemin ABSOLU existant
+    (`_resolve_src` accepte `{"file_path": ...}` tel quel) et `url` la forme
+    servie au navigateur. Un mot-cle dont le PNG manque est simplement
+    ECARTE : on ne propose jamais une image qu'on ne saurait pas poser.
+    """
+    table = emoji_manifest()
+    keys = {_fold(k): v for k, v in (EMOJI_HINTS if hints is None
+                                     else hints).items()}
+    d = emoji_dir()
+    out: list[dict] = []
+    for s in normalize_segments(segments):
+        for w in _normalize_words(s.get("words"), s["text"],
+                                  s["start"], s["end"]):
+            e = keys.get(_fold(w["w"]))
+            if not e:
+                continue
+            f = table.get(e)
+            if not f:
+                continue
+            p = d / (str(f) + ".png")
+            if not p.exists():
+                continue
+            out.append({"t": round(_f(w["start"]), 3), "word": w["w"],
+                        "emoji": e, "file": str(f), "png": str(p),
+                        "url": f"/emoji/{f}.png"})
+    out.sort(key=lambda h: h["t"])
+    return out
 
 
 # ---------------------------------------------------------------------------

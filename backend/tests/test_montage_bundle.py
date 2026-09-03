@@ -21,7 +21,7 @@ Trois familles de mesures :
       echec qui ne ressemble a rien.
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)"""
-import importlib.util, json, os, pathlib, shutil, subprocess, sys, tempfile
+import importlib.util, json, os, pathlib, re, shutil, subprocess, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8")
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -76,8 +76,57 @@ for tag, a, r in P.PATCHES:
     if a not in r:
         check(tag + "_ancre_consommee", s.count(nl(a)) == 0,
               f"count={s.count(nl(a))}")
+# M10 (P2) : la chip « mot » et le bouton « emoji » vivent DANS R_M8 — l'ancre
+# A_M8 est déjà consommée par M8. `R_M8` CONTENANT `R_M10`, un bundle amputé de
+# la chip échouerait déjà sur « M8-toolbar_remplace » : cette ligne ne rattrape
+# donc pas ce cas-là. Ce qu'elle rattrape : retirer `R_M10` de `R_M8` DANS LE
+# PATCHER puis rejouer la chaîne — le bundle reste cohérent, M8 se retrouve
+# tout seul et passe, et seule cette ligne (avec la suivante) voit le trou.
+check("M10-chip_remplace", s.count(nl(P.R_M10)) == 1, f"count={s.count(nl(P.R_M10))}")
+# `DzMontage` est DÉJÀ une fonction de premier niveau du bundle (l'écran
+# Montage). La couche ne doit référencer que `DzTracks` : `DzTracks.` compté
+# ici, `DzMontage.` (l'appel qu'écrivait le plan) interdit.
+check("M10_utilise_DzTracks_pas_DzMontage",
+      "DzMontage.WordAnimChip" not in s and "DzTracks.WordAnimChip" in s
+      and "DzTracks.EmojiBtn" in s)
+# R_M10 APPELLE six identifiants du bundle que rien ne gardait. `node --check`
+# ne peut pas les voir (c'est du JS valide : un nom libre ne lève qu'à
+# l'exécution) et compter R_M10 ne prouve que ce que le patch a écrit. Un
+# rebuild qui renommerait `subsSegsOf` laisserait tout vert, et la chip
+# lèverait au PREMIER clic.
+# Le contrôle est donc à DEUX FACES : vérifier seulement la déclaration
+# laisserait passer un R_M10 qui appelle un AUTRE nom (mesuré : renommer
+# l'appel en `subsSegsOfRENOMME` gardait les 58 lignes vertes) ; vérifier
+# seulement l'appel ne verrait pas le rebuild. On exige les deux, et qu'ils
+# portent le MÊME nom — recherche BORNÉE (`\b…\b`), car un simple `in` était
+# encore leurré, `subsSegsOf` étant sous-chaîne de `subsSegsOfRENOMME`.
+# `fireNote=nt[1]` apparaît sept fois — c'est le même motif dans plusieurs
+# composants ; ce qui compte est qu'il en reste au moins un.
+for _nm, _decl in (("subsSegsOf", "function subsSegsOf(cs){"),
+                   ("subsStyleSet", "function subsStyleSet(patch){"),
+                   ("pushHistory", "var pushHistory=x.useCallback("),
+                   ("setClips", "setClips=st1[1]"),
+                   ("setDirty", "setDirty=st8[1]"),
+                   ("fireNote", "fireNote=nt[1]")):
+    _appele = re.search(r"\b%s\b" % re.escape(_nm), P.R_M10) is not None
+    check("M10_appelle_" + _nm + "_qui_est_declare",
+          _appele and s.count(nl(_decl)) >= 1,
+          f"appelé={_appele} déclaré={s.count(nl(_decl))} ({_decl})")
+# L'ANNULATION est garantie par CONSTRUCTION, pas par une mesure : pushHistory
+# et undo sont des hooks du composant, hors de portée du shim node — qui ne
+# joue que la couche pure. Ce que cette ligne épingle est l'ORDRE des deux
+# appels dans le bundle livré, pas leur effet. Bon côté de ce montage : `onAdd`
+# étant appelé depuis le `.then()`, pushHistory lit l'état au moment de la
+# réponse et non du clic — l'instantané reste juste si l'utilisateur a bougé
+# un clip pendant la requête.
+check("M10_emoji_pousse_l_historique_avant_d_ajouter",
+      s.count(nl("onAdd:function(cs){pushHistory();setClips(")) == 1,
+      f'count={s.count(nl("onAdd:function(cs){pushHistory();setClips("))}')
 check("css_liee_index_html", "shared/montage.css" in
       HTML.read_bytes().decode("utf-8-sig"))
+check("css_porte_la_chip_mot",
+      ".dzm-wabtn[data-on]" in CSS.read_text(encoding="utf-8"),
+      "montage.css n'habille pas l'état retenu de la chip")
 # subs.css fige .svm-tl à 356px : sans reprise, une septième piste resterait
 # sous la ligne de flottaison. C'est le seul point où montage.css DOIT gagner.
 check("css_reprend_la_hauteur_de_timeline",
@@ -162,6 +211,20 @@ out.from_vide=T.from(null);
    deux pistes de meme identifiant se disputeraient les memes clips */
 var dbl=T.from([{id:"v1",kind:"video"},{id:"v1",kind:"video"},{id:"a1",kind:"audio"}]);
 out.from_doublons=dbl?dbl.map(function(t){return t.id}):null;
+/* P2 — les suggestions d'emoji en clips d'overlay. La piste visée est la
+   PREMIÈRE piste vidéo qui n'est pas V1, donc la plus haute : sur les six
+   pistes historiques c'est v2, et si l'on ajoute v3 au-dessus c'est v3. */
+var HINT=[{t:1.2,word:"feu",emoji:"F",file:"1f525",png:"C:/x/1f525.png"}];
+out.emoji_defaut=T.emojiClips(HINT,T.tracksOf(null),7);
+out.emoji_v3=T.emojiClips(HINT,T.add(T.tracksOf(null),"video"),7)
+  .map(function(c){return c.tr});
+/* pas une seule piste d'overlay : rien n'est posé plutôt qu'un clip perdu */
+out.emoji_sans_overlay=T.emojiClips(HINT,[{id:"v1",kind:"video"},
+  {id:"s1",kind:"subs"}],7);
+/* une suggestion sans PNG n'est pas un clip : _resolve_src rendrait None et
+   le rendu la jetterait en silence */
+out.emoji_sans_png=T.emojiClips([{t:1,word:"feu"}],T.tracksOf(null),7);
+out.word_anims=(T.WORD_ANIMS||[]).map(function(o){return o.v});
 console.log(JSON.stringify(out));
 """
 # "use strict" en PROLOGUE du shim : concatene, celui de montage.js n'est
@@ -239,6 +302,26 @@ check("js_from_sans_v1_refuse", d.get("from_sans_v1") is None,
 check("js_from_vide_refuse", d.get("from_vide") is None, str(d.get("from_vide")))
 check("js_from_ignore_les_doublons", d.get("from_doublons") == ["v1", "a1"],
       str(d.get("from_doublons")))
+ec = (d.get("emoji_defaut") or [None])[0]
+check("js_emoji_clip_sur_v2", isinstance(ec, dict) and ec.get("tr") == "v2",
+      str(ec))
+check("js_emoji_clip_cale_sur_le_mot",
+      isinstance(ec, dict) and ec.get("start") == 1.2 and ec.get("end") == 2.0,
+      str(ec and (ec.get("start"), ec.get("end"))))
+check("js_emoji_clip_porte_le_png",
+      isinstance(ec, dict) and (ec.get("src") or {}).get("file_path")
+      == "C:/x/1f525.png", str(ec and ec.get("src")))
+check("js_emoji_suit_la_piste_la_plus_haute", d.get("emoji_v3") == ["v3"],
+      str(d.get("emoji_v3")))
+check("js_emoji_sans_overlay_ne_pose_rien", d.get("emoji_sans_overlay") == [],
+      str(d.get("emoji_sans_overlay")))
+check("js_emoji_sans_png_ecarte", d.get("emoji_sans_png") == [],
+      str(d.get("emoji_sans_png")))
+# les trois valeurs de la chip, dans l'ordre : « couleur » d'abord, c'est le
+# comportement HISTORIQUE et le défaut — la chip ne change rien sans clic.
+check("js_chip_trois_valeurs",
+      d.get("word_anims") == ["couleur", "rebond", "glow"],
+      str(d.get("word_anims")))
 
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")

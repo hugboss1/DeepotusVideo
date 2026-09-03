@@ -284,6 +284,21 @@ def ui_anim(ui: dict | None) -> str:
     return UI_ANIMS.get(str((ui or {}).get("anim") or "none"), "none")
 
 
+#: Animation MOT PAR MOT du panneau -> animation gravable de `to_ass`.
+#: « couleur » n'a pas d'entree a lui : c'est deja ce que fait le karaoke
+#: `\k` (bascule SecondaryColour -> PrimaryColour au temps du mot), il n'y a
+#: donc rien a poser en plus et surtout rien a poser en `\pos` — un mot
+#: colore reste dans le flux de la ligne. Le panneau garde le mot pour
+#: nommer ce qui se passe ; le moteur, lui, ne fait que du karaoke.
+UI_WORD_ANIMS = {"none": "none", "couleur": "none",
+                 "rebond": "rebond", "glow": "glow"}
+
+
+def ui_word_anim(ui: dict | None) -> str:
+    """Animation par MOT reellement gravable pour ce style de panneau."""
+    return UI_WORD_ANIMS.get(str((ui or {}).get("wordAnim") or "none"), "none")
+
+
 def ui_to_style(ui: dict | None, canvas: tuple[int, int] = (1080, 1920)) -> dict:
     """Style du panneau -> style du moteur, resolu (`resolve_style`).
 
