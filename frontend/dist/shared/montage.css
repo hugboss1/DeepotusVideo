@@ -1,0 +1,82 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   DeepOtus Video — Pistes dynamiques du Montage (couche window.DzTracks)
+   Préfixe .dzm-. Chargée EN DERNIER (après subs.css) : c'est ce qui lui
+   permet de reprendre la main sur la hauteur de la timeline.
+   Toute couleur passe par une chaîne de repli var(--a, var(--b, littéral)) :
+   même discipline que subs.css / vfxrack.css, aucune règle ne suppose un
+   seul jeu de tokens.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── la timeline suit le NOMBRE de pistes ──────────────────────────────────
+   subs.css figeait `.dzsvm .svm-tl{height:356px}` pour faire tenir S1. Avec
+   des pistes qu'on ajoute et qu'on retire, une hauteur fixe recoupe le
+   problème dès la septième : la piste existe, porte des clips, et reste sous
+   la ligne de flottaison. On rend la main à `height:auto` (son-vfx-montage.css)
+   en gardant 356px comme PLANCHER — l'écran des six pistes historiques est
+   identique au pixel — et 48vh comme plafond, au-delà duquel .svm-scroll
+   (déjà overflow:auto) défile. */
+.dzsvm .svm-tl{height:auto; min-height:356px; max-height:48vh}
+/* le plancher fixe offrait 18px de mou à six pistes ; height:auto n'en offre
+   plus dès la septième, où le conteneur colle au contenu. On pose 8px — la
+   hauteur exacte de l'ascenseur (::-webkit-scrollbar{height:8px}) — EN
+   PADDING du contenu défilant. Ce n'est pas du mou entre conteneur et
+   contenu : selon que le navigateur compte ou non la gouttière d'ascenseur
+   dans la hauteur intrinsèque d'un overflow:auto, un ascenseur vertical peut
+   encore apparaître au zoom. Ce que la réserve garantit dans les DEUX cas,
+   et c'est ce qui compte : ce qui passe sous l'ascenseur horizontal est du
+   padding vide, plus le bas d'une piste. À six pistes, le plancher 356
+   laisse 10px de mou vrai — l'ascenseur y tient sans rien pousser. */
+.dzsvm .svm-tl .svm-lanes{padding-bottom:8px}
+
+/* ── barre de transport : « + vidéo » / « + audio » ───────────────────────── */
+.dzsvm .dzm-add{display:inline-flex; gap:5px; align-items:center; flex:none}
+.dzsvm .dzm-addb{width:auto; padding:0 8px; font-size:10px; flex:none;
+  font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace);
+  white-space:nowrap}
+
+/* ── en-tête de piste : poignée + ▲ ▼ × ────────────────────────────────────
+   POSÉ EN SURIMPRESSION, pas dans le flux, et c'est MESURÉ, pas un choix de
+   style : l'en-tête fait 88px de large (74 de contenu) sur 40 à 54 de haut,
+   et il est PLEIN. Rangée audio : « + M S 🔒 » = .svm-ovadd 16px + 3 ×
+   .svm-tkbtn 14px + 3 gaps de 3px = 67px sur 74 disponibles, sept pixels
+   libres. Rangées empilées d'un en-tête audio : nom 14 + boutons 14 +
+   fader 8 + gaps = 40px sur 44 de contenu. Quatre contrôles de plus, en flux,
+   déborderaient dans les deux sens — la piste que l'on vient d'ajouter serait
+   la première à sortir du cadre.
+   D'où : bloc absolu au coin haut-droit de l'en-tête (.svm-thead est
+   position:sticky, donc bloc conteneur), révélé au SURVOL de la piste et au
+   FOCUS clavier. Les boutons restent dans l'ordre de tabulation même
+   invisibles (l'opacité ne retire pas le focus) : c'est ce qui rend le
+   réordonnancement atteignable sans souris ; `pointer-events` n'est rendu
+   qu'une fois le bloc visible, pour qu'aucune cible invisible ne soit
+   cliquable par accident. */
+.dzsvm .dzm-hb{position:absolute; top:2px; right:3px; z-index:3;
+  display:flex; gap:2px; align-items:center; cursor:grab;
+  padding:1px 2px; border-radius:6px;
+  border:1px solid var(--stroke, #2a2930);
+  background:var(--panel2, var(--bg-panel-2, #1c1c21));
+  opacity:0; pointer-events:none;
+  transition:opacity .12s var(--ease, ease)}
+.dzsvm .svm-track:hover .dzm-hb,
+.dzsvm .svm-thead:focus-within .dzm-hb{opacity:1; pointer-events:auto}
+.dzsvm .dzm-hb:active{cursor:grabbing}
+.dzsvm .dzm-grip{font-size:10px; line-height:1; padding:0 1px;
+  color:var(--ink4, var(--ink-muted, #55514c)); user-select:none}
+.dzsvm .dzm-hb button{width:14px; height:14px; padding:0; border-radius:4px;
+  border:1px solid var(--stroke, #2a2930);
+  background:transparent;
+  color:var(--ink2, var(--ink, #c4bfb6));
+  cursor:pointer; font-size:7px; line-height:1;
+  display:inline-flex; align-items:center; justify-content:center;
+  font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace)}
+.dzsvm .dzm-hb button:hover:not(:disabled){
+  border-color:var(--stroke2, var(--stroke-strong, #3d3b45));
+  color:var(--ink, var(--ink-strong, #f2efe9))}
+.dzsvm .dzm-hb button:disabled{opacity:.28; cursor:default}
+/* × ARMÉ : le glyphe a laissé place au NOMBRE de clips qui partiront avec la
+   piste. Rouge plein — on ne confond pas cet état avec un bouton au repos. */
+.dzsvm .dzm-hbx[data-arm]{background:var(--red, #e35d4a);
+  border-color:var(--red, #e35d4a); color:#fff; font-size:8px;
+  font-variant-numeric:tabular-nums; width:16px}
+.dzsvm .dzm-hbx:hover:not(:disabled):not([data-arm]){
+  border-color:var(--red, #e35d4a); color:var(--red, #e35d4a)}

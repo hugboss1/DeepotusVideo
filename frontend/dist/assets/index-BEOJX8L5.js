@@ -1921,6 +1921,17 @@ function DzMontage(props){
      automation, transformation/trajectoire, vitesse, effets, opacité…),
      positions re-numérisées ; la Bibliothèque garde le mapping minimal
      historique. Vrai si une timeline a été posée. ── */
+  /* P1 — TOUTE écriture de proj.tracks passe ici : historique poussé,
+     SVM_TRACK_BUS resynchronisé, projet réécrit, « NON ENREGISTRÉ »
+     allumé. Deux appelants (la barre d'outils et les en-têtes de
+     piste) ; sans ce point unique, chacun aurait sa propre version de
+     la séquence et l'un des deux finirait par en oublier un morceau.
+     RESTE CONNU : l'historique ne mémorise que {clips, mixDb} — un
+     annuler après un retrait de piste ramène les CLIPS, pas la piste.
+     Ils redeviennent visibles dès qu'on rajoute une piste du même
+     genre : l'identifiant repris est le plus petit libre, donc le
+     leur. C'est dit dans la note du bouton, ce n'est pas silencieux. */
+  function svmTracksSet(ts){pushHistory();svmTrackBusSync(ts);setProj(function(p){return Object.assign({},p,{tracks:ts})});setDirty(!0)}
   function svmApplyProject(d){
     if(!d||!d.ok||!d.has_assets)return !1;
     var cs=(d.clips||[]).map(function(c,i){
@@ -1941,7 +1952,7 @@ function DzMontage(props){
     cs.forEach(function(c){if(c.end>maxEnd)maxEnd=c.end});
     setClips(cs);setSelId(first?first.id:"");setPh(0);setDirty(!1);
     histRef.current={u:[],r:[]};setHistTick(function(t){return t+1});
-    var np={demo:!1,name:d.name||"montage",version:"v1",ratio:d.ratio||"9:16",
+    var np={demo:!1,tracks:svmTracksFrom(d.tracks),name:d.name||"montage",version:"v1",ratio:d.ratio||"9:16",
       dur:Math.max(1,Number(d.duration)||maxEnd),mixDb:d.mix||SVM_DEMO_MIX};
     if(d.saved){
       /* restauration des commutateurs + réglages ducking sauvegardés */
@@ -1958,6 +1969,7 @@ function DzMontage(props){
     if(!_ss)try{_ss=JSON.parse(localStorage.getItem("dz_subs_style")||"null")}
       catch(_e){_ss=null}
     if(_ss&&typeof _ss==="object")np.subsStyle=_ss;
+    svmTrackBusSync(np.tracks);
     setProj(np);
     return !0}
 
@@ -1982,6 +1994,10 @@ function DzMontage(props){
        verrous, historique) restent dehors */
     var o={name:proj.name,ratio:proj.ratio,duration:proj.dur,mix:proj.mixDb,
       duration_master:durMaster,ducking:ducking,clips:clips,
+      /* sans cette clé, une piste ajoutée disparaissait au rechargement
+         et les clips qu'elle portait retombaient sur une piste inconnue,
+         donc hors du rendu — silencieusement. */
+      tracks:svmTracksPayload(proj),
       /* style des sous-titres : envoyé pour le jour où la sauvegarde serveur
          le connaîtra (les segments, eux, sont déjà dans `clips` et sont
          stockés tels quels) ; en attendant c'est dz_subs_style qui le retient */
@@ -3863,6 +3879,11 @@ function DzMontage(props){
          objet {enabled, ratio, attack_ms, release_ms, threshold} sinon */
       ducking:proj.ducking?Object.assign({enabled:ducking},proj.ducking):ducking,
       mix:proj.mixDb,
+      /* P1 — l'ORDRE des pistes, du haut vers le bas : c'est lui que
+         montage_service._tracks_meta traduit en rang de composition
+         (`layer`) et en bus de mixage. Un backend qui ne connaît pas
+         encore la clé l'ignore et rend exactement ce qu'il rendait. */
+      tracks:svmTracksPayload(proj),
       clips:clips.filter(function(c){return c.src}).map(function(c){
         var o={tr:c.tr,src:c.src,start:c.start,end:c.end,srcIn:c.srcIn||0,
           transition:c.transition||"cut",transition_s:c.transition_s||0,
@@ -5332,6 +5353,8 @@ function DzMontage(props){
               try{localStorage.setItem("dz_hints_off","1")}catch(_e){}},
             children:"×"})]}),
         /* bouton discret du panneau raccourcis — fin de transport */
+        r.jsx(DzTracks.TrackAdd,{tracks:svmTracksOf(proj),onChange:svmTracksSet}),
+        /* bouton discret du panneau raccourcis — fin de transport */
         r.jsx("button",{className:"svm-tbtn",title:"Raccourcis ("+svmKeyLabel("keys_panel")+") — personnalisables",
           "aria-label":"Raccourcis clavier","aria-haspopup":"dialog","aria-expanded":kbOn,
           onClick:function(){setKbOn(!kbOn)},children:"?"})]}),
@@ -5341,7 +5364,7 @@ function DzMontage(props){
             onPointerMove:rulerHover,onPointerLeave:rulerLeave,children:[
             r.jsx("div",{className:"svm-gutter"}),
             ticks.map(function(t3){return r.jsx("div",{className:"svm-tick",children:svmRuler(t3)},t3)})]}),
-          SVM_TRACKS.map(function(tr){
+          svmTracksOf(proj).map(function(tr){
             var bus=SVM_TRACK_BUS[tr.id];
             var busDb=bus?Number(proj.mixDb&&proj.mixDb[bus]!=null?proj.mixDb[bus]:SVM_DEMO_MIX[bus]):0;
             var muted=!!bus&&busDb<=-40;
@@ -5402,13 +5425,15 @@ function DzMontage(props){
                     r.jsx("span",{className:"svm-tname",children:tr.name}),
                     thType]},"nr"),
                   r.jsxs("div",{className:"svm-thbtns",children:[thAdd,thM,thS,thLock]},"br"),
+                  DzTracks.headBtns(tr,svmTracksOf(proj),svmTracksSet,clips,setClips,fireNote),
                   thFader]
                 :[
                   r.jsxs("div",{className:"svm-tnamerow",children:[
                     r.jsx("span",{className:"svm-sq6",style:{background:"var("+tr.c+")"}}),
                     r.jsx("span",{className:"svm-tname",children:tr.name}),
                     thAdd]},"nr"),
-                  r.jsxs("div",{className:"svm-ttyperow",children:[thType,thLock]},"tr")]}),
+                  r.jsxs("div",{className:"svm-ttyperow",children:[thType,thLock]},"tr"),
+                  DzTracks.headBtns(tr,svmTracksOf(proj),svmTracksSet,clips,setClips,fireNote)]}),
               r.jsxs("div",{className:"svm-lane",
                 onDragOver:function(e){if(svmDragOk(e,tr.id)){e.preventDefault();e.dataTransfer.dropEffect="copy"}},
                 onDrop:function(e){dropOnTrack(e,tr.id,e.currentTarget)},
@@ -11881,4 +11906,276 @@ window.DzSubs={ready:!0,Drawer:SubsDrawer,Overlay:SubsOverlay,Style:SubsStyle,
   svc:SUBS_SVC,retry:subsRetryNow};
 
 /*__DZ_SUBS_END__*/
+/*__DZ_MONTAGE_BEGIN__*/
+/* ── Montage, couche window.DzTracks — injectée après le bloc subs, même scope
+   module. Le CŒUR (tracks*, dzm*) est pur : aucune référence à `r` (jsx) ni à
+   `x` (React) au CHARGEMENT, donc il tourne tel quel sous node — c'est ce que
+   fait backend/tests/test_montage_bundle.py, qui le charge dans un shim et
+   vérifie l'ordre rendu par move/add/remove. Les composants, eux, n'appellent
+   `r`/`x` que dans leur corps : jamais évalués sous node.
+   Styles : /shared/montage.css (préfixe .dzm-).
+
+   CE QUE CETTE COUCHE AJOUTE : les pistes de la timeline cessent d'être une
+   table figée (SVM_TRACKS) pour devenir un ÉTAT du projet (proj.tracks),
+   ordonnable, extensible, sauvegardé et envoyé au rendu. L'ordre à l'écran,
+   du HAUT vers le BAS, est CELUI que le backend lit dans `tracks` : la piste
+   listée le plus haut est composée en dernier, donc au-dessus de tout
+   (montage_service._tracks_meta, champ `layer`).
+
+   Exporte (contrat) :
+     window.DzTracks = {ready, TrackAdd, headBtns,
+                         tracksOf, from, payload, busSync,
+                         move, moveTo, add, remove, group, DEFAULTS}
+
+   - TrackAdd({tracks,onChange}) — les deux boutons « + vidéo » / « + audio »
+     de la barre de transport.
+   - headBtns(tr, tracks, set, clips, setClips, note) — le groupe ▲ ▼ × de
+     l'en-tête d'une piste, plus la poignée de glisser-déposer. Rend un
+     ÉLÉMENT (avec sa clé) : il s'insère tel quel dans les tableaux `children`
+     du bundle.
+   - tracksOf(proj) / from(raw) / payload(proj) — lecture, restauration depuis
+     la sauvegarde serveur, et le petit objet {id,kind,bus?,loop?} envoyé au
+     backend.
+   - busSync(tracks) — voir plus bas : SVM_TRACK_BUS muté EN PLACE. */
+"use strict";
+
+/* Les six pistes historiques, à l'octet près de SVM_TRACKS (nom, type,
+   hauteur, couleur, rang de mixage), plus les trois champs que le backend
+   lit : `kind`, `bus`, `loop`. Un projet sans `tracks` retombe ici et
+   l'écran ne bouge pas d'un pixel. */
+var DZM_DEFAULT_TRACKS=[
+ {id:"v2",name:"V2",type:"overlay/VFX",h:40,c:"--c-3d",mix:13,kind:"video"},
+ {id:"v1",name:"V1",type:"vidéo",h:54,c:"--c-video",mix:12,kind:"video"},
+ {id:"a1",name:"A1",type:"dialogue",h:52,c:"--c-audio",mix:13,kind:"audio",bus:"dialogue"},
+ {id:"a2",name:"A2",type:"musique",h:48,c:"--c-text",mix:8,kind:"audio",bus:"musique",loop:!0},
+ {id:"a3",name:"A3",type:"sfx",h:48,c:"--c-3d",mix:13,kind:"audio",bus:"sfx"},
+ {id:"s1",name:"S1",type:"sous-titres",h:44,c:"--c-text",mix:11,kind:"subs"}];
+
+/* HABILLAGE d'une piste NEUVE (ou restaurée). Le payload serveur ne porte que
+   {id,kind,bus,loop} : sans ce repli, une piste v3 ajoutée puis rechargée
+   revenait sans nom, sans type et surtout sans HAUTEUR — une bande de 0 px,
+   invisible, portant pourtant des clips. Même fonction pour l'ajout et pour
+   la restauration : les deux chemins ne peuvent pas diverger. */
+function dzmSkin(id,kind){
+  var d=DZM_DEFAULT_TRACKS.filter(function(k){return k.id===id})[0];
+  /* une COPIE : rendre l'objet de la table exposerait les défauts partagés à
+     la mutation du premier appelant venu. Latent, mais d'un mot. */
+  if(d)return Object.assign({},d);
+  if(kind==="audio")return {id:id,name:String(id).toUpperCase(),type:"sfx",
+    h:48,c:"--c-3d",mix:13,kind:"audio",bus:"sfx"};
+  if(kind==="subs")return {id:id,name:String(id).toUpperCase(),type:"sous-titres",
+    h:44,c:"--c-text",mix:11,kind:"subs"};
+  return {id:id,name:String(id).toUpperCase(),type:"overlay",h:40,c:"--c-3d",
+    mix:13,kind:"video"}}
+
+function dzmKindOf(id,kind){
+  if(kind)return kind;
+  var k=String(id||"").charAt(0);
+  return k==="a"?"audio":k==="s"?"subs":"video"}
+
+function svmTracksOf(proj){
+  return (proj&&proj.tracks&&proj.tracks.length)?proj.tracks:DZM_DEFAULT_TRACKS}
+
+/* Restauration depuis GET /api/montage/project. `null` = « rien de valable,
+   garde les défauts » : c'est le cas d'une sauvegarde d'avant P1, et celui
+   d'une liste qui aurait perdu v1 (la piste de BASE — sans elle le rendu
+   n'a plus de fond et le backend refuse la timeline). */
+function svmTracksFrom(raw){
+  if(!Array.isArray(raw)||!raw.length)return null;
+  var seen={},out=[];
+  raw.forEach(function(t){
+    if(!t||!t.id)return;
+    var id=String(t.id);
+    if(seen[id])return;
+    seen[id]=1;
+    var kind=dzmKindOf(id,t.kind);
+    out.push(Object.assign({},dzmSkin(id,kind),t,{id:id,kind:kind}))});
+  return out.some(function(t){return t.id==="v1"})?out:null}
+
+/* Ce qui part au backend (rendu ET autosave) : le strict nécessaire à
+   montage_service._tracks_meta. L'habillage reste au client (dzmSkin le
+   reconstruit au retour). */
+function svmTracksPayload(proj){return svmTracksOf(proj).map(function(t){
+  var o={id:t.id,kind:t.kind};if(t.bus)o.bus=t.bus;if(t.loop)o.loop=!0;return o})}
+
+/* SVM_TRACK_BUS est un objet module-level du bloc sonvfx, LU à neuf endroits
+   (mesuré : svmTrackMute, svmTrackSolo, quatre gardes de raccourci, le dépôt
+   de son, le titre du gain de clip, l'en-tête de piste). On le MUTE en place
+   plutôt que de poser neuf ancres — la référence ne change jamais, tous les
+   lecteurs voient la nouvelle table sans qu'aucun d'eux soit réécrit.
+   RESTE CONNU : les messages de ces gardes disent encore « A1, A2 ou A3 »
+   en dur ; sur un projet à pistes personnalisées ils nomment mal les pistes
+   éligibles. Le mécanisme, lui, est juste. */
+function svmTrackBusSync(ts){
+  Object.keys(SVM_TRACK_BUS).forEach(function(k){delete SVM_TRACK_BUS[k]});
+  (ts||DZM_DEFAULT_TRACKS).forEach(function(t){
+    if(t&&t.kind==="audio"&&t.bus)SVM_TRACK_BUS[t.id]=t.bus})}
+
+/* Règle d'ordre : overlays au-dessus de V1 (V1 = dernière piste vidéo),
+   audio au milieu, sous-titres en bas. Un déplacement ne sort JAMAIS de son
+   groupe — c'est ce qui garantit que V1 reste la piste de base du rendu et
+   que le backend n'a jamais à arbitrer une timeline incohérente. */
+function dzmGroup(t){
+  var k=t&&t.kind;
+  return k==="video"?(t.id==="v1"?1:0):k==="audio"?2:3}
+function dzmIndex(ts,id){
+  for(var i=0;i<ts.length;i++)if(ts[i].id===id)return i;
+  return -1}
+function dzmMove(ts,id,dir){
+  var i=dzmIndex(ts,id),j=i+dir;
+  if(i<0||j<0||j>=ts.length||dzmGroup(ts[i])!==dzmGroup(ts[j]))return ts;
+  var n=ts.slice();n[i]=ts[j];n[j]=ts[i];return n}
+/* Glisser-déposer : on ne saute pas, on RÉPÈTE dzmMove — la frontière de
+   groupe reste donc infranchissable, et la boucle s'arrête d'elle-même
+   dès qu'un pas est refusé (dzmMove rend le MÊME tableau). */
+function dzmMoveTo(ts,id,overId,after){
+  var i=dzmIndex(ts,id),j=dzmIndex(ts,overId);
+  if(i<0||j<0||i===j)return ts;
+  var want=j+(after?1:0);
+  if(want>i)want--;
+  var out=ts,guard=0;
+  while(dzmIndex(out,id)!==want&&guard++<64){
+    var nx=dzmMove(out,id,dzmIndex(out,id)<want?1:-1);
+    if(nx===out)break;
+    out=nx}
+  return out}
+/* Une piste vidéo naît EN HAUT (donc au-dessus de tout au rendu), une piste
+   audio juste au-dessus des sous-titres. L'identifiant est le plus petit
+   libre : retirer v3 puis rajouter une vidéo redonne v3 — les clips orphelins
+   d'une suppression annulée retrouvent donc leur piste. */
+function dzmAdd(ts,kind){
+  var n=1,ids=ts.map(function(t){return t.id});
+  while(ids.indexOf(kind.charAt(0)+n)>=0)n++;
+  var t=dzmSkin(kind.charAt(0)+n,kind==="audio"?"audio":"video");
+  var at=kind==="video"?0:dzmSubsAt(ts);
+  var out=ts.slice();out.splice(at<0?ts.length:at,0,t);return out}
+function dzmSubsAt(ts){
+  for(var i=0;i<ts.length;i++)if(ts[i].kind==="subs")return i;
+  return -1}
+/* v1 ET s1 sont des pistes de BASE. v1 porte le fond du rendu. s1 est la
+   SEULE piste de sous-titres et rien ne sait la recréer : dzmAdd ne fabrique
+   que des identifiants v… et a…, il n'y a pas de bouton « + sous-titres ».
+   La retirer emportait ses clips (les sous-titres SONT des clips tr:"s1")
+   et l'autosave figeait la perte au rechargement — un aller sans retour en
+   un clic. On la refuse ici ; le × est désactivé pour elle (var `base`). */
+function dzmRemove(ts,id){
+  return (id==="v1"||id==="s1")?ts:ts.filter(function(t){return t.id!==id})}
+function dzmClipsOn(clips,id){
+  var n=0;
+  (clips||[]).forEach(function(c){if(c&&c.tr===id)n++});
+  return n}
+
+/* ── composants (r/x du bundle — jamais touchés au chargement) ───────────── */
+
+/* Les deux boutons de la barre de transport. */
+var DzmTrackAdd=function(props){
+  var ts=(props&&props.tracks&&props.tracks.length)?props.tracks:DZM_DEFAULT_TRACKS;
+  function add(k){if(props&&props.onChange)props.onChange(dzmAdd(ts,k))}
+  return r.jsxs("span",{className:"dzm-add",children:[
+    r.jsx("button",{className:"svm-tbtn dzm-addb",
+      title:"Ajouter une piste vidéo d'overlay — posée tout en haut, donc "+
+        "composée AU-DESSUS des autres au rendu",
+      "aria-label":"Ajouter une piste vidéo d'overlay",
+      onClick:function(){add("video")},children:"+ vidéo"},"v"),
+    r.jsx("button",{className:"svm-tbtn dzm-addb",
+      title:"Ajouter une piste audio — posée sous les pistes audio "+
+        "existantes, au-dessus des sous-titres. Bus BRUITAGES, sauf si "+
+        "l'identifiant libre est celui d'une piste historique retirée (A1, "+
+        "A2) : elle revient alors avec son bus d'origine et son habillage.",
+      "aria-label":"Ajouter une piste audio",
+      onClick:function(){add("audio")},children:"+ audio"},"a")]})};
+
+/* ▲ ▼ × d'un en-tête de piste, et la poignée de glisser-déposer.
+   Le × ARME avant de frapper quand la piste porte des clips : un clic pose
+   `data-arm` et remplace le glyphe par le compte, le second clic seulement
+   supprime. */
+var DzmTrackBtns=function(props){
+  var tr=props.tr;
+  var ts=(props.tracks&&props.tracks.length)?props.tracks:DZM_DEFAULT_TRACKS;
+  var sa=x.useState(0),arm=sa[0],setArm=sa[1];
+  x.useEffect(function(){
+    if(!arm)return;
+    var h=setTimeout(function(){setArm(0)},4000);
+    return function(){clearTimeout(h)}},[arm]);
+  var n=dzmClipsOn(props.clips,tr.id);
+  var base=tr.id==="v1"||tr.id==="s1";
+  var upOk=dzmMove(ts,tr.id,-1)!==ts,dnOk=dzmMove(ts,tr.id,1)!==ts;
+  function note(m){if(props.note)props.note(m)}
+  function set(nx){if(props.onSet&&nx!==ts)props.onSet(nx)}
+  function mv(d){
+    var nx=dzmMove(ts,tr.id,d);
+    if(nx===ts){note("« "+(tr.name||tr.id)+" » ne peut pas aller plus "+
+      (d<0?"haut":"bas")+" — les overlays restent au-dessus de V1, l'audio "+
+      "au milieu, les sous-titres en bas.");return}
+    set(nx)}
+  function del(){
+    if(base){note(tr.id==="s1"
+      ?"S1 est la seule piste de sous-titres et rien ne sait la recréer : "+
+       "elle ne peut pas être retirée."
+      :"V1 est la piste de base du montage : elle ne peut pas être "+
+       "retirée.");return}
+    if(n&&!arm){setArm(1);return}
+    setArm(0);
+    set(dzmRemove(ts,tr.id));
+    if(n&&props.setClips)props.setClips(function(cs){
+      return (cs||[]).filter(function(c){return c.tr!==tr.id})});
+    note("Piste "+(tr.name||tr.id)+" retirée"+
+      (n?" avec "+n+" clip"+(n>1?"s":""):"")+
+      (n?" — annuler ramène les clips ; la piste, elle, se rajoute par "+
+         "« + "+(tr.kind==="audio"?"audio":"vidéo")+" » (même identifiant).":"."))}
+  return r.jsxs("div",{className:"dzm-hb",draggable:!0,
+    title:"Glisser pour réordonner la piste (ou ▲ ▼)",
+    onDragStart:function(e){
+      try{e.dataTransfer.setData("dz-track",tr.id);
+        e.dataTransfer.effectAllowed="move"}catch(_e){}},
+    onDragOver:function(e){
+      var ty=e.dataTransfer&&e.dataTransfer.types;
+      if(!ty||Array.prototype.indexOf.call(ty,"dz-track")<0)return;
+      e.preventDefault();e.stopPropagation();
+      try{e.dataTransfer.dropEffect="move"}catch(_e){}},
+    onDrop:function(e){
+      var src="";
+      try{src=e.dataTransfer.getData("dz-track")||""}catch(_e){src=""}
+      if(!src||src===tr.id)return;
+      e.preventDefault();e.stopPropagation();
+      var box=e.currentTarget.getBoundingClientRect();
+      var after=box.height>0&&(e.clientY-box.top)>box.height/2;
+      set(dzmMoveTo(ts,src,tr.id,after))},
+    children:[
+    r.jsx("span",{className:"dzm-grip","aria-hidden":!0,children:"⋮"},"g"),
+    r.jsx("button",{className:"dzm-hbtn",disabled:!upOk,"aria-disabled":!upOk,
+      title:"Monter "+(tr.name||tr.id)+" d'un rang — une piste plus haute est "+
+        "composée AU-DESSUS au rendu",
+      "aria-label":"Monter la piste "+(tr.name||tr.id),
+      onClick:function(){mv(-1)},children:"▲"},"u"),
+    r.jsx("button",{className:"dzm-hbtn",disabled:!dnOk,"aria-disabled":!dnOk,
+      title:"Descendre "+(tr.name||tr.id)+" d'un rang",
+      "aria-label":"Descendre la piste "+(tr.name||tr.id),
+      onClick:function(){mv(1)},children:"▼"},"d"),
+    r.jsx("button",{className:"dzm-hbtn dzm-hbx",disabled:base,"aria-disabled":base,
+      "data-arm":arm?"":void 0,
+      title:base?(tr.id==="s1"
+          ?"S1 est la seule piste de sous-titres — elle ne se retire pas"
+          :"V1 est la piste de base du montage — elle ne se retire pas")
+        :n?(arm?"Confirmer : retirer "+(tr.name||tr.id)+" ET ses "+n+" clip"+
+              (n>1?"s":"")+" — annuler ramène les clips"
+             :"Retirer la piste "+(tr.name||tr.id)+" ("+n+" clip"+(n>1?"s":"")+
+              " — un second clic confirmera)")
+        :"Retirer la piste "+(tr.name||tr.id)+" (vide)",
+      "aria-label":"Retirer la piste "+(tr.name||tr.id),
+      onClick:function(){del()},children:arm?String(n):"×"},"x")]})};
+
+function dzmHeadBtns(tr,ts,set,clips,setClips,note){
+  return r.jsx(DzmTrackBtns,{tr:tr,tracks:ts,onSet:set,clips:clips,
+    setClips:setClips,note:note},"dzmhb")}
+
+/* ── export contrat ───────────────────────────────────────────────────────── */
+var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
+  tracksOf:svmTracksOf,from:svmTracksFrom,payload:svmTracksPayload,
+  busSync:svmTrackBusSync,skin:dzmSkin,
+  move:dzmMove,moveTo:dzmMoveTo,add:dzmAdd,remove:dzmRemove,group:dzmGroup,
+  clipsOn:dzmClipsOn,DEFAULTS:DZM_DEFAULT_TRACKS};
+window.DzTracks=DzTracks;
+
+/*__DZ_MONTAGE_END__*/
 const oa=(()=>{try{return new URLSearchParams(window.location.search)}catch{return new URLSearchParams}})(),Yu=["quick","studio","assets3d","episodes","sonvfx","montage","scheduler","templates","news","library","settings"],sg=Yu.includes(oa.get("view"))?oa.get("view"):null,ag=oa.get("nosplash")==="1";function lg({variant:e="abyssal",initialView:t="studio",initialSidebar:n=!1,initialDock:o=!1,motionOn:i=!0}){const[s,a]=x.useState(sg||(function(){try{var _v=localStorage.getItem("dz_view");return Yu.indexOf(_v)>=0?_v:t}catch(_e){return t}})()),[l,d]=x.useState(function(){try{var v1=localStorage.getItem("dz_nav_collapsed");return v1===null?n:v1==="1"}catch(_e){return n}}),[u,f]=x.useState(o),[m,y]=x.useState(!1),[w,v]=x.useState(!ag),[g,k]=x.useState(!1),[c,p]=x.useState([]),[h,b]=x.useState([]);x.useEffect(function(){try{localStorage.setItem("dz_view",s)}catch(_e){}},[s]);async function _(){const F=await D.listSchedule();p((Array.isArray(F)?F:[]).map(wh))}x.useEffect(()=>{_();const F=setInterval(_,6e4);return()=>clearInterval(F)},[]);const[z,N]=x.useState(()=>(rm||[]).slice()),[P,j]=x.useState("deepotus");function E(F){N(I=>I.some(M=>M.id===F.id)?I.map(M=>M.id===F.id?{...M,...F}:M):[...I,F]),j(F.id)}async function H(F){const I=new Date;I.setDate(I.getDate()+1),I.setHours(9,0,0,0);const A=await D.createScheduledPost({title:F.title||"New post from Studio",caption:F.caption||"New drop from the deep. 🐙",channels:["x","telegram"],run_at:I.toISOString(),status:"draft",mode:"assisted",job_id:F.jobId||null});await _(),a("scheduler"),A!=null&&A.id&&setTimeout(()=>{window.dispatchEvent(new CustomEvent("deepotus:select-post",{detail:{id:A.id}}))},50)}return x.useEffect(()=>{function F(I){(I.metaKey||I.ctrlKey)&&I.key==="k"&&(I.preventDefault(),y(A=>!A))}return window.addEventListener("keydown",F),()=>window.removeEventListener("keydown",F)},[]),x.useEffect(()=>{function F(I){var V;const A=(V=I==null?void 0:I.detail)==null?void 0:V.view;try{var Tp=I&&I.detail&&I.detail.templateId;if(Tp)window.__dzTpl=Tp}catch(Z){}try{var Sb=I&&I.detail&&I.detail.subtab;if(Sb){window.__dzSubtab=Sb;setTimeout(function(){window.dispatchEvent(new CustomEvent("deepotus:assets-subtab",{detail:{subtab:Sb}}))},80)}}catch(Z9){}A&&Yu.includes(A)&&a(A)}return window.addEventListener("deepotus:navigate",F),()=>window.removeEventListener("deepotus:navigate",F)},[]),r.jsxs("div",{className:"deepotus","data-variant":e,style:{width:"100%",height:"100%",display:"grid",gridTemplateColumns:"auto 1fr",gridTemplateRows:"1fr auto",background:"var(--bg-base)",overflow:"hidden",position:"relative"},children:[r.jsx("div",{style:{gridRow:"1 / 3"},children:r.jsx(tg,{view:s,setView:a,collapsed:l,setCollapsed:function(v1){try{localStorage.setItem("dz_nav_collapsed",v1?"1":"0")}catch(_e){}try{var dzb=document.body;dzb.classList.add("dzNavAnime");clearTimeout(window.__dzNavAnimeT);window.__dzNavAnimeT=setTimeout(function(){dzb.classList.remove("dzNavAnime")},700)}catch(_e2){}d(v1)}})}),r.jsxs("main",{style:{display:"flex",flexDirection:"column",minHeight:0},children:[r.jsx(ng,{view:s,setView:a,setCommandOpen:y,variant:e,onShowOnboarding:()=>k(!0)}),r.jsxs("div",{style:{flex:1,minHeight:0,position:"relative"},className:i?"":"no-motion",children:[s==="assets3d"&&r.jsx(DzGameAssetsHub,{variant:e}),s==="vectorlab"&&r.jsx("iframe",{src:"/vectorlab/",title:"Vectorlab",style:{position:"absolute",inset:0,width:"100%",height:"100%",border:"0",background:"var(--bg-base)"}},"pvlab"),s==="studio"&&r.jsx(Lh,{variant:e,onScheduleRender:H}),s==="quick"&&r.jsx(um,{variant:e,activePersona:z.find(F=>F.id===P)}),s==="scheduler"&&r.jsx(Lm,{variant:e,posts:c,setPosts:p,reloadPosts:_}),s==="news"&&r.jsx(pm,{variant:e,go:a}),s==="episodes"&&r.jsx(DzChapitres,{variant:e}),s==="sonvfx"&&r.jsx(DzSonVfx,{variant:e,go:a}),s==="montage"&&r.jsx(DzMontage,{variant:e,go:a}),s==="templates"&&r.jsx(fm,{variant:e}),s==="library"&&r.jsx(vm,{variant:e,uploads:h,setUploads:b}),s==="settings"&&r.jsx(xm,{variant:e,personas:z,activePersonaId:P,setActivePersonaId:j,savePersona:E})]})]}),r.jsx("div",{style:{gridColumn:"2 / 3"},children:r.jsx(rg,{expanded:u,setExpanded:f,variant:e})}),r.jsx(ig,{open:m,onClose:()=>y(!1),setView:a,onShowOnboarding:()=>k(!0)}),w&&r.jsx(Hm,{onDone:()=>{v(!1);try{localStorage.getItem("dz_onboarded")||k(!0)}catch(_e){k(!0)}}}),!w&&g&&r.jsx(Km,{onDone:()=>{try{localStorage.setItem("dz_onboarded","1")}catch(_e){}k(!1)},onSkip:()=>{try{localStorage.setItem("dz_onboarded","1")}catch(_e){}k(!1)},personas:z,activePersonaId:P,setActivePersonaId:j,savePersona:E})]})}function dg(){return x.useEffect(()=>{document.body.classList.add("deepotus"),document.body.classList.remove("bg-deep-950","text-slate-100","antialiased"),document.body.style.margin="0",document.body.style.minHeight="100vh";const e=document.documentElement;return localStorage.getItem("deepotus.motion.reduced")==="1"&&e.classList.add("no-motion"),localStorage.getItem("deepotus.motion.halo")==="0"&&e.classList.add("no-halo"),()=>{document.body.classList.remove("deepotus")}},[]),r.jsx(bh,{children:r.jsx("div",{className:"deepotus depth-bg",style:{width:"100vw",height:"100vh",overflow:"hidden"},children:r.jsx(lg,{variant:"reef",initialView:"studio"})})})}as.createRoot(document.getElementById("root")).render(r.jsx(yn.StrictMode,{children:r.jsx(dg,{})}));

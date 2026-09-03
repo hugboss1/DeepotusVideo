@@ -288,9 +288,21 @@
 
 /* ── timeline (274px per reference DOM → 312px : pistes audio réhaussées
    R2/I3 — règle 18 + pistes 40+54+52+48+48 + transport 34, plus 17px de
-   réserve pour l'ascenseur horizontal du zoom : jamais de double ascenseur) ── */
-.svm-tl{flex:none; height:312px; border-top:1px solid var(--stroke);
-  background:var(--panel); display:flex; flex-direction:column; min-height:0}
+   réserve pour l'ascenseur horizontal du zoom : jamais de double ascenseur)
+   P1 — les pistes ne sont plus une table figée : leur nombre change à
+   l'exécution. Une HAUTEUR FIXE couperait toute piste ajoutée sous la ligne
+   de flottaison. D'où `height:auto` borné par min/max : la timeline grandit
+   avec ses pistes jusqu'à 48vh, puis .svm-scroll (déjà overflow:auto) prend
+   le relais. 312px devient le plancher DE REPLI : le seul nœud .svm-tl vit
+   sous .dzsvm, où montage.css — chargé APRÈS — impose 356px. C'est donc la
+   valeur qui s'appliquerait si montage.css ne se chargeait pas ; dans les
+   deux cas l'écran des six pistes historiques ne bouge pas. Le
+   `min-height:0` d'origine est TOMBÉ : dans la même règle il annulait le
+   plancher (dernière déclaration gagnante). Il était de toute façon inerte,
+   `flex:none` empêchant déjà le rétrécissement. ── */
+.svm-tl{flex:none; height:auto; min-height:312px; max-height:48vh;
+  border-top:1px solid var(--stroke);
+  background:var(--panel); display:flex; flex-direction:column}
 .svm-trans{height:34px; flex:none; display:flex; align-items:center; gap:12px;
   padding:0 14px; border-bottom:1px solid var(--stroke)}
 .svm-tcmain{font-family:var(--f-mono); font-size:11px; color:var(--ink);

@@ -121,6 +121,74 @@ _CANVAS = {"9:16": (1080, 1920), "16:9": (1920, 1080), "1:1": (1080, 1080),
            "4:5": (1080, 1350)}
 _MUSIC_HINT = ("theme", "music", "bgm", "track", "musique", "instrumental")
 
+# P1 : pistes dynamiques. `tracks` du payload, du HAUT vers le BAS de la
+# timeline (l'ordre de SVM_TRACKS). Absent → table historique, commande
+# octet pour octet identique. `layer` = rang de composition des pistes vidéo
+# d'overlay, 0 = juste au-dessus de V1 : la piste listée le plus HAUT est
+# composée en DERNIER, donc au-dessus de tout. V1 reste la piste de base.
+_LEGACY_TRACKS = [{"id": "v2", "kind": "video"}, {"id": "v1", "kind": "video"},
+                  {"id": "a1", "kind": "audio", "bus": "dialogue"},
+                  {"id": "a2", "kind": "audio", "bus": "musique", "loop": True},
+                  {"id": "a3", "kind": "audio", "bus": "sfx"}]
+_BUSES = ("dialogue", "musique", "sfx")
+
+
+def _tracks_meta(raw) -> dict:
+    """{id: {kind, bus, loop, layer}} — la LOI de classement des clips.
+
+    `raw` est la clé `tracks` du payload : une liste de {id, kind, bus?,
+    loop?} dans l'ordre d'affichage, du HAUT vers le BAS. Absente ou vide
+    ⇒ `_LEGACY_TRACKS`, et tout le reste du service se comporte comme
+    avant, argument pour argument.
+
+    `kind` manquant se déduit de l'initiale (a… audio, s… sous-titres,
+    sinon vidéo) ; `bus` inconnu retombe sur `sfx` (jamais de bus inventé
+    dans le mixage) ; `loop` n'a de sens que sur une piste audio.
+    `layer` ne concerne que les pistes VIDÉO autres que v1 : la dernière
+    listée (la plus BASSE à l'écran) prend 0, la première listée le rang le
+    plus haut — `_build_montage_command` composant par `layer` croissant,
+    la piste du haut passe en dernier, donc au-dessus."""
+    rows = raw if isinstance(raw, list) and raw else _LEGACY_TRACKS
+    meta, ov = {}, []
+    for t in rows:
+        if not isinstance(t, dict) or not t.get("id"):
+            continue
+        # L'identifiant est À LA FOIS la clé de `meta` et la valeur `tr`
+        # que portent les clips. Le TRONQUER d'un côté et pas de l'autre
+        # faisait disparaître les clips d'une piste au nom long en donnant
+        # l'illusion qu'elle était déclarée (mesuré : id
+        # "averyveryverylongtrackid" → clé "averyver", et
+        # meta.get("averyveryverylongtrackid") = None). On BORNE donc au
+        # lieu de tronquer : au-delà de 8 caractères la piste n'est pas
+        # déclarée du tout, et ses clips sont ignorés comme ceux de
+        # n'importe quelle piste inconnue.
+        tid = str(t["id"])
+        if len(tid) > 8:
+            continue
+        kind = str(t.get("kind") or {"a": "audio", "s": "subs"}.get(tid[:1], "video"))
+        bus = str(t.get("bus") or {"a1": "dialogue", "a2": "musique"}.get(tid, "sfx"))
+        # Pas de défaut par identifiant : `_LEGACY_TRACKS` déclare déjà
+        # `"loop": True` sur a2, donc `t.get("loop", tid == "a2")`
+        # n'ajoutait rien au chemin historique et faisait une surprise sur
+        # un payload personnalisé — une piste a2 mise par l'utilisateur sur
+        # le bus sfx et sans `loop` devenait quand même l'entrée `music` :
+        # bouclée, seule à ducker la voix, et au gain MUSIQUE. C'est le
+        # payload qui décide.
+        loop = bool(t.get("loop")) and kind == "audio"
+        meta[tid] = {"kind": kind, "bus": bus if bus in _BUSES else "sfx",
+                     "loop": loop, "layer": 0}
+        if kind == "video" and tid != "v1":
+            ov.append(tid)
+    for k, tid in enumerate(reversed(ov)):
+        meta[tid]["layer"] = k
+    # Une liste `tracks` PRÉSENTE mais dont aucune entrée n'est
+    # exploitable (mesuré : ["v1", 3, None, True] → {}) passait le garde
+    # de `rows` et laissait `meta` vide : le rendu jetait alors TOUS les
+    # overlays et TOUS les clips audio, et rendait une vidéo muette en
+    # status done. Une liste illisible vaut une liste absente. Pas de
+    # récursion infinie : le repli rend cinq entrées.
+    return meta or _tracks_meta(None)
+
 
 def _probe_duration(path: Path) -> float:
     try:
@@ -565,6 +633,8 @@ async def montage_project(limit: int = 4):
                 out["ducking_cfg"] = saved["ducking_cfg"]
             if isinstance(saved.get("subs_style"), dict):
                 out["subs_style"] = saved["subs_style"]   # S1 (cf. POST /save)
+            if isinstance(saved.get("tracks"), list) and saved["tracks"]:
+                out["tracks"] = saved["tracks"]           # P1 (cf. POST /save)
             if pruned:
                 out["saved_pruned"] = True
                 out["pruned"] = pruned
@@ -708,6 +778,12 @@ async def montage_save(request: Request):
     # poste. GET /project le resserre à l'éditeur (svmApplyProject le lit).
     if isinstance(body.get("subs_style"), dict):
         data["subs_style"] = body["subs_style"]
+    # P1 : les PISTES de la timeline (ordre, bus, boucle). Stockées telles
+    # quelles — sans cette clé, une piste ajoutée ou déplacée disparaissait au
+    # rechargement et les clips qu'elle portait retombaient sur une piste
+    # inconnue, donc hors du rendu. GET /project les resert à l'éditeur.
+    if isinstance(body.get("tracks"), list):
+        data["tracks"] = body["tracks"]
     if len(json.dumps(data, ensure_ascii=False).encode("utf-8")) > _SAVE_MAX_BYTES:
         raise HTTPException(400, "Sauvegarde refusée — plus de 2 Mo.")
     try:
@@ -1002,7 +1078,12 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     # Recette : setpts décalé + enable='between(t,…)' + eof_action=pass ;
     # l'alpha des PNG est préservé (pas de format=yuv420p dans cette chaîne),
     # opacité optionnelle via colorchannelmixer.
-    for j, o in enumerate(sorted(v2, key=lambda k2: k2["start"])):
+    # P1 : `layer` d'abord (rang de composition venu de l'ordre des pistes,
+    # 0 = juste au-dessus de V1), `start` ensuite. Sans le champ — payload
+    # historique — tous les overlays retombent à 0 et le tri est celui
+    # d'avant, argument pour argument.
+    for j, o in enumerate(sorted(v2, key=lambda k2: (int(k2.get("layer") or 0),
+                                                     k2["start"]))):
         want = max(0.1, o["end"] - o["start"])
         if o["is_image"]:
             d = round(min(want, max(0.1, total - o["start"])), 3)
@@ -1343,6 +1424,15 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
     point), rotation animée si des points portent rotate ; scale reste
     STATIQUE (pas de keyframe d'échelle). Champ absent : commande
     historique intacte (transformée statique ou cover, comme avant).
+    P1 : tracks? = [{id, kind, bus?, loop?}] — les pistes de la timeline dans
+    l'ordre d'AFFICHAGE, du HAUT vers le BAS. Absent ⇒ table historique (v2
+    overlay, v1 base, a1 dialogue, a2 musique bouclée, a3 sfx) et commande
+    identique argument pour argument. Présent : toute piste `kind:"video"`
+    autre que v1 est un overlay, composée d'autant plus HAUT qu'elle est
+    listée haut ; les pistes `kind:"audio"` prennent le gain de leur `bus`
+    (dialogue|musique|sfx — inconnu ⇒ sfx) ; la première piste `loop:true`
+    fournit la MUSIQUE (seule entrée bouclée et seule à ducker la voix). Un
+    clip dont la piste n'est pas déclarée est ignoré, comme avant.
     C4 : clips V1 speed? (0.25..4, défaut 1 ; invalide ignoré avec warning)
     → la fenêtre source consommée devient (end−start)×speed (bornée au
     disponible) et setpts=PTS/speed AVANT la normalisation fps remet la
@@ -1377,6 +1467,9 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
     # {enabled, ratio, attack_ms, release_ms, threshold} → dict clampé.
     ducking = sfx_service.parse_ducking(body.get("ducking", True))
     duration_master = body.get("duration_master", True)
+    # P1 : la LOI de classement des clips. Sans `tracks` c'est la table
+    # historique — v2 overlay, a1 dialogue, a2 musique bouclée, a3 sfx.
+    meta = _tracks_meta(body.get("tracks"))
 
     job_id = str(uuid4())
     short = job_id[:8]
@@ -1425,7 +1518,12 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                                        else None)})
             v2 = []
             for c in clips:
-                if c.get("tr") != "v2":
+                # P1 : TOUTE piste vidéo autre que v1 est un overlay — son
+                # rang de composition vient de l'ordre des pistes, pas de son
+                # identifiant. Piste inconnue de `meta` : clip ignoré, comme
+                # l'ancien test d'égalité sur "v2" le faisait déjà.
+                m = meta.get(c.get("tr"))
+                if not m or m["kind"] != "video" or c.get("tr") == "v1":
                     continue
                 p = await _resolve_src(c.get("src"))
                 if p is None:
@@ -1442,11 +1540,14 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                            "end": float(c.get("end") or 0),
                            "opacity": c.get("opacity"),
                            "tf": _ov_transform(c),
-                           "mp": _motion_points(c)})
+                           "mp": _motion_points(c),
+                           "layer": m["layer"]})
             a_clips, music = [], None
             for c in clips:
-                if c.get("tr") not in ("a1", "a2", "a3"):
+                m = meta.get(c.get("tr"))
+                if not m or m["kind"] != "audio":
                     continue
+                bus = m["bus"]
                 p = await _resolve_src(c.get("src"))
                 if p is None:
                     logger.warning(f"montage: audio introuvable, ignoré — "
@@ -1472,7 +1573,14 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                 # R4 : volume_points sanitized ici (None sans le champ — la
                 # commande émise reste alors l'historique, bit à bit).
                 vp = _volume_points(c)
-                if c["tr"] == "a2" and music is None:
+                # P1 : la piste `loop` du payload devient la MUSIQUE — la
+                # seule entrée à porter `-stream_loop -1` et à alimenter le
+                # sidechaincompress du ducking. Il n'y en a qu'une : le
+                # PREMIER clip d'une piste bouclée. RESTE ASSUMÉ — un SECOND
+                # clip du bus musique repart ici avec son GAIN musique
+                # (corrigé), mais range son flux dans les bruitages : ni
+                # bouclé, ni ducké. Ce n'est pas un point fermé.
+                if m["loop"] and music is None:
                     music = {"path": p,
                              "gain": g_music if not gdb else
                              round(g_music * _db_to_gain(gdb), 4),
@@ -1482,9 +1590,10 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                              "fx_chain": fx_ch, "speed": spd,
                              "volume_points": vp}
                 else:
-                    base = g_voice if c["tr"] == "a1" else g_sfx
+                    base = {"dialogue": g_voice, "musique": g_music,
+                            "sfx": g_sfx}[bus]
                     a_clips.append({
-                        "tr": "a1" if c["tr"] == "a1" else "a3",
+                        "tr": "a1" if bus == "dialogue" else "a3",
                         "path": p, "src_dur": sdur or 9999.0,
                         "src_in": max(0.0, float(c.get("srcIn") or 0)),
                         "start": max(0.0, float(c.get("start") or 0)),
@@ -1579,6 +1688,9 @@ async def montage_measure(request: Request):
     g_sfx = _db_to_gain(mix.get("sfx", -12))
     ducking = sfx_service.parse_ducking(body.get("ducking", True))
     duration_master = body.get("duration_master", True)
+    # P1 : MÊME loi de classement que /render — sans quoi la mesure entendrait
+    # un autre mix que le rendu sur un projet à pistes personnalisées.
+    meta = _tracks_meta(body.get("tracks"))
 
     # Résolution des sources — mêmes règles que /render (dupliquées à
     # dessein : le chemin de rendu reste intouché, non-régression oblige).
@@ -1602,8 +1714,10 @@ async def montage_measure(request: Request):
                    "effects": None})
     a_clips, music = [], None
     for c in clips:
-        if c.get("tr") not in ("a1", "a2", "a3"):
+        m = meta.get(c.get("tr"))
+        if not m or m["kind"] != "audio":
             continue
+        bus = m["bus"]
         p = await _resolve_src(c.get("src"))
         if p is None:
             logger.warning(f"measure: audio introuvable, ignoré — "
@@ -1620,7 +1734,7 @@ async def montage_measure(request: Request):
             if c.get("fx") else "")
         spd = sfx_service.clamp_speed(c.get("speed"))
         vp = _volume_points(c)  # R4 : la mesure entend l'automation du rendu
-        if c["tr"] == "a2" and music is None:
+        if m["loop"] and music is None:   # P1 — même règle qu'au rendu
             music = {"path": p,
                      "gain": g_music if not gdb else
                      round(g_music * _db_to_gain(gdb), 4),
@@ -1630,9 +1744,9 @@ async def montage_measure(request: Request):
                      "fx_chain": fx_ch, "speed": spd,
                      "volume_points": vp}
         else:
-            base = g_voice if c["tr"] == "a1" else g_sfx
+            base = {"dialogue": g_voice, "musique": g_music, "sfx": g_sfx}[bus]
             a_clips.append({
-                "tr": "a1" if c["tr"] == "a1" else "a3",
+                "tr": "a1" if bus == "dialogue" else "a3",
                 "path": p, "src_dur": sdur or 9999.0,
                 "src_in": max(0.0, float(c.get("srcIn") or 0)),
                 "start": max(0.0, float(c.get("start") or 0)),
