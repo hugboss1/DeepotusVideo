@@ -1239,3 +1239,92 @@ image fixe, import Figma éditable, export vers Figma.
 panneau) — P2, P3, P4 (panneau), P6, D1, D2 (panneau), D3 sont des patches
 chaînés ; P1, P5 et les moteurs de rendu (masques, texte, animations) sont
 backend (`template_service.py`, ffmpeg, PIL).
+
+### R8. News — réponses (03/09/2026)
+
+**Ce que le code fait aujourd'hui** (relu le 03/09 : `news_service.py`,
+`article_scraper.py`, `summarizer.py`, `news_illustration.py`, routes
+`/news/*`, `personas/deepotus.json`) : sources RSS/Atom ou URL d'article,
+persistées ; rafraîchissement quotidien, cache ; **dédoublonnage par
+identifiant seulement**, tri du plus récent, plafond 300 items ; scraper
+durci (consentement pré-accepté, AMP, lecteur proxy optionnel) ; résumé
+multi-fournisseur (Anthropic > OpenAI > Gemini > Ollama, toujours
+fail-safe) ; script « prophet » (cynique/humoristique) + légende depuis les
+articles sélectionnés ; illustration animée ffmpeg 1080×1920 muette
+(titres, ticker, fondus) composée avec l'avatar HeyGen ; persona deepotus
+(mots-clés d'ambiance, couleurs, négatif, hashtags, templates) ; modes de
+voix oracle/alpha/zen/memer dans les schémas. Absents : mots-clés et listes
+noires, score, tendances, historique des sujets couverts, sources en
+légende, images ou plans générés par article, chaîne automatique jusqu'au
+Scheduler.
+
+**Réponses**
+1. Tri : **mots-clés et listes noires d'abord (gratuit), puis score LLM**.
+2. Sources : **en légende seulement**.
+3. Persona : **une persona, plusieurs modes selon le sujet** (le LLM choisit
+   oracle/alpha/zen/memer, forçable).
+4. Tendances : **les deux** — sujets croisés entre flux (gratuit, local) et
+   signal X.
+5. Intervention : **les quatre gestes** doivent devenir automatiques ou
+   présélectionnés — choix des articles, script (toujours soumis mais
+   proposé), images et mise en page, programmation du post.
+6. Historique : **sujets déjà couverts marqués, sources équilibrées**.
+7. Forme : **les quatre** — images générées par titre, plans vidéo par
+   sujet, avatar présentateur, voix off + sous-titres animés sans avatar.
+8. Langues : **une langue par reel, choisie au cas par cas**.
+
+**Références vérifiées le 03/09/2026**
+- Feedly : dédoublonnage quand le contenu se recouvre à **plus de 85 %** ;
+  filtres de mute (mots-clés, entreprises, personnes, sujets, auteurs,
+  sites) ; priorisation par sujets (docs.feedly.com, 03/09).
+- Inoreader : filtres de doublons par URL, titre exact ou titre presque
+  identique, fenêtre de 6 h à 1 mois ; règles (déclencheur, conditions,
+  action) ; Pro (inoreader.com, 03/09).
+- Google Trends API : **alpha** depuis juillet 2025, accès sur candidature,
+  sans réponse garantie (developers.google.com, support.google.com, 03/09)
+  → pas une base de plan.
+- X API : 100 lectures/mois en gratuit (R6) → le « signal X » se limite à
+  quelques requêtes par jour ou exige le palier Basic.
+- Opus Clip, Pictory, InVideo, Perplexity, Exploding Topics : de mémoire,
+  non vérifiés.
+
+**Bacs**
+
+*Parité nécessaire*
+- **P1 — Filtre gratuit puis score** : mots-clés, listes noires (sources,
+  mots), fenêtre de fraîcheur ; dédoublonnage par titre presque identique
+  (Inoreader) ou recouvrement de contenu (Feedly, 85 %) en plus de
+  l'identifiant ; puis score LLM de pertinence pour la communauté (persona
+  + brief de campagne de R6) sur ce qui reste ; les 3 à 5 meilleurs du
+  jour en tête, le reste replié.
+- **P2 — Historique et équilibre** : chaque reel publié mémorise ses sujets
+  (entités, mots-clés) et sa source ; un article proche d'un sujet couvert
+  est marqué ; le score pénalise la source sur-représentée.
+- **P3 — Sources en légende** : nom du média, date, lien ajoutés à la
+  légende du post par le pipeline.
+- **P4 — Modes de voix par sujet** : le script prophet choisit son mode
+  (oracle, alpha, zen, memer) d'après le sujet, affiché et forçable.
+
+*Différenciant*
+- **D1 — Chaîne article → post sans intervention** : sélection
+  présélectionnée, script proposé (toujours visible), forme choisie
+  (D2), légende avec sources, créneau du Scheduler — l'utilisateur ne fait
+  que valider le lot (R6 P5) ; aucune référence ne relie flux, persona,
+  génération et publication en local.
+- **D2 — Quatre formes de reel** : illustration IA par titre (Nano Banana /
+  FLUX dans la charte), plans Seedance par sujet, avatar présentateur
+  (existant), voix off + sous-titres animés (R5 P2) sans avatar ; coût
+  affiché par forme avant tir.
+- **D3 — Tendances locales** : un sujet cité par N sources le même jour est
+  marqué tendance (gratuit) ; signal X en option bornée par le quota.
+
+*Écarté*
+- **E1 — Sources à l'écran** : réponse 2, légende seulement.
+- **E2 — Google Trends** : API en alpha sur candidature ; à revoir quand
+  elle sera publique.
+- **E3 — Reel bilingue systématique** : réponse 8.
+
+**Coût de patch** : l'écran News est dans le bundle — P1 (filtres et
+score affichés), P2 (marques), D1 (validation) sont des patches chaînés ;
+les moteurs (filtres, score, historique, formes) sont backend
+(`news_service.py`, `summarizer.py`, `news_illustration.py`).
