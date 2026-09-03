@@ -1139,3 +1139,103 @@ persistant ; séries récurrentes ; threads.
 (brief) touchent le bundle ; P1, P2, D3 et le moteur de D2 sont backend
 (`marketing.py`, nouveaux adaptateurs, tables de métriques) ; D1 est
 partagé avec le plan mobile.
+
+### R7. Templates — réponses (03/09/2026)
+
+**Ce que le code fait aujourd'hui** (relu le 03/09 : `template_service.py`,
+routes `/layout-templates*`, `/branding*`, `backend/app/templates/*.json`,
+`figma_import.py`, bundle) : un template est un JSON pur (canvas, régions
+typées — `video_slot`, `separator`, `brand_strip`, texte… —, transitions,
+audio, métadonnées) ; **9 templates livrés** immuables (news reel, alpha
+reel 60/30/10, classic vstack, hstack dialogue, montage film, oracle +
+lower-third, PIP avatar, trois actes, timeline) ; templates utilisateur
+sous `assets/user_templates/` (liste, lire, slots, enregistrer, supprimer,
+rendre) ; rendu **vidéo** par ffmpeg depuis les slots ; kit de marque
+minimal (`/branding` : nom, sous-titre, couleur de marque, couleur
+d'accent, logo, retour aux défauts deepotus) ; fontes embarquées (Anton,
+Bebas Neue, Archivo Black, Abril Fatface…) ; import Figma d'un calque en
+PNG ; éditeur visuel de régions (le bundle ne contient pas Konva : le
+« Konva » de DESIGN §5 est une intention, pas une mesure). Absents :
+plusieurs kits, réagencement multi-format, masques de région, composants
+partagés, animations de région, texte adaptatif et effets de texte, rendu
+image fixe, import Figma éditable, export vers Figma.
+
+**Réponses**
+1. Kit de marque : **plusieurs kits commutables** (deepotus, client, test).
+2. Resize : « **1 + la possibilité de réagencer à la main et appliquer des
+   masques (fenêtres ajourées avec des bords pleins arrondis sur un encart
+   ajusté, etc.)** » — réagencement automatique par règles **et** manuel,
+   **et** masques de région.
+3. Composants : **oui, bibliothèque de composants** (modifier une fois,
+   partout).
+4. Animés : **les deux** — animations simples dans le template, riches au
+   Montage.
+5. Figma : **les deux** — importer un cadre comme template éditable et
+   exporter vers Figma.
+6. Usage : **la plupart des neuf selon le format** ; il faut des aperçus
+   avec le contenu réel.
+7. Texte : **adaptatif, effets (contour, ombre, dégradé, fond), texte sur
+   courbe et typographie décorative** — les trois.
+8. Image fixe : **oui, PNG/JPG du template avec ses slots remplis**.
+
+**Références vérifiées le 03/09/2026**
+- Canva : Brand Kit (logos, couleurs, polices, imagerie, templates,
+  consignes en un lieu ; remplacement d'un logo dans tous les designs
+  existants) ; Magic Switch / Magic Resize redimensionne un design en
+  plusieurs formats en un clic (canva.com, 03/09).
+- Figma REST API : arbre DOCUMENT → CANVAS → nœuds avec `constraints`
+  relatives au cadre parent, `components` (mapping id → métadonnées),
+  `exportSettings`, et l'endpoint `/v1/files/{key}/nodes?ids=` pour lire
+  textes et géométrie (developers.figma.com, 03/09). L'import éditable est
+  donc faisable en lecture ; l'**écriture** d'un fichier Figma n'est pas
+  offerte par l'API REST — l'« export vers Figma » passe par un SVG ou un
+  plugin, pas par l'API. Adobe Express, Placeit, Kittl : de mémoire, non
+  vérifiés.
+
+**Bacs**
+
+*Parité nécessaire*
+- **P1 — Kits de marque multiples** : table de kits (nom, couleurs, polices
+  embarquées ou importées, logo, ton/persona), kit actif par projet ;
+  templates, sous-titres, titres, aperçus de posts lisent le kit actif ;
+  `/branding` devient `/brand-kits`.
+- **P2 — Réagencement multi-format** : chaque région porte ancres et
+  contraintes (façon Figma) ; le template se rejoue en 9:16, 1:1, 16:9,
+  4:5 ; réagencement manuel par format quand la règle ne suffit pas, les
+  quatre canevas sauvegardés dans le même JSON.
+- **P3 — Masques de région** : fenêtres ajourées à bords arrondis, encarts,
+  formes (rond, arrondi, polygone, SVG) sur un slot vidéo ou image ; rendu
+  ffmpeg par `alphamerge` d'un masque PNG dessiné par code.
+- **P4 — Texte adaptatif et effets** : rétrécissement ou coupe pour tenir
+  ; contour, ombre, dégradé, fond ; mesure de la largeur du texte avec la
+  fonte embarquée (PIL) avant le rendu, jamais « à l'œil ».
+- **P5 — Rendu image fixe** : PNG/JPG du template avec ses slots remplis,
+  par le même compositeur que la vidéo (une image = une vidéo d'une image),
+  rangé dans la Bibliothèque avec sa recette.
+- **P6 — Aperçus avec le contenu réel** : la galerie rend chaque template
+  avec les derniers assets de l'utilisateur, pas une vignette générique.
+
+*Différenciant*
+- **D1 — Bibliothèque de composants** : lower-third, bandeau, bande de
+  marque définis une fois, instanciés dans N templates, mise à jour
+  propagée ; un composant porte ses ancres (P2) et son animation (D2).
+- **D2 — Animations de région** : entrée, sortie, durée par région (glisser,
+  fondu, apparition du logo) rendues par ffmpeg ; les animations riches
+  restent au Montage (R5 D4).
+- **D3 — Import Figma éditable** : un cadre Figma devient un template
+  (régions depuis les nœuds, textes, contraintes) ; l'export vers Figma se
+  fait en SVG (les régions en groupes nommés) faute d'API d'écriture.
+- **D4 — Texte sur courbe et typographie décorative** : tracé par code
+  (PIL/SVG), pour les titres et les cartes de Card Forge, dans le kit.
+
+*Écarté*
+- **E1 — Modèles par milliers façon Canva** : neuf templates suffisent à
+  l'usage déclaré ; c'est l'éditeur et les kits qui comptent.
+- **E2 — Mockups façon Placeit** : hors du produit.
+- **E3 — Écriture directe dans Figma par API** : non offerte (mesuré) ; le
+  SVG remplace.
+
+**Coût de patch** : l'éditeur de templates vit dans le bundle (régions,
+panneau) — P2, P3, P4 (panneau), P6, D1, D2 (panneau), D3 sont des patches
+chaînés ; P1, P5 et les moteurs de rendu (masques, texte, animations) sont
+backend (`template_service.py`, ffmpeg, PIL).
