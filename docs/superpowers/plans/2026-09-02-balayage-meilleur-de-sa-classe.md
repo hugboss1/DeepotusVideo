@@ -1328,3 +1328,106 @@ Scheduler.
 score affichés), P2 (marques), D1 (validation) sont des patches chaînés ;
 les moteurs (filtres, score, historique, formes) sont backend
 (`news_service.py`, `summarizer.py`, `news_illustration.py`).
+
+### R9. Library — réponses (03/09/2026)
+
+**Ce que le code fait aujourd'hui** (relu le 03/09 : `library_index.py`,
+`storage.py` `LibraryAsset`, patches `libpicker`, `libprov`, `libsend`,
+routes `/images`, `/assets/3d/*`, `/assets/sprite/*`) : table
+`library_assets` par fichier — `source` (fonction productrice), `kind`,
+`origin` (dépôt ou heuristique, dit à l'UI), `job_id`, `deck_id`, `doc_id`,
+`created` ; chips de provenance sur Images et Renders ; sélecteur unifié
+(vignettes réelles, recherche instantanée par nom, tri par date, import
+fichier et Figma) ; menu « Envoyer vers… » à dix cibles ; onglets par
+catégorie (Images, Renders, Audio, Sprites, 3D…) ; assets 3D avec
+versions, comparaison, rapport, contrôle qualité, silhouettes ; Vectorlab
+garde 10 versions par document. Absents : tags, favori/note, collections
+ou projets, lignée pour images/rendus/sons, recherche par contenu,
+licence/auteur, tableau de nettoyage, annotations, fiche complète (recette,
+usages, coût cumulé).
+
+**Réponses**
+1. Tags et note : **les deux — tags libres + favori/étoiles**.
+2. Collections : **par projet, toutes catégories mêlées** (la catégorie
+   devient un filtre dans le projet).
+3. Versions : **lignée pour tout asset, repliée sous la mère** (le modèle
+   T6 de l'Établi généralisé).
+4. Recherche : **par description, par couleur dominante, par similarité
+   visuelle** — les trois.
+5. Droits : **licence + source + auteur sur la fiche**.
+6. Nettoyage : **tableau de bord + actions sûres** (corbeille, retour
+   arrière).
+7. Annotations : **notes et commentaires horodatés** (PC et mobile).
+8. Fiche : **recette complète, actions et dérivés, usages en aval, coût
+   cumulé de la lignée** — les quatre.
+
+**Références vérifiées le 03/09/2026**
+- Eagle : tags (dont auto-tag à l'entrée dans un dossier), recherche par
+  couleur exacte ou tons proches, dossiers intelligents par règles,
+  détection et fusion des doublons (en.eagle.cool, 03/09).
+- Immich : recherche contextuelle par CLIP (modèle choisi dans les
+  réglages, ré-indexation obligatoire au changement), doublons probables
+  par distance d'embedding, visages par DBSCAN sur un modèle de
+  reconnaissance (docs.immich.app, 03/09).
+- Frame.io : commentaires horodatés (désactivables), annotations
+  dessinées, **piles de versions** (versions empilées sans dossier, revue
+  côte à côte), export des commentaires (help.frame.io, 03/09).
+- fal : pas d'endpoint d'embedding CLIP texte ↔ image relevé (seul SAM 3
+  « image/embed », qui sert la segmentation) (fal.ai, 03/09). La recherche
+  par description et par similarité demande donc un modèle CLIP **local**
+  (même contrainte numpy/torch que CLAP en R4 : service optionnel) ou un
+  fournisseur d'embeddings multimodaux (Gemini/OpenAI, de mémoire, à
+  vérifier avant le plan). La couleur dominante se calcule en PIL pur.
+- Adobe Bridge/Lightroom, Bynder : de mémoire, non vérifiés.
+
+**Bacs**
+
+*Parité nécessaire*
+- **P1 — Tags, favori, étoiles** : colonnes sur `library_assets` (ou table
+  de tags n:n), édition inline sur la vignette et la fiche, filtres par
+  tag et par note dans tous les onglets et dans le sélecteur.
+- **P2 — Projets** : entité projet (campagne, chapitre, deck) contenant des
+  assets de toutes catégories ; un asset dans N projets ; vue par projet
+  avec la catégorie en filtre ; « Envoyer vers » et les producteurs
+  rangent dans le projet actif.
+- **P3 — Lignée pour tout asset** : `parent_filename` + `relation`
+  (retouche, extension, stems, version, détourage, recadrage) écrit par
+  chaque producteur ; affichage replié sous la mère, comparaison côte à
+  côte ; T6 de l'Établi en est le premier lot.
+- **P4 — Fiche complète** : recette (modèle, prompt, graine, coût, durée,
+  copiable et rejouable — les jobs la portent déjà en partie), usages en
+  aval (posts, montages, chapitres, decks) par jointure sur `job_id`,
+  `deck_id`, `doc_id`, coût cumulé de la lignée (P3), licence/source/auteur
+  (P5).
+- **P5 — Licence, source, auteur** : champs sur la fiche, remplis à
+  l'import (fichier, Figma, catalogue CC0 automatiquement), avertissement
+  visible quand la licence est inconnue.
+- **P6 — Nettoyage** : tableau de bord (poids par catégorie et par projet,
+  doublons exacts par empreinte, orphelins fichier ↔ index, rendus ratés)
+  avec corbeille et retour arrière ; doublons proches quand D1 existe.
+- **P7 — Couleur dominante** : calculée en PIL à l'indexation, filtre par
+  teinte.
+
+*Différenciant*
+- **D1 — Recherche par description et similarité** : index d'embeddings
+  image (CLIP local via service optionnel, ou fournisseur distant),
+  partagé avec la recherche sonore de R4 D3 (même service) ; « comme
+  celle-ci » et doublons proches en découlent.
+- **D2 — Annotations horodatées** : notes et commentaires sur un rendu à
+  un temps donné, depuis le PC et le mobile (R12), statut à revoir /
+  validé / rejeté ; pile de versions façon Frame.io par la lignée (P3).
+- **D3 — La Bibliothèque comme table de montage des projets** : le projet
+  (P2) sait ce qui est publié, monté, imprimé ; un asset dit où il sert ;
+  aucune référence DAM ne relie génération, montage et publication.
+
+*Écarté*
+- **E1 — Reconnaissance de visages** : un seul utilisateur, personnages
+  générés ; la bible (R3) tient l'identité, pas la Bibliothèque.
+- **E2 — Gestion des droits façon DAM d'entreprise (expiration, workflow
+  d'approbation)** : utilisateur unique.
+
+**Coût de patch** : l'écran Library est dans le bundle et ses greffes
+(`libprov`, `libpicker`, `libsend`) sont en queue de chaîne — P1, P2, P3
+(repli), P4 (fiche), P6 (tableau), D2 sont des patches chaînés ; les
+tables, l'indexation (couleur, empreintes, embeddings) et les jointures
+sont backend.
