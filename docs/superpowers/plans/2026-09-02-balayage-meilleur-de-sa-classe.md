@@ -1032,3 +1032,110 @@ bundle minifié mais **fragile en chaîne** (avertissement du patch `subs` :
 un patcher amont relancé seul efface les éditions aval). P0, P1, P3, P5, P6,
 P7, D4 touchent cette couche et `montage_service.py` ; P2 est surtout
 `subtitle_service.py` (ASS) ; P4, D1, D2, D3, D5 sont surtout backend.
+
+### R6. Scheduler — réponses (03/09/2026)
+
+**Ce que le code fait aujourd'hui** (relu le 03/09 : `marketing.py`,
+`post_preview.py`, routes `/schedule*`) : posts programmés (draft →
+scheduled → ready → posted/failed), boucle de publication toutes les 60 s
+dans le backend, mode auto ou assisté par post ; **Telegram** et **X**
+(tweepy, vidéo comprise) publient en automatique, YouTube et Instagram sont
+« assistés » (légende + rendu à poster à la main) ; métriques publiques X
+rapatriées pour les 10 derniers posts (budget de lecture du palier gratuit) ;
+plan de la semaine généré par LLM (ou rotation déterministe sans clé) ;
+aperçu PNG de la carte X et de la bulle Telegram ; vignette d'affiche du
+rendu ; skill `deepotus-comms` : événements du site, légendes, rendus, porte
+de validation humaine. Absents : Instagram, YouTube, TikTok en automatique ;
+tableau de bord d'analytics ; validation depuis le mobile ; recyclage ;
+créneaux par canal ; aperçus Reels/Shorts/TikTok ; brief de campagne
+persistant ; séries récurrentes ; threads.
+
+**Réponses**
+1. Canaux : **Instagram Reels, YouTube Shorts et TikTok en automatique**, et
+   **les canaux assistés conviennent si le téléphone les publie**.
+2. Analytics : **tous les canaux publiés, avec un tableau de bord** ; le plan
+   de la semaine s'en inspire.
+3. Validation : « **par lot (la semaine), puis auto, et aussi depuis le
+   mobile, plus rappel mobile pour les exceptions** ».
+4. Recyclage : **proposition automatique à valider**.
+5. Aperçu : **oui, avec les zones sûres de chaque réseau**.
+6. PC éteint à l'heure d'un post : **le téléphone le publie**.
+7. Horaires : **créneaux par canal + horaire proposé d'après mes métriques**.
+8. Plan : **brief de campagne persistant, séries récurrentes, fil par sujet
+   (thread X, série de posts)** — les trois.
+
+**Références vérifiées le 03/09/2026**
+- X API : palier gratuit **500 posts et 100 lectures par mois** par projet ;
+  Basic 10 000 posts/mois ; Pro 1 M ; Enterprise à partir de 42 k$/mois
+  (docs.x.com, devcommunity.x.com, 03/09). Les 100 lectures/mois bornent
+  l'analytics X : 10 posts × 10 rafraîchissements, pas plus.
+- Instagram (Meta) : publication par l'API réservée aux comptes
+  **professionnels** (Business/Creator) ; reels publiables en média unique ;
+  **50 posts par 24 h** ; accès Standard pour ses propres comptes, Advanced
+  (revue d'app) pour les comptes d'autrui (developers.facebook.com, 03/09).
+  Le compte deepotus étant le sien, l'accès Standard suffit — à confirmer
+  sur le portail au moment du plan.
+- YouTube Data API : `videos.insert` dans son propre seau de quota, **100
+  envois par jour** par défaut ; 10 000 unités/jour pour le reste
+  (developers.google.com, 03/09). Largement au-dessus des 5 posts/jour.
+- TikTok Content Posting API (Direct Post) : client **non audité** =
+  contenus en visibilité **SELF_ONLY**, compte privé obligatoire, 5
+  utilisateurs par 24 h ; l'audit lève la restriction ; plafond ~15 posts
+  par jour et par créateur (developers.tiktok.com, 03/09). Sans audit,
+  l'automatique TikTok publie en privé — à dire dans le plan.
+- Postiz : open source, auto-hébergeable, 30+ plateformes (X, Instagram,
+  TikTok, YouTube, LinkedIn, Threads, Bluesky, Mastodon…), API
+  (postiz.com, github.com, 03/09). Candidat naturel de **relais permanent**
+  (lecture C du questionnaire mobile) plutôt que de réécrire cinq
+  adaptateurs.
+- Buffer, Later, Metricool, Hootsuite, Typefully, Publer : de mémoire, non
+  vérifiés — non utilisés comme argument.
+
+**Bacs**
+
+*Parité nécessaire*
+- **P1 — Trois adaptateurs automatiques** : Instagram Reels (Graph API,
+  compte pro), YouTube Shorts (Data API, OAuth Google), TikTok Direct Post
+  (audit à passer, sinon privé) ; chacun avec sa clé dans Settings, son
+  quota affiché, son échec parlant. **Ou** Postiz auto-hébergé comme relais
+  unique — à trancher avec la lecture mobile (R12).
+- **P2 — Tableau de bord d'analytics** : vues, likes, partages,
+  commentaires par post, par canal, par format ; X borné par 100
+  lectures/mois (le dire), Telegram par les vues de canal, YouTube et
+  Instagram par leurs API d'insights ; graphique par semaine.
+- **P3 — Créneaux par canal** : file par réseau, créneaux réglables,
+  proposition d'horaire d'après les métriques (P2) quand elles existent,
+  créneaux par défaut sinon.
+- **P4 — Aperçus Reels, Shorts, TikTok avec zones sûres** : gabarit
+  d'interface superposé au rendu 9:16 (boutons, légende, barre) pour
+  vérifier qu'aucun texte n'est caché ; dessinés par code comme la carte X.
+- **P5 — Validation par lot** : le plan de la semaine validé une fois ; les
+  posts partent seuls ; un post modifié après validation revient en
+  attente. La validation **depuis le mobile** et le **rappel mobile** des
+  exceptions sont portés par R12.
+
+*Différenciant*
+- **D1 — Le téléphone publie quand le PC est éteint** : le compagnon reçoit
+  à l'avance vidéo + légende + heure ; il publie par l'app native (partage
+  système) ou par l'API depuis le téléphone ; l'état revient au PC au
+  réveil. Aucun planificateur grand public ne fait du téléphone un relais
+  de publication d'un studio local. Détail en R12.
+- **D2 — Brief de campagne persistant + séries récurrentes + fils** : le
+  plan lit un brief (objectif, dates, messages, interdits), remplit des
+  rubriques fixes, et sait publier un thread X ou une série liée ; le skill
+  `deepotus-comms` s'appuie dessus au lieu de tout redemander.
+- **D3 — Recyclage proposé** : d'après P2, les posts performants sont
+  proposés en repost avec variation (nouvelle légende par LLM, autre
+  format par le Montage), toujours à valider.
+
+*Écarté*
+- **E1 — Validation en équipe (Hootsuite)** : utilisateur unique.
+- **E2 — Analytics concurrents (Metricool)** : hors périmètre.
+- **E3 — Publication automatique TikTok en public sans audit** : impossible
+  par l'API (mesuré) ; sans audit, c'est le téléphone (D1) qui publie en
+  public.
+
+**Coût de patch** : le Scheduler est un écran du bundle — P3, P4, P5, D2
+(brief) touchent le bundle ; P1, P2, D3 et le moteur de D2 sont backend
+(`marketing.py`, nouveaux adaptateurs, tables de métriques) ; D1 est
+partagé avec le plan mobile.
