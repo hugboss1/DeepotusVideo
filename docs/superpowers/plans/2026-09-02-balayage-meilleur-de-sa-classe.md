@@ -788,3 +788,119 @@ exports docx/PDF, PDF du storyboard.
 P2 (comparaison), P4 (bouton animatique), D1 (menu de sélection) sont des
 patches chaînés ; P3, P5, P6 et le moteur de D2 sont surtout backend
 (services image, parseurs, exports par code).
+
+### R4. Son & VFX — réponses (03/09/2026)
+
+**Ce que le code fait aujourd'hui** (relu le 03/09 : `routes.py` `/audio/*`,
+`/particles`, `/effects`, `/animate` ; `sfx_service.py`, `music_service.py`,
+`particle_service.py`, `effects_engine.py`, `voice_providers.py`,
+`montage_service.py` ; patches `sonvfx`, `sfxstudio`, `vfxrack`) : 606 SFX
+CC0 par famille, recherche libre sur libellé FR et radical EN, génération
+ElevenLabs 1–4 variations avec tags sidecar, tiroir Sons, rack audio par
+clip au Montage (filtre, eq3, débruitage, dé-esseur, compresseur,
+distorsion) et mesure de niveau ; 4 modèles de musique fal (Lyria 3 30 s
+fixes 0,10 $ ; Stable Audio 2.5 5–190 s, graine, 0,06 $ ; MiniMax Music 2.6
+paroles + instrumental 0,14 $ ; CassetteAI 5–180 s 0,04 $), écoute avant
+achat ; voix ElevenLabs ou Voicebox local (Kokoro, Chatterbox) ; **ducking
+auto déjà au Montage** (sidechaincompress, réglable) ; 12 presets de
+particules simulés localement en sorties sprites ; nœud Animation (éléments
+animés composités sur un clip) ; moteur Effets/Masque (LUT, filtres ffmpeg)
+et rack VFX au Montage (catégories, recherche, favoris, vignette d'aperçu,
+pile par clip, bornes t0/t1, rampe) ; puce Audio dans la Bibliothèque.
+Absents : stems, isolation de voix, recherche par description ou similarité,
+VFX derrière un sujet, chanson chantée exposée, clonage rattaché à la bible,
+direction d'interprétation.
+
+**Réponses**
+1. Ducking : **aussi dans Son & VFX et Quick** (dès qu'une voix et une
+   musique sont générées ensemble).
+2. Recherche SFX : **description libre ET similarité sonore**.
+3. VFX : **derrière ou devant un sujet détouré** (masque vidéo).
+4. Stems : **oui, séparer une piste en stems**.
+5. Voix : **isolation IA ET chaîne « améliorer » en un clic**.
+6. Bibliothèque sonore : **le tiroir Sons doit être la vue de référence**
+   (pré-écoute au survol, forme d'onde, tags, favoris) ; la puce Audio de
+   la Bibliothèque est trop pauvre.
+7. Chanson : **oui, avec paroles chantées** (éditeur de paroles structurées,
+   persona).
+8. Voix IA : **clonage rattaché à une entité, voix par personnage reprise
+   automatiquement par le storyboard, direction d'interprétation** — les
+   trois.
+
+**Références vérifiées le 03/09/2026**
+- fal, Demucs (`fal-ai/demucs`) : stems vocals, drums, bass, other, guitar,
+  piano (modèle htdemucs_6s), choix des stems, sortie MP3 (fal.ai, 03/09).
+- fal, BiRefNet v2 vidéo (`fal-ai/birefnet/v2/video`) : détourage vidéo,
+  modèles General/Matting/Portrait, entrées mp4/mov/webm, sorties mp4, webm
+  VP9, **ProRes 4444 (alpha)**, gif (fal.ai, 03/09). L'app a déjà BiRefNet
+  image dans le nœud RemoveBG.
+- ElevenLabs, Audio Isolation (`/v1/audio-isolation`) : voix extraite du
+  fond (musique, réverbération, ambiance), fichiers ≤ 500 Mo et 1 h,
+  facturé 1 000 caractères par minute (elevenlabs.io, 03/09).
+- ElevenLabs, Eleven v3 audio tags : balises inline `[excited]`, `[whispers]`,
+  `[pause]`, `[laughs]`…, utilisables avec les clones instantanés et
+  professionnels ; API publique v3 disponible ; clonage instantané à partir
+  de 1–2 min d'audio propre (elevenlabs.io, 03/09).
+- fal, chanson avec paroles : MiniMax Music 2.0 (0,03 $/génération, paroles
+  jusqu'à 3 000 caractères), MiniMax Music 3 (jusqu'à 5 min), ACE-Step
+  (0,0002 $/s, `[verse]`/`[chorus]`/`[bridge]`, `[inst]` pour instrumental),
+  DiffRhythm (paroles horodatées) (fal.ai, 03/09). MiniMax 2.6 est déjà au
+  registre avec `lyrics: True`.
+- CLAP (LAION, `laion/clap-htsat-unfused`) : embeddings texte ↔ audio pour
+  la recherche par description et par similarité (huggingface.co, 03/09).
+  **Contrainte** : modèle local = PyTorch/numpy, absents du Python embarqué
+  (mémoire du 02/09) ; à servir par un service optionnel ou par un endpoint
+  distant, pas dans le backend stdlib.
+- Epidemic, Artlist, Splice, EmberGen, Adobe Podcast : de mémoire, non
+  vérifiés — non utilisés comme argument.
+
+**Bacs**
+
+*Parité nécessaire*
+- **P1 — Stems par Demucs (fal)** : bouton « séparer » sur une musique de
+  la Bibliothèque → N pistes rangées avec lignée ; au Montage, chaque stem
+  est une piste audio à volume propre.
+- **P2 — Isolation de voix ElevenLabs** + **chaîne « améliorer »** préréglée
+  (débruitage → eq → compresseur → normalisation, filtres ffmpeg déjà dans le
+  rack) en un clic sur un clip ou une voix importée ; coût affiché pour
+  l'isolation, gratuit pour la chaîne.
+- **P3 — Le tiroir Sons comme vue de référence** : pré-écoute au survol,
+  forme d'onde, tags éditables, favoris, filtre « mes sons / catalogue »,
+  tri par date ; la puce Audio de la Bibliothèque s'y aligne.
+- **P4 — Chanson chantée** : exposer les paroles structurées de MiniMax 2.6
+  (déjà `lyrics: True`) avec un éditeur `[Verse]`/`[Chorus]` et la persona ;
+  ajouter ACE-Step (le moins cher) et MiniMax Music 3 (jusqu'à 5 min) au
+  registre `MUSIC_MODELS`, prix avant tir.
+- **P5 — Direction d'interprétation** : balises Eleven v3 dans le champ
+  de voix off (palette de balises cliquables, aperçu du texte balisé) ;
+  Voicebox n'en a pas — le dire.
+
+*Différenciant*
+- **D1 — Ducking dès la génération** : dans Son & VFX et Quick, quand une
+  voix et une musique sortent ensemble, le mix ducké est rendu (mécanique
+  du Montage réutilisée) et pré-écouté sans timeline.
+- **D2 — VFX derrière un sujet** : BiRefNet vidéo → matte alpha (ProRes
+  4444), puis l'effet ou les particules se composent entre le fond et le
+  sujet dans le rack VFX ; coût fal affiché ; le nœud RemoveBG image montre
+  la voie.
+- **D3 — Recherche par description et similarité** : index CLAP des 606 sons
+  + générations, calculé une fois ; deux voies possibles — service local
+  optionnel (Python complet, comme Voicebox) ou endpoint distant ; requête
+  texte ou « comme celui-ci » ; le tiroir Sons affiche les voisins.
+- **D4 — Voix par personnage, bout en bout** : clonage instantané
+  ElevenLabs (ou Voicebox local) rattaché à l'entité de la bible ; le
+  storyboard reprend la voix de chaque personnage plan par plan ; les
+  balises v3 se règlent par personnage (tempérament par défaut).
+
+*Écarté*
+- **E1 — Génération de particules par IA** : la simulation locale gratuite
+  fait le travail ; rien à payer.
+- **E2 — VFX vidéo → vidéo par modèle (Kling O1, Runway)** : la voie masque
+  + composition (D2) répond au besoin déclaré, moins chère et contrôlable.
+- **E3 — Recherche par similarité SANS description** : les deux vont
+  ensemble (même index CLAP), pas de bac séparé.
+
+**Coût de patch** : le tiroir Sons et le rack VFX sont des couches injectées
+(`frontend/patches/sfxstudio.js`, `vfxrack.js`) — moins chères que le bundle
+minifié : P3, D1, D2 (rack), D3 (tiroir) s'y font ; P1, P2, P4, P5 sont des
+routes + registres backend avec un bouton ; D4 touche Chapitres (bundle).
