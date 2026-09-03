@@ -1134,7 +1134,22 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
         else:
             parts.append(f"{voice_lbl[0]}anull[vall]")
         if music_lbl and ducking:
-            parts.append("[vall]asplit=2[vsc][vmix]")
+            # P0 — LA CHAÎNE LATÉRALE DOIT DURER AUSSI LONGTEMPS QUE LA
+            # MUSIQUE. `sidechaincompress` s'arrête à la fin de son entrée la
+            # PLUS COURTE (framesync, EXT_STOP sur les deux entrées) : la voix
+            # servant de détecteur, une voix de 2 s coupait NET la musique
+            # bouclée d'un rendu de 4 s. Le fichier sortait avec une piste
+            # audio de 2 s dans une vidéo de 4 s — « la piste musique n'est
+            # pas rendue » : elle l'était, jusqu'à la dernière syllabe du
+            # commentaire, puis plus rien. Le silence n'était pas visible dans
+            # la commande, seulement dans le FICHIER (ffprobe : audio 2,0 s /
+            # vidéo 4,0 s) — cf. tests/test_montage_pistes_rendu.py.
+            # apad n'ajoute que du silence : il ne tronque jamais une voix
+            # plus longue que `total`, et le détecteur ne voit rien de plus
+            # (du silence ne duckera pas), donc le ducking lui-même est
+            # inchangé sur toute la durée où la voix existe.
+            parts.append("[vall]asplit=2[vsc0][vmix]")
+            parts.append(f"[vsc0]apad=whole_dur={round(total, 3)}[vsc]")
             if isinstance(ducking, dict):
                 # R1 : ducking paramétré {threshold, ratio, attack, release}
                 # (sfx_service.parse_ducking). Le bool True historique garde
