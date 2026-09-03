@@ -1603,3 +1603,99 @@ niveau.
 **Coût de patch** : `/tilelab` est autonome (hors bundle) — P3, P4, P5
 (aperçus), D3 y sont bon marché ; P1, P2, D1, D2 et les moteurs de mesure
 sont backend (`pixel_ops.py`, nouveaux exporteurs, lien `material_store`).
+
+### R10c. Game Assets — Matières — réponses (03/09/2026)
+
+**Ce que le code fait aujourd'hui** (relu le 03/09 : `pbr_service.py`,
+`material_store.py`, routes `/materials/*`, patch `materialforge`,
+page autonome `/materialforge/`) : génération depuis un prompt (modèle
+image) ou une image de la Bibliothèque, rendue seamless (méthode au choix)
+; **8 cartes dérivées en PIL pur** avec convolutions cycliques (le raccord
+des cartes tient) : basecolor, normale (OpenGL par défaut, bascule
+DirectX), rugosité, métallique, AO, hauteur, émissif, ORM glTF ; presets ;
+dérivation re-réglable, duplication, vignette ; **7 ambiances** du viewport
+(équirectangulaires servies), GLB d'aperçu avec sol de référence ; échelle
+du score de raccord documentée ; export ZIP / GLB / glTF avec **conventions
+de nommage `standard`, `unity_urp`, `unity_hdrp`, `unreal`, `godot`**, 8 ou
+16 bits pour hauteur et normale, liste blanche de cartes, bordereau avant
+téléchargement. Absents : delighting, redressement de perspective, entrée
+depuis le téléphone, choix de la forme d'aperçu, HDRI personnels,
+comparaison côte à côte, convention Blender explicite, catalogue de départ,
+générateurs procéduraux, application par zone ou masques automatiques sur
+un maillage, taille physique, finitions supplémentaires avec aperçu.
+
+**Réponses**
+1. Photo → PBR : **delighting, redressement de perspective + recadrage,
+   entrée depuis le téléphone** — les trois.
+2. Aperçu : **choix de la forme (sphère, cube, plan, cylindre, mon modèle),
+   HDRI personnels, comparaison côte à côte** — les trois.
+3. Export : **Blender, Unity URP/HDRP, Unreal, Godot** — Unity, Unreal et
+   Godot existent déjà (mesuré) ; reste Blender et la preuve par banc.
+4. Catalogue : **oui, une trentaine de matières CC0 embarquées**.
+5. Procédural : **oui, une dizaine de générateurs paramétriques locaux**.
+6. Peinture 3D : **les deux** — une matière par partie du maillage ET
+   masques automatiques (cavités, arêtes).
+7. Échelle : **seulement pour l'impression** (hauteur de la carte height en
+   mm pour le relief).
+8. Finitions : **plus de finitions + aperçu temps réel**.
+
+**Références vérifiées le 03/09/2026**
+- Substance 3D Sampler : « Delight (AI powered) » retire l'éclairage de la
+  basecolor, sans paramètre ; « Image to Material » inclut la passe de
+  delighting (experienceleague.adobe.com, 03/09).
+- Materialize (Bounding Box Software) : open source, image → cartes
+  (hauteur, normale, métal…) sur GPU (github.com, 03/09) — code Unity,
+  pas réutilisable en PIL, mais ses algorithmes sont lisibles.
+- Poly Haven : assets **CC0** ; API publique sans clé, **usage commercial
+  de l'API interdit sans licence** (accordée sur demande), en-tête
+  Referer/User-Agent au nom du logiciel et attribution demandés
+  (polyhaven.com, github.com/Poly-Haven, 03/09) → pour un catalogue
+  embarqué, télécharger une fois au build (comme Kenney pour les sons) et
+  attribuer, plutôt que d'appeler l'API depuis l'application.
+- Quixel, ArmorPaint, Painter : de mémoire, non vérifiés.
+
+**Bacs**
+
+*Parité nécessaire*
+- **P1 — Delighting + redressement** : suppression du dégradé d'éclairage
+  (estimation basse fréquence et division, PIL pur) et redressement de
+  perspective par quatre coins (transformation PIL) avant la dérivation ;
+  mesure : écart-type de luminance basse fréquence avant/après.
+- **P2 — Aperçu** : forme au choix (sphère, cube, plan, cylindre, un GLB
+  de la Bibliothèque), HDRI importé (.hdr/.exr converti en
+  équirectangulaire LDR pour le viewport), comparaison côte à côte de deux
+  matières sous la même ambiance.
+- **P3 — Convention Blender** dans `naming_catalog` (Principled BSDF,
+  OpenGL, noms de cartes), et un banc par convention qui lit l'archive
+  écrite (noms, canaux ORM, signe Y de la normale).
+- **P4 — Catalogue de départ** : ~30 matières CC0 (sols, murs, métaux,
+  bois, tissus) téléchargées au build depuis Poly Haven avec attribution,
+  poids mesuré (résolution 1K), rangées comme matières ordinaires.
+- **P5 — Hauteur physique pour le relief** : mm de la carte height sur la
+  fiche, consommé par `print3d` (relief vitrail).
+
+*Différenciant*
+- **D1 — Générateurs paramétriques locaux** : briques, carrelage, bois,
+  métal brossé, bruit, cuir, tissu… seamless par construction, réglables
+  en direct, cartes dérivées à la volée ; gratuits et hors ligne, là où
+  Substance est payant et lourd.
+- **D2 — Matière par partie + masques automatiques** : l'Établi connaît
+  les parties d'un maillage ; une matière par partie, masques de cavités
+  et d'arêtes calculés depuis la géométrie (AO et courbure) pour l'usure ;
+  aperçu dans le viewport.
+- **D3 — Finitions nommées avec aperçu temps réel** : métal brossé, laque,
+  cuir, émissif animé… dans le graphe Forge 3D, prévisualisées avant
+  rendu.
+- **D4 — Photo depuis le téléphone** : le compagnon (R12) envoie une photo
+  de surface au Material Forge, qui redresse, délighte et dérive.
+
+*Écarté*
+- **E1 — Taille physique propagée aux moteurs** : réponse 7 ; seulement
+  l'impression.
+- **E2 — Appel de l'API Poly Haven depuis l'application** : interdit en
+  usage commercial sans licence (mesuré) ; catalogue au build.
+
+**Coût de patch** : `/materialforge/` est autonome (hors bundle) — P2, D1
+(réglages), D2 (aperçu), D3 (aperçu) y sont bon marché ; P1, P3, P4, P5,
+et les moteurs de D1, D2 sont backend (`pbr_service.py`, `material_store.py`,
+`print3d.py`, banc par convention).
