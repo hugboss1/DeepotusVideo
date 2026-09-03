@@ -1699,3 +1699,97 @@ un maillage, taille physique, finitions supplémentaires avec aperçu.
 (réglages), D2 (aperçu), D3 (aperçu) y sont bon marché ; P1, P3, P4, P5,
 et les moteurs de D1, D2 sont backend (`pbr_service.py`, `material_store.py`,
 `print3d.py`, banc par convention).
+
+### R10d. Game Assets — Cartes (Card Forge) — réponses (03/09/2026)
+
+**Ce que le code fait aujourd'hui** (relu le 03/09 : `services/cards/`
+— `contract.py`, `print.py`, `data.py`, `capture.py`, `texture.py`,
+`forge3d*.py`, `face.py` ; patch `cardforge` ; page autonome
+`/cardforge/`) : domaine monté sous `/api/cards` en dix pièces ; **12
+formats** de carte (poker US/EU, bridge, tarot, mini, carré, domino, carte
+de visite, jumbo, micro) ; export impression **au pixel de nanDECK** à 300
+ou 600 DPI, fond perdu, zones sûres, traits de coupe, **planches
+d'imposition A4 et Letter**, profils ICC, papiers ; decks par CSV avec
+quantités, filtres, tri (sémantique nanDECK LINK*) ; import d'une carte
+existante (photo, scan, PNG) avec mesure ; textures 2D et PBR (8 cartes
+via `pbr_service`) ; masque foil ; sélection multiple façon Figma ; graphe
+Forge 3D (relief, extrusion, GLB/STL, aperçu, turntable, scène) ; audit,
+art check, atlas, séries de style (affiche polonaise, vitrail) par skills.
+Absents : gabarits imprimeur (MPC, TGC, DTC), export Tabletop Simulator /
+Tabletopia, dos variables par carte, statistiques de deck, édition
+tabulaire, import Sheets/Notion, localisation, jetons/boîte/présentoir,
+génération d'art par ligne liée à la bible, livret, mockup, fiche produit.
+
+**Réponses**
+1. Imprimeur : **MPC, TGC, DriveThruCards, et l'imposition maison** — les
+   quatre.
+2. Tabletop : **TTS et Tabletopia**.
+3. Recto/verso : **dos variables par carte + planche verso en miroir**.
+4. Données : **statistiques, édition tabulaire, import Sheets/Notion, et
+   le CSV reste** — les quatre.
+5. Langues : **FR + EN par colonnes avec traduction LLM proposée**, à
+   valider carte par carte.
+6. Forge 3D : **jetons et pions, boîte (tuck box) et plateau, présentoir
+   imprimé en 3D** — les trois.
+7. Art : **prompt par ligne + style de série + bible**, coût du deck avant
+   tir.
+8. Autour : **livret de règles PDF, mockup marketing, fiche produit et
+   export boutique** — les trois.
+
+**Références vérifiées le 03/09/2026**
+- MakePlayingCards : poker 2,5 × 3,5 in, upload **822 × 1122 px** à
+  300 DPI, fond perdu 1/8 in (36 px), zone sûre 36 px de plus
+  (makeplayingcards.com, 03/09).
+- The Game Crafter : coupe à 1/8 in (37 px), zone sûre à 1/4 in (75 px),
+  300 DPI ; **API développeur** `/api/deck` (thegamecrafter.com, 03/09).
+- DriveThruCards : fond perdu 1/8 in obligatoire, zone sûre 1/8 in dans
+  la coupe (2,25 × 3,25 in), mise en page 2,75 × 3,75 in, **PDF/X-1a:2001**
+  polices incorporées, **sans traits de coupe** (drivethrucards.com, 03/09).
+- Tabletop Simulator : deck en collage **10 colonnes × 7 lignes**, objet
+  JSON (ObjectStates, Transform, Nickname…) dans Saved Objects
+  (kb.tabletopsimulator.com, 03/09).
+- nanDECK, Component Studio, Dextrous, Squib, Tabletopia : de mémoire
+  (nanDECK est la référence mesurée du dépôt, au pixel).
+
+**Bacs**
+
+*Parité nécessaire*
+- **P1 — Gabarits imprimeur** : profils MPC (822 × 1122, fond perdu 36 px),
+  TGC (37/75 px) et DTC (PDF/X-1a, 2,75 × 3,75 in, sans traits) dans
+  `contract.py`, export PNG par carte nommé recto/verso pour MPC et TGC,
+  PDF multi-pages pour DTC ; un banc mesure les pixels écrits contre les
+  chiffres ci-dessus.
+- **P2 — Tabletop Simulator et Tabletopia** : collage 10 × 7 (recto + dos)
+  et JSON d'objet ; format Tabletopia à relever avant le plan.
+- **P3 — Dos variables + miroir** : colonne « dos » dans le CSV, planche
+  verso imposée en miroir avec test d'alignement (repères imprimés).
+- **P4 — Données** : statistiques (histogrammes par colonne numérique et
+  catégorielle), grille éditable dans l'app (écrit le CSV), import depuis
+  Google Sheets (CSV publié) et Notion (export CSV ou API).
+- **P5 — Localisation** : colonnes par langue, rendu et export par langue,
+  texte adaptatif (R7 P4), traduction LLM proposée et validée carte par
+  carte.
+
+*Différenciant*
+- **D1 — Art du deck depuis le CSV et la bible** : prompt par ligne,
+  style de série (skills existants), personnages de la bible (R3 P3),
+  coût total avant tir, génération en lot avec lignée dans la Bibliothèque
+  ; aucun outil de cartes ne relie données, bible et génération.
+- **D2 — Objets 3D du jeu** : jetons et pions extrudés depuis une carte ou
+  une entité, boîte dépliée (PDF avec plis) aux dimensions du deck,
+  présentoir STL pour la Centauri — via le Forge 3D et `print3d`.
+- **D3 — Autour du deck** : livret de règles PDF (texte → mise en page
+  avec images des cartes), mockup marketing (rendu 3D du deck en main ou
+  sur table, scène du Forge 3D), fiche produit exportable.
+
+*Écarté*
+- **E1 — Scripts de génération façon nanDECK** : la sémantique est déjà
+  portée par l'UI (décision du dépôt).
+- **E2 — API The Game Crafter pour envoyer le deck** : gabarits d'abord ;
+  l'envoi automatique demande un compte et une clé — à instruire plus
+  tard si P1 ne suffit pas.
+
+**Coût de patch** : `/cardforge/` est autonome (hors bundle) — P3, P4
+(grille, histogrammes), P5, D1 (bouton), D3 y sont bon marché ; P1, P2 et
+les moteurs (exports, miroir, traduction, objets 3D, PDF) sont backend
+(`services/cards/*`, `print3d.py`).
