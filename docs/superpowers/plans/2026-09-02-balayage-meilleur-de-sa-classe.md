@@ -596,3 +596,88 @@ Absents : extension générative d'un clip, lip-sync, sous-titres dans Quick
 **Coût de patch** : Quick vit dans le bundle (`um`) — P1, P3, P4, P5, P6, D1,
 D2, D3 sont des patches `patch_bundle_*` chaînés ; P2 est surtout backend
 (route + registre) plus un bouton sur la carte de rendu.
+
+### R2. Studio — réponses (03/09/2026)
+
+**Ce que le code fait aujourd'hui** (relu le 03/09 : bundle — registre des
+nœuds, compilateur `Mh` ; `routes.py` `/studio-graphs` ; `pipeline.py`) :
+34 types de nœuds en 8 catégories (source, gen, edit, compose, audio, motion,
+master, output) ; **un run = un job** — le compilateur exige un nœud Render et
+compile tout le graphe en une seule soumission, sans cache par nœud ; réutiliser
+un résultat passe par le nœud « Rendu existant », à la main ; graphes
+sauvegardés en JSON serveur (liste, charger, enregistrer, supprimer), export
+JSON, **pas d'import** ; état de travail conservé en session seulement
+(`keepstate`) ; undo/redo, dock des nœuds par `/`, teinte par catégorie, ports
+typés ; « Rouvrir dans Studio » recharge le `source_graph` d'un rendu ;
+« Envoyer vers » pose une image en nœud Image ou un template en fond de
+Spatial compose. Absents : sous-graphes, mini-map, lasso, nœuds de contrôle,
+comparaison, historique par nœud.
+
+**Réponses**
+1. Taille : **moins de 10 nœuds**, pas de motif répété → sous-graphes inutiles.
+2. Ré-exécution : **oui, des crédits perdus régulièrement** — un changement de
+   finition repaie les générations amont.
+3. Canevas : **graphe strict + panneau de comparaison** (pas de canevas infini).
+4. Nœuds de contrôle : **non**, Variations et lot suffisent.
+5. Preview : **scrub image par image, A/B de deux rendus, historique des rendus
+   par nœud** — les trois.
+6. Recette : **oui, import JSON + lancement paramétré** (nouvelles sources,
+   depuis un autre écran ou le mobile).
+7. Comparaison : **deux moteurs en bascule** (champion contre challenger).
+8. Départ : **depuis un rendu ou une image de la Bibliothèque**, pas une
+   galerie de recettes.
+
+**Références vérifiées le 03/09/2026**
+- ComfyUI : met en cache les sorties et ne ré-exécute que les nœuds dont une
+  entrée ou un réglage a changé, en remontant depuis les nœuds de sortie ;
+  un nœud peut redéfinir `IS_CHANGED` (docs.comfy.org, 03/09).
+- n8n : exécutions partielles (« Execute step » exécute un nœud et les nœuds
+  amont nécessaires) ; **épinglage des données** — la sortie d'un nœud est
+  figée et substituée aux runs suivants au lieu de rappeler le service ;
+  rechargement des données d'une exécution passée (docs.n8n.io, 03/09).
+- Flora / Weavy (canevas infini) : de mémoire, non vérifié — écarté par la
+  réponse 3, donc sans objet.
+
+**Bacs**
+
+*Parité nécessaire*
+- **P1 — Épinglage du résultat d'un nœud de génération** (le mécanisme n8n,
+  l'effet ComfyUI) : un nœud Seedance/HeyGen/ImageGen dont le résultat existe
+  garde ce résultat tant que ses entrées et réglages n'ont pas changé ; le
+  run suivant ne repaie que ce qui a bougé. Le bouton « épingler » figé à la
+  main et l'indicateur « ce run coûte X (Y nœuds réutilisés) » avant tir.
+  C'est la réponse à la perte de crédits (réponse 2). Backend : un job par
+  nœud de génération, ou une empreinte des entrées stockée avec le rendu.
+- **P2 — Historique des rendus par nœud** : la pile des résultats passés d'un
+  nœud, choisir lequel alimente l'aval (réponse 5) ; s'appuie sur P1.
+- **P3 — Import d'un graphe JSON** (l'export existe déjà) avec validation
+  contre le registre des nœuds et remontée des sources manquantes.
+- **P4 — Scrub image par image** dans la preview (le lecteur actuel lit, ne
+  parcourt pas).
+
+*Différenciant*
+- **D1 — Recette lançable** : un graphe sauvegardé exposé comme recette dont
+  seules les sources changent ; route « lancer la recette N avec ces assets »,
+  appelable depuis la Bibliothèque, Quick, et le mobile (lecture A). Aucune
+  référence de nœuds ne le fait vers un téléphone ; n8n le fait vers des
+  webhooks, pas vers des médias.
+- **D2 — Duel de moteurs** : un nœud de génération marqué « duel » tire sur
+  deux modèles ; panneau de comparaison en bascule A/B avec coût réel et durée
+  de chacun ; le gagnant devient le résultat épinglé (P1).
+- **D3 — Départ depuis un rendu** : « Envoyer vers Studio » un rendu de la
+  Bibliothèque pose un nœud Rendu existant dans un graphe neuf (l'image et le
+  template le font déjà ; le rendu ne fait que rouvrir son graphe source).
+
+*Écarté*
+- **E1 — Sous-graphes et groupes** : graphes < 10 nœuds, aucun motif répété.
+- **E2 — Canevas infini** façon Flora/Weavy : préférence pour le graphe strict.
+- **E3 — Nœuds de contrôle (boucle, condition, variables)** : Variations et
+  lot suffisent.
+- **E4 — Comparaison à N > 2 moteurs** : le duel suffit ; le lot Quick reste
+  là pour les variations d'un même moteur.
+
+**Coût de patch** : tout le Studio vit dans le bundle (registre des nœuds,
+`Mh`, panneau droit) — P1, P2, P4, D2, D3 sont des patches chaînés lourds
+(P1 touche aussi `pipeline.py` et le modèle de job) ; P3 et D1 sont surtout
+backend (`/studio-graphs` : import validé, route de lancement) plus un
+bouton.
