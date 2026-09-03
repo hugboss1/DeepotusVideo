@@ -2281,3 +2281,120 @@ tout backend, sans patch du bundle sauf la page d'appairage dans Settings
 (un patch). Le plan mobile se découpe en lots : P1+P2 (socle), P3 (premier
 lot), P4+P5+P6, puis D1–D4 ; chaque lot mesure ce qu'iOS et Android
 permettent réellement avant de le promettre.
+
+---
+
+## Les dix-sept plans — index (03/09/2026)
+
+Un plan par catégorie retenue, au format `superpowers:writing-plans`, chacun
+commis seul. Les items P d'une section R forment le lot 1 du plan homonyme,
+les items D le lot 2, les items E y sont cités en une ligne sans tâche.
+
+| Section | Plan | Tâches | Lignes |
+|---|---|---|---|
+| R1 | `2026-09-03-plan-quick.md` | 10 | 3 379 |
+| R2 | `2026-09-03-plan-studio.md` | 13 | 4 076 |
+| R3 | `2026-09-03-plan-chapitres.md` | 21 | 4 626 |
+| R4 | `2026-09-03-plan-son-vfx.md` | 16 | 3 755 |
+| R5 | `2026-09-03-plan-montage.md` | 14 | 1 217 |
+| R6 | `2026-09-03-plan-scheduler.md` | 19 | 4 536 |
+| R7 | `2026-09-03-plan-templates.md` | 13 | 4 969 |
+| R8 | `2026-09-03-plan-news.md` | 16 | 5 568 |
+| R9 | `2026-09-03-plan-library.md` | 17 | 2 118 |
+| R10a | `2026-09-03-plan-sprites.md` | 14 | 4 858 |
+| R10b | `2026-09-03-plan-tuiles.md` | 13 | 4 334 |
+| R10c | `2026-09-03-plan-matieres.md` | 18 | 7 386 |
+| R10d | `2026-09-03-plan-cartes.md` | 20 | 6 566 |
+| R10e | `2026-09-03-plan-moteurs-3d.md` | 12 | 5 980 |
+| R10f | `2026-09-03-plan-etabli.md` | 20 | 5 470 |
+| R11 | `2026-09-03-plan-settings.md` | 20 | 5 711 |
+| R12 | `2026-09-03-plan-mobile.md` | 23 | 6 862 |
+
+**Ordre conseillé pour l'implémentation** : `montage` P0 d'abord (un défaut
+est signalé et non reproduit), puis `settings` (son coffre débloque le
+mobile), puis le reste par valeur d'usage — `quick`, `scheduler`, `mobile`,
+`library`, `chapitres`, les Game Assets, `studio`, `templates`, `news`,
+`son-vfx`.
+
+**Dépendances entre plans, nommées par leurs auteurs**
+- `mobile` P2 ne tient que si `settings` D1 retient un coffre **lisible par
+  un téléphone**. Tranché : roue de chiffrement embarquée, pas le
+  chiffrement lié au compte Windows.
+- `library` P3 (lignée) a pour premier lot la tâche 6 du plan Établi ; le
+  plan Library la référence et exclut ses ancres.
+- `news` consomme le brief de campagne de `scheduler`, les sous-titres
+  animés de `montage`, les modèles vidéo de `quick` ; il refuse en le disant
+  s'ils manquent.
+- `tuiles` D1 et `moteurs-3d` D3 consomment `matieres`.
+
+---
+
+## Ce que l'écriture des plans a corrigé dans ce document
+
+Les auteurs de plans ont mesuré ce que le balayage avait écrit. Sept
+affirmations ci-dessus sont **fausses ou incomplètes** ; elles sont
+corrigées ici et non réécrites plus haut, pour que la trace reste.
+
+1. **R10c, E2 — l'API Poly Haven.** Le balayage écrit « usage commercial
+   interdit sans licence ». **C'est faux**, relu le 03/09 (annonce du
+   18/07/2026, conditions d'utilisation, README) : l'API est ouverte à
+   l'usage commercial, moyennant un User-Agent propre et un crédit visible.
+   Le catalogue reste téléchargé **au build**, mais pour une autre raison :
+   un studio local ne doit pas dépendre du réseau.
+2. **R10d — le miroir du verso et le dos par carte existent déjà.** Le
+   balayage les classait absents. Mesuré : le miroir est livré et testé, et
+   `card.back` est lu par deux pièces dans deux espaces de noms, une valeur
+   inconnue retombant en silence sur le dos commun. L'exigence P3 se réduit
+   d'autant.
+3. **R10d — Tabletopia n'est pas Tabletop Simulator.** La grille 10 × 7 est
+   celle de TTS ; Tabletopia demande deux fichiers séparés d'au plus
+   2 000 px et ne publie aucune grille. Et MakePlayingCards se contredit :
+   son huitième de pouce publié vaudrait 825 px, l'envoi n'accepte que 822.
+4. **R10e — la carte graphique était « non précisée ».** Mesurée :
+   **RTX 2080 Ti, 11 Go**. Le brouillon local tient pour la forme (10 Go),
+   pas pour la texture (21 Go). Piège : le champ mémoire de Windows répond
+   4 Go, plafonné par un entier 32 bits ; lu seul il aurait refusé le
+   service local à tort.
+5. **R10e — gltfpack n'écrit que du glTF et du GLB.** Aucune conversion FBX
+   ni USDZ en local ; elles passent par le fournisseur.
+6. **Le runtime embarqué, inventorié** (deux plans, même relevé) : Python
+   3.13.15, Pillow 12.3.0, **pypdf 6.16.2 et python-docx 1.2.0 présents** ;
+   numpy, reportlab, fpdf, pikepdf, openpyxl **absents**. Les exports PDF
+   et docx ne demandent donc aucune dépendance nouvelle, contrairement à ce
+   que R3 et R10d laissaient craindre.
+7. **R12 — le lanceur code l'adresse locale en dur.** Changer la
+   configuration ne suffit pas : `scripts/launch-silent.vbs` passe
+   `--host 127.0.0.1` explicitement. Sans cette ligne, l'ouverture au
+   réseau local n'aurait rien donné sur une machine installée.
+
+## Défauts du dépôt trouvés en écrivant les plans
+
+Aucun n'a été corrigé : chacun est fermé par une tâche de son plan.
+
+| Où | Défaut mesuré | Fermé par |
+|---|---|---|
+| Quick | un interrupteur **mort** dans les Paramètres (« Voice (HeyGen comp) », gestionnaire vide) | `quick` T4 |
+| Quick | le constructeur de prompt **ignore la caméra** dès qu'un prompt libre est écrit | `quick` T7 |
+| News | le tri « par pertinence » trie par **longueur de résumé** | `news` T6 |
+| News | le champ « Illustration / Style » n'est envoyé à **aucune route** et existe en double dans le bundle | `news` T6 |
+| News | la persona n'a **aucun bloc de modes de voix** : les quatre modes du schéma ne pilotent rien | `news` T10 |
+| Chapitres | un **quatrième** écrasement silencieux du texte, non nommé par le balayage | `chapitres` T3 |
+| Son & VFX | l'ordre réel de la chaîne d'effets est l'inverse de ce que trois endroits annoncent | `son-vfx` T3 |
+| Son & VFX | une colonne de la bible déclarée en migration mais **absente du modèle** : une base neuve casserait | `son-vfx` T14 |
+| Settings | le **jeton Figma** est réclamé par l'import et refusé à l'écriture depuis la v1.8 | `settings` T8 |
+| Templates | l'éditeur **recopie les régions champ par champ** : tout champ neuf serait perdu au premier enregistrement | `templates` T7 |
+| Quick | une étape du plan partiel lançait un banc sans point d'entrée : un **vert menteur** | corrigé dans le plan |
+
+## Ce que les plans refusent de promettre
+
+- Les booléens de l'Établi n'ont pas de budget mesuré : la tâche va
+  jusqu'à l'abandon écrit si le temps dépasse cinq minutes.
+- La publication silencieuse en arrière-plan sur téléphone est un
+  **objectif mesuré**, pas une promesse : la promesse écrite est la
+  notification à l'heure puis la publication au premier plan.
+- Aucun des trois éditeurs de niveaux n'a **ouvert** un fichier écrit ici ;
+  la conformité PDF/X-1a n'est pas revendiquée faute de profil de presse ;
+  la documentation Blender et celle de Paper2D ont refusé la lecture
+  automatique, et les plans imposent l'essai humain.
+- Plusieurs campagnes de mutations annoncent d'avance une mutation
+  **verte**, avec l'assertion manquante écrite en toutes lettres.
