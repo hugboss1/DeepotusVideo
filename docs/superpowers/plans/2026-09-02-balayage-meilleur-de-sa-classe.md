@@ -681,3 +681,110 @@ comparaison, historique par nœud.
 (P1 touche aussi `pipeline.py` et le modèle de job) ; P3 et D1 sont surtout
 backend (`/studio-graphs` : import validé, route de lancement) plus un
 bouton.
+
+### R3. Chapitres — réponses (03/09/2026)
+
+**Ce que le code fait aujourd'hui** (relu le 03/09 : `routes.py` — `/bible`,
+`/chapters`, `/shots`, `/scenes`, `/episodes` ; `manuscript_agent.py`,
+`board_service.py`, `shotcraft_service.py`, `image_providers.py`) : bible
+d'entités de 6 sortes (personnage, lieu, objet, date, ambiance, décor) ;
+ingestion d'un manuscrit en 4 passes LLM (découpe, extraction, consolidation
+des alias, surlignage des mentions par chapitre) ; planche de référence
+composite par entité — panneaux générés un à un, identité tenue par chaînage
+Kontext, graine par panneau donc recette rejouable ; modèle 3D par entité ;
+casting de voix suggéré. Chapitres : découpe en plans (LLM ou paragraphe)
+avec le catalogue de 106 fiches motion-design, croquis FLUX par plan,
+insertion, réordonnancement, scénario Fountain exporté, adaptation roman →
+scénario, voix off par scène et par chapitre. Épisodes : import txt/docx/pdf,
+découpe en scènes, rendu narré illustré (voix par scène + Ken Burns).
+Nano Banana Pro est appelé avec **une seule** image de référence
+(`image_urls: [image_url]`). Absents : lien plan ↔ entités, animatique depuis
+les plans, versions du texte, réécriture à la demande, import Fountain/FDX,
+exports docx/PDF, PDF du storyboard.
+
+**Réponses**
+1. Bible : **relationnelle** — personnage ↔ plans ↔ lieux ; chaque plan sait
+   qui et où, la fiche liste ses apparitions et ses planches.
+2. Animatique : **oui, depuis les plans du storyboard** (croquis + durée +
+   voix témoin, avant toute génération payante).
+3. Cohérence : **non, même les images dérivent** (visage, costume, palette).
+4. Ordre : **les deux selon le projet**, aucun ordre imposé.
+5. Versions : **oui, instantanés + retour arrière** à chaque passe LLM ou
+   édition manuelle.
+6. LLM : **polissage/réécriture à la demande** et **génération de scènes ou
+   de dialogues** souhaités ; aucune zone interdite déclarée.
+7. Sortie : **les quatre** — épisodes narrés 9:16, plans vidéo montés en film,
+   le manuscrit lui-même (livre), reels courts.
+8. Formats : **import Fountain/FDX, export docx/PDF mis en page, PDF du
+   storyboard** — les trois.
+
+**Références vérifiées le 03/09/2026**
+- NovelCrafter, Codex : indexation automatique de chaque mention (nom,
+  alias, pluriels), carte des mentions par entrée, liste d'exclusion et
+  casse, champs personnalisés, « progressions » dans le temps
+  (docs.novelcrafter.com, 03/09). L'application a déjà les mentions et les
+  alias ; il lui manque le lien aux plans et les progressions.
+- Boords, animatique : durée par image réglée sur une timeline, voix off
+  téléversée (WAV/MP4, 20 Mo max) qui fixe la durée, export MP4 et PDF,
+  champs de texte en sous-titres, plugin After Effects (boords.com,
+  help.boords.com, 03/09).
+- fal, Veo 3.1 reference-to-video : **1 à 9 images de référence** pour la
+  constance du sujet, aussi sur Veo 3.1 Fast (fal.ai, 03/09). fal, Kling v3
+  Pro : `elements` (références image/vidéo nommées @Element dans le prompt),
+  vérifié en R1. fal, Nano Banana Pro : `image_urls` accepte plusieurs
+  images ; l'application n'en passe qu'une (mesuré dans le code).
+- Sudowrite, Final Draft, Celtx : de mémoire, non vérifiés — non utilisés
+  comme argument.
+
+**Bacs**
+
+*Parité nécessaire*
+- **P1 — Bible relationnelle** : table plan ↔ entités (qui, où, quoi) remplie
+  par la découpe LLM (elle connaît déjà les entités du chapitre) et éditable
+  à la main ; sur la fiche : apparitions par chapitre et par plan, planches,
+  voix. Les mentions dans le texte existent, on les prolonge aux plans.
+- **P2 — Versions du texte** : instantané automatique avant chaque passe LLM
+  (adaptation, découpe, réécriture) et à chaque enregistrement manuel ;
+  comparaison côte à côte et restauration. Table de versions par chapitre et
+  par scène, jamais d'écrasement silencieux.
+- **P3 — Cohérence multi-références** : passer à Nano Banana Pro **toutes**
+  les vues de la planche (face, profil, corps, palette) au lieu d'une ; pour
+  la vidéo, Veo 3.1 reference-to-video (jusqu'à 9 images) et les `elements`
+  de Kling v3 ; mesurer la dérive avec un banc (distance d'identité entre le
+  plan généré et la planche), pas au ressenti.
+- **P4 — Animatique depuis les plans** : croquis (ou image) + durée par plan
+  + voix témoin ElevenLabs → MP4 9:16 par ffmpeg, avant toute génération
+  payante ; le rendu d'épisode existant fournit la mécanique (image fixe +
+  voix + concaténation).
+- **P5 — Import Fountain et FDX** : Fountain est un format texte à
+  spécification publique ; FDX est le XML de Final Draft — un parseur pour
+  chacun vers scènes et dialogues.
+- **P6 — Exports docx/PDF du chapitre et du scénario, PDF du storyboard**
+  (croquis, durée, fiche de plan, notes) : mise en page par code, comme
+  l'export impression de Card Forge.
+
+*Différenciant*
+- **D1 — Réécriture et génération à la demande, dans le ton de la bible** :
+  sélection → reformuler, resserrer, traduire, proposer une scène ou un
+  dialogue, avec la bible et la persona injectées ; chaque passe crée une
+  version (P2) et se refuse à écraser. Aucune référence ne relie la
+  réécriture à une bible visuelle **et** à un casting de voix.
+- **D2 — Un chapitre, quatre sorties** : épisode narré, film de plans, reel
+  court, livre — depuis la même bible et le même storyboard ; la sortie
+  « reel » découpe un extrait de 15–60 s avec ses plans déjà générés.
+- **D3 — L'animatique s'ouvre au Montage** : chaque plan de l'animatique
+  devient un clip de la timeline ; un plan généré remplace son croquis sans
+  perdre le timing (le nœud de « Rendu existant » et la lignée de la
+  Bibliothèque y servent).
+
+*Écarté*
+- **E1 — Ordre imposé texte → image ou image → texte** : réponse 4.
+- **E2 — Zones interdites aux LLM** : aucune déclarée ; la garde est la
+  version (P2), pas l'interdiction.
+- **E3 — Progressions façon NovelCrafter** (évolution d'un personnage dans
+  le temps) : non demandées ; la bible relationnelle (P1) suffit d'abord.
+
+**Coût de patch** : Chapitres est un écran du bundle — P1 (fiche, plans),
+P2 (comparaison), P4 (bouton animatique), D1 (menu de sélection) sont des
+patches chaînés ; P3, P5, P6 et le moteur de D2 sont surtout backend
+(services image, parseurs, exports par code).
