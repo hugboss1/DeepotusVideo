@@ -486,3 +486,113 @@ avoir mesuré que A ne suffit pas.
   seulement les noms des tests.
 - **Le navigateur voit et manipule, Python écrit.** Cette règle vaut pour toute
   catégorie qui produit un fichier.
+
+---
+
+## Réponses et bacs, catégorie par catégorie
+
+> Section ajoutée par la session du 02–03/09/2026. Chaque catégorie : les
+> réponses de l'utilisateur telles quelles, les références **vérifiées** (avec
+> la date et la source) ou marquées « de mémoire », puis les trois bacs.
+
+### R1. Quick — réponses (02–03/09/2026)
+
+**Ce que le code fait aujourd'hui** (relu le 02/09 : `routes.py`,
+`fal_service.py` VIDEO_MODELS, `schemas.py` GenerateRequest, bundle `um`) :
+quatre onglets (Seedance, HeyGen, Composition, Voice Over) ; 11 modèles
+image → clip au registre (Seedance 1.0 Pro, 2.0, 2.0 Fast, 2.5, Kling v3 Pro et
+Standard, PixVerse v6, Veo 3.1 ×4) avec prix estimé avant tir ; image de fin
+acceptée par 6 modèles sur 11, graine par 3 sur 11 ; durée 3–60 s avec
+allongement ffmpeg (boucle/gel) au-delà du natif ; listes fermées 3 styles,
+11 caméras, 8 lumières + templates et constructeur de prompt ; presets
+sauvegardables pour HeyGen seulement (`/heygen/presets`) ; lot de 1 à 8
+variations sur UN modèle ; `source_graph` conservé pour « Reopen in Studio ».
+Absents : extension générative d'un clip, lip-sync, sous-titres dans Quick
+(ils vivent au Montage).
+
+**Réponses**
+1. Geste le plus fréquent : **image → clip**.
+2. Début + fin : existe mais **mal exposé** ; extension générative : **absente**.
+   Les deux manquent.
+3. Presets : **galerie visuelle ET presets personnels** sauvegardables.
+4. Comparaison multi-moteurs : **oui, mais au Studio** (pas dans Quick).
+5. Sous-titres et lip-sync : **les deux dans Quick** (le clip sort prêt à poster).
+6. Résultat raté : **je varie le prompt ou le modèle** — repartir du formulaire
+   prérempli, pas rejouer à l'identique.
+7. « Formulaire » : **les quatre onglets** le font encore ressentir.
+8. Mouvement : **caméra chiffrée ET brosse de mouvement** souhaitées.
+
+**Références vérifiées le 03/09/2026**
+- Runway : la Motion Brush était **réservée à Gen-2**, retiré le 11 mai 2025 ;
+  le contrôle caméra chiffré (gauche/droite, haut/bas, pan, tilt, roll, zoom)
+  était **Gen-3 Alpha Turbo**, retiré le 30 juillet 2026 ; Gen-4 et Gen-4.5
+  pilotent la caméra **par le prompt** (help.runwayml.com, résultats de
+  recherche du 03/09 — les pages détaillées refusent la lecture automatique,
+  HTTP 403). Le « Runway fait X » du brief est donc périmé.
+- Kling (application) : Motion Brush jusqu'à **6 éléments** avec trajectoire
+  dessinée + Static Brush ; contrôle caméra par « commandes absolues » sur
+  6 axes (horizontal, vertical, zoom, pan, tilt, roll) + 4 master shots
+  (kling.ai/quickstart, 03/09). Version de modèle et accès API : **non
+  précisés** sur ces pages.
+- fal, Kling v3 Pro image-to-video : `start_image_url`, `end_image_url`,
+  `duration` 3–15, `elements` (références @Element), `shot_type`,
+  `negative_prompt`, `cfg_scale`, `generate_audio` ; **pas** de
+  `camera_control`, **pas** de `dynamic_masks`, **pas** de `seed` (fal.ai,
+  03/09). Via fal, la brosse et la caméra chiffrée de Kling sont donc hors de
+  portée aujourd'hui.
+- fal, Veo 3.1 extend-video (et Fast) : `video_url` source **≤ 8 s** en
+  720p/1080p, 16:9 ou 9:16 ; `prompt` ; extension 7 s par défaut ; audio
+  généré par défaut (fal.ai, 03/09). `veo-3.1-fast-fal` est déjà au registre.
+- fal, lip-sync : Kling LipSync audio-to-video (vidéo 2–10 s, audio 2–60 s,
+  0,014 $/s), Sync Lipsync v2 (3 $/min) et v3, LatentSync (0,2 $ jusqu'à
+  40 s), MuseTalk, veed/lipsync (fal.ai, 03/09).
+
+**Bacs**
+
+*Parité nécessaire*
+- **P1 — Rouvrir dans Quick, prérempli.** Depuis la file et la Bibliothèque :
+  image, prompt, modèle, paramètres rechargés dans l'onglet d'origine, prêts
+  à varier (réponse 6). Le mécanisme existe pour le Studio (`source_graph`) ;
+  Quick doit conserver sa propre recette de rendu.
+- **P2 — Extension générative d'un clip.** Route `/generate/extend` sur
+  Veo 3.1 extend-video (fal), depuis un rendu ; source ≤ 8 s (le refus dit
+  pourquoi), prix avant tir, résultat dans la file et la Bibliothèque avec
+  lignée vers le clip d'origine.
+- **P3 — Image de fin exposée.** La DropZone « fin » de DESIGN §8.1, visible,
+  grisée avec la raison quand le modèle ne l'accepte pas (5 modèles sur 11).
+- **P4 — Sous-titres dans Quick.** Case « sous-titrer » qui enchaîne la
+  transcription et l'incrustation existantes (`subtitle_service`) sur le
+  rendu Quick, preset choisi dans la même liste que le Montage.
+- **P5 — Lip-sync dans Quick.** Quand une voix off est jointe, option
+  lip-sync fal (Kling LipSync par défaut, coût 0,014 $/s ajouté à l'estimé) ;
+  le clip source doit tenir dans 2–10 s, le refus le dit.
+- **P6 — Presets personnels sur les quatre onglets.** Généraliser
+  `/heygen/presets` : enregistrer et rappeler un jeu complet (modèle, durée,
+  caméra, lumière, prompt, voix).
+
+*Différenciant*
+- **D1 — Galerie visuelle de mouvements et de styles**, rendue UNE fois et
+  localement : 11 caméras × 3 styles sur une image de marque, vignettes
+  cliquables avant d'écrire ; aucune référence en ligne ne le fait sur les
+  presets de l'utilisateur.
+- **D2 — Curseurs caméra chiffrés traduits en prompt** pour tous les moteurs
+  (Veo, Seedance, Kling via fal n'ont que le texte) : un même réglage
+  pan/tilt/zoom devient la phrase caméra adaptée au modèle ; si l'API Kling
+  directe entre un jour au registre, les mêmes curseurs alimentent
+  `camera_control`.
+- **D3 — Les quatre onglets en « studio »** selon DESIGN §8.1 (source à
+  gauche 360 px, preview au centre, coût et Générer collés en bas) — à
+  chiffrer onglet par onglet, car chacun est un patch du bundle.
+
+*Écarté*
+- **E1 — Comparaison multi-moteurs dans Quick** : voulue au Studio → traitée
+  dans la catégorie Studio.
+- **E2 — Re-roll à graine fixe** : 3 modèles sur 11 acceptent une graine et
+  le geste réel est varier, pas rejouer.
+- **E3 — Brosse de mouvement** : aucun accès via fal (mesuré), Runway l'a
+  retirée ; revient à l'ordre du jour seulement si l'API Kling directe (clé
+  séparée) est branchée.
+
+**Coût de patch** : Quick vit dans le bundle (`um`) — P1, P3, P4, P5, P6, D1,
+D2, D3 sont des patches `patch_bundle_*` chaînés ; P2 est surtout backend
+(route + registre) plus un bouton sur la carte de rendu.
