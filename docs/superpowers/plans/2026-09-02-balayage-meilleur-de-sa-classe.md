@@ -1520,3 +1520,86 @@ par prompt.
 **Coût de patch** : `/spritelab` est autonome (hors bundle) — P1, P2, P5,
 D1 (bouton) y sont bon marché ; P3, P4, D2 et le moteur de D1 sont backend
 (`sprite_service.py`, `pixel_ops.py`, nouveaux exporteurs).
+
+### R10b. Game Assets — Tuiles — réponses (03/09/2026)
+
+**Ce que le code fait aujourd'hui** (relu le 03/09 : `pixel_ops.py`,
+`frontend/tilelab/tilelab.js` 220 lignes, patch `tilelab`) : page autonome
+`/tilelab` (sous-onglet du hub Game Assets, hors bundle) ; une image
+(générée ou importée) devient une tuile **seamless** par décalage 50/50
+fondu ou miroir 2×2 ; **score de raccord 0–100 mesuré** (moyenne des
+différences absolues entre bords opposés, 0 = parfait) ; aperçu composite
+2×2 plafonné à 512 px ; pipeline pixel-art local disponible. Absents :
+jeux de tuiles à bords compatibles (Wang, blob), auto-tiling, exports
+Tiled/LDtk/Godot, iso et hex, variations, aperçu 8×8, mesures de
+répétition et d'éclairage, lien aux Matières et à la bible, peintre de
+niveau.
+
+**Réponses**
+1. Jeux raccordables : **blob 47 (ou 16) généré depuis deux matières**,
+   bords testés au score de raccord.
+2. Export : **Tiled (.tsx), règles LDtk, Godot TileSet** — les trois.
+3. Iso/hex : **les deux**, chacune avec masque et test de raccord.
+4. Variations : **oui, 3 à 5 variantes + aperçu 8×8 à tirage aléatoire**.
+5. Source : **depuis une matière du Material Forge, par prompt avec le
+   style d'un lieu de la bible, par prompt libre** — les trois.
+6. Mesures : **raccord, répétition (auto-corrélation), éclairage** — trois
+   chiffres par tuile et par jeu.
+7. Taille : **les deux selon le jeu** — pixel-art par le pipeline local,
+   texturées par le seamless.
+8. Peintre : **oui, un peintre minimal avec auto-tiling** (grille, pinceau
+   de terrain, règle blob en direct, export PNG + carte JSON).
+
+**Références vérifiées le 03/09/2026**
+- Tiled : formats TMX/TSX en XML ; un `.tsx` est l'élément `<tileset>`
+  (tilewidth, tileheight, tilecount, columns, image) sans `firstgid`
+  (doc.mapeditor.org, 03/09) — écrivable par code.
+- LDtk : auto-layers fondées sur des IntGrid, règles = motifs de grille
+  (« peindre si la cellule vaut X et les voisines… ») dans
+  `autoRuleGroups` des définitions de calque ; schéma JSON public ;
+  export TMX possible (ldtk.io, 03/09).
+- Godot 4 : `TileSet` avec terrains (terrain sets) et TileMapLayer
+  (docs.godotengine.org, 03/09) ; le format `.tres` est texte.
+- Blob 47 / Wang (cr31), Sprite Fusion, TileMill : de mémoire, non
+  vérifiés — le nombre 47 vient du blob complet à 8 voisins avec coins,
+  à confirmer contre la référence au moment du plan.
+
+**Bacs**
+
+*Parité nécessaire*
+- **P1 — Jeu blob (47 ou 16) depuis deux matières** : génération des
+  transitions par masque (les 47 masques dessinés par code) et mélange
+  des deux tuiles seamless ; chaque tuile testée au score de raccord
+  contre ses voisines légales, pas seulement contre elle-même.
+- **P2 — Exports** : Tiled `.tsx` (tileset image + métadonnées), LDtk
+  (tileset + `autoRuleGroups` pour le blob), Godot `TileSet` `.tres` avec
+  terrains ; un banc lit chaque fichier écrit.
+- **P3 — Variations et aperçu 8×8** : 3 à 5 variantes par tuile (graine ou
+  perturbation locale), aperçu 8×8 à tirage aléatoire, la répétition se
+  voit avant l'export.
+- **P4 — Trois mesures** : raccord (existant), répétition
+  (auto-corrélation sur la grille 8×8), éclairage (gradient moyen par
+  tuile, écart dans le jeu) — affichées par tuile et par jeu, seuils
+  nommés.
+- **P5 — Iso et hex** : masques losange 2:1 et hexagone, raccord testé sur
+  les bords correspondants, export dans les trois formats quand ils le
+  supportent (Tiled : orientation ; Godot : formes de tuile).
+
+*Différenciant*
+- **D1 — Une matière = un tileset** : l'albedo d'une matière PBR du
+  Material Forge devient la tuile de base ; la même matière habille la 3D
+  et le niveau 2D — aucun outil de tuiles ne part d'une matière PBR
+  locale.
+- **D2 — Tuiles au style d'un lieu de la bible** : la planche et la
+  palette du lieu (R3) contraignent le prompt du jeu de tuiles.
+- **D3 — Peintre minimal avec auto-tiling** : grille, pinceau de terrain,
+  règle blob appliquée en direct, export PNG + JSON ; teste le tileset
+  sans quitter l'app.
+
+*Écarté*
+- **E1 — Éditeur de niveaux complet** : Tiled et LDtk restent les
+  éditeurs ; le peintre (D3) ne fait que tester.
+
+**Coût de patch** : `/tilelab` est autonome (hors bundle) — P3, P4, P5
+(aperçus), D3 y sont bon marché ; P1, P2, D1, D2 et les moteurs de mesure
+sont backend (`pixel_ops.py`, nouveaux exporteurs, lien `material_store`).
