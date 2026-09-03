@@ -798,7 +798,15 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     audio_only=True (POST /measure) : MÊME graphe audio — mêmes durées de
     segments V1 (total, fondus musique, maître de durée), mêmes chaînes de
     mix — mais aucune vidéo ouverte ni décodée ; le mix sort dans ebur128
-    (LUFS I / TP / LRA) et la sortie est jetée (-f null)."""
+    (LUFS I / TP / LRA) et la sortie est jetée (-f null).
+    EFFET DE BORD ASSUMÉ (03/09/2026) : la route de mesure partageant ce
+    graphe, le correctif du ducking (apad sur la chaîne latérale, plus bas)
+    CHANGE la valeur retournée pour tout projet voix + musique + ducking.
+    Jusqu'ici elle mesurait un mix tronqué à la dernière syllabe de la voix —
+    fidèlement, puisque le rendu l'était aussi ; les deux sont corrigés
+    ensemble, et restent donc d'accord. Conséquence pratique : toute mesure
+    LUFS relevée AVANT le 03/09/2026 sur un projet de ce type est périmée,
+    il faut la refaire."""
     if audio_only:
         v2 = []
     inputs, parts = [], []
@@ -1135,19 +1143,32 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             parts.append(f"{voice_lbl[0]}anull[vall]")
         if music_lbl and ducking:
             # P0 — LA CHAÎNE LATÉRALE DOIT DURER AUSSI LONGTEMPS QUE LA
-            # MUSIQUE. `sidechaincompress` s'arrête à la fin de son entrée la
-            # PLUS COURTE (framesync, EXT_STOP sur les deux entrées) : la voix
-            # servant de détecteur, une voix de 2 s coupait NET la musique
-            # bouclée d'un rendu de 4 s. Le fichier sortait avec une piste
-            # audio de 2 s dans une vidéo de 4 s — « la piste musique n'est
-            # pas rendue » : elle l'était, jusqu'à la dernière syllabe du
-            # commentaire, puis plus rien. Le silence n'était pas visible dans
-            # la commande, seulement dans le FICHIER (ffprobe : audio 2,0 s /
-            # vidéo 4,0 s) — cf. tests/test_montage_pistes_rendu.py.
-            # apad n'ajoute que du silence : il ne tronque jamais une voix
-            # plus longue que `total`, et le détecteur ne voit rien de plus
-            # (du silence ne duckera pas), donc le ducking lui-même est
-            # inchangé sur toute la durée où la voix existe.
+            # MUSIQUE. MESURÉ, pas déduit : `sidechaincompress` rend un flux
+            # qui s'arrête à la fin de son entrée la PLUS COURTE — 6 s de
+            # musique sidechainée par 2 s de voix sortent à 2,0 s, pas à 6
+            # (ffmpeg 8.1.1, celui du PATH de cette machine : c'est lui que
+            # lance le « ffmpeg » nu émis plus bas ; mesure hors dépôt).
+            # AUCUNE DÉCIMALE N'EST ÉCRITE ICI, ET C'EST DÉLIBÉRÉ : la même
+            # commande relancée 12 fois sur le MÊME binaire rend 1,973696 /
+            # 1,996916 / 2,000000 s (87040, 88064 ou 88200 échantillons — le
+            # vidage des dernières trames n'est pas déterministe). Deux
+            # revues successives ont lu cette dispersion comme un écart de
+            # version, puis comme un écart de paramètres du filtre ; ce n'est
+            # ni l'un ni l'autre, et une décimale de plus ici rouvrirait le
+            # débat une quatrième fois. Le filtre n'expose AUCUNE option pour
+            # décider de cette fin : `ffmpeg -h filter=sidechaincompress` ne
+            # liste ni `shortest`, ni `eof_action`, ni `repeatlast` — vérifié
+            # sur le 8.1.1 du PATH et sur le 9.0 embarqué de l'app. Allonger
+            # le détecteur est donc le seul levier ; rien n'est affirmé ici
+            # des internes d'ffmpeg, seul le comportement observé l'est. La
+            # voix servant de détecteur, une voix de 2 s coupait NET la
+            # musique bouclée d'un rendu de 4 s : le fichier sortait avec une
+            # piste audio de 2 s dans une vidéo de 4 s — « la piste musique
+            # n'est pas rendue » : elle l'était, jusqu'à la dernière syllabe
+            # du commentaire, puis plus rien. Le silence n'était pas visible
+            # dans la commande, seulement dans le FICHIER (ffprobe :
+            # audio 2,0 s / vidéo 4,0 s) — cf.
+            # tests/test_montage_pistes_rendu.py.
             parts.append("[vall]asplit=2[vsc0][vmix]")
             parts.append(f"[vsc0]apad=whole_dur={round(total, 3)}[vsc]")
             if isinstance(ducking, dict):

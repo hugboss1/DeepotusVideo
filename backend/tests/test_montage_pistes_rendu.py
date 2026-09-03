@@ -1,22 +1,33 @@
 # -*- coding: utf-8 -*-
 """P0 — chaque piste arrive au rendu. Banc-MIROIR : on lit le FICHIER rendu
 (ffprobe, PIL, astats), jamais le code qui pretend le produire.
-Sources synthetiques : V1 bleu 4 s muet, overlay PNG rouge, musique 440 Hz,
-voix 880 Hz. Deux chemins : _build_montage_command en direct, puis la ROUTE
-POST /api/montage/render (TestClient, tache de fond executee avant le retour).
+Sources synthetiques : V1 bleu 4 s muet, overlay PNG rouge, musique 200 Hz,
+voix 2000 Hz amplifiee x4. Deux chemins : _build_montage_command en direct,
+puis la ROUTE POST /api/montage/render (TestClient, tache de fond executee
+avant le retour).
 Run : & $PY tests/test_montage_pistes_rendu.py   (depuis backend/)
 
 CONSTAT DU 03/09/2026 - le banc est sorti ROUGE au premier tour, sur les trois
 chemins a la fois : `*_musique_audible_seule_3s` a -inf dB entre 3,0 et 3,8 s.
-Cause racine MESUREE (pas deduite) : `sidechaincompress` s'arrete a la fin de
-son entree la PLUS COURTE (framesync). La voix sert de detecteur ; une voix de
-2 s coupait donc la musique bouclee a 2 s. ffprobe sur les trois fichiers
-rendus : flux video 4,000 s, flux audio 2,000 s. Isole hors du depot :
+Cause racine MESUREE (pas deduite, et rien n'est affirme ici des internes
+d'ffmpeg) : `sidechaincompress` rend un flux qui s'arrete a la fin de son
+entree la PLUS COURTE. La voix sert de detecteur ; une voix de 2 s coupait
+donc la musique bouclee a 2 s. ffprobe sur les trois fichiers rendus : flux
+video 4,000 s, flux audio 2,000 s. Isole hors du depot :
     ffmpeg -f lavfi -i sine=d=6 -f lavfi -i sine=d=2 -filter_complex
-           "[0:a][1:a]sidechaincompress=..." out.wav   ->   1,97 s
+      "[0:a][1:a]sidechaincompress=threshold=0.05:ratio=6:attack=50:release=400"
+      out.wav  ->  2,0 s au lieu de 6 (ffmpeg 8.1.1, celui du PATH ici, le
+      seul qui compte : le service emet un « ffmpeg » NU). AUCUNE DECIMALE :
+      12 tours de la MEME commande sur le MEME binaire rendent 1,973696 /
+      1,996916 / 2,000000 s — le vidage des dernieres trames n'est pas
+      deterministe, et cette dispersion a deja ete lue deux fois en revue
+      comme un ecart de version, puis de parametres. Elle n'est ni l'un ni
+      l'autre : c'est du bruit de quantification de trames.
 Correction : la chaine laterale [vsc] est prolongee par apad=whole_dur=total
 (montage_service, section ducking). C'est ce que verrouille desormais
-`*_audio_aussi_long_que_video`, l'assertion qui NOMME le mecanisme.
+`*_audio_aussi_long_que_video_avec_musique`, l'assertion qui NOMME le
+mecanisme, doublee de `*_musique_duckee_pendant_la_voix` : rallonger le
+detecteur ne doit pas eteindre le ducking qu'il commande.
 La musique disparaissait a la derniere syllabe du commentaire - ce qui
 correspond au signalement « la piste musique n'est pas rendue ». Les overlays
 V2, eux, sont sortis VERTS des le premier tour, sur les trois chemins : cette
@@ -40,8 +51,21 @@ os.environ["IMAGES_FOLDER"] = TMP + "/images"
 os.environ["OUTPUTS_FOLDER"] = TMP + "/outputs"
 os.environ.setdefault("FAL_KEY", "test-key")
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-FF = shutil.which("ffmpeg") or os.path.expandvars(r"%LOCALAPPDATA%\DeepotusVideoGen\bin\ffmpeg.exe")
-FP = shutil.which("ffprobe") or os.path.expandvars(r"%LOCALAPPDATA%\DeepotusVideoGen\bin\ffprobe.exe")
+
+
+def _exe(name):
+    p = shutil.which(name)
+    if p:
+        return p
+    cand = os.path.expandvars(rf"%LOCALAPPDATA%\DeepotusVideoGen\bin\{name}.exe")
+    if os.path.isfile(cand):
+        os.environ["PATH"] = os.path.dirname(cand) + os.pathsep + os.environ["PATH"]
+        return cand   # la commande sous test lance un "ffmpeg" NU : il faut le PATH
+    print(f"SKIP: {name} introuvable — le banc-miroir ne peut rien mesurer")
+    sys.exit(0)
+
+
+FF, FP = _exe("ffmpeg"), _exe("ffprobe")
 from PIL import Image                                   # noqa: E402
 from app.services import montage_service as M           # noqa: E402
 
@@ -55,11 +79,33 @@ def sh(cmd, timeout=240):
     return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout,
                           encoding="utf-8", errors="replace")
 
+def fixture(label, cmd):
+    """Une source qui ne se cree pas doit mourir ICI. Sans ce garde-fou, une
+    panne de `sine`/`color` ressortait trois ecrans plus loin en erreur PIL ou
+    ffprobe, sur une assertion qui n'a rien a voir."""
+    r = sh(cmd)
+    if r.returncode:
+        print(f"  ECHEC fixture {label} : {r.stderr[-400:]}")
+        sys.exit(1)
+
 V1, OV, MUS, VOX = (os.path.join(TMP, n) for n in ("v1.mp4", "ov.png", "theme_music.wav", "voice.wav"))
-sh([FF, "-y", "-v", "error", "-f", "lavfi", "-i", "color=c=0x2040a0:s=270x480:r=30:d=4", "-pix_fmt", "yuv420p", V1])
+fixture("v1", [FF, "-y", "-v", "error", "-f", "lavfi", "-i",
+               "color=c=0x2040a0:s=270x480:r=30:d=4", "-pix_fmt", "yuv420p", V1])
 Image.new("RGB", (96, 96), (255, 40, 40)).save(OV)
-sh([FF, "-y", "-v", "error", "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=44100:duration=6", MUS])
-sh([FF, "-y", "-v", "error", "-f", "lavfi", "-i", "sine=frequency=880:sample_rate=44100:duration=2", VOX])
+fixture("musique", [FF, "-y", "-v", "error", "-f", "lavfi", "-i",
+                    "sine=frequency=200:sample_rate=44100:duration=6", MUS])
+# Voix a 2000 Hz et 4x plus forte que le sinus nu — DEUX raisons mesurees.
+# (a) 200/2000 Hz se separent proprement (deux lowpass a 400 Hz laissent la
+#     musique et rejettent la voix) ; a 440/880 la voix fuitait dans la bande
+#     musique et noyait la mesure (-50,9 dB de fuite contre -50,4 de musique).
+# (b) le sinus de lavfi sort a -21 dBFS RMS ; au bus dialogue -6 dB le
+#     detecteur tombe a -27 dBFS, SOUS le seuil 0,05 (-26 dBFS) du
+#     sidechaincompress : le ducking ne reduisait que de 0,3 dB — le banc
+#     nommait un mecanisme qu'il n'exercait pas. A x4 : detecteur
+#     -15 dBFS, et 8,21 dB de ducking mesures au fichier rendu.
+fixture("voix", [FF, "-y", "-v", "error", "-f", "lavfi", "-i",
+                 "sine=frequency=2000:sample_rate=44100:duration=2",
+                 "-af", "volume=4", VOX])
 
 def probe(path):
     d = json.loads(sh([FP, "-v", "error", "-show_entries", "stream=codec_type:format=duration",
@@ -85,14 +131,19 @@ def mean_rgb(im, box=None):
     px = list(im.getdata()); n = float(len(px))
     return tuple(round(sum(p[i] for p in px) / n, 1) for i in range(3))
 
-def rms_db(path, t0, t1):
+def rms_db(path, t0, t1, pre=""):
+    """-999.0 = silence MESURE (astats a rendu -inf). Un ECHEC de mesure leve :
+    un banc qui ne mesure pas ne doit pas ressembler a un banc qui mesure du
+    silence — c'est la meme valeur, ce n'est pas le meme fait. `pre` prefixe la
+    chaine -af (filtrage de bande avant la mesure)."""
     r = sh([FF, "-hide_banner", "-ss", str(t0), "-t", str(t1 - t0), "-i", path, "-vn",
-            "-af", "astats=measure_overall=RMS_level:measure_perchannel=none", "-f", "null", "-"])
+            "-af", pre + "astats=measure_overall=RMS_level:measure_perchannel=none",
+            "-f", "null", "-"])
     for ln in r.stderr.splitlines():
         if "RMS level dB" in ln:
             v = ln.split(":")[-1].strip()
             return -999.0 if v == "-inf" else float(v)
-    return -999.0
+    raise RuntimeError(f"astats muet sur {path} [{t0};{t1}] :\n{r.stderr[-400:]}")
 
 def v1_spec():
     return [{"path": V1, "src_dur": 4.0, "src_in": 0.0, "start": 0.0, "end": 4.0,
@@ -112,8 +163,15 @@ def verify(tag, out, cover=True):
     kinds, dur = probe(out)
     check(f"{tag}_une_video_une_audio", kinds.count("video") == 1 and kinds.count("audio") == 1, str(kinds))
     check(f"{tag}_duree_4s", abs(dur - 4.0) < 0.15, f"{dur}")
+    # VRAI SOUS CONDITION, et le banc ne joue que des cas qui la remplissent :
+    # le flux audio atteint la fin de la video des qu'une piste MUSIQUE existe
+    # (entree -stream_loop -1, coupee a `total` par -t). SANS musique, le mix
+    # s'arrete au dernier clip a1/a3 : une voix de 2 s dans une video de 4 s
+    # laisse encore un flux audio de 2 s — RESIDUEL PRE-EXISTANT, hors de ce
+    # correctif et non couvert ici. Ce que cette assertion verrouille, c'est
+    # que le DUCKING ne raccourcisse plus le mix.
     da, dv = stream_dur(out, "audio"), stream_dur(out, "video")
-    check(f"{tag}_audio_aussi_long_que_video", da >= dv - 0.15,
+    check(f"{tag}_audio_aussi_long_que_video_avec_musique", da >= dv - 0.15,
           f"audio {da}s, video {dv}s")
     b0, b2, b35 = mean_rgb(frame(out, 0.5)), mean_rgb(frame(out, 2.0)), mean_rgb(frame(out, 3.5))
     check(f"{tag}_overlay_absent_avant", b0[2] > b0[0] + 60, f"{b0}")
@@ -127,8 +185,34 @@ def verify(tag, out, cover=True):
         check(f"{tag}_overlay_coin_bleu", k[2] > k[0] + 60, f"{k}")
     check(f"{tag}_overlay_absent_apres", b35[2] > b35[0] + 60, f"{b35}")
     m = rms_db(out, 3.0, 3.8); v = rms_db(out, 0.2, 1.8)
+    # SEUILS ET LEURS MARGES, mesures sur les trois chemins de ce banc (mp4/AAC,
+    # pas un graphe WAV isole) le 03/09/2026, a 0,01 dB pres d'un chemin a
+    # l'autre :
+    #   musique seule 3,0-3,8 s : -42,10 dB -> seuil -45, MARGE 2,9 dB
+    #   voix 0,2-1,8 s          : -18,05 dB -> ecart a la musique 24,05 dB,
+    #                                          seuil 6, marge 18,05 dB
+    # La voix a donc plus de SIX FOIS la marge de la musique : le seuil -45 est
+    # le plus serre du banc, c'est lui qui cassera le premier si l'encodage
+    # change. Ne pas le desserrer sans remesurer : -45 laisse encore 2,9 dB.
     check(f"{tag}_musique_audible_seule_3s", m > -45, f"{m} dB")
     check(f"{tag}_voix_plus_forte_que_musique", v > m + 6, f"voix {v} dB, musique {m} dB")
+    # Le correctif ALLONGE le detecteur : mal pose, il pourrait eteindre le
+    # ducking sans rien casser d'autre. On le mesure dans la bande de la
+    # musique (deux lowpass a 400 Hz ; la voix est a 2000 Hz) : duckee pendant
+    # la voix, pleine apres. Mesure sur mp4/AAC : -50,84 dB pendant contre
+    # -42,63 dB apres, soit 8,21 dB de ducking -> seuil 4, MARGE 4,21 dB.
+    # (Le chiffre du graphe WAV isole, 8,2 dB, se retrouve tel quel apres
+    # l'encodage AAC : rien a rattraper de ce cote.)
+    # VERIFIE PAR MUTATION, sinon cette assertion ne vaudrait rien : en
+    # remplacant la branche par `{music_lbl}anull[mduck]` + `[vsc]anullsink`,
+    # elle vire au ROUGE sur les trois chemins (pendant -42,60 contre apres
+    # -42,63 : 0,04 dB, aucun ducking) et elle SEULE — les 30 autres restent
+    # vertes. C'est exactement le trou signale a la revue : avant elle, on
+    # pouvait supprimer tout le sidechaincompress sans faire rougir le banc.
+    LP = "lowpass=f=400,lowpass=f=400,"
+    dpen, dapr = rms_db(out, 0.4, 1.7, LP), rms_db(out, 3.0, 3.8, LP)
+    check(f"{tag}_musique_duckee_pendant_la_voix", dapr > dpen + 4,
+          f"pendant {dpen} dB, apres {dapr} dB")
 
 print("\n[1] _build_montage_command en direct — overlay cover, voix, musique bouclee")
 out1 = os.path.join(TMP, "direct.mp4")
