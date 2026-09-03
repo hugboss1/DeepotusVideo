@@ -2122,3 +2122,162 @@ vérification de mise à jour.
 P3, P4 (bandeau), D3 sont des patches chaînés ; les moteurs (tests de
 clés, plafonds, export, coffre, mise à jour) sont backend (`config.py`,
 `env_service`, `pricing.py`, nouveau module de coffre).
+
+### R12. L'application mobile compagnon — réponses (03/09/2026)
+
+**Ce que l'architecture impose, remesuré le 03/09** (`config.py`,
+`main.py`, `routes.py`) : `HOST = "127.0.0.1"`, `PORT = 8765` ; garde CSRF
+`_csrf_origin_guard` — les requêtes non-GET dont l'`Origin` n'est pas
+127.0.0.1 / localhost / ::1 sont refusées (403), **les requêtes sans
+`Origin` (curl, application native) passent** ; `_require_localhost` sur
+les routes des clés (`/settings/keys`) refuse tout client non loopback
+même si HOST était ouvert ; clés dans `.env` en clair sous `DATA_ROOT` ;
+données locales de plusieurs Go ; aucun appairage, aucun jeton d'appareil
+dans le code. La boucle du Scheduler tourne dans le backend : PC éteint,
+rien ne part.
+
+**Réponses**
+1. Besoin réel, par fréquence : **1) valider ou reporter des posts,
+   publier à la main ; 2) relancer, varier, cloner un rendu ; 3) écrire
+   ou relire un chapitre, annoter un rendu ; 4) envoyer une photo, un
+   lien, une idée vers l'app**.
+2. Doit aboutir sans le PC : **la publication à l'heure, une génération
+   par moteur en ligne, l'écriture**.
+3. PC allumé ou réveillable : **non — le PC est vraiment éteint (portable,
+   déplacements)**. La lecture A est donc **hors sujet** : la
+   recommandation du brief (A d'abord) tombe sur ce fait, mesuré par la
+   réponse.
+4. Architecture : **B — le téléphone travaille seul** ; pas d'hôte
+   permanent déclaré.
+5. Clés : **oui, par l'archive chiffrée de Settings (R11 D1),
+   déverrouillée par mot de passe**, stockées dans le coffre système du
+   téléphone.
+6. Sync : **seulement dans mon réseau (Wi-Fi maison), sync au retour** ;
+   aucun service tiers.
+7. Forme : **native, iPhone ET Android** (réponse « 1+2 ») — donc une base
+   de code multiplateforme native, ou deux apps ; le plan chiffre.
+8. Partages entrants : **photo → Bibliothèque/Quick/Material Forge/3D ;
+   lien ou article → News ; texte ou idée → Chapitres ou brief** — les
+   trois.
+9. Notifications : **rendu terminé ou échoué, post à publier / publié /
+   échoué, plafond approché ou dépassé, synchronisation terminée ou en
+   conflit** — les quatre.
+10. Dépenses : **confirmation avec coût affiché + plafond journalier
+    propre au mobile**.
+11. Appairage : **QR + jeton révocable, plusieurs appareils** (tablette,
+    second téléphone, jusqu'à cinq nommés).
+12. Téléphone perdu : **révocation + rappel de régénérer les clés chez
+    chaque fournisseur** (liste avec liens vers chaque console).
+13. Bibliothèque : **index complet (vignettes) + projets épinglés en
+    entier**.
+14. Conflits : **verrou — un chapitre « emporté » est en lecture seule
+    sur le PC**, libéré au retour.
+15. Générations sur le téléphone seul : **images et retouches, clips
+    vidéo et extension, voix off et musique, texte par LLM** — tout.
+16. Premier lot : **publier à l'heure et valider le lot de la semaine**.
+
+**Références vérifiées le 03/09/2026**
+- Web Share Target (recevoir un partage dans une PWA) : Android/Chrome
+  avec PWA installée ; **pas sur iOS Safari** (developer.mozilla.org,
+  web.dev, bugs.webkit.org, 03/09) → la réponse 8 sur iPhone exige une
+  application **native**, ce que la réponse 7 dit déjà.
+- Web Push iOS : seulement pour les web apps ajoutées à l'écran d'accueil
+  depuis 16.4, sur geste utilisateur (webkit.org, 03/09) — sans objet en
+  natif, gardé pour mémoire.
+- Réseaux (R6) : X gratuit 500 posts/mois ; Instagram 50 posts/24 h en
+  compte pro ; YouTube 100 envois/jour ; TikTok privé sans audit — les
+  mêmes bornes valent depuis le téléphone, avec les **mêmes jetons**
+  (dupliqués par l'archive).
+- Exécution en arrière-plan à heure fixe sur iOS (publier à 9 h 00 sans
+  ouvrir l'app) : **de mémoire, à vérifier au plan** — iOS ne garantit pas
+  une tâche de fond à l'heure exacte ; la voie sûre est une notification
+  locale à l'heure qui ouvre l'app et publie au premier plan, la
+  publication silencieuse restant un objectif mesuré, pas promis. Android
+  (WorkManager, alarmes exactes) est plus permissif — à vérifier aussi.
+- Postiz (R6) reste le candidat si un relais permanent revenait un jour
+  (lecture C) ; écarté ici par les réponses 4 et 6.
+
+**Ce que B veut dire, sans détour**
+- Le téléphone est un **second poste** avec son propre magasin (base
+  locale, coffre de clés, cache d'assets), qui parle aux **mêmes
+  fournisseurs** avec les **mêmes clés**, et qui produit les **mêmes
+  fichiers** (rendus, posts, chapitres, recettes) que le PC.
+- La **synchronisation** est un protocole maison sur le Wi-Fi maison :
+  découverte du PC (mDNS), jeton d'appareil, transfert des assets et des
+  états dans les deux sens, verrous par chapitre, journal des conflits.
+  Le backend doit **écouter sur le LAN** (HOST configurable, plus
+  127.0.0.1 seul) **et** exiger le jeton d'appareil sur toute route hors
+  loopback ; `_require_localhost` reste tel quel : le téléphone ne lit
+  **jamais** les clés depuis le backend, il les reçoit par l'archive
+  chiffrée (R11 D1). La garde CSRF laisse passer les requêtes sans
+  `Origin` (mesuré) : ce n'est pas une brèche tant que le jeton est exigé
+  — le plan le pose en première tâche.
+- Les **plafonds** (R11 P2) et le **registre des coûts** deviennent
+  partagés : le téléphone compte ses tirs, le PC les fond au retour ; le
+  plafond journalier mobile est local au téléphone.
+- Le **Scheduler** (R6 D1) devient bicéphale : le lot validé est copié
+  sur le téléphone avec vidéos, légendes, heures et jetons ; le
+  téléphone publie (ou rappelle) à l'heure ; l'état revient au PC.
+
+**Bacs**
+
+*Parité nécessaire (ce sans quoi le compagnon ne tient pas)*
+- **P1 — Appairage et jeton** : QR affiché par le PC (adresse LAN + secret
+  à usage unique), jeton d'appareil révocable, jusqu'à cinq appareils
+  nommés dans Settings ; le backend écoute sur le LAN et refuse toute
+  requête non loopback sans jeton ; `_require_localhost` intact.
+- **P2 — Archive chiffrée → coffre du téléphone** : la même archive que
+  R11 D1 (mot de passe maître), lue par le téléphone, clés dans
+  Keychain/Keystore ; révocation depuis le PC + liste des clés à faire
+  tourner avec les liens des consoles.
+- **P3 — Premier lot : le Scheduler dans la poche** : lot de la semaine
+  validé sur le téléphone, publication à l'heure (X, Telegram par API ;
+  Instagram, YouTube, TikTok par API quand les adaptateurs de R6 P1
+  existent, sinon par partage vers l'app native du réseau), notification
+  à l'heure, état renvoyé au PC ; le comportement en arrière-plan est
+  **mesuré** sur iPhone et Android avant d'être promis.
+- **P4 — Synchronisation LAN au retour** : index complet des vignettes,
+  projets épinglés copiés en entier, rendus et générations du téléphone
+  rapatriés avec leur recette et leur lignée (R9 P3), verrous de
+  chapitre, journal des conflits, notification de fin.
+- **P5 — Notifications** : rendu terminé/échoué, post à publier/publié/
+  échoué, plafond, synchronisation — natives.
+- **P6 — Dépenses** : coût affiché et confirmation par tir, plafond
+  journalier mobile, compteur fondu au registre du PC.
+
+*Différenciant*
+- **D1 — Générer dans la poche, ranger au retour** : images, clips (avec
+  extension), voix, musique, texte LLM par les mêmes moteurs, les
+  résultats rangés dans la Bibliothèque du PC avec recette et lignée à la
+  synchronisation ; « Rouvrir dans Quick » (R1 P1) marche des deux côtés.
+  Aucun studio local n'a de second poste mobile qui produit les mêmes
+  fichiers.
+- **D2 — Partages entrants triés** : photo, lien, texte reçus par le
+  partage système et rangés vers Bibliothèque/Quick/Material Forge/3D,
+  News, Chapitres/brief — chaque cible reprend la mécanique de son écran.
+- **D3 — Écrire hors ligne sous verrou** : chapitre « emporté » en
+  lecture seule sur le PC, édité sur le téléphone, versionné (R3 P2),
+  libéré au retour ; annotations horodatées (R9 D2).
+- **D4 — Recette lançable depuis le téléphone** (R2 D1) : un graphe
+  sauvegardé lancé avec de nouvelles sources depuis le mobile, exécuté
+  par le téléphone (moteurs en ligne) ou mis en file pour le PC.
+
+*Écarté*
+- **E1 — Lecture A (télécommande + Wake-on-LAN)** : le PC est vraiment
+  éteint ; ne pas construire un tunnel pour un PC absent.
+- **E2 — Lecture C (relais permanent)** : pas d'hôte, aucun service tiers
+  voulu ; Postiz reste une note.
+- **E3 — PWA** : Web Share Target absent sur iOS (mesuré) et coffre
+  système hors de portée ; natif.
+- **E4 — Fusion automatique des textes** : verrou choisi ; plus simple et
+  sans surprise.
+- **E5 — Effacement à distance des clés** : contredit « seulement dans
+  mon réseau » ; révocation + rotation à la place.
+
+**Coût** : le compagnon est un **nouveau dépôt** (application native
+multiplateforme) plus, côté PC : LAN + jeton (backend), archive chiffrée
+(R11 D1), routes de synchronisation et de verrou, Scheduler bicéphale —
+tout backend, sans patch du bundle sauf la page d'appairage dans Settings
+(un patch). Le plan mobile se découpe en lots : P1+P2 (socle), P3 (premier
+lot), P4+P5+P6, puis D1–D4 ; chaque lot mesure ce qu'iOS et Android
+permettent réellement avant de le promettre.
