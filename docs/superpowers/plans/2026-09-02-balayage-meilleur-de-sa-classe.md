@@ -904,3 +904,131 @@ direction d'interprétation.
 (`frontend/patches/sfxstudio.js`, `vfxrack.js`) — moins chères que le bundle
 minifié : P3, D1, D2 (rack), D3 (tiroir) s'y font ; P1, P2, P4, P5 sont des
 routes + registres backend avec un bouton ; D4 touche Chapitres (bundle).
+
+### R5. Montage — réponses (03/09/2026)
+
+**Ce que le code fait aujourd'hui** (relu le 03/09 : `montage_service.py`,
+`subtitle_service.py`, `transcribe_service.py`, `subtitle_ui.py`, routes
+`/api/montage/*` et `/subtitles/*` ; `frontend/patches/son-vfx-montage.js`
+4 871 lignes, `vfxrack.js`, patch `subs`) : 5 pistes fixes (V2 overlay/VFX,
+V1 vidéo, A1 dialogue, A2 musique, A3 sfx) + S1 sous-titres ; canevas unique
+par montage parmi 9:16, 16:9, 1:1, 4:5 ; 9 transitions xfade (cut, fondu,
+dissolve, noir, glitch, slide, flash…) ; preview 480p gratuite, final 1080p ;
+gains, fondus, automation de volume, ducking, « maître de durée » ; V2 :
+overlays vidéo/image posés à leur position avec transformation ; S1 : 9
+styles sur fontes embarquées, karaoké `\k` par mot gravé par libass,
+transcription payante ou **calage gratuit du texte connu** sur l'audio,
+vérificateur de lisibilité, import/export SRT ; rack VFX avec LUT ; une
+seule sauvegarde de timeline (`montage_saved.json`) ; rendu vers la
+Bibliothèque et attachable à un post. Absents : montage par le texte, styles
+de sous-titres animés, réglages d'étalonnage, recadrage multi-format,
+pistes dynamiques, titres animés, découpe automatique, projets multiples,
+export EDL/XML.
+
+**Réponses**
+1. Montage par le texte : **les deux selon la source** — texte pour voix off
+   et avatars, forme d'onde pour les clips générés muets.
+2. Sous-titres animés façon CapCut : **parité nécessaire**.
+3. Étalonnage : **LUT + réglages de base ET correspondance de couleur entre
+   plans**.
+4. Multi-format : **recadrage automatique avec suivi du sujet**.
+5. Performance — trois points, dont un **défaut signalé** : « l'ordre des
+   pistes doit pouvoir se déplacer verticalement manuellement, et le rendu
+   doit rendre chaque piste, actuellement la piste overlay ou la piste
+   musique n'est pas rendue » ; **pas assez de pistes** ; **lecture non
+   fluide** dans la timeline.
+6. Transitions et titres : **les deux** (titres animés prêts + transitions
+   dynamiques).
+7. Auto-clips : **oui, depuis mes épisodes et films ET depuis des vidéos
+   externes**.
+8. Aller-retour : **remplacer un clip par une nouvelle version sans perdre
+   le montage, plusieurs projets nommés, export XML/EDL** — les trois.
+
+**Le défaut signalé, à mesurer avant tout** : le code prétend rendre V2
+(overlays, `montage_service.py` en-tête « Piste V2 ») et A2 (musique
+bouclée) ; l'utilisateur constate qu'une des deux n'arrive pas au rendu.
+Cette session n'a pas lancé le backend (interdit) : le défaut n'est **ni
+reproduit ni expliqué**. Le plan Montage commence par un banc-miroir qui
+lit le fichier rendu (ffprobe : pistes audio, image témoin de l'overlay),
+pas le code qui prétend le produire.
+
+**Références vérifiées le 03/09/2026**
+- Descript : mots de remplissage détectés et soulignés dans le script,
+  suppression en lot par le panneau AI Tools, langues EN/DE/**FR**/PT/IT
+  (help.descript.com, 03/09) ; le montage par le texte y coupe la vidéo.
+- CapCut : sous-titres automatiques mot par mot, styles animés (Glow,
+  Trending, Word, Frame…), mouvement, rebond, emoji automatiques
+  (capcut.com, 03/09).
+- DaVinci Resolve : Smart Reframe réservé à Resolve **Studio** (payant),
+  modes auto / pan seul / tilt seul, pensé pour les formats verticaux et
+  carrés ; « color matching » cité comme fonction du Neural Engine sans
+  détail relevé (blackmagicdesign.com, 03/09).
+- fal, recadrage vidéo : Luma Ray 2 Reframe, Wan VACE Long Reframe (modes
+  general / **human** / auto, scène par scène), LTX-2.3 Reframe — tous
+  **génératifs** (ils inventent les bords manquants) plutôt qu'un suivi de
+  sujet par recadrage (fal.ai, 03/09). Le suivi de sujet local (détection
+  de visage image par image) demande un modèle hors stdlib — même
+  contrainte que CLAP en R4.
+- Opus Clip, Premiere Auto Reframe, Final Cut : de mémoire, non vérifiés.
+- EDL (CMX 3600) et FCPXML : formats publics, de mémoire ; à vérifier sur
+  l'import Resolve avant d'en faire un argument.
+
+**Bacs**
+
+*Parité nécessaire*
+- **P0 — Chaque piste arrive au rendu** : banc-miroir sur le fichier rendu
+  (V2 overlay visible sur une image témoin, A2 présente dans le mix, avec
+  ffprobe et comparaison de pixels), puis correction ; **avant** toute autre
+  évolution du Montage. Le défaut est signalé, pas encore mesuré.
+- **P1 — Pistes dynamiques et réordonnables** : ajouter/retirer des pistes
+  vidéo et audio, ordre vertical par glisser, le rendu compose dans l'ordre
+  des pistes ; `SVM_TRACKS` cesse d'être une constante.
+- **P2 — Sous-titres animés** : 3 à 5 styles mot par mot (rebond, emphase
+  colorée, glow) rendus par libass (`\t` transformations ASS) à partir du
+  calage par mot déjà présent ; emoji par mot-clé en option.
+- **P3 — Montage par le texte** sur les pistes calées (voix off, avatars) :
+  supprimer une réplique ou un « euh » dans l'éditeur de sous-titres retire
+  le segment du clip lié ; détection des mots de remplissage en FR/EN par
+  liste ; les clips muets restent en forme d'onde.
+- **P4 — Étalonnage** : quatre curseurs (exposition, contraste, saturation,
+  température) sous la LUT, par clip ou global, en filtres ffmpeg ; la
+  vignette du rack VFX les prévisualise.
+- **P5 — Projets nommés** : plusieurs timelines sauvegardées (liste, ouvrir,
+  dupliquer, renommer), même mécanique que `/studio-graphs`.
+- **P6 — Remplacer un clip par sa nouvelle version** : mêmes bornes, mêmes
+  effets, lignée de la Bibliothèque ; complète la recette du Studio (R2 D1)
+  et l'animatique (R3 D3).
+- **P7 — Lecture fluide** : vignettes et formes d'onde précalculées par clip,
+  proxy 480p par clip (le rendu preview existe déjà, il devient par clip),
+  mesuré par un banc de fluidité (images par seconde de scrub).
+
+*Différenciant*
+- **D1 — Correspondance de couleur entre plans IA** : deux clips venus de
+  moteurs différents alignés automatiquement (statistiques de couleur par
+  plan, transfert local en ffmpeg/PIL) ; c'est le problème propre à un film
+  de plans générés, qu'aucune référence grand public ne cible.
+- **D2 — Recadrage multi-format avec suivi de sujet** : un montage 9:16
+  rejoué en 1:1 et 16:9 ; suivi par détection de visage (service local
+  optionnel) ou, pour les plans sans sujet, recadrage centré réglable ; les
+  reframes génératifs de fal restent une option payante par clip.
+- **D3 — Auto-clips depuis les épisodes, les films et les vidéos externes** :
+  transcription + score LLM des moments, 3 à 5 extraits 15–60 s
+  sous-titrés (P2), envoyés au Scheduler ; la persona note les moments.
+- **D4 — Titres animés et transitions dynamiques dans la charte** : galerie
+  de lower-thirds, titres et fins en tokens de marque, posés sur V2 ;
+  transitions zoom, whip, morph en filtres ffmpeg ou en overlays précalculés.
+- **D5 — Export EDL/FCPXML** de la timeline pour finir dans Resolve ou
+  Premiere ; les sources locales sont référencées par chemin absolu.
+
+*Écarté*
+- **E1 — Multicam, proxies 4K** : sources 1080p générées ; hors pratique.
+- **E2 — Recadrage génératif systématique** : payant par clip et inventif ;
+  reste une option, pas la voie par défaut.
+- **E3 — Retouche corps/visage façon CapCut** : hors du produit.
+
+**Coût de patch** : le Montage est une couche injectée (`son-vfx-montage.js`,
+4 871 lignes) plus le patch `subs` en queue de chaîne — moins cher que le
+bundle minifié mais **fragile en chaîne** (avertissement du patch `subs` :
+un patcher amont relancé seul efface les éditions aval). P0, P1, P3, P5, P6,
+P7, D4 touchent cette couche et `montage_service.py` ; P2 est surtout
+`subtitle_service.py` (ASS) ; P4, D1, D2, D3, D5 sont surtout backend.
