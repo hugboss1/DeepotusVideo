@@ -1906,3 +1906,122 @@ bundle) — P1, P5, D1 (bouton), D2 (affichage) y sont bon marché ; l'écran
 « 3D » du hub (DzGameAssets) est dans le bundle — P2, P3 (options) y
 coûtent un patch ; les moteurs (LOD, cuisson, conversion, banc, service
 local) sont backend.
+
+### R10f. Game Assets — 3D Studio et l'Établi — réponses (03/09/2026)
+
+**Ce que le code fait aujourd'hui** (relu le 03/09 : plan
+`2026-09-01-etabli-plaque-et-extraction.md` « Task 4 — LIVRÉE », `mesh_report.py`,
+`mesh_edit.py`, `mesh_cut.py`, `print3d.py`, `frontend/etabli/`,
+`frontend/studio3d/`) : `/studio3d` (graphe de la chaîne 3D, nœud 07 ·
+établi) ; l'Établi — inspecteur (versions, A/B caméras synchronisées,
+Parties par nœud/maillage/matériau, gizmo, vue isométrique et vues d'axe,
+graduation et lecture x/y/z, taille cible → mm), **plaque façon slicer**
+(règles graduées, glisser aimanté, flèches, rotation, plan de plaque
+`plaque.v<N>.json`), **poser sur une face**, **couteau** (aperçu par plan,
+capuchons, refus nommés), réparer l'assise, transformer, extraire ; fiche
+de maillage (sha256, textures, boîte, **bords ouverts et arêtes
+non-manifold → « fermé » ou non**, silhouettes) ; `print3d` STL/3MF en mm,
+garde 256 mm Centauri Carbon 2, relief vitrail ; guide utilisateur FR/EN
+(HTML + PDF) avec le chapitre impression 3D ; **campagnes de mutations dans
+le dépôt** (77 + 45). Restent du plan : T5 extraction élément par élément,
+T6 Bibliothèque hiérarchique, T4-bis (Measure, booléens, connecteurs,
+auto-arrange, auto-orient), deux dettes (lecteurs d'accesseurs `sparse`,
+contradiction assise/recentrer non dite), lecture chiffrée du glisser.
+Absents : réparation en un clic, creusage et drainage, décimation dans
+l'Établi, nesting vrai, profils d'imprimante, aperçu de tranchage,
+lexique et guide de démarrage.
+
+**Réponses**
+1. Frontière : **préparation + aperçu de tranchage indicatif**, et, mot
+   pour mot : « **un guide style tutoriel débutant pour accompagner
+   l'utilisateur dans ses premières manipulations et préparations avant
+   l'export vers le slicer. lexique explicatif avec des ressources liées
+   aux meilleures pratiques enregistrées sur le net par type
+   d'impressions, de machines, de slicer, et de filament, bref un vrai
+   petit guide FR-EN pour démarrer** ».
+2. Réparation : **les deux — un clic, et le détail si je veux** (le bouton
+   fait tout, le panneau dit ce qu'il a fait, annulable).
+3. Creusage : **creusage + drainage + décimation dans l'Établi**.
+4. Nesting : **auto-arrange vrai** (rotation, espacement, plusieurs
+   plateaux).
+5. Profils : **profils d'imprimante (Centauri Carbon 2 par défaut + autres)
+   ET import des profils d'Orca/Elegoo Slicer**.
+6. Envoi : **l'association de fichier suffit**.
+7. Outils 4-bis : **Measure, connecteurs du couteau, booléens, auto-orient**
+   — les quatre, dans cet ordre.
+8. Reste : **T5, T6, lecture chiffrée du glisser, et les deux dettes** —
+   tout.
+
+**Références vérifiées le 03/09/2026**
+- OrcaSlicer, section *Prepare* : inventaire relevé le 02/09 dans le plan
+  Établi (Move, Rotate, Scale, Lay on face, Auto-orient/arrange, Split,
+  Cut avec connecteurs dovetail/dowel/plug/snap, Mesh boolean, Measure,
+  Emboss, peintures, variable layer height, assembly view).
+- Elegoo Centauri Carbon 2 : LAN Only + IP + code d'accès dans Elegoo
+  Slicer (qui sait lancer l'impression) ; OrcaSlicer n'envoie que le
+  fichier, pas « upload and print » (wiki.elegoo.com,
+  github.com/OrcaSlicer, 03/09). Écarté par la réponse 6, gardé en note.
+- Microsoft 3D Builder : **déprécié en juillet 2024**, retiré du Store
+  (des installations résiduelles subsistent) (learn.microsoft.com, 03/09).
+- Autodesk Meshmixer : plus développé ni supporté (2017), encore
+  téléchargeable (autodesk.com, 03/09). Les deux références « réparation
+  en un clic » du brief sont en fin de vie : l'Établi peut prendre la
+  place.
+- MeshLab, Netfabb, Formware, Bambu Studio, PrusaSlicer : de mémoire, non
+  vérifiés.
+
+**Bacs**
+
+*Parité nécessaire*
+- **P1 — Réparer en un clic + détail** : trous bouchés (boucles de bord →
+  capuchons, mécanique du couteau), normales unifiées (orientation
+  cohérente par propagation), faces dupliquées et sommets confondus
+  retirés ; compte rendu par action, version écrite par `mesh_edit`
+  (seule plume), annulable ; le banc lit le maillage réparé (fermé ou
+  non, mesuré par `mesh_report`).
+- **P2 — Profils d'imprimante** : Centauri Carbon 2 par défaut (256 mm,
+  hauteur, zones exclues), autres à la main, **import** des profils
+  d'OrcaSlicer/Elegoo Slicer installés (JSON lus, jamais écrits) ; la
+  garde 256 mm devient une propriété du profil.
+- **P3 — Auto-arrange vrai** : placement avec rotation et espacement,
+  débordement sur un second plateau ; heuristique par boîtes puis
+  silhouettes (nesting 2D en Python pur, mesuré au taux d'occupation).
+- **P4 — Creusage + drainage + décimation** : paroi en mm (offset vers
+  l'intérieur, Python pur — lourd, à mesurer sur 100 000 triangles),
+  trous placés au clic sur la plaque, décimation gltfpack reliée à
+  l'Établi.
+- **P5 — Measure** : deux points → distance, deux faces → angle, avec le
+  repère de T3.
+- **P6 — T5 extraction + T6 Bibliothèque hiérarchique + lecture chiffrée
+  du glisser + les deux dettes** : le reste du plan Établi, tel quel.
+
+*Différenciant*
+- **D1 — Guide de démarrage FR/EN dans l'Établi** : tutoriel pas à pas
+  (premières manipulations → export), **lexique** (assise, surplomb,
+  support, brim, raft, remplissage, couture, rétraction…), ressources
+  liées par type d'impression, machine, slicer et filament — vérifiées et
+  datées, jamais « de mémoire » ; livré dans le guide (chapitre 20 étendu)
+  et en aide contextuelle dans l'écran. Aucun préparateur ne guide un
+  débutant.
+- **D2 — Aperçu de tranchage indicatif** : couches simulées (sans G-code)
+  pour voir surplombs et zones à supporter avant d'ouvrir le slicer ;
+  coloration des surplombs par angle dans le viewport.
+- **D3 — Connecteurs du couteau** : téton, queue d'aronde, cheville posés
+  sur le plan de coupe, géométrie ajoutée aux deux moitiés.
+- **D4 — Booléens** : union, différence, intersection en Python pur
+  (algorithme à choisir et mesurer ; le plan dira son coût en temps sur
+  des maillages de 50 000 triangles).
+- **D5 — Auto-orient** : orientation proposée par surface de support et
+  surplombs, appliquée par le mécanisme « poser sur une face ».
+
+*Écarté*
+- **E1 — Mini-slicer complet, peinture de supports, hauteurs de couche
+  variables** : métier du slicer, réponse 1.
+- **E2 — Envoi réseau à l'imprimante et suivi** : réponse 6 ; l'association
+  de fichier suffit.
+
+**Coût de patch** : l'Établi et `/studio3d` sont autonomes (hors bundle)
+— bon marché ; T6 touche l'onglet Établi de la Bibliothèque (bundle) ;
+tout le reste est backend (`mesh_edit.py`, `mesh_cut.py`, `mesh_report.py`,
+`print3d.py`, nouveaux modules `mesh_repair`, `nesting`, `hollow`) avec
+campagnes de mutations comme précédent.
