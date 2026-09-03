@@ -1793,3 +1793,116 @@ génération d'art par ligne liée à la bible, livret, mockup, fiche produit.
 (grille, histogrammes), P5, D1 (bouton), D3 y sont bon marché ; P1, P2 et
 les moteurs (exports, miroir, traduction, objets 3D, PDF) sont backend
 (`services/cards/*`, `print3d.py`).
+
+### R10e. Game Assets — 3D, les moteurs image → 3D — réponses (03/09/2026)
+
+**Ce que le code fait aujourd'hui** (relu le 03/09 : `asset3d_service.py`
+ENGINES et BESOINS_3D, `meshy_service.py`, `mesh_optimize.py`,
+`mesh_sources.py`, `pricing.py`, `frontend/meshy/meshy.client.js`, route
+`/assets3d/engines`) : **6 moteurs fal** — Tripo v2.5 (multi-vues 4, PBR,
+5 formats), Tripo H3.1 (le seul avec budget de faces, quad et graine),
+Hunyuan3D v2, Trellis, Hyper3D Rodin (le seul à demander une T-pose),
+TripoSR (0,07 $, brouillon) — prix par moteur de 0,07 à 0,48 $ affiché
+avant tir, grisé sans clé ; matrice besoin → moteur (hero = Tripo H3.1
+pour le volume puis **texture Meshy** depuis les mêmes 4 vues) ; 4 vues
+quasi-orthographiques générées par un modèle image ; **Meshy par proxy
+sécurisé** (clé jamais côté client) avec remesh, convert, resize,
+uv-unwrap, **rigging, animations**, retexture — crédits estimés avant
+action, binaires rapatriés ; décimation locale gratuite par gltfpack (8
+presets, micro 500 → ultra 100 000, Game Ready 10 000) avec stats
+avant/après ; versions, comparaison, rapport, QC, silhouettes IoU ;
+`print3d` STL/3MF. Absents : génération locale, retopologie locale, rig
+par Tripo, LOD en chaîne, mesure de perte après décimation, budget par
+usage, export PBR aux conventions moteur, cuisson locale, matière du
+Forge appliquée au modèle, conversion locale de formats, vues depuis la
+bible, retouche des vues avant tir, photos depuis le téléphone, banc de
+référence par sujet.
+
+**Réponses**
+1. Local : **oui, un service local optionnel** (comme Voicebox) ; carte
+   graphique **non précisée**.
+2. Retopo : **les deux** — fournisseur (Tripo H3.1, Meshy remesh) quand
+   disponible, local sinon.
+3. Rig : **rig auto + animations de base par le fournisseur**, GLB animé
+   rapatrié et montré.
+4. Comparaison : **un banc de référence par sujet type** (personnage,
+   objet, véhicule), la matrice s'en nourrit.
+5. Low-poly : **LOD en chaîne, mesure de la perte, budget par usage** — les
+   trois.
+6. Texture : **PBR exporté aux conventions moteur, résolution + cuisson
+   locale, matière du Forge appliquée** — les trois.
+7. Formats : **conversion locale de tout modèle**.
+8. Vues : **depuis la planche de la bible, contrôle et retouche avant
+   tir, photos réelles depuis le téléphone** — les trois.
+
+**Références vérifiées le 03/09/2026**
+- Meshy API : rigging (modèles humanoïdes texturés, **≤ 300 000 faces**,
+  remesh d'abord sinon), animations de marche/course incluses, remesh
+  (cibles glb, fbx, obj, usdz, blend, stl, 3mf), retexture
+  (docs.meshy.ai, 03/09). Le proxy de l'app allowliste déjà ces chemins et
+  le client JS les expose (mesuré) — le rig Meshy est donc **déjà
+  atteignable** ; ce qui manque est de le relier au flux fal (`assets3d`)
+  et d'afficher le GLB animé.
+- Tripo API : Smart Mesh (retopo triangles 500–50 000, **quad 500–25 000**),
+  auto-rig avec `rig-check`, 100+ mouvements prédéfinis, API asynchrone
+  avec push (developers.tripo3d.ai, 03/09). L'app passe par fal pour
+  Tripo : le rig Tripo demande l'API directe (clé Tripo séparée).
+- Hunyuan3D 2.1 (local) : **10 Go de VRAM** pour la forme, 21 Go texture,
+  29 Go les deux ; RTX 30 ou plus récent ; versions communautaires
+  optimisées à 3–6 Go ; Python 3.10, PyTorch 2.5 (github.com/Tencent-Hunyuan,
+  03/09). Sans la carte graphique de l'utilisateur, le service local
+  reste conditionnel.
+- TripoSR, InstantMesh, Luma Genie, quadriflow/Instant Meshes : de
+  mémoire, non vérifiés.
+
+**Bacs**
+
+*Parité nécessaire*
+- **P1 — Rig et animations reliés au flux** : un modèle `assets3d` (fal)
+  envoyé au rig Meshy (remesh automatique au-delà de 300 000 faces,
+  crédits affichés), GLB animé rapatrié, lu dans le viewport, exporté ;
+  Tripo rig en option si l'API directe entre un jour.
+- **P2 — LOD en chaîne + mesure de perte** : 3 niveaux gltfpack exportés
+  ensemble (nommage moteur), fidélité par niveau mesurée (IoU de
+  silhouettes déjà présent, écart de normales), budget proposé par usage
+  (mobile, PC, impression).
+- **P3 — Export PBR aux conventions moteur** : `naming_catalog` des
+  Matières (R10c) appliqué aux textures d'un modèle ; résolution choisie ;
+  cuisson locale AO/normales (PIL, cyclique) quand le moteur ne les livre
+  pas.
+- **P4 — Conversion locale de formats** : GLB → OBJ/STL déjà en partie
+  (print3d) ; FBX et USDZ demandent un outil embarqué (à choisir et
+  mesurer : le format FBX est propriétaire, l'écriture libre est
+  partielle — à dire dans le plan).
+- **P5 — Contrôle des vues avant tir** : les 4 vues affichées, rejouables
+  une à une, détourables, avant de payer le moteur 3D.
+
+*Différenciant*
+- **D1 — Vues depuis la planche de la bible** : les 4 vues d'une entité
+  viennent de sa planche de référence (identité tenue, R3), pas d'un
+  prompt neuf ; le modèle 3D rejoint la fiche de l'entité (déjà prévu par
+  `/bible/entities/{id}/model3d`).
+- **D2 — Banc de référence par sujet type** : personnage, objet, véhicule
+  générés une fois sur chaque moteur, mesurés (triangles, IoU, poids,
+  coût, durée), résultats rangés ; la matrice besoin → moteur cite ses
+  chiffres.
+- **D3 — Matière du Forge sur le modèle** : habiller un modèle nu avec une
+  matière locale, par partie (R10c D2).
+- **D4 — Service GPU local optionnel** partagé : Hunyuan3D pour le
+  brouillon, CLAP (R4) et CLIP (R9) pour la recherche, retopo locale —
+  un seul serveur à côté de l'app, détecté s'il tourne ; conditionné à
+  la carte graphique (RTX 30+, 10 Go pour la forme).
+- **D5 — Photos réelles depuis le téléphone** : 4 photos d'un objet
+  tourné envoyées par le compagnon (R12) → détourage → moteur multi-vues.
+
+*Écarté*
+- **E1 — Génération locale sans service optionnel** : PyTorch n'entre pas
+  dans le Python embarqué ; toujours un service à côté.
+- **E2 — API Tripo directe** : fal suffit pour la génération ; à revoir si
+  le rig Tripo devient nécessaire.
+
+**Coût de patch** : `/studio3d` et le client Meshy sont autonomes (hors
+bundle) — P1, P5, D1 (bouton), D2 (affichage) y sont bon marché ; l'écran
+« 3D » du hub (DzGameAssets) est dans le bundle — P2, P3 (options) y
+coûtent un patch ; les moteurs (LOD, cuisson, conversion, banc, service
+local) sont backend.
