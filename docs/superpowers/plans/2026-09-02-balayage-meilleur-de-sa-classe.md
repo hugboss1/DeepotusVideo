@@ -2025,3 +2025,100 @@ lexique et guide de démarrage.
 tout le reste est backend (`mesh_edit.py`, `mesh_cut.py`, `mesh_report.py`,
 `print3d.py`, nouveaux modules `mesh_repair`, `nesting`, `hollow`) avec
 campagnes de mutations comme précédent.
+
+### R11. Settings — réponses (03/09/2026)
+
+**Ce que le code fait aujourd'hui** (relu le 03/09 : `config.py`, routes
+`/settings/keys`, `/settings/provider-defaults`, `/atelier/settings`,
+`/persona`, `/health`, `/cost/*`, `/branding`) : clés dans un fichier
+`.env` **en clair** sous `DATA_ROOT` (fal, ElevenLabs, HeyGen, Meshy,
+Figma, Anthropic, OpenAI, Gemini, Telegram, X ×4), jamais renvoyées en
+clair (état « définie » + aperçu masqué) ; défauts par fournisseur ;
+réglages Atelier ; persona ; santé (version, fournisseurs joignables,
+Voicebox détecté) ; **coûts** : estimation avant tir, usage cumulé
+**estimé** par fournisseur depuis les jobs finis, **soldes en direct**
+quand l'API les expose (HeyGen crédits, ElevenLabs caractères), grille de
+prix éditable ; kit de marque minimal. Absents : profils, export/import
+chiffré, diagnostic en un écran (test des clés, disque, journal),
+plafonds de dépense, coffre chiffré, sauvegarde, test de clé à
+l'enregistrement, guides par fournisseur, recherche dans les réglages,
+vérification de mise à jour.
+
+**Réponses**
+1. Profils : **non**.
+2. Export/import : **archive chiffrée avec clés et défauts** (mot de
+   passe), pour un second poste et le mobile.
+3. Diagnostic : **clés testées en direct, crédits et soldes par moteur,
+   disque/poids/version/journal, dépenses du mois par moteur et par
+   catégorie** — les quatre.
+4. Plafonds : **par moteur et global, mensuels, confirmation au
+   dépassement** (alerte à 80 %).
+5. Coffre : **mot de passe maître**.
+6. Sauvegarde : **export manuel à la demande** vers un dossier choisi.
+7. Saisie : **test à l'enregistrement, guide par fournisseur, recherche
+   dans les réglages** — les trois.
+8. Mises à jour : **vérification + notes + téléchargement en un clic**.
+
+**Références et contraintes (03/09/2026)**
+- 1Password/Bitwarden, Raycast, VS Code, Docker Desktop, Obsidian : de
+  mémoire, non vérifiés — non utilisés comme argument.
+- **Contrainte mesurée** : le Python embarqué est stdlib pure (numpy
+  absent, mesuré le 27/08 et rappelé dans `print3d.py`) ; la stdlib n'a
+  **pas d'AES**. Un coffre à mot de passe maître exige soit une
+  bibliothèque (`cryptography`, roue Windows à embarquer au build — à
+  mesurer), soit DPAPI par `ctypes` (stdlib, lié au compte Windows, sans
+  mot de passe). Le plan Settings commence par cette mesure ; l'archive
+  chiffrée (réponse 2) partage la même décision.
+- GitHub Releases : l'API publique `releases/latest` donne version et
+  notes (de mémoire, API publique stable ; à vérifier au plan avec un
+  appel réel). L'installeur est déjà l'asset de Release (README).
+- Dépenses : le registre existant est **estimé** (grille de prix ×
+  paramètres) ; seuls HeyGen et Meshy renvoient un coût réel consommé.
+  Le tableau de bord doit dire « estimé » ou « réel » par ligne.
+
+**Bacs**
+
+*Parité nécessaire*
+- **P1 — Diagnostic en un écran** : test en direct de chaque clé (appel
+  léger par fournisseur, vert/rouge avec le message), soldes (`/cost/
+  balances` étendu), disque et poids de `DATA_ROOT` par catégorie (R9 P6),
+  version, journal des dernières erreurs ; un seul écran, rafraîchi à la
+  demande.
+- **P2 — Plafonds de dépense** : budget mensuel par moteur et global,
+  compteur depuis `/cost/usage` (estimé) + coûts réels quand connus,
+  alerte à 80 %, confirmation inline au dépassement avant tout tir ; la
+  garde vit dans le backend (route de génération), pas seulement dans
+  l'UI.
+- **P3 — Test de clé à l'enregistrement + guide par fournisseur** : au
+  clic « enregistrer », l'appel de test dit si la clé marche ; à côté, le
+  lien où créer la clé, le plan et le coût, FR/EN (vérifiés et datés).
+- **P4 — Vérification de mise à jour** : `releases/latest` interrogé au
+  démarrage (une fois par jour), bandeau + notes de version, téléchargement
+  de l'installeur en un clic ; l'utilisateur lance l'installeur.
+- **P5 — Export manuel des données** : copie de `DATA_ROOT` (base +
+  assets) vers un dossier choisi, avec manifeste et vérification
+  d'intégrité (sha256 par fichier), progression affichée.
+
+*Différenciant*
+- **D1 — Coffre à mot de passe maître + archive chiffrée** : les clés
+  chiffrées au repos, déverrouillées au lancement ; la même clé chiffre
+  l'archive de configuration exportée pour un second poste ou le mobile
+  (R12) ; la décision technique (bibliothèque embarquée ou DPAPI) est la
+  première tâche du plan, mesurée.
+- **D2 — Dépenses par catégorie, réel contre estimé** : le tableau de
+  bord distingue ce que l'app a estimé de ce que le fournisseur a
+  facturé, par moteur et par catégorie du rail ; aucune référence
+  grand public ne rapproche les deux.
+- **D3 — Recherche dans les réglages** : un champ qui filtre tous les
+  réglages (clés, défauts, kits, profils d'imprimante, plafonds) et
+  ouvre la bonne section, façon VS Code.
+
+*Écarté*
+- **E1 — Profils de configuration** : réponse 1.
+- **E2 — Sauvegarde programmée** : réponse 6 ; export manuel seulement.
+- **E3 — Coffres multiples façon Obsidian** : un seul `DATA_ROOT`.
+
+**Coût de patch** : l'écran Settings est dans le bundle — P1, P2 (alertes),
+P3, P4 (bandeau), D3 sont des patches chaînés ; les moteurs (tests de
+clés, plafonds, export, coffre, mise à jour) sont backend (`config.py`,
+`env_service`, `pricing.py`, nouveau module de coffre).
