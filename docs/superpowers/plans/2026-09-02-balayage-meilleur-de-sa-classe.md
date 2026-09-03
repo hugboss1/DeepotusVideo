@@ -1431,3 +1431,92 @@ usages, coût cumulé).
 (repli), P4 (fiche), P6 (tableau), D2 sont des patches chaînés ; les
 tables, l'indexation (couleur, empreintes, embeddings) et les jointures
 sont backend.
+
+### R10a. Game Assets — Sprites 2D — réponses (03/09/2026)
+
+**Ce que le code fait aujourd'hui** (relu le 03/09 : `sprite_service.py`,
+`pixel_ops.py`, route `/assets/sprite`, patch `spritelab`,
+`frontend/spritelab/`) : vidéo rendue ou importée → images (échantillon
+fps, max images, filmstrip de sélection) → feuille (cellules 128/256/512,
+alignement, colonnes), détourage none/api/local, chroma key, trim
+animation ou serré ; pixel-art local PIL (réduction LANCZOS →
+quantification palette preset ou adaptative MEDIANCUT → alpha binaire →
+agrandissement NEAREST ; dither Bayer 4×4 ou Floyd-Steinberg) ; sorties
+sheet.png, frames, preview.gif, manifest.json, **pack Unity** (JSON +
+importateur C#), ZIP ; page autonome `/spritelab` (hors bundle). Absents :
+palette verrouillée entre images, sortie native sans agrandissement, tags
+d'animation et durée par image, outline/ombre/nettoyage, 8 directions,
+squelette 2D, exports Godot/Unreal/atlas générique/Aseprite, génération
+par prompt.
+
+**Réponses**
+1. Palette : **l'état actuel me va** (presets + adaptative, par image).
+2. Pixel-perfect : **sortie native + aperçu à l'échelle entière**.
+3. Animation : **les deux selon l'asset** — images-clés pour effets et
+   objets, squelette 2D pour les personnages.
+4. Export : **Godot, Unreal Paper2D, atlas façon TexturePacker, Aseprite**
+   — les quatre.
+5. Directions : **les deux selon l'asset** — 8 vues depuis la planche de la
+   bible (image) ou depuis le modèle 3D de l'entité rendu en 8 angles.
+6. Post-traitement : **outline 1 px, ombre portée et éclairage stylisé,
+   nettoyage des pixels orphelins** — les trois.
+7. Source : **génération image contrainte + pixelisation locale** (pas de
+   nouveau moteur).
+8. Éditeur : **réordonner/dupliquer/supprimer, durée par image et tags
+   d'animation, pelure d'oignon et retouche pixel** — les trois.
+
+**Références vérifiées le 03/09/2026**
+- Aseprite : spécification publique du format `.ase/.aseprite`
+  (`docs/ase-file-specs.md` : en-tête magique 0xA5E0, frames, calques,
+  palette, **tags** avec direction de boucle et répétitions, slices)
+  (github.com/aseprite, 03/09) ; le format est écrivable par code.
+- Godot 4 : ressources `SpriteFrames` (animations nommées, fps, boucle),
+  `AtlasTexture` (région dans une texture), importateur d'atlas
+  (docs.godotengine.org, 03/09) ; un `.tres` est un texte.
+- TexturePacker : format JSON Hash (lu par Phaser, PixiJS) — `frame`,
+  `rotated`, `trimmed`, `spriteSourceSize`, `sourceSize`
+  (codeandweb.com, 03/09).
+- Retro Diffusion : générateur pixel-art dédié avec API (outils
+  développeur, crédits) (retrodiffusion.ai, 03/09) — écarté par la réponse
+  7, gardé en note.
+- Spine, DragonBones, Pixel Composer, Scenario, Unreal Paper2D : de
+  mémoire, non vérifiés.
+
+**Bacs**
+
+*Parité nécessaire*
+- **P1 — Sortie native + aperçu ×2/×4** : la feuille livrée à la taille du
+  jeu (pas d'agrandissement), la visionneuse agrandit en NEAREST à
+  l'échelle entière.
+- **P2 — Tags d'animation et durée par image** : plusieurs animations
+  nommées (idle, run, jump) dans une feuille, durée variable, écrites dans
+  le manifeste et chaque export.
+- **P3 — Exports** : Godot (`SpriteFrames` `.tres` + `AtlasTexture`),
+  atlas JSON Hash façon TexturePacker (trim, rotation, sourceSize),
+  Aseprite (`.ase` avec calques et tags, selon la spec publique), Unreal
+  Paper2D (flipbook — format à relever avant le plan).
+- **P4 — Post-traitement** : outline 1 px couleur choisie, ombre plate ou
+  décalée, nettoyage des pixels orphelins et lissage des bords — en PIL
+  pur, par image, avant la feuille.
+- **P5 — Éditeur** : réordonner, dupliquer, supprimer ; pelure d'oignon ;
+  retouche pixel (crayon, pipette, gomme) sur `/spritelab`.
+
+*Différenciant*
+- **D1 — 8 directions depuis la bible** : image (planche + Kontext / Nano
+  Banana multi-références, R3 P3) ou modèle 3D de l'entité rendu sous 8
+  angles puis pixelisé — l'identité vient de la bible, ce qu'aucun outil
+  de sprites ne possède.
+- **D2 — Génération contrainte + pixelisation locale** : prompt → image
+  (style pixel-art dans le prompt, persona) → pipeline pixel local ; zéro
+  moteur nouveau, coût = une image.
+- **D3 — Squelette 2D pour les personnages** : découpe en pièces (détourage
+  + segmentation), os et export Spine/DragonBones — à instruire après D1,
+  le format Spine à relever.
+
+*Écarté*
+- **E1 — Palette verrouillée / palette de projet** : réponse 1.
+- **E2 — Moteur pixel-art dédié (Retro Diffusion)** : réponse 7.
+
+**Coût de patch** : `/spritelab` est autonome (hors bundle) — P1, P2, P5,
+D1 (bouton) y sont bon marché ; P3, P4, D2 et le moteur de D1 sont backend
+(`sprite_service.py`, `pixel_ops.py`, nouveaux exporteurs).
