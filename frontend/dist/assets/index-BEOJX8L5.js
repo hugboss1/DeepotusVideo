@@ -5272,7 +5272,15 @@ function DzMontage(props){
           r.jsxs("div",{children:[
             r.jsx("div",{className:"svm-dmtitle",children:"Maître de durée"}),
             r.jsx("div",{className:"svm-dmhint",children:"La voix off ne sera jamais coupée"})]})]}),
-        (sel&&sel.tr==="s1"?null:vfxStackSection())]})]}),
+        (sel&&sel.tr==="s1"?null:vfxStackSection()),
+        /* P4 — le geste GLOBAL de l'étalonnage : les quatre valeurs
+           du plan sélectionné recopiées sur tous les autres plans
+           réels de SA piste (pas « v1 » en dur : un plan V2 peut
+           porter un grade_basic). RÉVERSIBLE : un seul pushHistory
+           pour le lot ; « annuler » rend à chaque plan son
+           étalonnage d'avant — déduit de trois faits mesurés, mais
+           rien ne l'EXERCE (undo est un hook du composant). */
+        DzTracks.gradeAllBtn(sel,clips,setClips,pushHistory,setDirty,fireNote)]})]}),
     /* timeline */
     r.jsxs("div",{className:"svm-tl",children:[
       r.jsxs("div",{className:"svm-trans",children:[
@@ -11966,6 +11974,7 @@ window.DzSubs={ready:!0,Drawer:SubsDrawer,Overlay:SubsOverlay,Style:SubsStyle,
    Exporte (contrat) :
      window.DzTracks = {ready, TrackAdd, headBtns, TextDrawer,
                          rippleCut, withWords,
+                         gradeAllBtn, gradeAll, gradeOf,
                          tracksOf, from, payload, busSync,
                          move, moveTo, add, remove, group, DEFAULTS}
 
@@ -11977,6 +11986,12 @@ window.DzSubs={ready:!0,Drawer:SubsDrawer,Overlay:SubsOverlay,Style:SubsStyle,
      texte. PURE elle aussi.
    - TextDrawer({open,clips,onCut,note}) — le panneau « Texte » : la
      narration mot par mot, les remplissages marqués, la sélection coupée.
+
+   - gradeAll(clips, srcId, trackId) — recopie l'étalonnage de base d'un plan
+     sur tous les plans réels d'une piste — CELLE du plan sélectionné, pas
+     « v1 » en dur. PURE, testée sous node.
+   - gradeAllBtn(sel, clips, setClips, pushHistory, setDirty, note) — le
+     bouton qui le déclenche, posé sous la pile d'effets de l'inspecteur.
 
    - TrackAdd({tracks,onChange}) — les deux boutons « + vidéo » / « + audio »
      de la barre de transport.
@@ -12683,11 +12698,194 @@ var DzmTextDrawer=function(props){
         children:hes.length?("retirer les "+hes.length+" « euh »")
           :"aucun « euh »"},"f")]},"a")]})};
 
+/* ── P4 : « appliquer cet étalonnage à tous les plans de la piste » ─────
+   Les quatre curseurs (exposition, contraste, saturation, température) sont
+   servis par le CATALOGUE du backend — effects_engine._CATALOG["grade_basic"]
+   et ses bornes : le rack VFX dessine les curseurs et la vignette d'aperçu
+   sans une ligne de plus ici. Ce qui manquait est le geste GLOBAL : un
+   étalonnage réglé sur un plan, recopié sur tous les autres.
+
+   dzmGradeAll est PURE — c'est la moitié du cœur exécutée sous node par
+   backend/tests/test_montage_bundle.py.
+
+   TROIS RÈGLES, et chacune répare un cas qui mordait :
+   [a] les bornes de TEMPS ne se recopient pas (t0/t1 et leurs rampes). Elles
+       sont en secondes LOCALES au clip : un étalonnage limité à [1 s ; 2 s]
+       sur un plan de 8 s, recopié sur un plan de 1,2 s, y couvrirait presque
+       tout. « Cet étalonnage » veut dire les quatre valeurs, sur le plan
+       entier — et le bouton le DIT.
+   [b] chaque plan reçoit sa PROPRE copie de l'effet. Partager un seul objet
+       entre vingt clips ferait de tout réglage ultérieur sur l'un un réglage
+       sur les vingt, sans que rien ne le montre.
+   [c] un plan qui porte DÉJÀ exactement le même étalonnage n'est pas
+       réécrit : il ne compte pas dans le lot, et sa ligne ne bouge pas.
+   [d] la piste visée est CELLE DU PLAN SÉLECTIONNÉ, pas « v1 » en dur — voir
+       le commentaire de dzmGradeAllBtn, qui porte la mesure.
+
+   UN CAS DE BORD, MESURÉ ET ASSUMÉ : si un plan cible porte DEUX `grade_basic`
+   empilés, seul le PREMIER est remplacé et le second survit — l'étalonnage
+   « recopié » se compose alors avec un étalonnage étranger. Les retirer
+   d'office serait détruire des effets posés à la main que ce bouton n'a
+   jamais promis de toucher ; le geste ne remplace donc que la ligne que
+   `dzmGradeOf` désigne, ici comme sur la source. Épinglé par
+   `js_grade_ne_remplace_que_le_premier` de test_montage_bundle.py. */
+var DZM_GRADE_TIMING=["t0","t1","fade_in","fade_out","ease_in","ease_out"];
+
+/* le premier `grade_basic` de la pile d'un clip, ou null */
+function dzmGradeOf(clip){
+  var es=(clip&&clip.effects)||[];
+  for(var i=0;i<es.length;i++)
+    if(es[i]&&es[i].type==="grade_basic")return es[i];
+  return null}
+
+/* copie SANS les bornes de temps — voir [a] */
+function dzmGradeCopy(eff){
+  var o={};
+  Object.keys(eff||{}).forEach(function(k){
+    if(DZM_GRADE_TIMING.indexOf(k)<0)o[k]=eff[k]});
+  o.type="grade_basic";
+  return o}
+
+/* empreinte stable d'un effet : clés triées, valeurs sérialisées. Sert à ne
+   pas réécrire un plan déjà identique — voir [c]. Comparée SANS rien retirer,
+   donc un étalonnage borné dans le temps DIFFÈRE de la copie pleine longueur
+   et sera bien remplacé. */
+function dzmEffKey(eff){
+  var o=eff||{},s="";
+  Object.keys(o).sort().forEach(function(k){
+    s+=k+"="+JSON.stringify(o[k])+";"});
+  return s}
+
+/* PURE. Rend {clips, applied, replaced, targets} :
+   `targets`  = plans de la piste visée, réels (avec `src`), hors la source ;
+   `applied`  = ceux qui ont VRAIMENT changé ;
+   `replaced` = ceux dont un `grade_basic` existant a été écrasé. */
+function dzmGradeAll(clips,srcId,trackId){
+  var cs=clips||[],tr=trackId||"v1",src=null;
+  for(var i=0;i<cs.length;i++)
+    if(cs[i]&&cs[i].id===srcId){src=cs[i];break}
+  var g=src?dzmGradeOf(src):null;
+  if(!g)return {clips:cs,applied:0,replaced:0,targets:0};
+  var key=dzmEffKey(dzmGradeCopy(g)),applied=0,replaced=0,targets=0;
+  var out=cs.map(function(c){
+    if(!c||c.id===srcId||c.tr!==tr||!c.src)return c;
+    targets++;
+    var st=(c.effects||[]).slice(),at=-1;
+    for(var j=0;j<st.length;j++)
+      if(st[j]&&st[j].type==="grade_basic"){at=j;break}
+    if(at>=0&&dzmEffKey(st[at])===key)return c;      /* [c] déjà à jour */
+    var cp=dzmGradeCopy(g);                          /* [b] une copie par plan */
+    if(at>=0){st[at]=cp;replaced++}else st.push(cp);
+    applied++;
+    return Object.assign({},c,{effects:st})});
+  return {clips:out,applied:applied,replaced:replaced,targets:targets}}
+
+/* Le bouton, posé sous la pile d'effets de l'inspecteur (section M13). Rend
+   NULL tant que le plan sélectionné ne porte pas d'étalonnage : il n'y a rien
+   à propager, et un bouton mort en permanence apprend moins qu'un bouton
+   absent.
+
+   LA PISTE VISÉE EST CELLE DU PLAN SÉLECTIONNÉ. Une première version codait
+   « v1 » EN DUR aux deux appels. MESURÉ sous node, plan V2 étalonné
+   sélectionné : le bouton s'affichait ACTIF, écrasait l'étalonnage des deux
+   plans V1 ([cibles, appliqués, remplacés] = [2, 2, 2]) — une piste que
+   l'utilisateur n'éditait pas — et ne touchait pas un seul clip de la piste
+   où il travaillait. La pile d'effets est offerte à TOUTE piste de genre
+   vidéo (le bundle : `trackKind(sel.tr)==="video"`), donc un clip V2 peut
+   parfaitement porter un `grade_basic` : le cas n'a rien d'exotique.
+   `dzmGradeAll` prenait déjà la piste en argument ; c'est l'appelant qui
+   mentait. Épinglé par `js_grade_source_v2_ne_touche_pas_v1` et
+   `js_bouton_suit_la_piste_du_plan`.
+
+   POURQUOI PAS « V1 SEULEMENT, BOUTON CACHÉ AILLEURS » — l'autre voie, qui se
+   défendait. MESURE, backend : `montage_service.py` n'appelle `build_chain`
+   QU'UNE fois, dans la boucle des segments V1 ; le dictionnaire construit
+   pour chaque overlay V2 ne porte même pas de clé `effects`. Un étalonnage
+   posé sur V2 ne rend donc NULLE PART. Mais cette lacune est ANTÉRIEURE à ce
+   bouton et vaut pour l'effet posé à la main comme pour celui qu'il recopie :
+   la cacher derrière un bouton absent ne l'aurait pas réparée, elle l'aurait
+   rendue muette, et le jour où le rendu emportera les effets des overlays il
+   aurait fallu défaire ce choix. Le bouton suit donc la piste ET LE DIT : sur
+   toute piste autre que V1, son titre et sa note portent l'avertissement.
+
+   GESTE DESTRUCTIF, DONC RÉVERSIBLE : l'historique est poussé AVANT toute
+   écriture, UNE
+   seule fois pour tout le lot. « Annuler » restaure les clips (donc la pile
+   d'effets de CHAQUE plan telle qu'elle était, y compris les étalonnages
+   écrasés) et le mixage — c'est tout ce que l'historique de cet écran
+   mémorise, et c'est tout ce que ce geste touche : ni la durée du projet, ni
+   les pistes, ni les sous-titres.
+   RÉSERVE, la même que P2 portait : « annuler rend à chaque plan son
+   étalonnage d'avant » est une DÉDUCTION de trois faits mesurés (un seul
+   `pushHistory`, poussé avant l'écriture, sur un état que le geste ne mute
+   pas) — mais RIEN NE L'EXERCE. `pushHistory` et `undo` sont des hooks du
+   composant du bundle, hors de portée du shim node qui mesure ce cœur : la
+   restauration elle-même n'est jouée par aucun banc.
+
+   ÉCART AU PLAN, déclaré : le plan passait cinq arguments
+   (sel, clips, setClips, pushHistory, fireNote). Il en faut SIX — `setDirty`.
+   MESURÉ dans le bundle : l'autosave sort tout de suite si le projet est une
+   démo OU si rien n'est marqué modifié (le drapeau `dirty`), et il ne se
+   replanifie que sur [clips, proj, durMaster, ducking, dirty]. Le littéral de
+   cette garde n'est PAS recopié ici : la couche est injectée dans le bundle,
+   et une ligne citée mot pour mot s'y compterait une fois de plus — c'est
+   ainsi qu'une ancre de M12 avait fait abandonner le patcher au rejeu
+   suivant. Sans `setDirty(!0)`, un lot appliqué juste après une
+   sauvegarde réussie ne partait JAMAIS au serveur et « NON ENREGISTRÉ »
+   restait éteint : le travail se perdait au rechargement, en silence. */
+function dzmGradeAllBtn(sel,clips,setClips,pushHistory,setDirty,note){
+  if(!dzmGradeOf(sel))return null;
+  var tr=(sel&&sel.tr)||"v1",TR=String(tr).toUpperCase();
+  var pv=dzmGradeAll(clips,sel&&sel.id,tr);
+  var dead=!pv.applied;
+  /* Hors V1 : mesuré côté backend, le rendu n'emporte pas les effets des
+     overlays. Le dire dans le titre ET dans la note — un lot appliqué en
+     silence sur vingt plans qui ne rendront rien est pire qu'un lot refusé. */
+  var hors=tr==="v1"?"":(" ATTENTION — mesuré : le rendu n'emporte pas les "+
+    "effets des pistes d'overlay. Sur "+TR+", cet étalonnage se verra dans "+
+    "l'inspecteur et dans l'aperçu, pas dans la vidéo exportée.");
+  var t=pv.targets
+    ?(pv.applied
+      ?("Recopier l'exposition, le contraste, la saturation et la "+
+        "température de ce plan sur "+pv.applied+" autre"+
+        (pv.applied>1?"s":"")+" plan"+(pv.applied>1?"s":"")+" "+TR+
+        (pv.replaced?(", dont "+pv.replaced+" dont l'étalonnage actuel sera "+
+                      "REMPLACÉ"):"")+". Les bornes de temps de l'effet ne "+
+        "sont pas recopiées : l'étalonnage porte sur le plan entier. Annuler "+
+        "restaure l'étalonnage de chaque plan tel qu'il était."+hors)
+      :(pv.targets>1
+        ?("Les "+pv.targets+" autres plans "+TR+" portent déjà exactement "+
+          "cet étalonnage.")
+        :("Le seul autre plan "+TR+" porte déjà exactement cet étalonnage.")))
+    :("Aucun autre plan "+TR+" : rien à étalonner ailleurs.");
+  var lbl="étalonnage → tous les plans "+TR;
+  /* aria-label = le texte VISIBLE, puis l'état. Un aria-label FIGÉ masquait la
+     seule phrase qui dit pourquoi le bouton est éteint : quand il existe, les
+     lecteurs d'écran n'annoncent plus le `title`. Le libellé visible en reste
+     le PRÉFIXE (WCAG « Label in Name ») : la commande vocale marche encore. */
+  return r.jsx("button",{className:"svm-tbtn dzm-gall",disabled:dead,
+    title:t,"aria-label":lbl+" — "+t,
+    onClick:function(){
+      if(dead)return;
+      var res=dzmGradeAll(clips,sel&&sel.id,tr);
+      if(!res.applied)return;
+      if(pushHistory)pushHistory();
+      if(setClips)setClips(res.clips);
+      if(setDirty)setDirty(!0);
+      if(note)note("Étalonnage appliqué à "+res.applied+" plan"+
+        (res.applied>1?"s":"")+" "+TR+
+        (res.replaced?(" (dont "+res.replaced+" dont l'étalonnage a été "+
+                       "remplacé)"):"")+
+        ". Les bornes de temps ne sont pas recopiées. Annuler restaure "+
+        "l'étalonnage de chaque plan tel qu'il était."+hors)},
+    children:lbl},"dzmgall")}
+
 /* ── export contrat ───────────────────────────────────────────────────────── */
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,withWords:dzmWithWords,
   dropWords:dzmDropWords,
+  gradeAllBtn:dzmGradeAllBtn,gradeAll:dzmGradeAll,gradeOf:dzmGradeOf,
   tracksOf:svmTracksOf,from:svmTracksFrom,payload:svmTracksPayload,
   busSync:svmTrackBusSync,skin:dzmSkin,
   move:dzmMove,moveTo:dzmMoveTo,add:dzmAdd,remove:dzmRemove,group:dzmGroup,

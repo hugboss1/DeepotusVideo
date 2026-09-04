@@ -53,6 +53,12 @@ Sections :
       (`DzTracks.rippleCut`), posés dans la colonne d'inspection : mesuré, le
       bundle n'offre pas l'ancre `subsDrawer()` de la zone des tiroirs que le
       plan visait — voir le commentaire de A_M12.
+  M13 (P4) le bouton « étalonnage → tous les plans <PISTE> », posé JUSTE SOUS
+      la pile d'effets de l'inspecteur — pas sur l'ancre `transInspector(),`
+      du plan (libre, mais à un écran de la pile qu'il copie) ; voir A_M13.
+      La piste visée est celle du PLAN SÉLECTIONNÉ : mesuré, une version qui
+      codait « v1 » en dur écrasait deux plans V1 quand un plan V2 étalonné
+      était sélectionné. Voir le commentaire de dzmGradeAllBtn.
 
 Mécanique identique à patch_bundle_subs.py : restauration du .bak dédié puis
 ré-application, chaque ancre devant apparaître EXACTEMENT une fois, sinon
@@ -249,6 +255,42 @@ R_M12 = (A_M12 + '\n'
          '              (vk.length?" Pistes verrouillées ("+vk.join(", ")'
          '.toUpperCase()+") : leurs clips n\'ont pas bougé.":""))}}),')
 
+# ── M13 (P4) : « étalonnage → tous les plans <PISTE> » ──────────────────────
+# ANCRE MESURÉE, pas héritée. Le plan visait `        transInspector(),` en
+# supposant qu'elle serait libre. COMPTÉE le 04/09/2026 dans le bundle livré ET
+# dans .bak_montage : elle vaut 1 dans les deux — M12 l'a bien consommée, mais
+# `R_M12` la REPREND EN TÊTE, donc elle survit intacte au patch et une section
+# M13 pourrait s'y accrocher sans rien casser. Elle N'A PAS été retenue pour
+# autant : elle poserait le bouton au-dessus des inspecteurs Transition,
+# Overlay, Clip audio ET de tout le bloc Mixage, à un écran de la pile
+# d'effets dont il recopie une ligne. « Cet étalonnage » n'aurait plus de
+# référent visible.
+# L'ancre retenue est la DERNIÈRE ligne de la colonne d'inspection, celle qui
+# rend la pile d'effets — comptée 1 elle aussi, dans les deux fichiers. Le
+# bouton se pose juste dessous, contre ce qu'il copie.
+# `DzTracks`, pas `DzMontage` (que le plan écrivait) : le bundle déclare DÉJÀ
+# une fonction `DzMontage` au premier niveau, et redéclarer ce nom est une
+# SyntaxError en sémantique MODULE — celle sous laquelle index.html charge le
+# bundle, invisible pour `node --check` sur le .js. C'est ce que garde
+# `node_check_module` de test_montage_bundle.py.
+# SIX arguments, pas cinq : `setDirty` s'ajoute à la liste du plan. MESURE —
+# l'autosave du bundle est gardé par `if(proj.demo||!dirty)return;` : sans
+# `setDirty(!0)`, un lot appliqué juste après une sauvegarde réussie ne part
+# jamais au serveur et se perd au rechargement, sans un mot.
+# L'ancre n'est PAS reprise telle quelle dans le remplacement (le `)]` devient
+# `),`) : test_montage_bundle.py exigera donc de la voir DISPARAÎTRE.
+A_M13 = '        (sel&&sel.tr==="s1"?null:vfxStackSection())]})]}),'
+R_M13 = ('        (sel&&sel.tr==="s1"?null:vfxStackSection()),\n'
+         '        /* P4 — le geste GLOBAL de l\'étalonnage : les quatre valeurs\n'
+         '           du plan sélectionné recopiées sur tous les autres plans\n'
+         '           réels de SA piste (pas « v1 » en dur : un plan V2 peut\n'
+         '           porter un grade_basic). RÉVERSIBLE : un seul pushHistory\n'
+         '           pour le lot ; « annuler » rend à chaque plan son\n'
+         '           étalonnage d\'avant — déduit de trois faits mesurés, mais\n'
+         '           rien ne l\'EXERCE (undo est un hook du composant). */\n'
+         '        DzTracks.gradeAllBtn(sel,clips,setClips,pushHistory,setDirty,'
+         'fireNote)]})]}),')
+
 # ── M9a / M9b : en-tête de piste ────────────────────────────────────────────
 # Le groupe est un FRÈRE des rangées, pas un membre : il est positionné en
 # absolu dans l'en-tête (voir montage.css — l'en-tête fait 88px de large et
@@ -266,7 +308,8 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M5-payload", A_M5, R_M5), ("M6-save", A_M6, R_M6),
            ("M7-apply", A_M7, R_M7), ("M8-toolbar", A_M8, R_M8),
            ("M9a-head-audio", A_M9a, R_M9a), ("M9b-head-video", A_M9b, R_M9b),
-           ("M11-text-state", A_M11, R_M11), ("M12-text-panel", A_M12, R_M12)]
+           ("M11-text-state", A_M11, R_M11), ("M12-text-panel", A_M12, R_M12),
+           ("M13-grade-all", A_M13, R_M13)]
 
 
 def nl(text, crlf):

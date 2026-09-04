@@ -169,3 +169,19 @@
   white-space:nowrap}
 .dzsvm .dzm-txton[data-on]{border-color:transparent;
   background:var(--accent, #d8a657); color:var(--accent-ink, #17161a)}
+
+/* P4 — « étalonnage → tous les plans <PISTE> », posé sous la pile d'effets de
+   l'inspecteur (section M13). Même famille visuelle que les boutons de la
+   barre (`svm-tbtn`, comme « + vidéo » et « texte ») : c'est le même geste
+   d'écriture, dans une autre colonne. Pleine largeur ici — la colonne
+   d'inspection est étroite et le libellé est long ; `svm-tbtn` fixe une
+   largeur de bouton d'icône, il faut la reprendre. Le titre porte le détail
+   (combien de plans, combien seront remplacés) : le libellé reste court. */
+.dzsvm .dzm-gall{width:100%; margin-top:8px; padding:0 8px; font-size:10px;
+  font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+/* Désactivé = pas d'autre plan sur la piste du plan sélectionné, ou tous déjà
+   identiques. Il RESTE visible (et son titre dit lequel des deux, comme son
+   aria-label) : le faire disparaître laisserait croire que la fonction
+   n'existe pas. */
+.dzsvm .dzm-gall:disabled{opacity:.45; cursor:default}

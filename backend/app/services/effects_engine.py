@@ -172,6 +172,75 @@ def _grade(eff, i, o, u, ctx):
     return _one(i, o, GRADES.get(eff.get("preset", "teal_orange"), GRADES["teal_orange"]))
 
 
+def _grade_basic(eff, i, o, u, ctx):
+    """Étalonnage de base : température, exposition, contraste, saturation.
+
+    ORDRE ÉMIS : `colortemperature` D'ABORD, `eq` ensuite. C'est l'ordre
+    d'étalonnage usuel (balance des blancs, puis exposition/contraste/
+    saturation), et surtout le seul où le curseur « saturation » reste une
+    saturation. MESURÉ (protocole ci-dessous, `saturation`=0 + 3200 K),
+    distance moyenne au gris par pixel — d = √((R−m)²+(G−m)²+(B−m)²) avec
+    m = (R+G+B)/3, nulle si et seulement si R=G=B :
+        aplat 0x2040a0 : source 94,205 → `eq` puis `ct` 24,042 ; `ct` puis
+                         `eq` 2,160 ;
+        mire testsrc2  : source 194,872 → `eq` puis `ct` 46,151 ; `ct` puis
+                         `eq` 2,376.
+    Avec `eq` en tête, `saturation`=0 grise l'image et `colortemperature` la
+    RE-TEINTE aussitôt : un sépia franc là où l'utilisateur a demandé du gris.
+    Verrouillé au caractère près par `k3200_chaine_entiere` et
+    `bornes_opposees_ramenees` de test_montage_etalonnage.py.
+
+    `eq` est TOUJOURS émis — mesuré, `eq=brightness=0:contrast=1:saturation=1`
+    est l'identité EXACTE.
+
+    `colortemperature` est OMIS à 6500 K, et ce n'est pas une coquetterie : le
+    filtre n'est PAS l'identité à sa propre référence.
+
+    PROTOCOLE DES CHIFFRES QUI SUIVENT — il change le résultat d'un ordre de
+    grandeur, donc il se nomme. Source yuv420p (celle du rendu :
+    montage_service pose `format=yuv420p` avant `build_chain`), DÉCODÉE une
+    fois de chaque côté, filtre appliqué en mémoire, sortie PNG rgb24. Aucun
+    SECOND encodage : la perte du codec est commune aux deux branches et
+    s'annule. Mesure du 04/09/2026, ffmpeg 8.1.1-essentials du PATH (la
+    version se nomme : un encodeur n'est pas l'autre), deux sources 270x480 —
+    l'aplat 0x2040a0 et une mire testsrc2, trame à 0,5 s :
+
+        filtre                | pixels changés | extremum/canal | couleurs
+                              |                |                | déplacées
+        eq neutre     (aplat) |      0/129 600 |      (0, 0, 0) |    0/1
+        eq neutre     (mire)  |      0/129 600 |      (0, 0, 0) |    0/8 714
+        ct=6500       (aplat) |129 600/129 600 |      (0, 1, 4) |    1/1
+        ct=6500       (mire)  |110 299/129 600 |      (0, 1, 5) | 8 637/8 714
+
+    LE CHIFFRE QUI DIT LA CHOSE est la dernière colonne, pas la première :
+    sur un aplat, « 129 600 pixels sur 129 600 » compte UNE couleur 129 600
+    fois. `colortemperature` à 6500 K déplace 99,1 % des couleurs distinctes
+    de la mire ; le témoin `eq` neutre en déplace 0. L'amplitude, elle, est
+    minuscule — (0, 1, 5) au pire.
+
+    CORRECTION, gardée visible : un « jusqu'à (82, 89, 99) d'écart par canal »
+    a figuré ici. Il sortait d'un DOUBLE encodage h264 (rendu à travers le
+    filtre en mp4 yuv420p, puis trame relue). Re-mesuré sous ce protocole sur
+    la mire : le témoin `eq` neutre — exact au pixel — y prend (50, 41, 69),
+    et `ct=6500` (74, 76, 83). Le (82, 89, 99) lui-même ne se reproduit pas :
+    son protocole n'avait pas été dit. Ce qu'il chiffrait de toute façon,
+    c'est la perte de génération du codec, pas le filtre.
+
+    Sans l'omission, poser les quatre curseurs au neutre aurait modifié
+    l'image — exactement ce qu'un étalonnage neutre ne doit pas faire.
+    Verrouillé par `neutre_identique` de test_montage_etalonnage.py.
+    """
+    ex = _num(eff, "exposure", 0, -100, 100) / 200.0      # eq brightness −0,5..0,5
+    ct = _num(eff, "contrast", 100, 0, 200) / 100.0
+    sa = _num(eff, "saturation", 100, 0, 200) / 100.0
+    k = int(_num(eff, "temperature", 6500, 2000, 12000))
+    parts = []
+    if k != 6500:
+        parts.append(f"colortemperature=temperature={k}")
+    parts.append(f"eq=brightness={ex:.3f}:contrast={ct:.3f}:saturation={sa:.3f}")
+    return _one(i, o, ",".join(parts))
+
+
 def _colorize(eff, i, o, u, ctx):
     base = COLORIZE.get(eff.get("preset", "duotone"), COLORIZE["duotone"])
     t = _inten(eff, 100)
@@ -666,7 +735,8 @@ def _paper(eff, i, o, u, ctx):
 
 
 EFFECTS = {
-    "grade": _grade, "lut": _grade, "colorize": _colorize, "vhs": _vhs,
+    "grade": _grade, "lut": _grade, "grade_basic": _grade_basic,
+    "colorize": _colorize, "vhs": _vhs,
     "gradient": _gradient, "grain": _grain, "vignette": _vignette,
     "chroma": _chroma, "glitch": _glitch, "bloom": _bloom, "halation": _halation,
     "scanlines": _scanlines, "letterbox": _letterbox, "oldfilm": _oldfilm,
@@ -899,6 +969,17 @@ _PARAM_DEFAULTS = {
                   "default": "screen", "label": "Fusion"},
     "ratio":     {"type": "choice", "choices": ["2.39", "2.35", "1.85", "1.33"],
                   "default": "2.35", "label": "Format"},
+    # --- étalonnage de base (P4) : quatre curseurs, quatre bornes. Le panneau
+    # (vfxrack.js, `bounds` par effet) les lit ICI : il n'y a rien d'autre à
+    # écrire côté écran pour que les curseurs apparaissent.
+    "exposure":  {"type": "range", "min": -100, "max": 100, "step": 1,
+                  "default": 0, "label": "Exposition"},
+    "contrast":  {"type": "range", "min": 0, "max": 200, "step": 1,
+                  "default": 100, "label": "Contraste"},
+    "saturation": {"type": "range", "min": 0, "max": 200, "step": 1,
+                   "default": 100, "label": "Saturation"},
+    "temperature": {"type": "range", "min": 2000, "max": 12000, "step": 100,
+                    "default": 6500, "label": "Température", "unit": "K"},
     "preset":    {"type": "choice", "choices": [], "default": "",
                   "label": "Préréglage"},
     "file":      {"type": "lut", "default": "", "label": "LUT .cube"},
@@ -909,6 +990,14 @@ _CATALOG = {
     # --- Étalonnage ---
     "grade":      ("etalonnage", "LUT / Étalonnage", ["preset", "file"],
                    "Ambiances colorimétriques, ou votre propre LUT .cube.", {}),
+    # JUSTE APRÈS « grade » : c'est cette position qui met les quatre curseurs
+    # SOUS la LUT dans le rack (l'ordre de ce dict est celui de l'affichage).
+    # Elle ne dit rien de l'ordre dans la CHAÎNE d'un clip : là, c'est la pile
+    # posée par l'utilisateur qui décide.
+    "grade_basic": ("etalonnage", "Réglages de base",
+                    ["exposure", "contrast", "saturation", "temperature"],
+                    "Exposition, contraste, saturation, température — sous la LUT.",
+                    {}),
     "colorize":   ("etalonnage", "Colorisation", ["preset", "intensity"],
                    "Sépia, noir et blanc, duotone, matrice.", {}),
     "invert":     ("etalonnage", "Négatif", [], "Inverse toutes les couleurs.", {}),
