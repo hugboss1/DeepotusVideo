@@ -177,8 +177,20 @@ R_M6 = ("      duration_master:durMaster,ducking:ducking,clips:clips,\n"
 # (cf. M6), un drapeau collé sur un clip y serait persisté et survivrait à sa
 # propre correction. `proj`, lui, n'est jamais sérialisé en bloc.
 # `null` quand la clé est absente : une réponse qui ne dit rien ne marque
-# rien — l'ouverture d'un projet nommé (POST /projects/{pid}/open) ne rend
-# pas ce champ, et le marquage s'y éteint plutôt que de mentir.
+# rien. RECTIFICATION du 04/09/2026 (revue de qualité) — la justification
+# écrite ici était FAUSSE, et c'est le second commit d'affilée qui traque des
+# commentaires qui mentent. Elle disait : « l'ouverture d'un projet nommé
+# (POST /projects/{pid}/open) ne rend pas ce champ, et le marquage s'y éteint
+# plutôt que de mentir. » La route ne le rend effectivement pas
+# (montage_service.py) — mais sa réponse n'arrive JAMAIS jusqu'ici. MESURÉ
+# dans le bundle livré : `doOpen` enchaîne
+# `send(url(p.id)+"/open","POST").then(function(){return
+# req("/api/montage/project")})`, et c'est CETTE seconde réponse qui va à
+# `svmApplyProject`. Les TROIS appelants runtime de `svmApplyProject` sont
+# alimentés par GET /project : l'effet de montage, la remise à zéro depuis la
+# Bibliothèque, et l'ouverture d'un projet nommé. Le repli reste du bon code
+# défensif — un backend antérieur à P8, ou une réponse tronquée, n'a pas la
+# clé — mais il ne couvre pas le chemin qu'on lui prêtait.
 A_M7 = 'var np={demo:!1,name:d.name||"montage",version:"v1",ratio:d.ratio||"9:16",'
 R_M7 = ('var np={demo:!1,tracks:svmTracksFrom(d.tracks),'
         'project_id:d.project_id,'
@@ -473,89 +485,172 @@ R_M16REF = (A_M16REF + "\n"
             "     instant-là repartirait sur une v2 que le projet réel n'a pas,\n"
             "     et `setClips(cs)` de svmApplyProject l'effacerait de toute\n"
             "     façon en écrasant la liste entière. */\n"
-            "  var dzReadyRef=x.useRef(!1);dzReadyRef.current=!proj.demo;")
+            "  var dzReadyRef=x.useRef(!1);dzReadyRef.current=!proj.demo;\n"
+            "  /* P9 — L'ATTENTE DE LA TIMELINE RÉELLE, ET SON EXTINCTION.\n"
+            "     Elle vit ICI, dans le corps du composant, et non dans\n"
+            "     `addAsset` : c'est le seul endroit d'où elle peut être\n"
+            "     ANNULÉE. `DzMontage` est monté CONDITIONNELLEMENT\n"
+            "     (`s===\"montage\"&&r.jsx(DzMontage,…)`) — quitter l'onglet le\n"
+            "     DÉMONTE. Sans la garde ci-dessous, la chaîne continuait à se\n"
+            "     replanifier toute seule jusqu'au plafond, puis `fireNote`\n"
+            "     tapait dans un arbre démonté : no-op silencieux de React 18.\n"
+            "     MESURÉ le 04/09/2026 en rejouant le texte LIVRÉ sous node,\n"
+            "     horloge simulée, démontage à 300 ms : 167 reprogrammations,\n"
+            "     20 040 ms d'horloge, 1 note émise dans le vide, 0 clip posé.\n"
+            "     Ni le clip NI le message — exactement le silence que toute\n"
+            "     cette tâche supprime ailleurs, et dans la fenêtre où l'on est\n"
+            "     le plus tenté de partir puisque GET /project ffprobe chaque\n"
+            "     asset. La garde EST la correction ; `clearTimeout` n'est que\n"
+            "     la propreté (il épargne un dernier réveil de 120 ms).\n"
+            "     UNE SEULE chaîne peut être en vol : tant que `dzReadyRef` est\n"
+            "     faux, `proj.demo` est vrai, et les six autres appelants\n"
+            "     d'`addAsset` sont derrière une garde `proj.demo` — le greffon\n"
+            "     amont, lui, ne tire qu'une fois (son effet `[]` supprime\n"
+            "     `window.__dzMontageAdd` avant même le setTimeout). Une seule\n"
+            "     ref de minuteur suffit donc.\n"
+            "     Le remontage RÉARME : un effet `[]` est rejoué en double sous\n"
+            "     StrictMode, et sans cette ligne l'écran serait mort pour de\n"
+            "     bon après le premier aller-retour. */\n"
+            "  var dzAliveRef=x.useRef(!0),dzWaitRef=x.useRef(0);\n"
+            "  x.useEffect(function(){dzAliveRef.current=!0;\n"
+            "    return function(){dzAliveRef.current=!1;\n"
+            "      if(dzWaitRef.current){clearTimeout(dzWaitRef.current);\n"
+            "        dzWaitRef.current=0}}},[]);\n"
+            "  function dzAddWhenReady(a1,b1,c1,d1,e1,f1,until){\n"
+            "    dzWaitRef.current=0;\n"
+            "    if(!dzAliveRef.current)return;\n"
+            "    if(dzReadyRef.current){addAsset(a1,b1,c1,d1,e1,f1);return}\n"
+            "    if(Date.now()>=until){fireNote(\"« \"+b1+\" » n'a pas été posé : \"+\n"
+            "      \"la timeline réelle n'est jamais arrivée — la maquette de \"+\n"
+            "      \"démonstration est toujours à l'écran. Enregistrez d'abord \"+\n"
+            "      \"un montage, puis reposez le clip avec « Bibliothèque… ».\");"
+            "return}\n"
+            "    dzWaitRef.current=setTimeout(function(){\n"
+            "      dzAddWhenReady(a1,b1,c1,d1,e1,f1,until)},120)}")
 
 # ── M16a (P9) : addAsset pose sur une piste QUI EXISTE, et attend la durée ──
+# CE QUI EST FAIT ICI, EXACTEMENT — l'étape demandait de « remplacer le
+# `setTimeout(…, 450)` du greffon ». Ce setTimeout N'EST PAS remplacé, et ne
+# peut pas l'être : il vit dans patch_bundle_libsend.py, maillon AMONT que la
+# même étape interdit de toucher (le rejouer seul effacerait tout ce que la
+# chaîne écrit ensuite) — la lettre du plan se contredisait elle-même.
+# L'attente est posée EN AVAL et s'exécute APRÈS ces 450 ms : le greffon
+# appelle quand bon lui semble, et c'est ici qu'on décide d'attendre, de
+# poser, ou de refuser en le disant.
+#
+# (a) LA PISTE. `trId||"v2"` posait le clip sur une piste qui peut ne pas
+#     exister, et rien ne le vérifiait. MESURÉ dans la sauvegarde réelle du
+#     04/09/2026 : `tracks` vaut [v1, a2, a1, a3, s1] — il n'y a PAS de piste
+#     v2. Le clip entrait dans `clips`, il était sauvegardé, il serait parti
+#     au rendu en incrustation ; mais la timeline ne dessine que
+#     `svmTracksOf(proj).map(…)` : il était invisible et inselectionnable.
+#     « rien n'est apparu » était exact, et le clip était pourtant là.
+# (b) LE RETARD DU GREFFON AMONT. Le brief donnait pour cause
+#     « `durRef.current` encore 0 tant que GET /project n'a pas répondu ».
+#     MESURÉ, C'EST FAUX : l'état initial est `{demo:!0,…,dur:SVM_DEMO_DUR,…}`
+#     et `var SVM_DEMO_DUR=64` — la durée vaut 64 dès le premier rendu et ne
+#     passe jamais par 0. Une garde `dur > 0` aurait été du code mort.
+#     LA VRAIE COURSE est double : à 450 ms, si GET /project n'a pas répondu
+#     (il ffprobe chaque asset), (i) `proj` est encore la MAQUETTE, sans
+#     `tracks` — svmTracksOf retombe sur les six pistes historiques, v2
+#     comprise ; (ii) `svmApplyProject` fait ensuite `setClips(cs)`, qui
+#     REMPLACE la liste entière — le clip posé entre-temps est effacé.
+#     On attend donc la seule condition qui compte : que la maquette ait cédé
+#     la place. Les 20 s sont un PLAFOND CHOISI, pas une mesure — et l'échec
+#     est DIT, là où le greffon amont enveloppe tout dans un `catch` muet.
+#
+# CE QUI A QUITTÉ CETTE SECTION (revue de qualité du 04/09/2026) :
+# `dzAddWhenReady` est remontée dans R_M16REF. Trois raisons, la première
+# étant un défaut : (1) déclarée dans `addAsset`, elle n'était joignable par
+# AUCUN démontage — le minuteur ne s'annulait jamais ; (2) elle était recréée
+# à chaque appel d'`addAsset` alors qu'elle ne ferme que sur `dzReadyRef`,
+# `dzWaitRef`, `fireNote` et `addAsset` ; (3) son commentaire pesait 2 856
+# octets EXPÉDIÉS DANS LE BUNDLE DE PRODUCTION — il est ici, en Python, où il
+# ne coûte rien à l'utilisateur.
+#
+# AUCUN geste destructif n'a encore eu lieu aux refus : ils sortent AVANT
+# `pushHistory()`.
 A_M16A = '    var tr2=trId||"v2",d=durRef.current;'
 R_M16A = (
-    "    /* ── P9 — DEUX pannes MESURÉES se soignent ici ────────────────────\n"
-    "       (a) LA PISTE. `trId||\"v2\"` posait le clip sur une piste qui peut\n"
-    "       ne pas exister, et rien ne le vérifiait. MESURÉ dans la sauvegarde\n"
-    "       réelle du 04/09/2026 : `tracks` vaut [v1, a2, a1, a3, s1] — il n'y\n"
-    "       a PAS de piste v2. Le clip entrait dans `clips`, il était\n"
-    "       sauvegardé, il serait parti au rendu en incrustation ; mais la\n"
-    "       timeline ne dessine que `svmTracksOf(proj).map(…)` : il était\n"
-    "       invisible et inselectionnable. « rien n'est apparu » était exact,\n"
-    "       et le clip était pourtant là.\n"
-    "       (b) LE RETARD DU GREFFON AMONT. Le brief de la tâche donnait pour\n"
-    "       cause « `durRef.current` encore 0 tant que GET /project n'a pas\n"
-    "       répondu ». MESURÉ, C'EST FAUX : l'état initial du composant est\n"
-    "       `{demo:!0,…,dur:SVM_DEMO_DUR,…}` et `var SVM_DEMO_DUR=64` — la durée\n"
-    "       vaut 64 dès le premier rendu et ne passe jamais par 0. Une garde\n"
-    "       `dur > 0` aurait été du code mort.\n"
-    "       CE QUI EST FAIT ICI, EXACTEMENT — l'étape demandait de « remplacer\n"
-    "       le `setTimeout(…, 450)` du greffon ». Ce setTimeout N'EST PAS\n"
-    "       remplacé, et ne peut pas l'être : il vit dans\n"
-    "       patch_bundle_libsend.py, maillon AMONT que la même étape interdit\n"
-    "       de toucher (le rejouer seul effacerait tout ce que la chaîne écrit\n"
-    "       ensuite) — la lettre du plan se contredisait elle-même. L'attente\n"
-    "       ci-dessous est posée EN AVAL, dans `addAsset`, et s'exécute APRÈS\n"
-    "       ces 450 ms : le greffon appelle quand bon lui semble, et c'est ici\n"
-    "       qu'on décide d'attendre, de poser, ou de refuser en le disant.\n"
-    "       L'intention de l'étape est tenue ; sa lettre ne l'est pas.\n"
-    "       LA VRAIE COURSE est ailleurs, et elle est double. À 450 ms, si\n"
-    "       GET /project n'a pas encore répondu (il ffprobe chaque asset), (i)\n"
-    "       `proj` est encore la MAQUETTE, sans `tracks` — donc svmTracksOf\n"
-    "       retombe sur les six pistes historiques, v2 COMPRISE, et le clip\n"
-    "       repart sur une v2 que le projet réel n'a pas ; (ii) `svmApplyProject`\n"
-    "       fait ensuite `setClips(cs)`, qui REMPLACE la liste entière — le clip\n"
-    "       posé entre-temps est effacé, purement et simplement. On attend donc\n"
-    "       la seule condition qui compte : que la maquette ait cédé la place.\n"
-    "       Les 20 s sont un PLAFOND CHOISI, pas une mesure — et l'échec est\n"
-    "       DIT, là où le greffon amont enveloppe tout dans un `catch` muet.\n"
-    "       Le seul appelant qui puisse atteindre addAsset avant ce moment est\n"
-    "       ce greffon : les six autres sont derrière une garde `proj.demo`\n"
-    "       (openPicker, sfxInsert, la branche `dz-audio` de dropOnTrack — et\n"
-    "       les trois onClick du sélecteur ne s'atteignent qu'après openPicker).\n"
-    "       AUCUN geste destructif n'a encore eu lieu à ce point : les refus\n"
-    "       ci-dessous sortent AVANT `pushHistory()`. */\n"
-    "    function dzAddWhenReady(a1,b1,c1,d1,e1,f1,until){\n"
-    "      if(dzReadyRef.current){addAsset(a1,b1,c1,d1,e1,f1);return}\n"
-    "      if(Date.now()>=until){fireNote(\"« \"+b1+\" » n'a pas été posé : la \"+\n"
-    "        \"timeline réelle n'est jamais arrivée — la maquette de \"+\n"
-    "        \"démonstration est toujours à l'écran. Enregistrez d'abord un \"+\n"
-    "        \"montage, puis reposez le clip avec « Bibliothèque… ».\");return}\n"
-    "      setTimeout(function(){dzAddWhenReady(a1,b1,c1,d1,e1,f1,until)},120)}\n"
+    "    /* P9 — la piste RÉSOLUE, et l'attente de la timeline réelle (celle-\n"
+    "       ci vit dans le corps du composant, plus haut : c'est le seul\n"
+    "       endroit d'où le démontage de l'onglet peut l'éteindre). */\n"
     "    var d=durRef.current;\n"
     "    if(!dzReadyRef.current){dzAddWhenReady(src,label,kind,srcDur,trId,\n"
     "      atTime,Date.now()+20000);return}\n"
     "    var dzTs=dzTracksRef.current||svmTracksOf(proj);\n"
     "    var dzWant=kind===\"audio\"?\"audio\":\"video\";\n"
+    "    var dzMot=dzWant===\"audio\"?\"audio\":\"vidéo\";\n"
     "    var tr2=(trId&&dzTs.some(function(t){return t&&t.id===trId}))?trId\n"
     "      :DzTracks.pickTrack(dzTs,dzWant);\n"
     "    if(!tr2){fireNote(\"« \"+label+\" » n'a pas été posé : ce projet ne \"+\n"
-    "      \"porte aucune piste \"+(dzWant===\"audio\"?\"audio\":\"vidéo\")+\". \"+\n"
-    "      \"Ajoutez-en une avec « + piste \"+(dzWant===\"audio\"?\"audio\":\"vidéo\")+\n"
-    "      \" » dans la barre de transport, puis recommencez.\");return}\n"
+    "      \"porte aucune piste \"+dzMot+\". Ajoutez-en une avec \"+\n"
+    "      \"« + piste \"+dzMot+\" » dans la barre de transport, puis \"+\n"
+    "      \"recommencez.\");return}\n"
     "    var dzMoved=(trId&&tr2!==trId)?String(trId).toUpperCase():\"\";")
 
-# ── M16b (P9) : la note dit où le clip a atterri, et pourquoi ───────────────
+# ── M16b (P9) : la note dit où le clip a atterri, et ce que ça change ───────
 # Le clip DÉJÀ invisible dans la sauvegarde ne se répare pas tout seul — cette
-# section ne le déplace pas, elle ne fait que dire la vérité sur le geste en
-# cours. La sortie est nommée : `dzmAdd` reprend le plus PETIT identifiant
-# libre, donc « + piste vidéo » sur un projet [v1, a2, a1, a3, s1] recrée
-# exactement `v2`, et les clips posés dessus redeviennent visibles. Ce que
-# « annuler » ne restaure pas est inchangé ici (l'historique ne mémorise que
-# {clips, mixDb}) : ajouter un clip, lui, se défait entièrement.
+# section ne le déplace pas, elle dit la vérité sur le geste EN COURS.
+#
+# LE MOT EST CHOISI, PAS ÉCRIT EN DUR (revue de qualité) : la note annonçait
+# « + piste vidéo » même pour une piste AUDIO, alors que le refus voisin
+# choisissait déjà le mot. Le chemin est atteignable et lu : `svmSfxTrackOf`
+# rend a1/a2/a3 EN DUR, et `dzmRemove` ne protège que v1 et s1 — un projet
+# dont A3 a été retiré, puis un bruitage inséré depuis le tiroir Sons, et la
+# note disait « Recréer A3 avec « + piste vidéo » ». Les deux emplois lisent
+# désormais le même `dzMot`.
+#
+# CE QUE LA NOTE DIT MAINTENANT DU CLIP QU'ON POSE, et pas seulement des
+# anciens : sans V2, `pickTrack` rend `v1` — la piste de FOND. Or V1 est une
+# SÉQUENCE CONCATÉNÉE au rendu (montage_service.py : `v1_in` trié par `start`
+# dans /render comme dans /loudness) : le film gagne UN PLAN DE PLUS, pas une
+# incrustation, et `svmApplyProject` faisant `setPh(0)`, le clip atterrit à
+# 0:00 sur le premier plan. C'est très supérieur à « invisible », mais ce
+# n'est pas ce que le libellé de la Bibliothèque promet (« 🎞 Montage —
+# overlay à la tête de lecture ») : la note le dit, en toutes lettres.
+#
+# CE QU'ON NE FAIT PAS, ET POURQUOI — la revue proposait de CRÉER la piste
+# d'incrustation manquante par `dzmAdd` au lieu de retomber sur le fond.
+# Refusé, sur deux mesures :
+#   1. `dzmAdd` promet le plus PETIT identifiant libre, pas celui qu'on
+#      demande. MESURÉ sous node le 04/09/2026 : sur [v1, a2, a1, a3, s1] la
+#      demande « v2 » tombe juste — mais sur [v1, a1, s1] la demande « a3 »
+#      (celle de `svmSfxTrackOf` pour un bruitage) rend `a2`, DE BUS
+#      « musique ». On aurait créé une piste que personne n'a demandée, sous
+#      un autre nom ET sur un autre bus de mixage, puis nommé « a3 » dans la
+#      note. Le repli devrait de toute façon être avoué.
+#   2. `pushHistory` ne mémorise que {clips, mixDb} : une piste créée
+#      SURVIVRAIT à « annuler », et l'autosave l'écrirait dans le projet
+#      enregistré (M6 sérialise `tracks`). L'application ferait au projet de
+#      l'utilisateur un changement de structure qu'elle ne sait pas défaire,
+#      sans le lui demander.
+# Le repli, lui, est entièrement réversible : « annuler » retire le clip et
+# rien d'autre n'a bougé.
+#
+# LA SORTIE EST NOMMÉE — ET LE TEXTE NE PROMET PAS PLUS QUE `dzmAdd` NE TIENT.
+# Sur la sauvegarde réelle [v1, a2, a1, a3, s1], « + piste vidéo » recrée
+# exactement `v2` : un clic. Mais la même règle du « plus petit identifiant
+# libre » qui rend le bouton exact ici le rend APPROXIMATIF ailleurs — sur
+# [v1, a1, s1], « + piste audio » rend `a2` avant de rendre `a3`. Écrire
+# « Créez A3 avec « + piste audio » » aurait donc été un mensonge de plus dans
+# une note dont tout l'objet est de ne pas mentir : elle dit la RÈGLE (« le
+# plus petit identifiant libre ») et invite à cliquer jusqu'à voir la piste
+# voulue. C'est vrai dans les deux cas, et cela explique le clic
+# intermédiaire au lieu de le laisser surprendre.
 A_M16B = ('    fireNote("« "+label+" » ajouté sur "+tr2.toUpperCase()+" à "'
           '+svmShort(st)+" — glissez / rognez sur la piste.")}')
 R_M16B = (
     "    fireNote(\"« \"+label+\" » ajouté sur \"+tr2.toUpperCase()+\" à \"\n"
     "      +svmShort(st)+\" — glissez / rognez sur la piste.\"+\n"
     "      (dzMoved?\" La piste \"+dzMoved+\" n'existe pas dans ce projet : le \"+\n"
-    "        \"clip a été posé ici à la place. Recréer \"+dzMoved+\" avec \"+\n"
-    "        \"« + piste vidéo » y fera aussi réapparaître les clips déjà \"+\n"
-    "        \"posés sur cette piste absente.\":\"\"))}")
+    "        \"clip vient d'être posé sur \"+tr2.toUpperCase()+\" à la place\"+\n"
+    "        (tr2===\"v1\"?\", où il s'AJOUTE À LA SUITE des plans au lieu de \"+\n"
+    "          \"s'incruster par-dessus\":\"\")+\n"
+    "        \". « + piste \"+dzMot+\" » recrée le plus petit identifiant \"+\n"
+    "        \"libre : cliquez jusqu'à voir \"+dzMoved+\", puis remontez-y le \"+\n"
+    "        \"clip — les clips déjà posés sur cette piste absente y \"+\n"
+    "        \"réapparaîtront aussi.\":\"\"))}")
 
 # ── M16c (P9) : le sélecteur applique LA règle du rendu, pas une copie ──────
 # MESURE : `openPicker()` construisait sa liste « Rendus vidéo » avec

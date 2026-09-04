@@ -1735,6 +1735,46 @@ function DzMontage(props){
      et `setClips(cs)` de svmApplyProject l'effacerait de toute
      façon en écrasant la liste entière. */
   var dzReadyRef=x.useRef(!1);dzReadyRef.current=!proj.demo;
+  /* P9 — L'ATTENTE DE LA TIMELINE RÉELLE, ET SON EXTINCTION.
+     Elle vit ICI, dans le corps du composant, et non dans
+     `addAsset` : c'est le seul endroit d'où elle peut être
+     ANNULÉE. `DzMontage` est monté CONDITIONNELLEMENT
+     (`s==="montage"&&r.jsx(DzMontage,…)`) — quitter l'onglet le
+     DÉMONTE. Sans la garde ci-dessous, la chaîne continuait à se
+     replanifier toute seule jusqu'au plafond, puis `fireNote`
+     tapait dans un arbre démonté : no-op silencieux de React 18.
+     MESURÉ le 04/09/2026 en rejouant le texte LIVRÉ sous node,
+     horloge simulée, démontage à 300 ms : 167 reprogrammations,
+     20 040 ms d'horloge, 1 note émise dans le vide, 0 clip posé.
+     Ni le clip NI le message — exactement le silence que toute
+     cette tâche supprime ailleurs, et dans la fenêtre où l'on est
+     le plus tenté de partir puisque GET /project ffprobe chaque
+     asset. La garde EST la correction ; `clearTimeout` n'est que
+     la propreté (il épargne un dernier réveil de 120 ms).
+     UNE SEULE chaîne peut être en vol : tant que `dzReadyRef` est
+     faux, `proj.demo` est vrai, et les six autres appelants
+     d'`addAsset` sont derrière une garde `proj.demo` — le greffon
+     amont, lui, ne tire qu'une fois (son effet `[]` supprime
+     `window.__dzMontageAdd` avant même le setTimeout). Une seule
+     ref de minuteur suffit donc.
+     Le remontage RÉARME : un effet `[]` est rejoué en double sous
+     StrictMode, et sans cette ligne l'écran serait mort pour de
+     bon après le premier aller-retour. */
+  var dzAliveRef=x.useRef(!0),dzWaitRef=x.useRef(0);
+  x.useEffect(function(){dzAliveRef.current=!0;
+    return function(){dzAliveRef.current=!1;
+      if(dzWaitRef.current){clearTimeout(dzWaitRef.current);
+        dzWaitRef.current=0}}},[]);
+  function dzAddWhenReady(a1,b1,c1,d1,e1,f1,until){
+    dzWaitRef.current=0;
+    if(!dzAliveRef.current)return;
+    if(dzReadyRef.current){addAsset(a1,b1,c1,d1,e1,f1);return}
+    if(Date.now()>=until){fireNote("« "+b1+" » n'a pas été posé : "+
+      "la timeline réelle n'est jamais arrivée — la maquette de "+
+      "démonstration est toujours à l'écran. Enregistrez d'abord "+
+      "un montage, puis reposez le clip avec « Bibliothèque… ».");return}
+    dzWaitRef.current=setTimeout(function(){
+      dzAddWhenReady(a1,b1,c1,d1,e1,f1,until)},120)}
   var videoRef=x.useRef(null);
   var mixRef=x.useRef(proj.mixDb);mixRef.current=proj.mixDb;
   var rippleRef=x.useRef(ripple);rippleRef.current=ripple;
@@ -3793,65 +3833,21 @@ function DzMontage(props){
     return Math.min(6,srcDur||6);
   }
   function addAsset(src,label,kind,srcDur,trId,atTime){
-    /* ── P9 — DEUX pannes MESURÉES se soignent ici ────────────────────
-       (a) LA PISTE. `trId||"v2"` posait le clip sur une piste qui peut
-       ne pas exister, et rien ne le vérifiait. MESURÉ dans la sauvegarde
-       réelle du 04/09/2026 : `tracks` vaut [v1, a2, a1, a3, s1] — il n'y
-       a PAS de piste v2. Le clip entrait dans `clips`, il était
-       sauvegardé, il serait parti au rendu en incrustation ; mais la
-       timeline ne dessine que `svmTracksOf(proj).map(…)` : il était
-       invisible et inselectionnable. « rien n'est apparu » était exact,
-       et le clip était pourtant là.
-       (b) LE RETARD DU GREFFON AMONT. Le brief de la tâche donnait pour
-       cause « `durRef.current` encore 0 tant que GET /project n'a pas
-       répondu ». MESURÉ, C'EST FAUX : l'état initial du composant est
-       `{demo:!0,…,dur:SVM_DEMO_DUR,…}` et `var SVM_DEMO_DUR=64` — la durée
-       vaut 64 dès le premier rendu et ne passe jamais par 0. Une garde
-       `dur > 0` aurait été du code mort.
-       CE QUI EST FAIT ICI, EXACTEMENT — l'étape demandait de « remplacer
-       le `setTimeout(…, 450)` du greffon ». Ce setTimeout N'EST PAS
-       remplacé, et ne peut pas l'être : il vit dans
-       patch_bundle_libsend.py, maillon AMONT que la même étape interdit
-       de toucher (le rejouer seul effacerait tout ce que la chaîne écrit
-       ensuite) — la lettre du plan se contredisait elle-même. L'attente
-       ci-dessous est posée EN AVAL, dans `addAsset`, et s'exécute APRÈS
-       ces 450 ms : le greffon appelle quand bon lui semble, et c'est ici
-       qu'on décide d'attendre, de poser, ou de refuser en le disant.
-       L'intention de l'étape est tenue ; sa lettre ne l'est pas.
-       LA VRAIE COURSE est ailleurs, et elle est double. À 450 ms, si
-       GET /project n'a pas encore répondu (il ffprobe chaque asset), (i)
-       `proj` est encore la MAQUETTE, sans `tracks` — donc svmTracksOf
-       retombe sur les six pistes historiques, v2 COMPRISE, et le clip
-       repart sur une v2 que le projet réel n'a pas ; (ii) `svmApplyProject`
-       fait ensuite `setClips(cs)`, qui REMPLACE la liste entière — le clip
-       posé entre-temps est effacé, purement et simplement. On attend donc
-       la seule condition qui compte : que la maquette ait cédé la place.
-       Les 20 s sont un PLAFOND CHOISI, pas une mesure — et l'échec est
-       DIT, là où le greffon amont enveloppe tout dans un `catch` muet.
-       Le seul appelant qui puisse atteindre addAsset avant ce moment est
-       ce greffon : les six autres sont derrière une garde `proj.demo`
-       (openPicker, sfxInsert, la branche `dz-audio` de dropOnTrack — et
-       les trois onClick du sélecteur ne s'atteignent qu'après openPicker).
-       AUCUN geste destructif n'a encore eu lieu à ce point : les refus
-       ci-dessous sortent AVANT `pushHistory()`. */
-    function dzAddWhenReady(a1,b1,c1,d1,e1,f1,until){
-      if(dzReadyRef.current){addAsset(a1,b1,c1,d1,e1,f1);return}
-      if(Date.now()>=until){fireNote("« "+b1+" » n'a pas été posé : la "+
-        "timeline réelle n'est jamais arrivée — la maquette de "+
-        "démonstration est toujours à l'écran. Enregistrez d'abord un "+
-        "montage, puis reposez le clip avec « Bibliothèque… ».");return}
-      setTimeout(function(){dzAddWhenReady(a1,b1,c1,d1,e1,f1,until)},120)}
+    /* P9 — la piste RÉSOLUE, et l'attente de la timeline réelle (celle-
+       ci vit dans le corps du composant, plus haut : c'est le seul
+       endroit d'où le démontage de l'onglet peut l'éteindre). */
     var d=durRef.current;
     if(!dzReadyRef.current){dzAddWhenReady(src,label,kind,srcDur,trId,
       atTime,Date.now()+20000);return}
     var dzTs=dzTracksRef.current||svmTracksOf(proj);
     var dzWant=kind==="audio"?"audio":"video";
+    var dzMot=dzWant==="audio"?"audio":"vidéo";
     var tr2=(trId&&dzTs.some(function(t){return t&&t.id===trId}))?trId
       :DzTracks.pickTrack(dzTs,dzWant);
     if(!tr2){fireNote("« "+label+" » n'a pas été posé : ce projet ne "+
-      "porte aucune piste "+(dzWant==="audio"?"audio":"vidéo")+". "+
-      "Ajoutez-en une avec « + piste "+(dzWant==="audio"?"audio":"vidéo")+
-      " » dans la barre de transport, puis recommencez.");return}
+      "porte aucune piste "+dzMot+". Ajoutez-en une avec "+
+      "« + piste "+dzMot+" » dans la barre de transport, puis "+
+      "recommencez.");return}
     var dzMoved=(trId&&tr2!==trId)?String(trId).toUpperCase():"";
     if(trackStRef.current[tr2]&&trackStRef.current[tr2].l){
       fireNote("Piste "+tr2.toUpperCase()+" verrouillée — déverrouillez-la pour ajouter.");return}
@@ -3866,9 +3862,13 @@ function DzMontage(props){
     fireNote("« "+label+" » ajouté sur "+tr2.toUpperCase()+" à "
       +svmShort(st)+" — glissez / rognez sur la piste."+
       (dzMoved?" La piste "+dzMoved+" n'existe pas dans ce projet : le "+
-        "clip a été posé ici à la place. Recréer "+dzMoved+" avec "+
-        "« + piste vidéo » y fera aussi réapparaître les clips déjà "+
-        "posés sur cette piste absente.":""))}
+        "clip vient d'être posé sur "+tr2.toUpperCase()+" à la place"+
+        (tr2==="v1"?", où il s'AJOUTE À LA SUITE des plans au lieu de "+
+          "s'incruster par-dessus":"")+
+        ". « + piste "+dzMot+" » recrée le plus petit identifiant "+
+        "libre : cliquez jusqu'à voir "+dzMoved+", puis remontez-y le "+
+        "clip — les clips déjà posés sur cette piste absente y "+
+        "réapparaîtront aussi.":""))}
   /* insertion depuis le tiroir Sons (DzSfx.Drawer) — à la tête de lecture,
      piste du type (voix→A1, musique→A2, sfx→A3 ; le tiroir peut imposer
      opts.track) ; même moteur addAsset : historique, sélection, note */

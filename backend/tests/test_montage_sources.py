@@ -805,6 +805,40 @@ check("le_where_n_est_pas_un_surensemble",
       f"has_assets={d_sur.get('has_assets')} v1={v1_sur}")
 
 
+print("\n[2-quinquies] LA ROUTE QUI SERT LA REGLE — GET /media-rules.")
+# P9 l'a ajoutee pour que le selecteur d'assets de l'editeur n'ecrive pas une
+# SECONDE copie de `_VIDEO_EXTS` en JavaScript. AUCUN banc ne l'appelait :
+# `grep -rn "media-rules" backend/ --include=*.py` ne rendait que sa
+# definition et des COMPTES DE LITTERAUX dans test_montage_bundle.py — un
+# prefixe de router qui bouge, une route masquee par une voisine, une cle
+# renommee, et rien ne l'aurait vu. Le seul symptome aurait ete le mode
+# degrade du selecteur : liste NON filtree, avec une note — c'est-a-dire un
+# echec DISCRET PAR CONSTRUCTION, celui que ce chantier traque partout.
+# Elle est mesuree ICI et pas dans le miroir du bundle : le harnais ASGI est
+# ici, et une route se mesure en l'APPELANT, pas en comptant ses caracteres.
+r_rules = api("GET", "/api/montage/media-rules")
+check("media_rules_repond_200", r_rules.status_code == 200,
+      f"status={r_rules.status_code} {r_rules.text[:160]}")
+# LA MEME liste que le rendu, pas une liste PLAUSIBLE : `set(...) ==` et non
+# `>=`. Servir un SURENSEMBLE proposerait au selecteur des formats que
+# `_is_video_artifact` refuse ensuite ; un sous-ensemble masquerait des rendus
+# parfaitement valables. Les deux sont silencieux a l'ecran.
+_rules = J(r_rules)
+check("media_rules_sert_exactement__VIDEO_EXTS",
+      set(_rules.get("video_exts") or []) == set(M._VIDEO_EXTS)
+      and len(_rules.get("video_exts") or []) == len(M._VIDEO_EXTS),
+      f"{_rules.get('video_exts')} vs {list(M._VIDEO_EXTS)}")
+# LE CONTRAT DU CLIENT : `dzmIsVideoJob` teste
+# `Array.isArray(rr[3].video_exts) && .length` — une liste vide ou un scalaire
+# le fait basculer en mode degrade sans que la route ait echoue.
+check("media_rules_rend_une_liste_non_vide",
+      isinstance(_rules.get("video_exts"), list)
+      and len(_rules.get("video_exts")) >= 1
+      and all(isinstance(e, str) and e.startswith(".")
+              for e in _rules["video_exts"]),
+      str(_rules)[:200])
+
+
 print("\n[3] NON-REGRESSION — une image posee A LA MAIN reste valide.")
 p_img = CO(lambda: M._resolve_src({"image": "carton.png"}),
            "_resolve_src({image})")

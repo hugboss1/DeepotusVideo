@@ -591,11 +591,27 @@ check("M16_les_boutons_de_piste_disent_qu_ils_ajoutent_une_piste",
 _tr2_dur = s.count(nl('var tr2=trId||"v2"'))
 check("M16a_la_piste_v2_en_dur_a_disparu", _tr2_dur == 0,
       f"« var tr2=trId||\"v2\" »={_tr2_dur} (attendu 0)")
+# LES DEUX SECTIONS P9 DU CORPS DU COMPOSANT, ensemble. `dzAddWhenReady` a
+# quitté `addAsset` pour R_M16REF (elle n'y était joignable par aucun
+# démontage) : les identifiants qu'elle appelle vivent donc désormais dans
+# R_M16REF, et mesurer R_M16A SEULE laisserait la moitié du greffon sans
+# contrôle. Le couple est déjà le motif employé plus bas pour
+# `dzTracksRef` / `dzMoved` / `dzReadyRef`.
+_P9C = P.R_M16REF + P.R_M16A
+# `addAsset` — LE TROU. Mesuré le 04/09/2026 : en renommant la déclaration
+# `function addAsset(src,label,kind,srcDur,trId,atTime){` en `addAssetX` dans
+# le bundle LIVRÉ, le banc restait à 255 passed, 0 failed — alors que les sept
+# appelants et la relance de `dzAddWhenReady` étaient morts, et que
+# `node --check` passe (un nom libre est du JavaScript parfaitement valide).
+# C'est exactement la classe de panne que ce contrôle à deux faces existe pour
+# attraper. (`svmTracksOf` est déjà couvert par la boucle de M16lib.)
 for _nm, _decl in (("pickTrack", "function dzmPickTrack(ts,kind){"),
                    ("dzTracksRef", "var dzTracksRef=x.useRef(null);"),
                    ("durRef", "var durRef=x.useRef(proj.dur);"),
-                   ("fireNote", "fireNote=nt[1]")):
-    _ap = re.search(r"\b%s\b" % re.escape(_nm), P.R_M16A) is not None
+                   ("fireNote", "fireNote=nt[1]"),
+                   ("addAsset",
+                    "function addAsset(src,label,kind,srcDur,trId,atTime){")):
+    _ap = re.search(r"\b%s\b" % re.escape(_nm), _P9C) is not None
     check("M16a_appelle_" + _nm + "_qui_est_declare",
           _ap and s.count(nl(_decl)) >= 1,
           f"appelé={_ap} déclaré={s.count(nl(_decl))} ({_decl})")
@@ -636,7 +652,10 @@ _body = s[_a0:_a1] if _a0 >= 0 and _a1 > _a0 else ""
 # une note disparue — on aurait remplacé une mort par une assertion creuse.
 _i_refus = _body.rfind(nl("n'a pas été posé"))
 _i_push = _body.find("pushHistory();")
-_n_ret = P.R_M16A.count(";return}")
+# Compté sur LE COUPLE : deux des quatre `;return}` (le relais vers addAsset
+# et le refus du plafond) ont suivi `dzAddWhenReady` dans R_M16REF. Le total
+# du greffon P9 est inchangé — c'est lui qui compte, pas sa répartition.
+_n_ret = _P9C.count(";return}")
 check("M16a_refuse_avant_de_pousser_l_historique",
       bool(_body) and _body.count("pushHistory();") == 1 and _n_ret == 4
       and _i_refus >= 0 and _i_push >= 0 and _i_refus < _i_push,
@@ -665,11 +684,49 @@ check("M16a_refuse_avant_de_pousser_l_historique",
 # qui remplace la liste entiere — le clip pose entre-temps est efface.
 check("M16a_l_attente_est_bornee_et_dite",
       "if(!dzReadyRef.current){dzAddWhenReady(" in P.R_M16A
-      and "Date.now()>=until" in P.R_M16A
-      and "if(dzReadyRef.current){addAsset(" in P.R_M16A
-      and "n'a pas été posé : la " in P.R_M16A
+      and "Date.now()>=until" in P.R_M16REF
+      and "if(dzReadyRef.current){addAsset(" in P.R_M16REF
+      and "n'a pas été posé : " in P.R_M16REF
       and "Date.now()+20000);return}" in P.R_M16A,
       "l'attente n'est pas armée, pas bornée à 20 s, ou son échec est muet")
+# ── LE MINUTEUR S'ÉTEINT AU DÉMONTAGE ────────────────────────────────────
+# LE point le plus grave de la revue de qualité du 04/09/2026, et il n'était
+# pas mesuré : `DzMontage` est monté CONDITIONNELLEMENT — quitter l'onglet le
+# démonte, et la chaîne d'attente continuait de se replanifier seule jusqu'au
+# plafond avant de crier dans un arbre mort (no-op silencieux de React 18).
+# MESURE, en rejouant le texte LIVRÉ d'alors sous node avec une horloge
+# simulée et un démontage à 300 ms : 167 reprogrammations, 20 040 ms
+# d'horloge, 1 note émise dans le vide, 0 clip posé. Ni le clip, NI le
+# message : le silence même que cette tâche supprime partout ailleurs.
+check("M16ref_DzMontage_est_monte_conditionnellement",
+      s.count(nl('s==="montage"&&r.jsx(DzMontage,{variant:e,go:a})')) == 1,
+      "le montage conditionnel a changé — la garde d'extinction doit être "
+      "re-justifiée avant d'être gardée")
+check("M16ref_l_attente_s_eteint_au_demontage",
+      "var dzAliveRef=x.useRef(!0)" in P.R_M16REF
+      and "dzAliveRef.current=!1" in P.R_M16REF
+      and s.count(nl("if(!dzAliveRef.current)return;")) == 1,
+      "la chaîne d'attente survit au démontage : ni clip, ni message")
+# LE RÉARMEMENT AU MONTAGE, pas seulement l'extinction : un effet `[]` est
+# rejoué en double sous StrictMode (mount → unmount → mount), et sans cette
+# ligne l'écran serait mort pour de bon dès le premier aller-retour.
+check("M16ref_le_remontage_rearme_l_attente",
+      s.count(nl("x.useEffect(function(){dzAliveRef.current=!0;")) == 1,
+      "le démontage éteint définitivement — StrictMode suffirait à le figer")
+check("M16ref_le_minuteur_en_vol_est_annule",
+      "dzWaitRef.current=setTimeout(" in P.R_M16REF
+      and s.count(nl("clearTimeout(dzWaitRef.current)")) == 1,
+      "le minuteur en vol n'est pas annulé au démontage")
+check("M16ref_l_attente_a_quitte_addAsset",
+      "function dzAddWhenReady(" in P.R_M16REF
+      and "function dzAddWhenReady(" not in P.R_M16A
+      and s.count(nl("function dzAddWhenReady(")) == 1,
+      "`dzAddWhenReady` est recréée à chaque appel, et hors de portée du "
+      "démontage")
+for _nv in ("dzAliveRef", "dzWaitRef"):
+    _dh = s.count(_nv) - P.R_M16REF.count(_nv)
+    check("M16ref_nom_" + _nv + "_n_ecrase_rien", _dh == 0,
+          f"{_nv} apparaît {_dh}x hors de la section qui l'écrit")
 # LA MESURE QUI FONDE CE CHOIX, REJOUEE — sinon elle se perime en silence :
 # la duree de depart n'est pas nulle, et `setClips` de svmApplyProject
 # remplace bien la liste entiere.
@@ -706,9 +763,50 @@ check("M16ref_nom_dzTracksRef_n_ecrase_rien", _dehors == 0,
 # banc restait vert, `dzMoved` figurant encore dans la branche morte.
 check("M16b_la_note_nomme_la_piste_reelle_et_la_sortie",
       s.count(nl(P.R_M16B)) == 1 and "(dzMoved?" in P.R_M16B
-      and "« + piste vidéo »" in P.R_M16B
+      and '« + piste "+dzMot+" »' in P.R_M16B
       and "dzMoved" in P.R_M16A,
       f"count={s.count(nl(P.R_M16B))}")
+# LE MOT DE LA PISTE EST CHOISI, PAS ÉCRIT EN DUR. La note annonçait « + piste
+# vidéo » même pour une piste AUDIO, alors que le refus voisin choisissait
+# déjà le mot. CHEMIN ATTEIGNABLE, lu dans le bundle livré : `svmSfxTrackOf`
+# rend a1/a2/a3 EN DUR et `dzmRemove` ne protège que v1 et s1 — un projet dont
+# A3 a été retiré, puis un bruitage inséré depuis le tiroir Sons, et la note
+# disait « Recréer A3 avec « + piste vidéo » ».
+# LES DEUX EMPLOIS lisent le MÊME `dzMot` : mesurer la seule note laisserait
+# passer un refus retombé en dur, et réciproquement.
+check("M16b_le_mot_de_la_piste_est_choisi_pas_ecrit_en_dur",
+      'var dzMot=dzWant==="audio"?"audio":"vidéo";' in P.R_M16A
+      and '« + piste "+dzMot+" »' in P.R_M16A
+      and '« + piste "+dzMot+" »' in P.R_M16B
+      and "« + piste vidéo »" not in P.R_M16B
+      and "« + piste vidéo »" not in P.R_M16A,
+      "la note ou le refus nomme « vidéo » en dur — faux sur une piste audio")
+check("M16b_svmSfxTrackOf_peut_toujours_nommer_une_piste_absente",
+      s.count(nl('function svmSfxTrackOf(kind){return kind==="voix"?"a1":'
+                 'kind==="musique"?"a2":"a3"}')) == 1
+      and s.count(nl('return (id==="v1"||id==="s1")?ts:'
+                     'ts.filter(function(t){return t.id!==id})')) == 1,
+      "la mesure qui fonde le choix du mot a bougé — a1/a2/a3 en dur, et "
+      "dzmRemove ne protège que v1 et s1")
+# CE QUE LA NOTE DIT DU CLIP QU'ON POSE, et pas seulement des anciens. Sans
+# V2, `pickTrack` rend `v1` — la piste de FOND, que le rendu CONCATÈNE
+# (`v1_in` trié par `start`) : le film gagne un plan de plus, pas une
+# incrustation, alors que le libellé de la Bibliothèque promet un « overlay ».
+# La piste n'est PAS créée d'office, et le commentaire de la section porte les
+# deux mesures qui l'interdisent (`dzmAdd` rend le plus petit identifiant
+# libre — donc `a2`, bus « musique », pour une demande « a3 » sur [v1,a1,s1] —
+# et `pushHistory` ne mémorise que {clips, mixDb}, donc une piste créée
+# survivrait à « annuler » et l'autosave l'écrirait dans le projet).
+check("M16b_la_note_dit_ce_qui_arrive_au_clip_qu_on_pose",
+      "clip vient d'être posé sur \"+tr2.toUpperCase()" in P.R_M16B
+      and '(tr2==="v1"?' in P.R_M16B
+      and "s'AJOUTE À LA SUITE des plans" in P.R_M16B,
+      "la note explique la piste absente sans dire ce que devient le clip "
+      "qu'on vient de poser")
+check("M16b_v1_est_bien_une_sequence_concatenee",
+      SVC.count('v1_in = sorted([c for c in clips if c.get("tr") == "v1"],')
+      == 2,
+      "V1 n'est plus la séquence concaténée — la phrase de la note ment")
 _deh2 = s.count("dzMoved") - (P.R_M16A + P.R_M16B).count("dzMoved")
 check("M16b_nom_dzMoved_n_ecrase_rien", _deh2 == 0,
       f"dzMoved apparaît {_deh2}x hors des sections qui l'écrivent")
@@ -741,6 +839,11 @@ check("backend_sert_la_regle_d_extensions",
 # seconde est la premiere moitie de `_ffmpeg_ouvrira`, qui teste
 # `_VIDEO_EXTS + _IMAGE_EXTS + _AUDIO_EXTS`. Vider `_is_video_artifact`
 # laissait donc la ligne VERTE.
+# Cette ligne ne mesure que la FORME de la règle, jamais son CONTENU — et
+# c'était le trou : des trois maillons, la route suivait, le filtre client
+# suivait, et le banc RECOPIAIT la liste dans sa sonde node. Le contenu est
+# désormais tenu ailleurs, par l'EXTRACTION qui alimente cette sonde (voir
+# `backend_la_liste_video_est_extractible_pour_le_banc`, section [3]).
 check("backend_la_regle_servie_est_celle_du_rendu",
       SVC.count("_VIDEO_EXTS = (") == 1
       and SVC.count("def _is_video_artifact(p: Path) -> bool:\n"
@@ -1056,10 +1159,18 @@ out.pick_1re=T.pickTrack([{id:"a1"},{id:"v3"},{id:"v1"}],"video");
 out.pick_aucune=T.pickTrack([{id:"a1",kind:"audio"},{id:"s1",kind:"subs"}],"video");
 out.pick_vide=T.pickTrack([],"video");
 out.pick_nul=T.pickTrack(null,"video");
-/* EXTS est la liste que le BACKEND sert (_VIDEO_EXTS). Elle est ecrite ICI,
-   dans le banc, et NULLE PART dans la couche — c'est justement ce que
-   `M16c_la_couche_ne_recopie_aucune_extension` verifie. */
-var EXTS=[".mp4",".mov",".webm",".mkv",".m4v",".avi"];
+/* EXTS est la liste que le BACKEND sert (_VIDEO_EXTS), EXTRAITE de
+   montage_service.py juste avant l'ecriture du shim — elle n'est ecrite NULLE
+   PART dans la couche, c'est ce que `M16c_la_couche_ne_recopie_aucune_
+   extension` verifie, et elle n'est plus RECOPIEE ici non plus.
+   POURQUOI (revue de qualite du 04/09/2026) : des trois maillons de la regle,
+   la route suivait (`list(_VIDEO_EXTS)`) et le filtre client suivait (aucune
+   extension en JS) — seul le banc portait une copie figee. Retirer `.mp4` de
+   `_VIDEO_EXTS` laissait donc 255 lignes VERTES sur une application qui ne
+   sait plus poser un mp4. Avec l'injection, cette mutation fait rougir
+   `job_video_acceptee` et `job_extension_insensible_a_la_casse`, et elles
+   seules. */
+var EXTS=__DZ_VIDEO_EXTS__;
 out.jv_mp4=T.isVideoJob({status:"done",final_video_path:"C:/x/a.mp4"},EXTS);
 /* LES DEUX CAS DE P8, ceux que le selecteur proposait encore */
 out.jv_planche=T.isVideoJob({status:"done",video_path:"C:/x/sprites.png"},EXTS);
@@ -1123,8 +1234,22 @@ console.log(JSON.stringify(out));
 # laissaient le banc a 128/0. Il rend l'appel tel quel : {t, p, k} = balise,
 # proprietes, cle. Cinq lignes pour mesurer un bouton entier.
 JSX = 'var r={jsx:function(t,p,k){return{t:t,p:p,k:k}},jsxs:null};\n'
+# `_VIDEO_EXTS` VENUE DU SERVICE, pas recopiee. Le repli n'est PAS la liste
+# vide : `dzmIsVideoJob` traite `[]` comme une regle PRESENTE (seul `null` la
+# dit injoignable) et ecarterait tout, d'ou une dizaine de lignes rouges qui
+# ne diraient pas d'ou vient le mal. On retombe sur le seul `.mp4` — les cas
+# planche/maillage/faux-ami restent justes — et la ligne dediee ci-dessous
+# rougit SEULE. Rougir, pas mourir : le `groupe(1)` d'un `re.search` absent
+# aurait leve, et emporte les 80 assertions de la section [3].
+_m_exts = re.search(r"_VIDEO_EXTS = \(([^)]*)\)", SVC)
+_exts_svc = re.findall(r'"([^"]+)"', _m_exts.group(1)) if _m_exts else []
+check("backend_la_liste_video_est_extractible_pour_le_banc",
+      len(_exts_svc) >= 1 and all(e.startswith(".") for e in _exts_svc),
+      f"_VIDEO_EXTS illisible dans {SERVICE.name} : {_exts_svc}")
 shim.write_text('"use strict";\n' + "var window={};var SVM_TRACK_BUS={};\n" + JSX
-                + SVM_SRC.replace("\r\n", "\n") + "\n" + src + "\n" + probe,
+                + SVM_SRC.replace("\r\n", "\n") + "\n" + src + "\n"
+                + probe.replace("__DZ_VIDEO_EXTS__",
+                                json.dumps(_exts_svc or [".mp4"])),
                 encoding="utf-8")
 r = subprocess.run(["node", str(shim)], capture_output=True, text=True,
                    encoding="utf-8", errors="replace")
