@@ -567,9 +567,16 @@ for _nm, _decl in (("openPicker", "function openPicker(trId){"),
 # endroit — le « + » de 14 px d'un en-tete de piste. Deux appels apres P9 :
 # celui-la, et le notre. Un troisieme voudrait dire que quelqu'un a repose la
 # question sans le dire.
+# Le détail imprimait `findall(r"openPicker.")` — le POINT est un joker, il
+# comptait aussi `openPicker,` et `openPicker;` : 7 là où la condition mesure
+# 3 - 1 = 2. Un détail d'échec qui n'est pas la quantité testée envoie celui
+# qui débogue chercher trois appelants fantômes.
+_op_tot = len(re.findall(r"openPicker\(", s))
+_op_decl = s.count("function openPicker(")
 check("M16lib_openPicker_a_exactement_deux_appelants",
-      len(re.findall(r"openPicker\(", s)) - s.count("function openPicker(") == 2,
-      f'appels={len(re.findall(r"openPicker.", s))}')
+      _op_tot - _op_decl == 2,
+      f"« openPicker( »={_op_tot} déclaration={_op_decl} "
+      f"appelants={_op_tot - _op_decl} (attendu 2)")
 # ── les libelles qui mentaient ────────────────────────────────────────────
 check("M16_les_boutons_de_piste_disent_qu_ils_ajoutent_une_piste",
       nl('children:"+ piste vidéo"') in s and nl('children:"+ piste audio"') in s
@@ -577,9 +584,13 @@ check("M16_les_boutons_de_piste_disent_qu_ils_ajoutent_une_piste",
       and s.count(nl('children:"+ audio"')) == 0,
       "« + vidéo » / « + audio » ajoutent une PISTE et ne le disent pas")
 # ── addAsset : la piste v2 en dur a disparu ───────────────────────────────
-check("M16a_la_piste_v2_en_dur_a_disparu",
-      s.count(nl('var tr2=trId||"v2"')) == 0,
-      f'count={s.count(nl(chr(34)+"var tr2=trId||"+chr(92)+chr(34)))}')
+# Le détail comptait `"var tr2=trId||\"` — un guillemet de tête et une
+# contre-oblique qui n'existent nulle part dans le bundle : la chaîne vaut
+# TOUJOURS 0, et l'échec aurait affiché « count=0 » en même temps qu'il
+# reprochait une occurrence. On imprime la quantité que la condition mesure.
+_tr2_dur = s.count(nl('var tr2=trId||"v2"'))
+check("M16a_la_piste_v2_en_dur_a_disparu", _tr2_dur == 0,
+      f"« var tr2=trId||\"v2\" »={_tr2_dur} (attendu 0)")
 for _nm, _decl in (("pickTrack", "function dzmPickTrack(ts,kind){"),
                    ("dzTracksRef", "var dzTracksRef=x.useRef(null);"),
                    ("durRef", "var durRef=x.useRef(proj.dur);"),
@@ -608,13 +619,38 @@ _body = s[_a0:_a1] if _a0 >= 0 and _a1 > _a0 else ""
 # `dzAddWhenReady` vers addAsset. Un refus dont on retirerait le `return`
 # tomberait dans `pushHistory()` et poserait le clip quand même — l'ordre
 # textuel seul ne le verrait pas, puisque la note resterait au même endroit.
+#
+# `rfind` / `find`, JAMAIS `rindex` / `index` — c'est la FAUTE N°6 du
+# chantier, et la doctrine `temoin()` / `J()` / `CO()` de
+# test_montage_sources.py interdit exactement ce motif : un banc doit ROUGIR,
+# pas MOURIR. MESURE du 04/09/2026, rejouée : en reformulant les deux notes
+# de refus dans le patcher — une passe de relecture parfaitement plausible —
+# `--check` reste OK, le patcher se rejoue, et le `rindex` NU d'ici levait
+# `ValueError: substring not found` : traceback, exit 1, AUCUNE ligne de
+# compte imprimée, 239 des 254 assertions jamais jouées (la section [2]
+# `node --check`, la section [3] du cœur sous node, et tout le reste de
+# [1-quater]). Le voisin `index` était, lui, déjà protégé par le
+# `count == 1` qui le précède dans le `and`.
+# Les deux repères valent -1 quand ils manquent, et la ligne EXIGE qu'ils
+# aient été trouvés : un `>= 0` oublié ferait passer `-1 < 3807` au VERT sur
+# une note disparue — on aurait remplacé une mort par une assertion creuse.
+_i_refus = _body.rfind(nl("n'a pas été posé"))
+_i_push = _body.find("pushHistory();")
+_n_ret = P.R_M16A.count(";return}")
 check("M16a_refuse_avant_de_pousser_l_historique",
-      bool(_body) and _body.count("pushHistory();") == 1
-      and P.R_M16A.count(";return}") == 4
-      and _body.rindex(nl("n'a pas été posé")) < _body.index("pushHistory();"),
-      "un refus laisse une entrée d'historique derrière lui")
+      bool(_body) and _body.count("pushHistory();") == 1 and _n_ret == 4
+      and _i_refus >= 0 and _i_push >= 0 and _i_refus < _i_push,
+      f"dernier refus={_i_refus} pushHistory();={_i_push} "
+      f"returns={_n_ret} corps={len(_body)} o "
+      "— un refus laisse une entrée d'historique derrière lui")
 # L'ATTENTE est bornée ET dite : le greffon amont, lui, avale tout dans un
-# catch muet. Les 6 s sont un plafond CHOISI — c'est écrit dans la section.
+# catch muet. Le plafond est de 20 s (`Date.now()+20000`) — un CHOIX, pas une
+# mesure ; le dernier conjoint lit cette VALEUR dans le code livré. Il y
+# lisait naguère la phrase « PLAFOND CHOISI, pas une mesure », c'est-à-dire un
+# COMMENTAIRE : une assertion sur une orthographe, rouge à la moindre
+# reformulation et verte avec les bons mots, pendant que le plafond réel
+# pouvait glisser sans un bruit. Le commentaire qui l'accompagnait annonçait
+# d'ailleurs « 6 s » quand le code bornait à 20 s.
 # LA GARDE ELLE-MEME, pas seulement le texte de la note. MESURE : en
 # desarmant la condition, le banc restait ENTIEREMENT vert parce que les
 # chaines de la note survivaient a la mutation. La ligne qui decide est la
@@ -632,8 +668,8 @@ check("M16a_l_attente_est_bornee_et_dite",
       and "Date.now()>=until" in P.R_M16A
       and "if(dzReadyRef.current){addAsset(" in P.R_M16A
       and "n'a pas été posé : la " in P.R_M16A
-      and "PLAFOND CHOISI, pas une mesure" in P.R_M16A,
-      "l'attente n'est pas armée, pas bornée, ou son échec est muet")
+      and "Date.now()+20000);return}" in P.R_M16A,
+      "l'attente n'est pas armée, pas bornée à 20 s, ou son échec est muet")
 # LA MESURE QUI FONDE CE CHOIX, REJOUEE — sinon elle se perime en silence :
 # la duree de depart n'est pas nulle, et `setClips` de svmApplyProject
 # remplace bien la liste entiere.
@@ -786,11 +822,20 @@ shim = pathlib.Path(TMP) / "shim.js"
 # en y ajoutant kind/bus/loop : sans cette comparaison, les deux tables
 # pourraient diverger et l'écran des six pistes historiques changerait
 # d'aspect sans que rien ne le dise.
-_i = s.index(nl("var SVM_TRACKS=["))
-_j = s.index(nl("}];"), _i) + len(nl("}];"))
-SVM_SRC = s[_i:_j]
-if SVM_SRC.count("{id:") != 6:
-    check("bundle_svm_tracks_extraite", False, f"{SVM_SRC.count('{id:')} entrées")
+# MEME FAMILLE QUE LA LIGNE 614 (faute n°6), et pire : ces deux `index` NUS
+# n'étaient sous AUCUN `check`. Le jour où le minifieur renomme `SVM_TRACKS`
+# ou change la ponctuation de fin de table, le banc mourait ICI — avant la
+# section [3] tout entière et avant sa ligne de compte. `find` rend -1, le
+# repli « table vide » existait déjà, et l'échec est désormais DIT avec les
+# deux indices.
+_i = s.find(nl("var SVM_TRACKS=["))
+_k = s.find(nl("}];"), _i) if _i >= 0 else -1
+_j = _k + len(nl("}];")) if _k >= 0 else -1
+SVM_SRC = s[_i:_j] if _i >= 0 and _j > _i else ""
+_n_entrees = SVM_SRC.count("{id:")
+if _n_entrees != 6:
+    check("bundle_svm_tracks_extraite", False,
+          f"début={_i} fin={_j} entrées={_n_entrees} (attendu 6)")
     SVM_SRC = "var SVM_TRACKS=[];"
 else:
     check("bundle_svm_tracks_extraite", True)
@@ -1088,7 +1133,24 @@ if r.returncode != 0:
     d = {}
 else:
     check("js_shim_execute", True)
-    d = json.loads(r.stdout.strip().splitlines()[-1])
+    # TROISIEME ligne de la même famille : `splitlines()[-1]` sur une sortie
+    # vide lève IndexError, et `json.loads` sur une dernière ligne qui n'est
+    # pas du JSON lève JSONDecodeError — node peut sortir rc=0 dans les deux
+    # cas (un `console.log` déplacé suffit). Le `if r.returncode != 0`
+    # ci-dessus ne couvrait ni l'un ni l'autre. Rougir, pas mourir : `d`
+    # retombe sur le dict vide, et les ~90 lignes suivantes rougissent une à
+    # une en lisant `d.get(…)` au lieu d'être emportées en silence.
+    _lignes = r.stdout.strip().splitlines()
+    _derniere = _lignes[-1] if _lignes else ""
+    try:
+        d = json.loads(_derniere) if _derniere else None
+        _mal = "" if isinstance(d, dict) and d else "sortie sans objet JSON"
+    except Exception as _e:
+        d, _mal = None, "%s: %s" % (type(_e).__name__, _e)
+    if not isinstance(d, dict):
+        d = {}
+    check("js_shim_rend_un_objet_json", _mal == "",
+          f"{_mal} — {len(_lignes)} ligne(s), dernière={_derniere[:120]!r}")
 
 BASE = ["v2", "v1", "a1", "a2", "a3", "s1"]
 check("js_defauts_identiques_a_SVM_TRACKS", d.get("base") == BASE, str(d.get("base")))
@@ -1304,10 +1366,22 @@ check("js_bouton_null_sans_etalonnage", d.get("b_sans_etalonnage") is None,
 # phrase qui dit pourquoi le bouton est éteint — quand il existe, les lecteurs
 # d'écran n'annoncent plus le `title`. Le libellé visible en reste le PRÉFIXE
 # (WCAG « Label in Name »), sinon la commande vocale ne trouve plus le bouton.
+# QUATRIEME ligne de la famille de la faute n°6, et la plus retorse : ces
+# concatenations s'appliquaient NUEMENT au retour de `d.get(…)`. MESURE du
+# 04/09/2026 : quand la sonde node ne rend pas d'objet — et le repli
+# `d = {}` du `if r.returncode != 0` ci-dessus mene EXACTEMENT la — la ligne
+# levait `TypeError: unsupported operand type(s) for +: 'NoneType' and 'str'`
+# apres 46 lignes deja rougies, sans jamais imprimer le compte. Le repli qui
+# devait sauver le banc ne le sauvait pas. Les trois `isinstance` d'abord :
+# le `and` court-circuite, plus rien ne se concatene a None.
+_b_lib = d.get("b_libelle")
+_b_tit = d.get("b_titre")
+_b_un_tit = d.get("b_un_titre")
 check("js_bouton_aria_replie_l_etat",
-      d.get("b_aria") == d.get("b_libelle") + " — " + d.get("b_titre")
-      and d.get("b_un_aria") == d.get("b_libelle") + " — "
-                                + d.get("b_un_titre"),
+      isinstance(_b_lib, str) and isinstance(_b_tit, str)
+      and isinstance(_b_un_tit, str)
+      and d.get("b_aria") == _b_lib + " — " + _b_tit
+      and d.get("b_un_aria") == _b_lib + " — " + _b_un_tit,
       str(d.get("b_un_aria")))
 # LE geste, joué : historique poussé AVANT l'écriture, drapeau `dirty` allumé,
 # note émise — dans cet ordre, et le lot complet rendu à setClips.

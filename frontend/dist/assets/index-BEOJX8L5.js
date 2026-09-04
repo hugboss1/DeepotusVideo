@@ -3802,12 +3802,22 @@ function DzMontage(props){
        timeline ne dessine que `svmTracksOf(proj).map(…)` : il était
        invisible et inselectionnable. « rien n'est apparu » était exact,
        et le clip était pourtant là.
-       (b) LES 450 ms DU GREFFON. Le brief de la tâche donnait pour cause
-       « `durRef.current` encore 0 tant que GET /project n'a pas répondu ».
-       MESURÉ, C'EST FAUX : l'état initial du composant est
+       (b) LE RETARD DU GREFFON AMONT. Le brief de la tâche donnait pour
+       cause « `durRef.current` encore 0 tant que GET /project n'a pas
+       répondu ». MESURÉ, C'EST FAUX : l'état initial du composant est
        `{demo:!0,…,dur:SVM_DEMO_DUR,…}` et `var SVM_DEMO_DUR=64` — la durée
        vaut 64 dès le premier rendu et ne passe jamais par 0. Une garde
        `dur > 0` aurait été du code mort.
+       CE QUI EST FAIT ICI, EXACTEMENT — l'étape demandait de « remplacer
+       le `setTimeout(…, 450)` du greffon ». Ce setTimeout N'EST PAS
+       remplacé, et ne peut pas l'être : il vit dans
+       patch_bundle_libsend.py, maillon AMONT que la même étape interdit
+       de toucher (le rejouer seul effacerait tout ce que la chaîne écrit
+       ensuite) — la lettre du plan se contredisait elle-même. L'attente
+       ci-dessous est posée EN AVAL, dans `addAsset`, et s'exécute APRÈS
+       ces 450 ms : le greffon appelle quand bon lui semble, et c'est ici
+       qu'on décide d'attendre, de poser, ou de refuser en le disant.
+       L'intention de l'étape est tenue ; sa lettre ne l'est pas.
        LA VRAIE COURSE est ailleurs, et elle est double. À 450 ms, si
        GET /project n'a pas encore répondu (il ffprobe chaque asset), (i)
        `proj` est encore la MAQUETTE, sans `tracks` — donc svmTracksOf

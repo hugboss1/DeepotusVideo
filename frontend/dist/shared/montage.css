@@ -267,9 +267,17 @@
   font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace);
   white-space:nowrap}
 
-/* ── P9 : « pas une vidéo » — la chip d'un clip que le rendu refusera ──────
-   ROUGE, pas ambre : ce n'est pas un avertissement mais un refus déjà
-   décidé — POST /render répond 400 en nommant ce clip. Même géométrie que
+/* ── P9 : « pas une vidéo » — la chip d'un clip V1 sans extension vidéo ────
+   ROUGE, pas ambre, et c'est un DOSAGE assumé, pas un refus annoncé.
+   MESURÉ le 04/09/2026 : `v1_non_video` liste les clips V1 hors
+   `_VIDEO_EXTS` (6 extensions) tandis que le pré-vol de POST /render écarte
+   ce que `_ffmpeg_ouvrira` rejette, soit hors de
+   `_VIDEO_EXTS + _IMAGE_EXTS + _AUDIO_EXTS` — et `_IMAGE_EXTS` contient
+   `.png`. Une planche de sprites PNG posée en V1 est donc signalée ici et
+   PASSE le pré-vol (200) : elle se rend en carton fixe. Un maillage `.glb`,
+   lui, est signalé ET refusé (400). L'infobulle de la chip dit les deux cas ;
+   ce commentaire promettait naguère « POST /render répond 400 en nommant ce
+   clip », que la mesure dément. Même géométrie que
    `.svm-desync` (le seul autre repère posé SUR un clip), à gauche pour ne
    pas se disputer le coin de celle-là, et fond translucide du panneau pour
    rester lisible par-dessus une vignette ou une waveform.

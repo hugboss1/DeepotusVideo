@@ -77,8 +77,11 @@ Sections :
                  (GET /api/montage/media-rules → `_VIDEO_EXTS`), jamais une
                  copie JavaScript ;
         M16d     `v1_non_video` enfin LU : chip « pas une vidéo » cliquable
-                 sur les clips que le rendu refusera ; M7 y gagne la clé
-                 `v1NonVideo`, qui la porte jusqu'à la timeline.
+                 sur les clips V1 dont l'extension n'est pas vidéo — MESURÉ,
+                 le rendu n'en refuse qu'une PARTIE : une planche PNG passe
+                 le pré-vol (200) et se rend en carton fixe, un maillage
+                 `.glb` est refusé (400) ; M7 y gagne la clé `v1NonVideo`,
+                 qui porte le champ jusqu'à la timeline.
       Les libellés « + vidéo » / « + audio » deviennent « + piste vidéo » /
       « + piste audio » — édition de `DzmTrackAdd` DANS LA COUCHE, pas une
       section de plus.
@@ -484,12 +487,22 @@ R_M16A = (
     "       timeline ne dessine que `svmTracksOf(proj).map(…)` : il était\n"
     "       invisible et inselectionnable. « rien n'est apparu » était exact,\n"
     "       et le clip était pourtant là.\n"
-    "       (b) LES 450 ms DU GREFFON. Le brief de la tâche donnait pour cause\n"
-    "       « `durRef.current` encore 0 tant que GET /project n'a pas répondu ».\n"
-    "       MESURÉ, C'EST FAUX : l'état initial du composant est\n"
+    "       (b) LE RETARD DU GREFFON AMONT. Le brief de la tâche donnait pour\n"
+    "       cause « `durRef.current` encore 0 tant que GET /project n'a pas\n"
+    "       répondu ». MESURÉ, C'EST FAUX : l'état initial du composant est\n"
     "       `{demo:!0,…,dur:SVM_DEMO_DUR,…}` et `var SVM_DEMO_DUR=64` — la durée\n"
     "       vaut 64 dès le premier rendu et ne passe jamais par 0. Une garde\n"
     "       `dur > 0` aurait été du code mort.\n"
+    "       CE QUI EST FAIT ICI, EXACTEMENT — l'étape demandait de « remplacer\n"
+    "       le `setTimeout(…, 450)` du greffon ». Ce setTimeout N'EST PAS\n"
+    "       remplacé, et ne peut pas l'être : il vit dans\n"
+    "       patch_bundle_libsend.py, maillon AMONT que la même étape interdit\n"
+    "       de toucher (le rejouer seul effacerait tout ce que la chaîne écrit\n"
+    "       ensuite) — la lettre du plan se contredisait elle-même. L'attente\n"
+    "       ci-dessous est posée EN AVAL, dans `addAsset`, et s'exécute APRÈS\n"
+    "       ces 450 ms : le greffon appelle quand bon lui semble, et c'est ici\n"
+    "       qu'on décide d'attendre, de poser, ou de refuser en le disant.\n"
+    "       L'intention de l'étape est tenue ; sa lettre ne l'est pas.\n"
     "       LA VRAIE COURSE est ailleurs, et elle est double. À 450 ms, si\n"
     "       GET /project n'a pas encore répondu (il ffprobe chaque asset), (i)\n"
     "       `proj` est encore la MAQUETTE, sans `tracks` — donc svmTracksOf\n"
