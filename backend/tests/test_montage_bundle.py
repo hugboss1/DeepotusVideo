@@ -565,18 +565,26 @@ for _nm, _decl in (("openPicker", "function openPicker(trId){"),
           f"appelé={_ap} déclaré={s.count(nl(_decl))} ({_decl})")
 # MESURE qui fonde le bouton : avant P9, `openPicker` n'etait appele QU'A UN
 # endroit — le « + » de 14 px d'un en-tete de piste. Deux appels apres P9 :
-# celui-la, et le notre. Un troisieme voudrait dire que quelqu'un a repose la
-# question sans le dire.
+# celui-la, et le notre. TROIS depuis P6 (04/09/2026), et le troisieme est
+# NOMME ici : « Remplacer la source… » de l'inspecteur (section M16src),
+# qui ouvre le meme selecteur apres avoir arme le mode remplacement. Un
+# QUATRIEME voudrait dire que quelqu'un a repose la question sans le dire.
 # Le détail imprimait `findall(r"openPicker.")` — le POINT est un joker, il
 # comptait aussi `openPicker,` et `openPicker;` : 7 là où la condition mesure
 # 3 - 1 = 2. Un détail d'échec qui n'est pas la quantité testée envoie celui
 # qui débogue chercher trois appelants fantômes.
 _op_tot = len(re.findall(r"openPicker\(", s))
 _op_decl = s.count("function openPicker(")
-check("M16lib_openPicker_a_exactement_deux_appelants",
-      _op_tot - _op_decl == 2,
+check("M16lib_openPicker_a_exactement_trois_appelants",
+      _op_tot - _op_decl == 3,
       f"« openPicker( »={_op_tot} déclaration={_op_decl} "
-      f"appelants={_op_tot - _op_decl} (attendu 2)")
+      f"appelants={_op_tot - _op_decl} (attendu 3)")
+# ... et le troisieme est bien CELUI-LA. Sans cette ligne, le compte
+# ci-dessus resterait vert si l'appel de P6 disparaissait et qu'un autre
+# apparaissait ailleurs — un compte n'est pas une identite.
+check("M16src_le_troisieme_appelant_est_le_bouton_de_remplacement",
+      "openPicker(sel.tr)" in P.R_M16 and s.count(nl("openPicker(sel.tr)")) == 1,
+      f'count={s.count(nl("openPicker(sel.tr)"))}')
 # ── les libelles qui mentaient ────────────────────────────────────────────
 check("M16_les_boutons_de_piste_disent_qu_ils_ajoutent_une_piste",
       nl('children:"+ piste vidéo"') in s and nl('children:"+ piste audio"') in s
@@ -886,6 +894,126 @@ check("css_porte_la_chip_pas_une_video",
 check("bloc_contient_pickTrack_et_isVideoJob",
       nl("pickTrack:dzmPickTrack,isVideoJob:dzmIsVideoJob,") in s
       and nl("function dzmIsVideoJob(j,exts){") in s)
+
+print("\n[1-sexies] P6 — remplacer la source d'un plan (M4b, M15, M16src)")
+# Les deux couples ancre -> remplacement sont deja mesures par la boucle du
+# debut (importlib : aucune copie). Ce qui suit tient ce que cette boucle ne
+# peut pas voir.
+#
+# L'ANCRE DE M16src, ET CELLE QUE LE PLAN CROYAIT CONSOMMEE. Le plan
+# annoncait `        transInspector(),` « deja consommee par M13 » : elle ne
+# l'est pas — elle vaut 1 (R_M12 la reprend en tete) et la ligne
+# `M13_ancre_du_plan_libre_mais_ecartee` ci-dessus le tient deja. P6 ne l'a
+# pas prise NON PLUS, et pour une raison qui lui est propre : son bouton se
+# pose ENTRE la fenetre « In / Out » qu'il recale et l'inspecteur de
+# transition qu'il conserve. Cette ligne-ci mesure que l'ancre RETENUE est
+# bien celle-la, et pas `transInspector(),` reprise en douce.
+check("M16src_ancre_choisie_est_celle_de_l_inspecteur_de_sous_titres",
+      P.A_M16 == "        subsInspector()," and "transInspector" not in P.A_M16
+      and s.count(nl("        subsInspector(),")) == 1,
+      f'A_M16={P.A_M16!r} count={s.count(nl("        subsInspector(),"))}')
+# `DzMontage.replaceSrc` / `DzMontage.NewerHint` etaient les appels du plan —
+# TROISIEME fois qu'il ecrit ce nom, qui est celui d'une fonction de PREMIER
+# NIVEAU du bundle. Interdit, cf. node_check_module.
+check("M16src_utilise_DzTracks_pas_DzMontage",
+      "DzMontage.replaceSrc" not in s and "DzMontage.NewerHint" not in s
+      and "DzMontage.replaceBtn" not in s and "DzMontage.revertBtn" not in s
+      and s.count("DzTracks.replaceBtn") == 1
+      and s.count("DzTracks.NewerHint") == 1,
+      f'replaceBtn={s.count("DzTracks.replaceBtn")} '
+      f'NewerHint={s.count("DzTracks.NewerHint")}')
+# Controle a DEUX FACES, comme M10/M12/M13/M14/M16lib : chaque identifiant du
+# bundle appele par R_M15 ou R_M16 doit exister, et sous le MEME nom
+# (recherche bornee). Verifier une seule face laisse passer un renommage :
+# mesure de la semaine derniere, renommer `addAsset` laissait le banc a 255/0
+# alors que sept appelants etaient morts.
+for _tag, _R, _noms in (
+        ("M15", "R_M15",
+         (("clipsRef", "var clipsRef=x.useRef(clips);clipsRef.current=clips;"),
+          ("trackStRef", "trackStRef.current[c.tr]"),
+          ("setOvPick", "setOvPick=stO[1]"),
+          ("setClips", "setClips=st1[1]"),
+          ("setSelId", "selRef.current=selId;"),
+          ("pushHistory", "var pushHistory=x.useCallback("),
+          ("setDirty", "setDirty=st8[1]"),
+          ("fireNote", "fireNote=nt[1]"))),
+        ("M16src", "R_M16",
+         (("sel", "var sel=clips.find("),
+          ("ovPick", "ovPick=stO[0]"),
+          ("openPicker", "function openPicker(trId){"),
+          ("clipsRef", "var clipsRef=x.useRef(clips);clipsRef.current=clips;"),
+          ("trackStRef", "trackStRef.current[c.tr]"),
+          ("setClips", "setClips=st1[1]"),
+          ("pushHistory", "var pushHistory=x.useCallback("),
+          ("setDirty", "setDirty=st8[1]"),
+          ("fireNote", "fireNote=nt[1]"),
+          ("addAsset",
+           "function addAsset(src,label,kind,srcDur,trId,atTime){")))):
+    _txt = getattr(P, _R)
+    for _nm, _decl in _noms:
+        _ap = re.search(r"\b%s\b" % re.escape(_nm), _txt) is not None
+        check(_tag + "_appelle_" + _nm + "_qui_est_declare",
+              _ap and s.count(nl(_decl)) >= 1,
+              f"appelé={_ap} déclaré={s.count(nl(_decl))} ({_decl})")
+# LE MODE EST DECLARE PAR M4b, et il est DESARME. Sans l'effet, un selecteur
+# ferme sans choisir — ou rouvert sur une AUTRE piste — laissait le mode arme,
+# et le clip suivant venait ecraser la source d'un plan que l'utilisateur ne
+# regardait plus. Les DEUX lignes : la ref, et son extinction.
+check("M4b_declare_la_ref_du_mode_remplacement",
+      s.count(nl("  var dzmReplaceRef=x.useRef(null);")) == 1
+      and "dzmReplaceRef" in P.R_M4b,
+      f'count={s.count(nl("  var dzmReplaceRef=x.useRef(null);"))}')
+check("M4b_desarme_le_mode_quand_le_selecteur_change",
+      s.count(nl("    if(rp&&ovPick!==rp.tr)dzmReplaceRef.current=null},"
+                 "[ovPick]);")) == 1,
+      "le mode remplacement n'a pas d'extinction")
+# GESTE DESTRUCTIF : `pushHistory` AVANT l'ecriture, une seule entree pour le
+# geste — dans les DEUX sens (remplacer, et revenir en arriere).
+check("M15_pousse_l_historique_avant_d_ecrire",
+      nl("      pushHistory();\n"
+         "      setClips(rcs.map(function(k){return k.id===rc.id?rr.clip:k}));")
+      in s, "l'ordre pushHistory -> setClips n'est pas celui du bundle livré")
+check("M16src_le_retour_arriere_pousse_aussi_l_historique",
+      nl("          var rv=DzTracks.revertSrc(sel);if(!rv)return;\n"
+         "          pushHistory();") in s,
+      "« Revenir à la version précédente » écrit sans instantané")
+# LES DEUX REFUS SORTENT AVANT toute ecriture : aucun geste destructif n'a eu
+# lieu quand le plan vise a disparu ou que sa piste est verrouillee.
+check("M15_les_deux_refus_precedent_pushHistory",
+      P.R_M15.index("if(!rk)") < P.R_M15.index("pushHistory()")
+      and P.R_M15.index("verrouillée") < P.R_M15.index("pushHistory()"),
+      "un refus passe après l'instantané")
+# LE VERROU DE PISTE, sur la piste DU PLAN VISE (pas celle qu'addAsset
+# resoudrait) — l'idiome du composant, applique a sa propre cible.
+check("M15_refuse_sur_une_piste_verrouillee",
+      "trackStRef.current[rk.tr]&&trackStRef.current[rk.tr].l" in P.R_M15,
+      "le remplacement ignore le verrou de piste")
+check("M16src_n_arme_pas_sur_une_piste_verrouillee",
+      "trackStRef.current[sel.tr]&&trackStRef.current[sel.tr].l" in P.R_M16,
+      "le bouton arme le mode alors que le sélecteur refusera d'ouvrir")
+# M15 court-circuite AVANT la resolution de piste posee par la tache 16 : un
+# remplacement garde la piste du plan et n'en choisit aucune. L'ORDRE se lit
+# dans le bundle LIVRE, pas dans l'intention.
+_i15 = s.find(nl("if(dzmReplaceRef.current){"))
+_i16a = s.find(nl("var dzTs=dzTracksRef.current||svmTracksOf(proj);"))
+check("M15_court_circuite_avant_la_resolution_de_piste",
+      _i15 > 0 and _i16a > 0 and _i15 < _i16a,
+      f"mode remplacement à {_i15}, résolution de piste à {_i16a}")
+# ── la feuille habille les nouveautés de P6 ───────────────────────────────
+_css6 = _css.replace(" ", "").replace("\n", "").replace("\r", "")
+check("css_porte_les_deux_boutons_de_remplacement",
+      ".dzm-repl," in _css6 and ".dzm-revert{" in _css6
+      and "dzm-repl" in src and "dzm-revert" in src,
+      "montage.css n'habille pas « Remplacer la source… »")
+check("css_porte_le_rappel_version_plus_recente",
+      ".dzm-newerb{" in _css6 and ".dzm-newerb:hover" in _css6
+      and "dzm-newerb" in src,
+      "montage.css n'habille pas le rappel « version plus récente »")
+# Le CŒUR de P6 doit être DANS le bloc livré, pas seulement dans la source.
+check("bloc_contient_replaceSrc_et_revertSrc",
+      nl("replaceSrc:dzmReplaceSrc,revertSrc:dzmRevertSrc,") in s
+      and nl("function dzmReplaceSrc(c,src,label,srcDur,now){") in s
+      and nl("function dzmRevertSrc(c){") in s)
 
 print("\n[1-ter] feuille de style et index.html")
 check("css_liee_index_html", "shared/montage.css" in

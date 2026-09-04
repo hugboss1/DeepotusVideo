@@ -291,3 +291,31 @@
   background:color-mix(in srgb, var(--panel, #17161a) 80%, transparent);
   cursor:pointer}
 .dzsvm .dzm-badsrc:hover{background:var(--red, #e35d4a); color:#fff}
+
+/* ── P6 : remplacer la source d'un plan ────────────────────────────────────
+   Les deux boutons sont posés dans la colonne d'inspection, entre la fenêtre
+   « In / Out » et l'inspecteur de transition : les deux garanties visibles du
+   geste (la fenêtre de source, la transition) encadrent le bouton qui promet
+   de ne pas y toucher. Ils reprennent `.svm-secbtn` de la feuille amont
+   (déclarée là-bas, pas ici : une seconde déclaration divergerait) et n'en
+   changent que la largeur et la casse du texte, comme `.dzm-gall`. */
+.dzsvm .dzm-repl,
+.dzsvm .dzm-revert{width:100%; margin-top:8px; padding:0 8px; font-size:10px;
+  font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+/* Le rappel « version plus récente ». AMBRE et non rouge : rien n'est en
+   panne — c'est une PROPOSITION, et son rapprochement est une heuristique de
+   titre que l'infobulle nomme. Le rouge est réservé à `.dzm-badsrc`, qui
+   signale un plan que le rendu refusera. */
+.dzsvm .dzm-newer{margin-top:8px; display:flex; flex-direction:column; gap:4px}
+.dzsvm .dzm-newerb{width:100%; padding:4px 8px; border-radius:6px;
+  font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace);
+  font-size:9px; letter-spacing:.02em; line-height:1.5; text-align:left;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  color:var(--amber, #d9a441); border:1px solid var(--amber, #d9a441);
+  background:color-mix(in srgb, var(--panel, #17161a) 80%, transparent);
+  cursor:pointer}
+.dzsvm .dzm-newerb:hover{background:var(--amber, #d9a441); color:#17161a}
+.dzsvm .dzm-newererr{font-size:9px; line-height:1.5;
+  font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace);
+  color:var(--ink-dim, #8d8a96)}

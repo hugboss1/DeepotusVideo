@@ -85,6 +85,22 @@ Sections :
       Les libellés « + vidéo » / « + audio » deviennent « + piste vidéo » /
       « + piste audio » — édition de `DzmTrackAdd` DANS LA COUCHE, pas une
       section de plus.
+  M15 / M16src (P6) REMPLACER LA SOURCE d'un plan sans perdre ses bornes, ses
+      effets ni sa transition :
+        M4b y gagne `dzmReplaceRef` (le plan visé, {id, tr}) ET son
+                 DÉSARMEMENT — un effet accroché à l'état du sélecteur
+                 d'assets, sans quoi un sélecteur fermé sans choisir laissait
+                 le mode armé pour le clip suivant ;
+        M15      le mode remplacement en TÊTE du poseur de clips, avant toute
+                 résolution de piste (un remplacement garde celle du plan) ;
+        M16src   les deux boutons de l'inspecteur — « Remplacer la source… »
+                 et « Revenir à la version précédente » — plus le rappel
+                 « version plus récente », qui interroge GET
+                 /api/montage/newer (rapprochement PAR LE TITRE, dit
+                 heuristique dans la réponse comme à l'écran).
+      Le CŒUR est pur et vit dans la couche (`DzTracks.replaceSrc` /
+      `revertSrc`) ; backend/tests/test_montage_remplacer.py l'exécute sous
+      node et mesure la route.
 
 Mécanique identique à patch_bundle_subs.py : restauration du .bak dédié puis
 ré-application, chaque ancre devant apparaître EXACTEMENT une fois, sinon
@@ -140,6 +156,20 @@ R_M4b = ("  /* P1 — TOUTE écriture de proj.tracks passe ici : historique pous
          "     Ils redeviennent visibles dès qu'on rajoute une piste du même\n"
          "     genre : l'identifiant repris est le plus petit libre, donc le\n"
          "     leur. C'est dit dans la note du bouton, ce n'est pas silencieux. */\n"
+         "  /* P6 — L'ARMEMENT DU MODE REMPLACEMENT, et son DÉSARMEMENT.\n"
+         "     `{id, tr}` du plan dont on va échanger la source ; le prochain\n"
+         "     asset choisi remplacera au lieu d'ajouter. Une REF et non un\n"
+         "     état : le sélecteur d'assets appelle le poseur de clips depuis\n"
+         "     une fermeture, et un état re-rendu n'y serait pas lu.\n"
+         "     L'effet ci-dessous est la moitié qui manquait au plan : sans\n"
+         "     lui, une armement suivi d'un sélecteur FERMÉ sans choisir — ou\n"
+         "     rouvert sur une AUTRE piste — laissait le mode armé, et le clip\n"
+         "     suivant venait écraser la source d'un plan que l'utilisateur ne\n"
+         "     regardait plus. Le désarmement suit l'état du sélecteur\n"
+         "     lui-même (`ovPick`), pas une copie de ses règles. */\n"
+         "  var dzmReplaceRef=x.useRef(null);\n"
+         "  x.useEffect(function(){var rp=dzmReplaceRef.current;\n"
+         "    if(rp&&ovPick!==rp.tr)dzmReplaceRef.current=null},[ovPick]);\n"
          "  function svmTracksSet(ts){pushHistory();svmTrackBusSync(ts);"
          "setProj(function(p){return Object.assign({},p,{tracks:ts})});setDirty(!0)}\n"
          "  function svmApplyProject(d){")
@@ -742,6 +772,126 @@ R_M16D = (A_M16D + '\n'
           '                        DzTracks.badSrc(c,function(){'
           'openPicker(c.tr)}):null,')
 
+# ══ P6 — REMPLACER LA SOURCE D'UN PLAN, SANS PERDRE SON MONTAGE ═══════════
+#
+# TROIS CHOSES QUE LE PLAN DISAIT ET QUI SONT FAUSSES, mesurées avant d'être
+# écartées — c'est la faute n°5 du chantier (« le code du plan est une
+# intention »), et elle se paie trois fois ici.
+#
+# 1. « COLLISION D'ANCRE avec la tâche 16 sur `addAsset` » : IL N'Y EN A PAS.
+#    La tâche 16 a corrigé `addAsset` par une AUTRE ancre (la ligne de
+#    résolution de piste), et celle que M15 revendique — la signature de la
+#    fonction — vaut EXACTEMENT 1 dans le bundle livré ET dans .bak_montage.
+#    Aucun repli à faire, dans un sens ni dans l'autre.
+#
+# 2. « `DzMontage.replaceSrc` / `DzMontage.NewerHint` » : NON. Le bundle
+#    déclare DÉJÀ `function DzMontage` au premier niveau ; redéclarer ce nom
+#    est une SyntaxError en sémantique MODULE — celle sous laquelle
+#    index.html charge le bundle, invisible pour `node --check` sur le .js.
+#    C'est la TROISIÈME fois que le plan écrit cette erreur (P4 et P5
+#    l'avaient déjà corrigée) ; l'export est sous `DzTracks`, et
+#    `node_check_module` de test_montage_bundle.py garde la propriété.
+#
+# 3. « `transInspector(),`, ancre DÉJÀ CONSOMMÉE par M13 → mettre le bouton
+#    DANS R_M13 » : elle n'est PAS consommée — elle vaut 1 dans le bundle
+#    livré comme dans .bak_montage (R_M12 la reprend en tête, R_M13 ne la
+#    touche pas), et M13 l'avait écartée pour une raison qui lui est propre :
+#    son bouton RECOPIE une ligne de la pile d'effets, qui vit tout en bas de
+#    la colonne. Cette raison-là ne vaut pas pour P6.
+#
+# L'ANCRE DE M16, CHOISIE ET MESURÉE. Ce bouton n'a pas les mêmes référents
+# que celui de M13 : il promet que les BORNES, les EFFETS et la TRANSITION ne
+# bougent pas. Deux de ces trois garanties sont rendues juste au-dessus de
+# l'ancre retenue — la fenêtre « In / Out » (le bloc de propriétés) et, deux
+# lignes plus bas, l'inspecteur de transition. Le nom du plan sélectionné est
+# trois lignes plus haut. Le bouton se pose donc ENTRE la fenêtre de source
+# qu'il recale et la transition qu'il conserve, à portée du regard du clip
+# sélectionné — et non au milieu du bloc Mixage, où `transInspector(),`
+# l'aurait mis un cran plus bas, sous un inspecteur qui ne s'affiche que pour
+# les plans V1. L'ancre retenue (l'inspecteur de sous-titres) vaut 1 dans le
+# bundle livré ET dans .bak_montage ; aucune autre section ne la touche.
+#
+# L'ORDRE DE M15, VÉRIFIÉ ET DIT. La section s'insère juste après la
+# signature d'`addAsset`, donc AVANT la résolution de piste posée par la
+# tâche 16. C'est le bon ordre, et pour une raison de fond : un remplacement
+# NE CHOISIT AUCUNE PISTE — il garde celle du plan. Laisser la résolution
+# tourner d'abord aurait fait calculer, puis jeter, une piste ; et sur un
+# projet sans piste vidéo elle REFUSE (« ce projet ne porte aucune piste
+# vidéo ») — un remplacement sur une piste audio ou sur V1 aurait été bloqué
+# par un message qui ne le concerne pas.
+#
+# GESTE DESTRUCTIF, DONC RÉVERSIBLE DEUX FOIS. `pushHistory()` précède
+# l'écriture, une seule entrée pour le geste ; l'historique de cet écran ne
+# mémorise que {clips, mixDb}, ce que la note DIT (ni la durée du projet ni
+# les pistes — ce geste n'y touche pas, mais la limite est celle de
+# l'historique et l'utilisateur la rencontrera). La seconde voie est
+# `src_history`, empilée sur le clip et rendue par « Revenir à la version
+# précédente » — elle survit à l'enregistrement, mesuré des deux côtés
+# (le serveur range les clips tels quels, la restauration les recopie de
+# même).
+#
+# LE VERROU DE PISTE est vérifié DEUX fois, et ce n'est pas une copie de
+# règle : c'est l'idiome de ce composant, écrit six fois dans le bundle livré
+# (supprimer, lame, glisser, rogner…), chaque geste le posant sur SA cible.
+# En M16 il évite d'ARMER pour rien (le sélecteur refuserait, et le mode
+# resterait armé pour le clip suivant) ; en M15 il refuse le remplacement
+# lui-même, sur la piste du PLAN VISÉ et non sur celle qu'`addAsset`
+# résoudrait.
+
+# ── M15 (P6) : le mode remplacement, en tête d'addAsset ────────────────────
+A_M15 = "  function addAsset(src,label,kind,srcDur,trId,atTime){"
+R_M15 = (A_M15 + "\n"
+         "    /* P6 — MODE REMPLACEMENT, en court-circuit AVANT tout le reste :\n"
+         "       un remplacement ne choisit pas de piste, il garde celle du\n"
+         "       plan. Le mode est CONSOMMÉ dès l'entrée (une seule fois par\n"
+         "       armement), et les deux refus sortent AVANT pushHistory. */\n"
+         "    if(dzmReplaceRef.current){\n"
+         "      var rc=dzmReplaceRef.current;dzmReplaceRef.current=null;\n"
+         "      var rcs=clipsRef.current||[],rk=null,ri;\n"
+         "      for(ri=0;ri<rcs.length;ri++)if(rcs[ri].id===rc.id)rk=rcs[ri];\n"
+         "      setOvPick(\"\");\n"
+         "      if(!rk){fireNote(\"Le plan à remplacer n'est plus dans la \"+\n"
+         "        \"timeline : rien n'a changé, et « \"+label+\" » n'a pas été \"+\n"
+         "        \"posé. Sélectionnez un plan puis « Remplacer la source… », \"+\n"
+         "        \"ou « Bibliothèque… » pour l'ajouter comme clip de \"+\n"
+         "        \"plus.\");return}\n"
+         "      if(trackStRef.current[rk.tr]&&trackStRef.current[rk.tr].l){\n"
+         "        fireNote(\"Piste \"+rk.tr.toUpperCase()+\" verrouillée — \"+\n"
+         "          \"déverrouillez-la pour remplacer la source de ce \"+\n"
+         "          \"plan.\");return}\n"
+         "      var rr=DzTracks.replaceSrc(rk,src,label,srcDur);\n"
+         "      pushHistory();\n"
+         "      setClips(rcs.map(function(k){return k.id===rc.id?rr.clip:k}));\n"
+         "      setSelId(rc.id);setDirty(!0);fireNote(rr.note);return}")
+
+# ── M16 (P6) : les deux boutons et le rappel, dans l'inspecteur ────────────
+A_M16 = "        subsInspector(),"
+R_M16 = (A_M16 + "\n"
+         "        /* P6 — le remplacement de source, posé ENTRE la fenêtre\n"
+         "           « In / Out » qu'il recale et l'inspecteur de transition\n"
+         "           qu'il conserve : les garanties du geste encadrent son\n"
+         "           bouton. Voir le commentaire d'ancre dans le patcher. */\n"
+         "        DzTracks.replaceBtn(sel,function(){\n"
+         "          if(trackStRef.current[sel.tr]&&trackStRef.current[sel.tr].l){\n"
+         "            fireNote(\"Piste \"+sel.tr.toUpperCase()+\" verrouillée — \"+\n"
+         "              \"déverrouillez-la pour remplacer la source de ce \"+\n"
+         "              \"plan.\");return}\n"
+         "          dzmReplaceRef.current={id:sel.id,tr:sel.tr};\n"
+         "          /* déjà ouvert sur cette piste : rouvrir le REFERMERAIT\n"
+         "             (le sélecteur bascule), et le mode resterait armé sur\n"
+         "             un panneau fermé. */\n"
+         "          if(ovPick!==sel.tr)openPicker(sel.tr)}),\n"
+         "        DzTracks.revertBtn(sel,function(){\n"
+         "          var rv=DzTracks.revertSrc(sel);if(!rv)return;\n"
+         "          pushHistory();\n"
+         "          setClips(clipsRef.current.map(function(k){\n"
+         "            return k.id===sel.id?rv.clip:k}));\n"
+         "          setDirty(!0);fireNote(rv.note)}),\n"
+         "        r.jsx(DzTracks.NewerHint,{jobId:sel&&sel.src&&sel.src.job_id,\n"
+         "          onPick:function(c){dzmReplaceRef.current={id:sel.id,tr:sel.tr};\n"
+         "            addAsset({job_id:c.job_id},c.title||c.job_id,\"video\",\n"
+         "              Number(c.duration_s)||0,sel.tr)}},\"dzmnew\"),")
+
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
            ("M5-payload", A_M5, R_M5), ("M6-save", A_M6, R_M6),
@@ -753,7 +903,14 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M16a-piste-existante", A_M16A, R_M16A),
            ("M16b-note-piste", A_M16B, R_M16B),
            ("M16c-picker-filtre", A_M16C, R_M16C),
-           ("M16d-marque-non-video", A_M16D, R_M16D)]
+           ("M16d-marque-non-video", A_M16D, R_M16D),
+           # P6. Le plan les nomme « M15 » et « M16 » ; le second porte ici un
+           # suffixe parce que les cinq sections de P9 occupent DÉJÀ les noms
+           # M16ref/M16a…M16d (la tâche 16 du plan, pas la section 16 de ce
+           # patcher). Deux étiquettes identiques dans cette liste rendraient
+           # illisibles les lignes de test_montage_bundle.py, qui les reprend.
+           ("M15-remplace-mode", A_M15, R_M15),
+           ("M16src-inspecteur-source", A_M16, R_M16)]
 
 
 def nl(text, crlf):

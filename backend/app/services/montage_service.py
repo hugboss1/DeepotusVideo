@@ -92,6 +92,7 @@ from __future__ import annotations
 import asyncio
 import json
 import math
+import re
 import subprocess
 from datetime import datetime as _dt
 from pathlib import Path
@@ -1171,6 +1172,146 @@ async def montage_project(limit: int = 4):
             "clips": clips if has else [],
             "mix": {"dialogue": -6, "musique": -18, "sfx": -12},
             "sources": {"videos": len(vids), "audio": len(audio)}}
+
+
+# ------------------------------------------------------ versions plus récentes ---
+# P6 — « j'ai régénéré ce plan ». Le rapprochement se fait PAR LE TITRE, et
+# c'est une HEURISTIQUE : rien en base ne relie deux rendus successifs du même
+# plan (pas de colonne « refait à partir de »). La réponse le DIT, avec le
+# vocabulaire déjà employé par la Bibliothèque (`origin: depot|heuristique`,
+# library_index.py) — proposer un rapprochement deviné sans le nommer serait
+# le laisser passer pour un lien établi.
+#
+# LE SUFFIXE NORMALISÉ EST MESURÉ, PAS SUPPOSÉ. Le plan écrivait
+# « (aperçu 480p) » de mémoire ; relevé le 04/09/2026 sur une COPIE de
+# %LOCALAPPDATA%\DeepotusVideoGenData\deepotus.db (+ -wal + -shm, lecture
+# seule, sqlite3 stdlib) : 8 lignes le portent, TOUTES `provider='montage'`,
+# et le seul point du dépôt qui l'ajoute est `montage_render` (l. ~2253).
+# CONSÉQUENCE À DIRE : les candidats excluant déjà `montage`, ce suffixe ne
+# peut mordre que sur le job de RÉFÉRENCE — un clip dont la source est un
+# rendu de montage. Le normaliser reste juste, mais son gain est celui-là.
+_RE_APERCU = re.compile(r"\s*\(aperçu 480p\)\s*$")
+
+
+def _norm_title(t) -> str:
+    """Le titre d'un job réduit à ce qui identifie LE PLAN : sans le suffixe
+    d'aperçu, sans espaces de bord, sans casse."""
+    return _RE_APERCU.sub("", str(t or "")).strip().lower()
+
+
+@router.get("/newer")
+async def montage_newer(job_id: str = ""):
+    """Les rendus plus RÉCENTS qui portent le même titre que `job_id` — au
+    plus 5, du plus récent au plus ancien. C'est ce que l'inspecteur du
+    Montage propose sous « Remplacer la source… ».
+
+    `{ok, origin: "heuristique", candidates: [{job_id, title, completed_at,
+    duration_s}]}`. Job inconnu, sans titre exploitable ou sans date : liste
+    VIDE, jamais une erreur — l'inspecteur n'affiche alors rien du tout.
+
+    QUATRE DÉCISIONS, chacune appuyée sur une mesure et non sur le plan.
+
+    1. SEULEMENT DES VIDÉOS, par le MÊME chemin que `montage_project`. La
+       leçon de P8 vaut ici mot pour mot : `sprite2d` range sa planche PNG et
+       `asset3d` son maillage GLB dans la MÊME colonne `final_video_path`
+       qu'un rendu `seedance`. Sans ce filtre, une planche de sprites serait
+       proposée comme « nouvelle version » d'un plan. `_is_video_artifact`
+       reste la SEULE autorité (elle juge le chemin retenu) et le `where`
+       n'est qu'un pré-filtre, écrit dans la forme démontrée par P8-bis :
+       `coalesce(nullif(final_video_path, ''), video_path)`, miroir exact du
+       `or` de Python — ni un job légitime écarté, ni un job de trop admis.
+
+    2. AUCUNE `.limit()` SUR LA REQUÊTE. Le plafond de 5 est pris APRÈS le
+       filtre de titre, donc il borne des CANDIDATS et non des lignes brutes.
+       C'est exactement le défaut que P8-bis a payé : une fenêtre SQL que le
+       filtre Python consomme rend une liste vide et silencieuse. Le nombre
+       de lignes chargées est borné par le `where` lui-même — les vidéos
+       `done` non-montage TERMINÉES APRÈS le clip qu'on remplace — donc par
+       la fraîcheur de la timeline, pas par la taille de la base (mesure :
+       116 jobs `done` au total sur la base réelle du 04/09/2026).
+
+    3. LE TITRE N'EST PAS PRÉ-FILTRÉ EN SQL, et c'est un choix mesuré. La
+       forme tentante `title ILIKE '%' || norm || '%'` est un SUR-ENSEMBLE en
+       Python… mais pas en SQLite : `lower()` y est ASCII SEULEMENT (pas
+       d'ICU par défaut), donc `lower('Épisode')` reste `'Épisode'` et ne
+       correspond plus au `'épisode'` que produit `str.lower()` de Python. Un
+       job intitulé « Épisode … » — le titre PAR DÉFAUT de
+       `pipeline.run_episode` — serait silencieusement écarté. C'est
+       précisément la classe de bug (« une clause SQL qui écarte des jobs
+       légitimes ») que P8-bis a déjà rencontrée : le titre se compare donc
+       en Python, où la normalisation est celle qui décide.
+
+    4. `coalesce(provider, '')`, PAS `provider != "montage"`. En SQL,
+       `NULL != 'montage'` vaut NULL et la ligne est ÉCARTÉE. MESURÉ sur la
+       copie de la base réelle : 13 jobs `done` portent `provider IS NULL`,
+       et les 13 sont des `.mp4`. Aucun ne porte de titre AUJOURD'HUI — la
+       correction ne change donc rien d'observable sur cette base-là : elle
+       ferme un piège, elle ne répare pas un défaut constaté.
+
+    CE QUE CETTE ROUTE N'AFFIRME PAS : que le candidat SOIT une nouvelle
+    version. Deux rendus peuvent partager un titre sans rien avoir en commun
+    (mesuré : « tweet_2026-05-20 » couvre 7 jobs). C'est pourquoi la réponse
+    porte `origin` et pourquoi l'écran nomme le titre AVANT de remplacer."""
+    empty = {"ok": True, "origin": "heuristique", "candidates": []}
+    if not job_id:
+        return empty
+    async with async_session_factory() as session:
+        ref = await session.get(JobRecord, job_id)
+        if ref is None or ref.completed_at is None:
+            return empty
+        # LE GARDE-FOU QUI N'EST PAS AU PLAN, et que la base réelle impose :
+        # 48 des 84 jobs vidéo `done` non-montage n'ont PAS de titre. Sans
+        # cette sortie, chacun d'eux proposerait cinq inconnus comme « ses »
+        # versions plus récentes — un rapprochement entre deux vides n'est
+        # pas un rapprochement.
+        norm = _norm_title(ref.title)
+        if not norm:
+            return empty
+        _fp = func.coalesce(func.nullif(JobRecord.final_video_path, ""),
+                            JobRecord.video_path)
+        res = await session.execute(
+            select(JobRecord)
+            .where(JobRecord.status == JobStatus.DONE.value)
+            .where(func.coalesce(JobRecord.provider, "") != "montage")
+            # PAS de `id != job_id` — le plan l'écrivait, la mesure le rend
+            # INUTILE : la comparaison de date est STRICTE, et la référence
+            # n'est pas plus récente qu'elle-même. Mutation jouée le
+            # 04/09/2026 (clause retirée) : 74/0, aucune ligne rouge — c'était
+            # du code mort. La propriété, elle, reste tenue et mesurée
+            # (`newer_ne_se_propose_pas_lui_meme`), par la ligne ci-dessous.
+            .where(JobRecord.completed_at > ref.completed_at)
+            .where(or_(*[_fp.ilike(f"%{e}") for e in _VIDEO_EXTS]))
+            .order_by(JobRecord.completed_at.desc()))
+        jobs = res.scalars().all()
+
+    out = []
+    for j in jobs:
+        fp = j.final_video_path or j.video_path
+        if not fp:
+            continue
+        p = Path(fp)
+        # `_is_video_artifact` juge le chemin RETENU, là où le `where` ne
+        # peut juger que la chaîne stockée — c'est la même hiérarchie que
+        # dans `montage_project`, et c'est elle qui décide.
+        if not _is_video_artifact(p):
+            continue
+        # Un candidat dont le fichier a disparu n'est pas une sortie : le
+        # rendu mourrait dessus et GET /project élaguerait le clip au
+        # rechargement. On ne propose pas un piège.
+        if not p.exists():
+            continue
+        if _norm_title(j.title) != norm:
+            continue
+        out.append({
+            "job_id": j.id,
+            "title": j.title,
+            "completed_at": (j.completed_at.isoformat()
+                             if j.completed_at is not None else None),
+            "duration_s": j.duration_s,
+        })
+        if len(out) >= 5:
+            break
+    return {"ok": True, "origin": "heuristique", "candidates": out}
 
 
 @router.get("/effects")
