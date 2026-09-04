@@ -34,39 +34,80 @@ CE QUI EST FERME ICI
       `trackKind(tr)==="audio"`, pas `tr==="v2"`. Refuser une image sur V1
       casserait un geste que l'interface offre. La regle « seule de la
       video » ne vaut donc QUE pour la construction automatique.
+      Les deux appels DIRECTS a `_resolve_src` de cette section passent par
+      `CO()` : nus, ils TUAIENT le banc — voir MB dans le tableau des
+      mutations.
   [4] PRE-VOL de POST /render : les sources sont resolues AVANT la creation
       du JobRecord, et celles qu'aucun demultiplexeur n'ouvrira sont
       refusees en 400 en nommant le libelle du clip ET le fichier. Le banc
       verifie qu'AUCUN job `montage` n'a ete cree par un refus.
+      UNE REQUETE PAR CAS accepte : image sur V1, image sur V2, son sur A1
+      — une requete unique portant les trois ne pouvait pas dire lequel
+      avait casse (M8 le prouve : elle fait rougir les deux lignes image et
+      laisse VERTE la ligne son).
+      La frontiere du pre-vol est une UNION PLATE, la MEME pour toute piste
+      media : un `.wav` sur V1 passe, un `.mp4` sur A1 passe (MESURE : 200
+      dans les deux sens). C'est un choix, pas un oubli — une video sur une
+      piste audio est un geste SUPPORTE (le son d'un plan V1, garde
+      `_has_audio_stream`), et differencier dans l'autre sens seul ne se
+      decide pas a l'extension (un `.mkv` peut ne porter aucun flux video :
+      il faudrait la sonde que la mesure ci-dessous ecarte). Les deux cas
+      croises sont mesures — M9 et M10 les font rougir chacun SEUL.
   [5] `_run_ffmpeg` : la ligne qui DECIDE passe en tete du message, la
       tranche brute de 1200 caracteres restant derriere. Sans motif trouve,
       le message est identique CARACTERE POUR CARACTERE a l'historique —
       c'est une assertion a part entiere (`erreur_sans_motif_inchangee`),
       sans quoi la mise en tete serait verte a vide.
 
-HUIT MUTATIONS JOUEES le 04/09/2026 (protocole : le service est reecrit sur
-disque, le banc relance en processus neuf, le fichier restaure ; script
-scratchpad/mut_p8.py). Ligne verte de reference : 30/0.
-  M1 `_VIDEO_EXTS` + ".png"  => 23/7, dont `sprite_exclu` ROUGE et
+ONZE MUTATIONS + UNE, TOUTES REJOUEES le 04/09/2026 sur la version courante
+du banc (protocole : le service est reecrit sur disque, le banc relance en
+processus NEUF, le fichier restaure quoi qu'il arrive ; script
+scratchpad/mut_p8.py). Ligne verte de reference : 35/0. Les comptes ci-dessous
+sont ceux de CETTE version — la precedente en portait 30, et les chiffres
+d'alors ne valent plus.
+  M1 `_VIDEO_EXTS` + ".png"  => 28/7, dont `sprite_exclu` ROUGE et
      `glb_exclu` VERTE — les deux discriminent bien.
-  M2 `_VIDEO_EXTS` + ".glb"  => 18/12, dont `glb_exclu` ROUGE et
-     `sprite_exclu` VERTE. (Les six `prevol_*` rougissent aussi : le pre-vol
-     lit la meme table.)
-  M3 filtre `_is_video_artifact` retire de `montage_project` => 23/7, les
+  M2 `_VIDEO_EXTS` + ".glb"  => 23/12, dont `glb_exclu` ROUGE et
+     `sprite_exclu` VERTE. (Les six `prevol_*` du refus rougissent aussi :
+     le pre-vol lit la meme table.)
+  M3 filtre `_is_video_artifact` retire de `montage_project` => 28/7, les
      sept lignes de la construction automatique ; aucune ligne de rendu.
-  M4 pre-vol retire de `montage_render` => 24/6, EXACTEMENT les six lignes
-     du refus ; les deux `prevol_accepte_*` et
+  M4 pre-vol retire de `montage_render` => 29/6, EXACTEMENT les six lignes
+     du refus ; les cinq lignes d'acceptation, les deux cas croises et
      `prevol_laisse_passer_une_source_disparue` restent vertes.
-  M5 `_ffmpeg_lignes_utiles` rendant toujours [] => 26/4, les quatre lignes
+  M5 `_ffmpeg_lignes_utiles` rendant toujours [] => 31/4, les quatre lignes
      de position ; `erreur_sans_motif_inchangee` VERTE (autre branche).
-  M6 mise en tete INCONDITIONNELLE (motif ou pas) => 29/1,
+  M6 mise en tete INCONDITIONNELLE (motif ou pas) => 34/1,
      `erreur_sans_motif_inchangee` SEULE rouge.
-  M7 `v1_non_video` jamais rempli => 29/1,
+  M7 `v1_non_video` jamais rempli => 34/1,
      `sauvegarde_signale_le_clip_non_video` SEULE rouge.
   M8 pre-vol REFUSANT aussi les images (le zele que la decision 3 interdit)
-     => 28/2, `prevol_accepte_image_v1_et_v2_et_audio` et
-     `prevol_accepte_a_bien_mis_en_file` rouges. C'est l'autre cote de la
-     frontiere, et il est mesure.
+     => 32/3 : `prevol_accepte_une_image_sur_v1`,
+     `prevol_accepte_une_image_sur_v2` et `prevol_accepte_a_bien_mis_en_file`
+     rouges — et `prevol_accepte_un_son_sur_a1` VERTE. C'est ce que la
+     SEPARATION des trois cas achete : la ligne agregee d'avant rougissait
+     en bloc sans dire lequel des trois cotes avait cede.
+  M9 pre-vol DIFFERENCIANT (refus d'un son sur une piste video) => 34/1,
+     `prevol_laisse_passer_un_son_sur_v1` SEULE rouge.
+  M10 pre-vol DIFFERENCIANT dans l'autre sens (refus d'une video sur une
+     piste audio) => 34/1, `prevol_laisse_passer_une_video_sur_a1` SEULE
+     rouge. M9 et M10 mesurent que l'union est PLATE, et dans quel sens.
+  MB `raise RuntimeError("boom resolve")` en TETE de `_resolve_src`.
+     AVANT la garde (version a 30 assertions) : traceback sur la ligne nue
+     `asyncio.run(M._resolve_src(...))` de la section [3], exit 1, AUCUNE
+     ligne de compte imprimee, sections [4] [5] [6] JAMAIS jouees — 21 des
+     30 assertions emportees EN SILENCE. C'est la faute n°6 du chantier dans
+     sa forme la plus couteuse : un banc qui meurt ne dit pas ce qui manque.
+     APRES : 17/18, le banc va jusqu'au bout et IMPRIME SON COMPTE. Les 18
+     rouges sont les 2 lignes de [3], les 12 de [4], 3 de [6] et
+     `aucun_appel_n_a_plante` ; les temoins sont numerotes ·ECHEC#1 a #13 et
+     lisibles dans le detail de chaque ligne rouge — #13 se pose PAR-DESSUS
+     #12 (la reponse-temoin releve a son tour dans `J()`), ce qui montre les
+     deux gardes empilees sans jamais rendre `None`.
+     Restent VERTES a bon droit : les sections [1] et [2] (sans sauvegarde,
+     la construction depuis la Bibliotheque ne passe pas par `_resolve_src`),
+     `prevol_aucun_job_cree` (une route qui meurt ne cree effectivement
+     aucun job) et `save_acceptee` (POST /save ne resout rien).
 
 CE QUE CE BANC N'AFFIRME PAS
   * Aucun octet n'est encode : `_run_ffmpeg` est REMPLACE par un talon pour
@@ -75,21 +116,40 @@ CE QUE CE BANC N'AFFIRME PAS
     test_montage_pistes_dyn.py qui rendent pour de vrai, et ils restent la
     garde contre un pre-vol trop zele.
   * La liste blanche est une liste d'EXTENSIONS. Un `.mp4` de zero octet ou
-    un `.webm` tronque la passent. MESURE du 04/09/2026 (mediane de 12
-    appels, ffprobe 7.x de %LOCALAPPDATA%\\DeepotusVideoGen\\bin) : une sonde
-    `ffprobe -select_streams v -show_entries stream=codec_type` coute 52 ms
-    par asset ET REND « video » SUR UN PNG — elle n'aurait ecarte aucune des
-    trois planches de sprites, seulement le GLB, que l'extension ecarte pour
-    0 ms. La sonde n'est donc PAS ajoutee ; le trou restant (fichier video
-    corrompu) tombe desormais sur le message lisible de [5], ou
-    « Invalid data found » est l'un des cinq motifs remontes en tete.
-  * COUT du pre-vol, mesure le 04/09/2026 (scratchpad/cout_prevol.py, base
-    sqlite neuve de 24 JobRecord, 15 tours apres chauffe) : 53,2 ms de
-    mediane pour 24 clips, soit 2,22 ms par clip — une session sqlite par
-    `job_id`. Les MEMES 24 clips sondes par ffprobe : 1345 ms, vingt-cinq
-    fois plus, pour un verdict qui n'aurait pas ecarte les planches. Le
-    pre-vol n'est pas gratuit : sur une timeline de cent clips il ajoute
-    ~0,2 s au clic. Ce n'est PAS optimise (pas de resolution groupee).
+    un `.webm` tronque la passent. La sonde ffprobe n'est PAS ajoutee, et
+    voici le protocole COMPLET qui le fonde — un chiffre dont le protocole
+    ment n'est pas verifiable, et le precedent mentait deux fois.
+      PROTOCOLE : binaire %LOCALAPPDATA%\\DeepotusVideoGen\\bin\\ffprobe.exe,
+      version `ffprobe version 9.0-essentials_build-www.gyan.dev` (et NON
+      « 7.x », comme l'affirmait la version precedente de cet en-tete) ;
+      commande exacte `ffprobe -v error -select_streams v -show_entries
+      stream=codec_type -of csv=p=0 <fichier>` ; 3 appels de chauffe puis 12
+      appels chronometres, mediane ; machine Windows 11 26200, AMD64
+      Family 23 Model 8 ; scratchpad/mesure_ffprobe2.py.
+      RESULTAT, PAR CLASSE D'ASSET — c'est le second mensonge du chiffre
+      unique de « 52 ms » : il avait ete mesure sur la FIXTURE du banc, un
+      faux mp4 de NEUF octets (52,8 ms re-mesures, le plancher du lancement
+      de processus), et non sur les assets dont la decision parle.
+        planche PNG REELLE (1,9 a 2,7 Mo) : 73,9 / 81,8 / 83,8 ms
+        maillage GLB REEL (9,4 et 42,5 Mo) : 99,1 / 102,3 ms
+        faux mp4 de 9 octets (fixture)     : 52,8 ms
+      VERDICT, la ou tout se joue : rc=0 et « video » sur les TROIS planches
+      PNG reelles, rc=1 sur les DEUX maillages. La sonde n'aurait donc
+      ecarte aucune des trois planches de sprites, seulement le GLB — que
+      l'extension ecarte pour 0 ms. La conclusion est inchangee, et meme
+      renforcee : sur les vrais assets la sonde coute 1,4 a 2 fois plus que
+      ce qui avait ete annonce.
+    Le trou restant (fichier video corrompu) tombe sur le message lisible de
+    [5], ou « Invalid data found » est l'un des cinq motifs remontes en tete.
+  * COUT du pre-vol, RE-MESURE le 04/09/2026 (scratchpad/cout_prevol.py, base
+    sqlite neuve de 24 JobRecord, 3 tours de chauffe puis 15 chronometres,
+    mediane) : 58,7 ms pour 24 clips, soit 2,45 ms par clip — une session
+    sqlite par `job_id`. Les MEMES 24 assets sondes par ffprobe : 1264 ms
+    (5 tours), soit 21,5 fois plus — et ces 24-la sont les faux mp4 de 9
+    octets, le cas le PLUS FAVORABLE a la sonde ; sur les assets reels
+    mesures ci-dessus le rapport monte a 30–42x. Le pre-vol n'est pas
+    gratuit : sur une timeline de cent clips il ajoute ~0,25 s au clic. Ce
+    n'est PAS optimise (pas de resolution groupee).
   * VERIFICATION sur la base REELLE (une COPIE de deepotus.db + -wal + -shm,
     04/09/2026 18:10, l'application tournant ; DEEPOTUS_DATA_DIR temporaire
     donc sans sauvegarde) : 13 jobs `sprite2d`/`asset3d` sont desormais
@@ -100,13 +160,29 @@ CE QUE CE BANC N'AFFIRME PAS
     non-video ; elle est seulement SIGNALEE (cle `v1_non_video` + warning au
     journal). MESURE sur le fichier reel
     (%LOCALAPPDATA%\\DeepotusVideoGenData\\assets\\montage_saved.json,
-    5980 o, 04/09/2026 17:51) : il porte 17 clips — 4 V1 fautifs, mais aussi
-    9 segments de sous-titres mot a mot, 1 voix avec fondus et fx, 1 musique
-    avec fx, 2 incrustations V2 et un `subs_style`. Elaguer les 4 viderait
-    la piste V1, et la garde deja en place (`any(c["tr"] == "v1")`) ferait
+    5980 o, RELU le 04/09/2026) : il porte 17 clips — 4 V1 fautifs (tous a
+    `src` {job_id}), 9 segments de sous-titres mot a mot a `src` NULL, 1
+    voix A1 {audio}, 1 musique A2 {audio}, 2 incrustations V2 {job_id} ;
+    plus un `subs_style` qui n'est pas un clip. Elaguer les 4 viderait la
+    piste V1, et la garde deja en place (`any(c["tr"] == "v1")`) ferait
     alors repartir la construction depuis la Bibliotheque : 13 clips de
-    travail detruits pour en retirer 4, sans retour. Le pre-vol les nomme,
-    l'utilisateur les remplace.
+    travail detruits pour en retirer 4, sans retour.
+    A UNE CONDITION, qu'il faut dire : sur ces 13, seuls les 9 sous-titres
+    survivent INCONDITIONNELLEMENT (pas de `src`, donc rien a resoudre). Les
+    4 autres — la voix, la musique et les DEUX incrustations — ne tiennent
+    que tant que leurs fichiers existent : l'elagage deja en place juste
+    au-dessus les retire sinon, en levant `saved_pruned`. L'argument porte
+    donc sur 9 clips garantis et 4 conditionnels, pas sur 13 garantis — il
+    tient, mais pas au chiffre brut.
+  * DETTE DECLAREE — `v1_non_video` est un champ d'API SANS CONSOMMATEUR.
+    GET /project le rend et le banc le mesure
+    (`sauvegarde_signale_le_clip_non_video`, M7 la fait rougir SEULE), mais
+    AUCUNE interface ne le lit encore : la sauvegarde de l'utilisateur
+    rouvre sur ses clips fautifs sans marque visuelle, et c'est le 400 du
+    pre-vol qui les nomme au moment du rendu. Sa lecture a l'ecran est
+    inscrite au plan, tache 16 (celle qui touche le bundle) — cette
+    tache-ci est backend pure. Tant que la 16 n'a pas atterri, ce champ est
+    une DETTE assumee, pas une fonctionnalite.
   * DETTE NAVIGATEUR, non corrigee ici (cette tache est backend pure) : le
     selecteur d'assets du bundle (`openPicker`, son-vfx-montage.js ~l.3168)
     filtre `/api/jobs` sur `status==="done" && (video_path ||
@@ -114,7 +190,6 @@ CE QUE CE BANC N'AFFIRME PAS
     maillage restent donc proposes sous « Rendus video » tant que le bundle
     n'est pas patche."""
 import asyncio
-import json
 import os
 import pathlib
 import subprocess
@@ -152,29 +227,85 @@ def check(label, cond, detail=""):
         print(f"  FAIL  {label} {detail}")
 
 
-_illisibles = 0
+_plantages = 0
+
+
+def temoin(e):
+    """TEMOIN d'un appel qui a LEVE. Ce banc doit ROUGIR, pas mourir (faute
+    n°6 du chantier) — une mort n'imprime aucune ligne de compte et emporte en
+    silence tout ce qui suit.
+
+    Deux exigences, et le temoin les tient toutes les deux :
+      * NUMEROTE — deux echecs ne se valent jamais, donc un `a == b` entre
+        deux temoins reste rouge ;
+      * DISTINGUABLE — jamais `None`, qui ferait passer au VERT toute
+        assertion comparant a None ; on aurait remplace une mort par une
+        assertion creuse. C'est une CHAINE finissant par « ·ECHEC#n », un
+        marqueur sans point ni separateur de chemin : `Path(temoin).name` ne
+        peut donc egaler aucun vrai nom de fichier, et `Path(temoin).suffix`
+        aucune vraie extension (le marqueur reste colle a la fin)."""
+    global _plantages
+    _plantages += 1
+    return "%s: %s ·ECHEC#%d" % (type(e).__name__, e, _plantages)
 
 
 def J(resp):
-    """Corps JSON, ou un temoin NUMEROTE — ce banc doit ROUGIR, pas mourir
-    (faute n°6 du chantier). Le temoin est numerote pour que deux lectures
-    ratees ne se valent jamais : un `a == b` entre deux echecs passerait au
-    vert."""
-    global _illisibles
+    """Corps JSON, ou un temoin (voir `temoin`)."""
     try:
         v = resp.json()
     except Exception as e:
-        _illisibles += 1
-        return {"_illisible": "#%d %s" % (_illisibles, e)}
+        return {"_illisible": temoin(e)}
     return v if isinstance(v, dict) else {"_liste": v}
 
 
+class _RepIllisible:
+    """Reponse-temoin : un appel d'API qui LEVE ne doit pas tuer le banc.
+    `status_code` negatif — jamais 200, jamais 400 ; `.json()` releve, donc
+    `J()` posera son propre temoin par-dessus."""
+
+    def __init__(self, t):
+        self.status_code = -1
+        self.text = t
+
+    def json(self):
+        raise ValueError(self.text)
+
+
 def api(method, path, **kw):
+    """Appel HTTP contre l'app ASGI. Une exception que FastAPI ne rattrape pas
+    (NameError, TypeError… dans la route) TRAVERSE ASGITransport : sans cette
+    garde elle tuerait le banc au milieu d'une section. Elle rend ici une
+    reponse-temoin, et tout ce qui la lit rougit."""
     async def go():
         async with AsyncClient(transport=ASGITransport(app=app),
                                base_url="http://t", timeout=180.0) as c:
             return await c.request(method, path, **kw)
-    return asyncio.run(go())
+    try:
+        return asyncio.run(go())
+    except Exception as e:
+        t = temoin(e)
+        print(f"  ----  {method} {path} a leve : {t}")
+        return _RepIllisible(t)
+
+
+def CO(fabrique, quoi=""):
+    """Resultat d'une coroutine appelee DIRECTEMENT, ou un temoin.
+
+    Meme parade que `J()`, pour l'AUTRE forme d'appel a l'unite sous test.
+    MESURE le 04/09/2026 : `raise RuntimeError("boom resolve")` en tete de
+    `_resolve_src` faisait mourir le banc sur la ligne alors NUE
+    `asyncio.run(M._resolve_src(...))` de la section [3] — traceback, exit 1,
+    AUCUNE ligne de compte imprimee, sections [4] [5] [6] jamais jouees : 21
+    des 30 assertions de l'epoque emportees en silence.
+    `fabrique` est un THUNK, pas une coroutine deja construite : ainsi meme la
+    disparition de l'attribut `M._resolve_src` (AttributeError au moment de
+    l'appel) est rattrapee."""
+    try:
+        return asyncio.run(fabrique())
+    except Exception as e:
+        t = temoin(e)
+        print(f"  ----  {quoi} a leve : {t}")
+        return t
 
 
 ROOT = pathlib.Path(TMP)
@@ -297,11 +428,13 @@ pose(ID_MP4, "seedance", F_MP4, 5, T0 - timedelta(hours=3))
 
 
 print("\n[3] NON-REGRESSION — une image posee A LA MAIN reste valide.")
-p_img = asyncio.run(M._resolve_src({"image": "carton.png"}))
+p_img = CO(lambda: M._resolve_src({"image": "carton.png"}),
+           "_resolve_src({image})")
 check("image_posee_a_la_main_reste_valide",
       p_img is not None and pathlib.Path(p_img).name == "carton.png",
       str(p_img))
-p_glb = asyncio.run(M._resolve_src({"job_id": ID_GLB}))
+p_glb = CO(lambda: M._resolve_src({"job_id": ID_GLB}),
+           "_resolve_src({job_id du glb})")
 check("resolve_src_resout_aussi_le_glb",
       p_glb is not None and pathlib.Path(p_glb).suffix == ".glb", str(p_glb))
 # `_resolve_src` ne juge PAS : c'est le pre-vol qui juge. Les deux cotes de
@@ -324,22 +457,72 @@ M._run_ffmpeg = _talon
 print("\n[4] PRE-VOL de POST /render.")
 BASE = {"name": "p8", "ratio": "9:16", "preview": True,
         "mix": {"dialogue": -6, "musique": -18, "sfx": -12}}
+PLAN = {"tr": "v1", "id": "c1", "label": "plan", "start": 0, "end": 4,
+        "src": {"job_id": ID_MP4}, "srcIn": 0, "transition": "cut"}
+
+# UNE REQUETE PAR CAS. Une seule requete portant les trois cotes (image V1 +
+# image V2 + son A1) ne pouvait pas dire LEQUEL avait casse. Ce n'est pas de
+# la vacuite, c'est de la granularite — et c'est elle qui rend une mutation
+# lisible : M8 (pre-vol refusant aussi les images) doit faire rougir les deux
+# lignes image et LAISSER VERTE la ligne son.
+# Le porteur V1 des cas 2 et 3 est le mp4 : POST /render refuse d'emblee, et
+# pour une autre raison, une timeline sans clip V1 (« Timeline sans clip
+# video »). L'acceptation de ce mp4-la est deja temoignee separement par
+# `prevol_ne_nomme_pas_le_clip_valide` plus bas.
 avant = n_montage()
-r_ok = api("POST", "/api/montage/render", json=dict(BASE, clips=[
-    {"tr": "v1", "id": "c1", "label": "plan", "start": 0, "end": 4,
-     "src": {"job_id": ID_MP4}, "srcIn": 0, "transition": "cut"},
-    {"tr": "v1", "id": "c2", "label": "carton fixe", "start": 4, "end": 6,
-     "src": {"image": "carton.png"}, "srcIn": 0, "transition": "cut"},
+r_i1 = api("POST", "/api/montage/render", json=dict(BASE, clips=[
+    {"tr": "v1", "id": "c2", "label": "carton fixe", "start": 0, "end": 2,
+     "src": {"image": "carton.png"}, "srcIn": 0, "transition": "cut"}]))
+check("prevol_accepte_une_image_sur_v1",
+      r_i1.status_code == 200 and bool(J(r_i1).get("job_id")),
+      f"{r_i1.status_code} {r_i1.text[:200]}")
+
+r_i2 = api("POST", "/api/montage/render", json=dict(BASE, clips=[
+    PLAN,
     {"tr": "v2", "id": "c3", "label": "incrustation", "start": 0, "end": 3,
-     "src": {"image": "carton.png"}},
+     "src": {"image": "carton.png"}}]))
+check("prevol_accepte_une_image_sur_v2",
+      r_i2.status_code == 200 and bool(J(r_i2).get("job_id")),
+      f"{r_i2.status_code} {r_i2.text[:200]}")
+
+r_a1 = api("POST", "/api/montage/render", json=dict(BASE, clips=[
+    PLAN,
     {"tr": "a1", "id": "c4", "label": "voix", "start": 0, "end": 3,
      "src": {"audio": "voix.wav"}}]))
-j_ok = J(r_ok)
-check("prevol_accepte_image_v1_et_v2_et_audio",
-      r_ok.status_code == 200 and bool(j_ok.get("job_id")),
-      f"{r_ok.status_code} {r_ok.text[:200]}")
-check("prevol_accepte_a_bien_mis_en_file", n_montage() == avant + 1,
-      f"{avant} -> {n_montage()}")
+check("prevol_accepte_un_son_sur_a1",
+      r_a1.status_code == 200 and bool(J(r_a1).get("job_id")),
+      f"{r_a1.status_code} {r_a1.text[:200]}")
+
+# Les trois lignes ci-dessus localisent DEJA le cas fautif ; celle-ci mesure
+# une AUTRE propriete — « accepte » veut dire « entre en file d'attente », et
+# rien d'autre ne le dit. Son detail nomme les trois codes, pour qu'un compte
+# faux se lise sans relancer.
+check("prevol_accepte_a_bien_mis_en_file", n_montage() == avant + 3,
+      f"{avant} -> {n_montage()} (codes {r_i1.status_code}/"
+      f"{r_i2.status_code}/{r_a1.status_code})")
+
+# LES DEUX CAS CROISES. La frontiere du pre-vol est une UNION PLATE, la MEME
+# pour toute piste media — un `.wav` sur V1 et un `.mp4` sur A1 passent tous
+# deux. C'est un CHOIX (cf. la docstring de `_ffmpeg_ouvrira`), et il est
+# PERMISSIF dans les deux sens : une video sur une piste audio est un geste
+# SUPPORTE (le son d'un plan V1, garde `_has_audio_stream` de `_run`), et
+# differencier dans l'autre sens seul ne se decide pas a l'extension — un
+# `.mkv` ou un `.mp4` peuvent ne porter aucun flux video, il faudrait la
+# sonde que la decision 1 ecarte sur mesure. Ni l'un ni l'autre de ces deux
+# cas n'etait couvert jusqu'ici, dans aucun sens.
+r_wav_v1 = api("POST", "/api/montage/render", json=dict(BASE, clips=[
+    {"tr": "v1", "id": "c5", "label": "un son sur la piste video",
+     "start": 0, "end": 3, "src": {"audio": "voix.wav"}, "srcIn": 0,
+     "transition": "cut"}]))
+check("prevol_laisse_passer_un_son_sur_v1", r_wav_v1.status_code == 200,
+      f"{r_wav_v1.status_code} {r_wav_v1.text[:200]}")
+
+r_mp4_a1 = api("POST", "/api/montage/render", json=dict(BASE, clips=[
+    PLAN,
+    {"tr": "a1", "id": "c6", "label": "une video sur la piste audio",
+     "start": 0, "end": 3, "src": {"job_id": ID_MP4}}]))
+check("prevol_laisse_passer_une_video_sur_a1", r_mp4_a1.status_code == 200,
+      f"{r_mp4_a1.status_code} {r_mp4_a1.text[:200]}")
 
 avant = n_montage()
 r_ko = api("POST", "/api/montage/render", json=dict(BASE, clips=[
@@ -418,7 +601,9 @@ def _msg(rc, err):
         M._run_ffmpeg(["ffmpeg"], pathlib.Path(TMP) / "jamais_ecrit.mp4")
         return "<AUCUNE EXCEPTION>"
     except RuntimeError as e:
-        return str(e)
+        return str(e)          # le CONTRAT : c'est ce message-la qu'on mesure
+    except Exception as e:     # tout autre type est un BUG, jamais une mort
+        return temoin(e)
     finally:
         M.subprocess = vrai
 
@@ -479,6 +664,14 @@ check("sauvegarde_pas_elaguee", ids3 == ["v1_plan", "v1_sheet", "a1_vo"],
       str(ids3))
 check("sauvegarde_signale_le_clip_non_video",
       d3.get("v1_non_video") == ["v1_sheet"], str(d3.get("v1_non_video")))
+
+
+# La ligne qui dit que le banc a ROUGI plutot que MEURE : aucun des appels
+# gardes (api, CO, _msg, J) n'a pose de temoin. Une mutation qui fait lever
+# l'unite sous test fait rougir CETTE ligne EN PLUS de celles qu'elle casse —
+# et le banc va jusqu'a imprimer son compte.
+check("aucun_appel_n_a_plante", _plantages == 0,
+      f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")
 
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

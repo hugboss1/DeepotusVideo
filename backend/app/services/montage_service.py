@@ -226,14 +226,18 @@ def _has_audio_stream(path: Path) -> bool:
 # GLB dans la MÊME colonne `final_video_path` qu'un rendu `seedance`, et un
 # jour un provider de plus fera pareil. Une liste blanche se lit ; une liste
 # noire se contourne toute seule.
-# MESURE (04/09/2026, médiane de 12 appels, ffprobe 7.x de
-# %LOCALAPPDATA%\DeepotusVideoGen\bin) : une sonde
-# `ffprobe -select_streams v -show_entries stream=codec_type` coûte 52 ms par
-# asset ET REND « video » SUR UN PNG. Elle n'aurait écarté aucune des trois
-# planches de sprites de l'utilisateur, seulement le maillage — que
-# l'extension écarte pour 0 ms. Pas de sonde, donc ; le trou qui reste (un
-# `.mp4` de zéro octet, un `.webm` tronqué) tombe sur le message lisible de
-# `_run_ffmpeg`, où « Invalid data found » est l'un des motifs remontés.
+# MESURE, protocole nommé (voir l'en-tête de tests/test_montage_sources.py
+# pour le détail) : ffprobe 9.0-essentials_build, commande
+# `ffprobe -v error -select_streams v -show_entries stream=codec_type
+#  -of csv=p=0 <fichier>`, 12 appels après 3 de chauffe, médiane, machine
+# Windows 11 / AMD64 Family 23. Sur les assets RÉELS : 74 à 84 ms par planche
+# PNG, 99 à 102 ms par maillage GLB — et la sonde REND « video » SUR UN PNG
+# (rc=0, « video », vérifié sur trois planches ; rc=1 sur deux maillages).
+# Elle n'aurait donc écarté aucune des trois planches de sprites de
+# l'utilisateur, seulement le maillage — que l'extension écarte pour 0 ms.
+# Pas de sonde, donc ; le trou qui reste (un `.mp4` de zéro octet, un `.webm`
+# tronqué) tombe sur le message lisible de `_run_ffmpeg`, où « Invalid data
+# found » est l'un des motifs remontés.
 _VIDEO_EXTS = (".mp4", ".mov", ".webm", ".mkv", ".m4v", ".avi")
 _AUDIO_EXTS = (".mp3", ".wav", ".m4a", ".ogg", ".flac", ".aac", ".opus",
                ".aiff", ".aif", ".wma")
@@ -247,12 +251,27 @@ def _ffmpeg_ouvrira(p: Path) -> bool:
     """Vrai si un démultiplexeur ffmpeg sait ouvrir ce fichier.
 
     La frontière du PRÉ-VOL n'est pas « vidéo » mais « ce que ffmpeg sait
-    ouvrir », et elle n'est pas la même selon la piste : une image est
-    parfaitement légitime en incrustation V2 comme en carton fixe sur V1
-    (`ovPicker()` du bundle propose « Images (Bibliothèque) » sur TOUTE piste
-    vidéo), un son l'est sur une piste audio. Ce qui n'a de sens nulle part,
-    c'est un maillage, une archive, un JSON — et c'est cela seul qu'on
-    refuse. `_IMAGE_EXTS` est défini plus bas, avec le reste du rendu."""
+    ouvrir », et c'est une UNION PLATE : la MÊME pour toute piste média. Un
+    `.wav` posé sur V1 passe, un `.mp4` posé sur A1 passe (MESURÉ : HTTP 200
+    dans les deux sens — bancs `prevol_laisse_passer_un_son_sur_v1` et
+    `prevol_laisse_passer_une_video_sur_a1`). C'est un CHOIX, pas un oubli :
+
+      * une vidéo sur une piste audio est un geste SUPPORTÉ — le son d'un
+        plan V1, cf. la garde `_has_audio_stream` de `_run` plus bas ;
+        différencier symétriquement le casserait ;
+      * différencier dans l'autre sens seul (« pas de fichier sans image sur
+        une piste vidéo ») ne se décide PAS à l'extension : un `.mkv`, un
+        `.mp4`, un `.webm` peuvent ne porter aucun flux vidéo. Il faudrait la
+        sonde ffprobe que la mesure ci-dessus écarte.
+
+    Ce que le pré-vol refuse, c'est ce qu'AUCUN démultiplexeur n'ouvre — un
+    maillage, une archive, un JSON. Il ne juge pas la PERTINENCE d'un média
+    sur une piste ; ce qui reste tombe sur le message lisible de
+    `_run_ffmpeg`. Une image, elle, est légitime des deux côtés (carton fixe
+    V1, incrustation V2) : `ovPicker()` du bundle propose « Images
+    (Bibliothèque) » sur TOUTE piste vidéo, le filtre y est
+    `trackKind(tr)==="audio"`. `_IMAGE_EXTS` est défini plus bas, avec le
+    reste du rendu."""
     return p.suffix.lower() in _VIDEO_EXTS + _IMAGE_EXTS + _AUDIO_EXTS
 
 
@@ -865,13 +884,21 @@ async def montage_project(limit: int = 4):
                     continue
                 # P8 — un clip V1 qui n'est pas une vidéo est SIGNALÉ, jamais
                 # élagué. Élaguer viderait la piste V1 d'une sauvegarde comme
-                # celle du 04/09/2026 (17 clips : 4 V1 fautifs, mais aussi 9
-                # segments de sous-titres mot à mot, une voix avec fondus et
-                # fx, une musique, deux incrustations) — la garde
-                # `any(c["tr"] == "v1")` plus bas ferait alors repartir la
-                # construction depuis la Bibliothèque, et 13 clips de travail
-                # seraient perdus pour en retirer 4. Le pré-vol du rendu les
-                # nomme ; c'est l'utilisateur qui décide.
+                # celle du 04/09/2026 (montage_saved.json, 5980 o, RELU le
+                # 04/09 : 17 clips — 4 V1 fautifs, 9 segments de sous-titres
+                # mot à mot SANS `src`, une voix A1, une musique A2, deux
+                # incrustations V2) — la garde `any(c["tr"] == "v1")` plus bas
+                # ferait alors repartir la construction depuis la
+                # Bibliothèque, et 13 clips de travail seraient perdus pour en
+                # retirer 4. À UNE CONDITION, qui vaut d'être dite : sur ces
+                # 13, seuls les 9 sous-titres survivent inconditionnellement
+                # (src null). Les 4 autres — voix, musique, DEUX
+                # incrustations — ne tiennent que tant que leur source
+                # existe ; l'élagage déjà en place juste au-dessus les retire
+                # sinon (`saved_pruned`). L'argument tient donc sur 9 clips
+                # garantis et 4 conditionnels, pas sur 13 garantis. Le
+                # pré-vol du rendu nomme les fautifs ; c'est l'utilisateur qui
+                # décide.
                 if c.get("tr") == "v1" and not _is_video_artifact(p):
                     non_video.append(c.get("id") or c.get("label") or p.name)
             kept.append(c)
