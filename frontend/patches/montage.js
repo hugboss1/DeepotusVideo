@@ -14,9 +14,19 @@
    (montage_service._tracks_meta, champ `layer`).
 
    Exporte (contrat) :
-     window.DzTracks = {ready, TrackAdd, headBtns,
+     window.DzTracks = {ready, TrackAdd, headBtns, TextDrawer,
+                         rippleCut, withWords,
                          tracksOf, from, payload, busSync,
                          move, moveTo, add, remove, group, DEFAULTS}
+
+   - rippleCut(clips,t0,t1,opts) — coupe d'une PLAGE de temps sur toutes les
+     pistes non verrouillées. PURE : c'est l'autre moitié du cœur exécuté
+     sous node, par backend/tests/test_montage_texte.py.
+   - withWords(clips, aligned) — recolle à chaque clip de narration les mots
+     que le backend a calés pour lui, pour que la coupe sache répartir son
+     texte. PURE elle aussi.
+   - TextDrawer({open,clips,onCut,note}) — le panneau « Texte » : la
+     narration mot par mot, les remplissages marqués, la sélection coupée.
 
    - TrackAdd({tracks,onChange}) — les deux boutons « + vidéo » / « + audio »
      de la barre de transport.
@@ -209,6 +219,180 @@ function dzmEmojiClips(hints,tracks,seq){
       start:Math.round(t0*1e3)/1e3,end:Math.round((t0+0.8)*1e3)/1e3,
       scale:.18,x:.5,y:.62,rotate:0}})}
 
+/* ── P3 : couper une PLAGE de temps, sur toutes les pistes à la fois ───────
+   `rippleCut(clips, t0, t1, opts)` — PUR : aucune lecture d'état, aucune
+   mutation de l'entrée (les clips inchangés sont rendus PAR RÉFÉRENCE, ce
+   que React aime, et les clips modifiés sont des copies). C'est ce que le
+   banc backend/tests/test_montage_texte.py exécute sous node.
+
+   Le contrat tient dans UNE fonction de temps, appliquée partout :
+
+       f(t) = t          si t ≤ t0
+            = t0         si t0 < t < t1
+            = t − (t1−t0) si t ≥ t1
+
+   D'où, pour chaque clip : ce qui est dans [t0,t1[ disparaît, ce qui
+   chevauche est FENDU (la moitié droite reprend en `srcIn` là où la source
+   en était — VITESSE COMPRISE : à 2×, une seconde de timeline consomme deux
+   secondes de source), et tout ce qui suit REMONTE. Les pistes en BOUCLE
+   (la musique) ne se fendent pas : leurs deux bornes passent par f, donc
+   elles RACCOURCISSENT — fendre une boucle en deux la ferait redémarrer au
+   milieu, ce qui s'entend.
+
+   ÉCART ASSUMÉ AVEC LE PLAN, mesuré : le plan raccourcissait TOUTE piste en
+   boucle de (t1−t0), sans regarder où elle se trouve. Une musique de 0,2 s
+   posée AVANT la coupe tombait alors à durée nulle, et une musique posée
+   APRÈS gardait son point de départ pendant que tout le reste remontait.
+   f(t) traite les trois positions du même geste (voir les trois lignes
+   `boucle_*` du banc).
+
+   ENTRÉES MOLLES, toutes mesurées : `t0 > t1` est remis à l'endroit (le
+   glisser de sélection peut partir du dernier mot) ; une plage NULLE ne
+   fend rien du tout et rend `removed:0` (le code du plan y coupait un clip
+   en deux sans rien retirer) ; une plage hors de tous les clips les laisse
+   intacts mais retire quand même le TEMPS DE TIMELINE ; une piste
+   verrouillée n'est pas touchée ; `speed` absente, nulle ou illisible vaut
+   1 (`speed: 0` est la valeur « non réglée » du modèle de clip).
+
+   LE TEXTE SUIT LES MOTS : un clip fendu qui porte `text` ET `words` voit
+   chaque moitié reprendre le texte de SES mots (voir dzmCutText). C'est ce
+   qui empêche un bloc de narration fendu de garder sa phrase entière des
+   deux côtés. Un clip qui n'a PAS de `words` garde son `text` tel quel —
+   rien ne saurait dire quel morceau lui revient ; c'est `dzmWithWords` qui
+   les lui pose, depuis le calage du backend, avant la coupe. */
+function dzmR3(v){return Math.round(v*1000)/1000}
+function dzmRipT(t,a,b,len){
+  var v=Number(t)||0;
+  return v<=a?dzmR3(v):(v<b?a:dzmR3(v-len))}
+/* Mots d'un sous-titre fendu : on garde ceux du CÔTÉ demandé, et on les
+   RECALE. Sans le recalage ils gardaient leur date d'avant la coupe et le
+   karaoké s'allumait après la fin de sa propre ligne. Un mot à cheval sur
+   une borne n'est gardé que par le côté où il COMMENCE : jamais deux fois. */
+function dzmCutWords(ws,a,b,len,left){
+  return (ws||[]).filter(function(w){
+    var s=Number(w&&w.start)||0;
+    return left?(s<a):(s>=b)}).map(function(w){
+    var s=dzmRipT(w.start,a,b,len),e=dzmRipT(w.end,a,b,len);
+    /* BORNAGE. Un mot À CHEVAL sur `a` (il commence avant, il finit après
+       `b`) part à GAUCHE — c'est là qu'il commence — mais sa fin, elle,
+       retombe au-delà de `a` : le mot finissait HORS de sa propre moitié.
+       Chaque moitié borne donc ses mots à sa plage. */
+    if(left)e=Math.min(e,a);else s=Math.max(s,a);
+    return Object.assign({},w,{start:s,end:Math.max(s,e)})})}
+/* Le TEXTE d'une moitié est celui de ses mots — même convention que
+   `subsSplitAt` du bundle, qui découpe déjà un sous-titre ainsi
+   (`.join(" ")`). Sans elle, fendre un bloc de narration laissait la phrase
+   ENTIÈRE sur les deux moitiés : le tiroir Narration la montrait deux fois
+   et « sous-titres depuis la narration » la calait deux fois. La ponctuation
+   est portée par les mots eux-mêmes (le backend rend `raw`+`punct`) ; les
+   retours à la ligne, eux, sont perdus — c'est le prix de la convention, et
+   c'est déjà celui que paie le découpage de sous-titre du bundle. */
+function dzmCutText(c,ws){
+  return (c.text!=null&&Array.isArray(c.words)&&ws.length!==c.words.length)
+    ?ws.map(function(w){return String((w&&w.w)||"")}).join(" ").trim()
+    :null}
+/* Recolle à chaque clip les mots qui LUI appartiennent (POST
+   /api/subtitles/from-narration → `aligned`, dont chaque mot dit son `clip`).
+   PUR. Un clip qui porte DÉJÀ ses mots (les sous-titres s1) n'est pas
+   touché : sa liste fait foi. */
+function dzmWithWords(clips,aligned){
+  var by={},any=!1;
+  (aligned||[]).forEach(function(w){
+    if(!w||w.clip==null)return;
+    any=!0;
+    (by[w.clip]=by[w.clip]||[]).push({w:String(w.w||""),
+      start:Number(w.start)||0,end:Number(w.end)||0})});
+  if(!any)return (clips||[]).slice();
+  return (clips||[]).map(function(c){
+    return (c&&c.id!=null&&by[c.id]&&!Array.isArray(c.words))
+      ?Object.assign({},c,{words:by[c.id]}):c})}
+/* Les mots PRÊTÉS par `dzmWithWords` ne sont utiles qu'à la coupe : une fois
+   le texte réparti, les garder gonflerait la sauvegarde du projet d'une copie
+   de toute la narration, mot par mot, sans que rien ne la relise (mesuré :
+   `words` sur un clip a1 est inerte au rendu). On les retire des pistes qui
+   ne sont PAS des sous-titres — s1, lui, possède les siens et les garde. */
+function dzmDropWords(clips,keepTracks){
+  var keep={};
+  (keepTracks||[]).forEach(function(t){if(t!=null)keep[String(t)]=1});
+  return (clips||[]).map(function(c){
+    if(!c||!c.words||keep[c.tr]===1)return c;
+    var d=Object.assign({},c);delete d.words;return d})}
+function dzmRippleCut(clips,t0,t1,opts){
+  var loop=(opts&&opts.loopTracks)||[],locked=(opts&&opts.locked)||{};
+  /* `a` borné à zéro : la timeline ne commence pas avant. Sans ce Math.max,
+     couper [−1, 1[ posait un clip à `start: -1` — invisible, et le backend
+     n'en veut pas. `len` se recalcule APRÈS le bornage, sinon on retirerait
+     du temps qui n'existe pas. */
+  var a=Math.max(0,dzmR3(Math.min(t0,t1))),b=dzmR3(Math.max(t0,t1));
+  var len=dzmR3(b-a),out=[];
+  /* `len` non strictement positif (plage nulle, ou t0/t1 illisibles) : il n'y
+     a RIEN à retirer, donc rien à fendre. Le montage sort intact. */
+  if(!(len>0))return {clips:(clips||[]).slice(),removed:0};
+  /* IDENTIFIANTS DÉJÀ PRIS. `_r` seul ne suffit pas : deux plages coupées
+     dans LE MÊME clip — le geste « retirer les N euh », qui est le cas
+     NOMINAL — donnaient N clips nommés `x_r`. MESURÉ : un clip n1 [0,10]
+     avec des « euh » en [1,2] et [5,6] rendait ["n1","n1_r","n1_r"]. Le
+     bundle sélectionne par identifiant (clips.find(c=>c.id===selId)), écrit
+     par identifiant (map(k=>k.id===id?…:k)) et clé ses rangées dessus : deux
+     homonymes s'éditent ENSEMBLE et se disputent la rangée. */
+  /* Table NUE (`Object.create(null)`) : un objet litteral hérite
+     d'Object.prototype, et `taken["__proto__"]=1` n'y crée alors AUCUNE
+     entrée — le nom passerait pour libre. Table nue, le problème n'existe
+     pas, et la vérité simple suffit.
+     HONNÊTETÉ SUR LA PORTÉE : aucun banc ne peut distinguer les deux formes.
+     MESURÉ — Object.prototype porte constructor, __defineGetter__,
+     __defineSetter__, hasOwnProperty, __lookupGetter__, __lookupSetter__,
+     isPrototypeOf, propertyIsEnumerable, toString, valueOf, __proto__,
+     toLocaleString : PAS UN ne finit par `_r` ni `_r<n>`, et tout candidat
+     produit ici finit ainsi. C'est donc une précaution de construction, pas
+     un correctif mesuré ; elle est écrite parce qu'elle coûte un mot. */
+  var taken=Object.create(null);
+  (clips||[]).forEach(function(c){if(c&&c.id!=null)taken[String(c.id)]=1});
+  function newId(id){
+    var base=String(id)+"_r",n=base,i=2;
+    while(taken[n])n=base+(i++);
+    taken[n]=1;return n}
+  (clips||[]).forEach(function(c){
+    if(!c)return;
+    if(locked[c.tr]){out.push(c);return}
+    /* COERCION UNE FOIS POUR TOUTES. `dzmRipT` coerce déjà ses entrées ; les
+       branches, elles, comparaient les bornes BRUTES et la fenêtre de source
+       les lisait brutes aussi — un `start` illisible sortait donc en
+       `srcIn: NaN`, qui traverse le payload et le rendu sans un mot. */
+    var c0=Number(c.start)||0,c1=Number(c.end)||0;
+    var ns=dzmRipT(c0,a,b,len),ne=dzmRipT(c1,a,b,len);
+    if(loop.indexOf(c.tr)>=0){
+      if(ne<=ns)return;                       /* entièrement dans la plage */
+      if(ns===c.start&&ne===c.end){out.push(c);return}
+      out.push(Object.assign({},c,{start:ns,end:ne}));return}
+    if(c1<=a){out.push(c);return}
+    if(c0>=b){out.push(Object.assign({},c,{start:ns,end:ne}));return}
+    var sp=(typeof c.speed==="number"&&c.speed>0)?c.speed:1;
+    var fendu=c0<a;
+    if(fendu){
+      /* `start:c0` et pas le brut : la moitié gauche est un clip que NOUS
+         écrivons, elle ne doit pas reconduire un `start` illisible. Les
+         clips que la coupe ne touche pas, eux, ressortent tels quels —
+         rippleCut coupe, elle ne réécrit pas ce qu'on ne lui demande pas. */
+      var g=Object.assign({},c,{start:c0,end:a});
+      if(Array.isArray(c.words)){
+        g.words=dzmCutWords(c.words,a,b,len,!0);
+        var gt=dzmCutText(c,g.words);
+        if(gt!==null)g.text=gt}
+      out.push(g)}
+    if(c1>b){
+      var k=Object.assign({},c,{id:(fendu&&c.id)?newId(c.id):c.id,
+        start:a,end:dzmR3(c1-len)});
+      /* pas de source, pas de fenêtre de source : inventer un `srcIn` sur un
+         clip qui n'en a jamais eu ferait mentir l'inspecteur. */
+      if(c.srcIn!=null||c.src)k.srcIn=dzmR3((Number(c.srcIn)||0)+(b-c0)*sp);
+      if(Array.isArray(c.words)){
+        k.words=dzmCutWords(c.words,a,b,len,!1);
+        var kt=dzmCutText(c,k.words);
+        if(kt!==null)k.text=kt}
+      out.push(k)}});
+  return {clips:out,removed:len}}
+
 /* ── composants (r/x du bundle — jamais touchés au chargement) ───────────── */
 
 /* Les deux boutons de la barre de transport. */
@@ -368,9 +552,192 @@ var DzmEmojiBtn=function(props){
     "aria-label":"Poser les emoji des mots-clés",
     onClick:go,children:busy?"…":"emoji"})};
 
+/* ── P3 : le tiroir « Texte » ──────────────────────────────────────────────
+   Monter en lisant, pas en regardant des rectangles : la narration s'affiche
+   MOT PAR MOT, les remplissages sont marqués, et couper des mots coupe le
+   temps qu'ils occupent — sur toutes les pistes à la fois.
+
+   OÙ IL VIT, et pourquoi ce n'est pas là où le plan l'imaginait : le plan
+   visait une ancre de la zone des tiroirs qui, mesurée le 04/09/2026 sur le
+   bundle livré, n'y apparaît PAS UNE FOIS. Son repli, dans la COLONNE
+   D'INSPECTION, vaut exactement 1 : c'est celui-là. D'où la forme — un
+   panneau empilé sous les inspecteurs, pas un tiroir pleine largeur. C'est
+   plus étroit que ce que le plan décrivait ; c'est la place que le bundle
+   offre sans toucher à un bloc amont.
+
+   AUCUN de ces deux noms n'est écrit ici, et c'est délibéré : cette couche
+   est INJECTÉE dans le bundle, donc un identifiant cité dans un de ses
+   commentaires s'y compte une fois de plus. Mesuré deux fois — la première
+   a fait abandonner le patcher (l'ancre retenue passait à 2), la seconde a
+   remis dans le bundle un jeton qui n'y était pas. Les deux noms, eux, sont
+   écrits en clair dans scripts/patch_bundle_montage.py (A_M12) et dans
+   /shared/montage.css, qui ne sont pas injectés.
+
+   LES MOTS viennent de POST /api/subtitles/from-narration (calage gratuit et
+   hors ligne du texte déjà écrit), les remplissages de POST
+   /api/subtitles/fillers. Rien n'est chargé tant que le panneau est fermé,
+   et FERMER OUBLIE : les mots sont calés sur les clips d'A1, qu'un
+   déplacement pendant la fermeture périmerait tous.
+
+   LA COUPE EST RÉVERSIBLE : l'appelant pousse l'historique AVANT (voir M12).
+   « Annuler » ramène les CLIPS et le mixage — c'est tout ce que
+   `pushHistory` mémorise dans ce bundle. `proj.dur`, raccourci d'autant, ne
+   revient PAS tout seul : c'est dit dans la note de chaque coupe. */
+var DzmTextDrawer=function(props){
+  var open=!!(props&&props.open);
+  var sd=x.useState(null),data=sd[0],setData=sd[1];
+  var sb=x.useState(0),busy=sb[0],setBusy=sb[1];
+  var se=x.useState(""),err=se[0],setErr=se[1];
+  var ss=x.useState(null),sel=ss[0],setSel=ss[1];
+  var dragRef=x.useRef(!1),loadRef=x.useRef(0);
+  var clipsRef=x.useRef(null);clipsRef.current=(props&&props.clips)||[];
+  function note(m){if(props&&props.note)props.note(m)}
+
+  x.useEffect(function(){
+    if(open)return;
+    loadRef.current=0;setData(null);setSel(null);setErr("")},[open]);
+
+  /* le glisser peut se relâcher HORS des boutons (sur la marge, hors de la
+     fenêtre) : sans cet écouteur, la sélection continuerait de suivre la
+     souris au survol suivant, sans qu'aucun bouton ne soit enfoncé. */
+  x.useEffect(function(){
+    if(!open)return;
+    function up(){dragRef.current=!1}
+    window.addEventListener("mouseup",up);
+    return function(){window.removeEventListener("mouseup",up)}},[open]);
+
+  x.useEffect(function(){
+    if(!open||loadRef.current)return;
+    loadRef.current=1;
+    var alive=!0;setBusy(1);setErr("");
+    function post(u,b){
+      return fetch(u,{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify(b)}).then(function(rp){
+        return rp.json().then(function(d){
+          if(!rp.ok)throw new Error((d&&d.detail)||("HTTP "+rp.status));
+          return d})})}
+    post("/api/subtitles/from-narration",{clips:clipsRef.current}).then(function(d){
+      /* `aligned` (et pas `segments`) : c'est la seule forme qui dise de
+         QUEL CLIP vient chaque mot — ce dont dzmWithWords a besoin pour que
+         la coupe répartisse le texte d'un bloc fendu. `raw`+`punct` restitue
+         le mot tel qu'il est écrit, accents et ponctuation compris. */
+      var ws=((d&&d.aligned)||[]).map(function(w,i){
+        return {i:i,w:String(w.raw||w.w||"")+String(w.punct||""),
+          start:w.start,end:w.end,clip:w.clip}});
+      if(!ws.length)throw new Error("Aucun mot calé sur la narration.");
+      return post("/api/subtitles/fillers",{words:ws}).then(function(fd){
+        if(!alive)return;
+        setBusy(0);setData({words:ws,spans:(fd&&fd.spans)||[]})})})
+      .catch(function(e){
+        if(alive){setBusy(0);
+          setErr((e&&e.message)||"échec de la requête")}});
+    return function(){alive=!1}},[open,data]);
+
+  function cut(ranges){
+    var rg=(ranges||[]).filter(function(p){
+      return p&&p[1]>p[0]});
+    if(!rg.length){note("Rien à couper : la sélection est vide.");return}
+    if(!props.onCut){note("Texte : rien pour recevoir la coupe.");return}
+    /* les mots partent AVEC la coupe : c'est eux qui répartiront le texte
+       d'un bloc de narration fendu entre ses deux moitiés. */
+    props.onCut(rg,(data&&data.words)||[]);
+    /* les temps de TOUS les mots suivants ont bougé : on relit plutôt que de
+       les recaler ici — le calage est le métier du backend. */
+    setSel(null);loadRef.current=0;setData(null)}
+
+  if(!open)return null;
+  var words=(data&&data.words)||[],spans=(data&&data.spans)||[];
+  /* DEUX natures, et la distinction décide de ce qu'un bouton emporte SANS
+     qu'on relise. « hesitation » : des non-mots (euh, hum, um, uh) — les
+     retirer en bloc ne peut pas détruire une phrase. « tic » : des mots
+     PLEINS qui servent de béquille (voilà, genre, well, right). MESURÉ le
+     04/09/2026 sur une narration française SANS UNE SEULE hésitation : cinq
+     plages de tic, six mots, dont « Voilà pourquoi… » et « quoi qu'on en
+     dise » — quatre portent la phrase. Les tics sont donc MARQUÉS et ne se
+     coupent qu'à la sélection ; seul le sac des hésitations part en bloc. */
+  var hes=spans.filter(function(s){return s.kind==="hesitation"});
+  var fill={};
+  spans.forEach(function(s){(s.words||[]).forEach(function(i){
+    fill[i]=s.kind||"tic"})});
+  var i0=sel?Math.min(sel.a,sel.b):-1,i1=sel?Math.max(sel.a,sel.b):-2;
+  var pick=words.slice(i0,i1+1).filter(function(w){
+    return w.start!=null&&w.end!=null});
+  var rgSel=pick.length?[Number(pick[0].start),
+                         Number(pick[pick.length-1].end)]:null;
+  /* les mots que le bouton en bloc emporte, NOMMÉS : « retirer les 3 euh »
+     ne dit pas lesquels, et c'est précisément ce qu'il faut savoir avant de
+     cliquer sur un geste qui coupe. */
+  var hesMots=[];
+  hes.forEach(function(s){(s.words||[]).forEach(function(i){
+    var w=words[i];if(w&&w.w&&hesMots.indexOf(w.w)<0)hesMots.push(w.w)})});
+  function selTo(i,ext){
+    setSel(function(p){return (ext&&p)?{a:p.a,b:i}:{a:i,b:i}})}
+  return r.jsxs("div",{className:"dzm-txt",children:[
+    r.jsxs("div",{className:"dzm-txth",children:[
+      r.jsx("span",{className:"dzm-txtt",children:"Texte"},"t"),
+      r.jsx("span",{className:"dzm-txtn",children:
+        busy?"…":(words.length?words.length+" mots":"")},"n")]},"h"),
+    err?r.jsx("div",{className:"dzm-txterr",children:err},"e"):null,
+    words.length?r.jsx("div",{className:"dzm-txtw",children:
+      words.map(function(w,i){
+        var on=i>=i0&&i<=i1;
+        return r.jsx("button",{className:"dzm-txtb",
+          "data-filler":fill[i]||void 0,"data-on":on?"":void 0,
+          "aria-pressed":!!on,
+          title:(fill[i]==="hesitation"?"Hésitation — ":
+                 fill[i]==="tic"?"Mot béquille (mot plein : à couper à la "+
+                   "main, jamais en bloc) — ":"")+
+            (w.start!=null?Number(w.start).toFixed(2)+" s":"sans temps")+
+            " · cliquer, Maj+clic ou glisser pour étendre la sélection",
+          onMouseDown:function(e){dragRef.current=!0;selTo(i,e&&e.shiftKey)},
+          onMouseEnter:function(){
+            if(dragRef.current)setSel(function(p){
+              return {a:p?p.a:i,b:i}})},
+          onMouseUp:function(){dragRef.current=!1},
+          /* CLAVIER. Un <button> activé à Entrée ou Espace émet un `click`,
+             JAMAIS un `mousedown` : sans cette ligne, les boutons portaient
+             `aria-pressed`, étaient tous dans l'ordre de tabulation, et ne
+             faisaient rien. Sans risque pour le glisser — un `mousedown` et
+             un `mouseup` sur DEUX boutons différents font remonter le
+             `click` à leur ancêtre commun, pas au bouton. */
+          onClick:function(e){selTo(i,e&&e.shiftKey)},
+          children:w.w},String(i))})},"w"):null,
+    r.jsxs("div",{className:"dzm-txta",children:[
+      r.jsx("button",{className:"svm-tbtn dzm-txtbtn",disabled:!rgSel,
+        title:rgSel
+          ?("Couper de "+rgSel[0].toFixed(2)+" s à "+rgSel[1].toFixed(2)+
+            " s sur toutes les pistes non verrouillées : ce qui suit remonte. "+
+            "Annuler défait la coupe entièrement. La durée du projet ne bouge "+
+            "pas : la fin de la timeline est maintenant vide, raccourcissez-la "+
+            "si vous voulez.")
+          :"Sélectionnez des mots (clic, Maj+clic, ou clic-glissé du premier "+
+           "au dernier)",
+        onClick:function(){cut([rgSel])},
+        children:"couper la sélection"},"c"),
+      r.jsx("button",{className:"svm-tbtn dzm-txtbtn",disabled:!hes.length,
+        title:hes.length
+          ?("Retirer "+hesMots.map(function(m){return "« "+m+" »"}).join(", ")+
+            " — "+hes.length+" plage"+(hes.length>1?"s":"")+", de la fin vers "+
+            "le début pour que les précédentes ne se décalent pas. Seules les "+
+            "HÉSITATIONS partent ainsi ; les mots béquille soulignés se "+
+            "coupent à la sélection, un par un. Annuler défait la coupe "+
+            "entièrement. La durée du projet ne bouge pas : la fin de la "+
+            "timeline est maintenant vide, raccourcissez-la si vous voulez.")
+          :(spans.length
+            ?"Aucune hésitation. Les "+spans.length+" mot"+
+             (spans.length>1?"s":"")+" souligné"+(spans.length>1?"s":"")+
+             " sont des mots PLEINS : à couper à la sélection, en les lisant."
+            :"Aucun mot de remplissage repéré dans cette narration"),
+        onClick:function(){cut(hes.map(function(s){
+          return [s.start,s.end]}))},
+        children:hes.length?("retirer les "+hes.length+" « euh »")
+          :"aucun « euh »"},"f")]},"a")]})};
+
 /* ── export contrat ───────────────────────────────────────────────────────── */
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
+  TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,withWords:dzmWithWords,
+  dropWords:dzmDropWords,
   tracksOf:svmTracksOf,from:svmTracksFrom,payload:svmTracksPayload,
   busSync:svmTrackBusSync,skin:dzmSkin,
   move:dzmMove,moveTo:dzmMoveTo,add:dzmAdd,remove:dzmRemove,group:dzmGroup,

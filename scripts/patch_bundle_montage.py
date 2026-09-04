@@ -46,6 +46,13 @@ Sections :
   M10 (P2) chip « mot : couleur / rebond / glow » + bouton « emoji », posés
       DANS le remplacement de M8 (l'ancre A_M8 est déjà consommée, et la
       barre d'outils n'offre pas de seconde ancre unique).
+  M11 (P3) l'ÉTAT du panneau « Texte » (`dzTextOn`), déclaré dans le corps du
+      composant, et son bouton de barre — lui aussi DANS le remplacement de
+      M8, pour la même raison qu'en M10 ;
+  M12 (P3) le panneau « Texte » lui-même et la COUPE PAR PLAGE
+      (`DzTracks.rippleCut`), posés dans la colonne d'inspection : mesuré, le
+      bundle n'offre pas l'ancre `subsDrawer()` de la zone des tiroirs que le
+      plan visait — voir le commentaire de A_M12.
 
 Mécanique identique à patch_bundle_subs.py : restauration du .bak dédié puis
 ré-application, chaque ancre devant apparaître EXACTEMENT une fois, sinon
@@ -149,10 +156,98 @@ R_M10 = ('r.jsx(DzTracks.WordAnimChip,{value:(proj.subsStyle||{}).wordAnim||"cou
          'onAdd:function(cs){pushHistory();'
          'setClips(function(k){return (k||[]).concat(cs)});setDirty(!0)}}),')
 
+# ── M11a (P3) : l'ÉTAT du panneau « Texte » ────────────────────────────────
+# Il lui faut une déclaration dans le CORPS du composant : R_M8 est un tableau
+# `children`, on n'y déclare pas un hook. L'ancre choisie est la déclaration de
+# l'état du tiroir Sous-titres — mesurée UNIQUE, et voisine par le sujet.
+# `dzTextOn`, pas `textOn` : mesuré, `stTx` apparaît DÉJÀ sept fois dans le
+# bundle minifié, et un `var` de même nom dans la même fonction écraserait
+# silencieusement l'autre. `dzTextOn` / `stDzTx` : zéro occurrence.
+A_M11 = "  var stSu=x.useState(!1),subsOn=stSu[0],setSubsOn=stSu[1];"
+R_M11 = ("  /* P3 — panneau « Texte » (monter en LISANT). Son état est À LUI :\n"
+         "     il ne vit pas dans la zone des tiroirs (Sons / Narration /\n"
+         "     Sous-titres, mutuellement exclusifs) mais dans la COLONNE\n"
+         "     D'INSPECTION, où il ne dispute sa place à personne. */\n"
+         "  var stDzTx=x.useState(!1),dzTextOn=stDzTx[0],setDzTextOn=stDzTx[1];\n"
+         + A_M11)
+
+# ── M11b (P3) : le bouton « texte » de la barre — DANS R_M8, comme M10 ──────
+R_M11b = ('r.jsx("button",{className:"svm-tbtn dzm-txton","data-on":dzTextOn?"":void 0,'
+          '"aria-pressed":dzTextOn,'
+          'title:"Monter par le TEXTE : la narration mot par mot dans la colonne '
+          'de droite, les mots de remplissage marqués, et la sélection coupée sur '
+          'toutes les pistes non verrouillées (ce qui suit remonte)",'
+          '"aria-label":"Panneau Texte",'
+          'onClick:function(){setDzTextOn(!dzTextOn)},children:"texte"}),')
+
 R_M8 = ('r.jsx(DzTracks.TrackAdd,{tracks:svmTracksOf(proj),onChange:svmTracksSet}),\n'
         '        ' + R_M10 + '\n'
+        '        ' + R_M11b + '\n'
         '        /* bouton discret du panneau raccourcis — fin de transport */\n'
         '        ' + A_M8)
+
+# ── M12 (P3) : le panneau « Texte », et la coupe par plage ──────────────────
+# ANCRE MESURÉE, pas choisie. Le plan hésitait entre `      subsDrawer(),` et
+# `        transInspector(),`. Comptés le 04/09/2026 dans le bundle livré ET
+# dans .bak_montage : `subsDrawer` — la zone des tiroirs, celle que le plan
+# préférait — n'apparaît PAS UNE FOIS (les tiroirs s'y nomment `subsPanel()`
+# et `narrPanel()`) ; `        transInspector(),` vaut exactement 1. Le
+# panneau se pose donc dans la COLONNE D'INSPECTION, sous les inspecteurs.
+# L'ancre est PRÉFIXE du remplacement : test_montage_bundle.py ne cherche
+# donc pas à la voir disparaître.
+#
+# LA COUPE EST RÉVERSIBLE, ENTIÈREMENT — et c'est pour cela que M12 NE
+# TOUCHE PAS à `proj.dur`. `pushHistory()` précède la première rippleCut et
+# mémorise {clips, mixDb} : « annuler » défait donc la coupe en entier.
+# Raccourcir `proj.dur` aurait cassé cette propriété, et pas seulement à
+# l'écran : MESURÉ, la restauration au chargement fait
+# `dur:Math.max(1,Number(d.duration)||maxEnd)`, donc une durée SAUVEGARDÉE
+# l'emporte sur les clips. Couper, annuler, laisser l'autosave passer,
+# rouvrir : la timeline revenait plus courte que ses propres clips, dont la
+# queue sortait du champ. (Le rendu, lui, était indemne — montage_service
+# recalcule `total`.) Réparer `undo` pour qu'il rende aussi la durée demande
+# des ancres qui ne sont pas uniques : c'est une tâche à part. On ne touche
+# donc plus à la durée du tout, et la note le DIT — la fin de la timeline
+# est vide après une coupe, à l'utilisateur de la raccourcir s'il veut.
+A_M12 = "        transInspector(),"
+R_M12 = (A_M12 + '\n'
+         '        /* P3 — les coupes sont appliquées de la FIN vers le DÉBUT :\n'
+         '           une coupe tardive ne décale pas les précédentes, donc les\n'
+         '           plages restent justes sans être recalculées entre deux. Un\n'
+         '           SEUL pushHistory pour le lot : « annuler » défait le geste,\n'
+         '           pas ses dix-sept morceaux. */\n'
+         '        r.jsx(DzTracks.TextDrawer,{open:dzTextOn,clips:clips,note:fireNote,\n'
+         '          onCut:function(rg,al){\n'
+         '            if(!rg||!rg.length)return;\n'
+         '            var rs=rg.slice().sort(function(u,v){return v[0]-u[0]});\n'
+         '            var lk={};Object.keys(trackSt||{}).forEach(function(k){\n'
+         '              if(trackSt[k]&&trackSt[k].l)lk[k]=1});\n'
+         '            var lt=svmTracksOf(proj).filter(function(t){return t.loop})\n'
+         '              .map(function(t){return t.id});\n'
+         '            pushHistory();\n'
+         '            /* les mots calés du tiroir, recollés sur LEUR clip : sans\n'
+         '               eux, fendre un bloc de narration laisserait la phrase\n'
+         '               entière sur les deux moitiés. */\n'
+         '            var cs=DzTracks.withWords(clipsRef.current||[],al),rm=0;\n'
+         '            rs.forEach(function(p){\n'
+         '              var res=DzTracks.rippleCut(cs,p[0],p[1],'
+         '{loopTracks:lt,locked:lk});\n'
+         '              cs=res.clips;rm+=res.removed});\n'
+         '            rm=Math.round(rm*1000)/1000;\n'
+         '            /* les mots prêtés ne servaient qu\'à répartir le texte :\n'
+         '               les garder gonflerait la sauvegarde d\'une copie de\n'
+         '               toute la narration, que rien ne relit. */\n'
+         '            setClips(DzTracks.dropWords(cs,svmTracksOf(proj)\n'
+         '              .filter(function(t){return t.kind===\"subs\"})\n'
+         '              .map(function(t){return t.id})));\n'
+         '            setDirty(!0);\n'
+         '            var vk=Object.keys(lk);\n'
+         '            fireNote(rs.length+" coupe"+(rs.length>1?"s":"")+" — "+\n'
+         '              rm.toFixed(2)+\" s retirés. Annuler défait la coupe '
+         'entièrement. La durée du projet ne bouge pas : la fin de la timeline '
+         'est maintenant vide, raccourcissez-la si vous voulez.\"+\n'
+         '              (vk.length?" Pistes verrouillées ("+vk.join(", ")'
+         '.toUpperCase()+") : leurs clips n\'ont pas bougé.":""))}}),')
 
 # ── M9a / M9b : en-tête de piste ────────────────────────────────────────────
 # Le groupe est un FRÈRE des rangées, pas un membre : il est positionné en
@@ -170,7 +265,8 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
            ("M5-payload", A_M5, R_M5), ("M6-save", A_M6, R_M6),
            ("M7-apply", A_M7, R_M7), ("M8-toolbar", A_M8, R_M8),
-           ("M9a-head-audio", A_M9a, R_M9a), ("M9b-head-video", A_M9b, R_M9b)]
+           ("M9a-head-audio", A_M9a, R_M9a), ("M9b-head-video", A_M9b, R_M9b),
+           ("M11-text-state", A_M11, R_M11), ("M12-text-panel", A_M12, R_M12)]
 
 
 def nl(text, crlf):

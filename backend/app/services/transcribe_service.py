@@ -289,6 +289,35 @@ def parse_silencedetect(stderr: str, total_s: float) -> list[tuple[float, float]
     return sorted(spans)
 
 
+#: Memo de `detect_silences` — voir `_silence_key` et le commentaire dans la
+#: fonction. Plafond bas : ce cache sert une seance d'edition, pas un index.
+_SILENCE_MEMO: dict = {}
+
+
+def _silence_key(p: Path, noise_db: float, min_silence_s: float):
+    """Cle du memo de `detect_silences`, ou None si le fichier ne se lit pas.
+
+    Elle porte le CONTENU autant que le chemin : `st_mtime_ns` et `st_size`
+    font qu'une voix off re-synthetisee au MEME chemin invalide son entree
+    d'elle-meme. Sans eux, une voix refaite en cours de seance aurait servi
+    des silences perimes jusqu'au redemarrage — et le panneau « Texte »
+    recharge apres chaque coupe, donc toute la seance.
+
+    Les deux seuils entrent aussi dans la cle : deux reglages differents
+    mesurent deux choses differentes.
+
+    EXTRAITE de `detect_silences` pour etre MESURABLE sans ffmpeg. Construite
+    en ligne, elle etait indefendable : la couper de mtime et de taille
+    laissait le banc entierement vert.
+    """
+    try:
+        st = p.stat()
+    except OSError:
+        return None
+    return (str(p.resolve()), st.st_mtime_ns, st.st_size,
+            float(noise_db), float(min_silence_s))
+
+
 def detect_silences(audio_path: str | Path, *, noise_db: float = -33.0,
                     min_silence_s: float = 0.20,
                     timeout: float = 120.0) -> list[tuple[float, float]]:
@@ -302,6 +331,12 @@ def detect_silences(audio_path: str | Path, *, noise_db: float = -33.0,
     p = Path(audio_path)
     if not p.is_file():
         return []
+    # MEMO. Une passe ffmpeg par clip ET PAR COUPE : le panneau « Texte » se
+    # recharge apres chaque coupe, et une coupe multiplie les clips. La cle
+    # est `_silence_key` — extraite pour etre mesurable, voir sa docstring.
+    key = _silence_key(p, noise_db, min_silence_s)
+    if key is not None and key in _SILENCE_MEMO:
+        return _SILENCE_MEMO[key]
     total = probe_duration(p)
     try:
         r = subprocess.run(
@@ -314,7 +349,12 @@ def detect_silences(audio_path: str | Path, *, noise_db: float = -33.0,
     except (OSError, subprocess.SubprocessError) as e:
         logger.warning(f"transcribe: silencedetect indisponible ({e})")
         return []
-    return parse_silencedetect(r.stderr, total)
+    out = parse_silencedetect(r.stderr, total)
+    if key is not None:
+        if len(_SILENCE_MEMO) >= 64:
+            _SILENCE_MEMO.clear()
+        _SILENCE_MEMO[key] = out
+    return out
 
 
 def speech_spans(start: float, end: float,
@@ -565,7 +605,16 @@ def align_narration_clips(clips: list[dict], resolve_audio,
             logger.warning(f"transcribe: audio du clip {c.get('id')} : {ex}")
         try:
             if path and Path(path).is_file():
-                sil = [(a + s, b + s) for a, b in detect_silences(path)]
+                # FENETRE DE SOURCE. `detect_silences` mesure le FICHIER ;
+                # un clip fendu ou rogne n'en joue qu'une tranche, a partir
+                # de `src_in` et a sa vitesse. La formule d'avant (`t + s`)
+                # n'etait juste que pour src_in == 0 et speed == 1 : depuis
+                # P3, chaque moitie droite d'une coupe a un src_in > 0 et le
+                # panneau se recharge apres CHAQUE coupe.
+                sil = silences_to_timeline(
+                    detect_silences(path), s, e,
+                    src_in=float(c.get("srcIn") or c.get("src_in") or 0.0),
+                    speed=float(c.get("speed") or 0.0) or 1.0)
                 res = align_known_text(txt, start=s, end=e, silences=sil,
                                        lang=lang)
                 res["audio"] = Path(path).name
@@ -634,6 +683,155 @@ def group_words(words: list[dict], *, max_chars: int = CHARS_PER_SUBTITLE_DEFAUL
             _flush()
     _flush()
     return cues
+
+
+# ------------------------------------------------- mots de remplissage ---
+#: DEUX sacs, et pas un seul. La difference n'est pas de degre : elle decide
+#: de ce qu'un bouton a le droit d'emporter SANS qu'on lise.
+#:
+#: HESITATIONS — des non-mots. « euh », « hum », « um », « uh » ne veulent
+#: rien dire nulle part ; les retirer en bloc ne peut pas detruire une
+#: phrase.
+#:
+#: TICS — des mots PLEINS qui servent souvent de bequille. MESURE le
+#: 04/09/2026 sur deux narrations qui ne contiennent PAS UNE hesitation :
+#: « Voilà pourquoi la marée monte. Enfin, ce genre de détail change tout,
+#: quoi qu on en dise. Bon, hein, ben oui. » donne CINQ plages et emporte
+#: « Voilà », « Enfin », « genre », « quoi », « hein », « ben » — dont
+#: quatre portent la phrase. L'equivalent anglais donne TROIS plages et SEPT
+#: mots, dont « right » et « Okay » avales dans la meme plage que « um » et
+#: « uh », donc inseparables d'eux. Un bouton qui emporte tout cela « sans
+#: dire lesquels » ne tient pas la promesse que le reste du module fait.
+#:
+#: D'ou la regle : le bouton EN BLOC ne prend que les hesitations ; les tics
+#: sont MARQUES a l'ecran et ne se coupent qu'a la selection. Et deux mots
+#: voisins de sacs DIFFERENTS ne fusionnent jamais — sans quoi « right »
+#: repartirait avec « um » quoi qu'on decide ici.
+HESITATIONS = {
+    "fr": {"euh", "heu", "hum", "hmm", "heum"},
+    "en": {"um", "uh", "er", "erm", "hmm"},
+}
+TICS = {
+    "fr": {"bah", "ben", "hein", "voilà", "genre", "enfin", "quoi"},
+    "en": {"like", "okay", "so", "well", "right"},
+}
+#: L'union — ce qui est MARQUE a l'ecran. Conserve sous ce nom : c'est le
+#: vocabulaire que le reste du module et les bancs connaissent.
+FILLERS = {k: HESITATIONS[k] | TICS[k] for k in HESITATIONS}
+
+#: `_fold` (celui de CE module) ne retire PAS la ponctuation : il faut donc
+#: la retirer ici. Celui de subtitle_service le ferait, mais il retire aussi
+#: les DIACRITIQUES, et « voilà » y deviendrait « voila » — absent du sac,
+#: donc jamais reconnu. Mesure : backend/tests/test_montage_texte.py, [2].
+_FILLER_STRIP = " \t\r\n.,;:!?…«»\"'()[]"
+
+#: Garde contre le BRUIT FLOTTANT, et rien d'autre : deux mots dont les temps
+#: se touchent au millieme pres sont la meme plage. MESURE sur le seul
+#: producteur de ces temps (`align_known_text`) : a l'interieur d'une travee
+#: de parole l'ecart entre deux mots vaut EXACTEMENT 0,0 (les bornes sont
+#: partagees), et a travers un silence il vaut au moins 0,20 s (le seuil de
+#: `detect_silences`). Aucune valeur entre les deux ne change quoi que ce
+#: soit. Ce nombre ne separe donc pas « la respiration du locuteur » — une
+#: respiration EST un silence, elle est deja de l'autre cote ; il protege
+#: seulement contre un arrondi ou un calage venu d'ailleurs.
+_FILLER_JOIN_S = 0.02
+
+
+def _filler_kind(folded: str, lang2: str) -> str | None:
+    """« hesitation », « tic », ou None si le mot n'est ni l'un ni l'autre."""
+    if folded in HESITATIONS.get(lang2, HESITATIONS["fr"]):
+        return "hesitation"
+    if folded in TICS.get(lang2, TICS["fr"]):
+        return "tic"
+    return None
+
+
+def find_fillers(words, lang: str = "fr", kind: str = "all") -> list[dict]:
+    """Plages de mots de remplissage, voisines DE MEME NATURE fusionnees.
+
+    Rend `[{start, end, kind, words:[i]}]`, dans l'ordre de la liste recue.
+    `kind` vaut « hesitation » (un non-mot : euh, hum, um, uh) ou « tic » (un
+    mot plein qui sert de bequille : voilà, genre, well, right).
+
+    `words` est la liste PLATE des mots horodates (`{i?, w, start, end}`) —
+    celle que `align_*` produit, ou celle que la route aplatit depuis des
+    repliques.
+
+    Le parametre `kind` FILTRE : « all » (defaut) rend les deux natures,
+    « hesitation » ne rend que les non-mots. C'est ce que demande le bouton
+    « retirer les N euh », qui coupe sans qu'on relise.
+
+    Deux plages voisines ne fusionnent que si elles sont de MEME nature :
+    sinon un « right » colle a un « um » repartirait avec lui, et aucun
+    filtrage ne pourrait plus les separer.
+
+    Un mot sans `start`/`end` (ou dont les temps ne se lisent pas) n'est
+    JAMAIS une plage : on ne coupe pas a l'aveugle. `i` absent retombe sur
+    la POSITION du mot dans la liste — c'est l'index dont l'ecran se sert
+    pour surligner le bon bouton, et un `-1` ne designerait rien.
+    """
+    lang2 = str(lang)[:2].lower()
+    if lang2 not in HESITATIONS:
+        lang2 = "fr"
+    want = str(kind or "all").lower()
+    out: list[dict] = []
+    for idx, w in enumerate(words or []):
+        if not isinstance(w, dict):
+            continue
+        if w.get("start") is None or w.get("end") is None:
+            continue
+        k = _filler_kind(
+            _fold(str(w.get("w") or w.get("word") or "")).strip(_FILLER_STRIP),
+            lang2)
+        if k is None or (want != "all" and k != want):
+            continue
+        try:
+            s, e = round(float(w["start"]), 3), round(float(w["end"]), 3)
+        except (TypeError, ValueError):
+            continue          # un temps illisible n'est pas un temps
+        if e < s:
+            s, e = e, s
+        try:
+            wi = int(w.get("i", idx))
+        except (TypeError, ValueError):
+            wi = idx
+        if (out and out[-1]["kind"] == k
+                and abs(out[-1]["end"] - s) < _FILLER_JOIN_S):
+            out[-1]["end"] = e
+            out[-1]["words"].append(wi)
+        else:
+            out.append({"start": s, "end": e, "kind": k, "words": [wi]})
+    return out
+
+
+def silences_to_timeline(sil, start: float, end: float, *,
+                         src_in: float = 0.0, speed: float = 1.0) -> list:
+    """Silences mesures dans le FICHIER -> temps de la TIMELINE.
+
+    Un clip joue la fenetre de source `[src_in, src_in + (end-start)*speed[`
+    sur l'intervalle `[start, end[` : le temps de fichier `t` tombe donc en
+    `start + (t - src_in) / speed`, pas en `t + start`.
+
+    L'ancienne formule (`t + start`) n'etait juste que pour `src_in == 0` et
+    `speed == 1`. P3 fend les clips a longueur de journee — chaque moitie
+    droite a un `src_in > 0` — et le panneau se RECHARGE apres chaque coupe :
+    des la deuxieme coupe d'une seance, les mots auraient ete cales sur les
+    silences du DEBUT du fichier. Ce n'etait pas « deja vrai du rognage » :
+    le rognage est occasionnel, ici c'est la boucle de la fonction.
+
+    Ce qui sort du clip est ecarte, ce qui le chevauche est borne.
+    """
+    sp = float(speed) if speed and float(speed) > 0 else 1.0
+    si = max(0.0, float(src_in or 0.0))
+    s0, e0 = float(start), float(end)
+    out = []
+    for a, b in sil or []:
+        ta = s0 + (float(a) - si) / sp
+        tb = s0 + (float(b) - si) / sp
+        ta, tb = max(s0, ta), min(e0, tb)
+        if tb > ta:
+            out.append((round(ta, 4), round(tb, 4)))
+    return out
 
 
 def _ts(t: float, sep: str = ",") -> str:

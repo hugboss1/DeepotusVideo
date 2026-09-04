@@ -59,19 +59,32 @@ def nl(t):
     t = t.replace("\r\n", "\n")
     return t.replace("\n", "\r\n") if crlf else t
 
-print("\n[1] le bloc injecté et ses neuf sections, dans le bundle LIVRÉ")
+print(f"\n[1] le bloc injecte et ses {len(P.PATCHES)} sections, dans le "
+      f"bundle LIVRE")
 check("bloc_montage_unique", s.count(P.BEGIN) == 1 and s.count(P.END) == 1,
       f"{s.count(P.BEGIN)} BEGIN, {s.count(P.END)} END")
 # le contenu du bloc EST la source de la couche : un bloc vide passerait les
 # comptes d'ancres sans que rien ne fonctionne à l'écran.
 src = LAYER.read_bytes().decode("utf-8-sig")
+# LE bloc doit ETRE la couche, octet pour octet. Sans cette ligne le banc
+# pouvait benir un bundle qui n'EXECUTE PAS le code qu'il mesure : la section
+# [3] charge la couche depuis le FICHIER, pas depuis le bundle. MESURE : en
+# remplacant le corps de `dzmRippleCut` dans montage.js SANS rejouer le
+# patcher, le banc restait entierement vert. C'est exactement le mode de
+# panne que l'en-tete de ce fichier dit combattre.
+_i = s.find(nl(P.BEGIN))
+_j = s.find(nl(P.END), _i if _i >= 0 else 0)
+_bloc = s[_i + len(nl(P.BEGIN)):_j].strip() if _i >= 0 and _j > _i else ""
+check("bloc_EST_la_couche_octet_pour_octet", _bloc == nl(src).strip(),
+      f"bloc={len(_bloc)} o, couche={len(nl(src).strip())} o — le bundle "
+      f"n'execute pas le fichier que ce banc mesure")
 check("bloc_contient_la_couche", nl("window.DzTracks=DzTracks;") in s
       and nl("function svmTrackBusSync(ts){") in s,
       "le bloc ne porte pas l'export de la couche")
 for tag, a, r in P.PATCHES:
     check(tag + "_remplace", s.count(nl(r)) == 1, f"count={s.count(nl(r))}")
     # L'ancre ne doit avoir DISPARU que lorsque le remplacement ne la reprend
-    # pas. Six des neuf sections l'englobent (en tête ou en queue) : y exiger
+    # pas. Huit des onze sections l'englobent (en tête ou en queue) : y exiger
     # zéro serait un test faux, vert seulement si le patch n'a rien fait.
     if a not in r:
         check(tag + "_ancre_consommee", s.count(nl(a)) == 0,
@@ -122,6 +135,150 @@ for _nm, _decl in (("subsSegsOf", "function subsSegsOf(cs){"),
 check("M10_emoji_pousse_l_historique_avant_d_ajouter",
       s.count(nl("onAdd:function(cs){pushHistory();setClips(")) == 1,
       f'count={s.count(nl("onAdd:function(cs){pushHistory();setClips("))}')
+
+print("\n[1-bis] P3 — le bouton « texte », le panneau, et la coupe par plage")
+# M11b vit DANS R_M8, comme M10 : meme raison (A_M8 deja consommee). Meme
+# limite aussi — un bundle ampute echouerait deja sur M8-toolbar_remplace ;
+# ce que cette ligne rattrape est le retrait de R_M11b DANS LE PATCHER.
+check("M11b-bouton_texte_dans_la_barre", s.count(nl(P.R_M11b)) == 1,
+      f"count={s.count(nl(P.R_M11b))}")
+check("M11_etat_declare_une_fois",
+      s.count(nl("var stDzTx=x.useState(!1),dzTextOn=stDzTx[0],"
+                 "setDzTextOn=stDzTx[1];")) == 1)
+# UN NOM NEUF NE DOIT RIEN ECRASER, et la mesure doit DECIDER. L'ancienne
+# ligne ne decidait rien : elle comptait la SOUS-CHAINE `stTx` (7 dans le
+# bundle) alors que `\bstTx\b` en vaut 0 — les sept sont des morceaux de
+# `costTxt`, dans une autre fonction — et son premier terme etait de toute
+# facon toujours vrai. La mesure qui decide : les trois identifiants de M11
+# n'apparaissent NULLE PART ailleurs que dans les sections qui les ecrivent.
+for _nm in ("stDzTx", "dzTextOn", "setDzTextOn"):
+    _dehors = s.count(_nm) - (P.R_M11 + P.R_M11b + P.R_M12).count(_nm)
+    check("M11_nom_" + _nm + "_n_ecrase_rien", _dehors == 0,
+          f"{_nm} apparait {_dehors}x hors des sections qui l'ecrivent")
+check("M12_utilise_DzTracks_pas_DzMontage",
+      "DzMontage.TextDrawer" not in s and "DzMontage.rippleCut" not in s
+      and s.count("DzTracks.TextDrawer") == 1
+      and s.count("DzTracks.rippleCut") == 1)
+# Le CŒUR de P3 doit etre DANS le bloc livre, pas seulement dans la source du
+# patcher : sans cette ligne, un bloc vide passerait les comptes d'ancres.
+check("bloc_contient_rippleCut", nl("rippleCut:dzmRippleCut,") in s
+      and nl("function dzmRippleCut(clips,t0,t1,opts){") in s)
+check("bloc_contient_withWords", nl("withWords:dzmWithWords,") in s
+      and nl("function dzmWithWords(clips,aligned){") in s)
+# La couche est INJECTEE dans le bundle : une ancre CITEE dans un de ses
+# commentaires s'y compte une fois de plus, et le patcher abandonne au rejeu
+# suivant (« anchor count=2 »). MESURE pendant l'ecriture de P3 : c'est
+# exactement ce qui est arrive, sur l'ancre de M12, pour une ancre recopiee
+# telle quelle dans une phrase d'explication. Le controle est GENERAL, pas
+# nominatif : il vaut pour toute ancre que la chaine ajoutera plus tard.
+# FINS DE LIGNE NORMALISEES DES DEUX COTES. montage.js est en CRLF (655
+# lignes), les litteraux du patcher en LF : sur une ancre MULTILIGNE,
+# `src.count()` aurait rendu 0 POUR TOUJOURS et ce controle serait passe au
+# vert A VIDE — le defaut meme qu'il est cense empecher.
+_src_lf = src.replace("\r\n", "\n")
+for _tag, _a, _r in P.PATCHES:
+    _n = _src_lf.count(_a.replace("\r\n", "\n"))
+    check("couche_ne_cite_pas_l_ancre_de_" + _tag, _n == 0,
+          f"la couche cite {_n}x l'ancre de {_tag} — le prochain "
+          f"rejeu du patcher abandonnera")
+# La mesure qui JUSTIFIE le repli de M12, REJOUEE : une mesure ecrite en
+# commentaire et jamais relancee se perime. L'ancre que le plan preferait
+# n'existe toujours pas dans ce bundle — et aucun commentaire ne l'y remet.
+check("M12_ancre_du_plan_toujours_absente", s.count("subsDrawer") == 0,
+      f"count={s.count('subsDrawer')} — soit le repli de M12 n'a plus lieu "
+      f"d'etre, soit un commentaire a reintroduit le jeton")
+# M12 doit RECOLLER les mots avant de couper : sans cet appel, fendre un bloc
+# de narration laisse la phrase entière sur les deux moitiés.
+check("M12_recolle_les_mots_avant_de_couper",
+      s.count(nl("var cs=DzTracks.withWords(clipsRef.current||[],al),rm=0;")) == 1
+      and re.search(r"DzTracks\.withWords\([\s\S]{0,400}DzTracks\.rippleCut\(", s)
+      is not None,
+      f'count={s.count(nl("var cs=DzTracks.withWords(clipsRef.current||[],al),rm=0;"))}')
+# Meme controle a DEUX FACES que M10 : les identifiants du bundle que R_M12
+# appelle doivent exister, et sous le MEME nom. Recherche bornee (\b…\b) —
+# un simple `in` serait leurre par une sous-chaine.
+for _nm, _decl in (("trackSt", "var stTS=x.useState({}),trackSt=stTS[0],"
+                               "setTrackSt=stTS[1];"),
+                   ("clipsRef", "var clipsRef="),
+                   ("svmTracksOf", "function svmTracksOf(proj){"),
+                   ("pushHistory", "var pushHistory=x.useCallback("),
+                   ("setClips", "setClips=st1[1]"),
+                   # `setProj` a QUITTE R_M12 avec le renoncement a toucher
+                   # `proj.dur` (voir M12_ne_touche_pas_a_la_duree_du_projet).
+                   ("proj", "proj=stP[0],setProj=stP[1];"),
+                   ("setDirty", "setDirty=st8[1]"),
+                   ("fireNote", "fireNote=nt[1]")):
+    _appele = re.search(r"\b%s\b" % re.escape(_nm), P.R_M12) is not None
+    check("M12_appelle_" + _nm + "_qui_est_declare",
+          _appele and s.count(nl(_decl)) >= 1,
+          f"appelé={_appele} déclaré={s.count(nl(_decl))} ({_decl})")
+# LE geste destructif de P3 : rippleCut RETIRE du montage. `pushHistory()`
+# doit le PRECEDER, et une seule fois pour tout le lot — « annuler » defait
+# le geste, pas ses dix-sept morceaux. Ce que l'annulation restaure
+# exactement : les clips et le mixage (tout ce que l'historique de ce bundle
+# memorise) ; PAS `proj.dur`, raccourci d'autant. C'est un reste ASSUME, dit
+# dans la note de chaque coupe et dans le titre des deux boutons.
+check("M12_pousse_l_historique_avant_de_couper",
+      len(re.findall(r"pushHistory\(\);[\s\S]{0,420}DzTracks\.rippleCut\(",
+                     s)) == 1,
+      str(len(re.findall(r"pushHistory\(\);[\s\S]{0,420}DzTracks\.rippleCut\(", s))))
+check("M12_un_seul_pushHistory_pour_le_lot",
+      P.R_M12.count("pushHistory()") == 1, str(P.R_M12.count("pushHistory()")))
+# I4 — M12 NE TOUCHE PLUS a la duree du projet, et c'est ce qui rend
+# « annuler » COMPLET. `pushHistory` ne memorise que {clips, mixDb} ; pire,
+# la restauration au chargement fait
+# `dur:Math.max(1,Number(d.duration)||maxEnd)`, donc une duree SAUVEGARDEE
+# l'emporte sur les clips : couper, annuler, laisser l'autosave passer,
+# rouvrir rendait une timeline plus courte que ses propres clips.
+check("M12_ne_touche_pas_a_la_duree_du_projet",
+      "p.dur" not in P.R_M12 and "proj.dur" not in P.R_M12,
+      "R_M12 ecrit encore dans la duree du projet")
+check("M12_dit_que_la_duree_ne_bouge_pas",
+      "La durée du projet ne bouge pas" in P.R_M12,
+      "la note de coupe ne dit pas ce qu'il advient de la duree")
+# M6 — les mots PRETES par withWords ne sont pas persistes dans le projet :
+# inertes au rendu, mais ils gonfleraient la sauvegarde d'une copie de toute
+# la narration, mot par mot, que rien ne relit.
+check("M12_retire_les_mots_pretes",
+      s.count(nl("setClips(DzTracks.dropWords(cs,svmTracksOf(proj)")) == 1
+      and nl("function dzmDropWords(clips,keepTracks){") in s,
+      "les mots de la narration resteraient dans la sauvegarde")
+check("css_porte_le_marquage_des_remplissages",
+      ".dzm-txtb[data-filler]" in CSS.read_text(encoding="utf-8"),
+      "montage.css ne marque pas les mots de remplissage")
+# Le marquage doit RESTER LISIBLE quand le mot est selectionne : mesure, le
+# rouge du soulignement sur le fond accent tombait a 1,60 de contraste (4,79
+# au repos), donc il disparaissait — au moment precis ou l'on glisse sur une
+# plage pour verifier ce qu'elle contient.
+check("css_garde_le_marquage_visible_en_selection",
+      ".dzm-txtb[data-filler][data-on]" in CSS.read_text(encoding="utf-8"),
+      "un mot de remplissage selectionne perd son soulignement")
+# I6 — le panneau au CLAVIER. Un <button> active a Entree ou Espace emet un
+# `click`, JAMAIS un `mousedown` : sans `onClick`, les boutons de mot
+# portaient `aria-pressed`, etaient tous dans l'ordre de tabulation, et ne
+# faisaient rien.
+check("panneau_texte_repond_au_clavier",
+      nl("onClick:function(e){selTo(i,e&&e.shiftKey)}") in s,
+      "les boutons de mot n'ont toujours que des ecouteurs de souris")
+# I5 — le bouton EN BLOC ne prend que les hesitations, et son titre NOMME les
+# mots qu'il emporte. Mesure : une narration francaise sans une hesitation
+# rendait cinq plages, dont « Voilà », « Enfin », « genre », « quoi ».
+check("bouton_en_bloc_ne_prend_que_les_hesitations",
+      nl('var hes=spans.filter(function(s){return s.kind==="hesitation"});') in s
+      and nl("onClick:function(){cut(hes.map(function(s){") in s,
+      "le bouton en bloc emporte encore les mots pleins")
+check("bouton_en_bloc_nomme_les_mots_qu_il_emporte",
+      nl('title:hes.length\n          ?("Retirer "+hesMots.map(') in s,
+      "le titre du bouton ne dit pas quels mots partent")
+# MESURE : son-vfx-montage.css n'a aucune regle `.svm-tbtn[data-on]` (grep
+# 04/09/2026 — la barre n'avait jamais eu de bouton a bascule). Sans une
+# regle A NOUS, l'etat ouvert du panneau ne se verrait pas du tout.
+check("css_porte_l_etat_ouvert_du_bouton_texte",
+      ".dzm-txton[data-on]" in CSS.read_text(encoding="utf-8")
+      and "dzm-txton" in P.R_M11b,
+      "l'etat retenu du bouton « texte » n'est pas habille")
+
+print("\n[1-ter] feuille de style et index.html")
 check("css_liee_index_html", "shared/montage.css" in
       HTML.read_bytes().decode("utf-8-sig"))
 check("css_porte_la_chip_mot",

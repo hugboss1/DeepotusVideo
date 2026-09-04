@@ -8360,6 +8360,58 @@ async def subtitles_emoji_hints(request: Request):
             "manifest": len(S.emoji_manifest())}
 
 
+@router.post("/subtitles/fillers")
+async def subtitles_fillers(request: Request):
+    """Plages de MOTS DE REMPLISSAGE (« euh », « hum », « um »…) dans un texte
+    horodaté.
+
+    Body : `{words:[{i?, w, start, end}]}` — la liste PLATE des mots — ou
+    `{segments:[{words:[…]}]}`, dont les mots sont alors aplatis ET
+    renumérotés sur la liste plate (sans quoi deux répliques auraient chacune
+    un mot d'indice 0, et l'écran surlignerait le mauvais bouton).
+    `lang` : `fr` par défaut, `en` reconnu ; toute autre langue retombe sur le
+    sac français plutôt que de ne rien proposer.
+
+    `kind` : `all` (défaut) rend les deux natures, `hesitation` ne rend que
+    les NON-MOTS (euh, hum, um, uh). C'est la distinction qui décide de ce
+    qu'un bouton a le droit d'emporter sans qu'on relise : mesuré, une
+    narration française sans une seule hésitation rend quand même cinq
+    plages de `tic` — « Voilà », « Enfin », « genre », « quoi » — dont
+    quatre portent la phrase.
+
+    Réponse : `{ok, lang, kind, spans:[{start, end, kind, words:[i]}], count}`.
+
+    Cette route ne MODIFIE rien : elle propose des plages. C'est le Montage
+    qui décide d'en faire des coupes (`DzTracks.rippleCut`), et ces coupes
+    passent par l'historique — « annuler » ramène les clips.
+    """
+    from app.services import transcribe_service as T
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+    lang = str(body.get("lang") or "fr")[:5]
+    kind = str(body.get("kind") or "all")[:16]
+    words = body.get("words")
+    if not isinstance(words, list):
+        words = []
+        for seg in _subs_body_segments(body):
+            for w in seg.get("words") or []:
+                # l'indice est la POSITION dans la liste plate — y compris
+                # pour une entrée illisible, sinon les suivantes glissent.
+                if isinstance(w, dict):
+                    words.append({"i": len(words),
+                                  "w": w.get("w", w.get("word", "")),
+                                  "start": w.get("start"), "end": w.get("end")})
+                else:
+                    words.append({"i": len(words), "w": ""})
+    spans = T.find_fillers(words, lang, kind=kind)
+    return {"ok": True, "lang": lang, "kind": kind, "spans": spans,
+            "count": len(spans)}
+
+
 # ---------------------------------------------------------------- export ---
 
 _SUBS_MIME = {"srt": "application/x-subrip", "vtt": "text/vtt",
@@ -8558,7 +8610,12 @@ async def subtitles_from_narration(request: Request):
             res = await asyncio.to_thread(
                 T.align_known_text, text, start=start, end=float(end), lang=lang)
         cues = T.group_words(res["words"], max_chars=cps)
+        # `aligned` dans LES DEUX branches : un contrat asymetrique se
+        # decouvre au pire moment. Ici les mots ne portent pas de `clip` —
+        # il n'y a pas de clip, c'est un bloc isole ; l'appelant qui veut
+        # repartir un texte doit poster des `clips`.
         return {"ok": True, "source": "align", "words": len(res["words"]),
+                "aligned": res["words"],
                 "segments": _subs_cues_to_segments(cues)}
 
     clips = body.get("clips")
@@ -8579,8 +8636,15 @@ async def subtitles_from_narration(request: Request):
     res = await asyncio.to_thread(T.align_narration_clips, narr,
                                   lambda c: c.get("_path"), lang=lang)
     cues = T.group_words(res["words"], max_chars=cps)
+    # `aligned` : les mots PLATS, chacun sachant DE QUEL CLIP il vient. Les
+    # `segments` ne le disent pas (normalize_segments ne garde que w/start/end),
+    # et sans cette information le Montage ne peut pas répartir le texte d'un
+    # clip de narration FENDU entre ses deux moitiés — les deux garderaient la
+    # phrase entière, et un recalage la compterait deux fois. Additif : la clé
+    # `words` reste le COMPTE qu'elle a toujours été.
     return {"ok": True, "source": "align", "words": len(res["words"]),
             "blocks": res["blocks"], "clips": len(narr),
+            "aligned": res["words"],
             "segments": _subs_cues_to_segments(cues)}
 
 

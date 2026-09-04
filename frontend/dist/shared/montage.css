@@ -102,3 +102,70 @@
   font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace);
   white-space:nowrap}
 .dzsvm .dzm-emo:disabled{opacity:.45; cursor:default}
+
+/* ── P3 : le panneau « Texte » ─────────────────────────────────────────────
+   Il vit dans la COLONNE D'INSPECTION (ancre `transInspector()` — la seule
+   des deux que le plan proposait qui existe exactement une fois dans ce
+   bundle ; `subsDrawer()` n'y apparaît pas). Donc : étroit, empilé sous les
+   inspecteurs, et c'est la LISTE DE MOTS qui défile, pas la colonne. Mêmes
+   tokens et mêmes chaînes de repli que le reste de ce fichier. */
+.dzsvm .dzm-txt{margin:14px 0 4px; display:flex; flex-direction:column; gap:7px}
+.dzsvm .dzm-txth{display:flex; align-items:baseline; justify-content:space-between;
+  gap:8px}
+.dzsvm .dzm-txtt{font-size:10px; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--ink3, var(--ink-dim, #8a857d));
+  font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace)}
+.dzsvm .dzm-txtn{font-size:9px; font-variant-numeric:tabular-nums;
+  color:var(--ink4, var(--ink-muted, #55514c));
+  font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace)}
+.dzsvm .dzm-txterr{font-size:10px; line-height:1.4; padding:5px 7px;
+  border-radius:6px; border:1px solid var(--red, #e35d4a);
+  color:var(--red, #e35d4a); background:transparent}
+/* 34vh : la liste défile toute seule au lieu de pousser la colonne — un
+   script de trois minutes fait plusieurs centaines de mots. */
+.dzsvm .dzm-txtw{display:flex; flex-wrap:wrap; gap:2px; max-height:34vh;
+  overflow:auto; padding:6px; border-radius:6px;
+  border:1px solid var(--stroke, #2a2930);
+  background:var(--panel2, var(--bg-panel-2, #1c1c21));
+  user-select:none}
+.dzsvm .dzm-txtb{padding:1px 4px; border:1px solid transparent; border-radius:4px;
+  background:transparent; cursor:pointer; font-size:11px; line-height:1.5;
+  color:var(--ink2, var(--ink, #c4bfb6))}
+.dzsvm .dzm-txtb:hover{border-color:var(--stroke2, var(--stroke-strong, #3d3b45))}
+/* un remplissage se voit SANS être sélectionné : c'est ce qui permet de
+   décider avant de cliquer. Souligné plutôt que coloré — la couleur est
+   déjà prise par la sélection, et deux codes couleur pour deux états
+   orthogonaux se confondraient dès qu'ils coïncident. */
+.dzsvm .dzm-txtb[data-filler]{text-decoration:underline wavy
+  var(--red, #e35d4a); text-underline-offset:3px}
+.dzsvm .dzm-txtb[data-on]{background:var(--accent, #d8a657);
+  border-color:transparent; color:var(--accent-ink, #17161a)}
+/* SÉLECTIONNÉ ET SOULIGNÉ EN MÊME TEMPS. Le rouge du soulignement sur le
+   fond accent tombait à 1,60 de contraste (4,79 au repos) : il DISPARAISSAIT
+   — or c'est précisément en glissant sur une plage qu'on veut vérifier
+   qu'elle ne contient bien que des mots de remplissage. `currentColor`, donc
+   l'encre du bouton retenu : 8,16 mesuré. */
+.dzsvm .dzm-txtb[data-filler][data-on]{text-decoration-color:currentColor}
+.dzsvm .dzm-txta{display:flex; flex-wrap:wrap; gap:5px}
+.dzsvm .dzm-txtbtn{width:auto; padding:0 8px; font-size:10px; flex:none;
+  font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace);
+  white-space:nowrap}
+.dzsvm .dzm-txtbtn:disabled{opacity:.45; cursor:default}
+/* le bouton « texte » de la barre de transport.
+   ÉCART AU PLAN, déclaré : le plan prescrivait `className:"svm-toolchip"`,
+   une classe qui EXISTE et porte déjà son état retenu
+   (son-vfx-montage.css:323). J'ai pris `svm-tbtn` — celle de « + vidéo »,
+   « + audio », de la chip « mot » et du bouton « emoji », c'est-à-dire du
+   groupe que M8 et M10 ont posé dans cette même barre ; les `svm-toolchip`
+   vivent, elles, dans la rangée de chips au-dessus, et un bouton isolé y
+   aurait l'air d'un intrus. Conséquence assumée de MON choix, pas du
+   bundle : `svm-tbtn` n'a aucune règle `[data-on]` (aucun bouton de barre
+   n'était à bascule avant celui-ci), donc l'état ouvert demande la règle
+   ci-dessous. Le plan, lui, n'aurait rien eu à écrire. Même remplissage
+   plein que la chip « mot » (P2) : un état retenu se lit, il ne se devine
+   pas. */
+.dzsvm .dzm-txton{width:auto; padding:0 8px; font-size:10px; flex:none;
+  font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace);
+  white-space:nowrap}
+.dzsvm .dzm-txton[data-on]{border-color:transparent;
+  background:var(--accent, #d8a657); color:var(--accent-ink, #17161a)}
