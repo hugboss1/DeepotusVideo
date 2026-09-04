@@ -88,9 +88,19 @@ CE QUE CE BANC N'AFFIRME PAS, et qui est un RESTE ASSUME.
     (deux `PATCH` simultanes, par exemple) : elles se serialisent maintenant,
     mais c'est la derniere qui gagne en entier — aucune fusion, aucun
     « quelqu'un d'autre a modifie ce projet ». Le banc ne mesure pas ce cas.
-  * La TAILLE. `POST /save` refuse au-dela de 2 Mo ou 400 clips ; les routes
-    de projet copient ce que le courant portait deja et n'ajoutent aucune
-    borne propre. Un dossier de mille projets n'est pas mesure."""
+  * La TAILLE. `POST /save` refuse au-dela de 400 clips, et au-dela de 2 Mo —
+    mais la borne porte sur l'enregistrement que le serveur RE-SERIALISE
+    (`_save_record`, `ensure_ascii=False`), jamais sur les octets recus, et
+    l'ecart n'est ni nul ni d'un seul cote. MESURE du 04/09/2026, deux
+    sondages : pour un corps dont tout le poids survit a la normalisation
+    (bourrage dans un clip), le plus gros corps ACCEPTE fait 1 999 920 octets
+    — 80 de MOINS que la borne, parce que le serveur ajoute `saved_at`,
+    `duration_master` et `ducking` ; pour un corps dont le poids est dans un
+    champ que la normalisation JETTE (`name`, borne a 80 caracteres), 2 200 202
+    octets passent et rendent un enregistrement de 362 octets. Ce banc ne
+    mesure aucune de ces deux bornes. Les routes de projet copient ce que le
+    courant portait deja et n'ajoutent aucune borne propre. Un dossier de
+    mille projets n'est pas mesure."""
 import json, os, pathlib, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8")
 TMP = tempfile.mkdtemp(prefix="dzp5_")
@@ -123,6 +133,31 @@ def J(resp):
         v = resp.json()
     except Exception:
         return {}
+    return v if isinstance(v, dict) else {"_liste": v}
+
+
+_illisibles = 0
+
+
+def JF(p):
+    """`J()` pour le DISQUE : le JSON du fichier `p`, ou un temoin. MESURE du
+    04/09/2026 — les sept `json.loads(x.read_text())` NUS des sections [15] et
+    [16] TUAIENT ce banc des que le fichier manquait, au lieu de le faire
+    rougir : une mutation qui fait echouer `POST /projects` APRES le calcul du
+    `pid` rendait un `FileNotFoundError` sur « None.json », un
+    traceback, et la section [16] — la garde de I2, la course TOCTOU — n'etait
+    JAMAIS jouee. Un banc mort ne dit pas quelles assertions manquent.
+    Le temoin est NUMEROTE, et c'est le point : deux lectures ratees ne doivent
+    jamais se valoir, sans quoi un `_ap == avant` comparerait deux echecs et
+    passerait au VERT. Il ne porte ni `clips` ni `project_id`, donc les
+    assertions qui les lisent rougissent aussi."""
+    global _illisibles
+    p = pathlib.Path(p)
+    try:
+        v = json.loads(p.read_text(encoding="utf-8"))
+    except Exception as e:
+        _illisibles += 1
+        return {"_illisible": "#%d %s : %s" % (_illisibles, p.name, e)}
     return v if isinstance(v, dict) else {"_liste": v}
 
 
@@ -694,14 +729,14 @@ def tmps():
 wipe()
 wipe_courant()
 c.post("/api/montage/save", json=TL("avant panne", n=2))
-avant = json.loads(SAVED.read_text(encoding="utf-8"))
+avant = JF(SAVED)
 r = _sous_panne("montage_projects",
                 lambda: c.post("/api/montage/projects", json={"name": "panne"}))
 check("i4_creer_sous_panne_rend_500", r.status_code == 500,
       f"{r.status_code} {r.text[:140]}")
 check("i4_creer_sous_panne_ne_laisse_aucun_fragment", tmps() == [], str(tmps()))
 check("i4_creer_sous_panne_n_ecrit_aucun_projet", names() == [], str(names()))
-_ap = json.loads(SAVED.read_text(encoding="utf-8"))
+_ap = JF(SAVED)
 check("i4_creer_sous_panne_laisse_le_courant_intact", _ap == avant,
       str(_ap.get("name")) + " / " + str(_ap.get("project_id")))
 
@@ -709,13 +744,13 @@ check("i4_creer_sous_panne_laisse_le_courant_intact", _ap == avant,
 wipe()
 wipe_courant()
 c.post("/api/montage/save", json=TL("courant sain", n=2))
-avant = json.loads(SAVED.read_text(encoding="utf-8"))
+avant = JF(SAVED)
 r = _sous_panne("montage_saved.json",
                 lambda: c.post("/api/montage/save", json=TL("jamais ecrit", n=5)))
 check("i4_save_sous_panne_rend_500", r.status_code == 500,
       f"{r.status_code} {r.text[:140]}")
 check("i4_save_sous_panne_ne_laisse_aucun_fragment", tmps() == [], str(tmps()))
-_ap = json.loads(SAVED.read_text(encoding="utf-8"))
+_ap = JF(SAVED)
 check("i4_save_sous_panne_laisse_le_courant_a_sa_version_precedente",
       _ap == avant and len(_ap.get("clips") or []) == 2,
       str(_ap.get("name")))
@@ -730,7 +765,7 @@ wipe()
 wipe_courant()
 c.post("/api/montage/save", json=TL("mir", n=1))
 mid = J(c.post("/api/montage/projects", json={"name": "miroir"})).get("id")
-avant_projet = json.loads((PDIR / ("%s.json" % mid)).read_text(encoding="utf-8"))
+avant_projet = JF(PDIR / ("%s.json" % mid))
 r = _sous_panne("montage_projects", lambda: c.post(
     "/api/montage/save", json=dict(TL("mir", n=6), project_id=mid)))
 check("i4_miroir_rate_rend_500", r.status_code == 500,
@@ -738,9 +773,8 @@ check("i4_miroir_rate_rend_500", r.status_code == 500,
 check("i4_miroir_rate_ne_laisse_aucun_fragment", tmps() == [], str(tmps()))
 check("i4_miroir_rate_laisse_le_projet_a_sa_version_precedente",
       nclips(mid) == 1
-      and json.loads((PDIR / ("%s.json" % mid)).read_text(encoding="utf-8"))
-      == avant_projet, str(nclips(mid)))
-_sv = json.loads(SAVED.read_text(encoding="utf-8"))
+      and JF(PDIR / ("%s.json" % mid)) == avant_projet, str(nclips(mid)))
+_sv = JF(SAVED)
 check("i4_miroir_rate_le_courant_porte_DEJA_la_timeline_neuve",
       len(_sv.get("clips") or []) == 6 and _sv.get("project_id") == mid,
       f"{len(_sv.get('clips') or [])} / {_sv.get('project_id')}")
@@ -798,6 +832,18 @@ def course(verrouille):
     wipe_courant()
     c.post("/api/montage/save", json=TL("course", n=1))
     cid = J(c.post("/api/montage/projects", json={"name": "course"})).get("id")
+    if not cid:
+        # MEME RAISON QUE `JF()`, pour un identifiant : sans cette porte, un
+        # `cid` a None part dans `montage_project_delete` et son
+        # `HTTPException` sort HORS de tout `check` — le banc MEURT ici et les
+        # cinq assertions de [16] ne sont jamais jouees. Le temoin rendu est
+        # choisi pour que les TROIS assertions de contenu le refusent :
+        # `apres` n'est ni `[cid.json]` ni `[]` (un `[]` passerait pour le cas
+        # verrouille alors que rien n'aurait ete cree), et `courant` ne porte
+        # pas `project_id`.
+        return {"id": cid, "entrelace": None,
+                "apres": ["<projet jamais cree>"],
+                "courant": {"_illisible": "projet jamais cree"}}
     vrai_ws, vrai_verrou = MS._write_saved, MS._ecrit
     porte = threading.Event()
 
@@ -828,7 +874,8 @@ def course(verrouille):
         entrelace = asyncio.run(duel())
     finally:
         MS._write_saved, MS._ecrit = vrai_ws, vrai_verrou
-    return {"id": cid, "entrelace": entrelace, "apres": names()}
+    return {"id": cid, "entrelace": entrelace, "apres": names(),
+            "courant": JF(SAVED)}
 
 
 sans = course(False)
@@ -844,12 +891,47 @@ check("i2_sans_verrou_le_projet_supprime_RESSUSCITE",
 # miroir}, et il emporte le fichier. La phrase de l'en-tete redevient vraie.
 check("i2_avec_verrou_le_projet_supprime_reste_supprime",
       avec["apres"] == [], str(avec["apres"]))
+# ... ET LE COURANT, la seconde moitie de I2, que rien ne gardait. Le DELETE
+# du projet OUVERT doit aussi delier le courant, faute de quoi le prochain
+# autosave le RESSUSCITE (c'est le meme trou, vu depuis l'autre fichier).
+# MESURE du 04/09/2026, les quatre cas :
+#   MEME projet,  sans verrou -> fichiers=[CID.json]  project_id='CID'
+#   MEME projet,  avec verrou -> fichiers=[]          project_id=None
+#   AUTRE projet, sans verrou -> fichiers=[CID.json]  project_id='CID'
+#   AUTRE projet, avec verrou -> fichiers=[CID.json]  project_id='CID'
+# Les deux premieres lignes sont ce que ces deux assertions tiennent : sans le
+# verrou la corruption est DOUBLE — le fichier revient ET le courant reste
+# lie ; avec, les deux partent ensemble.
+# Le COMPTE DE CLIPS fait partie de la condition, et il n'est pas decoratif :
+# MESURE — ecrites sur le seul `project_id`, ces deux lignes passaient au VERT
+# sous la mutation qui fait echouer `POST /projects` (courant jamais ecrit ->
+# temoin de `JF()` -> `project_id` absent -> `is None` satisfait, et
+# `None == None` pour l'autre). Exiger les 4 clips de l'autosave force la
+# lecture d'un VRAI courant : deux absences ne se valent plus.
+check("i2_sans_verrou_le_courant_reste_lie_au_projet_supprime",
+      len(sans["courant"].get("clips") or []) == 4
+      and sans["courant"].get("project_id") == sans["id"],
+      "%d clips / %s" % (len(sans["courant"].get("clips") or []),
+                         sans["courant"].get("project_id")))
+check("i2_avec_verrou_le_courant_est_delie_du_projet_supprime",
+      len(avec["courant"].get("clips") or []) == 4
+      and avec["courant"].get("project_id") is None,
+      "%d clips / %s" % (len(avec["courant"].get("clips") or []),
+                         avec["courant"].get("project_id")))
 check("i2_le_verrou_est_bien_un_verrou_asyncio",
       isinstance(MS._ecrit, asyncio.Lock) and not MS._ecrit.locked(),
       repr(MS._ecrit))
-# la boucle de `asyncio.run` a disparu : un `asyncio.Lock` CONTESTE s'y est
-# lie, et le reutiliser depuis la boucle de TestClient leverait
-# « bound to a different event loop ». Le banc rend donc un verrou neuf.
+# HYGIENE DEFENSIVE, et la phrase le dit maintenant : le banc rend un verrou
+# NEUF parce que la boucle de `asyncio.run` a disparu et qu'un `asyncio.Lock`
+# CONTESTE s'y est lie. MESURE du 04/09/2026, les deux moities :
+#  * le mecanisme est REEL — forcer `course(False)` a prendre le vrai verrou
+#    (donc a le CONTESTER dans une premiere boucle) fait lever a `course(True)`
+#    un « is bound to a different event loop » depuis `montage_project_delete` ;
+#  * la NECESSITE, elle, n'existe pas aujourd'hui : retirer cette ligne laisse
+#    le banc a 136/0. `Lock.acquire()` n'appelle `_get_loop()` que sur le
+#    chemin CONTESTE, et l'unique requete qui suit ne conteste rien.
+# La ligne reste : elle coute un objet et elle protege la prochaine assertion
+# qu'on ajoutera ici, qui pourrait, elle, contester.
 MS._ecrit = asyncio.Lock()
 r = c.post("/api/montage/save", json=TL("apres la course", n=1))
 check("i2_les_routes_repondent_encore_apres_la_course",

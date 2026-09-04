@@ -656,9 +656,17 @@ async def _json_body(request: Request) -> dict:
     return body if isinstance(body, dict) else {}
 
 
-# Le VERROU d'écriture du lot. Toutes les écritures de ce module — le courant
-# et les projets — passent par ici, et elles sont brèves (un `json.dumps` et un
-# `os.replace`), donc le coût est nul. Ce qu'il ferme, MESURÉ le 04/09/2026 :
+# Le VERROU d'écriture du lot. Toutes les écritures de ce module passent par
+# ici — SAUF UNE, et il faut la nommer : `DELETE /api/montage/save`
+# (`montage_save_delete`) efface le courant HORS de ce verrou. Sans
+# conséquence connue : c'est le bouton « bibliothèque » de l'éditeur, et le
+# bundle ABANDONNE sa requête d'autosave en vol avant de le frapper (même
+# geste que `svmLibReset`, gardé par test_montage_bundle.py), donc aucune
+# écriture n'est en vol au moment où il passe. Le rapatrier ne réparerait rien
+# de mesuré ; l'écrire ici évite qu'une lecture rapide croie la phrase plus
+# large qu'elle n'est. Les écritures couvertes sont brèves (un `json.dumps` et
+# un `os.replace`), donc le coût est nul. Ce qu'il ferme, MESURÉ le
+# 04/09/2026 :
 # `POST /save` teste l'existence du projet (`_load_project`) puis franchit DEUX
 # sauts `asyncio.to_thread` — dont une écriture de fichier entière — avant
 # d'écrire le miroir. Un `DELETE` d'une autre fenêtre glissé dans cette fenêtre

@@ -216,8 +216,15 @@ R_M11b = ('r.jsx("button",{className:"svm-tbtn dzm-txton","data-on":dzTextOn?"":
 # `onFail` : quand l'ouverture échoue (409, panne réseau), `onBefore` a déjà
 # annulé l'autosave en vol et RIEN ne le replanifie — `setSaveInfo` n'est pas
 # dans les dépendances de l'effet. `svmDoSave` le relance sur-le-champ.
-# `doDel`, lui, n'appelle PLUS `onBefore` : le serveur ferme déjà cette
-# course-là à deux verrous (cf. la couche, et test_montage_projets.py [10]).
+# `doDel`, lui, n'appelle PLUS `onBefore` : le serveur ferme cette course-là à
+# TROIS verrous, et c'est le TROISIÈME — le verrou de module, arrivé dans le
+# même commit — qui rend le retrait légitime. Les deux premiers (`project_id`
+# retenu seulement s'il désigne un fichier existant ; miroir seulement dans ce
+# fichier) laissaient un TOCTOU de deux sauts de thread : sans le verrou,
+# retirer `onBefore` ici rouvre « le courant reste lié à un projet supprimé ».
+# test_montage_projets.py [16] joue l'entrelacement avec et sans lui — c'est
+# la CONDITION de ce retrait, pas sa confirmation ; [10] ne mesure que le cas
+# séquentiel. Le détail est dans la couche.
 # SIX props, pas cinq : `onBefore` s'ajoute à la liste du plan. MESURE — le
 # bundle désamorce déjà exactement cette course pour le bouton
 # « bibliothèque » : il ABANDONNE la requête d'autosave en vol avant son

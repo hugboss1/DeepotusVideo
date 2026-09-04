@@ -36,11 +36,13 @@
    - gradeAllBtn(sel, clips, setClips, pushHistory, setDirty, note) — le
      bouton qui le déclenche, posé sous la pile d'effets de l'inspecteur.
 
-   - Projects({name,projectId,onOpen,onNamed,onBefore,note}) — le popover
-     « projets » de la barre de transport : lister, « enregistrer sous… »,
-     ouvrir, dupliquer, renommer, supprimer. Les deux gestes destructifs
-     (ouvrir, supprimer) ARMENT avant de frapper et appellent `onBefore`,
-     où l'éditeur annule son autosave en vol.
+   - Projects({name,projectId,payload,onOpen,onNamed,onBefore,onFail,note})
+     — le popover « projets » de la barre de transport : lister,
+     « enregistrer sous… », ouvrir, dupliquer, renommer, supprimer. Les deux
+     gestes destructifs (ouvrir, supprimer) ARMENT avant de frapper ; seul
+     OUVRIR appelle `onBefore`, où l'éditeur annule son autosave en vol.
+     SUPPRIMER ne l'appelle plus depuis le 04/09/2026 — le serveur ferme
+     cette course-là tout seul, voir le commentaire de `doDel`.
    - projLine(p) / projWhen(iso) — la ligne de résumé d'un projet et sa date,
      PURES et sans fuseau : c'est la part de P5 que node exécute.
 
@@ -949,11 +951,13 @@ function dzmGradeAllBtn(sel,clips,setClips,pushHistory,setDirty,note){
        {clips, mixDb}, et l'application d'un projet le remet à zéro.
      * SUPPRIMER retire le fichier du projet, définitivement. Rien ne le
        rejoue, ni ici ni côté serveur.
-   Les deux appellent `onBefore` AVANT la requête, et c'est l'éditeur qui y
-   annule son autosave en vol. Sans cela, une sauvegarde partie 1,4 s plus
-   tôt arrivait APRÈS l'ouverture et réécrivait le courant avec le montage
-   qu'on venait de quitter — la course exacte que le bouton « bibliothèque »
-   du bundle désamorce déjà, de la même façon et pour la même raison.
+   OUVRIR appelle `onBefore` AVANT la requête, et c'est l'éditeur qui y annule
+   son autosave en vol. Sans cela, une sauvegarde partie 1,4 s plus tôt
+   arrivait APRÈS l'ouverture et réécrivait le courant avec le montage qu'on
+   venait de quitter — la course exacte que le bouton « bibliothèque » du
+   bundle désamorce déjà, de la même façon et pour la même raison. SUPPRIMER,
+   lui, ne l'appelle PAS : le serveur ferme cette course-là à lui seul, et
+   l'annulation était une perte sèche. Le détail est dans `doDel`.
 
    LA DATE EST AFFICHÉE TELLE QU'ELLE EST STOCKÉE (UTC), jamais convertie.
    `toLocaleString` rendrait une chaîne différente selon le fuseau de la
@@ -1083,15 +1087,28 @@ var DzmProjects=function(props){
              s'est passé. */
           setErr("Réponse inattendue du serveur : rien n'a été appliqué. "+
             "Rechargez la page avant d'enregistrer.")})
-      /* L'OUVERTURE A ECHOUE (409 « projet inouvrable », backend injoignable,
-         réponse inapplicable) : la timeline affichée n'a pas bougé et elle
-         reste à enregistrer — or `onBefore` vient d'annuler l'autosave en
-         vol, et RIEN ne le replanifie (il ne touche que deux useRef et
-         `setSaveInfo`, qui n'est pas dans les dépendances de l'effet). Le
-         badge reste honnête, mais la sauvegarde que l'utilisateur croyait
-         partie n'attendrait que sa prochaine édition. `onFail` la relance
-         tout de suite. NON MESURE A L'ECRAN — dette navigateur, comme tout
-         ce popover. */
+      /* L'OUVERTURE A ECHOUE, et la liste est EXACTE : 409 « projet
+         inouvrable », backend injoignable — les cas où la requête LÈVE. La
+         timeline affichée n'a pas bougé et elle reste à enregistrer, or
+         `onBefore` vient d'annuler l'autosave en vol et RIEN ne le
+         replanifie (il ne touche que deux useRef et `setSaveInfo`, qui n'est
+         pas dans les dépendances de l'effet). Le badge reste honnête, mais la
+         sauvegarde que l'utilisateur croyait partie n'attendrait que sa
+         prochaine édition. `onFail` la relance tout de suite.
+         LA « RÉPONSE INAPPLICABLE » N'EST PAS ICI, et ce n'est pas un oubli :
+         c'est le `else` du `.then` ci-dessus, il ne lève pas, donc ce `.catch`
+         n'est jamais atteint et `onFail` n'est PAS appelé. Ce cas garde donc
+         son autosave perdu — trou résiduel assumé, et le seul choix juste.
+         Le serveur a DÉJÀ remplacé le courant par le projet ouvert ; seul
+         l'écran n'a pas su appliquer la réponse. Relancer la sauvegarde y
+         écrirait la timeline PÉRIMÉE par-dessus le courant tout neuf, et,
+         `onNamed` n'ayant pas été appelé, elle la miroiterait dans l'ANCIEN
+         projet — le geste défairait sur le disque l'ouverture qu'il vient de
+         réussir, et il ferait exactement ce que le message affiché dit de ne
+         pas faire (« Rechargez la page avant d'enregistrer »). Le trou est
+         petit et il est dit à l'écran ; la réparation, elle, serait une
+         corruption silencieuse.
+         NON MESURE A L'ECRAN — dette navigateur, comme tout ce popover. */
       .catch(function(e){fail(e);if(props.onFail)props.onFail()})}
 
   function doDup(p){
@@ -1121,13 +1138,22 @@ var DzmProjects=function(props){
     if(arm!=="x"+p.id){setArm("x"+p.id);return}
     setArm("");setBusy(1);setErr("");
     /* PAS d'`onBefore` ICI, et c'est une correction du 04/09/2026 — mesurée,
-       pas raisonnée. Le SERVEUR ferme déjà cette course, à deux verrous :
-       POST /save ne retient `project_id` que s'il désigne un fichier qui
-       EXISTE, et il ne miroite que dans ce fichier-là. Un autosave qui
-       arrive après ce DELETE ne ressuscite donc rien et ne relie rien —
-       c'est ce que mesure test_montage_projets.py [10]
-       (`supprime_l_autosave_ne_ressuscite_pas`), et la section [16] joue même
-       l'entrelacement.
+       pas raisonnée. Le SERVEUR ferme cette course, à TROIS verrous, et c'est
+       le TROISIÈME qui rend ce retrait légitime : POST /save ne retient
+       `project_id` que s'il désigne un fichier qui EXISTE, il ne miroite que
+       dans ce fichier-là — et, depuis le même commit, le triplet {test
+       d'existence, écriture du courant, écriture du miroir} et la suppression
+       passent sous un même verrou de module.
+       LES DEUX PREMIERS NE SUFFISAIENT PAS, et c'est mesuré : entre le test
+       d'existence et le miroir il y a deux sauts de thread, et un DELETE
+       glissé là faisait REVENIR le fichier supprimé ET RESTER le lien du
+       courant. Sans ce troisième verrou, retirer `onBefore` d'ici rouvrirait
+       donc exactement « le courant reste lié à un projet supprimé ». La
+       section [16] de test_montage_projets.py, qui joue l'entrelacement avec
+       et sans le verrou, n'est donc pas une confirmation de ce retrait : elle
+       en est la CONDITION. [10]
+       (`supprime_l_autosave_ne_ressuscite_pas`) ne mesure, lui, que le cas
+       SÉQUENTIEL — un autosave parti APRÈS que le DELETE a rendu la main.
        Annuler l'autosave ici était donc une PERTE SÈCHE : `onBefore` ne
        touche que deux useRef et `setSaveInfo(null)`, or `saveInfo` n'est pas
        dans les dépendances de l'effet d'autosave — supprimer un projet QUI
