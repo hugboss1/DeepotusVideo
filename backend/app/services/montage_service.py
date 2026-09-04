@@ -11,6 +11,11 @@ Câblage « timeline → rendu » du handoff son_vfx_montage :
                               la VIDÉO entre en V1 (`_VIDEO_EXTS`) —
                               `final_video_path` porte aussi les planches PNG
                               de `sprite2d` et les maillages GLB d'`asset3d`.
+                              P8-bis : cette liste blanche est DANS LA
+                              REQUÊTE, pas seulement dans la boucle — sinon
+                              60 planches plus récentes que la dernière vidéo
+                              consommaient la fenêtre et l'écran retombait
+                              sur sa démo EN SILENCE, base pleine de rendus.
   POST /api/montage/render    Rend la timeline postée en tâche de fond
                               (JobRecord provider="montage", poll
                               GET /api/jobs/{id}) — preview 480p (gratuit,
@@ -94,7 +99,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from loguru import logger
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 
 from app.config import settings
 from app.models.schemas import JobStatus
@@ -267,7 +272,20 @@ def _ffmpeg_ouvrira(p: Path) -> bool:
     Ce que le pré-vol refuse, c'est ce qu'AUCUN démultiplexeur n'ouvre — un
     maillage, une archive, un JSON. Il ne juge pas la PERTINENCE d'un média
     sur une piste ; ce qui reste tombe sur le message lisible de
-    `_run_ffmpeg`. Une image, elle, est légitime des deux côtés (carton fixe
+    `_run_ffmpeg`. Cette dernière phrase a été FAUSSE du 04/09/2026 jusqu'au
+    correctif P8-bis, et c'est la docstring qui mentait, pas le code :
+    MESURÉ (ffmpeg.exe 9.0-essentials_build de %LOCALAPPDATA%\\
+    DeepotusVideoGen\\bin\\, stderr capturé en UTF-8, un `.wav` référencé par
+    `[0:v]` dans un `-filter_complex` — la forme même que `_run` construit,
+    cf. l.1527/1550/1558 ; scratchpad/mesure_ffmpeg_wav.py), le diagnostic
+    est « Stream specifier ':v' in filtergraph description […] matches no
+    streams. » et `_ffmpeg_lignes_utiles` rendait `[]` : le message
+    retombait sur la tranche brute, et le diagnostic y arrivait à l'offset
+    999 sur 1200 — la reproduction exacte du défaut que P8 corrigeait
+    ailleurs. Le motif « matches no streams » a été ajouté à
+    `_FFMPEG_MOTIFS` POUR que cette phrase devienne vraie ; la ligne de banc
+    qui la tient est `motif_flux_absent`. Une image, elle, est légitime
+    des deux côtés (carton fixe
     V1, incrustation V2) : `ovPicker()` du bundle propose « Images
     (Bibliothèque) » sur TOUTE piste vidéo, le filtre y est
     `trackKind(tr)==="audio"`. `_IMAGE_EXTS` est défini plus bas, avec le
@@ -279,8 +297,37 @@ def _ffmpeg_ouvrira(p: Path) -> bool:
 # compilation, dumps de flux) est du bruit : sur l'échec réel du 04/09/2026,
 # la ligne utile arrivait à l'offset 1069 d'une tranche de 1200 CARACTÈRES,
 # coupée au milieu des drapeaux de build.
+#
+# P8-bis — les cinq premiers motifs ne couvraient QUE l'ouverture d'une
+# ENTRÉE et le choix d'un encodeur ; toute la classe « graphe de filtres »
+# rendait ZÉRO motif, donc la tranche brute. C'est la classe la plus probable
+# pour un service qui construit un `filter_complex` de cette taille (xfade,
+# overlay, volume='expr', adelay, subtitles).
+# PROTOCOLE de la mesure (scratchpad/mesure_ffmpeg.py) : ffmpeg.exe
+# 9.0-essentials_build-www.gyan.dev de %LOCALAPPDATA%\DeepotusVideoGen\bin\,
+# entrées fabriquées par lavfi, stderr capturé en UTF-8 (errors="replace") et
+# passé à la VRAIE `_ffmpeg_lignes_utiles` importée du service.
+#   cas                                    motifs AVANT / APRÈS
+#   .wav référencé par [0:v] (le pré-vol répond 200)     0 / 1
+#   filtre inconnu dans filter_complex                   0 / 1
+#   étiquette de sortie inexistante                      0 / 2
+#   expression de filtre invalide (scale=w=oups)         0 / 1
+#   dossier de sortie absent                             2 / 3
+#   mp4 de zéro octet                                    3 / 3
+#   encodeur inconnu                                     1 / 3
+# Les OFFSETS ne sont volontairement pas cités ici : mesurés entre 916 et
+# 1113 sur 1200 selon le cas, ils dépendent de la longueur du chemin
+# temporaire de la machine et ne sont donc pas reproductibles au caractère —
+# le chiffre qui l'est, et le seul qui décide, est « 0 motif ».
+# « Error opening output » et non « Error opening output file » : ffmpeg émet
+# les deux formes (« Error opening output <chemin>: … » de l'étage muxer,
+# « Error opening output file <chemin>. » de l'étage CLI, « Error opening
+# output files: … » en résumé), et le préfixe court les prend toutes les
+# trois. « Error opening input file » ne valait QUE pour l'entrée.
 _FFMPEG_MOTIFS = ("Error opening input file", "Invalid data found",
-                  "No such file", "Conversion failed", "Unknown encoder")
+                  "No such file", "Conversion failed", "Unknown encoder",
+                  "matches no streams", "Error parsing filterchain",
+                  "Error initializing filters", "Error opening output")
 
 
 def _ffmpeg_lignes_utiles(stderr: str, limite: int = 5) -> list:
@@ -867,10 +914,20 @@ async def montage_project(limit: int = 4):
     P8 : seuls les jobs dont l'artefact porte une extension de `_VIDEO_EXTS`
     entrent en V1. La SAUVEGARDE, elle, n'est jamais élaguée de ses clips V1
     non-vidéo : ils sont seulement listés dans `v1_non_video` (et au journal)
-    — voir le commentaire dans la boucle."""
+    — voir le commentaire dans la boucle.
+
+    CONTRAT de `v1_non_video`, arrêté ici et non plus implicite : ce sont des
+    IDENTIFIANTS de clips, joignables un à un aux `clips` servis par la même
+    réponse — rien d'autre. La tâche 16 lit ce champ pour marquer les clips à
+    l'écran ; un repli qui aurait rendu un libellé ou un nom de fichier lui
+    aurait donné une liste hétérogène que rien ne peut rejoindre. Un clip V1
+    non-vidéo SANS `id` exploitable est donc EXCLU du champ (et le champ est
+    absent si aucun fautif n'a d'id) ; il reste nommé au journal par son
+    libellé, et le 400 du pré-vol le nommera au moment du rendu. C'est un
+    choix : mieux vaut un marquage incomplet qu'un identifiant inventé."""
     saved = await asyncio.to_thread(_load_saved)
     if saved is not None:
-        kept, pruned, non_video = [], 0, []
+        kept, pruned, non_video, non_video_dits = [], 0, [], []
         for c in saved["clips"]:
             if not isinstance(c, dict):
                 continue
@@ -900,12 +957,23 @@ async def montage_project(limit: int = 4):
                 # pré-vol du rendu nomme les fautifs ; c'est l'utilisateur qui
                 # décide.
                 if c.get("tr") == "v1" and not _is_video_artifact(p):
-                    non_video.append(c.get("id") or c.get("label") or p.name)
+                    # DEUX listes, et c'est le point : `non_video` est le
+                    # champ d'API — des IDENTIFIANTS, rien d'autre, pour que
+                    # la tâche 16 puisse les rejoindre aux `clips`.
+                    # `non_video_dits` est le journal, qui a le droit d'être
+                    # hétérogène parce qu'un humain le lit : un clip sans id
+                    # y garde son libellé ou son nom de fichier au lieu de
+                    # disparaître.
+                    cid = c.get("id")
+                    if isinstance(cid, str) and cid:
+                        non_video.append(cid)
+                    non_video_dits.append(cid or c.get("label") or p.name)
             kept.append(c)
-        if non_video:
+        if non_video_dits:
             logger.warning(
-                f"montage: {len(non_video)} clip(s) V1 de la sauvegarde ne "
-                f"sont pas des vidéos — {', '.join(str(x) for x in non_video)}"
+                f"montage: {len(non_video_dits)} clip(s) V1 de la sauvegarde "
+                f"ne sont pas des vidéos — "
+                f"{', '.join(str(x) for x in non_video_dits)}"
                 f" ; le rendu les refusera nommément s'ils ne s'ouvrent pas.")
         if any(c.get("tr") == "v1" for c in kept):
             try:
@@ -953,8 +1021,65 @@ async def montage_project(limit: int = 4):
         logger.warning("montage: sauvegarde sans clip V1 exploitable — "
                        "timeline reconstruite depuis la Bibliothèque")
     async with async_session_factory() as session:
+        # P8-bis — la liste blanche est POUSSÉE DANS LA REQUÊTE, pour que les
+        # 60 lignes de la fenêtre soient 60 CANDIDATS et non 60 lignes dont la
+        # boucle écarte ensuite la plupart. Sans ce `where`, le filtre Python
+        # ci-dessous CONSOMMAIT le budget : 60 planches et maillages plus
+        # récents que la dernière vidéo suffisaient à ne rien trouver, à poser
+        # `has_assets` à faux et à faire retomber l'écran sur sa démo — les
+        # rendus seedance restant en base, invisibles. MESURÉ (base sqlite
+        # neuve, N jobs `sprite2d` à `final_video_path = sheet.png` tous plus
+        # récents qu'un unique `seedance` .mp4 valide, un GET
+        # /api/montage/project par valeur de N, scratchpad/mesure_seuil.py) :
+        # N = 3/55/56/57/58/59 → has_assets vrai, le seedance en V1 ; N = 60
+        # → has_assets FAUX, clips vides ; idem 61 et 80. Le seuil est
+        # exactement 60, par construction.
+        # Ce n'est pas un cas d'école : sur une COPIE de la base RÉELLE
+        # (%LOCALAPPDATA%\DeepotusVideoGenData\deepotus.db + -wal + -shm,
+        # 04/09/2026, lecture seule, scratchpad/mesure_base_reelle.py) les 60
+        # lignes les plus récentes portent déjà 15 non-vidéos (8 `sprite2d`
+        # .png, 7 `asset3d` .glb) et la liste COMMENCE par 10 non-vidéos
+        # consécutives : 50 de marge, et les derniers commits de la branche
+        # principale sont tous du pipeline 3D.
+        #
+        # FORME du `where`, choisie SUR MESURE (scratchpad/mesure_ilike.py,
+        # base neuve, 8 jobs couvrant les cas) : le filtre Python plus bas lit
+        # `fp = j.final_video_path or j.video_path`, donc un `where` sur la
+        # seule colonne `final_video_path` — la forme proposée par la revue —
+        # ÉCARTE des jobs légitimes. Mesuré sur les 5 jobs que le filtre
+        # Python accepte : `final_video_path` seul en manque 2 (celui dont
+        # `final_video_path` est NULL et celui dont il est vide, tous deux à
+        # `video_path` .mp4) ; un OR sur les DEUX colonnes n'en manque aucun
+        # mais en prend un de TROP (planche en `final_video_path`, .mp4 en
+        # `video_path` — il consommerait le budget qu'on vient de rendre) ;
+        # `coalesce(nullif(final_video_path, ''), video_path)` est le MIROIR
+        # EXACT du `or` de Python — 0 manquant, 0 en trop. C'est cette
+        # forme-là. (`nullif(x, '')` fait la chaîne vide, que `coalesce` seul
+        # ne verrait pas, alors que le `or` de Python la traverse.)
+        # `ilike` et non `like`, et il faut dire exactement ce que ça achète
+        # — sinon c'est une préférence, pas une décision. MESURÉ : SQLAlchemy
+        # compile `ilike` en `lower(col) LIKE lower(?)` sur SQLite, alors que
+        # `like` émet un LIKE nu. Or le LIKE de SQLite est DÉJÀ insensible à
+        # la casse pour l'ASCII par défaut : sous `PRAGMA
+        # case_sensitive_like = 0`, les deux formes rendent les MÊMES lignes
+        # (`a.mp4`, `Rush_Camera.MOV`, `b.Mp4` — les trois, dans les deux
+        # cas). Elles ne se séparent que sous `PRAGMA case_sensitive_like =
+        # 1`, où le LIKE nu ne garde plus que `a.mp4` quand la forme
+        # `lower()/lower()` garde les trois. `ilike` met donc
+        # l'insensibilité dans la REQUÊTE, où elle ne dépend ni d'un pragma
+        # ni du dialecte. CONSÉQUENCE ASSUMÉE : aucune mutation du banc ne
+        # distingue les deux formes sur ce backend-ci (mesuré, `ilike` →
+        # `like` laisse le banc au vert plein) ; c'est la mesure ci-dessus
+        # qui porte le choix, pas une ligne de banc.
+        # Le cas concret que tout ceci sert : un `Rush_Camera.MOV` déposé par
+        # l'upload UGC (routes.py, qui teste en minuscules mais ÉCRIT la casse
+        # d'origine). Aucune extension de `_VIDEO_EXTS` ne porte de
+        # métacaractère LIKE (`%`, `_`) : le motif `%<ext>` est littéral.
+        _fp = func.coalesce(func.nullif(JobRecord.final_video_path, ""),
+                            JobRecord.video_path)
         res = await session.execute(
             select(JobRecord).where(JobRecord.status == JobStatus.DONE.value)
+            .where(or_(*[_fp.ilike(f"%{e}") for e in _VIDEO_EXTS]))
             .order_by(JobRecord.completed_at.desc()).limit(60))
         jobs = res.scalars().all()
 
@@ -969,6 +1094,13 @@ async def montage_project(limit: int = 4):
         # soient, `_probe_duration` rendait 0 sur un PNG, le repli `or 4.0`
         # donnait quatre cartons de 4 s — et les 35 rendus seedance de la
         # base, plus anciens, n'étaient jamais atteints.
+        # Il RESTE alors même que le `where` ci-dessus dit déjà la même chose,
+        # et ce n'est pas une redondance : la requête ne peut filtrer que ce
+        # que la BASE porte, ce test-ci juge le CHEMIN effectivement retenu.
+        # Il reste donc la seule autorité, et le `where` n'est qu'un
+        # pré-filtre qui ne doit jamais écarter ce que ce test accepterait —
+        # c'est la propriété que `coalesce(nullif(...))` a été choisi pour
+        # tenir, et que la mesure ci-dessus vérifie job par job.
         if not _is_video_artifact(Path(fp)):
             logger.info(f"montage: job {j.id[:8]} ({j.provider}) ecarte de V1 — "
                         f"{Path(fp).suffix or 'sans extension'} n'est pas une video")
@@ -2075,8 +2207,15 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
             continue
         p = await _resolve_src(c.get("src"))
         if p is not None and not _ffmpeg_ouvrira(p):
-            refus.append(f"« {c.get('label') or c.get('id') or c.get('tr')} » "
-                         f"→ {p.name}")
+            # P8-bis — le NOMBRE de fautifs était borné (`refus[:8]` plus bas),
+            # la LONGUEUR de chacun ne l'était pas : `label`, `id` et `tr`
+            # sont des chaînes CLIENTES arbitraires, et huit libellés de dix
+            # mille caractères faisaient un `detail` de 80 ko. Le voisin
+            # immédiat borne déjà de la même façon (`title` du JobRecord,
+            # `[:60]`) ; on s'aligne. Le nom de fichier, lui, vient du disque
+            # et le système de fichiers le borne déjà.
+            dit = str(c.get("label") or c.get("id") or c.get("tr") or "?")[:60]
+            refus.append(f"« {dit} » → {p.name}")
     if refus:
         raise HTTPException(
             400, f"Rendu impossible : {len(refus)} source(s) qu'aucun lecteur "
