@@ -19,7 +19,24 @@
                          gradeAllBtn, gradeAll, gradeOf,
                          Projects, projLine, projWhen,
                          tracksOf, from, payload, busSync,
+                         pickTrack, isVideoJob, LibBtn, badSrc,
                          move, moveTo, add, remove, group, DEFAULTS}
+
+   - pickTrack(tracks, kind) — l'identifiant d'une piste QUI EXISTE, du genre
+     demandé, la première dans l'ordre d'affichage ; "" si le projet n'en
+     porte aucune. PURE. C'est elle qui répare « Envoyer vers → Montage » :
+     le clip s'y posait sur « v2 » sans vérifier que v2 soit là.
+   - isVideoJob(job, exts) — le critère du sélecteur « Rendus vidéo », appuyé
+     sur la liste d'extensions SERVIE PAR LE BACKEND (_VIDEO_EXTS, via
+     GET /api/montage/media-rules) : aucune extension n'est écrite ici.
+     PURE. Sans liste, elle ne filtre pas — et le sélecteur le dit.
+   - LibBtn({tracks,onPick,note}) — le bouton « Bibliothèque… » de la barre
+     de transport : il ouvre le sélecteur d'assets sur la piste vidéo
+     résolue. Il n'existait AUCUN bouton pour ajouter un clip ailleurs que
+     dans l'en-tête d'une piste, au survol.
+   - badSrc(clip, onFix) — la chip « pas une vidéo » posée sur un clip que
+     GET /project a signalé dans `v1_non_video`. Cliquable : elle rouvre la
+     Bibliothèque sur la piste du clip.
 
    - rippleCut(clips,t0,t1,opts) — coupe d'une PLAGE de temps sur toutes les
      pistes non verrouillées. PURE : c'est l'autre moitié du cœur exécuté
@@ -46,8 +63,10 @@
    - projLine(p) / projWhen(iso) — la ligne de résumé d'un projet et sa date,
      PURES et sans fuseau : c'est la part de P5 que node exécute.
 
-   - TrackAdd({tracks,onChange}) — les deux boutons « + vidéo » / « + audio »
-     de la barre de transport.
+   - TrackAdd({tracks,onChange}) — les deux boutons « + piste vidéo » /
+     « + piste audio » de la barre de transport. Ils disaient « + vidéo » et
+     « + audio » jusqu'à P9 : ils ajoutent une PISTE, et le libellé le dit
+     maintenant.
    - headBtns(tr, tracks, set, clips, setClips, note) — le groupe ▲ ▼ × de
      l'en-tête d'une piste, plus la poignée de glisser-déposer. Rend un
      ÉLÉMENT (avec sa clé) : il s'insère tel quel dans les tableaux `children`
@@ -183,6 +202,67 @@ function dzmClipsOn(clips,id){
   var n=0;
   (clips||[]).forEach(function(c){if(c&&c.tr===id)n++});
   return n}
+
+/* ── P9 : poser un clip sur une piste QUI EXISTE ────────────────────────────
+   Rend l'identifiant de la PREMIÈRE piste du genre demandé, dans l'ordre
+   d'affichage (haut → bas), ou "" si le projet n'en porte aucune.
+
+   Pourquoi cette fonction existe : le dépôt posait ses clips sur « v2 » par
+   défaut, sans jamais vérifier que v2 est là. MESURÉ dans la sauvegarde du
+   04/09/2026, `tracks` vaut [v1, a2, a1, a3, s1] — pas de v2. Le clip
+   entrait bien dans `clips`, il était sauvegardé, il serait parti au rendu
+   en incrustation ; mais la timeline ne dessine QUE les pistes du projet :
+   il était invisible et inselectionnable. « Rien n'est apparu » était exact,
+   et le clip était pourtant là.
+
+   Le genre se DÉDUIT de l'identifiant quand la piste ne le porte pas
+   (dzmKindOf) : une liste restaurée d'une vieille sauvegarde n'a que des
+   `id`, et exiger `kind` l'aurait fait rendre "" — c'est-à-dire un refus,
+   sur un projet parfaitement valable. */
+function dzmPickTrack(ts,kind){
+  var want=kind==="audio"?"audio":kind==="subs"?"subs":"video";
+  var list=(ts&&ts.length)?ts:[];
+  for(var i=0;i<list.length;i++){
+    var t=list[i];
+    if(!t||!t.id)continue;
+    if(dzmKindOf(t.id,t.kind)===want)return String(t.id)}
+  return ""}
+
+/* ── P9 : « ce rendu est-il une vidéo ? », posé une seule fois ─────────────
+   `exts` est la liste servie par GET /api/montage/media-rules, c'est-à-dire
+   `_VIDEO_EXTS` de montage_service.py — LA règle du rendu, pas une copie.
+   Rien n'est réécrit ici : cette fonction ne connaît aucune extension.
+
+   Sans `exts` (route injoignable), elle ne filtre PAS et rend vrai : c'est
+   le seul repli honnête. Une liste vide en dur aurait affiché « aucun rendu
+   vidéo terminé » sur une Bibliothèque pleine ; une liste d'extensions
+   écrite ici aurait divergé du backend au premier format ajouté. Le
+   sélecteur DIT à l'écran qu'il ne filtre pas.
+
+   `final_video_path` PRIME sur `video_path`, dans cet ordre : c'est celui de
+   `_resolve_src` côté serveur (`jr.final_video_path or jr.video_path`). Le
+   critère d'avant testait `video_path || final_video_path` — sur un job dont
+   le brut est une vidéo et le fini une image, les deux ne rendent pas la
+   même chose, et c'est le serveur qui a raison.
+   AUCUNE EXTENSION N'EST ÉCRITE DANS CE FICHIER, et le banc le vérifie
+   (`M16c_la_couche_ne_recopie_aucune_extension`) : une seconde liste
+   divergerait de `_VIDEO_EXTS` au premier format ajouté. */
+function dzmVideoExt(fp){
+  var nm=String(fp||"").replace(/\\/g,"/").split("/").pop();
+  var k=nm.lastIndexOf(".");
+  return k>0?nm.slice(k).toLowerCase():""}
+function dzmIsVideoJob(j,exts){
+  if(!j||j.status!=="done")return !1;
+  /* la vignette d'une PRÉVISUALISATION de montage n'est pas un rendu à
+     reposer — critère conservé tel quel du bundle. */
+  if(j.provider==="montage"&&String(j.image_filename||"").indexOf("_preview")>=0)return !1;
+  var fp=j.final_video_path||j.video_path;
+  if(!fp)return !1;
+  if(!exts||!exts.length)return !0;
+  var sfx=dzmVideoExt(fp);
+  if(!sfx)return !1;
+  for(var i=0;i<exts.length;i++)if(String(exts[i]||"").toLowerCase()===sfx)return !0;
+  return !1}
 
 /* ── P2 : animation des sous-titres MOT PAR MOT ────────────────────────────
    Trois valeurs seulement, parce que trois seulement se gravent (mesuré à
@@ -413,23 +493,95 @@ function dzmRippleCut(clips,t0,t1,opts){
 
 /* ── composants (r/x du bundle — jamais touchés au chargement) ───────────── */
 
-/* Les deux boutons de la barre de transport. */
+/* Les deux boutons de la barre de transport.
+   P9 — LIBELLÉS RECTIFIÉS. Ils disaient « + vidéo » / « + audio » et ils
+   ajoutent une PISTE, pas un clip : l'utilisateur les a lus comme « ajouter
+   une vidéo », a cliqué, et a obtenu une bande vide. Le libellé lui donnait
+   raison. Ils disent maintenant ce qu'ils font ; le bouton qui ajoute
+   VRAIMENT une vidéo est « Bibliothèque… », juste à côté. */
 var DzmTrackAdd=function(props){
   var ts=(props&&props.tracks&&props.tracks.length)?props.tracks:DZM_DEFAULT_TRACKS;
   function add(k){if(props&&props.onChange)props.onChange(dzmAdd(ts,k))}
   return r.jsxs("span",{className:"dzm-add",children:[
     r.jsx("button",{className:"svm-tbtn dzm-addb",
-      title:"Ajouter une piste vidéo d'overlay — posée tout en haut, donc "+
-        "composée AU-DESSUS des autres au rendu",
+      title:"Ajouter une PISTE vidéo d'overlay (une bande vide) — posée tout "+
+        "en haut, donc composée AU-DESSUS des autres au rendu. Pour poser un "+
+        "clip, c'est « Bibliothèque… ».",
       "aria-label":"Ajouter une piste vidéo d'overlay",
-      onClick:function(){add("video")},children:"+ vidéo"},"v"),
+      onClick:function(){add("video")},children:"+ piste vidéo"},"v"),
     r.jsx("button",{className:"svm-tbtn dzm-addb",
-      title:"Ajouter une piste audio — posée sous les pistes audio "+
-        "existantes, au-dessus des sous-titres. Bus BRUITAGES, sauf si "+
+      title:"Ajouter une PISTE audio (une bande vide) — posée sous les pistes "+
+        "audio existantes, au-dessus des sous-titres. Bus BRUITAGES, sauf si "+
         "l'identifiant libre est celui d'une piste historique retirée (A1, "+
         "A2) : elle revient alors avec son bus d'origine et son habillage.",
       "aria-label":"Ajouter une piste audio",
-      onClick:function(){add("audio")},children:"+ audio"},"a")]})};
+      onClick:function(){add("audio")},children:"+ piste audio"},"a")]})};
+
+/* ── P9 : le bouton « Bibliothèque… » de la barre de transport ─────────────
+   MESURE qui le fonde : `openPicker` n'était appelé QU'À UN endroit du
+   bundle — le petit « + » de l'en-tête d'une piste, 14 px, révélé au survol
+   de cette piste-là. Rien, dans la barre de transport, ne proposait
+   d'ajouter un clip. « il me faut aussi un bouton pour ajouter une video
+   depuis la bibliotheque » : le voici, et il porte le mot de l'utilisateur.
+
+   La piste visée est RÉSOLUE, jamais devinée : la première piste vidéo du
+   projet dans l'ordre d'affichage. Sans piste vidéo, le bouton ne s'éteint
+   pas — il DIT pourquoi il ne peut rien faire et nomme la sortie. Un bouton
+   grisé sans explication oblige à deviner, et c'est le défaut que toute
+   cette tâche répare. */
+var DzmLibBtn=function(props){
+  var ts=(props&&props.tracks&&props.tracks.length)?props.tracks:DZM_DEFAULT_TRACKS;
+  var id=dzmPickTrack(ts,"video");
+  return r.jsx("button",{className:"svm-tbtn dzm-libb",
+    title:id?("Ouvrir la Bibliothèque et poser une vidéo, une image ou un "+
+        "rendu sur la piste "+id.toUpperCase()+", à la tête de lecture — "+
+        "c'est la piste vidéo la plus haute du projet.")
+      :("Aucune piste vidéo dans ce projet : rien ne pourrait recevoir le "+
+        "clip. « + piste vidéo » en crée une."),
+    "aria-label":"Ouvrir la Bibliothèque pour ajouter un clip",
+    onClick:function(){
+      if(!id){if(props&&props.note)props.note("Aucune piste vidéo dans ce "+
+        "projet — « + piste vidéo » en crée une, puis « Bibliothèque… » y "+
+        "posera le clip.");return}
+      if(props&&props.onPick)props.onPick(id)},
+    children:"Bibliothèque…"},"lib")};
+
+/* ── P9 : le marquage d'un clip V1 qui n'est pas une vidéo ─────────────────
+   GET /api/montage/project rend `v1_non_video` — des identifiants de clips,
+   joignables aux `clips` servis par la même réponse (contrat arrêté par P8).
+   Sans lecteur, ce champ était un mensonge poli : le backend savait, l'écran
+   se taisait, et POST /render refusait en 400 APRÈS le clic.
+
+   La chip est un BOUTON, pas une étiquette : la voie de sortie est offerte
+   sur place — elle rouvre la Bibliothèque sur la piste du clip — au lieu
+   d'être devinée. `stopPropagation` sur pointerdown ET sur click : sans le
+   premier, le clic amorcerait le déplacement du clip sous la chip.
+
+   CE QUE LA CHIP DIT EST MESURÉ, ET LE BRIEF DE LA TÂCHE LE DISAIT TROP
+   FORT. « POST /render refuse déjà ces clips en 400 en les nommant » n'est
+   vrai que pour une PARTIE d'entre eux. Relu le 04/09/2026 dans
+   montage_service.py : `v1_non_video` liste les clips V1 dont l'extension
+   n'est pas dans `_VIDEO_EXTS` (6 extensions), tandis que le pré-vol de
+   `POST /render` refuse ce que `_ffmpeg_ouvrira` rejette, c'est-à-dire hors
+   de `_VIDEO_EXTS + _IMAGE_EXTS + _AUDIO_EXTS` — et `_IMAGE_EXTS` contient
+   `.png` (l. 1488). Une planche de sprites PNG posée en V1 est donc SIGNALÉE
+   ici et PASSE le pré-vol : elle se rend en carton fixe. Un maillage `.glb`,
+   lui, est signalé ET refusé. La chip dit les deux cas ; promettre un refus
+   qui n'arrive pas aurait été le même défaut, à l'envers. */
+function dzmBadSrcChip(c,onFix){
+  return r.jsx("button",{className:"dzm-badsrc",
+    title:"Ce plan n'est pas une vidéo : son fichier ne porte pas "+
+      "d'extension vidéo (planche de sprites, maillage 3D, archive…). Un "+
+      "maillage ou une archive fera échouer le rendu, qui les nommera ; une "+
+      "image passera le contrôle mais se rendra en carton fixe. Cliquez "+
+      "pour rouvrir la Bibliothèque et poser un vrai rendu à sa place, puis "+
+      "retirez celui-ci.",
+    "aria-label":"Plan qui n'est pas une vidéo — ouvrir la Bibliothèque",
+    onPointerDown:function(e){if(e&&e.stopPropagation)e.stopPropagation()},
+    onClick:function(e){
+      if(e&&e.stopPropagation)e.stopPropagation();
+      if(onFix)onFix(c)},
+    children:"pas une vidéo"},"badsrc")}
 
 /* ▲ ▼ × d'un en-tête de piste, et la poignée de glisser-déposer.
    Le × ARME avant de frapper quand la piste porte des clips : un clic pose
@@ -1285,6 +1437,8 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   Projects:DzmProjects,projLine:dzmProjLine,projWhen:dzmProjWhen,
   tracksOf:svmTracksOf,from:svmTracksFrom,payload:svmTracksPayload,
   busSync:svmTrackBusSync,skin:dzmSkin,
+  pickTrack:dzmPickTrack,isVideoJob:dzmIsVideoJob,
+  LibBtn:DzmLibBtn,badSrc:dzmBadSrcChip,
   move:dzmMove,moveTo:dzmMoveTo,add:dzmAdd,remove:dzmRemove,group:dzmGroup,
   clipsOn:dzmClipsOn,emojiClips:dzmEmojiClips,WORD_ANIMS:DZM_WORD_ANIMS,
   DEFAULTS:DZM_DEFAULT_TRACKS};

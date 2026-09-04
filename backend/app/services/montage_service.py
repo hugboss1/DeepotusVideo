@@ -1181,6 +1181,27 @@ async def montage_effects():
     return {"effects": effects_engine.catalog()}
 
 
+@router.get("/media-rules")
+async def montage_media_rules():
+    """La RÈGLE d'extensions vidéo, telle que le rendu l'applique — servie au
+    sélecteur d'assets de l'éditeur pour qu'il n'en fabrique pas une seconde
+    copie.
+
+    P9. `ovPicker()` du bundle listait ses « Rendus vidéo » sur le critère
+    `status == "done" and (video_path or final_video_path)` — EXACTEMENT
+    celui que P8 vient de corriger ici. Les planches `sprite2d` et les
+    maillages `asset3d` y étaient donc encore proposés, et rien n'empêchait
+    l'utilisateur de reposer à la main les clips que P8 écarte. Une copie de
+    `_VIDEO_EXTS` écrite en JavaScript aurait divergé de celle-ci au premier
+    format ajouté ; le client interroge donc CETTE liste, la même que celle
+    que lit `_is_video_artifact`.
+
+    La réponse ne porte QUE ce qui a un lecteur — un champ sans lecteur est
+    un mensonge poli. Le client qui n'obtient pas cette route ne filtre PAS
+    et le dit à l'écran ; il ne devine pas une liste de son côté."""
+    return {"video_exts": list(_VIDEO_EXTS)}
+
+
 @router.post("/save")
 async def montage_save(request: Request):
     """Autosave de l'éditeur Montage. Body : {name, ratio, duration, mix,

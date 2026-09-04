@@ -538,6 +538,216 @@ check("css_porte_l_etat_ouvert_du_bouton_projets",
       and "dzm-projb" in src,
       "l'etat ouvert du bouton « projets » n'est pas habille")
 
+print("\n[1-quater] P9 — « Bibliothèque… », la piste résolue, le champ enfin lu")
+SERVICE = ROOT / "backend" / "app" / "services" / "montage_service.py"
+SVC = SERVICE.read_text(encoding="utf-8") if SERVICE.is_file() else ""
+check("service_montage_lisible", bool(SVC), f"{SERVICE} illisible")
+# ── le bouton, replie dans R_M8 comme M10 / M11b / M14 ────────────────────
+check("M16lib-bouton_bibliotheque_dans_la_barre",
+      s.count(nl(P.R_M16LIB)) == 1, f"count={s.count(nl(P.R_M16LIB))}")
+check("M16lib_utilise_DzTracks_pas_DzMontage",
+      "DzMontage.LibBtn" not in s and s.count("DzTracks.LibBtn") == 1,
+      f'count={s.count("DzTracks.LibBtn")}')
+# Le libelle EST le mot de l'utilisateur (« depuis la bibliotheque »), pas
+# « + clip ». Il vit dans la couche, donc on le mesure dans le bundle livre.
+check("M16lib_le_libelle_est_le_mot_de_l_utilisateur",
+      nl('children:"Bibliothèque…"},"lib")') in s,
+      "le bouton ne s'appelle plus « Bibliothèque… »")
+# Controle a DEUX FACES, comme M10/M12/M13/M14 : R_M16LIB appelle trois
+# identifiants du bundle ; verifier la seule declaration laisserait passer un
+# appel renomme, verifier le seul appel ne verrait pas un rebuild.
+for _nm, _decl in (("openPicker", "function openPicker(trId){"),
+                   ("svmTracksOf", "function svmTracksOf(proj){"),
+                   ("fireNote", "fireNote=nt[1]")):
+    _ap = re.search(r"\b%s\b" % re.escape(_nm), P.R_M16LIB) is not None
+    check("M16lib_appelle_" + _nm + "_qui_est_declare",
+          _ap and s.count(nl(_decl)) >= 1,
+          f"appelé={_ap} déclaré={s.count(nl(_decl))} ({_decl})")
+# MESURE qui fonde le bouton : avant P9, `openPicker` n'etait appele QU'A UN
+# endroit — le « + » de 14 px d'un en-tete de piste. Deux appels apres P9 :
+# celui-la, et le notre. Un troisieme voudrait dire que quelqu'un a repose la
+# question sans le dire.
+check("M16lib_openPicker_a_exactement_deux_appelants",
+      len(re.findall(r"openPicker\(", s)) - s.count("function openPicker(") == 2,
+      f'appels={len(re.findall(r"openPicker.", s))}')
+# ── les libelles qui mentaient ────────────────────────────────────────────
+check("M16_les_boutons_de_piste_disent_qu_ils_ajoutent_une_piste",
+      nl('children:"+ piste vidéo"') in s and nl('children:"+ piste audio"') in s
+      and s.count(nl('children:"+ vidéo"')) == 0
+      and s.count(nl('children:"+ audio"')) == 0,
+      "« + vidéo » / « + audio » ajoutent une PISTE et ne le disent pas")
+# ── addAsset : la piste v2 en dur a disparu ───────────────────────────────
+check("M16a_la_piste_v2_en_dur_a_disparu",
+      s.count(nl('var tr2=trId||"v2"')) == 0,
+      f'count={s.count(nl(chr(34)+"var tr2=trId||"+chr(92)+chr(34)))}')
+for _nm, _decl in (("pickTrack", "function dzmPickTrack(ts,kind){"),
+                   ("dzTracksRef", "var dzTracksRef=x.useRef(null);"),
+                   ("durRef", "var durRef=x.useRef(proj.dur);"),
+                   ("fireNote", "fireNote=nt[1]")):
+    _ap = re.search(r"\b%s\b" % re.escape(_nm), P.R_M16A) is not None
+    check("M16a_appelle_" + _nm + "_qui_est_declare",
+          _ap and s.count(nl(_decl)) >= 1,
+          f"appelé={_ap} déclaré={s.count(nl(_decl))} ({_decl})")
+# LE GREFFON AMONT EST INTACT, et c'est le point : la correction se porte en
+# AVAL. Si cette ligne rougit, quelqu'un a edite patch_bundle_libsend.py — le
+# maillon dont le rejeu solitaire efface tout ce qui suit.
+check("M16a_le_greffon_amont_n_a_pas_ete_touche",
+      s.count(nl('addAsset({job_id:p.job_id},p.title||p.job_id,'
+                 '"video",p.dur||0,"v2")')) == 1
+      and s.count("window.__dzMontageAdd") >= 1,
+      "le greffon libsend a bougé — la correction devait rester en aval")
+# LES TROIS REFUS SORTENT AVANT `pushHistory()` : un clip refusé ne doit pas
+# laisser derrière lui une entrée d'historique qui ne défait rien.
+_a0 = s.find(nl(P.R_M16A))
+_a1 = s.find(nl(P.R_M16B), _a0 if _a0 >= 0 else 0)
+_body = s[_a0:_a1] if _a0 >= 0 and _a1 > _a0 else ""
+# `pushHistory();` AVEC le point-virgule : c'est l'APPEL. Sans lui la mesure
+# tombait sur la mention `pushHistory()` du commentaire de la section, 800
+# caractères plus haut que l'appel — et la ligne rougissait à tort.
+# QUATRE `;return}` dans la section : les trois refus PLUS le relais de
+# `dzAddWhenReady` vers addAsset. Un refus dont on retirerait le `return`
+# tomberait dans `pushHistory()` et poserait le clip quand même — l'ordre
+# textuel seul ne le verrait pas, puisque la note resterait au même endroit.
+check("M16a_refuse_avant_de_pousser_l_historique",
+      bool(_body) and _body.count("pushHistory();") == 1
+      and P.R_M16A.count(";return}") == 4
+      and _body.rindex(nl("n'a pas été posé")) < _body.index("pushHistory();"),
+      "un refus laisse une entrée d'historique derrière lui")
+# L'ATTENTE est bornée ET dite : le greffon amont, lui, avale tout dans un
+# catch muet. Les 6 s sont un plafond CHOISI — c'est écrit dans la section.
+# LA GARDE ELLE-MEME, pas seulement le texte de la note. MESURE : en
+# desarmant la condition, le banc restait ENTIEREMENT vert parce que les
+# chaines de la note survivaient a la mutation. La ligne qui decide est la
+# premiere.
+# LA CONDITION EST `dzReadyRef`, PAS `dur > 0` — et c'est une RECTIFICATION du
+# brief de la tache, mesuree : l'etat initial du composant est
+# `{demo:!0,…,dur:SVM_DEMO_DUR,…}` avec `var SVM_DEMO_DUR=64` (son-vfx-
+# montage.js l.820), donc `durRef.current` ne vaut JAMAIS 0 et une garde
+# `dur > 0` aurait ete du code mort. Ce que le retard de GET /project casse
+# vraiment : `proj` reste la MAQUETTE (sans `tracks`, donc les six pistes
+# historiques, v2 comprise) et `svmApplyProject` fait ensuite `setClips(cs)`,
+# qui remplace la liste entiere — le clip pose entre-temps est efface.
+check("M16a_l_attente_est_bornee_et_dite",
+      "if(!dzReadyRef.current){dzAddWhenReady(" in P.R_M16A
+      and "Date.now()>=until" in P.R_M16A
+      and "if(dzReadyRef.current){addAsset(" in P.R_M16A
+      and "n'a pas été posé : la " in P.R_M16A
+      and "PLAFOND CHOISI, pas une mesure" in P.R_M16A,
+      "l'attente n'est pas armée, pas bornée, ou son échec est muet")
+# LA MESURE QUI FONDE CE CHOIX, REJOUEE — sinon elle se perime en silence :
+# la duree de depart n'est pas nulle, et `setClips` de svmApplyProject
+# remplace bien la liste entiere.
+check("M16a_la_duree_de_depart_n_est_pas_nulle",
+      s.count(nl("var SVM_DEMO_DUR=64;")) == 1
+      and s.count(nl("dur:SVM_DEMO_DUR,mixDb:SVM_DEMO_MIX})")) == 1,
+      "SVM_DEMO_DUR a bougé — la garde `dzReadyRef` doit être re-justifiée")
+check("M16a_le_chargement_du_projet_remplace_les_clips",
+      s.count(nl("setClips(cs);setSelId(first?first.id:\"\");")) == 1,
+      "svmApplyProject ne remplace plus la liste : la course a changé de forme")
+# `dzReadyRef` suit CHAQUE rendu, comme dzTracksRef.
+check("M16ref_l_etat_pret_suit_chaque_rendu",
+      s.count(nl("dzReadyRef.current=!proj.demo;")) == 1,
+      f'count={s.count(nl("dzReadyRef.current=!proj.demo;"))}')
+_deh3 = s.count("dzReadyRef") - (P.R_M16REF + P.R_M16A).count("dzReadyRef")
+check("M16ref_nom_dzReadyRef_n_ecrase_rien", _deh3 == 0,
+      f"dzReadyRef apparaît {_deh3}x hors des sections qui l'écrivent")
+# MEME MESURE, meme conclusion : `if(0){fireNote(…)…return}` laissait tout
+# vert — le refus etait mort et son texte toujours la.
+check("M16a_refuse_quand_aucune_piste_ne_convient",
+      "if(!tr2){fireNote(" in P.R_M16A
+      and "porte aucune piste " in P.R_M16A,
+      "le refus ne s'arme pas : un clip partirait dans le vide sans un mot")
+# ── la ref des pistes suit CHAQUE rendu ───────────────────────────────────
+check("M16ref_la_ref_suit_chaque_rendu",
+      s.count(nl("dzTracksRef.current=svmTracksOf(proj);")) == 1,
+      f'count={s.count(nl("dzTracksRef.current=svmTracksOf(proj);"))}')
+_dehors = s.count("dzTracksRef") - (P.R_M16REF + P.R_M16A).count("dzTracksRef")
+check("M16ref_nom_dzTracksRef_n_ecrase_rien", _dehors == 0,
+      f"dzTracksRef apparaît {_dehors}x hors des sections qui l'écrivent")
+# ── la note dit OU le clip a atterri, et nomme la sortie ──────────────────
+# `(dzMoved?` — LA CONDITION, pas la seule presence du nom. MESURE : en la
+# remplacant par `(0?`, la note redevenait muette sur la piste reelle et le
+# banc restait vert, `dzMoved` figurant encore dans la branche morte.
+check("M16b_la_note_nomme_la_piste_reelle_et_la_sortie",
+      s.count(nl(P.R_M16B)) == 1 and "(dzMoved?" in P.R_M16B
+      and "« + piste vidéo »" in P.R_M16B
+      and "dzMoved" in P.R_M16A,
+      f"count={s.count(nl(P.R_M16B))}")
+_deh2 = s.count("dzMoved") - (P.R_M16A + P.R_M16B).count("dzMoved")
+check("M16b_nom_dzMoved_n_ecrase_rien", _deh2 == 0,
+      f"dzMoved apparaît {_deh2}x hors des sections qui l'écrivent")
+# ── le sélecteur applique LA règle du rendu ───────────────────────────────
+check("M16c_le_selecteur_interroge_la_route_du_backend",
+      s.count(nl('fetch("/api/montage/media-rules")')) == 1
+      and s.count("DzTracks.isVideoJob") == 1,
+      f'route={s.count(nl(chr(34)+"/api/montage/media-rules"+chr(34)))}')
+check("M16c_l_ancien_critere_a_disparu",
+      s.count(nl('j3.status==="done"&&(j3.video_path||j3.final_video_path)')) == 0,
+      "le critère fautif de P8 vit encore dans le sélecteur")
+# LA REGLE N'EST PAS RECOPIEE. Une seconde liste d'extensions en JavaScript
+# divergerait de `_VIDEO_EXTS` au premier format ajouté : la couche ne doit en
+# citer AUCUNE. Mesure sur le fichier de la couche, pas sur le patcher.
+_copiees = [e for e in (".mp4", ".mov", ".webm", ".mkv", ".m4v", ".avi")
+            if e in src]
+check("M16c_la_couche_ne_recopie_aucune_extension", _copiees == [],
+      f"la couche cite {_copiees} — c'est la seconde copie qu'on refuse")
+check("M16c_dit_a_l_ecran_qu_il_ne_filtre_pas",
+      "if(!xt)fireNote(" in P.R_M16C and "PAS filtrée" in P.R_M16C,
+      "une règle injoignable passerait sans un mot")
+# LA ROUTE EXISTE, et elle sert LA MEME liste que le pré-vol du rendu :
+# contrôle à deux faces, côté serveur cette fois.
+check("backend_sert_la_regle_d_extensions",
+      SVC.count('@router.get("/media-rules")') == 1
+      and SVC.count('return {"video_exts": list(_VIDEO_EXTS)}') == 1,
+      "GET /api/montage/media-rules absente ou ne sert pas _VIDEO_EXTS")
+# LA FONCTION ENTIERE, en-tete comprise. MESURE : la sous-chaine
+# `return p.suffix.lower() in _VIDEO_EXTS` vaut 2 dans ce fichier — la
+# seconde est la premiere moitie de `_ffmpeg_ouvrira`, qui teste
+# `_VIDEO_EXTS + _IMAGE_EXTS + _AUDIO_EXTS`. Vider `_is_video_artifact`
+# laissait donc la ligne VERTE.
+check("backend_la_regle_servie_est_celle_du_rendu",
+      SVC.count("_VIDEO_EXTS = (") == 1
+      and SVC.count("def _is_video_artifact(p: Path) -> bool:\n"
+                    "    return p.suffix.lower() in _VIDEO_EXTS\n") == 1,
+      "_VIDEO_EXTS n'est plus la règle unique du rendu")
+# ── `v1_non_video` enfin LU ───────────────────────────────────────────────
+check("backend_signale_toujours_les_clips_v1_non_video",
+      SVC.count('out["v1_non_video"] = non_video') == 1,
+      "le champ que M16d lit n'est plus produit")
+check("M7_la_restauration_porte_le_champ_jusqu_a_la_timeline",
+      "v1NonVideo:Array.isArray(d.v1_non_video)" in P.R_M7
+      and s.count(nl("v1NonVideo:Array.isArray(d.v1_non_video)")) == 1,
+      "le champ n'arrive pas jusqu'à `proj`")
+# `c.tr==="v1"` EN PLUS de l'appartenance a la liste : le champ ne porte que
+# des clips V1, mais un clip DEPLACE sur une piste d'incrustation ne doit plus
+# etre marque — une image y est parfaitement legitime (le pre-vol la laisse
+# passer, cf. `backend_le_prevol_laisse_passer_une_image`).
+check("M16d_marque_les_clips_signales",
+      s.count(nl(P.R_M16D)) == 1 and "proj.v1NonVideo" in P.R_M16D
+      and 'c.tr==="v1"&&' in P.R_M16D,
+      f"count={s.count(nl(P.R_M16D))}")
+check("M16d_utilise_DzTracks_pas_DzMontage",
+      "DzMontage.badSrc" not in s and s.count("DzTracks.badSrc") == 1,
+      f'count={s.count("DzTracks.badSrc")}')
+# LA SORTIE EST OFFERTE SUR PLACE — le même geste que « Bibliothèque… », et
+# sur la piste DU CLIP, pas sur une piste devinée.
+check("M16d_offre_la_sortie_sur_place",
+      "openPicker(c.tr)" in P.R_M16D,
+      "la chip signale sans offrir de sortie")
+# ── la feuille habille les deux nouveautés ────────────────────────────────
+_css = CSS.read_text(encoding="utf-8")
+check("css_porte_le_bouton_bibliotheque",
+      ".dzm-libb{" in _css.replace(" ", "").replace("\n", "").replace("\r", "")
+      and "dzm-libb" in src, "montage.css n'habille pas « Bibliothèque… »")
+check("css_porte_la_chip_pas_une_video",
+      ".dzm-badsrc{" in _css.replace(" ", "").replace("\n", "").replace("\r", "")
+      and ".dzm-badsrc:hover" in _css and "dzm-badsrc" in src,
+      "montage.css n'habille pas la chip « pas une vidéo »")
+# Le CŒUR de P9 doit être DANS le bloc livré, pas seulement dans la source.
+check("bloc_contient_pickTrack_et_isVideoJob",
+      nl("pickTrack:dzmPickTrack,isVideoJob:dzmIsVideoJob,") in s
+      and nl("function dzmIsVideoJob(j,exts){") in s)
+
 print("\n[1-ter] feuille de style et index.html")
 check("css_liee_index_html", "shared/montage.css" in
       HTML.read_bytes().decode("utf-8-sig"))
@@ -786,6 +996,76 @@ out.pl_zero=T.projLine({clips:0,duration:0,ratio:""});
 out.pw_bon=T.projWhen("2026-01-02T03:04:05Z");
 out.pw_casse=T.projWhen("pas une date");
 out.pw_nul=T.projWhen(null);
+/* ── P9 : la piste RESOLUE, le filtre du selecteur, les deux commandes ──── */
+/* CAP = les pistes MESUREES dans la sauvegarde reelle du 04/09/2026 : il n'y
+   a PAS de v2, et c'est tout le defaut. `trId||"v2"` posait le clip la. */
+var CAP=[{id:"v1",kind:"video"},{id:"a2",kind:"audio"},{id:"a1",kind:"audio"},
+         {id:"a3",kind:"audio"},{id:"s1",kind:"subs"}];
+out.pick_v=T.pickTrack(CAP,"video");
+out.pick_a=T.pickTrack(CAP,"audio");
+out.pick_s=T.pickTrack(CAP,"subs");
+/* SANS `kind` : le genre se deduit de l'identifiant (une liste restauree
+   d'une vieille sauvegarde n'a que des `id`), et la premiere piste VIDEO
+   n'est pas la premiere piste tout court. */
+out.pick_1re=T.pickTrack([{id:"a1"},{id:"v3"},{id:"v1"}],"video");
+out.pick_aucune=T.pickTrack([{id:"a1",kind:"audio"},{id:"s1",kind:"subs"}],"video");
+out.pick_vide=T.pickTrack([],"video");
+out.pick_nul=T.pickTrack(null,"video");
+/* EXTS est la liste que le BACKEND sert (_VIDEO_EXTS). Elle est ecrite ICI,
+   dans le banc, et NULLE PART dans la couche — c'est justement ce que
+   `M16c_la_couche_ne_recopie_aucune_extension` verifie. */
+var EXTS=[".mp4",".mov",".webm",".mkv",".m4v",".avi"];
+out.jv_mp4=T.isVideoJob({status:"done",final_video_path:"C:/x/a.mp4"},EXTS);
+/* LES DEUX CAS DE P8, ceux que le selecteur proposait encore */
+out.jv_planche=T.isVideoJob({status:"done",video_path:"C:/x/sprites.png"},EXTS);
+out.jv_maillage=T.isVideoJob({status:"done",final_video_path:"C:/x/m.glb"},EXTS);
+out.jv_encours=T.isVideoJob({status:"running",final_video_path:"C:/x/a.mp4"},EXTS);
+/* `final_video_path` PRIME : c'est l'ordre de `_resolve_src` cote serveur
+   (`jr.final_video_path or jr.video_path`). L'ancien critere prenait le
+   PREMIER des deux qui existe — sur ce job-la, les deux divergent. */
+out.jv_final_prime=T.isVideoJob({status:"done",video_path:"C:/x/a.mp4",
+  final_video_path:"C:/x/b.png"},EXTS);
+out.jv_majuscules=T.isVideoJob({status:"done",final_video_path:"C:/x/A.MP4"},EXTS);
+out.jv_preview=T.isVideoJob({status:"done",provider:"montage",
+  image_filename:"z_preview.png",final_video_path:"C:/x/a.mp4"},EXTS);
+out.jv_sans_chemin=T.isVideoJob({status:"done"},EXTS);
+/* regle INJOIGNABLE : on ne filtre pas, et le selecteur le DIT a l'ecran.
+   Une liste vide en dur aurait affiche « aucun rendu video termine » sur une
+   Bibliotheque pleine. */
+out.jv_sans_regle=T.isVideoJob({status:"done",video_path:"C:/x/sprites.png"},null);
+/* un nom qui CONTIENT une extension video sans en porter une : `endsWith`
+   naif aurait dit oui sur « a.mp4.zip » — le suffixe est extrait, comme
+   `Path(...).suffix` cote serveur. */
+out.jv_faux_ami=T.isVideoJob({status:"done",final_video_path:"C:/x/a.mp4.zip"},EXTS);
+out.jv_nul=T.isVideoJob(null,EXTS);
+/* ── le bouton « Bibliotheque… » ─────────────────────────────────────────── */
+var lpick=null;
+var lb=T.LibBtn({tracks:CAP,onPick:function(id){lpick=id},note:function(m){}});
+lb.p.onClick();
+out.lib_pick=lpick;
+out.lib_label=lb.p.children;
+out.lib_titre_nomme_la_piste=lb.p.title.indexOf("V1")>=0;
+/* AUCUNE piste video : le bouton ne s'eteint pas — il DIT pourquoi et nomme
+   la sortie. Un bouton grise sans explication oblige a deviner, et c'est le
+   defaut que toute cette tache repare. */
+var lm=null,lp2=null;
+T.LibBtn({tracks:[{id:"a1",kind:"audio"}],onPick:function(id){lp2=id},
+  note:function(m){lm=m}}).p.onClick();
+out.lib_sans_piste_note=lm;
+out.lib_sans_piste_n_ouvre_rien=(lp2===null);
+/* ── la chip « pas une video » ───────────────────────────────────────────── */
+var bfix=null,bstop=0;
+function EV(){return {stopPropagation:function(){bstop++}}}
+var bc=T.badSrc({id:"c3",tr:"v1"},function(c){bfix=c.id});
+out.bad_label=bc.p.children;
+bc.p.onPointerDown(EV());
+bc.p.onClick(EV());
+out.bad_fix=bfix;
+/* DEUX arrets : sans celui du pointerdown, le clic amorcerait le
+   deplacement du clip qui est SOUS la chip. */
+out.bad_arrete_les_deux=bstop;
+out.bad_titre_echec=bc.p.title.indexOf("fera échouer le rendu")>=0;
+out.bad_titre_carton=bc.p.title.indexOf("carton fixe")>=0;
 console.log(JSON.stringify(out));
 """
 # "use strict" en PROLOGUE du shim : concatene, celui de montage.js n'est
@@ -1063,6 +1343,99 @@ check("js_proj_date_sans_fuseau", d.get("pw_bon") == "02/01 03:04 UTC",
 check("js_proj_date_illisible_rend_vide",
       d.get("pw_casse") == "" and d.get("pw_nul") == "",
       f'{d.get("pw_casse")!r} / {d.get("pw_nul")!r}')
+
+# ── P9 : le cœur pur, EXECUTE ────────────────────────────────────────────
+# LE CAS MESURE. Sur les pistes de la sauvegarde reelle — [v1, a2, a1, a3,
+# s1], sans v2 — la piste video resolue est v1. C'est la ligne qui dit que le
+# clip cesse d'aller dans le vide.
+check("pick_video_sans_v2", d.get("pick_v") == "v1", str(d.get("pick_v")))
+# le PARAMETRE `kind` decide vraiment : sur les MEMES pistes, l'audio rend a2.
+check("pick_audio_sur_les_memes_pistes", d.get("pick_a") == "a2",
+      str(d.get("pick_a")))
+check("pick_subs_sur_les_memes_pistes", d.get("pick_s") == "s1",
+      str(d.get("pick_s")))
+# la PREMIERE du genre, pas la premiere tout court — et sans `kind` declare,
+# donc en deduisant le genre de l'identifiant.
+check("pick_video_prend_la_premiere", d.get("pick_1re") == "v3",
+      str(d.get("pick_1re")))
+# aucune piste du genre : "" — un refus, pas un identifiant invente.
+check("pick_sans_piste_du_genre", d.get("pick_aucune") == "",
+      repr(d.get("pick_aucune")))
+check("pick_entrees_molles",
+      d.get("pick_vide") == "" and d.get("pick_nul") == "",
+      f'{d.get("pick_vide")!r} / {d.get("pick_nul")!r}')
+# ── le filtre du selecteur, applique a la lettre du backend ──────────────
+check("job_video_acceptee", d.get("jv_mp4") is True, str(d.get("jv_mp4")))
+# LES DEUX FAMILLES QUE P8 ECARTE et que le selecteur proposait encore.
+check("job_planche_sprite_ecartee", d.get("jv_planche") is False,
+      str(d.get("jv_planche")))
+check("job_maillage_ecarte", d.get("jv_maillage") is False,
+      str(d.get("jv_maillage")))
+check("job_pas_fini_ecarte", d.get("jv_encours") is False,
+      str(d.get("jv_encours")))
+# L'ORDRE des deux chemins est celui du serveur : le fini prime sur le brut.
+check("job_final_video_path_prime_sur_video_path",
+      d.get("jv_final_prime") is False, str(d.get("jv_final_prime")))
+check("job_extension_insensible_a_la_casse", d.get("jv_majuscules") is True,
+      str(d.get("jv_majuscules")))
+check("job_previsualisation_de_montage_ecartee", d.get("jv_preview") is False,
+      str(d.get("jv_preview")))
+check("job_sans_artefact_ecarte",
+      d.get("jv_sans_chemin") is False and d.get("jv_nul") is False,
+      f'{d.get("jv_sans_chemin")} / {d.get("jv_nul")}')
+# REGLE INJOIGNABLE : on ne filtre pas — et R_M16C le dit a l'ecran (ligne
+# `M16c_dit_a_l_ecran_qu_il_ne_filtre_pas`). C'est le seul repli honnete :
+# une liste vide aurait menti, une liste ecrite ici serait la seconde copie.
+check("job_sans_regle_ne_filtre_pas", d.get("jv_sans_regle") is True,
+      str(d.get("jv_sans_regle")))
+# le suffixe est EXTRAIT, pas cherche en fin de chaine : « a.mp4.zip » n'est
+# pas une video, et un `endsWith` naif aurait dit oui.
+check("job_faux_ami_mp4_zip_ecarte", d.get("jv_faux_ami") is False,
+      str(d.get("jv_faux_ami")))
+# ── le bouton « Bibliotheque… » ──────────────────────────────────────────
+check("libbtn_ouvre_sur_la_piste_resolue", d.get("lib_pick") == "v1",
+      str(d.get("lib_pick")))
+check("libbtn_porte_le_mot_de_l_utilisateur",
+      d.get("lib_label") == "Bibliothèque…", str(d.get("lib_label")))
+check("libbtn_dit_sur_quelle_piste_il_posera",
+      d.get("lib_titre_nomme_la_piste") is True,
+      str(d.get("lib_titre_nomme_la_piste")))
+# SANS piste video : rien n'est ouvert, et la note NOMME la sortie.
+check("libbtn_sans_piste_video_n_ouvre_rien",
+      d.get("lib_sans_piste_n_ouvre_rien") is True,
+      str(d.get("lib_sans_piste_n_ouvre_rien")))
+check("libbtn_sans_piste_video_nomme_la_sortie",
+      d.get("lib_sans_piste_note") == "Aucune piste vidéo dans ce projet — "
+      "« + piste vidéo » en crée une, puis « Bibliothèque… » y posera le clip.",
+      str(d.get("lib_sans_piste_note")))
+# ── la chip « pas une video » ────────────────────────────────────────────
+check("chip_non_video_dit_ce_qu_elle_est",
+      d.get("bad_label") == "pas une vidéo", str(d.get("bad_label")))
+check("chip_non_video_offre_la_sortie", d.get("bad_fix") == "c3",
+      str(d.get("bad_fix")))
+# DEUX arrets de propagation : sans celui du pointerdown, le clic amorcerait
+# le deplacement du clip qui est SOUS la chip.
+check("chip_non_video_n_amorce_pas_le_deplacement",
+      d.get("bad_arrete_les_deux") == 2, str(d.get("bad_arrete_les_deux")))
+# LA CHIP DIT LES DEUX CAS, et c'est une RECTIFICATION du brief de la tache.
+# « POST /render refuse deja ces clips en 400 » n'est vrai que pour une PARTIE
+# d'entre eux : `v1_non_video` liste ce qui n'est pas dans `_VIDEO_EXTS` (6
+# extensions), le pre-vol refuse ce que `_ffmpeg_ouvrira` rejette, c'est-a-dire
+# hors de `_VIDEO_EXTS + _IMAGE_EXTS + _AUDIO_EXTS`, et `_IMAGE_EXTS` contient
+# `.png` (montage_service.py l.1488). Une planche de sprites PNG est donc
+# SIGNALEE et PASSE le pre-vol — elle se rend en carton fixe ; un maillage
+# .glb est signale ET refuse. Promettre un refus qui n'arrive pas aurait ete
+# le meme defaut, a l'envers.
+check("chip_non_video_distingue_l_echec_du_carton_fixe",
+      d.get("bad_titre_echec") is True and d.get("bad_titre_carton") is True,
+      f'echec={d.get("bad_titre_echec")} carton={d.get("bad_titre_carton")}')
+# LA MESURE QUI FONDE CETTE FORMULATION, REJOUEE : sans elle, la phrase de la
+# chip se perimerait au premier changement de `_IMAGE_EXTS`.
+check("backend_le_prevol_laisse_passer_une_image",
+      '_IMAGE_EXTS = (".png"' in SVC
+      and "return p.suffix.lower() in _VIDEO_EXTS + _IMAGE_EXTS + _AUDIO_EXTS"
+      in SVC,
+      "le pre-vol ne laisse plus passer les images — la chip ment maintenant")
 
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")

@@ -258,3 +258,28 @@
   border-color:var(--red, #e35d4a); color:#fff}
 .dzsvm .dzm-projx:hover:not(:disabled):not([data-arm]){
   border-color:var(--red, #e35d4a); color:var(--red, #e35d4a)}
+
+/* ── P9 : « Bibliothèque… » — le bouton qui pose VRAIMENT un clip ──────────
+   Même famille que « + piste vidéo » et « texte » (`svm-tbtn` + largeur
+   auto) : c'est un bouton de la même barre, il n'a pas à se distinguer.
+   Ce qui le distingue est son LIBELLÉ — le mot de l'utilisateur. */
+.dzsvm .dzm-libb{width:auto; padding:0 8px; font-size:10px; flex:none;
+  font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace);
+  white-space:nowrap}
+
+/* ── P9 : « pas une vidéo » — la chip d'un clip que le rendu refusera ──────
+   ROUGE, pas ambre : ce n'est pas un avertissement mais un refus déjà
+   décidé — POST /render répond 400 en nommant ce clip. Même géométrie que
+   `.svm-desync` (le seul autre repère posé SUR un clip), à gauche pour ne
+   pas se disputer le coin de celle-là, et fond translucide du panneau pour
+   rester lisible par-dessus une vignette ou une waveform.
+   C'est un BOUTON : il rouvre la Bibliothèque sur la piste du clip. Le
+   curseur le dit, et il reste au-dessus du média (z-index). */
+.dzsvm .dzm-badsrc{position:absolute; left:4px; bottom:3px; z-index:2;
+  width:auto; height:auto; padding:1px 6px; border-radius:999px;
+  font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace);
+  font-size:9px; letter-spacing:.02em; line-height:1.5; white-space:nowrap;
+  color:var(--red, #e35d4a); border:1px solid var(--red, #e35d4a);
+  background:color-mix(in srgb, var(--panel, #17161a) 80%, transparent);
+  cursor:pointer}
+.dzsvm .dzm-badsrc:hover{background:var(--red, #e35d4a); color:#fff}

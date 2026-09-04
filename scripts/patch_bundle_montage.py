@@ -63,6 +63,25 @@ Sections :
       dupliquer, renommer, supprimer), posé lui aussi DANS le remplacement de
       M8 — même raison qu'en M10 et M11b. M6 et M7 y gagnent la clé
       `project_id`, qui relie le brouillon courant à son projet.
+  M16 (P9) « Bibliothèque… », et la remise qui se perdait — quatre sections
+      plus un repli :
+        M16-lib  le bouton « Bibliothèque… » de la barre de transport, posé
+                 DANS le remplacement de M8 (A_M8 déjà consommée) ; il ouvre
+                 `openPicker` sur la piste vidéo RÉSOLUE ;
+        M16ref   `dzTracksRef` — les pistes du projet relues à chaque rendu,
+                 parce que le greffon amont appelle l'addAsset du PREMIER ;
+        M16a     `addAsset` pose sur une piste QUI EXISTE (fin de
+                 `trId||"v2"`) et attend que la timeline soit chargée ;
+        M16b     la note dit sur quelle piste le clip a atterri, et pourquoi ;
+        M16c     le sélecteur « Rendus vidéo » applique LA règle du rendu
+                 (GET /api/montage/media-rules → `_VIDEO_EXTS`), jamais une
+                 copie JavaScript ;
+        M16d     `v1_non_video` enfin LU : chip « pas une vidéo » cliquable
+                 sur les clips que le rendu refusera ; M7 y gagne la clé
+                 `v1NonVideo`, qui la porte jusqu'à la timeline.
+      Les libellés « + vidéo » / « + audio » deviennent « + piste vidéo » /
+      « + piste audio » — édition de `DzmTrackAdd` DANS LA COUCHE, pas une
+      section de plus.
 
 Mécanique identique à patch_bundle_subs.py : restauration du .bak dédié puis
 ré-application, chaque ancre devant apparaître EXACTEMENT une fois, sinon
@@ -145,9 +164,22 @@ R_M6 = ("      duration_master:durMaster,ducking:ducking,clips:clips,\n"
         "      project_id:proj.project_id,")
 
 # ── M7 : restauration ───────────────────────────────────────────────────────
+# TROIS clés, et la troisième est de P9. `v1_non_video` est rendu par
+# GET /project depuis P8 : des IDENTIFIANTS de clips V1 dont l'artefact n'est
+# pas une vidéo, joignables un à un aux `clips` de la MÊME réponse (le
+# contrat est arrêté dans la docstring de la route). Personne ne le lisait —
+# le backend savait, l'écran se taisait, et POST /render refusait en 400
+# APRÈS le clic. M16d le pose sur la timeline ; il transite par `proj` et non
+# par les clips eux-mêmes, DÉLIBÉRÉMENT : `clips` part tel quel à l'autosave
+# (cf. M6), un drapeau collé sur un clip y serait persisté et survivrait à sa
+# propre correction. `proj`, lui, n'est jamais sérialisé en bloc.
+# `null` quand la clé est absente : une réponse qui ne dit rien ne marque
+# rien — l'ouverture d'un projet nommé (POST /projects/{pid}/open) ne rend
+# pas ce champ, et le marquage s'y éteint plutôt que de mentir.
 A_M7 = 'var np={demo:!1,name:d.name||"montage",version:"v1",ratio:d.ratio||"9:16",'
 R_M7 = ('var np={demo:!1,tracks:svmTracksFrom(d.tracks),'
         'project_id:d.project_id,'
+        'v1NonVideo:Array.isArray(d.v1_non_video)?d.v1_non_video:null,'
         'name:d.name||"montage",version:"v1",ratio:d.ratio||"9:16",')
 
 # ── M8 : barre de transport ─────────────────────────────────────────────────
@@ -247,7 +279,25 @@ R_M14 = ('r.jsx(DzTracks.Projects,{name:proj.name,projectId:proj.project_id,'
          '          onNamed:function(pid,nm){setProj(function(p){'
          'return Object.assign({},p,{project_id:pid,name:nm})})}}),')
 
+# ── M16-lib (P9) : le bouton « Bibliothèque… » — DANS R_M8, comme M10/M11b/M14
+# MÊME RAISON QU'ELLES, et elle est mesurée : A_M8 est déjà consommée par M8
+# et la barre de transport n'offre pas de seconde ancre unique.
+# CE QUE CE BOUTON RÉPARE, mesuré dans le bundle livré : `openPicker` n'était
+# appelé QU'À UN endroit — le « + » de 14 px d'un en-tête de piste, révélé au
+# survol de cette piste-là (`onClick:function(){ if(trackKind(tr.id)==="subs")
+# {subsAddHere();return} openPicker(tr.id)}`). Rien, dans la barre de
+# transport, ne proposait d'ajouter un clip. Les boutons « + vidéo » /
+# « + audio » posés par M8 ajoutent une PISTE ; l'utilisateur les a lus comme
+# « ajouter une vidéo » et le libellé lui donnait raison — d'où leur
+# rectification en « + piste vidéo » / « + piste audio », qui est une édition
+# de `DzmTrackAdd` DANS LA COUCHE et non une section de plus.
+# Le libellé est « Bibliothèque… », pas « + clip » : c'est le mot que
+# l'utilisateur a employé.
+R_M16LIB = ('r.jsx(DzTracks.LibBtn,{tracks:svmTracksOf(proj),note:fireNote,'
+            'onPick:openPicker}),')
+
 R_M8 = ('r.jsx(DzTracks.TrackAdd,{tracks:svmTracksOf(proj),onChange:svmTracksSet}),\n'
+        '        ' + R_M16LIB + '\n'
         '        ' + R_M10 + '\n'
         '        ' + R_M11b + '\n'
         '        ' + R_M14 + '\n'
@@ -365,13 +415,237 @@ R_M9a = 'children:[thAdd,thM,thS,thLock]},"br"),\n                  ' + _HB + ',
 A_M9b = 'children:[thType,thLock]},"tr")]}),'
 R_M9b = ('children:[thType,thLock]},"tr"),\n                  ' + _HB + ']}),')
 
+# ══ P9 — « Bibliothèque… » qui pose un clip, et la remise qui se perdait ═══
+#
+# DEUX PIÈGES DE CHAÎNE, réglés ici une fois pour toutes :
+#
+# 1. `scripts/patch_bundle_libsend.py` (greffon S4, `GREFFE_MONTAGE`) est le
+#    maillon qui POSE le défaut — il appelle `addAsset(…, "v2")` — mais il est
+#    en AMONT. Le relancer seul effacerait ce que les maillons suivants ont
+#    écrit : le mode de panne qui a déjà coûté vingt-deux correctifs au dépôt.
+#    LA CORRECTION SE PORTE DONC ICI, EN AVAL, SUR `addAsset` : c'est addAsset
+#    qui choisit la piste, et le corriger là répare ce greffon-là ET toute
+#    remise future. Aucun octet de libsend n'est touché.
+# 2. `frontend/patches/son-vfx-montage.js` ne peut PAS être édité : le bloc
+#    correspondant du bundle porte les vingt sections V3/V4/V6/V8/V9 de
+#    patch_bundle_vfxrack.py et S3…S17 de patch_bundle_subs.py, `.bak_vfxrack`
+#    et `.bak_subs` sont absents de cette copie, et l'ancre V10 est consommée.
+#    Éditer ce fichier et relancer son patcher effacerait les vingt sections
+#    sans un mot et sans retour. Tout passe donc par des ancres, ici.
+#
+# ÉCART DÉCLARÉ (faute n°5 — « le code du plan est une intention »). Le plan
+# annonçait une COLLISION D'ANCRE avec la tâche 7 : M15 revendique
+# `  function addAsset(src,label,kind,srcDur,trId,atTime){`, et celle des deux
+# tâches qui passe en second devait replier sa section dans le remplacement de
+# l'autre. MESURE : cette section n'a pas besoin de cette ancre-là.
+# `    var tr2=trId||"v2",d=durRef.current;` vaut EXACTEMENT 1 dans le bundle
+# livré ET dans .bak_montage, et porte à elle seule les deux corrections.
+# L'ancre de la tâche 7 reste donc LIBRE et intacte : il n'y a pas de repli à
+# faire, dans un sens ni dans l'autre. C'est mieux que ce que le plan
+# prévoyait, et c'est dit ici pour que la tâche 7 ne cherche pas un repli qui
+# n'existe pas.
+
+# ── M16-ref (P9) : les pistes du projet, FRAÎCHES, pour addAsset ────────────
+# MESURE qui l'impose : le greffon amont consomme `window.__dzMontageAdd`
+# depuis un `x.useEffect(…, [])`, donc il appelle l'`addAsset` du PREMIER
+# rendu. Dans cette fermeture-là, `proj` est encore la maquette de démo
+# (`{demo:!0,name:"teaser_abyss",…}`) — sans `tracks`, donc `svmTracksOf`
+# retomberait sur DZM_DEFAULT_TRACKS, QUI CONTIENT v2. Lire `proj` depuis
+# addAsset aurait rendu la correction inopérante sur le seul chemin qui l'a
+# motivée. Une ref mise à jour à CHAQUE rendu est le motif déjà employé neuf
+# fois dans ce composant (durRef, clipsRef, phRef, trackStRef…) ; on le
+# reprend plutôt que d'en inventer un autre.
+A_M16REF = "  var durRef=x.useRef(proj.dur);durRef.current=proj.dur;"
+R_M16REF = (A_M16REF + "\n"
+            "  /* P9 — les PISTES du projet, relues à chaque rendu, pour que\n"
+            "     `addAsset` ne décide jamais sur un `proj` périmé (le greffon\n"
+            "     « Envoyer vers → Montage » l'appelle depuis la fermeture du\n"
+            "     premier rendu). Même motif que durRef, juste au-dessus. */\n"
+            "  var dzTracksRef=x.useRef(null);"
+            "dzTracksRef.current=svmTracksOf(proj);\n"
+            "  /* P9 — « le VRAI projet est-il arrivé ? ». Tant que\n"
+            "     `svmApplyProject` n'a pas remplacé la maquette, `proj` est la\n"
+            "     démo : sans `tracks`, donc svmTracksOf retombe sur les six\n"
+            "     pistes historiques — v2 COMPRISE. Un clip posé à cet\n"
+            "     instant-là repartirait sur une v2 que le projet réel n'a pas,\n"
+            "     et `setClips(cs)` de svmApplyProject l'effacerait de toute\n"
+            "     façon en écrasant la liste entière. */\n"
+            "  var dzReadyRef=x.useRef(!1);dzReadyRef.current=!proj.demo;")
+
+# ── M16a (P9) : addAsset pose sur une piste QUI EXISTE, et attend la durée ──
+A_M16A = '    var tr2=trId||"v2",d=durRef.current;'
+R_M16A = (
+    "    /* ── P9 — DEUX pannes MESURÉES se soignent ici ────────────────────\n"
+    "       (a) LA PISTE. `trId||\"v2\"` posait le clip sur une piste qui peut\n"
+    "       ne pas exister, et rien ne le vérifiait. MESURÉ dans la sauvegarde\n"
+    "       réelle du 04/09/2026 : `tracks` vaut [v1, a2, a1, a3, s1] — il n'y\n"
+    "       a PAS de piste v2. Le clip entrait dans `clips`, il était\n"
+    "       sauvegardé, il serait parti au rendu en incrustation ; mais la\n"
+    "       timeline ne dessine que `svmTracksOf(proj).map(…)` : il était\n"
+    "       invisible et inselectionnable. « rien n'est apparu » était exact,\n"
+    "       et le clip était pourtant là.\n"
+    "       (b) LES 450 ms DU GREFFON. Le brief de la tâche donnait pour cause\n"
+    "       « `durRef.current` encore 0 tant que GET /project n'a pas répondu ».\n"
+    "       MESURÉ, C'EST FAUX : l'état initial du composant est\n"
+    "       `{demo:!0,…,dur:SVM_DEMO_DUR,…}` et `var SVM_DEMO_DUR=64` — la durée\n"
+    "       vaut 64 dès le premier rendu et ne passe jamais par 0. Une garde\n"
+    "       `dur > 0` aurait été du code mort.\n"
+    "       LA VRAIE COURSE est ailleurs, et elle est double. À 450 ms, si\n"
+    "       GET /project n'a pas encore répondu (il ffprobe chaque asset), (i)\n"
+    "       `proj` est encore la MAQUETTE, sans `tracks` — donc svmTracksOf\n"
+    "       retombe sur les six pistes historiques, v2 COMPRISE, et le clip\n"
+    "       repart sur une v2 que le projet réel n'a pas ; (ii) `svmApplyProject`\n"
+    "       fait ensuite `setClips(cs)`, qui REMPLACE la liste entière — le clip\n"
+    "       posé entre-temps est effacé, purement et simplement. On attend donc\n"
+    "       la seule condition qui compte : que la maquette ait cédé la place.\n"
+    "       Les 20 s sont un PLAFOND CHOISI, pas une mesure — et l'échec est\n"
+    "       DIT, là où le greffon amont enveloppe tout dans un `catch` muet.\n"
+    "       Le seul appelant qui puisse atteindre addAsset avant ce moment est\n"
+    "       ce greffon : les six autres sont derrière une garde `proj.demo`\n"
+    "       (openPicker, sfxInsert, la branche `dz-audio` de dropOnTrack — et\n"
+    "       les trois onClick du sélecteur ne s'atteignent qu'après openPicker).\n"
+    "       AUCUN geste destructif n'a encore eu lieu à ce point : les refus\n"
+    "       ci-dessous sortent AVANT `pushHistory()`. */\n"
+    "    function dzAddWhenReady(a1,b1,c1,d1,e1,f1,until){\n"
+    "      if(dzReadyRef.current){addAsset(a1,b1,c1,d1,e1,f1);return}\n"
+    "      if(Date.now()>=until){fireNote(\"« \"+b1+\" » n'a pas été posé : la \"+\n"
+    "        \"timeline réelle n'est jamais arrivée — la maquette de \"+\n"
+    "        \"démonstration est toujours à l'écran. Enregistrez d'abord un \"+\n"
+    "        \"montage, puis reposez le clip avec « Bibliothèque… ».\");return}\n"
+    "      setTimeout(function(){dzAddWhenReady(a1,b1,c1,d1,e1,f1,until)},120)}\n"
+    "    var d=durRef.current;\n"
+    "    if(!dzReadyRef.current){dzAddWhenReady(src,label,kind,srcDur,trId,\n"
+    "      atTime,Date.now()+20000);return}\n"
+    "    var dzTs=dzTracksRef.current||svmTracksOf(proj);\n"
+    "    var dzWant=kind===\"audio\"?\"audio\":\"video\";\n"
+    "    var tr2=(trId&&dzTs.some(function(t){return t&&t.id===trId}))?trId\n"
+    "      :DzTracks.pickTrack(dzTs,dzWant);\n"
+    "    if(!tr2){fireNote(\"« \"+label+\" » n'a pas été posé : ce projet ne \"+\n"
+    "      \"porte aucune piste \"+(dzWant===\"audio\"?\"audio\":\"vidéo\")+\". \"+\n"
+    "      \"Ajoutez-en une avec « + piste \"+(dzWant===\"audio\"?\"audio\":\"vidéo\")+\n"
+    "      \" » dans la barre de transport, puis recommencez.\");return}\n"
+    "    var dzMoved=(trId&&tr2!==trId)?String(trId).toUpperCase():\"\";")
+
+# ── M16b (P9) : la note dit où le clip a atterri, et pourquoi ───────────────
+# Le clip DÉJÀ invisible dans la sauvegarde ne se répare pas tout seul — cette
+# section ne le déplace pas, elle ne fait que dire la vérité sur le geste en
+# cours. La sortie est nommée : `dzmAdd` reprend le plus PETIT identifiant
+# libre, donc « + piste vidéo » sur un projet [v1, a2, a1, a3, s1] recrée
+# exactement `v2`, et les clips posés dessus redeviennent visibles. Ce que
+# « annuler » ne restaure pas est inchangé ici (l'historique ne mémorise que
+# {clips, mixDb}) : ajouter un clip, lui, se défait entièrement.
+A_M16B = ('    fireNote("« "+label+" » ajouté sur "+tr2.toUpperCase()+" à "'
+          '+svmShort(st)+" — glissez / rognez sur la piste.")}')
+R_M16B = (
+    "    fireNote(\"« \"+label+\" » ajouté sur \"+tr2.toUpperCase()+\" à \"\n"
+    "      +svmShort(st)+\" — glissez / rognez sur la piste.\"+\n"
+    "      (dzMoved?\" La piste \"+dzMoved+\" n'existe pas dans ce projet : le \"+\n"
+    "        \"clip a été posé ici à la place. Recréer \"+dzMoved+\" avec \"+\n"
+    "        \"« + piste vidéo » y fera aussi réapparaître les clips déjà \"+\n"
+    "        \"posés sur cette piste absente.\":\"\"))}")
+
+# ── M16c (P9) : le sélecteur applique LA règle du rendu, pas une copie ──────
+# MESURE : `openPicker()` construisait sa liste « Rendus vidéo » avec
+# EXACTEMENT le critère fautif que P8 vient de corriger côté serveur —
+# `status === "done" && (video_path || final_video_path)`. Les planches
+# `sprite2d` et les maillages `asset3d` y étaient donc encore proposés, et
+# rien n'empêchait de reposer à la main les clips que P8 écarte.
+# La règle N'EST PAS RÉÉCRITE en JavaScript : une seconde copie divergerait de
+# la première au premier format ajouté. Le client interroge
+# GET /api/montage/media-rules, qui sert `_VIDEO_EXTS` — la liste même que lit
+# `_is_video_artifact`. Route injoignable : la liste n'est PAS filtrée et le
+# sélecteur le DIT (une liste vide en dur aurait affiché « aucun rendu vidéo
+# terminé » sur une Bibliothèque pleine ; une liste écrite ici serait la copie
+# qu'on refuse).
+# `final_video_path` PRIME sur `video_path` dans `DzTracks.isVideoJob` : c'est
+# l'ordre de `_resolve_src` côté serveur (`jr.final_video_path or
+# jr.video_path`). L'ancien critère prenait le premier des deux qui existe —
+# sur un job dont le brut est un .mp4 et le fini un .png, les deux ne rendent
+# pas la même chose, et c'est le serveur qui a raison.
+A_M16C = (
+    '    Promise.all([\n'
+    '      fetch("/api/images").then(function(res){return res.json()})'
+    '.catch(function(){return {}}),\n'
+    '      fetch("/api/jobs").then(function(res){return res.json()})'
+    '.catch(function(){return []}),\n'
+    '      fetch("/api/audio").then(function(res){return res.json()})'
+    '.catch(function(){return {}})\n'
+    '    ]).then(function(rr){\n'
+    '      var imgs=((rr[0]&&rr[0].images)||[]).slice(0,24)'
+    '.map(function(im){return {name:im.filename}});\n'
+    '      var vids=(Array.isArray(rr[1])?rr[1]:[]).filter(function(j3){\n'
+    '        return j3.status==="done"&&(j3.video_path||j3.final_video_path)&&\n'
+    '          !(j3.provider==="montage"&&String(j3.image_filename||"")'
+    '.indexOf("_preview")>=0)})\n'
+    '        .slice(0,12).map(function(j3){return {job_id:j3.job_id,'
+    'title:j3.title||j3.job_id,\n'
+    '          dur:Number(j3.duration_real_s||j3.duration_s)||0}});\n'
+    '      var auds=((rr[2]&&rr[2].audio)||[]).slice(0,24).map(function(a3){\n'
+    '        return {name:a3.name,kb:a3.size_kb}});\n'
+    '      setSources({images:imgs,videos:vids,audios:auds});'
+    'setOvPick(trId)});')
+R_M16C = (
+    '    Promise.all([\n'
+    '      fetch("/api/images").then(function(res){return res.json()})'
+    '.catch(function(){return {}}),\n'
+    '      fetch("/api/jobs").then(function(res){return res.json()})'
+    '.catch(function(){return []}),\n'
+    '      fetch("/api/audio").then(function(res){return res.json()})'
+    '.catch(function(){return {}}),\n'
+    '      /* P9 — LA règle du rendu, servie par le backend. Pas une copie. */\n'
+    '      fetch("/api/montage/media-rules").then(function(res){'
+    'return res.json()}).catch(function(){return {}})\n'
+    '    ]).then(function(rr){\n'
+    '      var imgs=((rr[0]&&rr[0].images)||[]).slice(0,24)'
+    '.map(function(im){return {name:im.filename}});\n'
+    '      var xt=(rr[3]&&Array.isArray(rr[3].video_exts)&&rr[3].video_exts.length)\n'
+    '        ?rr[3].video_exts:null;\n'
+    '      var vids=(Array.isArray(rr[1])?rr[1]:[]).filter(function(j3){\n'
+    '        return DzTracks.isVideoJob(j3,xt)})\n'
+    '        .slice(0,12).map(function(j3){return {job_id:j3.job_id,'
+    'title:j3.title||j3.job_id,\n'
+    '          dur:Number(j3.duration_real_s||j3.duration_s)||0}});\n'
+    '      var auds=((rr[2]&&rr[2].audio)||[]).slice(0,24).map(function(a3){\n'
+    '        return {name:a3.name,kb:a3.size_kb}});\n'
+    "      if(!xt)fireNote(\"Règle d'extensions vidéo indisponible \"+\n"
+    '        "(GET /api/montage/media-rules) — la liste « Rendus vidéo » '
+    'n\'est "+\n'
+    '        "PAS filtrée : elle peut proposer des planches de sprites ou des "+\n'
+    '        "maillages 3D, que le rendu refusera.");\n'
+    '      setSources({images:imgs,videos:vids,audios:auds});'
+    'setOvPick(trId)});')
+
+# ── M16d (P9) : `v1_non_video` enfin LU, sur la timeline ────────────────────
+# GET /project le rend depuis P8 — des identifiants de clips joignables aux
+# `clips` de la même réponse — et AUCUNE interface ne le lisait. Le backend
+# savait, l'écran se taisait, et POST /render refusait en 400 APRÈS le clic.
+# Le marquage est là pour que l'utilisateur voie le problème AVANT de cliquer.
+# La chip est un BOUTON : la voie de sortie est offerte SUR PLACE (elle rouvre
+# la Bibliothèque sur la piste du clip) au lieu d'être devinée — le même geste
+# que « Bibliothèque… ». `openPicker` est déclaré dans le corps du composant,
+# comme cette rangée ; `tr` et `c` sont les variables de la boucle de pistes.
+A_M16D = ('                      r.jsx("div",{className:"svm-cliplabel",'
+          'children:c.label}),')
+R_M16D = (A_M16D + '\n'
+          '                      /* P9 — signalé AVANT le rendu, pas après son\n'
+          '                         400 : ce plan n\'est pas une vidéo. */\n'
+          '                      (c.tr==="v1"&&'
+          '(proj.v1NonVideo||[]).indexOf(c.id)>=0)?\n'
+          '                        DzTracks.badSrc(c,function(){'
+          'openPicker(c.tr)}):null,')
+
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
            ("M5-payload", A_M5, R_M5), ("M6-save", A_M6, R_M6),
            ("M7-apply", A_M7, R_M7), ("M8-toolbar", A_M8, R_M8),
            ("M9a-head-audio", A_M9a, R_M9a), ("M9b-head-video", A_M9b, R_M9b),
            ("M11-text-state", A_M11, R_M11), ("M12-text-panel", A_M12, R_M12),
-           ("M13-grade-all", A_M13, R_M13)]
+           ("M13-grade-all", A_M13, R_M13),
+           ("M16ref-tracks-ref", A_M16REF, R_M16REF),
+           ("M16a-piste-existante", A_M16A, R_M16A),
+           ("M16b-note-piste", A_M16B, R_M16B),
+           ("M16c-picker-filtre", A_M16C, R_M16C),
+           ("M16d-marque-non-video", A_M16D, R_M16D)]
 
 
 def nl(text, crlf):
