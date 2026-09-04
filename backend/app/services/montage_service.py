@@ -587,6 +587,58 @@ def _delete_saved() -> bool:
     return False
 
 
+def _save_record(body) -> dict:
+    """Le modèle de timeline COURANTE, normalisé depuis un corps client — et
+    le SEUL endroit où cette normalisation vit. Lève HTTPException(400) sur
+    une forme invalide ou un volume déraisonnable.
+
+    Extrait de `POST /save` le 04/09/2026 pour que `POST /projects` accepte la
+    timeline AFFICHÉE dans son corps sans recopier ces quinze lignes : deux
+    normalisations pour un même objet auraient divergé au premier champ
+    ajouté, et c'est l'objet que le disque garde."""
+    if not isinstance(body, dict) or not isinstance(body.get("clips"), list):
+        raise HTTPException(400, "Sauvegarde invalide — objet {name, ratio, "
+                                 "duration, mix, clips[]} attendu.")
+    clips = [c for c in body["clips"] if isinstance(c, dict)]
+    if len(clips) > _SAVE_MAX_CLIPS:
+        raise HTTPException(400, f"Sauvegarde refusée — {len(clips)} clips "
+                                 f"(max {_SAVE_MAX_CLIPS}).")
+    try:
+        dur = float(body.get("duration") or 0)
+    except (TypeError, ValueError):
+        dur = 0.0
+    if dur != dur or dur < 0:  # NaN / négatif
+        dur = 0.0
+    ducking = body.get("ducking", True)
+    if not isinstance(ducking, (bool, dict)):
+        ducking = bool(ducking)
+    data = {
+        "name": str(body.get("name") or "montage")[:80],
+        "ratio": str(body.get("ratio") or "9:16")[:12],
+        "duration": round(dur, 3),
+        "mix": body.get("mix") if isinstance(body.get("mix"), dict) else {},
+        "duration_master": bool(body.get("duration_master", True)),
+        "ducking": ducking,
+        "clips": clips,
+        "saved_at": _dt.utcnow().replace(microsecond=0).isoformat() + "Z",
+    }
+    if isinstance(body.get("ducking_cfg"), dict):
+        data["ducking_cfg"] = body["ducking_cfg"]
+    # S1 : style des sous-titres. Les SEGMENTS sont déjà dans `clips` (piste
+    # s1) et voyagent donc tels quels ; le style, lui, n'est pas un clip — sans
+    # cette clé il ne survivait qu'en localStorage et changeait de poste à
+    # poste. GET /project le resserre à l'éditeur (svmApplyProject le lit).
+    if isinstance(body.get("subs_style"), dict):
+        data["subs_style"] = body["subs_style"]
+    # P1 : les PISTES de la timeline (ordre, bus, boucle). Stockées telles
+    # quelles — sans cette clé, une piste ajoutée ou déplacée disparaissait au
+    # rechargement et les clips qu'elle portait retombaient sur une piste
+    # inconnue, donc hors du rendu. GET /project les resert à l'éditeur.
+    if isinstance(body.get("tracks"), list):
+        data["tracks"] = body["tracks"]
+    return data
+
+
 # --------------------------------------------------------------- projets ---
 # P5 — un montage NOMMÉ est un fichier de montage_projects/, voisin de la
 # timeline courante. Le courant reste le seul brouillon vivant : il porte
@@ -604,9 +656,27 @@ async def _json_body(request: Request) -> dict:
     return body if isinstance(body, dict) else {}
 
 
-def _projects_dir() -> Path:
+# Le VERROU d'écriture du lot. Toutes les écritures de ce module — le courant
+# et les projets — passent par ici, et elles sont brèves (un `json.dumps` et un
+# `os.replace`), donc le coût est nul. Ce qu'il ferme, MESURÉ le 04/09/2026 :
+# `POST /save` teste l'existence du projet (`_load_project`) puis franchit DEUX
+# sauts `asyncio.to_thread` — dont une écriture de fichier entière — avant
+# d'écrire le miroir. Un `DELETE` d'une autre fenêtre glissé dans cette fenêtre
+# faisait RESSUSCITER le projet supprimé (fichier revenu, HTTP 200 des deux
+# côtés). Le banc [16] de test_montage_projets.py joue l'entrelacement,
+# avec et sans ce verrou.
+_ecrit = asyncio.Lock()
+
+
+def _projects_dir(create: bool = False) -> Path:
+    """Le dossier des projets. `create=False` par défaut, et c'est le point :
+    cet accesseur est traversé par `_project_path` → `_load_project` → cinq
+    routes en LECTURE SEULE. MESURÉ : un unique `GET /projects/m_jamaisvu`
+    (404) suffisait à semer `montage_projects/` chez un utilisateur qui n'a
+    jamais nommé un montage. Les trois routes qui ÉCRIVENT le demandent."""
     d = settings.images_path.parent / "montage_projects"
-    d.mkdir(parents=True, exist_ok=True)
+    if create:
+        d.mkdir(parents=True, exist_ok=True)
     return d
 
 
@@ -623,8 +693,8 @@ def _pid(raw) -> str:
     return "" if s in (".", "..") else s[:24]
 
 
-def _project_path(pid) -> Path:
-    return _projects_dir() / f"{_pid(pid)}.json"
+def _project_path(pid, create: bool = False) -> Path:
+    return _projects_dir(create) / f"{_pid(pid)}.json"
 
 
 def _load_project(pid) -> dict | None:
@@ -655,18 +725,35 @@ def _project_meta(d: dict, fallback_id: str = "") -> dict:
             "duration": d.get("duration")}
 
 
+_NOM_TETE = " ./\\"      # tabulations et sauts de ligne : déjà mangés comme
+                        # caractères de contrôle, inutile de les répéter ici
+
+
+def _libelle(s: str) -> str:
+    """Le nettoyage d'un LIBELLÉ, et rien de plus. Ce qui est retiré :
+      * les caractères de CONTRÔLE, partout — un `\\n` ou un `\\x00` dans un
+        nom traverse la liste et casse l'affichage sans rien apporter ;
+      * les points et les séparateurs EN TÊTE seulement — `../x` → `x`,
+        `..` → `` (donc repli), `.` → `` .
+    Ce qui n'est PAS retiré : un séparateur AU MILIEU. C'est le correctif du
+    04/09/2026, et il vient d'une mesure : `Path(...).name` coupait tout ce
+    qui précédait le dernier `/`, donc « Bande-annonce 16/9 » était stocké
+    « 9 » et « Ep.3 / v2 finale » devenait « v2 finale ». `16/9` et `4/3` sont
+    des MOTS de ce domaine. Le nom n'a d'ailleurs jamais gardé le fichier :
+    celui-ci s'appelle `m_<hex8>.json` et c'est `_pid` — lui seul — qui est la
+    frontière du système de fichiers."""
+    s = "".join(ch for ch in s if ord(ch) >= 32 and ch != "\x7f")
+    return s.strip().lstrip(_NOM_TETE).strip()
+
+
 def _project_name(raw, fallback) -> str:
     """Le nom est un LIBELLÉ, jamais un chemin — le fichier, lui, est nommé
-    par l'identifiant. `Path(...).name` retire `../` et les séparateurs. Ce
-    qui n'est pas une chaîne, ce qui est vide et ce qui n'est qu'espaces
-    retombe sur `fallback` : sans ce repli, un champ effacé aurait fabriqué
-    le libellé « None »."""
-    s = raw if isinstance(raw, str) else ""
-    s = Path(s).name.strip()
-    if s in (".", ".."):
-        s = ""          # cf. _pid : Path().name ne les mange pas
+    par l'identifiant. Ce qui n'est pas une chaîne, ce qui est vide et ce qui
+    ne survit pas à `_libelle` retombe sur `fallback` : sans ce repli, un
+    champ effacé aurait fabriqué le libellé « None »."""
+    s = _libelle(raw if isinstance(raw, str) else "")
     if not s:
-        s = Path(str(fallback or "")).name.strip() or "montage"
+        s = _libelle(str(fallback or "")) or "montage"
     return s[:80]
 
 
@@ -844,46 +931,8 @@ async def montage_save(request: Request):
         body = await request.json()
     except Exception:
         body = None
-    if not isinstance(body, dict) or not isinstance(body.get("clips"), list):
-        raise HTTPException(400, "Sauvegarde invalide — objet {name, ratio, "
-                                 "duration, mix, clips[]} attendu.")
-    clips = [c for c in body["clips"] if isinstance(c, dict)]
-    if len(clips) > _SAVE_MAX_CLIPS:
-        raise HTTPException(400, f"Sauvegarde refusée — {len(clips)} clips "
-                                 f"(max {_SAVE_MAX_CLIPS}).")
-    try:
-        dur = float(body.get("duration") or 0)
-    except (TypeError, ValueError):
-        dur = 0.0
-    if dur != dur or dur < 0:  # NaN / négatif
-        dur = 0.0
-    ducking = body.get("ducking", True)
-    if not isinstance(ducking, (bool, dict)):
-        ducking = bool(ducking)
-    data = {
-        "name": str(body.get("name") or "montage")[:80],
-        "ratio": str(body.get("ratio") or "9:16")[:12],
-        "duration": round(dur, 3),
-        "mix": body.get("mix") if isinstance(body.get("mix"), dict) else {},
-        "duration_master": bool(body.get("duration_master", True)),
-        "ducking": ducking,
-        "clips": clips,
-        "saved_at": _dt.utcnow().replace(microsecond=0).isoformat() + "Z",
-    }
-    if isinstance(body.get("ducking_cfg"), dict):
-        data["ducking_cfg"] = body["ducking_cfg"]
-    # S1 : style des sous-titres. Les SEGMENTS sont déjà dans `clips` (piste
-    # s1) et voyagent donc tels quels ; le style, lui, n'est pas un clip — sans
-    # cette clé il ne survivait qu'en localStorage et changeait de poste à
-    # poste. GET /project le resserre à l'éditeur (svmApplyProject le lit).
-    if isinstance(body.get("subs_style"), dict):
-        data["subs_style"] = body["subs_style"]
-    # P1 : les PISTES de la timeline (ordre, bus, boucle). Stockées telles
-    # quelles — sans cette clé, une piste ajoutée ou déplacée disparaissait au
-    # rechargement et les clips qu'elle portait retombaient sur une piste
-    # inconnue, donc hors du rendu. GET /project les resert à l'éditeur.
-    if isinstance(body.get("tracks"), list):
-        data["tracks"] = body["tracks"]
+    data = _save_record(body)
+    clips = data["clips"]
     # P5 : de quel projet NOMMÉ cette timeline est le brouillon. Deux gardes,
     # et chacune ferme un trou mesuré :
     #  * seule une CHAÎNE est retenue — le plan écrivait `str(...)`, qui aurait
@@ -893,32 +942,43 @@ async def montage_save(request: Request):
     #    un projet, il n'en CRÉE jamais : sans ce test, supprimer le projet
     #    ouvert le faisait ressusciter à la seconde suivante, par l'autosave
     #    d'une fenêtre qui n'avait rien demandé.
-    pid = body.get("project_id")
-    pid = _pid(pid) if isinstance(pid, str) else ""
-    lie = await asyncio.to_thread(_load_project, pid) if pid else None
-    if lie is not None:
-        data["project_id"] = pid
     if len(json.dumps(data, ensure_ascii=False).encode("utf-8")) > _SAVE_MAX_BYTES:
         raise HTTPException(400, "Sauvegarde refusée — plus de 2 Mo.")
-    try:
-        await asyncio.to_thread(_write_saved, data)
-        # le MIROIR : le projet nommé suit les éditions sans un geste. Son
-        # échec fait échouer la sauvegarde entière — l'éditeur garde
-        # « NON ENREGISTRÉ » et réessaie, plutôt que d'annoncer un
-        # enregistrement dont la moitié n'a pas eu lieu.
-        if data.get("project_id"):
-            # le NOM appartient au PROJET, pas au payload : sans cette ligne,
-            # renommer dans le popover puis laisser passer un autosave
-            # rendait au projet son ancien nom, sans un mot. MESURÉ — c'est
-            # ce qui faisait sortir « abysse (copie) » là où le projet
-            # s'appelait « Abysse v1 ».
-            await asyncio.to_thread(
-                _write_json_atomic, _project_path(data["project_id"]),
-                dict(data, id=data["project_id"],
-                     name=lie.get("name") or data["name"]))
-    except OSError as e:
-        logger.warning(f"montage: écriture de la sauvegarde impossible : {e}")
-        raise HTTPException(500, f"Écriture de la sauvegarde impossible : {e}")
+    # LE TEST D'EXISTENCE ET LES DEUX ÉCRITURES SOUS LE MÊME VERROU. Entre le
+    # `_load_project` et le miroir il y a DEUX sauts `asyncio.to_thread` ; un
+    # `DELETE` d'une autre fenêtre glissé là faisait revenir le fichier qu'il
+    # venait d'effacer (mesuré : le projet ressuscitait, HTTP 200 des deux
+    # côtés). Avec `_ecrit`, le DELETE passe soit entièrement avant — `lie`
+    # est alors None, rien n'est miroité — soit entièrement après, et il
+    # emporte le fichier que le miroir venait de réécrire.
+    async with _ecrit:
+        pid = body.get("project_id")
+        pid = _pid(pid) if isinstance(pid, str) else ""
+        lie = await asyncio.to_thread(_load_project, pid) if pid else None
+        if lie is not None:
+            data["project_id"] = pid
+        try:
+            await asyncio.to_thread(_write_saved, data)
+            # le MIROIR : le projet nommé suit les éditions sans un geste. Son
+            # échec fait échouer la sauvegarde entière — l'éditeur garde
+            # « NON ENREGISTRÉ » et réessaie, plutôt que d'annoncer un
+            # enregistrement dont la moitié n'a pas eu lieu. CE QU'IL LAISSE
+            # DERRIÈRE, mesuré par [15] : le COURANT est déjà écrit (il
+            # porte la timeline neuve et son `project_id`), le PROJET reste à
+            # sa version précédente, et pas un `.tmp` ne subsiste.
+            if data.get("project_id"):
+                # le NOM appartient au PROJET, pas au payload : sans cette
+                # ligne, renommer dans le popover puis laisser passer un
+                # autosave rendait au projet son ancien nom, sans un mot.
+                # MESURÉ — c'est ce qui faisait sortir « abysse (copie) » là
+                # où le projet s'appelait « Abysse v1 ».
+                await asyncio.to_thread(
+                    _write_json_atomic, _project_path(data["project_id"]),
+                    dict(data, id=data["project_id"],
+                         name=lie.get("name") or data["name"]))
+        except OSError as e:
+            logger.warning(f"montage: écriture de la sauvegarde impossible : {e}")
+            raise HTTPException(500, f"Écriture de la sauvegarde impossible : {e}")
     return {"ok": True, "saved_at": data["saved_at"], "clips": len(clips)}
 
 
@@ -940,7 +1000,13 @@ async def montage_projects():
     emporter la liste de tous les autres."""
     def _scan():
         out = []
-        for f in _projects_dir().glob("*.json"):
+        dossier = _projects_dir()
+        if not dossier.is_dir():
+            return out          # aucun montage nommé : le dossier n'existe
+                                # pas encore, et LIRE ne doit pas le créer
+        # `dossier`, pas `d` : la boucle réutilise `d` pour le projet lu, et
+        # deux sens pour un même nom dans dix lignes finit toujours mal.
+        for f in dossier.glob("*.json"):
             try:
                 d = json.loads(f.read_text(encoding="utf-8"))
             except (OSError, ValueError):
@@ -957,21 +1023,47 @@ async def montage_projects():
 
 @router.post("/projects")
 async def montage_project_create(request: Request):
-    """{name} — la timeline COURANTE devient un projet nommé, et le courant en
-    devient le brouillon : il reçoit `project_id`, l'autosave miroite ensuite.
-    400 sans timeline courante : il n'y aurait rien à nommer."""
+    """{name, timeline?} — la timeline AFFICHÉE devient un projet nommé, et le
+    courant en devient le brouillon : il reçoit `project_id`, l'autosave
+    miroite ensuite.
+
+    `timeline` est le payload de `POST /save` — le modèle client complet. Il
+    est là depuis le 04/09/2026, et il ferme la porte d'entrée de tout le lot.
+    MESURÉ : sans lui, cette route ne lisait QUE `montage_saved.json`, et deux
+    états courants n'en ont pas — une installation neuve (la Bibliothèque
+    fournit la timeline, `svmApplyProject` pose `setDirty(false)`, donc aucun
+    autosave ne part) et l'instant qui suit le bouton « bibliothèque » (DELETE
+    de la sauvegarde puis rechargement : le même état). L'utilisateur
+    regardait une timeline et le popover lui répondait en rouge qu'il n'y en
+    avait pas. Second trou, même racine : la sauvegarde sur disque a jusqu'à
+    1,5 s de retard sur l'écran, donc « Enregistrer sous… » nommait un
+    instantané périmé — 7 clips affichés, 1 clip écrit.
+
+    À DÉFAUT de `timeline`, le courant fait toujours foi (une fenêtre plus
+    ancienne, un appel en ligne de commande). 400 dans un seul cas, et il est
+    vrai : l'écran est RÉELLEMENT vide — ni corps, ni courant, ou pas un seul
+    clip. Il n'y aurait rien à nommer."""
     body = await _json_body(request)
-    cur = await asyncio.to_thread(_load_saved)
-    if cur is None:
-        raise HTTPException(400, "Aucune timeline courante à enregistrer.")
+    tl = body.get("timeline")
+    if isinstance(tl, dict) and isinstance(tl.get("clips"), list):
+        cur = _save_record(tl)          # même normalisation que POST /save
+        if len(json.dumps(cur, ensure_ascii=False).encode("utf-8")) \
+                > _SAVE_MAX_BYTES:
+            raise HTTPException(400, "Sauvegarde refusée — plus de 2 Mo.")
+    else:
+        cur = await asyncio.to_thread(_load_saved)
+    if cur is None or not cur.get("clips"):
+        raise HTTPException(400, "Aucune timeline à enregistrer.")
     pid = f"m_{uuid4().hex[:8]}"
     rec = dict(cur, id=pid, project_id=pid,
                name=_project_name(body.get("name"), cur.get("name")))
-    try:
-        await asyncio.to_thread(_write_json_atomic, _project_path(pid), rec)
-        await asyncio.to_thread(_write_saved, rec)
-    except OSError as e:
-        raise HTTPException(500, f"Écriture du projet impossible : {e}")
+    async with _ecrit:
+        try:
+            await asyncio.to_thread(_write_json_atomic,
+                                    _project_path(pid, create=True), rec)
+            await asyncio.to_thread(_write_saved, rec)
+        except OSError as e:
+            raise HTTPException(500, f"Écriture du projet impossible : {e}")
     return {"ok": True, **_project_meta(rec)}
 
 
@@ -997,10 +1089,12 @@ async def montage_project_rename(pid: str, request: Request):
     p = _pid(pid)
     rec = dict(d, id=p, project_id=p, saved_at=_now_iso(),
                name=_project_name(body.get("name"), d.get("name")))
-    try:
-        await asyncio.to_thread(_write_json_atomic, _project_path(p), rec)
-    except OSError as e:
-        raise HTTPException(500, f"Écriture du projet impossible : {e}")
+    async with _ecrit:
+        try:
+            await asyncio.to_thread(_write_json_atomic,
+                                    _project_path(p, create=True), rec)
+        except OSError as e:
+            raise HTTPException(500, f"Écriture du projet impossible : {e}")
     return {"ok": True, **_project_meta(rec)}
 
 
@@ -1018,10 +1112,12 @@ async def montage_project_duplicate(pid: str):
     base = _project_name(d.get("name"), "montage")[:80 - len(suff)]
     rec = dict(d, id=nid, project_id=nid, name=base + suff,
                saved_at=_now_iso())
-    try:
-        await asyncio.to_thread(_write_json_atomic, _project_path(nid), rec)
-    except OSError as e:
-        raise HTTPException(500, f"Écriture du projet impossible : {e}")
+    async with _ecrit:
+        try:
+            await asyncio.to_thread(_write_json_atomic,
+                                    _project_path(nid, create=True), rec)
+        except OSError as e:
+            raise HTTPException(500, f"Écriture du projet impossible : {e}")
     return {"ok": True, **_project_meta(rec)}
 
 
@@ -1057,10 +1153,11 @@ async def montage_project_open(pid: str):
                  f"affichée n'a pas été touchée.")
     p = _pid(pid)
     rec = dict(d, id=p, project_id=p)
-    try:
-        await asyncio.to_thread(_write_saved, rec)
-    except OSError as e:
-        raise HTTPException(500, f"Ouverture impossible : {e}")
+    async with _ecrit:
+        try:
+            await asyncio.to_thread(_write_saved, rec)
+        except OSError as e:
+            raise HTTPException(500, f"Ouverture impossible : {e}")
     return {"ok": True, **_project_meta(rec)}
 
 
@@ -1071,7 +1168,11 @@ async def montage_project_delete(pid: str):
     Si c'était le projet OUVERT, le courant est DÉLIÉ : sans cela le prochain
     autosave le recréerait aussitôt. C'est le second verrou de la même panne,
     le premier étant côté POST /save (qui ne miroite que dans un fichier
-    existant) — la timeline courante, elle, n'est pas touchée."""
+    existant) — la timeline courante, elle, n'est pas touchée.
+    TROISIÈME verrou, ajouté le 04/09/2026 : le retrait passe sous `_ecrit`.
+    Les deux premiers bornaient la course entre deux fenêtres SANS la fermer
+    — mesuré, un DELETE glissé entre le test d'existence de POST /save et son
+    miroir faisait revenir le fichier."""
     p = _project_path(pid)
     if not _pid(pid) or not p.is_file():
         raise HTTPException(404, "Projet introuvable.")
@@ -1091,7 +1192,8 @@ async def montage_project_delete(pid: str):
                                f"supprimé — {e}")
         return ""
 
-    err = await asyncio.to_thread(_rm)
+    async with _ecrit:
+        err = await asyncio.to_thread(_rm)
     if err:
         raise HTTPException(500, f"Suppression impossible : {err}")
     return {"ok": True, "deleted": True}

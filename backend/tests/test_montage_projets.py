@@ -57,23 +57,37 @@ CE QUI EST FERME ICI
         de projet qui EXISTE DEJA ; il n'en cree jamais.
   [7] la duplication est INDEPENDANTE : editer la copie ne touche pas
       l'original (ce serait le cas si les deux partageaient un fichier).
+  [8] LIRE NE CREE RIEN : ni les cinq routes en lecture, ni un 400, ne font
+      apparaitre `montage_projects/` (section [0]).
+  [9] la timeline AFFICHEE peut etre nommee : `POST /projects` accepte
+      `timeline` dans son corps, ne retombe sur le courant qu'a defaut, et ne
+      rend 400 que pour un ecran REELLEMENT vide (section [14]).
+ [10] CE QUE CHAQUE ECRITURE RATEE LAISSE DERRIERE : 500, pas un fragment
+      `.tmp`, et l'etat exact du courant et du projet — les trois ecritures
+      du lot, une par une (section [15]).
+ [11] la COURSE entre un autosave en vol et un `DELETE` d'une autre fenetre,
+      JOUEE, avec et sans le verrou de module (section [16]).
 
 CE QUE CE BANC N'AFFIRME PAS, et qui est un RESTE ASSUME.
   * L'ECRAN. Le popover « Projets » (M14), sa liste, son champ de renommage
     en ligne et sa confirmation `data-arm` ne sont mesures QUE par les
     comptes de test_montage_bundle.py : leur comportement reel demande
     l'application demarree, ce que ce banc ne fait jamais.
-  * La COURSE entre un autosave en vol et un `open`/`DELETE` venu d'une AUTRE
-    fenetre. Dans la fenetre qui agit, le bundle annule la requete en vol
-    avant d'ecrire (meme geste que `svmLibReset`, garde par
-    test_montage_bundle.py) ; entre deux fenetres, rien ne l'empeche. Le
-    verrou [6] la borne : au pire le courant repart d'une edition perimee,
-    jamais un projet supprime ne revient.
-  * Le VERROU de concurrence sur un meme fichier de projet. Deux ecritures
-    simultanees se terminent l'une apres l'autre (remplacement atomique) :
-    la derniere gagne en entier, aucune ne laisse un fichier a moitie ecrit.
-    Le banc mesure l'atomicite par l'absence de `.tmp`, pas par un tir
-    concurrent — un tel tir ne serait pas deterministe.
+  * La COURSE entre un autosave en vol et un `open` venu d'une AUTRE fenetre.
+    Dans la fenetre qui agit, le bundle annule la requete en vol avant
+    d'ecrire (meme geste que `svmLibReset`, garde par
+    test_montage_bundle.py) ; entre deux fenetres, le courant peut repartir
+    d'une edition perimee. CE QUI N'EST PLUS UN RESTE, en revanche, c'est la
+    resurrection d'un projet SUPPRIME : la phrase « jamais un projet supprime
+    ne revient » a longtemps figure ici et elle etait FAUSSE — mesuree fausse
+    le 04/09/2026, le fichier revenait. La section [16] joue la course et le
+    module tient desormais un `asyncio.Lock` autour du triplet {test
+    d'existence, ecriture du courant, ecriture du miroir} et de la
+    suppression.
+  * Le VERROU de concurrence entre deux ecritures d'un MEME fichier de projet
+    (deux `PATCH` simultanes, par exemple) : elles se serialisent maintenant,
+    mais c'est la derniere qui gagne en entier — aucune fusion, aucun
+    « quelqu'un d'autre a modifie ce projet ». Le banc ne mesure pas ce cas.
   * La TAILLE. `POST /save` refuse au-dela de 2 Mo ou 400 clips ; les routes
     de projet copient ce que le courant portait deja et n'ajoutent aucune
     borne propre. Un dossier de mille projets n'est pas mesure."""
@@ -125,10 +139,19 @@ def wipe():
                 pass
 
 
-def TL(name="abysse", n=1):
-    return {"name": name, "ratio": "9:16", "duration": 4, "mix": {},
+def TL(name="abysse", n=1, dur=4):
+    return {"name": name, "ratio": "9:16", "duration": dur, "mix": {},
             "clips": [{"tr": "v1", "id": "v%d" % i, "start": 0, "end": 4,
                        "src": {"file_path": V1}} for i in range(n)]}
+
+
+def wipe_courant():
+    """Le COURANT effacé — l'état d'une installation neuve, et celui qui suit
+    le bouton « bibliothèque ». `wipe()` ne vide que montage_projects/."""
+    try:
+        SAVED.unlink()
+    except OSError:
+        pass
 
 
 def cur():
@@ -153,14 +176,29 @@ def nclips(pid):
 c = TestClient(app, raise_server_exceptions=False)
 c.__enter__()
 
-print("\n[0] dossier vide — rien a lister, et rien a nommer sans courant")
+print("\n[0] dossier vide — rien a lister, rien a nommer, et RIEN de cree")
+# M1 — LIRE NE CREE PAS LE DOSSIER. Mesure du 04/09/2026 : un unique
+# `GET /projects/m_jamaisvu` (404) suffisait a semer `montage_projects/` chez
+# un utilisateur qui n'a jamais nomme un montage. `_projects_dir()` faisait un
+# `mkdir` depuis un ACCESSEUR, et cet accesseur est traverse par
+# `_project_path` -> `_load_project` -> les cinq routes en LECTURE SEULE.
+# Cette section est la premiere du banc : le dossier n'a encore rien vu.
+check("dossier_absent_au_depart", not PDIR.exists(), str(PDIR))
 r = c.get("/api/montage/projects")
 check("liste_vide_repond_200",
       r.status_code == 200 and J(r).get("ok") is True
       and J(r).get("projects") == [], f"{r.status_code} {r.text[:120]}")
+lectures = {"liste": c.get("/api/montage/projects").status_code,
+            "fiche": c.get("/api/montage/projects/m_jamaisvu").status_code,
+            "courant": c.get("/api/montage/project").status_code}
+check("lectures_repondent_sans_projet",
+      lectures == {"liste": 200, "fiche": 404, "courant": 200}, str(lectures))
+check("lire_ne_cree_pas_le_dossier", not PDIR.exists(),
+      str(sorted(p.name for p in ROOT.iterdir())))
 r = c.post("/api/montage/projects", json={"name": "sans courant"})
 check("creer_sans_courant_400", r.status_code == 400, f"{r.status_code} {r.text[:120]}")
 check("creer_sans_courant_n_ecrit_rien", names() == [], str(names()))
+check("un_400_ne_cree_pas_le_dossier_non_plus", not PDIR.exists(), str(PDIR))
 
 print("\n[1] le scenario du plan, par la route")
 wipe()
@@ -324,6 +362,23 @@ check("dupliquer_un_projet_corrompu_n_ecrit_rien",
 (PDIR / "liste.json").unlink()
 
 print("\n[5] les NOMS : vide, 200 caracteres, non-chaine, separateurs")
+# LE NOM EST UN LIBELLE, ET IL LE RESTE. Correction du 04/09/2026 : deux cas
+# qui se ressemblent ne se traitent PAS pareil, et l'ancienne regle
+# (`Path(...).name`, qui coupe tout ce qui precede le dernier separateur) les
+# confondait.
+#   * `../x` est une TENTATIVE D'EVASION : elle commence par des points et un
+#     separateur, il n'y a rien avant, et ce qui reste est `x`. Retire —
+#     `nom_hostile_reduit`, plus bas, l'exige toujours.
+#   * `Bande-annonce 16/9` est un NOM DE CE DOMAINE. `16/9` et `4/3` sont des
+#     mots de metier. MESURE avant correction, par la route : « Bande-annonce
+#     16/9 » etait stocke « 9 » et « Ep.3 / v2 finale » devenait
+#     « v2 finale ». Un utilisateur perdait la moitie de son libelle sans un
+#     mot d'explication.
+# D'ou la regle : les points et separateurs EN TETE seulement, plus un filtre
+# de caracteres de controle. Le nom n'a d'ailleurs JAMAIS nomme le fichier —
+# celui-ci s'appelle `m_<hex8>.json`, et `_pid`, lui seul, est la frontiere du
+# systeme de fichiers (section [3]).
+# LES DEUX LIGNES CI-DESSOUS SONT RETOURNEES : elles consacraient la faute.
 wipe()
 c.post("/api/montage/save", json=TL("courant-a-moi"))
 cas = [
@@ -332,8 +387,18 @@ cas = [
     ("absent", {}, "courant-a-moi"),
     ("non_chaine", {"name": 42}, "courant-a-moi"),
     ("point_point", {"name": ".."}, "courant-a-moi"),
-    ("separateur", {"name": "dossier/nom"}, "nom"),
-    ("antislash", {"name": "dossier\\nom2"}, "nom2"),
+    ("point_seul", {"name": "."}, "courant-a-moi"),
+    ("separateur_au_milieu_conserve", {"name": "dossier/nom"}, "dossier/nom"),
+    ("antislash_au_milieu_conserve", {"name": "dossier\\nom2"},
+     "dossier\\nom2"),
+    ("ratio_16_9", {"name": "Bande-annonce 16/9"}, "Bande-annonce 16/9"),
+    ("ratio_4_3", {"name": "4/3 pilote"}, "4/3 pilote"),
+    ("point_au_milieu", {"name": "Ep.3 / v2 finale"}, "Ep.3 / v2 finale"),
+    ("evasion_en_tete_retiree", {"name": "../../x"}, "x"),
+    ("evasion_antislash_en_tete", {"name": "..\\x2"}, "x2"),
+    ("espaces_puis_evasion", {"name": "   ../x3"}, "x3"),
+    ("controle_retire", {"name": "Ep\n1\tbis\x00"}, "Ep1bis"),
+    ("espaces_de_bout_rognes", {"name": "  Abysse v1  "}, "Abysse v1"),
 ]
 for lbl, body, want in cas:
     r = c.post("/api/montage/projects", json=body)
@@ -502,6 +567,294 @@ nid = J(c.post("/api/montage/projects", json={"name": "sans source"})).get("id")
 check("projet_sans_src_du_tout_reste_ouvrable",
       c.post("/api/montage/projects/%s/open" % nid).status_code == 200,
       str(c.post("/api/montage/projects/%s/open" % nid).status_code))
+
+print("\n[14] « Enregistrer sous… » d une timeline AFFICHEE mais jamais autosauvegardee")
+# LA PORTE D'ENTREE DE TOUT LE LOT, et elle etait fermee. MESURE du
+# 04/09/2026 : `POST /projects` ne lisait QUE `montage_saved.json`, et DEUX
+# etats courants n'en ont pas —
+#   * une installation NEUVE : la Bibliotheque fournit la timeline,
+#     `svmApplyProject` pose `setDirty(false)`, donc aucun autosave ne part ;
+#   * l'instant qui suit le bouton « bibliotheque » : DELETE de la sauvegarde
+#     puis rechargement, exactement le meme etat.
+# L'utilisateur regardait une timeline (GET /project rendait ok=true,
+# has_assets=true, 1 clip) et le popover lui repondait en rouge « Aucune
+# timeline courante a enregistrer » (HTTP 400). Il fallait faire une edition
+# dont on ne voulait pas pour pouvoir nommer son montage.
+# SECOND SYMPTOME, MEME RACINE : la sauvegarde sur disque a jusqu'a 1,5 s de
+# retard sur l'ecran, donc l'instantane nomme etait PERIME — mesure, 7 clips
+# affiches / 1 clip ecrit — alors que l'infobulle du bouton promet
+# « Enregistrer le montage AFFICHE ».
+# LE CORRECTIF : `POST /projects` accepte `timeline` (le payload de
+# POST /save, meme normalisation par `_save_record`) et ne retombe sur le
+# courant qu'A DEFAUT. Le 400 ne subsiste que pour un ecran REELLEMENT vide.
+wipe()
+wipe_courant()
+check("c1_aucun_courant_sur_le_disque", not SAVED.exists(), str(SAVED))
+r = c.post("/api/montage/projects", json={"name": "sans rien"})
+check("c1_sans_corps_ni_courant_400", r.status_code == 400,
+      f"{r.status_code} {r.text[:120]}")
+r = c.post("/api/montage/projects",
+           json={"name": "Bibliotheque", "timeline": TL("depuis la biblio", n=3)})
+bid = J(r).get("id")
+check("c1_le_corps_suffit_sans_aucun_courant",
+      r.status_code == 200 and bool(bid) and J(r).get("clips") == 3,
+      f"{r.status_code} {r.text[:160]}")
+check("c1_le_projet_porte_les_clips_du_corps", nclips(bid) == 3, str(nclips(bid)))
+check("c1_le_nom_du_popover_l_emporte_sur_celui_de_la_timeline",
+      fiche(bid).get("name") == "Bibliotheque", str(fiche(bid).get("name")))
+check("c1_le_courant_devient_le_brouillon_du_projet",
+      bool(bid) and cur().get("project_id") == bid
+      and len(cur().get("clips") or []) == 3, str(cur())[:160])
+
+wipe()
+wipe_courant()
+c.post("/api/montage/save", json=TL("perime", n=1, dur=4))
+r = c.post("/api/montage/projects",
+           json={"name": "frais", "timeline": TL("edite", n=7, dur=99)})
+fid = J(r).get("id")
+d = fiche(fid)
+check("c1_le_corps_PRIME_sur_un_courant_perime",
+      r.status_code == 200 and len(d.get("clips") or []) == 7
+      and d.get("duration") == 99.0,
+      f"{r.status_code} clips={len(d.get('clips') or [])} dur={d.get('duration')}")
+check("c1_le_courant_a_suivi_l_ecran",
+      bool(fid) and cur().get("project_id") == fid
+      and len(cur().get("clips") or []) == 7, str(cur())[:160])
+
+wipe()
+wipe_courant()
+c.post("/api/montage/save", json=TL("seul le courant", n=2))
+r = c.post("/api/montage/projects", json={"name": "repli"})
+rid = J(r).get("id")
+check("c1_a_defaut_de_corps_le_courant_fait_toujours_foi",
+      r.status_code == 200 and bool(rid) and nclips(rid) == 2,
+      f"{r.status_code} {r.text[:120]}")
+# une `timeline` MOLLE n'est pas une timeline : elle retombe sur le courant,
+# elle ne fait pas 500. `{"clips": 3}` est le cas mechant — un objet qui a la
+# CLE mais pas la forme.
+for lbl, val in (("chaine", "coucou"), ("liste", [1]), ("nombre", 7),
+                 ("nulle", None), ("clips_non_liste", {"clips": 3})):
+    r = c.post("/api/montage/projects", json={"name": "mou", "timeline": val})
+    check("c1_timeline_molle_" + lbl + "_retombe_sur_le_courant",
+          r.status_code == 200 and J(r).get("clips") == 2,
+          f"{r.status_code} {r.text[:120]}")
+# les bornes de POST /save valent AUSSI pour le corps : sans cela, cette route
+# etait un contournement de la seule limite de volume du lot.
+r = c.post("/api/montage/projects",
+           json={"name": "trop", "timeline": TL("trop", n=401)})
+check("c1_corps_de_401_clips_refuse", r.status_code == 400,
+      f"{r.status_code} {r.text[:120]}")
+
+# LE 400 NE SUBSISTE QUE POUR UN ECRAN REELLEMENT VIDE — et il subsiste.
+wipe()
+wipe_courant()
+r = c.post("/api/montage/projects",
+           json={"name": "vide", "timeline": dict(TL(), clips=[])})
+check("c1_ecran_reellement_vide_400", r.status_code == 400,
+      f"{r.status_code} {r.text[:120]}")
+check("c1_ecran_vide_n_ecrit_rien", names() == [] and not SAVED.exists(),
+      f"{names()} / {SAVED.exists()}")
+
+print("\n[15] quand l ECRITURE ECHOUE : 500, aucun .tmp, et ce que chacune laisse")
+# I4 — LA BRANCHE QUE LA DOCSTRING DE `_write_json_atomic` MET EN AVANT (« le
+# tmp est retire si le remplacement echoue… sinon le dossier finirait par se
+# remplir de fragments ») n'etait mesuree PAR RIEN. Mutation jouee le
+# 04/09/2026 : `except OSError: pass` a la place du nettoyage + `raise` —
+# le banc restait a 87/0 et 168/0. La section [8] ne mesure l'absence de
+# `.tmp` que sur le chemin HEUREUX, ou il n'y a jamais eu de tmp a nettoyer.
+# ICI, le remplacement final est rendu IMPOSSIBLE (`Path.replace` leve) et on
+# exige les trois choses : le 500, l'absence de fragment, et l'ETAT laisse
+# derriere par chacune des trois ecritures du lot.
+_vrai_replace = pathlib.Path.replace
+
+
+def _ko_sur(motif):
+    def _r(self, target):
+        if motif in str(target):
+            raise OSError(13, "remplacement refuse (banc I4)")
+        return _vrai_replace(self, target)
+    return _r
+
+
+def _sous_panne(motif, appel):
+    pathlib.Path.replace = _ko_sur(motif)
+    try:
+        return appel()
+    finally:
+        pathlib.Path.replace = _vrai_replace
+
+
+def tmps():
+    a = [p.name for p in PDIR.glob("*") if not p.name.endswith(".json")] \
+        if PDIR.is_dir() else []
+    return sorted(a + [p.name for p in ROOT.glob("montage_saved.json.*")])
+
+
+# (1) l'ecriture du FICHIER DE PROJET echoue — POST /projects
+wipe()
+wipe_courant()
+c.post("/api/montage/save", json=TL("avant panne", n=2))
+avant = json.loads(SAVED.read_text(encoding="utf-8"))
+r = _sous_panne("montage_projects",
+                lambda: c.post("/api/montage/projects", json={"name": "panne"}))
+check("i4_creer_sous_panne_rend_500", r.status_code == 500,
+      f"{r.status_code} {r.text[:140]}")
+check("i4_creer_sous_panne_ne_laisse_aucun_fragment", tmps() == [], str(tmps()))
+check("i4_creer_sous_panne_n_ecrit_aucun_projet", names() == [], str(names()))
+_ap = json.loads(SAVED.read_text(encoding="utf-8"))
+check("i4_creer_sous_panne_laisse_le_courant_intact", _ap == avant,
+      str(_ap.get("name")) + " / " + str(_ap.get("project_id")))
+
+# (2) l'ecriture du COURANT echoue — POST /save
+wipe()
+wipe_courant()
+c.post("/api/montage/save", json=TL("courant sain", n=2))
+avant = json.loads(SAVED.read_text(encoding="utf-8"))
+r = _sous_panne("montage_saved.json",
+                lambda: c.post("/api/montage/save", json=TL("jamais ecrit", n=5)))
+check("i4_save_sous_panne_rend_500", r.status_code == 500,
+      f"{r.status_code} {r.text[:140]}")
+check("i4_save_sous_panne_ne_laisse_aucun_fragment", tmps() == [], str(tmps()))
+_ap = json.loads(SAVED.read_text(encoding="utf-8"))
+check("i4_save_sous_panne_laisse_le_courant_a_sa_version_precedente",
+      _ap == avant and len(_ap.get("clips") or []) == 2,
+      str(_ap.get("name")))
+
+# (3) le MIROIR echoue — la seule des trois dont on ne savait pas ce qu'elle
+#     laissait derriere. Reponse mesuree : le COURANT est deja ecrit (c'est la
+#     PREMIERE des deux ecritures et elle a reussi), il porte la timeline
+#     neuve ET son `project_id` ; le PROJET, lui, reste a sa version
+#     precedente. L'editeur garde « NON ENREGISTRE » et reessaiera : c'est le
+#     projet qui est en retard, jamais le courant.
+wipe()
+wipe_courant()
+c.post("/api/montage/save", json=TL("mir", n=1))
+mid = J(c.post("/api/montage/projects", json={"name": "miroir"})).get("id")
+avant_projet = json.loads((PDIR / ("%s.json" % mid)).read_text(encoding="utf-8"))
+r = _sous_panne("montage_projects", lambda: c.post(
+    "/api/montage/save", json=dict(TL("mir", n=6), project_id=mid)))
+check("i4_miroir_rate_rend_500", r.status_code == 500,
+      f"{r.status_code} {r.text[:140]}")
+check("i4_miroir_rate_ne_laisse_aucun_fragment", tmps() == [], str(tmps()))
+check("i4_miroir_rate_laisse_le_projet_a_sa_version_precedente",
+      nclips(mid) == 1
+      and json.loads((PDIR / ("%s.json" % mid)).read_text(encoding="utf-8"))
+      == avant_projet, str(nclips(mid)))
+_sv = json.loads(SAVED.read_text(encoding="utf-8"))
+check("i4_miroir_rate_le_courant_porte_DEJA_la_timeline_neuve",
+      len(_sv.get("clips") or []) == 6 and _sv.get("project_id") == mid,
+      f"{len(_sv.get('clips') or [])} / {_sv.get('project_id')}")
+check("i4_apres_la_panne_tout_remarche",
+      c.post("/api/montage/save",
+             json=dict(TL("mir", n=6), project_id=mid)).status_code == 200
+      and nclips(mid) == 6, str(nclips(mid)))
+
+print("\n[16] la COURSE entre un autosave EN VOL et un DELETE d une autre fenetre")
+# I2 — L'EN-TETE DE CE BANC ECRIVAIT « jamais un projet supprime ne revient ».
+# C'ETAIT FAUX, et c'est un TOCTOU : `POST /save` teste l'existence du projet
+# (`_load_project`) puis franchit DEUX sauts `asyncio.to_thread` — dont une
+# ecriture de fichier ENTIERE — avant d'ecrire le miroir. Un `DELETE` glisse
+# la faisait revenir.
+# CETTE SECTION JOUE L'ENTRELACEMENT POUR DE VRAI, et elle le joue DEUX FOIS :
+# sans le verrou (le projet ressuscite) puis avec (il reste supprime). C'est
+# la seule facon de prouver que c'est bien `_ecrit` qui ferme la fenetre, et
+# non le hasard de l'ordonnancement.
+# COMMENT : les deux coroutines de route sont appelees DIRECTEMENT dans une
+# boucle a nous (`asyncio.run`) — TestClient est synchrone et ne sait pas
+# entrelacer deux requetes. `_write_saved` est ralenti de 0,5 s pour LE seul
+# payload de l'autosave (4 clips), ce qui ouvre la fenetre a coup sur ; le
+# `_write_saved` que le DELETE fait pour delier le courant, lui, garde sa
+# vitesse. `entrelace` verifie que le DELETE est bien passe PENDANT
+# l'ecriture : sans lui, une machine lente rendrait la demonstration muette
+# au lieu de la rendre fausse.
+import asyncio                                             # noqa: E402
+import threading                                           # noqa: E402
+import time                                                # noqa: E402
+from app.services import montage_service as MS             # noqa: E402
+
+
+class _Req:
+    """Le strict minimum que les deux routes touchent : `await request.json()`."""
+
+    def __init__(self, d):
+        self._d = d
+
+    async def json(self):
+        return self._d
+
+
+class _SansVerrou:
+    """`_ecrit` neutralise — l'etat d'avant le correctif, rejoue."""
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *a):
+        return False
+
+
+def course(verrouille):
+    wipe()
+    wipe_courant()
+    c.post("/api/montage/save", json=TL("course", n=1))
+    cid = J(c.post("/api/montage/projects", json={"name": "course"})).get("id")
+    vrai_ws, vrai_verrou = MS._write_saved, MS._ecrit
+    porte = threading.Event()
+
+    def lent(data):
+        if len(data.get("clips") or []) == 4:     # le payload de l'autosave
+            porte.set()
+            time.sleep(0.5)                       # LA fenetre
+        return vrai_ws(data)
+
+    async def duel():
+        t = asyncio.ensure_future(MS.montage_save(
+            _Req(dict(TL("course", n=4), project_id=cid))))
+        vu = await asyncio.to_thread(porte.wait, 5.0)
+        # mesure AVANT de lancer le DELETE : c'est le fait que l'autosave soit
+        # ENCORE EN VOL a cet instant qui fait la course. Apres, la question
+        # n'a plus de sens — avec le verrou, le DELETE ne rend la main
+        # qu'une fois l'autosave termine, et `t.done()` vaut alors True dans
+        # les deux cas (mesure : la premiere version de cette ligne rougissait
+        # pour cela, et elle avait tort).
+        en_vol = vu and not t.done()
+        await MS.montage_project_delete(cid)
+        await t
+        return en_vol
+
+    MS._write_saved = lent
+    MS._ecrit = vrai_verrou if verrouille else _SansVerrou()
+    try:
+        entrelace = asyncio.run(duel())
+    finally:
+        MS._write_saved, MS._ecrit = vrai_ws, vrai_verrou
+    return {"id": cid, "entrelace": entrelace, "apres": names()}
+
+
+sans = course(False)
+avec = course(True)
+check("i2_l_entrelacement_a_bien_eu_lieu_deux_fois",
+      sans["entrelace"] is True and avec["entrelace"] is True,
+      f"sans={sans['entrelace']} avec={avec['entrelace']}")
+# SANS le verrou : le miroir de l'autosave RECREE le fichier que le DELETE
+# vient d'effacer. C'est exactement ce que la revue a mesure.
+check("i2_sans_verrou_le_projet_supprime_RESSUSCITE",
+      sans["apres"] == ["%s.json" % sans["id"]], str(sans["apres"]))
+# AVEC : le DELETE attend la fin du triplet {test d'existence, courant,
+# miroir}, et il emporte le fichier. La phrase de l'en-tete redevient vraie.
+check("i2_avec_verrou_le_projet_supprime_reste_supprime",
+      avec["apres"] == [], str(avec["apres"]))
+check("i2_le_verrou_est_bien_un_verrou_asyncio",
+      isinstance(MS._ecrit, asyncio.Lock) and not MS._ecrit.locked(),
+      repr(MS._ecrit))
+# la boucle de `asyncio.run` a disparu : un `asyncio.Lock` CONTESTE s'y est
+# lie, et le reutiliser depuis la boucle de TestClient leverait
+# « bound to a different event loop ». Le banc rend donc un verrou neuf.
+MS._ecrit = asyncio.Lock()
+r = c.post("/api/montage/save", json=TL("apres la course", n=1))
+check("i2_les_routes_repondent_encore_apres_la_course",
+      r.status_code == 200 and cur().get("saved") is True,
+      f"{r.status_code} {r.text[:120]}")
 
 c.__exit__(None, None, None)
 print(f"\n=== {ok} passed, {fail} failed ===")

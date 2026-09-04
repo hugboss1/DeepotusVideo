@@ -206,6 +206,18 @@ R_M11b = ('r.jsx("button",{className:"svm-tbtn dzm-txton","data-on":dzTextOn?"":
 # nom est une SyntaxError en sémantique MODULE, celle sous laquelle index.html
 # charge le bundle. Invisible pour `node --check` sur un .js ; c'est
 # `node_check_module` de test_montage_bundle.py qui la voit.
+# HUIT props au 04/09/2026 — `payload` et `onFail` s'ajoutent après revue.
+# `payload` : « Enregistrer sous… » envoie la timeline AFFICHÉE avec le nom.
+# MESURÉ, sans elle, `POST /projects` ne lisait que montage_saved.json — et
+# deux états courants n'en ont pas (installation neuve, et l'instant qui suit
+# le bouton « bibliothèque ») : l'écran montrait une timeline et le popover
+# répondait 400 « aucune timeline courante ». Le reste du temps, le disque
+# avait jusqu'à 1,5 s de retard : 7 clips affichés, 1 clip nommé.
+# `onFail` : quand l'ouverture échoue (409, panne réseau), `onBefore` a déjà
+# annulé l'autosave en vol et RIEN ne le replanifie — `setSaveInfo` n'est pas
+# dans les dépendances de l'effet. `svmDoSave` le relance sur-le-champ.
+# `doDel`, lui, n'appelle PLUS `onBefore` : le serveur ferme déjà cette
+# course-là à deux verrous (cf. la couche, et test_montage_projets.py [10]).
 # SIX props, pas cinq : `onBefore` s'ajoute à la liste du plan. MESURE — le
 # bundle désamorce déjà exactement cette course pour le bouton
 # « bibliothèque » : il ABANDONNE la requête d'autosave en vol avant son
@@ -219,9 +231,11 @@ R_M11b = ('r.jsx("button",{className:"svm-tbtn dzm-txton","data-on":dzTextOn?"":
 # et déclencherait un autosave qui réécrirait à l'identique.
 R_M14 = ('r.jsx(DzTracks.Projects,{name:proj.name,projectId:proj.project_id,'
          'note:fireNote,\n'
+         '          payload:function(){return svmSavePayload()},\n'
          '          onBefore:function(){'
          'if(saveAbortRef.current){try{saveAbortRef.current.abort()}catch(_e){}}'
          'saveSeqRef.current++;setSaveInfo(null)},\n'
+         '          onFail:function(){if(dirty)svmDoSave(++saveSeqRef.current)},\n'
          '          onOpen:function(d){return svmApplyProject(d)},\n'
          '          onNamed:function(pid,nm){setProj(function(p){'
          'return Object.assign({},p,{project_id:pid,name:nm})})}}),')

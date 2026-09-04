@@ -5409,7 +5409,9 @@ function DzMontage(props){
         r.jsx(DzTracks.EmojiBtn,{segments:subsSegsOf(clips),tracks:svmTracksOf(proj),note:fireNote,onAdd:function(cs){pushHistory();setClips(function(k){return (k||[]).concat(cs)});setDirty(!0)}}),
         r.jsx("button",{className:"svm-tbtn dzm-txton","data-on":dzTextOn?"":void 0,"aria-pressed":dzTextOn,title:"Monter par le TEXTE : la narration mot par mot dans la colonne de droite, les mots de remplissage marqués, et la sélection coupée sur toutes les pistes non verrouillées (ce qui suit remonte)","aria-label":"Panneau Texte",onClick:function(){setDzTextOn(!dzTextOn)},children:"texte"}),
         r.jsx(DzTracks.Projects,{name:proj.name,projectId:proj.project_id,note:fireNote,
+          payload:function(){return svmSavePayload()},
           onBefore:function(){if(saveAbortRef.current){try{saveAbortRef.current.abort()}catch(_e){}}saveSeqRef.current++;setSaveInfo(null)},
+          onFail:function(){if(dirty)svmDoSave(++saveSeqRef.current)},
           onOpen:function(d){return svmApplyProject(d)},
           onNamed:function(pid,nm){setProj(function(p){return Object.assign({},p,{project_id:pid,name:nm})})}}),
         /* bouton discret du panneau raccourcis — fin de transport */
@@ -13001,7 +13003,21 @@ var DzmProjects=function(props){
   function saveAs(){
     if(busy)return;
     setBusy(1);setErr("");
-    send("/api/montage/projects","POST",{name:(nv||"").trim()})
+    /* LA TIMELINE AFFICHEE PART AVEC LE NOM. Sans elle, le serveur ne
+       connaissait que montage_saved.json, et DEUX etats courants n'en ont
+       pas : une installation neuve (la Bibliotheque fournit la timeline,
+       svmApplyProject pose setDirty(false), donc aucun autosave ne part) et
+       l'instant qui suit le bouton « bibliotheque » (DELETE puis
+       rechargement, exactement le meme etat). L'utilisateur regardait une
+       timeline et ce popover lui repondait en rouge qu'il n'y en avait pas
+       — HTTP 400, la porte d'entree de tout le lot fermee. Le reste du
+       temps, le disque avait jusqu'a 1,5 s de retard sur l'ecran : MESURE,
+       7 clips affiches, 1 clip ecrit, alors que le titre du bouton promet
+       « le montage AFFICHE ». A defaut de cette prop, le serveur retombe sur
+       le courant : la route se comporte exactement comme avant. */
+    var tl=(props&&props.payload)?props.payload():null;
+    send("/api/montage/projects","POST",
+      {name:(nv||"").trim(),timeline:tl})
       .then(function(d){
         setBusy(0);setNv("");
         if(props.onNamed)props.onNamed(d.id,d.name);
@@ -13036,7 +13052,16 @@ var DzmProjects=function(props){
              s'est passé. */
           setErr("Réponse inattendue du serveur : rien n'a été appliqué. "+
             "Rechargez la page avant d'enregistrer.")})
-      .catch(fail)}
+      /* L'OUVERTURE A ECHOUE (409 « projet inouvrable », backend injoignable,
+         réponse inapplicable) : la timeline affichée n'a pas bougé et elle
+         reste à enregistrer — or `onBefore` vient d'annuler l'autosave en
+         vol, et RIEN ne le replanifie (il ne touche que deux useRef et
+         `setSaveInfo`, qui n'est pas dans les dépendances de l'effet). Le
+         badge reste honnête, mais la sauvegarde que l'utilisateur croyait
+         partie n'attendrait que sa prochaine édition. `onFail` la relance
+         tout de suite. NON MESURE A L'ECRAN — dette navigateur, comme tout
+         ce popover. */
+      .catch(function(e){fail(e);if(props.onFail)props.onFail()})}
 
   function doDup(p){
     if(busy)return;
@@ -13064,7 +13089,24 @@ var DzmProjects=function(props){
     if(busy)return;
     if(arm!=="x"+p.id){setArm("x"+p.id);return}
     setArm("");setBusy(1);setErr("");
-    if(props.onBefore)props.onBefore();
+    /* PAS d'`onBefore` ICI, et c'est une correction du 04/09/2026 — mesurée,
+       pas raisonnée. Le SERVEUR ferme déjà cette course, à deux verrous :
+       POST /save ne retient `project_id` que s'il désigne un fichier qui
+       EXISTE, et il ne miroite que dans ce fichier-là. Un autosave qui
+       arrive après ce DELETE ne ressuscite donc rien et ne relie rien —
+       c'est ce que mesure test_montage_projets.py [10]
+       (`supprime_l_autosave_ne_ressuscite_pas`), et la section [16] joue même
+       l'entrelacement.
+       Annuler l'autosave ici était donc une PERTE SÈCHE : `onBefore` ne
+       touche que deux useRef et `setSaveInfo(null)`, or `saveInfo` n'est pas
+       dans les dépendances de l'effet d'autosave — supprimer un projet QUI
+       N'EST PAS LE SIEN (`p.id!==pid`, donc pas d'`onNamed`, donc `proj`
+       inchangé, donc aucune dépendance modifiée) annulait une sauvegarde en
+       vol que plus rien ne replanifiait jusqu'à l'édition suivante.
+       `svmDoSave` sort en silence sur AbortError : le badge reste honnête
+       (`dirty` demeure vrai), mais l'utilisateur croyait sa sauvegarde
+       partie. `doOpen`, lui, garde `onBefore` : là, le serveur NE PEUT PAS
+       distinguer l'autosave du montage quitté de celui du montage ouvert. */
     req(url(p.id),{method:"DELETE"}).then(function(){
       setBusy(0);
       if(p.id===pid&&props.onNamed)props.onNamed("",nm);
@@ -13078,6 +13120,14 @@ var DzmProjects=function(props){
   function row(p){
     var mine=p.id===pid,edit=!!(ren&&ren.id===p.id);
     var oArm=arm==="o"+p.id,xArm=arm==="x"+p.id;
+    /* TOUS les boutons de la ligne s'éteignent pendant une requête. Tous les
+       gestionnaires sortaient déjà sur `if(busy)return`, mais AUCUN bouton ne
+       portait `disabled` (sauf « ouvrir », et seulement pour le projet déjà
+       ouvert) : ils restaient cliquables et INERTES, sans le moindre retour.
+       `load()` partant à chaque ouverture du popover, les tout premiers clics
+       d'une ouverture tombaient précisément là. `.dzm-projbtn:disabled` (opacité
+       .45, curseur normal) existe déjà dans la feuille depuis P5. */
+    var off=!!busy;
     return r.jsxs("div",{className:"dzm-projrow","data-mine":mine?"":void 0,
       children:[
       r.jsxs("div",{className:"dzm-projid",children:[
@@ -13094,21 +13144,21 @@ var DzmProjects=function(props){
           children:dzmProjLine(p)},"m")]},"l"),
       r.jsxs("div",{className:"dzm-proja",children:[
         edit
-          ?r.jsx("button",{className:"svm-tbtn dzm-projbtn",
+          ?r.jsx("button",{className:"svm-tbtn dzm-projbtn",disabled:off,
               title:"Valider le nouveau nom (Entrée). Un champ vide garde "+
                 "l'ancien nom.",
               onClick:function(){doRen(p)},children:"ok"},"ok")
-          :r.jsx("button",{className:"svm-tbtn dzm-projbtn",
+          :r.jsx("button",{className:"svm-tbtn dzm-projbtn",disabled:off,
               title:"Renommer « "+(p.name||"")+" » — le montage lui-même "+
                 "n'est pas touché",
               onClick:function(){setArm("");setRen({id:p.id,v:p.name||""})},
               children:"renommer"},"rn"),
-        r.jsx("button",{className:"svm-tbtn dzm-projbtn",
+        r.jsx("button",{className:"svm-tbtn dzm-projbtn",disabled:off,
           title:"Dupliquer « "+(p.name||"")+" » — une copie indépendante, "+
             "sous un nom suffixé « (copie) ». Rien d'autre ne bouge.",
           onClick:function(){doDup(p)},children:"dupliquer"},"dp"),
         r.jsx("button",{className:"svm-tbtn dzm-projbtn dzm-projop",
-          "data-arm":oArm?"":void 0,disabled:mine,"aria-disabled":mine,
+          "data-arm":oArm?"":void 0,disabled:mine||off,"aria-disabled":mine||off,
           title:mine
             ?"« "+(p.name||"")+" » est déjà le montage ouvert."
             :(oArm
@@ -13119,7 +13169,7 @@ var DzmProjects=function(props){
                "affiché (un second clic confirmera)"),
           onClick:function(){doOpen(p)},
           children:oArm?"remplacer ?":"ouvrir"},"op"),
-        r.jsx("button",{className:"svm-tbtn dzm-projbtn dzm-projx",
+        r.jsx("button",{className:"svm-tbtn dzm-projbtn dzm-projx",disabled:off,
           "data-arm":xArm?"":void 0,
           title:xArm
             ?"Confirmer : supprimer « "+(p.name||"")+" » DÉFINITIVEMENT. "+

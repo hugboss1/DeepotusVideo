@@ -376,6 +376,12 @@ for _nm, _decl in (("proj", "proj=stP[0],setProj=stP[1];"),
                     "var saveSeqRef=x.useRef(0),saveAbortRef=x.useRef(null);"),
                    ("setSaveInfo",
                     "var stSv=x.useState(null),saveInfo=stSv[0],setSaveInfo=stSv[1];"),
+                   # les trois jetons ajoutes le 04/09/2026 (C1 et I3) : le
+                   # payload de l'autosave descend dans le popover, et
+                   # `onFail` relance la sauvegarde qu'`onBefore` a annulee.
+                   ("svmSavePayload", "function svmSavePayload(){"),
+                   ("svmDoSave", "function svmDoSave(seq){"),
+                   ("dirty", "var st8=x.useState(!0),dirty=st8[0],setDirty=st8[1];"),
                    ("fireNote", "fireNote=nt[1]")):
     _appele = re.search(r"\b%s\b" % re.escape(_nm), P.R_M14) is not None
     check("M14_appelle_" + _nm + "_qui_est_declare",
@@ -409,13 +415,78 @@ check("M14_l_armement_change_le_libelle",
       nl('children:oArm?"remplacer ?":"ouvrir"') in s
       and nl('children:xArm?"supprimer ?":"×"') in s,
       "un bouton arme garde son libelle de repos")
-# `onBefore` PRECEDE la requete dans les deux, et c'est la que l'editeur
-# annule son autosave en vol. Sans lui, une sauvegarde partie 1,4 s plus tot
-# arrive APRES et rend au courant le montage qu'on vient de quitter — la
-# course que le bouton « bibliotheque » du bundle desamorce deja ainsi.
-check("M14_onBefore_precede_les_deux_ecritures",
-      len(re.findall(r"if\(props\.onBefore\)props\.onBefore\(\);", s)) == 2,
-      str(len(re.findall(r"if\(props\.onBefore\)props\.onBefore\(\);", s))))
+# `onBefore` PRECEDE L'OUVERTURE, et LA SEULE. C'est la que l'editeur annule
+# son autosave en vol : sans lui, une sauvegarde partie 1,4 s plus tot arrive
+# APRES et rend au courant le montage qu'on vient de quitter — le serveur ne
+# peut pas distinguer les deux, la course que le bouton « bibliotheque » du
+# bundle desamorce deja ainsi.
+# LA SUPPRESSION NE L'APPELLE PLUS, correction du 04/09/2026 : le serveur y
+# ferme la course a DEUX verrous (POST /save ne retient `project_id` que s'il
+# designe un fichier EXISTANT, et ne miroite que dans celui-la — mesure,
+# test_montage_projets.py [10] et [16]). Annuler l'autosave la etait une
+# perte seche : `onBefore` ne touche que deux useRef et `setSaveInfo`, qui
+# n'est PAS dans les dependances de l'effet d'autosave — supprimer un projet
+# QUI N'EST PAS LE SIEN n'appelle pas `onNamed`, donc `proj` ne change pas,
+# donc rien ne replanifie la sauvegarde annulee.
+_doOpen = re.search(r"function doOpen\(p\)\{.*?send\(url\(p\.id\)\+\"/open\"",
+                    s, re.S)
+_doDel = re.search(r"function doDel\(p\)\{.*?req\(url\(p\.id\),"
+                   r"\{method:\"DELETE\"\}\)", s, re.S)
+_nBefore = len(re.findall(r"if\(props\.onBefore\)props\.onBefore\(\);", s))
+check("M14_onBefore_precede_l_ouverture_et_elle_seule",
+      _nBefore == 1
+      # l'APPEL, jamais le mot : `doDel` PARLE d'`onBefore` en commentaire
+      # (il dit pourquoi il ne l'appelle plus), et chercher le jeton nu
+      # rendait cette ligne rouge sur une couche pourtant correcte — mesure du
+      # 04/09/2026, premier tir.
+      and _doOpen is not None
+      and "if(props.onBefore)props.onBefore();" in _doOpen.group(0)
+      and _doDel is not None
+      and "if(props.onBefore)props.onBefore();" not in _doDel.group(0),
+      f"appels={_nBefore} "
+      f"dans_doOpen={_doOpen is not None and 'props.onBefore();' in _doOpen.group(0)}"
+      f" dans_doDel={_doDel is not None and 'props.onBefore();' in _doDel.group(0)}")
+# ... et quand l'ouverture ECHOUE (409 « projet inouvrable », panne reseau),
+# l'autosave annule est RELANCE. Sans `onFail`, la sauvegarde que
+# l'utilisateur croyait partie n'attendait que sa prochaine edition : le
+# badge restait honnete (`dirty` demeure vrai) mais plus rien ne la
+# reprogrammait. NON MESURE A L'ECRAN — dette navigateur.
+_doOpenPlein = re.search(r"function doOpen\(p\)\{.*?function doDup\(p\)\{",
+                         s, re.S)
+check("M14_l_ouverture_ratee_relance_l_autosave_annule",
+      "onFail:function(){if(dirty)svmDoSave(++saveSeqRef.current)}," in P.R_M14
+      and s.count(nl("if(props.onFail)props.onFail()")) == 1
+      and _doOpenPlein is not None
+      and ".catch(function(e){fail(e);if(props.onFail)props.onFail()})"
+      in _doOpenPlein.group(0),
+      f"R_M14={'onFail' in P.R_M14} "
+      f"appels={s.count(nl('if(props.onFail)props.onFail()'))} "
+      f"dans_doOpen={_doOpenPlein is not None and 'onFail' in _doOpenPlein.group(0)}")
+# C1 — « Enregistrer sous… » envoie la TIMELINE AFFICHEE avec le nom.
+# MESURE du 04/09/2026 : sans elle, `POST /projects` ne lisait que
+# montage_saved.json, et deux etats courants n'en ont pas (installation
+# neuve ; l'instant qui suit le bouton « bibliotheque ») — l'ecran montrait
+# une timeline et le popover repondait 400 « aucune timeline courante ». Le
+# reste du temps le disque avait jusqu'a 1,5 s de retard : 7 clips affiches,
+# 1 clip nomme, alors que le titre du bouton promet « le montage AFFICHE ».
+check("M14_enregistrer_sous_envoie_la_timeline_affichee",
+      "payload:function(){return svmSavePayload()}," in P.R_M14
+      and s.count(nl("var tl=(props&&props.payload)?props.payload():null;")) == 1
+      and s.count(nl('{name:(nv||"").trim(),timeline:tl})')) == 1,
+      "saveAs ne poste toujours que le nom")
+# M2 — les boutons de ligne s'ETEIGNENT pendant une requete. Ils sortaient
+# deja tous sur `if(busy)return`, mais aucun ne portait `disabled` : ils
+# restaient cliquables et INERTES, sans le moindre retour. `load()` partant a
+# chaque ouverture du popover, les premiers clics d'une ouverture tombaient
+# precisement la. Quatre boutons simples + « ouvrir », qui cumule avec `mine`.
+check("M14_les_boutons_de_ligne_s_eteignent_pendant_une_requete",
+      s.count(nl("disabled:off,")) == 4
+      and s.count(nl('disabled:mine||off,"aria-disabled":mine||off,')) == 1
+      and s.count(nl("var off=!!busy;")) == 1,
+      f"disabled:off={s.count(nl('disabled:off,'))}")
+check("M14_la_feuille_habille_deja_le_bouton_eteint",
+      ".dzm-projbtn:disabled" in CSS.read_text(encoding="utf-8"),
+      "aucun style pour un bouton de ligne eteint")
 # `onNamed` n'est appele QUE si l'ecran a VRAIMENT applique le projet.
 # Rattacher le projet a une timeline restee l'ANCIENNE ferait ecrire celle-ci
 # dans le projet qu'on vient d'ouvrir, au premier autosave : le geste aurait
