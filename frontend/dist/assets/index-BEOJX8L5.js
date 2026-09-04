@@ -1957,7 +1957,7 @@ function DzMontage(props){
     cs.forEach(function(c){if(c.end>maxEnd)maxEnd=c.end});
     setClips(cs);setSelId(first?first.id:"");setPh(0);setDirty(!1);
     histRef.current={u:[],r:[]};setHistTick(function(t){return t+1});
-    var np={demo:!1,tracks:svmTracksFrom(d.tracks),name:d.name||"montage",version:"v1",ratio:d.ratio||"9:16",
+    var np={demo:!1,tracks:svmTracksFrom(d.tracks),project_id:d.project_id,name:d.name||"montage",version:"v1",ratio:d.ratio||"9:16",
       dur:Math.max(1,Number(d.duration)||maxEnd),mixDb:d.mix||SVM_DEMO_MIX};
     if(d.saved){
       /* restauration des commutateurs + réglages ducking sauvegardés */
@@ -2003,6 +2003,11 @@ function DzMontage(props){
          et les clips qu'elle portait retombaient sur une piste inconnue,
          donc hors du rendu — silencieusement. */
       tracks:svmTracksPayload(proj),
+      /* P5 — de quel projet NOMMÉ ce brouillon est le brouillon. Le
+         backend n'écrit dans le projet QUE si cette clé désigne un
+         fichier existant : sans elle (montage sans nom), rien ne
+         change, pas un fichier n'est semé. */
+      project_id:proj.project_id,
       /* style des sous-titres : envoyé pour le jour où la sauvegarde serveur
          le connaîtra (les segments, eux, sont déjà dans `clips` et sont
          stockés tels quels) ; en attendant c'est dz_subs_style qui le retient */
@@ -5403,6 +5408,10 @@ function DzMontage(props){
         r.jsx(DzTracks.WordAnimChip,{value:(proj.subsStyle||{}).wordAnim||"couleur",onChange:function(v){subsStyleSet({wordAnim:v})}}),
         r.jsx(DzTracks.EmojiBtn,{segments:subsSegsOf(clips),tracks:svmTracksOf(proj),note:fireNote,onAdd:function(cs){pushHistory();setClips(function(k){return (k||[]).concat(cs)});setDirty(!0)}}),
         r.jsx("button",{className:"svm-tbtn dzm-txton","data-on":dzTextOn?"":void 0,"aria-pressed":dzTextOn,title:"Monter par le TEXTE : la narration mot par mot dans la colonne de droite, les mots de remplissage marqués, et la sélection coupée sur toutes les pistes non verrouillées (ce qui suit remonte)","aria-label":"Panneau Texte",onClick:function(){setDzTextOn(!dzTextOn)},children:"texte"}),
+        r.jsx(DzTracks.Projects,{name:proj.name,projectId:proj.project_id,note:fireNote,
+          onBefore:function(){if(saveAbortRef.current){try{saveAbortRef.current.abort()}catch(_e){}}saveSeqRef.current++;setSaveInfo(null)},
+          onOpen:function(d){return svmApplyProject(d)},
+          onNamed:function(pid,nm){setProj(function(p){return Object.assign({},p,{project_id:pid,name:nm})})}}),
         /* bouton discret du panneau raccourcis — fin de transport */
         r.jsx("button",{className:"svm-tbtn",title:"Raccourcis ("+svmKeyLabel("keys_panel")+") — personnalisables",
           "aria-label":"Raccourcis clavier","aria-haspopup":"dialog","aria-expanded":kbOn,
@@ -11975,6 +11984,7 @@ window.DzSubs={ready:!0,Drawer:SubsDrawer,Overlay:SubsOverlay,Style:SubsStyle,
      window.DzTracks = {ready, TrackAdd, headBtns, TextDrawer,
                          rippleCut, withWords,
                          gradeAllBtn, gradeAll, gradeOf,
+                         Projects, projLine, projWhen,
                          tracksOf, from, payload, busSync,
                          move, moveTo, add, remove, group, DEFAULTS}
 
@@ -11992,6 +12002,14 @@ window.DzSubs={ready:!0,Drawer:SubsDrawer,Overlay:SubsOverlay,Style:SubsStyle,
      « v1 » en dur. PURE, testée sous node.
    - gradeAllBtn(sel, clips, setClips, pushHistory, setDirty, note) — le
      bouton qui le déclenche, posé sous la pile d'effets de l'inspecteur.
+
+   - Projects({name,projectId,onOpen,onNamed,onBefore,note}) — le popover
+     « projets » de la barre de transport : lister, « enregistrer sous… »,
+     ouvrir, dupliquer, renommer, supprimer. Les deux gestes destructifs
+     (ouvrir, supprimer) ARMENT avant de frapper et appellent `onBefore`,
+     où l'éditeur annule son autosave en vol.
+   - projLine(p) / projWhen(iso) — la ligne de résumé d'un projet et sa date,
+     PURES et sans fuseau : c'est la part de P5 que node exécute.
 
    - TrackAdd({tracks,onChange}) — les deux boutons « + vidéo » / « + audio »
      de la barre de transport.
@@ -12880,12 +12898,284 @@ function dzmGradeAllBtn(sel,clips,setClips,pushHistory,setDirty,note){
         "l'étalonnage de chaque plan tel qu'il était."+hors)},
     children:lbl},"dzmgall")}
 
+/* ── P5 : les PROJETS NOMMÉS ───────────────────────────────────────────────
+   Jusqu'ici le Montage n'avait qu'UNE timeline sur le disque. Ouvrir un autre
+   montage voulait dire écraser celle-là, et rien ne la rendait. Le popover
+   « projets » nomme le courant, liste les autres, les ouvre, les duplique,
+   les renomme et les supprime. TOUTES les écritures sont faites par le
+   SERVEUR (routes /api/montage/projects*) : cette couche n'est que la main,
+   elle ne décide de rien sur le disque.
+
+   DEUX GESTES DESTRUCTIFS, et les deux ARMENT avant de frapper — un premier
+   clic pose `data-arm` et change le libellé, le second seulement agit. Pas
+   de modale : cet écran n'en a aucune, et une boîte système gèle la page
+   entière (donc l'autosave) le temps qu'on lise.
+     * OUVRIR remplace la timeline courante. Ce qu'elle portait n'est copié
+       nulle part : si elle n'avait pas de nom, elle est PERDUE. « Annuler »
+       ne la rend pas — l'historique de cet écran ne mémorise que
+       {clips, mixDb}, et l'application d'un projet le remet à zéro.
+     * SUPPRIMER retire le fichier du projet, définitivement. Rien ne le
+       rejoue, ni ici ni côté serveur.
+   Les deux appellent `onBefore` AVANT la requête, et c'est l'éditeur qui y
+   annule son autosave en vol. Sans cela, une sauvegarde partie 1,4 s plus
+   tôt arrivait APRÈS l'ouverture et réécrivait le courant avec le montage
+   qu'on venait de quitter — la course exacte que le bouton « bibliothèque »
+   du bundle désamorce déjà, de la même façon et pour la même raison.
+
+   LA DATE EST AFFICHÉE TELLE QU'ELLE EST STOCKÉE (UTC), jamais convertie.
+   `toLocaleString` rendrait une chaîne différente selon le fuseau de la
+   machine : le cœur cesserait d'être mesurable sous node, et une mesure qui
+   dépend de l'endroit où on la prend n'en est pas une. Le suffixe « UTC » le
+   dit plutôt que de le taire. */
+
+/* PURES toutes les deux — c'est la part de P5 que node exécute. */
+function dzmProjWhen(iso){
+  var m=/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/.exec(String(iso||""));
+  return m?(m[3]+"/"+m[2]+" "+m[4]+":"+m[5]+" UTC"):""}
+
+/* La ligne sous le nom d'un projet. Ce qui décide entre deux montages, c'est
+   le NOMBRE de plans et la date — jamais l'identifiant, qui n'apprend rien. */
+function dzmProjLine(p){
+  var o=p||{},n=Number(o.clips)||0,out=[n+" clip"+(n>1?"s":"")];
+  if(o.ratio)out.push(String(o.ratio));
+  var d=Number(o.duration)||0;
+  if(d>0)out.push(d.toFixed(1).replace(".",",")+" s");
+  var w=dzmProjWhen(o.updated_at);
+  if(w)out.push(w);
+  return out.join(" · ")}
+
+var DzmProjects=function(props){
+  var so=x.useState(!1),op=so[0],setOp=so[1];
+  var sl=x.useState(null),list=sl[0],setList=sl[1];
+  var sb=x.useState(0),busy=sb[0],setBusy=sb[1];
+  var se=x.useState(""),err=se[0],setErr=se[1];
+  var sa=x.useState(""),arm=sa[0],setArm=sa[1];
+  var sr=x.useState(null),ren=sr[0],setRen=sr[1];
+  var sn=x.useState(""),nv=sn[0],setNv=sn[1];
+  var box=x.useRef(null);
+  var pid=(props&&props.projectId)||"";
+  var nm=(props&&props.name)||"montage";
+  function note(m){if(props&&props.note)props.note(m)}
+
+  /* l'armement retombe tout seul au bout de quatre secondes : un bouton
+     resté rouge finit par être cliqué pour autre chose. Même délai que le ×
+     d'en-tête de piste, pour que les deux s'apprennent ensemble. */
+  x.useEffect(function(){
+    if(!arm)return;
+    var h=setTimeout(function(){setArm("")},4000);
+    return function(){clearTimeout(h)}},[arm]);
+
+  /* Échap ferme, un clic dehors ferme. Un popover qu'on ne peut refermer
+     qu'en retrouvant son bouton est un piège, et il masque la timeline. */
+  x.useEffect(function(){
+    if(!op)return;
+    function key(e){if(e.key==="Escape"){setOp(!1);setArm("")}}
+    function down(e){
+      if(box.current&&!box.current.contains(e.target)){setOp(!1);setArm("")}}
+    window.addEventListener("keydown",key);
+    window.addEventListener("mousedown",down);
+    return function(){window.removeEventListener("keydown",key);
+      window.removeEventListener("mousedown",down)}},[op]);
+
+  function req(url,opt){
+    return fetch(url,opt||{}).then(function(rp){
+      return rp.json().catch(function(){return {}}).then(function(d){
+        if(!rp.ok)throw new Error((d&&d.detail)||("HTTP "+rp.status));
+        return d})})}
+  function send(url,method,body){
+    return req(url,{method:method,headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(body||{})})}
+  function url(p){return "/api/montage/projects/"+encodeURIComponent(p)}
+  function fail(e){setBusy(0);setErr((e&&e.message)||"requête impossible")}
+
+  function load(){
+    setBusy(1);setErr("");
+    return req("/api/montage/projects").then(function(d){
+      setBusy(0);setList((d&&d.projects)||[])})
+      .catch(function(e){setList([]);fail(e)})}
+
+  function toggle(){
+    var nx=!op;setOp(nx);setArm("");setRen(null);
+    if(nx)load()}
+
+  function saveAs(){
+    if(busy)return;
+    setBusy(1);setErr("");
+    send("/api/montage/projects","POST",{name:(nv||"").trim()})
+      .then(function(d){
+        setBusy(0);setNv("");
+        if(props.onNamed)props.onNamed(d.id,d.name);
+        note("Montage enregistré sous « "+d.name+" ». Les modifications "+
+          "suivantes y vont toutes seules, sans un geste de plus.");
+        load()})
+      .catch(fail)}
+
+  function doOpen(p){
+    if(busy)return;
+    if(arm!=="o"+p.id){setArm("o"+p.id);return}
+    setArm("");setBusy(1);setErr("");
+    if(props.onBefore)props.onBefore();
+    send(url(p.id)+"/open","POST")
+      .then(function(){return req("/api/montage/project")})
+      .then(function(d){
+        setBusy(0);
+        /* onNamed SEULEMENT si l'écran a vraiment appliqué. Rattacher le
+           projet à une timeline restée l'ANCIENNE ferait écrire celle-ci
+           dans le projet qu'on vient d'ouvrir, au premier autosave — le
+           geste aurait détruit ce qu'il prétendait ouvrir. */
+        if(props.onOpen&&props.onOpen(d)){
+          if(props.onNamed)props.onNamed(p.id,p.name);
+          setOp(!1);
+          note("« "+p.name+" » ouvert. Le montage précédent a été remplacé : "+
+            "s'il n'était pas enregistré sous un nom, il n'existe plus, et "+
+            "« annuler » ne le rend pas.")}
+        else
+          /* le serveur refuse déjà d'ouvrir un projet sans plan vivant (409,
+             et le courant reste intact) : il ne reste ici qu'une réponse que
+             l'écran n'a pas su appliquer. Le taire ferait croire que rien ne
+             s'est passé. */
+          setErr("Réponse inattendue du serveur : rien n'a été appliqué. "+
+            "Rechargez la page avant d'enregistrer.")})
+      .catch(fail)}
+
+  function doDup(p){
+    if(busy)return;
+    setBusy(1);setErr("");
+    send(url(p.id)+"/duplicate","POST").then(function(d){
+      setBusy(0);
+      note("Copie « "+d.name+" » créée. Le montage ouvert n'a pas changé.");
+      load()})
+      .catch(fail)}
+
+  function doRen(p){
+    if(busy)return;
+    var v=(ren&&ren.id===p.id)?String(ren.v||""):"";
+    setRen(null);setBusy(1);setErr("");
+    send(url(p.id),"PATCH",{name:v}).then(function(d){
+      setBusy(0);
+      if(p.id===pid&&props.onNamed)props.onNamed(p.id,d.name);
+      note(d.name===p.name
+        ?("Nom inchangé : « "+d.name+" » — un champ vide garde l'ancien nom.")
+        :("« "+p.name+" » renommé en « "+d.name+" »."));
+      load()})
+      .catch(fail)}
+
+  function doDel(p){
+    if(busy)return;
+    if(arm!=="x"+p.id){setArm("x"+p.id);return}
+    setArm("");setBusy(1);setErr("");
+    if(props.onBefore)props.onBefore();
+    req(url(p.id),{method:"DELETE"}).then(function(){
+      setBusy(0);
+      if(p.id===pid&&props.onNamed)props.onNamed("",nm);
+      note("« "+p.name+" » supprimé — DÉFINITIVEMENT : le fichier est parti "+
+        "du disque, ni « annuler » ni rien d'autre ne le rejoue."+
+        (p.id===pid?" La timeline affichée, elle, reste : elle n'est simplement "+
+          "plus rattachée à aucun projet.":""));
+      load()})
+      .catch(fail)}
+
+  function row(p){
+    var mine=p.id===pid,edit=!!(ren&&ren.id===p.id);
+    var oArm=arm==="o"+p.id,xArm=arm==="x"+p.id;
+    return r.jsxs("div",{className:"dzm-projrow","data-mine":mine?"":void 0,
+      children:[
+      r.jsxs("div",{className:"dzm-projid",children:[
+        edit
+          ?r.jsx("input",{className:"dzm-projin",value:ren.v,autoFocus:!0,
+              "aria-label":"Nouveau nom du projet",
+              onChange:function(e){setRen({id:p.id,v:e.target.value})},
+              onKeyDown:function(e){
+                if(e.key==="Enter")doRen(p);
+                if(e.key==="Escape")setRen(null)}},"i")
+          :r.jsx("span",{className:"dzm-projnm",title:p.name||"",
+              children:(p.name||"sans nom")+(mine?" · ouvert":"")},"n"),
+        r.jsx("span",{className:"dzm-projmeta",title:String(p.updated_at||""),
+          children:dzmProjLine(p)},"m")]},"l"),
+      r.jsxs("div",{className:"dzm-proja",children:[
+        edit
+          ?r.jsx("button",{className:"svm-tbtn dzm-projbtn",
+              title:"Valider le nouveau nom (Entrée). Un champ vide garde "+
+                "l'ancien nom.",
+              onClick:function(){doRen(p)},children:"ok"},"ok")
+          :r.jsx("button",{className:"svm-tbtn dzm-projbtn",
+              title:"Renommer « "+(p.name||"")+" » — le montage lui-même "+
+                "n'est pas touché",
+              onClick:function(){setArm("");setRen({id:p.id,v:p.name||""})},
+              children:"renommer"},"rn"),
+        r.jsx("button",{className:"svm-tbtn dzm-projbtn",
+          title:"Dupliquer « "+(p.name||"")+" » — une copie indépendante, "+
+            "sous un nom suffixé « (copie) ». Rien d'autre ne bouge.",
+          onClick:function(){doDup(p)},children:"dupliquer"},"dp"),
+        r.jsx("button",{className:"svm-tbtn dzm-projbtn dzm-projop",
+          "data-arm":oArm?"":void 0,disabled:mine,"aria-disabled":mine,
+          title:mine
+            ?"« "+(p.name||"")+" » est déjà le montage ouvert."
+            :(oArm
+              ?"Confirmer : OUVRIR « "+(p.name||"")+" » REMPLACE le montage "+
+               "affiché. S'il n'est pas enregistré sous un nom, il est perdu "+
+               "— « annuler » ne le rend pas."
+              :"Ouvrir « "+(p.name||"")+" » — cela REMPLACE le montage "+
+               "affiché (un second clic confirmera)"),
+          onClick:function(){doOpen(p)},
+          children:oArm?"remplacer ?":"ouvrir"},"op"),
+        r.jsx("button",{className:"svm-tbtn dzm-projbtn dzm-projx",
+          "data-arm":xArm?"":void 0,
+          title:xArm
+            ?"Confirmer : supprimer « "+(p.name||"")+" » DÉFINITIVEMENT. "+
+             "Le fichier part du disque et rien ne le rejoue."
+            :"Supprimer « "+(p.name||"")+" » du disque, définitivement "+
+             "(un second clic confirmera)",
+          "aria-label":"Supprimer "+(p.name||"ce projet"),
+          onClick:function(){doDel(p)},
+          children:xArm?"supprimer ?":"×"},"x")]},"a")]},p.id)}
+
+  var rows=list||[];
+  return r.jsxs("span",{className:"dzm-proj",ref:box,children:[
+    r.jsx("button",{className:"svm-tbtn dzm-projb","data-on":op?"":void 0,
+      "aria-expanded":op,"aria-haspopup":"dialog",
+      title:pid
+        ?("Projets — ce montage est enregistré sous « "+nm+" » et suit vos "+
+          "modifications tout seul. La liste ouvre, duplique, renomme ou "+
+          "supprime les autres.")
+        :("Projets — ce montage n'a PAS de nom : il vit dans la timeline "+
+          "courante, et le prochain projet ouvert l'écrasera sans retour. "+
+          "« Enregistrer sous… » lui en donne un."),
+      "aria-label":"Projets"+(pid?" — enregistré sous "+nm
+                                 :" — ce montage n'a pas de nom"),
+      onClick:toggle,children:"projets"},"b"),
+    op?r.jsxs("div",{className:"dzm-projp",role:"dialog",
+      "aria-label":"Projets de montage",children:[
+      r.jsxs("div",{className:"dzm-projh",children:[
+        r.jsx("span",{className:"dzm-projt",children:"Projets"},"t"),
+        r.jsx("span",{className:"dzm-projn",children:
+          busy?"…":(rows.length+" enregistré"+(rows.length>1?"s":""))},"n")]},"h"),
+      r.jsxs("div",{className:"dzm-projsave",children:[
+        r.jsx("input",{className:"dzm-projin",value:nv,
+          placeholder:pid?nm:"nom du montage","aria-label":"Nom du projet",
+          onChange:function(e){setNv(e.target.value)},
+          onKeyDown:function(e){if(e.key==="Enter")saveAs()}},"i"),
+        r.jsx("button",{className:"svm-tbtn dzm-projbtn",disabled:!!busy,
+          title:"Enregistrer le montage AFFICHÉ comme un nouveau projet. "+
+            "Rien n'est écrasé : c'est un fichier de plus, et c'est lui qui "+
+            "recevra les modifications suivantes. Champ vide : le nom "+
+            "courant est repris.",
+          onClick:saveAs,children:"enregistrer sous…"},"s")]},"s"),
+      err?r.jsx("div",{className:"dzm-projerr",children:err},"e"):null,
+      rows.length
+        ?r.jsx("div",{className:"dzm-projl",children:rows.map(row)},"l")
+        :r.jsx("div",{className:"dzm-projvide",children:
+          busy?"…":"Aucun projet enregistré. « Enregistrer sous… » crée le "+
+            "premier ; jusque-là, le montage affiché est le seul, et ouvrir "+
+            "un projet l'écraserait."},"v")]},"p"):null]})};
+
 /* ── export contrat ───────────────────────────────────────────────────────── */
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,withWords:dzmWithWords,
   dropWords:dzmDropWords,
   gradeAllBtn:dzmGradeAllBtn,gradeAll:dzmGradeAll,gradeOf:dzmGradeOf,
+  Projects:DzmProjects,projLine:dzmProjLine,projWhen:dzmProjWhen,
   tracksOf:svmTracksOf,from:svmTracksFrom,payload:svmTracksPayload,
   busSync:svmTrackBusSync,skin:dzmSkin,
   move:dzmMove,moveTo:dzmMoveTo,add:dzmAdd,remove:dzmRemove,group:dzmGroup,

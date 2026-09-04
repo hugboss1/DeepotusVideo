@@ -346,6 +346,127 @@ check("css_porte_le_bouton_d_etalonnage_global",
       .replace("\n", "").replace("\r", "")
       and "dzm-gall" in src, "montage.css n'habille pas le bouton de M13")
 
+print("\n[1-quinquies] P5 — le popover « projets » (M14)")
+# M14 vit DANS R_M8, comme M10 et M11b : A_M8 est deja consommee par M8 et la
+# barre de transport n'offre pas de seconde ancre unique. MEME LIMITE que
+# `M10-chip_remplace`, et pour la meme raison : `R_M8` CONTENANT `R_M14`, un
+# bundle ampute du popover echouerait DEJA sur « M8-toolbar_remplace » — cette
+# ligne-ci ne rattrape donc pas ce cas-la. Ce qu'elle rattrape : retirer
+# `R_M14` de `R_M8` DANS LE PATCHER puis rejouer la chaine — le bundle reste
+# coherent, M8 se retrouve tout seul et passe, et seule cette ligne (avec les
+# suivantes) voit le trou.
+check("M14-projets_remplace", s.count(nl(P.R_M14)) == 1,
+      f"count={s.count(nl(P.R_M14))}")
+# `DzMontage.Projects` etait l'appel du plan — nom d'une fonction de PREMIER
+# NIVEAU du bundle (l'ecran Montage). Interdit, cf. node_check_module.
+check("M14_utilise_DzTracks_pas_DzMontage",
+      "DzMontage.Projects" not in s and s.count("DzTracks.Projects") == 1,
+      f"count={s.count('DzTracks.Projects')}")
+# Controle a DEUX FACES, comme M10, M12 et M13 : chaque identifiant du bundle
+# que R_M14 appelle doit exister, et sous le MEME nom (recherche bornee).
+# RESERVE, dite plutot que tue : pour `proj`, la face « appelee » decide peu —
+# R_M14 lit `proj.name` ET `proj.project_id`, deux jetons distincts, mais un
+# rebuild qui renommerait l'etat ferait rougir la face DECLARATION.
+for _nm, _decl in (("proj", "proj=stP[0],setProj=stP[1];"),
+                   ("setProj", "proj=stP[0],setProj=stP[1];"),
+                   ("svmApplyProject", "function svmApplyProject(d){"),
+                   ("saveAbortRef",
+                    "var saveSeqRef=x.useRef(0),saveAbortRef=x.useRef(null);"),
+                   ("saveSeqRef",
+                    "var saveSeqRef=x.useRef(0),saveAbortRef=x.useRef(null);"),
+                   ("setSaveInfo",
+                    "var stSv=x.useState(null),saveInfo=stSv[0],setSaveInfo=stSv[1];"),
+                   ("fireNote", "fireNote=nt[1]")):
+    _appele = re.search(r"\b%s\b" % re.escape(_nm), P.R_M14) is not None
+    check("M14_appelle_" + _nm + "_qui_est_declare",
+          _appele and s.count(nl(_decl)) >= 1,
+          f"appelé={_appele} déclaré={s.count(nl(_decl))} ({_decl})")
+# `project_id` doit voyager DANS LES DEUX SENS, et ces deux lignes sont les
+# SEULES a le voir : la boucle des couples ancre -> remplacement suit le
+# patcher par importlib, donc retirer la cle des litteraux R_M6 / R_M7 la
+# laisserait entierement verte. Sans R_M6, un projet nomme cesse de suivre
+# les editions ; sans R_M7, rouvrir l'application oublie de quel projet la
+# timeline etait le brouillon — et le premier autosave venu casse le lien.
+check("M6_autosave_joint_le_project_id",
+      "project_id:proj.project_id," in P.R_M6
+      and s.count(nl("project_id:proj.project_id,")) == 1,
+      f"count={s.count(nl('project_id:proj.project_id,'))}")
+check("M7_restauration_rend_le_project_id",
+      "project_id:d.project_id," in P.R_M7
+      and s.count(nl("project_id:d.project_id,")) == 1,
+      f"count={s.count(nl('project_id:d.project_id,'))}")
+# LES DEUX GESTES DESTRUCTIFS de P5 — ouvrir (qui ECRASE la timeline
+# affichee) et supprimer (qui retire un fichier du disque) — ARMENT avant de
+# frapper. `data-arm`, jamais de modale : cet ecran n'en a aucune, et une
+# boite systeme gele la page, donc l'autosave, le temps qu'on lise.
+check("M14_les_deux_gestes_arment",
+      s.count(nl('if(arm!=="o"+p.id){setArm("o"+p.id);return}')) == 1
+      and s.count(nl('if(arm!=="x"+p.id){setArm("x"+p.id);return}')) == 1,
+      "un des deux gestes destructifs frappe au premier clic")
+# ... et le LIBELLE change avec l'armement. La couleur seule ne dit pas ce que
+# le second clic fera : elle dit seulement que quelque chose a change.
+check("M14_l_armement_change_le_libelle",
+      nl('children:oArm?"remplacer ?":"ouvrir"') in s
+      and nl('children:xArm?"supprimer ?":"×"') in s,
+      "un bouton arme garde son libelle de repos")
+# `onBefore` PRECEDE la requete dans les deux, et c'est la que l'editeur
+# annule son autosave en vol. Sans lui, une sauvegarde partie 1,4 s plus tot
+# arrive APRES et rend au courant le montage qu'on vient de quitter — la
+# course que le bouton « bibliotheque » du bundle desamorce deja ainsi.
+check("M14_onBefore_precede_les_deux_ecritures",
+      len(re.findall(r"if\(props\.onBefore\)props\.onBefore\(\);", s)) == 2,
+      str(len(re.findall(r"if\(props\.onBefore\)props\.onBefore\(\);", s))))
+# `onNamed` n'est appele QUE si l'ecran a VRAIMENT applique le projet.
+# Rattacher le projet a une timeline restee l'ANCIENNE ferait ecrire celle-ci
+# dans le projet qu'on vient d'ouvrir, au premier autosave : le geste aurait
+# detruit ce qu'il pretendait ouvrir. (Le serveur refuse deja d'ouvrir un
+# projet sans plan vivant — 409, cf. test_montage_projets.py section [13] ;
+# cette ligne garde l'ORDRE cote ecran, qui vaut pour toute autre reponse que
+# l'ecran ne saurait appliquer.)
+check("M14_onNamed_apres_l_application_reussie",
+      s.count(nl("if(props.onOpen&&props.onOpen(d)){\n"
+                 "          if(props.onNamed)props.onNamed(p.id,p.name);")) == 1,
+      "le projet est rattache avant que l'ecran ait applique quoi que ce soit")
+check("M14_l_editeur_annule_vraiment_l_autosave_en_vol",
+      "saveAbortRef.current.abort()" in P.R_M14
+      and "saveSeqRef.current++" in P.R_M14,
+      "onBefore ne fait pas ce que son nom promet")
+# CE QUI NE REVIENT PAS doit etre DIT — dans la NOTE, celle qui s'affiche
+# APRES le geste, pas seulement dans le titre du bouton qui, lui, disparait
+# avec le curseur. L'historique de cet ecran ne memorise que {clips, mixDb},
+# et l'application d'un projet le remet a zero : ni le montage remplace ni le
+# fichier supprime ne se rejouent.
+# LES DEUX LIGNES SONT ANCREES SUR LE CORPS DE LA NOTE, et c'est une
+# correction : la version d'avant cherchait « DÉFINITIVEMENT » N'IMPORTE OU
+# dans la couche. MUTATION VERIFIEE le 04/09/2026 — en retirant le mot de la
+# note de suppression, le banc restait a 166/0, le jeton survivant dans le
+# titre du bouton arme. Une assertion qui reste verte quand on supprime ce
+# qu'elle teste ne teste rien.
+check("M14_la_note_d_ouverture_dit_que_rien_ne_revient",
+      s.count(nl('« annuler » ne le rend pas.")}')) == 1,
+      f"count={s.count(nl(chr(171) + ' annuler ' + chr(187)))}")
+check("M14_la_note_de_suppression_dit_definitivement",
+      s.count(nl(' » supprimé — DÉFINITIVEMENT : le fichier est parti "+')) == 1,
+      "la note de suppression ne dit plus que le fichier ne revient pas")
+# PAS de `setDirty` dans R_M14, et c'est un choix : au retour de chacune de
+# ces routes le serveur a DEJA ecrit le courant ET le projet. Allumer
+# « NON ENREGISTRE » juste apres une ouverture reussie ferait mentir le badge.
+check("M14_n_allume_pas_le_drapeau_pour_rien",
+      "setDirty" not in P.R_M14, "R_M14 marque le projet modifie sans raison")
+# Le CŒUR de P5 doit etre DANS le bloc livre, pas seulement dans la source.
+check("bloc_contient_Projects",
+      nl("Projects:DzmProjects,projLine:dzmProjLine,projWhen:dzmProjWhen,") in s
+      and nl("var DzmProjects=function(props){") in s)
+check("css_porte_le_popover_projets",
+      ".dzm-projp{" in CSS.read_text(encoding="utf-8").replace(" ", "")
+      .replace("\n", "").replace("\r", "")
+      and ".dzm-projbtn[data-arm]" in CSS.read_text(encoding="utf-8")
+      and "dzm-projp" in src, "montage.css n'habille pas le popover")
+check("css_porte_l_etat_ouvert_du_bouton_projets",
+      ".dzm-projb[data-on]" in CSS.read_text(encoding="utf-8")
+      and "dzm-projb" in src,
+      "l'etat ouvert du bouton « projets » n'est pas habille")
+
 print("\n[1-ter] feuille de style et index.html")
 check("css_liee_index_html", "shared/montage.css" in
       HTML.read_bytes().decode("utf-8-sig"))
@@ -582,6 +703,18 @@ var DEUX=[{tr:"v1",id:"a",start:0,end:2,src:{job_id:1},effects:[
              {type:"grade_basic",contrast:150}]}];
 out.g_deux_grades=JSON.parse(JSON.stringify(
   T.gradeAll(DEUX,"a","v1").clips[1].effects));
+/* P5 — la ligne de resume d'un projet et sa date. PURES, et SANS FUSEAU :
+   `toLocaleString` aurait rendu une chaine differente selon la machine, donc
+   intestable ici. C'est pourquoi la date est rendue telle qu'elle est
+   stockee, avec le suffixe qui le dit. */
+out.pl_plein=T.projLine({clips:3,ratio:"9:16",duration:12.25,
+  updated_at:"2026-09-04T13:42:36Z"});
+out.pl_un=T.projLine({clips:1,ratio:"16:9",duration:4});
+out.pl_vide=T.projLine(null);
+out.pl_zero=T.projLine({clips:0,duration:0,ratio:""});
+out.pw_bon=T.projWhen("2026-01-02T03:04:05Z");
+out.pw_casse=T.projWhen("pas une date");
+out.pw_nul=T.projWhen(null);
 console.log(JSON.stringify(out));
 """
 # "use strict" en PROLOGUE du shim : concatene, celui de montage.js n'est
@@ -836,6 +969,29 @@ check("js_bouton_note_dit_ce_qui_a_change",
       "l'étalonnage a été remplacé). Les bornes de temps ne sont pas "
       "recopiées. Annuler restaure l'étalonnage de chaque plan tel qu'il "
       "était.", str(d.get("b_note")))
+
+# ── P5 : le cœur pur, EXECUTE ────────────────────────────────────────────
+# Ce que la ligne de resume doit trancher entre deux montages : le NOMBRE de
+# plans et la DATE. Jamais l'identifiant, qui n'apprend rien a personne.
+check("js_proj_ligne_complete",
+      d.get("pl_plein") == "3 clips · 9:16 · 12,3 s · 04/09 13:42 UTC",
+      str(d.get("pl_plein")))
+# le SINGULIER, et la virgule decimale : la meme phrase que « Le seul autre
+# plan V1 » de P4 corrigeait deja une fois.
+check("js_proj_ligne_singulier", d.get("pl_un") == "1 clip · 16:9 · 4,0 s",
+      str(d.get("pl_un")))
+# entrees molles : rien du tout, et un projet vide. Une ligne VIDE ferait une
+# rangee sans repere ; « 0 clip » dit au moins qu'il n'y a rien dedans.
+check("js_proj_ligne_molle",
+      d.get("pl_vide") == "0 clip" and d.get("pl_zero") == "0 clip",
+      f'{d.get("pl_vide")} / {d.get("pl_zero")}')
+check("js_proj_date_sans_fuseau", d.get("pw_bon") == "02/01 03:04 UTC",
+      str(d.get("pw_bon")))
+# une date illisible rend "" — donc la ligne se contente de ce qu'elle sait,
+# au lieu d'afficher « NaN/NaN » ou « Invalid Date ».
+check("js_proj_date_illisible_rend_vide",
+      d.get("pw_casse") == "" and d.get("pw_nul") == "",
+      f'{d.get("pw_casse")!r} / {d.get("pw_nul")!r}')
 
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")

@@ -59,6 +59,10 @@ Sections :
       La piste visée est celle du PLAN SÉLECTIONNÉ : mesuré, une version qui
       codait « v1 » en dur écrasait deux plans V1 quand un plan V2 étalonné
       était sélectionné. Voir le commentaire de dzmGradeAllBtn.
+  M14 (P5) le popover « projets » (lister, enregistrer sous, ouvrir,
+      dupliquer, renommer, supprimer), posé lui aussi DANS le remplacement de
+      M8 — même raison qu'en M10 et M11b. M6 et M7 y gagnent la clé
+      `project_id`, qui relie le brouillon courant à son projet.
 
 Mécanique identique à patch_bundle_subs.py : restauration du .bak dédié puis
 ré-application, chaque ancre devant apparaître EXACTEMENT une fois, sinon
@@ -133,11 +137,17 @@ R_M6 = ("      duration_master:durMaster,ducking:ducking,clips:clips,\n"
         "      /* sans cette clé, une piste ajoutée disparaissait au rechargement\n"
         "         et les clips qu'elle portait retombaient sur une piste inconnue,\n"
         "         donc hors du rendu — silencieusement. */\n"
-        "      tracks:svmTracksPayload(proj),")
+        "      tracks:svmTracksPayload(proj),\n"
+        "      /* P5 — de quel projet NOMMÉ ce brouillon est le brouillon. Le\n"
+        "         backend n'écrit dans le projet QUE si cette clé désigne un\n"
+        "         fichier existant : sans elle (montage sans nom), rien ne\n"
+        "         change, pas un fichier n'est semé. */\n"
+        "      project_id:proj.project_id,")
 
 # ── M7 : restauration ───────────────────────────────────────────────────────
 A_M7 = 'var np={demo:!1,name:d.name||"montage",version:"v1",ratio:d.ratio||"9:16",'
 R_M7 = ('var np={demo:!1,tracks:svmTracksFrom(d.tracks),'
+        'project_id:d.project_id,'
         'name:d.name||"montage",version:"v1",ratio:d.ratio||"9:16",')
 
 # ── M8 : barre de transport ─────────────────────────────────────────────────
@@ -186,9 +196,40 @@ R_M11b = ('r.jsx("button",{className:"svm-tbtn dzm-txton","data-on":dzTextOn?"":
           '"aria-label":"Panneau Texte",'
           'onClick:function(){setDzTextOn(!dzTextOn)},children:"texte"}),')
 
+# ── M14 (P5) : le popover « projets » — DANS R_M8, comme M10 et M11b ───────
+# Même raison qu'elles : A_M8 est déjà consommée par M8 et la barre de
+# transport n'offre pas de seconde ancre unique. Le plan disait « popover
+# Projets dans R_M8 » — c'est bien là.
+# `DzTracks`, pas `DzMontage` (que le plan écrivait, comme il écrivait déjà
+# `DzMontage.gradeAllBtn` en P4) : le bundle déclare DÉJÀ une fonction
+# `DzMontage` au premier niveau — l'écran Montage lui-même — et redéclarer ce
+# nom est une SyntaxError en sémantique MODULE, celle sous laquelle index.html
+# charge le bundle. Invisible pour `node --check` sur un .js ; c'est
+# `node_check_module` de test_montage_bundle.py qui la voit.
+# SIX props, pas cinq : `onBefore` s'ajoute à la liste du plan. MESURE — le
+# bundle désamorce déjà exactement cette course pour le bouton
+# « bibliothèque » : il ABANDONNE la requête d'autosave en vol avant son
+# DELETE, faute de quoi elle arrive après et ressuscite ce qu'on vient
+# d'effacer. Ouvrir un projet et supprimer un projet sont le même cas : sans
+# `onBefore`, une sauvegarde partie 1,4 s plus tôt réécrit le courant avec le
+# montage qu'on vient de quitter.
+# PAS de `setDirty` ici, et c'est délibéré : au retour de chacune de ces
+# routes le serveur a DÉJÀ écrit le courant ET le projet. Allumer
+# « NON ENREGISTRÉ » juste après une ouverture réussie ferait mentir le badge
+# et déclencherait un autosave qui réécrirait à l'identique.
+R_M14 = ('r.jsx(DzTracks.Projects,{name:proj.name,projectId:proj.project_id,'
+         'note:fireNote,\n'
+         '          onBefore:function(){'
+         'if(saveAbortRef.current){try{saveAbortRef.current.abort()}catch(_e){}}'
+         'saveSeqRef.current++;setSaveInfo(null)},\n'
+         '          onOpen:function(d){return svmApplyProject(d)},\n'
+         '          onNamed:function(pid,nm){setProj(function(p){'
+         'return Object.assign({},p,{project_id:pid,name:nm})})}}),')
+
 R_M8 = ('r.jsx(DzTracks.TrackAdd,{tracks:svmTracksOf(proj),onChange:svmTracksSet}),\n'
         '        ' + R_M10 + '\n'
         '        ' + R_M11b + '\n'
+        '        ' + R_M14 + '\n'
         '        /* bouton discret du panneau raccourcis — fin de transport */\n'
         '        ' + A_M8)
 

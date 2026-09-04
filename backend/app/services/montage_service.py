@@ -532,10 +532,11 @@ def _saved_path() -> Path:
     return settings.images_path.parent / "montage_saved.json"
 
 
-def _write_saved(data: dict) -> None:
+def _write_json_atomic(path: Path, data: dict) -> None:
     """Écriture atomique (tmp voisin + replace) — laisse remonter OSError
-    (l'endpoint la traduit en 500, l'UI affiche « sauvegarde impossible »)."""
-    path = _saved_path()
+    (l'endpoint la traduit en 500, l'UI affiche « sauvegarde impossible »).
+    Le tmp est retiré si le remplacement échoue : sinon le dossier finirait
+    par se remplir de fragments qu'aucune route ne relit."""
     tmp = path.with_name(f"{path.name}.{uuid4().hex[:8]}.tmp")
     tmp.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
     try:
@@ -546,6 +547,13 @@ def _write_saved(data: dict) -> None:
         except OSError:
             pass
         raise
+
+
+def _write_saved(data: dict) -> None:
+    """La timeline COURANTE, écrite d'un bloc. Même mécanique que les projets
+    nommés (P5) — un seul endroit à relire pour savoir comment ce dossier est
+    écrit."""
+    _write_json_atomic(_saved_path(), data)
 
 
 def _load_saved() -> dict | None:
@@ -577,6 +585,93 @@ def _delete_saved() -> bool:
     except OSError as e:
         logger.warning(f"montage: suppression de la sauvegarde impossible : {e}")
     return False
+
+
+# --------------------------------------------------------------- projets ---
+# P5 — un montage NOMMÉ est un fichier de montage_projects/, voisin de la
+# timeline courante. Le courant reste le seul brouillon vivant : il porte
+# `project_id`, et l'autosave miroite dedans. Rien ici ne remplace la
+# sauvegarde courante — c'est elle que GET /project sert, projet ou pas.
+
+
+async def _json_body(request: Request) -> dict:
+    """Corps JSON, ou {} — un POST sans corps (« dupliquer ») n'est pas une
+    erreur, et ce qui n'est pas un objet ne porte aucun champ attendu."""
+    try:
+        body = await request.json()
+    except Exception:
+        return {}
+    return body if isinstance(body, dict) else {}
+
+
+def _projects_dir() -> Path:
+    d = settings.images_path.parent / "montage_projects"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _pid(raw) -> str:
+    """Un identifiant ne désigne JAMAIS qu'un fichier de CE dossier :
+    `Path(...).name` mange `../`, `..\\` et tout séparateur. MESURÉ le
+    04/09/2026, contre ce que ce commentaire affirmait d'abord : il ne mange
+    PAS `.` ni `..` eux-mêmes — `Path("..").name` vaut `".."` (la propriété
+    ne rend "" que pour une racine ou un lecteur). D'où le rejet explicite :
+    sans lui, l'identifiant `..` désignait le fichier « ...json » du dossier,
+    inoffensif mais que rien n'empêchait de créer. Borné à 24 caractères (les
+    nôtres en font 10)."""
+    s = Path(str(raw)).name
+    return "" if s in (".", "..") else s[:24]
+
+
+def _project_path(pid) -> Path:
+    return _projects_dir() / f"{_pid(pid)}.json"
+
+
+def _load_project(pid) -> dict | None:
+    """Le projet, ou None — absent, illisible, corrompu, forme inattendue.
+    Un identifiant qui se réduit à rien ne peut donner qu'un None."""
+    if not _pid(pid):
+        return None
+    p = _project_path(pid)
+    try:
+        if not p.is_file():
+            return None
+        d = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        logger.warning(f"montage: projet illisible, ignoré — {p.name}")
+        return None
+    return d if isinstance(d, dict) else None
+
+
+def _project_meta(d: dict, fallback_id: str = "") -> dict:
+    """Ce que la LISTE rend. Jamais les clips eux-mêmes : une liste de vingt
+    projets porterait des milliers de clips que personne ne regarde à cet
+    instant — leur NOMBRE suffit à choisir."""
+    return {"id": d.get("id") or fallback_id or None,
+            "name": d.get("name"),
+            "updated_at": d.get("saved_at"),
+            "clips": len(d.get("clips") or []),
+            "ratio": d.get("ratio"),
+            "duration": d.get("duration")}
+
+
+def _project_name(raw, fallback) -> str:
+    """Le nom est un LIBELLÉ, jamais un chemin — le fichier, lui, est nommé
+    par l'identifiant. `Path(...).name` retire `../` et les séparateurs. Ce
+    qui n'est pas une chaîne, ce qui est vide et ce qui n'est qu'espaces
+    retombe sur `fallback` : sans ce repli, un champ effacé aurait fabriqué
+    le libellé « None »."""
+    s = raw if isinstance(raw, str) else ""
+    s = Path(s).name.strip()
+    if s in (".", ".."):
+        s = ""          # cf. _pid : Path().name ne les mange pas
+    if not s:
+        s = Path(str(fallback or "")).name.strip() or "montage"
+    return s[:80]
+
+
+def _now_iso() -> str:
+    return _dt.utcnow().replace(microsecond=0).isoformat() + "Z"
 
 
 # ---------------------------------------------------------------- project ---
@@ -635,6 +730,11 @@ async def montage_project(limit: int = 4):
                 out["subs_style"] = saved["subs_style"]   # S1 (cf. POST /save)
             if isinstance(saved.get("tracks"), list) and saved["tracks"]:
                 out["tracks"] = saved["tracks"]           # P1 (cf. POST /save)
+            # P5 : de quel projet nommé cette timeline est le brouillon. Sans
+            # cette clé, l'éditeur rouvrait toujours « sans titre » et le
+            # premier autosave venu cassait le lien.
+            if isinstance(saved.get("project_id"), str) and saved["project_id"]:
+                out["project_id"] = saved["project_id"]
             if pruned:
                 out["saved_pruned"] = True
                 out["pruned"] = pruned
@@ -784,10 +884,38 @@ async def montage_save(request: Request):
     # inconnue, donc hors du rendu. GET /project les resert à l'éditeur.
     if isinstance(body.get("tracks"), list):
         data["tracks"] = body["tracks"]
+    # P5 : de quel projet NOMMÉ cette timeline est le brouillon. Deux gardes,
+    # et chacune ferme un trou mesuré :
+    #  * seule une CHAÎNE est retenue — le plan écrivait `str(...)`, qui aurait
+    #    fabriqué un fichier « {'a': 1}.json » que la liste aurait ensuite
+    #    présenté comme un projet ;
+    #  * l'identifiant doit désigner un fichier EXISTANT. L'autosave MET À JOUR
+    #    un projet, il n'en CRÉE jamais : sans ce test, supprimer le projet
+    #    ouvert le faisait ressusciter à la seconde suivante, par l'autosave
+    #    d'une fenêtre qui n'avait rien demandé.
+    pid = body.get("project_id")
+    pid = _pid(pid) if isinstance(pid, str) else ""
+    lie = await asyncio.to_thread(_load_project, pid) if pid else None
+    if lie is not None:
+        data["project_id"] = pid
     if len(json.dumps(data, ensure_ascii=False).encode("utf-8")) > _SAVE_MAX_BYTES:
         raise HTTPException(400, "Sauvegarde refusée — plus de 2 Mo.")
     try:
         await asyncio.to_thread(_write_saved, data)
+        # le MIROIR : le projet nommé suit les éditions sans un geste. Son
+        # échec fait échouer la sauvegarde entière — l'éditeur garde
+        # « NON ENREGISTRÉ » et réessaie, plutôt que d'annoncer un
+        # enregistrement dont la moitié n'a pas eu lieu.
+        if data.get("project_id"):
+            # le NOM appartient au PROJET, pas au payload : sans cette ligne,
+            # renommer dans le popover puis laisser passer un autosave
+            # rendait au projet son ancien nom, sans un mot. MESURÉ — c'est
+            # ce qui faisait sortir « abysse (copie) » là où le projet
+            # s'appelait « Abysse v1 ».
+            await asyncio.to_thread(
+                _write_json_atomic, _project_path(data["project_id"]),
+                dict(data, id=data["project_id"],
+                     name=lie.get("name") or data["name"]))
     except OSError as e:
         logger.warning(f"montage: écriture de la sauvegarde impossible : {e}")
         raise HTTPException(500, f"Écriture de la sauvegarde impossible : {e}")
@@ -800,6 +928,173 @@ async def montage_save_delete():
     Bibliothèque (bouton « bibliothèque » de l'éditeur, après confirmation)."""
     deleted = await asyncio.to_thread(_delete_saved)
     return {"ok": True, "deleted": deleted}
+
+
+# ---------------------------------------------------------- /projects (P5) ---
+
+
+@router.get("/projects")
+async def montage_projects():
+    """Les projets nommés, MÉTADONNÉES seules, le plus récemment enregistré en
+    tête. Un fichier illisible est SAUTÉ : un seul projet corrompu ne doit pas
+    emporter la liste de tous les autres."""
+    def _scan():
+        out = []
+        for f in _projects_dir().glob("*.json"):
+            try:
+                d = json.loads(f.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                logger.warning(f"montage: projet illisible, ignoré — {f.name}")
+                continue
+            if isinstance(d, dict):
+                out.append(_project_meta(d, f.stem))
+        # `str(...)` : un `saved_at` numérique venu d'un fichier bricolé
+        # ferait lever la comparaison et emporterait la liste entière.
+        out.sort(key=lambda p: str(p.get("updated_at") or ""), reverse=True)
+        return out
+    return {"ok": True, "projects": await asyncio.to_thread(_scan)}
+
+
+@router.post("/projects")
+async def montage_project_create(request: Request):
+    """{name} — la timeline COURANTE devient un projet nommé, et le courant en
+    devient le brouillon : il reçoit `project_id`, l'autosave miroite ensuite.
+    400 sans timeline courante : il n'y aurait rien à nommer."""
+    body = await _json_body(request)
+    cur = await asyncio.to_thread(_load_saved)
+    if cur is None:
+        raise HTTPException(400, "Aucune timeline courante à enregistrer.")
+    pid = f"m_{uuid4().hex[:8]}"
+    rec = dict(cur, id=pid, project_id=pid,
+               name=_project_name(body.get("name"), cur.get("name")))
+    try:
+        await asyncio.to_thread(_write_json_atomic, _project_path(pid), rec)
+        await asyncio.to_thread(_write_saved, rec)
+    except OSError as e:
+        raise HTTPException(500, f"Écriture du projet impossible : {e}")
+    return {"ok": True, **_project_meta(rec)}
+
+
+@router.get("/projects/{pid}")
+async def montage_project_read(pid: str):
+    """Le projet ENTIER (clips compris) — c'est ce que l'éditeur applique."""
+    d = await asyncio.to_thread(_load_project, pid)
+    if d is None:
+        raise HTTPException(404, "Projet introuvable.")
+    return d
+
+
+@router.patch("/projects/{pid}")
+async def montage_project_rename(pid: str, request: Request):
+    """{name} — renommer, rien d'autre. `saved_at` est repoussé : c'est lui
+    qui ordonne la liste, et un projet qu'on vient de renommer est le dernier
+    touché. Un nom VIDE garde l'ancien plutôt que de fabriquer « montage » :
+    l'utilisateur a effacé le champ, il n'a pas demandé un autre nom."""
+    d = await asyncio.to_thread(_load_project, pid)
+    if d is None:
+        raise HTTPException(404, "Projet introuvable.")
+    body = await _json_body(request)
+    p = _pid(pid)
+    rec = dict(d, id=p, project_id=p, saved_at=_now_iso(),
+               name=_project_name(body.get("name"), d.get("name")))
+    try:
+        await asyncio.to_thread(_write_json_atomic, _project_path(p), rec)
+    except OSError as e:
+        raise HTTPException(500, f"Écriture du projet impossible : {e}")
+    return {"ok": True, **_project_meta(rec)}
+
+
+@router.post("/projects/{pid}/duplicate")
+async def montage_project_duplicate(pid: str):
+    """Une COPIE indépendante, sous un identifiant neuf. Le suffixe est ajouté
+    APRÈS la coupe à 80 caractères de la base : collé avant, il aurait été le
+    premier rogné et la copie serait revenue avec le nom exact de l'original,
+    à côté de lui dans la liste."""
+    d = await asyncio.to_thread(_load_project, pid)
+    if d is None:
+        raise HTTPException(404, "Projet introuvable.")
+    nid = f"m_{uuid4().hex[:8]}"
+    suff = " (copie)"
+    base = _project_name(d.get("name"), "montage")[:80 - len(suff)]
+    rec = dict(d, id=nid, project_id=nid, name=base + suff,
+               saved_at=_now_iso())
+    try:
+        await asyncio.to_thread(_write_json_atomic, _project_path(nid), rec)
+    except OSError as e:
+        raise HTTPException(500, f"Écriture du projet impossible : {e}")
+    return {"ok": True, **_project_meta(rec)}
+
+
+@router.post("/projects/{pid}/open")
+async def montage_project_open(pid: str):
+    """Le projet REMPLACE la timeline courante. GESTE DESTRUCTIF : ce que le
+    courant portait n'est copié nulle part et RIEN ne le rend — l'éditeur arme
+    donc le bouton avant de frapper (M14) et le dit dans sa note. La fenêtre
+    qui ouvre annule d'abord son autosave en vol, sinon il retomberait sur le
+    projet fraîchement ouvert avec le contenu de l'ancien.
+
+    409 si le projet est INOUVRABLE — plus un seul plan V1 dont la source
+    existe. La règle est celle de GET /project au mot près (un clip SANS src
+    compte, un clip dont la source a disparu ne compte pas) : sans elle, ouvrir
+    un tel projet écrasait la timeline courante pour ne rien afficher, et si
+    elle n'avait pas de nom elle était perdue — ce geste est le seul du lot
+    qui pouvait détruire un montage sans qu'on ait rien demandé de destructif.
+    """
+    d = await asyncio.to_thread(_load_project, pid)
+    if d is None:
+        raise HTTPException(404, "Projet introuvable.")
+    ouvrable = False
+    for cl in (d.get("clips") or []):
+        if not isinstance(cl, dict) or cl.get("tr") != "v1":
+            continue
+        if not cl.get("src") or await _resolve_src(cl.get("src")) is not None:
+            ouvrable = True
+            break
+    if not ouvrable:
+        raise HTTPException(
+            409, f"« {d.get('name') or pid} » n'a plus un seul plan dont la "
+                 f"source existe : il ne peut pas être ouvert, et la timeline "
+                 f"affichée n'a pas été touchée.")
+    p = _pid(pid)
+    rec = dict(d, id=p, project_id=p)
+    try:
+        await asyncio.to_thread(_write_saved, rec)
+    except OSError as e:
+        raise HTTPException(500, f"Ouverture impossible : {e}")
+    return {"ok": True, **_project_meta(rec)}
+
+
+@router.delete("/projects/{pid}")
+async def montage_project_delete(pid: str):
+    """Suppression IRRÉVERSIBLE du fichier — rien ne la rejoue, ni ici ni à
+    l'écran (l'historique du Montage ne mémorise que {clips, mixDb}).
+    Si c'était le projet OUVERT, le courant est DÉLIÉ : sans cela le prochain
+    autosave le recréerait aussitôt. C'est le second verrou de la même panne,
+    le premier étant côté POST /save (qui ne miroite que dans un fichier
+    existant) — la timeline courante, elle, n'est pas touchée."""
+    p = _project_path(pid)
+    if not _pid(pid) or not p.is_file():
+        raise HTTPException(404, "Projet introuvable.")
+
+    def _rm():
+        try:
+            p.unlink()
+        except OSError as e:
+            return str(e)
+        cur = _load_saved()
+        if cur is not None and cur.get("project_id") == _pid(pid):
+            try:
+                _write_saved({k: v for k, v in cur.items()
+                              if k != "project_id"})
+            except OSError as e:
+                logger.warning(f"montage: le courant reste lié au projet "
+                               f"supprimé — {e}")
+        return ""
+
+    err = await asyncio.to_thread(_rm)
+    if err:
+        raise HTTPException(500, f"Suppression impossible : {err}")
+    return {"ok": True, "deleted": True}
 
 
 # ----------------------------------------------------------------- render ---
