@@ -936,7 +936,12 @@ for _tag, _R, _noms in (
           ("setSelId", "selRef.current=selId;"),
           ("pushHistory", "var pushHistory=x.useCallback("),
           ("setDirty", "setDirty=st8[1]"),
-          ("fireNote", "fireNote=nt[1]"))),
+          ("fireNote", "fireNote=nt[1]"),
+          # P6 (revue) : le refus de genre lit le MÊME `trackKind` que le
+          # dépôt sur une bande — jamais une seconde règle en JavaScript.
+          ("trackKind", 'function trackKind(trId){var k=String(trId||"")'
+                        '.charAt(0);'),
+          ("setDzmArm", "setDzmArm=stDZA[1];"))),
         ("M16src", "R_M16",
          (("sel", "var sel=clips.find("),
           ("ovPick", "ovPick=stO[0]"),
@@ -947,8 +952,19 @@ for _tag, _R, _noms in (
           ("pushHistory", "var pushHistory=x.useCallback("),
           ("setDirty", "setDirty=st8[1]"),
           ("fireNote", "fireNote=nt[1]"),
+          ("setDzmArm", "setDzmArm=stDZA[1];"),
           ("addAsset",
-           "function addAsset(src,label,kind,srcDur,trId,atTime){")))):
+           "function addAsset(src,label,kind,srcDur,trId,atTime){"))),
+        # M15b vit DANS `ovPicker`, dont le corps appartient au greffon amont
+        # (son-vfx-montage.js, fichier qu'on ne touche pas) : ses référents
+        # sont donc ceux d'ovPicker, plus le miroir posé par M4b.
+        ("M15b", "R_M15B",
+         (("dzmArm", "var stDZA=x.useState(null),dzmArm=stDZA[0],"),
+          ("ovPick", "ovPick=stO[0]"),
+          ("trackKind", 'function trackKind(trId){var k=String(trId||"")'
+                        '.charAt(0);'),
+          ("svmShort", "function svmShort(s){"),
+          ("ph", "var st3=x.useState(18.4),ph=st3[0],setPh=st3[1];")))):
     _txt = getattr(P, _R)
     for _nm, _decl in _noms:
         _ap = re.search(r"\b%s\b" % re.escape(_nm), _txt) is not None
@@ -964,9 +980,19 @@ check("M4b_declare_la_ref_du_mode_remplacement",
       and "dzmReplaceRef" in P.R_M4b,
       f'count={s.count(nl("  var dzmReplaceRef=x.useRef(null);"))}')
 check("M4b_desarme_le_mode_quand_le_selecteur_change",
-      s.count(nl("    if(rp&&ovPick!==rp.tr)dzmReplaceRef.current=null},"
-                 "[ovPick]);")) == 1,
+      s.count(nl("    if(rp&&ovPick!==rp.tr){dzmReplaceRef.current=null;\n"
+                 "      setDzmArm(null)}},[ovPick]);")) == 1,
       "le mode remplacement n'a pas d'extinction")
+# LE MIROIR D'AFFICHAGE du mode. Une ref ne re-rend pas : sans cet état, le
+# sélecteur ne pouvait pas DIRE qu'il est armé au moment où il l'est. La ref
+# reste la seule autorité que lit `addAsset` — l'état ne décide de RIEN, et
+# les deux lignes ci-dessous le tiennent ensemble (déclaration + extinction,
+# la seconde étant déjà mesurée juste au-dessus).
+check("M4b_declare_le_miroir_d_affichage_du_mode",
+      s.count(nl("  var stDZA=x.useState(null),dzmArm=stDZA[0],"
+                 "setDzmArm=stDZA[1];")) == 1
+      and "dzmArm" in P.R_M4b,
+      "le mode armé n'a pas de miroir d'affichage")
 # GESTE DESTRUCTIF : `pushHistory` AVANT l'ecriture, une seule entree pour le
 # geste — dans les DEUX sens (remplacer, et revenir en arriere).
 check("M15_pousse_l_historique_avant_d_ecrire",
@@ -977,12 +1003,54 @@ check("M16src_le_retour_arriere_pousse_aussi_l_historique",
       nl("          var rv=DzTracks.revertSrc(sel);if(!rv)return;\n"
          "          pushHistory();") in s,
       "« Revenir à la version précédente » écrit sans instantané")
-# LES DEUX REFUS SORTENT AVANT toute ecriture : aucun geste destructif n'a eu
-# lieu quand le plan vise a disparu ou que sa piste est verrouillee.
-check("M15_les_deux_refus_precedent_pushHistory",
-      P.R_M15.index("if(!rk)") < P.R_M15.index("pushHistory()")
-      and P.R_M15.index("verrouillée") < P.R_M15.index("pushHistory()"),
-      "un refus passe après l'instantané")
+# LES TROIS REFUS SORTENT AVANT toute ecriture : aucun geste destructif n'a
+# eu lieu quand le plan vise a disparu, quand le genre ne correspond pas, ou
+# quand sa piste est verrouillee.
+#
+# FAUTE N°6, CINQUIEME MORSURE — corrigee ici. Ces bornes etaient lues avec
+# `str.index`, qui LEVE ; les arguments de `check()` sont evalues AVANT
+# l'appel ; et c'est du code de MODULE, hors de tout `try`. MESURE DEUX FOIS
+# le 05/09/2026, sur ce banc-ci :
+#   MD1 — le refus `if(!rk)` retire de R_M15 (une garde qu'un refactor
+#         jugerait redondante) : rc=1, ValueError: substring not found,
+#         206 assertions imprimees sur 304, AUCUN bilan. 98 perdues en
+#         silence, dont TOUTE la section [3] (le cœur execute sous node).
+#   MD2 — « verrouillée » reformule en « bloquée » dans le message affiche
+#         — une simple reformulation de texte utilisateur : mort identique,
+#         206/304.
+# Trois sous-chaines sont exposees, dont un MESSAGE UTILISATEUR : la chose la
+# plus susceptible d'etre reecrite du lot. `find` rend -1 au lieu de lever, et
+# le detail NOMME celle qui a disparu — c'est le detail qui devient le temoin.
+_M15_BORNES = ("if(!rk)", "rkd!==akd", "verrouillée")
+_m15 = dict((_n, P.R_M15.find(_n)) for _n in _M15_BORNES + ("pushHistory()",))
+_m15_abs = [_n for _n, _i in _m15.items() if _i < 0]
+check("M15_les_trois_refus_precedent_pushHistory",
+      not _m15_abs
+      and all(_m15[_n] < _m15["pushHistory()"] for _n in _M15_BORNES),
+      ("sous-chaîne(s) ABSENTE(S) de R_M15 : " + ", ".join(_m15_abs)
+       if _m15_abs else f"un refus passe après l'instantané — {_m15}"))
+# LE REFUS DE GENRE, celui qui manquait. Le sélecteur n'a NI voile NI
+# backdrop (`.svm-pop` : absolute, top 52, right 18, width 300, z-index 20 —
+# lu dans shared/son-vfx-montage.css) : tout le reste de l'écran reste
+# cliquable pendant que le mode est armé, et `sfxInsert` (tiroir Sons, état
+# `sfxOn` INDÉPENDANT d'`ovPick`) appelle `addAsset({audio:fn},…,"audio",…)`.
+# MESURÉ sous node : `replaceSrc` accepte l'objet tel quel — le `src` d'un
+# plan V1 devenait `{audio:"…"}`, bornes/effets/transition conservés et fin
+# ramenée à la durée du .wav. Aucun contrôle de genre nulle part.
+check("M15_refuse_un_genre_incompatible",
+      'var rkd=trackKind(rk.tr);' in P.R_M15
+      and 'var akd=(kind==="audio"||(src&&src.audio))?"audio":"video";'
+      in P.R_M15
+      and "if(rkd!==akd){" in P.R_M15
+      and nl('      var rkd=trackKind(rk.tr);') in s,
+      "un son peut encore devenir la source d'un plan vidéo")
+# ET LE GENRE PASSE AVANT LE VERROU : déverrouiller la piste ne rendrait pas
+# un .wav valide pour un plan vidéo, et le message du verrou enverrait
+# l'utilisateur dans le mur.
+check("M15_le_genre_est_refuse_avant_le_verrou",
+      _m15["rkd!==akd"] > 0 and _m15["verrouillée"] > 0
+      and _m15["rkd!==akd"] < _m15["verrouillée"],
+      f'genre à {_m15["rkd!==akd"]}, verrou à {_m15["verrouillée"]}')
 # LE VERROU DE PISTE, sur la piste DU PLAN VISE (pas celle qu'addAsset
 # resoudrait) — l'idiome du composant, applique a sa propre cible.
 check("M15_refuse_sur_une_piste_verrouillee",
@@ -991,6 +1059,23 @@ check("M15_refuse_sur_une_piste_verrouillee",
 check("M16src_n_arme_pas_sur_une_piste_verrouillee",
       "trackStRef.current[sel.tr]&&trackStRef.current[sel.tr].l" in P.R_M16,
       "le bouton arme le mode alors que le sélecteur refusera d'ouvrir")
+# « REVENIR À LA VERSION PRÉCÉDENTE » IGNORAIT LE VERROU. Ce geste réécrit
+# `src`, `label`, `srcIn` ET `end` — donc le bord droit du clip sur la
+# timeline. M15 refuse sur une piste verrouillée, M16src refuse même d'ARMER,
+# et le retour arrière passait sans rien demander : le SEUL geste destructif
+# de cet écran à le faire. La garde est posée AVANT `revertSrc` (donc avant
+# `pushHistory`), et le compte ci-dessous vaut 2 dans le remplacement — une
+# fois pour armer, une fois pour revenir. Compter, pas seulement chercher :
+# un `in` restait vert sur la version qui n'en avait qu'une.
+_m16_verrous = P.R_M16.count(
+    "trackStRef.current[sel.tr]&&trackStRef.current[sel.tr].l")
+check("M16src_le_retour_arriere_refuse_sur_une_piste_verrouillee",
+      _m16_verrous == 2
+      and P.R_M16.find("rendre à ce plan sa source") > 0
+      and (P.R_M16.find("rendre à ce plan sa source")
+           < P.R_M16.find("DzTracks.revertSrc(sel)")),
+      f'{_m16_verrous} garde(s) de verrou dans M16src '
+      f'(2 attendues : armer, revenir)')
 # M15 court-circuite AVANT la resolution de piste posee par la tache 16 : un
 # remplacement garde la piste du plan et n'en choisit aucune. L'ORDRE se lit
 # dans le bundle LIVRE, pas dans l'intention.
@@ -999,6 +1084,55 @@ _i16a = s.find(nl("var dzTs=dzTracksRef.current||svmTracksOf(proj);"))
 check("M15_court_circuite_avant_la_resolution_de_piste",
       _i15 > 0 and _i16a > 0 and _i15 < _i16a,
       f"mode remplacement à {_i15}, résolution de piste à {_i16a}")
+# M15b — LE SÉLECTEUR DIT QU'IL EST ARMÉ. Le panneau continuait de
+# s'intituler « Ajouter sur la piste V1 » et de promettre « Posé à la tête de
+# lecture » pendant que le mode remplaçait : deux phrases que le mode rend
+# fausses, sur le seul écran regardé au moment de choisir. `ovPicker` vit
+# dans son-vfx-montage.js (qu'on ne touche pas) — la correction est donc une
+# section EN AVAL de la chaîne `montage`, sur une ancre mesurée unique.
+# LES DEUX MOITIÉS : le titre conditionnel ET la note conditionnelle. Une
+# seule des deux aurait laissé un panneau qui se contredit.
+check("M15b_le_titre_du_selecteur_nomme_le_plan_quand_le_mode_est_arme",
+      nl('      r.jsx("div",{className:"svm-poptitle",children:dzmA\n'
+         '        ?("Remplacer la source de « "+(dzmA.label||"ce plan")'
+         '+" »")\n'
+         '        :("Ajouter sur la piste "+tr2.toUpperCase())}),') in s,
+      "le sélecteur s'intitule encore « Ajouter » pendant qu'il remplace")
+# LA PISTE EST COMPARÉE, comme dans l'effet de désarmement de M4b. Sans
+# cette égalité, un sélecteur rouvert sur une AUTRE piste aurait affiché
+# « Remplacer… » le temps d'une image : l'effet de désarmement s'exécute
+# APRÈS le rendu. La condition d'affichage est la même que celle de
+# l'armement — pas une seconde règle qui pourrait dériver.
+check("M15b_le_titre_arme_ne_vaut_que_pour_la_piste_du_plan",
+      nl('    var dzmA=(dzmArm&&dzmArm.tr===tr2)?dzmArm:null;') in s
+      and "dzmArm.tr===tr2" in P.R_M15B,
+      "le panneau peut s'annoncer armé sur une piste qui ne l'est pas")
+check("M15b_la_note_du_selecteur_dit_ce_que_le_prochain_choix_fera",
+      "children:dzmA?(\"Le prochain élément choisi REMPLACERA la source"
+      in P.R_M15B
+      and "REMPLACERA la source de ce plan" in s
+      # la note DÉCLARE le glisser-déposer, qui passe par le même addAsset
+      # et jette la piste visée comme l'instant du dépôt.
+      and "Un glisser-déposer compte aussi comme un choix" in s
+      and "Fermez ce panneau pour annuler" in s,
+      "la note du sélecteur promet encore « Posé à la tête de lecture »")
+# ET L'ANCIENNE NOTE SURVIT POUR LE MODE NORMAL : la section remplace deux
+# phrases, elle n'en supprime aucune. Le compte 1 dit que le mode normal
+# garde exactement son texte — et qu'il ne l'a pas gagné DEUX fois.
+check("M15b_le_mode_normal_garde_son_texte",
+      s.count(nl('Posé à la tête de lecture ("+svmShort(ph)+"). '
+                 'A1 = dialogue')) == 1
+      and s.count(nl("Ajouter sur la piste \"+tr2.toUpperCase()")) == 1,
+      "le texte du mode normal a été perdu ou dupliqué")
+# LE MIROIR EST ARMÉ ET ÉTEINT AUX DEUX BOUTS : posé par M16src (avec le
+# libellé que le titre affiche), éteint par M15 dès la consommation. Sans
+# l'extinction, un panneau rouvert après un remplacement se serait intitulé
+# « Remplacer la source de … » alors que le mode était retombé.
+check("M15b_le_miroir_est_arme_par_le_bouton_et_eteint_a_la_consommation",
+      "setDzmArm({tr:sel.tr,label:sel.label});" in P.R_M16
+      and "label:sel.label};" in P.R_M16
+      and "dzmReplaceRef.current=null;\n      setDzmArm(null);" in P.R_M15,
+      "le miroir d'affichage n'est pas tenu aux deux bouts")
 # ── la feuille habille les nouveautés de P6 ───────────────────────────────
 _css6 = _css.replace(" ", "").replace("\n", "").replace("\r", "")
 check("css_porte_les_deux_boutons_de_remplacement",

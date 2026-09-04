@@ -1999,10 +1999,21 @@ function DzMontage(props){
      rouvert sur une AUTRE piste — laissait le mode armé, et le clip
      suivant venait écraser la source d'un plan que l'utilisateur ne
      regardait plus. Le désarmement suit l'état du sélecteur
-     lui-même (`ovPick`), pas une copie de ses règles. */
+     lui-même (`ovPick`), pas une copie de ses règles.
+     `dzmArm` est le MIROIR D'AFFICHAGE de cette ref, et rien de
+     plus : la ref reste la seule autorité que lit `addAsset`.
+     Il existe parce qu'une ref ne re-rend pas, et que le
+     sélecteur doit DIRE qu'il est armé au moment où il l'est —
+     y compris quand il était DÉJÀ ouvert sur la piste du plan et
+     que M16src ne le rouvre donc pas (le rouvrir le refermerait).
+     Un état SEUL ne suffirait pas : le rappel « version plus
+     récente » arme puis appelle `addAsset` dans le MÊME
+     gestionnaire, et un état posé là n'y serait pas relu. */
   var dzmReplaceRef=x.useRef(null);
+  var stDZA=x.useState(null),dzmArm=stDZA[0],setDzmArm=stDZA[1];
   x.useEffect(function(){var rp=dzmReplaceRef.current;
-    if(rp&&ovPick!==rp.tr)dzmReplaceRef.current=null},[ovPick]);
+    if(rp&&ovPick!==rp.tr){dzmReplaceRef.current=null;
+      setDzmArm(null)}},[ovPick]);
   function svmTracksSet(ts){pushHistory();svmTrackBusSync(ts);setProj(function(p){return Object.assign({},p,{tracks:ts})});setDirty(!0)}
   function svmApplyProject(d){
     if(!d||!d.ok||!d.has_assets)return !1;
@@ -3850,9 +3861,39 @@ function DzMontage(props){
     /* P6 — MODE REMPLACEMENT, en court-circuit AVANT tout le reste :
        un remplacement ne choisit pas de piste, il garde celle du
        plan. Le mode est CONSOMMÉ dès l'entrée (une seule fois par
-       armement), et les deux refus sortent AVANT pushHistory. */
+       armement), et les TROIS refus sortent AVANT pushHistory.
+
+       CE COURT-CIRCUIT PREND TOUS LES APPELANTS D'`addAsset`, et
+       c'est DÉCLARÉ ici parce que ce n'est pas anodin. Le
+       sélecteur est un panneau de 300 px en haut à droite
+       (`.svm-pop` : position:absolute, top:52px, right:18px,
+       z-index:20 — MESURÉ dans shared/son-vfx-montage.css) et il
+       n'a NI voile NI backdrop : tout le reste de l'écran reste
+       cliquable pendant que le mode est armé, et le mode le reste
+       tant qu'`ovPick` ne bouge pas. Deux chemins arrivent donc
+       ici sans être des clics du sélecteur :
+         · le GLISSER-DÉPOSER d'une vignette sur une bande (les
+           vignettes sont `draggable:!0`). La piste visée et
+           l'instant du dépôt sont alors JETÉS — un remplacement
+           n'en veut pas — et le geste devient un remplacement.
+           C'est ASSUMÉ : glisser une vignette, c'est choisir dans
+           le sélecteur, et le titre du panneau dit que le
+           prochain choix remplacera (section M15b). Fermer le
+           panneau désarme.
+         · `sfxInsert` (tiroir Sons, dont l'état `sfxOn` est
+           INDÉPENDANT d'`ovPick` et rendu hors du panneau) :
+           `addAsset({audio:fn},…,"audio",…)`. Celui-là n'est PAS
+           assumable : MESURÉ sous node, `replaceSrc` accepte
+           l'objet tel quel et le `src` d'un plan V1 devenait
+           `{audio:"…"}` — avec ses bornes, ses effets et sa
+           transition, et la fin ramenée à la durée du .wav.
+           D'où le refus de GENRE ci-dessous, qui manquait.
+       Le genre passe AVANT le verrou : déverrouiller la piste ne
+       rendrait pas un son valide pour un plan vidéo, et envoyer
+       l'utilisateur déverrouiller serait l'envoyer dans le mur. */
     if(dzmReplaceRef.current){
       var rc=dzmReplaceRef.current;dzmReplaceRef.current=null;
+      setDzmArm(null);
       var rcs=clipsRef.current||[],rk=null,ri;
       for(ri=0;ri<rcs.length;ri++)if(rcs[ri].id===rc.id)rk=rcs[ri];
       setOvPick("");
@@ -3861,6 +3902,16 @@ function DzMontage(props){
         "posé. Sélectionnez un plan puis « Remplacer la source… », "+
         "ou « Bibliothèque… » pour l'ajouter comme clip de "+
         "plus.");return}
+      var rkd=trackKind(rk.tr);
+      var akd=(kind==="audio"||(src&&src.audio))?"audio":"video";
+      if(rkd!==akd){
+        fireNote("« "+label+" » est "+(akd==="audio"?"un son":
+          "une image ou une vidéo")+" : impossible d'en faire la "+
+          "source d'un plan de la piste "+rk.tr.toUpperCase()+
+          " ("+rkd+"). Rien n'a changé, et rien n'a été posé — "+
+          "choisissez une source du même genre, ou "+
+          "« Bibliothèque… » pour l'ajouter comme clip de "+
+          "plus.");return}
       if(trackStRef.current[rk.tr]&&trackStRef.current[rk.tr].l){
         fireNote("Piste "+rk.tr.toUpperCase()+" verrouillée — "+
           "déverrouillez-la pour remplacer la source de ce "+
@@ -4442,10 +4493,23 @@ function DzMontage(props){
   function ovPicker(){
     if(!ovPick||!sources)return null;
     var tr2=ovPick,audio=trackKind(tr2)==="audio";
+    /* P6 — LE MODE REMPLACEMENT EST VISIBLE PENDANT QU'IL EST ARMÉ.
+       `dzmArm` est le miroir d'affichage de `dzmReplaceRef` (voir
+       M4b) : la ref reste ce que lit `addAsset`, l'état n'est là que
+       pour que ce panneau se re-rende et change de discours.
+       LA PISTE EST COMPARÉE, comme dans l'effet de désarmement : cet
+       effet s'exécute APRÈS le rendu, donc un sélecteur rouvert sur
+       une AUTRE piste aurait affiché « Remplacer… » le temps d'une
+       image avant de se corriger. La condition d'affichage est la
+       même que celle de l'armement, pas une seconde règle. */
+    var dzmA=(dzmArm&&dzmArm.tr===tr2)?dzmArm:null;
     return r.jsxs("div",{className:"svm-pop",style:{top:96},children:[
-      r.jsx("div",{className:"svm-poptitle",children:"Ajouter sur la piste "+tr2.toUpperCase()}),
+      r.jsx("div",{className:"svm-poptitle",children:dzmA
+        ?("Remplacer la source de « "+(dzmA.label||"ce plan")+" »")
+        :("Ajouter sur la piste "+tr2.toUpperCase())}),
       r.jsx("div",{className:"svm-popnote",style:{marginTop:6},
-        children:audio?("Posé à la tête de lecture ("+svmShort(ph)+"). A1 = dialogue, A2 = musique (ducking auto), A3 = SFX.")
+        children:dzmA?("Le prochain élément choisi REMPLACERA la source de ce plan (piste "+dzmA.tr.toUpperCase()+") au lieu d'être posé : ses bornes, ses effets, sa transition et son mixage restent en place. Un glisser-déposer compte aussi comme un choix — la piste et l'instant du dépôt sont alors ignorés. Fermez ce panneau pour annuler.")
+               :audio?("Posé à la tête de lecture ("+svmShort(ph)+"). A1 = dialogue, A2 = musique (ducking auto), A3 = SFX.")
                       :("Posé à la tête de lecture ("+svmShort(ph)+") — ou déposez directement sur une bande ou le viewport. Les PNG gardent leur transparence.")}),
       audio?null:r.jsx(SvmLabel,{style:{marginTop:12},children:"Images (Bibliothèque)"}),
       audio?null:(sources.images.length?
@@ -5308,12 +5372,28 @@ function DzMontage(props){
             fireNote("Piste "+sel.tr.toUpperCase()+" verrouillée — "+
               "déverrouillez-la pour remplacer la source de ce "+
               "plan.");return}
-          dzmReplaceRef.current={id:sel.id,tr:sel.tr};
+          dzmReplaceRef.current={id:sel.id,tr:sel.tr,
+            label:sel.label};
+          setDzmArm({tr:sel.tr,label:sel.label});
           /* déjà ouvert sur cette piste : rouvrir le REFERMERAIT
              (le sélecteur bascule), et le mode resterait armé sur
-             un panneau fermé. */
+             un panneau fermé. C'est `setDzmArm` — et non
+             `openPicker` — qui re-rend dans ce cas-là, sans quoi
+             le panneau resterait intitulé « Ajouter sur la piste
+             V1 » pendant qu'il remplace. */
           if(ovPick!==sel.tr)openPicker(sel.tr)}),
         DzTracks.revertBtn(sel,function(){
+          /* LE MÊME VERROU QUE M15 : ce geste réécrit `src`,
+             `label`, `srcIn` ET `end` — donc le bord droit du
+             clip sur la timeline. Sans cette garde, « Revenir à
+             la version précédente » était le SEUL des gestes
+             destructifs de cet écran à passer outre une piste
+             verrouillée, alors que M15 refuse de remplacer et
+             M16src refuse même d'ARMER. */
+          if(trackStRef.current[sel.tr]&&trackStRef.current[sel.tr].l){
+            fireNote("Piste "+sel.tr.toUpperCase()+" verrouillée "+
+              "— déverrouillez-la pour rendre à ce plan sa source "+
+              "précédente.");return}
           var rv=DzTracks.revertSrc(sel);if(!rv)return;
           pushHistory();
           setClips(clipsRef.current.map(function(k){
@@ -13250,10 +13330,17 @@ function dzmGradeAllBtn(sel,clips,setClips,pushHistory,setDirty,note){
    dépend de l'endroit où on la prend n'en est pas une. Le suffixe « UTC » le
    dit plutôt que de le taire. */
 
-/* PURES toutes les deux — c'est la part de P5 que node exécute. */
-function dzmProjWhen(iso){
-  var m=/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/.exec(String(iso||""));
-  return m?(m[3]+"/"+m[2]+" "+m[4]+":"+m[5]+" UTC"):""}
+/* PURES toutes les deux — c'est la part de P5 que node exécute.
+   `secs` (P6) : la SECONDE en plus, pour les seuls appelants qui doivent
+   distinguer deux lignes homonymes. Un second analyseur d'ISO à côté de
+   celui-ci aurait été une règle de plus à tenir en phase ; l'argument
+   optionnel garde UN seul analyseur et laisse les appelants de P5
+   inchangés, sortie comprise. */
+function dzmProjWhen(iso,secs){
+  var m=/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/
+    .exec(String(iso||""));
+  if(!m)return "";
+  return m[3]+"/"+m[2]+" "+m[4]+":"+m[5]+((secs&&m[6])?(":"+m[6]):"")+" UTC"}
 
 /* La ligne sous le nom d'un projet. Ce qui décide entre deux montages, c'est
    le NOMBRE de plans et la date — jamais l'identifiant, qui n'apprend rien. */
@@ -13587,10 +13674,21 @@ var DzmProjects=function(props){
        la fin est ramenée. Le plan RACCOURCIT, la timeline garde un trou
        derrière lui (les clips suivants ne remontent pas : le ripple est un
        autre geste, et le faire ici sans le demander serait pire).
+       CE QUE LE TROU DEVIENT AU RENDU dépend de la piste, et l'avertissement
+       le dit piste par piste plutôt que d'en choisir une : sur V1, la piste
+       de BASE, `_build_montage_command` pose un `color=c=black` de la durée
+       du trou (montage_service.py, branche `s.get("gap")`) — noir à l'écran.
+       Sur une piste d'overlay (V2 et au-delà), un clip est posé en
+       `overlay … enable='between(t,st,en)'` : il s'arrête plus tôt, et c'est
+       la piste du dessous qui réapparaît. « rendu en noir » y serait FAUX.
    DURÉE INCONNUE (0 ou absente) : on ne touche à RIEN et on le dit. Ce n'est
-   pas un cas d'école — MESURE sur une copie de la base réelle (04/09/2026,
-   lecture seule) : 40 des 84 jobs vidéo `done` non-montage ont `duration_s`
+   pas un cas d'école — MESURE sur une copie de la base réelle (05/09/2026,
+   lecture seule) : 53 des 97 jobs vidéo `done` non-montage ont `duration_s`
    NUL ou ≤ 0. Se taire laisserait un plan pointer dans le vide.
+   CE CHIFFRE A ÉTÉ FAUX ICI AUSSI, et de la même façon qu'en base : il
+   valait « 40 des 84 », mesuré sous `provider != 'montage'` — le défaut que
+   la route corrige. Les 13 jobs `done` à `provider IS NULL` tombaient de la
+   mesure comme de la requête : 84+13 = 97, 40+13 = 53.
 
    DEUX VOIES DE RETOUR, et il faut dire ce que chacune rend.
      1. « Annuler » (l'historique de l'écran) restaure {clips, mixDb} — donc
@@ -13607,12 +13705,25 @@ var DzmProjects=function(props){
         Cette pile SURVIT à l'enregistrement : le serveur range les clips
         tels quels et la restauration les recopie de même — mesuré des deux
         côtés. Elle est plafonnée à 10 ; au-delà, les plus anciennes tombent.
-   `srcOut` est RETIRÉ : il décrit la fenêtre de l'ANCIENNE source, et le
-   garder ferait mentir la ligne « Out » de l'inspecteur. Mesuré, un seul
-   clip du dépôt le porte aujourd'hui (la maquette de démonstration, qui n'a
-   pas de source et sur laquelle le bouton n'apparaît donc jamais) ; la
-   restauration d'une sauvegarde recopiant les clés inconnues, il pourrait
-   revenir demain. */
+   `srcOut` est RETIRÉ par le remplacement, et RENDU par le retour — les deux
+   moitiés, parce que le champ est lu : `son-vfx-montage.js` affiche
+   `sel.srcOut != null ? sel.srcOut : (sel.end - sel.start) × vitesse` dans
+   la ligne « Out » de l'inspecteur. Le garder après un remplacement ferait
+   donc mentir cette ligne (il décrit la fenêtre de l'ANCIENNE source) ; ne
+   pas le rendre après un retour la ferait mentir dans l'AUTRE sens, en
+   affichant une fin calculée là où l'utilisateur en avait posé une. Il est
+   donc mémorisé dans `src_history` À CÔTÉ de `srcIn` et `end`, et seulement
+   quand le clip le portait — une pile écrite par une version antérieure n'en
+   a pas, et le retour n'invente rien. Le couple est ALORS un aller-retour
+   exact, et le banc le mesure comme un TOUT (`ar_avant` / `ar_apres`) et non
+   plus champ par champ : une clé ajoutée ou perdue par l'une des deux
+   moitiés passait sous une liste de champs, elle ne passe pas sous une
+   comparaison d'objets. Mesuré, un seul clip du dépôt porte `srcOut`
+   aujourd'hui (la maquette de démonstration, qui n'a pas de source et sur
+   laquelle le bouton n'apparaît donc jamais) ; la restauration d'une
+   sauvegarde recopiant les clés inconnues, il pourrait revenir demain — et
+   le backend, lui, ne le lit nulle part (mesuré : aucune occurrence dans
+   backend/app). */
 var DZM_HIST_MAX=10;
 function dzmSrcLen(c){
   var o=c||{};
@@ -13624,9 +13735,13 @@ function dzmReplaceSrc(c,src,label,srcDur,now){
   var o=c||{},len=dzmSrcLen(o),sp=dzmSpeedNum(o);
   var inn=Number(o.srcIn)||0,d=Number(srcDur)||0;
   var k=Object.assign({},o),warn="";
+  var hi={src:o.src||null,label:o.label||null,srcIn:inn,
+          end:Number(o.end)||0,at:now||Date.now()};
+  /* la clé n'est ajoutée QUE si le clip la portait : sa seule présence dit
+     au retour qu'il doit la rendre, son absence qu'il ne doit rien poser. */
+  if("srcOut" in o)hi.srcOut=o.srcOut;
   k.src_history=((o.src_history&&o.src_history.length)?o.src_history:[])
-    .concat([{src:o.src||null,label:o.label||null,srcIn:inn,
-              end:Number(o.end)||0,at:now||Date.now()}]).slice(-DZM_HIST_MAX);
+    .concat([hi]).slice(-DZM_HIST_MAX);
   k.src=src;k.label=label||o.label;
   if("srcOut" in k)delete k.srcOut;
   if(d<=0){
@@ -13638,7 +13753,11 @@ function dzmReplaceSrc(c,src,label,srcDur,now){
       k.end=Math.round(((Number(o.start)||0)+d/sp)*1000)/1000;
       warn="La nouvelle source ne dure que "+d.toFixed(2)+" s : le plan a "+
         "été raccourci de "+len.toFixed(2)+" s à "+(d/sp).toFixed(2)+" s, "+
-        "et la timeline garde un trou derrière lui."}
+        "et la timeline garde un trou derrière lui"+
+        (o.tr==="v1"
+          ?", rendu en noir à l'export."
+          :" — sur une piste d'overlay, c'est la piste du dessous qui "+
+           "réapparaît.")}
     else warn="Point d'entrée ramené à 0 : la nouvelle source ("+
       d.toFixed(2)+" s) ne va pas assez loin pour l'ancien. Le plan garde "+
       "sa durée, il ne montre plus le même morceau."}
@@ -13659,6 +13778,11 @@ function dzmRevertSrc(c){
      plan au lieu de le rendre. */
   if(typeof last.srcIn==="number")k.srcIn=last.srcIn;
   if(typeof last.end==="number")k.end=last.end;
+  /* `srcOut` : rendu SEULEMENT s'il a été mémorisé — le remplacement l'a
+     retiré, et l'entrée dit s'il faut le remettre. Sans cette ligne
+     l'aller-retour n'était pas l'identité, et la ligne « Out » de
+     l'inspecteur changeait derrière un geste qui promet de tout rendre. */
+  if("srcOut" in last)k.srcOut=last.srcOut;
   return {clip:k,
     note:"Source précédente rendue : « "+(last.label||"sans titre")+" », "+
       "avec son point d'entrée et sa fin d'alors."+
@@ -13691,16 +13815,41 @@ function dzmRevertBtn(sel,onRevert){
     onClick:function(){if(onRevert)onRevert()},
     children:"Revenir à la version précédente"},"dzmrev")}
 /* La ligne d'une proposition. PURE — c'est la part du rappel que node
-   mesure ; le composant, lui, interroge le réseau. */
+   mesure ; le composant, lui, interroge le réseau.
+
+   ELLE PORTE LA DATE ET LA DURÉE, et ce n'est pas de l'ornement : le TITRE
+   est la clé même du rapprochement, donc tous les candidats le partagent PAR
+   CONSTRUCTION. Une ligne réduite au titre rendait N boutons rigoureusement
+   identiques — libellé et `aria-label` compris — et l'infobulle conseillait
+   « vérifiez le titre », un conseil que la construction rendait impossible à
+   suivre. MESURE sur une copie de la base réelle (05/09/2026) : trois
+   groupes homonymes exploitables, « tweet_2026-05-20 » (7 jobs, plafond 5),
+   « last launch 2 » (3), « backdoorpromo » (2) — soit jusqu'à cinq boutons
+   jumeaux à l'écran.
+   LA SECONDE EST AFFICHÉE. Toujours mesuré sur la même copie, deux jobs
+   « backdoorpromo » sont terminés à 36 s d'intervalle (14:54:58 et
+   14:55:34) : à la minute ils tombent encore dans deux minutes distinctes,
+   mais rien ne le garantit — deux relances du même plan à vingt secondes
+   d'écart auraient rendu la même chaîne. La seconde ferme ce cas ; deux
+   rendus terminés dans la MÊME seconde resteraient indistinguables, et
+   aucune ligne ne pourrait les distinguer.
+   LA DURÉE est le second discriminant, et le seul qui dise à l'avance si le
+   plan va être RACCOURCI. Elle est dite « inconnue » plutôt que tue quand
+   elle manque : c'est le cas majoritaire en base (53 des 97), et c'est
+   exactement l'avertissement que `replaceSrc` rendra. */
 function dzmNewerLine(c){
   if(!c)return "";
-  return "Version plus récente : "+(c.title||c.job_id||"sans titre")+
-    " — remplacer"}
+  var o=c,bits=[],w=dzmProjWhen(o.completed_at,1),d=Number(o.duration_s)||0;
+  if(w)bits.push(w);
+  bits.push(d>0?(d.toFixed(1).replace(".",",")+" s"):"durée inconnue");
+  return "Version plus récente : "+(o.title||o.job_id||"sans titre")+
+    " · "+bits.join(" · ")+" — remplacer"}
 /* Le rappel « une version plus récente existe ». Il interroge la route qui
    rapproche PAR LE TITRE, et le dit : c'est une heuristique, pas un lien
    établi en base. Deux rendus peuvent partager un titre sans rien avoir en
    commun — mesuré, un même titre couvre jusqu'à sept jobs dans la base
-   réelle — donc le titre du candidat est montré AVANT qu'on remplace.
+   réelle — donc la DATE et la DURÉE du candidat sont montrées AVANT qu'on
+   remplace : le titre, lui, est le même pour tous par construction.
    Silencieux quand il n'y a rien : ni ligne vide, ni « aucune version ». */
 var DzmNewerHint=function(props){
   var jid=(props&&props.jobId)||"";
@@ -13722,8 +13871,10 @@ var DzmNewerHint=function(props){
     return r.jsx("button",{className:"dzm-newerb",
       title:"Rapprochement par le TITRE du rendu — une heuristique, pas un "+
         "lien enregistré : rien en base ne relie deux rendus du même plan. "+
-        "Vérifiez le titre avant de remplacer."+
-        (c.completed_at?(" Terminé le "+dzmProjWhen(c.completed_at)+"."):""),
+        "Le titre étant la clé du rapprochement, TOUS les candidats le "+
+        "partagent : ce qui les distingue, c'est la date et la durée "+
+        "portées par la ligne. Vérifiez-les avant de remplacer."+
+        (c.completed_at?(" Terminé le "+dzmProjWhen(c.completed_at,1)+"."):""),
       "aria-label":dzmNewerLine(c),
       onClick:function(){if(props&&props.onPick)props.onPick(c)},
       children:dzmNewerLine(c)},c.job_id)})})};

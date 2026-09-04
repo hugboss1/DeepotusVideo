@@ -1132,10 +1132,17 @@ function dzmGradeAllBtn(sel,clips,setClips,pushHistory,setDirty,note){
    dépend de l'endroit où on la prend n'en est pas une. Le suffixe « UTC » le
    dit plutôt que de le taire. */
 
-/* PURES toutes les deux — c'est la part de P5 que node exécute. */
-function dzmProjWhen(iso){
-  var m=/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/.exec(String(iso||""));
-  return m?(m[3]+"/"+m[2]+" "+m[4]+":"+m[5]+" UTC"):""}
+/* PURES toutes les deux — c'est la part de P5 que node exécute.
+   `secs` (P6) : la SECONDE en plus, pour les seuls appelants qui doivent
+   distinguer deux lignes homonymes. Un second analyseur d'ISO à côté de
+   celui-ci aurait été une règle de plus à tenir en phase ; l'argument
+   optionnel garde UN seul analyseur et laisse les appelants de P5
+   inchangés, sortie comprise. */
+function dzmProjWhen(iso,secs){
+  var m=/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/
+    .exec(String(iso||""));
+  if(!m)return "";
+  return m[3]+"/"+m[2]+" "+m[4]+":"+m[5]+((secs&&m[6])?(":"+m[6]):"")+" UTC"}
 
 /* La ligne sous le nom d'un projet. Ce qui décide entre deux montages, c'est
    le NOMBRE de plans et la date — jamais l'identifiant, qui n'apprend rien. */
@@ -1469,10 +1476,21 @@ var DzmProjects=function(props){
        la fin est ramenée. Le plan RACCOURCIT, la timeline garde un trou
        derrière lui (les clips suivants ne remontent pas : le ripple est un
        autre geste, et le faire ici sans le demander serait pire).
+       CE QUE LE TROU DEVIENT AU RENDU dépend de la piste, et l'avertissement
+       le dit piste par piste plutôt que d'en choisir une : sur V1, la piste
+       de BASE, `_build_montage_command` pose un `color=c=black` de la durée
+       du trou (montage_service.py, branche `s.get("gap")`) — noir à l'écran.
+       Sur une piste d'overlay (V2 et au-delà), un clip est posé en
+       `overlay … enable='between(t,st,en)'` : il s'arrête plus tôt, et c'est
+       la piste du dessous qui réapparaît. « rendu en noir » y serait FAUX.
    DURÉE INCONNUE (0 ou absente) : on ne touche à RIEN et on le dit. Ce n'est
-   pas un cas d'école — MESURE sur une copie de la base réelle (04/09/2026,
-   lecture seule) : 40 des 84 jobs vidéo `done` non-montage ont `duration_s`
+   pas un cas d'école — MESURE sur une copie de la base réelle (05/09/2026,
+   lecture seule) : 53 des 97 jobs vidéo `done` non-montage ont `duration_s`
    NUL ou ≤ 0. Se taire laisserait un plan pointer dans le vide.
+   CE CHIFFRE A ÉTÉ FAUX ICI AUSSI, et de la même façon qu'en base : il
+   valait « 40 des 84 », mesuré sous `provider != 'montage'` — le défaut que
+   la route corrige. Les 13 jobs `done` à `provider IS NULL` tombaient de la
+   mesure comme de la requête : 84+13 = 97, 40+13 = 53.
 
    DEUX VOIES DE RETOUR, et il faut dire ce que chacune rend.
      1. « Annuler » (l'historique de l'écran) restaure {clips, mixDb} — donc
@@ -1489,12 +1507,25 @@ var DzmProjects=function(props){
         Cette pile SURVIT à l'enregistrement : le serveur range les clips
         tels quels et la restauration les recopie de même — mesuré des deux
         côtés. Elle est plafonnée à 10 ; au-delà, les plus anciennes tombent.
-   `srcOut` est RETIRÉ : il décrit la fenêtre de l'ANCIENNE source, et le
-   garder ferait mentir la ligne « Out » de l'inspecteur. Mesuré, un seul
-   clip du dépôt le porte aujourd'hui (la maquette de démonstration, qui n'a
-   pas de source et sur laquelle le bouton n'apparaît donc jamais) ; la
-   restauration d'une sauvegarde recopiant les clés inconnues, il pourrait
-   revenir demain. */
+   `srcOut` est RETIRÉ par le remplacement, et RENDU par le retour — les deux
+   moitiés, parce que le champ est lu : `son-vfx-montage.js` affiche
+   `sel.srcOut != null ? sel.srcOut : (sel.end - sel.start) × vitesse` dans
+   la ligne « Out » de l'inspecteur. Le garder après un remplacement ferait
+   donc mentir cette ligne (il décrit la fenêtre de l'ANCIENNE source) ; ne
+   pas le rendre après un retour la ferait mentir dans l'AUTRE sens, en
+   affichant une fin calculée là où l'utilisateur en avait posé une. Il est
+   donc mémorisé dans `src_history` À CÔTÉ de `srcIn` et `end`, et seulement
+   quand le clip le portait — une pile écrite par une version antérieure n'en
+   a pas, et le retour n'invente rien. Le couple est ALORS un aller-retour
+   exact, et le banc le mesure comme un TOUT (`ar_avant` / `ar_apres`) et non
+   plus champ par champ : une clé ajoutée ou perdue par l'une des deux
+   moitiés passait sous une liste de champs, elle ne passe pas sous une
+   comparaison d'objets. Mesuré, un seul clip du dépôt porte `srcOut`
+   aujourd'hui (la maquette de démonstration, qui n'a pas de source et sur
+   laquelle le bouton n'apparaît donc jamais) ; la restauration d'une
+   sauvegarde recopiant les clés inconnues, il pourrait revenir demain — et
+   le backend, lui, ne le lit nulle part (mesuré : aucune occurrence dans
+   backend/app). */
 var DZM_HIST_MAX=10;
 function dzmSrcLen(c){
   var o=c||{};
@@ -1506,9 +1537,13 @@ function dzmReplaceSrc(c,src,label,srcDur,now){
   var o=c||{},len=dzmSrcLen(o),sp=dzmSpeedNum(o);
   var inn=Number(o.srcIn)||0,d=Number(srcDur)||0;
   var k=Object.assign({},o),warn="";
+  var hi={src:o.src||null,label:o.label||null,srcIn:inn,
+          end:Number(o.end)||0,at:now||Date.now()};
+  /* la clé n'est ajoutée QUE si le clip la portait : sa seule présence dit
+     au retour qu'il doit la rendre, son absence qu'il ne doit rien poser. */
+  if("srcOut" in o)hi.srcOut=o.srcOut;
   k.src_history=((o.src_history&&o.src_history.length)?o.src_history:[])
-    .concat([{src:o.src||null,label:o.label||null,srcIn:inn,
-              end:Number(o.end)||0,at:now||Date.now()}]).slice(-DZM_HIST_MAX);
+    .concat([hi]).slice(-DZM_HIST_MAX);
   k.src=src;k.label=label||o.label;
   if("srcOut" in k)delete k.srcOut;
   if(d<=0){
@@ -1520,7 +1555,11 @@ function dzmReplaceSrc(c,src,label,srcDur,now){
       k.end=Math.round(((Number(o.start)||0)+d/sp)*1000)/1000;
       warn="La nouvelle source ne dure que "+d.toFixed(2)+" s : le plan a "+
         "été raccourci de "+len.toFixed(2)+" s à "+(d/sp).toFixed(2)+" s, "+
-        "et la timeline garde un trou derrière lui."}
+        "et la timeline garde un trou derrière lui"+
+        (o.tr==="v1"
+          ?", rendu en noir à l'export."
+          :" — sur une piste d'overlay, c'est la piste du dessous qui "+
+           "réapparaît.")}
     else warn="Point d'entrée ramené à 0 : la nouvelle source ("+
       d.toFixed(2)+" s) ne va pas assez loin pour l'ancien. Le plan garde "+
       "sa durée, il ne montre plus le même morceau."}
@@ -1541,6 +1580,11 @@ function dzmRevertSrc(c){
      plan au lieu de le rendre. */
   if(typeof last.srcIn==="number")k.srcIn=last.srcIn;
   if(typeof last.end==="number")k.end=last.end;
+  /* `srcOut` : rendu SEULEMENT s'il a été mémorisé — le remplacement l'a
+     retiré, et l'entrée dit s'il faut le remettre. Sans cette ligne
+     l'aller-retour n'était pas l'identité, et la ligne « Out » de
+     l'inspecteur changeait derrière un geste qui promet de tout rendre. */
+  if("srcOut" in last)k.srcOut=last.srcOut;
   return {clip:k,
     note:"Source précédente rendue : « "+(last.label||"sans titre")+" », "+
       "avec son point d'entrée et sa fin d'alors."+
@@ -1573,16 +1617,41 @@ function dzmRevertBtn(sel,onRevert){
     onClick:function(){if(onRevert)onRevert()},
     children:"Revenir à la version précédente"},"dzmrev")}
 /* La ligne d'une proposition. PURE — c'est la part du rappel que node
-   mesure ; le composant, lui, interroge le réseau. */
+   mesure ; le composant, lui, interroge le réseau.
+
+   ELLE PORTE LA DATE ET LA DURÉE, et ce n'est pas de l'ornement : le TITRE
+   est la clé même du rapprochement, donc tous les candidats le partagent PAR
+   CONSTRUCTION. Une ligne réduite au titre rendait N boutons rigoureusement
+   identiques — libellé et `aria-label` compris — et l'infobulle conseillait
+   « vérifiez le titre », un conseil que la construction rendait impossible à
+   suivre. MESURE sur une copie de la base réelle (05/09/2026) : trois
+   groupes homonymes exploitables, « tweet_2026-05-20 » (7 jobs, plafond 5),
+   « last launch 2 » (3), « backdoorpromo » (2) — soit jusqu'à cinq boutons
+   jumeaux à l'écran.
+   LA SECONDE EST AFFICHÉE. Toujours mesuré sur la même copie, deux jobs
+   « backdoorpromo » sont terminés à 36 s d'intervalle (14:54:58 et
+   14:55:34) : à la minute ils tombent encore dans deux minutes distinctes,
+   mais rien ne le garantit — deux relances du même plan à vingt secondes
+   d'écart auraient rendu la même chaîne. La seconde ferme ce cas ; deux
+   rendus terminés dans la MÊME seconde resteraient indistinguables, et
+   aucune ligne ne pourrait les distinguer.
+   LA DURÉE est le second discriminant, et le seul qui dise à l'avance si le
+   plan va être RACCOURCI. Elle est dite « inconnue » plutôt que tue quand
+   elle manque : c'est le cas majoritaire en base (53 des 97), et c'est
+   exactement l'avertissement que `replaceSrc` rendra. */
 function dzmNewerLine(c){
   if(!c)return "";
-  return "Version plus récente : "+(c.title||c.job_id||"sans titre")+
-    " — remplacer"}
+  var o=c,bits=[],w=dzmProjWhen(o.completed_at,1),d=Number(o.duration_s)||0;
+  if(w)bits.push(w);
+  bits.push(d>0?(d.toFixed(1).replace(".",",")+" s"):"durée inconnue");
+  return "Version plus récente : "+(o.title||o.job_id||"sans titre")+
+    " · "+bits.join(" · ")+" — remplacer"}
 /* Le rappel « une version plus récente existe ». Il interroge la route qui
    rapproche PAR LE TITRE, et le dit : c'est une heuristique, pas un lien
    établi en base. Deux rendus peuvent partager un titre sans rien avoir en
    commun — mesuré, un même titre couvre jusqu'à sept jobs dans la base
-   réelle — donc le titre du candidat est montré AVANT qu'on remplace.
+   réelle — donc la DATE et la DURÉE du candidat sont montrées AVANT qu'on
+   remplace : le titre, lui, est le même pour tous par construction.
    Silencieux quand il n'y a rien : ni ligne vide, ni « aucune version ». */
 var DzmNewerHint=function(props){
   var jid=(props&&props.jobId)||"";
@@ -1604,8 +1673,10 @@ var DzmNewerHint=function(props){
     return r.jsx("button",{className:"dzm-newerb",
       title:"Rapprochement par le TITRE du rendu — une heuristique, pas un "+
         "lien enregistré : rien en base ne relie deux rendus du même plan. "+
-        "Vérifiez le titre avant de remplacer."+
-        (c.completed_at?(" Terminé le "+dzmProjWhen(c.completed_at)+"."):""),
+        "Le titre étant la clé du rapprochement, TOUS les candidats le "+
+        "partagent : ce qui les distingue, c'est la date et la durée "+
+        "portées par la ligne. Vérifiez-les avant de remplacer."+
+        (c.completed_at?(" Terminé le "+dzmProjWhen(c.completed_at,1)+"."):""),
       "aria-label":dzmNewerLine(c),
       onClick:function(){if(props&&props.onPick)props.onPick(c)},
       children:dzmNewerLine(c)},c.job_id)})})};

@@ -87,17 +87,33 @@ Sections :
       section de plus.
   M15 / M16src (P6) REMPLACER LA SOURCE d'un plan sans perdre ses bornes, ses
       effets ni sa transition :
-        M4b y gagne `dzmReplaceRef` (le plan visé, {id, tr}) ET son
+        M4b y gagne `dzmReplaceRef` (le plan visé, {id, tr, label}) ET son
                  DÉSARMEMENT — un effet accroché à l'état du sélecteur
                  d'assets, sans quoi un sélecteur fermé sans choisir laissait
-                 le mode armé pour le clip suivant ;
+                 le mode armé pour le clip suivant — plus `dzmArm`, le
+                 MIROIR D'AFFICHAGE de cette ref (une ref ne re-rend pas ;
+                 la ref reste la seule autorité que lit `addAsset`) ;
         M15      le mode remplacement en TÊTE du poseur de clips, avant toute
-                 résolution de piste (un remplacement garde celle du plan) ;
+                 résolution de piste (un remplacement garde celle du plan),
+                 avec ses TROIS refus posés avant l'instantané : plan
+                 disparu, GENRE incompatible, piste verrouillée. Le refus de
+                 genre ferme le seul chemin non assumable du court-circuit —
+                 le tiroir Sons, dont l'état est indépendant du sélecteur —
+                 et sa section dit ce que le mode prend et ce qu'il refuse ;
+        M15b     le SÉLECTEUR DIT QU'IL EST ARMÉ : titre et note
+                 conditionnels, en aval d'`ovPicker` (qui vit dans le
+                 greffon amont, hors d'atteinte). Sans lui le panneau
+                 promettait « Ajouter sur la piste V1 » et « Posé à la tête
+                 de lecture » pendant qu'il remplaçait ;
         M16src   les deux boutons de l'inspecteur — « Remplacer la source… »
-                 et « Revenir à la version précédente » — plus le rappel
-                 « version plus récente », qui interroge GET
-                 /api/montage/newer (rapprochement PAR LE TITRE, dit
-                 heuristique dans la réponse comme à l'écran).
+                 et « Revenir à la version précédente », le second GARDÉ PAR
+                 LE VERROU DE PISTE comme le premier (il réécrit `end`, donc
+                 le bord droit du clip) — plus le rappel « version plus
+                 récente », qui interroge GET /api/montage/newer
+                 (rapprochement PAR LE TITRE, dit heuristique dans la
+                 réponse comme à l'écran ; la ligne porte donc la DATE et la
+                 DURÉE, seuls discriminants entre des candidats qui
+                 partagent leur titre par construction).
       Le CŒUR est pur et vit dans la couche (`DzTracks.replaceSrc` /
       `revertSrc`) ; backend/tests/test_montage_remplacer.py l'exécute sous
       node et mesure la route.
@@ -166,10 +182,21 @@ R_M4b = ("  /* P1 — TOUTE écriture de proj.tracks passe ici : historique pous
          "     rouvert sur une AUTRE piste — laissait le mode armé, et le clip\n"
          "     suivant venait écraser la source d'un plan que l'utilisateur ne\n"
          "     regardait plus. Le désarmement suit l'état du sélecteur\n"
-         "     lui-même (`ovPick`), pas une copie de ses règles. */\n"
+         "     lui-même (`ovPick`), pas une copie de ses règles.\n"
+         "     `dzmArm` est le MIROIR D'AFFICHAGE de cette ref, et rien de\n"
+         "     plus : la ref reste la seule autorité que lit `addAsset`.\n"
+         "     Il existe parce qu'une ref ne re-rend pas, et que le\n"
+         "     sélecteur doit DIRE qu'il est armé au moment où il l'est —\n"
+         "     y compris quand il était DÉJÀ ouvert sur la piste du plan et\n"
+         "     que M16src ne le rouvre donc pas (le rouvrir le refermerait).\n"
+         "     Un état SEUL ne suffirait pas : le rappel « version plus\n"
+         "     récente » arme puis appelle `addAsset` dans le MÊME\n"
+         "     gestionnaire, et un état posé là n'y serait pas relu. */\n"
          "  var dzmReplaceRef=x.useRef(null);\n"
+         "  var stDZA=x.useState(null),dzmArm=stDZA[0],setDzmArm=stDZA[1];\n"
          "  x.useEffect(function(){var rp=dzmReplaceRef.current;\n"
-         "    if(rp&&ovPick!==rp.tr)dzmReplaceRef.current=null},[ovPick]);\n"
+         "    if(rp&&ovPick!==rp.tr){dzmReplaceRef.current=null;\n"
+         "      setDzmArm(null)}},[ovPick]);\n"
          "  function svmTracksSet(ts){pushHistory();svmTrackBusSync(ts);"
          "setProj(function(p){return Object.assign({},p,{tracks:ts})});setDirty(!0)}\n"
          "  function svmApplyProject(d){")
@@ -850,9 +877,39 @@ R_M15 = (A_M15 + "\n"
          "    /* P6 — MODE REMPLACEMENT, en court-circuit AVANT tout le reste :\n"
          "       un remplacement ne choisit pas de piste, il garde celle du\n"
          "       plan. Le mode est CONSOMMÉ dès l'entrée (une seule fois par\n"
-         "       armement), et les deux refus sortent AVANT pushHistory. */\n"
+         "       armement), et les TROIS refus sortent AVANT pushHistory.\n"
+         "\n"
+         "       CE COURT-CIRCUIT PREND TOUS LES APPELANTS D'`addAsset`, et\n"
+         "       c'est DÉCLARÉ ici parce que ce n'est pas anodin. Le\n"
+         "       sélecteur est un panneau de 300 px en haut à droite\n"
+         "       (`.svm-pop` : position:absolute, top:52px, right:18px,\n"
+         "       z-index:20 — MESURÉ dans shared/son-vfx-montage.css) et il\n"
+         "       n'a NI voile NI backdrop : tout le reste de l'écran reste\n"
+         "       cliquable pendant que le mode est armé, et le mode le reste\n"
+         "       tant qu'`ovPick` ne bouge pas. Deux chemins arrivent donc\n"
+         "       ici sans être des clics du sélecteur :\n"
+         "         · le GLISSER-DÉPOSER d'une vignette sur une bande (les\n"
+         "           vignettes sont `draggable:!0`). La piste visée et\n"
+         "           l'instant du dépôt sont alors JETÉS — un remplacement\n"
+         "           n'en veut pas — et le geste devient un remplacement.\n"
+         "           C'est ASSUMÉ : glisser une vignette, c'est choisir dans\n"
+         "           le sélecteur, et le titre du panneau dit que le\n"
+         "           prochain choix remplacera (section M15b). Fermer le\n"
+         "           panneau désarme.\n"
+         "         · `sfxInsert` (tiroir Sons, dont l'état `sfxOn` est\n"
+         "           INDÉPENDANT d'`ovPick` et rendu hors du panneau) :\n"
+         "           `addAsset({audio:fn},…,\"audio\",…)`. Celui-là n'est PAS\n"
+         "           assumable : MESURÉ sous node, `replaceSrc` accepte\n"
+         "           l'objet tel quel et le `src` d'un plan V1 devenait\n"
+         "           `{audio:\"…\"}` — avec ses bornes, ses effets et sa\n"
+         "           transition, et la fin ramenée à la durée du .wav.\n"
+         "           D'où le refus de GENRE ci-dessous, qui manquait.\n"
+         "       Le genre passe AVANT le verrou : déverrouiller la piste ne\n"
+         "       rendrait pas un son valide pour un plan vidéo, et envoyer\n"
+         "       l'utilisateur déverrouiller serait l'envoyer dans le mur. */\n"
          "    if(dzmReplaceRef.current){\n"
          "      var rc=dzmReplaceRef.current;dzmReplaceRef.current=null;\n"
+         "      setDzmArm(null);\n"
          "      var rcs=clipsRef.current||[],rk=null,ri;\n"
          "      for(ri=0;ri<rcs.length;ri++)if(rcs[ri].id===rc.id)rk=rcs[ri];\n"
          "      setOvPick(\"\");\n"
@@ -861,6 +918,16 @@ R_M15 = (A_M15 + "\n"
          "        \"posé. Sélectionnez un plan puis « Remplacer la source… », \"+\n"
          "        \"ou « Bibliothèque… » pour l'ajouter comme clip de \"+\n"
          "        \"plus.\");return}\n"
+         "      var rkd=trackKind(rk.tr);\n"
+         "      var akd=(kind===\"audio\"||(src&&src.audio))?\"audio\":\"video\";\n"
+         "      if(rkd!==akd){\n"
+         "        fireNote(\"« \"+label+\" » est \"+(akd===\"audio\"?\"un son\":\n"
+         "          \"une image ou une vidéo\")+\" : impossible d'en faire la \"+\n"
+         "          \"source d'un plan de la piste \"+rk.tr.toUpperCase()+\n"
+         "          \" (\"+rkd+\"). Rien n'a changé, et rien n'a été posé — \"+\n"
+         "          \"choisissez une source du même genre, ou \"+\n"
+         "          \"« Bibliothèque… » pour l'ajouter comme clip de \"+\n"
+         "          \"plus.\");return}\n"
          "      if(trackStRef.current[rk.tr]&&trackStRef.current[rk.tr].l){\n"
          "        fireNote(\"Piste \"+rk.tr.toUpperCase()+\" verrouillée — \"+\n"
          "          \"déverrouillez-la pour remplacer la source de ce \"+\n"
@@ -882,12 +949,28 @@ R_M16 = (A_M16 + "\n"
          "            fireNote(\"Piste \"+sel.tr.toUpperCase()+\" verrouillée — \"+\n"
          "              \"déverrouillez-la pour remplacer la source de ce \"+\n"
          "              \"plan.\");return}\n"
-         "          dzmReplaceRef.current={id:sel.id,tr:sel.tr};\n"
+         "          dzmReplaceRef.current={id:sel.id,tr:sel.tr,\n"
+         "            label:sel.label};\n"
+         "          setDzmArm({tr:sel.tr,label:sel.label});\n"
          "          /* déjà ouvert sur cette piste : rouvrir le REFERMERAIT\n"
          "             (le sélecteur bascule), et le mode resterait armé sur\n"
-         "             un panneau fermé. */\n"
+         "             un panneau fermé. C'est `setDzmArm` — et non\n"
+         "             `openPicker` — qui re-rend dans ce cas-là, sans quoi\n"
+         "             le panneau resterait intitulé « Ajouter sur la piste\n"
+         "             V1 » pendant qu'il remplace. */\n"
          "          if(ovPick!==sel.tr)openPicker(sel.tr)}),\n"
          "        DzTracks.revertBtn(sel,function(){\n"
+         "          /* LE MÊME VERROU QUE M15 : ce geste réécrit `src`,\n"
+         "             `label`, `srcIn` ET `end` — donc le bord droit du\n"
+         "             clip sur la timeline. Sans cette garde, « Revenir à\n"
+         "             la version précédente » était le SEUL des gestes\n"
+         "             destructifs de cet écran à passer outre une piste\n"
+         "             verrouillée, alors que M15 refuse de remplacer et\n"
+         "             M16src refuse même d'ARMER. */\n"
+         "          if(trackStRef.current[sel.tr]&&trackStRef.current[sel.tr].l){\n"
+         "            fireNote(\"Piste \"+sel.tr.toUpperCase()+\" verrouillée \"+\n"
+         "              \"— déverrouillez-la pour rendre à ce plan sa source \"+\n"
+         "              \"précédente.\");return}\n"
          "          var rv=DzTracks.revertSrc(sel);if(!rv)return;\n"
          "          pushHistory();\n"
          "          setClips(clipsRef.current.map(function(k){\n"
@@ -897,6 +980,66 @@ R_M16 = (A_M16 + "\n"
          "          onPick:function(c){dzmReplaceRef.current={id:sel.id,tr:sel.tr};\n"
          "            addAsset({job_id:c.job_id},c.title||c.job_id,\"video\",\n"
          "              Number(c.duration_s)||0,sel.tr)}},\"dzmnew\"),")
+
+# ── M15b (P6) : LE SÉLECTEUR DIT QU'IL EST ARMÉ ───────────────────────────
+# Le mode remplacement était INVISIBLE pendant qu'il était actif : le panneau
+# continuait de s'intituler « Ajouter sur la piste V1 » et de promettre
+# « Posé à la tête de lecture » — deux phrases que le mode rend FAUSSES, sur
+# le seul écran où l'utilisateur regarde au moment de choisir.
+#
+# `ovPicker()` vit dans frontend/patches/son-vfx-montage.js, qu'on ne touche
+# PAS (règle de chaîne : ce patcher est en queue, son .bak est le seul filet).
+# La modification se fait donc EN AVAL, par une ancre de la chaîne `montage`
+# — et l'ancre a été MESURÉE avant d'être écrite : le trio
+# `var tr2=…` / `svm-poptitle` / `svm-popnote` d'ovPicker vaut 1 dans
+# index-BEOJX8L5.js.bak_montage (l'ENTRÉE de ce patcher, celle qui décide),
+# 1 dans le bundle livré et 1 dans la source du greffon amont. Aucun autre
+# `svm-poptitle` ne porte ce libellé : les six autres popovers ont chacun le
+# leur (« Preview 480p », « Ajouter un effet — moteur Effects / Mask »,
+# « Raccourcis clavier », « Transition de coupe »…).
+#
+# L'ANCRE EST MULTI-LIGNE, et c'est voulu : le titre SEUL aurait laissé la
+# note « Posé à la tête de lecture » sous un titre qui dit le contraire. Les
+# deux phrases fausses se corrigent ensemble ou pas du tout.
+A_M15B = (
+    '    var tr2=ovPick,audio=trackKind(tr2)==="audio";\n'
+    '    return r.jsxs("div",{className:"svm-pop",style:{top:96},children:[\n'
+    '      r.jsx("div",{className:"svm-poptitle",children:"Ajouter sur la '
+    'piste "+tr2.toUpperCase()}),\n'
+    '      r.jsx("div",{className:"svm-popnote",style:{marginTop:6},\n'
+    '        children:audio?("Posé à la tête de lecture ("+svmShort(ph)+"). '
+    'A1 = dialogue, A2 = musique (ducking auto), A3 = SFX.")\n'
+    '                      :("Posé à la tête de lecture ("+svmShort(ph)+") — '
+    'ou déposez directement sur une bande ou le viewport. Les PNG gardent '
+    'leur transparence.")}),')
+R_M15B = (
+    '    var tr2=ovPick,audio=trackKind(tr2)==="audio";\n'
+    '    /* P6 — LE MODE REMPLACEMENT EST VISIBLE PENDANT QU\'IL EST ARMÉ.\n'
+    '       `dzmArm` est le miroir d\'affichage de `dzmReplaceRef` (voir\n'
+    '       M4b) : la ref reste ce que lit `addAsset`, l\'état n\'est là que\n'
+    '       pour que ce panneau se re-rende et change de discours.\n'
+    '       LA PISTE EST COMPARÉE, comme dans l\'effet de désarmement : cet\n'
+    '       effet s\'exécute APRÈS le rendu, donc un sélecteur rouvert sur\n'
+    '       une AUTRE piste aurait affiché « Remplacer… » le temps d\'une\n'
+    '       image avant de se corriger. La condition d\'affichage est la\n'
+    '       même que celle de l\'armement, pas une seconde règle. */\n'
+    '    var dzmA=(dzmArm&&dzmArm.tr===tr2)?dzmArm:null;\n'
+    '    return r.jsxs("div",{className:"svm-pop",style:{top:96},children:[\n'
+    '      r.jsx("div",{className:"svm-poptitle",children:dzmA\n'
+    '        ?("Remplacer la source de « "+(dzmA.label||"ce plan")+" »")\n'
+    '        :("Ajouter sur la piste "+tr2.toUpperCase())}),\n'
+    '      r.jsx("div",{className:"svm-popnote",style:{marginTop:6},\n'
+    '        children:dzmA?("Le prochain élément choisi REMPLACERA la '
+    'source de ce plan (piste "+dzmA.tr.toUpperCase()+") au lieu d\'être '
+    'posé : ses bornes, ses effets, sa transition et son mixage restent en '
+    'place. Un glisser-déposer compte aussi comme un choix — la piste et '
+    'l\'instant du dépôt sont alors ignorés. Fermez ce panneau pour '
+    'annuler.")\n'
+    '               :audio?("Posé à la tête de lecture ("+svmShort(ph)+"). '
+    'A1 = dialogue, A2 = musique (ducking auto), A3 = SFX.")\n'
+    '                      :("Posé à la tête de lecture ("+svmShort(ph)+") — '
+    'ou déposez directement sur une bande ou le viewport. Les PNG gardent '
+    'leur transparence.")}),')
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
@@ -916,6 +1059,7 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            # patcher). Deux étiquettes identiques dans cette liste rendraient
            # illisibles les lignes de test_montage_bundle.py, qui les reprend.
            ("M15-remplace-mode", A_M15, R_M15),
+           ("M15b-picker-arme", A_M15B, R_M15B),
            ("M16src-inspecteur-source", A_M16, R_M16)]
 
 

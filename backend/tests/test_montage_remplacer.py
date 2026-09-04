@@ -58,13 +58,25 @@ CE QUE CE BANC N'AFFIRME PAS
     ce que le code sous test lit, c'est l'EXTENSION du chemin range en base
     et l'EXISTENCE du fichier.
   * `srcOut` : le champ est RETIRE du clip remplace (il decrit la fenetre de
-    l'ANCIENNE source). MESURE — il n'existe AUJOURD'HUI que sur un seul
-    clip de tout le depot, la maquette de demonstration du bundle (l. 1165),
-    et sur aucun des 17 clips de la sauvegarde reelle. Le retrait est donc
-    sans effet OBSERVABLE aujourd'hui ; il est la parce que
-    `svmApplyProject` recopie les cles inconnues d'une sauvegarde telles
-    quelles, et qu'un « Out » herite de l'ancienne source serait un mensonge
-    a l'ecran. Exerce par `js_remplace_retire_srcOut`.
+    l'ANCIENNE source) — ET RENDU par le retour arriere. MESURE — il
+    n'existe AUJOURD'HUI que sur un seul clip de tout le depot, la maquette
+    de demonstration du bundle (l. 1165), et sur aucun des 17 clips de la
+    sauvegarde reelle. Le retrait est donc sans effet OBSERVABLE
+    aujourd'hui ; il est la parce que `svmApplyProject` recopie les cles
+    inconnues d'une sauvegarde telles quelles, et qu'un « Out » herite de
+    l'ancienne source serait un mensonge a l'ecran — le champ EST LU
+    (son-vfx-montage.js : `sel.srcOut != null ? sel.srcOut : (sel.end -
+    sel.start) * vitesse`, la ligne « Out » de l'inspecteur).
+    LA DECISION, prise le 05/09/2026 et non plus tacite : les deux moities
+    sont symetriques. `replaceSrc` retire `srcOut` du clip mais le MEMORISE
+    dans l'entree d'historique, a cote de `srcIn` et `end` ; `revertSrc` le
+    rend quand — et seulement quand — l'entree le porte. L'alternative
+    (l'exclure nommement de l'assertion d'aller-retour) aurait laisse un
+    couple qui n'est pas l'inverse de lui-meme, sur le seul champ que
+    l'inspecteur lit en priorite. Exerce par `js_remplace_retire_srcOut`,
+    `js_srcOut_memorise_puis_rendu_par_le_retour`,
+    `js_srcOut_n_est_pas_invente_quand_le_clip_n_en_avait_pas` et
+    `js_l_aller_retour_est_l_identite_CLE_POUR_CLE`.
   * QUE `src_history` SURVIT A L'ENREGISTREMENT. C'est une DEDUCTION de deux
     lectures, pas une mesure de bout en bout : `_save_record` range
     `"clips": clips` TEL QUEL (aucune liste blanche de cles) et la
@@ -80,6 +92,28 @@ CE QUE CE BANC N'AFFIRME PAS
     puis selectionner le plan B avant de choisir un asset remplace bien A —
     c'est pour A qu'on a arme. L'ecran le DIT deux fois : la note nomme le
     libelle de A, et la selection revient sur A.
+  * CE QUE LE MODE ARME PREND, ET CE QU'IL REFUSE — declare ici parce que la
+    portee du court-circuit n'est pas evidente, et parce que le selecteur
+    n'a NI VOILE NI BACKDROP (`.svm-pop` : absolute, top 52 px, right 18 px,
+    width 300 px, z-index 20 — lu dans shared/son-vfx-montage.css) : c'est
+    un panneau de 300 px en haut a droite, tout le reste de l'ecran reste
+    cliquable, et le mode reste arme tant qu'`ovPick` ne bouge pas.
+      - LE GLISSER-DEPOSER d'une vignette sur une bande passe par le MEME
+        `addAsset` et devient donc un remplacement : la piste visee et
+        l'instant du depot sont JETES (un remplacement n'en veut pas).
+        C'est ASSUME, pas subi — glisser une vignette du selecteur, c'est
+        choisir dans le selecteur. Le panneau le DIT desormais pendant qu'il
+        est arme (section M15b du patcher : titre « Remplacer la source de
+        « X » », note « un glisser-deposer compte aussi comme un choix »).
+      - `sfxInsert` (tiroir Sons, dont l'etat `sfxOn` est INDEPENDANT
+        d'`ovPick` et rendu hors du panneau) appelait
+        `addAsset({audio:fn},…,"audio",…)` et le court-circuit l'acceptait :
+        MESURE sous node, le `src` d'un plan V1 devenait `{audio:"…"}`,
+        avec ses bornes, ses effets et sa transition, et sa fin ramenee a la
+        duree du .wav. Ce chemin-la n'etait PAS assumable : le refus de
+        genre pose en M15 le ferme, et test_montage_bundle.py le mesure.
+        `replaceSrc` lui-meme reste sans opinion sur le genre — c'est le
+        composant qui connait la piste du plan, pas le cœur pur.
   * LE COMPOSANT du rappel n'est pas execute non plus (il a des hooks et
     interroge le reseau). Seule sa ligne — `newerLine` — est mesuree ici,
     plus son EXISTENCE et son unique appelant.
@@ -686,17 +720,47 @@ var CS={tr:"v1",id:"s",start:0,end:4,srcIn:0,speed:2};
 var R5=T.replaceSrc(CS,{job_id:"j6"},"v6",4,1788000000000);
 out.vit_end=R5.clip.end;
 out.vit_warn_non_vide=(R5.warn.length>0);
-/* DUREE INCONNUE (0) : la base reelle en a 40 sur 84. On ne peut rien
-   verifier, et on le DIT plutot que de laisser le plan pointer dans le
-   vide. */
+/* DUREE INCONNUE (0) : la base reelle en a 53 sur 97 (mesure du 05/09/2026
+   sous la clause LIVREE `coalesce(provider,'') != 'montage'` ; « 40 sur 84 »
+   etait la meme mesure prise sous le defaut que cette clause repare). On ne
+   peut rien verifier, et on le DIT plutot que de laisser le plan pointer
+   dans le vide. */
 var R6=T.replaceSrc(C,{job_id:"j7"},"v7",0,1788000000000);
 out.inconnu_end=R6.clip.end;
 out.inconnu_srcIn=R6.clip.srcIn;
 out.inconnu_warn=R6.warn;
-/* `srcOut` decrit la fenetre de l'ANCIENNE source : il est retire. */
+/* `srcOut` decrit la fenetre de l'ANCIENNE source : il est retire du clip
+   remplace — ET MEMORISE dans l'entree d'historique, pour que le retour
+   puisse le rendre. Les deux moities, mesurees separement. */
 var R7=T.replaceSrc({tr:"v1",id:"o",start:0,end:4,srcIn:0,srcOut:9},
   {job_id:"j8"},"v8",20,1788000000000);
 out.srcOut_retire=!("srcOut" in R7.clip);
+out.srcOut_memorise=R7.clip.src_history[0].srcOut;
+out.srcOut_rendu=T.revertSrc(R7.clip).clip.srcOut;
+/* un clip qui n'en portait PAS n'en gagne pas au retour : la cle absente de
+   l'entree dit au retour de ne rien poser (une pile ecrite par une version
+   anterieure n'en a pas). */
+out.srcOut_pas_invente=("srcOut" in T.revertSrc(R.clip).clip);
+out.srcOut_pas_memorise=("srcOut" in R.clip.src_history[0]);
+/* L'ALLER-RETOUR COMME UN TOUT, et non champ par champ : une cle AJOUTEE ou
+   PERDUE par l'une des deux moities passait sous une liste de champs. La
+   comparaison est CANONIQUE (cles triees recursivement) parce que `delete`
+   puis reaffectation deplacent une cle en fin d'objet : c'est l'ORDRE qui
+   change, pas le contenu, et c'est le contenu qui est la propriete. */
+function CAN(v){
+  if(v===null||typeof v!=="object")return JSON.stringify(v);
+  if(Array.isArray(v))return "["+v.map(CAN).join(",")+"]";
+  return "{"+Object.keys(v).sort().map(function(k){
+    return JSON.stringify(k)+":"+CAN(v[k])}).join(",")+"}"}
+var AR0={tr:"v1",id:"ar",start:2,end:8,srcIn:1,srcOut:9,src:{job_id:"j1"},
+  label:"plan_01",effects:[{type:"grain"}],transition:"fade",
+  transition_s:0.4,fx:[{n:"glow"}],speed:1.5,volume_points:[[0,1]],
+  motion_points:[{t:0,x:0.5,y:0.5}],opacity:0.8};
+/* duree COURTE a dessein : le remplacement bouge `srcIn` ET `end`, donc le
+   retour doit rendre les deux — plus `srcOut`, plus le reste intact. */
+out.ar_avant=CAN(AR0);
+out.ar_apres=CAN(T.revertSrc(
+  T.replaceSrc(AR0,{job_id:"j2"},"v2",2,1788000000000).clip).clip);
 /* PLAFOND de l'historique : 10 entrees, les plus anciennes tombent. */
 var acc={tr:"v1",id:"p",start:0,end:2,srcIn:0,src:{job_id:"j0"},label:"L0"};
 for(var i=1;i<=12;i++)acc=T.replaceSrc(acc,{job_id:"j"+i},"L"+i,20,1000+i).clip;
@@ -745,6 +809,33 @@ out.nl_ligne=T.newerLine({job_id:"j9",title:"plan_01",
 out.nl_sans_titre=T.newerLine({job_id:"j9"});
 out.nl_nul=T.newerLine(null);
 out.hint_existe=(typeof T.NewerHint==="function");
+/* CINQ CANDIDATS HOMONYMES — la forme que la route rend PAR CONSTRUCTION,
+   puisque le titre EST la cle du rapprochement. Les cinq dates sont celles
+   du groupe « tweet_2026-05-20 » de la base reelle (7 jobs, plafond 5).
+   Reduite au titre, la ligne rendait cinq boutons rigoureusement
+   identiques — libelle ET aria-label. */
+var HOM=[["a","2026-07-02T00:19:46",null],["b","2026-07-02T00:08:52",null],
+         ["c","2026-07-01T23:40:56",null],["d","2026-07-01T23:39:35",null],
+         ["e","2026-06-29T18:04:50",8]].map(function(t){
+  return {job_id:t[0],title:"tweet_2026-05-20",completed_at:t[1],
+          duration_s:t[2]}});
+out.hom_lignes=HOM.map(function(c){return T.newerLine(c)});
+out.hom_distinctes=(function(){var vu={},n=0;
+  out.hom_lignes.forEach(function(l){if(!vu[l]){vu[l]=1;n++}});return n})();
+/* LA SECONDE. Deux « backdoorpromo » de la base sont termines a 36 s
+   d'intervalle : a la minute ils tombent encore dans deux minutes
+   distinctes, mais a vingt secondes d'ecart ils auraient rendu la MEME
+   chaine. Ces deux-ci sont a 18 s. */
+out.sec_a=T.newerLine({job_id:"x",title:"backdoorpromo",
+  completed_at:"2026-07-01T14:55:34"});
+out.sec_b=T.newerLine({job_id:"y",title:"backdoorpromo",
+  completed_at:"2026-07-01T14:55:52"});
+/* CE QUE LE TROU DEVIENT AU RENDU depend de la PISTE : V1 est la piste de
+   BASE, dont les trous sont rendus `color=c=black` (montage_service.py,
+   branche `s.get("gap")`) ; une piste d'overlay pose ses clips en
+   `overlay … enable='between(t,st,en)'` et laisse voir celle du dessous. */
+out.warn_v2=T.replaceSrc(Object.assign({},C,{tr:"v2"}),{job_id:"jv2"},"v2",
+  3.0,1788000000000).warn;
 console.log(JSON.stringify(out));
 """
 shim = pathlib.Path(TMP) / "shim.js"
@@ -835,8 +926,44 @@ check("js_duree_inconnue_ne_touche_a_rien",
 check("js_duree_inconnue_le_dit",
       isinstance(d.get("inconnu_warn"), str)
       and "inconnue" in d["inconnu_warn"], str(d.get("inconnu_warn")))
+# CE QUE LE TROU DEVIENT AU RENDU, dit PISTE PAR PISTE. « un trou » sous-dit
+# ce que le rendu en fait sur V1 : `_build_montage_command` y pose un
+# `color=c=black` de la duree du trou. Mais V2 et au-dela sont des OVERLAYS
+# (`overlay … enable='between(t,st,en)'`) : l'incrustation s'arrete plus tot
+# et c'est la piste du dessous qui reapparait — « rendu en noir » y serait
+# FAUX. Les deux moities sont mesurees, sinon la phrase juste pour V1 se
+# serait installee partout.
+check("js_le_trou_de_V1_est_annonce_rendu_en_noir",
+      isinstance(d.get("rep_warn"), str)
+      and "rendu en noir à l'export" in d["rep_warn"], str(d.get("rep_warn")))
+check("js_le_trou_d_un_overlay_n_est_PAS_annonce_noir",
+      isinstance(d.get("warn_v2"), str) and "noir" not in d["warn_v2"]
+      and "piste du dessous" in d["warn_v2"], str(d.get("warn_v2")))
 check("js_remplace_retire_srcOut", d.get("srcOut_retire") is True,
       str(d.get("srcOut_retire")))
+# ...ET LE MEMORISE, pour que le retour puisse le rendre. `srcOut` est LU :
+# son-vfx-montage.js affiche `sel.srcOut != null ? sel.srcOut :
+# (sel.end - sel.start) * vitesse` dans la ligne « Out » de l'inspecteur. Le
+# garder apres un remplacement ferait mentir cette ligne ; ne pas le rendre
+# apres un retour la ferait mentir dans l'AUTRE sens.
+check("js_srcOut_memorise_puis_rendu_par_le_retour",
+      d.get("srcOut_memorise") == 9 and d.get("srcOut_rendu") == 9,
+      f'mémorisé={d.get("srcOut_memorise")} rendu={d.get("srcOut_rendu")}')
+check("js_srcOut_n_est_pas_invente_quand_le_clip_n_en_avait_pas",
+      d.get("srcOut_pas_invente") is False
+      and d.get("srcOut_pas_memorise") is False,
+      f'rendu={d.get("srcOut_pas_invente")} '
+      f'mémorisé={d.get("srcOut_pas_memorise")}')
+# L'ALLER-RETOUR COMME UN TOUT. Les six lignes `rev_*` ci-dessous verifient
+# le retour CHAMP PAR CHAMP : une cle AJOUTEE ou PERDUE par l'une des deux
+# moities passait dessous — et c'est exactement ce qui arrivait, `srcOut`
+# etant supprime par `replaceSrc` et absent de l'entree d'historique. Cette
+# ligne-ci a ROUGI avant le correctif (mesure du 05/09/2026 : identite vraie
+# sur un clip sans `srcOut`, FAUSSE des qu'il en portait un) ; elle force la
+# decision a etre explicite plutot que tacite.
+check("js_l_aller_retour_est_l_identite_CLE_POUR_CLE",
+      isinstance(d.get("ar_avant"), str) and d.get("ar_avant") == d.get("ar_apres"),
+      f'\n      avant={d.get("ar_avant")}\n      après={d.get("ar_apres")}')
 check("js_historique_plafonne_a_dix", d.get("hist_len") == 10,
       str(d.get("hist_len")))
 check("js_historique_jette_les_plus_anciennes",
@@ -881,12 +1008,38 @@ check("js_bouton_retour_absent_sans_historique",
       d.get("rev_btn_sans_historique") == "NULL",
       str(d.get("rev_btn_sans_historique")))
 check("js_ligne_du_rappel",
-      d.get("nl_ligne") == "Version plus récente : plan_01 — remplacer",
+      d.get("nl_ligne") == "Version plus récente : plan_01 · "
+                           "04/09 13:42:36 UTC · 3,0 s — remplacer",
       str(d.get("nl_ligne")))
 check("js_ligne_du_rappel_sans_titre_nomme_le_job",
-      d.get("nl_sans_titre") == "Version plus récente : j9 — remplacer",
+      d.get("nl_sans_titre") == "Version plus récente : j9 · "
+                                "durée inconnue — remplacer",
       str(d.get("nl_sans_titre")))
 check("js_ligne_du_rappel_nulle", d.get("nl_nul") == "", str(d.get("nl_nul")))
+# LE POINT DE CETTE LIGNE. Le TITRE est la cle du rapprochement : tous les
+# candidats le partagent PAR CONSTRUCTION. Reduite au titre, la ligne rendait
+# N boutons rigoureusement identiques — et l'infobulle conseillait
+# « verifiez le titre », un conseil que la construction rend impossible a
+# suivre. MESURE sur la base reelle : trois groupes homonymes exploitables,
+# « tweet_2026-05-20 » (7 jobs), « last launch 2 » (3), « backdoorpromo » (2)
+# — donc jusqu'a CINQ boutons jumeaux a l'ecran (plafond 5).
+check("js_cinq_candidats_homonymes_donnent_cinq_lignes_distinctes",
+      d.get("hom_distinctes") == 5,
+      f'{d.get("hom_distinctes")} distincte(s) — {d.get("hom_lignes")}')
+# La DUREE est le second discriminant, et le seul qui dise a l'avance si le
+# plan va etre RACCOURCI. Elle est DITE inconnue plutot que tue : c'est le
+# cas majoritaire en base (53 des 97), et c'est exactement l'avertissement
+# que `replaceSrc` rendra.
+check("js_la_ligne_annonce_une_duree_inconnue_plutot_que_de_la_taire",
+      isinstance(d.get("hom_lignes"), list) and len(d["hom_lignes"]) == 5
+      and all("durée inconnue" in _l for _l in d["hom_lignes"][:4])
+      and "8,0 s" in d["hom_lignes"][4],
+      str(d.get("hom_lignes")))
+check("js_la_seconde_separe_deux_rendus_de_la_meme_minute",
+      d.get("sec_a") != d.get("sec_b")
+      and isinstance(d.get("sec_a"), str) and "14:55:34" in d["sec_a"]
+      and "14:55:52" in (d.get("sec_b") or ""),
+      f'{d.get("sec_a")} / {d.get("sec_b")}')
 check("js_le_composant_du_rappel_existe", d.get("hint_existe") is True,
       str(d.get("hint_existe")))
 
@@ -898,6 +1051,39 @@ _src = LAYER.read_bytes().decode("utf-8-sig")
 check("la_couche_ne_recopie_aucune_extension_video",
       not any(e in _src for e in (".mp4", ".mov", ".webm", ".mkv", ".m4v")),
       "montage.js ecrit une extension video en dur")
+# L'ARIA-LABEL EST LA LIGNE, pas un second libelle. `DzmNewerHint` a des
+# hooks : node ne peut pas l'executer, et c'est la SOURCE qui doit dire que
+# le discriminant atteint aussi les lecteurs d'ecran. Sans cette ligne, cinq
+# boutons pouvaient redevenir cinq aria-labels identiques sans qu'aucune
+# assertion ne bouge.
+check("l_aria_label_du_rappel_EST_la_ligne_discriminante",
+      _src.count('"aria-label":dzmNewerLine(c),') == 1
+      and _src.count("children:dzmNewerLine(c)}") == 1,
+      "le rappel affiche une ligne et en annonce une autre")
+# L'INFOBULLE NE CONSEILLE PLUS DE VERIFIER LE TITRE : il est le meme pour
+# tous par construction. Elle nomme ce qui distingue reellement.
+check("l_infobulle_du_rappel_pointe_le_vrai_discriminant",
+      "Vérifiez le titre avant de remplacer" not in _src
+      and "c'est la date et la durée" in _src,
+      "l'infobulle conseille encore un contrôle impossible à faire")
+# LE MEME CHIFFRE MESURE, CITE A TROIS ENDROITS — le service, la couche et ce
+# banc. Le commit 82c2689 a corrige le service et LAISSE les deux autres :
+# « 40 des 84 » a survecu dans montage.js ET DANS LE BUNDLE LIVRE. Trois
+# copies d'une mesure, aucune ligne pour les tenir ensemble : cette ligne-ci
+# est cette ligne. Elle ne juge pas la mesure (le PROTOCOLE du docstring s'en
+# charge), elle juge qu'aucune des trois n'est restee en arriere.
+# La POPULATION est la meme dans les trois — les jobs video `done`
+# non-montage sous la clause LIVREE, 97 — et seul le sous-ensemble compte
+# change (53 sans duree, 61 sans titre). Un fichier reste en arriere et le
+# denominateur redevient 84 : c'est ce que cette ligne voit.
+_svc = SERVICE.read_bytes().decode("utf-8")
+_moi = pathlib.Path(__file__).read_bytes().decode("utf-8")
+check("le_chiffre_de_la_duree_inconnue_est_le_meme_partout",
+      "53 des 97 jobs vidéo `done` non-montage ont `duration_s`" in _src
+      and "53 sur 97" in _moi
+      and "61 des 97 jobs vidéo `done` non-montage n'ont PAS de titre"
+      in _svc,
+      "une des trois citations de la mesure est restée en arrière")
 # UN SEUL APPELANT dans la couche. On compte la forme `fetch("…` et non le
 # chemin nu : le chemin est cite une seconde fois dans l'en-tete de contrat de
 # la couche, ou il DOIT etre lisible. Ce qui ne doit pas se dedoubler, c'est
