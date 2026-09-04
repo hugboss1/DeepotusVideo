@@ -1445,3 +1445,57 @@ lancée **par l'utilisateur**) : le bouton `Bibliothèque…` et la largeur rée
 de la barre de transport qui reçoit un contrôle de plus ; les deux libellés
 renommés ; et la remise depuis la fenêtre de la Bibliothèque, refaite de bout en
 bout sur un projet SANS piste V2 puis sur un projet qui en porte une.
+
+---
+
+### Tâche 16 — compléments mesurés pendant la tâche 15
+
+Deux ajouts au périmètre, tous deux **mesurés** en implémentant P8, et tous deux
+à traiter dans la même passe : ils touchent la même surface et la même chaîne.
+
+#### Le défaut jumeau du sélecteur d'assets
+
+Le filtre fautif de `GET /project` n'était pas le seul. `openPicker()` —
+`frontend/patches/son-vfx-montage.js`, lignes **3620** et **3628** — construit
+sa liste « Rendus vidéo » à partir de `/api/jobs` avec **exactement le même
+critère** : `status === "done" && (video_path || final_video_path)`. Les
+planches `sprite2d` et les maillages `asset3d` y sont donc **encore proposés**,
+et rien n'empêche l'utilisateur de reposer à la main les clips que la tâche 15
+vient d'écarter de la construction automatique.
+
+**LE PIÈGE, et il décide de l'endroit du correctif.** `son-vfx-montage.js` est
+le fichier que cette chaîne **ne peut pas rejouer** : le bloc correspondant du
+bundle porte les vingt sections V3/V4/V6/V8/V9 de `patch_bundle_vfxrack.py` et
+S3…S17 de `patch_bundle_subs.py`, `.bak_vfxrack` et `.bak_subs` sont absents de
+cette copie, et l'ancre V10 est déjà consommée. **Éditer ce fichier et relancer
+son patcher effacerait les vingt sections, sans un mot et sans retour.** Le
+correctif se porte donc **en aval, dans la chaîne `montage`** — même règle et
+même raison que pour `addAsset` (piège n°1 ci-dessus).
+
+Le backend possède déjà la règle : `_is_video_artifact` et `_VIDEO_EXTS`
+(`montage_service.py`, tâche 15). Ne la réécris pas en JavaScript — **fais-la
+servir** : soit la liste du sélecteur passe par une route qui l'applique, soit
+le filtre client interroge la même liste d'extensions exposée par le backend.
+Une seconde copie de la règle divergera de la première.
+
+#### Le champ `v1_non_video` attend son lecteur
+
+La tâche 15 a **choisi de ne pas élaguer** la sauvegarde de l'utilisateur — la
+mesure est au commit `8dc8e7d` : son `montage_saved.json` porte 17 clips, dont
+seulement 4 fautifs, et élaguer aurait vidé la piste V1 puis fait repartir la
+construction depuis la Bibliothèque, détruisant le reste sans retour. Les clips
+fautifs sont donc **signalés** : `GET /project` rend la clé `v1_non_video`, la
+liste de leurs identifiants.
+
+**Aujourd'hui aucune interface ne la lit** — c'est une dette déclarée en toutes
+lettres dans l'en-tête du banc, et elle appartient à cette tâche. Ce qu'il faut :
+que ces clips **se voient** sur la timeline (un état visuel sur la rangée, un
+titre qui dit pourquoi), et que la voie de sortie soit offerte sur place plutôt
+que devinée — c'est le même geste que le bouton `Bibliothèque…` de l'étape 5.
+Sans lecteur, le champ est un mensonge poli : le backend sait, et l'écran se
+tait.
+
+**Note pour l'implémenteur** : `POST /render` refuse déjà ces clips en **400**
+en les nommant (pré-vol de la tâche 15). Le marquage n'est donc pas la seule
+protection — il est là pour que l'utilisateur voie le problème **avant** de
+cliquer, pas après.
