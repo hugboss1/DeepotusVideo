@@ -7,7 +7,10 @@ Câblage « timeline → rendu » du handoff son_vfx_montage :
                               assets de la Bibliothèque (rendus + uploads en
                               V1, voix off en A1, musique en A2), durées
                               ffprobe. {has_assets:false} si la Bibliothèque
-                              est vide → l'écran garde sa démo.
+                              est vide → l'écran garde sa démo. P8 : seule de
+                              la VIDÉO entre en V1 (`_VIDEO_EXTS`) —
+                              `final_video_path` porte aussi les planches PNG
+                              de `sprite2d` et les maillages GLB d'`asset3d`.
   POST /api/montage/render    Rend la timeline postée en tâche de fond
                               (JobRecord provider="montage", poll
                               GET /api/jobs/{id}) — preview 480p (gratuit,
@@ -216,6 +219,66 @@ def _has_audio_stream(path: Path) -> bool:
         return bool(out)
     except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
         return False
+
+
+# P8 — extensions qu'un DÉMULTIPLEXEUR vidéo sait ouvrir. La liste est
+# FERMÉE par choix : `sprite2d` range sa planche PNG et `asset3d` son maillage
+# GLB dans la MÊME colonne `final_video_path` qu'un rendu `seedance`, et un
+# jour un provider de plus fera pareil. Une liste blanche se lit ; une liste
+# noire se contourne toute seule.
+# MESURE (04/09/2026, médiane de 12 appels, ffprobe 7.x de
+# %LOCALAPPDATA%\DeepotusVideoGen\bin) : une sonde
+# `ffprobe -select_streams v -show_entries stream=codec_type` coûte 52 ms par
+# asset ET REND « video » SUR UN PNG. Elle n'aurait écarté aucune des trois
+# planches de sprites de l'utilisateur, seulement le maillage — que
+# l'extension écarte pour 0 ms. Pas de sonde, donc ; le trou qui reste (un
+# `.mp4` de zéro octet, un `.webm` tronqué) tombe sur le message lisible de
+# `_run_ffmpeg`, où « Invalid data found » est l'un des motifs remontés.
+_VIDEO_EXTS = (".mp4", ".mov", ".webm", ".mkv", ".m4v", ".avi")
+_AUDIO_EXTS = (".mp3", ".wav", ".m4a", ".ogg", ".flac", ".aac", ".opus",
+               ".aiff", ".aif", ".wma")
+
+
+def _is_video_artifact(p: Path) -> bool:
+    return p.suffix.lower() in _VIDEO_EXTS
+
+
+def _ffmpeg_ouvrira(p: Path) -> bool:
+    """Vrai si un démultiplexeur ffmpeg sait ouvrir ce fichier.
+
+    La frontière du PRÉ-VOL n'est pas « vidéo » mais « ce que ffmpeg sait
+    ouvrir », et elle n'est pas la même selon la piste : une image est
+    parfaitement légitime en incrustation V2 comme en carton fixe sur V1
+    (`ovPicker()` du bundle propose « Images (Bibliothèque) » sur TOUTE piste
+    vidéo), un son l'est sur une piste audio. Ce qui n'a de sens nulle part,
+    c'est un maillage, une archive, un JSON — et c'est cela seul qu'on
+    refuse. `_IMAGE_EXTS` est défini plus bas, avec le reste du rendu."""
+    return p.suffix.lower() in _VIDEO_EXTS + _IMAGE_EXTS + _AUDIO_EXTS
+
+
+# P8 — les lignes de stderr qui DÉCIDENT. Tout le reste (bannière de
+# compilation, dumps de flux) est du bruit : sur l'échec réel du 04/09/2026,
+# la ligne utile arrivait à l'offset 1069 d'une tranche de 1200 CARACTÈRES,
+# coupée au milieu des drapeaux de build.
+_FFMPEG_MOTIFS = ("Error opening input file", "Invalid data found",
+                  "No such file", "Conversion failed", "Unknown encoder")
+
+
+def _ffmpeg_lignes_utiles(stderr: str, limite: int = 5) -> list:
+    """Les lignes de `stderr` portant un motif de `_FFMPEG_MOTIFS`, dans
+    l'ordre, sans doublon, plafonnées. Liste vide = rien de reconnu, et le
+    message d'erreur reste alors celui d'avant, caractère pour caractère."""
+    vues, out = set(), []
+    for ligne in (stderr or "").splitlines():
+        s = ligne.strip()
+        if not s or s in vues:
+            continue
+        if any(m in s for m in _FFMPEG_MOTIFS):
+            vues.add(s)
+            out.append(s if len(s) <= 200 else s[:200] + "…")
+            if len(out) >= limite:
+                break
+    return out
 
 
 def _audio_dir() -> Path:
@@ -780,10 +843,15 @@ async def montage_project(limit: int = 4):
     construction historique depuis la Bibliothèque (saved:false) — les
     `limit` derniers rendus/uploads finis en V1 (bout à bout, sans trous),
     la voix off la plus récente en A1, une musique (nom contenant
-    theme/music/bgm/…) en A2."""
+    theme/music/bgm/…) en A2.
+
+    P8 : seuls les jobs dont l'artefact porte une extension de `_VIDEO_EXTS`
+    entrent en V1. La SAUVEGARDE, elle, n'est jamais élaguée de ses clips V1
+    non-vidéo : ils sont seulement listés dans `v1_non_video` (et au journal)
+    — voir le commentaire dans la boucle."""
     saved = await asyncio.to_thread(_load_saved)
     if saved is not None:
-        kept, pruned = [], 0
+        kept, pruned, non_video = [], 0, []
         for c in saved["clips"]:
             if not isinstance(c, dict):
                 continue
@@ -795,7 +863,23 @@ async def montage_project(limit: int = 4):
                         f"retiré — {c.get('label') or c.get('src')}")
                     pruned += 1
                     continue
+                # P8 — un clip V1 qui n'est pas une vidéo est SIGNALÉ, jamais
+                # élagué. Élaguer viderait la piste V1 d'une sauvegarde comme
+                # celle du 04/09/2026 (17 clips : 4 V1 fautifs, mais aussi 9
+                # segments de sous-titres mot à mot, une voix avec fondus et
+                # fx, une musique, deux incrustations) — la garde
+                # `any(c["tr"] == "v1")` plus bas ferait alors repartir la
+                # construction depuis la Bibliothèque, et 13 clips de travail
+                # seraient perdus pour en retirer 4. Le pré-vol du rendu les
+                # nomme ; c'est l'utilisateur qui décide.
+                if c.get("tr") == "v1" and not _is_video_artifact(p):
+                    non_video.append(c.get("id") or c.get("label") or p.name)
             kept.append(c)
+        if non_video:
+            logger.warning(
+                f"montage: {len(non_video)} clip(s) V1 de la sauvegarde ne "
+                f"sont pas des vidéos — {', '.join(str(x) for x in non_video)}"
+                f" ; le rendu les refusera nommément s'ils ne s'ouvrent pas.")
         if any(c.get("tr") == "v1" for c in kept):
             try:
                 sdur = float(saved.get("duration") or 0)
@@ -833,6 +917,8 @@ async def montage_project(limit: int = 4):
             if pruned:
                 out["saved_pruned"] = True
                 out["pruned"] = pruned
+            if non_video:
+                out["v1_non_video"] = non_video   # P8 — signalé, pas élagué
             return out
         # Sauvegarde présente mais plus AUCUN clip V1 à source valide : elle
         # est inexploitable — la Bibliothèque reprend la main (le prochain
@@ -849,6 +935,16 @@ async def montage_project(limit: int = 4):
     for j in jobs:
         fp = j.final_video_path or j.video_path
         if not fp or not Path(fp).exists():
+            continue
+        # P8 — `final_video_path` n'est PAS une promesse de vidéo : `sprite2d`
+        # y range sa planche PNG, `asset3d` son maillage GLB. Sans ce test,
+        # les quatre jobs les plus RÉCENTS gagnaient la piste V1 quels qu'ils
+        # soient, `_probe_duration` rendait 0 sur un PNG, le repli `or 4.0`
+        # donnait quatre cartons de 4 s — et les 35 rendus seedance de la
+        # base, plus anciens, n'étaient jamais atteints.
+        if not _is_video_artifact(Path(fp)):
+            logger.info(f"montage: job {j.id[:8]} ({j.provider}) ecarte de V1 — "
+                        f"{Path(fp).suffix or 'sans extension'} n'est pas une video")
             continue
         if j.provider == "montage" and "_preview" in Path(fp).name:
             continue  # ne pas remonter nos propres aperçus en source
@@ -1833,6 +1929,16 @@ def _run_ffmpeg(cmd, out: Path) -> Path:
             f"ffmpeg a dépassé {FFMPEG_TIMEOUT_S // 60} min — rendu interrompu.")
     if r.returncode != 0 or not out.exists() or out.stat().st_size == 0:
         tail = (r.stderr or "")[-1200:]
+        # P8 — la tranche brute est GARDÉE, mais elle passe DERRIÈRE la ligne
+        # qui décide. Mesuré le 04/09/2026 sur l'échec réel : « Error opening
+        # input file … model.glb » arrivait à l'offset 1069 de ces 1200
+        # caractères, après six lignes de drapeaux de compilation. Sans motif
+        # reconnu, le message ne change pas d'un caractère.
+        lignes = _ffmpeg_lignes_utiles(r.stderr or "")
+        if lignes:
+            raise RuntimeError(
+                f"ffmpeg a échoué ({r.returncode}) : " + " | ".join(lignes)
+                + "\n--- journal ffmpeg (fin) ---\n" + tail)
         raise RuntimeError(f"ffmpeg a échoué ({r.returncode}) : {tail}")
     return out
 
@@ -1888,6 +1994,13 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
     AUCUN atempo (l'audio du plan V1 n'entre pas dans le graphe — le clip A1
     « son du plan » garde sa vitesse, l'UI le signale). Champ absent ou 1 :
     commande historique intacte.
+    P8 : PRÉ-VOL avant la création du JobRecord — toute source résolue qu'un
+    démultiplexeur ffmpeg n'ouvrira pas (maillage, archive, JSON…) fait
+    répondre 400 en nommant le libellé du clip et le fichier, et RIEN n'entre
+    en file d'attente. Une image reste légitime (carton fixe V1, incrustation
+    V2) et un son sur une piste audio : la frontière est « ce que ffmpeg sait
+    ouvrir », pas « vidéo ». Une source DISPARUE n'est pas concernée : ce
+    chemin reste inchangé.
     → {job_id} ; poll /api/jobs/{id}."""
     try:
         body = await request.json()
@@ -1918,6 +2031,32 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
     # P1 : la LOI de classement des clips. Sans `tracks` c'est la table
     # historique — v2 overlay, a1 dialogue, a2 musique bouclée, a3 sfx.
     meta = _tracks_meta(body.get("tracks"))
+
+    # P8 — PRÉ-VOL. Un rendu qui ne peut pas aboutir ne doit coûter ni une
+    # entrée de file d'attente ni deux minutes d'attente : les sources sont
+    # résolues ICI, avant le JobRecord, et celles qu'aucun démultiplexeur
+    # n'ouvrira sont refusées NOMMÉMENT. Le 04/09/2026 un `model.glb` posé en
+    # V1 par la construction automatique tuait ffmpeg à la 1700e ligne du
+    # journal ; l'utilisateur lisait une tranche de stderr coupée au milieu
+    # de la bannière de compilation. Une source DISPARUE n'est pas l'affaire
+    # du pré-vol : ce chemin reste celui d'avant (échec nommé dans `_run`
+    # pour V1, warning et clip ignoré pour les overlays et l'audio).
+    refus = []
+    for c in clips:
+        m = meta.get(c.get("tr"))
+        if not m or m["kind"] == "subs" or not isinstance(c.get("src"), dict):
+            continue
+        p = await _resolve_src(c.get("src"))
+        if p is not None and not _ffmpeg_ouvrira(p):
+            refus.append(f"« {c.get('label') or c.get('id') or c.get('tr')} » "
+                         f"→ {p.name}")
+    if refus:
+        raise HTTPException(
+            400, f"Rendu impossible : {len(refus)} source(s) qu'aucun lecteur "
+                 f"ffmpeg n'ouvrira — {' ; '.join(refus[:8])}. Un maillage 3D "
+                 f"n'est pas un plan : retire ces clips de la timeline, ou "
+                 f"remplace-les par une vidéo (mp4/mov/webm) ou une image "
+                 f"(png/jpg).")
 
     job_id = str(uuid4())
     short = job_id[:8]
