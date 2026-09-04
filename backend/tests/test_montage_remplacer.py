@@ -27,7 +27,7 @@ CE QUI EST FERME ICI
       depot ajoute a un titre de job), sans espaces de bord, sans casse.
   [4] LE GARDE-FOU DU TITRE VIDE, qui n'est PAS au plan et que la base
       REELLE impose : un titre normalise vide ne propose RIEN. Sans lui, les
-      48 jobs `done` non-montage a artefact .mp4 et titre NUL de la base de
+      61 jobs `done` non-montage a artefact .mp4 et titre NUL de la base de
       l'utilisateur se proposeraient mutuellement comme « versions plus
       recentes ». Mutation MV.
   [5] LE PIEGE SQL DU `provider != "montage"` : en SQL, `NULL != 'montage'`
@@ -91,16 +91,30 @@ bibliotheque standard, jamais l'originale :
   120 jobs, 116 `done` ; par fournisseur : seedance 35, template 33,
   NULL 13, ugc 9, sprite2d 8, asset3d 7, heygen 5, montage 4, news 1,
   animation 1.
-  84 jobs `done` non-montage dont l'artefact resolu
+  97 jobs `done` non-montage dont l'artefact resolu
   (`coalesce(nullif(final_video_path,''), video_path)`) finit par `.mp4` ;
-  48 d'entre eux ont un titre NUL ou vide ; 40 ont `duration_s` NUL ou <= 0.
+  61 d'entre eux ont un titre NUL ou vide ; 53 ont `duration_s` NUL ou <= 0.
+  CES TROIS CHIFFRES ONT ETE FAUX, et la faute vaut plus que les chiffres :
+  le commit 2fff6b6 ecrivait 84 / 48 / 40, mesures avec un `where` en
+  `provider != 'montage'` — C'EST-A-DIRE SOUS LE BUG QUE CE MEME COMMIT
+  REMPLACE. Les 13 jobs `done` a `provider IS NULL` tombaient de la mesure
+  exactement comme ils tombaient de la requete : 84+13 = 97, 48+13 = 61,
+  40+13 = 53. Le protocole etait nomme et la mesure faite ; ce qui manquait,
+  c'est de mesurer sous la clause LIVREE et non sous celle qu'on jetait.
+  CONTROLE CROISE (04/09/2026, meme copie) : `where provider != 'montage'`
+  rend 99 lignes `done`, `coalesce(...)` en rend 112 — ecart 13, exactement
+  les 13 lignes a provider NUL.
   13 jobs `done` a `provider IS NULL`, tous des .mp4 — aucun ne porte de
   titre AUJOURD'HUI, donc la correction du point [5] ne change rien
   d'OBSERVABLE sur cette base : elle ferme un piege SQL, pas un defaut
   constate.
   Suffixe de titre : 8 lignes portent « (aperçu 480p) », toutes
-  `provider='montage'` (3 `done`, 5 `failed`) ; ZERO ligne non-montage en
-  porte. Le seul point du depot qui l'ajoute est montage_service.py l. 2253.
+  `provider='montage'` (4 `done`, 4 `failed` — et non « 3 / 5 » comme
+  l'ecrivait 2fff6b6) ; ZERO ligne non-montage en porte. La base ne compte
+  que 4 jobs `montage` `done` : TOUS le portent, le suffixe est la marque de
+  tout apercu et non une exception. Le seul point du depot qui l'ajoute est
+  montage_service.py l. 2406 (2fff6b6 disait 2253 : le numero du fichier
+  PARENT, d'avant ses propres ajouts).
   CONSEQUENCE, dite plutot que tue : les candidats excluant `montage`, ce
   suffixe ne peut mordre que sur le job de REFERENCE (le clip qu'on
   remplace). Il est normalise quand meme — c'est une ligne de regex — mais
@@ -114,85 +128,140 @@ bibliotheque standard, jamais l'originale :
   montage_saved.json, qui pese 5 980 o aujourd'hui (17 clips). Ce plafond
   demande 4 000 remplacements : c'est une borne, pas un cout.
 
-DIX-HUIT MUTATIONS, jouees le 04/09/2026. PROTOCOLE : le fichier vise est
-reecrit sur DISQUE (texte en newlines universelles puis reecrit en CRLF pour
-le service et la couche ; en OCTETS pour le bundle, qui melange minifie sans
-saut de ligne et blocs CRLF), le banc relance en PROCESSUS NEUF depuis
-backend/, le fichier restaure quoi qu'il arrive (try/finally + verification du
-sha256) ; scripts scratchpad/mut6_run.py et scratchpad/mut6_bundle.py. Ligne
-verte de reference : 75/0 pour ce banc, 304/0 pour test_montage_bundle.py.
+VINGT-HUIT MUTATIONS. Vingt et une venaient de 2fff6b6 ; TOUTES CELLES QUI SE
+MESURENT SUR CE BANC ONT ETE REJOUEES contre le fichier LIVRE, parce que la
+correction de la branche vide y ajoute deux lignes et que laisser des totaux
+pris sur un banc de 75 aurait ete la faute meme que le PROTOCOLE ci-dessus
+corrige : citer un chiffre mesure sur autre chose que ce qu'on livre. Les NOMS
+des lignes rouges sont inchanges d'une campagne a l'autre — c'est ce qui prouve
+que la mutation rejouee est bien la meme, et que seul le total a bouge (+2 en
+vertes, failed inchange).
+(2fff6b6 annoncait « DIX-HUIT » ; sa liste en portait 20, plus MSEL en note.)
+PROTOCOLE : le fichier vise est reecrit sur DISQUE (texte en newlines
+universelles puis reecrit en CRLF pour le service et la couche ; en OCTETS
+pour le bundle, qui melange minifie sans saut de ligne et blocs CRLF), le banc
+relance en PROCESSUS NEUF depuis backend/, le fichier restaure quoi qu'il
+arrive (try/finally + verification du sha256) ; scripts scratchpad/mut6_run.py,
+scratchpad/mut6_bundle.py et scratchpad/muts.py. Une mutation dont l'ancre
+n'est pas UNIQUE est refusee plutot que jouee au hasard : MW et MWR portent la
+ligne PRECEDENTE dans leur ancre, parce que le meme `where` de liste blanche
+existe aussi dans `montage_project` (l. 1083) et que le muter LA aurait mesure
+une autre route. Ligne verte de reference : 77/0 pour ce banc, 304/0 pour
+test_montage_bundle.py.
 
   SUR LA ROUTE (banc : celui-ci)
-  MV   garde du titre vide retiree      => 74/1, `newer_titre_vide_ne_
+  MV   garde du titre vide retiree      => 76/1, `newer_titre_vide_ne_
        propose_rien` SEULE. (`newer_titre_en_blancs_ne_propose_rien` reste
        VERTE, et c'est juste : « ␣␣␣ » se normalise en chaine vide seulement
        APRES `.strip()`, que la mutation ne touche pas — la ligne mesure
        l'autre moitie de la meme sortie.)
   MP   `coalesce(provider,'')` remplace par `provider != "montage"`
-       => 72/3 : `newer_accepte_un_provider_nul`, la ligne d'ORDRE et
+       => 74/3 : `newer_accepte_un_provider_nul`, la ligne d'ORDRE et
        `newer_rend_une_duree_nulle_telle_quelle` (le job a provider NUL est
-       aussi celui dont la duree est nulle). C'EST LA MUTATION DU PIEGE SQL.
-  MMON clause `provider` entierement retiree => 73/2 :
+       aussi celui dont la duree est nulle). C'EST LA MUTATION DU PIEGE SQL —
+       et c'est aussi, mot pour mot, la clause sous laquelle 2fff6b6 avait
+       compte 84 / 48 / 40 au lieu de 97 / 61 / 53.
+  MMON clause `provider` entierement retiree => 75/2 :
        `newer_ecarte_nos_propres_rendus_de_montage` et la ligne d'ORDRE.
-  MVID test `_is_video_artifact` retire => 73/2 :
+  MVID test `_is_video_artifact` retire => 75/2 :
        `newer_ecarte_un_nom_de_fichier_sans_extension_analysable` et la ligne
        d'ORDRE. CE CHIFFRE A ETE GAGNE : sur la premiere version du banc,
        cette mutation donnait 74/0 — AUCUNE rouge, parce que le `where` de la
        requete dit deja la meme chose et qu'aucune fixture n'exploitait leur
        seule divergence. La fixture « fichier nomme exactement .mp4 » a ete
        ajoutee POUR CELA.
-  MW   `where` de la liste blanche retire => 75/0, AUCUNE rouge, ET C'EST
-       DECLARE. Sans `.limit()` sur la requete, ce `where` ne change pas la
-       SORTIE : il ne change que le NOMBRE DE LIGNES chargees avant le filtre
-       Python. Aucune assertion ne peut donc l'en distinguer, et il serait
-       malhonnete de laisser croire le contraire. Il reste parce qu'il est
-       gratuit et qu'il maintient la propriete que P8-bis a payee (la requete
-       rend des candidats, pas des lignes a jeter) ; c'est un choix de cout,
-       pas une correction.
-  ML   `.limit(5)` pose sur la requete => 72/3 :
+  MW   `where` de la liste blanche RETIRE => 77/0, AUCUNE rouge, ET C'EST
+       DECLARE. Attention a la portee EXACTE de cet aveu, que 2fff6b6
+       elargissait a tort : ce n'est pas « aucune assertion ne peut distinguer
+       ce `where` », c'est « aucune ne peut distinguer sa direction
+       PERMISSIVE ». Retirer le garde ne change que le NOMBRE DE LIGNES
+       chargees avant le filtre Python — jamais la sortie, puisqu'il n'y a pas
+       de `.limit()`. Sa direction DANGEREUSE, elle, est mesuree neuf fois :
+       voir MWR. Le garde reste parce qu'il est gratuit et qu'il maintient la
+       propriete que P8-bis a payee (la requete rend des candidats, pas des
+       lignes a jeter) ; ce n'est pas du code non teste, c'est un garde dont
+       une seule direction est observable — et c'est ce qu'il doit etre par
+       construction, le filtre Python re-decidant derriere lui.
+  MWR  `where` rendu SUR-RESTRICTIF (`_fp.ilike("%.mov")` seul) => 68/9. La
+       mutation que 2fff6b6 n'avait pas jouee, et celle qui tient le garde :
+       neuf lignes tombent, exactement celles de MEXT. Un `where` trop etroit
+       ecarte des candidats legitimes AVANT que Python ne les voie, et ca, ce
+       banc le voit.
+  ML   `.limit(5)` pose sur la requete => 74/3 :
        `plafond_5_pris_apres_le_filtre_de_titre_et_de_video`, la ligne
        d'ORDRE et `newer_accepte_la_casse_et_les_espaces_de_bord`. CE CHIFFRE
        A LUI AUSSI ETE GAGNE : la premiere version posait 20 PLANCHES PNG
        comme bruit, que le `where` retire avant la requete — la mutation
        donnait 74/0. Le bruit est desormais du meme genre que les candidats
        (20 videos d'un AUTRE titre, plus recentes), et il consomme la fenetre.
-  MEXI garde d'existence du fichier retiree => 73/2 :
+  MEXI garde d'existence du fichier retiree => 75/2 :
        `newer_ecarte_une_source_disparue` et la ligne d'ORDRE.
-  MSUF suffixe d'apercu non normalise => 74/1, `titre_apercu_ignore` SEULE.
-  MCAS casse non normalisee => 72/3 :
+  MSUF suffixe d'apercu non normalise => 76/1, `titre_apercu_ignore` SEULE.
+  MCAS casse non normalisee => 74/3 :
        `newer_accepte_la_casse_et_les_espaces_de_bord`, `titre_apercu_ignore`
        (son candidat differe aussi par la casse) et la ligne d'ORDRE.
-  MDAT garde `completed_at is None` retiree => 73/2 :
+  MDAT garde `completed_at is None` retiree => 75/2 :
        `newer_reference_sans_date_ne_propose_rien` ET `aucun_appel_n_a_
        plante`. La seconde dit ce que la premiere ne dit pas : sans la garde,
        la route LEVE — `completed_at > None` n'est pas une comparaison. La
        garde n'est donc pas un raccourci, c'est la correction.
-  MEXT `.mp4` retire de `_VIDEO_EXTS` => 66/9. C'est la mutation qui prouve
+  MEXT `.mp4` retire de `_VIDEO_EXTS` => 68/9. C'est la mutation qui prouve
        que la route REUTILISE la liste du service au lieu d'en porter une
        copie : neuf lignes tombent, dont toutes celles qui attendent un
        candidat.
-  (MSEL n'existe plus : la clause `id != job_id` du plan a ete RETIREE apres
-   mesure — elle donnait 74/0, aucune ligne rouge. La comparaison de date est
-   STRICTE, donc la reference n'est jamais plus recente qu'elle-meme ; la
-   clause etait du code mort et la propriete reste tenue par
-   `newer_ne_se_propose_pas_lui_meme`.)
+  MTIT filtre de titre ENTIEREMENT retire => 71/6, dont
+       `newer_un_job_sans_titre_n_est_jamais_candidat`. C'est la mutation qui
+       a demasque une assertion STRUCTURELLEMENT VIDE : jusqu'a la correction
+       du 04/09-bis, cette ligne comparait a une reponse prise AVANT que sa
+       fixture n'existe, et elle restait VERTE ici (voir MOLD).
+  MSEL clause `id != job_id` du plan REMISE => 77/0, aucune ligne rouge.
+       C'est du code MORT : la comparaison de date est STRICTE, donc la
+       reference n'est jamais plus recente qu'elle-meme. La propriete, elle,
+       est bien tenue — voir MGE.
+  MGE  `completed_at > ref` devenu `>=` => 75/2 :
+       `newer_ne_se_propose_pas_lui_meme` et la ligne d'ORDRE. C'est la
+       CONTRE-EPREUVE de MSEL : la clause retiree etait morte, mais la
+       propriete qu'elle pretendait tenir est mesuree, et par la STRICTESSE.
+  MORI `origin` du dict `empty` mis a "depot" => 76/1,
+       `newer_vide_dit_aussi_son_origine_heuristique` SEULE.
+  MOK  `ok` du dict `empty` mis a False => 76/1, `newer_vide_reste_un_ok`
+       SEULE. Ces deux-la sont NEUVES : le contrat porte DEUX dicts (celui du
+       chemin vide et celui du succes) et un seul etait tenu. Les 76 autres
+       lignes restent VERTES sous chacune — donc sur le banc de 2fff6b6, qui
+       ne portait pas ces deux-ci, les deux mutations donnaient 75/0 : la
+       reponse la plus FREQUENTE, celle d'un plan sans homonyme, pouvait
+       diverger de l'autre en silence.
+
+  SUR LE BANC LUI-MEME (ce que la correction du 04/09-bis a ferme)
+  MOLD l'assertion d'AVANT remise (`I(21) not in IDS(d1)`), MTIT jouee en
+       meme temps => 72/5, et la ligne est VERTE. C'est la preuve directe :
+       `d1` est pris ~70 lignes avant que I(21) ne soit en base, donc aucun
+       changement de la route ne pouvait la faire rougir.
+  M21  la requete REJOUEE mais l'assertion portant le SEUL I(21) — le
+       correctif minimal — MTIT jouee en meme temps => 72/5, et la ligne est
+       ENCORE VERTE. Rejouer la requete ne suffisait donc pas : le plafond de
+       5 cache I(21), le plus ancien des trois jobs sans titre, derriere cinq
+       homonymes plus recents. Seule la forme LIVREE (les trois jobs sans
+       titre, pas un seul) rougit — c'est I(22) qui la fait rougir, et le
+       temoin de la ligne le montre.
 
   SUR LE CŒUR JS (banc : celui-ci)
-  MJ1  plafond de `src_history` retire => 72/3 : les deux lignes du plafond
+  MJ1  plafond de `src_history` retire => 74/3 : les deux lignes du plafond
        et `js_retour_deux_crans`.
-  MJ2  `revertSrc` ne rend plus les bornes => 74/1,
+  MJ2  `revertSrc` ne rend plus les bornes => 76/1,
        `js_retour_rend_AUSSI_les_bornes_d_alors` SEULE. C'est l'ECART au plan
        (qui n'empilait que {src, label, at}) qui se mesure ici.
-  MJ3  `replaceSrc` mute le clip d'entree => 66/9. La plus large, et elle le
+  MJ3  `replaceSrc` mute le clip d'entree => 68/9. La plus large, et elle le
        merite : un cœur qui mute son entree rend inutile l'instantane que
        l'ecran pousse AVANT d'ecrire.
-  MJ4  duree inconnue passee sous silence => 74/1, `js_duree_inconnue_le_dit`
+  MJ4  duree inconnue passee sous silence => 76/1, `js_duree_inconnue_le_dit`
        SEULE.
-  MJ5  `srcOut` conserve => 74/1, `js_remplace_retire_srcOut` SEULE.
-  MJ6  note muette sur les limites de l'annulation => 73/2, les deux lignes
+  MJ5  `srcOut` conserve => 76/1, `js_remplace_retire_srcOut` SEULE.
+  MJ6  note muette sur les limites de l'annulation => 75/2, les deux lignes
        de la note (ce qu'annuler ne rend pas, et la seconde voie de retour).
 
-  SUR LA CHAINE (banc : test_montage_bundle.py, reference 304/0)
+  SUR LA CHAINE (banc : test_montage_bundle.py, reference 304/0 — ce banc-la
+  n'a pas bouge, ses comptes non plus)
   MB   couche modifiee SANS rejouer le patcher => 303/1,
        `bloc_EST_la_couche_octet_pour_octet` SEULE. Le bundle n'executerait
        plus le fichier que ce banc-ci mesure.
@@ -469,11 +538,21 @@ d2 = J(api("GET", "/api/montage/newer?job_id=inconnu-1234"))
 check("newer_job_inconnu_rend_une_liste_vide", CAND(d2) == [], f"{CAND(d2)}")
 check("newer_job_inconnu_reste_un_200",
       api("GET", "/api/montage/newer?job_id=inconnu-1234").status_code == 200)
+# LA BRANCHE « AUCUN CANDIDAT » PORTE LES MEMES DEUX LITTERAUX QUE CELLE DU
+# SUCCES, et RIEN ne les mesurait : `origin` et `ok` n'etaient lus que sur
+# `d1`. MESURE (04/09/2026, mutations MORI et MOK) : chacune rougit ici
+# SEULE (76/1) et les 76 autres lignes restent vertes — donc sur le banc
+# de 2fff6b6, qui ne portait pas ces deux-ci, elles donnaient 75/0. Les deux
+# dicts pouvaient donc diverger en silence — et c'est la reponse la PLUS
+# FREQUENTE que voit un utilisateur, celle d'un plan sans homonyme.
+check("newer_vide_dit_aussi_son_origine_heuristique",
+      d2.get("origin") == "heuristique", f'origin={d2.get("origin")!r}')
+check("newer_vide_reste_un_ok", d2.get("ok") is True, f'ok={d2.get("ok")!r}')
 d3 = J(api("GET", "/api/montage/newer"))
 check("newer_sans_job_id_rend_une_liste_vide", CAND(d3) == [], f"{CAND(d3)}")
 
-# LE GARDE-FOU DU TITRE VIDE — hors plan, impose par la base reelle : 48 des
-# 84 jobs video non-montage n'ont PAS de titre. Sans cette sortie, chacun
+# LE GARDE-FOU DU TITRE VIDE — hors plan, impose par la base reelle : 61 des
+# 97 jobs video non-montage n'ont PAS de titre. Sans cette sortie, chacun
 # proposerait les quatre autres comme « versions plus recentes ».
 pose(I(20), "seedance", F_MP4, None, T0)
 pose(I(21), "seedance", F_MP4B, None, T0 + timedelta(minutes=1))
@@ -485,8 +564,29 @@ check("newer_titre_en_blancs_ne_propose_rien", CAND(d5) == [], f"{CAND(d5)}")
 # ... et un job SANS titre n'est jamais propose non plus, meme a un autre
 # job sans titre : la ligne ci-dessus pourrait etre verte par la seule sortie
 # du REFERENT, celle-ci tient l'autre cote.
+# LA REQUETE EST REJOUEE ICI, ET C'EST UNE CORRECTION. 2fff6b6 comparait a
+# `d1`, pris ~70 lignes PLUS HAUT — avant que les trois jobs sans titre
+# n'existent. La fixture n'etait pas en base quand la reponse etait prise :
+# AUCUN changement de la route ne pouvait faire rougir cette ligne. PROUVE
+# par la mutation MOLD (l'assertion d'avant remise, filtre de titre retire
+# en meme temps) : 72/5 ici, 70/5 sur le banc de 2fff6b6 qui ne portait pas
+# les deux lignes de la branche vide — cinq lignes rouges, et celle-ci
+# VERTE. Son commentaire affirmait « tenir l'autre cote » ; elle ne tenait
+# rien.
+# ET ELLE PORTE LES TROIS JOBS SANS TITRE, pas le seul I(21) : rejouer la
+# requete NE SUFFIT PAS. Mutation M21 (requete rejouee, assertion sur le
+# seul I(21)) => 72/5, ENCORE VERTE — le plafond de 5 cache I(21), le plus
+# ancien des trois, derriere cinq homonymes plus recents. Sous la forme
+# livree, c'est I(22) qui la fait rougir, et le temoin de la ligne le
+# montre. La propriete est « AUCUN job a titre normalise vide n'est
+# propose », pas « celui-la n'y est pas ».
+d1b = J(api("GET", "/api/montage/newer?job_id=" + I(1)))
+_ids1b = IDS(d1b)
+_sans_titre = [I(20), I(21), I(22)]
 check("newer_un_job_sans_titre_n_est_jamais_candidat",
-      isinstance(IDS(d1), list) and I(21) not in IDS(d1), f"{IDS(d1)}")
+      isinstance(_ids1b, list)
+      and [x for x in _sans_titre if x in _ids1b] == [],
+      f"{_ids1b}")
 
 # Reference SANS `completed_at` : rien a comparer, donc rien a proposer.
 pose(I(23), "seedance", F_MP4, "plan_01", None,
@@ -496,7 +596,7 @@ check("newer_reference_sans_date_ne_propose_rien", CAND(d6) == [], f"{CAND(d6)}"
 
 print("\n[1-ter] le suffixe « (aperçu 480p) » et la casse")
 # MESURE (protocole en tete) : c'est le SEUL suffixe que ce depot ajoute a un
-# titre de job (montage_service.py l. 2253), et il n'apparait que sur des
+# titre de job (montage_service.py l. 2406), et il n'apparait que sur des
 # jobs `montage`. Les candidats excluant `montage`, il ne peut mordre que sur
 # la REFERENCE — c'est exactement ce que cette section joue.
 pose(I(30), "montage", F_MP4, "plan_09 (aperçu 480p)", T0)

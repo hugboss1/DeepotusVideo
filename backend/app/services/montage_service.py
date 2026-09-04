@@ -1186,7 +1186,12 @@ async def montage_project(limit: int = 4):
 # « (aperçu 480p) » de mémoire ; relevé le 04/09/2026 sur une COPIE de
 # %LOCALAPPDATA%\DeepotusVideoGenData\deepotus.db (+ -wal + -shm, lecture
 # seule, sqlite3 stdlib) : 8 lignes le portent, TOUTES `provider='montage'`,
-# et le seul point du dépôt qui l'ajoute est `montage_render` (l. ~2253).
+# et le seul point du dépôt qui l'ajoute est `montage_render` (l. 2406 —
+# le commit précédent écrivait 2253, le numéro du fichier PARENT : citer un
+# numéro d'avant ses propres ajouts, c'est citer un AUTRE fichier).
+# Les 8 se répartissent 4 `done` / 4 `failed`, et les 4 `done` sont TOUS
+# les jobs `montage` `done` de la base : le suffixe n'est pas une
+# curiosité, c'est la marque de tout aperçu.
 # CONSÉQUENCE À DIRE : les candidats excluant déjà `montage`, ce suffixe ne
 # peut mordre que sur le job de RÉFÉRENCE — un clip dont la source est un
 # rendu de montage. Le normaliser reste juste, mais son gain est celui-là.
@@ -1260,10 +1265,17 @@ async def montage_newer(job_id: str = ""):
         if ref is None or ref.completed_at is None:
             return empty
         # LE GARDE-FOU QUI N'EST PAS AU PLAN, et que la base réelle impose :
-        # 48 des 84 jobs vidéo `done` non-montage n'ont PAS de titre. Sans
+        # 61 des 97 jobs vidéo `done` non-montage n'ont PAS de titre. Sans
         # cette sortie, chacun d'eux proposerait cinq inconnus comme « ses »
         # versions plus récentes — un rapprochement entre deux vides n'est
         # pas un rapprochement.
+        # CE CHIFFRE A ÉTÉ FAUX, et la faute mérite d'être nommée : il
+        # valait « 48 des 84 » parce que la mesure avait été prise avec
+        # `provider != 'montage'` — LE BUG QUE LA LIGNE CI-DESSOUS
+        # CORRIGE. Les 13 jobs `done` à `provider IS NULL` tombaient donc
+        # de la mesure comme ils tombaient de la requête : 84+13 = 97,
+        # 48+13 = 61. Mesurer une décision sous le défaut qu'elle répare,
+        # c'est mesurer le monde d'avant.
         norm = _norm_title(ref.title)
         if not norm:
             return empty

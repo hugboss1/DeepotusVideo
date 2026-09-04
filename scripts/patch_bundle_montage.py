@@ -831,8 +831,14 @@ R_M16D = (A_M16D + '\n'
 # même).
 #
 # LE VERROU DE PISTE est vérifié DEUX fois, et ce n'est pas une copie de
-# règle : c'est l'idiome de ce composant, écrit six fois dans le bundle livré
+# règle : c'est l'idiome de ce composant, écrit HUIT fois dans le bundle
 # (supprimer, lame, glisser, rogner…), chaque geste le posant sur SA cible.
+# COMPTE MESURE le 04/09/2026, pas estime : le littéral
+# `trackStRef.current[c.tr]&&trackStRef.current[c.tr].l` apparaît 8 fois
+# dans `index-BEOJX8L5.js.bak_montage` (l'entrée de ce patcher) comme dans
+# le bundle livré ; 12 lectures du verrou en tout dans l'entrée, dont la
+# bascule `svmTrackLock` et le badge de la piste, qui ne sont pas des
+# gestes. « six » était une estimation de mémoire, sous-évaluée.
 # En M16 il évite d'ARMER pour rien (le sélecteur refuserait, et le mode
 # resterait armé pour le clip suivant) ; en M15 il refuse le remplacement
 # lui-même, sur la piste du PLAN VISÉ et non sur celle qu'`addAsset`
