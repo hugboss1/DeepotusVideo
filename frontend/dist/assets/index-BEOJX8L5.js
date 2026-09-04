@@ -5400,7 +5400,27 @@ function DzMontage(props){
             return k.id===sel.id?rv.clip:k}));
           setDirty(!0);fireNote(rv.note)}),
         r.jsx(DzTracks.NewerHint,{jobId:sel&&sel.src&&sel.src.job_id,
-          onPick:function(c){dzmReplaceRef.current={id:sel.id,tr:sel.tr};
+          /* SECOND SITE D'ARMEMENT, écrit COMME LE PREMIER : la
+             ref ET son miroir, avec le libellé. Il pourrait s'en
+             passer AUJOURD'HUI — `addAsset` est appelé dans le
+             MÊME gestionnaire, donc aucun rendu ne s'intercale et
+             M15 éteint le miroir avant qu'il ne s'affiche ; les
+             deux écritures d'état sont regroupées par React et
+             n'aboutissent à rien. C'est écrit quand même parce que
+             cette sûreté-là tient à UNE propriété du site appelant
+             (sa synchronie), que rien n'oblige à durer : le jour où
+             ce gestionnaire attendrait quoi que ce soit avant
+             d'appeler `addAsset`, le mode serait armé et le
+             sélecteur, rouvert, se dirait encore « Ajouter sur la
+             piste V1 » — la faute exacte que M15b ferme. « La ref
+             et son miroir s'arment ensemble » devient ainsi une
+             règle STRUCTURELLE des deux sites, et le banc compte
+             les deux ensemble (`les_deux_sites_arment_la_ref_ET_le
+             _miroir`) : ils ne peuvent plus se désolidariser en
+             silence. */
+          onPick:function(c){dzmReplaceRef.current={id:sel.id,
+            tr:sel.tr,label:sel.label};
+            setDzmArm({tr:sel.tr,label:sel.label});
             addAsset({job_id:c.job_id},c.title||c.job_id,"video",
               Number(c.duration_s)||0,sel.tr)}},"dzmnew"),
         transInspector(),
@@ -13725,6 +13745,49 @@ var DzmProjects=function(props){
    le backend, lui, ne le lit nulle part (mesuré : aucune occurrence dans
    backend/app). */
 var DZM_HIST_MAX=10;
+/* CE QUE LE TROU DEVIENT AU RENDU — TROIS CAS, pas deux. Une première
+   version disait « rendu en noir » partout ; la deuxième basculait sur
+   `tr==="v1"` et appelait donc PISTE D'OVERLAY tout ce qui n'est pas V1 —
+   les pistes SON comprises, où il n'y a aucune piste du dessous à faire
+   réapparaître. Le bouton « Remplacer la source… » n'est gardé que sur
+   `sel.src` et le refus de genre PERMET audio→audio : le cas est atteint,
+   pas théorique. MESURÉ dans la sauvegarde de l'utilisateur (17 clips) :
+   8 portent une source, dont un A1 et un A2 — soit deux des huit boutons.
+
+   Ce que le rendu fait de chaque cas (backend/app/services/montage_service.py) :
+     · V1, piste de BASE : les trous partent en `color=c=black` (branche
+       `s.get("gap")`) — l'image devient noire ;
+     · piste vidéo d'INCRUSTATION : le clip est posé en
+       `overlay … enable='between(t,st,en)'`, l'incrustation s'arrête plus
+       tôt et c'est la piste du dessous qui redevient visible ;
+     · piste SON : le clip est `atrim` puis `adelay` à sa place, mixé en
+       `amix` — rien ne remplit le trou, cette piste se tait. RÉSERVE
+       MESURÉE : le PREMIER clip d'une piste BOUCLÉE (a2 par défaut, `loop`
+       venu du payload) ne devient pas un clip du tout mais l'entrée
+       `music`, prise en `-stream_loop -1` et coupée par `-t total` ; ses
+       `start`/`end`/`srcIn` ne sont JAMAIS lus, et il n'entre pas non plus
+       dans `audio_end`. Le raccourcir ne change donc rien au rendu — et
+       c'est le cas de l'unique clip A2 de la sauvegarde mesurée. La phrase
+       le dit au lieu de promettre un silence qui ne viendra pas.
+   Le genre est lu par `dzmKindOf`, la fonction que cette couche emploie
+   déjà (même règle que `trackKind` du bundle : l'initiale de la piste) —
+   pas une seconde règle. Une piste de SOUS-TITRES (« subs ») ne reçoit
+   AUCUNE des trois phrases : ses clips n'ont pas de source (mesuré : les
+   9 clips `s1` de la sauvegarde, aucun avec `src`), le bouton ne s'y montre
+   donc jamais, et affirmer quoi que ce soit d'un cas qu'on n'a pas mesuré
+   est exactement la faute que ces trois cas corrigent. */
+function dzmGapFate(tr){
+  var kd=dzmKindOf(tr);
+  if(kd==="audio")
+    return " — sur une piste son, aucune piste ne réapparaît en dessous : "+
+      "ce trou-là s'entend. Sauf sur une piste BOUCLÉE (A2 par défaut), "+
+      "dont le rendu ignore les bornes de son premier clip et joue la "+
+      "source d'un bout à l'autre du film.";
+  if(kd!=="video")return ".";
+  return tr==="v1"
+    ?", rendu en noir à l'export."
+    :" — sur une piste d'incrustation, c'est la piste du dessous qui "+
+     "réapparaît.";}
 function dzmSrcLen(c){
   var o=c||{};
   return (Number(o.end)||0)-(Number(o.start)||0)}
@@ -13753,11 +13816,7 @@ function dzmReplaceSrc(c,src,label,srcDur,now){
       k.end=Math.round(((Number(o.start)||0)+d/sp)*1000)/1000;
       warn="La nouvelle source ne dure que "+d.toFixed(2)+" s : le plan a "+
         "été raccourci de "+len.toFixed(2)+" s à "+(d/sp).toFixed(2)+" s, "+
-        "et la timeline garde un trou derrière lui"+
-        (o.tr==="v1"
-          ?", rendu en noir à l'export."
-          :" — sur une piste d'overlay, c'est la piste du dessous qui "+
-           "réapparaît.")}
+        "et la timeline garde un trou derrière lui"+dzmGapFate(o.tr)}
     else warn="Point d'entrée ramené à 0 : la nouvelle source ("+
       d.toFixed(2)+" s) ne va pas assez loin pour l'ancien. Le plan garde "+
       "sa durée, il ne montre plus le même morceau."}
@@ -13836,21 +13895,68 @@ function dzmRevertBtn(sel,onRevert){
    LA DURÉE est le second discriminant, et le seul qui dise à l'avance si le
    plan va être RACCOURCI. Elle est dite « inconnue » plutôt que tue quand
    elle manque : c'est le cas majoritaire en base (53 des 97), et c'est
-   exactement l'avertissement que `replaceSrc` rendra. */
+   exactement l'avertissement que `replaceSrc` rendra.
+
+   L'ORDRE EST LE CORRECTIF, et il vient d'une mesure de LARGEUR. Une
+   première version écrivait « Version plus récente : TITRE · date · durée
+   — remplacer », c'est-à-dire les discriminants DERRIÈRE un préfixe que
+   tous les candidats partagent — dans un bouton
+   `white-space:nowrap; overflow:hidden; text-overflow:ellipsis`. La
+   troncature retire la fin : elle mangeait exactement ce que la ligne
+   venait de gagner.
+   LA MESURE (shared/son-vfx-montage.css, `box-sizing:border-box` global
+   ligne 56) : `.svm-insp` fait 300 px, bordure gauche 1 px et 16 px de
+   marge intérieure de chaque côté, déclarée UNE fois et sans media-query
+   qui la reprenne (le fichier n'en porte qu'une, `prefers-reduced-motion`).
+   Reste 267 px ; moins ~16 px de barre de défilement (`overflow:auto`,
+   0 avec des barres en surimpression), moins la bordure du bouton (2 px)
+   et sa marge intérieure (`padding:4px 8px`, 16 px) : de 233 à 249 px
+   utiles. À 9 px avec `letter-spacing:.02em`, l'avance par caractère va de
+   ~5,13 px (Consolas, 0,55 em) à ~5,58 px (JetBrains Mono, 0,6 em) : de
+   42 à 48 CARACTÈRES visibles. C'est une BORNE, pas un nombre — la coupe
+   dépend de la fonte réellement résolue et de la barre de défilement, et
+   rien ici ne rend une page.
+   OR, dans l'ancien ordre, les secondes tombaient au caractère 48 à 54 et
+   la durée plus loin encore (mesuré sur les groupes homonymes de la base :
+   préfixe partagé de 39 à 49 caractères). Sur « tweet_2026-05-20 » (7 jobs)
+   comme sur les deux « backdoorpromo » à 36 s d'écart — la paire même qui
+   justifiait d'afficher la seconde — les boutons redevenaient visuellement
+   identiques. L'`aria-label` portant la ligne entière, seul l'utilisateur
+   VOYANT y perdait.
+   D'OÙ : les deux discriminants D'ABORD, le titre ENSUITE, le verbe en
+   queue. Ce qui est tronqué est alors ce que la construction rend
+   redondant — le titre est la clé du rapprochement, il est le MÊME pour
+   tous — et jamais ce qui distingue. Dans le pire cas mesuré (42
+   caractères, « durée inconnue »), la date à la seconde ET la durée
+   tiennent entières.
+   ET LE SENS PARTAGÉ SORT DES BOUTONS : « Version plus récente » n'est plus
+   répété N fois dans N libellés tronqués, il est dit UNE fois par l'en-tête
+   `.dzm-newerh` du bloc, qui ne porte NI `nowrap` NI ellipse et ne peut
+   donc pas être coupé. Contrairement à ce que suggérait la revue, le
+   panneau ne le disait PAS déjà : mesuré dans le bundle livré, le rappel
+   est rendu entre `revertBtn` et `transInspector()`, sans aucun libellé
+   visible au-dessus — laisser tomber le préfixe sans rien mettre à sa
+   place aurait rendu une rangée d'horodatages nus. L'`aria-label`, lui,
+   reprend l'en-tête ET la ligne : un lecteur d'écran qui tabule droit sur
+   le bouton entend les deux. */
+var DZM_NEWER_H="Rendus plus récents portant ce titre";
 function dzmNewerLine(c){
   if(!c)return "";
   var o=c,bits=[],w=dzmProjWhen(o.completed_at,1),d=Number(o.duration_s)||0;
   if(w)bits.push(w);
   bits.push(d>0?(d.toFixed(1).replace(".",",")+" s"):"durée inconnue");
-  return "Version plus récente : "+(o.title||o.job_id||"sans titre")+
-    " · "+bits.join(" · ")+" — remplacer"}
+  bits.push(o.title||o.job_id||"sans titre");
+  return bits.join(" · ")+" — remplacer"}
 /* Le rappel « une version plus récente existe ». Il interroge la route qui
    rapproche PAR LE TITRE, et le dit : c'est une heuristique, pas un lien
    établi en base. Deux rendus peuvent partager un titre sans rien avoir en
    commun — mesuré, un même titre couvre jusqu'à sept jobs dans la base
    réelle — donc la DATE et la DURÉE du candidat sont montrées AVANT qu'on
    remplace : le titre, lui, est le même pour tous par construction.
-   Silencieux quand il n'y a rien : ni ligne vide, ni « aucune version ». */
+   Silencieux quand il n'y a rien : ni ligne vide, ni « aucune version ».
+   L'EN-TÊTE porte le sens que les N boutons partageaient — voir la mesure
+   de largeur au-dessus de `dzmNewerLine`. Il est rendu UNE fois, il ne
+   peut pas être tronqué, et l'`aria-label` de chaque bouton le reprend. */
 var DzmNewerHint=function(props){
   var jid=(props&&props.jobId)||"";
   var sl=x.useState(null),list=sl[0],setList=sl[1];
@@ -13867,7 +13973,9 @@ var DzmNewerHint=function(props){
     return function(){on=!1}},[jid]);
   if(err)return r.jsx("div",{className:"dzm-newer dzm-newererr",children:err});
   if(!list||!list.length)return null;
-  return r.jsx("div",{className:"dzm-newer",children:list.map(function(c){
+  return r.jsxs("div",{className:"dzm-newer",children:[
+    r.jsx("div",{className:"dzm-newerh",children:DZM_NEWER_H},"dzmnewh"),
+    list.map(function(c){
     return r.jsx("button",{className:"dzm-newerb",
       title:"Rapprochement par le TITRE du rendu — une heuristique, pas un "+
         "lien enregistré : rien en base ne relie deux rendus du même plan. "+
@@ -13875,9 +13983,9 @@ var DzmNewerHint=function(props){
         "partagent : ce qui les distingue, c'est la date et la durée "+
         "portées par la ligne. Vérifiez-les avant de remplacer."+
         (c.completed_at?(" Terminé le "+dzmProjWhen(c.completed_at,1)+"."):""),
-      "aria-label":dzmNewerLine(c),
+      "aria-label":DZM_NEWER_H+" : "+dzmNewerLine(c),
       onClick:function(){if(props&&props.onPick)props.onPick(c)},
-      children:dzmNewerLine(c)},c.job_id)})})};
+      children:dzmNewerLine(c)},c.job_id)})]})};
 
 /* ── export contrat ───────────────────────────────────────────────────────── */
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,

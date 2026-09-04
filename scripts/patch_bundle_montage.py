@@ -977,7 +977,27 @@ R_M16 = (A_M16 + "\n"
          "            return k.id===sel.id?rv.clip:k}));\n"
          "          setDirty(!0);fireNote(rv.note)}),\n"
          "        r.jsx(DzTracks.NewerHint,{jobId:sel&&sel.src&&sel.src.job_id,\n"
-         "          onPick:function(c){dzmReplaceRef.current={id:sel.id,tr:sel.tr};\n"
+         "          /* SECOND SITE D'ARMEMENT, écrit COMME LE PREMIER : la\n"
+         "             ref ET son miroir, avec le libellé. Il pourrait s'en\n"
+         "             passer AUJOURD'HUI — `addAsset` est appelé dans le\n"
+         "             MÊME gestionnaire, donc aucun rendu ne s'intercale et\n"
+         "             M15 éteint le miroir avant qu'il ne s'affiche ; les\n"
+         "             deux écritures d'état sont regroupées par React et\n"
+         "             n'aboutissent à rien. C'est écrit quand même parce que\n"
+         "             cette sûreté-là tient à UNE propriété du site appelant\n"
+         "             (sa synchronie), que rien n'oblige à durer : le jour où\n"
+         "             ce gestionnaire attendrait quoi que ce soit avant\n"
+         "             d'appeler `addAsset`, le mode serait armé et le\n"
+         "             sélecteur, rouvert, se dirait encore « Ajouter sur la\n"
+         "             piste V1 » — la faute exacte que M15b ferme. « La ref\n"
+         "             et son miroir s'arment ensemble » devient ainsi une\n"
+         "             règle STRUCTURELLE des deux sites, et le banc compte\n"
+         "             les deux ensemble (`les_deux_sites_arment_la_ref_ET_le\n"
+         "             _miroir`) : ils ne peuvent plus se désolidariser en\n"
+         "             silence. */\n"
+         "          onPick:function(c){dzmReplaceRef.current={id:sel.id,\n"
+         "            tr:sel.tr,label:sel.label};\n"
+         "            setDzmArm({tr:sel.tr,label:sel.label});\n"
          "            addAsset({job_id:c.job_id},c.title||c.job_id,\"video\",\n"
          "              Number(c.duration_s)||0,sel.tr)}},\"dzmnew\"),")
 
@@ -992,11 +1012,16 @@ R_M16 = (A_M16 + "\n"
 # La modification se fait donc EN AVAL, par une ancre de la chaîne `montage`
 # — et l'ancre a été MESURÉE avant d'être écrite : le trio
 # `var tr2=…` / `svm-poptitle` / `svm-popnote` d'ovPicker vaut 1 dans
-# index-BEOJX8L5.js.bak_montage (l'ENTRÉE de ce patcher, celle qui décide),
-# 1 dans le bundle livré et 1 dans la source du greffon amont. Aucun autre
-# `svm-poptitle` ne porte ce libellé : les six autres popovers ont chacun le
-# leur (« Preview 480p », « Ajouter un effet — moteur Effects / Mask »,
-# « Raccourcis clavier », « Transition de coupe »…).
+# index-BEOJX8L5.js.bak_montage (l'ENTRÉE de ce patcher, celle qui décide) et
+# 1 dans la source du greffon amont. DANS LE BUNDLE LIVRÉ il vaut 0, et ce
+# n'est pas une anomalie : le livré est la SORTIE de ce patcher, où la ligne
+# du titre est précisément celle qui a été remplacée. Une version antérieure
+# de ce commentaire écrivait « 1 dans le bundle livré » — vrai avant le
+# premier rejeu, faux ensuite, et c'est l'entrée qui décide de toute façon.
+# Aucun autre `svm-poptitle` ne porte ce libellé : le fichier en compte
+# CINQ en tout (mesuré), donc QUATRE autres popovers, qui ont chacun le sien
+# — « Preview 480p » / « Rendre & publier », « Ajouter un effet — moteur
+# Effects / Mask », « Raccourcis clavier », « Transition de coupe ».
 #
 # L'ANCRE EST MULTI-LIGNE, et c'est voulu : le titre SEUL aurait laissé la
 # note « Posé à la tête de lecture » sous un titre qui dit le contraire. Les

@@ -830,12 +830,54 @@ out.sec_a=T.newerLine({job_id:"x",title:"backdoorpromo",
   completed_at:"2026-07-01T14:55:34"});
 out.sec_b=T.newerLine({job_id:"y",title:"backdoorpromo",
   completed_at:"2026-07-01T14:55:52"});
-/* CE QUE LE TROU DEVIENT AU RENDU depend de la PISTE : V1 est la piste de
-   BASE, dont les trous sont rendus `color=c=black` (montage_service.py,
-   branche `s.get("gap")`) ; une piste d'overlay pose ses clips en
-   `overlay … enable='between(t,st,en)'` et laisse voir celle du dessous. */
+/* CE QUE LE TROU DEVIENT AU RENDU depend de la PISTE — TROIS cas, pas deux.
+   V1 est la piste de BASE, dont les trous sont rendus `color=c=black`
+   (montage_service.py, branche `s.get("gap")`) ; une piste d'INCRUSTATION
+   pose ses clips en `overlay … enable='between(t,st,en)'` et laisse voir
+   celle du dessous ; une piste SON pose les siens en `atrim`+`adelay` puis
+   `amix` — rien ne remplit le trou, cette piste se TAIT, et aucune piste du
+   dessous n'y « reapparait ». La bascule ne tenait que sur `tr==="v1"`,
+   donc TOUTE piste non-V1 etait appelee piste d'overlay : la phrase juste
+   pour V2 s'etait installee sur A1/A2/A3, et sur un clip SANS `tr`.
+   CE N'EST PAS THEORIQUE : `replaceBtn` n'est garde que sur `sel.src` et le
+   refus de genre de M15 PERMET audio->audio. Mesure sur la sauvegarde reelle
+   de l'utilisateur (assets/montage_saved.json, 17 clips) : 8 portent une
+   source — 4 v1, 2 v2, UN a1 et UN a2 — donc deux des huit boutons de
+   remplacement possibles sont sur du son. Les 9 clips `s1` n'ont pas de
+   source : le bouton ne s'y montre jamais, et la phrase ne dit donc rien
+   d'une piste de sous-titres. */
 out.warn_v2=T.replaceSrc(Object.assign({},C,{tr:"v2"}),{job_id:"jv2"},"v2",
   3.0,1788000000000).warn;
+var CA={tr:"a2",id:"a",start:0,end:8,srcIn:0,src:{audio:"m.wav"},
+        label:"musique"};
+out.warn_a2=T.replaceSrc(CA,{audio:"n.wav"},"neuf",3.0,1788000000000).warn;
+out.warn_a1=T.replaceSrc(Object.assign({},CA,{tr:"a1"}),{audio:"n.wav"},
+  "neuf",3.0,1788000000000).warn;
+/* SANS `tr` : `dzmKindOf("")` rend "video" — la MEME regle que `trackKind`
+   du bundle — et le clip n'est pas v1, donc il recoit la phrase de
+   l'incrustation. Ce cas recevait deja celle-la ; ce qui change, c'est
+   qu'il ne la partage plus avec l'audio. */
+out.warn_sans_tr=T.replaceSrc({id:"n",start:0,end:8,srcIn:0,
+  src:{job_id:"jn"},label:"sans_tr"},{job_id:"jz"},"neuf",3.0,
+  1788000000000).warn;
+/* Une piste de SOUS-TITRES n'est NI v1, NI une incrustation, NI du son :
+   `dzmKindOf("s1")` rend "subs", et la phrase s'arrete sans rien affirmer.
+   Inatteignable en pratique (aucun clip `s1` ne porte de source), mais un
+   cœur PUR se mesure sur ce qu'on lui donne, pas sur ce qu'on croit qu'il
+   recevra. */
+out.warn_s1=T.replaceSrc(Object.assign({},C,{tr:"s1"}),{job_id:"js1"},"s1",
+  3.0,1788000000000).warn;
+/* LA LARGEUR RENDUE, faute de navigateur : le nombre de caracteres AVANT
+   l'ellipse. `.dzm-newerb` est `white-space:nowrap; overflow:hidden;
+   text-overflow:ellipsis` dans une colonne de 300 px — de 42 a 48
+   caracteres visibles (le calcul est en tete de `dzmNewerLine`). On coupe
+   au PIRE cas, 42, et on demande que les deux discriminants y tiennent
+   ENTIERS. C'est ce prefixe-la que l'utilisateur voyant lit. */
+function COUPE(l){return String(l).slice(0,42)}
+out.coupe_hom=out.hom_lignes.map(COUPE);
+out.coupe_sec_a=COUPE(out.sec_a);out.coupe_sec_b=COUPE(out.sec_b);
+out.coupe_hom_distinctes=(function(){var vu={},n=0;
+  out.coupe_hom.forEach(function(l){if(!vu[l]){vu[l]=1;n++}});return n})();
 console.log(JSON.stringify(out));
 """
 shim = pathlib.Path(TMP) / "shim.js"
@@ -926,19 +968,73 @@ check("js_duree_inconnue_ne_touche_a_rien",
 check("js_duree_inconnue_le_dit",
       isinstance(d.get("inconnu_warn"), str)
       and "inconnue" in d["inconnu_warn"], str(d.get("inconnu_warn")))
-# CE QUE LE TROU DEVIENT AU RENDU, dit PISTE PAR PISTE. « un trou » sous-dit
-# ce que le rendu en fait sur V1 : `_build_montage_command` y pose un
-# `color=c=black` de la duree du trou. Mais V2 et au-dela sont des OVERLAYS
-# (`overlay … enable='between(t,st,en)'`) : l'incrustation s'arrete plus tot
-# et c'est la piste du dessous qui reapparait — « rendu en noir » y serait
-# FAUX. Les deux moities sont mesurees, sinon la phrase juste pour V1 se
-# serait installee partout.
+# CE QUE LE TROU DEVIENT AU RENDU, dit PISTE PAR PISTE — TROIS cas.
+# `_build_montage_command` pose un `color=c=black` sur les trous de V1 (la
+# piste de BASE) ; V2 et au-dela sont des OVERLAYS
+# (`overlay … enable='between(t,st,en)'`), l'incrustation s'arrete plus tot
+# et c'est la piste du dessous qui reapparait ; une piste SON pose ses clips
+# en `atrim`+`adelay` puis `amix`, rien ne remplit le trou et il n'y a
+# AUCUNE piste du dessous a faire reapparaitre.
+# La bascule d'avant ne testait que `tr==="v1"`, donc elle appelait piste
+# d'overlay TOUT ce qui n'est pas V1 — l'audio compris. Une phrase fausse en
+# avait remplace une autre, sur un autre ensemble de pistes. Trois lignes,
+# une par cas, parce que deux ne suffisaient pas.
 check("js_le_trou_de_V1_est_annonce_rendu_en_noir",
       isinstance(d.get("rep_warn"), str)
       and "rendu en noir à l'export" in d["rep_warn"], str(d.get("rep_warn")))
-check("js_le_trou_d_un_overlay_n_est_PAS_annonce_noir",
+check("js_le_trou_d_une_incrustation_n_est_PAS_annonce_noir",
       isinstance(d.get("warn_v2"), str) and "noir" not in d["warn_v2"]
-      and "piste du dessous" in d["warn_v2"], str(d.get("warn_v2")))
+      and "piste du dessous" in d["warn_v2"]
+      and "piste son" not in d["warn_v2"], str(d.get("warn_v2")))
+# LE CAS AUDIO. Ni noir, ni piste du dessous : du silence. Et la RESERVE de
+# la piste BOUCLEE, qui est le cas de l'unique clip A2 de la sauvegarde
+# reelle : `_build_montage_command` prend le PREMIER clip d'une piste `loop`
+# comme entree `music`, en `-stream_loop -1` coupee par `-t total`. Ses
+# `start`/`end`/`srcIn` ne sont JAMAIS lus (il n'entre pas dans `a_clips`,
+# ni donc dans `audio_end`) : le raccourcir ne change RIEN au rendu.
+# Promettre un silence y aurait ete la meme faute d'un cran plus loin —
+# vrai pour A1/A3, faux pour le clip que l'utilisateur a reellement.
+check("js_le_trou_d_une_piste_son_est_du_silence_pas_une_piste_du_dessous",
+      isinstance(d.get("warn_a1"), str)
+      and "noir" not in d["warn_a1"]
+      and "piste du dessous" not in d["warn_a1"]
+      and "piste son" in d["warn_a1"]
+      and "s'entend" in d["warn_a1"], str(d.get("warn_a1")))
+check("js_le_cas_de_la_piste_bouclee_est_dit_et_non_promis_muet",
+      isinstance(d.get("warn_a2"), str)
+      and "BOUCLÉE" in d["warn_a2"]
+      and d.get("warn_a2") == d.get("warn_a1"),
+      f'a2={d.get("warn_a2")}\n      a1={d.get("warn_a1")}')
+# UN CLIP SANS `tr` suit `dzmKindOf` comme les autres : "video", pas v1,
+# donc l'incrustation. Il partageait la phrase avec l'audio ; il ne la
+# partage plus.
+_QUEUE = "et la timeline garde un trou derrière lui"
+
+
+def _fate(w):
+    """La QUEUE de l'avertissement — la part qui depend de la piste.
+
+    Comparer les chaines entieres melerait la piste aux DUREES (les deux
+    clips de sonde n'ont pas les memes bornes) : la ligne serait rouge pour
+    une raison qui n'est pas la sienne.
+    """
+    i = (w or "").find(_QUEUE)
+    return None if i < 0 else w[i + len(_QUEUE):]
+
+
+check("js_un_clip_sans_piste_suit_la_regle_video",
+      _fate(d.get("warn_sans_tr")) is not None
+      and _fate(d.get("warn_sans_tr")) == _fate(d.get("warn_v2")),
+      f'{d.get("warn_sans_tr")}')
+# ET RIEN N'EST AFFIRME D'UNE PISTE QU'ON N'A PAS MESUREE. « subs » n'est ni
+# v1, ni une incrustation, ni du son : la phrase s'arrete au trou.
+check("js_une_piste_de_sous_titres_ne_recoit_aucune_des_trois_phrases",
+      isinstance(d.get("warn_s1"), str)
+      and "noir" not in d["warn_s1"]
+      and "piste du dessous" not in d["warn_s1"]
+      and "piste son" not in d["warn_s1"]
+      and d["warn_s1"].endswith("garde un trou derrière lui."),
+      str(d.get("warn_s1")))
 check("js_remplace_retire_srcOut", d.get("srcOut_retire") is True,
       str(d.get("srcOut_retire")))
 # ...ET LE MEMORISE, pour que le retour puisse le rendre. `srcOut` est LU :
@@ -1007,13 +1103,16 @@ check("js_bouton_retour_nomme_la_source_qu_il_rendra",
 check("js_bouton_retour_absent_sans_historique",
       d.get("rev_btn_sans_historique") == "NULL",
       str(d.get("rev_btn_sans_historique")))
+# L'ORDRE DE LA LIGNE : les deux DISCRIMINANTS d'abord, le titre ensuite, le
+# verbe en queue. Le titre est la CLE du rapprochement, donc le meme pour
+# tous par construction : c'est la seule part de la ligne dont la troncature
+# ne coute rien. Le libelle est tronque a l'ellipse (voir les lignes de
+# largeur plus bas) ; ce qui est en tete est ce qui survit.
 check("js_ligne_du_rappel",
-      d.get("nl_ligne") == "Version plus récente : plan_01 · "
-                           "04/09 13:42:36 UTC · 3,0 s — remplacer",
+      d.get("nl_ligne") == "04/09 13:42:36 UTC · 3,0 s · plan_01 — remplacer",
       str(d.get("nl_ligne")))
 check("js_ligne_du_rappel_sans_titre_nomme_le_job",
-      d.get("nl_sans_titre") == "Version plus récente : j9 · "
-                                "durée inconnue — remplacer",
+      d.get("nl_sans_titre") == "durée inconnue · j9 — remplacer",
       str(d.get("nl_sans_titre")))
 check("js_ligne_du_rappel_nulle", d.get("nl_nul") == "", str(d.get("nl_nul")))
 # LE POINT DE CETTE LIGNE. Le TITRE est la cle du rapprochement : tous les
@@ -1040,6 +1139,36 @@ check("js_la_seconde_separe_deux_rendus_de_la_meme_minute",
       and isinstance(d.get("sec_a"), str) and "14:55:34" in d["sec_a"]
       and "14:55:52" in (d.get("sec_b") or ""),
       f'{d.get("sec_a")} / {d.get("sec_b")}')
+# ─────────────────────────────────────────────────────────────────────────
+# LA LARGEUR RENDUE. Les trois lignes ci-dessus tenaient le CONTENU de la
+# chaine ; elles etaient vertes sur une ligne dont l'utilisateur VOYANT ne
+# lisait rien du discriminant. `.dzm-newerb` est `white-space:nowrap;
+# overflow:hidden; text-overflow:ellipsis` (shared/montage.css) dans une
+# colonne `.svm-insp` de 300 px : de 233 a 249 px utiles, soit de 42 a 48
+# caracteres a 9 px selon la fonte resolue — une BORNE, pas un nombre, et
+# rien ici ne rend une page. On mesure donc au PIRE cas, 42 caracteres.
+# DANS L'ANCIEN ORDRE les secondes tombaient au caractere 48 a 54 : les
+# cinq boutons « tweet_2026-05-20 » redevenaient IDENTIQUES a l'ecran, et
+# les deux « backdoorpromo » a 36 s d'ecart — la paire meme qui justifiait
+# d'afficher la seconde — aussi. Ces deux lignes-ci sont celles qui
+# rougissent si le prefixe partage revient en tete.
+check("js_les_lignes_restent_distinctes_UNE_FOIS_TRONQUEES_a_42_caracteres",
+      d.get("coupe_hom_distinctes") == 5,
+      f'{d.get("coupe_hom_distinctes")} distincte(s) sur 5 — '
+      f'{d.get("coupe_hom")}')
+check("js_la_seconde_survit_a_la_troncature",
+      isinstance(d.get("coupe_sec_a"), str)
+      and "14:55:34" in d["coupe_sec_a"]
+      and "14:55:52" in (d.get("coupe_sec_b") or "")
+      and d.get("coupe_sec_a") != d.get("coupe_sec_b"),
+      f'{d.get("coupe_sec_a")} / {d.get("coupe_sec_b")}')
+# LA DUREE AUSSI, y compris dans sa forme la plus longue (« durée
+# inconnue », 14 caracteres, le cas MAJORITAIRE en base : 53 des 97).
+check("js_la_duree_survit_a_la_troncature_meme_quand_elle_est_inconnue",
+      isinstance(d.get("coupe_hom"), list) and len(d["coupe_hom"]) == 5
+      and all("durée inconnue" in _l for _l in d["coupe_hom"][:4])
+      and "8,0 s" in d["coupe_hom"][4],
+      str(d.get("coupe_hom")))
 check("js_le_composant_du_rappel_existe", d.get("hint_existe") is True,
       str(d.get("hint_existe")))
 
@@ -1057,9 +1186,32 @@ check("la_couche_ne_recopie_aucune_extension_video",
 # boutons pouvaient redevenir cinq aria-labels identiques sans qu'aucune
 # assertion ne bouge.
 check("l_aria_label_du_rappel_EST_la_ligne_discriminante",
-      _src.count('"aria-label":dzmNewerLine(c),') == 1
+      _src.count('"aria-label":DZM_NEWER_H+" : "+dzmNewerLine(c),') == 1
       and _src.count("children:dzmNewerLine(c)}") == 1,
       "le rappel affiche une ligne et en annonce une autre")
+# ET LE SENS PARTAGE EST SORTI DES BOUTONS : dit UNE fois par l'en-tete
+# `.dzm-newerh`, jamais N fois dans N libelles tronques. C'est la moitie du
+# correctif de largeur ; l'autre est l'ordre de la ligne, tenu plus haut.
+check("l_en_tete_porte_le_sens_partage_et_la_ligne_ne_le_repete_pas",
+      _src.count('var DZM_NEWER_H="Rendus plus récents portant ce titre";')
+      == 1
+      and _src.count('className:"dzm-newerh"') == 1
+      # le LITTERAL JS, pas la prose : le commentaire qui explique le
+      # correctif cite forcement la phrase qu'il retire.
+      and _src.count('"Version plus récente : "') == 0,
+      "le préfixe partagé est encore répété dans chaque bouton")
+# L'EN-TETE, LUI, NE PEUT PAS ETRE COUPE — et ce n'est pas un oubli de CSS,
+# c'est LA raison pour laquelle il existe. Une regle qui gagnerait `nowrap`
+# et `ellipsis` par symetrie avec `.dzm-newerb` reproduirait le defaut a
+# l'endroit meme cense le corriger.
+_css = (ROOT / "frontend" / "dist" / "shared"
+        / "montage.css").read_bytes().decode("utf-8-sig")
+_h = _css.find(".dzsvm .dzm-newerh{")
+_hb = _css.find("}", _h)
+check("l_en_tete_du_rappel_ne_peut_pas_etre_tronque",
+      _h > 0 and "nowrap" not in _css[_h:_hb]
+      and "ellipsis" not in _css[_h:_hb],
+      f"règle .dzm-newerh absente ou tronquable : {_css[_h:_hb + 1]!r}")
 # L'INFOBULLE NE CONSEILLE PLUS DE VERIFIER LE TITRE : il est le meme pour
 # tous par construction. Elle nomme ce qui distingue reellement.
 check("l_infobulle_du_rappel_pointe_le_vrai_discriminant",

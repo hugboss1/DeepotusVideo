@@ -938,7 +938,17 @@ for _tag, _R, _noms in (
           ("setDirty", "setDirty=st8[1]"),
           ("fireNote", "fireNote=nt[1]"),
           # P6 (revue) : le refus de genre lit le MÊME `trackKind` que le
-          # dépôt sur une bande — jamais une seconde règle en JavaScript.
+          # dépôt sur une bande — la PISTE est donc classée par une seule
+          # règle en JavaScript. L'ASSET, lui, est classé PLUS STRICTEMENT
+          # ici que par le dépôt : celui-ci teste `p.kind==="audio"` seul
+          # (index-BEOJX8L5.js:4042), M15 teste
+          # `kind==="audio"||(src&&src.audio)`. Ce n'est pas une divergence
+          # subie mais un écart assumé : le dépôt reçoit un `p` de la
+          # Bibliothèque, toujours porteur de `kind` ; M15 court-circuite
+          # TOUS les appelants d'`addAsset`, `sfxInsert` compris, et la
+          # seconde moitié du OU ferme un `src` audio dont le `kind` serait
+          # menteur ou absent. Refuser plus large ne peut que refuser un
+          # remplacement, jamais en laisser passer un mauvais.
           ("trackKind", 'function trackKind(trId){var k=String(trId||"")'
                         '.charAt(0);'),
           ("setDzmArm", "setDzmArm=stDZA[1];"))),
@@ -993,6 +1003,41 @@ check("M4b_declare_le_miroir_d_affichage_du_mode",
                  "setDzmArm=stDZA[1];")) == 1
       and "dzmArm" in P.R_M4b,
       "le mode armé n'a pas de miroir d'affichage")
+# LES DEUX SITES D'ARMEMENT ARMENT LES DEUX CHOSES. « Le miroir ne peut pas
+# diverger de la ref » est la propriete qui rend M15b fiable, et elle tenait
+# a un DETAIL du site appelant : `DzmNewerHint.onPick` armait la ref SEULE
+# (sans `label`, sans `setDzmArm`), et cela ne se voyait pas parce qu'il
+# appelle `addAsset` de facon SYNCHRONE dans le meme gestionnaire — aucun
+# rendu ne s'intercale, M15 eteint le miroir avant qu'il ne s'affiche. Une
+# surete qui repose sur la synchronie d'un appelant ne survit pas au premier
+# `await` qu'on y ajoutera : le mode resterait arme et le selecteur, rouvert,
+# se dirait encore « Ajouter sur la piste V1 » — la faute exacte que M15b
+# ferme. Les deux sites ecrivent donc la meme paire, et cette ligne COMPTE
+# les deux moities ensemble, dans le patcher ET dans le livre : elles ne
+# peuvent plus se desolidariser en silence. Un `in` ne l'aurait pas vu — il
+# etait deja vert sur la version asymetrique.
+_arm_ref = P.R_M16.count("dzmReplaceRef.current={")
+_arm_mir = P.R_M16.count("setDzmArm({")
+check("les_deux_sites_arment_la_ref_ET_le_miroir",
+      _arm_ref == 2 and _arm_mir == 2
+      and s.count(nl("dzmReplaceRef.current={")) == 2
+      and s.count(nl("setDzmArm({")) == 2
+      # ...et l'armement du rappel porte le LIBELLE, comme celui du bouton :
+      # c'est lui que le titre du sélecteur affiche.
+      and nl("          onPick:function(c){dzmReplaceRef.current={id:sel.id,\n"
+             "            tr:sel.tr,label:sel.label};\n"
+             "            setDzmArm({tr:sel.tr,label:sel.label});") in s,
+      f'patcher ref={_arm_ref} miroir={_arm_mir} · '
+      f'livré ref={s.count(nl("dzmReplaceRef.current={"))} '
+      f'miroir={s.count(nl("setDzmArm({"))}')
+# ET LE COMPTE DES EXTINCTIONS LEUR REPOND : deux armements, deux
+# extinctions (l'effet de desarmement de M4b, et M15 quand il consomme le
+# mode). Compter un seul cote laisserait passer un armement de plus.
+check("chaque_armement_a_son_extinction",
+      s.count(nl("dzmReplaceRef.current=null")) == 2
+      and s.count(nl("setDzmArm(null)")) == 2,
+      f'ref={s.count(nl("dzmReplaceRef.current=null"))} '
+      f'miroir={s.count(nl("setDzmArm(null)"))}')
 # GESTE DESTRUCTIF : `pushHistory` AVANT l'ecriture, une seule entree pour le
 # geste — dans les DEUX sens (remplacer, et revenir en arriere).
 check("M15_pousse_l_historique_avant_d_ecrire",
