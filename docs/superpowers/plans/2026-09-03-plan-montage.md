@@ -1216,3 +1216,232 @@ Couverture : P0→T1, P1→T2, P2→T3, P3→T4, P4→T5, P5→T6, P6→T7, P7�
 1. Le défaut signalé n'est **ni reproduit ni expliqué** avant T1 ; les deux hypothèses UI (M → −40 dB persisté ; lecteur vivant sans A2/A3) sont traitées par P1/P7 mais ne seront confirmées que par l'utilisateur.
 2. P2 pose les mots avec `_measure_px` (PIL, fonte embarquée) : l'écart avec la mise en page libass (interlettrage, crénage) n'est borné que par le ratio de pixels du banc, pas au pixel près. D2 : le tracker par énergie de mouvement n'a été pensé que sur un cas synthétique ; le seuil de 8 % est une règle de décision, pas une garantie sur des plans générés.
 3. D5 : FCPXML « de mémoire » jusqu'au WebFetch de T13 ; la preuve finale est l'import Resolve, fait par l'utilisateur. `.svm-tl` en `max-height:48vh` avec 8 pistes n'est vérifié qu'au navigateur (T2, étape 10) — un probe DOM en onglet caché ne verrait pas un effondrement (piège hérité).
+
+---
+
+## Lot 3 — remontées de l'utilisateur du 04/09/2026 (bloquantes : à passer AVANT le Lot 2)
+
+Deux défauts rapportés à l'écran, **mesurés avant d'être écrits ici**. Le code
+d'un plan est une intention ; ce qui suit est une mesure, et les deux ne se
+lisent pas de la même façon.
+
+**Sources de la mesure.** Journal
+`%LOCALAPPDATA%\DeepotusVideoGenData\logs\deepotus-2026-09-04.log`, job de
+montage `a32009c4`, 15:57:44 ; sauvegarde
+`…\DeepotusVideoGenData\assets\montage_saved.json` (`saved_at`
+`2026-09-04T13:53:27Z`) ; `deepotus.db` interrogée **sur une copie** (base +
+`-wal` + `-shm`), l'application tournant — on ne lit pas une base vivante en
+place.
+
+### Fait n°1 — les quatre « plans » de la piste V1 ne sont pas des vidéos
+
+| clip de la capture | job | `provider` | `duration_s` | `final_video_path` |
+|---|---|---|---|---|
+| Particules · Aura magique | `27eae33c` | `sprite2d` | `None` | `outputs/sprites/27eae33c/sheet.png` — 3072×2560 |
+| Particules · Fumée douce | `a94e7dfd` | `sprite2d` | `None` | `outputs/sprites/a94e7dfd/sheet.png` — 3072×3072 |
+| 3D · tripo | `b6cec0f5` | `asset3d` | `None` | `outputs/assets3d/b6cec0f5/model.glb` |
+| Particules · Traînée | `3760f756` | `sprite2d` | `None` | `outputs/sprites/3760f756/sheet.png` |
+
+`GET /api/montage/project` retient les jobs `done` les plus récents dont
+`final_video_path or video_path` **existe**, sans jamais vérifier que le fichier
+est une vidéo — et `sprite2d` comme `asset3d` rangent leur planche PNG et leur
+maillage GLB dans cette même colonne. `_probe_duration` rend 0 sur un PNG,
+`duration_s` est `None`, le repli `or 4.0` donne quatre clips de 4 s : les 16,0 s
+exactes de la capture. La base porte pourtant 35 rendus `seedance`, 33
+`template`, 9 `ugc` et 5 `heygen` : **aucune vraie vidéo n'a été retenue**, elles
+sont seulement moins récentes que les planches de sprites.
+
+Le rendu meurt ensuite sur le maillage :
+`[in#2] Error opening input: Invalid data found when processing input` puis
+`Error opening input file …\assets3d\b6cec0f5\model.glb.` Les deux PNG, eux,
+étaient bel et bien ouverts (`Input #0, png_pipe`) : sans le GLB, l'aperçu aurait
+« réussi » en montrant deux planches de sprites plein cadre. **L'échec est le
+symptôme le moins grave des deux.**
+
+### Fait n°2 — le message d'erreur est une tranche aveugle
+
+`_run_ffmpeg` lève `f"ffmpeg a échoué ({r.returncode}) : {tail}"` avec
+`tail = (r.stderr or "")[-1200:]` : mille deux cents **caractères**, pas des
+lignes. La coupure tombe au milieu de la bannière de compilation
+(`libtheora --enable-libvo-amrwbenc …`) ; la seule ligne qui dit quelque chose —
+`Error opening input file …model.glb.` — arrive après neuf cents caractères de
+drapeaux de build et de dumps de flux. C'est le mur rouge de la capture.
+
+### Fait n°3 — « Envoyer vers → Montage » dépose le clip sur une piste inexistante
+
+`scripts/patch_bundle_libsend.py`, greffon `GREFFE_MONTAGE`, appelle
+`addAsset({job_id:…}, title, "video", p.dur||0, "v2")`. Mesuré dans la
+sauvegarde, `tracks` vaut `[v1, a2, a1, a3, s1]` : **il n'y a pas de piste
+`v2`**. Et `addAsset` fait `var tr2=trId||"v2"` sans vérifier que la piste
+existe. Le clip entre donc dans `clips`, il est sauvegardé, il partirait au rendu
+comme overlay — mais la timeline ne dessine que `svmTracksOf(proj).map(…)` : il
+est invisible et inselectionnable. « Rien n'est apparu » est exact, et le clip
+est pourtant là.
+
+Deux causes de plus, indépendantes, cumulables avec la première :
+
+* le greffon consomme `window.__dzMontageAdd` dans un `setTimeout(…, 450)`, et
+  `addAsset` borne le clip par `durRef.current` — encore 0 tant que
+  `GET /project` n'a pas répondu (il ffprobe chaque asset). Au-delà de 450 ms,
+  `en − st < .5` et le clip est ramené à une longueur nulle ;
+* tout le corps du greffon tient dans un `try{…}catch(_e2){}` : **aucune panne
+  ne se dit**, jamais.
+
+### Fait n°4 — il n'existe aucun bouton « ajouter une vidéo »
+
+`openPicker` n'est appelé qu'à **un seul** endroit du bundle : le petit `+` de
+l'en-tête de piste. Les boutons `+ vidéo` / `+ audio` de la barre de transport,
+posés par P1/M8, ajoutent une **PISTE** — c'est ce que l'utilisateur a lu comme
+« ajouter une vidéo », et le libellé lui donne raison.
+
+---
+
+### Tâche 15 — P8 : seule de la vidéo sur V1, et une erreur de rendu lisible
+
+**Files :** modifier `backend/app/services/montage_service.py`
+(`montage_project`, `_run_ffmpeg`, pré-vol de `montage_render`) ; créer
+`backend/tests/test_montage_sources.py`. **Aucune section de patch : rien de
+cette tâche ne touche le bundle**, donc rien n'entre en conflit avec la chaîne.
+
+- [ ] **Étape 1 : banc rouge.** `backend/tests/test_montage_sources.py`,
+  en-tête commun de `test_montage_texte.py` (env avant tout `from app…`,
+  `check`, `=== N passed ===`). Insérer en base des `JobRecord` `done` réels —
+  un `seedance` avec un vrai `.mp4`, un `sprite2d` avec un `.png`, un `asset3d`
+  avec un `.glb`, un quatrième dont le chemin n'existe plus — puis :
+  `check("v1_ne_prend_que_la_video", [c["src"]["job_id"] for c in r["clips"]
+  if c["tr"] == "v1"] == [<id du mp4>])` ; `check("sprite_exclu", …)` et
+  `check("glb_exclu", …)` **séparément** — une seule ligne agrégée resterait
+  verte si l'un des deux repassait ; `check("aucune_video_has_assets_faux", …)`
+  quand la base ne porte QUE des planches ; et la non-régression
+  `check("image_posee_a_la_main_reste_valide", …)` : un clip `{image: …}` monté
+  par l'utilisateur passe toujours `_resolve_src`. **La règle ne vaut que pour
+  la construction AUTOMATIQUE depuis la Bibliothèque**, jamais pour ce que
+  l'utilisateur pose lui-même.
+- [ ] **Étape 2 : lancer → rouge sur `sprite_exclu` et `glb_exclu`.**
+- [ ] **Étape 3 : implémenter.**
+
+```python
+# extensions qu'un DÉMULTIPLEXEUR vidéo sait ouvrir. La liste est fermée par
+# choix : `sprite2d` range sa planche et `asset3d` son maillage dans la MÊME
+# colonne final_video_path, et un jour un provider de plus fera pareil.
+_VIDEO_EXTS = (".mp4", ".mov", ".webm", ".mkv", ".m4v", ".avi")
+
+def _is_video_artifact(p: Path) -> bool:
+    return p.suffix.lower() in _VIDEO_EXTS
+```
+
+  dans la boucle `for j in jobs:` de `montage_project`, juste après le test
+  d'existence :
+
+```python
+        if not _is_video_artifact(Path(fp)):
+            logger.info(f"montage: job {j.id[:8]} ({j.provider}) ecarte de V1 — "
+                        f"{Path(fp).suffix or 'sans extension'} n'est pas une video")
+            continue
+```
+
+  **Pré-vol du rendu**, dans `montage_render`, AVANT de créer le `JobRecord` :
+  résoudre chaque `src` et refuser en **400** ceux qu'aucun démultiplexeur
+  n'ouvrira, en nommant le `label` du clip et le fichier — pas la ligne 1700 du
+  journal. Un rendu qui ne peut pas aboutir ne doit coûter ni une entrée de file
+  d'attente ni deux minutes d'attente.
+
+  **`_run_ffmpeg`** : garder la tranche brute, mais la faire précéder de la
+  ligne qui décide. Chercher dans `r.stderr`, **par lignes**, les motifs
+  `Error opening input file`, `Invalid data found`, `No such file`,
+  `Conversion failed`, `Unknown encoder` ; s'il y en a, les mettre EN TÊTE du
+  message, la tranche de 1200 caractères restant derrière. Sans motif trouvé, le
+  message ne change pas — c'est ce que doit prouver une assertion dédiée, sans
+  quoi la ligne serait verte à vide.
+- [ ] **Étape 4 : lancer → vert.** Puis `test_montage_pistes_rendu.py` et
+  `test_montage_pistes_dyn.py` : ils rendent par la route, ce sont eux qui
+  verraient un pré-vol trop zélé refuser un rendu légitime.
+- [ ] **Étape 5 : commit.** Sujet :
+  `montage : P8 - seule de la video sur V1, et une erreur de rendu lisible`.
+  Corps accentué : les quatre jobs mesurés, le repli `or 4.0` qui fabriquait les
+  4 s, et la tranche de 1200 caractères remplacée par la ligne qui décide.
+  Pied : `Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>`.
+
+---
+
+### Tâche 16 — P9 : un bouton « Bibliothèque… » qui pose un clip, et la remise qui se perdait
+
+**Files :** modifier `frontend/patches/montage.js`,
+`scripts/patch_bundle_montage.py`, `backend/tests/test_montage_bundle.py`.
+
+**DEUX PIÈGES DE CHAÎNE, à lire avant d'écrire une ligne.**
+
+1. `scripts/patch_bundle_libsend.py` est un maillon **AMONT**. Le relancer seul
+   effacerait ce que les maillons suivants ont écrit — le mode de panne qui a
+   déjà coûté vingt-deux correctifs au dépôt. **La correction du greffon ne se
+   fait donc pas dans `libsend`.** Elle se porte **en aval**, dans la chaîne
+   `montage`, sur `addAsset` : c'est `addAsset` qui choisit la piste, et le
+   corriger là répare ce greffon *et* toute remise future. (Rejouer
+   `repatch_all.py --from libsend` reste la voie officielle si l'on tenait à
+   éditer le greffon lui-même — mais sa faisabilité est à **mesurer** d'abord :
+   le brief de reprise consigne que `.bak_vfxrack` et `.bak_subs` n'existent pas
+   dans cette copie.)
+2. **Collision d'ancre avec la tâche 7.**
+   `  function addAsset(src,label,kind,srcDur,trId,atTime){` est l'ancre que M15
+   (tâche 7, mode remplacement) revendique déjà, et elle ne vaut qu'**une**
+   fois. Celle des deux tâches qui passe en second **replie sa section dans le
+   remplacement de l'autre**, exactement comme M10 et M11b vivent dans `R_M8`.
+   Le dire dans le commentaire de la section, et ajouter au miroir une ligne par
+   greffon replié — sans quoi retirer l'un des deux du patcher laisserait le
+   banc entièrement vert.
+
+- [ ] **Étape 1 : banc rouge sous node**, dans `test_montage_bundle.py` §[3].
+  Le cœur à écrire est PUR, donc mesurable : `DzTracks.pickTrack(tracks, kind)`
+  rend l'identifiant d'une piste **existante** du genre demandé — la première
+  dans l'ordre d'affichage — et `""` si le projet n'en porte aucune.
+  `check("pick_video_sans_v2", DzTracks.pickTrack([{id:"v1",kind:"video"},
+  {id:"a1",kind:"audio"}], "video") === "v1")` — c'est le cas MESURÉ de la
+  capture ; `check("pick_video_prend_la_premiere", … [{id:"v3"},{id:"v1"}] …
+  === "v3")` ; `check("pick_sans_piste_du_genre", … === "")`.
+  Prouver chacune par mutation : rendre `"v2"` en dur doit faire rougir la
+  première **seule**.
+- [ ] **Étape 2 : lancer → rouge** (`pickTrack` n'existe pas).
+- [ ] **Étape 3 : la couche.** `dzmPickTrack(ts, kind)` dans
+  `frontend/patches/montage.js`, exportée sous `pickTrack`. Rappel des gardes :
+  **`DzTracks`, jamais `DzMontage`** (nom déjà pris au premier niveau du
+  bundle), et **aucune ancre du patcher citée dans un commentaire de la
+  couche** — un contrôle général le vérifie pour toutes les sections.
+- [ ] **Étape 4 : la section de patch sur `addAsset`.** Remplacer
+  `var tr2=trId||"v2"` par une résolution qui **retombe sur une piste
+  existante** : la piste demandée si elle est dans `svmTracksOf(proj)`, sinon
+  `DzTracks.pickTrack(svmTracksOf(proj), kind==="audio"?"audio":"video")`, sinon
+  un refus **dit** (`fireNote`) — jamais un clip muet posé dans le vide.
+  Le clip déjà invisible dans la sauvegarde de l'utilisateur ne se répare pas
+  tout seul : le dire dans la note, et prévoir que recréer une piste V2 à la
+  main le fasse réapparaître.
+- [ ] **Étape 5 : le bouton, dans `R_M8`.** L'ancre `A_M8` est **déjà
+  consommée** par M8 : le bouton se replie dans `R_M8`, comme M10 et M11b.
+  Libellé **`Bibliothèque…`** — pas `+ clip` : « bibliothèque » est le mot que
+  l'utilisateur a employé. `onClick` → `openPicker(<piste vidéo résolue>)`.
+  **Et lever l'ambiguïté mesurée au fait n°4** : `+ vidéo` / `+ audio`
+  deviennent `+ piste vidéo` / `+ piste audio` — ils ajoutent une piste, ils
+  doivent le dire. C'est une édition de `DzmTrackAdd` dans la couche, pas une
+  section de plus.
+- [ ] **Étape 6 : le délai fixe de 450 ms.** Il ne peut pas être corrigé dans
+  `libsend` (piège n°1). Le remplacer côté `montage` par une attente de la
+  condition — `durRef.current > 0` — bornée à quelques secondes, et **dire**
+  l'échec au lieu de l'avaler. Si cela exigeait de toucher au greffon amont
+  lui-même, **ne pas le faire** : consigner l'écart et laisser la remise
+  imparfaite mais VISIBLE. Le fait n°3 montre que la piste inexistante suffit
+  déjà à tout expliquer ; la course des 450 ms **n'a pas été isolée
+  séparément** et reste une hypothèse.
+- [ ] **Étape 7 : rejouer et mesurer.** `--check`, patcher, `repatch_all.py
+  --list` doit finir par `montage OK`, `test_montage_bundle` vert,
+  **`bloc_EST_la_couche_octet_pour_octet` compris**.
+- [ ] **Étape 8 : commit.** Sujet :
+  `montage : P9 - un bouton Bibliotheque, et la remise qui se perdait`.
+  Corps accentué : la piste `v2` absente des cinq pistes sauvegardées, le clip
+  invisible mais présent, et pourquoi la correction est portée en aval plutôt
+  que dans `libsend`.
+  Pied : `Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>`.
+
+**Dette navigateur ajoutée par cette tâche** (non mesurable sans l'application
+lancée **par l'utilisateur**) : le bouton `Bibliothèque…` et la largeur réelle
+de la barre de transport qui reçoit un contrôle de plus ; les deux libellés
+renommés ; et la remise depuis la fenêtre de la Bibliothèque, refaite de bout en
+bout sur un projet SANS piste V2 puis sur un projet qui en porte une.
