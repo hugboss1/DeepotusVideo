@@ -147,8 +147,16 @@ function dzmKindOf(id,kind){
   var k=String(id||"").charAt(0);
   return k==="a"?"audio":k==="s"?"subs":"video"}
 
+/* LE REPLI DES PISTES, ÉCRIT UNE FOIS. « Une liste vide vaut les six pistes
+   de base » était écrit à deux endroits ; l'étape 4 de la barre en voulait un
+   TROISIÈME. Trois copies de la même condition divergent à la première
+   retouche, alors les trois appellent celle-ci. C'est un contrôle à deux
+   faces : la retirer casse `svmTracksOf`, `DzmTrackAdd` ET le câblage de la
+   barre, et trois lignes du banc le disent séparément. */
+function dzmTsOr(ts){return (ts&&ts.length)?ts:DZM_DEFAULT_TRACKS}
+
 function svmTracksOf(proj){
-  return (proj&&proj.tracks&&proj.tracks.length)?proj.tracks:DZM_DEFAULT_TRACKS}
+  return dzmTsOr(proj&&proj.tracks)}
 
 /* Restauration depuis GET /api/montage/project. `null` = « rien de valable,
    garde les défauts » : c'est le cas d'une sauvegarde d'avant P1, et celui
@@ -536,7 +544,7 @@ function dzmRippleCut(clips,t0,t1,opts){
    raison. Ils disent maintenant ce qu'ils font ; le bouton qui ajoute
    VRAIMENT une vidéo est « Bibliothèque… », juste à côté. */
 var DzmTrackAdd=function(props){
-  var ts=(props&&props.tracks&&props.tracks.length)?props.tracks:DZM_DEFAULT_TRACKS;
+  var ts=dzmTsOr(props&&props.tracks);
   function add(k){if(props&&props.onChange)props.onChange(dzmAdd(ts,k))}
   return r.jsxs("span",{className:"dzm-add",children:[
     r.jsx("button",{className:"svm-tbtn dzm-addb",
@@ -566,7 +574,7 @@ var DzmTrackAdd=function(props){
    grisé sans explication oblige à deviner, et c'est le défaut que toute
    cette tâche répare. */
 var DzmLibBtn=function(props){
-  var ts=(props&&props.tracks&&props.tracks.length)?props.tracks:DZM_DEFAULT_TRACKS;
+  var ts=dzmTsOr(props&&props.tracks);
   var id=dzmPickTrack(ts,"video");
   return r.jsx("button",{className:"svm-tbtn dzm-libb",
     title:id?("Ouvrir la Bibliothèque et poser une vidéo, une image ou un "+
@@ -2283,6 +2291,298 @@ function DzmToolBtn(o){
   if(g)p["data-grp"]=g;
   if(tog)p["aria-pressed"]=mix?"mixed":(on?"true":"false");
   return r.jsx("button",p,o.k||("tbb-"+(o.icon||g||"x")))}
+/* ── ÉTAPE 4 DU §9 : LA BARRE ET SON ONGLET ────────────────────────────────
+   Géométrie (§2.1, §2.2), contenu verbatim (§2.4), ouverture et repli (§4.1),
+   et de §4.4 LA SEULE CLÉ `open`. Le déport (§4.2) est l'étape 5, le retrait
+   des neuf contrôles du bandeau (§5) l'étape 6, le câblage complet (§6)
+   l'étape 7, le clavier et `role="toolbar"` (§4.5) l'étape 8.
+
+   ── LA DUPLICATION EST TRANSITOIRE, ET C'EST DIT ICI ──
+   Les neuf actions existent AUX DEUX ENDROITS tant que l'étape 6 n'a pas
+   retiré celles du bandeau fixe. Le §5.1 l'interdit à terme (« deux sources
+   de vérité pour l'état des bascules ») ; le §9 l'impose transitoirement
+   (« *après* que la barre fonctionne, jamais avant » — ne pas laisser
+   l'application dans un état où les actions ne sont accessibles nulle part).
+   C'est un reste ASSUMÉ, et l'étape 6 le solde. La seule bascule concernée
+   par le §5.1 est `wordAnim` : elle vit dans `proj.subsStyle`, une source
+   unique que la chip du bandeau et la barre LISENT toutes les deux — aucune
+   des deux n'en garde de copie, donc les deux affichages ne peuvent pas
+   diverger avant que l'étape 6 en supprime une.
+
+   ── AUCUN BOUTON VIVANT QUI NE FAIT RIEN ──
+   Sept des neuf boutons sont CÂBLÉS sur l'action existante — la barre est un
+   nouveau point d'entrée, pas une nouvelle implémentation (§6). Les deux qui
+   ne le sont pas (`emoji`, `projets`) sont ÉTEINTS et le DISENT dans leur
+   `title`, en nommant l'étape qui les rendra vivants. Même règle pour la
+   poignée (dessinée, inerte : pas de `cursor:grab`, un titre qui l'explique)
+   et pour `⌖` recentrer, qui n'a rien à recentrer avant l'étape 5. */
+
+/* LA CLÉ DE PERSISTANCE — ÉCART DÉCLARÉ, DANS LES DEUX SENS.
+   Le §4.4 demande `deepotus.toolbar.open`. LA MAISON dit autre chose, et
+   c'est mesuré le 05/09/2026 sur le bundle et les couches : VINGT-CINQ clés
+   `dz_*` distinctes, dont les quatre de cet écran (`dz_svm_theme`,
+   `dz_svm_keymap`, `dz_narr_open`, `dz_hints_off`) — et TROIS clés
+   `deepotus.*` seulement (`deepotus.motion.reduced`, `deepotus.motion.halo`,
+   `deepotus.provider_defaults`), qui vivent toutes les trois dans
+   frontend/src, hors de portée de cette chaîne de patchs.
+   ON SUIT LA MAISON, et le §4.4 lui-même le demande : « dans le même espace
+   de nommage que les panneaux existants ». L'espace des panneaux existants
+   de cet écran est `dz_*`. `deepotus.toolbar.open` aurait fabriqué la
+   quatrième clé d'un espace que la chaîne n'emploie nulle part.
+   La FORME suit `dz_narr_open` au caractère près : "1" / "0", lecture et
+   écriture sous try/catch (localStorage lève en navigation privée et sous
+   une politique de site restrictive).
+   LE DÉFAUT EST « REPLIÉE », et ce n'est pas le défaut de `dz_narr_open`
+   (qui est ouvert) : tant que l'étape 6 n'a pas retiré les neuf contrôles du
+   bandeau, ouvrir par défaut montrerait à tout le monde une barre qui
+   double une rangée déjà là. L'étape 6 pourra rouvrir la question. */
+var DZM_TB_CLE_OPEN="dz_svm_tb_open";
+var DZM_TB_ID="dzm-toolbar";
+/* Le magasin est PARAMÉTRABLE pour que le banc puisse en fournir un faux :
+   sous node il n'y a pas de localStorage, et une fonction qu'on ne peut pas
+   jouer n'est pas mesurée. Sans argument, c'est celui du navigateur. */
+function dzmTbStore(){
+  try{return (typeof window!=="undefined"&&window.localStorage)||null}
+  catch(e){return null}}
+function dzmTbOpenGet(st){
+  var s=st||dzmTbStore();
+  try{return !!s&&s.getItem(DZM_TB_CLE_OPEN)==="1"}catch(e){return !1}}
+/* REND CE QU'ELLE A ÉCRIT : l'appelant pose l'état React avec la valeur que
+   cette fonction rend, donc un magasin en panne ne désynchronise pas
+   l'écran de lui-même — il perd la mémoire, pas la bascule. */
+function dzmTbOpenSet(v,st){
+  var s=st||dzmTbStore();
+  try{if(s)s.setItem(DZM_TB_CLE_OPEN,v?"1":"0")}catch(e){}
+  return !!v}
+
+/* LE CONTENU DU §2.4, VERBATIM. Cinq groupes dans l'ordre du tableau, les
+   en-têtes tels qu'écrits (§2.2b : « Libellés verbatim »), le suffixe
+   « — sélection » de MOT, et les neuf libellés de bouton. Le banc compare
+   cette table au §2.4 lu DANS design.md : ni la couche ni le banc ne
+   recopient le tableau deux fois, ils le lisent au même endroit — même
+   protocole que les dix tracés du §3.
+   Les clés d'icône sont celles du §3 ; le banc vérifie que les neuf y sont,
+   une fois chacune, et que la dixième (`poignee`) n'est PAS un bouton. */
+var DZM_TB_PLAN=[
+  {g:"pistes",t:"PISTES",type:"action",
+   btns:[{i:"piste-video",l:"vidéo"},{i:"piste-audio",l:"audio"}]},
+  {g:"biblio",t:"BIBLIOTHÈQUE",type:"ouvre un panneau",
+   btns:[{i:"bibliotheque",l:"lier"}]},
+  {g:"mot",t:"MOT",suf:"— sélection",type:"bascules",
+   btns:[{i:"couleur",l:"couleur"},{i:"rebond",l:"rebond"},{i:"glow",l:"glow"}]},
+  {g:"ajouts",t:"AJOUTS",type:"outils de placement",
+   btns:[{i:"emoji",l:"emoji"},{i:"texte",l:"texte"}]},
+  {g:"projets",t:"PROJETS",type:"ouvre un panneau",
+   btns:[{i:"projets",l:"projets"}]}];
+
+/* Les phrases des boutons qui ne sont PAS câblés. Elles nomment l'étape,
+   disent où l'action vit en attendant, et ne promettent rien. */
+function dzmTbEtape7(quoi){
+  return quoi+" — le bouton du bandeau fixe garde l'action pour l'instant. "+
+    "La barre n'en est pas encore le point d'entrée : c'est le câblage du §6 "+
+    "du handoff (étape 7). Éteint plutôt que muet."}
+var DZM_TB_SANS_HOTE="Action non fournie à la barre par l'écran qui la "+
+  "monte — il n'y a rien à déclencher.";
+var DZM_TB_T_GRIP="Poignée de déplacement — dessinée, pas encore active : "+
+  "le déport est l'étape 5 du handoff (§4.2). Pas de curseur « grab » tant "+
+  "qu'elle ne saisit rien.";
+var DZM_TB_T_RECENTRER="Recentrer la barre d'outils — sans effet tant que "+
+  "la barre ne se déplace pas (§4.2, étape 5).";
+var DZM_TB_T_REPLIER="Replier la barre d'outils sur son onglet.";
+var DZM_TB_T_TEXTE="Ouvrir ou fermer le panneau « Texte » — la narration "+
+  "mot par mot dans la colonne de droite.";
+/* L'ÉCART DU GROUPE MOT, DIT À L'UTILISATEUR ET PAS SEULEMENT EN COMMENTAIRE.
+   Le §4.3 veut trois bascules INDÉPENDANTES et CUMULABLES, calculées depuis
+   la sélection de mots des sous-titres. Cette base n'a NI sélection de mot NI
+   champ `words[].fx` : elle a UN champ `proj.subsStyle.wordAnim` à trois
+   valeurs exclusives, qui vaut pour toute la piste S1 — mesuré, c'est ce que
+   la chip du bandeau écrit et ce que le rendu ASS lit. Câbler les trois
+   boutons sur ce champ donne trois boutons VIVANTS qui font ce que la base
+   sait faire ; les laisser éteints aurait rendu l'effet inatteignable dès
+   que l'étape 6 retire la chip. Le comportement du §4.3 est l'étape 7. */
+var DZM_TB_MOT_ECART=" — Cette base porte UNE animation à la fois pour "+
+  "toute la piste de sous-titres, pas trois effets cumulables sur une "+
+  "sélection de mots : choisir celle-ci remplace la précédente.";
+
+/* ── LE CÂBLAGE, PUR ───────────────────────────────────────────────────────
+   Une fonction, aucun hook, aucun accès au DOM : le banc la joue sous node
+   et lit ce que chaque bouton reçoit. Elle rend une entrée par clé d'icône —
+   `act` (rien si le bouton est éteint), `disabled`, `title`, `toggle`,
+   `active`. C'est ICI que se décide « câblé » ou « éteint-et-dit », et nulle
+   part ailleurs : la barre, elle, ne fait que peindre ce qu'on lui donne. */
+function dzmTbCablage(p){
+  p=p||{};
+  var ts=dzmTsOr(p.tracks);
+  var vid=dzmPickTrack(ts,"video");
+  var m={};
+  var poseTr=typeof p.onTracks==="function";
+  /* PISTES — MÊME APPEL que « + piste vidéo » du bandeau : `dzmAdd` puis le
+     setter du projet, qui pousse l'historique et marque le projet modifié.
+     Rien de neuf n'est écrit ici, c'est une autre porte sur la même action. */
+  m["piste-video"]={disabled:!poseTr,
+    act:poseTr?function(){p.onTracks(dzmAdd(ts,"video"))}:null,
+    title:poseTr?("Ajouter une piste vidéo d'overlay — posée tout en haut, "+
+      "donc composée au-dessus des autres au rendu."):DZM_TB_SANS_HOTE};
+  m["piste-audio"]={disabled:!poseTr,
+    act:poseTr?function(){p.onTracks(dzmAdd(ts,"audio"))}:null,
+    title:poseTr?("Ajouter une piste audio — posée sous les pistes audio "+
+      "existantes, au-dessus des sous-titres."):DZM_TB_SANS_HOTE};
+  /* BIBLIOTHÈQUE — `onPick` est le `openPicker` de l'écran, qui porte DÉJÀ
+     ses propres refus (projet de démonstration, piste verrouillée). La piste
+     visée est RÉSOLUE, jamais devinée : la première piste vidéo dans l'ordre
+     d'affichage. Sans piste vidéo il n'y a rien à ouvrir — bouton éteint,
+     et le titre nomme la sortie au lieu de laisser deviner. */
+  var pick=typeof p.onPick==="function";
+  m["bibliotheque"]={disabled:!(pick&&vid),
+    act:(pick&&vid)?function(){p.onPick(vid)}:null,
+    title:!pick?DZM_TB_SANS_HOTE
+      :vid?("Ouvrir la Bibliothèque et poser une vidéo, une image ou un "+
+        "rendu sur la piste "+String(vid).toUpperCase()+", à la tête de "+
+        "lecture — c'est la piste vidéo la plus haute du projet.")
+      :("Aucune piste vidéo dans ce projet : rien ne pourrait recevoir le "+
+        "clip. « vidéo » du groupe PISTES en crée une.")};
+  /* MOT — les trois valeurs viennent de DZM_WORD_ANIMS, la table qui sert
+     déjà la chip du bandeau : leur `v` EST la clé d'icône du §3, et leur `t`
+     la phrase qui décrit l'effet. Une seconde liste aurait divergé. */
+  var wa=String(p.wordAnim||"couleur");
+  var poseWa=typeof p.onWordAnim==="function";
+  DZM_WORD_ANIMS.forEach(function(a){
+    m[a.v]={toggle:!0,active:wa===a.v,disabled:!poseWa,
+      act:poseWa?function(){p.onWordAnim(a.v)}:null,
+      title:poseWa?(a.t+DZM_TB_MOT_ECART):DZM_TB_SANS_HOTE}});
+  /* AJOUTS — `emoji` interroge le backend et gère son propre état d'attente
+     à l'intérieur du bouton du bandeau : il n'y a AUCUNE action à réutiliser
+     sans en écrire une neuve. Éteint, et le titre le dit. */
+  m["emoji"]={disabled:!0,act:null,title:dzmTbEtape7("Poser les emoji")};
+  var poseTx=typeof p.onText==="function";
+  m["texte"]={toggle:!0,active:p.textOn===!0,disabled:!poseTx,
+    act:poseTx?function(){p.onText()}:null,
+    title:poseTx?DZM_TB_T_TEXTE:DZM_TB_SANS_HOTE};
+  /* PROJETS — le sélecteur est un panneau qui porte son propre état
+     d'ouverture dans son composant : rien ne l'ouvre depuis l'extérieur
+     aujourd'hui. Éteint, et le titre le dit. */
+  m["projets"]={disabled:!0,act:null,
+    title:dzmTbEtape7("Ouvrir le sélecteur de projets")};
+  return m}
+
+/* LA FRAME SUIVANTE, ISOLÉE POUR ÊTRE JOUABLE. Elle sert au §4.4 :
+   « poser l'état final, réactiver les transitions à la frame suivante ».
+   `requestAnimationFrame` EST APPELÉE SUR SON OBJET, jamais détachée — une
+   référence gardée puis appelée nue (`var raf=w.requestAnimationFrame;
+   raf(fn)`) lève « Illegal invocation » sous Blink et WebKit. C'est la forme
+   qui était écrite ici, et RIEN NE L'AURAIT VUE : ce chemin ne s'exécute
+   qu'au montage du composant à hooks, hors de portée du banc. D'où
+   l'extraction : ces six lignes-là, elles, se jouent sous node.
+   `cancelAnimationFrame` est exigée AUSSI : sans elle, l'annulateur ne
+   pourrait rien annuler, et un moteur qui n'aurait que la moitié de la
+   paire vaut mieux servi par un minuteur, qui s'annule vraiment. */
+function dzmTbFrame(w,fn){
+  var ok=!!(w&&typeof w.requestAnimationFrame==="function"
+            &&typeof w.cancelAnimationFrame==="function");
+  if(ok){
+    var id=w.requestAnimationFrame(fn);
+    return function(){w.cancelAnimationFrame(id)}}
+  var t=setTimeout(fn,0);
+  return function(){clearTimeout(t)}}
+
+/* ── L'ONGLET D'APPEL (§2.1) ───────────────────────────────────────────────
+   Cinq pastilles aux cinq teintes — l'aperçu du contenu, on voit les
+   familles avant d'ouvrir — puis OUTILS, puis le chevron. `aria-expanded` et
+   `aria-controls` sont OBLIGATOIRES au §4.1 : sans eux l'onglet s'annonce
+   comme un bouton quelconque et rien ne dit ce qu'il ouvre.
+   LA TEINTE DES PASTILLES PASSE PAR LA CLASSE `dzm-g-<groupe>`, comme celle
+   des boutons : aucun nom de variable CSS n'est fabriqué en JS. */
+function DzmToolTab(o){
+  o=o||{};
+  var open=o.open===!0;
+  return r.jsx("button",{type:"button",className:"dzm-tbtab",
+    "aria-expanded":open?"true":"false","aria-controls":DZM_TB_ID,
+    title:open?DZM_TB_T_REPLIER:"Ouvrir la barre d'outils de création.",
+    onClick:function(){if(typeof o.onToggle==="function")o.onToggle()},
+    children:[
+      r.jsx("span",{className:"dzm-tbdots","aria-hidden":!0,
+        children:DZM_TB_GROUPES.map(function(g){
+          return r.jsx("span",{className:"dzm-tbdot dzm-g-"+g},g)})},"d"),
+      r.jsx("span",{className:"dzm-tblbl",children:"OUTILS"},"l"),
+      r.jsx("span",{className:"dzm-tbchev","aria-hidden":!0,
+        children:open?"▾":"▴"},"c")]},"tbtab")}
+
+/* ── LA BARRE (§2.2) ───────────────────────────────────────────────────────
+   Trois zones : poignée, groupes, contrôles de fenêtre.
+   ELLE RESTE DANS LE DOM QUAND ELLE EST REPLIÉE, et c'est ce qui permet
+   d'animer le repli (§4.1 : « Repli : l'inverse »). `visibility:hidden`,
+   posé par la feuille à la FIN de la transition, la retire du parcours de
+   tabulation et de l'arbre d'accessibilité — un `display:none` aurait coupé
+   l'animation, un simple `opacity:0` aurait laissé neuf boutons focusables
+   sous une barre invisible.
+   `data-noanim` : à la restauration, l'état final est posé SANS transition
+   (§4.4), réactivée à la frame suivante par le Dock. */
+function DzmToolBar(o){
+  o=o||{};
+  var open=o.open===!0;
+  var items=o.items||{};
+  var kids=[];
+  /* a. LA POIGNÉE — présente et dessinée, inerte jusqu'à l'étape 5. */
+  kids.push(r.jsx("span",{className:"dzm-tbgrip",title:DZM_TB_T_GRIP,
+    "aria-hidden":!0,
+    children:DzmTbIcon({name:"poignee",size:DZM_TB_PX_GRIP,k:"g"})},"grip"));
+  /* b. LES GROUPES — une colonne chacun, filet droit sauf le dernier. */
+  kids.push(r.jsx("span",{className:"dzm-tbzone",
+    children:DZM_TB_PLAN.map(function(gr,gi){
+      var tete=[r.jsx("span",{className:"dzm-tbht",children:gr.t},"t")];
+      if(gr.suf)tete.push(r.jsx("span",{className:"dzm-tbsuf",
+        children:" "+gr.suf},"s"));
+      return r.jsx("span",{className:"dzm-tbgrp dzm-g-"+gr.g,
+        "data-last":gi===DZM_TB_PLAN.length-1?"":void 0,
+        children:[
+          r.jsx("span",{className:"dzm-tbhead",children:tete},"h"),
+          r.jsx("span",{className:"dzm-tbrow",
+            children:gr.btns.map(function(b){
+              /* UNE ENTRÉE MANQUANTE ÉTEINT LE BOUTON. Le repli n'est pas
+                 l'objet vide : `{}` aurait rendu un bouton d'apparence
+                 vivante sans action derrière — exactement le piège que ce
+                 lot refuse. Il n'arrive pas dans l'application (le câblage
+                 rend toujours les neuf entrées) ; il arriverait le jour où
+                 un bouton s'ajoute au plan sans passer par le câblage. */
+              var it=items[b.i]||{disabled:!0,title:DZM_TB_SANS_HOTE};
+              return DzmToolBtn({group:gr.g,icon:b.i,label:b.l,
+                solo:gr.btns.length===1,toggle:it.toggle===!0,
+                active:it.active,disabled:it.disabled===!0,
+                title:it.title,aria:b.l,onAct:it.act,k:"b-"+b.i})})},"r")]},
+        gr.g)})},"zone"));
+  /* c. LES CONTRÔLES DE FENÊTRE — `⌖` éteint jusqu'à l'étape 5, `×` vivant. */
+  kids.push(r.jsx("span",{className:"dzm-tbwin",children:[
+    r.jsx("button",{type:"button",className:"dzm-tbwb dzm-tbrc",disabled:!0,
+      title:DZM_TB_T_RECENTRER,"aria-label":"Recentrer la barre d'outils",
+      children:"⌖"},"rc"),
+    r.jsx("button",{type:"button",className:"dzm-tbwb dzm-tbcl",
+      title:DZM_TB_T_REPLIER,"aria-label":"Replier la barre d'outils",
+      onClick:function(){if(typeof o.onClose==="function")o.onClose()},
+      children:"×"},"cl")]},"win"));
+  return r.jsx("div",{id:DZM_TB_ID,className:"dzm-tbar",
+    "data-off":open?void 0:"","data-noanim":o.anim===!0?void 0:"",
+    children:kids},"tbar")}
+
+/* ── CE QUI EST MONTÉ DANS LE BANDEAU (§4.1, §4.4) ─────────────────────────
+   Le seul morceau à hooks du lot, et il est mince exprès : il tient l'état
+   `open`, le restaure sans animation, et passe le câblage à la barre. Tout
+   ce qui se mesure — le câblage, l'onglet, la barre — est pur et se joue
+   sous node ; ce composant-ci se lit dans la source et dans le bundle.
+   L'ONGLET ET LA BARRE SONT DEUX FRÈRES, pas un nid : l'onglet doit rester
+   accroché au bord du bandeau quand la barre partira en déport (étape 5). */
+function DzmToolDock(o){
+  o=o||{};
+  var st=x.useState(dzmTbOpenGet),open=st[0],setOpen=st[1];
+  var sa=x.useState(!1),anim=sa[0],setAnim=sa[1];
+  x.useEffect(function(){
+    return dzmTbFrame((typeof window!=="undefined")?window:null,
+      function(){setAnim(!0)})},[]);
+  function bascule(){setOpen(function(v){return dzmTbOpenSet(!v)})}
+  return r.jsx(r.Fragment,{children:[
+    DzmToolTab({open:open,onToggle:bascule}),
+    DzmToolBar({open:open,anim:anim,items:dzmTbCablage(o),
+      onClose:function(){setOpen(dzmTbOpenSet(!1))}})]})}
+
 /* ── export contrat ───────────────────────────────────────────────────────── */
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
@@ -2305,5 +2605,8 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   tbTraces:DZM_TB_TRACES,tbIcons:DZM_TB_ICONS,tbParse:dzmTbParse,
   tbSerial:dzmTbSerial,TbIcon:DzmTbIcon,ToolBtn:DzmToolBtn,
   TB_GROUPES:DZM_TB_GROUPES,TB_PX:DZM_TB_PX,TB_PX_GRIP:DZM_TB_PX_GRIP,
+  TB_PLAN:DZM_TB_PLAN,TB_CLE_OPEN:DZM_TB_CLE_OPEN,TB_ID:DZM_TB_ID,
+  tbOpenGet:dzmTbOpenGet,tbOpenSet:dzmTbOpenSet,tbCablage:dzmTbCablage,tbFrame:dzmTbFrame,
+  ToolTab:DzmToolTab,ToolBar:DzmToolBar,ToolDock:DzmToolDock,tsOr:dzmTsOr,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;

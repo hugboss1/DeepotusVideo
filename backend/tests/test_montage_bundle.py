@@ -434,7 +434,13 @@ check("M11_etat_declare_une_fois",
 # facon toujours vrai. La mesure qui decide : les trois identifiants de M11
 # n'apparaissent NULLE PART ailleurs que dans les sections qui les ecrivent.
 for _nm in ("stDzTx", "dzTextOn", "setDzTextOn"):
-    _dehors = s.count(_nm) - (P.R_M11 + P.R_M11b + P.R_M12).count(_nm)
+    # M19 (etape 4 de la barre d'outils) emploie `dzTextOn` et
+    # `setDzTextOn` a son tour : la barre est un SECOND point d'entree
+    # sur le meme etat, pas un second etat. La ligne garde son sens —
+    # ces noms n'apparaissent nulle part AILLEURS que dans les sections
+    # qui les ecrivent — et rougirait encore si un tiers les employait.
+    _dehors = s.count(_nm) - (P.R_M11 + P.R_M11b + P.R_M12
+                              + P.R_M19).count(_nm)
     check("M11_nom_" + _nm + "_n_ecrase_rien", _dehors == 0,
           f"{_nm} apparait {_dehors}x hors des sections qui l'ecrivent")
 check("M12_utilise_DzTracks_pas_DzMontage",
@@ -2540,6 +2546,342 @@ out.tb_b_titre_donne=[TBP(tbT,"title"),TBP(tbT,"aria-label")];
 out.tb_b_sans_couleur=TBG(function(){
   var j=JSON.stringify([tbRepos,tbOn,tbMix,tbMort,tbMauvais]);
   return j.indexOf("#")<0&&j.indexOf("oklch")<0&&j.indexOf("var(--")<0});
+/* ══ ETAPE 4 — LA BARRE ET SON ONGLET (§2.1, §2.2, §2.4, §4.1, §4.4) ══════
+   TOUT CE QUI SE MESURE ICI EST PUR. Le seul morceau a hooks (`ToolDock`)
+   n'est pas jouable sous node — pas de `x` — et il est mince pour cette
+   raison exacte : le plan, le cablage, l'onglet et la barre se jouent, lui
+   se lit dans la source et dans le bundle livre. */
+/* LE PLAN DU §2.4, tel que la couche le porte. Le banc le compare au tableau
+   lu DANS design.md : ni la couche ni le banc ne le recopient deux fois. */
+out.tb_plan = TBG(function () {
+  return T.TB_PLAN.map(function (g) {
+    return [g.g, g.t, g.suf || "", g.type,
+    g.btns.map(function (b) { return b.l })]
+  })
+});
+out.tb_plan_icones = TBG(function () {
+  var a = [];
+  T.TB_PLAN.forEach(function (g) {
+    g.btns.forEach(function (b) { a.push(b.i) })
+  });
+  return a
+});
+out.tb_plan_groupes = TBG(function () {
+  return T.TB_PLAN.map(function (g) { return g.g })
+});
+/* ── LA PERSISTANCE (§4.4), MAGASIN INJECTE ─────────────────────────────
+   Un faux magasin : sous node il n'y a pas de localStorage, et une fonction
+   qu'on ne peut pas jouer n'est pas mesuree. `lu` et `ecrit` disent QUELLE
+   cle a ete touchee — sans eux la ligne serait vraie d'une fonction qui
+   ecrirait ailleurs. */
+function MAG(v) {
+  var m = { v: v, lu: null, ecrit: null };
+  m.getItem = function (k) { m.lu = k; return m.v };
+  m.setItem = function (k, x) { m.ecrit = [k, x] };
+  return m
+}
+var mgV = MAG("1");
+out.tb_open_lit_1 = TBG(function () { return [T.tbOpenGet(mgV), mgV.lu] });
+out.tb_open_lit_0 = TBG(function () { return T.tbOpenGet(MAG("0")) });
+out.tb_open_lit_absent = TBG(function () { return T.tbOpenGet(MAG(null)) });
+out.tb_open_lit_autre = TBG(function () { return T.tbOpenGet(MAG("oui")) });
+var mgE = MAG(null);
+out.tb_open_ecrit = TBG(function () {
+  return [T.tbOpenSet(!0, mgE), mgE.ecrit]
+});
+var mgE2 = MAG(null);
+out.tb_open_ecrit_faux = TBG(function () {
+  return [T.tbOpenSet(!1, mgE2), mgE2.ecrit]
+});
+/* UN MAGASIN QUI LEVE — navigation privee, politique de site restrictive :
+   la barre perd la memoire, elle ne casse pas. */
+var mgL = {
+  getItem: function () { throw new Error("refus") },
+  setItem: function () { throw new Error("refus") }
+};
+out.tb_open_magasin_qui_leve = TBG(function () {
+  return [T.tbOpenGet(mgL), T.tbOpenSet(!0, mgL)]
+});
+/* SANS MAGASIN : retombe sur celui du navigateur, absent ici — faux, pas
+   une levee. C'est ce qui rend l'ecran servable si localStorage manque. */
+out.tb_open_sans_magasin = TBG(function () { return T.tbOpenGet() });
+out.tb_cle = T.TB_CLE_OPEN;
+out.tb_id = T.TB_ID;
+/* ── LE CABLAGE (§6) — sept cables, deux eteints-et-dits ────────────────── */
+var CAB_TS = [{ id: "v1", kind: "video" }, { id: "a1", kind: "audio" },
+{ id: "s1", kind: "subs" }];
+/* CONSTRUCTIONS GARDEES, faute n°6 : un contrat ampute (un export
+   renomme, par exemple) faisait lever CES lignes-ci au premier niveau du
+   shim, node sortait en erreur, et le repli `d = {}` du harnais emportait
+   DEUX CENT VINGT-HUIT lignes dont la quasi-totalite n'a rien a voir avec
+   la barre. Avec `TBG`, le temoin est distinguable — jamais `null`, jamais
+   `""` — et seules les lignes de la barre rougissent. */
+var cabPlein = TBG(function () {
+  return T.tbCablage({
+    tracks: CAB_TS, onTracks: function () { }, onPick: function () { },
+    wordAnim: "rebond", onWordAnim: function () { },
+    textOn: !0, onText: function () { }
+  })
+});
+out.tb_c_cles = TBG(function () { return Object.keys(cabPlein).sort() });
+out.tb_c_eteints = TBG(function () {
+  return Object.keys(cabPlein).filter(function (k) {
+    return cabPlein[k].disabled === !0
+  }).sort()
+});
+out.tb_c_actions = TBG(function () {
+  return Object.keys(cabPlein).filter(function (k) {
+    return typeof cabPlein[k].act === "function"
+  }).sort()
+});
+/* CHAQUE ACTION CABLEE APPELLE LA BONNE CHOSE, et on mesure CE QU'ELLE
+   TRANSMET — pas seulement qu'elle a ete appelee. */
+out.tb_c_video = TBG(function () {
+  var vu = null;
+  T.tbCablage({
+    tracks: CAB_TS, onTracks: function (ts) {
+      vu = ts.map(function (t) { return t.id })
+    }
+  })["piste-video"].act();
+  return vu
+});
+out.tb_c_audio = TBG(function () {
+  var vu = null;
+  T.tbCablage({
+    tracks: CAB_TS, onTracks: function (ts) {
+      vu = ts.map(function (t) { return t.id })
+    }
+  })["piste-audio"].act();
+  return vu
+});
+out.tb_c_lier = TBG(function () {
+  var vu = [];
+  T.tbCablage({
+    tracks: CAB_TS, onPick: function (id) { vu.push(id) }
+  })["bibliotheque"].act();
+  return vu
+});
+/* SANS PISTE VIDEO : eteint, aucune action, et un titre DIFFERENT de celui
+   qui nomme la piste. Les deux titres sont rendus, la comparaison se fait
+   en Python. */
+var cabSansV = TBG(function () {
+  return T.tbCablage({
+    tracks: [{ id: "a1", kind: "audio" }, { id: "s1", kind: "subs" }],
+    onPick: function () { }
+  })
+});
+out.tb_c_lier_sans_video = TBG(function () {
+  return [cabSansV["bibliotheque"].disabled, cabSansV["bibliotheque"].act]
+});
+out.tb_c_lier_titres = TBG(function () {
+  return [cabPlein["bibliotheque"].title, cabSansV["bibliotheque"].title]
+});
+/* MOT — trois bascules ; celle qui vaut la valeur du projet est allumee. */
+out.tb_c_mot = TBG(function () {
+  return ["couleur", "rebond", "glow"].map(function (k) {
+    return [cabPlein[k].toggle, cabPlein[k].active, cabPlein[k].disabled]
+  })
+});
+out.tb_c_mot_clic = TBG(function () {
+  var vu = [];
+  var c = T.tbCablage({ onWordAnim: function (v) { vu.push(v) } });
+  c["glow"].act(); c["couleur"].act();
+  return vu
+});
+out.tb_c_mot_defaut = TBG(function () {
+  var c = T.tbCablage({ onWordAnim: function () { } });
+  return ["couleur", "rebond", "glow"].map(function (k) { return c[k].active })
+});
+/* LES TROIS CLES SORTENT DE LA TABLE DES ANIMATIONS, pas d'une seconde
+   liste : si DZM_WORD_ANIMS change, le cablage change avec elle. */
+out.tb_c_mot_cles = TBG(function () {
+  return T.WORD_ANIMS.map(function (a) { return a.v })
+});
+/* Le titre de chaque bascule REPREND celui de la table, plus l'ecart dit. */
+out.tb_c_mot_titre_reprend = TBG(function () {
+  return T.WORD_ANIMS.map(function (a) {
+    return cabPlein[a.v].title.indexOf(a.t) === 0
+      && cabPlein[a.v].title.length > a.t.length
+  })
+});
+/* TEXTE */
+out.tb_c_texte = TBG(function () {
+  return [cabPlein["texte"].toggle, cabPlein["texte"].active,
+  cabPlein["texte"].disabled]
+});
+out.tb_c_texte_clic = TBG(function () {
+  var n = 0;
+  T.tbCablage({ onText: function () { n++ } })["texte"].act();
+  return n
+});
+out.tb_c_texte_eteint = TBG(function () {
+  return T.tbCablage({ textOn: !1, onText: function () { } })["texte"].active
+});
+/* EMOJI ET PROJETS — eteints, sans action, et leur titre nomme l'etape. */
+out.tb_c_muets = TBG(function () {
+  return ["emoji", "projets"].map(function (k) {
+    return [cabPlein[k].disabled, cabPlein[k].act, cabPlein[k].title]
+  })
+});
+/* SANS HOTE : un cablage vide n'allume RIEN et ne leve pas — c'est ce qui
+   arriverait si la section du patcher perdait ses proprietes. */
+var cabVide = TBG(function () { return T.tbCablage() });
+out.tb_c_vide = TBG(function () {
+  return [Object.keys(cabVide).length,
+  Object.keys(cabVide).filter(function (k) {
+    return cabVide[k].disabled !== !0 || cabVide[k].act !== null
+  }).length]
+});
+/* LA FRAME SUIVANTE (§4.4) — `requestAnimationFrame` doit etre appelee SUR
+   son objet : detachee puis appelee nue, elle leve « Illegal invocation »
+   sous Blink et WebKit. Le faux navigateur mesure `this`, ce qu'aucune
+   lecture de source ne saurait faire. */
+out.tb_frame_appelle_sur_son_objet = TBG(function () {
+  var vu = [], w = {};
+  w.requestAnimationFrame = function (f) {
+    vu.push(["raf", this === w, typeof f]); return 7
+  };
+  w.cancelAnimationFrame = function (i) { vu.push(["cancel", this === w, i]) };
+  var stop = T.tbFrame(w, function () { });
+  stop();
+  return vu
+});
+/* SANS NAVIGATEUR (node, un rendu serveur) : un minuteur, et un annulateur
+   qui annule vraiment — pas une levee. */
+out.tb_frame_sans_navigateur = TBG(function () {
+  var stop = T.tbFrame(null, function () { });
+  return typeof stop === "function" ? (stop(), "ok") : "pas de fonction"
+});
+/* UNE MOITIE DE PAIRE NE SUFFIT PAS : sans `cancelAnimationFrame`, on
+   retombe sur le minuteur — sinon l'annulateur ne pourrait rien annuler. */
+out.tb_frame_moteur_incomplet = TBG(function () {
+  var n = 0, w = { requestAnimationFrame: function () { n++; return 1 } };
+  var stop = T.tbFrame(w, function () { });
+  stop();
+  return [n, "ok"]
+});
+/* ── L'ONGLET (§2.1) ────────────────────────────────────────────────────── */
+var tabO = TBG(function () { return T.ToolTab({ open: !0 }) });
+var tabF = TBG(function () { return T.ToolTab({ open: !1 }) });
+out.tb_o_balise = TBG(function () { return [tabO.t, TBP(tabO, "type")] });
+out.tb_o_classe = TBC(tabO);
+out.tb_o_aria = TBG(function () {
+  return [TBP(tabO, "aria-expanded"), TBP(tabF, "aria-expanded"),
+  TBP(tabO, "aria-controls")]
+});
+out.tb_o_enfants = TBG(function () {
+  return tabO.p.children.map(function (z) { return z.p.className })
+});
+out.tb_o_pastilles = TBG(function () {
+  return tabO.p.children[0].p.children.map(function (z) {
+    return z.p.className
+  })
+});
+out.tb_o_libelle = TBG(function () { return tabO.p.children[1].p.children });
+out.tb_o_chevrons = TBG(function () {
+  return [tabO.p.children[2].p.children, tabF.p.children[2].p.children]
+});
+out.tb_o_titres = TBG(function () {
+  return [TBP(tabO, "title"), TBP(tabF, "title")]
+});
+out.tb_o_clic = TBG(function () {
+  var n = 0;
+  T.ToolTab({ open: !1, onToggle: function () { n++ } }).p.onClick();
+  return n
+});
+out.tb_o_clic_sans_action = TBG(function () {
+  T.ToolTab({ open: !1 }).p.onClick(); return "ok"
+});
+out.tb_o_sans_couleur = TBG(function () {
+  var j = JSON.stringify([tabO, tabF]);
+  return j.indexOf("#") < 0 && j.indexOf("oklch") < 0
+    && j.indexOf("var(--") < 0
+});
+/* ── LA BARRE (§2.2) ────────────────────────────────────────────────────── */
+var barO = TBG(function () {
+  return T.ToolBar({ open: !0, anim: !0, items: cabPlein })
+});
+var barF = TBG(function () {
+  return T.ToolBar({ open: !1, anim: !0, items: cabPlein })
+});
+var barN = TBG(function () {
+  return T.ToolBar({ open: !0, items: cabPlein })
+});
+out.tb_r_balise = TBG(function () {
+  return [barO.t, TBP(barO, "id"), TBC(barO)]
+});
+out.tb_r_off = TBG(function () {
+  return [TBP(barO, "data-off"), TBP(barF, "data-off")]
+});
+out.tb_r_noanim = TBG(function () {
+  return [TBP(barO, "data-noanim"), TBP(barN, "data-noanim")]
+});
+out.tb_r_zones = TBG(function () {
+  return barO.p.children.map(function (z) { return z.p.className })
+});
+/* LA POIGNEE : le glyphe `poignee` du §3, a 14 px (§2.2a). */
+out.tb_r_grip = TBG(function () {
+  var g = barO.p.children[0];
+  return [g.p.children.p.width, g.p.children.p.viewBox,
+  g.p.children.p.children.length, TBP(g, "aria-hidden")]
+});
+out.tb_r_grip_titre = TBG(function () {
+  return TBP(barO.p.children[0], "title")
+});
+out.tb_r_groupes = TBG(function () {
+  return barO.p.children[1].p.children.map(function (z) {
+    return [z.p.className, TBP(z, "data-last")]
+  })
+});
+out.tb_r_entetes = TBG(function () {
+  return barO.p.children[1].p.children.map(function (z) {
+    return z.p.children[0].p.children.map(function (y) {
+      return [y.p.className, y.p.children]
+    })
+  })
+});
+out.tb_r_boutons = TBG(function () {
+  var a = [];
+  barO.p.children[1].p.children.forEach(function (z) {
+    z.p.children[1].p.children.forEach(function (b) {
+      a.push([b.p.className, b.p.children[1].p.children,
+      b.p.disabled, ("aria-pressed" in b.p) ? b.p["aria-pressed"] : "ABSENT"])
+    })
+  });
+  return a
+});
+out.tb_r_win = TBG(function () {
+  return barO.p.children[2].p.children.map(function (z) {
+    return [z.p.className, z.p.children, TBP(z, "disabled"), TBP(z, "aria-label")]
+  })
+});
+out.tb_r_replier = TBG(function () {
+  var n = 0;
+  T.ToolBar({
+    open: !0, items: cabPlein, onClose: function () { n++ }
+  }).p.children[2].p.children[1].p.onClick();
+  return n
+});
+out.tb_r_replier_sans_action = TBG(function () {
+  T.ToolBar({ open: !0, items: cabPlein })
+    .p.children[2].p.children[1].p.onClick();
+  return "ok"
+});
+/* SANS CABLAGE : la barre se peint quand meme, cinq colonnes, tout eteint —
+   elle ne depend pas de ce qu'on lui donne pour exister. */
+out.tb_r_sans_items = TBG(function () {
+  var b = T.ToolBar({ open: !0 });
+  var n = 0;
+  b.p.children[1].p.children.forEach(function (z) {
+    z.p.children[1].p.children.forEach(function (x) { if (!x.p.disabled)n++ })
+  });
+  return [b.p.children[1].p.children.length, n]
+});
+out.tb_r_sans_couleur = TBG(function () {
+  var j = JSON.stringify(barO);
+  return j.indexOf("#") < 0 && j.indexOf("oklch") < 0
+    && j.indexOf("var(--") < 0
+});
 console.log(JSON.stringify(out));
 """
 # "use strict" en PROLOGUE du shim : concatene, celui de montage.js n'est
@@ -4183,18 +4525,641 @@ check("tb_le_mouvement_reduit_retire_l_enfoncement",
       and ".dzm-tbb:active" in _MC[_i_rm:_i_rm + 260],
       f"bloc={_MC[_i_rm:_i_rm + 200]!r}")
 
-# ── CE QUE CE LOT NE FAIT PAS, EPINGLE ────────────────────────────────────
-# Les etapes 4 a 8 du §9 ne sont pas livrees, et la barre n'est montee NULLE
-# PART : aucune section du patcher ne pose une des classes de ce lot. Le jour
-# ou l'etape 4 arrive, CETTE ligne rougit — elle est le rappel que l'etat
-# connu a change, pas une interdiction. Les neuf controles du bandeau fixe
-# sont donc toujours la : le §5.1 (leur retrait) est l'etape 6.
+# ══ ETAPE 4 — LA BARRE ET SON ONGLET ══════════════════════════════════════
+print("\n[6-bis] la barre d'outils — l'onglet, la barre, l'ouverture, la cle")
+
+# ── LE CONTENU DU §2.4, LU DANS LE HANDOFF ────────────────────────────────
+# Meme protocole que les dix traces du §3 : ni la couche ni ce banc ne
+# recopient le tableau, les deux le lisent ici.
+_PLAN_SPEC = []
+try:
+    _s24 = _HO[_HO.index("### 2.4 Contenu, verbatim"):
+               _HO.index("## 3. Les neuf icônes")]
+    for _l in _s24.splitlines():
+        if not _l.startswith("| `"):
+            continue
+        _c = [x.strip() for x in _l.strip().strip("|").split("|")]
+        if len(_c) != 4:
+            continue
+        _PLAN_SPEC.append((_c[0].strip("`"), _c[1],
+                           [x.strip().strip("`") for x in _c[2].split("·")],
+                           _c[3].strip("*")))
+except BaseException as _e:
+    print(f"  ----  §2.4 du handoff illisible : {temoin(_e)}")
+    _PLAN_SPEC = []
+check("tb_le_contenu_du_2_4_est_lisible_dans_le_handoff",
+      len(_PLAN_SPEC) == 5
+      and sum(len(b) for _t, _h, b, _y in _PLAN_SPEC) == 9
+      and [t for t, _h, _b, _y in _PLAN_SPEC] == [
+          "PISTES", "BIBLIOTHÈQUE", "MOT — sélection", "AJOUTS", "PROJETS"],
+      f"{len(_PLAN_SPEC)} ligne(s) extraites : "
+      f"{[t for t, _h, _b, _y in _PLAN_SPEC]}")
+# LA COUCHE PORTE CE TABLEAU, en-tetes, suffixe, libelles et type. L'en-tete
+# du groupe MOT est recompose (`t` + espace + `suf`) : c'est la forme du
+# §2.2b, qui separe le mot du suffixe pour pouvoir le peindre a part.
+_PLAN_VU = d.get("tb_plan")
+check("tb_la_couche_porte_le_contenu_verbatim_du_2_4",
+      len(_PLAN_SPEC) == 5 and isinstance(_PLAN_VU, list)
+      and len(_PLAN_VU) == 5
+      and all(
+          (_PLAN_VU[_i][1] + (" " + _PLAN_VU[_i][2] if _PLAN_VU[_i][2] else ""))
+          == _PLAN_SPEC[_i][0]
+          and _PLAN_VU[_i][4] == _PLAN_SPEC[_i][2]
+          and _PLAN_VU[_i][3] == _PLAN_SPEC[_i][3]
+          for _i in range(5)),
+      f"plan={_PLAN_VU}")
+# LES NEUF BOUTONS PORTENT LES NEUF ICONES DU §3, une chacune, et la dixieme
+# (la poignee) n'est PAS un bouton — elle est la poignee de la barre.
+check("tb_les_neuf_boutons_portent_les_neuf_icones_du_3_une_chacune",
+      len(_TB_SPEC) == 10 and isinstance(d.get("tb_plan_icones"), list)
+      and len(d["tb_plan_icones"]) == 9
+      and sorted(d["tb_plan_icones"]) == sorted(set(_TB_SPEC) - {"poignee"}),
+      f'{d.get("tb_plan_icones")}')
+check("tb_les_cinq_colonnes_sont_les_cinq_groupes_dans_l_ordre",
+      d.get("tb_plan_groupes") == d.get("tb_groupes")
+      and d.get("tb_plan_groupes") == ["pistes", "biblio", "mot", "ajouts",
+                                       "projets"],
+      f'{d.get("tb_plan_groupes")} vs {d.get("tb_groupes")}')
+
+# ── LA PERSISTANCE (§4.4) — L'ECART DE NOMMAGE, DECLARE DANS LES DEUX SENS ─
+# Le §4.4 demande `deepotus.toolbar.open` ; la maison dit `dz_*`. MESURE le
+# 05/09/2026 sur le bundle livre : VINGT-CINQ cles `dz_*` distinctes contre
+# TROIS `deepotus.*` — et les trois vivent dans frontend/src, hors de portee
+# de cette chaine. Le §4.4 lui-meme tranche : « dans le même espace de
+# nommage que les panneaux existants ». CETTE LIGNE REJOUE LA MESURE : le
+# jour ou la maison bascule vers `deepotus.*`, elle rougit et la clef doit
+# etre rediscutee — elle ne se perime pas en silence.
+_CLES = set(re.findall(r'(?:localStorage|sessionStorage)\.'
+                       r'(?:get|set|remove)Item\(\s*"([^"]+)"', s))
+_DZ = {k for k in _CLES if k.startswith("dz_")}
+_DEEP = {k for k in _CLES if k.startswith("deepotus.")}
+check("tb_la_convention_de_cles_de_la_maison_est_toujours_dz_",
+      len(_DZ) >= 20 and len(_DZ) > len(_DEEP) * 4
+      and "dz_svm_theme" in _DZ and "dz_narr_open" in _DZ,
+      f"{len(_DZ)} cles dz_* contre {len(_DEEP)} deepotus.* — "
+      f"deepotus.*={sorted(_DEEP)}")
+# LA CLE EST POSEE PAR UNE CONSTANTE, pas par un litteral en ligne : la
+# regex ci-dessus, qui lit `getItem("…")`, ne la voit donc pas — et c'est
+# voulu, une cle nommee une fois ne peut pas diverger d'elle-meme. Ce qui se
+# mesure ici : le litteral EST dans le bundle, une seule fois, il porte le
+# prefixe de la maison ET celui de cet ecran (`dz_svm_`, comme
+# `dz_svm_theme`), il n'entre en collision avec AUCUNE cle deja employee, et
+# le nom du handoff n'est nulle part — l'ecart est fait, pas seulement dit.
+_LIT = '"' + str(d.get("tb_cle")) + '"'
+check("tb_la_cle_suit_la_maison_et_le_prefixe_de_cet_ecran",
+      d.get("tb_cle") == "dz_svm_tb_open"
+      and d["tb_cle"].startswith("dz_svm_") and s.count(nl(_LIT)) == 1
+      and d["tb_cle"] not in _DZ
+      and '"deepotus.toolbar' not in s
+      and "'deepotus.toolbar" not in s,
+      f'cle={d.get("tb_cle")!r} litteraux={s.count(nl(_LIT))} '
+      f'collision={d.get("tb_cle") in _DZ}')
+# LA FORME suit `dz_narr_open` : "1" / "0". Le magasin est INJECTE, donc la
+# ligne mesure QUELLE cle est lue et QUOI est ecrit — pas seulement que la
+# fonction rend un booleen.
+check("tb_open_lit_1_comme_ouvert_et_tout_le_reste_comme_replie",
+      d.get("tb_open_lit_1") == [True, "dz_svm_tb_open"]
+      and d.get("tb_open_lit_0") is False
+      and d.get("tb_open_lit_absent") is False
+      and d.get("tb_open_lit_autre") is False,
+      f'{d.get("tb_open_lit_1")} {d.get("tb_open_lit_0")} '
+      f'{d.get("tb_open_lit_absent")} {d.get("tb_open_lit_autre")}')
+check("tb_open_ecrit_la_bonne_cle_et_rend_ce_qu_elle_a_ecrit",
+      d.get("tb_open_ecrit") == [True, ["dz_svm_tb_open", "1"]]
+      and d.get("tb_open_ecrit_faux") == [False, ["dz_svm_tb_open", "0"]],
+      f'{d.get("tb_open_ecrit")} {d.get("tb_open_ecrit_faux")}')
+# UN MAGASIN QUI LEVE — navigation privee, politique de site restrictive.
+# La barre perd la MEMOIRE, jamais la bascule : `tbOpenSet` rend quand meme
+# la valeur demandee, donc l'ecran suit le clic.
+check("tb_un_magasin_indisponible_ne_casse_ni_la_lecture_ni_la_bascule",
+      d.get("tb_open_magasin_qui_leve") == [False, True]
+      and d.get("tb_open_sans_magasin") is False,
+      f'{d.get("tb_open_magasin_qui_leve")} '
+      f'{d.get("tb_open_sans_magasin")}')
+
+# ── LE CABLAGE : SEPT CABLES, DEUX ETEINTS-ET-DITS ────────────────────────
+# La regle du lot : la ou l'action existe et s'atteint sans travail neuf, on
+# la cable ; la ou elle ne s'atteint pas, le bouton est ETEINT et son `title`
+# le dit. Jamais un bouton qui a l'air vivant et ne fait rien.
+_CABLES = ["bibliotheque", "couleur", "glow", "piste-audio", "piste-video",
+           "rebond", "texte"]
+check("tb_le_cablage_rend_une_entree_par_bouton_du_plan",
+      d.get("tb_c_cles") == sorted(set(_TB_SPEC) - {"poignee"}),
+      f'{d.get("tb_c_cles")}')
+check("tb_sept_boutons_sont_cables_et_deux_sont_eteints_et_dits",
+      d.get("tb_c_actions") == _CABLES
+      and d.get("tb_c_eteints") == ["emoji", "projets"],
+      f'cables={d.get("tb_c_actions")} eteints={d.get("tb_c_eteints")}')
+# CE QUE L'ACTION TRANSMET, pas seulement qu'elle a ete appelee : une piste
+# video nait EN HAUT, une piste audio juste au-dessus des sous-titres, et les
+# identifiants sont les plus petits libres — c'est `dzmAdd`, la meme fonction
+# que le bouton du bandeau. Une action qui appellerait autre chose rendrait
+# une autre liste.
+check("tb_pistes_video_et_audio_appellent_la_meme_action_que_le_bandeau",
+      d.get("tb_c_video") == ["v2", "v1", "a1", "s1"]
+      and d.get("tb_c_audio") == ["v1", "a1", "a2", "s1"],
+      f'video={d.get("tb_c_video")} audio={d.get("tb_c_audio")}')
+check("tb_lier_ouvre_le_selecteur_sur_la_piste_video_resolue",
+      d.get("tb_c_lier") == ["v1"], f'{d.get("tb_c_lier")}')
+# SANS PISTE VIDEO : eteint, aucune action, et un titre QUI DIFFERE — il
+# nomme la sortie au lieu de laisser deviner.
+_LT = d.get("tb_c_lier_titres")
+check("tb_lier_s_eteint_sans_piste_video_et_le_dit_autrement",
+      d.get("tb_c_lier_sans_video") == [True, None]
+      and isinstance(_LT, list) and len(_LT) == 2
+      and _LT[0] != _LT[1] and len(_LT[0]) > 40 and len(_LT[1]) > 40
+      and "V1" in _LT[0] and "V1" not in _LT[1],
+      f'{d.get("tb_c_lier_sans_video")} titres={_LT}')
+# MOT — trois bascules ; celle qui vaut la valeur du projet est allumee, et
+# le clic transmet la valeur du bouton.
+check("tb_les_trois_bascules_de_MOT_refletent_la_valeur_du_projet",
+      d.get("tb_c_mot") == [[True, False, False], [True, True, False],
+                            [True, False, False]]
+      and d.get("tb_c_mot_defaut") == [True, False, False],
+      f'{d.get("tb_c_mot")} defaut={d.get("tb_c_mot_defaut")}')
+check("tb_le_clic_d_une_bascule_de_MOT_transmet_SA_valeur",
+      d.get("tb_c_mot_clic") == ["glow", "couleur"],
+      f'{d.get("tb_c_mot_clic")}')
+# LES TROIS CLES SORTENT DE LA TABLE DES ANIMATIONS, et leurs titres AUSSI :
+# une seconde liste aurait divergé de celle que la chip du bandeau emploie.
+check("tb_les_trois_bascules_sortent_de_la_table_des_animations",
+      d.get("tb_c_mot_cles") == ["couleur", "rebond", "glow"]
+      and d.get("tb_c_mot_titre_reprend") == [True, True, True],
+      f'{d.get("tb_c_mot_cles")} {d.get("tb_c_mot_titre_reprend")}')
+check("tb_texte_est_une_bascule_cablee_sur_l_etat_du_panneau",
+      d.get("tb_c_texte") == [True, True, False]
+      and d.get("tb_c_texte_clic") == 1
+      and d.get("tb_c_texte_eteint") is False,
+      f'{d.get("tb_c_texte")} clic={d.get("tb_c_texte_clic")} '
+      f'eteint={d.get("tb_c_texte_eteint")}')
+# LES DEUX MUETS : eteints, SANS action, et deux phrases DIFFERENTES qui
+# nomment l'etape. Un `title` vide passerait la negation seule.
+_MU = d.get("tb_c_muets")
+check("tb_emoji_et_projets_sont_eteints_et_leur_titre_nomme_l_etape_7",
+      isinstance(_MU, list) and len(_MU) == 2
+      and all(x[0] is True and x[1] is None and len(x[2]) > 60
+              and "étape 7" in x[2] for x in _MU)
+      and _MU[0][2] != _MU[1][2],
+      f'{_MU}')
+# UN CABLAGE SANS HOTE n'allume RIEN : c'est l'etat qu'aurait la barre si la
+# section du patcher perdait ses proprietes, et il doit etre inoffensif.
+check("tb_un_cablage_sans_hote_eteint_les_neuf_boutons",
+      d.get("tb_c_vide") == [9, 0], f'{d.get("tb_c_vide")}')
+
+# ── LE DOCK, LU DANS LA SOURCE ────────────────────────────────────────────
+# C'est le seul morceau a hooks du lot, donc le seul que node ne joue pas :
+# ce que cette ligne epingle est exactement ce que la mesure ne peut pas
+# atteindre. ELLE A ETE ECRITE APRES UNE MUTATION QUI PASSAIT : retirer
+# l'appel a `dzmTbFrame` du Dock — donc supprimer la restauration sans
+# animation du §4.4 — laissait le banc a 643/0, parce que `dzmTbFrame` etait
+# mesuree pour elle-meme et personne ne verifiait qu'on l'APPELLE.
+# Les bornes de taille sont un conjoint positif : sans elles, toutes les
+# negations seraient vraies d'un bloc introuvable.
+_i_dk = src.find("function DzmToolDock(o){")
+_j_dk = src.find("\n/* ", _i_dk) if _i_dk >= 0 else -1
+_DOCK = src[_i_dk:_j_dk] if 0 <= _i_dk < _j_dk else "DOCK-INTROUVABLE"
+check("tb_le_dock_restaure_persiste_et_rend_l_onglet_et_la_barre",
+      200 < len(_DOCK) < 1200
+      and "x.useState(dzmTbOpenGet)" in _DOCK
+      and "dzmTbOpenSet(!v)" in _DOCK and "dzmTbOpenSet(!1)" in _DOCK
+      and "x.useEffect(" in _DOCK and "dzmTbFrame(" in _DOCK
+      and "DzmToolTab({" in _DOCK and "DzmToolBar({" in _DOCK
+      and "items:dzmTbCablage(o)" in _DOCK and "anim:anim" in _DOCK,
+      f"dock={len(_DOCK)} o : {_DOCK[:160]!r}")
+# L'ETAT DE DEPART EST LU, PAS DEVINE : `x.useState(dzmTbOpenGet)` passe la
+# fonction en initialiseur PARESSEUX — React l'appelle une fois, sans
+# argument, donc sur le magasin du navigateur. `x.useState(dzmTbOpenGet())`
+# aurait relu localStorage a chaque rendu de l'ecran.
+check("tb_l_etat_de_depart_est_un_initialiseur_paresseux",
+      "x.useState(dzmTbOpenGet)" in _DOCK
+      and "x.useState(dzmTbOpenGet())" not in _DOCK,
+      f"dock={_DOCK[:160]!r}")
+
+# ── LA FRAME SUIVANTE (§4.4) ──────────────────────────────────────────────
+# LE §4.4 dit « poser l'état final, réactiver les transitions à la frame
+# suivante ». Ce chemin ne s'execute qu'au montage du composant a hooks, hors
+# de portee du banc — d'ou son extraction en fonction pure. ET ELLE A TROUVE
+# UN DEFAUT REEL : la premiere ecriture gardait `w.requestAnimationFrame`
+# dans une variable puis l'appelait nue, ce qui leve « Illegal invocation »
+# sous Blink et WebKit. Le faux navigateur mesure `this` ; aucune lecture de
+# source ne l'aurait vu.
+check("tb_la_frame_suivante_appelle_raf_sur_son_objet",
+      d.get("tb_frame_appelle_sur_son_objet") == [["raf", True, "function"],
+                                                  ["cancel", True, 7]],
+      f'{d.get("tb_frame_appelle_sur_son_objet")}')
+check("tb_sans_navigateur_ou_avec_une_demi_paire_on_retombe_sur_un_minuteur",
+      d.get("tb_frame_sans_navigateur") == "ok"
+      and d.get("tb_frame_moteur_incomplet") == [0, "ok"],
+      f'{d.get("tb_frame_sans_navigateur")} '
+      f'{d.get("tb_frame_moteur_incomplet")}')
+
+# ── L'ONGLET (§2.1) ───────────────────────────────────────────────────────
+check("tb_l_onglet_est_un_bouton_qui_porte_aria_expanded_et_aria_controls",
+      d.get("tb_o_balise") == ["button", "button"]
+      and d.get("tb_o_classe") == "dzm-tbtab"
+      and d.get("tb_o_aria") == ["true", "false", "dzm-toolbar"]
+      and d.get("tb_id") == "dzm-toolbar",
+      f'{d.get("tb_o_balise")} {d.get("tb_o_classe")} {d.get("tb_o_aria")}')
+# LES CINQ PASTILLES SONT L'APERCU DU CONTENU (§2.1) : cinq, dans l'ordre des
+# groupes, chacune portant la classe de teinte de son groupe.
+check("tb_l_onglet_montre_les_cinq_pastilles_puis_OUTILS_puis_le_chevron",
+      d.get("tb_o_enfants") == ["dzm-tbdots", "dzm-tblbl", "dzm-tbchev"]
+      and d.get("tb_o_pastilles") == ["dzm-tbdot dzm-g-" + _g
+                                      for _g in ("pistes", "biblio", "mot",
+                                                 "ajouts", "projets")]
+      and d.get("tb_o_libelle") == "OUTILS"
+      and d.get("tb_o_chevrons") == ["▾", "▴"],
+      f'{d.get("tb_o_enfants")} {d.get("tb_o_pastilles")} '
+      f'{d.get("tb_o_libelle")!r} {d.get("tb_o_chevrons")}')
+_OT = d.get("tb_o_titres")
+check("tb_l_onglet_bascule_et_dit_ce_qu_il_fera",
+      d.get("tb_o_clic") == 1 and d.get("tb_o_clic_sans_action") == "ok"
+      and isinstance(_OT, list) and len(_OT) == 2 and _OT[0] != _OT[1]
+      and len(_OT[0]) > 10 and len(_OT[1]) > 10,
+      f'clic={d.get("tb_o_clic")} titres={_OT}')
+check("tb_l_onglet_n_ecrit_aucune_couleur_ni_nom_de_variable_css",
+      d.get("tb_o_sans_couleur") is True, str(d.get("tb_o_sans_couleur")))
+
+# ── LA BARRE (§2.2) ───────────────────────────────────────────────────────
+check("tb_la_barre_porte_l_id_que_l_onglet_commande",
+      d.get("tb_r_balise") == ["div", "dzm-toolbar", "dzm-tbar"]
+      and d.get("tb_r_zones") == ["dzm-tbgrip", "dzm-tbzone", "dzm-tbwin"],
+      f'{d.get("tb_r_balise")} {d.get("tb_r_zones")}')
+# OUVERTE, `data-off` EST ABSENT (React ne pose pas un attribut `undefined`) ;
+# repliee, il vaut la chaine vide. Meme mecanique pour `data-noanim`, qui dit
+# « pose l'etat final sans transition » au premier rendu (§4.4).
+check("tb_l_etat_replie_et_l_etat_sans_animation_passent_par_deux_attributs",
+      d.get("tb_r_off") == [None, ""] and d.get("tb_r_noanim") == [None, ""],
+      f'off={d.get("tb_r_off")} noanim={d.get("tb_r_noanim")}')
+# LA POIGNEE porte le glyphe `poignee` du §3 a 14 px (§2.2a), ses six points,
+# et elle est `aria-hidden` : son sens est dans le `title`, pas dans l'icone.
+check("tb_la_poignee_est_le_glyphe_du_3_a_14_px_et_porte_son_titre",
+      d.get("tb_r_grip") == [14, "0 0 24 24", 6, True]
+      and isinstance(d.get("tb_r_grip_titre"), str)
+      and len(d["tb_r_grip_titre"]) > 60
+      and "étape 5" in d["tb_r_grip_titre"],
+      f'{d.get("tb_r_grip")} {d.get("tb_r_grip_titre")!r}')
+# LE FILET DE SEPARATION S'ARRETE AU DERNIER GROUPE (§2.2b) : `data-last` est
+# pose par le JS, pas devine par `:last-child`.
+check("tb_les_cinq_colonnes_portent_leur_teinte_et_le_dernier_filet_tombe",
+      d.get("tb_r_groupes") == [["dzm-tbgrp dzm-g-pistes", None],
+                                ["dzm-tbgrp dzm-g-biblio", None],
+                                ["dzm-tbgrp dzm-g-mot", None],
+                                ["dzm-tbgrp dzm-g-ajouts", None],
+                                ["dzm-tbgrp dzm-g-projets", ""]],
+      f'{d.get("tb_r_groupes")}')
+check("tb_l_entete_MOT_porte_son_suffixe_dans_un_element_a_part",
+      d.get("tb_r_entetes") == [[["dzm-tbht", "PISTES"]],
+                                [["dzm-tbht", "BIBLIOTHÈQUE"]],
+                                [["dzm-tbht", "MOT"],
+                                 ["dzm-tbsuf", " — sélection"]],
+                                [["dzm-tbht", "AJOUTS"]],
+                                [["dzm-tbht", "PROJETS"]]],
+      f'{d.get("tb_r_entetes")}')
+# LES NEUF BOUTONS, DANS L'ORDRE, AVEC LEUR ETAT : les deux colonnes a bouton
+# unique sont en `dzm-solo`, les quatre bascules portent `aria-pressed`, les
+# deux muets sont `disabled`. C'est la photographie complete de la barre.
+check("tb_les_neuf_boutons_sont_peints_avec_leur_etat",
+      d.get("tb_r_boutons") == [
+          ["dzm-tbb dzm-g-pistes", "vidéo", False, "ABSENT"],
+          ["dzm-tbb dzm-g-pistes", "audio", False, "ABSENT"],
+          ["dzm-tbb dzm-g-biblio dzm-solo", "lier", False, "ABSENT"],
+          ["dzm-tbb dzm-g-mot", "couleur", False, "false"],
+          ["dzm-tbb dzm-g-mot dzm-on", "rebond", False, "true"],
+          ["dzm-tbb dzm-g-mot", "glow", False, "false"],
+          ["dzm-tbb dzm-g-ajouts", "emoji", True, "ABSENT"],
+          ["dzm-tbb dzm-g-ajouts dzm-on", "texte", False, "true"],
+          ["dzm-tbb dzm-g-projets dzm-solo", "projets", True, "ABSENT"]],
+      f'{d.get("tb_r_boutons")}')
+# LES DEUX CONTROLES DE FENETRE (§2.2c). `⌖` est ETEINT : il n'a rien a
+# recentrer avant l'etape 5, et le §4.2 interdit de le MASQUER — eteint n'est
+# pas masque. `×` replie et le fait vraiment.
+check("tb_les_deux_controles_de_fenetre_sont_la_le_recentrage_eteint",
+      d.get("tb_r_win") == [
+          ["dzm-tbwb dzm-tbrc", "⌖", True, "Recentrer la barre d'outils"],
+          ["dzm-tbwb dzm-tbcl", "×", "ABSENT", "Replier la barre d'outils"]]
+      and d.get("tb_r_replier") == 1
+      and d.get("tb_r_replier_sans_action") == "ok",
+      f'{d.get("tb_r_win")} replier={d.get("tb_r_replier")}')
+# SANS CABLAGE la barre existe quand meme — cinq colonnes — et AUCUN de ses
+# neuf boutons n'est vivant. Le repli d'une entree manquante n'est pas `{}` :
+# `{}` aurait rendu neuf boutons d'apparence vivante sans action derriere.
+check("tb_une_barre_sans_cablage_n_allume_aucun_bouton",
+      d.get("tb_r_sans_items") == [5, 0], f'{d.get("tb_r_sans_items")}')
+check("tb_la_barre_n_ecrit_aucune_couleur_ni_nom_de_variable_css",
+      d.get("tb_r_sans_couleur") is True, str(d.get("tb_r_sans_couleur")))
+
+# ── L'ANCRAGE, REMESURE PAR LE BANC ───────────────────────────────────────
+# LE POINT OU CE TRAVAIL POUVAIT ECHOUER EN SILENCE. Le §2.1 le dit lui-meme :
+# « Vérifier qu'aucun conteneur parent ne le rogne ». La mesure est rejouee
+# ici pour qu'elle ne se perime pas : le jour ou une feuille pose un overflow
+# sur `.svm-tl`, l'onglet serait coupe a l'ecran et RIEN d'autre ne le dirait.
+
+
+def _sansc(t):
+    """Feuille SANS ses commentaires — indispensable : son-vfx-montage.css
+    parle de `.svm-scroll (déjà overflow:auto)` DANS un commentaire au-dessus
+    de `.svm-tl`, et un lecteur naif l'attribuerait a la regle."""
+    return re.sub(r"/\*.*?\*/", "", t, flags=re.S)
+
+
+def _corps_de(txt, fin):
+    """Corps de toutes les regles dont un selecteur FINIT par `fin`."""
+    out = []
+    for _m in re.finditer(r"([^{}]*)\{([^{}]*)\}", _sansc(txt)):
+        if any(x.strip().endswith(fin) for x in _m.group(1).split(",")):
+            out.append(_m.group(2))
+    return out
+
+
+_TL = (_corps_de(_HDCSS, ".svm-tl") + _corps_de(_MC, ".svm-tl")
+       + _corps_de(_lire(ROOT / "frontend" / "dist" / "shared" / "subs.css"),
+                   ".svm-tl"))
+_TRANS = _corps_de(_MC, ".svm-trans") + _corps_de(_HDCSS, ".svm-trans")
+_RACINE = _corps_de(_HDCSS, ".dzsvm")
+check("tb_aucun_parent_de_l_onglet_ne_le_rogne",
+      len(_TL) == 3 and not any("overflow" in b for b in _TL)
+      and len(_RACINE) >= 1
+      and any("overflow:hidden" in b and "position:absolute" in b
+              for b in _RACINE),
+      f"regles .svm-tl={len(_TL)} avec overflow="
+      f"{[b for b in _TL if 'overflow' in b]} ; racine={len(_RACINE)}")
+# LE BLOC CONTENEUR : sans `position:relative` sur le bandeau, `top:-21px`
+# se calerait sur la racine de l'ecran et l'onglet partirait en haut de page.
+check("tb_le_bandeau_devient_le_bloc_conteneur_de_l_onglet",
+      len(_TRANS) == 2
+      and any("position:relative" in b and "overflow:visible" in b
+              for b in _TRANS)
+      and any("height:34px" in b for b in _TRANS),
+      f"{_TRANS}")
+# LA CASCADE : la regle qui passe le bandeau en `relative` doit etre chargee
+# APRES celle qui le laisse `static`. Mesure sur le fichier que le navigateur
+# lit, pas sur une intention.
+_HTML = _lire(ROOT / "frontend" / "dist" / "index.html")
+_i_sv = _HTML.find("/shared/son-vfx-montage.css")
+_i_mc = _HTML.find("/shared/montage.css")
+check("tb_montage_css_est_chargee_apres_son_vfx_montage_css",
+      _i_sv >= 0 and _i_mc > _i_sv, f"son-vfx={_i_sv} montage={_i_mc}")
+# LE z-index, REDERIVE. 8 n'est pas un gout : c'est le seul entier libre
+# entre le plafond du CONTENU de la timeline et le premier POPOVER. Si l'un
+# des deux bouge, cette ligne rougit et le nombre doit etre rediscute.
+_ZT = []
+for _f in (_MC, _HDCSS,
+           _lire(ROOT / "frontend" / "dist" / "shared" / "subs.css")):
+    for _m in re.finditer(r"([^{}]*)\{([^{}]*z-index:\s*(-?\d+)[^{}]*)\}",
+                          _sansc(_f)):
+        _ZT.append((_m.group(1).strip(), int(_m.group(3))))
+_ZB = [v for sel, v in _ZT if "dzm-tbar" in sel or "dzm-tbtab" in sel]
+_ZA = [v for sel, v in _ZT if "dzm-tbar" not in sel and "dzm-tbtab" not in sel]
+check("tb_le_z_index_8_est_le_seul_entier_libre_entre_le_contenu_et_les_popovers",
+      len(_ZB) == 2 and set(_ZB) == {8}
+      and len(_ZA) >= 20 and 8 not in _ZA
+      and max(v for v in _ZA if v < 8) == 7
+      and min(v for v in _ZA if v > 8) == 9,
+      f"barre={_ZB} ; sous={sorted(v for v in _ZA if v < 8)[-3:]} ; "
+      f"dessus={sorted(v for v in _ZA if v > 8)[:3]}")
+
+# ── LA FEUILLE HABILLE L'ONGLET ET LA BARRE ───────────────────────────────
+# LE BLOC DE LA BARRE dans la feuille, borne par son en-tete : les
+# negations ci-dessous ne doivent porter QUE sur lui. `cursor:grab` vit
+# deja plus haut, sur `.dzm-hb`, et une negation a l'echelle du fichier
+# rougirait sur du code etranger a ce lot.
+# LE DECOUPAGE PART DU  OUVRANT, pas du texte de l'en-tete : couper au
+# milieu d'un commentaire laisse son contenu sans marqueur d'ouverture, et
+# le retrait des commentaires ne le voit plus. Mesure : la phrase « pas de
+# cursor:grab » survivait a _sansc et faisait rougir sa propre negation.
+_i_mc4 = _MC.rfind("/*", 0, _MC.find("L'ONGLET ET LA BARRE (handoff"))
+_MC_TB4 = _sansc(_MC[_i_mc4:]) if _i_mc4 >= 0 else "BLOC-INTROUVABLE"
+_R_TAB = _regle(_MC, ".dzsvm .dzm-tbtab{")
+_R_TABO = _regle(_MC, '.dzsvm .dzm-tbtab[aria-expanded="true"]{')
+_R_DOT = _regle(_MC, ".dzsvm .dzm-tbdot{")
+_R_DOTS = _regle(_MC, ".dzsvm .dzm-tbdots{")
+_R_BAR = _regle(_MC, ".dzsvm .dzm-tbar{")
+_R_BOFF = _regle(_MC, ".dzsvm .dzm-tbar[data-off]{")
+_R_BNA = _regle(_MC, ".dzsvm .dzm-tbar[data-noanim]{")
+_R_GRIP = _regle(_MC, ".dzsvm .dzm-tbgrip{")
+_R_ZONE = _regle(_MC, ".dzsvm .dzm-tbzone{")
+_R_GRP = _regle(_MC, ".dzsvm .dzm-tbgrp{")
+_R_GRPL = _regle(_MC, ".dzsvm .dzm-tbgrp[data-last]{")
+_R_HEAD = _regle(_MC, ".dzsvm .dzm-tbhead{")
+_R_SUF = _regle(_MC, ".dzsvm .dzm-tbsuf{")
+_R_WIN = _regle(_MC, ".dzsvm .dzm-tbwin{")
+_R_WB = _regle(_MC, ".dzsvm .dzm-tbwb{")
+_R_WBD = _regle(_MC, ".dzsvm .dzm-tbwb[disabled]{")
+_R_WBH = _regle(_MC, ".dzsvm .dzm-tbwb:hover:not([disabled]){")
+check("tb_la_geometrie_de_l_onglet_est_celle_du_2_1",
+      _R_TAB is not None and "top:-21px" in _R_TAB and "left:14px" in _R_TAB
+      and "height:21px" in _R_TAB and "padding:0 11px" in _R_TAB
+      and "border-bottom:0" in _R_TAB and "border-radius:0" in _R_TAB
+      and "gap:8px" in _R_TAB and "font-size:10px" in _R_TAB
+      and "letter-spacing:.1em" in _R_TAB
+      and _R_DOTS is not None and "gap:2px" in _R_DOTS
+      and _R_DOT is not None and "width:5px" in _R_DOT
+      and "height:5px" in _R_DOT,
+      f"tab={_R_TAB!r} dot={_R_DOT!r}")
+# LES DEUX ETATS DE L'ONGLET viennent du tableau du §2.1, et la porte est
+# `aria-expanded` : l'apparence ne peut pas dire « ouvert » pendant que le
+# lecteur d'ecran annonce « replie ».
+check("tb_l_onglet_ouvert_se_lit_d_une_piece_avec_la_barre",
+      _R_TAB is not None and "background:var(--srf-raised," in _R_TAB
+      and "color:var(--txt-mid," in _R_TAB
+      and _R_TABO is not None and "background:var(--srf-panel," in _R_TABO
+      and "color:var(--txt-hi," in _R_TABO,
+      f"tab={_R_TAB!r} ouvert={_R_TABO!r}")
+check("tb_la_geometrie_de_la_barre_est_celle_du_2_2",
+      _R_BAR is not None and "position:absolute" in _R_BAR
+      and "left:14px" in _R_BAR and "top:calc(100% + 8px)" in _R_BAR
+      and "display:flex" in _R_BAR and "align-items:stretch" in _R_BAR
+      and "border-radius:0" in _R_BAR
+      and "background:var(--bar-srf," in _R_BAR
+      and "border:1px solid var(--bar-brd," in _R_BAR
+      and "box-shadow:var(--bar-shadow," in _R_BAR,
+      f"bar={_R_BAR!r}")
+# L'OMBRE PORTEE EST LE SEUL SIGNAL DE FLOTTEMENT (§1.3) : ni flou
+# d'arriere-plan, ni fond translucide — la timeline defile dessous et les
+# icones deviendraient illisibles pendant la lecture. Conjoint positif :
+# l'ombre EST la.
+check("tb_la_barre_flotte_par_son_ombre_et_par_rien_d_autre",
+      _R_BAR is not None and "box-shadow:var(--bar-shadow," in _R_BAR
+      and "backdrop-filter" not in _MC
+      and "background:var(--bar-srf," in _R_BAR,
+      f"bar={_R_BAR!r}")
+# LE REPLI (§4.1) : opacite et 6 px, JAMAIS la hauteur. La `visibility` est
+# retardee a la fin de la transition pour que le repli s'anime, puis elle
+# retire les neuf boutons du parcours de tabulation.
+check("tb_le_repli_anime_l_opacite_et_six_pixels_jamais_la_hauteur",
+      _R_BOFF is not None and "opacity:0" in _R_BOFF
+      and "transform:translateY(6px)" in _R_BOFF
+      and "visibility:hidden" in _R_BOFF
+      and "pointer-events:none" in _R_BOFF
+      and "height" not in _R_BOFF
+      and "var(--dur-bar-open," in _R_BOFF
+      and "var(--ease-panel," in _R_BOFF
+      and "visibility 0s linear var(--dur-bar-open," in _R_BOFF,
+      f"off={_R_BOFF!r}")
+check("tb_la_restauration_pose_l_etat_final_sans_transition",
+      _R_BNA is not None and "transition:none" in _R_BNA, f"{_R_BNA!r}")
+# LA POIGNEE EST INERTE, ET LA FEUILLE LE DIT AVEC ELLE : pas de `grab`, pas
+# d'etat de survol. Un curseur de saisie sur un objet qui ne bouge pas est un
+# mensonge ; les deux reviennent avec l'etape 5.
+check("tb_la_poignee_est_dessinee_mais_ne_promet_pas_de_saisie",
+      _R_GRIP is not None and "width:26px" in _R_GRIP
+      and "cursor:default" in _R_GRIP
+      and "background:var(--srf-raised," in _R_GRIP
+      and "border-right:1px solid var(--brd-hard," in _R_GRIP
+      and "cursor:grab" not in _MC_TB4
+      and ".dzm-tbgrip:hover" not in _MC_TB4
+      and len(_MC_TB4) > 2000,
+      f"grip={_R_GRIP!r}")
+check("tb_les_colonnes_de_groupe_ont_leur_gouttiere_et_leur_filet",
+      _R_ZONE is not None and "padding:9px 10px 8px" in _R_ZONE
+      and _R_GRP is not None and "padding:0 11px" in _R_GRP
+      and "border-right:1px solid var(--brd-soft," in _R_GRP
+      and _R_GRPL is not None and "border-right:0" in _R_GRPL
+      and _R_HEAD is not None and "font-size:8.5px" in _R_HEAD
+      and "letter-spacing:.14em" in _R_HEAD
+      and "padding:0 4px 7px" in _R_HEAD
+      and "color:var(--grp," in _R_HEAD
+      and _R_SUF is not None and "opacity:.5" in _R_SUF
+      and "letter-spacing:.06em" in _R_SUF,
+      f"zone={_R_ZONE!r} grp={_R_GRP!r} head={_R_HEAD!r} suf={_R_SUF!r}")
+check("tb_les_controles_de_fenetre_sont_habilles_et_le_recentrage_reste_eteint",
+      _R_WIN is not None and "width:26px" in _R_WIN
+      and "border-left:1px solid var(--brd-hard," in _R_WIN
+      and _R_WB is not None and "flex:1" in _R_WB
+      and _R_WBH is not None and "color:var(--accent," in _R_WBH
+      and "background:#1e242b" in _R_WBH
+      and _R_WBD is not None and "opacity:.38" in _R_WBD
+      and "cursor:not-allowed" in _R_WBD,
+      f"win={_R_WIN!r} wb={_R_WB!r} hover={_R_WBH!r} dis={_R_WBD!r}")
+
+# ── CE QUE CE LOT FAIT, ET CE QU'IL NE FAIT PAS ───────────────────────────
+# L'ANCIENNE LIGNE DISAIT « aucune section ne monte la barre » EN CHERCHANT
+# `dzm-tbb`, `ToolBtn` et `DzTracks.TbIcon` DANS LES SECTIONS. Elle est
+# restee VERTE quand l'etape 4 a monte la barre : la section monte un Dock
+# qui monte la barre qui monte les boutons, et aucun des trois jetons
+# cherches n'y apparait. C'etait une assertion verte sur ce qu'elle croyait
+# tester — faute n°2. Elle est remplacee par une mesure qui DECIDE : la
+# section qui monte le dock existe, une seule fois, et elle passe les six
+# proprietes du cablage.
 _SECTIONS = "".join(r for _t, _a, r in P.PATCHES)
-check("tb_etape_4_a_8_non_livrees_aucune_section_ne_monte_la_barre",
-      "dzm-tbb" not in _SECTIONS and "ToolBtn" not in _SECTIONS
-      and "DzTracks.TbIcon" not in _SECTIONS
+# LES SIX PROPRIETES SONT MESUREES DANS LA SECTION, PAS DANS LE BUNDLE, et
+# c'est une correction : la premiere version cherchait `onPick:openPicker`
+# DANS LE BUNDLE. MESURE par mutation — la propriete retiree de R_M19, le
+# banc restait a 632/0 : M8 ecrit deja `onPick:openPicker` pour le bouton
+# « Bibliothèque… », et la sous-chaine etait donc trouvee ailleurs. Faute
+# n°2, forme « sous-chaine ». Les deux faces sont gardees desormais : la
+# propriete est DANS la section, et le bundle en porte le compte attendu —
+# DEUX `onPick:openPicker` (le bouton du bandeau et la barre), un seul de
+# chacune des cinq autres.
+_P_M19 = ("tracks:svmTracksOf(proj)", "onTracks:svmTracksSet",
+          "onPick:openPicker", "wordAnim:(proj.subsStyle||{}).wordAnim",
+          "onWordAnim:function(v){subsStyleSet(", "textOn:dzTextOn",
+          "onText:function(){setDzTextOn(!dzTextOn)}")
+check("tb_une_seule_section_monte_le_dock_et_lui_passe_le_cablage",
+      _SECTIONS.count("DzTracks.ToolDock") == 1
+      and s.count(nl("r.jsx(DzTracks.ToolDock,{")) == 1
+      and all(_p in P.R_M19 for _p in _P_M19)
+      and all(nl(_p) in s for _p in _P_M19)
+      and s.count(nl("onPick:openPicker")) == 2
+      and s.count(nl("onTracks:svmTracksSet")) == 1
       and len(_SECTIONS) > 10000,
-      f"{len(_SECTIONS)} o de sections — une section monte deja la barre")
+      f'{_SECTIONS.count("DzTracks.ToolDock")} section(s) ; manquantes dans '
+      f'R_M19 : {[p for p in _P_M19 if p not in P.R_M19]} ; '
+      f'onPick={s.count(nl("onPick:openPicker"))}')
+# CONTROLE A DEUX FACES, comme M10/M12/M13/M14/M16lib : R_M19 appelle sept
+# identifiants du bundle et UN du contrat de la couche. Verifier la seule
+# declaration laisserait passer un appel renomme ; verifier le seul appel ne
+# verrait pas la declaration disparaitre. MESURE qui fonde cette forme :
+# renommer `addAsset` avait laisse un banc a 255/0 avec sept appelants morts.
+# `ToolDock` est le cas le plus expose : le patcher ecrit `DzTracks.ToolDock`
+# dans le bundle, et si la couche renommait son export, la section
+# appellerait `undefined` — le bundle passerait `node --check`, l'ecran
+# leverait au premier rendu, et le texte cherche serait toujours la.
+for _nm, _decl in (("svmTracksOf", "function svmTracksOf(proj){"),
+                   ("svmTracksSet", "function svmTracksSet(ts){"),
+                   ("openPicker", "function openPicker(trId){"),
+                   ("subsStyleSet", "function subsStyleSet(patch){"),
+                   ("dzTextOn", "var stDzTx=x.useState(!1),dzTextOn="),
+                   ("setDzTextOn", "setDzTextOn=stDzTx[1];"),
+                   ("proj", "proj=stP[0],setProj=stP[1];")):
+    _ap = re.search(r"\b%s\b" % re.escape(_nm), P.R_M19) is not None
+    check("M19_appelle_" + _nm + "_qui_est_declare",
+          _ap and s.count(nl(_decl)) >= 1,
+          f"appele={_ap} declare={s.count(nl(_decl))} ({_decl})")
+check("M19_ToolDock_est_exporte_par_le_contrat_de_la_couche",
+      "DzTracks.ToolDock" in P.R_M19
+      and "ToolDock:DzmToolDock" in src
+      and s.count(nl("ToolDock:DzmToolDock")) == 1
+      and "function DzmToolDock(" in src,
+      f'contrat={"ToolDock:DzmToolDock" in src} '
+      f'bundle={s.count(nl("ToolDock:DzmToolDock"))}')
+# Les deux autres composants de l'etape 4 sont exportes eux aussi : ils ne
+# sont appeles que par le Dock aujourd'hui, mais c'est par eux que le banc
+# les joue sous node — sans l'export, cinquante lignes plus haut rougiraient
+# et aucune ne dirait pourquoi.
+check("tb_l_onglet_la_barre_et_le_cablage_sont_dans_le_contrat",
+      all(_x in src for _x in ("ToolTab:DzmToolTab", "ToolBar:DzmToolBar",
+                               "tbCablage:dzmTbCablage",
+                               "tbOpenGet:dzmTbOpenGet",
+                               "tbOpenSet:dzmTbOpenSet",
+                               "TB_PLAN:DZM_TB_PLAN",
+                               "TB_CLE_OPEN:DZM_TB_CLE_OPEN"))
+      and all(s.count(nl(_x)) == 1 for _x in ("ToolTab:DzmToolTab",
+                                              "ToolBar:DzmToolBar")),
+      "le contrat a perdu une des pieces de l'etape 4")
+# L'ONGLET ET LA BARRE SONT DEUX ENFANTS DU BANDEAU : c'est ce qui rend
+# `top:-21px` relatif AU BANDEAU (§2.1), et donc tout le §2.1.
+# LA MESURE EST STRUCTURELLE, pas positionnelle : l'ancre EST l'ouverture du
+# bandeau, elle est unique dans le bundle, le remplacement la REPREND en
+# tete, et le dock est pose dans ce qui suit — donc dans les `children` du
+# bandeau. Une version anterieure comparait des INDEX (« le dock avant le
+# timecode ») : elle epinglait un fait vrai mais sans consequence — les deux
+# noeuds sont absolus, l'ordre entre freres ne change rien a l'ecran — et
+# elle restait verte sur ce qui compte.
+check("tb_le_dock_est_monte_dans_le_bandeau_de_transport",
+      P.A_M19 == 'r.jsxs("div",{className:"svm-trans",children:['
+      and s.count(nl(P.A_M19)) == 1
+      and P.R_M19.startswith(P.A_M19)
+      and "r.jsx(DzTracks.ToolDock,{" in P.R_M19[len(P.A_M19):],
+      f"ancre={P.A_M19!r} reprise={P.R_M19.startswith(P.A_M19)} "
+      f"occurrences={s.count(nl(P.A_M19))}")
+# ETAPES 5 A 8, TOUJOURS DEHORS — et la ligne le mesure sur la COUCHE, pas
+# sur les sections : c'est la couche qui porterait le deport, le clavier et
+# `role="toolbar"`. Conjoint positif d'abord, sinon la ligne serait vraie
+# d'un fichier vide.
+_i_tb4 = src.find("\u00c9TAPE 4 DU \u00a79 : LA BARRE ET SON ONGLET")
+_j_tb4 = src.find("/* \u2500\u2500 export contrat", _i_tb4) if _i_tb4 >= 0 else -1
+_SRC_TB = src[_i_tb4:_j_tb4] if 0 <= _i_tb4 < _j_tb4 else "BLOC-INTROUVABLE"
+check("tb_les_etapes_5_a_8_ne_sont_pas_livrees",
+      len(_SRC_TB) > 6000 and "function DzmToolBar(" in _SRC_TB
+      and "function DzmToolDock(" in _SRC_TB
+      and "pointermove" not in _SRC_TB and "pointerdown" not in _SRC_TB
+      and 'role:"toolbar"' not in _SRC_TB and "tabIndex" not in _SRC_TB
+      and "TB_CLE_OFFSET" not in _SRC_TB,
+      f"bloc={len(_SRC_TB)} o — la couche porte deja un morceau des "
+      f"etapes 5 a 8, ou le bloc de la barre est introuvable")
+# LA DUPLICATION TRANSITOIRE, EPINGLEE : les neuf controles du bandeau sont
+# TOUJOURS LA. Le §5.1 l'interdit a terme, le §9 l'impose d'ici la (« *après*
+# que la barre fonctionne, jamais avant »). Le jour ou l'etape 6 les retire,
+# CETTE ligne rougit — elle est le rappel du reste assume, pas une
+# interdiction.
+check("tb_reste_assume_les_neuf_controles_sont_encore_dans_le_bandeau",
+      all(_j in _SECTIONS for _j in ("DzTracks.TrackAdd", "DzTracks.LibBtn",
+                                     "DzTracks.WordAnimChip",
+                                     "DzTracks.EmojiBtn",
+                                     "DzTracks.Projects", "dzm-txton")),
+      "l'etape 6 (§5.1) a commence : la duplication transitoire est soldee, "
+      "cette ligne doit disparaitre avec elle")
+# LA SOURCE UNIQUE DES BASCULES, tant que la duplication dure : la chip du
+# bandeau et la barre LISENT toutes deux `proj.subsStyle`, aucune n'en garde
+# de copie. C'est ce qui rend la duplication supportable sans enfreindre le
+# §5.1 (« deux sources de vérité pour l'état des bascules »).
+check("tb_la_chip_et_la_barre_lisent_la_meme_source_pour_MOT",
+      s.count(nl('(proj.subsStyle||{}).wordAnim||"couleur"')) == 2
+      and s.count(nl("onWordAnim:function(v){subsStyleSet({wordAnim:v})}")) == 1
+      and s.count(nl("onChange:function(v){subsStyleSet({wordAnim:v})}")) == 1,
+      f'lectures={s.count(nl(chr(34) + "couleur" + chr(34)))}')
 
 # LA LIGNE QUI DIT QUE LE BANC A ROUGI PLUTOT QUE MEURE : aucun appel garde
 # n'a pose de temoin. Une panne de node — introuvable, ou un shim qui tourne

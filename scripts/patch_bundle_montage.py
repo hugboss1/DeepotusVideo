@@ -1415,6 +1415,54 @@ R_M18A = ("    /* P11 — plus de plafond : la longueur d'un clip est celle de\n
           "    return DzTracks.clipLen(kind,srcDur,"
           "{image:4,audio:8,video:6});\n")
 
+# ── M19 (étape 4 du handoff « Barre Outils Flottante », §9) : l'onglet OUTILS
+#    et la barre, montés DANS le bandeau de transport ───────────────────────
+# L'ANCRE EST L'OUVERTURE DU BANDEAU, et il en fallait une nouvelle : A_M8 est
+# consommée par M8, et M10/M11b/M14 s'y greffent déjà. Mesurée UNIQUE le
+# 05/09/2026 — une seule occurrence dans le bundle, comme `className:"svm-trans"`
+# lui-même. C'est aussi la SEULE ancre qui place les deux nœuds au bon endroit :
+# le §2.1 pose l'onglet à `top:-21px` RELATIVEMENT AU BANDEAU, il doit donc en
+# être un enfant, et /shared/montage.css passe `.svm-trans` en `position:relative`
+# pour cela (la chaîne des parents y est écrite en entier — aucun ne le rogne).
+#
+# LES DEUX NŒUDS SONT ABSOLUS, donc HORS FLUX : le bandeau est un conteneur
+# flex à `gap:12px`, et un enfant en `position:absolute` n'est pas un élément
+# flex — il ne prend pas de place et n'ouvre pas d'intervalle. Le bandeau garde
+# donc exactement la largeur et les 34 px qu'il avait.
+#
+# `DzTracks.ToolDock`, PAS `DzMontage` : le bundle déclare déjà une fonction
+# `DzMontage` au premier niveau (l'écran Montage lui-même), et redéclarer ce nom
+# est une SyntaxError en sémantique module — celle sous laquelle index.html
+# charge le bundle. Même raison qu'en M10 et M14.
+#
+# LES SIX PROPRIÉTÉS SONT LE CÂBLAGE ATTEIGNABLE SANS TRAVAIL NEUF (§6 : « la
+# barre est un nouveau point d'entrée, pas une nouvelle implémentation ») :
+#   tracks / onTracks  — `svmTracksOf(proj)` et `svmTracksSet`, exactement ce que
+#                        `DzTracks.TrackAdd` reçoit en M8 : même appel, autre porte
+#   onPick             — `openPicker`, celui de « Bibliothèque… » en M8
+#   wordAnim/onWordAnim— la MÊME expression qu'en M10 : `proj.subsStyle` est la
+#                        source unique, la chip et la barre la LISENT toutes deux
+#   textOn / onText    — l'état du panneau « Texte » de M11a, basculé comme en M11b
+# `emoji` et `projets` ne reçoivent RIEN, et c'est délibéré : leurs actions
+# vivent à l'intérieur de leurs composants (état d'attente pour l'un, état
+# d'ouverture pour l'autre) et ne sont pas atteignables de l'extérieur. La couche
+# les rend ÉTEINTS avec un `title` qui nomme l'étape 7. Jamais un bouton qui a
+# l'air vivant et ne fait rien.
+#
+# DUPLICATION TRANSITOIRE, ASSUMÉE : les neuf contrôles restent dans le bandeau
+# tant que l'étape 6 (§5.1) ne les a pas retirés — le §9 l'impose dans cet ordre
+# (« *après* que la barre fonctionne, jamais avant »).
+A_M19 = 'r.jsxs("div",{className:"svm-trans",children:['
+R_M19 = (A_M19 + "\n"
+         "        /* étape 4 du handoff « Barre Outils Flottante » : l'onglet\n"
+         "           OUTILS et la barre flottante. Les deux sont absolus, donc\n"
+         "           hors du flux flex de ce bandeau : rien n'y bouge. */\n"
+         "        r.jsx(DzTracks.ToolDock,{tracks:svmTracksOf(proj),"
+         "onTracks:svmTracksSet,onPick:openPicker,"
+         "wordAnim:(proj.subsStyle||{}).wordAnim||\"couleur\","
+         "onWordAnim:function(v){subsStyleSet({wordAnim:v})},"
+         "textOn:dzTextOn,onText:function(){setDzTextOn(!dzTextOn)}}),")
+
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
            ("M5-payload", A_M5, R_M5), ("M6-save", A_M6, R_M6),
@@ -1445,7 +1493,9 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M17f-relachement-ajuste", A_M17F, R_M17F),
            ("M17g-transport-duree", A_M17G, R_M17G),
            # P11 — un clip entre à la longueur de sa source.
-           ("M18a-plafond-source", A_M18A, R_M18A)]
+           ("M18a-plafond-source", A_M18A, R_M18A),
+           # Étape 4 du handoff « Barre Outils Flottante ».
+           ("M19-barre-outils", A_M19, R_M19)]
 
 
 def nl(text, crlf):

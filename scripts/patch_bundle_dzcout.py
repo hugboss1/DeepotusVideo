@@ -52,6 +52,18 @@ MARKER_ATTENDU = 7      # définition + window x2 + infobulle + total + puce x2
 # Sondes des maillons AMONT : si l'un de ces comptes bouge, c'est qu'un
 # patcher amont a été rejoué seul et a effacé ce qui le suivait.
 #
+# `montage` : 32 → 33 le 05/09/2026 (TROISIÈME mise à jour du jour).
+# L'étape 4 du handoff « Barre Outils Flottante » monte l'onglet OUTILS et la
+# barre dans le bandeau de transport (section M19) : UNE référence de plus au
+# contrat, `DzTracks.ToolDock`, et rien d'autre — le reste de la barre (le
+# câblage, les deux composants, la persistance) vit dans la couche, qui est
+# injectée en bloc et compte déjà ses cinq occurrences.
+# COMPTÉ DES DEUX CÔTÉS AVANT D'ÉCRIRE CE NOMBRE : 32 dans le bundle de
+# a3eaee3 (`git show HEAD:… | count`), 33 après M19 ; delta = 1 =
+# `DzTracks.ToolDock`. Et LA SONDE A ENCORE FAIT SON TRAVAIL : elle a refusé
+# de tourner sur 33 tant que cette ligne disait 32, et la chaîne s'est
+# arrêtée là au lieu d'écrire un bundle à moitié réécrit.
+#
 # `montage` : 29 → 32 le 05/09/2026 (SECONDE mise à jour du jour). P11 (« un
 # clip entre à la longueur de sa source ») ajoute TROIS références au contrat
 # `DzTracks` dans le bundle, toutes dans `addAsset` : `DzTracks.clipLen` (le
@@ -82,7 +94,7 @@ STABLE_PROBES = [
     ("print3d", "__dzPrint3d", 3),
     ("navrail", "dz_nav_collapsed", 2),
     ("dzdesign", "__dzCatBar", 2),
-    ("montage", "DzTracks", 32),
+    ("montage", "DzTracks", 33),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

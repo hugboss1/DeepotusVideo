@@ -445,3 +445,164 @@
 @media (prefers-reduced-motion:reduce){
   .dzsvm .dzm-tbb:active{transform:none}
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   BARRE D'OUTILS DÉPORTABLE — L'ONGLET ET LA BARRE (handoff « Barre Outils
+   Flottante » §2.1, §2.2 et §4.1 ; étape 4 de son §9).
+   LE DÉPORT N'EST PAS ICI (§4.2, étape 5) : aucune règle de ce bloc ne pose
+   de translation de position ni de `cursor:grab`.
+
+   CORRESPONDANCE DES NOMS — celle de DESIGN.md §15-bis, déjà appliquée au
+   bouton d'action plus haut : le handoff nomme --srf-panel / --srf-raised /
+   --srf-hover / --brd-hard / --brd-soft / --txt-*, dans cette base ce sont
+   --bg-panel / --bg-panel-2 / --bg-panel-3 / --stroke / --ink*, et CE SONT
+   ELLES qui font foi. IBM Plex Mono est demandé, --f-mono (JetBrains Mono)
+   est servi. Écarts assumés, les mêmes que partout ailleurs ici.
+
+   ── L'ANCRAGE DE L'ONGLET, MESURÉ — c'est le point où ce travail pouvait
+   échouer en silence, et le §2.1 le dit lui-même (« Vérifier qu'aucun
+   conteneur parent ne le rogne »).
+   Le bandeau fixe EST `.svm-trans` : mesuré le 05/09/2026, une seule
+   occurrence de `className:"svm-trans"` dans le bundle, premier enfant de
+   `.svm-tl`. Il est régi par shared/son-vfx-montage.css l.306
+   (`height:34px; flex:none; display:flex; align-items:center; gap:12px;
+   padding:0 14px`) et par RIEN d'autre : aucune autre feuille livrée ne le
+   nomme. Il est donc `position:static`, et l'onglet du §2.1 exige un bloc
+   conteneur — d'où la règle ci-dessous. Elle gagne par la CASCADE
+   (dist/index.html charge son-vfx-montage.css l.17 puis montage.css l.21)
+   ET par la spécificité (0,2,0 contre 0,1,0) : les deux, pas l'une des deux.
+
+   LA CHAÎNE DES PARENTS, ENTIÈRE, ET AUCUN NE ROGNE :
+     .svm-trans → .svm-tl → .dzsvm.svm-col (racine de l'écran)
+   • `.svm-tl` ne déclare AUCUN overflow — vérifié dans les trois règles qui
+     le touchent : son-vfx-montage.css l.303, montage.css l.18, subs.css
+     l.30. Il vaut donc `visible`.
+   • `.dzsvm` déclare `overflow:hidden` (son-vfx-montage.css l.50) — c'est LE
+     rognage de l'écran, mais il tombe au bord de la fenêtre : la racine est
+     `position:absolute; inset:0`, et au-dessus de `.svm-tl` vivent la barre
+     de titre (48px) et toute la zone lecteur. Les 21px de débord de l'onglet
+     n'en approchent pas.
+   `overflow:visible` est écrit quand même, et c'est un VERROU, pas une
+   redite : c'est la valeur par défaut aujourd'hui, et une règle posée demain
+   sur `.svm-trans` couperait l'onglet sans un pixel d'avertissement.
+
+   ── z-index 8, MESURÉ des deux côtés. Recensées dans les trois feuilles de
+   l'écran, les couches empilées vont de 0 à 20 : le CONTENU de la timeline
+   plafonne à 7 (`.sub-hud`), les POPOVERS commencent à 9 (`.dzm-projp`) puis
+   10 (`.svm-transpop`), les MODALES sont à 20 (`.svm-pop`, `.svm-kbscrim`).
+   La barre doit passer au-dessus de la timeline et sous tout ce qui s'ouvre
+   par-dessus elle : 8 est le seul entier qui tienne les deux. Le prototype
+   dit `z-index:20` — écart délibéré : il n'a ni popover ni modale à laisser
+   passer. `.svm-trans` reçoit `position:relative` SANS z-index, donc aucun
+   contexte d'empilement nouveau : les 8 se comparent bien aux 9 et aux 20. */
+.dzsvm .svm-trans{position:relative; overflow:visible}
+
+/* ── L'ONGLET (§2.1) — 21px de haut, à cheval sur le bord supérieur ─────── */
+.dzsvm .dzm-tbtab{position:absolute; top:-21px; left:14px; z-index:8;
+  height:21px; padding:0 11px; box-sizing:border-box;
+  display:flex; align-items:center; gap:8px;
+  border:1px solid var(--bar-brd, #2a323b); border-bottom:0; border-radius:0;
+  background:var(--srf-raised, var(--bg-panel-2, #171c22));
+  color:var(--txt-mid, var(--ink-soft, #8b959f));
+  font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace);
+  font-size:10px; font-weight:500; letter-spacing:.1em; line-height:1;
+  cursor:pointer; white-space:nowrap}
+/* BARRE OUVERTE : l'onglet et la barre se lisent comme une seule pièce. La
+   porte est `aria-expanded`, pas une classe : l'attribut est OBLIGATOIRE au
+   §4.1, et peindre depuis lui interdit qu'un jour l'apparence dise
+   « ouvert » pendant que le lecteur d'écran annonce « replié ». */
+.dzsvm .dzm-tbtab[aria-expanded="true"]{
+  background:var(--srf-panel, var(--bg-panel, #13171c));
+  color:var(--txt-hi, var(--ink-strong, #eef2f6))}
+/* LES CINQ PASTILLES — l'aperçu du contenu. La teinte vient de la classe
+   `dzm-g-<groupe>` posée par le JS, qui définit --grp sur la pastille
+   elle-même : aucun nom de variable n'est fabriqué. */
+.dzsvm .dzm-tbdots{display:flex; gap:2px; flex:none}
+.dzsvm .dzm-tbdot{width:5px; height:5px; flex:none;
+  background:var(--grp, var(--accent, #d8a657))}
+.dzsvm .dzm-tbchev{font-size:9px; opacity:.6}
+
+/* ── LA BARRE (§2.2) ───────────────────────────────────────────────────────
+   ANCRAGE D'ORIGINE : `left:14px` — le même que l'onglet (§2.1), pour que
+   les deux partagent un bord gauche — et `top:calc(100% + 8px)`, soit 8px
+   sous le bandeau. Le 8 est celui du prototype (`barS: bottom:8px`) et celui
+   du §4.2 (« une marge de 8 px ») : deux fois attesté dans le handoff, jamais
+   choisi ici. La barre flotte donc SUR la timeline, comme dans le tour 2a.
+   L'OMBRE PORTÉE EST LE SEUL SIGNAL DE FLOTTEMENT (§1.3) : ni flou
+   d'arrière-plan ni transparence — la timeline défile dessous. */
+.dzsvm .dzm-tbar{position:absolute; left:14px; top:calc(100% + 8px);
+  z-index:8; --lbl:block;
+  display:flex; align-items:stretch; box-sizing:border-box;
+  background:var(--bar-srf, #13171c);
+  border:1px solid var(--bar-brd, #2a323b); border-radius:0;
+  box-shadow:var(--bar-shadow, 0 14px 34px rgba(0,0,0,.62));
+  opacity:1; transform:translateY(0); visibility:visible;
+  transition:opacity var(--dur-bar-open, 220ms) var(--ease-panel, ease),
+    transform var(--dur-bar-open, 220ms) var(--ease-panel, ease),
+    visibility 0s linear 0s}
+/* REPLI (§4.1) — opacité et 6px de translation, JAMAIS la hauteur : le
+   contenu se déformerait. La barre RESTE dans le DOM pour que le repli
+   s'anime aussi (« Repli : l'inverse ») ; `visibility:hidden`, retardée à la
+   fin de la transition, la sort du parcours de tabulation et de l'arbre
+   d'accessibilité. Un `display:none` aurait coupé l'animation ; un simple
+   `opacity:0` aurait laissé neuf boutons focusables sous une barre invisible.
+   `pointer-events:none` évite qu'elle intercepte un clic pendant la sortie. */
+.dzsvm .dzm-tbar[data-off]{opacity:0; transform:translateY(6px);
+  visibility:hidden; pointer-events:none;
+  transition:opacity var(--dur-bar-open, 220ms) var(--ease-panel, ease),
+    transform var(--dur-bar-open, 220ms) var(--ease-panel, ease),
+    visibility 0s linear var(--dur-bar-open, 220ms)}
+/* RESTAURATION SANS ANIMATION (§4.4) : le Dock pose `data-noanim` au premier
+   rendu et le retire à la frame suivante. Sans cette règle, une barre
+   restaurée ouverte entrerait en glissant à chaque chargement d'écran. */
+.dzsvm .dzm-tbar[data-noanim]{transition:none}
+
+/* a. LA POIGNÉE (§2.2a) — 26px, pleine hauteur, filet droit.
+   PAS DE `cursor:grab` ET PAS D'ÉTAT DE SURVOL, alors que le §2.2a les
+   demande : elle ne saisit rien avant l'étape 5, et un curseur de saisie sur
+   un objet qui ne bouge pas est un mensonge. Son `title` le dit. Les deux
+   lignes reviennent avec le déport. */
+.dzsvm .dzm-tbgrip{flex:none; width:26px; display:flex; align-items:center;
+  justify-content:center; cursor:default;
+  background:var(--srf-raised, var(--bg-panel-2, #171c22));
+  border-right:1px solid var(--brd-hard, var(--stroke, #20262d));
+  color:var(--txt-low, var(--ink4, #5f6873))}
+
+/* b. LES GROUPES (§2.2b) — une colonne chacun. */
+.dzsvm .dzm-tbzone{display:flex; align-items:stretch; padding:9px 10px 8px}
+.dzsvm .dzm-tbgrp{display:flex; flex-direction:column; padding:0 11px;
+  border-right:1px solid var(--brd-soft, var(--stroke, #1c2229))}
+/* Pas de filet après le dernier groupe. `data-last` est posé par le JS sur
+   le dernier élément du plan, pas par `:last-child` : le jour où la barre
+   porterait un élément de queue (le §8 en propose), `:last-child` désignerait
+   le mauvais nœud sans que rien ne le dise. */
+.dzsvm .dzm-tbgrp[data-last]{border-right:0}
+.dzsvm .dzm-tbhead{padding:0 4px 7px; white-space:nowrap; line-height:1;
+  font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace);
+  font-size:8.5px; font-weight:500; letter-spacing:.14em;
+  color:var(--grp, var(--accent, #d8a657))}
+/* Le suffixe « — sélection » de l'en-tête MOT (§2.2b). */
+.dzsvm .dzm-tbsuf{opacity:.5; letter-spacing:.06em}
+.dzsvm .dzm-tbrow{display:flex; gap:2px}
+
+/* c. LES CONTRÔLES DE FENÊTRE (§2.2c) — colonne de 26px, deux boutons à
+   hauteur égale séparés d'un filet. */
+.dzsvm .dzm-tbwin{flex:none; width:26px; display:flex; flex-direction:column;
+  border-left:1px solid var(--brd-hard, var(--stroke, #20262d))}
+.dzsvm .dzm-tbwb{flex:1; width:26px; padding:0; border:0; border-radius:0;
+  display:flex; align-items:center; justify-content:center; line-height:1;
+  background:transparent; cursor:pointer;
+  font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace);
+  color:var(--txt-low, var(--ink4, #5f6873))}
+.dzsvm .dzm-tbwb+.dzm-tbwb{
+  border-top:1px solid var(--brd-hard, var(--stroke, #20262d))}
+.dzsvm .dzm-tbrc{font-size:11px; font-weight:500}
+.dzsvm .dzm-tbcl{font-size:13px; font-weight:400}
+/* SURVOL : l'or, sur #1e242b — les deux valeurs sont celles du §2.2c,
+   reprises telles quelles ; `--accent` passe devant l'or du handoff par la
+   même correspondance de noms que partout ici.
+   `:not([disabled])` : le recentrage est éteint jusqu'à l'étape 5, il ne
+   doit pas s'allumer au passage de la souris. */
+.dzsvm .dzm-tbwb:hover:not([disabled]){color:var(--accent, #e6b23c);
+  background:#1e242b}
+.dzsvm .dzm-tbwb[disabled]{opacity:.38; cursor:not-allowed}
