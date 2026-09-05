@@ -48,7 +48,46 @@ HORS PERIMETRE, constate : `POST /api/subtitles/export?format=ass` ne connait
 pas `word_anim`, donc le .ass TELECHARGE n'est pas celui qui est grave. Ce
 n'est pas une regression de P2 — cette route ignore deja `anim` de la meme
 facon ; la corriger toucherait le vocabulaire d'export, qui n'est pas du
-ressort de cette tache."""
+ressort de cette tache.
+
+LA REGLE DES ASSERTIONS NEGATIVES, PASSEE SUR CE BANC LE 05/09/2026. Elle
+vient de l'en-tete de test_montage_media.py : un TEMOIN DISTINGUABLE, ou le
+repli VIDE d'une garde, SE RETOURNE CONTRE TOUTE NEGATION. `a != b`,
+`not (…)`, `x not in y`, `== []`, `== ""`, `is None` sont VRAIS PAR
+CONSTRUCTION entre deux temoins comme sur un `{}` ou une `[]` de repli : la
+ligne verdit sans avoir rien mesure. LA REGLE : toute assertion negative doit
+d'abord exiger que ses operandes SOIENT ce qu'ils pretendent etre, et
+seulement ensuite les comparer.
+
+  L'ETAT VIDE DE CE BANC, DEUX LEVIERS :
+      & $PY scratchpad/vide2.py ass    tests/test_subs_animes.py
+      & $PY scratchpad/vide2.py api503 tests/test_subs_animes.py
+  Le premier relit VIDE tout fichier `.ass` — la fixture ECRITE mais SANS
+  CONTENU, c'est-a-dire un `_subs_ass` qui n'emettrait plus le moindre
+  evenement. Le second rend toute route `/api/…` en 503.
+  MESURE, PREMIER LEVIER — avant : 54/65 vertes, dont CINQ qui lisaient un
+  ASS de zero octet. Apres : 49/65. Les cinq :
+    * sans_wordAnim_ass_inchange — exige le repli karaoke (`\k`) d'abord ;
+    * glow_ne_rebondit_pas — exige la balise du glow, mesuree par la ligne
+      qui la precede et REPRISE plutot que supposee ;
+    * longue_replique_sans_pos — exige le `\k` du repli ;
+    * fondu_absent_des_evenements_de_mots — elle NOMME les evenements de
+      mots : on exige qu'il y en ait (`\pos(`) ;
+    * couleur_sans_karaoke_ne_fait_rien — DEUX negations et aucune autre
+      ligne ne lit `tK` : on exige l'unique evenement ET le texte de la
+      replique avant de nier `\k` et `\pos(`.
+  Les quatre autres lignes de la meme famille (couleur_ne_pose_aucun_mot,
+  trop_large_sans_pos, calage_casse_retombe_en_karaoke,
+  sans_mesure_retombe_en_karaoke) portaient DEJA leur `"\k" in t` : elles
+  rougissent seules, et c'est la forme qui a servi de modele aux cinq autres.
+  MESURE, SECOND LEVIER — une seule ligne restait verte : route_ne_modifie
+  _rien, dont les deux negations etaient vraies du `{}` de repli. Elle exige
+  desormais la reponse mesuree par `route_deux_suggestions` (60/5 apres,
+  contre 61/4 avant). Croisement automatique : ZERO reste verte.
+  ET UN `.json()` NU DE MOINS, cote pistes : voir les bancs
+  test_montage_pistes_rendu.py et test_montage_pistes_dyn.py, meme journee,
+  meme parade.
+"""
 import json, os, re, shutil, subprocess, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8")
 TMP = tempfile.mkdtemp(prefix="dzp2_")
@@ -159,8 +198,15 @@ a, b = text_px(0.63), text_px(0.9)
 # contoure ne suit pas le carre de l'echelle.
 print(f"      mesure : {a} px à 130 ms, {b} px à 400 ms, rapport {a / b:.4f}")
 check("rebond_plus_gros_au_debut", a > b * 1.10, f"{a} px à 130 ms, {b} px à 400 ms")
-check("sans_wordAnim_ass_inchange", "\\pos(" not in M._subs_ass({"style": dict(UI, wordAnim="none"),
-      "segments": SEG}, (270, 480), "anim0")[0].read_text(encoding="utf-8"))
+# UNE NEGATION SUR UN TEXTE D'ASS DOIT D'ABORD EXIGER UN ASS. MESURE le
+# 05/09/2026 (banc relance avec tout `.ass` relu VIDE, `scratchpad/vide2.py
+# ass`) : cette ligne etait VERTE sur un fichier de zero octet. Le repli
+# karaoke est ce que `wordAnim="none"` DOIT produire — on l'exige, puis on
+# nie le `\pos`. Meme forme que `couleur_ne_pose_aucun_mot` plus bas.
+_t0 = M._subs_ass({"style": dict(UI, wordAnim="none"), "segments": SEG},
+                  (270, 480), "anim0")[0].read_text(encoding="utf-8")
+check("sans_wordAnim_ass_inchange", "\\k" in _t0 and "\\pos(" not in _t0,
+      "%d o" % len(_t0))
 
 print("\n[3] le vocabulaire du panneau, et la balise du glow")
 # « couleur » est la valeur que M10 envoie PAR DÉFAUT. Rien ne l'exerçait :
@@ -211,13 +257,17 @@ pG, infoG = M._subs_ass({"style": dict(UI, wordAnim="glow"),
 tG = pG.read_text(encoding="utf-8")
 evG = [l for l in tG.splitlines() if l.startswith("Dialogue:")]
 check("glow_un_evenement_par_mot", len(evG) == 3, str(len(evG)))
-check("glow_pose_sa_balise",
-      bool(evG) and all("\\bord1\\t(0,160,\\bord6)\\t(160,320,\\bord2)" in l
-                        for l in evG),
+_glow_pose = bool(evG) and all(
+    "\\bord1\\t(0,160,\\bord6)\\t(160,320,\\bord2)" in l for l in evG)
+check("glow_pose_sa_balise", _glow_pose,
       evG[0][:90] if evG else "aucun événement")
 # le glow n'emprunte RIEN au rebond : sans cette ligne, un _WORD_TAGS qui
 # rendrait la balise du rebond pour les deux passerait le banc.
-check("glow_ne_rebondit_pas", "\\fscx115" not in tG)
+# meme piege, meme remede : un ASS vide ne rebondit pas non plus. La balise
+# du glow, mesuree juste au-dessus, est la condition — reprise ici plutot que
+# supposee.
+check("glow_ne_rebondit_pas", _glow_pose and "\\fscx115" not in tG,
+      "%d o, %d événement(s)" % (len(tG), len(evG)))
 check("glow_dit_son_nom", infoG.get("word_anim") == "glow",
       str(infoG.get("word_anim")))
 
@@ -229,7 +279,10 @@ pL, infoL = M._subs_ass({"style": UI, "segments": LONG}, (270, 480), "anim3")
 tL = pL.read_text(encoding="utf-8")
 evL = [l for l in tL.splitlines() if l.startswith("Dialogue:")]
 check("longue_replique_un_seul_evenement", len(evL) == 1, str(len(evL)))
-check("longue_replique_sans_pos", "\\pos(" not in tL)
+# le repli karaoke est la condition du « sans \pos » : sans lui, un ASS vide
+# passerait. MESURE (ASS relus vides) : verte.
+check("longue_replique_sans_pos", "\\k" in tL and "\\pos(" not in tL,
+      "%d o" % len(tL))
 check("longue_replique_en_karaoke", "\\k" in tL)
 check("longue_replique_dite_dans_info", infoL.get("word_anim_skipped") == [0],
       str(infoL.get("word_anim_skipped")))
@@ -360,7 +413,12 @@ with TestClient(app) as cli:
     check("route_dans_l_ordre_du_temps",
           [h["t"] for h in dd.get("hints") or []] == [0.2, 1.2],
           str([h.get("t") for h in dd.get("hints") or []]))
-    check("route_ne_modifie_rien", "segments" not in dd and "clips" not in dd,
+    # meme piege, meme remede que dans test_montage_texte.py : `dd` vaut `{}`
+    # des que la route n'a pas rendu 200, et les deux negations sont alors
+    # vraies. MESURE le 05/09/2026 (`scratchpad/vide2.py api503`) : VERTE.
+    check("route_ne_modifie_rien",
+          dd.get("count") == 2
+          and "segments" not in dd and "clips" not in dd,
           str(sorted(dd.keys())))
     # `count: 0` seul ne distingue pas « aucun mot-clé dans ce texte » de
     # « manifeste illisible » — et le bouton accusait alors le texte de
@@ -406,8 +464,12 @@ print("\n[9] ce qui est PERDU et doit être dit : fondu du bloc, couleur sans ka
 # même style en karaoké en porte un. On ne le grave pas ; on le DIT.
 pA, infoA = M._subs_ass({"style": dict(UI, anim="fade"), "segments": SEG},
                         (270, 480), "anim7")
+# CE QUE CETTE LIGNE NOMME, ce sont les EVENEMENTS DE MOTS : il faut donc
+# qu'il y en ait. MESURE (ASS relus vides) : verte sur zero octet, c'est-a-dire
+# sur un fichier sans le moindre evenement de mot.
+_tA = pA.read_text(encoding="utf-8")
 check("fondu_absent_des_evenements_de_mots",
-      "\\fad(" not in pA.read_text(encoding="utf-8"))
+      "\\pos(" in _tA and "\\fad(" not in _tA, "%d o" % len(_tA))
 check("fondu_present_en_karaoke",
       "\\fad(" in M._subs_ass({"style": dict(UI, anim="fade", wordAnim="couleur"),
                                "segments": SEG}, (270, 480), "anim7b")[0]
@@ -420,7 +482,15 @@ check("fondu_perdu_dit_dans_unsupported",
 pK, infoK = M._subs_ass({"style": dict(UI, karOn=False, wordAnim="couleur"),
                          "segments": SEG}, (270, 480), "anim8")
 tK = pK.read_text(encoding="utf-8")
-check("couleur_sans_karaoke_ne_fait_rien", "\\k" not in tK and "\\pos(" not in tK)
+# LES DEUX CONDITIONS SONT DES NEGATIONS — le cas le plus expose de tous, et
+# la seule ligne qui lise `tK`. MESURE (ASS relus vides) : verte. On exige
+# donc que l'ASS porte bien ses evenements ET le texte de la replique, avant
+# de dire que ni le karaoke ni le placement par mot n'y sont.
+_evK = [l for l in tK.splitlines() if l.startswith("Dialogue:")]
+check("couleur_sans_karaoke_ne_fait_rien",
+      len(_evK) == 1 and "SOUS LA SURFACE" in tK
+      and "\\k" not in tK and "\\pos(" not in tK,
+      "%d événement(s), %d o" % (len(_evK), len(tK)))
 check("couleur_sans_karaoke_dit_dans_unsupported",
       any("EST le karaoké" in u for u in infoK.get("unsupported") or []),
       str(infoK.get("unsupported")))

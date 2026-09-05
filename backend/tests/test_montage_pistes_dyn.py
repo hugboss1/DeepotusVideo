@@ -32,7 +32,36 @@ dans les BRUITAGES (`"tr": "a1" if bus == "dialogue" else "a3"`) : P1 lui
 rend son GAIN musique, mais il n'est ni boucle (`-stream_loop -1` n'est pose
 que sur l'entree `music`) ni ducke (seule `music` alimente le
 sidechaincompress). Un seul clip devient `music` : le PREMIER du bus musique
-porteur de `loop`. C'est un reste assume, pas un point ferme."""
+porteur de `loop`. C'est un reste assume, pas un point ferme.
+
+LA REGLE DES ASSERTIONS NEGATIVES, PASSEE SUR CE BANC LE 05/09/2026. Elle
+vient de l'en-tete de test_montage_media.py : un TEMOIN DISTINGUABLE, ou le
+repli VIDE d'une garde, SE RETOURNE CONTRE TOUTE NEGATION. `a != b`,
+`not (…)`, `x not in y`, `== []`, `== ""`, `is None` sont VRAIS PAR
+CONSTRUCTION entre deux temoins comme sur un `{}` ou une `[]` de repli : la
+ligne verdit sans avoir rien mesure. LA REGLE : toute assertion negative doit
+d'abord exiger que ses operandes SOIENT ce qu'ils pretendent etre, et
+seulement ensuite les comparer.
+
+  CE QUE LA MESURE A TROUVE ICI — deux `.json()` NUS, et rien d'autre.
+  (a) SANS FFMPEG le banc s'arrete FRANCHEMENT (`SKIP: ffmpeg introuvable`,
+      sortie 0, aucune assertion jouee) : rien ne peut verdir a vide.
+      Verifie le 05/09/2026, `PATH` reduit ET `LOCALAPPDATA` detourne.
+  (b) `r.json()["job_id"]` et `cli.get("/api/montage/project").json()`
+      etaient NUS : un corps qui n'est pas du JSON fait lever la lecture, et
+      l'exception, traversant le bloc `with TestClient(app)`, FIGE le banc au
+      lieu de le faire rougir. Les deux lectures testent desormais le code de
+      retour, comme les trois autres bancs de la famille. MESURE
+      (`& $PY scratchpad/vide2.py api503 …`) : les lignes de route
+      rougissent et sont imprimees. Meme reserve declaree que dans
+      test_montage_pistes_rendu.py : le blocage residuel a la sortie du bloc
+      appartient au levier, ce qui est mesure a part.
+  RESTE OUVERT, ET C'EST ECRIT PLUTOT QUE SOUS-ENTENDU : les lignes de la
+  section [1] indexent `m["v2"]["layer"]` en dur. Une mutation qui retirerait
+  une piste de la table historique ferait lever un KeyError et TUERAIT ce
+  banc au lieu de le faire rougir. Ce n'est pas une assertion negative, donc
+  hors de la regle passee ce jour ; c'est un reste de la faute n°6, nomme ici.
+"""
 import json, os, shutil, subprocess, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8")
 TMP = tempfile.mkdtemp(prefix="dzp1_")
@@ -199,8 +228,12 @@ body = {"name": "p1", "ratio": "9:16", "preview": True, "duration_master": False
                   {"tr": "a2", "src": {"file_path": MUS}, "start": 0, "end": 4, "loop": True}]}
 with TestClient(app) as cli:
     r = cli.post("/api/montage/render", json=body)
-    check("route_lancee", r.status_code == 200 and r.json().get("job_id"), r.text[:200])
-    j = cli.get("/api/jobs/" + r.json()["job_id"]).json()
+    # meme parade que test_montage_pistes_rendu.py : un `.json()` nu FIGE ce
+    # banc au lieu de le faire rougir (faute n°6).
+    _dr = r.json() if r.status_code == 200 else {}
+    check("route_lancee", r.status_code == 200 and _dr.get("job_id"), r.text[:200])
+    _rj = cli.get("/api/jobs/" + str(_dr.get("job_id") or "sans-job"))
+    j = _rj.json() if _rj.status_code == 200 else {}
     check("route_job_done", j.get("status") == "done", str(j.get("error") or j.get("status")))
     fp = j.get("final_video_path") or ""
     check("route_fichier_present", bool(fp) and os.path.exists(fp), fp)
@@ -242,8 +275,10 @@ with TestClient(app) as cli:
                    "src": {"file_path": V1}, "srcIn": 0, "transition": "cut"},
                   {"tr": "v3", "id": "c2", "label": "ov", "start": 1, "end": 3,
                    "src": {"file_path": GV}, "srcIn": 0}]})
-    check("save_acceptee", r.status_code == 200 and r.json().get("ok"), r.text[:200])
-    d = cli.get("/api/montage/project").json()
+    _ds = r.json() if r.status_code == 200 else {}
+    check("save_acceptee", r.status_code == 200 and _ds.get("ok"), r.text[:200])
+    _rp = cli.get("/api/montage/project")
+    d = _rp.json() if _rp.status_code == 200 else {}
     check("project_saved", d.get("saved") is True, str(d.get("saved")))
     check("project_rend_les_pistes", d.get("tracks") == TRACKS, str(d.get("tracks")))
     # et la loi de classement les relit à l'identique : v3 au-dessus de v2,

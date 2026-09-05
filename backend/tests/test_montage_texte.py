@@ -86,7 +86,47 @@ CE QUE CE BANC N'AFFIRME PAS, et qui est un RESTE ASSUME.
     test_montage_bundle.py ; le reste se voit au navigateur.
   * `detect_silences` est desormais MEMOISE (cle : chemin + mtime + taille +
     seuils, plafond 64). Le gain — une passe ffmpeg par clip et par coupe
-    evitee — n'est pas chronometre ici."""
+    evitee — n'est pas chronometre ici.
+
+LA REGLE DES ASSERTIONS NEGATIVES, PASSEE SUR CE BANC LE 05/09/2026. Elle
+vient de l'en-tete de test_montage_media.py : un TEMOIN DISTINGUABLE, ou le
+repli VIDE d'une garde, SE RETOURNE CONTRE TOUTE NEGATION. `a != b`,
+`not (…)`, `x not in y`, `== []`, `== ""`, `is None` sont VRAIS PAR
+CONSTRUCTION entre deux temoins comme sur un `{}` ou une `[]` de repli : la
+ligne verdit sans avoir rien mesure. LA REGLE : toute assertion negative doit
+d'abord exiger que ses operandes SOIENT ce qu'ils pretendent etre, et
+seulement ensuite les comparer.
+
+  DEUX FAUTES N°6 D'ABORD, ET LA SECONDE EST PIRE QU'UNE MORT.
+  (a) `json.loads(r.stdout.strip().splitlines()[-1])` NU apres le shim :
+      `splitlines()[-1]` sur une sortie VIDE leve IndexError, et node sort
+      rc=0 dans ce cas (un `console.log` deplace suffit), donc le
+      `if r.returncode != 0` ne le couvrait pas. MESURE le 05/09/2026
+      (`& $PY scratchpad/vide4.py tests/test_montage_texte.py`, node muet a
+      rc=0) : le banc MOURAIT ici, 63 des 113 lignes imprimees, aucun compte.
+      APRES la garde (la meme que dans les bancs remplacer et bundle, dont
+      les commentaires l'appelaient deja « la troisieme de la famille » —
+      celle-ci est la quatrieme) : 63/51, ET LE COMPTE EST IMPRIME. La ligne
+      `js_shim_rend_un_objet_json` ajoutee fait passer le compte de reference
+      de 113 a 114.
+  (b) DEUX `.json()` NUS dans le bloc `with TestClient(app)`. Celui de
+      `route_kind_absent_rend_les_deux` levait quand le corps n'etait pas du
+      JSON — et l'exception, traversant le bloc, arrivait a une sortie de
+      cycle de vie qui N'EN REVENAIT JAMAIS : le banc ne mourait pas, il SE
+      FIGEAIT a 49 lignes sur 113, sans compte, processus a tuer. Une mort
+      laisse au moins un traceback ; un blocage ne laisse rien.
+      MESURE : `& $PY scratchpad/vide2.py api503 tests/test_montage_texte.py`
+      (toute route `/api/…` en 503) — AVANT : fige a 49. APRES : 93/20.
+  LA LIGNE REPAREE : route_ne_modifie_rien. `"clips" not in dd and
+  "segments" not in dd` etait vrai d'un `dd` valant `{}`, c'est-a-dire d'une
+  reponse INEXISTANTE. Elle exige desormais la reponse mesuree par
+  `route_deux_plages`. Croisement automatique apres reparation, sur toutes
+  les lignes qui lisent une reponse ou le dict du shim : ZERO reste verte.
+  A BON DROIT, ET DECLARE : les lignes de `find_fillers`, des deux sacs et
+  de `_silence_key` appellent le service EN DIRECT et ne sont couvertes par
+  aucun des deux leviers ; `les_deux_sacs_sont_disjoints` porte deja, depuis
+  son ecriture, le `all(bool(b) …)` que la regle demande.
+"""
 import json, os, pathlib, shutil, subprocess, sys, tempfile, time
 sys.stdout.reconfigure(encoding="utf-8")
 TMP = tempfile.mkdtemp(prefix="dzp3_")
@@ -399,7 +439,11 @@ with TestClient(app) as cli:
           r3.status_code == 200 and r3.json().get("spans") == [], r3.text[:200])
     r4 = cli.post("/api/subtitles/fillers", json={"lang": "en", "words": [
         {"i": 0, "w": "Well", "start": 0, "end": .3}]})
-    check("route_anglais", (r4.json() or {}).get("count") == 1, r4.text[:200])
+    # `(r4.json() or {})` ne garde de rien : c'est `.json()` LUI-MEME qui leve
+    # quand le corps n'est pas du JSON. Meme forme que les trois lectures
+    # ci-dessus, qui, elles, testent le code d'abord.
+    d4 = r4.json() if r4.status_code == 200 else {}
+    check("route_anglais", d4.get("count") == 1, r4.text[:200])
     # `kind` FILTRE — c'est ce que demande le bouton qui coupe sans qu'on
     # relise. « Well » est un mot PLEIN : il est marque, il ne part pas en bloc.
     rk = cli.post("/api/subtitles/fillers", json={
@@ -413,14 +457,26 @@ with TestClient(app) as cli:
           str(dk)[:220])
     check("route_dit_le_kind_demande", dk.get("kind") == "hesitation",
           str(dk.get("kind")))
-    check("route_kind_absent_rend_les_deux",
-          cli.post("/api/subtitles/fillers", json={
-              "lang": "en",
-              "words": [{"i": 0, "w": "Well", "start": 0, "end": .3},
-                        {"i": 1, "w": "um", "start": 1.0, "end": 1.2}]}
-                   ).json().get("count") == 2)
+    # LE `.json()` NU QUI FIGEAIT LE BANC. MESURE le 05/09/2026
+    # (`scratchpad/vide2.py api503`) : la lecture leve, l'exception traverse
+    # le bloc `with TestClient(app)`, et la sortie du bloc n'en revient
+    # JAMAIS — 49 lignes sur 113, aucun compte imprime, processus a tuer.
+    # Une mort est deja la faute n°6 ; un blocage est pire, il ne laisse meme
+    # pas de trace.
+    r6 = cli.post("/api/subtitles/fillers", json={
+        "lang": "en",
+        "words": [{"i": 0, "w": "Well", "start": 0, "end": .3},
+                  {"i": 1, "w": "um", "start": 1.0, "end": 1.2}]})
+    d6 = r6.json() if r6.status_code == 200 else {}
+    check("route_kind_absent_rend_les_deux", d6.get("count") == 2,
+          r6.text[:200])
+    # DEUX NEGATIONS SUR `dd`, QUI VAUT `{}` DES QUE LA ROUTE N'A PAS REPONDU
+    # 200 : « la route n'ajoute rien » etait vrai d'une reponse inexistante.
+    # MESURE (routes `/api/…` en 503) : VERTE. On exige la reponse mesuree
+    # par `route_deux_plages`, reprise ici plutot que supposee.
     check("route_ne_modifie_rien",
-          "clips" not in dd and "segments" not in dd, str(dd.keys()))
+          dd.get("count") == 2
+          and "clips" not in dd and "segments" not in dd, str(dd.keys()))
     # POST /subtitles/from-narration doit dire DE QUEL CLIP vient chaque mot :
     # les `segments` ne le disent pas (normalize_segments ne garde que
     # w/start/end), et sans cette information la coupe ne peut pas repartir le
@@ -550,7 +606,24 @@ if r.returncode != 0:
     D = {}
 else:
     check("js_shim_execute", True)
-    D = json.loads(r.stdout.strip().splitlines()[-1])
+    # QUATRIEME LIGNE DE LA MEME FAMILLE (faute n°6) — celle qui manquait.
+    # `splitlines()[-1]` sur une sortie VIDE leve IndexError, et `json.loads`
+    # sur une derniere ligne qui n'est pas du JSON leve JSONDecodeError ; node
+    # sort rc=0 dans les deux cas (un `console.log` deplace suffit), donc le
+    # `if r.returncode != 0` ci-dessus n'en couvre AUCUN. MESURE le
+    # 05/09/2026 (`scratchpad/vide4.py`, node muet a rc=0) : le banc MOURAIT
+    # ici, IndexError, 49 des 113 lignes imprimees, aucun compte.
+    _lignes = r.stdout.strip().splitlines()
+    _derniere = _lignes[-1] if _lignes else ""
+    try:
+        D = json.loads(_derniere) if _derniere else None
+        _mal = "" if isinstance(D, dict) and D else "sortie sans objet JSON"
+    except Exception as _e:
+        D, _mal = None, "%s: %s" % (type(_e).__name__, _e)
+    if not isinstance(D, dict):
+        D = {}
+    check("js_shim_rend_un_objet_json", _mal == "",
+          f"{_mal} — {len(_lignes)} ligne(s), derniere={_derniere[:160]!r}")
 
 
 def trio(res, tr):

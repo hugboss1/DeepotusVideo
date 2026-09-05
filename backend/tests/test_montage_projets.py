@@ -100,7 +100,63 @@ CE QUE CE BANC N'AFFIRME PAS, et qui est un RESTE ASSUME.
     octets passent et rendent un enregistrement de 362 octets. Ce banc ne
     mesure aucune de ces deux bornes. Les routes de projet copient ce que le
     courant portait deja et n'ajoutent aucune borne propre. Un dossier de
-    mille projets n'est pas mesure."""
+    mille projets n'est pas mesure.
+
+LA REGLE DES ASSERTIONS NEGATIVES, PASSEE SUR CE BANC LE 05/09/2026. Elle
+vient de l'en-tete de test_montage_media.py : un TEMOIN DISTINGUABLE, ou le
+repli VIDE d'une garde, SE RETOURNE CONTRE TOUTE NEGATION. `a != b`,
+`not (…)`, `x not in y`, `== []`, `== ""`, `is None` sont VRAIS PAR
+CONSTRUCTION entre deux temoins comme sur un `{}` ou une `[]` de repli : la
+ligne verdit sans avoir rien mesure. LA REGLE : toute assertion negative doit
+d'abord exiger que ses operandes SOIENT ce qu'ils pretendent etre, et
+seulement ensuite les comparer.
+
+  L'ETAT VIDE DE CE BANC : toutes les routes `/api/…` rendues en 503 sans
+  corps JSON — exactement l'etat pour lequel le repli `{}` de `J()` a ete
+  ecrit. Les fichiers, eux, restent VRAIS : ce que la mesure isole, ce sont
+  les lignes qui parlent d'un geste que l'application n'a jamais fait.
+      & $PY scratchpad/vide.py 503 tests/test_montage_projets.py
+  MESURE AVANT : 22/136 vertes. APRES les reparations : 5/136.
+  LES DIX-SEPT REPAREES, par famille — aucune n'a change de sens, chacune a
+  gagne la CONDITION qui lui manquait, et cette condition est toujours un
+  fait deja mesure par une ligne voisine, REPRIS plutot que suppose :
+    le CODE DE RETOUR d'abord (huit lignes) — lire_ne_cree_pas_le_dossier
+      (les cinq lectures), creer_sans_courant_n_ecrit_rien et
+      un_400_ne_cree_pas_le_dossier_non_plus (le 400), inconnu_n_a_rien_ecrit
+      (les cinq 404), c1_ecran_vide_n_ecrit_rien (le 400),
+      i4_creer_sous_panne_ne_laisse_aucun_fragment,
+      i4_save_sous_panne_ne_laisse_aucun_fragment et
+      i4_miroir_rate_ne_laisse_aucun_fragment (les trois 500 — c'est LUI qui
+      dit que la branche de nettoyage a ete atteinte) ;
+    un COURANT REELLEMENT LU (quatre lignes) — inconnu_n_a_pas_touche_au
+      _courant, save_project_id_mou_n_est_pas_resservi,
+      supprime_le_courant_se_delie : `cur().get("project_id") is None` etait
+      satisfait par l'ABSENCE de reponse, on exige donc `saved is True`
+      d'abord ; meme parade que les deux lignes `i2_*` qui exigeaient deja
+      quatre clips, et pour la meme raison ecrite le 04/09 ;
+    l'APPLICATION VIVANTE (deux lignes) — hostile_ne_lit_ni_ne_supprime_hors
+      _du_dossier et hostile_n_a_rien_cree_dans_le_dossier : `bad == []` est
+      vide de sens si aucune reponse n'a pu porter le temoin ; on exige une
+      route de LECTURE vivante dans le meme souffle, qui ne cree rien ;
+    l'EFFET ATTENDU (trois lignes) — aucun_tmp_residuel exige les deux
+      projets ecrits, save_nu_n_ecrit_rien exige les trois 200,
+      save_project_id_hostile_n_evade_rien exige que le save hostile ait ete
+      ACCEPTE, i4_creer_sous_panne_n_ecrit_aucun_projet exige le 500.
+  LES CINQ VERTES A BON DROIT, UNE A UNE : dossier_absent_au_depart (la
+  toute premiere ligne du banc, avant que rien n'ait ete demande — c'est une
+  PRECONDITION de fixture, pas une affirmation sur une route) ;
+  autosave_a_bien_envoye_un_autre_nom (un dict local, aucun appel) ;
+  hostile_temoin_intact (lecture DIRECTE du fichier-temoin — DECLARE : a
+  vide elle est verte pour une autre raison, rien n'a tourne) ;
+  c1_aucun_courant_sur_le_disque (l'etat que `wipe_courant()` vient de poser,
+  une precondition la aussi) ; i2_le_verrou_est_bien_un_verrou_asyncio (un
+  attribut de module).
+  CE QUI N'A PAS CHANGE : 136/0 avant comme apres. Une conjonction ne peut
+  QUE resserrer — une ligne deja rouge le reste, une ligne verte ne le
+  demeure qu'en payant sa condition. C'est pourquoi la preuve de non-
+  regression est le compte a l'identique, et la preuve d'efficacite le
+  passage de 22 a 5 a vide.
+"""
 import json, os, pathlib, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8")
 TMP = tempfile.mkdtemp(prefix="dzp5_")
@@ -226,14 +282,23 @@ check("liste_vide_repond_200",
 lectures = {"liste": c.get("/api/montage/projects").status_code,
             "fiche": c.get("/api/montage/projects/m_jamaisvu").status_code,
             "courant": c.get("/api/montage/project").status_code}
-check("lectures_repondent_sans_projet",
-      lectures == {"liste": 200, "fiche": 404, "courant": 200}, str(lectures))
-check("lire_ne_cree_pas_le_dossier", not PDIR.exists(),
+_lectures_ok = lectures == {"liste": 200, "fiche": 404, "courant": 200}
+check("lectures_repondent_sans_projet", _lectures_ok, str(lectures))
+# UNE NEGATION NE VAUT QUE SI SON OPERANDE A VECU. Un dossier absent parce que
+# les cinq routes n'ont jamais repondu ne dit rien de `_projects_dir()`.
+# MESURE le 05/09/2026 (banc relance par `scratchpad/vide.py 503`, toutes les
+# routes rendues en 503 sans corps) : cette ligne et les deux du 400 etaient
+# VERTES sans qu'une seule route ait ete atteinte. On EXIGE donc d'abord le
+# fait mesure juste au-dessus, et seulement ensuite l'absence.
+check("lire_ne_cree_pas_le_dossier", _lectures_ok and not PDIR.exists(),
       str(sorted(p.name for p in ROOT.iterdir())))
 r = c.post("/api/montage/projects", json={"name": "sans courant"})
-check("creer_sans_courant_400", r.status_code == 400, f"{r.status_code} {r.text[:120]}")
-check("creer_sans_courant_n_ecrit_rien", names() == [], str(names()))
-check("un_400_ne_cree_pas_le_dossier_non_plus", not PDIR.exists(), str(PDIR))
+_sans_courant_400 = r.status_code == 400
+check("creer_sans_courant_400", _sans_courant_400, f"{r.status_code} {r.text[:120]}")
+check("creer_sans_courant_n_ecrit_rien", _sans_courant_400 and names() == [],
+      str(names()))
+check("un_400_ne_cree_pas_le_dossier_non_plus",
+      _sans_courant_400 and not PDIR.exists(), str(PDIR))
 
 print("\n[1] le scenario du plan, par la route")
 wipe()
@@ -319,9 +384,15 @@ codes = {
 }
 for _k in ("get", "patch", "duplicate", "open", "delete"):
     check("inconnu_404_" + _k, codes[_k] == 404, str(codes[_k]))
-check("inconnu_n_a_rien_ecrit", names() == [], str(names()))
-check("inconnu_n_a_pas_touche_au_courant", cur().get("project_id") is None,
-      str(cur().get("project_id")))
+# meme piege, meme remede : les CINQ 404 d'abord, l'absence ensuite.
+_inconnu_ok = all(codes[_k] == 404 for _k in codes)
+check("inconnu_n_a_rien_ecrit", _inconnu_ok and names() == [], str(names()))
+# ... et le COURANT doit etre LU pour que « il n'a pas bouge » veuille dire
+# quelque chose : `J()` rend `{}` quand la reponse est illisible, donc
+# `.get("project_id") is None` etait satisfait par l'ABSENCE de reponse.
+check("inconnu_n_a_pas_touche_au_courant",
+      cur().get("saved") is True and cur().get("project_id") is None,
+      str(cur())[:160])
 
 print("\n[3] identifiant HOSTILE — jamais de fichier hors du dossier")
 wipe()
@@ -347,14 +418,21 @@ for h in hostiles:
     dl = c.delete("/api/montage/projects/" + h)
     if "TEMOIN" in g.text or J(g).get("name") == "TEMOIN" or J(dl).get("deleted"):
         bad.append((h, g.status_code, dl.status_code, g.text[:60]))
-check("hostile_ne_lit_ni_ne_supprime_hors_du_dossier", bad == [], str(bad))
+# `bad == []` est VIDE DE SENS si l'app n'a rien servi : aucune reponse ne
+# porte alors le temoin, donc rien ne s'empile. MESURE (routes en 503) :
+# VERTE. On exige une route de LECTURE vivante dans le meme souffle — elle ne
+# cree rien, et c'est exactement la faculte dont cette section nie l'abus.
+_app_repond = J(c.get("/api/montage/projects")).get("ok") is True
+check("hostile_ne_lit_ni_ne_supprime_hors_du_dossier",
+      _app_repond and bad == [], f"app={_app_repond} {bad}")
 _t = {}
 try:
     _t = json.loads(temoin.read_text(encoding="utf-8"))
 except (OSError, ValueError):
     _t = {}
 check("hostile_temoin_intact", _t.get("name") == "TEMOIN", str(_t)[:120])
-check("hostile_n_a_rien_cree_dans_le_dossier", names() == [], str(names()))
+check("hostile_n_a_rien_cree_dans_le_dossier",
+      _app_repond and names() == [], str(names()))
 # tolerant : sous la mutation « _pid ne sanitise plus », le DELETE hostile
 # EMPORTE reellement le temoin, et un `unlink()` nu tuait le banc juste apres
 # que la ligne ci-dessus l'ait pourtant vu.
@@ -458,17 +536,25 @@ wipe()
 c.post("/api/montage/save", json=TL())
 vrai = J(c.post("/api/montage/projects", json={"name": "vrai"})).get("id")
 avant = names()
+_mous = {}
 for lbl, val in (("dict", {"a": 1}), ("liste", [1]), ("nombre", 7),
                  ("bool", True), ("vide", ""), ("hostile", "../evade"),
                  ("inconnu", "m_jamaisvu")):
     r = c.post("/api/montage/save", json=dict(TL(), project_id=val))
+    _mous[lbl] = r.status_code
     check("save_project_id_" + lbl + "_accepte", r.status_code == 200,
           f"{r.status_code} {r.text[:120]}")
 check("save_project_id_mou_n_ecrit_aucun_fichier",
       names() == avant == ["%s.json" % vrai], f"{names()} / {avant}")
-check("save_project_id_mou_n_est_pas_resservi", cur().get("project_id") is None,
-      str(cur().get("project_id")))
-check("save_project_id_hostile_n_evade_rien", not (ROOT / "evade.json").exists())
+# lire un VRAI courant, pas un `{}` : voir [2].
+check("save_project_id_mou_n_est_pas_resservi",
+      cur().get("saved") is True and cur().get("project_id") is None,
+      str(cur())[:160])
+# ... et le save hostile doit avoir ETE ACCEPTE pour que « il n'a rien evade »
+# dise quelque chose. MESURE (routes en 503) : verte sans aucun save accepte.
+check("save_project_id_hostile_n_evade_rien",
+      _mous.get("hostile") == 200 and not (ROOT / "evade.json").exists(),
+      "hostile=%s" % _mous.get("hostile"))
 r = c.post("/api/montage/save", json=dict(TL(n=3), project_id=vrai))
 check("save_project_id_valide_miroite",
       r.status_code == 200 and nclips(vrai) == 3,
@@ -497,16 +583,22 @@ c.patch("/api/montage/projects/%s" % b, json={"name": "atom2"})
 c.post("/api/montage/projects/%s/open" % b)
 tmps = [p.name for p in PDIR.glob("*") if not p.name.endswith(".json")] \
     if PDIR.is_dir() else []
-check("aucun_tmp_residuel", tmps == [], str(tmps))
-check("un_fichier_json_par_projet",
-      names() == sorted(["%s.json" % a, "%s.json" % b]), str(names()))
+# « pas un seul .tmp APRES TOUTES LES ROUTES » : encore faut-il que les
+# routes aient tourne. La condition est celle de la ligne ci-dessous, reprise
+# ici plutot que supposee — MESURE (routes en 503) : verte, dossier vide.
+_deux_projets = names() == sorted(["%s.json" % a, "%s.json" % b])
+check("aucun_tmp_residuel", _deux_projets and tmps == [], str(tmps))
+check("un_fichier_json_par_projet", _deux_projets, str(names()))
 
 print("\n[9] NON-REGRESSION — un POST /save SANS project_id n'ecrit rien ici")
 wipe()
+_nu = []
 for i in range(3):
     r = c.post("/api/montage/save", json=TL("nu", n=i + 1))
+    _nu.append(r.status_code)
     check("save_nu_%d_ok" % i, r.status_code == 200, r.text[:120])
-check("save_nu_n_ecrit_rien_dans_montage_projects", names() == [], str(names()))
+check("save_nu_n_ecrit_rien_dans_montage_projects",
+      _nu == [200, 200, 200] and names() == [], "%s %s" % (_nu, names()))
 _sv = {}
 try:
     _sv = json.loads(SAVED.read_text(encoding="utf-8"))
@@ -524,8 +616,9 @@ opid = J(c.post("/api/montage/projects", json={"name": "ouvert"})).get("id")
 check("supprime_avant_le_courant_est_lie", bool(opid)
       and cur().get("project_id") == opid, str(cur().get("project_id")))
 c.delete("/api/montage/projects/%s" % opid)
-check("supprime_le_courant_se_delie", cur().get("project_id") is None,
-      str(cur().get("project_id")))
+check("supprime_le_courant_se_delie",
+      cur().get("saved") is True and cur().get("project_id") is None,
+      str(cur())[:160])
 r = c.post("/api/montage/save", json=dict(TL("ouvert"), project_id=opid))
 check("supprime_l_autosave_ne_ressuscite_pas",
       r.status_code == 200 and names() == [], str(names()))
@@ -685,9 +778,10 @@ wipe()
 wipe_courant()
 r = c.post("/api/montage/projects",
            json={"name": "vide", "timeline": dict(TL(), clips=[])})
-check("c1_ecran_reellement_vide_400", r.status_code == 400,
-      f"{r.status_code} {r.text[:120]}")
-check("c1_ecran_vide_n_ecrit_rien", names() == [] and not SAVED.exists(),
+_vide_400 = r.status_code == 400
+check("c1_ecran_reellement_vide_400", _vide_400, f"{r.status_code} {r.text[:120]}")
+check("c1_ecran_vide_n_ecrit_rien",
+      _vide_400 and names() == [] and not SAVED.exists(),
       f"{names()} / {SAVED.exists()}")
 
 print("\n[15] quand l ECRITURE ECHOUE : 500, aucun .tmp, et ce que chacune laisse")
@@ -732,10 +826,16 @@ c.post("/api/montage/save", json=TL("avant panne", n=2))
 avant = JF(SAVED)
 r = _sous_panne("montage_projects",
                 lambda: c.post("/api/montage/projects", json={"name": "panne"}))
-check("i4_creer_sous_panne_rend_500", r.status_code == 500,
-      f"{r.status_code} {r.text[:140]}")
-check("i4_creer_sous_panne_ne_laisse_aucun_fragment", tmps() == [], str(tmps()))
-check("i4_creer_sous_panne_n_ecrit_aucun_projet", names() == [], str(names()))
+# LES TROIS « aucun fragment » DE CETTE SECTION portaient sur un dossier qui
+# peut n'avoir jamais rien vu : MESURE (routes en 503), les trois VERTES sans
+# qu'aucune panne ait ete declenchee. Le 500 mesure juste au-dessus est la
+# condition — c'est LUI qui dit que la branche de nettoyage a ete atteinte.
+_creer_500 = r.status_code == 500
+check("i4_creer_sous_panne_rend_500", _creer_500, f"{r.status_code} {r.text[:140]}")
+check("i4_creer_sous_panne_ne_laisse_aucun_fragment",
+      _creer_500 and tmps() == [], str(tmps()))
+check("i4_creer_sous_panne_n_ecrit_aucun_projet",
+      _creer_500 and names() == [], str(names()))
 _ap = JF(SAVED)
 check("i4_creer_sous_panne_laisse_le_courant_intact", _ap == avant,
       str(_ap.get("name")) + " / " + str(_ap.get("project_id")))
@@ -747,9 +847,10 @@ c.post("/api/montage/save", json=TL("courant sain", n=2))
 avant = JF(SAVED)
 r = _sous_panne("montage_saved.json",
                 lambda: c.post("/api/montage/save", json=TL("jamais ecrit", n=5)))
-check("i4_save_sous_panne_rend_500", r.status_code == 500,
-      f"{r.status_code} {r.text[:140]}")
-check("i4_save_sous_panne_ne_laisse_aucun_fragment", tmps() == [], str(tmps()))
+_save_500 = r.status_code == 500
+check("i4_save_sous_panne_rend_500", _save_500, f"{r.status_code} {r.text[:140]}")
+check("i4_save_sous_panne_ne_laisse_aucun_fragment",
+      _save_500 and tmps() == [], str(tmps()))
 _ap = JF(SAVED)
 check("i4_save_sous_panne_laisse_le_courant_a_sa_version_precedente",
       _ap == avant and len(_ap.get("clips") or []) == 2,
@@ -768,9 +869,10 @@ mid = J(c.post("/api/montage/projects", json={"name": "miroir"})).get("id")
 avant_projet = JF(PDIR / ("%s.json" % mid))
 r = _sous_panne("montage_projects", lambda: c.post(
     "/api/montage/save", json=dict(TL("mir", n=6), project_id=mid)))
-check("i4_miroir_rate_rend_500", r.status_code == 500,
-      f"{r.status_code} {r.text[:140]}")
-check("i4_miroir_rate_ne_laisse_aucun_fragment", tmps() == [], str(tmps()))
+_miroir_500 = r.status_code == 500
+check("i4_miroir_rate_rend_500", _miroir_500, f"{r.status_code} {r.text[:140]}")
+check("i4_miroir_rate_ne_laisse_aucun_fragment",
+      _miroir_500 and tmps() == [], str(tmps()))
 check("i4_miroir_rate_laisse_le_projet_a_sa_version_precedente",
       nclips(mid) == 1
       and JF(PDIR / ("%s.json" % mid)) == avant_projet, str(nclips(mid)))

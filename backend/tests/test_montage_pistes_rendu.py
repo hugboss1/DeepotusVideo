@@ -41,7 +41,38 @@ touche pas au frontend) :
      au rendu a -40 dB, donc inaudible sans que rien ne le dise ;
  (b) le lecteur vivant ne joue ni A2 ni A3 (commentaire du vu-metre, meme
      fichier ~l. 2077) : ce que l'utilisateur entend AVANT de rendre n'est pas
-     le mix - apercu et rendu peuvent diverger sans qu'il soit alerte."""
+     le mix - apercu et rendu peuvent diverger sans qu'il soit alerte.
+
+LA REGLE DES ASSERTIONS NEGATIVES, PASSEE SUR CE BANC LE 05/09/2026. Elle
+vient de l'en-tete de test_montage_media.py : un TEMOIN DISTINGUABLE, ou le
+repli VIDE d'une garde, SE RETOURNE CONTRE TOUTE NEGATION. `a != b`,
+`not (…)`, `x not in y`, `== []`, `== ""`, `is None` sont VRAIS PAR
+CONSTRUCTION entre deux temoins comme sur un `{}` ou une `[]` de repli : la
+ligne verdit sans avoir rien mesure. LA REGLE : toute assertion negative doit
+d'abord exiger que ses operandes SOIENT ce qu'ils pretendent etre, et
+seulement ensuite les comparer.
+
+  CE QUE LA MESURE A TROUVE ICI — un `.json()` NU, et rien d'autre.
+  (a) SANS FFMPEG le banc s'arrete FRANCHEMENT : `_exe()` imprime
+      « SKIP: ffmpeg introuvable » et sort en 0, aucune assertion n'est
+      jouee, donc AUCUNE ne peut verdir a vide. Verifie le 05/09/2026 avec
+      `PATH=C:/Windows/System32;C:/Windows` ET `LOCALAPPDATA` detourne (sans
+      quoi `_exe` retrouve le binaire embarque).
+  (b) `j = c.get("/api/jobs/" + r.json()["job_id"]).json()` etait NU. Un
+      corps qui n'est pas du JSON fait lever la lecture, et l'exception,
+      traversant le bloc `with TestClient(app)`, arrive a une sortie de cycle
+      de vie dont on ne revient pas : le banc SE FIGE au lieu de rougir.
+      MESURE le 05/09/2026 (`& $PY scratchpad/vide2.py api503 …`, toute
+      route `/api/…` en 503) : les trois lignes route_lancee, route_job_done
+      et route_fichier_present ROUGISSENT desormais et sont IMPRIMEES.
+      DECLARE : sous CE levier le processus ne rend toujours pas la main —
+      mesure a part (scratchpad/sonde_sortie.py), un `with TestClient(app)`
+      NU, sans un seul banc autour, bloque de la meme facon des que le
+      levier est arme. Le blocage appartient au levier, pas aux assertions.
+  AUCUNE ASSERTION NEGATIVE A REPARER : les deux seules de ce banc
+  (`direct_ffmpeg_ok`, `tf_ffmpeg_ok`) exigent `returncode == 0` ET une
+  taille de fichier non nulle.
+"""
 import json, os, shutil, subprocess, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8")
 TMP = tempfile.mkdtemp(prefix="dzp0_")
@@ -240,8 +271,15 @@ body = {"name": "p0", "ratio": "9:16", "preview": False, "mix": {"dialogue": -6,
                   {"tr": "a2", "src": {"file_path": MUS}, "start": 0, "end": 4, "loop": True}]}
 with TestClient(app) as c:
     r = c.post("/api/montage/render", json=body)
-    check("route_lancee", r.status_code == 200 and r.json().get("job_id"), r.text[:200])
-    j = c.get("/api/jobs/" + r.json()["job_id"]).json()
+    # ROUGIR, PAS MOURIR (faute n°6) : `r.json()` sur un corps qui n'est pas
+    # du JSON leve, et l'exception traverse le bloc `with TestClient(app)`,
+    # dont la sortie attend l'arret des taches de fond — le banc SE FIGE au
+    # lieu de mourir. Le job_id est lu UNE fois, garde, et son absence rend
+    # une adresse qu'aucune route ne sert (404), jamais une exception.
+    _dr = r.json() if r.status_code == 200 else {}
+    check("route_lancee", r.status_code == 200 and _dr.get("job_id"), r.text[:200])
+    _rj = c.get("/api/jobs/" + str(_dr.get("job_id") or "sans-job"))
+    j = _rj.json() if _rj.status_code == 200 else {}
     check("route_job_done", j.get("status") == "done", str(j.get("error") or j.get("status")))
     fp = j.get("final_video_path") or ""
     check("route_fichier_present", fp and os.path.exists(fp), fp)
