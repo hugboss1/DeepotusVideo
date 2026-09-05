@@ -145,6 +145,19 @@ def _line(provider, label, units, unit, usd):
             "units": round(units, 2), "unit": unit, "usd": round(usd, 4)}
 
 
+def no_spend(label: str, provider: str = "local") -> dict:
+    """Un devis de ZERO qui SE DIT — même forme de retour qu'`estimate`.
+
+    Sert les deux cas où un job ne doit rien facturer : l'opération est
+    locale (ffmpeg/PIL, un fichier téléversé, un job parent dont les
+    sous-jobs paient déjà), ou son provider n'est PAS TARIFÉ et l'aveu vaut
+    mieux qu'un chiffre inventé. La ligne reste dans le `breakdown` — donc
+    dans `by_provider` — précisément pour que le blanc porte un nom.
+    """
+    return {"breakdown": [_line(provider, label, 1, "job", 0.0)],
+            "total_usd": 0.0, "credits": {}}
+
+
 def video_rate(model_id: str, resolution: str = "1080p",
                p: dict | None = None) -> float | None:
     """W-a — $/s for a video model at a resolution, honoring pricing.json

@@ -316,9 +316,11 @@ CE QUE CE BANC N'AFFIRME PAS
     jobs), pas sur la base reelle. Elles disent que la requete filtre et que
     le `coalesce` tient ; elles ne disent rien du nombre de proxys qu'un
     usage reel produirait — `POST /proxy` n'a a ce jour aucun appelant.
-  * `_job_to_cost` facture en « campaign » TOUT provider qu'il ne nomme pas
-    (`asset3d` y tombe aussi). Ce lot ne ferme que le cas qu'il ouvre
-    lui-meme ; aucune ligne ici ne dit que la facture globale soit juste.
+  * Aucune ligne ici ne dit que la facture GLOBALE soit juste. Ce lot n'a
+    ferme que le cas qu'il ouvrait lui-meme ; la branche « campaign » par
+    defaut de `_job_to_cost`, qui facturait TOUT provider qu'elle ne nommait
+    pas (`asset3d` y tombait aussi), a ete fermee ENSUITE, par la tache 8b —
+    c'est `tests/test_cost_usage.py` qui la tient, et lui seul.
   * Aucune ligne ne mesure la CONCURRENCE. L'ecriture est atomique par
     construction (temporaire a nom unique + `os.replace`) et la ligne
     `filmstrip_en_cache` verifie qu'un second appel ne REECRIT pas ; deux
@@ -1140,6 +1142,13 @@ def _pose(jid, prov):
 # `fal`, soit 4,84 USD pour une timeline de douze clips. Un transcodage
 # ffmpeg LOCAL et GRATUIT presente comme une depense. La ligne compare a 0.0
 # et non a un tarif : elle ne bougera pas le jour ou les prix bougeront.
+# DEPUIS LA TACHE 8b, CE QUE MESURE CETTE LIGNE A CHANGE et il faut le dire :
+# `_job_to_cost` facture par LISTE BLANCHE, `montage_proxy` y figure, donc
+# sans l'exclusion le proxy ne couterait plus 0,403 USD mais 0,00 — sous une
+# ligne `local` qui, elle, REMPLIT `by_provider`. C'est la seconde moitie de
+# l'assertion (« et une carte VIDE ») qui tient desormais ce cas. REJOUE le
+# 05/09/2026 : N-P20 rend toujours ce banc 66/1, cette ligne rouge SEULE, sur
+# {'total_usd': 0.0, 'by_provider': {'local': 0.0}}.
 _cu = J(api("GET", "/api/cost/usage"))
 check("cout_un_proxy_ne_coute_rien",
       j.get("status") == "done"
