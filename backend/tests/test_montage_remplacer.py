@@ -230,7 +230,13 @@ cœur JS et de la chaine, jouees APRES et sur d'autres fichiers, n'entrent pas
 dans ce compte-la — elles ont leur propre campagne, plus bas. Les chiffres
 ci-dessous valent donc pour le depot tel qu'il est, pas pour l'etat d'avant
 la reparation. Une seule ancre a du etre corrigee — celle de F1, que la
-reparation a fait descendre d'un niveau d'indentation.
+reparation a fait descendre d'un niveau d'indentation ; le harnais l'a
+REFUSEE plutot que de la jouer au hasard, ce pour quoi il est ecrit.
+TROISIEME CAMPAGNE, apres cette correction : les cinquante-trois JOUEES,
+aucune refusee, ZERO ECART avec la seconde — et F1 rend bien 35/32, la valeur
+declaree. Ce qui a change entre les deux campagnes n'est que du TEXTE
+d'en-tete : aucune assertion, aucune ligne de code. Le rejeu ne le deduit
+pas, il le mesure.
 
   SUR LA ROUTE (banc : celui-ci)
   MV   garde du titre vide retiree      => 98/1, `newer_titre_vide_ne_

@@ -183,7 +183,13 @@ comparee a la premiere campagne MUTATION PAR MUTATION ET ROUGE PAR ROUGE
 (scratchpad/compare.py) : ZERO ECART sur les cinquante-trois. Les chiffres
 ci-dessous valent donc pour le depot tel qu'il est, pas pour l'etat d'avant
 la reparation. Une seule ancre a du etre corrigee — celle de F1, que la
-reparation a fait descendre d'un niveau d'indentation.
+reparation a fait descendre d'un niveau d'indentation ; le harnais l'a
+REFUSEE plutot que de la jouer au hasard, ce pour quoi il est ecrit.
+TROISIEME CAMPAGNE, apres cette correction : les cinquante-trois JOUEES,
+aucune refusee, ZERO ECART avec la seconde — et F1 rend bien 35/32, la valeur
+declaree. Ce qui a change entre les deux campagnes n'est que du TEXTE
+d'en-tete : aucune assertion, aucune ligne de code. Le rejeu ne le deduit
+pas, il le mesure.
 
 LES QUINZE DE P8-bis (le second defaut et ce que la revue a ouvert autour) :
   N1 `where` retire de la requete => sources 61/6 : les deux lignes du seuil,
