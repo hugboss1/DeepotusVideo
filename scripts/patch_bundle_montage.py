@@ -475,17 +475,79 @@ R_M13 = ('        (sel&&sel.tr==="s1"?null:vfxStackSection()),\n'
          '        DzTracks.gradeAllBtn(sel,clips,setClips,pushHistory,setDirty,'
          'fireNote)]})]}),')
 
-# ── M9a / M9b : en-tête de piste ────────────────────────────────────────────
+# ── M9a / M9b / M9c : en-tête de piste ───────────────────────────────────────
 # Le groupe est un FRÈRE des rangées, pas un membre : il est positionné en
 # absolu dans l'en-tête (voir montage.css — l'en-tête fait 88px de large et
 # il est déjà plein, c'est mesuré). L'ancre est préfixe du remplacement :
 # test_montage_bundle.py ne cherche donc pas à la voir disparaître.
+#
+# M9c — LE BOUTON D'AJOUT SORT DE SOUS LA SURIMPRESSION. Défaut rapporté par
+# l'utilisateur le 05/09/2026 : « sur la piste V1 vidéo, le bouton "ajouter
+# une vidéo" est caché par l'overlay de déplacement lorsque la souris passe
+# dessus ».
+#
+# MESURÉ AVANT, dans le bundle LIVRÉ — les quatre rangées d'en-tête et leurs
+# contrôles, extraits du fichier que l'application charge :
+#     nr  svm-tnamerow  [thType]                 (piste audio)
+#     br  svm-thbtns    [+, thM, thS, thLock]    (piste audio)
+#     nr  svm-tnamerow  [+]                      (piste vidéo / sous-titres)
+#     tr  svm-ttyperow  [thType, thLock]         (piste vidéo / sous-titres)
+# Le bouton d'ajout des pistes vidéo/sous-titres est donc le SEUL contrôle
+# logé dans la rangée du NOM, qui est la PREMIÈRE de l'en-tête. Or `.dzm-hb`
+# est `position:absolute; top:2px; right:3px` (montage.css) dans un
+# `.svm-thead` qui empile ses rangées du haut vers le bas, et `.svm-ovadd`
+# porte `margin-left:auto` : le bouton est au bord DROIT de la rangée du
+# haut, c'est-à-dire exactement le coin que la surimpression occupe. La
+# collision est STRUCTURELLE, pas fortuite — et elle ne touche que cette
+# famille : sur les pistes audio le même bouton vit dans la rangée du BAS,
+# hors d'atteinte.
+#
+# LA SECONDE BRANCHE DU RAISONNEMENT DE L'UTILISATEUR NE TIENT PAS, et on ne
+# la suit pas : la surimpression n'est pas inutile sur V1. Sa croix est bien
+# inerte là (`dzmRemove` rend la liste inchangée pour v1 et s1), mais dès
+# qu'une piste V2 existe V1 devient réordonnable — poignée et flèches sont
+# vivantes. On garde donc la surimpression et on déplace le bouton : c'est la
+# PREMIÈRE proposition de l'utilisateur, et elle vaut dans les deux cas.
+#
+# CE QUE LE DÉPLACEMENT COÛTE, MESURÉ SUR LA CSS. En LARGEUR : le contenu de
+# l'en-tête vaut 88 − 2 × 7 de padding = 74px ; la rangée du type passe de
+# deux à trois enfants, ses fixes valent verrou 14px (.svm-tkbtn) + bouton
+# 16px (.svm-ovadd) + deux gaps de 3px = 36px, il reste donc 38px au libellé
+# contre 57 avant. RIEN NE DÉBORDE des 88px : `.svm-minibtn` est `flex:none`
+# et la taille minimale automatique tient le bouton à 16px, tandis que
+# `.svm-ttyperow .svm-ttype` porte déjà
+# `flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis` —
+# c'est le libellé qui absorbe TOUT le serrage. CE QU'ON PERD, écrit plutôt
+# que taise : « overlay/VFX » et « sous-titres » (11 caractères ≈ 51px en
+# mono 8px) passent désormais en points de suspension ; « vidéo » (≈ 23px)
+# est intouché, et `title:tr.type` porte déjà le libellé entier au survol. En
+# HAUTEUR l'en-tête NE GRANDIT PAS : la rangée du nom perd son seul enfant
+# de 16px et retombe sur la boîte de ligne du nom (police 10px, donc plus
+# courte que 16), pendant que la rangée du type monte de 14 à 16. Le chiffre
+# EXACT de cette boîte de ligne n'est pas mesuré ici — il ne se lit qu'à
+# l'écran, et c'est porté à la dette navigateur ; ce qui est établi est le
+# SENS : − d'un côté, + 2 de l'autre. Aucune règle CSS n'a donc à bouger, et
+# aucune n'a bougé.
+#
+# LE GREFFON DE RÉINSERTION EST REPLIÉ DANS R_M9b, comme M10 dans R_M8 :
+# l'ancre A_M9b est déjà consommée par M9b, il n'en reste aucune à quoi
+# accrocher une section à part. test_montage_bundle.py porte donc des lignes
+# LITTÉRALES qui voient sa disparition — sans elles, le retirer d'ici puis
+# rejouer la chaîne laisserait le banc vert.
 _HB = ("DzTracks.headBtns(tr,svmTracksOf(proj),svmTracksSet,clips,setClips,"
        "fireNote)")
 A_M9a = 'children:[thAdd,thM,thS,thLock]},"br"),'
 R_M9a = 'children:[thAdd,thM,thS,thLock]},"br"),\n                  ' + _HB + ','
 A_M9b = 'children:[thType,thLock]},"tr")]}),'
-R_M9b = ('children:[thType,thLock]},"tr"),\n                  ' + _HB + ']}),')
+R_M9b = ('children:[thType,thLock,thAdd]},"tr"),\n                  ' + _HB
+         + ']}),')
+# M9c — le RETRAIT. L'ancre part du nom de la piste pour rester unique : la
+# rangée du nom des pistes audio se termine par le même `]},"nr"),` et seul
+# le contrôle qui la précède les distingue. L'ancre n'est PAS reprise par le
+# remplacement : le miroir exige donc de la voir disparaître.
+A_M9c = ('children:tr.name}),\n'
+         '                    thAdd]},"nr"),')
+R_M9c = 'children:tr.name})]},"nr"),'
 
 # ══ P9 — « Bibliothèque… » qui pose un clip, et la remise qui se perdait ═══
 #
@@ -1358,6 +1420,7 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M5-payload", A_M5, R_M5), ("M6-save", A_M6, R_M6),
            ("M7-apply", A_M7, R_M7), ("M8-toolbar", A_M8, R_M8),
            ("M9a-head-audio", A_M9a, R_M9a), ("M9b-head-video", A_M9b, R_M9b),
+           ("M9c-plus-hors-surimpression", A_M9c, R_M9c),
            ("M11-text-state", A_M11, R_M11), ("M12-text-panel", A_M12, R_M12),
            ("M13-grade-all", A_M13, R_M13),
            ("M16ref-tracks-ref", A_M16REF, R_M16REF),

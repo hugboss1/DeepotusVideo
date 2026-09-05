@@ -31,9 +31,12 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 05/09/2026 : 524 lignes. Sans `node` sur le PATH, 522 —
-les deux `*_rend_un_objet_json` vivent dans la branche « node a tourne » et
-ne sont pas emises, c'est par CONSTRUCTION et non par accident.
+COMPTE DE REFERENCE, 05/09/2026 (fin de journee, apres M9c) : 536 lignes.
+Sans `node` sur le PATH, 534 — les deux `*_rend_un_objet_json` vivent dans la
+branche « node a tourne » et ne sont pas emises, c'est par CONSTRUCTION et
+non par accident. Il en valait 524 le matin : M9c en apporte DOUZE, dont TROIS
+que la boucle sur `P.PATCHES` emet toute seule pour la nouvelle section
+(_remplace, _ancre_consommee, couche_ne_cite_pas_l_ancre_de_).
 
 LA REGLE DES ASSERTIONS NEGATIVES, PASSEE SUR CE BANC LE 05/09/2026. Elle
 vient de l'en-tete de test_montage_media.py : un TEMOIN DISTINGUABLE, ou le
@@ -56,9 +59,11 @@ seulement ensuite les comparer.
   compte de reference de 326 a 327.
   LES TROIS CHIFFRES CI-DESSUS (326, 244/82, 241/85) SONT CEUX DU CHANTIER
   P10-P11 ET NE SE REPRODUISENT PLUS TELS QUELS : le banc a grossi depuis.
-  Meme relance aujourd'hui, `PATH=C:/Windows/System32;C:/Windows` : 325/197
-  sur 522, et LE COMPTE EST IMPRIME — c'est CELA que la garde protege, pas
-  un chiffre.
+  Meme relance aujourd'hui, `PATH=C:/Windows/System32;C:/Windows` : 337/197
+  sur 534, et LE COMPTE EST IMPRIME — c'est CELA que la garde protege, pas
+  un chiffre. (325/197 sur 522 le matin, avant M9c : les douze lignes de la
+  section vivent hors de la branche node, elles verdissent donc les deux
+  fois.)
   L'ETAT VIDE ET LES TROIS REPAREES :
       PATH=C:/Windows/System32;C:/Windows & $PY tests/test_montage_bundle.py
   `d` retombe sur le dict VIDE des que node ne rend pas d'objet JSON, et
@@ -202,6 +207,170 @@ for tag, a, r in P.PATCHES:
     if a not in r:
         check(tag + "_ancre_consommee", s.count(nl(a)) == 0,
               f"count={s.count(nl(a))}")
+# ── M9c (05/09/2026) : LE « + » N'EST PLUS SOUS LA SURIMPRESSION ────────────
+# Défaut rapporté par l'utilisateur : « sur la piste V1 vidéo, le bouton
+# "ajouter une vidéo" est caché par l'overlay de déplacement lorsque la souris
+# passe dessus ». CE BANC NE PEUT PAS OUVRIR UN NAVIGATEUR : ce qui est
+# mesurable ici est la STRUCTURE — dans quelle rangée d'en-tête vit le bouton
+# d'ajout, et si cette rangée est celle que `.dzm-hb` recouvre.
+# LA RÉINSERTION EST REPLIÉE DANS `R_M9b` (l'ancre A_M9b est déjà consommée
+# par M9b, exactement comme M10 dans R_M8) : les lignes ci-dessous sont donc
+# LITTÉRALES et non tirées de `P.R_M9b`. Sans elles, retirer le greffon du
+# patcher puis rejouer la chaîne laisserait le banc entièrement vert.
+_HROWS = re.findall(
+    r'className:"(svm-tnamerow|svm-ttyperow|svm-thbtns)",children:\['
+    r'(.*?)\]\},"(\w\w)"\)', s.replace("\r\n", "\n"), re.S)
+# CONJOINT DE TOUTES LES NÉGATIONS QUI SUIVENT : sans cette ligne, une
+# extraction qui rendrait `[]` (regex périmée, bundle amputé) rendrait vraies
+# « le bouton n'est pas dans la rangée du nom » et toutes ses sœurs.
+check("M9_les_quatre_rangees_d_en_tete_sont_lisibles",
+      len(_HROWS) == 4
+      and [k for _c, _t, k in _HROWS] == ["nr", "br", "nr", "tr"]
+      and [c for c, _t, _k in _HROWS] == ["svm-tnamerow", "svm-thbtns",
+                                          "svm-tnamerow", "svm-ttyperow"],
+      f"rangees={[(c, k) for c, _t, k in _HROWS]}")
+# LA LIGNE QUI ROUGIT SI LE « + » REVIENT DANS LA RANGÉE DU NOM. Elle rougit
+# aussi s'il DISPARAÎT (`['br']`) ou s'il se duplique : c'est une égalité à
+# une liste ordonnée, pas une absence.
+_HADD = [k for _c, t, k in _HROWS if re.search(r"\bthAdd\b", t)]
+check("M9c_le_bouton_ajouter_vit_dans_la_rangee_du_BAS_des_deux_familles",
+      _HADD == ["br", "tr"],
+      f"il vit dans les rangees {_HADD} (attendu ['br', 'tr'] — 'nr' est la "
+      f"rangee du haut, celle que la surimpression recouvre)")
+# LES DEUX MOITIÉS DU DÉPLACEMENT, LITTÉRALES : le retrait (M9c) et la
+# réinsertion (repliée dans R_M9b).
+_N_NOM = s.count(nl('children:tr.name})]},"nr"),'))
+_N_RESTE = s.count(nl('thAdd]},"nr"),'))
+_N_TYPE = s.count(nl('children:[thType,thLock,thAdd]},"tr"),'))
+check("M9c_la_rangee_du_nom_video_ne_porte_plus_que_le_nom",
+      _N_NOM == 1 and _N_RESTE == 0,
+      f"nom_seul={_N_NOM} (veut 1) · reste_du_bouton={_N_RESTE} (veut 0)")
+check("M9c_la_rangee_du_type_video_porte_le_bouton_en_dernier",
+      _N_TYPE == 1, f"count={_N_TYPE}")
+# CONTRÔLE À DEUX FACES. M9c et le greffon replié dans R_M9b DÉPLACENT un
+# identifiant du bundle : compter les usages ne dirait rien d'un rebuild qui
+# renommerait sa DÉCLARATION — le nom serait libre et l'en-tête lèverait au
+# premier rendu, sans que `node --check` (JS valide) ni aucun compte
+# d'ancre ne le voie. On exige donc la déclaration ET les deux usages, et que
+# le nom n'apparaisse NULLE PART AILLEURS : 1 + 2 = 3, borné par `\b…\b`.
+_N_DECL = s.count(nl('var thAdd=r.jsx("button",{className:"svm-ovadd",'))
+_N_TOT = len(re.findall(r"\bthAdd\b", s.replace("\r\n", "\n")))
+check("M9c_le_bouton_ajouter_est_declare_et_appele_sous_le_meme_nom",
+      _N_DECL == 1 and _N_TOT == 3 and _HADD == ["br", "tr"],
+      f"declaration={_N_DECL} (veut 1) · occurrences={_N_TOT} (veut 3 : "
+      f"la declaration + les rangees {_HADD})")
+# LA PISTE AUDIO NE BOUGE PAS : son « + » était déjà au bon endroit, et son
+# en-tête porte en plus M, S, le verrou et un fader.
+_N_BR = s.count(nl('children:[thAdd,thM,thS,thLock]},"br"),'))
+_N_NRA = s.count(nl('thType]},"nr"),'))
+_N_FAD = s.count(nl("thFader]"))
+check("M9a_l_en_tete_audio_est_inchange",
+      _N_BR == 1 and _N_NRA == 1 and _N_FAD == 1,
+      f"br={_N_BR} nr_audio={_N_NRA} fader={_N_FAD} (veut 1, 1, 1)")
+
+# POURQUOI « nr » EST LA RANGÉE RECOUVERTE. `.dzm-hb` est en position absolue
+# dans `.svm-thead`, ancrée par `top:` (jamais `bottom:`), et l'en-tête empile
+# ses rangées du haut vers le bas (`flex-direction:column`) : la première
+# rangée est donc celle qui passe sous la surimpression. Les deux faits sont
+# LUS dans les deux feuilles, pas supposés.
+_HDCSS = ROOT / "frontend" / "dist" / "shared" / "son-vfx-montage.css"
+try:
+    _HDCSS = _HDCSS.read_text(encoding="utf-8")
+except Exception as _e:                     # absent, illisible, encodage
+    _HDCSS = temoin(_e)                     # TÉMOIN distinguable : jamais ""
+
+
+def _regle(css_txt, sel):
+    """Corps de la règle `sel` (sélecteur littéral, accolade comprise).
+
+    Rend `None` — jamais `""` — quand la règle manque : un corps vide
+    satisferait toutes les négations de la ligne appelante."""
+    i = css_txt.find(sel)
+    if i < 0:
+        return None
+    j = css_txt.find("}", i)
+    return css_txt[i + len(sel):j] if j > i else None
+
+
+_R_HB = _regle(CSS.read_text(encoding="utf-8"), ".dzsvm .dzm-hb{")
+_R_THEAD = _regle(_HDCSS, ".svm-thead{")
+check("la_surimpression_recouvre_la_PREMIERE_rangee_de_l_en_tete",
+      _R_HB is not None and _R_THEAD is not None
+      and "position:absolute" in _R_HB
+      and re.search(r"\btop:\s*\d+px", _R_HB) is not None
+      and re.search(r"\bbottom:\s*\d", _R_HB) is None
+      and "flex-direction:column" in _R_THEAD,
+      f"hb={_R_HB!r} thead={_R_THEAD!r}")
+
+
+# LE « + » TIENT-IL DANS LA RANGÉE DU BAS SANS DÉBORDER DES 88 px ? Les sept
+# nombres sont LUS dans son-vfx-montage.css et le NOMBRE D'ENFANTS de chaque
+# rangée dans le bundle : rien n'est recopié ici.
+def _px(corps, prop):
+    m = re.search(r"\b" + prop + r":\s*(\d+)px", corps or "")
+    return int(m.group(1)) if m else None
+
+
+_R_TTROW = _regle(_HDCSS, ".svm-ttyperow{")
+_R_THBTNS = _regle(_HDCSS, ".svm-thbtns{")
+_R_TKBTN = _regle(_HDCSS, ".svm-tkbtn{")
+_R_OVADD = _regle(_HDCSS, ".svm-ovadd{")
+_R_TTYPE = _regle(_HDCSS, ".svm-ttyperow .svm-ttype{")
+_R_MINI = _regle(_HDCSS, ".svm-minibtn{")
+_m_pad = re.search(r"\bpadding:\s*\d+px\s+(\d+)px", _R_THEAD or "")
+_W = _px(_R_THEAD, "width")
+_PAD = int(_m_pad.group(1)) if _m_pad else None
+_GAP = _px(_R_TTROW, "gap")
+_GAPB = _px(_R_THBTNS, "gap")
+_LOCK = _px(_R_TKBTN, "width")
+_PLUS = _px(_R_OVADD, "width")
+_N = [len(t.strip().split(",")) for _c, t, k in _HROWS if k == "tr"]
+_NB = [len(t.strip().split(",")) for _c, t, k in _HROWS if k == "br"]
+_N = _N[0] if _N else 0
+_NB = _NB[0] if _NB else 0
+_UTILE = _W - 2 * _PAD if None not in (_W, _PAD) else None
+# rangée du type (vidéo/sous-titres) : un verrou + le « + », le libellé prend
+# le reste. rangée des boutons (audio) : le « + » + trois micro-boutons —
+# c'est la rangée que montage.css appelle DÉJÀ « pleine » (67 px sur 74).
+_FIXE = (_LOCK + _PLUS + _GAP * (_N - 1)
+         if None not in (_LOCK, _PLUS, _GAP) and _N >= 2 else None)
+_FIXEB = (_PLUS + _LOCK * (_NB - 1) + _GAPB * (_NB - 1)
+          if None not in (_LOCK, _PLUS, _GAPB) and _NB >= 2 else None)
+# TROIS CLAUSES, PARCE QUE LA PREMIÈRE NE MORD PAS. « Ça rentre dans 74 px »
+# est trop lâche pour voir un bouton élargi : MESURÉ le 05/09/2026 en portant
+# `.svm-ovadd` de 16 à 40px — 60 < 74, la ligne restait VERTE, le nombre lu
+# dans la CSS était décoratif. Les deux autres clauses l'ont fait rougir : la
+# rangée des boutons audio crèverait le budget (91 > 74), et dans la rangée
+# du type le libellé n'aurait plus que 14px là où les boutons en prendraient
+# 60. BORNE MESURÉE, en élargissant le bouton d'un pixel à la fois : 16 vert
+# (libellé 38, boutons 36), 17 vert (37 contre 37, l'égalité passe), 18 ROUGE.
+# La tolérance est donc d'UN pixel, et c'est écrit ici pour que le prochain
+# élargissement sonne au lieu de rogner le libellé en silence.
+check("le_bouton_tient_dans_la_rangee_du_bas_video",
+      _UTILE is not None and _FIXE is not None and _FIXEB is not None
+      and _N == 3 and _NB == 4
+      and _FIXE < _UTILE and _FIXEB <= _UTILE
+      and _UTILE - _FIXE >= _FIXE,
+      f"utile={_UTILE} (largeur {_W} − 2 × padding {_PAD}) · "
+      f"type: fixes={_FIXE} libelle={None if _UTILE is None or _FIXE is None else _UTILE - _FIXE} "
+      f"(verrou {_LOCK} + bouton {_PLUS} + {_N - 1} × gap {_GAP}, {_N} enfants) · "
+      f"audio: fixes={_FIXEB} ({_NB} enfants, gap {_GAPB})")
+# ET POURQUOI RIEN NE DÉBORDE QUAND LE LIBELLÉ, LUI, EST TROP LONG : c'est le
+# libellé qui absorbe TOUT le serrage (il rétrécit et met des points de
+# suspension), pendant que les deux boutons gardent leur taille.
+# DETTE ÉCRAN ASSUMÉE : « overlay/VFX » et « sous-titres » (11 caractères,
+# ≈ 51 px en mono 8 px) ne tiennent plus dans les ~38 px restants et
+# s'abrègent ; `title:tr.type` porte le libellé entier au survol. Aucune de
+# ces deux lignes ne prétend avoir mesuré le RENDU — seulement le mécanisme.
+check("le_libelle_du_type_absorbe_le_serrage_au_lieu_de_deborder",
+      _R_TTYPE is not None and _R_MINI is not None
+      and "flex:1 1 auto" in _R_TTYPE and "min-width:0" in _R_TTYPE
+      and "overflow:hidden" in _R_TTYPE
+      and "text-overflow:ellipsis" in _R_TTYPE
+      and "flex:none" in _R_MINI
+      and s.count(nl("title:tr.type")) == 1,
+      f"ttype={_R_TTYPE!r} minibtn={_R_MINI!r} "
+      f"title={s.count(nl('title:tr.type'))}")
 # M10 (P2) : la chip « mot » et le bouton « emoji » vivent DANS R_M8 — l'ancre
 # A_M8 est déjà consommée par M8. `R_M8` CONTENANT `R_M10`, un bundle amputé de
 # la chip échouerait déjà sur « M8-toolbar_remplace » : cette ligne ne rattrape

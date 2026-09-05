@@ -5794,9 +5794,8 @@ function DzMontage(props){
                 :[
                   r.jsxs("div",{className:"svm-tnamerow",children:[
                     r.jsx("span",{className:"svm-sq6",style:{background:"var("+tr.c+")"}}),
-                    r.jsx("span",{className:"svm-tname",children:tr.name}),
-                    thAdd]},"nr"),
-                  r.jsxs("div",{className:"svm-ttyperow",children:[thType,thLock]},"tr"),
+                    r.jsx("span",{className:"svm-tname",children:tr.name})]},"nr"),
+                  r.jsxs("div",{className:"svm-ttyperow",children:[thType,thLock,thAdd]},"tr"),
                   DzTracks.headBtns(tr,svmTracksOf(proj),svmTracksSet,clips,setClips,fireNote)]}),
               r.jsxs("div",{className:"svm-lane",
                 onDragOver:function(e){if(svmDragOk(e,tr.id)){e.preventDefault();e.dataTransfer.dropEffect="copy"}},
