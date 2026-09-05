@@ -58,7 +58,7 @@ seulement ensuite les comparer.
   fichiers manque (`fichier_absent`, 0/1) ; il ne dit rien d'un fichier
   present mais vide. C'est une dette assumee, ecrite plutot que sous-entendue.
 """
-import importlib.util, json, os, pathlib, re, shutil, subprocess, sys, tempfile
+import importlib.util, json, os, pathlib, re, shutil, subprocess, sys, tempfile, urllib.parse
 sys.stdout.reconfigure(encoding="utf-8")
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -1386,13 +1386,31 @@ check("P10_le_backend_recalcule_la_duree_du_film",
 # `pushHistory()` deja present dans addAsset (la ligne
 # `M16a_refuse_avant_de_pousser_l_historique` compte 1 dans ce corps), M17b et
 # M17f reprennent celui d'avant a l'identique, M17g n'en pose aucun.
+# LA LIGNE VISE LE CODE, PAS LA PROSE — et elle a mordu : P11 a ajoute a
+# M17a un commentaire qui NOMME `pushHistory` (« on sort ici, avant
+# pushHistory ») pour dire justement qu'il n'en pose pas. La ligne rougissait
+# sur une explication exacte. C'est la faute n°2 dans sa seconde forme, celle
+# deja attrapee sur P10 avec `svmRuler` : une recherche de jeton qui trouve le
+# commentaire au lieu du code. `_code` retire les blocs `/* … */` — et la
+# ligne EXIGE qu'il en reste du code, sans quoi un stripper trop gourmand
+# rendrait toutes ces negations vertes sur du vide.
+def _code(js):
+    """Le fragment SANS ses commentaires de bloc."""
+    return re.sub(r"/\*.*?\*/", "", js, flags=re.S)
+
+
 check("P10_aucune_entree_d_historique_de_plus",
-      "pushHistory" not in P.R_M17A
+      "pushHistory" not in _code(P.R_M17A)
+      and "pushHistory" in P.R_M17A          # le commentaire, lui, le NOMME
+      and "DzTracks.fitDur" in _code(P.R_M17A)
       and P.R_M17B.count("pushHistory();") == 1
       and P.R_M17F.count("pushHistory(h0)") == 1
-      and "pushHistory" not in P.R_M17G,
-      f"a={'pushHistory' in P.R_M17A} b={P.R_M17B.count('pushHistory();')} "
-      f"f={P.R_M17F.count('pushHistory(h0)')} g={'pushHistory' in P.R_M17G}")
+      and "pushHistory" not in _code(P.R_M17G),
+      f"a={'pushHistory' in _code(P.R_M17A)} "
+      f"a_code={len(_code(P.R_M17A))}/{len(P.R_M17A)} o "
+      f"b={P.R_M17B.count('pushHistory();')} "
+      f"f={P.R_M17F.count('pushHistory(h0)')} "
+      f"g={'pushHistory' in _code(P.R_M17G)}")
 # LA RESERVE CENTRALE, DITE PARTOUT : `proj.dur` n'entre pas dans
 # l'historique. Etendre puis annuler rend les clips, PAS la duree. Les trois
 # notes de geste le disent et NOMMENT le retour ; le controle explicite le dit
@@ -1445,6 +1463,140 @@ check("css_habille_le_reglage_de_duree",
       and ".dzm-durb{" in CSS.read_text(encoding="utf-8").replace("\n", "")
       and ".dzm-durf{" in CSS.read_text(encoding="utf-8").replace("\n", ""),
       "montage.css n'habille pas le réglage de durée")
+# ── P11 : LE SECOND PLAFOND, DANS LE BUNDLE LIVRE ─────────────────────────
+# P10 a rendu la timeline extensible ; ces lignes-ci mesurent que la SOURCE
+# n'est plus tronquee au moment ou on la pose. Les deux plafonds sont comptes
+# a ZERO, mais un compte a zero est vrai sur un fichier vide comme sur une
+# fonction supprimee : chaque negation exige d'abord que `defaultLen` SOIT
+# LA et qu'elle delegue.
+check("P11_defaultLen_existe_toujours_et_delegue_a_la_couche",
+      s.count(nl("function defaultLen(kind,srcDur){")) == 1
+      and s.count(nl("return DzTracks.clipLen(kind,srcDur,"
+                     "{image:4,audio:8,video:6});")) == 1,
+      f'decl={s.count(nl("function defaultLen(kind,srcDur){"))} '
+      f'delegue={s.count(nl("return DzTracks.clipLen(kind,srcDur,"))}')
+check("P11_le_plafond_video_de_six_secondes_a_disparu",
+      s.count(nl("function defaultLen(kind,srcDur){")) == 1
+      and s.count(nl("Math.min(6,srcDur||6)")) == 0,
+      f'{s.count(nl("Math.min(6,srcDur||6)"))} restant(s)')
+check("P11_le_plafond_audio_de_huit_secondes_a_disparu",
+      s.count(nl("function defaultLen(kind,srcDur){")) == 1
+      and s.count(nl("Math.min(8,srcDur||8)")) == 0,
+      f'{s.count(nl("Math.min(8,srcDur||8)"))} restant(s)')
+# LES TROIS REPLIS RESTENT DES CHIFFRES DU BUNDLE : la couche ne devient pas
+# leur autorite, elle les RECOIT. C'est la meme regle que `_VIDEO_EXTS` servi
+# par le backend en P9.
+# DEUX occurrences dans le bundle livre, et c'est EXACTEMENT ce qu'on veut :
+# une dans `defaultLen` (le bundle PASSE ses replis) et une dans la couche
+# injectee (le repli de secours). La seconde est comptee a part dans `src`,
+# donc la premiere est bien hors de la couche — sans ce conjoint, une couche
+# qui porterait les deux passerait.
+check("P11_les_trois_replis_sont_passes_par_le_bundle",
+      s.count(nl("{image:4,audio:8,video:6}")) == 2
+      and src.count("{image:4,audio:8,video:6}") == 1,
+      f'bundle={s.count(nl("{image:4,audio:8,video:6}"))} '
+      f'couche={src.count("{image:4,audio:8,video:6}")}')
+# DEUX FACES pour chaque identifiant du bundle que la section appelle, et
+# pour chaque identifiant de la couche que le bundle appelle.
+for _lbl, _decl, _appel in (
+        ("defaultLen", nl("function defaultLen(kind,srcDur){"),
+         nl("var dzCl=defaultLen(kind,srcDur);")),
+        ("addAsset", nl("function addAsset(src,label,kind,srcDur,trId,"
+                        "atTime){"),
+         nl("addAsset(src,label,kind,dzV>0?dzV:-1,trId,st)"))):
+    check("P11_deux_faces_" + _lbl,
+          s.count(_decl) == 1 and s.count(_appel) == 1,
+          f"decl={s.count(_decl)} appel={s.count(_appel)}")
+for _nom in ("clipLen", "needDur", "askDur"):
+    check("P11_deux_faces_DzTracks_" + _nom,
+          s.count(nl("DzTracks." + _nom + "(")) == 1
+          and src.count(_nom + ":dzm" + _nom[0].upper() + _nom[1:]) == 1,
+          f'bundle={s.count(nl("DzTracks." + _nom + "("))} '
+          f'couche={src.count(_nom + ":dzm" + _nom[0].upper() + _nom[1:])}')
+# LA DECOUVERTE SORT AVANT `pushHistory` : rien ne doit etre ecrit avant que
+# la longueur ne soit connue, sinon un « annuler » retirerait un clip que la
+# mesure allait remplacer. Mesure sur les POSITIONS dans le corps d'addAsset,
+# `find` jamais `index` (faute n°6) : les trois reperes valent -1 quand ils
+# manquent, et la ligne EXIGE qu'ils aient ete trouves ET ordonnes.
+_aa0 = s.find(nl("function addAsset(src,label,kind,srcDur,trId,atTime){"))
+_ask = s.find(nl("DzTracks.askDur(src,{done:function(dzV){"),
+              _aa0 if _aa0 >= 0 else 0)
+# LE `pushHistory` DE L'AJOUT, pas le premier venu : le court-circuit de
+# remplacement (P6) en pose un AVANT, plus haut dans le meme corps. C'est
+# `setClips(clipsRef.current.concat(` qui identifie l'ajout sans ambiguite.
+_ph = s.find(nl("setClips(clipsRef.current.concat("),
+             _aa0 if _aa0 >= 0 else 0)
+check("P11_la_mesure_sort_avant_que_l_historique_ne_soit_pousse",
+      _aa0 >= 0 and _ask > _aa0 and _ph > _ask,
+      f"addAsset={_aa0} askDur={_ask} ajout={_ph}")
+# ECART DECLARE, MESURE PLUTOT QUE TU : un REMPLACEMENT de source (P6) ne
+# passe PAS par la decouverte — son court-circuit rend la main avant. Une
+# source de remplacement sans duree connue ne recale donc toujours pas sa
+# fenetre (`replaceSrc` en a besoin). C'est une tache a part, et cette ligne
+# la tient VRAIE : le jour ou le court-circuit passerait apres la mesure,
+# elle rougit et la reserve du commit cesse d'etre exacte.
+_rep = s.find(nl("setSelId(rc.id);setDirty(!0);fireNote(rr.note);return}"),
+              _aa0 if _aa0 >= 0 else 0)
+check("P11_un_remplacement_de_source_ne_passe_pas_par_la_mesure",
+      _aa0 >= 0 and _rep > _aa0 and _ask > _rep,
+      f"addAsset={_aa0} remplacement={_rep} askDur={_ask}")
+# LE VERROU DE RECURSION, DANS LE BUNDLE : le rappel repasse un nombre
+# NEGATIF quand la mesure a echoue, et `needDur` le lit comme « deja
+# demande » (ligne js_needdur_non_quand_elle_est_negative...).
+check("P11_le_rappel_porte_le_verrou_de_recursion",
+      s.count(nl("addAsset(src,label,kind,dzV>0?dzV:-1,trId,st)")) == 1,
+      f'{s.count(nl("addAsset(src,label,kind,dzV>0?dzV:-1,trId,st)"))}')
+# LE REPLI EST DIT A L'ECRAN : la note de `clipLen` est CONCATENEE dans celle
+# que `fireNote` emet a l'ajout. Sans cette ligne, `clipLen` pourrait rendre
+# une note parfaite que personne n'afficherait.
+check("P11_la_note_du_clip_entre_dans_celle_de_l_ajout",
+      s.count(nl("var dzTail=dzCl.note+(dzGrew?")) == 1
+      and s.count(nl('+dzTail)}')) == 1,
+      f'dzTail={s.count(nl("var dzTail=dzCl.note+(dzGrew?"))} '
+      f'fireNote={s.count(nl("+dzTail)}"))}')
+# LA ROUTE, DES DEUX COTES DU FIL : la couche l'appelle, le service la sert.
+check("P11_la_route_de_duree_existe_des_deux_cotes",
+      src.count('"/api/montage/duration?src="') == 1
+      and SVC.count('@router.get("/duration")') == 1
+      and SVC.count("async def montage_duration(") == 1,
+      f'couche={src.count(chr(34) + "/api/montage/duration?src=" + chr(34))} '
+      f'route={SVC.count(chr(34) + "@router.get(" + chr(34))}')
+# LA ROUTE NE RECOPIE NI LA RESOLUTION NI LA MESURE : elle appelle celles qui
+# existent. Une copie aurait diverge a la premiere correction — l'argument de
+# P9 pour `/media-rules`, applique ici.
+check("P11_la_route_reutilise_la_resolution_et_la_sonde",
+      SVC.count("p = await _media_source(request, src, video=False)") == 2
+      and SVC.count("dur = await asyncio.to_thread(_probe_duration, p)") == 1,
+      f'media_source={SVC.count("p = await _media_source(request, src, video=False)")} '
+      f'probe={SVC.count("dur = await asyncio.to_thread(_probe_duration, p)")}')
+
+# ── LA CHAINE AVAL, MESUREE ICI PLUTOT QUE DECOUVERTE AU REJEU SUIVANT ────
+# CE QUI A MORDU PENDANT P10, ET QUI A FAILLI MORDRE ICI. `patch_bundle_
+# dzcout.py` est un maillon AVAL de `montage` ; sa garde `guard_downstream`
+# cherche un `.bak_*` plus recent que le sien, or les `.bak_*` NE SONT PAS
+# SUIVIS PAR GIT. Six commits cueillis ont apporte un bundle deja patche par
+# dzcout mais SANS son backup : la garde etait AVEUGLE, et rejouer montage a
+# efface les sept marqueurs `__dzCoutBlanc` en silence. Ce qui l'a rattrape
+# n'est aucune assertion de montage, c'est la SONDE AMONT de dzcout.
+# LES DEUX LIGNES CI-DESSOUS FONT DE CETTE SONDE UNE MESURE DU BANC : le jour
+# ou une section ajoute une reference a `DzTracks` sans mettre le nombre a
+# jour, c'est ICI que ca rougit, avant le rejeu.
+# LE COMPTE EST EN OCCURRENCES, PAS EN LIGNES : le bundle est minifie et
+# `grep -c` compterait des lignes.
+_DZCOUT = ROOT / "scripts" / "patch_bundle_dzcout.py"
+if _DZCOUT.is_file():
+    _DC = load("patch_bundle_dzcout", _DZCOUT)
+    _sonde = dict((t, n) for t, _m, n in _DC.STABLE_PROBES)
+    check("chaine_la_sonde_amont_de_dzcout_compte_juste_les_DzTracks",
+          _sonde.get("montage") == s.count("DzTracks"),
+          f'sonde={_sonde.get("montage")} bundle={s.count("DzTracks")}')
+    check("chaine_les_sept_marqueurs_de_dzcout_sont_toujours_la",
+          s.count(_DC.MARKER) == _DC.MARKER_ATTENDU == 7,
+          f'bundle={s.count(_DC.MARKER)} attendu={_DC.MARKER_ATTENDU}')
+else:
+    check("chaine_la_sonde_amont_de_dzcout_compte_juste_les_DzTracks", False,
+          f"{_DZCOUT} introuvable")
+
 # ── DETTE D'ECRAN, CONSIGNEE ET NON DEVINEE (etape 5 de la tache) ─────────
 # LE ZOOM N'EST PAS REECRIT. Le defilement horizontal EXISTE DEJA et il est
 # bon : `.svm-scroll{flex:1; overflow:auto}`, pistes en `width:zoomPct%`,
@@ -1893,6 +2045,135 @@ out.dc_titres_nomment_le_pas=["m","v","p"].every(function(k){
   var b=DKID(dA.el,k);return !!b&&b.p.title.indexOf("2 s")>=0});
 out.dc_aria=["m","p"].map(function(k){return DKID(dA.el,k).p["aria-label"]});
 out.secs=[T.secs(2),T.secs(.5),T.secs(10),T.secs("x")];
+/* ══ P11 — LA LONGUEUR D'UN CLIP, ET LA DECOUVERTE DE CELLE DE SA SOURCE ══
+   `clipLen` et `needDur` sont PURES : elles se jouent ici en entier. `askDur`
+   ne l'est pas, mais ses deux dependances impures sont INJECTEES — un
+   `fetch` factice SYNCHRONE et un `timer` qu'on declenche a la main — donc
+   tout son chemin reseau se joue ici aussi, au lieu de rester une dette de
+   navigateur. `LEVE:` plutot qu'une exception : rougir, pas mourir. */
+function CL(k,v,d){try{var o=T.clipLen(k,v,d);
+    return {len:o.len,origine:o.origine,note:o.note}}
+  catch(e){return {len:"LEVE:"+e.name,origine:"LEVE",note:"LEVE"}}}
+function ND(k,v){try{return T.needDur(k,v)}catch(e){return "LEVE:"+e.name}}
+/* LES TROIS REPLIS TELS QUE LE BUNDLE LES PASSE — pas une invention du banc :
+   la ligne `P11_defaultLen_delegue_a_la_couche` les compte dans le bundle
+   LIVRE, et c'est ce meme triplet qui est joue ici. */
+var BD={image:4,audio:8,video:6};
+out.cl_defauts_de_secours=T.CLIP_DEFAUTS;
+out.cl_video_16=CL("video",15.973,BD);
+out.cl_video_21=CL("video",21.233,BD);
+/* PLUS COURTE QUE L'ANCIEN PLAFOND : le repli n'est pas devenu un plancher. */
+out.cl_video_courte=CL("video",3.5,BD);
+out.cl_video_minuscule=CL("video",0.2,BD);
+out.cl_video_zero=CL("video",0,BD);
+out.cl_video_negatif=CL("video",-5,BD);
+out.cl_video_nan=CL("video",NaN,BD);
+out.cl_video_texte=CL("video","abc",BD);
+out.cl_video_absent=CL("video",void 0,BD);
+out.cl_video_infini=CL("video",Infinity,BD);
+out.cl_audio_source=CL("audio",184.2,BD);
+out.cl_audio_inconnu=CL("audio",0,BD);
+out.cl_image=CL("image",0,BD);
+/* UNE IMAGE N'A PAS DE LONGUEUR : la duree passee est ignoree, comme avant. */
+out.cl_image_avec_duree=CL("image",30,BD);
+/* LES REPLIS SONT CEUX DE L'APPELANT : la couche n'est pas leur autorite. */
+out.cl_defauts_recus=CL("video",0,{image:1,audio:2,video:10});
+out.cl_defauts_illisibles=CL("video",0,{video:"x"});
+out.cl_defauts_negatifs=CL("audio",0,{audio:-3});
+out.cl_defauts_absents=CL("video",0);
+out.cl_defauts_nuls=CL("video",0,null);
+out.cl_arrondi_au_millieme=CL("video",15.9731234,BD).len;
+/* UN GENRE INCONNU EST TRAITE COMME UNE VIDEO — c'est ce que faisait la
+   fonction du bundle (son dernier `return` etait le cas par defaut). */
+out.cl_genre_inconnu=CL("sous-titre",0,BD);
+/* ── faut-il aller demander ? ─────────────────────────────────────────────── */
+out.nd_image=ND("image",0);
+out.nd_image_avec_duree=ND("image",30);
+out.nd_video_connue=ND("video",15.973);
+out.nd_video_zero=ND("video",0);
+out.nd_video_absente=ND("video",void 0);
+out.nd_video_texte=ND("video","abc");
+out.nd_video_infinie=ND("video",Infinity);
+/* LE VERROU DE RECURSION : un nombre NEGATIF veut dire « deja demande ». */
+out.nd_video_negative=ND("video",-1);
+out.nd_audio_zero=ND("audio",0);
+/* ── la mesure, avec un `fetch` factice SYNCHRONE ────────────────────────── */
+/* Une promesse native resoudrait en micro-tache, DONC apres le
+   `console.log` final : le banc lirait des `undefined` partout et serait
+   vert sans avoir rien mesure. Ce thenable-ci resout SUR PLACE. */
+/* Il DEBOBINE ce que le rappel rend, comme une vraie promesse : sans cela,
+   le second `.then` recevait le thenable de `json()` au lieu du corps, et la
+   ligne du corps illisible verdissait sur « mesure ». */
+function SYNC(v){return {
+  then:function(cb){var r;try{r=cb(v)}catch(e){return SYNCERR(e)}
+    return (r&&typeof r.then==="function")?r:SYNC(r)},
+  catch:function(){return SYNC(v)}}}
+function SYNCERR(e){return {
+  then:function(){return SYNCERR(e)},
+  catch:function(cb){cb(e);return SYNC(void 0)}}}
+var adURL=null,adAppels=0;
+function FETCH(rep){return function(u){adURL=u;adAppels++;return SYNC(rep)}}
+function REP(ok,corps){return {ok:ok,json:function(){return SYNC(corps)}}}
+function JAMAIS(){}                    /* un timer qui ne se declenche pas */
+function TOUT_DE_SUITE(fn){fn()}       /* ... et un qui gagne la course */
+function AD(o){
+  var vus=[];
+  o.done=function(v,pq){vus.push([v,pq])};
+  try{T.askDur({job_id:"j1"},o)}catch(e){vus.push(["LEVE:"+e.name,"LEVE"])}
+  return {n:vus.length,premier:vus[0]||null}}
+out.ad_delai_par_defaut=T.DUR_DELAI;
+adURL=null;adAppels=0;
+var a1=AD({fetch:FETCH(REP(!0,{ok:!0,dur:21.233,name:"sentry_bot.mp4"})),
+           timer:JAMAIS});
+out.ad_mesure=a1.premier;
+out.ad_une_seule_reponse=a1.n;
+out.ad_url=adURL;
+/* `dur: 0` = INCONNUE, jamais « nulle » : la sortie est nommee « mesure »
+   (le serveur a bien repondu) mais la duree ne vaut rien d'exploitable. */
+out.ad_mesure_inconnue=AD({fetch:FETCH(REP(!0,{ok:!0,dur:0})),
+                           timer:JAMAIS}).premier;
+out.ad_http_refuse=AD({fetch:FETCH(REP(!1,null)),timer:JAMAIS}).premier;
+out.ad_json_illisible=AD({fetch:FETCH(REP(!0,null)),timer:JAMAIS}).premier;
+out.ad_reseau_leve=AD({fetch:function(){throw new Error("boom")},
+                       timer:JAMAIS}).premier;
+out.ad_promesse_rejetee=AD({fetch:function(){return SYNCERR(new Error("ko"))},
+                            timer:JAMAIS}).premier;
+out.ad_sans_reseau=AD({fetch:null,timer:JAMAIS}).premier;
+/* SANS FETCH, AUCUN APPEL — et le compteur le prouve : sans lui, `fetch:null`
+   pourrait rendre « sans-reseau » APRES avoir appele autre chose. */
+adAppels=0;AD({fetch:null,timer:JAMAIS});
+out.ad_sans_reseau_zero_appel=adAppels;
+/* LA COURSE. Le delai gagne, la reponse arrive quand meme : UNE seule
+   sortie, celle du delai. Le compteur d'appels prouve que la reponse EST
+   passee — sans lui, un `askDur` qui ne demanderait jamais rien serait vert. */
+adAppels=0;
+var a2=AD({fetch:FETCH(REP(!0,{ok:!0,dur:21.233})),timer:TOUT_DE_SUITE});
+out.ad_delai_gagne=a2.premier;
+out.ad_delai_une_seule_reponse=a2.n;
+out.ad_delai_la_reponse_est_bien_passee=adAppels;
+/* UN `src` QUE `JSON.stringify` REFUSE (cycle) : sortie nommee, aucun appel. */
+adAppels=0;
+var circ={};circ.self=circ;
+var vusC=[];
+try{T.askDur(circ,{fetch:FETCH(REP(!0,{ok:!0,dur:9})),timer:JAMAIS,
+  done:function(v,pq){vusC.push([v,pq])}})}
+catch(e){vusC.push(["LEVE:"+e.name,"LEVE"])}
+out.ad_src_illisible=vusC[0]||null;
+out.ad_src_illisible_zero_appel=adAppels;
+/* SANS `done` : la fonction ne doit pas lever (repli en fonction vide). */
+try{T.askDur({job_id:"j"},{fetch:FETCH(REP(!0,{ok:!0,dur:3})),timer:JAMAIS});
+  out.ad_sans_done="ok"}
+catch(e){out.ad_sans_done="LEVE:"+e.name}
+/* UN DELAI ILLISIBLE RETOMBE SUR LE DEFAUT — mesure par ce que le timer
+   RECOIT, pas par une lecture de variable interne. */
+var msVu=null;
+T.askDur({job_id:"j"},{fetch:FETCH(REP(!0,{ok:!0,dur:3})),
+  timer:function(fn,ms){msVu=ms},delai:"abc",done:JAMAIS});
+out.ad_delai_illisible=msVu;
+var msVu2=null;
+T.askDur({job_id:"j"},{fetch:FETCH(REP(!0,{ok:!0,dur:3})),
+  timer:function(fn,ms){msVu2=ms},delai:250,done:JAMAIS});
+out.ad_delai_recu=msVu2;
 console.log(JSON.stringify(out));
 """
 # "use strict" en PROLOGUE du shim : concatene, celui de montage.js n'est
@@ -2457,6 +2738,194 @@ check("js_durctl_les_boutons_sont_annoncables",
       str(d.get("dc_aria")))
 check("js_durctl_les_secondes_en_francais",
       d.get("secs") == ["2 s", "0,5 s", "10 s", "0 s"], str(d.get("secs")))
+
+
+# ── P11 : la longueur d'un clip, jouee sous node ──────────────────────────
+# `clipLen` est PURE : chaque ligne ci-dessous a ete rejouee par MUTATION de
+# la couche ; la table du commit dit laquelle rougit pour chacune.
+#
+# LE POINT DE TOUTE LA TACHE : une source de 21 s entre a 21 s. Le repli du
+# bundle (6 s pour une video, 8 pour un son) ne s'applique plus QUE lorsque
+# la duree est inconnue — et il est alors DIT.
+def _cl(k):
+    """Le triplet {len, origine} d'une entree de `clipLen`, ou un temoin.
+
+    `d.get(k)` vaut `None` quand le shim n'a pas tourne : sans ce repli
+    DISTINGUABLE, `.get("len")` leverait et emporterait la section entiere
+    (faute n°6), et un `== None` verdirait sur du vide (faute n°2)."""
+    v = d.get(k)
+    if not isinstance(v, dict):
+        return {"len": "ABSENT:%r" % (v,), "origine": "ABSENT"}
+    return v
+
+
+for _lbl, _k, _len, _org in (
+        ("la_video_de_16s_entre_a_16s", "cl_video_16", 15.973, "source"),
+        ("la_video_de_21s_entre_a_21s", "cl_video_21", 21.233, "source"),
+        ("une_source_plus_courte_que_le_repli_garde_sa_longueur",
+         "cl_video_courte", 3.5, "source"),
+        ("une_source_minuscule_reste_minuscule",
+         "cl_video_minuscule", 0.2, "source"),
+        ("duree_nulle_retombe_sur_le_repli", "cl_video_zero", 6, "repli"),
+        ("duree_negative_retombe_sur_le_repli",
+         "cl_video_negatif", 6, "repli"),
+        ("duree_nan_retombe_sur_le_repli", "cl_video_nan", 6, "repli"),
+        ("duree_non_numerique_retombe_sur_le_repli",
+         "cl_video_texte", 6, "repli"),
+        ("duree_absente_retombe_sur_le_repli", "cl_video_absent", 6, "repli"),
+        ("duree_infinie_retombe_sur_le_repli", "cl_video_infini", 6, "repli"),
+        ("un_son_entre_a_sa_longueur", "cl_audio_source", 184.2, "source"),
+        ("un_son_inconnu_retombe_sur_huit_secondes",
+         "cl_audio_inconnu", 8, "repli"),
+        ("une_image_vaut_quatre_secondes", "cl_image", 4, "image"),
+        ("une_image_ignore_la_duree_qu_on_lui_passe",
+         "cl_image_avec_duree", 4, "image"),
+        ("les_replis_sont_ceux_de_l_appelant",
+         "cl_defauts_recus", 10, "repli"),
+        ("un_repli_illisible_retombe_sur_celui_de_la_couche",
+         "cl_defauts_illisibles", 6, "repli"),
+        ("un_repli_negatif_retombe_sur_celui_de_la_couche",
+         "cl_defauts_negatifs", 8, "repli"),
+        ("sans_replis_ceux_de_la_couche", "cl_defauts_absents", 6, "repli"),
+        ("des_replis_nuls_ne_font_pas_lever", "cl_defauts_nuls", 6, "repli"),
+        ("un_genre_inconnu_est_traite_comme_une_video",
+         "cl_genre_inconnu", 6, "repli")):
+    _v = _cl(_k)
+    check("js_cliplen_" + _lbl,
+          _v.get("len") == _len and _v.get("origine") == _org,
+          f'{_v.get("len")!r}/{_v.get("origine")!r} attendu {_len!r}/{_org!r}')
+check("js_cliplen_la_longueur_est_arrondie_au_millieme",
+      d.get("cl_arrondi_au_millieme") == 15.973,
+      str(d.get("cl_arrondi_au_millieme")))
+check("js_cliplen_la_couche_garde_les_trois_replis_du_bundle_en_secours",
+      d.get("cl_defauts_de_secours") == {"image": 4, "audio": 8, "video": 6},
+      str(d.get("cl_defauts_de_secours")))
+# LE REPLI EST DIT, ET C'EST LA MOITIE HONNETE DE LA TACHE : un clip pose a
+# 6 s parce que l'application ignore la vraie longueur ne doit pas se faire
+# passer pour une source de 6 s. La ligne exige que la note NOMME le chiffre
+# ET dise que ce n'est pas celui de la source.
+check("js_cliplen_le_repli_video_est_DIT",
+      "6 s" in _cl("cl_video_zero").get("note", "")
+      and "PAR DÉFAUT" in _cl("cl_video_zero").get("note", "")
+      and "pas la sienne" in _cl("cl_video_zero").get("note", ""),
+      str(_cl("cl_video_zero").get("note"))[:200])
+check("js_cliplen_le_repli_audio_est_DIT_et_accorde",
+      "8 s" in _cl("cl_audio_inconnu").get("note", "")
+      and "Ce son" in _cl("cl_audio_inconnu").get("note", ""),
+      str(_cl("cl_audio_inconnu").get("note"))[:200])
+check("js_cliplen_le_repli_dit_quoi_faire",
+      "Rognez le bord droit" in _cl("cl_video_zero").get("note", ""),
+      str(_cl("cl_video_zero").get("note"))[:200])
+# LA LONGUEUR CONNUE EST DITE AUSSI, avec la virgule decimale du francais.
+check("js_cliplen_la_longueur_de_source_est_dite_en_francais",
+      "21,2 s" in _cl("cl_video_21").get("note", "")
+      and "ENTIÈRE" in _cl("cl_video_21").get("note", ""),
+      str(_cl("cl_video_21").get("note"))[:200])
+# UNE IMAGE N'A RIEN A CONFESSER : ses 4 s sont un cadrage, pas une
+# ignorance. Le `== ""` d'une note ABSENTE serait vert : la ligne exige donc
+# d'abord que les DEUX autres notes existent et disent quelque chose.
+check("js_cliplen_une_image_ne_confesse_rien",
+      _cl("cl_image").get("note") == ""
+      and len(_cl("cl_video_zero").get("note", "")) > 40
+      and len(_cl("cl_video_21").get("note", "")) > 20,
+      f'image={_cl("cl_image").get("note")!r} '
+      f'repli={len(_cl("cl_video_zero").get("note", ""))} '
+      f'source={len(_cl("cl_video_21").get("note", ""))}')
+
+# ── P11 : faut-il aller demander la duree ? ───────────────────────────────
+for _lbl, _k, _att in (
+        ("jamais_pour_une_image", "nd_image", False),
+        ("jamais_pour_une_image_meme_datee", "nd_image_avec_duree", False),
+        ("jamais_quand_on_la_connait", "nd_video_connue", False),
+        ("oui_quand_elle_est_nulle", "nd_video_zero", True),
+        ("oui_quand_elle_est_absente", "nd_video_absente", True),
+        ("oui_quand_elle_est_illisible", "nd_video_texte", True),
+        ("oui_quand_elle_est_infinie", "nd_video_infinie", True),
+        ("non_quand_elle_est_negative_le_verrou_de_recursion",
+         "nd_video_negative", False),
+        ("oui_pour_un_son_sans_duree", "nd_audio_zero", True)):
+    check("js_needdur_" + _lbl, d.get(_k) is _att, repr(d.get(_k)))
+
+# ── P11 : la mesure elle-meme (askDur), jouee sous node ───────────────────
+# CE N'EST PAS UNE DETTE DE NAVIGATEUR : `fetch` et `setTimeout` sont
+# INJECTES, donc tout le chemin reseau se joue ici. `done` est appelee UNE
+# SEULE FOIS, toujours, et la sortie prise est NOMMEE.
+def _ad(k):
+    v = d.get(k)
+    return v if isinstance(v, list) and len(v) == 2 else ["ABSENT:%r" % (v,),
+                                                          "ABSENT"]
+
+
+for _lbl, _k, _att in (
+        ("la_mesure_revient_telle_quelle", "ad_mesure", [21.233, "mesure"]),
+        ("une_duree_nulle_veut_dire_inconnue", "ad_mesure_inconnue",
+         [0, "mesure"]),
+        ("un_refus_http_ne_ment_pas", "ad_http_refuse", [0, "refus"]),
+        ("un_corps_illisible_ne_ment_pas", "ad_json_illisible", [0, "refus"]),
+        ("un_reseau_qui_leve_ne_tue_rien", "ad_reseau_leve", [0, "erreur"]),
+        ("une_promesse_rejetee_ne_tue_rien", "ad_promesse_rejetee",
+         [0, "erreur"]),
+        ("sans_fetch_la_sortie_est_nommee", "ad_sans_reseau",
+         [0, "sans-reseau"]),
+        ("le_delai_gagne_la_course", "ad_delai_gagne", [0, "delai"]),
+        ("un_src_illisible_sort_nomme", "ad_src_illisible",
+         [0, "src-illisible"])):
+    check("js_askdur_" + _lbl, _ad(_k) == _att, repr(_ad(_k)))
+# LES TROIS LIGNES CI-DESSOUS SONT DES COMPTES, donc des negations deguisees :
+# « une seule reponse », « zero appel ». Chacune serait VRAIE PAR CONSTRUCTION
+# sur un `askDur` qui ne ferait rien du tout. Le conjoint est a chaque fois la
+# sortie ATTENDUE : le compte n'est lu que si la fonction a bien repondu ce
+# qu'on lui demandait. MESURE : sans ces conjoints, aucune des vingt-sept
+# mutations jouees ne les rougissait — trois lignes vertes qui ne mesuraient
+# rien (faute n°2).
+check("js_askdur_une_seule_reponse_sur_le_chemin_normal",
+      _ad("ad_mesure") == [21.233, "mesure"]
+      and d.get("ad_une_seule_reponse") == 1,
+      f'{_ad("ad_mesure")!r} n={d.get("ad_une_seule_reponse")!r}')
+# LE VERROU DE LA COURSE. `ad_delai_une_seule_reponse == 1` serait vert sur un
+# `askDur` qui n'appellerait JAMAIS le reseau : le compteur d'appels est le
+# conjoint qui l'en empeche — la reponse est bien passee, elle a ete ignoree.
+check("js_askdur_la_reponse_tardive_ne_pose_pas_un_second_clip",
+      d.get("ad_delai_une_seule_reponse") == 1
+      and d.get("ad_delai_la_reponse_est_bien_passee") == 1,
+      f'reponses={d.get("ad_delai_une_seule_reponse")} '
+      f'appels={d.get("ad_delai_la_reponse_est_bien_passee")}')
+check("js_askdur_sans_fetch_aucun_appel_n_est_tente",
+      _ad("ad_sans_reseau") == [0, "sans-reseau"]
+      and d.get("ad_sans_reseau_zero_appel") == 0,
+      f'{_ad("ad_sans_reseau")!r} '
+      f'appels={d.get("ad_sans_reseau_zero_appel")!r}')
+check("js_askdur_un_src_illisible_n_appelle_rien",
+      _ad("ad_src_illisible") == [0, "src-illisible"]
+      and d.get("ad_src_illisible_zero_appel") == 0,
+      f'{_ad("ad_src_illisible")!r} '
+      f'appels={d.get("ad_src_illisible_zero_appel")!r}')
+# CETTE LIGNE-CI EST FAIBLE PAR NATURE, ET C'EST DIT PLUTOT QUE CACHE.
+# MESURE (mutation M35, `var fin=o.done;` sans repli) : le banc reste ENTIER
+# a 504/0 — le `TypeError` du rappel absent est rattrape par le `catch` qui
+# entoure la chaine de promesses, et `askDur` ne leve donc PAS, repli ou pas.
+# La moitie comportementale ne peut pas distinguer les deux mecanismes ; on
+# exige donc AUSSI le repli explicite dans la couche LIVREE, et c'est cette
+# moitie-la qui rend la ligne falsifiable.
+check("js_askdur_sans_rappel_elle_ne_leve_pas",
+      d.get("ad_sans_done") == "ok"
+      and src.count('var fin=typeof o.done==="function"?o.done:function(){};')
+      == 1,
+      f'{d.get("ad_sans_done")!r} repli={src.count("var fin=typeof o.done")}')
+# L'URL EST CELLE DE LA ROUTE, et le `src` y voyage en JSON encode. La ligne
+# de banc du backend (`test_montage_media.py`, section [7]) mesure l'AUTRE
+# bout du meme fil.
+check("js_askdur_l_url_est_celle_de_la_route",
+      isinstance(d.get("ad_url"), str)
+      and d["ad_url"] == "/api/montage/duration?src=" + urllib.parse.quote(
+          '{"job_id":"j1"}', safe=""),
+      repr(d.get("ad_url")))
+check("js_askdur_le_delai_par_defaut_est_celui_de_la_couche",
+      d.get("ad_delai_par_defaut") == 1500,
+      repr(d.get("ad_delai_par_defaut")))
+check("js_askdur_un_delai_illisible_retombe_sur_le_defaut",
+      d.get("ad_delai_illisible") == 1500 and d.get("ad_delai_recu") == 250,
+      f'illisible={d.get("ad_delai_illisible")} recu={d.get("ad_delai_recu")}')
 
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")

@@ -3877,9 +3877,11 @@ function DzMontage(props){
   /* durée par défaut d'un asset posé : une image n'en a pas, une vidéo et un
      son sont bornés pour rester manipulables à la souris. */
   x.useEffect(function(){var p=null;try{p=window.__dzMontageAdd;delete window.__dzMontageAdd}catch(_e){}if(!p)return;setTimeout(function(){try{if(p.image)addAsset({image:p.image},p.image,"image",0,"v2");else if(p.job_id)addAsset({job_id:p.job_id},p.title||p.job_id,"video",p.dur||0,"v2")}catch(_e2){}},450)},[]);function defaultLen(kind,srcDur){
-    if(kind==="image")return 4;
-    if(kind==="audio")return Math.min(8,srcDur||8);
-    return Math.min(6,srcDur||6);
+    /* P11 — plus de plafond : la longueur d'un clip est celle de
+       sa source quand on la connaît. Les trois replis restent, et
+       ils sont PASSÉS à la couche au lieu d'y être recopiés ; un
+       clip posé sur un repli le DIT (champ `note`). */
+    return DzTracks.clipLen(kind,srcDur,{image:4,audio:8,video:6});
   }
   function addAsset(src,label,kind,srcDur,trId,atTime){
     /* P6 — MODE REMPLACEMENT, en court-circuit AVANT tout le reste :
@@ -3968,13 +3970,26 @@ function DzMontage(props){
        garde des clips de moins d'une demi-seconde est celle d'avant :
        elle vise les SOURCES minuscules, pas le plafond disparu. */
     st=Math.max(0,st);
-    var en=st+defaultLen(kind,srcDur);if(en-st<.5)st=Math.max(0,en-1);
+    /* P11 — LA LONGUEUR DE LA SOURCE, DÉCOUVERTE QUAND ELLE MANQUE.
+       On sort ICI, avant `pushHistory` : rien n'est encore écrit, et le
+       rappel repart du même point avec la mesure. La piste REDEMANDÉE
+       est `trId`, pas la piste résolue — sinon l'explication « cette
+       piste n'existe pas dans ce projet » se perdrait au retour ; `st`
+       est repassé pour que le clip atterrisse là où la tête de lecture
+       était AU CLIC, pas 85 ms plus tard. Mesure échouée : on repasse un
+       nombre NÉGATIF, que `needDur` lit comme « déjà demandé » — c'est
+       le verrou de récursion, et il est éprouvé sous node. */
+    if(DzTracks.needDur(kind,srcDur)){
+      DzTracks.askDur(src,{done:function(dzV){
+        addAsset(src,label,kind,dzV>0?dzV:-1,trId,st)}});return}
+    var dzCl=defaultLen(kind,srcDur);
+    var en=st+dzCl.len;if(en-st<.5)st=Math.max(0,en-1);
     var dzFit=DzTracks.fitDur([{end:en}],d,0),dzGrew=dzFit>d?dzFit:0;
-    var dzTail=dzGrew?(" La timeline a été allongée de "+
+    var dzTail=dzCl.note+(dzGrew?(" La timeline a été allongée de "+
       svmRuler(Math.round(d))+" à "+svmRuler(Math.round(dzGrew))+
       " : le clip garde sa longueur entière au lieu d'être rogné sur la "+
       "fin du projet. « Annuler » retire le clip mais NE raccourcit PAS "+
-      "la timeline — le réglage de durée, à côté du zoom, la reprend."):"";
+      "la timeline — le réglage de durée, à côté du zoom, la reprend."):"");
     if(dzGrew)setProj(function(p){return Object.assign({},p,{dur:dzGrew})});
     ovSeq.current++;
     var id=tr2+"u"+ovSeq.current+"_"+Math.round(st*10);
@@ -12285,7 +12300,17 @@ window.DzSubs={ready:!0,Drawer:SubsDrawer,Overlay:SubsOverlay,Style:SubsStyle,
                          replaceSrc, revertSrc, replaceBtn, revertBtn,
                          newerLine, NewerHint,
                          fitDur, durCtl, secs, DUR_MIN,
+                         clipLen, needDur, askDur, CLIP_DEFAUTS, DUR_DELAI,
                          move, moveTo, add, remove, group, DEFAULTS}
+
+   - clipLen(kind, srcDur, defauts) — P11 : la longueur à donner au clip
+     qu'on pose. PURE, rend {len, origine, note} — la longueur ENTIÈRE de la
+     source quand elle est connue, le repli du bundle sinon, et dans ce cas
+     seulement une note qui DIT que le chiffre n'est pas celui de la source.
+   - needDur(kind, srcDur) / askDur(src, {done, fetch, timer, delai}) — P11 :
+     faut-il aller mesurer la durée, et la mesure elle-même
+     (GET /api/montage/duration). `askDur` prend ses deux dépendances impures
+     en argument, donc elle se joue sous node comme le reste du cœur.
 
    - fitDur(clips, dur, tail) — P10 : la durée que le projet DOIT avoir,
      c'est-à-dire le maximum entre la durée demandée et la fin du dernier
@@ -14204,6 +14229,175 @@ function dzmDurCtl(o){
     "Ajuster la timeline à son contenu",ajuste,"f"));
   return r.jsx("span",{className:"dzm-durctl",children:kids},"dzmdur")}
 
+/* ══ P11 — UN CLIP ENTRE À LA LONGUEUR DE SA SOURCE ═══════════════════════
+   P10 a rendu la timeline extensible ; il restait un SECOND plafond, dans le
+   bundle, qui bornait la longueur d'un clip AU MOMENT OÙ ON LE POSE. Une
+   vidéo entrait à six secondes quelle que soit sa longueur réelle, un son à
+   huit : même avec une timeline infinie, les sources entraient tronquées.
+
+   LEVER LE PLAFOND NE SUFFIT PAS, et c'est le cœur de la tâche. MESURÉ le
+   05/09/2026 sur un instantané COHÉRENT de la base de l'utilisateur
+   (`sqlite3.connect('file:…?mode=ro', uri=True).backup(dst)`, qui fusionne
+   le WAL — une copie d'octets du seul `.db` comptait 106 jobs contre 120) :
+   sur ses trois vidéos, `duration_s` vaut 16 pour l'une et NULL pour les
+   deux autres. Pour celles-là, l'application n'a RIEN à lever : elle ignore
+   la durée. Il faut donc aussi la DÉCOUVRIR — c'est `askDur`, et la route
+   `GET /api/montage/duration` qui la sert.
+
+   TROIS FONCTIONS, ET LA FRONTIÈRE ENTRE ELLES EST NETTE :
+     · `clipLen` DÉCIDE — pure, sans réseau, sans horloge, jouée en entier
+       sous node par test_montage_bundle.py ;
+     · `needDur` dit S'IL FAUT DEMANDER — pure elle aussi ;
+     · `askDur` DEMANDE — c'est la seule à toucher au réseau, et ses deux
+       dépendances (`fetch`, `setTimeout`) sont INJECTABLES, donc elle se
+       joue sous node comme les autres au lieu de rester une dette de
+       navigateur.
+
+   POURQUOI UNE ROUTE, ET PAS LA DURÉE LUE À L'ÉCRAN NI JOINTE À LA LISTE.
+   Trois voies étaient ouvertes ; celle-ci est prise pour des raisons
+   mesurées, écrites ici pour qu'on puisse les contester avec un chiffre.
+     · JOINDRE LA DURÉE À LA LISTE DU SÉLECTEUR aurait sondé DOUZE assets à
+       chaque ouverture (la liste est tranchée à douze), soit 0,7 à 1,0 s de
+       ffprobe pour une liste dont l'utilisateur ne pose qu'une ligne — et
+       n'aurait RIEN fait pour « Envoyer vers → Montage », qui n'ouvre aucune
+       liste et envoie une durée nulle par construction.
+     · LA LIRE À L'ÉCRAN (`loadedmetadata`) aurait demandé une URL jouable
+       par source ; le vocabulaire de source du Montage ({job_id}, {audio},
+       {image}, {file_path}) n'en a pas, et lui en donner une était une
+       tâche à soi seule.
+     · LA ROUTE, elle, parle EXACTEMENT ce vocabulaire (elle réutilise
+       `_resolve_src`), coûte UN ffprobe — MESURÉ : médiane 56 à 85 ms sur
+       les cinq vidéos réelles de l'utilisateur, 12 appels après 3 de
+       chauffe, ffprobe 8.1.1-essentials_build, Windows 11 / AMD64 — et ne
+       coûte RIEN au chargement de l'écran : elle n'est appelée QUE lorsqu'un
+       clip est posé, et seulement si la durée manque.
+
+   L'ÉCRAN RESTE VIVANT PENDANT : l'appel ne bloque rien (une promesse), et
+   il porte un DÉLAI. Passé ce délai, le clip est posé quand même — à sa
+   longueur par défaut, en le disant. Le pire cas mesurable côté serveur est
+   le délai d'attente de `_probe_duration` (30 s sur un fichier tronqué) ;
+   sans ce garde-fou, l'utilisateur aurait cliqué et rien n'aurait bougé
+   pendant une demi-minute. */
+
+/* LES TROIS REPLIS NE SONT PAS ÉCRITS ICI, ILS SONT REÇUS. C'est le bundle
+   qui les porte depuis toujours (une image cadrée à 4 s, un son à 8, une
+   vidéo à 6) et il les PASSE en troisième argument : la couche ne devient
+   pas une seconde autorité pour trois chiffres qui ne sont pas les siens.
+   Cette table-ci n'est que le repli du repli — elle sert quand l'appelant
+   n'en passe pas, ou en passe un illisible. */
+var DZM_CLIP_DEFAUTS={image:4,audio:8,video:6};
+
+/* LA LONGUEUR À DONNER AU CLIP. PURE.
+   Rend {len, origine, note} :
+     · origine "source" — la durée de la source est lisible et exploitable :
+       c'est ELLE, entière, sans plafond d'aucune sorte ;
+     · origine "repli"  — la durée est inconnue (nulle, négative, illisible,
+       absente) : le clip prend la longueur par défaut, ET LE DIT. Un clip
+       posé à 6 s parce que l'application ignore la vraie longueur ne doit
+       pas se faire passer pour une source de 6 s ;
+     · origine "image"  — une image n'a PAS de longueur naturelle. Ses 4 s ne
+       sont donc pas une ignorance mais un cadrage, et il n'y a rien à
+       confesser : la note est vide. La durée passée est ignorée pour ce
+       genre-là, comme elle l'a toujours été.
+
+   AUCUN PLAFOND HAUT, ET C'EST UN CHOIX MESURÉ. Une source de 21 s entre à
+   21 s, une de dix minutes à dix minutes. La seule borne haute connue du
+   dépôt est celle de la RÈGLE, qui cesse de graduer au-delà de 40 traits
+   (soit 40 min) — elle est consignée en dette d'écran depuis P10, elle ne
+   casse rien, et elle ne justifie pas de rogner une source. Ce qui est
+   refusé n'est donc pas « trop long » mais « pas un nombre utilisable » :
+   NaN, l'infini, zéro, le négatif, une chaîne.
+
+   LA GARDE DES CLIPS MINUSCULES N'EST PAS ICI, et c'est délibéré : une
+   source de 0,2 s donne bien un clip de 0,2 s. C'est l'appelant qui décale
+   le point de départ pour qu'un tel clip reste saisissable à la souris —
+   cette règle-là lui appartient depuis P10, et deux autorités pour une même
+   borne divergeraient au premier changement. */
+function dzmClipLen(kind,srcDur,defauts){
+  var D=defauts&&typeof defauts==="object"?defauts:{};
+  function repli(k){
+    var v=Number(D[k]);
+    return isFinite(v)&&v>0?v:DZM_CLIP_DEFAUTS[k]}
+  if(kind==="image")return {len:repli("image"),origine:"image",note:""};
+  var k=kind==="audio"?"audio":"video";
+  var v=Number(srcDur);
+  if(isFinite(v)&&v>0)return {len:Math.round(v*1000)/1000,origine:"source",
+    note:" Le clip fait "+dzmSecs(v)+", la longueur ENTIÈRE de la source."};
+  var r=repli(k);
+  return {len:r,origine:"repli",
+    note:" "+(k==="audio"?"Ce son":"Cette vidéo")+" a été posé à "+
+      dzmSecs(r)+" — une longueur PAR DÉFAUT, pas la sienne : "+
+      "l'application n'a pas pu mesurer la durée de cette source. Rognez le "+
+      "bord droit du clip pour lui donner sa vraie longueur."}}
+
+/* FAUT-IL ALLER DEMANDER LA DURÉE ? PURE.
+   Non pour une image (elle n'en a pas). Non quand on la connaît déjà. Non
+   quand elle est NÉGATIVE — et cette troisième réponse est le verrou de
+   récursion de l'appelant : celui-ci se rappelle avec la mesure quand elle
+   est bonne, et avec un nombre négatif quand elle a échoué. Sans ce
+   troisième cas, une source que la mesure ne sait pas dater relancerait la
+   mesure indéfiniment. Une valeur illisible (NaN, une chaîne) fait bien
+   demander : c'est exactement le cas où l'on ne sait rien. */
+function dzmNeedDur(kind,srcDur){
+  if(kind==="image")return !1;
+  var v=Number(srcDur);
+  return !(isFinite(v)&&v!==0)}
+
+/* LE DÉLAI AU-DELÀ DUQUEL ON POSE LE CLIP SANS ATTENDRE LA MESURE.
+   1,5 s, soit près de vingt fois la mesure médiane observée (56 à 85 ms) :
+   le chemin normal ne le rencontre jamais. Il n'existe que pour le chemin
+   pathologique — une source tronquée sur laquelle ffprobe tient ses 30 s
+   d'attente — où le seul défaut inacceptable serait un clic sans effet. */
+var DZM_DUR_DELAI=1500;
+
+/* LA DURÉE D'UNE SOURCE, DEMANDÉE AU BACKEND.
+   `done(dur, pourquoi)` est appelée UNE SEULE FOIS, toujours, quoi qu'il
+   arrive : `dur` vaut 0 dès que la mesure n'a pas abouti, et `pourquoi`
+   nomme la sortie prise. Les deux dépendances impures sont injectables
+   (`o.fetch`, `o.timer`) — c'est ce qui rend cette fonction jouable sous
+   node, au lieu de laisser tout le chemin réseau en dette de navigateur.
+
+   `rendu` EST LE POINT : le délai et la réponse courent l'un contre
+   l'autre. Le premier arrivé gagne, le second ne fait rien — sans ce
+   verrou, une réponse tardive poserait un SECOND clip.
+
+   ABSENT ET NUL NE SE VALENT PAS, et ce n'est pas un raffinement de style :
+   `o.fetch` ABSENT veut dire « prends celui de l'hôte », `o.fetch` NUL veut
+   dire « il n'y en a pas ». Un simple `o.fetch||…` confondait les deux, et
+   la branche « sans réseau » devenait alors INATTEIGNABLE au banc — node 18
+   et les suivants portent un `fetch` global, qui reprenait la main sur le
+   nul injecté et partait pour de vrai sur une URL relative. Une branche
+   qu'aucun test ne peut atteindre est une branche qu'on croit tenue.
+
+   LES DEUX GLOBALES SONT ENVELOPPÉES, JAMAIS PRISES NUES : `var t=setTimeout;
+   t(fn,ms)` et `var f=fetch; f(u)` perdent leur récepteur, et plusieurs
+   moteurs répondent « Illegal invocation ». C'est le seul chemin de cette
+   fonction qu'aucun banc ne joue — node injecte les siens — donc il est écrit
+   pour être juste sans mesure, pas mesuré. Dette déclarée. */
+function dzmAskDur(src,o){
+  o=o||{};
+  var fin=typeof o.done==="function"?o.done:function(){};
+  var f=o.fetch===void 0
+    ?(typeof fetch==="function"?function(u){return fetch(u)}:null):o.fetch;
+  var tm=o.timer===void 0
+    ?(typeof setTimeout==="function"
+        ?function(fn,ms){return setTimeout(fn,ms)}:null):o.timer;
+  var ms=Number(o.delai);if(!isFinite(ms)||ms<=0)ms=DZM_DUR_DELAI;
+  var rendu=!1;
+  function rend(v,pq){if(rendu)return;rendu=!0;fin(v,pq)}
+  var u;
+  try{u="/api/montage/duration?src="+
+    encodeURIComponent(JSON.stringify(src||{}))}
+  catch(e){rend(0,"src-illisible");return}
+  if(!f){rend(0,"sans-reseau");return}
+  if(tm)tm(function(){rend(0,"delai")},ms);
+  try{
+    f(u).then(function(rp){return rp&&rp.ok?rp.json():null})
+        .then(function(j){var v=j?Number(j.dur):0;
+          rend(isFinite(v)&&v>0?v:0,j?"mesure":"refus")})
+        .catch(function(){rend(0,"erreur")})}
+  catch(e2){rend(0,"erreur")}}
+
 /* ── export contrat ───────────────────────────────────────────────────────── */
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
@@ -14221,6 +14415,8 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   move:dzmMove,moveTo:dzmMoveTo,add:dzmAdd,remove:dzmRemove,group:dzmGroup,
   clipsOn:dzmClipsOn,emojiClips:dzmEmojiClips,WORD_ANIMS:DZM_WORD_ANIMS,
   fitDur:dzmFitDur,durCtl:dzmDurCtl,secs:dzmSecs,DUR_MIN:DZM_DUR_MIN,
+  clipLen:dzmClipLen,needDur:dzmNeedDur,askDur:dzmAskDur,
+  CLIP_DEFAUTS:DZM_CLIP_DEFAUTS,DUR_DELAI:DZM_DUR_DELAI,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;
 

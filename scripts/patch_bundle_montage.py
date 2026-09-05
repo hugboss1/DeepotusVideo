@@ -1140,13 +1140,26 @@ R_M17A = (
     "       garde des clips de moins d'une demi-seconde est celle d'avant :\n"
     "       elle vise les SOURCES minuscules, pas le plafond disparu. */\n"
     "    st=Math.max(0,st);\n"
-    "    var en=st+defaultLen(kind,srcDur);if(en-st<.5)st=Math.max(0,en-1);\n"
+    "    /* P11 — LA LONGUEUR DE LA SOURCE, DÉCOUVERTE QUAND ELLE MANQUE.\n"
+    "       On sort ICI, avant `pushHistory` : rien n'est encore écrit, et le\n"
+    "       rappel repart du même point avec la mesure. La piste REDEMANDÉE\n"
+    "       est `trId`, pas la piste résolue — sinon l'explication « cette\n"
+    "       piste n'existe pas dans ce projet » se perdrait au retour ; `st`\n"
+    "       est repassé pour que le clip atterrisse là où la tête de lecture\n"
+    "       était AU CLIC, pas 85 ms plus tard. Mesure échouée : on repasse un\n"
+    "       nombre NÉGATIF, que `needDur` lit comme « déjà demandé » — c'est\n"
+    "       le verrou de récursion, et il est éprouvé sous node. */\n"
+    "    if(DzTracks.needDur(kind,srcDur)){\n"
+    "      DzTracks.askDur(src,{done:function(dzV){\n"
+    "        addAsset(src,label,kind,dzV>0?dzV:-1,trId,st)}});return}\n"
+    "    var dzCl=defaultLen(kind,srcDur);\n"
+    "    var en=st+dzCl.len;if(en-st<.5)st=Math.max(0,en-1);\n"
     "    var dzFit=DzTracks.fitDur([{end:en}],d,0),dzGrew=dzFit>d?dzFit:0;\n"
-    "    var dzTail=dzGrew?(\" La timeline a été allongée de \"+\n"
+    "    var dzTail=dzCl.note+(dzGrew?(\" La timeline a été allongée de \"+\n"
     "      svmRuler(Math.round(d))+\" à \"+svmRuler(Math.round(dzGrew))+\n"
     "      \" : le clip garde sa longueur entière au lieu d'être rogné sur la \"+\n"
     "      \"fin du projet. « Annuler » retire le clip mais NE raccourcit PAS \"+\n"
-    "      \"la timeline — le réglage de durée, à côté du zoom, la reprend.\"):\"\";\n"
+    "      \"la timeline — le réglage de durée, à côté du zoom, la reprend.\"):\"\");\n"
     "    if(dzGrew)setProj(function(p){"
     "return Object.assign({},p,{dur:dzGrew})});\n")
 
@@ -1303,6 +1316,43 @@ R_M17G = ('" %"]}),\n'
           'return Object.assign({},p,{dur:v})});setDirty(!0)},\n'
           '          note:fireNote}),')
 
+# ── M18a (P11) : LE SECOND PLAFOND, celui qui bornait la SOURCE ────────────
+# L'ANCRE PORTE LE CORPS ENTIER de `defaultLen`, ses trois lignes d'un bloc.
+# Comptée le 05/09/2026 : 1 dans le bundle livré, 1 dans .bak_montage — et
+# chacune des trois lignes y vaut 1 séparément.
+#
+# CE QUE CE PLAFOND FAISAIT, MESURÉ SUR LA BASE DE L'UTILISATEUR (instantané
+# COHÉRENT par `sqlite3 … .backup()`, qui fusionne le WAL : 120 jobs, contre
+# 106 pour une copie d'octets du seul `.db`) : `kapwing_sample` porte
+# `duration_s = 16` et entrait à 6 s — l'application CONNAISSAIT la durée et
+# la jetait. `Memecoin` et `sentry_bot` portent `duration_s = NULL` : pour
+# celles-là, lever le plafond ne change RIEN, il n'y a rien à lever. C'est
+# pourquoi P11 ne se limite pas à cette ancre et ajoute la DÉCOUVERTE
+# (M17a + DzTracks.askDur + GET /api/montage/duration).
+#
+# `defaultLen` CHANGE DE CONTRAT : il rendait un nombre, il rend désormais le
+# descripteur de `DzTracks.clipLen` — {len, origine, note}. Le nom est celui
+# du bundle et on ne le renomme pas (ce serait une ancre de plus pour un
+# gain de lecture), mais son UNIQUE appelant est réécrit dans la même passe
+# (M17a) : le banc compte l'appel des deux côtés.
+#
+# LES TROIS CHIFFRES RESTENT ÉCRITS ICI, ET C'EST VOULU : 4 s pour une image,
+# 8 pour un son, 6 pour une vidéo sont les replis DU BUNDLE depuis toujours.
+# Les passer en argument plutôt que de les laisser à la couche empêche
+# celle-ci de devenir une seconde autorité sur des valeurs qui ne sont pas
+# les siennes — même raisonnement que `_VIDEO_EXTS` servi par le backend en
+# P9. La couche en garde une copie de secours, qui ne sert QUE si l'appelant
+# n'en passe pas.
+A_M18A = ('    if(kind==="image")return 4;\n'
+          '    if(kind==="audio")return Math.min(8,srcDur||8);\n'
+          '    return Math.min(6,srcDur||6);\n')
+R_M18A = ("    /* P11 — plus de plafond : la longueur d'un clip est celle de\n"
+          "       sa source quand on la connaît. Les trois replis restent, et\n"
+          "       ils sont PASSÉS à la couche au lieu d'y être recopiés ; un\n"
+          "       clip posé sur un repli le DIT (champ `note`). */\n"
+          "    return DzTracks.clipLen(kind,srcDur,"
+          "{image:4,audio:8,video:6});\n")
+
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
            ("M5-payload", A_M5, R_M5), ("M6-save", A_M6, R_M6),
@@ -1330,7 +1380,9 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M17d-bord-droit-etend", A_M17D, R_M17D),
            ("M17e-deplacement-etend", A_M17E, R_M17E),
            ("M17f-relachement-ajuste", A_M17F, R_M17F),
-           ("M17g-transport-duree", A_M17G, R_M17G)]
+           ("M17g-transport-duree", A_M17G, R_M17G),
+           # P11 — un clip entre à la longueur de sa source.
+           ("M18a-plafond-source", A_M18A, R_M18A)]
 
 
 def nl(text, crlf):

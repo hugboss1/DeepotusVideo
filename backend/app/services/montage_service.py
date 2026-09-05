@@ -2810,6 +2810,7 @@ async def montage_measure(request: Request):
 #   GET  /strip?src=<json>&n=&w=&h= une planche de vignettes, en JPEG
 #   POST /proxy  {src}              fabrique l'aperçu 480p en tâche de fond
 #   GET  /proxy?src=<json>          sert l'aperçu s'il existe, 404 sinon
+#   GET  /duration?src=<json>       la durée de la source (P11), en secondes
 #
 # CE QUE CES ROUTES OUVRENT, ET CE QU'ON EN FAIT — la question ne se posait
 # pas pour les routes de Montage existantes, qui CONSOMMENT une source dans
@@ -2902,6 +2903,64 @@ def _media_http(e: Exception) -> HTTPException:
         return HTTPException(415, str(e))
     logger.exception("montage: precalcul en erreur")
     return HTTPException(502, f"Précalcul impossible : {e}")
+
+
+@router.get("/duration")
+async def montage_duration(request: Request, src: str = ""):
+    """La durée de `src`, en secondes. `{ok, dur, name}`.
+
+    P11 — LA MOITIÉ BACKEND DE « un clip entre à la longueur de sa source ».
+    L'écran ne connaît la durée d'un asset que si la base la porte ; MESURÉ le
+    05/09/2026 sur un instantané COHÉRENT de la base de l'utilisateur
+    (`sqlite3.connect('file:…?mode=ro', uri=True).backup(dst)` — 120 jobs,
+    contre 106 pour une copie d'octets du seul `.db`, qui ignore le WAL) :
+    `duration_s` est NULL pour DEUX de ses trois vidéos, et pour toute la
+    famille `template`. Sans cette route, ces clips-là entrent sur un chiffre
+    par défaut quoi qu'on fasse du plafond. Le sélecteur d'assets, lui, ne
+    voit jamais `duration_real_s` : ce champ n'est calculé que par
+    `GET /jobs/{id}`, un job à la fois, pas par la LISTE que le sélecteur
+    charge.
+
+    RIEN N'EST RECOPIÉ. La résolution de `src` est `_resolve_src` (le seul
+    vocabulaire de source du Montage : job_id / audio / image / file_path),
+    la garde de boucle locale et le 404 viennent de `_media_source`, et la
+    mesure est `_probe_duration` — la même fonction que le rendu, que la
+    construction de timeline et que `montage_media._dur`, qui n'en est qu'une
+    vue depuis l'autre module.
+
+    `video=False`, ET C'EST DÉLIBÉRÉ : un clip AUDIO doit lui aussi entrer à
+    sa longueur, et la question posée ici (« combien de temps dure ce
+    fichier ? ») a un sens pour un son comme pour une vidéo. Le piège de P7 —
+    ffprobe rend « video » sur un PNG — ne mord PAS ici : on lit
+    `format=duration`, pas `codec_type`, et MESURÉ sur les images de
+    l'utilisateur ffprobe rend « N/A » (rc=0), donc `_probe_duration` rend
+    0.0. Une image répond donc « je ne sais pas », ce qui est la vérité, et
+    non une durée inventée.
+
+    `dur: 0` VEUT DIRE « INCONNUE », JAMAIS « NULLE » : c'est le repli de
+    `_probe_duration` pour ffprobe absent, source illisible, fichier sans
+    durée. L'écran le lit ainsi et pose alors le clip sur son repli — en le
+    disant. Une source RÉSOLUE mais non mesurable rend donc 200 avec `dur: 0`
+    et non une erreur : elle existe, c'est sa durée qu'on ignore.
+
+    COÛT, PROTOCOLE NOMMÉ : un ffprobe par appel, et un appel seulement quand
+    un clip est posé sans durée connue — jamais au chargement de l'écran.
+    Médiane de 12 appels après 3 de chauffe (`perf_counter`, ffprobe
+    8.1.1-essentials_build, Windows 11 / AMD64) sur les vidéos RÉELLES de
+    l'utilisateur : 72,4 ms (kapwing_sample, 8,3 Mo), 85,2 ms (Memecoin,
+    6,9 Mo), 74,5 ms (sentry_bot, 6,2 Mo), 59,9 ms et 56,4 ms sur deux
+    autres. `asyncio.to_thread` : la boucle d'événements n'attend pas.
+
+    PAS DE CACHE ICI, ET C'EST UN CHOIX DÉCLARÉ. `routes._probe_seconds` en
+    porte un (clé (chemin, mtime_ns), 512 entrées) mais c'est un AUTRE
+    prober : délai d'attente de 15 s au lieu de 30, et `None` au lieu de 0.0
+    quand il échoue. Les fondre en un seul est une tâche à part ; s'appuyer
+    sur celui-là ici aurait fait entrer sa convention de retour dans le
+    Montage par la bande. À 56–85 ms par pose de clip, l'absence de cache ne
+    se voit pas."""
+    p = await _media_source(request, src, video=False)
+    dur = await asyncio.to_thread(_probe_duration, p)
+    return {"ok": True, "dur": round(float(dur or 0.0), 3), "name": p.name}
 
 
 @router.get("/peaks")

@@ -61,6 +61,14 @@ ete en P8.
       carton) et l'apercu d'un `.wav` (un mp4 SANS image) ; il n'echoue que
       sur le `.glb`. Sans garde, la moitie des non-videos rendrait un
       resultat silencieusement faux plutot qu'une erreur.
+  [7] P11 — `GET /duration`, ajoutee a cette famille de routes le 05/09/2026 :
+      la duree d'une source, pour qu'un clip entre a SA longueur au lieu du
+      chiffre par defaut du bundle. Elle n'est PAS gardee par `_is_video_
+      artifact` (`video=False`), et c'est la ligne `route_duration_accepte_un_
+      son_la_ou_strip_et_proxy_refusent` qui le mesure : un clip audio doit
+      lui aussi entrer a sa longueur. Le piege de [4] ne la concerne pas —
+      elle lit `format=duration`, pas `codec_type`, et un PNG y rend « N/A »,
+      donc 0.0 : « je ne sais pas », jamais une duree inventee.
   [5] LE PIEGE PRINCIPAL DE LA TACHE — LE JOB DE PROXY N'EST PAS UN PLAN.
       `POST /proxy` cree un `JobRecord provider="montage_proxy"` ; or
       `montage_project` n'excluait que `provider == "montage"` porteur de
@@ -1202,6 +1210,74 @@ check("cache_hors_d_outputs_videos",
 # lieu de le promettre.
 check("cache_introuvable_par_nom_a_la_racine_d_outputs",
       _c_ok and not (settings.outputs_path / _c.name).exists(), str(_c.name))
+
+
+print("\n[7] P11 — GET /duration : la duree d'une source, pour qu'un clip "
+      "entre a SA longueur.")
+# POURQUOI CETTE ROUTE EXISTE, MESURE PLUTOT QUE SUPPOSE : sur un instantane
+# COHERENT de la base de l'utilisateur (`sqlite3 … .backup()`, qui fusionne le
+# WAL : 120 jobs contre 106 pour une copie d'octets du seul `.db`),
+# `duration_s` est NULL pour DEUX de ses trois videos et pour toute la famille
+# `template`. Lever le plafond du bundle ne leur rendait donc RIEN : il fallait
+# aller mesurer. Le champ `duration_real_s` ne comble pas ce trou — il n'est
+# calcule que par `GET /jobs/{id}`, un job a la fois, jamais par la LISTE que
+# le selecteur d'assets charge.
+r = api("GET", "/api/montage/duration?src=" + Q({"file_path": V1}))
+d7 = J(r)
+check("route_duration_200_sur_une_video",
+      r.status_code == 200 and abs(d7.get("dur", -1) - 4.0) < 0.1
+      and d7.get("name") == "plan.mp4",
+      f"{r.status_code} {d7}")
+# LA MESURE EST CELLE DU RENDU, PAS UNE SECONDE. La route rend EXACTEMENT ce
+# que `_probe_duration` rend — la fonction que la construction de timeline et
+# le rendu appellent deja, et dont `montage_media._dur` n'est qu'une vue.
+_direct = round(float(M._probe_duration(pathlib.Path(V1))), 3)
+check("route_duration_rend_la_meme_sonde_que_le_rendu",
+      _direct > 0 and d7.get("dur") == _direct,
+      f'route={d7.get("dur")} sonde={_direct}')
+# LA LIGNE DISCRIMINANTE DE `video=False` : `strip` et `proxy` REFUSENT un
+# son (415), celle-ci l'accepte — un clip audio doit lui aussi entrer a sa
+# longueur. Sans ce choix, la moitie audio de la tache serait morte.
+r = api("GET", "/api/montage/duration?src=" + Q({"file_path": MUS}))
+d7b = J(r)
+check("route_duration_accepte_un_son_la_ou_strip_et_proxy_refusent",
+      r.status_code == 200 and abs(d7b.get("dur", -1) - 6.0) < 0.1,
+      f"{r.status_code} {d7b}")
+# LE PIEGE DE P7 NE MORD PAS ICI, et c'est mesure : ffprobe rend « video » sur
+# un PNG quand on lui demande `codec_type`, mais cette route lit
+# `format=duration`, ou le meme PNG rend « N/A » — donc 0.0. Une image repond
+# « je ne sais pas », ce qui est VRAI, au lieu d'une duree inventee. Le nom
+# servi est le conjoint : un 404 ou un 415 ne peut pas verdir cette ligne.
+r = api("GET", "/api/montage/duration?src=" + Q({"file_path": PNG}))
+d7c = J(r)
+check("route_duration_une_image_repond_zero_et_non_une_duree_inventee",
+      r.status_code == 200 and d7c.get("dur") == 0
+      and d7c.get("name") == "carton.png",
+      f"{r.status_code} {d7c}")
+# UNE SOURCE RESOLUE MAIS NON MESURABLE (un maillage 3D) rend 200 et « 0 » :
+# elle EXISTE, c'est sa duree qu'on ignore. L'ecran pose alors le clip sur son
+# repli — en le disant (js_cliplen_le_repli_video_est_DIT).
+r = api("GET", "/api/montage/duration?src=" + Q({"file_path": GLB}))
+d7d = J(r)
+check("route_duration_un_maillage_repond_zero_sans_echouer",
+      r.status_code == 200 and d7d.get("dur") == 0
+      and d7d.get("name") == "model.glb",
+      f"{r.status_code} {d7d}")
+r = api("GET", "/api/montage/duration?src=" + Q({"job_id": "inexistant"}))
+check("route_duration_404_source_inconnue", r.status_code == 404,
+      f"{r.status_code} {r.text[:160]}")
+r = api("GET", "/api/montage/duration?src=pas-du-json")
+check("route_duration_404_src_illisible", r.status_code == 404,
+      f"{r.status_code} {r.text[:160]}")
+r = api("GET", "/api/montage/duration")
+check("route_duration_404_sans_src", r.status_code == 404,
+      f"{r.status_code} {r.text[:160]}")
+# LA BOUCLE LOCALE, comme les quatre autres : la garde vient de
+# `_media_source`, jamais d'une seconde liste d'hotes.
+r = api("GET", "/api/montage/duration?src=" + Q({"file_path": V1}),
+        client=("10.0.0.5", 4242))
+check("route_duration_403_hors_boucle_locale", r.status_code == 403,
+      f"{r.status_code} {r.text[:120]}")
 
 
 # La ligne qui dit que le banc a ROUGI plutot que MEURE : aucun des appels

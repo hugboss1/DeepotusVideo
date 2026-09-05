@@ -52,6 +52,15 @@ MARKER_ATTENDU = 7      # définition + window x2 + infobulle + total + puce x2
 # Sondes des maillons AMONT : si l'un de ces comptes bouge, c'est qu'un
 # patcher amont a été rejoué seul et a effacé ce qui le suivait.
 #
+# `montage` : 29 → 32 le 05/09/2026 (SECONDE mise à jour du jour). P11 (« un
+# clip entre à la longueur de sa source ») ajoute TROIS références au contrat
+# `DzTracks` dans le bundle, toutes dans `addAsset` : `DzTracks.clipLen` (le
+# corps de `defaultLen`, dont les deux plafonds disparaissent),
+# `DzTracks.needDur` et `DzTracks.askDur` (la découverte de la durée quand la
+# base ne la porte pas). Compté des DEUX côtés avant d'écrire ce nombre :
+# 29 dans le bundle d'avant P11, 32 après — et la sonde a de nouveau fait son
+# travail, en refusant de tourner sur 32 tant que cette ligne disait 29.
+#
 # `montage` : 25 → 29 le 05/09/2026, et LA SONDE A FAIT SON TRAVAIL. P10 (la
 # timeline qui s'étend au lieu de rogner) ajoute QUATRE références au contrat
 # `DzTracks` dans le bundle — trois `DzTracks.fitDur` (l'ajout, le décalage
@@ -73,7 +82,7 @@ STABLE_PROBES = [
     ("print3d", "__dzPrint3d", 3),
     ("navrail", "dz_nav_collapsed", 2),
     ("dzdesign", "__dzCatBar", 2),
-    ("montage", "DzTracks", 29),
+    ("montage", "DzTracks", 32),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────
