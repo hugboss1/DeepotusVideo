@@ -3166,10 +3166,12 @@ function DzMontage(props){
     clipsRef.current.forEach(function(k){if(k.id!==c.id){edges.push(k.start,k.end)}});
     /* ripple : rognage du bord droit d'un clip V1 — les clips suivants de la
        piste suivent le delta (positions d'origine capturées : pas de dérive) */
-    var rip=ripple&&c.tr==="v1"&&edge==="r",orig={},ripMax=0;
+    /* P10 — la fin du dernier plan entraîné ne se calcule plus :
+       elle ne servait qu'au plafond que M17d supprime. */
+    var rip=ripple&&c.tr==="v1"&&edge==="r",orig={};
     if(rip)clipsRef.current.forEach(function(k){
       if(k.id!==c.id&&k.tr===c.tr&&k.start>=e0-.001){
-        orig[k.id]={s:k.start,e:k.end};if(k.end>ripMax)ripMax=k.end}});
+        orig[k.id]={s:k.start,e:k.end}}});
     function doSnap(v){if(!snap)return v;var t=8/pxPerS,best=v;
       edges.forEach(function(g){if(Math.abs(g-v)<t){t=Math.abs(g-v);best=g}});
       if(best!==v)snapAt=best;
@@ -3179,9 +3181,9 @@ function DzMontage(props){
       snapAt=null;
       var w=0,delta=0;
       if(edge==="r"){
-        var lim=durRef.current;
-        if(rip&&ripMax>0)lim=Math.min(lim,e0+(durRef.current-ripMax));
-        w=Math.max(s0+.3,Math.min(lim,doSnap(e0+ds)));delta=w-e0}
+        /* P10 — plus de plafond ni de limite de ripple : c'est
+           `up()` qui rallonge la timeline AU RELÂCHEMENT. */
+        w=Math.max(s0+.3,doSnap(e0+ds));delta=w-e0}
       setClips(clipsRef.current.map(function(k){
         if(k.id!==c.id){
           if(rip&&orig[k.id])return Object.assign({},k,
@@ -3189,7 +3191,8 @@ function DzMontage(props){
           return k}
         if(edge==="m"){var len=e0-s0,ns=doSnap(s0+ds);
           var nsEnd=doSnap(e0+ds);if(nsEnd!==e0+ds&&ns===s0+ds)ns=nsEnd-len;
-          ns=Math.min(durRef.current-len,Math.max(0,ns));
+          /* P10 — le clip va où on le tire ; `up()` étend. */
+          ns=Math.max(0,ns);
           return Object.assign({},k,{start:ns,end:ns+len})}
         if(edge==="l"){var v=Math.min(e0-.3,Math.max(0,doSnap(s0+ds)));
           var upd={start:v};
@@ -3202,7 +3205,18 @@ function DzMontage(props){
       setSnapT(snapAt)}
     function up(){tgt.removeEventListener("pointermove",mv);tgt.removeEventListener("pointerup",up);
       setSnapT(null);
-      if(moved){setDirty(!0);pushHistory(h0)}}
+      if(moved){setDirty(!0);pushHistory(h0);
+        /* P10 — la timeline rattrape ce que le geste a poussé dehors.
+           TOUS les clips, pas seulement celui qu'on tient : en ripple,
+           ce sont les plans ENTRAÎNÉS qui sortent du champ. */
+        var dzUd=DzTracks.fitDur(clipsRef.current,durRef.current,0);
+        if(dzUd>durRef.current){var dzU0=durRef.current;
+          setProj(function(p){return Object.assign({},p,{dur:dzUd})});
+          fireNote("Timeline allongée de "+svmRuler(Math.round(dzU0))+" à "+
+            svmRuler(Math.round(dzUd))+" : le geste dépassait la fin du "+
+            "projet, et rien n'a été rogné. « Annuler » rend les clips "+
+            "mais NE raccourcit PAS la timeline — le réglage de durée, "+
+            "à côté du zoom, la reprend.")}}}
     tgt.addEventListener("pointermove",mv);tgt.addEventListener("pointerup",up)}
 
   /* ── édition du mixage : glisser sur le rail = régler le dB du canal ──
@@ -3483,14 +3497,24 @@ function DzMontage(props){
       if(trackStRef.current[c.tr]&&trackStRef.current[c.tr].l){
         fireNote("Piste "+c.tr.toUpperCase()+" verrouillée — décalage bloqué.");return}
       var len=c.end-c.start,d=durRef.current;
-      var ns=Math.min(Math.max(0,d-len),Math.max(0,c.start+fr/30));
+      /* P10 — plus de plafond : le clip va où on le pousse, et la
+         timeline le suit. La note ne parle QUE quand la durée change
+         vraiment (une touche maintenue vaut 30 pas par seconde). */
+      var ns=Math.max(0,c.start+fr/30);
       ns=Math.round(ns*3000)/3000; /* multiple exact d'1/30 s : zéro dérive */
       if(Math.abs(ns-c.start)<1e-6)return;
+      var dzNd=DzTracks.fitDur([{end:ns+len}],d,0);
       var now=Date.now();
       if(now-nudgeHistAt.current>600)pushHistory();
       nudgeHistAt.current=now;
       setClips(clipsRef.current.map(function(k){
         return k.id===c.id?Object.assign({},k,{start:ns,end:ns+len}):k}));
+      if(dzNd>d){setProj(function(p){return Object.assign({},p,{dur:dzNd})});
+        fireNote("Timeline allongée à "+svmRuler(Math.round(dzNd))+
+          " : « "+(c.label||"le clip")+" » dépasse la fin du projet, "+
+          "et n'a PAS été rogné pour autant. « Annuler » le ramène en "+
+          "place mais NE raccourcit PAS la timeline — le "+
+          "réglage de durée, à côté du zoom, la reprend.")}
       setDirty(!0)},
     gain:function(dd){
       var c=svmKbSelClip();
@@ -3939,8 +3963,19 @@ function DzMontage(props){
     if(trackStRef.current[tr2]&&trackStRef.current[tr2].l){
       fireNote("Piste "+tr2.toUpperCase()+" verrouillée — déverrouillez-la pour ajouter.");return}
     var st=atTime==null?phRef.current:atTime;
-    st=Math.min(Math.max(0,st),Math.max(0,d-1));
-    var en=Math.min(d,st+defaultLen(kind,srcDur));if(en-st<.5)st=Math.max(0,en-1);
+    /* P10 — LA TIMELINE S'ÉTEND, ELLE NE ROGNE PLUS. Le clip garde sa
+       longueur naturelle ; c'est la durée du projet qui grandit. La
+       garde des clips de moins d'une demi-seconde est celle d'avant :
+       elle vise les SOURCES minuscules, pas le plafond disparu. */
+    st=Math.max(0,st);
+    var en=st+defaultLen(kind,srcDur);if(en-st<.5)st=Math.max(0,en-1);
+    var dzFit=DzTracks.fitDur([{end:en}],d,0),dzGrew=dzFit>d?dzFit:0;
+    var dzTail=dzGrew?(" La timeline a été allongée de "+
+      svmRuler(Math.round(d))+" à "+svmRuler(Math.round(dzGrew))+
+      " : le clip garde sa longueur entière au lieu d'être rogné sur la "+
+      "fin du projet. « Annuler » retire le clip mais NE raccourcit PAS "+
+      "la timeline — le réglage de durée, à côté du zoom, la reprend."):"";
+    if(dzGrew)setProj(function(p){return Object.assign({},p,{dur:dzGrew})});
     ovSeq.current++;
     var id=tr2+"u"+ovSeq.current+"_"+Math.round(st*10);
     pushHistory();
@@ -3955,7 +3990,7 @@ function DzMontage(props){
         ". « + piste "+dzMot+" » recrée le plus petit identifiant "+
         "libre : cliquez jusqu'à voir "+dzMoved+", puis remontez-y le "+
         "clip — les clips déjà posés sur cette piste absente y "+
-        "réapparaîtront aussi.":""))}
+        "réapparaîtront aussi.":"")+dzTail)}
   /* insertion depuis le tiroir Sons (DzSfx.Drawer) — à la tête de lecture,
      piste du type (voix→A1, musique→A2, sfx→A3 ; le tiroir peut imposer
      opts.track) ; même moteur addAsset : historique, sélection, note */
@@ -5633,7 +5668,16 @@ function DzMontage(props){
           ["▁","▂","▃","▅"].map(function(g,i){
             return r.jsx("button",{className:"svm-zoomstep","data-on":Math.round(zoomPct)===SVM_ZOOMW[i]?"":void 0,
               title:"zoom "+SVM_ZOOMW[i]+" % (Ctrl+molette : continu)",onClick:function(){zoomApply(SVM_ZOOMW[i])},children:g},i)}),
-          " "+Math.round(zoomPct)+" % · "+svmRuler(Math.round(dur))+" total"]}),
+          " "+Math.round(zoomPct)+" %"]}),
+        /* P10 — la durée du projet CESSE D'ÊTRE UN AFFICHAGE. Elle
+           s'allonge et se raccourcit ici, d'une graduation de la
+           règle à la fois ; raccourcir sous la fin du dernier clip
+           est REFUSÉ, jamais fait en silence. Le geste n'entre pas
+           dans l'historique (qui ne porte que {clips, mixDb}) et
+           chaque note le dit — le retour, c'est ce contrôle. */
+        DzTracks.durCtl({dur:dur,step:tickStep,clips:clips,
+          onSet:function(v){setProj(function(p){return Object.assign({},p,{dur:v})});setDirty(!0)},
+          note:fireNote}),
         /* rappels permanents (R2/I5) — mono 10px discret, masquable par ×
            (dz_hints_off, définitif) ; « B sons » seulement si la couche vit */
         hintsOff?null:r.jsxs("span",{className:"svm-hints",children:[
@@ -12240,8 +12284,17 @@ window.DzSubs={ready:!0,Drawer:SubsDrawer,Overlay:SubsOverlay,Style:SubsStyle,
                          pickTrack, isVideoJob, LibBtn, badSrc,
                          replaceSrc, revertSrc, replaceBtn, revertBtn,
                          newerLine, NewerHint,
+                         fitDur, durCtl, secs, DUR_MIN,
                          move, moveTo, add, remove, group, DEFAULTS}
 
+   - fitDur(clips, dur, tail) — P10 : la durée que le projet DOIT avoir,
+     c'est-à-dire le maximum entre la durée demandée et la fin du dernier
+     clip (plus `tail`), arrondie à la seconde SUPÉRIEURE — l'unité de la
+     règle et du total affiché. PURE, et elle ne raccourcit JAMAIS.
+   - durCtl({dur, step, clips, onSet, note}) — P10 : le réglage explicite de
+     la durée dans la barre de transport, là où ne s'affichait qu'un nombre.
+     Allonge, raccourcit, et REFUSE de descendre sous la fin du dernier
+     clip. Sans hook, donc exécutable sous node.
    - replaceSrc(clip, src, label, srcDur, now) — P6 : la SOURCE d'un plan
      échangée sans que rien d'autre bouge. PURE, rend {clip, warn, note} et
      ne mute pas l'entrée. Elle recale la fenêtre de source (srcIn / end)
@@ -13987,6 +14040,170 @@ var DzmNewerHint=function(props){
       onClick:function(){if(props&&props.onPick)props.onPick(c)},
       children:dzmNewerLine(c)},c.job_id)})]})};
 
+/* ── P10 : LA TIMELINE S'ÉTEND AU LIEU DE ROGNER ────────────────────────────
+   LE DÉFAUT, rapporté par l'utilisateur : « j'ai voulu ajouter trois vidéos
+   depuis la bibliothèque, or la timeline est fixe, je suis obligé de
+   raccourcir des pistes vidéo pour les faire rentrer ». MESURÉ dans le
+   bundle : `proj.dur` n'était écrit qu'UNE fois, au chargement — aucun
+   contrôle de l'écran ne le touchait — et trois gestes rognaient contre lui
+   EN SILENCE (l'ajout, le décalage clavier, le glisser à la souris).
+
+   ÉTENDRE EST SANS RISQUE POUR LE RENDU, et c'est mesuré des deux côtés :
+   `renderPayload()` du bundle n'emporte AUCUNE clé `duration`, et
+   `_build_montage_command` (montage_service.py) recalcule `total` depuis
+   `seg_durs`. La seule route qui lit la durée postée est POST /save, qui la
+   RANGE. `proj.dur` est donc une BORNE D'ÉDITION, pas une propriété du film.
+
+   RÉSERVE CENTRALE, portée par chaque note de cette tâche : `proj.dur`
+   N'ENTRE PAS DANS L'HISTORIQUE. `pushHistory` ne mémorise que
+   {clips, mixDb} — étendre puis annuler rend les clips, PAS la durée. C'est
+   exactement le piège que P3 avait choisi d'éviter en ne touchant pas à
+   `dur` ; on y touche ici DÉLIBÉRÉMENT, et le retour existe : c'est le
+   contrôle de durée de la barre de transport (`dzmDurCtl`), qui raccourcit
+   aussi bien qu'il allonge. Faire entrer `dur` dans l'historique demanderait
+   de réécrire `pushHistory`, `undo` et `redo` — trois fermetures du bundle
+   dont aucune n'offre d'ancre unique : c'est une tâche à part, et rien ici
+   ne fait semblant de l'avoir faite. */
+
+/* LE PLANCHER, repris de `svmApplyProject` : `dur:Math.max(1,…)`. Une durée
+   nulle ou négative rend `c.start/dur*100+"%"` non fini — toute la timeline
+   perd sa géométrie. */
+var DZM_DUR_MIN=1;
+
+/* LA DURÉE QUE LE PROJET DOIT AVOIR. PURE.
+   `dur` est un PLANCHER, jamais un plafond : cette fonction ne raccourcit
+   JAMAIS rien — c'est le contrôle explicite de la barre de transport qui
+   raccourcit, et lui seul. Elle rend donc le maximum entre la durée demandée
+   et la fin du dernier clip augmentée de `tail`.
+
+   L'ARRONDI EST AU PLAFOND, ET IL EST MESURÉ, PAS CHOISI. La barre de
+   transport affiche `svmRuler(Math.round(dur))` et la règle du bundle est
+   graduée en SECONDES ENTIÈRES (`tickStep` vaut 2, 3, 5, 6, 10, 15, 20, 30
+   ou 60). Une durée de 20,37 s s'afficherait « 0:20 » alors qu'un clip finit
+   à 20,37 : le seul arrondi qui ne fasse pas mentir le total affiché est
+   celui qui monte. La « marge de queue » gratuite qui en découle vaut donc
+   moins d'une seconde, et elle n'est inventée nulle part.
+
+   Les valeurs illisibles sont IGNORÉES, jamais propagées : un `end` à NaN ou
+   à l'infini rendrait `Math.max` non fini, et la timeline entière avec lui. */
+function dzmFitDur(clips,dur,tail){
+  var d=Number(dur);if(!isFinite(d))d=0;
+  var t=Number(tail);if(!isFinite(t)||t<0)t=0;
+  var m=0,i,e;
+  if(clips&&clips.length)for(i=0;i<clips.length;i++){
+    e=clips[i]?Number(clips[i].end):NaN;
+    if(isFinite(e)&&e>m)m=e}
+  /* `tail` s'ajoute à la fin d'un CLIP : sans clip, il n'y a pas de queue à
+     laisser, et une timeline vide ne doit pas s'allonger toute seule. */
+  var need=m>0?Math.ceil(m+t):0;
+  return Math.max(DZM_DUR_MIN,d,need)}
+
+/* « 2 s », « 0,5 s » — la virgule décimale du français, comme `dzmNewerLine`. */
+function dzmSecs(v){
+  var n=Math.round(Number(v)*10)/10;
+  if(!isFinite(n))n=0;
+  return (n===Math.round(n)?String(Math.round(n))
+                           :n.toFixed(1).replace(".",","))+" s"}
+
+/* `svmRuler` / `svmPad2` sont les fonctions DU BUNDLE (même portée module :
+   cette couche est injectée dans le bloc `sonvfx`, comme `SVM_TRACK_BUS`
+   qu'elle mute déjà). On ne recopie pas leur règle : une seconde version du
+   format m:ss divergerait de la première au premier changement. Le banc les
+   EXTRAIT du bundle pour les jouer sous node, et vérifie des deux côtés que
+   la couche les appelle et que le bundle les déclare. */
+function dzmDurTxt(v){return svmRuler(Math.round(v))}
+
+var DZM_DUR_UNDO=" « Annuler » ne rend pas la durée du projet : l'historique "+
+  "de cet écran ne mémorise que les clips et le mixage. C'est ce réglage-ci "+
+  "qui la reprend, dans les deux sens.";
+
+function dzmDurBtn(cls,lbl,ttl,aria,fn,key){
+  return r.jsx("button",{className:"svm-zoomstep dzm-durb "+cls,
+    title:ttl,"aria-label":aria,onClick:fn,children:lbl},key)}
+
+/* LE CONTRÔLE EXPLICITE DE LA DURÉE, dans la barre de transport, à la place
+   du simple affichage « 1:04 total » qui s'y trouvait. Il paie aussi la
+   dette laissée par P3, dont la note disait « la fin de la timeline est
+   maintenant vide, raccourcissez-la si vous voulez » alors que RIEN ne
+   permettait de la raccourcir.
+
+   LE PAS EST MESURÉ, PAS INVENTÉ : c'est `tickStep`, la graduation que la
+   règle DESSINE déjà (`[2,3,5,6,10,15,20,30,60].find(dur/s<=11)||60`). Un
+   clic vaut donc exactement une graduation, à toutes les échelles — 2 s sur
+   un montage de 16 s, 30 s sur un montage de 5 min. Un pas fixe aurait été
+   un chiffre de plus sorti de nulle part, et illisible à l'une des deux
+   extrémités.
+
+   LES BORNES SONT MESURÉES ELLES AUSSI :
+     · en bas, la fin du dernier clip (`dzmFitDur(clips, 1)`), et le plancher
+       de 1 s de `svmApplyProject` en deçà. RACCOURCIR SOUS CETTE BORNE EST
+       REFUSÉ, jamais fait en silence : les clips ne seraient pas supprimés,
+       mais ils sortiraient du champ — `left:c.start/dur*100+"%"` les
+       pousserait hors de la bande, et le seul moyen de les revoir serait de
+       rallonger. Le refus NOMME l'instant qui bloque et dit quoi faire.
+       Un « − » qui tomberait SOUS la borne n'est pas refusé pour autant : il
+       s'ARRÊTE dessus, et le dit.
+     · en haut, aucune. La seule limite mesurée est celle de la RÈGLE, qui
+       cesse de graduer au-delà de 40 traits (`ticks.length<40`, pas maximal
+       60 s → 40 min) ; elle ne casse rien et ne justifie pas un refus. Elle
+       est consignée dans le banc comme dette d'écran.
+
+   AUCUN `pushHistory` ICI, ET C'EST DÉLIBÉRÉ : l'historique ne mémorise que
+   {clips, mixDb}. Pousser une entrée pour un geste qui ne change NI l'un NI
+   l'autre donnerait un « annuler » qui restaure des clips identiques et
+   laisse la durée où elle est — un retour qui ne retourne rien. Le retour de
+   ce geste, c'est ce contrôle lui-même, et chaque note le dit. */
+function dzmDurCtl(o){
+  o=o||{};
+  var set=o.onSet,note=o.note;
+  var d=Number(o.dur);if(!isFinite(d)||d<DZM_DUR_MIN)d=DZM_DUR_MIN;
+  var stp=Number(o.step);if(!isFinite(stp)||stp<=0)stp=1;
+  var fit=dzmFitDur(o.clips,DZM_DUR_MIN,0);
+  var vide=Math.round((d-fit)*1000)/1000;
+  function put(nv,msg){if(set)set(nv);if(note)note(msg+DZM_DUR_UNDO)}
+  function moins(){
+    if(d<=fit){if(note)note("La timeline fait déjà la longueur de son "+
+      "contenu ("+dzmDurTxt(fit)+", fin du dernier clip) : la raccourcir "+
+      "ferait sortir des clips du champ — ils ne seraient pas supprimés, "+
+      "mais plus rien ne les montrerait. Déplacez ou retirez d'abord le "+
+      "dernier clip.");return}
+    var vise=Math.round((d-stp)*1000)/1000,nv=Math.max(fit,vise);
+    put(nv,"Timeline raccourcie de "+dzmDurTxt(d)+" à "+dzmDurTxt(nv)+
+      (nv>vise?(" — le pas de "+dzmSecs(stp)+" s'est arrêté sur la fin du "+
+        "dernier clip : aucun clip ne sort du champ."):"")+
+      " Aucun clip n'a bougé.")}
+  function plus(){
+    var nv=Math.round((d+stp)*1000)/1000;
+    put(nv,"Timeline allongée de "+dzmDurTxt(d)+" à "+dzmDurTxt(nv)+
+      " (+"+dzmSecs(stp)+"). Aucun clip n'a bougé.")}
+  function ajuste(){
+    put(fit,"Timeline ajustée à son contenu : "+dzmDurTxt(d)+" → "+
+      dzmDurTxt(fit)+", soit "+dzmSecs(vide)+" de queue vide retirés. "+
+      "Aucun clip n'a bougé.")}
+  var kids=[
+    dzmDurBtn("dzm-durm","−",
+      "Raccourcir la timeline d'une graduation ("+dzmSecs(stp)+"). Le "+
+      "raccourcissement s'arrête sur la fin du dernier clip : aucun clip ne "+
+      "peut sortir du champ."+DZM_DUR_UNDO,
+      "Raccourcir la timeline de "+dzmSecs(stp),moins,"m"),
+    r.jsx("span",{className:"dzm-durv",
+      title:"Durée de la timeline — une BORNE D'ÉDITION, pas une propriété "+
+        "du film : le rendu recalcule sa durée depuis les plans, cette "+
+        "valeur ne lui est jamais envoyée. Les boutons − et + la règlent "+
+        "d'une graduation de la règle ("+dzmSecs(stp)+")."+DZM_DUR_UNDO,
+      children:dzmDurTxt(d)+" total"},"v"),
+    dzmDurBtn("dzm-durp","+",
+      "Allonger la timeline d'une graduation ("+dzmSecs(stp)+")."+
+      DZM_DUR_UNDO,
+      "Allonger la timeline de "+dzmSecs(stp),plus,"p")];
+  /* « ajuster » n'apparaît QUE s'il y a une queue vide à retirer : un bouton
+     toujours là mais sans effet neuf fois sur dix serait un piège de plus. */
+  if(vide>0)kids.push(dzmDurBtn("dzm-durf","ajuster",
+    "Ramener la fin de la timeline sur le dernier clip : "+dzmSecs(vide)+
+    " de vide à retirer. Aucun clip ne bouge ni ne disparaît."+DZM_DUR_UNDO,
+    "Ajuster la timeline à son contenu",ajuste,"f"));
+  return r.jsx("span",{className:"dzm-durctl",children:kids},"dzmdur")}
+
 /* ── export contrat ───────────────────────────────────────────────────────── */
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
@@ -14003,6 +14220,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   newerLine:dzmNewerLine,NewerHint:DzmNewerHint,
   move:dzmMove,moveTo:dzmMoveTo,add:dzmAdd,remove:dzmRemove,group:dzmGroup,
   clipsOn:dzmClipsOn,emojiClips:dzmEmojiClips,WORD_ANIMS:DZM_WORD_ANIMS,
+  fitDur:dzmFitDur,durCtl:dzmDurCtl,secs:dzmSecs,DUR_MIN:DZM_DUR_MIN,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;
 

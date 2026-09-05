@@ -707,7 +707,7 @@ R_M16B = (
     "        \". « + piste \"+dzMot+\" » recrée le plus petit identifiant \"+\n"
     "        \"libre : cliquez jusqu'à voir \"+dzMoved+\", puis remontez-y le \"+\n"
     "        \"clip — les clips déjà posés sur cette piste absente y \"+\n"
-    "        \"réapparaîtront aussi.\":\"\"))}")
+    "        \"réapparaîtront aussi.\":\"\")+dzTail)}")
 
 # ── M16c (P9) : le sélecteur applique LA règle du rendu, pas une copie ──────
 # MESURE : `openPicker()` construisait sa liste « Rendus vidéo » avec
@@ -1066,6 +1066,243 @@ R_M15B = (
     'ou déposez directement sur une bande ou le viewport. Les PNG gardent '
     'leur transparence.")}),')
 
+# ══ P10 — LA TIMELINE S'ÉTEND AU LIEU DE ROGNER ═══════════════════════════
+#
+# LE DÉFAUT, rapporté par l'utilisateur le 05/09/2026 : « j'ai voulu ajouter
+# trois vidéos depuis la bibliothèque, or la timeline est fixe, je suis obligé
+# de raccourcir des pistes vidéo pour les faire rentrer ».
+#
+# CE QUI A ÉTÉ MESURÉ AVANT D'ÉCRIRE UNE LIGNE, dans le bundle livré ET dans
+# .bak_montage (l'entrée de ce patcher, celle qui décide) :
+#   · `setProj(` n'est JAMAIS appelé avec `dur`. La durée est fixée UNE fois,
+#     au chargement (`SVM_DEMO_DUR=64` pour la maquette,
+#     `dur:Math.max(1,Number(d.duration)||maxEnd)` dans `svmApplyProject`), et
+#     la barre de transport ne fait que l'AFFICHER.
+#   · TROIS gestes rognaient contre elle, tous les trois EN SILENCE : l'ajout
+#     (`st=Math.min(…,d-1)` puis `en=Math.min(d,…)`), le décalage clavier
+#     (`ns=Math.min(Math.max(0,d-len),…)`) et le glisser à la souris
+#     (`ns=Math.min(durRef.current-len,…)` pour le déplacement,
+#     `Math.min(lim,…)` pour le bord droit).
+#   · ÉTENDRE EST SANS RISQUE POUR LE RENDU. `renderPayload()` n'emporte
+#     AUCUNE clé `duration` — relu ligne à ligne dans le bundle : {name,
+#     ratio, preview, subtitles, duration_master, ducking, mix, tracks,
+#     clips} — et `_build_montage_command` recalcule `total` depuis
+#     `seg_durs` (montage_service.py). La seule route qui lit la durée postée
+#     est POST /save (l.794), qui la RANGE. `proj.dur` est une BORNE
+#     D'ÉDITION, pas une propriété du film.
+#
+# CE QUI NE CHANGE PAS, ET QUI EST DIT PARTOUT : `proj.dur` N'ENTRE PAS DANS
+# L'HISTORIQUE. `pushHistory` ne mémorise que {clips, mixDb}. Étendre puis
+# annuler rend les clips, PAS la durée — c'est exactement le piège que P3
+# avait choisi d'éviter en ne touchant pas à `dur`, et on y touche ici
+# DÉLIBÉRÉMENT. CHACUNE des quatre notes de P10 le dit, et le RETOUR existe :
+# le contrôle explicite de la barre de transport (M17h) raccourcit aussi bien
+# qu'il allonge. Faire entrer `dur` dans l'historique demanderait de réécrire
+# `pushHistory`, `undo` ET `redo` — trois fermetures du composant dont AUCUNE
+# n'offre d'ancre unique (mesuré : `var pushHistory=x.useCallback(` vaut 1,
+# mais son corps n'est pas isolable des deux autres sans reprendre tout le
+# bloc d'historique) : c'est une tâche à part, et rien ici ne fait semblant
+# de l'avoir faite.
+#
+# LE ZOOM N'EST PAS RÉÉCRIT, ET C'EST UNE MESURE : le défilement horizontal
+# EXISTE DÉJÀ (`.svm-scroll{flex:1; overflow:auto}` dans
+# shared/son-vfx-montage.css l.331, pistes en `width:zoomPct%`, paliers
+# SVM_ZOOMW=[100,150,220,320], Ctrl+molette continu jusqu'à 800 % avec
+# conservation du point sous le curseur). Il est bon ; ce qui manque est
+# qu'on le TROUVE, et cela ne se mesure qu'à l'écran. Rien n'est deviné ici :
+# c'est consigné comme dette d'écran dans test_montage_bundle.py.
+
+# ── M17a (P10) : l'ajout ÉTEND au lieu de rogner ────────────────────────────
+# L'ANCRE PORTE LES DEUX LIGNES, et il le faut : la première rognait le POINT
+# DE DÉPART (`st` ramené sous `d-1`), la seconde rognait la FIN (`en` ramené
+# sous `d`). Corriger l'une sans l'autre aurait laissé le rognage entier —
+# une vidéo de 6 s posée à 14 s dans un projet de 16 s serait encore entrée
+# à 2 s. Comptée le 05/09/2026 : 1 dans le bundle livré, 1 dans .bak_montage.
+#
+# LA GARDE DES CLIPS MINUSCULES EST REPRISE À L'IDENTIQUE, et ce n'est pas de
+# la superstition : `defaultLen` rend `Math.min(6, srcDur||6)` pour une vidéo
+# et `Math.min(8, srcDur||8)` pour un son — une source de 0,2 s donne donc un
+# clip de 0,2 s, insaisissable à la souris, PLAFOND OU PAS. La ligne ne
+# servait donc pas qu'au rognage, et la retirer aurait été une régression
+# gratuite sur un chemin que rien d'autre ne couvre.
+#
+# `setProj` AVANT `pushHistory` : sans conséquence, et vérifié. L'historique
+# ne mémorise que {clips, mixDb} — écrire `dur` avant ou après ne change RIEN
+# à ce qu'il capture. On l'écrit ici parce que c'est ici que `dzFit` est
+# connu, et que les lignes suivantes (ovSeq, id, pushHistory, setClips)
+# appartiennent au bundle et ne sont pas dans cette ancre.
+A_M17A = ('    st=Math.min(Math.max(0,st),Math.max(0,d-1));\n'
+          '    var en=Math.min(d,st+defaultLen(kind,srcDur));'
+          'if(en-st<.5)st=Math.max(0,en-1);\n')
+R_M17A = (
+    "    /* P10 — LA TIMELINE S'ÉTEND, ELLE NE ROGNE PLUS. Le clip garde sa\n"
+    "       longueur naturelle ; c'est la durée du projet qui grandit. La\n"
+    "       garde des clips de moins d'une demi-seconde est celle d'avant :\n"
+    "       elle vise les SOURCES minuscules, pas le plafond disparu. */\n"
+    "    st=Math.max(0,st);\n"
+    "    var en=st+defaultLen(kind,srcDur);if(en-st<.5)st=Math.max(0,en-1);\n"
+    "    var dzFit=DzTracks.fitDur([{end:en}],d,0),dzGrew=dzFit>d?dzFit:0;\n"
+    "    var dzTail=dzGrew?(\" La timeline a été allongée de \"+\n"
+    "      svmRuler(Math.round(d))+\" à \"+svmRuler(Math.round(dzGrew))+\n"
+    "      \" : le clip garde sa longueur entière au lieu d'être rogné sur la \"+\n"
+    "      \"fin du projet. « Annuler » retire le clip mais NE raccourcit PAS \"+\n"
+    "      \"la timeline — le réglage de durée, à côté du zoom, la reprend.\"):\"\";\n"
+    "    if(dzGrew)setProj(function(p){"
+    "return Object.assign({},p,{dur:dzGrew})});\n")
+
+# ── M17b (P10) : le décalage clavier étend au lieu de buter ─────────────────
+# L'ANCRE PORTE LE CORPS ENTIER DE `nudge`, du plafond jusqu'à `setDirty(!0)`.
+# La seule ligne du plafond n'aurait pas suffi : la durée doit être ÉCRITE et
+# DITE après `setClips`, et ces lignes-là ne sont pas dans une ancre à elles.
+# Comptée 1 dans le bundle livré et dans .bak_montage.
+#
+# LA NOTE NE PARLE QUE QUAND LA DURÉE CHANGE VRAIMENT, et c'est un chiffre du
+# bundle, pas un réglage de confort : une touche maintenue vaut UN PAS DE
+# 1/30 s (`c.start+fr/30`), donc trente notes par seconde si l'on parlait à
+# chaque pas. `dzmFitDur` arrondissant à la seconde supérieure, la durée ne
+# bouge qu'une fois par seconde de contenu gagné : la note suit exactement
+# les changements réels.
+A_M17B = (
+    '      var ns=Math.min(Math.max(0,d-len),Math.max(0,c.start+fr/30));\n'
+    "      ns=Math.round(ns*3000)/3000; /* multiple exact d'1/30 s : zéro dérive */\n"
+    '      if(Math.abs(ns-c.start)<1e-6)return;\n'
+    '      var now=Date.now();\n'
+    '      if(now-nudgeHistAt.current>600)pushHistory();\n'
+    '      nudgeHistAt.current=now;\n'
+    '      setClips(clipsRef.current.map(function(k){\n'
+    '        return k.id===c.id?Object.assign({},k,{start:ns,end:ns+len}):k}));\n'
+    '      setDirty(!0)},\n')
+R_M17B = (
+    "      /* P10 — plus de plafond : le clip va où on le pousse, et la\n"
+    "         timeline le suit. La note ne parle QUE quand la durée change\n"
+    "         vraiment (une touche maintenue vaut 30 pas par seconde). */\n"
+    "      var ns=Math.max(0,c.start+fr/30);\n"
+    "      ns=Math.round(ns*3000)/3000; /* multiple exact d'1/30 s : zéro dérive */\n"
+    "      if(Math.abs(ns-c.start)<1e-6)return;\n"
+    "      var dzNd=DzTracks.fitDur([{end:ns+len}],d,0);\n"
+    "      var now=Date.now();\n"
+    "      if(now-nudgeHistAt.current>600)pushHistory();\n"
+    "      nudgeHistAt.current=now;\n"
+    "      setClips(clipsRef.current.map(function(k){\n"
+    "        return k.id===c.id?Object.assign({},k,{start:ns,end:ns+len}):k}));\n"
+    "      if(dzNd>d){setProj(function(p){"
+    "return Object.assign({},p,{dur:dzNd})});\n"
+    "        fireNote(\"Timeline allongée à \"+svmRuler(Math.round(dzNd))+\n"
+    "          \" : « \"+(c.label||\"le clip\")+\" » dépasse la fin du projet, \"+\n"
+    "          \"et n'a PAS été rogné pour autant. « Annuler » le ramène en \"+\n"
+    "          \"place mais NE raccourcit PAS la timeline — le \"+\n"
+    "          \"réglage de durée, à côté du zoom, la reprend.\")}\n"
+    "      setDirty(!0)},\n")
+
+# ── M17c (P10) : `ripMax` disparaît avec le plafond qu'il servait ───────────
+# MESURE : `ripMax` apparaît CINQ fois dans le bundle — sa déclaration, deux
+# emplois dans ce forEach, et DEUX dans la ligne de plafond que M17d
+# supprime. Le laisser aurait été un calcul mort dans une fermeture rejouée à
+# chaque pointerdown de clip. Après M17c + M17d, `ripMax` vaut 0 dans le
+# bundle, et le banc le compte.
+# LE COMMENTAIRE POSÉ DANS LE BUNDLE NE NOMME PAS `ripMax`, ET C'EST VOULU :
+# il est EXPÉDIÉ AU NAVIGATEUR, et le banc compte l'identifiant à ZÉRO dans le
+# fichier livré — une mention en commentaire aurait rendu ce compte impossible,
+# ou l'aurait obligé à décrire sa propre exception. Le raisonnement vit ici, en
+# Python, où il ne coûte rien à l'utilisateur (même règle que R_M16REF).
+A_M17C = ('    var rip=ripple&&c.tr==="v1"&&edge==="r",orig={},ripMax=0;\n'
+          '    if(rip)clipsRef.current.forEach(function(k){\n'
+          '      if(k.id!==c.id&&k.tr===c.tr&&k.start>=e0-.001){\n'
+          '        orig[k.id]={s:k.start,e:k.end};if(k.end>ripMax)ripMax=k.end}});\n')
+R_M17C = ('    /* P10 — la fin du dernier plan entraîné ne se calcule plus :\n'
+          "       elle ne servait qu'au plafond que M17d supprime. */\n"
+          '    var rip=ripple&&c.tr==="v1"&&edge==="r",orig={};\n'
+          '    if(rip)clipsRef.current.forEach(function(k){\n'
+          '      if(k.id!==c.id&&k.tr===c.tr&&k.start>=e0-.001){\n'
+          '        orig[k.id]={s:k.start,e:k.end}}});\n')
+
+# ── M17d (P10) : le bord droit n'est plus plafonné ─────────────────────────
+A_M17D = ('      if(edge==="r"){\n'
+          '        var lim=durRef.current;\n'
+          '        if(rip&&ripMax>0)lim=Math.min(lim,e0+(durRef.current-ripMax));\n'
+          '        w=Math.max(s0+.3,Math.min(lim,doSnap(e0+ds)));delta=w-e0}\n')
+R_M17D = ('      if(edge==="r"){\n'
+          "        /* P10 — plus de plafond ni de limite de ripple : c'est\n"
+          "           `up()` qui rallonge la timeline AU RELÂCHEMENT. */\n"
+          '        w=Math.max(s0+.3,doSnap(e0+ds));delta=w-e0}\n')
+
+# ── M17e (P10) : le déplacement n'est plus plafonné ────────────────────────
+A_M17E = '          ns=Math.min(durRef.current-len,Math.max(0,ns));\n'
+R_M17E = ('          /* P10 — le clip va où on le tire ; `up()` étend. */\n'
+          '          ns=Math.max(0,ns);\n')
+
+# ── M17f (P10) : le relâchement ajuste la durée, et le DIT ─────────────────
+# POURQUOI AU RELÂCHEMENT ET PAS PENDANT LE GESTE — c'est la mesure qui
+# décide, pas le goût. `pxPerS` est capturé UNE fois au pointerdown
+# (`rect.width/durRef.current`) et `mv` s'en sert pour traduire les pixels en
+# secondes. Une durée qui grandirait PENDANT le glissement re-rendrait les
+# bandes à une autre échelle (les clips sont positionnés en
+# `left:c.start/dur*100+"%"`) sans que `pxPerS` bouge : le clip se
+# décrocherait du curseur, de plus en plus loin. En étendant au relâchement,
+# le geste reste exact au pixel et la timeline se recale une seule fois.
+# Pendant le geste, le clip dépasse visiblement la fin de la règle — c'est
+# précisément ce qu'on veut montrer.
+#
+# `DzTracks.fitDur(clipsRef.current, …)` prend TOUS les clips, pas seulement
+# celui qu'on tire : en mode ripple, ce sont les plans ENTRAÎNÉS qui sortent
+# du champ, jamais celui qu'on rogne.
+#
+# `pushHistory(h0)` reste APRÈS, et à l'identique : il mémorise l'état du
+# pointerdown, donc {clips, mixDb} — pas la durée. La note le dit.
+A_M17F = ('    function up(){tgt.removeEventListener("pointermove",mv);'
+          'tgt.removeEventListener("pointerup",up);\n'
+          '      setSnapT(null);\n'
+          '      if(moved){setDirty(!0);pushHistory(h0)}}\n')
+R_M17F = (
+    '    function up(){tgt.removeEventListener("pointermove",mv);'
+    'tgt.removeEventListener("pointerup",up);\n'
+    '      setSnapT(null);\n'
+    '      if(moved){setDirty(!0);pushHistory(h0);\n'
+    "        /* P10 — la timeline rattrape ce que le geste a poussé dehors.\n"
+    "           TOUS les clips, pas seulement celui qu'on tient : en ripple,\n"
+    "           ce sont les plans ENTRAÎNÉS qui sortent du champ. */\n"
+    '        var dzUd=DzTracks.fitDur(clipsRef.current,durRef.current,0);\n'
+    '        if(dzUd>durRef.current){var dzU0=durRef.current;\n'
+    '          setProj(function(p){return Object.assign({},p,{dur:dzUd})});\n'
+    '          fireNote("Timeline allongée de "+svmRuler(Math.round(dzU0))+'
+    '" à "+\n'
+    '            svmRuler(Math.round(dzUd))+" : le geste dépassait la fin du "+\n'
+    '            "projet, et rien n\'a été rogné. « Annuler » rend les clips "+\n'
+    '            "mais NE raccourcit PAS la timeline — le réglage de durée, "+\n'
+    '            "à côté du zoom, la reprend.")}}}\n')
+
+# ── M17g (P10) : le réglage explicite de la durée, dans le transport ───────
+# L'ANCRE est la QUEUE de l'expression du zoom : `" % · "+svmRuler(…)+
+# " total"]}),`, comptée 1 dans le bundle livré et dans .bak_montage. Le
+# nombre affiché n'est pas supprimé — il DÉMÉNAGE dans le contrôle, entouré
+# des deux boutons qui le règlent. Le séparateur « · » passe dans la feuille
+# (`.dzm-durctl::before`) : laissé dans la chaîne, il aurait pendu tout seul
+# le jour où le contrôle ne rendrait rien.
+#
+# LES CINQ IDENTIFIANTS DU BUNDLE QUE CETTE SECTION APPELLE sont gardés à
+# DEUX FACES par le banc (déclaration ET appel, recherche bornée) : `dur`,
+# `tickStep`, `clips`, `setProj`, `setDirty`, `fireNote`. `tickStep` est
+# déclaré ~1 300 lignes plus haut DANS LE MÊME corps de composant — mesuré,
+# pas supposé.
+#
+# LE PAS EST `tickStep`, LA GRADUATION QUE LA RÈGLE DESSINE DÉJÀ. Ce n'est
+# pas un chiffre choisi : c'est celui que le bundle calcule pour ses propres
+# traits (`[2,3,5,6,10,15,20,30,60].find(function(s){return dur/s<=11})||60`),
+# donc un clic = un trait, à toutes les échelles. Le détail des bornes est
+# dans la couche, au-dessus de `dzmDurCtl`.
+A_M17G = '" % · "+svmRuler(Math.round(dur))+" total"]}),'
+R_M17G = ('" %"]}),\n'
+          '        /* P10 — la durée du projet CESSE D\'ÊTRE UN AFFICHAGE. Elle\n'
+          '           s\'allonge et se raccourcit ici, d\'une graduation de la\n'
+          '           règle à la fois ; raccourcir sous la fin du dernier clip\n'
+          '           est REFUSÉ, jamais fait en silence. Le geste n\'entre pas\n'
+          '           dans l\'historique (qui ne porte que {clips, mixDb}) et\n'
+          '           chaque note le dit — le retour, c\'est ce contrôle. */\n'
+          '        DzTracks.durCtl({dur:dur,step:tickStep,clips:clips,\n'
+          '          onSet:function(v){setProj(function(p){'
+          'return Object.assign({},p,{dur:v})});setDirty(!0)},\n'
+          '          note:fireNote}),')
+
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
            ("M5-payload", A_M5, R_M5), ("M6-save", A_M6, R_M6),
@@ -1085,7 +1322,15 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            # illisibles les lignes de test_montage_bundle.py, qui les reprend.
            ("M15-remplace-mode", A_M15, R_M15),
            ("M15b-picker-arme", A_M15B, R_M15B),
-           ("M16src-inspecteur-source", A_M16, R_M16)]
+           ("M16src-inspecteur-source", A_M16, R_M16),
+           # P10 — la timeline s'étend au lieu de rogner.
+           ("M17a-ajout-etend", A_M17A, R_M17A),
+           ("M17b-nudge-etend", A_M17B, R_M17B),
+           ("M17c-ripmax-mort", A_M17C, R_M17C),
+           ("M17d-bord-droit-etend", A_M17D, R_M17D),
+           ("M17e-deplacement-etend", A_M17E, R_M17E),
+           ("M17f-relachement-ajuste", A_M17F, R_M17F),
+           ("M17g-transport-duree", A_M17G, R_M17G)]
 
 
 def nl(text, crlf):

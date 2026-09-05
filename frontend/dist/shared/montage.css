@@ -328,3 +328,36 @@
 .dzsvm .dzm-newererr{font-size:9px; line-height:1.5;
   font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace);
   color:var(--ink-dim, #8d8a96)}
+
+/* ── P10 : le réglage de la durée, dans la barre de transport ──────────────
+   Il prend la place de l'ancien affichage « 1:04 total » et vit dans le même
+   registre que le zoom, son voisin immédiat : mêmes 10 px monospacés, même
+   `.svm-zoomstep` pour les boutons (déclaré dans la feuille amont, pas ici —
+   une seconde déclaration divergerait), même `user-select:none`.
+   LE SÉPARATEUR « · » EST ICI ET NON DANS LA CHAÎNE : laissé dans la
+   concaténation du zoom, il aurait pendu tout seul le jour où le contrôle ne
+   rendrait rien. `::before` sur le conteneur : pas de point sans contrôle. */
+.dzsvm .dzm-durctl{font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace);
+  font-size:10px; color:var(--ink3, #a9a5b4); display:inline-flex;
+  align-items:center; gap:2px; user-select:none}
+.dzsvm .dzm-durctl::before{content:"·"; margin:0 4px; color:var(--ink4, #6c6879)}
+/* La VALEUR reste ce qu'elle était : le total, en clair, au même endroit. */
+.dzsvm .dzm-durv{color:var(--ink3, #a9a5b4); cursor:default;
+  white-space:nowrap}
+/* Les boutons héritent de `.svm-zoomstep` (même taille, même cible de clic
+   que les quatre paliers de zoom d'à côté) et n'en changent que la lisibilité
+   du glyphe : « − » et « + » à 11 px, « ajuster » en toutes lettres. */
+.dzsvm .dzm-durb{min-width:12px; line-height:1; padding:2px 3px;
+  color:var(--ink4, #6c6879); border-radius:4px}
+.dzsvm .dzm-durb:hover{color:var(--ink, #edeaf2);
+  background:color-mix(in srgb, var(--stroke2, #3a3746) 60%, transparent)}
+.dzsvm .dzm-durm,
+.dzsvm .dzm-durp{font-size:11px}
+/* « ajuster » n'existe QUE s'il y a du vide à retirer : il ne s'éteint
+   jamais, il disparaît. D'où la couleur d'un bouton actif, pas d'un bouton
+   possible. */
+.dzsvm .dzm-durf{font-size:9px; letter-spacing:.02em; padding:2px 5px;
+  color:var(--ink3, #a9a5b4);
+  border:1px solid var(--stroke, #2a2833)}
+.dzsvm .dzm-durf:hover{color:var(--ink, #edeaf2);
+  border-color:var(--stroke2, #3a3746)}

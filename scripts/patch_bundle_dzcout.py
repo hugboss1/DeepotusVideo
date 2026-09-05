@@ -51,12 +51,29 @@ MARKER_ATTENDU = 7      # définition + window x2 + infobulle + total + puce x2
 
 # Sondes des maillons AMONT : si l'un de ces comptes bouge, c'est qu'un
 # patcher amont a été rejoué seul et a effacé ce qui le suivait.
+#
+# `montage` : 25 → 29 le 05/09/2026, et LA SONDE A FAIT SON TRAVAIL. P10 (la
+# timeline qui s'étend au lieu de rogner) ajoute QUATRE références au contrat
+# `DzTracks` dans le bundle — trois `DzTracks.fitDur` (l'ajout, le décalage
+# clavier, le relâchement du glisser) et un `DzTracks.durCtl` (le réglage de
+# durée de la barre de transport) — et rien d'autre. Compté des deux côtés
+# avant d'écrire ce nombre : 25 dans le bundle d'avant P10, 29 après.
+# CE QUI S'EST PASSÉ CE JOUR-LÀ, et qui vaut d'être écrit : les six commits de
+# P7 ont été cueillis (cherry-pick) dans un arbre de travail où `.bak_dzcout`
+# N'EXISTAIT PAS — les backups ne sont pas suivis par git. Le bundle est arrivé
+# AVEC les sections dzcout, sans le backup qui les signale. La garde
+# `guard_downstream` de patch_bundle_montage.py, qui cherche un `.bak_*` plus
+# récent que le sien, était donc AVEUGLE : rejouer montage a restauré
+# `.bak_montage` et effacé les sept marqueurs de dzcout, en silence et sans que
+# rien ne le voie — sauf CETTE sonde, au rejeu suivant. Le remède est le rejeu
+# de dzcout APRÈS montage (il est en queue de chaîne), qui recrée `.bak_dzcout`
+# et rend la vue à la garde amont.
 STABLE_PROBES = [
     ("libpicker", "__dzLibPicker", 10),
     ("print3d", "__dzPrint3d", 3),
     ("navrail", "dz_nav_collapsed", 2),
     ("dzdesign", "__dzCatBar", 2),
-    ("montage", "DzTracks", 25),
+    ("montage", "DzTracks", 29),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

@@ -1267,6 +1267,207 @@ check("bloc_contient_replaceSrc_et_revertSrc",
       and nl("function dzmReplaceSrc(c,src,label,srcDur,now){") in s
       and nl("function dzmRevertSrc(c){") in s)
 
+print("\n[1-septies] P10 — la timeline s'etend au lieu de rogner (M17a…M17g)")
+# LE DEFAUT, mot pour mot : « j'ai voulu ajouter trois videos depuis la
+# bibliotheque, or la timeline est fixe, je suis oblige de raccourcir des
+# pistes video pour les faire rentrer ». TROIS gestes rognaient contre
+# `proj.dur` EN SILENCE, et RIEN n'ecrivait `proj.dur` apres le chargement.
+#
+# CINQ FORMES DE ROGNAGE, comptees a ZERO dans le bundle LIVRE. Les lignes
+# `M17*_ancre_consommee` ci-dessus prouvent que l'ancre EXACTE a disparu ;
+# celles-ci prouvent que le PLAFOND lui-meme a disparu — une reecriture qui
+# le remettrait sous une autre ponctuation passerait les premieres.
+for _lbl, _txt in (("ajout_point_de_depart", "Math.max(0,d-1)"),
+                   ("ajout_fin", "Math.min(d,st+defaultLen"),
+                   ("nudge_clavier", "Math.min(Math.max(0,d-len)"),
+                   ("deplacement_souris", "Math.min(durRef.current-len"),
+                   ("bord_droit", "var lim=durRef.current")):
+    check("P10_le_rognage_a_disparu_" + _lbl, s.count(nl(_txt)) == 0,
+          f"count={s.count(nl(_txt))}")
+# `ripMax` ne servait QU'au plafond du bord droit : il part avec lui. Le
+# commentaire de M17c ne le nomme pas — c'est ce qui rend ce compte possible.
+check("P10_ripMax_n_est_plus_calcule", s.count("ripMax") == 0,
+      f"count={s.count('ripMax')}")
+# LE DEFAUT DE FOND, retourne : `proj.dur` avait UN seul ecrivain (le
+# chargement) et QUATRE rogneurs. Il a maintenant QUATRE ecrivains — l'ajout,
+# le nudge, le relachement du glisser, et le reglage explicite — et l'ecrivain
+# historique est toujours la. Un `4` nu serait un chiffre creux : les quatre
+# sections sont nommees une a une juste apres.
+check("P10_la_duree_a_enfin_des_ecrivains",
+      s.count(nl("Object.assign({},p,{dur:")) == 4
+      and s.count(nl("dur:Math.max(1,Number(d.duration)||maxEnd)")) == 1,
+      f"ecrivains={s.count(nl('Object.assign({},p,{dur:'))} "
+      f"chargement={s.count(nl('dur:Math.max(1,Number(d.duration)||maxEnd)'))}")
+for _t, _r in (("M17a_ajout", P.R_M17A), ("M17b_nudge", P.R_M17B),
+               ("M17f_relachement", P.R_M17F), ("M17g_transport", P.R_M17G)):
+    check("P10_" + _t + "_ecrit_bien_la_duree",
+          "Object.assign({},p,{dur:" in _r, _r[:80])
+# L'AGRANDISSEMENT EST DIT, ET CHIFFRE. « Un agrandissement silencieux est
+# aussi desagreable qu'un rognage silencieux » : la note de l'ajout porte les
+# DEUX durees. Elle est assemblee par M17a (`dzTail`) et emise par M16b, qui
+# la concatene — les deux moitieds sont comptees ensemble, sans quoi retirer
+# `+dzTail` de la note laissait la phrase construite et jamais affichee.
+check("P10_M17a_la_note_dit_l_allongement_et_de_combien",
+      "dzTail" in P.R_M17A and "+dzTail)}" in P.R_M16B
+      and "La timeline a été allongée de " in P.R_M17A
+      and "svmRuler(Math.round(dzGrew))" in P.R_M17A,
+      "la note de l'ajout ne dit plus que la timeline a grandi")
+# `DzTracks`, JAMAIS `DzMontage` : le bundle declare deja `function DzMontage`
+# au premier niveau, et redeclarer ce nom est une SyntaxError en semantique
+# MODULE — celle sous laquelle index.html charge le bundle.
+check("P10_utilise_DzTracks_pas_DzMontage",
+      "DzMontage.fitDur" not in s and "DzMontage.durCtl" not in s
+      and s.count("DzTracks.fitDur") == 3 and s.count("DzTracks.durCtl") == 1,
+      f"fitDur={s.count('DzTracks.fitDur')} durCtl={s.count('DzTracks.durCtl')}")
+# CONTROLE A DEUX FACES pour CHAQUE identifiant du bundle appele par une
+# section P10 : declaration ET appel, recherche BORNEE. Mesure du chantier :
+# renommer `addAsset` laissait un banc a 255/0 alors que sept appelants
+# etaient morts — verifier une seule face ne voit rien.
+_P10SRC = P.R_M17A + P.R_M17B + P.R_M17C + P.R_M17D + P.R_M17E + P.R_M17F \
+    + P.R_M17G
+for _nm, _decl in (("defaultLen", "function defaultLen(kind,srcDur){"),
+                   ("svmRuler", "function svmRuler(s){"),
+                   ("setProj", "proj=stP[0],setProj=stP[1];"),
+                   ("setClips", "setClips=st1[1]"),
+                   ("setDirty", "setDirty=st8[1]"),
+                   ("fireNote", "fireNote=nt[1]"),
+                   ("pushHistory", "var pushHistory=x.useCallback("),
+                   ("clipsRef", "var clipsRef="),
+                   ("durRef", "var durRef=x.useRef(proj.dur);"),
+                   ("nudgeHistAt", "var nudgeHistAt="),
+                   ("tickStep", "var tickStep=[2,3,5,6,10,15,20,30,60]"),
+                   ("doSnap", "function doSnap(v){if(!snap)return v;")):
+    _appele = re.search(r"\b%s\b" % re.escape(_nm), _P10SRC) is not None
+    check("P10_appelle_" + _nm + "_qui_est_declare",
+          _appele and s.count(nl(_decl)) >= 1,
+          f"appelé={_appele} déclaré={s.count(nl(_decl))} ({_decl})")
+# LA COUCHE APPELLE `svmRuler` DU BUNDLE au lieu de recopier le format m:ss.
+# Deux faces la aussi : l'appel dans montage.js, la declaration dans le
+# bundle. Une copie dans la couche divergerait au premier changement.
+#
+# RECTIFICATION MESUREE le 05/09/2026, et c'est la FAUTE N°2 prise sur le
+# fait : chercher `\bsvmRuler\b` dans la couche ENTIERE etait une assertion
+# CREUSE. Le commentaire d'en-tete de `fitDur` cite « svmRuler(Math.round(dur))
+# » en toutes lettres — la mutation qui RECOPIE le format m:ss dans
+# `dzmDurTxt` (donc qui n'appelle plus rien) laissait cette ligne VERTE, et la
+# table de mutations l'a montre. On cherche donc dans la couche PRIVEE DE SES
+# COMMENTAIRES, et l'on exige que le decommentage ait vraiment eu lieu : sans
+# ces deux conjoints, une regexp de strip qui cesserait de mordre rendrait la
+# ligne creuse a nouveau, en silence.
+_src_code = re.sub(r"/\*.*?\*/", "", src, flags=re.S)
+_ap_ruler = re.search(r"\bsvmRuler\(", _src_code) is not None
+check("P10_la_couche_appelle_le_svmRuler_du_bundle",
+      len(_src_code) < len(src) and "window.DzTracks=DzTracks;" in _src_code
+      and _ap_ruler and s.count(nl("function svmRuler(s){")) == 1
+      and "function svmRuler" not in src,
+      f"appelé={_ap_ruler} déclaré={s.count(nl('function svmRuler(s){'))} "
+      f"code={len(_src_code)}/{len(src)} o")
+# ETENDRE EST SANS RISQUE POUR LE RENDU, et c'est mesure DES DEUX COTES.
+# Cote client : `renderPayload` n'emporte AUCUNE cle `duration` (seulement
+# `duration_master`, un booleen). Cote serveur : la duree postee n'est lue que
+# par POST /save, et `_build_montage_command` recalcule `total` depuis
+# `seg_durs`. Sans cette paire, P10 changerait la duree du FILM sans le dire.
+# `find`, jamais `index` (faute n°6) : les deux reperes valent -1 quand ils
+# manquent, et la ligne EXIGE qu'ils aient ete trouves.
+_rp0 = s.find(nl("  function renderPayload(preview){"))
+_rp1 = s.find(nl("  function launchRender(preview){"), _rp0 if _rp0 >= 0 else 0)
+_RP = s[_rp0:_rp1] if _rp0 >= 0 and _rp1 > _rp0 else ""
+check("P10_le_payload_de_rendu_n_emporte_pas_la_duree",
+      bool(_RP) and "duration:" not in _RP and "duration_master:" in _RP,
+      f"payload={len(_RP)} o, duration:={'duration:' in _RP}")
+check("P10_le_backend_recalcule_la_duree_du_film",
+      SVC.count('cur, total = "n0", seg_durs[0]') == 2
+      and SVC.count('dur = float(body.get("duration") or 0)') == 1,
+      f"seg_durs={SVC.count('cur, total = ' + chr(34) + 'n0' + chr(34) + ', seg_durs[0]')} "
+      f"save={SVC.count('dur = float(body.get(' + chr(34) + 'duration' + chr(34) + ') or 0)')}")
+# AUCUNE ENTREE D'HISTORIQUE DE PLUS. `pushHistory` ne memorise que
+# {clips, mixDb} : une entree posee pour un geste qui ne change NI l'un NI
+# l'autre donnerait un « annuler » qui ne retourne rien. M17a s'appuie sur le
+# `pushHistory()` deja present dans addAsset (la ligne
+# `M16a_refuse_avant_de_pousser_l_historique` compte 1 dans ce corps), M17b et
+# M17f reprennent celui d'avant a l'identique, M17g n'en pose aucun.
+check("P10_aucune_entree_d_historique_de_plus",
+      "pushHistory" not in P.R_M17A
+      and P.R_M17B.count("pushHistory();") == 1
+      and P.R_M17F.count("pushHistory(h0)") == 1
+      and "pushHistory" not in P.R_M17G,
+      f"a={'pushHistory' in P.R_M17A} b={P.R_M17B.count('pushHistory();')} "
+      f"f={P.R_M17F.count('pushHistory(h0)')} g={'pushHistory' in P.R_M17G}")
+# LA RESERVE CENTRALE, DITE PARTOUT : `proj.dur` n'entre pas dans
+# l'historique. Etendre puis annuler rend les clips, PAS la duree. Les trois
+# notes de geste le disent et NOMMENT le retour ; le controle explicite le dit
+# a chacune des siennes par `DZM_DUR_UNDO`, concatene dans `put`.
+for _t, _r in (("M17a_ajout", P.R_M17A), ("M17b_nudge", P.R_M17B),
+               ("M17f_relachement", P.R_M17F)):
+    check("P10_" + _t + "_dit_que_annuler_ne_rend_pas_la_duree",
+          "NE raccourcit PAS" in _r and "réglage de durée" in _r,
+          "la note ne dit pas ce qu'« annuler » ne restaure pas")
+check("P10_le_controle_dit_la_reserve_a_chacune_de_ses_notes",
+      "« Annuler » ne rend pas la durée du projet" in src
+      and src.count("msg+DZM_DUR_UNDO") == 1
+      and src.count("function put(nv,msg){if(set)set(nv);"
+                    "if(note)note(msg+DZM_DUR_UNDO)}") == 1,
+      "les notes du contrôle ne passent plus toutes par `put`")
+# M17f ETEND AU RELACHEMENT, PAS PENDANT LE GESTE — et c'est une MESURE, pas
+# un gout. `pxPerS` est capture UNE fois au pointerdown ; une duree qui
+# grandirait pendant le glissement re-rendrait les bandes a une autre echelle
+# sans que `pxPerS` bouge, et le clip se decrocherait du curseur.
+_mv0 = s.find(nl("    function mv(ev){var ds=(ev.clientX-x0)/pxPerS;"))
+_mv1 = s.find(nl('    function up(){tgt.removeEventListener("pointermove",mv);'),
+              _mv0 if _mv0 >= 0 else 0)
+_MV = s[_mv0:_mv1] if _mv0 >= 0 and _mv1 > _mv0 else ""
+check("P10_le_geste_n_ecrit_pas_la_duree_pendant_qu_il_dure",
+      bool(_MV) and "setProj" not in _MV and "DzTracks.fitDur" not in _MV,
+      f"corps de mv={len(_MV)} o")
+check("P10_l_echelle_du_geste_reste_figee_au_pointerdown",
+      s.count(nl("var rect=laneEl.getBoundingClientRect(),"
+                 "pxPerS=rect.width/durRef.current;")) == 1,
+      "pxPerS n'est plus capturé une seule fois")
+# M17f prend TOUS les clips, pas seulement celui qu'on tient : en ripple, ce
+# sont les plans ENTRAINES qui sortent du champ, jamais celui qu'on rogne.
+check("P10_le_relachement_mesure_tous_les_clips",
+      "DzTracks.fitDur(clipsRef.current,durRef.current,0)" in P.R_M17F,
+      "le relâchement ne regarde pas la timeline entière")
+# LE PAS EST LA GRADUATION QUE LA REGLE DESSINE DEJA — pas un chiffre choisi.
+check("P10_le_pas_du_reglage_est_la_graduation_de_la_regle",
+      "step:tickStep" in P.R_M17G
+      and s.count(nl("  var tickStep=[2,3,5,6,10,15,20,30,60]"
+                     ".find(function(s){return dur/s<=11})||60;")) == 1,
+      "le pas n'est plus celui de la règle")
+# LE TOTAL RESTE AFFICHE : il demenage dans le controle, il ne disparait pas.
+check("P10_le_total_reste_affiche_dans_le_transport",
+      'dzmDurTxt(d)+" total"' in src and '" %"]}),' in P.R_M17G
+      and s.count(nl('" %"]}),')) == 1,
+      "le nombre affiché a disparu de la barre de transport")
+check("css_habille_le_reglage_de_duree",
+      ".dzm-durctl{" in CSS.read_text(encoding="utf-8").replace("\n", "")
+      and '.dzm-durctl::before{content:"·"' in CSS.read_text(encoding="utf-8")
+      and ".dzm-durb{" in CSS.read_text(encoding="utf-8").replace("\n", "")
+      and ".dzm-durf{" in CSS.read_text(encoding="utf-8").replace("\n", ""),
+      "montage.css n'habille pas le réglage de durée")
+# ── DETTE D'ECRAN, CONSIGNEE ET NON DEVINEE (etape 5 de la tache) ─────────
+# LE ZOOM N'EST PAS REECRIT. Le defilement horizontal EXISTE DEJA et il est
+# bon : `.svm-scroll{flex:1; overflow:auto}`, pistes en `width:zoomPct%`,
+# quatre paliers, Ctrl+molette continu avec conservation du point sous le
+# curseur. Ce qui manque est qu'on le TROUVE, et cela ne se mesure qu'a
+# l'ecran — aucune de ces lignes ne pretend l'avoir mesure. Elles epinglent
+# le mecanisme pour que la dette reste VRAIE : le jour ou l'infobulle ou les
+# paliers changent, la note de dette du commit cesse d'etre exacte et cette
+# ligne rougit.
+_SVMCSS = (ROOT / "frontend" / "dist" / "shared" / "son-vfx-montage.css")
+_SVMCSS = _SVMCSS.read_text(encoding="utf-8") if _SVMCSS.is_file() else ""
+check("dette_ecran_le_defilement_du_zoom_existe_et_n_a_pas_bouge",
+      bool(_SVMCSS) and ".svm-scroll{flex:1; overflow:auto" in _SVMCSS
+      and s.count(nl("SVM_ZOOMW=[100,150,220,320]")) == 1
+      and s.count("Ctrl+molette : zoom continu centré sur le curseur") == 1,
+      "le mécanisme de zoom a bougé — la dette consignée n'est plus exacte")
+# LA SEULE BORNE HAUTE MESUREE : la regle cesse de graduer a 40 traits (pas
+# maximal 60 s, donc 40 min). Elle ne casse rien et ne justifie pas un refus
+# dans `dzmDurCtl` — elle est CONSIGNEE, pas contournee en silence.
+check("dette_ecran_la_regle_cesse_de_graduer_a_40_traits",
+      s.count(nl("&&ticks.length<40;")) == 1,
+      f"count={s.count(nl('&&ticks.length<40;'))}")
+
 print("\n[1-ter] feuille de style et index.html")
 check("css_liee_index_html", "shared/montage.css" in
       HTML.read_bytes().decode("utf-8-sig"))
@@ -1599,6 +1800,99 @@ out.bad_fix=bfix;
 out.bad_arrete_les_deux=bstop;
 out.bad_titre_echec=bc.p.title.indexOf("fera échouer le rendu")>=0;
 out.bad_titre_carton=bc.p.title.indexOf("carton fixe")>=0;
+/* ══ P10 — LA DUREE QUE LE PROJET DOIT AVOIR, ET SON REGLAGE ══════════════
+   `fitDur` est PURE : elle se joue ici en entier, y compris ses entrees
+   molles. `LEVE:` au lieu d'une exception : un `clips` nul qui ferait lever
+   la fonction emporterait TOUTE la section [3] — rougir, pas mourir. */
+function FD(a,b,c){try{return T.fitDur(a,b,c)}catch(e){return "LEVE:"+e.name}}
+out.dur_min=T.DUR_MIN;
+out.fd_vide=FD([],16,0);
+out.fd_nul=FD(null,16,0);
+out.fd_indefini=FD(void 0,16,0);
+out.fd_rentre=FD([{end:6}],16,0);
+out.fd_depasse=FD([{end:20}],16,0);
+out.fd_depasse_fractionnaire=FD([{end:20.2}],16,0);
+out.fd_prend_le_max_pas_le_dernier=FD([{end:20},{end:4},{end:12}],16,0);
+out.fd_marge=FD([{end:20}],16,2);
+out.fd_marge_negative=FD([{end:20}],16,-5);
+out.fd_marge_illisible=FD([{end:20}],16,"x");
+/* pas de clip = pas de queue a laisser : une timeline vide ne s'allonge pas
+   toute seule sous pretexte qu'on a demande une marge. */
+out.fd_marge_sans_clip=FD([],1,3);
+out.fd_end_illisible=FD([{end:"abc"},{end:6}],16,0);
+out.fd_end_infini=FD([{end:Infinity}],16,0);
+out.fd_end_absent=FD([{}],16,0);
+out.fd_clip_nul=FD([null,{end:6}],16,0);
+out.fd_dur_nulle=FD(null,0,0);
+out.fd_dur_negative=FD(null,-9,0);
+out.fd_dur_illisible=FD(null,"abc",0);
+out.fd_dur_infinie=FD([{end:5}],Infinity,0);
+out.fd_dur_fractionnaire_gardee=FD([{end:5}],16.5,0);
+out.fd_ne_raccourcit_jamais=FD([{end:3}],30,0);
+/* LE CAS DE L'UTILISATEUR, joue tel quel : projet de 16 s, tete de lecture a
+   14 s, video de 6 s posee la — donc un clip qui finit a 20 s. */
+out.fd_cas_utilisateur=FD([{end:20}],16,0);
+/* ── le reglage explicite, dans la barre de transport ──────────────────── */
+function DKID(el,k){var c=(el&&el.p&&el.p.children)||[],i;
+  for(i=0;i<c.length;i++)if(c[i]&&c[i].k===k)return c[i];return null}
+function DCTL(dur,step,clips){
+  var got=[],msgs=[];
+  var el=T.durCtl({dur:dur,step:step,clips:clips,
+    onSet:function(v){got.push(v)},note:function(m){msgs.push(m)}});
+  return {el:el,got:got,msgs:msgs}}
+function DCLIC(o,k){var b=DKID(o.el,k);if(!b)return !1;b.p.onClick();return !0}
+var CL20=[{end:20}];
+var dA=DCTL(30,2,CL20);
+out.dc_classe=dA.el.p.className;
+out.dc_valeur=(DKID(dA.el,"v")||{p:{}}).p.children;
+out.dc_kids=(dA.el.p.children||[]).map(function(z){return z&&z.k});
+out.dc_plus_ok=DCLIC(dA,"p");
+out.dc_plus_valeur=dA.got[0];
+out.dc_plus_note=dA.msgs[0];
+var dA2=DCTL(30,2,CL20);
+out.dc_moins_ok=DCLIC(dA2,"m");
+out.dc_moins_valeur=dA2.got[0];
+var dA3=DCTL(30,2,CL20);
+out.dc_ajuste_ok=DCLIC(dA3,"f");
+out.dc_ajuste_valeur=dA3.got[0];
+out.dc_ajuste_note=dA3.msgs[0];
+/* B — le pas TOMBERAIT sous la fin du dernier clip : il s'ARRETE dessus et
+   le dit. Ce n'est pas un refus, et la difference se voit dans la note. */
+var dB=DCTL(21,2,CL20);
+out.dc_arret_ok=DCLIC(dB,"m");
+out.dc_arret_valeur=dB.got[0];
+out.dc_arret_note=dB.msgs[0];
+/* C — DEJA sur la fin du dernier clip : REFUS. Rien n'est ecrit, et la note
+   dit ce qui se serait passe. « ajuster » a disparu : rien a retirer. */
+var dC=DCTL(20,2,CL20);
+out.dc_refus_kids=(dC.el.p.children||[]).map(function(z){return z&&z.k});
+out.dc_refus_clic=DCLIC(dC,"m");
+out.dc_refus_ecritures=dC.got.length;
+out.dc_refus_notes=dC.msgs.length;
+out.dc_refus_note=dC.msgs[0];
+/* D — timeline vide : « ajuster » ramene au PLANCHER de 1 s, celui de
+   svmApplyProject, et « − » y est refuse. */
+var dD=DCTL(16,2,[]);
+out.dc_vide_ajuste=DCLIC(dD,"f");
+out.dc_vide_valeur=dD.got[0];
+var dE=DCTL(1,2,[]);
+out.dc_plancher_clic=DCLIC(dE,"m");
+out.dc_plancher_ecritures=dE.got.length;
+/* E — entrees illisibles : la duree retombe sur le plancher, le pas sur 1 s */
+var dF=DCTL("abc",0,null);
+out.dc_mou_valeur=(DKID(dF.el,"v")||{p:{}}).p.children;
+out.dc_mou_plus=DCLIC(dF,"p")&&dF.got[0];
+/* LA RESERVE CENTRALE est dans CHACUNE des notes emises par le controle —
+   `dc_notes_comptees` empeche ce `every` d'etre vrai sur du vide. */
+out.dc_toutes_les_notes_disent_la_reserve=[dA.msgs,dA3.msgs,dB.msgs]
+  .reduce(function(a,b){return a.concat(b)},[])
+  .every(function(m){return m.indexOf("« Annuler » ne rend pas la durée")>=0});
+out.dc_notes_comptees=dA.msgs.length+dA3.msgs.length+dB.msgs.length;
+/* un « − » nu ne dit pas de combien : les trois elements nomment le pas */
+out.dc_titres_nomment_le_pas=["m","v","p"].every(function(k){
+  var b=DKID(dA.el,k);return !!b&&b.p.title.indexOf("2 s")>=0});
+out.dc_aria=["m","p"].map(function(k){return DKID(dA.el,k).p["aria-label"]});
+out.secs=[T.secs(2),T.secs(.5),T.secs(10),T.secs("x")];
 console.log(JSON.stringify(out));
 """
 # "use strict" en PROLOGUE du shim : concatene, celui de montage.js n'est
@@ -1623,8 +1917,25 @@ _exts_svc = re.findall(r'"([^"]+)"', _m_exts.group(1)) if _m_exts else []
 check("backend_la_liste_video_est_extractible_pour_le_banc",
       len(_exts_svc) >= 1 and all(e.startswith(".") for e in _exts_svc),
       f"_VIDEO_EXTS illisible dans {SERVICE.name} : {_exts_svc}")
+# `svmRuler` / `svmPad2` du BUNDLE, extraites et jouees a cote de la
+# couche. La couche les APPELLE (elle est injectee dans la meme portee
+# module) au lieu de recopier le format m:ss : une seconde version
+# divergerait de la premiere au premier changement. Le repli EST le texte
+# exact que la ligne ci-dessous exige de trouver dans le bundle — ce n'est
+# donc pas une copie qui puisse deriver en silence : le jour ou le bundle
+# change ces deux fonctions, CETTE ligne rougit, seule, et les ~45 lignes
+# de P10 restent lisibles au lieu d'etre emportees par un ReferenceError
+# sous node (faute n°6 : rougir, pas mourir).
+_PAD2 = 'function svmPad2(n){n=Math.floor(n);return (n<10?"0":"")+n}'
+_RULER = ('function svmRuler(s){var m=Math.floor(s/60);'
+          'return m+":"+svmPad2(s-m*60)}')
+check("bundle_svmRuler_et_svmPad2_extraites",
+      s.count(nl(_PAD2)) == 1 and s.count(nl(_RULER)) == 1,
+      f"pad2={s.count(nl(_PAD2))} ruler={s.count(nl(_RULER))}")
+RULER_SRC = _PAD2 + "\n" + _RULER + "\n"
 shim.write_text('"use strict";\n' + "var window={};var SVM_TRACK_BUS={};\n" + JSX
-                + SVM_SRC.replace("\r\n", "\n") + "\n" + src + "\n"
+                + SVM_SRC.replace("\r\n", "\n") + "\n"
+                + RULER_SRC + src + "\n"
                 + probe.replace("__DZ_VIDEO_EXTS__",
                                 json.dumps(_exts_svc or [".mp4"])),
                 encoding="utf-8")
@@ -2027,6 +2338,125 @@ check("backend_le_prevol_laisse_passer_une_image",
 # celles qu'elle emporte — et le banc va jusqu'a imprimer son compte.
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")
+
+# ── P10 : la duree que le projet DOIT avoir (fitDur), jouee sous node ──────
+# `dur` est un PLANCHER, jamais un plafond : `fitDur` ne raccourcit JAMAIS.
+# Chaque ligne ci-dessous a ete rejouee par MUTATION de la couche : la table
+# du commit dit laquelle rougit pour chacune.
+check("js_fitdur_duree_min_est_le_plancher_de_svmApplyProject",
+      d.get("dur_min") == 1, str(d.get("dur_min")))
+for _lbl, _k, _att in (
+        ("timeline_vide", "fd_vide", 16),
+        ("clips_nuls", "fd_nul", 16),
+        ("clips_indefinis", "fd_indefini", 16),
+        ("clip_qui_rentre", "fd_rentre", 16),
+        ("clip_qui_depasse", "fd_depasse", 20),
+        ("clip_fractionnaire_arrondi_au_plafond",
+         "fd_depasse_fractionnaire", 21),
+        ("le_max_pas_le_dernier", "fd_prend_le_max_pas_le_dernier", 20),
+        ("marge_de_queue", "fd_marge", 22),
+        ("marge_negative_ignoree", "fd_marge_negative", 20),
+        ("marge_illisible_ignoree", "fd_marge_illisible", 20),
+        ("marge_sans_clip_ne_fait_rien", "fd_marge_sans_clip", 1),
+        ("end_illisible_ignore", "fd_end_illisible", 16),
+        ("end_infini_ignore", "fd_end_infini", 16),
+        ("end_absent_ignore", "fd_end_absent", 16),
+        ("clip_nul_ignore", "fd_clip_nul", 16),
+        ("duree_nulle_retombe_sur_le_plancher", "fd_dur_nulle", 1),
+        ("duree_negative_retombe_sur_le_plancher", "fd_dur_negative", 1),
+        ("duree_illisible_retombe_sur_le_plancher", "fd_dur_illisible", 1),
+        ("duree_infinie_retombe_sur_le_plancher", "fd_dur_infinie", 5),
+        ("duree_fractionnaire_gardee_telle_quelle",
+         "fd_dur_fractionnaire_gardee", 16.5),
+        ("ne_raccourcit_jamais", "fd_ne_raccourcit_jamais", 30),
+        ("cas_de_l_utilisateur_16s_plus_un_clip_a_20s",
+         "fd_cas_utilisateur", 20)):
+    check("js_fitdur_" + _lbl, d.get(_k) == _att,
+          f"{d.get(_k)!r} attendu {_att!r}")
+
+# ── P10 : le reglage explicite de la duree (dzmDurCtl), joue sous node ─────
+check("js_durctl_est_un_groupe_du_transport",
+      d.get("dc_classe") == "dzm-durctl", str(d.get("dc_classe")))
+# LE NOMBRE AFFICHE NE DISPARAIT PAS : il demenage dans le controle, au meme
+# format (`svmRuler` du bundle, jamais recopie).
+check("js_durctl_montre_le_total_au_format_du_bundle",
+      d.get("dc_valeur") == "0:30 total", str(d.get("dc_valeur")))
+check("js_durctl_quatre_elements_quand_il_y_a_du_vide",
+      d.get("dc_kids") == ["m", "v", "p", "f"], str(d.get("dc_kids")))
+check("js_durctl_allonge_d_une_graduation",
+      d.get("dc_plus_ok") is True and d.get("dc_plus_valeur") == 32,
+      f'{d.get("dc_plus_ok")} / {d.get("dc_plus_valeur")}')
+check("js_durctl_la_note_de_l_allongement_dit_les_deux_valeurs_et_le_pas",
+      isinstance(d.get("dc_plus_note"), str)
+      and "Timeline allongée de 0:30 à 0:32 (+2 s)" in d.get("dc_plus_note"),
+      str(d.get("dc_plus_note"))[:160])
+check("js_durctl_raccourcit_d_une_graduation",
+      d.get("dc_moins_ok") is True and d.get("dc_moins_valeur") == 28,
+      f'{d.get("dc_moins_ok")} / {d.get("dc_moins_valeur")}')
+# « ajuster » PAIE LA DETTE DE P3 : sa note disait « raccourcissez-la si vous
+# voulez » alors que RIEN ne permettait de la raccourcir.
+check("js_durctl_ajuste_la_timeline_a_son_contenu",
+      d.get("dc_ajuste_ok") is True and d.get("dc_ajuste_valeur") == 20,
+      f'{d.get("dc_ajuste_ok")} / {d.get("dc_ajuste_valeur")}')
+check("js_durctl_la_note_de_l_ajustement_chiffre_le_vide_retire",
+      isinstance(d.get("dc_ajuste_note"), str)
+      and "0:30 → 0:20" in d.get("dc_ajuste_note")
+      and "10 s de queue vide" in d.get("dc_ajuste_note"),
+      str(d.get("dc_ajuste_note"))[:160])
+# LE PAS QUI TOMBERAIT SOUS LE CONTENU S'ARRETE DESSUS — et le DIT. Ce n'est
+# pas le refus : la valeur change, elle s'arrete juste plus tot.
+check("js_durctl_le_pas_s_arrete_sur_la_fin_du_dernier_clip",
+      d.get("dc_arret_ok") is True and d.get("dc_arret_valeur") == 20
+      and isinstance(d.get("dc_arret_note"), str)
+      and "s'est arrêté sur la fin du dernier clip" in d.get("dc_arret_note"),
+      f'{d.get("dc_arret_valeur")} — {str(d.get("dc_arret_note"))[:120]}')
+# LE REFUS : geste destructif A L'ECRAN (les clips ne sont pas supprimes, mais
+# `left:c.start/dur*100+"%"` les pousse hors de la bande et plus rien ne les
+# montre). REFUSE, JAMAIS EN SILENCE — et le zero d'ecritures n'est lu que si
+# le bouton a EXISTE, a ete CLIQUE, et qu'UNE note est sortie : sans ces trois
+# conjoints, `dc_refus_ecritures == 0` serait vert sur un bouton disparu.
+check("js_durctl_refuse_de_descendre_sous_le_dernier_clip",
+      d.get("dc_refus_clic") is True and d.get("dc_refus_notes") == 1
+      and d.get("dc_refus_ecritures") == 0
+      and isinstance(d.get("dc_refus_note"), str)
+      and "ferait sortir des clips du champ" in d.get("dc_refus_note"),
+      f'clic={d.get("dc_refus_clic")} notes={d.get("dc_refus_notes")} '
+      f'ecritures={d.get("dc_refus_ecritures")} '
+      f'{str(d.get("dc_refus_note"))[:120]}')
+# « ajuster » N'EXISTE PAS quand il n'y a rien a retirer : il disparait, il ne
+# s'eteint pas. La liste EXIGE les trois autres — un controle vide passerait
+# un simple « pas de f ».
+check("js_durctl_pas_d_ajuster_quand_il_n_y_a_rien_a_retirer",
+      d.get("dc_refus_kids") == ["m", "v", "p"], str(d.get("dc_refus_kids")))
+check("js_durctl_timeline_vide_ajuste_au_plancher",
+      d.get("dc_vide_ajuste") is True and d.get("dc_vide_valeur") == 1,
+      f'{d.get("dc_vide_ajuste")} / {d.get("dc_vide_valeur")}')
+check("js_durctl_le_plancher_d_une_seconde_est_refuse_aussi",
+      d.get("dc_plancher_clic") is True
+      and d.get("dc_plancher_ecritures") == 0,
+      f'clic={d.get("dc_plancher_clic")} '
+      f'ecritures={d.get("dc_plancher_ecritures")}')
+check("js_durctl_entrees_illisibles_retombent_sur_le_plancher_et_un_pas_de_1s",
+      d.get("dc_mou_valeur") == "0:01 total" and d.get("dc_mou_plus") == 2,
+      f'{d.get("dc_mou_valeur")!r} / {d.get("dc_mou_plus")!r}')
+# LA RESERVE CENTRALE DANS CHAQUE NOTE. Le `every` du sondage est vrai sur du
+# vide : le compte des notes est le conjoint qui l'en empeche.
+check("js_durctl_chaque_note_dit_que_annuler_ne_rend_pas_la_duree",
+      d.get("dc_notes_comptees") == 3
+      and d.get("dc_toutes_les_notes_disent_la_reserve") is True,
+      f'notes={d.get("dc_notes_comptees")} '
+      f'reserve={d.get("dc_toutes_les_notes_disent_la_reserve")}')
+check("js_durctl_les_titres_nomment_le_pas",
+      d.get("dc_titres_nomment_le_pas") is True,
+      str(d.get("dc_titres_nomment_le_pas")))
+# aria-label = ce que le bouton FAIT, avec son pas : « − » seul n'est pas
+# annonçable.
+check("js_durctl_les_boutons_sont_annoncables",
+      d.get("dc_aria") == ["Raccourcir la timeline de 2 s",
+                           "Allonger la timeline de 2 s"],
+      str(d.get("dc_aria")))
+check("js_durctl_les_secondes_en_francais",
+      d.get("secs") == ["2 s", "0,5 s", "10 s", "0 s"], str(d.get("secs")))
 
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
