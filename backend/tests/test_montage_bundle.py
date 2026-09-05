@@ -5,7 +5,7 @@ c'est la seule facon de voir qu'une section a ete effacee par un maillon
 amont relance seul — le mode de panne qui a deja coute vingt-deux correctifs
 a ce depot.
 
-Trois familles de mesures :
+Quatre familles de mesures :
   [1] le bloc `montage` est present UNE fois, et chacun des couples
       ancre -> remplacement de scripts/patch_bundle_montage.py (importe par
       importlib : aucune copie, aucune derive possible) est retrouve UNE fois
@@ -19,8 +19,21 @@ Trois familles de mesures :
       par FICHIER — JAMAIS `node -e` : la ligne de commande Windows plafonne
       a 32 767 caracteres et montage.js la depasserait tot ou tard, avec un
       echec qui ne ressemble a rien.
+  [4] LE CABLAGE de l'ecran EXECUTE, ajoute le 05/09/2026 (section [3-bis]).
+      Le cœur pur etait couvert a fond ; le FIL entre ce cœur et l'ecran ne
+      l'etait par RIEN — `addAsset`, `nudge`, `up()` et l'`onSet` du
+      transport ne tournaient sous aucun banc, et NEUF mutations qui
+      remettent le bug rapporte par l'utilisateur laissaient le compte a
+      504/0. Un second shim EXTRAIT DU BUNDLE LIVRE, mot pour mot, les
+      quatre morceaux de cablage (plus `defaultLen`, `svmShort`,
+      `svmSpeedOf`, `trackKind`, `svmKbSelClip`) et les joue avec les refs
+      et les setters de l'ecran bouchonnes. Les neuf rougissent.
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
+
+COMPTE DE REFERENCE, 05/09/2026 : 524 lignes. Sans `node` sur le PATH, 522 —
+les deux `*_rend_un_objet_json` vivent dans la branche « node a tourne » et
+ne sont pas emises, c'est par CONSTRUCTION et non par accident.
 
 LA REGLE DES ASSERTIONS NEGATIVES, PASSEE SUR CE BANC LE 05/09/2026. Elle
 vient de l'en-tete de test_montage_media.py : un TEMOIN DISTINGUABLE, ou le
@@ -41,6 +54,11 @@ seulement ensuite les comparer.
   IMPRIME. Une ligne `aucun_appel_n_a_plante` a ete ajoutee en queue, comme
   dans les trois autres bancs de la famille — c'est elle qui fait passer le
   compte de reference de 326 a 327.
+  LES TROIS CHIFFRES CI-DESSUS (326, 244/82, 241/85) SONT CEUX DU CHANTIER
+  P10-P11 ET NE SE REPRODUISENT PLUS TELS QUELS : le banc a grossi depuis.
+  Meme relance aujourd'hui, `PATH=C:/Windows/System32;C:/Windows` : 325/197
+  sur 522, et LE COMPTE EST IMPRIME — c'est CELA que la garde protege, pas
+  un chiffre.
   L'ETAT VIDE ET LES TROIS REPAREES :
       PATH=C:/Windows/System32;C:/Windows & $PY tests/test_montage_bundle.py
   `d` retombe sur le dict VIDE des que node ne rend pas d'objet JSON, et
@@ -125,7 +143,29 @@ for p in (BUNDLE, LAYER, PATCHER, HTML, CSS):
         print("\n=== 0 passed, 1 failed ===")
         sys.exit(1)
 
-P = load("patch_bundle_montage", PATCHER)
+# FAUTE N°6, SIXIEME MORSURE — LA MEME FAMILLE QUE `NODE()`. `p.is_file()`
+# ci-dessus ne garde que l'ABSENCE : un patcher PRESENT mais qui LEVE a
+# l'import (faute de syntaxe, `SystemExit` d'une garde, dependance absente)
+# tuait ce banc AVANT sa premiere ligne — rc=1, une trace, AUCUNE ligne de
+# compte. MESURE le 05/09/2026 : `raise RuntimeError(…)` pose au premier
+# niveau de scripts/patch_bundle_montage.py, banc lance depuis backend/ —
+# AVANT, zero ligne imprimee et aucun compte ; APRES,
+# `FAIL patcher_importable RuntimeError: … ·ECHEC#1` puis
+# `=== 0 passed, 1 failed ===`, rc=1.
+# CETTE LIGNE-CI EST PLUS ANCIENNE QUE LES DEUX DE dzcout, et elle est fermee
+# ICI PLUTOT QU'AILLEURS parce qu'elle porte exactement la meme propriete :
+# c'etait une aggravation, pas une nouveaute, et la laisser ouverte aurait
+# fait dependre la survie du banc de l'ordre des deux imports.
+# L'ARRET EST IMMEDIAT, ET C'EST DELIBERE : sans `P`, les ~200 lignes qui
+# lisent `P.R_*` leveraient une AttributeError chacune. La forme est celle de
+# `fichier_absent` juste au-dessus — un banc qui ne peut pas partir le DIT en
+# un mot, avec un compte, au lieu de mourir.
+try:
+    P = load("patch_bundle_montage", PATCHER)
+except BaseException as _e:          # SystemExit compris : il n'hérite pas d'Exception
+    print(f"  FAIL  patcher_importable {temoin(_e)}")
+    print("\n=== 0 passed, 1 failed ===")
+    sys.exit(1)
 s = BUNDLE.read_bytes().decode("utf-8-sig")
 crlf = "\r\n" in s
 def nl(t):
@@ -1584,18 +1624,42 @@ check("P11_la_route_reutilise_la_resolution_et_la_sonde",
 # LE COMPTE EST EN OCCURRENCES, PAS EN LIGNES : le bundle est minifie et
 # `grep -c` compterait des lignes.
 _DZCOUT = ROOT / "scripts" / "patch_bundle_dzcout.py"
-if _DZCOUT.is_file():
-    _DC = load("patch_bundle_dzcout", _DZCOUT)
-    _sonde = dict((t, n) for t, _m, n in _DC.STABLE_PROBES)
-    check("chaine_la_sonde_amont_de_dzcout_compte_juste_les_DzTracks",
-          _sonde.get("montage") == s.count("DzTracks"),
-          f'sonde={_sonde.get("montage")} bundle={s.count("DzTracks")}')
-    check("chaine_les_sept_marqueurs_de_dzcout_sont_toujours_la",
-          s.count(_DC.MARKER) == _DC.MARKER_ATTENDU == 7,
-          f'bundle={s.count(_DC.MARKER)} attendu={_DC.MARKER_ATTENDU}')
+# CES DEUX LIGNES TUAIENT LE BANC — faute n°6, sixieme morsure, et la
+# variante la plus fourbe : `_DZCOUT.is_file()` ne garde que l'ABSENCE.
+# MESURE le 05/09/2026, sur scripts/patch_bundle_dzcout.py :
+#   · une faute de syntaxe               -> SyntaxError a l'import
+#   · un QUATRIEME champ dans une entree
+#     de STABLE_PROBES                   -> ValueError: too many values
+#   · une levee au premier niveau        -> l'exception telle quelle
+# Dans les TROIS cas, AVANT : rc=1, une trace, 313 des 524 lignes imprimees,
+# AUCUNE ligne de compte — DEUX CENT ONZE assertions emportees en silence,
+# dont les sections [2], [3] et [3-bis] entieres. APRES, meme relance :
+# 521/3, le temoin NUMEROTE dans le detail des deux lignes, et le compte EST
+# imprime (la ligne `aucun_appel_n_a_plante` de la queue rougit en plus).
+# LE DEPAQUETAGE EST DANS LE `try`, PAS SEULEMENT L'IMPORT : c'est lui qui
+# leve sur un quatrieme champ, et il est aussi neuf que l'import.
+_DC, _sonde, _dcErr = None, {}, ""
+if not _DZCOUT.is_file():
+    _dcErr = f"{_DZCOUT} introuvable"
 else:
-    check("chaine_la_sonde_amont_de_dzcout_compte_juste_les_DzTracks", False,
-          f"{_DZCOUT} introuvable")
+    try:
+        _DC = load("patch_bundle_dzcout", _DZCOUT)
+        _sonde = dict((t, n) for t, _m, n in _DC.STABLE_PROBES)
+    except BaseException as _e:       # SystemExit compris
+        _DC, _sonde, _dcErr = None, {}, temoin(_e)
+# LE CONJOINT `_DC is not None` N'EST PAS UN ORNEMENT : `_sonde.get(...)`
+# rendrait `None` sur le dict de repli, et `None == s.count(...)` serait FAUX
+# — la ligne rougirait, mais en accusant la sonde au lieu de l'import. Le
+# detail porte desormais le temoin, et dit LEQUEL des deux a lache.
+check("chaine_la_sonde_amont_de_dzcout_compte_juste_les_DzTracks",
+      _DC is not None and _sonde.get("montage") == s.count("DzTracks"),
+      f'{_dcErr or ""} sonde={_sonde.get("montage")} '
+      f'bundle={s.count("DzTracks")}')
+check("chaine_les_sept_marqueurs_de_dzcout_sont_toujours_la",
+      _DC is not None and s.count(_DC.MARKER) == _DC.MARKER_ATTENDU == 7,
+      f'{_dcErr or ""} '
+      f'bundle={s.count(_DC.MARKER) if _DC is not None else "?"} '
+      f'attendu={getattr(_DC, "MARKER_ATTENDU", "?")}')
 
 # ── DETTE D'ECRAN, CONSIGNEE ET NON DEVINEE (etape 5 de la tache) ─────────
 # LE ZOOM N'EST PAS REECRIT. Le defilement horizontal EXISTE DEJA et il est
@@ -2614,12 +2678,6 @@ check("backend_le_prevol_laisse_passer_une_image",
       in SVC,
       "le pre-vol ne laisse plus passer les images — la chip ment maintenant")
 
-# La ligne qui dit que le banc a ROUGI plutot que MEURE : aucun appel garde
-# n'a pose de temoin. Une panne de node fait rougir CETTE ligne EN PLUS de
-# celles qu'elle emporte — et le banc va jusqu'a imprimer son compte.
-check("aucun_appel_n_a_plante", _plantages == 0,
-      f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")
-
 # ── P10 : la duree que le projet DOIT avoir (fitDur), jouee sous node ──────
 # `dur` est un PLANCHER, jamais un plafond : `fitDur` ne raccourcit JAMAIS.
 # Chaque ligne ci-dessous a ete rejouee par MUTATION de la couche : la table
@@ -2804,10 +2862,16 @@ check("js_cliplen_la_couche_garde_les_trois_replis_du_bundle_en_secours",
 # 6 s parce que l'application ignore la vraie longueur ne doit pas se faire
 # passer pour une source de 6 s. La ligne exige que la note NOMME le chiffre
 # ET dise que ce n'est pas celui de la source.
-check("js_cliplen_le_repli_video_est_DIT",
+# L'ACCORD DE LA BRANCHE VIDEO, AJOUTE LE 05/09/2026. La branche AUDIO avait
+# sa ligne depuis P11 ; la branche VIDEO n'en avait pas, et la phrase livree
+# etait « Cette vidéo a été posé à 6 s ». MESURE : remettre la faute laissait
+# le banc a 504/0 — un texte que l'utilisateur LIT a chaque source non
+# mesurable, garde par rien.
+check("js_cliplen_le_repli_video_est_DIT_et_accorde",
       "6 s" in _cl("cl_video_zero").get("note", "")
       and "PAR DÉFAUT" in _cl("cl_video_zero").get("note", "")
-      and "pas la sienne" in _cl("cl_video_zero").get("note", ""),
+      and "pas la sienne" in _cl("cl_video_zero").get("note", "")
+      and "Cette vidéo a été posée" in _cl("cl_video_zero").get("note", ""),
       str(_cl("cl_video_zero").get("note"))[:200])
 check("js_cliplen_le_repli_audio_est_DIT_et_accorde",
       "8 s" in _cl("cl_audio_inconnu").get("note", "")
@@ -2900,13 +2964,18 @@ check("js_askdur_un_src_illisible_n_appelle_rien",
       and d.get("ad_src_illisible_zero_appel") == 0,
       f'{_ad("ad_src_illisible")!r} '
       f'appels={d.get("ad_src_illisible_zero_appel")!r}')
-# CETTE LIGNE-CI EST FAIBLE PAR NATURE, ET C'EST DIT PLUTOT QUE CACHE.
-# MESURE (mutation M35, `var fin=o.done;` sans repli) : le banc reste ENTIER
-# a 504/0 — le `TypeError` du rappel absent est rattrape par le `catch` qui
-# entoure la chaine de promesses, et `askDur` ne leve donc PAS, repli ou pas.
-# La moitie comportementale ne peut pas distinguer les deux mecanismes ; on
-# exige donc AUSSI le repli explicite dans la couche LIVREE, et c'est cette
-# moitie-la qui rend la ligne falsifiable.
+# CETTE LIGNE-CI A UNE MOITIE FAIBLE, ET C'EST DIT PLUTOT QUE CACHE.
+# LA MOITIE COMPORTEMENTALE NE MESURE RIEN : le `TypeError` du rappel absent
+# est rattrape par le `catch` qui entoure la chaine de promesses, et `askDur`
+# ne leve donc PAS, repli ou pas — `ad_sans_done` vaut "ok" des deux cotes.
+# LE CHIFFRE, CORRIGE LE 05/09/2026 (faute n°1 — la table de mutations du
+# commit P11 disait « M35 -> 0, DECLARE » alors que sa propre prose decrivait
+# le conjoint qui la rougit). MESURE, mutation M35 rejouee a l'identique
+# (`var fin=typeof o.done==="function"?o.done:function(){};` ->
+# `var fin=o.done;` dans frontend/patches/montage.js, chaine rejouee) :
+# 503 passed, 1 failed — CETTE ligne, et elle seule. Ce n'est donc pas la
+# moitie comportementale qui la sauve, c'est la SECONDE : le repli explicite
+# exige dans la couche LIVREE. Le chiffre honnete est 1, pas 0.
 check("js_askdur_sans_rappel_elle_ne_leve_pas",
       d.get("ad_sans_done") == "ok"
       and src.count('var fin=typeof o.done==="function"?o.done:function(){};')
@@ -2926,6 +2995,491 @@ check("js_askdur_le_delai_par_defaut_est_celui_de_la_couche",
 check("js_askdur_un_delai_illisible_retombe_sur_le_defaut",
       d.get("ad_delai_illisible") == 1500 and d.get("ad_delai_recu") == 250,
       f'illisible={d.get("ad_delai_illisible")} recu={d.get("ad_delai_recu")}')
+
+print("\n[3-bis] LE CABLAGE DE L'ECRAN, EXECUTE — addAsset, nudge, le "
+      "glisser, le reglage")
+# POURQUOI CETTE SECTION EXISTE, ET CE QU'ELLE A COUTE DE NE PAS EXISTER.
+# Le CŒUR pur (fitDur, clipLen, needDur, askDur, durCtl) est couvert a fond :
+# quarante mutations, tout rougit. Le FIL entre ce cœur et l'ecran ne l'etait
+# PAS — `addAsset`, `nudge`, `up()` et l'`onSet` du transport ne sont
+# executes par aucun banc. MESURE le 05/09/2026, NEUF mutations qui REMETTENT
+# LE BUG RAPPORTE PAR L'UTILISATEUR, chacune avec la chaine de patchs
+# rejouee : les neuf laissaient le banc a 504 passed, 0 failed.
+#
+#   patch_bundle_montage.py:1156  en=Math.min(d,st+dzCl.len)   le rognage de fin
+#   :1142  st ramene sous d-2                                  le rognage du depart
+#   :1163  if(dzGrew) -> if(!1)                                 la note ment
+#   :1157  dzGrew=0                                            idem
+#   :1164  {dur:dzGrew} -> {dur:d}                             la meme duree reecrite
+#   :1201  if(dzNd>d) -> if(!1)                                le clavier n'etend plus
+#   :1278  if(dzUd>durRef.current) -> if(!1)                   le glisser n'etend plus
+#   :1315  onSet qui n'ecrit rien                              le reglage est mort
+#   :1152  if(!1&&DzTracks.needDur(…))                         tout entre a 6 s
+#
+# POURQUOI LE TEXTE NE POUVAIT PAS LES VOIR, deux formes nommees :
+#   · DEUX RESULTATS COMPARES L'UN A L'AUTRE. `M17*_remplace` compare le
+#     bundle a `P.R_M17*` — or dans ce depot le bundle EST ENGENDRE par le
+#     patcher. Muter le patcher deplace les DEUX cotes ensemble : la paire ne
+#     peut pas rougir sur un changement reel.
+#   · SOUS-CHAINE. `P10_M17{a,b,f,g}_ecrit_bien_la_duree` n'est que
+#     `"Object.assign({},p,{dur:" in _r` — le texte, jamais la GARDE posee
+#     devant. Et `P10_le_rognage_a_disparu_*` compte des LITTERAUX
+#     (`"Math.min(d,st+defaultLen"`) : un rognage reecrit contre `dzCl.len`,
+#     l'orthographe ACTUELLE du code, ne les touche pas.
+#
+# CE QUE CETTE SECTION FAIT A LA PLACE : elle EXTRAIT DU BUNDLE LIVRE les
+# quatre morceaux de cablage, mot pour mot, et les JOUE sous node avec les
+# refs et les setters de l'ecran bouchonnes. Rien n'est recopie — les blocs
+# sont des tranches de `s`, et la ligne `cablage_extrait_du_bundle_livre`
+# rougit SEULE le jour ou l'un d'eux devient introuvable (rougir, pas mourir :
+# les blocs manquants retombent sur du vide et le shim ne partira pas).
+_sn = s.replace("\r\n", "\n")
+_cabManque = []
+
+
+def _bloc(nom, debut, fin):
+    """La tranche du bundle de `debut` (INCLUS) a `fin` (EXCLU).
+
+    LES DEUX BORNES SONT DES SIGNATURES DE FONCTION, JAMAIS DES BOUTS DE
+    PHRASE, et c'est une correction MESUREE : avec une borne de fin prise
+    DANS le corps (`return DzTracks.clipLen(kind,srcDur,{image:4,…});`), la
+    mutation M19 — qui reecrit PRECISEMENT cette ligne — perdait
+    l'extraction et emportait les dix-neuf lignes de cablage d'un coup, en
+    accusant l'extraction au lieu du comportement (502/21). Avec des bornes
+    de signature, M19 laisse l'extraction intacte et ne rougit que la ou elle
+    mord. Introuvable : chaine VIDE + un nom dans `_cabManque`, jamais une
+    exception — rougir, pas mourir."""
+    i = _sn.find(debut)
+    j = _sn.find(fin, i + len(debut)) if i >= 0 else -1
+    if i < 0 or j < 0:
+        _cabManque.append(nom)
+        return ""
+    return _sn[i:j]
+
+
+def _ligne(nom, txt):
+    """Une declaration d'une seule piece, exigee UNE fois dans le bundle."""
+    if _sn.count(txt) != 1:
+        _cabManque.append("%s(%d)" % (nom, _sn.count(txt)))
+        return ""
+    return txt
+
+
+# LES FONCTIONS DU BUNDLE QUE LE CABLAGE APPELLE — extraites, jamais
+# recopiees : `svmShort` (l'instant dit dans la note de l'ajout), `svmSpeedOf`
+# (le rognage gauche), `trackKind` (le refus de genre du remplacement) et
+# `svmKbSelClip` (le clip que le clavier decale). Une copie divergerait au
+# premier changement du bundle, exactement comme svmRuler/svmPad2.
+_SHORT = _ligne("svmShort", 'function svmShort(s){var d=Math.round(s*10),'
+                'm=Math.floor(d/600),r2=d%600;return svmPad2(m)+":"+'
+                'svmPad2(Math.floor(r2/10))+"."+(r2%10)}')
+_SPEED = _ligne("svmSpeedOf", 'function svmSpeedOf(c){return c&&typeof '
+                'c.speed==="number"&&c.speed>0?c.speed:1}')
+_KIND = _ligne("trackKind", 'function trackKind(trId){var k=String(trId||"")'
+               '.charAt(0);\n    return k==="a"?"audio":k==="s"?"subs":'
+               '"video"}')
+_KBSEL = _ligne("svmKbSelClip", 'function svmKbSelClip(){var id=selRef.current;'
+                '\n    return clipsRef.current.find(function(k){'
+                'return k.id===id})||null}')
+# LES TROIS TRANCHES DE CABLAGE, prises entre deux VOISINS du bundle.
+# `defaultLen` est COLLEE a `addAsset` — c'est le maillon que M18a a reecrit,
+# et son unique appelant ; `svmEdgeAt` est collee a `clipDown` et n'existe
+# que pour elle, si bien qu'une seule tranche porte le geste entier
+# (pointerdown, mv, up). Les commentaires qui trainent en queue de tranche
+# sont du COMMENTAIRE : ils ne coutent rien sous node.
+_ADD = _bloc("defaultLen+addAsset", "function defaultLen(kind,srcDur){",
+             "function sfxInsert(item,opts){")
+_NUDGE = _bloc("nudge", "nudge:function(fr){", "gain:function(dd){")
+_CLIPDOWN = _bloc("svmEdgeAt+clipDown", "function svmEdgeAt(clientX,cRect){",
+                  "function svmMixSet(name,db){")
+# L'`onSet` DU TRANSPORT est une EXPRESSION, pas une declaration : on prend
+# l'appel entier `DzTracks.durCtl({…})` et on l'enveloppe dans une fonction
+# dont les parametres portent EXACTEMENT les noms libres qu'il lit. La
+# virgule de queue est retiree — c'est celle de la liste d'enfants du JSX.
+_DURCTL = _bloc("durCtl", "DzTracks.durCtl({dur:dur,",
+                "/* rappels permanents").rstrip().rstrip(",")
+check("cablage_extrait_du_bundle_livre", _cabManque == [],
+      f"introuvables dans le bundle : {_cabManque}")
+# CE QUE CE HARNAIS N'AFFIRME PAS, ecrit plutot que sous-entendu.
+#   · IL NE JOUE PAS REACT. `setProj` prend ici l'etat courant et l'applique
+#     SUR PLACE ; le vrai composant met la mise a jour en file et re-rend. Ce
+#     que ces lignes mesurent est donc CE QUI EST ECRIT et DANS QUEL ORDRE,
+#     jamais le rendu ni le regroupement des `setState`. Le journal `J.proj`
+#     est la liste des ECRITURES, pas des rendus.
+#   · `askDur` EST BOUCHONNEE sur le chemin de la decouverte, et c'est le
+#     SEUL bouchon pose sur la couche : sa mecanique interne (le delai, la
+#     course, les six sorties nommees) est jouee a fond par la section [3]
+#     avec un `fetch` factice. Ce qui est mesure ici est le FIL — la garde
+#     qui decide, l'argument transmis, le rappel qui repose le clip.
+#   · LE DOM EST UN STUB. `EL` rend un rectangle, une capture de pointeur qui
+#     ne fait rien et deux ecouteurs. Rien ici ne mesure la mise en page CSS
+#     ni ce que le clip a l'air de faire PENDANT le geste — le depassement
+#     visuel reste une dette d'ecran, declaree et non mesuree.
+#   · LA COUCHE EST CHARGEE DEPUIS LE FICHIER (`src`), comme en section [3],
+#     et non decoupee du bundle. C'est licite parce que
+#     `bloc_EST_la_couche_octet_pour_octet` l'exige deja : le jour ou les deux
+#     divergent, CETTE ligne-la rougit. Le CABLAGE, lui, ne vient QUE du
+#     bundle — il n'existe nulle part ailleurs.
+
+_ENV = r"""
+/* ══ L'ECRAN, BOUCHONNE ════════════════════════════════════════════════════
+   Les refs et les setters du composant Montage, remplaces par des objets qui
+   ENREGISTRENT. Aucune ligne du code mesure n'est recopiee ici : addAsset,
+   nudge, svmEdgeAt+clipDown et l'onSet du transport sont les CHAINES EXACTES
+   du bundle livre, injectees par le banc. */
+function ECRAN(o){
+  o=o||{};
+  var J={proj:[],clips:[],sel:[],dirty:0,notes:[],pick:[],hist:0,snapT:[],
+         arm:[],attente:[]};
+  var proj={dur:Number(o.dur)||16,demo:!1,mixDb:{}};
+  var durRef={current:proj.dur};
+  var clipsRef={current:(o.clips||[]).slice()};
+  var phRef={current:Number(o.ph)||0};
+  var mixRef={current:{}};
+  var selRef={current:o.sel||null};
+  var ovSeq={current:0};
+  var nudgeHistAt={current:0};
+  var ovKeysOffRef={current:!1};
+  var dzReadyRef={current:o.pasPrete?!1:!0};
+  var dzTracksRef={current:o.pistes||null};
+  var trackStRef={current:o.verrous||{}};
+  var dzmReplaceRef={current:o.remplace||null};
+  var ripple=!!o.ripple,snap=!!o.snap;
+  function setProj(fn){proj=fn(proj);durRef.current=proj.dur;
+    J.proj.push(proj.dur)}
+  function setClips(cs){clipsRef.current=cs;J.clips.push(cs.length)}
+  function setSelId(id){selRef.current=id;J.sel.push(id)}
+  function setDirty(v){J.dirty++}
+  function setOvPick(v){J.pick.push(v)}
+  function setSnapT(v){J.snapT.push(v)}
+  function setDzmArm(v){J.arm.push(v)}
+  function fireNote(t){J.notes.push(String(t))}
+  function pushHistory(h){J.hist++}
+  function dzAddWhenReady(a,b,c,e,f,g,h){J.attente.push([b,c,e,f,g])}
+  function svmKeyLabel(k){return "["+k+"]"}
+  __KBSEL__
+  __ADD__
+  var KB={__NUDGE__};
+  __CLIPDOWN__
+  function DURCTL(dur,tickStep,clips){return __DURCTL__}
+  return {addAsset:addAsset,nudge:KB.nudge,clipDown:clipDown,durCtl:DURCTL,
+    J:J,etat:function(){return {dur:proj.dur,clips:clipsRef.current,
+      sel:selRef.current}}}}
+/* Un element de DOM juste assez reel pour un glisser : un rectangle, une
+   capture de pointeur qui ne fait rien, et les deux ecouteurs qu'`up()` doit
+   pouvoir retirer — on les rappelle par `_h`. */
+function EL(rect){var h={};return {
+  getBoundingClientRect:function(){return rect},
+  setPointerCapture:function(){},
+  addEventListener:function(n,f){h[n]=f},
+  removeEventListener:function(n,f){delete h[n]},
+  _h:h}}
+function EV(x,tgt){return {clientX:x,pointerId:1,currentTarget:tgt,
+  stopPropagation:function(){}}}
+function RECT(l,w){return {left:l,right:l+w,width:w,top:0,bottom:40,
+  height:40}}
+function BORNES(cs){return cs.map(function(c){return [c.start,c.end]})}
+"""
+
+_PROBE = r"""
+var out={};
+/* `askDur` EST BOUCHONNEE POUR TOUTE LA SONDE, et pas seulement pour la
+   section « decouverte » : c'est le SEUL bouchon pose sur la couche, et il
+   est pose ICI, avant le premier appel.
+
+   POURQUOI SI TOT — MESURE, et cherement. Avec le bouchon pose seulement
+   devant E3, la mutation M11 (`needDur` rend TOUJOURS vrai) faisait appeler
+   la VRAIE `askDur` depuis E1 : node lui prete son `fetch` global (URL
+   relative -> rejet) ET son `setTimeout`, si bien qu'au bout de 1,5 s la
+   sortie « delai » rappelait `addAsset` avec -1, que `needDur` disait encore
+   « demande », et ainsi de suite — UNE BOUCLE INFINIE de 1,5 s par tour. Le
+   banc ne rougissait pas : il NE FINISSAIT PAS, ce qui est pire que mourir.
+   Le bouchon ne rend jamais la main de lui-meme : aucune recursion possible,
+   quoi que fasse la garde. La mecanique interne de `askDur` (le delai, la
+   course, les six sorties nommees) reste jouee a fond par la section [3]
+   avec un `fetch` factice ; ce qui est mesure ICI est le FIL — la garde qui
+   decide, l'argument transmis, le rappel qui repose le clip. */
+var vraiAsk=window.DzTracks.askDur,askVus=[];
+window.DzTracks.askDur=function(sr,op){askVus.push([sr,op])};
+/* ── LE CAS DE L'UTILISATEUR, JOUE PAR L'ECRAN ───────────────────────────── */
+var E1=ECRAN({dur:16});
+E1.addAsset({job_id:7},"sentry_bot.mp4","video",21.233,"v1",0);
+out.add_bornes=BORNES(E1.etat().clips);
+out.add_dur=E1.etat().dur;
+out.add_proj=E1.J.proj;
+out.add_note=E1.J.notes[0]||"";
+out.add_hist=E1.J.hist;
+out.add_sel=E1.J.sel;
+/* UNE DUREE CONNUE NE FAIT RIEN DEMANDER — negation, dont le conjoint est le
+   clip effectivement pose a sa longueur. */
+out.add_ask=askVus.length;
+/* ── LE POINT DE DEPART N'EST PLUS RAMENE EN ARRIERE ─────────────────────── */
+var E2=ECRAN({dur:16,ph:15.5});
+E2.addAsset({job_id:8},"court.mp4","video",6,"v1",null);
+out.st_bornes=BORNES(E2.etat().clips);
+out.st_dur=E2.etat().dur;
+/* ── LA DECOUVERTE : RIEN N'EST ECRIT AVANT LA MESURE ────────────────────── */
+askVus.length=0;
+var E3=ECRAN({dur:16});
+E3.addAsset({job_id:9},"Memecoin.mp4","video",0,"v1",3);
+out.ask_appels=askVus.length;
+out.ask_src=askVus[0]?askVus[0][0]:null;
+out.ask_avant_clips=E3.J.clips.length;
+out.ask_avant_hist=E3.J.hist;
+out.ask_avant_notes=E3.J.notes.length;
+if(askVus[0])askVus[0][1].done(21.233);
+out.ask_bornes=BORNES(E3.etat().clips);
+out.ask_dur=E3.etat().dur;
+out.ask_relance=askVus.length;
+/* MESURE ECHOUEE : le verrou de recursion (un nombre NEGATIF), et le repli
+   DIT. `ask_echec_relance` reste a 1 : la seconde passe ne redemande pas. */
+askVus.length=0;
+var E4=ECRAN({dur:16});
+E4.addAsset({job_id:9},"Memecoin.mp4","video",0,"v1",3);
+if(askVus[0])askVus[0][1].done(0);
+out.ask_echec_bornes=BORNES(E4.etat().clips);
+out.ask_echec_relance=askVus.length;
+out.ask_echec_note=E4.J.notes[0]||"";
+window.DzTracks.askDur=vraiAsk;
+out.ask_rendue=(window.DzTracks.askDur===vraiAsk);
+/* ── LE DECALAGE CLAVIER ─────────────────────────────────────────────────── */
+var E5=ECRAN({dur:16,sel:"k",
+  clips:[{tr:"v1",id:"k",label:"plan",start:10,end:16,src:{job_id:1}}]});
+E5.nudge(30);
+out.nd_bornes=BORNES(E5.etat().clips);
+out.nd_dur=E5.etat().dur;
+out.nd_proj=E5.J.proj;
+out.nd_note=E5.J.notes[0]||"";
+/* UN PAS QUI NE SORT PAS DU CHAMP NE DIT RIEN — et le clip a bien bouge :
+   c'est le conjoint qui empeche cette negation d'etre vraie par
+   construction sur un `nudge` qui ne ferait rien du tout. */
+var E6=ECRAN({dur:16,sel:"k",
+  clips:[{tr:"v1",id:"k",label:"plan",start:2,end:8,src:{job_id:1}}]});
+E6.nudge(30);
+out.nd2_bornes=BORNES(E6.etat().clips);
+out.nd2_dur=E6.etat().dur;
+out.nd2_notes=E6.J.notes.length;
+out.nd2_proj=E6.J.proj.length;
+/* ── LE GLISSER, RELACHE ─────────────────────────────────────────────────── */
+/* pointerdown sur la bande, un pointermove, un pointerup : le geste ENTIER,
+   par les ecouteurs que `clipDown` a poses elle-meme. */
+function GLISSE(dur,clip,x0,x1){
+  var E=ECRAN({dur:dur,clips:[clip]});
+  var pxS=800/dur;
+  var lane=EL(RECT(0,800));
+  var band=EL(RECT(clip.start*pxS,(clip.end-clip.start)*pxS));
+  E.clipDown(EV(x0,band),clip,lane);
+  band._h.pointermove(EV(x1,band));
+  band._h.pointerup(EV(x1,band));
+  return {bornes:BORNES(E.etat().clips),dur:E.etat().dur,proj:E.J.proj,
+    notes:E.J.notes,hist:E.J.hist,ecouteurs:Object.keys(band._h)}}
+var CLIP={tr:"v1",id:"g",label:"plan",start:2,end:8,src:{job_id:1}};
+var G1=GLISSE(16,CLIP,250,850);
+out.up_bornes=G1.bornes;out.up_dur=G1.dur;out.up_proj=G1.proj;
+out.up_note=G1.notes[0]||"";out.up_hist=G1.hist;
+out.up_ecouteurs=G1.ecouteurs;
+var G2=GLISSE(16,CLIP,250,300);
+out.up2_bornes=G2.bornes;out.up2_dur=G2.dur;out.up2_notes=G2.notes.length;
+out.up2_proj=G2.proj.length;
+/* LE BORD DROIT, tire au-dela de la fin du projet : plus de plafond. */
+var G3=GLISSE(16,CLIP,395,850);
+out.br_bornes=G3.bornes;out.br_dur=G3.dur;out.br_note=G3.notes[0]||"";
+/* ── LE REGLAGE EXPLICITE DE LA DUREE, DANS LE TRANSPORT ─────────────────── */
+function BTN(ct,k){var ks=(ct&&ct.p&&ct.p.children)||[];
+  for(var i=0;i<ks.length;i++)if(ks[i]&&ks[i].k===k)return ks[i];return null}
+var E7=ECRAN({dur:16});
+var CT=E7.durCtl(16,2,[{end:8}]);
+out.ct_classe=(CT&&CT.p&&CT.p.className)||null;
+out.ct_boutons=((CT&&CT.p&&CT.p.children)||[]).map(function(k){
+  return k&&k.k});
+var bp=BTN(CT,"p");if(bp&&bp.p.onClick)bp.p.onClick();
+out.ct_plus=E7.J.proj.slice();
+out.ct_dirty=E7.J.dirty;
+out.ct_note=E7.J.notes[0]||"";
+var E8=ECRAN({dur:16});
+var bm=BTN(E8.durCtl(16,2,[{end:8}]),"m");if(bm&&bm.p.onClick)bm.p.onClick();
+out.ct_moins=E8.J.proj.slice();
+var E9=ECRAN({dur:16});
+var bf=BTN(E9.durCtl(16,2,[{end:8}]),"f");if(bf&&bf.p.onClick)bf.p.onClick();
+out.ct_ajuste=E9.J.proj.slice();
+console.log(JSON.stringify(out));
+"""
+
+_env = (_ENV.replace("__KBSEL__", _KBSEL)
+        .replace("__ADD__", _ADD).replace("__NUDGE__", _NUDGE)
+        .replace("__CLIPDOWN__", _CLIPDOWN).replace("__DURCTL__", _DURCTL))
+shim2 = pathlib.Path(TMP) / "shim2.js"
+shim2.write_text('"use strict";\n' + "var window={};var SVM_TRACK_BUS={};\n"
+                 + JSX + SVM_SRC.replace("\r\n", "\n") + "\n"
+                 + RULER_SRC + _SHORT + "\n" + _SPEED + "\n" + _KIND + "\n"
+                 + src + "\n" + _env + _PROBE, encoding="utf-8")
+# LE DELAI EST UNE GARDE, PAS UN CONFORT, et il est MESURE : sans lui, la
+# mutation M11 (`needDur` rend toujours vrai) faisait tourner ce shim SANS
+# FIN — un banc qui ne finit pas ne rougit jamais. `subprocess.TimeoutExpired`
+# est une Exception : `NODE()` la rattrape, tue l'enfant et rend le
+# sous-processus-temoin, si bien qu'une boucle infinie devient une ligne
+# ROUGE portant son temoin. Cent quatre-vingts secondes contre ~0,4 s
+# mesurees : le chemin normal ne le rencontre jamais.
+r = NODE(["node", str(shim2)], timeout=180)
+if r.returncode != 0:
+    check("js_cablage_shim_execute", False, (r.stderr or "")[-500:])
+    w = {}
+else:
+    check("js_cablage_shim_execute", True)
+    _l2 = r.stdout.strip().splitlines()
+    _d2 = _l2[-1] if _l2 else ""
+    try:
+        w = json.loads(_d2) if _d2 else None
+        _mal2 = "" if isinstance(w, dict) and w else "sortie sans objet JSON"
+    except Exception as _e:
+        w, _mal2 = None, "%s: %s" % (type(_e).__name__, _e)
+    if not isinstance(w, dict):
+        w = {}
+    check("js_cablage_rend_un_objet_json", _mal2 == "",
+          f"{_mal2} — {len(_l2)} ligne(s), dernière={_d2[:120]!r}")
+
+# ── L'AJOUT : LE DEFAUT RAPPORTE, RETOURNE ────────────────────────────────
+# « j'ai voulu ajouter trois videos depuis la bibliotheque, or la timeline est
+# fixe ». Une source de 21,233 s posee a 0 dans un projet de 16 s : le clip
+# entre ENTIER, et c'est la timeline qui grandit (22 s, l'arrondi au plafond
+# de `fitDur`, pour que « 0:22 total » ne mente pas sur la fin du dernier
+# clip). MUTATION :1156 (`en=Math.min(d,st+dzCl.len)`) -> le clip retombe a
+# 0..16 et cette ligne rougit.
+# `add_ask == 0` est le second membre : une duree CONNUE ne fait rien
+# demander. C'est une negation, et son conjoint est le clip pose a sa
+# longueur juste a cote — les deux ne peuvent pas etre vrais a vide.
+check("js_add_le_clip_entre_a_la_longueur_de_sa_source",
+      w.get("add_bornes") == [[0, 21.233]] and w.get("add_ask") == 0,
+      f'{w.get("add_bornes")} mesures={w.get("add_ask")}')
+# MUTATIONS :1163 (`if(!1)`), :1157 (`dzGrew=0`) et :1164 (`{dur:d}`) : les
+# trois passent le texte, les trois rougissent ICI. `add_proj` est le journal
+# des ecritures de `setProj` — un seul appel, avec la duree grandie.
+check("js_add_la_timeline_s_allonge_pour_l_accueillir",
+      w.get("add_dur") == 22 and w.get("add_proj") == [22],
+      f'dur={w.get("add_dur")} ecritures={w.get("add_proj")}')
+# L'AGRANDISSEMENT EST DIT, ET CHIFFRE DES DEUX BOUTS. La note porte AUSSI la
+# longueur de la source (`dzCl.note`) et la reserve d'historique : c'est la
+# phrase entiere que l'utilisateur lit.
+check("js_add_l_allongement_est_DIT_et_chiffre",
+      "La timeline a été allongée de 0:16 à 0:22" in w.get("add_note", "")
+      and "la longueur ENTIÈRE de la source" in w.get("add_note", "")
+      and "NE raccourcit PAS la timeline" in w.get("add_note", ""),
+      repr(w.get("add_note"))[:220])
+# UNE SEULE ENTREE D'HISTORIQUE, et le clip est SELECTIONNE — le conjoint qui
+# empeche ce compte d'etre vrai par construction sur un addAsset muet.
+check("js_add_une_seule_entree_d_historique",
+      w.get("add_hist") == 1 and len(w.get("add_sel") or []) == 1,
+      f'hist={w.get("add_hist")} sel={w.get("add_sel")}')
+# MUTATION :1142 : la tete de lecture a 15,5 s dans un projet de 16 s. Le clip
+# doit atterrir A 15,5 — `Math.max(0,d-1)` le ramenait a 15, `d-2` a 14.
+check("js_add_le_point_de_depart_n_est_plus_ramene_en_arriere",
+      w.get("st_bornes") == [[15.5, 21.5]] and w.get("st_dur") == 22,
+      f'{w.get("st_bornes")} dur={w.get("st_dur")}')
+# ── LA DECOUVERTE (P11) ───────────────────────────────────────────────────
+# MUTATION :1152 (`if(!1&&DzTracks.needDur(…))`) : la mesure ne part jamais et
+# tout entre a 6 s. Les trois comptes a zero sont des NEGATIONS — leur
+# conjoint est l'appel MESURE et le `src` transmis tel quel.
+check("js_add_la_mesure_part_AVANT_toute_ecriture",
+      w.get("ask_appels") == 1 and w.get("ask_src") == {"job_id": 9}
+      and w.get("ask_avant_clips") == 0 and w.get("ask_avant_hist") == 0
+      and w.get("ask_avant_notes") == 0,
+      f'appels={w.get("ask_appels")} src={w.get("ask_src")} '
+      f'clips={w.get("ask_avant_clips")} hist={w.get("ask_avant_hist")} '
+      f'notes={w.get("ask_avant_notes")}')
+# LE RAPPEL REPART DU MEME POINT : `st` vaut toujours 3 (l'instant du CLIC,
+# pas 85 ms plus tard), la longueur est celle mesuree, la timeline suit — et
+# `ask_relance` prouve qu'on n'a pas redemande.
+check("js_add_le_rappel_repose_le_clip_a_la_mesure",
+      w.get("ask_bornes") == [[3, 24.233]] and w.get("ask_dur") == 25
+      and w.get("ask_relance") == 1,
+      f'{w.get("ask_bornes")} dur={w.get("ask_dur")} '
+      f'relances={w.get("ask_relance")}')
+# MESURE ECHOUEE : le verrou de recursion tient (UNE demande, pas deux) et le
+# repli est DIT — avec l'accord de la branche video.
+check("js_add_une_mesure_echouee_ne_reboucle_pas_et_le_DIT",
+      w.get("ask_echec_bornes") == [[3, 9]]
+      and w.get("ask_echec_relance") == 1
+      and "Cette vidéo a été posée à 6 s" in w.get("ask_echec_note", "")
+      and w.get("ask_rendue") is True,
+      f'{w.get("ask_echec_bornes")} relances={w.get("ask_echec_relance")} '
+      f'{repr(w.get("ask_echec_note"))[:160]}')
+# ── LE DECALAGE CLAVIER ───────────────────────────────────────────────────
+# MUTATION :1201 (`if(!1)`) : un clip de 10 a 16 pousse d'une seconde finit a
+# 17 dans un projet de 16 — la timeline doit suivre.
+check("js_nudge_le_decalage_etend_la_timeline",
+      w.get("nd_bornes") == [[11, 17]] and w.get("nd_dur") == 17
+      and w.get("nd_proj") == [17],
+      f'{w.get("nd_bornes")} dur={w.get("nd_dur")} '
+      f'ecritures={w.get("nd_proj")}')
+check("js_nudge_l_allongement_est_DIT_et_nomme_le_clip",
+      w.get("nd_note", "").startswith("Timeline allongée à 0:17")
+      and "« plan »" in w.get("nd_note", "")
+      and "NE raccourcit PAS la timeline" in w.get("nd_note", ""),
+      repr(w.get("nd_note"))[:200])
+# LA NOTE NE PARLE QUE QUAND LA DUREE CHANGE VRAIMENT : une touche maintenue
+# vaut trente pas par seconde. Le conjoint est le deplacement REEL du clip.
+check("js_nudge_un_pas_qui_ne_sort_pas_du_champ_ne_dit_rien",
+      w.get("nd2_bornes") == [[3, 9]] and w.get("nd2_dur") == 16
+      and w.get("nd2_notes") == 0 and w.get("nd2_proj") == 0,
+      f'{w.get("nd2_bornes")} dur={w.get("nd2_dur")} '
+      f'notes={w.get("nd2_notes")} ecritures={w.get("nd2_proj")}')
+# ── LE GLISSER, ET SON RELACHEMENT ────────────────────────────────────────
+# MUTATION :1278 (`if(!1)`) : un clip de 2 a 8 tire de douze secondes finit a
+# 20 dans un projet de 16. `up_ecouteurs` prouve que le geste s'est bien
+# DEFAIT — les deux ecouteurs retires, pas un glisser reste accroche.
+check("js_glisser_le_relachement_etend_la_timeline",
+      w.get("up_bornes") == [[14, 20]] and w.get("up_dur") == 20
+      and w.get("up_proj") == [20] and w.get("up_ecouteurs") == [],
+      f'{w.get("up_bornes")} dur={w.get("up_dur")} '
+      f'ecritures={w.get("up_proj")} ecouteurs={w.get("up_ecouteurs")}')
+check("js_glisser_l_allongement_est_DIT_avec_les_deux_durees",
+      "Timeline allongée de 0:16 à 0:20" in w.get("up_note", "")
+      and "rien n'a été rogné" in w.get("up_note", "")
+      and w.get("up_hist") == 1,
+      f'{repr(w.get("up_note"))[:200]} hist={w.get("up_hist")}')
+# UN GLISSER QUI RESTE DANS LE CHAMP N'ALLONGE RIEN ET NE DIT RIEN — conjoint :
+# le clip a bel et bien bouge (2..8 -> 3..9).
+check("js_glisser_qui_reste_dans_le_champ_ne_dit_rien",
+      w.get("up2_bornes") == [[3, 9]] and w.get("up2_dur") == 16
+      and w.get("up2_notes") == 0 and w.get("up2_proj") == 0,
+      f'{w.get("up2_bornes")} dur={w.get("up2_dur")} '
+      f'notes={w.get("up2_notes")} ecritures={w.get("up2_proj")}')
+# LE BORD DROIT (M17d) : le rognage va ou on le tire, la timeline le rattrape
+# au relachement.
+check("js_glisser_le_bord_droit_n_est_plus_plafonne",
+      w.get("br_bornes") == [[2, 17.1]] and w.get("br_dur") == 18
+      and "Timeline allongée de 0:16 à 0:18" in w.get("br_note", ""),
+      f'{w.get("br_bornes")} dur={w.get("br_dur")} '
+      f'{repr(w.get("br_note"))[:120]}')
+# ── LE REGLAGE EXPLICITE, DANS LE TRANSPORT ───────────────────────────────
+# MUTATION :1315 (l'`onSet` qui n'ecrit rien) : les trois boutons du controle
+# sont CLIQUES ici, et c'est leur ecriture qu'on lit. « ajuster » paie la
+# dette de P3 (ramener la fin sur le dernier clip : 16 -> 8).
+check("js_transport_le_reglage_ecrit_la_duree",
+      w.get("ct_plus") == [18] and w.get("ct_moins") == [14]
+      and w.get("ct_ajuste") == [8] and w.get("ct_dirty") == 1,
+      f'+={w.get("ct_plus")} -={w.get("ct_moins")} '
+      f'ajuste={w.get("ct_ajuste")} dirty={w.get("ct_dirty")}')
+check("js_transport_le_controle_porte_ses_quatre_boutons",
+      w.get("ct_classe") == "dzm-durctl"
+      and w.get("ct_boutons") == ["m", "v", "p", "f"]
+      and "(+2 s)" in w.get("ct_note", "")
+      and "ne rend pas la durée du projet" in w.get("ct_note", ""),
+      f'{w.get("ct_classe")} {w.get("ct_boutons")} '
+      f'{repr(w.get("ct_note"))[:140]}')
+
+# LA LIGNE QUI DIT QUE LE BANC A ROUGI PLUTOT QUE MEURE : aucun appel garde
+# n'a pose de temoin. Une panne de node — introuvable, ou un shim qui tourne
+# sans fin et que le delai coupe — fait rougir CETTE ligne EN PLUS de celles
+# qu'elle emporte, et le banc va jusqu'a imprimer son compte.
+# ELLE A ETE DEPLACEE ICI LE 05/09/2026, ET C'EST UNE CORRECTION : elle vivait
+# au milieu du fichier, avant les sections [3] et [3-bis], et ne voyait donc
+# AUCUN temoin pose apres elle. Sa promesse — « aucun appel garde n'a leve » —
+# n'etait vraie que de la premiere moitie du banc. Une ligne de queue doit
+# etre EN QUEUE ; les sections s'ajoutent, elle doit rester la derniere.
+
+check("aucun_appel_n_a_plante", _plantages == 0,
+      f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")
 
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")

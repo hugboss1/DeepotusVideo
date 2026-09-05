@@ -2048,8 +2048,12 @@ function dzmClipLen(kind,srcDur,defauts){
     note:" Le clip fait "+dzmSecs(v)+", la longueur ENTIÈRE de la source."};
   var r=repli(k);
   return {len:r,origine:"repli",
-    note:" "+(k==="audio"?"Ce son":"Cette vidéo")+" a été posé à "+
-      dzmSecs(r)+" — une longueur PAR DÉFAUT, pas la sienne : "+
+    /* L'ACCORD EST PORTÉ PAR LA BRANCHE, pas par un suffixe commun :
+       « Cette vidéo a été posé » était la phrase livrée, et elle est
+       LUE par l'utilisateur à chaque source non mesurable. Le son
+       était juste par accident (masculin), la vidéo fausse. */
+    note:" "+(k==="audio"?"Ce son a été posé":"Cette vidéo a été posée")
+      +" à "+dzmSecs(r)+" — une longueur PAR DÉFAUT, pas la sienne : "+
       "l'application n'a pas pu mesurer la durée de cette source. Rognez le "+
       "bord droit du clip pour lui donner sa vraie longueur."}}
 

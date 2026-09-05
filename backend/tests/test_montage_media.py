@@ -265,14 +265,24 @@ qui a echoue ; il ne doit jamais servir a repondre a la question posee.
 
 LA GARDE DE LA FAUTE N°6, MESUREE PLUTOT QUE PROMISE. Le banc a ete relance
 le 05/09/2026 avec ffmpeg et ffprobe HORS DU PATH (`PATH=C:/Windows/System32;
-C:/Windows`, meme python), c'est-a-dire dans l'etat ou les sept fixtures
+C:/Windows`, meme python), c'est-a-dire dans l'etat ou les HUIT fixtures
 n'existent pas et ou tout sous-processus leve `FileNotFoundError` :
   AVANT les gardes de fixture — MORT sur `os.utime(COURT, …)`, traceback,
     AUCUNE ligne de compte imprimee, sections [3] a [6] jamais jouees.
-  APRES — 15/67, la ligne de compte EST imprimee, `fixtures_ffmpeg_fabriquees`
+  APRES — 20/57, la ligne de compte EST imprimee, `fixtures_ffmpeg_fabriquees`
     arrive EN TETE des rouges en nommant les fichiers absents, et
-    `aucun_appel_n_a_plante` compte les appels gardes qui ont leve.
-  LES QUINZE VERTES, UNE A UNE, parce que « elles le sont a bon droit » est
+    `aucun_appel_n_a_plante` compte 46 appels gardes qui ont leve.
+  LE CHIFFRE A ETE REMESURE LE 05/09/2026 : « 15/67 » etait celui d'AVANT
+  P11 et ne se reproduisait deja plus (le banc comptait 76 lignes, pas 82).
+  CINQ VERTES DE PLUS depuis, toutes de la section [7] : les trois 404 et le
+  403 de `route_duration_*` (la route refuse avant tout media — meme raison
+  que leurs voisines), et `route_duration_un_maillage_repond_zero_sans
+  _echouer` — celle-ci est verte pour une RAISON DIFFERENTE, et c'est
+  DECLARE : le faux `.glb` est ecrit par `pathlib.write_bytes` et non par
+  ffmpeg, donc il EXISTE ; `_probe_duration` rend 0.0 parce que ffprobe est
+  introuvable, la ou il rend 0.0 en temps normal parce qu'un maillage n'a pas
+  de duree. Le chiffre est juste, le mecanisme n'est pas celui qu'on mesure.
+  LES QUINZE AUTRES, UNE A UNE, parce que « elles le sont a bon droit » est
   precisement le genre d'affirmation qui se verifie mal : cache_genre_inconnu
   _leve et cache_source_illisible_leve (aucun media) ; pics_sans_flux_audio
   _leve et filmstrip_source_illisible_leve_une_MediaError (elles exigent une
@@ -344,17 +354,12 @@ scratchpad/mesure_plan.py, mesure_ampl.py, mesure2.py, mesure3.py.
 
 LA GARDE DE LA FAUTE N°6, MESUREE PLUTOT QUE PROMISE. Le banc a ete relance
 le 05/09/2026 avec ffmpeg et ffprobe HORS DU PATH (`PATH=/c/Windows/System32:
-/c/Windows`, meme python), c'est-a-dire dans l'etat ou les six fixtures
-n'existent pas et ou tout sous-processus leve `FileNotFoundError` :
-  AVANT les gardes de fixture — MORT sur `os.utime(COURT, …)`, traceback,
-    AUCUNE ligne de compte imprimee, sections [3] a [6] jamais jouees.
-  APRES — 17/44, la ligne de compte EST imprimee, `fixtures_ffmpeg_fabriquees`
-    arrive EN TETE des rouges en nommant les six fichiers absents, et
-    `aucun_appel_n_a_plante` compte 39 appels gardes qui ont leve. Les 17
-    vertes le sont a bon droit : ce sont les lignes qui n'ont besoin d'aucun
-    media (le refus d'un genre inconnu, le refus d'une source illisible, les
-    403 de boucle locale, les 404 de source introuvable, l'emplacement du
-    cache).
+/c/Windows`, meme python) : c'est LA MEME MESURE que celle detaillee plus
+haut, et elle n'est pas repetee ici avec un second chiffre. Les « 17/44 » et
+« six fixtures » qu'on lisait a cette place dataient de deux chantiers plus
+tot et ne se reproduisaient plus : DEUX chiffres pour UNE mesure, c'est un
+qui ment. Le chiffre courant, remesure le 05/09/2026, est ecrit une seule
+fois — 20/57, huit fixtures, 46 appels gardes qui levent.
 
 LA FAUTE N°6 DU CHANTIER (« un banc qui MEURT au lieu de rougir ») est ici
 sur son terrain le plus favorable : ce fichier manipule des SOUS-PROCESSUS et
@@ -699,9 +704,22 @@ COURT = str(LIB / "court.wav")      # 0,05 s = 100 echantillons a 2 000 Hz
 V1 = str(LIB / "plan.mp4")          # 4,000 s, 25 i/s, 320x240, AVEC audio
 PNG = str(LIB / "carton.png")
 GLB = str(LIB / "model.glb")
+# LA SEULE FIXTURE A DUREE NON ENTIERE, ajoutee le 05/09/2026. TOUTES les
+# autres durent un nombre ENTIER de secondes (4,0 / 6,0 / 2,0 / 0), et c'est
+# ce qui rendait la PRECISION de `GET /duration` inmesurable : MESURE,
+# `round(float(dur or 0.0), 3)` -> `round(float(dur or 0.0))` laissait ce banc
+# a 76 passed, 0 failed. Le chiffre-titre de la tache — 21,233 s, la longueur
+# de `sentry_bot` — n'etait defendu par AUCUNE assertion cote backend ;
+# `js_cliplen_la_longueur_est_arrondie_au_millieme` couvre la COUCHE, pas la
+# route. 21,233 s de sinus a 44 100 Hz font 936 375 echantillons, soit
+# 21,232993 s : l'arrondi au millieme rend 21,233, l'arrondi a la seconde
+# rend 21. Les deux ne peuvent plus etre confondus.
+FRAC = str(LIB / "vingt_et_un.wav")  # 21,232993 s
 
 SH([FF, "-y", "-v", "error", "-f", "lavfi", "-i", "sine=f=440:d=6",
     "-ac", "1", "-ar", "44100", MUS])
+SH([FF, "-y", "-v", "error", "-f", "lavfi", "-i", "sine=f=440:d=21.233",
+    "-ac", "1", "-ar", "44100", FRAC])
 SH([FF, "-y", "-v", "error", "-f", "lavfi",
     "-i", "anullsrc=r=44100:cl=mono:d=2", SIL])
 SH([FF, "-y", "-v", "error", "-f", "lavfi", "-i", "sine=f=440:d=2",
@@ -735,7 +753,7 @@ SH([FF, "-y", "-v", "error",
 # suivent rougissent une a une sans jamais dire POURQUOI. Cette ligne-ci le
 # dit en un mot, et elle rougit d'abord.
 _manquants = [os.path.basename(f)
-              for f in (MUS, SIL, FAIBLE, COURT, V1, PNG, V4C)
+              for f in (MUS, SIL, FAIBLE, COURT, V1, PNG, V4C, FRAC)
               if not os.path.exists(f) or os.path.getsize(f) == 0]
 check("fixtures_ffmpeg_fabriquees", _manquants == [],
       f"absents ou vides : {_manquants}")
@@ -1263,6 +1281,20 @@ check("route_duration_un_maillage_repond_zero_sans_echouer",
       r.status_code == 200 and d7d.get("dur") == 0
       and d7d.get("name") == "model.glb",
       f"{r.status_code} {d7d}")
+# LA PRECISION DE LA ROUTE, MESUREE — et elle ne l'etait par RIEN. Les
+# fixtures duraient toutes un nombre entier de secondes, si bien que
+# `round(dur, 3)` et `round(dur)` rendaient le meme chiffre partout : la
+# mutation qui retire le millieme laissait le banc a 76/0. Le conjoint `name`
+# est la pour qu'un 404 ou un 415 ne puisse pas verdir cette ligne.
+# LA COMPARAISON EST A UN LITTERAL, PAS A `_probe_duration` : comparer la
+# route a la sonde ferait bouger LES DEUX COTES ensemble le jour ou l'arrondi
+# change — la faute des « deux resultats compares l'un a l'autre ».
+r = api("GET", "/api/montage/duration?src=" + Q({"file_path": FRAC}))
+d7e = J(r)
+check("route_duration_rend_le_millieme_et_non_la_seconde",
+      r.status_code == 200 and d7e.get("dur") == 21.233
+      and d7e.get("name") == "vingt_et_un.wav",
+      f"{r.status_code} {d7e}")
 r = api("GET", "/api/montage/duration?src=" + Q({"job_id": "inexistant"}))
 check("route_duration_404_source_inconnue", r.status_code == 404,
       f"{r.status_code} {r.text[:160]}")
