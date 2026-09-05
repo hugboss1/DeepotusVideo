@@ -186,24 +186,30 @@ bibliotheque standard, jamais l'originale :
   montage_saved.json, qui pese 5 980 o aujourd'hui (17 clips). Ce plafond
   demande 4 000 remplacements : c'est une borne, pas un cout.
 
-DIX-NEUF MUTATIONS REJOUEES LE 05/09/2026 SUR LA VERSION COURANTE (99
-assertions), TROIS NEUVES SUR LA COUCHE DE FIXTURE, ET NEUF QUI N'ONT PAS
-PU L'ETRE. Elles remplacent la table du
+TRENTE ET UNE MUTATIONS, TOUTES REJOUEES LE 05/09/2026 SUR LA VERSION
+COURANTE (99 assertions ici, 327 pour le banc du bundle) : dix-neuf sur la
+route et le banc, trois NEUVES sur la couche de fixture, et les neuf du cœur
+JS et de la chaine, longtemps laissees de cote parce qu'elles reecrivent
+`frontend/patches/montage.js` et le bundle livre. Elles remplacent la table du
 04/09/2026, mesuree sur une version a 77 et donc PERIMEE depuis P7 — recopier
 un chiffre mesure sur une version d'avant est la faute n°1 du chantier.
-CE QUE LE REJEU A APPRIS : quinze mutations gardent le MEME ensemble de
-rouges (seul le total de vertes bouge de +22) ; TROIS en gagnent une, et
-toujours la meme, `newer_n_offre_pas_un_proxy_de_scrub`, que P7 a ajoutee ;
-UNE deborde sur deux AUTRES bancs, ce que l'ancienne table ne disait nulle
-part. Les deux mutations DU BANC (MOLD, M21) confirment sur cette version ce
+CE QUE LE REJEU A APPRIS : vingt-quatre mutations gardent le MEME ensemble
+de rouges (seul le total de vertes bouge, de +22 ici et de +23 pour le
+bundle) ; SIX en gagnent — trois sur la route, toujours la meme ligne
+`newer_n_offre_pas_un_proxy_de_scrub` que P7 a ajoutee, et TROIS dans le cœur
+JS et la chaine (MJ2, MJ3, MR2), ou ce sont des lignes ajoutees APRES la
+campagne du 04/09 qui tombent avec ; UNE deborde sur deux AUTRES bancs, ce que
+l'ancienne table ne disait nulle part. Les deux mutations DU BANC (MOLD, M21) confirment sur cette version ce
 qu'elles disaient sur celle d'avant : l'assertion visee reste VERTE sous
 elles et ROUGE sous la forme livree.
-LES NEUF NON REJOUEES, ET POURQUOI : MJ1 a MJ6 exigent de reecrire
-`frontend/patches/montage.js`, MB-couche / MR1 / MR2 de reecrire la couche ou
-le bundle livre. La consigne de ce lot interdit de toucher a `frontend/**` et
-aux patchers ; leurs chiffres du 04/09 sont donc conserves TELS QUELS,
-DATES, et ne valent pas pour la version courante. Ils sont a rejouer le jour
-ou la consigne le permettra.
+LES NEUF DU CŒUR JS ET DE LA CHAINE ONT ETE REJOUEES ELLES AUSSI, et le
+protocole y est plus strict qu'ailleurs parce que le bundle pese 1,5 Mo : les
+deux fichiers sont copies sur disque AVANT tout (avec leur sha256), chaque
+mutation travaille EN OCTETS sans la moindre traduction de fin de ligne — le
+bundle melange du minifie sans saut de ligne et des blocs CRLF, une
+normalisation le detruirait —, la restauration est verifiee au sha256 apres
+CHAQUE mutation, et `git status frontend/` est lu en fin de course. Script
+scratchpad/mut_js.py.
 PROTOCOLE : le fichier vise est reecrit sur DISQUE en OCTETS (`read_text`
 normalise les CRLF et la restauration changerait alors le fichier — piege
 mesure et paye le 05/09), les bancs relances en PROCESSUS NEUFS depuis
@@ -219,7 +225,9 @@ CONFIRMATION APRES LA REPARATION DE F1-bis (meme jour, apres coup) : les
 elargissements de garde des fixtures touchent les DEUX bancs, donc toute la
 table pouvait avoir bouge. Elle a ete REJOUEE EN ENTIER une seconde fois et
 comparee a la premiere campagne MUTATION PAR MUTATION ET ROUGE PAR ROUGE
-(scratchpad/compare.py) : ZERO ECART sur les cinquante-trois. Les chiffres
+(scratchpad/compare.py) : ZERO ECART sur les cinquante-trois. Les neuf du
+cœur JS et de la chaine, jouees APRES et sur d'autres fichiers, n'entrent pas
+dans ce compte-la — elles ont leur propre campagne, plus bas. Les chiffres
 ci-dessous valent donc pour le depot tel qu'il est, pas pour l'etat d'avant
 la reparation. Une seule ancre a du etre corrigee — celle de F1, que la
 reparation a fait descendre d'un niveau d'indentation.
@@ -362,41 +370,55 @@ reparation a fait descendre d'un niveau d'indentation.
        seul) rougit — c'est I(22) qui la fait rougir, et le temoin de la
        ligne le montre.
 
-  SUR LE CŒUR JS (banc : celui-ci) — NON REJOUEES LE 05/09, chiffres du
-  04/09/2026 sur une version a 77 assertions, donc PERIMES. Elles exigent de
-  reecrire `frontend/patches/montage.js`, ce que la consigne de ce lot
-  interdit.
-  MJ1  plafond de `src_history` retire => 74/3 (04/09) : les deux lignes du
-       plafond et `js_retour_deux_crans`.
-  MJ2  `revertSrc` ne rend plus les bornes => 76/1 (04/09),
-       `js_retour_rend_AUSSI_les_bornes_d_alors` SEULE. C'est l'ECART au plan
-       (qui n'empilait que {src, label, at}) qui se mesure ici.
-  MJ3  `replaceSrc` mute le clip d'entree => 68/9 (04/09). La plus large, et
+  SUR LE CŒUR JS (banc : celui-ci, reference 99/0) — la couche est reecrite
+  sur disque et le patcher n'est PAS rejoue : le banc lit `montage.js`
+  directement pour son shim node, c'est donc bien le cœur mute qu'il execute.
+  MJ1  plafond de `src_history` retire => 96/3 :
+       `js_historique_plafonne_a_dix`, `js_historique_jette_les_plus_anciennes`
+       et `js_retour_deux_crans`. Ensemble INCHANGE depuis le 04/09.
+  MJ2  `revertSrc` ne rend plus les bornes => 97/2 :
+       `js_retour_rend_AUSSI_les_bornes_d_alors` ET
+       `js_l_aller_retour_est_l_identite_CLE_POUR_CLE`. ENSEMBLE ELARGI
+       (76/1 le 04/09, « SEULE ») : la seconde est une ligne ajoutee depuis,
+       et elle mesure la meme propriete par l'autre bout — l'aller-retour
+       n'est plus l'identite des que les bornes ne reviennent pas. C'est
+       l'ECART au plan (qui n'empilait que {src, label, at}) qui se mesure
+       ici, et il est desormais tenu par deux lignes au lieu d'une.
+  MJ3  `replaceSrc` mute le clip d'entree => 85/14. La plus large du banc, et
        elle le merite : un cœur qui mute son entree rend inutile l'instantane
-       que l'ecran pousse AVANT d'ecrire.
-  MJ4  duree inconnue passee sous silence => 76/1 (04/09),
-       `js_duree_inconnue_le_dit` SEULE.
-  MJ5  `srcOut` conserve => 76/1 (04/09), `js_remplace_retire_srcOut` SEULE.
-  MJ6  note muette sur les limites de l'annulation => 75/2 (04/09), les deux
-       lignes de la note.
-  CE QUE LE 05/09 A QUAND MEME MESURE SUR CETTE SECTION, sans la muter : node
-  coupe (`PATH` reduit), les ~60 lignes qui lisent `d` rougissent une a une
-  et AUCUNE ne reste verte — voir la fin de cet en-tete.
+       que l'ecran pousse AVANT d'ecrire. ENSEMBLE ELARGI (68/9 le 04/09) :
+       quatorze lignes tombent au lieu de neuf, dont les quatre phrases de
+       trou (`js_le_trou_*`, `js_un_clip_sans_piste_suit_la_regle_video`,
+       `js_une_piste_de_sous_titres_…`) que P6 a ajoutees apres la campagne.
+  MJ4  duree inconnue passee sous silence => 98/1, `js_duree_inconnue_le_dit`
+       SEULE. Ensemble INCHANGE.
+  MJ5  `srcOut` conserve => 98/1, `js_remplace_retire_srcOut` SEULE. Ensemble
+       INCHANGE.
+  MJ6  note muette sur les limites de l'annulation => 97/2, les deux lignes
+       de la note (`js_note_dit_les_limites_de_l_annulation`,
+       `js_note_nomme_la_seconde_voie_de_retour`). Ensemble INCHANGE.
+  ET CE QUE LE MEME JOUR A MESURE SANS MUTER : node coupe (`PATH` reduit),
+  les ~60 lignes qui lisent `d` rougissent une a une et AUCUNE ne reste
+  verte — voir la fin de cet en-tete.
 
-  SUR LA CHAINE (banc : test_montage_bundle.py) — NON REJOUEES LE 05/09,
-  memes raisons, chiffres du 04/09 sur une reference a 304 alors que ce
-  banc-la en porte 327 depuis le 05/09 : PERIMES.
-  MB   couche modifiee SANS rejouer le patcher => 303/1 (04/09),
-       `bloc_EST_la_couche_octet_pour_octet` SEULE. Le bundle n'executerait
-       plus le fichier que ce banc-ci mesure.
+  SUR LA CHAINE (banc : test_montage_bundle.py, reference 327/0)
+  MB   couche modifiee SANS rejouer le patcher (un commentaire suffit, le
+       banc compare OCTET POUR OCTET) => 326/1,
+       `bloc_EST_la_couche_octet_pour_octet` SEULE. Ensemble INCHANGE. Le
+       bundle n'executerait plus le fichier que ce banc-ci mesure.
   MR1  declaration d'`addAsset` renommee dans le bundle (un rebuild)
-       => 301/3 (04/09) : `M15-remplace-mode_remplace`,
+       => 324/3 : `M15-remplace-mode_remplace`,
        `M16a_appelle_addAsset_qui_est_declare` et
-       `M16src_appelle_addAsset_qui_est_declare`.
-  MR2  etat du selecteur d'assets renomme dans le bundle => 303/1 (04/09),
-       `M16src_appelle_ovPick_qui_est_declare` SEULE. C'est ce que le
-       controle a DEUX FACES achete : une seule face (l'appel) serait restee
-       verte sur ce rebuild-la.
+       `M16src_appelle_addAsset_qui_est_declare`. Ensemble INCHANGE.
+  MR2  etat du selecteur d'assets renomme dans le bundle => 325/2 :
+       `M16src_appelle_ovPick_qui_est_declare` ET
+       `M15b_appelle_ovPick_qui_est_declare`. ENSEMBLE ELARGI (303/1 le
+       04/09, « SEULE ») : la section M15b a ete ajoutee depuis et lit la
+       MEME declaration. Le mot « SEULE » de l'ancienne table est donc FAUX
+       sur cette version — l'argument, lui, tient toujours et il est meme
+       renforce : c'est ce que le controle a DEUX FACES achete, une seule
+       face (l'appel) serait restee verte sur ce rebuild-la, et deux sections
+       le voient maintenant au lieu d'une.
 
 LA REGLE DES ASSERTIONS NEGATIVES, PASSEE SUR CE BANC LE 05/09/2026. Elle
 vient de l'en-tete de test_montage_media.py : un TEMOIN DISTINGUABLE, ou le
