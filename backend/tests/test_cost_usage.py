@@ -7,44 +7,51 @@ FLUX — 0,403 USD par job aux tarifs par defaut de `pricing.load()` — pour
 TOUT provider qu'elle ne nommait pas. Le cas `montage_proxy` avait ete ferme
 par un `where` (65afc16) ; la branche, elle, restait ouverte.
 
-LA MESURE QUI A TRANCHE, sur une COPIE de la base reelle (105 jobs `done`,
-jamais la base vivante ; `scratchpad/mesure_defaut.py`, tarifs effectifs =
-defauts — le seul `pricing.json` de la machine ne surcharge que
-`seedance_usd_per_s`, a sa propre valeur) :
+LE PROTOCOLE DE MESURE, ET IL A DU ETRE REFAIT. La base tourne en mode WAL :
+au 05/09/2026 `deepotus.db` pesait 4,60 Mo et son `-wal` 4,54 Mo. Une COPIE
+D'OCTETS du seul `.db` perd tout ce que le WAL porte — elle rendait 105 jobs
+`done` la ou la base en compte 116, et 43,41 USD la ou l'application en
+affichait 51,90. Les chiffres ci-dessous sont pris sur un instantane COHERENT
+(`sqlite3.Connection.backup()`, qui fusionne le WAL), jamais sur la base
+vivante. Tarifs effectifs = defauts : le seul `pricing.json` de la machine ne
+surcharge que `seedance_usd_per_s`, a sa propre valeur.
 
-  provider      n    branche   USD affiches   ce que le job depense VRAIMENT
-  template     33    defaut         13,299    RIEN — job PARENT, les sous-jobs
-                                              (composition_id=parent) portent
-                                              deja leur propre depense
-  seedance     34    defaut         12,062    1 image + N s de video : JUSTE
-  montage       4    defaut          6,332    RIEN — assemblage ffmpeg local
-  <NULL>       13    defaut          5,239    seedance d'avant la colonne
-                                              `provider` (13/13 portent un
-                                              png ET une video) : JUSTE
-  ugc           9    defaut          4,307    RIEN — fichier TELEVERSE par
-                                              l'utilisateur (`await
-                                              file.read()`, aucune API)
-  asset3d       3    defaut          1,209    un maillage, mais au tarif du
-                                              maillage (rodin/hunyuan), pas
-                                              a celui d'une video Seedance
-  news          1    defaut          0,403    RIEN — reel ffmpeg local
-  animation     1    defaut          0,323    RIEN — ffmpeg + PIL locaux
-  heygen        5    NOMMEE          0,240    juste
-  sprite2d      2    NOMMEE          0,000    juste
-  TOTAL       105                    43,410
+L'ANCIENNE BRANCHE EST REJOUEE, SA TRANSCRIPTION VERIFIEE : le total qu'elle
+rend sur cet instantane reproduit au cent pres le `total_usd` que l'API du
+backend INSTALLE (encore a 65afc16) rend sur la vraie base — 51,90. Sans cette
+egalite, la colonne « avant » ne vaudrait rien.
+
+LA MESURE QUI A TRANCHE (116 jobs `done` ; `scratchpad/mesure_avant.py` et
+`mesure_defaut.py`) — 98,9 % du total affiche passait par la branche par
+defaut :
+
+  provider       n      avant     apres   ce que le job depense VRAIMENT
+  seedance      35     18,885    18,885   1 image + N s de video : JUSTE
+  template      33     13,299     0,000   RIEN — job PARENT, les sous-jobs
+                                          (composition_id=parent) portent
+                                          deja leur propre depense
+  montage        4      6,332     0,000   RIEN — assemblage ffmpeg local
+  <NULL>        13      5,239     5,239   seedance d'avant la colonne
+                                          `provider` (13/13 portent un png
+                                          ET une video) : JUSTE
+  ugc            9      4,307     0,000   RIEN — fichier TELEVERSE par
+                                          l'utilisateur (`await
+                                          file.read()`, aucune API)
+  asset3d        7      2,821     2,480   un maillage, desormais au tarif du
+                                          maillage (rodin/hunyuan/tripo/
+                                          tripo-h3.1) et non d'une video
+  news           1      0,403     0,000   RIEN — reel ffmpeg local
+  animation      1      0,323     0,000   RIEN — ffmpeg + PIL locaux
+  heygen         5      0,240     0,240   branche nommee, juste
+  sprite2d       8      0,048     0,048   branche nommee, juste
+  TOTAL        116     51,900    26,890
 
   DEPENSE FABRIQUEE (template + montage + ugc + news + animation) :
-  24,664 USD sur 43,410 AFFICHES, soit 56,8 % du chiffre montre a
+  24,664 USD sur 51,900 AFFICHES, soit 47,5 % du chiffre montre a
   l'utilisateur. Les deux providers que la base ne porte pas encore tombaient
   dans la meme branche : `composition` (job parent, comme `template`) et
   `card3d` (« RIEN N'EST CONSTRUIT ICI : publier n'est pas fabriquer »,
   forge3d l. 3898).
-
-  RE-MESURE APRES LE LOT, meme copie, meme script : 18,82 USD affiches. Les
-  cinq providers ci-dessus tombent a 0,000 ; `asset3d` passe de 1,209 (une
-  video qui n'a jamais tourne) a 1,280 (deux `rodin` a 0,40 + un `hunyuan` a
-  0,48, moteur lu dans `cost_meta`) ; `seedance`, `<NULL>`, `heygen` et
-  `sprite2d` ne bougent pas d'un cent.
 
 LA DECISION — une LISTE BLANCHE explicite, et un ZERO QUI SE NOMME pour tout
 le reste. Voir la docstring de `_job_to_cost` pour le raisonnement complet.
@@ -68,11 +75,12 @@ CE QUE CE BANC N'AFFIRME PAS
     `texturier=meshy` n'enregistre PAS la resolution, donc le devis prend le
     defaut de `credits_retexture` (2k = 10 credits). C'est une depense REELLE
     a un tarif directionnel, pas une depense inventee.
-  * Que `by_provider` atteigne le PIXEL. MESURE dans le bundle
-    (`frontend/dist/assets/index-BEOJX8L5.js`) : la pastille de cout lit
-    `cost/usage` et n'affiche QUE `total_usd` — la chaine `by_provider` n'y
-    apparait NULLE PART. Le zero se nomme donc dans l'API et dans cette
-    carte ; il ne se nomme pas encore a l'ecran.
+  * Que `by_provider` atteigne le PIXEL. Ce banc s'arrete a l'API. Au moment
+    ou il a ete ecrit, la chaine `by_provider` n'apparaissait NULLE PART dans
+    `frontend/dist/assets/index-BEOJX8L5.js` : la pastille n'affichait que
+    `total_usd`. C'est la tache 8c qui l'a portee a l'ecran
+    (`scripts/patch_bundle_dzcout.py`), et c'est `tests/test_cout_pastille.py`
+    qui le mesure — pas une ligne d'ici.
   * Aucun rendu, aucun appel reseau, aucun ffmpeg. Ce banc pose des lignes en
     base et lit UNE route.
 

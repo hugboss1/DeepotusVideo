@@ -4192,29 +4192,40 @@ def _job_to_cost(job, p):
     Seedance PLUS une image FLUX — 0,403 USD par job aux tarifs par défaut de
     `pricing.load()` — à TOUT provider qu'elle ne nommait pas.
 
-    MESURÉ le 05/09/2026 sur une COPIE de la base réelle (105 jobs `done`,
-    jamais la base vivante ; `scratchpad/mesure_defaut.py`) : 43,41 USD
-    affichés, dont 43,17 (99,4 %) venaient de la branche par défaut. Ce
-    qu'elle facturait, provider par provider :
+    PROTOCOLE DE MESURE, ET IL A DÛ ÊTRE REFAIT. La base tourne en mode WAL :
+    au 05/09/2026 `deepotus.db` pesait 4,60 Mo et son `-wal` 4,54 Mo. Une
+    COPIE D'OCTETS du seul `.db` perd donc tout ce que le WAL porte — elle
+    rendait 105 jobs `done` là où la base en compte 116, et un total de
+    43,41 USD là où l'application en affichait 51,90. Les chiffres ci-dessous
+    sont pris sur un instantané COHÉRENT (`sqlite3.Connection.backup()`, qui
+    fusionne le WAL), jamais sur la base vivante. L'ANCIENNE branche y est
+    REJOUÉE, et sa transcription est VÉRIFIÉE plutôt que supposée : son total
+    reproduit au cent près le `total_usd` que l'API du backend installé rend
+    sur la vraie base (51,90). Sans cette égalité, la colonne « avant » ne
+    vaudrait rien.
 
-        template   33 jobs  13,299 USD  RIEN — job PARENT, les sous-jobs
-                                        portent déjà leur propre dépense
-        seedance   34 jobs  12,062 USD  1 image + N s de vidéo : JUSTE
-        montage     4 jobs   6,332 USD  RIEN — assemblage ffmpeg local
-        <NULL>     13 jobs   5,239 USD  Seedance d'avant la colonne : JUSTE
-        ugc         9 jobs   4,307 USD  RIEN — fichier TÉLÉVERSÉ (`await
-                                        file.read()`, aucune API appelée)
-        asset3d     3 jobs   1,209 USD  un maillage, mais au tarif d'une
-                                        vidéo Seedance au lieu du sien
-        news        1 job    0,403 USD  RIEN — reel ffmpeg local
-        animation   1 job    0,323 USD  RIEN — ffmpeg + PIL locaux
+    MESURÉ (116 jobs `done` ; `scratchpad/mesure_avant.py`, `mesure_defaut.py`)
+    — 98,9 % du total affiché passait par la branche par défaut :
+
+                    n      avant     après
+        seedance   35    18,885    18,885   1 image + N s de vidéo : JUSTE
+        template   33    13,299     0,000   RIEN — job PARENT, les sous-jobs
+                                            portent déjà leur propre dépense
+        montage     4     6,332     0,000   RIEN — assemblage ffmpeg local
+        <NULL>     13     5,239     5,239   Seedance d'avant la colonne : JUSTE
+        ugc         9     4,307     0,000   RIEN — fichier TÉLÉVERSÉ (`await
+                                            file.read()`, aucune API appelée)
+        asset3d     7     2,821     2,480   un maillage, désormais au tarif du
+                                            maillage et non d'une vidéo
+        news        1     0,403     0,000   RIEN — reel ffmpeg local
+        animation   1     0,323     0,000   RIEN — ffmpeg + PIL locaux
+        heygen      5     0,240     0,240   branche nommée, juste
+        sprite2d    8     0,048     0,048   branche nommée, juste
+        TOTAL     116    51,900    26,890
 
     DÉPENSE FABRIQUÉE (template + montage + ugc + news + animation) :
-    24,664 USD sur 43,410 AFFICHÉS, soit 56,8 % du chiffre montré à
-    l'utilisateur. RE-MESURÉ après ce lot sur la MÊME copie : 18,82 USD
-    affichés — les cinq providers ci-dessus tombent à 0,000 et `asset3d`
-    passe de 1,209 (une vidéo qui n'a jamais tourné) à 1,280 (deux maillages
-    `rodin` à 0,40 + un `hunyuan` à 0,48, lus dans `cost_meta`).
+    24,664 USD sur 51,900 AFFICHÉS, soit 47,5 % du chiffre montré à
+    l'utilisateur.
 
     POURQUOI UNE LISTE BLANCHE plutôt qu'une entrée de tarif par provider :
     le dépôt n'écrit que TREIZE valeurs de `provider` (relevé exhaustif des
