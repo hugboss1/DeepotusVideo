@@ -187,7 +187,8 @@ bibliotheque standard, jamais l'originale :
   demande 4 000 remplacements : c'est une borne, pas un cout.
 
 DIX-NEUF MUTATIONS REJOUEES LE 05/09/2026 SUR LA VERSION COURANTE (99
-assertions), ET NEUF QUI NE L'ONT PAS ETE. Elles remplacent la table du
+assertions), TROIS NEUVES SUR LA COUCHE DE FIXTURE, ET NEUF QUI N'ONT PAS
+PU L'ETRE. Elles remplacent la table du
 04/09/2026, mesuree sur une version a 77 et donc PERIMEE depuis P7 — recopier
 un chiffre mesure sur une version d'avant est la faute n°1 du chantier.
 CE QUE LE REJEU A APPRIS : quinze mutations gardent le MEME ensemble de
@@ -313,6 +314,28 @@ media 67/0.
        2fff6b6, qui ne portait pas ces deux-ci, les deux mutations donnaient
        75/0 : la reponse la plus FREQUENTE, celle d'un plan sans homonyme,
        pouvait diverger de l'autre en silence.
+
+  SUR LA COUCHE DE FIXTURE (le meme F1-bis que dans test_montage_sources.py,
+  mesure et reparee le 05/09/2026). Elles ne mesurent pas l'unite sous test :
+  elles mesurent que ce banc ROUGIT PLUTOT QUE MOURIR quand ce qui le PREPARE
+  echoue. La docstring de `pose()` affirmait que l'invariant valait « de bout
+  en bout » ; les trois mesures ci-dessous montrent qu'il ne valait nulle part
+  hors de l'appel a la base, et que la phrase etait donc FAUSSE.
+  R1-bis   `raise` dans le CORPS de `pose()`, avant l'appel garde
+           AVANT : LE BANC MEURT, aucun compte.  APRES : 88/11, 47 temoins.
+  R1-ter   une ECRITURE de fixture du disque qui echoue (dossier parent
+           absent) — les cinq etaient NUES
+           AVANT : LE BANC MEURT, aucun compte.  APRES : 88/11, 1 temoin.
+  R1-quater `asyncio.run(init_db())` qui echoue — nu lui aussi, et c'etait la
+           toute premiere instruction de base du banc
+           AVANT : LE BANC MEURT, aucun compte.  APRES : 69/30, 57 temoins.
+  Les trois font rougir `aucun_appel_n_a_plante`, et AUCUNE assertion n'a ete
+  ajoutee pour cela : les temoins passent par `_plantages`, que cette ligne
+  mesure deja — c'est pourquoi les dix-neuf comptes ci-dessus restent valides.
+  RESTE HORS DE TOUTE GARDE : l'evaluation des ARGUMENTS au site d'appel
+  (`pose(I(1), "seedance", F_MP4, "plan_01", T0)`), qui a lieu avant que la
+  fixture ne soit entree. Aucune de ces expressions ne peut lever aujourd'hui ;
+  la limite est structurelle, pas conjoncturelle.
 
   SUR LE BANC LUI-MEME (ce que la correction du 04/09-bis a ferme) — les deux
   sont jouees AVEC MTIT, sans quoi elles ne mesureraient rien
@@ -555,9 +578,28 @@ def IDS(d):
     return out
 
 
+def FIX(quoi, faire):
+    """FIXTURE gardee DE BOUT EN BOUT — la meme reparation que dans
+    test_montage_sources.py (F1-bis, 05/09/2026). Ce qui PREPARE le banc
+    n'etait garde par rien : `LIB.mkdir`, les cinq ecritures et
+    `asyncio.run(init_db())` etaient nus, et `pose()` ne gardait que son appel
+    a la base. Un dossier en lecture seule ou une base verrouillee tuaient ce
+    banc avant sa premiere ligne — alors que la docstring de `pose` affirmait
+    que l'invariant valait « de bout en bout ».
+    `faire` est un THUNK, donc meme la construction de ce qu'on ecrit est
+    dans la garde. Le temoin est NUMEROTE et fait rougir
+    `aucun_appel_n_a_plante` : AUCUNE assertion n'est ajoutee, et les comptes
+    de la table de mutations restent valides."""
+    try:
+        return faire()
+    except Exception as e:
+        print(f"  ----  fixture {quoi} a leve : {temoin(e)}")
+        return None
+
+
 # ─────────────────────────────────────────────────────────── fixtures ──────
 LIB = pathlib.Path(TMP) / "lib"
-LIB.mkdir(parents=True, exist_ok=True)
+FIX("dossier lib", lambda: LIB.mkdir(parents=True, exist_ok=True))
 F_MP4 = LIB / "plan.mp4"
 F_MP4B = LIB / "plan_v2.mp4"
 F_PNG = LIB / "sheet.png"
@@ -570,10 +612,11 @@ F_ABSENT = LIB / "efface.mp4"          # jamais cree
 # Python porte quelque chose : sans cette ligne, le retirer laissait le
 # banc ENTIEREMENT VERT (mutation MVID, mesuree a 74/0).
 F_SANS_EXT = LIB / ".mp4"
-for f, b in ((F_MP4, b"\x00faux mp4"), (F_MP4B, b"\x00faux mp4 v2"),
-             (F_PNG, b"\x89PNG\r\n\x1a\nfaux"), (F_GLB, b"glTF\x02faux"),
-             (F_SANS_EXT, b"\x00sans extension")):
-    f.write_bytes(b)
+FIX("fichiers sources", lambda: [
+    f.write_bytes(b) for f, b in (
+        (F_MP4, b"\x00faux mp4"), (F_MP4B, b"\x00faux mp4 v2"),
+        (F_PNG, b"\x89PNG\r\n\x1a\nfaux"), (F_GLB, b"glTF\x02faux"),
+        (F_SANS_EXT, b"\x00sans extension"))])
 
 T0 = datetime(2026, 9, 1, 12, 0, 0)
 
@@ -583,27 +626,32 @@ def I(n):
     return "%08d-0000-0000-0000-000000000000" % n
 
 
-asyncio.run(init_db())
+FIX("init_db", lambda: asyncio.run(init_db()))
 
 
 def pose(jid, provider, path, titre, quand, dur=None, statut=None):
     """FIXTURE GARDEE — l'invariant « rougir plutot que mourir » vaut de bout
     en bout : une insertion qui leve (cle primaire deja prise) emporterait en
-    silence toutes les sections suivantes AVANT le moindre compte."""
-    async def go():
-        async with async_session_factory() as s:
-            s.add(JobRecord(id=jid, provider=provider,
-                            status=(statut or JobStatus.DONE.value),
-                            progress=100, title=titre,
-                            image_filename=jid[:8] + ".png",
-                            final_video_path=(str(path) if path else None),
-                            video_path=(str(path) if path else None),
-                            duration_s=dur, completed_at=quand))
-            await s.commit()
+    silence toutes les sections suivantes AVANT le moindre compte.
+    ET LA PHRASE EST VRAIE DEPUIS LE 05/09/2026 SEULEMENT (F1-bis) : le `try`
+    n'entourait que `asyncio.run(go())`, donc un echec dans le CORPS de la
+    fixture passait a cote. Il couvre desormais le corps entier, `async def
+    go()` comprise, et le message du temoin ne peut plus lever a son tour
+    (`str(jid)[:8]` : un `jid` non-chaine faisait lever la GARDE)."""
     try:
+        async def go():
+            async with async_session_factory() as s:
+                s.add(JobRecord(id=jid, provider=provider,
+                                status=(statut or JobStatus.DONE.value),
+                                progress=100, title=titre,
+                                image_filename=str(jid)[:8] + ".png",
+                                final_video_path=(str(path) if path else None),
+                                video_path=(str(path) if path else None),
+                                duration_s=dur, completed_at=quand))
+                await s.commit()
         asyncio.run(go())
     except Exception as e:
-        print(f"  ----  pose({jid[:8]}, {provider}) a leve : {temoin(e)}")
+        print(f"  ----  pose({str(jid)[:8]}, {provider}) a leve : {temoin(e)}")
 
 
 print("\n[1] GET /api/montage/newer — le rapprochement par le titre")
