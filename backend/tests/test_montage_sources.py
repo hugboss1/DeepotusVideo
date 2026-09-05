@@ -176,6 +176,15 @@ remplacer 99/0, media 67/0. Les mutations qui touchent du code PARTAGE
 (`_VIDEO_EXTS`, le `where` de `montage_project`, `_is_video_artifact`) sont
 jouees contre les TROIS bancs ; les autres contre sources et remplacer.
 
+CONFIRMATION APRES LA REPARATION DE F1-bis (meme jour, apres coup) : les
+elargissements de garde des fixtures touchent les DEUX bancs, donc toute la
+table pouvait avoir bouge. Elle a ete REJOUEE EN ENTIER une seconde fois et
+comparee a la premiere campagne MUTATION PAR MUTATION ET ROUGE PAR ROUGE
+(scratchpad/compare.py) : ZERO ECART sur les cinquante-trois. Les chiffres
+ci-dessous valent donc pour le depot tel qu'il est, pas pour l'etat d'avant
+la reparation. Une seule ancre a du etre corrigee — celle de F1, que la
+reparation a fait descendre d'un niveau d'indentation.
+
 LES QUINZE DE P8-bis (le second defaut et ce que la revue a ouvert autour) :
   N1 `where` retire de la requete => sources 61/6 : les deux lignes du seuil,
      `le_where_n_est_pas_un_surensemble` et LES TROIS `proxy_de_scrub_*`.
