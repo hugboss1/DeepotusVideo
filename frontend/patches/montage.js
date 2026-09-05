@@ -17,8 +17,60 @@
      window.DzTracks = {ready, TrackAdd, headBtns, TextDrawer,
                          rippleCut, withWords,
                          gradeAllBtn, gradeAll, gradeOf,
+                         Projects, projLine, projWhen,
                          tracksOf, from, payload, busSync,
+                         pickTrack, isVideoJob, LibBtn, badSrc,
+                         replaceSrc, revertSrc, replaceBtn, revertBtn,
+                         newerLine, NewerHint,
+                         fitDur, durCtl, secs, DUR_MIN,
+                         clipLen, needDur, askDur, CLIP_DEFAUTS, DUR_DELAI,
                          move, moveTo, add, remove, group, DEFAULTS}
+
+   - clipLen(kind, srcDur, defauts) — P11 : la longueur à donner au clip
+     qu'on pose. PURE, rend {len, origine, note} — la longueur ENTIÈRE de la
+     source quand elle est connue, le repli du bundle sinon, et dans ce cas
+     seulement une note qui DIT que le chiffre n'est pas celui de la source.
+   - needDur(kind, srcDur) / askDur(src, {done, fetch, timer, delai}) — P11 :
+     faut-il aller mesurer la durée, et la mesure elle-même
+     (GET /api/montage/duration). `askDur` prend ses deux dépendances impures
+     en argument, donc elle se joue sous node comme le reste du cœur.
+
+   - fitDur(clips, dur, tail) — P10 : la durée que le projet DOIT avoir,
+     c'est-à-dire le maximum entre la durée demandée et la fin du dernier
+     clip (plus `tail`), arrondie à la seconde SUPÉRIEURE — l'unité de la
+     règle et du total affiché. PURE, et elle ne raccourcit JAMAIS.
+   - durCtl({dur, step, clips, onSet, note}) — P10 : le réglage explicite de
+     la durée dans la barre de transport, là où ne s'affichait qu'un nombre.
+     Allonge, raccourcit, et REFUSE de descendre sous la fin du dernier
+     clip. Sans hook, donc exécutable sous node.
+   - replaceSrc(clip, src, label, srcDur, now) — P6 : la SOURCE d'un plan
+     échangée sans que rien d'autre bouge. PURE, rend {clip, warn, note} et
+     ne mute pas l'entrée. Elle recale la fenêtre de source (srcIn / end)
+     quand la nouvelle est trop courte, et le DIT.
+   - revertSrc(clip) — l'autre voie de retour : dépile `src_history` et rend
+     la source précédente AVEC les bornes d'alors. `null` sans historique.
+   - replaceBtn(sel, onArm) / revertBtn(sel, onRevert) — les deux boutons de
+     l'inspecteur, sans hook, donc exécutables sous node.
+   - newerLine(c) — la ligne d'une proposition (PURE).
+   - NewerHint({jobId, onPick}) — « une version plus récente existe » :
+     interroge GET /api/montage/newer, dont le rapprochement est une
+     HEURISTIQUE de titre, et le dit.
+
+   - pickTrack(tracks, kind) — l'identifiant d'une piste QUI EXISTE, du genre
+     demandé, la première dans l'ordre d'affichage ; "" si le projet n'en
+     porte aucune. PURE. C'est elle qui répare « Envoyer vers → Montage » :
+     le clip s'y posait sur « v2 » sans vérifier que v2 soit là.
+   - isVideoJob(job, exts) — le critère du sélecteur « Rendus vidéo », appuyé
+     sur la liste d'extensions SERVIE PAR LE BACKEND (_VIDEO_EXTS, via
+     GET /api/montage/media-rules) : aucune extension n'est écrite ici.
+     PURE. Sans liste, elle ne filtre pas — et le sélecteur le dit.
+   - LibBtn({tracks,onPick,note}) — le bouton « Bibliothèque… » de la barre
+     de transport : il ouvre le sélecteur d'assets sur la piste vidéo
+     résolue. Il n'existait AUCUN bouton pour ajouter un clip ailleurs que
+     dans l'en-tête d'une piste, au survol.
+   - badSrc(clip, onFix) — la chip « pas une vidéo » posée sur un clip que
+     GET /project a signalé dans `v1_non_video`. Cliquable : elle rouvre la
+     Bibliothèque sur la piste du clip.
 
    - rippleCut(clips,t0,t1,opts) — coupe d'une PLAGE de temps sur toutes les
      pistes non verrouillées. PURE : c'est l'autre moitié du cœur exécuté
@@ -35,8 +87,20 @@
    - gradeAllBtn(sel, clips, setClips, pushHistory, setDirty, note) — le
      bouton qui le déclenche, posé sous la pile d'effets de l'inspecteur.
 
-   - TrackAdd({tracks,onChange}) — les deux boutons « + vidéo » / « + audio »
-     de la barre de transport.
+   - Projects({name,projectId,payload,onOpen,onNamed,onBefore,onFail,note})
+     — le popover « projets » de la barre de transport : lister,
+     « enregistrer sous… », ouvrir, dupliquer, renommer, supprimer. Les deux
+     gestes destructifs (ouvrir, supprimer) ARMENT avant de frapper ; seul
+     OUVRIR appelle `onBefore`, où l'éditeur annule son autosave en vol.
+     SUPPRIMER ne l'appelle plus depuis le 04/09/2026 — le serveur ferme
+     cette course-là tout seul, voir le commentaire de `doDel`.
+   - projLine(p) / projWhen(iso) — la ligne de résumé d'un projet et sa date,
+     PURES et sans fuseau : c'est la part de P5 que node exécute.
+
+   - TrackAdd({tracks,onChange}) — les deux boutons « + piste vidéo » /
+     « + piste audio » de la barre de transport. Ils disaient « + vidéo » et
+     « + audio » jusqu'à P9 : ils ajoutent une PISTE, et le libellé le dit
+     maintenant.
    - headBtns(tr, tracks, set, clips, setClips, note) — le groupe ▲ ▼ × de
      l'en-tête d'une piste, plus la poignée de glisser-déposer. Rend un
      ÉLÉMENT (avec sa clé) : il s'insère tel quel dans les tableaux `children`
@@ -172,6 +236,67 @@ function dzmClipsOn(clips,id){
   var n=0;
   (clips||[]).forEach(function(c){if(c&&c.tr===id)n++});
   return n}
+
+/* ── P9 : poser un clip sur une piste QUI EXISTE ────────────────────────────
+   Rend l'identifiant de la PREMIÈRE piste du genre demandé, dans l'ordre
+   d'affichage (haut → bas), ou "" si le projet n'en porte aucune.
+
+   Pourquoi cette fonction existe : le dépôt posait ses clips sur « v2 » par
+   défaut, sans jamais vérifier que v2 est là. MESURÉ dans la sauvegarde du
+   04/09/2026, `tracks` vaut [v1, a2, a1, a3, s1] — pas de v2. Le clip
+   entrait bien dans `clips`, il était sauvegardé, il serait parti au rendu
+   en incrustation ; mais la timeline ne dessine QUE les pistes du projet :
+   il était invisible et inselectionnable. « Rien n'est apparu » était exact,
+   et le clip était pourtant là.
+
+   Le genre se DÉDUIT de l'identifiant quand la piste ne le porte pas
+   (dzmKindOf) : une liste restaurée d'une vieille sauvegarde n'a que des
+   `id`, et exiger `kind` l'aurait fait rendre "" — c'est-à-dire un refus,
+   sur un projet parfaitement valable. */
+function dzmPickTrack(ts,kind){
+  var want=kind==="audio"?"audio":kind==="subs"?"subs":"video";
+  var list=(ts&&ts.length)?ts:[];
+  for(var i=0;i<list.length;i++){
+    var t=list[i];
+    if(!t||!t.id)continue;
+    if(dzmKindOf(t.id,t.kind)===want)return String(t.id)}
+  return ""}
+
+/* ── P9 : « ce rendu est-il une vidéo ? », posé une seule fois ─────────────
+   `exts` est la liste servie par GET /api/montage/media-rules, c'est-à-dire
+   `_VIDEO_EXTS` de montage_service.py — LA règle du rendu, pas une copie.
+   Rien n'est réécrit ici : cette fonction ne connaît aucune extension.
+
+   Sans `exts` (route injoignable), elle ne filtre PAS et rend vrai : c'est
+   le seul repli honnête. Une liste vide en dur aurait affiché « aucun rendu
+   vidéo terminé » sur une Bibliothèque pleine ; une liste d'extensions
+   écrite ici aurait divergé du backend au premier format ajouté. Le
+   sélecteur DIT à l'écran qu'il ne filtre pas.
+
+   `final_video_path` PRIME sur `video_path`, dans cet ordre : c'est celui de
+   `_resolve_src` côté serveur (`jr.final_video_path or jr.video_path`). Le
+   critère d'avant testait `video_path || final_video_path` — sur un job dont
+   le brut est une vidéo et le fini une image, les deux ne rendent pas la
+   même chose, et c'est le serveur qui a raison.
+   AUCUNE EXTENSION N'EST ÉCRITE DANS CE FICHIER, et le banc le vérifie
+   (`M16c_la_couche_ne_recopie_aucune_extension`) : une seconde liste
+   divergerait de `_VIDEO_EXTS` au premier format ajouté. */
+function dzmVideoExt(fp){
+  var nm=String(fp||"").replace(/\\/g,"/").split("/").pop();
+  var k=nm.lastIndexOf(".");
+  return k>0?nm.slice(k).toLowerCase():""}
+function dzmIsVideoJob(j,exts){
+  if(!j||j.status!=="done")return !1;
+  /* la vignette d'une PRÉVISUALISATION de montage n'est pas un rendu à
+     reposer — critère conservé tel quel du bundle. */
+  if(j.provider==="montage"&&String(j.image_filename||"").indexOf("_preview")>=0)return !1;
+  var fp=j.final_video_path||j.video_path;
+  if(!fp)return !1;
+  if(!exts||!exts.length)return !0;
+  var sfx=dzmVideoExt(fp);
+  if(!sfx)return !1;
+  for(var i=0;i<exts.length;i++)if(String(exts[i]||"").toLowerCase()===sfx)return !0;
+  return !1}
 
 /* ── P2 : animation des sous-titres MOT PAR MOT ────────────────────────────
    Trois valeurs seulement, parce que trois seulement se gravent (mesuré à
@@ -402,23 +527,95 @@ function dzmRippleCut(clips,t0,t1,opts){
 
 /* ── composants (r/x du bundle — jamais touchés au chargement) ───────────── */
 
-/* Les deux boutons de la barre de transport. */
+/* Les deux boutons de la barre de transport.
+   P9 — LIBELLÉS RECTIFIÉS. Ils disaient « + vidéo » / « + audio » et ils
+   ajoutent une PISTE, pas un clip : l'utilisateur les a lus comme « ajouter
+   une vidéo », a cliqué, et a obtenu une bande vide. Le libellé lui donnait
+   raison. Ils disent maintenant ce qu'ils font ; le bouton qui ajoute
+   VRAIMENT une vidéo est « Bibliothèque… », juste à côté. */
 var DzmTrackAdd=function(props){
   var ts=(props&&props.tracks&&props.tracks.length)?props.tracks:DZM_DEFAULT_TRACKS;
   function add(k){if(props&&props.onChange)props.onChange(dzmAdd(ts,k))}
   return r.jsxs("span",{className:"dzm-add",children:[
     r.jsx("button",{className:"svm-tbtn dzm-addb",
-      title:"Ajouter une piste vidéo d'overlay — posée tout en haut, donc "+
-        "composée AU-DESSUS des autres au rendu",
+      title:"Ajouter une PISTE vidéo d'overlay (une bande vide) — posée tout "+
+        "en haut, donc composée AU-DESSUS des autres au rendu. Pour poser un "+
+        "clip, c'est « Bibliothèque… ».",
       "aria-label":"Ajouter une piste vidéo d'overlay",
-      onClick:function(){add("video")},children:"+ vidéo"},"v"),
+      onClick:function(){add("video")},children:"+ piste vidéo"},"v"),
     r.jsx("button",{className:"svm-tbtn dzm-addb",
-      title:"Ajouter une piste audio — posée sous les pistes audio "+
-        "existantes, au-dessus des sous-titres. Bus BRUITAGES, sauf si "+
+      title:"Ajouter une PISTE audio (une bande vide) — posée sous les pistes "+
+        "audio existantes, au-dessus des sous-titres. Bus BRUITAGES, sauf si "+
         "l'identifiant libre est celui d'une piste historique retirée (A1, "+
         "A2) : elle revient alors avec son bus d'origine et son habillage.",
       "aria-label":"Ajouter une piste audio",
-      onClick:function(){add("audio")},children:"+ audio"},"a")]})};
+      onClick:function(){add("audio")},children:"+ piste audio"},"a")]})};
+
+/* ── P9 : le bouton « Bibliothèque… » de la barre de transport ─────────────
+   MESURE qui le fonde : `openPicker` n'était appelé QU'À UN endroit du
+   bundle — le petit « + » de l'en-tête d'une piste, 14 px, révélé au survol
+   de cette piste-là. Rien, dans la barre de transport, ne proposait
+   d'ajouter un clip. « il me faut aussi un bouton pour ajouter une video
+   depuis la bibliotheque » : le voici, et il porte le mot de l'utilisateur.
+
+   La piste visée est RÉSOLUE, jamais devinée : la première piste vidéo du
+   projet dans l'ordre d'affichage. Sans piste vidéo, le bouton ne s'éteint
+   pas — il DIT pourquoi il ne peut rien faire et nomme la sortie. Un bouton
+   grisé sans explication oblige à deviner, et c'est le défaut que toute
+   cette tâche répare. */
+var DzmLibBtn=function(props){
+  var ts=(props&&props.tracks&&props.tracks.length)?props.tracks:DZM_DEFAULT_TRACKS;
+  var id=dzmPickTrack(ts,"video");
+  return r.jsx("button",{className:"svm-tbtn dzm-libb",
+    title:id?("Ouvrir la Bibliothèque et poser une vidéo, une image ou un "+
+        "rendu sur la piste "+id.toUpperCase()+", à la tête de lecture — "+
+        "c'est la piste vidéo la plus haute du projet.")
+      :("Aucune piste vidéo dans ce projet : rien ne pourrait recevoir le "+
+        "clip. « + piste vidéo » en crée une."),
+    "aria-label":"Ouvrir la Bibliothèque pour ajouter un clip",
+    onClick:function(){
+      if(!id){if(props&&props.note)props.note("Aucune piste vidéo dans ce "+
+        "projet — « + piste vidéo » en crée une, puis « Bibliothèque… » y "+
+        "posera le clip.");return}
+      if(props&&props.onPick)props.onPick(id)},
+    children:"Bibliothèque…"},"lib")};
+
+/* ── P9 : le marquage d'un clip V1 qui n'est pas une vidéo ─────────────────
+   GET /api/montage/project rend `v1_non_video` — des identifiants de clips,
+   joignables aux `clips` servis par la même réponse (contrat arrêté par P8).
+   Sans lecteur, ce champ était un mensonge poli : le backend savait, l'écran
+   se taisait, et POST /render refusait en 400 APRÈS le clic.
+
+   La chip est un BOUTON, pas une étiquette : la voie de sortie est offerte
+   sur place — elle rouvre la Bibliothèque sur la piste du clip — au lieu
+   d'être devinée. `stopPropagation` sur pointerdown ET sur click : sans le
+   premier, le clic amorcerait le déplacement du clip sous la chip.
+
+   CE QUE LA CHIP DIT EST MESURÉ, ET LE BRIEF DE LA TÂCHE LE DISAIT TROP
+   FORT. « POST /render refuse déjà ces clips en 400 en les nommant » n'est
+   vrai que pour une PARTIE d'entre eux. Relu le 04/09/2026 dans
+   montage_service.py : `v1_non_video` liste les clips V1 dont l'extension
+   n'est pas dans `_VIDEO_EXTS` (6 extensions), tandis que le pré-vol de
+   `POST /render` refuse ce que `_ffmpeg_ouvrira` rejette, c'est-à-dire hors
+   de `_VIDEO_EXTS + _IMAGE_EXTS + _AUDIO_EXTS` — et `_IMAGE_EXTS` contient
+   `.png` (l. 1488). Une planche de sprites PNG posée en V1 est donc SIGNALÉE
+   ici et PASSE le pré-vol : elle se rend en carton fixe. Un maillage `.glb`,
+   lui, est signalé ET refusé. La chip dit les deux cas ; promettre un refus
+   qui n'arrive pas aurait été le même défaut, à l'envers. */
+function dzmBadSrcChip(c,onFix){
+  return r.jsx("button",{className:"dzm-badsrc",
+    title:"Ce plan n'est pas une vidéo : son fichier ne porte pas "+
+      "d'extension vidéo (planche de sprites, maillage 3D, archive…). Un "+
+      "maillage ou une archive fera échouer le rendu, qui les nommera ; une "+
+      "image passera le contrôle mais se rendra en carton fixe. Cliquez "+
+      "pour rouvrir la Bibliothèque et poser un vrai rendu à sa place, puis "+
+      "retirez celui-ci.",
+    "aria-label":"Plan qui n'est pas une vidéo — ouvrir la Bibliothèque",
+    onPointerDown:function(e){if(e&&e.stopPropagation)e.stopPropagation()},
+    onClick:function(e){
+      if(e&&e.stopPropagation)e.stopPropagation();
+      if(onFix)onFix(c)},
+    children:"pas une vidéo"},"badsrc")}
 
 /* ▲ ▼ × d'un en-tête de piste, et la poignée de glisser-déposer.
    Le × ARME avant de frapper quand la piste porte des clips : un clic pose
@@ -922,15 +1119,1030 @@ function dzmGradeAllBtn(sel,clips,setClips,pushHistory,setDirty,note){
         "l'étalonnage de chaque plan tel qu'il était."+hors)},
     children:lbl},"dzmgall")}
 
+/* ── P5 : les PROJETS NOMMÉS ───────────────────────────────────────────────
+   Jusqu'ici le Montage n'avait qu'UNE timeline sur le disque. Ouvrir un autre
+   montage voulait dire écraser celle-là, et rien ne la rendait. Le popover
+   « projets » nomme le courant, liste les autres, les ouvre, les duplique,
+   les renomme et les supprime. TOUTES les écritures sont faites par le
+   SERVEUR (routes /api/montage/projects*) : cette couche n'est que la main,
+   elle ne décide de rien sur le disque.
+
+   DEUX GESTES DESTRUCTIFS, et les deux ARMENT avant de frapper — un premier
+   clic pose `data-arm` et change le libellé, le second seulement agit. Pas
+   de modale : cet écran n'en a aucune, et une boîte système gèle la page
+   entière (donc l'autosave) le temps qu'on lise.
+     * OUVRIR remplace la timeline courante. Ce qu'elle portait n'est copié
+       nulle part : si elle n'avait pas de nom, elle est PERDUE. « Annuler »
+       ne la rend pas — l'historique de cet écran ne mémorise que
+       {clips, mixDb}, et l'application d'un projet le remet à zéro.
+     * SUPPRIMER retire le fichier du projet, définitivement. Rien ne le
+       rejoue, ni ici ni côté serveur.
+   OUVRIR appelle `onBefore` AVANT la requête, et c'est l'éditeur qui y annule
+   son autosave en vol. Sans cela, une sauvegarde partie 1,4 s plus tôt
+   arrivait APRÈS l'ouverture et réécrivait le courant avec le montage qu'on
+   venait de quitter — la course exacte que le bouton « bibliothèque » du
+   bundle désamorce déjà, de la même façon et pour la même raison. SUPPRIMER,
+   lui, ne l'appelle PAS : le serveur ferme cette course-là à lui seul, et
+   l'annulation était une perte sèche. Le détail est dans `doDel`.
+
+   LA DATE EST AFFICHÉE TELLE QU'ELLE EST STOCKÉE (UTC), jamais convertie.
+   `toLocaleString` rendrait une chaîne différente selon le fuseau de la
+   machine : le cœur cesserait d'être mesurable sous node, et une mesure qui
+   dépend de l'endroit où on la prend n'en est pas une. Le suffixe « UTC » le
+   dit plutôt que de le taire. */
+
+/* PURES toutes les deux — c'est la part de P5 que node exécute.
+   `secs` (P6) : la SECONDE en plus, pour les seuls appelants qui doivent
+   distinguer deux lignes homonymes. Un second analyseur d'ISO à côté de
+   celui-ci aurait été une règle de plus à tenir en phase ; l'argument
+   optionnel garde UN seul analyseur et laisse les appelants de P5
+   inchangés, sortie comprise. */
+function dzmProjWhen(iso,secs){
+  var m=/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/
+    .exec(String(iso||""));
+  if(!m)return "";
+  return m[3]+"/"+m[2]+" "+m[4]+":"+m[5]+((secs&&m[6])?(":"+m[6]):"")+" UTC"}
+
+/* La ligne sous le nom d'un projet. Ce qui décide entre deux montages, c'est
+   le NOMBRE de plans et la date — jamais l'identifiant, qui n'apprend rien. */
+function dzmProjLine(p){
+  var o=p||{},n=Number(o.clips)||0,out=[n+" clip"+(n>1?"s":"")];
+  if(o.ratio)out.push(String(o.ratio));
+  var d=Number(o.duration)||0;
+  if(d>0)out.push(d.toFixed(1).replace(".",",")+" s");
+  var w=dzmProjWhen(o.updated_at);
+  if(w)out.push(w);
+  return out.join(" · ")}
+
+var DzmProjects=function(props){
+  var so=x.useState(!1),op=so[0],setOp=so[1];
+  var sl=x.useState(null),list=sl[0],setList=sl[1];
+  var sb=x.useState(0),busy=sb[0],setBusy=sb[1];
+  var se=x.useState(""),err=se[0],setErr=se[1];
+  var sa=x.useState(""),arm=sa[0],setArm=sa[1];
+  var sr=x.useState(null),ren=sr[0],setRen=sr[1];
+  var sn=x.useState(""),nv=sn[0],setNv=sn[1];
+  var box=x.useRef(null);
+  var pid=(props&&props.projectId)||"";
+  var nm=(props&&props.name)||"montage";
+  function note(m){if(props&&props.note)props.note(m)}
+
+  /* l'armement retombe tout seul au bout de quatre secondes : un bouton
+     resté rouge finit par être cliqué pour autre chose. Même délai que le ×
+     d'en-tête de piste, pour que les deux s'apprennent ensemble. */
+  x.useEffect(function(){
+    if(!arm)return;
+    var h=setTimeout(function(){setArm("")},4000);
+    return function(){clearTimeout(h)}},[arm]);
+
+  /* Échap ferme, un clic dehors ferme. Un popover qu'on ne peut refermer
+     qu'en retrouvant son bouton est un piège, et il masque la timeline. */
+  x.useEffect(function(){
+    if(!op)return;
+    function key(e){if(e.key==="Escape"){setOp(!1);setArm("")}}
+    function down(e){
+      if(box.current&&!box.current.contains(e.target)){setOp(!1);setArm("")}}
+    window.addEventListener("keydown",key);
+    window.addEventListener("mousedown",down);
+    return function(){window.removeEventListener("keydown",key);
+      window.removeEventListener("mousedown",down)}},[op]);
+
+  function req(url,opt){
+    return fetch(url,opt||{}).then(function(rp){
+      return rp.json().catch(function(){return {}}).then(function(d){
+        if(!rp.ok)throw new Error((d&&d.detail)||("HTTP "+rp.status));
+        return d})})}
+  function send(url,method,body){
+    return req(url,{method:method,headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(body||{})})}
+  function url(p){return "/api/montage/projects/"+encodeURIComponent(p)}
+  function fail(e){setBusy(0);setErr((e&&e.message)||"requête impossible")}
+
+  function load(){
+    setBusy(1);setErr("");
+    return req("/api/montage/projects").then(function(d){
+      setBusy(0);setList((d&&d.projects)||[])})
+      .catch(function(e){setList([]);fail(e)})}
+
+  function toggle(){
+    var nx=!op;setOp(nx);setArm("");setRen(null);
+    if(nx)load()}
+
+  function saveAs(){
+    if(busy)return;
+    setBusy(1);setErr("");
+    /* LA TIMELINE AFFICHEE PART AVEC LE NOM. Sans elle, le serveur ne
+       connaissait que montage_saved.json, et DEUX etats courants n'en ont
+       pas : une installation neuve (la Bibliotheque fournit la timeline,
+       svmApplyProject pose setDirty(false), donc aucun autosave ne part) et
+       l'instant qui suit le bouton « bibliotheque » (DELETE puis
+       rechargement, exactement le meme etat). L'utilisateur regardait une
+       timeline et ce popover lui repondait en rouge qu'il n'y en avait pas
+       — HTTP 400, la porte d'entree de tout le lot fermee. Le reste du
+       temps, le disque avait jusqu'a 1,5 s de retard sur l'ecran : MESURE,
+       7 clips affiches, 1 clip ecrit, alors que le titre du bouton promet
+       « le montage AFFICHE ». A defaut de cette prop, le serveur retombe sur
+       le courant : la route se comporte exactement comme avant. */
+    var tl=(props&&props.payload)?props.payload():null;
+    send("/api/montage/projects","POST",
+      {name:(nv||"").trim(),timeline:tl})
+      .then(function(d){
+        setBusy(0);setNv("");
+        if(props.onNamed)props.onNamed(d.id,d.name);
+        note("Montage enregistré sous « "+d.name+" ». Les modifications "+
+          "suivantes y vont toutes seules, sans un geste de plus.");
+        load()})
+      .catch(fail)}
+
+  function doOpen(p){
+    if(busy)return;
+    if(arm!=="o"+p.id){setArm("o"+p.id);return}
+    setArm("");setBusy(1);setErr("");
+    if(props.onBefore)props.onBefore();
+    send(url(p.id)+"/open","POST")
+      .then(function(){return req("/api/montage/project")})
+      .then(function(d){
+        setBusy(0);
+        /* onNamed SEULEMENT si l'écran a vraiment appliqué. Rattacher le
+           projet à une timeline restée l'ANCIENNE ferait écrire celle-ci
+           dans le projet qu'on vient d'ouvrir, au premier autosave — le
+           geste aurait détruit ce qu'il prétendait ouvrir. */
+        if(props.onOpen&&props.onOpen(d)){
+          if(props.onNamed)props.onNamed(p.id,p.name);
+          setOp(!1);
+          note("« "+p.name+" » ouvert. Le montage précédent a été remplacé : "+
+            "s'il n'était pas enregistré sous un nom, il n'existe plus, et "+
+            "« annuler » ne le rend pas.")}
+        else
+          /* le serveur refuse déjà d'ouvrir un projet sans plan vivant (409,
+             et le courant reste intact) : il ne reste ici qu'une réponse que
+             l'écran n'a pas su appliquer. Le taire ferait croire que rien ne
+             s'est passé. */
+          setErr("Réponse inattendue du serveur : rien n'a été appliqué. "+
+            "Rechargez la page avant d'enregistrer.")})
+      /* L'OUVERTURE A ECHOUE, et la liste est EXACTE : 409 « projet
+         inouvrable », backend injoignable — les cas où la requête LÈVE. La
+         timeline affichée n'a pas bougé et elle reste à enregistrer, or
+         `onBefore` vient d'annuler l'autosave en vol et RIEN ne le
+         replanifie (il ne touche que deux useRef et `setSaveInfo`, qui n'est
+         pas dans les dépendances de l'effet). Le badge reste honnête, mais la
+         sauvegarde que l'utilisateur croyait partie n'attendrait que sa
+         prochaine édition. `onFail` la relance tout de suite.
+         LA « RÉPONSE INAPPLICABLE » N'EST PAS ICI, et ce n'est pas un oubli :
+         c'est le `else` du `.then` ci-dessus, il ne lève pas, donc ce `.catch`
+         n'est jamais atteint et `onFail` n'est PAS appelé. Ce cas garde donc
+         son autosave perdu — trou résiduel assumé, et le seul choix juste.
+         Le serveur a DÉJÀ remplacé le courant par le projet ouvert ; seul
+         l'écran n'a pas su appliquer la réponse. Relancer la sauvegarde y
+         écrirait la timeline PÉRIMÉE par-dessus le courant tout neuf, et,
+         `onNamed` n'ayant pas été appelé, elle la miroiterait dans l'ANCIEN
+         projet — le geste défairait sur le disque l'ouverture qu'il vient de
+         réussir, et il ferait exactement ce que le message affiché dit de ne
+         pas faire (« Rechargez la page avant d'enregistrer »). Le trou est
+         petit et il est dit à l'écran ; la réparation, elle, serait une
+         corruption silencieuse.
+         NON MESURE A L'ECRAN — dette navigateur, comme tout ce popover. */
+      .catch(function(e){fail(e);if(props.onFail)props.onFail()})}
+
+  function doDup(p){
+    if(busy)return;
+    setBusy(1);setErr("");
+    send(url(p.id)+"/duplicate","POST").then(function(d){
+      setBusy(0);
+      note("Copie « "+d.name+" » créée. Le montage ouvert n'a pas changé.");
+      load()})
+      .catch(fail)}
+
+  function doRen(p){
+    if(busy)return;
+    var v=(ren&&ren.id===p.id)?String(ren.v||""):"";
+    setRen(null);setBusy(1);setErr("");
+    send(url(p.id),"PATCH",{name:v}).then(function(d){
+      setBusy(0);
+      if(p.id===pid&&props.onNamed)props.onNamed(p.id,d.name);
+      note(d.name===p.name
+        ?("Nom inchangé : « "+d.name+" » — un champ vide garde l'ancien nom.")
+        :("« "+p.name+" » renommé en « "+d.name+" »."));
+      load()})
+      .catch(fail)}
+
+  function doDel(p){
+    if(busy)return;
+    if(arm!=="x"+p.id){setArm("x"+p.id);return}
+    setArm("");setBusy(1);setErr("");
+    /* PAS d'`onBefore` ICI, et c'est une correction du 04/09/2026 — mesurée,
+       pas raisonnée. Le SERVEUR ferme cette course, à TROIS verrous, et c'est
+       le TROISIÈME qui rend ce retrait légitime : POST /save ne retient
+       `project_id` que s'il désigne un fichier qui EXISTE, il ne miroite que
+       dans ce fichier-là — et, depuis le même commit, le triplet {test
+       d'existence, écriture du courant, écriture du miroir} et la suppression
+       passent sous un même verrou de module.
+       LES DEUX PREMIERS NE SUFFISAIENT PAS, et c'est mesuré : entre le test
+       d'existence et le miroir il y a deux sauts de thread, et un DELETE
+       glissé là faisait REVENIR le fichier supprimé ET RESTER le lien du
+       courant. Sans ce troisième verrou, retirer `onBefore` d'ici rouvrirait
+       donc exactement « le courant reste lié à un projet supprimé ». La
+       section [16] de test_montage_projets.py, qui joue l'entrelacement avec
+       et sans le verrou, n'est donc pas une confirmation de ce retrait : elle
+       en est la CONDITION. [10]
+       (`supprime_l_autosave_ne_ressuscite_pas`) ne mesure, lui, que le cas
+       SÉQUENTIEL — un autosave parti APRÈS que le DELETE a rendu la main.
+       Annuler l'autosave ici était donc une PERTE SÈCHE : `onBefore` ne
+       touche que deux useRef et `setSaveInfo(null)`, or `saveInfo` n'est pas
+       dans les dépendances de l'effet d'autosave — supprimer un projet QUI
+       N'EST PAS LE SIEN (`p.id!==pid`, donc pas d'`onNamed`, donc `proj`
+       inchangé, donc aucune dépendance modifiée) annulait une sauvegarde en
+       vol que plus rien ne replanifiait jusqu'à l'édition suivante.
+       `svmDoSave` sort en silence sur AbortError : le badge reste honnête
+       (`dirty` demeure vrai), mais l'utilisateur croyait sa sauvegarde
+       partie. `doOpen`, lui, garde `onBefore` : là, le serveur NE PEUT PAS
+       distinguer l'autosave du montage quitté de celui du montage ouvert. */
+    req(url(p.id),{method:"DELETE"}).then(function(){
+      setBusy(0);
+      if(p.id===pid&&props.onNamed)props.onNamed("",nm);
+      note("« "+p.name+" » supprimé — DÉFINITIVEMENT : le fichier est parti "+
+        "du disque, ni « annuler » ni rien d'autre ne le rejoue."+
+        (p.id===pid?" La timeline affichée, elle, reste : elle n'est simplement "+
+          "plus rattachée à aucun projet.":""));
+      load()})
+      .catch(fail)}
+
+  function row(p){
+    var mine=p.id===pid,edit=!!(ren&&ren.id===p.id);
+    var oArm=arm==="o"+p.id,xArm=arm==="x"+p.id;
+    /* TOUS les boutons de la ligne s'éteignent pendant une requête. Tous les
+       gestionnaires sortaient déjà sur `if(busy)return`, mais AUCUN bouton ne
+       portait `disabled` (sauf « ouvrir », et seulement pour le projet déjà
+       ouvert) : ils restaient cliquables et INERTES, sans le moindre retour.
+       `load()` partant à chaque ouverture du popover, les tout premiers clics
+       d'une ouverture tombaient précisément là. `.dzm-projbtn:disabled` (opacité
+       .45, curseur normal) existe déjà dans la feuille depuis P5. */
+    var off=!!busy;
+    return r.jsxs("div",{className:"dzm-projrow","data-mine":mine?"":void 0,
+      children:[
+      r.jsxs("div",{className:"dzm-projid",children:[
+        edit
+          ?r.jsx("input",{className:"dzm-projin",value:ren.v,autoFocus:!0,
+              "aria-label":"Nouveau nom du projet",
+              onChange:function(e){setRen({id:p.id,v:e.target.value})},
+              onKeyDown:function(e){
+                if(e.key==="Enter")doRen(p);
+                if(e.key==="Escape")setRen(null)}},"i")
+          :r.jsx("span",{className:"dzm-projnm",title:p.name||"",
+              children:(p.name||"sans nom")+(mine?" · ouvert":"")},"n"),
+        r.jsx("span",{className:"dzm-projmeta",title:String(p.updated_at||""),
+          children:dzmProjLine(p)},"m")]},"l"),
+      r.jsxs("div",{className:"dzm-proja",children:[
+        edit
+          ?r.jsx("button",{className:"svm-tbtn dzm-projbtn",disabled:off,
+              title:"Valider le nouveau nom (Entrée). Un champ vide garde "+
+                "l'ancien nom.",
+              onClick:function(){doRen(p)},children:"ok"},"ok")
+          :r.jsx("button",{className:"svm-tbtn dzm-projbtn",disabled:off,
+              title:"Renommer « "+(p.name||"")+" » — le montage lui-même "+
+                "n'est pas touché",
+              onClick:function(){setArm("");setRen({id:p.id,v:p.name||""})},
+              children:"renommer"},"rn"),
+        r.jsx("button",{className:"svm-tbtn dzm-projbtn",disabled:off,
+          title:"Dupliquer « "+(p.name||"")+" » — une copie indépendante, "+
+            "sous un nom suffixé « (copie) ». Rien d'autre ne bouge.",
+          onClick:function(){doDup(p)},children:"dupliquer"},"dp"),
+        r.jsx("button",{className:"svm-tbtn dzm-projbtn dzm-projop",
+          "data-arm":oArm?"":void 0,disabled:mine||off,"aria-disabled":mine||off,
+          title:mine
+            ?"« "+(p.name||"")+" » est déjà le montage ouvert."
+            :(oArm
+              ?"Confirmer : OUVRIR « "+(p.name||"")+" » REMPLACE le montage "+
+               "affiché. S'il n'est pas enregistré sous un nom, il est perdu "+
+               "— « annuler » ne le rend pas."
+              :"Ouvrir « "+(p.name||"")+" » — cela REMPLACE le montage "+
+               "affiché (un second clic confirmera)"),
+          onClick:function(){doOpen(p)},
+          children:oArm?"remplacer ?":"ouvrir"},"op"),
+        r.jsx("button",{className:"svm-tbtn dzm-projbtn dzm-projx",disabled:off,
+          "data-arm":xArm?"":void 0,
+          title:xArm
+            ?"Confirmer : supprimer « "+(p.name||"")+" » DÉFINITIVEMENT. "+
+             "Le fichier part du disque et rien ne le rejoue."
+            :"Supprimer « "+(p.name||"")+" » du disque, définitivement "+
+             "(un second clic confirmera)",
+          "aria-label":"Supprimer "+(p.name||"ce projet"),
+          onClick:function(){doDel(p)},
+          children:xArm?"supprimer ?":"×"},"x")]},"a")]},p.id)}
+
+  var rows=list||[];
+  return r.jsxs("span",{className:"dzm-proj",ref:box,children:[
+    r.jsx("button",{className:"svm-tbtn dzm-projb","data-on":op?"":void 0,
+      "aria-expanded":op,"aria-haspopup":"dialog",
+      title:pid
+        ?("Projets — ce montage est enregistré sous « "+nm+" » et suit vos "+
+          "modifications tout seul. La liste ouvre, duplique, renomme ou "+
+          "supprime les autres.")
+        :("Projets — ce montage n'a PAS de nom : il vit dans la timeline "+
+          "courante, et le prochain projet ouvert l'écrasera sans retour. "+
+          "« Enregistrer sous… » lui en donne un."),
+      "aria-label":"Projets"+(pid?" — enregistré sous "+nm
+                                 :" — ce montage n'a pas de nom"),
+      onClick:toggle,children:"projets"},"b"),
+    op?r.jsxs("div",{className:"dzm-projp",role:"dialog",
+      "aria-label":"Projets de montage",children:[
+      r.jsxs("div",{className:"dzm-projh",children:[
+        r.jsx("span",{className:"dzm-projt",children:"Projets"},"t"),
+        r.jsx("span",{className:"dzm-projn",children:
+          busy?"…":(rows.length+" enregistré"+(rows.length>1?"s":""))},"n")]},"h"),
+      r.jsxs("div",{className:"dzm-projsave",children:[
+        r.jsx("input",{className:"dzm-projin",value:nv,
+          placeholder:pid?nm:"nom du montage","aria-label":"Nom du projet",
+          onChange:function(e){setNv(e.target.value)},
+          onKeyDown:function(e){if(e.key==="Enter")saveAs()}},"i"),
+        r.jsx("button",{className:"svm-tbtn dzm-projbtn",disabled:!!busy,
+          title:"Enregistrer le montage AFFICHÉ comme un nouveau projet. "+
+            "Rien n'est écrasé : c'est un fichier de plus, et c'est lui qui "+
+            "recevra les modifications suivantes. Champ vide : le nom "+
+            "courant est repris.",
+          onClick:saveAs,children:"enregistrer sous…"},"s")]},"s"),
+      err?r.jsx("div",{className:"dzm-projerr",children:err},"e"):null,
+      rows.length
+        ?r.jsx("div",{className:"dzm-projl",children:rows.map(row)},"l")
+        :r.jsx("div",{className:"dzm-projvide",children:
+          busy?"…":"Aucun projet enregistré. « Enregistrer sous… » crée le "+
+            "premier ; jusque-là, le montage affiché est le seul, et ouvrir "+
+            "un projet l'écraserait."},"v")]},"p"):null]})};
+
+/* ── P6 : REMPLACER LA SOURCE D'UN PLAN, SANS PERDRE SON MONTAGE ───────────
+   Le geste : l'utilisateur a régénéré un plan et veut échanger la SOURCE
+   d'un clip. Tout le reste — début et fin sur la timeline, effets,
+   transition, mixage, volume, texte — doit rester en place. C'est la
+   différence entre « remplacer » et « supprimer puis reposer », qui perdait
+   tout et que rien ne rendait.
+
+   `dzmReplaceSrc` est PURE, et c'est ce que node exécute
+   (backend/tests/test_montage_remplacer.py). Elle rend un clip NEUF :
+   l'entrée n'est jamais mutée, sans quoi l'instantané que l'éditeur pousse
+   dans son historique AVANT d'écrire serait déjà l'état d'après.
+
+   LA FENÊTRE DE SOURCE, ET POURQUOI ELLE BOUGE. Un clip lit sa source de
+   `srcIn` à `srcIn + (end - start) × vitesse` — c'est la formule que
+   l'inspecteur affiche en « In / Out », et celle du rendu (à vitesse ×s le
+   plan consomme s fois plus de source). Une source régénérée plus COURTE ne
+   couvre plus cette fenêtre : trois cas, trois traitements, et chacun est
+   DIT à l'écran.
+     * elle couvre : rien ne bouge, aucun avertissement.
+     * elle couvre la DURÉE mais pas depuis l'ancien point d'entrée : `srcIn`
+       revient à 0. Le plan garde sa longueur, il ne montre plus le même
+       morceau — c'est dit.
+     * elle est plus courte que la durée consommée : `srcIn` revient à 0 ET
+       la fin est ramenée. Le plan RACCOURCIT, la timeline garde un trou
+       derrière lui (les clips suivants ne remontent pas : le ripple est un
+       autre geste, et le faire ici sans le demander serait pire).
+       CE QUE LE TROU DEVIENT AU RENDU dépend de la piste, et l'avertissement
+       le dit piste par piste plutôt que d'en choisir une : sur V1, la piste
+       de BASE, `_build_montage_command` pose un `color=c=black` de la durée
+       du trou (montage_service.py, branche `s.get("gap")`) — noir à l'écran.
+       Sur une piste d'overlay (V2 et au-delà), un clip est posé en
+       `overlay … enable='between(t,st,en)'` : il s'arrête plus tôt, et c'est
+       la piste du dessous qui réapparaît. « rendu en noir » y serait FAUX.
+   DURÉE INCONNUE (0 ou absente) : on ne touche à RIEN et on le dit. Ce n'est
+   pas un cas d'école — MESURE sur une copie de la base réelle (05/09/2026,
+   lecture seule) : 53 des 97 jobs vidéo `done` non-montage ont `duration_s`
+   NUL ou ≤ 0. Se taire laisserait un plan pointer dans le vide.
+   CE CHIFFRE A ÉTÉ FAUX ICI AUSSI, et de la même façon qu'en base : il
+   valait « 40 des 84 », mesuré sous `provider != 'montage'` — le défaut que
+   la route corrige. Les 13 jobs `done` à `provider IS NULL` tombaient de la
+   mesure comme de la requête : 84+13 = 97, 40+13 = 53.
+
+   DEUX VOIES DE RETOUR, et il faut dire ce que chacune rend.
+     1. « Annuler » (l'historique de l'écran) restaure {clips, mixDb} — donc
+        le clip entier, source, bornes et effets compris. Il ne restaure NI
+        la durée du projet NI les pistes : ce geste-ci n'y touche pas, mais
+        la note le dit quand même, parce que c'est la limite de l'historique
+        et qu'un utilisateur qui vient d'annuler autre chose la rencontrera.
+     2. `src_history` — la source d'AVANT, empilée sur le clip, et rendue par
+        « Revenir à la version précédente ». Elle porte AUSSI `srcIn` et
+        `end` : sans eux, revenir en arrière aurait rendu l'ancienne source
+        avec les bornes raccourcies et le point d'entrée perdu — un retour
+        qui ne retourne pas. C'est un ÉCART assumé au plan, qui n'y mettait
+        que {src, label, at}.
+        Cette pile SURVIT à l'enregistrement : le serveur range les clips
+        tels quels et la restauration les recopie de même — mesuré des deux
+        côtés. Elle est plafonnée à 10 ; au-delà, les plus anciennes tombent.
+   `srcOut` est RETIRÉ par le remplacement, et RENDU par le retour — les deux
+   moitiés, parce que le champ est lu : `son-vfx-montage.js` affiche
+   `sel.srcOut != null ? sel.srcOut : (sel.end - sel.start) × vitesse` dans
+   la ligne « Out » de l'inspecteur. Le garder après un remplacement ferait
+   donc mentir cette ligne (il décrit la fenêtre de l'ANCIENNE source) ; ne
+   pas le rendre après un retour la ferait mentir dans l'AUTRE sens, en
+   affichant une fin calculée là où l'utilisateur en avait posé une. Il est
+   donc mémorisé dans `src_history` À CÔTÉ de `srcIn` et `end`, et seulement
+   quand le clip le portait — une pile écrite par une version antérieure n'en
+   a pas, et le retour n'invente rien. Le couple est ALORS un aller-retour
+   exact, et le banc le mesure comme un TOUT (`ar_avant` / `ar_apres`) et non
+   plus champ par champ : une clé ajoutée ou perdue par l'une des deux
+   moitiés passait sous une liste de champs, elle ne passe pas sous une
+   comparaison d'objets. Mesuré, un seul clip du dépôt porte `srcOut`
+   aujourd'hui (la maquette de démonstration, qui n'a pas de source et sur
+   laquelle le bouton n'apparaît donc jamais) ; la restauration d'une
+   sauvegarde recopiant les clés inconnues, il pourrait revenir demain — et
+   le backend, lui, ne le lit nulle part (mesuré : aucune occurrence dans
+   backend/app). */
+var DZM_HIST_MAX=10;
+/* CE QUE LE TROU DEVIENT AU RENDU — TROIS CAS, pas deux. Une première
+   version disait « rendu en noir » partout ; la deuxième basculait sur
+   `tr==="v1"` et appelait donc PISTE D'OVERLAY tout ce qui n'est pas V1 —
+   les pistes SON comprises, où il n'y a aucune piste du dessous à faire
+   réapparaître. Le bouton « Remplacer la source… » n'est gardé que sur
+   `sel.src` et le refus de genre PERMET audio→audio : le cas est atteint,
+   pas théorique. MESURÉ dans la sauvegarde de l'utilisateur (17 clips) :
+   8 portent une source, dont un A1 et un A2 — soit deux des huit boutons.
+
+   Ce que le rendu fait de chaque cas (backend/app/services/montage_service.py) :
+     · V1, piste de BASE : les trous partent en `color=c=black` (branche
+       `s.get("gap")`) — l'image devient noire ;
+     · piste vidéo d'INCRUSTATION : le clip est posé en
+       `overlay … enable='between(t,st,en)'`, l'incrustation s'arrête plus
+       tôt et c'est la piste du dessous qui redevient visible ;
+     · piste SON : le clip est `atrim` puis `adelay` à sa place, mixé en
+       `amix` — rien ne remplit le trou, cette piste se tait. RÉSERVE
+       MESURÉE : le PREMIER clip d'une piste BOUCLÉE (a2 par défaut, `loop`
+       venu du payload) ne devient pas un clip du tout mais l'entrée
+       `music`, prise en `-stream_loop -1` et coupée par `-t total` ; ses
+       `start`/`end`/`srcIn` ne sont JAMAIS lus, et il n'entre pas non plus
+       dans `audio_end`. Le raccourcir ne change donc rien au rendu — et
+       c'est le cas de l'unique clip A2 de la sauvegarde mesurée. La phrase
+       le dit au lieu de promettre un silence qui ne viendra pas.
+   Le genre est lu par `dzmKindOf`, la fonction que cette couche emploie
+   déjà (même règle que `trackKind` du bundle : l'initiale de la piste) —
+   pas une seconde règle. Une piste de SOUS-TITRES (« subs ») ne reçoit
+   AUCUNE des trois phrases : ses clips n'ont pas de source (mesuré : les
+   9 clips `s1` de la sauvegarde, aucun avec `src`), le bouton ne s'y montre
+   donc jamais, et affirmer quoi que ce soit d'un cas qu'on n'a pas mesuré
+   est exactement la faute que ces trois cas corrigent. */
+function dzmGapFate(tr){
+  var kd=dzmKindOf(tr);
+  if(kd==="audio")
+    return " — sur une piste son, aucune piste ne réapparaît en dessous : "+
+      "ce trou-là s'entend. Sauf sur une piste BOUCLÉE (A2 par défaut), "+
+      "dont le rendu ignore les bornes de son premier clip et joue la "+
+      "source d'un bout à l'autre du film.";
+  if(kd!=="video")return ".";
+  return tr==="v1"
+    ?", rendu en noir à l'export."
+    :" — sur une piste d'incrustation, c'est la piste du dessous qui "+
+     "réapparaît.";}
+function dzmSrcLen(c){
+  var o=c||{};
+  return (Number(o.end)||0)-(Number(o.start)||0)}
+function dzmSpeedNum(c){
+  var s=c&&c.speed;
+  return (typeof s==="number"&&s>0)?s:1}
+function dzmReplaceSrc(c,src,label,srcDur,now){
+  var o=c||{},len=dzmSrcLen(o),sp=dzmSpeedNum(o);
+  var inn=Number(o.srcIn)||0,d=Number(srcDur)||0;
+  var k=Object.assign({},o),warn="";
+  var hi={src:o.src||null,label:o.label||null,srcIn:inn,
+          end:Number(o.end)||0,at:now||Date.now()};
+  /* la clé n'est ajoutée QUE si le clip la portait : sa seule présence dit
+     au retour qu'il doit la rendre, son absence qu'il ne doit rien poser. */
+  if("srcOut" in o)hi.srcOut=o.srcOut;
+  k.src_history=((o.src_history&&o.src_history.length)?o.src_history:[])
+    .concat([hi]).slice(-DZM_HIST_MAX);
+  k.src=src;k.label=label||o.label;
+  if("srcOut" in k)delete k.srcOut;
+  if(d<=0){
+    warn="Durée de la nouvelle source inconnue : les bornes du plan n'ont "+
+      "pas pu être vérifiées — contrôlez sa fin."}
+  else if(inn+len*sp>d+1e-3){
+    k.srcIn=0;
+    if(len*sp>d+1e-3){
+      k.end=Math.round(((Number(o.start)||0)+d/sp)*1000)/1000;
+      warn="La nouvelle source ne dure que "+d.toFixed(2)+" s : le plan a "+
+        "été raccourci de "+len.toFixed(2)+" s à "+(d/sp).toFixed(2)+" s, "+
+        "et la timeline garde un trou derrière lui"+dzmGapFate(o.tr)}
+    else warn="Point d'entrée ramené à 0 : la nouvelle source ("+
+      d.toFixed(2)+" s) ne va pas assez loin pour l'ancien. Le plan garde "+
+      "sa durée, il ne montre plus le même morceau."}
+  return {clip:k,warn:warn,
+    note:"Source de « "+(o.label||"ce plan")+" » remplacée par « "+
+      (k.label||"")+" ». Bornes, effets, transition et mixage conservés."+
+      (warn?" "+warn:"")+" Annuler restaure les clips et le mixage — pas la "+
+      "durée du projet ni les pistes ; « Revenir à la version précédente » "+
+      "rend aussi l'ancienne source."}}
+function dzmRevertSrc(c){
+  var o=c||{},h=(o.src_history&&o.src_history.length)?o.src_history:null;
+  if(!h)return null;
+  var last=h[h.length-1],k=Object.assign({},o),rest=h.slice(0,h.length-1);
+  if(rest.length)k.src_history=rest;else delete k.src_history;
+  k.src=last.src;k.label=last.label;
+  /* les bornes d'ALORS, quand elles ont été mémorisées : une pile écrite par
+     une version antérieure n'en porte pas, et inventer un 0 raccourcirait le
+     plan au lieu de le rendre. */
+  if(typeof last.srcIn==="number")k.srcIn=last.srcIn;
+  if(typeof last.end==="number")k.end=last.end;
+  /* `srcOut` : rendu SEULEMENT s'il a été mémorisé — le remplacement l'a
+     retiré, et l'entrée dit s'il faut le remettre. Sans cette ligne
+     l'aller-retour n'était pas l'identité, et la ligne « Out » de
+     l'inspecteur changeait derrière un geste qui promet de tout rendre. */
+  if("srcOut" in last)k.srcOut=last.srcOut;
+  return {clip:k,
+    note:"Source précédente rendue : « "+(last.label||"sans titre")+" », "+
+      "avec son point d'entrée et sa fin d'alors."+
+      (rest.length?(" "+rest.length+" version"+(rest.length>1?"s":"")+
+        " plus ancienne"+(rest.length>1?"s":"")+" en mémoire."):
+        " C'était la dernière en mémoire.")}}
+/* Le bouton de l'inspecteur. Il n'apparaît QUE sur un clip qui A une source :
+   la maquette de démonstration n'en pose aucune sur ses clips (mesuré), donc
+   il est absent de la démo par construction — pas par une garde de plus. */
+function dzmReplaceBtn(sel,onArm){
+  if(!sel||!sel.src)return null;
+  return r.jsx("button",{className:"svm-secbtn dzm-repl",
+    title:"Échanger le fichier source de ce plan sans toucher au montage : "+
+      "ses bornes sur la timeline, ses effets, sa transition et son mixage "+
+      "restent en place. La Bibliothèque s'ouvre ; le clip que vous y "+
+      "choisirez remplacera la source au lieu d'être ajouté.",
+    "aria-label":"Remplacer la source de "+(sel.label||"ce plan"),
+    onClick:function(){if(onArm)onArm()},
+    children:"Remplacer la source…"},"dzmrepl")}
+function dzmRevertBtn(sel,onRevert){
+  var h=(sel&&sel.src_history&&sel.src_history.length)?sel.src_history:null;
+  if(!h)return null;
+  var last=h[h.length-1];
+  return r.jsx("button",{className:"svm-secbtn dzm-revert",
+    title:"Rendre à ce plan sa source précédente, « "+
+      (last.label||"sans titre")+" », avec le point d'entrée et la fin "+
+      "qu'il avait alors. "+h.length+" version"+(h.length>1?"s":"")+
+      " en mémoire (10 au plus, les plus anciennes tombent).",
+    "aria-label":"Revenir à la source précédente de "+(sel.label||"ce plan"),
+    onClick:function(){if(onRevert)onRevert()},
+    children:"Revenir à la version précédente"},"dzmrev")}
+/* La ligne d'une proposition. PURE — c'est la part du rappel que node
+   mesure ; le composant, lui, interroge le réseau.
+
+   ELLE PORTE LA DATE ET LA DURÉE, et ce n'est pas de l'ornement : le TITRE
+   est la clé même du rapprochement, donc tous les candidats le partagent PAR
+   CONSTRUCTION. Une ligne réduite au titre rendait N boutons rigoureusement
+   identiques — libellé et `aria-label` compris — et l'infobulle conseillait
+   « vérifiez le titre », un conseil que la construction rendait impossible à
+   suivre. MESURE sur une copie de la base réelle (05/09/2026) : trois
+   groupes homonymes exploitables, « tweet_2026-05-20 » (7 jobs, plafond 5),
+   « last launch 2 » (3), « backdoorpromo » (2) — soit jusqu'à cinq boutons
+   jumeaux à l'écran.
+   LA SECONDE EST AFFICHÉE. Toujours mesuré sur la même copie, deux jobs
+   « backdoorpromo » sont terminés à 36 s d'intervalle (14:54:58 et
+   14:55:34) : à la minute ils tombent encore dans deux minutes distinctes,
+   mais rien ne le garantit — deux relances du même plan à vingt secondes
+   d'écart auraient rendu la même chaîne. La seconde ferme ce cas ; deux
+   rendus terminés dans la MÊME seconde resteraient indistinguables, et
+   aucune ligne ne pourrait les distinguer.
+   LA DURÉE est le second discriminant, et le seul qui dise à l'avance si le
+   plan va être RACCOURCI. Elle est dite « inconnue » plutôt que tue quand
+   elle manque : c'est le cas majoritaire en base (53 des 97), et c'est
+   exactement l'avertissement que `replaceSrc` rendra.
+
+   L'ORDRE EST LE CORRECTIF, et il vient d'une mesure de LARGEUR. Une
+   première version écrivait « Version plus récente : TITRE · date · durée
+   — remplacer », c'est-à-dire les discriminants DERRIÈRE un préfixe que
+   tous les candidats partagent — dans un bouton
+   `white-space:nowrap; overflow:hidden; text-overflow:ellipsis`. La
+   troncature retire la fin : elle mangeait exactement ce que la ligne
+   venait de gagner.
+   LA MESURE (shared/son-vfx-montage.css, `box-sizing:border-box` global
+   ligne 56) : `.svm-insp` fait 300 px, bordure gauche 1 px et 16 px de
+   marge intérieure de chaque côté, déclarée UNE fois et sans media-query
+   qui la reprenne (le fichier n'en porte qu'une, `prefers-reduced-motion`).
+   Reste 267 px ; moins ~16 px de barre de défilement (`overflow:auto`,
+   0 avec des barres en surimpression), moins la bordure du bouton (2 px)
+   et sa marge intérieure (`padding:4px 8px`, 16 px) : de 233 à 249 px
+   utiles. À 9 px avec `letter-spacing:.02em`, l'avance par caractère va de
+   ~5,13 px (Consolas, 0,55 em) à ~5,58 px (JetBrains Mono, 0,6 em) : de
+   42 à 48 CARACTÈRES visibles. C'est une BORNE, pas un nombre — la coupe
+   dépend de la fonte réellement résolue et de la barre de défilement, et
+   rien ici ne rend une page.
+   OR, dans l'ancien ordre, les secondes tombaient au caractère 48 à 54 et
+   la durée plus loin encore (mesuré sur les groupes homonymes de la base :
+   préfixe partagé de 39 à 49 caractères). Sur « tweet_2026-05-20 » (7 jobs)
+   comme sur les deux « backdoorpromo » à 36 s d'écart — la paire même qui
+   justifiait d'afficher la seconde — les boutons redevenaient visuellement
+   identiques. L'`aria-label` portant la ligne entière, seul l'utilisateur
+   VOYANT y perdait.
+   D'OÙ : les deux discriminants D'ABORD, le titre ENSUITE, le verbe en
+   queue. Ce qui est tronqué est alors ce que la construction rend
+   redondant — le titre est la clé du rapprochement, il est le MÊME pour
+   tous — et jamais ce qui distingue. Dans le pire cas mesuré (42
+   caractères, « durée inconnue »), la date à la seconde ET la durée
+   tiennent entières.
+   ET LE SENS PARTAGÉ SORT DES BOUTONS : « Version plus récente » n'est plus
+   répété N fois dans N libellés tronqués, il est dit UNE fois par l'en-tête
+   `.dzm-newerh` du bloc, qui ne porte NI `nowrap` NI ellipse et ne peut
+   donc pas être coupé. Contrairement à ce que suggérait la revue, le
+   panneau ne le disait PAS déjà : mesuré dans le bundle livré, le rappel
+   est rendu entre `revertBtn` et `transInspector()`, sans aucun libellé
+   visible au-dessus — laisser tomber le préfixe sans rien mettre à sa
+   place aurait rendu une rangée d'horodatages nus. L'`aria-label`, lui,
+   reprend l'en-tête ET la ligne : un lecteur d'écran qui tabule droit sur
+   le bouton entend les deux. */
+var DZM_NEWER_H="Rendus plus récents portant ce titre";
+function dzmNewerLine(c){
+  if(!c)return "";
+  var o=c,bits=[],w=dzmProjWhen(o.completed_at,1),d=Number(o.duration_s)||0;
+  if(w)bits.push(w);
+  bits.push(d>0?(d.toFixed(1).replace(".",",")+" s"):"durée inconnue");
+  bits.push(o.title||o.job_id||"sans titre");
+  return bits.join(" · ")+" — remplacer"}
+/* Le rappel « une version plus récente existe ». Il interroge la route qui
+   rapproche PAR LE TITRE, et le dit : c'est une heuristique, pas un lien
+   établi en base. Deux rendus peuvent partager un titre sans rien avoir en
+   commun — mesuré, un même titre couvre jusqu'à sept jobs dans la base
+   réelle — donc la DATE et la DURÉE du candidat sont montrées AVANT qu'on
+   remplace : le titre, lui, est le même pour tous par construction.
+   Silencieux quand il n'y a rien : ni ligne vide, ni « aucune version ».
+   L'EN-TÊTE porte le sens que les N boutons partageaient — voir la mesure
+   de largeur au-dessus de `dzmNewerLine`. Il est rendu UNE fois, il ne
+   peut pas être tronqué, et l'`aria-label` de chaque bouton le reprend. */
+var DzmNewerHint=function(props){
+  var jid=(props&&props.jobId)||"";
+  var sl=x.useState(null),list=sl[0],setList=sl[1];
+  var se=x.useState(""),err=se[0],setErr=se[1];
+  x.useEffect(function(){
+    setList(null);setErr("");
+    if(!jid)return;
+    var on=!0;
+    fetch("/api/montage/newer?job_id="+encodeURIComponent(jid))
+      .then(function(res){return res.json()})
+      .then(function(d){if(on)setList((d&&d.candidates)||[])})
+      .catch(function(){if(on)setErr("Versions plus récentes : recherche "+
+        "impossible (le service n'a pas répondu).")});
+    return function(){on=!1}},[jid]);
+  if(err)return r.jsx("div",{className:"dzm-newer dzm-newererr",children:err});
+  if(!list||!list.length)return null;
+  return r.jsxs("div",{className:"dzm-newer",children:[
+    r.jsx("div",{className:"dzm-newerh",children:DZM_NEWER_H},"dzmnewh"),
+    list.map(function(c){
+    return r.jsx("button",{className:"dzm-newerb",
+      title:"Rapprochement par le TITRE du rendu — une heuristique, pas un "+
+        "lien enregistré : rien en base ne relie deux rendus du même plan. "+
+        "Le titre étant la clé du rapprochement, TOUS les candidats le "+
+        "partagent : ce qui les distingue, c'est la date et la durée "+
+        "portées par la ligne. Vérifiez-les avant de remplacer."+
+        (c.completed_at?(" Terminé le "+dzmProjWhen(c.completed_at,1)+"."):""),
+      "aria-label":DZM_NEWER_H+" : "+dzmNewerLine(c),
+      onClick:function(){if(props&&props.onPick)props.onPick(c)},
+      children:dzmNewerLine(c)},c.job_id)})]})};
+
+/* ── P10 : LA TIMELINE S'ÉTEND AU LIEU DE ROGNER ────────────────────────────
+   LE DÉFAUT, rapporté par l'utilisateur : « j'ai voulu ajouter trois vidéos
+   depuis la bibliothèque, or la timeline est fixe, je suis obligé de
+   raccourcir des pistes vidéo pour les faire rentrer ». MESURÉ dans le
+   bundle : `proj.dur` n'était écrit qu'UNE fois, au chargement — aucun
+   contrôle de l'écran ne le touchait — et trois gestes rognaient contre lui
+   EN SILENCE (l'ajout, le décalage clavier, le glisser à la souris).
+
+   ÉTENDRE EST SANS RISQUE POUR LE RENDU, et c'est mesuré des deux côtés :
+   `renderPayload()` du bundle n'emporte AUCUNE clé `duration`, et
+   `_build_montage_command` (montage_service.py) recalcule `total` depuis
+   `seg_durs`. La seule route qui lit la durée postée est POST /save, qui la
+   RANGE. `proj.dur` est donc une BORNE D'ÉDITION, pas une propriété du film.
+
+   RÉSERVE CENTRALE, portée par chaque note de cette tâche : `proj.dur`
+   N'ENTRE PAS DANS L'HISTORIQUE. `pushHistory` ne mémorise que
+   {clips, mixDb} — étendre puis annuler rend les clips, PAS la durée. C'est
+   exactement le piège que P3 avait choisi d'éviter en ne touchant pas à
+   `dur` ; on y touche ici DÉLIBÉRÉMENT, et le retour existe : c'est le
+   contrôle de durée de la barre de transport (`dzmDurCtl`), qui raccourcit
+   aussi bien qu'il allonge. Faire entrer `dur` dans l'historique demanderait
+   de réécrire `pushHistory`, `undo` et `redo` — trois fermetures du bundle
+   dont aucune n'offre d'ancre unique : c'est une tâche à part, et rien ici
+   ne fait semblant de l'avoir faite. */
+
+/* LE PLANCHER, repris de `svmApplyProject` : `dur:Math.max(1,…)`. Une durée
+   nulle ou négative rend `c.start/dur*100+"%"` non fini — toute la timeline
+   perd sa géométrie. */
+var DZM_DUR_MIN=1;
+
+/* LA DURÉE QUE LE PROJET DOIT AVOIR. PURE.
+   `dur` est un PLANCHER, jamais un plafond : cette fonction ne raccourcit
+   JAMAIS rien — c'est le contrôle explicite de la barre de transport qui
+   raccourcit, et lui seul. Elle rend donc le maximum entre la durée demandée
+   et la fin du dernier clip augmentée de `tail`.
+
+   L'ARRONDI EST AU PLAFOND, ET IL EST MESURÉ, PAS CHOISI. La barre de
+   transport affiche `svmRuler(Math.round(dur))` et la règle du bundle est
+   graduée en SECONDES ENTIÈRES (`tickStep` vaut 2, 3, 5, 6, 10, 15, 20, 30
+   ou 60). Une durée de 20,37 s s'afficherait « 0:20 » alors qu'un clip finit
+   à 20,37 : le seul arrondi qui ne fasse pas mentir le total affiché est
+   celui qui monte. La « marge de queue » gratuite qui en découle vaut donc
+   moins d'une seconde, et elle n'est inventée nulle part.
+
+   Les valeurs illisibles sont IGNORÉES, jamais propagées : un `end` à NaN ou
+   à l'infini rendrait `Math.max` non fini, et la timeline entière avec lui. */
+function dzmFitDur(clips,dur,tail){
+  var d=Number(dur);if(!isFinite(d))d=0;
+  var t=Number(tail);if(!isFinite(t)||t<0)t=0;
+  var m=0,i,e;
+  if(clips&&clips.length)for(i=0;i<clips.length;i++){
+    e=clips[i]?Number(clips[i].end):NaN;
+    if(isFinite(e)&&e>m)m=e}
+  /* `tail` s'ajoute à la fin d'un CLIP : sans clip, il n'y a pas de queue à
+     laisser, et une timeline vide ne doit pas s'allonger toute seule. */
+  var need=m>0?Math.ceil(m+t):0;
+  return Math.max(DZM_DUR_MIN,d,need)}
+
+/* « 2 s », « 0,5 s » — la virgule décimale du français, comme `dzmNewerLine`. */
+function dzmSecs(v){
+  var n=Math.round(Number(v)*10)/10;
+  if(!isFinite(n))n=0;
+  return (n===Math.round(n)?String(Math.round(n))
+                           :n.toFixed(1).replace(".",","))+" s"}
+
+/* `svmRuler` / `svmPad2` sont les fonctions DU BUNDLE (même portée module :
+   cette couche est injectée dans le bloc `sonvfx`, comme `SVM_TRACK_BUS`
+   qu'elle mute déjà). On ne recopie pas leur règle : une seconde version du
+   format m:ss divergerait de la première au premier changement. Le banc les
+   EXTRAIT du bundle pour les jouer sous node, et vérifie des deux côtés que
+   la couche les appelle et que le bundle les déclare. */
+function dzmDurTxt(v){return svmRuler(Math.round(v))}
+
+var DZM_DUR_UNDO=" « Annuler » ne rend pas la durée du projet : l'historique "+
+  "de cet écran ne mémorise que les clips et le mixage. C'est ce réglage-ci "+
+  "qui la reprend, dans les deux sens.";
+
+function dzmDurBtn(cls,lbl,ttl,aria,fn,key){
+  return r.jsx("button",{className:"svm-zoomstep dzm-durb "+cls,
+    title:ttl,"aria-label":aria,onClick:fn,children:lbl},key)}
+
+/* LE CONTRÔLE EXPLICITE DE LA DURÉE, dans la barre de transport, à la place
+   du simple affichage « 1:04 total » qui s'y trouvait. Il paie aussi la
+   dette laissée par P3, dont la note disait « la fin de la timeline est
+   maintenant vide, raccourcissez-la si vous voulez » alors que RIEN ne
+   permettait de la raccourcir.
+
+   LE PAS EST MESURÉ, PAS INVENTÉ : c'est `tickStep`, la graduation que la
+   règle DESSINE déjà (`[2,3,5,6,10,15,20,30,60].find(dur/s<=11)||60`). Un
+   clic vaut donc exactement une graduation, à toutes les échelles — 2 s sur
+   un montage de 16 s, 30 s sur un montage de 5 min. Un pas fixe aurait été
+   un chiffre de plus sorti de nulle part, et illisible à l'une des deux
+   extrémités.
+
+   LES BORNES SONT MESURÉES ELLES AUSSI :
+     · en bas, la fin du dernier clip (`dzmFitDur(clips, 1)`), et le plancher
+       de 1 s de `svmApplyProject` en deçà. RACCOURCIR SOUS CETTE BORNE EST
+       REFUSÉ, jamais fait en silence : les clips ne seraient pas supprimés,
+       mais ils sortiraient du champ — `left:c.start/dur*100+"%"` les
+       pousserait hors de la bande, et le seul moyen de les revoir serait de
+       rallonger. Le refus NOMME l'instant qui bloque et dit quoi faire.
+       Un « − » qui tomberait SOUS la borne n'est pas refusé pour autant : il
+       s'ARRÊTE dessus, et le dit.
+     · en haut, aucune. La seule limite mesurée est celle de la RÈGLE, qui
+       cesse de graduer au-delà de 40 traits (`ticks.length<40`, pas maximal
+       60 s → 40 min) ; elle ne casse rien et ne justifie pas un refus. Elle
+       est consignée dans le banc comme dette d'écran.
+
+   AUCUN `pushHistory` ICI, ET C'EST DÉLIBÉRÉ : l'historique ne mémorise que
+   {clips, mixDb}. Pousser une entrée pour un geste qui ne change NI l'un NI
+   l'autre donnerait un « annuler » qui restaure des clips identiques et
+   laisse la durée où elle est — un retour qui ne retourne rien. Le retour de
+   ce geste, c'est ce contrôle lui-même, et chaque note le dit. */
+function dzmDurCtl(o){
+  o=o||{};
+  var set=o.onSet,note=o.note;
+  var d=Number(o.dur);if(!isFinite(d)||d<DZM_DUR_MIN)d=DZM_DUR_MIN;
+  var stp=Number(o.step);if(!isFinite(stp)||stp<=0)stp=1;
+  var fit=dzmFitDur(o.clips,DZM_DUR_MIN,0);
+  var vide=Math.round((d-fit)*1000)/1000;
+  function put(nv,msg){if(set)set(nv);if(note)note(msg+DZM_DUR_UNDO)}
+  function moins(){
+    if(d<=fit){if(note)note("La timeline fait déjà la longueur de son "+
+      "contenu ("+dzmDurTxt(fit)+", fin du dernier clip) : la raccourcir "+
+      "ferait sortir des clips du champ — ils ne seraient pas supprimés, "+
+      "mais plus rien ne les montrerait. Déplacez ou retirez d'abord le "+
+      "dernier clip.");return}
+    var vise=Math.round((d-stp)*1000)/1000,nv=Math.max(fit,vise);
+    put(nv,"Timeline raccourcie de "+dzmDurTxt(d)+" à "+dzmDurTxt(nv)+
+      (nv>vise?(" — le pas de "+dzmSecs(stp)+" s'est arrêté sur la fin du "+
+        "dernier clip : aucun clip ne sort du champ."):"")+
+      " Aucun clip n'a bougé.")}
+  function plus(){
+    var nv=Math.round((d+stp)*1000)/1000;
+    put(nv,"Timeline allongée de "+dzmDurTxt(d)+" à "+dzmDurTxt(nv)+
+      " (+"+dzmSecs(stp)+"). Aucun clip n'a bougé.")}
+  function ajuste(){
+    put(fit,"Timeline ajustée à son contenu : "+dzmDurTxt(d)+" → "+
+      dzmDurTxt(fit)+", soit "+dzmSecs(vide)+" de queue vide retirés. "+
+      "Aucun clip n'a bougé.")}
+  var kids=[
+    dzmDurBtn("dzm-durm","−",
+      "Raccourcir la timeline d'une graduation ("+dzmSecs(stp)+"). Le "+
+      "raccourcissement s'arrête sur la fin du dernier clip : aucun clip ne "+
+      "peut sortir du champ."+DZM_DUR_UNDO,
+      "Raccourcir la timeline de "+dzmSecs(stp),moins,"m"),
+    r.jsx("span",{className:"dzm-durv",
+      title:"Durée de la timeline — une BORNE D'ÉDITION, pas une propriété "+
+        "du film : le rendu recalcule sa durée depuis les plans, cette "+
+        "valeur ne lui est jamais envoyée. Les boutons − et + la règlent "+
+        "d'une graduation de la règle ("+dzmSecs(stp)+")."+DZM_DUR_UNDO,
+      children:dzmDurTxt(d)+" total"},"v"),
+    dzmDurBtn("dzm-durp","+",
+      "Allonger la timeline d'une graduation ("+dzmSecs(stp)+")."+
+      DZM_DUR_UNDO,
+      "Allonger la timeline de "+dzmSecs(stp),plus,"p")];
+  /* « ajuster » n'apparaît QUE s'il y a une queue vide à retirer : un bouton
+     toujours là mais sans effet neuf fois sur dix serait un piège de plus. */
+  if(vide>0)kids.push(dzmDurBtn("dzm-durf","ajuster",
+    "Ramener la fin de la timeline sur le dernier clip : "+dzmSecs(vide)+
+    " de vide à retirer. Aucun clip ne bouge ni ne disparaît."+DZM_DUR_UNDO,
+    "Ajuster la timeline à son contenu",ajuste,"f"));
+  return r.jsx("span",{className:"dzm-durctl",children:kids},"dzmdur")}
+
+/* ══ P11 — UN CLIP ENTRE À LA LONGUEUR DE SA SOURCE ═══════════════════════
+   P10 a rendu la timeline extensible ; il restait un SECOND plafond, dans le
+   bundle, qui bornait la longueur d'un clip AU MOMENT OÙ ON LE POSE. Une
+   vidéo entrait à six secondes quelle que soit sa longueur réelle, un son à
+   huit : même avec une timeline infinie, les sources entraient tronquées.
+
+   LEVER LE PLAFOND NE SUFFIT PAS, et c'est le cœur de la tâche. MESURÉ le
+   05/09/2026 sur un instantané COHÉRENT de la base de l'utilisateur
+   (`sqlite3.connect('file:…?mode=ro', uri=True).backup(dst)`, qui fusionne
+   le WAL — une copie d'octets du seul `.db` comptait 106 jobs contre 120) :
+   sur ses trois vidéos, `duration_s` vaut 16 pour l'une et NULL pour les
+   deux autres. Pour celles-là, l'application n'a RIEN à lever : elle ignore
+   la durée. Il faut donc aussi la DÉCOUVRIR — c'est `askDur`, et la route
+   `GET /api/montage/duration` qui la sert.
+
+   TROIS FONCTIONS, ET LA FRONTIÈRE ENTRE ELLES EST NETTE :
+     · `clipLen` DÉCIDE — pure, sans réseau, sans horloge, jouée en entier
+       sous node par test_montage_bundle.py ;
+     · `needDur` dit S'IL FAUT DEMANDER — pure elle aussi ;
+     · `askDur` DEMANDE — c'est la seule à toucher au réseau, et ses deux
+       dépendances (`fetch`, `setTimeout`) sont INJECTABLES, donc elle se
+       joue sous node comme les autres au lieu de rester une dette de
+       navigateur.
+
+   POURQUOI UNE ROUTE, ET PAS LA DURÉE LUE À L'ÉCRAN NI JOINTE À LA LISTE.
+   Trois voies étaient ouvertes ; celle-ci est prise pour des raisons
+   mesurées, écrites ici pour qu'on puisse les contester avec un chiffre.
+     · JOINDRE LA DURÉE À LA LISTE DU SÉLECTEUR aurait sondé DOUZE assets à
+       chaque ouverture (la liste est tranchée à douze), soit 0,7 à 1,0 s de
+       ffprobe pour une liste dont l'utilisateur ne pose qu'une ligne — et
+       n'aurait RIEN fait pour « Envoyer vers → Montage », qui n'ouvre aucune
+       liste et envoie une durée nulle par construction.
+     · LA LIRE À L'ÉCRAN (`loadedmetadata`) aurait demandé une URL jouable
+       par source ; le vocabulaire de source du Montage ({job_id}, {audio},
+       {image}, {file_path}) n'en a pas, et lui en donner une était une
+       tâche à soi seule.
+     · LA ROUTE, elle, parle EXACTEMENT ce vocabulaire (elle réutilise
+       `_resolve_src`), coûte UN ffprobe — MESURÉ : médiane 56 à 85 ms sur
+       les cinq vidéos réelles de l'utilisateur, 12 appels après 3 de
+       chauffe, ffprobe 8.1.1-essentials_build, Windows 11 / AMD64 — et ne
+       coûte RIEN au chargement de l'écran : elle n'est appelée QUE lorsqu'un
+       clip est posé, et seulement si la durée manque.
+
+   L'ÉCRAN RESTE VIVANT PENDANT : l'appel ne bloque rien (une promesse), et
+   il porte un DÉLAI. Passé ce délai, le clip est posé quand même — à sa
+   longueur par défaut, en le disant. Le pire cas mesurable côté serveur est
+   le délai d'attente de `_probe_duration` (30 s sur un fichier tronqué) ;
+   sans ce garde-fou, l'utilisateur aurait cliqué et rien n'aurait bougé
+   pendant une demi-minute. */
+
+/* LES TROIS REPLIS NE SONT PAS ÉCRITS ICI, ILS SONT REÇUS. C'est le bundle
+   qui les porte depuis toujours (une image cadrée à 4 s, un son à 8, une
+   vidéo à 6) et il les PASSE en troisième argument : la couche ne devient
+   pas une seconde autorité pour trois chiffres qui ne sont pas les siens.
+   Cette table-ci n'est que le repli du repli — elle sert quand l'appelant
+   n'en passe pas, ou en passe un illisible. */
+var DZM_CLIP_DEFAUTS={image:4,audio:8,video:6};
+
+/* LA LONGUEUR À DONNER AU CLIP. PURE.
+   Rend {len, origine, note} :
+     · origine "source" — la durée de la source est lisible et exploitable :
+       c'est ELLE, entière, sans plafond d'aucune sorte ;
+     · origine "repli"  — la durée est inconnue (nulle, négative, illisible,
+       absente) : le clip prend la longueur par défaut, ET LE DIT. Un clip
+       posé à 6 s parce que l'application ignore la vraie longueur ne doit
+       pas se faire passer pour une source de 6 s ;
+     · origine "image"  — une image n'a PAS de longueur naturelle. Ses 4 s ne
+       sont donc pas une ignorance mais un cadrage, et il n'y a rien à
+       confesser : la note est vide. La durée passée est ignorée pour ce
+       genre-là, comme elle l'a toujours été.
+
+   AUCUN PLAFOND HAUT, ET C'EST UN CHOIX MESURÉ. Une source de 21 s entre à
+   21 s, une de dix minutes à dix minutes. La seule borne haute connue du
+   dépôt est celle de la RÈGLE, qui cesse de graduer au-delà de 40 traits
+   (soit 40 min) — elle est consignée en dette d'écran depuis P10, elle ne
+   casse rien, et elle ne justifie pas de rogner une source. Ce qui est
+   refusé n'est donc pas « trop long » mais « pas un nombre utilisable » :
+   NaN, l'infini, zéro, le négatif, une chaîne.
+
+   LA GARDE DES CLIPS MINUSCULES N'EST PAS ICI, et c'est délibéré : une
+   source de 0,2 s donne bien un clip de 0,2 s. C'est l'appelant qui décale
+   le point de départ pour qu'un tel clip reste saisissable à la souris —
+   cette règle-là lui appartient depuis P10, et deux autorités pour une même
+   borne divergeraient au premier changement. */
+function dzmClipLen(kind,srcDur,defauts){
+  var D=defauts&&typeof defauts==="object"?defauts:{};
+  function repli(k){
+    var v=Number(D[k]);
+    return isFinite(v)&&v>0?v:DZM_CLIP_DEFAUTS[k]}
+  if(kind==="image")return {len:repli("image"),origine:"image",note:""};
+  var k=kind==="audio"?"audio":"video";
+  var v=Number(srcDur);
+  if(isFinite(v)&&v>0)return {len:Math.round(v*1000)/1000,origine:"source",
+    note:" Le clip fait "+dzmSecs(v)+", la longueur ENTIÈRE de la source."};
+  var r=repli(k);
+  return {len:r,origine:"repli",
+    /* L'ACCORD EST PORTÉ PAR LA BRANCHE, pas par un suffixe commun :
+       « Cette vidéo a été posé » était la phrase livrée, et elle est
+       LUE par l'utilisateur à chaque source non mesurable. Le son
+       était juste par accident (masculin), la vidéo fausse. */
+    note:" "+(k==="audio"?"Ce son a été posé":"Cette vidéo a été posée")
+      +" à "+dzmSecs(r)+" — une longueur PAR DÉFAUT, pas la sienne : "+
+      "l'application n'a pas pu mesurer la durée de cette source. Rognez le "+
+      "bord droit du clip pour lui donner sa vraie longueur."}}
+
+/* FAUT-IL ALLER DEMANDER LA DURÉE ? PURE.
+   Non pour une image (elle n'en a pas). Non quand on la connaît déjà. Non
+   quand elle est NÉGATIVE — et cette troisième réponse est le verrou de
+   récursion de l'appelant : celui-ci se rappelle avec la mesure quand elle
+   est bonne, et avec un nombre négatif quand elle a échoué. Sans ce
+   troisième cas, une source que la mesure ne sait pas dater relancerait la
+   mesure indéfiniment. Une valeur illisible (NaN, une chaîne) fait bien
+   demander : c'est exactement le cas où l'on ne sait rien. */
+function dzmNeedDur(kind,srcDur){
+  if(kind==="image")return !1;
+  var v=Number(srcDur);
+  return !(isFinite(v)&&v!==0)}
+
+/* LE DÉLAI AU-DELÀ DUQUEL ON POSE LE CLIP SANS ATTENDRE LA MESURE.
+   1,5 s, soit près de vingt fois la mesure médiane observée (56 à 85 ms) :
+   le chemin normal ne le rencontre jamais. Il n'existe que pour le chemin
+   pathologique — une source tronquée sur laquelle ffprobe tient ses 30 s
+   d'attente — où le seul défaut inacceptable serait un clic sans effet. */
+var DZM_DUR_DELAI=1500;
+
+/* LA DURÉE D'UNE SOURCE, DEMANDÉE AU BACKEND.
+   `done(dur, pourquoi)` est appelée UNE SEULE FOIS, toujours, quoi qu'il
+   arrive : `dur` vaut 0 dès que la mesure n'a pas abouti, et `pourquoi`
+   nomme la sortie prise. Les deux dépendances impures sont injectables
+   (`o.fetch`, `o.timer`) — c'est ce qui rend cette fonction jouable sous
+   node, au lieu de laisser tout le chemin réseau en dette de navigateur.
+
+   `rendu` EST LE POINT : le délai et la réponse courent l'un contre
+   l'autre. Le premier arrivé gagne, le second ne fait rien — sans ce
+   verrou, une réponse tardive poserait un SECOND clip.
+
+   ABSENT ET NUL NE SE VALENT PAS, et ce n'est pas un raffinement de style :
+   `o.fetch` ABSENT veut dire « prends celui de l'hôte », `o.fetch` NUL veut
+   dire « il n'y en a pas ». Un simple `o.fetch||…` confondait les deux, et
+   la branche « sans réseau » devenait alors INATTEIGNABLE au banc — node 18
+   et les suivants portent un `fetch` global, qui reprenait la main sur le
+   nul injecté et partait pour de vrai sur une URL relative. Une branche
+   qu'aucun test ne peut atteindre est une branche qu'on croit tenue.
+
+   LES DEUX GLOBALES SONT ENVELOPPÉES, JAMAIS PRISES NUES : `var t=setTimeout;
+   t(fn,ms)` et `var f=fetch; f(u)` perdent leur récepteur, et plusieurs
+   moteurs répondent « Illegal invocation ». C'est le seul chemin de cette
+   fonction qu'aucun banc ne joue — node injecte les siens — donc il est écrit
+   pour être juste sans mesure, pas mesuré. Dette déclarée. */
+function dzmAskDur(src,o){
+  o=o||{};
+  var fin=typeof o.done==="function"?o.done:function(){};
+  var f=o.fetch===void 0
+    ?(typeof fetch==="function"?function(u){return fetch(u)}:null):o.fetch;
+  var tm=o.timer===void 0
+    ?(typeof setTimeout==="function"
+        ?function(fn,ms){return setTimeout(fn,ms)}:null):o.timer;
+  var ms=Number(o.delai);if(!isFinite(ms)||ms<=0)ms=DZM_DUR_DELAI;
+  var rendu=!1;
+  function rend(v,pq){if(rendu)return;rendu=!0;fin(v,pq)}
+  var u;
+  try{u="/api/montage/duration?src="+
+    encodeURIComponent(JSON.stringify(src||{}))}
+  catch(e){rend(0,"src-illisible");return}
+  if(!f){rend(0,"sans-reseau");return}
+  if(tm)tm(function(){rend(0,"delai")},ms);
+  try{
+    f(u).then(function(rp){return rp&&rp.ok?rp.json():null})
+        .then(function(j){var v=j?Number(j.dur):0;
+          rend(isFinite(v)&&v>0?v:0,j?"mesure":"refus")})
+        .catch(function(){rend(0,"erreur")})}
+  catch(e2){rend(0,"erreur")}}
+
 /* ── export contrat ───────────────────────────────────────────────────────── */
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,withWords:dzmWithWords,
   dropWords:dzmDropWords,
   gradeAllBtn:dzmGradeAllBtn,gradeAll:dzmGradeAll,gradeOf:dzmGradeOf,
+  Projects:DzmProjects,projLine:dzmProjLine,projWhen:dzmProjWhen,
   tracksOf:svmTracksOf,from:svmTracksFrom,payload:svmTracksPayload,
   busSync:svmTrackBusSync,skin:dzmSkin,
+  pickTrack:dzmPickTrack,isVideoJob:dzmIsVideoJob,
+  LibBtn:DzmLibBtn,badSrc:dzmBadSrcChip,
+  replaceSrc:dzmReplaceSrc,revertSrc:dzmRevertSrc,
+  replaceBtn:dzmReplaceBtn,revertBtn:dzmRevertBtn,
+  newerLine:dzmNewerLine,NewerHint:DzmNewerHint,
   move:dzmMove,moveTo:dzmMoveTo,add:dzmAdd,remove:dzmRemove,group:dzmGroup,
   clipsOn:dzmClipsOn,emojiClips:dzmEmojiClips,WORD_ANIMS:DZM_WORD_ANIMS,
+  fitDur:dzmFitDur,durCtl:dzmDurCtl,secs:dzmSecs,DUR_MIN:DZM_DUR_MIN,
+  clipLen:dzmClipLen,needDur:dzmNeedDur,askDur:dzmAskDur,
+  CLIP_DEFAUTS:DZM_CLIP_DEFAUTS,DUR_DELAI:DZM_DUR_DELAI,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;

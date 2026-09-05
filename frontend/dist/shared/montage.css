@@ -185,3 +185,179 @@
    aria-label) : le faire disparaître laisserait croire que la fonction
    n'existe pas. */
 .dzsvm .dzm-gall:disabled{opacity:.45; cursor:default}
+
+/* ── P5 : le popover « projets » ───────────────────────────────────────────
+   Posé dans la barre de transport, comme « + vidéo », la chip « mot » et
+   « texte » : c'est le même groupe de commandes, et le nom du montage ouvert
+   n'a pas d'autre place dans cet écran. Le panneau est ANCRÉ au bouton
+   (`position:absolute` sur un parent `relative`) et s'ouvre VERS LE BAS —
+   la barre est en haut de la colonne centrale, il y a la timeline dessous.
+   Mêmes tokens et mêmes chaînes de repli que le reste de ce fichier. */
+.dzsvm .dzm-proj{position:relative; display:inline-flex; flex:none}
+.dzsvm .dzm-projb{width:auto; padding:0 8px; font-size:10px; flex:none;
+  font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace);
+  white-space:nowrap}
+/* état OUVERT : plein, comme la chip « mot » et le bouton « texte ». */
+.dzsvm .dzm-projb[data-on]{border-color:transparent;
+  background:var(--accent, #d8a657); color:var(--accent-ink, #17161a)}
+/* 300px : quatre boutons d'action (renommer, dupliquer, ouvrir, ×) plus un
+   nom lisible ne tiennent pas en moins, et au-delà le panneau couvrirait la
+   piste V1. `z-index:9` passe au-dessus des en-têtes de piste, qui sont en
+   sticky (z-index 3, cf. .dzm-hb). */
+.dzsvm .dzm-projp{position:absolute; top:calc(100% + 4px); left:0; z-index:9;
+  width:300px; max-height:52vh; overflow:auto;
+  display:flex; flex-direction:column; gap:7px; padding:9px;
+  border-radius:8px; border:1px solid var(--stroke, #2a2930);
+  background:var(--panel2, var(--bg-panel-2, #1c1c21));
+  box-shadow:0 8px 24px rgba(0,0,0,.42)}
+.dzsvm .dzm-projh{display:flex; align-items:baseline;
+  justify-content:space-between; gap:8px}
+.dzsvm .dzm-projt{font-size:10px; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--ink3, var(--ink-dim, #8a857d));
+  font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace)}
+.dzsvm .dzm-projn{font-size:9px; font-variant-numeric:tabular-nums;
+  color:var(--ink4, var(--ink-muted, #55514c));
+  font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace)}
+.dzsvm .dzm-projsave{display:flex; gap:5px; align-items:center}
+.dzsvm .dzm-projin{flex:1 1 auto; min-width:0; height:20px; padding:0 6px;
+  border-radius:5px; border:1px solid var(--stroke, #2a2930);
+  background:var(--panel, var(--bg-panel, #17161a));
+  color:var(--ink, var(--ink-strong, #f2efe9)); font-size:11px;
+  font-family:inherit}
+.dzsvm .dzm-projin:focus{outline:none;
+  border-color:var(--accent, #d8a657)}
+.dzsvm .dzm-projerr{font-size:10px; line-height:1.4; padding:5px 7px;
+  border-radius:6px; border:1px solid var(--red, #e35d4a);
+  color:var(--red, #e35d4a); background:transparent}
+.dzsvm .dzm-projvide{font-size:10px; line-height:1.45;
+  color:var(--ink4, var(--ink-muted, #55514c))}
+.dzsvm .dzm-projl{display:flex; flex-direction:column; gap:4px}
+.dzsvm .dzm-projrow{display:flex; flex-direction:column; gap:3px;
+  padding:5px 6px; border-radius:6px;
+  border:1px solid var(--stroke, #2a2930)}
+/* le projet OUVERT se distingue sans couleur d'état : c'est un repère, pas
+   une alerte — et son bouton « ouvrir » est de toute façon désactivé. */
+.dzsvm .dzm-projrow[data-mine]{border-color:var(--accent, #d8a657)}
+.dzsvm .dzm-projid{display:flex; flex-direction:column; gap:1px; min-width:0}
+.dzsvm .dzm-projnm{font-size:11px; line-height:1.3;
+  color:var(--ink, var(--ink-strong, #f2efe9));
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.dzsvm .dzm-projmeta{font-size:9px; font-variant-numeric:tabular-nums;
+  color:var(--ink4, var(--ink-muted, #55514c));
+  font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace)}
+.dzsvm .dzm-proja{display:flex; flex-wrap:wrap; gap:4px}
+.dzsvm .dzm-projbtn{width:auto; padding:0 7px; font-size:10px; flex:none;
+  font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace);
+  white-space:nowrap}
+.dzsvm .dzm-projbtn:disabled{opacity:.45; cursor:default}
+/* ARMÉ : rouge plein, et le LIBELLÉ a changé (« remplacer ? », « supprimer ? »).
+   Même code que le × d'en-tête de piste — un geste sans retour se signale
+   partout de la même façon dans cet écran. La couleur seule ne suffirait
+   pas : c'est le mot qui dit ce que le second clic va faire. */
+.dzsvm .dzm-projbtn[data-arm]{background:var(--red, #e35d4a);
+  border-color:var(--red, #e35d4a); color:#fff}
+.dzsvm .dzm-projx:hover:not(:disabled):not([data-arm]){
+  border-color:var(--red, #e35d4a); color:var(--red, #e35d4a)}
+
+/* ── P9 : « Bibliothèque… » — le bouton qui pose VRAIMENT un clip ──────────
+   Même famille que « + piste vidéo » et « texte » (`svm-tbtn` + largeur
+   auto) : c'est un bouton de la même barre, il n'a pas à se distinguer.
+   Ce qui le distingue est son LIBELLÉ — le mot de l'utilisateur. */
+.dzsvm .dzm-libb{width:auto; padding:0 8px; font-size:10px; flex:none;
+  font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace);
+  white-space:nowrap}
+
+/* ── P9 : « pas une vidéo » — la chip d'un clip V1 sans extension vidéo ────
+   ROUGE, pas ambre, et c'est un DOSAGE assumé, pas un refus annoncé.
+   MESURÉ le 04/09/2026 : `v1_non_video` liste les clips V1 hors
+   `_VIDEO_EXTS` (6 extensions) tandis que le pré-vol de POST /render écarte
+   ce que `_ffmpeg_ouvrira` rejette, soit hors de
+   `_VIDEO_EXTS + _IMAGE_EXTS + _AUDIO_EXTS` — et `_IMAGE_EXTS` contient
+   `.png`. Une planche de sprites PNG posée en V1 est donc signalée ici et
+   PASSE le pré-vol (200) : elle se rend en carton fixe. Un maillage `.glb`,
+   lui, est signalé ET refusé (400). L'infobulle de la chip dit les deux cas ;
+   ce commentaire promettait naguère « POST /render répond 400 en nommant ce
+   clip », que la mesure dément. Même géométrie que
+   `.svm-desync` (le seul autre repère posé SUR un clip), à gauche pour ne
+   pas se disputer le coin de celle-là, et fond translucide du panneau pour
+   rester lisible par-dessus une vignette ou une waveform.
+   C'est un BOUTON : il rouvre la Bibliothèque sur la piste du clip. Le
+   curseur le dit, et il reste au-dessus du média (z-index). */
+.dzsvm .dzm-badsrc{position:absolute; left:4px; bottom:3px; z-index:2;
+  width:auto; height:auto; padding:1px 6px; border-radius:999px;
+  font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace);
+  font-size:9px; letter-spacing:.02em; line-height:1.5; white-space:nowrap;
+  color:var(--red, #e35d4a); border:1px solid var(--red, #e35d4a);
+  background:color-mix(in srgb, var(--panel, #17161a) 80%, transparent);
+  cursor:pointer}
+.dzsvm .dzm-badsrc:hover{background:var(--red, #e35d4a); color:#fff}
+
+/* ── P6 : remplacer la source d'un plan ────────────────────────────────────
+   Les deux boutons sont posés dans la colonne d'inspection, entre la fenêtre
+   « In / Out » et l'inspecteur de transition : les deux garanties visibles du
+   geste (la fenêtre de source, la transition) encadrent le bouton qui promet
+   de ne pas y toucher. Ils reprennent `.svm-secbtn` de la feuille amont
+   (déclarée là-bas, pas ici : une seconde déclaration divergerait) et n'en
+   changent que la largeur et la casse du texte, comme `.dzm-gall`. */
+.dzsvm .dzm-repl,
+.dzsvm .dzm-revert{width:100%; margin-top:8px; padding:0 8px; font-size:10px;
+  font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+/* Le rappel « version plus récente ». AMBRE et non rouge : rien n'est en
+   panne — c'est une PROPOSITION, et son rapprochement est une heuristique de
+   titre que l'infobulle nomme. Le rouge est réservé à `.dzm-badsrc`, qui
+   signale un plan que le rendu refusera. */
+.dzsvm .dzm-newer{margin-top:8px; display:flex; flex-direction:column; gap:4px}
+/* L'EN-TÊTE porte le sens que les N boutons se partageaient. Il n'a NI
+   `white-space:nowrap` NI `text-overflow:ellipsis` — et c'est TOUT le point :
+   il ENROULE, donc il ne peut pas être coupé, là où le libellé d'un bouton
+   est tronqué à ~42-48 caractères (mesure de largeur en tête de
+   `dzmNewerLine` dans frontend/patches/montage.js). Répété dans chaque
+   bouton, ce préfixe partagé repoussait les discriminants sous l'ellipse. */
+.dzsvm .dzm-newerh{font-size:9px; line-height:1.5; letter-spacing:.02em;
+  font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace);
+  color:var(--ink-dim, #8d8a96)}
+.dzsvm .dzm-newerb{width:100%; padding:4px 8px; border-radius:6px;
+  font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace);
+  font-size:9px; letter-spacing:.02em; line-height:1.5; text-align:left;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  color:var(--amber, #d9a441); border:1px solid var(--amber, #d9a441);
+  background:color-mix(in srgb, var(--panel, #17161a) 80%, transparent);
+  cursor:pointer}
+.dzsvm .dzm-newerb:hover{background:var(--amber, #d9a441); color:#17161a}
+.dzsvm .dzm-newererr{font-size:9px; line-height:1.5;
+  font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace);
+  color:var(--ink-dim, #8d8a96)}
+
+/* ── P10 : le réglage de la durée, dans la barre de transport ──────────────
+   Il prend la place de l'ancien affichage « 1:04 total » et vit dans le même
+   registre que le zoom, son voisin immédiat : mêmes 10 px monospacés, même
+   `.svm-zoomstep` pour les boutons (déclaré dans la feuille amont, pas ici —
+   une seconde déclaration divergerait), même `user-select:none`.
+   LE SÉPARATEUR « · » EST ICI ET NON DANS LA CHAÎNE : laissé dans la
+   concaténation du zoom, il aurait pendu tout seul le jour où le contrôle ne
+   rendrait rien. `::before` sur le conteneur : pas de point sans contrôle. */
+.dzsvm .dzm-durctl{font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace);
+  font-size:10px; color:var(--ink3, #a9a5b4); display:inline-flex;
+  align-items:center; gap:2px; user-select:none}
+.dzsvm .dzm-durctl::before{content:"·"; margin:0 4px; color:var(--ink4, #6c6879)}
+/* La VALEUR reste ce qu'elle était : le total, en clair, au même endroit. */
+.dzsvm .dzm-durv{color:var(--ink3, #a9a5b4); cursor:default;
+  white-space:nowrap}
+/* Les boutons héritent de `.svm-zoomstep` (même taille, même cible de clic
+   que les quatre paliers de zoom d'à côté) et n'en changent que la lisibilité
+   du glyphe : « − » et « + » à 11 px, « ajuster » en toutes lettres. */
+.dzsvm .dzm-durb{min-width:12px; line-height:1; padding:2px 3px;
+  color:var(--ink4, #6c6879); border-radius:4px}
+.dzsvm .dzm-durb:hover{color:var(--ink, #edeaf2);
+  background:color-mix(in srgb, var(--stroke2, #3a3746) 60%, transparent)}
+.dzsvm .dzm-durm,
+.dzsvm .dzm-durp{font-size:11px}
+/* « ajuster » n'existe QUE s'il y a du vide à retirer : il ne s'éteint
+   jamais, il disparaît. D'où la couleur d'un bouton actif, pas d'un bouton
+   possible. */
+.dzsvm .dzm-durf{font-size:9px; letter-spacing:.02em; padding:2px 5px;
+  color:var(--ink3, #a9a5b4);
+  border:1px solid var(--stroke, #2a2833)}
+.dzsvm .dzm-durf:hover{color:var(--ink, #edeaf2);
+  border-color:var(--stroke2, #3a3746)}

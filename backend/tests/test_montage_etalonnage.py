@@ -110,7 +110,41 @@ dont trois — « couleur », « optique », « cadre » — n'existent plus cot
 backend, qui en sert huit : etalonnage, retro, lumiere, atmosphere,
 distorsion, mouvement, cadrage, stylisation.) Ce repli vit dans une source
 patchee par un maillon AMONT (patch_bundle_vfxrack.py) que cette chaine ne
-peut pas rejouer seule ; c'est un reste ASSUME, hors de cette tache."""
+peut pas rejouer seule ; c'est un reste ASSUME, hors de cette tache.
+
+LA REGLE DES ASSERTIONS NEGATIVES, PASSEE SUR CE BANC LE 05/09/2026. Elle
+vient de l'en-tete de test_montage_media.py : un TEMOIN DISTINGUABLE, ou le
+repli VIDE d'une garde, SE RETOURNE CONTRE TOUTE NEGATION. `a != b`,
+`not (…)`, `x not in y`, `== []`, `== ""`, `is None` sont VRAIS PAR
+CONSTRUCTION entre deux temoins comme sur un `{}` ou une `[]` de repli : la
+ligne verdit sans avoir rien mesure. LA REGLE : toute assertion negative doit
+d'abord exiger que ses operandes SOIENT ce qu'ils pretendent etre, et
+seulement ensuite les comparer.
+
+  L'ETAT VIDE DE CE BANC : `build_chain` ne rend PLUS RIEN, donc toute
+  chaine de filtres est la chaine VIDE. C'est la « fixture non ecrite » de
+  ce banc-ci — un effet qui ne serait plus enregistre :
+      & $PY scratchpad/vide3.py tests/test_montage_etalonnage.py
+  MESURE AVANT : 9 vertes. APRES les deux reparations : 7.
+  LES DEUX REPAREES — et la seconde n'est meme pas une negation, c'est une
+  EGALITE ENTRE DEUX OPERANDES CALCULES, l'autre face exacte du meme piege :
+    * k6500_n_emet_pas_colortemperature — « n'emet pas X » est vrai d'une
+      chaine vide. On exige d'abord que `k65` SOIT une chaine de
+      `grade_basic` (le `eq=brightness=` que les quatre curseurs traversent
+      tous), et seulement ensuite l'absence du filtre de temperature ;
+    * valeur_illisible_retombe_sur_le_defaut — `mou == neutre` : deux
+      chaines VIDES sont egales. On exige que `neutre` soit le neutre, ce
+      que la premiere ligne de la section mesure deja et qui est REPRIS ici.
+  LES SEPT VERTES A BON DROIT, UNE A UNE : catalogue_grade_basic,
+  bornes_temperature, bornes_exposition, bornes_contraste_et_saturation,
+  grade_basic_juste_sous_la_LUT, route_catalogue_sert_les_quatre_curseurs et
+  categorie_etalonnage_compte_le_nouvel_effet — les sept lisent le CATALOGUE,
+  pas la chaine, et le catalogue n'est pas touche par ce levier.
+  DEJA CONFORME, ET C'EST DIT : les onze lignes de la section [3] portent
+  toutes un `x is not None` en tete, parce que `render()` rend `None` sans
+  lever quand ffmpeg echoue. La regle y etait deja appliquee ; les deux
+  reparations ci-dessus ne concernent que la section [2].
+"""
 import os, shutil, subprocess, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8")
 TMP = tempfile.mkdtemp(prefix="dzp4_")
@@ -270,11 +304,17 @@ check("categorie_etalonnage_compte_le_nouvel_effet",
 print("\n[2] la CHAINE emise — au caractere pres")
 # =============================================================================
 neutre = chain({"type": "grade_basic"})
-check("defauts_neutres_emettent_eq_seul",
-      neutre == "[0:v]eq=brightness=0.000:contrast=1.000:saturation=1.000[vout]",
-      neutre)
+_NEUTRE = "[0:v]eq=brightness=0.000:contrast=1.000:saturation=1.000[vout]"
+check("defauts_neutres_emettent_eq_seul", neutre == _NEUTRE, neutre)
 k65 = chain({"type": "grade_basic", "temperature": 6500})
-check("k6500_n_emet_pas_colortemperature", "colortemperature" not in k65, k65)
+# « n'emet pas X » EST VRAI D'UNE CHAINE VIDE. MESURE le 05/09/2026 (banc
+# relance avec `build_chain` rendant `[]`, `scratchpad/vide3.py`) : VERTE
+# alors que l'effet n'emettait plus rien du tout. On exige donc d'abord que
+# `k65` SOIT une chaine de `grade_basic` — le `eq` que les quatre curseurs
+# traversent tous — et seulement ensuite qu'elle ne porte pas le filtre de
+# temperature.
+check("k6500_n_emet_pas_colortemperature",
+      "eq=brightness=" in k65 and "colortemperature" not in k65, k65)
 k32 = chain({"type": "grade_basic", "temperature": 3200})
 # La chaine ENTIERE hors neutre, et pas un `in`. DEUX mesures y tiennent.
 # (a) L'ORDRE : `colortemperature` D'ABORD. Avec `eq` en tete, `saturation`=0
@@ -313,7 +353,12 @@ check("bornes_opposees_ramenees",
 # « brightness=nan » sur la ligne de commande.
 mou = chain({"type": "grade_basic", "exposure": "abc", "temperature": None,
              "contrast": float("nan")})
-check("valeur_illisible_retombe_sur_le_defaut", mou == neutre, mou)
+# EGALITE ENTRE DEUX CHAINES CALCULEES : deux chaines VIDES sont egales, et
+# la ligne verdit sans rien mesurer (meme mesure que ci-dessus, meme etat).
+# `neutre` doit d'abord ETRE le neutre — c'est la premiere ligne de la
+# section, reprise ici plutot que supposee.
+check("valeur_illisible_retombe_sur_le_defaut",
+      neutre == _NEUTRE and mou == neutre, mou)
 
 
 # =============================================================================

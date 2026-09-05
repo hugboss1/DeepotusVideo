@@ -7,7 +7,15 @@ Câblage « timeline → rendu » du handoff son_vfx_montage :
                               assets de la Bibliothèque (rendus + uploads en
                               V1, voix off en A1, musique en A2), durées
                               ffprobe. {has_assets:false} si la Bibliothèque
-                              est vide → l'écran garde sa démo.
+                              est vide → l'écran garde sa démo. P8 : seule de
+                              la VIDÉO entre en V1 (`_VIDEO_EXTS`) —
+                              `final_video_path` porte aussi les planches PNG
+                              de `sprite2d` et les maillages GLB d'`asset3d`.
+                              P8-bis : cette liste blanche est DANS LA
+                              REQUÊTE, pas seulement dans la boucle — sinon
+                              60 planches plus récentes que la dernière vidéo
+                              consommaient la fenêtre et l'écran retombait
+                              sur sa démo EN SILENCE, base pleine de rendus.
   POST /api/montage/render    Rend la timeline postée en tâche de fond
                               (JobRecord provider="montage", poll
                               GET /api/jobs/{id}) — preview 480p (gratuit,
@@ -21,6 +29,20 @@ Câblage « timeline → rendu » du handoff son_vfx_montage :
                               écrit ATOMIQUEMENT (tmp + os.replace) dans
                               montage_saved.json au répertoire de données
                               (settings.images_path.parent, à côté d'audio/).
+  GET  /api/montage/peaks     P7 — l'enveloppe d'onde d'une source, précalculée
+                              et mise en cache (JSON rendu par `peaks`, jamais
+                              un chemin : voir la route). `bins` écrêté
+                              8..2000.
+  GET  /api/montage/strip     P7 — une planche de vignettes (JPEG), VIDÉO
+                              seulement (`_is_video_artifact`).
+  POST /api/montage/proxy     P7 — fabrique l'aperçu 480p en tâche de fond
+                              (JobRecord provider="montage_proxy", SANS aucun
+                              chemin d'artefact : un cache n'est pas un plan).
+  GET  /api/montage/proxy     P7 — sert cet aperçu s'il existe, 404 sinon.
+                              Les quatre sont bornées à la boucle locale et
+                              calculées par `montage_media` ; leur cache vit
+                              dans outputs/montage_cache/, hors de tout
+                              dossier que le dépôt énumère.
   DELETE /api/montage/save    Efface la sauvegarde ; GET /project reconstruit
                               alors depuis la Bibliothèque.
                               GET /project sert d'abord la sauvegarde si elle
@@ -84,14 +106,16 @@ from __future__ import annotations
 import asyncio
 import json
 import math
+import re
 import subprocess
 from datetime import datetime as _dt
 from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
+from fastapi.responses import FileResponse
 from loguru import logger
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 
 from app.config import settings
 from app.models.schemas import JobStatus
@@ -216,6 +240,169 @@ def _has_audio_stream(path: Path) -> bool:
         return bool(out)
     except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
         return False
+
+
+# P8 — extensions qu'un DÉMULTIPLEXEUR vidéo sait ouvrir. La liste est
+# FERMÉE par choix : `sprite2d` range sa planche PNG et `asset3d` son maillage
+# GLB dans la MÊME colonne `final_video_path` qu'un rendu `seedance`, et un
+# jour un provider de plus fera pareil. Une liste blanche se lit ; une liste
+# noire se contourne toute seule.
+# MESURE, protocole nommé (voir l'en-tête de tests/test_montage_sources.py
+# pour le détail) : ffprobe 9.0-essentials_build, commande
+# `ffprobe -v error -select_streams v -show_entries stream=codec_type
+#  -of csv=p=0 <fichier>`, 12 appels après 3 de chauffe, médiane, machine
+# Windows 11 / AMD64 Family 23. Sur les assets RÉELS : 74 à 84 ms par planche
+# PNG, 99 à 102 ms par maillage GLB — et la sonde REND « video » SUR UN PNG
+# (rc=0, « video », vérifié sur trois planches ; rc=1 sur deux maillages).
+# Elle n'aurait donc écarté aucune des trois planches de sprites de
+# l'utilisateur, seulement le maillage — que l'extension écarte pour 0 ms.
+# Pas de sonde, donc ; le trou qui reste (un `.mp4` de zéro octet, un `.webm`
+# tronqué) tombe sur le message lisible de `_run_ffmpeg`, où « Invalid data
+# found » est l'un des motifs remontés.
+_VIDEO_EXTS = (".mp4", ".mov", ".webm", ".mkv", ".m4v", ".avi")
+_AUDIO_EXTS = (".mp3", ".wav", ".m4a", ".ogg", ".flac", ".aac", ".opus",
+               ".aiff", ".aif", ".wma")
+
+# P7 — le `provider` des travaux de PRÉCALCUL (aperçu 480p pour le balayage).
+# Ce n'est pas un rendu : c'est un CACHE, et il ne doit jamais réapparaître
+# comme un plan ni comme une « version plus récente » d'un plan. Deux
+# verrous, chacun tenu par sa propre ligne de banc :
+#   1. le JobRecord de `POST /proxy` ne porte AUCUN chemin d'artefact
+#      (`final_video_path` et `video_path` restent NULS) — donc il est
+#      écarté par TOUT FILTRE qui exige un artefact, à commencer par celui du
+#      sélecteur d'assets du bundle : `status==="done" && (video_path ||
+#      final_video_path)` (P9). C'est le verrou principal, et il ne coûte
+#      rien : le chemin du proxy se déduit de la source (`montage_media`),
+#      l'écran n'a donc jamais besoin de le lire sur le job.
+#      CE QUE CE VERROU NE FAIT PAS, et le commentaire l'a affirmé à tort
+#      jusqu'au 05/09/2026 : il ne rend pas le job invisible des FENÊTRES.
+#      Un filtre écarte une ligne APRÈS l'avoir reçue — la ligne a donc
+#      occupé sa place dans la fenêtre. MESURÉ : `GET /api/jobs` servait les
+#      50 jobs les plus récents SANS filtre de provider, et le sélecteur
+#      d'assets du Montage lit ces 50 lignes, filtre, puis coupe à 12 :
+#      cinquante proxys et la liste « Rendus vidéo » est VIDE, base pleine de
+#      rendus. `GET /api/cost/usage` faisait pire — il sommait tous les jobs
+#      `done` sans filtre, et `_job_to_cost` retombait sur sa branche
+#      « campaign » par défaut : 0,403 USD par proxy (mesuré aux tarifs par
+#      défaut), imputés à `fal`, pour un transcodage ffmpeg local et gratuit.
+#      LES DEUX FENÊTRES SONT DONC FILTRÉES À LA SOURCE, chacune dans son
+#      `where` et avant son `limit` — `Pipeline.list_jobs` et
+#      `routes.cost_usage`, toutes deux par `coalesce(provider, '')`, jamais
+#      par un `!=` nu. C'est un TROISIÈME verrou, de budget, pas une copie
+#      des deux autres, et il a ses trois lignes de banc
+#      (`test_montage_media.py`, N-P18 / N-P19 / N-P20).
+#   2. les DEUX requêtes qui construisent une timeline (`montage_project`) ou
+#      proposent un remplacement (`montage_newer`) écartent ce `provider`
+#      NOMMÉMENT. C'est une garde de RÉGRESSION contre le verrou 1 : le jour
+#      où quelqu'un « répare » le job en lui rendant son fichier, la timeline
+#      ne se remplira pas de proxys 480p pour autant.
+# La garde 2 est écrite dans le `where` et NON répétée en Python, à la
+# différence de la liste blanche d'extensions. Ce n'est pas un oubli : le
+# `where` et la boucle divergent sur le CHEMIN (l'un voit la chaîne stockée,
+# l'autre l'extension analysée — cf. le fichier nommé « .mp4 » de P8-bis),
+# jamais sur `provider`, qui est une colonne comparée entière des deux côtés.
+# Un second test Python serait ici du code que rien ne peut faire rougir
+# seul.
+_PROXY_PROVIDER = "montage_proxy"
+
+
+def _is_video_artifact(p: Path) -> bool:
+    return p.suffix.lower() in _VIDEO_EXTS
+
+
+def _ffmpeg_ouvrira(p: Path) -> bool:
+    """Vrai si un démultiplexeur ffmpeg sait ouvrir ce fichier.
+
+    La frontière du PRÉ-VOL n'est pas « vidéo » mais « ce que ffmpeg sait
+    ouvrir », et c'est une UNION PLATE : la MÊME pour toute piste média. Un
+    `.wav` posé sur V1 passe, un `.mp4` posé sur A1 passe (MESURÉ : HTTP 200
+    dans les deux sens — bancs `prevol_laisse_passer_un_son_sur_v1` et
+    `prevol_laisse_passer_une_video_sur_a1`). C'est un CHOIX, pas un oubli :
+
+      * une vidéo sur une piste audio est un geste SUPPORTÉ — le son d'un
+        plan V1, cf. la garde `_has_audio_stream` de `_run` plus bas ;
+        différencier symétriquement le casserait ;
+      * différencier dans l'autre sens seul (« pas de fichier sans image sur
+        une piste vidéo ») ne se décide PAS à l'extension : un `.mkv`, un
+        `.mp4`, un `.webm` peuvent ne porter aucun flux vidéo. Il faudrait la
+        sonde ffprobe que la mesure ci-dessus écarte.
+
+    Ce que le pré-vol refuse, c'est ce qu'AUCUN démultiplexeur n'ouvre — un
+    maillage, une archive, un JSON. Il ne juge pas la PERTINENCE d'un média
+    sur une piste ; ce qui reste tombe sur le message lisible de
+    `_run_ffmpeg`. Cette dernière phrase a été FAUSSE du 04/09/2026 jusqu'au
+    correctif P8-bis, et c'est la docstring qui mentait, pas le code :
+    MESURÉ (ffmpeg.exe 9.0-essentials_build de %LOCALAPPDATA%\\
+    DeepotusVideoGen\\bin\\, stderr capturé en UTF-8, un `.wav` référencé par
+    `[0:v]` dans un `-filter_complex` — la forme même que `_run` construit,
+    cf. l.1527/1550/1558 ; scratchpad/mesure_ffmpeg_wav.py), le diagnostic
+    est « Stream specifier ':v' in filtergraph description […] matches no
+    streams. » et `_ffmpeg_lignes_utiles` rendait `[]` : le message
+    retombait sur la tranche brute, et le diagnostic y arrivait à l'offset
+    999 sur 1200 — la reproduction exacte du défaut que P8 corrigeait
+    ailleurs. Le motif « matches no streams » a été ajouté à
+    `_FFMPEG_MOTIFS` POUR que cette phrase devienne vraie ; la ligne de banc
+    qui la tient est `motif_flux_absent`. Une image, elle, est légitime
+    des deux côtés (carton fixe
+    V1, incrustation V2) : `ovPicker()` du bundle propose « Images
+    (Bibliothèque) » sur TOUTE piste vidéo, le filtre y est
+    `trackKind(tr)==="audio"`. `_IMAGE_EXTS` est défini plus bas, avec le
+    reste du rendu."""
+    return p.suffix.lower() in _VIDEO_EXTS + _IMAGE_EXTS + _AUDIO_EXTS
+
+
+# P8 — les lignes de stderr qui DÉCIDENT. Tout le reste (bannière de
+# compilation, dumps de flux) est du bruit : sur l'échec réel du 04/09/2026,
+# la ligne utile arrivait à l'offset 1069 d'une tranche de 1200 CARACTÈRES,
+# coupée au milieu des drapeaux de build.
+#
+# P8-bis — les cinq premiers motifs ne couvraient QUE l'ouverture d'une
+# ENTRÉE et le choix d'un encodeur ; toute la classe « graphe de filtres »
+# rendait ZÉRO motif, donc la tranche brute. C'est la classe la plus probable
+# pour un service qui construit un `filter_complex` de cette taille (xfade,
+# overlay, volume='expr', adelay, subtitles).
+# PROTOCOLE de la mesure (scratchpad/mesure_ffmpeg.py) : ffmpeg.exe
+# 9.0-essentials_build-www.gyan.dev de %LOCALAPPDATA%\DeepotusVideoGen\bin\,
+# entrées fabriquées par lavfi, stderr capturé en UTF-8 (errors="replace") et
+# passé à la VRAIE `_ffmpeg_lignes_utiles` importée du service.
+#   cas                                    motifs AVANT / APRÈS
+#   .wav référencé par [0:v] (le pré-vol répond 200)     0 / 1
+#   filtre inconnu dans filter_complex                   0 / 1
+#   étiquette de sortie inexistante                      0 / 2
+#   expression de filtre invalide (scale=w=oups)         0 / 1
+#   dossier de sortie absent                             2 / 3
+#   mp4 de zéro octet                                    3 / 3
+#   encodeur inconnu                                     1 / 3
+# Les OFFSETS ne sont volontairement pas cités ici : mesurés entre 916 et
+# 1113 sur 1200 selon le cas, ils dépendent de la longueur du chemin
+# temporaire de la machine et ne sont donc pas reproductibles au caractère —
+# le chiffre qui l'est, et le seul qui décide, est « 0 motif ».
+# « Error opening output » et non « Error opening output file » : ffmpeg émet
+# les deux formes (« Error opening output <chemin>: … » de l'étage muxer,
+# « Error opening output file <chemin>. » de l'étage CLI, « Error opening
+# output files: … » en résumé), et le préfixe court les prend toutes les
+# trois. « Error opening input file » ne valait QUE pour l'entrée.
+_FFMPEG_MOTIFS = ("Error opening input file", "Invalid data found",
+                  "No such file", "Conversion failed", "Unknown encoder",
+                  "matches no streams", "Error parsing filterchain",
+                  "Error initializing filters", "Error opening output")
+
+
+def _ffmpeg_lignes_utiles(stderr: str, limite: int = 5) -> list:
+    """Les lignes de `stderr` portant un motif de `_FFMPEG_MOTIFS`, dans
+    l'ordre, sans doublon, plafonnées. Liste vide = rien de reconnu, et le
+    message d'erreur reste alors celui d'avant, caractère pour caractère."""
+    vues, out = set(), []
+    for ligne in (stderr or "").splitlines():
+        s = ligne.strip()
+        if not s or s in vues:
+            continue
+        if any(m in s for m in _FFMPEG_MOTIFS):
+            vues.add(s)
+            out.append(s if len(s) <= 200 else s[:200] + "…")
+            if len(out) >= limite:
+                break
+    return out
 
 
 def _audio_dir() -> Path:
@@ -532,10 +719,11 @@ def _saved_path() -> Path:
     return settings.images_path.parent / "montage_saved.json"
 
 
-def _write_saved(data: dict) -> None:
+def _write_json_atomic(path: Path, data: dict) -> None:
     """Écriture atomique (tmp voisin + replace) — laisse remonter OSError
-    (l'endpoint la traduit en 500, l'UI affiche « sauvegarde impossible »)."""
-    path = _saved_path()
+    (l'endpoint la traduit en 500, l'UI affiche « sauvegarde impossible »).
+    Le tmp est retiré si le remplacement échoue : sinon le dossier finirait
+    par se remplir de fragments qu'aucune route ne relit."""
     tmp = path.with_name(f"{path.name}.{uuid4().hex[:8]}.tmp")
     tmp.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
     try:
@@ -546,6 +734,13 @@ def _write_saved(data: dict) -> None:
         except OSError:
             pass
         raise
+
+
+def _write_saved(data: dict) -> None:
+    """La timeline COURANTE, écrite d'un bloc. Même mécanique que les projets
+    nommés (P5) — un seul endroit à relire pour savoir comment ce dossier est
+    écrit."""
+    _write_json_atomic(_saved_path(), data)
 
 
 def _load_saved() -> dict | None:
@@ -579,6 +774,188 @@ def _delete_saved() -> bool:
     return False
 
 
+def _save_record(body) -> dict:
+    """Le modèle de timeline COURANTE, normalisé depuis un corps client — et
+    le SEUL endroit où cette normalisation vit. Lève HTTPException(400) sur
+    une forme invalide ou un volume déraisonnable.
+
+    Extrait de `POST /save` le 04/09/2026 pour que `POST /projects` accepte la
+    timeline AFFICHÉE dans son corps sans recopier ces quinze lignes : deux
+    normalisations pour un même objet auraient divergé au premier champ
+    ajouté, et c'est l'objet que le disque garde."""
+    if not isinstance(body, dict) or not isinstance(body.get("clips"), list):
+        raise HTTPException(400, "Sauvegarde invalide — objet {name, ratio, "
+                                 "duration, mix, clips[]} attendu.")
+    clips = [c for c in body["clips"] if isinstance(c, dict)]
+    if len(clips) > _SAVE_MAX_CLIPS:
+        raise HTTPException(400, f"Sauvegarde refusée — {len(clips)} clips "
+                                 f"(max {_SAVE_MAX_CLIPS}).")
+    try:
+        dur = float(body.get("duration") or 0)
+    except (TypeError, ValueError):
+        dur = 0.0
+    if dur != dur or dur < 0:  # NaN / négatif
+        dur = 0.0
+    ducking = body.get("ducking", True)
+    if not isinstance(ducking, (bool, dict)):
+        ducking = bool(ducking)
+    data = {
+        "name": str(body.get("name") or "montage")[:80],
+        "ratio": str(body.get("ratio") or "9:16")[:12],
+        "duration": round(dur, 3),
+        "mix": body.get("mix") if isinstance(body.get("mix"), dict) else {},
+        "duration_master": bool(body.get("duration_master", True)),
+        "ducking": ducking,
+        "clips": clips,
+        "saved_at": _dt.utcnow().replace(microsecond=0).isoformat() + "Z",
+    }
+    if isinstance(body.get("ducking_cfg"), dict):
+        data["ducking_cfg"] = body["ducking_cfg"]
+    # S1 : style des sous-titres. Les SEGMENTS sont déjà dans `clips` (piste
+    # s1) et voyagent donc tels quels ; le style, lui, n'est pas un clip — sans
+    # cette clé il ne survivait qu'en localStorage et changeait de poste à
+    # poste. GET /project le resserre à l'éditeur (svmApplyProject le lit).
+    if isinstance(body.get("subs_style"), dict):
+        data["subs_style"] = body["subs_style"]
+    # P1 : les PISTES de la timeline (ordre, bus, boucle). Stockées telles
+    # quelles — sans cette clé, une piste ajoutée ou déplacée disparaissait au
+    # rechargement et les clips qu'elle portait retombaient sur une piste
+    # inconnue, donc hors du rendu. GET /project les resert à l'éditeur.
+    if isinstance(body.get("tracks"), list):
+        data["tracks"] = body["tracks"]
+    return data
+
+
+# --------------------------------------------------------------- projets ---
+# P5 — un montage NOMMÉ est un fichier de montage_projects/, voisin de la
+# timeline courante. Le courant reste le seul brouillon vivant : il porte
+# `project_id`, et l'autosave miroite dedans. Rien ici ne remplace la
+# sauvegarde courante — c'est elle que GET /project sert, projet ou pas.
+
+
+async def _json_body(request: Request) -> dict:
+    """Corps JSON, ou {} — un POST sans corps (« dupliquer ») n'est pas une
+    erreur, et ce qui n'est pas un objet ne porte aucun champ attendu."""
+    try:
+        body = await request.json()
+    except Exception:
+        return {}
+    return body if isinstance(body, dict) else {}
+
+
+# Le VERROU d'écriture du lot. Toutes les écritures de ce module passent par
+# ici — SAUF UNE, et il faut la nommer : `DELETE /api/montage/save`
+# (`montage_save_delete`) efface le courant HORS de ce verrou. Sans
+# conséquence connue : c'est le bouton « bibliothèque » de l'éditeur, et le
+# bundle ABANDONNE sa requête d'autosave en vol avant de le frapper (même
+# geste que `svmLibReset`, gardé par test_montage_bundle.py), donc aucune
+# écriture n'est en vol au moment où il passe. Le rapatrier ne réparerait rien
+# de mesuré ; l'écrire ici évite qu'une lecture rapide croie la phrase plus
+# large qu'elle n'est. Les écritures couvertes sont brèves (un `json.dumps` et
+# un `os.replace`), donc le coût est nul. Ce qu'il ferme, MESURÉ le
+# 04/09/2026 :
+# `POST /save` teste l'existence du projet (`_load_project`) puis franchit DEUX
+# sauts `asyncio.to_thread` — dont une écriture de fichier entière — avant
+# d'écrire le miroir. Un `DELETE` d'une autre fenêtre glissé dans cette fenêtre
+# faisait RESSUSCITER le projet supprimé (fichier revenu, HTTP 200 des deux
+# côtés). Le banc [16] de test_montage_projets.py joue l'entrelacement,
+# avec et sans ce verrou.
+_ecrit = asyncio.Lock()
+
+
+def _projects_dir(create: bool = False) -> Path:
+    """Le dossier des projets. `create=False` par défaut, et c'est le point :
+    cet accesseur est traversé par `_project_path` → `_load_project` → cinq
+    routes en LECTURE SEULE. MESURÉ : un unique `GET /projects/m_jamaisvu`
+    (404) suffisait à semer `montage_projects/` chez un utilisateur qui n'a
+    jamais nommé un montage. Les trois routes qui ÉCRIVENT le demandent."""
+    d = settings.images_path.parent / "montage_projects"
+    if create:
+        d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _pid(raw) -> str:
+    """Un identifiant ne désigne JAMAIS qu'un fichier de CE dossier :
+    `Path(...).name` mange `../`, `..\\` et tout séparateur. MESURÉ le
+    04/09/2026, contre ce que ce commentaire affirmait d'abord : il ne mange
+    PAS `.` ni `..` eux-mêmes — `Path("..").name` vaut `".."` (la propriété
+    ne rend "" que pour une racine ou un lecteur). D'où le rejet explicite :
+    sans lui, l'identifiant `..` désignait le fichier « ...json » du dossier,
+    inoffensif mais que rien n'empêchait de créer. Borné à 24 caractères (les
+    nôtres en font 10)."""
+    s = Path(str(raw)).name
+    return "" if s in (".", "..") else s[:24]
+
+
+def _project_path(pid, create: bool = False) -> Path:
+    return _projects_dir(create) / f"{_pid(pid)}.json"
+
+
+def _load_project(pid) -> dict | None:
+    """Le projet, ou None — absent, illisible, corrompu, forme inattendue.
+    Un identifiant qui se réduit à rien ne peut donner qu'un None."""
+    if not _pid(pid):
+        return None
+    p = _project_path(pid)
+    try:
+        if not p.is_file():
+            return None
+        d = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        logger.warning(f"montage: projet illisible, ignoré — {p.name}")
+        return None
+    return d if isinstance(d, dict) else None
+
+
+def _project_meta(d: dict, fallback_id: str = "") -> dict:
+    """Ce que la LISTE rend. Jamais les clips eux-mêmes : une liste de vingt
+    projets porterait des milliers de clips que personne ne regarde à cet
+    instant — leur NOMBRE suffit à choisir."""
+    return {"id": d.get("id") or fallback_id or None,
+            "name": d.get("name"),
+            "updated_at": d.get("saved_at"),
+            "clips": len(d.get("clips") or []),
+            "ratio": d.get("ratio"),
+            "duration": d.get("duration")}
+
+
+_NOM_TETE = " ./\\"      # tabulations et sauts de ligne : déjà mangés comme
+                        # caractères de contrôle, inutile de les répéter ici
+
+
+def _libelle(s: str) -> str:
+    """Le nettoyage d'un LIBELLÉ, et rien de plus. Ce qui est retiré :
+      * les caractères de CONTRÔLE, partout — un `\\n` ou un `\\x00` dans un
+        nom traverse la liste et casse l'affichage sans rien apporter ;
+      * les points et les séparateurs EN TÊTE seulement — `../x` → `x`,
+        `..` → `` (donc repli), `.` → `` .
+    Ce qui n'est PAS retiré : un séparateur AU MILIEU. C'est le correctif du
+    04/09/2026, et il vient d'une mesure : `Path(...).name` coupait tout ce
+    qui précédait le dernier `/`, donc « Bande-annonce 16/9 » était stocké
+    « 9 » et « Ep.3 / v2 finale » devenait « v2 finale ». `16/9` et `4/3` sont
+    des MOTS de ce domaine. Le nom n'a d'ailleurs jamais gardé le fichier :
+    celui-ci s'appelle `m_<hex8>.json` et c'est `_pid` — lui seul — qui est la
+    frontière du système de fichiers."""
+    s = "".join(ch for ch in s if ord(ch) >= 32 and ch != "\x7f")
+    return s.strip().lstrip(_NOM_TETE).strip()
+
+
+def _project_name(raw, fallback) -> str:
+    """Le nom est un LIBELLÉ, jamais un chemin — le fichier, lui, est nommé
+    par l'identifiant. Ce qui n'est pas une chaîne, ce qui est vide et ce qui
+    ne survit pas à `_libelle` retombe sur `fallback` : sans ce repli, un
+    champ effacé aurait fabriqué le libellé « None »."""
+    s = _libelle(raw if isinstance(raw, str) else "")
+    if not s:
+        s = _libelle(str(fallback or "")) or "montage"
+    return s[:80]
+
+
+def _now_iso() -> str:
+    return _dt.utcnow().replace(microsecond=0).isoformat() + "Z"
+
+
 # ---------------------------------------------------------------- project ---
 
 @router.get("/project")
@@ -590,10 +967,30 @@ async def montage_project(limit: int = 4):
     construction historique depuis la Bibliothèque (saved:false) — les
     `limit` derniers rendus/uploads finis en V1 (bout à bout, sans trous),
     la voix off la plus récente en A1, une musique (nom contenant
-    theme/music/bgm/…) en A2."""
+    theme/music/bgm/…) en A2.
+
+    P8 : seuls les jobs dont l'artefact porte une extension de `_VIDEO_EXTS`
+    entrent en V1. La SAUVEGARDE, elle, n'est jamais élaguée de ses clips V1
+    non-vidéo : ils sont seulement listés dans `v1_non_video` (et au journal)
+    — voir le commentaire dans la boucle.
+
+    P7 : les jobs de PRÉCALCUL (`provider="montage_proxy"`, l'aperçu 480p du
+    balayage) sont écartés NOMMÉMENT par la requête. Un cache n'est pas un
+    plan — cf. `_PROXY_PROVIDER`, et la section [2-sexies] de
+    `tests/test_montage_sources.py`.
+
+    CONTRAT de `v1_non_video`, arrêté ici et non plus implicite : ce sont des
+    IDENTIFIANTS de clips, joignables un à un aux `clips` servis par la même
+    réponse — rien d'autre. La tâche 16 lit ce champ pour marquer les clips à
+    l'écran ; un repli qui aurait rendu un libellé ou un nom de fichier lui
+    aurait donné une liste hétérogène que rien ne peut rejoindre. Un clip V1
+    non-vidéo SANS `id` exploitable est donc EXCLU du champ (et le champ est
+    absent si aucun fautif n'a d'id) ; il reste nommé au journal par son
+    libellé, et le 400 du pré-vol le nommera au moment du rendu. C'est un
+    choix : mieux vaut un marquage incomplet qu'un identifiant inventé."""
     saved = await asyncio.to_thread(_load_saved)
     if saved is not None:
-        kept, pruned = [], 0
+        kept, pruned, non_video, non_video_dits = [], 0, [], []
         for c in saved["clips"]:
             if not isinstance(c, dict):
                 continue
@@ -605,7 +1002,42 @@ async def montage_project(limit: int = 4):
                         f"retiré — {c.get('label') or c.get('src')}")
                     pruned += 1
                     continue
+                # P8 — un clip V1 qui n'est pas une vidéo est SIGNALÉ, jamais
+                # élagué. Élaguer viderait la piste V1 d'une sauvegarde comme
+                # celle du 04/09/2026 (montage_saved.json, 5980 o, RELU le
+                # 04/09 : 17 clips — 4 V1 fautifs, 9 segments de sous-titres
+                # mot à mot SANS `src`, une voix A1, une musique A2, deux
+                # incrustations V2) — la garde `any(c["tr"] == "v1")` plus bas
+                # ferait alors repartir la construction depuis la
+                # Bibliothèque, et 13 clips de travail seraient perdus pour en
+                # retirer 4. À UNE CONDITION, qui vaut d'être dite : sur ces
+                # 13, seuls les 9 sous-titres survivent inconditionnellement
+                # (src null). Les 4 autres — voix, musique, DEUX
+                # incrustations — ne tiennent que tant que leur source
+                # existe ; l'élagage déjà en place juste au-dessus les retire
+                # sinon (`saved_pruned`). L'argument tient donc sur 9 clips
+                # garantis et 4 conditionnels, pas sur 13 garantis. Le
+                # pré-vol du rendu nomme les fautifs ; c'est l'utilisateur qui
+                # décide.
+                if c.get("tr") == "v1" and not _is_video_artifact(p):
+                    # DEUX listes, et c'est le point : `non_video` est le
+                    # champ d'API — des IDENTIFIANTS, rien d'autre, pour que
+                    # la tâche 16 puisse les rejoindre aux `clips`.
+                    # `non_video_dits` est le journal, qui a le droit d'être
+                    # hétérogène parce qu'un humain le lit : un clip sans id
+                    # y garde son libellé ou son nom de fichier au lieu de
+                    # disparaître.
+                    cid = c.get("id")
+                    if isinstance(cid, str) and cid:
+                        non_video.append(cid)
+                    non_video_dits.append(cid or c.get("label") or p.name)
             kept.append(c)
+        if non_video_dits:
+            logger.warning(
+                f"montage: {len(non_video_dits)} clip(s) V1 de la sauvegarde "
+                f"ne sont pas des vidéos — "
+                f"{', '.join(str(x) for x in non_video_dits)}"
+                f" ; le rendu les refusera nommément s'ils ne s'ouvrent pas.")
         if any(c.get("tr") == "v1" for c in kept):
             try:
                 sdur = float(saved.get("duration") or 0)
@@ -635,9 +1067,16 @@ async def montage_project(limit: int = 4):
                 out["subs_style"] = saved["subs_style"]   # S1 (cf. POST /save)
             if isinstance(saved.get("tracks"), list) and saved["tracks"]:
                 out["tracks"] = saved["tracks"]           # P1 (cf. POST /save)
+            # P5 : de quel projet nommé cette timeline est le brouillon. Sans
+            # cette clé, l'éditeur rouvrait toujours « sans titre » et le
+            # premier autosave venu cassait le lien.
+            if isinstance(saved.get("project_id"), str) and saved["project_id"]:
+                out["project_id"] = saved["project_id"]
             if pruned:
                 out["saved_pruned"] = True
                 out["pruned"] = pruned
+            if non_video:
+                out["v1_non_video"] = non_video   # P8 — signalé, pas élagué
             return out
         # Sauvegarde présente mais plus AUCUN clip V1 à source valide : elle
         # est inexploitable — la Bibliothèque reprend la main (le prochain
@@ -645,8 +1084,74 @@ async def montage_project(limit: int = 4):
         logger.warning("montage: sauvegarde sans clip V1 exploitable — "
                        "timeline reconstruite depuis la Bibliothèque")
     async with async_session_factory() as session:
+        # P8-bis — la liste blanche est POUSSÉE DANS LA REQUÊTE, pour que les
+        # 60 lignes de la fenêtre soient 60 CANDIDATS et non 60 lignes dont la
+        # boucle écarte ensuite la plupart. Sans ce `where`, le filtre Python
+        # ci-dessous CONSOMMAIT le budget : 60 planches et maillages plus
+        # récents que la dernière vidéo suffisaient à ne rien trouver, à poser
+        # `has_assets` à faux et à faire retomber l'écran sur sa démo — les
+        # rendus seedance restant en base, invisibles. MESURÉ (base sqlite
+        # neuve, N jobs `sprite2d` à `final_video_path = sheet.png` tous plus
+        # récents qu'un unique `seedance` .mp4 valide, un GET
+        # /api/montage/project par valeur de N, scratchpad/mesure_seuil.py) :
+        # N = 3/55/56/57/58/59 → has_assets vrai, le seedance en V1 ; N = 60
+        # → has_assets FAUX, clips vides ; idem 61 et 80. Le seuil est
+        # exactement 60, par construction.
+        # Ce n'est pas un cas d'école : sur une COPIE de la base RÉELLE
+        # (%LOCALAPPDATA%\DeepotusVideoGenData\deepotus.db + -wal + -shm,
+        # 04/09/2026, lecture seule, scratchpad/mesure_base_reelle.py) les 60
+        # lignes les plus récentes portent déjà 15 non-vidéos (8 `sprite2d`
+        # .png, 7 `asset3d` .glb) et la liste COMMENCE par 10 non-vidéos
+        # consécutives : 50 de marge, et les derniers commits de la branche
+        # principale sont tous du pipeline 3D.
+        #
+        # FORME du `where`, choisie SUR MESURE (scratchpad/mesure_ilike.py,
+        # base neuve, 8 jobs couvrant les cas) : le filtre Python plus bas lit
+        # `fp = j.final_video_path or j.video_path`, donc un `where` sur la
+        # seule colonne `final_video_path` — la forme proposée par la revue —
+        # ÉCARTE des jobs légitimes. Mesuré sur les 5 jobs que le filtre
+        # Python accepte : `final_video_path` seul en manque 2 (celui dont
+        # `final_video_path` est NULL et celui dont il est vide, tous deux à
+        # `video_path` .mp4) ; un OR sur les DEUX colonnes n'en manque aucun
+        # mais en prend un de TROP (planche en `final_video_path`, .mp4 en
+        # `video_path` — il consommerait le budget qu'on vient de rendre) ;
+        # `coalesce(nullif(final_video_path, ''), video_path)` est le MIROIR
+        # EXACT du `or` de Python — 0 manquant, 0 en trop. C'est cette
+        # forme-là. (`nullif(x, '')` fait la chaîne vide, que `coalesce` seul
+        # ne verrait pas, alors que le `or` de Python la traverse.)
+        # `ilike` et non `like`, et il faut dire exactement ce que ça achète
+        # — sinon c'est une préférence, pas une décision. MESURÉ : SQLAlchemy
+        # compile `ilike` en `lower(col) LIKE lower(?)` sur SQLite, alors que
+        # `like` émet un LIKE nu. Or le LIKE de SQLite est DÉJÀ insensible à
+        # la casse pour l'ASCII par défaut : sous `PRAGMA
+        # case_sensitive_like = 0`, les deux formes rendent les MÊMES lignes
+        # (`a.mp4`, `Rush_Camera.MOV`, `b.Mp4` — les trois, dans les deux
+        # cas). Elles ne se séparent que sous `PRAGMA case_sensitive_like =
+        # 1`, où le LIKE nu ne garde plus que `a.mp4` quand la forme
+        # `lower()/lower()` garde les trois. `ilike` met donc
+        # l'insensibilité dans la REQUÊTE, où elle ne dépend ni d'un pragma
+        # ni du dialecte. CONSÉQUENCE ASSUMÉE : aucune mutation du banc ne
+        # distingue les deux formes sur ce backend-ci (mesuré, `ilike` →
+        # `like` laisse le banc au vert plein) ; c'est la mesure ci-dessus
+        # qui porte le choix, pas une ligne de banc.
+        # Le cas concret que tout ceci sert : un `Rush_Camera.MOV` déposé par
+        # l'upload UGC (routes.py, qui teste en minuscules mais ÉCRIT la casse
+        # d'origine). Aucune extension de `_VIDEO_EXTS` ne porte de
+        # métacaractère LIKE (`%`, `_`) : le motif `%<ext>` est littéral.
+        _fp = func.coalesce(func.nullif(JobRecord.final_video_path, ""),
+                            JobRecord.video_path)
         res = await session.execute(
             select(JobRecord).where(JobRecord.status == JobStatus.DONE.value)
+            # P7 — les aperçus de balayage ne sont pas des plans. Dans le
+            # `where` et pas seulement dans la boucle, pour la raison MESURÉE
+            # de P8-bis : ce qui traverse la requête MANGE la fenêtre de 60.
+            # Cinquante clips proxifiés suffiraient à rendre `has_assets`
+            # faux et à faire retomber l'écran sur sa démo, base pleine de
+            # rendus. `coalesce` et non `!=` nu : `NULL != 'x'` vaut NULL en
+            # SQL et écarterait les 13 jobs à `provider` NUL de la base
+            # réelle (le piège déjà payé dans `montage_newer`).
+            .where(func.coalesce(JobRecord.provider, "") != _PROXY_PROVIDER)
+            .where(or_(*[_fp.ilike(f"%{e}") for e in _VIDEO_EXTS]))
             .order_by(JobRecord.completed_at.desc()).limit(60))
         jobs = res.scalars().all()
 
@@ -654,6 +1159,23 @@ async def montage_project(limit: int = 4):
     for j in jobs:
         fp = j.final_video_path or j.video_path
         if not fp or not Path(fp).exists():
+            continue
+        # P8 — `final_video_path` n'est PAS une promesse de vidéo : `sprite2d`
+        # y range sa planche PNG, `asset3d` son maillage GLB. Sans ce test,
+        # les quatre jobs les plus RÉCENTS gagnaient la piste V1 quels qu'ils
+        # soient, `_probe_duration` rendait 0 sur un PNG, le repli `or 4.0`
+        # donnait quatre cartons de 4 s — et les 35 rendus seedance de la
+        # base, plus anciens, n'étaient jamais atteints.
+        # Il RESTE alors même que le `where` ci-dessus dit déjà la même chose,
+        # et ce n'est pas une redondance : la requête ne peut filtrer que ce
+        # que la BASE porte, ce test-ci juge le CHEMIN effectivement retenu.
+        # Il reste donc la seule autorité, et le `where` n'est qu'un
+        # pré-filtre qui ne doit jamais écarter ce que ce test accepterait —
+        # c'est la propriété que `coalesce(nullif(...))` a été choisi pour
+        # tenir, et que la mesure ci-dessus vérifie job par job.
+        if not _is_video_artifact(Path(fp)):
+            logger.info(f"montage: job {j.id[:8]} ({j.provider}) ecarte de V1 — "
+                        f"{Path(fp).suffix or 'sans extension'} n'est pas une video")
             continue
         if j.provider == "montage" and "_preview" in Path(fp).name:
             continue  # ne pas remonter nos propres aperçus en source
@@ -723,12 +1245,200 @@ async def montage_project(limit: int = 4):
             "sources": {"videos": len(vids), "audio": len(audio)}}
 
 
+# ------------------------------------------------------ versions plus récentes ---
+# P6 — « j'ai régénéré ce plan ». Le rapprochement se fait PAR LE TITRE, et
+# c'est une HEURISTIQUE : rien en base ne relie deux rendus successifs du même
+# plan (pas de colonne « refait à partir de »). La réponse le DIT, avec le
+# vocabulaire déjà employé par la Bibliothèque (`origin: depot|heuristique`,
+# library_index.py) — proposer un rapprochement deviné sans le nommer serait
+# le laisser passer pour un lien établi.
+#
+# LE SUFFIXE NORMALISÉ EST MESURÉ, PAS SUPPOSÉ. Le plan écrivait
+# « (aperçu 480p) » de mémoire ; relevé le 04/09/2026 sur une COPIE de
+# %LOCALAPPDATA%\DeepotusVideoGenData\deepotus.db (+ -wal + -shm, lecture
+# seule, sqlite3 stdlib) : 8 lignes le portent, TOUTES `provider='montage'`,
+# et le seul point du dépôt qui l'ajoute est `montage_render` (l. 2406 —
+# le commit précédent écrivait 2253, le numéro du fichier PARENT : citer un
+# numéro d'avant ses propres ajouts, c'est citer un AUTRE fichier).
+# Les 8 se répartissent 4 `done` / 4 `failed`, et les 4 `done` sont TOUS
+# les jobs `montage` `done` de la base : le suffixe n'est pas une
+# curiosité, c'est la marque de tout aperçu.
+# CONSÉQUENCE À DIRE : les candidats excluant déjà `montage`, ce suffixe ne
+# peut mordre que sur le job de RÉFÉRENCE — un clip dont la source est un
+# rendu de montage. Le normaliser reste juste, mais son gain est celui-là.
+_RE_APERCU = re.compile(r"\s*\(aperçu 480p\)\s*$")
+
+
+def _norm_title(t) -> str:
+    """Le titre d'un job réduit à ce qui identifie LE PLAN : sans le suffixe
+    d'aperçu, sans espaces de bord, sans casse."""
+    return _RE_APERCU.sub("", str(t or "")).strip().lower()
+
+
+@router.get("/newer")
+async def montage_newer(job_id: str = ""):
+    """Les rendus plus RÉCENTS qui portent le même titre que `job_id` — au
+    plus 5, du plus récent au plus ancien. C'est ce que l'inspecteur du
+    Montage propose sous « Remplacer la source… ».
+
+    `{ok, origin: "heuristique", candidates: [{job_id, title, completed_at,
+    duration_s}]}`. Job inconnu, sans titre exploitable ou sans date : liste
+    VIDE, jamais une erreur — l'inspecteur n'affiche alors rien du tout.
+
+    QUATRE DÉCISIONS, chacune appuyée sur une mesure et non sur le plan.
+
+    1. SEULEMENT DES VIDÉOS, par le MÊME chemin que `montage_project`. La
+       leçon de P8 vaut ici mot pour mot : `sprite2d` range sa planche PNG et
+       `asset3d` son maillage GLB dans la MÊME colonne `final_video_path`
+       qu'un rendu `seedance`. Sans ce filtre, une planche de sprites serait
+       proposée comme « nouvelle version » d'un plan. `_is_video_artifact`
+       reste la SEULE autorité (elle juge le chemin retenu) et le `where`
+       n'est qu'un pré-filtre, écrit dans la forme démontrée par P8-bis :
+       `coalesce(nullif(final_video_path, ''), video_path)`, miroir exact du
+       `or` de Python — ni un job légitime écarté, ni un job de trop admis.
+
+    2. AUCUNE `.limit()` SUR LA REQUÊTE. Le plafond de 5 est pris APRÈS le
+       filtre de titre, donc il borne des CANDIDATS et non des lignes brutes.
+       C'est exactement le défaut que P8-bis a payé : une fenêtre SQL que le
+       filtre Python consomme rend une liste vide et silencieuse. Le nombre
+       de lignes chargées est borné par le `where` lui-même — les vidéos
+       `done` non-montage TERMINÉES APRÈS le clip qu'on remplace — donc par
+       la fraîcheur de la timeline, pas par la taille de la base (mesure :
+       116 jobs `done` au total sur la base réelle du 04/09/2026).
+
+    3. LE TITRE N'EST PAS PRÉ-FILTRÉ EN SQL, et c'est un choix mesuré. La
+       forme tentante `title ILIKE '%' || norm || '%'` est un SUR-ENSEMBLE en
+       Python… mais pas en SQLite : `lower()` y est ASCII SEULEMENT (pas
+       d'ICU par défaut), donc `lower('Épisode')` reste `'Épisode'` et ne
+       correspond plus au `'épisode'` que produit `str.lower()` de Python. Un
+       job intitulé « Épisode … » — le titre PAR DÉFAUT de
+       `pipeline.run_episode` — serait silencieusement écarté. C'est
+       précisément la classe de bug (« une clause SQL qui écarte des jobs
+       légitimes ») que P8-bis a déjà rencontrée : le titre se compare donc
+       en Python, où la normalisation est celle qui décide.
+
+    4-bis. `notin_(("montage", "montage_proxy"))` — P7. « montage_proxy »
+       n'est PAS « montage » : le `!=` d'origine laissait passer les jobs de
+       PRÉCALCUL de la lecture fluide, et le cache 480p d'un plan aurait été
+       proposé comme la « version plus récente » de ce plan-là. La route qui
+       les crée ne leur donne aucun chemin d'artefact (verrou 1, cf.
+       `_PROXY_PROVIDER`) ; cette clause est le verrou de RÉGRESSION, et sa
+       ligne de banc pose donc la forme régressée
+       (`test_montage_remplacer.py`, `newer_n_offre_pas_un_proxy_de_scrub`).
+
+    4. `coalesce(provider, '')`, PAS `provider != "montage"`. En SQL,
+       `NULL != 'montage'` vaut NULL et la ligne est ÉCARTÉE. MESURÉ sur la
+       copie de la base réelle : 13 jobs `done` portent `provider IS NULL`,
+       et les 13 sont des `.mp4`. Aucun ne porte de titre AUJOURD'HUI — la
+       correction ne change donc rien d'observable sur cette base-là : elle
+       ferme un piège, elle ne répare pas un défaut constaté.
+
+    CE QUE CETTE ROUTE N'AFFIRME PAS : que le candidat SOIT une nouvelle
+    version. Deux rendus peuvent partager un titre sans rien avoir en commun
+    (mesuré : « tweet_2026-05-20 » couvre 7 jobs). C'est pourquoi la réponse
+    porte `origin` et pourquoi l'écran nomme le titre AVANT de remplacer."""
+    empty = {"ok": True, "origin": "heuristique", "candidates": []}
+    if not job_id:
+        return empty
+    async with async_session_factory() as session:
+        ref = await session.get(JobRecord, job_id)
+        if ref is None or ref.completed_at is None:
+            return empty
+        # LE GARDE-FOU QUI N'EST PAS AU PLAN, et que la base réelle impose :
+        # 61 des 97 jobs vidéo `done` non-montage n'ont PAS de titre. Sans
+        # cette sortie, chacun d'eux proposerait cinq inconnus comme « ses »
+        # versions plus récentes — un rapprochement entre deux vides n'est
+        # pas un rapprochement.
+        # CE CHIFFRE A ÉTÉ FAUX, et la faute mérite d'être nommée : il
+        # valait « 48 des 84 » parce que la mesure avait été prise avec
+        # `provider != 'montage'` — LE BUG QUE LA LIGNE CI-DESSOUS
+        # CORRIGE. Les 13 jobs `done` à `provider IS NULL` tombaient donc
+        # de la mesure comme ils tombaient de la requête : 84+13 = 97,
+        # 48+13 = 61. Mesurer une décision sous le défaut qu'elle répare,
+        # c'est mesurer le monde d'avant.
+        norm = _norm_title(ref.title)
+        if not norm:
+            return empty
+        _fp = func.coalesce(func.nullif(JobRecord.final_video_path, ""),
+                            JobRecord.video_path)
+        res = await session.execute(
+            select(JobRecord)
+            .where(JobRecord.status == JobStatus.DONE.value)
+            # P7 : « montage_proxy » N'EST PAS « montage ». Le `!=` d'origine
+            # le laissait passer — un aperçu 480p de balayage aurait été
+            # proposé comme la « version plus récente » du plan dont il est
+            # le cache. `notin_` sur le même `coalesce`, pour la raison de la
+            # décision 4 ci-dessus : un `provider` NUL ne doit pas tomber.
+            .where(func.coalesce(JobRecord.provider, "")
+                   .notin_(("montage", _PROXY_PROVIDER)))
+            # PAS de `id != job_id` — le plan l'écrivait, la mesure le rend
+            # INUTILE : la comparaison de date est STRICTE, et la référence
+            # n'est pas plus récente qu'elle-même. Mutation jouée le
+            # 04/09/2026 (clause retirée) : 74/0, aucune ligne rouge — c'était
+            # du code mort. La propriété, elle, reste tenue et mesurée
+            # (`newer_ne_se_propose_pas_lui_meme`), par la ligne ci-dessous.
+            .where(JobRecord.completed_at > ref.completed_at)
+            .where(or_(*[_fp.ilike(f"%{e}") for e in _VIDEO_EXTS]))
+            .order_by(JobRecord.completed_at.desc()))
+        jobs = res.scalars().all()
+
+    out = []
+    for j in jobs:
+        fp = j.final_video_path or j.video_path
+        if not fp:
+            continue
+        p = Path(fp)
+        # `_is_video_artifact` juge le chemin RETENU, là où le `where` ne
+        # peut juger que la chaîne stockée — c'est la même hiérarchie que
+        # dans `montage_project`, et c'est elle qui décide.
+        if not _is_video_artifact(p):
+            continue
+        # Un candidat dont le fichier a disparu n'est pas une sortie : le
+        # rendu mourrait dessus et GET /project élaguerait le clip au
+        # rechargement. On ne propose pas un piège.
+        if not p.exists():
+            continue
+        if _norm_title(j.title) != norm:
+            continue
+        out.append({
+            "job_id": j.id,
+            "title": j.title,
+            "completed_at": (j.completed_at.isoformat()
+                             if j.completed_at is not None else None),
+            "duration_s": j.duration_s,
+        })
+        if len(out) >= 5:
+            break
+    return {"ok": True, "origin": "heuristique", "candidates": out}
+
+
 @router.get("/effects")
 async def montage_effects():
     """Catalogue du moteur Effects / Mask pour le sélecteur d'effets par clip
     de l'inspecteur (labels FR + paramètres par type)."""
     from app.services import effects_engine
     return {"effects": effects_engine.catalog()}
+
+
+@router.get("/media-rules")
+async def montage_media_rules():
+    """La RÈGLE d'extensions vidéo, telle que le rendu l'applique — servie au
+    sélecteur d'assets de l'éditeur pour qu'il n'en fabrique pas une seconde
+    copie.
+
+    P9. `ovPicker()` du bundle listait ses « Rendus vidéo » sur le critère
+    `status == "done" and (video_path or final_video_path)` — EXACTEMENT
+    celui que P8 vient de corriger ici. Les planches `sprite2d` et les
+    maillages `asset3d` y étaient donc encore proposés, et rien n'empêchait
+    l'utilisateur de reposer à la main les clips que P8 écarte. Une copie de
+    `_VIDEO_EXTS` écrite en JavaScript aurait divergé de celle-ci au premier
+    format ajouté ; le client interroge donc CETTE liste, la même que celle
+    que lit `_is_video_artifact`.
+
+    La réponse ne porte QUE ce qui a un lecteur — un champ sans lecteur est
+    un mensonge poli. Le client qui n'obtient pas cette route ne filtre PAS
+    et le dit à l'écran ; il ne devine pas une liste de son côté."""
+    return {"video_exts": list(_VIDEO_EXTS)}
 
 
 @router.post("/save")
@@ -744,53 +1454,54 @@ async def montage_save(request: Request):
         body = await request.json()
     except Exception:
         body = None
-    if not isinstance(body, dict) or not isinstance(body.get("clips"), list):
-        raise HTTPException(400, "Sauvegarde invalide — objet {name, ratio, "
-                                 "duration, mix, clips[]} attendu.")
-    clips = [c for c in body["clips"] if isinstance(c, dict)]
-    if len(clips) > _SAVE_MAX_CLIPS:
-        raise HTTPException(400, f"Sauvegarde refusée — {len(clips)} clips "
-                                 f"(max {_SAVE_MAX_CLIPS}).")
-    try:
-        dur = float(body.get("duration") or 0)
-    except (TypeError, ValueError):
-        dur = 0.0
-    if dur != dur or dur < 0:  # NaN / négatif
-        dur = 0.0
-    ducking = body.get("ducking", True)
-    if not isinstance(ducking, (bool, dict)):
-        ducking = bool(ducking)
-    data = {
-        "name": str(body.get("name") or "montage")[:80],
-        "ratio": str(body.get("ratio") or "9:16")[:12],
-        "duration": round(dur, 3),
-        "mix": body.get("mix") if isinstance(body.get("mix"), dict) else {},
-        "duration_master": bool(body.get("duration_master", True)),
-        "ducking": ducking,
-        "clips": clips,
-        "saved_at": _dt.utcnow().replace(microsecond=0).isoformat() + "Z",
-    }
-    if isinstance(body.get("ducking_cfg"), dict):
-        data["ducking_cfg"] = body["ducking_cfg"]
-    # S1 : style des sous-titres. Les SEGMENTS sont déjà dans `clips` (piste
-    # s1) et voyagent donc tels quels ; le style, lui, n'est pas un clip — sans
-    # cette clé il ne survivait qu'en localStorage et changeait de poste à
-    # poste. GET /project le resserre à l'éditeur (svmApplyProject le lit).
-    if isinstance(body.get("subs_style"), dict):
-        data["subs_style"] = body["subs_style"]
-    # P1 : les PISTES de la timeline (ordre, bus, boucle). Stockées telles
-    # quelles — sans cette clé, une piste ajoutée ou déplacée disparaissait au
-    # rechargement et les clips qu'elle portait retombaient sur une piste
-    # inconnue, donc hors du rendu. GET /project les resert à l'éditeur.
-    if isinstance(body.get("tracks"), list):
-        data["tracks"] = body["tracks"]
+    data = _save_record(body)
+    clips = data["clips"]
+    # P5 : de quel projet NOMMÉ cette timeline est le brouillon. Deux gardes,
+    # et chacune ferme un trou mesuré :
+    #  * seule une CHAÎNE est retenue — le plan écrivait `str(...)`, qui aurait
+    #    fabriqué un fichier « {'a': 1}.json » que la liste aurait ensuite
+    #    présenté comme un projet ;
+    #  * l'identifiant doit désigner un fichier EXISTANT. L'autosave MET À JOUR
+    #    un projet, il n'en CRÉE jamais : sans ce test, supprimer le projet
+    #    ouvert le faisait ressusciter à la seconde suivante, par l'autosave
+    #    d'une fenêtre qui n'avait rien demandé.
     if len(json.dumps(data, ensure_ascii=False).encode("utf-8")) > _SAVE_MAX_BYTES:
         raise HTTPException(400, "Sauvegarde refusée — plus de 2 Mo.")
-    try:
-        await asyncio.to_thread(_write_saved, data)
-    except OSError as e:
-        logger.warning(f"montage: écriture de la sauvegarde impossible : {e}")
-        raise HTTPException(500, f"Écriture de la sauvegarde impossible : {e}")
+    # LE TEST D'EXISTENCE ET LES DEUX ÉCRITURES SOUS LE MÊME VERROU. Entre le
+    # `_load_project` et le miroir il y a DEUX sauts `asyncio.to_thread` ; un
+    # `DELETE` d'une autre fenêtre glissé là faisait revenir le fichier qu'il
+    # venait d'effacer (mesuré : le projet ressuscitait, HTTP 200 des deux
+    # côtés). Avec `_ecrit`, le DELETE passe soit entièrement avant — `lie`
+    # est alors None, rien n'est miroité — soit entièrement après, et il
+    # emporte le fichier que le miroir venait de réécrire.
+    async with _ecrit:
+        pid = body.get("project_id")
+        pid = _pid(pid) if isinstance(pid, str) else ""
+        lie = await asyncio.to_thread(_load_project, pid) if pid else None
+        if lie is not None:
+            data["project_id"] = pid
+        try:
+            await asyncio.to_thread(_write_saved, data)
+            # le MIROIR : le projet nommé suit les éditions sans un geste. Son
+            # échec fait échouer la sauvegarde entière — l'éditeur garde
+            # « NON ENREGISTRÉ » et réessaie, plutôt que d'annoncer un
+            # enregistrement dont la moitié n'a pas eu lieu. CE QU'IL LAISSE
+            # DERRIÈRE, mesuré par [15] : le COURANT est déjà écrit (il
+            # porte la timeline neuve et son `project_id`), le PROJET reste à
+            # sa version précédente, et pas un `.tmp` ne subsiste.
+            if data.get("project_id"):
+                # le NOM appartient au PROJET, pas au payload : sans cette
+                # ligne, renommer dans le popover puis laisser passer un
+                # autosave rendait au projet son ancien nom, sans un mot.
+                # MESURÉ — c'est ce qui faisait sortir « abysse (copie) » là
+                # où le projet s'appelait « Abysse v1 ».
+                await asyncio.to_thread(
+                    _write_json_atomic, _project_path(data["project_id"]),
+                    dict(data, id=data["project_id"],
+                         name=lie.get("name") or data["name"]))
+        except OSError as e:
+            logger.warning(f"montage: écriture de la sauvegarde impossible : {e}")
+            raise HTTPException(500, f"Écriture de la sauvegarde impossible : {e}")
     return {"ok": True, "saved_at": data["saved_at"], "clips": len(clips)}
 
 
@@ -800,6 +1511,215 @@ async def montage_save_delete():
     Bibliothèque (bouton « bibliothèque » de l'éditeur, après confirmation)."""
     deleted = await asyncio.to_thread(_delete_saved)
     return {"ok": True, "deleted": deleted}
+
+
+# ---------------------------------------------------------- /projects (P5) ---
+
+
+@router.get("/projects")
+async def montage_projects():
+    """Les projets nommés, MÉTADONNÉES seules, le plus récemment enregistré en
+    tête. Un fichier illisible est SAUTÉ : un seul projet corrompu ne doit pas
+    emporter la liste de tous les autres."""
+    def _scan():
+        out = []
+        dossier = _projects_dir()
+        if not dossier.is_dir():
+            return out          # aucun montage nommé : le dossier n'existe
+                                # pas encore, et LIRE ne doit pas le créer
+        # `dossier`, pas `d` : la boucle réutilise `d` pour le projet lu, et
+        # deux sens pour un même nom dans dix lignes finit toujours mal.
+        for f in dossier.glob("*.json"):
+            try:
+                d = json.loads(f.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                logger.warning(f"montage: projet illisible, ignoré — {f.name}")
+                continue
+            if isinstance(d, dict):
+                out.append(_project_meta(d, f.stem))
+        # `str(...)` : un `saved_at` numérique venu d'un fichier bricolé
+        # ferait lever la comparaison et emporterait la liste entière.
+        out.sort(key=lambda p: str(p.get("updated_at") or ""), reverse=True)
+        return out
+    return {"ok": True, "projects": await asyncio.to_thread(_scan)}
+
+
+@router.post("/projects")
+async def montage_project_create(request: Request):
+    """{name, timeline?} — la timeline AFFICHÉE devient un projet nommé, et le
+    courant en devient le brouillon : il reçoit `project_id`, l'autosave
+    miroite ensuite.
+
+    `timeline` est le payload de `POST /save` — le modèle client complet. Il
+    est là depuis le 04/09/2026, et il ferme la porte d'entrée de tout le lot.
+    MESURÉ : sans lui, cette route ne lisait QUE `montage_saved.json`, et deux
+    états courants n'en ont pas — une installation neuve (la Bibliothèque
+    fournit la timeline, `svmApplyProject` pose `setDirty(false)`, donc aucun
+    autosave ne part) et l'instant qui suit le bouton « bibliothèque » (DELETE
+    de la sauvegarde puis rechargement : le même état). L'utilisateur
+    regardait une timeline et le popover lui répondait en rouge qu'il n'y en
+    avait pas. Second trou, même racine : la sauvegarde sur disque a jusqu'à
+    1,5 s de retard sur l'écran, donc « Enregistrer sous… » nommait un
+    instantané périmé — 7 clips affichés, 1 clip écrit.
+
+    À DÉFAUT de `timeline`, le courant fait toujours foi (une fenêtre plus
+    ancienne, un appel en ligne de commande). 400 dans un seul cas, et il est
+    vrai : l'écran est RÉELLEMENT vide — ni corps, ni courant, ou pas un seul
+    clip. Il n'y aurait rien à nommer."""
+    body = await _json_body(request)
+    tl = body.get("timeline")
+    if isinstance(tl, dict) and isinstance(tl.get("clips"), list):
+        cur = _save_record(tl)          # même normalisation que POST /save
+        if len(json.dumps(cur, ensure_ascii=False).encode("utf-8")) \
+                > _SAVE_MAX_BYTES:
+            raise HTTPException(400, "Sauvegarde refusée — plus de 2 Mo.")
+    else:
+        cur = await asyncio.to_thread(_load_saved)
+    if cur is None or not cur.get("clips"):
+        raise HTTPException(400, "Aucune timeline à enregistrer.")
+    pid = f"m_{uuid4().hex[:8]}"
+    rec = dict(cur, id=pid, project_id=pid,
+               name=_project_name(body.get("name"), cur.get("name")))
+    async with _ecrit:
+        try:
+            await asyncio.to_thread(_write_json_atomic,
+                                    _project_path(pid, create=True), rec)
+            await asyncio.to_thread(_write_saved, rec)
+        except OSError as e:
+            raise HTTPException(500, f"Écriture du projet impossible : {e}")
+    return {"ok": True, **_project_meta(rec)}
+
+
+@router.get("/projects/{pid}")
+async def montage_project_read(pid: str):
+    """Le projet ENTIER (clips compris) — c'est ce que l'éditeur applique."""
+    d = await asyncio.to_thread(_load_project, pid)
+    if d is None:
+        raise HTTPException(404, "Projet introuvable.")
+    return d
+
+
+@router.patch("/projects/{pid}")
+async def montage_project_rename(pid: str, request: Request):
+    """{name} — renommer, rien d'autre. `saved_at` est repoussé : c'est lui
+    qui ordonne la liste, et un projet qu'on vient de renommer est le dernier
+    touché. Un nom VIDE garde l'ancien plutôt que de fabriquer « montage » :
+    l'utilisateur a effacé le champ, il n'a pas demandé un autre nom."""
+    d = await asyncio.to_thread(_load_project, pid)
+    if d is None:
+        raise HTTPException(404, "Projet introuvable.")
+    body = await _json_body(request)
+    p = _pid(pid)
+    rec = dict(d, id=p, project_id=p, saved_at=_now_iso(),
+               name=_project_name(body.get("name"), d.get("name")))
+    async with _ecrit:
+        try:
+            await asyncio.to_thread(_write_json_atomic,
+                                    _project_path(p, create=True), rec)
+        except OSError as e:
+            raise HTTPException(500, f"Écriture du projet impossible : {e}")
+    return {"ok": True, **_project_meta(rec)}
+
+
+@router.post("/projects/{pid}/duplicate")
+async def montage_project_duplicate(pid: str):
+    """Une COPIE indépendante, sous un identifiant neuf. Le suffixe est ajouté
+    APRÈS la coupe à 80 caractères de la base : collé avant, il aurait été le
+    premier rogné et la copie serait revenue avec le nom exact de l'original,
+    à côté de lui dans la liste."""
+    d = await asyncio.to_thread(_load_project, pid)
+    if d is None:
+        raise HTTPException(404, "Projet introuvable.")
+    nid = f"m_{uuid4().hex[:8]}"
+    suff = " (copie)"
+    base = _project_name(d.get("name"), "montage")[:80 - len(suff)]
+    rec = dict(d, id=nid, project_id=nid, name=base + suff,
+               saved_at=_now_iso())
+    async with _ecrit:
+        try:
+            await asyncio.to_thread(_write_json_atomic,
+                                    _project_path(nid, create=True), rec)
+        except OSError as e:
+            raise HTTPException(500, f"Écriture du projet impossible : {e}")
+    return {"ok": True, **_project_meta(rec)}
+
+
+@router.post("/projects/{pid}/open")
+async def montage_project_open(pid: str):
+    """Le projet REMPLACE la timeline courante. GESTE DESTRUCTIF : ce que le
+    courant portait n'est copié nulle part et RIEN ne le rend — l'éditeur arme
+    donc le bouton avant de frapper (M14) et le dit dans sa note. La fenêtre
+    qui ouvre annule d'abord son autosave en vol, sinon il retomberait sur le
+    projet fraîchement ouvert avec le contenu de l'ancien.
+
+    409 si le projet est INOUVRABLE — plus un seul plan V1 dont la source
+    existe. La règle est celle de GET /project au mot près (un clip SANS src
+    compte, un clip dont la source a disparu ne compte pas) : sans elle, ouvrir
+    un tel projet écrasait la timeline courante pour ne rien afficher, et si
+    elle n'avait pas de nom elle était perdue — ce geste est le seul du lot
+    qui pouvait détruire un montage sans qu'on ait rien demandé de destructif.
+    """
+    d = await asyncio.to_thread(_load_project, pid)
+    if d is None:
+        raise HTTPException(404, "Projet introuvable.")
+    ouvrable = False
+    for cl in (d.get("clips") or []):
+        if not isinstance(cl, dict) or cl.get("tr") != "v1":
+            continue
+        if not cl.get("src") or await _resolve_src(cl.get("src")) is not None:
+            ouvrable = True
+            break
+    if not ouvrable:
+        raise HTTPException(
+            409, f"« {d.get('name') or pid} » n'a plus un seul plan dont la "
+                 f"source existe : il ne peut pas être ouvert, et la timeline "
+                 f"affichée n'a pas été touchée.")
+    p = _pid(pid)
+    rec = dict(d, id=p, project_id=p)
+    async with _ecrit:
+        try:
+            await asyncio.to_thread(_write_saved, rec)
+        except OSError as e:
+            raise HTTPException(500, f"Ouverture impossible : {e}")
+    return {"ok": True, **_project_meta(rec)}
+
+
+@router.delete("/projects/{pid}")
+async def montage_project_delete(pid: str):
+    """Suppression IRRÉVERSIBLE du fichier — rien ne la rejoue, ni ici ni à
+    l'écran (l'historique du Montage ne mémorise que {clips, mixDb}).
+    Si c'était le projet OUVERT, le courant est DÉLIÉ : sans cela le prochain
+    autosave le recréerait aussitôt. C'est le second verrou de la même panne,
+    le premier étant côté POST /save (qui ne miroite que dans un fichier
+    existant) — la timeline courante, elle, n'est pas touchée.
+    TROISIÈME verrou, ajouté le 04/09/2026 : le retrait passe sous `_ecrit`.
+    Les deux premiers bornaient la course entre deux fenêtres SANS la fermer
+    — mesuré, un DELETE glissé entre le test d'existence de POST /save et son
+    miroir faisait revenir le fichier."""
+    p = _project_path(pid)
+    if not _pid(pid) or not p.is_file():
+        raise HTTPException(404, "Projet introuvable.")
+
+    def _rm():
+        try:
+            p.unlink()
+        except OSError as e:
+            return str(e)
+        cur = _load_saved()
+        if cur is not None and cur.get("project_id") == _pid(pid):
+            try:
+                _write_saved({k: v for k, v in cur.items()
+                              if k != "project_id"})
+            except OSError as e:
+                logger.warning(f"montage: le courant reste lié au projet "
+                               f"supprimé — {e}")
+        return ""
+
+    async with _ecrit:
+        err = await asyncio.to_thread(_rm)
+    if err:
+        raise HTTPException(500, f"Suppression impossible : {err}")
+    return {"ok": True, "deleted": True}
 
 
 # ----------------------------------------------------------------- render ---
@@ -1428,6 +2348,16 @@ def _run_ffmpeg(cmd, out: Path) -> Path:
             f"ffmpeg a dépassé {FFMPEG_TIMEOUT_S // 60} min — rendu interrompu.")
     if r.returncode != 0 or not out.exists() or out.stat().st_size == 0:
         tail = (r.stderr or "")[-1200:]
+        # P8 — la tranche brute est GARDÉE, mais elle passe DERRIÈRE la ligne
+        # qui décide. Mesuré le 04/09/2026 sur l'échec réel : « Error opening
+        # input file … model.glb » arrivait à l'offset 1069 de ces 1200
+        # caractères, après six lignes de drapeaux de compilation. Sans motif
+        # reconnu, le message ne change pas d'un caractère.
+        lignes = _ffmpeg_lignes_utiles(r.stderr or "")
+        if lignes:
+            raise RuntimeError(
+                f"ffmpeg a échoué ({r.returncode}) : " + " | ".join(lignes)
+                + "\n--- journal ffmpeg (fin) ---\n" + tail)
         raise RuntimeError(f"ffmpeg a échoué ({r.returncode}) : {tail}")
     return out
 
@@ -1483,6 +2413,13 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
     AUCUN atempo (l'audio du plan V1 n'entre pas dans le graphe — le clip A1
     « son du plan » garde sa vitesse, l'UI le signale). Champ absent ou 1 :
     commande historique intacte.
+    P8 : PRÉ-VOL avant la création du JobRecord — toute source résolue qu'un
+    démultiplexeur ffmpeg n'ouvrira pas (maillage, archive, JSON…) fait
+    répondre 400 en nommant le libellé du clip et le fichier, et RIEN n'entre
+    en file d'attente. Une image reste légitime (carton fixe V1, incrustation
+    V2) et un son sur une piste audio : la frontière est « ce que ffmpeg sait
+    ouvrir », pas « vidéo ». Une source DISPARUE n'est pas concernée : ce
+    chemin reste inchangé.
     → {job_id} ; poll /api/jobs/{id}."""
     try:
         body = await request.json()
@@ -1513,6 +2450,39 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
     # P1 : la LOI de classement des clips. Sans `tracks` c'est la table
     # historique — v2 overlay, a1 dialogue, a2 musique bouclée, a3 sfx.
     meta = _tracks_meta(body.get("tracks"))
+
+    # P8 — PRÉ-VOL. Un rendu qui ne peut pas aboutir ne doit coûter ni une
+    # entrée de file d'attente ni deux minutes d'attente : les sources sont
+    # résolues ICI, avant le JobRecord, et celles qu'aucun démultiplexeur
+    # n'ouvrira sont refusées NOMMÉMENT. Le 04/09/2026 un `model.glb` posé en
+    # V1 par la construction automatique tuait ffmpeg à la 1700e ligne du
+    # journal ; l'utilisateur lisait une tranche de stderr coupée au milieu
+    # de la bannière de compilation. Une source DISPARUE n'est pas l'affaire
+    # du pré-vol : ce chemin reste celui d'avant (échec nommé dans `_run`
+    # pour V1, warning et clip ignoré pour les overlays et l'audio).
+    refus = []
+    for c in clips:
+        m = meta.get(c.get("tr"))
+        if not m or m["kind"] == "subs" or not isinstance(c.get("src"), dict):
+            continue
+        p = await _resolve_src(c.get("src"))
+        if p is not None and not _ffmpeg_ouvrira(p):
+            # P8-bis — le NOMBRE de fautifs était borné (`refus[:8]` plus bas),
+            # la LONGUEUR de chacun ne l'était pas : `label`, `id` et `tr`
+            # sont des chaînes CLIENTES arbitraires, et huit libellés de dix
+            # mille caractères faisaient un `detail` de 80 ko. Le voisin
+            # immédiat borne déjà de la même façon (`title` du JobRecord,
+            # `[:60]`) ; on s'aligne. Le nom de fichier, lui, vient du disque
+            # et le système de fichiers le borne déjà.
+            dit = str(c.get("label") or c.get("id") or c.get("tr") or "?")[:60]
+            refus.append(f"« {dit} » → {p.name}")
+    if refus:
+        raise HTTPException(
+            400, f"Rendu impossible : {len(refus)} source(s) qu'aucun lecteur "
+                 f"ffmpeg n'ouvrira — {' ; '.join(refus[:8])}. Un maillage 3D "
+                 f"n'est pas un plan : retire ces clips de la timeline, ou "
+                 f"remplace-les par une vidéo (mp4/mov/webm) ou une image "
+                 f"(png/jpg).")
 
     job_id = str(uuid4())
     short = job_id[:8]
@@ -1826,3 +2796,298 @@ async def montage_measure(request: Request):
     logger.info(f"montage measure: I={vals['lufs_i']} LUFS, TP={vals['tp']} "
                 f"dBFS, LRA={vals['lra']} LU sur {round(total, 3)} s")
     return {"ok": True, **vals, "dur_s": round(total, 3)}
+
+
+# ----------------------------------------------------- lecture fluide (P7) ---
+# Tâche 8, moitié BACKEND : de quoi rendre le balayage instantané sans que
+# l'écran ait à décoder quoi que ce soit pendant qu'on glisse la tête de
+# lecture. Quatre routes, un seul module de calcul (`montage_media`), un seul
+# vocabulaire de source (`_resolve_src`, celui du Montage — job_id / audio /
+# image / file_path). L'ÉCRAN n'est pas touché ici : ces routes n'ont pas
+# encore de lecteur, et c'est dit — dette assumée jusqu'aux sections M17–M19.
+#
+#   GET  /peaks?src=<json>&bins=    l'enveloppe d'onde, en JSON
+#   GET  /strip?src=<json>&n=&w=&h= une planche de vignettes, en JPEG
+#   POST /proxy  {src}              fabrique l'aperçu 480p en tâche de fond
+#   GET  /proxy?src=<json>          sert l'aperçu s'il existe, 404 sinon
+#   GET  /duration?src=<json>       la durée de la source (P11), en secondes
+#
+# CE QUE CES ROUTES OUVRENT, ET CE QU'ON EN FAIT — la question ne se posait
+# pas pour les routes de Montage existantes, qui CONSOMMENT une source dans
+# un rendu ; celles-ci en rendent le CONTENU dérivé (un JPEG, un mp4, un
+# JSON). Or `_resolve_src` accepte `{file_path}`, et c'est un chemin absolu
+# LIBRE. Ce qui a été mesuré avant de trancher (05/09/2026) :
+#   * `settings.HOST` vaut « 127.0.0.1 » (config.py l. 102) et ni un `.env`
+#     ni le lanceur ne le surchargent (`grep -n HOST scripts/launch.ps1` :
+#     aucune ligne) — le serveur est DÉJÀ borné à la boucle locale ;
+#   * CORS n'est monté que sous `DEEPOTUS_DEV=1` (main.py l. 182) : une page
+#     étrangère peut DÉCLENCHER un GET vers 127.0.0.1 mais ne peut pas en
+#     LIRE la réponse ;
+#   * `{file_path}` est un usage LÉGITIME et vivant du Montage : les
+#     incrustations d'emoji le posent tel quel (frontend/patches/montage.js
+#     l. 331, chemin produit par `POST /api/subtitles/emoji-hints`). Le
+#     bannir casserait une fonction livrée.
+# DÉCISION : on ne restreint pas le vocabulaire de `src` — on restreint
+# l'APPELANT, en réutilisant la seule définition de « boucle locale » du
+# dépôt (`routes._require_localhost`, déjà appliquée à 14 endroits sur la
+# surface des clés d'API). Le geste ne coûte rien à un utilisateur réel
+# (l'app est déjà en 127.0.0.1) et ferme le cas que cette fonction-là nomme
+# elle-même : « même si HOST était mal configuré en 0.0.0.0 ».
+# CE QUI RESTE OUVERT, DIT PLUTÔT QUE TU : un appelant DÉJÀ sur la machine
+# peut obtenir la planche d'une vidéo ou l'onde d'un son qu'il pouvait de
+# toute façon lire lui-même. Ces routes n'élargissent donc pas ce qu'un
+# processus local atteint ; elles élargissent ce que la PAGE atteint, et la
+# page est de même origine.
+
+
+def _require_local(request: Request) -> None:
+    """Refuse tout appelant hors boucle locale.
+
+    RÉUTILISE `routes._require_localhost` — la liste des hôtes acceptés n'est
+    écrite qu'UNE fois dans le dépôt, et une seconde copie ici aurait divergé
+    (l'argument de P9 pour `/media-rules`, appliqué à une liste de sécurité).
+    Seul le MESSAGE est reformulé : celui d'origine parle des réglages."""
+    from app.api.routes import _require_localhost
+    try:
+        _require_localhost(request)
+    except HTTPException:
+        raise HTTPException(
+            403, "Les précalculs du Montage ne sont accessibles que depuis "
+                 "la machine qui exécute l'application.")
+
+
+def _src_query(raw) -> dict | None:
+    """Le `src` d'une chaîne de requête : du JSON, ou rien.
+
+    Un `src` illisible n'est PAS une erreur 500 : c'est une source
+    introuvable, et l'appelant lit le même 404 que pour un job supprimé."""
+    try:
+        v = json.loads(raw or "")
+    except (TypeError, ValueError):
+        return None
+    return v if isinstance(v, dict) else None
+
+
+async def _media_source(request: Request, src, *, video: bool) -> Path:
+    """La source résolue d'une route de précalcul, gardée de bout en bout.
+
+    `video=True` exige une VIDÉO au sens de `_is_video_artifact` — la MÊME
+    autorité que la construction de timeline et que le sélecteur d'assets
+    (`GET /media-rules`), jamais une seconde liste. Ce n'est pas une garde
+    contre un plantage : MESURÉ (scratchpad/mesure2.py), ffmpeg RÉUSSIT le
+    filmstrip et l'aperçu d'un PNG, et l'aperçu d'un `.wav` (un mp4 sans
+    image). Sans cette garde, une planche de sprites ou un son rendraient un
+    aperçu silencieusement faux — la classe de défaut exacte que P8 et le
+    lot 3 ont fermée ailleurs. Le 415 nomme le fichier ; l'écran garde alors
+    le fond qu'il sait déjà dessiner (image fixe en V1, rien ailleurs)."""
+    _require_local(request)
+    p = await _resolve_src(src if isinstance(src, dict) else _src_query(src))
+    if p is None:
+        raise HTTPException(404, "Source introuvable pour ce précalcul.")
+    if video and not _is_video_artifact(p):
+        raise HTTPException(
+            415, f"« {p.name} » n'est pas une vidéo : ce précalcul n'est "
+                 f"possible que sur {', '.join(_VIDEO_EXTS)}.")
+    return p
+
+
+def _media_http(e: Exception) -> HTTPException:
+    """Une `MediaError` devient un 415 NOMMÉ, tout le reste un 502.
+
+    La frontière est celle du diagnostic : `MediaError` porte un message
+    construit pour être lu (ffmpeg absent, source sans flux audio, sortie
+    ffmpeg réduite à ses lignes utiles) ; le reste est un défaut de code
+    qu'il vaut mieux voir passer pour ce qu'il est."""
+    from app.services.montage_media import MediaError
+    if isinstance(e, MediaError):
+        return HTTPException(415, str(e))
+    logger.exception("montage: precalcul en erreur")
+    return HTTPException(502, f"Précalcul impossible : {e}")
+
+
+@router.get("/duration")
+async def montage_duration(request: Request, src: str = ""):
+    """La durée de `src`, en secondes. `{ok, dur, name}`.
+
+    P11 — LA MOITIÉ BACKEND DE « un clip entre à la longueur de sa source ».
+    L'écran ne connaît la durée d'un asset que si la base la porte ; MESURÉ le
+    05/09/2026 sur un instantané COHÉRENT de la base de l'utilisateur
+    (`sqlite3.connect('file:…?mode=ro', uri=True).backup(dst)` — 120 jobs,
+    contre 106 pour une copie d'octets du seul `.db`, qui ignore le WAL) :
+    `duration_s` est NULL pour DEUX de ses trois vidéos, et pour toute la
+    famille `template`. Sans cette route, ces clips-là entrent sur un chiffre
+    par défaut quoi qu'on fasse du plafond. Le sélecteur d'assets, lui, ne
+    voit jamais `duration_real_s` : ce champ n'est calculé que par
+    `GET /jobs/{id}`, un job à la fois, pas par la LISTE que le sélecteur
+    charge.
+
+    RIEN N'EST RECOPIÉ. La résolution de `src` est `_resolve_src` (le seul
+    vocabulaire de source du Montage : job_id / audio / image / file_path),
+    la garde de boucle locale et le 404 viennent de `_media_source`, et la
+    mesure est `_probe_duration` — la même fonction que le rendu, que la
+    construction de timeline et que `montage_media._dur`, qui n'en est qu'une
+    vue depuis l'autre module.
+
+    `video=False`, ET C'EST DÉLIBÉRÉ : un clip AUDIO doit lui aussi entrer à
+    sa longueur, et la question posée ici (« combien de temps dure ce
+    fichier ? ») a un sens pour un son comme pour une vidéo. Le piège de P7 —
+    ffprobe rend « video » sur un PNG — ne mord PAS ici : on lit
+    `format=duration`, pas `codec_type`, et MESURÉ sur les images de
+    l'utilisateur ffprobe rend « N/A » (rc=0), donc `_probe_duration` rend
+    0.0. Une image répond donc « je ne sais pas », ce qui est la vérité, et
+    non une durée inventée.
+
+    `dur: 0` VEUT DIRE « INCONNUE », JAMAIS « NULLE » : c'est le repli de
+    `_probe_duration` pour ffprobe absent, source illisible, fichier sans
+    durée. L'écran le lit ainsi et pose alors le clip sur son repli — en le
+    disant. Une source RÉSOLUE mais non mesurable rend donc 200 avec `dur: 0`
+    et non une erreur : elle existe, c'est sa durée qu'on ignore.
+
+    COÛT, PROTOCOLE NOMMÉ : un ffprobe par appel, et un appel seulement quand
+    un clip est posé sans durée connue — jamais au chargement de l'écran.
+    Médiane de 12 appels après 3 de chauffe (`perf_counter`, ffprobe
+    8.1.1-essentials_build, Windows 11 / AMD64) sur les vidéos RÉELLES de
+    l'utilisateur : 72,4 ms (kapwing_sample, 8,3 Mo), 85,2 ms (Memecoin,
+    6,9 Mo), 74,5 ms (sentry_bot, 6,2 Mo), 59,9 ms et 56,4 ms sur deux
+    autres. `asyncio.to_thread` : la boucle d'événements n'attend pas.
+
+    PAS DE CACHE ICI, ET C'EST UN CHOIX DÉCLARÉ. `routes._probe_seconds` en
+    porte un (clé (chemin, mtime_ns), 512 entrées) mais c'est un AUTRE
+    prober : délai d'attente de 15 s au lieu de 30, et `None` au lieu de 0.0
+    quand il échoue. Les fondre en un seul est une tâche à part ; s'appuyer
+    sur celui-là ici aurait fait entrer sa convention de retour dans le
+    Montage par la bande. À 56–85 ms par pose de clip, l'absence de cache ne
+    se voit pas."""
+    p = await _media_source(request, src, video=False)
+    dur = await asyncio.to_thread(_probe_duration, p)
+    return {"ok": True, "dur": round(float(dur or 0.0), 3), "name": p.name}
+
+
+@router.get("/peaks")
+async def montage_peaks(request: Request, src: str = "", bins: int = 300):
+    """L'enveloppe d'onde de `src`, servie depuis le cache (JSON).
+
+    `{peaks: [0..1] × bins, dur, bins}`. `bins` est écrêté à 8..2000 par
+    `montage_media`, et c'est la valeur ÉCRÊTÉE qui décide aussi du fichier
+    servi — sans quoi la route rendrait le chemin d'un `bins` jamais calculé.
+
+    PAS de garde vidéo ici, et c'est voulu : l'onde d'un plan V1 (« le son du
+    plan ») est exactement ce que la timeline veut dessiner. Ce qui est
+    refusé, c'est une source dont ffmpeg ne tire AUCUN échantillon — 415 qui
+    la nomme, plutôt qu'une onde plate qui affirmerait un silence.
+
+    ON REND CE QUE `peaks` CALCULE, jamais un fichier de cache. La route
+    passait par `peaks_path`, qui appelait `peaks`, JETAIT son dict et
+    reconstruisait un chemin : sur la seule branche où `peaks` répond sans
+    mettre en cache — l'ONDE PARTIELLE, ffmpeg s'est plaint mais a produit
+    des octets — le fichier n'existait pas et cette route levait un 502. Le
+    client ne pouvait donc JAMAIS recevoir cette onde-là. Le cache n'est pas
+    perdu pour autant : c'est `peaks` qui le relit, en tête de fonction, et
+    la ligne `pics_relus_du_cache_sans_recalcul` le mesure toujours."""
+    from app.services import montage_media as MM
+    p = await _media_source(request, src, video=False)
+    try:
+        return await asyncio.to_thread(MM.peaks, p, bins)
+    except Exception as e:
+        raise _media_http(e)
+
+
+@router.get("/strip")
+async def montage_strip(request: Request, src: str = "", n: int = 12,
+                        w: int = 78, h: int = 44):
+    """Une planche de `n` vignettes `w`×`h` (JPEG), servie depuis le cache."""
+    from app.services import montage_media as MM
+    p = await _media_source(request, src, video=True)
+    try:
+        out = await asyncio.to_thread(MM.strip, p, n, w, h)
+    except Exception as e:
+        raise _media_http(e)
+    return FileResponse(out, media_type="image/jpeg")
+
+
+@router.post("/proxy")
+async def montage_proxy_build(request: Request,
+                              background_tasks: BackgroundTasks):
+    """Fabrique l'aperçu 480p de `src` en tâche de fond. Body : `{src}`.
+
+    Réponse : `{ok, ready, job_id}`. `ready: true` (et `job_id: null`) quand
+    le cache le porte déjà — aucun travail, aucun job. Sinon un `JobRecord`
+    `provider="montage_proxy"` à suivre par `GET /api/jobs/{id}`.
+
+    CE JOB NE PORTE AUCUN CHEMIN D'ARTEFACT, et c'est le cœur de la
+    décision : voir `_PROXY_PROVIDER` plus haut. Le fichier se retrouve par
+    `GET /proxy?src=…`, dont la clé de cache est une fonction de la source —
+    l'écran n'a donc jamais besoin de lire ce chemin sur le job, et rien de
+    ce qui interroge un artefact ne peut confondre un cache avec un plan."""
+    from app.services import montage_media as MM
+    body = await _json_body(request)
+    p = await _media_source(request, body.get("src"), video=True)
+    try:
+        out = await asyncio.to_thread(MM.proxy_path, p)
+    except Exception as e:
+        raise _media_http(e)
+    if out.exists():
+        return {"ok": True, "ready": True, "job_id": None}
+
+    job_id = str(uuid4())
+    async with async_session_factory() as session:
+        session.add(JobRecord(
+            id=job_id, status=JobStatus.GENERATING_VIDEO.value, progress=10,
+            title=f"proxy — {p.name}"[:60],
+            provider=_PROXY_PROVIDER,
+            # `image_filename` est NON NUL en base (storage.py l. 24) : il
+            # faut donc y écrire quelque chose. On suit la forme déjà en
+            # usage pour les jobs qui n'ont pas d'image — `asset3d_<…>`,
+            # `sprite_<court>` (routes.py) — c'est-à-dire un libellé SANS
+            # EXTENSION : aucun filtre par extension ne peut le prendre pour
+            # un média, et il dit ce qu'il est.
+            image_filename=f"montage_proxy_{job_id[:8]}",
+            # final_video_path / video_path : DÉLIBÉRÉMENT absents. Un cache
+            # n'est pas un artefact — voir `_PROXY_PROVIDER` en tête.
+            current_step="Aperçu 480p"))
+        await session.commit()
+
+    async def _run():
+        try:
+            await asyncio.to_thread(MM.proxy, p)
+        except Exception as e:
+            logger.warning(f"montage: apercu 480p echoue — {e}")
+            async with async_session_factory() as session:
+                jr = await session.get(JobRecord, job_id)
+                if jr is not None:
+                    jr.status = JobStatus.FAILED.value
+                    jr.error = str(e)[:2000]
+                    jr.current_step = "Échec"
+                    await session.commit()
+            return
+        async with async_session_factory() as session:
+            jr = await session.get(JobRecord, job_id)
+            if jr is not None:
+                jr.status = JobStatus.DONE.value
+                jr.progress = 100
+                jr.current_step = "Aperçu prêt"
+                jr.completed_at = _dt.utcnow()
+                await session.commit()
+
+    background_tasks.add_task(_run)
+    return {"ok": True, "ready": False, "job_id": job_id}
+
+
+@router.get("/proxy")
+async def montage_proxy_get(request: Request, src: str = ""):
+    """L'aperçu 480p de `src` s'il est déjà fabriqué, 404 sinon.
+
+    404 et non une fabrication à la volée : un aperçu prend des secondes, et
+    une route de LECTURE qui encoderait bloquerait le premier balayage au
+    lieu de l'accélérer. C'est `POST /proxy` qui fabrique."""
+    from app.services import montage_media as MM
+    p = await _media_source(request, src, video=True)
+    try:
+        out = await asyncio.to_thread(MM.proxy_path, p)
+    except Exception as e:
+        raise _media_http(e)
+    if not out.exists():
+        raise HTTPException(
+            404, "Aperçu 480p pas encore fabriqué — POST /api/montage/proxy "
+                 "le met en file.")
+    return FileResponse(out, media_type="video/mp4")
