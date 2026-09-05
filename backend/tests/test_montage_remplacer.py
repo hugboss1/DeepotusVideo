@@ -215,6 +215,15 @@ aussi dans `montage_project` et que le muter LA aurait mesure une autre
 route. Lignes vertes de reference : remplacer 99/0, sources 67/0,
 media 67/0.
 
+CONFIRMATION APRES LA REPARATION DE F1-bis (meme jour, apres coup) : les
+elargissements de garde des fixtures touchent les DEUX bancs, donc toute la
+table pouvait avoir bouge. Elle a ete REJOUEE EN ENTIER une seconde fois et
+comparee a la premiere campagne MUTATION PAR MUTATION ET ROUGE PAR ROUGE
+(scratchpad/compare.py) : ZERO ECART sur les cinquante-trois. Les chiffres
+ci-dessous valent donc pour le depot tel qu'il est, pas pour l'etat d'avant
+la reparation. Une seule ancre a du etre corrigee — celle de F1, que la
+reparation a fait descendre d'un niveau d'indentation.
+
   SUR LA ROUTE (banc : celui-ci)
   MV   garde du titre vide retiree      => 98/1, `newer_titre_vide_ne_
        propose_rien` SEULE. Ensemble INCHANGE.
