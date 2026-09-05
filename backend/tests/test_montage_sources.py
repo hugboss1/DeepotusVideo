@@ -151,73 +151,129 @@ tests/test_montage_media.py ; ligne verte de reference de CE banc : 67/0) :
         pour cela que le verrou 1 se mesure ailleurs
         (test_montage_media.py [5]).
 
-VINGT-DEUX MUTATIONS, TOUTES REJOUEES le 04/09/2026 sur la version courante
-du banc — les onze + une de P8 COMPRISES, dont les comptes d'alors (mesures
-sur une version a 35 assertions) ne valent plus. Protocole : le fichier vise
-est reecrit sur DISQUE, le banc relance en processus NEUF, le fichier
-restaure quoi qu'il arrive (try/finally + verification du sha256) ; script
-scratchpad/mut.py. Ligne verte de reference : 60/0 — CE CHIFFRE ET LES
-VINGT-DEUX COMPTES QUI SUIVENT DATENT DU 04/09/2026 ET SONT PERIMES : le
-banc en porte 67 depuis P7. Cinq mutations seulement ont ete rejouees sur
-la version courante (M3, M7, N18, N19, N20) ; elles sont en fin d'en-tete.
+TRENTE-CINQ MUTATIONS, TOUTES REJOUEES LE 05/09/2026 SUR LA VERSION
+COURANTE (67 assertions). Elles remplacent la table du 04/09/2026, qui avait
+ete mesuree sur une version a 60 : ses vingt-deux comptes sommaient a 60 et
+etaient donc PERIMES depuis P7. Recopier un chiffre mesure sur une version
+d'avant est la faute n°1 du chantier ; elle est ici payee une fois de plus,
+et fermee.
+CE QUE LE REJEU A APPRIS, ET QU'UN SIMPLE DECALAGE DE TOTAL AURAIT CACHE :
+VINGT-DEUX mutations gardent le MEME NOMBRE de rouges (seul le total de
+vertes bouge de +7) ; SIX en gagnent — N1, N14, N15, N16, M1 et M7 —, parce
+que P7 et les reparations du 05/09 ont ajoute des lignes qu'elles emportent
+aussi ; TROIS debordent sur un AUTRE banc (M1, M2 et MEXT), ce que
+l'ancienne table ne disait nulle part ; et la garde de la fixture `pose()`
+s'est revelee PLUS ETROITE que ce que F1 laissait croire — voir F1-bis.
+PROTOCOLE : le fichier vise est reecrit sur DISQUE, les bancs sont relances
+en processus NEUFS, les fichiers restaures quoi qu'il arrive (try/finally +
+verification du sha256 EN OCTETS — `read_text` normalise les CRLF et la
+restauration changerait alors le fichier, piege mesure et paye ce jour) ;
+script scratchpad/mut2.py, qui REFUSE de partir si un motif ne se trouve pas
+exactement une fois. Lignes vertes de reference : sources 67/0,
+remplacer 99/0, media 67/0. Les mutations qui touchent du code PARTAGE
+(`_VIDEO_EXTS`, le `where` de `montage_project`, `_is_video_artifact`) sont
+jouees contre les TROIS bancs ; les autres contre sources et remplacer.
+
 LES QUINZE DE P8-bis (le second defaut et ce que la revue a ouvert autour) :
-  N1 `where` retire de la requete => 57/3 : les deux lignes du seuil et
-     `le_where_n_est_pas_un_surensemble`. C'EST LA MUTATION DU SECOND
-     DEFAUT — celle qui reproduit la timeline vide et silencieuse. Aucune
-     ligne d'une autre section ne bouge : les 60 planches sont posees APRES
-     [1] et [2] exactement pour cela.
+  N1 `where` retire de la requete => sources 61/6 : les deux lignes du seuil,
+     `le_where_n_est_pas_un_surensemble` et LES TROIS `proxy_de_scrub_*`.
+     C'EST LA MUTATION DU SECOND DEFAUT — celle qui reproduit la timeline
+     vide et silencieuse. ENSEMBLE ELARGI depuis le 04/09 (57/3 alors) : les
+     trois lignes du proxy, ajoutees par P7, mesurent le BUDGET de la fenetre
+     de 60, et un `where` retire le consomme. remplacer 99/0, media 67/0.
   N14 `where` sur `final_video_path` SEUL — la forme ecrite de tete par la
-     revue => 58/2, les deux lignes de repli
-     `where_suit_le_repli_video_path_quand_fvp_est_{nul,vide}`. La revue
-     avait raison de prevenir : cette forme ECARTE des jobs legitimes.
-  N15 `where` en SURENSEMBLE (OR sur les deux colonnes) => 59/1,
-     `le_where_n_est_pas_un_surensemble` SEULE. Le surensemble ne change pas
-     la SORTIE (la boucle rejette ensuite) — il rend le GASPILLAGE de
-     fenetre, donc le defaut, en plus etroit.
-  N16 `nullif` retire du `where` => 59/1, la ligne de la chaine VIDE seule
-     (`coalesce` seul ne voit pas `""`, la ou le `or` de Python le traverse).
-  N17 `ilike` -> `like` => 60/0, AUCUNE rouge, et c'est declare : le LIKE de
-     SQLite est deja insensible a la casse pour l'ASCII par defaut. Les deux
-     formes ne se separent que sous `PRAGMA case_sensitive_like = 1`, ou le
-     LIKE nu ne garde plus que `a.mp4` quand la forme `lower()/lower()` que
-     compile `ilike` garde aussi `Rush_Camera.MOV` et `b.Mp4` (mesure
+     revue => sources 63/4 : les deux lignes de repli
+     `where_suit_le_repli_video_path_quand_fvp_est_{nul,vide}`, PLUS
+     `final_video_path_fait_foi_sur_le_repli` et `nom_de_fichier_sans
+     _extension_arrete_par_la_boucle`. ENSEMBLE ELARGI, et par une cause
+     qu'il faut nommer : ces deux dernieres sont les lignes REPAREES le
+     05/09, dont la precondition exige `NUL` et `VID` en V1 — precisement les
+     deux jobs que cette forme ecarte. Leur operande n'est plus ce qu'il
+     pretend etre, elles rougissent : c'est le comportement voulu, mais il
+     COUPLE ces deux lignes aux deux du repli sous cette mutation-la. Dit
+     plutot que tu. La revue avait raison de prevenir : cette forme ECARTE
+     des jobs legitimes. remplacer 99/0, media 67/0.
+  N15 `where` en SURENSEMBLE (OR sur les deux colonnes) => sources 63/4 :
+     `le_where_n_est_pas_un_surensemble` et les trois `proxy_de_scrub_*`.
+     ENSEMBLE ELARGI (59/1 alors), meme cause qu'en N1 : le surensemble ne
+     change pas la SORTIE (la boucle rejette ensuite), il rend le GASPILLAGE
+     de fenetre — et ce sont les lignes de budget qui le voient.
+     remplacer 99/0, media 67/0.
+  N16 `nullif` retire du `where` => sources 64/3 :
+     `where_suit_le_repli_video_path_quand_fvp_est_vide` (la chaine VIDE, que
+     `coalesce` seul ne voit pas la ou le `or` de Python la traverse), plus
+     les deux lignes reparees, pour la raison de N14. ENSEMBLE ELARGI (59/1
+     alors). remplacer 99/0, media 67/0.
+  N17 `ilike` -> `like` => sources 67/0, AUCUNE rouge, et c'est declare : le
+     LIKE de SQLite est deja insensible a la casse pour l'ASCII par defaut.
+     Les deux formes ne se separent que sous `PRAGMA case_sensitive_like = 1`,
+     ou le LIKE nu ne garde plus que `a.mp4` quand la forme `lower()/lower()`
+     que compile `ilike` garde aussi `Rush_Camera.MOV` et `b.Mp4` (mesure
      sqlite3 stdlib). Le choix est porte par CETTE mesure, pas par une ligne
      de banc — aucune ne peut les separer sur ce backend-ci.
-  N2 `_is_video_artifact` sans `.lower()` => 58/2, les deux lignes
-     `casse_mixte_*` de la construction.
-  N3 `_ffmpeg_ouvrira` sans `.lower()` => 59/1,
-     `casse_mixte_acceptee_au_prevol` SEULE.
-  N4 motif « matches no streams » retire => 58/2, `motif_flux_absent` et
-     `motif_flux_absent_en_tete_du_message` — les deux mesurent ce motif-la,
-     l'une dans la table, l'autre de bout en bout.
-  N5 « Error parsing filterchain » retire => 59/1, `motif_filterchain` SEULE.
-  N6 « Error initializing filters » retire => 59/1, `motif_init_filtres`
-     SEULE. (Une premiere version faisait rougir AUSSI
-     `lignes_utiles_tronque_a_200`, dont le litteral empruntait ce motif ;
-     le porteur de la troncature a ete change pour un motif d'origine.)
-  N7 « Error opening output » retire => 59/1, `motif_sortie` SEULE.
-  N8 borne `[:60]` du libelle retiree => 59/1,
-     `prevol_borne_la_longueur_du_libelle` SEULE.
-  N9 `refus[:8]` -> `refus[:1]` => 59/1,
-     `prevol_borne_le_nombre_de_fautifs_cites` SEULE.
-  N10 dedoublonnage retire => 59/1, `lignes_utiles_dedoublonne` SEULE.
-  N11 troncature a 200 retiree => 59/1, `lignes_utiles_tronque_a_200` SEULE.
-  N12 `return out[::-1]` => 59/1, `lignes_utiles_garde_l_ordre` SEULE.
-  N13 `v1_non_video` revenu au repli heterogene => 57/3, les trois lignes du
-     champ.
-  F1 `raise` en tete de la fixture `pose()` => 32/28, et LE BANC IMPRIME SON
-     COMPTE. C'est la garde de la faute n°6 etendue aux fixtures : sans elle
-     la premiere `pose` en erreur tuait le processus avant toute ligne.
+     remplacer 99/0, media 67/0.
+  N2 `_is_video_artifact` sans `.lower()` => sources 65/2, les deux lignes
+     `casse_mixte_{acceptee_a_la_construction,duree_du_rush}`. Ensemble
+     INCHANGE. remplacer 99/0, media 67/0.
+  N3 `_ffmpeg_ouvrira` sans `.lower()` => sources 66/1,
+     `casse_mixte_acceptee_au_prevol` SEULE. Ensemble INCHANGE.
+  N4 motif « matches no streams » retire => sources 65/2, `motif_flux_absent`
+     et `motif_flux_absent_en_tete_du_message` — les deux mesurent ce motif-la,
+     l'une dans la table, l'autre de bout en bout. Ensemble INCHANGE.
+  N5 « Error parsing filterchain » retire => sources 66/1, `motif_filterchain`
+     SEULE. Ensemble INCHANGE.
+  N6 « Error initializing filters » retire => sources 66/1, `motif_init_filtres`
+     SEULE. Ensemble INCHANGE. (Une premiere version faisait rougir AUSSI
+     `lignes_utiles_tronque_a_200`, dont le litteral empruntait ce motif ; le
+     porteur de la troncature a ete change pour un motif d'origine.)
+  N7 « Error opening output » retire => sources 66/1, `motif_sortie` SEULE.
+     Ensemble INCHANGE.
+  N8 borne `[:60]` du libelle retiree => sources 66/1,
+     `prevol_borne_la_longueur_du_libelle` SEULE. Ensemble INCHANGE.
+  N9 `refus[:8]` -> `refus[:1]` => sources 66/1,
+     `prevol_borne_le_nombre_de_fautifs_cites` SEULE. Ensemble INCHANGE.
+  N10 dedoublonnage retire => sources 66/1, `lignes_utiles_dedoublonne` SEULE.
+  N11 troncature a 200 retiree => sources 66/1, `lignes_utiles_tronque_a_200`
+     SEULE.
+  N12 `return out[::-1]` => sources 66/1, `lignes_utiles_garde_l_ordre` SEULE.
+  N13 `v1_non_video` revenu au repli heterogene => sources 64/3, les trois
+     lignes du champ (`sauvegarde_signale_le_clip_non_video`,
+     `v1_non_video_ne_rend_que_des_identifiants_joignables`,
+     `v1_non_video_exclut_le_clip_sans_id`). Ensemble INCHANGE.
+  F1 `raise` DANS `go()` — donc DANS l'appel garde par le try/except de la
+     fixture `pose()` => sources 35/32, ET LE BANC IMPRIME SON COMPTE. C'est
+     la garde de la faute n°6 etendue aux fixtures : sans elle la premiere
+     `pose` en erreur tuait le processus avant toute ligne.
+  F1-bis LA MEME MUTATION, PLACEE UNE LIGNE PLUS HAUT — `raise` en tete de
+     `pose()`, AVANT la definition de `go()` => LE BANC MEURT, traceback sur
+     `pose(ID_MP4, …)` l. 723, AUCUNE ligne de compte, zero assertion
+     imprimee. CE CAS N'AVAIT JAMAIS ETE MESURE, et il corrige une phrase que
+     cette table affirmait a tort : la garde de `pose()` ne couvre PAS « la
+     fixture », elle couvre L'APPEL A LA BASE. Tout ce qui echoue dans le
+     corps de la fixture avant `asyncio.run(go())` tue encore ce banc. Ce
+     n'est pas repare ici — c'est nomme, et ca reste ouvert.
 
-LES DOUZE DE P8, REJOUEES sur cette version (leurs comptes d'alors, mesures
-a 35 assertions, ne valent plus) :
-  M1 `_VIDEO_EXTS` + ".png"  => 48/12, dont `sprite_exclu` ROUGE et
-     `glb_exclu` VERTE — les deux discriminent bien.
-  M2 `_VIDEO_EXTS` + ".glb"  => 41/19, dont `glb_exclu` ROUGE et
-     `sprite_exclu` VERTE. (Les `prevol_*` du refus rougissent aussi : le
-     pre-vol lit la meme table.)
-  M3 filtre `_is_video_artifact` retire de `montage_project` => 59/1,
-     `nom_de_fichier_sans_extension_arrete_par_la_boucle` SEULE.
+LES DOUZE DE P8 :
+  M1 `_VIDEO_EXTS` + ".png" => sources 51/16, dont `sprite_exclu` ROUGE et
+     `glb_exclu` VERTE — les deux discriminent bien. SEIZE rouges contre
+     douze le 04/09 : les quatre de plus sont dans les sections que P7 et le
+     05/09 ont ajoutees (budget de la fenetre, repli des deux colonnes,
+     champ `v1_non_video`), l'ancienne table ne les enumerait pas et le delta
+     ne se calcule donc pas ligne a ligne — c'est l'ensemble MESURE qui fait
+     foi, et il est dans scratchpad/mut2_resultats.json.
+     ET ELLE DEBORDE, ce que l'ancienne table ne disait nulle part :
+     remplacer 97/2 (`newer_rend_les_homonymes_…` et
+     `newer_ecarte_la_planche_de_sprites`) et media 65/2
+     (`route_strip_415_sur_une_image`, `route_proxy_post_415_sur_une_image`).
+     `_VIDEO_EXTS` est lu par TROIS bancs.
+  M2 `_VIDEO_EXTS` + ".glb" => sources 48/19, dont `glb_exclu` ROUGE et
+     `sprite_exclu` VERTE. DIX-NEUF rouges, comme le 04/09 : seul le total
+     de vertes a bouge. DEBORDE : remplacer 97/2
+     (`newer_rend_les_homonymes_…`, `newer_ecarte_le_maillage_3d`) ;
+     media 67/0, AUCUNE — un `.glb` n'atteint pas les routes de media.
+  M3 filtre `_is_video_artifact` retire de `montage_project` => sources 66/1,
+     `nom_de_fichier_sans_extension_arrete_par_la_boucle` SEULE ;
+     media 67/0 et remplacer 99/0. Ensemble INCHANGE.
      CE CHIFFRE A CHANGE DE NATURE, et il faut le dire : avant P8-bis cette
      mutation donnait 28/7. Depuis que le `where` porte la meme liste
      blanche, la requete ne rend plus AUCUNE ligne que la boucle rejetterait
@@ -226,58 +282,89 @@ a 35 assertions, ne valent plus) :
      le `where` filtre la CHAINE (`LIKE '%.mp4'`), la boucle filtre
      l'EXTENSION ANALYSEE (`Path(fp).suffix`), et `PurePath("C:/a/.mp4")
      .suffix` vaut `''`. C'est cette divergence-la, et elle seule, qui tient
-     encore le test Python — sans la ligne ajoutee pour elle, M3 donnait
-     55/0, AUCUNE rouge.
-  M4 pre-vol retire de `montage_render` => 49/11, EXACTEMENT les lignes du
-     refus et des deux bornes ; les cinq lignes d'acceptation, les deux cas
-     croises, `casse_mixte_acceptee_au_prevol` et
-     `prevol_laisse_passer_une_source_disparue` restent vertes.
-  M5 `_ffmpeg_lignes_utiles` rendant toujours [] => 48/12, les quatre lignes
-     de position, les cinq de [5-bis] et les trois de [5-ter] ;
-     `erreur_sans_motif_inchangee` VERTE (autre branche).
-  M6 mise en tete INCONDITIONNELLE (motif ou pas) => 34/1 A L'EPOQUE,
-     `erreur_sans_motif_inchangee` SEULE rouge. NON REJOUEE sur cette
-     version : la mutation portait sur une forme du code que P8-bis n'a pas
-     touchee, et son chiffre est donc CELUI DE LA VERSION A 35 — il est cite
-     ici pour memoire, pas comme une mesure courante.
-  M7 `v1_non_video` jamais rempli => 58/2,
-     `sauvegarde_signale_le_clip_non_video` et
-     `v1_non_video_ne_rend_que_des_identifiants_joignables`.
+     encore le test Python.
+  M4 pre-vol retire de `montage_render` => sources 56/11, EXACTEMENT les onze
+     lignes du refus et des deux bornes ; les cinq lignes d'acceptation, les
+     deux cas croises, `casse_mixte_acceptee_au_prevol` et
+     `prevol_laisse_passer_une_source_disparue` restent vertes. Ensemble
+     INCHANGE. remplacer 99/0.
+  M5 `_ffmpeg_lignes_utiles` rendant toujours [] => sources 55/12, les quatre
+     lignes de position, les cinq de [5-bis] et les trois de [5-ter] ;
+     `erreur_sans_motif_inchangee` VERTE (autre branche). Ensemble INCHANGE.
+  M6 mise en tete INCONDITIONNELLE (`if lignes:` -> `if True:`) => sources
+     66/1, `erreur_sans_motif_inchangee` SEULE. REJOUEE LE 05/09, contre ce
+     que l'ancienne table declarait : elle affirmait que la forme du code
+     n'existait plus et citait un chiffre de la version a 35. La forme existe
+     (`montage_service.py`, branche du message d'erreur) et la mutation
+     discrimine exactement la ligne annoncee.
+  M7 `v1_non_video` jamais rempli => sources 64/3 :
+     `sauvegarde_signale_le_clip_non_video`,
+     `v1_non_video_ne_rend_que_des_identifiants_joignables` ET
+     `v1_non_video_exclut_le_clip_sans_id`. CETTE TROISIEME EST NOUVELLE :
+     avant la reparation du 05/09, M7 vidait `nv` et les trois negations de
+     cette ligne devenaient vraies — la mutation la laissait VERTE. C'est la
+     preuve la plus directe que la regle des assertions negatives achete
+     quelque chose. media 67/0, remplacer 99/0.
   M8 pre-vol REFUSANT aussi les images (le zele que la decision 3 interdit)
-     => 57/3 : `prevol_accepte_une_image_sur_v1`,
+     => sources 64/3 : `prevol_accepte_une_image_sur_v1`,
      `prevol_accepte_une_image_sur_v2` et `prevol_accepte_a_bien_mis_en_file`
-     rouges — et `prevol_accepte_un_son_sur_a1` VERTE. C'est ce que la
-     SEPARATION des trois cas achete : la ligne agregee d'avant rougissait
-     en bloc sans dire lequel des trois cotes avait cede.
-  M9 pre-vol DIFFERENCIANT (refus d'un son sur une piste video) => 59/1,
-     `prevol_laisse_passer_un_son_sur_v1` SEULE rouge.
+     rouges — et `prevol_accepte_un_son_sur_a1` VERTE. Ensemble INCHANGE.
+     C'est ce que la SEPARATION des trois cas achete : la ligne agregee
+     d'avant rougissait en bloc sans dire lequel des trois cotes avait cede.
+  M9 pre-vol DIFFERENCIANT (refus d'un son sur une piste video) => sources
+     66/1, `prevol_laisse_passer_un_son_sur_v1` SEULE. Ensemble INCHANGE.
   M10 pre-vol DIFFERENCIANT dans l'autre sens (refus d'une video sur une
-     piste audio) => 59/1, `prevol_laisse_passer_une_video_sur_a1` SEULE
-     rouge. M9 et M10 mesurent que l'union est PLATE, et dans quel sens.
-  MLIM `limite` ramene de 5 a 1 => 56/4 : `erreur_motif_en_tete`,
+     piste audio) => sources 66/1, `prevol_laisse_passer_une_video_sur_a1`
+     SEULE. M9 et M10 mesurent que l'union est PLATE, et dans quel sens.
+  MLIM `limite` ramene de 5 a 1 => sources 63/4 : `erreur_motif_en_tete`,
      `erreur_deux_motifs`, `erreur_banniere_pas_en_tete` et
-     `lignes_utiles_garde_l_ordre`. Le plafond, lui, EST tenu — c'est le
-     contre-exemple qui rend lisibles les trois trous de [5-ter].
-  MB `raise` a l'appel de `_resolve_src` (la definition est renommee, donc
-     AttributeError au moment de l'appel — ce que le thunk de `CO()` est
-     fait pour rattraper).
+     `lignes_utiles_garde_l_ordre`. Ensemble INCHANGE. Le plafond, lui, EST
+     tenu — c'est le contre-exemple qui rend lisibles les trois trous de
+     [5-ter].
+  MB `_resolve_src` renommee (donc AttributeError au moment de l'appel — ce
+     que le thunk de `CO()` est fait pour rattraper) => sources 41/26, le
+     banc va jusqu'au bout et IMPRIME SON COMPTE. Les temoins sont numerotes
+     et lisibles dans le detail de chaque ligne rouge ; le dernier se pose
+     PAR-DESSUS l'avant-dernier (la reponse-temoin releve a son tour dans
+     `J()`), ce qui montre les deux gardes empilees sans jamais rendre `None`.
      AVANT la garde (version a 30 assertions) : traceback sur la ligne alors
-     NUE `asyncio.run(M._resolve_src(...))` de la section [3], exit 1,
-     AUCUNE ligne de compte imprimee, sections [4] [5] [6] JAMAIS jouees —
-     21 des 30 assertions emportees EN SILENCE. C'est la faute n°6 du
-     chantier dans sa forme la plus couteuse : un banc qui meurt ne dit pas
-     ce qui manque.
-     APRES, sur cette version : 35/25, le banc va jusqu'au bout et IMPRIME
-     SON COMPTE. Les temoins sont numerotes et lisibles dans le detail de
-     chaque ligne rouge ; le dernier se pose PAR-DESSUS l'avant-dernier (la
-     reponse-temoin releve a son tour dans `J()`), ce qui montre les deux
-     gardes empilees sans jamais rendre `None`.
-     Restent VERTES a bon droit : les sections [1], [2], [2-bis], [2-ter] et
-     [2-quater] (sans sauvegarde, la construction depuis la Bibliotheque ne
-     passe pas par `_resolve_src`), `prevol_aucun_job_cree` (une route qui
-     meurt ne cree effectivement aucun job), `save_acceptee` (POST /save ne
-     resout rien) et tout [5] / [5-bis] / [5-ter] (le message d'erreur ne
-     resout aucune source).
+     NUE `asyncio.run(M._resolve_src(...))`, exit 1, AUCUNE ligne de compte,
+     21 des 30 assertions emportees EN SILENCE.
+     Restent VERTES a bon droit, et c'est verifie ligne a ligne : les
+     sections [1], [2], [2-bis], [2-ter] et [2-quater] (sans sauvegarde, la
+     construction depuis la Bibliotheque ne passe pas par `_resolve_src`),
+     `prevol_aucun_job_cree` (une route qui meurt ne cree effectivement aucun
+     job), `save_acceptee` (POST /save ne resout rien) et tout [5] / [5-bis]
+     / [5-ter] (le message d'erreur ne resout aucune source).
+
+LES SIX DE P7 ET DU 05/09, mesurees le meme jour sur la meme version :
+  N-P2 (table de test_montage_media.py) `where` de provider retire de
+     `montage_project` => sources 64/3, EXACTEMENT les trois lignes
+     `proxy_de_scrub_*` que cette table declare ; media 67/0 et
+     remplacer 99/0. La table de test_montage_media.py reste donc valide
+     apres les reparations du 05/09.
+  N18 precedence inversee dans la BOUCLE seule
+     (`fp = j.video_path or j.final_video_path`) => sources 67/0, AUCUNE
+     ROUGE, et c'est DECLARE : le `where` SQL porte deja la precedence
+     d'origine, donc MIX (planche en `final_video_path`, mp4 en
+     `video_path`) n'atteint jamais la boucle. Une inversion d'un seul cote
+     ne se voit pas — ce n'est pas un trou du banc, c'est une propriete du
+     code.
+  N19 precedence inversee dans le `where` SQL seul => sources 63/4 :
+     `le_where_n_est_pas_un_surensemble` et les trois `proxy_de_scrub_*`.
+     `final_video_path_fait_foi_sur_le_repli` reste VERTE — la boucle rejette
+     MIX ensuite.
+  N20 precedence inversee DES DEUX COTES — la seule forme COHERENTE
+     => sources 62/5, les quatre de N19 PLUS
+     `final_video_path_fait_foi_sur_le_repli`. C'est LA mutation que cette
+     ligne attrape, et il a fallu la construire pour le savoir.
+  MEXT `.mp4` retire de `_VIDEO_EXTS` (elle appartient a la table de
+     test_montage_remplacer.py, citee ici parce qu'elle touche ce banc-ci)
+     => sources 45/22, remplacer 89/10, media 53/14. La plus large du lot, et
+     la preuve que la liste blanche est UNE et partagee par trois bancs.
+  RIEN D'AUTRE NE DEBORDE, et c'est mesure : les trente-deux mutations de
+     cette table autres que M1, M2 et MEXT laissent remplacer a 99/0, et
+     celles qui ont ete jouees contre media le laissent a 67/0.
 
 CE QUE CE BANC N'AFFIRME PAS
   * Aucun octet n'est encode : `_run_ffmpeg` est REMPLACE par un talon pour
@@ -378,7 +465,7 @@ CE QUE CE BANC N'AFFIRME PAS
   * CE QU'AUCUNE LIGNE DE CE BANC NE SEPARE — declare pour que personne ne
     croie le contraire en lisant le vert : `ilike` et `like` dans le `where`
     de la requete. Le LIKE de SQLite est deja insensible a la casse pour
-    l'ASCII par defaut ; la mutation N17 laisse le banc a 60/0. Le choix
+    l'ASCII par defaut ; la mutation N17 laisse le banc a 67/0. Le choix
     d'`ilike` est porte par une mesure hors banc (sous `PRAGMA
     case_sensitive_like = 1`, le LIKE nu perd `.MOV` et `.Mp4` la ou la
     forme `lower()/lower()` les garde), pas par une assertion.
@@ -428,50 +515,13 @@ seulement ensuite les comparer.
     a vide elle est verte pour une AUTRE raison, aucun pre-vol n'a tourne) ;
     les six erreur_*, les cinq motif_* et les trois lignes_utiles_* (des
     fonctions PURES de `M._msg` / `M._lignes_utiles`, sans aucune route).
-  LES CINQ MUTATIONS REJOUEES LE 05/09/2026 sur la version COURANTE (67
-  assertions), protocole habituel — fichier reecrit sur disque, bancs
-  relances en processus neufs, restauration verifiee au sha256 EN OCTETS
-  (`read_text` normalise les CRLF et la restauration changerait le fichier),
-  script scratchpad/mut.py :
-    M3  filtre `_is_video_artifact` retire de `montage_project`
-        => sources 66/1, `nom_de_fichier_sans_extension_arrete_par_la_boucle`
-        SEULE ; media 67/0 et remplacer 99/0, aucune rouge.
-    M7  `v1_non_video` jamais rempli => sources 64/3 :
-        sauvegarde_signale_le_clip_non_video,
-        v1_non_video_ne_rend_que_des_identifiants_joignables ET
-        v1_non_video_exclut_le_clip_sans_id. CETTE TROISIEME EST NOUVELLE :
-        avant la reparation, M7 vidait `nv` et les trois negations de cette
-        ligne devenaient vraies — la mutation la laissait VERTE. C'est la
-        preuve la plus directe que la regle achete quelque chose.
-    N18 precedence inversee dans la BOUCLE seule
-        (`fp = j.video_path or j.final_video_path`) => 67/0, AUCUNE ROUGE, et
-        c'est DECLARE : le `where` SQL porte deja la precedence d'origine,
-        donc MIX (planche en `final_video_path`, mp4 en `video_path`)
-        n'atteint jamais la boucle. Une inversion d'un seul cote ne se voit
-        pas — ce n'est pas un trou du banc, c'est une propriete du code.
-    N19 precedence inversee dans le `where` SQL seul => 63/4 :
-        le_where_n_est_pas_un_surensemble et les trois proxy_de_scrub_*.
-        `final_video_path_fait_foi_sur_le_repli` reste VERTE — la boucle
-        rejette MIX ensuite.
-    N20 precedence inversee DES DEUX COTES — la seule forme COHERENTE
-        => 62/5, les quatre de N19 PLUS
-        `final_video_path_fait_foi_sur_le_repli`. C'est LA mutation que cette
-        ligne attrape, et il a fallu la construire pour le savoir.
-  ET UNE SIXIEME, REJOUEE POUR VERIFIER QU'ON N'A RIEN CASSE AILLEURS :
-    N-P2 (table de test_montage_media.py) `where` de provider retire de
-        `montage_project` => sources 64/3, EXACTEMENT les trois lignes
-        proxy_de_scrub_* que cette table declare, media 67/0 et
-        remplacer 99/0. La table de test_montage_media.py, mesuree le
-        05/09/2026 sur cette meme version, reste donc valide apres les
-        reparations : aucune d'elles n'y ajoute ni n'y retire une rouge.
-  CE QUI RESTE PERIME, ET IL FAUT LE DIRE PLUTOT QUE LE RECOPIER : la table
-  « VINGT-DEUX MUTATIONS » ci-dessus annonce « Ligne verte de reference :
-  60/0 » et ses comptes (59/1, 58/2, 57/3…) SOMMENT A 60. Ils ont ete mesures
-  le 04/09/2026 sur une version a 60 assertions ; P7 en a ajoute sept, le banc
-  en porte 67, et ces comptes n'ont PAS ete rejoues. Seules M3, M7, N18, N19
-  et N20 ci-dessus valent pour la version courante. Recopier un chiffre
-  mesure sur une version d'avant est la faute n°1 du chantier ; on la nomme
-  ici au lieu de la commettre une neuvieme fois.
+  LES MUTATIONS, ELLES, SONT EN TETE DE CET EN-TETE : la table
+  « TRENTE-CINQ MUTATIONS » a ete REJOUEE EN ENTIER le 05/09/2026 sur cette
+  version-ci, et elle a remplace celle du 04/09 qui sommait encore a 60. Deux
+  de ses entrees disent directement ce que les reparations ci-dessus ont
+  achete : M7 rougit desormais `v1_non_video_exclut_le_clip_sans_id`, qu'elle
+  laissait verte, et N14/N16 emportent les deux lignes du repli parce que
+  leur precondition exige des jobs que ces formes ecartent.
 """
 import asyncio
 import os
