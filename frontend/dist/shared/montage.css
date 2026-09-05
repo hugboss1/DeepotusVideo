@@ -361,3 +361,87 @@
   border:1px solid var(--stroke, #2a2833)}
 .dzsvm .dzm-durf:hover{color:var(--ink, #edeaf2);
   border-color:var(--stroke2, #3a3746)}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   BARRE D'OUTILS DÉPORTABLE — LE BOUTON D'ACTION (handoff « Barre Outils
+   Flottante » §2.3, étape 3 de son §9). L'unité qui se répète neuf fois :
+   un seul jeu de règles, une classe de groupe pour la teinte.
+   LA BARRE ELLE-MÊME N'EST PAS ICI (étapes 4 et 5), et rien dans le bundle
+   ne pose encore ces classes : aucune de ces règles ne s'applique
+   aujourd'hui à un élément de l'écran.
+   CORRESPONDANCE DES NOMS, celle de DESIGN.md §15-bis : le handoff nomme
+   --srf-hover / --brd-hard / --txt-mid / --txt-hi ; dans cette base ce sont
+   --bg-panel-3 / --stroke / --ink-soft / --ink-strong, et CE SONT ELLES qui
+   font foi. La chaîne de repli garde le nom du handoff en tête — le jour où
+   il existerait, il gagnerait sans qu'on retouche une règle.
+   IBM PLEX MONO EST DEMANDÉ, --f-mono EST SERVI : la police monospace de
+   cette base est JetBrains Mono depuis la v2.1, et toutes les règles .dzm-
+   passent par --f-mono. Écart assumé, le même que partout ailleurs ici. */
+
+/* La teinte du groupe. C'EST LA SEULE PORTE : le JS pose la classe, jamais
+   une couleur ni un nom de variable fabriqué. Cinq groupes, cinq classes ;
+   le rouge oklch(.72 .13 25) n'en a pas, il reste au destructif. */
+.dzsvm .dzm-g-pistes{--grp:var(--grp-pistes, oklch(.72 .13 200))}
+.dzsvm .dzm-g-biblio{--grp:var(--grp-biblio, oklch(.72 .13 255))}
+.dzsvm .dzm-g-mot{--grp:var(--grp-mot, oklch(.72 .13 300))}
+.dzsvm .dzm-g-ajouts{--grp:var(--grp-ajouts, oklch(.72 .13 80))}
+.dzsvm .dzm-g-projets{--grp:var(--grp-projets, oklch(.72 .13 145))}
+
+/* LES DEUX DÉRIVÉS SONT RECALCULÉS ICI, sur l'élément où --grp est posée, et
+   ce n'est pas une redite de la feuille de tokens : une propriété
+   personnalisée est substituée au calcul de SON élément puis héritée déjà
+   résolue, donc le --grp-fill de :root porte pour toujours la teinte de
+   :root. Sans ces deux lignes, les neuf boutons auraient le même fond.
+   MESURÉ : le bundle n'emploie jamais --cat-fill, pour cette même raison. */
+.dzsvm .dzm-tbb{--grp-fill:oklch(from var(--grp) l c h / .16);
+  --grp-line:var(--grp);
+  width:60px; padding:7px 0 6px; box-sizing:border-box;
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+  border:1px solid transparent; border-radius:0; background:transparent;
+  color:var(--grp, var(--accent, #f0b429)); cursor:pointer;
+  transition:background .14s ease, border-color .14s ease}
+/* 70 px pour un groupe à bouton unique (BIBLIOTHÈQUE, PROJETS) : le libellé
+   y est seul à porter la largeur de la colonne. */
+.dzsvm .dzm-tbb.dzm-solo{width:70px}
+/* L'icône prend la couleur du bouton, donc celle du groupe, PAR
+   currentColor : elle ne déclare aucune couleur à elle. */
+.dzsvm .dzm-tbi{display:block; flex:none}
+/* MASQUABLE, PAS SUPPRIMABLE (§2.3) : `--lbl:none` posée plus haut éteint
+   les libellés sans toucher au DOM — le title et l'aria-label, eux, restent,
+   et le composant les remplit toujours. */
+.dzsvm .dzm-tbl{display:var(--lbl, block);
+  font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace);
+  font-size:9.5px; font-weight:400; line-height:1; white-space:nowrap;
+  color:var(--txt-mid, var(--ink-soft, #8b959f))}
+/* SURVOL — la teinte de l'icône ne bouge pas : elle nomme la famille, elle
+   ne signale pas l'état. */
+.dzsvm .dzm-tbb:hover{background:var(--srf-hover, var(--bg-panel-3, #181d23));
+  border-color:var(--brd-hard, var(--stroke, #20262d))}
+/* ENFONCÉ */
+.dzsvm .dzm-tbb:active{transform:scale(.94) translateY(1px);
+  transition:transform var(--dur-press, 170ms)
+    var(--ease-pop, cubic-bezier(.34,1.56,.64,1))}
+/* ACTIF (bascules seulement) — INVERSION FRANCHE, pas une variation de
+   saturation : fond teinté, bordure pleine, icône ET libellé en encre haute.
+   Les deux passent à --txt-hi, sinon la couleur resterait le seul porteur
+   de l'état (§4.5). */
+.dzsvm .dzm-tbb.dzm-on{background:var(--grp-fill, transparent);
+  border-color:var(--grp-line, var(--grp))}
+.dzsvm .dzm-tbb.dzm-on,
+.dzsvm .dzm-tbb.dzm-on .dzm-tbl{color:var(--txt-hi,
+  var(--ink-strong, #eef2f6))}
+/* INDÉTERMINÉ (§4.3) — sélection multiple hétérogène : la bordure dit que le
+   groupe est concerné, le fond transparent dit qu'on ne sait pas. */
+.dzsvm .dzm-tbb.dzm-mix{background:transparent;
+  border-color:var(--grp-line, var(--grp))}
+/* SANS SÉLECTION (§4.3) — éteint, jamais masqué : la barre changerait de
+   largeur et tous les autres boutons se déplaceraient. */
+.dzsvm .dzm-tbb[disabled]{opacity:.38; cursor:not-allowed}
+.dzsvm .dzm-tbb[disabled]:hover{background:transparent;
+  border-color:transparent}
+/* « aucun enfoncement » (§4.5). Le coupe-circuit global de la feuille de
+   tokens ramène les DURÉES à 1 ms ; il ne retire pas une transformation, qui
+   resterait donc appliquée, en un seul saut, tant que le doigt appuie. */
+@media (prefers-reduced-motion:reduce){
+  .dzsvm .dzm-tbb:active{transform:none}
+}

@@ -2407,6 +2407,139 @@ var msVu2=null;
 T.askDur({job_id:"j"},{fetch:FETCH(REP(!0,{ok:!0,dur:3})),
   timer:function(fn,ms){msVu2=ms},delai:250,done:JAMAIS});
 out.ad_delai_recu=msVu2;
+/* ══ BARRE D'OUTILS — LES DIX TRACES ET LE BOUTON D'ACTION (etapes 2 et 3) ══
+   L'ALLER-RETOUR EST LA MESURE. La couche garde les traces en CHAINE — le
+   texte du §3, au caractere pres — et les traduit une fois au chargement.
+   `tbSerial` refait le chemin inverse : si la traduction perd un attribut ou
+   en reordonne un, elle ne rend plus le texte de depart. Le banc compare ces
+   dix chaines au §3 lu DANS design.md : ni la couche ni le banc ne recopient
+   un trace, ils le lisent au meme endroit.
+
+   FAUTE N°6, SEPTIEME MORSURE, TROUVEE DANS CE BLOC MEME. Ecrite sans
+   `TBG`, cette sonde lisait `T.tbIcons["piste-video"][0][1]` NUEMENT.
+   MESURE : en faisant rendre une liste VIDE a `dzmTbParse` (mutation M3),
+   `undefined[1]` levait, node sortait en erreur, et le repli `d = {}` du
+   harnais emportait CENT QUATRE-VINGT-DIX-SEPT lignes — dont les ~150 de
+   P4/P10/P11 qui n'ont rien a voir avec la barre. Le banc rougissait et
+   imprimait son compte, il ne mourait pas ; mais UNE panne de parseur ne
+   doit pas noircir tout le reste. Avec `TBG`, la meme mutation ne rougit
+   plus que les lignes de la barre. Le temoin est DISTINGUABLE — jamais
+   `null`, jamais `""` — et nomme le type de la levee. */
+function TBG(fn){try{var v=fn();return v===void 0?"INDEFINI":v}
+  catch(e){return "LEVE:"+e.name}}
+out.tb_noms=Object.keys(T.tbTraces);
+out.tb_aller_retour={};
+Object.keys(T.tbTraces).forEach(function(k){
+  out.tb_aller_retour[k]=TBG(function(){return T.tbSerial(T.tbIcons[k])})});
+out.tb_groupes=T.TB_GROUPES;
+out.tb_px=[T.TB_PX,T.TB_PX_GRIP];
+/* LE NOMBRE D'ELEMENTS PAR TRACE. Sans lui, un parseur qui ne rendrait
+   RIEN passerait l'aller-retour : les deux cotes vaudraient "". */
+out.tb_elements=Object.keys(T.tbIcons).map(function(k){
+  var v=T.tbIcons[k];
+  return [k,(v&&typeof v.length==="number")?v.length:"LEVE"]});
+out.tb_balises=TBG(function(){
+  return T.tbIcons["piste-video"].map(function(e){return e[0]})});
+out.tb_attrs=TBG(function(){return T.tbIcons["piste-video"][0][1]});
+/* Le camelCase : aucun des dix traces n'en a besoin aujourd'hui, la ligne
+   le mesure donc sur une entree faite pour ca. */
+out.tb_camel=TBG(function(){
+  return T.tbParse('<path fill-rule="evenodd" d="M0 0z"/>')[0][1]});
+out.tb_parse_vide=TBG(function(){
+  return [T.tbParse("").length,T.tbParse(null).length]});
+/* ── L'ICONE, RENDUE ─────────────────────────────────────────────────── */
+var tbIc=T.TbIcon({name:"emoji"});
+out.tb_i_balise=TBG(function(){return tbIc.t});
+out.tb_i_props=TBG(function(){return [tbIc.p.viewBox,tbIc.p.fill,
+  tbIc.p.width,tbIc.p.height,tbIc.p["aria-hidden"],tbIc.p.className,
+  tbIc.p.focusable]});
+out.tb_i_enfants=TBG(function(){
+  return tbIc.p.children.map(function(z){return z.t})});
+out.tb_i_cles=TBG(function(){
+  return tbIc.p.children.map(function(z){return z.k})});
+out.tb_i_taille=TBG(function(){
+  return T.TbIcon({name:"poignee",size:14}).p.width});
+out.tb_i_taille_illisible=TBG(function(){
+  return T.TbIcon({name:"emoji",size:"abc"}).p.width});
+out.tb_i_taille_negative=TBG(function(){
+  return T.TbIcon({name:"emoji",size:-4}).p.width});
+/* NULL, et pas un `<svg>` vide : `TbIcon` doit RENDRE null, pas lever. Le
+   `try` distingue les deux — `LEVE:` n'est pas `null`. */
+out.tb_i_inconnue=TBG(function(){
+  var v=T.TbIcon({name:"pasunicone"});return v===null?null:v});
+out.tb_i_sans_nom=TBG(function(){var v=T.TbIcon();return v===null?null:v});
+/* AUCUNE COULEUR DANS L'ICONE : `currentColor` et rien d'autre (§3). */
+out.tb_i_sans_couleur=TBG(function(){
+  var j=JSON.stringify(tbIc);
+  return j.indexOf("#")<0&&j.indexOf("oklch")<0});
+/* ── LE BOUTON D'ACTION, RENDU, DANS SES ETATS (§2.3) ────────────────── */
+function TBB(o){return T.ToolBtn(o)}
+function TBC(b){return (b&&b.p&&typeof b.p.className==="string")
+  ?b.p.className:"LEVE"}
+function TBP(b,k){return (b&&b.p&&(k in b.p))?b.p[k]:"ABSENT"}
+var tbRepos=TBB({group:"pistes",icon:"piste-video",label:"vidéo"});
+out.tb_b_balise=TBG(function(){return tbRepos.t});
+out.tb_b_type=TBP(tbRepos,"type");
+out.tb_b_classe=TBC(tbRepos);
+out.tb_b_grp=TBP(tbRepos,"data-grp");
+out.tb_b_titre=TBP(tbRepos,"title");
+out.tb_b_aria=TBP(tbRepos,"aria-label");
+out.tb_b_pressed_absent=TBG(function(){
+  return !("aria-pressed" in tbRepos.p)});
+out.tb_b_enfants=TBG(function(){
+  return tbRepos.p.children.map(function(z){return z&&z.t})});
+out.tb_b_libelle=TBG(function(){return tbRepos.p.children[1].p.children});
+out.tb_b_libelle_classe=TBG(function(){
+  return tbRepos.p.children[1].p.className});
+out.tb_b_desactive=TBP(tbRepos,"disabled");
+/* Les cinq groupes donnent cinq classes de teinte, une chacun. */
+out.tb_b_classes=TBG(function(){return T.TB_GROUPES.map(function(g){
+  return TBC(TBB({group:g,icon:"texte",label:"x"}))})});
+/* GROUPE INCONNU : pas de classe de teinte, pas de `data-grp` — jamais une
+   classe `dzm-g-rouge` que la feuille ne connaitrait pas. */
+var tbMauvais=TBB({group:"rouge",icon:"texte",label:"x"});
+out.tb_b_groupe_inconnu=TBC(tbMauvais);
+out.tb_b_groupe_inconnu_data=TBG(function(){
+  return !("data-grp" in tbMauvais.p)});
+/* BASCULE — les trois valeurs d'`aria-pressed` et les deux classes. */
+var tbOn=TBB({group:"mot",icon:"glow",label:"glow",toggle:!0,active:!0});
+var tbOff=TBB({group:"mot",icon:"glow",label:"glow",toggle:!0,active:!1});
+var tbMix=TBB({group:"mot",icon:"glow",label:"glow",toggle:!0,active:"mixed"});
+out.tb_t_on=[TBC(tbOn),TBP(tbOn,"aria-pressed")];
+out.tb_t_off=[TBC(tbOff),TBP(tbOff,"aria-pressed")];
+out.tb_t_mix=[TBC(tbMix),TBP(tbMix,"aria-pressed")];
+/* UNE ACTION SIMPLE N'A PAS D'ETAT : un `active` passe par erreur est
+   ignore, et aucun `aria-pressed` n'est pose. */
+var tbFaux=TBB({group:"pistes",icon:"piste-video",label:"v",active:!0});
+out.tb_t_sans_bascule=[TBC(tbFaux),
+  TBG(function(){return !("aria-pressed" in tbFaux.p)})];
+/* SOLO — la classe de la colonne a bouton unique. */
+out.tb_b_solo=TBC(TBB({group:"biblio",icon:"bibliotheque",label:"lier",
+  solo:!0}));
+/* LE CLIC, ET LE REFUS QUAND LE BOUTON EST ETEINT. */
+var tbClics=0;
+out.tb_b_clic=TBG(function(){
+  TBB({group:"pistes",icon:"texte",label:"x",
+    onAct:function(){tbClics++}}).p.onClick();
+  return tbClics});
+var tbClics2=0;
+var tbMort=TBB({group:"mot",icon:"glow",label:"g",toggle:!0,disabled:!0,
+  onAct:function(){tbClics2++}});
+out.tb_b_clic_eteint=TBG(function(){tbMort.p.onClick();return tbClics2});
+out.tb_b_eteint=[TBC(tbMort),TBP(tbMort,"disabled")];
+out.tb_b_clic_sans_action=TBG(function(){
+  TBB({group:"pistes",icon:"texte",label:"x"}).p.onClick();return "ok"});
+/* MODE COMPACT : le libelle reste dans le DOM, `title` et `aria-label` le
+   reprennent quand rien n'est donne — c'est ce qui interdit par
+   construction un mode compact sans infobulle (§2.3). */
+var tbT=TBB({group:"ajouts",icon:"emoji",label:"emoji",
+  title:"Insérer un emoji",aria:"Insérer un emoji à la tête de lecture"});
+out.tb_b_titre_donne=[TBP(tbT,"title"),TBP(tbT,"aria-label")];
+/* AUCUNE COULEUR DANS LE BOUTON : ni hexa, ni oklch, ni `var(--…)`. La
+   teinte passe par la classe, jamais par une chaine fabriquee en JS. */
+out.tb_b_sans_couleur=TBG(function(){
+  var j=JSON.stringify([tbRepos,tbOn,tbMix,tbMort,tbMauvais]);
+  return j.indexOf("#")<0&&j.indexOf("oklch")<0&&j.indexOf("var(--")<0});
 console.log(JSON.stringify(out));
 """
 # "use strict" en PROLOGUE du shim : concatene, celui de montage.js n'est
@@ -3636,6 +3769,432 @@ check("js_transport_le_controle_porte_ses_quatre_boutons",
       and "ne rend pas la durée du projet" in w.get("ct_note", ""),
       f'{w.get("ct_classe")} {w.get("ct_boutons")} '
       f'{repr(w.get("ct_note"))[:140]}')
+
+# ══════════════════════════════════════════════════════════════════════════
+# [6] LA BARRE D'OUTILS DEPORTABLE — etapes 1, 2 et 3 du §9 du handoff
+# « Barre Outils Flottante » (Design d'icônes applicatives/
+# design_handoff_barre_outils/design.md). RIEN DE CE LOT N'EST MONTE A
+# L'ECRAN : ces lignes mesurent des TOKENS, dix TRACES et un COMPOSANT.
+# Aucune ne pretend qu'une barre existe — elle n'existe pas encore.
+# ══════════════════════════════════════════════════════════════════════════
+print("\n[6] la barre d'outils deportable — tokens, dix traces, bouton")
+
+HANDOFF = (ROOT / "Design d'icônes applicatives"
+           / "design_handoff_barre_outils" / "design.md")
+TOK_SRC = ROOT / "frontend" / "shared" / "deepotus.tokens.css"
+TOK_DEP = ROOT / "frontend" / "dist" / "shared" / "deepotus.tokens.css"
+THEME2 = ROOT / "frontend" / "dist" / "theme-v2.css"
+
+
+def _lire(p):
+    """Contenu d'un fichier, ou "" — GARDEE. Faute n°6 : toute lecture de
+    fichier avant un `check` doit l'etre, et le temoin numerote fait rougir
+    `aucun_appel_n_a_plante` en plus de la ligne qui lira le vide."""
+    try:
+        return p.read_text(encoding="utf-8")
+    except BaseException as e:
+        print(f"  ----  lecture impossible de {p.name} : {temoin(e)}")
+        return ""
+
+
+# ── les dix traces, LUS DANS LE HANDOFF ────────────────────────────────────
+# Ni la couche ni ce banc ne recopient un trace : les deux le lisent ici.
+_TB_CLE = {"piste vidéo": "piste-video", "piste audio": "piste-audio",
+           "bibliothèque": "bibliotheque", "couleur": "couleur",
+           "rebond": "rebond", "glow": "glow", "emoji": "emoji",
+           "texte": "texte", "projets": "projets", "poignée": "poignee"}
+_HO = _lire(HANDOFF)
+_TB_SPEC = {}
+try:
+    _sec = _HO[_HO.index("## 3. Les neuf icônes"):
+               _HO.index("## 4. Comportement")]
+    for _l in _sec.splitlines():
+        if not _l.startswith("| **"):
+            continue
+        _c = [x.strip() for x in _l.strip().strip("|").split("|")]
+        _n = re.sub(r"\*|\s*\(.*", "", _c[0]).strip()
+        if _n in _TB_CLE and len(_c) > 2 and len(_c[2]) > 2 \
+                and _c[2][0] == "`" and _c[2][-1] == "`":
+            _TB_SPEC[_TB_CLE[_n]] = _c[2][1:-1]
+except BaseException as _e:
+    print(f"  ----  §3 du handoff illisible : {temoin(_e)}")
+    _TB_SPEC = {}
+_TB_ORDRE = list(_TB_SPEC)
+check("tb_les_dix_traces_sont_lisibles_dans_le_handoff",
+      len(_TB_SPEC) == 10 and all(v.startswith("<") and v.endswith("/>")
+                                  for v in _TB_SPEC.values()),
+      f"{len(_TB_SPEC)} trace(s) extraits de {HANDOFF.name} : {_TB_ORDRE}")
+
+# LA COUCHE PORTE LE TEXTE DU §3, CLE ET VALEUR, AU CARACTERE PRES. La forme
+# exigee est celle que la couche ecrit : deux lignes par icone, apostrophes
+# simples. Un trace retape « presque » pareil ne passe pas.
+_srcn = src.replace("\r\n", "\n")
+_APO = "'"
+
+
+def _paire(k, v):
+    return '  "%s":\n    %s%s%s,' % (k, _APO, v, _APO)
+
+
+check("tb_la_couche_porte_les_dix_traces_du_handoff_au_caractere_pres",
+      len(_TB_SPEC) == 10
+      and all(_paire(k, v) in _srcn for k, v in _TB_SPEC.items()),
+      "traces divergents : "
+      + str([k for k, v in _TB_SPEC.items() if _paire(k, v) not in _srcn]))
+# ET LE BUNDLE LIVRE LES PORTE AUSSI — `bloc_EST_la_couche_octet_pour_octet`
+# l'implique deja ; cette ligne le DIT sur le fichier que le navigateur
+# charge, et rougirait seule si le patcher n'avait pas ete rejoue.
+check("tb_le_bundle_livre_porte_les_dix_traces",
+      len(_TB_SPEC) == 10 and all(nl(v) in s for v in _TB_SPEC.values()),
+      "traces absents du bundle : "
+      + str([k for k, v in _TB_SPEC.items() if nl(v) not in s]))
+
+# ── L'ALLER-RETOUR, JOUE SOUS NODE : le controle a deux faces ──────────────
+check("tb_l_aller_retour_rend_exactement_le_trace_du_handoff",
+      len(_TB_SPEC) == 10 and isinstance(d.get("tb_aller_retour"), dict)
+      and d["tb_aller_retour"] == _TB_SPEC,
+      "ecarts : " + str([k for k in _TB_SPEC
+                         if (d.get("tb_aller_retour") or {}).get(k)
+                         != _TB_SPEC[k]]))
+# UN ALLER-RETOUR EST VRAI SUR DU VIDE des deux cotes : cette ligne exige que
+# chaque trace ait rendu SES elements, et le compte vient du handoff.
+check("tb_chaque_trace_rend_le_nombre_d_elements_du_handoff",
+      len(_TB_SPEC) == 10
+      and d.get("tb_elements") == [[k, _TB_SPEC[k].count("<")]
+                                   for k in _TB_ORDRE],
+      str(d.get("tb_elements")))
+check("tb_les_balises_et_les_attributs_sont_ceux_du_dessin",
+      d.get("tb_balises") == ["rect", "rect", "path"]
+      and d.get("tb_attrs") == {"x": "2.6", "y": "4.2", "width": "18.8",
+                                "height": "5.6", "opacity": ".34"},
+      f'{d.get("tb_balises")} {d.get("tb_attrs")}')
+# camelCase : sans lui React laisserait tomber un `fill-rule` en silence.
+check("tb_un_attribut_compose_passe_en_camelCase_pour_React",
+      d.get("tb_camel") == {"fillRule": "evenodd", "d": "M0 0z"},
+      str(d.get("tb_camel")))
+check("tb_un_trace_vide_ou_nul_ne_leve_pas",
+      d.get("tb_parse_vide") == [0, 0], str(d.get("tb_parse_vide")))
+
+# ── L'ICONE (§3) ───────────────────────────────────────────────────────────
+check("tb_l_icone_est_une_grille_24_rendue_a_18_px_en_currentColor",
+      d.get("tb_i_balise") == "svg"
+      and d.get("tb_i_props") == ["0 0 24 24", "currentColor", 18, 18,
+                                  True, "dzm-tbi", "false"]
+      and d.get("tb_px") == [18, 14],
+      f'{d.get("tb_i_props")} px={d.get("tb_px")}')
+check("tb_l_icone_pose_une_cle_par_element",
+      d.get("tb_i_enfants") == ["rect", "rect", "rect", "rect"]
+      and d.get("tb_i_cles") == ["t0", "t1", "t2", "t3"],
+      f'{d.get("tb_i_enfants")} {d.get("tb_i_cles")}')
+check("tb_la_taille_est_reglable_et_une_taille_illisible_retombe_sur_18",
+      d.get("tb_i_taille") == 14 and d.get("tb_i_taille_illisible") == 18
+      and d.get("tb_i_taille_negative") == 18,
+      f'{d.get("tb_i_taille")} {d.get("tb_i_taille_illisible")} '
+      f'{d.get("tb_i_taille_negative")}')
+# NULL, pas un <svg> vide, qui serait un trou invisible. LA CLE D'ABORD :
+# `{}.get(x)` vaut None et rendrait ces deux lignes vertes sur une sonde qui
+# n'a pas tourne — meme piege que `js_bouton_null_sans_etalonnage`.
+check("tb_une_icone_inconnue_rend_null_plutot_qu_un_svg_vide",
+      "tb_i_inconnue" in d and d["tb_i_inconnue"] is None
+      and "tb_i_sans_nom" in d and d["tb_i_sans_nom"] is None,
+      f'{d.get("tb_i_inconnue")} {d.get("tb_i_sans_nom")}')
+check("tb_l_icone_n_ecrit_aucune_couleur",
+      d.get("tb_i_sans_couleur") is True, str(d.get("tb_i_sans_couleur")))
+
+# ── LE BOUTON D'ACTION (§2.3) ──────────────────────────────────────────────
+check("tb_le_bouton_au_repos_porte_sa_classe_de_groupe_et_ses_deux_enfants",
+      d.get("tb_b_balise") == "button" and d.get("tb_b_type") == "button"
+      and d.get("tb_b_classe") == "dzm-tbb dzm-g-pistes"
+      and d.get("tb_b_grp") == "pistes"
+      and d.get("tb_b_enfants") == ["svg", "span"]
+      and d.get("tb_b_libelle") == "vidéo"
+      and d.get("tb_b_libelle_classe") == "dzm-tbl"
+      and d.get("tb_b_desactive") is False,
+      f'{d.get("tb_b_classe")} {d.get("tb_b_enfants")} '
+      f'{d.get("tb_b_libelle")!r}')
+# LE LIBELLE EST LE REPLI DE title ET DE aria-label : c'est ce qui rend le
+# mode compact impossible SANS infobulle (§2.3), sans que l'appelant y pense.
+check("tb_le_libelle_sert_de_repli_a_l_infobulle_et_a_l_aria_label",
+      d.get("tb_b_titre") == "vidéo" and d.get("tb_b_aria") == "vidéo"
+      and d.get("tb_b_titre_donne") == ["Insérer un emoji",
+                                        "Insérer un emoji à la tête de "
+                                        "lecture"],
+      f'{d.get("tb_b_titre")!r} {d.get("tb_b_titre_donne")}')
+check("tb_les_cinq_groupes_donnent_cinq_classes_de_teinte",
+      d.get("tb_groupes") == ["pistes", "biblio", "mot", "ajouts", "projets"]
+      and d.get("tb_b_classes") == ["dzm-tbb dzm-g-pistes",
+                                    "dzm-tbb dzm-g-biblio",
+                                    "dzm-tbb dzm-g-mot",
+                                    "dzm-tbb dzm-g-ajouts",
+                                    "dzm-tbb dzm-g-projets"],
+      f'{d.get("tb_groupes")} {d.get("tb_b_classes")}')
+# LE ROUGE N'EST PAS UN GROUPE, et la ligne ne se contente pas de le nier :
+# elle exige d'abord que la liste FASSE CINQ.
+check("tb_le_rouge_du_destructif_n_est_pas_un_groupe_de_la_barre",
+      isinstance(d.get("tb_groupes"), list) and len(d["tb_groupes"]) == 5
+      and "cartes" not in d["tb_groupes"] and "rouge" not in d["tb_groupes"],
+      str(d.get("tb_groupes")))
+check("tb_un_groupe_inconnu_ne_fabrique_pas_de_classe_ni_de_data",
+      d.get("tb_b_groupe_inconnu") == "dzm-tbb"
+      and d.get("tb_b_groupe_inconnu_data") is True,
+      f'{d.get("tb_b_groupe_inconnu")!r} '
+      f'{d.get("tb_b_groupe_inconnu_data")}')
+check("tb_la_bascule_porte_ses_trois_etats_de_aria_pressed",
+      d.get("tb_t_on") == ["dzm-tbb dzm-g-mot dzm-on", "true"]
+      and d.get("tb_t_off") == ["dzm-tbb dzm-g-mot", "false"]
+      and d.get("tb_t_mix") == ["dzm-tbb dzm-g-mot dzm-mix", "mixed"],
+      f'{d.get("tb_t_on")} {d.get("tb_t_off")} {d.get("tb_t_mix")}')
+# UNE ACTION SIMPLE N'A PAS D'ETAT : un `active` passe par erreur ne doit ni
+# allumer le bouton ni poser un `aria-pressed` qui mentirait.
+check("tb_une_action_simple_ignore_active_et_ne_pose_pas_aria_pressed",
+      d.get("tb_t_sans_bascule") == ["dzm-tbb dzm-g-pistes", True]
+      and d.get("tb_b_pressed_absent") is True,
+      f'{d.get("tb_t_sans_bascule")} {d.get("tb_b_pressed_absent")}')
+check("tb_le_groupe_a_bouton_unique_a_sa_classe_de_largeur",
+      d.get("tb_b_solo") == "dzm-tbb dzm-g-biblio dzm-solo",
+      str(d.get("tb_b_solo")))
+check("tb_le_clic_agit_et_un_bouton_eteint_refuse_le_sien",
+      d.get("tb_b_clic") == 1 and d.get("tb_b_clic_eteint") == 0
+      and d.get("tb_b_eteint") == ["dzm-tbb dzm-g-mot", True]
+      and d.get("tb_b_clic_sans_action") == "ok",
+      f'{d.get("tb_b_clic")} / {d.get("tb_b_clic_eteint")} '
+      f'{d.get("tb_b_eteint")} {d.get("tb_b_clic_sans_action")}')
+check("tb_le_bouton_n_ecrit_aucune_couleur_ni_nom_de_variable_css",
+      d.get("tb_b_sans_couleur") is True, str(d.get("tb_b_sans_couleur")))
+
+# ── PARENTE (§3) : `bibliothèque` EST le glyphe `Library` du rail ──────────
+# Le rail de navigation appelle son entree Library par la CLE `folder`, et le
+# handoff d'aout a remplace le trace de cette cle. LES DEUX FACES sont
+# mesurees : la cle que le rail demande, et le trace que la carte lui rend.
+_fi = s.find(nl('folder:r.jsxs("g",{fill:"currentColor",children:['))
+_fj = s.find(nl("]})"), _fi) if _fi >= 0 else -1
+_FOLD = s[_fi:_fj] if _fi >= 0 and _fj > _fi else ""
+_bib = _TB_SPEC.get("bibliotheque", "")
+_bib_d = re.findall(r'd="([^"]*)"', _bib)
+_bib_o = re.findall(r'opacity="([^"]*)"', _bib)
+check("tb_bibliotheque_EST_le_glyphe_Library_du_rail_de_navigation",
+      bool(_FOLD) and len(_bib_d) == 2 and len(_bib_o) == 1
+      and _FOLD.count('r.jsx("path"') == 2
+      and all(nl('d:"%s"' % x) in _FOLD for x in _bib_d)
+      and nl('opacity:"%s"' % _bib_o[0]) in _FOLD
+      and nl('{id:"library",label:"Library",icon:"folder"') in s,
+      f"folder={len(_FOLD)} o, d={len(_bib_d)}, opacite={_bib_o} — "
+      f"les deux tracés ont divergé")
+
+# ── ETAPE 1 : LES TOKENS, DANS LES TROIS FEUILLES ─────────────────────────
+# LE PIEGE, MESURE AU HANDOFF D'AOUT : la page du bundle NE CHARGE PAS la
+# feuille partagee — dist/index.html ne lie que theme-v2.css et les feuilles
+# de module. theme-v2 REDEFINIT les valeurs : c'est sa convention de couche.
+# Un token pose dans une seule des deux est MORT a l'ecran, sans erreur.
+# LA TROISIEME EST LA COPIE DEPLOYEE de la source (§15-bis, « copié
+# dist/shared/ ») : elle est servie a /shared/ et les pages de module
+# l'importent. Elle doit rester la source, octet pour octet.
+_TOKENS = ["--grp-pistes:oklch(.72 .13 200)",
+           "--grp-biblio:oklch(.72 .13 255)",
+           "--grp-mot:oklch(.72 .13 300)", "--grp-ajouts:oklch(.72 .13 80)",
+           "--grp-projets:oklch(.72 .13 145)",
+           "--grp-fill:oklch(from var(--grp) l c h / .16)",
+           "--grp-line:var(--grp)", "--bar-srf:#13171c", "--bar-brd:#2a323b",
+           "--bar-shadow:0 14px 34px rgba(0,0,0,.62)",
+           "--dur-bar-open:220ms", "--dur-bar-snap:180ms"]
+_T_SRC, _T_DEP, _T2 = _lire(TOK_SRC), _lire(TOK_DEP), _lire(THEME2)
+for _nom, _txt in (("source", _T_SRC), ("copie_deployee", _T_DEP),
+                   ("theme_v2_du_bundle", _T2)):
+    check("tb_les_douze_tokens_sont_dans_la_feuille_" + _nom,
+          bool(_txt) and all(_k in _txt for _k in _TOKENS),
+          f"{len(_txt)} o — manquants : "
+          + str([_k for _k in _TOKENS if _k not in _txt]))
+check("tb_la_copie_deployee_est_la_source_octet_pour_octet",
+      bool(_T_SRC) and _T_SRC == _T_DEP,
+      f"source={len(_T_SRC)} o copie={len(_T_DEP)} o")
+# LE ROUGE RESTE DEHORS (§1.2). Negation ACCOMPAGNEE : la ligne exige d'abord
+# que les cinq teintes soient la, sinon elle serait vraie d'un fichier vide.
+check("tb_aucun_groupe_ne_prend_le_rouge_du_destructif",
+      all(_k in _T2 for _k in _TOKENS[:5]) and "--grp-cartes" not in _T2
+      and "--grp-rouge" not in _T2
+      and "oklch(.72 .13 25)" not in _T2.split("--grp-pistes")[-1],
+      "une teinte de groupe a pris le rouge")
+# AUCUNE VARIANTE CLAIRE POUR --grp-*, et c'est delibere : --bar-srf est un
+# litteral sombre que le theme ne suit pas. Abaisser la clarte a .52 comme
+# --cat-* le fait rendrait les cinq teintes illisibles SUR CE FOND.
+# Conjoint : le bloc clair des --cat-*, lui, est toujours la.
+check("tb_les_teintes_de_groupe_ne_suivent_pas_le_theme_clair",
+      "--cat-3d:oklch(.52 .12 255)" in _T2
+      and "--grp-pistes:oklch(.52" not in _T2
+      and "--grp-mot:oklch(.52" not in _T2,
+      "un --grp-* a gagne une variante claire")
+
+# ── ETAPE 1 (suite) : LA PASSE DE CONTRASTE DU §9.8, CALCULEE ──────────────
+# PROTOCOLE, NOMME : OKLCH -> OKLab -> LMS -> sRGB lineaire (CSS Color 4,
+# matrices inverses de la specification), ecretage a [0,1], composition
+# source-over de --grp-fill (alpha .16) SUR --bar-srf dans l'espace sRGB NON
+# lineaire — ce que fait un navigateur d'une couche translucide — puis
+# luminance relative et rapport WCAG 2.x (L1+.05)/(L2+.05).
+# LES ENTREES SONT LUES DANS LA FEUILLE : aucune n'est recopiee ici.
+_M2I = ((1.0, 0.3963377773761749, 0.2158037573099136),
+        (1.0, -0.1055613458156586, -0.0638541728258133),
+        (1.0, -0.0894841775298119, -1.2914855480194092))
+_M1I = ((4.0767416621, -3.3077115913, 0.2309699292),
+        (-1.2684380046, 2.6097574011, -0.3413193965),
+        (-0.0041960863, -0.7034186147, 1.7076147010))
+
+
+def _oklch(L, C, h):
+    import math
+    a = (L, C * math.cos(math.radians(h)), C * math.sin(math.radians(h)))
+    lms = [sum(_M2I[i][j] * a[j] for j in range(3)) ** 3 for i in range(3)]
+    lin = [sum(_M1I[i][j] * lms[j] for j in range(3)) for i in range(3)]
+    return [min(1.0, max(0.0, 12.92 * v if v <= 0.0031308
+                         else 1.055 * (v ** (1 / 2.4)) - 0.055)) for v in lin]
+
+
+def _hexf(t):
+    t = t.lstrip("#")
+    return [int(t[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+
+
+def _lum(c):
+    v = [x / 12.92 if x <= 0.04045 else ((x + 0.055) / 1.055) ** 2.4
+         for x in c]
+    return .2126 * v[0] + .7152 * v[1] + .0722 * v[2]
+
+
+def _ratio(a, b):
+    la, lb = _lum(a), _lum(b)
+    return (max(la, lb) + .05) / (min(la, lb) + .05)
+
+
+# LE PROTOCOLE EST VALIDE CONTRE UNE MESURE ANTERIEURE ET INDEPENDANTE : les
+# six chiffres publies le 26/08 (DESIGN.md §15-bis, --cat-ink #14181d sur
+# l'aplat de categorie). S'il les refait a 0,005 pres, il n'a pas ete ecrit
+# pour rendre le resultat qui arrange le lot d'aujourd'hui.
+_CTRL = ((255, 7.18), (300, 6.87), (200, 7.65), (145, 7.55),
+         (80, 7.09), (25, 6.80))
+check("tb_le_protocole_de_contraste_refait_les_six_chiffres_du_26_08",
+      all(abs(_ratio(_hexf("#14181d"), _oklch(.72, .13, _h)) - _v) < .005
+          for _h, _v in _CTRL),
+      str([round(_ratio(_hexf("#14181d"), _oklch(.72, .13, _h)), 2)
+           for _h, _v in _CTRL]))
+_m_bar = re.search(r"--bar-srf:\s*(#[0-9a-fA-F]{6})", _T2)
+_m_ink = re.search(r"--ink-strong:\s*(#[0-9a-fA-F]{6})", _T2)
+_m_alpha = re.search(
+    r"--grp-fill:oklch\(from var\(--grp\) l c h / ([\d.]+)\)", _T2)
+_HUES = re.findall(r"--grp-(pistes|biblio|mot|ajouts|projets):"
+                   r"oklch\(([\d.]+) ([\d.]+) ([\d.]+)\)", _T2)
+check("tb_les_entrees_du_calcul_de_contraste_sont_lues_dans_la_feuille",
+      len(_HUES) == 5 and _m_bar is not None and _m_ink is not None
+      and _m_alpha is not None,
+      f"teintes={len(_HUES)} bar={bool(_m_bar)} ink={bool(_m_ink)} "
+      f"alpha={bool(_m_alpha)}")
+# --txt-hi N'EXISTE PAS dans cette base : le handoff le nomme, DESIGN.md
+# §15-bis le fait correspondre a --ink-strong, et c'est --ink-strong que la
+# chaine de repli de la regle resout. LES DEUX SONT MESURES — celui du
+# handoff (#eef2f6) et celui de l'ecran.
+check("tb_txt_hi_du_handoff_est_bien_ink_strong_dans_cette_base",
+      "--ink-strong:" in _T2 and "--txt-hi:" not in _T2,
+      "--txt-hi existe desormais : la correspondance du §15-bis a change")
+_CONTRASTES = []
+if len(_HUES) == 5 and _m_bar and _m_ink and _m_alpha:
+    _bar = _hexf(_m_bar.group(1))
+    _al = float(_m_alpha.group(1))
+    for _n, _L, _C, _h in _HUES:
+        _t = _oklch(float(_L), float(_C), float(_h))
+        _f = [_al * _t[i] + (1 - _al) * _bar[i] for i in range(3)]
+        _CONTRASTES.append((_n, _ratio(_hexf("#eef2f6"), _f),
+                            _ratio(_hexf(_m_ink.group(1)), _f)))
+        print("  ....  contraste %-8s sur --grp-fill : #eef2f6 %5.2f:1 · "
+              "%s %5.2f:1" % (_n, _CONTRASTES[-1][1], _m_ink.group(1),
+                              _CONTRASTES[-1][2]))
+check("tb_les_cinq_teintes_passent_4_5_1_du_9_8_avec_les_deux_encres",
+      len(_CONTRASTES) == 5
+      and all(a >= 4.5 and b >= 4.5 for _n, a, b in _CONTRASTES),
+      str([(n, round(a, 2), round(b, 2)) for n, a, b in _CONTRASTES]))
+
+# ── ETAPE 3 : LA FEUILLE HABILLE LES ETATS DU §2.3 ────────────────────────
+_MC = _lire(CSS)
+_R_TBB = _regle(_MC, ".dzsvm .dzm-tbb{")
+_R_TBL = _regle(_MC, ".dzsvm .dzm-tbl{")
+_R_HOV = _regle(_MC, ".dzsvm .dzm-tbb:hover{")
+_R_ACT = _regle(_MC, ".dzsvm .dzm-tbb:active{")
+_R_ON = _regle(_MC, ".dzsvm .dzm-tbb.dzm-on{")
+_R_ONC = _regle(_MC, ".dzsvm .dzm-tbb.dzm-on .dzm-tbl{")
+_R_MIX = _regle(_MC, ".dzsvm .dzm-tbb.dzm-mix{")
+_R_DIS = _regle(_MC, ".dzsvm .dzm-tbb[disabled]{")
+_R_SOL = _regle(_MC, ".dzsvm .dzm-tbb.dzm-solo{")
+check("tb_la_geometrie_du_bouton_est_celle_du_2_3",
+      _R_TBB is not None and "width:60px" in _R_TBB
+      and "padding:7px 0 6px" in _R_TBB
+      and "flex-direction:column" in _R_TBB and "gap:6px" in _R_TBB
+      and "border:1px solid transparent" in _R_TBB
+      and "border-radius:0" in _R_TBB
+      and "transition:background .14s ease, border-color .14s ease" in _R_TBB
+      and _R_SOL is not None and "width:70px" in _R_SOL,
+      f"tbb={_R_TBB!r}")
+# LE POINT CENTRAL DU §2.3 : l'icone GARDE la teinte de son groupe au repos.
+check("tb_l_icone_garde_la_teinte_de_son_groupe_au_repos",
+      _R_TBB is not None and "color:var(--grp," in _R_TBB
+      and "background:transparent" in _R_TBB, f"tbb={_R_TBB!r}")
+# LE DERIVE EST RECALCULE LA OU --grp EST POSEE, et c'est une MESURE, pas un
+# gout : une propriete personnalisee est substituee au calcul de SON element
+# puis heritee DEJA RESOLUE. Un --grp-fill declare seulement sur :root y
+# resoudrait le --grp de :root, et les neuf boutons auraient le meme fond —
+# c'est pour cette raison exacte que le bundle n'emploie jamais --cat-fill.
+# Le conjoint : les cinq classes qui POSENT --grp sur ce meme element.
+check("tb_le_derive_est_recalcule_la_ou_la_teinte_de_groupe_est_posee",
+      _R_TBB is not None
+      and "--grp-fill:oklch(from var(--grp) l c h / .16)" in _R_TBB
+      and "--grp-line:var(--grp)" in _R_TBB
+      and all((".dzsvm .dzm-g-%s{--grp:var(--grp-%s," % (_g, _g)) in _MC
+              for _g in ("pistes", "biblio", "mot", "ajouts", "projets")),
+      f"tbb={_R_TBB!r}")
+check("tb_l_etat_survol_est_celui_du_tableau",
+      _R_HOV is not None and "background:var(--srf-hover," in _R_HOV
+      and "border-color:var(--brd-hard," in _R_HOV, f"hover={_R_HOV!r}")
+check("tb_l_etat_enfonce_est_celui_du_tableau",
+      _R_ACT is not None and "transform:scale(.94) translateY(1px)" in _R_ACT
+      and "var(--dur-press," in _R_ACT and "var(--ease-pop," in _R_ACT,
+      f"active={_R_ACT!r}")
+# ACTIF : INVERSION FRANCHE. L'icone ET le libelle passent en encre haute,
+# sinon la couleur resterait le seul porteur de l'etat (§4.5).
+check("tb_l_etat_actif_inverse_le_fond_la_bordure_l_icone_et_le_libelle",
+      _R_ON is not None and _R_ONC is not None
+      and "background:var(--grp-fill," in _R_ON
+      and "border-color:var(--grp-line," in _R_ON
+      and "color:var(--txt-hi," in _R_ONC
+      and "var(--ink-strong," in _R_ONC,
+      f"on={_R_ON!r} onc={_R_ONC!r}")
+check("tb_les_deux_etats_de_la_bascule_du_4_3_sont_habilles",
+      _R_MIX is not None and "background:transparent" in _R_MIX
+      and "border-color:var(--grp-line," in _R_MIX
+      and _R_DIS is not None and "opacity:.38" in _R_DIS
+      and "cursor:not-allowed" in _R_DIS,
+      f"mix={_R_MIX!r} dis={_R_DIS!r}")
+# MASQUABLE, PAS SUPPRIMABLE : le libelle est toujours dans le DOM, c'est la
+# feuille qui l'eteint. La sonde node mesure l'autre moitie.
+check("tb_le_libelle_est_masquable_par_token_et_non_supprime",
+      _R_TBL is not None and "display:var(--lbl," in _R_TBL
+      and "font-size:9.5px" in _R_TBL and "var(--f-mono," in _R_TBL,
+      f"tbl={_R_TBL!r}")
+# « aucun enfoncement » (§4.5) : le coupe-circuit global de la feuille de
+# tokens ramene les DUREES a 1 ms, il ne retire pas une transformation.
+_i_rm = _MC.find("@media (prefers-reduced-motion:reduce){")
+check("tb_le_mouvement_reduit_retire_l_enfoncement",
+      _i_rm >= 0 and "transform:none" in _MC[_i_rm:_i_rm + 260]
+      and ".dzm-tbb:active" in _MC[_i_rm:_i_rm + 260],
+      f"bloc={_MC[_i_rm:_i_rm + 200]!r}")
+
+# ── CE QUE CE LOT NE FAIT PAS, EPINGLE ────────────────────────────────────
+# Les etapes 4 a 8 du §9 ne sont pas livrees, et la barre n'est montee NULLE
+# PART : aucune section du patcher ne pose une des classes de ce lot. Le jour
+# ou l'etape 4 arrive, CETTE ligne rougit — elle est le rappel que l'etat
+# connu a change, pas une interdiction. Les neuf controles du bandeau fixe
+# sont donc toujours la : le §5.1 (leur retrait) est l'etape 6.
+_SECTIONS = "".join(r for _t, _a, r in P.PATCHES)
+check("tb_etape_4_a_8_non_livrees_aucune_section_ne_monte_la_barre",
+      "dzm-tbb" not in _SECTIONS and "ToolBtn" not in _SECTIONS
+      and "DzTracks.TbIcon" not in _SECTIONS
+      and len(_SECTIONS) > 10000,
+      f"{len(_SECTIONS)} o de sections — une section monte deja la barre")
 
 # LA LIGNE QUI DIT QUE LE BANC A ROUGI PLUTOT QUE MEURE : aucun appel garde
 # n'a pose de temoin. Une panne de node — introuvable, ou un shim qui tourne

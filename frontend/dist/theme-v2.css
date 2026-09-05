@@ -207,3 +207,39 @@ button[style*="border: 1px solid rgb(0, 229, 255)"]:not([style*="linear-gradient
   --nd-compose:oklch(.52 .12 190); --nd-audio:oklch(.52 .12 235);
   --nd-edit:oklch(.52 .12 280); --nd-gen:oklch(.52 .12 325);
 }
+
+/* ── MÀJ design 05/09/2026 — barre d'outils déportable de la timeline ─────
+   Réf : handoff « Barre Outils Flottante » §1, dans « Design d'icônes
+   applicatives/design_handoff_barre_outils/design.md ». Étape 1 de son §9.
+   CINQ des six teintes de catégorie, RENOMMÉES et non redéfinies : la barre
+   n'ajoute aucune teinte, elle réutilise la palette. Le rouge
+   oklch(.72 .13 25) reste DEHORS — il est réservé au destructif, et
+   « supprimer » est le seul élément rouge du bandeau fixe.
+   --grp est posée par le BOUTON (classe .dzm-g-*) ou, plus tard, par la
+   colonne de groupe ; hors barre elle vaut l'or de marque, comme --cat.
+   LES DÉRIVÉS SONT RE-DÉCLARÉS LÀ OÙ --grp EST POSÉE (montage.css, règle
+   .dzm-tbb), et ce n'est pas une redite : une propriété personnalisée est
+   substituée au calcul de SON élément, puis HÉRITÉE déjà résolue. Le
+   --grp-fill calculé ici l'est donc avec le --grp de :root, et le déclarer
+   une seule fois donnerait cinq boutons de la même couleur. MESURÉ : le
+   bundle n'emploie JAMAIS --cat-fill, pour cette exacte raison ; le
+   Cardforge s'en sort parce qu'il repose --cat sur SON propre :root.
+   AUCUN BLOC data-theme="light" ICI, et c'est délibéré : --bar-srf est un
+   littéral sombre que le thème ne suit pas — la barre flotte au-dessus de la
+   timeline sur #13171c en clair comme en sombre. Abaisser la clarté à .52
+   comme --cat-* le fait rendrait les cinq teintes illisibles dessus. */
+:root{
+  --grp-pistes:oklch(.72 .13 200);   /* cyan   — pistes */
+  --grp-biblio:oklch(.72 .13 255);   /* bleu   — bibliothèque */
+  --grp-mot:oklch(.72 .13 300);      /* violet — mot */
+  --grp-ajouts:oklch(.72 .13 80);    /* ambre  — ajouts */
+  --grp-projets:oklch(.72 .13 145);  /* vert   — projets */
+  --grp:var(--accent);
+  --grp-fill:oklch(from var(--grp) l c h / .16);
+  --grp-line:var(--grp);
+  --bar-srf:#13171c;                         /* fond de la barre */
+  --bar-brd:#2a323b;                         /* plus clair qu'un panneau ancré */
+  --bar-shadow:0 14px 34px rgba(0,0,0,.62);  /* seule ombre portée de l'app */
+  --dur-bar-open:220ms;                      /* apparition / repli */
+  --dur-bar-snap:180ms;                      /* aimantation au relâchement */
+}

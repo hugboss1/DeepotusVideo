@@ -12300,6 +12300,8 @@ window.DzSubs={ready:!0,Drawer:SubsDrawer,Overlay:SubsOverlay,Style:SubsStyle,
                          newerLine, NewerHint,
                          fitDur, durCtl, secs, DUR_MIN,
                          clipLen, needDur, askDur, CLIP_DEFAUTS, DUR_DELAI,
+                         tbTraces, tbIcons, tbParse, tbSerial,
+                         TbIcon, ToolBtn, TB_GROUPES, TB_PX, TB_PX_GRIP,
                          move, moveTo, add, remove, group, DEFAULTS}
 
    - clipLen(kind, srcDur, defauts) — P11 : la longueur à donner au clip
@@ -14401,6 +14403,162 @@ function dzmAskDur(src,o){
         .catch(function(){rend(0,"erreur")})}
   catch(e2){rend(0,"erreur")}}
 
+/* ══════════════════════════════════════════════════════════════════════════
+   BARRE D'OUTILS DÉPORTABLE DE LA TIMELINE — étapes 1, 2 et 3 du §9 du
+   handoff « Barre Outils Flottante » (« Design d'icônes applicatives/
+   design_handoff_barre_outils/design.md »). Étape 1 : les tokens, dans les
+   TROIS feuilles. Étape 2 : les dix tracés du §3. Étape 3 : le bouton
+   d'action du §2.3, celui qui se répète neuf fois.
+
+   RIEN DE CE BLOC N'EST MONTÉ À L'ÉCRAN. Les étapes 4 à 8 — la barre, son
+   onglet, le déport, le retrait des neuf contrôles du bandeau fixe, le
+   câblage — ne sont PAS ici. Ce qui suit est appelable et rien d'autre :
+   aucun pixel de l'application ne bouge tant qu'une section du patcher n'en
+   appelle une fonction, et aucune ne le fait aujourd'hui.
+
+   ÉCART DE LIVRAISON, DÉCLARÉ PLUTÔT QUE TU. Le handoff dit « Livraison :
+   src/icons/toolbar/*, un composant par icône ». C'est IMPOSSIBLE ici, et
+   c'est mesuré : frontend/src ne porte AUCUNE classe svm-*, l'écran Montage
+   n'y existe pas — il vit dans le bundle construit et dans les patchs. Une
+   reconstruction Vite rendrait un bundle SANS l'écran Montage et effacerait
+   la chaîne. Le design ne change pas ; son véhicule si.
+
+   LES TRACÉS SONT GARDÉS TELS QUELS, EN CHAÎNE, et non retranscrits en
+   appels `r.jsx`. Le handoff dit « Les tracés SVG sont donnés intégralement
+   et doivent être repris tels quels » : la chaîne EST le texte du §3, au
+   caractère près, et c'est ELLE qui fait foi. `dzmTbParse` la traduit une
+   fois au chargement — pure, donc jouable sous node — et `dzmTbSerial` fait
+   le chemin inverse et doit rendre la chaîne de départ. C'est le contrôle À
+   DEUX FACES qui interdit qu'une retranscription silencieuse s'installe :
+   une virgule perdue dans un `d=` cesserait d'être invisible.
+
+   AUCUNE COULEUR N'EST ÉCRITE ICI. La teinte du groupe arrive par la classe
+   `dzm-g-<groupe>`, que montage.css traduit en `--grp` ; le JS ne fabrique
+   donc jamais un nom de variable CSS à partir d'une entrée. C'est aussi ce
+   qui rend un groupe inconnu inoffensif : pas de classe, pas de teinte, et
+   la ligne du banc le dit. */
+var DZM_TB_TRACES={
+  "piste-video":
+    '<rect x="2.6" y="4.2" width="18.8" height="5.6" opacity=".34"/><rect x="2.6" y="11.6" width="10.4" height="5.6"/><path d="M17 12.6h1.9V15h2.4v1.9h-2.4v2.4H17v-2.4h-2.4V15H17z"/>',
+  "piste-audio":
+    '<rect x="2.6" y="10.2" width="2.2" height="3.6" opacity=".45"/><rect x="6.2" y="6.6" width="2.2" height="10.8"/><rect x="9.8" y="8.8" width="2.2" height="6.4"/><rect x="13.4" y="4.6" width="2.2" height="15" opacity=".45"/><path d="M17.6 12.6h1.9V15h2.4v1.9h-2.4v2.4h-1.9v-2.4h-2.4V15h2.4z"/>',
+  "bibliotheque":
+    '<path d="M12 2.8 21 7.2 12 11.6 3 7.2z"/><path d="M12 13.6 4.6 10l-1.6.8L12 15.2l9-4.4-1.6-.8zM12 18.2 4.6 14.6l-1.6.8L12 19.8l9-4.4-1.6-.8z" opacity=".42"/>',
+  "couleur":
+    '<rect x="2.8" y="7.4" width="18.4" height="6.2" opacity=".34"/><rect x="2.8" y="7.4" width="8.8" height="6.2"/><rect x="2.8" y="16.4" width="4.8" height="3.6"/><rect x="9.6" y="16.4" width="4.8" height="3.6" opacity=".5"/><rect x="16.4" y="16.4" width="4.8" height="3.6" opacity=".34"/>',
+  "rebond":
+    '<rect x="2.8" y="16.8" width="18.4" height="4.2" opacity=".34"/><rect x="3.2" y="8.6" width="4.6" height="4.6"/><rect x="9.7" y="3.4" width="4.6" height="4.6"/><rect x="16.2" y="8.6" width="4.6" height="4.6" opacity=".55"/>',
+  "glow":
+    '<rect x="6.6" y="9.4" width="10.8" height="5.2"/><rect x="11.2" y="2.2" width="1.6" height="4.2" opacity=".45"/><rect x="11.2" y="17.6" width="1.6" height="4.2" opacity=".45"/><rect x="2.2" y="11.2" width="4.2" height="1.6" opacity=".45"/><rect x="17.6" y="11.2" width="4.2" height="1.6" opacity=".45"/>',
+  "emoji":
+    '<rect x="3" y="3" width="18" height="18" opacity=".3"/><rect x="7.4" y="7.6" width="2.8" height="3.6"/><rect x="13.8" y="7.6" width="2.8" height="3.6"/><rect x="7.4" y="14.2" width="9.2" height="2.6"/>',
+  "texte":
+    '<rect x="3.4" y="3.8" width="17.2" height="3.4"/><rect x="10.3" y="7.2" width="3.4" height="11.6"/><rect x="5.2" y="20.2" width="13.6" height="1.8" opacity=".34"/>',
+  "projets":
+    '<rect x="6" y="3" width="15.4" height="11.6" opacity=".3"/><path d="M2.6 6.2h6.2l1.7 2.1h11.1v12.5H2.6z"/>',
+  "poignee":
+    '<rect x="8" y="4" width="2.6" height="2.6"/><rect x="13.4" y="4" width="2.6" height="2.6"/><rect x="8" y="10.7" width="2.6" height="2.6"/><rect x="13.4" y="10.7" width="2.6" height="2.6"/><rect x="8" y="17.4" width="2.6" height="2.6"/><rect x="13.4" y="17.4" width="2.6" height="2.6"/>',
+};
+/* Les cinq groupes du §2.4, dans l'ordre du §2.4. Le rouge n'y est pas :
+   il est réservé au destructif, qui reste dans le bandeau fixe. */
+var DZM_TB_GROUPES=["pistes","biblio","mot","ajouts","projets"];
+/* Grille 24 × 24, rendu 18 px (§3). Le grip fait 14 px (§2.2a) : il est
+   passé en `size`, il n'a pas sa propre constante. */
+var DZM_TB_PX=18;
+var DZM_TB_PX_GRIP=14;
+function dzmTbCamel(n){return String(n).replace(/-([a-z])/g,
+  function(m,c){return c.toUpperCase()})}
+function dzmTbKebab(n){return String(n).replace(/[A-Z]/g,
+  function(c){return "-"+c.toLowerCase()})}
+/* Le tracé du §3 → une liste [balise, propriétés]. Les noms d'attributs
+   passent en camelCase parce que c'est ce que React attend : aucun des dix
+   tracés n'en porte de composé aujourd'hui (x, y, width, height, opacity,
+   d), mais un `fill-rule` posé demain serait muet sans cette ligne — React
+   ignore une propriété qu'il ne reconnaît pas sur un élément SVG. */
+function dzmTbParse(t){
+  var out=[],re=/<([a-zA-Z]+)((?:\s+[a-zA-Z-]+="[^"]*")*)\s*\/>/g,m,ra,a,p;
+  while((m=re.exec(String(t||"")))!==null){
+    p={};ra=/([a-zA-Z-]+)="([^"]*)"/g;
+    while((a=ra.exec(m[2]))!==null)p[dzmTbCamel(a[1])]=a[2];
+    out.push([m[1],p]);}
+  return out}
+/* L'AUTRE FACE. Elle rend le tracé d'origine, caractère pour caractère —
+   l'ordre des clés d'un objet JS suit l'insertion tant qu'aucune n'est un
+   entier, et aucune ne l'est ici. Le banc compare les dix allers-retours au
+   texte du §3 lu DANS design.md : ni la couche ni le banc ne recopient les
+   tracés, ils les lisent au même endroit. */
+function dzmTbSerial(ns){
+  return (ns||[]).map(function(e){
+    var s="<"+e[0],k;
+    for(k in e[1])if(Object.prototype.hasOwnProperty.call(e[1],k))
+      s+=" "+dzmTbKebab(k)+'="'+e[1][k]+'"';
+    return s+"/>"}).join("")}
+var DZM_TB_ICONS=(function(){
+  var o={},k;
+  for(k in DZM_TB_TRACES)
+    if(Object.prototype.hasOwnProperty.call(DZM_TB_TRACES,k))
+      o[k]=dzmTbParse(DZM_TB_TRACES[k]);
+  return o})();
+/* L'icône. `fill="currentColor"` et RIEN d'autre : la couleur vient du
+   bouton, jamais de l'icône (§3). `aria-hidden` parce que le sens est porté
+   par le libellé et l'`aria-label` du bouton — une icône annoncée en plus
+   ferait dire deux fois la même chose au lecteur d'écran. */
+function DzmTbIcon(o){
+  o=o||{};
+  var n=DZM_TB_ICONS[o.name];
+  if(!n)return null;
+  var px=Number(o.size);if(!isFinite(px)||px<=0)px=DZM_TB_PX;
+  return r.jsx("svg",{className:"dzm-tbi",viewBox:"0 0 24 24",
+    fill:"currentColor",width:px,height:px,"aria-hidden":!0,
+    focusable:"false",
+    children:n.map(function(e,i){return r.jsx(e[0],e[1],"t"+i)})},
+    o.k||("tbi-"+o.name))}
+/* ── LE BOUTON D'ACTION (§2.3) — l'unité qui se répète neuf fois ───────────
+   UN SEUL COMPOSANT, deux propriétés qui décident de tout : `group` (la
+   famille, donc la teinte) et `toggle` (bascule ou action simple).
+
+   `active` n'est LU que si `toggle` : une action simple n'a pas d'état, et
+   un appelant qui lui en passerait un par erreur ne doit pas peindre un
+   bouton allumé qui ne s'éteindrait jamais. Trois valeurs : `true` (allumé),
+   `"mixed"` (sélection hétérogène — bordure teintée, fond transparent,
+   §4.3), tout le reste = éteint.
+
+   `aria-pressed` n'est posé QUE sur les bascules, et il porte "mixed" tel
+   quel : c'est la valeur ARIA de l'état indéterminé, et sans elle une
+   sélection hétérogène s'annoncerait « non pressé », c'est-à-dire faux.
+
+   LE LIBELLÉ EST TOUJOURS DANS LE DOM, même masqué : le §2.3 dit
+   « masquables, pas supprimables ». C'est montage.css qui le cache
+   (`--lbl:none`), et `title` comme `aria-label` retombent sur lui — d'où
+   l'interdiction du §2.3 (« Ne pas livrer un mode compact sans infobulles »)
+   tenue par construction, sans que l'appelant ait à y penser.
+
+   L'ÉTAT ÉTEINT (`disabled`) et l'état indéterminé sont RENDUS ici ; QUAND
+   les poser est le câblage du §6 et de l'étape 7, qui n'est pas de ce lot.
+   Ils sont là parce que le §2.3 dit « la faire juste une fois » : livrer une
+   bascule qui ne sait pas se peindre éteinte obligerait à rouvrir le seul
+   composant que le handoff demande de ne pas rouvrir. */
+function DzmToolBtn(o){
+  o=o||{};
+  var g=DZM_TB_GROUPES.indexOf(o.group)>=0?o.group:"";
+  var tog=o.toggle===!0;
+  var etat=tog?o.active:!1;
+  var on=etat===!0,mix=etat==="mixed";
+  var dis=o.disabled===!0;
+  var lbl=o.label||"";
+  var cls="dzm-tbb";
+  if(g)cls+=" dzm-g-"+g;
+  if(o.solo===!0)cls+=" dzm-solo";
+  if(on)cls+=" dzm-on";
+  if(mix)cls+=" dzm-mix";
+  var p={type:"button",className:cls,
+    title:o.title||lbl,"aria-label":o.aria||lbl,disabled:dis,
+    onClick:function(){if(!dis&&typeof o.onAct==="function")o.onAct()},
+    children:[DzmTbIcon({name:o.icon,k:"i"}),
+      r.jsx("span",{className:"dzm-tbl",children:lbl},"l")]};
+  if(g)p["data-grp"]=g;
+  if(tog)p["aria-pressed"]=mix?"mixed":(on?"true":"false");
+  return r.jsx("button",p,o.k||("tbb-"+(o.icon||g||"x")))}
 /* ── export contrat ───────────────────────────────────────────────────────── */
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
@@ -14420,6 +14578,9 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   fitDur:dzmFitDur,durCtl:dzmDurCtl,secs:dzmSecs,DUR_MIN:DZM_DUR_MIN,
   clipLen:dzmClipLen,needDur:dzmNeedDur,askDur:dzmAskDur,
   CLIP_DEFAUTS:DZM_CLIP_DEFAUTS,DUR_DELAI:DZM_DUR_DELAI,
+  tbTraces:DZM_TB_TRACES,tbIcons:DZM_TB_ICONS,tbParse:dzmTbParse,
+  tbSerial:dzmTbSerial,TbIcon:DzmTbIcon,ToolBtn:DzmToolBtn,
+  TB_GROUPES:DZM_TB_GROUPES,TB_PX:DZM_TB_PX,TB_PX_GRIP:DZM_TB_PX_GRIP,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;
 
