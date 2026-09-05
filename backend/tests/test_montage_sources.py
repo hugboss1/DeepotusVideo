@@ -57,6 +57,17 @@ CE QUI EST FERME ICI
       de repli ; N16 (sans `nullif`) la ligne de la chaine vide ; N15 (le
       surensemble sur les deux colonnes) la ligne de budget ; M3 (test Python
       retire) la ligne du fichier NOMME « .mp4 ».
+  [2-sexies] LE PROXY DE SCRUB N'EST PAS UN PLAN (P7, tache 8). `POST
+      /api/montage/proxy` fabrique un apercu 480p sous un `JobRecord
+      provider="montage_proxy"` ; or cette boucle n'ecartait `montage` QUE
+      porteur de `_preview`, et le `where` ne connaissait pas ce provider. Le
+      CACHE de balayage d'un plan serait donc devenu un plan V1. Ferme par
+      DEUX verrous : le job cree ne porte AUCUN chemin d'artefact (mesure
+      dans test_montage_media.py [5]) et la requete ecarte ce provider
+      nommement (mesure ICI). Les fixtures de cette section posent la forme
+      REGRESSEE — un job de proxy portant un VRAI `.mp4` — sans quoi elles
+      seraient vertes a vide. Trois lignes : la SORTIE, le BUDGET de la
+      fenetre de 60 (meme lecon que [2-bis]), et le litteral du provider.
   [3] NON-REGRESSION, l'autre cote de la frontiere : une image POSEE A LA
       MAIN reste valide. `_resolve_src({image})` la resout, et le pre-vol
       l'accepte AUSSI BIEN sur V1 (carton fixe) que sur V2 (incrustation).
@@ -114,6 +125,20 @@ CE QUI EST FERME ICI
       (`id or label or p.name`) pouvait rendre un libelle ou un nom de
       fichier — une liste heterogene que rien ne peut rejoindre. La forme
       NOMINALE etait deja tenue (M7) ; c'est le REPLI qui ne l'etait pas.
+
+LES TROIS MUTATIONS DE [2-sexies], jouees le 05/09/2026 (protocole et table
+complete dans l'en-tete de tests/test_montage_media.py ; ligne verte de
+reference de CE banc : 67/0) :
+  N-P2  `where` de provider retire de `montage_project` => 65/2 :
+        proxy_de_scrub_n_entre_pas_en_v1 (la SORTIE) et
+        proxy_de_scrub_ne_mange_pas_la_fenetre_de_60 (le BUDGET).
+  N-P14 valeur de `_PROXY_PROVIDER` renommee => 64/3, les trois lignes de la
+        section — dont celle qui joint le litteral de la fixture a la
+        constante du service.
+  N-P1  la route de proxy REND son chemin au job (verrou 1 casse) => 67/0,
+        AUCUNE rouge : ce banc mesure le verrou 2, et il tient seul. C'est
+        pour cela que le verrou 1 se mesure ailleurs
+        (test_montage_media.py [5]).
 
 VINGT-DEUX MUTATIONS, TOUTES REJOUEES le 04/09/2026 sur la version courante
 du banc — les onze + une de P8 COMPRISES, dont les comptes d'alors (mesures
@@ -837,6 +862,59 @@ check("media_rules_rend_une_liste_non_vide",
       and all(isinstance(e, str) and e.startswith(".")
               for e in _rules["video_exts"]),
       str(_rules)[:200])
+
+
+print("\n[2-sexies] LE PROXY DE SCRUB N'EST PAS UN PLAN (P7, tache 8).")
+# LE PIEGE, ferme AVANT d'etre paye. `POST /api/montage/proxy` fabrique un
+# apercu 480p en tache de fond, sous un `JobRecord provider="montage_proxy"`.
+# Or cette boucle-ci n'ecarte `montage` QUE lorsque le nom du fichier porte
+# `_preview` : « montage_proxy » traversait le filtre, et le cache de balayage
+# d'un plan serait DEVENU un plan V1 de la timeline de l'utilisateur — la
+# classe de defaut exacte que P8 et le lot 3 viennent de fermer ailleurs.
+# DEUX VERROUS, chacun avec SA ligne de banc et SON fichier :
+#   verrou 1 — le job cree par la route ne porte AUCUN chemin d'artefact
+#     (`final_video_path` et `video_path` restent nuls). MESURE dans
+#     test_montage_media.py, section [5].
+#   verrou 2 — la REQUETE ecarte ce `provider` nommement. C'est ce que cette
+#     section-ci mesure, et c'est la garde de REGRESSION du verrou 1.
+# LA FIXTURE POSE DONC LA FORME REGRESSEE, a dessein : un job `montage_proxy`
+# `done`, plus recent que tout, portant un VRAI `.mp4` en `final_video_path`.
+# Sans cela ces lignes seraient VERTES A VIDE — un job sans chemin est deja
+# ecarte par le `where` d'extensions, et on n'aurait rien mesure du tout.
+ID_PROXY = "9a9a9a9a-0000-0000-0000-000000000001"
+pose(ID_PROXY, "montage_proxy", F_MP4, 4, T0 + timedelta(hours=5))
+d_px = J(api("GET", "/api/montage/project?limit=20"))
+v1_px = [c.get("src", {}).get("job_id")
+         for c in (d_px.get("clips") or []) if c.get("tr") == "v1"]
+# `ID_MP4 in v1_px` interdit la version vacante : un filtre qui jetterait
+# TOUT rendrait la premiere moitie verte sans rien mesurer.
+check("proxy_de_scrub_n_entre_pas_en_v1",
+      ID_MP4 in v1_px and ID_PROXY not in v1_px, str(v1_px))
+# LE BUDGET, et c'est l'autre moitie du piege. Le `where` porte cette
+# exclusion — et non seulement la boucle — pour la raison MESUREE en
+# [2-bis] : ce qui traverse la requete MANGE la fenetre de 60. Cinquante
+# clips proxifies suffiraient a rendre `has_assets` faux et a faire retomber
+# l'ecran sur sa demo, base pleine de rendus.
+for _i in range(60):
+    pose("px%02d0000-0000-0000-0000-000000000000" % _i, "montage_proxy",
+         F_MP4, 4, T0 + timedelta(hours=6, minutes=_i))
+d_pxb = J(api("GET", "/api/montage/project?limit=20"))
+v1_pxb = [c.get("src", {}).get("job_id")
+          for c in (d_pxb.get("clips") or []) if c.get("tr") == "v1"]
+check("proxy_de_scrub_ne_mange_pas_la_fenetre_de_60",
+      d_pxb.get("has_assets") is True and ID_MP4 in v1_pxb,
+      f"has_assets={d_pxb.get('has_assets')} v1={v1_pxb}")
+# ... et la fenetre a bien ete filtree, pas seulement la sortie : `sources
+# .videos` est le compte des lignes RETENUES. Sans le `where`, la fenetre de
+# 60 est faite des 60 proxys et ce compte tombe a 0.
+check("proxy_de_scrub_hors_de_la_fenetre_sql",
+      (d_pxb.get("sources") or {}).get("videos", -1) >= 1,
+      str(d_pxb.get("sources")))
+# LE LITTERAL. Le service expose la valeur sous `_PROXY_PROVIDER` ; la
+# fixture ci-dessus la pose EN DUR. Cette ligne joint les deux — sans elle,
+# renommer la constante rendrait toute la section verte a vide.
+check("proxy_le_litteral_du_provider_est_celui_du_service",
+      M._PROXY_PROVIDER == "montage_proxy", repr(M._PROXY_PROVIDER))
 
 
 print("\n[3] NON-REGRESSION — une image posee A LA MAIN reste valide.")

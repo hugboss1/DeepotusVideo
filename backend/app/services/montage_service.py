@@ -29,6 +29,18 @@ Câblage « timeline → rendu » du handoff son_vfx_montage :
                               écrit ATOMIQUEMENT (tmp + os.replace) dans
                               montage_saved.json au répertoire de données
                               (settings.images_path.parent, à côté d'audio/).
+  GET  /api/montage/peaks     P7 — l'enveloppe d'onde d'une source, précalculée
+                              et mise en cache (JSON). `bins` écrêté 8..2000.
+  GET  /api/montage/strip     P7 — une planche de vignettes (JPEG), VIDÉO
+                              seulement (`_is_video_artifact`).
+  POST /api/montage/proxy     P7 — fabrique l'aperçu 480p en tâche de fond
+                              (JobRecord provider="montage_proxy", SANS aucun
+                              chemin d'artefact : un cache n'est pas un plan).
+  GET  /api/montage/proxy     P7 — sert cet aperçu s'il existe, 404 sinon.
+                              Les quatre sont bornées à la boucle locale et
+                              calculées par `montage_media` ; leur cache vit
+                              dans outputs/montage_cache/, hors de tout
+                              dossier que le dépôt énumère.
   DELETE /api/montage/save    Efface la sauvegarde ; GET /project reconstruit
                               alors depuis la Bibliothèque.
                               GET /project sert d'abord la sauvegarde si elle
@@ -99,6 +111,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
+from fastapi.responses import FileResponse
 from loguru import logger
 from sqlalchemy import func, or_, select
 
@@ -247,6 +260,31 @@ def _has_audio_stream(path: Path) -> bool:
 _VIDEO_EXTS = (".mp4", ".mov", ".webm", ".mkv", ".m4v", ".avi")
 _AUDIO_EXTS = (".mp3", ".wav", ".m4a", ".ogg", ".flac", ".aac", ".opus",
                ".aiff", ".aif", ".wma")
+
+# P7 — le `provider` des travaux de PRÉCALCUL (aperçu 480p pour le balayage).
+# Ce n'est pas un rendu : c'est un CACHE, et il ne doit jamais réapparaître
+# comme un plan ni comme une « version plus récente » d'un plan. Deux
+# verrous, chacun tenu par sa propre ligne de banc :
+#   1. le JobRecord de `POST /proxy` ne porte AUCUN chemin d'artefact
+#      (`final_video_path` et `video_path` restent NULS) — donc il est
+#      invisible de TOUT ce qui interroge un artefact, y compris le sélecteur
+#      d'assets du bundle, qui filtre `status==="done" && (video_path ||
+#      final_video_path)` (P9). C'est le verrou principal, et il ne coûte
+#      rien : le chemin du proxy se déduit de la source (`montage_media
+#      .proxy_path`), l'écran n'a donc jamais besoin de le lire sur le job.
+#   2. les DEUX requêtes qui construisent une timeline (`montage_project`) ou
+#      proposent un remplacement (`montage_newer`) écartent ce `provider`
+#      NOMMÉMENT. C'est une garde de RÉGRESSION contre le verrou 1 : le jour
+#      où quelqu'un « répare » le job en lui rendant son fichier, la timeline
+#      ne se remplira pas de proxys 480p pour autant.
+# La garde 2 est écrite dans le `where` et NON répétée en Python, à la
+# différence de la liste blanche d'extensions. Ce n'est pas un oubli : le
+# `where` et la boucle divergent sur le CHEMIN (l'un voit la chaîne stockée,
+# l'autre l'extension analysée — cf. le fichier nommé « .mp4 » de P8-bis),
+# jamais sur `provider`, qui est une colonne comparée entière des deux côtés.
+# Un second test Python serait ici du code que rien ne peut faire rougir
+# seul.
+_PROXY_PROVIDER = "montage_proxy"
 
 
 def _is_video_artifact(p: Path) -> bool:
@@ -917,6 +955,11 @@ async def montage_project(limit: int = 4):
     non-vidéo : ils sont seulement listés dans `v1_non_video` (et au journal)
     — voir le commentaire dans la boucle.
 
+    P7 : les jobs de PRÉCALCUL (`provider="montage_proxy"`, l'aperçu 480p du
+    balayage) sont écartés NOMMÉMENT par la requête. Un cache n'est pas un
+    plan — cf. `_PROXY_PROVIDER`, et la section [2-sexies] de
+    `tests/test_montage_sources.py`.
+
     CONTRAT de `v1_non_video`, arrêté ici et non plus implicite : ce sont des
     IDENTIFIANTS de clips, joignables un à un aux `clips` servis par la même
     réponse — rien d'autre. La tâche 16 lit ce champ pour marquer les clips à
@@ -1080,6 +1123,15 @@ async def montage_project(limit: int = 4):
                             JobRecord.video_path)
         res = await session.execute(
             select(JobRecord).where(JobRecord.status == JobStatus.DONE.value)
+            # P7 — les aperçus de balayage ne sont pas des plans. Dans le
+            # `where` et pas seulement dans la boucle, pour la raison MESURÉE
+            # de P8-bis : ce qui traverse la requête MANGE la fenêtre de 60.
+            # Cinquante clips proxifiés suffiraient à rendre `has_assets`
+            # faux et à faire retomber l'écran sur sa démo, base pleine de
+            # rendus. `coalesce` et non `!=` nu : `NULL != 'x'` vaut NULL en
+            # SQL et écarterait les 13 jobs à `provider` NUL de la base
+            # réelle (le piège déjà payé dans `montage_newer`).
+            .where(func.coalesce(JobRecord.provider, "") != _PROXY_PROVIDER)
             .where(or_(*[_fp.ilike(f"%{e}") for e in _VIDEO_EXTS]))
             .order_by(JobRecord.completed_at.desc()).limit(60))
         jobs = res.scalars().all()
@@ -1246,6 +1298,15 @@ async def montage_newer(job_id: str = ""):
        légitimes ») que P8-bis a déjà rencontrée : le titre se compare donc
        en Python, où la normalisation est celle qui décide.
 
+    4-bis. `notin_(("montage", "montage_proxy"))` — P7. « montage_proxy »
+       n'est PAS « montage » : le `!=` d'origine laissait passer les jobs de
+       PRÉCALCUL de la lecture fluide, et le cache 480p d'un plan aurait été
+       proposé comme la « version plus récente » de ce plan-là. La route qui
+       les crée ne leur donne aucun chemin d'artefact (verrou 1, cf.
+       `_PROXY_PROVIDER`) ; cette clause est le verrou de RÉGRESSION, et sa
+       ligne de banc pose donc la forme régressée
+       (`test_montage_remplacer.py`, `newer_n_offre_pas_un_proxy_de_scrub`).
+
     4. `coalesce(provider, '')`, PAS `provider != "montage"`. En SQL,
        `NULL != 'montage'` vaut NULL et la ligne est ÉCARTÉE. MESURÉ sur la
        copie de la base réelle : 13 jobs `done` portent `provider IS NULL`,
@@ -1284,7 +1345,13 @@ async def montage_newer(job_id: str = ""):
         res = await session.execute(
             select(JobRecord)
             .where(JobRecord.status == JobStatus.DONE.value)
-            .where(func.coalesce(JobRecord.provider, "") != "montage")
+            # P7 : « montage_proxy » N'EST PAS « montage ». Le `!=` d'origine
+            # le laissait passer — un aperçu 480p de balayage aurait été
+            # proposé comme la « version plus récente » du plan dont il est
+            # le cache. `notin_` sur le même `coalesce`, pour la raison de la
+            # décision 4 ci-dessus : un `provider` NUL ne doit pas tomber.
+            .where(func.coalesce(JobRecord.provider, "")
+                   .notin_(("montage", _PROXY_PROVIDER)))
             # PAS de `id != job_id` — le plan l'écrivait, la mesure le rend
             # INUTILE : la comparaison de date est STRICTE, et la référence
             # n'est pas plus récente qu'elle-même. Mutation jouée le
@@ -2710,3 +2777,237 @@ async def montage_measure(request: Request):
     logger.info(f"montage measure: I={vals['lufs_i']} LUFS, TP={vals['tp']} "
                 f"dBFS, LRA={vals['lra']} LU sur {round(total, 3)} s")
     return {"ok": True, **vals, "dur_s": round(total, 3)}
+
+
+# ----------------------------------------------------- lecture fluide (P7) ---
+# Tâche 8, moitié BACKEND : de quoi rendre le balayage instantané sans que
+# l'écran ait à décoder quoi que ce soit pendant qu'on glisse la tête de
+# lecture. Quatre routes, un seul module de calcul (`montage_media`), un seul
+# vocabulaire de source (`_resolve_src`, celui du Montage — job_id / audio /
+# image / file_path). L'ÉCRAN n'est pas touché ici : ces routes n'ont pas
+# encore de lecteur, et c'est dit — dette assumée jusqu'aux sections M17–M19.
+#
+#   GET  /peaks?src=<json>&bins=    l'enveloppe d'onde, en JSON de cache
+#   GET  /strip?src=<json>&n=&w=&h= une planche de vignettes, en JPEG
+#   POST /proxy  {src}              fabrique l'aperçu 480p en tâche de fond
+#   GET  /proxy?src=<json>          sert l'aperçu s'il existe, 404 sinon
+#
+# CE QUE CES ROUTES OUVRENT, ET CE QU'ON EN FAIT — la question ne se posait
+# pas pour les routes de Montage existantes, qui CONSOMMENT une source dans
+# un rendu ; celles-ci en rendent le CONTENU dérivé (un JPEG, un mp4, un
+# JSON). Or `_resolve_src` accepte `{file_path}`, et c'est un chemin absolu
+# LIBRE. Ce qui a été mesuré avant de trancher (05/09/2026) :
+#   * `settings.HOST` vaut « 127.0.0.1 » (config.py l. 102) et ni un `.env`
+#     ni le lanceur ne le surchargent (`grep -n HOST scripts/launch.ps1` :
+#     aucune ligne) — le serveur est DÉJÀ borné à la boucle locale ;
+#   * CORS n'est monté que sous `DEEPOTUS_DEV=1` (main.py l. 182) : une page
+#     étrangère peut DÉCLENCHER un GET vers 127.0.0.1 mais ne peut pas en
+#     LIRE la réponse ;
+#   * `{file_path}` est un usage LÉGITIME et vivant du Montage : les
+#     incrustations d'emoji le posent tel quel (frontend/patches/montage.js
+#     l. 331, chemin produit par `POST /api/subtitles/emoji-hints`). Le
+#     bannir casserait une fonction livrée.
+# DÉCISION : on ne restreint pas le vocabulaire de `src` — on restreint
+# l'APPELANT, en réutilisant la seule définition de « boucle locale » du
+# dépôt (`routes._require_localhost`, déjà appliquée à 14 endroits sur la
+# surface des clés d'API). Le geste ne coûte rien à un utilisateur réel
+# (l'app est déjà en 127.0.0.1) et ferme le cas que cette fonction-là nomme
+# elle-même : « même si HOST était mal configuré en 0.0.0.0 ».
+# CE QUI RESTE OUVERT, DIT PLUTÔT QUE TU : un appelant DÉJÀ sur la machine
+# peut obtenir la planche d'une vidéo ou l'onde d'un son qu'il pouvait de
+# toute façon lire lui-même. Ces routes n'élargissent donc pas ce qu'un
+# processus local atteint ; elles élargissent ce que la PAGE atteint, et la
+# page est de même origine.
+
+
+def _require_local(request: Request) -> None:
+    """Refuse tout appelant hors boucle locale.
+
+    RÉUTILISE `routes._require_localhost` — la liste des hôtes acceptés n'est
+    écrite qu'UNE fois dans le dépôt, et une seconde copie ici aurait divergé
+    (l'argument de P9 pour `/media-rules`, appliqué à une liste de sécurité).
+    Seul le MESSAGE est reformulé : celui d'origine parle des réglages."""
+    from app.api.routes import _require_localhost
+    try:
+        _require_localhost(request)
+    except HTTPException:
+        raise HTTPException(
+            403, "Les précalculs du Montage ne sont accessibles que depuis "
+                 "la machine qui exécute l'application.")
+
+
+def _src_query(raw) -> dict | None:
+    """Le `src` d'une chaîne de requête : du JSON, ou rien.
+
+    Un `src` illisible n'est PAS une erreur 500 : c'est une source
+    introuvable, et l'appelant lit le même 404 que pour un job supprimé."""
+    try:
+        v = json.loads(raw or "")
+    except (TypeError, ValueError):
+        return None
+    return v if isinstance(v, dict) else None
+
+
+async def _media_source(request: Request, src, *, video: bool) -> Path:
+    """La source résolue d'une route de précalcul, gardée de bout en bout.
+
+    `video=True` exige une VIDÉO au sens de `_is_video_artifact` — la MÊME
+    autorité que la construction de timeline et que le sélecteur d'assets
+    (`GET /media-rules`), jamais une seconde liste. Ce n'est pas une garde
+    contre un plantage : MESURÉ (scratchpad/mesure2.py), ffmpeg RÉUSSIT le
+    filmstrip et l'aperçu d'un PNG, et l'aperçu d'un `.wav` (un mp4 sans
+    image). Sans cette garde, une planche de sprites ou un son rendraient un
+    aperçu silencieusement faux — la classe de défaut exacte que P8 et le
+    lot 3 ont fermée ailleurs. Le 415 nomme le fichier ; l'écran garde alors
+    le fond qu'il sait déjà dessiner (image fixe en V1, rien ailleurs)."""
+    _require_local(request)
+    p = await _resolve_src(src if isinstance(src, dict) else _src_query(src))
+    if p is None:
+        raise HTTPException(404, "Source introuvable pour ce précalcul.")
+    if video and not _is_video_artifact(p):
+        raise HTTPException(
+            415, f"« {p.name} » n'est pas une vidéo : ce précalcul n'est "
+                 f"possible que sur {', '.join(_VIDEO_EXTS)}.")
+    return p
+
+
+def _media_http(e: Exception) -> HTTPException:
+    """Une `MediaError` devient un 415 NOMMÉ, tout le reste un 502.
+
+    La frontière est celle du diagnostic : `MediaError` porte un message
+    construit pour être lu (ffmpeg absent, source sans flux audio, sortie
+    ffmpeg réduite à ses lignes utiles) ; le reste est un défaut de code
+    qu'il vaut mieux voir passer pour ce qu'il est."""
+    from app.services.montage_media import MediaError
+    if isinstance(e, MediaError):
+        return HTTPException(415, str(e))
+    logger.exception("montage: precalcul en erreur")
+    return HTTPException(502, f"Précalcul impossible : {e}")
+
+
+@router.get("/peaks")
+async def montage_peaks(request: Request, src: str = "", bins: int = 300):
+    """L'enveloppe d'onde de `src`, servie depuis le cache (JSON).
+
+    `{peaks: [0..1] × bins, dur, bins}`. `bins` est écrêté à 8..2000 par
+    `montage_media`, et c'est la valeur ÉCRÊTÉE qui décide aussi du fichier
+    servi — sans quoi la route rendrait le chemin d'un `bins` jamais calculé.
+
+    PAS de garde vidéo ici, et c'est voulu : l'onde d'un plan V1 (« le son du
+    plan ») est exactement ce que la timeline veut dessiner. Ce qui est
+    refusé, c'est une source dont ffmpeg ne tire AUCUN échantillon — 415 qui
+    la nomme, plutôt qu'une onde plate qui affirmerait un silence."""
+    from app.services import montage_media as MM
+    p = await _media_source(request, src, video=False)
+    try:
+        out = await asyncio.to_thread(MM.peaks_path, p, bins)
+    except Exception as e:
+        raise _media_http(e)
+    if not out.exists():
+        # `peaks` répond même quand le cache n'a PAS pu être écrit (disque
+        # plein, onde partielle) : servir un `FileResponse` sur un fichier
+        # absent sortirait alors en 500 muet, au moment de l'envoi.
+        raise HTTPException(502, "L'onde a été calculée mais n'a pas pu être "
+                                 "mise en cache — précalcul non servi.")
+    return FileResponse(out, media_type="application/json")
+
+
+@router.get("/strip")
+async def montage_strip(request: Request, src: str = "", n: int = 12,
+                        w: int = 78, h: int = 44):
+    """Une planche de `n` vignettes `w`×`h` (JPEG), servie depuis le cache."""
+    from app.services import montage_media as MM
+    p = await _media_source(request, src, video=True)
+    try:
+        out = await asyncio.to_thread(MM.strip, p, n, w, h)
+    except Exception as e:
+        raise _media_http(e)
+    return FileResponse(out, media_type="image/jpeg")
+
+
+@router.post("/proxy")
+async def montage_proxy_build(request: Request,
+                              background_tasks: BackgroundTasks):
+    """Fabrique l'aperçu 480p de `src` en tâche de fond. Body : `{src}`.
+
+    Réponse : `{ok, ready, job_id}`. `ready: true` (et `job_id: null`) quand
+    le cache le porte déjà — aucun travail, aucun job. Sinon un `JobRecord`
+    `provider="montage_proxy"` à suivre par `GET /api/jobs/{id}`.
+
+    CE JOB NE PORTE AUCUN CHEMIN D'ARTEFACT, et c'est le cœur de la
+    décision : voir `_PROXY_PROVIDER` plus haut. Le fichier se retrouve par
+    `GET /proxy?src=…`, dont la clé de cache est une fonction de la source —
+    l'écran n'a donc jamais besoin de lire ce chemin sur le job, et rien de
+    ce qui interroge un artefact ne peut confondre un cache avec un plan."""
+    from app.services import montage_media as MM
+    body = await _json_body(request)
+    p = await _media_source(request, body.get("src"), video=True)
+    try:
+        out = await asyncio.to_thread(MM.proxy_path, p)
+    except Exception as e:
+        raise _media_http(e)
+    if out.exists():
+        return {"ok": True, "ready": True, "job_id": None}
+
+    job_id = str(uuid4())
+    async with async_session_factory() as session:
+        session.add(JobRecord(
+            id=job_id, status=JobStatus.GENERATING_VIDEO.value, progress=10,
+            title=f"proxy — {p.name}"[:60],
+            provider=_PROXY_PROVIDER,
+            # `image_filename` est NON NUL en base (storage.py l. 24) : il
+            # faut donc y écrire quelque chose. On suit la forme déjà en
+            # usage pour les jobs qui n'ont pas d'image — `asset3d_<…>`,
+            # `sprite_<court>` (routes.py) — c'est-à-dire un libellé SANS
+            # EXTENSION : aucun filtre par extension ne peut le prendre pour
+            # un média, et il dit ce qu'il est.
+            image_filename=f"montage_proxy_{job_id[:8]}",
+            # final_video_path / video_path : DÉLIBÉRÉMENT absents. Un cache
+            # n'est pas un artefact — voir `_PROXY_PROVIDER` en tête.
+            current_step="Aperçu 480p"))
+        await session.commit()
+
+    async def _run():
+        try:
+            await asyncio.to_thread(MM.proxy, p)
+        except Exception as e:
+            logger.warning(f"montage: apercu 480p echoue — {e}")
+            async with async_session_factory() as session:
+                jr = await session.get(JobRecord, job_id)
+                if jr is not None:
+                    jr.status = JobStatus.FAILED.value
+                    jr.error = str(e)[:2000]
+                    jr.current_step = "Échec"
+                    await session.commit()
+            return
+        async with async_session_factory() as session:
+            jr = await session.get(JobRecord, job_id)
+            if jr is not None:
+                jr.status = JobStatus.DONE.value
+                jr.progress = 100
+                jr.current_step = "Aperçu prêt"
+                jr.completed_at = _dt.utcnow()
+                await session.commit()
+
+    background_tasks.add_task(_run)
+    return {"ok": True, "ready": False, "job_id": job_id}
+
+
+@router.get("/proxy")
+async def montage_proxy_get(request: Request, src: str = ""):
+    """L'aperçu 480p de `src` s'il est déjà fabriqué, 404 sinon.
+
+    404 et non une fabrication à la volée : un aperçu prend des secondes, et
+    une route de LECTURE qui encoderait bloquerait le premier balayage au
+    lieu de l'accélérer. C'est `POST /proxy` qui fabrique."""
+    from app.services import montage_media as MM
+    p = await _media_source(request, src, video=True)
+    try:
+        out = await asyncio.to_thread(MM.proxy_path, p)
+    except Exception as e:
+        raise _media_http(e)
+    if not out.exists():
+        raise HTTPException(
+            404, "Aperçu 480p pas encore fabriqué — POST /api/montage/proxy "
+                 "le met en file.")
+    return FileResponse(out, media_type="video/mp4")

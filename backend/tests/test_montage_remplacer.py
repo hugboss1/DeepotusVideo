@@ -42,6 +42,30 @@ CE QUI EST FERME ICI
   [7] LES DEUX BOUTONS et le rappel « version plus recente », executes sous
       node avec le meme stub `r` que test_montage_bundle.py.
 
+LE PROXY DE SCRUB, AJOUTE PAR P7 (tache 8). `POST /api/montage/proxy` cree
+un `JobRecord provider="montage_proxy"` pour l'apercu 480p du balayage, et
+« montage_proxy » N'EST PAS « montage » : la clause d'origine le laissait
+passer, donc le CACHE d'un plan aurait ete propose comme sa « version plus
+recente ». La clause est devenue `notin_(("montage", "montage_proxy"))`.
+La fixture I(13) pose la forme REGRESSEE — un job de proxy portant un VRAI
+`.mp4` en `final_video_path` — parce que la route, elle, n'en pose AUCUN
+(verrou 1, mesure dans test_montage_media.py [5]) : sans cela, la ligne
+serait verte a vide, le `where` d'extensions ecartant deja un job sans
+chemin. Deux lignes : `newer_n_offre_pas_un_proxy_de_scrub` et la jonction
+du litteral avec `M._PROXY_PROVIDER`.
+
+LES TROIS MUTATIONS DU PROXY, jouees le 05/09/2026 (protocole et table
+complete dans l'en-tete de tests/test_montage_media.py ; ligne verte de
+reference de CE banc : 99/0) :
+  N-P3  `montage_newer` revient a `!= "montage"` => 97/2 :
+        newer_n_offre_pas_un_proxy_de_scrub ET le litteral d'ordre
+        newer_rend_les_homonymes_… — le proxy, plus recent que I(2), y
+        arriverait EN TETE.
+  N-P14 valeur de `_PROXY_PROVIDER` renommee => 96/3, les deux lignes
+        ci-dessus plus celle qui joint le litteral a la constante.
+  N-P1  la route de proxy REND son chemin au job (verrou 1 casse) => 99/0,
+        AUCUNE rouge : ce banc mesure le verrou 2, et il tient seul.
+
 CE QUE CE BANC N'AFFIRME PAS
   * Il ne mesure PAS le bundle : les sections M15/M16 et leurs comptes
     d'ancres sont le miroir de test_montage_bundle.py, qui lit le fichier
@@ -510,6 +534,21 @@ pose(I(12), "seedance", F_SANS_EXT, "plan_01", T0 + timedelta(minutes=34))
 pose(I(11), "seedance", F_MP4B, "plan_01", T0 + timedelta(minutes=40),
      statut=JobStatus.GENERATING_VIDEO.value)
 
+# LE PROXY DE SCRUB (P7, tache 8). `POST /api/montage/proxy` fabrique un
+# apercu 480p sous un `JobRecord provider="montage_proxy"` — et
+# « montage_proxy » N'EST PAS « montage » : la clause d'origine
+# (`coalesce(provider, '') != "montage"`) le laissait passer, et le CACHE de
+# balayage d'un plan aurait ete propose comme la « version plus recente » de
+# ce plan. C'est le meme piege que les planches et les maillages ci-dessus, a
+# ceci pres qu'il est ferme AVANT d'avoir ete paye.
+# LA FIXTURE POSE LA FORME REGRESSEE, a dessein : la route, elle, ne met
+# AUCUN chemin d'artefact sur ce job (verrou 1, mesure dans
+# test_montage_media.py [5]), donc un job de proxy REEL serait deja ecarte
+# par le `where` d'extensions et cette ligne serait verte a vide. On lui
+# donne donc un VRAI `.mp4`, pour que la clause de `provider` soit la SEULE
+# chose qui l'ecarte.
+pose(I(13), "montage_proxy", F_MP4B, "plan_01", T0 + timedelta(minutes=35))
+
 d1 = J(api("GET", "/api/montage/newer?job_id=" + I(1)))
 # ORDRE : du plus recent au plus ancien. Litteral complet, pas un `in`.
 check("newer_rend_les_homonymes_plus_recents_du_plus_recent_au_plus_ancien",
@@ -517,6 +556,23 @@ check("newer_rend_les_homonymes_plus_recents_du_plus_recent_au_plus_ancien",
 check("newer_dit_son_origine_heuristique", d1.get("origin") == "heuristique",
       f'origin={d1.get("origin")!r}')
 check("newer_ok", d1.get("ok") is True, f'ok={d1.get("ok")!r}')
+
+# ... et le proxy de scrub N'EST PAS un candidat. `I(2) in _ids1` interdit la
+# version vacante : une route qui ne proposerait plus RIEN rendrait la
+# premiere moitie verte sans rien mesurer. Le litteral de la ligne
+# precedente porte deja cette propriete (le proxy, plus recent que I(2), y
+# arriverait EN TETE) ; cette ligne-ci la NOMME, pour qu'une mutation dise
+# de quoi il s'agit au lieu de casser un ordre.
+_ids1 = IDS(d1)
+check("newer_n_offre_pas_un_proxy_de_scrub",
+      isinstance(_ids1, list) and I(2) in _ids1 and I(13) not in _ids1,
+      f"{_ids1}")
+# Le service expose la valeur sous `_PROXY_PROVIDER` ; la fixture la pose EN
+# DUR. Sans cette jonction, renommer la constante rendrait la ligne
+# ci-dessus verte a vide.
+check("newer_le_litteral_du_provider_de_proxy_est_celui_du_service",
+      M._PROXY_PROVIDER == "montage_proxy", repr(M._PROXY_PROVIDER))
+
 # Chaque candidat porte les quatre champs du contrat, et rien d'invente.
 _c1 = CAND(d1)
 _prem = _c1[0] if isinstance(_c1, list) and _c1 else None
