@@ -267,6 +267,10 @@ def peaks(src, bins: int = 300, rate: int = _RATE) -> dict:
         # onde partielle vaut mieux qu'une bande vide) et on NE FIGE PAS.
         # La clé de cache ne porte que le `mtime` de la source : une entrée
         # écrite ici resterait servie même après réparation du décodeur.
+        # LA ROUTE SERT BIEN CE DICT : elle rend ce que `peaks` RETOURNE, et
+        # non un fichier de cache — sans quoi cette branche serait morte
+        # (elle l'a été jusqu'au 05/09/2026 : `peaks_path` jetait le dict,
+        # ne trouvait pas de fichier et la route levait un 502).
         logger.warning(f"montage_media: onde partielle (rc={r.returncode}) "
                        f"pour {Path(src).name} — non mise en cache")
         return data
@@ -283,13 +287,14 @@ def peaks(src, bins: int = 300, rate: int = _RATE) -> dict:
     return data
 
 
-def peaks_path(src, bins: int = 300) -> Path:
-    """Le FICHIER de cache des pics, calculé si besoin. Une seule borne de
-    `bins` pour la route et pour `peaks` — sinon la route servirait le chemin
-    d'un `bins` que le calcul a déjà écrêté."""
-    bins = _bins(bins)
-    peaks(src, bins=bins)
-    return _cache_path(src, "peaks%d" % bins)
+# `peaks_path` A ÉTÉ RETIRÉE le 05/09/2026, et pas par goût du ménage : elle
+# APPELAIT `peaks`, JETAIT le dict rendu, puis reconstruisait le chemin de
+# cache. Sur l'unique branche où `peaks` répond SANS mettre en cache (onde
+# partielle, ci-dessus), le fichier n'existait donc pas et la route levait un
+# 502 — le client ne pouvait JAMAIS recevoir l'onde que ce module se donne la
+# peine de calculer. La route rend maintenant le DICT de `peaks` ; le cache
+# continue d'être relu par `peaks` lui-même, en tête de fonction. Rien ne
+# reconstruit plus un chemin que le calcul connaissait déjà.
 
 
 def strip(src, n: int = 12, w: int = 78, h: int = 44) -> Path:

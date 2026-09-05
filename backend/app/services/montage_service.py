@@ -30,7 +30,9 @@ Câblage « timeline → rendu » du handoff son_vfx_montage :
                               montage_saved.json au répertoire de données
                               (settings.images_path.parent, à côté d'audio/).
   GET  /api/montage/peaks     P7 — l'enveloppe d'onde d'une source, précalculée
-                              et mise en cache (JSON). `bins` écrêté 8..2000.
+                              et mise en cache (JSON rendu par `peaks`, jamais
+                              un chemin : voir la route). `bins` écrêté
+                              8..2000.
   GET  /api/montage/strip     P7 — une planche de vignettes (JPEG), VIDÉO
                               seulement (`_is_video_artifact`).
   POST /api/montage/proxy     P7 — fabrique l'aperçu 480p en tâche de fond
@@ -267,11 +269,28 @@ _AUDIO_EXTS = (".mp3", ".wav", ".m4a", ".ogg", ".flac", ".aac", ".opus",
 # verrous, chacun tenu par sa propre ligne de banc :
 #   1. le JobRecord de `POST /proxy` ne porte AUCUN chemin d'artefact
 #      (`final_video_path` et `video_path` restent NULS) — donc il est
-#      invisible de TOUT ce qui interroge un artefact, y compris le sélecteur
-#      d'assets du bundle, qui filtre `status==="done" && (video_path ||
+#      écarté par TOUT FILTRE qui exige un artefact, à commencer par celui du
+#      sélecteur d'assets du bundle : `status==="done" && (video_path ||
 #      final_video_path)` (P9). C'est le verrou principal, et il ne coûte
-#      rien : le chemin du proxy se déduit de la source (`montage_media
-#      .proxy_path`), l'écran n'a donc jamais besoin de le lire sur le job.
+#      rien : le chemin du proxy se déduit de la source (`montage_media`),
+#      l'écran n'a donc jamais besoin de le lire sur le job.
+#      CE QUE CE VERROU NE FAIT PAS, et le commentaire l'a affirmé à tort
+#      jusqu'au 05/09/2026 : il ne rend pas le job invisible des FENÊTRES.
+#      Un filtre écarte une ligne APRÈS l'avoir reçue — la ligne a donc
+#      occupé sa place dans la fenêtre. MESURÉ : `GET /api/jobs` servait les
+#      50 jobs les plus récents SANS filtre de provider, et le sélecteur
+#      d'assets du Montage lit ces 50 lignes, filtre, puis coupe à 12 :
+#      cinquante proxys et la liste « Rendus vidéo » est VIDE, base pleine de
+#      rendus. `GET /api/cost/usage` faisait pire — il sommait tous les jobs
+#      `done` sans filtre, et `_job_to_cost` retombait sur sa branche
+#      « campaign » par défaut : 0,403 USD par proxy (mesuré aux tarifs par
+#      défaut), imputés à `fal`, pour un transcodage ffmpeg local et gratuit.
+#      LES DEUX FENÊTRES SONT DONC FILTRÉES À LA SOURCE, chacune dans son
+#      `where` et avant son `limit` — `Pipeline.list_jobs` et
+#      `routes.cost_usage`, toutes deux par `coalesce(provider, '')`, jamais
+#      par un `!=` nu. C'est un TROISIÈME verrou, de budget, pas une copie
+#      des deux autres, et il a ses trois lignes de banc
+#      (`test_montage_media.py`, N-P18 / N-P19 / N-P20).
 #   2. les DEUX requêtes qui construisent une timeline (`montage_project`) ou
 #      proposent un remplacement (`montage_newer`) écartent ce `provider`
 #      NOMMÉMENT. C'est une garde de RÉGRESSION contre le verrou 1 : le jour
@@ -2787,7 +2806,7 @@ async def montage_measure(request: Request):
 # image / file_path). L'ÉCRAN n'est pas touché ici : ces routes n'ont pas
 # encore de lecteur, et c'est dit — dette assumée jusqu'aux sections M17–M19.
 #
-#   GET  /peaks?src=<json>&bins=    l'enveloppe d'onde, en JSON de cache
+#   GET  /peaks?src=<json>&bins=    l'enveloppe d'onde, en JSON
 #   GET  /strip?src=<json>&n=&w=&h= une planche de vignettes, en JPEG
 #   POST /proxy  {src}              fabrique l'aperçu 480p en tâche de fond
 #   GET  /proxy?src=<json>          sert l'aperçu s'il existe, 404 sinon
@@ -2896,20 +2915,22 @@ async def montage_peaks(request: Request, src: str = "", bins: int = 300):
     PAS de garde vidéo ici, et c'est voulu : l'onde d'un plan V1 (« le son du
     plan ») est exactement ce que la timeline veut dessiner. Ce qui est
     refusé, c'est une source dont ffmpeg ne tire AUCUN échantillon — 415 qui
-    la nomme, plutôt qu'une onde plate qui affirmerait un silence."""
+    la nomme, plutôt qu'une onde plate qui affirmerait un silence.
+
+    ON REND CE QUE `peaks` CALCULE, jamais un fichier de cache. La route
+    passait par `peaks_path`, qui appelait `peaks`, JETAIT son dict et
+    reconstruisait un chemin : sur la seule branche où `peaks` répond sans
+    mettre en cache — l'ONDE PARTIELLE, ffmpeg s'est plaint mais a produit
+    des octets — le fichier n'existait pas et cette route levait un 502. Le
+    client ne pouvait donc JAMAIS recevoir cette onde-là. Le cache n'est pas
+    perdu pour autant : c'est `peaks` qui le relit, en tête de fonction, et
+    la ligne `pics_relus_du_cache_sans_recalcul` le mesure toujours."""
     from app.services import montage_media as MM
     p = await _media_source(request, src, video=False)
     try:
-        out = await asyncio.to_thread(MM.peaks_path, p, bins)
+        return await asyncio.to_thread(MM.peaks, p, bins)
     except Exception as e:
         raise _media_http(e)
-    if not out.exists():
-        # `peaks` répond même quand le cache n'a PAS pu être écrit (disque
-        # plein, onde partielle) : servir un `FileResponse` sur un fichier
-        # absent sortirait alors en 500 muet, au moment de l'envoi.
-        raise HTTPException(502, "L'onde a été calculée mais n'a pas pu être "
-                                 "mise en cache — précalcul non servi.")
-    return FileResponse(out, media_type="application/json")
 
 
 @router.get("/strip")

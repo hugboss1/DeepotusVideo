@@ -66,8 +66,16 @@ CE QUI EST FERME ICI
       dans test_montage_media.py [5]) et la requete ecarte ce provider
       nommement (mesure ICI). Les fixtures de cette section posent la forme
       REGRESSEE — un job de proxy portant un VRAI `.mp4` — sans quoi elles
-      seraient vertes a vide. Trois lignes : la SORTIE, le BUDGET de la
-      fenetre de 60 (meme lecon que [2-bis]), et le litteral du provider.
+      seraient vertes a vide. QUATRE lignes : la SORTIE, le BUDGET de la
+      fenetre de 60 (meme lecon que [2-bis]), la FENETRE elle-meme —
+      re-interrogee avec un `limit` SUPERIEUR au nombre de proxys poses, sans
+      quoi le cap de sortie masque une fenetre a moitie filtree — et le
+      litteral du provider. La troisieme etait CREUSE jusqu'au 05/09/2026 :
+      elle exigeait `sources.videos >= 1` en affirmant que sans le `where` ce
+      compte tomberait a 0 ; MESURE, c'est l'inverse (les proxys portent un
+      vrai `.mp4`, ils REMPLISSENT `vids`, le compte vaut 20). Elle etait
+      donc verte sous N-P2 comme sous N-P14, et ne pouvait pas etre autre
+      chose.
   [3] NON-REGRESSION, l'autre cote de la frontiere : une image POSEE A LA
       MAIN reste valide. `_resolve_src({image})` la resout, et le pre-vol
       l'accepte AUSSI BIEN sur V1 (carton fixe) que sur V2 (incrustation).
@@ -126,14 +134,17 @@ CE QUI EST FERME ICI
       fichier — une liste heterogene que rien ne peut rejoindre. La forme
       NOMINALE etait deja tenue (M7) ; c'est le REPLI qui ne l'etait pas.
 
-LES TROIS MUTATIONS DE [2-sexies], jouees le 05/09/2026 (protocole et table
-complete dans l'en-tete de tests/test_montage_media.py ; ligne verte de
-reference de CE banc : 67/0) :
-  N-P2  `where` de provider retire de `montage_project` => 65/2 :
-        proxy_de_scrub_n_entre_pas_en_v1 (la SORTIE) et
-        proxy_de_scrub_ne_mange_pas_la_fenetre_de_60 (le BUDGET).
-  N-P14 valeur de `_PROXY_PROVIDER` renommee => 64/3, les trois lignes de la
-        section — dont celle qui joint le litteral de la fixture a la
+LES TROIS MUTATIONS DE [2-sexies], TOUTES REJOUEES le 05/09/2026 sur la
+version courante du banc (protocole et table complete dans l'en-tete de
+tests/test_montage_media.py ; ligne verte de reference de CE banc : 67/0) :
+  N-P2  `where` de provider retire de `montage_project` => 64/3 :
+        proxy_de_scrub_n_entre_pas_en_v1 (la SORTIE),
+        proxy_de_scrub_ne_mange_pas_la_fenetre_de_60 (le BUDGET) et
+        proxy_de_scrub_hors_de_la_fenetre_sql (la FENETRE). Les comptes
+        d'avant (65/2, 64/3) valaient pour la version CREUSE de la
+        troisieme ligne, qui restait verte sous les deux mutations.
+  N-P14 valeur de `_PROXY_PROVIDER` renommee => 63/4, les QUATRE lignes de
+        la section — dont celle qui joint le litteral de la fixture a la
         constante du service.
   N-P1  la route de proxy REND son chemin au job (verrou 1 casse) => 67/0,
         AUCUNE rouge : ce banc mesure le verrou 2, et il tient seul. C'est
@@ -904,12 +915,33 @@ v1_pxb = [c.get("src", {}).get("job_id")
 check("proxy_de_scrub_ne_mange_pas_la_fenetre_de_60",
       d_pxb.get("has_assets") is True and ID_MP4 in v1_pxb,
       f"has_assets={d_pxb.get('has_assets')} v1={v1_pxb}")
-# ... et la fenetre a bien ete filtree, pas seulement la sortie : `sources
-# .videos` est le compte des lignes RETENUES. Sans le `where`, la fenetre de
-# 60 est faite des 60 proxys et ce compte tombe a 0.
+# ... et la FENETRE elle-meme, pas seulement la sortie.
+# LA VERSION D'AVANT DE CETTE LIGNE ETAIT CREUSE, et son commentaire FAUX :
+# elle exigeait `sources.videos >= 1` en affirmant que « sans le `where`, la
+# fenetre de 60 est faite des 60 proxys et ce compte tombe a 0 ». MESURE le
+# 05/09/2026 : c'est l'inverse. La fixture pose la forme REGRESSEE, donc les
+# proxys portent un VRAI `.mp4` et REMPLISSENT `vids` — sans le `where`,
+# `sources.videos` vaut 20 (le cap de `limit`), jamais 0. La ligne etait donc
+# VERTE sous N-P2 comme sous N-P14, et ne pouvait pas etre autre chose.
+# CE QUI SE MESURE VRAIMENT : les deux lignes ci-dessus interrogent avec
+# `limit=20`, c'est-a-dire MOINS que les 61 proxys posees — le cap de sortie
+# peut donc masquer une fenetre a moitie filtree. On redemande ici avec un
+# `limit` SUPERIEUR au nombre de proxys : plus rien ne peut se cacher
+# derriere le cap, et on exige (a) que le vrai rendu soit la, (b) qu'AUCUN
+# des 61 identifiants de proxy n'apparaisse, (c) que `sources.videos` — le
+# compte que l'ecran lit pour decider qu'il a des assets — soit exactement
+# celui de la liste retenue, et non un compte gonfle par les proxys.
+_IDS_PROXY = {ID_PROXY} | {"px%02d0000-0000-0000-0000-000000000000" % _i
+                           for _i in range(60)}
+d_win = J(api("GET", "/api/montage/project?limit=200"))
+v1_win = [c.get("src", {}).get("job_id")
+          for c in (d_win.get("clips") or []) if c.get("tr") == "v1"]
 check("proxy_de_scrub_hors_de_la_fenetre_sql",
-      (d_pxb.get("sources") or {}).get("videos", -1) >= 1,
-      str(d_pxb.get("sources")))
+      ID_MP4 in v1_win
+      and not (_IDS_PROXY & set(v1_win))
+      and (d_win.get("sources") or {}).get("videos", -1) == len(v1_win),
+      f"sources={d_win.get('sources')} v1={len(v1_win)} clips, "
+      f"proxys vus : {sorted(_IDS_PROXY & set(v1_win))[:3]}")
 # LE LITTERAL. Le service expose la valeur sous `_PROXY_PROVIDER` ; la
 # fixture ci-dessus la pose EN DUR. Cette ligne joint les deux — sans elle,
 # renommer la constante rendrait toute la section verte a vide.

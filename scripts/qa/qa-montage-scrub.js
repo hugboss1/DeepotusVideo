@@ -44,7 +44,12 @@
    * Elle dépend de la MACHINE et de la timeline OUVERTE (nombre de clips,
      durée, zoom). Deux exécutions ne sont comparables qu'à timeline égale :
      citer un chiffre d'ici sans dire quel projet était ouvert ne veut rien
-     dire. La synthèse JSON porte donc `clips`, `duree_s` et `zoom_pct`.
+     dire. La synthèse JSON porte donc `clips`, `zoom_pct` (avec `zoom_src`,
+     qui dit d'OÙ vient le chiffre) et `transport`, le libellé exact de la
+     barre de transport — « zoom … % · <durée> total ». Elle ne porte PAS de
+     `duree_s` : ce préambule l'a promis à tort jusqu'au 05/09/2026, la clé
+     n'a jamais existé dans la sortie. L'écran ne publie la durée que sous
+     forme rendue, et c'est cette forme-là qui est citée, telle quelle.
    * `headless: "new"` n'est pas la fenêtre de l'utilisateur : le compositeur
      n'y fait pas le même travail. Les chiffres servent à comparer AVANT et
      APRÈS sur la même machine et le même mode, pas à décrire l'expérience
@@ -206,17 +211,51 @@ const INSTRUMENT = (fenetreMs) => {
   const ctx = await p.evaluate(() => {
     const lanes = document.querySelector(".svm-lanes");
     const clips = document.querySelectorAll(".svm-clip").length;
-    const t = [...document.querySelectorAll(".svm-tbar, .svm-toolbar, .svm-lanes")]
-      .map((e) => (e.innerText || "")).join(" ");
-    const m = /(\d+)\s*%/.exec(t || "");
+    /* LE ZOOM SE LIT SUR LE DOM, PAS SUR DU TEXTE. `.svm-lanes` porte
+       `style="width: <zoomPct>%"` — c'est la valeur elle-même, et l'élément
+       est celui que `waitForSelector` a déjà exigé. MESURÉ (grep exhaustif
+       sur frontend/**, 05/09/2026) : les deux sélecteurs qui servaient de
+       source PRIMAIRE, `.svm-tbar` et `.svm-toolbar`, valent ZERO
+       occurrence — ni dans le correctif, ni dans le bundle construit, ni
+       dans la CSS. Le seul élément que `querySelectorAll` retenait était
+       donc `.svm-lanes` elle-même, dont l'innerText est fait de timecodes
+       de règle et de LIBELLÉS DE CLIPS. Aujourd'hui aucun « % » n'y est
+       rendu (mesuré : aucun enfant textuel porteur de « % » dans le bloc
+       `.svm-lanes`, ni dans le correctif ni dans le bundle construit), donc
+       le repli tombait juste — PAR CHANCE. Un seul libellé portant un
+       « % » (un nom de fichier suffit) et le zoom devenait ce nombre-là.
+       `zoom_src` dit désormais d'où vient le chiffre : un contexte qui ne
+       se relit pas ne rend pas deux exécutions comparables. */
+    let zoom = null, zoomSrc = null;
+    const zEl = document.querySelector(".svm-zoom");
+    const zTxt = ((zEl && zEl.innerText) || "").replace(/\s+/g, " ").trim();
+    const w = lanes && lanes.style && lanes.style.width;
+    if (w && /%\s*$/.test(w)) {
+      const v = parseFloat(w);
+      if (isFinite(v) && v > 0) {
+        zoom = Math.round(v * 10) / 10;
+        zoomSrc = "svm-lanes.style.width";
+      }
+    }
+    if (zoom === null) {
+      /* repli : le SEUL libellé « … % » de cet écran, celui du transport
+         (`.svm-zoom`, une occurrence mesurée) — arrondi à l'entier par le
+         bundle, donc moins précis que le style ci-dessus. */
+      const m = /(\d+(?:[.,]\d+)?)\s*%/.exec(zTxt);
+      if (m) { zoom = Number(m[1].replace(",", ".")); zoomSrc = "svm-zoom"; }
+    }
     return {
-      clips,
-      zoom_pct: m ? Number(m[1]) : (lanes ? parseInt(lanes.style.width, 10) || null : null),
+      clips, zoom_pct: zoom, zoom_src: zoomSrc, transport: zTxt,
       largeur_regle: (document.querySelector(".svm-ruler") || {}).clientWidth || 0,
       videos: document.querySelectorAll("video").length,
     };
   });
   chk(ctx.clips > 0, "la timeline porte des clips", ctx.clips + " clip(s)");
+  /* le préambule déclare `zoom_pct` indispensable à la RELECTURE du chiffre :
+     s'il manque, la mesure existe mais n'est comparable à rien, et ça se dit
+     comme un KO, pas comme un `null` glissé dans le JSON. */
+  chk(ctx.zoom_pct !== null, "le zoom de la timeline est lisible",
+    ctx.zoom_pct + " % (source : " + ctx.zoom_src + ")");
 
   await p.evaluate(INSTRUMENT, FENETRE_MS);
   const nVid = await p.evaluate(() => window.__dzScrub.videos());
@@ -237,7 +276,6 @@ const INSTRUMENT = (fenetreMs) => {
   const seeks = [];
   let vus = 0;
   let dureeTotale = 0;
-  let frames = 0;
   for (let i = 0; i < N_POS; i++) {
     const x = x0 + ((x1 - x0) * i) / Math.max(1, N_POS - 1);
     await p.evaluate(() => window.__dzScrub.arm());
@@ -252,8 +290,11 @@ const INSTRUMENT = (fenetreMs) => {
     const r = await p.evaluate(() => window.__dzScrub.read());
     if (r.vu) vus++;
     if (Array.isArray(r.rafs) && r.rafs.length) {
+      /* CE QUI EST COMPTÉ : des INTERVALLES, jamais des horodatages.
+         `read()` rend N − 1 intervalles pour N horodatages de rAF, et
+         `dureeTotale` est la somme de ces N − 1 intervalles — les deux
+         côtés de la division doivent donc parler de la MÊME chose. */
       for (const d of r.rafs) rafs.push(d);
-      frames += r.rafs.length + 1;
       dureeTotale += r.rafs.reduce((a, c) => a + c, 0);
     }
     if (typeof r.seek === "number" && r.seek >= 0) seeks.push(r.seek);
@@ -266,7 +307,23 @@ const INSTRUMENT = (fenetreMs) => {
 
   const rp50 = pct(rafs, 0.5), rp95 = pct(rafs, 0.95);
   const sp50 = pct(seeks, 0.5), sp95 = pct(seeks, 0.95);
-  const ips = dureeTotale > 0 ? Math.round((frames / dureeTotale) * 1000 * 10) / 10 : null;
+  /* IMAGES/S — `rafs.length` intervalles pour `dureeTotale` millisecondes,
+     et c'est tout : le nombre d'images par seconde EST l'inverse de
+     l'intervalle moyen, donc ce chiffre et le `p50` imprimé à côté sont
+     deux lectures du même échantillon (16,7 ms ⇔ 60,0 images/s).
+     MESURÉ, rejeu arithmétique sur des horodatages parfaits (60 positions,
+     fenêtre de 300 ms, scratchpad/replay_ips.js — il EXTRAIT ces lignes-ci
+     du fichier au lieu de les recopier) : compter les HORODATAGES (N au
+     lieu de N − 1) imprimait 63,3 pour 60,0 images/s (+5,5 %), 33,3 pour
+     30,0 (+11,0 %) et 123,3 pour 120,0 (+2,7 %) — l'erreur maximale là où
+     le saccadement compte, et un chiffre incompatible avec son propre p50.
+     Elle ne se diluait pas non plus avec les positions : mesurée identique
+     à N_POS = 1 et à N_POS = 400 (elle vaut 1/(N − 1) par position, pas
+     1/total). Sous cette forme, le même rejeu rend exactement 60,0 / 30,0
+     / 120,0, et le chiffre ne dépend ni de la phase du premier vsync ni du
+     nombre de positions. */
+  const ips = dureeTotale > 0
+    ? Math.round((rafs.length / dureeTotale) * 1000 * 10) / 10 : null;
 
   chk(rp95 !== null && rp95 < CIBLE_RAF_MS,
     `p95 des intervalles rAF sous ${CIBLE_RAF_MS} ms`, `${rp95} ms`);
@@ -289,6 +346,7 @@ const INSTRUMENT = (fenetreMs) => {
     images_par_s: ips, intervalles: rafs.length,
     cibles: { scrub_p95_ms: CIBLE_RAF_MS, seek_p95_ms: CIBLE_SEEK_MS },
     contexte: { clips: ctx.clips, zoom_pct: ctx.zoom_pct,
+      zoom_src: ctx.zoom_src, transport: ctx.transport,
       largeur_regle_px: ctx.largeur_regle, videos: ctx.videos,
       videos_visibles: nVid },
     erreurs_page: pageErrs, ko: bad,

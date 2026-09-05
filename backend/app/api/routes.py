@@ -3916,7 +3916,7 @@ async def upload_pack_icon(slot: str, request: Request, file: UploadFile = File(
 
 from datetime import datetime as _dt, timedelta as _td
 from sqlalchemy import select as _select, delete as _delete, \
-    or_ as _or, and_ as _and
+    or_ as _or, and_ as _and, func as _func
 from app.services.storage import ScheduledPost, JobRecord, async_session_factory
 from app.services import marketing
 
@@ -4195,14 +4195,38 @@ def _job_to_cost(job, p):
 
 @router.get("/cost/usage")
 async def cost_usage():
-    """Cumulative ESTIMATED spend, computed from finished job records."""
+    """Cumulative ESTIMATED spend, computed from finished job records.
+
+    LES PRÉCALCULS DU MONTAGE SONT ÉCARTÉS, et il le faut : `montage_proxy`
+    est un transcodage ffmpeg LOCAL et GRATUIT (P7, l'aperçu 480p du
+    balayage). Il ne porte ni `duration_s` ni `video_model`, donc
+    `_job_to_cost` retombait sur sa branche « campaign » par défaut et
+    facturait `duration_s or 10` secondes de Seedance PLUS une image FLUX.
+    MESURÉ (tarifs par défaut de `pricing.load()`) : 0,403 USD PAR JOB,
+    imputés à `fal` (0,400 « Seedance video » + 0,003 « FLUX image x1 »),
+    soit 4,84 USD AFFICHÉS pour une timeline de douze clips — de l'argent
+    montré à l'utilisateur pour une dépense qui n'existe pas. C'est la même
+    décision que la fenêtre de `GET /api/jobs` (`Pipeline.list_jobs`) : un
+    cache n'est ni un plan, ni une dépense.
+
+    `coalesce(provider, '')` pour la même raison qu'ailleurs : `NULL != …`
+    vaut NULL en SQL et écarterait les 13 jobs `done` sans provider.
+
+    CE QUE CETTE ROUTE N'AFFIRME TOUJOURS PAS : que tout provider soit
+    tarifé. La branche par défaut de `_job_to_cost` facture en « campaign »
+    TOUT provider qu'elle ne nomme pas (`asset3d` y tombe aussi) ; ce lot ne
+    ferme que le cas qu'il ouvre lui-même.
+    """
     from app.services import pricing as _pricing
+    from app.services.montage_service import _PROXY_PROVIDER
     p = _pricing.load()
     per = {}
     total = 0.0
     async with async_session_factory() as session:
         res = await session.execute(
-            _select(JobRecord).where(JobRecord.status == "done"))
+            _select(JobRecord).where(
+                JobRecord.status == "done",
+                _func.coalesce(JobRecord.provider, "") != _PROXY_PROVIDER))
         for job in res.scalars().all():
             e = _job_to_cost(job, p)
             total += e["total_usd"]

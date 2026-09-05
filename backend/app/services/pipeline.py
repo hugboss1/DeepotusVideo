@@ -9,7 +9,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from loguru import logger
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -1281,9 +1281,36 @@ class Pipeline:
 
     @staticmethod
     async def list_jobs(limit: int = 50) -> list[JobRecord]:
+        """La fenêtre des jobs récents servie par `GET /api/jobs`.
+
+        LE `where` ÉCARTE LES TRAVAUX DE PRÉCALCUL DU MONTAGE — l'aperçu
+        480p du balayage (`montage_proxy`, P7). Ce n'est pas un doublon du
+        verrou 1 de `montage_service` : celui-là rend le job invisible du
+        FILTRE des écrans (`status === "done" && (video_path ||
+        final_video_path)`), il ne l'empêche pas d'OCCUPER une place dans
+        cette fenêtre. Or la fenêtre est un BUDGET : le sélecteur d'assets
+        du Montage lit ces 50 lignes, filtre, puis `.slice(0, 12)` —
+        cinquante proxys et la liste « Rendus vidéo » est VIDE, base pleine
+        de rendus. C'est mot pour mot la leçon de P8-bis (`montage_service`,
+        en tête), appliquée à `provider` au lieu de l'extension : la garde
+        est DANS LA REQUÊTE, avant le `limit`, jamais dans la boucle d'après.
+
+        `coalesce(provider, '')` et NON `provider != …` : en SQL,
+        `NULL != 'montage_proxy'` vaut NULL et la ligne serait ÉCARTÉE.
+        MESURÉ sur la base réelle (en copie) : 13 jobs `done` portent
+        `provider IS NULL` — sans le `coalesce`, `GET /api/jobs` les perdait
+        tous. Même piège, même forme que `montage_newer` (l. 1353).
+
+        Un précalcul reste suivable par `GET /api/jobs/{id}`, qui adresse un
+        job PAR SON IDENTIFIANT et ne dépend pas de cette fenêtre — c'est ce
+        que rend `POST /api/montage/proxy`.
+        """
+        from app.services.montage_service import _PROXY_PROVIDER
         async with async_session_factory() as session:
             res = await session.execute(
-                select(JobRecord).order_by(JobRecord.created_at.desc()).limit(limit)
+                select(JobRecord)
+                .where(func.coalesce(JobRecord.provider, "") != _PROXY_PROVIDER)
+                .order_by(JobRecord.created_at.desc()).limit(limit)
             )
             return list(res.scalars().all())
 
