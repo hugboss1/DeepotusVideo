@@ -205,7 +205,10 @@ n'est pas UNIQUE est refusee plutot que jouee au hasard : MW et MWR portent la
 ligne PRECEDENTE dans leur ancre, parce que le meme `where` de liste blanche
 existe aussi dans `montage_project` (l. 1083) et que le muter LA aurait mesure
 une autre route. Ligne verte de reference : 77/0 pour ce banc, 304/0 pour
-test_montage_bundle.py.
+test_montage_bundle.py. CES DEUX CHIFFRES, ET LES COMPTES DE MUTATION QUI
+SUIVENT, DATENT DU 04/09/2026 ET SONT PERIMES : ce banc en porte 99 et
+celui du bundle 327 (mesures le 05/09/2026). Aucune de ces mutations n'a
+ete rejouee depuis ; c'est dit ici plutot que recopie ailleurs.
 
   SUR LA ROUTE (banc : celui-ci)
   MV   garde du titre vide retiree      => 76/1, `newer_titre_vide_ne_
@@ -331,6 +334,42 @@ test_montage_bundle.py.
        `M16src_appelle_ovPick_qui_est_declare` SEULE. C'est ce que le
        controle a DEUX FACES achete : une seule face (l'appel) serait restee
        verte sur ce rebuild-la.
+
+LA REGLE DES ASSERTIONS NEGATIVES, PASSEE SUR CE BANC LE 05/09/2026. Elle
+vient de l'en-tete de test_montage_media.py : un TEMOIN DISTINGUABLE, ou le
+repli VIDE d'une garde, SE RETOURNE CONTRE TOUTE NEGATION. `a != b`,
+`not (…)`, `x not in y`, `== []`, `== ""`, `is None` sont VRAIS PAR
+CONSTRUCTION entre deux temoins comme sur un `{}` ou une `[]` de repli : la
+ligne verdit sans avoir rien mesure. LA REGLE : toute assertion negative doit
+d'abord exiger que ses operandes SOIENT ce qu'ils pretendent etre, et
+seulement ensuite les comparer.
+
+  LA FAUTE N°6 D'ABORD, PARCE QU'ELLE EMPECHAIT TOUTE MESURE. Ce banc
+  appelait `node` NU (`subprocess.run(["node", …])`) sans garde. MESURE le
+  05/09/2026, banc relance avec `PATH=C:/Windows/System32;C:/Windows` :
+  FileNotFoundError a l'appel de node, 31 des 99 lignes imprimees, AUCUNE
+  ligne de compte, SOIXANTE-HUIT assertions emportees en silence. La garde
+  `NODE()` rend desormais un sous-processus-temoin (`returncode` negatif,
+  `stdout` vide, `stderr` porteur du temoin NUMEROTE) : meme relance,
+  40/58, ET LE BANC IMPRIME SON COMPTE.
+  L'ETAT VIDE, DEUX LEVIERS, PARCE QUE CE BANC A DEUX DEPENDANCES :
+      & $PY scratchpad/vide.py http tests/test_montage_remplacer.py   (ASGI)
+      PATH=C:/Windows/System32;C:/Windows & $PY tests/…              (node)
+  RESULTAT MESURE : AUCUNE assertion vide.
+    * transport coupe => 68/99 vertes, TOUTES hors de la section API — le
+      coeur JS sous node et les greps de source, que ce levier ne touche pas.
+      Les vingt-cinq `newer_*`, y compris les onze `I(n) not in _ids1` et les
+      cinq `CAND(d) == []`, rougissent : leur garde `isinstance(_ids1, list)`
+      et le repli `CAND()` etaient DEJA ecrits selon la regle.
+    * node coupe => les ~60 lignes qui lisent `d` rougissent une a une ;
+      croisement automatique (scratchpad/croise.py) : ZERO d'entre elles ne
+      reste verte.
+  LIGNE VERTE DE REFERENCE, MESUREE LE 05/09/2026 : 99/0. La phrase
+  « Ligne verte de reference : 77/0 pour ce banc, 304/0 pour … » plus haut
+  date du 04/09/2026 et vaut pour la version d'ALORS ; P7 a ajoute des
+  lignes ici et P7+05/09 dans le banc du bundle. Les comptes de mutation qui
+  l'accompagnent n'ont pas ete rejoues et sont PERIMES — c'est dit, pas
+  recopie (faute n°1 du chantier).
 """
 import asyncio
 import json
@@ -390,6 +429,36 @@ def temoin(e):
     global _plantages
     _plantages += 1
     return "%s: %s ·ECHEC#%d" % (type(e).__name__, e, _plantages)
+
+
+class _NodeEchec:
+    """Sous-processus `node` qui n'a pas pu S'EXECUTER — node absent du PATH,
+    et c'est le cas REEL : ce banc l'appelait NU.
+
+    `returncode` NEGATIF (jamais 0, donc la branche d'echec est prise),
+    `stdout` VIDE (donc `splitlines()[-1]` ne trouve rien et `d` retombe sur
+    le dict vide, comme pour une sortie sans JSON) et `stderr` porteur du
+    TEMOIN NUMEROTE, qui va jusque dans le detail de la ligne rouge."""
+
+    def __init__(self, t):
+        self.returncode = -1
+        self.stdout = ""
+        self.stderr = t
+
+
+def NODE(args):
+    """`subprocess.run` garde. MESURE le 05/09/2026, banc relance avec
+    `PATH=C:/Windows/System32;C:/Windows` : sans cette garde, le banc MOURAIT
+    sur un `FileNotFoundError` a l'appel de node — 31 des 99 lignes
+    imprimees, AUCUNE ligne de compte, 68 assertions emportees EN SILENCE.
+    C'est la faute n°6 du chantier, et ce banc y etait entier."""
+    try:
+        return subprocess.run(args, capture_output=True, text=True,
+                              encoding="utf-8", errors="replace")
+    except Exception as e:
+        t = temoin(e)
+        print(f"  ----  node a leve : {t}")
+        return _NodeEchec(t)
 
 
 class _RepIllisible:
@@ -940,8 +1009,7 @@ shim = pathlib.Path(TMP) / "shim.js"
 shim.write_text('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + JSX
                 + LAYER.read_bytes().decode("utf-8-sig") + "\n" + probe,
                 encoding="utf-8")
-r = subprocess.run(["node", str(shim)], capture_output=True, text=True,
-                   encoding="utf-8", errors="replace")
+r = NODE(["node", str(shim)])
 if r.returncode != 0:
     check("js_shim_execute", False, (r.stderr or "")[-600:])
     d = {}

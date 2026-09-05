@@ -156,7 +156,10 @@ du banc — les onze + une de P8 COMPRISES, dont les comptes d'alors (mesures
 sur une version a 35 assertions) ne valent plus. Protocole : le fichier vise
 est reecrit sur DISQUE, le banc relance en processus NEUF, le fichier
 restaure quoi qu'il arrive (try/finally + verification du sha256) ; script
-scratchpad/mut.py. Ligne verte de reference : 60/0.
+scratchpad/mut.py. Ligne verte de reference : 60/0 — CE CHIFFRE ET LES
+VINGT-DEUX COMPTES QUI SUIVENT DATENT DU 04/09/2026 ET SONT PERIMES : le
+banc en porte 67 depuis P7. Cinq mutations seulement ont ete rejouees sur
+la version courante (M3, M7, N18, N19, N20) ; elles sont en fin d'en-tete.
 LES QUINZE DE P8-bis (le second defaut et ce que la revue a ouvert autour) :
   N1 `where` retire de la requete => 57/3 : les deux lignes du seuil et
      `le_where_n_est_pas_un_surensemble`. C'EST LA MUTATION DU SECOND
@@ -390,7 +393,86 @@ CE QUE CE BANC N'AFFIRME PAS
     filtre `/api/jobs` sur `status==="done" && (video_path ||
     final_video_path)` — la MEME faute. Les planches de sprites et le
     maillage restent donc proposes sous « Rendus video » tant que le bundle
-    n'est pas patche."""
+    n'est pas patche.
+
+LA REGLE DES ASSERTIONS NEGATIVES, PASSEE SUR CE BANC LE 05/09/2026. Elle
+vient de l'en-tete de test_montage_media.py : un TEMOIN DISTINGUABLE, ou le
+repli VIDE d'une garde, SE RETOURNE CONTRE TOUTE NEGATION. `a != b`,
+`not (…)`, `x not in y`, `== []`, `== ""`, `is None` sont VRAIS PAR
+CONSTRUCTION entre deux temoins comme sur un `{}` ou une `[]` de repli : la
+ligne verdit sans avoir rien mesure. LA REGLE : toute assertion negative doit
+d'abord exiger que ses operandes SOIENT ce qu'ils pretendent etre, et
+seulement ensuite les comparer.
+
+  L'ETAT VIDE DE CE BANC, ET COMMENT ON LE REJOUE — le transport ASGI coupe
+  (`httpx.AsyncClient.request` leve), donc TOUT `api()` rend sa reponse-temoin
+  et tout `J()` pose la sienne par-dessus. C'est, pour un banc d'API, l'exact
+  equivalent du « ffmpeg hors du PATH » de test_montage_media.py :
+      & $PY scratchpad/vide.py http tests/test_montage_sources.py
+  MESURE AVANT : 21/67 vertes. APRES les trois reparations : 18/67.
+  LES TROIS REPAREES, et ce qu'elles avaient en commun — une negation sur
+  `v1_inv` ou `nv`, deux listes tirees de `d.get("clips") or []` et
+  `d.get("v1_non_video") or []`, donc VIDES des que la reponse est illisible :
+    * final_video_path_fait_foi_sur_le_repli — exige les deux jobs du repli
+      (`NUL` et `VID` en V1, mesures par les deux lignes precedentes) ;
+    * nom_de_fichier_sans_extension_arrete_par_la_boucle — meme condition ;
+    * v1_non_video_exclut_le_clip_sans_id — exige `bool(nv)`, la condition de
+      la ligne qui la precede.
+  LES DIX-HUIT VERTES A BON DROIT, UNE A UNE, parce que « elles le sont »
+  est precisement le genre d'affirmation qui se verifie mal :
+    proxy_le_litteral_du_provider_est_celui_du_service (une constante) ;
+    image_posee_a_la_main_reste_valide et resolve_src_resout_aussi_le_glb
+    (elles passent par `CO()`, qui appelle le service EN DIRECT — le levier
+    ne coupe que le transport HTTP, ces deux-la mesurent donc vraiment) ;
+    prevol_aucun_job_cree (deux comptes SQL directs, non gardes — DECLARE :
+    a vide elle est verte pour une AUTRE raison, aucun pre-vol n'a tourne) ;
+    les six erreur_*, les cinq motif_* et les trois lignes_utiles_* (des
+    fonctions PURES de `M._msg` / `M._lignes_utiles`, sans aucune route).
+  LES CINQ MUTATIONS REJOUEES LE 05/09/2026 sur la version COURANTE (67
+  assertions), protocole habituel — fichier reecrit sur disque, bancs
+  relances en processus neufs, restauration verifiee au sha256 EN OCTETS
+  (`read_text` normalise les CRLF et la restauration changerait le fichier),
+  script scratchpad/mut.py :
+    M3  filtre `_is_video_artifact` retire de `montage_project`
+        => sources 66/1, `nom_de_fichier_sans_extension_arrete_par_la_boucle`
+        SEULE ; media 67/0 et remplacer 99/0, aucune rouge.
+    M7  `v1_non_video` jamais rempli => sources 64/3 :
+        sauvegarde_signale_le_clip_non_video,
+        v1_non_video_ne_rend_que_des_identifiants_joignables ET
+        v1_non_video_exclut_le_clip_sans_id. CETTE TROISIEME EST NOUVELLE :
+        avant la reparation, M7 vidait `nv` et les trois negations de cette
+        ligne devenaient vraies — la mutation la laissait VERTE. C'est la
+        preuve la plus directe que la regle achete quelque chose.
+    N18 precedence inversee dans la BOUCLE seule
+        (`fp = j.video_path or j.final_video_path`) => 67/0, AUCUNE ROUGE, et
+        c'est DECLARE : le `where` SQL porte deja la precedence d'origine,
+        donc MIX (planche en `final_video_path`, mp4 en `video_path`)
+        n'atteint jamais la boucle. Une inversion d'un seul cote ne se voit
+        pas — ce n'est pas un trou du banc, c'est une propriete du code.
+    N19 precedence inversee dans le `where` SQL seul => 63/4 :
+        le_where_n_est_pas_un_surensemble et les trois proxy_de_scrub_*.
+        `final_video_path_fait_foi_sur_le_repli` reste VERTE — la boucle
+        rejette MIX ensuite.
+    N20 precedence inversee DES DEUX COTES — la seule forme COHERENTE
+        => 62/5, les quatre de N19 PLUS
+        `final_video_path_fait_foi_sur_le_repli`. C'est LA mutation que cette
+        ligne attrape, et il a fallu la construire pour le savoir.
+  ET UNE SIXIEME, REJOUEE POUR VERIFIER QU'ON N'A RIEN CASSE AILLEURS :
+    N-P2 (table de test_montage_media.py) `where` de provider retire de
+        `montage_project` => sources 64/3, EXACTEMENT les trois lignes
+        proxy_de_scrub_* que cette table declare, media 67/0 et
+        remplacer 99/0. La table de test_montage_media.py, mesuree le
+        05/09/2026 sur cette meme version, reste donc valide apres les
+        reparations : aucune d'elles n'y ajoute ni n'y retire une rouge.
+  CE QUI RESTE PERIME, ET IL FAUT LE DIRE PLUTOT QUE LE RECOPIER : la table
+  « VINGT-DEUX MUTATIONS » ci-dessus annonce « Ligne verte de reference :
+  60/0 » et ses comptes (59/1, 58/2, 57/3…) SOMMENT A 60. Ils ont ete mesures
+  le 04/09/2026 sur une version a 60 assertions ; P7 en a ajoute sept, le banc
+  en porte 67, et ces comptes n'ont PAS ete rejoues. Seules M3, M7, N18, N19
+  et N20 ci-dessus valent pour la version courante. Recopier un chiffre
+  mesure sur une version d'avant est la faute n°1 du chantier ; on la nomme
+  ici au lieu de la commettre une neuvieme fois.
+"""
 import asyncio
 import os
 import pathlib
@@ -808,7 +890,17 @@ check("where_suit_le_repli_video_path_quand_fvp_est_vide", VID in v1_inv,
 # mais la boucle le rejette ensuite, et la SORTIE est identique. Ce que le
 # surensemble change n'est pas le resultat, c'est le BUDGET ; il faut donc
 # une autre ligne pour le voir, et c'est la derniere de cette section.
-check("final_video_path_fait_foi_sur_le_repli", MIX not in v1_inv, str(v1_inv))
+# `not in` SUR UNE LISTE QUI PEUT ETRE VIDE : `J()` rend un temoin quand la
+# reponse est illisible, `d_inv.get("clips")` vaut alors `None`, `v1_inv` vaut
+# `[]` — et TOUT `x not in []` est VRAI. MESURE le 05/09/2026 (banc relance
+# par `scratchpad/vide.py http`, transport ASGI coupe) : cette ligne et la
+# suivante etaient VERTES alors qu'aucune requete n'avait abouti. On exige
+# donc d'abord que `v1_inv` SOIT la sortie qu'il pretend etre — les deux jobs
+# du repli, mesures par les deux lignes ci-dessus et REPRIS ici plutot que
+# supposes — et seulement ensuite qu'il n'en porte pas un troisieme.
+_v1_inv_ok = NUL in v1_inv and VID in v1_inv
+check("final_video_path_fait_foi_sur_le_repli",
+      _v1_inv_ok and MIX not in v1_inv, str(v1_inv))
 # 4 — LA LIGNE QUI TIENT LE TEST PYTHON, et il en fallait une : le `where`
 # filtre la CHAINE stockee (`LIKE '%.mp4'`), la boucle filtre l'EXTENSION
 # ANALYSEE (`Path(fp).suffix`). Les deux ne coincident pas partout — MESURE :
@@ -819,7 +911,7 @@ check("final_video_path_fait_foi_sur_le_repli", MIX not in v1_inv, str(v1_inv))
 # n'etait plus tenu par rien depuis que le `where` existe — mutation mesuree
 # le 04/09/2026 : le retirer laissait le banc a 55/0, AUCUNE rouge.
 check("nom_de_fichier_sans_extension_arrete_par_la_boucle",
-      PNT not in v1_inv, str(v1_inv))
+      _v1_inv_ok and PNT not in v1_inv, str(v1_inv))
 
 # 5 — LE SURENSEMBLE RENDRAIT LE DEFAUT, en plus etroit. C'est l'argument qui
 # fait preferer le miroir exact a un OR sur les deux colonnes, et il ne
@@ -1348,8 +1440,12 @@ check("v1_non_video_ne_rend_que_des_identifiants_joignables",
 # Le journal, lui, le nomme encore par son libelle — c'est un humain qui le
 # lit. Sans cette ligne, rendre `["v1_sheet", "planche anonyme"]` passerait
 # la precedente au vert des que « planche anonyme » ne serait plus un id.
+# MEME PIEGE, MEME REMEDE : les TROIS conditions sont des negations portant
+# sur `nv`, qui vaut `[]` des que la reponse est illisible. MESURE le
+# 05/09/2026 (transport ASGI coupe) : VERTE sans qu'aucune reponse ait ete
+# lue. `bool(nv)` est la condition de la ligne ci-dessus, reprise ici.
 check("v1_non_video_exclut_le_clip_sans_id",
-      "planche anonyme" not in nv and ID_PNG not in nv
+      bool(nv) and "planche anonyme" not in nv and ID_PNG not in nv
       and "sheet.png" not in nv, str(nv))
 
 

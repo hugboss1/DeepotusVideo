@@ -20,7 +20,44 @@ Trois familles de mesures :
       a 32 767 caracteres et montage.js la depasserait tot ou tard, avec un
       echec qui ne ressemble a rien.
 
-Run : & $PY tests/test_montage_bundle.py   (depuis backend/)"""
+Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
+
+LA REGLE DES ASSERTIONS NEGATIVES, PASSEE SUR CE BANC LE 05/09/2026. Elle
+vient de l'en-tete de test_montage_media.py : un TEMOIN DISTINGUABLE, ou le
+repli VIDE d'une garde, SE RETOURNE CONTRE TOUTE NEGATION. `a != b`,
+`not (…)`, `x not in y`, `== []`, `== ""`, `is None` sont VRAIS PAR
+CONSTRUCTION entre deux temoins comme sur un `{}` ou une `[]` de repli : la
+ligne verdit sans avoir rien mesure. LA REGLE : toute assertion negative doit
+d'abord exiger que ses operandes SOIENT ce qu'ils pretendent etre, et
+seulement ensuite les comparer.
+
+  LA FAUTE N°6 D'ABORD. Ce banc appelait `node` NU trois fois (deux
+  `node --check`, puis le shim). MESURE le 05/09/2026 avec
+  `PATH=C:/Windows/System32;C:/Windows` : FileNotFoundError au PREMIER
+  `node --check`, 238 des 326 lignes imprimees, AUCUNE ligne de compte,
+  QUATRE-VINGT-HUIT assertions emportees en silence. La garde `NODE()` rend
+  un sous-processus-temoin (`returncode` negatif, `stdout` vide, `stderr`
+  porteur du temoin NUMEROTE) ; meme relance : 244/82, et LE COMPTE EST
+  IMPRIME. Une ligne `aucun_appel_n_a_plante` a ete ajoutee en queue, comme
+  dans les trois autres bancs de la famille — c'est elle qui fait passer le
+  compte de reference de 326 a 327.
+  L'ETAT VIDE ET LES TROIS REPAREES :
+      PATH=C:/Windows/System32;C:/Windows & $PY tests/test_montage_bundle.py
+  `d` retombe sur le dict VIDE des que node ne rend pas d'objet JSON, et
+  `{}.get(x)` vaut `None` : les trois lignes ecrites `d.get(x) is None`
+  etaient VERTES sans qu'une instruction de JS ait tourne —
+  js_from_sans_v1_refuse, js_from_vide_refuse, js_bouton_null_sans
+  _etalonnage. Elles exigent desormais que la CLE SOIT LA (`"x" in d`), ce
+  que le shim garantit puisqu'il l'ecrit toujours, fut-ce a `null`.
+  PREUVE : meme relance sans node, 244/82 avant, 241/85 apres. Croisement
+  automatique (scratchpad/croise.py) sur les ~90 lignes qui lisent `d` :
+  ZERO reste verte.
+  DECLARE, ET NON MESURE : les ~230 lignes qui lisent `s` (le bundle livre)
+  ou `P.R_*` (le patcher) ne sont pas couvertes par ce levier — un bundle
+  VIDE les emporterait autrement. Le banc refuse de partir si l'un des cinq
+  fichiers manque (`fichier_absent`, 0/1) ; il ne dit rien d'un fichier
+  present mais vide. C'est une dette assumee, ecrite plutot que sous-entendue.
+"""
 import importlib.util, json, os, pathlib, re, shutil, subprocess, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -37,6 +74,42 @@ def check(label, cond, detail=""):
     global ok, fail
     if cond: ok += 1; print(f"  PASS  {label}")
     else: fail += 1; print(f"  FAIL  {label} {detail}")
+
+
+_plantages = 0
+
+
+def temoin(e):
+    """TEMOIN d'un appel qui a LEVE — meme parade que test_montage_sources.py
+    et test_montage_remplacer.py. NUMEROTE (deux echecs ne se valent jamais)
+    et DISTINGUABLE (jamais `None`, jamais `""`)."""
+    global _plantages
+    _plantages += 1
+    return "%s: %s ·ECHEC#%d" % (type(e).__name__, e, _plantages)
+
+
+class _NodeEchec:
+    """Sous-processus `node` qui n'a pas pu S'EXECUTER. `returncode` NEGATIF
+    (jamais 0), `stdout` VIDE, `stderr` porteur du temoin."""
+
+    def __init__(self, t):
+        self.returncode = -1
+        self.stdout = ""
+        self.stderr = t
+
+
+def NODE(args, **kw):
+    """`subprocess.run` garde. MESURE le 05/09/2026, banc relance avec
+    `PATH=C:/Windows/System32;C:/Windows` : sans cette garde le banc MOURAIT
+    au premier `node --check` (l. 1210) — 238 des 326 lignes imprimees,
+    AUCUNE ligne de compte, 88 assertions emportees EN SILENCE. Faute n°6."""
+    try:
+        return subprocess.run(args, capture_output=True, text=True,
+                              encoding="utf-8", errors="replace", **kw)
+    except Exception as e:
+        t = temoin(e)
+        print(f"  ----  node a leve : {t}")
+        return _NodeEchec(t)
 
 
 def load(name, path):
@@ -1207,8 +1280,7 @@ check("css_reprend_la_hauteur_de_timeline",
       .replace("\n", ""), "montage.css ne reprend pas .svm-tl")
 
 print("\n[2] node --check sur le bundle entier — sémantique SCRIPT puis MODULE")
-r = subprocess.run(["node", "--check", str(BUNDLE)], capture_output=True,
-                   text=True, encoding="utf-8", errors="replace")
+r = NODE(["node", "--check", str(BUNDLE)])
 check("node_check", r.returncode == 0, (r.stderr or "")[-300:])
 # `node --check <fichier.js>` lit le bundle en semantique SCRIPT : deux
 # declarations du meme nom au premier niveau y sont LEGALES. index.html le
@@ -1220,9 +1292,7 @@ check("node_check", r.returncode == 0, (r.stderr or "")[-300:])
 # ligne, cette classe d'erreur n'apparait qu'au chargement du navigateur.
 # Par stdin : pas de copie .mjs de 1,4 Mo a ecrire puis a nettoyer.
 with BUNDLE.open("rb") as _fh:
-    r = subprocess.run(["node", "--input-type=module", "--check"], stdin=_fh,
-                       capture_output=True, text=True, encoding="utf-8",
-                       errors="replace")
+    r = NODE(["node", "--input-type=module", "--check"], stdin=_fh)
 check("node_check_module", r.returncode == 0, (r.stderr or "")[-300:])
 
 print("\n[3] le cœur de la couche, EXÉCUTÉ sous node")
@@ -1558,8 +1628,7 @@ shim.write_text('"use strict";\n' + "var window={};var SVM_TRACK_BUS={};\n" + JS
                 + probe.replace("__DZ_VIDEO_EXTS__",
                                 json.dumps(_exts_svc or [".mp4"])),
                 encoding="utf-8")
-r = subprocess.run(["node", str(shim)], capture_output=True, text=True,
-                   encoding="utf-8", errors="replace")
+r = NODE(["node", str(shim)])
 if r.returncode != 0:
     check("js_shim_execute", False, (r.stderr or "")[-500:])
     d = {}
@@ -1637,9 +1706,17 @@ check("js_from_conserve_ordre", d.get("from_ids") == ["v3", "v1", "a1"],
 # pourtant porteuse de clips.
 check("js_from_rhabille_piste_neuve", d.get("from_v3_habillee") is True,
       "v3 restaurée sans nom / sans hauteur")
-check("js_from_sans_v1_refuse", d.get("from_sans_v1") is None,
+# `is None` SUR UN DICT QUI PEUT ETRE VIDE : `d` retombe sur `{}` des que
+# node ne rend pas d'objet JSON, et `{}.get(x)` vaut `None` — la ligne
+# verdit sans qu'une instruction de JS ait tourne. MESURE le 05/09/2026
+# (banc relance sans node) : ces deux lignes et `js_bouton_null_sans_
+# etalonnage` etaient VERTES. On exige donc que la CLE SOIT LA — le shim la
+# pose toujours, fut-ce a `null` — avant de lire sa valeur.
+check("js_from_sans_v1_refuse",
+      "from_sans_v1" in d and d["from_sans_v1"] is None,
       str(d.get("from_sans_v1")))
-check("js_from_vide_refuse", d.get("from_vide") is None, str(d.get("from_vide")))
+check("js_from_vide_refuse", "from_vide" in d and d["from_vide"] is None,
+      str(d.get("from_vide")))
 check("js_from_ignore_les_doublons", d.get("from_doublons") == ["v1", "a1"],
       str(d.get("from_doublons")))
 ec = (d.get("emoji_defaut") or [None])[0]
@@ -1792,7 +1869,9 @@ check("js_bouton_aucune_cible",
                                "ailleurs."
       and d.get("b_seul_mort") is True, str(d.get("b_seul_titre")))
 # Pas d'étalonnage sur le plan sélectionné : NULL, pas un bouton mort.
-check("js_bouton_null_sans_etalonnage", d.get("b_sans_etalonnage") is None,
+# meme piege, meme remede que [js_from_sans_v1_refuse] : la cle d'abord.
+check("js_bouton_null_sans_etalonnage",
+      "b_sans_etalonnage" in d and d["b_sans_etalonnage"] is None,
       str(d.get("b_sans_etalonnage")))
 # `aria-label` : l'ÉTAT y est replié. Un aria-label figé masquait la seule
 # phrase qui dit pourquoi le bouton est éteint — quand il existe, les lecteurs
@@ -1942,6 +2021,12 @@ check("backend_le_prevol_laisse_passer_une_image",
       and "return p.suffix.lower() in _VIDEO_EXTS + _IMAGE_EXTS + _AUDIO_EXTS"
       in SVC,
       "le pre-vol ne laisse plus passer les images — la chip ment maintenant")
+
+# La ligne qui dit que le banc a ROUGI plutot que MEURE : aucun appel garde
+# n'a pose de temoin. Une panne de node fait rougir CETTE ligne EN PLUS de
+# celles qu'elle emporte — et le banc va jusqu'a imprimer son compte.
+check("aucun_appel_n_a_plante", _plantages == 0,
+      f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")
 
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
