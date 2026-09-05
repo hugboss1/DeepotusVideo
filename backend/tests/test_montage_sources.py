@@ -151,7 +151,7 @@ tests/test_montage_media.py ; ligne verte de reference de CE banc : 67/0) :
         pour cela que le verrou 1 se mesure ailleurs
         (test_montage_media.py [5]).
 
-TRENTE-CINQ MUTATIONS, TOUTES REJOUEES LE 05/09/2026 SUR LA VERSION
+TRENTE-SEPT MUTATIONS, TOUTES REJOUEES LE 05/09/2026 SUR LA VERSION
 COURANTE (67 assertions). Elles remplacent la table du 04/09/2026, qui avait
 ete mesuree sur une version a 60 : ses vingt-deux comptes sommaient a 60 et
 etaient donc PERIMES depuis P7. Recopier un chiffre mesure sur une version
@@ -163,7 +163,9 @@ vertes bouge de +7) ; SIX en gagnent — N1, N14, N15, N16, M1 et M7 —, parce
 que P7 et les reparations du 05/09 ont ajoute des lignes qu'elles emportent
 aussi ; TROIS debordent sur un AUTRE banc (M1, M2 et MEXT), ce que
 l'ancienne table ne disait nulle part ; et la garde de la fixture `pose()`
-s'est revelee PLUS ETROITE que ce que F1 laissait croire — voir F1-bis.
+s'est revelee PLUS ETROITE que ce que F1 laissait croire — trois mutations
+NEUVES (F1-bis, F1-ter, F1-quater) l'ont mesuree, elle a ete ELARGIE, et les
+trois rougissent desormais au lieu de tuer.
 PROTOCOLE : le fichier vise est reecrit sur DISQUE, les bancs sont relances
 en processus NEUFS, les fichiers restaures quoi qu'il arrive (try/finally +
 verification du sha256 EN OCTETS — `read_text` normalise les CRLF et la
@@ -240,18 +242,34 @@ LES QUINZE DE P8-bis (le second defaut et ce que la revue a ouvert autour) :
      lignes du champ (`sauvegarde_signale_le_clip_non_video`,
      `v1_non_video_ne_rend_que_des_identifiants_joignables`,
      `v1_non_video_exclut_le_clip_sans_id`). Ensemble INCHANGE.
-  F1 `raise` DANS `go()` — donc DANS l'appel garde par le try/except de la
-     fixture `pose()` => sources 35/32, ET LE BANC IMPRIME SON COMPTE. C'est
-     la garde de la faute n°6 etendue aux fixtures : sans elle la premiere
-     `pose` en erreur tuait le processus avant toute ligne.
-  F1-bis LA MEME MUTATION, PLACEE UNE LIGNE PLUS HAUT — `raise` en tete de
-     `pose()`, AVANT la definition de `go()` => LE BANC MEURT, traceback sur
-     `pose(ID_MP4, …)` l. 723, AUCUNE ligne de compte, zero assertion
-     imprimee. CE CAS N'AVAIT JAMAIS ETE MESURE, et il corrige une phrase que
-     cette table affirmait a tort : la garde de `pose()` ne couvre PAS « la
-     fixture », elle couvre L'APPEL A LA BASE. Tout ce qui echoue dans le
-     corps de la fixture avant `asyncio.run(go())` tue encore ce banc. Ce
-     n'est pas repare ici — c'est nomme, et ca reste ouvert.
+  LES QUATRE DE LA COUCHE DE FIXTURE. Elles ne mesurent pas l'unite sous
+  test : elles mesurent que ce banc ROUGIT PLUTOT QUE MOURIR quand ce qui le
+  PREPARE echoue. Trois des quatre le tuaient encore le matin du 05/09/2026 ;
+  la garde a ete elargie, et les quatre sont mesurees APRES.
+  F1 `raise` DANS `go()` — donc dans l'appel a la base => sources 35/32, ET
+     LE BANC IMPRIME SON COMPTE. C'est la garde d'origine, celle qui existait
+     deja, et la reparation ne l'a pas affaiblie : meme chiffre avant et
+     apres.
+  F1-bis LA MEME MUTATION, PLACEE UNE LIGNE PLUS HAUT — `raise` dans le CORPS
+     de `pose()`, avant l'appel garde. AVANT la reparation : LE BANC MEURT,
+     traceback sur `pose(ID_MP4, …)`, AUCUNE ligne de compte, ZERO assertion
+     imprimee. La garde disait « FIXTURE gardee » et ne gardait qu'un tiers
+     de la fixture : elle couvrait L'APPEL A LA BASE, pas le corps.
+     APRES (le `try` couvre le corps entier des quatre fixtures) : sources
+     35/32, le compte est imprime, `aucun_appel_n_a_plante` rougit.
+  F1-ter une ECRITURE DE FIXTURE DU DISQUE qui echoue (dossier parent absent).
+     AVANT : `F_MP4.write_bytes(...)` n'etait garde par RIEN — huit ecritures
+     nues, un dossier en lecture seule tuait le banc avant sa premiere ligne.
+     APRES (`FIX()`) : sources 30/37, un temoin, compte imprime.
+  F1-quater `asyncio.run(init_db())` qui echoue. AVANT : nu lui aussi, et
+     c'etait le pire des quatre — la toute premiere instruction de base du
+     banc. APRES : sources 20/47, 223 temoins, compte imprime.
+     CE QUI RESTE HORS DE TOUTE GARDE, et il faut le dire : l'EVALUATION DES
+     ARGUMENTS au site d'appel (`pose(ID_MP4, "seedance", F_MP4, 5,
+     T0 - timedelta(hours=3))`). Elle a lieu AVANT que `pose` ne soit entree,
+     donc aucun `try` interieur ne peut la couvrir. Aucune de ces expressions
+     ne peut lever aujourd'hui — ce sont des litteraux et des `Path` — mais
+     la limite est structurelle, pas conjoncturelle.
 
 LES DOUZE DE P8 :
   M1 `_VIDEO_EXTS` + ".png" => sources 51/16, dont `sprite_exclu` ROUGE et
@@ -642,11 +660,34 @@ def CO(fabrique, quoi=""):
         return t
 
 
+def FIX(quoi, faire):
+    """FIXTURE gardee DE BOUT EN BOUT — la reparation de F1-bis.
+
+    Les quatre fixtures de ce banc gardaient leur APPEL A LA BASE
+    (`asyncio.run(go())` dans un try) et rien d'autre. MESURE le 05/09/2026 :
+    un `raise` place UNE LIGNE PLUS HAUT, dans le corps de `pose()`, tuait le
+    banc — traceback, zero assertion imprimee, aucun compte. La garde disait
+    « FIXTURE gardee » et ne gardait qu'un tiers de la fixture.
+    Et la mesure a montre plus large : `asyncio.run(init_db())` et les huit
+    ecritures de fixture du disque n'etaient gardees par RIEN. Une base
+    verrouillee ou un dossier en lecture seule tuaient ce banc avant sa
+    premiere ligne.
+    `faire` est un THUNK : ainsi meme la construction de l'objet a ecrire est
+    a l'interieur de la garde. Le temoin est celui de `temoin()`, donc
+    NUMEROTE, et il fait rougir `aucun_appel_n_a_plante` en fin de banc — ce
+    qui n'ajoute AUCUNE assertion et laisse les comptes de la table de
+    mutations intacts."""
+    try:
+        return faire()
+    except Exception as e:
+        print(f"  ----  fixture {quoi} a leve : {temoin(e)}")
+        return None
+
+
 ROOT = pathlib.Path(TMP)
 LIB = ROOT / "lib"
-LIB.mkdir(parents=True, exist_ok=True)
-(ROOT / "images").mkdir(parents=True, exist_ok=True)
-(ROOT / "audio").mkdir(parents=True, exist_ok=True)
+FIX("dossiers", lambda: [d.mkdir(parents=True, exist_ok=True)
+                         for d in (LIB, ROOT / "images", ROOT / "audio")])
 
 # Les fixtures ne sont PAS des medias valides : rien ici n'est decode. Ce que
 # le code sous test lit, c'est l'EXTENSION du chemin range en base.
@@ -666,14 +707,15 @@ F_ABSENT = LIB / "efface.mp4"          # jamais cree : la source disparue
 # de l'application, pas encore present — et c'est bien pour cela qu'il se
 # tient ici et nulle part ailleurs.
 F_MOV = LIB / "Rush_Camera.MOV"
-F_MP4.write_bytes(b"\x00faux mp4")
-F_MOV.write_bytes(b"\x00faux mov")
-F_PNG.write_bytes(b"\x89PNG\r\n\x1a\nfaux")
-F_GLB.write_bytes(b"glTF\x02\x00\x00\x00faux")
 CARTON = ROOT / "images" / "carton.png"
-CARTON.write_bytes(b"\x89PNG\r\n\x1a\ncarton")
 VOIX = ROOT / "audio" / "voix.wav"
-VOIX.write_bytes(b"RIFFfauxWAVE")
+FIX("fichiers sources", lambda: [p.write_bytes(o) for p, o in (
+    (F_MP4, b"\x00faux mp4"),
+    (F_MOV, b"\x00faux mov"),
+    (F_PNG, b"\x89PNG\r\n\x1a\nfaux"),
+    (F_GLB, b"glTF\x02\x00\x00\x00faux"),
+    (CARTON, b"\x89PNG\r\n\x1a\ncarton"),
+    (VOIX, b"RIFFfauxWAVE"))])
 
 ID_MP4 = "aaaaaaaa-0000-0000-0000-000000000001"
 ID_PNG = "bbbbbbbb-0000-0000-0000-000000000002"
@@ -681,7 +723,7 @@ ID_GLB = "cccccccc-0000-0000-0000-000000000003"
 ID_GONE = "dddddddd-0000-0000-0000-000000000004"
 ID_MOV = "eeeeeeee-0000-0000-0000-000000000005"
 
-asyncio.run(init_db())
+FIX("init_db", lambda: asyncio.run(init_db()))
 
 
 def pose(jid, provider, path, dur, quand):
@@ -694,64 +736,73 @@ def pose(jid, provider, path, dur, quand):
     fixture nue emporterait EN SILENCE les sections [3] a [7], donc tout le
     pre-vol, tout le message d'erreur et toute la sauvegarde, AVANT le moindre
     compte. Le temoin fait rougir `aucun_appel_n_a_plante` et laisse le banc
-    aller jusqu'a imprimer son compte."""
-    async def go():
-        async with async_session_factory() as s:
-            s.add(JobRecord(id=jid, provider=provider,
-                            status=JobStatus.DONE.value, progress=100,
-                            title=provider + " " + jid[:4],
-                            image_filename=jid[:8] + ".png",
-                            final_video_path=str(path), video_path=str(path),
-                            duration_s=dur, completed_at=quand))
-            await s.commit()
+    aller jusqu'a imprimer son compte.
+    LA GARDE COUVRE LE CORPS ENTIER depuis le 05/09/2026 (F1-bis) : elle
+    n'entourait que `asyncio.run(go())`, et un `raise` place une ligne plus
+    haut tuait le banc. Le `str()` du message n'est pas decoratif non plus —
+    un `jid` qui n'est pas une chaine faisait lever la garde ELLE-MEME."""
     try:
+        async def go():
+            async with async_session_factory() as s:
+                s.add(JobRecord(id=jid, provider=provider,
+                                status=JobStatus.DONE.value, progress=100,
+                                title=str(provider) + " " + str(jid)[:4],
+                                image_filename=str(jid)[:8] + ".png",
+                                final_video_path=str(path),
+                                video_path=str(path),
+                                duration_s=dur, completed_at=quand))
+                await s.commit()
         asyncio.run(go())
     except Exception as e:
-        print(f"  ----  pose({jid[:8]}, {provider}) a leve : {temoin(e)}")
+        print(f"  ----  pose({str(jid)[:8]}, {provider}) a leve : {temoin(e)}")
 
 
 def pose_colonnes(jid, provider, fvp, vp, dur, quand):
     """Comme `pose`, mais les DEUX colonnes sont donnees separement : c'est la
     ou le `where` de la requete et le test Python peuvent diverger, donc la
-    seule facon de mesurer qu'ils ne divergent pas. Meme garde que `pose`."""
-    async def go():
-        async with async_session_factory() as s:
-            s.add(JobRecord(id=jid, provider=provider,
-                            status=JobStatus.DONE.value, progress=100,
-                            title=provider + " " + jid[:4],
-                            image_filename=jid[:8] + ".png",
-                            final_video_path=fvp, video_path=vp,
-                            duration_s=dur, completed_at=quand))
-            await s.commit()
+    seule facon de mesurer qu'ils ne divergent pas. Meme garde que `pose`,
+    corps entier compris (F1-bis)."""
     try:
+        async def go():
+            async with async_session_factory() as s:
+                s.add(JobRecord(id=jid, provider=provider,
+                                status=JobStatus.DONE.value, progress=100,
+                                title=str(provider) + " " + str(jid)[:4],
+                                image_filename=str(jid)[:8] + ".png",
+                                final_video_path=fvp, video_path=vp,
+                                duration_s=dur, completed_at=quand))
+                await s.commit()
         asyncio.run(go())
     except Exception as e:
-        print(f"  ----  pose_colonnes({jid[:8]}) a leve : {temoin(e)}")
+        print(f"  ----  pose_colonnes({str(jid)[:8]}) a leve : {temoin(e)}")
 
 
 def retire(*jids):
-    async def go():
-        async with async_session_factory() as s:
-            for jid in jids:
-                v = await s.get(JobRecord, jid)
-                if v is not None:
-                    await s.delete(v)
-            await s.commit()
+    """Meme garde que `pose`, corps entier compris (F1-bis)."""
     try:
+        async def go():
+            async with async_session_factory() as s:
+                for jid in jids:
+                    v = await s.get(JobRecord, jid)
+                    if v is not None:
+                        await s.delete(v)
+                await s.commit()
         asyncio.run(go())
     except Exception as e:
         print(f"  ----  retire{jids} a leve : {temoin(e)}")
 
 
 def n_montage():
-    """Combien de JobRecord `montage` la base porte — la file d'attente."""
-    async def go():
-        from sqlalchemy import select, func
-        async with async_session_factory() as s:
-            r = await s.execute(select(func.count()).select_from(JobRecord)
-                                .where(JobRecord.provider == "montage"))
-            return int(r.scalar() or 0)
+    """Combien de JobRecord `montage` la base porte — la file d'attente.
+    Garde etendue au corps entier le 05/09/2026 (F1-bis) : l'import de
+    `sqlalchemy` et la construction de la requete en font partie."""
     try:
+        async def go():
+            from sqlalchemy import select, func
+            async with async_session_factory() as s:
+                r = await s.execute(select(func.count()).select_from(JobRecord)
+                                    .where(JobRecord.provider == "montage"))
+                return int(r.scalar() or 0)
         return asyncio.run(go())
     except Exception as e:
         print(f"  ----  n_montage a leve : {temoin(e)}")
