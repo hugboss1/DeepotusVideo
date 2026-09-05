@@ -1499,3 +1499,93 @@ tait.
 en les nommant (pré-vol de la tâche 15). Le marquage n'est donc pas la seule
 protection — il est là pour que l'utilisateur voie le problème **avant** de
 cliquer, pas après.
+
+---
+
+## Lot 4 — remontée du 05/09/2026 : la timeline ne s'étend pas
+
+Rapportée par l'utilisateur après avoir réparé sa piste V1 : « j'ai voulu ajouter
+trois vidéos depuis la bibliothèque, or la timeline est fixe, je suis obligé de
+raccourcir des pistes vidéo pour les faire rentrer ». Tout ce qui suit est
+**mesuré dans le bundle livré et dans `.bak_montage`**, avant d'écrire une ligne.
+
+### Fait n°1 — aucun contrôle n'écrit `proj.dur`
+
+`setProj(` n'est **jamais** appelé avec `dur`. La durée du projet est fixée une
+fois pour toutes au chargement : `SVM_DEMO_DUR = 64` pour la maquette, et
+`dur: Math.max(1, Number(d.duration) || maxEnd)` dans `svmApplyProject` pour un
+projet réel. La barre de transport ne fait que **l'afficher** :
+`" % · " + svmRuler(Math.round(dur)) + " total"`.
+
+### Fait n°2 — l'ajout ROGNE en silence
+
+```js
+st = Math.min(Math.max(0, st), Math.max(0, d - 1));
+var en = Math.min(d, st + defaultLen(kind, srcDur));
+if (en - st < .5) st = Math.max(0, en - 1);
+```
+
+Le début est plafonné à `durée − 1`, la fin à `durée`. Une vidéo de 6 s posée
+près de la fin d'un projet de 16 s **entre à la taille du reste**, sans un mot.
+Rien ne peut être placé au-delà de `dur`.
+
+### Fait n°3 — le glissement est plafonné aussi
+
+`var ns = Math.min(Math.max(0, d - len), Math.max(0, c.start + fr / 30));` — un
+clip ne peut pas être tiré au-delà de la fin. L'utilisateur ne peut donc ni
+poser, ni déplacer hors des bornes.
+
+### Fait n°4 — étendre la durée est SANS RISQUE pour le rendu
+
+`total` est recalculé dans `_build_montage_command` à partir de `seg_durs` (les
+durées des segments V1), **jamais** depuis le `duration` posté — celui-ci n'est
+lu que par `POST /save` (`montage_service.py:794`) comme valeur à conserver.
+`proj.dur` est donc une **borne d'édition**, pas une propriété du rendu :
+l'agrandir ne change pas un octet de la vidéo produite.
+
+### Fait n°5 — le défilement horizontal EXISTE DÉJÀ
+
+`.svm-scroll{flex:1; overflow:auto; …}` (`shared/son-vfx-montage.css:331`), les
+pistes portent `style={{width: zoomPct + "%"}}`, les paliers sont
+`SVM_ZOOMW = [100, 150, 220, 320]` et le **Ctrl+molette** donne un zoom
+**continu jusqu'à 800 %**, avec conservation du point sous le curseur
+(`pendScrollRef` / `tlScrollRef.scrollLeft`, `useLayoutEffect` sur `[zoomPct]`).
+À 100 % il n'y a rien à faire défiler **parce que les pistes remplissent
+exactement le cadre**. La demande « défilement horizontal » est donc en grande
+partie satisfaite — ce qui manque est **la découvrabilité**, pas le mécanisme.
+
+### Fait n°6 — une dette de P3 arrive à échéance
+
+La note de la coupe par plage dit : « la durée du projet ne bouge pas : la fin de
+la timeline est vide, **raccourcissez-la si vous voulez** ». Or **rien ne permet
+de la raccourcir**. La phrase promet un geste qui n'existe pas.
+
+---
+
+### Tâche 17 — P10 : la timeline s'étend au lieu de rogner
+
+**Files :** `frontend/patches/montage.js`, `scripts/patch_bundle_montage.py`,
+`backend/tests/test_montage_bundle.py`, `frontend/dist/shared/montage.css`.
+
+**Ancres mesurées, toutes à 1 dans le bundle livré ET dans `.bak_montage` :**
+
+| ancre | usage |
+|---|---|
+| `    st=Math.min(Math.max(0,st),Math.max(0,d-1));` | le rognage de l'ajout |
+| `      var ns=Math.min(Math.max(0,d-len),Math.max(0,c.start+fr/30));` | le plafond du glissement |
+| `" % · "+svmRuler(Math.round(dur))+" total"]}),` | l'affichage de la durée dans le transport |
+| `  var stP=x.useState({demo:!0,name:` | l'état du projet (pour un `durRef` d'écriture) |
+
+- [ ] **Étape 1 : le cœur pur, sous node.** `DzTracks.fitDur(clips, durActuelle, marge)` rend la durée que le projet DOIT avoir : le maximum entre la fin du dernier clip (plus une marge de queue) et la durée demandée, arrondi. PURE, donc mesurable : clips vides, clip unique, clip qui dépasse, clip qui ne dépasse pas, `end` illisible, durée courante nulle ou négative. Prouver chaque ligne par mutation.
+- [ ] **Étape 2 : l'ajout n'écrase plus.** Là où `addAsset` rogne, il doit **étendre** : si `st + defaultLen(...)` dépasse `d`, la durée du projet grandit au lieu que le clip rétrécisse. Le clip garde sa longueur naturelle. **Dire dans la note** que la timeline s'est allongée, et de combien — un agrandissement silencieux est aussi désagréable qu'un rognage silencieux. Le geste reste **réversible** : `pushHistory()` avant, et la note dit ce qu'« annuler » ne restaure pas (l'historique ne mémorise que `{clips, mixDb}` — **pas la durée**, c'est mesuré et c'est la raison pour laquelle P3 n'y touchait pas).
+- [ ] **Étape 3 : le glissement suit la même règle.** Tirer un clip vers la droite étend la timeline au lieu de buter. Même réserve d'historique, même note.
+- [ ] **Étape 4 : un contrôle explicite dans le transport.** La durée affichée devient modifiable : allonger **et raccourcir**, ce qui paie la dette du fait n°6. Raccourcir sous la fin du dernier clip est un **geste destructif à l'écran** (des clips sortent du champ, même s'ils ne sont pas supprimés) : le refuser, ou l'armer, mais ne jamais le faire en silence. Le pas et les bornes sont à **mesurer**, pas à inventer.
+- [ ] **Étape 5 : la découvrabilité du zoom** (fait n°5). Le mécanisme existe et il est bon ; ce qui manque est qu'on le trouve. L'infobulle des paliers dit déjà « Ctrl+molette : continu » — vérifier **au navigateur** (utilisateur) que c'est lisible, et que le défilement horizontal se voit dès qu'on dépasse 100 %. **Ne rien réécrire tant que ce n'est pas mesuré à l'écran.**
+- [ ] **Étape 6 : rejouer et mesurer.** `--check`, patcher, `repatch_all --list` → `montage OK`, `test_montage_bundle` vert, **`bloc_EST_la_couche_octet_pour_octet` compris**.
+- [ ] **Étape 7 : commit.** Sujet : `montage : P10 - la timeline s etend au lieu de rogner`.
+
+**Réserve à porter** : `proj.dur` n'entre pas dans l'historique. Étendre puis
+annuler rend les clips, pas la durée — exactement le piège que P3 avait choisi
+d'éviter en ne touchant pas à `dur`. Ici on y touche **délibérément**, donc la
+note doit le dire à chaque fois, et l'en-tête du banc doit le consigner comme un
+reste assumé.
