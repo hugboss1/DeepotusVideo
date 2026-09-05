@@ -727,44 +727,86 @@ var DzmWordAnimChip=function(props){
         "data-on":v===o.v?"":void 0,"aria-pressed":v===o.v,
         title:o.t,onClick:function(){set(o.v)},children:o.l},o.v)})},"b")]})};
 
-/* Le bouton « emoji » : demande les suggestions au backend, les pose en
-   clips d'overlay. RÉVERSIBLE — l'appelant pousse l'historique AVANT
-   d'ajouter, donc « annuler » les retire d'un coup ; et ce sont des clips
-   ordinaires, qui se déplacent et se suppriment comme les autres. */
+/* ── L'ACTION « emoji », SORTIE DU BOUTON QUI LA PORTAIT ──────────────
+   ÉTAPE 7 DU HANDOFF, §6 : « la barre est un nouveau point d'entrée, pas une
+   nouvelle implémentation ». Tant que cette action vivait DANS `DzmEmojiBtn`,
+   la barre n'avait rien à appeler — c'est la mesure qui l'avait laissée
+   éteinte à l'étape 4. Elle est ici, au premier niveau : le bouton du bandeau
+   et le bouton de la barre l'appellent tous les deux, et il n'y a qu'un code.
+
+   L'ATTENTE RESTE À L'APPELANT (`busy` / `setBusy`) : c'est un état React, et
+   cette fonction n'a pas de hook. Chaque porte tient la sienne — deux
+   portes, deux attentes, et l'étape 6 en refermera une. RESTE ASSUMÉ, dit
+   ici plutôt que découvert : d'ici là, deux clics simultanés partent en deux
+   requêtes. Elles ne se détruisent pas — chacune pousse l'historique avant
+   d'ajouter, et `dzmEmojiClips` numérote ses identifiants sur `Date.now()`.
+
+   `fetch` EST APPELÉE SUR SON OBJET quand elle vient de la fenêtre, jamais
+   détachée dans une variable : même leçon que `dzmTbFrame` à l'étape 4
+   (« Illegal invocation » sous Blink et WebKit). Et elle est INJECTABLE,
+   sans quoi cette fonction ne serait pas jouable sous node — la seule raison
+   pour laquelle l'étape 4 ne pouvait rien mesurer d'elle.
+
+   DEUX SORTES DE SORTIE, et le banc lit les deux : un JETON quand elle
+   REFUSE (quatre refus, quatre mots distincts — un `return` nu les aurait
+   rendus indiscernables), la PROMESSE quand elle part.
+
+   CE QUE FAIT CETTE ACTION ET CE QUE LE §6 DÉCRIT NE SE RECOUVRENT PAS, et
+   l'écart est DIT à l'utilisateur dans le titre du bouton de la barre : le
+   §6 veut un sélecteur d'emoji dont le choix pose UN clip de 2 s à la tête de
+   lecture ; cette base pose, sans sélecteur, UN clip de 0,8 s PAR MOT-CLÉ
+   reconnu dans les sous-titres, à la date de ce mot. C'est l'action qui
+   existe, et le §6 demande de réutiliser l'action qui existe. */
+function dzmEmojiGo(p){
+  p=p||{};
+  function note(m){if(typeof p.note==="function")p.note(m)}
+  function busy(v){if(typeof p.setBusy==="function")p.setBusy(v)}
+  if(p.busy)return "occupe";
+  var segs=p.segments||[];
+  if(!segs.length){
+    note("Aucun sous-titre : les emoji se posent sur les MOTS d'une "+
+      "réplique. Écrivez la piste S1 d'abord.");return "sans-soustitre"}
+  if(typeof p.onAdd!=="function"){
+    note("Emoji : rien pour recevoir les clips.");return "sans-hote"}
+  var f=(typeof p.fetch==="function")?p.fetch:null;
+  if(!f&&typeof window!=="undefined"&&typeof window.fetch==="function")
+    f=function(u,o){return window.fetch(u,o)};
+  if(!f){note("Emoji : ce navigateur ne sait pas interroger le serveur.");
+    return "sans-reseau"}
+  busy(1);
+  return f("/api/subtitles/emoji-hints",{method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({segments:segs})})
+    .then(function(rp){return rp.json()})
+    .then(function(d){
+      busy(0);
+      var hs=(d&&d.hints)||[];
+      if(!hs.length){note("Aucun mot-clé reconnu — les mots suivis sont "+
+        "feu, lune, vague, poulpe, or, fusée.");return}
+      var cs=dzmEmojiClips(hs,p.tracks,Date.now());
+      if(!cs.length){note("Aucune piste vidéo d'overlay pour les poser : "+
+        "ajoutez-en une par « + vidéo ».");return}
+      p.onAdd(cs);
+      note(cs.length+" emoji posé"+(cs.length>1?"s":"")+" sur "+cs[0].tr+
+        " — annuler les retire tous.")})
+    .catch(function(e){busy(0);
+      note("Emoji : "+((e&&e.message)||"échec de la requête"))})}
+/* Le bouton « emoji » du bandeau : il ne porte plus QUE son attente.
+   RÉVERSIBLE — l'appelant pousse l'historique AVANT d'ajouter, donc
+   « annuler » les retire d'un coup ; et ce sont des clips ordinaires, qui se
+   déplacent et se suppriment comme les autres. */
+var DZM_EMO_TITRE="Poser un emoji sur les mots-clés des sous-titres (feu, "+
+  "lune, vague, poulpe, or, fusée) — un clip par mot, sur la piste "+
+  "d'overlay la plus haute. Annuler les retire.";
 var DzmEmojiBtn=function(props){
   var sb=x.useState(0),busy=sb[0],setBusy=sb[1];
-  function note(m){if(props&&props.note)props.note(m)}
-  function go(){
-    if(busy)return;
-    var segs=(props&&props.segments)||[];
-    if(!segs.length){
-      note("Aucun sous-titre : les emoji se posent sur les MOTS d'une "+
-        "réplique. Écrivez la piste S1 d'abord.");return}
-    if(!props.onAdd){note("Emoji : rien pour recevoir les clips.");return}
-    setBusy(1);
-    fetch("/api/subtitles/emoji-hints",{method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({segments:segs})})
-      .then(function(rp){return rp.json()})
-      .then(function(d){
-        setBusy(0);
-        var hs=(d&&d.hints)||[];
-        if(!hs.length){note("Aucun mot-clé reconnu — les mots suivis sont "+
-          "feu, lune, vague, poulpe, or, fusée.");return}
-        var cs=dzmEmojiClips(hs,props.tracks,Date.now());
-        if(!cs.length){note("Aucune piste vidéo d'overlay pour les poser : "+
-          "ajoutez-en une par « + vidéo ».");return}
-        props.onAdd(cs);
-        note(cs.length+" emoji posé"+(cs.length>1?"s":"")+" sur "+cs[0].tr+
-          " — annuler les retire tous.")})
-      .catch(function(e){setBusy(0);
-        note("Emoji : "+((e&&e.message)||"échec de la requête"))})}
   return r.jsx("button",{className:"svm-tbtn dzm-emo",disabled:!!busy,
-    title:"Poser un emoji sur les mots-clés des sous-titres (feu, lune, "+
-      "vague, poulpe, or, fusée) — un clip par mot, sur la piste d'overlay "+
-      "la plus haute. Annuler les retire.",
+    title:DZM_EMO_TITRE,
     "aria-label":"Poser les emoji des mots-clés",
-    onClick:go,children:busy?"…":"emoji"})};
+    onClick:function(){dzmEmojiGo({segments:props&&props.segments,
+      tracks:props&&props.tracks,note:props&&props.note,
+      onAdd:props&&props.onAdd,busy:busy,setBusy:setBusy})},
+    children:busy?"…":"emoji"})};
 
 /* ── P3 : le tiroir « Texte » ──────────────────────────────────────────────
    Monter en lisant, pas en regardant des rectangles : la narration s'affiche
@@ -1237,6 +1279,28 @@ var DzmProjects=function(props){
   function toggle(){
     var nx=!op;setOp(nx);setArm("");setRen(null);
     if(nx)load()}
+
+  /* ÉTAPE 7 — LE SECOND POINT D'ENTRÉE (§6 : « la barre est un nouveau point
+     d'entrée, pas une nouvelle implémentation »). Le §6 dit OUVRE, pas
+     BASCULE : la barre incrémente un compteur, l'ouverture est donc
+     IDEMPOTENTE et le même geste ne referme jamais la liste par accident.
+     POURQUOI UN COMPTEUR ET NON UN BOOLÉEN PARTAGÉ, et c'est mesuré : ce
+     popover se ferme sur un `mousedown` HORS de sa boîte, et le bouton de la
+     barre est hors de cette boîte. Un booléen piloté depuis la barre serait
+     donc remis à faux par ce `mousedown` juste avant que le `click` le
+     ramène à vrai — deux écritures pour un geste, dont l'ordre décide. Le
+     compteur, lui, ne décrit pas un ÉTAT mais une DEMANDE : quel que soit
+     l'ordre des deux événements, la dernière chose faite est d'ouvrir.
+     `oreq<=0` GARDE LE MONTAGE : l'effet part une première fois à zéro, et
+     sans cette ligne la liste s'ouvrirait toute seule au chargement.
+     RIEN D'AUTRE N'EST TOUCHÉ : ni la timeline, ni la tête de lecture, ni
+     l'historique. C'est `doOpen`, plus bas, qui remplace le montage — et il
+     demande confirmation avant, ce que le §6 exige et que la base faisait
+     déjà. */
+  var oreq=Number(props&&props.openReq)||0;
+  x.useEffect(function(){
+    if(oreq<=0)return;
+    setOp(!0);setArm("");setRen(null);load()},[oreq]);
 
   function saveAs(){
     if(busy)return;
@@ -2291,31 +2355,45 @@ function DzmToolBtn(o){
   if(g)p["data-grp"]=g;
   if(tog)p["aria-pressed"]=mix?"mixed":(on?"true":"false");
   return r.jsx("button",p,o.k||("tbb-"+(o.icon||g||"x")))}
-/* ── ÉTAPES 4 ET 5 DU §9 : LA BARRE, SON ONGLET ET SON DÉPORT ──────────────
+/* ── ÉTAPES 4, 5 ET 7 DU §9 : LA BARRE, SON ONGLET, SON DÉPORT, SON CÂBLAGE ─
    Géométrie (§2.1, §2.2), contenu verbatim (§2.4), ouverture et repli (§4.1),
-   le déport (§4.2), et de §4.4 LES DEUX CLÉS `open` et `offset`. Le retrait
-   des neuf contrôles du bandeau (§5) est l'étape 6, le câblage complet (§6)
-   l'étape 7, `role="toolbar"` et le `tabindex` roving (§4.5) l'étape 8.
+   le déport (§4.2), de §4.4 LES DEUX CLÉS `open` et `offset`, et le câblage
+   du §6 EN ENTIER. Le retrait des neuf contrôles du bandeau (§5) est l'étape
+   6, `role="toolbar"` et le `tabindex` roving (§4.5) l'étape 8.
+   L'ORDRE DES ÉTAPES 6 ET 7 EST INVERSÉ PAR RAPPORT AU §9, et c'est une
+   décision, pas un oubli : `emoji` et `projets` étaient ÉTEINTS dans la
+   barre à l'étape 4. Retirer d'abord leurs contrôles du bandeau les aurait
+   rendus inatteignables PARTOUT — exactement ce que le §9 s'interdit
+   (« ne pas laisser l'application dans un état où les actions ne sont
+   accessibles nulle part »).
 
    ── LA DUPLICATION EST TRANSITOIRE, ET C'EST DIT ICI ──
    Les neuf actions existent AUX DEUX ENDROITS tant que l'étape 6 n'a pas
    retiré celles du bandeau fixe. Le §5.1 l'interdit à terme (« deux sources
-   de vérité pour l'état des bascules ») ; le §9 l'impose transitoirement
-   (« *après* que la barre fonctionne, jamais avant » — ne pas laisser
-   l'application dans un état où les actions ne sont accessibles nulle part).
-   C'est un reste ASSUMÉ, et l'étape 6 le solde. La seule bascule concernée
-   par le §5.1 est `wordAnim` : elle vit dans `proj.subsStyle`, une source
-   unique que la chip du bandeau et la barre LISENT toutes les deux — aucune
-   des deux n'en garde de copie, donc les deux affichages ne peuvent pas
-   diverger avant que l'étape 6 en supprime une.
+   de vérité pour l'état des bascules ») ; le §9 l'impose transitoirement.
+   C'est un reste ASSUMÉ, et l'étape 6 le solde. AUCUN ÉTAT N'EST DOUBLÉ
+   pour autant : `wordAnim` vit dans `proj.subsStyle` et l’état du panneau
+   « Texte » dans l'écran — la chip, le bouton du bandeau et la barre les
+   LISENT tous les trois, sans en garder de copie. La seule chose réellement
+   doublée est l'ÉTAT D'ATTENTE de la requête emoji, un booléen par porte :
+   deux clics simultanés partent en deux requêtes, qui ne se détruisent pas
+   mais posent deux fois les mêmes clips. L'étape 6 referme une des portes.
 
    ── AUCUN BOUTON VIVANT QUI NE FAIT RIEN ──
-   Sept des neuf boutons sont CÂBLÉS sur l'action existante — la barre est un
+   LES NEUF BOUTONS SONT CÂBLÉS sur une action qui EXISTAIT — la barre est un
    nouveau point d'entrée, pas une nouvelle implémentation (§6). Les deux qui
-   ne le sont pas (`emoji`, `projets`) sont ÉTEINTS et le DISENT dans leur
-   `title`, en nommant l'étape qui les rendra vivants. La poignée et `⌖`,
-   eux, sont devenus vivants à l'étape 5 — leurs titres disent maintenant ce
-   qu'ils FONT, plus ce qu'ils ne font pas encore. */
+   avaient résisté à l'étape 4 tenaient chacun à un état enfermé dans son
+   composant, et l'étape 7 a ouvert la porte SANS déplacer l'état :
+     • `emoji` — son `fetch` est sorti du bouton (`dzmEmojiGo`, au premier
+       niveau) ; l'attente, elle, reste à chaque appelant, parce qu'un hook
+       ne se partage pas.
+     • `projets` — le popover garde son ouverture chez lui et reçoit une
+       DEMANDE (`openReq`, un compteur) ; c'est le seul moyen d'ouvrir sans
+       lutter contre son propre « clic dehors », qui se déclenche justement
+       sur le bouton de la barre.
+   Un bouton reste ÉTEINT quand l'écran ne lui a pas donné de quoi agir, ou
+   pendant l'attente d'`emoji` — et son `title` dit alors laquelle des deux
+   situations est en cours. */
 
 /* LA CLÉ DE PERSISTANCE — ÉCART DÉCLARÉ, DANS LES DEUX SENS.
    Le §4.4 demande `deepotus.toolbar.open`. LA MAISON dit autre chose, et
@@ -2375,12 +2453,12 @@ var DZM_TB_PLAN=[
   {g:"projets",t:"PROJETS",type:"ouvre un panneau",
    btns:[{i:"projets",l:"projets"}]}];
 
-/* Les phrases des boutons qui ne sont PAS câblés. Elles nomment l'étape,
-   disent où l'action vit en attendant, et ne promettent rien. */
-function dzmTbEtape7(quoi){
-  return quoi+" — le bouton du bandeau fixe garde l'action pour l'instant. "+
-    "La barre n'en est pas encore le point d'entrée : c'est le câblage du §6 "+
-    "du handoff (étape 7). Éteint plutôt que muet."}
+/* `dzmTbEtape7` VIVAIT ICI — la phrase des deux boutons qui n'étaient pas
+   câblés. L'étape 7 a câblé les neuf : plus personne ne l'appelait, et une
+   fonction morte injectée dans le bundle est une fonction morte de plus.
+   Retirée, pas commentée. Ce qu'elle disait est mesuré à l'envers désormais :
+   le banc exige qu'AUCUN titre de la barre ne nomme encore une étape à
+   venir. */
 var DZM_TB_SANS_HOTE="Action non fournie à la barre par l'écran qui la "+
   "monte — il n'y a rien à déclencher.";
 /* LA POIGNÉE PARLE DES TROIS GESTES qu'elle accepte, et de la seule règle
@@ -2414,13 +2492,119 @@ var DZM_TB_T_TEXTE="Ouvrir ou fermer le panneau « Texte » — la narration "+
 var DZM_TB_MOT_ECART=" — Cette base porte UNE animation à la fois pour "+
   "toute la piste de sous-titres, pas trois effets cumulables sur une "+
   "sélection de mots : choisir celle-ci remplace la précédente.";
+/* LES DEUX AUTRES ÉCARTS DU §6, DITS À L'UTILISATEUR ET PAS SEULEMENT ICI.
+   Ils décrivent CE QUE LA BASE FAIT ; ils ne citent pas le handoff, que
+   personne devant l'écran n'a sous les yeux. Le rapport, lui, les nomme.
+     • §6 « emoji » : un sélecteur d'emoji dont le choix pose UN clip de 2 s
+       à la tête de lecture. Ici : aucun sélecteur, UN clip de 0,8 s PAR
+       mot-clé reconnu, à la date de ce mot (voir `dzmEmojiGo`).
+     • §6 « texte » : un clip de texte posé à la tête de lecture, en édition
+       immédiate. Ici : le panneau de narration — c'est LE bouton « texte »
+       que le §5.1 retire du bandeau, donc celui dont la barre doit devenir
+       le point d'entrée. Le geste que le §6 décrit existe ailleurs
+       (`subsAddHere`, le « + » de l'en-tête S1) et le titre y renvoie. */
+var DZM_TB_EMO_ECART=" Cette base n'a pas de sélecteur d'emoji : elle pose "+
+  "d'elle-même un clip par mot reconnu, là où ce mot est dit, et non un "+
+  "emoji choisi à la tête de lecture.";
+var DZM_TB_TXT_ECART=" Ce bouton ouvre un panneau, il ne pose pas de clip : "+
+  "pour écrire un sous-titre à la tête de lecture, le « + » de l'en-tête de "+
+  "la piste S1.";
+var DZM_TB_T_EMOJI="Poser les emoji des mots-clés des sous-titres (feu, "+
+  "lune, vague, poulpe, or, fusée) — un clip de 0,8 s par mot reconnu, sur "+
+  "la piste vidéo d'overlay la plus haute.";
+var DZM_TB_T_EMOJI_OCC="Emoji — la demande précédente est encore en cours ; "+
+  "le bouton se rallume à la réponse du serveur.";
+var DZM_TB_T_PROJETS="Ouvrir la liste des projets de montage — enregistrer "+
+  "sous un nom, ouvrir, dupliquer, renommer, supprimer.";
 
-/* ── LE CÂBLAGE, PUR ───────────────────────────────────────────────────────
+/* ── EXIGENCE 1 DU §6 : « TOUTES LES ACTIONS PASSENT PAR LE MÊME HISTORIQUE »
+   ── ET CE QUE CET HISTORIQUE-CI SAIT FAIRE ────────────────────────────
+   MESURE, sur ce bundle : `pushHistory` n'empile QUE `{clips, mixDb}` et
+   `undo` ne repose que ces deux-là. Ni les pistes, ni `proj.dur`, ni
+   `proj.subsStyle`, ni le projet ouvert n'y entrent. Les neuf actions
+   passent donc bien par le MÊME historique — il n'y en a qu'un, et la barre
+   n'en crée pas un second — mais ce que `Ctrl+Z` REND diffère de l'une à
+   l'autre, et le taire aurait laissé l'utilisateur découvrir seul qu'une
+   annulation « ne fait rien ».
+   LE CAS LE PLUS TRAÎTRE EST LA PISTE : `svmTracksSet` APPELLE `pushHistory`
+   avant d'écrire `proj.tracks`. Une entrée est donc bien empilée — mais
+   elle ne contient que des clips inchangés : `Ctrl+Z` la consomme et ne
+   défait RIEN de visible. C'est un pas d'historique muet, pas un refus.
+   RÉPARER L'HISTORIQUE N'EST PAS DE CETTE ÉTAPE : `pushHistory`, `undo` et
+   `redo` sont trois hooks du bundle, hors de la surface que cette chaîne de
+   patchs ouvre, et l'élargir toucherait TOUS les gestes de l'écran. On DIT
+   la limite à chaque bouton, et le retour qui existe vraiment. */
+var DZM_TB_H_CLIPS=" « Annuler » (Ctrl+Z) retire d'un coup ce qui vient "+
+  "d'être posé : l'historique de cet écran mémorise les clips et le mixage.";
+var DZM_TB_H_PISTE=" « Annuler » (Ctrl+Z) NE retire PAS la piste : "+
+  "l'historique de cet écran ne mémorise que les clips et le mixage, et le "+
+  "pas qu'il consomme après ce geste ne défait donc rien de visible. Le "+
+  "« × » de l'en-tête de la piste la retire.";
+var DZM_TB_H_STYLE=" « Annuler » (Ctrl+Z) ne revient pas dessus : ce "+
+  "réglage n'entre pas dans l'historique, une annulation défera le geste "+
+  "d'AVANT. Le retour, c'est de rechoisir.";
+var DZM_TB_H_PANNEAU=" Ouvrir ou fermer ce panneau n'entre pas dans "+
+  "l'historique et ne déplace pas la tête de lecture.";
+var DZM_TB_H_PROJET=" Ouvrir la liste n'entre pas dans l'historique et ne "+
+  "déplace pas la tête de lecture. Ouvrir un PROJET, en revanche, remplace "+
+  "le montage affiché, VIDE l'historique et ramène la tête à zéro : la liste "+
+  "demande confirmation avant.";
+/* LA TABLE, ET À QUOI ELLE SERT. Elle porte pour chacune des neuf clés
+   d'icône du §2.4 la réponse aux DEUX premières exigences transversales :
+   `h` = ce que `Ctrl+Z` rend, `tete` = si l'action déplace la tête de
+   lecture (aucune ne le fait, et le banc le JOUE au lieu de le croire).
+   `via` DIT QUI FAIT LE GESTE : « direct » quand le clic écrit lui-même,
+   « panneau » quand il ouvre une porte et que l'écriture vient d'après
+   (« lier » ouvre la Bibliothèque, « projets » ouvre la liste). Sans ce
+   champ, la phrase d'annulation de « lier » — qui parle du clip à venir —
+   aurait paru démentie par un clic qui, lui, ne pose rien.
+   ELLE N'EST PAS UNE DÉCLARATION D'INTENTION : c'est elle qui écrit la
+   phrase de chaque titre (`dzmTbUndo`), et le banc rejoue les neuf actions
+   sur un faux écran pour vérifier que le comportement observé est bien
+   celui qu'elle annonce. Une table qui mentirait rougirait. */
+var DZM_TB_EFFETS={
+  "piste-video":{h:"piste",via:"direct",tete:!1},
+  "piste-audio":{h:"piste",via:"direct",tete:!1},
+  "bibliotheque":{h:"clips",via:"panneau",tete:!1},
+  "couleur":{h:"style",via:"direct",tete:!1},
+  "rebond":{h:"style",via:"direct",tete:!1},
+  "glow":{h:"style",via:"direct",tete:!1},
+  "emoji":{h:"clips",via:"direct",tete:!1},
+  "texte":{h:"panneau",via:"direct",tete:!1},
+  "projets":{h:"projet",via:"panneau",tete:!1}};
+var DZM_TB_H_TXT={piste:DZM_TB_H_PISTE,clips:DZM_TB_H_CLIPS,
+  style:DZM_TB_H_STYLE,panneau:DZM_TB_H_PANNEAU,projet:DZM_TB_H_PROJET};
+/* Un genre inconnu rend la chaîne VIDE plutôt qu'« undefined » dans une
+   infobulle : le titre reste lisible, et la ligne du banc qui exige une
+   phrase par bouton câblé rougit. */
+function dzmTbUndo(k){
+  var e=DZM_TB_EFFETS[k];
+  return (e&&DZM_TB_H_TXT[e.h])||""}
+
+/* ── EXIGENCE 3 DU §6 : « LES INSERTIONS À LA TÊTE DE LECTURE RESPECTENT
+   AIMANTER » — CE QUE CETTE BASE EN FAIT, MESURÉ ────────────────────
+   « aimanter » est un état de l'écran (`snap`), et il n'est LU qu'à UN
+   endroit du bundle : `doSnap`, dans le glissement d'un clip, qui colle les
+   BORDS aux bords voisins, à la tête et à zéro. AUCUNE insertion ne le
+   consulte — ni `addAsset` (le sélecteur), ni `subsAddHere`, ni les emoji.
+   LA BARRE NE CALCULE DONC AUCUNE POSITION, et c'est délibéré : le seul de
+   ses neuf boutons qui mène à une insertion à la tête de lecture est
+   « lier », et il délègue ENTIÈREMENT le placement à `openPicker`. Poser ici
+   une seconde règle d'aimantation aurait fait diverger la barre du « + »
+   d'en-tête de piste, qui ouvre le même sélecteur. Le banc le mesure : aucune
+   des neuf actions ne LIT la tête de lecture. Aligner la base sur le §6
+   voudrait dire aimanter `addAsset` lui-même, pour TOUTES ses portes — un
+   autre chantier, consigné plutôt qu'improvisé ici. */
+
+/* ── LE CÂBLAGE, PUR ──────────────────────────────────────────
    Une fonction, aucun hook, aucun accès au DOM : le banc la joue sous node
    et lit ce que chaque bouton reçoit. Elle rend une entrée par clé d'icône —
    `act` (rien si le bouton est éteint), `disabled`, `title`, `toggle`,
    `active`. C'est ICI que se décide « câblé » ou « éteint-et-dit », et nulle
-   part ailleurs : la barre, elle, ne fait que peindre ce qu'on lui donne. */
+   part ailleurs : la barre, elle, ne fait que peindre ce qu'on lui donne.
+   ÉTAPE 7 : LES NEUF SONT CÂBLÉS. Chaque `act` appelle une action qui
+   EXISTAIT déjà — aucune n'est réécrite ici — et chaque titre dit ce que
+   « annuler » rend, par `dzmTbUndo`. */
 function dzmTbCablage(p){
   p=p||{};
   var ts=dzmTsOr(p.tracks);
@@ -2433,23 +2617,29 @@ function dzmTbCablage(p){
   m["piste-video"]={disabled:!poseTr,
     act:poseTr?function(){p.onTracks(dzmAdd(ts,"video"))}:null,
     title:poseTr?("Ajouter une piste vidéo d'overlay — posée tout en haut, "+
-      "donc composée au-dessus des autres au rendu."):DZM_TB_SANS_HOTE};
+      "donc composée au-dessus des autres au rendu."+
+      dzmTbUndo("piste-video")):DZM_TB_SANS_HOTE};
   m["piste-audio"]={disabled:!poseTr,
     act:poseTr?function(){p.onTracks(dzmAdd(ts,"audio"))}:null,
     title:poseTr?("Ajouter une piste audio — posée sous les pistes audio "+
-      "existantes, au-dessus des sous-titres."):DZM_TB_SANS_HOTE};
+      "existantes, au-dessus des sous-titres."+
+      dzmTbUndo("piste-audio")):DZM_TB_SANS_HOTE};
   /* BIBLIOTHÈQUE — `onPick` est le `openPicker` de l'écran, qui porte DÉJÀ
      ses propres refus (projet de démonstration, piste verrouillée). La piste
      visée est RÉSOLUE, jamais devinée : la première piste vidéo dans l'ordre
      d'affichage. Sans piste vidéo il n'y a rien à ouvrir — bouton éteint,
-     et le titre nomme la sortie au lieu de laisser deviner. */
+     et le titre nomme la sortie au lieu de laisser deviner.
+     LE PLACEMENT EST DÉLÉGUÉ EN ENTIER : cette action ne transmet QUE la
+     piste, jamais un temps. C'est ce qui la fait suivre la même règle que le
+     « + » d'en-tête de piste, « aimanter » compris (exigence 3 du §6). */
   var pick=typeof p.onPick==="function";
   m["bibliotheque"]={disabled:!(pick&&vid),
     act:(pick&&vid)?function(){p.onPick(vid)}:null,
     title:!pick?DZM_TB_SANS_HOTE
       :vid?("Ouvrir la Bibliothèque et poser une vidéo, une image ou un "+
         "rendu sur la piste "+String(vid).toUpperCase()+", à la tête de "+
-        "lecture — c'est la piste vidéo la plus haute du projet.")
+        "lecture — c'est la piste vidéo la plus haute du projet."+
+        dzmTbUndo("bibliotheque"))
       :("Aucune piste vidéo dans ce projet : rien ne pourrait recevoir le "+
         "clip. « vidéo » du groupe PISTES en crée une.")};
   /* MOT — les trois valeurs viennent de DZM_WORD_ANIMS, la table qui sert
@@ -2460,20 +2650,35 @@ function dzmTbCablage(p){
   DZM_WORD_ANIMS.forEach(function(a){
     m[a.v]={toggle:!0,active:wa===a.v,disabled:!poseWa,
       act:poseWa?function(){p.onWordAnim(a.v)}:null,
-      title:poseWa?(a.t+DZM_TB_MOT_ECART):DZM_TB_SANS_HOTE}});
-  /* AJOUTS — `emoji` interroge le backend et gère son propre état d'attente
-     à l'intérieur du bouton du bandeau : il n'y a AUCUNE action à réutiliser
-     sans en écrire une neuve. Éteint, et le titre le dit. */
-  m["emoji"]={disabled:!0,act:null,title:dzmTbEtape7("Poser les emoji")};
+      title:poseWa?(a.t+DZM_TB_MOT_ECART+dzmTbUndo(a.v)):DZM_TB_SANS_HOTE}});
+  /* AJOUTS — `emoji` ÉTAIT ÉTEINT À L'ÉTAPE 4 parce que son `fetch` et son
+     état d'attente vivaient DANS `DzmEmojiBtn` : il n'y avait rien à
+     appeler. L'étape 7 a sorti l'action du bouton (`dzmEmojiGo`) — elle est
+     maintenant appelée par les deux portes, et il n'y a toujours qu'un code.
+     L'ATTENTE ÉTEINT LE BOUTON, et son titre le DIT au lieu de le laisser
+     deviner : une seconde requête partie pendant la première ne détruirait
+     rien, mais elle poserait deux fois les mêmes emoji. */
+  var poseEmo=typeof p.onEmoji==="function";
+  var emoOcc=p.emojiBusy===!0;
+  m["emoji"]={disabled:!poseEmo||emoOcc,
+    act:(poseEmo&&!emoOcc)?function(){p.onEmoji()}:null,
+    title:!poseEmo?DZM_TB_SANS_HOTE
+      :emoOcc?DZM_TB_T_EMOJI_OCC
+      :(DZM_TB_T_EMOJI+DZM_TB_EMO_ECART+dzmTbUndo("emoji"))};
   var poseTx=typeof p.onText==="function";
   m["texte"]={toggle:!0,active:p.textOn===!0,disabled:!poseTx,
     act:poseTx?function(){p.onText()}:null,
-    title:poseTx?DZM_TB_T_TEXTE:DZM_TB_SANS_HOTE};
-  /* PROJETS — le sélecteur est un panneau qui porte son propre état
-     d'ouverture dans son composant : rien ne l'ouvre depuis l'extérieur
-     aujourd'hui. Éteint, et le titre le dit. */
-  m["projets"]={disabled:!0,act:null,
-    title:dzmTbEtape7("Ouvrir le sélecteur de projets")};
+    title:poseTx?(DZM_TB_T_TEXTE+DZM_TB_TXT_ECART+dzmTbUndo("texte"))
+      :DZM_TB_SANS_HOTE};
+  /* PROJETS — le sélecteur ÉTAIT ÉTEINT À L'ÉTAPE 4 parce qu'il portait son
+     état d'ouverture dans son composant : rien ne l'ouvrait de l'extérieur.
+     L'étape 7 lui a donné une DEMANDE d'ouverture (`openReq`), et c'est tout
+     ce que ce bouton fait — il n'ouvre AUCUN projet, ne touche ni la
+     timeline, ni la tête de lecture, ni l'historique. */
+  var posePj=typeof p.onProjets==="function";
+  m["projets"]={disabled:!posePj,
+    act:posePj?function(){p.onProjets()}:null,
+    title:posePj?(DZM_TB_T_PROJETS+dzmTbUndo("projets")):DZM_TB_SANS_HOTE};
   return m}
 
 /* LA FRAME SUIVANTE, ISOLÉE POUR ÊTRE JOUABLE. Elle sert au §4.4 :
@@ -2958,6 +3163,27 @@ function DzmToolBar(o){
     "data-drag":o.drag===!0?"":void 0,
     children:kids},"tbar")}
 
+/* ── CE QUE LE DOCK AJOUTE AUX PROPRIÉTÉS DE L'ÉCRAN ─────────────────
+   ISOLÉE POUR ÊTRE JOUÉE, comme `dzmTbFrame` à l'étape 4 et pour la même
+   raison : cette décision-là — « le bouton emoji est-il vivant ? » — vivait
+   sinon dans le seul morceau à hooks du lot, donc hors de portée du banc.
+   DEUX PROPRIÉTÉS DE PLUS, ET RIEN D'AUTRE N'EST TOUCHÉ : l'objet de l'écran
+   est COPIÉ, jamais muté — il appartient au bundle, qui le reconstruit à
+   chaque rendu, et le muter ferait fuir l'état d'attente d'un rendu au
+   suivant.
+   `onEmoji` N'EST POSÉ QUE SI L'ÉCRAN A FOURNI DE QUOI RECEVOIR LES CLIPS :
+   sans `onEmojiAdd`, `dzmEmojiGo` ne saurait qu'écrire une note d'excuse, et
+   le bouton aurait l'air vivant en ne faisant rien — exactement ce que
+   l'étape 4 refusait déjà. Éteint, et `dzmTbCablage` le dit. */
+function dzmTbHote(o,emoji,occupe){
+  var h={},k;
+  o=o||{};
+  for(k in o)if(Object.prototype.hasOwnProperty.call(o,k))h[k]=o[k];
+  h.onEmoji=(typeof o.onEmojiAdd==="function"&&typeof emoji==="function")
+    ?emoji:null;
+  h.emojiBusy=occupe===!0;
+  return h}
+
 /* ── CE QUI EST MONTÉ DANS LE BANDEAU (§4.1, §4.4) ─────────────────────────
    Le seul morceau à hooks du lot, et il est mince exprès : il tient l'état
    `open`, le restaure sans animation, et passe le câblage à la barre. Tout
@@ -2978,6 +3204,11 @@ function DzmToolDock(o){
   var sg=x.useState(!1),drag=sg[0],setDrag=sg[1];
   var sa=x.useState(!1),anim=sa[0],setAnim=sa[1];
   var bar=x.useRef(null),fin=x.useRef(null);
+  /* L'ATTENTE DE LA REQUÊTE EMOJI, ET POURQUOI ELLE EST ICI. `dzmEmojiGo`
+     n'a pas de hook : chaque porte tient la sienne. Celle du bandeau vit
+     dans `DzmEmojiBtn`, celle-ci dans le Dock — duplication TRANSITOIRE que
+     l'étape 6 solde en retirant l'autre porte. */
+  var sm=x.useState(0),emo=sm[0],setEmo=sm[1];
   /* LE DÉCALAGE COURANT DANS UNE RÉFÉRENCE, tenue à jour à chaque rendu —
      la forme de la maison (`clipsRef.current=props.clips` dans le bundle).
      L'écouteur de redimensionnement est posé UNE FOIS, au montage ; sans
@@ -3003,6 +3234,14 @@ function DzmToolDock(o){
     return dzmTbVeille((typeof window!=="undefined")?window:null,
       recadrer)},[]);
   function bascule(){setOpen(function(v){return dzmTbOpenSet(!v)})}
+  /* L'ACTION « emoji », RÉUTILISÉE : c'est `dzmEmojiGo`, la même fonction que
+     le bouton du bandeau appelle. La barre lui passe les trois ingrédients
+     que l'écran fournit (`emojiSegs`, `tracks`, `onEmojiAdd`) et son propre
+     couple d'attente. Elle ne calcule AUCUN temps : le placement des clips
+     appartient à `dzmEmojiClips`, comme avant. */
+  function emoji(){
+    dzmEmojiGo({segments:o.emojiSegs,tracks:o.tracks,note:o.note,
+      onAdd:o.onEmojiAdd,busy:emo,setBusy:setEmo})}
   /* Le décalage n'est écrit dans le magasin qu'au RELÂCHEMENT : un
      `setItem` par `pointermove` aurait écrit des centaines de fois par
      geste, pour une seule position qui compte. */
@@ -3050,7 +3289,8 @@ function DzmToolDock(o){
   return r.jsx(r.Fragment,{children:[
     DzmToolTab({open:open,onToggle:bascule}),
     DzmToolBar({open:open,anim:anim,off:off,drag:drag,barRef:bar,
-      items:dzmTbCablage(o),onGrab:saisir,onGripKey:clavier,
+      items:dzmTbCablage(dzmTbHote(o,emoji,!!emo)),
+      onGrab:saisir,onGripKey:clavier,
       onRecentrer:recentrer,
       onClose:function(){setOpen(dzmTbOpenSet(!1))}})]})}
 
@@ -3069,7 +3309,8 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   replaceBtn:dzmReplaceBtn,revertBtn:dzmRevertBtn,
   newerLine:dzmNewerLine,NewerHint:DzmNewerHint,
   move:dzmMove,moveTo:dzmMoveTo,add:dzmAdd,remove:dzmRemove,group:dzmGroup,
-  clipsOn:dzmClipsOn,emojiClips:dzmEmojiClips,WORD_ANIMS:DZM_WORD_ANIMS,
+  clipsOn:dzmClipsOn,emojiClips:dzmEmojiClips,emojiGo:dzmEmojiGo,
+  EMO_TITRE:DZM_EMO_TITRE,WORD_ANIMS:DZM_WORD_ANIMS,
   fitDur:dzmFitDur,durCtl:dzmDurCtl,secs:dzmSecs,DUR_MIN:DZM_DUR_MIN,
   clipLen:dzmClipLen,needDur:dzmNeedDur,askDur:dzmAskDur,
   CLIP_DEFAUTS:DZM_CLIP_DEFAUTS,DUR_DELAI:DZM_DUR_DELAI,
@@ -3078,6 +3319,8 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   TB_GROUPES:DZM_TB_GROUPES,TB_PX:DZM_TB_PX,TB_PX_GRIP:DZM_TB_PX_GRIP,
   TB_PLAN:DZM_TB_PLAN,TB_CLE_OPEN:DZM_TB_CLE_OPEN,TB_ID:DZM_TB_ID,
   tbOpenGet:dzmTbOpenGet,tbOpenSet:dzmTbOpenSet,tbCablage:dzmTbCablage,tbFrame:dzmTbFrame,
+  tbHote:dzmTbHote,tbUndo:dzmTbUndo,TB_EFFETS:DZM_TB_EFFETS,
+  TB_H_TXT:DZM_TB_H_TXT,
   tbBorne:dzmTbBorne,tbBoite:dzmTbBoite,tbPince:dzmTbPince,
   tbSaisie:dzmTbSaisie,tbTouche:dzmTbTouche,tbGeo:dzmTbGeo,
   tbRecadre:dzmTbRecadre,tbVeille:dzmTbVeille,

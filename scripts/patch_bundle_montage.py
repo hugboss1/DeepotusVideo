@@ -272,9 +272,7 @@ A_M8 = ('r.jsx("button",{className:"svm-tbtn",title:"Raccourcis ("'
 R_M10 = ('r.jsx(DzTracks.WordAnimChip,{value:(proj.subsStyle||{}).wordAnim||"couleur",'
          'onChange:function(v){subsStyleSet({wordAnim:v})}}),\n'
          '        r.jsx(DzTracks.EmojiBtn,{segments:subsSegsOf(clips),'
-         'tracks:svmTracksOf(proj),note:fireNote,'
-         'onAdd:function(cs){pushHistory();'
-         'setClips(function(k){return (k||[]).concat(cs)});setDirty(!0)}}),')
+         'tracks:svmTracksOf(proj),note:fireNote,onAdd:dzEmoAdd}),')
 
 # ── M11a (P3) : l'ÉTAT du panneau « Texte » ────────────────────────────────
 # Il lui faut une déclaration dans le CORPS du composant : R_M8 est un tableau
@@ -284,11 +282,40 @@ R_M10 = ('r.jsx(DzTracks.WordAnimChip,{value:(proj.subsStyle||{}).wordAnim||"cou
 # bundle minifié, et un `var` de même nom dans la même fonction écraserait
 # silencieusement l'autre. `dzTextOn` / `stDzTx` : zéro occurrence.
 A_M11 = "  var stSu=x.useState(!1),subsOn=stSu[0],setSubsOn=stSu[1];"
+# ÉTAPE 7 DU HANDOFF « Barre Outils Flottante » (§6) — DEUX DÉCLARATIONS DE
+# PLUS, ET ELLES SONT ICI POUR LA MÊME RAISON QUE `dzTextOn` : un hook et une
+# fonction se déclarent dans le CORPS du composant, pas dans un tableau
+# `children`. Cette ancre est la seule de la chaîne qui soit dans le corps.
+#   `dzEmoAdd` — LE MÊME `onAdd` POUR LES DEUX PORTES. Le bouton du bandeau
+#     (R_M10) et la barre (R_M19) posent les mêmes clips par la même
+#     fonction : `pushHistory()` PUIS l'ajout, donc « annuler » les retire
+#     d'un coup. Elle était écrite en toutes lettres dans R_M10 ; recopiée
+#     dans R_M19, elle aurait fait DEUX sources pour un seul geste, et le
+#     jour où l'une pousse l'historique et l'autre non, rien ne l'aurait dit.
+#   `dzProjReq` — LA DEMANDE D'OUVERTURE de la liste des projets, un
+#     COMPTEUR. Le popover garde son état d'ouverture chez lui (il se ferme
+#     sur un `mousedown` hors de sa boîte) ; un booléen piloté de l'extérieur
+#     serait remis à faux par ce `mousedown` juste avant que le `click` le
+#     remène à vrai. Un compteur n'a pas d'ordre à respecter : il DEMANDE.
+# LES NOMS SONT MESURÉS LIBRES dans le bundle livré, comme `stDzTx` l'avait
+# été : `stDzPj`, `dzProjReq`, `setDzProjReq`, `dzEmoAdd` — zéro occurrence
+# chacun le 06/09/2026. Un `var` de même nom qu'un identifiant minifié
+# existant l'écraserait en silence.
 R_M11 = ("  /* P3 — panneau « Texte » (monter en LISANT). Son état est À LUI :\n"
          "     il ne vit pas dans la zone des tiroirs (Sons / Narration /\n"
          "     Sous-titres, mutuellement exclusifs) mais dans la COLONNE\n"
          "     D'INSPECTION, où il ne dispute sa place à personne. */\n"
          "  var stDzTx=x.useState(!1),dzTextOn=stDzTx[0],setDzTextOn=stDzTx[1];\n"
+         "  /* étape 7 du handoff « Barre Outils Flottante » (§6) : la demande\n"
+         "     d'ouverture de la liste des projets (un COMPTEUR, pas un\n"
+         "     booléen — le popover se ferme seul sur le clic qui l'ouvre),\n"
+         "     et l'ajout des emoji, PARTAGÉ par le bouton du bandeau et la\n"
+         "     barre : `pushHistory()` puis l'ajout, donc « annuler » les\n"
+         "     retire d'un coup. */\n"
+         "  var stDzPj=x.useState(0),dzProjReq=stDzPj[0],"
+         "setDzProjReq=stDzPj[1];\n"
+         "  function dzEmoAdd(cs){pushHistory();"
+         "setClips(function(k){return (k||[]).concat(cs)});setDirty(!0)}\n"
          + A_M11)
 
 # ── M11b (P3) : le bouton « texte » de la barre — DANS R_M8, comme M10 ──────
@@ -342,6 +369,10 @@ R_M11b = ('r.jsx("button",{className:"svm-tbtn dzm-txton","data-on":dzTextOn?"":
 # et déclencherait un autosave qui réécrirait à l'identique.
 R_M14 = ('r.jsx(DzTracks.Projects,{name:proj.name,projectId:proj.project_id,'
          'note:fireNote,\n'
+         '          /* étape 7 : la barre d’outils ouvre CETTE liste-ci au\n'
+         '             lieu d’en monter une seconde — un compteur, pas un\n'
+         '             booléen. */\n'
+         '          openReq:dzProjReq,\n'
          '          payload:function(){return svmSavePayload()},\n'
          '          onBefore:function(){'
          'if(saveAbortRef.current){try{saveAbortRef.current.abort()}catch(_e){}}'
@@ -1435,33 +1466,48 @@ R_M18A = ("    /* P11 — plus de plafond : la longueur d'un clip est celle de\n
 # est une SyntaxError en sémantique module — celle sous laquelle index.html
 # charge le bundle. Même raison qu'en M10 et M14.
 #
-# LES SIX PROPRIÉTÉS SONT LE CÂBLAGE ATTEIGNABLE SANS TRAVAIL NEUF (§6 : « la
-# barre est un nouveau point d'entrée, pas une nouvelle implémentation ») :
+# LES DIX PROPRIÉTÉS SONT LE CÂBLAGE DU §6 EN ENTIER (« la barre est un
+# nouveau point d'entrée, pas une nouvelle implémentation »). Aucune n'ouvre
+# une action neuve : chacune est une expression DÉJÀ écrite ailleurs dans ce
+# patcher, reprise mot pour mot.
 #   tracks / onTracks  — `svmTracksOf(proj)` et `svmTracksSet`, exactement ce que
 #                        `DzTracks.TrackAdd` reçoit en M8 : même appel, autre porte
 #   onPick             — `openPicker`, celui de « Bibliothèque… » en M8
 #   wordAnim/onWordAnim— la MÊME expression qu'en M10 : `proj.subsStyle` est la
 #                        source unique, la chip et la barre la LISENT toutes deux
 #   textOn / onText    — l'état du panneau « Texte » de M11a, basculé comme en M11b
-# `emoji` et `projets` ne reçoivent RIEN, et c'est délibéré : leurs actions
-# vivent à l'intérieur de leurs composants (état d'attente pour l'un, état
-# d'ouverture pour l'autre) et ne sont pas atteignables de l'extérieur. La couche
-# les rend ÉTEINTS avec un `title` qui nomme l'étape 7. Jamais un bouton qui a
-# l'air vivant et ne fait rien.
+#   emojiSegs / note / onEmojiAdd — LES TROIS INGRÉDIENTS de M10, à l'identique.
+#                        C'est le Dock qui appelle `DzTracks.emojiGo` avec eux :
+#                        l'ÉTAT D'ATTENTE est un hook, il reste à chaque porte.
+#   onProjets          — incrémente `dzProjReq` (M11a), que M14 passe au popover
+#
+# ÉTAPE 7 : `emoji` ET `projets` NE SONT PLUS ÉTEINTS, et ce qui les tenait
+# éteints était NOMMÉ à l'étape 4 : leur action vivait À L'INTÉRIEUR de leur
+# composant. La porte a été ouverte SANS déplacer l'état, ce qui aurait
+# demandé de réécrire les deux composants :
+#   • emoji — le `fetch` est sorti du bouton (`dzmEmojiGo`, au premier niveau
+#     de la couche) ; les deux portes l'appellent, chacune avec SON attente.
+#   • projets — le popover garde son ouverture chez lui et reçoit une DEMANDE
+#     (`openReq`). C'est le seul moyen d'ouvrir sans lutter contre son propre
+#     « clic dehors », qui se déclenche précisément sur le bouton de la barre.
 #
 # DUPLICATION TRANSITOIRE, ASSUMÉE : les neuf contrôles restent dans le bandeau
-# tant que l'étape 6 (§5.1) ne les a pas retirés — le §9 l'impose dans cet ordre
-# (« *après* que la barre fonctionne, jamais avant »).
+# tant que l'étape 6 (§5.1) ne les a pas retirés — et l'étape 7 passe AVANT
+# l'étape 6 précisément pour cela : retirer d'abord `emoji` et `projets` du
+# bandeau les aurait rendus inatteignables partout, ce que le §9 s'interdit.
 A_M19 = 'r.jsxs("div",{className:"svm-trans",children:['
 R_M19 = (A_M19 + "\n"
-         "        /* étape 4 du handoff « Barre Outils Flottante » : l'onglet\n"
-         "           OUTILS et la barre flottante. Les deux sont absolus, donc\n"
+         "        /* étapes 4 à 7 du handoff « Barre Outils Flottante » :\n"
+         "           l'onglet OUTILS et la barre flottante, câblée sur les\n"
+         "           actions de l'écran. Les deux nœuds sont absolus, donc\n"
          "           hors du flux flex de ce bandeau : rien n'y bouge. */\n"
          "        r.jsx(DzTracks.ToolDock,{tracks:svmTracksOf(proj),"
          "onTracks:svmTracksSet,onPick:openPicker,"
          "wordAnim:(proj.subsStyle||{}).wordAnim||\"couleur\","
          "onWordAnim:function(v){subsStyleSet({wordAnim:v})},"
-         "textOn:dzTextOn,onText:function(){setDzTextOn(!dzTextOn)}}),")
+         "textOn:dzTextOn,onText:function(){setDzTextOn(!dzTextOn)},"
+         "emojiSegs:subsSegsOf(clips),note:fireNote,onEmojiAdd:dzEmoAdd,"
+         "onProjets:function(){setDzProjReq(function(n){return n+1})}}),")
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),

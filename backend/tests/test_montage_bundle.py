@@ -419,26 +419,52 @@ check("M10_utilise_DzTracks_pas_DzMontage",
 # encore leurré, `subsSegsOf` étant sous-chaîne de `subsSegsOfRENOMME`.
 # `fireNote=nt[1]` apparaît sept fois — c'est le même motif dans plusieurs
 # composants ; ce qui compte est qu'il en reste au moins un.
+# ÉTAPE 7 : `pushHistory`, `setClips` et `setDirty` ONT QUITTÉ R_M10 pour
+# R_M11 — la barre pose les mêmes emoji, et recopier ces trois appels dans
+# R_M19 aurait fait DEUX sources pour un seul geste. Ils sont donc mesurés
+# dans R_M11 (voir `M10_M19_emoji_partagent_un_seul_ajout` plus bas), et
+# R_M10 ne garde que les trois qui lui restent propres.
 for _nm, _decl in (("subsSegsOf", "function subsSegsOf(cs){"),
                    ("subsStyleSet", "function subsStyleSet(patch){"),
-                   ("pushHistory", "var pushHistory=x.useCallback("),
-                   ("setClips", "setClips=st1[1]"),
-                   ("setDirty", "setDirty=st8[1]"),
+                   ("dzEmoAdd", "function dzEmoAdd(cs){pushHistory();"),
                    ("fireNote", "fireNote=nt[1]")):
     _appele = re.search(r"\b%s\b" % re.escape(_nm), P.R_M10) is not None
     check("M10_appelle_" + _nm + "_qui_est_declare",
           _appele and s.count(nl(_decl)) >= 1,
           f"appelé={_appele} déclaré={s.count(nl(_decl))} ({_decl})")
-# L'ANNULATION est garantie par CONSTRUCTION, pas par une mesure : pushHistory
-# et undo sont des hooks du composant, hors de portée du shim node — qui ne
-# joue que la couche pure. Ce que cette ligne épingle est l'ORDRE des deux
-# appels dans le bundle livré, pas leur effet. Bon côté de ce montage : `onAdd`
-# étant appelé depuis le `.then()`, pushHistory lit l'état au moment de la
-# réponse et non du clic — l'instantané reste juste si l'utilisateur a bougé
-# un clip pendant la requête.
-check("M10_emoji_pousse_l_historique_avant_d_ajouter",
-      s.count(nl("onAdd:function(cs){pushHistory();setClips(")) == 1,
-      f'count={s.count(nl("onAdd:function(cs){pushHistory();setClips("))}')
+for _nm, _decl in (("pushHistory", "var pushHistory=x.useCallback("),
+                   ("setClips", "setClips=st1[1]"),
+                   ("setDirty", "setDirty=st8[1]")):
+    _appele = re.search(r"\b%s\b" % re.escape(_nm), P.R_M11) is not None
+    check("M11_appelle_" + _nm + "_qui_est_declare",
+          _appele and s.count(nl(_decl)) >= 1,
+          f"appelé={_appele} déclaré={s.count(nl(_decl))} ({_decl})")
+# L'ANNULATION est garantie par CONSTRUCTION ici, pas par une mesure :
+# `pushHistory` et `undo` sont des hooks du composant, hors de portée du shim
+# node — qui ne joue que la couche pure. Ce que cette ligne épingle est
+# l'ORDRE des deux appels dans le bundle livré. L'EFFET, lui, est mesuré :
+# la section [6-quater] rejoue les neuf actions de la barre sur un faux écran
+# qui reproduit cette sémantique-ci, et lit ce qu'`undo` rend.
+# Bon côté de ce montage : `dzEmoAdd` étant appelé depuis le `.then()`,
+# `pushHistory` lit l'état au moment de la RÉPONSE et non du clic —
+# l'instantané reste juste si l'utilisateur a bougé un clip pendant la
+# requête.
+# ÉTAPE 7 — UNE SEULE DÉCLARATION POUR DEUX PORTES. Le bouton du bandeau et
+# la barre posent les emoji par la MÊME fonction : c'est ce qui interdit que
+# l'une pousse l'historique et l'autre non. La ligne le mesure des DEUX
+# côtés — une seule définition dans le bundle, et DEUX usages, un par porte.
+# MESURÉE PAR MUTATION : en recopiant le corps dans R_M19 au lieu d'appeler
+# `dzEmoAdd`, la définition reste à 1 mais `_usages` tombe à 1 — rouge.
+_DEF_EMOADD = ("function dzEmoAdd(cs){pushHistory();"
+               "setClips(function(k){return (k||[]).concat(cs)});"
+               "setDirty(!0)}")
+_usages = s.count(nl("onAdd:dzEmoAdd")) + s.count(nl("onEmojiAdd:dzEmoAdd"))
+check("M10_M19_emoji_partagent_un_seul_ajout",
+      s.count(nl(_DEF_EMOADD)) == 1 and _usages == 2
+      and "onAdd:dzEmoAdd" in P.R_M10
+      and "onEmojiAdd:dzEmoAdd" in P.R_M19
+      and _DEF_EMOADD in P.R_M11,
+      f'definitions={s.count(nl(_DEF_EMOADD))} usages={_usages}')
 
 print("\n[1-bis] P3 — le bouton « texte », le panneau, et la coupe par plage")
 # M11b vit DANS R_M8, comme M10 : meme raison (A_M8 deja consommee). Meme
@@ -1880,6 +1906,57 @@ check("dette_ecran_le_defilement_du_zoom_existe_et_n_a_pas_bouge",
 check("dette_ecran_la_regle_cesse_de_graduer_a_40_traits",
       s.count(nl("&&ticks.length<40;")) == 1,
       f"count={s.count(nl('&&ticks.length<40;'))}")
+# ── DETTE D'ECRAN DE L'ETAPE 7 (le cablage du §6) ──────────────────
+# DEUX MECANISMES QUE SEUL UN NAVIGATEUR VOIT, et aucune de ces lignes ne
+# pretend les avoir mesures. Elles EPINGLENT le mecanisme pour que la note de
+# dette du commit reste exacte : le jour ou il change, elles rougissent.
+#   1. DEUX ETATS D'ATTENTE POUR EMOJI, un par porte — celui du bouton du
+#      bandeau et celui du Dock. `dzmEmojiGo` n'a pas de hook et ne peut donc
+#      pas les partager. Deux clics simultanes (un par porte) partent en deux
+#      requetes : rien n'est detruit — chacune pousse l'historique avant
+#      d'ajouter — mais les memes emoji sont poses deux fois. L'etape 6, qui
+#      retire le bouton du bandeau, referme cette porte-la.
+#   2. L'ORDRE `mousedown` PUIS `click` sur le bouton « projets » de la barre.
+#      Le popover se ferme sur un `mousedown` HORS de sa boite — et le bouton
+#      de la barre est hors de cette boite. C'est ce qui a impose un COMPTEUR
+#      plutot qu'un booleen partage : le resultat NET est « ouverte » quel
+#      que soit l'ordre, mais le rendu intermediaire ne se voit qu'a l'ecran.
+check("dette_ecran_etape7_les_deux_mecanismes_que_seul_un_navigateur_voit",
+      src.count('window.addEventListener("mousedown",down);') == 1
+      and "if(box.current&&!box.current.contains(e.target))" in src
+      # `var sb=x.useState(0),busy=...` vaut TROIS dans la couche (c'est
+      # le motif d'attente de plusieurs composants) : la sous-chaine
+      # seule ne decidait rien, il faut l'ancrer sur SON composant.
+      and re.search(r"var DzmEmojiBtn=function\(props\)\{\s*"
+                    r"var sb=x\.useState\(0\),busy=sb\[0\],"
+                    r"setBusy=sb\[1\];", src) is not None
+      and src.count("var sm=x.useState(0),emo=sm[0],setEmo=sm[1];") == 1,
+      "les deux mecanismes de la note de dette ont bouge")
+# ── CE QUE LE §4.3 DEMANDE ET QUE CETTE BASE N'A PAS : LE NUANCIER ANCRE ──
+# MESURE, ET CONSIGNEE PLUTOT QU'INVENTEE. Le §4.3 veut que `MOT · couleur`
+# ouvre un selecteur de teinte ANCRE SOUS LE BOUTON, limite a huit teintes
+# (« pas un selecteur libre — un nuancier ouvert produit des sous-titres
+# illisibles »). Rien de tel n'existe ici : AUCUN composant de nuancier, et
+# le SEUL controle de couleur des sous-titres est un `<input type="color">`,
+# c'est-a-dire le dialogue libre du systeme — exactement ce que le §4.3
+# ecarte. Il ecrit `subsStyle` pour toute la piste S1, jamais un mot.
+# CETTE LIGNE EST LA POUR QUE LE CONSTAT RESTE VRAI : le jour ou un nuancier
+# entre dans cette base, elle rougit et l'ecart du groupe MOT est rediscute.
+check("dette_ecran_etape7_aucun_nuancier_ancre_n_existe_dans_cette_base",
+      s.count(nl('r.jsx("input",{className:"sub-color",type:"color",'
+                 'value:subsHex6(st[k]),')) == 1
+      and s.count(nl('col("karColor","Couleur du mot")')) == 1
+      and s.count(nl("function subsStyleSet(patch){")) == 1
+      # LE GARDE-FOU EST INSENSIBLE A LA CASSE, et c'est une CORRECTION
+      # mesuree par mutation : la premiere ecriture cherchait "swatch"
+      # et "Swatch", et un `DZM_TB_SWATCH` pose dans la couche passait
+      # sans rougir. Faute n°2, et la meme famille que le `Select-String`
+      # insensible a la casse de l'etape 5 : la casse decide, on ne la
+      # devine pas. `nuancier` s'ajoute — le mot francais du §4.3.
+      and "swatch" not in s.lower() and "nuancier" not in s.lower(),
+      f'sub-color={s.count(nl(chr(34) + "sub-color" + chr(34)))} '
+      f'swatch={s.lower().count("swatch")} '
+      f'nuancier={s.lower().count("nuancier")}')
 
 print("\n[1-ter] feuille de style et index.html")
 check("css_liee_index_html", "shared/montage.css" in
@@ -2642,7 +2719,8 @@ var cabPlein = TBG(function () {
   return T.tbCablage({
     tracks: CAB_TS, onTracks: function () { }, onPick: function () { },
     wordAnim: "rebond", onWordAnim: function () { },
-    textOn: !0, onText: function () { }
+    textOn: !0, onText: function () { },
+    onEmoji: function () { }, emojiBusy: !1, onProjets: function () { }
   })
 });
 out.tb_c_cles = TBG(function () { return Object.keys(cabPlein).sort() });
@@ -2739,11 +2817,25 @@ out.tb_c_texte_clic = TBG(function () {
 out.tb_c_texte_eteint = TBG(function () {
   return T.tbCablage({ textOn: !1, onText: function () { } })["texte"].active
 });
-/* EMOJI ET PROJETS — eteints, sans action, et leur titre nomme l'etape. */
+/* EMOJI ET PROJETS — les deux qui avaient resiste a l'etape 4. Ils sont
+   CABLES desormais : vivants avec leur hote, eteints sans lui, et deux
+   phrases DIFFERENTES dans les deux cas. */
+out.tb_c_vivants = TBG(function () {
+  return ["emoji", "projets"].map(function (k) {
+    return [cabPlein[k].disabled, typeof cabPlein[k].act, cabPlein[k].title]
+  })
+});
+var cabSansHote = TBG(function () { return T.tbCablage({ tracks: CAB_TS }) });
 out.tb_c_muets = TBG(function () {
   return ["emoji", "projets"].map(function (k) {
-    return [cabPlein[k].disabled, cabPlein[k].act, cabPlein[k].title]
+    return [cabSansHote[k].disabled, cabSansHote[k].act, cabSansHote[k].title]
   })
+});
+/* AUCUN TITRE NE NOMME PLUS UNE ETAPE A VENIR : c'etait la marque des deux
+   boutons eteints, et `dzmTbEtape7` a ete RETIREE avec eux. */
+out.tb_c_titres = TBG(function () {
+  return Object.keys(cabPlein).sort().map(function (k) {
+    return cabPlein[k].title })
 });
 /* SANS HOTE : un cablage vide n'allume RIEN et ne leve pas — c'est ce qui
    arriverait si la section du patcher perdait ses proprietes. */
@@ -3491,6 +3583,173 @@ out.tb_d_bout_en_bout = TBG(function () {
   return [vu, w.n(), c.tr,
   el.getBoundingClientRect().left + vu[vu.length - 1][0]]
 });
+
+/* ══ ETAPE 7 — LE CABLAGE DU §6 ET SES TROIS EXIGENCES, JOUES ═══════════
+   TOUT CE QUI SUIT EST JOUE, pas lu. Un FAUX ECRAN reproduit la semantique
+   MESUREE du bundle livre : `pushHistory` n'empile que {clips, mixDb},
+   `undo` ne repose que ces deux-la, `svmTracksSet` pousse l'historique PUIS
+   ecrit les pistes, `subsStyleSet` n'empile RIEN. Les neuf actions sont
+   declenchees une par une, et l'on LIT ce qu'`undo` rend.
+   LA TETE DE LECTURE EST UN ACCESSEUR COMPTE, pose sur l'objet MEME que
+   `dzmTbCablage` recoit : une action qui la lirait — donc qui calculerait
+   une position au lieu de la deleguer — se verrait aussitot. */
+function THEN(v){return {__t:1,v:v,
+  then:function(f){var r=f(this.v);return (r&&r.__t)?r:THEN(r)},
+  catch:function(){return this}}}
+/* POURQUOI UN FAUX `fetch` SYNCHRONE : le shim imprime `out` d'un trait, et
+   une vraie promesse aurait rendu la main APRES l'impression — les lignes
+   emoji auraient mesure du vide, en restant vertes. Le double deroule la
+   chaine sur-le-champ. Ce qu'il ne mesure pas est DIT : l'ordonnancement
+   des microtaches, et le chemin de rejet. */
+var HINTS7=[{t:1.25,word:"feu",emoji:"F",file:"feu",png:"/emo/feu.png"},
+            {t:3.5,word:"lune",emoji:"L",file:"lune",png:"/emo/lune.png"}];
+function ECRAN7(){
+  var e={clips:[{id:"c0",tr:"v2"}],mixDb:-6,
+    tracks:[{id:"v2",kind:"video"},{id:"v1",kind:"video"},
+            {id:"a1",kind:"audio"},{id:"s1",kind:"subs"}],
+    subsStyle:{wordAnim:"couleur"},textOn:!1,
+    hist:[],panneaux:[],notes:[],reqs:[],projReq:0,attente:"jamais",
+    lus:0,ecrits:0,_ph:3.5};
+  e.push=function(){e.hist.push({clips:e.clips,mixDb:e.mixDb})};
+  e.undo=function(){if(!e.hist.length)return !1;
+    var h=e.hist.pop();e.clips=h.clips;e.mixDb=h.mixDb;return !0};
+  return e}
+/* LES PROPRIETES QUE R_M19 PASSE, une par une, chacune branchee sur le faux
+   ecran ; puis `dzmTbHote`, la fonction du Dock, qui decide si `emoji` est
+   vivant. C'est la chaine complete moins les hooks. */
+function PROPS7(e,occupe){
+  var o={tracks:e.tracks,
+    onTracks:function(ts){e.push();e.tracks=ts},
+    onPick:function(){e.panneaux.push(Array.prototype.slice.call(arguments))},
+    wordAnim:e.subsStyle.wordAnim,
+    onWordAnim:function(v){e.subsStyle={wordAnim:v}},
+    textOn:e.textOn,onText:function(){e.textOn=!e.textOn},
+    emojiSegs:[{start:0,end:2,text:"le feu et la lune"}],
+    note:function(m){e.notes.push(m)},
+    onEmojiAdd:function(cs){e.push();e.clips=e.clips.concat(cs)},
+    onProjets:function(){e.projReq++}};
+  var h=T.tbHote(o,function(){
+    T.emojiGo({segments:o.emojiSegs,tracks:o.tracks,note:o.note,
+      onAdd:o.onEmojiAdd,busy:occupe===!0,
+      setBusy:function(v){e.attente=v},
+      fetch:function(u,op){e.reqs.push([u,(op||{}).method]);
+        return THEN({json:function(){return THEN({hints:HINTS7})}})}})},
+    occupe===!0);
+  Object.defineProperty(h,"ph",{
+    get:function(){e.lus++;return e._ph},
+    set:function(v){e.ecrits++;e._ph=v},enumerable:!0,configurable:!0});
+  return h}
+var TB7=["piste-video","piste-audio","bibliotheque","couleur","rebond",
+  "glow","emoji","texte","projets"];
+/* LE TABLEAU DES NEUF : ce que chaque action pousse, ce qu'elle touche, ce
+   qu'`undo` rend, et si elle a lu ou ecrit la tete de lecture. */
+out.tb7_par_bouton=TBG(function(){
+  return TB7.map(function(k){
+    var e=ECRAN7(),h=PROPS7(e,!1),c=T.tbCablage(h);
+    var c0=e.clips,t0=e.tracks,s0=e.subsStyle,x0=e.textOn;
+    var lus0=e.lus,ecr0=e.ecrits;
+    c[k].act();
+    var pousse=e.hist.length;
+    var touche=[e.clips!==c0,e.tracks!==t0,e.subsStyle!==s0,e.textOn!==x0,
+                e.panneaux.length,e.projReq];
+    var rendu=e.undo();
+    return [k,pousse,touche,rendu,
+      [e.clips===c0,e.tracks===t0,e.subsStyle===s0,e.textOn===x0],
+      [e.lus-lus0,e.ecrits-ecr0]]})});
+/* AUCUNE DES NEUF NE LIT NI N'ECRIT LA TETE DE LECTURE — le cablage
+   lui-meme compris : le compteur part AVANT `tbCablage`. */
+out.tb7_la_tete_de_lecture=TBG(function(){
+  var e=ECRAN7(),h=PROPS7(e,!1);
+  var l0=e.lus,r0=e.ecrits;
+  var c=T.tbCablage(h),n=0;
+  TB7.forEach(function(k){if(typeof c[k].act==="function"){c[k].act();n++}});
+  return [n,e.lus-l0,e.ecrits-r0,e._ph]});
+/* LA TABLE DES EFFETS, ET LES PHRASES QU'ELLE ECRIT. */
+out.tb7_table=TBG(function(){
+  return Object.keys(T.TB_EFFETS).sort().map(function(k){
+    return [k,T.TB_EFFETS[k].h,T.TB_EFFETS[k].via,T.TB_EFFETS[k].tete]})});
+out.tb7_phrases=TBG(function(){
+  return TB7.map(function(k){return T.tbUndo(k)})});
+out.tb7_undo_inconnu=TBG(function(){
+  return [T.tbUndo("rien-de-tel"),T.tbUndo(),T.tbUndo("__proto__")]});
+/* CHAQUE TITRE CABLE SE TERMINE PAR SA PHRASE, et il reste du texte devant :
+   sans ce second terme, un titre REDUIT a la phrase passerait. */
+var CAB7=TBG(function(){return T.tbCablage(PROPS7(ECRAN7(),!1))});
+out.tb7_titres_finissent_par_la_phrase=TBG(function(){
+  return TB7.map(function(k){
+    var t=String(CAB7[k].title||""),u=T.tbUndo(k);
+    return [u.length>40,t.slice(-u.length)===u,t.length-u.length>40]})});
+/* L'ACTION EMOJI, JOUEE DE BOUT EN BOUT : une requete, deux clips poses sur
+   la piste d'overlay la plus haute, aux dates des mots, l'historique pousse
+   AVANT, l'attente rallumee puis eteinte, une note. */
+out.tb7_emoji_pose_les_clips=TBG(function(){
+  var e=ECRAN7(),c=T.tbCablage(PROPS7(e,!1));
+  c["emoji"].act();
+  return [e.reqs,e.clips.length,
+    e.clips.slice(1).map(function(k){
+      return [k.tr,k.start,Math.round((k.end-k.start)*100)/100]}),
+    e.hist.length,e.attente,e.notes.length,
+    e.undo(),e.clips.length]});
+/* LES QUATRE REFUS, chacun son jeton : un `return` nu les aurait rendus
+   indiscernables, et la ligne serait restee vraie d'une fonction muette. */
+out.tb7_emoji_refus=TBG(function(){
+  var n=[];
+  function no(m){n.push(m)}
+  return [T.emojiGo({busy:!0,note:no}),
+    T.emojiGo({segments:[],note:no}),
+    T.emojiGo({segments:[1],note:no}),
+    T.emojiGo({segments:[1],onAdd:function(){},note:no,fetch:null}),
+    n.length]});
+/* UNE REPONSE SANS INDICE NE POUSSE RIEN : ni historique, ni clip. */
+out.tb7_emoji_sans_indice=TBG(function(){
+  var e=ECRAN7(),n=[];
+  T.emojiGo({segments:[1],tracks:e.tracks,note:function(m){n.push(m)},
+    onAdd:function(cs){e.push();e.clips=e.clips.concat(cs)},
+    busy:!1,setBusy:function(v){e.attente=v},
+    fetch:function(){return THEN({json:function(){
+      return THEN({hints:[]})}})}});
+  return [e.hist.length,e.clips.length,n.length,
+    n[0].indexOf("Aucun mot-cl")===0,e.attente]});
+/* PENDANT L'ATTENTE : eteint, sans action, et un titre QUI DIFFERE. */
+out.tb7_emoji_attente=TBG(function(){
+  var c=T.tbCablage(PROPS7(ECRAN7(),!0));
+  return [c["emoji"].disabled,c["emoji"].act,c["emoji"].title]});
+/* `dzmTbHote` — LA DECISION DU DOCK, jouee : sans receveur, pas d'action.
+   ON REND LE GENRE, JAMAIS LA VALEUR, et c'est une CORRECTION mesuree par
+   mutation : `JSON.stringify` remplace une FONCTION par `null` dans un
+   tableau. La premiere ecriture rendait `h.onEmoji` tel quel, et le mutant
+   qui allumait `emoji` SANS receveur passait — la fonction posee a tort
+   arrivait ici sous la forme `null`, exactement la valeur attendue.
+   Faute n°2, forme « deux resultats qui se ressemblent ». */
+function GENRE7(v){return v===null?"null":typeof v}
+out.tb7_hote=TBG(function(){
+  var f=function(){};
+  return [GENRE7(T.tbHote({tracks:[]},f,!1).onEmoji),
+    GENRE7(T.tbHote({tracks:[],onEmojiAdd:f},f,!1).onEmoji),
+    GENRE7(T.tbHote({tracks:[],onEmojiAdd:f},null,!1).onEmoji),
+    T.tbHote({tracks:[],onEmojiAdd:f},f,!1).emojiBusy,
+    T.tbHote({tracks:[],onEmojiAdd:f},f,!0).emojiBusy,
+    T.tbHote().emojiBusy]});
+/* IL COPIE, IL NE MUTE PAS : l'objet vient du bundle, qui le reconstruit a
+   chaque rendu ; le muter ferait fuir l'attente d'un rendu au suivant. */
+out.tb7_hote_ne_mute_pas=TBG(function(){
+  var o={tracks:[1],onEmojiAdd:function(){}};
+  var h=T.tbHote(o,function(){},!0);
+  return [("onEmoji" in o),("emojiBusy" in o),h!==o,h.tracks===o.tracks,
+    Object.keys(h).length-Object.keys(o).length]});
+/* PROJETS — il OUVRE, et rien d'autre : deux clics, deux demandes, aucune
+   ecriture de timeline, aucun pas d'historique, aucun projet ouvert. */
+out.tb7_projets=TBG(function(){
+  var e=ECRAN7(),c=T.tbCablage(PROPS7(e,!1));
+  c["projets"].act();c["projets"].act();
+  return [e.projReq,e.hist.length,e.clips.length,e.panneaux.length,
+    e.lus,e.ecrits,e.notes.length]});
+/* LIER — il ne transmet QUE la piste, jamais un temps : c'est ce qui laisse
+   le placement (et donc « aimanter ») entierement a l'action existante. */
+out.tb7_lier_ne_transmet_que_la_piste=TBG(function(){
+  var e=ECRAN7(),c=T.tbCablage(PROPS7(e,!1));
+  c["bibliotheque"].act();
+  return [e.panneaux,e.lus,e.ecrits]});
 
 console.log(JSON.stringify(out));
 """
@@ -5247,18 +5506,23 @@ check("tb_un_magasin_indisponible_ne_casse_ni_la_lecture_ni_la_bascule",
       f'{d.get("tb_open_magasin_qui_leve")} '
       f'{d.get("tb_open_sans_magasin")}')
 
-# ── LE CABLAGE : SEPT CABLES, DEUX ETEINTS-ET-DITS ────────────────────────
-# La regle du lot : la ou l'action existe et s'atteint sans travail neuf, on
-# la cable ; la ou elle ne s'atteint pas, le bouton est ETEINT et son `title`
-# le dit. Jamais un bouton qui a l'air vivant et ne fait rien.
-_CABLES = ["bibliotheque", "couleur", "glow", "piste-audio", "piste-video",
-           "rebond", "texte"]
+# ── LE CABLAGE : LES NEUF, CABLES (ETAPE 7) ────────────────────────
+# La regle du lot n'a pas change : la ou l'action existe, on la CABLE — la
+# barre est un nouveau point d'entree, pas une nouvelle implementation — et
+# la ou l'ecran n'a rien donne, le bouton est ETEINT et son `title` le dit.
+# CE QUI A CHANGE : les deux qui restaient eteints le sont maintenant AVEC
+# leur hote. `emoji` tenait a un `fetch` enferme dans son bouton, sorti en
+# `dzmEmojiGo` ; `projets` a une ouverture enfermee dans son popover, ouverte
+# par une DEMANDE (`openReq`). Ni l'un ni l'autre n'a ete reecrit.
+_CABLES = ["bibliotheque", "couleur", "emoji", "glow", "piste-audio",
+           "piste-video", "projets", "rebond", "texte"]
 check("tb_le_cablage_rend_une_entree_par_bouton_du_plan",
       d.get("tb_c_cles") == sorted(set(_TB_SPEC) - {"poignee"}),
       f'{d.get("tb_c_cles")}')
-check("tb_sept_boutons_sont_cables_et_deux_sont_eteints_et_dits",
+check("tb_les_neuf_boutons_sont_cables_et_aucun_n_est_eteint",
       d.get("tb_c_actions") == _CABLES
-      and d.get("tb_c_eteints") == ["emoji", "projets"],
+      and d.get("tb_c_eteints") == []
+      and len(_CABLES) == 9,
       f'cables={d.get("tb_c_actions")} eteints={d.get("tb_c_eteints")}')
 # CE QUE L'ACTION TRANSMET, pas seulement qu'elle a ete appelee : une piste
 # video nait EN HAUT, une piste audio juste au-dessus des sous-titres, et les
@@ -5302,15 +5566,50 @@ check("tb_texte_est_une_bascule_cablee_sur_l_etat_du_panneau",
       and d.get("tb_c_texte_eteint") is False,
       f'{d.get("tb_c_texte")} clic={d.get("tb_c_texte_clic")} '
       f'eteint={d.get("tb_c_texte_eteint")}')
-# LES DEUX MUETS : eteints, SANS action, et deux phrases DIFFERENTES qui
-# nomment l'etape. Un `title` vide passerait la negation seule.
+# LES DEUX QUI AVAIENT RESISTE A L'ETAPE 4 : VIVANTS avec leur hote, eteints
+# sans lui. Les deux faces sont mesurees — sans la premiere, un cablage qui
+# aurait perdu les deux actions passerait la seconde ; sans la seconde, un
+# cablage qui allumerait tout sans rien verifier passerait la premiere.
+_VI = d.get("tb_c_vivants")
+check("tb_emoji_et_projets_sont_cables_et_leur_titre_dit_ce_qu_ils_font",
+      isinstance(_VI, list) and len(_VI) == 2
+      and all(x[0] is False and x[1] == "function" and len(x[2]) > 120
+              for x in _VI)
+      and _VI[0][2] != _VI[1][2],
+      f'{_VI}')
+# SANS HOTE : eteints, sans action, et la MEME phrase — c'est le meme motif
+# (l'ecran ne leur a rien donne), et deux formulations pour une seule cause
+# auraient laisse croire a deux. Elle differe des deux titres vivants
+# ci-dessus, et la ligne l'exige.
 _MU = d.get("tb_c_muets")
-check("tb_emoji_et_projets_sont_eteints_et_leur_titre_nomme_l_etape_7",
+check("tb_emoji_et_projets_s_eteignent_sans_hote_et_le_disent",
       isinstance(_MU, list) and len(_MU) == 2
-      and all(x[0] is True and x[1] is None and len(x[2]) > 60
-              and "étape 7" in x[2] for x in _MU)
-      and _MU[0][2] != _MU[1][2],
+      and all(x[0] is True and x[1] is None and len(x[2]) > 60 for x in _MU)
+      and _MU[0][2] == _MU[1][2]
+      and isinstance(_VI, list) and len(_VI) == 2
+      and _MU[0][2] != _VI[0][2] and _MU[1][2] != _VI[1][2],
       f'{_MU}')
+# AUCUN TITRE NE RENVOIE PLUS A UNE ETAPE A VENIR. Conjoints positifs : neuf
+# titres, tous longs, tous distincts — sans eux la negation serait vraie d'un
+# cablage vide.
+_TI = d.get("tb_c_titres")
+check("tb_aucun_titre_ne_promet_plus_une_etape_a_venir",
+      isinstance(_TI, list) and len(_TI) == 9
+      and len(set(_TI)) == 9 and all(len(t) > 60 for t in _TI)
+      and not any(("étape 7" in t) or ("étape 8" in t)
+                  or ("pour l'instant" in t) or ("pas encore" in t)
+                  for t in _TI),
+      f'{[t[:40] for t in (_TI or [])]}')
+# ET LA PHRASE QUI LES PORTAIT A DISPARU DE LA COUCHE : une fonction morte
+# injectee dans le bundle est une fonction morte de plus. Conjoint positif :
+# le mot survit dans un COMMENTAIRE (qui dit pourquoi elle est partie), il ne
+# survit pas dans le code.
+check("tb_la_phrase_des_boutons_eteints_a_ete_retiree_du_code",
+      "function dzmTbEtape7(" not in src
+      and "dzmTbEtape7" not in _code(src)
+      and "dzmTbEtape7" in src
+      and len(_code(src)) > 60000,
+      "dzmTbEtape7 vit encore dans le code de la couche")
 # UN CABLAGE SANS HOTE n'allume RIEN : c'est l'etat qu'aurait la barre si la
 # section du patcher perdait ses proprietes, et il doit etre inoffensif.
 check("tb_un_cablage_sans_hote_eteint_les_neuf_boutons",
@@ -5334,7 +5633,8 @@ check("tb_le_dock_restaure_persiste_et_rend_l_onglet_et_la_barre",
       and "dzmTbOpenSet(!v)" in _DOCK and "dzmTbOpenSet(!1)" in _DOCK
       and "x.useEffect(" in _DOCK and "dzmTbFrame(" in _DOCK
       and "DzmToolTab({" in _DOCK and "DzmToolBar({" in _DOCK
-      and "items:dzmTbCablage(o)" in _DOCK and "anim:anim" in _DOCK,
+      and "items:dzmTbCablage(dzmTbHote(o,emoji,!!emo))" in _DOCK
+      and "anim:anim" in _DOCK,
       f"dock={len(_DOCK)} o : {_DOCK[:160]!r}")
 # LE DEPORT PASSE PAR LE DOCK, ET C'EST LA SEULE PIECE QUE NODE NE JOUE PAS :
 # le cœur, le geste, la mesure des rectangles et le clavier sont tous joues
@@ -5491,9 +5791,9 @@ check("tb_les_neuf_boutons_sont_peints_avec_leur_etat",
           ["dzm-tbb dzm-g-mot", "couleur", False, "false"],
           ["dzm-tbb dzm-g-mot dzm-on", "rebond", False, "true"],
           ["dzm-tbb dzm-g-mot", "glow", False, "false"],
-          ["dzm-tbb dzm-g-ajouts", "emoji", True, "ABSENT"],
+          ["dzm-tbb dzm-g-ajouts", "emoji", False, "ABSENT"],
           ["dzm-tbb dzm-g-ajouts dzm-on", "texte", False, "true"],
-          ["dzm-tbb dzm-g-projets dzm-solo", "projets", True, "ABSENT"]],
+          ["dzm-tbb dzm-g-projets dzm-solo", "projets", False, "ABSENT"]],
       f'{d.get("tb_r_boutons")}')
 # LES DEUX CONTROLES DE FENETRE (§2.2c), VIVANTS TOUS LES DEUX depuis
 # l'etape 5. NI L'UN NI L'AUTRE N'EST `disabled` : le §4.2 dit de `⌖` qu'« il
@@ -5749,10 +6049,17 @@ _SECTIONS = "".join(r for _t, _a, r in P.PATCHES)
 # propriete est DANS la section, et le bundle en porte le compte attendu —
 # DEUX `onPick:openPicker` (le bouton du bandeau et la barre), un seul de
 # chacune des cinq autres.
+# ETAPE 7 : QUATRE PROPRIETES DE PLUS, mesurees de la meme facon — dans la
+# section ET dans le bundle. Elles ferment le §6 : les trois ingredients de
+# l'action emoji (deja passes a M10, a l'identique) et la demande d'ouverture
+# de la liste des projets.
 _P_M19 = ("tracks:svmTracksOf(proj)", "onTracks:svmTracksSet",
           "onPick:openPicker", "wordAnim:(proj.subsStyle||{}).wordAnim",
           "onWordAnim:function(v){subsStyleSet(", "textOn:dzTextOn",
-          "onText:function(){setDzTextOn(!dzTextOn)}")
+          "onText:function(){setDzTextOn(!dzTextOn)}",
+          "emojiSegs:subsSegsOf(clips)", "note:fireNote",
+          "onEmojiAdd:dzEmoAdd",
+          "onProjets:function(){setDzProjReq(function(n){return n+1})}")
 check("tb_une_seule_section_monte_le_dock_et_lui_passe_le_cablage",
       _SECTIONS.count("DzTracks.ToolDock") == 1
       and s.count(nl("r.jsx(DzTracks.ToolDock,{")) == 1
@@ -5779,7 +6086,13 @@ for _nm, _decl in (("svmTracksOf", "function svmTracksOf(proj){"),
                    ("subsStyleSet", "function subsStyleSet(patch){"),
                    ("dzTextOn", "var stDzTx=x.useState(!1),dzTextOn="),
                    ("setDzTextOn", "setDzTextOn=stDzTx[1];"),
-                   ("proj", "proj=stP[0],setProj=stP[1];")):
+                   ("proj", "proj=stP[0],setProj=stP[1];"),
+                   # etape 7 — les quatre du cablage du §6
+                   ("subsSegsOf", "function subsSegsOf(cs){"),
+                   ("clips", "clips=st1[0],setClips=st1[1]"),
+                   ("fireNote", "fireNote=nt[1]"),
+                   ("dzEmoAdd", "function dzEmoAdd(cs){pushHistory();"),
+                   ("setDzProjReq", "setDzProjReq=stDzPj[1];")):
     _ap = re.search(r"\b%s\b" % re.escape(_nm), P.R_M19) is not None
     check("M19_appelle_" + _nm + "_qui_est_declare",
           _ap and s.count(nl(_decl)) >= 1,
@@ -5829,13 +6142,19 @@ check("tb_le_dock_est_monte_dans_le_bandeau_de_transport",
 # `pointermove` et `pointerdown` sont attendus PRESENTS. La ligne d'avant les
 # exigeait absents ; elle a fait exactement son travail — c'est elle qui a
 # impose de la reecrire au lieu de laisser le reste dehors sans surveillance.
-_i_tb4 = src.find("\u00c9TAPES 4 ET 5 DU \u00a79 : LA BARRE, SON ONGLET")
+_i_tb4 = src.find("\u00c9TAPES 4, 5 ET 7 DU \u00a79 : LA BARRE")
 _j_tb4 = src.find("/* \u2500\u2500 export contrat", _i_tb4) if _i_tb4 >= 0 else -1
 _SRC_TB = src[_i_tb4:_j_tb4] if 0 <= _i_tb4 < _j_tb4 else "BLOC-INTROUVABLE"
-check("tb_les_etapes_6_a_8_ne_sont_pas_livrees",
+# L'ETAPE 7 EST DEDANS DESORMAIS, et les conjoints positifs le disent : le
+# Dock appelle `dzmTbHote` et `dzmEmojiGo`. La ligne d'avant exigeait
+# `pointermove` present (etape 5) ; celle-ci ajoute les deux jetons de
+# l'etape 7. SEULES 6 ET 8 RESTENT DEHORS.
+check("tb_les_etapes_6_et_8_ne_sont_pas_livrees",
       len(_SRC_TB) > 6000 and "function DzmToolBar(" in _SRC_TB
       and "function DzmToolDock(" in _SRC_TB
       and "pointermove" in _SRC_TB and "onPointerDown" in _SRC_TB
+      and "function dzmTbHote(" in _SRC_TB
+      and "dzmEmojiGo({segments:o.emojiSegs" in _SRC_TB
       and 'role:"toolbar"' not in _SRC_TB and "tabIndex" not in _SRC_TB
       and "aria-orientation" not in _SRC_TB,
       f"bloc={len(_SRC_TB)} o — la couche porte deja un morceau de "
@@ -6422,6 +6741,248 @@ check("tb_d_seul_le_libelle_est_masquable_jamais_le_recentrage",
 check("tb_d_la_barre_rend_sa_reference_et_sa_poignee_saisit",
       d.get("tb_r_ref") is True and d.get("tb_r_grip_saisit") == [1, 1],
       f'ref={d.get("tb_r_ref")} saisit={d.get("tb_r_grip_saisit")}')
+
+# ═══════════════════════════════════════════════════════════════════════════
+# [6-quater] LES TROIS EXIGENCES TRANSVERSALES DU §6, JOUEES — ETAPE 7
+# Le §6 en demande trois : le MEME historique d'annulation, AUCUN deplacement
+# de la tete de lecture, et le respect d'« aimanter » pour les insertions a la
+# tete. Elles ne se lisent pas, elles se MESURENT : les neuf actions sont
+# rejouees sur un faux ecran qui reproduit la semantique du bundle livre, et
+# ces lignes lisent ce qui en sort.
+# ═══════════════════════════════════════════════════════════════════════════
+print("\n[6-quater] la barre d'outils — le cablage du §6 et ses trois "
+      "exigences")
+
+_B7 = d.get("tb7_par_bouton")
+# LES NEUF SONT CEUX DU §2.4, ET LA LISTE N'EST PAS RETAPEE ICI : elle vient
+# de `tb_plan_icones`, deja compare au tableau du handoff plus haut. Le jour
+# ou un bouton s'ajoute au plan sans passer par le cablage, cette ligne le
+# dit avant toutes les autres.
+_NEUF = d.get("tb_plan_icones")
+check("tb7_les_neuf_actions_du_plan_sont_jouees",
+      isinstance(_B7, list) and isinstance(_NEUF, list) and len(_NEUF) == 9
+      and [r[0] for r in _B7] == _NEUF,
+      f'joues={[r[0] for r in (_B7 or [])]} plan={_NEUF}')
+
+# ── EXIGENCE 1 — « TOUTES LES ACTIONS PASSENT PAR LE MEME HISTORIQUE » ────
+# IL N'Y EN A QU'UN, et la barre n'en cree pas un second : chaque action qui
+# ecrit passe par le `pushHistory` de l'ecran. MAIS CE QU'IL REND DIFFERE, et
+# c'est la mesure qui le dit :
+#   • les deux PISTES poussent une entree qui ne contient que des clips
+#     INCHANGES — `Ctrl+Z` la consomme et ne defait rien de visible ;
+#   • les emoji poussent une entree qui REND les clips ;
+#   • MOT, texte et projets ne poussent RIEN : `Ctrl+Z` defait le geste
+#     d'avant.
+# LE TABLEAU EST EPINGLE EN ENTIER, ligne par ligne. Chaque colonne est
+# nommee dans le commentaire qui la precede ; une action qui changerait de
+# comportement changerait sa ligne, et la ligne rougirait seule.
+#           cle           pousse  [clips,pistes,style,texte,panneaux,projReq]
+#                                 undo?  [clips,pistes,style,texte RENDUS ?]
+#                                        [tete lue, tete ecrite]
+_F, _V = False, True
+_ATTENDU_B7 = [
+    ["piste-video", 1, [_F, _V, _F, _F, 0, 0], _V, [_V, _F, _V, _V], [0, 0]],
+    ["piste-audio", 1, [_F, _V, _F, _F, 0, 0], _V, [_V, _F, _V, _V], [0, 0]],
+    ["bibliotheque", 0, [_F, _F, _F, _F, 1, 0], _F, [_V, _V, _V, _V], [0, 0]],
+    ["couleur", 0, [_F, _F, _V, _F, 0, 0], _F, [_V, _V, _F, _V], [0, 0]],
+    ["rebond", 0, [_F, _F, _V, _F, 0, 0], _F, [_V, _V, _F, _V], [0, 0]],
+    ["glow", 0, [_F, _F, _V, _F, 0, 0], _F, [_V, _V, _F, _V], [0, 0]],
+    ["emoji", 1, [_V, _F, _F, _F, 0, 0], _V, [_V, _V, _V, _V], [0, 0]],
+    ["texte", 0, [_F, _F, _F, _V, 0, 0], _F, [_V, _V, _V, _F], [0, 0]],
+    ["projets", 0, [_F, _F, _F, _F, 0, 1], _F, [_V, _V, _V, _V], [0, 0]]]
+check("tb7_exigence1_ce_que_chaque_action_pousse_et_ce_qu_annuler_rend",
+      _B7 == _ATTENDU_B7,
+      f'{_B7}')
+# LA TABLE `DZM_TB_EFFETS` NE DECRIT PAS UNE INTENTION : le genre est DEDUIT
+# du comportement observe, puis compare a celui qu'elle annonce. Une table
+# qui mentirait — ou une action qui changerait sans que la phrase suive —
+# rougirait ici. C'est ce qui empeche les neuf infobulles de deriver.
+_T7 = d.get("tb7_table")
+
+
+def _genre_observe(row):
+    """Le genre DEDUIT de ce que l'action a fait, jamais lu dans la table."""
+    _k, _pousse, _touche, _rendu, _apres, _tete = row
+    _clips, _pistes, _style, _txt, _panneaux, _proj = _touche
+    if _panneaux or _proj:
+        return ("clips" if _panneaux else "projet"), "panneau"
+    if _pousse == 1 and _pistes and _apres[1] is False:
+        return "piste", "direct"
+    if _pousse == 1 and _clips and _rendu and _apres[0] is True:
+        return "clips", "direct"
+    if _pousse == 0 and _style and _apres[2] is False:
+        return "style", "direct"
+    if _pousse == 0 and _txt and _apres[3] is False:
+        return "panneau", "direct"
+    return "?", "?"
+
+
+_OBS = dict((r[0], _genre_observe(r)) for r in (_B7 or []))
+_DEC = dict((t[0], (t[1], t[2])) for t in (_T7 or []))
+check("tb7_la_table_des_effets_dit_ce_que_les_actions_font_vraiment",
+      len(_OBS) == 9 and _OBS == _DEC
+      and all(x[0] != "?" for x in _OBS.values()),
+      f'observe={_OBS}\n      declare={_DEC}')
+# LES CINQ PHRASES, ET LEUR PLACE. Chaque titre cable SE TERMINE par celle de
+# son genre, et il reste du texte devant : sans ce second terme, un titre
+# REDUIT a la phrase passerait. Un genre inconnu rend la chaine VIDE — mieux
+# qu'« undefined » dans une infobulle, et la ligne au-dessus rougirait.
+_PH7 = d.get("tb7_phrases")
+check("tb7_chaque_titre_finit_par_la_phrase_de_son_genre",
+      d.get("tb7_titres_finissent_par_la_phrase")
+      == [[True, True, True]] * 9,
+      f'{d.get("tb7_titres_finissent_par_la_phrase")}')
+check("tb7_cinq_phrases_pour_neuf_boutons_et_aucune_vide",
+      isinstance(_PH7, list) and len(_PH7) == 9
+      and len(set(_PH7)) == 5 and all(len(x) > 60 for x in _PH7)
+      and d.get("tb7_undo_inconnu") == ["", "", ""],
+      f'{len(set(_PH7 or []))} phrase(s) distinctes ; '
+      f'inconnu={d.get("tb7_undo_inconnu")}')
+
+# ── EXIGENCE 2 — « AUCUNE ACTION NE DEPLACE LA TETE DE LECTURE » ─────────
+# TROIS MESURES, ET AUCUNE N'EST UNE LECTURE D'INTENTION.
+# 1. LES NEUF ACTIONS SONT JOUEES sur un objet dont `ph` est un ACCESSEUR
+#    compte : ni lue, ni ecrite, et la valeur n'a pas bouge.
+check("tb7_exigence2_les_neuf_actions_ne_lisent_ni_n_ecrivent_la_tete",
+      d.get("tb7_la_tete_de_lecture") == [9, 0, 0, 3.5],
+      f'{d.get("tb7_la_tete_de_lecture")} (attendu [9, 0, 0, 3.5])')
+# 2. TOUTE LA CHAINE DE PATCHS NE NOMME NI `setPh` NI `seekTo`. Conjoints
+#    positifs d'abord : les deux textes existent et sont gros, et le bundle
+#    porte bien les huit `setPh(` qu'on lui connait — sans eux, la negation
+#    serait vraie d'un fichier vide.
+check("tb7_exigence2_la_chaine_ne_nomme_jamais_setPh_ni_seekTo",
+      len(_SECTIONS) > 10000 and len(_code(src)) > 60000
+      and s.count(nl("setPh(")) == 8
+      and "setPh" not in _SECTIONS and "seekTo" not in _SECTIONS
+      and "setPh" not in _code(src) and "seekTo" not in _code(src),
+      f'setPh dans le bundle={s.count(nl("setPh("))} '
+      f'sections={len(_SECTIONS)} o couche={len(_code(src))} o')
+# 3. LE SEUL `setPh` QUI RAMENE A ZERO EST CELUI DE `svmApplyProject`, et
+#    aucun des neuf chemins ne l'atteint : `projets` OUVRE la liste, il
+#    n'ouvre aucun projet (mesure ci-dessous, `tb7_projets`). Le titre le
+#    dit a l'utilisateur, mot pour mot.
+check("tb7_exigence2_ouvrir_un_projet_est_le_seul_chemin_qui_bouge_la_tete",
+      s.count(nl("setClips(cs);setSelId(first?first.id:\"\");setPh(0);"
+                 "setDirty(!1);")) == 1
+      and s.count(nl("histRef.current={u:[],r:[]};")) >= 1
+      and "onOpen:function(d){return svmApplyProject(d)}" in P.R_M14
+      and "svmApplyProject" not in P.R_M19
+      and "ramène la tête à zéro" in src,
+      "svmApplyProject n'est plus le seul a remettre la tete a zero, ou la "
+      "barre l'appelle")
+
+# ── EXIGENCE 3 — « LES INSERTIONS A LA TETE RESPECTENT AIMANTER » ────────
+# CE QUE CETTE BASE EN FAIT, MESURE : `aimanter` (`snap`) n'est LU qu'a un
+# seul endroit du bundle, `doSnap`, dans le GLISSEMENT d'un clip. Aucune
+# insertion ne le consulte — ni `addAsset`, ni `subsAddHere`, ni les emoji.
+# LA BARRE N'EN POSE PAS UNE SECONDE REGLE : elle ne calcule aucune position.
+# Le seul de ses neuf boutons qui mene a une insertion a la tete est
+# « lier », et il ne transmet QUE la piste — le placement reste entier a
+# `openPicker`, donc identique a celui du « + » d'en-tete de piste.
+# MESUREE PAR MUTATION : en faisant passer un second argument a `p.onPick`,
+# la ligne rougit.
+check("tb7_exigence3_lier_ne_transmet_que_la_piste_et_delegue_le_placement",
+      d.get("tb7_lier_ne_transmet_que_la_piste") == [[["v2"]], 0, 0],
+      f'{d.get("tb7_lier_ne_transmet_que_la_piste")}')
+_CODE_TB = _code(_SRC_TB)
+check("tb7_exigence3_aimanter_n_a_qu_un_lecteur_et_la_barre_n_en_est_pas_un",
+      s.count(nl("function doSnap(v){if(!snap)return v;"
+                 "var t=8/pxPerS,best=v;")) == 1
+      and s.count(nl("var st6=x.useState(!0),snap=st6[0],"
+                     "setSnap=st6[1];")) == 1
+      and len(_CODE_TB) > 8000 and len(P.R_M19) > 400
+      and "snap" not in _CODE_TB and "Snap" not in _CODE_TB
+      and "snap" not in P.R_M19 and "Snap" not in P.R_M19
+      # LE COMMENTAIRE, LUI, DIT LA REGLE : sans ce conjoint, effacer
+      # l'explication laisserait la ligne verte.
+      and "AUCUNE insertion ne le" in _SRC_TB,
+      f'doSnap={s.count(nl("function doSnap(v){if(!snap)return v;"))} '
+      f'code_barre={len(_CODE_TB)} o snap={"snap" in _CODE_TB} '
+      f'M19={"snap" in P.R_M19}')
+
+# ── EMOJI — L'ACTION SORTIE DU BOUTON, JOUEE DE BOUT EN BOUT ───────────
+# UNE requete, DEUX clips poses sur la piste d'overlay la plus haute AUX
+# DATES DES MOTS (1,25 s et 3,5 s — ce sont les `t` des indices, pas la tete
+# de lecture, qui vaut 3,5 : le second coincide, le premier prouve que ce
+# n'est pas elle), duree 0,8 s, l'historique pousse AVANT, l'attente allumee
+# puis eteinte, une note, et `undo` qui rend la timeline de depart.
+check("tb7_emoji_pose_un_clip_par_mot_reconnu_et_annuler_les_retire",
+      d.get("tb7_emoji_pose_les_clips")
+      == [[["/api/subtitles/emoji-hints", "POST"]], 3,
+          [["v2", 1.25, 0.8], ["v2", 3.5, 0.8]], 1, 0, 1, True, 1],
+      f'{d.get("tb7_emoji_pose_les_clips")}')
+# LES QUATRE REFUS, CHACUN SON JETON. Un `return` nu les aurait rendus
+# indiscernables, et la ligne serait restee vraie d'une fonction muette :
+# trois d'entre eux ecrivent une note, le premier (deja occupee) n'en ecrit
+# pas — c'est le compte qui le dit.
+check("tb7_emoji_refuse_en_nommant_le_refus",
+      d.get("tb7_emoji_refus")
+      == ["occupe", "sans-soustitre", "sans-hote", "sans-reseau", 3],
+      f'{d.get("tb7_emoji_refus")}')
+check("tb7_emoji_une_reponse_sans_indice_ne_pousse_rien",
+      d.get("tb7_emoji_sans_indice") == [0, 1, 1, True, 0],
+      f'{d.get("tb7_emoji_sans_indice")}')
+# PENDANT L'ATTENTE : eteint, SANS action, et un titre QUI DIFFERE de celui
+# du bouton vivant — sinon le bouton s'eteindrait sans dire pourquoi.
+_AT = d.get("tb7_emoji_attente")
+check("tb7_emoji_s_eteint_pendant_l_attente_et_le_dit",
+      isinstance(_AT, list) and _AT[0] is True and _AT[1] is None
+      and len(_AT[2]) > 60
+      and isinstance(_VI, list) and _AT[2] != _VI[0][2],
+      f'{_AT}')
+# `dzmTbHote` — LA DECISION DU DOCK, JOUEE : sans receveur, pas d'action ;
+# sans fonction d'appel non plus. Les deux moities comptent, et la ligne
+# les separe.
+check("tb7_le_dock_n_allume_emoji_que_s_il_a_de_quoi_recevoir_les_clips",
+      d.get("tb7_hote") == ["null", "function", "null", False, True, False],
+      f'{d.get("tb7_hote")}')
+check("tb7_le_dock_copie_les_proprietes_de_l_ecran_et_ne_les_mute_pas",
+      d.get("tb7_hote_ne_mute_pas") == [False, False, True, True, 2],
+      f'{d.get("tb7_hote_ne_mute_pas")}')
+# L'UNE APPELLE L'AUTRE : sans cette ligne, `dzmEmojiGo` pourrait etre
+# mesuree pour elle-meme pendant que le bouton du bandeau garde une copie.
+# MEME PARADE QUE POUR `dzmTbFrame` a l'etape 4 : le jeton est une
+# INSTRUCTION entiere, pas un nom.
+check("tb7_les_deux_portes_appellent_la_meme_action_emoji",
+      src.count("function dzmEmojiGo(p){") == 1
+      and src.count("dzmEmojiGo({") == 2
+      and "onClick:function(){dzmEmojiGo({segments:props&&props.segments," in src
+      and "dzmEmojiGo({segments:o.emojiSegs,tracks:o.tracks,note:o.note," in src
+      and "emojiGo:dzmEmojiGo" in src
+      and s.count(nl("function dzmEmojiGo(p){")) == 1,
+      f'definitions={src.count("function dzmEmojiGo(p){")} '
+      f'appels={src.count("dzmEmojiGo({")}')
+
+# ── PROJETS — IL OUVRE, ET RIEN D'AUTRE ─────────────────────────
+# DEUX clics, DEUX demandes — le §6 dit OUVRE, pas BASCULE, et un compteur
+# ne referme jamais par accident. Aucune ecriture de timeline, aucun pas
+# d'historique, aucun projet ouvert, aucune note.
+check("tb7_projets_ouvre_la_liste_et_ne_touche_a_rien_d_autre",
+      d.get("tb7_projets") == [2, 0, 1, 0, 0, 0, 0],
+      f'{d.get("tb7_projets")}')
+# LE COMPTEUR VA JUSQU'AU POPOVER, ET LE POPOVER L'ECOUTE. Controle a DEUX
+# FACES : la section le passe, la couche le lit, et la garde `oreq<=0`
+# empeche la liste de s'ouvrir toute seule au montage.
+_i_pj = src.find("var oreq=Number(props&&props.openReq)||0;")
+_EFF_PJ = src[_i_pj:_i_pj + 220] if _i_pj >= 0 else "INTROUVABLE"
+check("tb7_la_demande_d_ouverture_va_de_la_barre_au_popover",
+      "onProjets:function(){setDzProjReq(function(n){return n+1})}" in P.R_M19
+      and "openReq:dzProjReq" in P.R_M14
+      and "var stDzPj=x.useState(0),dzProjReq=stDzPj[0]," in P.R_M11
+      and _i_pj >= 0
+      and "if(oreq<=0)return;" in _EFF_PJ
+      and "setOp(!0);setArm(\"\");setRen(null);load()},[oreq]);" in _EFF_PJ,
+      f'effet={_EFF_PJ[:180]!r}')
+# ET LA CONFIRMATION QUE LE §6 EXIGE (« demander confirmation avant de
+# quitter ») EXISTAIT DEJA, plus stricte que demandee : le popover arme le
+# bouton « ouvrir » et ne remplace le montage qu'au SECOND clic, que le
+# projet courant soit modifie ou non.
+check("tb7_ouvrir_un_projet_demande_toujours_confirmation",
+      'if(arm!=="o"+p.id){setArm("o"+p.id);return}' in src
+      and "children:oArm?\"remplacer ?\":\"ouvrir\"" in src
+      and s.count(nl('if(arm!=="o"+p.id){setArm("o"+p.id);return}')) == 1,
+      "le second clic de confirmation a disparu de doOpen")
+
 
 # LA LIGNE QUI DIT QUE LE BANC A ROUGI PLUTOT QUE MEURE : aucun appel garde
 # n'a pose de temoin. Une panne de node — introuvable, ou un shim qui tourne
