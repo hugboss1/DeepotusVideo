@@ -4163,10 +4163,100 @@ async def cost_estimate(body: dict, request: Request):
     return _pricing.estimate(body or {})
 
 
+# Providers dont un job terminé N'ENGAGE AUCUNE DÉPENSE, et POURQUOI — le
+# libellé part dans le `breakdown`, donc le zéro se lit au lieu de se deviner.
+_JOBS_SANS_DEPENSE = {
+    "montage":       "Montage (assemblage ffmpeg local)",
+    "montage_proxy": "Proxy de montage (transcodage ffmpeg local)",
+    "animation":     "Animation (ffmpeg + PIL locaux)",
+    "news":          "News reel (ffmpeg local)",
+    "ugc":           "Fichier téléversé par l'utilisateur",
+    "card3d":        "Publication d'une carte 3D (rien n'est fabriqué)",
+    "template":      "Rendu template (job parent — les sous-jobs paient)",
+    "composition":   "Composition (job parent — les sous-jobs paient)",
+}
+# ... et ceux dont la « campagne » (1 image + N s de vidéo) EST la vérité.
+# `provider IS NULL` arrive ici par le `or "seedance"` ci-dessous, et c'est
+# JUSTE : les 13 jobs `done` de la base réelle qui portent NULL datent d'avant
+# la colonne et sont bien des rendus Seedance (13/13 portent une image de
+# départ ET une vidéo produite).
+_JOBS_CAMPAGNE = {"seedance"}
+
+
 def _job_to_cost(job, p):
+    """Le devis d'UN job terminé — par LISTE BLANCHE, jamais par défaut.
+
+    LA DÉCISION (P7, tâche 8b), et la mesure qui l'a tranchée. Cette fonction
+    nommait `heygen`, `episode` et `sprite2d`, puis retombait sur une branche
+    « campaign » PAR DÉFAUT qui facturait `duration_s or 10` secondes de
+    Seedance PLUS une image FLUX — 0,403 USD par job aux tarifs par défaut de
+    `pricing.load()` — à TOUT provider qu'elle ne nommait pas.
+
+    MESURÉ le 05/09/2026 sur une COPIE de la base réelle (105 jobs `done`,
+    jamais la base vivante ; `scratchpad/mesure_defaut.py`) : 43,41 USD
+    affichés, dont 43,17 (99,4 %) venaient de la branche par défaut. Ce
+    qu'elle facturait, provider par provider :
+
+        template   33 jobs  13,299 USD  RIEN — job PARENT, les sous-jobs
+                                        portent déjà leur propre dépense
+        seedance   34 jobs  12,062 USD  1 image + N s de vidéo : JUSTE
+        montage     4 jobs   6,332 USD  RIEN — assemblage ffmpeg local
+        <NULL>     13 jobs   5,239 USD  Seedance d'avant la colonne : JUSTE
+        ugc         9 jobs   4,307 USD  RIEN — fichier TÉLÉVERSÉ (`await
+                                        file.read()`, aucune API appelée)
+        asset3d     3 jobs   1,209 USD  un maillage, mais au tarif d'une
+                                        vidéo Seedance au lieu du sien
+        news        1 job    0,403 USD  RIEN — reel ffmpeg local
+        animation   1 job    0,323 USD  RIEN — ffmpeg + PIL locaux
+
+    DÉPENSE FABRIQUÉE (template + montage + ugc + news + animation) :
+    24,664 USD sur 43,410 AFFICHÉS, soit 56,8 % du chiffre montré à
+    l'utilisateur. RE-MESURÉ après ce lot sur la MÊME copie : 18,82 USD
+    affichés — les cinq providers ci-dessus tombent à 0,000 et `asset3d`
+    passe de 1,209 (une vidéo qui n'a jamais tourné) à 1,280 (deux maillages
+    `rodin` à 0,40 + un `hunyuan` à 0,48, lus dans `cost_meta`).
+
+    POURQUOI UNE LISTE BLANCHE plutôt qu'une entrée de tarif par provider :
+    le dépôt n'écrit que TREIZE valeurs de `provider` (relevé exhaustif des
+    `provider=` / `.provider =` sur `JobRecord`), dont HUIT ne dépensent RIEN
+    du tout — leur « tarif » serait 0. Un seul, `asset3d`, dépense pour de
+    vrai sans être tarifé, et `pricing.py` savait DÉJÀ le chiffrer (`kind`
+    `asset3d` / `asset3d_texture`) : il n'était pas branché. Une table de
+    tarifs aurait donc surtout été une table de zéros. Ce qui manquait
+    n'était pas un prix, c'était le refus d'en inventer un.
+
+    ET CE QU'UN PROVIDER INCONNU DEVIENT : zéro, mais un zéro qui SE NOMME —
+    `by_provider` reçoit la clé `non-tarifé:<provider>`. Un blanc avoué se
+    répare ; un chiffre inventé se croit. C'est la même décision que le
+    `where` de `cost_usage` (65afc16), poussée jusqu'à sa conclusion.
+
+    CE QUE CETTE FONCTION N'AFFIRME TOUJOURS PAS : que l'image FLUX d'une
+    campagne ait été payée (un job parti d'une image FOURNIE n'a rien payé à
+    FLUX — 0,003 USD par job, 0,3 % du total, et la ligne de base ne permet
+    pas de trancher) ; ni que le texturage Meshy soit au bon palier
+    (`cost_meta` n'enregistre pas la résolution, donc le devis prend le
+    défaut 2k de `credits_retexture`). Deux approximations DÉCLARÉES sur des
+    dépenses RÉELLES — pas des dépenses inventées.
+
+    Tenu par `tests/test_cost_usage.py`.
+    """
     from app.services import pricing as _pricing
     prov = (job.provider or "seedance").lower()
     dur = job.duration_s or 10
+    if prov in _JOBS_SANS_DEPENSE:
+        return _pricing.no_spend(_JOBS_SANS_DEPENSE[prov])
+    if prov == "asset3d":
+        import json as _json
+        try:
+            meta = _json.loads(job.cost_meta or "{}")
+        except Exception:
+            meta = {}
+        if meta.get("texturier") == "meshy":
+            # texturage d'un maillage DÉJÀ généré : facturé en crédits Meshy,
+            # jamais chez fal (chaîne Tripo → Meshy).
+            return _pricing.estimate({"kind": "asset3d_texture"}, p)
+        return _pricing.estimate({"kind": "asset3d",
+                                  "engine": meta.get("engine") or "tripo"}, p)
     if prov == "heygen":
         return _pricing.estimate({"kind": "heygen", "minutes": max(0.2, dur / 60.0)}, p)
     if prov == "episode":
@@ -4187,10 +4277,15 @@ def _job_to_cost(job, p):
         return _pricing.estimate({"kind": "sprite2d",
                                   "frames": int(meta.get("frames", 0) or 0),
                                   "remove_bg": meta.get("remove_bg", "none")}, p)
-    return _pricing.estimate({"kind": "campaign", "ops": [
-        {"kind": "image"},
-        {"kind": "seedance", "duration_s": dur,
-         "model": getattr(job, "video_model", None) or ""}]}, p)
+    if prov in _JOBS_CAMPAGNE:
+        return _pricing.estimate({"kind": "campaign", "ops": [
+            {"kind": "image"},
+            {"kind": "seedance", "duration_s": dur,
+             "model": getattr(job, "video_model", None) or ""}]}, p)
+    # LE BLANC AVOUÉ — voir la docstring. Le provider part dans la CLÉ pour
+    # qu'un coup d'œil à `by_provider` dise LEQUEL n'est pas tarifé.
+    return _pricing.no_spend(f"Non tarifé — provider « {prov} »",
+                             f"non-tarifé:{prov}")
 
 
 @router.get("/cost/usage")
@@ -4212,10 +4307,15 @@ async def cost_usage():
     `coalesce(provider, '')` pour la même raison qu'ailleurs : `NULL != …`
     vaut NULL en SQL et écarterait les 13 jobs `done` sans provider.
 
-    CE QUE CETTE ROUTE N'AFFIRME TOUJOURS PAS : que tout provider soit
-    tarifé. La branche par défaut de `_job_to_cost` facture en « campaign »
-    TOUT provider qu'elle ne nomme pas (`asset3d` y tombe aussi) ; ce lot ne
-    ferme que le cas qu'il ouvre lui-même.
+    LA BRANCHE PAR DÉFAUT DE `_job_to_cost` EST FERMÉE DEPUIS (tâche 8b) :
+    elle facture désormais par LISTE BLANCHE, et un provider inconnu rend 0
+    sous la clé `non-tarifé:<provider>`. Ce `where` reste, et il n'est pas
+    redondant : sans lui la carte `by_provider` porterait une entrée `local`
+    à 0 pour des précalculs qui ne sont pas des opérations de l'utilisateur.
+
+    CE QUE CETTE ROUTE N'AFFIRME TOUJOURS PAS : que le total soit juste au
+    centime. Il reste DIRECTIONNEL par construction — voir les deux
+    approximations déclarées dans la docstring de `_job_to_cost`.
     """
     from app.services import pricing as _pricing
     from app.services.montage_service import _PROXY_PROVIDER
