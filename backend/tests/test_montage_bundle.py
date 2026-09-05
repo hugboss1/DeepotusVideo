@@ -31,7 +31,29 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 05/09/2026 (fin de journee, apres M9c) : 536 lignes.
+COMPTE DE REFERENCE, 06/09/2026 (etape 5 du handoff « Barre Outils
+Flottante » — le deport) : 734 lignes, soit QUATRE-VINGT-NEUF de plus que
+les 645 de l'etape 4 : SOIXANTE-HUIT dans la section [6-ter] neuve, et
+VINGT ET UNE dans [6-bis], qui grossit d'une boucle de dix-sept jetons sur le
+Dock et de quatre lignes dedoublees. Cinq lignes de l'etape 4 qui
+epinglaient l'etat inerte
+(poignee morte, `⌖` eteint, « les etapes 5 a 8 ne sont pas livrees ») ont ete
+REECRITES plutot que supprimees — elles ont fait exactement leur travail en
+rougissant.
+LA CAMPAGNE DE MUTATION QUI FONDE CETTE SECTION : SOIXANTE-QUINZE mutations
+de la couche et de la feuille (plus un temoin neutre, qui ne doit rien faire
+rougir), toutes rouges, chacune dans un rayon de une a quinze lignes — plus `bloc_EST_la_couche_octet_pour_octet`, qui rougit sur
+TOUTE mutation de la couche tant que le patcher n'a pas ete rejoue, et qui est
+le seul bruit de fond de ce harnais (mesure : une mutation neutre laisse le
+banc a 726/1). CINQ mutants ont survecu a la premiere passe et ont fait
+reecrire ce qu'ils traversaient : l'ancrage `bar.left - dx` (aucune sonde ne
+partait d'un decalage non nul contre une borne), le plafond de remontee
+d'arbre (une propriete de VIVACITE, que seule une mesure du nombre de pas
+attrape), une garde en double dans un helper que rien ne pouvait atteindre
+(supprimee — faute n°3), et DEUX jetons de source trop courts qui vivaient
+aussi ailleurs (faute n°2, forme « sous-chaine »).
+
+COMPTE PRECEDENT, 05/09/2026 (fin de journee, apres M9c) : 536 lignes.
 Sans `node` sur le PATH, 534 — les deux `*_rend_un_objet_json` vivent dans la
 branche « node a tourne » et ne sont pas emises, c'est par CONSTRUCTION et
 non par accident. Il en valait 524 le matin : M9c en apporte DOUZE, dont TROIS
@@ -2819,11 +2841,18 @@ out.tb_r_noanim = TBG(function () {
 out.tb_r_zones = TBG(function () {
   return barO.p.children.map(function (z) { return z.p.className })
 });
-/* LA POIGNEE : le glyphe `poignee` du §3, a 14 px (§2.2a). */
+/* LA POIGNEE : le glyphe `poignee` du §3, a 14 px (§2.2a), porte par un
+   BOUTON depuis l'etape 5. `aria-hidden` a quitte le bouton — un nœud
+   focusable cache des technologies d'assistance est une faute — et il est
+   reste sur le GLYPHE, qui n'a rien a annoncer que le bouton ne dise. */
 out.tb_r_grip = TBG(function () {
   var g = barO.p.children[0];
-  return [g.p.children.p.width, g.p.children.p.viewBox,
-  g.p.children.p.children.length, TBP(g, "aria-hidden")]
+  return [g.t, TBP(g, "type"), g.p.children.p.width, g.p.children.p.viewBox,
+  g.p.children.p.children.length, TBP(g, "aria-hidden"),
+  TBP(g.p.children, "aria-hidden")]
+});
+out.tb_r_grip_aria = TBG(function () {
+  return TBP(barO.p.children[0], "aria-label")
 });
 out.tb_r_grip_titre = TBG(function () {
   return TBP(barO.p.children[0], "title")
@@ -2882,6 +2911,587 @@ out.tb_r_sans_couleur = TBG(function () {
   return j.indexOf("#") < 0 && j.indexOf("oklch") < 0
     && j.indexOf("var(--") < 0
 });
+/* ── CE QUE L'ETAPE 5 AJOUTE A LA BARRE (§4.2) ──────────────────────────── */
+/* LE DECALAGE PASSE PAR DEUX LONGUEURS, `--tbx` et `--tby`, pas par une
+   transformation ecrite en JS : `transform` est deja prise par le repli du
+   §4.1 et les deux se seraient ecrasees. */
+out.tb_r_deport = TBG(function () {
+  var b = T.ToolBar({ open: !0, anim: !0, items: cabPlein,
+    off: { dx: 42, dy: -13 }, drag: !0 });
+  return [b.p.style["--tbx"], b.p.style["--tby"], TBP(b, "data-drag")]
+});
+out.tb_r_deport_defaut = TBG(function () {
+  return [barO.p.style["--tbx"], barO.p.style["--tby"],
+  TBP(barO, "data-drag")]
+});
+/* UN DECALAGE POURRI NE PEINT PAS `NaNpx` : la regle CSS serait annulee et
+   la barre sauterait a son ancrage sans un mot. */
+out.tb_r_deport_pourri = TBG(function () {
+  var b = T.ToolBar({ open: !0, off: { dx: "a", dy: NaN } });
+  var c = T.ToolBar({ open: !0, off: null });
+  return [b.p.style["--tbx"], b.p.style["--tby"], c.p.style["--tbx"]]
+});
+out.tb_r_ref = TBG(function () {
+  var o = { current: null };
+  return T.ToolBar({ open: !0, barRef: o }).p.ref === o
+});
+out.tb_r_grip_saisit = TBG(function () {
+  var n = 0, k = 0;
+  var b = T.ToolBar({ open: !0, onGrab: function () { n++ },
+    onGripKey: function () { k++ } });
+  b.p.children[0].p.onPointerDown({});
+  b.p.children[0].p.onKeyDown({});
+  return [n, k]
+});
+/* `⌖` EST VIVANT ET N'EST JAMAIS ETEINT (§4.2 : « il ne doit jamais être
+   masqué »). Il reste cliquable meme quand il n'a rien a recentrer : un
+   filet de securite qui se desarme des que l'etat le croit inutile n'en est
+   plus un. Deux titres, selon la situation. */
+out.tb_r_recentrer = TBG(function () {
+  var n = 0;
+  T.ToolBar({ open: !0, off: { dx: 5, dy: 0 },
+    onRecentrer: function () { n++ } })
+    .p.children[2].p.children[0].p.onClick();
+  return n
+});
+out.tb_r_recentrer_sans_action = TBG(function () {
+  T.ToolBar({ open: !0 }).p.children[2].p.children[0].p.onClick();
+  return "ok"
+});
+out.tb_r_recentrer_titres = TBG(function () {
+  return [TBP(T.ToolBar({ open: !0, off: { dx: 5, dy: 0 } })
+    .p.children[2].p.children[0], "title"),
+  TBP(T.ToolBar({ open: !0, off: { dx: 0, dy: 0 } })
+    .p.children[2].p.children[0], "title")]
+});
+/* ══ BARRE D'OUTILS — LE DEPORT (etape 5 du §9 ; §4.2 et la cle `offset`) ══
+   LE CŒUR EST PUR, DONC IL SE JOUE ICI. C'est tout l'objet de sa forme : le
+   §9 previent que « c'est la que se logent les regressions », et un bornage
+   ne se mesure pas autrement que par des nombres.
+   LE PLATEAU DE REFERENCE, une fois pour toutes :
+     conteneur (100,50) 1000 x 600  ->  bords 100 / 50 / 1100 / 650
+     barre     (114,140)  400 x  74  a decalage NUL (dx=dy=0)
+   d'ou, avec la marge de 8 px du §4.2 :
+     dx dans [-6, 578]   (114-6=108=100+8 ; 108+578+400=1086=1100-8+... )
+     dy dans [-82, 428]
+   Ces quatre bornes sont RECALCULEES par le banc plus bas a partir des
+   memes nombres : elles ne sont pas recopiees depuis ce commentaire. */
+var DEPB = { left: 114, top: 140, width: 400, height: 74 };
+var DEPC = { left: 100, top: 50, width: 1000, height: 600 };
+function DEP(o) {
+  var p = { bar: DEPB, cont: DEPC, dx: 0, dy: 0, mx: 0, my: 0, aim: !1 };
+  Object.keys(o || {}).forEach(function (k) { p[k] = o[k] });
+  return T.tbBorne(p)
+}
+function DEPXY(o) { var v = TBG(function () { return DEP(o) });
+  return (v && typeof v === "object") ? [v.dx, v.dy] : v }
+function DEPA(o) { var v = TBG(function () { return DEP(o) });
+  return (v && typeof v === "object") ? [v.dx, v.dy, v.ax, v.ay] : v }
+
+/* LES DEUX DISTANCES DU §4.2, TELLES QUE LA COUCHE LES PORTE. Le banc les
+   compare a celles qu'il LIT dans le handoff : ni la couche ni lui ne les
+   retapent. */
+out.tb_d_distances = TBG(function () {
+  return [T.TB_MARGE, T.TB_AIMANT, T.TB_PAS, T.TB_PAS_FIN]
+});
+/* LES QUATRE BORNES, MESUREES PAR L'EXTREME : un deplacement enorme dans
+   chaque sens, et on regarde ou la barre s'arrete. */
+out.tb_d_bornes = TBG(function () {
+  return [DEP({ mx: -9e4 }).dx, DEP({ mx: 9e4 }).dx,
+  DEP({ my: -9e4 }).dy, DEP({ my: 9e4 }).dy]
+});
+/* LA MARGE DE 8 px, LUE SUR LES BORDS DE LA BARRE et pas sur le decalage :
+   [gauche, haut, droite, bas] — les quatre ecarts au conteneur, une fois la
+   barre poussee contre chaque bord. Les quatre doivent valoir la marge. */
+out.tb_d_marge = TBG(function () {
+  var g = DEPB.left + DEP({ mx: -9e4 }).dx - DEPC.left;
+  var h = DEPB.top + DEP({ my: -9e4 }).dy - DEPC.top;
+  var d = (DEPC.left + DEPC.width)
+    - (DEPB.left + DEP({ mx: 9e4 }).dx + DEPB.width);
+  var b = (DEPC.top + DEPC.height)
+    - (DEPB.top + DEP({ my: 9e4 }).dy + DEPB.height);
+  return [g, h, d, b]
+});
+/* AU MILIEU, RIEN NE SE PASSE : le decalage vaut le deplacement, et la barre
+   n'est pas « bornee » par accident. */
+out.tb_d_libre = DEPXY({ mx: 50, my: 30 });
+out.tb_d_libre_est_borne = TBG(function () { return DEP({ mx: 50 }).borne });
+/* LE DECALAGE COURANT S'AJOUTE AU DEPLACEMENT — c'est ce qui fait que la
+   geometrie se fige au `pointerdown` et que le geste reste relatif. La barre
+   passee est celle QUI PORTE DEJA ce decalage. */
+out.tb_d_cumul = DEPXY({ bar: { left: 214, top: 190, width: 400, height: 74 },
+  dx: 100, dy: 50, mx: 20, my: 10 });
+/* ET L'ANCRAGE EST BIEN DEDUIT (`bar.left - dx`), pas pris pour l'ancrage.
+   LA LIGNE DU DESSUS NE LE VOYAIT PAS : au milieu du conteneur les deux
+   lectures donnent le meme nombre. Il faut un decalage courant NON NUL ET un
+   geste qui atteigne une borne — sinon le mutant qui oublie le `- dx`
+   survit, et il a survecu a la premiere campagne. */
+out.tb_d_cumul_borne = DEPXY({
+  bar: { left: 214, top: 190, width: 400, height: 74 },
+  dx: 100, dy: 50, mx: 9e4, my: 9e4 });
+
+/* ── LES CAS LIMITES QUE LE §4.2 REND MORTELS ─────────────────────────── */
+/* UNE BARRE PLUS GRANDE QUE LE CONTENEUR : aucune position n'est licite. On
+   rend le bord d'ORIGINE (gauche/haut), pas le bord oppose : c'est celui de
+   la POIGNEE, sans laquelle plus rien ne se deplace. */
+out.tb_d_barre_trop_large = TBG(function () {
+  var b = { left: 114, top: 140, width: 2000, height: 900 };
+  return [DEP({ bar: b, mx: 9e4, my: 9e4 }).dx,
+  DEP({ bar: b, mx: 9e4, my: 9e4 }).dy,
+  DEP({ bar: b, mx: -9e4, my: -9e4 }).dx]
+});
+/* ET LE BORD RENDU EST BIEN CELUI DE LA MARGE : la barre trop large commence
+   a 8 px du bord gauche du conteneur, pas ailleurs. */
+out.tb_d_barre_trop_large_bord = TBG(function () {
+  var b = { left: 114, top: 140, width: 2000, height: 900 };
+  return DEPB.left + DEP({ bar: b, mx: 9e4 }).dx - DEPC.left
+});
+/* UN CONTENEUR DE TAILLE NULLE — l'ecran cache, ou la mise en page pas
+   encore calculee. LE BORNAGE EST SAUTE, le decalage passe tel quel : c'est
+   la RESTAURATION qui en mourrait sinon, un decalage valide ecrase par un
+   rectangle qui n'existe pas encore. */
+out.tb_d_conteneur_nul = TBG(function () {
+  var v = DEP({ cont: { left: 0, top: 0, width: 0, height: 0 },
+    dx: 300, dy: 200 });
+  return [v.dx, v.dy, v.borne]
+});
+out.tb_d_conteneur_hauteur_nulle = TBG(function () {
+  var v = DEP({ cont: { left: 100, top: 50, width: 1000, height: 0 },
+    dx: 300, dy: 200 });
+  return [v.dx, v.dy, v.borne]
+});
+/* DES RECTANGLES ILLISIBLES : absents, `NaN`, champs manquants. Meme repli,
+   et JAMAIS une levee — un `throw` ici tuerait le geste en cours. */
+out.tb_d_rect_absent = TBG(function () {
+  var v = DEP({ cont: null, dx: 300, dy: 200 });
+  return [v.dx, v.dy, v.borne]
+});
+out.tb_d_rect_nan = TBG(function () {
+  var v = DEP({ cont: { left: NaN, top: 50, width: 1000, height: 600 },
+    dx: 300, dy: 200 });
+  return [v.dx, v.dy, v.borne]
+});
+out.tb_d_barre_absente = TBG(function () {
+  var v = DEP({ bar: void 0, dx: 300, dy: 200 });
+  return [v.dx, v.dy, v.borne]
+});
+out.tb_d_barre_sans_champs = TBG(function () {
+  var v = DEP({ bar: { left: 1, top: 2 }, dx: 300, dy: 200 });
+  return [v.dx, v.dy, v.borne]
+});
+/* UN DEPLACEMENT ENORME MAIS FINI : borne. UN DEPLACEMENT NON FINI
+   (`Infinity`, `NaN`, une chaine) : IGNORE — il ne vient d'aucun pointeur
+   reel, et le prendre pour un deplacement aurait colle la barre a un bord
+   sans qu'on ait bouge. Les deux ne se valent pas, et les deux sont mesures. */
+out.tb_d_enorme = DEPXY({ mx: 1e9, my: -1e9 });
+out.tb_d_infini = DEPXY({ mx: Infinity, my: -Infinity });
+out.tb_d_nan = DEPXY({ mx: NaN, my: NaN });
+out.tb_d_texte = DEPXY({ mx: "300", my: null });
+/* AUCUNE SORTIE N'EST `NaN`, QUOI QU'ON ENTRE. Un `NaN` dans une translation
+   CSS ne leve pas : il ANNULE la regle, et la barre saute a son ancrage. */
+out.tb_d_jamais_nan = TBG(function () {
+  var v = T.tbBorne({ bar: "x", cont: [], dx: "a", dy: {}, mx: NaN,
+    my: void 0, ph: "z", aim: !0 });
+  return [isFinite(v.dx), isFinite(v.dy), v.dx, v.dy, v.borne]
+});
+out.tb_d_sans_argument = TBG(function () {
+  var v = T.tbBorne();
+  return [v.dx, v.dy, v.ax, v.ay, v.borne]
+});
+
+/* ── L'AIMANTATION (§4.2 : « à moins de 12 px », AU RELACHEMENT) ───────── */
+/* LES QUATRE BORDS. A 11 px du bord la barre s'y colle ; a 12 px, non — le
+   §4.2 dit « à MOINS de 12 px », et le banc mesure les deux cotes du seuil. */
+/* ON POSE UN DEPLACEMENT (`mx`), PAS UN DECALAGE (`dx`), ET LA DIFFERENCE
+   N'EST PAS COSMETIQUE : `dx` est le decalage QUE PORTE DEJA le rectangle
+   qu'on passe, donc le poser sans bouger la barre deplace l'ANCRAGE et,
+   avec lui, les quatre bornes. Premiere ecriture de ces sondes, elle a fait
+   rougir six lignes d'un coup — c'est le cœur qui avait raison. */
+out.tb_d_aim_gauche = TBG(function () {
+  return [DEPA({ mx: -6 + 11, aim: !0 }), DEPA({ mx: -6 + 12, aim: !0 })]
+});
+out.tb_d_aim_droite = TBG(function () {
+  return [DEPA({ mx: 578 - 11, aim: !0 }), DEPA({ mx: 578 - 12, aim: !0 })]
+});
+/* `mx: 200` DANS LES DEUX LIGNES VERTICALES, ET CE N'EST PAS DU BRUIT : a
+   decalage nul la barre est a 6 px du bord gauche et s'y colle, ce qui
+   aurait fait passer une aimantation horizontale pour une verticale. */
+out.tb_d_aim_haut = TBG(function () {
+  return [DEPA({ mx: 200, my: -82 + 11, aim: !0 }),
+  DEPA({ mx: 200, my: -82 + 12, aim: !0 })]
+});
+out.tb_d_aim_bas = TBG(function () {
+  return [DEPA({ mx: 200, my: 428 - 11, aim: !0 }),
+  DEPA({ mx: 200, my: 428 - 12, aim: !0 })]
+});
+/* L'AXE DE LA TETE DE LECTURE. Elle est a x=300 ; le bord GAUCHE de la barre
+   y arrive pour dx = 300-114 = 186. On lache a 9 px : ca colle, et le nom du
+   bord aimante le dit (`tg`). Le bord DROIT y arriverait pour dx = -214,
+   HORS BORNES : il n'est pas candidat. */
+out.tb_d_aim_tete = TBG(function () {
+  return [DEPA({ ph: 300, mx: 186 + 9, aim: !0 }),
+  DEPA({ ph: 300, mx: 186 + 13, aim: !0 })]
+});
+/* LE BORD DROIT DE LA BARRE S'AIMANTE AUSSI (§4.2 : « un bord de la barre »).
+   Tete a x=800 : le bord droit y arrive pour dx = 800-400-114 = 286. */
+out.tb_d_aim_tete_bord_droit = TBG(function () {
+  return DEPA({ ph: 800, mx: 286 + 7, aim: !0 })
+});
+/* LA TETE HORS DU CONTENEUR — elle defile avec `.svm-scroll` et s'eloigne
+   avec le zoom. AUCUN AIMANT, et surtout AUCUN DEPLACEMENT : la barre reste
+   ou le doigt l'a lachee. C'est la difference entre ecarter un candidat et
+   re-pincer apres coup. */
+out.tb_d_aim_tete_hors = TBG(function () {
+  return [DEPA({ ph: 5000, mx: 200, aim: !0 }),
+  DEPA({ ph: -5000, mx: 200, aim: !0 })]
+});
+out.tb_d_aim_sans_tete = TBG(function () {
+  return [DEPA({ ph: null, mx: 200, aim: !0 }),
+  DEPA({ ph: NaN, mx: 200, aim: !0 })]
+});
+/* PENDANT LE GESTE, AUCUNE AIMANTATION (§4.2 : « Au relâchement »). Meme
+   position, meme plateau : `aim` faux ne colle rien. */
+out.tb_d_aim_seulement_au_relachement = TBG(function () {
+  return [DEPA({ mx: -6 + 3, ph: 300, aim: !1 }),
+  DEPA({ mx: -6 + 3, ph: 300, aim: !0 })]
+});
+/* LE PLUS PROCHE GAGNE, pas le premier venu : tete a 108 (donc dx=-6, le
+   bord gauche lui-meme) contre le bord gauche — et un cas ou la tete est
+   plus proche que le bord. */
+out.tb_d_aim_le_plus_proche = TBG(function () {
+  return DEPA({ ph: 114 + 4, mx: 2, aim: !0 })
+});
+/* UNE BARRE TROP LARGE N'AIMANTE RIEN : aucune borne n'est atteignable,
+   donc aucun candidat ne l'est. */
+out.tb_d_aim_barre_trop_large = TBG(function () {
+  var v = DEP({ bar: { left: 114, top: 140, width: 2000, height: 900 },
+    ph: 300, aim: !0 });
+  return [v.dx, v.ax, v.ay]
+});
+
+/* ── L'UNION DES DEUX ZONES (§4.2) ────────────────────────────────────── */
+out.tb_d_boite = TBG(function () {
+  var b = T.tbBoite({ left: 0, top: 400, width: 1000, height: 300 },
+    { left: 0, top: 100, width: 1000, height: 300 });
+  return [b.left, b.top, b.width, b.height]
+});
+out.tb_d_boite_un_seul = TBG(function () {
+  var a = T.tbBoite({ left: 5, top: 6, width: 7, height: 8 }, null);
+  var b = T.tbBoite(null, { left: 5, top: 6, width: 7, height: 8 });
+  var c = T.tbBoite({ left: 5, top: 6, width: 0, height: 8 },
+    { left: 5, top: 6, width: 7, height: 8 });
+  return [[a.left, a.top, a.width, a.height],
+  [b.left, b.top, b.width, b.height], [c.width, c.height]]
+});
+out.tb_d_boite_aucun = TBG(function () {
+  return [T.tbBoite(null, null), T.tbBoite({ left: NaN }, void 0)]
+});
+/* LA PINCE, NUE : le cas `mn > mx` rend `mn`, pas `mx`. */
+out.tb_d_pince = TBG(function () {
+  return [T.tbPince(5, 0, 10), T.tbPince(-3, 0, 10), T.tbPince(99, 0, 10),
+  T.tbPince(5, 10, 0), T.tbPince(0, 0, 0)]
+});
+
+/* ── LA PERSISTANCE DU DECALAGE (§4.4) ────────────────────────────────── */
+function STORE(v) {
+  var lu = [], ecrit = [];
+  return { lu: lu, ecrit: ecrit,
+    getItem: function (k) { lu.push(k); return v },
+    setItem: function (k, x) { ecrit.push([k, x]) } }
+}
+out.tb_d_cle = T.TB_CLE_OFF;
+out.tb_d_classe_geste = T.TB_CL_DRAG;
+out.tb_d_off_lit = TBG(function () {
+  var s = STORE('{"dx":120,"dy":-40}');
+  var v = T.tbOffGet(s);
+  return [v.dx, v.dy, s.lu]
+});
+/* TOUT CE QUI N'EST PAS UN COUPLE DE NOMBRES RETOMBE SUR L'ORIGINE — c'est
+   le filet de securite de la cle : un `dz_svm_tb_off` corrompu a la main ne
+   peut pas envoyer la barre hors de l'ecran, il la ramene chez elle. */
+out.tb_d_off_replis = TBG(function () {
+  return [null, "", "pas du json", "120", "null", "[1,2]",
+  '{"dx":"a","dy":true}', '{"dy":9}'].map(function (v) {
+    var o = T.tbOffGet(STORE(v));
+    return [o.dx, o.dy]
+  })
+});
+out.tb_d_off_ecrit = TBG(function () {
+  var s = STORE(null);
+  var v = T.tbOffSet({ dx: 12, dy: -7 }, s);
+  return [s.ecrit, v.dx, v.dy]
+});
+out.tb_d_off_ecrit_propre = TBG(function () {
+  var s = STORE(null);
+  var v = T.tbOffSet({ dx: NaN, dy: "x", ax: "g" }, s);
+  return [s.ecrit, v.dx, v.dy]
+});
+/* UN MAGASIN QUI LEVE — navigation privee, politique de site restrictive.
+   La barre perd la MEMOIRE, jamais le mouvement en cours : `tbOffSet` rend
+   quand meme le decalage demande. */
+out.tb_d_off_magasin_qui_leve = TBG(function () {
+  var s = { getItem: function () { throw new Error("nope") },
+    setItem: function () { throw new Error("nope") } };
+  var g = T.tbOffGet(s), e = T.tbOffSet({ dx: 4, dy: 5 }, s);
+  return [g.dx, g.dy, e.dx, e.dy]
+});
+out.tb_d_off_sans_magasin = TBG(function () {
+  var g = T.tbOffGet(null), e = T.tbOffSet({ dx: 4, dy: 5 }, null);
+  return [g.dx, g.dy, e.dx, e.dy]
+});
+
+/* ── LE GESTE (§4.2) — SUR LA FENETRE, ET RENDU ENTIEREMENT ───────────── */
+function FWIN() {
+  var L = {};
+  return { L: L,
+    addEventListener: function (t, f) { (L[t] = L[t] || []).push(f) },
+    removeEventListener: function (t, f) {
+      var a = L[t] || [], i = a.indexOf(f); if (i >= 0) a.splice(i, 1)
+    },
+    feu: function (t, ev) { (L[t] || []).slice().forEach(function (f) { f(ev) }) },
+    n: function () {
+      var k = Object.keys(L), i, n = 0;
+      for (i = 0; i < k.length; i++) n += L[k[i]].length;
+      return n
+    },
+    types: function () {
+      return Object.keys(L).filter(function (k) { return L[k].length }).sort()
+    } }
+}
+function FCORPS() {
+  var tr = [];
+  return { tr: tr, classList: {
+    add: function (c) { tr.push("+" + c) },
+    remove: function (c) { tr.push("-" + c) } } }
+}
+function GEO(o) {
+  var g = { bar: DEPB, cont: DEPC, ph: null, dx: 0, dy: 0, px: 500, py: 300 };
+  Object.keys(o || {}).forEach(function (k) { g[k] = o[k] });
+  return g
+}
+/* LES TROIS ECOUTEURS SONT SUR LA FENETRE, ET LA CLASSE EST SUR LE CORPS.
+   C'est ce qu'aucune lecture de source ne dirait : `pointercancel` est un
+   ajout au §4.2, sans lequel un geste repris par le systeme laisserait
+   `grabbing` colle sur tout le document. */
+out.tb_d_saisie_pose = TBG(function () {
+  var w = FWIN(), c = FCORPS();
+  T.tbSaisie(w, c, GEO(), function () { });
+  return [w.types(), w.n(), c.tr]
+});
+out.tb_d_saisie_deplace = TBG(function () {
+  var w = FWIN(), c = FCORPS(), vu = [];
+  T.tbSaisie(w, c, GEO(), function (r, f) { vu.push([r.dx, r.dy, f, r.ax]) });
+  w.feu("pointermove", { clientX: 560, clientY: 330 });
+  w.feu("pointermove", { clientX: 400, clientY: 300 });
+  return [vu, w.n()]
+});
+/* LE RELACHEMENT AIMANTE, ET LUI SEUL. Le meme point, lache : le bord
+   gauche est a 3 px, il colle ; en cours de geste, non. */
+out.tb_d_saisie_relache_aimante = TBG(function () {
+  var w = FWIN(), c = FCORPS(), vu = [];
+  T.tbSaisie(w, c, GEO(), function (r, f) { vu.push([r.dx, f, r.ax]) });
+  w.feu("pointermove", { clientX: 497, clientY: 300 });
+  w.feu("pointerup", { clientX: 497, clientY: 300 });
+  return [vu, w.types(), w.n(), c.tr]
+});
+/* `pointercancel` TERMINE COMME UN RELACHEMENT : tout est rendu. */
+out.tb_d_saisie_annulee = TBG(function () {
+  var w = FWIN(), c = FCORPS(), vu = [];
+  T.tbSaisie(w, c, GEO(), function (r, f) { vu.push([r.dx, f]) });
+  w.feu("pointermove", { clientX: 560, clientY: 300 });
+  w.feu("pointercancel", { clientX: 560, clientY: 300 });
+  return [vu, w.n(), c.tr]
+});
+/* UN RELACHEMENT SANS COORDONNEES LISIBLES (cela arrive sur
+   `pointercancel`) NE VAUT PAS « deplacement nul » : la derniere position
+   connue est gardee, sinon la barre sauterait a sa place d'avant le geste. */
+out.tb_d_saisie_sans_coordonnees = TBG(function () {
+  var w = FWIN(), c = FCORPS(), vu = [];
+  T.tbSaisie(w, c, GEO(), function (r, f) { vu.push([r.dx, f]) });
+  w.feu("pointermove", { clientX: 560, clientY: 300 });
+  w.feu("pointercancel", {});
+  return vu
+});
+/* APRES LA FIN, PLUS RIEN — meme si un evenement traine. */
+out.tb_d_saisie_apres_la_fin = TBG(function () {
+  var w = FWIN(), c = FCORPS(), n = 0, gardes = [];
+  T.tbSaisie(w, c, GEO(), function () { n++ });
+  Object.keys(w.L).forEach(function (k) { gardes = gardes.concat(w.L[k]) });
+  w.feu("pointerup", { clientX: 500, clientY: 300 });
+  var apres = n;
+  gardes.forEach(function (f) { f({ clientX: 900, clientY: 900 }) });
+  return [apres, n]
+});
+/* L'ANNULATEUR — c'est lui que le demontage du composant appelle. Il retire
+   les trois ecouteurs ET la classe, et il ne fait rien deux fois. */
+out.tb_d_saisie_annulateur = TBG(function () {
+  var w = FWIN(), c = FCORPS();
+  var fin = T.tbSaisie(w, c, GEO(), function () { });
+  fin(); fin(); fin();
+  return [w.n(), c.tr]
+});
+/* SANS FENETRE, SANS POSE, SANS GEOMETRIE : un annulateur inoffensif, jamais
+   une levee — c'est le chemin du rendu serveur et celui d'une barre pas
+   encore posee. */
+out.tb_d_saisie_sans_rien = TBG(function () {
+  var a = T.tbSaisie(null, null, GEO(), function () { });
+  var b = T.tbSaisie(FWIN(), null, null, function () { });
+  var c = T.tbSaisie(FWIN(), null, GEO(), null);
+  a(); b(); c();
+  return [typeof a, typeof b, typeof c]
+});
+/* SANS CORPS (ou avec un corps sans `classList`) le geste marche quand
+   meme : le curseur est un confort, le deplacement est la fonction. */
+out.tb_d_saisie_sans_corps = TBG(function () {
+  var w = FWIN(), vu = [];
+  T.tbSaisie(w, {}, GEO(), function (r, f) { vu.push([r.dx, f]) });
+  w.feu("pointerup", { clientX: 560, clientY: 300 });
+  return [vu, w.n()]
+});
+
+/* ── LE CLAVIER DE LA POIGNEE (§4.5) ──────────────────────────────────── */
+out.tb_d_touche = TBG(function () {
+  return ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].map(function (k) {
+    var a = T.tbTouche(k, !1), b = T.tbTouche(k, !0);
+    return [a.mx, a.my, b.mx, b.my]
+  })
+});
+/* UNE TOUCHE QUI N'EST PAS UNE FLECHE NE DEPLACE RIEN — et `constructor`
+   non plus : un acces nu a l'objet aurait rendu la fonction heritee, donc
+   « vraie », et un pas `NaN`. */
+out.tb_d_touche_inconnue = TBG(function () {
+  return ["a", "Enter", " ", "constructor", "toString", "__proto__", "",
+    void 0, null].map(function (k) { return T.tbTouche(k, !1) })
+});
+
+/* ── LA MESURE DES RECTANGLES, SUR UN FAUX ARBRE ──────────────────────── */
+function TBCL(s) {
+  var a = String(s).split(" ");
+  return { contains: function (c) { return a.indexOf(c) >= 0 } }
+}
+function FARBRE(o) {
+  o = o || {};
+  var rTl = ("tl" in o) ? o.tl : { left: 0, top: 400, width: 1000, height: 300 };
+  var rMid = ("mid" in o) ? o.mid : { left: 0, top: 100, width: 1000, height: 300 };
+  var rBar = ("bar" in o) ? o.bar : { left: 14, top: 442, width: 400, height: 74 };
+  var rPh = ("ph" in o) ? o.ph : { left: 300, top: 420, width: 1, height: 280 };
+  var mid = rMid ? { classList: TBCL("svm-mid"),
+    getBoundingClientRect: function () { return rMid } } : null;
+  var ph = rPh ? { classList: TBCL("svm-phline"),
+    getBoundingClientRect: function () { return rPh } } : null;
+  var racine = { classList: TBCL("dzsvm svm-col"),
+    querySelector: function (s) { return s === ".svm-mid" ? mid : null } };
+  var tl = o.sansTl ? null : { classList: TBCL("svm-tl"), parentNode: racine,
+    getBoundingClientRect: function () { return rTl },
+    querySelector: function (s) { return s === ".svm-phline" ? ph : null } };
+  var trans = { classList: TBCL("svm-trans"), parentNode: tl || racine };
+  return { classList: TBCL("dzm-tbar"), parentNode: trans,
+    getBoundingClientRect: function () { return rBar } }
+}
+/* LE CONTENEUR RETENU EST L'UNION DE `.svm-mid` ET `.svm-tl` — « la zone
+   timeline + zone de prévisualisation » du §4.2, tout l'ecran SOUS la barre
+   de titre. Le faux arbre reproduit la chaine mesuree dans le bundle :
+   barre -> .svm-trans -> .svm-tl -> .dzsvm.svm-col, avec `.svm-mid` chez le
+   meme parent que `.svm-tl`. */
+out.tb_d_conteneur = TBG(function () {
+  var b = T.tbConteneur(FARBRE());
+  return [b.left, b.top, b.width, b.height]
+});
+/* SANS `.svm-mid` — le bornage se RESSERRE sur la timeline seule au lieu de
+   disparaitre. Sans `.svm-tl`, il n'y a plus rien a borner et on le dit. */
+out.tb_d_conteneur_sans_mid = TBG(function () {
+  var b = T.tbConteneur(FARBRE({ mid: null }));
+  return [b.left, b.top, b.width, b.height]
+});
+out.tb_d_conteneur_sans_timeline = TBG(function () {
+  return T.tbConteneur(FARBRE({ sansTl: !0 }))
+});
+out.tb_d_conteneur_sans_noeud = TBG(function () {
+  return [T.tbConteneur(null), T.tbConteneur({})]
+});
+/* L'AXE DE LA TETE : le MILIEU du filet d'1 px, pas son bord. */
+out.tb_d_tete = TBG(function () { return T.tbTete(FARBRE()) });
+out.tb_d_tete_absente = TBG(function () {
+  return [T.tbTete(FARBRE({ ph: null })), T.tbTete(FARBRE({ sansTl: !0 })),
+  T.tbTete(null)]
+});
+/* LA REMONTEE D'ARBRE EST BORNEE : un cycle de parents ne doit pas boucler
+   sans fin. On en fabrique un. */
+out.tb_d_ancetre_cycle = TBG(function () {
+  var n = 0;
+  var a = { classList: { contains: function () { n++; return !1 } } };
+  a.parentNode = a;
+  var perdu = T.tbAncetre(a, "svm-tl");
+  var b = { classList: TBCL("x") };
+  b.parentNode = b;
+  return [perdu, n, T.tbAncetre(b, "x") === b]
+});
+/* TOUTE LA GEOMETRIE EN UNE FOIS, AU `pointerdown` — la discipline de
+   `clipDown`, qui fige `rect` et `pxPerS` a la saisie. */
+out.tb_d_geo = TBG(function () {
+  var g = T.tbGeo(FARBRE(), { dx: 3, dy: 4 }, { clientX: 500, clientY: 600 });
+  return [g.bar.left, g.bar.top, g.cont.left, g.cont.top, g.cont.width,
+  g.cont.height, g.ph, g.dx, g.dy, g.px, g.py]
+});
+out.tb_d_geo_sans_barre = TBG(function () {
+  return [T.tbGeo(null, { dx: 1, dy: 2 }, {}),
+  T.tbGeo(FARBRE({ bar: { left: 0, top: 0, width: 0, height: 0 } }), {}, {})]
+});
+/* ── LE RECADRAGE : LA BARRE RENTRE QUAND LA FENETRE RETRECIT ──────────
+   LE FAUX ARBRE DOIT ETRE COHERENT : le rectangle de la barre est celui
+   qu'elle a AUJOURD'HUI, decalage compris. On pose donc un rectangle
+   deplace de 5000 ET un decalage de 5000 — l'ancrage redevient (14,442). */
+out.tb_d_recadre = TBG(function () {
+  var el = FARBRE({ bar: { left: 14 + 5000, top: 442 + 5000,
+    width: 400, height: 74 } });
+  var v = T.tbRecadre(el, { dx: 5000, dy: 5000 });
+  return v ? [v.dx, v.dy] : v
+});
+/* RIEN A FAIRE = `null`, ET C'EST DISTINCT DE `{dx:0,dy:0}` : un decalage
+   deja licite ne provoque ni ecriture ni rendu. */
+out.tb_d_recadre_rien_a_faire = TBG(function () {
+  var el = FARBRE({ bar: { left: 114, top: 492, width: 400, height: 74 } });
+  return T.tbRecadre(el, { dx: 100, dy: 50 })
+});
+/* UN CONTENEUR NON MESURABLE NE RAMENE PAS LA BARRE A L'ORIGINE — c'est la
+   meme regression que `dzmTbRect` refuse plus haut, et elle se rejouerait
+   ici : au chargement, la mise en page n'est pas toujours calculee. */
+out.tb_d_recadre_sans_conteneur = TBG(function () {
+  return [T.tbRecadre(FARBRE({ sansTl: !0 }), { dx: 5000, dy: 5000 }),
+  T.tbRecadre(null, { dx: 5000, dy: 5000 })]
+});
+/* L'ECOUTE DU REDIMENSIONNEMENT : posee sur la fenetre, et rendue par
+   l'annulateur que le demontage appelle. */
+out.tb_d_veille = TBG(function () {
+  var w = FWIN(), n = 0;
+  var stop = T.tbVeille(w, function () { n++ });
+  var pose = [w.types(), w.n()];
+  w.feu("resize", {});
+  stop();
+  return [pose, n, w.n()]
+});
+out.tb_d_veille_sans_rien = TBG(function () {
+  var a = T.tbVeille(null, function () { });
+  var b = T.tbVeille(FWIN(), null);
+  a(); b();
+  return [typeof a, typeof b]
+});
+/* LE FIL COMPLET, DU FAUX ARBRE AU DECALAGE BORNE : c'est le seul endroit
+   ou les trois morceaux (mesure, geste, cœur) tournent ensemble.
+   Conteneur mesure : (0,100) 1000 x 600 -> bornes dx [-6, 578] pour une
+   barre de 400 large posee a x=14. Un geste de +9000 px s'y arrete, et le
+   bord droit de la barre tombe alors a 8 px du bord du conteneur (592+400 =
+   992 = 1000-8). */
+out.tb_d_bout_en_bout = TBG(function () {
+  var el = FARBRE(), w = FWIN(), c = FCORPS(), vu = [];
+  var g = T.tbGeo(el, { dx: 0, dy: 0 }, { clientX: 100, clientY: 500 });
+  T.tbSaisie(w, c, g, function (r, f) { vu.push([r.dx, r.dy, f, r.ax]) });
+  w.feu("pointermove", { clientX: 9100, clientY: 500 });
+  w.feu("pointerup", { clientX: 9100, clientY: 500 });
+  return [vu, w.n(), c.tr,
+  el.getBoundingClientRect().left + vu[vu.length - 1][0]]
+});
+
 console.log(JSON.stringify(out));
 """
 # "use strict" en PROLOGUE du shim : concatene, celui de montage.js n'est
@@ -4719,13 +5329,55 @@ _i_dk = src.find("function DzmToolDock(o){")
 _j_dk = src.find("\n/* ", _i_dk) if _i_dk >= 0 else -1
 _DOCK = src[_i_dk:_j_dk] if 0 <= _i_dk < _j_dk else "DOCK-INTROUVABLE"
 check("tb_le_dock_restaure_persiste_et_rend_l_onglet_et_la_barre",
-      200 < len(_DOCK) < 1200
+      2500 < len(_DOCK) < 7000
       and "x.useState(dzmTbOpenGet)" in _DOCK
       and "dzmTbOpenSet(!v)" in _DOCK and "dzmTbOpenSet(!1)" in _DOCK
       and "x.useEffect(" in _DOCK and "dzmTbFrame(" in _DOCK
       and "DzmToolTab({" in _DOCK and "DzmToolBar({" in _DOCK
       and "items:dzmTbCablage(o)" in _DOCK and "anim:anim" in _DOCK,
       f"dock={len(_DOCK)} o : {_DOCK[:160]!r}")
+# LE DEPORT PASSE PAR LE DOCK, ET C'EST LA SEULE PIECE QUE NODE NE JOUE PAS :
+# le cœur, le geste, la mesure des rectangles et le clavier sont tous joues
+# plus haut, mais RIEN ne dirait qu'ils sont APPELES. Meme parade que pour
+# `dzmTbFrame` a l'etape 4 — la mutation qui avait fonde cette ligne
+# (retirer l'appel, garder la fonction) laissait le banc entierement vert.
+# Chaque jeton est une piece differente du §4.2 : la restauration, le geste,
+# la geometrie figee a la saisie, l'ecriture au relachement, le clavier du
+# §4.5, l'annulateur du demontage et le recentrage.
+# LES JETONS SONT DES INSTRUCTIONS ENTIERES, PAS DES NOMS. MESURE : deux
+# mutants ont survecu a la premiere campagne parce que `dzmTbTouche(` reste
+# vrai d'un `var p=null&&dzmTbTouche(...)` et que `fin.current()` vit AUSSI
+# dans `saisir` — la sous-chaine etait trouvee ailleurs (faute n°2).
+for _tk in ("x.useState(dzmTbOffGet)", "dzmTbGeo(bar.current",
+            "dzmTbSaisie(w,doc&&doc.body", "dzmTbOffSet(res)",
+            "var p=dzmTbTouche(e&&e.key,e&&e.shiftKey===!0);",
+            "dzmTbBorne({", "dzmTbOffSet({dx:0,dy:0})",
+            "if(fin.current){fin.current();fin.current=null}",
+            "dzmTbRecadre(bar.current,offRef.current)",
+            "    recadrer();", "return dzmTbVeille(", "offRef.current=off;",
+            "onGrab:saisir", "onGripKey:clavier",
+            "onRecentrer:recentrer", "barRef:bar", "off:off", "drag:drag"):
+    check("tb_le_dock_porte_" + re.sub(r"\W+", "_", _tk).strip("_"),
+          _tk in _DOCK, f"absent du Dock ({len(_DOCK)} o)")
+# LE DECALAGE EST RESTAURE PAR UN INITIALISEUR PARESSEUX, comme `open` : la
+# forme appelee (`dzmTbOffGet()`) aurait relu localStorage a chaque rendu de
+# l'ecran — et l'ecran se redessine a chaque image pendant la lecture.
+check("tb_le_decalage_de_depart_est_un_initialiseur_paresseux",
+      "x.useState(dzmTbOffGet)" in _DOCK
+      and "x.useState(dzmTbOffGet())" not in _DOCK,
+      f"dock={_DOCK[:200]!r}")
+# LE MAGASIN N'EST ECRIT QU'AU RELACHEMENT ET AU RECENTRAGE, jamais a chaque
+# `pointermove` : un `setItem` par image de geste, pour une seule position
+# qui compte. La mesure est le COMPTE d'appels dans le Dock — QUATRE, et
+# chacun repond a un moment nomme : le relachement, la fleche, le
+# recentrage, le recadrage. Un cinquieme voudrait dire qu'un chemin ecrit
+# sans qu'on l'ait decide.
+check("tb_le_decalage_n_est_ecrit_qu_aux_quatre_moments_qui_comptent",
+      _DOCK.count("dzmTbOffSet(") == 4
+      and _DOCK.count("if(fini){setDrag(!1);dzmTbOffSet(res)") == 1
+      and _DOCK.count("if(v)setOff(dzmTbOffSet(v))") == 1,
+      f'{_DOCK.count("dzmTbOffSet(")} appel(s) a dzmTbOffSet dans le Dock '
+      f'— attendu 4 : relachement, fleche, recentrage, recadrage')
 # L'ETAT DE DEPART EST LU, PAS DEVINE : `x.useState(dzmTbOpenGet)` passe la
 # fonction en initialiseur PARESSEUX — React l'appelle une fois, sans
 # argument, donc sur le magasin du navigateur. `x.useState(dzmTbOpenGet())`
@@ -4791,14 +5443,26 @@ check("tb_la_barre_porte_l_id_que_l_onglet_commande",
 check("tb_l_etat_replie_et_l_etat_sans_animation_passent_par_deux_attributs",
       d.get("tb_r_off") == [None, ""] and d.get("tb_r_noanim") == [None, ""],
       f'off={d.get("tb_r_off")} noanim={d.get("tb_r_noanim")}')
-# LA POIGNEE porte le glyphe `poignee` du §3 a 14 px (§2.2a), ses six points,
-# et elle est `aria-hidden` : son sens est dans le `title`, pas dans l'icone.
-check("tb_la_poignee_est_le_glyphe_du_3_a_14_px_et_porte_son_titre",
-      d.get("tb_r_grip") == [14, "0 0 24 24", 6, True]
-      and isinstance(d.get("tb_r_grip_titre"), str)
-      and len(d["tb_r_grip_titre"]) > 60
-      and "étape 5" in d["tb_r_grip_titre"],
-      f'{d.get("tb_r_grip")} {d.get("tb_r_grip_titre")!r}')
+# LA POIGNEE porte le glyphe `poignee` du §3 a 14 px (§2.2a), ses six points
+# — et depuis l'etape 5 c'est un BOUTON. `aria-hidden` a quitte le bouton
+# (un nœud focusable cache des technologies d'assistance est une faute) et
+# est reste sur le GLYPHE ; l'`aria-label` porte le sens.
+check("tb_la_poignee_est_un_bouton_qui_porte_le_glyphe_du_3_a_14_px",
+      d.get("tb_r_grip") == ["button", "button", 14, "0 0 24 24", 6,
+                             "ABSENT", True],
+      f'{d.get("tb_r_grip")}')
+# SON TITRE DIT LES TROIS GESTES qu'elle accepte et la regle que
+# l'utilisateur peut constater — plus « pas encore active ». Les deux pas du
+# §4.5 y sont EN CLAIR : une infobulle qui tairait le clavier le rendrait
+# introuvable.
+_GT = d.get("tb_r_grip_titre")
+check("tb_le_titre_de_la_poignee_nomme_le_glisser_et_les_deux_pas",
+      isinstance(_GT, str) and len(_GT) > 120
+      and "glisser" in _GT and "flèches" in _GT and "Maj" in _GT
+      and "8 px" in _GT and "1 px" in _GT
+      and "étape 5" not in _GT
+      and d.get("tb_r_grip_aria") == "Déplacer la barre d'outils",
+      f'{_GT!r} aria={d.get("tb_r_grip_aria")!r}')
 # LE FILET DE SEPARATION S'ARRETE AU DERNIER GROUPE (§2.2b) : `data-last` est
 # pose par le JS, pas devine par `:last-child`.
 check("tb_les_cinq_colonnes_portent_leur_teinte_et_le_dernier_filet_tombe",
@@ -4831,16 +5495,32 @@ check("tb_les_neuf_boutons_sont_peints_avec_leur_etat",
           ["dzm-tbb dzm-g-ajouts dzm-on", "texte", False, "true"],
           ["dzm-tbb dzm-g-projets dzm-solo", "projets", True, "ABSENT"]],
       f'{d.get("tb_r_boutons")}')
-# LES DEUX CONTROLES DE FENETRE (§2.2c). `⌖` est ETEINT : il n'a rien a
-# recentrer avant l'etape 5, et le §4.2 interdit de le MASQUER — eteint n'est
-# pas masque. `×` replie et le fait vraiment.
-check("tb_les_deux_controles_de_fenetre_sont_la_le_recentrage_eteint",
+# LES DEUX CONTROLES DE FENETRE (§2.2c), VIVANTS TOUS LES DEUX depuis
+# l'etape 5. NI L'UN NI L'AUTRE N'EST `disabled` : le §4.2 dit de `⌖` qu'« il
+# ne doit jamais être masqué », et un filet de securite qui se desarme des que
+# l'etat le croit inutile n'en est plus un — il reste cliquable meme a
+# decalage nul, ou il ne fait rien de visible.
+check("tb_les_deux_controles_de_fenetre_sont_vivants",
       d.get("tb_r_win") == [
-          ["dzm-tbwb dzm-tbrc", "⌖", True, "Recentrer la barre d'outils"],
+          ["dzm-tbwb dzm-tbrc", "⌖", "ABSENT",
+           "Recentrer la barre d'outils"],
           ["dzm-tbwb dzm-tbcl", "×", "ABSENT", "Replier la barre d'outils"]]
       and d.get("tb_r_replier") == 1
-      and d.get("tb_r_replier_sans_action") == "ok",
-      f'{d.get("tb_r_win")} replier={d.get("tb_r_replier")}')
+      and d.get("tb_r_replier_sans_action") == "ok"
+      and d.get("tb_r_recentrer") == 1
+      and d.get("tb_r_recentrer_sans_action") == "ok",
+      f'{d.get("tb_r_win")} replier={d.get("tb_r_replier")} '
+      f'recentrer={d.get("tb_r_recentrer")}')
+# DEUX TITRES, ET ILS DIFFERENT : « ramène » quand la barre est deportee,
+# « déjà à sa place » quand elle ne l'est pas. Un seul titre aurait promis un
+# effet la ou il n'y en a aucun.
+_RT = d.get("tb_r_recentrer_titres")
+check("tb_le_recentrage_dit_laquelle_des_deux_situations_est_en_cours",
+      isinstance(_RT, list) and len(_RT) == 2 and _RT[0] != _RT[1]
+      and len(_RT[0]) > 40 and len(_RT[1]) > 40
+      and "origine" in _RT[0] and "origine" in _RT[1]
+      and "déjà" not in _RT[0] and "déjà" in _RT[1],
+      f'{_RT}')
 # SANS CABLAGE la barre existe quand meme — cinq colonnes — et AUCUN de ses
 # neuf boutons n'est vivant. Le repli d'une entree manquante n'est pas `{}` :
 # `{}` aurait rendu neuf boutons d'apparence vivante sans action derriere.
@@ -4929,7 +5609,13 @@ check("tb_le_z_index_8_est_le_seul_entier_libre_entre_le_contenu_et_les_popovers
 # le retrait des commentaires ne le voit plus. Mesure : la phrase « pas de
 # cursor:grab » survivait a _sansc et faisait rougir sa propre negation.
 _i_mc4 = _MC.rfind("/*", 0, _MC.find("L'ONGLET ET LA BARRE (handoff"))
-_MC_TB4 = _sansc(_MC[_i_mc4:]) if _i_mc4 >= 0 else "BLOC-INTROUVABLE"
+# LE BLOC DE L'ETAPE 5 COMMENCE OU CELUI DE L'ETAPE 4 S'ARRETE. Sans cette
+# borne, `_MC_TB4` avalait le bloc du deport et sa negation « pas de
+# cursor:grab » rougissait sur du code qui a le droit d'en poser un.
+_i_mc5 = _MC.rfind("/*", 0, _MC.find("LE DÉPORT (handoff"))
+_MC_TB4 = (_sansc(_MC[_i_mc4:_i_mc5]) if 0 <= _i_mc4 < _i_mc5
+           else "BLOC-INTROUVABLE")
+_MC_TB5 = _sansc(_MC[_i_mc5:]) if _i_mc5 >= 0 else "BLOC-INTROUVABLE"
 _R_TAB = _regle(_MC, ".dzsvm .dzm-tbtab{")
 _R_TABO = _regle(_MC, '.dzsvm .dzm-tbtab[aria-expanded="true"]{')
 _R_DOT = _regle(_MC, ".dzsvm .dzm-tbdot{")
@@ -4938,6 +5624,10 @@ _R_BAR = _regle(_MC, ".dzsvm .dzm-tbar{")
 _R_BOFF = _regle(_MC, ".dzsvm .dzm-tbar[data-off]{")
 _R_BNA = _regle(_MC, ".dzsvm .dzm-tbar[data-noanim]{")
 _R_GRIP = _regle(_MC, ".dzsvm .dzm-tbgrip{")
+_R_GRIPH = _regle(_MC, ".dzsvm .dzm-tbgrip:hover{")
+_R_GRIPD = _regle(_MC, ".dzsvm .dzm-tbar[data-drag] .dzm-tbgrip{")
+_R_BDRAG = _regle(_MC, ".dzsvm .dzm-tbar[data-drag]{")
+_R_CORPS = _regle(_MC, "body.dzm-tbdrag, body.dzm-tbdrag *{")
 _R_ZONE = _regle(_MC, ".dzsvm .dzm-tbzone{")
 _R_GRP = _regle(_MC, ".dzsvm .dzm-tbgrp{")
 _R_GRPL = _regle(_MC, ".dzsvm .dzm-tbgrp[data-last]{")
@@ -4999,18 +5689,25 @@ check("tb_le_repli_anime_l_opacite_et_six_pixels_jamais_la_hauteur",
       f"off={_R_BOFF!r}")
 check("tb_la_restauration_pose_l_etat_final_sans_transition",
       _R_BNA is not None and "transition:none" in _R_BNA, f"{_R_BNA!r}")
-# LA POIGNEE EST INERTE, ET LA FEUILLE LE DIT AVEC ELLE : pas de `grab`, pas
-# d'etat de survol. Un curseur de saisie sur un objet qui ne bouge pas est un
-# mensonge ; les deux reviennent avec l'etape 5.
-check("tb_la_poignee_est_dessinee_mais_ne_promet_pas_de_saisie",
+# LA POIGNEE SAISIT, ET LA FEUILLE LE DIT AVEC ELLE : `cursor:grab`, un etat
+# de survol, et la remise a zero du `<button>` qu'elle est devenue. Les trois
+# vivent dans le bloc du DEPORT, pas dans celui de l'etape 4 : la negation
+# ci-dessous porte sur le bloc de l'etape 4 SEUL, avec son conjoint positif
+# de taille — sans lui elle serait vraie d'un bloc introuvable.
+check("tb_la_poignee_saisit_et_la_feuille_le_dit",
       _R_GRIP is not None and "width:26px" in _R_GRIP
-      and "cursor:default" in _R_GRIP
+      and "cursor:grab" in _R_GRIP
+      and "touch-action:none" in _R_GRIP
+      and "padding:0" in _R_GRIP and "border:0" in _R_GRIP
       and "background:var(--srf-raised," in _R_GRIP
       and "border-right:1px solid var(--brd-hard," in _R_GRIP
-      and "cursor:grab" not in _MC_TB4
-      and ".dzm-tbgrip:hover" not in _MC_TB4
-      and len(_MC_TB4) > 2000,
-      f"grip={_R_GRIP!r}")
+      and _R_GRIPH is not None
+      and "background:var(--srf-hover," in _R_GRIPH
+      and "color:var(--txt-mid," in _R_GRIPH
+      and len(_MC_TB4) > 2000 and "cursor:grab" not in _MC_TB4
+      and len(_MC_TB5) > 800,
+      f"grip={_R_GRIP!r} hover={_R_GRIPH!r} tb4={len(_MC_TB4)} "
+      f"tb5={len(_MC_TB5)}")
 check("tb_les_colonnes_de_groupe_ont_leur_gouttiere_et_leur_filet",
       _R_ZONE is not None and "padding:9px 10px 8px" in _R_ZONE
       and _R_GRP is not None and "padding:0 11px" in _R_GRP
@@ -5023,7 +5720,7 @@ check("tb_les_colonnes_de_groupe_ont_leur_gouttiere_et_leur_filet",
       and _R_SUF is not None and "opacity:.5" in _R_SUF
       and "letter-spacing:.06em" in _R_SUF,
       f"zone={_R_ZONE!r} grp={_R_GRP!r} head={_R_HEAD!r} suf={_R_SUF!r}")
-check("tb_les_controles_de_fenetre_sont_habilles_et_le_recentrage_reste_eteint",
+check("tb_les_controles_de_fenetre_sont_habilles_et_la_regle_eteinte_reste",
       _R_WIN is not None and "width:26px" in _R_WIN
       and "border-left:1px solid var(--brd-hard," in _R_WIN
       and _R_WB is not None and "flex:1" in _R_WB
@@ -5124,21 +5821,25 @@ check("tb_le_dock_est_monte_dans_le_bandeau_de_transport",
       and "r.jsx(DzTracks.ToolDock,{" in P.R_M19[len(P.A_M19):],
       f"ancre={P.A_M19!r} reprise={P.R_M19.startswith(P.A_M19)} "
       f"occurrences={s.count(nl(P.A_M19))}")
-# ETAPES 5 A 8, TOUJOURS DEHORS — et la ligne le mesure sur la COUCHE, pas
-# sur les sections : c'est la couche qui porterait le deport, le clavier et
-# `role="toolbar"`. Conjoint positif d'abord, sinon la ligne serait vraie
-# d'un fichier vide.
-_i_tb4 = src.find("\u00c9TAPE 4 DU \u00a79 : LA BARRE ET SON ONGLET")
+# ETAPES 6 A 8, TOUJOURS DEHORS — et la ligne le mesure sur la COUCHE, pas
+# sur les sections : c'est la couche qui porterait `role="toolbar"`, le
+# `tabindex` roving et `Echap`. Conjoint positif d'abord, sinon la ligne
+# serait vraie d'un fichier vide.
+# L'ETAPE 5 EST DEDANS DESORMAIS, et les deux conjoints positifs le disent :
+# `pointermove` et `pointerdown` sont attendus PRESENTS. La ligne d'avant les
+# exigeait absents ; elle a fait exactement son travail — c'est elle qui a
+# impose de la reecrire au lieu de laisser le reste dehors sans surveillance.
+_i_tb4 = src.find("\u00c9TAPES 4 ET 5 DU \u00a79 : LA BARRE, SON ONGLET")
 _j_tb4 = src.find("/* \u2500\u2500 export contrat", _i_tb4) if _i_tb4 >= 0 else -1
 _SRC_TB = src[_i_tb4:_j_tb4] if 0 <= _i_tb4 < _j_tb4 else "BLOC-INTROUVABLE"
-check("tb_les_etapes_5_a_8_ne_sont_pas_livrees",
+check("tb_les_etapes_6_a_8_ne_sont_pas_livrees",
       len(_SRC_TB) > 6000 and "function DzmToolBar(" in _SRC_TB
       and "function DzmToolDock(" in _SRC_TB
-      and "pointermove" not in _SRC_TB and "pointerdown" not in _SRC_TB
+      and "pointermove" in _SRC_TB and "onPointerDown" in _SRC_TB
       and 'role:"toolbar"' not in _SRC_TB and "tabIndex" not in _SRC_TB
-      and "TB_CLE_OFFSET" not in _SRC_TB,
-      f"bloc={len(_SRC_TB)} o — la couche porte deja un morceau des "
-      f"etapes 5 a 8, ou le bloc de la barre est introuvable")
+      and "aria-orientation" not in _SRC_TB,
+      f"bloc={len(_SRC_TB)} o — la couche porte deja un morceau de "
+      f"l'etape 8, ou le bloc de la barre est introuvable")
 # LA DUPLICATION TRANSITOIRE, EPINGLEE : les neuf controles du bandeau sont
 # TOUJOURS LA. Le §5.1 l'interdit a terme, le §9 l'impose d'ici la (« *après*
 # que la barre fonctionne, jamais avant »). Le jour ou l'etape 6 les retire,
@@ -5160,6 +5861,567 @@ check("tb_la_chip_et_la_barre_lisent_la_meme_source_pour_MOT",
       and s.count(nl("onWordAnim:function(v){subsStyleSet({wordAnim:v})}")) == 1
       and s.count(nl("onChange:function(v){subsStyleSet({wordAnim:v})}")) == 1,
       f'lectures={s.count(nl(chr(34) + "couleur" + chr(34)))}')
+
+# ══════════════════════════════════════════════════════════════════════════
+# [6-ter] LE DEPORT — etape 5 du §9 du handoff (§4.2, et de §4.4 la seule
+# cle `offset`). LE §9 PREVIENT : « Tester d'abord le bornage : c'est là que
+# se logent les régressions. » Le cœur est donc une fonction PURE, jouee sous
+# node ; ces lignes lisent des NOMBRES, pas des intentions.
+# ══════════════════════════════════════════════════════════════════════════
+print("\n[6-ter] la barre d'outils — le deport : bornage, aimantation, cle")
+
+# ── LES QUATRE DISTANCES, LUES DANS LE HANDOFF ────────────────────────────
+# Meme protocole que les dix traces du §3 et le tableau du §2.4 : ni la
+# couche ni ce banc ne retapent un chiffre, les deux le lisent ici. Le jour
+# ou le handoff dirait 10 px de marge, CETTE ligne rougirait avec la
+# suivante, et le nombre serait rediscute au lieu de se perimer en silence.
+_S42 = _S45 = ""
+try:
+    _S42 = _HO[_HO.index("### 4.2 Déport"):_HO.index("### 4.3 Bascules")]
+    _S45 = _HO[_HO.index("### 4.5 Clavier"):_HO.index("## 5. Redistribution")]
+except BaseException as _e:
+    print(f"  ----  §4.2 / §4.5 du handoff illisibles : {temoin(_e)}")
+# LES ESPACES SONT DES `\s+` : le §4.2 revient a la ligne AU MILIEU de
+# « à moins\n de 12 px », et une regex a espace simple ne le voyait pas —
+# `_DIST` retombait a vide et QUATORZE lignes rougissaient d'un coup. C'est
+# la faute n°6 sous sa variante « rougir trop large », attrapee ici.
+_m_mrg = re.search(r"marge\s+de\s+(\d+)\s*px", _S42)
+_m_aim = re.search(r"à\s+moins\s+de\s+(\d+)\s*px", _S42)
+_m_pas = re.search(r"flèches\s*=\s*déplacement\s+de\s+(\d+)\s*px,\s*"
+                   r"`Maj\s*\+\s*flèches`\s*=\s*(\d+)\s*px", _S45)
+_DIST = ([int(_m_mrg.group(1)), int(_m_aim.group(1)),
+          int(_m_pas.group(1)), int(_m_pas.group(2))]
+         if (_m_mrg and _m_aim and _m_pas) else [])
+check("tb_d_les_quatre_distances_sont_lisibles_dans_le_handoff",
+      len(_DIST) == 4 and all(1 <= v <= 64 for v in _DIST)
+      and len(_S42) > 800 and len(_S45) > 500,
+      f"distances={_DIST} §4.2={len(_S42)} o §4.5={len(_S45)} o")
+check("tb_d_la_couche_porte_les_quatre_distances_du_handoff",
+      len(_DIST) == 4 and d.get("tb_d_distances") == _DIST,
+      f'couche={d.get("tb_d_distances")} handoff={_DIST}')
+
+# ── LE BORNAGE (§4.2) ─────────────────────────────────────────────────────
+# LES QUATRE BORNES, DERIVEES DES MEMES NOMBRES QUE LA SONDE : le plateau est
+# un conteneur (100,50) de 1000 x 600 et une barre (114,140) de 400 x 74. La
+# marge vient du HANDOFF, pas d'ici — si elle changeait, ces quatre nombres
+# suivraient et la ligne resterait juste.
+_MG = _DIST[0] if len(_DIST) == 4 else None
+_BORNES = ([100 + _MG - 114, 1100 - _MG - 400 - 114,
+            50 + _MG - 140, 650 - _MG - 74 - 140] if _MG is not None else [])
+check("tb_d_les_quatre_bornes_sont_celles_du_conteneur_moins_la_marge",
+      len(_BORNES) == 4 and d.get("tb_d_bornes") == _BORNES,
+      f'mesure={d.get("tb_d_bornes")} attendu={_BORNES}')
+# ET LA MARGE SE LIT SUR LES BORDS DE LA BARRE, pas sur le decalage : les
+# quatre ecarts au conteneur, la barre poussee contre chaque bord.
+check("tb_d_la_barre_s_arrete_a_la_marge_des_quatre_bords",
+      _MG is not None and d.get("tb_d_marge") == [_MG, _MG, _MG, _MG],
+      f'{d.get("tb_d_marge")} attendu 4x{_MG}')
+# AU MILIEU, LE DECALAGE VAUT LE DEPLACEMENT — et `borne` dit que le bornage
+# a bien eu lieu. Sans ce second conjoint, une fonction qui rendrait toujours
+# l'entree telle quelle passerait cette ligne.
+check("tb_d_au_milieu_le_decalage_vaut_le_deplacement",
+      d.get("tb_d_libre") == [50, 30]
+      and d.get("tb_d_libre_est_borne") is True,
+      f'{d.get("tb_d_libre")} borne={d.get("tb_d_libre_est_borne")}')
+# LE DECALAGE COURANT S'AJOUTE AU DEPLACEMENT, et l'ancrage est DEDUIT de la
+# barre : la meme barre, deja deportee de 100, rend 120 pour 20 px de geste.
+# ET L'ANCRAGE EST DEDUIT DE LA BARRE (`bar.left - dx`) : la seconde
+# mesure part du MEME plateau, decale de 100, et pousse jusqu'a la borne. La
+# premiere seule ne suffisait pas — au milieu du conteneur les deux lectures
+# donnent le meme nombre, et le mutant qui oublie le `- dx` a survecu a la
+# premiere campagne. C'est la campagne qui a ecrit cette ligne.
+check("tb_d_le_decalage_courant_s_ajoute_au_deplacement",
+      len(_BORNES) == 4 and d.get("tb_d_cumul") == [120, 60]
+      and d.get("tb_d_cumul_borne") == [_BORNES[1], _BORNES[3]],
+      f'{d.get("tb_d_cumul")} borne={d.get("tb_d_cumul_borne")} '
+      f'attendu={[_BORNES[1], _BORNES[3]]}')
+
+# ── LES CAS LIMITES, CEUX QUE LE §4.2 REND MORTELS ────────────────────────
+# UNE BARRE PLUS GRANDE QUE LE CONTENEUR : le bord d'ORIGINE, celui de la
+# poignee — pas le bord oppose. Un `Math.min(mx, Math.max(mn, v))` naif
+# aurait rendu l'autre, et la poignee serait sortie a gauche.
+check("tb_d_une_barre_trop_grande_garde_sa_poignee_atteignable",
+      len(_BORNES) == 4
+      and d.get("tb_d_barre_trop_large") == [_BORNES[0], _BORNES[2],
+                                             _BORNES[0]]
+      and d.get("tb_d_barre_trop_large_bord") == _MG,
+      f'{d.get("tb_d_barre_trop_large")} '
+      f'bord={d.get("tb_d_barre_trop_large_bord")}')
+# UN CONTENEUR DE TAILLE NULLE, DES RECTANGLES `NaN` OU ABSENTS : le bornage
+# est SAUTE et le decalage passe tel quel. C'est la RESTAURATION qui en
+# mourrait sinon — un decalage valide, borne contre une mise en page pas
+# encore calculee, serait ramene a zero sans un mot. `borne` a faux est le
+# temoin DISTINGUABLE de ce chemin : sans lui, « le decalage n'a pas bouge »
+# serait vrai aussi d'un bornage qui aurait tourne et n'aurait rien eu a
+# corriger.
+for _k, _lb in (("tb_d_conteneur_nul", "un conteneur de taille nulle"),
+                ("tb_d_conteneur_hauteur_nulle", "une hauteur nulle"),
+                ("tb_d_rect_absent", "un conteneur absent"),
+                ("tb_d_rect_nan", "un conteneur NaN"),
+                ("tb_d_barre_absente", "une barre absente"),
+                ("tb_d_barre_sans_champs", "une barre sans dimensions")):
+    check("tb_d_" + _k[5:] + "_saute_le_bornage",
+          d.get(_k) == [300, 200, False], f'{_lb} : {d.get(_k)}')
+# UN DEPLACEMENT ENORME MAIS FINI EST BORNE ; UN DEPLACEMENT NON FINI EST
+# IGNORE. Les deux ne se valent pas : le premier vient d'un vrai geste, le
+# second d'un evenement casse, et le confondre avec un deplacement aurait
+# colle la barre a un bord sans qu'on ait bouge.
+check("tb_d_un_deplacement_enorme_est_borne_un_deplacement_absurde_ignore",
+      len(_BORNES) == 4
+      and d.get("tb_d_enorme") == [_BORNES[1], _BORNES[2]]
+      and d.get("tb_d_infini") == [0, 0] and d.get("tb_d_nan") == [0, 0]
+      and d.get("tb_d_texte") == [0, 0],
+      f'enorme={d.get("tb_d_enorme")} infini={d.get("tb_d_infini")} '
+      f'nan={d.get("tb_d_nan")} texte={d.get("tb_d_texte")}')
+# AUCUNE SORTIE N'EST `NaN`, QUOI QU'ON ENTRE. Un `NaN` dans une translation
+# CSS ne leve pas : il ANNULE la regle, et la barre saute a son ancrage sans
+# que rien ne le dise.
+check("tb_d_rien_ne_sort_jamais_en_nan",
+      d.get("tb_d_jamais_nan") == [True, True, 0, 0, False]
+      and d.get("tb_d_sans_argument") == [0, 0, "", "", False],
+      f'{d.get("tb_d_jamais_nan")} nu={d.get("tb_d_sans_argument")}')
+
+# ── L'AIMANTATION (§4.2) ──────────────────────────────────────────────────
+# LES QUATRE BORDS, ET LES DEUX COTES DU SEUIL. « à MOINS de 12 px » : a 11
+# ca colle, a 12 non. Une ligne qui n'aurait mesure que le cote « ca colle »
+# aurait laisse passer un seuil de 100 px.
+_SL = _DIST[1] if len(_DIST) == 4 else None
+if len(_BORNES) == 4 and _SL is not None:
+    for _k, _i, _nom, _sens in (("tb_d_aim_gauche", 0, "g", +1),
+                                ("tb_d_aim_droite", 1, "d", -1),
+                                ("tb_d_aim_haut", 2, "h", +1),
+                                ("tb_d_aim_bas", 3, "b", -1)):
+        _vert = _i >= 2
+        _fixe = 200 if _vert else 0
+        _colle = ([_fixe, _BORNES[_i], "", _nom] if _vert
+                  else [_BORNES[_i], 0, _nom, ""])
+        _libre = ([_fixe, _BORNES[_i] + _sens * _SL, "", ""] if _vert
+                  else [_BORNES[_i] + _sens * _SL, 0, "", ""])
+        check("tb_d_aimantation_au_bord_" + _nom + "_et_pas_au_dela_du_seuil",
+              d.get(_k) == [_colle, _libre],
+              f'{_k}={d.get(_k)} attendu {[_colle, _libre]}')
+# L'AXE DE LA TETE DE LECTURE, LES DEUX BORDS DE LA BARRE (§4.2 : « un bord
+# de la barre », pas « le bord gauche »). `tg` = bord gauche sur l'axe,
+# `td` = bord droit.
+check("tb_d_les_deux_bords_de_la_barre_s_aimantent_a_l_axe_de_la_tete",
+      d.get("tb_d_aim_tete") == [[186, 0, "tg", ""], [199, 0, "", ""]]
+      and d.get("tb_d_aim_tete_bord_droit") == [286, 0, "td", ""],
+      f'gauche={d.get("tb_d_aim_tete")} '
+      f'droit={d.get("tb_d_aim_tete_bord_droit")}')
+# LA TETE HORS DU CONTENEUR — elle defile avec `.svm-scroll` et s'eloigne
+# avec le zoom. AUCUN AIMANT, ET SURTOUT AUCUN DEPLACEMENT : la barre reste
+# ou le doigt l'a lachee. C'est ce que « ecarter le candidat » fait et que
+# « re-pincer apres coup » n'aurait pas fait — la barre aurait saute au bord.
+check("tb_d_une_tete_hors_du_conteneur_n_aimante_ni_ne_deplace",
+      d.get("tb_d_aim_tete_hors") == [[200, 0, "", ""], [200, 0, "", ""]]
+      and d.get("tb_d_aim_sans_tete") == [[200, 0, "", ""], [200, 0, "", ""]],
+      f'hors={d.get("tb_d_aim_tete_hors")} '
+      f'sans={d.get("tb_d_aim_sans_tete")}')
+# L'AIMANTATION EST « AU RELACHEMENT » (§4.2), pas pendant le geste : la
+# meme position, le meme plateau, deux resultats.
+check("tb_d_l_aimantation_n_a_lieu_qu_au_relachement",
+      len(_BORNES) == 4
+      and d.get("tb_d_aim_seulement_au_relachement")
+      == [[_BORNES[0] + 3, 0, "", ""], [_BORNES[0], 0, "g", ""]],
+      f'{d.get("tb_d_aim_seulement_au_relachement")}')
+# LE PLUS PROCHE GAGNE : la tete a 4 px bat le bord a 8 px. Sans cela, le
+# premier candidat de la liste aurait toujours gagne.
+check("tb_d_le_candidat_le_plus_proche_gagne",
+      d.get("tb_d_aim_le_plus_proche") == [4, 0, "tg", ""],
+      f'{d.get("tb_d_aim_le_plus_proche")}')
+# UNE BARRE TROP LARGE N'AIMANTE RIEN : aucune borne n'est atteignable, donc
+# aucun candidat ne l'est. La barre s'arrete au bord d'origine, et le nom du
+# bord aimante reste VIDE — le distinguo compte, il dit que rien n'a colle.
+check("tb_d_une_barre_trop_large_n_aimante_rien",
+      len(_BORNES) == 4
+      and d.get("tb_d_aim_barre_trop_large") == [_BORNES[0], "", ""],
+      f'{d.get("tb_d_aim_barre_trop_large")}')
+
+# ── L'UNION DES DEUX ZONES, ET LA PINCE ───────────────────────────────────
+check("tb_d_le_conteneur_est_l_union_des_deux_rectangles",
+      d.get("tb_d_boite") == [0, 100, 1000, 600],
+      f'{d.get("tb_d_boite")}')
+check("tb_d_un_seul_rectangle_lisible_resserre_le_bornage",
+      d.get("tb_d_boite_un_seul") == [[5, 6, 7, 8], [5, 6, 7, 8], [7, 8]]
+      and d.get("tb_d_boite_aucun") == [None, None],
+      f'{d.get("tb_d_boite_un_seul")} aucun={d.get("tb_d_boite_aucun")}')
+check("tb_d_la_pince_rend_le_bord_d_origine_quand_les_bornes_se_croisent",
+      d.get("tb_d_pince") == [5, 0, 10, 10, 0], f'{d.get("tb_d_pince")}')
+
+# ── LA CLE DU DECALAGE (§4.4) — MEME ECART DECLARE QUE `dz_svm_tb_open` ───
+# `_DZ` a ete recense plus haut sur le bundle livre ; la cle est posee par
+# une constante, donc elle n'y figure pas et ne peut entrer en collision avec
+# rien. Le nom du handoff (`deepotus.toolbar.offset`) n'est nulle part :
+# l'ecart est FAIT, pas seulement dit.
+_LIT5 = '"' + str(d.get("tb_d_cle")) + '"'
+check("tb_d_la_cle_du_decalage_suit_la_maison_et_le_prefixe_de_l_ecran",
+      d.get("tb_d_cle") == "dz_svm_tb_off"
+      and d["tb_d_cle"].startswith("dz_svm_tb_")
+      and d["tb_d_cle"] != d.get("tb_cle")
+      and s.count(nl(_LIT5)) == 1
+      and d["tb_d_cle"] not in _DZ
+      and '"deepotus.toolbar' not in s and "'deepotus.toolbar" not in s,
+      f'cle={d.get("tb_d_cle")!r} litteraux={s.count(nl(_LIT5))} '
+      f'collision={d.get("tb_d_cle") in _DZ}')
+# LA FORME EST DU JSON, comme `dz_svm_keymap` — la seule cle `dz_*` de cette
+# base qui stocke autre chose qu'une chaine plate, et le banc le REJOUE.
+check("tb_d_le_json_est_la_forme_de_la_maison_pour_une_cle_composee",
+      s.count(nl('"dz_svm_keymap"')) >= 1
+      and "JSON.parse" in src and "JSON.stringify" in src,
+      "dz_svm_keymap introuvable dans le bundle — la forme JSON n'a plus de "
+      "precedent dans la maison, la cle doit etre rediscutee")
+check("tb_d_le_decalage_se_relit_tel_qu_il_a_ete_ecrit",
+      d.get("tb_d_off_lit") == [120, -40, ["dz_svm_tb_off"]]
+      and d.get("tb_d_off_ecrit")
+      == [[["dz_svm_tb_off", '{"dx":12,"dy":-7}']], 12, -7],
+      f'lu={d.get("tb_d_off_lit")} ecrit={d.get("tb_d_off_ecrit")}')
+# TOUT CE QUI N'EST PAS UN NOMBRE RETOMBE SUR L'ORIGINE, CHAMP PAR CHAMP —
+# c'est le filet de securite de la cle : un `dz_svm_tb_off` corrompu a la
+# main ne peut pas envoyer la barre hors de l'ecran, il la ramene chez elle.
+# LE DERNIER CAS N'EST PAS `[0, 0]`, ET C'EST VOULU : un objet a moitie
+# lisible garde ce qui l'est. Sans lui, une fonction qui rendrait TOUJOURS
+# l'origine passerait les huit lignes.
+check("tb_d_un_decalage_corrompu_ramene_la_barre_chez_elle",
+      d.get("tb_d_off_replis") == [[0, 0], [0, 0], [0, 0], [0, 0], [0, 0],
+                                   [0, 0], [0, 0], [0, 9]],
+      f'{d.get("tb_d_off_replis")}')
+check("tb_d_le_decalage_ecrit_est_toujours_un_couple_de_nombres",
+      d.get("tb_d_off_ecrit_propre")
+      == [[["dz_svm_tb_off", '{"dx":0,"dy":0}']], 0, 0],
+      f'{d.get("tb_d_off_ecrit_propre")}')
+# UN MAGASIN QUI LEVE : la barre perd la MEMOIRE, jamais le mouvement en
+# cours — `tbOffSet` rend quand meme le decalage demande.
+check("tb_d_un_magasin_indisponible_ne_casse_pas_le_deplacement",
+      d.get("tb_d_off_magasin_qui_leve") == [0, 0, 4, 5]
+      and d.get("tb_d_off_sans_magasin") == [0, 0, 4, 5],
+      f'leve={d.get("tb_d_off_magasin_qui_leve")} '
+      f'sans={d.get("tb_d_off_sans_magasin")}')
+
+# ── LE GESTE (§4.2) ───────────────────────────────────────────────────────
+# LES ECOUTEURS SONT SUR LA FENETRE, PAS SUR L'ELEMENT. C'est le §4.2 au mot,
+# et c'est une DIVERGENCE MESUREE d'avec la maison : `clipDown` du bundle
+# pose les siens sur `e.currentTarget` et s'en tire par `setPointerCapture`.
+# Les deux faces sont gardees — le precedent EST la, et on ne le suit pas.
+# LA MESURE PORTE SUR LE CORPS DE `clipDown`, PAS SUR LE FICHIER : les deux
+# jetons vivent QUATRE fois chacun dans le bundle (clipDown, fadeDown et deux
+# autres glissers), et une recherche a l'echelle du fichier aurait ete verte
+# meme si clipDown, lui, avait change de forme. Bornes de taille en conjoint
+# positif : sans elles la ligne serait vraie d'un bloc introuvable.
+_i_cd = s.find(nl("function clipDown(e,c,laneEl){"))
+_j_cd = s.find(nl("function svmMixSet("), _i_cd) if _i_cd >= 0 else -1
+_CD = s[_i_cd:_j_cd] if 0 <= _i_cd < _j_cd else "CLIPDOWN-INTROUVABLE"
+check("bundle_clipDown_pose_ses_ecouteurs_sur_l_element_et_capture",
+      2000 < len(_CD) < 9000
+      and nl('tgt.addEventListener("pointermove",mv)') in _CD
+      and nl('tgt.addEventListener("pointerup",up)') in _CD
+      and nl("tgt.setPointerCapture(e.pointerId)") in _CD
+      and "window.addEventListener" not in _CD,
+      f"clipDown={len(_CD)} o — le precedent a change : la divergence du "
+      f"§4.2 doit etre rediscutee")
+check("tb_d_le_geste_ecoute_la_fenetre_et_marque_le_corps",
+      d.get("tb_d_saisie_pose") == [["pointercancel", "pointermove",
+                                     "pointerup"], 3, ["+dzm-tbdrag"]],
+      f'{d.get("tb_d_saisie_pose")}')
+# LA COUCHE NE POSE AUCUN ECOUTEUR DE POINTEUR SUR L'ELEMENT : la sonde
+# ci-dessus mesure ce qu'elle a recu, celle-ci mesure qu'il n'y a pas de
+# second chemin. Conjoint positif d'abord.
+# LA COUCHE N'A PAS DE SECOND CHEMIN : dans le bloc de la barre, les QUATRE
+# mentions de `addEventListener` — la garde plus les trois poses — portent
+# toutes le prefixe `w.`, et autant pour le retrait. Et la couche ENTIERE
+# n'appelle jamais `setPointerCapture` : c'est la forme de la maison qu'on
+# ecarte, et l'ecarter a moitie aurait donne deux chemins concurrents.
+# `.setPointerCapture(` AVEC LA PARENTHESE : le nom seul apparait une fois,
+# dans le commentaire qui explique la divergence — chercher le jeton nu
+# aurait fait rougir la ligne sur son propre commentaire (faute n°2).
+check("tb_d_la_couche_n_ecoute_le_pointeur_que_sur_la_fenetre",
+      _SRC_TB.count('addEventListener("pointer') == 3
+      and _SRC_TB.count('w.addEventListener("pointer') == 3
+      and _SRC_TB.count('removeEventListener("pointer') == 3
+      and _SRC_TB.count('w.removeEventListener("pointer') == 3
+      and _SRC_TB.count("addEventListener") > 3
+      and _SRC_TB.count("addEventListener")
+      == _SRC_TB.count("w.addEventListener")
+      and _SRC_TB.count("removeEventListener")
+      == _SRC_TB.count("w.removeEventListener")
+      and src.count(".setPointerCapture(") == 0
+      and src.count("setPointerCapture") == 1,
+      f'pointeur={_SRC_TB.count(chr(34) + "pointer")} '
+      f'add={_SRC_TB.count("addEventListener")} '
+      f'w.add={_SRC_TB.count("w.addEventListener")} '
+      f'capture={src.count(".setPointerCapture(")}')
+# LE DEPLACEMENT SUIT LE POINTEUR ET EST BORNE A CHAQUE IMAGE, SANS AIMANTER.
+check("tb_d_le_geste_borne_a_chaque_image_sans_aimanter",
+      d.get("tb_d_saisie_deplace") == [[[60, 30, False, ""],
+                                        [-6, 0, False, ""]], 3],
+      f'{d.get("tb_d_saisie_deplace")}')
+# LE RELACHEMENT AIMANTE, PUIS REND TOUT : les trois ecouteurs et la classe
+# du corps. Le meme point, lache, colle au bord ; en cours de geste, non.
+check("tb_d_le_relachement_aimante_puis_rend_tout",
+      d.get("tb_d_saisie_relache_aimante")
+      == [[[-3, False, ""], [-6, True, "g"]], [], 0,
+          ["+dzm-tbdrag", "-dzm-tbdrag"]],
+      f'{d.get("tb_d_saisie_relache_aimante")}')
+# `pointercancel` TERMINE COMME UN RELACHEMENT — un ajout au §4.2, qui ne le
+# nomme pas. Sans lui, un geste repris par le systeme laisserait `grabbing`
+# colle sur tout le document : le geste destructif sans retour.
+check("tb_d_une_annulation_de_pointeur_termine_et_rend_le_curseur",
+      d.get("tb_d_saisie_annulee") == [[[60, False], [60, True]], 0,
+                                       ["+dzm-tbdrag", "-dzm-tbdrag"]],
+      f'{d.get("tb_d_saisie_annulee")}')
+# UN RELACHEMENT SANS COORDONNEES LISIBLES NE VAUT PAS « deplacement nul » :
+# la derniere position connue est gardee. Le temoin est DISTINGUABLE — sans
+# cette garde le decalage retomberait a 0, qui s'aimanterait au bord gauche
+# (6 px) et non a 60.
+check("tb_d_un_relachement_sans_coordonnees_garde_la_derniere_position",
+      d.get("tb_d_saisie_sans_coordonnees") == [[60, False], [60, True]],
+      f'{d.get("tb_d_saisie_sans_coordonnees")}')
+# APRES LA FIN, PLUS RIEN : un evenement qui traine ne rappelle pas la pose.
+check("tb_d_apres_la_fin_un_evenement_qui_traine_ne_fait_rien",
+      d.get("tb_d_saisie_apres_la_fin") == [1, 1],
+      f'{d.get("tb_d_saisie_apres_la_fin")}')
+# L'ANNULATEUR — celui que le demontage du composant appelle. Il retire les
+# trois ecouteurs ET la classe, et il ne fait rien deux fois : une seconde
+# `remove` sur le corps serait inoffensive, mais elle dirait que la garde
+# `vif` ne garde rien.
+check("tb_d_l_annulateur_rend_tout_et_ne_le_fait_qu_une_fois",
+      d.get("tb_d_saisie_annulateur") == [0, ["+dzm-tbdrag", "-dzm-tbdrag"]],
+      f'{d.get("tb_d_saisie_annulateur")}')
+# SANS FENETRE, SANS GEOMETRIE, SANS POSE : un annulateur inoffensif, jamais
+# une levee — c'est le chemin d'un rendu serveur et celui d'une barre pas
+# encore posee dans le document.
+check("tb_d_sans_fenetre_ni_geometrie_le_geste_ne_leve_pas",
+      d.get("tb_d_saisie_sans_rien") == ["function", "function", "function"],
+      f'{d.get("tb_d_saisie_sans_rien")}')
+# SANS CORPS UTILISABLE, LE GESTE MARCHE QUAND MEME : le curseur est un
+# confort, le deplacement est la fonction.
+check("tb_d_sans_corps_le_deplacement_marche_quand_meme",
+      d.get("tb_d_saisie_sans_corps") == [[[60, True]], 0],
+      f'{d.get("tb_d_saisie_sans_corps")}')
+
+# ── LE CLAVIER DE LA POIGNEE (§4.5) ───────────────────────────────────────
+# LIVRE ICI, PAS A L'ETAPE 8, ET C'EST UN CHOIX : le §4.5 ecrit lui-meme
+# « Un objet déplaçable à la souris seule n'est pas accessible ». Les pas
+# viennent du HANDOFF (lus plus haut), pas d'ici.
+_PS = _DIST[2] if len(_DIST) == 4 else None
+_PF = _DIST[3] if len(_DIST) == 4 else None
+check("tb_d_les_quatre_fleches_deplacent_du_pas_du_handoff",
+      _PS is not None
+      and d.get("tb_d_touche") == [[-_PS, 0, -_PF, 0], [_PS, 0, _PF, 0],
+                                   [0, -_PS, 0, -_PF], [0, _PS, 0, _PF]],
+      f'{d.get("tb_d_touche")} pas={_PS}/{_PF}')
+# UNE TOUCHE QUI N'EST PAS UNE FLECHE NE DEPLACE RIEN — `constructor` et
+# `__proto__` compris : un acces nu a la table aurait rendu la fonction
+# heritee, donc « vraie », et un pas `NaN` sur une touche que personne n'a
+# mappee. Conjoint positif : la ligne du dessus prouve que la table repond.
+check("tb_d_aucune_autre_touche_ne_deplace_la_barre",
+      isinstance(d.get("tb_d_touche_inconnue"), list)
+      and len(d["tb_d_touche_inconnue"]) == 9
+      and all(v is None for v in d["tb_d_touche_inconnue"]),
+      f'{d.get("tb_d_touche_inconnue")}')
+
+# ── LA MESURE DES RECTANGLES : LE CONTENEUR RETENU ────────────────────────
+# LE §4.2 DIT « la zone timeline + zone de prévisualisation ». DANS CETTE
+# BASE ce sont DEUX nœuds freres — `.svm-mid` (lecteur + inspecteur) puis
+# `.svm-tl` (la timeline, dont `.svm-trans` est le premier enfant) — tous
+# deux enfants directs de la racine `.dzsvm.svm-col`. Le rectangle retenu est
+# leur UNION : tout l'ecran SOUS la barre de titre.
+# LES TROIS FAITS QUI FONDENT CE CHOIX SONT REJOUES ICI, pas seulement ecrits
+# en commentaire : les deux nœuds existent une fois chacun dans le bundle, la
+# racine est le SEUL ancetre rogneur, et ni `.svm-tl` ni `.svm-mid` ne
+# declarent d'overflow — sans quoi la barre serait coupee bien avant la
+# borne, et le §4.2 ne serait pas tenu.
+_SVCSS = _lire(ROOT / "frontend" / "dist" / "shared" / "son-vfx-montage.css")
+_R_MID = _regle(_SVCSS, ".svm-mid{")
+_R_TLR = _regle(_SVCSS, ".svm-tl{")
+# DEUX REGLES `.dzsvm{` DANS CETTE FEUILLE : le bloc de TOKENS (l.20) puis
+# la RACINE (l.49). `_regle` rend la premiere ; c'est la seconde qu'on veut,
+# et on la designe par ce qu'elle contient, pas par son rang.
+_R_RAC = None
+for _m_rac in re.finditer(r"\.dzsvm\{([^{}]*)\}", _sansc(_SVCSS)):
+    if "position:absolute" in _m_rac.group(1):
+        _R_RAC = _m_rac.group(1)
+check("tb_d_les_deux_zones_du_4_2_sont_deux_noeuds_uniques_du_bundle",
+      s.count(nl('className:"svm-mid"')) == 1
+      and s.count(nl('className:"svm-tl"')) == 1
+      and s.count(nl('className:"svm-trans"')) == 1
+      and s.count(nl('className:"svm-phline"')) == 1,
+      f'mid={s.count(nl(chr(34) + "svm-mid" + chr(34)))} '
+      f'tl={s.count(nl(chr(34) + "svm-tl" + chr(34)))}')
+check("tb_d_ni_la_timeline_ni_la_zone_de_previsualisation_ne_rognent",
+      _R_MID is not None and "overflow" not in _R_MID
+      and _R_TLR is not None and "overflow" not in _R_TLR
+      and len(_R_MID) > 20 and len(_R_TLR) > 40,
+      f"mid={_R_MID!r} tl={_R_TLR!r}")
+# LA RACINE, ELLE, ROGNE — et c'est ce qui rend le bornage SUFFISANT : tout
+# le rectangle retenu est dedans, donc aucun pixel de la barre n'est coupe,
+# donc elle reste recuperable (§4.2 : « Une barre à moitié sortie de l'écran
+# n'est pas récupérable »).
+check("tb_d_la_racine_est_le_seul_ancetre_rogneur_et_contient_le_conteneur",
+      _R_RAC is not None and "overflow:hidden" in _R_RAC
+      and "position:absolute" in _R_RAC and "inset:0" in _R_RAC,
+      f"racine={_R_RAC!r}")
+# ET LE FIL JOUE SOUS NODE, SUR UN FAUX ARBRE QUI REPRODUIT CETTE CHAINE :
+# barre -> .svm-trans -> .svm-tl -> .dzsvm.svm-col, `.svm-mid` chez le meme
+# parent. `.svm-tl` (0,400) 1000x300 et `.svm-mid` (0,100) 1000x300 -> union
+# (0,100) 1000x600.
+check("tb_d_le_conteneur_mesure_est_l_union_des_deux_zones",
+      d.get("tb_d_conteneur") == [0, 100, 1000, 600],
+      f'{d.get("tb_d_conteneur")}')
+# SANS `.svm-mid` le bornage se RESSERRE sur la timeline seule au lieu de
+# disparaitre ; sans `.svm-tl` il n'y a plus rien a borner, et on le DIT
+# plutot que de rendre un rectangle invente.
+check("tb_d_le_conteneur_se_resserre_ou_se_declare_introuvable",
+      d.get("tb_d_conteneur_sans_mid") == [0, 400, 1000, 300]
+      and d.get("tb_d_conteneur_sans_timeline") is None
+      and d.get("tb_d_conteneur_sans_noeud") == [None, None],
+      f'sans_mid={d.get("tb_d_conteneur_sans_mid")} '
+      f'sans_tl={d.get("tb_d_conteneur_sans_timeline")} '
+      f'sans_noeud={d.get("tb_d_conteneur_sans_noeud")}')
+# L'AXE DE LA TETE : le MILIEU du filet, pas son bord. Le filet fait 1 px
+# (son-vfx-montage.css) et il est rendu SANS condition dans `.svm-lanes` —
+# son abscisse est donc lisible au relachement, ce que le §4.2 exige.
+_R_PH = _regle(_SVCSS, ".svm-phline{")
+check("tb_d_l_axe_de_la_tete_est_le_milieu_du_filet_toujours_rendu",
+      d.get("tb_d_tete") == 300.5
+      and d.get("tb_d_tete_absente") == [None, None, None]
+      and _R_PH is not None and "width:1px" in _R_PH
+      and "position:absolute" in _R_PH,
+      f'tete={d.get("tb_d_tete")} absente={d.get("tb_d_tete_absente")} '
+      f'regle={_R_PH!r}')
+# LA REMONTEE D'ARBRE EST BORNEE : un cycle de parents ne doit pas boucler
+# sans fin. Le banc en fabrique un.
+# LE PLAFOND EST UNE PROPRIETE DE VIVACITE, PAS DE RESULTAT : un cycle rend
+# `null` avec ou sans lui, il met seulement l'eternite a le faire. LA MESURE
+# EST DONC LE NOMBRE DE PAS — un mutant qui monte le plafond a 4000 rougit
+# ici, alors qu'une comparaison du seul resultat le laissait passer. C'est la
+# campagne qui a ecrit cette ligne.
+_AC = d.get("tb_d_ancetre_cycle")
+check("tb_d_la_remontee_d_arbre_ne_boucle_pas_sur_un_cycle",
+      isinstance(_AC, list) and len(_AC) == 3
+      and _AC[0] is None and isinstance(_AC[1], int)
+      and 0 < _AC[1] <= 64 and _AC[2] is True,
+      f'{_AC} — pas de remontee avant abandon')
+# TOUTE LA GEOMETRIE EN UNE FOIS, AU `pointerdown` — la discipline de
+# `clipDown`, qui fige `rect` et `pxPerS` a la saisie. Mesurer a chaque
+# image aurait fait bouger les bornes sous le geste : la timeline se
+# redessine pendant la lecture.
+check("tb_d_la_geometrie_est_figee_en_une_fois_a_la_saisie",
+      d.get("tb_d_geo") == [14, 442, 0, 100, 1000, 600, 300.5, 3, 4, 500, 600]
+      and d.get("tb_d_geo_sans_barre") == [None, None],
+      f'{d.get("tb_d_geo")} sans={d.get("tb_d_geo_sans_barre")}')
+# LE FIL COMPLET, DU FAUX ARBRE AU DECALAGE BORNE : mesure, geste et cœur
+# ensemble. Un geste de +9000 px s'arrete a la borne, et le bord droit de la
+# barre tombe a la marge du bord du conteneur.
+check("tb_d_bout_en_bout_un_geste_enorme_s_arrete_a_la_marge",
+      _MG is not None
+      and d.get("tb_d_bout_en_bout") == [[[578, 0, False, ""],
+                                          [578, 0, True, "d"]], 0,
+                                         ["+dzm-tbdrag", "-dzm-tbdrag"], 592]
+      and 592 + 400 == 1000 - _MG,
+      f'{d.get("tb_d_bout_en_bout")}')
+
+# ── LE RECADRAGE (§4.2) ───────────────────────────────────────────────────
+# LE TROU QUE CECI BOUCHE : le decalage est stocke en RELATIF, donc la barre
+# garde sa place quand la fenetre change de taille — mais « sa place » peut
+# sortir du conteneur quand celui-ci retrecit, et le §4.2 dit qu'une barre a
+# moitie sortie n'est pas recuperable. `⌖` voyage AVEC la barre et
+# deviendrait injoignable ; l'onglet OUTILS, lui, ne bouge jamais, mais il ne
+# sait que replier. On recadre donc, au montage et a chaque `resize`.
+check("tb_d_la_barre_rentre_quand_le_conteneur_retrecit",
+      len(_BORNES) == 4
+      and d.get("tb_d_recadre") == [_BORNES[1], 176],
+      f'{d.get("tb_d_recadre")} attendu={[_BORNES[1] if _BORNES else None, 176]}')
+# `null` = RIEN A FAIRE, et c'est distinct de `{dx:0,dy:0}` : un decalage
+# deja licite ne provoque ni ecriture ni rendu, et un conteneur NON MESURABLE
+# ne ramene surtout pas la barre a l'origine — c'est la meme regression que
+# le bornage refuse plus haut, et le chargement la rejouerait.
+check("tb_d_le_recadrage_ne_touche_a_rien_quand_il_n_y_a_rien_a_faire",
+      d.get("tb_d_recadre_rien_a_faire") is None
+      and d.get("tb_d_recadre_sans_conteneur") == [None, None],
+      f'rien={d.get("tb_d_recadre_rien_a_faire")} '
+      f'sans={d.get("tb_d_recadre_sans_conteneur")}')
+check("tb_d_le_redimensionnement_est_ecoute_sur_la_fenetre_et_rendu",
+      d.get("tb_d_veille") == [[["resize"], 1], 1, 0]
+      and d.get("tb_d_veille_sans_rien") == ["function", "function"],
+      f'{d.get("tb_d_veille")} sans={d.get("tb_d_veille_sans_rien")}')
+
+# ── LA FEUILLE HABILLE LE DEPORT ──────────────────────────────────────────
+# LA TRANSLATION PASSE PAR `translate`, PAS PAR `transform` : `transform` est
+# deja prise par le repli du §4.1 (`translateY(6px)`), et les deux se
+# seraient ecrasees. `translate` est independante et se transitionne a part,
+# donc l'aimantation s'anime sur `--dur-bar-snap` (180 ms) pendant que
+# l'ouverture garde `--dur-bar-open` (220 ms). AUCUN MINUTEUR.
+check("tb_d_le_decalage_passe_par_translate_et_s_anime_sur_dur_bar_snap",
+      _R_BAR is not None
+      and "translate:var(--tbx, 0px) var(--tby, 0px)" in _R_BAR
+      and "translate var(--dur-bar-snap," in _R_BAR
+      and "transform var(--dur-bar-open," in _R_BAR
+      and _R_BOFF is not None and "transform:translateY(6px)" in _R_BOFF
+      and "translate" not in _R_BOFF.split("transition")[0]
+      .replace("transform:translateY(6px)", ""),
+      f"bar={_R_BAR!r}")
+# PENDANT LE GESTE, AUCUNE TRANSITION : sans cette regle la barre suivrait le
+# pointeur avec 180 ms de retard.
+check("tb_d_le_geste_coupe_la_transition",
+      _R_BDRAG is not None and "transition:none" in _R_BDRAG,
+      f"{_R_BDRAG!r}")
+check("tb_d_la_poignee_montre_grabbing_pendant_le_geste",
+      _R_GRIPD is not None and "cursor:grabbing" in _R_GRIPD,
+      f"{_R_GRIPD!r}")
+# LE CURSEUR SUR TOUT LE DOCUMENT ET LA SELECTION COUPEE (§4.2). La classe
+# est celle que la couche pose, lue dans le contrat — pas une chaine retapee
+# ici. CONTROLE A DEUX FACES : la regle existe dans la feuille, et le nom
+# vient du JS.
+check("tb_d_le_curseur_et_la_selection_sont_pris_sur_tout_le_document",
+      d.get("tb_d_classe_geste") == "dzm-tbdrag"
+      and _R_CORPS is not None
+      and "cursor:grabbing !important" in _R_CORPS
+      and "user-select:none" in _R_CORPS
+      and _MC.count("body.dzm-tbdrag") == 2,
+      f'classe={d.get("tb_d_classe_geste")!r} regle={_R_CORPS!r}')
+# LE MOUVEMENT REDUIT (§4.5 : « aimantation immédiate ») EST SERVI PAR UNE
+# REGLE QUI EXISTE DEJA, et la mesure CORRIGE une attribution de l'etape 3 :
+# le coupe-circuit ne vient pas de shared/deepotus.tokens.css — dist/index.html
+# ne charge PAS cette feuille — mais de son-vfx-montage.css, chargee l.17.
+check("tb_d_le_coupe_circuit_de_mouvement_reduit_couvre_bien_cet_ecran",
+      "prefers-reduced-motion" in _SVCSS
+      and re.search(r"@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{\s*"
+                    r"\.dzsvm \*[^}]*transition-duration:\s*\.001ms\s*"
+                    r"!important", _SVCSS) is not None
+      and "/shared/deepotus.tokens.css" not in _HTML
+      and _HTML.find("/shared/son-vfx-montage.css") > 0,
+      "le coupe-circuit global de son-vfx-montage.css a change : "
+      "l'aimantation n'est plus immediate sous mouvement reduit")
+
+# ── LA BARRE PEINT LE DEPORT ──────────────────────────────────────────────
+check("tb_d_la_barre_peint_le_decalage_en_deux_longueurs",
+      d.get("tb_r_deport") == ["42px", "-13px", ""]
+      and d.get("tb_r_deport_defaut") == ["0px", "0px", None],
+      f'{d.get("tb_r_deport")} defaut={d.get("tb_r_deport_defaut")}')
+# UN DECALAGE POURRI NE PEINT PAS `NaNpx` : la regle CSS serait ANNULEE, et
+# la barre sauterait a son ancrage sans un mot.
+check("tb_d_un_decalage_pourri_ne_peint_jamais_nan",
+      d.get("tb_r_deport_pourri") == ["0px", "0px", "0px"],
+      f'{d.get("tb_r_deport_pourri")}')
+# `⌖` N'EST JAMAIS MASQUE, MEME EN MODE COMPACT (§4.2 : « il ne doit jamais
+# être masqué en mode compact »). LE SEUL LEVIER DE MASQUAGE DE CETTE BARRE
+# est `--lbl`, et il ne s'applique QU'AU libelle des boutons d'action : une
+# seule lecture de `var(--lbl` dans toute la feuille, et elle est dans
+# `.dzm-tbl`. Les deux colonnes de bord, elles, sont en `display:flex` en
+# dur. Conjoint positif d'abord : le levier EXISTE.
+_R_LBL = _regle(_MC, ".dzsvm .dzm-tbl{")
+check("tb_d_seul_le_libelle_est_masquable_jamais_le_recentrage",
+      _R_LBL is not None and "display:var(--lbl, block)" in _R_LBL
+      and _sansc(_MC).count("var(--lbl") == 1
+      and _R_WIN is not None and "display:flex" in _R_WIN
+      and _R_WB is not None and "display:flex" in _R_WB
+      and "--lbl" not in _R_WIN and "--lbl" not in _R_WB
+      and "display:none" not in _sansc(_MC),
+      f'lbl={_R_LBL!r} lectures={_sansc(_MC).count("var(--lbl")} '
+      f'win={_R_WIN!r}')
+check("tb_d_la_barre_rend_sa_reference_et_sa_poignee_saisit",
+      d.get("tb_r_ref") is True and d.get("tb_r_grip_saisit") == [1, 1],
+      f'ref={d.get("tb_r_ref")} saisit={d.get("tb_r_grip_saisit")}')
 
 # LA LIGNE QUI DIT QUE LE BANC A ROUGI PLUTOT QUE MEURE : aucun appel garde
 # n'a pose de temoin. Une panne de node — introuvable, ou un shim qui tourne

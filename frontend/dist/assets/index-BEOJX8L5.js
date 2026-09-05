@@ -14571,11 +14571,11 @@ function DzmToolBtn(o){
   if(g)p["data-grp"]=g;
   if(tog)p["aria-pressed"]=mix?"mixed":(on?"true":"false");
   return r.jsx("button",p,o.k||("tbb-"+(o.icon||g||"x")))}
-/* ── ÉTAPE 4 DU §9 : LA BARRE ET SON ONGLET ────────────────────────────────
+/* ── ÉTAPES 4 ET 5 DU §9 : LA BARRE, SON ONGLET ET SON DÉPORT ──────────────
    Géométrie (§2.1, §2.2), contenu verbatim (§2.4), ouverture et repli (§4.1),
-   et de §4.4 LA SEULE CLÉ `open`. Le déport (§4.2) est l'étape 5, le retrait
-   des neuf contrôles du bandeau (§5) l'étape 6, le câblage complet (§6)
-   l'étape 7, le clavier et `role="toolbar"` (§4.5) l'étape 8.
+   le déport (§4.2), et de §4.4 LES DEUX CLÉS `open` et `offset`. Le retrait
+   des neuf contrôles du bandeau (§5) est l'étape 6, le câblage complet (§6)
+   l'étape 7, `role="toolbar"` et le `tabindex` roving (§4.5) l'étape 8.
 
    ── LA DUPLICATION EST TRANSITOIRE, ET C'EST DIT ICI ──
    Les neuf actions existent AUX DEUX ENDROITS tant que l'étape 6 n'a pas
@@ -14593,9 +14593,9 @@ function DzmToolBtn(o){
    Sept des neuf boutons sont CÂBLÉS sur l'action existante — la barre est un
    nouveau point d'entrée, pas une nouvelle implémentation (§6). Les deux qui
    ne le sont pas (`emoji`, `projets`) sont ÉTEINTS et le DISENT dans leur
-   `title`, en nommant l'étape qui les rendra vivants. Même règle pour la
-   poignée (dessinée, inerte : pas de `cursor:grab`, un titre qui l'explique)
-   et pour `⌖` recentrer, qui n'a rien à recentrer avant l'étape 5. */
+   `title`, en nommant l'étape qui les rendra vivants. La poignée et `⌖`,
+   eux, sont devenus vivants à l'étape 5 — leurs titres disent maintenant ce
+   qu'ils FONT, plus ce qu'ils ne font pas encore. */
 
 /* LA CLÉ DE PERSISTANCE — ÉCART DÉCLARÉ, DANS LES DEUX SENS.
    Le §4.4 demande `deepotus.toolbar.open`. LA MAISON dit autre chose, et
@@ -14663,11 +14663,22 @@ function dzmTbEtape7(quoi){
     "du handoff (étape 7). Éteint plutôt que muet."}
 var DZM_TB_SANS_HOTE="Action non fournie à la barre par l'écran qui la "+
   "monte — il n'y a rien à déclencher.";
-var DZM_TB_T_GRIP="Poignée de déplacement — dessinée, pas encore active : "+
-  "le déport est l'étape 5 du handoff (§4.2). Pas de curseur « grab » tant "+
-  "qu'elle ne saisit rien.";
-var DZM_TB_T_RECENTRER="Recentrer la barre d'outils — sans effet tant que "+
-  "la barre ne se déplace pas (§4.2, étape 5).";
+/* LA POIGNÉE PARLE DES TROIS GESTES qu'elle accepte, et de la seule règle
+   que l'utilisateur peut constater : la barre ne sort pas. */
+var DZM_TB_T_GRIP="Poignée — glisser pour déplacer la barre d'outils ; "+
+  "flèches pour la déplacer de 8 px, Maj + flèches de 1 px. Elle reste "+
+  "entièrement dans la timeline et la prévisualisation, à 8 px des bords, "+
+  "et s'aimante aux bords et à la tête de lecture au relâchement.";
+var DZM_TB_A_GRIP="Déplacer la barre d'outils";
+/* DEUX PHRASES, PAS UN BOUTON ÉTEINT (§4.2 : « il ne doit jamais être
+   masqué »). Il reste CLIQUABLE même quand il n'a rien à recentrer : c'est
+   le filet de sécurité du déport, et un filet qui se désarme tout seul dès
+   que l'état le croit inutile n'en est plus un. Son titre dit laquelle des
+   deux situations est en cours. */
+var DZM_TB_T_RECENTRER="Recentrer la barre d'outils — la ramène sous le "+
+  "bandeau de transport, à sa place d'origine.";
+var DZM_TB_T_RECENTREE="Recentrer la barre d'outils — elle est déjà à sa "+
+  "place d'origine.";
 var DZM_TB_T_REPLIER="Replier la barre d'outils sur son onglet.";
 var DZM_TB_T_TEXTE="Ouvrir ou fermer le panneau « Texte » — la narration "+
   "mot par mot dans la colonne de droite.";
@@ -14765,6 +14776,367 @@ function dzmTbFrame(w,fn){
   var t=setTimeout(fn,0);
   return function(){clearTimeout(t)}}
 
+/* ── ÉTAPE 5 DU §9 : LE DÉPORT ─────────────────────────────────────────────
+   Le §4.2 en entier, et de §4.4 la seule clé `offset`. Le retrait des neuf
+   contrôles du bandeau (§5) reste l'étape 6, le câblage complet (§6)
+   l'étape 7, `role="toolbar"` et le `tabindex` roving (§4.5) l'étape 8.
+
+   ── L'AVERTISSEMENT DU §9, PRIS AU MOT ──
+   « Tester d'abord le bornage : c'est là que se logent les régressions. »
+   « Une barre à moitié sortie de l'écran n'est pas récupérable. »
+   D'où la forme de ce lot : le CŒUR est `dzmTbBorne`, une fonction PURE qui
+   prend la position courante, le déplacement, le rectangle du conteneur,
+   celui de la barre et l'abscisse de la tête de lecture, et rend le décalage
+   BORNÉ puis AIMANTÉ. Pure = jouable sous node, et c'est la seule façon de
+   mesurer le bornage sans écran. Tout le reste — écouteurs, curseur,
+   persistance, mesure des rectangles — s'appuie dessus et n'en refait rien.
+
+   ── LE CONTENEUR DU BORNAGE, MESURÉ LE 05/09/2026 ──
+   Le §4.2 dit « la zone timeline + zone de prévisualisation ». Dans cette
+   base, ce sont DEUX nœuds, frères et empilés, tous deux enfants directs de
+   la racine `.dzsvm.svm-col` : `.svm-mid` (lecteur + inspecteur) puis
+   `.svm-tl` (la timeline, dont `.svm-trans` — l'ancrage de la barre — est le
+   premier enfant). Le RECTANGLE retenu est leur UNION, c'est-à-dire tout
+   l'écran SOUS la barre de titre. Trois raisons, chacune mesurée :
+   1. c'est le plus petit rectangle qui contienne les deux zones que le §4.2
+      nomme ; « zone de prévisualisation » seule (`.svm-playerzone`) est plus
+      étroite que la timeline — l'inspecteur occupe la droite de `.svm-mid` —
+      et l'union des deux ne serait alors PAS un rectangle, quand le §4.2
+      parle d'« un conteneur » au singulier avec une marge unique ;
+   2. le seul nœud exclu est `.svm-titlebar`, et c'est le bon : il porte le
+      nom du projet, le badge d'enregistrement, le format et le bouton de
+      rendu — des commandes qui doivent rester cliquables ;
+   3. TOUT le rectangle est à l'intérieur de `.dzsvm`, qui déclare
+      `overflow:hidden` (son-vfx-montage.css l.50) et qui est le SEUL
+      ancêtre rogneur de la chaîne — `.svm-mid` (l.210) et `.svm-tl` (l.303,
+      montage.css l.18, subs.css l.30) n'en déclarent aucun. Borner là-dedans
+      garantit donc qu'aucun pixel de la barre n'est coupé : elle reste
+      récupérable, ce que le §4.2 exige.
+   Borner contre `.svm-tl` SEULE aurait interdit ce que le §4.2 autorise
+   explicitement (monter dans la prévisualisation) ; borner contre la racine
+   entière aurait laissé la barre couvrir la barre de titre.
+
+   ── L'AXE DE LA TÊTE DE LECTURE ──
+   `.svm-phline` — un seul nœud dans le bundle, rendu SANS condition dans
+   `.svm-lanes`, large d'1 px (son-vfx-montage.css l.358), positionné en
+   `left:calc(88px + (100% - 88px) * phFrac)`. Son abscisse est donc lisible
+   à tout instant par `getBoundingClientRect()`, relâchement compris. Mais
+   `.svm-lanes` vit dans `.svm-scroll` (`overflow:auto`, l.331) et s'élargit
+   avec le zoom : la tête PEUT être hors du conteneur. C'est réglé sans
+   second pinçage — voir `dzmTbAimant`.
+
+   ── LE PRÉCÉDENT DU DÉPÔT, ET POURQUOI ON EN DIVERGE ──
+   `clipDown` du bundle glisse déjà dans cet écran. MESURÉ : il capture sa
+   géométrie au `pointerdown` (`rect`, `pxPerS`, `s0`, `e0`, la liste des
+   bords d'aimantation) — on fait pareil, c'est la discipline de la maison —
+   mais il pose `pointermove` / `pointerup` sur `e.currentTarget` et s'en
+   tire par `setPointerCapture`, qui redirige les événements vers l'élément
+   capturant. ICI, C'EST LA FENÊTRE, comme le §4.2 l'écrit, et ce n'est pas
+   par obéissance : le décalage est un état React, donc la barre se redessine
+   à chaque déplacement, et un écouteur posé sur un nœud que React
+   remplacerait mourrait avec lui — le nœud de `clipDown`, lui, survit à ses
+   propres rendus. `pointercancel` est écouté EN PLUS des deux du §4.2 : sans
+   lui, un geste repris par le système laisserait `grabbing` collé sur tout
+   le document, et ce serait un geste destructif sans retour.
+
+   ── LA CLÉ, MÊME ÉCART DÉCLARÉ QUE `dz_svm_tb_open` ──
+   Le §4.4 demande `deepotus.toolbar.offset` ; la maison dit `dz_*` (VINGT-SIX
+   clés `dz_*` distinctes dans le bundle livré aujourd'hui — les vingt-cinq
+   mesurées à l'étape 4, plus `dz_svm_tb_open` qu'elle a elle-même ajoutée —
+   contre trois `deepotus.*`, toutes trois hors de portée de cette chaîne).
+   Le §4.4 tranche lui-même : « dans le même espace de nommage que les
+   panneaux existants ». La FORME est du JSON, comme `dz_svm_keymap`, la
+   seule clé `dz_*` de cette base qui stocke autre chose qu'une chaîne plate.
+   ON STOCKE UN DÉCALAGE, JAMAIS DES COORDONNÉES : le §4.2 l'exige pour que
+   la barre garde sa place relative au redimensionnement de la fenêtre.
+
+   ── LE CLAVIER DE LA POIGNÉE : LIVRÉ ICI, PAS À L'ÉTAPE 8 ──
+   Le §4.5 le range dans l'accessibilité, mais il écrit aussi « Un objet
+   déplaçable à la souris seule n'est pas accessible ». Les deux autres
+   options étaient pires : livrer un déport souris-seule ferait vivre cette
+   régression jusqu'à l'étape 8, et rendre la poignée focusable sans lui
+   donner les flèches livrerait un bouton focusable qui ne fait rien. Le
+   cœur pur rend le clavier presque gratuit — un déplacement de ±8 px (±1
+   avec `Maj`) passe par le MÊME `dzmTbBorne` que la souris. RESTE POUR
+   L'ÉTAPE 8, ET C'EST DIT : la navigation aux flèches ENTRE LES BOUTONS
+   (`tabindex` roving) devra exclure la poignée de son groupe, sinon les
+   flèches auraient deux sens sur le même objet. */
+
+/* Les deux distances du §4.2, une fois chacune ; le banc les lit DANS le
+   handoff — ni la couche ni lui ne les retapent deux fois. */
+var DZM_TB_MARGE=8;
+var DZM_TB_AIMANT=12;
+/* Les deux pas du §4.5. */
+var DZM_TB_PAS=8;
+var DZM_TB_PAS_FIN=1;
+var DZM_TB_CLE_OFF="dz_svm_tb_off";
+/* La classe posée sur `document.body` pendant le geste (§4.2 : « cursor:
+   grabbing sur document.body — pas seulement sur la poignée »). */
+var DZM_TB_CL_DRAG="dzm-tbdrag";
+
+function dzmTbFini(v){return typeof v==="number"&&isFinite(v)}
+function dzmTbNb(v){return dzmTbFini(v)?v:0}
+
+/* UN RECTANGLE LISIBLE, OU RIEN — et « rien » n'est pas « zéro ».
+   `getBoundingClientRect()` d'un nœud jamais posé rend six zéros, et un nœud
+   détaché peut rendre des `NaN`. Les DEUX doivent être REFUSÉS, pas
+   normalisés : un rectangle nul pincerait la barre contre un coin qui
+   n'existe pas, et c'est le chemin de la RESTAURATION qui en mourrait — le
+   décalage d'un utilisateur, borné contre une mise en page pas encore
+   calculée, serait écrasé en silence. Refusé, le bornage est simplement
+   SAUTÉ et le décalage passe tel quel. */
+function dzmTbRect(q){
+  if(!q)return null;
+  var l=q.left,t=q.top,w=q.width,h=q.height;
+  if(!dzmTbFini(l)||!dzmTbFini(t)||!dzmTbFini(w)||!dzmTbFini(h))return null;
+  if(w<=0||h<=0)return null;
+  return {l:l,t:t,r:l+w,b:t+h,w:w,h:h}}
+
+/* L'UNION DES DEUX RECTANGLES — « la zone timeline + zone de prévisualisation ».
+   Pure : le banc la joue sans DOM. Un seul des deux lisible : c'est lui, et
+   le bornage se RESSERRE au lieu de disparaître. Rend la forme d'un
+   `DOMRect` (left/top/width/height), celle que tout le reste consomme. */
+function dzmTbBoite(p,q){
+  var a=dzmTbRect(p),b=dzmTbRect(q);
+  if(!a&&!b)return null;
+  if(!a)a=b;
+  else if(b){
+    var l=Math.min(a.l,b.l),t=Math.min(a.t,b.t);
+    a={l:l,t:t,w:Math.max(a.r,b.r)-l,h:Math.max(a.b,b.b)-t}}
+  return {left:a.l,top:a.t,width:a.w,height:a.h}}
+
+/* LA PINCE. Quand la barre NE TIENT PAS dans le conteneur, `mn` dépasse `mx`
+   et aucune position n'est licite : on rend `mn`, le bord d'ORIGINE (gauche,
+   haut). C'est délibéré et c'est le bord de la POIGNÉE — sans elle plus rien
+   ne se déplace, alors que `⌖` n'aurait de toute façon rien à réparer (à
+   décalage nul la barre déborderait pareil) et que l'onglet OUTILS, lui, ne
+   bouge jamais et replie la barre quoi qu'il arrive. Un
+   `Math.min(mx,Math.max(mn,v))` naïf aurait rendu `mx` : la poignée dehors,
+   à gauche. */
+function dzmTbPince(v,mn,mx){
+  if(mn>mx)return mn;
+  return v<mn?mn:(v>mx?mx:v)}
+
+/* LE PLUS PROCHE CANDIDAT À MOINS DE 12 px, ET QUI RESTE DANS LES BORNES.
+   Un candidat hors bornes n'en est PAS un — il est écarté, pas ramené.
+   CE QUE CET ÉCART FAIT VRAIMENT, MESURÉ PAR MUTATION ET PAS SUPPOSÉ : la
+   tête de lecture sortie du conteneur est réglée par le PINÇAGE, pas par
+   lui — `res.dx` étant déjà pincé, un candidat au-delà d'une borne est
+   forcément PLUS LOIN d'elle que la borne elle-même, donc il ne pouvait pas
+   gagner. Le seul cas où l'écart change la sortie est celui d'une barre trop
+   grande pour le conteneur, où AUCUNE borne n'est atteignable : sans lui,
+   `xmn` et `xmx` — qui se croisent — deviendraient des cibles et la barre
+   sauterait hors du conteneur au relâchement. C'est ce cas-là que le banc
+   exerce. (Ne pas re-pincer APRÈS l'aimantation reste, lui, un choix de
+   forme : re-pincer aurait collé la barre au bord au lieu de la laisser où
+   le doigt l'a lâchée, mais rien ne peut aujourd'hui le mettre en défaut.)
+   `<` strict : « à MOINS de 12 px » (§4.2). Le premier candidat gagne une
+   égalité — l'ordre de la liste est donc l'ordre de priorité. */
+function dzmTbAimant(v,cands,mn,mx){
+  var best=null,d=DZM_TB_AIMANT,i,e;
+  for(i=0;i<cands.length;i++){
+    if(cands[i][0]<mn||cands[i][0]>mx)continue;
+    e=Math.abs(cands[i][0]-v);
+    if(e<d){d=e;best=cands[i]}}
+  return best}
+
+/* ── LE CŒUR, PUR (§4.2) ───────────────────────────────────────────────────
+   `bar` est le rectangle de la barre TEL QU'IL EST AUJOURD'HUI, c'est-à-dire
+   décalé de (`dx`,`dy`) : on en déduit l'ancrage à décalage nul, et les
+   bornes s'expriment donc en DÉCALAGE, jamais en coordonnées.
+   `mx`/`my` : le déplacement depuis la saisie. `ph` : l'abscisse de l'axe de
+   la tête, ou rien. `aim` : vrai au seul relâchement (§4.2 — l'aimantation
+   est « au relâchement », pas pendant le geste, sinon la barre collerait aux
+   bords en cours de route).
+   AUCUNE SORTIE N'EST `NaN` : tout ce qui entre passe par `dzmTbNb`. Un
+   `NaN` écrit dans une translation CSS ne lève pas, il ANNULE la règle — la
+   barre sauterait à son ancrage sans un mot. */
+function dzmTbBorne(o){
+  o=o||{};
+  var dx=dzmTbNb(o.dx),dy=dzmTbNb(o.dy);
+  var res={dx:dx+dzmTbNb(o.mx),dy:dy+dzmTbNb(o.my),ax:"",ay:"",borne:!1};
+  var b=dzmTbRect(o.bar),c=dzmTbRect(o.cont);
+  if(!b||!c)return res;
+  res.borne=!0;
+  var x0=b.l-dx,y0=b.t-dy;
+  var xmn=c.l+DZM_TB_MARGE-x0,xmx=c.r-DZM_TB_MARGE-b.w-x0;
+  var ymn=c.t+DZM_TB_MARGE-y0,ymx=c.b-DZM_TB_MARGE-b.h-y0;
+  res.dx=dzmTbPince(res.dx,xmn,xmx);
+  res.dy=dzmTbPince(res.dy,ymn,ymx);
+  if(o.aim!==!0)return res;
+  /* LES QUATRE BORDS DU CONTENEUR sont représentés par les DEUX bornes de
+     chaque axe : bornées à 8 px, les positions « bord gauche » et « bord
+     gauche du conteneur » sont la même. Aimanter au bord NU aurait violé la
+     marge que la ligne du dessus vient de poser. */
+  var cx=[[xmn,"g"],[xmx,"d"]];
+  /* L'AXE DE LA TÊTE prend les DEUX bords verticaux de la barre : le §4.2
+     dit « un bord de la barre », pas « le bord gauche ». */
+  if(dzmTbFini(o.ph)){cx.push([o.ph-x0,"tg"],[o.ph-b.w-x0,"td"])}
+  var a=dzmTbAimant(res.dx,cx,xmn,xmx);
+  if(a){res.dx=a[0];res.ax=a[1]}
+  /* PAS D'AXE HORIZONTAL POUR LA TÊTE : `.svm-phline` est une VERTICALE
+     (`top:0; bottom:0; width:1px`). Deux bords seulement en ordonnée. */
+  var y=dzmTbAimant(res.dy,[[ymn,"h"],[ymx,"b"]],ymn,ymx);
+  if(y){res.dy=y[0];res.ay=y[1]}
+  return res}
+
+/* ── LA PERSISTANCE DU DÉCALAGE (§4.4) ─────────────────────────────────────
+   Même magasin injectable que `dz_svm_tb_open` : sous node il n'y a pas de
+   `localStorage`, et une fonction qu'on ne peut pas jouer n'est pas mesurée.
+   TOUTE VALEUR QUI N'EST PAS UN COUPLE DE NOMBRES RETOMBE SUR L'ORIGINE, et
+   c'est le filet de sécurité de la clé : un `dz_svm_tb_off` corrompu à la
+   main ne peut pas envoyer la barre hors de l'écran, il la ramène chez elle. */
+function dzmTbOffGet(st){
+  var s=st||dzmTbStore(),v=null;
+  try{v=s?s.getItem(DZM_TB_CLE_OFF):null}catch(e){return {dx:0,dy:0}}
+  if(typeof v!=="string")return {dx:0,dy:0};
+  try{v=JSON.parse(v)}catch(e){return {dx:0,dy:0}}
+  if(!v||typeof v!=="object")return {dx:0,dy:0};
+  return {dx:dzmTbNb(v.dx),dy:dzmTbNb(v.dy)}}
+/* REND CE QU'ELLE A ÉCRIT, comme `dzmTbOpenSet` : un magasin en panne fait
+   perdre la MÉMOIRE, jamais le déplacement en cours. */
+function dzmTbOffSet(o,st){
+  var s=st||dzmTbStore();
+  var v={dx:dzmTbNb(o&&o.dx),dy:dzmTbNb(o&&o.dy)};
+  try{if(s)s.setItem(DZM_TB_CLE_OFF,JSON.stringify(v))}catch(e){}
+  return v}
+
+/* ── LE GESTE (§4.2) ───────────────────────────────────────────────────────
+   `w` est un OBJET-FENÊTRE et `corps` un ÉLÉMENT-CORPS, tous deux reçus en
+   argument : c'est ce qui rend ces trente lignes jouables sous node avec des
+   faux, et c'est là que se mesure ce qu'aucune lecture de source ne dirait —
+   SUR QUOI les écouteurs sont posés, et qu'ils sont bien tous retirés.
+   Rend un ANNULATEUR, appelé aussi bien au relâchement qu'au démontage du
+   composant : sans lui, une barre démontée en plein geste laisserait le
+   curseur `grabbing` sur tout le document et trois écouteurs vivants.
+   LA DERNIÈRE POSITION CONNUE EST GARDÉE : un `pointerup` sans coordonnées
+   lisibles (cela arrive sur `pointercancel`) ne doit pas valoir « déplacement
+   nul » — la barre sauterait à sa position d'avant le geste. */
+function dzmTbSaisie(w,corps,geo,pose){
+  var vif=!0,lmx=0,lmy=0;
+  if(!w||typeof w.addEventListener!=="function"
+     ||typeof w.removeEventListener!=="function"
+     ||typeof pose!=="function"||!geo)return function(){};
+  function dep(ev){
+    var cx=ev?ev.clientX:void 0,cy=ev?ev.clientY:void 0;
+    if(dzmTbFini(cx)&&dzmTbFini(cy)){lmx=cx-geo.px;lmy=cy-geo.py}
+    return [lmx,lmy]}
+  function calc(ev,aim){
+    var m=dep(ev);
+    return dzmTbBorne({bar:geo.bar,cont:geo.cont,ph:geo.ph,
+      dx:geo.dx,dy:geo.dy,mx:m[0],my:m[1],aim:aim})}
+  function mv(ev){if(vif)pose(calc(ev,!1),!1)}
+  /* `pointercancel` TERMINE COMME UN RELÂCHEMENT — le §4.2 ne le nomme pas.
+     Rendre la barre à sa position d'avant le geste aurait été l'autre choix :
+     on garde ce que l'utilisateur a fait, c'est le plus indulgent des deux et
+     `⌖` reste là pour tout défaire. */
+  function up(ev){if(!vif)return;var res=calc(ev,!0);fin();pose(res,!0)}
+  function fin(){
+    if(!vif)return;
+    vif=!1;
+    try{w.removeEventListener("pointermove",mv);
+        w.removeEventListener("pointerup",up);
+        w.removeEventListener("pointercancel",up)}catch(e){}
+    try{if(corps&&corps.classList)corps.classList.remove(DZM_TB_CL_DRAG)}
+    catch(e){}}
+  w.addEventListener("pointermove",mv);
+  w.addEventListener("pointerup",up);
+  w.addEventListener("pointercancel",up);
+  try{if(corps&&corps.classList)corps.classList.add(DZM_TB_CL_DRAG)}catch(e){}
+  return fin}
+
+/* ── LA MESURE DES RECTANGLES, DEPUIS LA BARRE ELLE-MÊME ───────────────────
+   Aucune propriété neuve n'est demandée à l'écran, donc AUCUNE section de
+   patch neuve : on remonte de la barre à `.svm-tl` (le parent du bandeau),
+   puis on prend `.svm-mid` chez le même parent. Le `while` est BORNÉ — une
+   remontée d'arbre sans plafond est une boucle infinie en puissance. */
+var DZM_TB_REMONTEE=40;
+function dzmTbAncetre(el,cls){
+  var n=el,i=0;
+  while(n&&i<DZM_TB_REMONTEE){
+    if(n.classList&&typeof n.classList.contains==="function"
+       &&n.classList.contains(cls))return n;
+    n=n.parentNode;i++}
+  return null}
+function dzmTbLire(el){
+  if(!el||typeof el.getBoundingClientRect!=="function")return null;
+  var q;
+  try{q=el.getBoundingClientRect()}catch(e){return null}
+  return dzmTbRect(q)?q:null}
+function dzmTbConteneur(el){
+  var tl=dzmTbAncetre(el,"svm-tl");
+  if(!tl)return null;
+  var par=tl.parentNode;
+  var mid=(par&&typeof par.querySelector==="function")
+    ?par.querySelector(".svm-mid"):null;
+  return dzmTbBoite(dzmTbLire(tl),dzmTbLire(mid))}
+/* L'AXE, PAS LE BORD : `.svm-phline` fait 1 px, mais c'est son MILIEU que
+   l'œil lit comme la tête de lecture. */
+function dzmTbTete(el){
+  var tl=dzmTbAncetre(el,"svm-tl");
+  var ph=(tl&&typeof tl.querySelector==="function")
+    ?tl.querySelector(".svm-phline"):null;
+  var q=dzmTbRect(dzmTbLire(ph));
+  return q?q.l+q.w/2:null}
+/* TOUTE LA GÉOMÉTRIE EN UNE FOIS, AU `pointerdown` — la discipline de
+   `clipDown`, qui fige `rect`, `pxPerS` et les bords d'aimantation à la
+   saisie. Mesurer à chaque déplacement aurait fait bouger les bornes sous le
+   geste : la timeline se redessine pendant la lecture. */
+function dzmTbGeo(el,off,ev){
+  var bar=dzmTbLire(el);
+  if(!bar)return null;
+  return {bar:bar,cont:dzmTbConteneur(el),ph:dzmTbTete(el),
+    dx:dzmTbNb(off&&off.dx),dy:dzmTbNb(off&&off.dy),
+    px:dzmTbNb(ev&&ev.clientX),py:dzmTbNb(ev&&ev.clientY)}}
+
+/* ── LE RECADRAGE : LA BARRE RENTRE QUAND LA FENÊTRE RÉTRÉCIT ─────────────
+   LE TROU QUE CECI BOUCHE, ET IL EST RÉEL. Le décalage est stocké en
+   RELATIF (§4.2), donc la barre garde sa place quand la fenêtre change de
+   taille — mais « sa place » peut sortir du conteneur quand celui-ci
+   rétrécit, et le §4.2 dit qu'une barre à moitié sortie n'est pas
+   récupérable. L'onglet OUTILS, lui, ne bouge jamais et sait la replier ;
+   mais `⌖`, qui est LE filet de sécurité du déport, voyage AVEC la barre et
+   deviendrait injoignable. On recadre donc : au montage — ce qui règle le
+   cas courant, rétrécir puis recharger — et à chaque `resize`.
+   SANS AIMANTATION : le recadrage répare, il ne redécide pas d'une position
+   que l'utilisateur a choisie.
+   `null` VEUT DIRE « RIEN À FAIRE », et c'est distinct de `{dx:0,dy:0}` :
+   un conteneur non mesurable (écran caché, mise en page pas encore calculée)
+   NE DOIT PAS ramener la barre à l'origine — c'est exactement la régression
+   que `dzmTbRect` refuse déjà plus haut, et elle se rejouerait ici. */
+function dzmTbRecadre(el,off){
+  var geo=dzmTbGeo(el,off,null);
+  if(!geo)return null;
+  var res=dzmTbBorne({bar:geo.bar,cont:geo.cont,dx:geo.dx,dy:geo.dy,aim:!1});
+  /* UNE SEULE GARDE SUFFIT, ET C'EST MESURE : un conteneur non mesurable
+     fait rendre à `dzmTbBorne` le décalage INCHANGÉ, donc l'égalité
+     ci-dessous l'attrape déjà. Une seconde garde sur `res.borne` était
+     inatteignable — la campagne de mutation l'a montrée verte quel qu'en
+     soit le sens, et elle est partie. */
+  if(res.dx===geo.dx&&res.dy===geo.dy)return null;
+  return {dx:res.dx,dy:res.dy}}
+/* L'ÉCOUTE DU REDIMENSIONNEMENT, ISOLÉE POUR ÊTRE JOUABLE — même parade que
+   `dzmTbFrame` et `dzmTbSaisie` : la fenêtre est un ARGUMENT, donc le banc
+   la remplace par une fausse et mesure ce qui est posé et ce qui est rendu. */
+function dzmTbVeille(w,fn){
+  if(!w||typeof w.addEventListener!=="function"
+     ||typeof w.removeEventListener!=="function"
+     ||typeof fn!=="function")return function(){};
+  w.addEventListener("resize",fn);
+  return function(){w.removeEventListener("resize",fn)}}
+
+/* ── LE CLAVIER DE LA POIGNÉE (§4.5) ───────────────────────────────────────
+   `hasOwnProperty` PLUTÔT QU'UN ACCÈS NU : `DZM_TB_TOUCHES["constructor"]`
+   rendrait une fonction héritée, donc « vraie », et `v[0]` serait `undefined`
+   — un pas `NaN` sur une touche que personne n'a mappée. */
+var DZM_TB_TOUCHES={ArrowLeft:[-1,0],ArrowRight:[1,0],
+  ArrowUp:[0,-1],ArrowDown:[0,1]};
+function dzmTbTouche(k,maj){
+  var n=String(k);
+  if(!Object.prototype.hasOwnProperty.call(DZM_TB_TOUCHES,n))return null;
+  var v=DZM_TB_TOUCHES[n],p=maj===!0?DZM_TB_PAS_FIN:DZM_TB_PAS;
+  return {mx:v[0]*p,my:v[1]*p}}
+
 /* ── L'ONGLET D'APPEL (§2.1) ───────────────────────────────────────────────
    Cinq pastilles aux cinq teintes — l'aperçu du contenu, on voit les
    familles avant d'ouvrir — puis OUTILS, puis le chevron. `aria-expanded` et
@@ -14801,10 +15173,19 @@ function DzmToolBar(o){
   o=o||{};
   var open=o.open===!0;
   var items=o.items||{};
+  /* LE DÉCALAGE EST NORMALISÉ ICI, une fois : la barre ne peint jamais un
+     `NaN` même si l'appelant lui en passe un. */
+  var off={dx:dzmTbNb(o.off&&o.off.dx),dy:dzmTbNb(o.off&&o.off.dy)};
+  var deporte=off.dx!==0||off.dy!==0;
   var kids=[];
-  /* a. LA POIGNÉE — présente et dessinée, inerte jusqu'à l'étape 5. */
-  kids.push(r.jsx("span",{className:"dzm-tbgrip",title:DZM_TB_T_GRIP,
-    "aria-hidden":!0,
+  /* a. LA POIGNÉE (§2.2a, §4.2, §4.5) — UN BOUTON, plus un décor.
+     Elle porte le geste souris ET le clavier, elle n'est donc plus
+     `aria-hidden` : un nœud focusable caché des technologies d'assistance
+     est une faute, pas une précaution. Le glyphe, lui, le reste — c'est
+     `DzmTbIcon` qui le pose, et l'`aria-label` porte le sens. */
+  kids.push(r.jsx("button",{type:"button",className:"dzm-tbgrip",
+    title:DZM_TB_T_GRIP,"aria-label":DZM_TB_A_GRIP,
+    onPointerDown:o.onGrab,onKeyDown:o.onGripKey,
     children:DzmTbIcon({name:"poignee",size:DZM_TB_PX_GRIP,k:"g"})},"grip"));
   /* b. LES GROUPES — une colonne chacun, filet droit sauf le dernier. */
   kids.push(r.jsx("span",{className:"dzm-tbzone",
@@ -14830,17 +15211,31 @@ function DzmToolBar(o){
                 active:it.active,disabled:it.disabled===!0,
                 title:it.title,aria:b.l,onAct:it.act,k:"b-"+b.i})})},"r")]},
         gr.g)})},"zone"));
-  /* c. LES CONTRÔLES DE FENÊTRE — `⌖` éteint jusqu'à l'étape 5, `×` vivant. */
+  /* c. LES CONTRÔLES DE FENÊTRE — les deux vivants. */
   kids.push(r.jsx("span",{className:"dzm-tbwin",children:[
-    r.jsx("button",{type:"button",className:"dzm-tbwb dzm-tbrc",disabled:!0,
-      title:DZM_TB_T_RECENTRER,"aria-label":"Recentrer la barre d'outils",
+    r.jsx("button",{type:"button",className:"dzm-tbwb dzm-tbrc",
+      title:deporte?DZM_TB_T_RECENTRER:DZM_TB_T_RECENTREE,
+      "aria-label":"Recentrer la barre d'outils",
+      onClick:function(){if(typeof o.onRecentrer==="function")o.onRecentrer()},
       children:"⌖"},"rc"),
     r.jsx("button",{type:"button",className:"dzm-tbwb dzm-tbcl",
       title:DZM_TB_T_REPLIER,"aria-label":"Replier la barre d'outils",
       onClick:function(){if(typeof o.onClose==="function")o.onClose()},
       children:"×"},"cl")]},"win"));
-  return r.jsx("div",{id:DZM_TB_ID,className:"dzm-tbar",
+  /* LA TRANSLATION PASSE PAR DEUX PROPRIÉTÉS PERSONNALISÉES FIXES, jamais
+     par une transformation écrite en JS : `transform` est déjà employée par
+     le repli (§4.1 — `translateY(6px)`) et les deux se seraient écrasées.
+     La feuille lit `--tbx`/`--tby` dans la propriété `translate`, qui est
+     indépendante de `transform` et se transitionne toute seule sur
+     `--dur-bar-snap` : l'aimantation du §4.2 s'anime sans un minuteur.
+     Les deux noms sont des LITTÉRAUX — rien n'est fabriqué par
+     concaténation, la règle de l'étape 3 tient.
+     `data-drag` coupe la transition pendant le geste : sans lui la barre
+     suivrait le pointeur avec 180 ms de retard. */
+  return r.jsx("div",{id:DZM_TB_ID,className:"dzm-tbar",ref:o.barRef,
+    style:{"--tbx":off.dx+"px","--tby":off.dy+"px"},
     "data-off":open?void 0:"","data-noanim":o.anim===!0?void 0:"",
+    "data-drag":o.drag===!0?"":void 0,
     children:kids},"tbar")}
 
 /* ── CE QUI EST MONTÉ DANS LE BANDEAU (§4.1, §4.4) ─────────────────────────
@@ -14853,14 +15248,90 @@ function DzmToolBar(o){
 function DzmToolDock(o){
   o=o||{};
   var st=x.useState(dzmTbOpenGet),open=st[0],setOpen=st[1];
+  /* LE DÉCALAGE EST RESTAURÉ AU PREMIER RENDU, donc posé AVANT la première
+     peinture, et `data-noanim` (déjà là depuis l'étape 4) coupe la
+     transition jusqu'à la frame suivante : c'est le « poser l'état final,
+     réactiver les transitions à la frame suivante » du §4.4, et la même
+     `dzmTbFrame` sert aux deux. Sans cela, une barre restaurée déportée
+     glisserait de son ancrage jusqu'à sa place à chaque chargement. */
+  var so=x.useState(dzmTbOffGet),off=so[0],setOff=so[1];
+  var sg=x.useState(!1),drag=sg[0],setDrag=sg[1];
   var sa=x.useState(!1),anim=sa[0],setAnim=sa[1];
+  var bar=x.useRef(null),fin=x.useRef(null);
+  /* LE DÉCALAGE COURANT DANS UNE RÉFÉRENCE, tenue à jour à chaque rendu —
+     la forme de la maison (`clipsRef.current=props.clips` dans le bundle).
+     L'écouteur de redimensionnement est posé UNE FOIS, au montage ; sans
+     cette référence il lirait pour toujours le décalage du premier rendu. */
+  var offRef=x.useRef(off);offRef.current=off;
   x.useEffect(function(){
     return dzmTbFrame((typeof window!=="undefined")?window:null,
       function(){setAnim(!0)})},[]);
+  /* LE RETOUR DU GESTE : si la barre se démonte au milieu d'un glissement,
+     l'annulateur retire les trois écouteurs ET la classe `grabbing` restée
+     sur le corps. Sans lui, tout le document garderait ce curseur, et rien
+     dans l'application ne saurait le lui reprendre. */
+  x.useEffect(function(){return function(){
+    if(fin.current){fin.current();fin.current=null}}},[]);
+  /* LE RECADRAGE, AU MONTAGE ET À CHAQUE REDIMENSIONNEMENT. `recadrer` rend
+     `null` quand il n'y a rien à faire : ni écriture inutile dans le
+     magasin, ni rendu de plus. */
+  x.useEffect(function(){
+    function recadrer(){
+      var v=dzmTbRecadre(bar.current,offRef.current);
+      if(v)setOff(dzmTbOffSet(v))}
+    recadrer();
+    return dzmTbVeille((typeof window!=="undefined")?window:null,
+      recadrer)},[]);
   function bascule(){setOpen(function(v){return dzmTbOpenSet(!v)})}
+  /* Le décalage n'est écrit dans le magasin qu'au RELÂCHEMENT : un
+     `setItem` par `pointermove` aurait écrit des centaines de fois par
+     geste, pour une seule position qui compte. */
+  function pose(res,fini){
+    setOff({dx:res.dx,dy:res.dy});
+    if(fini){setDrag(!1);dzmTbOffSet(res);fin.current=null}}
+  /* PAS DE `preventDefault` ICI, et c'est mesuré : sur `pointerdown` il
+     supprime les événements souris de compatibilité, donc le focus que ce
+     bouton doit recevoir. La sélection de texte que le §4.2 veut empêcher est
+     déjà coupée par `user-select:none` sur le corps — le remède que le §4.2
+     prescrit lui-même — et `touch-action:none` sur la poignée empêche le
+     défilement tactile. Bouton gauche seulement : un clic droit ouvre un
+     menu contextuel, il ne saisit pas. */
+  function saisir(e){
+    if(e&&e.button!=null&&e.button!==0)return;
+    var w=(typeof window!=="undefined")?window:null;
+    var doc=(typeof document!=="undefined")?document:null;
+    var geo=dzmTbGeo(bar.current,off,e);
+    if(!w||!geo)return;
+    if(fin.current)fin.current();
+    setDrag(!0);
+    fin.current=dzmTbSaisie(w,doc&&doc.body,geo,pose)}
+  /* LES FLÈCHES N'AIMANTENT PAS : le pas de 1 px du §4.5 n'aurait plus aucun
+     sens si un seuil de 12 px reprenait la main derrière lui.
+     `stopPropagation` EST NÉCESSAIRE, et c'est mesuré : l'écran écoute
+     `keydown` sur `window` et ne rend la main qu'aux `input`, `textarea`,
+     `select` et aux nœuds éditables — pas aux boutons. Sans elle, les flèches
+     déplaceraient la barre ET la tête de lecture. React pose son écouteur sur
+     le conteneur racine, donc sous `window` : arrêter la propagation là
+     empêche bien l'événement natif d'y monter. */
+  function clavier(e){
+    var p=dzmTbTouche(e&&e.key,e&&e.shiftKey===!0);
+    if(!p)return;
+    if(typeof e.preventDefault==="function")e.preventDefault();
+    if(typeof e.stopPropagation==="function")e.stopPropagation();
+    var geo=dzmTbGeo(bar.current,off,null);
+    var res=dzmTbBorne({bar:geo&&geo.bar,cont:geo&&geo.cont,
+      dx:off.dx,dy:off.dy,mx:p.mx,my:p.my,aim:!1});
+    setOff({dx:res.dx,dy:res.dy});dzmTbOffSet(res)}
+  /* `⌖` REMET `dx = dy = 0`, SANS PINCER (§4.2, au mot). C'est le filet de
+     sécurité : sa sortie doit être la même à tous les coups, quelle que soit
+     la mise en page du moment. L'ancrage est par construction dans la
+     timeline — il est posé par la feuille sous le bandeau. */
+  function recentrer(){setOff(dzmTbOffSet({dx:0,dy:0}))}
   return r.jsx(r.Fragment,{children:[
     DzmToolTab({open:open,onToggle:bascule}),
-    DzmToolBar({open:open,anim:anim,items:dzmTbCablage(o),
+    DzmToolBar({open:open,anim:anim,off:off,drag:drag,barRef:bar,
+      items:dzmTbCablage(o),onGrab:saisir,onGripKey:clavier,
+      onRecentrer:recentrer,
       onClose:function(){setOpen(dzmTbOpenSet(!1))}})]})}
 
 /* ── export contrat ───────────────────────────────────────────────────────── */
@@ -14887,6 +15358,13 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   TB_GROUPES:DZM_TB_GROUPES,TB_PX:DZM_TB_PX,TB_PX_GRIP:DZM_TB_PX_GRIP,
   TB_PLAN:DZM_TB_PLAN,TB_CLE_OPEN:DZM_TB_CLE_OPEN,TB_ID:DZM_TB_ID,
   tbOpenGet:dzmTbOpenGet,tbOpenSet:dzmTbOpenSet,tbCablage:dzmTbCablage,tbFrame:dzmTbFrame,
+  tbBorne:dzmTbBorne,tbBoite:dzmTbBoite,tbPince:dzmTbPince,
+  tbSaisie:dzmTbSaisie,tbTouche:dzmTbTouche,tbGeo:dzmTbGeo,
+  tbRecadre:dzmTbRecadre,tbVeille:dzmTbVeille,
+  tbConteneur:dzmTbConteneur,tbTete:dzmTbTete,tbAncetre:dzmTbAncetre,
+  tbOffGet:dzmTbOffGet,tbOffSet:dzmTbOffSet,TB_CLE_OFF:DZM_TB_CLE_OFF,
+  TB_MARGE:DZM_TB_MARGE,TB_AIMANT:DZM_TB_AIMANT,TB_PAS:DZM_TB_PAS,
+  TB_PAS_FIN:DZM_TB_PAS_FIN,TB_CL_DRAG:DZM_TB_CL_DRAG,
   ToolTab:DzmToolTab,ToolBar:DzmToolBar,ToolDock:DzmToolDock,tsOr:dzmTsOr,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;

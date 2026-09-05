@@ -537,8 +537,10 @@
   border:1px solid var(--bar-brd, #2a323b); border-radius:0;
   box-shadow:var(--bar-shadow, 0 14px 34px rgba(0,0,0,.62));
   opacity:1; transform:translateY(0); visibility:visible;
+  translate:var(--tbx, 0px) var(--tby, 0px);
   transition:opacity var(--dur-bar-open, 220ms) var(--ease-panel, ease),
     transform var(--dur-bar-open, 220ms) var(--ease-panel, ease),
+    translate var(--dur-bar-snap, 180ms) var(--ease-panel, ease),
     visibility 0s linear 0s}
 /* REPLI (§4.1) — opacité et 6px de translation, JAMAIS la hauteur : le
    contenu se déformerait. La barre RESTE dans le DOM pour que le repli
@@ -558,15 +560,10 @@
 .dzsvm .dzm-tbar[data-noanim]{transition:none}
 
 /* a. LA POIGNÉE (§2.2a) — 26px, pleine hauteur, filet droit.
-   PAS DE `cursor:grab` ET PAS D'ÉTAT DE SURVOL, alors que le §2.2a les
-   demande : elle ne saisit rien avant l'étape 5, et un curseur de saisie sur
-   un objet qui ne bouge pas est un mensonge. Son `title` le dit. Les deux
-   lignes reviennent avec le déport. */
-.dzsvm .dzm-tbgrip{flex:none; width:26px; display:flex; align-items:center;
-  justify-content:center; cursor:default;
-  background:var(--srf-raised, var(--bg-panel-2, #171c22));
-  border-right:1px solid var(--brd-hard, var(--stroke, #20262d));
-  color:var(--txt-low, var(--ink4, #5f6873))}
+   TOUT CE QUI LA REND VIVANTE — `cursor:grab`, l'état de survol,
+   `touch-action`, la remise à zéro du `<button>` — vit dans le bloc du
+   DÉPORT, en queue de feuille : ces lignes sont arrivées avec l'étape 5, et
+   les garder ensemble évite qu'une moitié survive à l'autre. */
 
 /* b. LES GROUPES (§2.2b) — une colonne chacun. */
 .dzsvm .dzm-tbzone{display:flex; align-items:stretch; padding:9px 10px 8px}
@@ -601,8 +598,89 @@
 /* SURVOL : l'or, sur #1e242b — les deux valeurs sont celles du §2.2c,
    reprises telles quelles ; `--accent` passe devant l'or du handoff par la
    même correspondance de noms que partout ici.
-   `:not([disabled])` : le recentrage est éteint jusqu'à l'étape 5, il ne
-   doit pas s'allumer au passage de la souris. */
+   `:not([disabled])` RESTE, alors que les deux contrôles sont vivants depuis
+   l'étape 5 : c'est la règle générique des boutons de cette colonne, et le
+   §2.3 en éteint ailleurs dans la barre. Une règle de survol qui s'allume sur
+   un bouton éteint est un mensonge, quel que soit le bouton. */
 .dzsvm .dzm-tbwb:hover:not([disabled]){color:var(--accent, #e6b23c);
   background:#1e242b}
 .dzsvm .dzm-tbwb[disabled]{opacity:.38; cursor:not-allowed}
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   BARRE D'OUTILS DÉPORTABLE — LE DÉPORT (handoff « Barre Outils Flottante »
+   §4.2 ; étape 5 de son §9).
+
+   ── POURQUOI `translate:` ET PAS `transform:` ──
+   `transform` est DÉJÀ prise par le repli du §4.1 (`translateY(6px)` sous
+   `[data-off]`) : y écrire aussi le décalage aurait fait que l'une des deux
+   règles écrase l'autre — la barre repliée aurait sauté à son ancrage, ou la
+   barre déportée serait entrée sans glisser. `translate` est une propriété
+   INDÉPENDANTE, composée avec `transform` par le moteur, et elle se
+   transitionne à part : l'aimantation du §4.2 s'anime donc exactement sur
+   `--dur-bar-snap` (180 ms) pendant que l'ouverture garde ses 220 ms, et
+   AUCUN minuteur JavaScript n'a à rendre la main après coup. Support mesuré
+   sur cette base : la même feuille emploie déjà `oklch(from …)` (couleurs
+   relatives), plus récent que `translate` — le moteur qui rend cet écran a
+   forcément les deux.
+   LE JS N'ÉCRIT QUE DEUX LONGUEURS, `--tbx` et `--tby`, deux littéraux : il
+   ne fabrique aucun nom de variable, et il n'écrit aucune couleur.
+
+   ── LE MOUVEMENT RÉDUIT (§4.5 : « aimantation immédiate ») ──
+   Il est SERVI, et par une règle qui existe déjà : son-vfx-montage.css
+   l.1028 ramène `transition-duration` à .001 ms sur `.dzsvm *` sous
+   `prefers-reduced-motion:reduce`, et la transition de `translate` posée
+   ci-dessus en fait partie.
+   MESURE DU 05/09/2026, ET ELLE CORRIGE UN COMMENTAIRE DE L'ÉTAPE 3 : ce
+   coupe-circuit ne vient PAS de shared/deepotus.tokens.css — dist/index.html
+   ne charge pas cette feuille (six `<link>`, l.12 à l.21, elle n'y est pas).
+   Il vient de son-vfx-montage.css, chargée l.17. L'effet attendu est bien
+   là ; c'est l'attribution qui était fausse.
+
+   ── CE QUI RESTE À L'ÉTAPE 8 ──
+   `role="toolbar"`, le `tabindex` roving et `Échap`. La poignée devra être
+   HORS du groupe roving : ses flèches déplacent la barre (§4.5), celles du
+   groupe naviguent entre les boutons — le même geste ne peut pas faire les
+   deux sur le même objet. */
+
+/* PENDANT LE GESTE, AUCUNE TRANSITION : la barre doit coller au pointeur.
+   Sans cette règle elle le suivrait avec 180 ms de retard, ce qui se lit
+   comme une barre qui flotte et rate sa cible. */
+.dzsvm .dzm-tbar[data-drag]{transition:none}
+
+/* LA POIGNÉE VIVANTE (§2.2a, §4.2). C'EST UN BOUTON : `padding`, `border`,
+   `font` et `border-radius` remettent à zéro ce que l'agent utilisateur pose
+   sur `<button>` et que le `<span>` de l'étape 4 n'avait pas.
+   `touch-action:none` : sans elle, un glissement au doigt DÉFILE la page au
+   lieu de déplacer la barre — le navigateur tranche avant que le premier
+   `pointermove` n'arrive. Même remède que `.svm-clip`, qui glisse déjà dans
+   cet écran (son-vfx-montage.css l.353). */
+.dzsvm .dzm-tbgrip{flex:none; width:26px; display:flex; align-items:center;
+  justify-content:center; padding:0; border:0; border-radius:0;
+  font:inherit; touch-action:none; cursor:grab;
+  background:var(--srf-raised, var(--bg-panel-2, #171c22));
+  border-right:1px solid var(--brd-hard, var(--stroke, #20262d));
+  color:var(--txt-low, var(--ink4, #5f6873))}
+.dzsvm .dzm-tbgrip:hover{
+  background:var(--srf-hover, var(--bg-panel-3, #181d23));
+  color:var(--txt-mid, var(--ink-soft, #8b959f))}
+/* `grabbing` PENDANT LE GESTE, y compris quand le pointeur a quitté la
+   poignée — c'est le cas normal d'un glissement un peu vif. */
+.dzsvm .dzm-tbar[data-drag] .dzm-tbgrip{cursor:grabbing;
+  background:var(--srf-hover, var(--bg-panel-3, #181d23));
+  color:var(--txt-mid, var(--ink-soft, #8b959f))}
+
+/* LE CURSEUR SUR TOUT LE DOCUMENT (§4.2 : « sur document.body — pas
+   seulement sur la poignée ») ET LA SÉLECTION COUPÉE (« pour ne pas
+   sélectionner les libellés de piste »).
+   CETTE RÈGLE N'EST PAS SCOPÉE `.dzsvm`, ET ELLE NE PEUT PAS L'ÊTRE : elle
+   porte sur `body`, qui est au-dessus de la racine de l'écran. C'est le seul
+   endroit de cette feuille qui sort du préfixe, et c'est dit. La classe
+   n'existe QUE pendant un geste ; le relâchement, l'annulation du pointeur
+   ET le démontage du composant la retirent tous les trois.
+   `!important` ET LE SÉLECTEUR UNIVERSEL, les deux : sans eux, les curseurs
+   propres des clips (`.svm-clip{cursor:grab}`), des poignées de fondu et des
+   boutons reprendraient la main dès que le pointeur les survole — le §4.2
+   demande l'inverse, UN seul curseur pour tout le geste. */
+body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
+  -webkit-user-select:none; user-select:none}
