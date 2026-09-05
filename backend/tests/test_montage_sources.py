@@ -190,6 +190,19 @@ aucune refusee, ZERO ECART avec la seconde — et F1 rend bien 35/32, la valeur
 declaree. Ce qui a change entre les deux campagnes n'est que du TEXTE
 d'en-tete : aucune assertion, aucune ligne de code. Le rejeu ne le deduit
 pas, il le mesure.
+QUATRIEME CAMPAGNE, apres la reconciliation avec `claude/sad-chaum-c3f949` :
+cette branche-la apportait la facture par liste blanche et la pastille de
+cout, donc `routes.py`, `pricing.py` ET LE BUNDLE ont change. Les chiffres de
+MB, MR1 et MR2 avaient ete mesures contre un bundle qui n'existait plus : les
+soixante-deux mutations ont ete rejouees. ZERO ECART — le patch de la
+pastille est ADDITIF et ne touche aucune des ancres que le banc du Montage
+compte. C'est mesure, pas suppose.
+UNE COLLISION DE NOM, dite plutot que tue : « MB » designe DEUX mutations
+differentes — le `_resolve_src` renomme dans la table de ce banc-ci
+(sources 41/26), et la couche modifiee sans rejouer le patcher dans celle de
+test_montage_remplacer.py (bundle 326/1). Elles vivent dans deux tables
+distinctes et ne se croisent jamais ; un outil qui lirait les deux sorties
+dans un meme dictionnaire, lui, en perdrait une — c'est arrive une fois.
 
 LES QUINZE DE P8-bis (le second defaut et ce que la revue a ouvert autour) :
   N1 `where` retire de la requete => sources 61/6 : les deux lignes du seuil,
