@@ -13,6 +13,7 @@ import { initStyle } from "./mod-style.js";
 import { initExport } from "./mod-export.js";
 import { initVitrail } from "./mod-vitrail.js";
 import { initBiblio } from "./mod-biblio.js";
+import { initIA } from "./mod-ia.js";
 import { initCouleur } from "./mod-couleur.js";
 
 const $ = (s) => document.querySelector(s);
@@ -40,7 +41,7 @@ const etat = {
   ancreSel: null,                // index d'ancre (mode nœuds)
   calqueActif: null,
   zoom: 1, tx: 40, ty: 40,
-  grille: { active: true, pas: 8 },
+  grille: { active: true, pas: 8 },   // pas en px DOCUMENT (cf. dessinerGrille)
   pressePapiers: null,           // { ids, n } — coller duplique les sources
   histo: new Historique(100),
   // le style des NOUVEAUX objets — nourri par le panneau et la pipette
@@ -157,6 +158,8 @@ function appliquerVue() {
       `translate(${etat.tx}px, ${etat.ty}px) scale(${etat.zoom})`;
   }
   $("#zoomLabel").textContent = Math.round(etat.zoom * 100) + " %";
+  majBoutonGrille();
+  dessinerGrille();
   $("#btnUnite").textContent = unites().affichage;
   dessinerRegles();
   rendreOverlay();
@@ -174,6 +177,7 @@ function zoomAjuster() {
 }
 function rendre() {
   $("#canvasHost").innerHTML = etat.doc ? compilerSVG(etat.doc) : "";
+  dessinerGrille();          // couche d'affichage, hors document et hors export
   $("#temoin").textContent = etat.sale ? "●" : "✓";
   $("#temoin").classList.toggle("sale", etat.sale);
   VL.surRendu();                     // calques et outils se resynchronisent
@@ -181,6 +185,79 @@ function rendre() {
 }
 
 const SNS = "http://www.w3.org/2000/svg";
+/* ── LA GRILLE SE VOIT (handoff §4.5) ────────────────────────────────
+   Mesuré le 06/09/2026 : `etat.grille` ne servait QU'À l'aimantation —
+   aucune ligne n'était tracée (0 occurrence de `#dfe3e8` dans le dépôt),
+   le bouton basculait un comportement invisible.
+   La grille est une préférence d'AFFICHAGE : elle est injectée dans le
+   SVG rendu, sous les objets et au-dessus du blanc, et JAMAIS dans
+   `compilerSVG` — l'export SVG, le PNG et la vignette restent propres.
+   Le pas est en px DOCUMENT (l'unité de `aimanter` et de son banc) ;
+   ÉCART DÉCLARÉ vis-à-vis du §4.5 qui le donne en mm : `doc.unites` est
+   une affaire d'affichage, l'aimantation travaille en px.
+   GARDE : sous 3 px à l'écran la grille n'est plus lisible et son coût
+   explose — elle n'est alors pas tracée (et le bouton le dit). */
+const GRILLE_PAS = [2, 4, 8, 16, 24, 32, 48, 64];
+const GRILLE_MIN_ECRAN = 3;
+
+function grilleLisible() {
+  return etat.grille.pas * etat.zoom >= GRILLE_MIN_ECRAN;
+}
+
+function dessinerGrille() {
+  const svg = $("#canvasHost svg");
+  if (!svg) return;
+  const vieux = svg.querySelector("#dzGrille");
+  if (vieux) vieux.remove();
+  if (!etat.doc || !etat.grille.active || !grilleLisible()) return;
+  const w = +etat.doc.taille.w, h = +etat.doc.taille.h, pas = etat.grille.pas;
+  const g = document.createElementNS(SNS, "g");
+  g.setAttribute("id", "dzGrille");
+  g.setAttribute("stroke", "#dfe3e8");
+  g.setAttribute("stroke-width", "0.5");
+  g.setAttribute("shape-rendering", "crispEdges");
+  g.setAttribute("pointer-events", "none");
+  let d = "";
+  for (let x = pas; x < w; x += pas) d += `M${x} 0V${h}`;
+  for (let y = pas; y < h; y += pas) d += `M0 ${y}H${w}`;
+  const path = document.createElementNS(SNS, "path");
+  path.setAttribute("d", d);
+  path.setAttribute("fill", "none");
+  g.appendChild(path);
+  // sous les objets, au-dessus du blanc : juste après le fond du document
+  const fond = svg.querySelector("[data-fond]");
+  if (fond && fond.nextSibling) svg.insertBefore(g, fond.nextSibling);
+  else if (fond) svg.appendChild(g);
+  else svg.insertBefore(g, svg.firstChild);
+}
+
+function majBoutonGrille() {
+  const b = $("#btnGrille");
+  if (!b) return;
+  b.classList.toggle("actif", etat.grille.active);
+  b.textContent = "⊞ " + etat.grille.pas;
+  b.title = "Grille d'aimantation et repère visuel (G) — pas de "
+    + etat.grille.pas + " px"
+    + (etat.grille.active && !grilleLisible()
+       ? " · trop serrée pour être tracée à ce zoom (aimantation active)"
+       : "");
+}
+
+function setGrillePas(pas) {
+  etat.grille.pas = Math.max(1, +pas || 8);
+  try { localStorage.setItem("dz_vl_grille_pas", String(etat.grille.pas)); }
+  catch (e) { /* stockage indisponible */ }
+  majBoutonGrille();
+  dessinerGrille();
+}
+
+function basculerGrille() {
+  etat.grille.active = !etat.grille.active;
+  majBoutonGrille();
+  dessinerGrille();
+}
+
+
 function ov(nom, attrs) {
   const el = document.createElementNS(SNS, nom);
   for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
@@ -468,11 +545,7 @@ document.addEventListener("keydown", (ev) => {
                    l: "ligne", m: "mesure" };
   const k = ev.key.toLowerCase();
   if (outils[k]) { setOutil(outils[k]); return; }
-  if (k === "g") {
-    etat.grille.active = !etat.grille.active;
-    $("#btnGrille").classList.toggle("actif", etat.grille.active);
-    return;
-  }
+  if (k === "g") { basculerGrille(); return; }
   VL.surTouche(ev);
 });
 document.addEventListener("keyup", (ev) => {
@@ -482,11 +555,24 @@ document.addEventListener("keyup", (ev) => {
 $("#btnAnnuler").addEventListener("click", annuler);
 $("#btnRefaire").addEventListener("click", refaire);
 $("#btnSauver").addEventListener("click", sauver);
-$("#btnGrille").classList.add("actif");
-$("#btnGrille").addEventListener("click", () => {
-  etat.grille.active = !etat.grille.active;
-  $("#btnGrille").classList.toggle("actif", etat.grille.active);
-});
+try {
+  const memo = +localStorage.getItem("dz_vl_grille_pas");
+  if (GRILLE_PAS.includes(memo)) etat.grille.pas = memo;
+} catch (e) { /* stockage indisponible */ }
+$("#btnGrille").addEventListener("click", basculerGrille);
+{
+  const sel = $("#selGrille");
+  if (sel) {
+    sel.innerHTML = GRILLE_PAS.map((v) =>
+      `<option value="${v}"${v === etat.grille.pas ? " selected" : ""}>`
+      + `${v} px</option>`).join("");
+    sel.addEventListener("change", () => {
+      setGrillePas(sel.value);
+      if (!etat.grille.active) basculerGrille();   // choisir, c'est vouloir voir
+    });
+  }
+  majBoutonGrille();
+}
 $("#btnUnite").addEventListener("click", () => {
   if (!etat.doc) return;
   const u = unites();
@@ -532,5 +618,6 @@ initOutils(VL);
 initExport(VL);
 initVitrail(VL);
 initBiblio(VL);
+initIA(VL);        // le dialogue IA du canevas — après initOutils (surOutil)
 window.VL = VL;
 charger();

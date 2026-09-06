@@ -499,17 +499,6 @@ export function initVitrail(VL) {
     if (id) { VL.setOutil("select"); VL.setSelection([id]); }
   };
 
-  /* §5 du handoff : l'outil IA du rail n'est pas un outil de tracé —
-     il ouvre le Panneau de verre et donne le focus au champ. */
-  const outilSuivant = VL.surOutil;
-  VL.surOutil = () => {
-    outilSuivant();
-    if (etat.outil !== "ia") return;
-    const det = $("#vitrailDetails");
-    if (det && !det.open) det.open = true;
-    setTimeout(() => { const c = $("#vitIaPrompt"); if (c) c.focus(); }, 0);
-  };
-
   function calqueParNom(doc, nom, sousQui) {
     let c = doc.calques.find((x) => x.nom === nom);
     if (!c) {
@@ -531,6 +520,27 @@ export function initVitrail(VL) {
   }
 
   /* ── IA : POST /api/vector/illustration (appel LLM payant, DIT) ── */
+  /* La pose des tracés de l'IA — UNE seule voie d'écriture au document,
+     partagée par le champ du panneau (§9 du handoff) et par le dialogue du
+     canevas (mod-ia). Rend le nombre de tracés posés. Le groupe est mis à
+     l'échelle sur un carré de 60 % du petit côté de la page, centré. */
+  VL.iaPoser = (d, q) => {
+    if (!etat.doc || !d || !Array.isArray(d.paths) || !d.paths.length) return 0;
+    const cote = Math.min(etat.doc.taille.w, etat.doc.taille.h) * 0.6;
+    const vb = d.viewbox && d.viewbox.length === 4 ? d.viewbox : [0, 0, 100, 100];
+    const k = cote / Math.max(vb[2] || 100, vb[3] || 100);
+    const ox = (etat.doc.taille.w - cote) / 2 - vb[0] * k;
+    const oy = (etat.doc.taille.h - cote) / 2 - vb[1] * k;
+    const groupe = { type: "groupe", style: {},
+      name: String(q || "illustration").slice(0, 24),
+      transform: `translate(${nb(ox)} ${nb(oy)}) scale(${nb(k)})`,
+      enfants: d.paths.map((p) => ({ type: "path", d: p.d,
+                                     style: { fond: p.fill } })) };
+    const id = VL.executer(op_ajouter, etat.calqueActif, groupe);
+    if (id) { VL.setSelection([id]); VL.setOutil("select"); }
+    return id ? d.paths.length : 0;
+  };
+
   async function iaLancer() {
     const champ = $("#vitIaPrompt");
     const q = (champ && champ.value || "").trim();
@@ -544,19 +554,9 @@ export function initVitrail(VL) {
         body: JSON.stringify({ prompt: q }) });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.detail || r.statusText);
-      const cote = Math.min(etat.doc.taille.w, etat.doc.taille.h) * 0.6;
-      const vb = d.viewbox, k = cote / Math.max(vb[2], vb[3]);
-      const ox = (etat.doc.taille.w - cote) / 2 - vb[0] * k;
-      const oy = (etat.doc.taille.h - cote) / 2 - vb[1] * k;
-      const groupe = { type: "groupe", style: {},
-        name: q.slice(0, 24),
-        transform: `translate(${nb(ox)} ${nb(oy)}) scale(${nb(k)})`,
-        enfants: d.paths.map((p) => ({ type: "path", d: p.d,
-                                       style: { fond: p.fill } })) };
-      const id = VL.executer(op_ajouter, etat.calqueActif, groupe);
+      const n = VL.iaPoser(d, q);
       regl.iaBusy = false; regl.iaErr = false;
-      regl.iaMsg = `${d.paths.length} tracés posés (${d.provider})`;
-      if (id) { VL.setSelection([id]); VL.setOutil("select"); }
+      regl.iaMsg = `${n} tracés posés (${d.provider})`;
     } catch (e) {
       regl.iaBusy = false; regl.iaErr = true;
       regl.iaMsg = String(e.message || e).slice(0, 120);

@@ -6553,6 +6553,24 @@ async def get_vector_vignette(doc_id: str):
 _VECT_ILLU_D = None     # regex compilées au premier appel (module allégé)
 
 
+@router.get("/vector/illustration/moteurs")
+async def vector_illustration_moteurs():
+    """Les moteurs de langage disponibles pour l'illustration du Vectorlab,
+    avec le modèle que chacun emploie. L'écran s'en sert pour NOMMER ce qui
+    va dépenser la clé de l'utilisateur avant qu'il clique. 200 toujours :
+    `moteurs: []` et `actif: null` quand aucune clé n'est configurée — un
+    écran qui sait dire « aucun moteur » vaut mieux qu'une erreur."""
+    from app.services import summarizer as _SZ
+    modeles = {"anthropic": settings.ANTHROPIC_MODEL,
+               "openai": settings.OPENAI_MODEL,
+               "gemini": settings.GEMINI_MODEL}
+    dispo = _SZ._available_providers()
+    return {"ok": True,
+            "moteurs": [{"id": p, "modele": modeles.get(p, "")}
+                        for p in dispo],
+            "actif": _SZ.active_provider() or None}
+
+
 @router.post("/vector/illustration")
 async def vector_illustration(body: dict):
     """Vectorlab — illustration vectorielle par le LLM configuré (handoff
@@ -6561,8 +6579,11 @@ async def vector_illustration(body: dict):
     rend un SVG de masses pleines (des pièces de verre) ; la réponse est
     PARSÉE ET FILTRÉE ICI : seuls des `d` au charset chemin et des fonds
     #rrggbb passent, 40 tracés au plus — rien de la réponse brute n'atteint
-    le client. Body: {prompt}. 200: {ok, paths:[{d, fill}], viewbox,
-    provider}. 400 sans prompt ou réponse illisible ; 502 modèle muet."""
+    le client. Body: {prompt, provider?} — `provider` vise UN moteur
+    (anthropic|openai|gemini, cf. GET .../moteurs) sans repli ; absent, le
+    dispatch des Réglages décide. 200: {ok, paths:[{d, fill}], viewbox,
+    provider}. 400 sans prompt, moteur indisponible, ou réponse illisible ;
+    502 modèle muet."""
     import re as _re
     global _VECT_ILLU_D
     if _VECT_ILLU_D is None:
@@ -6588,12 +6609,30 @@ async def vector_illustration(body: dict):
         "stroke, aucun gradient, aucune opacité ; masses simples comme des "
         "pièces de verre découpées ; palette de 4 à 6 couleurs saturées de "
         "verre coloré.")
+    # Fournisseur DEMANDÉ : on vise celui-là et on ne se replie pas —
+    # l'écran vient d'afficher son nom et son modèle, se rabattre en
+    # silence sur un autre ferait mentir cet affichage (et dépenserait une
+    # autre clé). Sans `provider`, le dispatch historique décide.
+    voulu = str((body or {}).get("provider") or "").strip().lower()
+    systeme = "Tu produis du SVG strict, sans commentaire."
+    if voulu and voulu not in _SZ._available_providers():
+        raise HTTPException(400, f"Moteur « {voulu} » indisponible : aucune "
+                                 f"clé configurée pour lui (Réglages).")
+
+    def _tirer():
+        if not voulu:
+            return _SZ._chat_dispatch(consigne, systeme, 4000)
+        if voulu == "anthropic":
+            return _SZ._anthropic_chat(consigne, systeme, 4000), "anthropic"
+        if voulu == "openai":
+            from app.services.openai_llm import chat as _c
+            return _c(consigne, system=systeme, max_tokens=4000), "openai"
+        from app.services.gemini_llm import chat as _c
+        return _c(consigne, system=systeme, max_tokens=4000), "gemini"
+
     loop = asyncio.get_running_loop()
     try:
-        out, prov = await loop.run_in_executor(
-            None, lambda: _SZ._chat_dispatch(
-                consigne, "Tu produis du SVG strict, sans commentaire.",
-                4000))
+        out, prov = await loop.run_in_executor(None, _tirer)
     except Exception as e:                              # noqa: BLE001
         raise HTTPException(502, f"Le modèle n'a pas répondu : {e}")
     txt = _re.sub(r"```[a-z]*", "", str(out or ""), flags=_re.I)
