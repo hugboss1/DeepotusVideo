@@ -31,7 +31,55 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 06/09/2026 (P15 — l'onglet OUTILS libere le pied du
+COMPTE DE REFERENCE, 06/09/2026 (P14 — deux sortes de pistes video, et v3
+n'est plus un fantome) : 1246 lignes, soit CENT-TREIZE de plus que les 1133
+de P15, MESUREES sur la sortie du banc et decomposees : TRENTE-SIX que la
+boucle sur `P.PATCHES` emet toute seule pour les DOUZE sections M25a…M25l
+(douze `_remplace`, douze `_ancre_consommee` — aucune ne reprend son ancre —
+et douze `couche_ne_cite_pas_l_ancre_de_`), SOIXANTE dont le libelle commence
+par `P14_` (plus aucun « v2 » en dur dans le code de l'ecran, 0/0/0 contre
+3/6/8 dans .bak_montage ; la demo, la table et le greffon gardent le leur ;
+neuf lectures de la regle et une de l'ordre ; l'ORDRE des ecritures dans
+liveSync ; la garde de signature ; le verrou qui suit la piste ; deux faces
+de `isOverlayTrack` / `overlayOrder` ; `addDit` declaree, exportee, appelee ;
+QUARANTE-DEUX deux-faces `P14_M25x_appelle_…` ; HUIT noms libres ; aucune
+section dans le bloc du harnais [3-bis]), SEIZE `js_P14_*` sous node (la
+regle en douze etats, l'ordre d'empilement en trois pistes avec ses etats
+vides et sa purete, le choix, le saut de v2, l'habillage, la note, la
+persistance et l'aller-retour, le jumeau qui suit le type, la note et les
+titres du cablage MOT POUR MOT, la dixieme icone) et UNE `tb_P14_*`. LES
+PINS DE LA BARRE SUIVENT LE DIXIEME BOUTON (« incrust. » dans PISTES, ecart
+date dans le handoff §2.4 / §3 / §6) : onze traces, dix boutons, douze
+entrees dans l'ordre plat, `⌖` a 10 et `×` a 11, `tb_c_video` cree V3 (v2
+SAUTE : son habillage historique est une incrustation), `bd_les_neuf_retires`
+nomme l'ecart (le dixieme est ne dans la barre, la table des retires reste a
+neuf). CAMPAGNE DE MUTATION (dix-neuf, fichiers reels restaures, chaine
+rejouee, sha256 du bundle identique avant / apres) : L1 v1 compte comme
+incrustation → 2 (les deux lignes de la regle, seules) ; L2 rang croissant →
+3 (empile, inconnue, etats vides — les trois lignes d'ordre, seules) ; L3
+« video » sans type → 10 (plein cadre, add, addDit, payload, aller-retour,
+jumeau, note, tb ×2 — tout ce qui promet le plein cadre) ; L4 payload sans
+type → 2 (payload, aller-retour, seules) ; L5 skin ignore le type → 13 (la
+boucle bornee de dzmAdd rend v99 : add_video_en_v3 et emoji rougissent en
+plus des onze de P14 — trop large, et c'est la borne qui le dit) ; L6 sans
+note → 1 (seule) ; L7 « incrust. » pose du plein cadre → 4 (addDit appelee,
+note, tb ×2) ; L8 from ignore le type → 1 (aller-retour, seule) ; L9 bouton
+retire du plan → 9 (§2.4, icones, peints, tb7, tb8 ×5) ; L10 croix derivee
+d'un dixieme → 4 (icone, onze traces couche/bundle, aller-retour) ; P1
+apercu revenu a « v2 » → 6 dont les deux `chaine_*` : la SONDE dzcout a
+refuse (52 ≠ 53) et rendu son .bak — trop large, et c'est le travail de la
+sonde ; P2 sans remise en queue → 2 (ordre, garde, seules) ; P3 sans
+armement → 2 (memes) ; P4 verrou des poignees sur v2 → 2 (porte v2, verrou,
+seules) ; P5 M25l retiree de PATCHES → 7 dont les deux `chaine_*` et
+`M16ref_nom_dzTracksRef` (meme refus de la sonde) ; H1 ligne du §3 retiree →
+7 (les cinq traces, les dix boutons, le cablage — `len == 11` conjoint
+partout) ; H2 §2.4 ancien → 2 (lisible, verbatim, seules) ; H3 attribut du
+trace altere → 3 (couche, bundle, aller-retour, seules) ; E1 .bak_montage
+ABSENT → 1220/26 sans mourir (P12/P13/P14 `_nom_` a -1, les deux P14 qui
+lisent le .bak a [0, 0, 0]). Les dix autres bancs, inchanges, rejoues
+(88/99/67/136/114/33/20/65/22/62).
+
+COMPTE PRECEDENT, 06/09/2026 (P15 — l'onglet OUTILS libere le pied du
 panneau Narration) : 1133 lignes, soit DEUX de plus que les 1131 de P13,
 MESUREES sur la sortie du banc : `narr_le_pied_libere_la_bande_de_l_onglet`
 (la regle exacte `.dzsvm .svm-narr` de montage.css, lue par `_regle` comme
@@ -1227,8 +1275,13 @@ check("M16ref_la_ref_suit_chaque_rendu",
       f'count={s.count(nl("dzTracksRef.current=svmTracksOf(proj);"))}')
 # R_M23 (P12) la LIT — le bouton « Extraire le son » passe les pistes du
 # projet a la couche par la meme ref que l'ajout, pour la meme raison.
+# P14 : les neuf portes M25a…M25l qui lisent la regle du rendu passent la
+# meme ref a `DzTracks.isOverlayTrack` (M25a la lit deux fois : la regle et
+# l'ordre d'empilement).
 _dehors = (s.count("dzTracksRef")
-           - (P.R_M16REF + P.R_M16A + P.R_M23).count("dzTracksRef"))
+           - (P.R_M16REF + P.R_M16A + P.R_M23 + P.R_M25A + P.R_M25C
+              + P.R_M25D + P.R_M25E + P.R_M25H + P.R_M25I + P.R_M25J
+              + P.R_M25K + P.R_M25L).count("dzTracksRef"))
 check("M16ref_nom_dzTracksRef_n_ecrase_rien", _dehors == 0,
       f"dzTracksRef apparaît {_dehors}x hors des sections qui l'écrivent")
 # ── la note dit OU le clip a atterri, et nomme la sortie ──────────────────
@@ -2483,6 +2536,197 @@ check("P13_la_route_lit_les_pistes_decale_et_enveloppe",
       f'prov={_rt.count("pid = T.resolve_provider(provider)")} '
       f'lang={_rt.count(chr(34) + "auto" + chr(34) + ") else lang_raw")}')
 
+# ══ P14 — DEUX SORTES DE PISTES VIDEO, ET V3 N'EST PLUS UN FANTOME ═══════
+# Les comptes generiques (`*_remplace`, `*_ancre_consommee`,
+# `couche_ne_cite_pas_l_ancre_de_*`) couvrent M25a…M25l par la boucle sur
+# P.PATCHES. Ce qui suit est ce qu'ils ne mesurent pas : plus AUCUN « v2 » en
+# dur dans le code de l'ecran (LA mesure qui a motive la tache, refaite sur
+# le bundle livre, avec son conjoint dans .bak_montage : 3 + 6 + 8), ce qui
+# garde legitimement son « v2 » (demo, table historique, greffon libsend),
+# l'ORDRE des ecritures dans liveSync, la garde de signature, le verrou qui
+# suit la piste, les deux faces de chaque identifiant, et les noms libres.
+_bak_p14 = BUNDLE.with_name(BUNDLE.name + ".bak_montage")
+_bak_s = (_bak_p14.read_bytes().decode("utf-8-sig") if _bak_p14.is_file() else "")
+_v2 = [s.count('==="v2"'), s.count('!=="v2"'), s.count("trackStRef.current.v2")]
+_v2_bak = [_bak_s.count('==="v2"'), _bak_s.count('!=="v2"'),
+           _bak_s.count("trackStRef.current.v2")]
+check("P14_plus_aucune_porte_v2_en_dur_dans_le_code_de_l_ecran",
+      _v2 == [0, 0, 0] and _v2_bak == [3, 6, 8],
+      f"bundle (===, !==, verrou)={_v2} · .bak_montage={_v2_bak} (attendu "
+      f"[0, 0, 0] et [3, 6, 8] : neuf portes et quatre verrous, tous relus)")
+# LA DEMO, LA TABLE HISTORIQUE ET LE GREFFON GARDENT LE LEUR : ce n'est pas
+# une chasse au mot, c'est une regle ecrite une fois. `SVM_TRACKS` et
+# `DZM_DEFAULT_TRACKS` portent la meme ligne v2 (2), la demo ses trois clips
+# (le premier suffit), et le greffon amont reste INTACT (M16a le tient aussi).
+check("P14_la_demo_la_table_et_le_greffon_gardent_leur_v2",
+      s.count(nl('{tr:"v2",id:"v2c1"')) == 1
+      and s.count(nl('{id:"v2",name:"V2",type:"overlay/VFX"')) == 2
+      and s.count('addAsset({job_id:p.job_id},p.title||p.job_id,"video",'
+                  'p.dur||0,"v2")') == 1,
+      f'demo={s.count(nl(chr(123) + "tr:" + chr(34) + "v2" + chr(34) + ",id:" + chr(34) + "v2c1" + chr(34)))} '
+      f'table={s.count(nl(chr(123) + "id:" + chr(34) + "v2" + chr(34) + ",name:" + chr(34) + "V2" + chr(34)))}')
+# NEUF PORTES LISENT LA REGLE, une fois chacune ; l'apercu lit l'ordre. Le
+# compte est exact, pas « au moins » : une dixieme lecture serait une porte
+# que ce banc ne connait pas.
+check("P14_neuf_portes_lisent_la_regle_et_l_apercu_lit_l_ordre",
+      s.count("DzTracks.isOverlayTrack(") == 9
+      and s.count("DzTracks.overlayOrder(") == 1
+      and all(s.count(nl(_r)) == 1 for _r in (
+          P.R_M25C, P.R_M25D, P.R_M25E, P.R_M25H, P.R_M25I, P.R_M25J,
+          P.R_M25K, P.R_M25L))
+      and s.count(nl(P.R_M25A)) == 1 and P.R_M25A.count("DzTracks.isOverlayTrack(") == 1,
+      f'regle={s.count("DzTracks.isOverlayTrack(")} ordre={s.count("DzTracks.overlayOrder(")}')
+# L'ORDRE DANS liveSync, sur les POSITIONS (`find`, jamais `index`) : la
+# regle (act) AVANT l'ordre (dzOrd) AVANT la boucle de retrait AVANT la
+# boucle d'ajout, qui suit dzOrd, AVANT la remise en queue, AVANT tfSyncBox.
+_ls0 = s.find(nl("  function liveSync(){"))
+_ls_act = s.find(nl("    var act={};"), _ls0 if _ls0 >= 0 else 0)
+_ls_regle = s.find("DzTracks.isOverlayTrack(k.tr,dzTracksRef.current)&&k.src",
+                   _ls0 if _ls0 >= 0 else 0)
+_ls_ord = s.find("var dzOrd=DzTracks.overlayOrder(Object.keys(act),cs,dzTracksRef.current)",
+                 _ls0 if _ls0 >= 0 else 0)
+_ls_sig = s.find('dzOrdSig=dzOrd.join("|"),dzReord=ov._dzOrdSig!==dzOrdSig;',
+                 _ls0 if _ls0 >= 0 else 0)
+_ls_ret = s.find(nl("    for(var i=ov.children.length-1;i>=0;i--){var ch=ov.children[i],kc=act[ch._svmId];"),
+                 _ls0 if _ls0 >= 0 else 0)
+_ls_for = s.find(nl("    dzOrd.forEach(function(id){"), _ls0 if _ls0 >= 0 else 0)
+_ls_cree = s.find("if(tfRoRef.current)tfRoRef.current.observe(el);dzReord=!0}",
+                  _ls0 if _ls0 >= 0 else 0)
+_ls_queue = s.find("else if(dzReord)ov.appendChild(el);", _ls0 if _ls0 >= 0 else 0)
+_ls_box = s.find(nl("    tfSyncBox()}"), _ls0 if _ls0 >= 0 else 0)
+check("P14_liveSync_lit_la_regle_puis_l_ordre_puis_retire_puis_ajoute_dans_l_ordre",
+      _ls0 >= 0 and _ls0 < _ls_act < _ls_regle < _ls_ord < _ls_sig < _ls_ret
+      < _ls_for < _ls_cree < _ls_queue < _ls_box,
+      f"liveSync={_ls0} act={_ls_act} regle={_ls_regle} ordre={_ls_ord} "
+      f"signature={_ls_sig} retrait={_ls_ret} boucle={_ls_for} cree={_ls_cree} "
+      f"queue={_ls_queue} tfSyncBox={_ls_box}")
+# LA GARDE DE SIGNATURE, EN COMPTES : `ov._dzOrdSig` LU puis ECRIT (2),
+# `dzReord` arme a la creation d'un enfant (1) et lu a la remise en queue (1),
+# l'ancienne boucle sur les cles d'`act` a DISPARU (0) et la neuve suit dzOrd
+# (1). Sans le `else` : un enfant cree serait aussitot re-appendu — le
+# conjoint `dzReord=!0}` puis `else if(dzReord)` est la forme exacte.
+check("P14_la_garde_de_signature_ne_reecrit_le_DOM_que_si_l_ordre_change",
+      s.count("ov._dzOrdSig") == 2 and s.count("ov._dzOrdSig=dzOrdSig;") == 1
+      and s.count("dzReord=!0}") == 1 and s.count("else if(dzReord)ov.appendChild(el);") == 1
+      and s.count("Object.keys(act).forEach(") == 0
+      and s.count(nl("    dzOrd.forEach(function(id){")) == 1
+      and s.count("ov.appendChild(el)") == 2,
+      f'sig={s.count("ov._dzOrdSig")} arme={s.count("dzReord=!0}")} '
+      f'queue={s.count("else if(dzReord)ov.appendChild(el);")} '
+      f'ancienne={s.count("Object.keys(act).forEach(")} '
+      f'append={s.count("ov.appendChild(el)")}')
+# LE VERROU SUIT LA PISTE : trois sites lisent `k.tr` (saisie, double-clic,
+# poignees), un lit `c.tr` (fleches) — la forme de R_M22A pour la piste de
+# dialogue. Le conjoint positif est le compte du .bak (8 = 4 sites x 2).
+_lk = s.count("trackStRef.current[k.tr]&&trackStRef.current[k.tr].l")
+_lc = s.count("trackStRef.current[c.tr]&&trackStRef.current[c.tr].l")
+_lc_bak = _bak_s.count("trackStRef.current[c.tr]&&trackStRef.current[c.tr].l")
+check("P14_le_verrou_suit_la_piste_du_clip",
+      _lk == 3 and _lc == _lc_bak + 1 and _v2[2] == 0 and _v2_bak[2] == 8,
+      f"[k.tr]={_lk} (veut 3) [c.tr]={_lc} (veut bak {_lc_bak} + 1) "
+      f"verrou v2 bundle={_v2[2]} bak={_v2_bak[2]}")
+# DEUX FACES pour chaque identifiant de la couche que les sections appellent
+# (un appel dans le bundle, un export et une declaration dans la couche).
+for _nom, _n in (("isOverlayTrack", 9), ("overlayOrder", 1)):
+    check("P14_deux_faces_DzTracks_" + _nom,
+          s.count(nl("DzTracks." + _nom + "(")) == _n
+          and src.count(_nom + ":dzm" + _nom[0].upper() + _nom[1:]) == 1
+          and re.search(r"\bfunction dzm%s\(" % (_nom[0].upper() + _nom[1:]),
+                        src) is not None,
+          f'bundle={s.count(nl("DzTracks." + _nom + "("))} (veut {_n}) '
+          f'couche={src.count(_nom + ":dzm" + _nom[0].upper() + _nom[1:])}')
+# `addDit` est l'action des trois boutons PISTES : declaree, exportee, et
+# c'est elle que le cablage appelle (pas `dzmAdd` a nu — la note vient d'elle).
+check("P14_addDit_est_declaree_exportee_et_appelee_par_le_cablage",
+      re.search(r"\bfunction dzmAddDit\(", src) is not None
+      and src.count("addDit:dzmAddDit") == 1
+      and src.count("var r=dzmAddDit(ts,k);") == 1
+      and src.count('poseTrack("video")') == 1 and src.count('poseTrack("overlay")') == 1
+      and src.count('poseTrack("audio")') == 1
+      and src.count('p.onTracks(dzmAdd(ts,') == 0,
+      f'appel={src.count("var r=dzmAddDit(ts,k);")} nu={src.count("p.onTracks(dzmAdd(ts,")}')
+# DEUX FACES pour chaque identifiant du bundle que les sections lisent (une
+# declaration, un appel borne `\b…\b` dans la section). `var c=…find(…)` vaut
+# 3 et `var c=svmKbSelClip();` 7 dans le bundle : `>= 1`, comme P12.
+for _sec, _r, _pairs in (
+        ("M25a", P.R_M25A,
+         (("act", "    var act={};"),
+          ("cs", "var cs=clipsRef.current,s=spdRef.current,run=playingRef.current&&s>0;"),
+          ("ov", "var host=liveHostRef.current,ov=liveOvRef.current;"),
+          ("dzTracksRef", "var dzTracksRef=x.useRef(null);"),
+          ("k", "    cs.forEach(function(k){"))),
+        ("M25b", P.R_M25B,
+         (("act", "    var act={};"),
+          ("ov", "var host=liveHostRef.current,ov=liveOvRef.current;"),
+          ("tfRoRef", "tfRoRef=x.useRef("),
+          ("livePoolGet", "function livePoolGet("),
+          ("livePoolKey", "function livePoolKey("))),
+        ("M25c", P.R_M25C,
+         (("c", "clips.filter(function(c){return c.src}).map(function(c){"),
+          ("dzTracksRef", "var dzTracksRef=x.useRef(null);"))),
+        ("M25d", P.R_M25D,
+         (("sel", "var sel=clips.find("),
+          ("dzTracksRef", "var dzTracksRef=x.useRef(null);"))),
+        ("M25e", P.R_M25E,
+         (("tr", "          svmTracksOf(proj).map(function(tr){"),
+          ("svmMpOf", "function svmMpOf("),
+          ("dzTracksRef", "var dzTracksRef=x.useRef(null);"))),
+        ("M25f", P.R_M25F,
+         (("k", "var id=e.currentTarget._svmId,cs=clipsRef.current,k=null,i;"),
+          ("trackStRef", "var trackStRef=x.useRef(trackSt);"))),
+        ("M25g", P.R_M25G,
+         (("k", "var id=e.currentTarget._svmId,cs=clipsRef.current,k=null,i;"),
+          ("svmOvTfOf", "function svmOvTfOf("),
+          ("svmMpOf", "function svmMpOf("),
+          ("trackStRef", "var trackStRef=x.useRef(trackSt);"))),
+        ("M25h", P.R_M25H,
+         (("k", "var id=selRef.current,cs=clipsRef.current,k=null,i;"),
+          ("e", "function ovHandleDown(e,mode){"),
+          ("trackStRef", "var trackStRef=x.useRef(trackSt);"),
+          ("dzTracksRef", "var dzTracksRef=x.useRef(null);"))),
+        ("M25i", P.R_M25I,
+         (("c", "var c=clipsRef.current.find(function(k){return k.id===selRef.current});"),
+          ("clipsRef", "var clipsRef=x.useRef(clips);clipsRef.current=clips;"),
+          ("selRef", "selRef=x.useRef("),
+          ("dzTracksRef", "var dzTracksRef=x.useRef(null);"))),
+        ("M25j", P.R_M25J,
+         (("c", "var c=clipsRef.current.find(function(k){return k.id===selRef.current});"),
+          ("clipsRef", "var clipsRef=x.useRef(clips);clipsRef.current=clips;"),
+          ("selRef", "selRef=x.useRef("),
+          ("dzTracksRef", "var dzTracksRef=x.useRef(null);"))),
+        ("M25k", P.R_M25K,
+         (("c", "var c=svmKbSelClip();"),
+          ("ovKeysOffRef", "var ovKeysOffRef=x.useRef(!1);"),
+          ("trackStRef", "var trackStRef=x.useRef(trackSt);"),
+          ("dzTracksRef", "var dzTracksRef=x.useRef(null);"))),
+        ("M25l", P.R_M25L,
+         (("c", "var c=svmKbSelClip();"),
+          ("ovKeysOffRef", "var ovKeysOffRef=x.useRef(!1);"),
+          ("dzTracksRef", "var dzTracksRef=x.useRef(null);")))):
+    for _nm, _decl in _pairs:
+        _appele = re.search(r"\b%s\b" % re.escape(_nm), _r) is not None
+        check("P14_" + _sec + "_appelle_" + _nm + "_qui_est_declare",
+              _appele and s.count(nl(_decl)) >= 1,
+              f"appelé={_appele} déclaré={s.count(nl(_decl))} ({_decl})")
+# LES NOMS NEUFS ETAIENT LIBRES dans le bundle d'entree : un nom deja pris
+# aurait ete ecrase en silence (`var` en portee de fonction).
+for _nm in ("dzOrd", "dzOrdSig", "dzReord", "_dzOrdSig", "isOverlayTrack",
+            "overlayOrder", "dzmAddDit", "piste-incrust"):
+    _dans_bak = _bak_s.count(_nm) if _bak_s else -1
+    check("P14_nom_" + _nm + "_etait_libre_dans_le_bundle_d_entree",
+          _dans_bak == 0, f"{_nm} apparait {_dans_bak}x dans .bak_montage")
+# AUCUNE SECTION P14 NE TOMBE DANS LE BLOC QUE LE HARNAIS [3-bis] EXECUTE
+# (`defaultLen` … `function sfxInsert`) : les positions le disent.
+_dl0 = s.find("function defaultLen(kind,srcDur){")
+_dl1 = s.find("function sfxInsert(", _dl0 if _dl0 >= 0 else 0)
+_p14_pos = [s.find(nl(_r)) for _r in (
+    P.R_M25A, P.R_M25B, P.R_M25C, P.R_M25D, P.R_M25E, P.R_M25F, P.R_M25G,
+    P.R_M25H, P.R_M25I, P.R_M25J, P.R_M25K, P.R_M25L)]
+check("P14_aucune_section_dans_le_bloc_du_harnais_3_bis",
+      _dl0 >= 0 and _dl1 > _dl0 and all(p >= 0 for p in _p14_pos)
+      and not any(_dl0 <= p < _dl1 for p in _p14_pos),
+      f"defaultLen={_dl0} sfxInsert={_dl1} sections={_p14_pos}")
+
 # ── LA CHAINE AVAL, MESUREE ICI PLUTOT QUE DECOUVERTE AU REJEU SUIVANT ────
 # CE QUI A MORDU PENDANT P10, ET QUI A FAILLI MORDRE ICI. `patch_bundle_
 # dzcout.py` est un maillon AVAL de `montage` ; sa garde `guard_downstream`
@@ -3192,6 +3436,8 @@ out.dt_a1_video=P12(function(){return T.dialogueTrack([{id:"a1",kind:"video"}])}
 out.tp_v1=P12(function(){return T.trackPlein(T.DEFAULTS,"v1")});
 out.tp_v2=P12(function(){return T.trackPlein(T.DEFAULTS,"v2")});
 out.tp_v3_neuve=P12(function(){return T.trackPlein(T.add(T.DEFAULTS,"video"),"v3")});
+/* P14 : « video » cree une piste PLEIN CADRE, « overlay » une incrustation */
+out.tp_v3_incrust=P12(function(){return T.trackPlein(T.add(T.DEFAULTS,"overlay"),"v3")});
 out.tp_v1_nue=P12(function(){return T.trackPlein(TS_USER,"v1")});
 out.tp_a1=P12(function(){return T.trackPlein(T.DEFAULTS,"a1")});
 out.tp_absente=P12(function(){return T.trackPlein(T.DEFAULTS,"v9")});
@@ -3207,6 +3453,86 @@ out.tp_from_types=P12(function(){return T.from(TS_USER).slice(0,3)
   .map(function(t){return [t.id,t.type||""]})});
 out.wt_user_v2=P12(function(){return [T.wantsTwin("video",TS_USER,"v2"),
   T.wantsTwin("video",T.from(TS_USER),"v2")]});
+/* ── P14 : deux sortes de pistes video, sous node ──────────────────────────
+   isOverlayTrack (la regle du rendu), overlayOrder (l'ordre d'empilement de
+   l'apercu), add / addDit / skin (le choix), payload / from (sa
+   persistance), le jumeau qui suit le type, la note et les titres du
+   cablage, la dixieme icone. */
+var P14_TS3=[{id:"v4",kind:"video"},{id:"v3",kind:"video"},{id:"v2",kind:"video"},
+  {id:"v1",kind:"video"},{id:"a1",kind:"audio",bus:"dialogue"},{id:"s1",kind:"subs"}];
+var P14_CL=[{id:"c4",tr:"v4"},{id:"c2",tr:"v2"},{id:"c3",tr:"v3"},{id:"c2b",tr:"v2"},
+  {id:"cx",tr:"v9"},{id:"c1",tr:"v1"}];
+out.p14_iot=P12(function(){return [
+  T.isOverlayTrack("v3",TS_USER),T.isOverlayTrack("v2",T.DEFAULTS),
+  T.isOverlayTrack("v1",T.DEFAULTS),T.isOverlayTrack("a1",T.DEFAULTS),
+  T.isOverlayTrack("s1",T.DEFAULTS),T.isOverlayTrack("v3"),T.isOverlayTrack("v3",null),
+  T.isOverlayTrack(null,T.DEFAULTS),T.isOverlayTrack("",T.DEFAULTS),
+  T.isOverlayTrack("v2",[{id:"v2",kind:"audio"}]),
+  T.isOverlayTrack("x9",[{id:"x9",kind:"video"}]),
+  T.isOverlayTrack("v2",[{id:"v1",kind:"video"}])]});
+out.p14_iot_v1_jamais=P12(function(){return [T.isOverlayTrack("v1",[{id:"v1",kind:"video"}]),
+  T.isOverlayTrack("v1"),T.isOverlayTrack("v1",[]),T.isOverlayTrack("v1",TS_USER)]});
+out.p14_ord=P12(function(){return T.overlayOrder(["c4","c2","c3","c2b"],P14_CL,P14_TS3)});
+out.p14_ord_ordre_recu=P12(function(){return T.overlayOrder(["c2b","c2"],P14_CL,P14_TS3)});
+out.p14_ord_inconnu=P12(function(){return T.overlayOrder(["c4","cx","c2"],P14_CL,P14_TS3)});
+out.p14_ord_sans_clip=P12(function(){return T.overlayOrder(["zz","c3"],P14_CL,P14_TS3)});
+out.p14_ord_vides=P12(function(){return [T.overlayOrder([],P14_CL,P14_TS3),
+  T.overlayOrder(null,null,null),T.overlayOrder(["c2","c3"],P14_CL,null),
+  T.overlayOrder(["c2","c3"],P14_CL,[])]});
+/* la loi du rendu, relue sur la sortie : rang de piste DECROISSANT, la piste
+   listee le plus haut en dernier (au-dessus) */
+out.p14_ord_loi=P12(function(){var o=T.overlayOrder(["c2","c3","c4"],P14_CL,P14_TS3);
+  var rk={};P14_TS3.forEach(function(t,i){rk[t.id]=i});
+  var byId={};P14_CL.forEach(function(c){byId[c.id]=c});
+  return o.map(function(id){return rk[byId[id].tr]})});
+out.p14_ord_pure=P12(function(){var ids=["c4","c2"],a=JSON.stringify([ids,P14_CL,P14_TS3]);
+  T.overlayOrder(ids,P14_CL,P14_TS3);return a===JSON.stringify([ids,P14_CL,P14_TS3])});
+/* le choix */
+out.p14_add=P12(function(){return [T.add(T.DEFAULTS,"video")[0],T.add(T.DEFAULTS,"overlay")[0]]
+  .map(function(t){return [t.id,t.type,t.h,t.c,t.kind]})});
+out.p14_add_0409=P12(function(){return [T.add(TS_0409,"video")[0],T.add(TS_0409,"overlay")[0]]
+  .map(function(t){return [t.id,t.type]})});
+out.p14_add_audio=P12(function(){return T.add(TS_0409,"audio").map(function(t){return t.id})});
+out.p14_add_v2_jamais_renommee=P12(function(){var v2=T.add(TS_0409,"overlay")[0];
+  return [v2.id,v2.type,v2.name,v2.h]});
+out.p14_add_pure=P12(function(){var a=JSON.stringify(TS_0409);T.add(TS_0409,"video");
+  T.add(TS_0409,"overlay");return a===JSON.stringify(TS_0409)});
+out.p14_skin=P12(function(){return [T.skin("v3","video","vidéo").type,
+  T.skin("v3","video","overlay").type,T.skin("v3","video").type,
+  T.skin("v3","video","n'importe").type,T.skin("v2","video","vidéo").type,
+  T.skin("a4","audio","vidéo").type,T.skin("v1","video","overlay").type]});
+out.p14_addDit=P12(function(){return ["video","overlay","audio"].map(function(k){
+  var r=T.addDit(T.DEFAULTS,k);return [r.id,r.type,r.note]})});
+out.p14_addDit_v2=P12(function(){var r=T.addDit(TS_0409,"overlay");return [r.id,r.type,r.note]});
+out.p14_addDit_vide=P12(function(){var r=T.addDit([],"video");return [r.id,r.type,r.tracks.length]});
+/* la persistance : le payload porte le type « vidéo » d'une piste autre que
+   v1, et RIEN d'autre ; l'aller-retour rend la piste avec son habillage */
+out.p14_payload=P12(function(){return [T.payload({tracks:T.add(T.DEFAULTS,"video")})[0],
+  T.payload({tracks:T.add(T.DEFAULTS,"overlay")})[0],T.payload({tracks:T.DEFAULTS})[1]]});
+out.p14_roundtrip=P12(function(){
+  var f=T.from(T.payload({tracks:T.add(T.DEFAULTS,"video")}));
+  var g=T.from(T.payload({tracks:T.add(T.DEFAULTS,"overlay")}));
+  return [[f[0].id,f[0].type,f[0].h,T.trackPlein(f,"v3"),T.wantsTwin("video",f,"v3")],
+          [g[0].id,g[0].type,g[0].h,T.trackPlein(g,"v3"),T.wantsTwin("video",g,"v3")]]});
+/* le jumeau suit le type (taches 18 et 20) : piste neuve « vidéo » → jumeau ;
+   « overlay » → pas de jumeau, et l'incrustation est DITE */
+out.p14_jumeau=P12(function(){var fv=T.add(T.DEFAULTS,"video"),fo=T.add(T.DEFAULTS,"overlay");
+  return [T.wantsTwin("video",fv,"v3"),T.overlayNote("video",fv,"v3"),
+          T.wantsTwin("video",fo,"v3"),T.overlayNote("video",fo,"v3").slice(0,32)]});
+/* la note de creation dans le cablage (p.note = le fireNote de l'ecran), et
+   rien ne leve quand l'hote n'en donne pas */
+out.p14_cab_note=P12(function(){var n=[];
+  var c=T.tbCablage({tracks:T.DEFAULTS,onTracks:function(){},note:function(m){n.push(m)}});
+  c["piste-video"].act();c["piste-incrust"].act();c["piste-audio"].act();return n});
+out.p14_cab_sans_note=P12(function(){var k=0;
+  var c=T.tbCablage({tracks:T.DEFAULTS,onTracks:function(){k++}});
+  c["piste-video"].act();c["piste-incrust"].act();return k});
+out.p14_cab_titres=P12(function(){var c=T.tbCablage({tracks:T.DEFAULTS,onTracks:function(){}});
+  return [c["piste-video"].title,c["piste-incrust"].title]});
+out.p14_icone=P12(function(){var ic=T.tbIcons["piste-incrust"];
+  return [T.tbSerial(ic)===T.tbTraces["piste-incrust"],ic.map(function(e){return e[0]}),
+    ic[2][1].d===T.tbIcons["piste-video"][2][1].d,ic[0][1].opacity,
+    ic.some(function(e){return "rx" in e[1]})]});
 /* L'INCRUSTATION DITE (overlayNote) : la phrase pour v2 habillee, "" pour
    V1 (le jumeau parle), un son, une image, une piste absente ou d'un
    autre genre, une liste vide, null. */
@@ -3743,6 +4069,31 @@ out.tb_c_audio = TBG(function () {
   })["piste-audio"].act();
   return vu
 });
+/* P14 — « incrust. » : la meme action, l'autre sorte. Sur [v1, a1, s1]
+   elle prend v2 (l'habillage historique « overlay/VFX ») ; « vidéo » l'a
+   SAUTE et cree V3 plein cadre. Les types sont rendus a cote des ids. */
+out.tb_c_incrust = TBG(function () {
+  var vu = null;
+  T.tbCablage({
+    tracks: CAB_TS, onTracks: function (ts) {
+      vu = ts.map(function (t) { return t.id })
+    }
+  })["piste-incrust"].act();
+  return vu
+});
+function CABTYPES(k, ts) {
+  var vu = null;
+  T.tbCablage({
+    tracks: ts, onTracks: function (o) {
+      vu = o.slice(0, 2).map(function (t) { return t.id + ":" + (t.type || "") })
+    }
+  })[k].act();
+  return vu
+}
+out.tb_c_video_types = TBG(function () { return CABTYPES("piste-video", CAB_TS) });
+out.tb_c_incrust_types = TBG(function () { return CABTYPES("piste-incrust", CAB_TS) });
+out.tb_c_incrust_v3_type = TBG(function () {
+  return CABTYPES("piste-incrust", T.DEFAULTS)[0].split(":")[1] });
 out.tb_c_lier = TBG(function () {
   var vu = [];
   T.tbCablage({
@@ -4628,8 +4979,8 @@ function PROPS7(e,occupe){
     get:function(){e.lus++;return e._ph},
     set:function(v){e.ecrits++;e._ph=v},enumerable:!0,configurable:!0});
   return h}
-var TB7=["piste-video","piste-audio","bibliotheque","couleur","rebond",
-  "glow","emoji","texte","projets"];
+var TB7=["piste-video","piste-incrust","piste-audio","bibliotheque","couleur",
+  "rebond","glow","emoji","texte","projets"];
 /* LE TABLEAU DES NEUF : ce que chaque action pousse, ce qu'elle touche, ce
    qu'`undo` rend, et si elle a lu ou ecrit la tete de lecture. */
 out.tb7_par_bouton=TBG(function(){
@@ -5023,12 +5374,12 @@ function TB8UN(a){var n=0,i;for(i=0;i<a.length;i++)if(a[i]===0)n++;return n}
 out.tb8_tabindex=TBG(function(){
   var t0=TB8TABS({open:!0,items:cabPlein,rove:0});
   var t5=TB8TABS({open:!0,items:cabPlein,rove:5});
-  var tA=TB8TABS({open:!0,items:cabPlein,rove:9});
-  var tB=TB8TABS({open:!0,items:cabPlein,rove:10});
+  var tA=TB8TABS({open:!0,items:cabPlein,rove:10});
+  var tB=TB8TABS({open:!0,items:cabPlein,rove:11});
   return [t0.length,t0.join(","),TB8UN(t0),TB8UN(t5),TB8UN(tA),TB8UN(tB),
     t5.indexOf(0),tA.indexOf(0),tB.indexOf(0)]});
 /* UN INDEX PERIME NE FAIT PAS DISPARAITRE LE POINT D'ENTREE : sans hote,
-   les neuf sont eteints et il tombe sur `⌖` (index 9). */
+   les dix sont eteints et il tombe sur `⌖` (index 10). */
 out.tb8_tabindex_assaini=TBG(function(){
   return [TB8TABS({open:!0,items:cabSansHote,rove:0}).indexOf(0),
     TB8TABS({open:!0,items:cabSansHote,rove:3}).indexOf(0),
@@ -5900,15 +6251,19 @@ check("js_dialogue_etats_vides_rendent_une_chaine_vide",
       f'vide={d.get("dt_vide")!r} null={d.get("dt_null")!r} '
       f'sans_audio={d.get("dt_sans_audio")!r} a1_video={d.get("dt_a1_video")!r}')
 # PLEIN CADRE OU INCRUSTATION : V1 (type « vidéo ») recoit un jumeau ; la V2
-# historique (« overlay/VFX ») et toute piste neuve de dzmAdd (« overlay »)
-# non ; une piste sans type (payload nu) compte comme plein cadre ; une piste
-# vidéo neuve typee « vidéo » (tache 20) en recoit un.
+# historique (« overlay/VFX ») non ; une piste sans type (payload nu) compte
+# comme plein cadre ; une piste vidéo neuve typee « vidéo » en recoit un.
+# P14 (tache 20) : `add(…,"video")` cree desormais une piste PLEIN CADRE (v3
+# → vrai) et `add(…,"overlay")` une incrustation (v3 → faux) — les deux sont
+# mesurees cote a cote, et la mutation du type rougit la paire.
 check("js_plein_v1_oui_v2_et_pistes_neuves_non",
       d.get("tp_v1") is True and d.get("tp_v2") is False
-      and d.get("tp_v3_neuve") is False and d.get("tp_v1_nue") is True
+      and d.get("tp_v3_neuve") is True and d.get("tp_v3_incrust") is False
+      and d.get("tp_v1_nue") is True
       and d.get("tp_video_plein_neuve") is True,
-      f'v1={d.get("tp_v1")} v2={d.get("tp_v2")} v3={d.get("tp_v3_neuve")} '
-      f'nue={d.get("tp_v1_nue")} neuve_video={d.get("tp_video_plein_neuve")}')
+      f'v1={d.get("tp_v1")} v2={d.get("tp_v2")} v3_video={d.get("tp_v3_neuve")} '
+      f'v3_incrust={d.get("tp_v3_incrust")} nue={d.get("tp_v1_nue")} '
+      f'neuve_video={d.get("tp_video_plein_neuve")}')
 # LA LISTE NUE ET SON HABILLAGE (tour 2) : le payload d'une sauvegarde nomme
 # v2 SANS type, et une liste nue rend VRAI pour v2 — ce qui tient l'exemption
 # des incrustations est svmTracksFrom (dzmSkin a l'apply : v3 « overlay »,
@@ -6262,6 +6617,127 @@ check("js_extractBtn_le_titre_dit_le_refus_et_l_annulation",
       repr(d.get("eb_titre"))[:240])
 check("js_extractBtn_le_clic_appelle_le_moteur",
       d.get("eb_clic") == [2], repr(d.get("eb_clic")))
+
+# ── P14 : deux sortes de pistes video — le cœur pur, sous node ────────────
+# LA REGLE DU RENDU, douze etats : v3 de la sauvegarde de l'utilisateur (le
+# fantome) et v2 des defauts → vrai ; v1, a1, s1 → faux ; liste absente ou
+# nulle → l'initiale (vrai pour v3) ; null et "" → faux ; le GENRE de la
+# piste prime sur l'initiale (une « v2 » audio → faux, une « x9 » video →
+# vrai) ; absente de la liste → l'initiale (un clip v2 d'un projet sans V2
+# reste visible, comme avant). Le conjoint des negations est la paire de
+# vrais qui ouvre la liste.
+check("js_P14_isOverlayTrack_est_la_regle_du_rendu",
+      d.get("p14_iot") == [True, True, False, False, False, True, True,
+                           False, False, False, True, True],
+      repr(d.get("p14_iot")))
+check("js_P14_v1_n_est_jamais_une_incrustation",
+      d.get("p14_iot_v1_jamais") == [False, False, False, False]
+      and d.get("p14_iot", [None])[0] is True,
+      f'{d.get("p14_iot_v1_jamais")} v3={d.get("p14_iot", [None])[0]}')
+# L'ORDRE D'EMPILEMENT, trois pistes : le plus BAS d'abord (v2), la piste
+# listee le plus haut (v4) en dernier ; deux clips de la meme piste gardent
+# l'ordre recu ; une piste inconnue passe sous toutes les autres ; un id sans
+# clip garde sa place ; les etats vides rendent [] ou retombent sur les six
+# pistes historiques (v2 est alors la seule connue → c3 inconnu passe dessous).
+check("js_P14_overlayOrder_empile_le_plus_bas_d_abord",
+      d.get("p14_ord") == ["c2", "c2b", "c3", "c4"]
+      and d.get("p14_ord_loi") == [2, 1, 0],
+      f'{d.get("p14_ord")} rangs={d.get("p14_ord_loi")}')
+check("js_P14_overlayOrder_garde_l_ordre_recu_dans_une_piste",
+      d.get("p14_ord_ordre_recu") == ["c2b", "c2"], repr(d.get("p14_ord_ordre_recu")))
+check("js_P14_overlayOrder_piste_inconnue_dessous_et_id_sans_clip_garde_sa_place",
+      d.get("p14_ord_inconnu") == ["cx", "c2", "c4"]
+      and d.get("p14_ord_sans_clip") == ["zz", "c3"],
+      f'{d.get("p14_ord_inconnu")} {d.get("p14_ord_sans_clip")}')
+check("js_P14_overlayOrder_etats_vides",
+      d.get("p14_ord_vides") == [[], [], ["c3", "c2"], ["c3", "c2"]]
+      and d.get("p14_ord_pure") is True,
+      f'{d.get("p14_ord_vides")} pure={d.get("p14_ord_pure")}')
+# LE CHOIX : « video » cree une piste PLEIN CADRE avec l'habillage de V1
+# (54 px, --c-video), « overlay » une incrustation (40 px, --c-3d) ; sur les
+# pistes du 04/09 (sans v2) « video » SAUTE v2 — dont l'habillage historique
+# est une incrustation — et cree V3, « overlay » prend v2 qui revient
+# « overlay/VFX », jamais renommee ; l'audio ne change pas (a4 avant s1).
+check("js_P14_add_video_plein_cadre_et_overlay_incrustation",
+      d.get("p14_add") == [["v3", "vidéo", 54, "--c-video", "video"],
+                           ["v3", "overlay", 40, "--c-3d", "video"]],
+      repr(d.get("p14_add")))
+check("js_P14_add_video_saute_v2_et_overlay_la_prend",
+      d.get("p14_add_0409") == [["v3", "vidéo"], ["v2", "overlay/VFX"]]
+      and d.get("p14_add_v2_jamais_renommee") == ["v2", "overlay/VFX", "V2", 40]
+      and d.get("p14_add_audio") == ["v1", "a2", "a1", "a3", "a4", "s1"]
+      and d.get("p14_add_pure") is True,
+      f'{d.get("p14_add_0409")} v2={d.get("p14_add_v2_jamais_renommee")} '
+      f'audio={d.get("p14_add_audio")} pure={d.get("p14_add_pure")}')
+# L'HABILLAGE n'honore que « vidéo », et seulement hors de la table : tout
+# autre mot rend « overlay », v2 et v1 gardent le leur, l'audio ignore.
+check("js_P14_skin_n_honore_que_le_type_video_hors_de_la_table",
+      d.get("p14_skin") == ["vidéo", "overlay", "overlay", "overlay",
+                            "overlay/VFX", "sfx", "vidéo"],
+      repr(d.get("p14_skin")))
+# LA NOTE DE CREATION nomme la piste et sa nature, pour les trois sortes.
+_ad = d.get("p14_addDit") if isinstance(d.get("p14_addDit"), list) else []
+check("js_P14_addDit_dit_la_piste_et_sa_nature",
+      len(_ad) == 3
+      and _ad[0][:2] == ["v3", "vidéo"] and _ad[0][2].startswith("Piste V3 ajoutée — vidéo plein cadre : ")
+      and "recouvrent V1" in _ad[0][2] and "son est extrait" in _ad[0][2]
+      and "séquence maîtresse" in _ad[0][2]
+      and _ad[1][:2] == ["v3", "overlay"] and _ad[1][2].startswith("Piste V3 ajoutée — incrustation : ")
+      and "muette" in _ad[1][2] and "réglable" in _ad[1][2]
+      and _ad[2][:2] == ["a4", "sfx"] and _ad[2][2].startswith("Piste A4 ajoutée — audio, bus sfx")
+      and d.get("p14_addDit_v2") is not None
+      and d["p14_addDit_v2"][:2] == ["v2", "overlay/VFX"]
+      and "overlay/VFX, la piste historique" in d["p14_addDit_v2"][2]
+      # liste VIDE : la premiere piste video est V1 elle-meme (table historique)
+      and d.get("p14_addDit_vide") == ["v1", "vidéo", 1],
+      f'{_ad} v2={d.get("p14_addDit_v2")} vide={d.get("p14_addDit_vide")}'[:400])
+# LA PERSISTANCE : le payload porte `type:"vidéo"` pour une piste plein cadre
+# autre que v1, et rien pour une incrustation ni pour V2 ; l'aller-retour
+# (payload → from) rend la piste avec son habillage ET sa regle de jumeau.
+check("js_P14_le_payload_porte_le_type_video_et_rien_d_autre",
+      d.get("p14_payload") == [{"id": "v3", "kind": "video", "type": "vidéo"},
+                               {"id": "v3", "kind": "video"},
+                               {"id": "v1", "kind": "video"}],
+      repr(d.get("p14_payload")))
+check("js_P14_l_aller_retour_garde_le_choix",
+      d.get("p14_roundtrip") == [["v3", "vidéo", 54, True, True],
+                                 ["v3", "overlay", 40, False, False]],
+      repr(d.get("p14_roundtrip")))
+# LE JUMEAU SUIT LE TYPE (taches 18 + 20) : piste neuve « vidéo » → jumeau,
+# rien a dire ; piste neuve « overlay » → pas de jumeau, l'incrustation DITE.
+check("js_P14_le_jumeau_suit_le_type_de_la_piste_neuve",
+      d.get("p14_jumeau") == [True, "", False,
+                              " Posé sur V3 (incrustation) : le"],
+      repr(d.get("p14_jumeau")))
+# LE CABLAGE : une note par creation (trois), la meme phrase que addDit ;
+# sans `note` rien ne leve et les pistes partent quand meme (2 onTracks).
+_cn = d.get("p14_cab_note") if isinstance(d.get("p14_cab_note"), list) else []
+check("js_P14_le_cablage_notifie_la_nature_de_la_piste_creee",
+      len(_cn) == 3 and _cn[0].startswith("Piste V3 ajoutée — vidéo plein cadre")
+      and _cn[1].startswith("Piste V3 ajoutée — incrustation")
+      and _cn[2].startswith("Piste A4 ajoutée — audio")
+      and d.get("p14_cab_sans_note") == 2,
+      f'{[c[:44] for c in _cn]} sans_note={d.get("p14_cab_sans_note")}')
+# LES TITRES, MOT POUR MOT (le plan de la tache 20), suivis de la phrase
+# d'annulation du genre « piste » (tb7 le tient) ; celui de « vidéo » porte
+# l'ECART ASSUME : V1 seule a durée, transitions, vitesse, effets.
+_T_VID = ("Ajouter une piste vidéo plein cadre — ses plans RECOUVRENT V1 "
+          "pendant leur durée et leur son est extrait sur la piste de dialogue ; "
+          "V1 reste la séquence maîtresse (durée, transitions, vitesse, effets).")
+_T_INC = ("Ajouter une piste d'incrustation — image dans l'image, réglable "
+          "(position, échelle, rotation, opacité), muette.")
+_ct = d.get("p14_cab_titres") if isinstance(d.get("p14_cab_titres"), list) else ["", ""]
+check("js_P14_les_titres_des_deux_boutons_sont_ceux_du_plan_mot_pour_mot",
+      len(_ct) == 2 and _ct[0].startswith(_T_VID) and _ct[1].startswith(_T_INC)
+      and _ct[0] != _T_VID and _ct[1] != _T_INC
+      and "d'overlay" not in _ct[0],
+      f'{[t[:70] for t in _ct]}')
+# LA DIXIEME ICONE : aller-retour exact, trois elements (rect, rect, path),
+# la croix EST celle de « piste vidéo », le cadre est en opacite de support
+# (.34), aucun `rx`.
+check("js_P14_l_icone_incrustation_reprend_la_croix_de_piste_video",
+      d.get("p14_icone") == [True, ["rect", "rect", "path"], True, ".34", False],
+      repr(d.get("p14_icone")))
 
 # ── P13 : subsSources — ce que la transcription va depenser, sous node ────
 # LE CAS DE L'UTILISATEUR : les DEUX clips A1 (le vestige a t=0 ET le jumeau
@@ -7233,7 +7709,9 @@ def _lire(p):
 _TB_CLE = {"piste vidéo": "piste-video", "piste audio": "piste-audio",
            "bibliothèque": "bibliotheque", "couleur": "couleur",
            "rebond": "rebond", "glow": "glow", "emoji": "emoji",
-           "texte": "texte", "projets": "projets", "poignée": "poignee"}
+           "texte": "texte", "projets": "projets", "poignée": "poignee",
+           # P14 (06/09/2026) : la dixieme icone, ecart declare dans le §3.
+           "piste incrustation": "piste-incrust"}
 _HO = _lire(HANDOFF)
 _TB_SPEC = {}
 try:
@@ -7251,10 +7729,11 @@ except BaseException as _e:
     print(f"  ----  §3 du handoff illisible : {temoin(_e)}")
     _TB_SPEC = {}
 _TB_ORDRE = list(_TB_SPEC)
-check("tb_les_dix_traces_sont_lisibles_dans_le_handoff",
-      len(_TB_SPEC) == 10 and all(v.startswith("<") and v.endswith("/>")
+check("tb_les_onze_traces_sont_lisibles_dans_le_handoff",
+      len(_TB_SPEC) == 11 and all(v.startswith("<") and v.endswith("/>")
                                   for v in _TB_SPEC.values()),
-      f"{len(_TB_SPEC)} trace(s) extraits de {HANDOFF.name} : {_TB_ORDRE}")
+      f"{len(_TB_SPEC)} trace(s) extraits de {HANDOFF.name} : {_TB_ORDRE} "
+      f"(onze depuis P14 : dix icones plus la poignee)")
 
 # LA COUCHE PORTE LE TEXTE DU §3, CLE ET VALEUR, AU CARACTERE PRES. La forme
 # exigee est celle que la couche ecrit : deux lignes par icone, apostrophes
@@ -7267,22 +7746,22 @@ def _paire(k, v):
     return '  "%s":\n    %s%s%s,' % (k, _APO, v, _APO)
 
 
-check("tb_la_couche_porte_les_dix_traces_du_handoff_au_caractere_pres",
-      len(_TB_SPEC) == 10
+check("tb_la_couche_porte_les_onze_traces_du_handoff_au_caractere_pres",
+      len(_TB_SPEC) == 11
       and all(_paire(k, v) in _srcn for k, v in _TB_SPEC.items()),
       "traces divergents : "
       + str([k for k, v in _TB_SPEC.items() if _paire(k, v) not in _srcn]))
 # ET LE BUNDLE LIVRE LES PORTE AUSSI — `bloc_EST_la_couche_octet_pour_octet`
 # l'implique deja ; cette ligne le DIT sur le fichier que le navigateur
 # charge, et rougirait seule si le patcher n'avait pas ete rejoue.
-check("tb_le_bundle_livre_porte_les_dix_traces",
-      len(_TB_SPEC) == 10 and all(nl(v) in s for v in _TB_SPEC.values()),
+check("tb_le_bundle_livre_porte_les_onze_traces",
+      len(_TB_SPEC) == 11 and all(nl(v) in s for v in _TB_SPEC.values()),
       "traces absents du bundle : "
       + str([k for k, v in _TB_SPEC.items() if nl(v) not in s]))
 
 # ── L'ALLER-RETOUR, JOUE SOUS NODE : le controle a deux faces ──────────────
 check("tb_l_aller_retour_rend_exactement_le_trace_du_handoff",
-      len(_TB_SPEC) == 10 and isinstance(d.get("tb_aller_retour"), dict)
+      len(_TB_SPEC) == 11 and isinstance(d.get("tb_aller_retour"), dict)
       and d["tb_aller_retour"] == _TB_SPEC,
       "ecarts : " + str([k for k in _TB_SPEC
                          if (d.get("tb_aller_retour") or {}).get(k)
@@ -7290,7 +7769,7 @@ check("tb_l_aller_retour_rend_exactement_le_trace_du_handoff",
 # UN ALLER-RETOUR EST VRAI SUR DU VIDE des deux cotes : cette ligne exige que
 # chaque trace ait rendu SES elements, et le compte vient du handoff.
 check("tb_chaque_trace_rend_le_nombre_d_elements_du_handoff",
-      len(_TB_SPEC) == 10
+      len(_TB_SPEC) == 11
       and d.get("tb_elements") == [[k, _TB_SPEC[k].count("<")]
                                    for k in _TB_ORDRE],
       str(d.get("tb_elements")))
@@ -7638,7 +8117,7 @@ except BaseException as _e:
     _PLAN_SPEC = []
 check("tb_le_contenu_du_2_4_est_lisible_dans_le_handoff",
       len(_PLAN_SPEC) == 5
-      and sum(len(b) for _t, _h, b, _y in _PLAN_SPEC) == 9
+      and sum(len(b) for _t, _h, b, _y in _PLAN_SPEC) == 10
       and [t for t, _h, _b, _y in _PLAN_SPEC] == [
           "PISTES", "BIBLIOTHÈQUE", "MOT — sélection", "AJOUTS", "PROJETS"],
       f"{len(_PLAN_SPEC)} ligne(s) extraites : "
@@ -7657,11 +8136,12 @@ check("tb_la_couche_porte_le_contenu_verbatim_du_2_4",
           and _PLAN_VU[_i][3] == _PLAN_SPEC[_i][3]
           for _i in range(5)),
       f"plan={_PLAN_VU}")
-# LES NEUF BOUTONS PORTENT LES NEUF ICONES DU §3, une chacune, et la dixieme
-# (la poignee) n'est PAS un bouton — elle est la poignee de la barre.
-check("tb_les_neuf_boutons_portent_les_neuf_icones_du_3_une_chacune",
-      len(_TB_SPEC) == 10 and isinstance(d.get("tb_plan_icones"), list)
-      and len(d["tb_plan_icones"]) == 9
+# LES DIX BOUTONS PORTENT LES DIX ICONES DU §3, une chacune (P14 : la
+# dixieme est « piste incrustation »), et la onzieme (la poignee) n'est PAS
+# un bouton — elle est la poignee de la barre.
+check("tb_les_dix_boutons_portent_les_dix_icones_du_3_une_chacune",
+      len(_TB_SPEC) == 11 and isinstance(d.get("tb_plan_icones"), list)
+      and len(d["tb_plan_icones"]) == 10
       and sorted(d["tb_plan_icones"]) == sorted(set(_TB_SPEC) - {"poignee"}),
       f'{d.get("tb_plan_icones")}')
 check("tb_les_cinq_colonnes_sont_les_cinq_groupes_dans_l_ordre",
@@ -7755,24 +8235,38 @@ check("tb_un_magasin_indisponible_ouvre_et_ne_casse_pas_la_bascule",
 # `dzmEmojiGo` ; `projets` a une ouverture enfermee dans son popover, ouverte
 # par une DEMANDE (`openReq`). Ni l'un ni l'autre n'a ete reecrit.
 _CABLES = ["bibliotheque", "couleur", "emoji", "glow", "piste-audio",
-           "piste-video", "projets", "rebond", "texte"]
+           "piste-incrust", "piste-video", "projets", "rebond", "texte"]
 check("tb_le_cablage_rend_une_entree_par_bouton_du_plan",
       d.get("tb_c_cles") == sorted(set(_TB_SPEC) - {"poignee"}),
       f'{d.get("tb_c_cles")}')
-check("tb_les_neuf_boutons_sont_cables_et_aucun_n_est_eteint",
+check("tb_les_dix_boutons_sont_cables_et_aucun_n_est_eteint",
       d.get("tb_c_actions") == _CABLES
       and d.get("tb_c_eteints") == []
-      and len(_CABLES) == 9,
+      and len(_CABLES) == 10,
       f'cables={d.get("tb_c_actions")} eteints={d.get("tb_c_eteints")}')
 # CE QUE L'ACTION TRANSMET, pas seulement qu'elle a ete appelee : une piste
 # video nait EN HAUT, une piste audio juste au-dessus des sous-titres, et les
 # identifiants sont les plus petits libres — c'est `dzmAdd`, la meme fonction
 # que le bouton du bandeau. Une action qui appellerait autre chose rendrait
 # une autre liste.
+# P14 : sur [v1, a1, s1], « vidéo » SAUTE v2 — l'identifiant libre dont
+# l'habillage historique est une incrustation (« overlay/VFX ») — et cree
+# V3 plein cadre ; « incrust. » prend v2, qui revient avec son habillage
+# historique. Le type est mesure a cote de l'identifiant : c'est lui que
+# le bouton promet.
 check("tb_pistes_video_et_audio_appellent_la_meme_action_que_le_bandeau",
-      d.get("tb_c_video") == ["v2", "v1", "a1", "s1"]
+      d.get("tb_c_video") == ["v3", "v1", "a1", "s1"]
+      and d.get("tb_c_incrust") == ["v2", "v1", "a1", "s1"]
       and d.get("tb_c_audio") == ["v1", "a1", "a2", "s1"],
-      f'video={d.get("tb_c_video")} audio={d.get("tb_c_audio")}')
+      f'video={d.get("tb_c_video")} incrust={d.get("tb_c_incrust")} '
+      f'audio={d.get("tb_c_audio")}')
+check("tb_P14_video_cree_plein_cadre_et_incrust_une_incrustation",
+      # CAB_TS est une liste NUE (v1 sans type) : le second element le dit
+      d.get("tb_c_video_types") == ["v3:vidéo", "v1:"]
+      and d.get("tb_c_incrust_types") == ["v2:overlay/VFX", "v1:"]
+      and d.get("tb_c_incrust_v3_type") == "overlay",
+      f'video={d.get("tb_c_video_types")} incrust={d.get("tb_c_incrust_types")} '
+      f'incrust_v3={d.get("tb_c_incrust_v3_type")}')
 check("tb_lier_ouvre_le_selecteur_sur_la_piste_video_resolue",
       d.get("tb_c_lier") == ["v1"], f'{d.get("tb_c_lier")}')
 # SANS PISTE VIDEO : eteint, aucune action, et un titre QUI DIFFERE — il
@@ -7834,8 +8328,8 @@ check("tb_emoji_et_projets_s_eteignent_sans_hote_et_le_disent",
 # cablage vide.
 _TI = d.get("tb_c_titres")
 check("tb_aucun_titre_ne_promet_plus_une_etape_a_venir",
-      isinstance(_TI, list) and len(_TI) == 9
-      and len(set(_TI)) == 9 and all(len(t) > 60 for t in _TI)
+      isinstance(_TI, list) and len(_TI) == 10
+      and len(set(_TI)) == 10 and all(len(t) > 60 for t in _TI)
       and not any(("étape 7" in t) or ("étape 8" in t)
                   or ("pour l'instant" in t) or ("pas encore" in t)
                   for t in _TI),
@@ -7852,8 +8346,8 @@ check("tb_la_phrase_des_boutons_eteints_a_ete_retiree_du_code",
       "dzmTbEtape7 vit encore dans le code de la couche")
 # UN CABLAGE SANS HOTE n'allume RIEN : c'est l'etat qu'aurait la barre si la
 # section du patcher perdait ses proprietes, et il doit etre inoffensif.
-check("tb_un_cablage_sans_hote_eteint_les_neuf_boutons",
-      d.get("tb_c_vide") == [9, 0], f'{d.get("tb_c_vide")}')
+check("tb_un_cablage_sans_hote_eteint_les_dix_boutons",
+      d.get("tb_c_vide") == [10, 0], f'{d.get("tb_c_vide")}')
 
 # ── LE DOCK, LU DANS LA SOURCE ────────────────────────────────────────────
 # C'est le seul morceau a hooks du lot, donc le seul que node ne joue pas :
@@ -8038,9 +8532,10 @@ check("tb_l_entete_MOT_porte_son_suffixe_dans_un_element_a_part",
 # LES NEUF BOUTONS, DANS L'ORDRE, AVEC LEUR ETAT : les deux colonnes a bouton
 # unique sont en `dzm-solo`, les quatre bascules portent `aria-pressed`, les
 # deux muets sont `disabled`. C'est la photographie complete de la barre.
-check("tb_les_neuf_boutons_sont_peints_avec_leur_etat",
+check("tb_les_dix_boutons_sont_peints_avec_leur_etat",
       d.get("tb_r_boutons") == [
           ["dzm-tbb dzm-g-pistes", "vidéo", False, "ABSENT"],
+          ["dzm-tbb dzm-g-pistes", "incrust.", False, "ABSENT"],
           ["dzm-tbb dzm-g-pistes", "audio", False, "ABSENT"],
           ["dzm-tbb dzm-g-biblio dzm-solo", "lier", False, "ABSENT"],
           ["dzm-tbb dzm-g-mot", "couleur", False, "false"],
@@ -9173,8 +9668,8 @@ _B7 = d.get("tb7_par_bouton")
 # ou un bouton s'ajoute au plan sans passer par le cablage, cette ligne le
 # dit avant toutes les autres.
 _NEUF = d.get("tb_plan_icones")
-check("tb7_les_neuf_actions_du_plan_sont_jouees",
-      isinstance(_B7, list) and isinstance(_NEUF, list) and len(_NEUF) == 9
+check("tb7_les_dix_actions_du_plan_sont_jouees",
+      isinstance(_B7, list) and isinstance(_NEUF, list) and len(_NEUF) == 10
       and [r[0] for r in _B7] == _NEUF,
       f'joues={[r[0] for r in (_B7 or [])]} plan={_NEUF}')
 
@@ -9196,6 +9691,7 @@ check("tb7_les_neuf_actions_du_plan_sont_jouees",
 _F, _V = False, True
 _ATTENDU_B7 = [
     ["piste-video", 1, [_F, _V, _F, _F, 0, 0], _V, [_V, _F, _V, _V], [0, 0]],
+    ["piste-incrust", 1, [_F, _V, _F, _F, 0, 0], _V, [_V, _F, _V, _V], [0, 0]],
     ["piste-audio", 1, [_F, _V, _F, _F, 0, 0], _V, [_V, _F, _V, _V], [0, 0]],
     ["bibliotheque", 0, [_F, _F, _F, _F, 1, 0], _F, [_V, _V, _V, _V], [0, 0]],
     ["couleur", 0, [_F, _F, _V, _F, 0, 0], _F, [_V, _V, _F, _V], [0, 0]],
@@ -9234,7 +9730,7 @@ def _genre_observe(row):
 _OBS = dict((r[0], _genre_observe(r)) for r in (_B7 or []))
 _DEC = dict((t[0], (t[1], t[2])) for t in (_T7 or []))
 check("tb7_la_table_des_effets_dit_ce_que_les_actions_font_vraiment",
-      len(_OBS) == 9 and _OBS == _DEC
+      len(_OBS) == 10 and _OBS == _DEC
       and all(x[0] != "?" for x in _OBS.values()),
       f'observe={_OBS}\n      declare={_DEC}')
 # LES CINQ PHRASES, ET LEUR PLACE. Chaque titre cable SE TERMINE par celle de
@@ -9244,10 +9740,10 @@ check("tb7_la_table_des_effets_dit_ce_que_les_actions_font_vraiment",
 _PH7 = d.get("tb7_phrases")
 check("tb7_chaque_titre_finit_par_la_phrase_de_son_genre",
       d.get("tb7_titres_finissent_par_la_phrase")
-      == [[True, True, True]] * 9,
+      == [[True, True, True]] * 10,
       f'{d.get("tb7_titres_finissent_par_la_phrase")}')
-check("tb7_cinq_phrases_pour_neuf_boutons_et_aucune_vide",
-      isinstance(_PH7, list) and len(_PH7) == 9
+check("tb7_cinq_phrases_pour_dix_boutons_et_aucune_vide",
+      isinstance(_PH7, list) and len(_PH7) == 10
       and len(set(_PH7)) == 5 and all(len(x) > 60 for x in _PH7)
       and d.get("tb7_undo_inconnu") == ["", "", ""],
       f'{len(set(_PH7 or []))} phrase(s) distinctes ; '
@@ -9257,9 +9753,9 @@ check("tb7_cinq_phrases_pour_neuf_boutons_et_aucune_vide",
 # TROIS MESURES, ET AUCUNE N'EST UNE LECTURE D'INTENTION.
 # 1. LES NEUF ACTIONS SONT JOUEES sur un objet dont `ph` est un ACCESSEUR
 #    compte : ni lue, ni ecrite, et la valeur n'a pas bouge.
-check("tb7_exigence2_les_neuf_actions_ne_lisent_ni_n_ecrivent_la_tete",
-      d.get("tb7_la_tete_de_lecture") == [9, 0, 0, 3.5],
-      f'{d.get("tb7_la_tete_de_lecture")} (attendu [9, 0, 0, 3.5])')
+check("tb7_exigence2_les_dix_actions_ne_lisent_ni_n_ecrivent_la_tete",
+      d.get("tb7_la_tete_de_lecture") == [10, 0, 0, 3.5],
+      f'{d.get("tb7_la_tete_de_lecture")} (attendu [10, 0, 0, 3.5])')
 # 2. TOUTE LA CHAINE DE PATCHS NE NOMME NI `setPh` NI `seekTo`. Conjoints
 #    positifs d'abord : les deux textes existent et sont gros, et le bundle
 #    porte bien les huit `setPh(` qu'on lui connait — sans eux, la negation
@@ -9412,9 +9908,15 @@ print("\n[6-quinquies] §5 — le bandeau redistribué : retrait, place, "
 # joue sous node (les neuf `act`, tous non nuls). Trois listes, un seul
 # ensemble. Si l'une des trois bougeait seule, cette ligne rougirait — c'est
 # le geste destructif de cette etape, et c'est son garde-fou.
+# P14, ECART DECLARE : « incrust. » est NE dans la barre — il n'a jamais ete
+# dans le bandeau, la table des retires reste a neuf (le handoff §5.1 le dit
+# dans son ecart date) ; la barre en porte dix. La difference est nommee et
+# doit etre EXACTEMENT ce bouton-la : une seconde ligne perdue d'un cote ou
+# de l'autre rougirait ici.
 check("bd_les_neuf_retires_sont_exactement_les_neuf_de_la_barre",
-      d.get("bd_ctl") == sorted(_CABLES)
+      d.get("bd_ctl") == sorted(set(_CABLES) - {"piste-incrust"})
       and d.get("tb_c_cles") == sorted(_CABLES)
+      and len(_CABLES) == 10 and "piste-incrust" in _CABLES
       and d.get("tb_c_actions") == _CABLES
       and d.get("tb_c_eteints") == [],
       f'retires={d.get("bd_ctl")} plan={d.get("tb_c_cles")} '
@@ -9727,17 +10229,17 @@ check("tb8_seules_les_fleches_horizontales_naviguent",
       d.get("tb8_dir_touches") == [-1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       f'{d.get("tb8_dir_touches")}')
 check("tb8_le_nombre_de_boutons_vient_du_plan",
-      d.get("tb8_nb_act") == [9, 3, 9, 9], f'{d.get("tb8_nb_act")}')
+      d.get("tb8_nb_act") == [10, 3, 10, 10], f'{d.get("tb8_nb_act")}')
 
 # ── L'ORDRE PLAT, ET SON ACCORD AVEC LA BARRE PEINTE ──────────────────────
-# ONZE ENTREES : les neuf actions puis `⌖` et `×`. Ces deux-la sont TOUJOURS
+# DOUZE ENTREES (P14) : les dix actions puis `⌖` et `×`. Ces deux-la sont TOUJOURS
 # atteignables — le §4.2 l'exige pour `⌖` (« il ne doit jamais etre masque »),
 # et `×` est la seule facon de replier au clavier.
-_A_PLEIN = ",".join(["true"] * 11)
-_A_ETEINT = ",".join(["false"] * 9 + ["true", "true"])
-check("tb8_l_ordre_plat_compte_neuf_actions_plus_deux_controles",
+_A_PLEIN = ",".join(["true"] * 12)
+_A_ETEINT = ",".join(["false"] * 10 + ["true", "true"])
+check("tb8_l_ordre_plat_compte_dix_actions_plus_deux_controles",
       d.get("tb8_actifs") is not None
-      and d["tb8_actifs"][0] == 11
+      and d["tb8_actifs"][0] == 12
       and d["tb8_actifs"][1] == _A_PLEIN
       and d["tb8_actifs"][2] == _A_ETEINT
       and d["tb8_actifs"][3] == _A_ETEINT
@@ -9754,17 +10256,18 @@ check("tb8_les_actifs_et_la_barre_peinte_disent_la_meme_chose",
 
 # ── LE `tabindex` ROVING SUR LA BARRE PEINTE ──────────────────────────────
 # « Un seul point d'entree dans l'ordre de tabulation » (§4.5), mesure sur les
-# ONZE boutons : exactement un `0`, dix `-1`, et le `0` est a l'index demande.
-_T0 = ",".join(["0"] + ["-1"] * 10)
+# DOUZE boutons (P14) : exactement un `0`, onze `-1`, et le `0` est a l'index
+# demande (`⌖` est a 10, `×` a 11).
+_T0 = ",".join(["0"] + ["-1"] * 11)
 check("tb8_un_seul_point_d_entree_et_il_suit_l_index",
-      d.get("tb8_tabindex") == [11, _T0, 1, 1, 1, 1, 5, 9, 10],
+      d.get("tb8_tabindex") == [12, _T0, 1, 1, 1, 1, 5, 10, 11],
       f'{d.get("tb8_tabindex")}')
 # UN INDEX PERIME NE FAIT PAS DISPARAITRE LE POINT D'ENTREE. Sans hote les
-# neuf actions sont eteintes : il tombe sur `⌖` (index 9), et il y a toujours
+# dix actions sont eteintes : il tombe sur `⌖` (index 10), et il y a toujours
 # EXACTEMENT un `0`. Les trois derniers cas sont l'index trop grand, `NaN` et
 # l'absence de propriete.
 check("tb8_un_index_perime_retombe_sur_le_premier_actif",
-      d.get("tb8_tabindex_assaini") == [9, 9, 0, 0, 0, 1],
+      d.get("tb8_tabindex_assaini") == [10, 10, 0, 0, 0, 1],
       f'{d.get("tb8_tabindex_assaini")}')
 # LA CONSIGNE DE L'ETAPE 5, TENUE : la poignee est HORS du groupe. Ses fleches
 # deplacent la barre, celles du groupe deplacent le focus — le meme geste ne

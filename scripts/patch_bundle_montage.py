@@ -1994,6 +1994,140 @@ R_M24M = ('title:etat==="ok"\n'
           'lue sur le contenu : "\n'
           '            :"La langue lue sur le contenu est d\'accord avec le sélecteur : ")+')
 
+# ══ P14 — DEUX SORTES DE PISTES VIDÉO, ET V3 N'EST PLUS UN FANTÔME ═════════
+#
+# LE DÉFAUT, MESURÉ (06/09/2026, en octets, bundle ET .bak_montage). Le seul
+# geste vivant qui ajoute une piste vidéo (« vidéo » du groupe PISTES de la
+# barre flottante) fabriquait `v`+n libre habillé « overlay » — et le rendu
+# traite TOUTE piste vidéo ≠ v1 en incrustation (montage_service
+# `_tracks_meta`, `kind == "video" and tid != "v1"`). Mais l'écran, lui,
+# codait « v2 » EN DUR : NEUF portes (`"v2"` dans le code de l'écran, hors
+# démo `svmDemoClips`, table `SVM_TRACKS` et greffon libsend) et QUATRE
+# verrous de piste (`trackStRef.current.v2`, 8 occurrences = 4 sites × 2).
+# Le plan n'en nommait que quatre (aperçu, payload, inspecteur, losanges) ;
+# les cinq autres — alignement 3×3 (`svmOvAlign`), « ◇ position ici »
+# (`svmMpHere`), poignées du lecteur (`ovHandleDown`), flèches (`ovArrow`)
+# et Échap (`ovEsc`) du clavier — auraient laissé à V3 un inspecteur dont
+# aucun champ n'écrit et un cadre qu'aucune poignée ne saisit. Dès que V2
+# existait, « vidéo » créait v3, et un clip posé dessus était un FANTÔME :
+# invisible dans l'aperçu, sans inspecteur, parti cover plein cadre au
+# rendu. La sauvegarde de l'utilisateur porte tracks [v3, v2, v1, a1, a2,
+# a3, s1] — c'est exactement cette piste.
+#
+# LA RÈGLE, ÉCRITE UNE FOIS : `DzTracks.isOverlayTrack(trId, tracks)` —
+# « piste de genre vidéo autre que v1 », le genre lu dans les pistes du
+# projet (`dzTracksRef.current`, la ref de M16ref relue à chaque rendu) et
+# sinon dans l'initiale de l'identifiant, comme `trackKind` du bundle. Les
+# treize sites la lisent ; aucun ne garde « v2 ».
+#
+# LE VERROU SUIT LA PISTE : `trackStRef.current[k.tr]` au lieu de `.v2` —
+# c'est la forme que R_M22A emploie déjà pour la piste de dialogue
+# (`trackStRef.current[t]&&trackStRef.current[t].l`).
+#
+# L'ORDRE D'EMPILEMENT DE L'APERÇU (M25a/M25b). Mesuré : `ov` reçoit ses
+# enfants par `appendChild` dans l'ordre de `Object.keys(act)` — l'ordre des
+# CLIPS — et un enfant déjà là n'est jamais déplacé ; deux pistes
+# d'incrustation se superposaient donc au hasard, quand le rendu compose la
+# piste listée le plus haut AU-DESSUS (`layer` = `reversed(ov)`,
+# montage_service 204-207). `DzTracks.overlayOrder` rend l'ordre d'ajout au
+# DOM (le plus bas d'abord) ; la boucle le suit, et REMET EN QUEUE un enfant
+# déjà là quand l'ordre a changé (`appendChild` déplace sans recréer :
+# observateur et gestionnaires conservés). GARDE DE SIGNATURE, comme
+# `_svmTfSig` juste en dessous : `ov._dzOrdSig` mémorise l'ordre ; tant que
+# l'ensemble actif et son ordre ne bougent pas, AUCUNE écriture DOM. Un
+# enfant CRÉÉ pendant la boucle force la remise en queue de ceux qui le
+# suivent (`dzReord=!0`) : il est né en fin de liste, ceux d'au-dessus
+# doivent repasser après lui.
+#
+# CE QUE LE MONTAGE ACTUEL DE L'UTILISATEUR DEVIENT : sa piste v3 (habillée
+# « overlay » à la restauration, le payload n'a pas de type) devient VISIBLE
+# dans l'aperçu, avec inspecteur, poignées, clavier ; ses clips éventuels y
+# restent des incrustations, et le rendu ne change pas d'un octet.
+#
+# ANCRES : chacune vaut EXACTEMENT 1 dans le bundle ET dans .bak_montage,
+# mesurée en octets (CRLF) le 06/09/2026 ; `if(!c||c.tr!=="v2"||!c.src)return;`
+# vaut DEUX (svmOvAlign, svmMpHere), d'où les ancres à trois lignes qui
+# nomment la fonction. Aucune ne tombe dans le bloc `defaultLen…sfxInsert`
+# que le harnais [3-bis] exécute (918872–928557 ; la plus proche, le
+# payload, est à 937723 — mesuré).
+A_M25A = ('      if(k.tr==="v2"&&k.src&&(k.src.job_id||k.src.image)'
+          '&&k.start<=t&&t<k.end)act[k.id]=k});')
+R_M25A = (
+    "      if(DzTracks.isOverlayTrack(k.tr,dzTracksRef.current)&&k.src&&"
+    "(k.src.job_id||k.src.image)&&k.start<=t&&t<k.end)act[k.id]=k});\n"
+    "    /* P14 — l'ORDRE d'empilement suit l'ordre des pistes (la plus haute\n"
+    "       listée au-dessus, même loi que `layer` au rendu) : `dzOrd` est\n"
+    "       l'ordre d'ajout au DOM, le plus bas d'abord ; `dzReord` ne vaut\n"
+    "       vrai que si l'ensemble actif ou son ordre a changé — sinon aucune\n"
+    "       écriture DOM, comme la garde de signature de la transformation. */\n"
+    "    var dzOrd=DzTracks.overlayOrder(Object.keys(act),cs,dzTracksRef.current),\n"
+    '        dzOrdSig=dzOrd.join("|"),dzReord=ov._dzOrdSig!==dzOrdSig;\n'
+    "    ov._dzOrdSig=dzOrdSig;")
+A_M25B = ('    Object.keys(act).forEach(function(id){\n'
+          '      var k=act[id],el=null;\n'
+          '      for(var i2=0;i2<ov.children.length;i2++){\n'
+          '        if(ov.children[i2]._svmId===id){el=ov.children[i2];break}}\n'
+          '      if(!el){var it2=livePoolGet(k.src,"o");el=it2.el;\n'
+          '        el._svmId=id;el._svmKey=livePoolKey(k.src,"o");ov.appendChild(el);\n'
+          '        if(tfRoRef.current)tfRoRef.current.observe(el)}')
+R_M25B = (
+    "    dzOrd.forEach(function(id){\n"
+    "      var k=act[id],el=null;\n"
+    "      for(var i2=0;i2<ov.children.length;i2++){\n"
+    "        if(ov.children[i2]._svmId===id){el=ov.children[i2];break}}\n"
+    '      if(!el){var it2=livePoolGet(k.src,"o");el=it2.el;\n'
+    '        el._svmId=id;el._svmKey=livePoolKey(k.src,"o");ov.appendChild(el);\n'
+    "        if(tfRoRef.current)tfRoRef.current.observe(el);dzReord=!0}\n"
+    "      /* P14 — un enfant déjà là est REMIS EN QUEUE quand l'ordre a\n"
+    "         changé : appendChild déplace sans recréer ; rien n'est touché\n"
+    "         quand `dzReord` est faux. */\n"
+    "      else if(dzReord)ov.appendChild(el);")
+A_M25C = '        if(c.tr==="v2"){'
+R_M25C = '        if(DzTracks.isOverlayTrack(c.tr,dzTracksRef.current)){'
+A_M25D = '    if(!sel||sel.tr!=="v2"||!sel.src)return null;'
+R_M25D = ('    if(!sel||!DzTracks.isOverlayTrack(sel.tr,dzTracksRef.current)'
+          '||!sel.src)return null;')
+A_M25E = 'tr.id==="v2"?(svmMpOf(c)||[]).map(function(p,pi){'
+R_M25E = ('DzTracks.isOverlayTrack(tr.id,dzTracksRef.current)'
+          '?(svmMpOf(c)||[]).map(function(p,pi){')
+# Les quatre verrous : ovOvDown (sélection seule), ovOvDbl, ovHandleDown,
+# ovArrow. `k`/`c` est le clip lu deux lignes plus haut dans chaque site.
+A_M25F = ('    if(trackStRef.current.v2&&trackStRef.current.v2.l)return; '
+          '/* verrou : sélection seule */')
+R_M25F = ('    if(trackStRef.current[k.tr]&&trackStRef.current[k.tr].l)return; '
+          '/* verrou : sélection seule */')
+A_M25G = ('    if(!k||(!svmOvTfOf(k)&&!svmMpOf(k)))return;\n'
+          '    if(trackStRef.current.v2&&trackStRef.current.v2.l)return;')
+R_M25G = ('    if(!k||(!svmOvTfOf(k)&&!svmMpOf(k)))return;\n'
+          '    if(trackStRef.current[k.tr]&&trackStRef.current[k.tr].l)return;')
+A_M25H = ('    if(!k||k.tr!=="v2"||!k.src)return;\n'
+          '    if(trackStRef.current.v2&&trackStRef.current.v2.l)return;\n'
+          '    if(e.button!==0)return;')
+R_M25H = ('    if(!k||!DzTracks.isOverlayTrack(k.tr,dzTracksRef.current)||!k.src)return;\n'
+          '    if(trackStRef.current[k.tr]&&trackStRef.current[k.tr].l)return;\n'
+          '    if(e.button!==0)return;')
+A_M25I = ('  function svmOvAlign(gx,gy){\n'
+          '    var c=clipsRef.current.find(function(k){return k.id===selRef.current});\n'
+          '    if(!c||c.tr!=="v2"||!c.src)return;')
+R_M25I = ('  function svmOvAlign(gx,gy){\n'
+          '    var c=clipsRef.current.find(function(k){return k.id===selRef.current});\n'
+          '    if(!c||!DzTracks.isOverlayTrack(c.tr,dzTracksRef.current)||!c.src)return;')
+A_M25J = ('  function svmMpHere(){\n'
+          '    var c=clipsRef.current.find(function(k){return k.id===selRef.current});\n'
+          '    if(!c||c.tr!=="v2"||!c.src)return;')
+R_M25J = ('  function svmMpHere(){\n'
+          '    var c=clipsRef.current.find(function(k){return k.id===selRef.current});\n'
+          '    if(!c||!DzTracks.isOverlayTrack(c.tr,dzTracksRef.current)||!c.src)return;')
+A_M25K = ('      if(!c||c.tr!=="v2"||!c.src)return !1;\n'
+          '      if(ovKeysOffRef.current)return !1;\n'
+          '      if(trackStRef.current.v2&&trackStRef.current.v2.l)return !1;')
+R_M25K = ('      if(!c||!DzTracks.isOverlayTrack(c.tr,dzTracksRef.current)||!c.src)return !1;\n'
+          '      if(ovKeysOffRef.current)return !1;\n'
+          '      if(trackStRef.current[c.tr]&&trackStRef.current[c.tr].l)return !1;')
+A_M25L = '      if(!c||c.tr!=="v2"||!c.src||ovKeysOffRef.current)return !1;'
+R_M25L = ('      if(!c||!DzTracks.isOverlayTrack(c.tr,dzTracksRef.current)'
+          '||!c.src||ovKeysOffRef.current)return !1;')
+
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
            ("M5-payload", A_M5, R_M5), ("M6-save", A_M6, R_M6),
@@ -2058,7 +2192,24 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            # Tour 1 (revue du 06/09) : les libellés sous « auto », bloc subs.
            ("M24k-pastille-langue-auto", A_M24K, R_M24K),
            ("M24l-infobulle-langue-auto", A_M24L, R_M24L),
-           ("M24m-note-detection-sous-auto", A_M24M, R_M24M)]
+           ("M24m-note-detection-sous-auto", A_M24M, R_M24M),
+           # P14 — deux sortes de pistes vidéo : les treize sites « v2 » de
+           # l'écran lisent la règle du rendu (isOverlayTrack), l'aperçu
+           # empile dans l'ordre des pistes (overlayOrder), le verrou suit la
+           # piste. Aucune de ces ancres n'est touchée par une section
+           # antérieure (1/1 dans le bundle patché ET dans le .bak).
+           ("M25a-apercu-regle-et-ordre", A_M25A, R_M25A),
+           ("M25b-apercu-empile-dans-l-ordre", A_M25B, R_M25B),
+           ("M25c-payload-transformation", A_M25C, R_M25C),
+           ("M25d-inspecteur-overlay", A_M25D, R_M25D),
+           ("M25e-losanges-de-trajectoire", A_M25E, R_M25E),
+           ("M25f-verrou-saisie", A_M25F, R_M25F),
+           ("M25g-verrou-double-clic", A_M25G, R_M25G),
+           ("M25h-poignees-du-lecteur", A_M25H, R_M25H),
+           ("M25i-alignement-3x3", A_M25I, R_M25I),
+           ("M25j-position-ici", A_M25J, R_M25J),
+           ("M25k-fleches-du-clavier", A_M25K, R_M25K),
+           ("M25l-echap-du-clavier", A_M25L, R_M25L)]
 
 
 def nl(text, crlf):

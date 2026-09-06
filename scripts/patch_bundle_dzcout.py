@@ -92,6 +92,19 @@ MARKER_ATTENDU = 7      # définition + window x2 + infobulle + total + puce x2
 # tant que cette ligne disait 29, et restauré son .bak (marqueur à 0 le
 # temps de la mettre à jour, 7 au rejeu suivant).
 #
+# `montage` : 43 → 53 le 06/09/2026 (P14 — deux sortes de pistes vidéo, et
+# v3 n'est plus un fantôme). DIX références de plus au contrat, toutes dans
+# les douze sections M25a…M25l du patcher montage : NEUF
+# `DzTracks.isOverlayTrack(` — les neuf portes de l'écran qui codaient « v2 »
+# en dur (aperçu, payload, inspecteur, losanges, alignement 3×3, « position
+# ici », poignées du lecteur, flèches et Échap du clavier) — et UN
+# `DzTracks.overlayOrder(` (l'aperçu empile dans l'ordre des pistes). La
+# couche, elle, reste à 5 (mesuré : `git show HEAD:…` 5, fichier de travail
+# 5 — les deux fonctions neuves et `addDit` n'ajoutent pas le jeton, ni en
+# code ni en commentaire). COMPTÉ DES DEUX CÔTÉS AVANT D'ÉCRIRE CE NOMBRE :
+# 43 dans le bundle de 23fd81c, 10 dans les sections (`r.count - a.count`
+# sur P.PATCHES M25*), 53 après rejeu — en octets, `str.count`.
+#
 # `montage` : 33 → 29 le 06/09/2026, et C'EST UNE BAISSE — la première de
 # cette sonde. L'étape 6 du handoff « Barre Outils Flottante » (§5.1) retire
 # les neuf contrôles du bandeau de transport, et QUATRE d'entre eux étaient
@@ -147,7 +160,7 @@ STABLE_PROBES = [
     ("print3d", "__dzPrint3d", 3),
     ("navrail", "dz_nav_collapsed", 2),
     ("dzdesign", "__dzCatBar", 2),
-    ("montage", "DzTracks", 43),
+    ("montage", "DzTracks", 53),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

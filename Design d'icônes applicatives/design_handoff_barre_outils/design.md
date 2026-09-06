@@ -185,7 +185,7 @@ infobulles.
 
 | Groupe | Teinte | Boutons | Type |
 |---|---|---|---|
-| `PISTES` | cyan 200 | `vidéo` · `audio` | action |
+| `PISTES` | cyan 200 | `vidéo` · `incrust.` · `audio` | action |
 | `BIBLIOTHÈQUE` | bleu 255 | `lier` | ouvre un panneau |
 | `MOT — sélection` | violet 300 | `couleur` · `rebond` · `glow` | **bascules** |
 | `AJOUTS` | ambre 80 | `emoji` · `texte` | outils de placement |
@@ -213,6 +213,19 @@ Chaque entrée : `viewBox="0 0 24 24" fill="currentColor"`.
 | **texte** | T + ligne de base | `<rect x="3.4" y="3.8" width="17.2" height="3.4"/><rect x="10.3" y="7.2" width="3.4" height="11.6"/><rect x="5.2" y="20.2" width="13.6" height="1.8" opacity=".34"/>` |
 | **projets** | dossier + feuille derrière | `<rect x="6" y="3" width="15.4" height="11.6" opacity=".3"/><path d="M2.6 6.2h6.2l1.7 2.1h11.1v12.5H2.6z"/>` |
 | **poignée** *(grip, 14 px, `--txt-low`)* | six points en deux colonnes | `<rect x="8" y="4" width="2.6" height="2.6"/><rect x="13.4" y="4" width="2.6" height="2.6"/><rect x="8" y="10.7" width="2.6" height="2.6"/><rect x="13.4" y="10.7" width="2.6" height="2.6"/><rect x="8" y="17.4" width="2.6" height="2.6"/><rect x="13.4" y="17.4" width="2.6" height="2.6"/>` |
+
+**Écart du 06/09/2026 :** le groupe `PISTES` offre une troisième action, `incrust.`, et
+ce §3 une dixième icône — onze tracés avec la poignée (mesuré : au rendu toute piste vidéo
+≠ V1 est une incrustation ; l'utilisateur doit pouvoir choisir). « vidéo » crée une piste
+vidéo plein cadre (ses plans recouvrent V1 pendant leur durée, leur son est extrait sur la
+piste de dialogue ; V1 reste la séquence maîtresse), « incrust. » une piste d'incrustation
+(image dans l'image, réglable, muette). Le §5.1 reste à neuf : ce bouton est né dans la
+barre, il n'a jamais été dans le bandeau. Même grille, mêmes règles ; la croix d'ajout est
+celle de « piste vidéo », reprise telle quelle.
+
+| Icône | Sens retenu | Tracé |
+|---|---|---|
+| **piste incrustation** | cadre en support + cadre intérieur plein décalé en bas à droite + croix d'ajout | `<rect x="2.6" y="4.2" width="13.6" height="10.4" opacity=".34"/><rect x="8.4" y="8.4" width="6" height="4.2"/><path d="M17 12.6h1.9V15h2.4v1.9h-2.4v2.4H17v-2.4h-2.4V15H17z"/>` |
 
 **Parentés à préserver.** `bibliothèque` est *le même glyphe* que l'entrée `Library` du
 rail de navigation : même objet, même dessin, deux emplacements. `couleur`, `rebond` et
@@ -368,6 +381,7 @@ implémentation.
 | Bouton | Action attendue | État touché |
 |---|---|---|
 | `PISTES · vidéo` | Ajoute une piste vidéo sous la dernière piste vidéo, la nomme `V{n}`, la sélectionne, fait défiler la timeline jusqu'à elle | `tracks[]` |
+| `PISTES · incrust.` | *(écart du 06/09/2026)* Ajoute une piste d'incrustation — image dans l'image, réglable, muette — nommée `V{n}` ; « vidéo » ci-dessus ajoute désormais une piste vidéo **plein cadre** | `tracks[]` |
 | `PISTES · audio` | Idem pour l'audio, nommage `A{n}` | `tracks[]` |
 | `BIBLIOTHÈQUE · lier` | Ouvre le panneau de bibliothèque en mode « lier à la timeline » ; un double-clic sur un média l'insère à la tête de lecture, sur la piste sélectionnée | panneau, `selection` |
 | `MOT · couleur` | Ouvre le nuancier ancré ; applique la teinte aux mots sélectionnés | `subtitles[].words[].color` |

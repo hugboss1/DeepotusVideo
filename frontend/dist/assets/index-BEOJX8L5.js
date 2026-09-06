@@ -2430,19 +2430,31 @@ function DzMontage(props){
     /* overlays V2 actifs à t, au-dessus du fond, opacité appliquée */
     var act={};
     cs.forEach(function(k){
-      if(k.tr==="v2"&&k.src&&(k.src.job_id||k.src.image)&&k.start<=t&&t<k.end)act[k.id]=k});
+      if(DzTracks.isOverlayTrack(k.tr,dzTracksRef.current)&&k.src&&(k.src.job_id||k.src.image)&&k.start<=t&&t<k.end)act[k.id]=k});
+    /* P14 — l'ORDRE d'empilement suit l'ordre des pistes (la plus haute
+       listée au-dessus, même loi que `layer` au rendu) : `dzOrd` est
+       l'ordre d'ajout au DOM, le plus bas d'abord ; `dzReord` ne vaut
+       vrai que si l'ensemble actif ou son ordre a changé — sinon aucune
+       écriture DOM, comme la garde de signature de la transformation. */
+    var dzOrd=DzTracks.overlayOrder(Object.keys(act),cs,dzTracksRef.current),
+        dzOrdSig=dzOrd.join("|"),dzReord=ov._dzOrdSig!==dzOrdSig;
+    ov._dzOrdSig=dzOrdSig;
     for(var i=ov.children.length-1;i>=0;i--){var ch=ov.children[i],kc=act[ch._svmId];
       if(!kc||livePoolKey(kc.src,"o")!==ch._svmKey){
         if(ch.tagName==="VIDEO"&&!ch.paused){try{ch.pause()}catch(_e){}}
         if(tfRoRef.current)tfRoRef.current.unobserve(ch);
         ov.removeChild(ch)}}
-    Object.keys(act).forEach(function(id){
+    dzOrd.forEach(function(id){
       var k=act[id],el=null;
       for(var i2=0;i2<ov.children.length;i2++){
         if(ov.children[i2]._svmId===id){el=ov.children[i2];break}}
       if(!el){var it2=livePoolGet(k.src,"o");el=it2.el;
         el._svmId=id;el._svmKey=livePoolKey(k.src,"o");ov.appendChild(el);
-        if(tfRoRef.current)tfRoRef.current.observe(el)}
+        if(tfRoRef.current)tfRoRef.current.observe(el);dzReord=!0}
+      /* P14 — un enfant déjà là est REMIS EN QUEUE quand l'ordre a
+         changé : appendChild déplace sans recréer ; rien n'est touché
+         quand `dzReord` est faux. */
+      else if(dzReord)ov.appendChild(el);
       el.style.opacity=k.opacity==null?"":String(k.opacity);
       /* sélection + manipulation directe : la couche est saisissable ; la
          transformation du clip (ou du geste en cours) est appliquée ici,
@@ -2781,7 +2793,7 @@ function DzMontage(props){
     e.stopPropagation();
     if(selRef.current!==id)setSelId(id);
     ovKeysOffRef.current=!1; /* resaisir l'overlay ré-arme les flèches (R4b) */
-    if(trackStRef.current.v2&&trackStRef.current.v2.l)return; /* verrou : sélection seule */
+    if(trackStRef.current[k.tr]&&trackStRef.current[k.tr].l)return; /* verrou : sélection seule */
     if(e.button!==0)return;
     ovGesture("move",e,k)}
   function ovOvDbl(e){
@@ -2790,14 +2802,14 @@ function DzMontage(props){
     /* overlay plein cadre : rien à réinitialiser, le double-clic du cadre
        (remise à zéro du zoom) garde la main */
     if(!k||(!svmOvTfOf(k)&&!svmMpOf(k)))return;
-    if(trackStRef.current.v2&&trackStRef.current.v2.l)return;
+    if(trackStRef.current[k.tr]&&trackStRef.current[k.tr].l)return;
     e.stopPropagation();e.preventDefault();
     svmOvTfReset(id)}
   function ovHandleDown(e,mode){
     var id=selRef.current,cs=clipsRef.current,k=null,i;
     for(i=0;i<cs.length;i++){if(cs[i].id===id){k=cs[i];break}}
-    if(!k||k.tr!=="v2"||!k.src)return;
-    if(trackStRef.current.v2&&trackStRef.current.v2.l)return;
+    if(!k||!DzTracks.isOverlayTrack(k.tr,dzTracksRef.current)||!k.src)return;
+    if(trackStRef.current[k.tr]&&trackStRef.current[k.tr].l)return;
     if(e.button!==0)return;
     ovGesture(mode,e,k)}
   /* transformation — source de vérité UNIQUE du lecteur, de l'inspecteur et
@@ -2852,7 +2864,7 @@ function DzMontage(props){
      la tête (≤ 0,15 s) ou en pose un (même règle que le drag du lecteur). */
   function svmOvAlign(gx,gy){
     var c=clipsRef.current.find(function(k){return k.id===selRef.current});
-    if(!c||c.tr!=="v2"||!c.src)return;
+    if(!c||!DzTracks.isOverlayTrack(c.tr,dzTracksRef.current)||!c.src)return;
     var phc=Math.min(phRef.current,Math.max(0,durRef.current-.001));
     var eff=svmOvTfAt(c,phc)||{x:.5,y:.5,scale:1,rotate:0};
     var hw=svmOvMediaHW(c)||1; /* média inconnu : carré supposé, pool préchauffé */
@@ -2918,7 +2930,7 @@ function DzMontage(props){
      expliqué. UNE entrée d'historique par clic. */
   function svmMpHere(){
     var c=clipsRef.current.find(function(k){return k.id===selRef.current});
-    if(!c||c.tr!=="v2"||!c.src)return;
+    if(!c||!DzTracks.isOverlayTrack(c.tr,dzTracksRef.current)||!c.src)return;
     var phc=Math.min(phRef.current,Math.max(0,durRef.current-.001));
     if(phc<c.start-.001||phc>=c.end){
       fireNote("Placez la tête de lecture DANS l'overlay pour poser un point de position.");return}
@@ -3596,9 +3608,9 @@ function DzMontage(props){
        faux, les flèches retombent sur la tête de lecture. */
     ovArrow:function(key,shift){
       var c=svmKbSelClip();
-      if(!c||c.tr!=="v2"||!c.src)return !1;
+      if(!c||!DzTracks.isOverlayTrack(c.tr,dzTracksRef.current)||!c.src)return !1;
       if(ovKeysOffRef.current)return !1;
-      if(trackStRef.current.v2&&trackStRef.current.v2.l)return !1;
+      if(trackStRef.current[c.tr]&&trackStRef.current[c.tr].l)return !1;
       var d=(shift?.02:.005)*(key==="ArrowLeft"||key==="ArrowUp"?-1:1);
       var phc=Math.min(phRef.current,Math.max(0,durRef.current-.001));
       var eff=svmOvTfAt(c,phc)||{x:.5,y:.5,scale:1,rotate:0};
@@ -3611,7 +3623,7 @@ function DzMontage(props){
     /* Échap : rend les flèches à la tête de lecture (jusqu'à resélection) */
     ovEsc:function(){
       var c=svmKbSelClip();
-      if(!c||c.tr!=="v2"||!c.src||ovKeysOffRef.current)return !1;
+      if(!c||!DzTracks.isOverlayTrack(c.tr,dzTracksRef.current)||!c.src||ovKeysOffRef.current)return !1;
       ovKeysOffRef.current=!0;
       fireNote("Flèches rendues à la tête de lecture — resélectionnez l'overlay pour le déplacer au clavier.");
       return !0}};
@@ -4246,7 +4258,7 @@ function DzMontage(props){
         /* transformation d'overlay (V2) — l'échelle matérialise l'état
            « transformé » (même à 100 %), x/y/rotate joints seulement hors
            défaut ; un overlay jamais touché envoie le payload d'avant */
-        if(c.tr==="v2"){
+        if(DzTracks.isOverlayTrack(c.tr,dzTracksRef.current)){
           var tf=svmOvTfOf(c);
           if(tf){o.scale=tf.scale;
             if(Math.abs(tf.x-.5)>1e-4)o.x=tf.x;
@@ -4403,7 +4415,7 @@ function DzMontage(props){
      dans le lecteur (champs du clip), une entrée d'historique par rafale de
      600 ms — cohérent avec la durée de transition et le mixage par clip. */
   function ovInspector(){
-    if(!sel||sel.tr!=="v2"||!sel.src)return null;
+    if(!sel||!DzTracks.isOverlayTrack(sel.tr,dzTracksRef.current)||!sel.src)return null;
     var tf=svmOvTfOf(sel),mp=svmMpOf(sel);
     /* valeurs affichées = transformation EFFECTIVE à la tête de lecture :
        avec des keyframes, X/Y/rotation suivent l'interpolation pendant le
@@ -6070,7 +6082,7 @@ function DzMontage(props){
                          la tête dessus (l'édition vit dans le lecteur et
                          l'inspecteur) — visibles même piste verrouillée,
                          le seek reste permis */
-                      tr.id==="v2"?(svmMpOf(c)||[]).map(function(p,pi){
+                      DzTracks.isOverlayTrack(tr.id,dzTracksRef.current)?(svmMpOf(c)||[]).map(function(p,pi){
                         return r.jsx("i",{className:"svm-mph",
                           title:"Point de position "+svmShort(p.t)+" · x "+Math.round(p.x*1000)/10+" % · y "+Math.round(p.y*1000)/10+" %"+
                             (p.rotate?" · "+Math.round(p.rotate*10)/10+"°":"")+" — cliquer : caler la tête",
@@ -12476,6 +12488,7 @@ window.DzSubs={ready:!0,Drawer:SubsDrawer,Overlay:SubsOverlay,Style:SubsStyle,
                          srcKey, uniqueId, dedupeIds, seqMax,
                          twinClip, twinPlan, extract, extractBtn,
                          subsSources, subsLabel,
+                         isOverlayTrack, overlayOrder, addDit,
                          tbTraces, tbIcons, tbParse, tbSerial,
                          TbIcon, ToolBtn, TB_GROUPES, TB_PX, TB_PX_GRIP,
                          move, moveTo, add, remove, group, DEFAULTS}
@@ -12488,6 +12501,19 @@ window.DzSubs={ready:!0,Drawer:SubsDrawer,Overlay:SubsOverlay,Style:SubsStyle,
      c'est la seule façon de mesurer « jamais deux lignes, jamais de
      défilement horizontal » sans navigateur. `bdMesure` / `bdPose` /
      `bdTour` sont l'hôte : ils mesurent et posent, ils ne décident rien.
+   - isOverlayTrack(trId, tracks) / overlayOrder(ids, clips, tracks) — P14 :
+     « piste de genre vidéo autre que v1 » (ce que le rendu compose en
+     incrustation : montage_service._tracks_meta, `layer`) et l'ordre dans
+     lequel l'aperçu doit EMPILER ses overlays actifs — le plus bas d'abord,
+     la piste listée le plus haut au-dessus, même loi que `layer`. PURES.
+     Les neuf portes du bundle qui codaient « v2 » en dur (aperçu, payload,
+     inspecteur, losanges, alignement, point de position, poignées, flèches,
+     Échap) lisent la première ; l'aperçu lit la seconde.
+   - addDit(ts, kind) — P14 : `add` plus la phrase qui dit ce qui vient
+     d'être créé (identifiant, nature). `add(ts,"video")` crée une piste
+     vidéo PLEIN CADRE (type « vidéo »), `add(ts,"overlay")` une piste
+     d'incrustation (type « overlay » — V2, quand elle est libre, revient
+     avec son habillage historique « overlay/VFX », rien ne la renomme).
    - clipLen(kind, srcDur, defauts) — P11 : la longueur à donner au clip
      qu'on pose. PURE, rend {len, origine, note} — la longueur ENTIÈRE de la
      source quand elle est connue, le repli du bundle sinon, et dans ce cas
@@ -12605,8 +12631,14 @@ var DZM_DEFAULT_TRACKS=[
    {id,kind,bus,loop} : sans ce repli, une piste v3 ajoutée puis rechargée
    revenait sans nom, sans type et surtout sans HAUTEUR — une bande de 0 px,
    invisible, portant pourtant des clips. Même fonction pour l'ajout et pour
-   la restauration : les deux chemins ne peuvent pas diverger. */
-function dzmSkin(id,kind){
+   la restauration : les deux chemins ne peuvent pas diverger.
+   P14 — LE TYPE DEMANDÉ (troisième argument) n'est honoré que pour une piste
+   vidéo HORS de la table, et seul « vidéo » compte : une piste vidéo neuve
+   est plein cadre si on l'a demandée ainsi, une incrustation sinon — c'est
+   le défaut d'avant P14, et c'est ce que redevient une sauvegarde qui ne
+   porte pas le type. Une piste plein cadre prend l'habillage de V1
+   (hauteur, teinte) : à l'écran, la nature se lit sans ouvrir un titre. */
+function dzmSkin(id,kind,type){
   var d=DZM_DEFAULT_TRACKS.filter(function(k){return k.id===id})[0];
   /* une COPIE : rendre l'objet de la table exposerait les défauts partagés à
      la mutation du premier appelant venu. Latent, mais d'un mot. */
@@ -12615,6 +12647,8 @@ function dzmSkin(id,kind){
     h:48,c:"--c-3d",mix:13,kind:"audio",bus:"sfx"};
   if(kind==="subs")return {id:id,name:String(id).toUpperCase(),type:"sous-titres",
     h:44,c:"--c-text",mix:11,kind:"subs"};
+  if(type==="vidéo")return {id:id,name:String(id).toUpperCase(),type:"vidéo",
+    h:54,c:"--c-video",mix:13,kind:"video"};
   return {id:id,name:String(id).toUpperCase(),type:"overlay",h:40,c:"--c-3d",
     mix:13,kind:"video"}}
 
@@ -12647,14 +12681,25 @@ function svmTracksFrom(raw){
     if(seen[id])return;
     seen[id]=1;
     var kind=dzmKindOf(id,t.kind);
-    out.push(Object.assign({},dzmSkin(id,kind),t,{id:id,kind:kind}))});
+    /* P14 — le type du payload est passé à l'habillage : une piste vidéo
+       plein cadre restaurée reprend l'habillage de V1, comme à sa création,
+       au lieu de revenir en bande d'incrustation typée « vidéo ». */
+    out.push(Object.assign({},dzmSkin(id,kind,t.type),t,{id:id,kind:kind}))});
   return out.some(function(t){return t.id==="v1"})?out:null}
 
 /* Ce qui part au backend (rendu ET autosave) : le strict nécessaire à
    montage_service._tracks_meta. L'habillage reste au client (dzmSkin le
-   reconstruit au retour). */
+   reconstruit au retour).
+   P14 — PLUS LE TYPE « vidéo » d'une piste vidéo autre que v1 : c'est le
+   SEUL choix que l'habillage ne sait pas reconstruire (v1 est toujours plein
+   cadre, toute autre piste vidéo est une incrustation par défaut). Sans
+   cette clé, une piste créée « vidéo » revenait « overlay » au rechargement
+   et le jumeau sonore (wantsTwin) changeait d'avis avec elle. Le backend
+   range `tracks` tel quel (POST /save : `data["tracks"] = body["tracks"]`)
+   et `_tracks_meta` ignore la clé — mesuré. */
 function svmTracksPayload(proj){return svmTracksOf(proj).map(function(t){
-  var o={id:t.id,kind:t.kind};if(t.bus)o.bus=t.bus;if(t.loop)o.loop=!0;return o})}
+  var o={id:t.id,kind:t.kind};if(t.bus)o.bus=t.bus;if(t.loop)o.loop=!0;
+  if(t.kind==="video"&&t.id!=="v1"&&t.type==="vidéo")o.type="vidéo";return o})}
 
 /* SVM_TRACK_BUS est un objet module-level du bloc sonvfx, LU à neuf endroits
    (mesuré : svmTrackMute, svmTrackSolo, quatre gardes de raccourci, le dépôt
@@ -12700,13 +12745,53 @@ function dzmMoveTo(ts,id,overId,after){
 /* Une piste vidéo naît EN HAUT (donc au-dessus de tout au rendu), une piste
    audio juste au-dessus des sous-titres. L'identifiant est le plus petit
    libre : retirer v3 puis rajouter une vidéo redonne v3 — les clips orphelins
-   d'une suppression annulée retrouvent donc leur piste. */
+   d'une suppression annulée retrouvent donc leur piste.
+   P14 — DEUX SORTES DE PISTES VIDÉO. `kind` vaut « video » (plein cadre,
+   type « vidéo »), « overlay » (incrustation, type « overlay ») ou
+   « audio » ; les deux premiers fabriquent un identifiant v<n>. Un « vidéo »
+   SAUTE un identifiant libre dont l'habillage historique est une
+   incrustation (v2 : « overlay/VFX », que rien ne renomme) : sur les pistes
+   du 04/09 [v1, a2, a1, a3, s1], « vidéo » aurait sinon créé V2 en
+   incrustation — le contraire de ce que le bouton annonce. Le plus petit
+   libre reste la règle pour tout le reste, et la note de `dzmAddDit` nomme
+   l'identifiant obtenu. */
 function dzmAdd(ts,kind){
-  var n=1,ids=ts.map(function(t){return t.id});
-  while(ids.indexOf(kind.charAt(0)+n)>=0)n++;
-  var t=dzmSkin(kind.charAt(0)+n,kind==="audio"?"audio":"video");
-  var at=kind==="video"?0:dzmSubsAt(ts);
+  var genre=kind==="audio"?"audio":"video";
+  var type=kind==="video"?"vidéo":void 0;
+  var n=1,ids=ts.map(function(t){return t.id}),t;
+  /* BORNÉE (faute n°6 : un banc qui ne finit pas ne rougit jamais) : si
+     l'habillage cessait de rendre « vidéo » hors de la table, la boucle
+     accepterait le 99e identifiant plutôt que de tourner sans fin. */
+  for(;;n++){
+    var id=genre.charAt(0)+n;
+    if(ids.indexOf(id)>=0)continue;
+    t=dzmSkin(id,genre,type);
+    if(type!=="vidéo"||t.type==="vidéo"||n>=99)break}
+  var at=genre==="video"?0:dzmSubsAt(ts);
   var out=ts.slice();out.splice(at<0?ts.length:at,0,t);return out}
+/* LA PISTE, ET LA PHRASE QUI LA DIT (P14). Rend {tracks, id, type, note} :
+   la liste neuve, l'identifiant créé, son type d'habillage et la note que
+   la barre affiche (fireNote) — la nature de la piste en une phrase, avec
+   ce que « vidéo » implique (recouvrement de V1, son extrait) ou ce
+   qu'« incrustation » implique (réglable, muette). PURE. */
+function dzmAddDit(ts,kind){
+  var avant=(ts||[]).map(function(t){return t&&t.id}),out=dzmAdd(ts||[],kind);
+  var neuf=null,i;
+  for(i=0;i<out.length;i++)if(avant.indexOf(out[i].id)<0){neuf=out[i];break}
+  if(!neuf)return {tracks:out,id:"",type:"",note:""};
+  var nom=String(neuf.id).toUpperCase(),ty=String(neuf.type||""),note;
+  if(neuf.kind==="audio")note="Piste "+nom+" ajoutée — audio, bus "+
+    String(neuf.bus||"sfx")+(neuf.loop?", bouclée":"")+" : une bande vide, "+
+    "sous les pistes audio existantes.";
+  else if(ty==="vidéo")note="Piste "+nom+" ajoutée — vidéo plein cadre : "+
+    "ses plans recouvrent V1 pendant leur durée et leur son est extrait sur "+
+    "la piste de dialogue ; V1 reste la séquence maîtresse (durée, "+
+    "transitions, vitesse, effets).";
+  else note="Piste "+nom+" ajoutée — incrustation"+
+    (ty==="overlay/VFX"?" (overlay/VFX, la piste historique)":"")+
+    " : image dans l'image, réglable (position, échelle, rotation, "+
+    "opacité), muette.";
+  return {tracks:out,id:neuf.id,type:ty,note:note}}
 function dzmSubsAt(ts){
   for(var i=0;i<ts.length;i++)if(ts[i].kind==="subs")return i;
   return -1}
@@ -13024,10 +13109,10 @@ var DzmTrackAdd=function(props){
   function add(k){if(props&&props.onChange)props.onChange(dzmAdd(ts,k))}
   return r.jsxs("span",{className:"dzm-add",children:[
     r.jsx("button",{className:"svm-tbtn dzm-addb",
-      title:"Ajouter une PISTE vidéo d'overlay (une bande vide) — posée tout "+
-        "en haut, donc composée AU-DESSUS des autres au rendu. Pour poser un "+
-        "clip, c'est « Bibliothèque… ».",
-      "aria-label":"Ajouter une piste vidéo d'overlay",
+      title:"Ajouter une PISTE vidéo plein cadre (une bande vide) — posée "+
+        "tout en haut ; ses plans recouvrent V1 pendant leur durée. Pour "+
+        "poser un clip, c'est « Bibliothèque… ».",
+      "aria-label":"Ajouter une piste vidéo plein cadre",
       onClick:function(){add("video")},children:"+ piste vidéo"},"v"),
     r.jsx("button",{className:"svm-tbtn dzm-addb",
       title:"Ajouter une PISTE audio (une bande vide) — posée sous les pistes "+
@@ -14851,6 +14936,61 @@ function dzmOverlayNote(kind,ts,id){
     "ce plan n'a PAS été extrait — sélectionnez-le puis « Extraire le son"+
     (tr?" → "+tr.toUpperCase():"")+" » dans l'inspecteur."}
 
+/* ── P14 : « PISTE DE GENRE VIDÉO AUTRE QUE V1 » ──────────────────────────
+   Le bundle codait « v2 » EN DUR à NEUF endroits (mesuré le 06/09/2026 en
+   octets, « v2 » entre guillemets dans le code de l'écran, hors démo et
+   table historique :
+   aperçu, payload x/y/scale/rotate/motion_points, inspecteur Overlay,
+   losanges de trajectoire, alignement 3×3, « position ici », poignées du
+   lecteur, flèches et Échap du clavier) et le verrou de piste à QUATRE
+   (l'état de la piste « .v2 » lu en dur). Dès que V2 existait, « vidéo »
+   créait v3, et
+   un clip posé dessus était un FANTÔME : invisible dans l'aperçu, sans
+   inspecteur, sans poignée — et parti cover plein cadre au rendu, qui, lui,
+   traite TOUTE piste vidéo ≠ v1 en incrustation (montage_service
+   `_tracks_meta`, `kind == "video" and tid != "v1"`). La sauvegarde de
+   l'utilisateur porte tracks [v3, v2, v1, …] : c'est exactement cette piste.
+   Cette fonction est la règle du rendu, écrite une fois pour les treize
+   portes. Le genre vient de la piste quand la liste la porte, de l'initiale
+   de l'identifiant sinon (même loi que `trackKind` du bundle et que
+   dzmKindOf) — une liste ABSENTE retombe donc sur l'initiale, et une piste
+   absente de la liste aussi : un clip « v2 » d'un projet sans V2 reste
+   visible dans l'aperçu, comme avant. `null`, "" et v1 rendent faux. */
+function dzmIsOverlayTrack(trId,tracks){
+  if(trId==null)return !1;
+  var id=String(trId);
+  if(!id||id==="v1")return !1;
+  var list=Array.isArray(tracks)?tracks:[],t=null,i;
+  for(i=0;i<list.length;i++)if(list[i]&&String(list[i].id)===id){t=list[i];break}
+  return dzmKindOf(id,t?t.kind:void 0)==="video"}
+
+/* L'ORDRE D'EMPILEMENT DE L'APERÇU (P14). Mesuré dans le bundle : la couche
+   `ov` du lecteur ajoute chaque overlay actif par `appendChild` dans l'ordre
+   de `Object.keys(act)` — l'ordre des CLIPS, jamais celui des pistes — et ne
+   déplace jamais un enfant déjà là. Deux pistes d'incrustation se
+   superposaient donc au hasard de la liste des clips, quand le rendu, lui,
+   compose la piste listée le plus haut AU-DESSUS (`layer` : `reversed(ov)`).
+   Cette fonction rend l'ordre d'AJOUT AU DOM — le plus bas d'abord, donc
+   la piste la plus haute de la liste en dernier — pour les identifiants de
+   clips donnés : rang de piste décroissant, puis l'ordre reçu (stable, sans
+   compter sur le tri natif). Une piste absente de la liste passe SOUS
+   toutes les autres ; une liste absente vaut les six pistes historiques ;
+   un identifiant sans clip garde sa place. PURE. */
+function dzmOverlayOrder(ids,clips,tracks){
+  var list=(Array.isArray(tracks)&&tracks.length)?tracks:DZM_DEFAULT_TRACKS;
+  var rang=Object.create(null),byId=Object.create(null),i;
+  for(i=0;i<list.length;i++)
+    if(list[i]&&list[i].id!=null&&!(String(list[i].id) in rang))rang[String(list[i].id)]=i;
+  (Array.isArray(clips)?clips:[]).forEach(function(c){
+    if(c&&c.id!=null&&!(String(c.id) in byId))byId[String(c.id)]=c});
+  var dec=(Array.isArray(ids)?ids:[]).map(function(id,pos){
+    var c=byId[String(id)],tr=(c&&c.tr!=null)?String(c.tr):"";
+    return {id:id,r:(tr in rang)?rang[tr]:Infinity,pos:pos}});
+  dec.sort(function(a,b){
+    if(a.r===b.r)return a.pos-b.pos;
+    return a.r>b.r?-1:1});
+  return dec.map(function(e){return e.id})}
+
 /* LE CACHE DES VERDICTS, par source. La clé est `JSON.stringify(src)` ; une
    source que JSON refuse (cycle) n'a pas de clé, et son verdict est connu
    d'avance : « illisible », donc pas de son — sans jamais rien demander.
@@ -15204,6 +15344,13 @@ var DZM_TB_TRACES={
     '<rect x="6" y="3" width="15.4" height="11.6" opacity=".3"/><path d="M2.6 6.2h6.2l1.7 2.1h11.1v12.5H2.6z"/>',
   "poignee":
     '<rect x="8" y="4" width="2.6" height="2.6"/><rect x="13.4" y="4" width="2.6" height="2.6"/><rect x="8" y="10.7" width="2.6" height="2.6"/><rect x="13.4" y="10.7" width="2.6" height="2.6"/><rect x="8" y="17.4" width="2.6" height="2.6"/><rect x="13.4" y="17.4" width="2.6" height="2.6"/>',
+  /* P14 (06/09/2026) — la dixième icône, déclarée dans le §3 du handoff
+     sous son écart daté, et APRÈS la poignée parce que c'est l'ordre du §3
+     (le banc rapproche les deux listes dans l'ordre) : le cadre en opacité
+     de support, le cadre intérieur plein décalé en bas à droite, et la
+     croix d'ajout de « piste vidéo », reprise telle quelle. */
+  "piste-incrust":
+    '<rect x="2.6" y="4.2" width="13.6" height="10.4" opacity=".34"/><rect x="8.4" y="8.4" width="6" height="4.2"/><path d="M17 12.6h1.9V15h2.4v1.9h-2.4v2.4H17v-2.4h-2.4V15H17z"/>',
 };
 /* Les cinq groupes du §2.4, dans l'ordre du §2.4. Le rouge n'y est pas :
    il est réservé au destructif, qui reste dans le bandeau fixe. */
@@ -15416,8 +15563,14 @@ function dzmTbOpenSet(v,st){
    Les clés d'icône sont celles du §3 ; le banc vérifie que les neuf y sont,
    une fois chacune, et que la dixième (`poignee`) n'est PAS un bouton. */
 var DZM_TB_PLAN=[
+  /* P14 (06/09/2026) — TROIS boutons dans PISTES, écart déclaré dans le
+     handoff (§2.4, §3 « piste incrustation ») : « vidéo » crée une piste
+     plein cadre, « incrust. » une piste d'incrustation. Mesuré : au rendu
+     toute piste vidéo ≠ V1 est une incrustation, et l'utilisateur doit
+     pouvoir choisir. */
   {g:"pistes",t:"PISTES",type:"action",
-   btns:[{i:"piste-video",l:"vidéo"},{i:"piste-audio",l:"audio"}]},
+   btns:[{i:"piste-video",l:"vidéo"},{i:"piste-incrust",l:"incrust."},
+         {i:"piste-audio",l:"audio"}]},
   {g:"biblio",t:"BIBLIOTHÈQUE",type:"ouvre un panneau",
    btns:[{i:"bibliotheque",l:"lier"}]},
   {g:"mot",t:"MOT",suf:"— sélection",type:"bascules",
@@ -15538,6 +15691,7 @@ var DZM_TB_H_PROJET=" Ouvrir la liste n'entre pas dans l'historique et ne "+
    celui qu'elle annonce. Une table qui mentirait rougirait. */
 var DZM_TB_EFFETS={
   "piste-video":{h:"piste",via:"direct",tete:!1},
+  "piste-incrust":{h:"piste",via:"direct",tete:!1},
   "piste-audio":{h:"piste",via:"direct",tete:!1},
   "bibliotheque":{h:"clips",via:"panneau",tete:!1},
   "couleur":{h:"style",via:"direct",tete:!1},
@@ -15587,14 +15741,30 @@ function dzmTbCablage(p){
   var poseTr=typeof p.onTracks==="function";
   /* PISTES — MÊME APPEL que « + piste vidéo » du bandeau : `dzmAdd` puis le
      setter du projet, qui pousse l'historique et marque le projet modifié.
-     Rien de neuf n'est écrit ici, c'est une autre porte sur la même action. */
+     Rien de neuf n'est écrit ici, c'est une autre porte sur la même action.
+     P14 — DEUX SORTES DE PISTES VIDÉO, et la note qui redit la nature de la
+     piste créée (`p.note`, le fireNote de l'écran, comme les emoji). Le
+     titre de « vidéo » dit l'ÉCART ASSUMÉ : une piste vidéo plein cadre n'a
+     ni fondu enchaîné, ni vitesse, ni effets — V1 seule les porte, et les
+     fournir est le chantier « plusieurs séquences », non entrepris. */
+  function poseTrack(k){
+    var r=dzmAddDit(ts,k);
+    p.onTracks(r.tracks);
+    if(typeof p.note==="function"&&r.note)p.note(r.note)}
   m["piste-video"]={disabled:!poseTr,
-    act:poseTr?function(){p.onTracks(dzmAdd(ts,"video"))}:null,
-    title:poseTr?("Ajouter une piste vidéo d'overlay — posée tout en haut, "+
-      "donc composée au-dessus des autres au rendu."+
+    act:poseTr?function(){poseTrack("video")}:null,
+    title:poseTr?("Ajouter une piste vidéo plein cadre — ses plans "+
+      "RECOUVRENT V1 pendant leur durée et leur son est extrait sur la "+
+      "piste de dialogue ; V1 reste la séquence maîtresse (durée, "+
+      "transitions, vitesse, effets)."+
       dzmTbUndo("piste-video")):DZM_TB_SANS_HOTE};
+  m["piste-incrust"]={disabled:!poseTr,
+    act:poseTr?function(){poseTrack("overlay")}:null,
+    title:poseTr?("Ajouter une piste d'incrustation — image dans l'image, "+
+      "réglable (position, échelle, rotation, opacité), muette."+
+      dzmTbUndo("piste-incrust")):DZM_TB_SANS_HOTE};
   m["piste-audio"]={disabled:!poseTr,
-    act:poseTr?function(){p.onTracks(dzmAdd(ts,"audio"))}:null,
+    act:poseTr?function(){poseTrack("audio")}:null,
     title:poseTr?("Ajouter une piste audio — posée sous les pistes audio "+
       "existantes, au-dessus des sous-titres."+
       dzmTbUndo("piste-audio")):DZM_TB_SANS_HOTE};
@@ -16857,6 +17027,8 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   twinClip:dzmTwinClip,twinPlan:dzmTwinPlan,extract:dzmExtract,
   extractBtn:dzmExtractBtn,overlayNote:dzmOverlayNote,
   subsSources:dzmSubsSources,subsLabel:dzmSubsLabel,
+  isOverlayTrack:dzmIsOverlayTrack,overlayOrder:dzmOverlayOrder,
+  addDit:dzmAddDit,
   CLIP_DEFAUTS:DZM_CLIP_DEFAUTS,DUR_DELAI:DZM_DUR_DELAI,
   tbTraces:DZM_TB_TRACES,tbIcons:DZM_TB_ICONS,tbParse:dzmTbParse,
   tbSerial:dzmTbSerial,TbIcon:DzmTbIcon,ToolBtn:DzmToolBtn,
