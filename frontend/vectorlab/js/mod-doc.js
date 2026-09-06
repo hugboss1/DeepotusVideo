@@ -214,8 +214,51 @@ function _decalerObjet(o, dx, dy) {
   }
 }
 
+/* ── LES DÉGRADÉS SUIVENT LA FORME ──────────────────────────────────
+   `op_deplacer` et `op_redimensionner` MUTENT la géométrie ; le dégradé,
+   lui, vit dans `doc.degrades` en `gradientUnits="userSpaceOnUse"` — il
+   restait sur place (mesuré au navigateur le 06/09/2026 : forme déplacée
+   de +120,+60, dégradé immobile). Ces deux aides le transportent.
+   `op_tourner` est HORS SUJET : il pose un `transform` sur l'objet, et le
+   user space d'un serveur de peinture est celui de l'élément qui le
+   référence — le dégradé tourne déjà avec la forme.
+   Un même dégradé peut être partagé par plusieurs objets : `vus` garantit
+   qu'il n'est transporté QU'UNE fois par commande. */
+function _gradIdsDe(objet, out) {
+  const f = objet && objet.style && objet.style.fond;
+  if (typeof f === "string" && f.startsWith("grad:")) out.add(f.slice(5));
+  if (objet && objet.type === "groupe") {
+    (objet.enfants || []).forEach((e) => _gradIdsDe(e, out));
+  }
+  return out;
+}
+
+function _gradsDeCibles(doc, objets) {
+  const ids = new Set();
+  for (const o of objets) _gradIdsDe(o, ids);
+  const degs = doc.degrades || {};
+  const out = [];
+  for (const id of ids) if (degs[id]) out.push(degs[id]);
+  return out;
+}
+
+// applique (fx, fy) aux points du dégradé ; `kr` multiplie le rayon
+function _gradMapper(g, fx, fy, kr) {
+  if (g.type === "lineaire") {
+    g.x1 = fx(g.x1); g.y1 = fy(g.y1);
+    g.x2 = fx(g.x2); g.y2 = fy(g.y2);
+  } else {
+    g.cx = fx(g.cx); g.cy = fy(g.cy);
+    if (kr !== undefined) g.r = Math.max(0.01, g.r * kr);
+  }
+}
+
 export function op_deplacer(doc, ids, dx, dy) {
-  for (const { objet } of _objetsCibles(doc, ids)) _decalerObjet(objet, dx, dy);
+  const objets = [..._objetsCibles(doc, ids)].map((t) => t.objet);
+  for (const o of objets) _decalerObjet(o, dx, dy);
+  for (const g of _gradsDeCibles(doc, objets)) {
+    _gradMapper(g, (X) => X + dx, (Y) => Y + dy);
+  }
 }
 
 function _mapperObjet(o, av, ap) {
@@ -251,8 +294,16 @@ function _mapperObjet(o, av, ap) {
 
 export function op_redimensionner(doc, ids, bboxAvant, bboxApres) {
   if (!(bboxAvant.w > 0) || !(bboxAvant.h > 0)) return;
-  for (const { objet } of _objetsCibles(doc, ids)) {
-    _mapperObjet(objet, bboxAvant, bboxApres);
+  const objets = [..._objetsCibles(doc, ids)].map((t) => t.objet);
+  for (const o of objets) _mapperObjet(o, bboxAvant, bboxApres);
+  const sx = bboxApres.w / bboxAvant.w, sy = bboxApres.h / bboxAvant.h;
+  const fx = (X) => (X - bboxAvant.x) * sx + bboxApres.x;
+  const fy = (Y) => (Y - bboxAvant.y) * sy + bboxApres.y;
+  // ÉCART ASSUMÉ : un dégradé radial SVG n'a qu'UN rayon ; sous une
+  // échelle non uniforme aucune valeur n'est exacte — la moyenne des deux
+  // facteurs est le choix retenu, et il est dit ici.
+  for (const g of _gradsDeCibles(doc, objets)) {
+    _gradMapper(g, fx, fy, (sx + sy) / 2);
   }
 }
 
@@ -713,13 +764,31 @@ export function op_dupliquer(doc, ids, dx = 12, dy = 12) {
     o.id = idNeuf();
     if (o.type === "groupe") (o.enfants || []).forEach(reid);
   };
+  // Le clone reçoit SA COPIE du dégradé : partagé, un `userSpaceOnUse`
+  // suivrait les deux formes à la fois — déplacer la copie déplacerait le
+  // dégradé de l'original (mesuré).
+  const degs = _degrades(doc);
+  const reGrad = (o) => {
+    const f = o.style && o.style.fond;
+    if (typeof f === "string" && f.startsWith("grad:") && degs[f.slice(5)]) {
+      let k = 1;
+      while (("g" + k) in degs) k++;
+      degs["g" + k] = JSON.parse(JSON.stringify(degs[f.slice(5)]));
+      o.style = { ...o.style, fond: "grad:g" + k };
+    }
+    if (o.type === "groupe") (o.enfants || []).forEach(reGrad);
+  };
   const neufs = [];
   // _objetsCibles rend les index DÉCROISSANTS : insérer à i+1 ne décale
   // jamais une cible restante
   for (const { calque, objet, i } of cibles) {
     const clone = JSON.parse(JSON.stringify(objet));
     reid(clone);
+    reGrad(clone);
     _decalerObjet(clone, dx, dy);
+    for (const g of _gradsDeCibles(doc, [clone])) {
+      _gradMapper(g, (X) => X + dx, (Y) => Y + dy);
+    }
     calque.objets.splice(i + 1, 0, clone);
     neufs.push(clone.id);
   }
@@ -755,10 +824,13 @@ export function op_miroir(doc, ids, axe, bbox) {
       case "groupe": (o.enfants || []).forEach(refl); break;
     }
   };
-  let n = 0;
-  for (const { objet } of _objetsCibles(doc, ids)) { refl(objet); n++; }
-  if (!n) throw new Error("rien à réfléchir");
-  return n;
+  const objets = [..._objetsCibles(doc, ids)].map((t) => t.objet);
+  for (const o of objets) refl(o);
+  if (!objets.length) throw new Error("rien à réfléchir");
+  for (const g of _gradsDeCibles(doc, objets)) {
+    _gradMapper(g, H ? fx : (X) => X, H ? (Y) => Y : fy);
+  }
+  return objets.length;
 }
 
 const _ALIGNEMENTS = new Set(["gauche", "centreH", "droite",
