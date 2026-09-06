@@ -105,6 +105,12 @@ Sections :
       verbatim de l'onglet, mesurée libre. Voir le commentaire de A_M20A ;
   M21 (étape 8, §4.5) les trois `aria-label` des chips de coupe, dont le
       libellé passe en glyphe seul sous largeur réduite ;
+  M22a/M22b/M22c/M23 (P12) LE SON D'UN PLAN SUIT SA VIDÉO : une vidéo
+      posée sur une piste vidéo plein cadre reçoit un clip jumeau sur la
+      piste de dialogue (sonde GET /has-audio, cache, un seul historique,
+      un seul concat), les identifiants de clips deviennent uniques au
+      chargement, et l'inspecteur gagne « Extraire le son → A1 » pour
+      les plans déjà posés. R_M17A porte la sonde. Voir le bloc P12.
   M15 / M16src (P6) REMPLACER LA SOURCE d'un plan sans perdre ses bornes, ses
       effets ni sa transition :
         M4b y gagne `dzmReplaceRef` (le plan visé, {id, tr, label}) ET son
@@ -1367,6 +1373,19 @@ R_M17A = (
     "       était AU CLIC, pas 85 ms plus tard. Mesure échouée : on repasse un\n"
     "       nombre NÉGATIF, que `needDur` lit comme « déjà demandé » — c'est\n"
     "       le verrou de récursion, et il est éprouvé sous node. */\n"
+    "    /* P12 — LE SON D'UN PLAN SUIT SA VIDÉO : le verdict « cette source\n"
+    "       a-t-elle du son ? » est demandé ICI, avant la durée et avant\n"
+    "       tout `pushHistory`, pour une vidéo posée sur une piste vidéo\n"
+    "       PLEIN CADRE (V1 : type « vidéo », jamais une incrustation). Le\n"
+    "       rappel repart des MÊMES arguments — c'est le CACHE du verdict,\n"
+    "       écrit par askAudio sur toute sortie, qui le rend non récursif\n"
+    "       (éprouvé sous node : un rappel sans cache redemande). La durée\n"
+    "       rendue en prime épargne le second aller-retour d'askDur. */\n"
+    "    var dzAuOn=DzTracks.wantsTwin(kind,dzTs,tr2);\n"
+    "    var dzAu=dzAuOn?DzTracks.audioOf(src):null;\n"
+    "    if(dzAuOn&&!dzAu){DzTracks.askAudio(src,{done:function(){\n"
+    "      addAsset(src,label,kind,srcDur,trId,st)}});return}\n"
+    "    srcDur=DzTracks.srcDurOr(kind,srcDur,dzAu);\n"
     "    if(DzTracks.needDur(kind,srcDur)){\n"
     "      DzTracks.askDur(src,{done:function(dzV){\n"
     "        addAsset(src,label,kind,dzV>0?dzV:-1,trId,st)}});return}\n"
@@ -1647,6 +1666,162 @@ R_M19 = (A_M19 + "\n"
          'toggleReq:dzTbReq,keyLbl:svmKeyLabel("toolbar"),'
          "onProjets:function(){setDzProjReq(function(n){return n+1})}}),")
 
+# ══ P12 — LE SON D'UN PLAN SUIT SA VIDÉO ═══════════════════════════════════
+#
+# LE DÉFAUT, MESURÉ (06/09/2026). Le rendu n'entre JAMAIS l'audio embarqué
+# d'un clip vidéo dans le graphe ffmpeg (`[idx:v]` seul, montage_service
+# `_run`) : sans clip jumeau sur la piste de dialogue, un plan parlant sort
+# MUET. La construction automatique (`montage_project`) pose ce jumeau pour
+# chaque job dont `_has_audio_stream` est vrai ; `addAsset`, point d'entrée
+# des SEPT portes de l'écran, posait UN clip et rien d'autre. Le
+# `kapwing_sample.mp4` de l'utilisateur (aac, 15,973 s, ffprobe) est sur V1
+# de sa sauvegarde SANS jumeau — et la transcription tournait sur le vieux
+# MP3 de la piste A1 (journal du 06/09, l. 42). Aucune route ne disait
+# « cette source a un flux audio » : GET /has-audio (montage_service) le dit
+# maintenant, durée en prime.
+#
+# CE QUE FONT LES CINQ SECTIONS, et l'ordre compte :
+#   R_M17A (édité DANS sa chaîne — `var dzCl=defaultLen(kind,srcDur);` est un
+#          texte qui n'existe qu'APRÈS patch, 1 dans le bundle livré, 0 dans
+#          .bak_montage, mesuré) : la SONDE, avant la durée et avant tout
+#          `pushHistory`. Sortie par `DzTracks.askAudio`, rappel avec les
+#          mêmes arguments ; `st` repassé pour l'instant du clic, comme
+#          askDur. Le CACHE est le verrou de récursion (test_montage_bundle
+#          [3-bis] joue le rappel SANS cache : il redemande — c'est la preuve
+#          que le verrou est bien lui).
+#   M22a   (le trio `ovSeq++` / `id` / `pushHistory()` — 1/1 en CRLF, 0/0 en
+#          LF, mesuré, d'où `nl()`) : l'identifiant passe par `uniqueId`
+#          contre les clips existants, et le JUMEAU est décidé par
+#          `twinPlan` (verdict, piste de dialogue, verrou, doublon) AVANT le
+#          seul `pushHistory()` du geste ; sa phrase entre dans `dzTail`, la
+#          note de l'ajout (M16b la lit telle quelle : `+dzTail)}` reste
+#          l'unique fin de note, le banc le compte).
+#   M22b   (l'unique écriture du clip) : UN `setClips(concat([clip, jumeau]))`.
+#          Deux `setClips(clipsRef.current.concat(…))` dans le même
+#          gestionnaire PERDRAIENT le premier — `clipsRef.current=clips` n'est
+#          rafraîchi qu'au rendu (bundle 1723), mesuré. Un seul concat, un
+#          seul historique : « Annuler » retire les deux.
+#   M22c   (`svmApplyProject`, après la construction de `cs`) : les
+#          identifiants en double sont renommés par `dedupeIds` (le PREMIER
+#          garde le sien), c'est DIT, et `ovSeq` est re-semé au plus grand
+#          `u<n>` — il repartait de zéro à chaque chargement (`ovSeq.current=`
+#          : 0 occurrence dans le bundle, mesuré) et la sauvegarde de
+#          l'utilisateur porte `v1u1_0` deux fois et `v1u2_0` deux fois.
+#          `v1_non_video` (des IDENTIFIANTS) suit le renommage.
+#   M22d   (`setDirty(!1);` + `histRef.current={u:[],r:[]};` de
+#          svmApplyProject — 1/1 des deux côtés, mesuré en octets ; l'ancre
+#          ne cite PAS le `setPh(0)` qui précède sur la même ligne, que la
+#          garde tb7 du banc interdit aux sections) : `dirty` suit le
+#          renommage d'une SAUVEGARDE, pour que l'autosauvegarde — le SEUL
+#          enregistrement qui existe (`svmDoSave(` : trois sites, aucun
+#          bouton, aucun raccourci ; « Enregistrer sous… » crée un projet
+#          neuf) — écrive les ids réparés ; sans elle la note reviendrait à
+#          chaque chargement. Une construction de Bibliothèque n'est jamais
+#          marquée.
+#   M23    (`transInspector(),` — 1/1 dans le bundle livré ET dans
+#          .bak_montage ; R_M12 la reprend en tête, donc elle reste libre
+#          après M12, et M23 s'insère AVANT elle : R_M12 reste contigu, la
+#          ligne `M12-text-panel_remplace` du banc le tient) : le bouton
+#          « Extraire le son → A1 » pour les plans DÉJÀ posés, visible sur
+#          tout clip vidéo à source (V1, V2, V3…), même moteur — c'est lui
+#          qui rend son son au kapwing_sample déjà sur V1.
+#
+# LA CIBLE N'EST PAS `pickTrack(ts,"audio")` : première piste audio de
+# l'ordre d'affichage, elle rend `a2` — la MUSIQUE, bouclée et duckée — sur
+# la sauvegarde du 04/09 ([v1, a2, a1, a3, s1]). `dialogueTrack` vise le bus
+# « dialogue », sinon `a1`, jamais une piste `loop`.
+#
+# DÉCISION : AUTOMATIQUE, comme la construction automatique — pour TOUTE
+# vidéo à flux audio posée sur une piste plein cadre, sans demander. Parce
+# que le geste est réversible d'un seul « Annuler », que le doublon est
+# refusé, et que les incrustations (B-roll) en sont exemptées par leur
+# `type`. Le bouton de M23 est la porte pour tout le reste.
+#
+# RÉSERVE PORTÉE, PAS CORRIGÉE ICI : aucune liaison V1↔A1 n'existe
+# (déplacement, rognage, vitesse, remplacement de source non propagés) —
+# c'est déjà le cas des « son du plan » de la construction automatique, et
+# le remplacement de source (P6) sort AVANT toute extraction.
+A_M22A = ('    ovSeq.current++;\n'
+          '    var id=tr2+"u"+ovSeq.current+"_"+Math.round(st*10);\n'
+          '    pushHistory();')
+R_M22A = (
+    "    ovSeq.current++;\n"
+    "    /* P12 — l'identifiant est UNIQUE contre les clips existants (une\n"
+    "       sauvegarde rechargée peut en porter d'anciens du même rang), et\n"
+    "       le jumeau est décidé AVANT le seul pushHistory du geste : sa\n"
+    "       phrase rejoint la note de l'ajout — et une incrustation, exemptée\n"
+    "       de sonde, est DITE aussi (overlayNote), jamais tue. */\n"
+    '    var id=DzTracks.uniqueId(clipsRef.current||[],\n'
+    '      tr2+"u"+ovSeq.current+"_"+Math.round(st*10));\n'
+    "    var dzNeuf={tr:tr2,id:id,label:label,start:st,end:en,src:src,srcIn:0};\n"
+    "    var dzTw=dzAuOn?DzTracks.twinPlan(dzNeuf,dzTs,clipsRef.current||[],dzAu,\n"
+    "      function(t){return !!(trackStRef.current[t]&&trackStRef.current[t].l)}):null;\n"
+    "    if(dzTw)dzTail+=dzTw.note;\n"
+    "    else dzTail+=DzTracks.overlayNote(kind,dzTs,tr2);\n"
+    "    pushHistory();")
+A_M22B = ('setClips(clipsRef.current.concat([{tr:tr2,id:id,label:label,'
+          'start:st,end:en,src:src,srcIn:0}]));')
+R_M22B = ('setClips(clipsRef.current.concat(dzTw&&dzTw.clip?[dzNeuf,dzTw.clip]'
+          ':[dzNeuf]));')
+A_M22C = '    var first=cs.find(function(c){return c.tr==="v1"});'
+R_M22C = (
+    "    /* P12 — DES IDENTIFIANTS UNIQUES. `ovSeq` repart de zéro à chaque\n"
+    "       chargement et la sauvegarde reprend `c.id` tel quel : deux clips\n"
+    "       du même id se suppriment ensemble (`c.id!==id`) et le second n'est\n"
+    "       jamais sélectionnable (`c.id===selId`). Le PREMIER garde le sien,\n"
+    "       les suivants sont renommés, c'est dit, `v1_non_video` — des\n"
+    "       IDENTIFIANTS, contrat du backend — suit le renommage (l'id neuf est\n"
+    "       AJOUTÉ : les deux exemplaires étaient marqués, ils le restent), et\n"
+    "       le compteur repart AU-DESSUS de tout ce que la sauvegarde porte. La\n"
+    "       réparation est PERSISTÉE par M22d (l'autosauvegarde) sur une\n"
+    "       sauvegarde, jamais sur une construction de Bibliothèque : la note\n"
+    "       le dit dans les deux cas. */\n"
+    "    var dzDd=DzTracks.dedupeIds(cs);cs=dzDd.clips;\n"
+    "    if(dzDd.renamed.length&&Array.isArray(d.v1_non_video))d.v1_non_video=\n"
+    "      d.v1_non_video.concat(dzDd.renamed.filter(function(k){\n"
+    "        return d.v1_non_video.indexOf(k.de)>=0&&d.v1_non_video.indexOf(k.en)<0})\n"
+    "      .map(function(k){return k.en}));\n"
+    "    if(dzDd.renamed.length)fireNote(dzDd.renamed.length+\" clip\"+\n"
+    '      (dzDd.renamed.length>1?"s portaient":" portait")+" un identifiant "+\n'
+    '      "déjà pris dans cette sauvegarde ("+dzDd.renamed.map(function(k){\n'
+    '        return k.de+" → "+k.en}).join(", ")+") : renommé"+\n'
+    '      (dzDd.renamed.length>1?"s":"")+" pour que chaque plan se "+\n'
+    '      "sélectionne et se supprime seul. Rien d\'autre n\'a changé"+\n'
+    '      (d.saved?" — ce sera enregistré automatiquement dans un instant."\n'
+    '        :" (timeline construite depuis la Bibliothèque : rien n\'est "+\n'
+    '         "enregistré tant que vous ne modifiez rien)."));\n'
+    "    ovSeq.current=Math.max(ovSeq.current,DzTracks.seqMax(cs));\n"
+    + A_M22C)
+A_M22D = ('setDirty(!1);\n'
+          '    histRef.current={u:[],r:[]};')
+R_M22D = (
+    "setDirty(!!(d.saved&&dzDd.renamed.length));\n"
+    "    /* P12 — LA RÉPARATION EST PERSISTÉE. `setDirty(!1)` désarmait ici\n"
+    "       l'autosauvegarde (l'effet gardé par `dirty`, 1,5 s) juste après le\n"
+    "       renommage de M22c, et AUCUN geste manuel n'enregistre le montage —\n"
+    "       `svmDoSave(` n'a que trois sites dans le bundle (sa définition,\n"
+    "       cet effet, la relance sur échec), « Enregistrer sous… » crée un\n"
+    "       projet NEUF (mesuré le 06/09/2026) : la note serait revenue à\n"
+    "       chaque chargement. Une SAUVEGARDE dont des ids ont été renommés est\n"
+    "       donc marquée modifiée, et l'autosauvegarde écrit les ids réparés.\n"
+    "       Une construction depuis la Bibliothèque (`saved` faux) ne l'est\n"
+    "       JAMAIS : l'enregistrer en ferait la source à la place de la\n"
+    "       Bibliothèque — et ses ids (`v1_<job>`, `a1_<job>`, `c<i>`) ne se\n"
+    "       répètent pas. La note de M22c le dit dans les deux cas. */\n"
+    "    histRef.current={u:[],r:[]};")
+A_M23 = "        transInspector(),"
+R_M23 = (
+    "        /* P12 — « Extraire le son → A1 » : le son d'un plan DÉJÀ posé,\n"
+    "           même moteur que l'ajout (sonde, cache, jumeau, refus DIT).\n"
+    "           Posé juste avant l'inspecteur de transition, pour tout clip\n"
+    "           vidéo porteur d'une source — V1, V2, V3. */\n"
+    "        DzTracks.extractBtn(sel,{tracks:dzTracksRef.current||svmTracksOf(proj),\n"
+    "          clips:function(){return clipsRef.current||[]},\n"
+    "          locked:function(t){return !!(trackStRef.current[t]&&trackStRef.current[t].l)},\n"
+    "          pushHistory:pushHistory,setClips:setClips,setDirty:setDirty,\n"
+    "          note:fireNote}),\n"
+    + A_M23)
+
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
            ("M5-payload", A_M5, R_M5), ("M6-save", A_M6, R_M6),
@@ -1684,7 +1859,16 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            # des chips dégradées (§4.5).
            ("M20a-raccourci-action", A_M20A, R_M20A),
            ("M20b-raccourci-dispatch", A_M20B, R_M20B),
-           ("M21-chips-nom-accessible", A_M21, R_M21)]
+           ("M21-chips-nom-accessible", A_M21, R_M21),
+           # P12 — le son d'un plan suit sa vidéo. M22a/M22b vivent dans
+           # addAsset APRÈS la sonde que R_M17A porte ; M22c dans
+           # svmApplyProject ; M23 dans l'inspecteur, AVANT l'ancre que
+           # R_M12 reprend en tête (l'ordre n'y change rien, mesuré).
+           ("M22a-jumeau-decide", A_M22A, R_M22A),
+           ("M22b-jumeau-ecrit", A_M22B, R_M22B),
+           ("M22c-ids-uniques", A_M22C, R_M22C),
+           ("M22d-reparation-persistee", A_M22D, R_M22D),
+           ("M23-extraire-le-son", A_M23, R_M23)]
 
 
 def nl(text, crlf):

@@ -717,8 +717,16 @@ check("M13_la_couche_allume_vraiment_le_drapeau",
 check("M13_pousse_l_historique_avant_d_ecrire",
       nl("if(pushHistory)pushHistory();\n      if(setClips)setClips(res.clips);")
       in s, "l'ordre pushHistory -> setClips n'est pas celui du bundle livré")
+# DEUX depuis P12, et les deux sont NOMMES : `if(pushHistory)pushHistory();`
+# est celui de gradeAllBtn (le lot), `o.pushHistory()` celui d'`extract`
+# (un seul geste, un seul clip). Un troisieme rougirait ici, avec son nom.
 check("M13_un_seul_pushHistory_pour_le_lot",
-      src.count("pushHistory()") == 1, str(src.count("pushHistory()")))
+      src.count("if(pushHistory)pushHistory();") == 1
+      and src.count("o.pushHistory()") == 1
+      and src.count("pushHistory()") == 2,
+      f'lot={src.count("if(pushHistory)pushHistory();")} '
+      f'extract={src.count("o.pushHistory()")} '
+      f'total={src.count("pushHistory()")}')
 # Le CŒUR de P4 doit être DANS le bloc livré, pas seulement dans la source.
 check("bloc_contient_gradeAll",
       nl("gradeAllBtn:dzmGradeAllBtn,gradeAll:dzmGradeAll,") in s
@@ -1142,7 +1150,10 @@ check("M16a_refuse_quand_aucune_piste_ne_convient",
 check("M16ref_la_ref_suit_chaque_rendu",
       s.count(nl("dzTracksRef.current=svmTracksOf(proj);")) == 1,
       f'count={s.count(nl("dzTracksRef.current=svmTracksOf(proj);"))}')
-_dehors = s.count("dzTracksRef") - (P.R_M16REF + P.R_M16A).count("dzTracksRef")
+# R_M23 (P12) la LIT — le bouton « Extraire le son » passe les pistes du
+# projet a la couche par la meme ref que l'ajout, pour la meme raison.
+_dehors = (s.count("dzTracksRef")
+           - (P.R_M16REF + P.R_M16A + P.R_M23).count("dzTracksRef"))
 check("M16ref_nom_dzTracksRef_n_ecrase_rien", _dehors == 0,
       f"dzTracksRef apparaît {_dehors}x hors des sections qui l'écrivent")
 # ── la note dit OU le clip a atterri, et nomme la sortie ──────────────────
@@ -1872,10 +1883,190 @@ check("P11_la_route_de_duree_existe_des_deux_cotes",
 # existent. Une copie aurait diverge a la premiere correction — l'argument de
 # P9 pour `/media-rules`, applique ici.
 check("P11_la_route_reutilise_la_resolution_et_la_sonde",
-      SVC.count("p = await _media_source(request, src, video=False)") == 2
+      # TROIS depuis P12 : /duration, /has-audio et le premier appelant.
+      SVC.count("p = await _media_source(request, src, video=False)") == 3
       and SVC.count("dur = await asyncio.to_thread(_probe_duration, p)") == 1,
       f'media_source={SVC.count("p = await _media_source(request, src, video=False)")} '
       f'probe={SVC.count("dur = await asyncio.to_thread(_probe_duration, p)")}')
+
+# ══ P12 — LE SON D'UN PLAN SUIT SA VIDEO : les sections, dans le bundle ═══
+# Les comptes generiques (`*_remplace`, `*_ancre_consommee`,
+# `couche_ne_cite_pas_l_ancre_de_*`) couvrent M22a/M22b/M22c/M23 par la
+# boucle sur P.PATCHES. Ce qui suit est ce qu'ils ne mesurent pas : l'ORDRE
+# des sorties dans addAsset, l'unicite du concat, la place de la sonde dans
+# R_M17A (un texte qui n'existe qu'apres patch), et les deux faces de chaque
+# identifiant que ces sections lisent.
+# L'ORDRE, sur les POSITIONS dans le corps d'addAsset (`find`, jamais
+# `index`) : la sonde audio AVANT askDur, askDur AVANT pushHistory, le
+# jumeau decide (twinPlan) AVANT pushHistory, pushHistory AVANT l'unique
+# concat.
+_aa0 = s.find(nl("function addAsset(src,label,kind,srcDur,trId,atTime){"))
+_au = s.find(nl("DzTracks.askAudio(src,{done:function(){"), _aa0 if _aa0 >= 0 else 0)
+_ask2 = s.find(nl("DzTracks.askDur(src,{done:function(dzV){"), _aa0 if _aa0 >= 0 else 0)
+_tw = s.find(nl("DzTracks.twinPlan(dzNeuf,dzTs,clipsRef.current||[],dzAu,"),
+             _aa0 if _aa0 >= 0 else 0)
+_ph2 = s.find(nl("    pushHistory();\n    setClips(clipsRef.current.concat("),
+              _aa0 if _aa0 >= 0 else 0)
+check("P12_la_sonde_audio_sort_avant_la_duree_qui_sort_avant_l_historique",
+      _aa0 >= 0 and _au > _aa0 and _ask2 > _au and _tw > _ask2 and _ph2 > _tw,
+      f"addAsset={_aa0} askAudio={_au} askDur={_ask2} twinPlan={_tw} "
+      f"pushHistory+concat={_ph2}")
+# LE RAPPEL REPASSE LES MEMES ARGUMENTS (et `st`, l'instant du clic, comme
+# askDur) ; la duree en prime passe par la couche (srcDurOr), pas par une
+# seconde copie de needDur — `DzTracks.needDur(` reste a 1 (P11 le tient).
+check("P12_le_rappel_repasse_les_memes_arguments",
+      s.count(nl("DzTracks.askAudio(src,{done:function(){\n"
+                 "      addAsset(src,label,kind,srcDur,trId,st)}});return}")) == 1
+      and s.count(nl("srcDur=DzTracks.srcDurOr(kind,srcDur,dzAu);")) == 1,
+      f'rappel={s.count(nl("addAsset(src,label,kind,srcDur,trId,st)"))} '
+      f'srcDurOr={s.count(nl("srcDur=DzTracks.srcDurOr(kind,srcDur,dzAu);"))}')
+# UN SEUL CONCAT, qui porte les deux clips ; l'ancienne ecriture a disparu.
+check("P12_un_seul_concat_porte_le_plan_et_son_jumeau",
+      s.count(nl("setClips(clipsRef.current.concat(dzTw&&dzTw.clip?"
+                 "[dzNeuf,dzTw.clip]:[dzNeuf]));")) == 1
+      and s.count(nl("setClips(clipsRef.current.concat([{tr:tr2,id:id,")) == 0
+      and s.count(nl("setClips(clipsRef.current.concat(")) == 1,
+      f'neuf={s.count(nl("setClips(clipsRef.current.concat(dzTw&&dzTw.clip?"))} '
+      f'total={s.count(nl("setClips(clipsRef.current.concat("))}')
+# LA PHRASE DU JUMEAU ENTRE DANS LA NOTE DE L'AJOUT par `dzTail`, sans que
+# la fin de note de M16b ne bouge (`+dzTail)}` reste unique — P11 le tient).
+check("P12_la_phrase_du_jumeau_entre_dans_la_note_de_l_ajout",
+      s.count(nl("if(dzTw)dzTail+=dzTw.note;")) == 1
+      and s.count(nl("+dzTail)}")) == 1,
+      f'tail={s.count(nl("if(dzTw)dzTail+=dzTw.note;"))} '
+      f'fin={s.count(nl("+dzTail)}"))}')
+# L'IDENTIFIANT DE L'AJOUT PASSE PAR uniqueId, et l'ancienne forme a disparu.
+check("P12_l_identifiant_de_l_ajout_passe_par_uniqueId",
+      s.count(nl('var id=DzTracks.uniqueId(clipsRef.current||[],\n'
+                 '      tr2+"u"+ovSeq.current+"_"+Math.round(st*10));')) == 1
+      and s.count(nl('var id=tr2+"u"+ovSeq.current+"_"+Math.round(st*10);')) == 0,
+      f'{s.count(nl("var id=DzTracks.uniqueId(clipsRef.current||[],"))}')
+# svmApplyProject : le dedoublonnage AVANT `setClips(cs)`, et le re-semis du
+# compteur — positions dans le corps.
+_ap0 = s.find(nl("  function svmApplyProject(d){"))
+_dd = s.find(nl("var dzDd=DzTracks.dedupeIds(cs);cs=dzDd.clips;"), _ap0 if _ap0 >= 0 else 0)
+_sq = s.find(nl("ovSeq.current=Math.max(ovSeq.current,DzTracks.seqMax(cs));"),
+             _ap0 if _ap0 >= 0 else 0)
+_sc = s.find(nl("setClips(cs);setSelId(first?first.id:\"\");setPh(0);"),
+             _ap0 if _ap0 >= 0 else 0)
+check("P12_svmApplyProject_dedoublonne_et_re_seme_avant_d_ecrire",
+      _ap0 >= 0 and _dd > _ap0 and _sq > _dd and _sc > _sq,
+      f"apply={_ap0} dedupe={_dd} seq={_sq} setClips={_sc}")
+# `ovSeq.current=` n'existait NULLE PART dans le bundle (mesure, fait n°3) :
+# il existe maintenant UNE fois, au re-semis.
+check("P12_le_compteur_est_re_seme_une_fois",
+      s.count("ovSeq.current=Math.max(") == 1 and s.count("ovSeq.current=") == 1,
+      f'{s.count("ovSeq.current=")}')
+# M22a (tour 2) : quand aucun jumeau ne parle, l'incrustation est DITE — la
+# branche `else` appelle `overlayNote`, declaree ET exportee par la couche.
+check("P12_M22a_l_incrustation_est_dite_quand_le_jumeau_ne_parle_pas",
+      s.count(nl("    if(dzTw)dzTail+=dzTw.note;\n"
+                 "    else dzTail+=DzTracks.overlayNote(kind,dzTs,tr2);")) == 1
+      and re.search(r"\bfunction dzmOverlayNote\(", src) is not None
+      and src.count("overlayNote:dzmOverlayNote") == 1,
+      f'{s.count(nl("else dzTail+=DzTracks.overlayNote(kind,dzTs,tr2);"))}')
+# M22c (tour 2) : `v1_non_video` suit le renommage — une seule ecriture, et
+# R_M7 la lit toujours APRES (deux faces : la ligne `v1NonVideo:` de M7).
+_nv = nl("if(dzDd.renamed.length&&Array.isArray(d.v1_non_video))d.v1_non_video=")
+check("P12_M22c_v1_non_video_suit_le_renommage_avant_que_M7_ne_le_lise",
+      s.count(_nv) == 1
+      and 0 <= s.find(_nv) < s.find(nl("v1NonVideo:Array.isArray(d.v1_non_video)")),
+      f'{s.count(_nv)} nv={s.find(_nv)} m7={s.find(nl("v1NonVideo:Array.isArray(d.v1_non_video)"))}')
+# M22d (tour 2) : `setDirty` de svmApplyProject suit le renommage d'une
+# SAUVEGARDE — l'ancien `setDirty(!1)` n'y est plus, le nouveau y est une
+# fois, et `d.saved` est ce que la meme fonction lit deja AVANT (`if(d.saved){`
+# dans le corps de svmApplyProject — deux dans le bundle, un ici, mesure).
+_sd = s.find(nl('    setClips(cs);setSelId(first?first.id:"");setPh(0);'
+                'setDirty(!!(d.saved&&dzDd.renamed.length));\n'))
+_sv = s.find("if(d.saved){", _ap0 if _ap0 >= 0 else 0)
+check("P12_M22d_la_reparation_arme_l_autosauvegarde",
+      s.count(nl('    setClips(cs);setSelId(first?first.id:"");setPh(0);'
+                 'setDirty(!!(d.saved&&dzDd.renamed.length));\n')) == 1
+      and s.count(nl('setPh(0);setDirty(!1);')) == 0
+      and _ap0 >= 0 and _ap0 < _sv < _sd,
+      f'neuf={s.count("setDirty(!!(d.saved&&dzDd.renamed.length));")} '
+      f'ancien={s.count(nl("setPh(0);setDirty(!1);"))} apply={_ap0} saved={_sv} dirty={_sd}')
+# LE BOUTON est pose AVANT `transInspector(),` — que R_M12 reprend en tete —
+# et R_M12 reste contigu (sa ligne `_remplace` le tient aussi).
+_bt = s.find(nl("DzTracks.extractBtn(sel,{tracks:dzTracksRef.current||svmTracksOf(proj),"))
+_ti = s.find(nl("        transInspector(),"))
+check("P12_le_bouton_precede_l_inspecteur_de_transition",
+      _bt >= 0 and _ti > _bt and s.count(nl("        transInspector(),")) == 1
+      and (_ti - _bt) < 600,
+      f"bouton={_bt} transInspector={_ti}")
+# DEUX FACES pour chaque identifiant de la couche que les sections appellent
+# (un appel dans le bundle, un export dans la couche), et pour chaque
+# identifiant du bundle que les sections lisent (une declaration, un appel
+# borne `\b…\b` dans la section).
+for _nom in ("wantsTwin", "audioOf", "askAudio", "srcDurOr", "uniqueId",
+             "twinPlan", "dedupeIds", "seqMax", "extractBtn"):
+    check("P12_deux_faces_DzTracks_" + _nom,
+          s.count(nl("DzTracks." + _nom + "(")) == 1
+          and src.count(_nom + ":dzm" + _nom[0].upper() + _nom[1:]) == 1,
+          f'bundle={s.count(nl("DzTracks." + _nom + "("))} '
+          f'couche={src.count(_nom + ":dzm" + _nom[0].upper() + _nom[1:])}')
+for _sec, _r, _pairs in (
+        ("M22a", P.R_M22A,
+         (("ovSeq", "var ovSeq=x.useRef(0);"),
+          ("clipsRef", "var clipsRef=x.useRef(clips);clipsRef.current=clips;"),
+          ("trackStRef", "var trackStRef=x.useRef(trackSt);"),
+          ("pushHistory", "var pushHistory=x.useCallback("),
+          ("dzTs", "var dzTs=dzTracksRef.current||svmTracksOf(proj);"),
+          ("dzAuOn", "var dzAuOn=DzTracks.wantsTwin(kind,dzTs,tr2);"),
+          ("dzAu", "var dzAu=dzAuOn?DzTracks.audioOf(src):null;"),
+          ("dzTail", "var dzTail=dzCl.note+(dzGrew?"))),
+        ("M22b", P.R_M22B,
+         (("dzNeuf", "var dzNeuf={tr:tr2,id:id,label:label,start:st,end:en,"),
+          ("dzTw", "var dzTw=dzAuOn?DzTracks.twinPlan("),
+          ("setClips", "setClips=st1[1]"),
+          ("clipsRef", "var clipsRef=x.useRef(clips);clipsRef.current=clips;"))),
+        ("M22c", P.R_M22C,
+         (("cs", "var cs=(d.clips||[]).map(function(c,i){"),
+          ("fireNote", "fireNote=nt[1]"),
+          ("ovSeq", "var ovSeq=x.useRef(0);"))),
+        ("M23", P.R_M23,
+         (("sel", "var sel=clips.find("),
+          ("dzTracksRef", "var dzTracksRef=x.useRef(null);"),
+          ("svmTracksOf", "function svmTracksOf(proj){"),
+          ("proj", "proj=stP[0],setProj=stP[1];"),
+          ("clipsRef", "var clipsRef=x.useRef(clips);clipsRef.current=clips;"),
+          ("trackStRef", "var trackStRef=x.useRef(trackSt);"),
+          ("pushHistory", "var pushHistory=x.useCallback("),
+          ("setClips", "setClips=st1[1]"),
+          ("setDirty", "setDirty=st8[1]"),
+          ("fireNote", "fireNote=nt[1]")))):
+    for _nm, _decl in _pairs:
+        _appele = re.search(r"\b%s\b" % re.escape(_nm), _r) is not None
+        check("P12_" + _sec + "_appelle_" + _nm + "_qui_est_declare",
+              _appele and s.count(nl(_decl)) >= 1,
+              f"appelé={_appele} déclaré={s.count(nl(_decl))} ({_decl})")
+# LA ROUTE, DES DEUX COTES DU FIL : la couche l'appelle, le service la sert
+# — et reutilise la sonde du rendu (`_has_audio_stream`) et la mesure de
+# duree, sans copie.
+check("P12_la_route_has_audio_existe_des_deux_cotes",
+      src.count('"/api/montage/has-audio?src="') == 1
+      and SVC.count('@router.get("/has-audio")') == 1
+      and SVC.count("async def montage_has_audio(") == 1,
+      f'couche={src.count(chr(34) + "/api/montage/has-audio?src=" + chr(34))} '
+      f'route={SVC.count(chr(34) + "@router.get(" + chr(34) + "/has-audio" + chr(34) + ")")}')
+check("P12_la_route_reutilise_la_sonde_du_rendu",
+      SVC.count("asyncio.to_thread(_has_audio_stream, p)") == 1
+      and SVC.count("asyncio.to_thread(_probe_duration, p)") == 2,
+      f'has_audio={SVC.count("asyncio.to_thread(_has_audio_stream, p)")} '
+      f'probe={SVC.count("asyncio.to_thread(_probe_duration, p)")}')
+# LA FEUILLE habille le bouton, sans toucher a la liste de P6.
+check("css_porte_le_bouton_extraire_le_son",
+      ".dzm-extract{" in _css.replace(" ", "").replace("\n", "").replace("\r", "")
+      and "dzm-extract" in src,
+      "montage.css n'habille pas « Extraire le son »")
+# LA COUCHE NE CITE AUCUN identifiant minifie du bundle qu'elle ne declare
+# pas : les noms neufs de P12 sont mesures LIBRES dans le bundle d'entree.
+for _nm in ("dzAuOn", "dzAu", "dzNeuf", "dzTw", "dzDd", "DZM_AUDIO_CACHE"):
+    _bak = BUNDLE.with_name(BUNDLE.name + ".bak_montage")
+    _dans_bak = (_bak.read_bytes().count(_nm.encode("utf-8"))
+                 if _bak.is_file() else -1)
+    check("P12_nom_" + _nm + "_etait_libre_dans_le_bundle_d_entree",
+          _dans_bak == 0, f"{_nm} apparait {_dans_bak}x dans .bak_montage")
 
 # ── LA CHAINE AVAL, MESUREE ICI PLUTOT QUE DECOUVERTE AU REJEU SUIVANT ────
 # CE QUI A MORDU PENDANT P10, ET QUI A FAILLI MORDRE ICI. `patch_bundle_
@@ -2556,6 +2747,275 @@ var msVu2=null;
 T.askDur({job_id:"j"},{fetch:FETCH(REP(!0,{ok:!0,dur:3})),
   timer:function(fn,ms){msVu2=ms},delai:250,done:JAMAIS});
 out.ad_delai_recu=msVu2;
+/* ══ P12 — LE SON D'UN PLAN SUIT SA VIDEO : le cœur pur ═══════════════════
+   dialogueTrack, trackPlein / wantsTwin, uniqueId / dedupeIds / seqMax,
+   twinClip, twinPlan, srcDurOr, le cache, askAudio (motif d'askDur : fetch
+   et timer injectes, reponse SYNC) et extract (le moteur du bouton, `ask`
+   bouchonne). `LEVE:` plutot qu'une exception : rougir, pas mourir. */
+function P12(fn){try{return fn()}catch(e){return "LEVE:"+e.name}}
+/* les pistes de la sauvegarde de l'utilisateur (06/09) et celle du 04/09 */
+var TS_USER=[{id:"v3",kind:"video"},{id:"v2",kind:"video"},{id:"v1",kind:"video"},
+  {id:"a1",kind:"audio",bus:"dialogue"},{id:"a2",kind:"audio",bus:"musique",loop:!0},
+  {id:"a3",kind:"audio",bus:"sfx"},{id:"s1",kind:"subs"}];
+var TS_0409=[{id:"v1",kind:"video"},{id:"a2",kind:"audio",bus:"musique",loop:!0},
+  {id:"a1",kind:"audio",bus:"dialogue"},{id:"a3",kind:"audio",bus:"sfx"},
+  {id:"s1",kind:"subs"}];
+out.dt_defauts=P12(function(){return T.dialogueTrack(T.DEFAULTS)});
+out.dt_0409=P12(function(){return T.dialogueTrack(TS_0409)});
+/* LA MESURE QUI MOTIVE dialogueTrack : pickTrack rend la MUSIQUE la-dessus */
+out.dt_0409_pick=P12(function(){return T.pickTrack(TS_0409,"audio")});
+out.dt_bus_ailleurs=P12(function(){return T.dialogueTrack([{id:"v1"},
+  {id:"a4",kind:"audio",bus:"dialogue"},{id:"a1",kind:"audio",bus:"sfx"}])});
+out.dt_a1_sans_bus=P12(function(){return T.dialogueTrack([{id:"v1"},{id:"a1"}])});
+out.dt_a1_bouclee=P12(function(){return T.dialogueTrack([{id:"v1"},
+  {id:"a1",kind:"audio",loop:!0},{id:"a2",kind:"audio",bus:"dialogue",loop:!0}])});
+out.dt_vide=P12(function(){return T.dialogueTrack([])});
+out.dt_null=P12(function(){return T.dialogueTrack(null)});
+out.dt_sans_audio=P12(function(){return T.dialogueTrack([{id:"v1"},{id:"s1"}])});
+out.dt_a1_video=P12(function(){return T.dialogueTrack([{id:"a1",kind:"video"}])});
+/* plein cadre / incrustation */
+out.tp_v1=P12(function(){return T.trackPlein(T.DEFAULTS,"v1")});
+out.tp_v2=P12(function(){return T.trackPlein(T.DEFAULTS,"v2")});
+out.tp_v3_neuve=P12(function(){return T.trackPlein(T.add(T.DEFAULTS,"video"),"v3")});
+out.tp_v1_nue=P12(function(){return T.trackPlein(TS_USER,"v1")});
+out.tp_a1=P12(function(){return T.trackPlein(T.DEFAULTS,"a1")});
+out.tp_absente=P12(function(){return T.trackPlein(T.DEFAULTS,"v9")});
+out.tp_vide=P12(function(){return T.trackPlein([],"v1")});
+out.tp_video_plein_neuve=P12(function(){return T.trackPlein(
+  [{id:"v2",kind:"video",type:"vidéo"}],"v2")});
+/* LA LISTE NUE ET SON HABILLAGE (tour 2) : le payload d'une sauvegarde nomme
+   v2 SANS type, et une liste nue rend vrai pour v2 ; ce qui tient
+   l'exemption est svmTracksFrom (dzmSkin a l'apply), mesure cote a cote. */
+out.tp_user_v2_nue=P12(function(){return T.trackPlein(TS_USER,"v2")});
+out.tp_from_v2=P12(function(){return T.trackPlein(T.from(TS_USER),"v2")});
+out.tp_from_types=P12(function(){return T.from(TS_USER).slice(0,3)
+  .map(function(t){return [t.id,t.type||""]})});
+out.wt_user_v2=P12(function(){return [T.wantsTwin("video",TS_USER,"v2"),
+  T.wantsTwin("video",T.from(TS_USER),"v2")]});
+/* L'INCRUSTATION DITE (overlayNote) : la phrase pour v2 habillee, "" pour
+   V1 (le jumeau parle), un son, une image, une piste absente ou d'un
+   autre genre, une liste vide, null. */
+out.on_v2=P12(function(){return T.overlayNote("video",T.from(TS_USER),"v2")});
+out.on_v2_sans_dialogue=P12(function(){return T.overlayNote("video",
+  [{id:"v1",kind:"video",type:"vidéo"},{id:"v2",kind:"video",type:"overlay"}],"v2")});
+out.on_rien=P12(function(){return [T.overlayNote("video",T.from(TS_USER),"v1"),
+  T.overlayNote("audio",T.from(TS_USER),"v2"),T.overlayNote("image",T.from(TS_USER),"v2"),
+  T.overlayNote("video",T.from(TS_USER),"v9"),T.overlayNote("video",T.from(TS_USER),"a1"),
+  T.overlayNote("video",[],"v2"),T.overlayNote("video",null,"v2")]});
+out.wt=P12(function(){return [T.wantsTwin("video",T.DEFAULTS,"v1"),
+  T.wantsTwin("audio",T.DEFAULTS,"v1"),T.wantsTwin("image",T.DEFAULTS,"v1"),
+  T.wantsTwin("video",T.DEFAULTS,"v2")]});
+/* identifiants — les doublons de la sauvegarde de l'utilisateur */
+var CS_USER=[{tr:"a1",id:"a1_vo"},{tr:"v1",id:"v1u1_0"},{tr:"v1",id:"v1u2_0"},
+  {tr:"v1",id:"v1u3_0"},{tr:"v1",id:"v1u1_0"},{tr:"v1",id:"v1u2_0"},
+  {tr:"s1",id:"s1cmtpobgr366"}];
+out.ui_libre=P12(function(){return T.uniqueId(CS_USER,"v1u4_0")});
+out.ui_pris=P12(function(){return T.uniqueId(CS_USER,"v1u1_0")});
+out.ui_pris_2=P12(function(){return T.uniqueId(CS_USER.concat([{id:"v1u1_0_2"}]),"v1u1_0")});
+out.ui_vide=P12(function(){return [T.uniqueId([],"x"),T.uniqueId(null,"x")]});
+var dd=P12(function(){return T.dedupeIds(CS_USER)});
+out.dd_ids=dd&&dd.clips?dd.clips.map(function(c){return c.id}):"LEVE";
+out.dd_renamed=dd&&dd.renamed?dd.renamed:"LEVE";
+out.dd_entree_intacte=CS_USER.map(function(c){return c.id});
+out.dd_premier_garde=dd&&dd.clips?dd.clips[1]===CS_USER[1]:"LEVE";
+out.dd_sans_doublon=P12(function(){var o=T.dedupeIds([{id:"a"},{id:"b"}]);
+  return [o.clips.map(function(c){return c.id}),o.renamed.length]});
+out.dd_suffixe_deja_pris=P12(function(){return T.dedupeIds([{id:"k"},{id:"k_2"},{id:"k"}])
+  .clips.map(function(c){return c.id})});
+out.dd_sans_id=P12(function(){return T.dedupeIds([{id:"k"},{},{id:"k"}])
+  .clips.map(function(c){return c.id===void 0?"ABSENT":c.id})});
+out.dd_vide=P12(function(){var o=T.dedupeIds([]);return [o.clips.length,o.renamed.length]});
+out.sm=P12(function(){return [T.seqMax(CS_USER),T.seqMax([]),
+  T.seqMax([{id:"a1_vo"},{id:"s1cm"}]),T.seqMax([{id:"v1u12_5"},{id:"a1u7_0"}])]});
+/* le jumeau — le kapwing_sample de l'utilisateur, tel qu'il est sur V1 */
+var PLAN={tr:"v1",id:"v1u3_0",label:"kapwing_sample",start:28.876,end:50.509,
+  src:{job_id:"a54e"},srcIn:0};
+var jum=P12(function(){return T.twinClip(PLAN,"a1",CS_USER)});
+out.tc_jumeau=jum;
+out.tc_meme_src=!!jum&&jum.src===PLAN.src;
+out.tc_srcin=P12(function(){return T.twinClip(Object.assign({},PLAN,{srcIn:2}),"a1",[]).srcIn});
+out.tc_doublon_chevauche=P12(function(){return T.twinClip(PLAN,"a1",
+  [{tr:"a1",id:"x",start:40,end:60,src:{job_id:"a54e"}}])});
+out.tc_doublon_cles_ordre=P12(function(){return T.twinClip(
+  {tr:"v1",id:"p",start:0,end:5,src:{file_path:"f",job_id:"j"}},"a1",
+  [{tr:"a1",id:"x",start:0,end:5,src:{job_id:"j",file_path:"f"}}])});
+out.tc_autre_src=P12(function(){return T.twinClip(PLAN,"a1",
+  [{tr:"a1",id:"x",start:40,end:60,src:{job_id:"autre"}}])!==null});
+out.tc_autre_piste=P12(function(){return T.twinClip(PLAN,"a1",
+  [{tr:"a3",id:"x",start:40,end:60,src:{job_id:"a54e"}}])!==null});
+out.tc_bord_a_bord=P12(function(){return T.twinClip(PLAN,"a1",
+  [{tr:"a1",id:"x",start:0,end:28.876,src:{job_id:"a54e"}}])!==null});
+out.tc_sans_src=P12(function(){return T.twinClip({tr:"v1",id:"p",start:0,end:5},"a1",[])});
+out.tc_sans_piste=P12(function(){return T.twinClip(PLAN,"",[])});
+out.tc_id_pris=P12(function(){return T.twinClip(PLAN,"a1",
+  [{tr:"a1",id:"a1u3_0",start:0,end:1,src:{job_id:"z"}}]).id});
+out.tc_id_hors_prefixe=P12(function(){return T.twinClip(
+  {tr:"v1",id:"c4",label:"x",start:0,end:1,src:{job_id:"z"}},"a1",[]).id});
+out.tc_id_absent=P12(function(){return T.twinClip(
+  {tr:"v1",label:"x",start:0,end:1,src:{job_id:"z"}},"a1",[]).id});
+out.tc_clips_null=P12(function(){return T.twinClip(PLAN,"a1",null)!==null});
+/* la decision, et sa phrase */
+var LOCK_A1=function(t){return t==="a1"};
+function TP(v,ts,cs,lk){return P12(function(){
+  var o=T.twinPlan(PLAN,ts||T.DEFAULTS,cs||[],v,lk);
+  return [o.motif,o.clip?o.clip.tr:null,o.note]})}
+out.tp_pose=TP({has_audio:!0,dur:15.973,pourquoi:"mesure"});
+out.tp_muet=TP({has_audio:!1,dur:15.973,pourquoi:"mesure"});
+out.tp_non_sonde=TP({has_audio:!1,dur:0,pourquoi:"delai"});
+/* NON-SONDABLE ≠ MUET : une MESURE sans flux ET sans duree — ffprobe n'a
+   rien pu lire (fichier vide ou illisible : le 0 octet de la sauvegarde de
+   l'utilisateur). Le conjoint est tp_muet, juste au-dessus : le meme
+   verdict avec une duree > 0 reste « muet ». */
+out.tp_non_sondable=TP({has_audio:!1,dur:0,pourquoi:"mesure"});
+/* LES JETONS DE SORTIE SONT TRADUITS avant l'ecran, les quatre. */
+out.tp_pourquoi=["delai","refus","erreur","sans-reseau"].map(function(pq){
+  return TP({has_audio:!1,dur:0,pourquoi:pq})[2]});
+out.tp_sans_verdict=TP(null);
+out.tp_sans_piste=TP({has_audio:!0,dur:1,pourquoi:"mesure"},
+  [{id:"v1",kind:"video"},{id:"s1",kind:"subs"}]);
+out.tp_verrou=TP({has_audio:!0,dur:1,pourquoi:"mesure"},null,[],LOCK_A1);
+out.tp_doublon=TP({has_audio:!0,dur:1,pourquoi:"mesure"},null,
+  [{tr:"a1",id:"x",start:30,end:40,src:{job_id:"a54e"}}]);
+out.tp_0409_vise_a1=TP({has_audio:!0,dur:1,pourquoi:"mesure"},TS_0409);
+/* la duree rendue en prime */
+out.sd=P12(function(){return [T.srcDurOr("video",0,{has_audio:!0,dur:15.973}),
+  T.srcDurOr("video",21.233,{has_audio:!0,dur:15.973}),
+  T.srcDurOr("video",-1,{dur:9}),T.srcDurOr("video",0,{has_audio:!0,dur:0}),
+  T.srcDurOr("video",0,null),T.srcDurOr("image",0,{dur:9})]});
+/* le cache */
+out.ao_inconnu=P12(function(){return T.audioOf({job_id:"jamais"})});
+var circ2={};circ2.self=circ2;
+out.ao_illisible=P12(function(){return T.audioOf(circ2)});
+out.as_ecrit=P12(function(){return T.audioSet({job_id:"c1"},
+  {has_audio:!0,dur:"3.5",pourquoi:"mesure"})});
+out.ao_relu=P12(function(){return T.audioOf({job_id:"c1"})});
+out.ao_copie=P12(function(){var a=T.audioOf({job_id:"c1"});a.has_audio=!1;
+  return T.audioOf({job_id:"c1"}).has_audio});
+out.as_illisible=P12(function(){return T.audioSet(circ2,{has_audio:!0})});
+out.af_oublie=P12(function(){return [T.audioForget({job_id:"c1"}),
+  T.audioOf({job_id:"c1"}),T.audioForget({job_id:"c1"})]});
+/* askAudio, sur le motif d'askDur */
+var aaURL=null,aaAppels=0;
+function FETCHA(rep){return function(u){aaURL=u;aaAppels++;return SYNC(rep)}}
+function AA(src,o){var vus=[];o.done=function(v,pq){vus.push([v,pq])};
+  try{T.askAudio(src,o)}catch(e){vus.push(["LEVE:"+e.name,"LEVE"])}
+  return {n:vus.length,premier:vus[0]||null}}
+aaURL=null;aaAppels=0;
+var b1=AA({job_id:"h1"},{fetch:FETCHA(REP(!0,{ok:!0,has_audio:!0,dur:15.973,
+  name:"k.mp4"})),timer:JAMAIS});
+out.aa_mesure=b1.premier;
+out.aa_une_seule_reponse=b1.n;
+out.aa_url=aaURL;
+out.aa_cache_apres=T.audioOf({job_id:"h1"});
+/* LA SECONDE DEMANDE NE SONDE PAS : sortie « cache », zero appel — et le
+   verdict rendu est celui de la PREMIERE, pas ce que le reseau dirait. */
+aaAppels=0;
+var b1b=AA({job_id:"h1"},{fetch:FETCHA(REP(!0,{ok:!0,has_audio:!1,dur:0})),
+  timer:JAMAIS});
+out.aa_cache=b1b.premier;
+out.aa_cache_zero_appel=aaAppels;
+out.aa_muet=AA({job_id:"h2"},{fetch:FETCHA(REP(!0,{ok:!0,has_audio:!1,dur:4})),
+  timer:JAMAIS}).premier;
+out.aa_sans_champ=AA({job_id:"h3"},{fetch:FETCHA(REP(!0,{ok:!0,dur:4})),
+  timer:JAMAIS}).premier;
+out.aa_http_refuse=AA({job_id:"h4"},{fetch:FETCHA(REP(!1,null)),timer:JAMAIS}).premier;
+out.aa_json_illisible=AA({job_id:"h5"},{fetch:FETCHA(REP(!0,null)),timer:JAMAIS}).premier;
+out.aa_reseau_leve=AA({job_id:"h6"},{fetch:function(){throw new Error("boom")},
+  timer:JAMAIS}).premier;
+out.aa_promesse_rejetee=AA({job_id:"h7"},{fetch:function(){return SYNCERR(new Error("ko"))},
+  timer:JAMAIS}).premier;
+aaAppels=0;out.aa_sans_reseau=AA({job_id:"h8"},{fetch:null,timer:JAMAIS}).premier;
+out.aa_sans_reseau_zero_appel=aaAppels;
+aaAppels=0;
+var b2=AA({job_id:"h9"},{fetch:FETCHA(REP(!0,{ok:!0,has_audio:!0,dur:3})),
+  timer:TOUT_DE_SUITE});
+out.aa_delai_gagne=b2.premier;
+out.aa_delai_une_seule_reponse=b2.n;
+out.aa_delai_la_reponse_est_bien_passee=aaAppels;
+/* TOUTE SORTIE ECRIT LE CACHE — c'est le verrou de recursion de l'ajout */
+out.aa_cache_sur_sorties=[T.audioOf({job_id:"h9"}),T.audioOf({job_id:"h4"}),
+  T.audioOf({job_id:"h6"}),T.audioOf({job_id:"h8"})];
+aaAppels=0;
+var vusC2=[];
+try{T.askAudio(circ2,{fetch:FETCHA(REP(!0,{ok:!0,has_audio:!0,dur:9})),
+  timer:JAMAIS,done:function(v,pq){vusC2.push([v,pq])}})}
+catch(e){vusC2.push(["LEVE:"+e.name,"LEVE"])}
+out.aa_src_illisible=vusC2[0]||null;
+out.aa_src_illisible_zero_appel=aaAppels;
+try{T.askAudio({job_id:"h10"},{fetch:FETCHA(REP(!0,{ok:!0,has_audio:!0,dur:3})),
+  timer:JAMAIS});out.aa_sans_done="ok"}
+catch(e){out.aa_sans_done="LEVE:"+e.name}
+var msVuA=null;
+T.askAudio({job_id:"h11"},{fetch:FETCHA(REP(!0,{ok:!0,has_audio:!0,dur:3})),
+  timer:function(fn,ms){msVuA=ms},delai:"abc",done:JAMAIS});
+out.aa_delai_illisible=msVuA;
+var msVuA2=null;
+T.askAudio({job_id:"h12"},{fetch:FETCHA(REP(!0,{ok:!0,has_audio:!0,dur:3})),
+  timer:function(fn,ms){msVuA2=ms},delai:250,done:JAMAIS});
+out.aa_delai_recu=msVuA2;
+/* extract : le moteur du bouton, avec un `ask` bouchonne et un hote qui
+   ENREGISTRE (pushHistory, setClips, setDirty, note). */
+function EX(sel,o){var J={hist:0,clips:null,dirty:0,notes:[],asks:0};
+  o=o||{};
+  var h={tracks:o.tracks||T.DEFAULTS,clips:function(){return o.clips||[]},
+    locked:o.locked||function(){return !1},
+    pushHistory:function(){J.hist++},setClips:function(c){J.clips=c},
+    setDirty:function(){J.dirty++},note:function(t){J.notes.push(String(t))},
+    ask:o.ask||function(src,oo){J.asks++;oo.done(o.verdict||null,"bouchon")}};
+  var r2;try{r2=T.extract(sel,h)}catch(e){r2="LEVE:"+e.name}
+  return {r:r2,hist:J.hist,n:J.clips?J.clips.length:null,
+    ids:J.clips?J.clips.map(function(c){return c.id}):null,dirty:J.dirty,
+    notes:J.notes,asks:J.asks,
+    jumeau:J.clips&&J.clips.length?J.clips[J.clips.length-1]:null}}
+var V_OUI={has_audio:!0,dur:15.973,pourquoi:"mesure"};
+var V_NON={has_audio:!1,dur:15.973,pourquoi:"mesure"};
+out.ex_pose=EX(PLAN,{clips:[PLAN],verdict:V_OUI});
+out.ex_muet=EX(PLAN,{clips:[PLAN],verdict:V_NON});
+out.ex_non_sonde=EX(PLAN,{clips:[PLAN],verdict:{has_audio:!1,dur:0,pourquoi:"delai"}});
+out.ex_non_sondable=EX(PLAN,{clips:[PLAN],verdict:{has_audio:!1,dur:0,pourquoi:"mesure"}});
+out.ex_sans_verdict=EX(PLAN,{clips:[PLAN],verdict:null});
+out.ex_doublon=EX(PLAN,{clips:[PLAN,{tr:"a1",id:"a1u3_0",start:28.876,end:50.509,
+  src:{job_id:"a54e"}}],verdict:V_OUI});
+out.ex_plan_parti=EX(PLAN,{clips:[],verdict:V_OUI});
+out.ex_sans_piste=EX(PLAN,{clips:[PLAN],verdict:V_OUI,
+  tracks:[{id:"v1",kind:"video"},{id:"s1",kind:"subs"}]});
+out.ex_verrou=EX(PLAN,{clips:[PLAN],verdict:V_OUI,locked:LOCK_A1});
+out.ex_sans_src=EX({tr:"v1",id:"p"},{clips:[],verdict:V_OUI});
+/* UNE IMAGE posee sur une piste video (src:{image}, deux portes du bundle
+   le font) : refus DIT avant toute sonde. */
+out.ex_image=EX({tr:"v1",id:"i",label:"carton.png",src:{image:"carton.png"}},
+  {clips:[],verdict:V_OUI});
+/* LE PLAN A BOUGE entre le clic et la reponse : le jumeau prend les bornes
+   FRAICHES (celles du thunk), pas celles du `sel` fige au clic. */
+var PLAN_BOUGE=Object.assign({},PLAN,{start:10,end:20,srcIn:5});
+out.ex_bouge=EX(PLAN,{clips:[PLAN_BOUGE],verdict:V_OUI});
+var PLAN_V2=Object.assign({},PLAN,{tr:"v2",id:"v2u1_0"});
+out.ex_v2=EX(PLAN_V2,{clips:[PLAN_V2],verdict:V_OUI});
+/* le clic OUBLIE un verdict en cache qui n'est PAS une mesure et redemande ;
+   il GARDE une mesure. */
+T.audioSet({job_id:"e1"},{has_audio:!1,dur:0,pourquoi:"delai"});
+var PL_E1=Object.assign({},PLAN,{src:{job_id:"e1"}});
+var exR=EX(PL_E1,{clips:[PL_E1],ask:function(src,oo){
+  out.ex_oubli_avant_ask=T.audioOf({job_id:"e1"});oo.done(V_OUI,"bouchon")}});
+out.ex_oubli_pose=exR.n;
+T.audioSet({job_id:"e2"},V_NON);
+EX(Object.assign({},PLAN,{src:{job_id:"e2"}}),{clips:[],ask:function(src,oo){
+  out.ex_mesure_gardee=T.audioOf({job_id:"e2"});oo.done(V_NON,"bouchon")}});
+/* le bouton lui-meme */
+out.eb_v1=P12(function(){var b=T.extractBtn(PLAN,{tracks:T.DEFAULTS});
+  return [b.t,b.k,b.p.className,b.p.children,b.p["aria-label"]]});
+out.eb_v2=P12(function(){var b=T.extractBtn(PLAN_V2,{tracks:T.DEFAULTS});
+  return b?b.p.children:null});
+out.eb_sans_piste=P12(function(){var b=T.extractBtn(PLAN,{tracks:[{id:"v1",kind:"video"}]});
+  return b?b.p.children:null});
+out.eb_nuls=P12(function(){return [T.extractBtn({tr:"a1",id:"a",src:{audio:"x"}},{tracks:T.DEFAULTS}),
+  T.extractBtn({tr:"v1",id:"a"},{tracks:T.DEFAULTS}),T.extractBtn(null,{}),
+  T.extractBtn({tr:"v1",id:"i",src:{image:"carton.png"}},{tracks:T.DEFAULTS})]});
+out.eb_titre=P12(function(){return T.extractBtn(PLAN,{tracks:T.DEFAULTS}).p.title});
+out.eb_clic=P12(function(){var J=[];var b=T.extractBtn(PLAN,{tracks:T.DEFAULTS,
+  clips:function(){return [PLAN]},setClips:function(c){J.push(c.length)},
+  pushHistory:function(){},ask:function(s2,oo){oo.done(V_OUI,"b")}});
+  b.p.onClick();return J});
 /* ══ BARRE D'OUTILS — LES DIX TRACES ET LE BOUTON D'ACTION (etapes 2 et 3) ══
    L'ALLER-RETOUR EST LA MESURE. La couche garde les traces en CHAINE — le
    texte du §3, au caractere pres — et les traduit une fois au chargement.
@@ -4907,8 +5367,10 @@ check("js_askdur_un_src_illisible_n_appelle_rien",
 # exige dans la couche LIVREE. Le chiffre honnete est 1, pas 0.
 check("js_askdur_sans_rappel_elle_ne_leve_pas",
       d.get("ad_sans_done") == "ok"
+      # DEUX depuis P12 : askAudio reprend le motif d'askDur ligne pour
+      # ligne, ce repli compris (js_askaudio_sans_rappel_elle_ne_leve_pas).
       and src.count('var fin=typeof o.done==="function"?o.done:function(){};')
-      == 1,
+      == 2,
       f'{d.get("ad_sans_done")!r} repli={src.count("var fin=typeof o.done")}')
 # L'URL EST CELLE DE LA ROUTE, et le `src` y voyage en JSON encode. La ligne
 # de banc du backend (`test_montage_media.py`, section [7]) mesure l'AUTRE
@@ -4924,6 +5386,397 @@ check("js_askdur_le_delai_par_defaut_est_celui_de_la_couche",
 check("js_askdur_un_delai_illisible_retombe_sur_le_defaut",
       d.get("ad_delai_illisible") == 1500 and d.get("ad_delai_recu") == 250,
       f'illisible={d.get("ad_delai_illisible")} recu={d.get("ad_delai_recu")}')
+
+# ── P12 : le son d'un plan suit sa video — le cœur pur, sous node ─────────
+# LA PISTE DE DIALOGUE. `dt_0409_pick == "a2"` est LA MESURE qui motive la
+# fonction : sur les pistes de la sauvegarde du 04/09, pickTrack rend la
+# MUSIQUE (bouclee, duckee). Le conjoint est dialogueTrack qui rend a1 sur la
+# meme liste — les deux ne peuvent pas etre vrais sur une fonction qui
+# recopierait pickTrack.
+check("js_dialogue_vise_le_bus_dialogue_et_non_la_premiere_piste_audio",
+      d.get("dt_0409") == "a1" and d.get("dt_0409_pick") == "a2"
+      and d.get("dt_defauts") == "a1",
+      f'dialogue={d.get("dt_0409")!r} pickTrack={d.get("dt_0409_pick")!r} '
+      f'defauts={d.get("dt_defauts")!r}')
+check("js_dialogue_le_bus_prime_sur_l_identifiant",
+      d.get("dt_bus_ailleurs") == "a4", repr(d.get("dt_bus_ailleurs")))
+check("js_dialogue_a1_par_identifiant_quand_aucun_bus_ne_le_dit",
+      d.get("dt_a1_sans_bus") == "a1", repr(d.get("dt_a1_sans_bus")))
+# JAMAIS UNE PISTE BOUCLEE — ni par le bus, ni par l'identifiant. Le conjoint
+# (`dt_a1_sans_bus == "a1"`) empeche cette negation d'etre vraie sur une
+# fonction qui rendrait "" partout.
+check("js_dialogue_jamais_une_piste_bouclee",
+      d.get("dt_a1_bouclee") == "" and d.get("dt_a1_sans_bus") == "a1",
+      f'bouclee={d.get("dt_a1_bouclee")!r} a1={d.get("dt_a1_sans_bus")!r}')
+check("js_dialogue_etats_vides_rendent_une_chaine_vide",
+      d.get("dt_vide") == "" and d.get("dt_null") == ""
+      and d.get("dt_sans_audio") == "" and d.get("dt_a1_video") == ""
+      and d.get("dt_defauts") == "a1",
+      f'vide={d.get("dt_vide")!r} null={d.get("dt_null")!r} '
+      f'sans_audio={d.get("dt_sans_audio")!r} a1_video={d.get("dt_a1_video")!r}')
+# PLEIN CADRE OU INCRUSTATION : V1 (type « vidéo ») recoit un jumeau ; la V2
+# historique (« overlay/VFX ») et toute piste neuve de dzmAdd (« overlay »)
+# non ; une piste sans type (payload nu) compte comme plein cadre ; une piste
+# vidéo neuve typee « vidéo » (tache 20) en recoit un.
+check("js_plein_v1_oui_v2_et_pistes_neuves_non",
+      d.get("tp_v1") is True and d.get("tp_v2") is False
+      and d.get("tp_v3_neuve") is False and d.get("tp_v1_nue") is True
+      and d.get("tp_video_plein_neuve") is True,
+      f'v1={d.get("tp_v1")} v2={d.get("tp_v2")} v3={d.get("tp_v3_neuve")} '
+      f'nue={d.get("tp_v1_nue")} neuve_video={d.get("tp_video_plein_neuve")}')
+# LA LISTE NUE ET SON HABILLAGE (tour 2) : le payload d'une sauvegarde nomme
+# v2 SANS type, et une liste nue rend VRAI pour v2 — ce qui tient l'exemption
+# des incrustations est svmTracksFrom (dzmSkin a l'apply : v3 « overlay »,
+# v2 « overlay/VFX », v1 « vidéo »), mesure ici cote a cote, et non
+# trackPlein seule.
+check("js_plein_une_liste_nue_rend_vrai_pour_v2_et_svmTracksFrom_l_habille",
+      d.get("tp_user_v2_nue") is True and d.get("tp_from_v2") is False
+      and d.get("wt_user_v2") == [True, False]
+      and d.get("tp_from_types") == [["v3", "overlay"], ["v2", "overlay/VFX"],
+                                     ["v1", "vidéo"]],
+      f'nue={d.get("tp_user_v2_nue")} habillee={d.get("tp_from_v2")} '
+      f'wantsTwin={d.get("wt_user_v2")} types={d.get("tp_from_types")}')
+# L'INCRUSTATION DITE : la phrase nomme la piste et la cible, "" partout ou
+# il n'y a rien a dire — sept etats, dont deux vides (conjoints de la phrase).
+check("js_overlayNote_dit_l_incrustation_et_se_tait_ailleurs",
+      d.get("on_v2") == " Posé sur V2 (incrustation) : le son de ce plan n'a "
+      "PAS été extrait — sélectionnez-le puis « Extraire le son → A1 » dans "
+      "l'inspecteur."
+      and str(d.get("on_v2_sans_dialogue", "")).endswith(
+          "« Extraire le son » dans l'inspecteur.")
+      and d.get("on_rien") == [""] * 7,
+      f'{repr(d.get("on_v2"))[:120]} '
+      f'sans_dialogue={repr(d.get("on_v2_sans_dialogue"))[-60:]} '
+      f'rien={d.get("on_rien")}')
+check("js_plein_etats_vides_et_autres_genres_rendent_faux",
+      d.get("tp_a1") is False and d.get("tp_absente") is False
+      and d.get("tp_vide") is False and d.get("tp_v1") is True,
+      f'a1={d.get("tp_a1")} absente={d.get("tp_absente")} vide={d.get("tp_vide")}')
+check("js_wantsTwin_video_sur_plein_cadre_seulement",
+      d.get("wt") == [True, False, False, False], repr(d.get("wt")))
+# LES IDENTIFIANTS. `uniqueId` : libre tel quel, sinon _2, _3 (le plus petit
+# n libre, a partir de 2).
+check("js_uniqueId_libre_tel_quel_sinon_suffixe_minimal",
+      d.get("ui_libre") == "v1u4_0" and d.get("ui_pris") == "v1u1_0_2"
+      and d.get("ui_pris_2") == "v1u1_0_3" and d.get("ui_vide") == ["x", "x"],
+      f'{d.get("ui_libre")!r} {d.get("ui_pris")!r} {d.get("ui_pris_2")!r} '
+      f'{d.get("ui_vide")!r}')
+# `dedupeIds` sur les DOUBLONS REELS de la sauvegarde de l'utilisateur
+# (lecture seule, 06/09/2026) : le PREMIER garde son id — le meme objet, pas
+# une copie — les suivants sont renommes, l'entree n'est pas mutee.
+check("js_dedupe_le_premier_garde_son_id_les_suivants_sont_renommes",
+      d.get("dd_ids") == ["a1_vo", "v1u1_0", "v1u2_0", "v1u3_0", "v1u1_0_2",
+                          "v1u2_0_2", "s1cmtpobgr366"]
+      and d.get("dd_renamed") == [{"de": "v1u1_0", "en": "v1u1_0_2"},
+                                  {"de": "v1u2_0", "en": "v1u2_0_2"}]
+      and d.get("dd_premier_garde") is True,
+      f'{d.get("dd_ids")} {d.get("dd_renamed")} premier={d.get("dd_premier_garde")}')
+check("js_dedupe_ne_mute_pas_l_entree",
+      d.get("dd_entree_intacte") == ["a1_vo", "v1u1_0", "v1u2_0", "v1u3_0",
+                                     "v1u1_0", "v1u2_0", "s1cmtpobgr366"]
+      and d.get("dd_renamed") not in (None, "LEVE", []),
+      f'{d.get("dd_entree_intacte")}')
+# UN SUFFIXE DEJA PRIS PLUS LOIN dans le tableau n'est pas repris : k, k_2, k
+# donne k_3, pas un second k_2.
+check("js_dedupe_ne_reprend_pas_un_suffixe_deja_porte_plus_loin",
+      d.get("dd_suffixe_deja_pris") == ["k", "k_2", "k_3"],
+      repr(d.get("dd_suffixe_deja_pris")))
+check("js_dedupe_etats_vides_sans_id_et_sans_doublon",
+      d.get("dd_sans_id") == ["k", "ABSENT", "k_2"]
+      and d.get("dd_sans_doublon") == [["a", "b"], 0]
+      and d.get("dd_vide") == [0, 0],
+      f'{d.get("dd_sans_id")} {d.get("dd_sans_doublon")} {d.get("dd_vide")}')
+check("js_seqMax_le_plus_grand_u_n_rencontre_zero_sinon",
+      d.get("sm") == [3, 0, 0, 12], repr(d.get("sm")))
+# LE JUMEAU du kapwing_sample de l'utilisateur, tel qu'il est sur V1 :
+# meme source (le MEME objet), memes bornes, meme point d'entree, sur a1,
+# libelle « … · son du plan » (celui de la construction automatique),
+# identifiant a1u3_0 (le prefixe de piste echange).
+check("js_twin_le_jumeau_est_la_copie_sonore_du_plan",
+      d.get("tc_jumeau") == {"tr": "a1", "id": "a1u3_0",
+                             "label": "kapwing_sample · son du plan",
+                             "start": 28.876, "end": 50.509,
+                             "src": {"job_id": "a54e"}, "srcIn": 0}
+      and d.get("tc_meme_src") is True and d.get("tc_srcin") == 2,
+      f'{d.get("tc_jumeau")} meme_src={d.get("tc_meme_src")} '
+      f'srcIn={d.get("tc_srcin")}')
+# LE REFUS DU DOUBLON : meme source, meme piste, plage qui CHEVAUCHE — y
+# compris avec les cles de `src` dans un autre ordre (JSON des cles triees).
+# Les trois conjoints (autre source, autre piste, bord a bord) empechent ces
+# deux negations d'etre vraies sur un twinClip qui rendrait null partout.
+check("js_twin_null_si_le_son_est_deja_la",
+      d.get("tc_doublon_chevauche") is None
+      and d.get("tc_doublon_cles_ordre") is None
+      and d.get("tc_autre_src") is True and d.get("tc_autre_piste") is True
+      and d.get("tc_bord_a_bord") is True,
+      f'chevauche={d.get("tc_doublon_chevauche")} '
+      f'cles={d.get("tc_doublon_cles_ordre")} autre_src={d.get("tc_autre_src")} '
+      f'autre_piste={d.get("tc_autre_piste")} bord={d.get("tc_bord_a_bord")}')
+check("js_twin_etats_vides_rendent_null",
+      d.get("tc_sans_src") is None and d.get("tc_sans_piste") is None
+      and d.get("tc_clips_null") is True,
+      f'sans_src={d.get("tc_sans_src")} sans_piste={d.get("tc_sans_piste")} '
+      f'clips_null={d.get("tc_clips_null")}')
+check("js_twin_l_identifiant_est_unique_et_lisible",
+      d.get("tc_id_pris") == "a1u3_0_2" and d.get("tc_id_hors_prefixe") == "a1_c4"
+      and d.get("tc_id_absent") == "a1_son",
+      f'{d.get("tc_id_pris")!r} {d.get("tc_id_hors_prefixe")!r} '
+      f'{d.get("tc_id_absent")!r}')
+# LA DECISION, chaque sortie NOMMEE et DITE.
+def _tp(k):
+    v = d.get(k)
+    return v if isinstance(v, list) and len(v) == 3 else ["ABSENT:%r" % (v,), None, ""]
+
+
+check("js_twinPlan_pose_sur_a1_et_dit_qu_annuler_retire_les_deux",
+      _tp("tp_pose")[0] == "pose" and _tp("tp_pose")[1] == "a1"
+      and "Son du plan extrait sur A1" in _tp("tp_pose")[2]
+      and "retire les DEUX clips" in _tp("tp_pose")[2],
+      repr(_tp("tp_pose"))[:220])
+check("js_twinPlan_muet_est_DIT",
+      _tp("tp_muet")[0] == "muet" and _tp("tp_muet")[1] is None
+      and "n'a pas de piste audio" in _tp("tp_muet")[2],
+      repr(_tp("tp_muet"))[:200])
+check("js_twinPlan_non_sonde_est_DIT_avec_sa_raison",
+      _tp("tp_non_sonde")[0] == "non-sonde"
+      and "(délai dépassé)" in _tp("tp_non_sonde")[2]
+      and _tp("tp_sans_verdict")[0] == "non-sonde"
+      and "Extraire le son" in _tp("tp_sans_verdict")[2],
+      f'{_tp("tp_non_sonde")!r} {_tp("tp_sans_verdict")!r}'[:300])
+# NON-SONDABLE N'EST PAS DIT MUET : une MESURE sans flux ET sans duree (le
+# fichier de 0 octet de la sauvegarde de l'utilisateur) sort nommee a part,
+# avec sa phrase, et JAMAIS « n'a pas de piste audio ». Le conjoint est
+# tp_muet (meme verdict, duree 15,973) qui reste « muet » — une fonction qui
+# dirait « non-sondable » a tout `has_audio:false` ne passe pas.
+check("js_twinPlan_non_sondable_n_est_pas_dit_muet",
+      _tp("tp_non_sondable")[0] == "non-sondable"
+      and _tp("tp_non_sondable")[1] is None
+      and "n'a pas pu être sondée" in _tp("tp_non_sondable")[2]
+      and "fichier vide ou illisible" in _tp("tp_non_sondable")[2]
+      and "n'a pas de piste audio" not in _tp("tp_non_sondable")[2]
+      and _tp("tp_muet")[0] == "muet",
+      f'{_tp("tp_non_sondable")!r} muet={_tp("tp_muet")[0]!r}'[:300])
+# LES JETONS SONT TRADUITS : aucune note ne montre « (delai) », « (refus) »,
+# « (erreur) », « (sans-reseau) » tels quels ; chacune porte sa phrase.
+_pq = d.get("tp_pourquoi") if isinstance(d.get("tp_pourquoi"), list) else []
+check("js_twinPlan_les_jetons_de_la_sonde_sont_traduits",
+      len(_pq) == 4
+      and all(isinstance(t, str) and "(" + tok + ")" not in t and mot in t
+              for t, tok, mot in zip(_pq, ("delai", "refus", "erreur",
+                                            "sans-reseau"),
+                                     ("(délai dépassé)", "(le serveur a refusé)",
+                                      "(erreur réseau)", "(hors ligne)"))),
+      repr(_pq)[:400])
+check("js_twinPlan_sans_piste_de_dialogue_dit_plus_piste_audio",
+      _tp("tp_sans_piste")[0] == "sans-piste" and _tp("tp_sans_piste")[1] is None
+      and "« + piste audio »" in _tp("tp_sans_piste")[2],
+      repr(_tp("tp_sans_piste"))[:200])
+check("js_twinPlan_verrou_et_doublon_sont_DITS",
+      _tp("tp_verrou")[0] == "verrou" and "A1 verrouillée" in _tp("tp_verrou")[2]
+      and _tp("tp_doublon")[0] == "doublon"
+      and "déjà présent sur A1" in _tp("tp_doublon")[2],
+      f'{_tp("tp_verrou")!r} {_tp("tp_doublon")!r}'[:300])
+check("js_twinPlan_vise_a1_sur_les_pistes_du_04_09",
+      _tp("tp_0409_vise_a1")[0] == "pose" and _tp("tp_0409_vise_a1")[1] == "a1",
+      repr(_tp("tp_0409_vise_a1"))[:120])
+# LA DUREE EN PRIME : prise quand elle manque, jamais quand on la connait,
+# jamais sur le verrou negatif d'askDur, jamais pour une image.
+check("js_srcDurOr_prend_la_duree_de_la_sonde_seulement_quand_elle_manque",
+      d.get("sd") == [15.973, 21.233, -1, 0, 0, 0], repr(d.get("sd")))
+# LE CACHE. Une source inconnue rend null (la question doit etre posee) ; une
+# source illisible rend un verdict tout fait (elle ne peut pas l'etre).
+check("js_audioOf_inconnu_null_illisible_verdict_tout_fait",
+      d.get("ao_inconnu") is None
+      and d.get("ao_illisible") == {"has_audio": False, "dur": 0,
+                                    "pourquoi": "src-illisible"},
+      f'inconnu={d.get("ao_inconnu")} illisible={d.get("ao_illisible")}')
+check("js_audioSet_normalise_et_audioOf_relit_une_copie",
+      d.get("as_ecrit") == {"has_audio": True, "dur": 3.5, "pourquoi": "mesure"}
+      and d.get("ao_relu") == {"has_audio": True, "dur": 3.5, "pourquoi": "mesure"}
+      and d.get("ao_copie") is True and d.get("as_illisible") is None,
+      f'{d.get("as_ecrit")} {d.get("ao_relu")} copie={d.get("ao_copie")} '
+      f'illisible={d.get("as_illisible")}')
+check("js_audioForget_oublie_une_fois",
+      d.get("af_oublie") == [True, None, False], repr(d.get("af_oublie")))
+# askAudio, LE MOTIF D'askDur : `done` UNE fois, sortie nommee, url de la
+# route, cache ecrit avant `done` sur TOUTE sortie.
+def _aa(k):
+    v = d.get(k)
+    return v if isinstance(v, list) and len(v) == 2 else ["ABSENT:%r" % (v,),
+                                                          "ABSENT"]
+
+
+check("js_askaudio_la_mesure_revient_telle_quelle",
+      _aa("aa_mesure") == [{"has_audio": True, "dur": 15.973,
+                            "pourquoi": "mesure"}, "mesure"]
+      and d.get("aa_une_seule_reponse") == 1,
+      f'{_aa("aa_mesure")!r} n={d.get("aa_une_seule_reponse")!r}')
+check("js_askaudio_l_url_est_celle_de_la_route",
+      isinstance(d.get("aa_url"), str)
+      and d["aa_url"] == "/api/montage/has-audio?src=" + urllib.parse.quote(
+          '{"job_id":"h1"}', safe=""),
+      repr(d.get("aa_url")))
+# UN MEME FICHIER N'EST SONDE QU'UNE FOIS : la seconde demande sort « cache »
+# avec le PREMIER verdict, sans un appel — le fetch de la seconde disait le
+# contraire, et n'a pas ete lu.
+check("js_askaudio_une_source_deja_sondee_repond_du_cache_sans_appel",
+      d.get("aa_cache_apres") == {"has_audio": True, "dur": 15.973,
+                                  "pourquoi": "mesure"}
+      and _aa("aa_cache") == [{"has_audio": True, "dur": 15.973,
+                               "pourquoi": "mesure"}, "cache"]
+      and d.get("aa_cache_zero_appel") == 0,
+      f'apres={d.get("aa_cache_apres")} cache={_aa("aa_cache")!r} '
+      f'appels={d.get("aa_cache_zero_appel")}')
+for _lbl, _k, _att in (
+        ("muet_mesure", "aa_muet",
+         [{"has_audio": False, "dur": 4, "pourquoi": "mesure"}, "mesure"]),
+        ("un_corps_sans_le_champ_est_un_refus", "aa_sans_champ",
+         [{"has_audio": False, "dur": 0, "pourquoi": "refus"}, "refus"]),
+        ("un_refus_http_ne_ment_pas", "aa_http_refuse",
+         [{"has_audio": False, "dur": 0, "pourquoi": "refus"}, "refus"]),
+        ("un_corps_illisible_ne_ment_pas", "aa_json_illisible",
+         [{"has_audio": False, "dur": 0, "pourquoi": "refus"}, "refus"]),
+        ("un_reseau_qui_leve_ne_tue_rien", "aa_reseau_leve",
+         [{"has_audio": False, "dur": 0, "pourquoi": "erreur"}, "erreur"]),
+        ("une_promesse_rejetee_ne_tue_rien", "aa_promesse_rejetee",
+         [{"has_audio": False, "dur": 0, "pourquoi": "erreur"}, "erreur"]),
+        ("sans_fetch_la_sortie_est_nommee", "aa_sans_reseau",
+         [{"has_audio": False, "dur": 0, "pourquoi": "sans-reseau"},
+          "sans-reseau"]),
+        ("le_delai_gagne_la_course", "aa_delai_gagne",
+         [{"has_audio": False, "dur": 0, "pourquoi": "delai"}, "delai"]),
+        ("un_src_illisible_sort_nomme", "aa_src_illisible",
+         [{"has_audio": False, "dur": 0, "pourquoi": "src-illisible"},
+          "src-illisible"])):
+    check("js_askaudio_" + _lbl, _aa(_k) == _att, repr(_aa(_k)))
+check("js_askaudio_la_reponse_tardive_ne_fait_rien",
+      d.get("aa_delai_une_seule_reponse") == 1
+      and d.get("aa_delai_la_reponse_est_bien_passee") == 1,
+      f'reponses={d.get("aa_delai_une_seule_reponse")} '
+      f'appels={d.get("aa_delai_la_reponse_est_bien_passee")}')
+check("js_askaudio_sans_fetch_et_sans_src_aucun_appel",
+      d.get("aa_sans_reseau_zero_appel") == 0
+      and d.get("aa_src_illisible_zero_appel") == 0
+      and _aa("aa_sans_reseau")[1] == "sans-reseau"
+      and _aa("aa_src_illisible")[1] == "src-illisible",
+      f'sans_reseau={d.get("aa_sans_reseau_zero_appel")} '
+      f'illisible={d.get("aa_src_illisible_zero_appel")}')
+# LE VERROU : TOUTE sortie ecrit le cache — delai, refus, erreur, sans-reseau
+# — avec sa raison. C'est ce qui rend le rappel d'addAsset non recursif, et
+# ce que [3-bis] reproduit en supprimant l'ecriture.
+check("js_askaudio_toute_sortie_ecrit_le_cache_avec_sa_raison",
+      d.get("aa_cache_sur_sorties") == [
+          {"has_audio": False, "dur": 0, "pourquoi": "delai"},
+          {"has_audio": False, "dur": 0, "pourquoi": "refus"},
+          {"has_audio": False, "dur": 0, "pourquoi": "erreur"},
+          {"has_audio": False, "dur": 0, "pourquoi": "sans-reseau"}],
+      repr(d.get("aa_cache_sur_sorties")))
+check("js_askaudio_sans_rappel_elle_ne_leve_pas",
+      d.get("aa_sans_done") == "ok", repr(d.get("aa_sans_done")))
+check("js_askaudio_le_delai_est_celui_de_la_couche",
+      d.get("aa_delai_illisible") == 1500 and d.get("aa_delai_recu") == 250,
+      f'illisible={d.get("aa_delai_illisible")} recu={d.get("aa_delai_recu")}')
+# extract — LE MOTEUR DU BOUTON. Un seul historique, un seul concat, le
+# jumeau derriere le plan, le drapeau, la note qui nomme piste et libelle.
+def _ex(k):
+    v = d.get(k)
+    return v if isinstance(v, dict) else {"r": "ABSENT:%r" % (v,), "notes": []}
+
+
+check("js_extract_pose_le_jumeau_en_un_geste",
+      _ex("ex_pose").get("r") is True and _ex("ex_pose").get("hist") == 1
+      and _ex("ex_pose").get("ids") == ["v1u3_0", "a1u3_0"]
+      and _ex("ex_pose").get("dirty") == 1 and _ex("ex_pose").get("asks") == 1
+      and len(_ex("ex_pose").get("notes") or []) == 1
+      and "Son de « kapwing_sample » extrait sur A1" in _ex("ex_pose")["notes"][0]
+      and "« Annuler »" in _ex("ex_pose")["notes"][0],
+      repr(_ex("ex_pose"))[:300])
+# LES REFUS APRES LA SONDE : rien d'ecrit (hist 0, clips null), note DITE. Le
+# conjoint de chacune de ces negations est `ex_pose` juste au-dessus.
+for _lbl, _k, _mot in (("muet", "ex_muet", "n'a pas de piste audio"),
+                       ("non_sonde", "ex_non_sonde",
+                        "n'a pas abouti (délai dépassé)"),
+                       ("non_sondable", "ex_non_sondable",
+                        "n'a pas pu être sondé (aucune durée mesurable"),
+                       ("sans_verdict", "ex_sans_verdict", "n'a pas abouti"),
+                       ("doublon", "ex_doublon", "est déjà sur A1"),
+                       ("plan_parti", "ex_plan_parti",
+                        "n'est plus dans la timeline")):
+    check("js_extract_refus_" + _lbl + "_est_DIT_et_rien_n_est_ecrit",
+          _ex(_k).get("r") is True and _ex(_k).get("hist") == 0
+          and _ex(_k).get("n") is None and _ex(_k).get("asks") == 1
+          and len(_ex(_k).get("notes") or []) == 1
+          and _mot in _ex(_k)["notes"][0]
+          and _ex("ex_pose").get("hist") == 1,
+          repr(_ex(_k))[:260])
+# LES REFUS AVANT LA SONDE : aucune demande n'est faite (asks 0).
+for _lbl, _k, _mot in (("sans_piste_de_dialogue", "ex_sans_piste",
+                        "« + piste audio »"),
+                       ("piste_verrouillee", "ex_verrou", "A1 verrouillée"),
+                       ("sans_source", "ex_sans_src", "rien à extraire"),
+                       ("image", "ex_image", "est une image")):
+    check("js_extract_refus_" + _lbl + "_avant_toute_sonde",
+          _ex(_k).get("r") is False and _ex(_k).get("asks") == 0
+          and _ex(_k).get("hist") == 0
+          and len(_ex(_k).get("notes") or []) == 1
+          and _mot in _ex(_k)["notes"][0]
+          and _ex("ex_pose").get("asks") == 1,
+          repr(_ex(_k))[:260])
+# NON-SONDABLE N'EST PAS DIT MUET ici non plus : la phrase du 0 octet ne
+# contient pas celle du plan muet, et le conjoint ex_muet la contient.
+check("js_extract_non_sondable_n_est_pas_dit_muet",
+      "n'a pas de piste audio" not in (_ex("ex_non_sondable").get("notes") or [""])[0]
+      and "fichier vide ou illisible" in (_ex("ex_non_sondable").get("notes") or [""])[0]
+      and "n'a pas de piste audio" in (_ex("ex_muet").get("notes") or [""])[0],
+      f'{_ex("ex_non_sondable").get("notes")!r} {_ex("ex_muet").get("notes")!r}'[:300])
+# LE CLIP EST RELU AU MOMENT DE LA REPONSE : deplace entre le clic et la
+# sonde (28,876→50,509 au clic, 10→20 avec srcIn 5 a la reponse), le jumeau
+# prend les bornes FRAICHES. Le conjoint est ex_pose, dont le jumeau garde
+# celles du clic parce que le plan n'a pas bouge.
+check("js_extract_relit_le_clip_frais_a_la_reponse",
+      _ex("ex_bouge").get("jumeau") == {"tr": "a1", "id": "a1u3_0",
+                                        "label": "kapwing_sample · son du plan",
+                                        "start": 10, "end": 20,
+                                        "src": {"job_id": "a54e"}, "srcIn": 5}
+      and (_ex("ex_pose").get("jumeau") or {}).get("start") == 28.876,
+      f'{_ex("ex_bouge").get("jumeau")} pose={_ex("ex_pose").get("jumeau")}')
+# V2 AUSSI : le bouton vaut pour tout clip video a source, pas pour V1 seule.
+check("js_extract_vaut_pour_une_incrustation_aussi",
+      _ex("ex_v2").get("ids") == ["v2u1_0", "a1u1_0"] and _ex("ex_v2").get("hist") == 1,
+      repr(_ex("ex_v2"))[:200])
+# UN CLIC EST UN GESTE : un verdict en cache qui n'est PAS une mesure est
+# oublie avant de redemander (null au moment de l'`ask`), et la pose suit ;
+# une MESURE en cache est gardee.
+check("js_extract_oublie_un_verdict_non_mesure_et_garde_une_mesure",
+      d.get("ex_oubli_avant_ask") is None and d.get("ex_oubli_pose") == 2
+      and d.get("ex_mesure_gardee") == {"has_audio": False, "dur": 15.973,
+                                        "pourquoi": "mesure"},
+      f'avant={d.get("ex_oubli_avant_ask")} pose={d.get("ex_oubli_pose")} '
+      f'gardee={d.get("ex_mesure_gardee")}')
+# LE BOUTON : un `button` a cle, classe, libelle qui nomme la piste,
+# aria-label, titre qui dit le refus et l'annulation ; null hors d'un clip
+# video a source.
+check("js_extractBtn_nomme_la_piste_visee",
+      d.get("eb_v1") == ["button", "dzmextr", "svm-secbtn dzm-extract",
+                         "Extraire le son → A1",
+                         "Extraire le son de kapwing_sample vers A1"]
+      and d.get("eb_v2") == "Extraire le son → A1",
+      f'{d.get("eb_v1")} v2={d.get("eb_v2")!r}')
+check("js_extractBtn_sans_piste_de_dialogue_le_dit",
+      d.get("eb_sans_piste") == "Extraire le son (aucune piste de dialogue)",
+      repr(d.get("eb_sans_piste")))
+# … ni pour une IMAGE posee sur une piste video (src:{image}) : la quatrieme.
+check("js_extractBtn_null_hors_d_un_clip_video_a_source",
+      d.get("eb_nuls") == [None, None, None, None] and d.get("eb_v2") is not None,
+      repr(d.get("eb_nuls")))
+check("js_extractBtn_le_titre_dit_le_refus_et_l_annulation",
+      isinstance(d.get("eb_titre"), str)
+      and "n'a pas de piste audio" in d["eb_titre"]
+      and "déjà sur A1" in d["eb_titre"] and "« Annuler »" in d["eb_titre"]
+      and "sort muet" in d["eb_titre"],
+      repr(d.get("eb_titre"))[:240])
+check("js_extractBtn_le_clic_appelle_le_moteur",
+      d.get("eb_clic") == [2], repr(d.get("eb_clic")))
 
 print("\n[3-bis] LE CABLAGE DE L'ECRAN, EXECUTE — addAsset, nudge, le "
       "glisser, le reglage")
@@ -5025,6 +5878,11 @@ _CLIPDOWN = _bloc("svmEdgeAt+clipDown", "function svmEdgeAt(clientX,cRect){",
 # l'appel entier `DzTracks.durCtl({…})` et on l'enveloppe dans une fonction
 # dont les parametres portent EXACTEMENT les noms libres qu'il lit. La
 # virgule de queue est retiree — c'est celle de la liste d'enfants du JSX.
+# P12 — `svmApplyProject`, la tranche ENTIERE, de sa signature a l'effet
+# de montage qui la suit (le premier `x.useEffect(function(){var alive=!0;`
+# APRES elle — neuf dans le bundle, `_bloc` prend le premier qui suit).
+_APPLY = _bloc("svmApplyProject", "  function svmApplyProject(d){",
+               "  x.useEffect(function(){var alive=!0;")
 _DURCTL = _bloc("durCtl", "DzTracks.durCtl({dur:dur,",
                 "/* rappels permanents").rstrip().rstrip(",")
 check("cablage_extrait_du_bundle_livre", _cabManque == [],
@@ -5059,14 +5917,14 @@ _ENV = r"""
 function ECRAN(o){
   o=o||{};
   var J={proj:[],clips:[],sel:[],dirty:0,notes:[],pick:[],hist:0,snapT:[],
-         arm:[],attente:[]};
+         arm:[],attente:[],dirtyV:[]};
   var proj={dur:Number(o.dur)||16,demo:!1,mixDb:{}};
   var durRef={current:proj.dur};
   var clipsRef={current:(o.clips||[]).slice()};
   var phRef={current:Number(o.ph)||0};
   var mixRef={current:{}};
   var selRef={current:o.sel||null};
-  var ovSeq={current:0};
+  var ovSeq={current:Number(o.seq)||0};
   var nudgeHistAt={current:0};
   var ovKeysOffRef={current:!1};
   var dzReadyRef={current:o.pasPrete?!1:!0};
@@ -5074,11 +5932,15 @@ function ECRAN(o){
   var trackStRef={current:o.verrous||{}};
   var dzmReplaceRef={current:o.remplace||null};
   var ripple=!!o.ripple,snap=!!o.snap;
-  function setProj(fn){proj=fn(proj);durRef.current=proj.dur;
-    J.proj.push(proj.dur)}
+  /* P12 — svmApplyProject ecrit un OBJET, addAsset une fonction : les
+     deux formes du setter de React. */
+  function setProj(fn){proj=typeof fn==="function"?fn(proj):fn;
+    durRef.current=proj.dur;J.proj.push(proj.dur)}
   function setClips(cs){clipsRef.current=cs;J.clips.push(cs.length)}
   function setSelId(id){selRef.current=id;J.sel.push(id)}
-  function setDirty(v){J.dirty++}
+  /* P12 (tour 2) — la VALEUR passee a setDirty est journalisee : c'est
+     elle qui arme ou desarme l'autosauvegarde du bundle. */
+  function setDirty(v){J.dirty++;J.dirtyV.push(!!v)}
   function setOvPick(v){J.pick.push(v)}
   function setSnapT(v){J.snapT.push(v)}
   function setDzmArm(v){J.arm.push(v)}
@@ -5086,12 +5948,26 @@ function ECRAN(o){
   function pushHistory(h){J.hist++}
   function dzAddWhenReady(a,b,c,e,f,g,h){J.attente.push([b,c,e,f,g])}
   function svmKeyLabel(k){return "["+k+"]"}
+  /* P12 — l'hote de svmApplyProject : ce qu'elle ecrit est journalise,
+     l'historique est une ref comme dans le bundle. `SVM_DEMO_MIX` est
+     le repli du mixage ; `localStorage` n'existe pas sous node et le
+     bundle l'enveloppe deja d'un try. */
+  var histRef={current:{u:[],r:[]}},SVM_DEMO_MIX={};
+  J.ph=[];J.apply=[];J.saveInfo=[];
+  function setPh(v){J.ph.push(v)}
+  function setHistTick(f){}
+  function setDurMaster(v){}
+  function setDucking(v){}
+  function setSaveInfo(v){J.saveInfo.push(v)}
   __KBSEL__
   __ADD__
   var KB={__NUDGE__};
   __CLIPDOWN__
   function DURCTL(dur,tickStep,clips){return __DURCTL__}
+  __APPLY__
   return {addAsset:addAsset,nudge:KB.nudge,clipDown:clipDown,durCtl:DURCTL,
+    seq:function(){return ovSeq.current},apply:svmApplyProject,
+    projet:function(){return proj},
     J:J,etat:function(){return {dur:proj.dur,clips:clipsRef.current,
       sel:selRef.current}}}}
 /* Un element de DOM juste assez reel pour un glisser : un rectangle, une
@@ -5130,27 +6006,120 @@ var out={};
    decide, l'argument transmis, le rappel qui repose le clip. */
 var vraiAsk=window.DzTracks.askDur,askVus=[];
 window.DzTracks.askDur=function(sr,op){askVus.push([sr,op])};
-/* ── LE CAS DE L'UTILISATEUR, JOUE PAR L'ECRAN ───────────────────────────── */
+/* P12 — `askAudio` EST BOUCHONNEE DE LA MEME FACON, et pour la meme raison :
+   la vraie irait chercher `fetch` chez node (URL relative -> rejet) et
+   repondrait en micro-tache, APRES les lectures synchrones de cette sonde.
+   Le bouchon ENREGISTRE ; `REPOND` joue la reponse comme la vraie l'aurait
+   fait — le cache ECRIT, puis `done`. `REPOND_SANS_CACHE` joue la reponse
+   SANS l'ecriture : c'est la mutation qui prouve que le verrou de recursion
+   est bien le cache, et rien d'autre. */
+var vraiAu=window.DzTracks.askAudio,auVus=[];
+window.DzTracks.askAudio=function(sr,op){auVus.push([sr,op])};
+function REPOND(v){var c=auVus[auVus.length-1];if(!c)return !1;
+  window.DzTracks.audioSet(c[0],v);c[1].done(window.DzTracks.audioOf(c[0]),"bouchon");return !0}
+function REPOND_SANS_CACHE(v){var c=auVus[auVus.length-1];if(!c)return !1;
+  c[1].done(v,"bouchon");return !0}
+var OUI={has_audio:!0,dur:21.233,pourquoi:"mesure"};
+var NON={has_audio:!1,dur:21.233,pourquoi:"mesure"};
+/* ── LE CAS DE L'UTILISATEUR, JOUE PAR L'ECRAN — ET SON JUMEAU (P12) ─────── */
 var E1=ECRAN({dur:16});
 E1.addAsset({job_id:7},"sentry_bot.mp4","video",21.233,"v1",0);
+/* RIEN N'EST ECRIT AVANT LE VERDICT : la sonde audio est partie, une fois,
+   avec le `src` tel quel, et ni clip, ni historique, ni note. */
+out.au_appels=auVus.length;
+out.au_src=auVus[0]?auVus[0][0]:null;
+out.au_avant=[E1.J.clips.length,E1.J.hist,E1.J.notes.length,askVus.length];
+REPOND(OUI);
 out.add_bornes=BORNES(E1.etat().clips);
+out.add_pistes=E1.etat().clips.map(function(c){return c.tr});
+out.add_ids=E1.etat().clips.map(function(c){return c.id});
+out.add_jumeau=E1.etat().clips[1]||null;
 out.add_dur=E1.etat().dur;
 out.add_proj=E1.J.proj;
 out.add_note=E1.J.notes[0]||"";
+out.add_notes=E1.J.notes.length;
 out.add_hist=E1.J.hist;
 out.add_sel=E1.J.sel;
-/* UNE DUREE CONNUE NE FAIT RIEN DEMANDER — negation, dont le conjoint est le
-   clip effectivement pose a sa longueur. */
+out.add_ecritures=E1.J.clips;
+/* UNE DUREE CONNUE NE FAIT RIEN DEMANDER A askDur — negation, dont le
+   conjoint est le clip effectivement pose a sa longueur. */
 out.add_ask=askVus.length;
+/* LE RAPPEL N'A PAS REDEMANDE : une sonde, pas deux. */
+out.au_relance=auVus.length;
+/* ── LE VERDICT « MUET » : un seul clip, et c'est DIT ───────────────────── */
+var E1b=ECRAN({dur:16});
+E1b.addAsset({job_id:70},"Memecoin.mp4","video",16,"v1",0);
+REPOND(NON);
+out.muet_bornes=BORNES(E1b.etat().clips);
+out.muet_pistes=E1b.etat().clips.map(function(c){return c.tr});
+out.muet_note=E1b.J.notes[0]||"";
+out.muet_hist=E1b.J.hist;
+/* ── PAS DE PISTE DE DIALOGUE : un seul clip, la note dit « + piste audio »,
+   et la piste BOUCLEE a2 n'a pas ete prise ────────────────────────────── */
+var E1c=ECRAN({dur:16,pistes:[{id:"v1",kind:"video",type:"vidéo"},
+  {id:"a2",kind:"audio",bus:"musique",loop:!0},{id:"s1",kind:"subs"}]});
+E1c.addAsset({job_id:71},"parle.mp4","video",5,"v1",0);
+REPOND(OUI);
+out.sanspiste_pistes=E1c.etat().clips.map(function(c){return c.tr});
+out.sanspiste_note=E1c.J.notes[0]||"";
+/* ── UNE INCRUSTATION (v2) : aucune sonde, un seul clip — et c'est DIT ──── */
+var nAu=auVus.length;
+var E1d=ECRAN({dur:16});
+E1d.addAsset({job_id:72},"b-roll.mp4","video",5,"v2",0);
+out.overlay_sondes=auVus.length-nAu;
+out.overlay_pistes=E1d.etat().clips.map(function(c){return c.tr});
+out.overlay_hist=E1d.J.hist;
+out.overlay_note=E1d.J.notes[0]||"";
+out.overlay_notes=E1d.J.notes.length;
+/* ── UN SON (kind audio) : aucune sonde ─────────────────────────────────── */
+nAu=auVus.length;
+var E1e=ECRAN({dur:16});
+E1e.addAsset({audio:"voix.wav"},"voix","audio",3,"a1",0);
+out.audio_sondes=auVus.length-nAu;
+out.audio_pistes=E1e.etat().clips.map(function(c){return c.tr});
+/* ── LA PISTE DE DIALOGUE VERROUILLEE : le plan est pose, pas le jumeau,
+   et c'est DIT ──────────────────────────────────────────────────────────── */
+var E1f=ECRAN({dur:16,verrous:{a1:{l:!0}}});
+E1f.addAsset({job_id:73},"parle2.mp4","video",5,"v1",0);
+REPOND(OUI);
+out.verrou_pistes=E1f.etat().clips.map(function(c){return c.tr});
+out.verrou_note=E1f.J.notes[0]||"";
+/* ── LE DOUBLON : le son est deja sur A1 a cette plage, pas de second ────── */
+var E1g=ECRAN({dur:16,clips:[{tr:"a1",id:"a1_deja",label:"deja",start:0,end:5,
+  src:{job_id:74},srcIn:0}]});
+E1g.addAsset({job_id:74},"parle3.mp4","video",5,"v1",0);
+REPOND(OUI);
+out.doublon_pistes=E1g.etat().clips.map(function(c){return c.tr});
+out.doublon_note=E1g.J.notes[0]||"";
+/* ── LE VERROU DE RECURSION EST LE CACHE — la mutation jouee ─────────────── */
+nAu=auVus.length;
+var E1h=ECRAN({dur:16});
+E1h.addAsset({job_id:99},"boucle.mp4","video",5,"v1",0);
+REPOND_SANS_CACHE(OUI);           /* `done` sans ecriture : addAsset REDEMANDE */
+out.verrou_sans_cache_sondes=auVus.length-nAu;
+out.verrou_sans_cache_clips=E1h.etat().clips.length;
+REPOND(OUI);                      /* avec l'ecriture : il pose et s'arrete */
+out.verrou_avec_cache_sondes=auVus.length-nAu;
+out.verrou_avec_cache_clips=E1h.etat().clips.length;
+/* ── UN MEME FICHIER POSE DEUX FOIS N'EST SONDE QU'UNE FOIS ─────────────── */
+nAu=auVus.length;
+var E1i=ECRAN({dur:16});
+E1i.addAsset({job_id:7},"sentry_bot.mp4","video",21.233,"v1",30);
+out.cache_sondes=auVus.length-nAu;
+out.cache_bornes=BORNES(E1i.etat().clips);
 /* ── LE POINT DE DEPART N'EST PLUS RAMENE EN ARRIERE ─────────────────────── */
 var E2=ECRAN({dur:16,ph:15.5});
 E2.addAsset({job_id:8},"court.mp4","video",6,"v1",null);
+REPOND(NON);
 out.st_bornes=BORNES(E2.etat().clips);
 out.st_dur=E2.etat().dur;
 /* ── LA DECOUVERTE : RIEN N'EST ECRIT AVANT LA MESURE ────────────────────── */
+/* Le verdict audio est MESURE sans duree (dur 0) : askDur doit encore partir,
+   et c'est bien elle qui est mesuree ici, comme avant P12. */
 askVus.length=0;
 var E3=ECRAN({dur:16});
 E3.addAsset({job_id:9},"Memecoin.mp4","video",0,"v1",3);
+REPOND({has_audio:!1,dur:0,pourquoi:"mesure"});
 out.ask_appels=askVus.length;
 out.ask_src=askVus[0]?askVus[0][0]:null;
 out.ask_avant_clips=E3.J.clips.length;
@@ -5160,17 +6129,93 @@ if(askVus[0])askVus[0][1].done(21.233);
 out.ask_bornes=BORNES(E3.etat().clips);
 out.ask_dur=E3.etat().dur;
 out.ask_relance=askVus.length;
-/* MESURE ECHOUEE : le verrou de recursion (un nombre NEGATIF), et le repli
-   DIT. `ask_echec_relance` reste a 1 : la seconde passe ne redemande pas. */
+/* le verdict « mesure, sans flux, sans duree » est DIT non-sondable */
+out.ask_note=E3.J.notes[0]||"";
+/* LA DUREE EN PRIME : un verdict qui PORTE la duree epargne askDur, et le
+   clip entre a cette longueur — une seule sonde pour les deux besoins. */
 askVus.length=0;
+var E3b=ECRAN({dur:16});
+E3b.addAsset({job_id:90},"kapwing_sample.mp4","video",0,"v1",3);
+REPOND({has_audio:!0,dur:15.973,pourquoi:"mesure"});
+out.prime_askdur=askVus.length;
+out.prime_bornes=BORNES(E3b.etat().clips);
+out.prime_dur=E3b.etat().dur;
+/* MESURE ECHOUEE : le verrou de recursion (un nombre NEGATIF), et le repli
+   DIT. `ask_echec_relance` reste a 1 : la seconde passe ne redemande pas.
+   Le verdict audio de job_id 9 est DEJA en cache (E3) : aucune sonde audio
+   de plus — c'est `echec_sondes_audio` qui le mesure. */
+askVus.length=0;nAu=auVus.length;
 var E4=ECRAN({dur:16});
 E4.addAsset({job_id:9},"Memecoin.mp4","video",0,"v1",3);
+out.echec_sondes_audio=auVus.length-nAu;
 if(askVus[0])askVus[0][1].done(0);
 out.ask_echec_bornes=BORNES(E4.etat().clips);
 out.ask_echec_relance=askVus.length;
 out.ask_echec_note=E4.J.notes[0]||"";
+/* ── svmApplyProject : LES IDENTIFIANTS EN DOUBLE DE LA SAUVEGARDE ───────── */
+/* Les deux paires de la sauvegarde de l'utilisateur (v1u1_0 x2, v1u2_0 x2),
+   les pistes de sa sauvegarde, le vestige A1. */
+var SAUVE={ok:!0,has_assets:!0,saved:!0,name:"montage_bibliotheque",ratio:"9:16",
+  duration:55,mix:{dialogue:-6},saved_at:"2026-09-06T10:00:00",
+  v1_non_video:["v1u1_0"],
+  tracks:[{id:"v3",kind:"video"},{id:"v2",kind:"video"},{id:"v1",kind:"video"},
+    {id:"a1",kind:"audio",bus:"dialogue"},{id:"a2",kind:"audio",bus:"musique",loop:!0},
+    {id:"a3",kind:"audio",bus:"sfx"},{id:"s1",kind:"subs"}],
+  clips:[{tr:"a1",id:"a1_vo",label:"s1_drift",start:0,end:11.842,src:{audio:"s1_drift.mp3"},srcIn:0},
+    {tr:"v1",id:"v1u1_0",label:"kapwing_sample",start:28.876,end:50.509,src:{job_id:"a54e"},srcIn:0},
+    {tr:"v1",id:"v1u2_0",label:"Memecoin",start:0.079,end:16.079,src:{job_id:"9a8a"},srcIn:0},
+    {tr:"v1",id:"v1u3_0",label:"demo",start:16.079,end:28.876,src:{job_id:"f331"},srcIn:2},
+    {tr:"v1",id:"v1u1_0",label:"tweet",start:28.876,end:50.509,src:{job_id:"8407"},srcIn:0},
+    {tr:"v1",id:"v1u2_0",label:"kapwing_sample",start:0.079,end:16.079,src:{job_id:"a54e"},srcIn:0},
+    {tr:"s1",id:"s1cmtpobgr366",label:"Sous la surface,",start:0.079,end:0.819}]};
+var EA=ECRAN({dur:16});
+/* une COPIE de surface par apply : `v1_non_video` de SAUVE reste le temoin
+   de « l'entree n'est pas mutee » (ap_nv_source). */
+var apOk;try{apOk=EA.apply(Object.assign({},SAUVE))}catch(e){apOk="LEVE:"+e.name}
+out.ap_ok=apOk;
+var apCs=EA.J.clips.length?EA.etat().clips:[];
+out.ap_ids=apCs.map(function(c){return c.id});
+out.ap_ids_distincts=(function(){var seen={},n=0;apCs.forEach(function(c){
+  if(!seen[c.id]){seen[c.id]=1;n++}});return n})();
+out.ap_note=EA.J.notes[0]||"";
+out.ap_notes=EA.J.notes.length;
+out.ap_seq=EA.seq();
+out.ap_sel=EA.J.sel;
+out.ap_dirty=EA.J.dirtyV;
+out.ap_nv=EA.projet().v1NonVideo;
+out.ap_nv_source=SAUVE.v1_non_video;
+/* SANS DOUBLON : aucune note, la sequence quand meme re-semee. */
+var EA2=ECRAN({dur:16});
+try{EA2.apply(Object.assign({},SAUVE,{clips:SAUVE.clips.slice(0,4)}))}catch(e){}
+out.ap2_notes=EA2.J.notes.length;
+out.ap2_seq=EA2.seq();
+out.ap2_dirty=EA2.J.dirtyV;
+out.ap2_nv=EA2.projet().v1NonVideo;
+/* UNE CONSTRUCTION DEPUIS LA BIBLIOTHEQUE (saved faux) portant les memes
+   doublons : renommes et dits, mais JAMAIS marquee modifiee — l'enregistrer
+   en ferait la source a la place de la Bibliotheque. */
+var EA3=ECRAN({dur:16});
+try{EA3.apply(Object.assign({},SAUVE,{saved:!1}))}catch(e){}
+out.ap3_dirty=EA3.J.dirtyV;
+out.ap3_note=EA3.J.notes[0]||"";
+out.ap3_ids_distincts=(function(){var seen={},n=0;
+  (EA3.J.clips.length?EA3.etat().clips:[]).forEach(function(c){
+    if(!seen[c.id]){seen[c.id]=1;n++}});return n})();
+/* UN AJOUT APRES CHARGEMENT NE REPREND JAMAIS UN ID EXISTANT : re-seme, le
+   compteur passe au-dessus (v1u4_0) ; non re-seme, `uniqueId` suffixe. */
+var EB=ECRAN({dur:55,clips:apCs,seq:EA.seq()});
+EB.addAsset({job_id:"neuf"},"neuf.mp4","video",4,"v1",0);
+REPOND(NON);
+out.apres_id=EB.etat().clips.length>apCs.length?EB.etat().clips[EB.etat().clips.length-1].id:null;
+var EB2=ECRAN({dur:55,clips:apCs,seq:0});
+EB2.addAsset({job_id:"neuf2"},"neuf2.mp4","video",4,"v1",0);
+REPOND(NON);
+out.apres_id_sans_semis=EB2.etat().clips.length>apCs.length?EB2.etat().clips[EB2.etat().clips.length-1].id:null;
+out.apres_ids_distincts=(function(){var seen={},n=0,cs=EB2.etat().clips;cs.forEach(function(c){
+  if(!seen[c.id]){seen[c.id]=1;n++}});return [n,cs.length]})();
 window.DzTracks.askDur=vraiAsk;
-out.ask_rendue=(window.DzTracks.askDur===vraiAsk);
+window.DzTracks.askAudio=vraiAu;
+out.ask_rendue=(window.DzTracks.askDur===vraiAsk&&window.DzTracks.askAudio===vraiAu);
 /* ── LE DECALAGE CLAVIER ─────────────────────────────────────────────────── */
 var E5=ECRAN({dur:16,sel:"k",
   clips:[{tr:"v1",id:"k",label:"plan",start:10,end:16,src:{job_id:1}}]});
@@ -5236,7 +6281,8 @@ console.log(JSON.stringify(out));
 
 _env = (_ENV.replace("__KBSEL__", _KBSEL)
         .replace("__ADD__", _ADD).replace("__NUDGE__", _NUDGE)
-        .replace("__CLIPDOWN__", _CLIPDOWN).replace("__DURCTL__", _DURCTL))
+        .replace("__CLIPDOWN__", _CLIPDOWN).replace("__DURCTL__", _DURCTL)
+        .replace("__APPLY__", _APPLY))
 shim2 = pathlib.Path(TMP) / "shim2.js"
 shim2.write_text('"use strict";\n' + "var window={};var SVM_TRACK_BUS={};\n"
                  + JSX + SVM_SRC.replace("\r\n", "\n") + "\n"
@@ -5267,19 +6313,40 @@ else:
     check("js_cablage_rend_un_objet_json", _mal2 == "",
           f"{_mal2} — {len(_l2)} ligne(s), dernière={_d2[:120]!r}")
 
-# ── L'AJOUT : LE DEFAUT RAPPORTE, RETOURNE ────────────────────────────────
+# ── L'AJOUT : LE DEFAUT RAPPORTE, RETOURNE — ET SON JUMEAU (P12) ─────────
 # « j'ai voulu ajouter trois videos depuis la bibliotheque, or la timeline est
 # fixe ». Une source de 21,233 s posee a 0 dans un projet de 16 s : le clip
 # entre ENTIER, et c'est la timeline qui grandit (22 s, l'arrondi au plafond
 # de `fitDur`, pour que « 0:22 total » ne mente pas sur la fin du dernier
 # clip). MUTATION :1156 (`en=Math.min(d,st+dzCl.len)`) -> le clip retombe a
 # 0..16 et cette ligne rougit.
-# `add_ask == 0` est le second membre : une duree CONNUE ne fait rien
-# demander. C'est une negation, et son conjoint est le clip pose a sa
-# longueur juste a cote — les deux ne peuvent pas etre vrais a vide.
+# DEPUIS P12, DEUX PAIRES DE BORNES : le plan sur V1 et son jumeau sur A1,
+# memes bornes — le bouchon a repondu « a du son ». `add_ask == 0` est le
+# second membre : une duree CONNUE ne fait rien demander a askDur. C'est une
+# negation, et son conjoint est le clip pose a sa longueur juste a cote.
 check("js_add_le_clip_entre_a_la_longueur_de_sa_source",
-      w.get("add_bornes") == [[0, 21.233]] and w.get("add_ask") == 0,
-      f'{w.get("add_bornes")} mesures={w.get("add_ask")}')
+      w.get("add_bornes") == [[0, 21.233], [0, 21.233]] and w.get("add_ask") == 0
+      and w.get("add_pistes") == ["v1", "a1"],
+      f'{w.get("add_bornes")} pistes={w.get("add_pistes")} '
+      f'mesures={w.get("add_ask")}')
+# LA SONDE PART AVANT TOUTE ECRITURE, une fois, avec le `src` tel quel — et le
+# rappel ne redemande pas (`au_relance == 1`, conjoint : le jumeau pose).
+check("js_add_son_la_sonde_part_AVANT_toute_ecriture_et_une_seule_fois",
+      w.get("au_appels") == 1 and w.get("au_src") == {"job_id": 7}
+      and w.get("au_avant") == [0, 0, 0, 0] and w.get("au_relance") == 1
+      and w.get("add_pistes") == ["v1", "a1"],
+      f'appels={w.get("au_appels")} src={w.get("au_src")} '
+      f'avant={w.get("au_avant")} relance={w.get("au_relance")}')
+# LE JUMEAU, tel qu'il est ecrit : piste a1, identifiant a1u1_0 (le prefixe
+# de piste echange, unique), libelle « … · son du plan », meme source, memes
+# bornes, srcIn 0.
+check("js_add_son_le_jumeau_est_la_copie_sonore_du_plan",
+      w.get("add_jumeau") == {"tr": "a1", "id": "a1u1_0",
+                              "label": "sentry_bot.mp4 · son du plan",
+                              "start": 0, "end": 21.233, "src": {"job_id": 7},
+                              "srcIn": 0}
+      and w.get("add_ids") == ["v1u1_0", "a1u1_0"],
+      f'{w.get("add_jumeau")} ids={w.get("add_ids")}')
 # MUTATIONS :1163 (`if(!1)`), :1157 (`dzGrew=0`) et :1164 (`{dur:d}`) : les
 # trois passent le texte, les trois rougissent ICI. `add_proj` est le journal
 # des ecritures de `setProj` — un seul appel, avec la duree grandie.
@@ -5287,18 +6354,103 @@ check("js_add_la_timeline_s_allonge_pour_l_accueillir",
       w.get("add_dur") == 22 and w.get("add_proj") == [22],
       f'dur={w.get("add_dur")} ecritures={w.get("add_proj")}')
 # L'AGRANDISSEMENT EST DIT, ET CHIFFRE DES DEUX BOUTS. La note porte AUSSI la
-# longueur de la source (`dzCl.note`) et la reserve d'historique : c'est la
-# phrase entiere que l'utilisateur lit.
+# longueur de la source (`dzCl.note`), la reserve d'historique, ET la phrase
+# du jumeau (P12) : c'est la phrase entiere que l'utilisateur lit, en UNE
+# note.
 check("js_add_l_allongement_est_DIT_et_chiffre",
       "La timeline a été allongée de 0:16 à 0:22" in w.get("add_note", "")
       and "la longueur ENTIÈRE de la source" in w.get("add_note", "")
       and "NE raccourcit PAS la timeline" in w.get("add_note", ""),
       repr(w.get("add_note"))[:220])
-# UNE SEULE ENTREE D'HISTORIQUE, et le clip est SELECTIONNE — le conjoint qui
-# empeche ce compte d'etre vrai par construction sur un addAsset muet.
+check("js_add_son_la_note_dit_le_jumeau_la_piste_et_l_annulation",
+      "Son du plan extrait sur A1" in w.get("add_note", "")
+      and "« sentry_bot.mp4 · son du plan »" in w.get("add_note", "")
+      and "retire les DEUX clips" in w.get("add_note", "")
+      and w.get("add_notes") == 1,
+      f'{repr(w.get("add_note"))[-260:]} notes={w.get("add_notes")}')
+# UNE SEULE ENTREE D'HISTORIQUE, UNE SEULE ECRITURE DE CLIPS (deux clips dans
+# UN concat), et c'est le PLAN qui est selectionne, pas le jumeau. CE QUE CE
+# HARNAIS NE REPRODUIT PAS, DIT : dans le bundle, deux `setClips(clipsRef.
+# current.concat(…))` dans le meme gestionnaire PERDENT le premier clip —
+# `clipsRef.current=clips` n'est rafraichi qu'au rendu (bundle 1723). Le
+# `setClips` d'ECRAN, lui, rafraichit `clipsRef.current` SUR-LE-CHAMP :
+# la mutation « jumeau dans un second setClips » y laisse les DEUX clips
+# (add_bornes reste [[0,21.233],[0,21.233]], mesure le 06/09/2026). La
+# garde contre cette mutation est donc le COMPTE d'ecritures `[2]` ci-
+# dessous, plus l'epingle statique `P12_un_seul_concat` — pas la perte.
 check("js_add_une_seule_entree_d_historique",
-      w.get("add_hist") == 1 and len(w.get("add_sel") or []) == 1,
-      f'hist={w.get("add_hist")} sel={w.get("add_sel")}')
+      w.get("add_hist") == 1 and w.get("add_sel") == ["v1u1_0"]
+      and w.get("add_ecritures") == [2],
+      f'hist={w.get("add_hist")} sel={w.get("add_sel")} '
+      f'ecritures={w.get("add_ecritures")}')
+# LE VERDICT « MUET » : un seul clip, un seul historique, et c'est DIT.
+check("js_add_son_muet_un_seul_clip_et_c_est_DIT",
+      w.get("muet_bornes") == [[0, 16]] and w.get("muet_pistes") == ["v1"]
+      and "n'a pas de piste audio" in w.get("muet_note", "")
+      and w.get("muet_hist") == 1,
+      f'{w.get("muet_bornes")} {w.get("muet_pistes")} hist={w.get("muet_hist")} '
+      f'{repr(w.get("muet_note"))[-160:]}')
+# PAS DE PISTE DE DIALOGUE (a2 bouclee ne compte pas) : un seul clip, la note
+# dit « + piste audio ».
+check("js_add_son_sans_piste_de_dialogue_le_dit_et_ne_prend_pas_la_musique",
+      w.get("sanspiste_pistes") == ["v1"]
+      and "« + piste audio »" in w.get("sanspiste_note", "")
+      and "MUETTE" in w.get("sanspiste_note", ""),
+      f'{w.get("sanspiste_pistes")} {repr(w.get("sanspiste_note"))[-200:]}')
+# UNE INCRUSTATION ET UN SON NE SONT PAS SONDES — negations, dont le conjoint
+# est le clip pose (un seul, sur la piste demandee).
+check("js_add_son_une_incrustation_n_est_pas_sondee",
+      w.get("overlay_sondes") == 0 and w.get("overlay_pistes") == ["v2"]
+      and w.get("overlay_hist") == 1,
+      f'sondes={w.get("overlay_sondes")} pistes={w.get("overlay_pistes")} '
+      f'hist={w.get("overlay_hist")}')
+# … ET C'EST DIT (tour 2) : la porte « Envoyer vers → Montage » vise « v2 »
+# en dur (greffon libsend du bundle, 1 occurrence, mesure) — un plan y
+# arrivait sans son et sans un mot. La note nomme la piste, dit que rien n'a
+# ete extrait et renvoie au bouton avec sa cible ; le conjoint est la note
+# de E1 (V1, jumeau pose), qui ne porte PAS cette phrase. MUTATION :
+# `overlayNote` rend "" -> rouge ici.
+check("js_add_son_une_incrustation_est_DITE_et_renvoie_au_bouton",
+      "Posé sur V2 (incrustation)" in w.get("overlay_note", "")
+      and "n'a PAS été extrait" in w.get("overlay_note", "")
+      and "« Extraire le son → A1 »" in w.get("overlay_note", "")
+      and w.get("overlay_notes") == 1
+      and "n'a PAS été extrait" not in w.get("add_note", ""),
+      f'notes={w.get("overlay_notes")} {repr(w.get("overlay_note"))[-200:]}')
+check("js_add_son_un_son_n_est_pas_sonde",
+      w.get("audio_sondes") == 0 and w.get("audio_pistes") == ["a1"],
+      f'sondes={w.get("audio_sondes")} pistes={w.get("audio_pistes")}')
+# LA PISTE DE DIALOGUE VERROUILLEE : le plan est pose, pas le jumeau, DIT.
+check("js_add_son_piste_verrouillee_pose_le_plan_sans_jumeau_et_le_dit",
+      w.get("verrou_pistes") == ["v1"]
+      and "A1 verrouillée" in w.get("verrou_note", ""),
+      f'{w.get("verrou_pistes")} {repr(w.get("verrou_note"))[-160:]}')
+# LE DOUBLON : le son est deja sur A1 a cette plage, pas de second exemplaire.
+check("js_add_son_pas_de_second_exemplaire_et_c_est_DIT",
+      w.get("doublon_pistes") == ["a1", "v1"]
+      and "déjà présent sur A1" in w.get("doublon_note", ""),
+      f'{w.get("doublon_pistes")} {repr(w.get("doublon_note"))[-160:]}')
+# LE VERROU DE RECURSION EST LE CACHE, ET RIEN D'AUTRE — la mutation jouee :
+# une reponse SANS ecriture du cache fait REDEMANDER (2 sondes, 0 clip), la
+# meme reponse AVEC l'ecriture pose et s'arrete (2 sondes en tout, 2 clips).
+check("js_add_son_le_verrou_de_recursion_EST_le_cache",
+      w.get("verrou_sans_cache_sondes") == 2
+      and w.get("verrou_sans_cache_clips") == 0
+      and w.get("verrou_avec_cache_sondes") == 2
+      and w.get("verrou_avec_cache_clips") == 2,
+      f'sans={w.get("verrou_sans_cache_sondes")}/{w.get("verrou_sans_cache_clips")} '
+      f'avec={w.get("verrou_avec_cache_sondes")}/{w.get("verrou_avec_cache_clips")}')
+# UN MEME FICHIER POSE DEUX FOIS N'EST SONDE QU'UNE FOIS : job_id 7 est en
+# cache depuis E1 — zero sonde, et le jumeau est pose quand meme (a 30 s).
+# LES BORNES SONT ARRONDIES AU MILLIEME ICI, ET C'EST DIT : `en=st+dzCl.len`
+# n'est pas arrondi dans le bundle, et 30 + 21,233 rend 51,233000000000004
+# en flottant (MESURE le 06/09/2026). Bruit PREEXISTANT (P11 arrondit `len`,
+# pas la somme), invisible a st = 0 — declare en dette, pas corrige ici.
+check("js_add_son_un_meme_fichier_n_est_sonde_qu_une_fois",
+      w.get("cache_sondes") == 0
+      and [[round(a, 3), round(b, 3)] for a, b in (w.get("cache_bornes") or [])]
+      == [[30, 51.233], [30, 51.233]],
+      f'sondes={w.get("cache_sondes")} {w.get("cache_bornes")}')
 # MUTATION :1142 : la tete de lecture a 15,5 s dans un projet de 16 s. Le clip
 # doit atterrir A 15,5 — `Math.max(0,d-1)` le ramenait a 15, `d-2` a 14.
 check("js_add_le_point_de_depart_n_est_plus_ramene_en_arriere",
@@ -5307,7 +6459,9 @@ check("js_add_le_point_de_depart_n_est_plus_ramene_en_arriere",
 # ── LA DECOUVERTE (P11) ───────────────────────────────────────────────────
 # MUTATION :1152 (`if(!1&&DzTracks.needDur(…))`) : la mesure ne part jamais et
 # tout entre a 6 s. Les trois comptes a zero sont des NEGATIONS — leur
-# conjoint est l'appel MESURE et le `src` transmis tel quel.
+# conjoint est l'appel MESURE et le `src` transmis tel quel. Depuis P12 le
+# verdict audio (sans duree) precede : askDur part APRES lui, toujours avant
+# toute ecriture.
 check("js_add_la_mesure_part_AVANT_toute_ecriture",
       w.get("ask_appels") == 1 and w.get("ask_src") == {"job_id": 9}
       and w.get("ask_avant_clips") == 0 and w.get("ask_avant_hist") == 0
@@ -5323,15 +6477,106 @@ check("js_add_le_rappel_repose_le_clip_a_la_mesure",
       and w.get("ask_relance") == 1,
       f'{w.get("ask_bornes")} dur={w.get("ask_dur")} '
       f'relances={w.get("ask_relance")}')
+# NON-SONDABLE, SUR LE CHEMIN EXECUTE : le verdict de E3 (mesure, sans flux,
+# sans duree — le fichier de 0 octet) est DIT « n'a pas pu être sondée »,
+# jamais « n'a pas de piste audio » ; le conjoint est la note de E1b (muet,
+# duree 21,233) qui, elle, le dit.
+check("js_add_son_non_sondable_est_DIT_et_n_est_pas_dit_muet",
+      "n'a pas pu être sondée" in w.get("ask_note", "")
+      and "fichier vide ou illisible" in w.get("ask_note", "")
+      and "n'a pas de piste audio" not in w.get("ask_note", "")
+      and "n'a pas de piste audio" in w.get("muet_note", ""),
+      f'{repr(w.get("ask_note"))[-200:]} muet={repr(w.get("muet_note"))[-80:]}')
+# LA DUREE EN PRIME (P12) : un verdict qui PORTE la duree epargne askDur
+# (zero appel — negation dont le conjoint est le clip pose A CETTE longueur,
+# 15,973 s, avec son jumeau).
+check("js_add_son_la_duree_en_prime_epargne_askDur",
+      w.get("prime_askdur") == 0
+      and w.get("prime_bornes") == [[3, 18.973], [3, 18.973]]
+      and w.get("prime_dur") == 19,
+      f'askDur={w.get("prime_askdur")} {w.get("prime_bornes")} '
+      f'dur={w.get("prime_dur")}')
 # MESURE ECHOUEE : le verrou de recursion tient (UNE demande, pas deux) et le
-# repli est DIT — avec l'accord de la branche video.
+# repli est DIT — avec l'accord de la branche video. Et le verdict audio de
+# job_id 9, en cache depuis E3, n'est PAS redemande.
 check("js_add_une_mesure_echouee_ne_reboucle_pas_et_le_DIT",
       w.get("ask_echec_bornes") == [[3, 9]]
       and w.get("ask_echec_relance") == 1
+      and w.get("echec_sondes_audio") == 0
       and "Cette vidéo a été posée à 6 s" in w.get("ask_echec_note", "")
       and w.get("ask_rendue") is True,
       f'{w.get("ask_echec_bornes")} relances={w.get("ask_echec_relance")} '
+      f'audio={w.get("echec_sondes_audio")} '
       f'{repr(w.get("ask_echec_note"))[:160]}')
+# ── svmApplyProject : LES IDENTIFIANTS EN DOUBLE (fait n°3) ───────────────
+# La sauvegarde de l'utilisateur porte v1u1_0 deux fois et v1u2_0 deux fois.
+# Charges, les sept clips ressortent avec SEPT identifiants distincts, le
+# premier de chaque paire garde le sien, et c'est DIT (une note, qui nomme
+# les renommages). MUTATION : retirer `dedupeIds` de R_M22C -> 5 distincts.
+check("js_apply_les_doublons_sont_renommes_et_c_est_DIT",
+      w.get("ap_ok") is True and w.get("ap_ids_distincts") == 7
+      and w.get("ap_ids") == ["a1_vo", "v1u1_0", "v1u2_0", "v1u3_0",
+                              "v1u1_0_2", "v1u2_0_2", "s1cmtpobgr366"]
+      and w.get("ap_notes") == 1
+      and "2 clips portaient un identifiant déjà pris" in w.get("ap_note", "")
+      and "v1u1_0 → v1u1_0_2" in w.get("ap_note", "")
+      and "v1u2_0 → v1u2_0_2" in w.get("ap_note", "")
+      and "ce sera enregistré automatiquement dans un instant" in w.get("ap_note", ""),
+      f'ok={w.get("ap_ok")} distincts={w.get("ap_ids_distincts")} '
+      f'{w.get("ap_ids")} notes={w.get("ap_notes")} '
+      f'{repr(w.get("ap_note"))[:200]}')
+# LE COMPTEUR EST RE-SEME au plus grand u<n> de la sauvegarde (3), et le
+# premier plan V1 reste selectionne comme avant. Sans doublon : pas de note,
+# le compteur re-seme quand meme (conjoint de la negation).
+check("js_apply_re_seme_le_compteur_et_ne_parle_que_s_il_a_renomme",
+      w.get("ap_seq") == 3 and w.get("ap_sel") == ["v1u1_0"]
+      and w.get("ap2_notes") == 0 and w.get("ap2_seq") == 3,
+      f'seq={w.get("ap_seq")} sel={w.get("ap_sel")} '
+      f'sans_doublon: notes={w.get("ap2_notes")} seq={w.get("ap2_seq")}')
+# LA REPARATION EST PERSISTEE (tour 2) : `setDirty` recoit VRAI sur une
+# sauvegarde renommee — l'autosauvegarde, gardee par `dirty` (bundle
+# `if(proj.demo||!dirty)return;`), ecrit les ids repares 1,5 s plus tard, et
+# c'est le SEUL enregistrement qui existe (`svmDoSave(` : trois sites, aucun
+# bouton, aucun raccourci ; « Enregistrer sous… » cree un projet neuf —
+# mesure le 06/09/2026). FAUX sans doublon (conjoint), et la note le dit.
+# MUTATION : remettre `setDirty(!1)` dans R_M22D -> ap_dirty [False], cette
+# ligne seule.
+check("js_apply_la_reparation_arme_l_autosauvegarde_et_le_dit",
+      w.get("ap_dirty") == [True] and w.get("ap2_dirty") == [False]
+      and "ce sera enregistré automatiquement dans un instant" in w.get("ap_note", "")
+      and w.get("ap2_notes") == 0,
+      f'dirty={w.get("ap_dirty")} sans_doublon={w.get("ap2_dirty")} '
+      f'{repr(w.get("ap_note"))[-120:]}')
+# UNE CONSTRUCTION DE BIBLIOTHEQUE (saved faux) aux memes doublons : renommee
+# et DITE, mais jamais marquee modifiee — l'enregistrer en ferait la source
+# a la place de la Bibliotheque ; la note dit que rien n'est enregistre.
+check("js_apply_une_construction_de_bibliotheque_n_est_jamais_marquee_modifiee",
+      w.get("ap3_dirty") == [False] and w.get("ap3_ids_distincts") == 7
+      and "rien n'est enregistré tant que vous ne modifiez rien" in w.get("ap3_note", "")
+      and "enregistré automatiquement" not in w.get("ap3_note", ""),
+      f'dirty={w.get("ap3_dirty")} distincts={w.get("ap3_ids_distincts")} '
+      f'{repr(w.get("ap3_note"))[-160:]}')
+# `v1_non_video` SUIT LE RENOMMAGE : le contrat backend (montage_service,
+# docstring de montage_project) en fait une liste d'IDENTIFIANTS, et l'ecran
+# marque par `indexOf(c.id)` — l'id neuf est AJOUTE (les deux exemplaires
+# etaient marques, ils le restent). Sans doublon la liste est rendue telle
+# quelle, et l'entree n'est pas mutee (conjoints).
+check("js_apply_v1NonVideo_suit_le_renommage",
+      w.get("ap_nv") == ["v1u1_0", "v1u1_0_2"] and w.get("ap2_nv") == ["v1u1_0"]
+      and w.get("ap_nv_source") == ["v1u1_0"],
+      f'nv={w.get("ap_nv")} sans_doublon={w.get("ap2_nv")} '
+      f'source={w.get("ap_nv_source")}')
+# UN AJOUT APRES CHARGEMENT NE REPREND JAMAIS UN ID EXISTANT — par les DEUX
+# voies : re-seme, le compteur passe au-dessus (v1u4_0 ; MUTATION : retirer
+# le re-semis -> v1u1_0_3) ; non re-seme, `uniqueId` suffixe (v1u1_0_3, car
+# v1u1_0 ET v1u1_0_2 sont deja pris ;
+# MUTATION : retirer `uniqueId` de R_M22A -> v1u1_0, en double).
+check("js_apply_puis_ajout_ne_reprend_jamais_un_id_existant",
+      w.get("apres_id") == "v1u4_0"
+      and w.get("apres_id_sans_semis") == "v1u1_0_3"
+      and w.get("apres_ids_distincts") == [8, 8],
+      f'reseme={w.get("apres_id")!r} sans_semis={w.get("apres_id_sans_semis")!r} '
+      f'distincts={w.get("apres_ids_distincts")}')
 # ── LE DECALAGE CLAVIER ───────────────────────────────────────────────────
 # MUTATION :1201 (`if(!1)`) : un clip de 10 a 16 pousse d'une seconde finit a
 # 17 dans un projet de 16 — la timeline doit suivre.
@@ -7371,7 +8616,7 @@ check("tb7_exigence2_la_chaine_ne_nomme_jamais_setPh_ni_seekTo",
 #    dit a l'utilisateur, mot pour mot.
 check("tb7_exigence2_ouvrir_un_projet_est_le_seul_chemin_qui_bouge_la_tete",
       s.count(nl("setClips(cs);setSelId(first?first.id:\"\");setPh(0);"
-                 "setDirty(!1);")) == 1
+                 "setDirty(!!(d.saved&&dzDd.renamed.length));")) == 1
       and s.count(nl("histRef.current={u:[],r:[]};")) >= 1
       and "onOpen:function(d){return svmApplyProject(d)}" in P.R_M14
       and "svmApplyProject" not in P.R_M19

@@ -297,6 +297,13 @@
 .dzsvm .dzm-revert{width:100%; margin-top:8px; padding:0 8px; font-size:10px;
   font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+/* P12 : « Extraire le son → A1 », posé juste AVANT l'inspecteur de transition
+   (ancre `transInspector(),`), pour tout clip vidéo porteur d'une source.
+   Même habillage que les deux boutons de P6 — une règle À PART, et non un
+   sélecteur de plus dans la leur : le banc épingle leur liste telle quelle. */
+.dzsvm .dzm-extract{width:100%; margin-top:8px; padding:0 8px; font-size:10px;
+  font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 /* Le rappel « version plus récente ». AMBRE et non rouge : rien n'est en
    panne — c'est une PROPOSITION, et son rapprochement est une heuristique de
    titre que l'infobulle nomme. Le rouge est réservé à `.dzm-badsrc`, qui

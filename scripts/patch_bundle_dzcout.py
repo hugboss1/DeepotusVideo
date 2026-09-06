@@ -52,6 +52,27 @@ MARKER_ATTENDU = 7      # définition + window x2 + infobulle + total + puce x2
 # Sondes des maillons AMONT : si l'un de ces comptes bouge, c'est qu'un
 # patcher amont a été rejoué seul et a effacé ce qui le suivait.
 #
+# `montage` : 38 → 39 le 06/09/2026 (tour 2 de P12). La revue a mesuré que
+# la porte « Envoyer vers → Montage » (greffon libsend, `"v2"` en dur) posait
+# un plan sur une incrustation SANS SON ET SANS UN MOT : UNE référence de
+# plus au contrat, `DzTracks.overlayNote` (M22a, la phrase quand aucun jumeau
+# ne parle), et rien d'autre — M22d (la réparation persistée) n'en ajoute
+# aucune, et la reprise de `v1_non_video` (M22c) non plus. Compté des DEUX
+# côtés avant d'écrire ce nombre (`bytes.count` sur le bundle) : 38 avant,
+# 39 après ; la couche reste à 5.
+#
+# `montage` : 29 → 38 le 06/09/2026. P12 (« le son d'un plan suit sa vidéo »)
+# ajoute NEUF références au contrat `DzTracks` dans le bundle, et rien
+# d'autre : quatre dans la sonde d'`addAsset` (`wantsTwin`, `audioOf`,
+# `askAudio`, `srcDurOr` — R_M17A), deux dans le trio id/historique
+# (`uniqueId`, `twinPlan` — M22a), deux dans `svmApplyProject` (`dedupeIds`,
+# `seqMax` — M22c) et une dans l'inspecteur (`extractBtn` — M23). Compté des
+# DEUX côtés avant d'écrire ce nombre (`str.count` sur le texte du bundle,
+# commentaires de la couche compris) : 29 dans le bundle d'avant P12, 38
+# après — et la sonde a fait son travail : elle a refusé de tourner sur 38
+# tant que cette ligne disait 29, et restauré son .bak (marqueur à 0 le
+# temps de la mettre à jour, 7 au rejeu suivant).
+#
 # `montage` : 33 → 29 le 06/09/2026, et C'EST UNE BAISSE — la première de
 # cette sonde. L'étape 6 du handoff « Barre Outils Flottante » (§5.1) retire
 # les neuf contrôles du bandeau de transport, et QUATRE d'entre eux étaient
@@ -107,7 +128,7 @@ STABLE_PROBES = [
     ("print3d", "__dzPrint3d", 3),
     ("navrail", "dz_nav_collapsed", 2),
     ("dzdesign", "__dzCatBar", 2),
-    ("montage", "DzTracks", 29),
+    ("montage", "DzTracks", 39),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

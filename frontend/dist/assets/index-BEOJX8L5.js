@@ -2045,10 +2045,48 @@ function DzMontage(props){
         end:Number(c.end)||0,src:c.src||null,srcIn:Number(c.srcIn)||0,
         transition:c.transition||(c.tr==="v1"?"cut":void 0),
         transition_s:Number(c.transition_s)||0}});
+    /* P12 — DES IDENTIFIANTS UNIQUES. `ovSeq` repart de zéro à chaque
+       chargement et la sauvegarde reprend `c.id` tel quel : deux clips
+       du même id se suppriment ensemble (`c.id!==id`) et le second n'est
+       jamais sélectionnable (`c.id===selId`). Le PREMIER garde le sien,
+       les suivants sont renommés, c'est dit, `v1_non_video` — des
+       IDENTIFIANTS, contrat du backend — suit le renommage (l'id neuf est
+       AJOUTÉ : les deux exemplaires étaient marqués, ils le restent), et
+       le compteur repart AU-DESSUS de tout ce que la sauvegarde porte. La
+       réparation est PERSISTÉE par M22d (l'autosauvegarde) sur une
+       sauvegarde, jamais sur une construction de Bibliothèque : la note
+       le dit dans les deux cas. */
+    var dzDd=DzTracks.dedupeIds(cs);cs=dzDd.clips;
+    if(dzDd.renamed.length&&Array.isArray(d.v1_non_video))d.v1_non_video=
+      d.v1_non_video.concat(dzDd.renamed.filter(function(k){
+        return d.v1_non_video.indexOf(k.de)>=0&&d.v1_non_video.indexOf(k.en)<0})
+      .map(function(k){return k.en}));
+    if(dzDd.renamed.length)fireNote(dzDd.renamed.length+" clip"+
+      (dzDd.renamed.length>1?"s portaient":" portait")+" un identifiant "+
+      "déjà pris dans cette sauvegarde ("+dzDd.renamed.map(function(k){
+        return k.de+" → "+k.en}).join(", ")+") : renommé"+
+      (dzDd.renamed.length>1?"s":"")+" pour que chaque plan se "+
+      "sélectionne et se supprime seul. Rien d'autre n'a changé"+
+      (d.saved?" — ce sera enregistré automatiquement dans un instant."
+        :" (timeline construite depuis la Bibliothèque : rien n'est "+
+         "enregistré tant que vous ne modifiez rien)."));
+    ovSeq.current=Math.max(ovSeq.current,DzTracks.seqMax(cs));
     var first=cs.find(function(c){return c.tr==="v1"});
     var maxEnd=1;
     cs.forEach(function(c){if(c.end>maxEnd)maxEnd=c.end});
-    setClips(cs);setSelId(first?first.id:"");setPh(0);setDirty(!1);
+    setClips(cs);setSelId(first?first.id:"");setPh(0);setDirty(!!(d.saved&&dzDd.renamed.length));
+    /* P12 — LA RÉPARATION EST PERSISTÉE. `setDirty(!1)` désarmait ici
+       l'autosauvegarde (l'effet gardé par `dirty`, 1,5 s) juste après le
+       renommage de M22c, et AUCUN geste manuel n'enregistre le montage —
+       `svmDoSave(` n'a que trois sites dans le bundle (sa définition,
+       cet effet, la relance sur échec), « Enregistrer sous… » crée un
+       projet NEUF (mesuré le 06/09/2026) : la note serait revenue à
+       chaque chargement. Une SAUVEGARDE dont des ids ont été renommés est
+       donc marquée modifiée, et l'autosauvegarde écrit les ids réparés.
+       Une construction depuis la Bibliothèque (`saved` faux) ne l'est
+       JAMAIS : l'enregistrer en ferait la source à la place de la
+       Bibliothèque — et ses ids (`v1_<job>`, `a1_<job>`, `c<i>`) ne se
+       répètent pas. La note de M22c le dit dans les deux cas. */
     histRef.current={u:[],r:[]};setHistTick(function(t){return t+1});
     var np={demo:!1,tracks:svmTracksFrom(d.tracks),project_id:d.project_id,v1NonVideo:Array.isArray(d.v1_non_video)?d.v1_non_video:null,name:d.name||"montage",version:"v1",ratio:d.ratio||"9:16",
       dur:Math.max(1,Number(d.duration)||maxEnd),mixDb:d.mix||SVM_DEMO_MIX};
@@ -3998,6 +4036,19 @@ function DzMontage(props){
        était AU CLIC, pas 85 ms plus tard. Mesure échouée : on repasse un
        nombre NÉGATIF, que `needDur` lit comme « déjà demandé » — c'est
        le verrou de récursion, et il est éprouvé sous node. */
+    /* P12 — LE SON D'UN PLAN SUIT SA VIDÉO : le verdict « cette source
+       a-t-elle du son ? » est demandé ICI, avant la durée et avant
+       tout `pushHistory`, pour une vidéo posée sur une piste vidéo
+       PLEIN CADRE (V1 : type « vidéo », jamais une incrustation). Le
+       rappel repart des MÊMES arguments — c'est le CACHE du verdict,
+       écrit par askAudio sur toute sortie, qui le rend non récursif
+       (éprouvé sous node : un rappel sans cache redemande). La durée
+       rendue en prime épargne le second aller-retour d'askDur. */
+    var dzAuOn=DzTracks.wantsTwin(kind,dzTs,tr2);
+    var dzAu=dzAuOn?DzTracks.audioOf(src):null;
+    if(dzAuOn&&!dzAu){DzTracks.askAudio(src,{done:function(){
+      addAsset(src,label,kind,srcDur,trId,st)}});return}
+    srcDur=DzTracks.srcDurOr(kind,srcDur,dzAu);
     if(DzTracks.needDur(kind,srcDur)){
       DzTracks.askDur(src,{done:function(dzV){
         addAsset(src,label,kind,dzV>0?dzV:-1,trId,st)}});return}
@@ -4011,9 +4062,20 @@ function DzMontage(props){
       "la timeline — le réglage de durée, à côté du zoom, la reprend."):"");
     if(dzGrew)setProj(function(p){return Object.assign({},p,{dur:dzGrew})});
     ovSeq.current++;
-    var id=tr2+"u"+ovSeq.current+"_"+Math.round(st*10);
+    /* P12 — l'identifiant est UNIQUE contre les clips existants (une
+       sauvegarde rechargée peut en porter d'anciens du même rang), et
+       le jumeau est décidé AVANT le seul pushHistory du geste : sa
+       phrase rejoint la note de l'ajout — et une incrustation, exemptée
+       de sonde, est DITE aussi (overlayNote), jamais tue. */
+    var id=DzTracks.uniqueId(clipsRef.current||[],
+      tr2+"u"+ovSeq.current+"_"+Math.round(st*10));
+    var dzNeuf={tr:tr2,id:id,label:label,start:st,end:en,src:src,srcIn:0};
+    var dzTw=dzAuOn?DzTracks.twinPlan(dzNeuf,dzTs,clipsRef.current||[],dzAu,
+      function(t){return !!(trackStRef.current[t]&&trackStRef.current[t].l)}):null;
+    if(dzTw)dzTail+=dzTw.note;
+    else dzTail+=DzTracks.overlayNote(kind,dzTs,tr2);
     pushHistory();
-    setClips(clipsRef.current.concat([{tr:tr2,id:id,label:label,start:st,end:en,src:src,srcIn:0}]));
+    setClips(clipsRef.current.concat(dzTw&&dzTw.clip?[dzNeuf,dzTw.clip]:[dzNeuf]));
     setSelId(id);setDirty(!0);setOvPick("");
     fireNote("« "+label+" » ajouté sur "+tr2.toUpperCase()+" à "
       +svmShort(st)+" — glissez / rognez sur la piste."+
@@ -5492,6 +5554,15 @@ function DzMontage(props){
             setDzmArm({tr:sel.tr,label:sel.label});
             addAsset({job_id:c.job_id},c.title||c.job_id,"video",
               Number(c.duration_s)||0,sel.tr)}},"dzmnew"),
+        /* P12 — « Extraire le son → A1 » : le son d'un plan DÉJÀ posé,
+           même moteur que l'ajout (sonde, cache, jumeau, refus DIT).
+           Posé juste avant l'inspecteur de transition, pour tout clip
+           vidéo porteur d'une source — V1, V2, V3. */
+        DzTracks.extractBtn(sel,{tracks:dzTracksRef.current||svmTracksOf(proj),
+          clips:function(){return clipsRef.current||[]},
+          locked:function(t){return !!(trackStRef.current[t]&&trackStRef.current[t].l)},
+          pushHistory:pushHistory,setClips:setClips,setDirty:setDirty,
+          note:fireNote}),
         transInspector(),
         /* P3 — les coupes sont appliquées de la FIN vers le DÉBUT :
            une coupe tardive ne décale pas les précédentes, donc les
@@ -12335,6 +12406,10 @@ window.DzSubs={ready:!0,Drawer:SubsDrawer,Overlay:SubsOverlay,Style:SubsStyle,
                          newerLine, NewerHint,
                          fitDur, durCtl, secs, DUR_MIN,
                          clipLen, needDur, askDur, CLIP_DEFAUTS, DUR_DELAI,
+                         dialogueTrack, trackPlein, wantsTwin,
+                         audioOf, audioSet, audioForget, askAudio, srcDurOr,
+                         srcKey, uniqueId, dedupeIds, seqMax,
+                         twinClip, twinPlan, extract, extractBtn,
                          tbTraces, tbIcons, tbParse, tbSerial,
                          TbIcon, ToolBtn, TB_GROUPES, TB_PX, TB_PX_GRIP,
                          move, moveTo, add, remove, group, DEFAULTS}
@@ -12351,6 +12426,22 @@ window.DzSubs={ready:!0,Drawer:SubsDrawer,Overlay:SubsOverlay,Style:SubsStyle,
      qu'on pose. PURE, rend {len, origine, note} — la longueur ENTIÈRE de la
      source quand elle est connue, le repli du bundle sinon, et dans ce cas
      seulement une note qui DIT que le chiffre n'est pas celui de la source.
+   - dialogueTrack(ts) / trackPlein(ts,id) / wantsTwin(kind,ts,id) — P12 :
+     la piste qui reçoit le son d'un plan (bus « dialogue », sinon a1,
+     jamais une piste bouclée), et « cette piste vidéo est-elle plein
+     cadre ? » (une incrustation ne reçoit pas de jumeau). PURES.
+   - askAudio(src, {done, fetch, timer, delai}) / audioOf / audioSet /
+     audioForget — P12 : la sonde GET /api/montage/has-audio sur le motif
+     d'askDur, et son CACHE par source, qui est le verrou de récursion de
+     l'ajout. srcDurOr(kind, srcDur, verdict) prend la durée rendue en
+     prime quand on ne la connaît pas encore.
+   - uniqueId(clips, base) / dedupeIds(clips) / seqMax(clips) — P12 : des
+     identifiants de clips UNIQUES, y compris après rechargement d'une
+     sauvegarde qui en porte en double (mesuré).
+   - twinClip(clip, trId, clips) / twinPlan(neuf, ts, clips, verdict,
+     locked) — P12 : le clip jumeau « … · son du plan » et la décision de
+     le poser, chaque sortie DITE. extract(sel, o) / extractBtn(sel, o) —
+     le bouton « Extraire le son → A1 » de l'inspecteur, même moteur.
    - needDur(kind, srcDur) / askDur(src, {done, fetch, timer, delai}) — P11 :
      faut-il aller mesurer la durée, et la mesure elle-même
      (GET /api/montage/duration). `askDur` prend ses deux dépendances impures
@@ -14529,6 +14620,393 @@ function dzmAskDur(src,o){
   catch(e2){rend(0,"erreur")}}
 
 /* ══════════════════════════════════════════════════════════════════════════
+   P12 — LE SON D'UN PLAN SUIT SA VIDÉO.
+   Le rendu n'entre JAMAIS l'audio embarqué d'un clip vidéo dans le graphe
+   ffmpeg (`[idx:v]` seul, montage_service._run) : sans clip jumeau sur la
+   piste de dialogue, un plan parlant sort muet. La construction automatique
+   pose ce jumeau (« … · son du plan ») ; les SEPT portes d'`addAsset`
+   posaient un clip vidéo et rien d'autre. Ce bloc est le CŒUR PUR de la
+   correction — chaque fonction se joue sous node, comme le reste :
+     · dialogueTrack(ts) — la piste qui reçoit le son, JAMAIS une piste
+       bouclée ; « a1 » par identifiant si aucun bus ne le dit ;
+     · trackPlein(ts,id) / wantsTwin(kind,ts,id) — une vidéo posée sur une
+       piste vidéo PLEIN CADRE reçoit un jumeau ; une incrustation (type
+       « overlay » / « overlay/VFX »), non ;
+     · overlayNote(kind,ts,id) — l'incrustation, DITE : la phrase de l'ajout
+       quand aucun jumeau ne parle (rien d'extrait, le bouton) ;
+     · audioOf / audioSet / audioForget — le CACHE des verdicts, par source ;
+       c'est lui qui rend le rappel d'`addAsset` non récursif ;
+     · askAudio(src,{done,fetch,timer,delai}) — la sonde (GET /has-audio),
+       sur le motif EXACT d'askDur, cache compris ;
+     · srcDurOr(kind,srcDur,verdict) — la durée que la sonde a rendue en
+       prime, prise quand on ne la connaît pas encore ;
+     · uniqueId / dedupeIds / seqMax — les identifiants de clips, UNIQUES ;
+     · twinClip / twinPlan — le jumeau lui-même et la décision de le poser,
+       avec sa note ;
+     · extract / extractBtn — le bouton de l'inspecteur pour les plans DÉJÀ
+       posés, même moteur. */
+
+/* LA PISTE DE DIALOGUE. `pickTrack(ts,"audio")` n'est PAS la bonne réponse :
+   c'est la première piste audio de l'ordre d'affichage — MESURÉ sur la
+   sauvegarde du 04/09/2026 ([v1, a2, a1, a3, s1]) elle rend `a2`, la
+   MUSIQUE, seule entrée bouclée et duckée du rendu. La cible est la piste de
+   `bus:"dialogue"` (les pistes audio le portent), sinon `a1` par
+   identifiant, sinon "" — et JAMAIS une piste `loop` : le rendu ignore les
+   bornes du premier clip d'une piste bouclée et la joue d'un bout à l'autre
+   du film (mesuré, voir dzmGapFate). Le genre se déduit de l'identifiant
+   quand la piste ne le porte pas, comme pickTrack. */
+function dzmDialogueTrack(ts){
+  var list=Array.isArray(ts)?ts:[],i,t;
+  for(i=0;i<list.length;i++){t=list[i];
+    if(!t||!t.id||t.loop)continue;
+    if(dzmKindOf(t.id,t.kind)==="audio"&&t.bus==="dialogue")return String(t.id)}
+  for(i=0;i<list.length;i++){t=list[i];
+    if(!t||String(t.id)!=="a1"||t.loop)continue;
+    if(dzmKindOf(t.id,t.kind)==="audio")return "a1"}
+  return ""}
+
+/* PLEIN CADRE OU INCRUSTATION. Le `type` est celui de dzmSkin : « vidéo »
+   pour V1, « overlay/VFX » pour la V2 historique, « overlay » pour toute
+   piste vidéo neuve. Une piste sans `type` compte comme plein cadre — donc
+   une liste NUE rend vrai pour TOUTE piste vidéo, v2 et v3 compris : le
+   payload d'une sauvegarde les nomme SANS type (celle de l'utilisateur,
+   06/09/2026, tracks [v3, v2, v1, …]). Ce n'est JAMAIS elle qui arrive
+   ici : svmTracksFrom habille chaque piste par dzmSkin à l'apply (v2 →
+   « overlay/VFX », v3 → « overlay », mesuré sous node) et le composant lit
+   sa ref des pistes, posée par svmTracksOf(proj) à chaque rendu — habillée
+   aussi. C'est cet
+   habillage, pas cette fonction, qui tient l'exemption des incrustations ;
+   le banc mesure les deux côte à côte (nue → vrai, habillée → faux). Une
+   piste absente, ou d'un autre genre, rend faux. */
+function dzmTrackPlein(ts,id){
+  var list=Array.isArray(ts)?ts:[],t=null,i;
+  for(i=0;i<list.length;i++)if(list[i]&&String(list[i].id)===String(id)){t=list[i];break}
+  if(!t||dzmKindOf(t.id,t.kind)!=="video")return !1;
+  var ty=String(t.type||"");
+  return ty!=="overlay"&&ty!=="overlay/VFX"}
+function dzmWantsTwin(kind,ts,id){return kind==="video"&&dzmTrackPlein(ts,id)}
+
+/* L'INCRUSTATION, DITE. Une vidéo posée sur une piste d'incrustation n'est
+   pas sondée (wantsTwin) — et l'ajout ne doit pas se taire pour autant. La
+   porte « Envoyer vers → Montage » de la Bibliothèque vise « v2 » EN DUR
+   (greffon libsend du bundle, `addAsset({job_id},…,"video",p.dur||0,"v2")`,
+   1 occurrence, mesuré le 06/09/2026) ; sur la sauvegarde de l'utilisateur
+   v2 EXISTE, habillée « overlay/VFX » : un kapwing_sample envoyé de là
+   arrivait sur V2 sans son et sans un mot — sa remontée exacte. Rend la
+   phrase que l'ajout concatène à sa note, ou "" quand il n'y a rien à dire :
+   pas une vidéo (un son, une image), piste plein cadre (le jumeau parle
+   alors, par twinPlan), piste absente ou d'un autre genre. Elle nomme la
+   piste, dit que rien n'a été extrait et renvoie au bouton de
+   l'inspecteur, avec sa cible quand le projet en a une. */
+function dzmOverlayNote(kind,ts,id){
+  if(kind!=="video")return "";
+  var list=Array.isArray(ts)?ts:[],t=null,i;
+  for(i=0;i<list.length;i++)if(list[i]&&String(list[i].id)===String(id)){t=list[i];break}
+  if(!t||dzmKindOf(t.id,t.kind)!=="video"||dzmTrackPlein(ts,id))return "";
+  var tr=dzmDialogueTrack(ts);
+  return " Posé sur "+String(id).toUpperCase()+" (incrustation) : le son de "+
+    "ce plan n'a PAS été extrait — sélectionnez-le puis « Extraire le son"+
+    (tr?" → "+tr.toUpperCase():"")+" » dans l'inspecteur."}
+
+/* LE CACHE DES VERDICTS, par source. La clé est `JSON.stringify(src)` ; une
+   source que JSON refuse (cycle) n'a pas de clé, et son verdict est connu
+   d'avance : « illisible », donc pas de son — sans jamais rien demander.
+   C'est ce qui ferme la récursion d'`addAsset` de ce côté-là aussi.
+   Le verdict est {has_audio, dur, pourquoi} : `pourquoi` est la sortie de
+   la sonde qui l'a produit (« mesure » quand le serveur a répondu, sinon
+   « refus » / « delai » / « erreur » / « sans-reseau »), parce qu'un « pas
+   de son » MESURÉ et un « pas de son » faute de réponse ne se disent pas
+   avec les mêmes mots à l'écran. Les copies rendues sont fraîches : muter
+   ce qu'on lit ne touche pas la mémoire. */
+var DZM_AUDIO_CACHE=Object.create(null);
+function dzmAudioKey(src){
+  try{return JSON.stringify(src||{})}catch(e){return ""}}
+function dzmAudioNorm(v){
+  var o=v||{},d=Number(o.dur);
+  return {has_audio:!!o.has_audio,dur:(isFinite(d)&&d>0)?Math.round(d*1000)/1000:0,
+    pourquoi:String(o.pourquoi||"")}}
+function dzmAudioOf(src){
+  var k=dzmAudioKey(src);
+  if(k==="")return {has_audio:!1,dur:0,pourquoi:"src-illisible"};
+  var c=DZM_AUDIO_CACHE[k];
+  return c?dzmAudioNorm(c):null}
+function dzmAudioSet(src,v){
+  var k=dzmAudioKey(src);
+  if(k==="")return null;
+  DZM_AUDIO_CACHE[k]=dzmAudioNorm(v);
+  return dzmAudioNorm(DZM_AUDIO_CACHE[k])}
+function dzmAudioForget(src){
+  var k=dzmAudioKey(src);
+  if(k!==""&&DZM_AUDIO_CACHE[k]){delete DZM_AUDIO_CACHE[k];return !0}
+  return !1}
+
+/* LA RAISON, EN FRANÇAIS. Les sorties de la sonde (« delai », « refus »,
+   « erreur », « sans-reseau », « src-illisible ») sont des NOMS DE CODE —
+   ce que le cache mémorise et ce que le banc épingle — pas des phrases ;
+   les notes montrent ceci. Un jeton inconnu passe tel quel, jamais une
+   chaîne vide. */
+function dzmAudioPourquoi(pq){
+  var p=String(pq||"");
+  return p==="delai"?"délai dépassé":p==="refus"?"le serveur a refusé"
+    :p==="erreur"?"erreur réseau":p==="sans-reseau"?"hors ligne"
+    :p==="src-illisible"?"source illisible":(p||"sans réponse")}
+
+/* LA SONDE. Motif EXACT d'askDur — `done(verdict, pourquoi)` appelée UNE
+   SEULE FOIS quoi qu'il arrive, `fetch` et `timer` injectables (absent =
+   celui de l'hôte, nul = « il n'y en a pas »), le délai et la réponse en
+   course, `rendu` pour que le second arrivé ne fasse rien. Deux différences,
+   et elles sont le point :
+     · LE CACHE EST ÉCRIT AVANT `done`, sur TOUTE sortie — c'est le verrou :
+       le rappel d'`addAsset` lit `audioOf(src)` non nul et ne redemande pas.
+       Sans cette écriture, une sortie « delai » relancerait la sonde à
+       chaque rappel, indéfiniment (le mode de panne que le banc [3-bis]
+       reproduit pour askDur, et qu'il joue ici en supprimant l'écriture) ;
+     · UNE SOURCE DÉJÀ SONDÉE RÉPOND SUR PLACE, sortie « cache », sans
+       appel : un même fichier posé deux fois n'est sondé qu'une fois.
+   Le verdict porte `dur` en prime (`/has-audio` la rend) : l'appelant s'en
+   sert quand il ne connaît pas encore la longueur de la source, et
+   s'épargne le second aller-retour d'askDur. */
+function dzmAskAudio(src,o){
+  o=o||{};
+  var fin=typeof o.done==="function"?o.done:function(){};
+  var f=o.fetch===void 0
+    ?(typeof fetch==="function"?function(u){return fetch(u)}:null):o.fetch;
+  var tm=o.timer===void 0
+    ?(typeof setTimeout==="function"
+        ?function(fn,ms){return setTimeout(fn,ms)}:null):o.timer;
+  var ms=Number(o.delai);if(!isFinite(ms)||ms<=0)ms=DZM_DUR_DELAI;
+  var k=dzmAudioKey(src);
+  if(k===""){fin(dzmAudioOf(src),"src-illisible");return}
+  var deja=dzmAudioOf(src);
+  if(deja){fin(deja,"cache");return}
+  var rendu=!1;
+  function rend(v,pq){if(rendu)return;rendu=!0;
+    fin(dzmAudioSet(src,{has_audio:v.has_audio,dur:v.dur,pourquoi:pq}),pq)}
+  var u="/api/montage/has-audio?src="+encodeURIComponent(k);
+  if(!f){rend({has_audio:!1,dur:0},"sans-reseau");return}
+  if(tm)tm(function(){rend({has_audio:!1,dur:0},"delai")},ms);
+  try{
+    f(u).then(function(rp){return rp&&rp.ok?rp.json():null})
+        .then(function(j){
+          if(j&&typeof j.has_audio==="boolean")
+            rend({has_audio:j.has_audio,dur:Number(j.dur)},"mesure");
+          else rend({has_audio:!1,dur:0},"refus")})
+        .catch(function(){rend({has_audio:!1,dur:0},"erreur")})}
+  catch(e2){rend({has_audio:!1,dur:0},"erreur")}}
+
+/* LA DURÉE RENDUE EN PRIME, prise SEULEMENT quand on ne la connaît pas
+   encore — la règle « connaît-on la durée ? » reste celle de needDur, pas
+   une seconde copie ; un verdict sans durée (0) laisse l'appelant aller la
+   demander comme avant. */
+function dzmSrcDurOr(kind,srcDur,v){
+  if(!dzmNeedDur(kind,srcDur))return srcDur;
+  var d=v?Number(v.dur):0;
+  return (isFinite(d)&&d>0)?d:srcDur}
+
+/* LES IDENTIFIANTS. `ovSeq` repart de zéro à chaque chargement et
+   svmApplyProject reprend `c.id` tel quel : MESURÉ sur la sauvegarde de
+   l'utilisateur (lecture seule, 06/09/2026), `v1u1_0` est porté par DEUX
+   clips et `v1u2_0` par deux autres — supprimer l'un supprime l'autre
+   (`c.id!==id`), et le second n'est jamais sélectionnable (`c.id===selId`).
+     · uniqueId(clips, base) — `base` s'il est libre, sinon `base_2`,
+       `base_3`… (le plus petit n libre, à partir de 2) ;
+     · dedupeIds(clips) — le PREMIER porteur garde son id, les suivants sont
+       renommés PAR uniqueId (le même, pas une seconde boucle de suffixe)
+       contre TOUS les ids du tableau, ceux d'après compris, ET ceux que le
+       renommage vient d'attribuer ; rend {clips, renamed:[{de, en}]},
+       l'entrée n'est pas mutée ;
+     · seqMax(clips) — le plus grand `u<n>` rencontré, pour re-semer ovSeq
+       au-dessus de tout ce que la sauvegarde porte. */
+function dzmUniqueId(clips,base){
+  var b=String(base==null?"":base),taken=Object.create(null),i;
+  var cs=Array.isArray(clips)?clips:[];
+  for(i=0;i<cs.length;i++)if(cs[i]&&cs[i].id!=null)taken[String(cs[i].id)]=1;
+  if(!taken[b])return b;
+  var n=2;
+  while(taken[b+"_"+n])n++;
+  return b+"_"+n}
+function dzmDedupeIds(clips){
+  var cs=Array.isArray(clips)?clips:[],seen=Object.create(null),out=[],ren=[];
+  /* `pool` est ce contre quoi uniqueId tranche : les clips d'entrée (ceux
+     d'après compris), plus chaque id que le renommage attribue. */
+  var pool=cs.slice(),i,c,id,nid;
+  for(i=0;i<cs.length;i++){c=cs[i];
+    if(!c||c.id==null){out.push(c);continue}
+    id=String(c.id);
+    if(!seen[id]){seen[id]=1;out.push(c);continue}
+    nid=dzmUniqueId(pool,id);
+    pool.push({id:nid});seen[nid]=1;
+    ren.push({de:id,en:nid});
+    out.push(Object.assign({},c,{id:nid}))}
+  return {clips:out,renamed:ren}}
+function dzmSeqMax(clips){
+  var cs=Array.isArray(clips)?clips:[],mx=0,i,m;
+  for(i=0;i<cs.length;i++){
+    if(!cs[i]||cs[i].id==null)continue;
+    m=/u(\d+)/.exec(String(cs[i].id));
+    if(m&&Number(m[1])>mx)mx=Number(m[1])}
+  return mx}
+
+/* LE JUMEAU. Même source, mêmes bornes, même point d'entrée, sur la piste
+   de dialogue ; libellé « … · son du plan », celui de la construction
+   automatique. `null` s'il existe DÉJÀ sur cette piste un clip de même
+   source (comparée par JSON des clés triées : {job_id} et {job_id} se
+   valent quel que soit l'ordre d'écriture) qui CHEVAUCHE [start, end] —
+   c'est le refus du doublon, et il vaut pour le bouton comme pour l'ajout.
+   L'identifiant reprend celui du plan en changeant la piste (v1u3_0 →
+   a1u3_0), puis passe par uniqueId contre les clips existants. */
+function dzmSrcKey(src){
+  var o=(src&&typeof src==="object")?src:{},ks=Object.keys(o).sort(),r={},i;
+  for(i=0;i<ks.length;i++)r[ks[i]]=o[ks[i]];
+  try{return JSON.stringify(r)}catch(e){return ""}}
+function dzmTwinClip(clip,trId,clips){
+  var c=clip||{},tr=String(trId||"");
+  if(!tr||!c.src)return null;
+  var st=Number(c.start)||0,en=Number(c.end)||0,k=dzmSrcKey(c.src);
+  var cs=Array.isArray(clips)?clips:[],i,o;
+  for(i=0;i<cs.length;i++){o=cs[i];
+    if(!o||o.tr!==tr||!o.src||dzmSrcKey(o.src)!==k)continue;
+    if((Number(o.start)||0)<en&&st<(Number(o.end)||0))return null}
+  var id=String(c.id==null?"":c.id),base;
+  if(!id)base=tr+"_son";
+  else if(c.tr&&id.indexOf(String(c.tr))===0)base=tr+id.slice(String(c.tr).length);
+  else base=tr+"_"+id;
+  return {tr:tr,id:dzmUniqueId(cs,base),
+    label:(c.label||"plan")+" · son du plan",
+    start:st,end:en,src:c.src,srcIn:Number(c.srcIn)||0}}
+
+/* LA DÉCISION, ET SA PHRASE. Rend {clip, tr, motif, note} : `clip` est le
+   jumeau à poser (ou null), `motif` nomme la sortie, `note` est la phrase
+   que l'appelant CONCATÈNE à la sienne — chaque sortie est DITE, jamais
+   tue : le verdict « muet », « pas de piste de dialogue », « déjà là »,
+   « verrouillée », « non sondée », et la pose elle-même, qui dit la piste et
+   qu'« Annuler » retire les deux clips d'un coup (un seul pushHistory, un
+   seul concat : l'appelant s'y engage, le banc [3-bis] le mesure). */
+function dzmTwinPlan(neuf,ts,clips,v,locked){
+  var c=neuf||{},L=c.label||"ce plan",tr=dzmDialogueTrack(ts),TR=tr.toUpperCase();
+  function out(clip,motif,note){return {clip:clip,tr:tr,motif:motif,note:note}}
+  if(!v)return out(null,"non-sonde"," Son du plan : la source n'a pas été "+
+    "sondée — rien n'a été extrait. « Extraire le son » dans l'inspecteur "+
+    "réessaie.");
+  if(!v.has_audio){
+    if(v.pourquoi==="mesure"){
+      /* MESURÉ sans flux ET sans durée : ffprobe n'a rien pu lire — la
+         source est vide ou illisible (le « demo complete videogen brute »
+         de la sauvegarde de l'utilisateur fait 0 octet, mesuré le
+         06/09/2026). Ce n'est PAS un plan muet, et le dire muet serait un
+         mensonge : `dur` est le témoin qui sépare les deux. Une image rend
+         0 aussi, mais une image n'est jamais sondée (wantsTwin exige le
+         genre « video », extractBtn refuse `src.image`). */
+      if(!(Number(v.dur)>0))return out(null,"non-sondable"," Son du plan : "+
+        "la source n'a pas pu être sondée (aucune durée mesurable : fichier "+
+        "vide ou illisible) — rien n'a été extrait. Vérifiez le fichier, ou "+
+        "remplacez la source.");
+      return out(null,"muet"," Cette vidéo n'a pas de piste audio : rien "+
+        "n'a été extrait.")}
+    return out(null,"non-sonde"," Son du plan : la sonde n'a pas abouti ("+
+      dzmAudioPourquoi(v.pourquoi)+") — rien n'a été extrait, et le rendu "+
+      "n'emporte JAMAIS l'audio embarqué d'un plan. « Extraire le son » dans "+
+      "l'inspecteur réessaie.")}
+  if(!tr)return out(null,"sans-piste"," Cette vidéo a du son, mais ce projet "+
+    "n'a pas de piste de dialogue : le rendu la jouera MUETTE. Ajoutez une "+
+    "piste avec « + piste audio », puis « Extraire le son » dans "+
+    "l'inspecteur.");
+  if(typeof locked==="function"&&locked(tr))return out(null,"verrou"," Piste "+
+    TR+" verrouillée : le son de « "+L+" » n'a PAS été extrait — "+
+    "déverrouillez-la, puis « Extraire le son » dans l'inspecteur.");
+  var j=dzmTwinClip(c,tr,clips);
+  if(!j)return out(null,"doublon"," Son du plan : déjà présent sur "+TR+
+    " (même source, même plage) — pas de second exemplaire.");
+  return out(j,"pose"," Son du plan extrait sur "+TR+" (« "+j.label+" », "+
+    "mêmes bornes, même source) : « Annuler » (Ctrl+Z) retire les DEUX clips "+
+    "d'un coup.")}
+
+/* LE BOUTON DES PLANS DÉJÀ POSÉS — même moteur : la sonde (cache compris),
+   twinClip, refus DIT. `o` est l'hôte : {tracks, clips (un THUNK : les clips
+   au moment de la réponse, pas ceux du clic), locked(trId), pushHistory,
+   setClips, setDirty, note, ask}. `ask` est injectable pour le banc ; l'hôte
+   n'en passe pas et c'est askAudio qui sonde. Un verdict en cache qui n'est
+   PAS une mesure (délai, erreur…) est OUBLIÉ avant de redemander : un clic
+   est un geste, il a droit à une vraie seconde sonde — là où le rappel
+   automatique d'addAsset, lui, ne doit jamais reboucler.
+   ÉCART AU PLAN, DÉCLARÉ : le plan écrivait extractBtn(sel, ts, clips,
+   onClick) « sur le motif de replaceBtn/revertBtn », qui reçoivent
+   (sel, rappel). Ici c'est (sel, hôte), parce que le bouton a besoin des
+   PISTES pour nommer sa cible dans son libellé, et des CLIPS AU MOMENT DE
+   LA RÉPONSE (le thunk) et non de ceux du clic — replaceBtn n'a besoin ni
+   de l'un ni de l'autre. Le clip visé est RELU dans ces clips frais :
+   déplacé entre le clic et la réponse, le jumeau prend ses bornes du
+   moment, pas celles du clic. Une image posée sur une piste vidéo
+   (`src.image`, deux portes du bundle le font) n'a rien à extraire : refus
+   avant toute sonde, et le bouton ne se montre pas. */
+function dzmExtract(sel,o){
+  o=o||{};
+  var note=typeof o.note==="function"?o.note:function(){};
+  var c=sel||{},L=c.label||"ce plan";
+  if(!c.src){note("Aucun plan à source n'est sélectionné : rien à extraire.");
+    return !1}
+  if(c.src.image){note("« "+L+" » est une image : elle n'a pas de son à "+
+    "extraire.");return !1}
+  var ts=dzmTsOr(o.tracks),tr=dzmDialogueTrack(ts),TR=tr.toUpperCase();
+  if(!tr){note("Ce projet n'a pas de piste de dialogue : le son de « "+L+
+    " » n'a pas été extrait. Ajoutez une piste avec « + piste audio », puis "+
+    "recommencez.");return !1}
+  if(typeof o.locked==="function"&&o.locked(tr)){note("Piste "+TR+
+    " verrouillée — déverrouillez-la pour y extraire le son de « "+L+" ».");
+    return !1}
+  var v0=dzmAudioOf(c.src);
+  if(v0&&v0.pourquoi!=="mesure"&&v0.pourquoi!=="src-illisible")dzmAudioForget(c.src);
+  var ask=typeof o.ask==="function"?o.ask:dzmAskAudio;
+  ask(c.src,{done:function(v,pq){
+    if(!v||!v.has_audio){
+      note(!v||v.pourquoi!=="mesure"
+        ?"La sonde audio de « "+L+" » n'a pas abouti ("+
+          dzmAudioPourquoi((v&&v.pourquoi)||pq)+") : rien n'a été posé. "+
+          "Réessayez dans un instant."
+        :!(Number(v.dur)>0)
+        ?"« "+L+" » n'a pas pu être sondé (aucune durée mesurable : fichier "+
+          "vide ou illisible) : rien à extraire. Vérifiez le fichier, ou "+
+          "remplacez la source."
+        :"« "+L+" » n'a pas de piste audio : rien à extraire.");return}
+    var cs=(typeof o.clips==="function"?o.clips():o.clips)||[],i,la=null;
+    for(i=0;i<cs.length;i++)if(cs[i]&&cs[i].id===c.id){la=cs[i];break}
+    if(!la){note("« "+L+" » n'est plus dans la timeline : rien n'a été "+
+      "posé.");return}
+    /* `la`, le clip FRAIS — ses bornes du moment, pas celles du clic */
+    var j=dzmTwinClip(la,tr,cs);
+    if(!j){note("Le son de « "+L+" » est déjà sur "+TR+" (même source, "+
+      "même plage) : rien n'a été ajouté.");return}
+    if(typeof o.pushHistory==="function")o.pushHistory();
+    if(typeof o.setClips==="function")o.setClips(cs.concat([j]));
+    if(typeof o.setDirty==="function")o.setDirty(!0);
+    note("Son de « "+L+" » extrait sur "+TR+" : « "+j.label+" », "+
+      dzmSecs(j.end-j.start)+", mêmes bornes et même source que le plan. "+
+      "« Annuler » (Ctrl+Z) le retire.")}});
+  return !0}
+/* Visible pour TOUT clip vidéo porteur d'une source — V1, V2, V3… — parce que
+   c'est le seul chemin qui rend son son à un plan DÉJÀ posé (celui de
+   l'utilisateur, posé sur V1 avant que l'ajout ne sache extraire). Le
+   libellé nomme la piste visée ; sans piste de dialogue il le dit, et le
+   clic explique. */
+function dzmExtractBtn(sel,o){
+  if(!sel||!sel.src||sel.src.image||dzmKindOf(sel.tr)!=="video")return null;
+  var tr=dzmDialogueTrack(dzmTsOr(o&&o.tracks)),TR=tr.toUpperCase();
+  var L=sel.label||"ce plan";
+  return r.jsx("button",{className:"svm-secbtn dzm-extract",
+    title:(tr
+      ?"Poser sur "+TR+" (piste de dialogue) un clip « "+L+" · son du plan » : "+
+       "même source, mêmes bornes, même point d'entrée. Le rendu n'emporte "+
+       "JAMAIS l'audio embarqué d'un plan vidéo — sans ce clip, ce plan "+
+       "sort muet. Refusé si la source n'a pas de piste audio ou si ce son "+
+       "est déjà sur "+TR+" à cette plage. « Annuler » (Ctrl+Z) le retire."
+      :"Ce projet n'a pas de piste de dialogue : ajoutez une piste avec "+
+       "« + piste audio » pour pouvoir extraire le son de ce plan."),
+    "aria-label":"Extraire le son de "+L+(tr?" vers "+TR:""),
+    onClick:function(){dzmExtract(sel,o)},
+    children:tr?"Extraire le son → "+TR:"Extraire le son (aucune piste de dialogue)"},
+    "dzmextr")}
+
+/* ══════════════════════════════════════════════════════════════════════════
    BARRE D'OUTILS DÉPORTABLE DE LA TIMELINE — étapes 1, 2 et 3 du §9 du
    handoff « Barre Outils Flottante » (« Design d'icônes applicatives/
    design_handoff_barre_outils/design.md »). Étape 1 : les tokens, dans les
@@ -16229,6 +16707,12 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   EMO_TITRE:DZM_EMO_TITRE,WORD_ANIMS:DZM_WORD_ANIMS,
   fitDur:dzmFitDur,durCtl:dzmDurCtl,secs:dzmSecs,DUR_MIN:DZM_DUR_MIN,
   clipLen:dzmClipLen,needDur:dzmNeedDur,askDur:dzmAskDur,
+  dialogueTrack:dzmDialogueTrack,trackPlein:dzmTrackPlein,wantsTwin:dzmWantsTwin,
+  audioOf:dzmAudioOf,audioSet:dzmAudioSet,audioForget:dzmAudioForget,
+  askAudio:dzmAskAudio,srcDurOr:dzmSrcDurOr,srcKey:dzmSrcKey,
+  uniqueId:dzmUniqueId,dedupeIds:dzmDedupeIds,seqMax:dzmSeqMax,
+  twinClip:dzmTwinClip,twinPlan:dzmTwinPlan,extract:dzmExtract,
+  extractBtn:dzmExtractBtn,overlayNote:dzmOverlayNote,
   CLIP_DEFAUTS:DZM_CLIP_DEFAUTS,DUR_DELAI:DZM_DUR_DELAI,
   tbTraces:DZM_TB_TRACES,tbIcons:DZM_TB_ICONS,tbParse:dzmTbParse,
   tbSerial:dzmTbSerial,TbIcon:DzmTbIcon,ToolBtn:DzmToolBtn,
