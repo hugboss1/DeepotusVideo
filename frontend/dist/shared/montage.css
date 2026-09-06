@@ -151,24 +151,18 @@
   font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace);
   white-space:nowrap}
 .dzsvm .dzm-txtbtn:disabled{opacity:.45; cursor:default}
-/* le bouton « texte » de la barre de transport.
-   ÉCART AU PLAN, déclaré : le plan prescrivait `className:"svm-toolchip"`,
-   une classe qui EXISTE et porte déjà son état retenu
-   (son-vfx-montage.css:323). J'ai pris `svm-tbtn` — celle de « + vidéo »,
-   « + audio », de la chip « mot » et du bouton « emoji », c'est-à-dire du
-   groupe que M8 et M10 ont posé dans cette même barre ; les `svm-toolchip`
-   vivent, elles, dans la rangée de chips au-dessus, et un bouton isolé y
-   aurait l'air d'un intrus. Conséquence assumée de MON choix, pas du
-   bundle : `svm-tbtn` n'a aucune règle `[data-on]` (aucun bouton de barre
-   n'était à bascule avant celui-ci), donc l'état ouvert demande la règle
-   ci-dessous. Le plan, lui, n'aurait rien eu à écrire. Même remplissage
-   plein que la chip « mot » (P2) : un état retenu se lit, il ne se devine
-   pas. */
-.dzsvm .dzm-txton{width:auto; padding:0 8px; font-size:10px; flex:none;
-  font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace);
-  white-space:nowrap}
-.dzsvm .dzm-txton[data-on]{border-color:transparent;
-  background:var(--accent, #d8a657); color:var(--accent-ink, #17161a)}
+/* LE BOUTON « texte » DU BANDEAU DE TRANSPORT N'EXISTE PLUS, et ses deux
+   règles sont parties avec lui : l'étape 6 du handoff « Barre Outils
+   Flottante » (§5.1) l'a retiré, et sa classe n'était écrite que par la
+   section M11b du patcher. Personne d'autre ne l'émet — ni la couche, ni le
+   bundle — donc la garder aurait été du style mort qui ressemble à du style
+   vivant. SON NOM N'EST PAS ÉCRIT ICI, ET C'EST DÉLIBÉRÉ : le banc mesure sa
+   disparition de CE fichier entier, et un jeton laissé dans un commentaire
+   aurait rendu cette mesure verte sans qu'aucune règle n'existe.
+   La bascule elle-même n'est pas perdue : c'est `texte` dans la barre
+   flottante, habillé par `.dzm-tbb.dzm-on` comme les quatre autres bascules.
+   Ce qui reste ci-dessus (`.dzm-txtbtn`) est le bouton du PANNEAU, pas du
+   bandeau : le panneau n'a pas bougé. */
 
 /* P4 — « étalonnage → tous les plans <PISTE> », posé sous la pile d'effets de
    l'inspecteur (section M13). Même famille visuelle que les boutons de la
@@ -684,3 +678,172 @@
    demande l'inverse, UN seul curseur pour tout le geste. */
 body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
   -webkit-user-select:none; user-select:none}
+
+/* ══ ÉTAPE 6 DU HANDOFF « BARRE OUTILS FLOTTANTE » — §5 ═══════════════════
+   LE BANDEAU REDISTRIBUÉ. Le §5.1 a retiré ses neuf contrôles (patcher,
+   sections M8 / M10 / M11b / M14 / M16-lib) ; ce qui suit rend la place et
+   décide de ce qui tombe quand il n'y en a plus.
+
+   ── §5.2, LA GÉOMÉTRIE. Hauteur 46 px (34 auparavant : son-vfx-montage.css
+   l.306), rembourrage 0 14px (déjà juste), fond `--srf-panel`, FILETS HAUT
+   ET BAS `--brd-hard` — le bandeau n'en portait qu'un, en bas.
+   LES 12 PX DE PLUS SONT PRIS À LA ZONE DE PISTES, pas à la fenêtre :
+   `.svm-tl` est en `height:auto; min-height:312px; max-height:48vh` et
+   `.svm-scroll` en `flex:1`. La timeline garde donc sa hauteur, son
+   défilement en absorbe la différence.
+   `flex-wrap:nowrap` EST UN VERROU, pas une redite : c'est la valeur par
+   défaut aujourd'hui, et le §5.3 interdit deux lignes — une règle posée
+   demain les autoriserait sans un pixel d'avertissement. Même raison
+   qu'`overflow:visible`, écrit juste au-dessus pour l'onglet.
+   CORRESPONDANCE DES NOMS : celle du §15-bis de DESIGN.md, déjà employée
+   dans tout ce fichier — `--srf-panel` → `--bg-panel`, `--brd-hard` →
+   `--stroke`. Ce sont les secondes qui font foi ici. */
+.dzsvm .svm-trans{height:46px; padding:0 14px; flex-wrap:nowrap;
+  background:var(--srf-panel, var(--bg-panel, #13171c));
+  border-top:1px solid var(--brd-hard, var(--stroke, #20262d));
+  border-bottom:1px solid var(--brd-hard, var(--stroke, #20262d))}
+
+/* LES SÉPARATEURS DU §5.2 — « verticaux de 1 px `--brd-hard` avec
+   `margin: 0 12px` entre chaque bloc ». Ils sont dessinés par un
+   PSEUDO-ÉLÉMENT, pas par un `border-left` : les blocs concernés sont des
+   boutons et des chips qui portent DÉJÀ leur propre bordure, et un
+   `border-left` aurait repeint la leur au lieu d'ajouter un filet.
+   L'ARITHMÉTIQUE, ÉCRITE : le bandeau a `gap:12px` ; on ajoute 13 px de
+   marge, ce qui porte l'intervalle à 25 px, et le filet se pose à −13 px du
+   bloc. Il reste donc 12 px de vide de chaque côté du trait — le
+   `margin: 0 12px` du §5.2, au pixel.
+   26 PX DE HAUT, CENTRÉS : la hauteur de bouton que le §5.2 fixe lui-même
+   (« hauteur 26 px »), pas un chiffre inventé pour l'occasion.
+   `.svm-zoom` REÇOIT LE FILET SANS LA MARGE, et c'est mesuré : la feuille
+   amont lui donne `margin-left:auto` (son-vfx-montage.css l.324) — c'est
+   l'intercalaire `flex:1` que le §5.2 demande, il existe déjà. Le remplacer
+   par 13 px aurait ramené le zoom au milieu du bandeau.
+   `.svm-hints` N'EN REÇOIT PAS, et c'est mesuré aussi : il est en
+   `overflow:hidden` (son-vfx-montage.css l.878), un pseudo-élément posé à
+   −13 px y serait ROGNÉ et le filet n'apparaîtrait jamais. Un séparateur
+   invisible aurait été pire qu'aucun : la couche le compte, la feuille ne le
+   dessine pas. */
+.dzsvm .svm-trans > .svm-transbtns,
+.dzsvm .svm-trans > .svm-toolchips,
+.dzsvm .svm-trans > .svm-meterslot{margin-left:13px}
+.dzsvm .svm-trans > .svm-transbtns,
+.dzsvm .svm-trans > .svm-toolchips,
+.dzsvm .svm-trans > .svm-meterslot,
+.dzsvm .svm-trans > .svm-zoom{position:relative}
+/* L'ORDRE DE GAUCHE À DROITE DU §5.2 : le zoom et `ajuster` sont le DERNIER
+   bloc, « poussé à droite » (item 7). Ils étaient déjà poussés — le
+   `margin-left:auto` de la feuille amont — mais pas DERNIERS : les rappels
+   de raccourcis et le bouton « ? » les suivaient dans le flux, donc à leur
+   droite. `order` les fait passer devant SANS toucher au JSX du bundle :
+   cette chaîne n'ajoute aucun nœud au bandeau, elle réordonne celui qui
+   existe. Tout le reste garde `order:0`, donc son ordre d'écriture.
+   ÉCART DÉCLARÉ : les rappels et le « ? » ne figurent dans AUCUN des sept
+   blocs du §5.2 — ils viennent de l'amont. Ils se rangent donc juste avant
+   le bloc poussé à droite, après les sous-titres. */
+.dzsvm .svm-trans > .svm-zoom,
+.dzsvm .svm-trans > .dzm-durctl{order:1}
+.dzsvm .svm-trans > .svm-transbtns::before,
+.dzsvm .svm-trans > .svm-toolchips::before,
+.dzsvm .svm-trans > .svm-meterslot::before,
+.dzsvm .svm-trans > .svm-zoom::before{content:""; position:absolute;
+  left:-13px; top:50%; margin-top:-13px; width:1px; height:26px;
+  background:var(--brd-hard, var(--stroke, #20262d)); pointer-events:none}
+/* LE BLOC 5 DU §5.2, « sous-titres », SÉPARÉ DES OUTILS DE COUPE. Il vit
+   dans la MÊME rangée qu'eux (le bundle les met dans un seul `.svm-toolchips`
+   et cette chaîne n'y ajoute pas de nœud), donc le filet se pose sur la chip
+   elle-même. `:nth-child(4)` et pas `:last-child`, et c'est le piège qu'on
+   évite : la chip des sous-titres n'existe que si la piste S1 existe — sans
+   elle, `:last-child` aurait décoré `ripple`, qui n'est pas un bloc à part.
+   `:nth-child(4)` ne désigne rien quand il n'y a que trois chips.
+   19 px de marge + 6 px de `gap` = les mêmes 25 px qu'ailleurs. */
+.dzsvm .svm-trans .svm-toolchips > .svm-toolchip:nth-child(4){
+  position:relative; margin-left:19px}
+.dzsvm .svm-trans .svm-toolchips > .svm-toolchip:nth-child(4)::before{
+  content:""; position:absolute; left:-13px; top:50%; margin-top:-13px;
+  width:1px; height:26px;
+  background:var(--brd-hard, var(--stroke, #20262d)); pointer-events:none}
+
+/* LE STYLE COMMUN DES BOUTONS DU BANDEAU (§5.2, dernier paragraphe) :
+   « hauteur 26 px, padding: 0 9px, 11 px, border: 1px solid var(--brd-hard),
+   fond --srf-raised, survol #1e242b, border-radius: 0 ».
+   SCOPÉ AU BANDEAU, et il le faut : `.svm-tbtn` sert aussi l'inspecteur, le
+   popover des projets et les en-têtes de piste, que le §5 ne touche pas.
+   LE BOUTON DE LECTURE GARDE SON OR (§5.2 : « le seul en or #e6b23c sur
+   texte #14181d — c'est une commande de marque, hors catégorie ») : sa
+   bordure repasse en transparent, sinon la règle ci-dessus la lui rendrait,
+   étant plus spécifique que `.svm-tbtn.svm-gold` de la feuille amont. */
+.dzsvm .svm-trans > .svm-transbtns > .svm-tbtn,
+.dzsvm .svm-trans > .svm-tbtn{width:auto; min-width:26px; height:26px;
+  padding:0 9px; font-size:11px; border-radius:0;
+  border:1px solid var(--brd-hard, var(--stroke, #20262d));
+  background:var(--srf-raised, var(--bg-panel-2, #171c22))}
+.dzsvm .svm-trans > .svm-transbtns > .svm-tbtn:hover,
+.dzsvm .svm-trans > .svm-tbtn:hover{background:#1e242b}
+.dzsvm .svm-trans > .svm-transbtns > .svm-tbtn.svm-gold{
+  border-color:transparent;
+  background:var(--accent, #e6b23c); color:var(--accent-ink, #14181d)}
+/* PAS DE `gap` ICI, ET C'EST MESURÉ : les trois pastilles de la chip des
+   sous-titres portent DÉJÀ leur `margin-left` (subs.css l.37, l.40, l.599 :
+   5 px, 4 px, 4 px). Un `gap` s'y serait ajouté au lieu de les remplacer, et
+   la chip aurait grandi de 13 px pour rien. `inline-flex` + `align-items`
+   sont là pour centrer ce contenu dans les 26 px, pas pour l'espacer. */
+.dzsvm .svm-trans .svm-toolchip{height:26px; padding:0 9px; font-size:11px;
+  border-radius:0; border:1px solid var(--brd-hard, var(--stroke, #20262d));
+  background:var(--srf-raised, var(--bg-panel-2, #171c22));
+  display:inline-flex; align-items:center}
+.dzsvm .svm-trans .svm-toolchip:hover:not([data-on]){background:#1e242b}
+
+/* LA LISTE DES PROJETS, MONTÉE NUE (§5.1 — le BOUTON part, la LISTE reste :
+   c'est elle que la barre d'outils demande, et il n'y en a qu'une).
+   HORS FLUX, et il le faut : un `inline-flex` vide resterait un élément flex
+   et ouvrirait un intervalle de 12 px pour rien.
+   ANCRÉE À DROITE, et c'est mesuré : la barre flottante vit à `left:14px` et
+   fait 74 px de haut ; un panneau de 300 px ouvert à gauche, 4 px sous le
+   bandeau, se serait posé dessus. Il passerait au-dessus (z-index 9 contre
+   8), mais le §4.2 ne demande pas de couvrir la barre — il demande qu'on
+   puisse s'en servir. `right:0` sur le panneau, puisque son ancre est
+   désormais à droite : `left:0` l'aurait envoyé 300 px hors du bandeau. */
+.dzsvm .svm-trans > .dzm-proj[data-nu]{position:absolute; right:14px;
+  top:0; bottom:0; width:0; margin:0; padding:0}
+.dzsvm .dzm-proj[data-nu] > .dzm-projp{left:auto; right:0}
+
+/* ══ §5.3 — LA DÉGRADATION EN LARGEUR RÉDUITE ════════════════════════════
+   « Le bandeau ne doit JAMAIS passer sur deux lignes ni provoquer de
+   défilement horizontal. » `flex-wrap:nowrap` ferme la première moitié ;
+   celle-ci ferme la seconde, en retirant du contenu AVANT qu'il ne déborde.
+   C'est `dzmBdPlan` — pure, jouée sous node — qui DÉCIDE lequel des quatre
+   rangs tombe ; la couche écrit son verdict dans `data-bdoff`, une liste de
+   mots que ces règles lisent par `~=`. Ni la feuille ni l'hôte ne décident
+   quoi que ce soit : ils exécutent.
+   L'ORDRE DU §5.3, ADAPTÉ À CE QUI EXISTE, est écrit rang par rang dans la
+   couche (bloc « §5.3 »), avec pour chacun le principe du rang d'origine.
+   NE SE DÉGRADENT JAMAIS : le transport, la chip des sous-titres, le zoom et
+   l'onglet OUTILS — le §5.3 les nomme. */
+.dzsvm .svm-trans[data-bdoff~="hints"] .svm-hints{display:none}
+.dzsvm .svm-trans[data-bdoff~="metre"] .svm-meterslot{display:none}
+.dzsvm .svm-trans[data-bdoff~="tctotal"] .svm-tcmain .svm-tctotal{display:none}
+/* RANG 2 — « les libellés des outils de coupe passent en icônes seules avec
+   infobulles ». Les infobulles sont DÉJÀ là : les trois chips portent chacune
+   un `title` en clair, écrit par le bundle. Le libellé s'efface par
+   `font-size:0` et le glyphe revient par un pseudo-élément à 11 px.
+   LES TROIS PREMIÈRES SEULEMENT (`:nth-child(-n+3)`) : la quatrième est la
+   chip des sous-titres, que le §5.3 protège — et ses deux compteurs seraient
+   illisibles réduits à un glyphe.
+   LA LARGEUR DU GLYPHE EST FIXÉE ICI (4 + 11 + 4 + 2 filets = 21 px) et la
+   couche la reprend en constante : c'est ce couple qui permet de CALCULER la
+   place que ce rang libère sans la mesurer deux fois. Le banc exige les deux
+   côtés — un `width` changé ici sans l'être là-bas ferait viser à côté.
+   `\FE0E` sur les ciseaux force la présentation TEXTE : sans lui, U+2702 part
+   en emoji couleur sur plusieurs plateformes, hors du langage à angles
+   droits de cet écran. Le bundle emploie déjà ce sélecteur pour son cadenas. */
+.dzsvm .svm-trans[data-bdoff~="coupe"] .svm-toolchips
+  > .svm-toolchip:nth-child(-n+3){font-size:0; padding:0 4px}
+.dzsvm .svm-trans[data-bdoff~="coupe"] .svm-toolchips
+  > .svm-toolchip:nth-child(-n+3)::before{font-size:11px; line-height:1;
+  display:inline-block; width:11px; text-align:center; color:inherit}
+.dzsvm .svm-trans[data-bdoff~="coupe"] .svm-toolchips
+  > .svm-toolchip:nth-child(1)::before{content:"\21E5"}
+.dzsvm .svm-trans[data-bdoff~="coupe"] .svm-toolchips
+  > .svm-toolchip:nth-child(2)::before{content:"\2702\FE0E"}
+.dzsvm .svm-trans[data-bdoff~="coupe"] .svm-toolchips
+  > .svm-toolchip:nth-child(3)::before{content:"\21C4"}

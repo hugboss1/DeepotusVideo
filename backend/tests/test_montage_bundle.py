@@ -393,45 +393,39 @@ check("le_libelle_du_type_absorbe_le_serrage_au_lieu_de_deborder",
       and s.count(nl("title:tr.type")) == 1,
       f"ttype={_R_TTYPE!r} minibtn={_R_MINI!r} "
       f"title={s.count(nl('title:tr.type'))}")
-# M10 (P2) : la chip « mot » et le bouton « emoji » vivent DANS R_M8 — l'ancre
-# A_M8 est déjà consommée par M8. `R_M8` CONTENANT `R_M10`, un bundle amputé de
-# la chip échouerait déjà sur « M8-toolbar_remplace » : cette ligne ne rattrape
-# donc pas ce cas-là. Ce qu'elle rattrape : retirer `R_M10` de `R_M8` DANS LE
-# PATCHER puis rejouer la chaîne — le bundle reste cohérent, M8 se retrouve
-# tout seul et passe, et seule cette ligne (avec la suivante) voit le trou.
-check("M10-chip_remplace", s.count(nl(P.R_M10)) == 1, f"count={s.count(nl(P.R_M10))}")
-# `DzMontage` est DÉJÀ une fonction de premier niveau du bundle (l'écran
-# Montage). La couche ne doit référencer que `DzTracks` : `DzTracks.` compté
-# ici, `DzMontage.` (l'appel qu'écrivait le plan) interdit.
-check("M10_utilise_DzTracks_pas_DzMontage",
-      "DzMontage.WordAnimChip" not in s and "DzTracks.WordAnimChip" in s
-      and "DzTracks.EmojiBtn" in s)
-# R_M10 APPELLE six identifiants du bundle que rien ne gardait. `node --check`
-# ne peut pas les voir (c'est du JS valide : un nom libre ne lève qu'à
-# l'exécution) et compter R_M10 ne prouve que ce que le patch a écrit. Un
-# rebuild qui renommerait `subsSegsOf` laisserait tout vert, et la chip
-# lèverait au PREMIER clic.
-# Le contrôle est donc à DEUX FACES : vérifier seulement la déclaration
-# laisserait passer un R_M10 qui appelle un AUTRE nom (mesuré : renommer
-# l'appel en `subsSegsOfRENOMME` gardait les 58 lignes vertes) ; vérifier
-# seulement l'appel ne verrait pas le rebuild. On exige les deux, et qu'ils
-# portent le MÊME nom — recherche BORNÉE (`\b…\b`), car un simple `in` était
-# encore leurré, `subsSegsOf` étant sous-chaîne de `subsSegsOfRENOMME`.
-# `fireNote=nt[1]` apparaît sept fois — c'est le même motif dans plusieurs
-# composants ; ce qui compte est qu'il en reste au moins un.
-# ÉTAPE 7 : `pushHistory`, `setClips` et `setDirty` ONT QUITTÉ R_M10 pour
-# R_M11 — la barre pose les mêmes emoji, et recopier ces trois appels dans
-# R_M19 aurait fait DEUX sources pour un seul geste. Ils sont donc mesurés
-# dans R_M11 (voir `M10_M19_emoji_partagent_un_seul_ajout` plus bas), et
-# R_M10 ne garde que les trois qui lui restent propres.
-for _nm, _decl in (("subsSegsOf", "function subsSegsOf(cs){"),
-                   ("subsStyleSet", "function subsStyleSet(patch){"),
-                   ("dzEmoAdd", "function dzEmoAdd(cs){pushHistory();"),
-                   ("fireNote", "fireNote=nt[1]")):
-    _appele = re.search(r"\b%s\b" % re.escape(_nm), P.R_M10) is not None
-    check("M10_appelle_" + _nm + "_qui_est_declare",
-          _appele and s.count(nl(_decl)) >= 1,
-          f"appelé={_appele} déclaré={s.count(nl(_decl))} ({_decl})")
+# ══ ÉTAPE 6 DU HANDOFF (§5.1) : M10 A ÉTÉ VIDÉE ═══════════════════════════
+# La chip « mot » et le bouton « emoji » ONT QUITTÉ le bandeau. Le §5.1
+# l'exige (« Ne pas les laisser en double […] deux sources de vérité pour
+# l'état des bascules ») et la barre flottante les porte depuis l'étape 7.
+# UNE ABSENCE EST VRAIE D'UN FICHIER VIDE : cette ligne porte donc son
+# CONJOINT, et il n'est pas décoratif — c'est la PORTE DE REMPLACEMENT, avec
+# les quatre expressions que M10 écrivait, reprises MOT POUR MOT par R_M19.
+# MESURÉE PAR MUTATION, dans les deux sens : en remettant `R_M10` dans `R_M8`
+# et en rejouant la chaîne, les deux premiers comptes passent à 1 — rouge ; en
+# retirant `wordAnim:` de R_M19 et en rejouant, le conjoint tombe — rouge
+# aussi, et le détail nomme lequel des deux a lâché.
+check("etape6_la_chip_mot_et_le_bouton_emoji_ont_quitte_le_bandeau",
+      s.count("DzTracks.WordAnimChip") == 0
+      and s.count("DzTracks.EmojiBtn") == 0
+      and s.count(nl("r.jsx(DzTracks.ToolDock,{")) == 1
+      and s.count(nl('wordAnim:(proj.subsStyle||{}).wordAnim||"couleur"')) == 1
+      and s.count(nl("onWordAnim:function(v){subsStyleSet({wordAnim:v})}")) == 1
+      and s.count(nl("emojiSegs:subsSegsOf(clips)")) == 1
+      and s.count(nl("onEmojiAdd:dzEmoAdd")) == 1,
+      f'chip={s.count("DzTracks.WordAnimChip")} '
+      f'emoji={s.count("DzTracks.EmojiBtn")} '
+      f'dock={s.count(nl("r.jsx(DzTracks.ToolDock,{"))} '
+      f'wordAnim={s.count(nl(chr(34) + "couleur" + chr(34)))}')
+# LES COMPOSANTS DÉMONTÉS RESTENT AU CONTRAT, et c'est un RESTE ASSUMÉ, dit
+# plutôt que découvert : le §5.1 retire des contrôles DU BANDEAU, pas des
+# composants d'une bibliothèque publique. Quatre briques exportées ne sont
+# plus montées nulle part — le banc, lui, les joue toujours sous node.
+_DEMONTES = ("WordAnimChip:DzmWordAnimChip", "EmojiBtn:DzmEmojiBtn",
+             "TrackAdd:DzmTrackAdd", "LibBtn:DzmLibBtn")
+check("etape6_les_quatre_composants_demontes_restent_au_contrat",
+      all(_j in src for _j in _DEMONTES)
+      and all(s.count(nl(_j)) == 1 for _j in _DEMONTES),
+      f'{[_j for _j in _DEMONTES if _j not in src]} hors contrat')
 for _nm, _decl in (("pushHistory", "var pushHistory=x.useCallback("),
                    ("setClips", "setClips=st1[1]"),
                    ("setDirty", "setDirty=st8[1]")):
@@ -439,39 +433,49 @@ for _nm, _decl in (("pushHistory", "var pushHistory=x.useCallback("),
     check("M11_appelle_" + _nm + "_qui_est_declare",
           _appele and s.count(nl(_decl)) >= 1,
           f"appelé={_appele} déclaré={s.count(nl(_decl))} ({_decl})")
-# L'ANNULATION est garantie par CONSTRUCTION ici, pas par une mesure :
-# `pushHistory` et `undo` sont des hooks du composant, hors de portée du shim
-# node — qui ne joue que la couche pure. Ce que cette ligne épingle est
-# l'ORDRE des deux appels dans le bundle livré. L'EFFET, lui, est mesuré :
-# la section [6-quater] rejoue les neuf actions de la barre sur un faux écran
-# qui reproduit cette sémantique-ci, et lit ce qu'`undo` rend.
-# Bon côté de ce montage : `dzEmoAdd` étant appelé depuis le `.then()`,
-# `pushHistory` lit l'état au moment de la RÉPONSE et non du clic —
-# l'instantané reste juste si l'utilisateur a bougé un clip pendant la
-# requête.
-# ÉTAPE 7 — UNE SEULE DÉCLARATION POUR DEUX PORTES. Le bouton du bandeau et
-# la barre posent les emoji par la MÊME fonction : c'est ce qui interdit que
-# l'une pousse l'historique et l'autre non. La ligne le mesure des DEUX
-# côtés — une seule définition dans le bundle, et DEUX usages, un par porte.
+# L'ANNULATION est garantie par CONSTRUCTION ici : `pushHistory` et `undo`
+# sont des hooks du composant, hors de portée du shim node — qui ne joue que
+# la couche pure. Ce que cette ligne épingle est l'ORDRE des deux appels dans
+# le bundle livré. L'EFFET, lui, est mesuré : la section [6-quater] rejoue les
+# neuf actions de la barre sur un faux écran qui reproduit cette sémantique.
+# ÉTAPE 6 — IL N'Y A PLUS QU'UNE PORTE, ET C'EST CE QUI REFERME LE DOUBLON
+# D'ATTENTE : `dzmEmojiGo` n'a pas de hook, chaque porte tenait le sien
+# (`DzmEmojiBtn` d'un côté, le Dock de l'autre). Une porte est partie, une
+# attente avec elle. LA DÉFINITION, ELLE, N'A PAS BOUGÉ DE PLACE : elle est
+# toujours dans R_M11, le corps du composant, et c'est ce qui interdit de la
+# recopier dans R_M19. Deux faces, comme avant : une seule définition, ET
+# exactement un usage — l'ancien `onAdd:dzEmoAdd` doit avoir disparu.
 # MESURÉE PAR MUTATION : en recopiant le corps dans R_M19 au lieu d'appeler
-# `dzEmoAdd`, la définition reste à 1 mais `_usages` tombe à 1 — rouge.
+# `dzEmoAdd`, `_usages` tombe à 0 — rouge ; en remettant `R_M10` dans `R_M8`,
+# il monte à 2 — rouge aussi.
 _DEF_EMOADD = ("function dzEmoAdd(cs){pushHistory();"
                "setClips(function(k){return (k||[]).concat(cs)});"
                "setDirty(!0)}")
 _usages = s.count(nl("onAdd:dzEmoAdd")) + s.count(nl("onEmojiAdd:dzEmoAdd"))
-check("M10_M19_emoji_partagent_un_seul_ajout",
-      s.count(nl(_DEF_EMOADD)) == 1 and _usages == 2
-      and "onAdd:dzEmoAdd" in P.R_M10
+check("etape6_une_seule_porte_pose_les_emoji",
+      s.count(nl(_DEF_EMOADD)) == 1 and _usages == 1
+      and s.count(nl("onAdd:dzEmoAdd")) == 0
       and "onEmojiAdd:dzEmoAdd" in P.R_M19
       and _DEF_EMOADD in P.R_M11,
-      f'definitions={s.count(nl(_DEF_EMOADD))} usages={_usages}')
+      f'definitions={s.count(nl(_DEF_EMOADD))} usages={_usages} '
+      f'ancienne_porte={s.count(nl("onAdd:dzEmoAdd"))}')
 
 print("\n[1-bis] P3 — le bouton « texte », le panneau, et la coupe par plage")
-# M11b vit DANS R_M8, comme M10 : meme raison (A_M8 deja consommee). Meme
-# limite aussi — un bundle ampute echouerait deja sur M8-toolbar_remplace ;
-# ce que cette ligne rattrape est le retrait de R_M11b DANS LE PATCHER.
-check("M11b-bouton_texte_dans_la_barre", s.count(nl(P.R_M11b)) == 1,
-      f"count={s.count(nl(P.R_M11b))}")
+# ÉTAPE 6 (§5.1) : LE BOUTON « texte » A QUITTÉ LE BANDEAU. Sa classe
+# `dzm-txton` n'était écrite que par R_M11b — elle vaut donc zéro partout, y
+# compris dans la feuille, d'où les deux règles retirées de montage.css.
+# L'ABSENCE PORTE SON CONJOINT : la bascule n'est pas perdue, la barre la
+# tient (`textOn`/`onText` sur le MÊME état), et le panneau (M12) n'a pas
+# bougé. Une ligne qui n'aurait mesuré que la disparition aurait été verte
+# d'un bundle sans panneau du tout.
+check("etape6_le_bouton_texte_a_quitte_le_bandeau",
+      s.count("dzm-txton") == 0
+      and "dzm-txton" not in CSS.read_text(encoding="utf-8")
+      and s.count(nl("textOn:dzTextOn,onText:function(){"
+                     "setDzTextOn(!dzTextOn)}")) == 1
+      and s.count(nl("DzTracks.TextDrawer")) == 1,
+      f'txton_bundle={s.count("dzm-txton")} '
+      f'porte={s.count(nl("textOn:dzTextOn"))}')
 check("M11_etat_declare_une_fois",
       s.count(nl("var stDzTx=x.useState(!1),dzTextOn=stDzTx[0],"
                  "setDzTextOn=stDzTx[1];")) == 1)
@@ -487,8 +491,7 @@ for _nm in ("stDzTx", "dzTextOn", "setDzTextOn"):
     # sur le meme etat, pas un second etat. La ligne garde son sens —
     # ces noms n'apparaissent nulle part AILLEURS que dans les sections
     # qui les ecrivent — et rougirait encore si un tiers les employait.
-    _dehors = s.count(_nm) - (P.R_M11 + P.R_M11b + P.R_M12
-                              + P.R_M19).count(_nm)
+    _dehors = s.count(_nm) - (P.R_M11 + P.R_M12 + P.R_M19).count(_nm)
     check("M11_nom_" + _nm + "_n_ecrase_rien", _dehors == 0,
           f"{_nm} apparait {_dehors}x hors des sections qui l'ecrivent")
 check("M12_utilise_DzTracks_pas_DzMontage",
@@ -606,13 +609,16 @@ check("bouton_en_bloc_ne_prend_que_les_hesitations",
 check("bouton_en_bloc_nomme_les_mots_qu_il_emporte",
       nl('title:hes.length\n          ?("Retirer "+hesMots.map(') in s,
       "le titre du bouton ne dit pas quels mots partent")
-# MESURE : son-vfx-montage.css n'a aucune regle `.svm-tbtn[data-on]` (grep
-# 04/09/2026 — la barre n'avait jamais eu de bouton a bascule). Sans une
-# regle A NOUS, l'etat ouvert du panneau ne se verrait pas du tout.
-check("css_porte_l_etat_ouvert_du_bouton_texte",
-      ".dzm-txton[data-on]" in CSS.read_text(encoding="utf-8")
-      and "dzm-txton" in P.R_M11b,
-      "l'etat retenu du bouton « texte » n'est pas habille")
+# ÉTAPE 6 : l'état retenu du panneau « Texte » se lit désormais SUR LA BARRE,
+# par la règle générale des bascules (`.dzm-tbb.dzm-on`), et non plus par une
+# règle propre au bandeau. La ligne mesure les deux faces : la règle existe
+# dans la feuille, ET la couche pose bien la classe qu'elle habille.
+# Vérifier la seule feuille aurait laissé passer un renommage côté couche ;
+# vérifier le seul JS n'aurait pas vu la règle disparaître.
+check("css_porte_l_etat_retenu_des_bascules_de_la_barre",
+      ".dzm-tbb.dzm-on" in CSS.read_text(encoding="utf-8")
+      and "dzm-on" in src and "dzm-txton" not in src,
+      "l'etat retenu des bascules de la barre n'est pas habille")
 
 print("\n[1-quater] P4 — le bouton « étalonnage → tous les plans » (M13)")
 # L'ancre du plan (`        transInspector(),`) n'a PAS été retenue, et la
@@ -878,27 +884,25 @@ print("\n[1-quater] P9 — « Bibliothèque… », la piste résolue, le champ e
 SERVICE = ROOT / "backend" / "app" / "services" / "montage_service.py"
 SVC = SERVICE.read_text(encoding="utf-8") if SERVICE.is_file() else ""
 check("service_montage_lisible", bool(SVC), f"{SERVICE} illisible")
-# ── le bouton, replie dans R_M8 comme M10 / M11b / M14 ────────────────────
-check("M16lib-bouton_bibliotheque_dans_la_barre",
-      s.count(nl(P.R_M16LIB)) == 1, f"count={s.count(nl(P.R_M16LIB))}")
-check("M16lib_utilise_DzTracks_pas_DzMontage",
-      "DzMontage.LibBtn" not in s and s.count("DzTracks.LibBtn") == 1,
-      f'count={s.count("DzTracks.LibBtn")}')
+# ── ÉTAPE 6 (§5.1) : « Bibliothèque… » A QUITTÉ LE BANDEAU ────────────────
+# Le bouton était posé dans R_M8 ; il n'y est plus. L'ABSENCE PORTE SON
+# CONJOINT — la barre flottante reçoit le MÊME `openPicker` et résout la MÊME
+# piste vidéo (`dzmPickTrack(ts,"video")`, dans `dzmTbCablage`) — sans quoi
+# cette ligne serait verte d'un bundle où plus rien n'ouvrirait la
+# Bibliothèque.
+check("etape6_le_bouton_bibliotheque_a_quitte_le_bandeau",
+      s.count("DzTracks.LibBtn") == 0
+      and s.count(nl("onPick:openPicker")) == 1
+      and "onPick:openPicker" in P.R_M19
+      and nl('children:"Bibliothèque…"},"lib")') in s,
+      f'libbtn={s.count("DzTracks.LibBtn")} '
+      f'onPick={s.count(nl("onPick:openPicker"))}')
 # Le libelle EST le mot de l'utilisateur (« depuis la bibliotheque »), pas
-# « + clip ». Il vit dans la couche, donc on le mesure dans le bundle livre.
+# « + clip ». Le composant reste dans la couche (reste assume, cf. plus haut),
+# donc le libelle se mesure toujours dans le bundle livre.
 check("M16lib_le_libelle_est_le_mot_de_l_utilisateur",
       nl('children:"Bibliothèque…"},"lib")') in s,
       "le bouton ne s'appelle plus « Bibliothèque… »")
-# Controle a DEUX FACES, comme M10/M12/M13/M14 : R_M16LIB appelle trois
-# identifiants du bundle ; verifier la seule declaration laisserait passer un
-# appel renomme, verifier le seul appel ne verrait pas un rebuild.
-for _nm, _decl in (("openPicker", "function openPicker(trId){"),
-                   ("svmTracksOf", "function svmTracksOf(proj){"),
-                   ("fireNote", "fireNote=nt[1]")):
-    _ap = re.search(r"\b%s\b" % re.escape(_nm), P.R_M16LIB) is not None
-    check("M16lib_appelle_" + _nm + "_qui_est_declare",
-          _ap and s.count(nl(_decl)) >= 1,
-          f"appelé={_ap} déclaré={s.count(nl(_decl))} ({_decl})")
 # MESURE qui fonde le bouton : avant P9, `openPicker` n'etait appele QU'A UN
 # endroit — le « + » de 14 px d'un en-tete de piste. Deux appels apres P9 :
 # celui-la, et le notre. TROIS depuis P6 (04/09/2026), et le troisieme est
@@ -3751,6 +3755,186 @@ out.tb7_lier_ne_transmet_que_la_piste=TBG(function(){
   c["bibliotheque"].act();
   return [e.panneaux,e.lus,e.ecrits]});
 
+/* ══ ETAPE 6 (§5) — LE BANDEAU REDISTRIBUE ═══════════════════════════════
+   §5.1 — LA PLACE RENDUE : le banc la RECALCULE, il ne recopie pas le
+   chiffre de la couche. Le protocole (6,0 px par caractere, boite
+   `border-box`, intervalle compte avec le noeud) est ecrit dans la couche ;
+   ici on verifie qu'il donne bien ce qu'il annonce, et que la table decrit
+   NEUF controles — une ligne perdue rendrait un total plus petit sans
+   qu'aucune ligne ne le dise. */
+out.bd_retire=TBG(function(){var r=T.bdRetire();return [r.px,r.n,r.nb]});
+out.bd_px_un=TBG(function(){
+  return [T.bdPx({lbl:"texte",pad:16}),T.bdPx({lbl:"x",px:18,pad:99}),
+    T.bdPx(null)]});
+out.bd_libelles=TBG(function(){
+  return T.bdRetires.map(function(e){return e.lbl})});
+out.bd_ctl=TBG(function(){
+  return T.bdRetires.filter(function(e){return e.ctl===!0})
+    .map(function(e){return e.id}).sort()});
+/* §5.3 — LE PLAN, PUR. Plateau de reference, une fois pour toutes :
+     reste 600 (rang 0) · hints 100 (rang 1) · coupe 140 (2) · metre 80 (3)
+     tctotal 40 (4)          -> besoin PLEIN = 960 */
+var BDB=[{id:"reste",rang:0,px:600},{id:"hints",rang:1,px:100},
+  {id:"coupe",rang:2,px:140},{id:"metre",rang:3,px:80},
+  {id:"tctotal",rang:4,px:40}];
+function BDP(w){var q=T.bdPlan(w,BDB);
+  return [q.niveau,q.off.join("+"),q.besoin,q.ok]}
+out.bd_plan_large=TBG(function(){return BDP(1200)});
+out.bd_plan_juste=TBG(function(){return BDP(960)});
+out.bd_plan_1=TBG(function(){return BDP(900)});
+out.bd_plan_2=TBG(function(){return BDP(800)});
+out.bd_plan_3=TBG(function(){return BDP(700)});
+out.bd_plan_4=TBG(function(){return BDP(620)});
+out.bd_plan_impossible=TBG(function(){return BDP(100)});
+/* MONOTONE : le niveau ne baisse jamais quand la largeur baisse, et ce qui
+   tombe a une largeur tombe encore a toutes les largeurs plus petites. Sans
+   cette seconde clause, un plan pourrait rendre le meme NIVEAU en changeant
+   ce qu'il sacrifie — la barre clignoterait au redimensionnement. */
+out.bd_plan_monotone=TBG(function(){
+  var prev=-1,niv=1,inc=1,dern=[],w,q,i;
+  for(w=1300;w>=0;w-=10){
+    q=T.bdPlan(w,BDB);
+    if(q.niveau<prev)niv=0;
+    for(i=0;i<dern.length;i++)if(q.off.indexOf(dern[i])<0)inc=0;
+    dern=q.off;prev=q.niveau}
+  return [niv,inc,prev]});
+/* LA GARANTIE DU §5.3, MESUREE SUR 187 LARGEURS : a chacune, ou bien le plan
+   TIENT, ou bien il a tout sacrifie ET LE DIT (`ok:!1`). Rien entre les deux
+   — c'est ce qui interdit un bandeau qui deborde en silence. `menteur`
+   compte les fois ou `ok` ne dit pas la verite de `besoin<=dispo`. */
+out.bd_plan_garantie=TBG(function(){
+  var w,bon=1,menteur=0,q;
+  for(w=0;w<=1300;w+=7){
+    q=T.bdPlan(w,BDB);
+    if(q.ok!==(q.besoin<=w))menteur++;
+    if(!q.ok&&q.off.length!==4)bon=0}
+  return [bon,menteur]});
+/* LES RANGS 0 NE TOMBENT JAMAIS, ET LA TABLE DE L'APPELANT N'EST PAS MUTEE :
+   le tri porte sur une copie. Sans elle, l'ordre du §5.3 serait reordonne
+   dans le tableau que l'appelant garde, et le second appel ne dirait plus la
+   meme chose que le premier. */
+out.bd_plan_rang0=TBG(function(){
+  var t=[{id:"a",rang:0,px:500},{id:"b",rang:2,px:10},{id:"c",rang:1,px:10}];
+  var avant=t.map(function(e){return e.id}).join("");
+  var q=T.bdPlan(0,t);
+  return [q.off.join("+"),avant,t.map(function(e){return e.id}).join("")]});
+/* DEUX BLOCS DE MEME RANG tombent dans l'ordre de la TABLE, pas dans celui
+   que le moteur de tri choisit — un tri instable rendrait l'ecran different
+   d'un navigateur a l'autre. */
+out.bd_plan_egalite=TBG(function(){
+  var t=[{id:"z",rang:1,px:10},{id:"y",rang:1,px:10}];
+  return T.bdPlan(0,t).off.join("+")});
+/* ENTREES POURRIES : ni levee, ni NaN, ni negatif. */
+out.bd_plan_pourri=TBG(function(){
+  var a=T.bdPlan(null,null),b=T.bdPlan("x",[{id:"q",rang:1,px:-5}]);
+  return [a.niveau,a.off.length,a.besoin,a.ok,b.besoin,b.off.join("+")]});
+/* LA TABLE DES RANGS DE LA COUCHE — l'ordre du §5.3, lu la ou il est ecrit. */
+out.bd_rangs=TBG(function(){
+  return T.BD_RANGS.map(function(r){return r.id+":"+r.rang+":"+r.sel})});
+out.bd_constantes=TBG(function(){
+  return [T.BD_PX_ICONE,T.BD_PX_CAR,T.BD_GAP,T.BD_PX_SEP,T.BD_ATTR,
+    T.BD_SEP,T.BD_HORS]});
+/* ── L'HOTE DU §5.3, JOUE SUR UN FAUX BANDEAU ────────────────────────────
+   IL TOUCHE LE DOM, DONC IL EST « DETTE NAVIGATEUR » — sauf que le DOM qu'il
+   touche tient en huit methodes, et un faux les rend toutes. Ce qui reste
+   dehors est la mise en page reelle (les largeurs viennent d'ici, pas d'un
+   moteur de rendu) ; ce qui entre est TOUT le reste : l'exclusion des noeuds
+   hors flux, le compte des intervalles et des filets, la memoire des blocs
+   deja sacrifies, l'ecriture de l'attribut, et l'IDEMPOTENCE — mesurer apres
+   avoir applique doit rendre le meme verdict, sinon la barre clignote.
+   LE PLATEAU, une fois pour toutes (largeurs en px) :
+     hors flux : onglet 90 · barre 600 · liste des projets 0
+     en flux   : timecode 120 (dont durée totale 40) · transport 160 ·
+                 annuler/rétablir 70 · outils+sous-titres 280 · métering 100 ·
+                 zoom 110 · durée 80 · rappels 200 · « ? » 30
+     9 enfants en flux -> 8 intervalles de 12 = 96 ; 4 filets de 13 = 52
+     somme 1150 + 96 + 52 = 1298 px de BESOIN PLEIN. */
+function BDEL(cls,w){
+  var e={cls:String(cls),offsetWidth:w,scrollWidth:w,children:[],_a:{}};
+  e.matches=function(sel){
+    var l=String(sel).split(","),i,t;
+    for(i=0;i<l.length;i++){
+      t=l[i].trim();
+      if(t.charAt(0)===".")t=t.slice(1);
+      if((" "+e.cls+" ").indexOf(" "+t+" ")>=0)return !0}
+    return !1};
+  e.getAttribute=function(k){
+    return Object.prototype.hasOwnProperty.call(e._a,k)?e._a[k]:null};
+  e.setAttribute=function(k,v){e._a[k]=v};
+  e.removeAttribute=function(k){delete e._a[k]};
+  e.querySelector=function(sel){
+    var i,r;
+    for(i=0;i<e.children.length;i++){
+      if(e.children[i].matches(sel))return e.children[i];
+      r=e.children[i].querySelector(sel);
+      if(r)return r}
+    return null};
+  e.querySelectorAll=function(sel){
+    var out=[],i;
+    for(i=0;i<e.children.length;i++){
+      if(e.children[i].matches(sel))out.push(e.children[i]);
+      out=out.concat(e.children[i].querySelectorAll(sel))}
+    return out};
+  return e}
+function BDBAND(w){
+  var b=BDEL("svm-trans",0);
+  b.clientWidth=w;
+  var tc=BDEL("svm-tcmain",120);
+  tc.children=[BDEL("svm-tctotal",40)];
+  b.children=[BDEL("dzm-tbtab",90),BDEL("dzm-tbar",600),tc,
+    BDEL("svm-transbtns",160),BDEL("svm-transbtns",70),
+    BDEL("svm-toolchips",280),BDEL("svm-meterslot",100),
+    BDEL("svm-zoom",110),BDEL("dzm-durctl",80),
+    BDEL("svm-hints",200),BDEL("dzm-proj",0),BDEL("svm-tbtn",30)];
+  return b}
+/* CE QUE LA FEUILLE FERAIT DU VERDICT — masquer, ou reduire les trois chips
+   de coupe a leurs glyphes (280 -> 63, soit 3 x 21 px, la constante de la
+   couche ET de la feuille). Sans cette moitie-la, l'idempotence ne se
+   mesurerait pas : c'est justement quand le bandeau a CHANGE que le second
+   tour doit dire la meme chose. */
+function BDCSS(b){
+  var off=" "+(b.getAttribute("data-bdoff")||"")+" ";
+  function L(cls,v){
+    var e=b.querySelector("."+cls);
+    if(e){e.offsetWidth=v;e.scrollWidth=v}}
+  L("svm-hints",off.indexOf(" hints ")>=0?0:200);
+  L("svm-toolchips",off.indexOf(" coupe ")>=0?63:280);
+  L("svm-meterslot",off.indexOf(" metre ")>=0?0:100);
+  L("svm-tctotal",off.indexOf(" tctotal ")>=0?0:40);
+  L("svm-tcmain",off.indexOf(" tctotal ")>=0?80:120);
+  return b}
+out.bd_hote=TBG(function(){
+  var mem={},b=BDBAND(1400),r1,r2,r3,r4;
+  r1=T.bdTour(b,mem);BDCSS(b);
+  b.clientWidth=1100;r2=T.bdTour(b,mem);BDCSS(b);
+  b.clientWidth=1100;r3=T.bdTour(b,mem);BDCSS(b);
+  b.clientWidth=1150;r4=T.bdTour(b,mem);BDCSS(b);
+  return [r1.mesure.plein,r1.plan.off.join("+"),r1.mesure.dispo,
+    r2.mesure.plein,r2.plan.off.join("+"),
+    r3.mesure.plein,r3.plan.off.join("+"),
+    r4.mesure.plein,r4.plan.off.join("+"),
+    b.getAttribute("data-bdoff")]});
+/* LES NOEUDS HORS FLUX NE COUTENT RIEN — l'onglet, la barre et la liste des
+   projets montee nue. MESURE PLUTOT QU'AFFIRMATION : le meme bandeau, prive
+   de ces trois noeuds, doit demander EXACTEMENT la meme largeur. Sans le
+   filtre, le premier vaudrait 2024 et le second 1298. */
+out.bd_hors_flux=TBG(function(){
+  var a=BDBAND(1400),b=BDBAND(1400);
+  b.children=b.children.filter(function(e){
+    return !e.matches(".dzm-tbtab,.dzm-tbar,.dzm-proj")});
+  return [T.bdMesure(a,{}).plein,T.bdMesure(b,{}).plein]});
+/* LES QUATRE BLOCS, LEURS LARGEURS ET LE RESTE : la somme doit redonner le
+   besoin plein, sinon `dzmBdPlan` retirerait de la place qui n'existe pas. */
+out.bd_blocs=TBG(function(){
+  var q=T.bdMesure(BDBAND(1400),{});
+  var t=0,i;for(i=0;i<q.blocs.length;i++)t+=q.blocs[i].px;
+  return [q.blocs.map(function(x){return x.id+":"+x.px}),t,q.plein]});
+/* SANS BANDEAU : `null`, jamais une levee. L'ecran peut monter avant que la
+   mise en page existe. */
+out.bd_hote_sans_bandeau=TBG(function(){
+  return [T.bdMesure(null,{}),T.bdTour(null,{}),T.bdPose(null,{off:[]}),
+    T.bdMesure({},{})]});
+
 console.log(JSON.stringify(out));
 """
 # "use strict" en PROLOGUE du shim : concatene, celui de montage.js n'est
@@ -5486,13 +5670,28 @@ check("tb_la_cle_suit_la_maison_et_le_prefixe_de_cet_ecran",
 # LA FORME suit `dz_narr_open` : "1" / "0". Le magasin est INJECTE, donc la
 # ligne mesure QUELLE cle est lue et QUOI est ecrit — pas seulement que la
 # fonction rend un booleen.
-check("tb_open_lit_1_comme_ouvert_et_tout_le_reste_comme_replie",
+# ETAPE 6 — LE DEFAUT S'INVERSE, ET C'EST LA DECISION DE CETTE ETAPE.
+# L'etape 4 lisait "1" comme ouvert et TOUT LE RESTE comme replie, en ecrivant
+# sa raison : « tant que l'etape 6 n'a pas retire les neuf controles, ouvrir
+# par defaut montrerait une barre qui double une rangee deja la ». Cette
+# etape-ci retire les neuf. La raison a disparu ET SON CONTRAIRE EST ARRIVE :
+# replie par defaut, un utilisateur qui n'a jamais vu l'onglet n'aurait AUCUN
+# moyen d'ajouter une piste, de lier la Bibliotheque ni d'ouvrir ses projets.
+# Le §9 s'interdit exactement cet etat.
+# LA MEMOIRE EST PRESERVEE DANS LES DEUX SENS, et c'est ce que les quatre
+# lectures mesurent : "0" replie (qui a replie reste replie), "1" ouvre (qui a
+# ouvert reste ouvert), et SEULE l'absence de cle change de sens. La valeur
+# inconnue ("oui") ouvre aussi : la cle n'est jamais ecrite autrement que par
+# `tbOpenSet`, donc une valeur etrangere vient d'ailleurs et ne doit pas
+# priver l'ecran de ses neuf actions.
+check("tb_open_seul_0_replie_et_l_absence_de_cle_ouvre",
       d.get("tb_open_lit_1") == [True, "dz_svm_tb_open"]
       and d.get("tb_open_lit_0") is False
-      and d.get("tb_open_lit_absent") is False
-      and d.get("tb_open_lit_autre") is False,
-      f'{d.get("tb_open_lit_1")} {d.get("tb_open_lit_0")} '
-      f'{d.get("tb_open_lit_absent")} {d.get("tb_open_lit_autre")}')
+      and d.get("tb_open_lit_absent") is True
+      and d.get("tb_open_lit_autre") is True,
+      f'"1"={d.get("tb_open_lit_1")} "0"={d.get("tb_open_lit_0")} '
+      f'absente={d.get("tb_open_lit_absent")} '
+      f'inconnue={d.get("tb_open_lit_autre")}')
 check("tb_open_ecrit_la_bonne_cle_et_rend_ce_qu_elle_a_ecrit",
       d.get("tb_open_ecrit") == [True, ["dz_svm_tb_open", "1"]]
       and d.get("tb_open_ecrit_faux") == [False, ["dz_svm_tb_open", "0"]],
@@ -5500,9 +5699,14 @@ check("tb_open_ecrit_la_bonne_cle_et_rend_ce_qu_elle_a_ecrit",
 # UN MAGASIN QUI LEVE — navigation privee, politique de site restrictive.
 # La barre perd la MEMOIRE, jamais la bascule : `tbOpenSet` rend quand meme
 # la valeur demandee, donc l'ecran suit le clic.
-check("tb_un_magasin_indisponible_ne_casse_ni_la_lecture_ni_la_bascule",
-      d.get("tb_open_magasin_qui_leve") == [False, True]
-      and d.get("tb_open_sans_magasin") is False,
+# ETAPE 6 : SANS MEMOIRE, LA BARRE S'OUVRE. C'est le meme raisonnement que
+# pour l'absence de cle, pousse au cas ou il n'y a PAS de magasin du tout :
+# mieux vaut montrer les neuf actions que les cacher pour toujours a qui
+# navigue en prive. La bascule, elle, repond quand meme — c'est le second
+# terme, et il n'a pas change.
+check("tb_un_magasin_indisponible_ouvre_et_ne_casse_pas_la_bascule",
+      d.get("tb_open_magasin_qui_leve") == [True, True]
+      and d.get("tb_open_sans_magasin") is True,
       f'{d.get("tb_open_magasin_qui_leve")} '
       f'{d.get("tb_open_sans_magasin")}')
 
@@ -5627,14 +5831,21 @@ check("tb_un_cablage_sans_hote_eteint_les_neuf_boutons",
 _i_dk = src.find("function DzmToolDock(o){")
 _j_dk = src.find("\n/* ", _i_dk) if _i_dk >= 0 else -1
 _DOCK = src[_i_dk:_j_dk] if 0 <= _i_dk < _j_dk else "DOCK-INTROUVABLE"
-check("tb_le_dock_restaure_persiste_et_rend_l_onglet_et_la_barre",
-      2500 < len(_DOCK) < 7000
+# ETAPE 6 : `dzmBdTour(bd,bdMem.current)` REJOINT LA LISTE, et pour la meme
+# raison que `dzmTbFrame` a l'etape 4 — la fonction est mesuree pour
+# elle-meme plus bas, mais RIEN ne dirait que le Dock l'APPELLE. Le bandeau
+# est trouve par `dzmTbAncetre(bar.current,"svm-trans")` : le jeton porte la
+# classe, sans quoi un remontee vers un autre parent passerait inapercue.
+check("tb_le_dock_restaure_persiste_rend_les_deux_et_serre_le_bandeau",
+      2500 < len(_DOCK) < 9500
       and "x.useState(dzmTbOpenGet)" in _DOCK
       and "dzmTbOpenSet(!v)" in _DOCK and "dzmTbOpenSet(!1)" in _DOCK
       and "x.useEffect(" in _DOCK and "dzmTbFrame(" in _DOCK
       and "DzmToolTab({" in _DOCK and "DzmToolBar({" in _DOCK
       and "items:dzmTbCablage(dzmTbHote(o,emoji,!!emo))" in _DOCK
-      and "anim:anim" in _DOCK,
+      and "anim:anim" in _DOCK
+      and 'dzmTbAncetre(bar.current,"svm-trans")' in _DOCK
+      and "dzmBdTour(bd,bdMem.current)" in _DOCK,
       f"dock={len(_DOCK)} o : {_DOCK[:160]!r}")
 # LE DEPORT PASSE PAR LE DOCK, ET C'EST LA SEULE PIECE QUE NODE NE JOUE PAS :
 # le cœur, le geste, la mesure des rectangles et le clavier sont tous joues
@@ -5843,6 +6054,12 @@ def _sansc(t):
     return re.sub(r"/\*.*?\*/", "", t, flags=re.S)
 
 
+def _REGLES(txt):
+    """Toutes les regles d'une feuille, commentaires retires : (selecteur,
+    corps). Facteur commun de plusieurs lignes ci-dessous."""
+    return list(re.finditer(r"([^{}]*)\{([^{}]*)\}", _sansc(txt)))
+
+
 def _corps_de(txt, fin):
     """Corps de toutes les regles dont un selecteur FINIT par `fin`."""
     out = []
@@ -5866,10 +6083,19 @@ check("tb_aucun_parent_de_l_onglet_ne_le_rogne",
       f"{[b for b in _TL if 'overflow' in b]} ; racine={len(_RACINE)}")
 # LE BLOC CONTENEUR : sans `position:relative` sur le bandeau, `top:-21px`
 # se calerait sur la racine de l'ecran et l'onglet partirait en haut de page.
-check("tb_le_bandeau_devient_le_bloc_conteneur_de_l_onglet",
-      len(_TRANS) == 2
+# ETAPE 6 (§5.2) — LE BANDEAU PASSE DE 34 A 46 px, GAGNE SES DEUX FILETS ET
+# VERROUILLE `flex-wrap`. Trois regles le nomment desormais : deux dans
+# /shared/montage.css (l'ancrage de l'onglet, puis la geometrie du §5.2) et
+# celle de la feuille amont, INCHANGEE — elle n'est pas a nous. La ligne
+# exige les DEUX hauteurs : si la notre disparaissait, la 34 px reprendrait la
+# main et aucun banc ne l'aurait dit.
+check("tb_le_bandeau_est_le_bloc_conteneur_de_l_onglet_et_fait_46px",
+      len(_TRANS) == 3
       and any("position:relative" in b and "overflow:visible" in b
               for b in _TRANS)
+      and any("height:46px" in b and "flex-wrap:nowrap" in b
+              and "border-top:1px solid" in b
+              and "border-bottom:1px solid" in b for b in _TRANS)
       and any("height:34px" in b for b in _TRANS),
       f"{_TRANS}")
 # LA CASCADE : la regle qui passe le bandeau en `relative` doit etre chargee
@@ -6047,8 +6273,8 @@ _SECTIONS = "".join(r for _t, _a, r in P.PATCHES)
 # « Bibliothèque… », et la sous-chaine etait donc trouvee ailleurs. Faute
 # n°2, forme « sous-chaine ». Les deux faces sont gardees desormais : la
 # propriete est DANS la section, et le bundle en porte le compte attendu —
-# DEUX `onPick:openPicker` (le bouton du bandeau et la barre), un seul de
-# chacune des cinq autres.
+# UN SEUL `onPick:openPicker` DEPUIS L'ETAPE 6 : le bouton du bandeau est
+# parti, la barre est la seule porte. Un seul de chacune des cinq autres.
 # ETAPE 7 : QUATRE PROPRIETES DE PLUS, mesurees de la meme facon — dans la
 # section ET dans le bundle. Elles ferment le §6 : les trois ingredients de
 # l'action emoji (deja passes a M10, a l'identique) et la demande d'ouverture
@@ -6065,7 +6291,7 @@ check("tb_une_seule_section_monte_le_dock_et_lui_passe_le_cablage",
       and s.count(nl("r.jsx(DzTracks.ToolDock,{")) == 1
       and all(_p in P.R_M19 for _p in _P_M19)
       and all(nl(_p) in s for _p in _P_M19)
-      and s.count(nl("onPick:openPicker")) == 2
+      and s.count(nl("onPick:openPicker")) == 1
       and s.count(nl("onTracks:svmTracksSet")) == 1
       and len(_SECTIONS) > 10000,
       f'{_SECTIONS.count("DzTracks.ToolDock")} section(s) ; manquantes dans '
@@ -6148,37 +6374,50 @@ _SRC_TB = src[_i_tb4:_j_tb4] if 0 <= _i_tb4 < _j_tb4 else "BLOC-INTROUVABLE"
 # L'ETAPE 7 EST DEDANS DESORMAIS, et les conjoints positifs le disent : le
 # Dock appelle `dzmTbHote` et `dzmEmojiGo`. La ligne d'avant exigeait
 # `pointermove` present (etape 5) ; celle-ci ajoute les deux jetons de
-# l'etape 7. SEULES 6 ET 8 RESTENT DEHORS.
-check("tb_les_etapes_6_et_8_ne_sont_pas_livrees",
+# l'etape 7. ETAPE 6 LIVREE : le bloc porte maintenant le §5 (la table des
+# retires et le plan de degradation), et c'est un CONJOINT POSITIF de plus.
+# SEULE L'ETAPE 8 RESTE DEHORS — clavier, `role="toolbar"`, `tabindex` roving,
+# `Echap`, mouvement reduit.
+check("tb_l_etape_8_n_est_toujours_pas_livree",
       len(_SRC_TB) > 6000 and "function DzmToolBar(" in _SRC_TB
       and "function DzmToolDock(" in _SRC_TB
       and "pointermove" in _SRC_TB and "onPointerDown" in _SRC_TB
       and "function dzmTbHote(" in _SRC_TB
       and "dzmEmojiGo({segments:o.emojiSegs" in _SRC_TB
+      and "function dzmBdPlan(" in _SRC_TB
+      and "DZM_BD_RETIRES=[" in _SRC_TB
       and 'role:"toolbar"' not in _SRC_TB and "tabIndex" not in _SRC_TB
       and "aria-orientation" not in _SRC_TB,
       f"bloc={len(_SRC_TB)} o — la couche porte deja un morceau de "
       f"l'etape 8, ou le bloc de la barre est introuvable")
-# LA DUPLICATION TRANSITOIRE, EPINGLEE : les neuf controles du bandeau sont
-# TOUJOURS LA. Le §5.1 l'interdit a terme, le §9 l'impose d'ici la (« *après*
-# que la barre fonctionne, jamais avant »). Le jour ou l'etape 6 les retire,
-# CETTE ligne rougit — elle est le rappel du reste assume, pas une
-# interdiction.
-check("tb_reste_assume_les_neuf_controles_sont_encore_dans_le_bandeau",
-      all(_j in _SECTIONS for _j in ("DzTracks.TrackAdd", "DzTracks.LibBtn",
-                                     "DzTracks.WordAnimChip",
-                                     "DzTracks.EmojiBtn",
-                                     "DzTracks.Projects", "dzm-txton")),
-      "l'etape 6 (§5.1) a commence : la duplication transitoire est soldee, "
-      "cette ligne doit disparaitre avec elle")
-# LA SOURCE UNIQUE DES BASCULES, tant que la duplication dure : la chip du
-# bandeau et la barre LISENT toutes deux `proj.subsStyle`, aucune n'en garde
-# de copie. C'est ce qui rend la duplication supportable sans enfreindre le
-# §5.1 (« deux sources de vérité pour l'état des bascules »).
-check("tb_la_chip_et_la_barre_lisent_la_meme_source_pour_MOT",
-      s.count(nl('(proj.subsStyle||{}).wordAnim||"couleur"')) == 2
+# LA DUPLICATION EST SOLDEE (§5.1). Cette ligne remplace le rappel du reste
+# assume qui vivait ici, et elle mesure la SOLDE, des deux cotes : les cinq
+# jetons que les sections posaient dans le bandeau ont disparu de la chaine —
+# SAUF `DzTracks.Projects`, qui reste parce que ce n'est pas un controle mais
+# le panneau qu'un controle de la barre ouvre, et il est monte NU.
+# UNE ABSENCE SEULE SERAIT VRAIE D'UN PATCHER VIDE : le conjoint est la
+# section M19, qui monte le Dock et lui passe le cablage, et le `nu:!0` qui
+# prouve que la liste des projets n'a plus de bouton a elle.
+_PARTIS = ("DzTracks.TrackAdd", "DzTracks.LibBtn", "DzTracks.WordAnimChip",
+           "DzTracks.EmojiBtn", "dzm-txton")
+_RESTANTS = [_j for _j in _PARTIS if _j in _SECTIONS]
+check("tb_les_neuf_controles_ont_quitte_le_bandeau",
+      not _RESTANTS
+      and _SECTIONS.count("DzTracks.Projects") == 1
+      and "nu:!0" in _SECTIONS
+      and _SECTIONS.count("DzTracks.ToolDock") == 1,
+      f'restants={_RESTANTS} projets={_SECTIONS.count("DzTracks.Projects")} '
+      f'nu={"nu:!0" in _SECTIONS}')
+# UNE SEULE SOURCE POUR MOT, ET PLUS QU'UNE SEULE LECTURE. La chip du bandeau
+# lisait `proj.subsStyle` a cote de la barre ; elle est partie, il ne reste
+# que la barre. Le §5.1 est tenu au mot (« deux sources de vérité pour l'état
+# des bascules ») : il n'y a plus qu'une porte, et elle LIT le projet.
+# LE CONJOINT EST L'ECRITURE : `onWordAnim` doit exister, sinon « une seule
+# lecture » serait vrai d'un ecran ou plus rien ne peint MOT.
+check("tb_la_barre_est_la_seule_a_lire_la_source_de_MOT",
+      s.count(nl('(proj.subsStyle||{}).wordAnim||"couleur"')) == 1
       and s.count(nl("onWordAnim:function(v){subsStyleSet({wordAnim:v})}")) == 1
-      and s.count(nl("onChange:function(v){subsStyleSet({wordAnim:v})}")) == 1,
+      and s.count(nl("onChange:function(v){subsStyleSet({wordAnim:v})}")) == 0,
       f'lectures={s.count(nl(chr(34) + "couleur" + chr(34)))}')
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -6729,15 +6968,25 @@ check("tb_d_un_decalage_pourri_ne_peint_jamais_nan",
 # `.dzm-tbl`. Les deux colonnes de bord, elles, sont en `display:flex` en
 # dur. Conjoint positif d'abord : le levier EXISTE.
 _R_LBL = _regle(_MC, ".dzsvm .dzm-tbl{")
+# ETAPE 6 : LA FEUILLE PORTE MAINTENANT DES `display:none` — ce sont les
+# sacrifices du §5.3, et ils ne visent QUE des noeuds du bandeau. La ligne ne
+# peut donc plus dire « aucun display:none ici » ; elle dit ce qu'elle voulait
+# dire depuis le debut : AUCUN noeud de la barre ne se masque. Les regles qui
+# masquent sont comptees et leur selecteur doit porter `[data-bdoff` — un
+# `display:none` pose ailleurs, ou visant un `.dzm-`, rougit.
+_MASQUES = list(re.finditer(r"([^{}]*)\{([^{}]*display:none[^{}]*)\}",
+                            _sansc(_MC)))
 check("tb_d_seul_le_libelle_est_masquable_jamais_le_recentrage",
       _R_LBL is not None and "display:var(--lbl, block)" in _R_LBL
       and _sansc(_MC).count("var(--lbl") == 1
       and _R_WIN is not None and "display:flex" in _R_WIN
       and _R_WB is not None and "display:flex" in _R_WB
       and "--lbl" not in _R_WIN and "--lbl" not in _R_WB
-      and "display:none" not in _sansc(_MC),
+      and len(_MASQUES) == 3
+      and all("[data-bdoff" in _m.group(1) for _m in _MASQUES)
+      and not any(".dzm-" in _m.group(1) for _m in _MASQUES),
       f'lbl={_R_LBL!r} lectures={_sansc(_MC).count("var(--lbl")} '
-      f'win={_R_WIN!r}')
+      f'masques={[_m.group(1).strip()[:60] for _m in _MASQUES]}')
 check("tb_d_la_barre_rend_sa_reference_et_sa_poignee_saisit",
       d.get("tb_r_ref") is True and d.get("tb_r_grip_saisit") == [1, 1],
       f'ref={d.get("tb_r_ref")} saisit={d.get("tb_r_grip_saisit")}')
@@ -6983,6 +7232,274 @@ check("tb7_ouvrir_un_projet_demande_toujours_confirmation",
       and s.count(nl('if(arm!=="o"+p.id){setArm("o"+p.id);return}')) == 1,
       "le second clic de confirmation a disparu de doOpen")
 
+
+# ═══════════════════════════════════════════════════════════════════════════
+# [6-quinquies] LE BANDEAU REDISTRIBUE — ETAPE 6 DU §9 (§5.1, §5.2, §5.3)
+# ═══════════════════════════════════════════════════════════════════════════
+print("\n[6-quinquies] §5 — le bandeau redistribué : retrait, place, "
+      "dégradation")
+
+# ── §5.1, LA PREUVE MAITRESSE ─────────────────────────────────────────────
+# LES NEUF QUI ONT QUITTE LE BANDEAU SONT EXACTEMENT LES NEUF QUE LA BARRE
+# PORTE. C'est la ligne qui interdit qu'un controle devienne introuvable :
+# elle rapproche la table des RETIRES (couche, §5.1) des clefs du PLAN de la
+# barre (couche, §2.4, deja confrontee au design.md plus haut) et du CABLAGE
+# joue sous node (les neuf `act`, tous non nuls). Trois listes, un seul
+# ensemble. Si l'une des trois bougeait seule, cette ligne rougirait — c'est
+# le geste destructif de cette etape, et c'est son garde-fou.
+check("bd_les_neuf_retires_sont_exactement_les_neuf_de_la_barre",
+      d.get("bd_ctl") == sorted(_CABLES)
+      and d.get("tb_c_cles") == sorted(_CABLES)
+      and d.get("tb_c_actions") == _CABLES
+      and d.get("tb_c_eteints") == [],
+      f'retires={d.get("bd_ctl")} plan={d.get("tb_c_cles")} '
+      f'cables={d.get("tb_c_actions")} eteints={d.get("tb_c_eteints")}')
+# LES LIBELLES DE LA TABLE SONT CEUX DES COMPOSANTS, pas une seconde
+# redaction. CONTROLE A DEUX FACES : chaque libelle doit exister DANS la
+# couche entre guillemets (la face « ce que l'ecran ecrivait ») et la table
+# doit en porter dix — les neuf controles plus l'etiquette `mot`, que le §5.1
+# nomme lui aussi (« l'étiquette MOT et ses trois options »).
+_LBL_BD = d.get("bd_libelles") or []
+_LBL_ABS = [x for x in _LBL_BD if '"%s"' % x not in src]
+check("bd_les_libelles_retires_sont_ceux_des_composants",
+      len(_LBL_BD) == 10 and not _LBL_ABS
+      and "+ piste vidéo" in _LBL_BD and "Bibliothèque…" in _LBL_BD
+      and "projets" in _LBL_BD,
+      f'{len(_LBL_BD)} libellés, introuvables dans la couche : {_LBL_ABS}')
+# LA PLACE RENDUE, RECALCULEE SOUS NODE. 697 px n'est pas un chiffre tape
+# ici : c'est la somme que `dzmBdRetire` rend, et les deux cotes doivent
+# tomber d'accord. Le PROTOCOLE est nomme dans la couche (avance 0,6 em de
+# JetBrains Mono a 10 px = 6,0 px/caractere, boite `border-box`, intervalle
+# compte avec le noeud) et la RESERVE aussi : c'est une largeur NOMINALE,
+# une fonte de repli en rendrait moins.
+# LE DETAIL DE `bdPx` EST LA POUR QUE LE TOTAL NE SOIT PAS UNE BOITE NOIRE :
+# un bouton de 5 caracteres a 16 px de rembourrage fait 48, et un `px` en dur
+# l'emporte sur le calcul (l'etiquette `mot`, seule de son espece).
+check("bd_la_place_rendue_vaut_697px_pour_neuf_controles",
+      d.get("bd_retire") == [697, 9, 10]
+      and d.get("bd_px_un") == [48, 18, 2],
+      f'retire={d.get("bd_retire")} px={d.get("bd_px_un")}')
+
+# ── §5.2, LA GEOMETRIE ────────────────────────────────────────────────────
+# LES SEPARATEURS : 1 px, 26 px de haut, 12 px de vide de chaque cote — le
+# §5.2 au mot (« séparateurs verticaux de 1 px --brd-hard avec
+# margin: 0 12px »). L'arithmetique est ecrite dans la feuille ; ici on
+# mesure qu'elle y est ECRITE : `gap:12px` (amont) + `margin-left:13px` = 25,
+# filet a `left:-13px`, donc 12 de chaque cote.
+_SEPS = [_m for _m in re.finditer(r"([^{}]*)\{([^{}]*)\}", _sansc(_MC))
+         if "left:-13px" in _m.group(2)]
+check("bd_les_separateurs_du_5_2_font_1px_sur_26_avec_12px_de_vide",
+      len(_SEPS) == 2
+      and all("width:1px" in _m.group(2) and "height:26px" in _m.group(2)
+              and "top:50%" in _m.group(2)
+              and "margin-top:-13px" in _m.group(2)
+              and "--brd-hard" in _m.group(2) for _m in _SEPS)
+      and "margin-left:13px" in _sansc(_MC)
+      and "margin-left:19px" in _sansc(_MC),
+      f'{len(_SEPS)} règle(s) de filet')
+# LE ZOOM EST POUSSE A DROITE, ET L'INTERCALAIRE DU §5.2 EXISTE DEJA : la
+# feuille AMONT donne `margin-left:auto` a `.svm-zoom` (l.324). MESURE PLUTOT
+# QUE SUPPOSITION — c'est ce qui a evite d'en ajouter un second, qui aurait
+# ramene le zoom au milieu du bandeau. La ligne exige les deux faces : la
+# regle amont porte bien `margin-left:auto`, ET la notre ne la remplace pas.
+_ZOOM_AMONT = _regle(_HDCSS, ".svm-zoom{")
+_ZOOM_NOUS = [_m.group(2) for _m in re.finditer(r"([^{}]*)\{([^{}]*)\}",
+                                                _sansc(_MC))
+              if any(x.strip().endswith(".svm-zoom") for x in
+                     _m.group(1).split(","))]
+check("bd_le_zoom_est_pousse_a_droite_par_l_intercalaire_qui_existait",
+      _ZOOM_AMONT is not None and "margin-left:auto" in _ZOOM_AMONT
+      and len(_ZOOM_NOUS) == 2
+      and not any("margin-left" in b for b in _ZOOM_NOUS)
+      and sum(1 for b in _ZOOM_NOUS if "order:1" in b) == 1,
+      f'amont={_ZOOM_AMONT!r} nous={_ZOOM_NOUS}')
+# ET IL EST LE DERNIER BLOC, pas seulement pousse : le §5.2 (item 7) met le
+# zoom et `ajuster` en queue. Les rappels et le « ? », qui les suivaient dans
+# le flux, passent devant par `order` — SANS un noeud de plus dans le bandeau.
+# LES DEUX MEMBRES DU BLOC PORTENT LE MEME `order`, sinon `ajuster` resterait
+# derriere pendant que le zoom passerait devant.
+# LA RECHERCHE EST BORNEE, ET C'EST UNE MESURE, PAS UNE PRECAUTION : `order:1`
+# est SOUS-CHAINE de `border:1px`, et la premiere version de cette ligne
+# ramassait DIX-HUIT regles — toutes celles qui portent un filet. Faute n°2,
+# attrapee par le detail d'echec, qui imprimait les dix-huit selecteurs.
+_ORD = [_m.group(1) for _m in _REGLES(_MC)
+        if re.search(r"(^|[;\s])order:1(;|$)", _m.group(2).strip())]
+check("bd_le_zoom_et_ajuster_sont_le_dernier_bloc_du_bandeau",
+      len(_ORD) == 1 and ".svm-zoom" in _ORD[0] and ".dzm-durctl" in _ORD[0]
+      and len(re.findall(r"(^|[;\s{])order:", _sansc(_MC))) == 1,
+      f'{_ORD}')
+# LE STYLE COMMUN DES BOUTONS (§5.2) — 26 px, 0 9px, 11 px, filet, radius 0.
+# SCOPE AU BANDEAU : `.svm-tbtn` sert aussi l'inspecteur et les en-tetes de
+# piste, que le §5 ne touche pas. Le bouton de lecture garde son or, et sa
+# regle doit venir APRES celle qui lui rendrait un filet.
+_BTN = _regle(_MC, ".dzsvm .svm-trans > .svm-tbtn{")
+_GOLD = _regle(_MC, ".dzsvm .svm-trans > .svm-transbtns > .svm-tbtn.svm-gold{")
+check("bd_les_boutons_du_bandeau_suivent_le_style_commun_du_5_2",
+      _BTN is not None and _GOLD is not None
+      and all(_x in _BTN for _x in ("height:26px", "padding:0 9px",
+                                    "font-size:11px", "border-radius:0",
+                                    "--brd-hard", "--srf-raised"))
+      and "border-color:transparent" in _GOLD and "--accent" in _GOLD
+      and _MC.index(".svm-tbtn.svm-gold{") > _MC.index(
+          ".dzsvm .svm-trans > .svm-tbtn{"),
+      f'btn={_BTN!r} gold={_GOLD!r}')
+# LA LISTE DES PROJETS, MONTEE NUE : hors flux (sinon elle ouvrirait un
+# intervalle de 12 px pour rien) et ancree A DROITE, loin de la barre
+# flottante qui vit a `left:14px`. Le popover suit son ancre : `right:0`.
+# CONJOINT : le composant sait etre nu, et la section le lui demande.
+_NU = _regle(_MC, ".dzsvm .svm-trans > .dzm-proj[data-nu]{")
+_NUP = _regle(_MC, '.dzsvm .dzm-proj[data-nu] > .dzm-projp{')
+check("bd_la_liste_des_projets_est_montee_nue_et_ancree_a_droite",
+      _NU is not None and _NUP is not None
+      and "position:absolute" in _NU and "right:14px" in _NU
+      and "width:0" in _NU
+      and "left:auto" in _NUP and "right:0" in _NUP
+      and "var nu=!!(props&&props.nu);" in src
+      and "nu?null:r.jsx(" in src
+      and '"data-nu":nu?"":void 0' in src
+      and "nu:!0" in P.R_M14,
+      f'nu={_NU!r} popover={_NUP!r}')
+
+# ── §5.3, LA DEGRADATION ──────────────────────────────────────────────────
+# L'ORDRE DE SACRIFICE, LU DANS LA COUCHE : quatre rangs, dans l'ordre du
+# §5.3 adapte a ce qui existe (le detail rang par rang est ecrit dans la
+# couche, avec le principe du rang d'origine).
+check("bd_l_ordre_de_sacrifice_suit_le_5_3",
+      d.get("bd_rangs") == ["hints:1:.svm-hints",
+                            "coupe:2:.svm-toolchips",
+                            "metre:3:.svm-meterslot",
+                            "tctotal:4:.svm-tctotal"],
+      f'{d.get("bd_rangs")}')
+# LE PLAN, SUR LE PLATEAU DE REFERENCE (besoin plein 960). Sept largeurs,
+# sept verdicts, chacun ecrit en entier — un plan qui rendrait le bon niveau
+# en sacrifiant autre chose rougirait ici.
+check("bd_plan_1200_et_960_ne_sacrifient_rien",
+      d.get("bd_plan_large") == [0, "", 960, True]
+      and d.get("bd_plan_juste") == [0, "", 960, True],
+      f'{d.get("bd_plan_large")} / {d.get("bd_plan_juste")}')
+check("bd_plan_900_ne_perd_que_les_rappels",
+      d.get("bd_plan_1") == [1, "hints", 860, True], f'{d.get("bd_plan_1")}')
+check("bd_plan_800_perd_aussi_les_libelles_de_coupe",
+      d.get("bd_plan_2") == [2, "hints+coupe", 720, True],
+      f'{d.get("bd_plan_2")}')
+check("bd_plan_700_perd_aussi_le_metering",
+      d.get("bd_plan_3") == [3, "hints+coupe+metre", 640, True],
+      f'{d.get("bd_plan_3")}')
+check("bd_plan_620_perd_aussi_la_duree_totale",
+      d.get("bd_plan_4") == [4, "hints+coupe+metre+tctotal", 600, True],
+      f'{d.get("bd_plan_4")}')
+# QUAND MEME LE DERNIER RANG NE SUFFIT PAS, LA FONCTION LE DIT au lieu de
+# promettre. `ok:!1` n'est pas une erreur, c'est un aveu : le bandeau
+# debordera, et c'est ecrit noir sur blanc plutot que decouvert a l'ecran.
+check("bd_plan_impossible_sacrifie_tout_et_avoue",
+      d.get("bd_plan_impossible") == [4, "hints+coupe+metre+tctotal",
+                                      600, False],
+      f'{d.get("bd_plan_impossible")}')
+# LA GARANTIE DU §5.3 (« jamais deux lignes, jamais de défilement »),
+# MESUREE : sur 187 largeurs de 0 a 1300, `ok` dit toujours la verite de
+# `besoin<=dispo`, et un plan qui ne tient pas a TOUT sacrifie. C'est la
+# seule facon de mesurer cette promesse sans navigateur — et c'est pour cela
+# que le coeur est pur.
+check("bd_la_garantie_du_5_3_tient_sur_187_largeurs",
+      d.get("bd_plan_garantie") == [1, 0], f'{d.get("bd_plan_garantie")}')
+# MONOTONE ET INCLUSIF : le niveau ne remonte jamais quand la largeur baisse,
+# et ce qui est tombe ne se releve pas en chemin — sans quoi la barre
+# clignoterait pendant un redimensionnement.
+check("bd_le_plan_est_monotone_et_inclusif",
+      d.get("bd_plan_monotone") == [1, 1, 4],
+      f'{d.get("bd_plan_monotone")}')
+# LES RANGS 0 NE TOMBENT JAMAIS (le transport, les sous-titres, le zoom,
+# l'onglet), ET LA TABLE DE L'APPELANT N'EST PAS MUTEE.
+check("bd_le_rang_0_ne_tombe_jamais_et_la_table_n_est_pas_mutee",
+      d.get("bd_plan_rang0") == ["c+b", "abc", "abc"],
+      f'{d.get("bd_plan_rang0")}')
+check("bd_deux_blocs_de_meme_rang_tombent_dans_l_ordre_de_la_table",
+      d.get("bd_plan_egalite") == "z+y", f'{d.get("bd_plan_egalite")}')
+check("bd_une_entree_pourrie_ne_leve_ni_ne_rend_nan",
+      d.get("bd_plan_pourri") == [0, 0, 0, True, 0, ""],
+      f'{d.get("bd_plan_pourri")}')
+# LES CONSTANTES DE L'HOTE, ET LEUR FACE DANS LA FEUILLE. `BD_PX_ICONE` dit
+# ce que coute un outil de coupe reduit a son glyphe ; la feuille doit poser
+# EXACTEMENT ces nombres, sans quoi la constante mentirait sur ce que le
+# navigateur dessine et le rang 2 viserait a cote. Controle a DEUX FACES.
+_COMPACT = _regle(_MC, '.dzsvm .svm-trans[data-bdoff~="coupe"] .svm-toolchips\n'
+                       '  > .svm-toolchip:nth-child(-n+3){')
+_GLYPHE = _regle(_MC, '.dzsvm .svm-trans[data-bdoff~="coupe"] .svm-toolchips\n'
+                      '  > .svm-toolchip:nth-child(-n+3)::before{')
+check("bd_l_icone_de_coupe_coute_21px_dans_la_couche_et_dans_la_feuille",
+      d.get("bd_constantes") is not None
+      and d["bd_constantes"][0] == 21
+      and d["bd_constantes"][1] == 6
+      and d["bd_constantes"][2] == 12
+      and d["bd_constantes"][3] == 13
+      and d["bd_constantes"][4] == "data-bdoff"
+      and _COMPACT is not None and "padding:0 4px" in _COMPACT
+      and "font-size:0" in _COMPACT
+      and _GLYPHE is not None and "width:11px" in _GLYPHE,
+      f'constantes={d.get("bd_constantes")} compact={_COMPACT!r} '
+      f'glyphe={_GLYPHE!r}')
+# LES TROIS GLYPHES DU MODE COMPACT, ET LEURS INFOBULLES. Le §5.3 demande
+# « icônes seules AVEC infobulles » et le §2.3 l'interdit sans elles : les
+# trois `title` existent DEJA dans le bundle, ecrits par l'amont — c'est
+# mesure ici plutot que suppose. LA QUATRIEME CHIP N'EST PAS TOUCHEE : le
+# §5.3 protege les sous-titres, et ses deux compteurs seraient illisibles.
+_T_COUPE = ('title:"aimanter les bords, la tête et 0 ("',
+            'title:"couper le clip sélectionné à la tête ("',
+            'title:"refermer les trous — suppression et rognage droit sur V1 ("')
+check("bd_les_trois_outils_de_coupe_ont_deja_leur_infobulle",
+      all(s.count(nl(_t)) == 1 for _t in _T_COUPE)
+      and _sansc(_MC).count("nth-child(-n+3)") == 2
+      and _sansc(_MC).count("nth-child(4)") == 2,
+      f'infobulles={[s.count(nl(_t)) for _t in _T_COUPE]}')
+# `:nth-child(4)` ET PAS `:last-child`, ET C'EST LE PIEGE QU'ON EVITE : la
+# chip des sous-titres n'existe que si la piste S1 existe (le bundle rend
+# `null` sinon). `:last-child` aurait decore `ripple` — qui n'est pas un bloc
+# a part — les jours ou elle manque. La ligne mesure les deux : le selecteur
+# retenu, et l'absence de l'autre dans tout le fichier.
+check("bd_le_filet_des_sous_titres_ne_se_deplace_pas_quand_la_chip_manque",
+      "nth-child(4)" in _sansc(_MC)
+      and "last-child" not in _sansc(_MC)
+      and nl("if(!subsLayer())return null;") in s,
+      "le filet du bloc « sous-titres » suit le dernier enfant")
+
+# ── L'HOTE, MESURE (et non plus seulement decrit) ─────────────────────────
+# LE BESOIN PLEIN DU PLATEAU vaut 1298 px, et les trois nombres qui le font
+# sont ecrits dans le commentaire de la sonde : 1150 de contenu, 96
+# d'intervalles (8 x 12), 52 de filets (4 x 13). LA PREMIERE MESURE NE
+# SACRIFIE RIEN a 1400 px de bandeau (1372 disponibles).
+# PUIS LE BANDEAU RETRECIT A 1100 (1072 disponibles) : les rappels et les
+# libelles de coupe tombent, dans cet ordre.
+# PUIS ON REMESURE SANS RIEN CHANGER D'AUTRE — c'est L'IDEMPOTENCE, et c'est
+# la propriete qui empeche la barre de clignoter : le bandeau a change (les
+# rappels sont masques, les chips reduites), et le besoin PLEIN doit se
+# reconstituer a l'identique grace a la memoire des largeurs.
+# PUIS IL S'ELARGIT A 1150 : les libelles de coupe REVIENNENT, les rappels
+# non. Sans la memoire, le besoin plein serait tombe a 869 et TOUT serait
+# revenu — pour un bandeau qui demande 1298 dans 1122. C'est la mutation qui
+# fonde cette ligne : en supprimant `mem`, le quatrieme verdict passe de
+# « hints » a « » et le bandeau deborde en silence.
+check("bd_l_hote_mesure_applique_et_ne_derive_pas",
+      d.get("bd_hote") == [1298, "", 1372,
+                           1298, "hints+coupe",
+                           1298, "hints+coupe",
+                           1298, "hints", "hints"],
+      f'{d.get("bd_hote")}')
+check("bd_les_noeuds_hors_flux_ne_coutent_rien",
+      d.get("bd_hors_flux") == [1298, 1298], f'{d.get("bd_hors_flux")}')
+# LA SOMME DES BLOCS EST LE BESOIN PLEIN, au pixel : `reste` absorbe tout ce
+# qui ne se sacrifie pas. Si elle ne l'etait pas, `dzmBdPlan` retirerait de la
+# place qui n'existe pas et s'arreterait trop tot.
+check("bd_la_somme_des_blocs_redonne_le_besoin_plein",
+      d.get("bd_blocs") is not None
+      and d["bd_blocs"][0] == ["hints:212", "coupe:217", "metre:125",
+                               "tctotal:40", "reste:704"]
+      and d["bd_blocs"][1] == d["bd_blocs"][2] == 1298,
+      f'{d.get("bd_blocs")}')
+# SANS BANDEAU — l'ecran peut monter avant que la mise en page existe, et un
+# objet sans `querySelector` n'est pas un bandeau. `null`, jamais une levee.
+check("bd_l_hote_sans_bandeau_rend_null_au_lieu_de_lever",
+      d.get("bd_hote_sans_bandeau") == [None, None, None, None],
+      f'{d.get("bd_hote_sans_bandeau")}')
 
 # LA LIGNE QUI DIT QUE LE BANC A ROUGI PLUTOT QUE MEURE : aucun appel garde
 # n'a pose de temoin. Une panne de node — introuvable, ou un shim qui tourne

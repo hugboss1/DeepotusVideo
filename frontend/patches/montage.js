@@ -28,6 +28,14 @@
                          TbIcon, ToolBtn, TB_GROUPES, TB_PX, TB_PX_GRIP,
                          move, moveTo, add, remove, group, DEFAULTS}
 
+   - bdRetire() / bdPlan(dispo, blocs) — étape 6 du handoff « Barre Outils
+     Flottante » (§5). La première RECALCULE ce que le retrait des neuf
+     contrôles rend au bandeau (697 px nominaux ; le protocole de mesure est
+     écrit sur place, avec sa réserve). La seconde décide, largeur
+     disponible en entrée, CE QUI SE DÉGRADE — PURE, donc jouée sous node :
+     c'est la seule façon de mesurer « jamais deux lignes, jamais de
+     défilement horizontal » sans navigateur. `bdMesure` / `bdPose` /
+     `bdTour` sont l'hôte : ils mesurent et posent, ils ne décident rien.
    - clipLen(kind, srcDur, defauts) — P11 : la longueur à donner au clip
      qu'on pose. PURE, rend {len, origine, note} — la longueur ENTIÈRE de la
      source quand elle est connue, le repli du bundle sinon, et dans ce cas
@@ -1237,6 +1245,15 @@ var DzmProjects=function(props){
   var box=x.useRef(null);
   var pid=(props&&props.projectId)||"";
   var nm=(props&&props.name)||"montage";
+  /* ÉTAPE 6 (§5.1) — MONTÉ NU. Le §5.1 retire `projets` du bandeau, mais ce
+     composant est DEUX choses : le bouton ET la liste qu'il ouvre. Retirer
+     les deux aurait rendu MORT le bouton `projets` de la barre flottante,
+     qui n'ouvre pas une liste à lui — il DEMANDE l'ouverture de celle-ci
+     (`openReq`, un compteur, cf. l'étape 7). `nu` retire donc le bouton et
+     garde la liste : un seul contrôle, une seule liste, aucun doublon.
+     C'est le seul des neuf dans ce cas — les huit autres n'ont pas de
+     panneau attaché à leur bouton. */
+  var nu=!!(props&&props.nu);
   function note(m){if(props&&props.note)props.note(m)}
 
   /* l'armement retombe tout seul au bout de quatre secondes : un bouton
@@ -1505,8 +1522,9 @@ var DzmProjects=function(props){
           children:xArm?"supprimer ?":"×"},"x")]},"a")]},p.id)}
 
   var rows=list||[];
-  return r.jsxs("span",{className:"dzm-proj",ref:box,children:[
-    r.jsx("button",{className:"svm-tbtn dzm-projb","data-on":op?"":void 0,
+  return r.jsxs("span",{className:"dzm-proj",ref:box,
+    "data-nu":nu?"":void 0,children:[
+    nu?null:r.jsx("button",{className:"svm-tbtn dzm-projb","data-on":op?"":void 0,
       "aria-expanded":op,"aria-haspopup":"dialog",
       title:pid
         ?("Projets — ce montage est enregistré sous « "+nm+" » et suit vos "+
@@ -2410,10 +2428,24 @@ function DzmToolBtn(o){
    La FORME suit `dz_narr_open` au caractère près : "1" / "0", lecture et
    écriture sous try/catch (localStorage lève en navigation privée et sous
    une politique de site restrictive).
-   LE DÉFAUT EST « REPLIÉE », et ce n'est pas le défaut de `dz_narr_open`
-   (qui est ouvert) : tant que l'étape 6 n'a pas retiré les neuf contrôles du
-   bandeau, ouvrir par défaut montrerait à tout le monde une barre qui
-   double une rangée déjà là. L'étape 6 pourra rouvrir la question. */
+   LE DÉFAUT EST « OUVERTE » DEPUIS L'ÉTAPE 6, et c'est un RENVERSEMENT
+   ASSUMÉ : l'étape 4 avait posé « repliée », mais elle en avait écrit la
+   raison — « tant que l'étape 6 n'a pas retiré les neuf contrôles, ouvrir
+   par défaut montrerait une barre qui double une rangée déjà là ». Cette
+   étape-ci retire les neuf. La raison a disparu, et son contraire est
+   arrivé : replié par défaut, un utilisateur qui n'a jamais vu l'onglet
+   n'aurait AUCUN moyen d'ajouter une piste, de lier la Bibliothèque ni
+   d'ouvrir ses projets — le §9 s'interdit précisément cet état (« ne pas
+   laisser l'application dans un état où les actions ne sont accessibles
+   nulle part »). Le prix est de 74 px posés sur la règle au premier
+   chargement, que le `×` de la barre reprend en un clic, et ce clic est
+   MÉMORISÉ.
+   LA MÉMOIRE EST PRÉSERVÉE DANS LES DEUX SENS : la clé garde "1"/"0", donc
+   qui a déjà replié reste replié (valeur "0") et qui a ouvert reste ouvert.
+   Seule l'ABSENCE de clé change de sens. Et un magasin en panne (navigation
+   privée, politique de site) rend désormais « ouverte » plutôt que
+   « repliée » : sans mémoire, mieux vaut montrer les neuf actions que les
+   cacher pour toujours. */
 var DZM_TB_CLE_OPEN="dz_svm_tb_open";
 var DZM_TB_ID="dzm-toolbar";
 /* Le magasin est PARAMÉTRABLE pour que le banc puisse en fournir un faux :
@@ -2424,7 +2456,7 @@ function dzmTbStore(){
   catch(e){return null}}
 function dzmTbOpenGet(st){
   var s=st||dzmTbStore();
-  try{return !!s&&s.getItem(DZM_TB_CLE_OPEN)==="1"}catch(e){return !1}}
+  try{return !s||s.getItem(DZM_TB_CLE_OPEN)!=="0"}catch(e){return !0}}
 /* REND CE QU'ELLE A ÉCRIT : l'appelant pose l'état React avec la valeur que
    cette fonction rend, donc un magasin en panne ne désynchronise pas
    l'écran de lui-même — il perd la mémoire, pas la bascule. */
@@ -3214,9 +3246,39 @@ function DzmToolDock(o){
      L'écouteur de redimensionnement est posé UNE FOIS, au montage ; sans
      cette référence il lirait pour toujours le décalage du premier rendu. */
   var offRef=x.useRef(off);offRef.current=off;
+  /* LA MÉMOIRE DES LARGEURS (§5.3) : un bloc déjà sacrifié mesure zéro, et
+     sans elle l'échelle ne remonterait jamais quand la fenêtre s'élargit. */
+  var bdMem=x.useRef({});
   x.useEffect(function(){
     return dzmTbFrame((typeof window!=="undefined")?window:null,
       function(){setAnim(!0)})},[]);
+  /* ── §5.3, L'HÔTE. Il MESURE le bandeau et POSE ce que `dzmBdPlan` a
+     décidé ; il ne décide rien lui-même. Il tourne au montage, à chaque
+     changement de taille du bandeau (`ResizeObserver` quand le moteur en a
+     un, `resize` de la fenêtre sinon — les deux existent rarement en même
+     temps, l'un suffit) et à chaque bascule de la barre.
+     PAS DE BOUCLE : sacrifier un bloc le passe en `display:none`, ce qui
+     change le CONTENU du bandeau, jamais sa BOÎTE — l'observateur ne se
+     réveille donc pas sur son propre effet. Mesuré au raisonnement, pas à
+     l'exécution : c'est de la dette navigateur, elle est dite.
+     RESTE ASSUMÉ : un changement de contenu SANS changement de taille (la
+     croix des rappels, un compteur de sous-titres qui gagne un chiffre)
+     n'est repris qu'au prochain redimensionnement. Le niveau est alors
+     périmé d'un cran, jamais faux dans le sens dangereux — il en cache un
+     peu trop, il n'en montre jamais trop. */
+  x.useEffect(function(){
+    var bd=dzmTbAncetre(bar.current,"svm-trans");
+    if(!bd)return;
+    function tour(){dzmBdTour(bd,bdMem.current)}
+    tour();
+    var w=(typeof window!=="undefined")?window:null;
+    var ro=null;
+    try{
+      if(w&&typeof w.ResizeObserver==="function"){
+        ro=new w.ResizeObserver(tour);ro.observe(bd)}}
+    catch(e){ro=null}
+    if(ro)return function(){try{ro.disconnect()}catch(e){}};
+    return dzmTbVeille(w,tour)},[open]);
   /* LE RETOUR DU GESTE : si la barre se démonte au milieu d'un glissement,
      l'annulateur retire les trois écouteurs ET la classe `grabbing` restée
      sur le corps. Sans lui, tout le document garderait ce curseur, et rien
@@ -3294,6 +3356,238 @@ function DzmToolDock(o){
       onRecentrer:recentrer,
       onClose:function(){setOpen(dzmTbOpenSet(!1))}})]})}
 
+
+/* ══ ÉTAPE 6 DU HANDOFF « BARRE OUTILS FLOTTANTE » — §5 ═══════════════════
+   LE BANDEAU REDISTRIBUÉ : ce qui l'a quitté (§5.1), et ce qui se dégrade
+   quand il n'a plus la largeur (§5.3).
+
+   AUCUN DES NEUF NE DISPARAÎT DE L'ÉCRAN. Ils sont câblés dans la barre
+   flottante depuis l'étape 7 — `dzmTbCablage` rend les neuf avec un `act`
+   non nul dès que l'écran fournit ses fonctions — et le défaut de la barre
+   passe à « ouverte » DANS CETTE MÊME ÉTAPE, pour qu'un utilisateur qui n'a
+   jamais touché l'onglet les ait sous les yeux au premier chargement.
+
+   ── LA PLACE RENDUE, ET SON PROTOCOLE. Sans navigateur on ne mesure pas
+   des pixels, on les DÉRIVE — le protocole est donc écrit, pas sous-entendu:
+   • chaque contrôle retiré est un bouton mono à 10 px ; l'avance de
+     JetBrains Mono (`--f-mono`) vaut 600/1000 d'em, soit 6,0 px par
+     caractère à 10 px. C'est une métrique de la fonte, pas une estimation ;
+   • la boîte est `border-box` (deepotus.tokens.css l.88 ET
+     son-vfx-montage.css l.56, les deux) : largeur = caractères
+     + rembourrage horizontal + les deux filets de 1 px ;
+   • l'intervalle que le nœud rendait est compté AVEC lui : 12 px pour un
+     enfant direct du bandeau (`gap:12px`, son-vfx-montage.css l.306), la
+     valeur du groupe pour les autres — 5 px dans `.dzm-add`, 4 px puis
+     2 px dans `.dzm-wa` (montage.css l.32, l.89, l.93).
+   RÉSERVE DITE : c'est une largeur NOMINALE. Une fonte de repli (Consolas,
+   0,55 em) en rendrait moins, une fonte système un peu plus. L'ordre de
+   grandeur ne dépend pas de la fonte — c'est plus de la moitié d'un bandeau
+   de 1 280 px — mais le chiffre exact, lui, en dépend, et il est écrit ici
+   pour pouvoir être contredit par une mesure. */
+var DZM_BD_PX_CAR=6;
+var DZM_BD_PX_BRD=2;
+function dzmBdPx(e){
+  var o=e||{};
+  if(typeof o.px==="number"&&isFinite(o.px))return o.px;
+  return String(o.lbl||"").length*DZM_BD_PX_CAR
+    +(Number(o.pad)||0)+DZM_BD_PX_BRD}
+
+/* LES DIX NŒUDS QUI ONT QUITTÉ LE BANDEAU (§5.1) : les neuf contrôles
+   (`ctl`) plus l'étiquette `mot`, que le §5.1 nomme elle aussi
+   (« l'étiquette MOT et ses trois options »). `lbl` est le libellé RÉEL du
+   bouton, celui que le composant écrit ; le banc les rapproche des deux
+   côtés, sans quoi cette table dériverait en silence de ce qu'elle décrit.
+   L'étiquette `mot` est le seul `px` en dur : 9 px avec `letter-spacing`
+   .06em sur trois caractères = 3 × (5,4 + 0,54) = 17,8, arrondi à 18. */
+var DZM_BD_RETIRES=[
+  {id:"piste-video",  ctl:!0, lbl:"+ piste vidéo", pad:16, gap:12},
+  {id:"piste-audio",  ctl:!0, lbl:"+ piste audio", pad:16, gap:5},
+  {id:"bibliotheque", ctl:!0, lbl:"Bibliothèque…", pad:16, gap:12},
+  {id:"mot",                  lbl:"mot",   px:18,          gap:12},
+  {id:"couleur",      ctl:!0, lbl:"couleur",       pad:14, gap:4},
+  {id:"rebond",       ctl:!0, lbl:"rebond",        pad:14, gap:2},
+  {id:"glow",         ctl:!0, lbl:"glow",          pad:14, gap:2},
+  {id:"emoji",        ctl:!0, lbl:"emoji",         pad:16, gap:12},
+  {id:"texte",        ctl:!0, lbl:"texte",         pad:16, gap:12},
+  {id:"projets",      ctl:!0, lbl:"projets",       pad:16, gap:12}];
+/* PURE, et c'est ce qui rend le chiffre rejouable : le banc le RECALCULE au
+   lieu de le recopier. `n` compte les CONTRÔLES — il doit valoir neuf, et le
+   banc l'exige : une table amputée d'une ligne rendrait un total plus petit
+   sans que rien ne le dise. */
+function dzmBdRetire(t){
+  var l=(t&&t.length)?t:DZM_BD_RETIRES,px=0,n=0,i,e;
+  for(i=0;i<l.length;i++){e=l[i];
+    px+=dzmBdPx(e)+(Number(e.gap)||0);
+    if(e.ctl===!0)n++}
+  return {px:px,n:n,nb:l.length}}
+
+/* ── §5.3 : LA DÉGRADATION EN LARGEUR RÉDUITE ─────────────────────────────
+   « Le bandeau ne doit JAMAIS passer sur deux lignes ni provoquer de
+   défilement horizontal. » Les deux moitiés ne coûtent pas la même chose :
+   • DEUX LIGNES — le bandeau est un conteneur flex sans `flex-wrap`, donc
+     `nowrap` par défaut ; la feuille l'écrit quand même, en VERROU, comme
+     elle écrit déjà `overflow:visible` pour l'onglet ;
+   • DÉFILEMENT — le bandeau ne défile pas non plus : il est en
+     `overflow:visible`, et `.dzsvm` rogne au bord de la fenêtre. Ce qui
+     dépasse n'est donc pas défilable, il est INVISIBLE. C'est le vrai mode
+     de panne de cet écran-ci, et c'est celui que l'échelle réduit.
+
+   L'ORDRE DE SACRIFICE DU §5.3, ADAPTÉ À CE QUI EXISTE — l'adaptation est
+   dite rang par rang, et chaque rang garde le PRINCIPE de celui du §5.3 :
+   1. §5.3 : « le contrôle de mix inline se réduit à son bouton panneau son ».
+      N'existe pas — ni mix inline ni panneau son, mesurés à zéro dans le
+      bundle. Le principe est « ce qui n'est là que par commodité, et dont la
+      version complète vit ailleurs, part le premier ». Dans ce bandeau c'est
+      la bande de RAPPELS de raccourcis : purement informative, déjà
+      refermable à la main par sa croix, et le panneau « ? » juste à côté en
+      dit plus qu'elle.
+   2. §5.3 : « les libellés des outils de coupe passent en icônes seules avec
+      infobulles ». Applicable AU MOT PRÈS : `aimanter`, `lame · <combo>` et
+      `ripple` portent déjà chacun un `title` en clair — l'exigence « ne pas
+      livrer un mode compact sans infobulles » (§2.3) est donc remplie sans
+      rien ajouter. La chip des sous-titres, quatrième de la même rangée,
+      NE SUIT PAS : le §5.3 la protège, et ses deux compteurs seraient
+      illisibles en glyphe.
+   3. §5.3 : « le bloc d'édition se replie dans un menu ⋯ ». Ce bloc n'existe
+      pas (`couper`, `coller`, `scinder`, `supprimer` : zéro dans le bundle,
+      et le §5.2 les demande NEUFS — hors de cette étape). Le principe est
+      « un bloc dont la version complète est un panneau se replie » : c'est
+      ici le métering maître, dont la rangée MIXAGE est le panneau.
+   4. §5.3 : « le timecode perd sa durée totale ». Applicable au mot : la
+      durée totale est un nœud à elle, dans le timecode.
+   NE SE DÉGRADENT JAMAIS (rang 0, §5.3 au mot) : le transport, les
+   sous-titres, le zoom et l'onglet OUTILS. L'annulation / rétablissement non
+   plus — c'est du transport pour la main qui la cherche.
+
+   LE CŒUR EST PUR, et c'est la seule façon de mesurer « jamais deux lignes »
+   sans navigateur : largeur disponible + largeurs des blocs → ce qui tombe.
+   L'hôte, plus bas, ne fait que MESURER et POSER ; il ne décide rien. */
+var DZM_BD_GAP=12;
+var DZM_BD_PX_SEP=13;
+var DZM_BD_PX_PAD=28;
+var DZM_BD_RANGS=[
+  {id:"hints",   rang:1, sel:".svm-hints",     esp:12},
+  {id:"coupe",   rang:2, sel:".svm-toolchips", esp:0, serre:!0},
+  {id:"metre",   rang:3, sel:".svm-meterslot", esp:25},
+  {id:"tctotal", rang:4, sel:".svm-tctotal",   esp:0}];
+/* La largeur d'un outil de coupe en ICÔNE SEULE, fixée PAR LA FEUILLE et non
+   devinée ici : 4 + 11 + 4 de rembourrage et de glyphe, plus les deux
+   filets. Le banc exige que /shared/montage.css porte bien ces trois
+   nombres — sans quoi cette constante mentirait sur ce que le navigateur
+   dessine, et la dégradation viserait à côté. */
+var DZM_BD_PX_ICONE=21;
+var DZM_BD_ATTR="data-bdoff";
+
+/* dzmBdPlan(dispo, blocs) → {niveau, off, besoin, ok}
+   `blocs` : [{id, px, rang}] — `px` mesuré par l'hôte, `rang` 0 pour ce qui
+   ne se sacrifie jamais. Le retour dit CE QUI TOMBE (`off`, dans l'ordre du
+   sacrifice), ce qu'il reste à porter (`besoin`) et si ça tient (`ok`).
+   `ok:!1` N'EST PAS UNE ERREUR MAIS UN AVEU : quand même le dernier rang ne
+   suffit pas, la fonction rend le plan le plus serré qu'elle sache ET dit
+   qu'il déborde. Une fonction qui aurait tu ce cas aurait promis une
+   garantie qu'elle ne tient pas.
+   ELLE NE MUTE RIEN : `cand` est un tableau NEUF, sans quoi le tri
+   réordonnerait la table de l'appelant — et l'ordre du §5.3 avec elle.
+   LE TRI EST TOTAL (rang, puis rang d'apparition) : deux blocs de même rang
+   tomberaient sinon dans un ordre que le moteur choisit. */
+function dzmBdPlan(dispo,blocs){
+  var l=(blocs&&blocs.length)?blocs:[];
+  var d=(typeof dispo==="number"&&isFinite(dispo))?dispo:0;
+  var cand=[],besoin=0,i,b,r,w;
+  for(i=0;i<l.length;i++){
+    b=l[i];
+    w=Math.max(0,Number(b&&b.px)||0);
+    besoin+=w;
+    r=Number(b&&b.rang)||0;
+    if(r>0)cand.push({id:b.id,rang:r,px:w,i:i})}
+  cand.sort(function(a,c){return a.rang===c.rang?a.i-c.i:a.rang-c.rang});
+  var off=[],niveau=0;
+  for(i=0;i<cand.length&&besoin>d;i++){
+    off.push(cand[i].id);
+    besoin-=cand[i].px;
+    niveau=cand[i].rang}
+  return {niveau:niveau,off:off,besoin:besoin,ok:besoin<=d}}
+
+/* ── L'HÔTE : MESURER, PUIS POSER ─────────────────────────────────────────
+   Tout ce qui suit touche le DOM et ne se joue pas sous node — c'est assumé,
+   et c'est pour cela que la DÉCISION n'y est pas. Il mesure des largeurs
+   NATURELLES (`scrollWidth` quand le nœud est déjà comprimé par
+   `text-overflow`), garde en mémoire celle d'un bloc déjà sacrifié — sinon
+   elle vaudrait zéro et l'échelle ne remonterait jamais quand la fenêtre
+   s'élargit — et écrit UNE chaîne sur le bandeau, que la feuille lit par
+   `~=`. Le bandeau appartient au bundle : on n'y ajoute aucun nœud, et
+   l'attribut posé n'est géré par React nulle part, donc rien ne l'efface. */
+function dzmBdLarg(el){
+  if(!el)return 0;
+  var a=Number(el.offsetWidth)||0,b=Number(el.scrollWidth)||0;
+  return Math.max(a,b)}
+/* Les nœuds HORS FLUX du bandeau — l'onglet, la barre, et la liste des
+   projets montée nue — ne prennent ni largeur ni intervalle. */
+var DZM_BD_HORS=".dzm-tbtab,.dzm-tbar,.dzm-proj";
+/* LES BLOCS QUI PORTENT UN FILET (§5.2) — la feuille leur donne 13 px de
+   marge en plus du `gap`, et ces 13 px comptent dans la largeur.
+   `.svm-hints` N'Y EST PAS : il est en `overflow:hidden`, un filet en
+   pseudo-élément y serait rogné, la feuille ne le lui dessine donc pas et
+   il n'a pas la marge. `.svm-zoom` non plus : son `margin-left:auto` EST
+   l'intercalaire du §5.2, le filet s'y pose sans marge. */
+var DZM_BD_SEP=".svm-transbtns,.svm-toolchips,.svm-meterslot";
+function dzmBdEst(el,sel){
+  if(!el||typeof el.matches!=="function")return !1;
+  try{return el.matches(sel)}catch(e){return !1}}
+function dzmBdOff(bd){
+  var v="";
+  try{v=(bd&&typeof bd.getAttribute==="function"
+    &&bd.getAttribute(DZM_BD_ATTR))||""}catch(e){v=""}
+  return " "+v+" "}
+function dzmBdSomme(l){
+  var t=0,i;
+  for(i=0;i<(l||[]).length;i++)t+=Math.max(0,Number(l[i].px)||0);
+  return t}
+function dzmBdMesure(bd,mem){
+  if(!bd||typeof bd.querySelector!=="function")return null;
+  var m=mem||{},dej=dzmBdOff(bd);
+  var kids=bd.children||[],cour=0,nv=0,i,el,w;
+  for(i=0;i<kids.length;i++){
+    el=kids[i];
+    if(dzmBdEst(el,DZM_BD_HORS))continue;
+    w=dzmBdLarg(el);
+    if(w<=0)continue;
+    nv++;cour+=w;
+    if(dzmBdEst(el,DZM_BD_SEP))cour+=DZM_BD_PX_SEP}
+  cour+=Math.max(0,nv-1)*DZM_BD_GAP;
+  var blocs=[],plein=cour,j,rg,cible,g;
+  for(j=0;j<DZM_BD_RANGS.length;j++){
+    rg=DZM_BD_RANGS[j];
+    if(dej.indexOf(" "+rg.id+" ")>=0){
+      g=Math.max(0,Number(m[rg.id])||0);
+      plein+=g}
+    else{
+      cible=bd.querySelector(rg.sel);
+      w=dzmBdLarg(cible);
+      g=rg.serre?Math.max(0,w-3*DZM_BD_PX_ICONE):(w>0?w+rg.esp:0);
+      if(g>0)m[rg.id]=g}
+    blocs.push({id:rg.id,rang:rg.rang,px:g})}
+  blocs.push({id:"reste",rang:0,
+    px:Math.max(0,plein-dzmBdSomme(blocs))});
+  return {dispo:Math.max(0,(Number(bd.clientWidth)||0)-DZM_BD_PX_PAD),
+    plein:plein,blocs:blocs,mem:m}}
+function dzmBdPose(bd,plan){
+  if(!bd||!plan||typeof bd.setAttribute!=="function")return null;
+  var v=(plan.off||[]).join(" ");
+  try{
+    if(bd.getAttribute(DZM_BD_ATTR)===v)return v;
+    if(v)bd.setAttribute(DZM_BD_ATTR,v);
+    else bd.removeAttribute(DZM_BD_ATTR)}
+  catch(e){return null}
+  return v}
+/* Le tour complet, pour que le Dock n'ait qu'une ligne à appeler. */
+function dzmBdTour(bd,mem){
+  var q=dzmBdMesure(bd,mem);
+  if(!q)return null;
+  var plan=dzmBdPlan(q.dispo,q.blocs);
+  dzmBdPose(bd,plan);
+  return {plan:plan,mesure:q}}
+
 /* ── export contrat ───────────────────────────────────────────────────────── */
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
@@ -3329,5 +3623,10 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   TB_MARGE:DZM_TB_MARGE,TB_AIMANT:DZM_TB_AIMANT,TB_PAS:DZM_TB_PAS,
   TB_PAS_FIN:DZM_TB_PAS_FIN,TB_CL_DRAG:DZM_TB_CL_DRAG,
   ToolTab:DzmToolTab,ToolBar:DzmToolBar,ToolDock:DzmToolDock,tsOr:dzmTsOr,
+  bdRetires:DZM_BD_RETIRES,bdRetire:dzmBdRetire,bdPx:dzmBdPx,
+  bdPlan:dzmBdPlan,BD_RANGS:DZM_BD_RANGS,BD_PX_ICONE:DZM_BD_PX_ICONE,
+  BD_ATTR:DZM_BD_ATTR,BD_PX_CAR:DZM_BD_PX_CAR,BD_PX_SEP:DZM_BD_PX_SEP,
+  BD_GAP:DZM_BD_GAP,BD_SEP:DZM_BD_SEP,BD_HORS:DZM_BD_HORS,
+  bdMesure:dzmBdMesure,bdPose:dzmBdPose,bdTour:dzmBdTour,bdLarg:dzmBdLarg,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;

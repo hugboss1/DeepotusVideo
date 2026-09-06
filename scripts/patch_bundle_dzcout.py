@@ -52,6 +52,19 @@ MARKER_ATTENDU = 7      # définition + window x2 + infobulle + total + puce x2
 # Sondes des maillons AMONT : si l'un de ces comptes bouge, c'est qu'un
 # patcher amont a été rejoué seul et a effacé ce qui le suivait.
 #
+# `montage` : 33 → 29 le 06/09/2026, et C'EST UNE BAISSE — la première de
+# cette sonde. L'étape 6 du handoff « Barre Outils Flottante » (§5.1) retire
+# les neuf contrôles du bandeau de transport, et QUATRE d'entre eux étaient
+# des références au contrat : `DzTracks.TrackAdd` (les deux boutons de
+# piste), `DzTracks.LibBtn`, `DzTracks.WordAnimChip` et `DzTracks.EmojiBtn`.
+# `DzTracks.Projects` RESTE — son bouton part, sa liste demeure, parce que
+# c'est elle que la barre flottante demande (M14, `nu:!0`) — et le bouton
+# « texte », lui, n'était pas une référence au contrat mais un `<button>` nu.
+# COMPTÉ DES DEUX CÔTÉS AVANT D'ÉCRIRE CE NOMBRE : 33 dans le bundle de
+# b59c7ab, 29 après ; delta = −4, et les quatre sont nommés ci-dessus. LA
+# SONDE A FAIT SON TRAVAIL une fois de plus : elle a refusé de tourner sur 29
+# tant que cette ligne disait 33, et la chaîne s'est arrêtée là.
+#
 # `montage` : 32 → 33 le 05/09/2026 (TROISIÈME mise à jour du jour).
 # L'étape 4 du handoff « Barre Outils Flottante » monte l'onglet OUTILS et la
 # barre dans le bandeau de transport (section M19) : UNE référence de plus au
@@ -94,7 +107,7 @@ STABLE_PROBES = [
     ("print3d", "__dzPrint3d", 3),
     ("navrail", "dz_nav_collapsed", 2),
     ("dzdesign", "__dzCatBar", 2),
-    ("montage", "DzTracks", 33),
+    ("montage", "DzTracks", 29),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

@@ -39,16 +39,22 @@ Sections :
   M5  payload de rendu : clé `tracks` (le backend y lit l'ordre) ;
   M6  autosave : la même clé, pour que l'ordre survive au rechargement ;
   M7  restauration : proj.tracks reconstruit depuis la sauvegarde serveur ;
-  M8  barre de transport : « + vidéo » / « + audio » ;
+  M8  barre de transport. ELLE A ÉTÉ VIDÉE PAR L'ÉTAPE 6 DU HANDOFF « Barre
+      Outils Flottante » (§5.1) : elle posait « + piste vidéo » / « + piste
+      audio », « Bibliothèque… », la chip « mot » et ses trois options,
+      « emoji », « texte » et « projets » — les NEUF contrôles que le §5.1
+      retire. Ils vivent désormais dans la barre flottante (M19), où l'étape 7
+      les a câblés sur LES MÊMES actions. Il ne reste ici que la LISTE des
+      projets, montée NUE : ce n'est pas un contrôle, c'est le panneau qu'un
+      contrôle de la barre ouvre ;
   M9a/M9b en-tête de piste : poignée de glisser-déposer et ▲ ▼ ×, posés en
       SURIMPRESSION (l'en-tête fait 88 × 40–54 px et il est plein — mesuré,
       voir montage.css) ;
-  M10 (P2) chip « mot : couleur / rebond / glow » + bouton « emoji », posés
-      DANS le remplacement de M8 (l'ancre A_M8 est déjà consommée, et la
-      barre d'outils n'offre pas de seconde ancre unique).
+  M10 (P2) chip « mot : couleur / rebond / glow » + bouton « emoji » — RETIRÉS
+      par l'étape 6 (§5.1). Ils vivaient DANS le remplacement de M8 ;
   M11 (P3) l'ÉTAT du panneau « Texte » (`dzTextOn`), déclaré dans le corps du
-      composant, et son bouton de barre — lui aussi DANS le remplacement de
-      M8, pour la même raison qu'en M10 ;
+      composant — il RESTE, c'est M12 qui le lit ; son bouton de barre, lui,
+      est parti avec les huit autres (M11b, étape 6) ;
   M12 (P3) le panneau « Texte » lui-même et la COUPE PAR PLAGE
       (`DzTracks.rippleCut`), posés dans la colonne d'inspection : mesuré, le
       bundle n'offre pas l'ancre `subsDrawer()` de la zone des tiroirs que le
@@ -61,13 +67,16 @@ Sections :
       était sélectionné. Voir le commentaire de dzmGradeAllBtn.
   M14 (P5) le popover « projets » (lister, enregistrer sous, ouvrir,
       dupliquer, renommer, supprimer), posé lui aussi DANS le remplacement de
-      M8 — même raison qu'en M10 et M11b. M6 et M7 y gagnent la clé
-      `project_id`, qui relie le brouillon courant à son projet.
+      M8. M6 et M7 y gagnent la clé `project_id`, qui relie le brouillon
+      courant à son projet. ÉTAPE 6 DU HANDOFF « Barre Outils Flottante » : il
+      est monté NU (`nu:!0`) — son BOUTON a quitté le bandeau avec les huit
+      autres, sa LISTE reste parce que c'est elle que la barre demande.
   M16 (P9) « Bibliothèque… », et la remise qui se perdait — quatre sections
       plus un repli :
-        M16-lib  le bouton « Bibliothèque… » de la barre de transport, posé
-                 DANS le remplacement de M8 (A_M8 déjà consommée) ; il ouvre
-                 `openPicker` sur la piste vidéo RÉSOLUE ;
+        M16-lib  le bouton « Bibliothèque… » de la barre de transport —
+                 RETIRÉ par l'étape 6 du handoff « Barre Outils Flottante »
+                 (§5.1) ; c'est la barre flottante qui ouvre `openPicker` sur
+                 la piste vidéo RÉSOLUE, par la même expression ;
         M16ref   `dzTracksRef` — les pistes du projet relues à chaque rendu,
                  parce que le greffon amont appelle l'addAsset du PREMIER ;
         M16a     `addAsset` pose sur une piste QUI EXISTE (fin de
@@ -258,40 +267,36 @@ R_M7 = ('var np={demo:!1,tracks:svmTracksFrom(d.tracks),'
 A_M8 = ('r.jsx("button",{className:"svm-tbtn",title:"Raccourcis ("'
         '+svmKeyLabel("keys_panel")+") — personnalisables",')
 
-# ── M10 (P2) : la chip « mot : couleur / rebond / glow » et le bouton emoji ──
-# ELLES VIVENT DANS R_M8, pas dans une section à elles : l'ancre A_M8 est déjà
-# CONSOMMÉE par M8, et il n'existe pas de seconde ancre unique dans cette barre
-# d'outils. Le panneau de style, lui, vit dans un tiroir du bloc `sonvfx` que
-# cette chaîne ne peut pas rouvrir (vingt sections amont s'y trouvent).
-# `DzTracks`, pas `DzMontage` : le bundle déclare DÉJÀ une fonction DzMontage
-# au premier niveau (l'écran Montage lui-même) — redéclarer ce nom est une
-# SyntaxError en sémantique module, celle sous laquelle index.html charge le
-# bundle. C'est ce que `node_check_module` de test_montage_bundle.py garde.
-# Le bouton emoji est RÉVERSIBLE : `pushHistory()` avant l'ajout, donc
-# « annuler » retire les clips posés, et ce sont des clips ordinaires.
-R_M10 = ('r.jsx(DzTracks.WordAnimChip,{value:(proj.subsStyle||{}).wordAnim||"couleur",'
-         'onChange:function(v){subsStyleSet({wordAnim:v})}}),\n'
-         '        r.jsx(DzTracks.EmojiBtn,{segments:subsSegsOf(clips),'
-         'tracks:svmTracksOf(proj),note:fireNote,onAdd:dzEmoAdd}),')
+# ── M10 (P2) : LA CHIP « mot » ET LE BOUTON « emoji » — RETIRÉS DU BANDEAU
+# ÉTAPE 6 DU HANDOFF (§5.1). Ils vivaient DANS R_M8 ; ils n'y sont plus, et
+# ils ne sont remplacés par rien ICI : les quatre actions (`couleur`,
+# `rebond`, `glow`, `emoji`) sont câblées dans la barre flottante depuis
+# l'étape 7 — R_M19 leur passe `wordAnim`/`onWordAnim` et
+# `emojiSegs`/`note`/`onEmojiAdd`, exactement les mêmes expressions que
+# celles qui étaient écrites ici. Le §5.1 l'exige : « Ne pas les laisser en
+# double. Un contrôle présent aux deux endroits […] crée deux sources de
+# vérité pour l'état des bascules. »
+# CE QUE CE RETRAIT REFERME, en plus de la place : le DOUBLON D'ATTENTE de
+# la requête emoji. `dzmEmojiGo` n'a pas de hook, chaque porte tenait le
+# sien — celui de `DzmEmojiBtn` et celui du Dock. Une porte disparaît, une
+# attente disparaît avec elle.
+# `DzmWordAnimChip` et `DzmEmojiBtn` RESTENT DANS LA COUCHE et au contrat :
+# ce sont des composants publics et testés, et le §5.1 retire des contrôles
+# DU BANDEAU, pas des composants d'une bibliothèque. Reste assumé, dit ici :
+# deux composants exportés ne sont plus montés nulle part.
 
-# ── M11a (P3) : l'ÉTAT du panneau « Texte » ────────────────────────────────
-# Il lui faut une déclaration dans le CORPS du composant : R_M8 est un tableau
-# `children`, on n'y déclare pas un hook. L'ancre choisie est la déclaration de
-# l'état du tiroir Sous-titres — mesurée UNIQUE, et voisine par le sujet.
-# `dzTextOn`, pas `textOn` : mesuré, `stTx` apparaît DÉJÀ sept fois dans le
-# bundle minifié, et un `var` de même nom dans la même fonction écraserait
-# silencieusement l'autre. `dzTextOn` / `stDzTx` : zéro occurrence.
 A_M11 = "  var stSu=x.useState(!1),subsOn=stSu[0],setSubsOn=stSu[1];"
 # ÉTAPE 7 DU HANDOFF « Barre Outils Flottante » (§6) — DEUX DÉCLARATIONS DE
 # PLUS, ET ELLES SONT ICI POUR LA MÊME RAISON QUE `dzTextOn` : un hook et une
 # fonction se déclarent dans le CORPS du composant, pas dans un tableau
 # `children`. Cette ancre est la seule de la chaîne qui soit dans le corps.
-#   `dzEmoAdd` — LE MÊME `onAdd` POUR LES DEUX PORTES. Le bouton du bandeau
-#     (R_M10) et la barre (R_M19) posent les mêmes clips par la même
-#     fonction : `pushHistory()` PUIS l'ajout, donc « annuler » les retire
-#     d'un coup. Elle était écrite en toutes lettres dans R_M10 ; recopiée
-#     dans R_M19, elle aurait fait DEUX sources pour un seul geste, et le
-#     jour où l'une pousse l'historique et l'autre non, rien ne l'aurait dit.
+#   `dzEmoAdd` — L'AJOUT DES CLIPS D'EMOJI : `pushHistory()` PUIS l'ajout,
+#     donc « annuler » les retire d'un coup. Elle servait les DEUX portes
+#     (le bouton du bandeau et la barre) ; l'étape 6 a retiré la première,
+#     et il n'en reste qu'une. La déclaration ne bouge pas : c'est toujours
+#     depuis le corps du composant que la barre la reçoit, et la sortir
+#     d'ici pour la recopier dans R_M19 aurait refait deux sources pour un
+#     seul geste.
 #   `dzProjReq` — LA DEMANDE D'OUVERTURE de la liste des projets, un
 #     COMPTEUR. Le popover garde son état d'ouverture chez lui (il se ferme
 #     sur un `mousedown` hors de sa boîte) ; un booléen piloté de l'extérieur
@@ -318,26 +323,24 @@ R_M11 = ("  /* P3 — panneau « Texte » (monter en LISANT). Son état est À L
          "setClips(function(k){return (k||[]).concat(cs)});setDirty(!0)}\n"
          + A_M11)
 
-# ── M11b (P3) : le bouton « texte » de la barre — DANS R_M8, comme M10 ──────
-R_M11b = ('r.jsx("button",{className:"svm-tbtn dzm-txton","data-on":dzTextOn?"":void 0,'
-          '"aria-pressed":dzTextOn,'
-          'title:"Monter par le TEXTE : la narration mot par mot dans la colonne '
-          'de droite, les mots de remplissage marqués, et la sélection coupée sur '
-          'toutes les pistes non verrouillées (ce qui suit remonte)",'
-          '"aria-label":"Panneau Texte",'
-          'onClick:function(){setDzTextOn(!dzTextOn)},children:"texte"}),')
+# ── M11b (P3) : le bouton « texte » — RETIRÉ DU BANDEAU (étape 6, §5.1)
+# Même raison que M10, et la même contrepartie : la barre porte `texte` avec
+# `textOn:dzTextOn` et `onText`, qui basculent le MÊME état. Le panneau
+# lui-même (M12) ne bouge pas d'un pixel : c'est sa porte du bandeau qui
+# part, pas lui.
 
-# ── M14 (P5) : le popover « projets » — DANS R_M8, comme M10 et M11b ───────
-# Même raison qu'elles : A_M8 est déjà consommée par M8 et la barre de
-# transport n'offre pas de seconde ancre unique. Le plan disait « popover
-# Projets dans R_M8 » — c'est bien là.
-# `DzTracks`, pas `DzMontage` (que le plan écrivait, comme il écrivait déjà
-# `DzMontage.gradeAllBtn` en P4) : le bundle déclare DÉJÀ une fonction
-# `DzMontage` au premier niveau — l'écran Montage lui-même — et redéclarer ce
-# nom est une SyntaxError en sémantique MODULE, celle sous laquelle index.html
-# charge le bundle. Invisible pour `node --check` sur un .js ; c'est
-# `node_check_module` de test_montage_bundle.py qui la voit.
-# HUIT props au 04/09/2026 — `payload` et `onFail` s'ajoutent après revue.
+# ── M14 (P5) : le popover « projets » — SEUL DES NEUF À RESTER MONTÉ, ET NU
+# ÉTAPE 6 (§5.1) : `projets` quitte le bandeau comme les huit autres. Mais ce
+# composant est DEUX choses — le bouton ET la liste qu'il ouvre — et la barre
+# flottante n'ouvre pas une liste à elle : elle DEMANDE l'ouverture de
+# celle-ci (`openReq`, un compteur, cf. l'étape 7). Retirer le nœud entier
+# aurait donc rendu MORT le bouton `projets` de la barre, c'est-à-dire rendu
+# un des neuf introuvable — exactement ce que le §9 s'interdit.
+# D'où `nu:!0` : le BOUTON disparaît, la LISTE reste. Un seul contrôle, une
+# seule liste, aucun doublon. La feuille sort alors `.dzm-proj` du flux et
+# ancre le popover à DROITE du bandeau, loin de la barre flottante qui vit à
+# gauche : sans quoi une liste de 300 px s'ouvrirait par-dessus elle.
+# Le reste de cette section est inchangé et sa mesure tient toujours :
 # `payload` : « Enregistrer sous… » envoie la timeline AFFICHÉE avec le nom.
 # MESURÉ, sans elle, `POST /projects` ne lisait que montage_saved.json — et
 # deux états courants n'en ont pas (installation neuve, et l'instant qui suit
@@ -348,27 +351,23 @@ R_M11b = ('r.jsx("button",{className:"svm-tbtn dzm-txton","data-on":dzTextOn?"":
 # annulé l'autosave en vol et RIEN ne le replanifie — `setSaveInfo` n'est pas
 # dans les dépendances de l'effet. `svmDoSave` le relance sur-le-champ.
 # `doDel`, lui, n'appelle PLUS `onBefore` : le serveur ferme cette course-là à
-# TROIS verrous, et c'est le TROISIÈME — le verrou de module, arrivé dans le
-# même commit — qui rend le retrait légitime. Les deux premiers (`project_id`
-# retenu seulement s'il désigne un fichier existant ; miroir seulement dans ce
-# fichier) laissaient un TOCTOU de deux sauts de thread : sans le verrou,
-# retirer `onBefore` ici rouvre « le courant reste lié à un projet supprimé ».
-# test_montage_projets.py [16] joue l'entrelacement avec et sans lui — c'est
-# la CONDITION de ce retrait, pas sa confirmation ; [10] ne mesure que le cas
-# séquentiel. Le détail est dans la couche.
-# SIX props, pas cinq : `onBefore` s'ajoute à la liste du plan. MESURE — le
-# bundle désamorce déjà exactement cette course pour le bouton
-# « bibliothèque » : il ABANDONNE la requête d'autosave en vol avant son
-# DELETE, faute de quoi elle arrive après et ressuscite ce qu'on vient
-# d'effacer. Ouvrir un projet et supprimer un projet sont le même cas : sans
-# `onBefore`, une sauvegarde partie 1,4 s plus tôt réécrit le courant avec le
-# montage qu'on vient de quitter.
+# TROIS verrous, et c'est le TROISIÈME — le verrou de module — qui rend le
+# retrait légitime. test_montage_projets.py [16] joue l'entrelacement avec et
+# sans lui — c'est la CONDITION de ce retrait, pas sa confirmation.
+# `onBefore` : le bundle désamorce déjà exactement cette course pour le bouton
+# « bibliothèque » ; ouvrir un projet et supprimer un projet sont le même cas.
 # PAS de `setDirty` ici, et c'est délibéré : au retour de chacune de ces
-# routes le serveur a DÉJÀ écrit le courant ET le projet. Allumer
-# « NON ENREGISTRÉ » juste après une ouverture réussie ferait mentir le badge
-# et déclencherait un autosave qui réécrirait à l'identique.
+# routes le serveur a DÉJÀ écrit le courant ET le projet.
+# `DzTracks`, pas `DzMontage` : le bundle déclare DÉJÀ une fonction
+# `DzMontage` au premier niveau — l'écran Montage lui-même — et redéclarer ce
+# nom est une SyntaxError en sémantique MODULE, celle sous laquelle index.html
+# charge le bundle. C'est `node_check_module` du miroir qui la voit.
 R_M14 = ('r.jsx(DzTracks.Projects,{name:proj.name,projectId:proj.project_id,'
          'note:fireNote,\n'
+         '          /* étape 6 (§5.1) : le BOUTON « projets » a quitté le\n'
+         '             bandeau ; la LISTE reste, parce que c’est elle que\n'
+         '             la barre d’outils demande. Montée NUE. */\n'
+         '          nu:!0,\n'
          '          /* étape 7 : la barre d’outils ouvre CETTE liste-ci au\n'
          '             lieu d’en monter une seconde — un compteur, pas un\n'
          '             booléen. */\n'
@@ -382,28 +381,21 @@ R_M14 = ('r.jsx(DzTracks.Projects,{name:proj.name,projectId:proj.project_id,'
          '          onNamed:function(pid,nm){setProj(function(p){'
          'return Object.assign({},p,{project_id:pid,name:nm})})}}),')
 
-# ── M16-lib (P9) : le bouton « Bibliothèque… » — DANS R_M8, comme M10/M11b/M14
-# MÊME RAISON QU'ELLES, et elle est mesurée : A_M8 est déjà consommée par M8
-# et la barre de transport n'offre pas de seconde ancre unique.
-# CE QUE CE BOUTON RÉPARE, mesuré dans le bundle livré : `openPicker` n'était
-# appelé QU'À UN endroit — le « + » de 14 px d'un en-tête de piste, révélé au
-# survol de cette piste-là (`onClick:function(){ if(trackKind(tr.id)==="subs")
-# {subsAddHere();return} openPicker(tr.id)}`). Rien, dans la barre de
-# transport, ne proposait d'ajouter un clip. Les boutons « + vidéo » /
-# « + audio » posés par M8 ajoutent une PISTE ; l'utilisateur les a lus comme
-# « ajouter une vidéo » et le libellé lui donnait raison — d'où leur
-# rectification en « + piste vidéo » / « + piste audio », qui est une édition
-# de `DzmTrackAdd` DANS LA COUCHE et non une section de plus.
-# Le libellé est « Bibliothèque… », pas « + clip » : c'est le mot que
-# l'utilisateur a employé.
-R_M16LIB = ('r.jsx(DzTracks.LibBtn,{tracks:svmTracksOf(proj),note:fireNote,'
-            'onPick:openPicker}),')
+# ── M16-lib (P9) : le bouton « Bibliothèque… » — RETIRÉ (étape 6, §5.1)
+# Même raison que M10 et M11b. La barre porte `bibliotheque` et reçoit
+# `onPick:openPicker` — le MÊME `openPicker`, la même piste résolue.
+# `DzmLibBtn` reste dans la couche et au contrat, comme `DzmTrackAdd` :
+# reste assumé, quatre composants exportés ne sont plus montés.
 
-R_M8 = ('r.jsx(DzTracks.TrackAdd,{tracks:svmTracksOf(proj),onChange:svmTracksSet}),\n'
-        '        ' + R_M16LIB + '\n'
-        '        ' + R_M10 + '\n'
-        '        ' + R_M11b + '\n'
-        '        ' + R_M14 + '\n'
+# ── M8 : CE QUE LA CHAÎNE LAISSE DANS LE BANDEAU ──────────────────────────
+# ÉTAPE 6 (§5.1) — IL N'Y RESTE QUE LA LISTE DES PROJETS, ET ELLE EST NUE.
+# Cette section posait SIX nœuds : « + piste vidéo » / « + piste audio »
+# (`TrackAdd`), « Bibliothèque… », la chip « mot » et ses trois options,
+# « emoji », « texte » et « projets ». Neuf contrôles, tous partis dans la
+# barre flottante, où l'étape 7 les a câblés un par un sur LES MÊMES actions.
+# Ce qui reste ici n'est pas un contrôle : c'est le panneau qu'un contrôle de
+# la barre ouvre. Voir M14.
+R_M8 = (R_M14 + '\n'
         '        /* bouton discret du panneau raccourcis — fin de transport */\n'
         '        ' + A_M8)
 
@@ -1491,10 +1483,16 @@ R_M18A = ("    /* P11 — plus de plafond : la longueur d'un clip est celle de\n
 #     (`openReq`). C'est le seul moyen d'ouvrir sans lutter contre son propre
 #     « clic dehors », qui se déclenche précisément sur le bouton de la barre.
 #
-# DUPLICATION TRANSITOIRE, ASSUMÉE : les neuf contrôles restent dans le bandeau
-# tant que l'étape 6 (§5.1) ne les a pas retirés — et l'étape 7 passe AVANT
-# l'étape 6 précisément pour cela : retirer d'abord `emoji` et `projets` du
-# bandeau les aurait rendus inatteignables partout, ce que le §9 s'interdit.
+# ÉTAPE 6 : LA DUPLICATION EST SOLDÉE. Les neuf contrôles ont quitté le
+# bandeau (§5.1, voir M8/M10/M11b/M14/M16-lib, tous vidés) et cette barre-ci
+# est désormais LEUR SEULE PORTE — c'est pourquoi l'étape 7 devait passer
+# AVANT : retirer `emoji` ou `projets` du bandeau avant de les câbler ici les
+# aurait rendus inatteignables partout, ce que le §9 s'interdit. Le sens de
+# lecture de ces dix propriétés ne change pas d'un mot ; ce qui change, c'est
+# qu'aucune n'a plus de jumelle dans le bandeau.
+# UNE ATTENTE DE MOINS : l'état d'attente de la requête emoji était tenu par
+# CHAQUE porte (`DzmEmojiBtn` et le Dock). Une porte est partie, une attente
+# avec elle — il n'en reste qu'une, celle du Dock.
 A_M19 = 'r.jsxs("div",{className:"svm-trans",children:['
 R_M19 = (A_M19 + "\n"
          "        /* étapes 4 à 7 du handoff « Barre Outils Flottante » :\n"
