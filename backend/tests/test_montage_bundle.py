@@ -32,9 +32,9 @@ Quatre familles de mesures :
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
 COMPTE DE REFERENCE, 06/09/2026 (etape 8 du handoff « Barre Outils
-Flottante » — clavier, `role="toolbar"`, mouvement reduit) : 854 lignes, soit
-SOIXANTE-DIX de plus que les 784 de l'etape 7, et le compte se decompose :
-TRENTE-SIX lignes ecrites une a une dans la section [6-quater] neuve,
+Flottante » — clavier, `role="toolbar"`, mouvement reduit) : 855 lignes, soit
+SOIXANTE ET ONZE de plus que les 784 de l'etape 7, et le compte se decompose :
+TRENTE-SEPT lignes ecrites une a une dans la section [6-quater] neuve,
 VINGT-QUATRE que la boucle des jetons du Dock emet (vingt-trois jetons plus
 la ligne de l'asymetrie Echap / fleches), TROIS pour les `aria-label` des
 chips, et SEPT que la boucle sur `P.PATCHES` emet toute seule pour les trois
@@ -44,8 +44,8 @@ rougissant : « l'etape 8 n'est toujours pas livree » (qui exigeait
 `role:"toolbar"`, `tabIndex` et `aria-orientation` ABSENTS), celle du Dock
 (dont le cablage est desormais hisse hors du rendu) et les deux qui
 decoupaient le bloc de la barre par son en-tete de commentaire.
-LA CAMPAGNE DE MUTATION QUI FONDE [6-quater] : QUARANTE-NEUF mutations
-APPLIQUEES — trente-neuf sur la couche et la feuille, DIX sur le PATCHER
+LA CAMPAGNE DE MUTATION QUI FONDE [6-quater] : CINQUANTE-DEUX mutations
+APPLIQUEES — quarante-deux sur la couche et la feuille, DIX sur le PATCHER
 (chacune suivie d'un rejeu complet de la chaine) — plus un temoin neutre, qui
 ne fait rougir que le bruit de fond connu
 (`bloc_EST_la_couche_octet_pour_octet`, rouge sur TOUTE mutation de la couche
@@ -4100,6 +4100,15 @@ out.tb8_poignee_hors_groupe=TBG(function(){
     T.TB_SEL_ROVE.indexOf("tbgrip")<0,
     T.TB_SEL_ROVE.indexOf("dzm-tbb")>=0,
     T.TB_SEL_ROVE.indexOf("dzm-tbwb")>=0]});
+/* CHAQUE GROUPE EST UN `role="group"` NOMME (§4.5 : « la couleur n'est jamais
+   le seul porteur d'information : chaque groupe a son en-tete en clair »).
+   Le libellé est VERBATIM du §2.2, suffixe « — selection » compris, et il est
+   compare a la table du plan — jamais recopie. */
+out.tb8_groupes_nommes=TBG(function(){
+  return T.ToolBar({open:!0,items:cabPlein}).p.children[1].p.children
+    .map(function(z){return [z.p.role,z.p["aria-label"]]})});
+out.tb8_groupes_le_plan_dit_la_meme_chose=TBG(function(){
+  return T.TB_PLAN.map(function(g){return g.t+(g.suf?" "+g.suf:"")})});
 /* `role="toolbar"` ET SES DEUX ATTRIBUTS, VERBATIM DU §4.5. */
 out.tb8_role=TBG(function(){
   var b=T.ToolBar({open:!0,items:cabPlein,onBarKey:function(){}});
@@ -7861,6 +7870,23 @@ check("tb8_la_poignee_est_hors_du_groupe_roving",
                                            ".dzm-tbb,.dzm-tbwb",
                                            True, True, True],
       f'{d.get("tb8_poignee_hors_groupe")}')
+# « LA COULEUR N'EST JAMAIS LE SEUL PORTEUR D'INFORMATION : chaque groupe a
+# son en-tete en clair » (§4.5). Il l'avait A L'ŒIL et a l'œil seulement : un
+# `<span>` pose au-dessus d'une rangee de boutons n'est RATTACHE a rien, et le
+# nom accessible de « video » etait « video », sans rien qui dise de quoi.
+# LES LIBELLES NE SONT PAS RECOPIES ICI : la ligne compare le rendu au PLAN,
+# qui est lui-meme compare au §2.2 lu dans design.md plus haut — un seul
+# endroit ou le texte vit, comme pour les dix traces du §3.
+check("tb8_chaque_groupe_est_un_role_group_nomme_par_son_en_tete",
+      d.get("tb8_groupes_nommes") is not None
+      and len(d["tb8_groupes_nommes"]) == 5
+      and all(r == "group" for r, _ in d["tb8_groupes_nommes"])
+      and [n for _, n in d["tb8_groupes_nommes"]]
+      == d.get("tb8_groupes_le_plan_dit_la_meme_chose")
+      # LE SUFFIXE DU GROUPE MOT EN FAIT PARTIE (§2.2, verbatim) : sans lui,
+      # « MOT » ne dirait pas qu'il agit sur la selection.
+      and "MOT — sélection" in [n for _, n in d["tb8_groupes_nommes"]],
+      f'{d.get("tb8_groupes_nommes")}')
 # `role="toolbar"`, VERBATIM DU §4.5, avec ses deux attributs. Le dernier
 # element est le conjoint qui empeche un `onKeyDown` code en dur : sans
 # gestionnaire fourni, la barre n'en pose pas.

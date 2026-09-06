@@ -3316,7 +3316,19 @@ function DzmToolBar(o){
       var tete=[r.jsx("span",{className:"dzm-tbht",children:gr.t},"t")];
       if(gr.suf)tete.push(r.jsx("span",{className:"dzm-tbsuf",
         children:" "+gr.suf},"s"));
+      /* ÉTAPE 8, §4.5 : « LA COULEUR N'EST JAMAIS LE SEUL PORTEUR
+         D'INFORMATION : chaque groupe a son en-tête en clair. » Il l'avait À
+         L'ŒIL et à l'œil seulement — un `<span>` posé au-dessus d'une rangée
+         de boutons n'est RATTACHÉ à rien. Le nom accessible de « vidéo »
+         était donc « vidéo », et rien ne disait de quoi. `role="group"`
+         avec le libellé VERBATIM du §2.2 (suffixe « — sélection » compris)
+         rend le rattachement programmatique : le groupe est annoncé à
+         l'entrée, comme la teinte le donne à l'œil.
+         L'EN-TÊTE N'EST PAS MASQUÉ POUR AUTANT : un moteur qui n'annoncerait
+         pas les groupes le lit encore en mode exploration. Une redite vaut
+         mieux qu'un silence. */
       return r.jsx("span",{className:"dzm-tbgrp dzm-g-"+gr.g,
+        role:"group","aria-label":gr.t+(gr.suf?" "+gr.suf:""),
         "data-last":gi===DZM_TB_PLAN.length-1?"":void 0,
         children:[
           r.jsx("span",{className:"dzm-tbhead",children:tete},"h"),
