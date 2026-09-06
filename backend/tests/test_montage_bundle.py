@@ -31,7 +31,26 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 06/09/2026 (etape 8 du handoff « Barre Outils
+COMPTE DE REFERENCE, 06/09/2026 (apres P12 — le son d'un plan suit sa
+video) : 1011 lignes, 1011/0. RE-MESURE le meme jour, INCHANGE, par la
+SEPTIEME MORSURE DE LA FAUTE N°6, relevee par une revue qualite : sans le
+dossier design_handoff_barre_outils/, le banc MOURAIT a la ligne `cumul` de
+[6-ter] — 823/14 imprimes, une trace IndexError, AUCUNE ligne de compte.
+Le conjoint `len(_BORNES) == 4` court-circuitait bien ; c'est le DETAIL de
+la ligne, un ARGUMENT evalue AVANT l'appel a `check`, qui indexait la liste
+vide. `_attendu` (sous `_BORNES`) est la parade : toute valeur attendue
+derivee des bornes passe par elle et rend un temoin numerote quand elles
+manquent, dans le conjoint COMME dans le detail ; les quatre lignes
+d'aimantation, qui DISPARAISSAIENT sous un `if`, rougissent desormais.
+Meme relance apres : `=== 984 passed, 27 failed ===` — 1011 lignes, PAS
+UNE DE PERDUE — rc=1, zero trace, dix-huit temoins. Mesure aussi, parce
+que la revue les nommait : `docs/` n'est lu par AUCUNE ligne de ce banc
+(absent, 1011/0) ; shared/deepotus.tokens.css absente ne tuait pas (1008/3,
+compte imprime) — elle ajoute seulement son temoin, et c'est lui qui
+faisait le ·ECHEC#5 de la revue quand les deux manquaient ensemble
+(rejoue apres : 982/29, rc=1, zero trace).
+
+COMPTE PRECEDENT, 06/09/2026 (etape 8 du handoff « Barre Outils
 Flottante » — clavier, `role="toolbar"`, mouvement reduit) : 855 lignes, soit
 SOIXANTE ET ONZE de plus que les 784 de l'etape 7, et le compte se decompose :
 TRENTE-SEPT lignes ecrites une a une dans la section [6-quater] neuve,
@@ -7970,6 +7989,32 @@ check("tb_d_la_couche_porte_les_quatre_distances_du_handoff",
 _MG = _DIST[0] if len(_DIST) == 4 else None
 _BORNES = ([100 + _MG - 114, 1100 - _MG - 400 - 114,
             50 + _MG - 140, 650 - _MG - 74 - 140] if _MG is not None else [])
+
+
+# FAUTE N°6, SEPTIEME MORSURE — RELEVEE le 06/09/2026 par une revue qualite
+# et REJOUEE sur une copie du worktree sans design_handoff_barre_outils/ :
+# `_lire` pose son temoin (·ECHEC#1), les trois « §… illisible » les leurs,
+# `_DIST` retombe a `[]`, `_BORNES` aussi — et le banc MOURAIT a la ligne
+# `cumul` ci-dessous : 823/14 imprimes, une trace IndexError, AUCUNE ligne
+# de compte. LE CONJOINT `len(_BORNES) == 4` N'Y POUVAIT RIEN : il
+# court-circuite le reste du conjoint, mais le DETAIL d'un `check` est un
+# ARGUMENT, evalue AVANT l'appel et donc HORS du court-circuit — et
+# `_BORNES[1]` y indexait la liste vide. `_attendu` est la parade, de la
+# famille de `NODE()` et de `_lire` : TOUTE valeur attendue derivee des
+# bornes passe par elle, dans le conjoint COMME dans le detail, et une borne
+# absente rend un TEMOIN numerote — jamais `None`, jamais `[]`, jamais une
+# exception — qu'aucune mesure ne peut egaler et que `aucun_appel_n_a_plante`
+# compte en queue. Le conjoint `len(_BORNES) == 4` reste devant chaque
+# comparaison : une negation n'est acceptee que si la cle est d'abord la.
+def _attendu(fn):
+    """`fn()` — une valeur attendue derivee de `_BORNES` / `_SL` — ou un
+    TEMOIN numerote si les bornes manquent. Ne leve JAMAIS."""
+    try:
+        return fn()
+    except BaseException as e:
+        return temoin(e)
+
+
 check("tb_d_les_quatre_bornes_sont_celles_du_conteneur_moins_la_marge",
       len(_BORNES) == 4 and d.get("tb_d_bornes") == _BORNES,
       f'mesure={d.get("tb_d_bornes")} attendu={_BORNES}')
@@ -7992,22 +8037,23 @@ check("tb_d_au_milieu_le_decalage_vaut_le_deplacement",
 # premiere seule ne suffisait pas — au milieu du conteneur les deux lectures
 # donnent le meme nombre, et le mutant qui oublie le `- dx` a survecu a la
 # premiere campagne. C'est la campagne qui a ecrit cette ligne.
+_ATT_CUMUL = _attendu(lambda: [_BORNES[1], _BORNES[3]])
 check("tb_d_le_decalage_courant_s_ajoute_au_deplacement",
       len(_BORNES) == 4 and d.get("tb_d_cumul") == [120, 60]
-      and d.get("tb_d_cumul_borne") == [_BORNES[1], _BORNES[3]],
+      and d.get("tb_d_cumul_borne") == _ATT_CUMUL,
       f'{d.get("tb_d_cumul")} borne={d.get("tb_d_cumul_borne")} '
-      f'attendu={[_BORNES[1], _BORNES[3]]}')
+      f'attendu={_ATT_CUMUL}')
 
 # ── LES CAS LIMITES, CEUX QUE LE §4.2 REND MORTELS ────────────────────────
 # UNE BARRE PLUS GRANDE QUE LE CONTENEUR : le bord d'ORIGINE, celui de la
 # poignee — pas le bord oppose. Un `Math.min(mx, Math.max(mn, v))` naif
 # aurait rendu l'autre, et la poignee serait sortie a gauche.
+_ATT_TROP = _attendu(lambda: [_BORNES[0], _BORNES[2], _BORNES[0]])
 check("tb_d_une_barre_trop_grande_garde_sa_poignee_atteignable",
       len(_BORNES) == 4
-      and d.get("tb_d_barre_trop_large") == [_BORNES[0], _BORNES[2],
-                                             _BORNES[0]]
+      and d.get("tb_d_barre_trop_large") == _ATT_TROP
       and d.get("tb_d_barre_trop_large_bord") == _MG,
-      f'{d.get("tb_d_barre_trop_large")} '
+      f'{d.get("tb_d_barre_trop_large")} attendu={_ATT_TROP} '
       f'bord={d.get("tb_d_barre_trop_large_bord")}')
 # UN CONTENEUR DE TAILLE NULLE, DES RECTANGLES `NaN` OU ABSENTS : le bornage
 # est SAUTE et le decalage passe tel quel. C'est la RESTAURATION qui en
@@ -8028,12 +8074,14 @@ for _k, _lb in (("tb_d_conteneur_nul", "un conteneur de taille nulle"),
 # IGNORE. Les deux ne se valent pas : le premier vient d'un vrai geste, le
 # second d'un evenement casse, et le confondre avec un deplacement aurait
 # colle la barre a un bord sans qu'on ait bouge.
+_ATT_ENORME = _attendu(lambda: [_BORNES[1], _BORNES[2]])
 check("tb_d_un_deplacement_enorme_est_borne_un_deplacement_absurde_ignore",
       len(_BORNES) == 4
-      and d.get("tb_d_enorme") == [_BORNES[1], _BORNES[2]]
+      and d.get("tb_d_enorme") == _ATT_ENORME
       and d.get("tb_d_infini") == [0, 0] and d.get("tb_d_nan") == [0, 0]
       and d.get("tb_d_texte") == [0, 0],
-      f'enorme={d.get("tb_d_enorme")} infini={d.get("tb_d_infini")} '
+      f'enorme={d.get("tb_d_enorme")} attendu={_ATT_ENORME} '
+      f'infini={d.get("tb_d_infini")} '
       f'nan={d.get("tb_d_nan")} texte={d.get("tb_d_texte")}')
 # AUCUNE SORTIE N'EST `NaN`, QUOI QU'ON ENTRE. Un `NaN` dans une translation
 # CSS ne leve pas : il ANNULE la regle, et la barre saute a son ancrage sans
@@ -8048,20 +8096,25 @@ check("tb_d_rien_ne_sort_jamais_en_nan",
 # ca colle, a 12 non. Une ligne qui n'aurait mesure que le cote « ca colle »
 # aurait laisse passer un seuil de 100 px.
 _SL = _DIST[1] if len(_DIST) == 4 else None
-if len(_BORNES) == 4 and _SL is not None:
-    for _k, _i, _nom, _sens in (("tb_d_aim_gauche", 0, "g", +1),
-                                ("tb_d_aim_droite", 1, "d", -1),
-                                ("tb_d_aim_haut", 2, "h", +1),
-                                ("tb_d_aim_bas", 3, "b", -1)):
-        _vert = _i >= 2
-        _fixe = 200 if _vert else 0
-        _colle = ([_fixe, _BORNES[_i], "", _nom] if _vert
-                  else [_BORNES[_i], 0, _nom, ""])
-        _libre = ([_fixe, _BORNES[_i] + _sens * _SL, "", ""] if _vert
-                  else [_BORNES[_i] + _sens * _SL, 0, "", ""])
-        check("tb_d_aimantation_au_bord_" + _nom + "_et_pas_au_dela_du_seuil",
-              d.get(_k) == [_colle, _libre],
-              f'{_k}={d.get(_k)} attendu {[_colle, _libre]}')
+# LES QUATRE LIGNES SONT EMISES QUOI QU'IL ARRIVE. Elles vivaient sous un
+# `if len(_BORNES) == 4 and _SL is not None:` — sans le handoff elles ne
+# rougissaient pas, elles DISPARAISSAIENT, et le compte les perdait en
+# silence (la meme faute n°6, sous sa forme muette). Elles rougissent
+# desormais, chacune avec son temoin dans le detail.
+for _k, _i, _nom, _sens in (("tb_d_aim_gauche", 0, "g", +1),
+                            ("tb_d_aim_droite", 1, "d", -1),
+                            ("tb_d_aim_haut", 2, "h", +1),
+                            ("tb_d_aim_bas", 3, "b", -1)):
+    _vert = _i >= 2
+    _fixe = 200 if _vert else 0
+    _colle = _attendu(lambda: [_fixe, _BORNES[_i], "", _nom] if _vert
+                      else [_BORNES[_i], 0, _nom, ""])
+    _libre = _attendu(lambda: [_fixe, _BORNES[_i] + _sens * _SL, "", ""]
+                      if _vert else [_BORNES[_i] + _sens * _SL, 0, "", ""])
+    check("tb_d_aimantation_au_bord_" + _nom + "_et_pas_au_dela_du_seuil",
+          len(_BORNES) == 4 and _SL is not None
+          and d.get(_k) == [_colle, _libre],
+          f'{_k}={d.get(_k)} attendu {[_colle, _libre]}')
 # L'AXE DE LA TETE DE LECTURE, LES DEUX BORDS DE LA BARRE (§4.2 : « un bord
 # de la barre », pas « le bord gauche »). `tg` = bord gauche sur l'axe,
 # `td` = bord droit.
@@ -8081,11 +8134,12 @@ check("tb_d_une_tete_hors_du_conteneur_n_aimante_ni_ne_deplace",
       f'sans={d.get("tb_d_aim_sans_tete")}')
 # L'AIMANTATION EST « AU RELACHEMENT » (§4.2), pas pendant le geste : la
 # meme position, le meme plateau, deux resultats.
+_ATT_RELACHE = _attendu(lambda: [[_BORNES[0] + 3, 0, "", ""],
+                                 [_BORNES[0], 0, "g", ""]])
 check("tb_d_l_aimantation_n_a_lieu_qu_au_relachement",
       len(_BORNES) == 4
-      and d.get("tb_d_aim_seulement_au_relachement")
-      == [[_BORNES[0] + 3, 0, "", ""], [_BORNES[0], 0, "g", ""]],
-      f'{d.get("tb_d_aim_seulement_au_relachement")}')
+      and d.get("tb_d_aim_seulement_au_relachement") == _ATT_RELACHE,
+      f'{d.get("tb_d_aim_seulement_au_relachement")} attendu={_ATT_RELACHE}')
 # LE PLUS PROCHE GAGNE : la tete a 4 px bat le bord a 8 px. Sans cela, le
 # premier candidat de la liste aurait toujours gagne.
 check("tb_d_le_candidat_le_plus_proche_gagne",
@@ -8094,10 +8148,11 @@ check("tb_d_le_candidat_le_plus_proche_gagne",
 # UNE BARRE TROP LARGE N'AIMANTE RIEN : aucune borne n'est atteignable, donc
 # aucun candidat ne l'est. La barre s'arrete au bord d'origine, et le nom du
 # bord aimante reste VIDE — le distinguo compte, il dit que rien n'a colle.
+_ATT_TL_AIM = _attendu(lambda: [_BORNES[0], "", ""])
 check("tb_d_une_barre_trop_large_n_aimante_rien",
       len(_BORNES) == 4
-      and d.get("tb_d_aim_barre_trop_large") == [_BORNES[0], "", ""],
-      f'{d.get("tb_d_aim_barre_trop_large")}')
+      and d.get("tb_d_aim_barre_trop_large") == _ATT_TL_AIM,
+      f'{d.get("tb_d_aim_barre_trop_large")} attendu={_ATT_TL_AIM}')
 
 # ── L'UNION DES DEUX ZONES, ET LA PINCE ───────────────────────────────────
 check("tb_d_le_conteneur_est_l_union_des_deux_rectangles",
@@ -8389,10 +8444,11 @@ check("tb_d_bout_en_bout_un_geste_enorme_s_arrete_a_la_marge",
 # moitie sortie n'est pas recuperable. `⌖` voyage AVEC la barre et
 # deviendrait injoignable ; l'onglet OUTILS, lui, ne bouge jamais, mais il ne
 # sait que replier. On recadre donc, au montage et a chaque `resize`.
+_ATT_RECADRE = _attendu(lambda: [_BORNES[1], 176])
 check("tb_d_la_barre_rentre_quand_le_conteneur_retrecit",
       len(_BORNES) == 4
-      and d.get("tb_d_recadre") == [_BORNES[1], 176],
-      f'{d.get("tb_d_recadre")} attendu={[_BORNES[1] if _BORNES else None, 176]}')
+      and d.get("tb_d_recadre") == _ATT_RECADRE,
+      f'{d.get("tb_d_recadre")} attendu={_ATT_RECADRE}')
 # `null` = RIEN A FAIRE, et c'est distinct de `{dx:0,dy:0}` : un decalage
 # deja licite ne provoque ni ecriture ni rendu, et un conteneur NON MESURABLE
 # ne ramene surtout pas la barre a l'origine — c'est la meme regression que
