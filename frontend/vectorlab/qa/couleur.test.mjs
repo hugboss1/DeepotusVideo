@@ -1,6 +1,7 @@
 // couleur.test.mjs — éditeur complet (E4) : conversions hex/rgb/hsv/cmjn
 // (naïf, sans ICC — assumé), palette par défaut générée, palette du
 // document (ops annulables), champs optionnels du parseur (E1).
+import { rgbVersHsl, hslVersRgb } from "../js/mod-couleur.js";
 import { hexVersRgb, rgbVersHex, rgbVersHsv, hsvVersRgb, rgbVersCmjn,
          cmjnVersRgb, palette_defaut, op_palette_ajouter,
          op_palette_retirer } from "../js/mod-couleur.js";
@@ -95,8 +96,36 @@ const ok = (nom, cond, detail = "") => {
   ok("parserDoc refuse unites/palette invalides (3)", refus === 3, String(refus));
 }
 
+
+// ── HSL (handoff Vectorlab §8.2) : primaires, bornes, aller-retour ──
+{
+  ok("hsl: rouge pur", JSON.stringify(rgbVersHsl({ r: 255, g: 0, b: 0 }))
+     === JSON.stringify({ h: 0, s: 100, l: 50 }));
+  ok("hsl: gris moyen sans teinte",
+     rgbVersHsl({ r: 128, g: 128, b: 128 }).s === 0);
+  // l'invariant utile est l'aller-retour en CANAUX (±2) : la teinte
+  // quantisée d'un quasi-gris (s≈9) bouge de 2° sans que la couleur bouge
+  const rt = (o) => {
+    const b = hslVersRgb(rgbVersHsl(o));
+    return Math.abs(b.r - o.r) <= 2 && Math.abs(b.g - o.g) <= 2
+      && Math.abs(b.b - o.b) <= 2;
+  };
+  const banc = [[30, 86, 200], [192, 32, 47], [31, 122, 58], [216, 177, 42],
+                [123, 63, 157], [232, 226, 208], [58, 63, 70]];
+  ok("hsl: aller-retour rgb→hsl→rgb à ±2 par canal sur sept verres",
+     banc.every(([r, g, b]) => rt({ r, g, b })));
+  const e = hslVersRgb({ h: 210, s: 60, l: 94 });
+  ok("hsl: clarte 94 rend un verre pale (canaux > 200)",
+     e.r > 200 && e.g > 200 && e.b > 200, JSON.stringify(e));
+  const s2 = hslVersRgb({ h: 210, s: 60, l: 6 });
+  ok("hsl: clarte 6 rend un verre sombre (canaux < 40)",
+     s2.r < 40 && s2.g < 40 && s2.b < 40, JSON.stringify(s2));
+  ok("hsl: arrondi entier sur les trois canaux",
+     Object.values(hslVersRgb({ h: 37, s: 53, l: 41 }))
+       .every((v) => Number.isInteger(v)));
+}
 if (echecs.length) {
   console.error("ECHECS couleur :\n- " + echecs.join("\n- "));
   process.exit(1);
 }
-console.log("QA couleur : PASS (15 controles)");
+console.log("QA couleur : PASS (21 controles)");

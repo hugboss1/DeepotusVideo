@@ -25,7 +25,7 @@
 import { op_ajouter, op_calque_ajouter, op_calque_reordonner,
          op_calque_renommer, idLibre, chemin_parser }
   from "./mod-doc.js";
-import { hexVersRgb, rgbVersHex, rgbVersHsv, hsvVersRgb }
+import { hexVersRgb, rgbVersHex, rgbVersHsl, hslVersRgb }
   from "./mod-couleur.js";
 
 const nb = (v) => Math.round(v * 100) / 100;
@@ -228,7 +228,7 @@ export function construire_panneau(motif, bbox, o) {
   const m = MOTIFS[motif];
   if (!m) throw new Error(`motif inconnu: ${motif}`);
   const enfants = m.gen(bbox, o);
-  return { type: "groupe", style: {},
+  return { type: "groupe", style: {}, name: m.titre,
            vitrail: { motif, colonnes: o.colonnes, rangees: o.rangees,
                       plomb: o.plomb, arrondi: !!o.arrondi, gamme: o.gamme,
                       teintes: [...o.teintes], couleurPlomb: o.couleurPlomb,
@@ -486,6 +486,30 @@ export function initVitrail(VL) {
     }
   };
 
+  /* §8.5 du handoff : le bouton « Poser une baie d'exemple » du panneau
+     Calques vide — la bbox reprend les proportions de la démo du
+     prototype (110,90,384,600 sur 604×831). */
+  VL.vitrailExemple = () => {
+    if (!etat.doc) return;
+    const W = etat.doc.taille.w, H = etat.doc.taille.h;
+    const bbox = { x: Math.round(W * 0.18), y: Math.round(H * 0.11),
+                   w: Math.round(W * 0.64), h: Math.round(H * 0.72) };
+    const id = VL.executer(op_panneau_inserer, etat.calqueActif,
+                           "arc", bbox, optsCourants(null));
+    if (id) { VL.setOutil("select"); VL.setSelection([id]); }
+  };
+
+  /* §5 du handoff : l'outil IA du rail n'est pas un outil de tracé —
+     il ouvre le Panneau de verre et donne le focus au champ. */
+  const outilSuivant = VL.surOutil;
+  VL.surOutil = () => {
+    outilSuivant();
+    if (etat.outil !== "ia") return;
+    const det = $("#vitrailDetails");
+    if (det && !det.open) det.open = true;
+    setTimeout(() => { const c = $("#vitIaPrompt"); if (c) c.focus(); }, 0);
+  };
+
   function calqueParNom(doc, nom, sousQui) {
     let c = doc.calques.find((x) => x.nom === nom);
     if (!c) {
@@ -525,6 +549,7 @@ export function initVitrail(VL) {
       const ox = (etat.doc.taille.w - cote) / 2 - vb[0] * k;
       const oy = (etat.doc.taille.h - cote) / 2 - vb[1] * k;
       const groupe = { type: "groupe", style: {},
+        name: q.slice(0, 24),
         transform: `translate(${nb(ox)} ${nb(oy)}) scale(${nb(k)})`,
         enfants: d.paths.map((p) => ({ type: "path", d: p.d,
                                        style: { fond: p.fill } })) };
@@ -599,8 +624,10 @@ export function initVitrail(VL) {
         </span></div>
       ${regl.slot !== null && regl.slot < teintesActives.length ? (() => {
         const hex = teintesActives[regl.slot];
-        let hsv = { h: 210, s: 60, v: 50 };
-        try { hsv = rgbVersHsv(hexVersRgb(hex)); } catch (e) { /* garde */ }
+        let hsl = { h: 210, s: 60, l: 40 };
+        try { hsl = rgbVersHsl(hexVersRgb(hex)); } catch (e) { /* garde */ }
+        const cs = (o) => rgbVersHex(hslVersRgb(o));
+        const piste = (grad) => `background:${grad}`;
         return `
       <div class="vit-slotEd">
         <div class="vit-slotTete">
@@ -609,13 +636,19 @@ export function initVitrail(VL) {
           <button id="vitSlotX" title="fermer">×</button></div>
         <div class="ap-ligne"><span>Teinte</span>
           <input class="vit-tsv" data-tsv="h" type="range" min="0" max="360"
-                 step="1" value="${hsv.h}"/></div>
+                 step="1" value="${hsl.h}" style="${piste(
+                   "linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00)")}"/></div>
         <div class="ap-ligne"><span>Satur.</span>
           <input class="vit-tsv" data-tsv="s" type="range" min="0" max="100"
-                 step="1" value="${hsv.s}"/></div>
-        <div class="ap-ligne"><span>Valeur</span>
-          <input class="vit-tsv" data-tsv="v" type="range" min="6" max="96"
-                 step="1" value="${hsv.v}"/></div>
+                 step="1" value="${hsl.s}" style="${piste(
+                   `linear-gradient(90deg,${cs({ h: hsl.h, s: 0, l: hsl.l })},${
+                     cs({ h: hsl.h, s: 100, l: hsl.l })})`)}"/></div>
+        <div class="ap-ligne"><span>Clarté</span>
+          <input class="vit-tsv" data-tsv="l" type="range" min="6" max="94"
+                 step="1" value="${hsl.l}" style="${piste(
+                   `linear-gradient(90deg,${cs({ h: hsl.h, s: hsl.s, l: 6 })},${
+                     cs({ h: hsl.h, s: hsl.s, l: 50 })},${
+                     cs({ h: hsl.h, s: hsl.s, l: 94 })})`)}"/></div>
         <div class="ap-ligne"><span>Hex</span>
           <input id="vitHex" type="text" value="${hex}"/></div>
         <div class="vit-banque">${BANQUE_VERRES.map(([c, nom]) => `
@@ -707,11 +740,11 @@ export function initVitrail(VL) {
     hote.querySelectorAll(".vit-tsv").forEach((r) =>
       r.addEventListener("change", () => {
         const hex = teintesActives[regl.slot];
-        let hsv;
-        try { hsv = rgbVersHsv(hexVersRgb(hex)); }
-        catch (e) { hsv = { h: 210, s: 60, v: 50 }; }
-        hsv[r.dataset.tsv] = +r.value;
-        poseTeinte(rgbVersHex(hsvVersRgb(hsv)));
+        let hsl;
+        try { hsl = rgbVersHsl(hexVersRgb(hex)); }
+        catch (e) { hsl = { h: 210, s: 60, l: 40 }; }
+        hsl[r.dataset.tsv] = +r.value;
+        poseTeinte(rgbVersHex(hslVersRgb(hsl)));
       }));
     const hx = $("#vitHex");
     if (hx) hx.addEventListener("change", () => {

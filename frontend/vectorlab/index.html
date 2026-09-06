@@ -17,6 +17,7 @@
     <symbol id="t-scale" viewBox="0 0 24 24"><path d="M5 19 19 5" stroke="currentColor" stroke-width="1.7" fill="none"></path><path d="M13 5h6v6z"></path><path d="M11 19H5v-6z"></path></symbol>
     <symbol id="t-pipette" viewBox="0 0 24 24"><path d="M12 2.6c3.4 4.6 5.6 7.8 5.6 10.4A5.6 5.6 0 0 1 12 18.6a5.6 5.6 0 0 1-5.6-5.6c0-2.6 2.2-5.8 5.6-10.4z"></path></symbol>
     <symbol id="t-text" viewBox="0 0 24 24"><rect x="3.4" y="3.8" width="17.2" height="3"></rect><rect x="10.4" y="6.8" width="3.2" height="13.4"></rect></symbol>
+    <symbol id="t-ai" viewBox="0 0 24 24"><path d="M12 1.8 14.4 9l7.2 2.4-7.2 2.4L12 21l-2.4-7.2L2.4 11.4 9.6 9z"></path><rect x="18.4" y="2.4" width="3.2" height="3.2" opacity=".6"></rect></symbol>
     <symbol id="v-arc" viewBox="0 0 24 24"><path d="M4 21V10.4C4 5.8 7.6 2.2 12 2.2s8 3.6 8 8.2V21z" opacity=".28"></path><rect x="4" y="14.4" width="16" height="6.6"></rect><rect x="11.1" y="2.4" width="1.8" height="18.6" opacity=".55"></rect></symbol>
     <symbol id="v-rosette" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.4" opacity=".26"></circle><rect x="10.9" y="2.6" width="2.2" height="18.8"></rect><rect x="2.6" y="10.9" width="18.8" height="2.2"></rect><rect x="10.9" y="2.6" width="2.2" height="18.8" transform="rotate(45 12 12)" opacity=".55"></rect><rect x="10.9" y="2.6" width="2.2" height="18.8" transform="rotate(-45 12 12)" opacity=".55"></rect></symbol>
     <symbol id="v-grille" viewBox="0 0 24 24"><path d="M12 2.4 21.6 12 12 21.6 2.4 12z" opacity=".26"></path><path d="M12 2.4 16.8 7.2 12 12 7.2 7.2zM12 12l4.8 4.8L12 21.6l-4.8-4.8z"></path></symbol>
@@ -82,6 +83,7 @@
       <button data-outil="mesure" title="Mesure — glisser pour lire longueur, angle et Δ sans rien créer (M)"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#t-scale"></use></svg></button>
       <button data-outil="pipette" title="Pipette — adopte le style de l'objet cliqué et l'applique à la sélection (I)"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#t-pipette"></use></svg></button>
       <button data-outil="texte" title="Texte — clic pour poser, double-clic (outil sélection) pour rééditer (T)"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#t-text"></use></svg></button>
+      <button data-outil="ia" title="Illustration IA — décrire dans le panneau Vitrail (G)"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#t-ai"></use></svg></button>
     </nav>
     <div class="scene">
       <canvas id="regleH" class="regle regle-h" height="24"></canvas>
@@ -96,7 +98,7 @@
     </div>
     <aside id="panneauCalques" class="panneau">
       <details id="vitrailDetails">
-        <summary class="panneau-tete" title="Le mode vitrail (palette de la fiche, générateur de baie, motifs) — replié : l'éditeur est généraliste, le vitrail reste à un clic">Vitrail</summary>
+        <summary class="panneau-tete" title="Le Panneau de verre — les deux encarts historiques (Vitrail / Panneau de verre) fusionnés (handoff §8.1) : réglages du prochain panneau OU retouche du panneau sélectionné, la portée est écrite en tête">Panneau de verre</summary>
         <div id="panneauVitrail"></div>
       </details>
       <div class="panneau-tete">Apparence</div>
