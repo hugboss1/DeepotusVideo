@@ -52,6 +52,96 @@ MARKER_ATTENDU = 7      # définition + window x2 + infobulle + total + puce x2
 # Sondes des maillons AMONT : si l'un de ces comptes bouge, c'est qu'un
 # patcher amont a été rejoué seul et a effacé ce qui le suivait.
 #
+# `montage` : 42 → 43 le 06/09/2026 (P13, tour 1 — revue). UNE référence de
+# plus au contrat `DzTracks`, et rien d'autre : `DzTracks.dialogueTrack` dans
+# le geste PAR PLAN du bloc subs (M24c ne suit plus `a1` par identifiant mais
+# la piste de dialogue du projet, comme M24j et la route). Compté des DEUX
+# côtés avant d'écrire ce nombre : 42 dans le bundle d'avant le tour 1
+# (`str.count` en octets), 43 après le rejeu — les trois sections M24k…M24m
+# et la couche n'en ajoutent aucune (commentaires compris).
+#
+# `montage` : 39 → 42 le 06/09/2026 (P13, « la transcription vise la piste
+# de dialogue »). TROIS références de plus au contrat `DzTracks`, et rien
+# d'autre : deux `DzTracks.subsSources` dans le bloc subs inliné (M24a, la
+# ligne d'attente qui nomme ce qui part ; M24e, la pastille de coût sur la
+# somme des clips de dialogue) et un `DzTracks.dialogueTrack` dans l'hôte
+# (M24j, `subsSrcClips` fait partir les clips de la piste de dialogue du
+# projet). Compté des DEUX côtés avant d'écrire ce nombre : 39 dans le
+# bundle d'avant P13, 42 après (simulation en mémoire du rejeu de montage
+# sur `.bak_montage`, `str.count` commentaires de la couche compris — la
+# couche reste à 5, les sections passent de 34 à 37).
+#
+# `montage` : 38 → 39 le 06/09/2026 (tour 2 de P12). La revue a mesuré que
+# la porte « Envoyer vers → Montage » (greffon libsend, `"v2"` en dur) posait
+# un plan sur une incrustation SANS SON ET SANS UN MOT : UNE référence de
+# plus au contrat, `DzTracks.overlayNote` (M22a, la phrase quand aucun jumeau
+# ne parle), et rien d'autre — M22d (la réparation persistée) n'en ajoute
+# aucune, et la reprise de `v1_non_video` (M22c) non plus. Compté des DEUX
+# côtés avant d'écrire ce nombre (`bytes.count` sur le bundle) : 38 avant,
+# 39 après ; la couche reste à 5.
+#
+# `montage` : 29 → 38 le 06/09/2026. P12 (« le son d'un plan suit sa vidéo »)
+# ajoute NEUF références au contrat `DzTracks` dans le bundle, et rien
+# d'autre : quatre dans la sonde d'`addAsset` (`wantsTwin`, `audioOf`,
+# `askAudio`, `srcDurOr` — R_M17A), deux dans le trio id/historique
+# (`uniqueId`, `twinPlan` — M22a), deux dans `svmApplyProject` (`dedupeIds`,
+# `seqMax` — M22c) et une dans l'inspecteur (`extractBtn` — M23). Compté des
+# DEUX côtés avant d'écrire ce nombre (`str.count` sur le texte du bundle,
+# commentaires de la couche compris) : 29 dans le bundle d'avant P12, 38
+# après — et la sonde a fait son travail : elle a refusé de tourner sur 38
+# tant que cette ligne disait 29, et restauré son .bak (marqueur à 0 le
+# temps de la mettre à jour, 7 au rejeu suivant).
+#
+# `montage` : 53 → 60 le 06/09/2026 (P16 — traduire les répliques). SEPT
+# références de plus au contrat, toutes dans les deux sections M26a/M26b du
+# patcher montage : `DzTracks.subsTrDefaut(`, `DzTracks.subsTrBody(`,
+# `DzTracks.subsTrApply(` et `DzTracks.subsTrNote(` dans M26a (l'état, le
+# geste), `DzTracks.subsTrEnabled(`, `DzTracks.subsTrLabel(` et
+# `DzTracks.subsTrTitle(` dans M26b (la rangée) — aucun jeton en
+# commentaire. La couche, elle, reste à 5 (mesuré : les fonctions neuves
+# dzmSubsTr* n'écrivent pas le jeton, ni en code ni en commentaire).
+# COMPTÉ DES DEUX CÔTÉS AVANT D'ÉCRIRE CE NOMBRE : 53 dans le bundle de
+# f1b1006, 7 dans les sections (`(R_M26A+R_M26B).count`, ancres à 0), 60
+# après rejeu — en octets, `str.count`.
+#
+# `montage` : 43 → 53 le 06/09/2026 (P14 — deux sortes de pistes vidéo, et
+# v3 n'est plus un fantôme). DIX références de plus au contrat, toutes dans
+# les douze sections M25a…M25l du patcher montage : NEUF
+# `DzTracks.isOverlayTrack(` — les neuf portes de l'écran qui codaient « v2 »
+# en dur (aperçu, payload, inspecteur, losanges, alignement 3×3, « position
+# ici », poignées du lecteur, flèches et Échap du clavier) — et UN
+# `DzTracks.overlayOrder(` (l'aperçu empile dans l'ordre des pistes). La
+# couche, elle, reste à 5 (mesuré : `git show HEAD:…` 5, fichier de travail
+# 5 — les deux fonctions neuves et `addDit` n'ajoutent pas le jeton, ni en
+# code ni en commentaire). COMPTÉ DES DEUX CÔTÉS AVANT D'ÉCRIRE CE NOMBRE :
+# 43 dans le bundle de 23fd81c, 10 dans les sections (`r.count - a.count`
+# sur P.PATCHES M25*), 53 après rejeu — en octets, `str.count`.
+#
+# `montage` : 33 → 29 le 06/09/2026, et C'EST UNE BAISSE — la première de
+# cette sonde. L'étape 6 du handoff « Barre Outils Flottante » (§5.1) retire
+# les neuf contrôles du bandeau de transport, et QUATRE d'entre eux étaient
+# des références au contrat : `DzTracks.TrackAdd` (les deux boutons de
+# piste), `DzTracks.LibBtn`, `DzTracks.WordAnimChip` et `DzTracks.EmojiBtn`.
+# `DzTracks.Projects` RESTE — son bouton part, sa liste demeure, parce que
+# c'est elle que la barre flottante demande (M14, `nu:!0`) — et le bouton
+# « texte », lui, n'était pas une référence au contrat mais un `<button>` nu.
+# COMPTÉ DES DEUX CÔTÉS AVANT D'ÉCRIRE CE NOMBRE : 33 dans le bundle de
+# b59c7ab, 29 après ; delta = −4, et les quatre sont nommés ci-dessus. LA
+# SONDE A FAIT SON TRAVAIL une fois de plus : elle a refusé de tourner sur 29
+# tant que cette ligne disait 33, et la chaîne s'est arrêtée là.
+#
+# `montage` : 32 → 33 le 05/09/2026 (TROISIÈME mise à jour du jour).
+# L'étape 4 du handoff « Barre Outils Flottante » monte l'onglet OUTILS et la
+# barre dans le bandeau de transport (section M19) : UNE référence de plus au
+# contrat, `DzTracks.ToolDock`, et rien d'autre — le reste de la barre (le
+# câblage, les deux composants, la persistance) vit dans la couche, qui est
+# injectée en bloc et compte déjà ses cinq occurrences.
+# COMPTÉ DES DEUX CÔTÉS AVANT D'ÉCRIRE CE NOMBRE : 32 dans le bundle de
+# a3eaee3 (`git show HEAD:… | count`), 33 après M19 ; delta = 1 =
+# `DzTracks.ToolDock`. Et LA SONDE A ENCORE FAIT SON TRAVAIL : elle a refusé
+# de tourner sur 33 tant que cette ligne disait 32, et la chaîne s'est
+# arrêtée là au lieu d'écrire un bundle à moitié réécrit.
+#
 # `montage` : 29 → 32 le 05/09/2026 (SECONDE mise à jour du jour). P11 (« un
 # clip entre à la longueur de sa source ») ajoute TROIS références au contrat
 # `DzTracks` dans le bundle, toutes dans `addAsset` : `DzTracks.clipLen` (le
@@ -82,7 +172,7 @@ STABLE_PROBES = [
     ("print3d", "__dzPrint3d", 3),
     ("navrail", "dz_nav_collapsed", 2),
     ("dzdesign", "__dzCatBar", 2),
-    ("montage", "DzTracks", 32),
+    ("montage", "DzTracks", 60),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

@@ -23,7 +23,9 @@ def test_le_miroir_bundle_envoyer_vers():
     # greffe Quick : pose (menu) + lecture/consommation (mount de Quick)
     assert s.count("__dzQuickStart") == 3
     # greffe Montage : pose image + pose clip (menu) + lecture + delete
-    assert s.count("__dzMontageAdd") == 4
+    # + 1 COMMENTAIRE de la couche montage.js (P7, 05/09/2026) qui cite
+    # le jeton — str.count est global, le commentaire compte (mesuré).
+    assert s.count("__dzMontageAdd") == 5
     # cibles existantes réutilisées : Sprite Lab (def + 2 modal + 2 menu),
     # Impression 3D (def + hub + menu — le pin de test_print3d suit à 3)
     assert s.count("__dzToSpriteLab") == 5

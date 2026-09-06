@@ -39,16 +39,22 @@ Sections :
   M5  payload de rendu : clé `tracks` (le backend y lit l'ordre) ;
   M6  autosave : la même clé, pour que l'ordre survive au rechargement ;
   M7  restauration : proj.tracks reconstruit depuis la sauvegarde serveur ;
-  M8  barre de transport : « + vidéo » / « + audio » ;
+  M8  barre de transport. ELLE A ÉTÉ VIDÉE PAR L'ÉTAPE 6 DU HANDOFF « Barre
+      Outils Flottante » (§5.1) : elle posait « + piste vidéo » / « + piste
+      audio », « Bibliothèque… », la chip « mot » et ses trois options,
+      « emoji », « texte » et « projets » — les NEUF contrôles que le §5.1
+      retire. Ils vivent désormais dans la barre flottante (M19), où l'étape 7
+      les a câblés sur LES MÊMES actions. Il ne reste ici que la LISTE des
+      projets, montée NUE : ce n'est pas un contrôle, c'est le panneau qu'un
+      contrôle de la barre ouvre ;
   M9a/M9b en-tête de piste : poignée de glisser-déposer et ▲ ▼ ×, posés en
       SURIMPRESSION (l'en-tête fait 88 × 40–54 px et il est plein — mesuré,
       voir montage.css) ;
-  M10 (P2) chip « mot : couleur / rebond / glow » + bouton « emoji », posés
-      DANS le remplacement de M8 (l'ancre A_M8 est déjà consommée, et la
-      barre d'outils n'offre pas de seconde ancre unique).
+  M10 (P2) chip « mot : couleur / rebond / glow » + bouton « emoji » — RETIRÉS
+      par l'étape 6 (§5.1). Ils vivaient DANS le remplacement de M8 ;
   M11 (P3) l'ÉTAT du panneau « Texte » (`dzTextOn`), déclaré dans le corps du
-      composant, et son bouton de barre — lui aussi DANS le remplacement de
-      M8, pour la même raison qu'en M10 ;
+      composant — il RESTE, c'est M12 qui le lit ; son bouton de barre, lui,
+      est parti avec les huit autres (M11b, étape 6) ;
   M12 (P3) le panneau « Texte » lui-même et la COUPE PAR PLAGE
       (`DzTracks.rippleCut`), posés dans la colonne d'inspection : mesuré, le
       bundle n'offre pas l'ancre `subsDrawer()` de la zone des tiroirs que le
@@ -61,13 +67,16 @@ Sections :
       était sélectionné. Voir le commentaire de dzmGradeAllBtn.
   M14 (P5) le popover « projets » (lister, enregistrer sous, ouvrir,
       dupliquer, renommer, supprimer), posé lui aussi DANS le remplacement de
-      M8 — même raison qu'en M10 et M11b. M6 et M7 y gagnent la clé
-      `project_id`, qui relie le brouillon courant à son projet.
+      M8. M6 et M7 y gagnent la clé `project_id`, qui relie le brouillon
+      courant à son projet. ÉTAPE 6 DU HANDOFF « Barre Outils Flottante » : il
+      est monté NU (`nu:!0`) — son BOUTON a quitté le bandeau avec les huit
+      autres, sa LISTE reste parce que c'est elle que la barre demande.
   M16 (P9) « Bibliothèque… », et la remise qui se perdait — quatre sections
       plus un repli :
-        M16-lib  le bouton « Bibliothèque… » de la barre de transport, posé
-                 DANS le remplacement de M8 (A_M8 déjà consommée) ; il ouvre
-                 `openPicker` sur la piste vidéo RÉSOLUE ;
+        M16-lib  le bouton « Bibliothèque… » de la barre de transport —
+                 RETIRÉ par l'étape 6 du handoff « Barre Outils Flottante »
+                 (§5.1) ; c'est la barre flottante qui ouvre `openPicker` sur
+                 la piste vidéo RÉSOLUE, par la même expression ;
         M16ref   `dzTracksRef` — les pistes du projet relues à chaque rendu,
                  parce que le greffon amont appelle l'addAsset du PREMIER ;
         M16a     `addAsset` pose sur une piste QUI EXISTE (fin de
@@ -85,6 +94,23 @@ Sections :
       Les libellés « + vidéo » / « + audio » deviennent « + piste vidéo » /
       « + piste audio » — édition de `DzmTrackAdd` DANS LA COUCHE, pas une
       section de plus.
+  M19 l'onglet OUTILS et la barre flottante montés dans le bandeau ; depuis
+      l'étape 8 elle passe aussi `toggleReq` (la demande de bascule du
+      raccourci) et `keyLbl` (la combo VIVANTE, lue par `svmKeyLabel`) ;
+  M20a/M20b (étape 8, §4.1) LE RACCOURCI, inscrit dans le mécanisme
+      existant : une entrée de plus dans `SVM_ACTIONS` — donc remappable via
+      `dz_svm_keymap` et LISTÉE dans le panneau « ? » — et sa branche dans la
+      chaîne de dispatch du gestionnaire clavier. `T` est DÉJÀ PRIS par
+      `narration` (mesuré) : la touche est `O`, l'initiale du libellé
+      verbatim de l'onglet, mesurée libre. Voir le commentaire de A_M20A ;
+  M21 (étape 8, §4.5) les trois `aria-label` des chips de coupe, dont le
+      libellé passe en glyphe seul sous largeur réduite ;
+  M22a/M22b/M22c/M23 (P12) LE SON D'UN PLAN SUIT SA VIDÉO : une vidéo
+      posée sur une piste vidéo plein cadre reçoit un clip jumeau sur la
+      piste de dialogue (sonde GET /has-audio, cache, un seul historique,
+      un seul concat), les identifiants de clips deviennent uniques au
+      chargement, et l'inspecteur gagne « Extraire le son → A1 » pour
+      les plans déjà posés. R_M17A porte la sonde. Voir le bloc P12.
   M15 / M16src (P6) REMPLACER LA SOURCE d'un plan sans perdre ses bornes, ses
       effets ni sa transition :
         M4b y gagne `dzmReplaceRef` (le plan visé, {id, tr, label}) ET son
@@ -258,59 +284,202 @@ R_M7 = ('var np={demo:!1,tracks:svmTracksFrom(d.tracks),'
 A_M8 = ('r.jsx("button",{className:"svm-tbtn",title:"Raccourcis ("'
         '+svmKeyLabel("keys_panel")+") — personnalisables",')
 
-# ── M10 (P2) : la chip « mot : couleur / rebond / glow » et le bouton emoji ──
-# ELLES VIVENT DANS R_M8, pas dans une section à elles : l'ancre A_M8 est déjà
-# CONSOMMÉE par M8, et il n'existe pas de seconde ancre unique dans cette barre
-# d'outils. Le panneau de style, lui, vit dans un tiroir du bloc `sonvfx` que
-# cette chaîne ne peut pas rouvrir (vingt sections amont s'y trouvent).
-# `DzTracks`, pas `DzMontage` : le bundle déclare DÉJÀ une fonction DzMontage
-# au premier niveau (l'écran Montage lui-même) — redéclarer ce nom est une
-# SyntaxError en sémantique module, celle sous laquelle index.html charge le
-# bundle. C'est ce que `node_check_module` de test_montage_bundle.py garde.
-# Le bouton emoji est RÉVERSIBLE : `pushHistory()` avant l'ajout, donc
-# « annuler » retire les clips posés, et ce sont des clips ordinaires.
-R_M10 = ('r.jsx(DzTracks.WordAnimChip,{value:(proj.subsStyle||{}).wordAnim||"couleur",'
-         'onChange:function(v){subsStyleSet({wordAnim:v})}}),\n'
-         '        r.jsx(DzTracks.EmojiBtn,{segments:subsSegsOf(clips),'
-         'tracks:svmTracksOf(proj),note:fireNote,'
-         'onAdd:function(cs){pushHistory();'
-         'setClips(function(k){return (k||[]).concat(cs)});setDirty(!0)}}),')
+# ── M10 (P2) : LA CHIP « mot » ET LE BOUTON « emoji » — RETIRÉS DU BANDEAU
+# ÉTAPE 6 DU HANDOFF (§5.1). Ils vivaient DANS R_M8 ; ils n'y sont plus, et
+# ils ne sont remplacés par rien ICI : les quatre actions (`couleur`,
+# `rebond`, `glow`, `emoji`) sont câblées dans la barre flottante depuis
+# l'étape 7 — R_M19 leur passe `wordAnim`/`onWordAnim` et
+# `emojiSegs`/`note`/`onEmojiAdd`, exactement les mêmes expressions que
+# celles qui étaient écrites ici. Le §5.1 l'exige : « Ne pas les laisser en
+# double. Un contrôle présent aux deux endroits […] crée deux sources de
+# vérité pour l'état des bascules. »
+# CE QUE CE RETRAIT REFERME, en plus de la place : le DOUBLON D'ATTENTE de
+# la requête emoji. `dzmEmojiGo` n'a pas de hook, chaque porte tenait le
+# sien — celui de `DzmEmojiBtn` et celui du Dock. Une porte disparaît, une
+# attente disparaît avec elle.
+# `DzmWordAnimChip` et `DzmEmojiBtn` RESTENT DANS LA COUCHE et au contrat :
+# ce sont des composants publics et testés, et le §5.1 retire des contrôles
+# DU BANDEAU, pas des composants d'une bibliothèque. Reste assumé, dit ici :
+# deux composants exportés ne sont plus montés nulle part.
 
-# ── M11a (P3) : l'ÉTAT du panneau « Texte » ────────────────────────────────
-# Il lui faut une déclaration dans le CORPS du composant : R_M8 est un tableau
-# `children`, on n'y déclare pas un hook. L'ancre choisie est la déclaration de
-# l'état du tiroir Sous-titres — mesurée UNIQUE, et voisine par le sujet.
-# `dzTextOn`, pas `textOn` : mesuré, `stTx` apparaît DÉJÀ sept fois dans le
-# bundle minifié, et un `var` de même nom dans la même fonction écraserait
-# silencieusement l'autre. `dzTextOn` / `stDzTx` : zéro occurrence.
 A_M11 = "  var stSu=x.useState(!1),subsOn=stSu[0],setSubsOn=stSu[1];"
+# ÉTAPE 7 DU HANDOFF « Barre Outils Flottante » (§6) — DEUX DÉCLARATIONS DE
+# PLUS, ET ELLES SONT ICI POUR LA MÊME RAISON QUE `dzTextOn` : un hook et une
+# fonction se déclarent dans le CORPS du composant, pas dans un tableau
+# `children`. Cette ancre est la seule de la chaîne qui soit dans le corps.
+#   `dzEmoAdd` — L'AJOUT DES CLIPS D'EMOJI : `pushHistory()` PUIS l'ajout,
+#     donc « annuler » les retire d'un coup. Elle servait les DEUX portes
+#     (le bouton du bandeau et la barre) ; l'étape 6 a retiré la première,
+#     et il n'en reste qu'une. La déclaration ne bouge pas : c'est toujours
+#     depuis le corps du composant que la barre la reçoit, et la sortir
+#     d'ici pour la recopier dans R_M19 aurait refait deux sources pour un
+#     seul geste.
+#   `dzProjReq` — LA DEMANDE D'OUVERTURE de la liste des projets, un
+#     COMPTEUR. Le popover garde son état d'ouverture chez lui (il se ferme
+#     sur un `mousedown` hors de sa boîte) ; un booléen piloté de l'extérieur
+#     serait remis à faux par ce `mousedown` juste avant que le `click` le
+#     remène à vrai. Un compteur n'a pas d'ordre à respecter : il DEMANDE.
+# LES NOMS SONT MESURÉS LIBRES dans le bundle livré, comme `stDzTx` l'avait
+# été : `stDzPj`, `dzProjReq`, `setDzProjReq`, `dzEmoAdd` — zéro occurrence
+# chacun le 06/09/2026. Un `var` de même nom qu'un identifiant minifié
+# existant l'écraserait en silence.
 R_M11 = ("  /* P3 — panneau « Texte » (monter en LISANT). Son état est À LUI :\n"
          "     il ne vit pas dans la zone des tiroirs (Sons / Narration /\n"
          "     Sous-titres, mutuellement exclusifs) mais dans la COLONNE\n"
          "     D'INSPECTION, où il ne dispute sa place à personne. */\n"
          "  var stDzTx=x.useState(!1),dzTextOn=stDzTx[0],setDzTextOn=stDzTx[1];\n"
+         "  /* étape 7 du handoff « Barre Outils Flottante » (§6) : la demande\n"
+         "     d'ouverture de la liste des projets (un COMPTEUR, pas un\n"
+         "     booléen — le popover se ferme seul sur le clic qui l'ouvre),\n"
+         "     et l'ajout des emoji, PARTAGÉ par le bouton du bandeau et la\n"
+         "     barre : `pushHistory()` puis l'ajout, donc « annuler » les\n"
+         "     retire d'un coup. */\n"
+         "  var stDzPj=x.useState(0),dzProjReq=stDzPj[0],"
+         "setDzProjReq=stDzPj[1];\n"
+         "  function dzEmoAdd(cs){pushHistory();"
+         "setClips(function(k){return (k||[]).concat(cs)});setDirty(!0)}\n"
+         "  /* étape 8 du handoff (§4.1) : LA DEMANDE DE BASCULE de la barre\n"
+         "     d'outils, un COMPTEUR pour la même raison que `dzProjReq` —\n"
+         "     l'état d'ouverture appartient au Dock, qui le persiste ; un\n"
+         "     booléen piloté d'ici en aurait fait une seconde source. C'est\n"
+         "     M20b, la branche du gestionnaire clavier, qui l'incrémente. */\n"
+         "  var stDzTb=x.useState(0),dzTbReq=stDzTb[0],"
+         "setDzTbReq=stDzTb[1];\n"
          + A_M11)
 
-# ── M11b (P3) : le bouton « texte » de la barre — DANS R_M8, comme M10 ──────
-R_M11b = ('r.jsx("button",{className:"svm-tbtn dzm-txton","data-on":dzTextOn?"":void 0,'
-          '"aria-pressed":dzTextOn,'
-          'title:"Monter par le TEXTE : la narration mot par mot dans la colonne '
-          'de droite, les mots de remplissage marqués, et la sélection coupée sur '
-          'toutes les pistes non verrouillées (ce qui suit remonte)",'
-          '"aria-label":"Panneau Texte",'
-          'onClick:function(){setDzTextOn(!dzTextOn)},children:"texte"}),')
+# ── M20a (étape 8, §4.1) : LE RACCOURCI, INSCRIT DANS LE MÉCANISME EXISTANT
+# LE POINT DUR DE CETTE ÉTAPE, ET IL EST TRANCHÉ PAR LA MESURE. Le §4.1
+# demande `T`. MESURÉ dans le bundle livré le 06/09/2026 : `SVM_ACTIONS`
+# porte TRENTE-DEUX actions, et `{id:"narration",sec:"Affichage",…,combo:"T"}`
+# tient déjà `T` — le panneau Narration (texte → voix). Le §5 du brief
+# déconseille de la lui reprendre sans l'accord de l'utilisateur, et il a
+# raison : `narration` est une action VIVANTE de cet écran, son raccourci est
+# affiché dans le panneau « ? » et un utilisateur l'a peut-être dans les
+# doigts. On ne le vole pas.
+# LA TOUCHE RETENUE EST `O` — l'initiale du libellé VERBATIM de l'onglet,
+# `OUTILS` (§2.1). Elle est mesurée LIBRE des deux côtés :
+#   • aucune des 32 combos de `SVM_ACTIONS` ne vaut « O » (les vingt-six
+#     lettres nues occupées sont B D F G J K L M N R S T ; libres : A C E H
+#     I O P Q U V W X Y Z) ;
+#   • aucune comparaison à la lettre « o » ou au code « KeyO » dans le
+#     bundle : les six occurrences de ces motifs sont `subsKeyOf` (cinq) et
+#     `arm==="o"+p.id` (une), aucune n'est un raccourci ;
+#   • `svmComboReserved("O")` rend "" — ni touche du navigateur, ni Échap,
+#     ni Tab, ni Entrée, ni F<n>.
+# ELLE EST REMAPPABLE COMME LES AUTRES, et c'est tout l'intérêt de la poser
+# ICI plutôt que dans un écouteur inventé à côté : `svmKmLoad` accepte
+# désormais l'override `{"toolbar":"…"}` (elle rejette tout id absent de
+# `SVM_ACTION_BY_ID`), `svmKmMerge` la fait entrer dans `toAct`, et
+# `kbPanel` la LISTE — elle boucle sur `SVM_ACTIONS` sans filtre autre que
+# `sounds_drawer`. Un raccourci qui ne serait pas dans cette table serait
+# invisible du panneau, donc introuvable.
+# SECTION `Affichage`, JUSTE AVANT `keys_panel` : c'est la section des
+# panneaux qu'on ouvre et qu'on ferme, celle où vivent déjà `narration` et
+# le panneau des raccourcis lui-même.
+A_M20A = (' {id:"keys_panel",sec:"Affichage",lbl:"ouvrir / fermer ce panneau",'
+          'combo:"?"},')
+R_M20A = (' {id:"toolbar",sec:"Affichage",'
+          'lbl:"barre d\'outils de création (onglet OUTILS)",combo:"O"},\n'
+          + A_M20A)
 
-# ── M14 (P5) : le popover « projets » — DANS R_M8, comme M10 et M11b ───────
-# Même raison qu'elles : A_M8 est déjà consommée par M8 et la barre de
-# transport n'offre pas de seconde ancre unique. Le plan disait « popover
-# Projets dans R_M8 » — c'est bien là.
-# `DzTracks`, pas `DzMontage` (que le plan écrivait, comme il écrivait déjà
-# `DzMontage.gradeAllBtn` en P4) : le bundle déclare DÉJÀ une fonction
-# `DzMontage` au premier niveau — l'écran Montage lui-même — et redéclarer ce
-# nom est une SyntaxError en sémantique MODULE, celle sous laquelle index.html
-# charge le bundle. Invisible pour `node --check` sur un .js ; c'est
-# `node_check_module` de test_montage_bundle.py qui la voit.
-# HUIT props au 04/09/2026 — `payload` et `onFail` s'ajoutent après revue.
+# ── M20b (étape 8, §4.1) : LA BRANCHE DE DISPATCH
+# Le gestionnaire clavier de l'écran est une chaîne de `if(id==="…")` ; une
+# action déclarée sans branche serait un raccourci mort, listé dans le
+# panneau et sans effet — exactement ce que ce chantier refuse.
+# ELLE N'OUVRE PAS LA BARRE, ELLE LA DEMANDE : `setDzTbReq` incrémente le
+# compteur de M11, que M19 passe au Dock. L'état d'ouverture reste dans le
+# Dock, qui le persiste dans `dz_svm_tb_open` — une seule source.
+# `setDzTbReq` est un setter de `useState` : stable d'un rendu à l'autre,
+# donc la fermeture de `onKey` (dépendances figées) ne le voit jamais
+# périmé, et la forme fonctionnelle `n+1` ne lit aucune valeur capturée.
+A_M20B = '      if(id==="narration"){narrToggle();return}'
+R_M20B = (A_M20B + "\n"
+          "      /* étape 8 du handoff « Barre Outils Flottante » (§4.1) :\n"
+          "         la barre d'outils de création. DEMANDE, pas ordre — le\n"
+          "         Dock tient l'état et le persiste. */\n"
+          '      if(id==="toolbar"){'
+          'setDzTbReq(function(n){return n+1});return}')
+
+# ── M21 (étape 8, §4.5) : LE NOM ACCESSIBLE DES TROIS CHIPS DE COUPE
+# « La couleur n'est jamais le seul porteur d'information » — et la FORME non
+# plus. L'étape 6 passe ces trois chips en GLYPHE SEUL sous largeur réduite
+# (`font-size:0` + `::before`, montage.css l.839-849) et elle a consigné leur
+# nom accessible comme reposant « sur leur `title` », non vérifié.
+# MESURE DU 06/09/2026, ET ELLE CONTREDIT CETTE NOTE : aucune des trois ne
+# porte d'`aria-label` — leur nom vient donc du CONTENU, et `title` n'est
+# qu'un REPLI que l'algorithme accname (§4.3.2, étape 2I) n'atteint que si le
+# contenu est vide. Or `font-size:0` n'est PAS un mécanisme de masquage : le
+# nœud texte reste dans l'arbre d'accessibilité (seuls `display:none`,
+# `visibility:hidden`, `hidden` et `aria-hidden` l'en sortent). Le nom
+# accessible en mode dégradé n'est donc pas le `title` : c'est le libellé,
+# PRÉCÉDÉ du glyphe du `::before` — accname prépend le contenu généré au nom
+# calculé depuis le sous-arbre.
+# CE QUI RESTE VRAI DE L'INQUIÉTUDE : ce nom-là dépend de deux détails de
+# moteur (l'inclusion du contenu généré, historiquement inégale) et il porte
+# un caractère de dessin — « ⇥aimanter » plutôt que « aimanter ». D'où ces
+# trois `aria-label` EXPLICITES : le nom devient le libellé, identique dans
+# les deux modes, indépendant du moteur, et il CONTIENT le texte visible
+# (WCAG 2.5.3 « Label in Name »), y compris la combo vivante de « lame »,
+# qui suit le remappage comme le fait déjà le contenu.
+# LE `title` NE BOUGE PAS : il reste la description, et c'est lui que
+# l'infobulle du mode compact affiche (§2.3 : « ne pas livrer un mode compact
+# sans infobulles »).
+A_M21 = (
+    'r.jsxs("div",{className:"svm-toolchips",children:[\n'
+    '          r.jsx("button",{className:"svm-toolchip","data-on":snap?"":void 0,\n'
+    '            title:"aimanter les bords, la tête et 0 ("'
+    '+svmKeyLabel("snap")+")",onClick:function(){setSnap(!snap)},'
+    'children:"aimanter"}),\n'
+    '          /* la chip AFFICHE la combo vivante — un remappage se lit ici aussi */\n'
+    '          r.jsx("button",{className:"svm-toolchip",'
+    'title:"couper le clip sélectionné à la tête ("+svmKeyLabel("blade")+")",'
+    'onClick:blade,children:"lame · "+svmKeyLabel("blade")}),\n'
+    '          r.jsx("button",{className:"svm-toolchip","data-on":ripple?"":void 0,\n'
+    '            title:"refermer les trous — suppression et rognage droit sur V1 ("'
+    '+svmKeyLabel("ripple")+")",onClick:function(){setRipple(!ripple)},'
+    'children:"ripple"}),')
+R_M21 = (
+    'r.jsxs("div",{className:"svm-toolchips",children:[\n'
+    '          /* étape 8 du handoff « Barre Outils Flottante » (§4.5) : les\n'
+    '             trois `aria-label`. Sous largeur réduite ces chips passent\n'
+    '             en glyphe seul (`font-size:0` + `::before`) ; sans nom\n'
+    '             explicite, leur nom accessible y porterait le caractère de\n'
+    '             dessin et dépendrait du moteur. Il reprend le texte\n'
+    '             visible, combo vivante comprise. */\n'
+    '          r.jsx("button",{className:"svm-toolchip","data-on":snap?"":void 0,\n'
+    '            "aria-label":"aimanter",\n'
+    '            title:"aimanter les bords, la tête et 0 ("'
+    '+svmKeyLabel("snap")+")",onClick:function(){setSnap(!snap)},'
+    'children:"aimanter"}),\n'
+    '          /* la chip AFFICHE la combo vivante — un remappage se lit ici aussi */\n'
+    '          r.jsx("button",{className:"svm-toolchip",'
+    '"aria-label":"lame · "+svmKeyLabel("blade"),'
+    'title:"couper le clip sélectionné à la tête ("+svmKeyLabel("blade")+")",'
+    'onClick:blade,children:"lame · "+svmKeyLabel("blade")}),\n'
+    '          r.jsx("button",{className:"svm-toolchip","data-on":ripple?"":void 0,\n'
+    '            "aria-label":"ripple",\n'
+    '            title:"refermer les trous — suppression et rognage droit sur V1 ("'
+    '+svmKeyLabel("ripple")+")",onClick:function(){setRipple(!ripple)},'
+    'children:"ripple"}),')
+
+# ── M11b (P3) : le bouton « texte » — RETIRÉ DU BANDEAU (étape 6, §5.1)
+# Même raison que M10, et la même contrepartie : la barre porte `texte` avec
+# `textOn:dzTextOn` et `onText`, qui basculent le MÊME état. Le panneau
+# lui-même (M12) ne bouge pas d'un pixel : c'est sa porte du bandeau qui
+# part, pas lui.
+
+# ── M14 (P5) : le popover « projets » — SEUL DES NEUF À RESTER MONTÉ, ET NU
+# ÉTAPE 6 (§5.1) : `projets` quitte le bandeau comme les huit autres. Mais ce
+# composant est DEUX choses — le bouton ET la liste qu'il ouvre — et la barre
+# flottante n'ouvre pas une liste à elle : elle DEMANDE l'ouverture de
+# celle-ci (`openReq`, un compteur, cf. l'étape 7). Retirer le nœud entier
+# aurait donc rendu MORT le bouton `projets` de la barre, c'est-à-dire rendu
+# un des neuf introuvable — exactement ce que le §9 s'interdit.
+# D'où `nu:!0` : le BOUTON disparaît, la LISTE reste. Un seul contrôle, une
+# seule liste, aucun doublon. La feuille sort alors `.dzm-proj` du flux et
+# ancre le popover à DROITE du bandeau, loin de la barre flottante qui vit à
+# gauche : sans quoi une liste de 300 px s'ouvrirait par-dessus elle.
+# Le reste de cette section est inchangé et sa mesure tient toujours :
 # `payload` : « Enregistrer sous… » envoie la timeline AFFICHÉE avec le nom.
 # MESURÉ, sans elle, `POST /projects` ne lisait que montage_saved.json — et
 # deux états courants n'en ont pas (installation neuve, et l'instant qui suit
@@ -321,27 +490,27 @@ R_M11b = ('r.jsx("button",{className:"svm-tbtn dzm-txton","data-on":dzTextOn?"":
 # annulé l'autosave en vol et RIEN ne le replanifie — `setSaveInfo` n'est pas
 # dans les dépendances de l'effet. `svmDoSave` le relance sur-le-champ.
 # `doDel`, lui, n'appelle PLUS `onBefore` : le serveur ferme cette course-là à
-# TROIS verrous, et c'est le TROISIÈME — le verrou de module, arrivé dans le
-# même commit — qui rend le retrait légitime. Les deux premiers (`project_id`
-# retenu seulement s'il désigne un fichier existant ; miroir seulement dans ce
-# fichier) laissaient un TOCTOU de deux sauts de thread : sans le verrou,
-# retirer `onBefore` ici rouvre « le courant reste lié à un projet supprimé ».
-# test_montage_projets.py [16] joue l'entrelacement avec et sans lui — c'est
-# la CONDITION de ce retrait, pas sa confirmation ; [10] ne mesure que le cas
-# séquentiel. Le détail est dans la couche.
-# SIX props, pas cinq : `onBefore` s'ajoute à la liste du plan. MESURE — le
-# bundle désamorce déjà exactement cette course pour le bouton
-# « bibliothèque » : il ABANDONNE la requête d'autosave en vol avant son
-# DELETE, faute de quoi elle arrive après et ressuscite ce qu'on vient
-# d'effacer. Ouvrir un projet et supprimer un projet sont le même cas : sans
-# `onBefore`, une sauvegarde partie 1,4 s plus tôt réécrit le courant avec le
-# montage qu'on vient de quitter.
+# TROIS verrous, et c'est le TROISIÈME — le verrou de module — qui rend le
+# retrait légitime. test_montage_projets.py [16] joue l'entrelacement avec et
+# sans lui — c'est la CONDITION de ce retrait, pas sa confirmation.
+# `onBefore` : le bundle désamorce déjà exactement cette course pour le bouton
+# « bibliothèque » ; ouvrir un projet et supprimer un projet sont le même cas.
 # PAS de `setDirty` ici, et c'est délibéré : au retour de chacune de ces
-# routes le serveur a DÉJÀ écrit le courant ET le projet. Allumer
-# « NON ENREGISTRÉ » juste après une ouverture réussie ferait mentir le badge
-# et déclencherait un autosave qui réécrirait à l'identique.
+# routes le serveur a DÉJÀ écrit le courant ET le projet.
+# `DzTracks`, pas `DzMontage` : le bundle déclare DÉJÀ une fonction
+# `DzMontage` au premier niveau — l'écran Montage lui-même — et redéclarer ce
+# nom est une SyntaxError en sémantique MODULE, celle sous laquelle index.html
+# charge le bundle. C'est `node_check_module` du miroir qui la voit.
 R_M14 = ('r.jsx(DzTracks.Projects,{name:proj.name,projectId:proj.project_id,'
          'note:fireNote,\n'
+         '          /* étape 6 (§5.1) : le BOUTON « projets » a quitté le\n'
+         '             bandeau ; la LISTE reste, parce que c’est elle que\n'
+         '             la barre d’outils demande. Montée NUE. */\n'
+         '          nu:!0,\n'
+         '          /* étape 7 : la barre d’outils ouvre CETTE liste-ci au\n'
+         '             lieu d’en monter une seconde — un compteur, pas un\n'
+         '             booléen. */\n'
+         '          openReq:dzProjReq,\n'
          '          payload:function(){return svmSavePayload()},\n'
          '          onBefore:function(){'
          'if(saveAbortRef.current){try{saveAbortRef.current.abort()}catch(_e){}}'
@@ -351,28 +520,21 @@ R_M14 = ('r.jsx(DzTracks.Projects,{name:proj.name,projectId:proj.project_id,'
          '          onNamed:function(pid,nm){setProj(function(p){'
          'return Object.assign({},p,{project_id:pid,name:nm})})}}),')
 
-# ── M16-lib (P9) : le bouton « Bibliothèque… » — DANS R_M8, comme M10/M11b/M14
-# MÊME RAISON QU'ELLES, et elle est mesurée : A_M8 est déjà consommée par M8
-# et la barre de transport n'offre pas de seconde ancre unique.
-# CE QUE CE BOUTON RÉPARE, mesuré dans le bundle livré : `openPicker` n'était
-# appelé QU'À UN endroit — le « + » de 14 px d'un en-tête de piste, révélé au
-# survol de cette piste-là (`onClick:function(){ if(trackKind(tr.id)==="subs")
-# {subsAddHere();return} openPicker(tr.id)}`). Rien, dans la barre de
-# transport, ne proposait d'ajouter un clip. Les boutons « + vidéo » /
-# « + audio » posés par M8 ajoutent une PISTE ; l'utilisateur les a lus comme
-# « ajouter une vidéo » et le libellé lui donnait raison — d'où leur
-# rectification en « + piste vidéo » / « + piste audio », qui est une édition
-# de `DzmTrackAdd` DANS LA COUCHE et non une section de plus.
-# Le libellé est « Bibliothèque… », pas « + clip » : c'est le mot que
-# l'utilisateur a employé.
-R_M16LIB = ('r.jsx(DzTracks.LibBtn,{tracks:svmTracksOf(proj),note:fireNote,'
-            'onPick:openPicker}),')
+# ── M16-lib (P9) : le bouton « Bibliothèque… » — RETIRÉ (étape 6, §5.1)
+# Même raison que M10 et M11b. La barre porte `bibliotheque` et reçoit
+# `onPick:openPicker` — le MÊME `openPicker`, la même piste résolue.
+# `DzmLibBtn` reste dans la couche et au contrat, comme `DzmTrackAdd` :
+# reste assumé, quatre composants exportés ne sont plus montés.
 
-R_M8 = ('r.jsx(DzTracks.TrackAdd,{tracks:svmTracksOf(proj),onChange:svmTracksSet}),\n'
-        '        ' + R_M16LIB + '\n'
-        '        ' + R_M10 + '\n'
-        '        ' + R_M11b + '\n'
-        '        ' + R_M14 + '\n'
+# ── M8 : CE QUE LA CHAÎNE LAISSE DANS LE BANDEAU ──────────────────────────
+# ÉTAPE 6 (§5.1) — IL N'Y RESTE QUE LA LISTE DES PROJETS, ET ELLE EST NUE.
+# Cette section posait SIX nœuds : « + piste vidéo » / « + piste audio »
+# (`TrackAdd`), « Bibliothèque… », la chip « mot » et ses trois options,
+# « emoji », « texte » et « projets ». Neuf contrôles, tous partis dans la
+# barre flottante, où l'étape 7 les a câblés un par un sur LES MÊMES actions.
+# Ce qui reste ici n'est pas un contrôle : c'est le panneau qu'un contrôle de
+# la barre ouvre. Voir M14.
+R_M8 = (R_M14 + '\n'
         '        /* bouton discret du panneau raccourcis — fin de transport */\n'
         '        ' + A_M8)
 
@@ -475,17 +637,79 @@ R_M13 = ('        (sel&&sel.tr==="s1"?null:vfxStackSection()),\n'
          '        DzTracks.gradeAllBtn(sel,clips,setClips,pushHistory,setDirty,'
          'fireNote)]})]}),')
 
-# ── M9a / M9b : en-tête de piste ────────────────────────────────────────────
+# ── M9a / M9b / M9c : en-tête de piste ───────────────────────────────────────
 # Le groupe est un FRÈRE des rangées, pas un membre : il est positionné en
 # absolu dans l'en-tête (voir montage.css — l'en-tête fait 88px de large et
 # il est déjà plein, c'est mesuré). L'ancre est préfixe du remplacement :
 # test_montage_bundle.py ne cherche donc pas à la voir disparaître.
+#
+# M9c — LE BOUTON D'AJOUT SORT DE SOUS LA SURIMPRESSION. Défaut rapporté par
+# l'utilisateur le 05/09/2026 : « sur la piste V1 vidéo, le bouton "ajouter
+# une vidéo" est caché par l'overlay de déplacement lorsque la souris passe
+# dessus ».
+#
+# MESURÉ AVANT, dans le bundle LIVRÉ — les quatre rangées d'en-tête et leurs
+# contrôles, extraits du fichier que l'application charge :
+#     nr  svm-tnamerow  [thType]                 (piste audio)
+#     br  svm-thbtns    [+, thM, thS, thLock]    (piste audio)
+#     nr  svm-tnamerow  [+]                      (piste vidéo / sous-titres)
+#     tr  svm-ttyperow  [thType, thLock]         (piste vidéo / sous-titres)
+# Le bouton d'ajout des pistes vidéo/sous-titres est donc le SEUL contrôle
+# logé dans la rangée du NOM, qui est la PREMIÈRE de l'en-tête. Or `.dzm-hb`
+# est `position:absolute; top:2px; right:3px` (montage.css) dans un
+# `.svm-thead` qui empile ses rangées du haut vers le bas, et `.svm-ovadd`
+# porte `margin-left:auto` : le bouton est au bord DROIT de la rangée du
+# haut, c'est-à-dire exactement le coin que la surimpression occupe. La
+# collision est STRUCTURELLE, pas fortuite — et elle ne touche que cette
+# famille : sur les pistes audio le même bouton vit dans la rangée du BAS,
+# hors d'atteinte.
+#
+# LA SECONDE BRANCHE DU RAISONNEMENT DE L'UTILISATEUR NE TIENT PAS, et on ne
+# la suit pas : la surimpression n'est pas inutile sur V1. Sa croix est bien
+# inerte là (`dzmRemove` rend la liste inchangée pour v1 et s1), mais dès
+# qu'une piste V2 existe V1 devient réordonnable — poignée et flèches sont
+# vivantes. On garde donc la surimpression et on déplace le bouton : c'est la
+# PREMIÈRE proposition de l'utilisateur, et elle vaut dans les deux cas.
+#
+# CE QUE LE DÉPLACEMENT COÛTE, MESURÉ SUR LA CSS. En LARGEUR : le contenu de
+# l'en-tête vaut 88 − 2 × 7 de padding = 74px ; la rangée du type passe de
+# deux à trois enfants, ses fixes valent verrou 14px (.svm-tkbtn) + bouton
+# 16px (.svm-ovadd) + deux gaps de 3px = 36px, il reste donc 38px au libellé
+# contre 57 avant. RIEN NE DÉBORDE des 88px : `.svm-minibtn` est `flex:none`
+# et la taille minimale automatique tient le bouton à 16px, tandis que
+# `.svm-ttyperow .svm-ttype` porte déjà
+# `flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis` —
+# c'est le libellé qui absorbe TOUT le serrage. CE QU'ON PERD, écrit plutôt
+# que taise : « overlay/VFX » et « sous-titres » (11 caractères ≈ 51px en
+# mono 8px) passent désormais en points de suspension ; « vidéo » (≈ 23px)
+# est intouché, et `title:tr.type` porte déjà le libellé entier au survol. En
+# HAUTEUR l'en-tête NE GRANDIT PAS : la rangée du nom perd son seul enfant
+# de 16px et retombe sur la boîte de ligne du nom (police 10px, donc plus
+# courte que 16), pendant que la rangée du type monte de 14 à 16. Le chiffre
+# EXACT de cette boîte de ligne n'est pas mesuré ici — il ne se lit qu'à
+# l'écran, et c'est porté à la dette navigateur ; ce qui est établi est le
+# SENS : − d'un côté, + 2 de l'autre. Aucune règle CSS n'a donc à bouger, et
+# aucune n'a bougé.
+#
+# LE GREFFON DE RÉINSERTION EST REPLIÉ DANS R_M9b, comme M10 dans R_M8 :
+# l'ancre A_M9b est déjà consommée par M9b, il n'en reste aucune à quoi
+# accrocher une section à part. test_montage_bundle.py porte donc des lignes
+# LITTÉRALES qui voient sa disparition — sans elles, le retirer d'ici puis
+# rejouer la chaîne laisserait le banc vert.
 _HB = ("DzTracks.headBtns(tr,svmTracksOf(proj),svmTracksSet,clips,setClips,"
        "fireNote)")
 A_M9a = 'children:[thAdd,thM,thS,thLock]},"br"),'
 R_M9a = 'children:[thAdd,thM,thS,thLock]},"br"),\n                  ' + _HB + ','
 A_M9b = 'children:[thType,thLock]},"tr")]}),'
-R_M9b = ('children:[thType,thLock]},"tr"),\n                  ' + _HB + ']}),')
+R_M9b = ('children:[thType,thLock,thAdd]},"tr"),\n                  ' + _HB
+         + ']}),')
+# M9c — le RETRAIT. L'ancre part du nom de la piste pour rester unique : la
+# rangée du nom des pistes audio se termine par le même `]},"nr"),` et seul
+# le contrôle qui la précède les distingue. L'ancre n'est PAS reprise par le
+# remplacement : le miroir exige donc de la voir disparaître.
+A_M9c = ('children:tr.name}),\n'
+         '                    thAdd]},"nr"),')
+R_M9c = 'children:tr.name})]},"nr"),'
 
 # ══ P9 — « Bibliothèque… » qui pose un clip, et la remise qui se perdait ═══
 #
@@ -1149,6 +1373,19 @@ R_M17A = (
     "       était AU CLIC, pas 85 ms plus tard. Mesure échouée : on repasse un\n"
     "       nombre NÉGATIF, que `needDur` lit comme « déjà demandé » — c'est\n"
     "       le verrou de récursion, et il est éprouvé sous node. */\n"
+    "    /* P12 — LE SON D'UN PLAN SUIT SA VIDÉO : le verdict « cette source\n"
+    "       a-t-elle du son ? » est demandé ICI, avant la durée et avant\n"
+    "       tout `pushHistory`, pour une vidéo posée sur une piste vidéo\n"
+    "       PLEIN CADRE (V1 : type « vidéo », jamais une incrustation). Le\n"
+    "       rappel repart des MÊMES arguments — c'est le CACHE du verdict,\n"
+    "       écrit par askAudio sur toute sortie, qui le rend non récursif\n"
+    "       (éprouvé sous node : un rappel sans cache redemande). La durée\n"
+    "       rendue en prime épargne le second aller-retour d'askDur. */\n"
+    "    var dzAuOn=DzTracks.wantsTwin(kind,dzTs,tr2);\n"
+    "    var dzAu=dzAuOn?DzTracks.audioOf(src):null;\n"
+    "    if(dzAuOn&&!dzAu){DzTracks.askAudio(src,{done:function(){\n"
+    "      addAsset(src,label,kind,srcDur,trId,st)}});return}\n"
+    "    srcDur=DzTracks.srcDurOr(kind,srcDur,dzAu);\n"
     "    if(DzTracks.needDur(kind,srcDur)){\n"
     "      DzTracks.askDur(src,{done:function(dzV){\n"
     "        addAsset(src,label,kind,dzV>0?dzV:-1,trId,st)}});return}\n"
@@ -1353,11 +1590,681 @@ R_M18A = ("    /* P11 — plus de plafond : la longueur d'un clip est celle de\n
           "    return DzTracks.clipLen(kind,srcDur,"
           "{image:4,audio:8,video:6});\n")
 
+# ── M19 (étape 4 du handoff « Barre Outils Flottante », §9) : l'onglet OUTILS
+#    et la barre, montés DANS le bandeau de transport ───────────────────────
+# L'ANCRE EST L'OUVERTURE DU BANDEAU, et il en fallait une nouvelle : A_M8 est
+# consommée par M8, et M10/M11b/M14 s'y greffent déjà. Mesurée UNIQUE le
+# 05/09/2026 — une seule occurrence dans le bundle, comme `className:"svm-trans"`
+# lui-même. C'est aussi la SEULE ancre qui place les deux nœuds au bon endroit :
+# le §2.1 pose l'onglet à `top:-21px` RELATIVEMENT AU BANDEAU, il doit donc en
+# être un enfant, et /shared/montage.css passe `.svm-trans` en `position:relative`
+# pour cela (la chaîne des parents y est écrite en entier — aucun ne le rogne).
+#
+# LES DEUX NŒUDS SONT ABSOLUS, donc HORS FLUX : le bandeau est un conteneur
+# flex à `gap:12px`, et un enfant en `position:absolute` n'est pas un élément
+# flex — il ne prend pas de place et n'ouvre pas d'intervalle. Le bandeau garde
+# donc exactement la largeur et les 34 px qu'il avait.
+#
+# `DzTracks.ToolDock`, PAS `DzMontage` : le bundle déclare déjà une fonction
+# `DzMontage` au premier niveau (l'écran Montage lui-même), et redéclarer ce nom
+# est une SyntaxError en sémantique module — celle sous laquelle index.html
+# charge le bundle. Même raison qu'en M10 et M14.
+#
+# LES DIX PROPRIÉTÉS SONT LE CÂBLAGE DU §6 EN ENTIER (« la barre est un
+# nouveau point d'entrée, pas une nouvelle implémentation »). Aucune n'ouvre
+# une action neuve : chacune est une expression DÉJÀ écrite ailleurs dans ce
+# patcher, reprise mot pour mot.
+#   tracks / onTracks  — `svmTracksOf(proj)` et `svmTracksSet`, exactement ce que
+#                        `DzTracks.TrackAdd` reçoit en M8 : même appel, autre porte
+#   onPick             — `openPicker`, celui de « Bibliothèque… » en M8
+#   wordAnim/onWordAnim— la MÊME expression qu'en M10 : `proj.subsStyle` est la
+#                        source unique, la chip et la barre la LISENT toutes deux
+#   textOn / onText    — l'état du panneau « Texte » de M11a, basculé comme en M11b
+#   emojiSegs / note / onEmojiAdd — LES TROIS INGRÉDIENTS de M10, à l'identique.
+#                        C'est le Dock qui appelle `DzTracks.emojiGo` avec eux :
+#                        l'ÉTAT D'ATTENTE est un hook, il reste à chaque porte.
+#   onProjets          — incrémente `dzProjReq` (M11a), que M14 passe au popover
+#
+# ÉTAPE 7 : `emoji` ET `projets` NE SONT PLUS ÉTEINTS, et ce qui les tenait
+# éteints était NOMMÉ à l'étape 4 : leur action vivait À L'INTÉRIEUR de leur
+# composant. La porte a été ouverte SANS déplacer l'état, ce qui aurait
+# demandé de réécrire les deux composants :
+#   • emoji — le `fetch` est sorti du bouton (`dzmEmojiGo`, au premier niveau
+#     de la couche) ; les deux portes l'appellent, chacune avec SON attente.
+#   • projets — le popover garde son ouverture chez lui et reçoit une DEMANDE
+#     (`openReq`). C'est le seul moyen d'ouvrir sans lutter contre son propre
+#     « clic dehors », qui se déclenche précisément sur le bouton de la barre.
+#
+# ÉTAPE 6 : LA DUPLICATION EST SOLDÉE. Les neuf contrôles ont quitté le
+# bandeau (§5.1, voir M8/M10/M11b/M14/M16-lib, tous vidés) et cette barre-ci
+# est désormais LEUR SEULE PORTE — c'est pourquoi l'étape 7 devait passer
+# AVANT : retirer `emoji` ou `projets` du bandeau avant de les câbler ici les
+# aurait rendus inatteignables partout, ce que le §9 s'interdit. Le sens de
+# lecture de ces dix propriétés ne change pas d'un mot ; ce qui change, c'est
+# qu'aucune n'a plus de jumelle dans le bandeau.
+# UNE ATTENTE DE MOINS : l'état d'attente de la requête emoji était tenu par
+# CHAQUE porte (`DzmEmojiBtn` et le Dock). Une porte est partie, une attente
+# avec elle — il n'en reste qu'une, celle du Dock.
+A_M19 = 'r.jsxs("div",{className:"svm-trans",children:['
+R_M19 = (A_M19 + "\n"
+         "        /* étapes 4 à 7 du handoff « Barre Outils Flottante » :\n"
+         "           l'onglet OUTILS et la barre flottante, câblée sur les\n"
+         "           actions de l'écran. Les deux nœuds sont absolus, donc\n"
+         "           hors du flux flex de ce bandeau : rien n'y bouge. */\n"
+         "        r.jsx(DzTracks.ToolDock,{tracks:svmTracksOf(proj),"
+         "onTracks:svmTracksSet,onPick:openPicker,"
+         "wordAnim:(proj.subsStyle||{}).wordAnim||\"couleur\","
+         "onWordAnim:function(v){subsStyleSet({wordAnim:v})},"
+         "textOn:dzTextOn,onText:function(){setDzTextOn(!dzTextOn)},"
+         "emojiSegs:subsSegsOf(clips),note:fireNote,onEmojiAdd:dzEmoAdd,"
+         # Étape 8 (§4.1) — DEUX PROPRIÉTÉS DE PLUS, ET RIEN D'AUTRE.
+         # `toggleReq` : le compteur de demandes de bascule (M11 le déclare,
+         # M20b l'incrémente). `keyLbl` : la combo VIVANTE du raccourci, lue
+         # par `svmKeyLabel` — la même fonction qui fait suivre la chip
+         # « lame » à un remappage. L'onglet la dit dans son `title` : un
+         # raccourci qu'on ne peut lire nulle part n'existe qu'à moitié.
+         'toggleReq:dzTbReq,keyLbl:svmKeyLabel("toolbar"),'
+         "onProjets:function(){setDzProjReq(function(n){return n+1})}}),")
+
+# ══ P12 — LE SON D'UN PLAN SUIT SA VIDÉO ═══════════════════════════════════
+#
+# LE DÉFAUT, MESURÉ (06/09/2026). Le rendu n'entre JAMAIS l'audio embarqué
+# d'un clip vidéo dans le graphe ffmpeg (`[idx:v]` seul, montage_service
+# `_run`) : sans clip jumeau sur la piste de dialogue, un plan parlant sort
+# MUET. La construction automatique (`montage_project`) pose ce jumeau pour
+# chaque job dont `_has_audio_stream` est vrai ; `addAsset`, point d'entrée
+# des SEPT portes de l'écran, posait UN clip et rien d'autre. Le
+# `kapwing_sample.mp4` de l'utilisateur (aac, 15,973 s, ffprobe) est sur V1
+# de sa sauvegarde SANS jumeau — et la transcription tournait sur le vieux
+# MP3 de la piste A1 (journal du 06/09, l. 42). Aucune route ne disait
+# « cette source a un flux audio » : GET /has-audio (montage_service) le dit
+# maintenant, durée en prime.
+#
+# CE QUE FONT LES CINQ SECTIONS, et l'ordre compte :
+#   R_M17A (édité DANS sa chaîne — `var dzCl=defaultLen(kind,srcDur);` est un
+#          texte qui n'existe qu'APRÈS patch, 1 dans le bundle livré, 0 dans
+#          .bak_montage, mesuré) : la SONDE, avant la durée et avant tout
+#          `pushHistory`. Sortie par `DzTracks.askAudio`, rappel avec les
+#          mêmes arguments ; `st` repassé pour l'instant du clic, comme
+#          askDur. Le CACHE est le verrou de récursion (test_montage_bundle
+#          [3-bis] joue le rappel SANS cache : il redemande — c'est la preuve
+#          que le verrou est bien lui).
+#   M22a   (le trio `ovSeq++` / `id` / `pushHistory()` — 1/1 en CRLF, 0/0 en
+#          LF, mesuré, d'où `nl()`) : l'identifiant passe par `uniqueId`
+#          contre les clips existants, et le JUMEAU est décidé par
+#          `twinPlan` (verdict, piste de dialogue, verrou, doublon) AVANT le
+#          seul `pushHistory()` du geste ; sa phrase entre dans `dzTail`, la
+#          note de l'ajout (M16b la lit telle quelle : `+dzTail)}` reste
+#          l'unique fin de note, le banc le compte).
+#   M22b   (l'unique écriture du clip) : UN `setClips(concat([clip, jumeau]))`.
+#          Deux `setClips(clipsRef.current.concat(…))` dans le même
+#          gestionnaire PERDRAIENT le premier — `clipsRef.current=clips` n'est
+#          rafraîchi qu'au rendu (bundle 1723), mesuré. Un seul concat, un
+#          seul historique : « Annuler » retire les deux.
+#   M22c   (`svmApplyProject`, après la construction de `cs`) : les
+#          identifiants en double sont renommés par `dedupeIds` (le PREMIER
+#          garde le sien), c'est DIT, et `ovSeq` est re-semé au plus grand
+#          `u<n>` — il repartait de zéro à chaque chargement (`ovSeq.current=`
+#          : 0 occurrence dans le bundle, mesuré) et la sauvegarde de
+#          l'utilisateur porte `v1u1_0` deux fois et `v1u2_0` deux fois.
+#          `v1_non_video` (des IDENTIFIANTS) suit le renommage.
+#   M22d   (`setDirty(!1);` + `histRef.current={u:[],r:[]};` de
+#          svmApplyProject — 1/1 des deux côtés, mesuré en octets ; l'ancre
+#          ne cite PAS le `setPh(0)` qui précède sur la même ligne, que la
+#          garde tb7 du banc interdit aux sections) : `dirty` suit le
+#          renommage d'une SAUVEGARDE, pour que l'autosauvegarde — le SEUL
+#          enregistrement qui existe (`svmDoSave(` : trois sites, aucun
+#          bouton, aucun raccourci ; « Enregistrer sous… » crée un projet
+#          neuf) — écrive les ids réparés ; sans elle la note reviendrait à
+#          chaque chargement. Une construction de Bibliothèque n'est jamais
+#          marquée.
+#   M23    (`transInspector(),` — 1/1 dans le bundle livré ET dans
+#          .bak_montage ; R_M12 la reprend en tête, donc elle reste libre
+#          après M12, et M23 s'insère AVANT elle : R_M12 reste contigu, la
+#          ligne `M12-text-panel_remplace` du banc le tient) : le bouton
+#          « Extraire le son → A1 » pour les plans DÉJÀ posés, visible sur
+#          tout clip vidéo à source (V1, V2, V3…), même moteur — c'est lui
+#          qui rend son son au kapwing_sample déjà sur V1.
+#
+# LA CIBLE N'EST PAS `pickTrack(ts,"audio")` : première piste audio de
+# l'ordre d'affichage, elle rend `a2` — la MUSIQUE, bouclée et duckée — sur
+# la sauvegarde du 04/09 ([v1, a2, a1, a3, s1]). `dialogueTrack` vise le bus
+# « dialogue », sinon `a1`, jamais une piste `loop`.
+#
+# DÉCISION : AUTOMATIQUE, comme la construction automatique — pour TOUTE
+# vidéo à flux audio posée sur une piste plein cadre, sans demander. Parce
+# que le geste est réversible d'un seul « Annuler », que le doublon est
+# refusé, et que les incrustations (B-roll) en sont exemptées par leur
+# `type`. Le bouton de M23 est la porte pour tout le reste.
+#
+# RÉSERVE PORTÉE, PAS CORRIGÉE ICI : aucune liaison V1↔A1 n'existe
+# (déplacement, rognage, vitesse, remplacement de source non propagés) —
+# c'est déjà le cas des « son du plan » de la construction automatique, et
+# le remplacement de source (P6) sort AVANT toute extraction.
+A_M22A = ('    ovSeq.current++;\n'
+          '    var id=tr2+"u"+ovSeq.current+"_"+Math.round(st*10);\n'
+          '    pushHistory();')
+R_M22A = (
+    "    ovSeq.current++;\n"
+    "    /* P12 — l'identifiant est UNIQUE contre les clips existants (une\n"
+    "       sauvegarde rechargée peut en porter d'anciens du même rang), et\n"
+    "       le jumeau est décidé AVANT le seul pushHistory du geste : sa\n"
+    "       phrase rejoint la note de l'ajout — et une incrustation, exemptée\n"
+    "       de sonde, est DITE aussi (overlayNote), jamais tue. */\n"
+    '    var id=DzTracks.uniqueId(clipsRef.current||[],\n'
+    '      tr2+"u"+ovSeq.current+"_"+Math.round(st*10));\n'
+    "    var dzNeuf={tr:tr2,id:id,label:label,start:st,end:en,src:src,srcIn:0};\n"
+    "    var dzTw=dzAuOn?DzTracks.twinPlan(dzNeuf,dzTs,clipsRef.current||[],dzAu,\n"
+    "      function(t){return !!(trackStRef.current[t]&&trackStRef.current[t].l)}):null;\n"
+    "    if(dzTw)dzTail+=dzTw.note;\n"
+    "    else dzTail+=DzTracks.overlayNote(kind,dzTs,tr2);\n"
+    "    pushHistory();")
+A_M22B = ('setClips(clipsRef.current.concat([{tr:tr2,id:id,label:label,'
+          'start:st,end:en,src:src,srcIn:0}]));')
+R_M22B = ('setClips(clipsRef.current.concat(dzTw&&dzTw.clip?[dzNeuf,dzTw.clip]'
+          ':[dzNeuf]));')
+A_M22C = '    var first=cs.find(function(c){return c.tr==="v1"});'
+R_M22C = (
+    "    /* P12 — DES IDENTIFIANTS UNIQUES. `ovSeq` repart de zéro à chaque\n"
+    "       chargement et la sauvegarde reprend `c.id` tel quel : deux clips\n"
+    "       du même id se suppriment ensemble (`c.id!==id`) et le second n'est\n"
+    "       jamais sélectionnable (`c.id===selId`). Le PREMIER garde le sien,\n"
+    "       les suivants sont renommés, c'est dit, `v1_non_video` — des\n"
+    "       IDENTIFIANTS, contrat du backend — suit le renommage (l'id neuf est\n"
+    "       AJOUTÉ : les deux exemplaires étaient marqués, ils le restent), et\n"
+    "       le compteur repart AU-DESSUS de tout ce que la sauvegarde porte. La\n"
+    "       réparation est PERSISTÉE par M22d (l'autosauvegarde) sur une\n"
+    "       sauvegarde, jamais sur une construction de Bibliothèque : la note\n"
+    "       le dit dans les deux cas. */\n"
+    "    var dzDd=DzTracks.dedupeIds(cs);cs=dzDd.clips;\n"
+    "    if(dzDd.renamed.length&&Array.isArray(d.v1_non_video))d.v1_non_video=\n"
+    "      d.v1_non_video.concat(dzDd.renamed.filter(function(k){\n"
+    "        return d.v1_non_video.indexOf(k.de)>=0&&d.v1_non_video.indexOf(k.en)<0})\n"
+    "      .map(function(k){return k.en}));\n"
+    "    if(dzDd.renamed.length)fireNote(dzDd.renamed.length+\" clip\"+\n"
+    '      (dzDd.renamed.length>1?"s portaient":" portait")+" un identifiant "+\n'
+    '      "déjà pris dans cette sauvegarde ("+dzDd.renamed.map(function(k){\n'
+    '        return k.de+" → "+k.en}).join(", ")+") : renommé"+\n'
+    '      (dzDd.renamed.length>1?"s":"")+" pour que chaque plan se "+\n'
+    '      "sélectionne et se supprime seul. Rien d\'autre n\'a changé"+\n'
+    '      (d.saved?" — ce sera enregistré automatiquement dans un instant."\n'
+    '        :" (timeline construite depuis la Bibliothèque : rien n\'est "+\n'
+    '         "enregistré tant que vous ne modifiez rien)."));\n'
+    "    ovSeq.current=Math.max(ovSeq.current,DzTracks.seqMax(cs));\n"
+    + A_M22C)
+A_M22D = ('setDirty(!1);\n'
+          '    histRef.current={u:[],r:[]};')
+R_M22D = (
+    "setDirty(!!(d.saved&&dzDd.renamed.length));\n"
+    "    /* P12 — LA RÉPARATION EST PERSISTÉE. `setDirty(!1)` désarmait ici\n"
+    "       l'autosauvegarde (l'effet gardé par `dirty`, 1,5 s) juste après le\n"
+    "       renommage de M22c, et AUCUN geste manuel n'enregistre le montage —\n"
+    "       `svmDoSave(` n'a que trois sites dans le bundle (sa définition,\n"
+    "       cet effet, la relance sur échec), « Enregistrer sous… » crée un\n"
+    "       projet NEUF (mesuré le 06/09/2026) : la note serait revenue à\n"
+    "       chaque chargement. Une SAUVEGARDE dont des ids ont été renommés est\n"
+    "       donc marquée modifiée, et l'autosauvegarde écrit les ids réparés.\n"
+    "       Une construction depuis la Bibliothèque (`saved` faux) ne l'est\n"
+    "       JAMAIS : l'enregistrer en ferait la source à la place de la\n"
+    "       Bibliothèque — et ses ids (`v1_<job>`, `a1_<job>`, `c<i>`) ne se\n"
+    "       répètent pas. La note de M22c le dit dans les deux cas. */\n"
+    "    histRef.current={u:[],r:[]};")
+A_M23 = "        transInspector(),"
+R_M23 = (
+    "        /* P12 — « Extraire le son → A1 » : le son d'un plan DÉJÀ posé,\n"
+    "           même moteur que l'ajout (sonde, cache, jumeau, refus DIT).\n"
+    "           Posé juste avant l'inspecteur de transition, pour tout clip\n"
+    "           vidéo porteur d'une source — V1, V2, V3. */\n"
+    "        DzTracks.extractBtn(sel,{tracks:dzTracksRef.current||svmTracksOf(proj),\n"
+    "          clips:function(){return clipsRef.current||[]},\n"
+    "          locked:function(t){return !!(trackStRef.current[t]&&trackStRef.current[t].l)},\n"
+    "          pushHistory:pushHistory,setClips:setClips,setDirty:setDirty,\n"
+    "          note:fireNote}),\n"
+    + A_M23)
+
+# ── P13 — LA TRANSCRIPTION VISE LA PISTE DE DIALOGUE ET DIT CE QU'ELLE VA
+# DÉPENSER (06/09/2026). Sept sections sur le BLOC SUBS INLINÉ (M24a…M24g),
+# trois sur l'HÔTE (M24h…M24j) et, au tour 1, trois de plus sur le bloc subs
+# (M24k…M24m, les libellés sous « auto »). `frontend/patches/subs.js` est
+# INTOUCHABLE (pas de `.bak_subs`, ses ancres sont consommées, aucun banc ne
+# compare le bloc inliné à sa source — mesuré) : ces sections portent la
+# correction EN AVAL, et le bloc inliné diverge désormais de subs.js sur les
+# lignes qu'elles remplacent (le banc bundle les compte).
+# Mesuré avant d'écrire (06/09, en octets, CRLF) : chaque ancre est 1/1 dans
+# le bundle ET dans .bak_montage ; A_M24F, A_M24G, A_M24D et A_M24J sont
+# multilignes (0 en LF, 1 en CRLF — `nl()` les aligne) ; les noms neufs
+# (`dzSs`, `dzSsAll`, `srcTracks`, `subsSources`, `dzDial`) sont 0/0.
+# CE QUE LE CLIENT FAISAIT, MESURÉ : `function transcribe(plan){` envoyait
+# TOUJOURS `src:props.srcRef` (premier a1 porteur d'une source, sinon
+# premier v1 — `subsSrcRef()`, hôte), donc le repli serveur n'était jamais
+# atteint et le vieux MP3 de A1 partait à la place du plan ; le geste PAR
+# PLAN filtrait `cl` aux clips chevauchant le plan et gardait `av[0].src`
+# dans l'ordre du tableau, sans tri ; AUCUN décalage côté client — le
+# résultat `got` n'est filtré qu'à la fenêtre du plan (`dans`). Le décalage
+# vit donc UNE fois, dans la route (`start − srcIn`), et le client ne décale
+# toujours pas.
+# M24a — la ligne d'attente nomme ce qui part (même fonction pure que la
+# pastille : DzTracks.subsSources).
+A_M24A = 'setTrJob({busy:!0,step:plan?"plan "+plan.n+"…":"envoi…",pct:0});'
+R_M24A = (
+    "/* P13 — la ligne d'attente nomme ce qui part : les clips de la piste\n"
+    "       de dialogue (sinon la première V1), par la même fonction pure\n"
+    "       que la pastille de coût. */\n"
+    "    var dzSs=DzTracks.subsSources(props.srcClips,props.srcTracks);\n"
+    '    setTrJob({busy:!0,step:plan?"plan "+plan.n+"…":dzSs.step,pct:0});')
+# M24b — sans plan, `src` part NUL : la route vise la piste de dialogue.
+A_M24B = "var cl=props.srcClips||null,srcRef=props.srcRef||null;"
+R_M24B = (
+    "var cl=props.srcClips||null,srcRef=null;\n"
+    "    /* P13 — sans plan, `src` part NUL : la route vise elle-même la piste\n"
+    "       de dialogue — tous ses clips porteurs d'une source, transcrits un\n"
+    "       par un, leurs mots décalés de `start − srcIn` et coupés au clip.\n"
+    "       `props.srcRef` (le premier a1, sinon le premier v1, jamais\n"
+    "       décalé) n'est plus envoyé : c'est lui qui faisait transcrire le\n"
+    "       vieux MP3 de A1 au lieu du plan (journal du 06/09/2026). */")
+# M24c — le geste par plan trie : a1 d'abord, puis `start` ; sans clip
+# porteur qui chevauche le plan, rien ne part (et c'est dit) — avant, le
+# premier a1 de TOUTE la timeline partait, contre paiement, pour rien.
+A_M24C = (
+    'var av=cl.filter(function(c){return c.src&&(c.tr==="a1"||c.tr==="v1")});\n'
+    "      if(av.length)srcRef=av[0].src}")
+R_M24C = (
+    "/* P13 — la piste de dialogue du projet d'abord (bus « dialogue », sinon\n"
+    "         a1 : le son du plan), puis v1, et au plus tôt : c'est le clip\n"
+    "         porteur que la route retrouve pour décaler les répliques. Rien\n"
+    "         qui chevauche : rien ne part, et c'est dit — avant, le premier\n"
+    "         a1 de toute la timeline partait, contre paiement, hors du plan.\n"
+    "         TOUR 1 (revue du 06/09) : le filtre suivait `a1` PAR IDENTIFIANT\n"
+    "         alors que subsSrcClips (M24j) et la route visent la piste de\n"
+    "         dialogue — sur une piste a4 de bus dialogue, le geste par plan\n"
+    "         envoyait la V1 entière et disait « Aucun clip A1 ». */\n"
+    '      var dzTd=DzTracks.dialogueTrack(props.srcTracks)||"a1",\n'
+    '          av=cl.filter(function(c){return c.src&&(c.tr===dzTd||c.tr==="v1")})\n'
+    '        .sort(function(p,q){return (p.tr===dzTd?0:1)-(q.tr===dzTd?0:1)\n'
+    "          ||subsN(p.start,0)-subsN(q.start,0)});\n"
+    "      if(!av.length){setTrJob(null);\n"
+    '        note2("Aucun clip "+dzTd.toUpperCase()+" ou V1 porteur d\'une source '
+    'ne chevauche le plan n° "+plan.n+" — rien n\'est envoyé.");return}\n'
+    "      srcRef=av[0].src}")
+# M24d — les pistes partent avec la requête : la route applique la loi du
+# rendu (`_tracks_meta`) aux clips qu'elle reçoit.
+A_M24D = ("{src:srcRef,clips:cl,\n"
+          "       lang:lang,cps:subsN(style.maxChars,42)})")
+R_M24D = ("{src:srcRef,clips:cl,\n"
+          "       /* P13 — les pistes du projet : la route y lit la piste de\n"
+          "          dialogue (même loi que le rendu). */\n"
+          "       tracks:props.srcTracks||null,\n"
+          "       lang:lang,cps:subsN(style.maxChars,42)})")
+# M24e — la pastille annonce CE QUI PART, l'infobulle nomme les sources.
+A_M24E = "var trAll=subsCostOf(trFree,subsN(props.dur,0),lang);"
+R_M24E = (
+    "/* P13 — la pastille annonce CE QUI PART : la somme des durées des clips\n"
+    "     de la piste de dialogue porteurs d'une source (sinon la première\n"
+    "     V1), par la fonction pure de la couche ; la durée du projet ne sert\n"
+    "     plus que quand rien n'est à envoyer. L'infobulle nomme les sources\n"
+    "     (libellé, nombre, secondes) avant le prix — jamais quand le geste ne\n"
+    "     peut pas partir (`ko` : aucun moteur configuré, bouton désactivé) :\n"
+    "     l'infobulle d'un geste impossible ne commence pas par « Envoyé ». */\n"
+    "  var dzSsAll=DzTracks.subsSources(props.srcClips,props.srcTracks);\n"
+    "  var trAll=subsCostOf(trFree,dzSsAll.total>0?dzSsAll.total\n"
+    "    :subsN(props.dur,0),lang);\n"
+    '  if(!trAll.free&&!trAll.ko&&dzSsAll.dit)trAll.apres=dzSsAll.dit+" "+trAll.apres;')
+# M24f — la langue « auto » en tête, et dix langues de plus. CONNAISSANCE
+# EXTERNE AU DÉPÔT, déclarée comme telle : nl, pl, ru, uk, tr, ar, ja, zh,
+# ko, hi sont des codes ISO-639-1, transmis tels quels (ElevenLabs
+# `language_code`, OpenAI `language`) — le fournisseur tranche ce qu'il
+# accepte ; rien dans le dépôt ne les valide. Le DÉFAUT reste « fr »
+# (`localStorage.getItem("dz_subs_lang")||"fr"`, intouché, 1/1 mesuré).
+A_M24F = ('var SUBS_LANGS=[["fr","français"],["en","anglais"],["es","espagnol"],\n'
+          '  ["de","allemand"],["it","italien"],["pt","portugais"]];')
+R_M24F = ('/* P13 — « auto » en TÊTE : la route transmet `None` au moteur, qui\n'
+          '   détecte lui-même (la branche `if language:` de transcribe() était\n'
+          '   morte : la route forçait « fr »). Les dix codes après « pt » sont\n'
+          '   une CONNAISSANCE EXTERNE AU DÉPÔT (ISO-639-1), transmis tels quels :\n'
+          '   le fournisseur tranche. Le défaut reste « fr ». */\n'
+          'var SUBS_LANGS=[["auto","détection par le moteur"],\n'
+          '  ["fr","français"],["en","anglais"],["es","espagnol"],\n'
+          '  ["de","allemand"],["it","italien"],["pt","portugais"],\n'
+          '  ["nl","néerlandais"],["pl","polonais"],["ru","russe"],["uk","ukrainien"],\n'
+          '  ["tr","turc"],["ar","arabe"],["ja","japonais"],["zh","chinois"],\n'
+          '  ["ko","coréen"],["hi","hindi"]];')
+# M24g — sous « auto », la détection n'a rien à contredire : « ok ».
+A_M24G = ('var etat=!det.total?"vide":det.sur?(det.code===lang?"ok":"contre")\n'
+          '        :"flou";')
+R_M24G = ('var etat=!det.total?"vide":det.sur\n'
+          '        /* P13 — « auto » n\'affirme aucune langue : la détection n\'a\n'
+          '           rien à contredire, l\'état est « ok » (la ligne dit ce qui\n'
+          '           a été lu, et sur combien de mots). */\n'
+          '        ?((lang==="auto"||det.code===lang)?"ok":"contre")\n'
+          '        :"flou";')
+# M24h — l'HÔTE passe les pistes au tiroir (`props.srcClips` ne les porte
+# pas : c'est une liste de {id,tr,src,name,start,end}, mesuré).
+A_M24H = "onPlanFlag:subsPlanFlag})}"
+R_M24H = ("onPlanFlag:subsPlanFlag,\n"
+          "      /* P13 — les pistes du projet, pour que le tiroir et la route\n"
+          "         visent la même piste de dialogue. */\n"
+          "      srcTracks:svmTracksOf(proj)})}")
+# M24i — l'HÔTE envoie `srcIn` : sans lui, la route ne peut retrancher que
+# `start` et un clip ROGNÉ à gauche verrait ses répliques décalées de
+# `srcIn` (mesuré : `subsSrcClips` n'écrivait que id/tr/src/name/start/end).
+A_M24I = "name:c.name||c.label||null,"
+R_M24I = ("name:c.name||c.label||null,\n"
+          "               /* P13 — `srcIn` : la route décale de `start − srcIn`. */\n"
+          "               srcIn:Math.round(subsNum(c.srcIn)*1e3)/1e3,")
+# M24j — l'HÔTE fait partir les clips de la piste de dialogue du projet,
+# même sous un autre identifiant que a1 : sans cela, la loi des pistes de
+# la route (`tracks`) ne verrait jamais leurs clips (mesuré : le filtre ne
+# laissait passer que a1, a3, v1).
+A_M24J = ("function subsSrcClips(cs){\n"
+          "    return ((cs||clipsRef.current)||[]).filter(function(c){\n"
+          '      return c.tr==="a1"||c.tr==="a3"||c.tr==="v1"})')
+R_M24J = ("function subsSrcClips(cs){\n"
+          "    /* P13 — la piste de dialogue du projet (bus « dialogue », sinon\n"
+          "       a1) fait partie de ce que la transcription reçoit, même sous\n"
+          "       un autre identifiant : c'est elle que la route vise. */\n"
+          "    var dzDial=DzTracks.dialogueTrack(svmTracksOf(proj));\n"
+          "    return ((cs||clipsRef.current)||[]).filter(function(c){\n"
+          '      return c.tr==="a1"||c.tr==="a3"||c.tr==="v1"||c.tr===dzDial})')
+
+# M24k / M24l / M24m — LES LIBELLÉS SOUS « AUTO » (tour 1, revue du 06/09).
+# `subsLangLab("auto")` rend l'entrée du sélecteur, « détection par le
+# moteur », que subsCostOf injectait dans des phrases écrites pour un NOM de
+# langue (« détection par le moteur · elevenlabs · … », « langue détection
+# par le moteur : … »), et la note de détection en état « ok » disait « la
+# langue lue est d'accord avec le sélecteur » alors que, sous « auto », le
+# sélecteur n'affirme rien (M24g force « ok »). Trois ancres 1/1 (bundle ET
+# .bak_montage, mesuré en octets ; M24l et M24m sur deux lignes CRLF).
+A_M24K = 'return {txt:subsLangLab(lang)+" · "+subsMoteurNom(court)+" · "+subsUsd(usd)+'
+R_M24K = ('/* P13 — sous « auto » la pastille dit « langue auto », pas l\'entrée du\n'
+          '     sélecteur (« détection par le moteur · elevenlabs · … »). */\n'
+          '  return {txt:(lang==="auto"?"langue auto":subsLangLab(lang))+" · "+'
+          'subsMoteurNom(court)+" · "+subsUsd(usd)+')
+A_M24L = ('", langue "+\n'
+          '      subsLangLab(lang)+" : "+subsUsd(usd)+" pour "+subsFr(d,1)+" s de son ("+')
+R_M24L = ('", langue "+\n'
+          '      /* P13 — sous « auto » : « détectée par le moteur ». */\n'
+          '      (lang==="auto"?"détectée par le moteur":subsLangLab(lang))+" : "+'
+          'subsUsd(usd)+" pour "+subsFr(d,1)+" s de son ("+')
+A_M24M = ('title:etat==="ok"\n'
+          '          ?"La langue lue sur le contenu est d\'accord avec le sélecteur : "+')
+R_M24M = ('title:etat==="ok"\n'
+          '          /* P13 — sous « auto » le sélecteur n\'affirme rien : la ligne dit\n'
+          '             ce que le moteur fera, et ce que le contenu a montré. */\n'
+          '          ?(lang==="auto"?"Sous « auto » le moteur détecte lui-même la langue ; '
+          'lue sur le contenu : "\n'
+          '            :"La langue lue sur le contenu est d\'accord avec le sélecteur : ")+')
+
+# ══ P14 — DEUX SORTES DE PISTES VIDÉO, ET V3 N'EST PLUS UN FANTÔME ═════════
+#
+# LE DÉFAUT, MESURÉ (06/09/2026, en octets, bundle ET .bak_montage). Le seul
+# geste vivant qui ajoute une piste vidéo (« vidéo » du groupe PISTES de la
+# barre flottante) fabriquait `v`+n libre habillé « overlay » — et le rendu
+# traite TOUTE piste vidéo ≠ v1 en incrustation (montage_service
+# `_tracks_meta`, `kind == "video" and tid != "v1"`). Mais l'écran, lui,
+# codait « v2 » EN DUR : NEUF portes (`"v2"` dans le code de l'écran, hors
+# démo `svmDemoClips`, table `SVM_TRACKS` et greffon libsend) et QUATRE
+# verrous de piste (`trackStRef.current.v2`, 8 occurrences = 4 sites × 2).
+# Le plan n'en nommait que quatre (aperçu, payload, inspecteur, losanges) ;
+# les cinq autres — alignement 3×3 (`svmOvAlign`), « ◇ position ici »
+# (`svmMpHere`), poignées du lecteur (`ovHandleDown`), flèches (`ovArrow`)
+# et Échap (`ovEsc`) du clavier — auraient laissé à V3 un inspecteur dont
+# aucun champ n'écrit et un cadre qu'aucune poignée ne saisit. Dès que V2
+# existait, « vidéo » créait v3, et un clip posé dessus était un FANTÔME :
+# invisible dans l'aperçu, sans inspecteur, parti cover plein cadre au
+# rendu. La sauvegarde de l'utilisateur porte tracks [v3, v2, v1, a1, a2,
+# a3, s1] — c'est exactement cette piste.
+#
+# LA RÈGLE, ÉCRITE UNE FOIS : `DzTracks.isOverlayTrack(trId, tracks)` —
+# « piste de genre vidéo autre que v1 », le genre lu dans les pistes du
+# projet (`dzTracksRef.current`, la ref de M16ref relue à chaque rendu) et
+# sinon dans l'initiale de l'identifiant, comme `trackKind` du bundle. Les
+# treize sites la lisent ; aucun ne garde « v2 ».
+#
+# LE VERROU SUIT LA PISTE : `trackStRef.current[k.tr]` au lieu de `.v2` —
+# c'est la forme que R_M22A emploie déjà pour la piste de dialogue
+# (`trackStRef.current[t]&&trackStRef.current[t].l`).
+#
+# L'ORDRE D'EMPILEMENT DE L'APERÇU (M25a/M25b). Mesuré : `ov` reçoit ses
+# enfants par `appendChild` dans l'ordre de `Object.keys(act)` — l'ordre des
+# CLIPS — et un enfant déjà là n'est jamais déplacé ; deux pistes
+# d'incrustation se superposaient donc au hasard, quand le rendu compose la
+# piste listée le plus haut AU-DESSUS (`layer` = `reversed(ov)`,
+# montage_service 204-207). `DzTracks.overlayOrder` rend l'ordre d'ajout au
+# DOM (le plus bas d'abord) ; la boucle le suit, et REMET EN QUEUE un enfant
+# déjà là quand l'ordre a changé (`appendChild` déplace sans recréer :
+# observateur et gestionnaires conservés). GARDE DE SIGNATURE, comme
+# `_svmTfSig` juste en dessous : `ov._dzOrdSig` mémorise l'ordre ; tant que
+# l'ensemble actif et son ordre ne bougent pas, AUCUNE écriture DOM. Un
+# enfant CRÉÉ pendant la boucle force la remise en queue de ceux qui le
+# suivent (`dzReord=!0`) : il est né en fin de liste, ceux d'au-dessus
+# doivent repasser après lui.
+#
+# CE QUE LE MONTAGE ACTUEL DE L'UTILISATEUR DEVIENT : sa piste v3 (habillée
+# « overlay » à la restauration, le payload n'a pas de type) devient VISIBLE
+# dans l'aperçu, avec inspecteur, poignées, clavier ; ses clips éventuels y
+# restent des incrustations, et le rendu ne change pas d'un octet.
+#
+# ANCRES : chacune vaut EXACTEMENT 1 dans le bundle ET dans .bak_montage,
+# mesurée en octets (CRLF) le 06/09/2026 ; `if(!c||c.tr!=="v2"||!c.src)return;`
+# vaut DEUX (svmOvAlign, svmMpHere), d'où les ancres à trois lignes qui
+# nomment la fonction. Aucune ne tombe dans le bloc `defaultLen…sfxInsert`
+# que le harnais [3-bis] exécute (918872–928557 ; la plus proche, le
+# payload, est à 937723 — mesuré).
+A_M25A = ('      if(k.tr==="v2"&&k.src&&(k.src.job_id||k.src.image)'
+          '&&k.start<=t&&t<k.end)act[k.id]=k});')
+R_M25A = (
+    "      if(DzTracks.isOverlayTrack(k.tr,dzTracksRef.current)&&k.src&&"
+    "(k.src.job_id||k.src.image)&&k.start<=t&&t<k.end)act[k.id]=k});\n"
+    "    /* P14 — l'ORDRE d'empilement suit l'ordre des pistes (la plus haute\n"
+    "       listée au-dessus, même loi que `layer` au rendu) : `dzOrd` est\n"
+    "       l'ordre d'ajout au DOM, le plus bas d'abord ; `dzReord` ne vaut\n"
+    "       vrai que si l'ensemble actif ou son ordre a changé — sinon aucune\n"
+    "       écriture DOM, comme la garde de signature de la transformation. */\n"
+    "    var dzOrd=DzTracks.overlayOrder(Object.keys(act),cs,dzTracksRef.current),\n"
+    '        dzOrdSig=dzOrd.join("|"),dzReord=ov._dzOrdSig!==dzOrdSig;\n'
+    "    ov._dzOrdSig=dzOrdSig;")
+A_M25B = ('    Object.keys(act).forEach(function(id){\n'
+          '      var k=act[id],el=null;\n'
+          '      for(var i2=0;i2<ov.children.length;i2++){\n'
+          '        if(ov.children[i2]._svmId===id){el=ov.children[i2];break}}\n'
+          '      if(!el){var it2=livePoolGet(k.src,"o");el=it2.el;\n'
+          '        el._svmId=id;el._svmKey=livePoolKey(k.src,"o");ov.appendChild(el);\n'
+          '        if(tfRoRef.current)tfRoRef.current.observe(el)}')
+R_M25B = (
+    "    dzOrd.forEach(function(id){\n"
+    "      var k=act[id],el=null;\n"
+    "      for(var i2=0;i2<ov.children.length;i2++){\n"
+    "        if(ov.children[i2]._svmId===id){el=ov.children[i2];break}}\n"
+    '      if(!el){var it2=livePoolGet(k.src,"o");el=it2.el;\n'
+    '        el._svmId=id;el._svmKey=livePoolKey(k.src,"o");ov.appendChild(el);\n'
+    "        if(tfRoRef.current)tfRoRef.current.observe(el);dzReord=!0}\n"
+    "      /* P14 — un enfant déjà là est REMIS EN QUEUE quand l'ordre a\n"
+    "         changé : appendChild déplace sans recréer ; rien n'est touché\n"
+    "         quand `dzReord` est faux. */\n"
+    "      else if(dzReord)ov.appendChild(el);")
+A_M25C = '        if(c.tr==="v2"){'
+R_M25C = '        if(DzTracks.isOverlayTrack(c.tr,dzTracksRef.current)){'
+A_M25D = '    if(!sel||sel.tr!=="v2"||!sel.src)return null;'
+R_M25D = ('    if(!sel||!DzTracks.isOverlayTrack(sel.tr,dzTracksRef.current)'
+          '||!sel.src)return null;')
+A_M25E = 'tr.id==="v2"?(svmMpOf(c)||[]).map(function(p,pi){'
+R_M25E = ('DzTracks.isOverlayTrack(tr.id,dzTracksRef.current)'
+          '?(svmMpOf(c)||[]).map(function(p,pi){')
+# Les quatre verrous : ovOvDown (sélection seule), ovOvDbl, ovHandleDown,
+# ovArrow. `k`/`c` est le clip lu deux lignes plus haut dans chaque site.
+A_M25F = ('    if(trackStRef.current.v2&&trackStRef.current.v2.l)return; '
+          '/* verrou : sélection seule */')
+R_M25F = ('    if(trackStRef.current[k.tr]&&trackStRef.current[k.tr].l)return; '
+          '/* verrou : sélection seule */')
+A_M25G = ('    if(!k||(!svmOvTfOf(k)&&!svmMpOf(k)))return;\n'
+          '    if(trackStRef.current.v2&&trackStRef.current.v2.l)return;')
+R_M25G = ('    if(!k||(!svmOvTfOf(k)&&!svmMpOf(k)))return;\n'
+          '    if(trackStRef.current[k.tr]&&trackStRef.current[k.tr].l)return;')
+A_M25H = ('    if(!k||k.tr!=="v2"||!k.src)return;\n'
+          '    if(trackStRef.current.v2&&trackStRef.current.v2.l)return;\n'
+          '    if(e.button!==0)return;')
+R_M25H = ('    if(!k||!DzTracks.isOverlayTrack(k.tr,dzTracksRef.current)||!k.src)return;\n'
+          '    if(trackStRef.current[k.tr]&&trackStRef.current[k.tr].l)return;\n'
+          '    if(e.button!==0)return;')
+A_M25I = ('  function svmOvAlign(gx,gy){\n'
+          '    var c=clipsRef.current.find(function(k){return k.id===selRef.current});\n'
+          '    if(!c||c.tr!=="v2"||!c.src)return;')
+R_M25I = ('  function svmOvAlign(gx,gy){\n'
+          '    var c=clipsRef.current.find(function(k){return k.id===selRef.current});\n'
+          '    if(!c||!DzTracks.isOverlayTrack(c.tr,dzTracksRef.current)||!c.src)return;')
+A_M25J = ('  function svmMpHere(){\n'
+          '    var c=clipsRef.current.find(function(k){return k.id===selRef.current});\n'
+          '    if(!c||c.tr!=="v2"||!c.src)return;')
+R_M25J = ('  function svmMpHere(){\n'
+          '    var c=clipsRef.current.find(function(k){return k.id===selRef.current});\n'
+          '    if(!c||!DzTracks.isOverlayTrack(c.tr,dzTracksRef.current)||!c.src)return;')
+A_M25K = ('      if(!c||c.tr!=="v2"||!c.src)return !1;\n'
+          '      if(ovKeysOffRef.current)return !1;\n'
+          '      if(trackStRef.current.v2&&trackStRef.current.v2.l)return !1;')
+R_M25K = ('      if(!c||!DzTracks.isOverlayTrack(c.tr,dzTracksRef.current)||!c.src)return !1;\n'
+          '      if(ovKeysOffRef.current)return !1;\n'
+          '      if(trackStRef.current[c.tr]&&trackStRef.current[c.tr].l)return !1;')
+A_M25L = '      if(!c||c.tr!=="v2"||!c.src||ovKeysOffRef.current)return !1;'
+R_M25L = ('      if(!c||!DzTracks.isOverlayTrack(c.tr,dzTracksRef.current)'
+          '||!c.src||ovKeysOffRef.current)return !1;')
+
+
+# ══ P16 — TRADUIRE LES RÉPLIQUES (06/09/2026, tâche 22) ═════════════════════
+#
+# LE MANQUE, MESURÉ : aucune route ni aucun geste de traduction de
+# sous-titres n'existait dans l'application (le seul `translate_video` du
+# dépôt est HeyGen, jamais appelé) — remontée de l'utilisateur : « … ne
+# serait-ce que pour pouvoir la traduire ». Le serveur gagne
+# POST /api/subtitles/translate et GET /api/subtitles/translate/estimate
+# (routes.py, service subs_translate_service — contrat strict « N lignes
+# numérotées », 400 si le compte diffère, temps conservés) ; l'écran gagne,
+# dans la rangée `.sub-trrow` de l'onglet Répliques, une langue CIBLE
+# (« vers », mêmes langues que SUBS_LANGS SANS « auto » — on traduit VERS
+# une langue nommée) et un bouton « Traduire vers … » avec pastille de coût.
+#
+# DEUX sections sur le bloc subs inliné (subs.js INTOUCHABLE — même règle
+# que M24) : M26a pose l'état (cible `dz_subs_to`, défaut « en » quand la
+# transcription est « fr » — subsTrDefaut de la couche), l'estimation (GET
+# /translate/estimate, re-demandée à 400 ms de battement quand le texte ou
+# la cible change — une petite fonction dédiée, PAS une copie de SUBS_EST)
+# et le geste (dzTraduire) ; M26b pose le sélecteur et le bouton. Le cœur
+# calculable (corps de la requête, droit de partir, libellés, fusion du
+# résultat) vit dans la couche (DzTracks.subsTr*), joué sous node par le
+# banc bundle.
+#
+# LE GESTE EMPLOIE fetch DIRECT plutôt que subsPost, et c'est MESURÉ :
+# subsJson jette « réponse non JSON » sur tout `!res.ok` et PERDRAIT la
+# raison du 400/502 que la route écrit — ici elle est LUE dans le corps
+# JSON de l'erreur puis AFFICHÉE (« Traduction refusée (400) : la
+# traduction a rendu 2 lignes sur 3 … »).
+#
+# CE QU'« ANNULER » FAIT, MESURÉ : l'application passe par
+# props.onChange(next,!0) → subsCommit de l'hôte, `heavy` vrai → UN
+# pushHistory() AVANT l'écriture — un « Annuler » de la timeline restaure
+# les répliques d'avant ; S1 verrouillée, subsCommit refuse et le dit,
+# rien n'est écrit. L'infobulle du bouton (subsTrTitle, couche) écrit
+# cette vérité mot pour mot.
+#
+# Ancres mesurées le 06/09 (en octets, CRLF) : chacune 1/1 dans le bundle
+# ET dans .bak_montage ; A_M26B est multiligne (0 en LF, 1 en CRLF).
+# Les noms neufs (dzTo, dzTe, dzTrN, dzTrChars, dzTraduire, dz_subs_to,
+# subsTr*) étaient 0/0 des deux côtés EN RECHERCHE BORNÉE (… —
+# mesuré : `dzTo` et `subsTr` NUS apparaissent dans des identifiants
+# plus longs du bundle, 12 et 3 fois ; le banc borne donc lui aussi). Aucune des deux ancres ne tombe dans
+# le bloc `defaultLen…sfxInsert` que le harnais [3-bis] exécute. AUCUN
+# confirm() : la pastille et l'infobulle sont la convention du dépôt.
+# M26a — l'état, l'estimation, le geste (juste après les hooks du tiroir,
+# `segs`/`lang`/`trJob` déjà déclarés, AVANT le `if(!open)return null`).
+A_M26A = "  x.useEffect(function(){if(open)subsProbe()},[open]);"
+R_M26A = (
+    "  x.useEffect(function(){if(open)subsProbe()},[open]);\n"
+    "  /* P16 — LA CIBLE et le COÛT de la traduction, puis le geste. */\n"
+    "  var s9=x.useState(function(){\n"
+    '    try{var dzV=localStorage.getItem("dz_subs_to");if(dzV)return dzV}catch(_e){}\n'
+    "    return DzTracks.subsTrDefaut(lang)}),dzTo=s9[0],setDzTo=s9[1];\n"
+    '  var s9b=x.useState({st:"?"}),dzTe=s9b[0],setDzTe=s9b[1];\n'
+    "  var dzTrN=segs.length,\n"
+    '      dzTrChars=segs.reduce(function(a,sg){return a+String(sg.text||"").length},0);\n'
+    "  x.useEffect(function(){\n"
+    '    if(!open||!dzTrN){setDzTe({st:"vide"});return}\n'
+    "    var dzKill=setTimeout(function(){\n"
+    '      subsJson("/api/subtitles/translate/estimate?chars="+dzTrChars+\n'
+    '        "&target="+encodeURIComponent(dzTo)).then(function(a){\n'
+    '        setDzTe(a&&a.ok?{st:"ok",ok:!0,usd:subsN(a.usd,0),\n'
+    '            provider:String(a.provider||"")}\n'
+    '          :{st:"none",reason:String((a&&a.reason)||\n'
+    '            "Aucune clé LLM configurée (Réglages).")})},\n'
+    '      function(){setDzTe({st:"down",reason:"Le backend ne répond pas : "+\n'
+    "        \"le coût ne peut pas être annoncé, donc rien n'est lancé.\"})})},400);\n"
+    "    return function(){clearTimeout(dzKill)}},[open,dzTrN,dzTrChars,dzTo]);\n"
+    "  function dzTraduire(){\n"
+    "    var dzBody=DzTracks.subsTrBody(segs,dzTo,lang);\n"
+    "    if(!dzBody||(trJob&&trJob.busy))return;\n"
+    '    setTrJob({busy:!0,step:"traduction de "+subsPl(dzTrN,"réplique")+\n'
+    '      " vers "+subsLangLab(dzTo)+"…",pct:0});\n'
+    "    /* fetch DIRECT : subsPost jette « réponse non JSON » sur tout\n"
+    "       !res.ok (mesuré) et perdrait la raison du 400/502 que la route\n"
+    "       écrit — ici elle est lue puis affichée. */\n"
+    '    fetch("/api/subtitles/translate",{method:"POST",\n'
+    '      headers:{"Content-Type":"application/json"},\n'
+    "      body:JSON.stringify(dzBody)})\n"
+    "      .then(function(res){return res.json().then(\n"
+    "        function(dd){return {res:res,d:dd}},\n"
+    "        function(){return {res:res,d:null}})})\n"
+    "      .then(function(o){\n"
+    "        setTrJob(null);\n"
+    "        if(!o.res.ok){\n"
+    '          note2("Traduction refusée ("+o.res.status+") : "+\n'
+    '            String((o.d&&o.d.detail)||"raison non fournie"));return}\n'
+    "        var dzNext=DzTracks.subsTrApply(segs,(o.d&&o.d.segments)||[],subsLabelOf);\n"
+    '        if(!dzNext){note2("Réponse illisible : le compte des répliques "+\n'
+    "          \"ne correspond pas — rien n'a été écrit.\");return}\n"
+    "        if(props.onChange)props.onChange(dzNext,!0);\n"
+    "        note2(DzTracks.subsTrNote(dzNext.length,dzTo,SUBS_LANGS))},\n"
+    "      function(){setTrJob(null);\n"
+    '        note2("Traduction indisponible : POST /api/subtitles/translate "+\n'
+    '          "ne répond pas — le backend est-il lancé ?")})}')
+# M26b — le sélecteur « vers » et le bouton, dans la rangée `.sub-trrow`,
+# juste après le sélecteur de langue de la transcription. Les classes
+# `.sub-trlang`/`.sub-sel` sont RÉUTILISÉES : aucune règle CSS neuve
+# (mesuré : .sub-trrow porte flex-wrap:wrap, subs.css — la rangée replie
+# ses enfants toute seule).
+A_M26B = ('          children:SUBS_LANGS.map(function(o){\n'
+          '            return r.jsx("option",{value:o[0],children:o[1]},o[0])})},"s")]},"lg"),')
+R_M26B = (
+    "          children:SUBS_LANGS.map(function(o){\n"
+    '            return r.jsx("option",{value:o[0],children:o[1]},o[0])})},"s")]},"lg"),\n'
+    "      /* P16 — TRADUIRE : la cible (sans « auto » — on traduit VERS une\n"
+    "         langue nommée), puis le bouton qui dit ce qu'il remplace, son\n"
+    "         prix, et ce qu'« Annuler » fait (mesuré — subsTrTitle). */\n"
+    '      r.jsxs("label",{className:"sub-trlang",children:[\n'
+    '        r.jsx("span",{className:"sub-trlangl",children:"vers"},"l"),\n'
+    '        r.jsx("select",{className:"sub-sel",value:dzTo,\n'
+    '          "aria-label":"Langue cible de la traduction",\n'
+    '          title:"Langue vers laquelle « Traduire » réécrit le texte des "+\n'
+    '            "répliques. Leurs temps ne bougent pas.",\n'
+    "          onChange:function(e){var dzV=e.target.value;setDzTo(dzV);\n"
+    '            try{localStorage.setItem("dz_subs_to",dzV)}catch(_e){}},\n'
+    '          children:SUBS_LANGS.filter(function(o){return o[0]!=="auto"})\n'
+    "            .map(function(o){\n"
+    '              return r.jsx("option",{value:o[0],children:o[1]},o[0])})},"s")]},"tg"),\n'
+    "      (function(){\n"
+    "        var dzOn=DzTracks.subsTrEnabled(dzTrN,dzTe,!!(trJob&&trJob.busy));\n"
+    '        return subsActBtn({fam:"fix",\n'
+    "          label:DzTracks.subsTrLabel(dzTo,SUBS_LANGS),\n"
+    '          but:"traduire les répliques",quiet:!0,disabled:!dzOn.on,\n'
+    '          cost:trJob&&trJob.busy?"en cours…":dzTe.ok\n'
+    '            ?subsLangLab(dzTo)+" · "+(dzTe.provider||"LLM")+" · "+subsUsd(dzTe.usd)\n'
+    '            :(dzTe.st==="vide"?"aucune réplique":"coût indisponible"),\n'
+    "          apres:dzOn.on?DzTracks.subsTrTitle(dzTrN):dzOn.pourquoi,\n"
+    '          onClick:dzTraduire,k:"trad"})})(),')
+
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
            ("M5-payload", A_M5, R_M5), ("M6-save", A_M6, R_M6),
            ("M7-apply", A_M7, R_M7), ("M8-toolbar", A_M8, R_M8),
            ("M9a-head-audio", A_M9a, R_M9a), ("M9b-head-video", A_M9b, R_M9b),
+           ("M9c-plus-hors-surimpression", A_M9c, R_M9c),
            ("M11-text-state", A_M11, R_M11), ("M12-text-panel", A_M12, R_M12),
            ("M13-grade-all", A_M13, R_M13),
            ("M16ref-tracks-ref", A_M16REF, R_M16REF),
@@ -1382,7 +2289,63 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M17f-relachement-ajuste", A_M17F, R_M17F),
            ("M17g-transport-duree", A_M17G, R_M17G),
            # P11 — un clip entre à la longueur de sa source.
-           ("M18a-plafond-source", A_M18A, R_M18A)]
+           ("M18a-plafond-source", A_M18A, R_M18A),
+           # Étape 4 du handoff « Barre Outils Flottante ».
+           ("M19-barre-outils", A_M19, R_M19),
+           # Étape 8 du handoff : le raccourci (§4.1) et le nom accessible
+           # des chips dégradées (§4.5).
+           ("M20a-raccourci-action", A_M20A, R_M20A),
+           ("M20b-raccourci-dispatch", A_M20B, R_M20B),
+           ("M21-chips-nom-accessible", A_M21, R_M21),
+           # P12 — le son d'un plan suit sa vidéo. M22a/M22b vivent dans
+           # addAsset APRÈS la sonde que R_M17A porte ; M22c dans
+           # svmApplyProject ; M23 dans l'inspecteur, AVANT l'ancre que
+           # R_M12 reprend en tête (l'ordre n'y change rien, mesuré).
+           ("M22a-jumeau-decide", A_M22A, R_M22A),
+           ("M22b-jumeau-ecrit", A_M22B, R_M22B),
+           ("M22c-ids-uniques", A_M22C, R_M22C),
+           ("M22d-reparation-persistee", A_M22D, R_M22D),
+           ("M23-extraire-le-son", A_M23, R_M23),
+           # P13 — la transcription vise la piste de dialogue. M24a…M24g sur
+           # le bloc subs inliné (subs.js intouchable : porté EN AVAL), M24h…
+           # M24j sur l'hôte. Aucune de ces ancres n'est touchée par une
+           # section antérieure (1/1 dans le bundle patché ET dans le .bak).
+           ("M24a-step-nomme-la-source", A_M24A, R_M24A),
+           ("M24b-src-nul-sans-plan", A_M24B, R_M24B),
+           ("M24c-plan-trie-a1-puis-start", A_M24C, R_M24C),
+           ("M24d-tracks-partent", A_M24D, R_M24D),
+           ("M24e-pastille-somme-des-clips", A_M24E, R_M24E),
+           ("M24f-langue-auto-et-liste", A_M24F, R_M24F),
+           ("M24g-auto-jamais-contre", A_M24G, R_M24G),
+           ("M24h-hote-passe-les-pistes", A_M24H, R_M24H),
+           ("M24i-hote-envoie-srcin", A_M24I, R_M24I),
+           ("M24j-hote-clips-de-dialogue", A_M24J, R_M24J),
+           # Tour 1 (revue du 06/09) : les libellés sous « auto », bloc subs.
+           ("M24k-pastille-langue-auto", A_M24K, R_M24K),
+           ("M24l-infobulle-langue-auto", A_M24L, R_M24L),
+           ("M24m-note-detection-sous-auto", A_M24M, R_M24M),
+           # P14 — deux sortes de pistes vidéo : les treize sites « v2 » de
+           # l'écran lisent la règle du rendu (isOverlayTrack), l'aperçu
+           # empile dans l'ordre des pistes (overlayOrder), le verrou suit la
+           # piste. Aucune de ces ancres n'est touchée par une section
+           # antérieure (1/1 dans le bundle patché ET dans le .bak).
+           ("M25a-apercu-regle-et-ordre", A_M25A, R_M25A),
+           ("M25b-apercu-empile-dans-l-ordre", A_M25B, R_M25B),
+           ("M25c-payload-transformation", A_M25C, R_M25C),
+           ("M25d-inspecteur-overlay", A_M25D, R_M25D),
+           ("M25e-losanges-de-trajectoire", A_M25E, R_M25E),
+           ("M25f-verrou-saisie", A_M25F, R_M25F),
+           ("M25g-verrou-double-clic", A_M25G, R_M25G),
+           ("M25h-poignees-du-lecteur", A_M25H, R_M25H),
+           ("M25i-alignement-3x3", A_M25I, R_M25I),
+           ("M25j-position-ici", A_M25J, R_M25J),
+           ("M25k-fleches-du-clavier", A_M25K, R_M25K),
+           ("M25l-echap-du-clavier", A_M25L, R_M25L),
+           # P16 — traduire les répliques : l'état/le geste puis
+           # la rangée. Aucune de ces ancres n'est touchée par une
+           # section antérieure (1/1 dans le bundle patché ET le .bak).
+           ("M26a-traduction-etat-et-geste", A_M26A, R_M26A),
+           ("M26b-traduction-rangee", A_M26B, R_M26B)]
 
 
 def nl(text, crlf):

@@ -2269,7 +2269,12 @@ def test_les_maillons_voisins_de_la_chaine_Bibliotheque_gardent_leurs_comptes():
     attendus = {
         "__dzLibPicker": 10, "__dzSrcChips": 2, "__dzSendTo": 2,
         "__dzPrint3d": 3, "__dzToSpriteLab": 5, "__dzQuickStart": 3,
-        "__dzMontageAdd": 4, "deepotus:select-post": 6,
+        # __dzMontageAdd : 4 -> 5 le 05/09/2026 (chantier montage, P7) —
+        # la couche montage.js cite le jeton dans un COMMENTAIRE (« le
+        # greffon amont, lui, ne tire qu'une fois ») ; str.count est
+        # global, le commentaire compte. Mesure du 06/09 : 2 poses menu
+        # + 1 commentaire + lecture + delete = 5.
+        "__dzMontageAdd": 5, "deepotus:select-post": 6,
         "dz_nav_collapsed": 2, "__dzCatBar": 2,
     }
     for jeton, combien in attendus.items():

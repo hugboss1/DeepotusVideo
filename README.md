@@ -1,4 +1,4 @@
-# 🐙 Deepotus Video Gen — v2.6.0
+# 🐙 Deepotus Video Gen — v2.7.0
 
 Local Windows studio for generating 9:16 crypto/Web3 videos — Seedance clips,
 HeyGen talking avatars, spatial compositions, and RSS→reel news posts — with a

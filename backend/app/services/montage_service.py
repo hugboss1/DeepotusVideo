@@ -2963,6 +2963,61 @@ async def montage_duration(request: Request, src: str = ""):
     return {"ok": True, "dur": round(float(dur or 0.0), 3), "name": p.name}
 
 
+@router.get("/has-audio")
+async def montage_has_audio(request: Request, src: str = ""):
+    """« Cette source porte-t-elle un flux audio ? » — `{ok, has_audio, name, dur}`.
+
+    P12 — LA MOITIÉ BACKEND DE « le son d'un plan suit sa vidéo ». Le rendu
+    n'entre JAMAIS l'audio embarqué d'un clip vidéo dans le graphe (`[idx:v]`
+    seul, cf. `_run`) : sans clip jumeau sur la piste de dialogue, un plan
+    parlant sort muet. La construction automatique (`montage_project`) pose
+    ce jumeau depuis `_has_audio_stream` — mais AUCUNE route ne disait à
+    l'écran « cette source a du son », et `addAsset` (sept portes) posait un
+    clip vidéo et rien d'autre. MESURÉ le 06/09/2026 : `/duration` rend
+    `{ok, dur, name}` (format=duration, pas de flux), `/media-rules` rend
+    `{video_exts}`, `/peaks` est un décodage ffmpeg complet qui rend 415 sur
+    une vidéo muette — pas une sonde. `_has_audio_stream` n'était exposée par
+    rien.
+
+    RIEN N'EST RECOPIÉ, c'est le motif de `/duration` : `_media_source`
+    (résolution, garde de boucle locale, 404), `_has_audio_stream` (LA
+    fonction que la construction de timeline et le rendu appellent déjà) et
+    `_probe_duration` — la durée est rendue EN PRIME, parce qu'une seule
+    sonde suffit aux deux besoins de l'écran (le verdict et la longueur du
+    clip) et que l'appelant n'a alors qu'un aller-retour à attendre.
+
+    `video=False`, COMME `/duration` : la question a un sens pour un son
+    (qui a un flux audio) comme pour une vidéo ; une image répond `false`
+    (aucun flux `a`) et `dur: 0`, ce qui est la vérité. Une source RÉSOLUE
+    mais non sondable (ffprobe absent, fichier tronqué) rend 200 et
+    `has_audio: false` — `_has_audio_stream` retombe sur `False` — et non
+    une erreur : elle existe, c'est son contenu qu'on ignore. L'écran
+    distingue les deux par `dur` (0 = rien n'a été mesuré) et le dit :
+    `twinPlan` et `extract` (montage.js) sortent « non-sondable » — « la
+    source n'a pas pu être sondée (aucune durée mesurable : fichier vide ou
+    illisible) » — et non « muet ». Ce n'est pas un cas d'école : le
+    « demo complete videogen brute.mp4 » (job f331277e) de la sauvegarde de
+    l'utilisateur fait 0 octet sur disque (mesuré le 06/09/2026, base en
+    copie `mode=ro`), et `route_has_audio_un_fichier_vide_repond_faux_et_
+    zero_sans_echouer` ([7-bis] de test_montage_media.py) tient ce cas ici.
+
+    Les deux sondes tournent EN PARALLÈLE (`asyncio.gather` sur deux
+    `to_thread`) : deux ffprobe, ≈ 40–65 ms CHACUNE — chronométrées
+    ELLES-MÊMES le 06/09/2026 (time.perf_counter autour du subprocess.run,
+    quatre envois réels de l'utilisateur × trois passes, ffprobe 8.1.1) :
+    `select_streams a` 39–63 ms, `format=duration` 39–62 ms sur les mêmes
+    fichiers, le fichier de 0 octet le plus rapide (≈ 40 ms), le
+    kapwing_sample (8 Mo) le plus lent (≈ 62 ms). La boucle d'événements
+    n'attend ni l'une ni l'autre. Pas de cache ici, pour la raison dite
+    dans la docstring de `/duration` ; le cache vit côté écran (un même
+    fichier posé deux fois n'est sondé qu'une fois)."""
+    p = await _media_source(request, src, video=False)
+    has, dur = await asyncio.gather(asyncio.to_thread(_has_audio_stream, p),
+                                    asyncio.to_thread(_probe_duration, p))
+    return {"ok": True, "has_audio": bool(has), "name": p.name,
+            "dur": round(float(dur or 0.0), 3)}
+
+
 @router.get("/peaks")
 async def montage_peaks(request: Request, src: str = "", bins: int = 300):
     """L'enveloppe d'onde de `src`, servie depuis le cache (JSON).

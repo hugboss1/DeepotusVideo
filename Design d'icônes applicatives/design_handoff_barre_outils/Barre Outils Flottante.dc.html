@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0a0c0f;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;color:#cfd6dd}
+a{color:#e6b23c}a:hover{color:#f3cd77}
+button{font:inherit;font-family:inherit;color:inherit;background:none;border:0;padding:0;white-space:nowrap}
+.ob{display:flex;flex-direction:column;align-items:center;gap:6px;width:60px;padding:7px 0 6px;cursor:pointer;border:1px solid transparent;transition:background .14s ease,border-color .14s ease}
+.ob:hover{background:#181d23;border-color:#20262d}
+.ol{display:var(--lbl,block);font:400 9.5px 'IBM Plex Mono',monospace;color:#8b959f;letter-spacing:.01em}
+.oi{width:var(--isz,18px);height:var(--isz,18px);display:block}
+.gh{display:flex;align-items:center;gap:6px;font:500 8.5px 'IBM Plex Mono',monospace;letter-spacing:.14em;padding:0 4px 7px}
+.fb{display:flex;align-items:center;gap:6px;height:26px;padding:0 9px;font-size:11px;color:#cfd6dd;cursor:pointer;border:1px solid #20262d;background:#171c22}
+.fb:hover{background:#1e242b}
+.mono{font-family:'IBM Plex Mono',monospace}
+</style></helmet>
+
+<svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true">
+<symbol id="i-tv" viewBox="0 0 24 24"><rect x="2.6" y="4.2" width="18.8" height="5.6" opacity=".34"></rect><rect x="2.6" y="11.6" width="10.4" height="5.6"></rect><path d="M17 12.6h1.9V15h2.4v1.9h-2.4v2.4H17v-2.4h-2.4V15H17z"></path></symbol>
+<symbol id="i-ta" viewBox="0 0 24 24"><rect x="2.6" y="10.2" width="2.2" height="3.6" opacity=".45"></rect><rect x="6.2" y="6.6" width="2.2" height="10.8"></rect><rect x="9.8" y="8.8" width="2.2" height="6.4"></rect><rect x="13.4" y="4.6" width="2.2" height="15" opacity=".45"></rect><path d="M17.6 12.6h1.9V15h2.4v1.9h-2.4v2.4h-1.9v-2.4h-2.4V15h2.4z"></path></symbol>
+<symbol id="i-lib" viewBox="0 0 24 24"><path d="M12 2.8 21 7.2 12 11.6 3 7.2z"></path><path d="M12 13.6 4.6 10l-1.6.8L12 15.2l9-4.4-1.6-.8zM12 18.2 4.6 14.6l-1.6.8L12 19.8l9-4.4-1.6-.8z" opacity=".42"></path></symbol>
+<symbol id="i-coul" viewBox="0 0 24 24"><rect x="2.8" y="7.4" width="18.4" height="6.2" opacity=".34"></rect><rect x="2.8" y="7.4" width="8.8" height="6.2"></rect><rect x="2.8" y="16.4" width="4.8" height="3.6"></rect><rect x="9.6" y="16.4" width="4.8" height="3.6" opacity=".5"></rect><rect x="16.4" y="16.4" width="4.8" height="3.6" opacity=".34"></rect></symbol>
+<symbol id="i-reb" viewBox="0 0 24 24"><rect x="2.8" y="16.8" width="18.4" height="4.2" opacity=".34"></rect><rect x="3.2" y="8.6" width="4.6" height="4.6"></rect><rect x="9.7" y="3.4" width="4.6" height="4.6"></rect><rect x="16.2" y="8.6" width="4.6" height="4.6" opacity=".55"></rect></symbol>
+<symbol id="i-glow" viewBox="0 0 24 24"><rect x="6.6" y="9.4" width="10.8" height="5.2"></rect><rect x="11.2" y="2.2" width="1.6" height="4.2" opacity=".45"></rect><rect x="11.2" y="17.6" width="1.6" height="4.2" opacity=".45"></rect><rect x="2.2" y="11.2" width="4.2" height="1.6" opacity=".45"></rect><rect x="17.6" y="11.2" width="4.2" height="1.6" opacity=".45"></rect></symbol>
+<symbol id="i-emo" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" opacity=".3"></rect><rect x="7.4" y="7.6" width="2.8" height="3.6"></rect><rect x="13.8" y="7.6" width="2.8" height="3.6"></rect><rect x="7.4" y="14.2" width="9.2" height="2.6"></rect></symbol>
+<symbol id="i-txt" viewBox="0 0 24 24"><rect x="3.4" y="3.8" width="17.2" height="3.4"></rect><rect x="10.3" y="7.2" width="3.4" height="11.6"></rect><rect x="5.2" y="20.2" width="13.6" height="1.8" opacity=".34"></rect></symbol>
+<symbol id="i-proj" viewBox="0 0 24 24"><rect x="6" y="3" width="15.4" height="11.6" opacity=".3"></rect><path d="M2.6 6.2h6.2l1.7 2.1h11.1v12.5H2.6z"></path></symbol>
+<symbol id="i-grip" viewBox="0 0 24 24"><rect x="8" y="4" width="2.6" height="2.6"></rect><rect x="13.4" y="4" width="2.6" height="2.6"></rect><rect x="8" y="10.7" width="2.6" height="2.6"></rect><rect x="13.4" y="10.7" width="2.6" height="2.6"></rect><rect x="8" y="17.4" width="2.6" height="2.6"></rect><rect x="13.4" y="17.4" width="2.6" height="2.6"></rect></symbol>
+</svg>
+
+<section style="padding:36px 40px 30px;border-bottom:1px solid rgba(255,255,255,.07)" id="t2">
+<div style="display:flex;align-items:baseline;gap:10px;margin:0 0 18px">
+<a href="#t2" style="font:500 10px 'IBM Plex Mono',monospace;padding:3px 7px;background:#e6b23c;color:#14181d;border-radius:4px;text-decoration:none">2</a>
+<span style="font:500 13px 'Helvetica Neue',Helvetica,sans-serif;color:#dfe5eb">Barre d'outils déportable — timeline Deepotus</span>
+</div>
+<div style="display:flex;align-items:baseline;gap:9px;max-width:900px;margin:0 0 16px;font:400 11.5px/1.5 'Helvetica Neue',Helvetica,sans-serif;color:#8b959f">
+<a href="#2a" style="font:500 10.5px 'IBM Plex Mono',monospace;padding:3px 7px;background:rgba(255,255,255,.09);color:#dfe5eb;border-radius:5px;text-decoration:none">2a</a>
+<span>Neuf actions de création quittent le bandeau fixe pour une barre flottante, appelée par l'onglet <b style="color:#dfe5eb;font-weight:500">OUTILS</b> posé sur le bord supérieur du bandeau. Cinq groupes, cinq teintes de la palette de catégories : pistes, bibliothèque, mot, ajouts, projets. La barre se saisit par sa poignée et se pose où l'on veut au-dessus de la timeline. Le bandeau fixe récupère la place pour le collage, la coupe, les sous-titres, le panneau son et le déroulement des pistes.</span>
+</div>
+
+<div id="2a" style="position:relative;width:1600px;background:#0a0c0f;border:1px solid #20262d;overflow:hidden">
+
+<div style="display:flex;height:92px;border-bottom:1px solid #1c2229">
+<div style="flex:none;width:300px;padding:12px 14px;border-right:1px solid #1c2229;display:flex;flex-direction:column;gap:8px">
+<div style="height:26px;border:1px dashed #2a323b;display:flex;align-items:center;justify-content:center;font-size:11px;color:#5f6873">+ Ajouter un bloc</div>
+<div style="font:400 9.5px/1.6 'IBM Plex Mono',monospace;color:#4d5661">le texte reste local — seul « Narrer »<br>envoie le bloc à ElevenLabs</div>
+</div>
+<div style="flex:1;display:flex;align-items:center;justify-content:center;background:#07080a"><div style="width:246px;height:74px;border:1px solid #e6b23c;background:#000"></div></div>
+<div style="flex:none;width:300px;padding:12px 14px;border-left:1px solid #1c2229;display:flex;flex-direction:column;gap:9px">
+<div style="display:flex;align-items:center;gap:9px"><span class="mono" style="font-size:9.5px;color:oklch(.72 .13 25)">sfx</span><span style="flex:1;height:4px;background:#20262d"><span style="display:block;width:78%;height:4px;background:oklch(.72 .13 25)"></span></span><span class="mono" style="font-size:9.5px;color:#8b959f">-12 dB</span></div>
+<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid #20262d;background:#13171c"><span style="width:26px;height:14px;background:#e6b23c;flex:none"></span><span style="display:flex;flex-direction:column;gap:2px"><span style="font-size:11px;color:#eef2f6">Ducking auto</span><span style="font-size:10px;color:#8b959f">La musique s'abaisse sous le dialogue</span></span></div>
+</div>
+</div>
+
+<div style="position:relative;height:112px">
+<div style="{{ barS }}">
+<div style="display:flex;align-items:stretch;background:#13171c;border:1px solid #2a323b;box-shadow:0 14px 34px rgba(0,0,0,.62)">
+<div onPointerDown="{{ onGrip }}" style="flex:none;width:26px;display:flex;align-items:center;justify-content:center;background:#171c22;border-right:1px solid #20262d;cursor:grab;color:#5f6873" style-hover="color:#8b959f;background:#1e242b"><svg viewBox="0 0 24 24" fill="currentColor" style="width:14px;height:14px;display:block"><use href="#i-grip"></use></svg></div>
+
+<div style="display:flex;align-items:flex-start;padding:9px 10px 8px">
+
+<div style="display:flex;flex-direction:column;padding:0 11px 0 3px;border-right:1px solid #1c2229">
+<span class="gh" style="color:oklch(.72 .13 200)">PISTES</span>
+<div style="display:flex;gap:2px">
+<button class="ob" style="color:oklch(.72 .13 200)"><svg viewBox="0 0 24 24" fill="currentColor" class="oi"><use href="#i-tv"></use></svg><span class="ol">vidéo</span></button>
+<button class="ob" style="color:oklch(.72 .13 200)"><svg viewBox="0 0 24 24" fill="currentColor" class="oi"><use href="#i-ta"></use></svg><span class="ol">audio</span></button>
+</div>
+</div>
+
+<div style="display:flex;flex-direction:column;padding:0 11px;border-right:1px solid #1c2229">
+<span class="gh" style="color:oklch(.72 .13 255)">BIBLIOTHÈQUE</span>
+<div style="display:flex;gap:2px">
+<button class="ob" style="color:oklch(.72 .13 255);width:70px"><svg viewBox="0 0 24 24" fill="currentColor" class="oi"><use href="#i-lib"></use></svg><span class="ol">lier</span></button>
+</div>
+</div>
+
+<div style="display:flex;flex-direction:column;padding:0 11px;border-right:1px solid #1c2229">
+<span class="gh" style="color:oklch(.72 .13 300)">MOT<span style="opacity:.5;letter-spacing:.06em">— sélection</span></span>
+<div style="display:flex;gap:2px">
+<button onClick="{{ tCoul }}" style="{{ sCoul }}"><svg viewBox="0 0 24 24" fill="currentColor" class="oi"><use href="#i-coul"></use></svg><span class="ol">couleur</span></button>
+<button onClick="{{ tReb }}" style="{{ sReb }}"><svg viewBox="0 0 24 24" fill="currentColor" class="oi"><use href="#i-reb"></use></svg><span class="ol">rebond</span></button>
+<button onClick="{{ tGlow }}" style="{{ sGlow }}"><svg viewBox="0 0 24 24" fill="currentColor" class="oi"><use href="#i-glow"></use></svg><span class="ol">glow</span></button>
+</div>
+</div>
+
+<div style="display:flex;flex-direction:column;padding:0 11px;border-right:1px solid #1c2229">
+<span class="gh" style="color:oklch(.72 .13 80)">AJOUTS</span>
+<div style="display:flex;gap:2px">
+<button class="ob" style="color:oklch(.72 .13 80)"><svg viewBox="0 0 24 24" fill="currentColor" class="oi"><use href="#i-emo"></use></svg><span class="ol">emoji</span></button>
+<button class="ob" style="color:oklch(.72 .13 80)"><svg viewBox="0 0 24 24" fill="currentColor" class="oi"><use href="#i-txt"></use></svg><span class="ol">texte</span></button>
+</div>
+</div>
+
+<div style="display:flex;flex-direction:column;padding:0 3px 0 11px">
+<span class="gh" style="color:oklch(.72 .13 145)">PROJETS</span>
+<div style="display:flex;gap:2px">
+<button class="ob" style="color:oklch(.72 .13 145);width:70px"><svg viewBox="0 0 24 24" fill="currentColor" class="oi"><use href="#i-proj"></use></svg><span class="ol">projets</span></button>
+</div>
+</div>
+</div>
+
+<div style="flex:none;display:flex;flex-direction:column;border-left:1px solid #20262d">
+<button onClick="{{ recenter }}" style="flex:1;width:26px;display:flex;align-items:center;justify-content:center;font:500 11px 'IBM Plex Mono',monospace;color:#5f6873;cursor:pointer" style-hover="color:#e6b23c;background:#1e242b" title="Recentrer">⌖</button>
+<button onClick="{{ close }}" style="flex:1;width:26px;display:flex;align-items:center;justify-content:center;font:400 13px 'IBM Plex Mono',monospace;color:#5f6873;cursor:pointer;border-top:1px solid #20262d" style-hover="color:#e6b23c;background:#1e242b" title="Replier">×</button>
+</div>
+</div>
+</div>
+</div>
+
+<div style="position:relative;display:flex;align-items:center;gap:0;height:46px;padding:0 14px;background:#13171c;border-top:1px solid #20262d;border-bottom:1px solid #20262d">
+<button onClick="{{ toggle }}" style="{{ tabS }}">
+<span style="display:flex;gap:2px">
+<span style="width:5px;height:5px;background:oklch(.72 .13 200)"></span>
+<span style="width:5px;height:5px;background:oklch(.72 .13 255)"></span>
+<span style="width:5px;height:5px;background:oklch(.72 .13 300)"></span>
+<span style="width:5px;height:5px;background:oklch(.72 .13 80)"></span>
+<span style="width:5px;height:5px;background:oklch(.72 .13 145)"></span>
+</span>
+OUTILS
+<span style="font-size:9px;opacity:.6">{{ tabHint }}</span>
+</button>
+
+<span class="mono" style="font-size:11px;color:#eef2f6">00:00:00:04</span>
+<span class="mono" style="font-size:11px;color:#5f6873;margin-left:6px">/ 00:00:23:00</span>
+<span style="display:flex;gap:2px;margin-left:14px">
+<button class="fb" style="width:30px;justify-content:center;padding:0">◀◀</button>
+<button class="fb" style="width:30px;justify-content:center;padding:0">|◀</button>
+<button class="fb" style="width:34px;justify-content:center;padding:0;background:#e6b23c;color:#14181d;border-color:#e6b23c">▶</button>
+<button class="fb" style="width:30px;justify-content:center;padding:0">▶|</button>
+<button class="fb" style="width:30px;justify-content:center;padding:0">▶▶</button>
+</span>
+<span style="width:1px;height:22px;background:#20262d;margin:0 12px"></span>
+<span style="display:flex;gap:2px">
+<button class="fb">aimanter</button>
+<button class="fb">lame <span class="mono" style="font-size:9px;color:#5f6873">ALT+C</span></button>
+<button class="fb">ripple</button>
+</span>
+<span style="width:1px;height:22px;background:#20262d;margin:0 12px"></span>
+<span style="display:flex;gap:2px">
+<button class="fb">couper</button>
+<button class="fb">coller</button>
+<button class="fb">scinder</button>
+<button class="fb" style="color:oklch(.72 .13 25)">supprimer</button>
+</span>
+<span style="width:1px;height:22px;background:#20262d;margin:0 12px"></span>
+<button class="fb">sous-titres <span class="mono" style="font-size:9px;padding:1px 4px;background:#e6b23c;color:#14181d">9 · 64 %</span></button>
+<span style="width:1px;height:22px;background:#20262d;margin:0 12px"></span>
+<span style="display:flex;align-items:center;gap:8px">
+<button class="fb">panneau son</button>
+<span style="display:flex;align-items:center;gap:6px;height:26px;padding:0 9px;border:1px solid #20262d;background:#171c22"><span class="mono" style="font-size:9px;color:#5f6873">mix</span><span style="width:64px;height:4px;background:#20262d"><span style="display:block;width:64%;height:4px;background:#8b959f"></span></span><span class="mono" style="font-size:9px;color:#8b959f">-6</span></span>
+</span>
+<span style="flex:1"></span>
+<span style="display:flex;align-items:center;gap:6px;margin-right:10px"><span class="mono" style="font-size:9.5px;color:#5f6873">zoom</span><span style="width:86px;height:4px;background:#20262d"><span style="display:block;width:52%;height:4px;background:#8b959f"></span></span><span class="mono" style="font-size:9.5px;color:#8b959f">100 %</span></span>
+<button class="fb">ajuster</button>
+<span style="display:flex;flex-direction:column;gap:2px;margin-left:8px">
+<button style="width:24px;height:11px;border:1px solid #20262d;background:#171c22;font-size:8px;color:#8b959f;cursor:pointer;line-height:1" style-hover="background:#1e242b">▲</button>
+<button style="width:24px;height:11px;border:1px solid #20262d;background:#171c22;font-size:8px;color:#8b959f;cursor:pointer;line-height:1" style-hover="background:#1e242b">▼</button>
+</span>
+</div>
+
+<div style="display:flex;height:20px;border-bottom:1px solid #1c2229;background:#0d1013">
+<span style="flex:none;width:104px;border-right:1px solid #1c2229"></span>
+<span style="flex:1;display:flex;align-items:center"><sc-for list="{{ ticks }}" as="t" hint-placeholder-count="8"><span style="flex:1;padding-left:5px;border-left:1px solid #20262d;font:400 8.5px 'IBM Plex Mono',monospace;color:#4d5661">{{ t }}</span></sc-for></span>
+</div>
+
+<div style="display:flex;flex-direction:column">
+<div style="display:flex;height:50px;border-bottom:1px solid #14181d">
+<div style="flex:none;width:104px;padding:6px 8px;border-right:1px solid #1c2229;display:flex;flex-direction:column;gap:3px"><span style="display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;background:oklch(.72 .13 25)"></span><span style="font-size:11px;color:#eef2f6">V2</span></span><span class="mono" style="font-size:8.5px;color:#5f6873">overlay/VFX</span></div>
+<div style="flex:1;padding:6px 0 6px 4px"><div style="width:52%;height:100%;background:#3a2c10;border:1px solid #e6b23c;padding:4px 7px;font-size:10.5px;color:#f3cd77">Xpromotion1</div></div>
+</div>
+<div style="display:flex;height:50px;border-bottom:1px solid #14181d">
+<div style="flex:none;width:104px;padding:6px 8px;border-right:1px solid #1c2229;display:flex;flex-direction:column;gap:3px"><span style="display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;background:oklch(.72 .13 25)"></span><span style="font-size:11px;color:#eef2f6">V1</span></span><span class="mono" style="font-size:8.5px;color:#5f6873">vidéo</span></div>
+<div style="flex:1;display:flex;gap:4px;padding:6px 0 6px 4px">
+<div style="width:29%;background:#20262d;border:1px solid #3b4650;padding:3px 6px;font-size:10px;color:#cfd6dd">kapwing_sample</div>
+<div style="width:29%;background:#20262d;border:1px solid #3b4650;padding:3px 6px;font-size:10px;color:#cfd6dd">Memecoin</div>
+<div style="width:19%;background:#20262d;border:1px solid #3b4650;padding:3px 6px;font-size:10px;color:#cfd6dd">sentry_bot</div>
+</div>
+</div>
+<div style="display:flex;height:50px;border-bottom:1px solid #14181d">
+<div style="flex:none;width:104px;padding:6px 8px;border-right:1px solid #1c2229;display:flex;flex-direction:column;gap:3px"><span style="display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;background:oklch(.72 .13 145)"></span><span style="font-size:11px;color:#eef2f6">A1</span><span class="mono" style="font-size:8.5px;color:#5f6873">dialogue</span></span></div>
+<div style="flex:1;padding:6px 0 6px 4px"><div style="width:53%;height:100%;background:oklch(.72 .13 145 / .16);border:1px solid oklch(.72 .13 145 / .55);padding:3px 6px;font-size:10px;color:#cfd6dd">s1_draft-746849.mp3</div></div>
+</div>
+<div style="display:flex;height:50px">
+<div style="flex:none;width:104px;padding:6px 8px;border-right:1px solid #1c2229;display:flex;flex-direction:column;gap:3px"><span style="display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;background:oklch(.72 .13 145)"></span><span style="font-size:11px;color:#eef2f6">A</span></span></div>
+<div style="flex:1;padding:6px 0 6px 4px"><div style="width:72%;height:100%;background:oklch(.72 .13 145 / .1);border:1px solid oklch(.72 .13 145 / .4);padding:3px 6px;font-size:10px;color:#8b959f">musique_bright_uplifting_corporate_track_plucke_20260903-113619 · ducking auto</div></div>
+</div>
+</div>
+</div>
+
+<p style="margin:22px 0 0;font:11.5px/1.6 'Helvetica Neue',Helvetica,sans-serif;color:#6c757f">Saisir la poignée pour déplacer la barre · <b style="color:#8b959f;font-weight:400">×</b> replie sur l'onglet · les trois options de MOT sont des bascules. À essayer ensuite : « la barre en colonne verticale contre le bord gauche » · « un menu déroulant par groupe au lieu des icônes à plat ».</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1700,&quot;height&quot;:760}}">
+class Component extends DCLogic {
+  state = { open: true, x: 0, y: 0, drag: false, coul: true, reb: false, glow: false };
+  onGrip = e => {
+    const sx = e.clientX, sy = e.clientY, ox = this.state.x, oy = this.state.y;
+    const move = ev => this.setState({
+      x: Math.max(-260, Math.min(700, ox + ev.clientX - sx)),
+      y: Math.max(-176, Math.min(180, oy + ev.clientY - sy))
+    });
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); this.setState({ drag: false }); };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+    this.setState({ drag: true });
+  };
+  mot(on, hue) {
+    return 'display:flex;flex-direction:column;align-items:center;gap:6px;width:60px;padding:7px 0 6px;cursor:pointer;transition:background .14s ease,border-color .14s ease;border:1px solid ' +
+      (on ? hue : 'transparent') + ';background:' + (on ? 'oklch(.72 .13 300 / .16)' : 'transparent') + ';color:' + (on ? '#eef2f6' : hue);
+  }
+  renderVals() {
+    const st = this.state, violet = 'oklch(.72 .13 300)';
+    return {
+      barS: 'position:absolute;left:308px;bottom:8px;z-index:20;' +
+        'transform:translate(' + st.x + 'px,' + st.y + 'px);' +
+        (st.drag ? 'cursor:grabbing;' : 'transition:opacity .18s ease;') +
+        'display:' + (st.open ? 'block' : 'none') +
+        ';--lbl:block;--isz:18px',
+      tabS: 'position:absolute;top:-21px;left:14px;display:flex;align-items:center;gap:8px;height:21px;padding:0 11px;cursor:pointer;' +
+        'font:500 10px "IBM Plex Mono",monospace;letter-spacing:.1em;border:1px solid #2a323b;border-bottom:0;' +
+        (st.open ? 'background:#13171c;color:#eef2f6' : 'background:#171c22;color:#8b959f'),
+      tabHint: st.open ? '▾' : '▴',
+      ticks: [':00', '0:03', '0:06', '0:09', '0:12', '0:15', '0:18', '0:21'],
+      toggle: () => this.setState({ open: !st.open }),
+      close: () => this.setState({ open: false }),
+      recenter: () => this.setState({ x: 0, y: 0 }),
+      tCoul: () => this.setState({ coul: !st.coul }),
+      tReb: () => this.setState({ reb: !st.reb }),
+      tGlow: () => this.setState({ glow: !st.glow }),
+      sCoul: this.mot(st.coul, violet),
+      sReb: this.mot(st.reb, violet),
+      sGlow: this.mot(st.glow, violet)
+    };
+  }
+}
+</script>
+</body>
+</html>

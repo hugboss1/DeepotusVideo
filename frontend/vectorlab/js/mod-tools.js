@@ -183,7 +183,8 @@ export function initOutils(VL) {
       return;
     }
 
-    if (etat.outil === "rect" || etat.outil === "ellipse") {
+    if (etat.outil === "rect" || etat.outil === "ellipse"
+        || etat.outil === "vitrail") {
       const [ax, ay] = VL.aimantePt(dx, dy);
       geste = { type: "trace-forme", forme: etat.outil, x0: ax, y0: ay,
                 x1: ax, y1: ay, shift: ev.shiftKey };
@@ -314,7 +315,7 @@ export function initOutils(VL) {
       const w = Math.abs(x1 - geste.x0), h = Math.abs(y1 - geste.y0);
       const attrs = { fill: "rgba(157,180,214,.25)", stroke: "#5b82b8",
                       "stroke-width": 1.5 / etat.zoom };
-      if (geste.forme === "rect") {
+      if (geste.forme === "rect" || geste.forme === "vitrail") {
         forme("rect", { x, y, width: w, height: h, ...attrs }, g);
         etiquette(g, x1, y1, VL.cote("rect", { w, h }));
       } else {
@@ -435,6 +436,15 @@ export function initOutils(VL) {
     } else if (g.type === "trace-forme") {
       const w = Math.abs(g.x1 - g.x0), h = Math.abs(g.y1 - g.y0);
       if (w < 1 || h < 1) return;
+      if (g.forme === "vitrail") {
+        // le panneau de verre : mod-vitrail construit et insère
+        // (UNE commande), puis rebascule sur la sélection
+        if (VL.vitrailInserer) {
+          VL.vitrailInserer({ x: Math.min(g.x0, g.x1),
+                              y: Math.min(g.y0, g.y1), w, h });
+        }
+        return;
+      }
       let objet;
       if (g.forme === "rect") {
         objet = { type: "rect", x: Math.min(g.x0, g.x1),
@@ -670,8 +680,27 @@ export function initOutils(VL) {
       VL.setSelection([]);
     }
   };
+  // la barre d'indice du handoff : une phrase par outil, coin bas-gauche
+  const HINTS = {
+    select: "glisser pour déplacer · poignées pour redimensionner · Suppr pour retirer",
+    plume: "clic = ancre, glisser = poignées · double-clic ou Entrée = finir",
+    rect: "glisser pour tracer · Maj contraint au carré",
+    ellipse: "glisser pour tracer · Maj contraint au cercle",
+    ligne: "glisser d'un point à l'autre · Maj = angles 45°",
+    noeuds: "cliquer une pièce · glisser ses ancres · double-clic = angle↔courbe",
+    mesure: "glisser pour lire longueur, angle et Δ — ne crée rien",
+    pipette: "cliquer l'objet source : son style va à la sélection",
+    texte: "cliquer la page pour écrire",
+    vitrail: "glisser une zone sur la page : le panneau de verre s'y génère",
+  };
+  function majHint() {
+    const el = $("#hintOutil");
+    if (el) el.textContent = HINTS[etat.outil] || "";
+  }
+  majHint();
   VL.surOutil = () => {
     if (trace) { trace = null; tmp(); }
     etat.ancreSel = null;
+    majHint();
   };
 }

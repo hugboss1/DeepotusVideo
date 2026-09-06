@@ -55,7 +55,10 @@ POST_COUNTS = [
     ("__dzPrint3d", 3),
     ("__dzToSpriteLab", 5),
     ("__dzQuickStart", 3),
-    ("__dzMontageAdd", 4),
+    # 4 -> 5 le 05/09/2026 (chantier montage, P7) : la couche
+    # montage.js cite le jeton dans un COMMENTAIRE ; str.count est
+    # global, le commentaire compte (mesure du 06/09/2026).
+    ("__dzMontageAdd", 5),
     ("deepotus:select-post", 6),
     ("__dzLibPicker", 10),
     ("__dzSrcChips", 2),

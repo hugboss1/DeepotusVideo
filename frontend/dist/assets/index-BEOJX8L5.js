@@ -41,7 +41,7 @@ Error generating stack: `+s.message+`
               ${s.type==="success"?"bg-green-500/20 border-green-500/40 text-green-200":""}
               ${s.type==="error"?"bg-red-500/20 border-red-500/40 text-red-200":""}
               ${s.type==="info"?"bg-deep-800/80 border-bio-cyan/40 text-slate-200":""}
-            `,children:s.message},s.id))})]})}const Te="/api";async function Ge(e,t){try{const n=await fetch(Te+e);return n.ok?await n.json():t}catch{return t}}const D={health:()=>Ge("/health",null),listImages:()=>Ge("/images",{images:[]}),imageUrl:e=>`${Te}/images/${encodeURIComponent(e)}`,deleteImage:async e=>{try{return(await fetch(`${Te}/images/${encodeURIComponent(e)}`,{method:"DELETE"})).ok}catch{return!1}},renameImage:async(e,nm)=>{try{const r=await fetch(`${Te}/images/${encodeURIComponent(e)}/rename`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({new_name:nm})});return r.ok?await r.json():null}catch{return null}},listAudio:()=>Ge("/audio",{audio:[]}),audioUrl:e=>`${Te}/audio/${encodeURIComponent(e)}`,uploadAudio:async e=>{try{const t=new FormData;t.append("file",e);const n=await fetch(`${Te}/audio/upload`,{method:"POST",body:t});return n.ok?await n.json():{ok:!1,error:`HTTP ${n.status}`}}catch(t){return{ok:!1,error:String((t==null?void 0:t.message)||t)}}},deleteAudio:async e=>{try{return(await fetch(`${Te}/audio/${encodeURIComponent(e)}`,{method:"DELETE"})).ok}catch{return!1}},listVoices:()=>Ge("/voices",{voices:[],enabled:!1}),renderEpisode:async e=>{try{const t=await fetch(`${Te}/episodes/render`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(e)}),j=await t.json().catch(()=>({}));return t.ok?j:{error:(j&&j.detail)||("HTTP "+t.status)}}catch(t){return{error:String((t==null?void 0:t.message)||t)}}},getJob:e=>Ge("/jobs/"+encodeURIComponent(e),null),episodeScenes:async e=>{try{const t=await fetch(`${Te}/episodes/scenes`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(e)}),j=await t.json().catch(()=>({}));return t.ok?j:{scenes:[],error:(j&&j.detail)||("HTTP "+t.status)}}catch(t){return{scenes:[],error:String((t==null?void 0:t.message)||t)}}},extractText:async e=>{try{const t=new FormData;t.append("file",e);const n=await fetch(`${Te}/episodes/extract-text`,{method:"POST",body:t}),j=await n.json().catch(()=>({}));return n.ok?j:{error:(j&&j.detail)||("HTTP "+n.status)}}catch(t){return{error:String((t==null?void 0:t.message)||t)}}},createVoiceover:async e=>{try{const t=await fetch(`${Te}/audio/voiceover`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(e)}),j=await t.json().catch(()=>({}));return t.ok?j:{ok:!1,error:(j&&j.detail)||("HTTP "+t.status)}}catch(t){return{ok:!1,error:String((t==null?void 0:t.message)||t)}}},listJobs:(e=50)=>Ge(`/jobs?limit=${e}`,[]),getJob:e=>Ge(`/jobs/${e}`,null),jobVideoUrl:e=>`${Te}/jobs/${e}/video`,renameJob:async(e,t)=>{try{const n=await fetch(`${Te}/jobs/${e}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({title:t||null})});return n.ok?await n.json():null}catch{return null}},deleteJob:async e=>{try{return(await fetch(`${Te}/jobs/${e}`,{method:"DELETE"})).ok}catch{return!1}},uploadVideo:async e=>{try{const t=new FormData;t.append("file",e);const n=await fetch(`${Te}/videos/upload`,{method:"POST",body:t});return n.ok?await n.json():{ok:!1,error:`HTTP ${n.status}`}}catch(t){return{ok:!1,error:String((t==null?void 0:t.message)||t)}}},getCaptionPack:()=>Ge("/caption-pack",null),saveCaptionPack:async e=>{try{const t=await fetch(`${Te}/caption-pack`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({pack:e})});return t.ok?await t.json():{ok:!1,error:`HTTP ${t.status}`}}catch(t){return{ok:!1,error:String((t==null?void 0:t.message)||t)}}},resetCaptionPack:async()=>{try{const e=await fetch(`${Te}/caption-pack`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({reset:!0})});return e.ok?await e.json():{ok:!1}}catch{return{ok:!1}}},uploadPackIcon:async(e,t)=>{try{const n=new FormData;n.append("file",t);const o=await fetch(`${Te}/caption-pack/icon/${encodeURIComponent(e)}`,{method:"POST",body:n});return o.ok?await o.json():{ok:!1,error:`HTTP ${o.status}`}}catch(n){return{ok:!1,error:String((n==null?void 0:n.message)||n)}}},listLayoutTemplates:()=>Ge("/layout-templates",[]),renderLayoutTemplate:async(e,t,n,o,i,g)=>{try{var _pv=!!window.__dzfxPreview;window.__dzfxPreview=!1;const s=await fetch(`${Te}/layout-templates/${encodeURIComponent(e)}/render`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({template_id:e,slot_values:t||{},voice_mode:n||null,template:o||null,title:i||null,source_graph:g||null,voiceover:dzGraphVoiceover(g)||null,preview:_pv})});return s.ok?await s.json():{ok:!1,error:`HTTP ${s.status}: ${(await s.text()).slice(0,160)}`}}catch(s){return{ok:!1,error:String((s==null?void 0:s.message)||s)}}},listSeedanceTemplates:()=>Ge("/templates",[]),listNewsItems:()=>Ge("/news/items",{items:[]}),listSchedule:()=>Ge("/schedule",[]),createScheduledPost:e=>D.postJson("/schedule",e),updateScheduledPost:async(e,t)=>{try{const n=await fetch(`${Te}/schedule/${e}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(t)});return n.ok?await n.json():null}catch{return null}},deleteScheduledPost:async e=>{try{return(await fetch(`${Te}/schedule/${e}`,{method:"DELETE"})).ok}catch{return!1}},fireScheduledPost:e=>D.postJson(`/schedule/${e}/fire`,{}),marketingPlan:e=>D.postJson("/marketing/plan",e),importPlan:async(e,{days:t=30,channels:n=["x"],language:o="EN"}={})=>{try{const i=new FormData;i.append("file",e);const s=new URLSearchParams({days:String(t),channels:n.join(","),language:o}),a=await fetch(`${Te}/marketing/plan/import?${s}`,{method:"POST",body:i});return a.ok?{ok:!0,...await a.json()}:{ok:!1,error:await a.text()}}catch(i){return{ok:!1,error:String((i==null?void 0:i.message)||i)}}},materializePlan:(e,t,n="assisted")=>D.postJson("/marketing/plan/materialize",{posts:e,start_date:t,mode:n,tz_offset_minutes:new Date().getTimezoneOffset()}),testChannel:e=>D.postJson("/channels/test",{channel:e}),generateImage:(e,t=1,n="portrait_16_9",m)=>D.postJson("/images/generate",{prompt:e,n:t,size:n,model:m||localStorage.getItem("dz_image_model")||""}),importImageUrl:e=>D.postJson("/images/import-url",{url:e}),getBranding:()=>Ge("/branding",null),setBranding:e=>D.postJson("/branding",e),resetBranding:()=>D.postJson("/branding",{reset:!0}),brandLogoUrl:e=>`${Te}/branding/logo${e?`?t=${e}`:""}`,uploadBrandLogo:async e=>{try{const t=new FormData;t.append("file",e);const n=await fetch(`${Te}/branding/logo`,{method:"POST",body:t});return n.ok?{ok:!0,...await n.json()}:{ok:!1,error:await n.text()}}catch(t){return{ok:!1,error:String((t==null?void 0:t.message)||t)}}},listKeys:()=>Ge("/settings/keys",{keys:[],env_path:""}),setKeys:async e=>{try{const t=await fetch(Te+"/settings/keys",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({entries:e})});return t.ok?await t.json():{ok:!1,error:await t.text()}}catch(t){return{ok:!1,error:String((t==null?void 0:t.message)||t)}}},heygenHealth:()=>Ge("/heygen/health",{configured:!1,reachable:!1}),listHeygenAvatars:()=>Ge("/heygen/avatars",{avatars:[],talking_photos:[]}),listHeygenVoices:()=>Ge("/heygen/voices",{voices:[]}),createPhotoAvatar:async(e,t="Custom deepotus avatar")=>{try{const n=new FormData;n.append("file",e),n.append("avatar_name",t);const o=await fetch(Te+"/heygen/photo-avatar/create",{method:"POST",body:n});return o.ok?{ok:!0,...await o.json()}:{ok:!1,error:await o.text()}}catch(n){return{ok:!1,error:String((n==null?void 0:n.message)||n)}}},postJson:async(e,t)=>{try{const n=await fetch(Te+e,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(t)});return n.ok?{ok:!0,...await n.json().catch(()=>({}))}:{ok:!1,status:n.status,error:await n.text()}}catch(n){return{ok:!1,error:String((n==null?void 0:n.message)||n)}}}};let Io=null;const Po=new Set;let pr=null,Qi=!1;async function Xi(){if(!Qi){Qi=!0;try{const e=await D.health();let t=e;if(e!=null&&e.heygen_enabled){const n=await D.heygenHealth().catch(()=>null);t={...e,heygen_reachable:!!(n!=null&&n.reachable),heygen_message:(n==null?void 0:n.message)||""}}Io=t,Po.forEach(n=>{try{n(t)}catch{}})}finally{Qi=!1}}}function bt(){const[e,t]=x.useState(Io);return x.useEffect(()=>{Po.add(t),Io&&t(Io),pr||(Xi(),pr=setInterval(Xi,15e3));function n(){Xi()}return window.addEventListener("deepotus:health-refresh",n),()=>{Po.delete(t),window.removeEventListener("deepotus:health-refresh",n),Po.size===0&&pr&&(clearInterval(pr),pr=null)}},[]),e}function No(){try{window.dispatchEvent(new Event("deepotus:health-refresh"))}catch{}}const cd={app_name:"DEEPOTUS",app_sub:"VIDEO",tagline_1:"From the deep,",tagline_2:"for the deep.",brand_color:"#ef4444",accent_color:"#00e5ff",has_custom_logo:!1,is_default:!0};function ea(e){try{const t=document.body.style;t.setProperty("--brand",e.brand_color),t.setProperty("--brand-soft",e.brand_color+"22"),t.setProperty("--cyan",e.accent_color),t.setProperty("--cyan-soft",e.accent_color+"22"),document.title=`${e.app_name} Video Gen`}catch{}}let En=null;function ji(){const[e,t]=x.useState(En||cd);return x.useEffect(()=>{let n=!0;async function o(){const s=await D.getBranding();s&&(En={...cd,...s},n&&t(En),ea(En))}En||o();function i(){En=null,o()}return window.addEventListener("deepotus:brand-refresh",i),()=>{n=!1,window.removeEventListener("deepotus:brand-refresh",i)}},[]),e}function Ji(){try{window.dispatchEvent(new Event("deepotus:brand-refresh"))}catch{}}function vn(e){try{return new URLSearchParams(window.location.search).get(e)}catch{return null}}function wh(e){const t=e.run_at?new Date(e.run_at):new Date,n=String(t.getHours()).padStart(2,"0"),o=String(t.getMinutes()).padStart(2,"0");return{id:e.id,title:e.title||"",caption:e.caption||"",channels:e.channels||[],runAt:t,time:`${n}:${o}`,status:e.status||"draft",mode:e.mode||"assisted",jobId:e.job_id||null,format:e.format||null,hook:e.hook||null,script_idea:e.script_idea||null,image_idea:e.image_idea||null,sourceImage:e.source_image||null,x_post_id:e.x_post_id||null,metrics:e.metrics||null,error:e.error||null,brief:e.brief||null}}function ta(e){if(!e&&e!==0)return"";const t=Math.max(0,Math.round(Number(e)||0)),n=Math.floor(t/60),o=t%60;return`${String(n).padStart(2,"0")}:${String(o).padStart(2,"0")}`}function mo(e){if(!e)return"";const t=new Date(e).getTime();if(!t)return"";const n=(Date.now()-t)/1e3;return n<60?`${Math.round(n)}s ago`:n<3600?`${Math.round(n/60)}m ago`:n<86400?`${Math.round(n/3600)}h ago`:n<86400*7?`${Math.round(n/86400)}d ago`:new Date(e).toLocaleString("en",{month:"short",day:"numeric"})}function go(e){if(!e&&e!==0)return"";const t=Number(e)||0;return t<1024?t+" B":t<1024*1024?(t/1024).toFixed(1)+" KB":(t/(1024*1024)).toFixed(1)+" MB"}const Sh={octopus:r.jsxs("g",{fill:"currentColor",children:[r.jsx("path",{d:"M12 2.4c-3.6 0-6.4 2.7-6.4 6.4 0 1.4.4 2.3.4 3 0 .4-.2.7-.6 1L4 14c-.9.5-1.4 1.3-1.4 2.2 0 1.2.9 2 2 2 .8 0 1.4-.4 1.7-1l.5-1.2c.2-.4.6-.6 1-.4.4.2.5.6.4 1l-.5 1.3c-.4 1-.1 2 .8 2.5.9.5 2 .2 2.5-.8l.4-1c.2-.4.6-.5 1-.4.4.2.6.6.4 1l-.4.9c-.4 1-.1 2 .8 2.5.9.5 2 .2 2.5-.8l.5-1c.2-.4.6-.5 1-.4.4.2.5.6.3 1l-.4.8c-.5 1-.1 2.1.8 2.5.9.5 2 .1 2.5-.8.3-.7.4-1.3.4-2 0-.9-.4-1.7-1.3-2.2l-1.4-.7c-.4-.2-.6-.6-.6-1 0-.6.4-1.6.4-3 0-3.7-2.8-6.4-6.4-6.4z"}),r.jsx("circle",{cx:"9.8",cy:"8.6",r:".9",fill:"#02060d"}),r.jsx("circle",{cx:"14.2",cy:"8.6",r:".9",fill:"#02060d"})]}),play:r.jsx("path",{fill:"currentColor",d:"M6 4l14 8-14 8V4z"}),preview:r.jsx("path",{stroke:"currentColor",strokeWidth:"1.6",fill:"none",d:"M4 12a8 8 0 1 0 16 0 8 8 0 0 0-16 0zm0 0h16"}),download:r.jsx("path",{stroke:"currentColor",strokeWidth:"1.6",fill:"none",d:"M12 4v12m0 0l-4-4m4 4l4-4M4 18v2h16v-2"}),upload:r.jsx("path",{stroke:"currentColor",strokeWidth:"1.6",fill:"none",d:"M12 20V8m0 0l-4 4m4-4l4 4M4 4v2h16V4"}),search:r.jsx("path",{stroke:"currentColor",strokeWidth:"1.6",fill:"none",d:"M10 17a7 7 0 1 1 0-14 7 7 0 0 1 0 14zm5-2l5 5"}),plus:r.jsx("path",{stroke:"currentColor",strokeWidth:"1.6",fill:"none",d:"M12 5v14M5 12h14"}),minus:r.jsx("path",{stroke:"currentColor",strokeWidth:"1.6",fill:"none",d:"M5 12h14"}),close:r.jsx("path",{stroke:"currentColor",strokeWidth:"1.6",fill:"none",d:"M6 6l12 12M18 6L6 18"}),more:r.jsxs("g",{fill:"currentColor",children:[r.jsx("circle",{cx:"5",cy:"12",r:"1.5"}),r.jsx("circle",{cx:"12",cy:"12",r:"1.5"}),r.jsx("circle",{cx:"19",cy:"12",r:"1.5"})]}),edit:r.jsx("path",{stroke:"currentColor",strokeWidth:"1.6",fill:"none",d:"M3 21v-4l12-12 4 4-12 12H3zm12-16l4 4"}),trash:r.jsx("path",{stroke:"currentColor",strokeWidth:"1.6",fill:"none",d:"M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"}),copy:r.jsx("path",{stroke:"currentColor",strokeWidth:"1.6",fill:"none",d:"M8 8h11v13H8V8zM5 5h11v3M5 5v13h3"}),rename:r.jsx("path",{stroke:"currentColor",strokeWidth:"1.6",fill:"none",d:"M14 4v16M10 4v16M6 8h2M6 16h2M16 8h2M16 16h2"}),bolt:r.jsx("path",{fill:"currentColor",d:"M13 2L4 14h7l-1 8 9-12h-7l1-8z"}),film:r.jsxs("g",{fill:"currentColor",children:[r.jsx("path",{d:"M3.8 4h6.6a1.6 1.6 0 0 1 1.6 1.6V20a2.4 2.4 0 0 0-1.7-.7H3.8z",opacity:".38"}),r.jsx("path",{fillRule:"evenodd",d:"M20.2 4h-6.6A1.6 1.6 0 0 0 12 5.6V20a2.4 2.4 0 0 1 1.7-.7h6.5zM14.6 9.4 18 11.4l-3.4 2z"})]}),mic:r.jsx("path",{stroke:"currentColor",strokeWidth:"1.6",fill:"none",d:"M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zm-7 9a7 7 0 0 0 14 0M12 19v3"}),layers:r.jsxs("g",{fill:"currentColor",children:[r.jsx("rect",{x:"3",y:"5.6",width:"10.4",height:"2.6",rx:"1.3",opacity:".45"}),r.jsx("rect",{x:"3",y:"10.7",width:"14.6",height:"2.6",rx:"1.3",opacity:".45"}),r.jsx("rect",{x:"3",y:"15.8",width:"7.6",height:"2.6",rx:"1.3",opacity:".45"}),r.jsx("rect",{x:"18.6",y:"3.4",width:"2",height:"17.2",rx:"1"})]}),rss:r.jsxs("g",{fill:"none",stroke:"currentColor",strokeWidth:"2.6",strokeLinecap:"round",children:[r.jsx("path",{d:"M5 11.4a8.2 8.2 0 0 1 8.2 8.2",opacity:".4"}),r.jsx("path",{d:"M5 5.4a14.2 14.2 0 0 1 14.2 14.2"}),r.jsx("circle",{cx:"5.6",cy:"18.6",r:"1.4",fill:"currentColor",stroke:"none"})]}),folder:r.jsxs("g",{fill:"currentColor",children:[r.jsx("path",{d:"M12 2.8 21 7.2 12 11.6 3 7.2z"}),r.jsx("path",{d:"M12 13.6 4.6 10l-1.6.8L12 15.2l9-4.4-1.6-.8zM12 18.2 4.6 14.6l-1.6.8L12 19.8l9-4.4-1.6-.8z",opacity:".42"})]}),cog:r.jsxs("g",{fill:"currentColor",children:[r.jsx("rect",{x:"3",y:"7",width:"18",height:"2.2",rx:"1.1",opacity:".42"}),r.jsx("rect",{x:"3",y:"14.8",width:"18",height:"2.2",rx:"1.1",opacity:".42"}),r.jsx("circle",{cx:"15.2",cy:"8.1",r:"2.8"}),r.jsx("circle",{cx:"8.8",cy:"15.9",r:"2.8"})]}),vectorpen:r.jsxs("g",{fill:"currentColor",children:[r.jsx("rect",{x:"1.7",y:"7.8",width:"14",height:"1.7",rx:".85",transform:"rotate(-45 8.7 8.7)",opacity:".32"}),r.jsx("circle",{cx:"13.6",cy:"3.7",r:"2",opacity:".32"}),r.jsx("circle",{cx:"3.7",cy:"13.6",r:"2",opacity:".32"}),r.jsx("path",{d:"M4.1 18.6 C4.1 9 9 4.1 18.6 4.1 L18.6 6.7 C10.4 6.7 6.7 10.4 6.7 18.6 z"}),r.jsx("rect",{x:"3.4",y:"16.6",width:"4",height:"4",transform:"rotate(45 5.4 18.6)"}),r.jsx("rect",{x:"16.6",y:"3.4",width:"4",height:"4",transform:"rotate(45 18.6 5.4)"})]}),gamegrid:r.jsxs("g",{fill:"currentColor",children:[r.jsx("rect",{x:"3.4",y:"3.4",width:"7.4",height:"7.4",rx:"1.4",opacity:".42"}),r.jsx("rect",{x:"13.2",y:"3.4",width:"7.4",height:"7.4",rx:"1.4",opacity:".42"}),r.jsx("rect",{x:"3.4",y:"13.2",width:"7.4",height:"7.4",rx:"1.4",opacity:".42"}),r.jsx("path",{d:"M16.9 12.6 20.6 14.8v4.4l-3.7 2.2-3.7-2.2v-4.4z"})]}),zap:r.jsx("path",{fill:"currentColor",d:"M13.8 2.6 6 14.2h4.6L9.6 21.4 18 9.6h-4.8z"}),image:r.jsxs("g",{fill:"none",stroke:"currentColor",strokeWidth:"1.6",children:[r.jsx("rect",{x:"3",y:"4",width:"18",height:"16",rx:"2"}),r.jsx("circle",{cx:"8.5",cy:"9.5",r:"1.5"}),r.jsx("path",{d:"M3 17l5-5 4 4 3-3 6 6"})]}),sparkle:r.jsx("path",{fill:"currentColor",d:"M12 2l1.6 5.4L19 9l-5.4 1.6L12 16l-1.6-5.4L5 9l5.4-1.6L12 2zM19 14l.8 2.2L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.8L19 14z"}),signal:r.jsxs("g",{fill:"currentColor",children:[r.jsx("rect",{x:"4",y:"14",width:"3",height:"6",rx:"1"}),r.jsx("rect",{x:"10",y:"9",width:"3",height:"11",rx:"1"}),r.jsx("rect",{x:"16",y:"4",width:"3",height:"16",rx:"1"})]}),caret:r.jsx("path",{fill:"currentColor",d:"M14.8 5.6 9 12l5.8 6.4z"}),caretR:r.jsx("path",{fill:"currentColor",d:"M14.8 5.6 9 12l5.8 6.4z",transform:"rotate(180 12 12)"}),check:r.jsx("path",{stroke:"currentColor",strokeWidth:"2",fill:"none",d:"M5 13l4 4 10-10"}),flow:r.jsxs("g",{fill:"currentColor",children:[r.jsx("path",{d:"M8.4 11.2h3.2V6.4h4v1.6h-2.4V12H8.4zM11.6 12.8h3.2v3.6h2.4V18h-4v-3.6h-1.6z",opacity:".45"}),r.jsx("rect",{x:"2.8",y:"9.2",width:"5.6",height:"5.6",rx:"1.4"}),r.jsx("rect",{x:"15.6",y:"4",width:"5.6",height:"5.6",rx:"1.4"}),r.jsx("rect",{x:"15.6",y:"14.4",width:"5.6",height:"5.6",rx:"1.4"})]}),wave:r.jsxs("g",{fill:"currentColor",children:[r.jsx("rect",{x:"3",y:"10.4",width:"2.2",height:"3.2",rx:"1.1",opacity:".45"}),r.jsx("rect",{x:"7.2",y:"7",width:"2.2",height:"10",rx:"1.1"}),r.jsx("rect",{x:"11.4",y:"4.2",width:"2.2",height:"15.6",rx:"1.1"}),r.jsx("rect",{x:"15.6",y:"8",width:"2.2",height:"8",rx:"1.1"}),r.jsx("rect",{x:"19.8",y:"10.4",width:"2.2",height:"3.2",rx:"1.1",opacity:".45"})]}),link:r.jsx("path",{stroke:"currentColor",strokeWidth:"1.6",fill:"none",d:"M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7L11.5 7M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7L12.5 17"}),warn:r.jsxs("g",{fill:"none",stroke:"currentColor",strokeWidth:"1.6",children:[r.jsx("path",{d:"M12 3L2 21h20L12 3z"}),r.jsx("path",{d:"M12 10v5M12 18v.5",strokeLinecap:"round"})]}),grid:r.jsxs("g",{fill:"currentColor",children:[r.jsx("rect",{x:"3.2",y:"4.2",width:"8.2",height:"15.6",rx:"1.6"}),r.jsx("rect",{x:"13.2",y:"4.2",width:"7.6",height:"6.8",rx:"1.6",opacity:".38"}),r.jsx("rect",{x:"13.2",y:"13",width:"7.6",height:"6.8",rx:"1.6",opacity:".38"})]}),calendar:r.jsxs("g",{fill:"currentColor",children:[r.jsx("rect",{x:"3.2",y:"5.4",width:"17.6",height:"14.8",rx:"2",opacity:".3"}),r.jsx("path",{d:"M3.2 7.4a2 2 0 0 1 2-2h13.6a2 2 0 0 1 2 2V10H3.2z"}),r.jsx("path",{d:"M12.9 12.6h-1.8v3.5l2.7 1.6.9-1.5-1.8-1z"})]}),clock:r.jsxs("g",{fill:"none",stroke:"currentColor",strokeWidth:"1.6",children:[r.jsx("circle",{cx:"12",cy:"12",r:"9"}),r.jsx("path",{d:"M12 7v5l3 2"})]}),send:r.jsx("path",{stroke:"currentColor",strokeWidth:"1.6",fill:"none",d:"M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"}),book:r.jsx("path",{stroke:"currentColor",strokeWidth:"1.6",fill:"none",d:"M12 6c-2-1.5-4.5-2-8-2v14c3.5 0 6 .5 8 2 2-1.5 4.5-2 8-2V4c-3.5 0-6 .5-8 2zm0 0v14"}),channelX:r.jsx("path",{fill:"currentColor",d:"M17.5 3h3.2l-7 8 8.2 10h-6.4l-5-6.5-5.8 6.5H1.5l7.5-8.6L1 3h6.6l4.5 6 5.4-6zm-1.1 16h1.8L7.7 5H5.8l10.6 14z"}),channelTelegram:r.jsx("path",{fill:"currentColor",d:"M22 3L2.5 10.7c-1 .4-1 1.5 0 1.9l4.8 1.7 1.9 5.7c.3.8 1.1 1 1.7.3l2.8-2.5 4.9 3.5c.9.7 1.7.3 1.9-.8L22.7 4.4c.3-1.2-.6-1.9-1.7-1.4zM9.7 14.6l9.3-7.4c.2-.2.5.1.3.3l-7.4 7.6-.3 4.1-1.9-4.6z"}),channelYoutube:r.jsxs("g",{fill:"currentColor",children:[r.jsx("path",{d:"M22 7.5c-.2-1.6-.9-2.6-2.5-2.8-2.8-.4-7.5-.4-7.5-.4s-4.7 0-7.5.4C2.9 4.9 2.2 5.9 2 7.5 1.7 9.5 1.7 12 1.7 12s0 2.5.3 4.5c.2 1.6.9 2.6 2.5 2.8 2.8.4 7.5.4 7.5.4s4.7 0 7.5-.4c1.6-.2 2.3-1.2 2.5-2.8.3-2 .3-4.5.3-4.5s0-2.5-.3-4.5z"}),r.jsx("path",{fill:"#02060d",d:"M10 15.5l5-3.5-5-3.5v7z"})]}),channelInstagram:r.jsxs("g",{fill:"none",stroke:"currentColor",strokeWidth:"1.7",children:[r.jsx("rect",{x:"3",y:"3",width:"18",height:"18",rx:"5"}),r.jsx("circle",{cx:"12",cy:"12",r:"4"}),r.jsx("circle",{cx:"17.5",cy:"6.5",r:"1",fill:"currentColor",stroke:"none"})]})};function X({name:e,size:t=16,style:n}){const o=Sh[e];return o?r.jsx("svg",{width:t,height:t,viewBox:"0 0 24 24",style:{display:"inline-block",verticalAlign:"middle",flexShrink:0,...n},children:o}):null}function K({variant:e="ghost",size:t="md",icon:n,iconRight:o,glow:i,children:s,style:a,...l}){const d={sm:26,md:32,lg:38}[t],u={sm:9,md:12,lg:16}[t],f={sm:11.5,md:12.5,lg:13.5}[t],m={height:d,padding:`0 ${u}px`,display:"inline-flex",alignItems:"center",gap:7,fontSize:f,fontWeight:500,fontFamily:"var(--f-ui)",borderRadius:"var(--r-sm)",border:"1px solid transparent",cursor:"pointer",transition:"background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease), box-shadow var(--dur-2) var(--ease), transform var(--dur-1) var(--ease)",userSelect:"none",whiteSpace:"nowrap"},y={primary:{background:"linear-gradient(180deg, #00e5ff 0%, #00b8cc 100%)",color:"#02060d",borderColor:"#00e5ff",boxShadow:i?"0 0 24px var(--cyan-glow), inset 0 1px 0 #ffffff66":"inset 0 1px 0 #ffffff66",fontWeight:600},violet:{background:"linear-gradient(180deg, #c084fc 0%, #9333ea 100%)",color:"#02060d",borderColor:"#a855f7",fontWeight:600,boxShadow:i?"0 0 24px var(--violet-soft), inset 0 1px 0 #ffffff44":"inset 0 1px 0 #ffffff44"},ghost:{background:"transparent",color:"var(--ink)",borderColor:"transparent"},outline:{background:"var(--bg-panel)",color:"var(--ink-strong)",borderColor:"var(--stroke-strong)"},soft:{background:"var(--bg-panel-2)",color:"var(--ink-strong)",borderColor:"var(--stroke)"},danger:{background:"transparent",color:"var(--red)",borderColor:"transparent"},link:{background:"transparent",color:"var(--cyan)",borderColor:"transparent",padding:0,height:"auto"}},[w,v]=x.useState(!1),g={primary:{transform:"translateY(-1px)",boxShadow:"0 0 32px var(--cyan-glow), inset 0 1px 0 #ffffff66"},violet:{transform:"translateY(-1px)",boxShadow:"0 0 32px var(--violet-soft), inset 0 1px 0 #ffffff44"},ghost:{background:"var(--bg-panel-2)",color:"var(--ink-strong)"},outline:{borderColor:"var(--cyan)",color:"var(--ink-strong)"},soft:{borderColor:"var(--stroke-strong)"},danger:{background:"var(--red-soft)",borderColor:"var(--red)"},link:{color:"var(--ink-strong)"}};return r.jsxs("button",{onMouseEnter:()=>v(!0),onMouseLeave:()=>v(!1),style:{...m,...y[e],...w?g[e]:{},...a},...l,children:[n&&r.jsx(X,{name:n,size:t==="sm"?13:15}),s,o&&r.jsx(X,{name:o,size:t==="sm"?13:15})]})}function se({name:e,size:t=28,iconSize:n,title:o,active:i,children:s,style:a,...l}){const[d,u]=x.useState(!1);return r.jsx("button",{title:o,onMouseEnter:()=>u(!0),onMouseLeave:()=>u(!1),style:{width:t,height:t,borderRadius:"var(--r-sm)",background:i?"var(--cyan-soft)":d?"var(--bg-panel-2)":"transparent",color:i?"var(--cyan)":d?"var(--ink-strong)":"var(--ink-soft)",border:i?"1px solid var(--cyan)":"1px solid transparent",cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center",transition:"all var(--dur-1) var(--ease)",...a},...l,children:s||r.jsx(X,{name:e,size:n||Math.floor(t*.55)})})}function le({icon:e,placeholder:t,value:n,onChange:o,mono:i,style:s,...a}){const[l,d]=x.useState(!1);return r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:8,height:30,padding:"0 10px",background:"var(--bg-base)",border:`1px solid ${l?"var(--cyan)":"var(--stroke)"}`,borderRadius:"var(--r-sm)",transition:"border-color var(--dur-1) var(--ease), box-shadow var(--dur-1) var(--ease)",boxShadow:l?"0 0 0 3px var(--cyan-soft)":"none",...s},children:[e&&r.jsx(X,{name:e,size:13,style:{color:"var(--ink-soft)"}}),r.jsx("input",{placeholder:t,value:n??"",onChange:u=>o==null?void 0:o(u.target.value),onFocus:()=>d(!0),onBlur:()=>d(!1),style:{flex:1,fontFamily:i?"var(--f-mono)":"var(--f-ui)",fontSize:12.5,minWidth:0},...a})]})}function te({tone:e="neutral",dot:t,children:n,style:o}){const s={neutral:{color:"var(--ink-soft)",bg:"var(--bg-panel-2)",bd:"var(--stroke)"},cyan:{color:"var(--cyan)",bg:"var(--cyan-soft)",bd:"#00e5ff44"},violet:{color:"var(--violet)",bg:"var(--violet-soft)",bd:"#a855f744"},amber:{color:"var(--amber)",bg:"var(--amber-soft)",bd:"#fbbf2444"},green:{color:"var(--green)",bg:"var(--green-soft)",bd:"#22c55e44"},red:{color:"var(--red)",bg:"var(--red-soft)",bd:"#ef444444"}}[e];return r.jsxs("span",{style:{display:"inline-flex",alignItems:"center",gap:6,height:22,padding:"0 8px",fontSize:11,fontWeight:500,color:s.color,background:s.bg,border:`1px solid ${s.bd}`,borderRadius:"var(--r-pill)",letterSpacing:0,...o},children:[t&&r.jsx("span",{style:{width:6,height:6,borderRadius:999,background:s.color,boxShadow:`0 0 6px ${s.color}`}}),n]})}function Ze({checked:e,onChange:t,label:n}){return r.jsxs("label",{style:{display:"inline-flex",alignItems:"center",gap:8,cursor:"pointer"},children:[r.jsx("span",{onClick:()=>t==null?void 0:t(!e),style:{width:30,height:18,borderRadius:999,background:e?"var(--cyan)":"var(--stroke-strong)",position:"relative",transition:"background var(--dur-2) var(--ease)",boxShadow:e?"0 0 12px var(--cyan-glow)":"none"},children:r.jsx("span",{style:{position:"absolute",top:2,left:e?14:2,width:14,height:14,borderRadius:999,background:e?"#02060d":"var(--ink)",transition:"left var(--dur-2) var(--ease)"}})}),n&&r.jsx("span",{style:{fontSize:12,color:"var(--ink)"},children:n})]})}function Oe({value:e,min:t=0,max:n=100,step:o=1,onChange:i,unit:s="",label:a}){const l=(e-t)/(n-t)*100;return r.jsxs("div",{style:{display:"flex",flexDirection:"column",gap:4},children:[a&&r.jsxs("div",{style:{display:"flex",justifyContent:"space-between",fontSize:11},children:[r.jsx("span",{style:{color:"var(--ink-soft)"},children:a}),r.jsxs("span",{style:{color:"var(--ink-strong)",fontFamily:"var(--f-mono)"},children:[e,s]})]}),r.jsxs("div",{style:{position:"relative",height:18,display:"flex",alignItems:"center"},children:[r.jsx("div",{style:{position:"absolute",inset:"7px 0",borderRadius:999,background:"var(--bg-base)",border:"1px solid var(--stroke)"}}),r.jsx("div",{style:{position:"absolute",left:0,top:7,bottom:7,width:`${l}%`,background:"linear-gradient(90deg, var(--cyan), var(--violet))",borderRadius:999}}),r.jsx("input",{type:"range",min:t,max:n,step:o,value:e,onChange:d=>i==null?void 0:i(Number(d.target.value)),style:{position:"absolute",inset:0,opacity:0,width:"100%",cursor:"pointer"}}),r.jsx("div",{style:{position:"absolute",left:`calc(${l}% - 7px)`,width:14,height:14,borderRadius:999,background:"var(--ink-strong)",boxShadow:"0 0 0 3px var(--bg-base), 0 0 12px var(--cyan-glow)",pointerEvents:"none"}})]})]})}function jt({elevated:e,children:t,style:n,...o}){return r.jsx("div",{style:{background:e?"var(--bg-panel-2)":"var(--bg-panel)",border:"1px solid var(--stroke)",borderRadius:"var(--r-lg)",boxShadow:"var(--shadow-1)",...n},...o,children:t})}function ie({label:e,defaultOpen:t=!0,right:n,children:o}){const[i,s]=x.useState(t);return r.jsxs("div",{style:{borderBottom:"1px solid var(--stroke)"},children:[r.jsxs("button",{onClick:()=>s(!i),style:{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",background:"transparent",border:0,cursor:"pointer",color:"var(--ink-soft)"},children:[r.jsxs("span",{style:{display:"flex",alignItems:"center",gap:6},children:[r.jsx(X,{name:"caretR",size:12,style:{transform:i?"rotate(90deg)":"none",transition:"transform var(--dur-1) var(--ease)"}}),r.jsx("span",{className:"upper",children:e})]}),n]}),i&&r.jsx("div",{style:{padding:"4px 14px 12px"},children:o})]})}function O({label:e,hint:t,children:n}){return r.jsxs("div",{style:{display:"flex",flexDirection:"column",gap:4,marginBottom:10},children:[e&&r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)"},children:e}),n,t&&r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-muted)"},children:t})]})}function re({value:e,options:t,onChange:n,style:o}){const[i,s]=x.useState(!1),a=x.useRef();x.useEffect(()=>{function d(u){a.current&&!a.current.contains(u.target)&&s(!1)}return document.addEventListener("mousedown",d),()=>document.removeEventListener("mousedown",d)},[]);const l=t.find(d=>(d.value??d)===e);return r.jsxs("div",{ref:a,style:{position:"relative",...o},children:[r.jsxs("button",{onClick:()=>s(!i),"data-dzselect":"1",style:{width:"100%",height:30,padding:"0 10px",display:"flex",alignItems:"center",justifyContent:"space-between",background:"var(--bg-base)",border:`1px solid ${i?"var(--cyan)":"var(--stroke)"}`,borderRadius:"var(--r-sm)",color:"var(--ink-strong)",cursor:"pointer",fontSize:12.5},children:[r.jsx("span",{children:(l==null?void 0:l.label)??l??"—"}),r.jsx(X,{name:"caret",size:12,style:{color:"var(--ink-soft)"}})]}),i&&r.jsx("div",{style:{position:"absolute",top:"calc(100% + 4px)",left:0,right:0,zIndex:100,background:"var(--bg-panel-2)",border:"1px solid var(--stroke-strong)",borderRadius:"var(--r-sm)",boxShadow:"var(--shadow-2)",overflow:"hidden",maxHeight:240,overflowY:"auto"},className:"scroll",children:t.map((d,u)=>{const f=d.value??d,m=d.label??d;return r.jsxs("button",{onClick:()=>{n==null||n(f),s(!1)},style:{width:"100%",padding:"8px 10px",textAlign:"left",background:f===e?"var(--cyan-soft)":"transparent",color:f===e?"var(--cyan)":"var(--ink)",border:0,cursor:"pointer",fontSize:12.5,display:"flex",alignItems:"center",justifyContent:"space-between"},onMouseEnter:y=>{f!==e&&(y.currentTarget.style.background="var(--bg-panel-3)")},onMouseLeave:y=>{f!==e&&(y.currentTarget.style.background="transparent")},children:[r.jsx("span",{children:m}),f===e&&r.jsx(X,{name:"check",size:12})]},u)})})]})}function Nu({value:e,indeterminate:t,tone:n="cyan"}){return r.jsx("div",{style:{width:"100%",height:4,borderRadius:999,overflow:"hidden",background:"var(--bg-base)",border:"1px solid var(--stroke)"},children:r.jsx("div",{className:t?"shimmer":"",style:{height:"100%",width:t?"100%":`${e}%`,background:t?void 0:"linear-gradient(90deg, var(--cyan), var(--violet))",transition:"width 300ms var(--ease)",boxShadow:"0 0 12px var(--cyan-glow)"}})})}function rr({kind:e="image",label:t,size:n=56,ratio:o,style:i,src:Sc,vsrc:Vc}){const s={image:"var(--amber)",video:"var(--cyan)",avatar:"var(--violet)",audio:"var(--green)",render:"var(--ink)"},a={image:"#3a2a05",video:"#053040",avatar:"#2a0d3e",audio:"#063020",render:"#1a253a"},l={image:"IMG",video:"CLIP",avatar:"AVT",audio:"WAV",render:"OUT"},d=n,u=o?Math.round(n*o):n;return r.jsxs("div",{style:{width:d,height:u,borderRadius:"var(--r-sm)",background:`linear-gradient(135deg, ${a[e]} 0%, #02060d 100%)`,border:"1px solid var(--stroke)",position:"relative",overflow:"hidden",flexShrink:0,...i},children:[r.jsx("div",{style:{position:"absolute",inset:0,background:`repeating-linear-gradient(45deg, transparent 0 6px, ${s[e]}10 6px 7px)`}}),(Sc?r.jsx("img",{src:Sc,loading:"lazy",onLoad:ev=>{ev.currentTarget.style.display="block"},onError:ev=>{ev.currentTarget.style.display="none"},style:{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}}):Vc?r.jsx("video",{src:Vc,muted:!0,playsInline:!0,preload:"metadata",onLoadedData:ev=>{try{if(ev.currentTarget.currentTime<.1)ev.currentTarget.currentTime=.3}catch(x){}},onLoad:ev=>{ev.currentTarget.style.display="block"},onError:ev=>{ev.currentTarget.style.display="none"},style:{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",background:"#02060d"}}):null),e==="audio"&&r.jsx("svg",{viewBox:"0 0 60 30",style:{position:"absolute",inset:"20% 10%",color:s.audio},children:r.jsx("path",{stroke:"currentColor",strokeWidth:"1.5",fill:"none",d:"M0 15 Q5 5 10 15 T20 15 T30 15 T40 15 T50 15 T60 15"})}),r.jsx("div",{style:{position:"absolute",top:4,left:4,padding:"2px 5px",fontSize:9,fontWeight:600,fontFamily:"var(--f-mono)",color:s[e],background:"#02060daa",borderRadius:3,letterSpacing:.5},children:l[e]}),t&&r.jsx("div",{style:{position:"absolute",bottom:4,left:4,right:4,fontSize:9,color:"var(--ink-strong)",fontFamily:"var(--f-mono)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},children:t})]})}function Ch({compact:e,size:t=16}){const n=ji(),o=t+14;return r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:10,color:"var(--ink-strong)"},children:[r.jsx("span",{style:{width:o,height:o,borderRadius:"50%",display:"inline-flex",alignItems:"center",justifyContent:"center",background:"radial-gradient(circle at 30% 25%, color-mix(in srgb, var(--brand) 20%, transparent) 0%, transparent 60%), radial-gradient(circle at 75% 80%, color-mix(in srgb, var(--cyan) 13%, transparent) 0%, transparent 55%)",boxShadow:"0 0 18px var(--brand-soft)",flexShrink:0},children:r.jsx("img",{src:D.brandLogoUrl(),alt:n.app_name,width:o,height:o,onError:i=>{i.currentTarget.style.display="none"},style:{width:"100%",height:"100%",objectFit:"contain",borderRadius:"50%",filter:"drop-shadow(0 0 6px var(--brand-soft))"}})}),!e&&r.jsxs("div",{style:{display:"flex",flexDirection:"column",lineHeight:1},children:[r.jsx("span",{className:"display",style:{fontSize:14,fontWeight:700,letterSpacing:"0.04em",color:"var(--brand)"},children:n.app_name}),r.jsxs("span",{style:{fontSize:9,color:"var(--ink-soft)",letterSpacing:"0.18em",fontWeight:500,marginTop:2},children:[n.app_sub," · v2.6.0"]})]})]})}const Ur={image:{color:"var(--node-image)",label:"image"},video:{color:"#9aa6b4",label:"video"},audio:{color:"var(--node-audio)",label:"audio"},av:{color:"#9aa6b4",label:"av"},text:{color:"var(--node-text)",label:"text"},data:{color:"var(--node-data)",label:"data"}},Qr={source:{color:"var(--nd-source)",label:"Source",icon:"image"},gen:{color:"var(--nd-gen)",label:"Generator",icon:"sparkle"},audio:{color:"var(--nd-audio)",label:"Audio",icon:"wave"},edit:{color:"var(--nd-edit)",label:"Edit",icon:"film"},compose:{color:"var(--nd-compose)",label:"Composition",icon:"layers"},motion:{color:"var(--nd-motion)",label:"Animations",icon:"sparkle"},master:{color:"var(--nd-master)",label:"Master",icon:"warn"},output:{color:"var(--nd-output)",label:"Output",icon:"download"}},Me={Image:{cat:"source",title:"Image",desc:"Pick a still image",inPorts:[],outPorts:[{id:"out",type:"image"}],props:{filename:"octopus_throne.png"}},Text:{cat:"source",title:"Text",desc:"Plain text input",inPorts:[],outPorts:[{id:"out",type:"text"}],props:{value:"From the deep, the prophecy ascends."}},Prompt:{cat:"source",title:"Prompt",desc:"AI image/video prompt",inPorts:[],outPorts:[{id:"out",type:"text"}],props:{value:"cinematic motion, deep-sea bioluminescence, volumetric light",negative:"text, watermark, blurry, distorted, robotic"}},ExistingRender:{cat:"source",title:"Existing render",desc:"Reuse a previous render",inPorts:[],outPorts:[{id:"out",type:"av"}],props:{jobId:"job_2k1f4a",durationS:18.4}},Upload:{cat:"source",title:"UGC video",desc:"Upload your own clip",inPorts:[],outPorts:[{id:"out",type:"av"}],props:{jobId:"",filename:"",durationS:0,master:!0}},NewsItem:{cat:"source",title:"News item",desc:"Pick from RSS feed",inPorts:[],outPorts:[{id:"out",type:"data"}],props:{title:"Solana memecoin volume +38% in 24h",source:"cryptoslate.com"}},Seedance:{cat:"gen",title:"Seedance",desc:"image → cinematic clip",inPorts:[{id:"image",type:"image"},{id:"end",type:"image"},{id:"prompt",type:"text"}],outPorts:[{id:"out",type:"video"}],props:{model:"seedance-v1-pro",style:"cinematic",durationS:10,aspect:"9:16",seed:4421,extendMode:"loop"}},HeyGenAvatar:{cat:"gen",title:"HeyGen avatar",desc:"script → talking avatar",inPorts:[{id:"script",type:"text"}],outPorts:[{id:"out",type:"av"}],props:{avatar:"Asha · prophetess",voice:"Asha · EN",speedX:1}},NewsScript:{cat:"gen",title:"News script",desc:"news → prophet voice",inPorts:[{id:"news",type:"data"}],outPorts:[{id:"script",type:"text"},{id:"essences",type:"data"}],props:{useAnthropic:!0,words:80}},NewsIllustration:{cat:"gen",title:"News illust.",desc:"news → reel B-roll",inPorts:[{id:"news",type:"data"}],outPorts:[{id:"out",type:"image"}],props:{style:"cinematic-deep",durationS:15}},Voiceover:{cat:"audio",title:"Voiceover",desc:"ElevenLabs TTS",inPorts:[{id:"text",type:"text"}],outPorts:[{id:"out",type:"audio"}],props:{provider:"elevenlabs",voice_id:"",voice_name:"",language:"fr",filename:"",chars:0,model:"",tune:null}},MusicTrack:{cat:"audio",title:"Music track",desc:"Looped BGM",inPorts:[{id:"src",type:"audio"}],outPorts:[{id:"out",type:"audio"}],props:{volumeDb:-14,loop:!0,filename:""}},AudioMix:{cat:"audio",title:"Audio mix",desc:"Mix N tracks",inPorts:[{id:"a",type:"audio"},{id:"b",type:"audio"}],outPorts:[{id:"out",type:"audio"}],props:{duckDb:-8,fadeInS:.4,fadeOutS:.6}},Loudness:{cat:"audio",title:"Loudness norm.",desc:"LUFS target",inPorts:[{id:"in",type:"audio"}],outPorts:[{id:"out",type:"audio"}],props:{lufs:-14}},Trim:{cat:"edit",title:"Trim",desc:"cut start/end",inPorts:[{id:"in",type:"av"}],outPorts:[{id:"out",type:"av"}],props:{startS:0,endS:6,lengthMode:"source"}},Extend:{cat:"edit",title:"Extend",desc:"loop or hold tail",inPorts:[{id:"in",type:"video"}],outPorts:[{id:"out",type:"video"}],props:{targetS:18,mode:"loop"}},Concatenate:{cat:"edit",title:"Concatenate",desc:"xfade · cut · glitch",inPorts:[{id:"a",type:"av"},{id:"b",type:"av"},{id:"c",type:"av"},{id:"d",type:"av"},{id:"e",type:"av"},{id:"f",type:"av"}],outPorts:[{id:"out",type:"av"}],props:{transition:"crossfade",durationS:.4,sourceCount:3}},Split:{cat:"edit",title:"Split",desc:"cut at point",inPorts:[{id:"in",type:"av"}],outPorts:[{id:"a",type:"av"},{id:"b",type:"av"}],props:{atS:5}},Speed:{cat:"edit",title:"Speed",desc:"time-stretch",inPorts:[{id:"in",type:"video"}],outPorts:[{id:"out",type:"video"}],props:{factor:1}},Animation:{cat:"motion",title:"Animation",desc:"animate text & stickers over a clip",inPorts:[{id:"base",type:"av"}],outPorts:[{id:"out",type:"av"}],props:{durationS:8,fps:30,elements:[],selected:0}},SpatialCompose:{cat:"compose",title:"Spatial compose",desc:"layout 9:16 regions",inPorts:[{id:"reel",type:"av"},{id:"avatar",type:"av"},{id:"s3",type:"av"},{id:"s4",type:"av"},{id:"s5",type:"av"},{id:"s6",type:"av"},{id:"brand",type:"image"},{id:"bg",type:"image"}],outPorts:[{id:"out",type:"av"}],props:{templateId:"tpl_news_reel",useAsMaster:!1,tailPadS:.4,scenes:0,transitions:[]}},BrandStrip:{cat:"compose",title:"Brand strip",desc:"mark + text → image",inPorts:[{id:"data",type:"data"}],outPorts:[{id:"out",type:"image"}],props:{mark:"🐙",text:"DEEPOTUS"}},TextOverlay:{cat:"compose",title:"Text overlay",desc:"caption on video",inPorts:[{id:"in",type:"video"}],outPorts:[{id:"out",type:"video"}],props:{text:"oracle says: send.",font:"Space Grotesk",size:64,color:"#ffffff",bg:"",pulse:!0,startS:0,endS:4,x:15,y:72,w:70}},Ticker:{cat:"compose",title:"Ticker",desc:"scrolling text",inPorts:[{id:"in",type:"video"},{id:"text",type:"text"}],outPorts:[{id:"out",type:"video"}],props:{speed:60,direction:"left",text:"",font:"Bebas Neue",color:"#00e5ff",bg:"#02060d",y:90}},Separator:{cat:"compose",title:"Separator",desc:"thin divider image",inPorts:[],outPorts:[{id:"out",type:"image"}],props:{color:"#00e5ff",thickness:2,y:49}},AvatarMaster:{cat:"master",title:"Avatar master",desc:"duration master",inPorts:[{id:"in",type:"av"}],outPorts:[{id:"out",type:"av"}],props:{tailPadS:.4,fadeOutS:.3}},Effects:{cat:"compose",title:"Effects / Mask",desc:"LUT VHS color gradient",inPorts:[{id:"in",type:"av"}],outPorts:[{id:"out",type:"av"}],props:{effects:[{type:"grade",preset:"teal_orange",intensity:60}],targets:["all"]}},Render:{cat:"output",title:"Render",desc:"final encode",inPorts:[{id:"in",type:"av"},{id:"overlay",type:"av"},{id:"audio",type:"audio"},{id:"fx",type:"av"}],outPorts:[],props:{format:"9:16",fps:30,crf:20,name:"tweet_2026-05-20",voiceMode:"passthrough"}},ImageGen:{cat:"gen",title:"Image gen",desc:"prompt → N images",inPorts:[{id:"prompt",type:"text"}],outPorts:[{id:"out",type:"image"}],props:{model:"",count:2,size:"portrait_16_9",prompt:"",filename:""}},ImageEdit:{cat:"gen",title:"Image edit",desc:"image + instruction → image",inPorts:[{id:"in",type:"image"},{id:"prompt",type:"text"}],outPorts:[{id:"out",type:"image"}],props:{model:"",instruction:"",filename:""}},Variations:{cat:"gen",title:"Variations",desc:"image → N variantes",inPorts:[{id:"in",type:"image"}],outPorts:[{id:"out",type:"image"}],props:{model:"",count:3,filename:""}},RemoveBG:{cat:"edit",title:"Remove BG",desc:"détourage arrière-plan",inPorts:[{id:"in",type:"image"}],outPorts:[{id:"out",type:"image"}],props:{method:"api",filename:""}},Upscale:{cat:"edit",title:"Upscale",desc:"agrandir ×2/×4",inPorts:[{id:"in",type:"image"}],outPorts:[{id:"out",type:"image"}],props:{mode:"ai",scale:2,filename:""}},CropFormat:{cat:"edit",title:"Crop / format",desc:"recadrer au ratio",inPorts:[{id:"in",type:"image"}],outPorts:[{id:"out",type:"image"}],props:{ratio:"9:16",filename:""}}},_h=[{cat:"source",types:["Image","Text","Prompt","ExistingRender","Upload","NewsItem"]},{cat:"gen",types:["Seedance","HeyGenAvatar","NewsScript","NewsIllustration","ImageGen","ImageEdit","Variations"]},{cat:"audio",types:["Voiceover","MusicTrack","AudioMix","Loudness"]},{cat:"edit",types:["Trim","Extend","Concatenate","Split","Speed","RemoveBG","Upscale","CropFormat"]},{cat:"compose",types:["SpatialCompose","BrandStrip","TextOverlay","Ticker","Separator","Effects"]},{cat:"motion",types:["Animation"]},{cat:"master",types:["AvatarMaster"]},{cat:"output",types:["Render"]}],bi=220,Ru=36,Mu=22,zh=92,Eh=30;function qi(e,t,n,o){const i=Me[e];var _lst=t==="in"?i.inPorts:i.outPorts;if(o&&t==="in"&&typeof dzNodeInPorts==="function"){var _dl=dzNodeInPorts(o);_dl&&(_lst=_dl)}const a=_lst.findIndex(u=>u.id===n);if(a<0)return{x:0,y:0};const l=t==="in"?0:bi,d=Ru+12+a*Mu;return{x:l,y:d}}function Th({node:e,variant:t,selected:n,status:o,onMouseDown:i,onPortPress:s,onPortRelease:a,onClick:l,onDelete:d}){const u=Me[e.type],f=Qr[u.cat],m=t==="reef",y=n?"var(--cyan)":o==="failed"?"var(--red)":o==="succeeded"?"var(--green)":f.color,w=m?"linear-gradient(180deg, var(--bg-panel-2) 0%, var(--bg-panel) 100%)":"var(--bg-panel)",v=o==="running"?{"--node-color":"color-mix(in srgb, "+f.color+" 40%, transparent)",boxShadow:`0 0 0 1px ${f.color}, 0 0 40px color-mix(in srgb, ${f.color} 33%, transparent)`}:n?{boxShadow:"0 0 0 1px var(--cyan), 0 0 32px var(--cyan-soft)"}:{boxShadow:"var(--shadow-1)"};return r.jsxs("div",{"data-node-id":e.id,onMouseDown:i,onClick:l,className:o==="running"?"pulse":"",style:{position:"absolute",left:e.x,top:e.y,width:bi,background:w,borderRadius:m?14:10,border:`1px solid ${y}`,color:"var(--ink)",userSelect:"none",cursor:"grab",...v,transition:"box-shadow 200ms var(--ease), border-color 200ms var(--ease)"},children:[r.jsxs("div",{style:{height:Ru,padding:"0 10px",display:"flex",alignItems:"center",gap:8,borderBottom:"1px solid var(--stroke)",background:`linear-gradient(180deg, color-mix(in srgb, ${f.color} 10%, transparent) 0%, transparent 100%)`,borderTopLeftRadius:m?13:9,borderTopRightRadius:m?13:9},children:[r.jsx("span",{style:{width:18,height:18,borderRadius:5,background:"color-mix(in srgb, "+f.color+" 13%, transparent)",color:f.color,display:"inline-flex",alignItems:"center",justifyContent:"center"},children:r.jsx(X,{name:f.icon,size:11})}),r.jsx("span",{style:{flex:1,fontSize:12.5,fontWeight:600,color:"var(--ink-strong)"},children:u.title}),o==="running"&&r.jsx(te,{tone:"cyan",dot:!0,children:"run"}),o==="succeeded"&&r.jsx(te,{tone:"green",dot:!0,children:"ok"}),o==="failed"&&r.jsx(te,{tone:"red",dot:!0,children:"err"}),o==="queued"&&r.jsx(te,{tone:"neutral",children:"queued"}),d&&r.jsx("button",{onMouseDown:g=>{g.stopPropagation()},onClick:g=>{g.stopPropagation(),d()},title:"Delete node",style:{width:18,height:18,borderRadius:5,border:0,cursor:"pointer",background:"transparent",color:"var(--ink-muted)",display:"inline-flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"background var(--dur-1) var(--ease), color var(--dur-1) var(--ease)"},onMouseEnter:g=>{g.currentTarget.style.background="var(--red-soft)",g.currentTarget.style.color="var(--red)"},onMouseLeave:g=>{g.currentTarget.style.background="transparent",g.currentTarget.style.color="var(--ink-muted)"},children:r.jsx(X,{name:"close",size:12})})]}),r.jsxs("div",{style:{position:"relative",minHeight:16,padding:"8px 0"},children:[(e.type==="Concatenate"?u.inPorts.slice(0,Math.max(2,Math.min(6,(e.props&&e.props.sourceCount)||3))):(typeof dzNodeInPorts==="function"&&dzNodeInPorts(e))||u.inPorts).map((g,k)=>r.jsx(ud,{side:"in",port:g,index:k,onPress:c=>s(e.id,"in",g,c),onRelease:c=>a(e.id,"in",g,c)},g.id)),u.outPorts.map((g,k)=>r.jsx(ud,{side:"out",port:g,index:k,onPress:c=>s(e.id,"out",g,c),onRelease:c=>a(e.id,"out",g,c)},g.id))]}),m&&r.jsx("div",{style:{height:zh,margin:"4px 10px 0",borderRadius:8,overflow:"hidden",border:"1px solid var(--stroke)",position:"relative"},children:r.jsx(Ih,{node:e,status:o})}),r.jsxs("div",{style:{height:m?Eh:14,padding:m?"0 12px":"0 10px 6px",display:"flex",alignItems:"center",justifyContent:"space-between",fontSize:10.5,color:"var(--ink-muted)",fontFamily:"var(--f-mono)"},children:[r.jsx("span",{children:Nh(e)}),r.jsx("span",{children:Rh(e)})]})]})}var __dzTplList=null,__dzTplFetch=0;function __dzTplGet(id){if(!__dzTplList&&!__dzTplFetch){__dzTplFetch=1;try{D.listLayoutTemplates().then(function(L1){__dzTplList=Array.isArray(L1)?L1:(L1&&L1.templates)||[]}).catch(function(){__dzTplFetch=0})}catch(_e){__dzTplFetch=0}}return(__dzTplList||[]).find(function(t1){return t1&&t1.id===id})||null}function dzSpatialSlots(tpl,props){var regs=(tpl&&tpl.regions)||[],vids=[],imgs=[],i1;for(i1=0;i1<regs.length;i1++){var rg=regs[i1];rg.type==="video_slot"?vids.push(rg):rg.type==="image_slot"&&imgs.push(rg)}var seq=!!(tpl&&tpl.render_mode==="sequential"),maxN=vids.length,n=maxN;if(seq){n=Math.max(2,Math.min(maxN||2,Number(props&&props.scenes)||2));vids=vids.slice(0,n)}var pool=["reel","s3","s4","s5","s6"],ports=[],hey=null;for(i1=0;i1<vids.length;i1++)if(vids[i1].default_provider==="heygen"&&!hey)hey=vids[i1];for(i1=0;i1<vids.length;i1++){var rg2=vids[i1],pid=rg2===hey?"avatar":pool.shift();pid&&ports.push({id:pid,type:"av",label:rg2.slot_label||rg2.slot_name,slot:rg2.slot_name})}var ipool=["brand","bg"];for(i1=0;i1<imgs.length&&i1<2;i1++)ports.push({id:ipool[i1],type:"image",label:imgs[i1].slot_label||imgs[i1].slot_name,slot:imgs[i1].slot_name});return{ports:ports,seq:seq,maxN:maxN,n:n}}function dzNodeInPorts(nd){if(!nd||nd.type!=="SpatialCompose")return null;var tpl=__dzTplGet((nd.props&&nd.props.templateId)||"tpl_news_reel");if(!tpl)return null;var ps=dzSpatialSlots(tpl,nd.props||{}).ports;return ps.length?ps:null}function ud({side:e,port:t,index:n,onPress:o,onRelease:i}){const s=Ur[t.type].color;return r.jsxs("div",{style:{position:"absolute",top:8+n*Mu+2,left:e==="in"?-8:"auto",right:e==="out"?-8:"auto",display:"flex",alignItems:"center",gap:6,flexDirection:e==="in"?"row":"row-reverse",width:130},children:[r.jsx("span",{"data-port-side":e,"data-port-id":t.id,onMouseDown:a=>{a.stopPropagation(),o(a)},onMouseUp:a=>{a.stopPropagation(),i(a)},style:{width:16,height:16,borderRadius:999,background:s,border:"2px solid var(--bg-panel)",boxShadow:`0 0 8px ${s}88`,cursor:"crosshair",flexShrink:0}}),r.jsxs("span",{style:{fontSize:10.5,color:"var(--ink-soft)",textAlign:e==="in"?"left":"right",padding:e==="in"?"0 0 0 4px":"0 4px 0 0"},children:[t.label||t.id,r.jsxs("span",{style:{color:s,opacity:.6},children:[" · ",t.type]})]})]})}var __dzG=null,__dzKeep={};function __dzThumbUrl(g){if(!g)return null;var k=0;while(g&&g.type==="AvatarMaster"&&k++<6)g=Wt(__dzG,g.id,"in");if(!g)return null;if(g.type==="Seedance"){var img=Wt(__dzG,g.id,"image");return img&&img.props&&img.props.filename?D.imageUrl(img.props.filename):null}if(typeof dzIsImgNode==="function"&&dzIsImgNode(g)||g.type==="Image"||g.type==="NewsIllustration")return g.props&&g.props.filename?D.imageUrl(g.props.filename):null;if(g.type==="HeyGenAvatar")return g.props&&g.props.avatarImg||null;return null}function __dzConcatStrip(e){var g=__dzG;if(!g)return r.jsx("div",{style:{width:"100%",height:"100%",background:"linear-gradient(135deg,#053040,#02060d)"}});var srcs=["a","b","c","d","e","f"].map(function(pt){return Wt(g,e.id,pt)}).filter(Boolean);if(!srcs.length)return r.jsx("div",{style:{width:"100%",height:"100%",background:"linear-gradient(135deg,#053040 0%,#02060d 100%)",display:"flex",alignItems:"center",justifyContent:"center",color:"#00e5ff",opacity:.5},children:r.jsx(X,{name:"film",size:24})});var cols=Math.min(srcs.length,3);return r.jsx("div",{style:{width:"100%",height:"100%",display:"grid",gridTemplateColumns:"repeat("+cols+",1fr)",gridAutoRows:"1fr",gap:2,background:"#000",padding:2},children:srcs.map(function(nd,ix){var u=__dzThumbUrl(nd);var jid=nd.props&&nd.props.jobId;var inner;if(u)inner=r.jsx("div",{style:{position:"absolute",inset:0,backgroundImage:"url("+u+")",backgroundSize:"cover",backgroundPosition:"center"}});else if(jid)inner=r.jsx("video",{src:D.jobVideoUrl(jid),muted:!0,preload:"metadata",playsInline:!0,onError:function(ev){ev.currentTarget.style.display="none"},style:{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",background:"#000"}});else inner=r.jsx("div",{style:{position:"absolute",inset:0,background:"linear-gradient(135deg,#053040,#02060d)",display:"flex",alignItems:"center",justifyContent:"center",color:"#00e5ff",opacity:.55},children:r.jsx(X,{name:"film",size:12})});return r.jsxs("div",{"data-dzslot":ix+1,style:{position:"relative",minWidth:0,minHeight:0,borderRadius:3,overflow:"hidden",backgroundColor:"#0b1a26"},children:[inner,r.jsx("span",{className:"mono",style:{position:"absolute",top:2,left:2,minWidth:12,padding:"0 3px",borderRadius:3,fontSize:8,lineHeight:"12px",textAlign:"center",background:"#02060dcc",color:"var(--cyan)",fontWeight:700,pointerEvents:"none"},children:ix+1})]},ix)})})}function Ih({node:e,status:t}){var a;const n=e==null?void 0:e.type,o={...((a=Me[n])==null?void 0:a.props)||{},...(e==null?void 0:e.props)||{}},i=Me[n],s=Qr[i.cat];return o.filename?r.jsx(rr,{kind:"image",size:1,src:D.imageUrl(o.filename),style:{width:"100%",height:"100%",borderRadius:0,border:0}}):o.jobId?r.jsx("video",{src:D.jobVideoUrl(o.jobId),muted:!0,preload:"metadata",playsInline:!0,onMouseEnter:l=>l.currentTarget.play().catch(()=>{}),onMouseLeave:l=>{l.currentTarget.pause(),l.currentTarget.currentTime=0},onLoadedMetadata:l=>{l.currentTarget.style.display="block"},onError:l=>{l.currentTarget.style.display="none"},style:{width:"100%",height:"100%",objectFit:"cover",display:"block",background:"#000"}}):n==="Animation"?r.jsxs("div",{style:{width:"100%",height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4,color:"var(--amber)",background:"#0b1016"},children:[r.jsx("div",{style:{fontSize:22,lineHeight:1},children:"✦"}),r.jsx("div",{style:{fontSize:11,opacity:.8},children:((e.props&&e.props.elements||[]).length)+" elements"})]}):n==="Concatenate"?__dzConcatStrip(e):["Image"].includes(n)?r.jsx(rr,{kind:"image",size:1,style:{width:"100%",height:"100%",borderRadius:0,border:0}}):["Seedance","NewsIllustration","Trim","Extend","Speed","TextOverlay","Ticker","SpatialCompose","ExistingRender","Upload"].includes(n)?r.jsxs("div",{style:{width:"100%",height:"100%",position:"relative",background:"linear-gradient(135deg, #053040 0%, #02060d 100%)"},children:[r.jsx("div",{style:{position:"absolute",inset:0,background:"repeating-linear-gradient(45deg, transparent 0 6px, #00e5ff10 6px 7px)"}}),r.jsx("div",{style:{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",color:"#00e5ff",opacity:.5},children:r.jsx(X,{name:"film",size:28})}),r.jsx("div",{style:{position:"absolute",bottom:4,left:6,fontFamily:"var(--f-mono)",fontSize:9,color:"var(--ink-strong)"},children:t==="running"?"00:08 / 00:15":"av · 9:16"})]}):["HeyGenAvatar"].includes(n)?(o.avatarImg?r.jsx("img",{src:o.avatarImg,alt:o.avatar||"avatar",onLoad:l=>{l.currentTarget.style.display="block"},onError:l=>{l.currentTarget.style.display="none"},style:{width:"100%",height:"100%",objectFit:"cover",display:"block",background:"#02060d"}}):r.jsx("div",{style:{width:"100%",height:"100%",background:"radial-gradient(circle at 50% 40%, #a855f744 0%, #02060d 70%)",display:"flex",alignItems:"center",justifyContent:"center"},children:r.jsx("div",{style:{width:56,height:56,borderRadius:"50%",background:"linear-gradient(160deg, #a855f7, #5b21b6)",boxShadow:"0 0 24px var(--violet-soft)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:22,fontWeight:700},children:"A"})})):["Voiceover","MusicTrack","AudioMix","Loudness"].includes(n)?r.jsx("svg",{viewBox:"0 0 200 90",style:{width:"100%",height:"100%",background:"linear-gradient(135deg, #063020 0%, #02060d 100%)"},children:r.jsx("path",{stroke:"var(--green)",strokeWidth:"1.5",fill:"none",d:Ph()})}):["Concatenate"].includes(n)?r.jsx("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:3,padding:4,height:"100%"},children:[0,1,2].map(l=>r.jsx("div",{style:{background:"linear-gradient(135deg, #053040, #02060d)",borderRadius:4,position:"relative"},children:r.jsx("div",{style:{position:"absolute",inset:0,background:"repeating-linear-gradient(45deg, transparent 0 4px, #00e5ff12 4px 5px)",borderRadius:4}})},l))}):["NewsItem","NewsScript","BrandStrip"].includes(n)?r.jsxs("div",{style:{width:"100%",height:"100%",padding:8,background:"linear-gradient(135deg, #1a0f00 0%, #02060d 100%)",display:"flex",flexDirection:"column",justifyContent:"space-between"},children:[r.jsx("div",{style:{fontSize:10,color:"var(--amber)",fontFamily:"var(--f-mono)"},children:n==="NewsItem"?((e.props||{}).source||"RSS source"):"prophet voice"}),r.jsx("div",{style:{fontSize:11,color:"var(--ink-strong)",lineHeight:1.25},children:n==="NewsItem"?((e.props||{}).title||"Pick a headline"):n==="NewsScript"?((e.props||{}).value||"AI script…"):"🐙 DEEPOTUS · from the deep"})]}):["Render"].includes(n)?r.jsx("div",{style:{width:"100%",height:"100%",background:"#02060d",position:"relative",display:"flex",alignItems:"center",justifyContent:"center"},children:r.jsx("div",{style:{width:36,height:64,border:"2px solid var(--ink)",borderRadius:4,position:"relative"},children:r.jsx(X,{name:"play",size:18,style:{position:"absolute",top:22,left:9,color:"var(--ink-strong)"}})})}):r.jsx("div",{style:{width:"100%",height:"100%",background:"var(--bg-base)",display:"flex",alignItems:"center",justifyContent:"center",color:s.color,opacity:.5},children:r.jsx(X,{name:s.icon,size:28})})}function Ph(){const e=[];for(let t=0;t<=200;t+=4){const n=(Math.sin(t*.15)+Math.sin(t*.07+1.2)*.6+(Math.random()-.5)*.4)*22+45;e.push(`${t===0?"M":"L"}${t} ${n.toFixed(1)}`)}return e.join(" ")}function Nh(e){var n,o,i,s,a;const t={...((n=Me[e.type])==null?void 0:n.props)||{},...e.props||{}};return e.type==="Image"||e.type==="BrandStrip"?t.filename||t.mark:e.type==="Seedance"?`${t.style} · ${t.durationS}s`:e.type==="HeyGenAvatar"?(i=(o=t.avatar)==null?void 0:o.split("·")[0])==null?void 0:i.trim():e.type==="NewsScript"?`${t.words}w`:e.type==="Voiceover"?(t.voice_name||"Voix par défaut"):e.type==="Trim"?`${t.startS}s → ${t.endS}s`:e.type==="Extend"?`→ ${t.targetS}s · ${t.mode}`:e.type==="Concatenate"?`xfade ${t.durationS}s`:e.type==="Render"?t.format:e.type==="SpatialCompose"?t.templateId:e.type==="AvatarMaster"?`tail ${t.tailPadS}s`:e.type==="ExistingRender"?t.jobId:e.type==="Upload"?t.filename||"upload a clip":e.type==="NewsItem"?t.source:e.type==="Text"?`${(t.value||"").length} ch`:""}function Rh(e){var n;const t={...((n=Me[e.type])==null?void 0:n.props)||{},...e.props||{}};return e.type==="Seedance"?`seed:${t.seed}`:e.type==="Upload"?t.durationS?`${t.durationS}s${t.master?" ⏱master":""}`:"":e.type==="Render"?`${t.fps}fps`:e.type==="AudioMix"?`${t.duckDb}dB`:""}function Wt(e,t,n){const o=e.edges.find(i=>i.to===t&&i.toPort===n);return o&&e.nodes.find(i=>i.id===o.from)||null}function WtAll(e,t,n){return(e.edges||[]).filter(function(i){return i.to===t&&i.toPort===n}).map(function(i){return(e.nodes||[]).find(function(N){return N.id===i.from})}).filter(Boolean)}function dzJoinNews(all,one){var L=(all&&all.length?all:[one||{}]).map(function(n){return(n.summary||n.title||"").trim()}).filter(Boolean);return L.join("\n\n")}function dzSSML(text,pacing){var t=String(text||"");if(!t.trim())return t;var esc=function(z){return z.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")};if(pacing==="precise"){var sp="0.35s",np="0.8s",paras=t.split(/\n+/).map(function(z){return z.trim()}).filter(Boolean);var body=paras.map(function(z){var ee=esc(z).replace(/\[\[\s*pause\s*([0-9.]+)\s*s?\s*\]\]/gi,function(m,d){return'<break time="'+d+'s"/>'});return ee.replace(/([.!?])\s+/g,'$1 <break time="'+sp+'"/> ')}).join(' <break time="'+np+'"/> ');return'<speak>'+body+'</speak>'}var clean=t.replace(/\[\[\s*pause[^\]]*\]\]/gi,"… ");if(pacing==="natural"){clean=clean.split(/\n+/).map(function(z){z=z.trim();return z?(/[.!?…]$/.test(z)?z:z+"."):""}).filter(Boolean).join("\n")}return clean}function pd(e){return e==="1:1"?[1080,1080]:e==="16:9"?[1920,1080]:e==="4:5"?[1080,1350]:[1080,1920]}
+            `,children:s.message},s.id))})]})}const Te="/api";async function Ge(e,t){try{const n=await fetch(Te+e);return n.ok?await n.json():t}catch{return t}}const D={health:()=>Ge("/health",null),listImages:()=>Ge("/images",{images:[]}),imageUrl:e=>`${Te}/images/${encodeURIComponent(e)}`,deleteImage:async e=>{try{return(await fetch(`${Te}/images/${encodeURIComponent(e)}`,{method:"DELETE"})).ok}catch{return!1}},renameImage:async(e,nm)=>{try{const r=await fetch(`${Te}/images/${encodeURIComponent(e)}/rename`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({new_name:nm})});return r.ok?await r.json():null}catch{return null}},listAudio:()=>Ge("/audio",{audio:[]}),audioUrl:e=>`${Te}/audio/${encodeURIComponent(e)}`,uploadAudio:async e=>{try{const t=new FormData;t.append("file",e);const n=await fetch(`${Te}/audio/upload`,{method:"POST",body:t});return n.ok?await n.json():{ok:!1,error:`HTTP ${n.status}`}}catch(t){return{ok:!1,error:String((t==null?void 0:t.message)||t)}}},deleteAudio:async e=>{try{return(await fetch(`${Te}/audio/${encodeURIComponent(e)}`,{method:"DELETE"})).ok}catch{return!1}},listVoices:()=>Ge("/voices",{voices:[],enabled:!1}),renderEpisode:async e=>{try{const t=await fetch(`${Te}/episodes/render`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(e)}),j=await t.json().catch(()=>({}));return t.ok?j:{error:(j&&j.detail)||("HTTP "+t.status)}}catch(t){return{error:String((t==null?void 0:t.message)||t)}}},getJob:e=>Ge("/jobs/"+encodeURIComponent(e),null),episodeScenes:async e=>{try{const t=await fetch(`${Te}/episodes/scenes`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(e)}),j=await t.json().catch(()=>({}));return t.ok?j:{scenes:[],error:(j&&j.detail)||("HTTP "+t.status)}}catch(t){return{scenes:[],error:String((t==null?void 0:t.message)||t)}}},extractText:async e=>{try{const t=new FormData;t.append("file",e);const n=await fetch(`${Te}/episodes/extract-text`,{method:"POST",body:t}),j=await n.json().catch(()=>({}));return n.ok?j:{error:(j&&j.detail)||("HTTP "+n.status)}}catch(t){return{error:String((t==null?void 0:t.message)||t)}}},createVoiceover:async e=>{try{const t=await fetch(`${Te}/audio/voiceover`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(e)}),j=await t.json().catch(()=>({}));return t.ok?j:{ok:!1,error:(j&&j.detail)||("HTTP "+t.status)}}catch(t){return{ok:!1,error:String((t==null?void 0:t.message)||t)}}},listJobs:(e=50)=>Ge(`/jobs?limit=${e}`,[]),getJob:e=>Ge(`/jobs/${e}`,null),jobVideoUrl:e=>`${Te}/jobs/${e}/video`,renameJob:async(e,t)=>{try{const n=await fetch(`${Te}/jobs/${e}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({title:t||null})});return n.ok?await n.json():null}catch{return null}},deleteJob:async e=>{try{return(await fetch(`${Te}/jobs/${e}`,{method:"DELETE"})).ok}catch{return!1}},uploadVideo:async e=>{try{const t=new FormData;t.append("file",e);const n=await fetch(`${Te}/videos/upload`,{method:"POST",body:t});return n.ok?await n.json():{ok:!1,error:`HTTP ${n.status}`}}catch(t){return{ok:!1,error:String((t==null?void 0:t.message)||t)}}},getCaptionPack:()=>Ge("/caption-pack",null),saveCaptionPack:async e=>{try{const t=await fetch(`${Te}/caption-pack`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({pack:e})});return t.ok?await t.json():{ok:!1,error:`HTTP ${t.status}`}}catch(t){return{ok:!1,error:String((t==null?void 0:t.message)||t)}}},resetCaptionPack:async()=>{try{const e=await fetch(`${Te}/caption-pack`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({reset:!0})});return e.ok?await e.json():{ok:!1}}catch{return{ok:!1}}},uploadPackIcon:async(e,t)=>{try{const n=new FormData;n.append("file",t);const o=await fetch(`${Te}/caption-pack/icon/${encodeURIComponent(e)}`,{method:"POST",body:n});return o.ok?await o.json():{ok:!1,error:`HTTP ${o.status}`}}catch(n){return{ok:!1,error:String((n==null?void 0:n.message)||n)}}},listLayoutTemplates:()=>Ge("/layout-templates",[]),renderLayoutTemplate:async(e,t,n,o,i,g)=>{try{var _pv=!!window.__dzfxPreview;window.__dzfxPreview=!1;const s=await fetch(`${Te}/layout-templates/${encodeURIComponent(e)}/render`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({template_id:e,slot_values:t||{},voice_mode:n||null,template:o||null,title:i||null,source_graph:g||null,voiceover:dzGraphVoiceover(g)||null,preview:_pv})});return s.ok?await s.json():{ok:!1,error:`HTTP ${s.status}: ${(await s.text()).slice(0,160)}`}}catch(s){return{ok:!1,error:String((s==null?void 0:s.message)||s)}}},listSeedanceTemplates:()=>Ge("/templates",[]),listNewsItems:()=>Ge("/news/items",{items:[]}),listSchedule:()=>Ge("/schedule",[]),createScheduledPost:e=>D.postJson("/schedule",e),updateScheduledPost:async(e,t)=>{try{const n=await fetch(`${Te}/schedule/${e}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(t)});return n.ok?await n.json():null}catch{return null}},deleteScheduledPost:async e=>{try{return(await fetch(`${Te}/schedule/${e}`,{method:"DELETE"})).ok}catch{return!1}},fireScheduledPost:e=>D.postJson(`/schedule/${e}/fire`,{}),marketingPlan:e=>D.postJson("/marketing/plan",e),importPlan:async(e,{days:t=30,channels:n=["x"],language:o="EN"}={})=>{try{const i=new FormData;i.append("file",e);const s=new URLSearchParams({days:String(t),channels:n.join(","),language:o}),a=await fetch(`${Te}/marketing/plan/import?${s}`,{method:"POST",body:i});return a.ok?{ok:!0,...await a.json()}:{ok:!1,error:await a.text()}}catch(i){return{ok:!1,error:String((i==null?void 0:i.message)||i)}}},materializePlan:(e,t,n="assisted")=>D.postJson("/marketing/plan/materialize",{posts:e,start_date:t,mode:n,tz_offset_minutes:new Date().getTimezoneOffset()}),testChannel:e=>D.postJson("/channels/test",{channel:e}),generateImage:(e,t=1,n="portrait_16_9",m)=>D.postJson("/images/generate",{prompt:e,n:t,size:n,model:m||localStorage.getItem("dz_image_model")||""}),importImageUrl:e=>D.postJson("/images/import-url",{url:e}),getBranding:()=>Ge("/branding",null),setBranding:e=>D.postJson("/branding",e),resetBranding:()=>D.postJson("/branding",{reset:!0}),brandLogoUrl:e=>`${Te}/branding/logo${e?`?t=${e}`:""}`,uploadBrandLogo:async e=>{try{const t=new FormData;t.append("file",e);const n=await fetch(`${Te}/branding/logo`,{method:"POST",body:t});return n.ok?{ok:!0,...await n.json()}:{ok:!1,error:await n.text()}}catch(t){return{ok:!1,error:String((t==null?void 0:t.message)||t)}}},listKeys:()=>Ge("/settings/keys",{keys:[],env_path:""}),setKeys:async e=>{try{const t=await fetch(Te+"/settings/keys",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({entries:e})});return t.ok?await t.json():{ok:!1,error:await t.text()}}catch(t){return{ok:!1,error:String((t==null?void 0:t.message)||t)}}},heygenHealth:()=>Ge("/heygen/health",{configured:!1,reachable:!1}),listHeygenAvatars:()=>Ge("/heygen/avatars",{avatars:[],talking_photos:[]}),listHeygenVoices:()=>Ge("/heygen/voices",{voices:[]}),createPhotoAvatar:async(e,t="Custom deepotus avatar")=>{try{const n=new FormData;n.append("file",e),n.append("avatar_name",t);const o=await fetch(Te+"/heygen/photo-avatar/create",{method:"POST",body:n});return o.ok?{ok:!0,...await o.json()}:{ok:!1,error:await o.text()}}catch(n){return{ok:!1,error:String((n==null?void 0:n.message)||n)}}},postJson:async(e,t)=>{try{const n=await fetch(Te+e,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(t)});return n.ok?{ok:!0,...await n.json().catch(()=>({}))}:{ok:!1,status:n.status,error:await n.text()}}catch(n){return{ok:!1,error:String((n==null?void 0:n.message)||n)}}}};let Io=null;const Po=new Set;let pr=null,Qi=!1;async function Xi(){if(!Qi){Qi=!0;try{const e=await D.health();let t=e;if(e!=null&&e.heygen_enabled){const n=await D.heygenHealth().catch(()=>null);t={...e,heygen_reachable:!!(n!=null&&n.reachable),heygen_message:(n==null?void 0:n.message)||""}}Io=t,Po.forEach(n=>{try{n(t)}catch{}})}finally{Qi=!1}}}function bt(){const[e,t]=x.useState(Io);return x.useEffect(()=>{Po.add(t),Io&&t(Io),pr||(Xi(),pr=setInterval(Xi,15e3));function n(){Xi()}return window.addEventListener("deepotus:health-refresh",n),()=>{Po.delete(t),window.removeEventListener("deepotus:health-refresh",n),Po.size===0&&pr&&(clearInterval(pr),pr=null)}},[]),e}function No(){try{window.dispatchEvent(new Event("deepotus:health-refresh"))}catch{}}const cd={app_name:"DEEPOTUS",app_sub:"VIDEO",tagline_1:"From the deep,",tagline_2:"for the deep.",brand_color:"#ef4444",accent_color:"#00e5ff",has_custom_logo:!1,is_default:!0};function ea(e){try{const t=document.body.style;t.setProperty("--brand",e.brand_color),t.setProperty("--brand-soft",e.brand_color+"22"),t.setProperty("--cyan",e.accent_color),t.setProperty("--cyan-soft",e.accent_color+"22"),document.title=`${e.app_name} Video Gen`}catch{}}let En=null;function ji(){const[e,t]=x.useState(En||cd);return x.useEffect(()=>{let n=!0;async function o(){const s=await D.getBranding();s&&(En={...cd,...s},n&&t(En),ea(En))}En||o();function i(){En=null,o()}return window.addEventListener("deepotus:brand-refresh",i),()=>{n=!1,window.removeEventListener("deepotus:brand-refresh",i)}},[]),e}function Ji(){try{window.dispatchEvent(new Event("deepotus:brand-refresh"))}catch{}}function vn(e){try{return new URLSearchParams(window.location.search).get(e)}catch{return null}}function wh(e){const t=e.run_at?new Date(e.run_at):new Date,n=String(t.getHours()).padStart(2,"0"),o=String(t.getMinutes()).padStart(2,"0");return{id:e.id,title:e.title||"",caption:e.caption||"",channels:e.channels||[],runAt:t,time:`${n}:${o}`,status:e.status||"draft",mode:e.mode||"assisted",jobId:e.job_id||null,format:e.format||null,hook:e.hook||null,script_idea:e.script_idea||null,image_idea:e.image_idea||null,sourceImage:e.source_image||null,x_post_id:e.x_post_id||null,metrics:e.metrics||null,error:e.error||null,brief:e.brief||null}}function ta(e){if(!e&&e!==0)return"";const t=Math.max(0,Math.round(Number(e)||0)),n=Math.floor(t/60),o=t%60;return`${String(n).padStart(2,"0")}:${String(o).padStart(2,"0")}`}function mo(e){if(!e)return"";const t=new Date(e).getTime();if(!t)return"";const n=(Date.now()-t)/1e3;return n<60?`${Math.round(n)}s ago`:n<3600?`${Math.round(n/60)}m ago`:n<86400?`${Math.round(n/3600)}h ago`:n<86400*7?`${Math.round(n/86400)}d ago`:new Date(e).toLocaleString("en",{month:"short",day:"numeric"})}function go(e){if(!e&&e!==0)return"";const t=Number(e)||0;return t<1024?t+" B":t<1024*1024?(t/1024).toFixed(1)+" KB":(t/(1024*1024)).toFixed(1)+" MB"}const Sh={octopus:r.jsxs("g",{fill:"currentColor",children:[r.jsx("path",{d:"M12 2.4c-3.6 0-6.4 2.7-6.4 6.4 0 1.4.4 2.3.4 3 0 .4-.2.7-.6 1L4 14c-.9.5-1.4 1.3-1.4 2.2 0 1.2.9 2 2 2 .8 0 1.4-.4 1.7-1l.5-1.2c.2-.4.6-.6 1-.4.4.2.5.6.4 1l-.5 1.3c-.4 1-.1 2 .8 2.5.9.5 2 .2 2.5-.8l.4-1c.2-.4.6-.5 1-.4.4.2.6.6.4 1l-.4.9c-.4 1-.1 2 .8 2.5.9.5 2 .2 2.5-.8l.5-1c.2-.4.6-.5 1-.4.4.2.5.6.3 1l-.4.8c-.5 1-.1 2.1.8 2.5.9.5 2 .1 2.5-.8.3-.7.4-1.3.4-2 0-.9-.4-1.7-1.3-2.2l-1.4-.7c-.4-.2-.6-.6-.6-1 0-.6.4-1.6.4-3 0-3.7-2.8-6.4-6.4-6.4z"}),r.jsx("circle",{cx:"9.8",cy:"8.6",r:".9",fill:"#02060d"}),r.jsx("circle",{cx:"14.2",cy:"8.6",r:".9",fill:"#02060d"})]}),play:r.jsx("path",{fill:"currentColor",d:"M6 4l14 8-14 8V4z"}),preview:r.jsx("path",{stroke:"currentColor",strokeWidth:"1.6",fill:"none",d:"M4 12a8 8 0 1 0 16 0 8 8 0 0 0-16 0zm0 0h16"}),download:r.jsx("path",{stroke:"currentColor",strokeWidth:"1.6",fill:"none",d:"M12 4v12m0 0l-4-4m4 4l4-4M4 18v2h16v-2"}),upload:r.jsx("path",{stroke:"currentColor",strokeWidth:"1.6",fill:"none",d:"M12 20V8m0 0l-4 4m4-4l4 4M4 4v2h16V4"}),search:r.jsx("path",{stroke:"currentColor",strokeWidth:"1.6",fill:"none",d:"M10 17a7 7 0 1 1 0-14 7 7 0 0 1 0 14zm5-2l5 5"}),plus:r.jsx("path",{stroke:"currentColor",strokeWidth:"1.6",fill:"none",d:"M12 5v14M5 12h14"}),minus:r.jsx("path",{stroke:"currentColor",strokeWidth:"1.6",fill:"none",d:"M5 12h14"}),close:r.jsx("path",{stroke:"currentColor",strokeWidth:"1.6",fill:"none",d:"M6 6l12 12M18 6L6 18"}),more:r.jsxs("g",{fill:"currentColor",children:[r.jsx("circle",{cx:"5",cy:"12",r:"1.5"}),r.jsx("circle",{cx:"12",cy:"12",r:"1.5"}),r.jsx("circle",{cx:"19",cy:"12",r:"1.5"})]}),edit:r.jsx("path",{stroke:"currentColor",strokeWidth:"1.6",fill:"none",d:"M3 21v-4l12-12 4 4-12 12H3zm12-16l4 4"}),trash:r.jsx("path",{stroke:"currentColor",strokeWidth:"1.6",fill:"none",d:"M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"}),copy:r.jsx("path",{stroke:"currentColor",strokeWidth:"1.6",fill:"none",d:"M8 8h11v13H8V8zM5 5h11v3M5 5v13h3"}),rename:r.jsx("path",{stroke:"currentColor",strokeWidth:"1.6",fill:"none",d:"M14 4v16M10 4v16M6 8h2M6 16h2M16 8h2M16 16h2"}),bolt:r.jsx("path",{fill:"currentColor",d:"M13 2L4 14h7l-1 8 9-12h-7l1-8z"}),film:r.jsxs("g",{fill:"currentColor",children:[r.jsx("path",{d:"M3.8 4h6.6a1.6 1.6 0 0 1 1.6 1.6V20a2.4 2.4 0 0 0-1.7-.7H3.8z",opacity:".38"}),r.jsx("path",{fillRule:"evenodd",d:"M20.2 4h-6.6A1.6 1.6 0 0 0 12 5.6V20a2.4 2.4 0 0 1 1.7-.7h6.5zM14.6 9.4 18 11.4l-3.4 2z"})]}),mic:r.jsx("path",{stroke:"currentColor",strokeWidth:"1.6",fill:"none",d:"M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zm-7 9a7 7 0 0 0 14 0M12 19v3"}),layers:r.jsxs("g",{fill:"currentColor",children:[r.jsx("rect",{x:"3",y:"5.6",width:"10.4",height:"2.6",rx:"1.3",opacity:".45"}),r.jsx("rect",{x:"3",y:"10.7",width:"14.6",height:"2.6",rx:"1.3",opacity:".45"}),r.jsx("rect",{x:"3",y:"15.8",width:"7.6",height:"2.6",rx:"1.3",opacity:".45"}),r.jsx("rect",{x:"18.6",y:"3.4",width:"2",height:"17.2",rx:"1"})]}),rss:r.jsxs("g",{fill:"none",stroke:"currentColor",strokeWidth:"2.6",strokeLinecap:"round",children:[r.jsx("path",{d:"M5 11.4a8.2 8.2 0 0 1 8.2 8.2",opacity:".4"}),r.jsx("path",{d:"M5 5.4a14.2 14.2 0 0 1 14.2 14.2"}),r.jsx("circle",{cx:"5.6",cy:"18.6",r:"1.4",fill:"currentColor",stroke:"none"})]}),folder:r.jsxs("g",{fill:"currentColor",children:[r.jsx("path",{d:"M12 2.8 21 7.2 12 11.6 3 7.2z"}),r.jsx("path",{d:"M12 13.6 4.6 10l-1.6.8L12 15.2l9-4.4-1.6-.8zM12 18.2 4.6 14.6l-1.6.8L12 19.8l9-4.4-1.6-.8z",opacity:".42"})]}),cog:r.jsxs("g",{fill:"currentColor",children:[r.jsx("rect",{x:"3",y:"7",width:"18",height:"2.2",rx:"1.1",opacity:".42"}),r.jsx("rect",{x:"3",y:"14.8",width:"18",height:"2.2",rx:"1.1",opacity:".42"}),r.jsx("circle",{cx:"15.2",cy:"8.1",r:"2.8"}),r.jsx("circle",{cx:"8.8",cy:"15.9",r:"2.8"})]}),vectorpen:r.jsxs("g",{fill:"currentColor",children:[r.jsx("rect",{x:"1.7",y:"7.8",width:"14",height:"1.7",rx:".85",transform:"rotate(-45 8.7 8.7)",opacity:".32"}),r.jsx("circle",{cx:"13.6",cy:"3.7",r:"2",opacity:".32"}),r.jsx("circle",{cx:"3.7",cy:"13.6",r:"2",opacity:".32"}),r.jsx("path",{d:"M4.1 18.6 C4.1 9 9 4.1 18.6 4.1 L18.6 6.7 C10.4 6.7 6.7 10.4 6.7 18.6 z"}),r.jsx("rect",{x:"3.4",y:"16.6",width:"4",height:"4",transform:"rotate(45 5.4 18.6)"}),r.jsx("rect",{x:"16.6",y:"3.4",width:"4",height:"4",transform:"rotate(45 18.6 5.4)"})]}),gamegrid:r.jsxs("g",{fill:"currentColor",children:[r.jsx("rect",{x:"3.4",y:"3.4",width:"7.4",height:"7.4",rx:"1.4",opacity:".42"}),r.jsx("rect",{x:"13.2",y:"3.4",width:"7.4",height:"7.4",rx:"1.4",opacity:".42"}),r.jsx("rect",{x:"3.4",y:"13.2",width:"7.4",height:"7.4",rx:"1.4",opacity:".42"}),r.jsx("path",{d:"M16.9 12.6 20.6 14.8v4.4l-3.7 2.2-3.7-2.2v-4.4z"})]}),zap:r.jsx("path",{fill:"currentColor",d:"M13.8 2.6 6 14.2h4.6L9.6 21.4 18 9.6h-4.8z"}),image:r.jsxs("g",{fill:"none",stroke:"currentColor",strokeWidth:"1.6",children:[r.jsx("rect",{x:"3",y:"4",width:"18",height:"16",rx:"2"}),r.jsx("circle",{cx:"8.5",cy:"9.5",r:"1.5"}),r.jsx("path",{d:"M3 17l5-5 4 4 3-3 6 6"})]}),sparkle:r.jsx("path",{fill:"currentColor",d:"M12 2l1.6 5.4L19 9l-5.4 1.6L12 16l-1.6-5.4L5 9l5.4-1.6L12 2zM19 14l.8 2.2L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.8L19 14z"}),signal:r.jsxs("g",{fill:"currentColor",children:[r.jsx("rect",{x:"4",y:"14",width:"3",height:"6",rx:"1"}),r.jsx("rect",{x:"10",y:"9",width:"3",height:"11",rx:"1"}),r.jsx("rect",{x:"16",y:"4",width:"3",height:"16",rx:"1"})]}),caret:r.jsx("path",{fill:"currentColor",d:"M14.8 5.6 9 12l5.8 6.4z"}),caretR:r.jsx("path",{fill:"currentColor",d:"M14.8 5.6 9 12l5.8 6.4z",transform:"rotate(180 12 12)"}),check:r.jsx("path",{stroke:"currentColor",strokeWidth:"2",fill:"none",d:"M5 13l4 4 10-10"}),flow:r.jsxs("g",{fill:"currentColor",children:[r.jsx("path",{d:"M8.4 11.2h3.2V6.4h4v1.6h-2.4V12H8.4zM11.6 12.8h3.2v3.6h2.4V18h-4v-3.6h-1.6z",opacity:".45"}),r.jsx("rect",{x:"2.8",y:"9.2",width:"5.6",height:"5.6",rx:"1.4"}),r.jsx("rect",{x:"15.6",y:"4",width:"5.6",height:"5.6",rx:"1.4"}),r.jsx("rect",{x:"15.6",y:"14.4",width:"5.6",height:"5.6",rx:"1.4"})]}),wave:r.jsxs("g",{fill:"currentColor",children:[r.jsx("rect",{x:"3",y:"10.4",width:"2.2",height:"3.2",rx:"1.1",opacity:".45"}),r.jsx("rect",{x:"7.2",y:"7",width:"2.2",height:"10",rx:"1.1"}),r.jsx("rect",{x:"11.4",y:"4.2",width:"2.2",height:"15.6",rx:"1.1"}),r.jsx("rect",{x:"15.6",y:"8",width:"2.2",height:"8",rx:"1.1"}),r.jsx("rect",{x:"19.8",y:"10.4",width:"2.2",height:"3.2",rx:"1.1",opacity:".45"})]}),link:r.jsx("path",{stroke:"currentColor",strokeWidth:"1.6",fill:"none",d:"M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7L11.5 7M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7L12.5 17"}),warn:r.jsxs("g",{fill:"none",stroke:"currentColor",strokeWidth:"1.6",children:[r.jsx("path",{d:"M12 3L2 21h20L12 3z"}),r.jsx("path",{d:"M12 10v5M12 18v.5",strokeLinecap:"round"})]}),grid:r.jsxs("g",{fill:"currentColor",children:[r.jsx("rect",{x:"3.2",y:"4.2",width:"8.2",height:"15.6",rx:"1.6"}),r.jsx("rect",{x:"13.2",y:"4.2",width:"7.6",height:"6.8",rx:"1.6",opacity:".38"}),r.jsx("rect",{x:"13.2",y:"13",width:"7.6",height:"6.8",rx:"1.6",opacity:".38"})]}),calendar:r.jsxs("g",{fill:"currentColor",children:[r.jsx("rect",{x:"3.2",y:"5.4",width:"17.6",height:"14.8",rx:"2",opacity:".3"}),r.jsx("path",{d:"M3.2 7.4a2 2 0 0 1 2-2h13.6a2 2 0 0 1 2 2V10H3.2z"}),r.jsx("path",{d:"M12.9 12.6h-1.8v3.5l2.7 1.6.9-1.5-1.8-1z"})]}),clock:r.jsxs("g",{fill:"none",stroke:"currentColor",strokeWidth:"1.6",children:[r.jsx("circle",{cx:"12",cy:"12",r:"9"}),r.jsx("path",{d:"M12 7v5l3 2"})]}),send:r.jsx("path",{stroke:"currentColor",strokeWidth:"1.6",fill:"none",d:"M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"}),book:r.jsx("path",{stroke:"currentColor",strokeWidth:"1.6",fill:"none",d:"M12 6c-2-1.5-4.5-2-8-2v14c3.5 0 6 .5 8 2 2-1.5 4.5-2 8-2V4c-3.5 0-6 .5-8 2zm0 0v14"}),channelX:r.jsx("path",{fill:"currentColor",d:"M17.5 3h3.2l-7 8 8.2 10h-6.4l-5-6.5-5.8 6.5H1.5l7.5-8.6L1 3h6.6l4.5 6 5.4-6zm-1.1 16h1.8L7.7 5H5.8l10.6 14z"}),channelTelegram:r.jsx("path",{fill:"currentColor",d:"M22 3L2.5 10.7c-1 .4-1 1.5 0 1.9l4.8 1.7 1.9 5.7c.3.8 1.1 1 1.7.3l2.8-2.5 4.9 3.5c.9.7 1.7.3 1.9-.8L22.7 4.4c.3-1.2-.6-1.9-1.7-1.4zM9.7 14.6l9.3-7.4c.2-.2.5.1.3.3l-7.4 7.6-.3 4.1-1.9-4.6z"}),channelYoutube:r.jsxs("g",{fill:"currentColor",children:[r.jsx("path",{d:"M22 7.5c-.2-1.6-.9-2.6-2.5-2.8-2.8-.4-7.5-.4-7.5-.4s-4.7 0-7.5.4C2.9 4.9 2.2 5.9 2 7.5 1.7 9.5 1.7 12 1.7 12s0 2.5.3 4.5c.2 1.6.9 2.6 2.5 2.8 2.8.4 7.5.4 7.5.4s4.7 0 7.5-.4c1.6-.2 2.3-1.2 2.5-2.8.3-2 .3-4.5.3-4.5s0-2.5-.3-4.5z"}),r.jsx("path",{fill:"#02060d",d:"M10 15.5l5-3.5-5-3.5v7z"})]}),channelInstagram:r.jsxs("g",{fill:"none",stroke:"currentColor",strokeWidth:"1.7",children:[r.jsx("rect",{x:"3",y:"3",width:"18",height:"18",rx:"5"}),r.jsx("circle",{cx:"12",cy:"12",r:"4"}),r.jsx("circle",{cx:"17.5",cy:"6.5",r:"1",fill:"currentColor",stroke:"none"})]})};function X({name:e,size:t=16,style:n}){const o=Sh[e];return o?r.jsx("svg",{width:t,height:t,viewBox:"0 0 24 24",style:{display:"inline-block",verticalAlign:"middle",flexShrink:0,...n},children:o}):null}function K({variant:e="ghost",size:t="md",icon:n,iconRight:o,glow:i,children:s,style:a,...l}){const d={sm:26,md:32,lg:38}[t],u={sm:9,md:12,lg:16}[t],f={sm:11.5,md:12.5,lg:13.5}[t],m={height:d,padding:`0 ${u}px`,display:"inline-flex",alignItems:"center",gap:7,fontSize:f,fontWeight:500,fontFamily:"var(--f-ui)",borderRadius:"var(--r-sm)",border:"1px solid transparent",cursor:"pointer",transition:"background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease), box-shadow var(--dur-2) var(--ease), transform var(--dur-1) var(--ease)",userSelect:"none",whiteSpace:"nowrap"},y={primary:{background:"linear-gradient(180deg, #00e5ff 0%, #00b8cc 100%)",color:"#02060d",borderColor:"#00e5ff",boxShadow:i?"0 0 24px var(--cyan-glow), inset 0 1px 0 #ffffff66":"inset 0 1px 0 #ffffff66",fontWeight:600},violet:{background:"linear-gradient(180deg, #c084fc 0%, #9333ea 100%)",color:"#02060d",borderColor:"#a855f7",fontWeight:600,boxShadow:i?"0 0 24px var(--violet-soft), inset 0 1px 0 #ffffff44":"inset 0 1px 0 #ffffff44"},ghost:{background:"transparent",color:"var(--ink)",borderColor:"transparent"},outline:{background:"var(--bg-panel)",color:"var(--ink-strong)",borderColor:"var(--stroke-strong)"},soft:{background:"var(--bg-panel-2)",color:"var(--ink-strong)",borderColor:"var(--stroke)"},danger:{background:"transparent",color:"var(--red)",borderColor:"transparent"},link:{background:"transparent",color:"var(--cyan)",borderColor:"transparent",padding:0,height:"auto"}},[w,v]=x.useState(!1),g={primary:{transform:"translateY(-1px)",boxShadow:"0 0 32px var(--cyan-glow), inset 0 1px 0 #ffffff66"},violet:{transform:"translateY(-1px)",boxShadow:"0 0 32px var(--violet-soft), inset 0 1px 0 #ffffff44"},ghost:{background:"var(--bg-panel-2)",color:"var(--ink-strong)"},outline:{borderColor:"var(--cyan)",color:"var(--ink-strong)"},soft:{borderColor:"var(--stroke-strong)"},danger:{background:"var(--red-soft)",borderColor:"var(--red)"},link:{color:"var(--ink-strong)"}};return r.jsxs("button",{onMouseEnter:()=>v(!0),onMouseLeave:()=>v(!1),style:{...m,...y[e],...w?g[e]:{},...a},...l,children:[n&&r.jsx(X,{name:n,size:t==="sm"?13:15}),s,o&&r.jsx(X,{name:o,size:t==="sm"?13:15})]})}function se({name:e,size:t=28,iconSize:n,title:o,active:i,children:s,style:a,...l}){const[d,u]=x.useState(!1);return r.jsx("button",{title:o,onMouseEnter:()=>u(!0),onMouseLeave:()=>u(!1),style:{width:t,height:t,borderRadius:"var(--r-sm)",background:i?"var(--cyan-soft)":d?"var(--bg-panel-2)":"transparent",color:i?"var(--cyan)":d?"var(--ink-strong)":"var(--ink-soft)",border:i?"1px solid var(--cyan)":"1px solid transparent",cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center",transition:"all var(--dur-1) var(--ease)",...a},...l,children:s||r.jsx(X,{name:e,size:n||Math.floor(t*.55)})})}function le({icon:e,placeholder:t,value:n,onChange:o,mono:i,style:s,...a}){const[l,d]=x.useState(!1);return r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:8,height:30,padding:"0 10px",background:"var(--bg-base)",border:`1px solid ${l?"var(--cyan)":"var(--stroke)"}`,borderRadius:"var(--r-sm)",transition:"border-color var(--dur-1) var(--ease), box-shadow var(--dur-1) var(--ease)",boxShadow:l?"0 0 0 3px var(--cyan-soft)":"none",...s},children:[e&&r.jsx(X,{name:e,size:13,style:{color:"var(--ink-soft)"}}),r.jsx("input",{placeholder:t,value:n??"",onChange:u=>o==null?void 0:o(u.target.value),onFocus:()=>d(!0),onBlur:()=>d(!1),style:{flex:1,fontFamily:i?"var(--f-mono)":"var(--f-ui)",fontSize:12.5,minWidth:0},...a})]})}function te({tone:e="neutral",dot:t,children:n,style:o}){const s={neutral:{color:"var(--ink-soft)",bg:"var(--bg-panel-2)",bd:"var(--stroke)"},cyan:{color:"var(--cyan)",bg:"var(--cyan-soft)",bd:"#00e5ff44"},violet:{color:"var(--violet)",bg:"var(--violet-soft)",bd:"#a855f744"},amber:{color:"var(--amber)",bg:"var(--amber-soft)",bd:"#fbbf2444"},green:{color:"var(--green)",bg:"var(--green-soft)",bd:"#22c55e44"},red:{color:"var(--red)",bg:"var(--red-soft)",bd:"#ef444444"}}[e];return r.jsxs("span",{style:{display:"inline-flex",alignItems:"center",gap:6,height:22,padding:"0 8px",fontSize:11,fontWeight:500,color:s.color,background:s.bg,border:`1px solid ${s.bd}`,borderRadius:"var(--r-pill)",letterSpacing:0,...o},children:[t&&r.jsx("span",{style:{width:6,height:6,borderRadius:999,background:s.color,boxShadow:`0 0 6px ${s.color}`}}),n]})}function Ze({checked:e,onChange:t,label:n}){return r.jsxs("label",{style:{display:"inline-flex",alignItems:"center",gap:8,cursor:"pointer"},children:[r.jsx("span",{onClick:()=>t==null?void 0:t(!e),style:{width:30,height:18,borderRadius:999,background:e?"var(--cyan)":"var(--stroke-strong)",position:"relative",transition:"background var(--dur-2) var(--ease)",boxShadow:e?"0 0 12px var(--cyan-glow)":"none"},children:r.jsx("span",{style:{position:"absolute",top:2,left:e?14:2,width:14,height:14,borderRadius:999,background:e?"#02060d":"var(--ink)",transition:"left var(--dur-2) var(--ease)"}})}),n&&r.jsx("span",{style:{fontSize:12,color:"var(--ink)"},children:n})]})}function Oe({value:e,min:t=0,max:n=100,step:o=1,onChange:i,unit:s="",label:a}){const l=(e-t)/(n-t)*100;return r.jsxs("div",{style:{display:"flex",flexDirection:"column",gap:4},children:[a&&r.jsxs("div",{style:{display:"flex",justifyContent:"space-between",fontSize:11},children:[r.jsx("span",{style:{color:"var(--ink-soft)"},children:a}),r.jsxs("span",{style:{color:"var(--ink-strong)",fontFamily:"var(--f-mono)"},children:[e,s]})]}),r.jsxs("div",{style:{position:"relative",height:18,display:"flex",alignItems:"center"},children:[r.jsx("div",{style:{position:"absolute",inset:"7px 0",borderRadius:999,background:"var(--bg-base)",border:"1px solid var(--stroke)"}}),r.jsx("div",{style:{position:"absolute",left:0,top:7,bottom:7,width:`${l}%`,background:"linear-gradient(90deg, var(--cyan), var(--violet))",borderRadius:999}}),r.jsx("input",{type:"range",min:t,max:n,step:o,value:e,onChange:d=>i==null?void 0:i(Number(d.target.value)),style:{position:"absolute",inset:0,opacity:0,width:"100%",cursor:"pointer"}}),r.jsx("div",{style:{position:"absolute",left:`calc(${l}% - 7px)`,width:14,height:14,borderRadius:999,background:"var(--ink-strong)",boxShadow:"0 0 0 3px var(--bg-base), 0 0 12px var(--cyan-glow)",pointerEvents:"none"}})]})]})}function jt({elevated:e,children:t,style:n,...o}){return r.jsx("div",{style:{background:e?"var(--bg-panel-2)":"var(--bg-panel)",border:"1px solid var(--stroke)",borderRadius:"var(--r-lg)",boxShadow:"var(--shadow-1)",...n},...o,children:t})}function ie({label:e,defaultOpen:t=!0,right:n,children:o}){const[i,s]=x.useState(t);return r.jsxs("div",{style:{borderBottom:"1px solid var(--stroke)"},children:[r.jsxs("button",{onClick:()=>s(!i),style:{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",background:"transparent",border:0,cursor:"pointer",color:"var(--ink-soft)"},children:[r.jsxs("span",{style:{display:"flex",alignItems:"center",gap:6},children:[r.jsx(X,{name:"caretR",size:12,style:{transform:i?"rotate(90deg)":"none",transition:"transform var(--dur-1) var(--ease)"}}),r.jsx("span",{className:"upper",children:e})]}),n]}),i&&r.jsx("div",{style:{padding:"4px 14px 12px"},children:o})]})}function O({label:e,hint:t,children:n}){return r.jsxs("div",{style:{display:"flex",flexDirection:"column",gap:4,marginBottom:10},children:[e&&r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)"},children:e}),n,t&&r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-muted)"},children:t})]})}function re({value:e,options:t,onChange:n,style:o}){const[i,s]=x.useState(!1),a=x.useRef();x.useEffect(()=>{function d(u){a.current&&!a.current.contains(u.target)&&s(!1)}return document.addEventListener("mousedown",d),()=>document.removeEventListener("mousedown",d)},[]);const l=t.find(d=>(d.value??d)===e);return r.jsxs("div",{ref:a,style:{position:"relative",...o},children:[r.jsxs("button",{onClick:()=>s(!i),"data-dzselect":"1",style:{width:"100%",height:30,padding:"0 10px",display:"flex",alignItems:"center",justifyContent:"space-between",background:"var(--bg-base)",border:`1px solid ${i?"var(--cyan)":"var(--stroke)"}`,borderRadius:"var(--r-sm)",color:"var(--ink-strong)",cursor:"pointer",fontSize:12.5},children:[r.jsx("span",{children:(l==null?void 0:l.label)??l??"—"}),r.jsx(X,{name:"caret",size:12,style:{color:"var(--ink-soft)"}})]}),i&&r.jsx("div",{style:{position:"absolute",top:"calc(100% + 4px)",left:0,right:0,zIndex:100,background:"var(--bg-panel-2)",border:"1px solid var(--stroke-strong)",borderRadius:"var(--r-sm)",boxShadow:"var(--shadow-2)",overflow:"hidden",maxHeight:240,overflowY:"auto"},className:"scroll",children:t.map((d,u)=>{const f=d.value??d,m=d.label??d;return r.jsxs("button",{onClick:()=>{n==null||n(f),s(!1)},style:{width:"100%",padding:"8px 10px",textAlign:"left",background:f===e?"var(--cyan-soft)":"transparent",color:f===e?"var(--cyan)":"var(--ink)",border:0,cursor:"pointer",fontSize:12.5,display:"flex",alignItems:"center",justifyContent:"space-between"},onMouseEnter:y=>{f!==e&&(y.currentTarget.style.background="var(--bg-panel-3)")},onMouseLeave:y=>{f!==e&&(y.currentTarget.style.background="transparent")},children:[r.jsx("span",{children:m}),f===e&&r.jsx(X,{name:"check",size:12})]},u)})})]})}function Nu({value:e,indeterminate:t,tone:n="cyan"}){return r.jsx("div",{style:{width:"100%",height:4,borderRadius:999,overflow:"hidden",background:"var(--bg-base)",border:"1px solid var(--stroke)"},children:r.jsx("div",{className:t?"shimmer":"",style:{height:"100%",width:t?"100%":`${e}%`,background:t?void 0:"linear-gradient(90deg, var(--cyan), var(--violet))",transition:"width 300ms var(--ease)",boxShadow:"0 0 12px var(--cyan-glow)"}})})}function rr({kind:e="image",label:t,size:n=56,ratio:o,style:i,src:Sc,vsrc:Vc}){const s={image:"var(--amber)",video:"var(--cyan)",avatar:"var(--violet)",audio:"var(--green)",render:"var(--ink)"},a={image:"#3a2a05",video:"#053040",avatar:"#2a0d3e",audio:"#063020",render:"#1a253a"},l={image:"IMG",video:"CLIP",avatar:"AVT",audio:"WAV",render:"OUT"},d=n,u=o?Math.round(n*o):n;return r.jsxs("div",{style:{width:d,height:u,borderRadius:"var(--r-sm)",background:`linear-gradient(135deg, ${a[e]} 0%, #02060d 100%)`,border:"1px solid var(--stroke)",position:"relative",overflow:"hidden",flexShrink:0,...i},children:[r.jsx("div",{style:{position:"absolute",inset:0,background:`repeating-linear-gradient(45deg, transparent 0 6px, ${s[e]}10 6px 7px)`}}),(Sc?r.jsx("img",{src:Sc,loading:"lazy",onLoad:ev=>{ev.currentTarget.style.display="block"},onError:ev=>{ev.currentTarget.style.display="none"},style:{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}}):Vc?r.jsx("video",{src:Vc,muted:!0,playsInline:!0,preload:"metadata",onLoadedData:ev=>{try{if(ev.currentTarget.currentTime<.1)ev.currentTarget.currentTime=.3}catch(x){}},onLoad:ev=>{ev.currentTarget.style.display="block"},onError:ev=>{ev.currentTarget.style.display="none"},style:{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",background:"#02060d"}}):null),e==="audio"&&r.jsx("svg",{viewBox:"0 0 60 30",style:{position:"absolute",inset:"20% 10%",color:s.audio},children:r.jsx("path",{stroke:"currentColor",strokeWidth:"1.5",fill:"none",d:"M0 15 Q5 5 10 15 T20 15 T30 15 T40 15 T50 15 T60 15"})}),r.jsx("div",{style:{position:"absolute",top:4,left:4,padding:"2px 5px",fontSize:9,fontWeight:600,fontFamily:"var(--f-mono)",color:s[e],background:"#02060daa",borderRadius:3,letterSpacing:.5},children:l[e]}),t&&r.jsx("div",{style:{position:"absolute",bottom:4,left:4,right:4,fontSize:9,color:"var(--ink-strong)",fontFamily:"var(--f-mono)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},children:t})]})}function Ch({compact:e,size:t=16}){const n=ji(),o=t+14;return r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:10,color:"var(--ink-strong)"},children:[r.jsx("span",{style:{width:o,height:o,borderRadius:"50%",display:"inline-flex",alignItems:"center",justifyContent:"center",background:"radial-gradient(circle at 30% 25%, color-mix(in srgb, var(--brand) 20%, transparent) 0%, transparent 60%), radial-gradient(circle at 75% 80%, color-mix(in srgb, var(--cyan) 13%, transparent) 0%, transparent 55%)",boxShadow:"0 0 18px var(--brand-soft)",flexShrink:0},children:r.jsx("img",{src:D.brandLogoUrl(),alt:n.app_name,width:o,height:o,onError:i=>{i.currentTarget.style.display="none"},style:{width:"100%",height:"100%",objectFit:"contain",borderRadius:"50%",filter:"drop-shadow(0 0 6px var(--brand-soft))"}})}),!e&&r.jsxs("div",{style:{display:"flex",flexDirection:"column",lineHeight:1},children:[r.jsx("span",{className:"display",style:{fontSize:14,fontWeight:700,letterSpacing:"0.04em",color:"var(--brand)"},children:n.app_name}),r.jsxs("span",{style:{fontSize:9,color:"var(--ink-soft)",letterSpacing:"0.18em",fontWeight:500,marginTop:2},children:[n.app_sub," · v2.7.0"]})]})]})}const Ur={image:{color:"var(--node-image)",label:"image"},video:{color:"#9aa6b4",label:"video"},audio:{color:"var(--node-audio)",label:"audio"},av:{color:"#9aa6b4",label:"av"},text:{color:"var(--node-text)",label:"text"},data:{color:"var(--node-data)",label:"data"}},Qr={source:{color:"var(--nd-source)",label:"Source",icon:"image"},gen:{color:"var(--nd-gen)",label:"Generator",icon:"sparkle"},audio:{color:"var(--nd-audio)",label:"Audio",icon:"wave"},edit:{color:"var(--nd-edit)",label:"Edit",icon:"film"},compose:{color:"var(--nd-compose)",label:"Composition",icon:"layers"},motion:{color:"var(--nd-motion)",label:"Animations",icon:"sparkle"},master:{color:"var(--nd-master)",label:"Master",icon:"warn"},output:{color:"var(--nd-output)",label:"Output",icon:"download"}},Me={Image:{cat:"source",title:"Image",desc:"Pick a still image",inPorts:[],outPorts:[{id:"out",type:"image"}],props:{filename:"octopus_throne.png"}},Text:{cat:"source",title:"Text",desc:"Plain text input",inPorts:[],outPorts:[{id:"out",type:"text"}],props:{value:"From the deep, the prophecy ascends."}},Prompt:{cat:"source",title:"Prompt",desc:"AI image/video prompt",inPorts:[],outPorts:[{id:"out",type:"text"}],props:{value:"cinematic motion, deep-sea bioluminescence, volumetric light",negative:"text, watermark, blurry, distorted, robotic"}},ExistingRender:{cat:"source",title:"Existing render",desc:"Reuse a previous render",inPorts:[],outPorts:[{id:"out",type:"av"}],props:{jobId:"job_2k1f4a",durationS:18.4}},Upload:{cat:"source",title:"UGC video",desc:"Upload your own clip",inPorts:[],outPorts:[{id:"out",type:"av"}],props:{jobId:"",filename:"",durationS:0,master:!0}},NewsItem:{cat:"source",title:"News item",desc:"Pick from RSS feed",inPorts:[],outPorts:[{id:"out",type:"data"}],props:{title:"Solana memecoin volume +38% in 24h",source:"cryptoslate.com"}},Seedance:{cat:"gen",title:"Seedance",desc:"image → cinematic clip",inPorts:[{id:"image",type:"image"},{id:"end",type:"image"},{id:"prompt",type:"text"}],outPorts:[{id:"out",type:"video"}],props:{model:"seedance-v1-pro",style:"cinematic",durationS:10,aspect:"9:16",seed:4421,extendMode:"loop"}},HeyGenAvatar:{cat:"gen",title:"HeyGen avatar",desc:"script → talking avatar",inPorts:[{id:"script",type:"text"}],outPorts:[{id:"out",type:"av"}],props:{avatar:"Asha · prophetess",voice:"Asha · EN",speedX:1}},NewsScript:{cat:"gen",title:"News script",desc:"news → prophet voice",inPorts:[{id:"news",type:"data"}],outPorts:[{id:"script",type:"text"},{id:"essences",type:"data"}],props:{useAnthropic:!0,words:80}},NewsIllustration:{cat:"gen",title:"News illust.",desc:"news → reel B-roll",inPorts:[{id:"news",type:"data"}],outPorts:[{id:"out",type:"image"}],props:{style:"cinematic-deep",durationS:15}},Voiceover:{cat:"audio",title:"Voiceover",desc:"ElevenLabs TTS",inPorts:[{id:"text",type:"text"}],outPorts:[{id:"out",type:"audio"}],props:{provider:"elevenlabs",voice_id:"",voice_name:"",language:"fr",filename:"",chars:0,model:"",tune:null}},MusicTrack:{cat:"audio",title:"Music track",desc:"Looped BGM",inPorts:[{id:"src",type:"audio"}],outPorts:[{id:"out",type:"audio"}],props:{volumeDb:-14,loop:!0,filename:""}},AudioMix:{cat:"audio",title:"Audio mix",desc:"Mix N tracks",inPorts:[{id:"a",type:"audio"},{id:"b",type:"audio"}],outPorts:[{id:"out",type:"audio"}],props:{duckDb:-8,fadeInS:.4,fadeOutS:.6}},Loudness:{cat:"audio",title:"Loudness norm.",desc:"LUFS target",inPorts:[{id:"in",type:"audio"}],outPorts:[{id:"out",type:"audio"}],props:{lufs:-14}},Trim:{cat:"edit",title:"Trim",desc:"cut start/end",inPorts:[{id:"in",type:"av"}],outPorts:[{id:"out",type:"av"}],props:{startS:0,endS:6,lengthMode:"source"}},Extend:{cat:"edit",title:"Extend",desc:"loop or hold tail",inPorts:[{id:"in",type:"video"}],outPorts:[{id:"out",type:"video"}],props:{targetS:18,mode:"loop"}},Concatenate:{cat:"edit",title:"Concatenate",desc:"xfade · cut · glitch",inPorts:[{id:"a",type:"av"},{id:"b",type:"av"},{id:"c",type:"av"},{id:"d",type:"av"},{id:"e",type:"av"},{id:"f",type:"av"}],outPorts:[{id:"out",type:"av"}],props:{transition:"crossfade",durationS:.4,sourceCount:3}},Split:{cat:"edit",title:"Split",desc:"cut at point",inPorts:[{id:"in",type:"av"}],outPorts:[{id:"a",type:"av"},{id:"b",type:"av"}],props:{atS:5}},Speed:{cat:"edit",title:"Speed",desc:"time-stretch",inPorts:[{id:"in",type:"video"}],outPorts:[{id:"out",type:"video"}],props:{factor:1}},Animation:{cat:"motion",title:"Animation",desc:"animate text & stickers over a clip",inPorts:[{id:"base",type:"av"}],outPorts:[{id:"out",type:"av"}],props:{durationS:8,fps:30,elements:[],selected:0}},SpatialCompose:{cat:"compose",title:"Spatial compose",desc:"layout 9:16 regions",inPorts:[{id:"reel",type:"av"},{id:"avatar",type:"av"},{id:"s3",type:"av"},{id:"s4",type:"av"},{id:"s5",type:"av"},{id:"s6",type:"av"},{id:"brand",type:"image"},{id:"bg",type:"image"}],outPorts:[{id:"out",type:"av"}],props:{templateId:"tpl_news_reel",useAsMaster:!1,tailPadS:.4,scenes:0,transitions:[]}},BrandStrip:{cat:"compose",title:"Brand strip",desc:"mark + text → image",inPorts:[{id:"data",type:"data"}],outPorts:[{id:"out",type:"image"}],props:{mark:"🐙",text:"DEEPOTUS"}},TextOverlay:{cat:"compose",title:"Text overlay",desc:"caption on video",inPorts:[{id:"in",type:"video"}],outPorts:[{id:"out",type:"video"}],props:{text:"oracle says: send.",font:"Space Grotesk",size:64,color:"#ffffff",bg:"",pulse:!0,startS:0,endS:4,x:15,y:72,w:70}},Ticker:{cat:"compose",title:"Ticker",desc:"scrolling text",inPorts:[{id:"in",type:"video"},{id:"text",type:"text"}],outPorts:[{id:"out",type:"video"}],props:{speed:60,direction:"left",text:"",font:"Bebas Neue",color:"#00e5ff",bg:"#02060d",y:90}},Separator:{cat:"compose",title:"Separator",desc:"thin divider image",inPorts:[],outPorts:[{id:"out",type:"image"}],props:{color:"#00e5ff",thickness:2,y:49}},AvatarMaster:{cat:"master",title:"Avatar master",desc:"duration master",inPorts:[{id:"in",type:"av"}],outPorts:[{id:"out",type:"av"}],props:{tailPadS:.4,fadeOutS:.3}},Effects:{cat:"compose",title:"Effects / Mask",desc:"LUT VHS color gradient",inPorts:[{id:"in",type:"av"}],outPorts:[{id:"out",type:"av"}],props:{effects:[{type:"grade",preset:"teal_orange",intensity:60}],targets:["all"]}},Render:{cat:"output",title:"Render",desc:"final encode",inPorts:[{id:"in",type:"av"},{id:"overlay",type:"av"},{id:"audio",type:"audio"},{id:"fx",type:"av"}],outPorts:[],props:{format:"9:16",fps:30,crf:20,name:"tweet_2026-05-20",voiceMode:"passthrough"}},ImageGen:{cat:"gen",title:"Image gen",desc:"prompt → N images",inPorts:[{id:"prompt",type:"text"}],outPorts:[{id:"out",type:"image"}],props:{model:"",count:2,size:"portrait_16_9",prompt:"",filename:""}},ImageEdit:{cat:"gen",title:"Image edit",desc:"image + instruction → image",inPorts:[{id:"in",type:"image"},{id:"prompt",type:"text"}],outPorts:[{id:"out",type:"image"}],props:{model:"",instruction:"",filename:""}},Variations:{cat:"gen",title:"Variations",desc:"image → N variantes",inPorts:[{id:"in",type:"image"}],outPorts:[{id:"out",type:"image"}],props:{model:"",count:3,filename:""}},RemoveBG:{cat:"edit",title:"Remove BG",desc:"détourage arrière-plan",inPorts:[{id:"in",type:"image"}],outPorts:[{id:"out",type:"image"}],props:{method:"api",filename:""}},Upscale:{cat:"edit",title:"Upscale",desc:"agrandir ×2/×4",inPorts:[{id:"in",type:"image"}],outPorts:[{id:"out",type:"image"}],props:{mode:"ai",scale:2,filename:""}},CropFormat:{cat:"edit",title:"Crop / format",desc:"recadrer au ratio",inPorts:[{id:"in",type:"image"}],outPorts:[{id:"out",type:"image"}],props:{ratio:"9:16",filename:""}}},_h=[{cat:"source",types:["Image","Text","Prompt","ExistingRender","Upload","NewsItem"]},{cat:"gen",types:["Seedance","HeyGenAvatar","NewsScript","NewsIllustration","ImageGen","ImageEdit","Variations"]},{cat:"audio",types:["Voiceover","MusicTrack","AudioMix","Loudness"]},{cat:"edit",types:["Trim","Extend","Concatenate","Split","Speed","RemoveBG","Upscale","CropFormat"]},{cat:"compose",types:["SpatialCompose","BrandStrip","TextOverlay","Ticker","Separator","Effects"]},{cat:"motion",types:["Animation"]},{cat:"master",types:["AvatarMaster"]},{cat:"output",types:["Render"]}],bi=220,Ru=36,Mu=22,zh=92,Eh=30;function qi(e,t,n,o){const i=Me[e];var _lst=t==="in"?i.inPorts:i.outPorts;if(o&&t==="in"&&typeof dzNodeInPorts==="function"){var _dl=dzNodeInPorts(o);_dl&&(_lst=_dl)}const a=_lst.findIndex(u=>u.id===n);if(a<0)return{x:0,y:0};const l=t==="in"?0:bi,d=Ru+12+a*Mu;return{x:l,y:d}}function Th({node:e,variant:t,selected:n,status:o,onMouseDown:i,onPortPress:s,onPortRelease:a,onClick:l,onDelete:d}){const u=Me[e.type],f=Qr[u.cat],m=t==="reef",y=n?"var(--cyan)":o==="failed"?"var(--red)":o==="succeeded"?"var(--green)":f.color,w=m?"linear-gradient(180deg, var(--bg-panel-2) 0%, var(--bg-panel) 100%)":"var(--bg-panel)",v=o==="running"?{"--node-color":"color-mix(in srgb, "+f.color+" 40%, transparent)",boxShadow:`0 0 0 1px ${f.color}, 0 0 40px color-mix(in srgb, ${f.color} 33%, transparent)`}:n?{boxShadow:"0 0 0 1px var(--cyan), 0 0 32px var(--cyan-soft)"}:{boxShadow:"var(--shadow-1)"};return r.jsxs("div",{"data-node-id":e.id,onMouseDown:i,onClick:l,className:o==="running"?"pulse":"",style:{position:"absolute",left:e.x,top:e.y,width:bi,background:w,borderRadius:m?14:10,border:`1px solid ${y}`,color:"var(--ink)",userSelect:"none",cursor:"grab",...v,transition:"box-shadow 200ms var(--ease), border-color 200ms var(--ease)"},children:[r.jsxs("div",{style:{height:Ru,padding:"0 10px",display:"flex",alignItems:"center",gap:8,borderBottom:"1px solid var(--stroke)",background:`linear-gradient(180deg, color-mix(in srgb, ${f.color} 10%, transparent) 0%, transparent 100%)`,borderTopLeftRadius:m?13:9,borderTopRightRadius:m?13:9},children:[r.jsx("span",{style:{width:18,height:18,borderRadius:5,background:"color-mix(in srgb, "+f.color+" 13%, transparent)",color:f.color,display:"inline-flex",alignItems:"center",justifyContent:"center"},children:r.jsx(X,{name:f.icon,size:11})}),r.jsx("span",{style:{flex:1,fontSize:12.5,fontWeight:600,color:"var(--ink-strong)"},children:u.title}),o==="running"&&r.jsx(te,{tone:"cyan",dot:!0,children:"run"}),o==="succeeded"&&r.jsx(te,{tone:"green",dot:!0,children:"ok"}),o==="failed"&&r.jsx(te,{tone:"red",dot:!0,children:"err"}),o==="queued"&&r.jsx(te,{tone:"neutral",children:"queued"}),d&&r.jsx("button",{onMouseDown:g=>{g.stopPropagation()},onClick:g=>{g.stopPropagation(),d()},title:"Delete node",style:{width:18,height:18,borderRadius:5,border:0,cursor:"pointer",background:"transparent",color:"var(--ink-muted)",display:"inline-flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"background var(--dur-1) var(--ease), color var(--dur-1) var(--ease)"},onMouseEnter:g=>{g.currentTarget.style.background="var(--red-soft)",g.currentTarget.style.color="var(--red)"},onMouseLeave:g=>{g.currentTarget.style.background="transparent",g.currentTarget.style.color="var(--ink-muted)"},children:r.jsx(X,{name:"close",size:12})})]}),r.jsxs("div",{style:{position:"relative",minHeight:16,padding:"8px 0"},children:[(e.type==="Concatenate"?u.inPorts.slice(0,Math.max(2,Math.min(6,(e.props&&e.props.sourceCount)||3))):(typeof dzNodeInPorts==="function"&&dzNodeInPorts(e))||u.inPorts).map((g,k)=>r.jsx(ud,{side:"in",port:g,index:k,onPress:c=>s(e.id,"in",g,c),onRelease:c=>a(e.id,"in",g,c)},g.id)),u.outPorts.map((g,k)=>r.jsx(ud,{side:"out",port:g,index:k,onPress:c=>s(e.id,"out",g,c),onRelease:c=>a(e.id,"out",g,c)},g.id))]}),m&&r.jsx("div",{style:{height:zh,margin:"4px 10px 0",borderRadius:8,overflow:"hidden",border:"1px solid var(--stroke)",position:"relative"},children:r.jsx(Ih,{node:e,status:o})}),r.jsxs("div",{style:{height:m?Eh:14,padding:m?"0 12px":"0 10px 6px",display:"flex",alignItems:"center",justifyContent:"space-between",fontSize:10.5,color:"var(--ink-muted)",fontFamily:"var(--f-mono)"},children:[r.jsx("span",{children:Nh(e)}),r.jsx("span",{children:Rh(e)})]})]})}var __dzTplList=null,__dzTplFetch=0;function __dzTplGet(id){if(!__dzTplList&&!__dzTplFetch){__dzTplFetch=1;try{D.listLayoutTemplates().then(function(L1){__dzTplList=Array.isArray(L1)?L1:(L1&&L1.templates)||[]}).catch(function(){__dzTplFetch=0})}catch(_e){__dzTplFetch=0}}return(__dzTplList||[]).find(function(t1){return t1&&t1.id===id})||null}function dzSpatialSlots(tpl,props){var regs=(tpl&&tpl.regions)||[],vids=[],imgs=[],i1;for(i1=0;i1<regs.length;i1++){var rg=regs[i1];rg.type==="video_slot"?vids.push(rg):rg.type==="image_slot"&&imgs.push(rg)}var seq=!!(tpl&&tpl.render_mode==="sequential"),maxN=vids.length,n=maxN;if(seq){n=Math.max(2,Math.min(maxN||2,Number(props&&props.scenes)||2));vids=vids.slice(0,n)}var pool=["reel","s3","s4","s5","s6"],ports=[],hey=null;for(i1=0;i1<vids.length;i1++)if(vids[i1].default_provider==="heygen"&&!hey)hey=vids[i1];for(i1=0;i1<vids.length;i1++){var rg2=vids[i1],pid=rg2===hey?"avatar":pool.shift();pid&&ports.push({id:pid,type:"av",label:rg2.slot_label||rg2.slot_name,slot:rg2.slot_name})}var ipool=["brand","bg"];for(i1=0;i1<imgs.length&&i1<2;i1++)ports.push({id:ipool[i1],type:"image",label:imgs[i1].slot_label||imgs[i1].slot_name,slot:imgs[i1].slot_name});return{ports:ports,seq:seq,maxN:maxN,n:n}}function dzNodeInPorts(nd){if(!nd||nd.type!=="SpatialCompose")return null;var tpl=__dzTplGet((nd.props&&nd.props.templateId)||"tpl_news_reel");if(!tpl)return null;var ps=dzSpatialSlots(tpl,nd.props||{}).ports;return ps.length?ps:null}function ud({side:e,port:t,index:n,onPress:o,onRelease:i}){const s=Ur[t.type].color;return r.jsxs("div",{style:{position:"absolute",top:8+n*Mu+2,left:e==="in"?-8:"auto",right:e==="out"?-8:"auto",display:"flex",alignItems:"center",gap:6,flexDirection:e==="in"?"row":"row-reverse",width:130},children:[r.jsx("span",{"data-port-side":e,"data-port-id":t.id,onMouseDown:a=>{a.stopPropagation(),o(a)},onMouseUp:a=>{a.stopPropagation(),i(a)},style:{width:16,height:16,borderRadius:999,background:s,border:"2px solid var(--bg-panel)",boxShadow:`0 0 8px ${s}88`,cursor:"crosshair",flexShrink:0}}),r.jsxs("span",{style:{fontSize:10.5,color:"var(--ink-soft)",textAlign:e==="in"?"left":"right",padding:e==="in"?"0 0 0 4px":"0 4px 0 0"},children:[t.label||t.id,r.jsxs("span",{style:{color:s,opacity:.6},children:[" · ",t.type]})]})]})}var __dzG=null,__dzKeep={};function __dzThumbUrl(g){if(!g)return null;var k=0;while(g&&g.type==="AvatarMaster"&&k++<6)g=Wt(__dzG,g.id,"in");if(!g)return null;if(g.type==="Seedance"){var img=Wt(__dzG,g.id,"image");return img&&img.props&&img.props.filename?D.imageUrl(img.props.filename):null}if(typeof dzIsImgNode==="function"&&dzIsImgNode(g)||g.type==="Image"||g.type==="NewsIllustration")return g.props&&g.props.filename?D.imageUrl(g.props.filename):null;if(g.type==="HeyGenAvatar")return g.props&&g.props.avatarImg||null;return null}function __dzConcatStrip(e){var g=__dzG;if(!g)return r.jsx("div",{style:{width:"100%",height:"100%",background:"linear-gradient(135deg,#053040,#02060d)"}});var srcs=["a","b","c","d","e","f"].map(function(pt){return Wt(g,e.id,pt)}).filter(Boolean);if(!srcs.length)return r.jsx("div",{style:{width:"100%",height:"100%",background:"linear-gradient(135deg,#053040 0%,#02060d 100%)",display:"flex",alignItems:"center",justifyContent:"center",color:"#00e5ff",opacity:.5},children:r.jsx(X,{name:"film",size:24})});var cols=Math.min(srcs.length,3);return r.jsx("div",{style:{width:"100%",height:"100%",display:"grid",gridTemplateColumns:"repeat("+cols+",1fr)",gridAutoRows:"1fr",gap:2,background:"#000",padding:2},children:srcs.map(function(nd,ix){var u=__dzThumbUrl(nd);var jid=nd.props&&nd.props.jobId;var inner;if(u)inner=r.jsx("div",{style:{position:"absolute",inset:0,backgroundImage:"url("+u+")",backgroundSize:"cover",backgroundPosition:"center"}});else if(jid)inner=r.jsx("video",{src:D.jobVideoUrl(jid),muted:!0,preload:"metadata",playsInline:!0,onError:function(ev){ev.currentTarget.style.display="none"},style:{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",background:"#000"}});else inner=r.jsx("div",{style:{position:"absolute",inset:0,background:"linear-gradient(135deg,#053040,#02060d)",display:"flex",alignItems:"center",justifyContent:"center",color:"#00e5ff",opacity:.55},children:r.jsx(X,{name:"film",size:12})});return r.jsxs("div",{"data-dzslot":ix+1,style:{position:"relative",minWidth:0,minHeight:0,borderRadius:3,overflow:"hidden",backgroundColor:"#0b1a26"},children:[inner,r.jsx("span",{className:"mono",style:{position:"absolute",top:2,left:2,minWidth:12,padding:"0 3px",borderRadius:3,fontSize:8,lineHeight:"12px",textAlign:"center",background:"#02060dcc",color:"var(--cyan)",fontWeight:700,pointerEvents:"none"},children:ix+1})]},ix)})})}function Ih({node:e,status:t}){var a;const n=e==null?void 0:e.type,o={...((a=Me[n])==null?void 0:a.props)||{},...(e==null?void 0:e.props)||{}},i=Me[n],s=Qr[i.cat];return o.filename?r.jsx(rr,{kind:"image",size:1,src:D.imageUrl(o.filename),style:{width:"100%",height:"100%",borderRadius:0,border:0}}):o.jobId?r.jsx("video",{src:D.jobVideoUrl(o.jobId),muted:!0,preload:"metadata",playsInline:!0,onMouseEnter:l=>l.currentTarget.play().catch(()=>{}),onMouseLeave:l=>{l.currentTarget.pause(),l.currentTarget.currentTime=0},onLoadedMetadata:l=>{l.currentTarget.style.display="block"},onError:l=>{l.currentTarget.style.display="none"},style:{width:"100%",height:"100%",objectFit:"cover",display:"block",background:"#000"}}):n==="Animation"?r.jsxs("div",{style:{width:"100%",height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4,color:"var(--amber)",background:"#0b1016"},children:[r.jsx("div",{style:{fontSize:22,lineHeight:1},children:"✦"}),r.jsx("div",{style:{fontSize:11,opacity:.8},children:((e.props&&e.props.elements||[]).length)+" elements"})]}):n==="Concatenate"?__dzConcatStrip(e):["Image"].includes(n)?r.jsx(rr,{kind:"image",size:1,style:{width:"100%",height:"100%",borderRadius:0,border:0}}):["Seedance","NewsIllustration","Trim","Extend","Speed","TextOverlay","Ticker","SpatialCompose","ExistingRender","Upload"].includes(n)?r.jsxs("div",{style:{width:"100%",height:"100%",position:"relative",background:"linear-gradient(135deg, #053040 0%, #02060d 100%)"},children:[r.jsx("div",{style:{position:"absolute",inset:0,background:"repeating-linear-gradient(45deg, transparent 0 6px, #00e5ff10 6px 7px)"}}),r.jsx("div",{style:{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",color:"#00e5ff",opacity:.5},children:r.jsx(X,{name:"film",size:28})}),r.jsx("div",{style:{position:"absolute",bottom:4,left:6,fontFamily:"var(--f-mono)",fontSize:9,color:"var(--ink-strong)"},children:t==="running"?"00:08 / 00:15":"av · 9:16"})]}):["HeyGenAvatar"].includes(n)?(o.avatarImg?r.jsx("img",{src:o.avatarImg,alt:o.avatar||"avatar",onLoad:l=>{l.currentTarget.style.display="block"},onError:l=>{l.currentTarget.style.display="none"},style:{width:"100%",height:"100%",objectFit:"cover",display:"block",background:"#02060d"}}):r.jsx("div",{style:{width:"100%",height:"100%",background:"radial-gradient(circle at 50% 40%, #a855f744 0%, #02060d 70%)",display:"flex",alignItems:"center",justifyContent:"center"},children:r.jsx("div",{style:{width:56,height:56,borderRadius:"50%",background:"linear-gradient(160deg, #a855f7, #5b21b6)",boxShadow:"0 0 24px var(--violet-soft)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:22,fontWeight:700},children:"A"})})):["Voiceover","MusicTrack","AudioMix","Loudness"].includes(n)?r.jsx("svg",{viewBox:"0 0 200 90",style:{width:"100%",height:"100%",background:"linear-gradient(135deg, #063020 0%, #02060d 100%)"},children:r.jsx("path",{stroke:"var(--green)",strokeWidth:"1.5",fill:"none",d:Ph()})}):["Concatenate"].includes(n)?r.jsx("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:3,padding:4,height:"100%"},children:[0,1,2].map(l=>r.jsx("div",{style:{background:"linear-gradient(135deg, #053040, #02060d)",borderRadius:4,position:"relative"},children:r.jsx("div",{style:{position:"absolute",inset:0,background:"repeating-linear-gradient(45deg, transparent 0 4px, #00e5ff12 4px 5px)",borderRadius:4}})},l))}):["NewsItem","NewsScript","BrandStrip"].includes(n)?r.jsxs("div",{style:{width:"100%",height:"100%",padding:8,background:"linear-gradient(135deg, #1a0f00 0%, #02060d 100%)",display:"flex",flexDirection:"column",justifyContent:"space-between"},children:[r.jsx("div",{style:{fontSize:10,color:"var(--amber)",fontFamily:"var(--f-mono)"},children:n==="NewsItem"?((e.props||{}).source||"RSS source"):"prophet voice"}),r.jsx("div",{style:{fontSize:11,color:"var(--ink-strong)",lineHeight:1.25},children:n==="NewsItem"?((e.props||{}).title||"Pick a headline"):n==="NewsScript"?((e.props||{}).value||"AI script…"):"🐙 DEEPOTUS · from the deep"})]}):["Render"].includes(n)?r.jsx("div",{style:{width:"100%",height:"100%",background:"#02060d",position:"relative",display:"flex",alignItems:"center",justifyContent:"center"},children:r.jsx("div",{style:{width:36,height:64,border:"2px solid var(--ink)",borderRadius:4,position:"relative"},children:r.jsx(X,{name:"play",size:18,style:{position:"absolute",top:22,left:9,color:"var(--ink-strong)"}})})}):r.jsx("div",{style:{width:"100%",height:"100%",background:"var(--bg-base)",display:"flex",alignItems:"center",justifyContent:"center",color:s.color,opacity:.5},children:r.jsx(X,{name:s.icon,size:28})})}function Ph(){const e=[];for(let t=0;t<=200;t+=4){const n=(Math.sin(t*.15)+Math.sin(t*.07+1.2)*.6+(Math.random()-.5)*.4)*22+45;e.push(`${t===0?"M":"L"}${t} ${n.toFixed(1)}`)}return e.join(" ")}function Nh(e){var n,o,i,s,a;const t={...((n=Me[e.type])==null?void 0:n.props)||{},...e.props||{}};return e.type==="Image"||e.type==="BrandStrip"?t.filename||t.mark:e.type==="Seedance"?`${t.style} · ${t.durationS}s`:e.type==="HeyGenAvatar"?(i=(o=t.avatar)==null?void 0:o.split("·")[0])==null?void 0:i.trim():e.type==="NewsScript"?`${t.words}w`:e.type==="Voiceover"?(t.voice_name||"Voix par défaut"):e.type==="Trim"?`${t.startS}s → ${t.endS}s`:e.type==="Extend"?`→ ${t.targetS}s · ${t.mode}`:e.type==="Concatenate"?`xfade ${t.durationS}s`:e.type==="Render"?t.format:e.type==="SpatialCompose"?t.templateId:e.type==="AvatarMaster"?`tail ${t.tailPadS}s`:e.type==="ExistingRender"?t.jobId:e.type==="Upload"?t.filename||"upload a clip":e.type==="NewsItem"?t.source:e.type==="Text"?`${(t.value||"").length} ch`:""}function Rh(e){var n;const t={...((n=Me[e.type])==null?void 0:n.props)||{},...e.props||{}};return e.type==="Seedance"?`seed:${t.seed}`:e.type==="Upload"?t.durationS?`${t.durationS}s${t.master?" ⏱master":""}`:"":e.type==="Render"?`${t.fps}fps`:e.type==="AudioMix"?`${t.duckDb}dB`:""}function Wt(e,t,n){const o=e.edges.find(i=>i.to===t&&i.toPort===n);return o&&e.nodes.find(i=>i.id===o.from)||null}function WtAll(e,t,n){return(e.edges||[]).filter(function(i){return i.to===t&&i.toPort===n}).map(function(i){return(e.nodes||[]).find(function(N){return N.id===i.from})}).filter(Boolean)}function dzJoinNews(all,one){var L=(all&&all.length?all:[one||{}]).map(function(n){return(n.summary||n.title||"").trim()}).filter(Boolean);return L.join("\n\n")}function dzSSML(text,pacing){var t=String(text||"");if(!t.trim())return t;var esc=function(z){return z.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")};if(pacing==="precise"){var sp="0.35s",np="0.8s",paras=t.split(/\n+/).map(function(z){return z.trim()}).filter(Boolean);var body=paras.map(function(z){var ee=esc(z).replace(/\[\[\s*pause\s*([0-9.]+)\s*s?\s*\]\]/gi,function(m,d){return'<break time="'+d+'s"/>'});return ee.replace(/([.!?])\s+/g,'$1 <break time="'+sp+'"/> ')}).join(' <break time="'+np+'"/> ');return'<speak>'+body+'</speak>'}var clean=t.replace(/\[\[\s*pause[^\]]*\]\]/gi,"… ");if(pacing==="natural"){clean=clean.split(/\n+/).map(function(z){z=z.trim();return z?(/[.!?…]$/.test(z)?z:z+"."):""}).filter(Boolean).join("\n")}return clean}function pd(e){return e==="1:1"?[1080,1080]:e==="16:9"?[1920,1080]:e==="4:5"?[1080,1350]:[1080,1920]}
 function dzReach(e,a,b){var seen={},q=[a];while(q.length){var x=q.shift();if(x===b)return!0;if(seen[x])continue;seen[x]=1;for(var i=0;i<e.edges.length;i++)if(e.edges[i].from===x)q.push(e.edges[i].to)}return!1}
 function DzEffectsPanel(P){var e=P.node,n=P.props||{},o=P.set,g=P.graph||{nodes:[]};var cur=(n.effects&&n.effects[0])||{type:"grade",preset:"teal_orange",intensity:60};function setE(patch){o("effects",[Object.assign({},cur,patch)])}var GR=["teal_orange","cyberpunk","deepsea","noir","warm","cold","vintage","cross","matrix","faded"];var CO=["sepia","bw","duotone","matrix","redalert","gold"];var TYPES=[["grade","LUT / Grade"],["colorize","Colorisation"],["vhs","VHS"],["gradient","Degrade"],["grain","Grain"],["vignette","Vignette"],["chroma","Chroma"],["glitch","Glitch"],["bloom","Bloom"],["halation","Halation"],["scanlines","Scanlines"],["letterbox","Letterbox"],["oldfilm","Old film"],["sharpen","Nettete"],["blur","Flou"],["dreamy","Dreamy"],["pixelate","Pixelate"],["shake","Shake"],["mirror","Miroir"],["invert","Negatif"]];function thumb(key,src,sel,onClick,cap){return r.jsxs("button",{onClick:onClick,title:cap,style:{padding:0,border:sel?"2px solid #4db5ff":"1px solid var(--stroke)",borderRadius:6,background:"var(--bg-base)",cursor:"pointer",overflow:"hidden"},children:[r.jsx("img",{src:src,loading:"lazy",style:{width:"100%",height:44,objectFit:"cover",display:"block",opacity:sel?1:.85}}),r.jsx("div",{style:{fontSize:9,lineHeight:"12px",color:sel?"var(--ink-strong)":"var(--ink-soft)",padding:"2px 2px",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"},children:cap})]},key)}var grid={display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:4};var rows=[];var _vl=window.DzVfx&&window.DzVfx.ready?window.DzVfx:null;rows.push(r.jsx(O,{label:"Effet",children:_vl&&_vl.Panel?r.jsx(_vl.Panel,{inline:!0,title:"Effets",stack:n.effects||[],onPick:function(ty,eff){var keep={};["t0","t1","fade_in","fade_out","ease_in","ease_out"].forEach(function(k){if(cur[k]!=null)keep[k]=cur[k]});o("effects",[Object.assign({},eff,keep)])}}):r.jsx("div",{style:Object.assign({},grid,{maxHeight:250,overflowY:"auto"}),children:TYPES.map(function(t){return thumb(t[0],"/effect-thumbs/"+t[0]+".jpg",cur.type===t[0],function(){setE({type:t[0]})},t[1])})})}));if(cur.type==="grade")rows.push(r.jsx(O,{label:"Preset",children:r.jsx("div",{style:grid,children:GR.map(function(pr){return thumb("g_"+pr,"/effect-thumbs/grade_"+pr+".jpg",(cur.preset||"teal_orange")===pr,function(){setE({preset:pr})},pr)})})}));if(cur.type==="colorize")rows.push(r.jsx(O,{label:"Preset",children:r.jsx("div",{style:grid,children:CO.map(function(pr){return thumb("c_"+pr,"/effect-thumbs/colorize_"+pr+".jpg",(cur.preset||"duotone")===pr,function(){setE({preset:pr})},pr)})})}));var noInt={mirror:1,invert:1,letterbox:1,grade:1};if(!noInt[cur.type])rows.push(r.jsx(O,{children:r.jsx(Oe,{label:"Intensite",value:cur.intensity==null?60:cur.intensity,min:0,max:100,step:5,unit:"%",onChange:function(v){setE({intensity:v})}})}));if(cur.type==="vhs"||cur.type==="shake")rows.push(r.jsx(O,{children:r.jsx(Oe,{label:"Vitesse",value:cur.speed==null?50:cur.speed,min:0,max:100,step:5,unit:"%",onChange:function(v){setE({speed:v})}})}));if(cur.type==="letterbox")rows.push(r.jsx(O,{children:r.jsx(Oe,{label:"Ratio",value:cur.ratio==null?2.35:cur.ratio,min:1.5,max:2.6,step:.05,unit:"",onChange:function(v){setE({ratio:v})}})}));if(cur.type==="gradient"){rows.push(r.jsx(O,{label:"Couleur 1",children:r.jsx(DzColorPicker,{value:cur.c0||"#00e5ff",onChange:function(v){setE({c0:v})}})}));rows.push(r.jsx(O,{label:"Couleur 2",children:r.jsx(DzColorPicker,{value:cur.c1||"#9945ff",onChange:function(v){setE({c1:v})}})}));rows.push(r.jsx(O,{children:r.jsx(Oe,{label:"Angle",value:cur.angle==null?45:cur.angle,min:0,max:360,step:15,unit:"deg",onChange:function(v){setE({angle:v})}})}));rows.push(r.jsx(O,{children:r.jsx(Oe,{label:"Opacite",value:cur.opacity==null?40:cur.opacity,min:0,max:100,step:5,unit:"%",onChange:function(v){setE({opacity:v})}})}));rows.push(r.jsx(O,{label:"Fusion",children:r.jsx(re,{value:cur.blend||"screen",onChange:function(v){setE({blend:v})},options:["screen","overlay","multiply","softlight","addition","normal"].map(function(z){return{value:z,label:z}})})}))}if(_vl&&_vl.Bounds)rows.push(r.jsx(O,{label:"Bornes",hint:"Limiter l'effet a un intervalle du plan, avec rampe de Bezier.",children:r.jsx(_vl.Bounds,{eff:cur,dur:Number(n.durationS)||0,onChange:function(p){setE(p)}})}));var srcT={Upload:1,Image:1,Seedance:1,ExistingRender:1,NewsIllustration:1,SpatialCompose:1,HeyGenAvatar:1,Animation:1};var opts=[{value:"all",label:"Tout le rendu"}];var _byId={};(g.nodes||[]).forEach(function(z){_byId[z.id]=z});var _cnt={};(g.nodes||[]).forEach(function(nd){if(srcT[nd.type]){_cnt[nd.type]=(_cnt[nd.type]||0)+1;var num=_cnt[nd.type];var ed=(g.edges||[]).find(function(E2){var tn=_byId[E2.to];return E2.from===nd.id&&tn&&tn.type==="Concatenate"&&"abcdef".indexOf(E2.toPort)>=0});if(ed)num="abcdef".indexOf(ed.toPort)+1;var lbl=((Me[nd.type]&&Me[nd.type].title)||nd.type)+" #"+num;opts.push({value:nd.id,label:lbl})}});var tgt=(n.targets&&n.targets[0])||"all";rows.push(r.jsx(O,{label:"Appliquer sur",hint:"Le calque (node) cible, ou tout le rendu.",children:r.jsx(re,{value:tgt,onChange:function(v){o("targets",[v])},options:opts})}));rows.push(r.jsx(O,{hint:"Branche la sortie sur le port fx du node Render.",children:r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)"},children:"-> Render.fx"})}));return r.jsxs(ie,{label:"Effects / Mask",children:rows})}async function dzCompose(e,t,l,n,o){
   var tplId=(l.props&&l.props.templateId)||"tpl_news_reel",tpl=null;
@@ -314,7 +314,7 @@ function DzColorPicker({value,onChange,allowNone}){
     ]}):null
   ]})
 }
-(function(){if(typeof document==="undefined"||document.getElementById("dz-fonts"))return;var F=[["Space Grotesk","SpaceGrotesk.ttf"],["Inter","Inter.ttf"],["JetBrains Mono","JetBrainsMono.ttf"],["Bebas Neue","BebasNeue.ttf"],["Anton","Anton.ttf"],["Archivo Black","ArchivoBlack.ttf"],["Righteous","Righteous.ttf"],["Bungee","Bungee.ttf"],["Staatliches","Staatliches.ttf"],["Cinzel","Cinzel.ttf"],["Abril Fatface","AbrilFatface.ttf"],["Pacifico","Pacifico.ttf"],["Permanent Marker","PermanentMarker.ttf"],["Monoton","Monoton.ttf"],["Press Start 2P","PressStart2P.ttf"],["Dripping Marker","DrippingMarker.ttf"],["Graffiti Brush","GraffitiBrush.ttf"],["Distant Galaxy","DistantGalaxy.ttf"],["Hacked","Hacked.ttf"],["Super Pencil","SuperPencil.ttf"],["Poland Kaito","PolandKaito.otf"],["Super Feel","SuperFeel.ttf"]];try{var c=F.map(function(f){return "@font-face{font-family:'"+f[0]+"';src:url('/fonts/"+f[1]+"');font-display:swap}"}).join("");var st=document.createElement("style");st.id="dz-fonts";st.textContent=c;document.head.appendChild(st)}catch(e){}})();var DZ_FONTS=["Space Grotesk","Inter","JetBrains Mono","Bebas Neue","Anton","Archivo Black","Righteous","Bungee","Staatliches","Cinzel","Abril Fatface","Pacifico","Permanent Marker","Monoton","Press Start 2P","Dripping Marker","Graffiti Brush","Distant Galaxy","Hacked","Super Pencil","Poland Kaito","Super Feel"];function DzFontPicker({value,onChange}){return r.jsxs("div",{children:[r.jsx(re,{value:value,onChange:onChange,options:DZ_FONTS}),r.jsx("div",{style:{marginTop:6,padding:"12px 14px",background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:8,fontFamily:"'"+(value||"Space Grotesk")+"', system-ui, sans-serif",fontSize:24,color:"var(--ink-strong)",lineHeight:1.15,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},children:"From the deep · 123"})]})}function DzEmojiPicker({onInsert}){const dd=x.useState(null),data=dd[0],setData=dd[1];const cc=x.useState(null),custom=cc[0],setCustom=cc[1];const oo=x.useState(!1),open=oo[0],setOpen=oo[1];const tt=x.useState(0),tab=tt[0],setTab=tt[1];const fr=x.useRef(null);function loadCustom(){fetch("/api/emojis/custom").then(r=>r.ok?r.json():null).then(d=>setCustom((d&&d.emojis)||[])).catch(()=>setCustom([]))}x.useEffect(()=>{if(open&&!data)fetch("/api/emojis").then(r=>r.ok?r.json():[]).then(setData).catch(()=>setData([]));if(open&&!custom)loadCustom()},[open]);function doImport(e){const f=e.target.files&&e.target.files[0];e.target.value="";if(!f){return}const nm=prompt("Nom du raccourci (lettres, chiffres, tirets):",(f.name||"emoji").replace(/\.[^.]+$/,""));if(nm===null){return}const fd=new FormData();fd.append("file",f);fd.append("name",nm||"");fetch("/api/emojis/custom",{method:"POST",body:fd}).then(r=>r.ok?r.json():r.json().then(j=>Promise.reject(j))).then(()=>loadCustom()).catch(j=>alert("Import failed: "+((j&&j.detail)||"erreur")))}function doDelete(nm){fetch("/api/emojis/custom/"+encodeURIComponent(nm),{method:"DELETE"}).then(()=>loadCustom()).catch(()=>{})}function tabStyle(a){return{fontSize:9.5,padding:"2px 6px",borderRadius:10,cursor:"pointer",border:"1px solid "+(a?"var(--cyan)":"var(--stroke)"),background:a?"var(--cyan-soft)":"transparent",color:a?"var(--cyan)":"var(--ink-soft)",whiteSpace:"nowrap"}}const nCats=data?data.length:0,isPerso=tab===nCats;return r.jsxs("div",{children:[r.jsx("button",{onClick:()=>setOpen(!open),style:{fontSize:11,padding:"4px 10px",borderRadius:8,cursor:"pointer",border:"1px solid var(--stroke-strong)",background:open?"var(--cyan-soft)":"transparent",color:open?"var(--cyan)":"var(--ink)"},children:open?"✕ Fermer émojis":"😊 Insérer un émoji"}),open?r.jsxs("div",{style:{marginTop:6,padding:8,background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:8},children:[r.jsxs("div",{style:{display:"flex",gap:4,flexWrap:"wrap",marginBottom:6},children:[data?data.map((c,i)=>r.jsx("button",{onClick:()=>setTab(i),style:tabStyle(tab===i),children:c.cat},c.cat)):r.jsx("span",{style:{fontSize:11,color:"var(--ink-soft)"},children:"chargement…"},"l"),data?r.jsx("button",{onClick:()=>setTab(nCats),style:tabStyle(isPerso),children:"⭐ Perso"},"perso"):null]}),isPerso?r.jsxs("div",{children:[r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:6},children:[r.jsx("button",{onClick:()=>fr.current&&fr.current.click(),style:{fontSize:11,padding:"4px 10px",borderRadius:8,cursor:"pointer",border:"1px solid var(--cyan)",background:"var(--cyan-soft)",color:"var(--cyan)"},children:"+ Importer"}),r.jsx("span",{style:{fontSize:10,color:"var(--ink-soft)"},children:"PNG/JPG/WebP, inserted as :name:"}),r.jsx("input",{ref:fr,type:"file",accept:"image/*",onChange:doImport,style:{display:"none"}})]}),custom&&custom.length?r.jsx("div",{style:{display:"grid",gridTemplateColumns:"repeat(7, 1fr)",gap:4,maxHeight:150,overflowY:"auto"},children:custom.map(it=>r.jsxs("div",{style:{position:"relative",paddingTop:"100%"},children:[r.jsx("button",{onClick:()=>onInsert(it.code),title:it.code,style:{position:"absolute",inset:0,padding:2,border:"1px solid var(--stroke)",background:"var(--bg-panel)",cursor:"pointer",borderRadius:5,display:"flex",alignItems:"center",justifyContent:"center"},children:r.jsx("img",{src:it.url,alt:it.code,loading:"lazy",style:{maxWidth:"100%",maxHeight:"100%",display:"block"}})}),r.jsx("button",{onClick:()=>doDelete(it.name),title:"Delete",style:{position:"absolute",top:-5,right:-5,width:16,height:16,borderRadius:8,border:0,background:"var(--red)",color:"#fff",fontSize:11,lineHeight:"15px",cursor:"pointer",padding:0,zIndex:2},children:"×"})]},it.name))}):r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)",padding:"8px 2px"},children:custom?"No custom emoji yet.":"chargement…"})]}):(data&&data[tab]?r.jsx("div",{style:{display:"grid",gridTemplateColumns:"repeat(9, 1fr)",gap:2,maxHeight:170,overflowY:"auto"},children:data[tab].items.map(it=>r.jsx("button",{onClick:()=>onInsert(it.e),title:it.e,style:{padding:2,border:0,background:"transparent",cursor:"pointer",borderRadius:5,display:"flex",alignItems:"center",justifyContent:"center"},children:r.jsx("img",{src:"/emoji/"+it.f+".png",alt:it.e,loading:"lazy",style:{width:22,height:22,display:"block"}})},it.f))}):null)]}):null]})}function DzImageModel(){const ms=x.useState(null),models=ms[0],setModels=ms[1];const cs=x.useState(localStorage.getItem("dz_image_model")||""),sel=cs[0],setSel=cs[1];x.useEffect(()=>{fetch("/api/image-models").then(r=>r.ok?r.json():null).then(d=>{if(d){setModels(d.models||[]);const cfg=d.configured||"";setSel(p=>cfg||p||d.default||(d.models[0]&&d.models[0].id)||"");if(cfg){try{localStorage.setItem("dz_image_model",cfg)}catch(e){}}}}).catch(()=>setModels([]))},[]);function pick(v){setSel(v);try{localStorage.setItem("dz_image_model",v)}catch(e){}fetch("/api/atelier/settings",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({image_model_default:v})}).catch(()=>{})}if(!models)return null;if(!models.length)return r.jsx("div",{style:{fontSize:10,color:"var(--ink-muted)",maxWidth:158,lineHeight:1.2},children:"fal.ai / OpenAI key required (Settings)"});return r.jsx(re,{value:sel||(models[0]&&models[0].id)||"",onChange:pick,options:models.map(m=>({value:m.id,label:m.label}))})}function DzPromptAI({p,set}){const[sty,setSty]=x.useState("cinematic"),[mood,setMood]=x.useState("epic"),[busy,setBusy]=x.useState(!1),[msg,setMsg]=x.useState("");const run=()=>{const tx=(p.value||"").trim();if(!tx||busy)return;setBusy(!0);setMsg("");const neg=(p.negative||"").split(/[,;\n]/).map(z=>z.trim()).filter(Boolean);fetch("/api/prompt/refine",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:tx,mode:"visual",tone:sty,humor:mood,avoid:neg,language:"English"})}).then(R=>R.ok?R.json():null).then(d=>{setBusy(!1);if(d&&d.text){set("value",d.text);setMsg(d.ai?"✓ Refined via "+d.provider:"No LLM key — add one in Settings (prompt unchanged)")}else setMsg("Refine failed")}).catch(()=>{setBusy(!1);setMsg("Refine failed")})};return r.jsxs(ie,{label:"AI prompt generator",children:[r.jsx(O,{label:"Visual style",children:r.jsx(re,{value:sty,onChange:setSty,options:["cinematic","gritty realism","dreamy","neon cyberpunk","minimal","epic fantasy","vaporwave","documentary","anime","claymation"]})}),r.jsx(O,{label:"Mood",children:r.jsx(re,{value:mood,onChange:setMood,options:["epic","ominous","serene","playful","tense","mysterious","euphoric"]})}),r.jsx(K,{variant:"primary",size:"sm",icon:"sparkle",glow:!0,disabled:busy,onClick:run,style:{width:"100%",marginTop:4},children:busy?"Generating…":"Refine with AI"}),msg?r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)",marginTop:6},children:msg}):null,r.jsx("div",{style:{fontSize:10,color:"var(--ink-soft)",marginTop:6,lineHeight:1.4},children:"Expands your idea into a vivid Seedance prompt — style, lighting, camera — and honours the negative list. No robotic output."})]})}function DzAvatarPick({p,set}){const[list,setList]=x.useState(null),[voices,setVoices]=x.useState(null),[presets,setPresets]=x.useState([]);x.useEffect(()=>{let on=!0;fetch("/api/heygen/presets").then(R=>R.ok?R.json():{presets:[]}).then(d=>{if(on)setPresets((d&&d.presets)||[])}).catch(()=>{});return()=>{on=!1}},[]);x.useEffect(()=>{let on=!0;D.listHeygenAvatars().then(d=>{if(on)setList((d&&d.avatars)||[])}).catch(()=>{if(on)setList([])});D.listHeygenVoices().then(d=>{if(on)setVoices((d&&d.voices)||[])}).catch(()=>{if(on)setVoices([])});return()=>{on=!1}},[]);const[favBump,setFav]=x.useState(0),[q,setQ]=x.useState(""),taRef=x.useRef(null);const arr0=list||[],varr=voices||[];var favIds=[];try{favIds=JSON.parse(localStorage.getItem("dz_fav_avatars")||"[]")||[]}catch(_e){}const isFav=a=>!!a&&favIds.indexOf(a.avatar_id)>=0;const ql=(q||"").trim().toLowerCase();const filt=ql?arr0.filter(a=>((a.avatar_name||"")+(a.name||"")).toLowerCase().indexOf(ql)>=0):arr0;const arr=[...filt.filter(isFav),...filt.filter(a=>!isFav(a))];const cur=arr0.find(a=>a.avatar_name===p.avatar||a.avatar_id===p.avatarId);const img=p.avatarImg||(cur&&cur.preview_image_url)||"";const ci=Math.max(0,arr.findIndex(a=>a.avatar_id===p.avatarId||a.avatar_name===p.avatar));const setAv=a=>{if(!a)return;set("avatar",a.avatar_name);set("avatarId",a.avatar_id);set("avatarImg",a.preview_image_url||"");set("avatarType",a.avatar_type||"avatar")};const pickI=i=>{if(!arr.length)return;setAv(arr[((i%arr.length)+arr.length)%arr.length])};const onPick=v=>{const a=arr0.find(z=>z.avatar_name===v);a?setAv(a):set("avatar",v)};const toggleFav=()=>{if(!cur)return;var f=favIds.slice(),k=cur.avatar_id,ix=f.indexOf(k);ix>=0?f.splice(ix,1):f.unshift(k);try{localStorage.setItem("dz_fav_avatars",JSON.stringify(f))}catch(_e){}setFav(favBump+1)};const onKey=ev=>{if(ev.key==="ArrowDown"||ev.key==="ArrowRight"){ev.preventDefault();pickI(ci+1)}else if(ev.key==="ArrowUp"||ev.key==="ArrowLeft"){ev.preventDefault();pickI(ci-1)}else if(ev.key==="f"||ev.key==="F"){ev.preventDefault();toggleFav()}};let opts=arr.map(a=>({value:a.avatar_name,label:(isFav(a)?"★ ":"")+a.avatar_name}));if(p.avatar&&!arr0.find(a=>a.avatar_name===p.avatar))opts=[{value:p.avatar,label:p.avatar},...opts];if(!opts.length)opts=[{value:p.avatar||"",label:list===null?"Loading avatars…":(ql?"No match":"No avatars — check Settings")}];const vnames=varr.map(v=>v.name);let vopts=varr.map(v=>({value:v.name,label:v.name+(v.language?" · "+v.language:"")}));if(p.voice&&!vnames.includes(p.voice))vopts=[{value:p.voice,label:p.voice},...vopts];if(!vopts.length)vopts=[{value:p.voice||"",label:voices===null?"Loading voices…":"No voices — check Settings"}];const onVoice=v=>{set("voice",v);const vv=varr.find(z=>z.name===v);if(vv){set("voiceId",vv.voice_id);set("voicePrev",vv.preview_audio||"");set("voiceLang",vv.language||"")}};const playVoice=()=>{const u=p.voicePrev;if(u){try{new Audio(u).play().catch(()=>{})}catch(e){}}};return r.jsxs(ie,{label:"Avatar",children:[r.jsx(O,{label:`Casting (${presets.length})`,children:r.jsx(re,{value:"",options:[{value:"",label:presets.length?"— load a casting —":"— no casting saved —"},...presets.filter(z2=>z2.avatar_type!=="image").map(P=>({value:P.id,label:P.name}))],onChange:v=>{const P=presets.find(z=>z.id===v);if(!P)return;set("avatarId",P.avatar_id);set("avatarType",P.avatar_type||"avatar");set("avatarImg",P.avatar_img||"");const _a=(list||[]).find(z=>z.avatar_id===P.avatar_id);if(_a)set("avatar",_a.avatar_name);set("voiceId",P.voice_id);set("voice",P.voice_name||"");set("voicePrev",P.voice_prev||"");set("voiceLang",P.voice_lang||"");set("speedX",P.speed||1);set("engine",P.engine||"")}})}),r.jsx(O,{label:"Find avatar",children:r.jsx("input",{value:q,onChange:ev=>setQ(ev.target.value),placeholder:"Search "+arr0.length+" avatars…",style:{width:"100%",fontSize:12,padding:"7px 9px",borderRadius:6,border:"1px solid var(--stroke-strong)",background:"var(--bg-base)",color:"var(--ink-strong)",boxSizing:"border-box"}})}),r.jsxs("div",{tabIndex:0,ref:taRef,onKeyDown:onKey,style:{outline:"none",display:"flex",alignItems:"center",gap:8,border:"1px solid var(--stroke)",borderRadius:8,padding:8,margin:"4px 0 8px",background:"var(--bg-panel-2)"},children:[r.jsx("button",{onClick:()=>pickI(ci-1),title:"Previous (Up arrow)",style:{fontSize:13,lineHeight:1,padding:"6px 9px",borderRadius:6,border:"1px solid var(--stroke-strong)",background:"var(--bg-base)",color:"var(--ink)",cursor:"pointer"},children:"▲"}),img?r.jsx("img",{src:img,onError:e=>{e.currentTarget.style.visibility="hidden"},style:{width:56,height:56,objectFit:"cover",borderRadius:8,border:"1px solid var(--stroke-strong)",flex:"0 0 auto"}}):r.jsx("div",{style:{width:56,height:56,borderRadius:8,background:"var(--bg-base)",flex:"0 0 auto"}}),r.jsxs("div",{style:{flex:1,minWidth:0},children:[r.jsx("div",{style:{fontSize:12,fontWeight:600,color:"var(--ink-strong)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"},children:(cur&&cur.avatar_name)||p.avatar||"—"}),r.jsx("div",{style:{fontSize:10,color:"var(--ink-soft)"},children:arr.length?(ci+1)+" / "+arr.length+" · ↑/↓ flip · F ★":(list===null?"Loading…":"—")})]}),r.jsx("button",{onClick:toggleFav,title:"Favorite (F)",style:{fontSize:15,lineHeight:1,padding:"6px 9px",borderRadius:6,border:"1px solid var(--stroke-strong)",background:"var(--bg-base)",color:cur&&isFav(cur)?"var(--amber)":"var(--ink-soft)",cursor:"pointer"},children:cur&&isFav(cur)?"★":"☆"}),r.jsx("button",{onClick:()=>pickI(ci+1),title:"Next (Down arrow)",style:{fontSize:13,lineHeight:1,padding:"6px 9px",borderRadius:6,border:"1px solid var(--stroke-strong)",background:"var(--bg-base)",color:"var(--ink)",cursor:"pointer"},children:"▼"})]}),r.jsx(O,{label:"Avatar",children:r.jsx(re,{value:p.avatar,onChange:onPick,options:opts})}),r.jsxs("div",{style:{marginTop:4,aspectRatio:"9 / 16",maxHeight:220,background:"#02060d",border:"1px solid var(--stroke)",borderRadius:8,position:"relative",overflow:"hidden"},children:[img?r.jsx("img",{src:img,alt:p.avatar,onLoad:e=>{e.currentTarget.style.opacity=1},onError:e=>{e.currentTarget.style.opacity=0},style:{width:"100%",height:"100%",objectFit:"cover"}}):r.jsx("div",{style:{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",color:"var(--ink-soft)",fontSize:11,textAlign:"center",padding:10},children:list===null?"Loading avatars…":(arr.length?"Pick an avatar to preview the still":"No avatars — add your HeyGen key in Settings")})]}),r.jsx(O,{label:"Voice",children:r.jsxs("div",{style:{display:"flex",gap:6,alignItems:"center"},children:[r.jsx("div",{style:{flex:1,minWidth:0},children:r.jsx(re,{value:p.voice,onChange:onVoice,options:vopts})}),p.voicePrev?r.jsx(K,{variant:"outline",size:"sm",icon:"play",onClick:playVoice,title:"Preview voice"}):null]})}),r.jsx(O,{label:"Moteur",children:r.jsx(re,{value:p.engine||"",onChange:v=>set("engine",v),options:[{value:"",label:"Auto (pipeline actuel)"},{value:"avatar_iii",label:"Avatar III"},{value:"avatar_iv",label:"Avatar IV \u00b7 motion"},{value:"avatar_v",label:"Avatar V \u00b7 max"}]})}),r.jsx(O,{label:"Speed",children:r.jsx(Oe,{value:p.speedX*100|0,min:70,max:140,step:5,unit:"%",onChange:i=>set("speedX",i/100)})})]});}function DzQuickEst({mode,dur,vm}){const[e,setE]=x.useState(null);x.useEffect(()=>{let on=!0;const op=mode==="heygen"?{kind:"heygen",minutes:1}:mode==="comp"?{kind:"campaign",ops:[{kind:"image",model:localStorage.getItem("dz_image_model")||""},{kind:"seedance",duration_s:dur,model:vm||void 0},{kind:"heygen",minutes:1}]}:{kind:"campaign",ops:[{kind:"image",model:localStorage.getItem("dz_image_model")||""},{kind:"seedance",duration_s:dur,model:vm||void 0}]};const id=setTimeout(()=>{fetch("/api/cost/estimate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(op)}).then(R=>R.ok?R.json():null).then(d=>{if(on&&d)setE(d)}).catch(()=>{})},250);return()=>{on=!1;clearTimeout(id)}},[mode,dur,vm]);const hint=mode==="heygen"?"~1 min":"~"+((mode==="comp"?40:20)+dur)+"s";return r.jsx("span",{className:"mono",style:{color:"var(--amber)"},children:e&&e.total_usd!=null?"$"+e.total_usd.toFixed(2)+" · "+hint:"…"});}function DzPlanEst({count}){const[e,setE]=x.useState(null);x.useEffect(()=>{let on=!0;fetch("/api/cost/estimate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({kind:"marketing_plan",posts:count,model:localStorage.getItem("dz_image_model")||""})}).then(R=>R.ok?R.json():null).then(d=>{if(on&&d)setE(d)}).catch(()=>{});return()=>{on=!1}},[count]);return r.jsxs("span",{title:"Directional budget for this plan — uses your Pricing & budget rates (image + ~10s clip per post).",style:{fontSize:11,fontFamily:"var(--f-mono)",color:"var(--amber)",padding:"3px 8px",border:"1px solid var(--stroke)",borderRadius:8,whiteSpace:"nowrap",marginRight:6},children:["≈ $",e&&e.total_usd!=null?e.total_usd.toFixed(2):"…"]});}function DzPricing(){const[p,setP]=x.useState(null),[saved,setSaved]=x.useState(!1),[saving,setSaving]=x.useState(!1);const refs=x.useRef({});x.useEffect(()=>{let on=!0;fetch("/api/cost/pricing").then(R=>R.ok?R.json():null).then(d=>{if(on&&d)setP(d)}).catch(()=>{});return()=>{on=!1}},[]);if(!p)return r.jsx("div",{style:{padding:24,color:"var(--ink-muted)"},children:"Loading pricing…"});const fields=[{k:"flux_image_usd",l:"FLUX image",u:"$ / image",step:"0.001"},{k:"gpt_image_2_usd",l:"GPT Image 2",u:"$ / image",step:"0.01"},{k:"gpt_image_1_usd",l:"GPT Image 1",u:"$ / image",step:"0.01"},{k:"gpt_image_1_mini_usd",l:"GPT Image 1 mini",u:"$ / image",step:"0.001"},{k:"seedance_usd_per_s",l:"Seedance video",u:"$ / second",step:"0.01"},{k:"heygen_credit_usd",l:"HeyGen credit",u:"$ / credit",step:"0.01"},{k:"heygen_credits_per_min",l:"HeyGen rate",u:"credits / min",step:"0.5"},{k:"elevenlabs_usd_per_char",l:"ElevenLabs voice",u:"$ / character",step:"0.0001"},{k:"monthly_budget_usd",l:"Monthly budget cap",u:"$ — 0 = none",step:"1"}];const save=()=>{setSaving(!0);setSaved(!1);const body={};fields.forEach(f=>{const el=refs.current[f.k];const v=el?parseFloat(el.value):NaN;body[f.k]=isNaN(v)?0:v});fetch("/api/cost/pricing",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}).then(R=>R.ok?R.json():null).then(d=>{setSaving(!1);if(d){setP(d);setSaved(!0);setTimeout(()=>setSaved(!1),2500)}}).catch(()=>setSaving(!1))};return r.jsxs("div",{style:{padding:"4px 2px",maxWidth:560},children:[r.jsx("div",{className:"upper",style:{marginBottom:6},children:"Pricing & budget"}),r.jsx("p",{style:{fontSize:12,color:"var(--ink-muted)",margin:"0 0 16px",lineHeight:1.5},children:"Set your own provider rates so the cost widget and the budget previews (Quick, Scheduler) show accurate dollar amounts. Each provider bills your own key — these are directional estimates."}),fields.map(f=>r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"1fr 130px",gap:14,alignItems:"center",marginBottom:10},children:[r.jsxs("label",{style:{fontSize:12.5,color:"var(--ink)"},children:[f.l," ",r.jsx("span",{style:{color:"var(--ink-muted)",fontSize:11},children:"("+f.u+")"})]}),r.jsx("input",{type:"number",step:f.step,min:"0",defaultValue:p[f.k],ref:el=>{refs.current[f.k]=el},style:{height:30,padding:"0 8px",background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",color:"var(--ink-strong)",fontFamily:"var(--f-mono)",fontSize:12.5,width:"100%"}})]},f.k)),r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:12,marginTop:18},children:[r.jsx("button",{onClick:save,disabled:saving,style:{height:34,padding:"0 18px",background:"var(--brand)",color:"#001018",border:"none",borderRadius:"var(--r-sm)",fontSize:13,fontWeight:600,cursor:saving?"default":"pointer",opacity:saving?.6:1},children:saving?"Saving…":"Save pricing"}),saved?r.jsx("span",{style:{fontSize:12.5,color:"#39d98a"},children:"✓ Saved"}):null]})]});}function xm({variant:e,personas:t=[],activePersonaId:n,setActivePersonaId:o,savePersona:i}){const[s,a]=x.useState(()=>{const u=vn("section");return ym.includes(u)?u:"accounts"}),[l,d]=x.useState(null);return r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"240px 1fr",height:"100%",minHeight:0,background:"var(--bg-base)"},children:[r.jsxs("div",{style:{background:"var(--bg-panel)",borderRight:"1px solid var(--stroke)",padding:"14px 8px"},children:[r.jsx("div",{className:"upper",style:{padding:"0 10px 10px"},children:"Settings"}),[{k:"keys",l:"API keys"},{k:"accounts",l:"Connected accounts"},{k:"personas",l:"Personas"},{k:"branding",l:"Branding"},{k:"pack",l:"Caption pack"},{k:"defaults",l:"Provider defaults"},{k:"paths",l:"Paths"},{k:"news",l:"News"},{k:"appearance",l:"Appearance"},{k:"pricing",l:"Pricing & budget"}].map(u=>r.jsx("div",{onClick:()=>a(u.k),style:{padding:"8px 12px",borderRadius:"var(--r-sm)",fontSize:12.5,color:s===u.k?"var(--brand)":"var(--ink)",background:s===u.k?"var(--brand-soft)":"transparent",display:"flex",alignItems:"center",gap:8,cursor:"pointer",marginBottom:2},children:u.l},u.k))]}),r.jsxs("div",{className:"scroll",style:{overflowY:"auto",padding:24,maxWidth:880},children:[s==="accounts"&&r.jsx(Tm,{}),s==="personas"&&r.jsx(jm,{personas:t,activePersonaId:n,setActivePersonaId:o,onNew:()=>d("new"),onEdit:u=>d(u)}),s==="keys"&&r.jsx(bm,{}),s==="branding"&&r.jsx(Sm,{}),s==="pack"&&r.jsx(km,{}),s==="defaults"&&r.jsx(Em,{}),s==="paths"&&r.jsx(_m,{}),s==="news"&&r.jsx(zm,{}),s==="appearance"&&r.jsx(Cm,{}),s==="pricing"&&r.jsx(DzPricing,{})]}),r.jsx(Au,{open:!!l,initial:l==="new"?null:l,onClose:()=>d(null),onSave:u=>{i==null||i(u),d(null)}})]})}function km(){const[e,t]=x.useState(null),[n,o]=x.useState(!1),[i,s]=x.useState(""),a=x.useRef({});x.useEffect(()=>{D.getCaptionPack().then(v=>t((v==null?void 0:v.pack)||[]))},[]);const l={height:30,padding:"0 8px",background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",color:"var(--ink-strong)",fontFamily:"var(--f-ui)",fontSize:12.5,width:"100%"};function d(v,g){t(k=>k.map((c,p)=>p===v?{...c,...g}:c))}function u(){t(v=>[...v||[],{id:"tag-"+Math.random().toString(36).slice(2,6),emoji:"🔥",label:"New tag",icon:""}])}function f(v){t(g=>g.filter((k,c)=>c!==v))}async function m(){o(!0),s("");const v=(e||[]).filter(k=>(k.label||"").trim()).map(k=>({...k,icon:(k.icon||"").split("?")[0]})),g=await D.saveCaptionPack(v);o(!1),g!=null&&g.pack?(t(g.pack),s("Saved ✓ — open the Scheduler to use it."),setTimeout(()=>s(""),4e3)):s("Save failed: "+String((g==null?void 0:g.error)||""))}async function y(){if(!confirm("Reset the caption pack to the deepotus defaults? Custom icons are removed."))return;const v=await D.resetCaptionPack();v!=null&&v.pack&&t(v.pack)}async function w(v,g){if(!g)return;const k=e[v].id||"tag-"+v;s("Uploading icon…");const c=await D.uploadPackIcon(k,g);c!=null&&c.ok&&c.icon?(d(v,{id:k,icon:c.icon+"?t="+Date.now()}),s("Icon set — click Save pack to keep it.")):s("Icon upload failed: "+String((c==null?void 0:c.error)||""))}return e?r.jsxs(r.Fragment,{children:[r.jsxs("div",{style:{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:4},children:[r.jsx("div",{className:"display",style:{fontSize:22,color:"var(--ink-strong)"},children:"Caption pack"}),r.jsxs("div",{style:{display:"flex",gap:8},children:[r.jsx(K,{variant:"ghost",size:"sm",onClick:y,children:"Reset"}),r.jsx(K,{variant:"primary",size:"sm",icon:"check",glow:!0,onClick:m,disabled:n,children:n?"Saving…":"Save pack"})]})]}),r.jsxs("div",{style:{fontSize:12,color:"var(--ink-soft)",marginBottom:16,maxWidth:640},children:["One-tap branded tags shown under the caption editor in the Scheduler (great for Telegram / X). Edit the emoji and label, upload a custom icon per tag, add or remove rows. ",i&&r.jsxs("strong",{style:{color:i.includes("failed")?"var(--red)":"var(--green)"},children:[" · ",i]})]}),r.jsx("div",{style:{display:"flex",flexDirection:"column",gap:8,maxWidth:640},children:e.map((v,g)=>r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"36px 56px 1fr auto auto",gap:10,alignItems:"center",padding:"8px 10px",background:"var(--bg-panel)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)"},children:[r.jsx("div",{style:{width:32,height:32,borderRadius:6,background:"var(--bg-base)",border:"1px solid var(--stroke)",display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden"},children:v.icon?r.jsx("img",{src:v.icon,alt:"",style:{width:"100%",height:"100%",objectFit:"contain"},onError:k=>{k.currentTarget.style.display="none"}}):r.jsx("span",{style:{fontSize:16},children:v.emoji})}),r.jsx("input",{value:v.emoji,onChange:k=>d(g,{emoji:k.target.value}),title:"Fallback emoji",style:{...l,textAlign:"center",fontSize:15}}),r.jsx("input",{value:v.label,onChange:k=>d(g,{label:k.target.value}),placeholder:"Tag label",style:l}),r.jsx("input",{ref:k=>a.current[g]=k,type:"file",accept:"image/*",style:{display:"none"},onChange:k=>{var c;w(g,(c=k.target.files)==null?void 0:c[0]),k.target.value=""}}),r.jsx(K,{variant:"outline",size:"sm",icon:"upload",onClick:()=>{var k;return(k=a.current[g])==null?void 0:k.click()},children:v.icon?"Replace":"Icon"}),r.jsx(se,{name:"trash",title:"Remove tag",onClick:()=>f(g)})]},g))}),r.jsx(K,{variant:"outline",size:"sm",icon:"plus",onClick:u,style:{marginTop:10},children:"Add tag"})]}):r.jsx("div",{style:{color:"var(--ink-soft)",fontSize:12},children:"Loading…"})}function jm({personas:e,activePersonaId:t,setActivePersonaId:n,onNew:o,onEdit:i}){return r.jsxs(r.Fragment,{children:[r.jsxs("div",{style:{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:4},children:[r.jsx("div",{className:"display",style:{fontSize:22,color:"var(--ink-strong)"},children:"Personas"}),r.jsx(K,{variant:"primary",size:"sm",icon:"plus",glow:!0,onClick:o,children:"New persona"})]}),r.jsxs("div",{style:{fontSize:12,color:"var(--ink-soft)",marginBottom:20,maxWidth:620},children:["Each persona is a JSON file at ",r.jsx("span",{className:"mono",children:"backend/persona/<id>.json"}),". The active one drives the News scripter, the prompt generator's tone, and the default Voiceover. Built-in personas are read-only; duplicate any of them to edit."]}),r.jsx(Ou,{personas:e,activeId:t,onSelect:n,onNew:o,onEdit:i})]})}const Fu=[{k:"FAL_KEY",label:"fal.ai (Seedance)",why:"image → cinematic clip",health:"fal_configured"},{k:"HEYGEN_API_KEY",label:"HeyGen avatars",why:"talking avatars",health:"heygen_enabled"},{k:"ELEVENLABS_API_KEY",label:"ElevenLabs voice",why:"voiceover",health:"voiceover_enabled"},{k:"ANTHROPIC_API_KEY",label:"Anthropic (summary)",why:"news summarizer",health:"has_summarizer"},{k:"OPENAI_API_KEY",label:"OpenAI",why:"summary + plans (cloud)",health:"openai_enabled"},{k:"GEMINI_API_KEY",label:"Google Gemini",why:"summary + plans (cloud)",health:"gemini_enabled"},{k:"GEMINI_MODEL",label:"Gemini — modèle",why:"vide = gemini-flash-latest (alias stable, suit les mises à jour) ; pin possible, ex. gemini-2.0-flash",health:"gemini_enabled"},{k:"MESHY_API_KEY",label:"Meshy 6 (3D · optional)",why:"premium image → 3D · needs a Meshy plan: meshy.ai/api",health:"has_meshy"}];function bm(){const e=bt(),[t,n]=x.useState([]),[o,i]=x.useState(""),[s,a]=x.useState({}),[l,d]=x.useState(!1),[u,f]=x.useState("");function m(){D.listKeys().then(k=>{n((k==null?void 0:k.keys)||[]),i((k==null?void 0:k.env_path)||"")})}x.useEffect(()=>{m()},[]);function y(k,c){a(p=>({...p,[k]:c}))}async function w(k){const c=(s[k]||"").trim();if(!c)return;d(!0);const p=await D.setKeys([{name:k,value:c}]);d(!1),p.ok?(a(h=>{const b={...h};return delete b[k],b}),f(`${k} saved — restart the backend to apply.`),m(),No(),setTimeout(()=>f(""),4500)):f(`Failed: ${String(p.error||"").slice(0,120)}`)}async function v(){var p;const k=Object.entries(s).map(([h,b])=>({name:h,value:(b||"").trim()})).filter(h=>h.value);if(!k.length)return;d(!0);const c=await D.setKeys(k);d(!1),c.ok?(a({}),f(`${((p=c.written)==null?void 0:p.length)||k.length} key(s) saved — restart the backend to apply.`),m(),No(),setTimeout(()=>f(""),5500)):f(`Failed: ${String(c.error||"").slice(0,120)}`)}const g=Object.fromEntries(t.map(k=>[k.key,k]));return r.jsxs(r.Fragment,{children:[r.jsx("div",{className:"display",style:{fontSize:22,color:"var(--ink-strong)",marginBottom:4},children:"API keys"}),r.jsxs("div",{style:{fontSize:12,color:"var(--ink-soft)",marginBottom:20},children:["Stored in ",r.jsx("span",{className:"mono",children:o||"backend/.env"}),". Paste a value and click ",r.jsx("strong",{children:"Save"})," — the backend writes it to .env (allowlisted keys only, never returned in clear). ",r.jsx("strong",{children:"Restart the backend"})," after saving so pydantic-settings re-reads the file."]}),r.jsx(jt,{style:{padding:0},children:Fu.map((k,c)=>{const p=!!(e!=null&&e[k.health]),h=g[k.k];return r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"220px 1fr auto auto",gap:14,alignItems:"center",padding:"14px 18px",borderTop:c?"1px solid var(--stroke)":"none"},children:[r.jsxs("div",{children:[r.jsx("div",{style:{fontSize:12.5,color:"var(--ink-strong)"},children:k.label}),r.jsxs("div",{className:"mono",title:k.k+" · "+k.why,style:{fontSize:10.5,color:"var(--ink-muted)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},children:[k.k," · ",k.why]}),(h==null?void 0:h.preview)&&r.jsxs("div",{className:"mono",title:h.preview,style:{fontSize:10,color:"var(--ink-soft)",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},children:["current: ",h.preview]})]}),r.jsx("input",{type:"password",value:s[k.k]||"",onChange:b=>y(k.k,b.target.value),placeholder:h!=null&&h.set?"paste a new value to rotate (leave empty to keep)":"paste key here…",style:{background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",padding:"6px 10px",color:"var(--ink-strong)",fontFamily:"var(--f-mono)",fontSize:12}}),r.jsx(te,{tone:h&&h.set?"green":"red",dot:!0,children:h&&h.set?"set":"missing"}),r.jsx(K,{variant:"primary",size:"sm",icon:"check",onClick:()=>w(k.k),disabled:l||!(s[k.k]||"").trim(),children:l?"…":"Save"})]},k.k)})}),r.jsxs("div",{style:{marginTop:14,display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"},children:[r.jsx(K,{variant:"primary",size:"md",icon:"check",glow:!0,onClick:v,disabled:l||!Object.values(s).some(k=>(k||"").trim()),children:"Save all changes"}),r.jsxs("span",{style:{fontSize:11,color:"var(--ink-soft)"},children:["Then in a PowerShell window: ",r.jsx("span",{className:"mono",children:"Get-Process python | Stop-Process -Force; .\\\\scripts\\\\launch.ps1"})]}),u&&r.jsx("div",{style:{padding:"6px 10px",borderRadius:"var(--r-sm)",fontSize:11.5,background:u.startsWith("Failed")?"var(--red-soft)":"var(--green-soft)",border:`1px solid ${u.startsWith("Failed")?"var(--red)":"var(--green)"}`,color:"var(--ink-strong)"},children:u})]}),r.jsx(wm,{serverKeys:g,onSaved:()=>{m(),No()}}),r.jsxs("div",{style:{marginTop:24,padding:12,background:"var(--bg-panel-2)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",fontSize:11,color:"var(--ink-soft)"},children:["Tip: see ",r.jsx("span",{className:"mono",children:"Settings → Provider defaults"})," to pick which credential each role uses, and ",r.jsx("span",{className:"mono",children:"Settings → Appearance"})," for motion preferences."]})]})}function wm({serverKeys:e,onSaved:t}){var g,k,c;const n=bt(),[o,i]=x.useState(null),[s,a]=x.useState(null),[l,d]=x.useState(!1),[u,f]=x.useState("");(g=e==null?void 0:e.OLLAMA_URL)!=null&&g.preview;const m=o??"",y=s??"",w=!!(n!=null&&n.ollama_enabled);async function v(){d(!0),f("");const p=[];if(o!==null&&p.push({name:"OLLAMA_URL",value:o.trim()}),s!==null&&p.push({name:"OLLAMA_MODEL",value:s.trim()}),!p.length){d(!1);return}const h=await D.setKeys(p);d(!1),h.ok?(i(null),a(null),f("Saved — restart the backend to use the local model."),t==null||t(),setTimeout(()=>f(""),4e3)):f("Failed: "+String(h.error||"").slice(0,120))}return r.jsxs("div",{style:{marginTop:22},children:[r.jsx("div",{className:"display",style:{fontSize:15,color:"var(--ink-strong)",marginBottom:4},children:"Local LLM (Ollama)"}),r.jsxs("div",{style:{fontSize:11.5,color:"var(--ink-soft)",marginBottom:12,maxWidth:640},children:["Run marketing plans on a ",r.jsx("strong",{children:"local model"})," — free, and nothing leaves your machine. Install ",r.jsx("span",{className:"mono",children:"ollama.com"}),", then ",r.jsx("span",{className:"mono",children:"ollama pull qwen2.5:14b-instruct"}),". Set the model below. Priority: Anthropic > Ollama > built-in planner."]}),r.jsxs(jt,{style:{padding:14},children:[r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr auto",gap:12,alignItems:"end"},children:[r.jsx(O,{label:"Server URL",children:r.jsx(le,{mono:!0,value:m,placeholder:((k=e==null?void 0:e.OLLAMA_URL)==null?void 0:k.preview)||"http://127.0.0.1:11434",onChange:i})}),r.jsx(O,{label:"Model name",children:r.jsx(le,{mono:!0,value:y,placeholder:(c=e==null?void 0:e.OLLAMA_MODEL)!=null&&c.set?e.OLLAMA_MODEL.preview:"qwen2.5:14b-instruct",onChange:a})}),r.jsx(K,{variant:"primary",size:"md",icon:"check",onClick:v,disabled:l||o===null&&s===null,children:l?"…":"Save"})]}),r.jsxs("div",{style:{marginTop:10,display:"flex",alignItems:"center",gap:10},children:[r.jsx(te,{tone:w?"green":"neutral",dot:!0,children:w?"local model active":"not configured (cloud/built-in used)"}),u&&r.jsx("span",{style:{fontSize:11,color:u.startsWith("Failed")?"var(--red)":"var(--green)"},children:u})]})]})]})}function Sm(){const e=ji(),[t,n]=x.useState(null),[o,i]=x.useState(!1),[s,a]=x.useState(""),[l,d]=x.useState(0),u=yn.useRef(null),f=t||e;function m(g,k){n(c=>({...c||e,[g]:k}))}async function y(){if(!t)return;i(!0),a("");const g=await D.setBranding({app_name:t.app_name,app_sub:t.app_sub,tagline_1:t.tagline_1,tagline_2:t.tagline_2,brand_color:t.brand_color,accent_color:t.accent_color});i(!1),g!=null&&g.app_name?(n(null),Ji(),ea(g),a("Brand saved — applied everywhere."),setTimeout(()=>a(""),3500)):a("Failed: "+String((g==null?void 0:g.error)||"").slice(0,140))}async function w(g){if(!g)return;i(!0),a("");const k=await D.uploadBrandLogo(g);i(!1),k!=null&&k.ok?(d(Date.now()),Ji(),a("Logo updated."),setTimeout(()=>a(""),3e3)):a("Failed: "+String((k==null?void 0:k.error)||"").slice(0,140))}async function v(){if(!confirm("Reset name, taglines, colors and logo to the deepotus defaults?"))return;i(!0);const g=await D.resetBranding();i(!1),n(null),d(Date.now()),g!=null&&g.app_name&&(Ji(),ea(g),a("Reset to deepotus."),setTimeout(()=>a(""),3e3))}return r.jsxs(r.Fragment,{children:[r.jsx("div",{className:"display",style:{fontSize:22,color:"var(--ink-strong)",marginBottom:4},children:"Branding"}),r.jsxs("div",{style:{fontSize:12,color:"var(--ink-soft)",marginBottom:20,maxWidth:620},children:["Make this studio yours: name, taglines, colors and logo apply to the splash screen, the sidebar and every accent in the app. Stored in ",r.jsx("span",{className:"mono",children:"assets/branding/"})," — survives upgrades. The product ships as ",r.jsx("strong",{children:"deepotus"}),"; reset any time."]}),r.jsxs(jt,{style:{padding:18},children:[r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"120px 1fr",gap:18,alignItems:"start"},children:[r.jsxs("div",{style:{textAlign:"center"},children:[r.jsx("img",{src:D.brandLogoUrl(l),alt:"logo",width:96,height:96,style:{width:96,height:96,objectFit:"contain",borderRadius:"50%",border:"1px solid var(--stroke)",background:"var(--bg-base)",boxShadow:"0 0 24px var(--brand-soft)"}}),r.jsx("input",{ref:u,type:"file",accept:"image/png,image/jpeg,image/webp",style:{display:"none"},onChange:g=>{var k;w((k=g.target.files)==null?void 0:k[0]),g.target.value=""}}),r.jsx(K,{variant:"outline",size:"sm",icon:"upload",style:{marginTop:8,width:"100%"},onClick:()=>{var g;return(g=u.current)==null?void 0:g.click()},disabled:o,children:"Logo…"})]}),r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12},children:[r.jsx(O,{label:"App name",children:r.jsx(le,{value:f.app_name,onChange:g=>m("app_name",g.toUpperCase().slice(0,18))})}),r.jsx(O,{label:"Sub-label",children:r.jsx(le,{value:f.app_sub,onChange:g=>m("app_sub",g.toUpperCase().slice(0,12))})}),r.jsx(O,{label:"Tagline line 1",children:r.jsx(le,{value:f.tagline_1,onChange:g=>m("tagline_1",g.slice(0,40))})}),r.jsx(O,{label:"Tagline line 2",children:r.jsx(le,{value:f.tagline_2,onChange:g=>m("tagline_2",g.slice(0,40))})}),r.jsx(O,{label:"Brand color (primary)",children:r.jsxs("div",{style:{display:"flex",gap:8,alignItems:"center"},children:[r.jsx("input",{type:"color",value:f.brand_color,onChange:g=>m("brand_color",g.target.value),style:{width:44,height:30,padding:2,background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",cursor:"pointer"}}),r.jsx(le,{mono:!0,value:f.brand_color,onChange:g=>m("brand_color",g),style:{flex:1}})]})}),r.jsx(O,{label:"Accent color (cyan)",children:r.jsxs("div",{style:{display:"flex",gap:8,alignItems:"center"},children:[r.jsx("input",{type:"color",value:f.accent_color,onChange:g=>m("accent_color",g.target.value),style:{width:44,height:30,padding:2,background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",cursor:"pointer"}}),r.jsx(le,{mono:!0,value:f.accent_color,onChange:g=>m("accent_color",g),style:{flex:1}})]})})]})]}),r.jsxs("div",{style:{marginTop:16,padding:14,background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r)",display:"flex",alignItems:"center",gap:14},children:[r.jsx("img",{src:D.brandLogoUrl(l),alt:"",width:34,height:34,style:{borderRadius:"50%"}}),r.jsxs("div",{style:{lineHeight:1.1},children:[r.jsx("div",{className:"display",style:{fontSize:15,fontWeight:700,letterSpacing:"0.04em",color:f.brand_color},children:f.app_name||"APP NAME"}),r.jsxs("div",{style:{fontSize:9,color:"var(--ink-soft)",letterSpacing:"0.18em"},children:[f.app_sub," · v2.6.0"]})]}),r.jsx("div",{style:{flex:1}}),r.jsxs("span",{style:{fontSize:11,fontStyle:"italic",color:"var(--ink-soft)"},children:[f.tagline_1," ",f.tagline_2]}),r.jsx("span",{style:{width:16,height:16,borderRadius:4,background:f.accent_color,border:"1px solid var(--stroke)"},title:"accent"})]}),r.jsxs("div",{style:{marginTop:14,display:"flex",alignItems:"center",gap:10},children:[r.jsx(K,{variant:"primary",size:"md",icon:"check",glow:!0,onClick:y,disabled:o||!t,children:o?"Saving…":"Save brand"}),r.jsx(K,{variant:"ghost",size:"sm",onClick:v,disabled:o,children:"Reset to deepotus"}),s&&r.jsx("span",{style:{fontSize:11.5,color:s.startsWith("Failed")?"var(--red)":"var(--green)"},children:s})]})]})]})}function Cm(){const[e,t]=x.useState(()=>localStorage.getItem("deepotus.motion.reduced")==="1"),[n,o]=x.useState(()=>localStorage.getItem("deepotus.motion.halo")!=="0");return x.useEffect(()=>{const i=document.documentElement;e?i.classList.add("no-motion"):i.classList.remove("no-motion"),localStorage.setItem("deepotus.motion.reduced",e?"1":"0")},[e]),x.useEffect(()=>{const i=document.documentElement;n?i.classList.remove("no-halo"):i.classList.add("no-halo"),localStorage.setItem("deepotus.motion.halo",n?"1":"0")},[n]),r.jsxs(r.Fragment,{children:[r.jsx("div",{className:"display",style:{fontSize:22,color:"var(--ink-strong)",marginBottom:4},children:"Appearance"}),r.jsx("div",{style:{fontSize:12,color:"var(--ink-soft)",marginBottom:20},children:"Motion + flair toggles. Saved in your browser; apply across all screens immediately."}),r.jsxs(jt,{style:{padding:14},children:[r.jsxs("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12},children:[r.jsxs("div",{children:[r.jsx("div",{style:{fontSize:12.5,color:"var(--ink-strong)"},children:"Reduced motion"}),r.jsxs("div",{style:{fontSize:11,color:"var(--ink-soft)"},children:["Disable halo pulse, edge cascade, splash zoom, caustics. Honors ",r.jsx("span",{className:"mono",children:"prefers-reduced-motion"})," automatically."]})]}),r.jsx(Ze,{checked:e,onChange:t})]}),r.jsxs("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center"},children:[r.jsxs("div",{children:[r.jsx("div",{style:{fontSize:12.5,color:"var(--ink-strong)"},children:"Tentacle halo on active node"}),r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)"},children:"🐙 The deep flair on the running Studio node."})]}),r.jsx(Ze,{checked:n,onChange:o})]})]})]})}function _m(){const e=bt(),t=[{k:"images_folder",label:"Images folder",desc:"Where uploaded source images are stored. Library reads from here."},{k:"outputs_folder",label:"Outputs folder",desc:"Final renders, audio, captions are written here per job."}];function n(o){try{navigator.clipboard.writeText(o)}catch{}}return r.jsxs(r.Fragment,{children:[r.jsx("div",{className:"display",style:{fontSize:22,color:"var(--ink-strong)",marginBottom:4},children:"Paths"}),r.jsxs("div",{style:{fontSize:12,color:"var(--ink-soft)",marginBottom:20},children:["Resolved from ",r.jsx("span",{className:"mono",children:"/api/health"}),". Auto-configured by ",r.jsx("span",{className:"mono",children:"scripts/setup-paths.ps1"}),". To change them, edit ",r.jsx("span",{className:"mono",children:"backend/.env"})," with ",r.jsx("span",{className:"mono",children:"PYTHON_EXE_PATH"})," / ",r.jsx("span",{className:"mono",children:"FFMPEG_BIN_PATH"}),"."]}),r.jsx(jt,{style:{padding:0},children:t.map((o,i)=>r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"200px 1fr auto",gap:16,alignItems:"center",padding:"14px 18px",borderTop:i?"1px solid var(--stroke)":"none"},children:[r.jsxs("div",{children:[r.jsx("div",{style:{fontSize:12.5,color:"var(--ink-strong)"},children:o.label}),r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)"},children:o.desc})]}),r.jsx("div",{className:"mono",style:{fontSize:11,color:"var(--ink)",wordBreak:"break-all"},children:(e==null?void 0:e[o.k])||"—"}),r.jsx(K,{variant:"ghost",size:"sm",icon:"copy",onClick:()=>n(e==null?void 0:e[o.k]),disabled:!(e!=null&&e[o.k]),children:"Copy"})]},o.k))}),r.jsx("div",{className:"display",style:{fontSize:16,color:"var(--ink-strong)",margin:"28px 0 8px"},children:"Backend version"}),r.jsx(jt,{style:{padding:14},children:r.jsxs("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center"},children:[r.jsxs("div",{children:[r.jsx("div",{style:{fontSize:12.5,color:"var(--ink-strong)"},children:"API version"}),r.jsxs("div",{style:{fontSize:11,color:"var(--ink-soft)"},children:["From ",r.jsx("span",{className:"mono",children:"/api/health"})]})]}),r.jsx(te,{tone:e!=null&&e.ok?"green":"red",dot:!0,children:e!=null&&e.version?`v${e.version}`:"unreachable"})]})})]})}function zm(){const[e,t]=x.useState([]),[n,o]=x.useState(""),[i,s]=x.useState(!1),[a,l]=x.useState("");async function d(){try{const v=await fetch("/api/news/sources");if(v.ok){const g=await v.json();t((g==null?void 0:g.sources)||[])}}catch{}}x.useEffect(()=>{d()},[]);async function u(v,g){s(!0);try{await fetch(`/api/news/sources/${v}/toggle`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({enabled:g})}),d()}finally{s(!1)}}async function f(v){if(confirm("Remove this feed?")){s(!0);try{await fetch(`/api/news/sources/${v}`,{method:"DELETE"}),d()}finally{s(!1)}}}async function m(){const v=n.trim();if(v){s(!0),l("");try{const g=await fetch("/api/news/sources",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url:v,name:null,type:"rss"})});g.ok?(o(""),l("Added."),d()):l("Failed: "+(await g.text()).slice(0,120))}catch(g){l("Failed: "+g)}finally{s(!1),setTimeout(()=>l(""),3500)}}}async function y(){s(!0);try{(await fetch("/api/news/sources/defaults",{method:"POST"})).ok&&d()}finally{s(!1)}}async function w(){s(!0),l("Refreshing all feeds…");try{const v=await fetch("/api/news/refresh",{method:"POST"});if(v.ok){const g=await v.json();l(`Pulled ${(g==null?void 0:g.fetched)||"?"} items.`)}else l("Refresh failed.")}finally{s(!1),setTimeout(()=>l(""),3500)}}return r.jsxs(r.Fragment,{children:[r.jsx("div",{className:"display",style:{fontSize:22,color:"var(--ink-strong)",marginBottom:4},children:"News"}),r.jsx("div",{style:{fontSize:12,color:"var(--ink-soft)",marginBottom:20},children:"RSS / Atom feed pack used by the News pipeline. Defaults cover crypto, geopolitics, economy. Toggle individual feeds; add custom URLs."}),r.jsxs("div",{style:{display:"flex",gap:8,marginBottom:14,alignItems:"center",flexWrap:"wrap"},children:[r.jsx("input",{value:n,onChange:v=>o(v.target.value),placeholder:"https://… (RSS feed URL)",style:{flex:1,minWidth:280,background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",padding:"8px 10px",color:"var(--ink-strong)",fontFamily:"var(--f-mono)",fontSize:12}}),r.jsx(K,{variant:"primary",size:"sm",icon:"plus",onClick:m,disabled:i||!n.trim(),children:"Add feed"}),r.jsx(K,{variant:"outline",size:"sm",icon:"bolt",onClick:w,disabled:i,children:"Refresh all"}),r.jsx(K,{variant:"ghost",size:"sm",onClick:y,disabled:i,children:"Restore defaults"})]}),a&&r.jsx("div",{style:{marginBottom:10,fontSize:11.5,color:a.startsWith("Failed")?"var(--red)":"var(--green)"},children:a}),r.jsxs(jt,{style:{padding:0,maxHeight:480,overflow:"auto"},children:[e.length===0&&r.jsx("div",{style:{padding:20,fontSize:12,color:"var(--ink-soft)"},children:'No sources. Click "Restore defaults" to seed the curated feed pack.'}),e.map((v,g)=>r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"20px 1fr auto auto auto",gap:12,alignItems:"center",padding:"10px 14px",borderTop:g?"1px solid var(--stroke)":"none"},children:[r.jsx(X,{name:"rss",size:13,style:{color:v.enabled?"var(--cyan)":"var(--ink-muted)"}}),r.jsxs("div",{style:{minWidth:0},children:[r.jsx("div",{style:{fontSize:12,color:v.enabled?"var(--ink-strong)":"var(--ink-muted)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"},children:v.name||v.url}),r.jsx("div",{className:"mono",style:{fontSize:10,color:"var(--ink-soft)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"},children:v.url})]}),r.jsx(te,{tone:v.enabled?"green":"red",dot:!0,children:v.enabled?"on":"off"}),r.jsx(Ze,{checked:v.enabled,onChange:k=>u(v.id,k)}),r.jsx(se,{name:"trash",iconSize:11,title:"Remove",onClick:()=>f(v.id)})]},v.id||g))]}),r.jsxs("div",{style:{marginTop:12,fontSize:11,color:"var(--ink-soft)"},children:[e.length," source",e.length===1?"":"s"," ·"," ",e.filter(v=>v.enabled).length," active"]})]})}function DzVoiceProvider(){const[st,setSt]=x.useState(null),[sv,setSv]=x.useState(!1);const load=()=>Ge("/voice/providers",null).then(v=>{v&&setSt(v)});x.useEffect(()=>{load();const t=setInterval(load,1e4);return()=>clearInterval(t)},[]);async function pick(v){setSv(!0);try{await fetch(Te+"/atelier/settings",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({voice_provider:v})})}catch{}setSv(!1);load()}const ps=st&&st.providers||[],vb=ps.find(p=>p.id==="voicebox"),ok=!!(vb&&vb.ready),cfg=st&&st.configured||"",res=st&&st.resolved||"";const opts=[{value:"",label:"Auto (ElevenLabs si clé, sinon Voicebox)"}].concat(ps.map(p=>({value:p.id,label:p.label+(p.ready?"":" — indisponible")})));return r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"260px 1fr auto",gap:14,alignItems:"center",padding:"14px 18px",borderTop:"1px solid var(--stroke)"},children:[r.jsxs("div",{children:[r.jsx("div",{style:{fontSize:12.5,color:"var(--ink-strong)"},children:"Fournisseur de voix"}),r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)"},children:st?res?"Actif : "+res:"Aucune voix disponible":"…"})]}),r.jsxs("div",{children:[st?r.jsx(re,{value:cfg,options:opts,onChange:pick}):r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)"},children:"Chargement…"}),st&&!ok&&r.jsx("div",{className:"mono",style:{fontSize:10,color:"var(--ink-soft)",marginTop:4},children:"Astuce : voicebox-server.exe --host 127.0.0.1 --port 17493 --data-dir %LOCALAPPDATA%\\Voicebox\\data"})]}),r.jsx(te,{tone:ok?"green":"red",dot:!0,children:sv?"…":ok?"Voicebox détecté":"Voicebox non lancé"})]})}function Em(){const e=bt(),t=Fu.filter(a=>!!(e!=null&&e[a.health])).map(a=>a.k),[n,o]=x.useState(()=>{try{return JSON.parse(localStorage.getItem("deepotus.provider_defaults")||"{}")}catch{return{}}});function i(a,l){const d={...n,[a]:l};o(d),localStorage.setItem("deepotus.provider_defaults",JSON.stringify(d))}const s=[{id:"video",label:"Image → video",hint:"Seedance / fal.ai for cinematic clips",options:["FAL_KEY"]},{id:"avatar",label:"Talking avatar",hint:"HeyGen for the speaking head",options:["HEYGEN_API_KEY"]},{id:"voice",label:"Voiceover (non-avatar)",hint:"ElevenLabs for narration on Seedance clips",options:["ELEVENLABS_API_KEY"]},{id:"summarizer",label:"News summarizer",hint:"Anthropic, OpenAI or Gemini for neutral article summaries",options:["ANTHROPIC_API_KEY","OPENAI_API_KEY","GEMINI_API_KEY"]},{id:"planner",label:"Schedule planner",hint:"LLM-powered marketing plan generation",options:["ANTHROPIC_API_KEY","OPENAI_API_KEY","GEMINI_API_KEY","OLLAMA_MODEL"]}];return r.jsxs(r.Fragment,{children:[r.jsx("div",{className:"display",style:{fontSize:22,color:"var(--ink-strong)",marginBottom:4},children:"Provider defaults"}),r.jsxs("div",{style:{fontSize:12,color:"var(--ink-soft)",marginBottom:20},children:["Pick which credential each role uses by default. Only keys actually set in ",r.jsx("span",{className:"mono",children:"backend/.env"})," appear here. Saved locally."]}),r.jsxs(jt,{style:{padding:0},children:[r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"260px 1fr auto",gap:14,alignItems:"center",padding:"14px 18px"},children:[r.jsxs("div",{children:[r.jsx("div",{style:{fontSize:12.5,color:"var(--ink-strong)"},children:"Image generation"}),r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)"},children:"FLUX (fal) or GPT Image (OpenAI)"})]}),r.jsx(DzImageModel,{}),r.jsx(te,{tone:(t.includes("FAL_KEY")||t.includes("OPENAI_API_KEY"))?"green":"red",dot:!0,children:(t.includes("FAL_KEY")||t.includes("OPENAI_API_KEY"))?"ready":"missing"})]},"imggen"),r.jsx(DzVoiceProvider,{},"voiceprov"),...s.map((a,l)=>{const d=a.options.filter(f=>t.includes(f)),u=n[a.id]||d[0]||"";return r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"260px 1fr auto",gap:14,alignItems:"center",padding:"14px 18px",borderTop:"1px solid var(--stroke)"},children:[r.jsxs("div",{children:[r.jsx("div",{style:{fontSize:12.5,color:"var(--ink-strong)"},children:a.label}),r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)"},children:a.hint})]}),d.length===0?r.jsx("div",{style:{fontSize:11,color:"var(--red)"},children:"No key set for this role. Add one in API keys."}):r.jsx(re,{value:u,options:d.map(f=>({value:f,label:f})),onChange:f=>i(a.id,f)}),r.jsx(te,{tone:d.length?"green":"red",dot:!0,children:d.length?"ready":"missing"})]},a.id)})]})]})}function Tm(){const[e,t]=x.useState(new Set(["x"])),[n,o]=x.useState({}),[i,s]=x.useState({}),[a,l]=x.useState(""),[d,u]=x.useState({}),f=bt();function m(){D.listKeys().then(k=>{const c={};((k==null?void 0:k.keys)||[]).forEach(p=>{c[p.key]=p}),o(c)})}x.useEffect(()=>{m()},[]);async function y(k){const c=(i[k]||"").trim();if(!c)return;l(k);const p=await D.setKeys([{name:k,value:c}]);l(""),p.ok&&(s(h=>{const b={...h};return delete b[k],b}),m(),No())}async function w(k){u(p=>({...p,[k]:"Testing…"}));const c=await D.testChannel(k);u(p=>({...p,[k]:c!=null&&c.ok?`OK — ${c.detail}`:`Failed — ${String((c==null?void 0:c.detail)||(c==null?void 0:c.error)||"").slice(0,120)}`}))}const v=[{k:"x",label:"X (Twitter)",icon:"channelX",color:"#e6f1ff",auto:!0,testable:!0,connected:!!(f!=null&&f.x_enabled),note:"Auto-publish via API v2. Get the 4 keys at developer.x.com (free tier allows posting). Restart the backend after saving.",fields:[{k:"X_API_KEY",label:"API key"},{k:"X_API_SECRET",label:"API secret"},{k:"X_ACCESS_TOKEN",label:"Access token"},{k:"X_ACCESS_SECRET",label:"Access secret"}]},{k:"telegram",label:"Telegram",icon:"channelTelegram",color:"#29b6f6",auto:!0,testable:!0,connected:!!(f!=null&&f.telegram_enabled),note:"Auto-publish via bot. Create a bot with @BotFather, add it as channel ADMIN, paste token + chat id. Restart the backend after saving.",fields:[{k:"TELEGRAM_BOT_TOKEN",label:"Bot token"},{k:"TELEGRAM_CHAT_ID",label:"Channel chat ID"}]},{k:"youtube",label:"YouTube",icon:"channelYoutube",color:"#ef4444",auto:!1,testable:!1,connected:["YOUTUBE_CLIENT_ID","YOUTUBE_CLIENT_SECRET","YOUTUBE_REFRESH_TOKEN"].every(k=>{var c;return(c=n[k])==null?void 0:c.set}),note:"Assisted publishing for now (the Scheduler flips posts to READY and you upload manually). Auto-upload is on the roadmap; keys can be stored already.",fields:[{k:"YOUTUBE_CLIENT_ID",label:"OAuth client ID"},{k:"YOUTUBE_CLIENT_SECRET",label:"OAuth client secret"},{k:"YOUTUBE_REFRESH_TOKEN",label:"Refresh token"},{k:"YOUTUBE_CHANNEL_ID",label:"Channel ID"}]},{k:"instagram",label:"Instagram",icon:"channelInstagram",color:"#c084fc",auto:!1,testable:!1,connected:["IG_ACCESS_TOKEN","IG_BUSINESS_ID"].every(k=>{var c;return(c=n[k])==null?void 0:c.set}),note:"Assisted publishing. True auto-post requires a Business/Creator account + Meta app review — out of scope for most setups.",fields:[{k:"IG_ACCESS_TOKEN",label:"Graph API token"},{k:"IG_BUSINESS_ID",label:"Business account ID"}]}];function g(k){const c=new Set(e);c.has(k)?c.delete(k):c.add(k),t(c)}return r.jsxs(r.Fragment,{children:[r.jsx("div",{className:"display",style:{fontSize:22,color:"var(--ink-strong)",marginBottom:4},children:"Connected accounts"}),r.jsxs("div",{style:{fontSize:12,color:"var(--ink-soft)",marginBottom:20,maxWidth:620},children:["Live status from ",r.jsx("span",{className:"mono",children:"backend/.env"})," + ",r.jsx("span",{className:"mono",children:"/api/health"}),". Paste a value and Save — then restart the backend to activate the adapter. ",r.jsx("span",{style:{color:"var(--green)"},children:"auto"})," = the Scheduler can publish alone; ",r.jsx("span",{style:{color:"var(--amber)"},children:"assisted"})," = it preps the post and you click Send."]}),r.jsx("div",{style:{display:"flex",flexDirection:"column",gap:14},children:v.map(k=>{const c=e.has(k.k),p=k.connected,h=k.fields.filter(b=>{var _;return(_=n[b.k])==null?void 0:_.set}).length;return r.jsxs(jt,{style:{overflow:"hidden"},children:[r.jsxs("button",{onClick:()=>g(k.k),style:{width:"100%",padding:"14px 16px",display:"flex",alignItems:"center",gap:14,background:"transparent",border:0,cursor:"pointer",textAlign:"left"},children:[r.jsx("span",{style:{width:36,height:36,borderRadius:8,background:p?k.color+"22":"var(--bg-panel-2)",border:`1px solid ${p?k.color+"66":"var(--stroke)"}`,color:p?k.color:"var(--ink-muted)",display:"inline-flex",alignItems:"center",justifyContent:"center",flexShrink:0},children:r.jsx(X,{name:k.icon,size:18})}),r.jsxs("div",{style:{flex:1},children:[r.jsx("div",{style:{fontSize:14,color:"var(--ink-strong)",fontWeight:600},children:k.label}),r.jsxs("div",{style:{fontSize:11.5,color:"var(--ink-soft)",fontFamily:"var(--f-mono)"},children:[h,"/",k.fields.length," keys set"]})]}),r.jsx(te,{tone:k.auto?p?"green":"red":p?"amber":"neutral",dot:!0,children:k.auto?p?"auto":"not connected":p?"assisted (keys stored)":"assisted"}),r.jsx(X,{name:"caretR",size:12,style:{color:"var(--ink-soft)",transform:c?"rotate(90deg)":"none",transition:"transform var(--dur-1) var(--ease)"}})]}),c&&r.jsxs("div",{style:{borderTop:"1px solid var(--stroke)",padding:"12px 16px 16px",background:"var(--bg-panel-2)"},children:[r.jsx("div",{style:{marginBottom:12,padding:10,background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",fontSize:11.5,color:"var(--ink)",lineHeight:1.5},children:k.note}),k.fields.map((b,_)=>{const z=n[b.k];return r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"180px 1fr auto auto",gap:12,alignItems:"center",padding:"10px 0",borderTop:_?"1px solid var(--stroke)":"none"},children:[r.jsxs("div",{children:[r.jsx("div",{style:{fontSize:12.5,color:"var(--ink-strong)"},children:b.label}),r.jsx("div",{className:"mono",title:b.k,style:{fontSize:10,color:"var(--ink-muted)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},children:b.k}),(z==null?void 0:z.preview)&&r.jsx("div",{className:"mono",title:z.preview,style:{fontSize:10,color:"var(--ink-soft)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},children:z.preview})]}),r.jsx("input",{type:"password",value:i[b.k]||"",onChange:N=>s(P=>({...P,[b.k]:N.target.value})),placeholder:z!=null&&z.set?"paste a new value to rotate":"paste value…",style:{background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",padding:"6px 10px",color:"var(--ink-strong)",fontFamily:"var(--f-mono)",fontSize:11.5}}),r.jsx(te,{tone:z!=null&&z.set?"green":"red",dot:!0,children:z!=null&&z.set?"set":"empty"}),r.jsx(K,{variant:"primary",size:"sm",onClick:()=>y(b.k),disabled:a===b.k||!(i[b.k]||"").trim(),children:a===b.k?"…":"Save"})]},b.k)}),k.testable&&r.jsxs("div",{style:{marginTop:12,display:"flex",alignItems:"center",gap:10},children:[r.jsx(K,{variant:"outline",size:"sm",icon:"bolt",onClick:()=>w(k.k),disabled:!p,children:k.k==="telegram"?"Send test message":"Verify credentials"}),!p&&r.jsx("span",{style:{fontSize:10.5,color:"var(--ink-muted)"},children:"save keys + restart the backend first"}),d[k.k]&&r.jsx("span",{style:{fontSize:11,color:d[k.k].startsWith("OK")?"var(--green)":d[k.k]==="Testing…"?"var(--ink-soft)":"var(--red)"},children:d[k.k]})]})]})]},k.k)})})]})}const _t={x:{id:"x",label:"X",icon:"channelX",color:"#e6f1ff",bg:"#0f1c30",limit:280},telegram:{id:"telegram",label:"Telegram",icon:"channelTelegram",color:"#29b6f6",bg:"#0e2335",limit:4096},youtube:{id:"youtube",label:"YouTube",icon:"channelYoutube",color:"#ef4444",bg:"#2a0d0d",limit:5e3},instagram:{id:"instagram",label:"Instagram",icon:"channelInstagram",color:"#c084fc",bg:"#241333",limit:2200}},Bu=Object.values(_t),Im=["❤️","🔥","🚀","😍","🎉","👍","💯"],Pm=[{e:"🐙",label:"Deepotus Protocol",icon:"/pack/deepotus-protocol.png"},{e:"🌊",label:"Rippled Signal",icon:"/pack/rippled-signal.png"},{e:"👁️",label:"Prophet"},{e:"📖",label:"Chapter Drop"},{e:"🎴",label:"Board Game"},{e:"🎲",label:"D&D"},{e:"📱",label:"Mobile Devlog"},{e:"🪙",label:"$DEEP"},{e:"🧬",label:"Gencoin"},{e:"🎬",label:"Video Engine"}];function Nm({icon:e,emoji:t,size:n=16}){const[o,i]=x.useState(!1);return e&&!o?r.jsx("img",{src:e,alt:"",width:n,height:n,onError:()=>i(!0),style:{objectFit:"contain",borderRadius:4,display:"block"}}):r.jsx("span",{style:{fontSize:13},children:t})}const Rm={posted:"var(--green)",failed:"var(--red)",ready:"var(--amber)",scheduled:"var(--cyan)",draft:"var(--ink-muted)"};function Wu(e){return Rm[e]||"var(--ink-muted)"}function os(e){const t=new Date(e.getFullYear(),e.getMonth(),e.getDate());return t.setDate(t.getDate()-(t.getDay()+6)%7),t}function ri(e,t){const n=new Date(e);return n.setDate(n.getDate()+t),n}function oi(e,t){return e.getFullYear()===t.getFullYear()&&e.getMonth()===t.getMonth()&&e.getDate()===t.getDate()}function na(e,t){const n=ri(e,t);return{day:n.getDate(),short:["MON","TUE","WED","THU","FRI","SAT","SUN"][t],month:n.toLocaleString("en",{month:"short"}),date:n}}function Mm(e){const t=ri(e,6),n=e.toLocaleString("en",{month:"short"}),o=t.toLocaleString("en",{month:"short"});return n===o?`${n} ${e.getDate()} to ${t.getDate()}, ${t.getFullYear()}`:`${n} ${e.getDate()} to ${o} ${t.getDate()}, ${t.getFullYear()}`}function ra(e,t){const[n,o]=(t||"12:00").split(":"),i=new Date(e);return i.setHours(Number(n)||12,Number(o)||0,0,0),i}function Lm({variant:e,posts:t,setPosts:n,reloadPosts:o}){const[i,s]=x.useState([]),a=t??i,l=n??s,[d,u]=x.useState(null),[f,m]=x.useState("week"),[y,w]=x.useState(0),[v,g]=x.useState(0),k=vn("plan"),[c,p]=x.useState(k==="generate"||k==="import"),[h,b]=x.useState([]),[_,z]=x.useState(null),N=bt();x.useEffect(()=>{D.getCaptionPack().then(M=>{var U;(U=M==null?void 0:M.pack)!=null&&U.length&&z(M.pack.map(T=>({id:T.id,e:T.emoji,label:T.label,icon:T.icon||void 0})))})},[]);const[_dzNow,_dzSetNow]=x.useState(0);x.useEffect(()=>{var _T=setInterval(()=>_dzSetNow(z=>z+1),6e4);return()=>clearInterval(_T)},[]);const P=x.useMemo(()=>ri(os(new Date),y*7),[y,_dzNow]);x.useEffect(()=>{let M=!0;const U=()=>D.listJobs(60).then(Y=>{M&&b((Array.isArray(Y)?Y:[]).filter(q=>q.status==="done"&&q.final_video_path&&q.provider!=="asset3d"&&q.provider!=="sprite2d"))});U();const T=setInterval(U,8e3);return()=>{M=!1,clearInterval(T)}},[]),x.useEffect(()=>{function M(U){var Y;const T=(Y=U==null?void 0:U.detail)==null?void 0:Y.id;T&&u(T)}return window.addEventListener("deepotus:select-post",M),()=>window.removeEventListener("deepotus:select-post",M)},[]),x.useEffect(()=>{const M=vn("post");if(!M||d||!a.length)return;const U=M==="first"||M==="1"?a[0]:a.find(T=>T.id===M);U&&u(U.id)},[a.length]);const j=a.find(M=>M.id===d),E=x.useRef({});function H(M,U){const T={};"title"in U&&(T.title=U.title),"caption"in U&&(T.caption=U.caption),"channels"in U&&(T.channels=U.channels),"status"in U&&(T.status=U.status),"mode"in U&&(T.mode=U.mode),"jobId"in U&&(T.job_id=U.jobId),"sourceImage"in U&&(T.source_image=U.sourceImage),"runAt"in U&&(T.run_at=U.runAt.toISOString()),clearTimeout(E.current[M]),E.current[M]=setTimeout(()=>{D.updateScheduledPost(M,T)},500)}function F(M){d&&(l(U=>U.map(T=>T.id===d?{...T,...M}:T)),H(d,M))}function I(M){if(!j)return;const T=j.channels.includes(M)?j.channels.filter(Y=>Y!==M):[...j.channels,M];F({channels:T})}async function A(M){const U=ra(ri(P,M??0),"12:00"),T=await D.createScheduledPost({title:"Untitled post",caption:"",channels:["x"],run_at:U.toISOString(),status:"draft",mode:"assisted"});T!=null&&T.id&&(await((o==null?void 0:o())??Promise.resolve()),u(T.id))}async function V(){j&&(await D.deleteScheduledPost(j.id),u(null),o==null||o())}return r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"1fr 420px",height:"100%",minHeight:0,background:"var(--bg-base)"},children:[r.jsxs("div",{style:{display:"flex",flexDirection:"column",minHeight:0},children:[r.jsx(Dm,{view:f,setView:m,count:a.length,range:f==="month"?new Date(new Date().getFullYear(),new Date().getMonth()+v,1).toLocaleString("en",{month:"long",year:"numeric"}):Mm(P),onPrev:()=>f==="month"?g(M=>M-1):w(M=>M-1),onNext:()=>f==="month"?g(M=>M+1):w(M=>M+1),onToday:()=>{w(0),g(0)},onNew:()=>A(0),onPlan:()=>p(!0)}),r.jsxs("div",{style:{flex:1,minHeight:0,overflow:"auto",padding:18},className:"scroll",children:[f==="month"?r.jsx($m,{posts:a,selectedId:d,onSelect:u,monthOffset:v,onMove:(pid,ts)=>{l(U=>U.map(T=>T.id===pid?{...T,runAt:ts}:T));D.updateScheduledPost(pid,{run_at:new Date(ts).toISOString()})}}):r.jsx(Am,{posts:a,selectedId:d,onSelect:u,weekStart:P,onAdd:A,onMove:(pid,ts)=>{l(U=>U.map(T=>T.id===pid?{...T,runAt:ts}:T));D.updateScheduledPost(pid,{run_at:new Date(ts).toISOString()})}}),r.jsx(Fm,{post:j,weekStart:P,reloadPosts:o})]})]}),r.jsx(Bm,{post:j,weekStart:P,jobs:h,telegramOn:!!(N!=null&&N.telegram_enabled),xOn:!!(N!=null&&N.x_enabled),onChange:F,onToggleChannel:I,onDelete:V,reloadPosts:o,captionPack:_}),c&&r.jsx(Um,{initialTab:k==="import"?"import":"generate",onClose:()=>p(!1),onMaterialized:M=>{p(!1);const U=os(new Date(M)),T=os(new Date);w(Math.round((U-T)/(7*864e5))),m("week"),o==null||o()}})]})}function Dm({view:e,setView:t,count:n,range:o,onPrev:i,onNext:s,onToday:a,onNew:l,onPlan:d}){return r.jsxs("div",{style:{padding:"12px 18px",borderBottom:"1px solid var(--stroke)",background:"var(--bg-panel)",display:"flex",alignItems:"center",gap:12},children:[r.jsxs("div",{style:{display:"flex",flexDirection:"column"},children:[r.jsx("div",{className:"display",style:{fontSize:16,color:"var(--ink-strong)"},children:"Scheduler"}),r.jsxs("div",{style:{fontSize:11,color:"var(--ink-soft)"},children:[n," post",n===1?"":"s"," planned"]})]}),r.jsx("div",{style:{display:"flex",gap:2,padding:3,background:"var(--bg-base)",borderRadius:"var(--r-sm)",border:"1px solid var(--stroke)",marginLeft:16},children:["week","month"].map(u=>r.jsx("button",{onClick:()=>t(u),style:{height:26,padding:"0 12px",background:e===u?"var(--bg-panel-2)":"transparent",border:0,borderRadius:4,cursor:"pointer",color:e===u?"var(--ink-strong)":"var(--ink-soft)",fontSize:11.5,fontWeight:500},children:u[0].toUpperCase()+u.slice(1)},u))}),r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:8,marginLeft:8},children:[r.jsx(se,{name:"caret",iconSize:12,style:{transform:"rotate(90deg)"},title:"Previous",onClick:i}),r.jsx("button",{onClick:a,title:"Back to today",style:{background:"transparent",border:0,cursor:"pointer",padding:0},children:r.jsx("span",{className:"display",style:{fontSize:13,color:"var(--ink-strong)"},children:o})}),r.jsx(se,{name:"caret",iconSize:12,style:{transform:"rotate(-90deg)"},title:"Next",onClick:s})]}),r.jsx("div",{style:{flex:1}}),r.jsx(K,{variant:"outline",size:"sm",icon:"sparkle",onClick:d,children:"Generate plan"}),r.jsx(K,{variant:"primary",size:"sm",icon:"plus",glow:!0,onClick:l,children:"New post"})]})}function Am({posts:e,selectedId:t,onSelect:n,weekStart:o,onAdd:i,onMove:dm}){return r.jsx("div",{style:{display:"grid",gridTemplateColumns:"repeat(7, 1fr)",gap:10,marginBottom:22},children:Array.from({length:7}).map((s,a)=>{const l=na(o,a),d=e.filter(f=>oi(f.runAt,l.date)).sort((f,m)=>f.runAt-m.runAt),u=oi(new Date,l.date);return r.jsxs("div",{onDragOver:Dv=>Dv.preventDefault(),onDrop:Dv=>{Dv.preventDefault();var pid=Dv.dataTransfer.getData("text/dz-post");if(!pid)return;var pp=e.find(P=>P.id===pid);if(!pp)return;var od=new Date(pp.runAt),hh=od.getHours(),mm=od.getMinutes(),tt=(hh<10?"0":"")+hh+":"+(mm<10?"0":"")+mm,ts=ra(l.date,tt);dm&&dm(pid,ts)},style:{background:"var(--bg-panel)",border:`1px solid ${u?"var(--brand)":"var(--stroke)"}`,borderRadius:"var(--r)",overflow:"hidden",boxShadow:u?"0 0 16px var(--brand-soft)":"none",minHeight:220,display:"flex",flexDirection:"column"},children:[r.jsxs("div",{style:{padding:"8px 10px",borderBottom:"1px solid var(--stroke)",display:"flex",alignItems:"center",justifyContent:"space-between"},children:[r.jsxs("div",{children:[r.jsx("div",{className:"upper",style:{color:u?"var(--brand)":"var(--ink-soft)"},children:l.short}),r.jsx("div",{className:"display",style:{fontSize:17,color:"var(--ink-strong)"},children:l.day})]}),d.length>0&&r.jsx("div",{style:{fontFamily:"var(--f-mono)",fontSize:10,color:"var(--ink-soft)",background:"var(--bg-base)",padding:"2px 5px",borderRadius:3,border:"1px solid var(--stroke)"},children:d.length})]}),r.jsxs("div",{style:{padding:6,display:"flex",flexDirection:"column",gap:5,flex:1},children:[d.map(f=>r.jsx("div",{draggable:!0,onDragStart:Dv=>{Dv.dataTransfer.setData("text/dz-post",f.id);Dv.dataTransfer.effectAllowed="move"},style:{cursor:"grab"},children:r.jsx(Om,{post:f,selected:t===f.id,onClick:()=>n(f.id)})},f.id)),r.jsxs("button",{onClick:()=>i(a),style:{marginTop:"auto",padding:"5px 6px",background:"transparent",border:"1px dashed var(--stroke-strong)",borderRadius:"var(--r-sm)",color:"var(--ink-muted)",fontSize:10.5,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:4},onMouseEnter:f=>{f.currentTarget.style.borderColor="var(--brand)",f.currentTarget.style.color="var(--brand)"},onMouseLeave:f=>{f.currentTarget.style.borderColor="var(--stroke-strong)",f.currentTarget.style.color="var(--ink-muted)"},children:[r.jsx(X,{name:"plus",size:11})," add post"]})]})]},a)})})}function $m({posts:e,selectedId:t,onSelect:n,monthOffset:o=0,onMove:dm}){const i=new Date,s=new Date(i.getFullYear(),i.getMonth()+o,1),a=s.getFullYear(),l=s.getMonth(),d=(s.getDay()+6)%7,u=new Date(a,l+1,0).getDate(),f=Math.ceil((d+u)/7)*7,m=s.toLocaleString("en",{month:"long"});function y(w){if(!w)return[];const v=new Date(a,l,w);return e.filter(g=>oi(g.runAt,v)).sort((g,k)=>g.runAt-k.runAt)}return r.jsxs("div",{style:{marginBottom:22},children:[r.jsxs("div",{className:"upper",style:{marginBottom:8,color:"var(--ink-soft)"},children:[m," ",a]}),r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"repeat(7, 1fr)",gap:1,background:"var(--stroke)",border:"1px solid var(--stroke)",borderRadius:"var(--r)",overflow:"hidden"},children:[["MON","TUE","WED","THU","FRI","SAT","SUN"].map(w=>r.jsx("div",{style:{padding:"6px 8px",background:"var(--bg-panel)",textAlign:"left"},className:"upper",children:w},w)),Array.from({length:f}).map((w,v)=>{const g=v>=d&&v<d+u?v-d+1:null,k=g!=null&&oi(new Date(a,l,g),i),c=y(g);return r.jsx("div",{onDragOver:Dv=>{if(g)Dv.preventDefault()},onDrop:Dv=>{if(!g)return;Dv.preventDefault();var pid=Dv.dataTransfer.getData("text/dz-post");if(!pid)return;var pp=e.find(P=>P.id===pid);if(!pp)return;var od=new Date(pp.runAt),hh=od.getHours(),mm=od.getMinutes(),tt=(hh<10?"0":"")+hh+":"+(mm<10?"0":"")+mm,ts=ra(new Date(a,l,g),tt);dm&&dm(pid,ts)},style:{minHeight:92,padding:6,background:g?k?"var(--brand-soft)":"var(--bg-panel)":"var(--bg-base)",opacity:g?1:.4,display:"flex",flexDirection:"column",gap:3},children:g&&r.jsxs(r.Fragment,{children:[r.jsxs("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between"},children:[r.jsx("span",{className:"display",style:{fontSize:13,color:k?"var(--brand)":"var(--ink-strong)"},children:g}),c.length>0&&r.jsx("span",{className:"mono",style:{fontSize:9,color:"var(--ink-soft)"},children:c.length})]}),r.jsxs("div",{style:{display:"flex",flexDirection:"column",gap:2,overflow:"hidden"},children:[c.slice(0,3).map(p=>{const h=p.id===t;return r.jsxs("div",{draggable:!0,onDragStart:Dv=>{Dv.dataTransfer.setData("text/dz-post",p.id);Dv.dataTransfer.effectAllowed="move"},onClick:()=>n(p.id),title:`${p.time} · ${p.title}`,style:{padding:"2px 4px",borderRadius:3,cursor:"pointer",background:h?"var(--brand-soft)":"var(--bg-base)",border:`1px solid ${h?"var(--brand)":"var(--stroke)"}`,fontSize:9.5,color:"var(--ink)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",display:"flex",alignItems:"center",gap:4},children:[r.jsx("span",{style:{width:4,height:4,borderRadius:"50%",background:Wu(p.status),flexShrink:0}}),r.jsx("span",{className:"mono",style:{fontSize:8.5,color:"var(--ink-soft)"},children:p.time}),r.jsx("span",{style:{overflow:"hidden",textOverflow:"ellipsis"},children:p.title})]},p.id)}),c.length>3&&r.jsxs("div",{style:{fontSize:9,color:"var(--ink-soft)",padding:"0 4px"},children:["+",c.length-3," more"]})]})]})},v)})]})]})}function Om({post:e,selected:t,onClick:n}){const o=Wu(e.status);return r.jsxs("div",{onClick:n,style:{padding:"6px 8px",borderRadius:6,background:t?"var(--brand-soft)":"var(--bg-base)",border:`1px solid ${t?"var(--brand)":"var(--stroke)"}`,cursor:"pointer",transition:"all var(--dur-1) var(--ease)",boxShadow:t?"0 0 14px var(--brand-soft)":"none"},children:[r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:4,marginBottom:3},children:[r.jsx("span",{style:{width:5,height:5,borderRadius:999,background:o}}),r.jsx("span",{style:{fontFamily:"var(--f-mono)",fontSize:9.5,color:o,fontWeight:600},children:e.time}),e.status==="ready"&&r.jsx("span",{style:{fontSize:8.5,color:"var(--amber)",fontWeight:600},children:"READY"}),e.status==="failed"&&r.jsx("span",{style:{fontSize:8.5,color:"var(--red)",fontWeight:600},children:"FAILED"})]}),r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-strong)",lineHeight:1.25,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"},children:e.title}),r.jsx("div",{style:{display:"flex",gap:2,marginTop:4},children:e.channels.map(i=>_t[i]&&r.jsx("span",{style:{width:14,height:14,borderRadius:4,background:_t[i].bg,color:_t[i].color,display:"inline-flex",alignItems:"center",justifyContent:"center",border:`1px solid ${_t[i].color}33`},children:r.jsx(X,{name:_t[i].icon,size:9})},i))})]})}const It={render:{w:230,h:168},caption:{w:220,h:180},channel:{w:300,h:70}};function is(e){const t={render:{x:30,y:130},caption:{x:320,y:90}};return((e==null?void 0:e.channels)||[]).forEach((n,o)=>{t[`ch:${n}`]={x:720,y:30+o*88}}),t}function Fm({post:e,weekStart:t,reloadPosts:n}){const o=bt(),[i,s]=x.useState(()=>is(e)),[a,l]=x.useState(!1),[d,u]=x.useState(""),f=x.useRef(e==null?void 0:e.id);x.useEffect(()=>{e&&s(I=>{if(f.current!==e.id)return f.current=e.id,is(e);const A={render:I.render||{x:30,y:130},caption:I.caption||{x:320,y:90}};return e.channels.forEach((V,M)=>{const U=`ch:${V}`;A[U]=I[U]||{x:720,y:30+M*88}}),A})},[e==null?void 0:e.id,((e==null?void 0:e.channels)||[]).join("|")]);const m=x.useRef(null),y=x.useRef(null),w=x.useRef(null),[v,g]=x.useState(1),[k,c]=x.useState({x:0,y:0});function p(I,A){I.preventDefault(),I.stopPropagation();const V=i[A];V&&(m.current={key:A,startX:I.clientX,startY:I.clientY,posX:V.x,posY:V.y,zoom:v})}if(x.useEffect(()=>{function I(V){if(m.current){const M=m.current;s(U=>({...U,[M.key]:{x:M.posX+(V.clientX-M.startX)/M.zoom,y:M.posY+(V.clientY-M.startY)/M.zoom}}))}else if(w.current){const M=w.current;c({x:M.panX+(V.clientX-M.x),y:M.panY+(V.clientY-M.y)})}}function A(){m.current=null,w.current=null}return window.addEventListener("mousemove",I),window.addEventListener("mouseup",A),()=>{window.removeEventListener("mousemove",I),window.removeEventListener("mouseup",A)}},[]),!e)return r.jsxs("div",{style:{padding:60,textAlign:"center",color:"var(--ink-muted)",fontSize:12},children:["Select a post on the calendar above to see its routing graph, or press ",r.jsx("span",{className:"mono",style:{color:"var(--ink-soft)"},children:"Generate plan"})," to fill the week."]});const h=Math.max(360,80+e.channels.length*78);function b(I,A){const V=i[I];if(!V)return{x:0,y:0};const M=It[A]||It.channel;return{x:V.x+M.w/2,y:V.y+M.h/2}}function _(I,A){const V=b(I,A),M=It[A]||It.channel;return{x:V.x+M.w/2,y:V.y}}function z(I,A){const V=b(I,A),M=It[A]||It.channel;return{x:V.x-M.w/2,y:V.y}}function N(I,A){const V=Math.max(40,Math.abs(A.x-I.x)*.5);return`M ${I.x} ${I.y} C ${I.x+V} ${I.y}, ${A.x-V} ${A.y}, ${A.x} ${A.y}`}function P(I){var T;I.preventDefault();const A=(T=y.current)==null?void 0:T.getBoundingClientRect();if(!A)return;const V=I.clientX-A.left,M=I.clientY-A.top,U=Math.max(.4,Math.min(2,v-I.deltaY*.0015));U!==v&&(c({x:V-(V-k.x)*(U/v),y:M-(M-k.y)*(U/v)}),g(U))}function j(I){I.button!==0||I.target.closest("[data-pnode]")||(w.current={x:I.clientX,y:I.clientY,panX:k.x,panY:k.y})}function E(){g(1),c({x:0,y:0}),s(is(e))}async function H(){l(!0),u("");const I=await D.fireScheduledPost(e.id);l(!1),I!=null&&I.ok?u(`Sent: ${(I.sent||[]).join(" · ")}`):u(`Marked ready. ${((I==null?void 0:I.pending)||[]).join(" · ")}`),n==null||n()}const F=e.runAt.toLocaleString("en",{weekday:"short",day:"numeric",month:"short"});return r.jsxs("div",{style:{background:"var(--bg-panel)",border:"1px solid var(--stroke)",borderRadius:"var(--r-lg)",overflow:"hidden"},children:[r.jsxs("div",{style:{padding:"10px 14px",borderBottom:"1px solid var(--stroke)",display:"flex",alignItems:"center",gap:10},children:[r.jsx(X,{name:"flow",size:14,style:{color:"var(--brand)"}}),r.jsx("span",{className:"display",style:{fontSize:14,color:"var(--ink-strong)"},children:e.title}),r.jsxs("span",{style:{fontFamily:"var(--f-mono)",fontSize:11,color:"var(--ink-soft)"},children:[F," · ",e.time]}),r.jsx(te,{children:e.mode==="auto"?"auto-publish":"assisted"}),r.jsx("span",{style:{flex:1}}),d&&r.jsx("span",{style:{fontSize:10.5,color:"var(--ink-soft)"},children:d}),r.jsx(te,{tone:e.status==="posted"?"green":e.status==="failed"?"red":e.status==="ready"?"amber":e.status==="draft"?"neutral":"cyan",dot:!0,children:e.status}),r.jsx(K,{variant:"ghost",size:"sm",icon:"bolt",onClick:E,title:"Reset layout, zoom & pan",children:"Reset"}),r.jsx(K,{variant:"primary",size:"sm",icon:"send",glow:!0,onClick:H,disabled:a,children:a?"Sending…":"Send now"})]}),r.jsxs("div",{ref:y,onWheel:P,onMouseDown:j,style:{position:"relative",height:h,overflow:"hidden",background:"radial-gradient(circle at center, var(--stroke) 1px, transparent 1.5px)",backgroundSize:`${24*v}px ${24*v}px`,backgroundPosition:`${k.x}px ${k.y}px`,cursor:w.current?"grabbing":"default"},children:[r.jsxs("div",{style:{position:"absolute",top:0,left:0,width:"100%",height:"100%",transform:`translate(${k.x}px, ${k.y}px) scale(${v})`,transformOrigin:"0 0"},children:[r.jsxs("svg",{style:{position:"absolute",top:0,left:0,width:2200,height:1500,pointerEvents:"none",overflow:"visible"},children:[(()=>{const I=_("render","render"),A=z("caption","caption");return r.jsx("path",{d:N(I,A),stroke:"var(--brand)",strokeWidth:2,fill:"none",opacity:.85,style:{filter:"drop-shadow(0 0 6px var(--brand-soft))"}})})(),e.channels.map(I=>_t[I]&&r.jsx("path",{d:N(_("caption","caption"),z(`ch:${I}`,"channel")),stroke:_t[I].color,strokeWidth:1.8,fill:"none",opacity:.85,style:{filter:`drop-shadow(0 0 4px ${_t[I].color}66)`}},I))]}),r.jsxs(ss,{pos:i.render,dims:It.render,color:"var(--brand)",icon:"film",title:"Render",onDragStart:I=>p(I,"render"),children:[(e.jobId||e.sourceImage)&&r.jsx("div",{style:{height:70,marginBottom:5,borderRadius:6,overflow:"hidden",border:"1px solid var(--stroke)",background:"#000"},children:e.jobId?r.jsx("video",{src:D.jobVideoUrl(e.jobId),muted:!0,preload:"metadata",playsInline:!0,onMouseEnter:I=>I.currentTarget.play().catch(()=>{}),onMouseLeave:I=>{I.currentTarget.pause(),I.currentTarget.currentTime=0},onError:I=>{I.currentTarget.style.display="none"},style:{width:"100%",height:"100%",objectFit:"cover",display:"block"}}):r.jsx("img",{src:D.imageUrl(e.sourceImage),alt:"",onError:I=>{I.currentTarget.style.display="none"},style:{width:"100%",height:"100%",objectFit:"cover",display:"block"}})}),r.jsx("div",{style:{fontFamily:"var(--f-mono)",fontSize:10.5,color:"var(--ink-strong)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"},children:e.jobId?e.jobId.slice(0,18):e.sourceImage?"source ready":"no render attached"}),r.jsx("div",{style:{fontSize:10,color:e.jobId?"var(--ink-soft)":e.sourceImage?"var(--cyan)":"var(--amber)",marginTop:3},children:e.jobId?e.format||"render from Library":e.sourceImage?"source preview · Produce to render":"attach one in the inspector"})]}),r.jsxs(ss,{pos:i.caption,dims:It.caption,color:"var(--violet)",icon:"rename",title:"Caption",onDragStart:I=>p(I,"caption"),children:[r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-strong)",whiteSpace:"pre-wrap",lineHeight:1.35,maxHeight:110,overflow:"hidden"},children:e.caption||r.jsx("span",{style:{color:"var(--ink-muted)"},children:"empty caption"})}),r.jsxs("div",{style:{position:"absolute",bottom:6,left:10,right:10,display:"flex",justifyContent:"space-between",fontSize:9.5,color:"var(--ink-soft)",fontFamily:"var(--f-mono)"},children:[r.jsxs("span",{children:[(e.caption||"").length," ch"]}),r.jsx("span",{children:e.hook?"from plan":""})]})]}),e.channels.map(I=>{const A=_t[I];if(!A)return null;const V=I==="telegram"&&!!(o!=null&&o.telegram_enabled)||I==="x"&&!!(o!=null&&o.x_enabled);return r.jsxs(ss,{pos:i[`ch:${I}`],dims:It.channel,color:A.color,icon:A.icon,title:A.label,onDragStart:M=>p(M,`ch:${I}`),children:[r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-strong)"},children:V?"bot publish":"manual publish"}),r.jsxs("div",{style:{fontSize:10,color:"var(--ink-soft)",marginTop:2,display:"flex",justifyContent:"space-between"},children:[r.jsxs("span",{style:{display:"inline-flex",alignItems:"center",gap:4},children:[r.jsx("span",{style:{width:6,height:6,borderRadius:999,background:V?"var(--green)":"var(--amber)"}}),V?"auto-capable":"assisted only"]}),r.jsxs("span",{className:"mono",children:[(e.caption||"").length,"/",A.limit]})]})]},I)})]}),r.jsxs("div",{style:{position:"absolute",left:10,bottom:10,zIndex:4,display:"flex",gap:2,background:"var(--bg-panel)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",padding:2},children:[r.jsx(se,{name:"minus",size:24,iconSize:11,onClick:()=>g(I=>Math.max(.4,+(I-.1).toFixed(2)))}),r.jsxs("div",{style:{minWidth:42,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"var(--f-mono)",fontSize:10.5,color:"var(--ink-soft)"},children:[Math.round(v*100),"%"]}),r.jsx(se,{name:"plus",size:24,iconSize:11,onClick:()=>g(I=>Math.min(2,+(I+.1).toFixed(2)))})]})]})]})}function ss({pos:e,dims:t,color:n,icon:o,title:i,children:s,onDragStart:a}){return e?r.jsxs("div",{"data-pnode":!0,style:{position:"absolute",left:e.x,top:e.y,width:t.w,height:t.h,background:"var(--bg-panel-2)",border:`1px solid ${n}`,borderRadius:14,boxShadow:`0 0 0 1px ${n}33, 0 0 24px ${n}22`,overflow:"hidden",userSelect:"none"},children:[r.jsxs("div",{onMouseDown:a,style:{height:26,padding:"0 10px",display:"flex",alignItems:"center",gap:8,background:`linear-gradient(180deg, ${n}22 0%, transparent 100%)`,borderBottom:"1px solid var(--stroke)",cursor:"grab"},children:[r.jsx("span",{style:{width:16,height:16,borderRadius:4,background:`${n}22`,color:n,display:"inline-flex",alignItems:"center",justifyContent:"center"},children:r.jsx(X,{name:o,size:10})}),r.jsx("span",{style:{fontSize:11,fontWeight:600,color:"var(--ink-strong)"},children:i}),r.jsx("span",{style:{flex:1}}),r.jsx(X,{name:"more",size:11,style:{color:"var(--ink-muted)"}})]}),r.jsx("div",{style:{padding:8,position:"relative",height:t.h-26},children:s})]}):null}function Bm({post:e,weekStart:t,jobs:n,telegramOn:o,xOn:i,onChange:s,onToggleChannel:a,onDelete:l,reloadPosts:d,captionPack:u}){const f=u&&u.length?u:Pm,[m,y]=x.useState(!1),[w,v]=x.useState(""),[g,k]=x.useState(!1),[c,p]=x.useState(""),h=x.useRef(null);const[Li,Lo]=x.useState([]);const Lf=()=>D.listImages().then(z=>Lo(((z==null?void 0:z.images)||[]).map(Q=>Q.filename)));x.useEffect(()=>{Lf()},[e&&e.id]);const[Pc,Pcs]=x.useState("");x.useEffect(()=>{const tt=setTimeout(()=>Pcs((e&&e.caption)||""),500);return()=>clearTimeout(tt)},[e&&e.caption]);function b(j){const E=h.current,H=(e==null?void 0:e.caption)||"";if(E&&typeof E.selectionStart=="number"){const F=E.selectionStart,I=E.selectionEnd;s({caption:H.slice(0,F)+j+H.slice(I)}),requestAnimationFrame(()=>{try{E.focus();const A=F+j.length;E.setSelectionRange(A,A)}catch{}})}else s({caption:H+j})}async function _(){var F,I;if(!e||g)return;k(!0),p("");const j=e.format||"seedance",E=e.image_idea||e.hook||e.title,H=e.script_idea||e.caption||e.title;try{if(j==="image")if(e.sourceImage)p(`Source image ready: ${e.sourceImage} (in Library).`);else{p("Creating image (FLUX)…");const A=await D.generateImage(E,1,"portrait_16_9");if((A==null?void 0:A.images)&&A.images.length)s({sourceImage:A.images[0],jobId:null});p((F=A==null?void 0:A.images)!=null&&F.length?`Image saved to Library: ${A.images[0]}`:`Failed: ${String((A==null?void 0:A.error)||"").slice(0,120)}`)}else if(j==="seedance"||j==="composition"||j==="news"){let A=e.sourceImage;if(A)p("Using your chosen source image…");else{p("Start frame (FLUX, ~3s)…");const M=await D.generateImage(E,1,"portrait_16_9");if(!((I=M==null?void 0:M.images)!=null&&I.length)){p(`Image step failed: ${String((M==null?void 0:M.error)||"").slice(0,120)}`);return}A=M.images[0]}p("Cinematic clip (Seedance, ~40s)… watch the render queue.");const V=await D.postJson("/generate",{image_filename:A,custom_prompt:H,style:"cinematic",duration_s:10,aspect_ratio:"9:16",voiceover_enabled:!1});V!=null&&V.job_id&&V.job_id!=="pending"?(s({jobId:V.job_id}),p("Clip queued + attached to this post. It renders in the background.")):p("Clip queued — attach it from the Render picker when it finishes.")}else if(j==="heygen"){p("Loading avatar + voice…");const[A,V]=await Promise.all([D.listHeygenAvatars(),D.listHeygenVoices()]),M=((A==null?void 0:A.avatars)||[])[0],U=((V==null?void 0:V.voices)||[])[0];if(!M||!U){p("HeyGen avatars/voices unavailable (check the key / network).");return}p("Avatar video queued (HeyGen, 1-3 min)…");const T=await D.postJson("/generate/heygen",{avatar_id:M.avatar_id,voice_id:U.voice_id,script:H.slice(0,4900),avatar_type:M.avatar_type||"avatar",aspect_ratio:"9:16",speed:1});p((T==null?void 0:T.ok)===!1?`Failed: ${String((T==null?void 0:T.error)||"").slice(0,120)}`:"Avatar render queued — attach it from the Render picker when done.")}else p(`No auto-production for format "${j}".`)}finally{k(!1);try{Lf()}catch{}}}if(!e)return r.jsx("div",{style:{background:"var(--bg-panel)",borderLeft:"1px solid var(--stroke)",display:"flex",alignItems:"center",justifyContent:"center",padding:24,color:"var(--ink-muted)",textAlign:"center",fontSize:12},children:"Select a post to edit caption, render, channels and timing."});const z=e.runAt.toLocaleString("en",{weekday:"short",day:"numeric",month:"short"});async function N(){y(!0),v("");const j=await D.fireScheduledPost(e.id);y(!1),j!=null&&j.ok?v(`Sent on: ${(j.sent||[]).join(" · ")}`):v(`Not auto-sent. ${((j==null?void 0:j.pending)||[]).join(" · ")}`),d==null||d()}async function P(){const j=new Date(e.runAt);j.setDate(j.getDate()+1);const E=await D.createScheduledPost({title:e.title+" (copy)",caption:e.caption,channels:e.channels,run_at:j.toISOString(),status:"draft",mode:e.mode,job_id:e.jobId});E!=null&&E.id&&(d==null||d())}return r.jsxs("div",{style:{background:"var(--bg-panel)",borderLeft:"1px solid var(--stroke)",display:"flex",flexDirection:"column",minHeight:0},children:[r.jsxs("div",{style:{padding:"14px 16px",borderBottom:"1px solid var(--stroke)"},children:[r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:10},children:[r.jsx("span",{style:{width:28,height:28,borderRadius:7,background:"var(--brand-soft)",color:"var(--brand)",display:"inline-flex",alignItems:"center",justifyContent:"center"},children:r.jsx(X,{name:"send",size:14})}),r.jsxs("div",{style:{flex:1,minWidth:0},children:[r.jsx("input",{value:e.title,onChange:j=>s({title:j.target.value}),style:{width:"100%",fontFamily:"var(--f-display)",fontSize:16,color:"var(--ink-strong)",background:"transparent",border:0,padding:0}}),r.jsxs("div",{style:{fontSize:11,color:"var(--ink-soft)"},children:[z," · ",e.time]})]}),r.jsx(se,{name:"trash",onClick:l,title:"Delete"})]}),e.error&&r.jsx("div",{style:{marginTop:8,padding:8,background:"var(--red-soft)",border:"1px solid var(--red)",borderRadius:"var(--r-sm)",fontSize:10.5,color:"var(--ink)"},children:e.error})]}),r.jsxs("div",{className:"scroll",style:{flex:1,overflowY:"auto"},children:[r.jsxs(ie,{label:"Schedule",children:[r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10},children:[r.jsx(O,{label:"Day",children:r.jsx(re,{value:String(Math.max(0,Math.min(6,Math.round((new Date(e.runAt.getFullYear(),e.runAt.getMonth(),e.runAt.getDate())-t)/864e5)))),onChange:j=>{const E=na(t,Number(j));s({runAt:ra(E.date,e.time),time:e.time})},options:[0,1,2,3,4,5,6].map(j=>{const E=na(t,j);return{value:String(j),label:`${E.short} ${E.day}`}})})}),r.jsx(O,{label:"Time",children:r.jsx(le,{mono:!0,value:e.time,onChange:j=>{s({time:j,runAt:ra(e.runAt,j)})},placeholder:"HH:MM"})})]}),r.jsx(O,{children:r.jsx(Ze,{checked:e.status==="scheduled",label:"Scheduled (uncheck = draft)",onChange:j=>s({status:j?"scheduled":"draft"})})}),r.jsx(O,{hint:e.mode==="auto"?o||i?`Auto: fires alone at the set time (${[o&&"Telegram",i&&"X"].filter(Boolean).join(" + ")}).`:"Auto needs Telegram or X keys (Settings → Connected accounts). Without them it flips to ready.":"Assisted: flips to READY at the set time; you press Send.",children:r.jsx(Ze,{checked:e.mode==="auto",label:"Auto-publish at time",onChange:j=>s({mode:j?"auto":"assisted"})})})]}),r.jsxs(ie,{label:"Render",children:[r.jsx(O,{hint:e.jobId?"":"Optional. Without a render, the post is caption-only (or attach later).",children:r.jsx(re,{value:e.jobId?e.jobId:e.sourceImage?"img:"+e.sourceImage:"",onChange:j=>{j?j.indexOf("img:")===0?s({sourceImage:j.slice(4),jobId:null}):s({jobId:j,sourceImage:null}):s({jobId:null,sourceImage:null})},options:[{value:"",label:"no render (caption only)"},...n.map(j=>({value:j.job_id,label:`▶ ${j.title||j.provider||"render"} · ${(j.job_id||"").slice(0,6)}`})),...Li.map(z=>({value:"img:"+z,label:"🖼 "+z}))]})}),e.sourceImage&&r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:8,padding:6,background:"var(--bg-base)",border:"1px solid var(--amber)",borderRadius:"var(--r-sm)"},children:[r.jsx("img",{src:D.imageUrl(e.sourceImage),alt:"",onError:j=>{j.currentTarget.style.opacity=.2},style:{width:26,height:34,objectFit:"cover",borderRadius:4}}),r.jsxs("div",{style:{minWidth:0,flex:1},children:[r.jsx("div",{style:{fontSize:10,color:"var(--amber)",fontWeight:600},children:"SOURCE IMAGE"}),r.jsx("div",{className:"mono",style:{fontSize:10,color:"var(--ink-soft)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"},children:e.sourceImage})]}),r.jsx(se,{name:"close",size:20,iconSize:10,title:"Clear source",onClick:()=>s({sourceImage:null})})]}),r.jsx(O,{label:"Image generator",hint:"Model used when you produce a visual.",children:r.jsx(DzImageModel,{})}),r.jsx(K,{variant:"outline",size:"sm",icon:"sparkle",onClick:_,disabled:g,style:{width:"100%"},children:g?"Producing…":e.sourceImage?"Produce with chosen source":`Produce ${e.format||"seedance"} render from plan`}),c&&r.jsx("div",{style:{marginTop:6,fontSize:10.5,color:c.startsWith("Failed")||c.includes("failed")||c.includes("unavailable")?"var(--red)":"var(--ink-soft)"},children:c}),(e.channels&&e.channels.length?r.jsxs("div",{style:{marginTop:12},children:[r.jsx("div",{className:"upper",style:{marginBottom:6},children:"Final preview"}),...e.channels.map(ch=>r.jsx("img",{src:`${Te}/schedule/${e.id}/preview.png?channel=${ch}&caption=${encodeURIComponent(Pc)}&img=${encodeURIComponent(e.sourceImage||"")}&job=${encodeURIComponent(e.jobId||"")}`,alt:ch,onError:E=>{E.currentTarget.style.display="none"},style:{width:"100%",borderRadius:8,marginBottom:8,border:"1px solid var(--stroke)",display:"block"}},ch))]}):null),e.jobId&&(()=>{const j=n.some(E=>E.job_id===e.jobId);return r.jsxs("div",{style:{marginTop:10},children:[r.jsxs("div",{className:"upper",style:{marginBottom:6,display:"flex",alignItems:"center",gap:6},children:[r.jsx("span",{children:"Render preview"}),j?r.jsx(te,{tone:"green",dot:!0,children:"ready"}):r.jsx(te,{tone:"amber",dot:!0,children:"rendering…"})]}),j?r.jsx("video",{src:D.jobVideoUrl(e.jobId),controls:!0,preload:"metadata",onError:E=>{E.currentTarget.style.display="none"},style:{width:"100%",maxHeight:320,borderRadius:"var(--r-sm)",background:"#000",display:"block"}}):r.jsx("div",{style:{padding:10,background:"var(--bg-base)",border:"1px solid var(--amber)",borderRadius:"var(--r-sm)",fontSize:10.5,color:"var(--ink-soft)",lineHeight:1.45},children:"Rendering in the background — watch the render queue (top bar icon). The clip plays here once it finishes."}),r.jsxs("div",{style:{marginTop:5,fontSize:10,color:"var(--ink-soft)"},children:["Review the render before you ",r.jsx("strong",{style:{color:"var(--ink)"},children:"Send"})," or turn on ",r.jsx("strong",{style:{color:"var(--ink)"},children:"Auto-publish"}),"."]})]})})(),(e.image_idea||e.script_idea)&&r.jsxs("div",{style:{marginTop:6,padding:8,background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",fontSize:10.5,color:"var(--ink-soft)",lineHeight:1.45},children:[e.image_idea&&r.jsxs("div",{children:[r.jsx("span",{style:{color:"var(--amber)",fontWeight:600},children:"visual · "}),e.image_idea]}),e.script_idea&&r.jsxs("div",{style:{marginTop:e.image_idea?4:0},children:[r.jsx("span",{style:{color:"var(--cyan)",fontWeight:600},children:"script · "}),e.script_idea]})]})]}),e.brief&&r.jsx(DzBrief,{brief:e.brief}),r.jsx(ie,{label:"Reschedule (any date)",children:r.jsx("input",{type:"date",value:e&&e.runAt?(function(){var Dz=new Date(e.runAt);return Dz.getFullYear()+"-"+("0"+(Dz.getMonth()+1)).slice(-2)+"-"+("0"+Dz.getDate()).slice(-2)})():"",onChange:Sv=>{var vv=Sv.target.value;if(!vv||!e)return;var od=new Date(e.runAt),nd=new Date(vv+"T12:00:00");nd.setHours(od.getHours(),od.getMinutes(),0,0);s({runAt:nd})},style:{width:"100%",height:30,padding:"0 8px",background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",color:"var(--ink-strong)"}})}),r.jsx(ie,{label:"Channels",children:r.jsx("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8},children:Bu.map(j=>{const E=e.channels.includes(j.id);return r.jsxs("button",{onClick:()=>a(j.id),style:{display:"flex",alignItems:"center",gap:8,padding:"9px 10px",background:E?j.bg:"var(--bg-base)",border:`1px solid ${E?j.color+"88":"var(--stroke)"}`,borderRadius:"var(--r-sm)",cursor:"pointer",color:E?j.color:"var(--ink-muted)",boxShadow:E?`0 0 12px ${j.color}33`:"none",transition:"all var(--dur-1) var(--ease)"},children:[r.jsx(X,{name:j.icon,size:14}),r.jsx("span",{style:{fontSize:12,fontWeight:500},children:j.label}),j.id==="telegram"&&r.jsx("span",{style:{marginLeft:"auto",fontSize:8.5,color:o?"var(--green)":"var(--ink-muted)"},children:o?"auto":"no key"}),j.id==="x"&&r.jsx("span",{style:{marginLeft:"auto",fontSize:8.5,color:i?"var(--green)":"var(--ink-muted)"},children:i?"auto":"assisted"})]},j.id)})})}),r.jsxs(ie,{label:"Caption",children:[r.jsx(O,{hint:`${(e.caption||"").length} characters · same on all channels`,children:r.jsx("textarea",{ref:h,value:e.caption,onChange:j=>s({caption:j.target.value}),rows:5,style:{width:"100%",padding:10,background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",color:"var(--ink-strong)",fontFamily:"var(--f-ui)",fontSize:12.5,resize:"vertical"}})}),r.jsx("div",{style:{display:"flex",flexWrap:"wrap",gap:4,marginTop:-4},children:Im.map(j=>r.jsx("button",{type:"button",onClick:()=>b(j),title:`Insert ${j}`,style:{width:30,height:28,fontSize:15,lineHeight:1,background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center",transition:"all var(--dur-1) var(--ease)"},onMouseEnter:E=>{E.currentTarget.style.borderColor="var(--brand)",E.currentTarget.style.background="var(--brand-soft)"},onMouseLeave:E=>{E.currentTarget.style.borderColor="var(--stroke)",E.currentTarget.style.background="var(--bg-base)"},children:j},j))}),r.jsxs("div",{className:"upper",style:{marginTop:10,marginBottom:5,display:"flex",alignItems:"center",gap:6},children:[r.jsx(X,{name:"sparkle",size:11,style:{color:"var(--brand)"}}),r.jsx("span",{children:"Telegram Premium pack"})]}),r.jsx("div",{style:{display:"flex",flexWrap:"wrap",gap:5},children:f.map(j=>r.jsxs("button",{type:"button",onClick:()=>b(`${j.e} ${j.label}`),title:`Insert "${j.e} ${j.label}"`,style:{display:"inline-flex",alignItems:"center",gap:5,padding:"4px 9px",fontSize:11,background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:999,color:"var(--ink)",cursor:"pointer",transition:"all var(--dur-1) var(--ease)"},onMouseEnter:E=>{E.currentTarget.style.borderColor="var(--brand)",E.currentTarget.style.background="var(--brand-soft)",E.currentTarget.style.color="var(--ink-strong)"},onMouseLeave:E=>{E.currentTarget.style.borderColor="var(--stroke)",E.currentTarget.style.background="var(--bg-base)",E.currentTarget.style.color="var(--ink)"},children:[r.jsx(Nm,{icon:j.icon,emoji:j.e,size:16}),j.label]},j.label))}),e.hook&&r.jsxs("div",{style:{padding:8,background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",fontSize:10.5,color:"var(--ink-soft)"},children:[r.jsx("span",{style:{color:"var(--violet)",fontWeight:600},children:"Plan hook · "}),e.hook]})]})]}),r.jsxs("div",{style:{padding:12,borderTop:"1px solid var(--stroke)",display:"grid",gap:8},children:[w&&r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)"},children:w}),r.jsx(K,{variant:"primary",size:"md",icon:"send",glow:!0,onClick:N,disabled:m,children:m?"Sending…":`Send to ${e.channels.length} channel${e.channels.length===1?"":"s"} now`}),r.jsx(K,{variant:"outline",size:"sm",icon:"copy",onClick:P,children:"Duplicate to next day"})]})]})}function Wm({post:e,idx:t,images:n,newsItems:o,source:i,setSource:s}){const[a,l]=x.useState(!1),[d,u]=x.useState("");if(!["seedance","composition","image","news"].includes(e.format))return r.jsx("span",{style:{fontSize:9.5,color:"var(--ink-muted)",textAlign:"right"},children:e.format==="heygen"?"avatar @ produce":""});const m=e.format==="news"?o.filter(v=>v.image):[],y=[{value:"",label:"auto @ produce"},{value:"__gen__",label:"✨ generate image"},...m.length?m.slice(0,20).map((v,g)=>({value:"news:"+g,label:"📰 "+(v.title||"news").slice(0,28)})):[],...n.slice(0,60).map(v=>({value:"lib:"+v,label:v}))];async function w(v){var g;if(u(""),v==="__gen__"){l(!0);const k=await D.generateImage(e.image_idea||e.title||"deep-sea key visual, 9:16",1,"portrait_16_9");l(!1),(g=k==null?void 0:k.images)!=null&&g.length?s(t,k.images[0]):u("gen failed");return}if(v.startsWith("lib:")){s(t,v.slice(4));return}if(v.startsWith("news:")){const k=m[Number(v.slice(5))];if(k!=null&&k.image){l(!0);const c=await D.importImageUrl(k.image);l(!1),c!=null&&c.filename?s(t,c.filename):(u("news image failed — generating…"),w("__gen__"))}else w("__gen__");return}s(t,null)}return r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:6,minWidth:0},children:[i?r.jsx("img",{src:D.imageUrl(i),alt:"",onError:v=>{v.currentTarget.style.opacity=.2},style:{width:24,height:32,objectFit:"cover",borderRadius:4,border:"1px solid var(--amber)",flexShrink:0}}):r.jsx("span",{style:{width:24,height:32,borderRadius:4,border:"1px dashed var(--stroke-strong)",flexShrink:0,display:"inline-flex",alignItems:"center",justifyContent:"center",color:"var(--ink-muted)",fontSize:9},children:"?"}),r.jsx(re,{value:i&&n.includes(i)?"lib:"+i:"",options:y,onChange:w,style:{flex:1,minWidth:0}}),a&&r.jsx("span",{style:{fontSize:9.5,color:"var(--cyan)"},children:"…"}),d&&r.jsx("span",{style:{fontSize:9,color:"var(--red)"},children:d})]})}function Um({onClose:e,onMaterialized:t,initialTab:n="generate"}){const o=bt(),[i,s]=x.useState(n),[a,l]=x.useState(""),[d,u]=x.useState(7),[f,m]=x.useState(1),[y,w]=x.useState(["x","telegram"]),[v,g]=x.useState("EN"),[k,c]=x.useState("assisted"),[p,h]=x.useState(()=>new Date().toISOString().slice(0,10)),[b,_]=x.useState(!1),[z,N]=x.useState(null),[P,j]=x.useState(!1),[E,H]=x.useState(""),[F,I]=x.useState(30),A=x.useRef(null),[V,M]=x.useState([]),[U,T]=x.useState([]),[Y,q]=x.useState({});x.useEffect(()=>{let S=!0;return D.listImages().then(L=>{S&&M(((L==null?void 0:L.images)||[]).map(J=>J.filename))}),D.listNewsItems().then(L=>{S&&T(((L==null?void 0:L.items)||L||[]).filter(J=>J&&J.title))}),()=>{S=!1}},[]);function C(S,L){q(J=>({...J,[S]:L||void 0})),L&&M(J=>J.includes(L)?J:[L,...J])}function Q(S){w(L=>L.includes(S)?L.filter(J=>J!==S):[...L,S])}async function ee(){if(!a.trim()||b)return;_(!0),H(""),N(null);const S=await D.marketingPlan({prompt:a.trim(),days:d,posts_per_day:f,channels:y,language:v,auto_materialize:!1});_(!1),S!=null&&S.posts?N(S):H(String((S==null?void 0:S.error)||"Plan generation failed").slice(0,160))}async function ne(S){if(!S||b)return;_(!0),H(""),N(null);const L=await D.importPlan(S,{days:F,channels:y,language:v});_(!1),L!=null&&L.posts?N({posts:L.posts,engine:L.engine,filename:L.filename}):H(String((L==null?void 0:L.error)||"Import failed").slice(0,200))}async function R(){var J;if(!z||P)return;j(!0),H("");const S=z.posts.map((de,ce)=>({...de,source_image:Y[ce]||null})),L=await D.materializePlan(S,p,k);j(!1),(J=L==null?void 0:L.materialized_ids)!=null&&J.length?t(p):H(String((L==null?void 0:L.error)||"Could not add posts").slice(0,160))}const W={image:"var(--amber)",seedance:"var(--cyan)",heygen:"var(--violet)",composition:"var(--brand)",news:"var(--green)"};return r.jsx("div",{onClick:e,style:{position:"fixed",inset:0,zIndex:80,background:"var(--bg-overlay)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",padding:28},children:r.jsxs("div",{onClick:S=>S.stopPropagation(),style:{width:900,maxWidth:"96%",maxHeight:"92%",background:"var(--bg-panel-2)",border:"1px solid var(--stroke-strong)",borderRadius:"var(--r-lg)",boxShadow:"var(--shadow-2), 0 0 70px var(--cyan-soft)",display:"flex",flexDirection:"column",overflow:"hidden"},children:[r.jsxs("div",{style:{padding:"14px 18px",borderBottom:"1px solid var(--stroke)",display:"flex",alignItems:"center",gap:10},children:[r.jsx(X,{name:"sparkle",size:16,style:{color:"var(--cyan)"}}),r.jsxs("div",{style:{flex:1},children:[r.jsx("div",{className:"display",style:{fontSize:15,color:"var(--ink-strong)"},children:i==="import"?"Import a strategy document":"Generate a marketing plan"}),r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)"},children:i==="import"?"Upload your existing plan (.md, .docx, .pdf) — it becomes calendar posts after your review.":o!=null&&o.has_summarizer||o!=null&&o.summarizer_enabled?"Claude builds the plan from your brief and the persona voice.":o!=null&&o.ollama_enabled?"Local LLM (Ollama) builds the plan — nothing leaves your machine.":"Built-in planner active. Add ANTHROPIC_API_KEY or a local Ollama model in Settings for smarter plans."})]}),r.jsx("div",{style:{display:"flex",gap:2,padding:3,background:"var(--bg-base)",borderRadius:"var(--r-sm)",border:"1px solid var(--stroke)"},children:[["generate","Generate"],["import","Import doc"]].map(([S,L])=>r.jsx("button",{onClick:()=>{s(S),N(null),H("")},style:{height:26,padding:"0 12px",background:i===S?"var(--bg-panel)":"transparent",border:0,borderRadius:4,cursor:"pointer",color:i===S?"var(--ink-strong)":"var(--ink-soft)",fontSize:11.5,fontWeight:500},children:L},S))}),r.jsx(se,{name:"close",onClick:e})]}),r.jsxs("div",{className:"scroll",style:{flex:1,overflowY:"auto",padding:18,display:"flex",flexDirection:"column",gap:14},children:[i==="generate"&&r.jsx(O,{label:"Brief (what should this week say?)",children:r.jsx("textarea",{value:a,onChange:S=>l(S.target.value),rows:3,placeholder:"e.g. Week around the $DEEPOTUS staking launch. Tease Monday, reveal Wednesday 18:00, recap Sunday. Tone: prophetic, playful.",style:{width:"100%",padding:10,background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",color:"var(--ink-strong)",fontFamily:"var(--f-ui)",fontSize:12.5,resize:"vertical"}})}),i==="import"&&r.jsxs("div",{onClick:()=>{var S;return(S=A.current)==null?void 0:S.click()},onDragOver:S=>{S.preventDefault()},onDrop:S=>{var L,J;S.preventDefault(),ne((J=(L=S.dataTransfer)==null?void 0:L.files)==null?void 0:J[0])},style:{padding:22,textAlign:"center",cursor:"pointer",background:"var(--bg-base)",border:"1px dashed var(--stroke-strong)",borderRadius:"var(--r)",color:"var(--ink-soft)"},children:[r.jsx("input",{ref:A,type:"file",accept:".md,.markdown,.txt,.docx,.pdf",style:{display:"none"},onChange:S=>{var L;ne((L=S.target.files)==null?void 0:L[0]),S.target.value=""}}),r.jsx(X,{name:"upload",size:22,style:{color:"var(--cyan)"}}),r.jsx("div",{style:{fontSize:13,color:"var(--ink-strong)",marginTop:8},children:z!=null&&z.filename?z.filename:"Drop your strategy document here, or click to browse"}),r.jsx("div",{style:{fontSize:11,marginTop:4},children:".md · .txt · .docx · .pdf — dates, weeks and themes in the document are preserved."})]}),r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:10},children:[i==="generate"?r.jsxs(r.Fragment,{children:[r.jsx(O,{label:"Days",children:r.jsx(re,{value:String(d),onChange:S=>u(Number(S)),options:["3","5","7","14"].map(S=>({value:S,label:`${S} days`}))})}),r.jsx(O,{label:"Posts / day",children:r.jsx(re,{value:String(f),onChange:S=>m(Number(S)),options:["1","2","3"].map(S=>({value:S,label:S}))})})]}):r.jsxs(r.Fragment,{children:[r.jsx(O,{label:"Horizon",children:r.jsx(re,{value:String(F),onChange:S=>I(Number(S)),options:["7","14","30","60"].map(S=>({value:S,label:`${S} days`}))})}),r.jsx(O,{label:" ",children:r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-muted)",paddingTop:8},children:"day 1 = start date"})})]}),r.jsx(O,{label:"Language",children:r.jsx(re,{value:v,onChange:g,options:[{value:"EN",label:"English"},{value:"FR",label:"Français"}]})}),r.jsx(O,{label:"Start date",children:r.jsx("input",{type:"date",value:p,onChange:S=>h(S.target.value),style:{width:"100%",height:30,padding:"0 8px",background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",color:"var(--ink-strong)",fontFamily:"var(--f-mono)",fontSize:11.5,colorScheme:"dark"}})})]}),r.jsxs("div",{style:{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"},children:[r.jsx("span",{className:"upper",style:{color:"var(--ink-soft)"},children:"Channels"}),Bu.map(S=>r.jsxs("button",{onClick:()=>Q(S.id),style:{height:26,padding:"0 10px",display:"inline-flex",alignItems:"center",gap:5,background:y.includes(S.id)?S.bg:"transparent",border:`1px solid ${y.includes(S.id)?S.color+"66":"var(--stroke)"}`,borderRadius:999,color:y.includes(S.id)?S.color:"var(--ink-muted)",cursor:"pointer",fontSize:11,fontWeight:500},children:[r.jsx(X,{name:S.icon,size:11}),S.label]},S.id)),r.jsx("span",{style:{flex:1}}),r.jsx(Ze,{checked:k==="auto",label:"Auto-publish (Telegram)",onChange:S=>c(S?"auto":"assisted")})]}),E&&r.jsx("div",{style:{padding:10,background:"var(--red-soft)",border:"1px solid var(--red)",borderRadius:"var(--r-sm)",fontSize:11.5,color:"var(--ink)"},children:E}),b&&r.jsxs("div",{style:{display:"flex",flexDirection:"column",gap:8},children:[[0,1,2].map(S=>r.jsx("div",{className:"shimmer",style:{height:52,borderRadius:"var(--r-sm)",background:"linear-gradient(90deg, var(--bg-panel) 25%, var(--bg-panel-2) 50%, var(--bg-panel) 75%)",backgroundSize:"400% 100%",animation:"plan-shimmer 1.4s ease-in-out infinite",animationDelay:`${S*.15}s`,border:"1px solid var(--stroke)"}},S)),r.jsx("style",{children:"@keyframes plan-shimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }"})]}),z&&!b&&r.jsxs("div",{style:{border:"1px solid var(--stroke)",borderRadius:"var(--r)",overflow:"hidden"},children:[r.jsxs("div",{style:{padding:"8px 12px",background:"var(--bg-panel)",borderBottom:"1px solid var(--stroke)",display:"flex",alignItems:"center",gap:8},children:[r.jsxs("span",{style:{fontSize:11.5,color:"var(--ink-strong)",fontWeight:600},children:[z.posts.length," posts"]}),r.jsx(te,{tone:z.engine==="document"?"green":z.engine==="anthropic"?"violet":z.engine==="ollama"?"cyan":"neutral",children:z.engine==="document"?"plan du document":z.engine==="anthropic"?"Claude plan":z.engine==="ollama"?"local LLM plan":"built-in plan"})]}),r.jsxs("div",{style:{padding:"6px 12px",background:"var(--bg-base)",borderBottom:"1px solid var(--stroke)",fontSize:10,color:"var(--ink-soft)"},children:[r.jsx(X,{name:"image",size:11,style:{color:"var(--amber)",marginRight:5,verticalAlign:"middle"}}),"Pick a start image for each Seedance / image / news post — from your library, generate one from the plan's idea, or reuse a news picture. Leave on ",r.jsx("span",{className:"mono",children:"auto"})," to decide later at Produce."]}),r.jsx("div",{style:{maxHeight:300,overflowY:"auto"},className:"scroll",children:z.posts.map((S,L)=>r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"58px 70px 1fr 188px",gap:10,padding:"9px 12px",borderTop:L?"1px solid var(--stroke)":"none",alignItems:"center"},children:[r.jsxs("span",{className:"mono",style:{fontSize:10,color:"var(--ink-soft)"},children:["D",(S.day_offset??0)+1,"·",S.time]}),r.jsx("span",{style:{fontSize:9.5,fontWeight:600,textTransform:"uppercase",letterSpacing:.5,color:W[S.format]||"var(--ink-soft)"},children:S.format}),r.jsxs("div",{style:{minWidth:0},children:[r.jsx("div",{style:{fontSize:12,color:"var(--ink-strong)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"},children:S.title}),r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"},children:S.caption})]}),r.jsx(Wm,{post:S,idx:L,images:V,newsItems:U,source:Y[L],setSource:C})]},L))})]})]}),r.jsxs("div",{style:{padding:"12px 18px",borderTop:"1px solid var(--stroke)",display:"flex",alignItems:"center",gap:10},children:[r.jsxs("span",{style:{fontSize:10.5,color:"var(--ink-muted)",flex:1},children:["Plans land as ",k==="auto"?"auto-publish":"assisted"," posts. Sources you pick are reused by the inspector's Produce button."]}),z&&z.posts&&z.posts.length?r.jsx(DzPlanEst,{count:z.posts.length}):null,i==="generate"&&r.jsx(K,{variant:"outline",size:"md",icon:"sparkle",onClick:ee,disabled:b||!a.trim(),children:b?"Consulting the deep…":z?"Regenerate":"Generate"}),i==="import"&&z&&r.jsx(K,{variant:"outline",size:"md",icon:"upload",onClick:()=>{var S;return(S=A.current)==null?void 0:S.click()},disabled:b,children:"Re-import"}),r.jsx(K,{variant:"primary",size:"md",icon:"calendar",glow:!0,onClick:R,disabled:!z||P,children:P?"Adding…":z?`Add ${z.posts.length} posts to calendar`:"Add to calendar"})]})]})})}function Hm({onDone:e}){x.useEffect(function(){e&&e()},[]);return null;const t=ji(),[n,o]=x.useState(0);x.useEffect(()=>{const s=setTimeout(()=>o(1),30),a=setTimeout(()=>o(2),800),l=setTimeout(()=>o(3),7400),d=setTimeout(()=>e==null?void 0:e(),7950);return()=>[s,a,l,d].forEach(clearTimeout)},[]);const i=n===0?.4:n===1?.95:1.32;return r.jsxs("div",{style:{position:"absolute",inset:0,zIndex:1e3,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:24,background:"radial-gradient(circle at 50% 40%, #1a0606 0%, #02060d 70%)",opacity:n>=3?0:1,transition:"opacity 520ms var(--ease)",pointerEvents:n>=3?"none":"auto",overflow:"hidden"},children:[r.jsx(Vm,{}),r.jsx(Gm,{}),r.jsx(Ym,{}),r.jsxs("div",{style:{width:168,height:168,position:"relative",transform:`scale(${i})`,opacity:n===0?0:1,transition:n===2?"transform 6600ms cubic-bezier(.32,.0,.28,1), opacity 500ms var(--ease)":"transform 800ms cubic-bezier(.22,1,.36,1), opacity 500ms var(--ease)",filter:"drop-shadow(0 12px 32px #ef444466)"},children:[r.jsxs("svg",{width:"168",height:"168",viewBox:"0 0 168 168",style:{position:"absolute",inset:0,animation:"splash-spin 8s linear infinite"},children:[r.jsx("circle",{cx:"84",cy:"84",r:"78",fill:"none",stroke:"#ef4444",strokeWidth:"0.7",strokeDasharray:"2 6",opacity:"0.55"}),r.jsx("circle",{cx:"84",cy:"84",r:"70",fill:"none",stroke:"#ef4444",strokeWidth:"0.5",strokeDasharray:"1 12",opacity:"0.45"})]}),r.jsx("svg",{width:"168",height:"168",viewBox:"0 0 168 168",style:{position:"absolute",inset:0,animation:"splash-spin-rev 12s linear infinite"},children:r.jsx("circle",{cx:"84",cy:"84",r:"82",fill:"none",stroke:"#00e5ff",strokeWidth:"0.5",strokeDasharray:"0.5 18",opacity:"0.5"})}),r.jsx("div",{style:{position:"absolute",inset:18,borderRadius:"50%",boxShadow:"0 0 70px #ef4444aa, 0 0 140px #ef444466, inset 0 0 22px #ef444333",animation:"splash-rotate 6s ease-in-out infinite, splash-pulse 2.2s ease-in-out infinite"},children:r.jsx("img",{src:D.brandLogoUrl(),width:132,height:132,alt:t.app_name,style:{width:"100%",height:"100%",objectFit:"contain",borderRadius:"50%",filter:"drop-shadow(0 0 14px var(--brand, #ef4444))"}})})]}),r.jsxs("div",{style:{textAlign:"center",opacity:n>=1?1:0,transform:n>=1?"translateY(0)":"translateY(10px)",transition:"opacity 700ms var(--ease) 250ms, transform 800ms var(--ease) 250ms"},children:[r.jsx("div",{className:"display",style:{fontSize:32,letterSpacing:"0.14em",fontWeight:700,color:"#e6f1ff",textShadow:"0 0 24px var(--brand-soft, #ef444466)"},children:t.app_name}),r.jsxs("div",{style:{fontSize:11,letterSpacing:"0.4em",color:"#6b7a92",marginTop:6},children:[t.app_sub," · v2.6.0"]}),r.jsxs("div",{style:{marginTop:22,fontSize:12,color:"var(--brand, #ef4444)",fontStyle:"italic",letterSpacing:.04},children:[t.tagline_1," ",t.tagline_2]})]}),r.jsxs("div",{style:{position:"absolute",bottom:36,left:"50%",transform:"translateX(-50%)",width:240},children:[r.jsx("div",{style:{height:2,background:"#1a2740",borderRadius:999,overflow:"hidden"},children:r.jsx("div",{style:{height:"100%",width:n>=2?"100%":n===1?"32%":"8%",background:"linear-gradient(90deg, #ef4444, #00e5ff)",transition:"width 6500ms var(--ease)",boxShadow:"0 0 12px #ef444466"}})}),r.jsx("div",{style:{marginTop:8,fontSize:9.5,letterSpacing:"0.18em",color:"#6b7a92",textAlign:"center",fontFamily:"JetBrains Mono"},children:n===0?"BOOTING THE DEEP…":n===1?"CALIBRATING TENTACLES…":n===2?"DESCENDING…":"READY"})]}),r.jsx("style",{children:`
+(function(){if(typeof document==="undefined"||document.getElementById("dz-fonts"))return;var F=[["Space Grotesk","SpaceGrotesk.ttf"],["Inter","Inter.ttf"],["JetBrains Mono","JetBrainsMono.ttf"],["Bebas Neue","BebasNeue.ttf"],["Anton","Anton.ttf"],["Archivo Black","ArchivoBlack.ttf"],["Righteous","Righteous.ttf"],["Bungee","Bungee.ttf"],["Staatliches","Staatliches.ttf"],["Cinzel","Cinzel.ttf"],["Abril Fatface","AbrilFatface.ttf"],["Pacifico","Pacifico.ttf"],["Permanent Marker","PermanentMarker.ttf"],["Monoton","Monoton.ttf"],["Press Start 2P","PressStart2P.ttf"],["Dripping Marker","DrippingMarker.ttf"],["Graffiti Brush","GraffitiBrush.ttf"],["Distant Galaxy","DistantGalaxy.ttf"],["Hacked","Hacked.ttf"],["Super Pencil","SuperPencil.ttf"],["Poland Kaito","PolandKaito.otf"],["Super Feel","SuperFeel.ttf"]];try{var c=F.map(function(f){return "@font-face{font-family:'"+f[0]+"';src:url('/fonts/"+f[1]+"');font-display:swap}"}).join("");var st=document.createElement("style");st.id="dz-fonts";st.textContent=c;document.head.appendChild(st)}catch(e){}})();var DZ_FONTS=["Space Grotesk","Inter","JetBrains Mono","Bebas Neue","Anton","Archivo Black","Righteous","Bungee","Staatliches","Cinzel","Abril Fatface","Pacifico","Permanent Marker","Monoton","Press Start 2P","Dripping Marker","Graffiti Brush","Distant Galaxy","Hacked","Super Pencil","Poland Kaito","Super Feel"];function DzFontPicker({value,onChange}){return r.jsxs("div",{children:[r.jsx(re,{value:value,onChange:onChange,options:DZ_FONTS}),r.jsx("div",{style:{marginTop:6,padding:"12px 14px",background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:8,fontFamily:"'"+(value||"Space Grotesk")+"', system-ui, sans-serif",fontSize:24,color:"var(--ink-strong)",lineHeight:1.15,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},children:"From the deep · 123"})]})}function DzEmojiPicker({onInsert}){const dd=x.useState(null),data=dd[0],setData=dd[1];const cc=x.useState(null),custom=cc[0],setCustom=cc[1];const oo=x.useState(!1),open=oo[0],setOpen=oo[1];const tt=x.useState(0),tab=tt[0],setTab=tt[1];const fr=x.useRef(null);function loadCustom(){fetch("/api/emojis/custom").then(r=>r.ok?r.json():null).then(d=>setCustom((d&&d.emojis)||[])).catch(()=>setCustom([]))}x.useEffect(()=>{if(open&&!data)fetch("/api/emojis").then(r=>r.ok?r.json():[]).then(setData).catch(()=>setData([]));if(open&&!custom)loadCustom()},[open]);function doImport(e){const f=e.target.files&&e.target.files[0];e.target.value="";if(!f){return}const nm=prompt("Nom du raccourci (lettres, chiffres, tirets):",(f.name||"emoji").replace(/\.[^.]+$/,""));if(nm===null){return}const fd=new FormData();fd.append("file",f);fd.append("name",nm||"");fetch("/api/emojis/custom",{method:"POST",body:fd}).then(r=>r.ok?r.json():r.json().then(j=>Promise.reject(j))).then(()=>loadCustom()).catch(j=>alert("Import failed: "+((j&&j.detail)||"erreur")))}function doDelete(nm){fetch("/api/emojis/custom/"+encodeURIComponent(nm),{method:"DELETE"}).then(()=>loadCustom()).catch(()=>{})}function tabStyle(a){return{fontSize:9.5,padding:"2px 6px",borderRadius:10,cursor:"pointer",border:"1px solid "+(a?"var(--cyan)":"var(--stroke)"),background:a?"var(--cyan-soft)":"transparent",color:a?"var(--cyan)":"var(--ink-soft)",whiteSpace:"nowrap"}}const nCats=data?data.length:0,isPerso=tab===nCats;return r.jsxs("div",{children:[r.jsx("button",{onClick:()=>setOpen(!open),style:{fontSize:11,padding:"4px 10px",borderRadius:8,cursor:"pointer",border:"1px solid var(--stroke-strong)",background:open?"var(--cyan-soft)":"transparent",color:open?"var(--cyan)":"var(--ink)"},children:open?"✕ Fermer émojis":"😊 Insérer un émoji"}),open?r.jsxs("div",{style:{marginTop:6,padding:8,background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:8},children:[r.jsxs("div",{style:{display:"flex",gap:4,flexWrap:"wrap",marginBottom:6},children:[data?data.map((c,i)=>r.jsx("button",{onClick:()=>setTab(i),style:tabStyle(tab===i),children:c.cat},c.cat)):r.jsx("span",{style:{fontSize:11,color:"var(--ink-soft)"},children:"chargement…"},"l"),data?r.jsx("button",{onClick:()=>setTab(nCats),style:tabStyle(isPerso),children:"⭐ Perso"},"perso"):null]}),isPerso?r.jsxs("div",{children:[r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:6},children:[r.jsx("button",{onClick:()=>fr.current&&fr.current.click(),style:{fontSize:11,padding:"4px 10px",borderRadius:8,cursor:"pointer",border:"1px solid var(--cyan)",background:"var(--cyan-soft)",color:"var(--cyan)"},children:"+ Importer"}),r.jsx("span",{style:{fontSize:10,color:"var(--ink-soft)"},children:"PNG/JPG/WebP, inserted as :name:"}),r.jsx("input",{ref:fr,type:"file",accept:"image/*",onChange:doImport,style:{display:"none"}})]}),custom&&custom.length?r.jsx("div",{style:{display:"grid",gridTemplateColumns:"repeat(7, 1fr)",gap:4,maxHeight:150,overflowY:"auto"},children:custom.map(it=>r.jsxs("div",{style:{position:"relative",paddingTop:"100%"},children:[r.jsx("button",{onClick:()=>onInsert(it.code),title:it.code,style:{position:"absolute",inset:0,padding:2,border:"1px solid var(--stroke)",background:"var(--bg-panel)",cursor:"pointer",borderRadius:5,display:"flex",alignItems:"center",justifyContent:"center"},children:r.jsx("img",{src:it.url,alt:it.code,loading:"lazy",style:{maxWidth:"100%",maxHeight:"100%",display:"block"}})}),r.jsx("button",{onClick:()=>doDelete(it.name),title:"Delete",style:{position:"absolute",top:-5,right:-5,width:16,height:16,borderRadius:8,border:0,background:"var(--red)",color:"#fff",fontSize:11,lineHeight:"15px",cursor:"pointer",padding:0,zIndex:2},children:"×"})]},it.name))}):r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)",padding:"8px 2px"},children:custom?"No custom emoji yet.":"chargement…"})]}):(data&&data[tab]?r.jsx("div",{style:{display:"grid",gridTemplateColumns:"repeat(9, 1fr)",gap:2,maxHeight:170,overflowY:"auto"},children:data[tab].items.map(it=>r.jsx("button",{onClick:()=>onInsert(it.e),title:it.e,style:{padding:2,border:0,background:"transparent",cursor:"pointer",borderRadius:5,display:"flex",alignItems:"center",justifyContent:"center"},children:r.jsx("img",{src:"/emoji/"+it.f+".png",alt:it.e,loading:"lazy",style:{width:22,height:22,display:"block"}})},it.f))}):null)]}):null]})}function DzImageModel(){const ms=x.useState(null),models=ms[0],setModels=ms[1];const cs=x.useState(localStorage.getItem("dz_image_model")||""),sel=cs[0],setSel=cs[1];x.useEffect(()=>{fetch("/api/image-models").then(r=>r.ok?r.json():null).then(d=>{if(d){setModels(d.models||[]);const cfg=d.configured||"";setSel(p=>cfg||p||d.default||(d.models[0]&&d.models[0].id)||"");if(cfg){try{localStorage.setItem("dz_image_model",cfg)}catch(e){}}}}).catch(()=>setModels([]))},[]);function pick(v){setSel(v);try{localStorage.setItem("dz_image_model",v)}catch(e){}fetch("/api/atelier/settings",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({image_model_default:v})}).catch(()=>{})}if(!models)return null;if(!models.length)return r.jsx("div",{style:{fontSize:10,color:"var(--ink-muted)",maxWidth:158,lineHeight:1.2},children:"fal.ai / OpenAI key required (Settings)"});return r.jsx(re,{value:sel||(models[0]&&models[0].id)||"",onChange:pick,options:models.map(m=>({value:m.id,label:m.label}))})}function DzPromptAI({p,set}){const[sty,setSty]=x.useState("cinematic"),[mood,setMood]=x.useState("epic"),[busy,setBusy]=x.useState(!1),[msg,setMsg]=x.useState("");const run=()=>{const tx=(p.value||"").trim();if(!tx||busy)return;setBusy(!0);setMsg("");const neg=(p.negative||"").split(/[,;\n]/).map(z=>z.trim()).filter(Boolean);fetch("/api/prompt/refine",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:tx,mode:"visual",tone:sty,humor:mood,avoid:neg,language:"English"})}).then(R=>R.ok?R.json():null).then(d=>{setBusy(!1);if(d&&d.text){set("value",d.text);setMsg(d.ai?"✓ Refined via "+d.provider:"No LLM key — add one in Settings (prompt unchanged)")}else setMsg("Refine failed")}).catch(()=>{setBusy(!1);setMsg("Refine failed")})};return r.jsxs(ie,{label:"AI prompt generator",children:[r.jsx(O,{label:"Visual style",children:r.jsx(re,{value:sty,onChange:setSty,options:["cinematic","gritty realism","dreamy","neon cyberpunk","minimal","epic fantasy","vaporwave","documentary","anime","claymation"]})}),r.jsx(O,{label:"Mood",children:r.jsx(re,{value:mood,onChange:setMood,options:["epic","ominous","serene","playful","tense","mysterious","euphoric"]})}),r.jsx(K,{variant:"primary",size:"sm",icon:"sparkle",glow:!0,disabled:busy,onClick:run,style:{width:"100%",marginTop:4},children:busy?"Generating…":"Refine with AI"}),msg?r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)",marginTop:6},children:msg}):null,r.jsx("div",{style:{fontSize:10,color:"var(--ink-soft)",marginTop:6,lineHeight:1.4},children:"Expands your idea into a vivid Seedance prompt — style, lighting, camera — and honours the negative list. No robotic output."})]})}function DzAvatarPick({p,set}){const[list,setList]=x.useState(null),[voices,setVoices]=x.useState(null),[presets,setPresets]=x.useState([]);x.useEffect(()=>{let on=!0;fetch("/api/heygen/presets").then(R=>R.ok?R.json():{presets:[]}).then(d=>{if(on)setPresets((d&&d.presets)||[])}).catch(()=>{});return()=>{on=!1}},[]);x.useEffect(()=>{let on=!0;D.listHeygenAvatars().then(d=>{if(on)setList((d&&d.avatars)||[])}).catch(()=>{if(on)setList([])});D.listHeygenVoices().then(d=>{if(on)setVoices((d&&d.voices)||[])}).catch(()=>{if(on)setVoices([])});return()=>{on=!1}},[]);const[favBump,setFav]=x.useState(0),[q,setQ]=x.useState(""),taRef=x.useRef(null);const arr0=list||[],varr=voices||[];var favIds=[];try{favIds=JSON.parse(localStorage.getItem("dz_fav_avatars")||"[]")||[]}catch(_e){}const isFav=a=>!!a&&favIds.indexOf(a.avatar_id)>=0;const ql=(q||"").trim().toLowerCase();const filt=ql?arr0.filter(a=>((a.avatar_name||"")+(a.name||"")).toLowerCase().indexOf(ql)>=0):arr0;const arr=[...filt.filter(isFav),...filt.filter(a=>!isFav(a))];const cur=arr0.find(a=>a.avatar_name===p.avatar||a.avatar_id===p.avatarId);const img=p.avatarImg||(cur&&cur.preview_image_url)||"";const ci=Math.max(0,arr.findIndex(a=>a.avatar_id===p.avatarId||a.avatar_name===p.avatar));const setAv=a=>{if(!a)return;set("avatar",a.avatar_name);set("avatarId",a.avatar_id);set("avatarImg",a.preview_image_url||"");set("avatarType",a.avatar_type||"avatar")};const pickI=i=>{if(!arr.length)return;setAv(arr[((i%arr.length)+arr.length)%arr.length])};const onPick=v=>{const a=arr0.find(z=>z.avatar_name===v);a?setAv(a):set("avatar",v)};const toggleFav=()=>{if(!cur)return;var f=favIds.slice(),k=cur.avatar_id,ix=f.indexOf(k);ix>=0?f.splice(ix,1):f.unshift(k);try{localStorage.setItem("dz_fav_avatars",JSON.stringify(f))}catch(_e){}setFav(favBump+1)};const onKey=ev=>{if(ev.key==="ArrowDown"||ev.key==="ArrowRight"){ev.preventDefault();pickI(ci+1)}else if(ev.key==="ArrowUp"||ev.key==="ArrowLeft"){ev.preventDefault();pickI(ci-1)}else if(ev.key==="f"||ev.key==="F"){ev.preventDefault();toggleFav()}};let opts=arr.map(a=>({value:a.avatar_name,label:(isFav(a)?"★ ":"")+a.avatar_name}));if(p.avatar&&!arr0.find(a=>a.avatar_name===p.avatar))opts=[{value:p.avatar,label:p.avatar},...opts];if(!opts.length)opts=[{value:p.avatar||"",label:list===null?"Loading avatars…":(ql?"No match":"No avatars — check Settings")}];const vnames=varr.map(v=>v.name);let vopts=varr.map(v=>({value:v.name,label:v.name+(v.language?" · "+v.language:"")}));if(p.voice&&!vnames.includes(p.voice))vopts=[{value:p.voice,label:p.voice},...vopts];if(!vopts.length)vopts=[{value:p.voice||"",label:voices===null?"Loading voices…":"No voices — check Settings"}];const onVoice=v=>{set("voice",v);const vv=varr.find(z=>z.name===v);if(vv){set("voiceId",vv.voice_id);set("voicePrev",vv.preview_audio||"");set("voiceLang",vv.language||"")}};const playVoice=()=>{const u=p.voicePrev;if(u){try{new Audio(u).play().catch(()=>{})}catch(e){}}};return r.jsxs(ie,{label:"Avatar",children:[r.jsx(O,{label:`Casting (${presets.length})`,children:r.jsx(re,{value:"",options:[{value:"",label:presets.length?"— load a casting —":"— no casting saved —"},...presets.filter(z2=>z2.avatar_type!=="image").map(P=>({value:P.id,label:P.name}))],onChange:v=>{const P=presets.find(z=>z.id===v);if(!P)return;set("avatarId",P.avatar_id);set("avatarType",P.avatar_type||"avatar");set("avatarImg",P.avatar_img||"");const _a=(list||[]).find(z=>z.avatar_id===P.avatar_id);if(_a)set("avatar",_a.avatar_name);set("voiceId",P.voice_id);set("voice",P.voice_name||"");set("voicePrev",P.voice_prev||"");set("voiceLang",P.voice_lang||"");set("speedX",P.speed||1);set("engine",P.engine||"")}})}),r.jsx(O,{label:"Find avatar",children:r.jsx("input",{value:q,onChange:ev=>setQ(ev.target.value),placeholder:"Search "+arr0.length+" avatars…",style:{width:"100%",fontSize:12,padding:"7px 9px",borderRadius:6,border:"1px solid var(--stroke-strong)",background:"var(--bg-base)",color:"var(--ink-strong)",boxSizing:"border-box"}})}),r.jsxs("div",{tabIndex:0,ref:taRef,onKeyDown:onKey,style:{outline:"none",display:"flex",alignItems:"center",gap:8,border:"1px solid var(--stroke)",borderRadius:8,padding:8,margin:"4px 0 8px",background:"var(--bg-panel-2)"},children:[r.jsx("button",{onClick:()=>pickI(ci-1),title:"Previous (Up arrow)",style:{fontSize:13,lineHeight:1,padding:"6px 9px",borderRadius:6,border:"1px solid var(--stroke-strong)",background:"var(--bg-base)",color:"var(--ink)",cursor:"pointer"},children:"▲"}),img?r.jsx("img",{src:img,onError:e=>{e.currentTarget.style.visibility="hidden"},style:{width:56,height:56,objectFit:"cover",borderRadius:8,border:"1px solid var(--stroke-strong)",flex:"0 0 auto"}}):r.jsx("div",{style:{width:56,height:56,borderRadius:8,background:"var(--bg-base)",flex:"0 0 auto"}}),r.jsxs("div",{style:{flex:1,minWidth:0},children:[r.jsx("div",{style:{fontSize:12,fontWeight:600,color:"var(--ink-strong)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"},children:(cur&&cur.avatar_name)||p.avatar||"—"}),r.jsx("div",{style:{fontSize:10,color:"var(--ink-soft)"},children:arr.length?(ci+1)+" / "+arr.length+" · ↑/↓ flip · F ★":(list===null?"Loading…":"—")})]}),r.jsx("button",{onClick:toggleFav,title:"Favorite (F)",style:{fontSize:15,lineHeight:1,padding:"6px 9px",borderRadius:6,border:"1px solid var(--stroke-strong)",background:"var(--bg-base)",color:cur&&isFav(cur)?"var(--amber)":"var(--ink-soft)",cursor:"pointer"},children:cur&&isFav(cur)?"★":"☆"}),r.jsx("button",{onClick:()=>pickI(ci+1),title:"Next (Down arrow)",style:{fontSize:13,lineHeight:1,padding:"6px 9px",borderRadius:6,border:"1px solid var(--stroke-strong)",background:"var(--bg-base)",color:"var(--ink)",cursor:"pointer"},children:"▼"})]}),r.jsx(O,{label:"Avatar",children:r.jsx(re,{value:p.avatar,onChange:onPick,options:opts})}),r.jsxs("div",{style:{marginTop:4,aspectRatio:"9 / 16",maxHeight:220,background:"#02060d",border:"1px solid var(--stroke)",borderRadius:8,position:"relative",overflow:"hidden"},children:[img?r.jsx("img",{src:img,alt:p.avatar,onLoad:e=>{e.currentTarget.style.opacity=1},onError:e=>{e.currentTarget.style.opacity=0},style:{width:"100%",height:"100%",objectFit:"cover"}}):r.jsx("div",{style:{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",color:"var(--ink-soft)",fontSize:11,textAlign:"center",padding:10},children:list===null?"Loading avatars…":(arr.length?"Pick an avatar to preview the still":"No avatars — add your HeyGen key in Settings")})]}),r.jsx(O,{label:"Voice",children:r.jsxs("div",{style:{display:"flex",gap:6,alignItems:"center"},children:[r.jsx("div",{style:{flex:1,minWidth:0},children:r.jsx(re,{value:p.voice,onChange:onVoice,options:vopts})}),p.voicePrev?r.jsx(K,{variant:"outline",size:"sm",icon:"play",onClick:playVoice,title:"Preview voice"}):null]})}),r.jsx(O,{label:"Moteur",children:r.jsx(re,{value:p.engine||"",onChange:v=>set("engine",v),options:[{value:"",label:"Auto (pipeline actuel)"},{value:"avatar_iii",label:"Avatar III"},{value:"avatar_iv",label:"Avatar IV \u00b7 motion"},{value:"avatar_v",label:"Avatar V \u00b7 max"}]})}),r.jsx(O,{label:"Speed",children:r.jsx(Oe,{value:p.speedX*100|0,min:70,max:140,step:5,unit:"%",onChange:i=>set("speedX",i/100)})})]});}function DzQuickEst({mode,dur,vm}){const[e,setE]=x.useState(null);x.useEffect(()=>{let on=!0;const op=mode==="heygen"?{kind:"heygen",minutes:1}:mode==="comp"?{kind:"campaign",ops:[{kind:"image",model:localStorage.getItem("dz_image_model")||""},{kind:"seedance",duration_s:dur,model:vm||void 0},{kind:"heygen",minutes:1}]}:{kind:"campaign",ops:[{kind:"image",model:localStorage.getItem("dz_image_model")||""},{kind:"seedance",duration_s:dur,model:vm||void 0}]};const id=setTimeout(()=>{fetch("/api/cost/estimate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(op)}).then(R=>R.ok?R.json():null).then(d=>{if(on&&d)setE(d)}).catch(()=>{})},250);return()=>{on=!1;clearTimeout(id)}},[mode,dur,vm]);const hint=mode==="heygen"?"~1 min":"~"+((mode==="comp"?40:20)+dur)+"s";return r.jsx("span",{className:"mono",style:{color:"var(--amber)"},children:e&&e.total_usd!=null?"$"+e.total_usd.toFixed(2)+" · "+hint:"…"});}function DzPlanEst({count}){const[e,setE]=x.useState(null);x.useEffect(()=>{let on=!0;fetch("/api/cost/estimate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({kind:"marketing_plan",posts:count,model:localStorage.getItem("dz_image_model")||""})}).then(R=>R.ok?R.json():null).then(d=>{if(on&&d)setE(d)}).catch(()=>{});return()=>{on=!1}},[count]);return r.jsxs("span",{title:"Directional budget for this plan — uses your Pricing & budget rates (image + ~10s clip per post).",style:{fontSize:11,fontFamily:"var(--f-mono)",color:"var(--amber)",padding:"3px 8px",border:"1px solid var(--stroke)",borderRadius:8,whiteSpace:"nowrap",marginRight:6},children:["≈ $",e&&e.total_usd!=null?e.total_usd.toFixed(2):"…"]});}function DzPricing(){const[p,setP]=x.useState(null),[saved,setSaved]=x.useState(!1),[saving,setSaving]=x.useState(!1);const refs=x.useRef({});x.useEffect(()=>{let on=!0;fetch("/api/cost/pricing").then(R=>R.ok?R.json():null).then(d=>{if(on&&d)setP(d)}).catch(()=>{});return()=>{on=!1}},[]);if(!p)return r.jsx("div",{style:{padding:24,color:"var(--ink-muted)"},children:"Loading pricing…"});const fields=[{k:"flux_image_usd",l:"FLUX image",u:"$ / image",step:"0.001"},{k:"gpt_image_2_usd",l:"GPT Image 2",u:"$ / image",step:"0.01"},{k:"gpt_image_1_usd",l:"GPT Image 1",u:"$ / image",step:"0.01"},{k:"gpt_image_1_mini_usd",l:"GPT Image 1 mini",u:"$ / image",step:"0.001"},{k:"seedance_usd_per_s",l:"Seedance video",u:"$ / second",step:"0.01"},{k:"heygen_credit_usd",l:"HeyGen credit",u:"$ / credit",step:"0.01"},{k:"heygen_credits_per_min",l:"HeyGen rate",u:"credits / min",step:"0.5"},{k:"elevenlabs_usd_per_char",l:"ElevenLabs voice",u:"$ / character",step:"0.0001"},{k:"monthly_budget_usd",l:"Monthly budget cap",u:"$ — 0 = none",step:"1"}];const save=()=>{setSaving(!0);setSaved(!1);const body={};fields.forEach(f=>{const el=refs.current[f.k];const v=el?parseFloat(el.value):NaN;body[f.k]=isNaN(v)?0:v});fetch("/api/cost/pricing",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}).then(R=>R.ok?R.json():null).then(d=>{setSaving(!1);if(d){setP(d);setSaved(!0);setTimeout(()=>setSaved(!1),2500)}}).catch(()=>setSaving(!1))};return r.jsxs("div",{style:{padding:"4px 2px",maxWidth:560},children:[r.jsx("div",{className:"upper",style:{marginBottom:6},children:"Pricing & budget"}),r.jsx("p",{style:{fontSize:12,color:"var(--ink-muted)",margin:"0 0 16px",lineHeight:1.5},children:"Set your own provider rates so the cost widget and the budget previews (Quick, Scheduler) show accurate dollar amounts. Each provider bills your own key — these are directional estimates."}),fields.map(f=>r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"1fr 130px",gap:14,alignItems:"center",marginBottom:10},children:[r.jsxs("label",{style:{fontSize:12.5,color:"var(--ink)"},children:[f.l," ",r.jsx("span",{style:{color:"var(--ink-muted)",fontSize:11},children:"("+f.u+")"})]}),r.jsx("input",{type:"number",step:f.step,min:"0",defaultValue:p[f.k],ref:el=>{refs.current[f.k]=el},style:{height:30,padding:"0 8px",background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",color:"var(--ink-strong)",fontFamily:"var(--f-mono)",fontSize:12.5,width:"100%"}})]},f.k)),r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:12,marginTop:18},children:[r.jsx("button",{onClick:save,disabled:saving,style:{height:34,padding:"0 18px",background:"var(--brand)",color:"#001018",border:"none",borderRadius:"var(--r-sm)",fontSize:13,fontWeight:600,cursor:saving?"default":"pointer",opacity:saving?.6:1},children:saving?"Saving…":"Save pricing"}),saved?r.jsx("span",{style:{fontSize:12.5,color:"#39d98a"},children:"✓ Saved"}):null]})]});}function xm({variant:e,personas:t=[],activePersonaId:n,setActivePersonaId:o,savePersona:i}){const[s,a]=x.useState(()=>{const u=vn("section");return ym.includes(u)?u:"accounts"}),[l,d]=x.useState(null);return r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"240px 1fr",height:"100%",minHeight:0,background:"var(--bg-base)"},children:[r.jsxs("div",{style:{background:"var(--bg-panel)",borderRight:"1px solid var(--stroke)",padding:"14px 8px"},children:[r.jsx("div",{className:"upper",style:{padding:"0 10px 10px"},children:"Settings"}),[{k:"keys",l:"API keys"},{k:"accounts",l:"Connected accounts"},{k:"personas",l:"Personas"},{k:"branding",l:"Branding"},{k:"pack",l:"Caption pack"},{k:"defaults",l:"Provider defaults"},{k:"paths",l:"Paths"},{k:"news",l:"News"},{k:"appearance",l:"Appearance"},{k:"pricing",l:"Pricing & budget"}].map(u=>r.jsx("div",{onClick:()=>a(u.k),style:{padding:"8px 12px",borderRadius:"var(--r-sm)",fontSize:12.5,color:s===u.k?"var(--brand)":"var(--ink)",background:s===u.k?"var(--brand-soft)":"transparent",display:"flex",alignItems:"center",gap:8,cursor:"pointer",marginBottom:2},children:u.l},u.k))]}),r.jsxs("div",{className:"scroll",style:{overflowY:"auto",padding:24,maxWidth:880},children:[s==="accounts"&&r.jsx(Tm,{}),s==="personas"&&r.jsx(jm,{personas:t,activePersonaId:n,setActivePersonaId:o,onNew:()=>d("new"),onEdit:u=>d(u)}),s==="keys"&&r.jsx(bm,{}),s==="branding"&&r.jsx(Sm,{}),s==="pack"&&r.jsx(km,{}),s==="defaults"&&r.jsx(Em,{}),s==="paths"&&r.jsx(_m,{}),s==="news"&&r.jsx(zm,{}),s==="appearance"&&r.jsx(Cm,{}),s==="pricing"&&r.jsx(DzPricing,{})]}),r.jsx(Au,{open:!!l,initial:l==="new"?null:l,onClose:()=>d(null),onSave:u=>{i==null||i(u),d(null)}})]})}function km(){const[e,t]=x.useState(null),[n,o]=x.useState(!1),[i,s]=x.useState(""),a=x.useRef({});x.useEffect(()=>{D.getCaptionPack().then(v=>t((v==null?void 0:v.pack)||[]))},[]);const l={height:30,padding:"0 8px",background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",color:"var(--ink-strong)",fontFamily:"var(--f-ui)",fontSize:12.5,width:"100%"};function d(v,g){t(k=>k.map((c,p)=>p===v?{...c,...g}:c))}function u(){t(v=>[...v||[],{id:"tag-"+Math.random().toString(36).slice(2,6),emoji:"🔥",label:"New tag",icon:""}])}function f(v){t(g=>g.filter((k,c)=>c!==v))}async function m(){o(!0),s("");const v=(e||[]).filter(k=>(k.label||"").trim()).map(k=>({...k,icon:(k.icon||"").split("?")[0]})),g=await D.saveCaptionPack(v);o(!1),g!=null&&g.pack?(t(g.pack),s("Saved ✓ — open the Scheduler to use it."),setTimeout(()=>s(""),4e3)):s("Save failed: "+String((g==null?void 0:g.error)||""))}async function y(){if(!confirm("Reset the caption pack to the deepotus defaults? Custom icons are removed."))return;const v=await D.resetCaptionPack();v!=null&&v.pack&&t(v.pack)}async function w(v,g){if(!g)return;const k=e[v].id||"tag-"+v;s("Uploading icon…");const c=await D.uploadPackIcon(k,g);c!=null&&c.ok&&c.icon?(d(v,{id:k,icon:c.icon+"?t="+Date.now()}),s("Icon set — click Save pack to keep it.")):s("Icon upload failed: "+String((c==null?void 0:c.error)||""))}return e?r.jsxs(r.Fragment,{children:[r.jsxs("div",{style:{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:4},children:[r.jsx("div",{className:"display",style:{fontSize:22,color:"var(--ink-strong)"},children:"Caption pack"}),r.jsxs("div",{style:{display:"flex",gap:8},children:[r.jsx(K,{variant:"ghost",size:"sm",onClick:y,children:"Reset"}),r.jsx(K,{variant:"primary",size:"sm",icon:"check",glow:!0,onClick:m,disabled:n,children:n?"Saving…":"Save pack"})]})]}),r.jsxs("div",{style:{fontSize:12,color:"var(--ink-soft)",marginBottom:16,maxWidth:640},children:["One-tap branded tags shown under the caption editor in the Scheduler (great for Telegram / X). Edit the emoji and label, upload a custom icon per tag, add or remove rows. ",i&&r.jsxs("strong",{style:{color:i.includes("failed")?"var(--red)":"var(--green)"},children:[" · ",i]})]}),r.jsx("div",{style:{display:"flex",flexDirection:"column",gap:8,maxWidth:640},children:e.map((v,g)=>r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"36px 56px 1fr auto auto",gap:10,alignItems:"center",padding:"8px 10px",background:"var(--bg-panel)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)"},children:[r.jsx("div",{style:{width:32,height:32,borderRadius:6,background:"var(--bg-base)",border:"1px solid var(--stroke)",display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden"},children:v.icon?r.jsx("img",{src:v.icon,alt:"",style:{width:"100%",height:"100%",objectFit:"contain"},onError:k=>{k.currentTarget.style.display="none"}}):r.jsx("span",{style:{fontSize:16},children:v.emoji})}),r.jsx("input",{value:v.emoji,onChange:k=>d(g,{emoji:k.target.value}),title:"Fallback emoji",style:{...l,textAlign:"center",fontSize:15}}),r.jsx("input",{value:v.label,onChange:k=>d(g,{label:k.target.value}),placeholder:"Tag label",style:l}),r.jsx("input",{ref:k=>a.current[g]=k,type:"file",accept:"image/*",style:{display:"none"},onChange:k=>{var c;w(g,(c=k.target.files)==null?void 0:c[0]),k.target.value=""}}),r.jsx(K,{variant:"outline",size:"sm",icon:"upload",onClick:()=>{var k;return(k=a.current[g])==null?void 0:k.click()},children:v.icon?"Replace":"Icon"}),r.jsx(se,{name:"trash",title:"Remove tag",onClick:()=>f(g)})]},g))}),r.jsx(K,{variant:"outline",size:"sm",icon:"plus",onClick:u,style:{marginTop:10},children:"Add tag"})]}):r.jsx("div",{style:{color:"var(--ink-soft)",fontSize:12},children:"Loading…"})}function jm({personas:e,activePersonaId:t,setActivePersonaId:n,onNew:o,onEdit:i}){return r.jsxs(r.Fragment,{children:[r.jsxs("div",{style:{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:4},children:[r.jsx("div",{className:"display",style:{fontSize:22,color:"var(--ink-strong)"},children:"Personas"}),r.jsx(K,{variant:"primary",size:"sm",icon:"plus",glow:!0,onClick:o,children:"New persona"})]}),r.jsxs("div",{style:{fontSize:12,color:"var(--ink-soft)",marginBottom:20,maxWidth:620},children:["Each persona is a JSON file at ",r.jsx("span",{className:"mono",children:"backend/persona/<id>.json"}),". The active one drives the News scripter, the prompt generator's tone, and the default Voiceover. Built-in personas are read-only; duplicate any of them to edit."]}),r.jsx(Ou,{personas:e,activeId:t,onSelect:n,onNew:o,onEdit:i})]})}const Fu=[{k:"FAL_KEY",label:"fal.ai (Seedance)",why:"image → cinematic clip",health:"fal_configured"},{k:"HEYGEN_API_KEY",label:"HeyGen avatars",why:"talking avatars",health:"heygen_enabled"},{k:"ELEVENLABS_API_KEY",label:"ElevenLabs voice",why:"voiceover",health:"voiceover_enabled"},{k:"ANTHROPIC_API_KEY",label:"Anthropic (summary)",why:"news summarizer",health:"has_summarizer"},{k:"OPENAI_API_KEY",label:"OpenAI",why:"summary + plans (cloud)",health:"openai_enabled"},{k:"GEMINI_API_KEY",label:"Google Gemini",why:"summary + plans (cloud)",health:"gemini_enabled"},{k:"GEMINI_MODEL",label:"Gemini — modèle",why:"vide = gemini-flash-latest (alias stable, suit les mises à jour) ; pin possible, ex. gemini-2.0-flash",health:"gemini_enabled"},{k:"MESHY_API_KEY",label:"Meshy 6 (3D · optional)",why:"premium image → 3D · needs a Meshy plan: meshy.ai/api",health:"has_meshy"}];function bm(){const e=bt(),[t,n]=x.useState([]),[o,i]=x.useState(""),[s,a]=x.useState({}),[l,d]=x.useState(!1),[u,f]=x.useState("");function m(){D.listKeys().then(k=>{n((k==null?void 0:k.keys)||[]),i((k==null?void 0:k.env_path)||"")})}x.useEffect(()=>{m()},[]);function y(k,c){a(p=>({...p,[k]:c}))}async function w(k){const c=(s[k]||"").trim();if(!c)return;d(!0);const p=await D.setKeys([{name:k,value:c}]);d(!1),p.ok?(a(h=>{const b={...h};return delete b[k],b}),f(`${k} saved — restart the backend to apply.`),m(),No(),setTimeout(()=>f(""),4500)):f(`Failed: ${String(p.error||"").slice(0,120)}`)}async function v(){var p;const k=Object.entries(s).map(([h,b])=>({name:h,value:(b||"").trim()})).filter(h=>h.value);if(!k.length)return;d(!0);const c=await D.setKeys(k);d(!1),c.ok?(a({}),f(`${((p=c.written)==null?void 0:p.length)||k.length} key(s) saved — restart the backend to apply.`),m(),No(),setTimeout(()=>f(""),5500)):f(`Failed: ${String(c.error||"").slice(0,120)}`)}const g=Object.fromEntries(t.map(k=>[k.key,k]));return r.jsxs(r.Fragment,{children:[r.jsx("div",{className:"display",style:{fontSize:22,color:"var(--ink-strong)",marginBottom:4},children:"API keys"}),r.jsxs("div",{style:{fontSize:12,color:"var(--ink-soft)",marginBottom:20},children:["Stored in ",r.jsx("span",{className:"mono",children:o||"backend/.env"}),". Paste a value and click ",r.jsx("strong",{children:"Save"})," — the backend writes it to .env (allowlisted keys only, never returned in clear). ",r.jsx("strong",{children:"Restart the backend"})," after saving so pydantic-settings re-reads the file."]}),r.jsx(jt,{style:{padding:0},children:Fu.map((k,c)=>{const p=!!(e!=null&&e[k.health]),h=g[k.k];return r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"220px 1fr auto auto",gap:14,alignItems:"center",padding:"14px 18px",borderTop:c?"1px solid var(--stroke)":"none"},children:[r.jsxs("div",{children:[r.jsx("div",{style:{fontSize:12.5,color:"var(--ink-strong)"},children:k.label}),r.jsxs("div",{className:"mono",title:k.k+" · "+k.why,style:{fontSize:10.5,color:"var(--ink-muted)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},children:[k.k," · ",k.why]}),(h==null?void 0:h.preview)&&r.jsxs("div",{className:"mono",title:h.preview,style:{fontSize:10,color:"var(--ink-soft)",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},children:["current: ",h.preview]})]}),r.jsx("input",{type:"password",value:s[k.k]||"",onChange:b=>y(k.k,b.target.value),placeholder:h!=null&&h.set?"paste a new value to rotate (leave empty to keep)":"paste key here…",style:{background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",padding:"6px 10px",color:"var(--ink-strong)",fontFamily:"var(--f-mono)",fontSize:12}}),r.jsx(te,{tone:h&&h.set?"green":"red",dot:!0,children:h&&h.set?"set":"missing"}),r.jsx(K,{variant:"primary",size:"sm",icon:"check",onClick:()=>w(k.k),disabled:l||!(s[k.k]||"").trim(),children:l?"…":"Save"})]},k.k)})}),r.jsxs("div",{style:{marginTop:14,display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"},children:[r.jsx(K,{variant:"primary",size:"md",icon:"check",glow:!0,onClick:v,disabled:l||!Object.values(s).some(k=>(k||"").trim()),children:"Save all changes"}),r.jsxs("span",{style:{fontSize:11,color:"var(--ink-soft)"},children:["Then in a PowerShell window: ",r.jsx("span",{className:"mono",children:"Get-Process python | Stop-Process -Force; .\\\\scripts\\\\launch.ps1"})]}),u&&r.jsx("div",{style:{padding:"6px 10px",borderRadius:"var(--r-sm)",fontSize:11.5,background:u.startsWith("Failed")?"var(--red-soft)":"var(--green-soft)",border:`1px solid ${u.startsWith("Failed")?"var(--red)":"var(--green)"}`,color:"var(--ink-strong)"},children:u})]}),r.jsx(wm,{serverKeys:g,onSaved:()=>{m(),No()}}),r.jsxs("div",{style:{marginTop:24,padding:12,background:"var(--bg-panel-2)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",fontSize:11,color:"var(--ink-soft)"},children:["Tip: see ",r.jsx("span",{className:"mono",children:"Settings → Provider defaults"})," to pick which credential each role uses, and ",r.jsx("span",{className:"mono",children:"Settings → Appearance"})," for motion preferences."]})]})}function wm({serverKeys:e,onSaved:t}){var g,k,c;const n=bt(),[o,i]=x.useState(null),[s,a]=x.useState(null),[l,d]=x.useState(!1),[u,f]=x.useState("");(g=e==null?void 0:e.OLLAMA_URL)!=null&&g.preview;const m=o??"",y=s??"",w=!!(n!=null&&n.ollama_enabled);async function v(){d(!0),f("");const p=[];if(o!==null&&p.push({name:"OLLAMA_URL",value:o.trim()}),s!==null&&p.push({name:"OLLAMA_MODEL",value:s.trim()}),!p.length){d(!1);return}const h=await D.setKeys(p);d(!1),h.ok?(i(null),a(null),f("Saved — restart the backend to use the local model."),t==null||t(),setTimeout(()=>f(""),4e3)):f("Failed: "+String(h.error||"").slice(0,120))}return r.jsxs("div",{style:{marginTop:22},children:[r.jsx("div",{className:"display",style:{fontSize:15,color:"var(--ink-strong)",marginBottom:4},children:"Local LLM (Ollama)"}),r.jsxs("div",{style:{fontSize:11.5,color:"var(--ink-soft)",marginBottom:12,maxWidth:640},children:["Run marketing plans on a ",r.jsx("strong",{children:"local model"})," — free, and nothing leaves your machine. Install ",r.jsx("span",{className:"mono",children:"ollama.com"}),", then ",r.jsx("span",{className:"mono",children:"ollama pull qwen2.5:14b-instruct"}),". Set the model below. Priority: Anthropic > Ollama > built-in planner."]}),r.jsxs(jt,{style:{padding:14},children:[r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr auto",gap:12,alignItems:"end"},children:[r.jsx(O,{label:"Server URL",children:r.jsx(le,{mono:!0,value:m,placeholder:((k=e==null?void 0:e.OLLAMA_URL)==null?void 0:k.preview)||"http://127.0.0.1:11434",onChange:i})}),r.jsx(O,{label:"Model name",children:r.jsx(le,{mono:!0,value:y,placeholder:(c=e==null?void 0:e.OLLAMA_MODEL)!=null&&c.set?e.OLLAMA_MODEL.preview:"qwen2.5:14b-instruct",onChange:a})}),r.jsx(K,{variant:"primary",size:"md",icon:"check",onClick:v,disabled:l||o===null&&s===null,children:l?"…":"Save"})]}),r.jsxs("div",{style:{marginTop:10,display:"flex",alignItems:"center",gap:10},children:[r.jsx(te,{tone:w?"green":"neutral",dot:!0,children:w?"local model active":"not configured (cloud/built-in used)"}),u&&r.jsx("span",{style:{fontSize:11,color:u.startsWith("Failed")?"var(--red)":"var(--green)"},children:u})]})]})]})}function Sm(){const e=ji(),[t,n]=x.useState(null),[o,i]=x.useState(!1),[s,a]=x.useState(""),[l,d]=x.useState(0),u=yn.useRef(null),f=t||e;function m(g,k){n(c=>({...c||e,[g]:k}))}async function y(){if(!t)return;i(!0),a("");const g=await D.setBranding({app_name:t.app_name,app_sub:t.app_sub,tagline_1:t.tagline_1,tagline_2:t.tagline_2,brand_color:t.brand_color,accent_color:t.accent_color});i(!1),g!=null&&g.app_name?(n(null),Ji(),ea(g),a("Brand saved — applied everywhere."),setTimeout(()=>a(""),3500)):a("Failed: "+String((g==null?void 0:g.error)||"").slice(0,140))}async function w(g){if(!g)return;i(!0),a("");const k=await D.uploadBrandLogo(g);i(!1),k!=null&&k.ok?(d(Date.now()),Ji(),a("Logo updated."),setTimeout(()=>a(""),3e3)):a("Failed: "+String((k==null?void 0:k.error)||"").slice(0,140))}async function v(){if(!confirm("Reset name, taglines, colors and logo to the deepotus defaults?"))return;i(!0);const g=await D.resetBranding();i(!1),n(null),d(Date.now()),g!=null&&g.app_name&&(Ji(),ea(g),a("Reset to deepotus."),setTimeout(()=>a(""),3e3))}return r.jsxs(r.Fragment,{children:[r.jsx("div",{className:"display",style:{fontSize:22,color:"var(--ink-strong)",marginBottom:4},children:"Branding"}),r.jsxs("div",{style:{fontSize:12,color:"var(--ink-soft)",marginBottom:20,maxWidth:620},children:["Make this studio yours: name, taglines, colors and logo apply to the splash screen, the sidebar and every accent in the app. Stored in ",r.jsx("span",{className:"mono",children:"assets/branding/"})," — survives upgrades. The product ships as ",r.jsx("strong",{children:"deepotus"}),"; reset any time."]}),r.jsxs(jt,{style:{padding:18},children:[r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"120px 1fr",gap:18,alignItems:"start"},children:[r.jsxs("div",{style:{textAlign:"center"},children:[r.jsx("img",{src:D.brandLogoUrl(l),alt:"logo",width:96,height:96,style:{width:96,height:96,objectFit:"contain",borderRadius:"50%",border:"1px solid var(--stroke)",background:"var(--bg-base)",boxShadow:"0 0 24px var(--brand-soft)"}}),r.jsx("input",{ref:u,type:"file",accept:"image/png,image/jpeg,image/webp",style:{display:"none"},onChange:g=>{var k;w((k=g.target.files)==null?void 0:k[0]),g.target.value=""}}),r.jsx(K,{variant:"outline",size:"sm",icon:"upload",style:{marginTop:8,width:"100%"},onClick:()=>{var g;return(g=u.current)==null?void 0:g.click()},disabled:o,children:"Logo…"})]}),r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12},children:[r.jsx(O,{label:"App name",children:r.jsx(le,{value:f.app_name,onChange:g=>m("app_name",g.toUpperCase().slice(0,18))})}),r.jsx(O,{label:"Sub-label",children:r.jsx(le,{value:f.app_sub,onChange:g=>m("app_sub",g.toUpperCase().slice(0,12))})}),r.jsx(O,{label:"Tagline line 1",children:r.jsx(le,{value:f.tagline_1,onChange:g=>m("tagline_1",g.slice(0,40))})}),r.jsx(O,{label:"Tagline line 2",children:r.jsx(le,{value:f.tagline_2,onChange:g=>m("tagline_2",g.slice(0,40))})}),r.jsx(O,{label:"Brand color (primary)",children:r.jsxs("div",{style:{display:"flex",gap:8,alignItems:"center"},children:[r.jsx("input",{type:"color",value:f.brand_color,onChange:g=>m("brand_color",g.target.value),style:{width:44,height:30,padding:2,background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",cursor:"pointer"}}),r.jsx(le,{mono:!0,value:f.brand_color,onChange:g=>m("brand_color",g),style:{flex:1}})]})}),r.jsx(O,{label:"Accent color (cyan)",children:r.jsxs("div",{style:{display:"flex",gap:8,alignItems:"center"},children:[r.jsx("input",{type:"color",value:f.accent_color,onChange:g=>m("accent_color",g.target.value),style:{width:44,height:30,padding:2,background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",cursor:"pointer"}}),r.jsx(le,{mono:!0,value:f.accent_color,onChange:g=>m("accent_color",g),style:{flex:1}})]})})]})]}),r.jsxs("div",{style:{marginTop:16,padding:14,background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r)",display:"flex",alignItems:"center",gap:14},children:[r.jsx("img",{src:D.brandLogoUrl(l),alt:"",width:34,height:34,style:{borderRadius:"50%"}}),r.jsxs("div",{style:{lineHeight:1.1},children:[r.jsx("div",{className:"display",style:{fontSize:15,fontWeight:700,letterSpacing:"0.04em",color:f.brand_color},children:f.app_name||"APP NAME"}),r.jsxs("div",{style:{fontSize:9,color:"var(--ink-soft)",letterSpacing:"0.18em"},children:[f.app_sub," · v2.7.0"]})]}),r.jsx("div",{style:{flex:1}}),r.jsxs("span",{style:{fontSize:11,fontStyle:"italic",color:"var(--ink-soft)"},children:[f.tagline_1," ",f.tagline_2]}),r.jsx("span",{style:{width:16,height:16,borderRadius:4,background:f.accent_color,border:"1px solid var(--stroke)"},title:"accent"})]}),r.jsxs("div",{style:{marginTop:14,display:"flex",alignItems:"center",gap:10},children:[r.jsx(K,{variant:"primary",size:"md",icon:"check",glow:!0,onClick:y,disabled:o||!t,children:o?"Saving…":"Save brand"}),r.jsx(K,{variant:"ghost",size:"sm",onClick:v,disabled:o,children:"Reset to deepotus"}),s&&r.jsx("span",{style:{fontSize:11.5,color:s.startsWith("Failed")?"var(--red)":"var(--green)"},children:s})]})]})]})}function Cm(){const[e,t]=x.useState(()=>localStorage.getItem("deepotus.motion.reduced")==="1"),[n,o]=x.useState(()=>localStorage.getItem("deepotus.motion.halo")!=="0");return x.useEffect(()=>{const i=document.documentElement;e?i.classList.add("no-motion"):i.classList.remove("no-motion"),localStorage.setItem("deepotus.motion.reduced",e?"1":"0")},[e]),x.useEffect(()=>{const i=document.documentElement;n?i.classList.remove("no-halo"):i.classList.add("no-halo"),localStorage.setItem("deepotus.motion.halo",n?"1":"0")},[n]),r.jsxs(r.Fragment,{children:[r.jsx("div",{className:"display",style:{fontSize:22,color:"var(--ink-strong)",marginBottom:4},children:"Appearance"}),r.jsx("div",{style:{fontSize:12,color:"var(--ink-soft)",marginBottom:20},children:"Motion + flair toggles. Saved in your browser; apply across all screens immediately."}),r.jsxs(jt,{style:{padding:14},children:[r.jsxs("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12},children:[r.jsxs("div",{children:[r.jsx("div",{style:{fontSize:12.5,color:"var(--ink-strong)"},children:"Reduced motion"}),r.jsxs("div",{style:{fontSize:11,color:"var(--ink-soft)"},children:["Disable halo pulse, edge cascade, splash zoom, caustics. Honors ",r.jsx("span",{className:"mono",children:"prefers-reduced-motion"})," automatically."]})]}),r.jsx(Ze,{checked:e,onChange:t})]}),r.jsxs("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center"},children:[r.jsxs("div",{children:[r.jsx("div",{style:{fontSize:12.5,color:"var(--ink-strong)"},children:"Tentacle halo on active node"}),r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)"},children:"🐙 The deep flair on the running Studio node."})]}),r.jsx(Ze,{checked:n,onChange:o})]})]})]})}function _m(){const e=bt(),t=[{k:"images_folder",label:"Images folder",desc:"Where uploaded source images are stored. Library reads from here."},{k:"outputs_folder",label:"Outputs folder",desc:"Final renders, audio, captions are written here per job."}];function n(o){try{navigator.clipboard.writeText(o)}catch{}}return r.jsxs(r.Fragment,{children:[r.jsx("div",{className:"display",style:{fontSize:22,color:"var(--ink-strong)",marginBottom:4},children:"Paths"}),r.jsxs("div",{style:{fontSize:12,color:"var(--ink-soft)",marginBottom:20},children:["Resolved from ",r.jsx("span",{className:"mono",children:"/api/health"}),". Auto-configured by ",r.jsx("span",{className:"mono",children:"scripts/setup-paths.ps1"}),". To change them, edit ",r.jsx("span",{className:"mono",children:"backend/.env"})," with ",r.jsx("span",{className:"mono",children:"PYTHON_EXE_PATH"})," / ",r.jsx("span",{className:"mono",children:"FFMPEG_BIN_PATH"}),"."]}),r.jsx(jt,{style:{padding:0},children:t.map((o,i)=>r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"200px 1fr auto",gap:16,alignItems:"center",padding:"14px 18px",borderTop:i?"1px solid var(--stroke)":"none"},children:[r.jsxs("div",{children:[r.jsx("div",{style:{fontSize:12.5,color:"var(--ink-strong)"},children:o.label}),r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)"},children:o.desc})]}),r.jsx("div",{className:"mono",style:{fontSize:11,color:"var(--ink)",wordBreak:"break-all"},children:(e==null?void 0:e[o.k])||"—"}),r.jsx(K,{variant:"ghost",size:"sm",icon:"copy",onClick:()=>n(e==null?void 0:e[o.k]),disabled:!(e!=null&&e[o.k]),children:"Copy"})]},o.k))}),r.jsx("div",{className:"display",style:{fontSize:16,color:"var(--ink-strong)",margin:"28px 0 8px"},children:"Backend version"}),r.jsx(jt,{style:{padding:14},children:r.jsxs("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center"},children:[r.jsxs("div",{children:[r.jsx("div",{style:{fontSize:12.5,color:"var(--ink-strong)"},children:"API version"}),r.jsxs("div",{style:{fontSize:11,color:"var(--ink-soft)"},children:["From ",r.jsx("span",{className:"mono",children:"/api/health"})]})]}),r.jsx(te,{tone:e!=null&&e.ok?"green":"red",dot:!0,children:e!=null&&e.version?`v${e.version}`:"unreachable"})]})})]})}function zm(){const[e,t]=x.useState([]),[n,o]=x.useState(""),[i,s]=x.useState(!1),[a,l]=x.useState("");async function d(){try{const v=await fetch("/api/news/sources");if(v.ok){const g=await v.json();t((g==null?void 0:g.sources)||[])}}catch{}}x.useEffect(()=>{d()},[]);async function u(v,g){s(!0);try{await fetch(`/api/news/sources/${v}/toggle`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({enabled:g})}),d()}finally{s(!1)}}async function f(v){if(confirm("Remove this feed?")){s(!0);try{await fetch(`/api/news/sources/${v}`,{method:"DELETE"}),d()}finally{s(!1)}}}async function m(){const v=n.trim();if(v){s(!0),l("");try{const g=await fetch("/api/news/sources",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url:v,name:null,type:"rss"})});g.ok?(o(""),l("Added."),d()):l("Failed: "+(await g.text()).slice(0,120))}catch(g){l("Failed: "+g)}finally{s(!1),setTimeout(()=>l(""),3500)}}}async function y(){s(!0);try{(await fetch("/api/news/sources/defaults",{method:"POST"})).ok&&d()}finally{s(!1)}}async function w(){s(!0),l("Refreshing all feeds…");try{const v=await fetch("/api/news/refresh",{method:"POST"});if(v.ok){const g=await v.json();l(`Pulled ${(g==null?void 0:g.fetched)||"?"} items.`)}else l("Refresh failed.")}finally{s(!1),setTimeout(()=>l(""),3500)}}return r.jsxs(r.Fragment,{children:[r.jsx("div",{className:"display",style:{fontSize:22,color:"var(--ink-strong)",marginBottom:4},children:"News"}),r.jsx("div",{style:{fontSize:12,color:"var(--ink-soft)",marginBottom:20},children:"RSS / Atom feed pack used by the News pipeline. Defaults cover crypto, geopolitics, economy. Toggle individual feeds; add custom URLs."}),r.jsxs("div",{style:{display:"flex",gap:8,marginBottom:14,alignItems:"center",flexWrap:"wrap"},children:[r.jsx("input",{value:n,onChange:v=>o(v.target.value),placeholder:"https://… (RSS feed URL)",style:{flex:1,minWidth:280,background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",padding:"8px 10px",color:"var(--ink-strong)",fontFamily:"var(--f-mono)",fontSize:12}}),r.jsx(K,{variant:"primary",size:"sm",icon:"plus",onClick:m,disabled:i||!n.trim(),children:"Add feed"}),r.jsx(K,{variant:"outline",size:"sm",icon:"bolt",onClick:w,disabled:i,children:"Refresh all"}),r.jsx(K,{variant:"ghost",size:"sm",onClick:y,disabled:i,children:"Restore defaults"})]}),a&&r.jsx("div",{style:{marginBottom:10,fontSize:11.5,color:a.startsWith("Failed")?"var(--red)":"var(--green)"},children:a}),r.jsxs(jt,{style:{padding:0,maxHeight:480,overflow:"auto"},children:[e.length===0&&r.jsx("div",{style:{padding:20,fontSize:12,color:"var(--ink-soft)"},children:'No sources. Click "Restore defaults" to seed the curated feed pack.'}),e.map((v,g)=>r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"20px 1fr auto auto auto",gap:12,alignItems:"center",padding:"10px 14px",borderTop:g?"1px solid var(--stroke)":"none"},children:[r.jsx(X,{name:"rss",size:13,style:{color:v.enabled?"var(--cyan)":"var(--ink-muted)"}}),r.jsxs("div",{style:{minWidth:0},children:[r.jsx("div",{style:{fontSize:12,color:v.enabled?"var(--ink-strong)":"var(--ink-muted)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"},children:v.name||v.url}),r.jsx("div",{className:"mono",style:{fontSize:10,color:"var(--ink-soft)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"},children:v.url})]}),r.jsx(te,{tone:v.enabled?"green":"red",dot:!0,children:v.enabled?"on":"off"}),r.jsx(Ze,{checked:v.enabled,onChange:k=>u(v.id,k)}),r.jsx(se,{name:"trash",iconSize:11,title:"Remove",onClick:()=>f(v.id)})]},v.id||g))]}),r.jsxs("div",{style:{marginTop:12,fontSize:11,color:"var(--ink-soft)"},children:[e.length," source",e.length===1?"":"s"," ·"," ",e.filter(v=>v.enabled).length," active"]})]})}function DzVoiceProvider(){const[st,setSt]=x.useState(null),[sv,setSv]=x.useState(!1);const load=()=>Ge("/voice/providers",null).then(v=>{v&&setSt(v)});x.useEffect(()=>{load();const t=setInterval(load,1e4);return()=>clearInterval(t)},[]);async function pick(v){setSv(!0);try{await fetch(Te+"/atelier/settings",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({voice_provider:v})})}catch{}setSv(!1);load()}const ps=st&&st.providers||[],vb=ps.find(p=>p.id==="voicebox"),ok=!!(vb&&vb.ready),cfg=st&&st.configured||"",res=st&&st.resolved||"";const opts=[{value:"",label:"Auto (ElevenLabs si clé, sinon Voicebox)"}].concat(ps.map(p=>({value:p.id,label:p.label+(p.ready?"":" — indisponible")})));return r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"260px 1fr auto",gap:14,alignItems:"center",padding:"14px 18px",borderTop:"1px solid var(--stroke)"},children:[r.jsxs("div",{children:[r.jsx("div",{style:{fontSize:12.5,color:"var(--ink-strong)"},children:"Fournisseur de voix"}),r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)"},children:st?res?"Actif : "+res:"Aucune voix disponible":"…"})]}),r.jsxs("div",{children:[st?r.jsx(re,{value:cfg,options:opts,onChange:pick}):r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)"},children:"Chargement…"}),st&&!ok&&r.jsx("div",{className:"mono",style:{fontSize:10,color:"var(--ink-soft)",marginTop:4},children:"Astuce : voicebox-server.exe --host 127.0.0.1 --port 17493 --data-dir %LOCALAPPDATA%\\Voicebox\\data"})]}),r.jsx(te,{tone:ok?"green":"red",dot:!0,children:sv?"…":ok?"Voicebox détecté":"Voicebox non lancé"})]})}function Em(){const e=bt(),t=Fu.filter(a=>!!(e!=null&&e[a.health])).map(a=>a.k),[n,o]=x.useState(()=>{try{return JSON.parse(localStorage.getItem("deepotus.provider_defaults")||"{}")}catch{return{}}});function i(a,l){const d={...n,[a]:l};o(d),localStorage.setItem("deepotus.provider_defaults",JSON.stringify(d))}const s=[{id:"video",label:"Image → video",hint:"Seedance / fal.ai for cinematic clips",options:["FAL_KEY"]},{id:"avatar",label:"Talking avatar",hint:"HeyGen for the speaking head",options:["HEYGEN_API_KEY"]},{id:"voice",label:"Voiceover (non-avatar)",hint:"ElevenLabs for narration on Seedance clips",options:["ELEVENLABS_API_KEY"]},{id:"summarizer",label:"News summarizer",hint:"Anthropic, OpenAI or Gemini for neutral article summaries",options:["ANTHROPIC_API_KEY","OPENAI_API_KEY","GEMINI_API_KEY"]},{id:"planner",label:"Schedule planner",hint:"LLM-powered marketing plan generation",options:["ANTHROPIC_API_KEY","OPENAI_API_KEY","GEMINI_API_KEY","OLLAMA_MODEL"]}];return r.jsxs(r.Fragment,{children:[r.jsx("div",{className:"display",style:{fontSize:22,color:"var(--ink-strong)",marginBottom:4},children:"Provider defaults"}),r.jsxs("div",{style:{fontSize:12,color:"var(--ink-soft)",marginBottom:20},children:["Pick which credential each role uses by default. Only keys actually set in ",r.jsx("span",{className:"mono",children:"backend/.env"})," appear here. Saved locally."]}),r.jsxs(jt,{style:{padding:0},children:[r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"260px 1fr auto",gap:14,alignItems:"center",padding:"14px 18px"},children:[r.jsxs("div",{children:[r.jsx("div",{style:{fontSize:12.5,color:"var(--ink-strong)"},children:"Image generation"}),r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)"},children:"FLUX (fal) or GPT Image (OpenAI)"})]}),r.jsx(DzImageModel,{}),r.jsx(te,{tone:(t.includes("FAL_KEY")||t.includes("OPENAI_API_KEY"))?"green":"red",dot:!0,children:(t.includes("FAL_KEY")||t.includes("OPENAI_API_KEY"))?"ready":"missing"})]},"imggen"),r.jsx(DzVoiceProvider,{},"voiceprov"),...s.map((a,l)=>{const d=a.options.filter(f=>t.includes(f)),u=n[a.id]||d[0]||"";return r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"260px 1fr auto",gap:14,alignItems:"center",padding:"14px 18px",borderTop:"1px solid var(--stroke)"},children:[r.jsxs("div",{children:[r.jsx("div",{style:{fontSize:12.5,color:"var(--ink-strong)"},children:a.label}),r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)"},children:a.hint})]}),d.length===0?r.jsx("div",{style:{fontSize:11,color:"var(--red)"},children:"No key set for this role. Add one in API keys."}):r.jsx(re,{value:u,options:d.map(f=>({value:f,label:f})),onChange:f=>i(a.id,f)}),r.jsx(te,{tone:d.length?"green":"red",dot:!0,children:d.length?"ready":"missing"})]},a.id)})]})]})}function Tm(){const[e,t]=x.useState(new Set(["x"])),[n,o]=x.useState({}),[i,s]=x.useState({}),[a,l]=x.useState(""),[d,u]=x.useState({}),f=bt();function m(){D.listKeys().then(k=>{const c={};((k==null?void 0:k.keys)||[]).forEach(p=>{c[p.key]=p}),o(c)})}x.useEffect(()=>{m()},[]);async function y(k){const c=(i[k]||"").trim();if(!c)return;l(k);const p=await D.setKeys([{name:k,value:c}]);l(""),p.ok&&(s(h=>{const b={...h};return delete b[k],b}),m(),No())}async function w(k){u(p=>({...p,[k]:"Testing…"}));const c=await D.testChannel(k);u(p=>({...p,[k]:c!=null&&c.ok?`OK — ${c.detail}`:`Failed — ${String((c==null?void 0:c.detail)||(c==null?void 0:c.error)||"").slice(0,120)}`}))}const v=[{k:"x",label:"X (Twitter)",icon:"channelX",color:"#e6f1ff",auto:!0,testable:!0,connected:!!(f!=null&&f.x_enabled),note:"Auto-publish via API v2. Get the 4 keys at developer.x.com (free tier allows posting). Restart the backend after saving.",fields:[{k:"X_API_KEY",label:"API key"},{k:"X_API_SECRET",label:"API secret"},{k:"X_ACCESS_TOKEN",label:"Access token"},{k:"X_ACCESS_SECRET",label:"Access secret"}]},{k:"telegram",label:"Telegram",icon:"channelTelegram",color:"#29b6f6",auto:!0,testable:!0,connected:!!(f!=null&&f.telegram_enabled),note:"Auto-publish via bot. Create a bot with @BotFather, add it as channel ADMIN, paste token + chat id. Restart the backend after saving.",fields:[{k:"TELEGRAM_BOT_TOKEN",label:"Bot token"},{k:"TELEGRAM_CHAT_ID",label:"Channel chat ID"}]},{k:"youtube",label:"YouTube",icon:"channelYoutube",color:"#ef4444",auto:!1,testable:!1,connected:["YOUTUBE_CLIENT_ID","YOUTUBE_CLIENT_SECRET","YOUTUBE_REFRESH_TOKEN"].every(k=>{var c;return(c=n[k])==null?void 0:c.set}),note:"Assisted publishing for now (the Scheduler flips posts to READY and you upload manually). Auto-upload is on the roadmap; keys can be stored already.",fields:[{k:"YOUTUBE_CLIENT_ID",label:"OAuth client ID"},{k:"YOUTUBE_CLIENT_SECRET",label:"OAuth client secret"},{k:"YOUTUBE_REFRESH_TOKEN",label:"Refresh token"},{k:"YOUTUBE_CHANNEL_ID",label:"Channel ID"}]},{k:"instagram",label:"Instagram",icon:"channelInstagram",color:"#c084fc",auto:!1,testable:!1,connected:["IG_ACCESS_TOKEN","IG_BUSINESS_ID"].every(k=>{var c;return(c=n[k])==null?void 0:c.set}),note:"Assisted publishing. True auto-post requires a Business/Creator account + Meta app review — out of scope for most setups.",fields:[{k:"IG_ACCESS_TOKEN",label:"Graph API token"},{k:"IG_BUSINESS_ID",label:"Business account ID"}]}];function g(k){const c=new Set(e);c.has(k)?c.delete(k):c.add(k),t(c)}return r.jsxs(r.Fragment,{children:[r.jsx("div",{className:"display",style:{fontSize:22,color:"var(--ink-strong)",marginBottom:4},children:"Connected accounts"}),r.jsxs("div",{style:{fontSize:12,color:"var(--ink-soft)",marginBottom:20,maxWidth:620},children:["Live status from ",r.jsx("span",{className:"mono",children:"backend/.env"})," + ",r.jsx("span",{className:"mono",children:"/api/health"}),". Paste a value and Save — then restart the backend to activate the adapter. ",r.jsx("span",{style:{color:"var(--green)"},children:"auto"})," = the Scheduler can publish alone; ",r.jsx("span",{style:{color:"var(--amber)"},children:"assisted"})," = it preps the post and you click Send."]}),r.jsx("div",{style:{display:"flex",flexDirection:"column",gap:14},children:v.map(k=>{const c=e.has(k.k),p=k.connected,h=k.fields.filter(b=>{var _;return(_=n[b.k])==null?void 0:_.set}).length;return r.jsxs(jt,{style:{overflow:"hidden"},children:[r.jsxs("button",{onClick:()=>g(k.k),style:{width:"100%",padding:"14px 16px",display:"flex",alignItems:"center",gap:14,background:"transparent",border:0,cursor:"pointer",textAlign:"left"},children:[r.jsx("span",{style:{width:36,height:36,borderRadius:8,background:p?k.color+"22":"var(--bg-panel-2)",border:`1px solid ${p?k.color+"66":"var(--stroke)"}`,color:p?k.color:"var(--ink-muted)",display:"inline-flex",alignItems:"center",justifyContent:"center",flexShrink:0},children:r.jsx(X,{name:k.icon,size:18})}),r.jsxs("div",{style:{flex:1},children:[r.jsx("div",{style:{fontSize:14,color:"var(--ink-strong)",fontWeight:600},children:k.label}),r.jsxs("div",{style:{fontSize:11.5,color:"var(--ink-soft)",fontFamily:"var(--f-mono)"},children:[h,"/",k.fields.length," keys set"]})]}),r.jsx(te,{tone:k.auto?p?"green":"red":p?"amber":"neutral",dot:!0,children:k.auto?p?"auto":"not connected":p?"assisted (keys stored)":"assisted"}),r.jsx(X,{name:"caretR",size:12,style:{color:"var(--ink-soft)",transform:c?"rotate(90deg)":"none",transition:"transform var(--dur-1) var(--ease)"}})]}),c&&r.jsxs("div",{style:{borderTop:"1px solid var(--stroke)",padding:"12px 16px 16px",background:"var(--bg-panel-2)"},children:[r.jsx("div",{style:{marginBottom:12,padding:10,background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",fontSize:11.5,color:"var(--ink)",lineHeight:1.5},children:k.note}),k.fields.map((b,_)=>{const z=n[b.k];return r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"180px 1fr auto auto",gap:12,alignItems:"center",padding:"10px 0",borderTop:_?"1px solid var(--stroke)":"none"},children:[r.jsxs("div",{children:[r.jsx("div",{style:{fontSize:12.5,color:"var(--ink-strong)"},children:b.label}),r.jsx("div",{className:"mono",title:b.k,style:{fontSize:10,color:"var(--ink-muted)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},children:b.k}),(z==null?void 0:z.preview)&&r.jsx("div",{className:"mono",title:z.preview,style:{fontSize:10,color:"var(--ink-soft)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},children:z.preview})]}),r.jsx("input",{type:"password",value:i[b.k]||"",onChange:N=>s(P=>({...P,[b.k]:N.target.value})),placeholder:z!=null&&z.set?"paste a new value to rotate":"paste value…",style:{background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",padding:"6px 10px",color:"var(--ink-strong)",fontFamily:"var(--f-mono)",fontSize:11.5}}),r.jsx(te,{tone:z!=null&&z.set?"green":"red",dot:!0,children:z!=null&&z.set?"set":"empty"}),r.jsx(K,{variant:"primary",size:"sm",onClick:()=>y(b.k),disabled:a===b.k||!(i[b.k]||"").trim(),children:a===b.k?"…":"Save"})]},b.k)}),k.testable&&r.jsxs("div",{style:{marginTop:12,display:"flex",alignItems:"center",gap:10},children:[r.jsx(K,{variant:"outline",size:"sm",icon:"bolt",onClick:()=>w(k.k),disabled:!p,children:k.k==="telegram"?"Send test message":"Verify credentials"}),!p&&r.jsx("span",{style:{fontSize:10.5,color:"var(--ink-muted)"},children:"save keys + restart the backend first"}),d[k.k]&&r.jsx("span",{style:{fontSize:11,color:d[k.k].startsWith("OK")?"var(--green)":d[k.k]==="Testing…"?"var(--ink-soft)":"var(--red)"},children:d[k.k]})]})]})]},k.k)})})]})}const _t={x:{id:"x",label:"X",icon:"channelX",color:"#e6f1ff",bg:"#0f1c30",limit:280},telegram:{id:"telegram",label:"Telegram",icon:"channelTelegram",color:"#29b6f6",bg:"#0e2335",limit:4096},youtube:{id:"youtube",label:"YouTube",icon:"channelYoutube",color:"#ef4444",bg:"#2a0d0d",limit:5e3},instagram:{id:"instagram",label:"Instagram",icon:"channelInstagram",color:"#c084fc",bg:"#241333",limit:2200}},Bu=Object.values(_t),Im=["❤️","🔥","🚀","😍","🎉","👍","💯"],Pm=[{e:"🐙",label:"Deepotus Protocol",icon:"/pack/deepotus-protocol.png"},{e:"🌊",label:"Rippled Signal",icon:"/pack/rippled-signal.png"},{e:"👁️",label:"Prophet"},{e:"📖",label:"Chapter Drop"},{e:"🎴",label:"Board Game"},{e:"🎲",label:"D&D"},{e:"📱",label:"Mobile Devlog"},{e:"🪙",label:"$DEEP"},{e:"🧬",label:"Gencoin"},{e:"🎬",label:"Video Engine"}];function Nm({icon:e,emoji:t,size:n=16}){const[o,i]=x.useState(!1);return e&&!o?r.jsx("img",{src:e,alt:"",width:n,height:n,onError:()=>i(!0),style:{objectFit:"contain",borderRadius:4,display:"block"}}):r.jsx("span",{style:{fontSize:13},children:t})}const Rm={posted:"var(--green)",failed:"var(--red)",ready:"var(--amber)",scheduled:"var(--cyan)",draft:"var(--ink-muted)"};function Wu(e){return Rm[e]||"var(--ink-muted)"}function os(e){const t=new Date(e.getFullYear(),e.getMonth(),e.getDate());return t.setDate(t.getDate()-(t.getDay()+6)%7),t}function ri(e,t){const n=new Date(e);return n.setDate(n.getDate()+t),n}function oi(e,t){return e.getFullYear()===t.getFullYear()&&e.getMonth()===t.getMonth()&&e.getDate()===t.getDate()}function na(e,t){const n=ri(e,t);return{day:n.getDate(),short:["MON","TUE","WED","THU","FRI","SAT","SUN"][t],month:n.toLocaleString("en",{month:"short"}),date:n}}function Mm(e){const t=ri(e,6),n=e.toLocaleString("en",{month:"short"}),o=t.toLocaleString("en",{month:"short"});return n===o?`${n} ${e.getDate()} to ${t.getDate()}, ${t.getFullYear()}`:`${n} ${e.getDate()} to ${o} ${t.getDate()}, ${t.getFullYear()}`}function ra(e,t){const[n,o]=(t||"12:00").split(":"),i=new Date(e);return i.setHours(Number(n)||12,Number(o)||0,0,0),i}function Lm({variant:e,posts:t,setPosts:n,reloadPosts:o}){const[i,s]=x.useState([]),a=t??i,l=n??s,[d,u]=x.useState(null),[f,m]=x.useState("week"),[y,w]=x.useState(0),[v,g]=x.useState(0),k=vn("plan"),[c,p]=x.useState(k==="generate"||k==="import"),[h,b]=x.useState([]),[_,z]=x.useState(null),N=bt();x.useEffect(()=>{D.getCaptionPack().then(M=>{var U;(U=M==null?void 0:M.pack)!=null&&U.length&&z(M.pack.map(T=>({id:T.id,e:T.emoji,label:T.label,icon:T.icon||void 0})))})},[]);const[_dzNow,_dzSetNow]=x.useState(0);x.useEffect(()=>{var _T=setInterval(()=>_dzSetNow(z=>z+1),6e4);return()=>clearInterval(_T)},[]);const P=x.useMemo(()=>ri(os(new Date),y*7),[y,_dzNow]);x.useEffect(()=>{let M=!0;const U=()=>D.listJobs(60).then(Y=>{M&&b((Array.isArray(Y)?Y:[]).filter(q=>q.status==="done"&&q.final_video_path&&q.provider!=="asset3d"&&q.provider!=="sprite2d"))});U();const T=setInterval(U,8e3);return()=>{M=!1,clearInterval(T)}},[]),x.useEffect(()=>{function M(U){var Y;const T=(Y=U==null?void 0:U.detail)==null?void 0:Y.id;T&&u(T)}return window.addEventListener("deepotus:select-post",M),()=>window.removeEventListener("deepotus:select-post",M)},[]),x.useEffect(()=>{const M=vn("post");if(!M||d||!a.length)return;const U=M==="first"||M==="1"?a[0]:a.find(T=>T.id===M);U&&u(U.id)},[a.length]);const j=a.find(M=>M.id===d),E=x.useRef({});function H(M,U){const T={};"title"in U&&(T.title=U.title),"caption"in U&&(T.caption=U.caption),"channels"in U&&(T.channels=U.channels),"status"in U&&(T.status=U.status),"mode"in U&&(T.mode=U.mode),"jobId"in U&&(T.job_id=U.jobId),"sourceImage"in U&&(T.source_image=U.sourceImage),"runAt"in U&&(T.run_at=U.runAt.toISOString()),clearTimeout(E.current[M]),E.current[M]=setTimeout(()=>{D.updateScheduledPost(M,T)},500)}function F(M){d&&(l(U=>U.map(T=>T.id===d?{...T,...M}:T)),H(d,M))}function I(M){if(!j)return;const T=j.channels.includes(M)?j.channels.filter(Y=>Y!==M):[...j.channels,M];F({channels:T})}async function A(M){const U=ra(ri(P,M??0),"12:00"),T=await D.createScheduledPost({title:"Untitled post",caption:"",channels:["x"],run_at:U.toISOString(),status:"draft",mode:"assisted"});T!=null&&T.id&&(await((o==null?void 0:o())??Promise.resolve()),u(T.id))}async function V(){j&&(await D.deleteScheduledPost(j.id),u(null),o==null||o())}return r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"1fr 420px",height:"100%",minHeight:0,background:"var(--bg-base)"},children:[r.jsxs("div",{style:{display:"flex",flexDirection:"column",minHeight:0},children:[r.jsx(Dm,{view:f,setView:m,count:a.length,range:f==="month"?new Date(new Date().getFullYear(),new Date().getMonth()+v,1).toLocaleString("en",{month:"long",year:"numeric"}):Mm(P),onPrev:()=>f==="month"?g(M=>M-1):w(M=>M-1),onNext:()=>f==="month"?g(M=>M+1):w(M=>M+1),onToday:()=>{w(0),g(0)},onNew:()=>A(0),onPlan:()=>p(!0)}),r.jsxs("div",{style:{flex:1,minHeight:0,overflow:"auto",padding:18},className:"scroll",children:[f==="month"?r.jsx($m,{posts:a,selectedId:d,onSelect:u,monthOffset:v,onMove:(pid,ts)=>{l(U=>U.map(T=>T.id===pid?{...T,runAt:ts}:T));D.updateScheduledPost(pid,{run_at:new Date(ts).toISOString()})}}):r.jsx(Am,{posts:a,selectedId:d,onSelect:u,weekStart:P,onAdd:A,onMove:(pid,ts)=>{l(U=>U.map(T=>T.id===pid?{...T,runAt:ts}:T));D.updateScheduledPost(pid,{run_at:new Date(ts).toISOString()})}}),r.jsx(Fm,{post:j,weekStart:P,reloadPosts:o})]})]}),r.jsx(Bm,{post:j,weekStart:P,jobs:h,telegramOn:!!(N!=null&&N.telegram_enabled),xOn:!!(N!=null&&N.x_enabled),onChange:F,onToggleChannel:I,onDelete:V,reloadPosts:o,captionPack:_}),c&&r.jsx(Um,{initialTab:k==="import"?"import":"generate",onClose:()=>p(!1),onMaterialized:M=>{p(!1);const U=os(new Date(M)),T=os(new Date);w(Math.round((U-T)/(7*864e5))),m("week"),o==null||o()}})]})}function Dm({view:e,setView:t,count:n,range:o,onPrev:i,onNext:s,onToday:a,onNew:l,onPlan:d}){return r.jsxs("div",{style:{padding:"12px 18px",borderBottom:"1px solid var(--stroke)",background:"var(--bg-panel)",display:"flex",alignItems:"center",gap:12},children:[r.jsxs("div",{style:{display:"flex",flexDirection:"column"},children:[r.jsx("div",{className:"display",style:{fontSize:16,color:"var(--ink-strong)"},children:"Scheduler"}),r.jsxs("div",{style:{fontSize:11,color:"var(--ink-soft)"},children:[n," post",n===1?"":"s"," planned"]})]}),r.jsx("div",{style:{display:"flex",gap:2,padding:3,background:"var(--bg-base)",borderRadius:"var(--r-sm)",border:"1px solid var(--stroke)",marginLeft:16},children:["week","month"].map(u=>r.jsx("button",{onClick:()=>t(u),style:{height:26,padding:"0 12px",background:e===u?"var(--bg-panel-2)":"transparent",border:0,borderRadius:4,cursor:"pointer",color:e===u?"var(--ink-strong)":"var(--ink-soft)",fontSize:11.5,fontWeight:500},children:u[0].toUpperCase()+u.slice(1)},u))}),r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:8,marginLeft:8},children:[r.jsx(se,{name:"caret",iconSize:12,style:{transform:"rotate(90deg)"},title:"Previous",onClick:i}),r.jsx("button",{onClick:a,title:"Back to today",style:{background:"transparent",border:0,cursor:"pointer",padding:0},children:r.jsx("span",{className:"display",style:{fontSize:13,color:"var(--ink-strong)"},children:o})}),r.jsx(se,{name:"caret",iconSize:12,style:{transform:"rotate(-90deg)"},title:"Next",onClick:s})]}),r.jsx("div",{style:{flex:1}}),r.jsx(K,{variant:"outline",size:"sm",icon:"sparkle",onClick:d,children:"Generate plan"}),r.jsx(K,{variant:"primary",size:"sm",icon:"plus",glow:!0,onClick:l,children:"New post"})]})}function Am({posts:e,selectedId:t,onSelect:n,weekStart:o,onAdd:i,onMove:dm}){return r.jsx("div",{style:{display:"grid",gridTemplateColumns:"repeat(7, 1fr)",gap:10,marginBottom:22},children:Array.from({length:7}).map((s,a)=>{const l=na(o,a),d=e.filter(f=>oi(f.runAt,l.date)).sort((f,m)=>f.runAt-m.runAt),u=oi(new Date,l.date);return r.jsxs("div",{onDragOver:Dv=>Dv.preventDefault(),onDrop:Dv=>{Dv.preventDefault();var pid=Dv.dataTransfer.getData("text/dz-post");if(!pid)return;var pp=e.find(P=>P.id===pid);if(!pp)return;var od=new Date(pp.runAt),hh=od.getHours(),mm=od.getMinutes(),tt=(hh<10?"0":"")+hh+":"+(mm<10?"0":"")+mm,ts=ra(l.date,tt);dm&&dm(pid,ts)},style:{background:"var(--bg-panel)",border:`1px solid ${u?"var(--brand)":"var(--stroke)"}`,borderRadius:"var(--r)",overflow:"hidden",boxShadow:u?"0 0 16px var(--brand-soft)":"none",minHeight:220,display:"flex",flexDirection:"column"},children:[r.jsxs("div",{style:{padding:"8px 10px",borderBottom:"1px solid var(--stroke)",display:"flex",alignItems:"center",justifyContent:"space-between"},children:[r.jsxs("div",{children:[r.jsx("div",{className:"upper",style:{color:u?"var(--brand)":"var(--ink-soft)"},children:l.short}),r.jsx("div",{className:"display",style:{fontSize:17,color:"var(--ink-strong)"},children:l.day})]}),d.length>0&&r.jsx("div",{style:{fontFamily:"var(--f-mono)",fontSize:10,color:"var(--ink-soft)",background:"var(--bg-base)",padding:"2px 5px",borderRadius:3,border:"1px solid var(--stroke)"},children:d.length})]}),r.jsxs("div",{style:{padding:6,display:"flex",flexDirection:"column",gap:5,flex:1},children:[d.map(f=>r.jsx("div",{draggable:!0,onDragStart:Dv=>{Dv.dataTransfer.setData("text/dz-post",f.id);Dv.dataTransfer.effectAllowed="move"},style:{cursor:"grab"},children:r.jsx(Om,{post:f,selected:t===f.id,onClick:()=>n(f.id)})},f.id)),r.jsxs("button",{onClick:()=>i(a),style:{marginTop:"auto",padding:"5px 6px",background:"transparent",border:"1px dashed var(--stroke-strong)",borderRadius:"var(--r-sm)",color:"var(--ink-muted)",fontSize:10.5,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:4},onMouseEnter:f=>{f.currentTarget.style.borderColor="var(--brand)",f.currentTarget.style.color="var(--brand)"},onMouseLeave:f=>{f.currentTarget.style.borderColor="var(--stroke-strong)",f.currentTarget.style.color="var(--ink-muted)"},children:[r.jsx(X,{name:"plus",size:11})," add post"]})]})]},a)})})}function $m({posts:e,selectedId:t,onSelect:n,monthOffset:o=0,onMove:dm}){const i=new Date,s=new Date(i.getFullYear(),i.getMonth()+o,1),a=s.getFullYear(),l=s.getMonth(),d=(s.getDay()+6)%7,u=new Date(a,l+1,0).getDate(),f=Math.ceil((d+u)/7)*7,m=s.toLocaleString("en",{month:"long"});function y(w){if(!w)return[];const v=new Date(a,l,w);return e.filter(g=>oi(g.runAt,v)).sort((g,k)=>g.runAt-k.runAt)}return r.jsxs("div",{style:{marginBottom:22},children:[r.jsxs("div",{className:"upper",style:{marginBottom:8,color:"var(--ink-soft)"},children:[m," ",a]}),r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"repeat(7, 1fr)",gap:1,background:"var(--stroke)",border:"1px solid var(--stroke)",borderRadius:"var(--r)",overflow:"hidden"},children:[["MON","TUE","WED","THU","FRI","SAT","SUN"].map(w=>r.jsx("div",{style:{padding:"6px 8px",background:"var(--bg-panel)",textAlign:"left"},className:"upper",children:w},w)),Array.from({length:f}).map((w,v)=>{const g=v>=d&&v<d+u?v-d+1:null,k=g!=null&&oi(new Date(a,l,g),i),c=y(g);return r.jsx("div",{onDragOver:Dv=>{if(g)Dv.preventDefault()},onDrop:Dv=>{if(!g)return;Dv.preventDefault();var pid=Dv.dataTransfer.getData("text/dz-post");if(!pid)return;var pp=e.find(P=>P.id===pid);if(!pp)return;var od=new Date(pp.runAt),hh=od.getHours(),mm=od.getMinutes(),tt=(hh<10?"0":"")+hh+":"+(mm<10?"0":"")+mm,ts=ra(new Date(a,l,g),tt);dm&&dm(pid,ts)},style:{minHeight:92,padding:6,background:g?k?"var(--brand-soft)":"var(--bg-panel)":"var(--bg-base)",opacity:g?1:.4,display:"flex",flexDirection:"column",gap:3},children:g&&r.jsxs(r.Fragment,{children:[r.jsxs("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between"},children:[r.jsx("span",{className:"display",style:{fontSize:13,color:k?"var(--brand)":"var(--ink-strong)"},children:g}),c.length>0&&r.jsx("span",{className:"mono",style:{fontSize:9,color:"var(--ink-soft)"},children:c.length})]}),r.jsxs("div",{style:{display:"flex",flexDirection:"column",gap:2,overflow:"hidden"},children:[c.slice(0,3).map(p=>{const h=p.id===t;return r.jsxs("div",{draggable:!0,onDragStart:Dv=>{Dv.dataTransfer.setData("text/dz-post",p.id);Dv.dataTransfer.effectAllowed="move"},onClick:()=>n(p.id),title:`${p.time} · ${p.title}`,style:{padding:"2px 4px",borderRadius:3,cursor:"pointer",background:h?"var(--brand-soft)":"var(--bg-base)",border:`1px solid ${h?"var(--brand)":"var(--stroke)"}`,fontSize:9.5,color:"var(--ink)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",display:"flex",alignItems:"center",gap:4},children:[r.jsx("span",{style:{width:4,height:4,borderRadius:"50%",background:Wu(p.status),flexShrink:0}}),r.jsx("span",{className:"mono",style:{fontSize:8.5,color:"var(--ink-soft)"},children:p.time}),r.jsx("span",{style:{overflow:"hidden",textOverflow:"ellipsis"},children:p.title})]},p.id)}),c.length>3&&r.jsxs("div",{style:{fontSize:9,color:"var(--ink-soft)",padding:"0 4px"},children:["+",c.length-3," more"]})]})]})},v)})]})]})}function Om({post:e,selected:t,onClick:n}){const o=Wu(e.status);return r.jsxs("div",{onClick:n,style:{padding:"6px 8px",borderRadius:6,background:t?"var(--brand-soft)":"var(--bg-base)",border:`1px solid ${t?"var(--brand)":"var(--stroke)"}`,cursor:"pointer",transition:"all var(--dur-1) var(--ease)",boxShadow:t?"0 0 14px var(--brand-soft)":"none"},children:[r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:4,marginBottom:3},children:[r.jsx("span",{style:{width:5,height:5,borderRadius:999,background:o}}),r.jsx("span",{style:{fontFamily:"var(--f-mono)",fontSize:9.5,color:o,fontWeight:600},children:e.time}),e.status==="ready"&&r.jsx("span",{style:{fontSize:8.5,color:"var(--amber)",fontWeight:600},children:"READY"}),e.status==="failed"&&r.jsx("span",{style:{fontSize:8.5,color:"var(--red)",fontWeight:600},children:"FAILED"})]}),r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-strong)",lineHeight:1.25,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"},children:e.title}),r.jsx("div",{style:{display:"flex",gap:2,marginTop:4},children:e.channels.map(i=>_t[i]&&r.jsx("span",{style:{width:14,height:14,borderRadius:4,background:_t[i].bg,color:_t[i].color,display:"inline-flex",alignItems:"center",justifyContent:"center",border:`1px solid ${_t[i].color}33`},children:r.jsx(X,{name:_t[i].icon,size:9})},i))})]})}const It={render:{w:230,h:168},caption:{w:220,h:180},channel:{w:300,h:70}};function is(e){const t={render:{x:30,y:130},caption:{x:320,y:90}};return((e==null?void 0:e.channels)||[]).forEach((n,o)=>{t[`ch:${n}`]={x:720,y:30+o*88}}),t}function Fm({post:e,weekStart:t,reloadPosts:n}){const o=bt(),[i,s]=x.useState(()=>is(e)),[a,l]=x.useState(!1),[d,u]=x.useState(""),f=x.useRef(e==null?void 0:e.id);x.useEffect(()=>{e&&s(I=>{if(f.current!==e.id)return f.current=e.id,is(e);const A={render:I.render||{x:30,y:130},caption:I.caption||{x:320,y:90}};return e.channels.forEach((V,M)=>{const U=`ch:${V}`;A[U]=I[U]||{x:720,y:30+M*88}}),A})},[e==null?void 0:e.id,((e==null?void 0:e.channels)||[]).join("|")]);const m=x.useRef(null),y=x.useRef(null),w=x.useRef(null),[v,g]=x.useState(1),[k,c]=x.useState({x:0,y:0});function p(I,A){I.preventDefault(),I.stopPropagation();const V=i[A];V&&(m.current={key:A,startX:I.clientX,startY:I.clientY,posX:V.x,posY:V.y,zoom:v})}if(x.useEffect(()=>{function I(V){if(m.current){const M=m.current;s(U=>({...U,[M.key]:{x:M.posX+(V.clientX-M.startX)/M.zoom,y:M.posY+(V.clientY-M.startY)/M.zoom}}))}else if(w.current){const M=w.current;c({x:M.panX+(V.clientX-M.x),y:M.panY+(V.clientY-M.y)})}}function A(){m.current=null,w.current=null}return window.addEventListener("mousemove",I),window.addEventListener("mouseup",A),()=>{window.removeEventListener("mousemove",I),window.removeEventListener("mouseup",A)}},[]),!e)return r.jsxs("div",{style:{padding:60,textAlign:"center",color:"var(--ink-muted)",fontSize:12},children:["Select a post on the calendar above to see its routing graph, or press ",r.jsx("span",{className:"mono",style:{color:"var(--ink-soft)"},children:"Generate plan"})," to fill the week."]});const h=Math.max(360,80+e.channels.length*78);function b(I,A){const V=i[I];if(!V)return{x:0,y:0};const M=It[A]||It.channel;return{x:V.x+M.w/2,y:V.y+M.h/2}}function _(I,A){const V=b(I,A),M=It[A]||It.channel;return{x:V.x+M.w/2,y:V.y}}function z(I,A){const V=b(I,A),M=It[A]||It.channel;return{x:V.x-M.w/2,y:V.y}}function N(I,A){const V=Math.max(40,Math.abs(A.x-I.x)*.5);return`M ${I.x} ${I.y} C ${I.x+V} ${I.y}, ${A.x-V} ${A.y}, ${A.x} ${A.y}`}function P(I){var T;I.preventDefault();const A=(T=y.current)==null?void 0:T.getBoundingClientRect();if(!A)return;const V=I.clientX-A.left,M=I.clientY-A.top,U=Math.max(.4,Math.min(2,v-I.deltaY*.0015));U!==v&&(c({x:V-(V-k.x)*(U/v),y:M-(M-k.y)*(U/v)}),g(U))}function j(I){I.button!==0||I.target.closest("[data-pnode]")||(w.current={x:I.clientX,y:I.clientY,panX:k.x,panY:k.y})}function E(){g(1),c({x:0,y:0}),s(is(e))}async function H(){l(!0),u("");const I=await D.fireScheduledPost(e.id);l(!1),I!=null&&I.ok?u(`Sent: ${(I.sent||[]).join(" · ")}`):u(`Marked ready. ${((I==null?void 0:I.pending)||[]).join(" · ")}`),n==null||n()}const F=e.runAt.toLocaleString("en",{weekday:"short",day:"numeric",month:"short"});return r.jsxs("div",{style:{background:"var(--bg-panel)",border:"1px solid var(--stroke)",borderRadius:"var(--r-lg)",overflow:"hidden"},children:[r.jsxs("div",{style:{padding:"10px 14px",borderBottom:"1px solid var(--stroke)",display:"flex",alignItems:"center",gap:10},children:[r.jsx(X,{name:"flow",size:14,style:{color:"var(--brand)"}}),r.jsx("span",{className:"display",style:{fontSize:14,color:"var(--ink-strong)"},children:e.title}),r.jsxs("span",{style:{fontFamily:"var(--f-mono)",fontSize:11,color:"var(--ink-soft)"},children:[F," · ",e.time]}),r.jsx(te,{children:e.mode==="auto"?"auto-publish":"assisted"}),r.jsx("span",{style:{flex:1}}),d&&r.jsx("span",{style:{fontSize:10.5,color:"var(--ink-soft)"},children:d}),r.jsx(te,{tone:e.status==="posted"?"green":e.status==="failed"?"red":e.status==="ready"?"amber":e.status==="draft"?"neutral":"cyan",dot:!0,children:e.status}),r.jsx(K,{variant:"ghost",size:"sm",icon:"bolt",onClick:E,title:"Reset layout, zoom & pan",children:"Reset"}),r.jsx(K,{variant:"primary",size:"sm",icon:"send",glow:!0,onClick:H,disabled:a,children:a?"Sending…":"Send now"})]}),r.jsxs("div",{ref:y,onWheel:P,onMouseDown:j,style:{position:"relative",height:h,overflow:"hidden",background:"radial-gradient(circle at center, var(--stroke) 1px, transparent 1.5px)",backgroundSize:`${24*v}px ${24*v}px`,backgroundPosition:`${k.x}px ${k.y}px`,cursor:w.current?"grabbing":"default"},children:[r.jsxs("div",{style:{position:"absolute",top:0,left:0,width:"100%",height:"100%",transform:`translate(${k.x}px, ${k.y}px) scale(${v})`,transformOrigin:"0 0"},children:[r.jsxs("svg",{style:{position:"absolute",top:0,left:0,width:2200,height:1500,pointerEvents:"none",overflow:"visible"},children:[(()=>{const I=_("render","render"),A=z("caption","caption");return r.jsx("path",{d:N(I,A),stroke:"var(--brand)",strokeWidth:2,fill:"none",opacity:.85,style:{filter:"drop-shadow(0 0 6px var(--brand-soft))"}})})(),e.channels.map(I=>_t[I]&&r.jsx("path",{d:N(_("caption","caption"),z(`ch:${I}`,"channel")),stroke:_t[I].color,strokeWidth:1.8,fill:"none",opacity:.85,style:{filter:`drop-shadow(0 0 4px ${_t[I].color}66)`}},I))]}),r.jsxs(ss,{pos:i.render,dims:It.render,color:"var(--brand)",icon:"film",title:"Render",onDragStart:I=>p(I,"render"),children:[(e.jobId||e.sourceImage)&&r.jsx("div",{style:{height:70,marginBottom:5,borderRadius:6,overflow:"hidden",border:"1px solid var(--stroke)",background:"#000"},children:e.jobId?r.jsx("video",{src:D.jobVideoUrl(e.jobId),muted:!0,preload:"metadata",playsInline:!0,onMouseEnter:I=>I.currentTarget.play().catch(()=>{}),onMouseLeave:I=>{I.currentTarget.pause(),I.currentTarget.currentTime=0},onError:I=>{I.currentTarget.style.display="none"},style:{width:"100%",height:"100%",objectFit:"cover",display:"block"}}):r.jsx("img",{src:D.imageUrl(e.sourceImage),alt:"",onError:I=>{I.currentTarget.style.display="none"},style:{width:"100%",height:"100%",objectFit:"cover",display:"block"}})}),r.jsx("div",{style:{fontFamily:"var(--f-mono)",fontSize:10.5,color:"var(--ink-strong)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"},children:e.jobId?e.jobId.slice(0,18):e.sourceImage?"source ready":"no render attached"}),r.jsx("div",{style:{fontSize:10,color:e.jobId?"var(--ink-soft)":e.sourceImage?"var(--cyan)":"var(--amber)",marginTop:3},children:e.jobId?e.format||"render from Library":e.sourceImage?"source preview · Produce to render":"attach one in the inspector"})]}),r.jsxs(ss,{pos:i.caption,dims:It.caption,color:"var(--violet)",icon:"rename",title:"Caption",onDragStart:I=>p(I,"caption"),children:[r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-strong)",whiteSpace:"pre-wrap",lineHeight:1.35,maxHeight:110,overflow:"hidden"},children:e.caption||r.jsx("span",{style:{color:"var(--ink-muted)"},children:"empty caption"})}),r.jsxs("div",{style:{position:"absolute",bottom:6,left:10,right:10,display:"flex",justifyContent:"space-between",fontSize:9.5,color:"var(--ink-soft)",fontFamily:"var(--f-mono)"},children:[r.jsxs("span",{children:[(e.caption||"").length," ch"]}),r.jsx("span",{children:e.hook?"from plan":""})]})]}),e.channels.map(I=>{const A=_t[I];if(!A)return null;const V=I==="telegram"&&!!(o!=null&&o.telegram_enabled)||I==="x"&&!!(o!=null&&o.x_enabled);return r.jsxs(ss,{pos:i[`ch:${I}`],dims:It.channel,color:A.color,icon:A.icon,title:A.label,onDragStart:M=>p(M,`ch:${I}`),children:[r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-strong)"},children:V?"bot publish":"manual publish"}),r.jsxs("div",{style:{fontSize:10,color:"var(--ink-soft)",marginTop:2,display:"flex",justifyContent:"space-between"},children:[r.jsxs("span",{style:{display:"inline-flex",alignItems:"center",gap:4},children:[r.jsx("span",{style:{width:6,height:6,borderRadius:999,background:V?"var(--green)":"var(--amber)"}}),V?"auto-capable":"assisted only"]}),r.jsxs("span",{className:"mono",children:[(e.caption||"").length,"/",A.limit]})]})]},I)})]}),r.jsxs("div",{style:{position:"absolute",left:10,bottom:10,zIndex:4,display:"flex",gap:2,background:"var(--bg-panel)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",padding:2},children:[r.jsx(se,{name:"minus",size:24,iconSize:11,onClick:()=>g(I=>Math.max(.4,+(I-.1).toFixed(2)))}),r.jsxs("div",{style:{minWidth:42,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"var(--f-mono)",fontSize:10.5,color:"var(--ink-soft)"},children:[Math.round(v*100),"%"]}),r.jsx(se,{name:"plus",size:24,iconSize:11,onClick:()=>g(I=>Math.min(2,+(I+.1).toFixed(2)))})]})]})]})}function ss({pos:e,dims:t,color:n,icon:o,title:i,children:s,onDragStart:a}){return e?r.jsxs("div",{"data-pnode":!0,style:{position:"absolute",left:e.x,top:e.y,width:t.w,height:t.h,background:"var(--bg-panel-2)",border:`1px solid ${n}`,borderRadius:14,boxShadow:`0 0 0 1px ${n}33, 0 0 24px ${n}22`,overflow:"hidden",userSelect:"none"},children:[r.jsxs("div",{onMouseDown:a,style:{height:26,padding:"0 10px",display:"flex",alignItems:"center",gap:8,background:`linear-gradient(180deg, ${n}22 0%, transparent 100%)`,borderBottom:"1px solid var(--stroke)",cursor:"grab"},children:[r.jsx("span",{style:{width:16,height:16,borderRadius:4,background:`${n}22`,color:n,display:"inline-flex",alignItems:"center",justifyContent:"center"},children:r.jsx(X,{name:o,size:10})}),r.jsx("span",{style:{fontSize:11,fontWeight:600,color:"var(--ink-strong)"},children:i}),r.jsx("span",{style:{flex:1}}),r.jsx(X,{name:"more",size:11,style:{color:"var(--ink-muted)"}})]}),r.jsx("div",{style:{padding:8,position:"relative",height:t.h-26},children:s})]}):null}function Bm({post:e,weekStart:t,jobs:n,telegramOn:o,xOn:i,onChange:s,onToggleChannel:a,onDelete:l,reloadPosts:d,captionPack:u}){const f=u&&u.length?u:Pm,[m,y]=x.useState(!1),[w,v]=x.useState(""),[g,k]=x.useState(!1),[c,p]=x.useState(""),h=x.useRef(null);const[Li,Lo]=x.useState([]);const Lf=()=>D.listImages().then(z=>Lo(((z==null?void 0:z.images)||[]).map(Q=>Q.filename)));x.useEffect(()=>{Lf()},[e&&e.id]);const[Pc,Pcs]=x.useState("");x.useEffect(()=>{const tt=setTimeout(()=>Pcs((e&&e.caption)||""),500);return()=>clearTimeout(tt)},[e&&e.caption]);function b(j){const E=h.current,H=(e==null?void 0:e.caption)||"";if(E&&typeof E.selectionStart=="number"){const F=E.selectionStart,I=E.selectionEnd;s({caption:H.slice(0,F)+j+H.slice(I)}),requestAnimationFrame(()=>{try{E.focus();const A=F+j.length;E.setSelectionRange(A,A)}catch{}})}else s({caption:H+j})}async function _(){var F,I;if(!e||g)return;k(!0),p("");const j=e.format||"seedance",E=e.image_idea||e.hook||e.title,H=e.script_idea||e.caption||e.title;try{if(j==="image")if(e.sourceImage)p(`Source image ready: ${e.sourceImage} (in Library).`);else{p("Creating image (FLUX)…");const A=await D.generateImage(E,1,"portrait_16_9");if((A==null?void 0:A.images)&&A.images.length)s({sourceImage:A.images[0],jobId:null});p((F=A==null?void 0:A.images)!=null&&F.length?`Image saved to Library: ${A.images[0]}`:`Failed: ${String((A==null?void 0:A.error)||"").slice(0,120)}`)}else if(j==="seedance"||j==="composition"||j==="news"){let A=e.sourceImage;if(A)p("Using your chosen source image…");else{p("Start frame (FLUX, ~3s)…");const M=await D.generateImage(E,1,"portrait_16_9");if(!((I=M==null?void 0:M.images)!=null&&I.length)){p(`Image step failed: ${String((M==null?void 0:M.error)||"").slice(0,120)}`);return}A=M.images[0]}p("Cinematic clip (Seedance, ~40s)… watch the render queue.");const V=await D.postJson("/generate",{image_filename:A,custom_prompt:H,style:"cinematic",duration_s:10,aspect_ratio:"9:16",voiceover_enabled:!1});V!=null&&V.job_id&&V.job_id!=="pending"?(s({jobId:V.job_id}),p("Clip queued + attached to this post. It renders in the background.")):p("Clip queued — attach it from the Render picker when it finishes.")}else if(j==="heygen"){p("Loading avatar + voice…");const[A,V]=await Promise.all([D.listHeygenAvatars(),D.listHeygenVoices()]),M=((A==null?void 0:A.avatars)||[])[0],U=((V==null?void 0:V.voices)||[])[0];if(!M||!U){p("HeyGen avatars/voices unavailable (check the key / network).");return}p("Avatar video queued (HeyGen, 1-3 min)…");const T=await D.postJson("/generate/heygen",{avatar_id:M.avatar_id,voice_id:U.voice_id,script:H.slice(0,4900),avatar_type:M.avatar_type||"avatar",aspect_ratio:"9:16",speed:1});p((T==null?void 0:T.ok)===!1?`Failed: ${String((T==null?void 0:T.error)||"").slice(0,120)}`:"Avatar render queued — attach it from the Render picker when done.")}else p(`No auto-production for format "${j}".`)}finally{k(!1);try{Lf()}catch{}}}if(!e)return r.jsx("div",{style:{background:"var(--bg-panel)",borderLeft:"1px solid var(--stroke)",display:"flex",alignItems:"center",justifyContent:"center",padding:24,color:"var(--ink-muted)",textAlign:"center",fontSize:12},children:"Select a post to edit caption, render, channels and timing."});const z=e.runAt.toLocaleString("en",{weekday:"short",day:"numeric",month:"short"});async function N(){y(!0),v("");const j=await D.fireScheduledPost(e.id);y(!1),j!=null&&j.ok?v(`Sent on: ${(j.sent||[]).join(" · ")}`):v(`Not auto-sent. ${((j==null?void 0:j.pending)||[]).join(" · ")}`),d==null||d()}async function P(){const j=new Date(e.runAt);j.setDate(j.getDate()+1);const E=await D.createScheduledPost({title:e.title+" (copy)",caption:e.caption,channels:e.channels,run_at:j.toISOString(),status:"draft",mode:e.mode,job_id:e.jobId});E!=null&&E.id&&(d==null||d())}return r.jsxs("div",{style:{background:"var(--bg-panel)",borderLeft:"1px solid var(--stroke)",display:"flex",flexDirection:"column",minHeight:0},children:[r.jsxs("div",{style:{padding:"14px 16px",borderBottom:"1px solid var(--stroke)"},children:[r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:10},children:[r.jsx("span",{style:{width:28,height:28,borderRadius:7,background:"var(--brand-soft)",color:"var(--brand)",display:"inline-flex",alignItems:"center",justifyContent:"center"},children:r.jsx(X,{name:"send",size:14})}),r.jsxs("div",{style:{flex:1,minWidth:0},children:[r.jsx("input",{value:e.title,onChange:j=>s({title:j.target.value}),style:{width:"100%",fontFamily:"var(--f-display)",fontSize:16,color:"var(--ink-strong)",background:"transparent",border:0,padding:0}}),r.jsxs("div",{style:{fontSize:11,color:"var(--ink-soft)"},children:[z," · ",e.time]})]}),r.jsx(se,{name:"trash",onClick:l,title:"Delete"})]}),e.error&&r.jsx("div",{style:{marginTop:8,padding:8,background:"var(--red-soft)",border:"1px solid var(--red)",borderRadius:"var(--r-sm)",fontSize:10.5,color:"var(--ink)"},children:e.error})]}),r.jsxs("div",{className:"scroll",style:{flex:1,overflowY:"auto"},children:[r.jsxs(ie,{label:"Schedule",children:[r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10},children:[r.jsx(O,{label:"Day",children:r.jsx(re,{value:String(Math.max(0,Math.min(6,Math.round((new Date(e.runAt.getFullYear(),e.runAt.getMonth(),e.runAt.getDate())-t)/864e5)))),onChange:j=>{const E=na(t,Number(j));s({runAt:ra(E.date,e.time),time:e.time})},options:[0,1,2,3,4,5,6].map(j=>{const E=na(t,j);return{value:String(j),label:`${E.short} ${E.day}`}})})}),r.jsx(O,{label:"Time",children:r.jsx(le,{mono:!0,value:e.time,onChange:j=>{s({time:j,runAt:ra(e.runAt,j)})},placeholder:"HH:MM"})})]}),r.jsx(O,{children:r.jsx(Ze,{checked:e.status==="scheduled",label:"Scheduled (uncheck = draft)",onChange:j=>s({status:j?"scheduled":"draft"})})}),r.jsx(O,{hint:e.mode==="auto"?o||i?`Auto: fires alone at the set time (${[o&&"Telegram",i&&"X"].filter(Boolean).join(" + ")}).`:"Auto needs Telegram or X keys (Settings → Connected accounts). Without them it flips to ready.":"Assisted: flips to READY at the set time; you press Send.",children:r.jsx(Ze,{checked:e.mode==="auto",label:"Auto-publish at time",onChange:j=>s({mode:j?"auto":"assisted"})})})]}),r.jsxs(ie,{label:"Render",children:[r.jsx(O,{hint:e.jobId?"":"Optional. Without a render, the post is caption-only (or attach later).",children:r.jsx(re,{value:e.jobId?e.jobId:e.sourceImage?"img:"+e.sourceImage:"",onChange:j=>{j?j.indexOf("img:")===0?s({sourceImage:j.slice(4),jobId:null}):s({jobId:j,sourceImage:null}):s({jobId:null,sourceImage:null})},options:[{value:"",label:"no render (caption only)"},...n.map(j=>({value:j.job_id,label:`▶ ${j.title||j.provider||"render"} · ${(j.job_id||"").slice(0,6)}`})),...Li.map(z=>({value:"img:"+z,label:"🖼 "+z}))]})}),e.sourceImage&&r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:8,padding:6,background:"var(--bg-base)",border:"1px solid var(--amber)",borderRadius:"var(--r-sm)"},children:[r.jsx("img",{src:D.imageUrl(e.sourceImage),alt:"",onError:j=>{j.currentTarget.style.opacity=.2},style:{width:26,height:34,objectFit:"cover",borderRadius:4}}),r.jsxs("div",{style:{minWidth:0,flex:1},children:[r.jsx("div",{style:{fontSize:10,color:"var(--amber)",fontWeight:600},children:"SOURCE IMAGE"}),r.jsx("div",{className:"mono",style:{fontSize:10,color:"var(--ink-soft)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"},children:e.sourceImage})]}),r.jsx(se,{name:"close",size:20,iconSize:10,title:"Clear source",onClick:()=>s({sourceImage:null})})]}),r.jsx(O,{label:"Image generator",hint:"Model used when you produce a visual.",children:r.jsx(DzImageModel,{})}),r.jsx(K,{variant:"outline",size:"sm",icon:"sparkle",onClick:_,disabled:g,style:{width:"100%"},children:g?"Producing…":e.sourceImage?"Produce with chosen source":`Produce ${e.format||"seedance"} render from plan`}),c&&r.jsx("div",{style:{marginTop:6,fontSize:10.5,color:c.startsWith("Failed")||c.includes("failed")||c.includes("unavailable")?"var(--red)":"var(--ink-soft)"},children:c}),(e.channels&&e.channels.length?r.jsxs("div",{style:{marginTop:12},children:[r.jsx("div",{className:"upper",style:{marginBottom:6},children:"Final preview"}),...e.channels.map(ch=>r.jsx("img",{src:`${Te}/schedule/${e.id}/preview.png?channel=${ch}&caption=${encodeURIComponent(Pc)}&img=${encodeURIComponent(e.sourceImage||"")}&job=${encodeURIComponent(e.jobId||"")}`,alt:ch,onError:E=>{E.currentTarget.style.display="none"},style:{width:"100%",borderRadius:8,marginBottom:8,border:"1px solid var(--stroke)",display:"block"}},ch))]}):null),e.jobId&&(()=>{const j=n.some(E=>E.job_id===e.jobId);return r.jsxs("div",{style:{marginTop:10},children:[r.jsxs("div",{className:"upper",style:{marginBottom:6,display:"flex",alignItems:"center",gap:6},children:[r.jsx("span",{children:"Render preview"}),j?r.jsx(te,{tone:"green",dot:!0,children:"ready"}):r.jsx(te,{tone:"amber",dot:!0,children:"rendering…"})]}),j?r.jsx("video",{src:D.jobVideoUrl(e.jobId),controls:!0,preload:"metadata",onError:E=>{E.currentTarget.style.display="none"},style:{width:"100%",maxHeight:320,borderRadius:"var(--r-sm)",background:"#000",display:"block"}}):r.jsx("div",{style:{padding:10,background:"var(--bg-base)",border:"1px solid var(--amber)",borderRadius:"var(--r-sm)",fontSize:10.5,color:"var(--ink-soft)",lineHeight:1.45},children:"Rendering in the background — watch the render queue (top bar icon). The clip plays here once it finishes."}),r.jsxs("div",{style:{marginTop:5,fontSize:10,color:"var(--ink-soft)"},children:["Review the render before you ",r.jsx("strong",{style:{color:"var(--ink)"},children:"Send"})," or turn on ",r.jsx("strong",{style:{color:"var(--ink)"},children:"Auto-publish"}),"."]})]})})(),(e.image_idea||e.script_idea)&&r.jsxs("div",{style:{marginTop:6,padding:8,background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",fontSize:10.5,color:"var(--ink-soft)",lineHeight:1.45},children:[e.image_idea&&r.jsxs("div",{children:[r.jsx("span",{style:{color:"var(--amber)",fontWeight:600},children:"visual · "}),e.image_idea]}),e.script_idea&&r.jsxs("div",{style:{marginTop:e.image_idea?4:0},children:[r.jsx("span",{style:{color:"var(--cyan)",fontWeight:600},children:"script · "}),e.script_idea]})]})]}),e.brief&&r.jsx(DzBrief,{brief:e.brief}),r.jsx(ie,{label:"Reschedule (any date)",children:r.jsx("input",{type:"date",value:e&&e.runAt?(function(){var Dz=new Date(e.runAt);return Dz.getFullYear()+"-"+("0"+(Dz.getMonth()+1)).slice(-2)+"-"+("0"+Dz.getDate()).slice(-2)})():"",onChange:Sv=>{var vv=Sv.target.value;if(!vv||!e)return;var od=new Date(e.runAt),nd=new Date(vv+"T12:00:00");nd.setHours(od.getHours(),od.getMinutes(),0,0);s({runAt:nd})},style:{width:"100%",height:30,padding:"0 8px",background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",color:"var(--ink-strong)"}})}),r.jsx(ie,{label:"Channels",children:r.jsx("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8},children:Bu.map(j=>{const E=e.channels.includes(j.id);return r.jsxs("button",{onClick:()=>a(j.id),style:{display:"flex",alignItems:"center",gap:8,padding:"9px 10px",background:E?j.bg:"var(--bg-base)",border:`1px solid ${E?j.color+"88":"var(--stroke)"}`,borderRadius:"var(--r-sm)",cursor:"pointer",color:E?j.color:"var(--ink-muted)",boxShadow:E?`0 0 12px ${j.color}33`:"none",transition:"all var(--dur-1) var(--ease)"},children:[r.jsx(X,{name:j.icon,size:14}),r.jsx("span",{style:{fontSize:12,fontWeight:500},children:j.label}),j.id==="telegram"&&r.jsx("span",{style:{marginLeft:"auto",fontSize:8.5,color:o?"var(--green)":"var(--ink-muted)"},children:o?"auto":"no key"}),j.id==="x"&&r.jsx("span",{style:{marginLeft:"auto",fontSize:8.5,color:i?"var(--green)":"var(--ink-muted)"},children:i?"auto":"assisted"})]},j.id)})})}),r.jsxs(ie,{label:"Caption",children:[r.jsx(O,{hint:`${(e.caption||"").length} characters · same on all channels`,children:r.jsx("textarea",{ref:h,value:e.caption,onChange:j=>s({caption:j.target.value}),rows:5,style:{width:"100%",padding:10,background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",color:"var(--ink-strong)",fontFamily:"var(--f-ui)",fontSize:12.5,resize:"vertical"}})}),r.jsx("div",{style:{display:"flex",flexWrap:"wrap",gap:4,marginTop:-4},children:Im.map(j=>r.jsx("button",{type:"button",onClick:()=>b(j),title:`Insert ${j}`,style:{width:30,height:28,fontSize:15,lineHeight:1,background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center",transition:"all var(--dur-1) var(--ease)"},onMouseEnter:E=>{E.currentTarget.style.borderColor="var(--brand)",E.currentTarget.style.background="var(--brand-soft)"},onMouseLeave:E=>{E.currentTarget.style.borderColor="var(--stroke)",E.currentTarget.style.background="var(--bg-base)"},children:j},j))}),r.jsxs("div",{className:"upper",style:{marginTop:10,marginBottom:5,display:"flex",alignItems:"center",gap:6},children:[r.jsx(X,{name:"sparkle",size:11,style:{color:"var(--brand)"}}),r.jsx("span",{children:"Telegram Premium pack"})]}),r.jsx("div",{style:{display:"flex",flexWrap:"wrap",gap:5},children:f.map(j=>r.jsxs("button",{type:"button",onClick:()=>b(`${j.e} ${j.label}`),title:`Insert "${j.e} ${j.label}"`,style:{display:"inline-flex",alignItems:"center",gap:5,padding:"4px 9px",fontSize:11,background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:999,color:"var(--ink)",cursor:"pointer",transition:"all var(--dur-1) var(--ease)"},onMouseEnter:E=>{E.currentTarget.style.borderColor="var(--brand)",E.currentTarget.style.background="var(--brand-soft)",E.currentTarget.style.color="var(--ink-strong)"},onMouseLeave:E=>{E.currentTarget.style.borderColor="var(--stroke)",E.currentTarget.style.background="var(--bg-base)",E.currentTarget.style.color="var(--ink)"},children:[r.jsx(Nm,{icon:j.icon,emoji:j.e,size:16}),j.label]},j.label))}),e.hook&&r.jsxs("div",{style:{padding:8,background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",fontSize:10.5,color:"var(--ink-soft)"},children:[r.jsx("span",{style:{color:"var(--violet)",fontWeight:600},children:"Plan hook · "}),e.hook]})]})]}),r.jsxs("div",{style:{padding:12,borderTop:"1px solid var(--stroke)",display:"grid",gap:8},children:[w&&r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)"},children:w}),r.jsx(K,{variant:"primary",size:"md",icon:"send",glow:!0,onClick:N,disabled:m,children:m?"Sending…":`Send to ${e.channels.length} channel${e.channels.length===1?"":"s"} now`}),r.jsx(K,{variant:"outline",size:"sm",icon:"copy",onClick:P,children:"Duplicate to next day"})]})]})}function Wm({post:e,idx:t,images:n,newsItems:o,source:i,setSource:s}){const[a,l]=x.useState(!1),[d,u]=x.useState("");if(!["seedance","composition","image","news"].includes(e.format))return r.jsx("span",{style:{fontSize:9.5,color:"var(--ink-muted)",textAlign:"right"},children:e.format==="heygen"?"avatar @ produce":""});const m=e.format==="news"?o.filter(v=>v.image):[],y=[{value:"",label:"auto @ produce"},{value:"__gen__",label:"✨ generate image"},...m.length?m.slice(0,20).map((v,g)=>({value:"news:"+g,label:"📰 "+(v.title||"news").slice(0,28)})):[],...n.slice(0,60).map(v=>({value:"lib:"+v,label:v}))];async function w(v){var g;if(u(""),v==="__gen__"){l(!0);const k=await D.generateImage(e.image_idea||e.title||"deep-sea key visual, 9:16",1,"portrait_16_9");l(!1),(g=k==null?void 0:k.images)!=null&&g.length?s(t,k.images[0]):u("gen failed");return}if(v.startsWith("lib:")){s(t,v.slice(4));return}if(v.startsWith("news:")){const k=m[Number(v.slice(5))];if(k!=null&&k.image){l(!0);const c=await D.importImageUrl(k.image);l(!1),c!=null&&c.filename?s(t,c.filename):(u("news image failed — generating…"),w("__gen__"))}else w("__gen__");return}s(t,null)}return r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:6,minWidth:0},children:[i?r.jsx("img",{src:D.imageUrl(i),alt:"",onError:v=>{v.currentTarget.style.opacity=.2},style:{width:24,height:32,objectFit:"cover",borderRadius:4,border:"1px solid var(--amber)",flexShrink:0}}):r.jsx("span",{style:{width:24,height:32,borderRadius:4,border:"1px dashed var(--stroke-strong)",flexShrink:0,display:"inline-flex",alignItems:"center",justifyContent:"center",color:"var(--ink-muted)",fontSize:9},children:"?"}),r.jsx(re,{value:i&&n.includes(i)?"lib:"+i:"",options:y,onChange:w,style:{flex:1,minWidth:0}}),a&&r.jsx("span",{style:{fontSize:9.5,color:"var(--cyan)"},children:"…"}),d&&r.jsx("span",{style:{fontSize:9,color:"var(--red)"},children:d})]})}function Um({onClose:e,onMaterialized:t,initialTab:n="generate"}){const o=bt(),[i,s]=x.useState(n),[a,l]=x.useState(""),[d,u]=x.useState(7),[f,m]=x.useState(1),[y,w]=x.useState(["x","telegram"]),[v,g]=x.useState("EN"),[k,c]=x.useState("assisted"),[p,h]=x.useState(()=>new Date().toISOString().slice(0,10)),[b,_]=x.useState(!1),[z,N]=x.useState(null),[P,j]=x.useState(!1),[E,H]=x.useState(""),[F,I]=x.useState(30),A=x.useRef(null),[V,M]=x.useState([]),[U,T]=x.useState([]),[Y,q]=x.useState({});x.useEffect(()=>{let S=!0;return D.listImages().then(L=>{S&&M(((L==null?void 0:L.images)||[]).map(J=>J.filename))}),D.listNewsItems().then(L=>{S&&T(((L==null?void 0:L.items)||L||[]).filter(J=>J&&J.title))}),()=>{S=!1}},[]);function C(S,L){q(J=>({...J,[S]:L||void 0})),L&&M(J=>J.includes(L)?J:[L,...J])}function Q(S){w(L=>L.includes(S)?L.filter(J=>J!==S):[...L,S])}async function ee(){if(!a.trim()||b)return;_(!0),H(""),N(null);const S=await D.marketingPlan({prompt:a.trim(),days:d,posts_per_day:f,channels:y,language:v,auto_materialize:!1});_(!1),S!=null&&S.posts?N(S):H(String((S==null?void 0:S.error)||"Plan generation failed").slice(0,160))}async function ne(S){if(!S||b)return;_(!0),H(""),N(null);const L=await D.importPlan(S,{days:F,channels:y,language:v});_(!1),L!=null&&L.posts?N({posts:L.posts,engine:L.engine,filename:L.filename}):H(String((L==null?void 0:L.error)||"Import failed").slice(0,200))}async function R(){var J;if(!z||P)return;j(!0),H("");const S=z.posts.map((de,ce)=>({...de,source_image:Y[ce]||null})),L=await D.materializePlan(S,p,k);j(!1),(J=L==null?void 0:L.materialized_ids)!=null&&J.length?t(p):H(String((L==null?void 0:L.error)||"Could not add posts").slice(0,160))}const W={image:"var(--amber)",seedance:"var(--cyan)",heygen:"var(--violet)",composition:"var(--brand)",news:"var(--green)"};return r.jsx("div",{onClick:e,style:{position:"fixed",inset:0,zIndex:80,background:"var(--bg-overlay)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",padding:28},children:r.jsxs("div",{onClick:S=>S.stopPropagation(),style:{width:900,maxWidth:"96%",maxHeight:"92%",background:"var(--bg-panel-2)",border:"1px solid var(--stroke-strong)",borderRadius:"var(--r-lg)",boxShadow:"var(--shadow-2), 0 0 70px var(--cyan-soft)",display:"flex",flexDirection:"column",overflow:"hidden"},children:[r.jsxs("div",{style:{padding:"14px 18px",borderBottom:"1px solid var(--stroke)",display:"flex",alignItems:"center",gap:10},children:[r.jsx(X,{name:"sparkle",size:16,style:{color:"var(--cyan)"}}),r.jsxs("div",{style:{flex:1},children:[r.jsx("div",{className:"display",style:{fontSize:15,color:"var(--ink-strong)"},children:i==="import"?"Import a strategy document":"Generate a marketing plan"}),r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)"},children:i==="import"?"Upload your existing plan (.md, .docx, .pdf) — it becomes calendar posts after your review.":o!=null&&o.has_summarizer||o!=null&&o.summarizer_enabled?"Claude builds the plan from your brief and the persona voice.":o!=null&&o.ollama_enabled?"Local LLM (Ollama) builds the plan — nothing leaves your machine.":"Built-in planner active. Add ANTHROPIC_API_KEY or a local Ollama model in Settings for smarter plans."})]}),r.jsx("div",{style:{display:"flex",gap:2,padding:3,background:"var(--bg-base)",borderRadius:"var(--r-sm)",border:"1px solid var(--stroke)"},children:[["generate","Generate"],["import","Import doc"]].map(([S,L])=>r.jsx("button",{onClick:()=>{s(S),N(null),H("")},style:{height:26,padding:"0 12px",background:i===S?"var(--bg-panel)":"transparent",border:0,borderRadius:4,cursor:"pointer",color:i===S?"var(--ink-strong)":"var(--ink-soft)",fontSize:11.5,fontWeight:500},children:L},S))}),r.jsx(se,{name:"close",onClick:e})]}),r.jsxs("div",{className:"scroll",style:{flex:1,overflowY:"auto",padding:18,display:"flex",flexDirection:"column",gap:14},children:[i==="generate"&&r.jsx(O,{label:"Brief (what should this week say?)",children:r.jsx("textarea",{value:a,onChange:S=>l(S.target.value),rows:3,placeholder:"e.g. Week around the $DEEPOTUS staking launch. Tease Monday, reveal Wednesday 18:00, recap Sunday. Tone: prophetic, playful.",style:{width:"100%",padding:10,background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",color:"var(--ink-strong)",fontFamily:"var(--f-ui)",fontSize:12.5,resize:"vertical"}})}),i==="import"&&r.jsxs("div",{onClick:()=>{var S;return(S=A.current)==null?void 0:S.click()},onDragOver:S=>{S.preventDefault()},onDrop:S=>{var L,J;S.preventDefault(),ne((J=(L=S.dataTransfer)==null?void 0:L.files)==null?void 0:J[0])},style:{padding:22,textAlign:"center",cursor:"pointer",background:"var(--bg-base)",border:"1px dashed var(--stroke-strong)",borderRadius:"var(--r)",color:"var(--ink-soft)"},children:[r.jsx("input",{ref:A,type:"file",accept:".md,.markdown,.txt,.docx,.pdf",style:{display:"none"},onChange:S=>{var L;ne((L=S.target.files)==null?void 0:L[0]),S.target.value=""}}),r.jsx(X,{name:"upload",size:22,style:{color:"var(--cyan)"}}),r.jsx("div",{style:{fontSize:13,color:"var(--ink-strong)",marginTop:8},children:z!=null&&z.filename?z.filename:"Drop your strategy document here, or click to browse"}),r.jsx("div",{style:{fontSize:11,marginTop:4},children:".md · .txt · .docx · .pdf — dates, weeks and themes in the document are preserved."})]}),r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:10},children:[i==="generate"?r.jsxs(r.Fragment,{children:[r.jsx(O,{label:"Days",children:r.jsx(re,{value:String(d),onChange:S=>u(Number(S)),options:["3","5","7","14"].map(S=>({value:S,label:`${S} days`}))})}),r.jsx(O,{label:"Posts / day",children:r.jsx(re,{value:String(f),onChange:S=>m(Number(S)),options:["1","2","3"].map(S=>({value:S,label:S}))})})]}):r.jsxs(r.Fragment,{children:[r.jsx(O,{label:"Horizon",children:r.jsx(re,{value:String(F),onChange:S=>I(Number(S)),options:["7","14","30","60"].map(S=>({value:S,label:`${S} days`}))})}),r.jsx(O,{label:" ",children:r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-muted)",paddingTop:8},children:"day 1 = start date"})})]}),r.jsx(O,{label:"Language",children:r.jsx(re,{value:v,onChange:g,options:[{value:"EN",label:"English"},{value:"FR",label:"Français"}]})}),r.jsx(O,{label:"Start date",children:r.jsx("input",{type:"date",value:p,onChange:S=>h(S.target.value),style:{width:"100%",height:30,padding:"0 8px",background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",color:"var(--ink-strong)",fontFamily:"var(--f-mono)",fontSize:11.5,colorScheme:"dark"}})})]}),r.jsxs("div",{style:{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"},children:[r.jsx("span",{className:"upper",style:{color:"var(--ink-soft)"},children:"Channels"}),Bu.map(S=>r.jsxs("button",{onClick:()=>Q(S.id),style:{height:26,padding:"0 10px",display:"inline-flex",alignItems:"center",gap:5,background:y.includes(S.id)?S.bg:"transparent",border:`1px solid ${y.includes(S.id)?S.color+"66":"var(--stroke)"}`,borderRadius:999,color:y.includes(S.id)?S.color:"var(--ink-muted)",cursor:"pointer",fontSize:11,fontWeight:500},children:[r.jsx(X,{name:S.icon,size:11}),S.label]},S.id)),r.jsx("span",{style:{flex:1}}),r.jsx(Ze,{checked:k==="auto",label:"Auto-publish (Telegram)",onChange:S=>c(S?"auto":"assisted")})]}),E&&r.jsx("div",{style:{padding:10,background:"var(--red-soft)",border:"1px solid var(--red)",borderRadius:"var(--r-sm)",fontSize:11.5,color:"var(--ink)"},children:E}),b&&r.jsxs("div",{style:{display:"flex",flexDirection:"column",gap:8},children:[[0,1,2].map(S=>r.jsx("div",{className:"shimmer",style:{height:52,borderRadius:"var(--r-sm)",background:"linear-gradient(90deg, var(--bg-panel) 25%, var(--bg-panel-2) 50%, var(--bg-panel) 75%)",backgroundSize:"400% 100%",animation:"plan-shimmer 1.4s ease-in-out infinite",animationDelay:`${S*.15}s`,border:"1px solid var(--stroke)"}},S)),r.jsx("style",{children:"@keyframes plan-shimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }"})]}),z&&!b&&r.jsxs("div",{style:{border:"1px solid var(--stroke)",borderRadius:"var(--r)",overflow:"hidden"},children:[r.jsxs("div",{style:{padding:"8px 12px",background:"var(--bg-panel)",borderBottom:"1px solid var(--stroke)",display:"flex",alignItems:"center",gap:8},children:[r.jsxs("span",{style:{fontSize:11.5,color:"var(--ink-strong)",fontWeight:600},children:[z.posts.length," posts"]}),r.jsx(te,{tone:z.engine==="document"?"green":z.engine==="anthropic"?"violet":z.engine==="ollama"?"cyan":"neutral",children:z.engine==="document"?"plan du document":z.engine==="anthropic"?"Claude plan":z.engine==="ollama"?"local LLM plan":"built-in plan"})]}),r.jsxs("div",{style:{padding:"6px 12px",background:"var(--bg-base)",borderBottom:"1px solid var(--stroke)",fontSize:10,color:"var(--ink-soft)"},children:[r.jsx(X,{name:"image",size:11,style:{color:"var(--amber)",marginRight:5,verticalAlign:"middle"}}),"Pick a start image for each Seedance / image / news post — from your library, generate one from the plan's idea, or reuse a news picture. Leave on ",r.jsx("span",{className:"mono",children:"auto"})," to decide later at Produce."]}),r.jsx("div",{style:{maxHeight:300,overflowY:"auto"},className:"scroll",children:z.posts.map((S,L)=>r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"58px 70px 1fr 188px",gap:10,padding:"9px 12px",borderTop:L?"1px solid var(--stroke)":"none",alignItems:"center"},children:[r.jsxs("span",{className:"mono",style:{fontSize:10,color:"var(--ink-soft)"},children:["D",(S.day_offset??0)+1,"·",S.time]}),r.jsx("span",{style:{fontSize:9.5,fontWeight:600,textTransform:"uppercase",letterSpacing:.5,color:W[S.format]||"var(--ink-soft)"},children:S.format}),r.jsxs("div",{style:{minWidth:0},children:[r.jsx("div",{style:{fontSize:12,color:"var(--ink-strong)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"},children:S.title}),r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"},children:S.caption})]}),r.jsx(Wm,{post:S,idx:L,images:V,newsItems:U,source:Y[L],setSource:C})]},L))})]})]}),r.jsxs("div",{style:{padding:"12px 18px",borderTop:"1px solid var(--stroke)",display:"flex",alignItems:"center",gap:10},children:[r.jsxs("span",{style:{fontSize:10.5,color:"var(--ink-muted)",flex:1},children:["Plans land as ",k==="auto"?"auto-publish":"assisted"," posts. Sources you pick are reused by the inspector's Produce button."]}),z&&z.posts&&z.posts.length?r.jsx(DzPlanEst,{count:z.posts.length}):null,i==="generate"&&r.jsx(K,{variant:"outline",size:"md",icon:"sparkle",onClick:ee,disabled:b||!a.trim(),children:b?"Consulting the deep…":z?"Regenerate":"Generate"}),i==="import"&&z&&r.jsx(K,{variant:"outline",size:"md",icon:"upload",onClick:()=>{var S;return(S=A.current)==null?void 0:S.click()},disabled:b,children:"Re-import"}),r.jsx(K,{variant:"primary",size:"md",icon:"calendar",glow:!0,onClick:R,disabled:!z||P,children:P?"Adding…":z?`Add ${z.posts.length} posts to calendar`:"Add to calendar"})]})]})})}function Hm({onDone:e}){x.useEffect(function(){e&&e()},[]);return null;const t=ji(),[n,o]=x.useState(0);x.useEffect(()=>{const s=setTimeout(()=>o(1),30),a=setTimeout(()=>o(2),800),l=setTimeout(()=>o(3),7400),d=setTimeout(()=>e==null?void 0:e(),7950);return()=>[s,a,l,d].forEach(clearTimeout)},[]);const i=n===0?.4:n===1?.95:1.32;return r.jsxs("div",{style:{position:"absolute",inset:0,zIndex:1e3,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:24,background:"radial-gradient(circle at 50% 40%, #1a0606 0%, #02060d 70%)",opacity:n>=3?0:1,transition:"opacity 520ms var(--ease)",pointerEvents:n>=3?"none":"auto",overflow:"hidden"},children:[r.jsx(Vm,{}),r.jsx(Gm,{}),r.jsx(Ym,{}),r.jsxs("div",{style:{width:168,height:168,position:"relative",transform:`scale(${i})`,opacity:n===0?0:1,transition:n===2?"transform 6600ms cubic-bezier(.32,.0,.28,1), opacity 500ms var(--ease)":"transform 800ms cubic-bezier(.22,1,.36,1), opacity 500ms var(--ease)",filter:"drop-shadow(0 12px 32px #ef444466)"},children:[r.jsxs("svg",{width:"168",height:"168",viewBox:"0 0 168 168",style:{position:"absolute",inset:0,animation:"splash-spin 8s linear infinite"},children:[r.jsx("circle",{cx:"84",cy:"84",r:"78",fill:"none",stroke:"#ef4444",strokeWidth:"0.7",strokeDasharray:"2 6",opacity:"0.55"}),r.jsx("circle",{cx:"84",cy:"84",r:"70",fill:"none",stroke:"#ef4444",strokeWidth:"0.5",strokeDasharray:"1 12",opacity:"0.45"})]}),r.jsx("svg",{width:"168",height:"168",viewBox:"0 0 168 168",style:{position:"absolute",inset:0,animation:"splash-spin-rev 12s linear infinite"},children:r.jsx("circle",{cx:"84",cy:"84",r:"82",fill:"none",stroke:"#00e5ff",strokeWidth:"0.5",strokeDasharray:"0.5 18",opacity:"0.5"})}),r.jsx("div",{style:{position:"absolute",inset:18,borderRadius:"50%",boxShadow:"0 0 70px #ef4444aa, 0 0 140px #ef444466, inset 0 0 22px #ef444333",animation:"splash-rotate 6s ease-in-out infinite, splash-pulse 2.2s ease-in-out infinite"},children:r.jsx("img",{src:D.brandLogoUrl(),width:132,height:132,alt:t.app_name,style:{width:"100%",height:"100%",objectFit:"contain",borderRadius:"50%",filter:"drop-shadow(0 0 14px var(--brand, #ef4444))"}})})]}),r.jsxs("div",{style:{textAlign:"center",opacity:n>=1?1:0,transform:n>=1?"translateY(0)":"translateY(10px)",transition:"opacity 700ms var(--ease) 250ms, transform 800ms var(--ease) 250ms"},children:[r.jsx("div",{className:"display",style:{fontSize:32,letterSpacing:"0.14em",fontWeight:700,color:"#e6f1ff",textShadow:"0 0 24px var(--brand-soft, #ef444466)"},children:t.app_name}),r.jsxs("div",{style:{fontSize:11,letterSpacing:"0.4em",color:"#6b7a92",marginTop:6},children:[t.app_sub," · v2.7.0"]}),r.jsxs("div",{style:{marginTop:22,fontSize:12,color:"var(--brand, #ef4444)",fontStyle:"italic",letterSpacing:.04},children:[t.tagline_1," ",t.tagline_2]})]}),r.jsxs("div",{style:{position:"absolute",bottom:36,left:"50%",transform:"translateX(-50%)",width:240},children:[r.jsx("div",{style:{height:2,background:"#1a2740",borderRadius:999,overflow:"hidden"},children:r.jsx("div",{style:{height:"100%",width:n>=2?"100%":n===1?"32%":"8%",background:"linear-gradient(90deg, #ef4444, #00e5ff)",transition:"width 6500ms var(--ease)",boxShadow:"0 0 12px #ef444466"}})}),r.jsx("div",{style:{marginTop:8,fontSize:9.5,letterSpacing:"0.18em",color:"#6b7a92",textAlign:"center",fontFamily:"JetBrains Mono"},children:n===0?"BOOTING THE DEEP…":n===1?"CALIBRATING TENTACLES…":n===2?"DESCENDING…":"READY"})]}),r.jsx("style",{children:`
         @keyframes splash-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes splash-spin-rev { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
         @keyframes splash-rotate { 0%,100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } }
@@ -333,7 +333,7 @@ function DzColorPicker({value,onChange,allowNone}){
           0%,100% { transform: translate(0,0); opacity: 0.3; }
           50% { transform: translate(20px, -30px); opacity: 0.7; }
         }
-      `})]})}function Km({onDone:e,onSkip:t,personas:n=[],activePersonaId:o,setActivePersonaId:i,savePersona:s}){const a=[{id:"welcome",title:"Welcome to the deep"},{id:"persona",title:"Pick a persona"},{id:"providers",title:"Generation providers"},{id:"channels",title:"Where you post"},{id:"ready",title:"You’re ready"}],[l,d]=x.useState(0),[u,f]=x.useState(null),m=a[l],y=l===a.length-1;return r.jsxs("div",{style:{position:"absolute",inset:0,zIndex:900,background:"radial-gradient(circle at 30% 20%, #1a06064d 0%, transparent 60%), radial-gradient(circle at 70% 80%, #001a2466 0%, transparent 60%), #02060df2",backdropFilter:"blur(8px)",display:"flex",alignItems:"center",justifyContent:"center",padding:24},children:[r.jsxs("div",{style:{width:640,maxWidth:"100%",maxHeight:"94%",background:"var(--bg-panel-2)",border:"1px solid var(--stroke-strong)",borderRadius:"var(--r-lg)",boxShadow:"var(--shadow-2), 0 0 80px #ef444422",display:"flex",flexDirection:"column",overflow:"hidden"},children:[r.jsxs("div",{style:{padding:"14px 18px",borderBottom:"1px solid var(--stroke)",display:"flex",alignItems:"center",gap:14},children:[r.jsx("img",{src:D.brandLogoUrl(),width:28,height:28,alt:"",style:{borderRadius:"50%",filter:"drop-shadow(0 0 6px var(--brand-soft, #ef444488))"}}),r.jsxs("div",{style:{flex:1},children:[r.jsxs("div",{className:"upper",style:{color:"var(--brand)"},children:["Setup · ",l+1," / ",a.length]}),r.jsx("div",{className:"display",style:{fontSize:14,color:"var(--ink-strong)"},children:m.title})]}),r.jsx("button",{onClick:t,style:{background:"transparent",border:0,color:"var(--ink-soft)",cursor:"pointer",fontSize:11.5},children:"Skip for now"})]}),r.jsx("div",{style:{display:"flex",gap:3,padding:"0 18px 14px",borderBottom:"1px solid var(--stroke)"},children:a.map((w,v)=>r.jsx("div",{style:{flex:1,height:3,borderRadius:999,background:v<=l?"linear-gradient(90deg, var(--brand), var(--cyan))":"var(--stroke)",transition:"background var(--dur-2) var(--ease)"}},w.id))}),r.jsxs("div",{className:"scroll",style:{flex:1,overflowY:"auto",padding:"20px 22px"},children:[m.id==="welcome"&&r.jsx(Qm,{}),m.id==="persona"&&r.jsx(Xm,{personas:n,activeId:o,setActive:i,onNew:()=>f("new"),onEdit:w=>f(w)}),m.id==="providers"&&r.jsx(qm,{}),m.id==="channels"&&r.jsx(Zm,{}),m.id==="ready"&&r.jsx(Jm,{personas:n,activeId:o})]}),r.jsxs("div",{style:{padding:"12px 18px",borderTop:"1px solid var(--stroke)",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10},children:[r.jsx("button",{disabled:l===0,onClick:()=>d(l-1),style:{background:"transparent",border:0,color:l===0?"var(--ink-muted)":"var(--ink)",fontSize:12,cursor:l===0?"default":"pointer",padding:"6px 10px"},children:"← Back"}),r.jsxs("div",{style:{fontSize:11,color:"var(--ink-muted)",flex:1,textAlign:"center"},children:["You can adjust everything later in ",r.jsx("span",{style:{color:"var(--ink-strong)"},children:"Settings"}),"."]}),y?r.jsx(K,{variant:"primary",size:"md",icon:"zap",glow:!0,onClick:e,children:"Enter the studio"}):r.jsx(K,{variant:"primary",size:"md",iconRight:"caretR",glow:!0,onClick:()=>d(l+1),children:"Continue"})]})]}),r.jsx(Au,{open:!!u,initial:u==="new"?null:u,onClose:()=>f(null),onSave:w=>{s==null||s(w),f(null)}})]})}function Xr({icon:e,kicker:t,title:n,lead:o}){return r.jsxs("div",{style:{marginBottom:18},children:[r.jsx("div",{className:"upper",style:{color:"var(--brand)",marginBottom:4},children:t}),r.jsxs("div",{className:"display",style:{fontSize:24,color:"var(--ink-strong)",display:"flex",alignItems:"center",gap:12,letterSpacing:"-0.01em"},children:[e&&r.jsx(X,{name:e,size:22,style:{color:"var(--brand)"}}),n]}),r.jsx("div",{style:{fontSize:13,color:"var(--ink-soft)",marginTop:6,lineHeight:1.55,maxWidth:540},children:o})]})}function Qm(){return r.jsxs(r.Fragment,{children:[r.jsx(Xr,{kicker:"Welcome",title:"You are about to pilot a studio.",lead:"Deepotus turns a single image (or a news item, or a sentence) into a finished 9:16 video and ships it to every channel where the shoal lives. We just need a few credentials and a handle."}),r.jsx("div",{style:{display:"grid",gridTemplateColumns:"repeat(3, 1fr)",gap:10,marginTop:6},children:[{i:"sparkle",t:"Studio",d:"Compose graphs."},{i:"calendar",t:"Scheduler",d:"Queue posts per day."},{i:"send",t:"Auto-post",d:"X · TG · YT · IG."}].map(e=>r.jsxs("div",{style:{padding:14,background:"var(--bg-panel)",border:"1px solid var(--stroke)",borderRadius:"var(--r)"},children:[r.jsx(X,{name:e.i,size:18,style:{color:"var(--brand)"}}),r.jsx("div",{style:{fontSize:13,color:"var(--ink-strong)",marginTop:6},children:e.t}),r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)"},children:e.d})]},e.t))}),r.jsx("div",{style:{marginTop:18,padding:12,background:"var(--bg-panel)",borderLeft:"2px solid var(--brand)",borderRadius:4},children:r.jsxs("div",{style:{fontSize:11.5,color:"var(--ink)",lineHeight:1.5},children:["Everything runs locally. API keys go in ",r.jsx("span",{className:"mono",children:"backend/.env"}),". Your renders never leave your machine until a Scheduler post fires."]})})]})}function Xm({personas:e,activeId:t,setActive:n,onNew:o,onEdit:i}){return r.jsxs(r.Fragment,{children:[r.jsx(Xr,{kicker:"Persona",title:"Pick or create a voice.",lead:"Each persona is a JSON file with tone, vocabulary and a voice mode. The active one shapes the News scripter, the prompt generator and the default voiceover. You can swap any time from Settings.",icon:"octopus"}),r.jsx(Ou,{personas:e,activeId:t,onSelect:n,onNew:o,onEdit:i,compact:!0})]})}function Jm({personas:e,activeId:t}){const n=e==null?void 0:e.find(o=>o.id===t);return r.jsxs(r.Fragment,{children:[r.jsx(Xr,{kicker:"Ready",title:"The deep is calibrated.",lead:"Open Studio to compose your first graph, or go straight to Scheduler to plan the week. You can revisit this checklist from the command palette (⌘K → 'Replay onboarding').",icon:"zap"}),r.jsx("div",{style:{display:"flex",flexDirection:"column",gap:8,marginTop:6},children:[["Active persona",n?`${n.name} · ${n.handle}`:"—"],["Providers ready","fal.ai · HeyGen · ElevenLabs · Anthropic"],["Channels connected","X · Telegram · YouTube"],["Channels pending","Instagram"]].map(([o,i])=>r.jsxs("div",{style:{display:"flex",gap:12,padding:"8px 10px",background:"var(--bg-panel)",borderRadius:"var(--r-sm)"},children:[r.jsx(X,{name:"check",size:14,style:{color:"var(--green)"}}),r.jsx("span",{style:{fontSize:12,color:"var(--ink)",flex:1},children:o}),r.jsx("span",{className:"mono",style:{fontSize:11.5,color:"var(--ink-strong)"},children:i})]},o))})]})}function qm(){const e=bt(),t=[{k:"FAL_KEY",label:"fal.ai",why:"Seedance + image generation",required:!0,set:!!(e!=null&&e.fal_configured)},{k:"HEYGEN_API_KEY",label:"HeyGen",why:"Talking avatars",required:!1,set:!!(e!=null&&e.heygen_enabled)},{k:"ELEVENLABS_API_KEY",label:"ElevenLabs",why:"Voiceover",required:!1,set:!!(e!=null&&e.voiceover_enabled)},{k:"ANTHROPIC_API_KEY",label:"Anthropic",why:"News summary + marketing plans (cloud)",required:!1,set:!!(e!=null&&e.has_summarizer)},{k:"OPENAI_API_KEY",label:"OpenAI",why:"News summary, marketing plans + GPT Image (cloud)",required:!1,set:!!(e!=null&&e.openai_enabled)},{k:"GEMINI_API_KEY",label:"Google Gemini",why:"News summary + marketing plans (cloud)",required:!1,set:!!(e!=null&&e.gemini_enabled)},{k:"OLLAMA_MODEL",label:"Ollama (local LLM)",why:"Marketing plans on your own machine — free, private",required:!1,set:!!(e!=null&&e.ollama_enabled)}],n=t.filter(o=>!o.set&&o.required);return r.jsxs(r.Fragment,{children:[r.jsx(Xr,{kicker:"Generators",title:"Plug in your generation providers.",lead:"The badges reflect what's in backend/.env. Only fal.ai is required. For marketing plans you can use Anthropic (cloud) OR a local Ollama model — nothing leaves your machine with Ollama. Edit backend/.env and restart to apply.",icon:"sparkle"}),r.jsx(jt,{style:{padding:0},children:t.map((o,i)=>r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"32px 1fr 1fr auto",gap:12,alignItems:"center",padding:"12px 14px",borderTop:i?"1px solid var(--stroke)":"none"},children:[r.jsx("div",{style:{width:26,height:26,borderRadius:6,background:"var(--bg-panel-2)",border:"1px solid var(--stroke)",display:"inline-flex",alignItems:"center",justifyContent:"center",color:o.set?"var(--green)":"var(--red)"},children:r.jsx(X,{name:o.set?"check":"warn",size:12})}),r.jsxs("div",{children:[r.jsxs("div",{style:{fontSize:12.5,color:"var(--ink-strong)"},children:[o.label," ",o.required&&r.jsx("span",{style:{color:"var(--brand)",fontSize:10},children:"· required"})]}),r.jsxs("div",{style:{fontSize:10.5,color:"var(--ink-soft)"},children:[o.why," · ",r.jsx("span",{className:"mono",children:o.k})]})]}),r.jsx("div",{style:{fontSize:11,color:o.set?"var(--green)":"var(--red)",fontFamily:"var(--f-mono)"},children:o.set?"••••••••••••":"(not set in backend/.env)"}),r.jsx(te,{tone:o.set?"green":"red",dot:!0,children:o.set?"set":"empty"})]},o.k))}),n.length>0&&r.jsx("div",{style:{marginTop:12,padding:12,background:"var(--bg-panel)",borderLeft:"2px solid var(--amber)",borderRadius:4},children:r.jsxs("div",{style:{fontSize:12,color:"var(--ink)"},children:[r.jsxs("strong",{style:{color:"var(--amber)"},children:[n.length," key",n.length===1?"":"s"," missing."]})," Open ",r.jsx("span",{className:"mono",children:"backend/.env"}),", paste the value(s) for ",r.jsx("span",{className:"mono",children:n.map(o=>o.k).join(", ")})," and restart the backend. The status updates here automatically (polled every 10s)."]})})]})}function Zm(){const f=bt();const kk=x.useState({}),keys=kk[0],setKeys=kk[1];x.useEffect(()=>{D.listKeys().then(k=>{const c={};((k&&k.keys)||[]).forEach(p=>{c[p.key]=p});setKeys(c)}).catch(()=>{})},[]);const setk=k=>!!(keys[k]&&keys[k].set);const chans=[{id:"x",label:"X (Twitter)",icon:"channelX",color:"#e6f1ff",desc:"Posts threads and replies via API v2.",connected:!!(f&&f.x_enabled)},{id:"telegram",label:"Telegram",icon:"channelTelegram",color:"#29b6f6",desc:"Bot token + channel chat ID via @BotFather.",connected:!!(f&&f.telegram_enabled)},{id:"youtube",label:"YouTube",icon:"channelYoutube",color:"#ef4444",desc:"OAuth uploads Shorts to your channel.",connected:["YOUTUBE_CLIENT_ID","YOUTUBE_CLIENT_SECRET","YOUTUBE_REFRESH_TOKEN"].every(setk)},{id:"instagram",label:"Instagram",icon:"channelInstagram",color:"#c084fc",desc:"Requires Business account on a Facebook Page.",connected:["IG_ACCESS_TOKEN","IG_BUSINESS_ID"].every(setk)}];return r.jsxs(r.Fragment,{children:[r.jsx(Xr,{kicker:"Distribution",title:"Connect your channels.",lead:"The Scheduler ships finished renders to whatever is connected here. Connect any from Settings → Connected accounts; the badges below reflect what is live.",icon:"send"}),r.jsx("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10},children:chans.map(e=>{const t=e.connected;return r.jsxs("div",{style:{padding:14,borderRadius:"var(--r)",background:"var(--bg-panel)",border:"1px solid "+(t?e.color+"55":"var(--stroke)"),boxShadow:t?"0 0 16px "+e.color+"22":"none",display:"flex",flexDirection:"column",gap:8},children:[r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:10},children:[r.jsx("span",{style:{width:30,height:30,borderRadius:7,background:t?e.color+"22":"var(--bg-panel-2)",color:t?e.color:"var(--ink-muted)",display:"inline-flex",alignItems:"center",justifyContent:"center"},children:r.jsx(X,{name:e.icon,size:15})}),r.jsxs("div",{style:{flex:1},children:[r.jsx("div",{style:{fontSize:13,color:"var(--ink-strong)"},children:e.label}),r.jsx(te,{tone:t?"green":"red",dot:!0,children:t?"connected":"not yet"})]})]}),r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)"},children:e.desc})]},e.id)})})]})}const Uu=[{id:"quick",label:"Quick",icon:"zap",desc:"1-shot generators"},{id:"studio",label:"Studio",icon:"flow",desc:"Node editor",new:!0},{id:"episodes",label:"Chapitres",icon:"film",desc:"Roman → vidéo narrée",new:!0},{id:"sonvfx",label:"Son & VFX",icon:"wave",desc:"Musique, voix, SFX & VFX",new:!0},{id:"montage",label:"Montage",icon:"layers",desc:"Timeline multipiste",new:!0},{id:"scheduler",label:"Scheduler",icon:"calendar",desc:"Plan & auto-post",new:!0},{id:"templates",label:"Templates",icon:"grid",desc:"Spatial layouts"},{id:"news",label:"News",icon:"rss",desc:"RSS → reel"},{id:"library",label:"Library",icon:"folder",desc:"Assets & renders"},{id:"assets3d",label:"Game Assets",icon:"gamegrid",desc:"3D studio, sprites, tuiles, matières & cartes",new:!0},{id:"vectorlab",label:"Vectorlab",icon:"vectorpen",desc:"Éditeur vectoriel & vitrail",new:!0},{id:"settings",label:"Settings",icon:"cog",desc:"Keys, paths, persona"}],eg=[{id:"job_2k1f4a",title:"oracle_solana_pump",provider:"News reel · 9:16",progress:64,etaS:38,kind:"render",status:"running"},{id:"job_2k1f4b",title:"avatar_inktober_drop",provider:"HeyGen · 9:16",progress:22,etaS:110,kind:"avatar",status:"running"},{id:"job_2k1f4c",title:"seed_glitch_throne_v4",provider:"Seedance · 9:16",progress:100,etaS:0,kind:"render",status:"succeeded",dur:"00:10"},{id:"job_2k1ea1",title:"reel_jupiter_routing",provider:"Composition · 9:16",progress:100,etaS:0,kind:"render",status:"succeeded",dur:"00:23"},{id:"job_2k1e9a",title:"voice_test_prophet",provider:"ElevenLabs",progress:100,etaS:0,kind:"audio",status:"failed",error:"401 unauthorized"}];function DzChapitres({variant:e}){const[m,setM]=x.useState(null);const back=r.jsx("div",{style:{padding:"14px 24px 0"},children:r.jsx("button",{onClick:()=>setM(null),style:{fontSize:12,padding:"6px 12px",borderRadius:7,border:"1px solid var(--stroke)",background:"var(--bg-panel)",color:"var(--ink-strong)",cursor:"pointer"},children:"← Chapitres — changer de mode"})});if(m==="origine")return r.jsxs("div",{children:[back,r.jsx(DzEpisodes,{variant:e})]});if(m==="atelier")return r.jsxs("div",{style:{display:"flex",flexDirection:"column",height:"100%"},children:[back,r.jsx("iframe",{src:"/atelier",title:"Atelier Chapitre",style:{flex:1,width:"100%",minHeight:"calc(100vh - 110px)",border:"0",marginTop:10,background:"var(--bg-base)"}})]});const card=(k,t,d,tag)=>r.jsxs("div",{onClick:()=>setM(k),style:{background:"var(--bg-panel)",border:"1px solid var(--stroke)",borderRadius:"var(--r-lg)",boxShadow:"var(--shadow-1)",padding:"22px 24px",cursor:"pointer"},children:[r.jsx("div",{style:{fontSize:16,fontWeight:600,color:"var(--ink-strong)",marginBottom:6},children:t}),r.jsx("div",{style:{fontSize:12.5,color:"var(--ink-soft)",lineHeight:1.5},children:d}),r.jsx("div",{style:{marginTop:12,fontSize:11,color:"var(--cyan)"},children:tag})]},k);return r.jsxs("div",{className:"scroll",style:{overflowY:"auto",padding:24,maxWidth:880},children:[r.jsx("div",{className:"display",style:{fontSize:22,color:"var(--ink-strong)",marginBottom:4},children:"Chapitres"}),r.jsx("div",{style:{fontSize:12,color:"var(--ink-soft)",marginBottom:20},children:"Choisis ton mode de travail — le flux d'origine ou l'Atelier."}),r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16},children:[card("origine","Flux d'origine","Colle le texte d'un chapitre, génère script, voix off et scènes — la page Episodes historique.","Ouvrir le flux d'origine →"),card("atelier","Atelier Chapitre","Le workspace complet : manuscrit, entités, bible, casting voix, direction artistique, scènes.","Entrer dans l'Atelier →")]})]})}function DzBrief({brief:e}){const[o,setO]=x.useState(!0);const L=[["objective","Objectif"],["priority","Priorité"],["aspect_ratio","Ratio"],["tg_caption","Caption Telegram"],["on_image_text","Texte à l'image"],["cta","CTA"],["hashtags","Hashtags"],["links","Liens"],["avatar_script_long","Script avatar long"],["scheduling_notes","Notes"]];const rows=L.filter(([k])=>e&&e[k]);if(!rows.length)return null;return r.jsxs("div",{style:{marginTop:6,padding:8,background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",fontSize:10.5,lineHeight:1.5},children:[r.jsxs("div",{onClick:()=>setO(!o),style:{cursor:"pointer",color:"var(--ink-strong)",fontWeight:600,fontSize:11},children:["Brief ",o?"▾":"▸"]}),o&&rows.map(([k,l])=>r.jsxs("div",{style:{marginTop:4},children:[r.jsx("span",{style:{color:"var(--amber)",fontWeight:600},children:l+" · "}),r.jsx("span",{style:{color:"var(--ink-soft)",whiteSpace:"pre-wrap"},children:String(e[k])})]},k))]})}function DzEpisodes({variant:e}){const _t=x.useState(""),title=_t[0],setTitle=_t[1],_s=x.useState(""),script=_s[0],setScript=_s[1],_l=x.useState("en"),lang=_l[0],setLang=_l[1],_v=x.useState(""),vid=_v[0],setVid=_v[1],_vs=x.useState(null),voices=_vs[0],setVoices=_vs[1],_b=x.useState(!1),busy=_b[0],setBusy=_b[1],_r=x.useState(null),res=_r[0],setRes=_r[1],_st=x.useState(1),step=_st[0],setStep=_st[1],_sc=x.useState([]),scenes=_sc[0],setScenes=_sc[1],_sm=x.useState("paragraph"),sceneMethod=_sm[0],setSceneMethod=_sm[1],_sst=x.useState(""),sceneStyle=_sst[0],setSceneStyle=_sst[1],_sb=x.useState(!1),sceneBusy=_sb[0],setSceneBusy=_sb[1],_se=x.useState(""),sceneErr=_se[0],setSceneErr=_se[1],_cc=x.useState({}),counts=_cc[0],setCounts=_cc[1],_ib=x.useState(-1),imgBusy=_ib[0],setImgBusy=_ib[1],_eb=x.useState(!1),epBusy=_eb[0],setEpBusy=_eb[1],_ej=x.useState(""),epJob=_ej[0],setEpJob=_ej[1],_es=x.useState(null),epStatus=_es[0],setEpStatus=_es[1],_ee=x.useState(""),epErr=_ee[0],setEpErr=_ee[1],fileRef=yn.useRef(null);x.useEffect(function(){var on=!0;D.listVoices().then(function(d){if(!on)return;var vv=(d&&d.voices)||[];setVoices(vv);if(vv.length){var g=vv.find(function(z){return /storytell|narrat/i.test(z.name||"")})||vv[0];setVid(g.voice_id)}});return function(){on=!1}},[]);x.useEffect(function(){if(!epJob)return;if(epStatus&&(epStatus.status==="done"||epStatus.status==="failed"))return;var t=setTimeout(function(){D.getJob(epJob).then(function(j){if(j)setEpStatus(j)})},2000);return function(){clearTimeout(t)}},[epJob,epStatus]);async function onFile(ev){var f=ev.target.files&&ev.target.files[0];ev.target.value="";if(!f)return;try{var d=await D.extractText(f);d&&d.text?(setScript(d.text),setTitle(function(p){return p||f.name.replace(/\.[^.]+$/,"")})):alert("Lecture impossible : "+((d&&d.error)||"format non supporté"))}catch(err){alert("Lecture impossible : "+String((err&&err.message)||err))}}async function gen(){if(!script.trim()){setRes({error:"Paste or upload the chapter text."});return}setBusy(!0);setRes(null);try{var d=await D.createVoiceover({script:script.trim(),voice_id:vid||void 0,language:lang,name:title||"chapitre"});setBusy(!1);d&&d.ok?setRes({filename:d.filename,url:d.url,kb:d.size_kb}):setRes({error:(d&&d.error)||"Échec de la génération."})}catch(err){setBusy(!1);setRes({error:String((err&&err.message)||err)})}}async function genScenes(){if(!script.trim()){setSceneErr("Add the chapter text in step 1.");return}setSceneBusy(!0);setSceneErr("");try{var d=await D.episodeScenes({script:script.trim(),language:lang,method:sceneMethod,style:sceneStyle});setSceneBusy(!1);if(d&&d.scenes&&d.scenes.length){setScenes(d.scenes);var mm=sceneMethod;setCounts(function(p){var q=Object.assign({},p);q[mm]=d.scenes.length;return q})}else setSceneErr((d&&d.error)||"Empty split.")}catch(err){setSceneBusy(!1);setSceneErr(String((err&&err.message)||err))}}function addScene(){setScenes(function(a){return a.concat([{text:"",illustration_prompt:""}])})}function rmScene(i){setScenes(function(a){return a.filter(function(_x,j){return j!==i})})}function moveScene(i,dir){setScenes(function(a){var j=i+dir;if(j<0||j>=a.length)return a;var b=a.slice(),t=b[i];b[i]=b[j];b[j]=t;return b})}function updScene(i,k,v){setScenes(function(a){return a.map(function(sx,j){return j===i?Object.assign({},sx,{[k]:v}):sx})})}function sbtn(lbl,on,ttl){return r.jsx("button",{onClick:on,title:ttl,style:{background:"var(--bg-base)",border:"1px solid var(--stroke-strong)",borderRadius:"var(--r-sm)",color:"var(--ink-soft)",cursor:"pointer",fontSize:12,width:26,height:26,lineHeight:"1"},children:lbl})}async function genIllustration(i){var sc=scenes[i];if(!sc||!(sc.illustration_prompt||"").trim())return;setImgBusy(i);try{var d=await D.generateImage(sc.illustration_prompt.trim(),1,"portrait_16_9",localStorage.getItem("dz_image_model")||"");if(d&&d.images&&d.images[0]){var fn=d.images[0];updScene(i,"image_filename",fn);updScene(i,"image_url",D.imageUrl(fn))}else setSceneErr("Illustration : "+((d&&d.error)||"échec"))}catch(err){setSceneErr("Illustration : "+String((err&&err.message)||err))}setImgBusy(-1)}async function genAllIllustrations(){setSceneErr("");for(var i=0;i<scenes.length;i++){var sc=scenes[i];if(!sc||!(sc.illustration_prompt||"").trim())continue;setImgBusy(i);try{var d=await D.generateImage(sc.illustration_prompt.trim(),1,"portrait_16_9",localStorage.getItem("dz_image_model")||"");if(d&&d.images&&d.images[0]){var fn=d.images[0];updScene(i,"image_filename",fn);updScene(i,"image_url",D.imageUrl(fn))}}catch(err){}}setImgBusy(-1)}async function assembleEpisode(){var sc=scenes.filter(function(s){return (s.text||"").trim()});if(!sc.length){setEpErr("No scene with text (step 2).");return}setEpBusy(!0);setEpErr("");setEpStatus(null);setEpJob("");try{var d=await D.renderEpisode({title:title||"Épisode",voice_id:vid||void 0,language:lang,scenes:scenes.map(function(s){return{text:s.text||"",image_filename:s.image_filename||null,motion:s.motion||"kenburns"}})});setEpBusy(!1);d&&d.job_id?setEpJob(d.job_id):setEpErr((d&&d.error)||"Échec du lancement.")}catch(err){setEpBusy(!1);setEpErr(String((err&&err.message)||err))}}async function sendEpisodeToScheduler(){if(!(epStatus&&epStatus.status==="done"))return;var I=new Date;I.setDate(I.getDate()+1);I.setHours(9,0,0,0);try{var p=await D.createScheduledPost({title:title||"Épisode",caption:(title||"New episode")+" 🐙",channels:["youtube","instagram"],run_at:I.toISOString(),status:"draft",mode:"assisted",job_id:epJob});p&&p.id?(window.dispatchEvent(new CustomEvent("deepotus:navigate",{detail:{view:"scheduler"}})),setTimeout(function(){window.dispatchEvent(new CustomEvent("deepotus:select-post",{detail:{id:p.id}}))},80)):setEpErr("Échec de l'envoi au Scheduler.")}catch(err){setEpErr(String((err&&err.message)||err))}}const iS={width:"100%",background:"var(--bg-base)",border:"1px solid var(--stroke-strong)",borderRadius:"var(--r-sm)",color:"var(--ink-strong)",padding:"8px 10px",fontSize:13,fontFamily:"inherit",boxSizing:"border-box"},sv=(voices||[]).find(function(z){return z.voice_id===vid}),wc=script.trim()?script.trim().split(/\s+/).filter(Boolean).length:0;return r.jsx("div",{className:"scroll",style:{height:"100%",overflowY:"auto",padding:"24px 28px"},children:r.jsxs("div",{style:{maxWidth:820,margin:"0 auto"},children:[r.jsxs("div",{style:{marginBottom:18},children:[r.jsx("h1",{style:{fontSize:22,fontWeight:700,color:"var(--ink-strong)",margin:0},children:"Episodes"}),r.jsx("div",{style:{fontSize:12.5,color:"var(--ink-soft)",marginTop:4},children:"Transforme un chapitre de roman en vidéo narrée illustrée — diffusable en épisodes."})]}),r.jsx("div",{style:{display:"flex",gap:8,marginBottom:20,flexWrap:"wrap"},children:[["1 · Script & voix",1],["2 · Scènes",2],["3 · Illustrations",3],["4 · Assemblage & export",4]].map(function(st){var ac=step===st[1],en=st[1]<=4;return r.jsx("div",{onClick:function(){en&&setStep(st[1])},style:{fontSize:11,padding:"5px 12px",borderRadius:999,background:ac?"var(--cyan-soft)":"var(--bg-panel)",color:ac?"var(--cyan)":"var(--ink-muted)",border:"1px solid "+(ac?"var(--cyan)":"var(--stroke)"),cursor:en?"pointer":"default",opacity:en?1:.55},children:st[0]},st[0])})}),step===1&&r.jsxs(ie,{label:"Script & voix",children:[r.jsx(O,{label:"Chapter title",children:r.jsx("input",{value:title,onChange:function(z){setTitle(z.target.value)},placeholder:"Chapter 1 — The awakening of the abyss",style:iS})}),r.jsx(O,{label:"Chapter text",hint:"Paste the text, or upload a .txt.",children:r.jsxs("div",{children:[r.jsx("textarea",{value:script,onChange:function(z){setScript(z.target.value)},rows:10,placeholder:"Dans les profondeurs, quelque chose s'éveille…",style:Object.assign({},iS,{resize:"vertical",lineHeight:1.5})}),r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:10,marginTop:6},children:[r.jsx(K,{variant:"outline",size:"sm",icon:"upload",onClick:function(){var z;return(z=fileRef.current)==null?void 0:z.click()},children:"Upload .txt / .docx / .pdf"}),r.jsx("input",{ref:fileRef,type:"file",accept:".txt,.docx,.pdf,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document",style:{display:"none"},onChange:onFile}),r.jsxs("span",{style:{fontSize:11,color:"var(--ink-muted)"},children:[wc," mots · ~",Math.max(1,Math.round(wc/150))," min"]})]})]})}),r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"1fr 150px",gap:14},children:[r.jsx(O,{label:"Voice",hint:voices&&voices.length===0?"No voices — check your ElevenLabs key (Settings).":"Voice premade = plan gratuit ; certaines voix exigent un abonnement.",children:r.jsx(re,{value:vid,onChange:setVid,options:(voices||[]).map(function(z){return{value:z.voice_id,label:(z.name||z.voice_id)+(z.category&&z.category!=="premade"?" · "+z.category:"")}})})}),r.jsx(O,{label:"Language",children:r.jsx(re,{value:lang,onChange:setLang,options:[{value:"en",label:"Anglais"},{value:"fr",label:"Français"}]})})]}),sv&&sv.preview_url?r.jsx(O,{label:"Voice preview",children:r.jsx("audio",{src:sv.preview_url,controls:!0,preload:"none",style:{width:"100%",height:34}})}):null,r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:12,marginTop:8,flexWrap:"wrap"},children:[r.jsx(K,{variant:"primary",size:"sm",icon:"zap",glow:!0,disabled:busy||!script.trim(),onClick:gen,children:busy?"Generating…":"Generate narration"}),res&&res.error?r.jsx("span",{style:{fontSize:12,color:"var(--red)"},children:res.error}):null,res&&res.filename?r.jsxs("span",{style:{fontSize:12,color:"var(--green)"},children:["✓ Enregistré dans la Librairie audio · ",res.kb," KB"]}):null]}),res&&res.filename?r.jsx("div",{style:{marginTop:12},children:r.jsx("audio",{src:res.url,controls:!0,style:{width:"100%"}})}):null]}),step===2&&r.jsxs(ie,{label:"Storyboard — split into scenes",children:[r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:10},children:[r.jsx("div",{style:{width:170},children:r.jsx(re,{value:sceneMethod,onChange:setSceneMethod,options:[{value:"paragraph",label:"By paragraph"},{value:"ai",label:"By AI"}]})}),r.jsx("div",{style:{width:190},title:"Style visuel appliqué aux prompts d'illustration (grammaire Młoda Polska épinglée au backend)",children:r.jsx(re,{value:sceneStyle,onChange:setSceneStyle,options:[{value:"",label:"Style: none"},{value:"vitrail",label:"Vitrail Młoda Polska"}]})}),r.jsx(K,{variant:"primary",size:"sm",icon:"zap",disabled:sceneBusy||!script.trim(),onClick:genScenes,children:sceneBusy?"Splitting…":"Generate scenes"}),(counts.paragraph!=null||counts.ai!=null)?r.jsxs("span",{style:{fontSize:11,color:"var(--ink-muted)"},children:["compare — paragraph: ",counts.paragraph!=null?counts.paragraph:"—"," · IA : ",counts.ai!=null?counts.ai:"—"]}):null,sceneErr?r.jsx("span",{style:{fontSize:11.5,color:"var(--red)"},children:sceneErr}):null]}),scenes.length===0?r.jsx("div",{style:{fontSize:12,color:"var(--ink-muted)",padding:"8px 0 4px"},children:"Génère un découpage — par paragraphe (texte fidèle, instantané) ou par l'IA (regroupement + prompts d'illustration plus riches). Compare les deux, puis ajuste."}):r.jsx("div",{style:{display:"grid",gap:10},children:scenes.map(function(sc,i){return r.jsxs("div",{style:{background:"var(--bg-panel)",border:"1px solid var(--stroke)",borderRadius:"var(--r)",padding:12},children:[r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:6,marginBottom:6},children:[r.jsxs("span",{style:{fontSize:11,fontWeight:700,color:"var(--cyan)"},children:["Scene ",i+1]}),r.jsx("div",{style:{flex:1}}),sbtn("↑",function(){moveScene(i,-1)},"Monter"),sbtn("↓",function(){moveScene(i,1)},"Descendre"),sbtn("✕",function(){rmScene(i)},"Delete")]}),r.jsx("textarea",{value:sc.text||"",onChange:function(z){updScene(i,"text",z.target.value)},rows:3,placeholder:"Narrated scene text…",style:Object.assign({},iS,{resize:"vertical",lineHeight:1.45,marginBottom:6})}),r.jsx("input",{value:sc.illustration_prompt||"",onChange:function(z){updScene(i,"illustration_prompt",z.target.value)},placeholder:"Prompt d'illustration…",style:iS})]},i)})}),r.jsx("div",{style:{marginTop:4},children:r.jsx(K,{variant:"outline",size:"sm",icon:"upload",onClick:addScene,children:"+ Ajouter une scène"})})]}),step===3&&r.jsxs(ie,{label:"Illustrations & animation",children:[scenes.length===0?r.jsx("div",{style:{fontSize:12,color:"var(--ink-muted)",padding:"8px 0"},children:"Génère d'abord le découpage à l'étape 2 (Scènes)."}):r.jsxs(r.Fragment,{children:[r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:12},children:[r.jsx("div",{style:{minWidth:200},children:r.jsx(DzImageModel,{})}),r.jsx(K,{variant:"primary",size:"sm",icon:"zap",disabled:imgBusy>=0,onClick:genAllIllustrations,children:imgBusy>=0?"Generating… ("+(imgBusy+1)+"/"+scenes.length+")":"Generate all illustrations"}),sceneErr?r.jsx("span",{style:{fontSize:11.5,color:"var(--red)"},children:sceneErr}):null]}),r.jsx("div",{style:{display:"grid",gap:12},children:scenes.map(function(sc,i){return r.jsxs("div",{style:{display:"flex",gap:12,background:"var(--bg-panel)",border:"1px solid var(--stroke)",borderRadius:"var(--r)",padding:12},children:[r.jsx("div",{style:{width:90,height:120,flexShrink:0,borderRadius:"var(--r-sm)",overflow:"hidden",background:"var(--bg-base)",border:"1px solid var(--stroke)",display:"flex",alignItems:"center",justifyContent:"center"},children:sc.image_url?r.jsx("img",{src:sc.image_url,style:{width:"100%",height:"100%",objectFit:"cover"}}):r.jsx("span",{style:{fontSize:18,color:"var(--ink-muted)"},children:imgBusy===i?"…":"—"})}),r.jsxs("div",{style:{flex:1,minWidth:0,display:"flex",flexDirection:"column",gap:6},children:[r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:8},children:[r.jsxs("span",{style:{fontSize:11,fontWeight:700,color:"var(--cyan)"},children:["Scene ",i+1]}),r.jsx("div",{style:{flex:1}}),r.jsx(K,{variant:"outline",size:"sm",icon:"zap",disabled:imgBusy>=0||!(sc.illustration_prompt||"").trim(),onClick:function(){genIllustration(i)},children:sc.image_url?"Regenerate":"Generate"})]}),r.jsx("input",{value:sc.illustration_prompt||"",onChange:function(z){updScene(i,"illustration_prompt",z.target.value)},placeholder:"Prompt d'illustration…",style:iS}),r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:8},children:[r.jsx("span",{style:{fontSize:11,color:"var(--ink-soft)"},children:"Animation :"}),r.jsx("div",{style:{width:170},children:r.jsx(re,{value:sc.motion||"kenburns",onChange:function(v){updScene(i,"motion",v)},options:[{value:"kenburns",label:"Ken Burns (zoom)"},{value:"seedance",label:"Seedance (animated)"},{value:"still",label:"Image fixe"}]})})]})]})]},i)})})]})]}),step===4&&r.jsxs(ie,{label:"Assemblage & export",children:[scenes.length===0?r.jsx("div",{style:{fontSize:12,color:"var(--ink-muted)",padding:"8px 0"},children:"Génère le découpage (étape 2) et les illustrations (étape 3) d'abord."}):r.jsxs(r.Fragment,{children:[r.jsxs("div",{style:{fontSize:12,color:"var(--ink-soft)",marginBottom:10},children:[scenes.length," scènes · voix : ",(sv&&sv.name)||vid||"—",". Les scènes sans image utilisent un fond uni ; Seedance est rendu en Ken Burns dans cette version."]}),r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap",marginBottom:12},children:[r.jsx(K,{variant:"primary",size:"sm",icon:"zap",glow:!0,disabled:epBusy||!!(epJob&&epStatus&&epStatus.status!=="done"&&epStatus.status!=="failed"),onClick:assembleEpisode,children:epBusy?"Launching…":"Assemble episode"}),epJob&&epStatus&&epStatus.status!=="done"&&epStatus.status!=="failed"?r.jsxs("span",{style:{fontSize:12,color:"var(--cyan)"},children:[epStatus.progress||0,"% · ",epStatus.current_step||"…"]}):null,epStatus&&epStatus.status==="failed"?r.jsxs("span",{style:{fontSize:12,color:"var(--red)"},children:["Échec : ",epStatus.error||""]}):null,epErr?r.jsx("span",{style:{fontSize:12,color:"var(--red)"},children:epErr}):null]}),epStatus&&epStatus.status==="done"?r.jsxs("div",{style:{display:"grid",gap:10,justifyItems:"center"},children:[r.jsx("video",{src:D.jobVideoUrl(epJob),controls:!0,style:{width:"100%",maxWidth:340,borderRadius:"var(--r)",background:"#000"}}),r.jsx(K,{variant:"primary",size:"sm",icon:"calendar",onClick:sendEpisodeToScheduler,children:"Send to Scheduler"})]}):null]})]}),r.jsx("div",{style:{marginTop:16,fontSize:11.5,color:"var(--ink-muted)",textAlign:"center"},children:"La narration, les illustrations et la vidéo finale sont réutilisables (Librairie + nœuds Studio). L'animation Seedance par scène arrivera dans une prochaine itération."})]})})}(function(){try{if(document.getElementById("__dzNavMotion"))return;var st=document.createElement("style");st.id="__dzNavMotion";st.textContent=".dzNavRail{overflow:hidden}.dzNavItem .dzNavLbl{transition:opacity var(--dur-label,200ms) var(--ease-panel,ease) calc(var(--ri,0)*25ms),transform 380ms var(--ease-panel,ease) calc(var(--ri,0)*25ms)}.dzNavFold .dzNavItem .dzNavLbl{opacity:0;transform:translateX(-22px)}.dzNavFold .dzNavItem .dzNavMeta{display:none}body.dzNavAnime .dzNavFold .dzNavItem>svg{animation:dzNavPop var(--dur-panel,460ms) var(--ease-panel,ease) both;animation-delay:calc(var(--ri,0)*25ms)}@keyframes dzNavPop{0%{transform:scale(1)}35%{transform:scale(.74)}70%{transform:scale(1.08)}100%{transform:scale(1)}}@media (prefers-reduced-motion:reduce){.dzNavItem .dzNavLbl{transition-duration:1ms;transition-delay:0ms}body.dzNavAnime .dzNavFold .dzNavItem>svg{animation:none}}";document.head.appendChild(st)}catch(e){}})();function tg({view:e,setView:t,collapsed:n,setCollapsed:o}){const i=ji();return r.jsxs("aside",{className:"dzNavRail"+(n?" dzNavFold":""),style:{width:n?64:232,background:"var(--bg-panel)",borderRight:"1px solid var(--stroke)",display:"flex",flexDirection:"column",transition:"width var(--dur-panel,460ms) var(--ease-panel,ease)",minHeight:0},children:[r.jsxs("div",{style:{height:56,padding:n?"0 12px":"0 14px",display:"flex",alignItems:"center",justifyContent:n?"center":"space-between",borderBottom:"1px solid var(--stroke)"},children:[r.jsx(Ch,{compact:n,size:18}),!n&&r.jsx(se,{name:"caret",iconSize:11,onClick:()=>o(!0),title:"Collapse"})]}),r.jsx("nav",{style:{flex:1,padding:"12px 8px",display:"flex",flexDirection:"column",gap:2},children:Uu.map((s,dzri)=>{const a=e===s.id;return r.jsxs("button",{className:"dzNavItem",onClick:()=>t(s.id),title:n?s.label:"",style:{"--ri":dzri,display:"flex",alignItems:"center",gap:12,padding:"8px 10px",background:a?"linear-gradient(90deg, var(--cyan-soft) 0%, transparent 100%)":"transparent",border:0,borderLeft:`2px solid ${a?"var(--cyan)":"transparent"}`,color:a?"var(--ink-strong)":"var(--ink)",borderRadius:0,cursor:"pointer",textAlign:"left",transition:"all var(--dur-1) var(--ease)",justifyContent:"flex-start"},onMouseEnter:l=>{a||(l.currentTarget.style.background="var(--bg-panel-2)")},onMouseLeave:l=>{a||(l.currentTarget.style.background="transparent")},children:[r.jsx(X,{name:s.icon,size:16,style:{color:a?"var(--cyan)":"var(--ink-soft)",flexShrink:0}}),r.jsxs(r.Fragment,{children:[r.jsxs("div",{className:"dzNavLbl",style:{flex:1,minWidth:0},children:[r.jsx("div",{style:{fontSize:13,fontWeight:a?600:500,whiteSpace:"nowrap",overflow:"hidden"},children:s.label}),r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)",whiteSpace:"nowrap",overflow:"hidden"},children:s.desc})]}),s.new&&r.jsx("span",{className:"dzNavMeta",children:r.jsx(te,{tone:"violet",children:"new"})})]})]},s.id)})}),!n&&r.jsx("div",{style:{padding:"0 14px 14px"},children:r.jsxs("div",{style:{padding:12,background:"var(--bg-panel-2)",border:"1px solid var(--stroke)",borderRadius:"var(--r)"},children:[r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:6},children:[r.jsx(X,{name:"octopus",size:14,style:{color:"var(--cyan)"}}),r.jsx("span",{style:{fontSize:11.5,color:"var(--ink-strong)"},children:i.tagline_1})]}),r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)",fontStyle:"italic"},children:i.tagline_2}),r.jsxs("div",{style:{marginTop:10,display:"flex",alignItems:"center",justifyContent:"space-between"},children:[r.jsx("span",{style:{fontFamily:"var(--f-mono)",fontSize:10,color:"var(--ink-muted)"},children:"v2.6.0"}),r.jsx(te,{tone:"green",dot:!0,children:"local"})]}),r.jsxs("div",{style:{marginTop:8,paddingTop:8,borderTop:"1px solid var(--stroke)",display:"flex",alignItems:"center",gap:6},children:[r.jsx(X,{name:"book",size:11,style:{color:"var(--ink-soft)"}}),r.jsx("span",{style:{fontSize:10.5,color:"var(--ink-soft)"},children:"Guide"}),r.jsx("span",{style:{flex:1}}),[["fr","FR"],["en","EN"]].map(([s,a])=>r.jsx("a",{href:`/guide/${s}.html`,target:"_blank",rel:"noreferrer",style:{fontSize:10,fontFamily:"var(--f-mono)",fontWeight:600,color:"var(--cyan)",textDecoration:"none",padding:"2px 7px",borderRadius:4,border:"1px solid var(--stroke)",background:"var(--bg-base)"},children:a},s))]})]})}),n&&r.jsx("button",{onClick:()=>o(!1),style:{height:36,margin:8,background:"transparent",border:0,color:"var(--ink-soft)",cursor:"pointer",borderRadius:"var(--r-sm)",display:"flex",alignItems:"center",justifyContent:"center"},title:"Expand",children:r.jsx(X,{name:"caretR",size:14})})]})}function ng({view:e,setCommandOpen:t,variant:n,onShowOnboarding:o,setView:i}){const s=Uu.find(u=>u.id===e),a=bt();const[Cu,CuS]=x.useState(null),[Cb,CbS]=x.useState(null);x.useEffect(()=>{let on=!0;const f=()=>{fetch("/api/cost/usage").then(R=>R.ok?R.json():null).then(d=>{on&&d&&CuS(d)}).catch(()=>{});fetch("/api/cost/balances").then(R=>R.ok?R.json():null).then(d=>{on&&d&&CbS(d)}).catch(()=>{})};f();const id=setInterval(f,3e4);return()=>{on=!1;clearInterval(id)}},[]);function l(u){return u?"green":"red"}function d(u,f,m){return f?`${u} configured`:`${u} missing — ${m}`}return r.jsxs("header",{style:{height:56,padding:"0 18px",borderBottom:"1px solid var(--stroke)",background:"linear-gradient(180deg, var(--bg-panel) 0%, var(--bg-panel)dd 100%)",display:"flex",alignItems:"center",gap:16},children:[r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:10},children:[r.jsx(X,{name:s.icon,size:18,style:{color:"var(--cyan)"}}),r.jsx("span",{className:"display",style:{fontSize:16,color:"var(--ink-strong)"},children:s.label}),r.jsxs("span",{style:{fontSize:11.5,color:"var(--ink-soft)"},children:["· ",s.desc]})]}),r.jsx("div",{style:{flex:1}}),r.jsxs("button",{onClick:()=>t(!0),style:{height:32,padding:"0 10px",background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",display:"inline-flex",alignItems:"center",gap:8,color:"var(--ink-soft)",fontSize:12,cursor:"pointer",minWidth:240},children:[r.jsx(X,{name:"search",size:13}),r.jsx("span",{style:{flex:1,textAlign:"left"},children:"Quick command…"}),r.jsx("kbd",{style:{fontFamily:"var(--f-mono)",fontSize:10,color:"var(--ink-muted)",background:"var(--bg-panel-2)",padding:"1px 5px",borderRadius:3,border:"1px solid var(--stroke)"},children:"⌘K"})]}),r.jsxs("div",{title:__dzCoutBlanc(Cu).titre,onClick:()=>i&&i("settings"),style:{display:"inline-flex",alignItems:"center",gap:6,height:24,padding:"0 10px",background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:20,cursor:"pointer",fontSize:11,whiteSpace:"nowrap"},children:[r.jsx(X,{name:"zap",size:12,style:{color:"var(--cyan)"}}),r.jsxs("span",{style:{color:"var(--ink-strong)",fontFamily:"var(--f-mono)"},children:[__dzCoutBlanc(Cu).n?"≥ $":"$",Cu&&Cu.total_usd!=null?Cu.total_usd:"—"]}),__dzCoutBlanc(Cu).n?r.jsx("span",{style:{color:"var(--amber)"},children:__dzCoutBlanc(Cu).puce},"dzcoutblanc"):null,Cb&&Cb.heygen&&Cb.heygen.available?r.jsxs("span",{style:{color:"var(--ink-muted)"},children:["· ",Cb.heygen.credits," cr"]}):null,Cb&&Cb.elevenlabs&&Cb.elevenlabs.available&&Cb.elevenlabs.remaining!=null?r.jsxs("span",{style:{color:"var(--ink-muted)"},children:["· ",Cb.elevenlabs.remaining," ch"]}):null]}),r.jsxs("div",{style:{display:"flex",gap:6,cursor:"pointer"},title:"Click to open Settings → API keys",onClick:()=>i&&i("settings"),children:[r.jsx(te,{tone:a?l(a.fal_configured):"amber",dot:!0,title:d("FAL_KEY",a==null?void 0:a.fal_configured,"add it in backend/.env then restart"),children:"fal"}),r.jsx(te,{tone:a?a.heygen_enabled?a.heygen_reachable===!1?"amber":"green":"red":"amber",dot:!0,title:a!=null&&a.heygen_enabled?a.heygen_reachable===!1?`HeyGen key set but API unreachable — ${a.heygen_message||"network/SSL issue"}`:"HeyGen reachable":d("HEYGEN_API_KEY",!1,"add it in backend/.env then restart"),children:"heygen"}),r.jsx(te,{tone:a?l(a.voiceover_enabled):"amber",dot:!0,title:d("ELEVENLABS_API_KEY",a==null?void 0:a.voiceover_enabled,"add it in backend/.env then restart"),children:"voice"}),r.jsx(te,{tone:a!=null&&a.ok?"green":"red",dot:!0,title:a!=null&&a.ok?`Backend v${a.version}`:"Backend unreachable",children:a!=null&&a.ok?`v${a.version}`:"down"})]}),r.jsx(dzQBtn,{}),r.jsx(se,{name:"octopus",title:"Replay onboarding",onClick:o})]})}(function(){try{if(!document.getElementById("dztip-style")){var st=document.createElement("style");st.id="dztip-style";st.textContent='.dz-tip{position:fixed;z-index:400;background:var(--bg-panel-2,#0f1c30);color:var(--ink-strong,#e6f1ff);border:1px solid var(--stroke-strong,#2a3c5e);border-radius:var(--r-sm,6px);padding:5px 9px;font-size:11.5px;line-height:1.45;max-width:280px;pointer-events:none;opacity:0;transform:translateY(2px);transition:opacity var(--dur-1,.12s) var(--ease,ease),transform var(--dur-1,.12s) var(--ease,ease);box-shadow:0 8px 24px #000c}.dz-tip.on{opacity:1;transform:none}@media (prefers-reduced-motion: reduce){.dz-tip{transition:none;transform:none}}';document.head.appendChild(st)}var dztEl=null,dztTmr=0,dztCur=null;function dztTip(){if(!dztEl){dztEl=document.createElement("div");dztEl.className="dz-tip";dztEl.setAttribute("role","tooltip");document.body.appendChild(dztEl)}return dztEl}function dztHide(){dztTmr&&(clearTimeout(dztTmr),dztTmr=0);if(dztCur&&dztCur.getAttribute&&dztCur.getAttribute("data-dztip")){dztCur.getAttribute("title")||dztCur.setAttribute("title",dztCur.getAttribute("data-dztip"));dztCur.removeAttribute("data-dztip")}dztCur=null;dztEl&&dztEl.classList.remove("on")}function dztPlace(el,txt){var t=dztTip();t.textContent=txt;t.style.left="0px";t.style.top="0px";t.classList.add("on");var r1=el.getBoundingClientRect(),tw=t.offsetWidth,th=t.offsetHeight,vw=window.innerWidth,vh=window.innerHeight,lx=Math.max(8,Math.min(r1.left+r1.width/2-tw/2,vw-tw-8)),ty=r1.bottom+7;ty+th>vh-8&&(ty=Math.max(8,r1.top-th-7));t.style.left=Math.round(lx)+"px";t.style.top=Math.round(ty)+"px"}function dztArm(el,txt,steal){if(!txt)return;steal&&(el.setAttribute("data-dztip",txt),el.removeAttribute("title"));dztCur=el;dztTmr=setTimeout(function(){dztTmr=0;dztCur===el&&el.isConnected&&dztPlace(el,txt)},100)}document.addEventListener("mouseover",function(ev){var el=ev.target&&ev.target.closest?ev.target.closest("[title],[data-dztip]"):null;if(el===dztCur)return;dztHide();if(!el)return;var tg=el.tagName;if(tg==="SELECT"||tg==="OPTION"||(el.closest&&el.closest("select")))return;var ti=el.getAttribute("title");dztArm(el,ti||el.getAttribute("data-dztip"),!!ti)},!0);document.addEventListener("mouseout",function(ev){if(!dztCur)return;var to=ev.relatedTarget;if(to&&dztCur.contains&&dztCur.contains(to))return;if(ev.target===dztCur||(dztCur.contains&&dztCur.contains(ev.target)))dztHide()},!0);document.addEventListener("mousedown",function(){dztHide()},!0);window.addEventListener("scroll",function(){dztHide()},!0);document.addEventListener("keydown",function(ev){ev.key==="Escape"&&dztHide()},!0);document.addEventListener("focusin",function(ev){var el=ev.target&&ev.target.closest?ev.target.closest("[title],[data-dztip]"):null;if(!el||el===dztCur)return;var fv=!1;try{fv=el.matches(":focus-visible")}catch(_e){}if(!fv)return;var tg=el.tagName;if(tg==="SELECT"||tg==="OPTION")return;dztHide();var ti=el.getAttribute("title");dztArm(el,ti||el.getAttribute("data-dztip"),!!ti)},!0);document.addEventListener("focusout",function(ev){ev.target===dztCur&&dztHide()},!0);window.__dzTip={get state(){return{visible:!!(dztEl&&dztEl.classList.contains("on")),text:dztEl?dztEl.textContent:""}}};}catch(_e){}})();(function(){try{if(!document.getElementById("dzaudit-style")){var st=document.createElement("style");st.id="dzaudit-style";st.textContent='[data-dzregion] div,[data-dzregion] label{min-width:0}';document.head.appendChild(st)}}catch(_e){}})();var dzqSt={open:!1,run:0,fail:0,subs:[]};var dzqJobs=[];function dzqEmit(){for(var z1=0;z1<dzqSt.subs.length;z1++)try{dzqSt.subs[z1]()}catch(_e){}}function dzqSet(p1){Object.assign(dzqSt,p1),dzqEmit()}function dzqSeen(){try{return JSON.parse(localStorage.getItem("dz_queue_seen_failed")||"[]")}catch(_e){return[]}}function dzqMarkSeen(){var ids=[],z1;for(z1=0;z1<dzqJobs.length;z1++)dzqJobs[z1].status==="failed"&&ids.push(dzqJobs[z1].job_id);var sn=dzqSeen();for(z1=0;z1<ids.length;z1++)sn.indexOf(ids[z1])<0&&sn.push(ids[z1]);try{localStorage.setItem("dz_queue_seen_failed",JSON.stringify(sn.slice(-100)))}catch(_e){}dzqSet({fail:0})}function dzqOpen(v1){var nx=v1===void 0?!dzqSt.open:!!v1;dzqSet({open:nx}),nx&&dzqMarkSeen()}function dzqPub(ls){dzqJobs=Array.isArray(ls)?ls:[];var run=0,fids=[],z1;for(z1=0;z1<dzqJobs.length;z1++){var j1=dzqJobs[z1];j1.status!=="done"&&j1.status!=="failed"?run++:j1.status==="failed"&&fids.push(j1.job_id)}var sn=dzqSeen(),un=0;for(z1=0;z1<fids.length;z1++)sn.indexOf(fids[z1])<0&&un++;dzqSt.open&&un&&(dzqMarkSeen(),un=0);dzqSet({run:run,fail:un})}window.__dzQueue={open:function(){dzqOpen(!0)},close:function(){dzqOpen(!1)},toggle:function(){dzqOpen()},get state(){return{open:dzqSt.open,running:dzqSt.run,unreadFailed:dzqSt.fail}}};function dzqUse(){var h1=x.useState(0),s1=h1[1];return x.useEffect(function(){function f1(){s1(function(v1){return v1+1})}return dzqSt.subs.push(f1),function(){dzqSt.subs=dzqSt.subs.filter(function(z1){return z1!==f1})}},[s1]),dzqSt}function dzqEsc(op){x.useEffect(function(){if(!op)return;function f1(ev){ev.key==="Escape"&&dzqOpen(!1)}return window.addEventListener("keydown",f1),function(){window.removeEventListener("keydown",f1)}},[op])}function dzqEmpty(){return r.jsxs("div",{style:{padding:"34px 12px",textAlign:"center",color:"var(--ink-soft)",fontSize:12.5,lineHeight:1.7},children:[r.jsx("div",{style:{fontSize:26,marginBottom:8,opacity:.75},children:"🐙"}),"Nothing rendering.",r.jsx("br",{}),"Press ",r.jsx("b",{style:{color:"var(--ink)",fontWeight:600},children:"▶ Run"})," in Studio or Quick."]})}function dzQBtn(){var q1=dzqUse(),n1=q1.run,f1=q1.fail,show=n1>0||f1>0;return r.jsxs("div",{style:{position:"relative",display:"inline-flex"},children:[r.jsx(se,{name:"signal",title:"Render queue — "+n1+" running"+(f1?", "+f1+" failed (new)":""),active:q1.open,onClick:function(){dzqOpen()}}),show?r.jsx("span",{className:"mono"+(f1?"":" dzq-pulse"),style:{position:"absolute",top:-3,right:-3,minWidth:14,height:14,padding:"0 3px",borderRadius:8,fontSize:9,lineHeight:"14px",textAlign:"center",background:f1?"var(--red)":"var(--cyan)",color:"#02060d",fontWeight:700,pointerEvents:"none"},children:f1||(n1>9?"9+":n1)}):null]})}(function(){try{if(!document.getElementById("dzq-style")){var st=document.createElement("style");st.id="dzq-style";st.textContent='.deepotus .dzq-scrim{position:fixed;inset:0;z-index:150;background:var(--bg-overlay);opacity:0;pointer-events:none;transition:opacity var(--dur-3) var(--ease)}.deepotus .dzq-scrim.on{opacity:1;pointer-events:auto}.deepotus .dzq-panel{position:fixed;top:0;right:0;bottom:0;width:360px;z-index:151;background:var(--bg-panel);border-left:1px solid var(--stroke-strong);box-shadow:-24px 0 48px #000a;display:flex;flex-direction:column;transform:translateX(102%);visibility:hidden;transition:transform var(--dur-3) var(--ease),visibility 0s linear var(--dur-3)}.deepotus .dzq-panel.on{transform:translateX(0);visibility:visible;transition:transform var(--dur-3) var(--ease)}@keyframes dzq-halo{0%,100%{box-shadow:0 0 0 0 var(--cyan-soft)}50%{box-shadow:0 0 0 5px var(--cyan-soft)}}.deepotus .dzq-pulse{animation:dzq-halo .833s ease-in-out infinite}@media (prefers-reduced-motion: reduce){.deepotus .dzq-pulse{animation:none}.deepotus .dzq-panel{transition:opacity var(--dur-2) var(--ease),visibility 0s linear var(--dur-2);transform:none;opacity:0}.deepotus .dzq-panel.on{transform:none;opacity:1}}html.no-halo .deepotus .dzq-pulse{animation:none}';document.head.appendChild(st)}}catch(_e){}})();function rg({expanded:e,setExpanded:t,variant:n}){const q3=dzqUse();dzqEsc(q3.open);const[o,i]=x.useState([]),[s,a]=x.useState(null),[l,d]=x.useState(null),u=yn.useCallback(async()=>{const c=await D.listJobs(40);i(Array.isArray(c)?c:[]),dzqPub(c)},[]);x.useEffect(()=>{let c=!0;async function p(){c&&await u()}p();const h=setInterval(p,2500);return()=>{c=!1,clearInterval(h)}},[u]);async function f(c){await D.deleteJob(c),a(null),u()}async function m(c,p){await D.renameJob(c,p),u()}function y(c){const p=c.status==="succeeded"&&c.id?`${window.location.origin}/api/jobs/${c.id}/video`:c.id||"";try{navigator.clipboard.writeText(p)}catch{}}const w=o.map(c=>({id:c.job_id,title:c.title||c.image_filename||c.job_id||"job",provider:(c.provider||"").replace(/^./,p=>p.toUpperCase())+(c.aspect_ratio?` · ${c.aspect_ratio}`:""),progress:c.progress||0,etaS:c.status==="done"||c.status==="failed"?0:Math.max(0,Math.round((100-(c.progress||0))*.6)),kind:c.provider==="heygen"?"avatar":c.audio_path?"audio":"render",status:c.status==="done"?"succeeded":c.status==="failed"?"failed":"running",dur:c.duration_s?ta(c.duration_s):"",error:c.error,img:c.image_filename||""})),v=w,g=v.filter(c=>c.status==="running"),k=v.filter(c=>c.status!=="running").sort((a3,b3)=>(a3.status==="failed"?0:1)-(b3.status==="failed"?0:1));return Pu.createPortal(r.jsxs(r.Fragment,{children:[r.jsx("div",{className:"dzq-scrim"+(q3.open?" on":""),onClick:function(){dzqOpen(!1)}}),r.jsxs("div",{className:"dzq-panel"+(q3.open?" on":""),role:"complementary","aria-label":"Render queue",children:[r.jsxs("div",{style:{height:36,padding:"0 14px",display:"flex",alignItems:"center",gap:12,borderBottom:"1px solid var(--stroke)"},children:[r.jsx(X,{name:"signal",size:14,style:{color:"var(--cyan)"}}),r.jsx("span",{className:"upper",children:"Render queue"}),r.jsxs(te,{tone:"cyan",dot:!0,children:[g.length," running"]}),r.jsxs(te,{children:[k.length," recent"]}),r.jsx("div",{style:{flex:1}}),g.length?r.jsxs("span",{style:{fontSize:11,color:"var(--ink-soft)"},children:["ETA ",r.jsx("span",{className:"mono strong",children:Vu(g.reduce(function(a,j){return Math.max(a,j.etaS||0)},0))})]}):null,r.jsx(se,{name:"close",iconSize:12,onClick:function(){dzqOpen(!1)},title:"Close — Esc"})]}),r.jsxs("div",{className:"scroll",style:{flex:1,overflowY:"auto",padding:"8px 14px"},children:[v.length===0?dzqEmpty():null,g.length?r.jsx("div",{className:"upper",style:{padding:"4px 0"},children:"Running"}):null,g.map(c=>r.jsx(yd,{job:c,onPreview:()=>d({id:c.id,title:c.title}),onCopy:()=>y(c),onDelete:()=>a(c.id),onRename:p=>m(c.id,p),confirmDel:s===c.id,onConfirm:()=>f(c.id),onCancelDel:()=>a(null)},c.id)),k.length?r.jsx("div",{className:"upper",style:{padding:"12px 0 4px"},children:"Recent"}):null,k.map(c=>r.jsx(yd,{job:c,onPreview:()=>d({id:c.id,title:c.title}),onCopy:()=>y(c),onDelete:()=>a(c.id),onRename:p=>m(c.id,p),confirmDel:s===c.id,onConfirm:()=>f(c.id),onCancelDel:()=>a(null)},c.id))]}),l&&Pu.createPortal(r.jsx("div",{onClick:()=>d(null),style:{position:"fixed",inset:0,zIndex:200,background:"var(--bg-overlay)",backdropFilter:"blur(8px)",display:"flex",alignItems:"center",justifyContent:"center",padding:32},children:r.jsxs("div",{onClick:c=>c.stopPropagation(),style:{background:"var(--bg-panel-2)",border:"1px solid var(--stroke-strong)",borderRadius:"var(--r-lg)",boxShadow:"var(--shadow-2), 0 0 80px var(--cyan-soft)",padding:16,display:"flex",flexDirection:"column",gap:12,maxWidth:"90%",maxHeight:"92%"},children:[r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:10},children:[r.jsx(X,{name:"film",size:15,style:{color:"var(--cyan)"}}),r.jsx("span",{style:{fontSize:12.5,color:"var(--ink-strong)",fontFamily:"var(--f-mono)"},children:l.title}),r.jsx("div",{style:{flex:1}}),r.jsx("a",{href:D.jobVideoUrl(l.id),download:!0,style:{textDecoration:"none"},children:r.jsx(K,{variant:"outline",size:"sm",icon:"download",children:"Download"})}),r.jsx(se,{name:"close",onClick:()=>d(null)})]}),r.jsx("video",{src:D.jobVideoUrl(l.id),controls:!0,autoPlay:!0,onError:c=>{const p=c.currentTarget.parentElement;if(c.currentTarget.style.display="none",p&&!p.querySelector("[data-missing]")){const h=document.createElement("div");h.setAttribute("data-missing","1"),h.style.cssText="padding:40px;text-align:center;color:var(--ink-soft);font-size:12.5px;min-width:320px",h.textContent="Video file not found on disk (the render may have been deleted). The job record still exists in the queue.",p.appendChild(h)}},style:{maxWidth:"70vw",maxHeight:"74vh",borderRadius:"var(--r)",background:"#000"}})]})}),document.body)]})]}),document.body)}function Hu({value:e,onRename:t,size:n=12.5,show:o=!0}){const[i,s]=x.useState(!1),[a,l]=x.useState(e);x.useEffect(()=>{l(e)},[e]);function d(){s(!1);const u=(a||"").trim();u&&u!==e?t==null||t(u):l(e)}return i?r.jsx("input",{autoFocus:!0,value:a,onClick:u=>u.stopPropagation(),onChange:u=>l(u.target.value),onBlur:d,onKeyDown:u=>{u.stopPropagation(),u.key==="Enter"&&d(),u.key==="Escape"&&(s(!1),l(e))},style:{flex:1,minWidth:0,fontSize:n,color:"var(--ink-strong)",fontFamily:"var(--f-mono)",background:"var(--bg-panel-2)",border:"1px solid var(--cyan)",borderRadius:4,padding:"1px 5px"}}):r.jsxs(r.Fragment,{children:[r.jsx("span",{style:{fontSize:n,color:"var(--ink-strong)",fontFamily:"var(--f-mono)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",flex:"0 1 auto",minWidth:0},title:e,children:e}),o&&t&&r.jsx(se,{name:"rename",size:20,iconSize:11,title:"Rename render",onClick:u=>{var f;(f=u==null?void 0:u.stopPropagation)==null||f.call(u),s(!0)}})]})}function og({job:e,onPreview:t,onCopy:n,onDelete:o,onRename:i}){const s=e.status==="running",a=e.status==="succeeded",l=e.status==="failed",d=a&&!String(e.id||"").startsWith("p_"),u=!String(e.id||"").startsWith("p_")&&!String(e.id||"").startsWith("job_2k");return r.jsxs("div",{onClick:()=>d&&(t==null?void 0:t()),style:{display:"flex",alignItems:"center",gap:10,padding:"6px 10px 6px 6px",background:"var(--bg-base)",border:`1px solid ${s?"var(--cyan)":l?"var(--red)":"var(--stroke)"}`,borderRadius:"var(--r)",minWidth:320,cursor:d?"pointer":"default",boxShadow:s?"0 0 18px var(--cyan-soft)":"none"},children:[r.jsx(rr,{kind:e.kind==="avatar"?"avatar":"render",size:40,src:/\.(png|jpe?g|webp|gif|avif)$/i.test(e.img||"")?D.imageUrl(e.img):void 0,vsrc:a?D.jobVideoUrl(e.id):void 0}),r.jsxs("div",{style:{flex:1,minWidth:0},children:[r.jsx("div",{style:{display:"flex",alignItems:"center",gap:4,minWidth:0},children:r.jsx(Hu,{value:e.title,onRename:i,size:11.5,show:u})}),r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:6,fontSize:10,color:"var(--ink-soft)"},children:[r.jsx("span",{children:e.provider}),s&&r.jsxs(r.Fragment,{children:[r.jsx("span",{children:"·"}),r.jsx("span",{className:"mono",style:{color:"var(--cyan)"},children:Vu(e.etaS)})]}),l&&r.jsxs("span",{style:{color:"var(--red)"},children:["· ",e.error]})]}),s&&r.jsx("div",{style:{marginTop:4},children:r.jsx(Nu,{value:e.progress})})]}),r.jsxs("div",{style:{display:"flex",gap:2},children:[d&&r.jsx(se,{name:"play",size:24,iconSize:11,title:"Preview",onClick:f=>{var m;(m=f==null?void 0:f.stopPropagation)==null||m.call(f),t==null||t()}}),r.jsx(se,{name:"copy",size:24,iconSize:11,title:"Copy link / id",onClick:f=>{var m;(m=f==null?void 0:f.stopPropagation)==null||m.call(f),n==null||n()}}),r.jsx(se,{name:"trash",size:24,iconSize:11,title:"Delete",onClick:f=>{var m;(m=f==null?void 0:f.stopPropagation)==null||m.call(f),confirm("Delete this job and its files?")&&(o==null||o())}})]})]})}function yd({job:e,onPreview:t,onCopy:n,onDelete:o,onRename:i,confirmDel:s,onConfirm:a,onCancelDel:l}){const d=e.status==="running",u=e.status==="failed",f=e.status==="succeeded"&&!String(e.id||"").startsWith("p_"),m=!String(e.id||"").startsWith("p_")&&!String(e.id||"").startsWith("job_2k");return r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"52px minmax(0,1fr) auto",gap:"8px 12px",alignItems:"center",padding:"10px 12px",marginBottom:6,background:d?"var(--cyan-soft)":"var(--bg-base)",border:`1px solid ${d?"var(--cyan)":u?"var(--red)":"var(--stroke)"}`,borderRadius:"var(--r)"},children:[r.jsx(rr,{kind:e.kind==="avatar"?"avatar":e.kind==="audio"?"audio":"render",size:52,src:/\.(png|jpe?g|webp|gif|avif)$/i.test(e.img||"")?D.imageUrl(e.img):void 0,vsrc:e.status==="succeeded"?D.jobVideoUrl(e.id):void 0}),r.jsxs("div",{style:{minWidth:0,gridColumn:"2 / -1"},children:[r.jsx("div",{style:{display:"flex",alignItems:"center",gap:8},children:r.jsx(Hu,{value:e.title,onRename:i,size:12.5,show:m})}),r.jsxs("div",{style:{fontSize:11,color:"var(--ink-soft)",display:"flex",gap:8,marginTop:2,minWidth:0},children:[r.jsx("span",{style:{whiteSpace:"nowrap",flexShrink:0},children:e.provider}),"·",r.jsx("span",{className:"mono",title:e.id,style:{minWidth:72,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},children:e.id}),e.dur&&r.jsxs(r.Fragment,{children:[r.jsx("span",{children:"·"}),r.jsx("span",{className:"mono",children:e.dur})]}),u&&r.jsxs("span",{title:e.error,style:{color:"var(--red)",minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},children:["· ",e.error]})]})]}),r.jsxs("div",{style:{minWidth:0,gridColumn:2,gridRow:2},children:[d&&r.jsxs(r.Fragment,{children:[r.jsx(Nu,{value:e.progress}),r.jsxs("div",{style:{display:"flex",justifyContent:"space-between",marginTop:4,fontSize:10.5,color:"var(--ink-soft)"},children:[r.jsxs("span",{className:"mono",children:[e.progress,"%"]}),r.jsxs("span",{className:"mono",style:{color:"var(--cyan)"},children:["ETA ",Vu(e.etaS)]})]})]}),!d&&!u&&r.jsx(te,{tone:"green",dot:!0,children:"done"}),u&&r.jsx(te,{tone:"red",dot:!0,children:"failed"})]}),r.jsxs("div",{style:{display:"flex",gap:4,position:"relative",gridColumn:3,gridRow:2,justifySelf:"end"},children:[f&&r.jsx(se,{name:"play",title:"Preview",onClick:t}),u&&r.jsx(K,{variant:"outline",size:"sm",icon:"bolt",children:"Retry"}),r.jsx(se,{name:"copy",title:e.status==="succeeded"?"Copy video URL":"Copy job id",onClick:n}),r.jsx(se,{name:"trash",title:"Delete",onClick:o}),s&&r.jsxs("div",{style:{position:"absolute",top:"100%",right:0,marginTop:4,zIndex:5,padding:10,background:"var(--bg-panel-2)",border:"1px solid var(--red)",borderRadius:"var(--r)",boxShadow:"var(--shadow-2)",minWidth:220},children:[r.jsx("div",{style:{fontSize:11.5,color:"var(--ink-strong)",marginBottom:6},children:"Delete this job + files?"}),r.jsxs("div",{style:{display:"flex",gap:6},children:[r.jsx(K,{variant:"danger",size:"sm",icon:"trash",onClick:a,children:"Delete"}),r.jsx(K,{variant:"ghost",size:"sm",onClick:l,children:"Cancel"})]})]})]})]})}function Vu(e){if(!e)return"0s";const t=Math.floor(e/60),n=e%60;return t?`${t}m ${n}s`:`${n}s`}function ig({open:e,onClose:t,setView:n,onShowOnboarding:o}){const[i,s]=x.useState("");if(x.useEffect(()=>{if(!e)return;function l(d){d.key==="Escape"&&t()}return window.addEventListener("keydown",l),()=>window.removeEventListener("keydown",l)},[e,t]),!e)return null;const a=[{l:"Go to Studio",icon:"flow",go:()=>{n("studio"),t()}},{l:"Go to Scheduler",icon:"calendar",go:()=>{n("scheduler"),t()}},{l:"Go to Quick",icon:"zap",go:()=>{n("quick"),t()}},{l:"Go to News",icon:"rss",go:()=>{n("news"),t()}},{l:"Replay onboarding",icon:"octopus",go:()=>{o(),t()}},{l:"New News reel graph",icon:"sparkle",go:()=>{n("studio"),t()}},{l:"New Avatar post graph",icon:"mic",go:()=>{n("studio"),t()}},{l:"Schedule a post for tomorrow",icon:"send",go:()=>{n("scheduler"),t()}},{l:"Open last render",icon:"film",go:()=>{n("library"),t()}},{l:"Settings · Connected accounts",icon:"link",go:()=>{n("settings"),t()}},{l:"Settings · API keys",icon:"cog",go:()=>{n("settings"),t()}}].filter(l=>!i||l.l.toLowerCase().includes(i.toLowerCase()));return r.jsx("div",{onClick:t,style:{position:"absolute",inset:0,background:"var(--bg-overlay)",backdropFilter:"blur(6px)",zIndex:50,display:"flex",justifyContent:"center",paddingTop:100},children:r.jsxs("div",{onClick:l=>l.stopPropagation(),style:{width:520,maxHeight:480,background:"var(--bg-panel-2)",border:"1px solid var(--stroke-strong)",borderRadius:"var(--r-lg)",overflow:"hidden",boxShadow:"var(--shadow-2)",display:"flex",flexDirection:"column"},children:[r.jsxs("div",{style:{padding:"12px 16px",borderBottom:"1px solid var(--stroke)",display:"flex",alignItems:"center",gap:10},children:[r.jsx(X,{name:"search",size:16,style:{color:"var(--ink-soft)"}}),r.jsx("input",{autoFocus:!0,value:i,onChange:l=>s(l.target.value),placeholder:"Type a command, node, or graph…",style:{flex:1,fontSize:14,color:"var(--ink-strong)"}}),r.jsx("kbd",{style:{fontSize:10,fontFamily:"var(--f-mono)",color:"var(--ink-muted)",background:"var(--bg-base)",padding:"2px 5px",borderRadius:3,border:"1px solid var(--stroke)"},children:"esc"})]}),r.jsx("div",{className:"scroll",style:{flex:1,overflowY:"auto",padding:6},children:a.map((l,d)=>r.jsxs("button",{onClick:l.go,style:{width:"100%",padding:"9px 12px",display:"flex",alignItems:"center",gap:12,background:d===0?"var(--cyan-soft)":"transparent",color:d===0?"var(--ink-strong)":"var(--ink)",border:0,borderRadius:"var(--r-sm)",cursor:"pointer",fontSize:13,textAlign:"left"},children:[r.jsx(X,{name:l.icon,size:14,style:{color:d===0?"var(--cyan)":"var(--ink-soft)"}}),l.l]},d))})]})})}
+      `})]})}function Km({onDone:e,onSkip:t,personas:n=[],activePersonaId:o,setActivePersonaId:i,savePersona:s}){const a=[{id:"welcome",title:"Welcome to the deep"},{id:"persona",title:"Pick a persona"},{id:"providers",title:"Generation providers"},{id:"channels",title:"Where you post"},{id:"ready",title:"You’re ready"}],[l,d]=x.useState(0),[u,f]=x.useState(null),m=a[l],y=l===a.length-1;return r.jsxs("div",{style:{position:"absolute",inset:0,zIndex:900,background:"radial-gradient(circle at 30% 20%, #1a06064d 0%, transparent 60%), radial-gradient(circle at 70% 80%, #001a2466 0%, transparent 60%), #02060df2",backdropFilter:"blur(8px)",display:"flex",alignItems:"center",justifyContent:"center",padding:24},children:[r.jsxs("div",{style:{width:640,maxWidth:"100%",maxHeight:"94%",background:"var(--bg-panel-2)",border:"1px solid var(--stroke-strong)",borderRadius:"var(--r-lg)",boxShadow:"var(--shadow-2), 0 0 80px #ef444422",display:"flex",flexDirection:"column",overflow:"hidden"},children:[r.jsxs("div",{style:{padding:"14px 18px",borderBottom:"1px solid var(--stroke)",display:"flex",alignItems:"center",gap:14},children:[r.jsx("img",{src:D.brandLogoUrl(),width:28,height:28,alt:"",style:{borderRadius:"50%",filter:"drop-shadow(0 0 6px var(--brand-soft, #ef444488))"}}),r.jsxs("div",{style:{flex:1},children:[r.jsxs("div",{className:"upper",style:{color:"var(--brand)"},children:["Setup · ",l+1," / ",a.length]}),r.jsx("div",{className:"display",style:{fontSize:14,color:"var(--ink-strong)"},children:m.title})]}),r.jsx("button",{onClick:t,style:{background:"transparent",border:0,color:"var(--ink-soft)",cursor:"pointer",fontSize:11.5},children:"Skip for now"})]}),r.jsx("div",{style:{display:"flex",gap:3,padding:"0 18px 14px",borderBottom:"1px solid var(--stroke)"},children:a.map((w,v)=>r.jsx("div",{style:{flex:1,height:3,borderRadius:999,background:v<=l?"linear-gradient(90deg, var(--brand), var(--cyan))":"var(--stroke)",transition:"background var(--dur-2) var(--ease)"}},w.id))}),r.jsxs("div",{className:"scroll",style:{flex:1,overflowY:"auto",padding:"20px 22px"},children:[m.id==="welcome"&&r.jsx(Qm,{}),m.id==="persona"&&r.jsx(Xm,{personas:n,activeId:o,setActive:i,onNew:()=>f("new"),onEdit:w=>f(w)}),m.id==="providers"&&r.jsx(qm,{}),m.id==="channels"&&r.jsx(Zm,{}),m.id==="ready"&&r.jsx(Jm,{personas:n,activeId:o})]}),r.jsxs("div",{style:{padding:"12px 18px",borderTop:"1px solid var(--stroke)",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10},children:[r.jsx("button",{disabled:l===0,onClick:()=>d(l-1),style:{background:"transparent",border:0,color:l===0?"var(--ink-muted)":"var(--ink)",fontSize:12,cursor:l===0?"default":"pointer",padding:"6px 10px"},children:"← Back"}),r.jsxs("div",{style:{fontSize:11,color:"var(--ink-muted)",flex:1,textAlign:"center"},children:["You can adjust everything later in ",r.jsx("span",{style:{color:"var(--ink-strong)"},children:"Settings"}),"."]}),y?r.jsx(K,{variant:"primary",size:"md",icon:"zap",glow:!0,onClick:e,children:"Enter the studio"}):r.jsx(K,{variant:"primary",size:"md",iconRight:"caretR",glow:!0,onClick:()=>d(l+1),children:"Continue"})]})]}),r.jsx(Au,{open:!!u,initial:u==="new"?null:u,onClose:()=>f(null),onSave:w=>{s==null||s(w),f(null)}})]})}function Xr({icon:e,kicker:t,title:n,lead:o}){return r.jsxs("div",{style:{marginBottom:18},children:[r.jsx("div",{className:"upper",style:{color:"var(--brand)",marginBottom:4},children:t}),r.jsxs("div",{className:"display",style:{fontSize:24,color:"var(--ink-strong)",display:"flex",alignItems:"center",gap:12,letterSpacing:"-0.01em"},children:[e&&r.jsx(X,{name:e,size:22,style:{color:"var(--brand)"}}),n]}),r.jsx("div",{style:{fontSize:13,color:"var(--ink-soft)",marginTop:6,lineHeight:1.55,maxWidth:540},children:o})]})}function Qm(){return r.jsxs(r.Fragment,{children:[r.jsx(Xr,{kicker:"Welcome",title:"You are about to pilot a studio.",lead:"Deepotus turns a single image (or a news item, or a sentence) into a finished 9:16 video and ships it to every channel where the shoal lives. We just need a few credentials and a handle."}),r.jsx("div",{style:{display:"grid",gridTemplateColumns:"repeat(3, 1fr)",gap:10,marginTop:6},children:[{i:"sparkle",t:"Studio",d:"Compose graphs."},{i:"calendar",t:"Scheduler",d:"Queue posts per day."},{i:"send",t:"Auto-post",d:"X · TG · YT · IG."}].map(e=>r.jsxs("div",{style:{padding:14,background:"var(--bg-panel)",border:"1px solid var(--stroke)",borderRadius:"var(--r)"},children:[r.jsx(X,{name:e.i,size:18,style:{color:"var(--brand)"}}),r.jsx("div",{style:{fontSize:13,color:"var(--ink-strong)",marginTop:6},children:e.t}),r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)"},children:e.d})]},e.t))}),r.jsx("div",{style:{marginTop:18,padding:12,background:"var(--bg-panel)",borderLeft:"2px solid var(--brand)",borderRadius:4},children:r.jsxs("div",{style:{fontSize:11.5,color:"var(--ink)",lineHeight:1.5},children:["Everything runs locally. API keys go in ",r.jsx("span",{className:"mono",children:"backend/.env"}),". Your renders never leave your machine until a Scheduler post fires."]})})]})}function Xm({personas:e,activeId:t,setActive:n,onNew:o,onEdit:i}){return r.jsxs(r.Fragment,{children:[r.jsx(Xr,{kicker:"Persona",title:"Pick or create a voice.",lead:"Each persona is a JSON file with tone, vocabulary and a voice mode. The active one shapes the News scripter, the prompt generator and the default voiceover. You can swap any time from Settings.",icon:"octopus"}),r.jsx(Ou,{personas:e,activeId:t,onSelect:n,onNew:o,onEdit:i,compact:!0})]})}function Jm({personas:e,activeId:t}){const n=e==null?void 0:e.find(o=>o.id===t);return r.jsxs(r.Fragment,{children:[r.jsx(Xr,{kicker:"Ready",title:"The deep is calibrated.",lead:"Open Studio to compose your first graph, or go straight to Scheduler to plan the week. You can revisit this checklist from the command palette (⌘K → 'Replay onboarding').",icon:"zap"}),r.jsx("div",{style:{display:"flex",flexDirection:"column",gap:8,marginTop:6},children:[["Active persona",n?`${n.name} · ${n.handle}`:"—"],["Providers ready","fal.ai · HeyGen · ElevenLabs · Anthropic"],["Channels connected","X · Telegram · YouTube"],["Channels pending","Instagram"]].map(([o,i])=>r.jsxs("div",{style:{display:"flex",gap:12,padding:"8px 10px",background:"var(--bg-panel)",borderRadius:"var(--r-sm)"},children:[r.jsx(X,{name:"check",size:14,style:{color:"var(--green)"}}),r.jsx("span",{style:{fontSize:12,color:"var(--ink)",flex:1},children:o}),r.jsx("span",{className:"mono",style:{fontSize:11.5,color:"var(--ink-strong)"},children:i})]},o))})]})}function qm(){const e=bt(),t=[{k:"FAL_KEY",label:"fal.ai",why:"Seedance + image generation",required:!0,set:!!(e!=null&&e.fal_configured)},{k:"HEYGEN_API_KEY",label:"HeyGen",why:"Talking avatars",required:!1,set:!!(e!=null&&e.heygen_enabled)},{k:"ELEVENLABS_API_KEY",label:"ElevenLabs",why:"Voiceover",required:!1,set:!!(e!=null&&e.voiceover_enabled)},{k:"ANTHROPIC_API_KEY",label:"Anthropic",why:"News summary + marketing plans (cloud)",required:!1,set:!!(e!=null&&e.has_summarizer)},{k:"OPENAI_API_KEY",label:"OpenAI",why:"News summary, marketing plans + GPT Image (cloud)",required:!1,set:!!(e!=null&&e.openai_enabled)},{k:"GEMINI_API_KEY",label:"Google Gemini",why:"News summary + marketing plans (cloud)",required:!1,set:!!(e!=null&&e.gemini_enabled)},{k:"OLLAMA_MODEL",label:"Ollama (local LLM)",why:"Marketing plans on your own machine — free, private",required:!1,set:!!(e!=null&&e.ollama_enabled)}],n=t.filter(o=>!o.set&&o.required);return r.jsxs(r.Fragment,{children:[r.jsx(Xr,{kicker:"Generators",title:"Plug in your generation providers.",lead:"The badges reflect what's in backend/.env. Only fal.ai is required. For marketing plans you can use Anthropic (cloud) OR a local Ollama model — nothing leaves your machine with Ollama. Edit backend/.env and restart to apply.",icon:"sparkle"}),r.jsx(jt,{style:{padding:0},children:t.map((o,i)=>r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"32px 1fr 1fr auto",gap:12,alignItems:"center",padding:"12px 14px",borderTop:i?"1px solid var(--stroke)":"none"},children:[r.jsx("div",{style:{width:26,height:26,borderRadius:6,background:"var(--bg-panel-2)",border:"1px solid var(--stroke)",display:"inline-flex",alignItems:"center",justifyContent:"center",color:o.set?"var(--green)":"var(--red)"},children:r.jsx(X,{name:o.set?"check":"warn",size:12})}),r.jsxs("div",{children:[r.jsxs("div",{style:{fontSize:12.5,color:"var(--ink-strong)"},children:[o.label," ",o.required&&r.jsx("span",{style:{color:"var(--brand)",fontSize:10},children:"· required"})]}),r.jsxs("div",{style:{fontSize:10.5,color:"var(--ink-soft)"},children:[o.why," · ",r.jsx("span",{className:"mono",children:o.k})]})]}),r.jsx("div",{style:{fontSize:11,color:o.set?"var(--green)":"var(--red)",fontFamily:"var(--f-mono)"},children:o.set?"••••••••••••":"(not set in backend/.env)"}),r.jsx(te,{tone:o.set?"green":"red",dot:!0,children:o.set?"set":"empty"})]},o.k))}),n.length>0&&r.jsx("div",{style:{marginTop:12,padding:12,background:"var(--bg-panel)",borderLeft:"2px solid var(--amber)",borderRadius:4},children:r.jsxs("div",{style:{fontSize:12,color:"var(--ink)"},children:[r.jsxs("strong",{style:{color:"var(--amber)"},children:[n.length," key",n.length===1?"":"s"," missing."]})," Open ",r.jsx("span",{className:"mono",children:"backend/.env"}),", paste the value(s) for ",r.jsx("span",{className:"mono",children:n.map(o=>o.k).join(", ")})," and restart the backend. The status updates here automatically (polled every 10s)."]})})]})}function Zm(){const f=bt();const kk=x.useState({}),keys=kk[0],setKeys=kk[1];x.useEffect(()=>{D.listKeys().then(k=>{const c={};((k&&k.keys)||[]).forEach(p=>{c[p.key]=p});setKeys(c)}).catch(()=>{})},[]);const setk=k=>!!(keys[k]&&keys[k].set);const chans=[{id:"x",label:"X (Twitter)",icon:"channelX",color:"#e6f1ff",desc:"Posts threads and replies via API v2.",connected:!!(f&&f.x_enabled)},{id:"telegram",label:"Telegram",icon:"channelTelegram",color:"#29b6f6",desc:"Bot token + channel chat ID via @BotFather.",connected:!!(f&&f.telegram_enabled)},{id:"youtube",label:"YouTube",icon:"channelYoutube",color:"#ef4444",desc:"OAuth uploads Shorts to your channel.",connected:["YOUTUBE_CLIENT_ID","YOUTUBE_CLIENT_SECRET","YOUTUBE_REFRESH_TOKEN"].every(setk)},{id:"instagram",label:"Instagram",icon:"channelInstagram",color:"#c084fc",desc:"Requires Business account on a Facebook Page.",connected:["IG_ACCESS_TOKEN","IG_BUSINESS_ID"].every(setk)}];return r.jsxs(r.Fragment,{children:[r.jsx(Xr,{kicker:"Distribution",title:"Connect your channels.",lead:"The Scheduler ships finished renders to whatever is connected here. Connect any from Settings → Connected accounts; the badges below reflect what is live.",icon:"send"}),r.jsx("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10},children:chans.map(e=>{const t=e.connected;return r.jsxs("div",{style:{padding:14,borderRadius:"var(--r)",background:"var(--bg-panel)",border:"1px solid "+(t?e.color+"55":"var(--stroke)"),boxShadow:t?"0 0 16px "+e.color+"22":"none",display:"flex",flexDirection:"column",gap:8},children:[r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:10},children:[r.jsx("span",{style:{width:30,height:30,borderRadius:7,background:t?e.color+"22":"var(--bg-panel-2)",color:t?e.color:"var(--ink-muted)",display:"inline-flex",alignItems:"center",justifyContent:"center"},children:r.jsx(X,{name:e.icon,size:15})}),r.jsxs("div",{style:{flex:1},children:[r.jsx("div",{style:{fontSize:13,color:"var(--ink-strong)"},children:e.label}),r.jsx(te,{tone:t?"green":"red",dot:!0,children:t?"connected":"not yet"})]})]}),r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)"},children:e.desc})]},e.id)})})]})}const Uu=[{id:"quick",label:"Quick",icon:"zap",desc:"1-shot generators"},{id:"studio",label:"Studio",icon:"flow",desc:"Node editor",new:!0},{id:"episodes",label:"Chapitres",icon:"film",desc:"Roman → vidéo narrée",new:!0},{id:"sonvfx",label:"Son & VFX",icon:"wave",desc:"Musique, voix, SFX & VFX",new:!0},{id:"montage",label:"Montage",icon:"layers",desc:"Timeline multipiste",new:!0},{id:"scheduler",label:"Scheduler",icon:"calendar",desc:"Plan & auto-post",new:!0},{id:"templates",label:"Templates",icon:"grid",desc:"Spatial layouts"},{id:"news",label:"News",icon:"rss",desc:"RSS → reel"},{id:"library",label:"Library",icon:"folder",desc:"Assets & renders"},{id:"assets3d",label:"Game Assets",icon:"gamegrid",desc:"3D studio, sprites, tuiles, matières & cartes",new:!0},{id:"vectorlab",label:"Vectorlab",icon:"vectorpen",desc:"Éditeur vectoriel & vitrail",new:!0},{id:"settings",label:"Settings",icon:"cog",desc:"Keys, paths, persona"}],eg=[{id:"job_2k1f4a",title:"oracle_solana_pump",provider:"News reel · 9:16",progress:64,etaS:38,kind:"render",status:"running"},{id:"job_2k1f4b",title:"avatar_inktober_drop",provider:"HeyGen · 9:16",progress:22,etaS:110,kind:"avatar",status:"running"},{id:"job_2k1f4c",title:"seed_glitch_throne_v4",provider:"Seedance · 9:16",progress:100,etaS:0,kind:"render",status:"succeeded",dur:"00:10"},{id:"job_2k1ea1",title:"reel_jupiter_routing",provider:"Composition · 9:16",progress:100,etaS:0,kind:"render",status:"succeeded",dur:"00:23"},{id:"job_2k1e9a",title:"voice_test_prophet",provider:"ElevenLabs",progress:100,etaS:0,kind:"audio",status:"failed",error:"401 unauthorized"}];function DzChapitres({variant:e}){const[m,setM]=x.useState(null);const back=r.jsx("div",{style:{padding:"14px 24px 0"},children:r.jsx("button",{onClick:()=>setM(null),style:{fontSize:12,padding:"6px 12px",borderRadius:7,border:"1px solid var(--stroke)",background:"var(--bg-panel)",color:"var(--ink-strong)",cursor:"pointer"},children:"← Chapitres — changer de mode"})});if(m==="origine")return r.jsxs("div",{children:[back,r.jsx(DzEpisodes,{variant:e})]});if(m==="atelier")return r.jsxs("div",{style:{display:"flex",flexDirection:"column",height:"100%"},children:[back,r.jsx("iframe",{src:"/atelier",title:"Atelier Chapitre",style:{flex:1,width:"100%",minHeight:"calc(100vh - 110px)",border:"0",marginTop:10,background:"var(--bg-base)"}})]});const card=(k,t,d,tag)=>r.jsxs("div",{onClick:()=>setM(k),style:{background:"var(--bg-panel)",border:"1px solid var(--stroke)",borderRadius:"var(--r-lg)",boxShadow:"var(--shadow-1)",padding:"22px 24px",cursor:"pointer"},children:[r.jsx("div",{style:{fontSize:16,fontWeight:600,color:"var(--ink-strong)",marginBottom:6},children:t}),r.jsx("div",{style:{fontSize:12.5,color:"var(--ink-soft)",lineHeight:1.5},children:d}),r.jsx("div",{style:{marginTop:12,fontSize:11,color:"var(--cyan)"},children:tag})]},k);return r.jsxs("div",{className:"scroll",style:{overflowY:"auto",padding:24,maxWidth:880},children:[r.jsx("div",{className:"display",style:{fontSize:22,color:"var(--ink-strong)",marginBottom:4},children:"Chapitres"}),r.jsx("div",{style:{fontSize:12,color:"var(--ink-soft)",marginBottom:20},children:"Choisis ton mode de travail — le flux d'origine ou l'Atelier."}),r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16},children:[card("origine","Flux d'origine","Colle le texte d'un chapitre, génère script, voix off et scènes — la page Episodes historique.","Ouvrir le flux d'origine →"),card("atelier","Atelier Chapitre","Le workspace complet : manuscrit, entités, bible, casting voix, direction artistique, scènes.","Entrer dans l'Atelier →")]})]})}function DzBrief({brief:e}){const[o,setO]=x.useState(!0);const L=[["objective","Objectif"],["priority","Priorité"],["aspect_ratio","Ratio"],["tg_caption","Caption Telegram"],["on_image_text","Texte à l'image"],["cta","CTA"],["hashtags","Hashtags"],["links","Liens"],["avatar_script_long","Script avatar long"],["scheduling_notes","Notes"]];const rows=L.filter(([k])=>e&&e[k]);if(!rows.length)return null;return r.jsxs("div",{style:{marginTop:6,padding:8,background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",fontSize:10.5,lineHeight:1.5},children:[r.jsxs("div",{onClick:()=>setO(!o),style:{cursor:"pointer",color:"var(--ink-strong)",fontWeight:600,fontSize:11},children:["Brief ",o?"▾":"▸"]}),o&&rows.map(([k,l])=>r.jsxs("div",{style:{marginTop:4},children:[r.jsx("span",{style:{color:"var(--amber)",fontWeight:600},children:l+" · "}),r.jsx("span",{style:{color:"var(--ink-soft)",whiteSpace:"pre-wrap"},children:String(e[k])})]},k))]})}function DzEpisodes({variant:e}){const _t=x.useState(""),title=_t[0],setTitle=_t[1],_s=x.useState(""),script=_s[0],setScript=_s[1],_l=x.useState("en"),lang=_l[0],setLang=_l[1],_v=x.useState(""),vid=_v[0],setVid=_v[1],_vs=x.useState(null),voices=_vs[0],setVoices=_vs[1],_b=x.useState(!1),busy=_b[0],setBusy=_b[1],_r=x.useState(null),res=_r[0],setRes=_r[1],_st=x.useState(1),step=_st[0],setStep=_st[1],_sc=x.useState([]),scenes=_sc[0],setScenes=_sc[1],_sm=x.useState("paragraph"),sceneMethod=_sm[0],setSceneMethod=_sm[1],_sst=x.useState(""),sceneStyle=_sst[0],setSceneStyle=_sst[1],_sb=x.useState(!1),sceneBusy=_sb[0],setSceneBusy=_sb[1],_se=x.useState(""),sceneErr=_se[0],setSceneErr=_se[1],_cc=x.useState({}),counts=_cc[0],setCounts=_cc[1],_ib=x.useState(-1),imgBusy=_ib[0],setImgBusy=_ib[1],_eb=x.useState(!1),epBusy=_eb[0],setEpBusy=_eb[1],_ej=x.useState(""),epJob=_ej[0],setEpJob=_ej[1],_es=x.useState(null),epStatus=_es[0],setEpStatus=_es[1],_ee=x.useState(""),epErr=_ee[0],setEpErr=_ee[1],fileRef=yn.useRef(null);x.useEffect(function(){var on=!0;D.listVoices().then(function(d){if(!on)return;var vv=(d&&d.voices)||[];setVoices(vv);if(vv.length){var g=vv.find(function(z){return /storytell|narrat/i.test(z.name||"")})||vv[0];setVid(g.voice_id)}});return function(){on=!1}},[]);x.useEffect(function(){if(!epJob)return;if(epStatus&&(epStatus.status==="done"||epStatus.status==="failed"))return;var t=setTimeout(function(){D.getJob(epJob).then(function(j){if(j)setEpStatus(j)})},2000);return function(){clearTimeout(t)}},[epJob,epStatus]);async function onFile(ev){var f=ev.target.files&&ev.target.files[0];ev.target.value="";if(!f)return;try{var d=await D.extractText(f);d&&d.text?(setScript(d.text),setTitle(function(p){return p||f.name.replace(/\.[^.]+$/,"")})):alert("Lecture impossible : "+((d&&d.error)||"format non supporté"))}catch(err){alert("Lecture impossible : "+String((err&&err.message)||err))}}async function gen(){if(!script.trim()){setRes({error:"Paste or upload the chapter text."});return}setBusy(!0);setRes(null);try{var d=await D.createVoiceover({script:script.trim(),voice_id:vid||void 0,language:lang,name:title||"chapitre"});setBusy(!1);d&&d.ok?setRes({filename:d.filename,url:d.url,kb:d.size_kb}):setRes({error:(d&&d.error)||"Échec de la génération."})}catch(err){setBusy(!1);setRes({error:String((err&&err.message)||err)})}}async function genScenes(){if(!script.trim()){setSceneErr("Add the chapter text in step 1.");return}setSceneBusy(!0);setSceneErr("");try{var d=await D.episodeScenes({script:script.trim(),language:lang,method:sceneMethod,style:sceneStyle});setSceneBusy(!1);if(d&&d.scenes&&d.scenes.length){setScenes(d.scenes);var mm=sceneMethod;setCounts(function(p){var q=Object.assign({},p);q[mm]=d.scenes.length;return q})}else setSceneErr((d&&d.error)||"Empty split.")}catch(err){setSceneBusy(!1);setSceneErr(String((err&&err.message)||err))}}function addScene(){setScenes(function(a){return a.concat([{text:"",illustration_prompt:""}])})}function rmScene(i){setScenes(function(a){return a.filter(function(_x,j){return j!==i})})}function moveScene(i,dir){setScenes(function(a){var j=i+dir;if(j<0||j>=a.length)return a;var b=a.slice(),t=b[i];b[i]=b[j];b[j]=t;return b})}function updScene(i,k,v){setScenes(function(a){return a.map(function(sx,j){return j===i?Object.assign({},sx,{[k]:v}):sx})})}function sbtn(lbl,on,ttl){return r.jsx("button",{onClick:on,title:ttl,style:{background:"var(--bg-base)",border:"1px solid var(--stroke-strong)",borderRadius:"var(--r-sm)",color:"var(--ink-soft)",cursor:"pointer",fontSize:12,width:26,height:26,lineHeight:"1"},children:lbl})}async function genIllustration(i){var sc=scenes[i];if(!sc||!(sc.illustration_prompt||"").trim())return;setImgBusy(i);try{var d=await D.generateImage(sc.illustration_prompt.trim(),1,"portrait_16_9",localStorage.getItem("dz_image_model")||"");if(d&&d.images&&d.images[0]){var fn=d.images[0];updScene(i,"image_filename",fn);updScene(i,"image_url",D.imageUrl(fn))}else setSceneErr("Illustration : "+((d&&d.error)||"échec"))}catch(err){setSceneErr("Illustration : "+String((err&&err.message)||err))}setImgBusy(-1)}async function genAllIllustrations(){setSceneErr("");for(var i=0;i<scenes.length;i++){var sc=scenes[i];if(!sc||!(sc.illustration_prompt||"").trim())continue;setImgBusy(i);try{var d=await D.generateImage(sc.illustration_prompt.trim(),1,"portrait_16_9",localStorage.getItem("dz_image_model")||"");if(d&&d.images&&d.images[0]){var fn=d.images[0];updScene(i,"image_filename",fn);updScene(i,"image_url",D.imageUrl(fn))}}catch(err){}}setImgBusy(-1)}async function assembleEpisode(){var sc=scenes.filter(function(s){return (s.text||"").trim()});if(!sc.length){setEpErr("No scene with text (step 2).");return}setEpBusy(!0);setEpErr("");setEpStatus(null);setEpJob("");try{var d=await D.renderEpisode({title:title||"Épisode",voice_id:vid||void 0,language:lang,scenes:scenes.map(function(s){return{text:s.text||"",image_filename:s.image_filename||null,motion:s.motion||"kenburns"}})});setEpBusy(!1);d&&d.job_id?setEpJob(d.job_id):setEpErr((d&&d.error)||"Échec du lancement.")}catch(err){setEpBusy(!1);setEpErr(String((err&&err.message)||err))}}async function sendEpisodeToScheduler(){if(!(epStatus&&epStatus.status==="done"))return;var I=new Date;I.setDate(I.getDate()+1);I.setHours(9,0,0,0);try{var p=await D.createScheduledPost({title:title||"Épisode",caption:(title||"New episode")+" 🐙",channels:["youtube","instagram"],run_at:I.toISOString(),status:"draft",mode:"assisted",job_id:epJob});p&&p.id?(window.dispatchEvent(new CustomEvent("deepotus:navigate",{detail:{view:"scheduler"}})),setTimeout(function(){window.dispatchEvent(new CustomEvent("deepotus:select-post",{detail:{id:p.id}}))},80)):setEpErr("Échec de l'envoi au Scheduler.")}catch(err){setEpErr(String((err&&err.message)||err))}}const iS={width:"100%",background:"var(--bg-base)",border:"1px solid var(--stroke-strong)",borderRadius:"var(--r-sm)",color:"var(--ink-strong)",padding:"8px 10px",fontSize:13,fontFamily:"inherit",boxSizing:"border-box"},sv=(voices||[]).find(function(z){return z.voice_id===vid}),wc=script.trim()?script.trim().split(/\s+/).filter(Boolean).length:0;return r.jsx("div",{className:"scroll",style:{height:"100%",overflowY:"auto",padding:"24px 28px"},children:r.jsxs("div",{style:{maxWidth:820,margin:"0 auto"},children:[r.jsxs("div",{style:{marginBottom:18},children:[r.jsx("h1",{style:{fontSize:22,fontWeight:700,color:"var(--ink-strong)",margin:0},children:"Episodes"}),r.jsx("div",{style:{fontSize:12.5,color:"var(--ink-soft)",marginTop:4},children:"Transforme un chapitre de roman en vidéo narrée illustrée — diffusable en épisodes."})]}),r.jsx("div",{style:{display:"flex",gap:8,marginBottom:20,flexWrap:"wrap"},children:[["1 · Script & voix",1],["2 · Scènes",2],["3 · Illustrations",3],["4 · Assemblage & export",4]].map(function(st){var ac=step===st[1],en=st[1]<=4;return r.jsx("div",{onClick:function(){en&&setStep(st[1])},style:{fontSize:11,padding:"5px 12px",borderRadius:999,background:ac?"var(--cyan-soft)":"var(--bg-panel)",color:ac?"var(--cyan)":"var(--ink-muted)",border:"1px solid "+(ac?"var(--cyan)":"var(--stroke)"),cursor:en?"pointer":"default",opacity:en?1:.55},children:st[0]},st[0])})}),step===1&&r.jsxs(ie,{label:"Script & voix",children:[r.jsx(O,{label:"Chapter title",children:r.jsx("input",{value:title,onChange:function(z){setTitle(z.target.value)},placeholder:"Chapter 1 — The awakening of the abyss",style:iS})}),r.jsx(O,{label:"Chapter text",hint:"Paste the text, or upload a .txt.",children:r.jsxs("div",{children:[r.jsx("textarea",{value:script,onChange:function(z){setScript(z.target.value)},rows:10,placeholder:"Dans les profondeurs, quelque chose s'éveille…",style:Object.assign({},iS,{resize:"vertical",lineHeight:1.5})}),r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:10,marginTop:6},children:[r.jsx(K,{variant:"outline",size:"sm",icon:"upload",onClick:function(){var z;return(z=fileRef.current)==null?void 0:z.click()},children:"Upload .txt / .docx / .pdf"}),r.jsx("input",{ref:fileRef,type:"file",accept:".txt,.docx,.pdf,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document",style:{display:"none"},onChange:onFile}),r.jsxs("span",{style:{fontSize:11,color:"var(--ink-muted)"},children:[wc," mots · ~",Math.max(1,Math.round(wc/150))," min"]})]})]})}),r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"1fr 150px",gap:14},children:[r.jsx(O,{label:"Voice",hint:voices&&voices.length===0?"No voices — check your ElevenLabs key (Settings).":"Voice premade = plan gratuit ; certaines voix exigent un abonnement.",children:r.jsx(re,{value:vid,onChange:setVid,options:(voices||[]).map(function(z){return{value:z.voice_id,label:(z.name||z.voice_id)+(z.category&&z.category!=="premade"?" · "+z.category:"")}})})}),r.jsx(O,{label:"Language",children:r.jsx(re,{value:lang,onChange:setLang,options:[{value:"en",label:"Anglais"},{value:"fr",label:"Français"}]})})]}),sv&&sv.preview_url?r.jsx(O,{label:"Voice preview",children:r.jsx("audio",{src:sv.preview_url,controls:!0,preload:"none",style:{width:"100%",height:34}})}):null,r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:12,marginTop:8,flexWrap:"wrap"},children:[r.jsx(K,{variant:"primary",size:"sm",icon:"zap",glow:!0,disabled:busy||!script.trim(),onClick:gen,children:busy?"Generating…":"Generate narration"}),res&&res.error?r.jsx("span",{style:{fontSize:12,color:"var(--red)"},children:res.error}):null,res&&res.filename?r.jsxs("span",{style:{fontSize:12,color:"var(--green)"},children:["✓ Enregistré dans la Librairie audio · ",res.kb," KB"]}):null]}),res&&res.filename?r.jsx("div",{style:{marginTop:12},children:r.jsx("audio",{src:res.url,controls:!0,style:{width:"100%"}})}):null]}),step===2&&r.jsxs(ie,{label:"Storyboard — split into scenes",children:[r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:10},children:[r.jsx("div",{style:{width:170},children:r.jsx(re,{value:sceneMethod,onChange:setSceneMethod,options:[{value:"paragraph",label:"By paragraph"},{value:"ai",label:"By AI"}]})}),r.jsx("div",{style:{width:190},title:"Style visuel appliqué aux prompts d'illustration (grammaire Młoda Polska épinglée au backend)",children:r.jsx(re,{value:sceneStyle,onChange:setSceneStyle,options:[{value:"",label:"Style: none"},{value:"vitrail",label:"Vitrail Młoda Polska"}]})}),r.jsx(K,{variant:"primary",size:"sm",icon:"zap",disabled:sceneBusy||!script.trim(),onClick:genScenes,children:sceneBusy?"Splitting…":"Generate scenes"}),(counts.paragraph!=null||counts.ai!=null)?r.jsxs("span",{style:{fontSize:11,color:"var(--ink-muted)"},children:["compare — paragraph: ",counts.paragraph!=null?counts.paragraph:"—"," · IA : ",counts.ai!=null?counts.ai:"—"]}):null,sceneErr?r.jsx("span",{style:{fontSize:11.5,color:"var(--red)"},children:sceneErr}):null]}),scenes.length===0?r.jsx("div",{style:{fontSize:12,color:"var(--ink-muted)",padding:"8px 0 4px"},children:"Génère un découpage — par paragraphe (texte fidèle, instantané) ou par l'IA (regroupement + prompts d'illustration plus riches). Compare les deux, puis ajuste."}):r.jsx("div",{style:{display:"grid",gap:10},children:scenes.map(function(sc,i){return r.jsxs("div",{style:{background:"var(--bg-panel)",border:"1px solid var(--stroke)",borderRadius:"var(--r)",padding:12},children:[r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:6,marginBottom:6},children:[r.jsxs("span",{style:{fontSize:11,fontWeight:700,color:"var(--cyan)"},children:["Scene ",i+1]}),r.jsx("div",{style:{flex:1}}),sbtn("↑",function(){moveScene(i,-1)},"Monter"),sbtn("↓",function(){moveScene(i,1)},"Descendre"),sbtn("✕",function(){rmScene(i)},"Delete")]}),r.jsx("textarea",{value:sc.text||"",onChange:function(z){updScene(i,"text",z.target.value)},rows:3,placeholder:"Narrated scene text…",style:Object.assign({},iS,{resize:"vertical",lineHeight:1.45,marginBottom:6})}),r.jsx("input",{value:sc.illustration_prompt||"",onChange:function(z){updScene(i,"illustration_prompt",z.target.value)},placeholder:"Prompt d'illustration…",style:iS})]},i)})}),r.jsx("div",{style:{marginTop:4},children:r.jsx(K,{variant:"outline",size:"sm",icon:"upload",onClick:addScene,children:"+ Ajouter une scène"})})]}),step===3&&r.jsxs(ie,{label:"Illustrations & animation",children:[scenes.length===0?r.jsx("div",{style:{fontSize:12,color:"var(--ink-muted)",padding:"8px 0"},children:"Génère d'abord le découpage à l'étape 2 (Scènes)."}):r.jsxs(r.Fragment,{children:[r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:12},children:[r.jsx("div",{style:{minWidth:200},children:r.jsx(DzImageModel,{})}),r.jsx(K,{variant:"primary",size:"sm",icon:"zap",disabled:imgBusy>=0,onClick:genAllIllustrations,children:imgBusy>=0?"Generating… ("+(imgBusy+1)+"/"+scenes.length+")":"Generate all illustrations"}),sceneErr?r.jsx("span",{style:{fontSize:11.5,color:"var(--red)"},children:sceneErr}):null]}),r.jsx("div",{style:{display:"grid",gap:12},children:scenes.map(function(sc,i){return r.jsxs("div",{style:{display:"flex",gap:12,background:"var(--bg-panel)",border:"1px solid var(--stroke)",borderRadius:"var(--r)",padding:12},children:[r.jsx("div",{style:{width:90,height:120,flexShrink:0,borderRadius:"var(--r-sm)",overflow:"hidden",background:"var(--bg-base)",border:"1px solid var(--stroke)",display:"flex",alignItems:"center",justifyContent:"center"},children:sc.image_url?r.jsx("img",{src:sc.image_url,style:{width:"100%",height:"100%",objectFit:"cover"}}):r.jsx("span",{style:{fontSize:18,color:"var(--ink-muted)"},children:imgBusy===i?"…":"—"})}),r.jsxs("div",{style:{flex:1,minWidth:0,display:"flex",flexDirection:"column",gap:6},children:[r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:8},children:[r.jsxs("span",{style:{fontSize:11,fontWeight:700,color:"var(--cyan)"},children:["Scene ",i+1]}),r.jsx("div",{style:{flex:1}}),r.jsx(K,{variant:"outline",size:"sm",icon:"zap",disabled:imgBusy>=0||!(sc.illustration_prompt||"").trim(),onClick:function(){genIllustration(i)},children:sc.image_url?"Regenerate":"Generate"})]}),r.jsx("input",{value:sc.illustration_prompt||"",onChange:function(z){updScene(i,"illustration_prompt",z.target.value)},placeholder:"Prompt d'illustration…",style:iS}),r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:8},children:[r.jsx("span",{style:{fontSize:11,color:"var(--ink-soft)"},children:"Animation :"}),r.jsx("div",{style:{width:170},children:r.jsx(re,{value:sc.motion||"kenburns",onChange:function(v){updScene(i,"motion",v)},options:[{value:"kenburns",label:"Ken Burns (zoom)"},{value:"seedance",label:"Seedance (animated)"},{value:"still",label:"Image fixe"}]})})]})]})]},i)})})]})]}),step===4&&r.jsxs(ie,{label:"Assemblage & export",children:[scenes.length===0?r.jsx("div",{style:{fontSize:12,color:"var(--ink-muted)",padding:"8px 0"},children:"Génère le découpage (étape 2) et les illustrations (étape 3) d'abord."}):r.jsxs(r.Fragment,{children:[r.jsxs("div",{style:{fontSize:12,color:"var(--ink-soft)",marginBottom:10},children:[scenes.length," scènes · voix : ",(sv&&sv.name)||vid||"—",". Les scènes sans image utilisent un fond uni ; Seedance est rendu en Ken Burns dans cette version."]}),r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap",marginBottom:12},children:[r.jsx(K,{variant:"primary",size:"sm",icon:"zap",glow:!0,disabled:epBusy||!!(epJob&&epStatus&&epStatus.status!=="done"&&epStatus.status!=="failed"),onClick:assembleEpisode,children:epBusy?"Launching…":"Assemble episode"}),epJob&&epStatus&&epStatus.status!=="done"&&epStatus.status!=="failed"?r.jsxs("span",{style:{fontSize:12,color:"var(--cyan)"},children:[epStatus.progress||0,"% · ",epStatus.current_step||"…"]}):null,epStatus&&epStatus.status==="failed"?r.jsxs("span",{style:{fontSize:12,color:"var(--red)"},children:["Échec : ",epStatus.error||""]}):null,epErr?r.jsx("span",{style:{fontSize:12,color:"var(--red)"},children:epErr}):null]}),epStatus&&epStatus.status==="done"?r.jsxs("div",{style:{display:"grid",gap:10,justifyItems:"center"},children:[r.jsx("video",{src:D.jobVideoUrl(epJob),controls:!0,style:{width:"100%",maxWidth:340,borderRadius:"var(--r)",background:"#000"}}),r.jsx(K,{variant:"primary",size:"sm",icon:"calendar",onClick:sendEpisodeToScheduler,children:"Send to Scheduler"})]}):null]})]}),r.jsx("div",{style:{marginTop:16,fontSize:11.5,color:"var(--ink-muted)",textAlign:"center"},children:"La narration, les illustrations et la vidéo finale sont réutilisables (Librairie + nœuds Studio). L'animation Seedance par scène arrivera dans une prochaine itération."})]})})}(function(){try{if(document.getElementById("__dzNavMotion"))return;var st=document.createElement("style");st.id="__dzNavMotion";st.textContent=".dzNavRail{overflow:hidden}.dzNavItem .dzNavLbl{transition:opacity var(--dur-label,200ms) var(--ease-panel,ease) calc(var(--ri,0)*25ms),transform 380ms var(--ease-panel,ease) calc(var(--ri,0)*25ms)}.dzNavFold .dzNavItem .dzNavLbl{opacity:0;transform:translateX(-22px)}.dzNavFold .dzNavItem .dzNavMeta{display:none}body.dzNavAnime .dzNavFold .dzNavItem>svg{animation:dzNavPop var(--dur-panel,460ms) var(--ease-panel,ease) both;animation-delay:calc(var(--ri,0)*25ms)}@keyframes dzNavPop{0%{transform:scale(1)}35%{transform:scale(.74)}70%{transform:scale(1.08)}100%{transform:scale(1)}}@media (prefers-reduced-motion:reduce){.dzNavItem .dzNavLbl{transition-duration:1ms;transition-delay:0ms}body.dzNavAnime .dzNavFold .dzNavItem>svg{animation:none}}";document.head.appendChild(st)}catch(e){}})();function tg({view:e,setView:t,collapsed:n,setCollapsed:o}){const i=ji();return r.jsxs("aside",{className:"dzNavRail"+(n?" dzNavFold":""),style:{width:n?64:232,background:"var(--bg-panel)",borderRight:"1px solid var(--stroke)",display:"flex",flexDirection:"column",transition:"width var(--dur-panel,460ms) var(--ease-panel,ease)",minHeight:0},children:[r.jsxs("div",{style:{height:56,padding:n?"0 12px":"0 14px",display:"flex",alignItems:"center",justifyContent:n?"center":"space-between",borderBottom:"1px solid var(--stroke)"},children:[r.jsx(Ch,{compact:n,size:18}),!n&&r.jsx(se,{name:"caret",iconSize:11,onClick:()=>o(!0),title:"Collapse"})]}),r.jsx("nav",{style:{flex:1,padding:"12px 8px",display:"flex",flexDirection:"column",gap:2},children:Uu.map((s,dzri)=>{const a=e===s.id;return r.jsxs("button",{className:"dzNavItem",onClick:()=>t(s.id),title:n?s.label:"",style:{"--ri":dzri,display:"flex",alignItems:"center",gap:12,padding:"8px 10px",background:a?"linear-gradient(90deg, var(--cyan-soft) 0%, transparent 100%)":"transparent",border:0,borderLeft:`2px solid ${a?"var(--cyan)":"transparent"}`,color:a?"var(--ink-strong)":"var(--ink)",borderRadius:0,cursor:"pointer",textAlign:"left",transition:"all var(--dur-1) var(--ease)",justifyContent:"flex-start"},onMouseEnter:l=>{a||(l.currentTarget.style.background="var(--bg-panel-2)")},onMouseLeave:l=>{a||(l.currentTarget.style.background="transparent")},children:[r.jsx(X,{name:s.icon,size:16,style:{color:a?"var(--cyan)":"var(--ink-soft)",flexShrink:0}}),r.jsxs(r.Fragment,{children:[r.jsxs("div",{className:"dzNavLbl",style:{flex:1,minWidth:0},children:[r.jsx("div",{style:{fontSize:13,fontWeight:a?600:500,whiteSpace:"nowrap",overflow:"hidden"},children:s.label}),r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)",whiteSpace:"nowrap",overflow:"hidden"},children:s.desc})]}),s.new&&r.jsx("span",{className:"dzNavMeta",children:r.jsx(te,{tone:"violet",children:"new"})})]})]},s.id)})}),!n&&r.jsx("div",{style:{padding:"0 14px 14px"},children:r.jsxs("div",{style:{padding:12,background:"var(--bg-panel-2)",border:"1px solid var(--stroke)",borderRadius:"var(--r)"},children:[r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:6},children:[r.jsx(X,{name:"octopus",size:14,style:{color:"var(--cyan)"}}),r.jsx("span",{style:{fontSize:11.5,color:"var(--ink-strong)"},children:i.tagline_1})]}),r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)",fontStyle:"italic"},children:i.tagline_2}),r.jsxs("div",{style:{marginTop:10,display:"flex",alignItems:"center",justifyContent:"space-between"},children:[r.jsx("span",{style:{fontFamily:"var(--f-mono)",fontSize:10,color:"var(--ink-muted)"},children:"v2.7.0"}),r.jsx(te,{tone:"green",dot:!0,children:"local"})]}),r.jsxs("div",{style:{marginTop:8,paddingTop:8,borderTop:"1px solid var(--stroke)",display:"flex",alignItems:"center",gap:6},children:[r.jsx(X,{name:"book",size:11,style:{color:"var(--ink-soft)"}}),r.jsx("span",{style:{fontSize:10.5,color:"var(--ink-soft)"},children:"Guide"}),r.jsx("span",{style:{flex:1}}),[["fr","FR"],["en","EN"]].map(([s,a])=>r.jsx("a",{href:`/guide/${s}.html`,target:"_blank",rel:"noreferrer",style:{fontSize:10,fontFamily:"var(--f-mono)",fontWeight:600,color:"var(--cyan)",textDecoration:"none",padding:"2px 7px",borderRadius:4,border:"1px solid var(--stroke)",background:"var(--bg-base)"},children:a},s))]})]})}),n&&r.jsx("button",{onClick:()=>o(!1),style:{height:36,margin:8,background:"transparent",border:0,color:"var(--ink-soft)",cursor:"pointer",borderRadius:"var(--r-sm)",display:"flex",alignItems:"center",justifyContent:"center"},title:"Expand",children:r.jsx(X,{name:"caretR",size:14})})]})}function ng({view:e,setCommandOpen:t,variant:n,onShowOnboarding:o,setView:i}){const s=Uu.find(u=>u.id===e),a=bt();const[Cu,CuS]=x.useState(null),[Cb,CbS]=x.useState(null);x.useEffect(()=>{let on=!0;const f=()=>{fetch("/api/cost/usage").then(R=>R.ok?R.json():null).then(d=>{on&&d&&CuS(d)}).catch(()=>{});fetch("/api/cost/balances").then(R=>R.ok?R.json():null).then(d=>{on&&d&&CbS(d)}).catch(()=>{})};f();const id=setInterval(f,3e4);return()=>{on=!1;clearInterval(id)}},[]);function l(u){return u?"green":"red"}function d(u,f,m){return f?`${u} configured`:`${u} missing — ${m}`}return r.jsxs("header",{style:{height:56,padding:"0 18px",borderBottom:"1px solid var(--stroke)",background:"linear-gradient(180deg, var(--bg-panel) 0%, var(--bg-panel)dd 100%)",display:"flex",alignItems:"center",gap:16},children:[r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:10},children:[r.jsx(X,{name:s.icon,size:18,style:{color:"var(--cyan)"}}),r.jsx("span",{className:"display",style:{fontSize:16,color:"var(--ink-strong)"},children:s.label}),r.jsxs("span",{style:{fontSize:11.5,color:"var(--ink-soft)"},children:["· ",s.desc]})]}),r.jsx("div",{style:{flex:1}}),r.jsxs("button",{onClick:()=>t(!0),style:{height:32,padding:"0 10px",background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",display:"inline-flex",alignItems:"center",gap:8,color:"var(--ink-soft)",fontSize:12,cursor:"pointer",minWidth:240},children:[r.jsx(X,{name:"search",size:13}),r.jsx("span",{style:{flex:1,textAlign:"left"},children:"Quick command…"}),r.jsx("kbd",{style:{fontFamily:"var(--f-mono)",fontSize:10,color:"var(--ink-muted)",background:"var(--bg-panel-2)",padding:"1px 5px",borderRadius:3,border:"1px solid var(--stroke)"},children:"⌘K"})]}),r.jsxs("div",{title:__dzCoutBlanc(Cu).titre,onClick:()=>i&&i("settings"),style:{display:"inline-flex",alignItems:"center",gap:6,height:24,padding:"0 10px",background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:20,cursor:"pointer",fontSize:11,whiteSpace:"nowrap"},children:[r.jsx(X,{name:"zap",size:12,style:{color:"var(--cyan)"}}),r.jsxs("span",{style:{color:"var(--ink-strong)",fontFamily:"var(--f-mono)"},children:[__dzCoutBlanc(Cu).n?"≥ $":"$",Cu&&Cu.total_usd!=null?Cu.total_usd:"—"]}),__dzCoutBlanc(Cu).n?r.jsx("span",{style:{color:"var(--amber)"},children:__dzCoutBlanc(Cu).puce},"dzcoutblanc"):null,Cb&&Cb.heygen&&Cb.heygen.available?r.jsxs("span",{style:{color:"var(--ink-muted)"},children:["· ",Cb.heygen.credits," cr"]}):null,Cb&&Cb.elevenlabs&&Cb.elevenlabs.available&&Cb.elevenlabs.remaining!=null?r.jsxs("span",{style:{color:"var(--ink-muted)"},children:["· ",Cb.elevenlabs.remaining," ch"]}):null]}),r.jsxs("div",{style:{display:"flex",gap:6,cursor:"pointer"},title:"Click to open Settings → API keys",onClick:()=>i&&i("settings"),children:[r.jsx(te,{tone:a?l(a.fal_configured):"amber",dot:!0,title:d("FAL_KEY",a==null?void 0:a.fal_configured,"add it in backend/.env then restart"),children:"fal"}),r.jsx(te,{tone:a?a.heygen_enabled?a.heygen_reachable===!1?"amber":"green":"red":"amber",dot:!0,title:a!=null&&a.heygen_enabled?a.heygen_reachable===!1?`HeyGen key set but API unreachable — ${a.heygen_message||"network/SSL issue"}`:"HeyGen reachable":d("HEYGEN_API_KEY",!1,"add it in backend/.env then restart"),children:"heygen"}),r.jsx(te,{tone:a?l(a.voiceover_enabled):"amber",dot:!0,title:d("ELEVENLABS_API_KEY",a==null?void 0:a.voiceover_enabled,"add it in backend/.env then restart"),children:"voice"}),r.jsx(te,{tone:a!=null&&a.ok?"green":"red",dot:!0,title:a!=null&&a.ok?`Backend v${a.version}`:"Backend unreachable",children:a!=null&&a.ok?`v${a.version}`:"down"})]}),r.jsx(dzQBtn,{}),r.jsx(se,{name:"octopus",title:"Replay onboarding",onClick:o})]})}(function(){try{if(!document.getElementById("dztip-style")){var st=document.createElement("style");st.id="dztip-style";st.textContent='.dz-tip{position:fixed;z-index:400;background:var(--bg-panel-2,#0f1c30);color:var(--ink-strong,#e6f1ff);border:1px solid var(--stroke-strong,#2a3c5e);border-radius:var(--r-sm,6px);padding:5px 9px;font-size:11.5px;line-height:1.45;max-width:280px;pointer-events:none;opacity:0;transform:translateY(2px);transition:opacity var(--dur-1,.12s) var(--ease,ease),transform var(--dur-1,.12s) var(--ease,ease);box-shadow:0 8px 24px #000c}.dz-tip.on{opacity:1;transform:none}@media (prefers-reduced-motion: reduce){.dz-tip{transition:none;transform:none}}';document.head.appendChild(st)}var dztEl=null,dztTmr=0,dztCur=null;function dztTip(){if(!dztEl){dztEl=document.createElement("div");dztEl.className="dz-tip";dztEl.setAttribute("role","tooltip");document.body.appendChild(dztEl)}return dztEl}function dztHide(){dztTmr&&(clearTimeout(dztTmr),dztTmr=0);if(dztCur&&dztCur.getAttribute&&dztCur.getAttribute("data-dztip")){dztCur.getAttribute("title")||dztCur.setAttribute("title",dztCur.getAttribute("data-dztip"));dztCur.removeAttribute("data-dztip")}dztCur=null;dztEl&&dztEl.classList.remove("on")}function dztPlace(el,txt){var t=dztTip();t.textContent=txt;t.style.left="0px";t.style.top="0px";t.classList.add("on");var r1=el.getBoundingClientRect(),tw=t.offsetWidth,th=t.offsetHeight,vw=window.innerWidth,vh=window.innerHeight,lx=Math.max(8,Math.min(r1.left+r1.width/2-tw/2,vw-tw-8)),ty=r1.bottom+7;ty+th>vh-8&&(ty=Math.max(8,r1.top-th-7));t.style.left=Math.round(lx)+"px";t.style.top=Math.round(ty)+"px"}function dztArm(el,txt,steal){if(!txt)return;steal&&(el.setAttribute("data-dztip",txt),el.removeAttribute("title"));dztCur=el;dztTmr=setTimeout(function(){dztTmr=0;dztCur===el&&el.isConnected&&dztPlace(el,txt)},100)}document.addEventListener("mouseover",function(ev){var el=ev.target&&ev.target.closest?ev.target.closest("[title],[data-dztip]"):null;if(el===dztCur)return;dztHide();if(!el)return;var tg=el.tagName;if(tg==="SELECT"||tg==="OPTION"||(el.closest&&el.closest("select")))return;var ti=el.getAttribute("title");dztArm(el,ti||el.getAttribute("data-dztip"),!!ti)},!0);document.addEventListener("mouseout",function(ev){if(!dztCur)return;var to=ev.relatedTarget;if(to&&dztCur.contains&&dztCur.contains(to))return;if(ev.target===dztCur||(dztCur.contains&&dztCur.contains(ev.target)))dztHide()},!0);document.addEventListener("mousedown",function(){dztHide()},!0);window.addEventListener("scroll",function(){dztHide()},!0);document.addEventListener("keydown",function(ev){ev.key==="Escape"&&dztHide()},!0);document.addEventListener("focusin",function(ev){var el=ev.target&&ev.target.closest?ev.target.closest("[title],[data-dztip]"):null;if(!el||el===dztCur)return;var fv=!1;try{fv=el.matches(":focus-visible")}catch(_e){}if(!fv)return;var tg=el.tagName;if(tg==="SELECT"||tg==="OPTION")return;dztHide();var ti=el.getAttribute("title");dztArm(el,ti||el.getAttribute("data-dztip"),!!ti)},!0);document.addEventListener("focusout",function(ev){ev.target===dztCur&&dztHide()},!0);window.__dzTip={get state(){return{visible:!!(dztEl&&dztEl.classList.contains("on")),text:dztEl?dztEl.textContent:""}}};}catch(_e){}})();(function(){try{if(!document.getElementById("dzaudit-style")){var st=document.createElement("style");st.id="dzaudit-style";st.textContent='[data-dzregion] div,[data-dzregion] label{min-width:0}';document.head.appendChild(st)}}catch(_e){}})();var dzqSt={open:!1,run:0,fail:0,subs:[]};var dzqJobs=[];function dzqEmit(){for(var z1=0;z1<dzqSt.subs.length;z1++)try{dzqSt.subs[z1]()}catch(_e){}}function dzqSet(p1){Object.assign(dzqSt,p1),dzqEmit()}function dzqSeen(){try{return JSON.parse(localStorage.getItem("dz_queue_seen_failed")||"[]")}catch(_e){return[]}}function dzqMarkSeen(){var ids=[],z1;for(z1=0;z1<dzqJobs.length;z1++)dzqJobs[z1].status==="failed"&&ids.push(dzqJobs[z1].job_id);var sn=dzqSeen();for(z1=0;z1<ids.length;z1++)sn.indexOf(ids[z1])<0&&sn.push(ids[z1]);try{localStorage.setItem("dz_queue_seen_failed",JSON.stringify(sn.slice(-100)))}catch(_e){}dzqSet({fail:0})}function dzqOpen(v1){var nx=v1===void 0?!dzqSt.open:!!v1;dzqSet({open:nx}),nx&&dzqMarkSeen()}function dzqPub(ls){dzqJobs=Array.isArray(ls)?ls:[];var run=0,fids=[],z1;for(z1=0;z1<dzqJobs.length;z1++){var j1=dzqJobs[z1];j1.status!=="done"&&j1.status!=="failed"?run++:j1.status==="failed"&&fids.push(j1.job_id)}var sn=dzqSeen(),un=0;for(z1=0;z1<fids.length;z1++)sn.indexOf(fids[z1])<0&&un++;dzqSt.open&&un&&(dzqMarkSeen(),un=0);dzqSet({run:run,fail:un})}window.__dzQueue={open:function(){dzqOpen(!0)},close:function(){dzqOpen(!1)},toggle:function(){dzqOpen()},get state(){return{open:dzqSt.open,running:dzqSt.run,unreadFailed:dzqSt.fail}}};function dzqUse(){var h1=x.useState(0),s1=h1[1];return x.useEffect(function(){function f1(){s1(function(v1){return v1+1})}return dzqSt.subs.push(f1),function(){dzqSt.subs=dzqSt.subs.filter(function(z1){return z1!==f1})}},[s1]),dzqSt}function dzqEsc(op){x.useEffect(function(){if(!op)return;function f1(ev){ev.key==="Escape"&&dzqOpen(!1)}return window.addEventListener("keydown",f1),function(){window.removeEventListener("keydown",f1)}},[op])}function dzqEmpty(){return r.jsxs("div",{style:{padding:"34px 12px",textAlign:"center",color:"var(--ink-soft)",fontSize:12.5,lineHeight:1.7},children:[r.jsx("div",{style:{fontSize:26,marginBottom:8,opacity:.75},children:"🐙"}),"Nothing rendering.",r.jsx("br",{}),"Press ",r.jsx("b",{style:{color:"var(--ink)",fontWeight:600},children:"▶ Run"})," in Studio or Quick."]})}function dzQBtn(){var q1=dzqUse(),n1=q1.run,f1=q1.fail,show=n1>0||f1>0;return r.jsxs("div",{style:{position:"relative",display:"inline-flex"},children:[r.jsx(se,{name:"signal",title:"Render queue — "+n1+" running"+(f1?", "+f1+" failed (new)":""),active:q1.open,onClick:function(){dzqOpen()}}),show?r.jsx("span",{className:"mono"+(f1?"":" dzq-pulse"),style:{position:"absolute",top:-3,right:-3,minWidth:14,height:14,padding:"0 3px",borderRadius:8,fontSize:9,lineHeight:"14px",textAlign:"center",background:f1?"var(--red)":"var(--cyan)",color:"#02060d",fontWeight:700,pointerEvents:"none"},children:f1||(n1>9?"9+":n1)}):null]})}(function(){try{if(!document.getElementById("dzq-style")){var st=document.createElement("style");st.id="dzq-style";st.textContent='.deepotus .dzq-scrim{position:fixed;inset:0;z-index:150;background:var(--bg-overlay);opacity:0;pointer-events:none;transition:opacity var(--dur-3) var(--ease)}.deepotus .dzq-scrim.on{opacity:1;pointer-events:auto}.deepotus .dzq-panel{position:fixed;top:0;right:0;bottom:0;width:360px;z-index:151;background:var(--bg-panel);border-left:1px solid var(--stroke-strong);box-shadow:-24px 0 48px #000a;display:flex;flex-direction:column;transform:translateX(102%);visibility:hidden;transition:transform var(--dur-3) var(--ease),visibility 0s linear var(--dur-3)}.deepotus .dzq-panel.on{transform:translateX(0);visibility:visible;transition:transform var(--dur-3) var(--ease)}@keyframes dzq-halo{0%,100%{box-shadow:0 0 0 0 var(--cyan-soft)}50%{box-shadow:0 0 0 5px var(--cyan-soft)}}.deepotus .dzq-pulse{animation:dzq-halo .833s ease-in-out infinite}@media (prefers-reduced-motion: reduce){.deepotus .dzq-pulse{animation:none}.deepotus .dzq-panel{transition:opacity var(--dur-2) var(--ease),visibility 0s linear var(--dur-2);transform:none;opacity:0}.deepotus .dzq-panel.on{transform:none;opacity:1}}html.no-halo .deepotus .dzq-pulse{animation:none}';document.head.appendChild(st)}}catch(_e){}})();function rg({expanded:e,setExpanded:t,variant:n}){const q3=dzqUse();dzqEsc(q3.open);const[o,i]=x.useState([]),[s,a]=x.useState(null),[l,d]=x.useState(null),u=yn.useCallback(async()=>{const c=await D.listJobs(40);i(Array.isArray(c)?c:[]),dzqPub(c)},[]);x.useEffect(()=>{let c=!0;async function p(){c&&await u()}p();const h=setInterval(p,2500);return()=>{c=!1,clearInterval(h)}},[u]);async function f(c){await D.deleteJob(c),a(null),u()}async function m(c,p){await D.renameJob(c,p),u()}function y(c){const p=c.status==="succeeded"&&c.id?`${window.location.origin}/api/jobs/${c.id}/video`:c.id||"";try{navigator.clipboard.writeText(p)}catch{}}const w=o.map(c=>({id:c.job_id,title:c.title||c.image_filename||c.job_id||"job",provider:(c.provider||"").replace(/^./,p=>p.toUpperCase())+(c.aspect_ratio?` · ${c.aspect_ratio}`:""),progress:c.progress||0,etaS:c.status==="done"||c.status==="failed"?0:Math.max(0,Math.round((100-(c.progress||0))*.6)),kind:c.provider==="heygen"?"avatar":c.audio_path?"audio":"render",status:c.status==="done"?"succeeded":c.status==="failed"?"failed":"running",dur:c.duration_s?ta(c.duration_s):"",error:c.error,img:c.image_filename||""})),v=w,g=v.filter(c=>c.status==="running"),k=v.filter(c=>c.status!=="running").sort((a3,b3)=>(a3.status==="failed"?0:1)-(b3.status==="failed"?0:1));return Pu.createPortal(r.jsxs(r.Fragment,{children:[r.jsx("div",{className:"dzq-scrim"+(q3.open?" on":""),onClick:function(){dzqOpen(!1)}}),r.jsxs("div",{className:"dzq-panel"+(q3.open?" on":""),role:"complementary","aria-label":"Render queue",children:[r.jsxs("div",{style:{height:36,padding:"0 14px",display:"flex",alignItems:"center",gap:12,borderBottom:"1px solid var(--stroke)"},children:[r.jsx(X,{name:"signal",size:14,style:{color:"var(--cyan)"}}),r.jsx("span",{className:"upper",children:"Render queue"}),r.jsxs(te,{tone:"cyan",dot:!0,children:[g.length," running"]}),r.jsxs(te,{children:[k.length," recent"]}),r.jsx("div",{style:{flex:1}}),g.length?r.jsxs("span",{style:{fontSize:11,color:"var(--ink-soft)"},children:["ETA ",r.jsx("span",{className:"mono strong",children:Vu(g.reduce(function(a,j){return Math.max(a,j.etaS||0)},0))})]}):null,r.jsx(se,{name:"close",iconSize:12,onClick:function(){dzqOpen(!1)},title:"Close — Esc"})]}),r.jsxs("div",{className:"scroll",style:{flex:1,overflowY:"auto",padding:"8px 14px"},children:[v.length===0?dzqEmpty():null,g.length?r.jsx("div",{className:"upper",style:{padding:"4px 0"},children:"Running"}):null,g.map(c=>r.jsx(yd,{job:c,onPreview:()=>d({id:c.id,title:c.title}),onCopy:()=>y(c),onDelete:()=>a(c.id),onRename:p=>m(c.id,p),confirmDel:s===c.id,onConfirm:()=>f(c.id),onCancelDel:()=>a(null)},c.id)),k.length?r.jsx("div",{className:"upper",style:{padding:"12px 0 4px"},children:"Recent"}):null,k.map(c=>r.jsx(yd,{job:c,onPreview:()=>d({id:c.id,title:c.title}),onCopy:()=>y(c),onDelete:()=>a(c.id),onRename:p=>m(c.id,p),confirmDel:s===c.id,onConfirm:()=>f(c.id),onCancelDel:()=>a(null)},c.id))]}),l&&Pu.createPortal(r.jsx("div",{onClick:()=>d(null),style:{position:"fixed",inset:0,zIndex:200,background:"var(--bg-overlay)",backdropFilter:"blur(8px)",display:"flex",alignItems:"center",justifyContent:"center",padding:32},children:r.jsxs("div",{onClick:c=>c.stopPropagation(),style:{background:"var(--bg-panel-2)",border:"1px solid var(--stroke-strong)",borderRadius:"var(--r-lg)",boxShadow:"var(--shadow-2), 0 0 80px var(--cyan-soft)",padding:16,display:"flex",flexDirection:"column",gap:12,maxWidth:"90%",maxHeight:"92%"},children:[r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:10},children:[r.jsx(X,{name:"film",size:15,style:{color:"var(--cyan)"}}),r.jsx("span",{style:{fontSize:12.5,color:"var(--ink-strong)",fontFamily:"var(--f-mono)"},children:l.title}),r.jsx("div",{style:{flex:1}}),r.jsx("a",{href:D.jobVideoUrl(l.id),download:!0,style:{textDecoration:"none"},children:r.jsx(K,{variant:"outline",size:"sm",icon:"download",children:"Download"})}),r.jsx(se,{name:"close",onClick:()=>d(null)})]}),r.jsx("video",{src:D.jobVideoUrl(l.id),controls:!0,autoPlay:!0,onError:c=>{const p=c.currentTarget.parentElement;if(c.currentTarget.style.display="none",p&&!p.querySelector("[data-missing]")){const h=document.createElement("div");h.setAttribute("data-missing","1"),h.style.cssText="padding:40px;text-align:center;color:var(--ink-soft);font-size:12.5px;min-width:320px",h.textContent="Video file not found on disk (the render may have been deleted). The job record still exists in the queue.",p.appendChild(h)}},style:{maxWidth:"70vw",maxHeight:"74vh",borderRadius:"var(--r)",background:"#000"}})]})}),document.body)]})]}),document.body)}function Hu({value:e,onRename:t,size:n=12.5,show:o=!0}){const[i,s]=x.useState(!1),[a,l]=x.useState(e);x.useEffect(()=>{l(e)},[e]);function d(){s(!1);const u=(a||"").trim();u&&u!==e?t==null||t(u):l(e)}return i?r.jsx("input",{autoFocus:!0,value:a,onClick:u=>u.stopPropagation(),onChange:u=>l(u.target.value),onBlur:d,onKeyDown:u=>{u.stopPropagation(),u.key==="Enter"&&d(),u.key==="Escape"&&(s(!1),l(e))},style:{flex:1,minWidth:0,fontSize:n,color:"var(--ink-strong)",fontFamily:"var(--f-mono)",background:"var(--bg-panel-2)",border:"1px solid var(--cyan)",borderRadius:4,padding:"1px 5px"}}):r.jsxs(r.Fragment,{children:[r.jsx("span",{style:{fontSize:n,color:"var(--ink-strong)",fontFamily:"var(--f-mono)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",flex:"0 1 auto",minWidth:0},title:e,children:e}),o&&t&&r.jsx(se,{name:"rename",size:20,iconSize:11,title:"Rename render",onClick:u=>{var f;(f=u==null?void 0:u.stopPropagation)==null||f.call(u),s(!0)}})]})}function og({job:e,onPreview:t,onCopy:n,onDelete:o,onRename:i}){const s=e.status==="running",a=e.status==="succeeded",l=e.status==="failed",d=a&&!String(e.id||"").startsWith("p_"),u=!String(e.id||"").startsWith("p_")&&!String(e.id||"").startsWith("job_2k");return r.jsxs("div",{onClick:()=>d&&(t==null?void 0:t()),style:{display:"flex",alignItems:"center",gap:10,padding:"6px 10px 6px 6px",background:"var(--bg-base)",border:`1px solid ${s?"var(--cyan)":l?"var(--red)":"var(--stroke)"}`,borderRadius:"var(--r)",minWidth:320,cursor:d?"pointer":"default",boxShadow:s?"0 0 18px var(--cyan-soft)":"none"},children:[r.jsx(rr,{kind:e.kind==="avatar"?"avatar":"render",size:40,src:/\.(png|jpe?g|webp|gif|avif)$/i.test(e.img||"")?D.imageUrl(e.img):void 0,vsrc:a?D.jobVideoUrl(e.id):void 0}),r.jsxs("div",{style:{flex:1,minWidth:0},children:[r.jsx("div",{style:{display:"flex",alignItems:"center",gap:4,minWidth:0},children:r.jsx(Hu,{value:e.title,onRename:i,size:11.5,show:u})}),r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:6,fontSize:10,color:"var(--ink-soft)"},children:[r.jsx("span",{children:e.provider}),s&&r.jsxs(r.Fragment,{children:[r.jsx("span",{children:"·"}),r.jsx("span",{className:"mono",style:{color:"var(--cyan)"},children:Vu(e.etaS)})]}),l&&r.jsxs("span",{style:{color:"var(--red)"},children:["· ",e.error]})]}),s&&r.jsx("div",{style:{marginTop:4},children:r.jsx(Nu,{value:e.progress})})]}),r.jsxs("div",{style:{display:"flex",gap:2},children:[d&&r.jsx(se,{name:"play",size:24,iconSize:11,title:"Preview",onClick:f=>{var m;(m=f==null?void 0:f.stopPropagation)==null||m.call(f),t==null||t()}}),r.jsx(se,{name:"copy",size:24,iconSize:11,title:"Copy link / id",onClick:f=>{var m;(m=f==null?void 0:f.stopPropagation)==null||m.call(f),n==null||n()}}),r.jsx(se,{name:"trash",size:24,iconSize:11,title:"Delete",onClick:f=>{var m;(m=f==null?void 0:f.stopPropagation)==null||m.call(f),confirm("Delete this job and its files?")&&(o==null||o())}})]})]})}function yd({job:e,onPreview:t,onCopy:n,onDelete:o,onRename:i,confirmDel:s,onConfirm:a,onCancelDel:l}){const d=e.status==="running",u=e.status==="failed",f=e.status==="succeeded"&&!String(e.id||"").startsWith("p_"),m=!String(e.id||"").startsWith("p_")&&!String(e.id||"").startsWith("job_2k");return r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"52px minmax(0,1fr) auto",gap:"8px 12px",alignItems:"center",padding:"10px 12px",marginBottom:6,background:d?"var(--cyan-soft)":"var(--bg-base)",border:`1px solid ${d?"var(--cyan)":u?"var(--red)":"var(--stroke)"}`,borderRadius:"var(--r)"},children:[r.jsx(rr,{kind:e.kind==="avatar"?"avatar":e.kind==="audio"?"audio":"render",size:52,src:/\.(png|jpe?g|webp|gif|avif)$/i.test(e.img||"")?D.imageUrl(e.img):void 0,vsrc:e.status==="succeeded"?D.jobVideoUrl(e.id):void 0}),r.jsxs("div",{style:{minWidth:0,gridColumn:"2 / -1"},children:[r.jsx("div",{style:{display:"flex",alignItems:"center",gap:8},children:r.jsx(Hu,{value:e.title,onRename:i,size:12.5,show:m})}),r.jsxs("div",{style:{fontSize:11,color:"var(--ink-soft)",display:"flex",gap:8,marginTop:2,minWidth:0},children:[r.jsx("span",{style:{whiteSpace:"nowrap",flexShrink:0},children:e.provider}),"·",r.jsx("span",{className:"mono",title:e.id,style:{minWidth:72,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},children:e.id}),e.dur&&r.jsxs(r.Fragment,{children:[r.jsx("span",{children:"·"}),r.jsx("span",{className:"mono",children:e.dur})]}),u&&r.jsxs("span",{title:e.error,style:{color:"var(--red)",minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},children:["· ",e.error]})]})]}),r.jsxs("div",{style:{minWidth:0,gridColumn:2,gridRow:2},children:[d&&r.jsxs(r.Fragment,{children:[r.jsx(Nu,{value:e.progress}),r.jsxs("div",{style:{display:"flex",justifyContent:"space-between",marginTop:4,fontSize:10.5,color:"var(--ink-soft)"},children:[r.jsxs("span",{className:"mono",children:[e.progress,"%"]}),r.jsxs("span",{className:"mono",style:{color:"var(--cyan)"},children:["ETA ",Vu(e.etaS)]})]})]}),!d&&!u&&r.jsx(te,{tone:"green",dot:!0,children:"done"}),u&&r.jsx(te,{tone:"red",dot:!0,children:"failed"})]}),r.jsxs("div",{style:{display:"flex",gap:4,position:"relative",gridColumn:3,gridRow:2,justifySelf:"end"},children:[f&&r.jsx(se,{name:"play",title:"Preview",onClick:t}),u&&r.jsx(K,{variant:"outline",size:"sm",icon:"bolt",children:"Retry"}),r.jsx(se,{name:"copy",title:e.status==="succeeded"?"Copy video URL":"Copy job id",onClick:n}),r.jsx(se,{name:"trash",title:"Delete",onClick:o}),s&&r.jsxs("div",{style:{position:"absolute",top:"100%",right:0,marginTop:4,zIndex:5,padding:10,background:"var(--bg-panel-2)",border:"1px solid var(--red)",borderRadius:"var(--r)",boxShadow:"var(--shadow-2)",minWidth:220},children:[r.jsx("div",{style:{fontSize:11.5,color:"var(--ink-strong)",marginBottom:6},children:"Delete this job + files?"}),r.jsxs("div",{style:{display:"flex",gap:6},children:[r.jsx(K,{variant:"danger",size:"sm",icon:"trash",onClick:a,children:"Delete"}),r.jsx(K,{variant:"ghost",size:"sm",onClick:l,children:"Cancel"})]})]})]})]})}function Vu(e){if(!e)return"0s";const t=Math.floor(e/60),n=e%60;return t?`${t}m ${n}s`:`${n}s`}function ig({open:e,onClose:t,setView:n,onShowOnboarding:o}){const[i,s]=x.useState("");if(x.useEffect(()=>{if(!e)return;function l(d){d.key==="Escape"&&t()}return window.addEventListener("keydown",l),()=>window.removeEventListener("keydown",l)},[e,t]),!e)return null;const a=[{l:"Go to Studio",icon:"flow",go:()=>{n("studio"),t()}},{l:"Go to Scheduler",icon:"calendar",go:()=>{n("scheduler"),t()}},{l:"Go to Quick",icon:"zap",go:()=>{n("quick"),t()}},{l:"Go to News",icon:"rss",go:()=>{n("news"),t()}},{l:"Replay onboarding",icon:"octopus",go:()=>{o(),t()}},{l:"New News reel graph",icon:"sparkle",go:()=>{n("studio"),t()}},{l:"New Avatar post graph",icon:"mic",go:()=>{n("studio"),t()}},{l:"Schedule a post for tomorrow",icon:"send",go:()=>{n("scheduler"),t()}},{l:"Open last render",icon:"film",go:()=>{n("library"),t()}},{l:"Settings · Connected accounts",icon:"link",go:()=>{n("settings"),t()}},{l:"Settings · API keys",icon:"cog",go:()=>{n("settings"),t()}}].filter(l=>!i||l.l.toLowerCase().includes(i.toLowerCase()));return r.jsx("div",{onClick:t,style:{position:"absolute",inset:0,background:"var(--bg-overlay)",backdropFilter:"blur(6px)",zIndex:50,display:"flex",justifyContent:"center",paddingTop:100},children:r.jsxs("div",{onClick:l=>l.stopPropagation(),style:{width:520,maxHeight:480,background:"var(--bg-panel-2)",border:"1px solid var(--stroke-strong)",borderRadius:"var(--r-lg)",overflow:"hidden",boxShadow:"var(--shadow-2)",display:"flex",flexDirection:"column"},children:[r.jsxs("div",{style:{padding:"12px 16px",borderBottom:"1px solid var(--stroke)",display:"flex",alignItems:"center",gap:10},children:[r.jsx(X,{name:"search",size:16,style:{color:"var(--ink-soft)"}}),r.jsx("input",{autoFocus:!0,value:i,onChange:l=>s(l.target.value),placeholder:"Type a command, node, or graph…",style:{flex:1,fontSize:14,color:"var(--ink-strong)"}}),r.jsx("kbd",{style:{fontSize:10,fontFamily:"var(--f-mono)",color:"var(--ink-muted)",background:"var(--bg-base)",padding:"2px 5px",borderRadius:3,border:"1px solid var(--stroke)"},children:"esc"})]}),r.jsx("div",{className:"scroll",style:{flex:1,overflowY:"auto",padding:6},children:a.map((l,d)=>r.jsxs("button",{onClick:l.go,style:{width:"100%",padding:"9px 12px",display:"flex",alignItems:"center",gap:12,background:d===0?"var(--cyan-soft)":"transparent",color:d===0?"var(--ink-strong)":"var(--ink)",border:0,borderRadius:"var(--r-sm)",cursor:"pointer",fontSize:13,textAlign:"left"},children:[r.jsx(X,{name:l.icon,size:14,style:{color:d===0?"var(--cyan)":"var(--ink-soft)"}}),l.l]},d))})]})})}
 /*__DZ_SONVFX_BEGIN__*/
 /* ── Son & VFX (06) + Montage (07) — design handoff « son_vfx_montage » v2.1 ──
    Injecté dans frontend/dist/assets/index-*.js par scripts/patch_bundle_sonvfx.py
@@ -1542,6 +1542,7 @@ var SVM_ACTIONS=[
  {id:"zoom_out",sec:"Affichage",lbl:"zoom arrière (crans)",combo:"Ctrl+-"},
  {id:"zoom100",sec:"Affichage",lbl:"zoom 100 %",combo:"Maj+Z"},
  {id:"narration",sec:"Affichage",lbl:"panneau Narration (texte → voix)",combo:"T"},
+ {id:"toolbar",sec:"Affichage",lbl:"barre d'outils de création (onglet OUTILS)",combo:"O"},
  {id:"keys_panel",sec:"Affichage",lbl:"ouvrir / fermer ce panneau",combo:"?"},
  /* la ligne « tiroir Sons » n'est AFFICHÉE par kbPanel que si la couche
     DzSfx est chargée (le panneau ne promet jamais un raccourci mort) — mais
@@ -1813,6 +1814,20 @@ function DzMontage(props){
      Sous-titres, mutuellement exclusifs) mais dans la COLONNE
      D'INSPECTION, où il ne dispute sa place à personne. */
   var stDzTx=x.useState(!1),dzTextOn=stDzTx[0],setDzTextOn=stDzTx[1];
+  /* étape 7 du handoff « Barre Outils Flottante » (§6) : la demande
+     d'ouverture de la liste des projets (un COMPTEUR, pas un
+     booléen — le popover se ferme seul sur le clic qui l'ouvre),
+     et l'ajout des emoji, PARTAGÉ par le bouton du bandeau et la
+     barre : `pushHistory()` puis l'ajout, donc « annuler » les
+     retire d'un coup. */
+  var stDzPj=x.useState(0),dzProjReq=stDzPj[0],setDzProjReq=stDzPj[1];
+  function dzEmoAdd(cs){pushHistory();setClips(function(k){return (k||[]).concat(cs)});setDirty(!0)}
+  /* étape 8 du handoff (§4.1) : LA DEMANDE DE BASCULE de la barre
+     d'outils, un COMPTEUR pour la même raison que `dzProjReq` —
+     l'état d'ouverture appartient au Dock, qui le persiste ; un
+     booléen piloté d'ici en aurait fait une seconde source. C'est
+     M20b, la branche du gestionnaire clavier, qui l'incrémente. */
+  var stDzTb=x.useState(0),dzTbReq=stDzTb[0],setDzTbReq=stDzTb[1];
   var stSu=x.useState(!1),subsOn=stSu[0],setSubsOn=stSu[1];
   /* mémo du VERDICT — la timeline en demande un par segment à chaque rendu,
      donc on ne refait le calcul que si les clips, le style, la durée ou le
@@ -2030,10 +2045,48 @@ function DzMontage(props){
         end:Number(c.end)||0,src:c.src||null,srcIn:Number(c.srcIn)||0,
         transition:c.transition||(c.tr==="v1"?"cut":void 0),
         transition_s:Number(c.transition_s)||0}});
+    /* P12 — DES IDENTIFIANTS UNIQUES. `ovSeq` repart de zéro à chaque
+       chargement et la sauvegarde reprend `c.id` tel quel : deux clips
+       du même id se suppriment ensemble (`c.id!==id`) et le second n'est
+       jamais sélectionnable (`c.id===selId`). Le PREMIER garde le sien,
+       les suivants sont renommés, c'est dit, `v1_non_video` — des
+       IDENTIFIANTS, contrat du backend — suit le renommage (l'id neuf est
+       AJOUTÉ : les deux exemplaires étaient marqués, ils le restent), et
+       le compteur repart AU-DESSUS de tout ce que la sauvegarde porte. La
+       réparation est PERSISTÉE par M22d (l'autosauvegarde) sur une
+       sauvegarde, jamais sur une construction de Bibliothèque : la note
+       le dit dans les deux cas. */
+    var dzDd=DzTracks.dedupeIds(cs);cs=dzDd.clips;
+    if(dzDd.renamed.length&&Array.isArray(d.v1_non_video))d.v1_non_video=
+      d.v1_non_video.concat(dzDd.renamed.filter(function(k){
+        return d.v1_non_video.indexOf(k.de)>=0&&d.v1_non_video.indexOf(k.en)<0})
+      .map(function(k){return k.en}));
+    if(dzDd.renamed.length)fireNote(dzDd.renamed.length+" clip"+
+      (dzDd.renamed.length>1?"s portaient":" portait")+" un identifiant "+
+      "déjà pris dans cette sauvegarde ("+dzDd.renamed.map(function(k){
+        return k.de+" → "+k.en}).join(", ")+") : renommé"+
+      (dzDd.renamed.length>1?"s":"")+" pour que chaque plan se "+
+      "sélectionne et se supprime seul. Rien d'autre n'a changé"+
+      (d.saved?" — ce sera enregistré automatiquement dans un instant."
+        :" (timeline construite depuis la Bibliothèque : rien n'est "+
+         "enregistré tant que vous ne modifiez rien)."));
+    ovSeq.current=Math.max(ovSeq.current,DzTracks.seqMax(cs));
     var first=cs.find(function(c){return c.tr==="v1"});
     var maxEnd=1;
     cs.forEach(function(c){if(c.end>maxEnd)maxEnd=c.end});
-    setClips(cs);setSelId(first?first.id:"");setPh(0);setDirty(!1);
+    setClips(cs);setSelId(first?first.id:"");setPh(0);setDirty(!!(d.saved&&dzDd.renamed.length));
+    /* P12 — LA RÉPARATION EST PERSISTÉE. `setDirty(!1)` désarmait ici
+       l'autosauvegarde (l'effet gardé par `dirty`, 1,5 s) juste après le
+       renommage de M22c, et AUCUN geste manuel n'enregistre le montage —
+       `svmDoSave(` n'a que trois sites dans le bundle (sa définition,
+       cet effet, la relance sur échec), « Enregistrer sous… » crée un
+       projet NEUF (mesuré le 06/09/2026) : la note serait revenue à
+       chaque chargement. Une SAUVEGARDE dont des ids ont été renommés est
+       donc marquée modifiée, et l'autosauvegarde écrit les ids réparés.
+       Une construction depuis la Bibliothèque (`saved` faux) ne l'est
+       JAMAIS : l'enregistrer en ferait la source à la place de la
+       Bibliothèque — et ses ids (`v1_<job>`, `a1_<job>`, `c<i>`) ne se
+       répètent pas. La note de M22c le dit dans les deux cas. */
     histRef.current={u:[],r:[]};setHistTick(function(t){return t+1});
     var np={demo:!1,tracks:svmTracksFrom(d.tracks),project_id:d.project_id,v1NonVideo:Array.isArray(d.v1_non_video)?d.v1_non_video:null,name:d.name||"montage",version:"v1",ratio:d.ratio||"9:16",
       dur:Math.max(1,Number(d.duration)||maxEnd),mixDb:d.mix||SVM_DEMO_MIX};
@@ -2377,19 +2430,31 @@ function DzMontage(props){
     /* overlays V2 actifs à t, au-dessus du fond, opacité appliquée */
     var act={};
     cs.forEach(function(k){
-      if(k.tr==="v2"&&k.src&&(k.src.job_id||k.src.image)&&k.start<=t&&t<k.end)act[k.id]=k});
+      if(DzTracks.isOverlayTrack(k.tr,dzTracksRef.current)&&k.src&&(k.src.job_id||k.src.image)&&k.start<=t&&t<k.end)act[k.id]=k});
+    /* P14 — l'ORDRE d'empilement suit l'ordre des pistes (la plus haute
+       listée au-dessus, même loi que `layer` au rendu) : `dzOrd` est
+       l'ordre d'ajout au DOM, le plus bas d'abord ; `dzReord` ne vaut
+       vrai que si l'ensemble actif ou son ordre a changé — sinon aucune
+       écriture DOM, comme la garde de signature de la transformation. */
+    var dzOrd=DzTracks.overlayOrder(Object.keys(act),cs,dzTracksRef.current),
+        dzOrdSig=dzOrd.join("|"),dzReord=ov._dzOrdSig!==dzOrdSig;
+    ov._dzOrdSig=dzOrdSig;
     for(var i=ov.children.length-1;i>=0;i--){var ch=ov.children[i],kc=act[ch._svmId];
       if(!kc||livePoolKey(kc.src,"o")!==ch._svmKey){
         if(ch.tagName==="VIDEO"&&!ch.paused){try{ch.pause()}catch(_e){}}
         if(tfRoRef.current)tfRoRef.current.unobserve(ch);
         ov.removeChild(ch)}}
-    Object.keys(act).forEach(function(id){
+    dzOrd.forEach(function(id){
       var k=act[id],el=null;
       for(var i2=0;i2<ov.children.length;i2++){
         if(ov.children[i2]._svmId===id){el=ov.children[i2];break}}
       if(!el){var it2=livePoolGet(k.src,"o");el=it2.el;
         el._svmId=id;el._svmKey=livePoolKey(k.src,"o");ov.appendChild(el);
-        if(tfRoRef.current)tfRoRef.current.observe(el)}
+        if(tfRoRef.current)tfRoRef.current.observe(el);dzReord=!0}
+      /* P14 — un enfant déjà là est REMIS EN QUEUE quand l'ordre a
+         changé : appendChild déplace sans recréer ; rien n'est touché
+         quand `dzReord` est faux. */
+      else if(dzReord)ov.appendChild(el);
       el.style.opacity=k.opacity==null?"":String(k.opacity);
       /* sélection + manipulation directe : la couche est saisissable ; la
          transformation du clip (ou du geste en cours) est appliquée ici,
@@ -2728,7 +2793,7 @@ function DzMontage(props){
     e.stopPropagation();
     if(selRef.current!==id)setSelId(id);
     ovKeysOffRef.current=!1; /* resaisir l'overlay ré-arme les flèches (R4b) */
-    if(trackStRef.current.v2&&trackStRef.current.v2.l)return; /* verrou : sélection seule */
+    if(trackStRef.current[k.tr]&&trackStRef.current[k.tr].l)return; /* verrou : sélection seule */
     if(e.button!==0)return;
     ovGesture("move",e,k)}
   function ovOvDbl(e){
@@ -2737,14 +2802,14 @@ function DzMontage(props){
     /* overlay plein cadre : rien à réinitialiser, le double-clic du cadre
        (remise à zéro du zoom) garde la main */
     if(!k||(!svmOvTfOf(k)&&!svmMpOf(k)))return;
-    if(trackStRef.current.v2&&trackStRef.current.v2.l)return;
+    if(trackStRef.current[k.tr]&&trackStRef.current[k.tr].l)return;
     e.stopPropagation();e.preventDefault();
     svmOvTfReset(id)}
   function ovHandleDown(e,mode){
     var id=selRef.current,cs=clipsRef.current,k=null,i;
     for(i=0;i<cs.length;i++){if(cs[i].id===id){k=cs[i];break}}
-    if(!k||k.tr!=="v2"||!k.src)return;
-    if(trackStRef.current.v2&&trackStRef.current.v2.l)return;
+    if(!k||!DzTracks.isOverlayTrack(k.tr,dzTracksRef.current)||!k.src)return;
+    if(trackStRef.current[k.tr]&&trackStRef.current[k.tr].l)return;
     if(e.button!==0)return;
     ovGesture(mode,e,k)}
   /* transformation — source de vérité UNIQUE du lecteur, de l'inspecteur et
@@ -2799,7 +2864,7 @@ function DzMontage(props){
      la tête (≤ 0,15 s) ou en pose un (même règle que le drag du lecteur). */
   function svmOvAlign(gx,gy){
     var c=clipsRef.current.find(function(k){return k.id===selRef.current});
-    if(!c||c.tr!=="v2"||!c.src)return;
+    if(!c||!DzTracks.isOverlayTrack(c.tr,dzTracksRef.current)||!c.src)return;
     var phc=Math.min(phRef.current,Math.max(0,durRef.current-.001));
     var eff=svmOvTfAt(c,phc)||{x:.5,y:.5,scale:1,rotate:0};
     var hw=svmOvMediaHW(c)||1; /* média inconnu : carré supposé, pool préchauffé */
@@ -2865,7 +2930,7 @@ function DzMontage(props){
      expliqué. UNE entrée d'historique par clic. */
   function svmMpHere(){
     var c=clipsRef.current.find(function(k){return k.id===selRef.current});
-    if(!c||c.tr!=="v2"||!c.src)return;
+    if(!c||!DzTracks.isOverlayTrack(c.tr,dzTracksRef.current)||!c.src)return;
     var phc=Math.min(phRef.current,Math.max(0,durRef.current-.001));
     if(phc<c.start-.001||phc>=c.end){
       fireNote("Placez la tête de lecture DANS l'overlay pour poser un point de position.");return}
@@ -3105,6 +3170,10 @@ function DzMontage(props){
       if(id==="zoom100"){zoomApply(100);return}
       /* tiroir Narration (blocs texte liés aux clips A1) */
       if(id==="narration"){narrToggle();return}
+      /* étape 8 du handoff « Barre Outils Flottante » (§4.1) :
+         la barre d'outils de création. DEMANDE, pas ordre — le
+         Dock tient l'état et le persiste. */
+      if(id==="toolbar"){setDzTbReq(function(n){return n+1});return}
       /* ── audio — kbAudioRef porte des closures fraîches par rendu ── */
       if(id==="mute"){if(kbAudioRef.current)kbAudioRef.current.mute();return}
       if(id==="solo"){if(kbAudioRef.current)kbAudioRef.current.solo(mag);return}
@@ -3539,9 +3608,9 @@ function DzMontage(props){
        faux, les flèches retombent sur la tête de lecture. */
     ovArrow:function(key,shift){
       var c=svmKbSelClip();
-      if(!c||c.tr!=="v2"||!c.src)return !1;
+      if(!c||!DzTracks.isOverlayTrack(c.tr,dzTracksRef.current)||!c.src)return !1;
       if(ovKeysOffRef.current)return !1;
-      if(trackStRef.current.v2&&trackStRef.current.v2.l)return !1;
+      if(trackStRef.current[c.tr]&&trackStRef.current[c.tr].l)return !1;
       var d=(shift?.02:.005)*(key==="ArrowLeft"||key==="ArrowUp"?-1:1);
       var phc=Math.min(phRef.current,Math.max(0,durRef.current-.001));
       var eff=svmOvTfAt(c,phc)||{x:.5,y:.5,scale:1,rotate:0};
@@ -3554,7 +3623,7 @@ function DzMontage(props){
     /* Échap : rend les flèches à la tête de lecture (jusqu'à resélection) */
     ovEsc:function(){
       var c=svmKbSelClip();
-      if(!c||c.tr!=="v2"||!c.src||ovKeysOffRef.current)return !1;
+      if(!c||!DzTracks.isOverlayTrack(c.tr,dzTracksRef.current)||!c.src||ovKeysOffRef.current)return !1;
       ovKeysOffRef.current=!0;
       fireNote("Flèches rendues à la tête de lecture — resélectionnez l'overlay pour le déplacer au clavier.");
       return !0}};
@@ -3758,11 +3827,17 @@ function DzMontage(props){
      média. On envoie donc la timeline réduite à ce qui sert, pas le modèle
      client entier. */
   function subsSrcClips(cs){
+    /* P13 — la piste de dialogue du projet (bus « dialogue », sinon
+       a1) fait partie de ce que la transcription reçoit, même sous
+       un autre identifiant : c'est elle que la route vise. */
+    var dzDial=DzTracks.dialogueTrack(svmTracksOf(proj));
     return ((cs||clipsRef.current)||[]).filter(function(c){
-      return c.tr==="a1"||c.tr==="a3"||c.tr==="v1"})
+      return c.tr==="a1"||c.tr==="a3"||c.tr==="v1"||c.tr===dzDial})
       .map(function(c){
         var o={id:c.id,tr:c.tr,src:c.src||null,
                name:c.name||c.label||null,
+               /* P13 — `srcIn` : la route décale de `start − srcIn`. */
+               srcIn:Math.round(subsNum(c.srcIn)*1e3)/1e3,
                start:Math.round(subsNum(c.start)*1e3)/1e3,
                end:Math.round(subsNum(c.end)*1e3)/1e3};
         if(c.text)o.text=String(c.text);
@@ -3800,7 +3875,10 @@ function DzMontage(props){
       onSeek:function(t){seekTo(Math.max(0,Math.min(durRef.current,t)))},
       onNote:fireNote,srcName:proj.name,
       srcRef:subsSrcRef(),srcClips:subsSrcClips(clips),
-      onPlanFlag:subsPlanFlag})}
+      onPlanFlag:subsPlanFlag,
+      /* P13 — les pistes du projet, pour que le tiroir et la route
+         visent la même piste de dialogue. */
+      srcTracks:svmTracksOf(proj)})}
   /* LE karaoké : le mot prononcé se surligne dans le lecteur, à l'échelle
      réelle du canevas de rendu (l'aperçu ne ment pas sur la taille).
      Le tiroir ouvert, le même bloc devient MANIPULABLE : cadre de sélection,
@@ -3979,6 +4057,19 @@ function DzMontage(props){
        était AU CLIC, pas 85 ms plus tard. Mesure échouée : on repasse un
        nombre NÉGATIF, que `needDur` lit comme « déjà demandé » — c'est
        le verrou de récursion, et il est éprouvé sous node. */
+    /* P12 — LE SON D'UN PLAN SUIT SA VIDÉO : le verdict « cette source
+       a-t-elle du son ? » est demandé ICI, avant la durée et avant
+       tout `pushHistory`, pour une vidéo posée sur une piste vidéo
+       PLEIN CADRE (V1 : type « vidéo », jamais une incrustation). Le
+       rappel repart des MÊMES arguments — c'est le CACHE du verdict,
+       écrit par askAudio sur toute sortie, qui le rend non récursif
+       (éprouvé sous node : un rappel sans cache redemande). La durée
+       rendue en prime épargne le second aller-retour d'askDur. */
+    var dzAuOn=DzTracks.wantsTwin(kind,dzTs,tr2);
+    var dzAu=dzAuOn?DzTracks.audioOf(src):null;
+    if(dzAuOn&&!dzAu){DzTracks.askAudio(src,{done:function(){
+      addAsset(src,label,kind,srcDur,trId,st)}});return}
+    srcDur=DzTracks.srcDurOr(kind,srcDur,dzAu);
     if(DzTracks.needDur(kind,srcDur)){
       DzTracks.askDur(src,{done:function(dzV){
         addAsset(src,label,kind,dzV>0?dzV:-1,trId,st)}});return}
@@ -3992,9 +4083,20 @@ function DzMontage(props){
       "la timeline — le réglage de durée, à côté du zoom, la reprend."):"");
     if(dzGrew)setProj(function(p){return Object.assign({},p,{dur:dzGrew})});
     ovSeq.current++;
-    var id=tr2+"u"+ovSeq.current+"_"+Math.round(st*10);
+    /* P12 — l'identifiant est UNIQUE contre les clips existants (une
+       sauvegarde rechargée peut en porter d'anciens du même rang), et
+       le jumeau est décidé AVANT le seul pushHistory du geste : sa
+       phrase rejoint la note de l'ajout — et une incrustation, exemptée
+       de sonde, est DITE aussi (overlayNote), jamais tue. */
+    var id=DzTracks.uniqueId(clipsRef.current||[],
+      tr2+"u"+ovSeq.current+"_"+Math.round(st*10));
+    var dzNeuf={tr:tr2,id:id,label:label,start:st,end:en,src:src,srcIn:0};
+    var dzTw=dzAuOn?DzTracks.twinPlan(dzNeuf,dzTs,clipsRef.current||[],dzAu,
+      function(t){return !!(trackStRef.current[t]&&trackStRef.current[t].l)}):null;
+    if(dzTw)dzTail+=dzTw.note;
+    else dzTail+=DzTracks.overlayNote(kind,dzTs,tr2);
     pushHistory();
-    setClips(clipsRef.current.concat([{tr:tr2,id:id,label:label,start:st,end:en,src:src,srcIn:0}]));
+    setClips(clipsRef.current.concat(dzTw&&dzTw.clip?[dzNeuf,dzTw.clip]:[dzNeuf]));
     setSelId(id);setDirty(!0);setOvPick("");
     fireNote("« "+label+" » ajouté sur "+tr2.toUpperCase()+" à "
       +svmShort(st)+" — glissez / rognez sur la piste."+
@@ -4156,7 +4258,7 @@ function DzMontage(props){
         /* transformation d'overlay (V2) — l'échelle matérialise l'état
            « transformé » (même à 100 %), x/y/rotate joints seulement hors
            défaut ; un overlay jamais touché envoie le payload d'avant */
-        if(c.tr==="v2"){
+        if(DzTracks.isOverlayTrack(c.tr,dzTracksRef.current)){
           var tf=svmOvTfOf(c);
           if(tf){o.scale=tf.scale;
             if(Math.abs(tf.x-.5)>1e-4)o.x=tf.x;
@@ -4313,7 +4415,7 @@ function DzMontage(props){
      dans le lecteur (champs du clip), une entrée d'historique par rafale de
      600 ms — cohérent avec la durée de transition et le mixage par clip. */
   function ovInspector(){
-    if(!sel||sel.tr!=="v2"||!sel.src)return null;
+    if(!sel||!DzTracks.isOverlayTrack(sel.tr,dzTracksRef.current)||!sel.src)return null;
     var tf=svmOvTfOf(sel),mp=svmMpOf(sel);
     /* valeurs affichées = transformation EFFECTIVE à la tête de lecture :
        avec des keyframes, X/Y/rotation suivent l'interpolation pendant le
@@ -5473,6 +5575,15 @@ function DzMontage(props){
             setDzmArm({tr:sel.tr,label:sel.label});
             addAsset({job_id:c.job_id},c.title||c.job_id,"video",
               Number(c.duration_s)||0,sel.tr)}},"dzmnew"),
+        /* P12 — « Extraire le son → A1 » : le son d'un plan DÉJÀ posé,
+           même moteur que l'ajout (sonde, cache, jumeau, refus DIT).
+           Posé juste avant l'inspecteur de transition, pour tout clip
+           vidéo porteur d'une source — V1, V2, V3. */
+        DzTracks.extractBtn(sel,{tracks:dzTracksRef.current||svmTracksOf(proj),
+          clips:function(){return clipsRef.current||[]},
+          locked:function(t){return !!(trackStRef.current[t]&&trackStRef.current[t].l)},
+          pushHistory:pushHistory,setClips:setClips,setDirty:setDirty,
+          note:fireNote}),
         transInspector(),
         /* P3 — les coupes sont appliquées de la FIN vers le DÉBUT :
            une coupe tardive ne décale pas les précédentes, donc les
@@ -5583,6 +5694,11 @@ function DzMontage(props){
     /* timeline */
     r.jsxs("div",{className:"svm-tl",children:[
       r.jsxs("div",{className:"svm-trans",children:[
+        /* étapes 4 à 7 du handoff « Barre Outils Flottante » :
+           l'onglet OUTILS et la barre flottante, câblée sur les
+           actions de l'écran. Les deux nœuds sont absolus, donc
+           hors du flux flex de ce bandeau : rien n'y bouge. */
+        r.jsx(DzTracks.ToolDock,{tracks:svmTracksOf(proj),onTracks:svmTracksSet,onPick:openPicker,wordAnim:(proj.subsStyle||{}).wordAnim||"couleur",onWordAnim:function(v){subsStyleSet({wordAnim:v})},textOn:dzTextOn,onText:function(){setDzTextOn(!dzTextOn)},emojiSegs:subsSegsOf(clips),note:fireNote,onEmojiAdd:dzEmoAdd,toggleReq:dzTbReq,keyLbl:svmKeyLabel("toolbar"),onProjets:function(){setDzProjReq(function(n){return n+1})}}),
         r.jsxs("span",{className:"svm-tcmain",title:"position / durée totale — HH:MM:SS:image (30 i/s)",children:[
           svmTcFF(ph),r.jsx("span",{className:"svm-tctotal",children:" / "+svmTcFF(dur)})]}),
         playing&&spd!==1?r.jsx("span",{className:"svm-spdchip",
@@ -5612,11 +5728,19 @@ function DzMontage(props){
           r.jsx("button",{className:"svm-tbtn",title:"Rétablir ("+svmKeyLabel("redo")+")","aria-label":"Rétablir",
             "data-off":histRef.current.r.length?void 0:"",onClick:redo,children:"↷"})]}),
         r.jsxs("div",{className:"svm-toolchips",children:[
+          /* étape 8 du handoff « Barre Outils Flottante » (§4.5) : les
+             trois `aria-label`. Sous largeur réduite ces chips passent
+             en glyphe seul (`font-size:0` + `::before`) ; sans nom
+             explicite, leur nom accessible y porterait le caractère de
+             dessin et dépendrait du moteur. Il reprend le texte
+             visible, combo vivante comprise. */
           r.jsx("button",{className:"svm-toolchip","data-on":snap?"":void 0,
+            "aria-label":"aimanter",
             title:"aimanter les bords, la tête et 0 ("+svmKeyLabel("snap")+")",onClick:function(){setSnap(!snap)},children:"aimanter"}),
           /* la chip AFFICHE la combo vivante — un remappage se lit ici aussi */
-          r.jsx("button",{className:"svm-toolchip",title:"couper le clip sélectionné à la tête ("+svmKeyLabel("blade")+")",onClick:blade,children:"lame · "+svmKeyLabel("blade")}),
+          r.jsx("button",{className:"svm-toolchip","aria-label":"lame · "+svmKeyLabel("blade"),title:"couper le clip sélectionné à la tête ("+svmKeyLabel("blade")+")",onClick:blade,children:"lame · "+svmKeyLabel("blade")}),
           r.jsx("button",{className:"svm-toolchip","data-on":ripple?"":void 0,
+            "aria-label":"ripple",
             title:"refermer les trous — suppression et rognage droit sur V1 ("+svmKeyLabel("ripple")+")",onClick:function(){setRipple(!ripple)},children:"ripple"}),
           /* sous-titres : la chip dit combien de lignes porte la piste et
              combien sont SIGNALÉES — les deux chiffres sortent du verdict,
@@ -5707,12 +5831,15 @@ function DzMontage(props){
               try{localStorage.setItem("dz_hints_off","1")}catch(_e){}},
             children:"×"})]}),
         /* bouton discret du panneau raccourcis — fin de transport */
-        r.jsx(DzTracks.TrackAdd,{tracks:svmTracksOf(proj),onChange:svmTracksSet}),
-        r.jsx(DzTracks.LibBtn,{tracks:svmTracksOf(proj),note:fireNote,onPick:openPicker}),
-        r.jsx(DzTracks.WordAnimChip,{value:(proj.subsStyle||{}).wordAnim||"couleur",onChange:function(v){subsStyleSet({wordAnim:v})}}),
-        r.jsx(DzTracks.EmojiBtn,{segments:subsSegsOf(clips),tracks:svmTracksOf(proj),note:fireNote,onAdd:function(cs){pushHistory();setClips(function(k){return (k||[]).concat(cs)});setDirty(!0)}}),
-        r.jsx("button",{className:"svm-tbtn dzm-txton","data-on":dzTextOn?"":void 0,"aria-pressed":dzTextOn,title:"Monter par le TEXTE : la narration mot par mot dans la colonne de droite, les mots de remplissage marqués, et la sélection coupée sur toutes les pistes non verrouillées (ce qui suit remonte)","aria-label":"Panneau Texte",onClick:function(){setDzTextOn(!dzTextOn)},children:"texte"}),
         r.jsx(DzTracks.Projects,{name:proj.name,projectId:proj.project_id,note:fireNote,
+          /* étape 6 (§5.1) : le BOUTON « projets » a quitté le
+             bandeau ; la LISTE reste, parce que c’est elle que
+             la barre d’outils demande. Montée NUE. */
+          nu:!0,
+          /* étape 7 : la barre d’outils ouvre CETTE liste-ci au
+             lieu d’en monter une seconde — un compteur, pas un
+             booléen. */
+          openReq:dzProjReq,
           payload:function(){return svmSavePayload()},
           onBefore:function(){if(saveAbortRef.current){try{saveAbortRef.current.abort()}catch(_e){}}saveSeqRef.current++;setSaveInfo(null)},
           onFail:function(){if(dirty)svmDoSave(++saveSeqRef.current)},
@@ -5794,9 +5921,8 @@ function DzMontage(props){
                 :[
                   r.jsxs("div",{className:"svm-tnamerow",children:[
                     r.jsx("span",{className:"svm-sq6",style:{background:"var("+tr.c+")"}}),
-                    r.jsx("span",{className:"svm-tname",children:tr.name}),
-                    thAdd]},"nr"),
-                  r.jsxs("div",{className:"svm-ttyperow",children:[thType,thLock]},"tr"),
+                    r.jsx("span",{className:"svm-tname",children:tr.name})]},"nr"),
+                  r.jsxs("div",{className:"svm-ttyperow",children:[thType,thLock,thAdd]},"tr"),
                   DzTracks.headBtns(tr,svmTracksOf(proj),svmTracksSet,clips,setClips,fireNote)]}),
               r.jsxs("div",{className:"svm-lane",
                 onDragOver:function(e){if(svmDragOk(e,tr.id)){e.preventDefault();e.dataTransfer.dropEffect="copy"}},
@@ -5956,7 +6082,7 @@ function DzMontage(props){
                          la tête dessus (l'édition vit dans le lecteur et
                          l'inspecteur) — visibles même piste verrouillée,
                          le seek reste permis */
-                      tr.id==="v2"?(svmMpOf(c)||[]).map(function(p,pi){
+                      DzTracks.isOverlayTrack(tr.id,dzTracksRef.current)?(svmMpOf(c)||[]).map(function(p,pi){
                         return r.jsx("i",{className:"svm-mph",
                           title:"Point de position "+svmShort(p.t)+" · x "+Math.round(p.x*1000)/10+" % · y "+Math.round(p.y*1000)/10+" %"+
                             (p.rotate?" · "+Math.round(p.rotate*10)/10+"°":"")+" — cliquer : caler la tête",
@@ -9875,8 +10001,17 @@ function subsFonts(){return SUBS_SVC.fonts||SUBS_FONTS_FB}
    silences réels du son (`/subtitles/transcribe` prend ce chemin de lui-même).
    0 $, hors ligne, orthographe exacte — là où une transcription payante écrit
    « Dipotus » pour « Deepotus ». */
-var SUBS_LANGS=[["fr","français"],["en","anglais"],["es","espagnol"],
-  ["de","allemand"],["it","italien"],["pt","portugais"]];
+/* P13 — « auto » en TÊTE : la route transmet `None` au moteur, qui
+   détecte lui-même (la branche `if language:` de transcribe() était
+   morte : la route forçait « fr »). Les dix codes après « pt » sont
+   une CONNAISSANCE EXTERNE AU DÉPÔT (ISO-639-1), transmis tels quels :
+   le fournisseur tranche. Le défaut reste « fr ». */
+var SUBS_LANGS=[["auto","détection par le moteur"],
+  ["fr","français"],["en","anglais"],["es","espagnol"],
+  ["de","allemand"],["it","italien"],["pt","portugais"],
+  ["nl","néerlandais"],["pl","polonais"],["ru","russe"],["uk","ukrainien"],
+  ["tr","turc"],["ar","arabe"],["ja","japonais"],["zh","chinois"],
+  ["ko","coréen"],["hi","hindi"]];
 function subsLangLab(c){
   var k=String(c||"fr");
   for(var i=0;i<SUBS_LANGS.length;i++)if(SUBS_LANGS[i][0]===k)return SUBS_LANGS[i][1];
@@ -10033,7 +10168,9 @@ function subsCostOf(free,dur,lang,court){
       "annoncé, donc le geste n'est pas offert."};
   var d=Math.max(0,subsN(dur,0));
   var usd=d/60*SUBS_EST.usdMin,eta=SUBS_EST.over+SUBS_EST.rt*d;
-  return {txt:subsLangLab(lang)+" · "+subsMoteurNom(court)+" · "+subsUsd(usd)+
+  /* P13 — sous « auto » la pastille dit « langue auto », pas l'entrée du
+     sélecteur (« détection par le moteur · elevenlabs · … »). */
+  return {txt:(lang==="auto"?"langue auto":subsLangLab(lang))+" · "+subsMoteurNom(court)+" · "+subsUsd(usd)+
       " · "+subsEta(eta),
     free:!1,usd:usd,eta:eta,
     /* le PRIX et l'ATTENTE se refont eux aussi : le tarif à la minute et la
@@ -10042,7 +10179,8 @@ function subsCostOf(free,dur,lang,court){
        qu'on croie le rapport sur parole. */
     apres:"Appel PAYANT à "+SUBS_EST.label+
       (SUBS_EST.model?" ("+SUBS_EST.model+")":"")+", langue "+
-      subsLangLab(lang)+" : "+subsUsd(usd)+" pour "+subsFr(d,1)+" s de son ("+
+      /* P13 — sous « auto » : « détectée par le moteur ». */
+      (lang==="auto"?"détectée par le moteur":subsLangLab(lang))+" : "+subsUsd(usd)+" pour "+subsFr(d,1)+" s de son ("+
       subsUsd(SUBS_EST.usdMin)+" la minute annoncés par le moteur × "+
       subsFr(d,1)+" ÷ 60), "+subsEta(eta)+" d'attente ("+
       subsFr(SUBS_EST.over,1)+" s de mise en route + "+
@@ -11890,6 +12028,52 @@ const SubsDrawer=(props)=>{
       "). Le sélecteur reste maître.")},[det.code,det.sur,langPris]);
 
   x.useEffect(function(){if(open)subsProbe()},[open]);
+  /* P16 — LA CIBLE et le COÛT de la traduction, puis le geste. */
+  var s9=x.useState(function(){
+    try{var dzV=localStorage.getItem("dz_subs_to");if(dzV)return dzV}catch(_e){}
+    return DzTracks.subsTrDefaut(lang)}),dzTo=s9[0],setDzTo=s9[1];
+  var s9b=x.useState({st:"?"}),dzTe=s9b[0],setDzTe=s9b[1];
+  var dzTrN=segs.length,
+      dzTrChars=segs.reduce(function(a,sg){return a+String(sg.text||"").length},0);
+  x.useEffect(function(){
+    if(!open||!dzTrN){setDzTe({st:"vide"});return}
+    var dzKill=setTimeout(function(){
+      subsJson("/api/subtitles/translate/estimate?chars="+dzTrChars+
+        "&target="+encodeURIComponent(dzTo)).then(function(a){
+        setDzTe(a&&a.ok?{st:"ok",ok:!0,usd:subsN(a.usd,0),
+            provider:String(a.provider||"")}
+          :{st:"none",reason:String((a&&a.reason)||
+            "Aucune clé LLM configurée (Réglages).")})},
+      function(){setDzTe({st:"down",reason:"Le backend ne répond pas : "+
+        "le coût ne peut pas être annoncé, donc rien n'est lancé."})})},400);
+    return function(){clearTimeout(dzKill)}},[open,dzTrN,dzTrChars,dzTo]);
+  function dzTraduire(){
+    var dzBody=DzTracks.subsTrBody(segs,dzTo,lang);
+    if(!dzBody||(trJob&&trJob.busy))return;
+    setTrJob({busy:!0,step:"traduction de "+subsPl(dzTrN,"réplique")+
+      " vers "+subsLangLab(dzTo)+"…",pct:0});
+    /* fetch DIRECT : subsPost jette « réponse non JSON » sur tout
+       !res.ok (mesuré) et perdrait la raison du 400/502 que la route
+       écrit — ici elle est lue puis affichée. */
+    fetch("/api/subtitles/translate",{method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(dzBody)})
+      .then(function(res){return res.json().then(
+        function(dd){return {res:res,d:dd}},
+        function(){return {res:res,d:null}})})
+      .then(function(o){
+        setTrJob(null);
+        if(!o.res.ok){
+          note2("Traduction refusée ("+o.res.status+") : "+
+            String((o.d&&o.d.detail)||"raison non fournie"));return}
+        var dzNext=DzTracks.subsTrApply(segs,(o.d&&o.d.segments)||[],subsLabelOf);
+        if(!dzNext){note2("Réponse illisible : le compte des répliques "+
+          "ne correspond pas — rien n'a été écrit.");return}
+        if(props.onChange)props.onChange(dzNext,!0);
+        note2(DzTracks.subsTrNote(dzNext.length,dzTo,SUBS_LANGS))},
+      function(){setTrJob(null);
+        note2("Traduction indisponible : POST /api/subtitles/translate "+
+          "ne répond pas — le backend est-il lancé ?")})}
   x.useEffect(function(){
     if(open&&rootRef.current)
       try{rootRef.current.focus({preventScroll:!0})}catch(_e){}},[open]);
@@ -11903,19 +12087,46 @@ const SubsDrawer=(props)=>{
      trou effacerait le travail déjà fait sur les autres plans. */
   function transcribe(plan){
     if(trJob&&trJob.busy)return;
-    setTrJob({busy:!0,step:plan?"plan "+plan.n+"…":"envoi…",pct:0});
+    /* P13 — la ligne d'attente nomme ce qui part : les clips de la piste
+       de dialogue (sinon la première V1), par la même fonction pure
+       que la pastille de coût. */
+    var dzSs=DzTracks.subsSources(props.srcClips,props.srcTracks);
+    setTrJob({busy:!0,step:plan?"plan "+plan.n+"…":dzSs.step,pct:0});
     /* `clips` porte la timeline : le backend y trouve la NARRATION (texte déjà
        écrit) et cale dessus — gratuit, hors ligne, et orthographe exacte, là
        où une transcription payante écrit « Dipotus » pour « Deepotus ». Sans
        texte, il retombe sur la transcription du média `src`. */
-    var cl=props.srcClips||null,srcRef=props.srcRef||null;
+    var cl=props.srcClips||null,srcRef=null;
+    /* P13 — sans plan, `src` part NUL : la route vise elle-même la piste
+       de dialogue — tous ses clips porteurs d'une source, transcrits un
+       par un, leurs mots décalés de `start − srcIn` et coupés au clip.
+       `props.srcRef` (le premier a1, sinon le premier v1, jamais
+       décalé) n'est plus envoyé : c'est lui qui faisait transcrire le
+       vieux MP3 de A1 au lieu du plan (journal du 06/09/2026). */
     if(plan&&cl){
       cl=cl.filter(function(c){
         return subsN(c.end,0)>plan.start+.05&&subsN(c.start,0)<plan.end-.05});
-      var av=cl.filter(function(c){return c.src&&(c.tr==="a1"||c.tr==="v1")});
-      if(av.length)srcRef=av[0].src}
+      /* P13 — la piste de dialogue du projet d'abord (bus « dialogue », sinon
+         a1 : le son du plan), puis v1, et au plus tôt : c'est le clip
+         porteur que la route retrouve pour décaler les répliques. Rien
+         qui chevauche : rien ne part, et c'est dit — avant, le premier
+         a1 de toute la timeline partait, contre paiement, hors du plan.
+         TOUR 1 (revue du 06/09) : le filtre suivait `a1` PAR IDENTIFIANT
+         alors que subsSrcClips (M24j) et la route visent la piste de
+         dialogue — sur une piste a4 de bus dialogue, le geste par plan
+         envoyait la V1 entière et disait « Aucun clip A1 ». */
+      var dzTd=DzTracks.dialogueTrack(props.srcTracks)||"a1",
+          av=cl.filter(function(c){return c.src&&(c.tr===dzTd||c.tr==="v1")})
+        .sort(function(p,q){return (p.tr===dzTd?0:1)-(q.tr===dzTd?0:1)
+          ||subsN(p.start,0)-subsN(q.start,0)});
+      if(!av.length){setTrJob(null);
+        note2("Aucun clip "+dzTd.toUpperCase()+" ou V1 porteur d'une source ne chevauche le plan n° "+plan.n+" — rien n'est envoyé.");return}
+      srcRef=av[0].src}
     subsPost("/api/subtitles/transcribe",
       {src:srcRef,clips:cl,
+       /* P13 — les pistes du projet : la route y lit la piste de
+          dialogue (même loi que le rendu). */
+       tracks:props.srcTracks||null,
        lang:lang,cps:subsN(style.maxChars,42)})
       .then(function(d){
         var id=d&&d.job_id;
@@ -11973,7 +12184,17 @@ const SubsDrawer=(props)=>{
      le plus flatteur. */
   var trFree=(props.srcClips||[]).some(function(c){
     return (c.tr==="a1"||c.tr==="a3")&&String(c.text||"").trim()});
-  var trAll=subsCostOf(trFree,subsN(props.dur,0),lang);
+  /* P13 — la pastille annonce CE QUI PART : la somme des durées des clips
+     de la piste de dialogue porteurs d'une source (sinon la première
+     V1), par la fonction pure de la couche ; la durée du projet ne sert
+     plus que quand rien n'est à envoyer. L'infobulle nomme les sources
+     (libellé, nombre, secondes) avant le prix — jamais quand le geste ne
+     peut pas partir (`ko` : aucun moteur configuré, bouton désactivé) :
+     l'infobulle d'un geste impossible ne commence pas par « Envoyé ». */
+  var dzSsAll=DzTracks.subsSources(props.srcClips,props.srcTracks);
+  var trAll=subsCostOf(trFree,dzSsAll.total>0?dzSsAll.total
+    :subsN(props.dur,0),lang);
+  if(!trAll.free&&!trAll.ko&&dzSsAll.dit)trAll.apres=dzSsAll.dit+" "+trAll.apres;
   return r.jsxs("aside",{className:"sub-drawer",ref:rootRef,tabIndex:-1,
     role:"group","aria-label":"Sous-titres",
     onKeyDown:function(e){
@@ -12125,6 +12346,30 @@ const SubsDrawer=(props)=>{
           onChange:function(e){pickLang(e.target.value,!0)},
           children:SUBS_LANGS.map(function(o){
             return r.jsx("option",{value:o[0],children:o[1]},o[0])})},"s")]},"lg"),
+      /* P16 — TRADUIRE : la cible (sans « auto » — on traduit VERS une
+         langue nommée), puis le bouton qui dit ce qu'il remplace, son
+         prix, et ce qu'« Annuler » fait (mesuré — subsTrTitle). */
+      r.jsxs("label",{className:"sub-trlang",children:[
+        r.jsx("span",{className:"sub-trlangl",children:"vers"},"l"),
+        r.jsx("select",{className:"sub-sel",value:dzTo,
+          "aria-label":"Langue cible de la traduction",
+          title:"Langue vers laquelle « Traduire » réécrit le texte des "+
+            "répliques. Leurs temps ne bougent pas.",
+          onChange:function(e){var dzV=e.target.value;setDzTo(dzV);
+            try{localStorage.setItem("dz_subs_to",dzV)}catch(_e){}},
+          children:SUBS_LANGS.filter(function(o){return o[0]!=="auto"})
+            .map(function(o){
+              return r.jsx("option",{value:o[0],children:o[1]},o[0])})},"s")]},"tg"),
+      (function(){
+        var dzOn=DzTracks.subsTrEnabled(dzTrN,dzTe,!!(trJob&&trJob.busy));
+        return subsActBtn({fam:"fix",
+          label:DzTracks.subsTrLabel(dzTo,SUBS_LANGS),
+          but:"traduire les répliques",quiet:!0,disabled:!dzOn.on,
+          cost:trJob&&trJob.busy?"en cours…":dzTe.ok
+            ?subsLangLab(dzTo)+" · "+(dzTe.provider||"LLM")+" · "+subsUsd(dzTe.usd)
+            :(dzTe.st==="vide"?"aucune réplique":"coût indisponible"),
+          apres:dzOn.on?DzTracks.subsTrTitle(dzTrN):dzOn.pourquoi,
+          onClick:dzTraduire,k:"trad"})})(),
       trJob&&trJob.busy
         ?r.jsx("span",{className:"sub-trstep",
           children:trJob.step+(trJob.pct?" · "+Math.round(trJob.pct)+" %":"")})
@@ -12147,7 +12392,11 @@ const SubsDrawer=(props)=>{
        vérifie comme les autres chiffres du panneau. Quand elle ne tranche
        pas, elle le dit — et ne touche à rien. */
     tab!=="segments"?null:(function(){
-      var etat=!det.total?"vide":det.sur?(det.code===lang?"ok":"contre")
+      var etat=!det.total?"vide":det.sur
+        /* P13 — « auto » n'affirme aucune langue : la détection n'a
+           rien à contredire, l'état est « ok » (la ligne dit ce qui
+           a été lu, et sur combien de mots). */
+        ?((lang==="auto"||det.code===lang)?"ok":"contre")
         :"flou";
       var txt=etat==="vide"
         ?"Aucun texte à analyser : « "+subsLangLab(lang)+" » est le réglage, "+
@@ -12168,7 +12417,10 @@ const SubsDrawer=(props)=>{
          "annonce « "+subsLangLab(lang)+" » à chaque bouton qui dépense.";
       return r.jsxs("div",{className:"sub-lgnote","data-etat":etat,
         title:etat==="ok"
-          ?"La langue lue sur le contenu est d'accord avec le sélecteur : "+
+          /* P13 — sous « auto » le sélecteur n'affirme rien : la ligne dit
+             ce que le moteur fera, et ce que le contenu a montré. */
+          ?(lang==="auto"?"Sous « auto » le moteur détecte lui-même la langue ; lue sur le contenu : "
+            :"La langue lue sur le contenu est d'accord avec le sélecteur : ")+
            subsLangLab(det.code)+" ("+det.hits+" mots-outils reconnus sur "+
            det.total+" mots examinés). Rien à arbitrer."
           :void 0,children:[
@@ -12301,12 +12553,60 @@ window.DzSubs={ready:!0,Drawer:SubsDrawer,Overlay:SubsOverlay,Style:SubsStyle,
                          newerLine, NewerHint,
                          fitDur, durCtl, secs, DUR_MIN,
                          clipLen, needDur, askDur, CLIP_DEFAUTS, DUR_DELAI,
+                         dialogueTrack, trackPlein, wantsTwin,
+                         audioOf, audioSet, audioForget, askAudio, srcDurOr,
+                         srcKey, uniqueId, dedupeIds, seqMax,
+                         twinClip, twinPlan, extract, extractBtn,
+                         subsSources, subsLabel,
+                         subsTrDefaut, subsTrBody, subsTrEnabled,
+                         subsTrLabel, subsTrTitle, subsTrNote,
+                         subsTrApply,
+                         isOverlayTrack, overlayOrder, addDit,
+                         tbTraces, tbIcons, tbParse, tbSerial,
+                         TbIcon, ToolBtn, TB_GROUPES, TB_PX, TB_PX_GRIP,
                          move, moveTo, add, remove, group, DEFAULTS}
 
+   - bdRetire() / bdPlan(dispo, blocs) — étape 6 du handoff « Barre Outils
+     Flottante » (§5). La première RECALCULE ce que le retrait des neuf
+     contrôles rend au bandeau (697 px nominaux ; le protocole de mesure est
+     écrit sur place, avec sa réserve). La seconde décide, largeur
+     disponible en entrée, CE QUI SE DÉGRADE — PURE, donc jouée sous node :
+     c'est la seule façon de mesurer « jamais deux lignes, jamais de
+     défilement horizontal » sans navigateur. `bdMesure` / `bdPose` /
+     `bdTour` sont l'hôte : ils mesurent et posent, ils ne décident rien.
+   - isOverlayTrack(trId, tracks) / overlayOrder(ids, clips, tracks) — P14 :
+     « piste de genre vidéo autre que v1 » (ce que le rendu compose en
+     incrustation : montage_service._tracks_meta, `layer`) et l'ordre dans
+     lequel l'aperçu doit EMPILER ses overlays actifs — le plus bas d'abord,
+     la piste listée le plus haut au-dessus, même loi que `layer`. PURES.
+     Les neuf portes du bundle qui codaient « v2 » en dur (aperçu, payload,
+     inspecteur, losanges, alignement, point de position, poignées, flèches,
+     Échap) lisent la première ; l'aperçu lit la seconde.
+   - addDit(ts, kind) — P14 : `add` plus la phrase qui dit ce qui vient
+     d'être créé (identifiant, nature). `add(ts,"video")` crée une piste
+     vidéo PLEIN CADRE (type « vidéo »), `add(ts,"overlay")` une piste
+     d'incrustation (type « overlay » — V2, quand elle est libre, revient
+     avec son habillage historique « overlay/VFX », rien ne la renomme).
    - clipLen(kind, srcDur, defauts) — P11 : la longueur à donner au clip
      qu'on pose. PURE, rend {len, origine, note} — la longueur ENTIÈRE de la
      source quand elle est connue, le repli du bundle sinon, et dans ce cas
      seulement une note qui DIT que le chiffre n'est pas celui de la source.
+   - dialogueTrack(ts) / trackPlein(ts,id) / wantsTwin(kind,ts,id) — P12 :
+     la piste qui reçoit le son d'un plan (bus « dialogue », sinon a1,
+     jamais une piste bouclée), et « cette piste vidéo est-elle plein
+     cadre ? » (une incrustation ne reçoit pas de jumeau). PURES.
+   - askAudio(src, {done, fetch, timer, delai}) / audioOf / audioSet /
+     audioForget — P12 : la sonde GET /api/montage/has-audio sur le motif
+     d'askDur, et son CACHE par source, qui est le verrou de récursion de
+     l'ajout. srcDurOr(kind, srcDur, verdict) prend la durée rendue en
+     prime quand on ne la connaît pas encore.
+   - uniqueId(clips, base) / dedupeIds(clips) / seqMax(clips) — P12 : des
+     identifiants de clips UNIQUES, y compris après rechargement d'une
+     sauvegarde qui en porte en double (mesuré).
+   - twinClip(clip, trId, clips) / twinPlan(neuf, ts, clips, verdict,
+     locked) — P12 : le clip jumeau « … · son du plan » et la décision de
+     le poser, chaque sortie DITE. extract(sel, o) / extractBtn(sel, o) —
+     le bouton « Extraire le son → A1 » de l'inspecteur, même moteur.
    - needDur(kind, srcDur) / askDur(src, {done, fetch, timer, delai}) — P11 :
      faut-il aller mesurer la durée, et la mesure elle-même
      (GET /api/montage/duration). `askDur` prend ses deux dépendances impures
@@ -12404,8 +12704,14 @@ var DZM_DEFAULT_TRACKS=[
    {id,kind,bus,loop} : sans ce repli, une piste v3 ajoutée puis rechargée
    revenait sans nom, sans type et surtout sans HAUTEUR — une bande de 0 px,
    invisible, portant pourtant des clips. Même fonction pour l'ajout et pour
-   la restauration : les deux chemins ne peuvent pas diverger. */
-function dzmSkin(id,kind){
+   la restauration : les deux chemins ne peuvent pas diverger.
+   P14 — LE TYPE DEMANDÉ (troisième argument) n'est honoré que pour une piste
+   vidéo HORS de la table, et seul « vidéo » compte : une piste vidéo neuve
+   est plein cadre si on l'a demandée ainsi, une incrustation sinon — c'est
+   le défaut d'avant P14, et c'est ce que redevient une sauvegarde qui ne
+   porte pas le type. Une piste plein cadre prend l'habillage de V1
+   (hauteur, teinte) : à l'écran, la nature se lit sans ouvrir un titre. */
+function dzmSkin(id,kind,type){
   var d=DZM_DEFAULT_TRACKS.filter(function(k){return k.id===id})[0];
   /* une COPIE : rendre l'objet de la table exposerait les défauts partagés à
      la mutation du premier appelant venu. Latent, mais d'un mot. */
@@ -12414,6 +12720,8 @@ function dzmSkin(id,kind){
     h:48,c:"--c-3d",mix:13,kind:"audio",bus:"sfx"};
   if(kind==="subs")return {id:id,name:String(id).toUpperCase(),type:"sous-titres",
     h:44,c:"--c-text",mix:11,kind:"subs"};
+  if(type==="vidéo")return {id:id,name:String(id).toUpperCase(),type:"vidéo",
+    h:54,c:"--c-video",mix:13,kind:"video"};
   return {id:id,name:String(id).toUpperCase(),type:"overlay",h:40,c:"--c-3d",
     mix:13,kind:"video"}}
 
@@ -12422,8 +12730,16 @@ function dzmKindOf(id,kind){
   var k=String(id||"").charAt(0);
   return k==="a"?"audio":k==="s"?"subs":"video"}
 
+/* LE REPLI DES PISTES, ÉCRIT UNE FOIS. « Une liste vide vaut les six pistes
+   de base » était écrit à deux endroits ; l'étape 4 de la barre en voulait un
+   TROISIÈME. Trois copies de la même condition divergent à la première
+   retouche, alors les trois appellent celle-ci. C'est un contrôle à deux
+   faces : la retirer casse `svmTracksOf`, `DzmTrackAdd` ET le câblage de la
+   barre, et trois lignes du banc le disent séparément. */
+function dzmTsOr(ts){return (ts&&ts.length)?ts:DZM_DEFAULT_TRACKS}
+
 function svmTracksOf(proj){
-  return (proj&&proj.tracks&&proj.tracks.length)?proj.tracks:DZM_DEFAULT_TRACKS}
+  return dzmTsOr(proj&&proj.tracks)}
 
 /* Restauration depuis GET /api/montage/project. `null` = « rien de valable,
    garde les défauts » : c'est le cas d'une sauvegarde d'avant P1, et celui
@@ -12438,14 +12754,25 @@ function svmTracksFrom(raw){
     if(seen[id])return;
     seen[id]=1;
     var kind=dzmKindOf(id,t.kind);
-    out.push(Object.assign({},dzmSkin(id,kind),t,{id:id,kind:kind}))});
+    /* P14 — le type du payload est passé à l'habillage : une piste vidéo
+       plein cadre restaurée reprend l'habillage de V1, comme à sa création,
+       au lieu de revenir en bande d'incrustation typée « vidéo ». */
+    out.push(Object.assign({},dzmSkin(id,kind,t.type),t,{id:id,kind:kind}))});
   return out.some(function(t){return t.id==="v1"})?out:null}
 
 /* Ce qui part au backend (rendu ET autosave) : le strict nécessaire à
    montage_service._tracks_meta. L'habillage reste au client (dzmSkin le
-   reconstruit au retour). */
+   reconstruit au retour).
+   P14 — PLUS LE TYPE « vidéo » d'une piste vidéo autre que v1 : c'est le
+   SEUL choix que l'habillage ne sait pas reconstruire (v1 est toujours plein
+   cadre, toute autre piste vidéo est une incrustation par défaut). Sans
+   cette clé, une piste créée « vidéo » revenait « overlay » au rechargement
+   et le jumeau sonore (wantsTwin) changeait d'avis avec elle. Le backend
+   range `tracks` tel quel (POST /save : `data["tracks"] = body["tracks"]`)
+   et `_tracks_meta` ignore la clé — mesuré. */
 function svmTracksPayload(proj){return svmTracksOf(proj).map(function(t){
-  var o={id:t.id,kind:t.kind};if(t.bus)o.bus=t.bus;if(t.loop)o.loop=!0;return o})}
+  var o={id:t.id,kind:t.kind};if(t.bus)o.bus=t.bus;if(t.loop)o.loop=!0;
+  if(t.kind==="video"&&t.id!=="v1"&&t.type==="vidéo")o.type="vidéo";return o})}
 
 /* SVM_TRACK_BUS est un objet module-level du bloc sonvfx, LU à neuf endroits
    (mesuré : svmTrackMute, svmTrackSolo, quatre gardes de raccourci, le dépôt
@@ -12491,13 +12818,53 @@ function dzmMoveTo(ts,id,overId,after){
 /* Une piste vidéo naît EN HAUT (donc au-dessus de tout au rendu), une piste
    audio juste au-dessus des sous-titres. L'identifiant est le plus petit
    libre : retirer v3 puis rajouter une vidéo redonne v3 — les clips orphelins
-   d'une suppression annulée retrouvent donc leur piste. */
+   d'une suppression annulée retrouvent donc leur piste.
+   P14 — DEUX SORTES DE PISTES VIDÉO. `kind` vaut « video » (plein cadre,
+   type « vidéo »), « overlay » (incrustation, type « overlay ») ou
+   « audio » ; les deux premiers fabriquent un identifiant v<n>. Un « vidéo »
+   SAUTE un identifiant libre dont l'habillage historique est une
+   incrustation (v2 : « overlay/VFX », que rien ne renomme) : sur les pistes
+   du 04/09 [v1, a2, a1, a3, s1], « vidéo » aurait sinon créé V2 en
+   incrustation — le contraire de ce que le bouton annonce. Le plus petit
+   libre reste la règle pour tout le reste, et la note de `dzmAddDit` nomme
+   l'identifiant obtenu. */
 function dzmAdd(ts,kind){
-  var n=1,ids=ts.map(function(t){return t.id});
-  while(ids.indexOf(kind.charAt(0)+n)>=0)n++;
-  var t=dzmSkin(kind.charAt(0)+n,kind==="audio"?"audio":"video");
-  var at=kind==="video"?0:dzmSubsAt(ts);
+  var genre=kind==="audio"?"audio":"video";
+  var type=kind==="video"?"vidéo":void 0;
+  var n=1,ids=ts.map(function(t){return t.id}),t;
+  /* BORNÉE (faute n°6 : un banc qui ne finit pas ne rougit jamais) : si
+     l'habillage cessait de rendre « vidéo » hors de la table, la boucle
+     accepterait le 99e identifiant plutôt que de tourner sans fin. */
+  for(;;n++){
+    var id=genre.charAt(0)+n;
+    if(ids.indexOf(id)>=0)continue;
+    t=dzmSkin(id,genre,type);
+    if(type!=="vidéo"||t.type==="vidéo"||n>=99)break}
+  var at=genre==="video"?0:dzmSubsAt(ts);
   var out=ts.slice();out.splice(at<0?ts.length:at,0,t);return out}
+/* LA PISTE, ET LA PHRASE QUI LA DIT (P14). Rend {tracks, id, type, note} :
+   la liste neuve, l'identifiant créé, son type d'habillage et la note que
+   la barre affiche (fireNote) — la nature de la piste en une phrase, avec
+   ce que « vidéo » implique (recouvrement de V1, son extrait) ou ce
+   qu'« incrustation » implique (réglable, muette). PURE. */
+function dzmAddDit(ts,kind){
+  var avant=(ts||[]).map(function(t){return t&&t.id}),out=dzmAdd(ts||[],kind);
+  var neuf=null,i;
+  for(i=0;i<out.length;i++)if(avant.indexOf(out[i].id)<0){neuf=out[i];break}
+  if(!neuf)return {tracks:out,id:"",type:"",note:""};
+  var nom=String(neuf.id).toUpperCase(),ty=String(neuf.type||""),note;
+  if(neuf.kind==="audio")note="Piste "+nom+" ajoutée — audio, bus "+
+    String(neuf.bus||"sfx")+(neuf.loop?", bouclée":"")+" : une bande vide, "+
+    "sous les pistes audio existantes.";
+  else if(ty==="vidéo")note="Piste "+nom+" ajoutée — vidéo plein cadre : "+
+    "ses plans recouvrent V1 pendant leur durée et leur son est extrait sur "+
+    "la piste de dialogue ; V1 reste la séquence maîtresse (durée, "+
+    "transitions, vitesse, effets).";
+  else note="Piste "+nom+" ajoutée — incrustation"+
+    (ty==="overlay/VFX"?" (overlay/VFX, la piste historique)":"")+
+    " : image dans l'image, réglable (position, échelle, rotation, "+
+    "opacité), muette.";
+  return {tracks:out,id:neuf.id,type:ty,note:note}}
 function dzmSubsAt(ts){
   for(var i=0;i<ts.length;i++)if(ts[i].kind==="subs")return i;
   return -1}
@@ -12811,14 +13178,14 @@ function dzmRippleCut(clips,t0,t1,opts){
    raison. Ils disent maintenant ce qu'ils font ; le bouton qui ajoute
    VRAIMENT une vidéo est « Bibliothèque… », juste à côté. */
 var DzmTrackAdd=function(props){
-  var ts=(props&&props.tracks&&props.tracks.length)?props.tracks:DZM_DEFAULT_TRACKS;
+  var ts=dzmTsOr(props&&props.tracks);
   function add(k){if(props&&props.onChange)props.onChange(dzmAdd(ts,k))}
   return r.jsxs("span",{className:"dzm-add",children:[
     r.jsx("button",{className:"svm-tbtn dzm-addb",
-      title:"Ajouter une PISTE vidéo d'overlay (une bande vide) — posée tout "+
-        "en haut, donc composée AU-DESSUS des autres au rendu. Pour poser un "+
-        "clip, c'est « Bibliothèque… ».",
-      "aria-label":"Ajouter une piste vidéo d'overlay",
+      title:"Ajouter une PISTE vidéo plein cadre (une bande vide) — posée "+
+        "tout en haut ; ses plans recouvrent V1 pendant leur durée. Pour "+
+        "poser un clip, c'est « Bibliothèque… ».",
+      "aria-label":"Ajouter une piste vidéo plein cadre",
       onClick:function(){add("video")},children:"+ piste vidéo"},"v"),
     r.jsx("button",{className:"svm-tbtn dzm-addb",
       title:"Ajouter une PISTE audio (une bande vide) — posée sous les pistes "+
@@ -12841,7 +13208,7 @@ var DzmTrackAdd=function(props){
    grisé sans explication oblige à deviner, et c'est le défaut que toute
    cette tâche répare. */
 var DzmLibBtn=function(props){
-  var ts=(props&&props.tracks&&props.tracks.length)?props.tracks:DZM_DEFAULT_TRACKS;
+  var ts=dzmTsOr(props&&props.tracks);
   var id=dzmPickTrack(ts,"video");
   return r.jsx("button",{className:"svm-tbtn dzm-libb",
     title:id?("Ouvrir la Bibliothèque et poser une vidéo, une image ou un "+
@@ -12994,44 +13361,86 @@ var DzmWordAnimChip=function(props){
         "data-on":v===o.v?"":void 0,"aria-pressed":v===o.v,
         title:o.t,onClick:function(){set(o.v)},children:o.l},o.v)})},"b")]})};
 
-/* Le bouton « emoji » : demande les suggestions au backend, les pose en
-   clips d'overlay. RÉVERSIBLE — l'appelant pousse l'historique AVANT
-   d'ajouter, donc « annuler » les retire d'un coup ; et ce sont des clips
-   ordinaires, qui se déplacent et se suppriment comme les autres. */
+/* ── L'ACTION « emoji », SORTIE DU BOUTON QUI LA PORTAIT ──────────────
+   ÉTAPE 7 DU HANDOFF, §6 : « la barre est un nouveau point d'entrée, pas une
+   nouvelle implémentation ». Tant que cette action vivait DANS `DzmEmojiBtn`,
+   la barre n'avait rien à appeler — c'est la mesure qui l'avait laissée
+   éteinte à l'étape 4. Elle est ici, au premier niveau : le bouton du bandeau
+   et le bouton de la barre l'appellent tous les deux, et il n'y a qu'un code.
+
+   L'ATTENTE RESTE À L'APPELANT (`busy` / `setBusy`) : c'est un état React, et
+   cette fonction n'a pas de hook. Chaque porte tient la sienne — deux
+   portes, deux attentes, et l'étape 6 en refermera une. RESTE ASSUMÉ, dit
+   ici plutôt que découvert : d'ici là, deux clics simultanés partent en deux
+   requêtes. Elles ne se détruisent pas — chacune pousse l'historique avant
+   d'ajouter, et `dzmEmojiClips` numérote ses identifiants sur `Date.now()`.
+
+   `fetch` EST APPELÉE SUR SON OBJET quand elle vient de la fenêtre, jamais
+   détachée dans une variable : même leçon que `dzmTbFrame` à l'étape 4
+   (« Illegal invocation » sous Blink et WebKit). Et elle est INJECTABLE,
+   sans quoi cette fonction ne serait pas jouable sous node — la seule raison
+   pour laquelle l'étape 4 ne pouvait rien mesurer d'elle.
+
+   DEUX SORTES DE SORTIE, et le banc lit les deux : un JETON quand elle
+   REFUSE (quatre refus, quatre mots distincts — un `return` nu les aurait
+   rendus indiscernables), la PROMESSE quand elle part.
+
+   CE QUE FAIT CETTE ACTION ET CE QUE LE §6 DÉCRIT NE SE RECOUVRENT PAS, et
+   l'écart est DIT à l'utilisateur dans le titre du bouton de la barre : le
+   §6 veut un sélecteur d'emoji dont le choix pose UN clip de 2 s à la tête de
+   lecture ; cette base pose, sans sélecteur, UN clip de 0,8 s PAR MOT-CLÉ
+   reconnu dans les sous-titres, à la date de ce mot. C'est l'action qui
+   existe, et le §6 demande de réutiliser l'action qui existe. */
+function dzmEmojiGo(p){
+  p=p||{};
+  function note(m){if(typeof p.note==="function")p.note(m)}
+  function busy(v){if(typeof p.setBusy==="function")p.setBusy(v)}
+  if(p.busy)return "occupe";
+  var segs=p.segments||[];
+  if(!segs.length){
+    note("Aucun sous-titre : les emoji se posent sur les MOTS d'une "+
+      "réplique. Écrivez la piste S1 d'abord.");return "sans-soustitre"}
+  if(typeof p.onAdd!=="function"){
+    note("Emoji : rien pour recevoir les clips.");return "sans-hote"}
+  var f=(typeof p.fetch==="function")?p.fetch:null;
+  if(!f&&typeof window!=="undefined"&&typeof window.fetch==="function")
+    f=function(u,o){return window.fetch(u,o)};
+  if(!f){note("Emoji : ce navigateur ne sait pas interroger le serveur.");
+    return "sans-reseau"}
+  busy(1);
+  return f("/api/subtitles/emoji-hints",{method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({segments:segs})})
+    .then(function(rp){return rp.json()})
+    .then(function(d){
+      busy(0);
+      var hs=(d&&d.hints)||[];
+      if(!hs.length){note("Aucun mot-clé reconnu — les mots suivis sont "+
+        "feu, lune, vague, poulpe, or, fusée.");return}
+      var cs=dzmEmojiClips(hs,p.tracks,Date.now());
+      if(!cs.length){note("Aucune piste vidéo d'overlay pour les poser : "+
+        "ajoutez-en une par « + vidéo ».");return}
+      p.onAdd(cs);
+      note(cs.length+" emoji posé"+(cs.length>1?"s":"")+" sur "+cs[0].tr+
+        " — annuler les retire tous.")})
+    .catch(function(e){busy(0);
+      note("Emoji : "+((e&&e.message)||"échec de la requête"))})}
+/* Le bouton « emoji » du bandeau : il ne porte plus QUE son attente.
+   RÉVERSIBLE — l'appelant pousse l'historique AVANT d'ajouter, donc
+   « annuler » les retire d'un coup ; et ce sont des clips ordinaires, qui se
+   déplacent et se suppriment comme les autres. */
+var DZM_EMO_TITRE="Poser un emoji sur les mots-clés des sous-titres (feu, "+
+  "lune, vague, poulpe, or, fusée) — un clip par mot, sur la piste "+
+  "d'overlay la plus haute. Annuler les retire.";
 var DzmEmojiBtn=function(props){
   var sb=x.useState(0),busy=sb[0],setBusy=sb[1];
-  function note(m){if(props&&props.note)props.note(m)}
-  function go(){
-    if(busy)return;
-    var segs=(props&&props.segments)||[];
-    if(!segs.length){
-      note("Aucun sous-titre : les emoji se posent sur les MOTS d'une "+
-        "réplique. Écrivez la piste S1 d'abord.");return}
-    if(!props.onAdd){note("Emoji : rien pour recevoir les clips.");return}
-    setBusy(1);
-    fetch("/api/subtitles/emoji-hints",{method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({segments:segs})})
-      .then(function(rp){return rp.json()})
-      .then(function(d){
-        setBusy(0);
-        var hs=(d&&d.hints)||[];
-        if(!hs.length){note("Aucun mot-clé reconnu — les mots suivis sont "+
-          "feu, lune, vague, poulpe, or, fusée.");return}
-        var cs=dzmEmojiClips(hs,props.tracks,Date.now());
-        if(!cs.length){note("Aucune piste vidéo d'overlay pour les poser : "+
-          "ajoutez-en une par « + vidéo ».");return}
-        props.onAdd(cs);
-        note(cs.length+" emoji posé"+(cs.length>1?"s":"")+" sur "+cs[0].tr+
-          " — annuler les retire tous.")})
-      .catch(function(e){setBusy(0);
-        note("Emoji : "+((e&&e.message)||"échec de la requête"))})}
   return r.jsx("button",{className:"svm-tbtn dzm-emo",disabled:!!busy,
-    title:"Poser un emoji sur les mots-clés des sous-titres (feu, lune, "+
-      "vague, poulpe, or, fusée) — un clip par mot, sur la piste d'overlay "+
-      "la plus haute. Annuler les retire.",
+    title:DZM_EMO_TITRE,
     "aria-label":"Poser les emoji des mots-clés",
-    onClick:go,children:busy?"…":"emoji"})};
+    onClick:function(){dzmEmojiGo({segments:props&&props.segments,
+      tracks:props&&props.tracks,note:props&&props.note,
+      onAdd:props&&props.onAdd,busy:busy,setBusy:setBusy})},
+    children:busy?"…":"emoji"})};
 
 /* ── P3 : le tiroir « Texte » ──────────────────────────────────────────────
    Monter en lisant, pas en regardant des rectangles : la narration s'affiche
@@ -13462,6 +13871,15 @@ var DzmProjects=function(props){
   var box=x.useRef(null);
   var pid=(props&&props.projectId)||"";
   var nm=(props&&props.name)||"montage";
+  /* ÉTAPE 6 (§5.1) — MONTÉ NU. Le §5.1 retire `projets` du bandeau, mais ce
+     composant est DEUX choses : le bouton ET la liste qu'il ouvre. Retirer
+     les deux aurait rendu MORT le bouton `projets` de la barre flottante,
+     qui n'ouvre pas une liste à lui — il DEMANDE l'ouverture de celle-ci
+     (`openReq`, un compteur, cf. l'étape 7). `nu` retire donc le bouton et
+     garde la liste : un seul contrôle, une seule liste, aucun doublon.
+     C'est le seul des neuf dans ce cas — les huit autres n'ont pas de
+     panneau attaché à leur bouton. */
+  var nu=!!(props&&props.nu);
   function note(m){if(props&&props.note)props.note(m)}
 
   /* l'armement retombe tout seul au bout de quatre secondes : un bouton
@@ -13504,6 +13922,28 @@ var DzmProjects=function(props){
   function toggle(){
     var nx=!op;setOp(nx);setArm("");setRen(null);
     if(nx)load()}
+
+  /* ÉTAPE 7 — LE SECOND POINT D'ENTRÉE (§6 : « la barre est un nouveau point
+     d'entrée, pas une nouvelle implémentation »). Le §6 dit OUVRE, pas
+     BASCULE : la barre incrémente un compteur, l'ouverture est donc
+     IDEMPOTENTE et le même geste ne referme jamais la liste par accident.
+     POURQUOI UN COMPTEUR ET NON UN BOOLÉEN PARTAGÉ, et c'est mesuré : ce
+     popover se ferme sur un `mousedown` HORS de sa boîte, et le bouton de la
+     barre est hors de cette boîte. Un booléen piloté depuis la barre serait
+     donc remis à faux par ce `mousedown` juste avant que le `click` le
+     ramène à vrai — deux écritures pour un geste, dont l'ordre décide. Le
+     compteur, lui, ne décrit pas un ÉTAT mais une DEMANDE : quel que soit
+     l'ordre des deux événements, la dernière chose faite est d'ouvrir.
+     `oreq<=0` GARDE LE MONTAGE : l'effet part une première fois à zéro, et
+     sans cette ligne la liste s'ouvrirait toute seule au chargement.
+     RIEN D'AUTRE N'EST TOUCHÉ : ni la timeline, ni la tête de lecture, ni
+     l'historique. C'est `doOpen`, plus bas, qui remplace le montage — et il
+     demande confirmation avant, ce que le §6 exige et que la base faisait
+     déjà. */
+  var oreq=Number(props&&props.openReq)||0;
+  x.useEffect(function(){
+    if(oreq<=0)return;
+    setOp(!0);setArm("");setRen(null);load()},[oreq]);
 
   function saveAs(){
     if(busy)return;
@@ -13708,8 +14148,9 @@ var DzmProjects=function(props){
           children:xArm?"supprimer ?":"×"},"x")]},"a")]},p.id)}
 
   var rows=list||[];
-  return r.jsxs("span",{className:"dzm-proj",ref:box,children:[
-    r.jsx("button",{className:"svm-tbtn dzm-projb","data-on":op?"":void 0,
+  return r.jsxs("span",{className:"dzm-proj",ref:box,
+    "data-nu":nu?"":void 0,children:[
+    nu?null:r.jsx("button",{className:"svm-tbtn dzm-projb","data-on":op?"":void 0,
       "aria-expanded":op,"aria-haspopup":"dialog",
       title:pid
         ?("Projets — ce montage est enregistré sous « "+nm+" » et suit vos "+
@@ -14402,6 +14843,2301 @@ function dzmAskDur(src,o){
         .catch(function(){rend(0,"erreur")})}
   catch(e2){rend(0,"erreur")}}
 
+/* ══════════════════════════════════════════════════════════════════════════
+   P12 — LE SON D'UN PLAN SUIT SA VIDÉO.
+   Le rendu n'entre JAMAIS l'audio embarqué d'un clip vidéo dans le graphe
+   ffmpeg (`[idx:v]` seul, montage_service._run) : sans clip jumeau sur la
+   piste de dialogue, un plan parlant sort muet. La construction automatique
+   pose ce jumeau (« … · son du plan ») ; les SEPT portes d'`addAsset`
+   posaient un clip vidéo et rien d'autre. Ce bloc est le CŒUR PUR de la
+   correction — chaque fonction se joue sous node, comme le reste :
+     · dialogueTrack(ts) — la piste qui reçoit le son, JAMAIS une piste
+       bouclée ; « a1 » par identifiant si aucun bus ne le dit ;
+     · trackPlein(ts,id) / wantsTwin(kind,ts,id) — une vidéo posée sur une
+       piste vidéo PLEIN CADRE reçoit un jumeau ; une incrustation (type
+       « overlay » / « overlay/VFX »), non ;
+     · overlayNote(kind,ts,id) — l'incrustation, DITE : la phrase de l'ajout
+       quand aucun jumeau ne parle (rien d'extrait, le bouton) ;
+     · audioOf / audioSet / audioForget — le CACHE des verdicts, par source ;
+       c'est lui qui rend le rappel d'`addAsset` non récursif ;
+     · askAudio(src,{done,fetch,timer,delai}) — la sonde (GET /has-audio),
+       sur le motif EXACT d'askDur, cache compris ;
+     · srcDurOr(kind,srcDur,verdict) — la durée que la sonde a rendue en
+       prime, prise quand on ne la connaît pas encore ;
+     · uniqueId / dedupeIds / seqMax — les identifiants de clips, UNIQUES ;
+     · twinClip / twinPlan — le jumeau lui-même et la décision de le poser,
+       avec sa note ;
+     · extract / extractBtn — le bouton de l'inspecteur pour les plans DÉJÀ
+       posés, même moteur. */
+
+/* LA PISTE DE DIALOGUE. `pickTrack(ts,"audio")` n'est PAS la bonne réponse :
+   c'est la première piste audio de l'ordre d'affichage — MESURÉ sur la
+   sauvegarde du 04/09/2026 ([v1, a2, a1, a3, s1]) elle rend `a2`, la
+   MUSIQUE, seule entrée bouclée et duckée du rendu. La cible est la piste de
+   `bus:"dialogue"` (les pistes audio le portent), sinon `a1` par
+   identifiant, sinon "" — et JAMAIS une piste `loop` : le rendu ignore les
+   bornes du premier clip d'une piste bouclée et la joue d'un bout à l'autre
+   du film (mesuré, voir dzmGapFate). Le genre se déduit de l'identifiant
+   quand la piste ne le porte pas, comme pickTrack. */
+function dzmDialogueTrack(ts){
+  var list=Array.isArray(ts)?ts:[],i,t;
+  for(i=0;i<list.length;i++){t=list[i];
+    if(!t||!t.id||t.loop)continue;
+    if(dzmKindOf(t.id,t.kind)==="audio"&&t.bus==="dialogue")return String(t.id)}
+  for(i=0;i<list.length;i++){t=list[i];
+    if(!t||String(t.id)!=="a1"||t.loop)continue;
+    if(dzmKindOf(t.id,t.kind)==="audio")return "a1"}
+  return ""}
+
+/* P13 — CE QUE LA TRANSCRIPTION VA DÉPENSER, ET SUR QUOI. Le geste
+   « Transcrire l'audio » envoie `src:null` : la route choisit elle-même les
+   clips de la piste de dialogue (même loi que le rendu : bus « dialogue »,
+   sinon a1, jamais une piste bouclée) porteurs d'une source, les transcrit
+   un par un et décale leurs mots de `start − srcIn`. La pastille de coût
+   doit annoncer CETTE dépense — la somme des `end − start` de ces clips —
+   et non la durée du projet, qui compte aussi les images, la musique et
+   les trous. PURE, jouée sous node. Rend {track, list, total, repli, step,
+   dit} : `list` triée par `start` ({id, tr, label, start, dur}), `total`
+   en secondes (millième), `repli` vrai quand aucun clip de dialogue ne
+   porte de source et que la PREMIÈRE V1 porteuse en tient lieu (la route
+   fait de même), `step` la ligne d'attente du tiroir, `dit` la phrase de
+   l'infobulle — "" quand rien n'est à envoyer : l'appelant retombe alors
+   sur la durée du projet, comme avant. Les clips sont ceux que le tiroir
+   reçoit (`subsSrcClips` : {id, tr, src, name, start, end, srcIn?}) ;
+   `name` est le libellé de la timeline, sinon la source est nommée par
+   son champ. Sans pistes (`ts` absent ou vide) : les pistes par défaut,
+   donc a1 — une liste PRÉSENTE sans piste de dialogue rend le repli V1.
+   TOUR 1 (revue du 06/09) — LA DÉPENSE EST PAR FICHIER DISTINCT : la route
+   ne transcrit qu'UNE fois un même fichier porté par deux clips (la lame
+   coupe un clip en deux de même `src`), et le moteur reçoit le fichier
+   ENTIER. Ce que le client en sait : la RÉUNION des fenêtres
+   [srcIn, srcIn + dur] que ses clips lisent — deux moitiés font le tout,
+   le même fichier posé deux fois compte une fois, un clip rogné reste une
+   borne BASSE (la phrase le dit) ; `files` compte les fichiers distincts. */
+function dzmSubsNum(v){var n=Number(v);return isFinite(n)?n:0}
+function dzmSubsKey(s){return (s&&typeof s==="object")?dzmSrcKey(s):String(s)}
+function dzmUnionLen(iv){
+  var l=iv.slice().sort(function(p,q){return p[0]-q[0]}),t=0,a=0,b=0,open=!1,i;
+  for(i=0;i<l.length;i++){
+    if(!open||l[i][0]>b){if(open&&b>a)t+=b-a;a=l[i][0];b=l[i][1];open=!0}
+    else if(l[i][1]>b)b=l[i][1]}
+  if(open&&b>a)t+=b-a;
+  return t}
+function dzmSubsLabel(c){
+  var s=c&&c.src;
+  if(c&&(c.name||c.label))return String(c.name||c.label);
+  if(s&&typeof s==="object")
+    return String(s.audio||s.image||s.name||s.filename||s.file_path||s.job_id||"source");
+  return s?String(s):"source"}
+function dzmSubsSources(clips,ts){
+  var cs=Array.isArray(clips)?clips:[],
+      dial=dzmDialogueTrack(Array.isArray(ts)&&ts.length?ts:DZM_DEFAULT_TRACKS),
+      list=[],v1=[],repli=!1,total=0,i,c,d;
+  for(i=0;i<cs.length;i++){c=cs[i];
+    if(!c||!c.src)continue;
+    d=dzmSubsNum(c.end)-dzmSubsNum(c.start);
+    if(!(d>0))continue;
+    var row={id:c.id,tr:String(c.tr),label:dzmSubsLabel(c),
+             start:dzmSubsNum(c.start),dur:Math.round(d*1000)/1000,
+             key:dzmSubsKey(c.src),srcIn:Math.max(0,dzmSubsNum(c.srcIn))};
+    if(dial&&row.tr===dial)list.push(row);
+    else if(row.tr==="v1")v1.push(row)}
+  var parStart=function(p,q){return p.start-q.start};
+  list.sort(parStart);
+  if(!list.length&&v1.length){v1.sort(parStart);list=[v1[0]];repli=!0}
+  var parKey={},keys=[],k;
+  for(i=0;i<list.length;i++){k=list[i].key;
+    if(!parKey[k]){parKey[k]=[];keys.push(k)}
+    parKey[k].push([list[i].srcIn,list[i].srcIn+list[i].dur])}
+  for(i=0;i<keys.length;i++)total+=dzmUnionLen(parKey[keys[i]]);
+  total=Math.round(total*1000)/1000;
+  var piste=(repli?"v1":dial).toUpperCase(),n=list.length,
+      noms=list.map(function(l){return l.label+" ("+dzmSecs(l.dur)+")"});
+  return {track:dial,list:list,total:total,repli:repli,files:keys.length,
+    step:!n?"envoi…":n===1?"envoi de "+list[0].label+"…"
+        :"envoi de "+n+" clips de "+piste+"…",
+    dit:!n?"":repli
+      ?"Aucun clip de la piste "+(dial||"de dialogue").toUpperCase()+
+       " ne porte de son : la vidéo "+noms[0]+" de V1 est envoyée entière, "+
+       "ses répliques posées à son instant."
+      :"Envoyé : "+n+" clip"+(n>1?"s":"")+
+       (keys.length<n?" ("+keys.length+" fichier"+(keys.length>1?"s":"")+")":"")+
+       " de la piste "+piste+" — "+noms.join(", ")+" — "+dzmSecs(total)+
+       " de son, chaque réplique posée à l'instant de son clip. Chaque fichier "+
+       "part entier chez le moteur : un clip rogné coûte la durée de son fichier."}}
+
+/* ── P16 : TRADUIRE LES RÉPLIQUES — le cœur calculable ────────────────────
+   La rangée « Répliques » du tiroir de sous-titres gagne une langue cible
+   (état local `dz_subs_to`) et un bouton « Traduire vers … » (sections
+   M26a/M26b du patcher). TOUT ce qui se décide se décide ICI, en fonctions
+   PURES jouées sous node par le banc bundle : le corps de la requête
+   (subsTrBody), le droit de partir et sa raison (subsTrEnabled), le défaut
+   de la cible (subsTrDefaut — « en » quand on transcrit du français, sinon
+   « fr »), le libellé (subsTrLabel), l'infobulle (subsTrTitle — elle dit
+   MOT POUR MOT ce que le clic fait, et ce qu'« Annuler » fait : MESURÉ,
+   l'application passe par props.onChange(…, heavy) → le point d'écriture
+   unique des répliques de l'hôte, qui pousse UNE entrée d'historique avant
+   d'écrire et REFUSE en le disant quand la piste S1 est verrouillée), la
+   note de fin (subsTrNote) et la fusion du résultat (subsTrApply — temps
+   et identifiants des répliques CONSERVÉS, texte et libellé remplacés,
+   les mots karaoké d'avant JETÉS : ils épelaient l'ancien texte). */
+function dzmSubsTrDefaut(lang){return String(lang||"")==="fr"?"en":"fr"}
+function dzmSubsTrLangLab(code,langs){
+  var l=Array.isArray(langs)?langs:[],i;
+  for(i=0;i<l.length;i++)if(l[i]&&l[i][0]===code)return String(l[i][1]);
+  return String(code||"?")}
+function dzmSubsTrLabel(target,langs){
+  return "Traduire vers "+dzmSubsTrLangLab(target,langs)}
+function dzmSubsTrBody(segs,target,source){
+  var cs=Array.isArray(segs)?segs:[],t=String(target||"");
+  if(!cs.length||!t)return null;
+  return {segments:cs.map(function(s){
+      return {start:dzmSubsNum(s&&s.start),end:dzmSubsNum(s&&s.end),
+              text:String((s&&s.text)||"")}}),
+    target:t,
+    /* « auto » est une consigne de DÉTECTION, pas une langue : la route
+       reçoit alors source:null et laisse le modèle lire la langue. */
+    source:(source&&source!=="auto")?String(source):null}}
+function dzmSubsTrEnabled(n,est,busy){
+  if(busy)return {on:!1,pourquoi:"Un travail est déjà en cours — attendez sa fin."};
+  if(!(n>0))return {on:!1,pourquoi:"Aucune réplique à traduire : la piste S1 est vide."};
+  if(!est||!est.ok)return {on:!1,pourquoi:String((est&&est.reason)||
+    "Aucune clé LLM configurée (Réglages) — le coût ne peut pas être "+
+    "annoncé, donc rien n'est lancé.")};
+  return {on:!0,pourquoi:""}}
+function dzmSubsTrTitle(n){
+  if(!(n>1))return "REMPLACE le texte de la réplique de S1 par sa "+
+    "traduction ; son temps est conservé. « Annuler » de la timeline "+
+    "restaure le texte d'avant (le remplacement pousse une entrée "+
+    "d'historique avant d'écrire). Piste S1 verrouillée : rien n'est "+
+    "écrit, et l'écran le dit.";
+  return "REMPLACE le texte des "+n+" répliques de S1 par leur traduction ; "+
+    "leurs temps sont conservés. « Annuler » de la timeline restaure le "+
+    "texte d'avant (le remplacement pousse une entrée d'historique avant "+
+    "d'écrire). Piste S1 verrouillée : rien n'est écrit, et l'écran le dit."}
+function dzmSubsTrNote(n,target,langs){
+  return n+" réplique"+(n>1?"s":"")+" traduite"+(n>1?"s":"")+" vers "+
+    dzmSubsTrLangLab(target,langs)+" — relisez, la machine se trompe."}
+function dzmSubsTrApply(segs,rendus,labelOf){
+  var cs=Array.isArray(segs)?segs:[],rs=Array.isArray(rendus)?rendus:[];
+  if(!cs.length||cs.length!==rs.length)return null;
+  return cs.map(function(s,i){
+    var t=String((rs[i]&&rs[i].text)||""),out={},k;
+    for(k in s)if(Object.prototype.hasOwnProperty.call(s,k))out[k]=s[k];
+    out.text=t;
+    out.label=(typeof labelOf==="function")?labelOf(t):t;
+    out.words=null;
+    return out})}
+
+
+/* PLEIN CADRE OU INCRUSTATION. Le `type` est celui de dzmSkin : « vidéo »
+   pour V1, « overlay/VFX » pour la V2 historique, « overlay » pour toute
+   piste vidéo neuve. Une piste sans `type` compte comme plein cadre — donc
+   une liste NUE rend vrai pour TOUTE piste vidéo, v2 et v3 compris : le
+   payload d'une sauvegarde les nomme SANS type (celle de l'utilisateur,
+   06/09/2026, tracks [v3, v2, v1, …]). Ce n'est JAMAIS elle qui arrive
+   ici : svmTracksFrom habille chaque piste par dzmSkin à l'apply (v2 →
+   « overlay/VFX », v3 → « overlay », mesuré sous node) et le composant lit
+   sa ref des pistes, posée par svmTracksOf(proj) à chaque rendu — habillée
+   aussi. C'est cet
+   habillage, pas cette fonction, qui tient l'exemption des incrustations ;
+   le banc mesure les deux côte à côte (nue → vrai, habillée → faux). Une
+   piste absente, ou d'un autre genre, rend faux. */
+function dzmTrackPlein(ts,id){
+  var list=Array.isArray(ts)?ts:[],t=null,i;
+  for(i=0;i<list.length;i++)if(list[i]&&String(list[i].id)===String(id)){t=list[i];break}
+  if(!t||dzmKindOf(t.id,t.kind)!=="video")return !1;
+  var ty=String(t.type||"");
+  return ty!=="overlay"&&ty!=="overlay/VFX"}
+function dzmWantsTwin(kind,ts,id){return kind==="video"&&dzmTrackPlein(ts,id)}
+
+/* L'INCRUSTATION, DITE. Une vidéo posée sur une piste d'incrustation n'est
+   pas sondée (wantsTwin) — et l'ajout ne doit pas se taire pour autant. La
+   porte « Envoyer vers → Montage » de la Bibliothèque vise « v2 » EN DUR
+   (greffon libsend du bundle, `addAsset({job_id},…,"video",p.dur||0,"v2")`,
+   1 occurrence, mesuré le 06/09/2026) ; sur la sauvegarde de l'utilisateur
+   v2 EXISTE, habillée « overlay/VFX » : un kapwing_sample envoyé de là
+   arrivait sur V2 sans son et sans un mot — sa remontée exacte. Rend la
+   phrase que l'ajout concatène à sa note, ou "" quand il n'y a rien à dire :
+   pas une vidéo (un son, une image), piste plein cadre (le jumeau parle
+   alors, par twinPlan), piste absente ou d'un autre genre. Elle nomme la
+   piste, dit que rien n'a été extrait et renvoie au bouton de
+   l'inspecteur, avec sa cible quand le projet en a une. */
+function dzmOverlayNote(kind,ts,id){
+  if(kind!=="video")return "";
+  var list=Array.isArray(ts)?ts:[],t=null,i;
+  for(i=0;i<list.length;i++)if(list[i]&&String(list[i].id)===String(id)){t=list[i];break}
+  if(!t||dzmKindOf(t.id,t.kind)!=="video"||dzmTrackPlein(ts,id))return "";
+  var tr=dzmDialogueTrack(ts);
+  return " Posé sur "+String(id).toUpperCase()+" (incrustation) : le son de "+
+    "ce plan n'a PAS été extrait — sélectionnez-le puis « Extraire le son"+
+    (tr?" → "+tr.toUpperCase():"")+" » dans l'inspecteur."}
+
+/* ── P14 : « PISTE DE GENRE VIDÉO AUTRE QUE V1 » ──────────────────────────
+   Le bundle codait « v2 » EN DUR à NEUF endroits (mesuré le 06/09/2026 en
+   octets, « v2 » entre guillemets dans le code de l'écran, hors démo et
+   table historique :
+   aperçu, payload x/y/scale/rotate/motion_points, inspecteur Overlay,
+   losanges de trajectoire, alignement 3×3, « position ici », poignées du
+   lecteur, flèches et Échap du clavier) et le verrou de piste à QUATRE
+   (l'état de la piste « .v2 » lu en dur). Dès que V2 existait, « vidéo »
+   créait v3, et
+   un clip posé dessus était un FANTÔME : invisible dans l'aperçu, sans
+   inspecteur, sans poignée — et parti cover plein cadre au rendu, qui, lui,
+   traite TOUTE piste vidéo ≠ v1 en incrustation (montage_service
+   `_tracks_meta`, `kind == "video" and tid != "v1"`). La sauvegarde de
+   l'utilisateur porte tracks [v3, v2, v1, …] : c'est exactement cette piste.
+   Cette fonction est la règle du rendu, écrite une fois pour les treize
+   portes. Le genre vient de la piste quand la liste la porte, de l'initiale
+   de l'identifiant sinon (même loi que `trackKind` du bundle et que
+   dzmKindOf) — une liste ABSENTE retombe donc sur l'initiale, et une piste
+   absente de la liste aussi : un clip « v2 » d'un projet sans V2 reste
+   visible dans l'aperçu, comme avant. `null`, "" et v1 rendent faux. */
+function dzmIsOverlayTrack(trId,tracks){
+  if(trId==null)return !1;
+  var id=String(trId);
+  if(!id||id==="v1")return !1;
+  var list=Array.isArray(tracks)?tracks:[],t=null,i;
+  for(i=0;i<list.length;i++)if(list[i]&&String(list[i].id)===id){t=list[i];break}
+  return dzmKindOf(id,t?t.kind:void 0)==="video"}
+
+/* L'ORDRE D'EMPILEMENT DE L'APERÇU (P14). Mesuré dans le bundle : la couche
+   `ov` du lecteur ajoute chaque overlay actif par `appendChild` dans l'ordre
+   de `Object.keys(act)` — l'ordre des CLIPS, jamais celui des pistes — et ne
+   déplace jamais un enfant déjà là. Deux pistes d'incrustation se
+   superposaient donc au hasard de la liste des clips, quand le rendu, lui,
+   compose la piste listée le plus haut AU-DESSUS (`layer` : `reversed(ov)`).
+   Cette fonction rend l'ordre d'AJOUT AU DOM — le plus bas d'abord, donc
+   la piste la plus haute de la liste en dernier — pour les identifiants de
+   clips donnés : rang de piste décroissant, puis l'ordre reçu (stable, sans
+   compter sur le tri natif). Une piste absente de la liste passe SOUS
+   toutes les autres ; une liste absente vaut les six pistes historiques ;
+   un identifiant sans clip garde sa place. PURE. */
+function dzmOverlayOrder(ids,clips,tracks){
+  var list=(Array.isArray(tracks)&&tracks.length)?tracks:DZM_DEFAULT_TRACKS;
+  var rang=Object.create(null),byId=Object.create(null),i;
+  for(i=0;i<list.length;i++)
+    if(list[i]&&list[i].id!=null&&!(String(list[i].id) in rang))rang[String(list[i].id)]=i;
+  (Array.isArray(clips)?clips:[]).forEach(function(c){
+    if(c&&c.id!=null&&!(String(c.id) in byId))byId[String(c.id)]=c});
+  var dec=(Array.isArray(ids)?ids:[]).map(function(id,pos){
+    var c=byId[String(id)],tr=(c&&c.tr!=null)?String(c.tr):"";
+    return {id:id,r:(tr in rang)?rang[tr]:Infinity,pos:pos}});
+  dec.sort(function(a,b){
+    if(a.r===b.r)return a.pos-b.pos;
+    return a.r>b.r?-1:1});
+  return dec.map(function(e){return e.id})}
+
+/* LE CACHE DES VERDICTS, par source. La clé est `JSON.stringify(src)` ; une
+   source que JSON refuse (cycle) n'a pas de clé, et son verdict est connu
+   d'avance : « illisible », donc pas de son — sans jamais rien demander.
+   C'est ce qui ferme la récursion d'`addAsset` de ce côté-là aussi.
+   Le verdict est {has_audio, dur, pourquoi} : `pourquoi` est la sortie de
+   la sonde qui l'a produit (« mesure » quand le serveur a répondu, sinon
+   « refus » / « delai » / « erreur » / « sans-reseau »), parce qu'un « pas
+   de son » MESURÉ et un « pas de son » faute de réponse ne se disent pas
+   avec les mêmes mots à l'écran. Les copies rendues sont fraîches : muter
+   ce qu'on lit ne touche pas la mémoire. */
+var DZM_AUDIO_CACHE=Object.create(null);
+function dzmAudioKey(src){
+  try{return JSON.stringify(src||{})}catch(e){return ""}}
+function dzmAudioNorm(v){
+  var o=v||{},d=Number(o.dur);
+  return {has_audio:!!o.has_audio,dur:(isFinite(d)&&d>0)?Math.round(d*1000)/1000:0,
+    pourquoi:String(o.pourquoi||"")}}
+function dzmAudioOf(src){
+  var k=dzmAudioKey(src);
+  if(k==="")return {has_audio:!1,dur:0,pourquoi:"src-illisible"};
+  var c=DZM_AUDIO_CACHE[k];
+  return c?dzmAudioNorm(c):null}
+function dzmAudioSet(src,v){
+  var k=dzmAudioKey(src);
+  if(k==="")return null;
+  DZM_AUDIO_CACHE[k]=dzmAudioNorm(v);
+  return dzmAudioNorm(DZM_AUDIO_CACHE[k])}
+function dzmAudioForget(src){
+  var k=dzmAudioKey(src);
+  if(k!==""&&DZM_AUDIO_CACHE[k]){delete DZM_AUDIO_CACHE[k];return !0}
+  return !1}
+
+/* LA RAISON, EN FRANÇAIS. Les sorties de la sonde (« delai », « refus »,
+   « erreur », « sans-reseau », « src-illisible ») sont des NOMS DE CODE —
+   ce que le cache mémorise et ce que le banc épingle — pas des phrases ;
+   les notes montrent ceci. Un jeton inconnu passe tel quel, jamais une
+   chaîne vide. */
+function dzmAudioPourquoi(pq){
+  var p=String(pq||"");
+  return p==="delai"?"délai dépassé":p==="refus"?"le serveur a refusé"
+    :p==="erreur"?"erreur réseau":p==="sans-reseau"?"hors ligne"
+    :p==="src-illisible"?"source illisible":(p||"sans réponse")}
+
+/* LA SONDE. Motif EXACT d'askDur — `done(verdict, pourquoi)` appelée UNE
+   SEULE FOIS quoi qu'il arrive, `fetch` et `timer` injectables (absent =
+   celui de l'hôte, nul = « il n'y en a pas »), le délai et la réponse en
+   course, `rendu` pour que le second arrivé ne fasse rien. Deux différences,
+   et elles sont le point :
+     · LE CACHE EST ÉCRIT AVANT `done`, sur TOUTE sortie — c'est le verrou :
+       le rappel d'`addAsset` lit `audioOf(src)` non nul et ne redemande pas.
+       Sans cette écriture, une sortie « delai » relancerait la sonde à
+       chaque rappel, indéfiniment (le mode de panne que le banc [3-bis]
+       reproduit pour askDur, et qu'il joue ici en supprimant l'écriture) ;
+     · UNE SOURCE DÉJÀ SONDÉE RÉPOND SUR PLACE, sortie « cache », sans
+       appel : un même fichier posé deux fois n'est sondé qu'une fois.
+   Le verdict porte `dur` en prime (`/has-audio` la rend) : l'appelant s'en
+   sert quand il ne connaît pas encore la longueur de la source, et
+   s'épargne le second aller-retour d'askDur. */
+function dzmAskAudio(src,o){
+  o=o||{};
+  var fin=typeof o.done==="function"?o.done:function(){};
+  var f=o.fetch===void 0
+    ?(typeof fetch==="function"?function(u){return fetch(u)}:null):o.fetch;
+  var tm=o.timer===void 0
+    ?(typeof setTimeout==="function"
+        ?function(fn,ms){return setTimeout(fn,ms)}:null):o.timer;
+  var ms=Number(o.delai);if(!isFinite(ms)||ms<=0)ms=DZM_DUR_DELAI;
+  var k=dzmAudioKey(src);
+  if(k===""){fin(dzmAudioOf(src),"src-illisible");return}
+  var deja=dzmAudioOf(src);
+  if(deja){fin(deja,"cache");return}
+  var rendu=!1;
+  function rend(v,pq){if(rendu)return;rendu=!0;
+    fin(dzmAudioSet(src,{has_audio:v.has_audio,dur:v.dur,pourquoi:pq}),pq)}
+  var u="/api/montage/has-audio?src="+encodeURIComponent(k);
+  if(!f){rend({has_audio:!1,dur:0},"sans-reseau");return}
+  if(tm)tm(function(){rend({has_audio:!1,dur:0},"delai")},ms);
+  try{
+    f(u).then(function(rp){return rp&&rp.ok?rp.json():null})
+        .then(function(j){
+          if(j&&typeof j.has_audio==="boolean")
+            rend({has_audio:j.has_audio,dur:Number(j.dur)},"mesure");
+          else rend({has_audio:!1,dur:0},"refus")})
+        .catch(function(){rend({has_audio:!1,dur:0},"erreur")})}
+  catch(e2){rend({has_audio:!1,dur:0},"erreur")}}
+
+/* LA DURÉE RENDUE EN PRIME, prise SEULEMENT quand on ne la connaît pas
+   encore — la règle « connaît-on la durée ? » reste celle de needDur, pas
+   une seconde copie ; un verdict sans durée (0) laisse l'appelant aller la
+   demander comme avant. */
+function dzmSrcDurOr(kind,srcDur,v){
+  if(!dzmNeedDur(kind,srcDur))return srcDur;
+  var d=v?Number(v.dur):0;
+  return (isFinite(d)&&d>0)?d:srcDur}
+
+/* LES IDENTIFIANTS. `ovSeq` repart de zéro à chaque chargement et
+   svmApplyProject reprend `c.id` tel quel : MESURÉ sur la sauvegarde de
+   l'utilisateur (lecture seule, 06/09/2026), `v1u1_0` est porté par DEUX
+   clips et `v1u2_0` par deux autres — supprimer l'un supprime l'autre
+   (`c.id!==id`), et le second n'est jamais sélectionnable (`c.id===selId`).
+     · uniqueId(clips, base) — `base` s'il est libre, sinon `base_2`,
+       `base_3`… (le plus petit n libre, à partir de 2) ;
+     · dedupeIds(clips) — le PREMIER porteur garde son id, les suivants sont
+       renommés PAR uniqueId (le même, pas une seconde boucle de suffixe)
+       contre TOUS les ids du tableau, ceux d'après compris, ET ceux que le
+       renommage vient d'attribuer ; rend {clips, renamed:[{de, en}]},
+       l'entrée n'est pas mutée ;
+     · seqMax(clips) — le plus grand `u<n>` rencontré, pour re-semer ovSeq
+       au-dessus de tout ce que la sauvegarde porte. */
+function dzmUniqueId(clips,base){
+  var b=String(base==null?"":base),taken=Object.create(null),i;
+  var cs=Array.isArray(clips)?clips:[];
+  for(i=0;i<cs.length;i++)if(cs[i]&&cs[i].id!=null)taken[String(cs[i].id)]=1;
+  if(!taken[b])return b;
+  var n=2;
+  while(taken[b+"_"+n])n++;
+  return b+"_"+n}
+function dzmDedupeIds(clips){
+  var cs=Array.isArray(clips)?clips:[],seen=Object.create(null),out=[],ren=[];
+  /* `pool` est ce contre quoi uniqueId tranche : les clips d'entrée (ceux
+     d'après compris), plus chaque id que le renommage attribue. */
+  var pool=cs.slice(),i,c,id,nid;
+  for(i=0;i<cs.length;i++){c=cs[i];
+    if(!c||c.id==null){out.push(c);continue}
+    id=String(c.id);
+    if(!seen[id]){seen[id]=1;out.push(c);continue}
+    nid=dzmUniqueId(pool,id);
+    pool.push({id:nid});seen[nid]=1;
+    ren.push({de:id,en:nid});
+    out.push(Object.assign({},c,{id:nid}))}
+  return {clips:out,renamed:ren}}
+function dzmSeqMax(clips){
+  var cs=Array.isArray(clips)?clips:[],mx=0,i,m;
+  for(i=0;i<cs.length;i++){
+    if(!cs[i]||cs[i].id==null)continue;
+    m=/u(\d+)/.exec(String(cs[i].id));
+    if(m&&Number(m[1])>mx)mx=Number(m[1])}
+  return mx}
+
+/* LE JUMEAU. Même source, mêmes bornes, même point d'entrée, sur la piste
+   de dialogue ; libellé « … · son du plan », celui de la construction
+   automatique. `null` s'il existe DÉJÀ sur cette piste un clip de même
+   source (comparée par JSON des clés triées : {job_id} et {job_id} se
+   valent quel que soit l'ordre d'écriture) qui CHEVAUCHE [start, end] —
+   c'est le refus du doublon, et il vaut pour le bouton comme pour l'ajout.
+   L'identifiant reprend celui du plan en changeant la piste (v1u3_0 →
+   a1u3_0), puis passe par uniqueId contre les clips existants. */
+function dzmSrcKey(src){
+  var o=(src&&typeof src==="object")?src:{},ks=Object.keys(o).sort(),r={},i;
+  for(i=0;i<ks.length;i++)r[ks[i]]=o[ks[i]];
+  try{return JSON.stringify(r)}catch(e){return ""}}
+function dzmTwinClip(clip,trId,clips){
+  var c=clip||{},tr=String(trId||"");
+  if(!tr||!c.src)return null;
+  var st=Number(c.start)||0,en=Number(c.end)||0,k=dzmSrcKey(c.src);
+  var cs=Array.isArray(clips)?clips:[],i,o;
+  for(i=0;i<cs.length;i++){o=cs[i];
+    if(!o||o.tr!==tr||!o.src||dzmSrcKey(o.src)!==k)continue;
+    if((Number(o.start)||0)<en&&st<(Number(o.end)||0))return null}
+  var id=String(c.id==null?"":c.id),base;
+  if(!id)base=tr+"_son";
+  else if(c.tr&&id.indexOf(String(c.tr))===0)base=tr+id.slice(String(c.tr).length);
+  else base=tr+"_"+id;
+  return {tr:tr,id:dzmUniqueId(cs,base),
+    label:(c.label||"plan")+" · son du plan",
+    start:st,end:en,src:c.src,srcIn:Number(c.srcIn)||0}}
+
+/* LA DÉCISION, ET SA PHRASE. Rend {clip, tr, motif, note} : `clip` est le
+   jumeau à poser (ou null), `motif` nomme la sortie, `note` est la phrase
+   que l'appelant CONCATÈNE à la sienne — chaque sortie est DITE, jamais
+   tue : le verdict « muet », « pas de piste de dialogue », « déjà là »,
+   « verrouillée », « non sondée », et la pose elle-même, qui dit la piste et
+   qu'« Annuler » retire les deux clips d'un coup (un seul pushHistory, un
+   seul concat : l'appelant s'y engage, le banc [3-bis] le mesure). */
+function dzmTwinPlan(neuf,ts,clips,v,locked){
+  var c=neuf||{},L=c.label||"ce plan",tr=dzmDialogueTrack(ts),TR=tr.toUpperCase();
+  function out(clip,motif,note){return {clip:clip,tr:tr,motif:motif,note:note}}
+  if(!v)return out(null,"non-sonde"," Son du plan : la source n'a pas été "+
+    "sondée — rien n'a été extrait. « Extraire le son » dans l'inspecteur "+
+    "réessaie.");
+  if(!v.has_audio){
+    if(v.pourquoi==="mesure"){
+      /* MESURÉ sans flux ET sans durée : ffprobe n'a rien pu lire — la
+         source est vide ou illisible (le « demo complete videogen brute »
+         de la sauvegarde de l'utilisateur fait 0 octet, mesuré le
+         06/09/2026). Ce n'est PAS un plan muet, et le dire muet serait un
+         mensonge : `dur` est le témoin qui sépare les deux. Une image rend
+         0 aussi, mais une image n'est jamais sondée (wantsTwin exige le
+         genre « video », extractBtn refuse `src.image`). */
+      if(!(Number(v.dur)>0))return out(null,"non-sondable"," Son du plan : "+
+        "la source n'a pas pu être sondée (aucune durée mesurable : fichier "+
+        "vide ou illisible) — rien n'a été extrait. Vérifiez le fichier, ou "+
+        "remplacez la source.");
+      return out(null,"muet"," Cette vidéo n'a pas de piste audio : rien "+
+        "n'a été extrait.")}
+    return out(null,"non-sonde"," Son du plan : la sonde n'a pas abouti ("+
+      dzmAudioPourquoi(v.pourquoi)+") — rien n'a été extrait, et le rendu "+
+      "n'emporte JAMAIS l'audio embarqué d'un plan. « Extraire le son » dans "+
+      "l'inspecteur réessaie.")}
+  if(!tr)return out(null,"sans-piste"," Cette vidéo a du son, mais ce projet "+
+    "n'a pas de piste de dialogue : le rendu la jouera MUETTE. Ajoutez une "+
+    "piste avec « + piste audio », puis « Extraire le son » dans "+
+    "l'inspecteur.");
+  if(typeof locked==="function"&&locked(tr))return out(null,"verrou"," Piste "+
+    TR+" verrouillée : le son de « "+L+" » n'a PAS été extrait — "+
+    "déverrouillez-la, puis « Extraire le son » dans l'inspecteur.");
+  var j=dzmTwinClip(c,tr,clips);
+  if(!j)return out(null,"doublon"," Son du plan : déjà présent sur "+TR+
+    " (même source, même plage) — pas de second exemplaire.");
+  return out(j,"pose"," Son du plan extrait sur "+TR+" (« "+j.label+" », "+
+    "mêmes bornes, même source) : « Annuler » (Ctrl+Z) retire les DEUX clips "+
+    "d'un coup.")}
+
+/* LE BOUTON DES PLANS DÉJÀ POSÉS — même moteur : la sonde (cache compris),
+   twinClip, refus DIT. `o` est l'hôte : {tracks, clips (un THUNK : les clips
+   au moment de la réponse, pas ceux du clic), locked(trId), pushHistory,
+   setClips, setDirty, note, ask}. `ask` est injectable pour le banc ; l'hôte
+   n'en passe pas et c'est askAudio qui sonde. Un verdict en cache qui n'est
+   PAS une mesure (délai, erreur…) est OUBLIÉ avant de redemander : un clic
+   est un geste, il a droit à une vraie seconde sonde — là où le rappel
+   automatique d'addAsset, lui, ne doit jamais reboucler.
+   ÉCART AU PLAN, DÉCLARÉ : le plan écrivait extractBtn(sel, ts, clips,
+   onClick) « sur le motif de replaceBtn/revertBtn », qui reçoivent
+   (sel, rappel). Ici c'est (sel, hôte), parce que le bouton a besoin des
+   PISTES pour nommer sa cible dans son libellé, et des CLIPS AU MOMENT DE
+   LA RÉPONSE (le thunk) et non de ceux du clic — replaceBtn n'a besoin ni
+   de l'un ni de l'autre. Le clip visé est RELU dans ces clips frais :
+   déplacé entre le clic et la réponse, le jumeau prend ses bornes du
+   moment, pas celles du clic. Une image posée sur une piste vidéo
+   (`src.image`, deux portes du bundle le font) n'a rien à extraire : refus
+   avant toute sonde, et le bouton ne se montre pas. */
+function dzmExtract(sel,o){
+  o=o||{};
+  var note=typeof o.note==="function"?o.note:function(){};
+  var c=sel||{},L=c.label||"ce plan";
+  if(!c.src){note("Aucun plan à source n'est sélectionné : rien à extraire.");
+    return !1}
+  if(c.src.image){note("« "+L+" » est une image : elle n'a pas de son à "+
+    "extraire.");return !1}
+  var ts=dzmTsOr(o.tracks),tr=dzmDialogueTrack(ts),TR=tr.toUpperCase();
+  if(!tr){note("Ce projet n'a pas de piste de dialogue : le son de « "+L+
+    " » n'a pas été extrait. Ajoutez une piste avec « + piste audio », puis "+
+    "recommencez.");return !1}
+  if(typeof o.locked==="function"&&o.locked(tr)){note("Piste "+TR+
+    " verrouillée — déverrouillez-la pour y extraire le son de « "+L+" ».");
+    return !1}
+  var v0=dzmAudioOf(c.src);
+  if(v0&&v0.pourquoi!=="mesure"&&v0.pourquoi!=="src-illisible")dzmAudioForget(c.src);
+  var ask=typeof o.ask==="function"?o.ask:dzmAskAudio;
+  ask(c.src,{done:function(v,pq){
+    if(!v||!v.has_audio){
+      note(!v||v.pourquoi!=="mesure"
+        ?"La sonde audio de « "+L+" » n'a pas abouti ("+
+          dzmAudioPourquoi((v&&v.pourquoi)||pq)+") : rien n'a été posé. "+
+          "Réessayez dans un instant."
+        :!(Number(v.dur)>0)
+        ?"« "+L+" » n'a pas pu être sondé (aucune durée mesurable : fichier "+
+          "vide ou illisible) : rien à extraire. Vérifiez le fichier, ou "+
+          "remplacez la source."
+        :"« "+L+" » n'a pas de piste audio : rien à extraire.");return}
+    var cs=(typeof o.clips==="function"?o.clips():o.clips)||[],i,la=null;
+    for(i=0;i<cs.length;i++)if(cs[i]&&cs[i].id===c.id){la=cs[i];break}
+    if(!la){note("« "+L+" » n'est plus dans la timeline : rien n'a été "+
+      "posé.");return}
+    /* `la`, le clip FRAIS — ses bornes du moment, pas celles du clic */
+    var j=dzmTwinClip(la,tr,cs);
+    if(!j){note("Le son de « "+L+" » est déjà sur "+TR+" (même source, "+
+      "même plage) : rien n'a été ajouté.");return}
+    if(typeof o.pushHistory==="function")o.pushHistory();
+    if(typeof o.setClips==="function")o.setClips(cs.concat([j]));
+    if(typeof o.setDirty==="function")o.setDirty(!0);
+    note("Son de « "+L+" » extrait sur "+TR+" : « "+j.label+" », "+
+      dzmSecs(j.end-j.start)+", mêmes bornes et même source que le plan. "+
+      "« Annuler » (Ctrl+Z) le retire.")}});
+  return !0}
+/* Visible pour TOUT clip vidéo porteur d'une source — V1, V2, V3… — parce que
+   c'est le seul chemin qui rend son son à un plan DÉJÀ posé (celui de
+   l'utilisateur, posé sur V1 avant que l'ajout ne sache extraire). Le
+   libellé nomme la piste visée ; sans piste de dialogue il le dit, et le
+   clic explique. */
+function dzmExtractBtn(sel,o){
+  if(!sel||!sel.src||sel.src.image||dzmKindOf(sel.tr)!=="video")return null;
+  var tr=dzmDialogueTrack(dzmTsOr(o&&o.tracks)),TR=tr.toUpperCase();
+  var L=sel.label||"ce plan";
+  return r.jsx("button",{className:"svm-secbtn dzm-extract",
+    title:(tr
+      ?"Poser sur "+TR+" (piste de dialogue) un clip « "+L+" · son du plan » : "+
+       "même source, mêmes bornes, même point d'entrée. Le rendu n'emporte "+
+       "JAMAIS l'audio embarqué d'un plan vidéo — sans ce clip, ce plan "+
+       "sort muet. Refusé si la source n'a pas de piste audio ou si ce son "+
+       "est déjà sur "+TR+" à cette plage. « Annuler » (Ctrl+Z) le retire."
+      :"Ce projet n'a pas de piste de dialogue : ajoutez une piste avec "+
+       "« + piste audio » pour pouvoir extraire le son de ce plan."),
+    "aria-label":"Extraire le son de "+L+(tr?" vers "+TR:""),
+    onClick:function(){dzmExtract(sel,o)},
+    children:tr?"Extraire le son → "+TR:"Extraire le son (aucune piste de dialogue)"},
+    "dzmextr")}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   BARRE D'OUTILS DÉPORTABLE DE LA TIMELINE — étapes 1, 2 et 3 du §9 du
+   handoff « Barre Outils Flottante » (« Design d'icônes applicatives/
+   design_handoff_barre_outils/design.md »). Étape 1 : les tokens, dans les
+   TROIS feuilles. Étape 2 : les dix tracés du §3. Étape 3 : le bouton
+   d'action du §2.3, celui qui se répète neuf fois.
+
+   RIEN DE CE BLOC N'EST MONTÉ À L'ÉCRAN. Les étapes 4 à 8 — la barre, son
+   onglet, le déport, le retrait des neuf contrôles du bandeau fixe, le
+   câblage — ne sont PAS ici. Ce qui suit est appelable et rien d'autre :
+   aucun pixel de l'application ne bouge tant qu'une section du patcher n'en
+   appelle une fonction, et aucune ne le fait aujourd'hui.
+
+   ÉCART DE LIVRAISON, DÉCLARÉ PLUTÔT QUE TU. Le handoff dit « Livraison :
+   src/icons/toolbar/*, un composant par icône ». C'est IMPOSSIBLE ici, et
+   c'est mesuré : frontend/src ne porte AUCUNE classe svm-*, l'écran Montage
+   n'y existe pas — il vit dans le bundle construit et dans les patchs. Une
+   reconstruction Vite rendrait un bundle SANS l'écran Montage et effacerait
+   la chaîne. Le design ne change pas ; son véhicule si.
+
+   LES TRACÉS SONT GARDÉS TELS QUELS, EN CHAÎNE, et non retranscrits en
+   appels `r.jsx`. Le handoff dit « Les tracés SVG sont donnés intégralement
+   et doivent être repris tels quels » : la chaîne EST le texte du §3, au
+   caractère près, et c'est ELLE qui fait foi. `dzmTbParse` la traduit une
+   fois au chargement — pure, donc jouable sous node — et `dzmTbSerial` fait
+   le chemin inverse et doit rendre la chaîne de départ. C'est le contrôle À
+   DEUX FACES qui interdit qu'une retranscription silencieuse s'installe :
+   une virgule perdue dans un `d=` cesserait d'être invisible.
+
+   AUCUNE COULEUR N'EST ÉCRITE ICI. La teinte du groupe arrive par la classe
+   `dzm-g-<groupe>`, que montage.css traduit en `--grp` ; le JS ne fabrique
+   donc jamais un nom de variable CSS à partir d'une entrée. C'est aussi ce
+   qui rend un groupe inconnu inoffensif : pas de classe, pas de teinte, et
+   la ligne du banc le dit. */
+var DZM_TB_TRACES={
+  "piste-video":
+    '<rect x="2.6" y="4.2" width="18.8" height="5.6" opacity=".34"/><rect x="2.6" y="11.6" width="10.4" height="5.6"/><path d="M17 12.6h1.9V15h2.4v1.9h-2.4v2.4H17v-2.4h-2.4V15H17z"/>',
+  "piste-audio":
+    '<rect x="2.6" y="10.2" width="2.2" height="3.6" opacity=".45"/><rect x="6.2" y="6.6" width="2.2" height="10.8"/><rect x="9.8" y="8.8" width="2.2" height="6.4"/><rect x="13.4" y="4.6" width="2.2" height="15" opacity=".45"/><path d="M17.6 12.6h1.9V15h2.4v1.9h-2.4v2.4h-1.9v-2.4h-2.4V15h2.4z"/>',
+  "bibliotheque":
+    '<path d="M12 2.8 21 7.2 12 11.6 3 7.2z"/><path d="M12 13.6 4.6 10l-1.6.8L12 15.2l9-4.4-1.6-.8zM12 18.2 4.6 14.6l-1.6.8L12 19.8l9-4.4-1.6-.8z" opacity=".42"/>',
+  "couleur":
+    '<rect x="2.8" y="7.4" width="18.4" height="6.2" opacity=".34"/><rect x="2.8" y="7.4" width="8.8" height="6.2"/><rect x="2.8" y="16.4" width="4.8" height="3.6"/><rect x="9.6" y="16.4" width="4.8" height="3.6" opacity=".5"/><rect x="16.4" y="16.4" width="4.8" height="3.6" opacity=".34"/>',
+  "rebond":
+    '<rect x="2.8" y="16.8" width="18.4" height="4.2" opacity=".34"/><rect x="3.2" y="8.6" width="4.6" height="4.6"/><rect x="9.7" y="3.4" width="4.6" height="4.6"/><rect x="16.2" y="8.6" width="4.6" height="4.6" opacity=".55"/>',
+  "glow":
+    '<rect x="6.6" y="9.4" width="10.8" height="5.2"/><rect x="11.2" y="2.2" width="1.6" height="4.2" opacity=".45"/><rect x="11.2" y="17.6" width="1.6" height="4.2" opacity=".45"/><rect x="2.2" y="11.2" width="4.2" height="1.6" opacity=".45"/><rect x="17.6" y="11.2" width="4.2" height="1.6" opacity=".45"/>',
+  "emoji":
+    '<rect x="3" y="3" width="18" height="18" opacity=".3"/><rect x="7.4" y="7.6" width="2.8" height="3.6"/><rect x="13.8" y="7.6" width="2.8" height="3.6"/><rect x="7.4" y="14.2" width="9.2" height="2.6"/>',
+  "texte":
+    '<rect x="3.4" y="3.8" width="17.2" height="3.4"/><rect x="10.3" y="7.2" width="3.4" height="11.6"/><rect x="5.2" y="20.2" width="13.6" height="1.8" opacity=".34"/>',
+  "projets":
+    '<rect x="6" y="3" width="15.4" height="11.6" opacity=".3"/><path d="M2.6 6.2h6.2l1.7 2.1h11.1v12.5H2.6z"/>',
+  "poignee":
+    '<rect x="8" y="4" width="2.6" height="2.6"/><rect x="13.4" y="4" width="2.6" height="2.6"/><rect x="8" y="10.7" width="2.6" height="2.6"/><rect x="13.4" y="10.7" width="2.6" height="2.6"/><rect x="8" y="17.4" width="2.6" height="2.6"/><rect x="13.4" y="17.4" width="2.6" height="2.6"/>',
+  /* P14 (06/09/2026) — la dixième icône, déclarée dans le §3 du handoff
+     sous son écart daté, et APRÈS la poignée parce que c'est l'ordre du §3
+     (le banc rapproche les deux listes dans l'ordre) : le cadre en opacité
+     de support, le cadre intérieur plein décalé en bas à droite, et la
+     croix d'ajout de « piste vidéo », reprise telle quelle. */
+  "piste-incrust":
+    '<rect x="2.6" y="4.2" width="13.6" height="10.4" opacity=".34"/><rect x="8.4" y="8.4" width="6" height="4.2"/><path d="M17 12.6h1.9V15h2.4v1.9h-2.4v2.4H17v-2.4h-2.4V15H17z"/>',
+};
+/* Les cinq groupes du §2.4, dans l'ordre du §2.4. Le rouge n'y est pas :
+   il est réservé au destructif, qui reste dans le bandeau fixe. */
+var DZM_TB_GROUPES=["pistes","biblio","mot","ajouts","projets"];
+/* Grille 24 × 24, rendu 18 px (§3). Le grip fait 14 px (§2.2a) : il est
+   passé en `size`, il n'a pas sa propre constante. */
+var DZM_TB_PX=18;
+var DZM_TB_PX_GRIP=14;
+function dzmTbCamel(n){return String(n).replace(/-([a-z])/g,
+  function(m,c){return c.toUpperCase()})}
+function dzmTbKebab(n){return String(n).replace(/[A-Z]/g,
+  function(c){return "-"+c.toLowerCase()})}
+/* Le tracé du §3 → une liste [balise, propriétés]. Les noms d'attributs
+   passent en camelCase parce que c'est ce que React attend : aucun des dix
+   tracés n'en porte de composé aujourd'hui (x, y, width, height, opacity,
+   d), mais un `fill-rule` posé demain serait muet sans cette ligne — React
+   ignore une propriété qu'il ne reconnaît pas sur un élément SVG. */
+function dzmTbParse(t){
+  var out=[],re=/<([a-zA-Z]+)((?:\s+[a-zA-Z-]+="[^"]*")*)\s*\/>/g,m,ra,a,p;
+  while((m=re.exec(String(t||"")))!==null){
+    p={};ra=/([a-zA-Z-]+)="([^"]*)"/g;
+    while((a=ra.exec(m[2]))!==null)p[dzmTbCamel(a[1])]=a[2];
+    out.push([m[1],p]);}
+  return out}
+/* L'AUTRE FACE. Elle rend le tracé d'origine, caractère pour caractère —
+   l'ordre des clés d'un objet JS suit l'insertion tant qu'aucune n'est un
+   entier, et aucune ne l'est ici. Le banc compare les dix allers-retours au
+   texte du §3 lu DANS design.md : ni la couche ni le banc ne recopient les
+   tracés, ils les lisent au même endroit. */
+function dzmTbSerial(ns){
+  return (ns||[]).map(function(e){
+    var s="<"+e[0],k;
+    for(k in e[1])if(Object.prototype.hasOwnProperty.call(e[1],k))
+      s+=" "+dzmTbKebab(k)+'="'+e[1][k]+'"';
+    return s+"/>"}).join("")}
+var DZM_TB_ICONS=(function(){
+  var o={},k;
+  for(k in DZM_TB_TRACES)
+    if(Object.prototype.hasOwnProperty.call(DZM_TB_TRACES,k))
+      o[k]=dzmTbParse(DZM_TB_TRACES[k]);
+  return o})();
+/* L'icône. `fill="currentColor"` et RIEN d'autre : la couleur vient du
+   bouton, jamais de l'icône (§3). `aria-hidden` parce que le sens est porté
+   par le libellé et l'`aria-label` du bouton — une icône annoncée en plus
+   ferait dire deux fois la même chose au lecteur d'écran. */
+function DzmTbIcon(o){
+  o=o||{};
+  var n=DZM_TB_ICONS[o.name];
+  if(!n)return null;
+  var px=Number(o.size);if(!isFinite(px)||px<=0)px=DZM_TB_PX;
+  return r.jsx("svg",{className:"dzm-tbi",viewBox:"0 0 24 24",
+    fill:"currentColor",width:px,height:px,"aria-hidden":!0,
+    focusable:"false",
+    children:n.map(function(e,i){return r.jsx(e[0],e[1],"t"+i)})},
+    o.k||("tbi-"+o.name))}
+/* ── LE BOUTON D'ACTION (§2.3) — l'unité qui se répète neuf fois ───────────
+   UN SEUL COMPOSANT, deux propriétés qui décident de tout : `group` (la
+   famille, donc la teinte) et `toggle` (bascule ou action simple).
+
+   `active` n'est LU que si `toggle` : une action simple n'a pas d'état, et
+   un appelant qui lui en passerait un par erreur ne doit pas peindre un
+   bouton allumé qui ne s'éteindrait jamais. Trois valeurs : `true` (allumé),
+   `"mixed"` (sélection hétérogène — bordure teintée, fond transparent,
+   §4.3), tout le reste = éteint.
+
+   `aria-pressed` n'est posé QUE sur les bascules, et il porte "mixed" tel
+   quel : c'est la valeur ARIA de l'état indéterminé, et sans elle une
+   sélection hétérogène s'annoncerait « non pressé », c'est-à-dire faux.
+
+   LE LIBELLÉ EST TOUJOURS DANS LE DOM, même masqué : le §2.3 dit
+   « masquables, pas supprimables ». C'est montage.css qui le cache
+   (`--lbl:none`), et `title` comme `aria-label` retombent sur lui — d'où
+   l'interdiction du §2.3 (« Ne pas livrer un mode compact sans infobulles »)
+   tenue par construction, sans que l'appelant ait à y penser.
+
+   L'ÉTAT ÉTEINT (`disabled`) et l'état indéterminé sont RENDUS ici ; QUAND
+   les poser est le câblage du §6 et de l'étape 7, qui n'est pas de ce lot.
+   Ils sont là parce que le §2.3 dit « la faire juste une fois » : livrer une
+   bascule qui ne sait pas se peindre éteinte obligerait à rouvrir le seul
+   composant que le handoff demande de ne pas rouvrir. */
+function DzmToolBtn(o){
+  o=o||{};
+  var g=DZM_TB_GROUPES.indexOf(o.group)>=0?o.group:"";
+  var tog=o.toggle===!0;
+  var etat=tog?o.active:!1;
+  var on=etat===!0,mix=etat==="mixed";
+  var dis=o.disabled===!0;
+  var lbl=o.label||"";
+  var cls="dzm-tbb";
+  if(g)cls+=" dzm-g-"+g;
+  if(o.solo===!0)cls+=" dzm-solo";
+  if(on)cls+=" dzm-on";
+  if(mix)cls+=" dzm-mix";
+  var p={type:"button",className:cls,
+    title:o.title||lbl,"aria-label":o.aria||lbl,disabled:dis,
+    onClick:function(){if(!dis&&typeof o.onAct==="function")o.onAct()},
+    children:[DzmTbIcon({name:o.icon,k:"i"}),
+      r.jsx("span",{className:"dzm-tbl",children:lbl},"l")]};
+  if(g)p["data-grp"]=g;
+  if(tog)p["aria-pressed"]=mix?"mixed":(on?"true":"false");
+  /* ÉTAPE 8 — LE `tabindex` ROVING (§4.5), EN TROIS ÉTATS ET PAS DEUX :
+     `true` = le point d'entrée (0), `false` = dans le groupe mais hors du
+     parcours (−1), ABSENT = aucun attribut, donc le comportement natif du
+     `<button>`. Le troisième état existe parce que ce composant est public
+     et testé : un appelant qui monte un bouton HORS d'une barre roving ne
+     doit pas hériter d'un `-1` qui le sortirait du parcours sans raison. */
+  if(o.tab===!0)p.tabIndex=0;
+  else if(o.tab===!1)p.tabIndex=-1;
+  return r.jsx("button",p,o.k||("tbb-"+(o.icon||g||"x")))}
+/* ── ÉTAPES 4, 5, 7 ET 8 DU §9 : LA BARRE, SON ONGLET, SON DÉPORT, SON
+   CÂBLAGE, SON CLAVIER ────────────────────────────────────────────────────
+   Géométrie (§2.1, §2.2), contenu verbatim (§2.4), ouverture et repli (§4.1),
+   le déport (§4.2), de §4.4 LES DEUX CLÉS `open` et `offset`, le câblage
+   du §6 EN ENTIER, et depuis l'étape 8 le §4.5 : `role="toolbar"`, le
+   `tabindex` roving, Échap, le raccourci et le focus à l'ouverture. Le
+   retrait des neuf contrôles du bandeau (§5) est l'étape 6.
+   L'ORDRE DES ÉTAPES 6 ET 7 EST INVERSÉ PAR RAPPORT AU §9, et c'est une
+   décision, pas un oubli : `emoji` et `projets` étaient ÉTEINTS dans la
+   barre à l'étape 4. Retirer d'abord leurs contrôles du bandeau les aurait
+   rendus inatteignables PARTOUT — exactement ce que le §9 s'interdit
+   (« ne pas laisser l'application dans un état où les actions ne sont
+   accessibles nulle part »).
+
+   ── LA DUPLICATION EST TRANSITOIRE, ET C'EST DIT ICI ──
+   Les neuf actions existent AUX DEUX ENDROITS tant que l'étape 6 n'a pas
+   retiré celles du bandeau fixe. Le §5.1 l'interdit à terme (« deux sources
+   de vérité pour l'état des bascules ») ; le §9 l'impose transitoirement.
+   C'est un reste ASSUMÉ, et l'étape 6 le solde. AUCUN ÉTAT N'EST DOUBLÉ
+   pour autant : `wordAnim` vit dans `proj.subsStyle` et l’état du panneau
+   « Texte » dans l'écran — la chip, le bouton du bandeau et la barre les
+   LISENT tous les trois, sans en garder de copie. La seule chose réellement
+   doublée est l'ÉTAT D'ATTENTE de la requête emoji, un booléen par porte :
+   deux clics simultanés partent en deux requêtes, qui ne se détruisent pas
+   mais posent deux fois les mêmes clips. L'étape 6 referme une des portes.
+
+   ── AUCUN BOUTON VIVANT QUI NE FAIT RIEN ──
+   LES NEUF BOUTONS SONT CÂBLÉS sur une action qui EXISTAIT — la barre est un
+   nouveau point d'entrée, pas une nouvelle implémentation (§6). Les deux qui
+   avaient résisté à l'étape 4 tenaient chacun à un état enfermé dans son
+   composant, et l'étape 7 a ouvert la porte SANS déplacer l'état :
+     • `emoji` — son `fetch` est sorti du bouton (`dzmEmojiGo`, au premier
+       niveau) ; l'attente, elle, reste à chaque appelant, parce qu'un hook
+       ne se partage pas.
+     • `projets` — le popover garde son ouverture chez lui et reçoit une
+       DEMANDE (`openReq`, un compteur) ; c'est le seul moyen d'ouvrir sans
+       lutter contre son propre « clic dehors », qui se déclenche justement
+       sur le bouton de la barre.
+   Un bouton reste ÉTEINT quand l'écran ne lui a pas donné de quoi agir, ou
+   pendant l'attente d'`emoji` — et son `title` dit alors laquelle des deux
+   situations est en cours. */
+
+/* LA CLÉ DE PERSISTANCE — ÉCART DÉCLARÉ, DANS LES DEUX SENS.
+   Le §4.4 demande `deepotus.toolbar.open`. LA MAISON dit autre chose, et
+   c'est mesuré le 05/09/2026 sur le bundle et les couches : VINGT-CINQ clés
+   `dz_*` distinctes, dont les quatre de cet écran (`dz_svm_theme`,
+   `dz_svm_keymap`, `dz_narr_open`, `dz_hints_off`) — et TROIS clés
+   `deepotus.*` seulement (`deepotus.motion.reduced`, `deepotus.motion.halo`,
+   `deepotus.provider_defaults`), qui vivent toutes les trois dans
+   frontend/src, hors de portée de cette chaîne de patchs.
+   ON SUIT LA MAISON, et le §4.4 lui-même le demande : « dans le même espace
+   de nommage que les panneaux existants ». L'espace des panneaux existants
+   de cet écran est `dz_*`. `deepotus.toolbar.open` aurait fabriqué la
+   quatrième clé d'un espace que la chaîne n'emploie nulle part.
+   La FORME suit `dz_narr_open` au caractère près : "1" / "0", lecture et
+   écriture sous try/catch (localStorage lève en navigation privée et sous
+   une politique de site restrictive).
+   LE DÉFAUT EST « OUVERTE » DEPUIS L'ÉTAPE 6, et c'est un RENVERSEMENT
+   ASSUMÉ : l'étape 4 avait posé « repliée », mais elle en avait écrit la
+   raison — « tant que l'étape 6 n'a pas retiré les neuf contrôles, ouvrir
+   par défaut montrerait une barre qui double une rangée déjà là ». Cette
+   étape-ci retire les neuf. La raison a disparu, et son contraire est
+   arrivé : replié par défaut, un utilisateur qui n'a jamais vu l'onglet
+   n'aurait AUCUN moyen d'ajouter une piste, de lier la Bibliothèque ni
+   d'ouvrir ses projets — le §9 s'interdit précisément cet état (« ne pas
+   laisser l'application dans un état où les actions ne sont accessibles
+   nulle part »). Le prix est de 74 px posés sur la règle au premier
+   chargement, que le `×` de la barre reprend en un clic, et ce clic est
+   MÉMORISÉ.
+   LA MÉMOIRE EST PRÉSERVÉE DANS LES DEUX SENS : la clé garde "1"/"0", donc
+   qui a déjà replié reste replié (valeur "0") et qui a ouvert reste ouvert.
+   Seule l'ABSENCE de clé change de sens. Et un magasin en panne (navigation
+   privée, politique de site) rend désormais « ouverte » plutôt que
+   « repliée » : sans mémoire, mieux vaut montrer les neuf actions que les
+   cacher pour toujours. */
+var DZM_TB_CLE_OPEN="dz_svm_tb_open";
+var DZM_TB_ID="dzm-toolbar";
+/* Le magasin est PARAMÉTRABLE pour que le banc puisse en fournir un faux :
+   sous node il n'y a pas de localStorage, et une fonction qu'on ne peut pas
+   jouer n'est pas mesurée. Sans argument, c'est celui du navigateur. */
+function dzmTbStore(){
+  try{return (typeof window!=="undefined"&&window.localStorage)||null}
+  catch(e){return null}}
+function dzmTbOpenGet(st){
+  var s=st||dzmTbStore();
+  try{return !s||s.getItem(DZM_TB_CLE_OPEN)!=="0"}catch(e){return !0}}
+/* REND CE QU'ELLE A ÉCRIT : l'appelant pose l'état React avec la valeur que
+   cette fonction rend, donc un magasin en panne ne désynchronise pas
+   l'écran de lui-même — il perd la mémoire, pas la bascule. */
+function dzmTbOpenSet(v,st){
+  var s=st||dzmTbStore();
+  try{if(s)s.setItem(DZM_TB_CLE_OPEN,v?"1":"0")}catch(e){}
+  return !!v}
+
+/* LE CONTENU DU §2.4, VERBATIM. Cinq groupes dans l'ordre du tableau, les
+   en-têtes tels qu'écrits (§2.2b : « Libellés verbatim »), le suffixe
+   « — sélection » de MOT, et les neuf libellés de bouton. Le banc compare
+   cette table au §2.4 lu DANS design.md : ni la couche ni le banc ne
+   recopient le tableau deux fois, ils le lisent au même endroit — même
+   protocole que les dix tracés du §3.
+   Les clés d'icône sont celles du §3 ; le banc vérifie que les neuf y sont,
+   une fois chacune, et que la dixième (`poignee`) n'est PAS un bouton. */
+var DZM_TB_PLAN=[
+  /* P14 (06/09/2026) — TROIS boutons dans PISTES, écart déclaré dans le
+     handoff (§2.4, §3 « piste incrustation ») : « vidéo » crée une piste
+     plein cadre, « incrust. » une piste d'incrustation. Mesuré : au rendu
+     toute piste vidéo ≠ V1 est une incrustation, et l'utilisateur doit
+     pouvoir choisir. */
+  {g:"pistes",t:"PISTES",type:"action",
+   btns:[{i:"piste-video",l:"vidéo"},{i:"piste-incrust",l:"incrust."},
+         {i:"piste-audio",l:"audio"}]},
+  {g:"biblio",t:"BIBLIOTHÈQUE",type:"ouvre un panneau",
+   btns:[{i:"bibliotheque",l:"lier"}]},
+  {g:"mot",t:"MOT",suf:"— sélection",type:"bascules",
+   btns:[{i:"couleur",l:"couleur"},{i:"rebond",l:"rebond"},{i:"glow",l:"glow"}]},
+  {g:"ajouts",t:"AJOUTS",type:"outils de placement",
+   btns:[{i:"emoji",l:"emoji"},{i:"texte",l:"texte"}]},
+  {g:"projets",t:"PROJETS",type:"ouvre un panneau",
+   btns:[{i:"projets",l:"projets"}]}];
+
+/* `dzmTbEtape7` VIVAIT ICI — la phrase des deux boutons qui n'étaient pas
+   câblés. L'étape 7 a câblé les neuf : plus personne ne l'appelait, et une
+   fonction morte injectée dans le bundle est une fonction morte de plus.
+   Retirée, pas commentée. Ce qu'elle disait est mesuré à l'envers désormais :
+   le banc exige qu'AUCUN titre de la barre ne nomme encore une étape à
+   venir. */
+var DZM_TB_SANS_HOTE="Action non fournie à la barre par l'écran qui la "+
+  "monte — il n'y a rien à déclencher.";
+/* LA POIGNÉE PARLE DES TROIS GESTES qu'elle accepte, et de la seule règle
+   que l'utilisateur peut constater : la barre ne sort pas. */
+var DZM_TB_T_GRIP="Poignée — glisser pour déplacer la barre d'outils ; "+
+  "flèches pour la déplacer de 8 px, Maj + flèches de 1 px. Elle reste "+
+  "entièrement dans la timeline et la prévisualisation, à 8 px des bords, "+
+  "et s'aimante aux bords et à la tête de lecture au relâchement.";
+var DZM_TB_A_GRIP="Déplacer la barre d'outils";
+/* DEUX PHRASES, PAS UN BOUTON ÉTEINT (§4.2 : « il ne doit jamais être
+   masqué »). Il reste CLIQUABLE même quand il n'a rien à recentrer : c'est
+   le filet de sécurité du déport, et un filet qui se désarme tout seul dès
+   que l'état le croit inutile n'en est plus un. Son titre dit laquelle des
+   deux situations est en cours. */
+var DZM_TB_T_RECENTRER="Recentrer la barre d'outils — la ramène sous le "+
+  "bandeau de transport, à sa place d'origine.";
+var DZM_TB_T_RECENTREE="Recentrer la barre d'outils — elle est déjà à sa "+
+  "place d'origine.";
+var DZM_TB_T_REPLIER="Replier la barre d'outils sur son onglet.";
+var DZM_TB_T_TEXTE="Ouvrir ou fermer le panneau « Texte » — la narration "+
+  "mot par mot dans la colonne de droite.";
+/* L'ÉCART DU GROUPE MOT, DIT À L'UTILISATEUR ET PAS SEULEMENT EN COMMENTAIRE.
+   Le §4.3 veut trois bascules INDÉPENDANTES et CUMULABLES, calculées depuis
+   la sélection de mots des sous-titres. Cette base n'a NI sélection de mot NI
+   champ `words[].fx` : elle a UN champ `proj.subsStyle.wordAnim` à trois
+   valeurs exclusives, qui vaut pour toute la piste S1 — mesuré, c'est ce que
+   la chip du bandeau écrit et ce que le rendu ASS lit. Câbler les trois
+   boutons sur ce champ donne trois boutons VIVANTS qui font ce que la base
+   sait faire ; les laisser éteints aurait rendu l'effet inatteignable dès
+   que l'étape 6 retire la chip. Le comportement du §4.3 est l'étape 7. */
+var DZM_TB_MOT_ECART=" — Cette base porte UNE animation à la fois pour "+
+  "toute la piste de sous-titres, pas trois effets cumulables sur une "+
+  "sélection de mots : choisir celle-ci remplace la précédente.";
+/* LES DEUX AUTRES ÉCARTS DU §6, DITS À L'UTILISATEUR ET PAS SEULEMENT ICI.
+   Ils décrivent CE QUE LA BASE FAIT ; ils ne citent pas le handoff, que
+   personne devant l'écran n'a sous les yeux. Le rapport, lui, les nomme.
+     • §6 « emoji » : un sélecteur d'emoji dont le choix pose UN clip de 2 s
+       à la tête de lecture. Ici : aucun sélecteur, UN clip de 0,8 s PAR
+       mot-clé reconnu, à la date de ce mot (voir `dzmEmojiGo`).
+     • §6 « texte » : un clip de texte posé à la tête de lecture, en édition
+       immédiate. Ici : le panneau de narration — c'est LE bouton « texte »
+       que le §5.1 retire du bandeau, donc celui dont la barre doit devenir
+       le point d'entrée. Le geste que le §6 décrit existe ailleurs
+       (`subsAddHere`, le « + » de l'en-tête S1) et le titre y renvoie. */
+var DZM_TB_EMO_ECART=" Cette base n'a pas de sélecteur d'emoji : elle pose "+
+  "d'elle-même un clip par mot reconnu, là où ce mot est dit, et non un "+
+  "emoji choisi à la tête de lecture.";
+var DZM_TB_TXT_ECART=" Ce bouton ouvre un panneau, il ne pose pas de clip : "+
+  "pour écrire un sous-titre à la tête de lecture, le « + » de l'en-tête de "+
+  "la piste S1.";
+var DZM_TB_T_EMOJI="Poser les emoji des mots-clés des sous-titres (feu, "+
+  "lune, vague, poulpe, or, fusée) — un clip de 0,8 s par mot reconnu, sur "+
+  "la piste vidéo d'overlay la plus haute.";
+var DZM_TB_T_EMOJI_OCC="Emoji — la demande précédente est encore en cours ; "+
+  "le bouton se rallume à la réponse du serveur.";
+var DZM_TB_T_PROJETS="Ouvrir la liste des projets de montage — enregistrer "+
+  "sous un nom, ouvrir, dupliquer, renommer, supprimer.";
+
+/* ── EXIGENCE 1 DU §6 : « TOUTES LES ACTIONS PASSENT PAR LE MÊME HISTORIQUE »
+   ── ET CE QUE CET HISTORIQUE-CI SAIT FAIRE ────────────────────────────
+   MESURE, sur ce bundle : `pushHistory` n'empile QUE `{clips, mixDb}` et
+   `undo` ne repose que ces deux-là. Ni les pistes, ni `proj.dur`, ni
+   `proj.subsStyle`, ni le projet ouvert n'y entrent. Les neuf actions
+   passent donc bien par le MÊME historique — il n'y en a qu'un, et la barre
+   n'en crée pas un second — mais ce que `Ctrl+Z` REND diffère de l'une à
+   l'autre, et le taire aurait laissé l'utilisateur découvrir seul qu'une
+   annulation « ne fait rien ».
+   LE CAS LE PLUS TRAÎTRE EST LA PISTE : `svmTracksSet` APPELLE `pushHistory`
+   avant d'écrire `proj.tracks`. Une entrée est donc bien empilée — mais
+   elle ne contient que des clips inchangés : `Ctrl+Z` la consomme et ne
+   défait RIEN de visible. C'est un pas d'historique muet, pas un refus.
+   RÉPARER L'HISTORIQUE N'EST PAS DE CETTE ÉTAPE : `pushHistory`, `undo` et
+   `redo` sont trois hooks du bundle, hors de la surface que cette chaîne de
+   patchs ouvre, et l'élargir toucherait TOUS les gestes de l'écran. On DIT
+   la limite à chaque bouton, et le retour qui existe vraiment. */
+var DZM_TB_H_CLIPS=" « Annuler » (Ctrl+Z) retire d'un coup ce qui vient "+
+  "d'être posé : l'historique de cet écran mémorise les clips et le mixage.";
+var DZM_TB_H_PISTE=" « Annuler » (Ctrl+Z) NE retire PAS la piste : "+
+  "l'historique de cet écran ne mémorise que les clips et le mixage, et le "+
+  "pas qu'il consomme après ce geste ne défait donc rien de visible. Le "+
+  "« × » de l'en-tête de la piste la retire.";
+var DZM_TB_H_STYLE=" « Annuler » (Ctrl+Z) ne revient pas dessus : ce "+
+  "réglage n'entre pas dans l'historique, une annulation défera le geste "+
+  "d'AVANT. Le retour, c'est de rechoisir.";
+var DZM_TB_H_PANNEAU=" Ouvrir ou fermer ce panneau n'entre pas dans "+
+  "l'historique et ne déplace pas la tête de lecture.";
+var DZM_TB_H_PROJET=" Ouvrir la liste n'entre pas dans l'historique et ne "+
+  "déplace pas la tête de lecture. Ouvrir un PROJET, en revanche, remplace "+
+  "le montage affiché, VIDE l'historique et ramène la tête à zéro : la liste "+
+  "demande confirmation avant.";
+/* LA TABLE, ET À QUOI ELLE SERT. Elle porte pour chacune des neuf clés
+   d'icône du §2.4 la réponse aux DEUX premières exigences transversales :
+   `h` = ce que `Ctrl+Z` rend, `tete` = si l'action déplace la tête de
+   lecture (aucune ne le fait, et le banc le JOUE au lieu de le croire).
+   `via` DIT QUI FAIT LE GESTE : « direct » quand le clic écrit lui-même,
+   « panneau » quand il ouvre une porte et que l'écriture vient d'après
+   (« lier » ouvre la Bibliothèque, « projets » ouvre la liste). Sans ce
+   champ, la phrase d'annulation de « lier » — qui parle du clip à venir —
+   aurait paru démentie par un clic qui, lui, ne pose rien.
+   ELLE N'EST PAS UNE DÉCLARATION D'INTENTION : c'est elle qui écrit la
+   phrase de chaque titre (`dzmTbUndo`), et le banc rejoue les neuf actions
+   sur un faux écran pour vérifier que le comportement observé est bien
+   celui qu'elle annonce. Une table qui mentirait rougirait. */
+var DZM_TB_EFFETS={
+  "piste-video":{h:"piste",via:"direct",tete:!1},
+  "piste-incrust":{h:"piste",via:"direct",tete:!1},
+  "piste-audio":{h:"piste",via:"direct",tete:!1},
+  "bibliotheque":{h:"clips",via:"panneau",tete:!1},
+  "couleur":{h:"style",via:"direct",tete:!1},
+  "rebond":{h:"style",via:"direct",tete:!1},
+  "glow":{h:"style",via:"direct",tete:!1},
+  "emoji":{h:"clips",via:"direct",tete:!1},
+  "texte":{h:"panneau",via:"direct",tete:!1},
+  "projets":{h:"projet",via:"panneau",tete:!1}};
+var DZM_TB_H_TXT={piste:DZM_TB_H_PISTE,clips:DZM_TB_H_CLIPS,
+  style:DZM_TB_H_STYLE,panneau:DZM_TB_H_PANNEAU,projet:DZM_TB_H_PROJET};
+/* Un genre inconnu rend la chaîne VIDE plutôt qu'« undefined » dans une
+   infobulle : le titre reste lisible, et la ligne du banc qui exige une
+   phrase par bouton câblé rougit. */
+function dzmTbUndo(k){
+  var e=DZM_TB_EFFETS[k];
+  return (e&&DZM_TB_H_TXT[e.h])||""}
+
+/* ── EXIGENCE 3 DU §6 : « LES INSERTIONS À LA TÊTE DE LECTURE RESPECTENT
+   AIMANTER » — CE QUE CETTE BASE EN FAIT, MESURÉ ────────────────────
+   « aimanter » est un état de l'écran (`snap`), et il n'est LU qu'à UN
+   endroit du bundle : `doSnap`, dans le glissement d'un clip, qui colle les
+   BORDS aux bords voisins, à la tête et à zéro. AUCUNE insertion ne le
+   consulte — ni `addAsset` (le sélecteur), ni `subsAddHere`, ni les emoji.
+   LA BARRE NE CALCULE DONC AUCUNE POSITION, et c'est délibéré : le seul de
+   ses neuf boutons qui mène à une insertion à la tête de lecture est
+   « lier », et il délègue ENTIÈREMENT le placement à `openPicker`. Poser ici
+   une seconde règle d'aimantation aurait fait diverger la barre du « + »
+   d'en-tête de piste, qui ouvre le même sélecteur. Le banc le mesure : aucune
+   des neuf actions ne LIT la tête de lecture. Aligner la base sur le §6
+   voudrait dire aimanter `addAsset` lui-même, pour TOUTES ses portes — un
+   autre chantier, consigné plutôt qu'improvisé ici. */
+
+/* ── LE CÂBLAGE, PUR ──────────────────────────────────────────
+   Une fonction, aucun hook, aucun accès au DOM : le banc la joue sous node
+   et lit ce que chaque bouton reçoit. Elle rend une entrée par clé d'icône —
+   `act` (rien si le bouton est éteint), `disabled`, `title`, `toggle`,
+   `active`. C'est ICI que se décide « câblé » ou « éteint-et-dit », et nulle
+   part ailleurs : la barre, elle, ne fait que peindre ce qu'on lui donne.
+   ÉTAPE 7 : LES NEUF SONT CÂBLÉS. Chaque `act` appelle une action qui
+   EXISTAIT déjà — aucune n'est réécrite ici — et chaque titre dit ce que
+   « annuler » rend, par `dzmTbUndo`. */
+function dzmTbCablage(p){
+  p=p||{};
+  var ts=dzmTsOr(p.tracks);
+  var vid=dzmPickTrack(ts,"video");
+  var m={};
+  var poseTr=typeof p.onTracks==="function";
+  /* PISTES — MÊME APPEL que « + piste vidéo » du bandeau : `dzmAdd` puis le
+     setter du projet, qui pousse l'historique et marque le projet modifié.
+     Rien de neuf n'est écrit ici, c'est une autre porte sur la même action.
+     P14 — DEUX SORTES DE PISTES VIDÉO, et la note qui redit la nature de la
+     piste créée (`p.note`, le fireNote de l'écran, comme les emoji). Le
+     titre de « vidéo » dit l'ÉCART ASSUMÉ : une piste vidéo plein cadre n'a
+     ni fondu enchaîné, ni vitesse, ni effets — V1 seule les porte, et les
+     fournir est le chantier « plusieurs séquences », non entrepris. */
+  function poseTrack(k){
+    var r=dzmAddDit(ts,k);
+    p.onTracks(r.tracks);
+    if(typeof p.note==="function"&&r.note)p.note(r.note)}
+  m["piste-video"]={disabled:!poseTr,
+    act:poseTr?function(){poseTrack("video")}:null,
+    title:poseTr?("Ajouter une piste vidéo plein cadre — ses plans "+
+      "RECOUVRENT V1 pendant leur durée et leur son est extrait sur la "+
+      "piste de dialogue ; V1 reste la séquence maîtresse (durée, "+
+      "transitions, vitesse, effets)."+
+      dzmTbUndo("piste-video")):DZM_TB_SANS_HOTE};
+  m["piste-incrust"]={disabled:!poseTr,
+    act:poseTr?function(){poseTrack("overlay")}:null,
+    title:poseTr?("Ajouter une piste d'incrustation — image dans l'image, "+
+      "réglable (position, échelle, rotation, opacité), muette."+
+      dzmTbUndo("piste-incrust")):DZM_TB_SANS_HOTE};
+  m["piste-audio"]={disabled:!poseTr,
+    act:poseTr?function(){poseTrack("audio")}:null,
+    title:poseTr?("Ajouter une piste audio — posée sous les pistes audio "+
+      "existantes, au-dessus des sous-titres."+
+      dzmTbUndo("piste-audio")):DZM_TB_SANS_HOTE};
+  /* BIBLIOTHÈQUE — `onPick` est le `openPicker` de l'écran, qui porte DÉJÀ
+     ses propres refus (projet de démonstration, piste verrouillée). La piste
+     visée est RÉSOLUE, jamais devinée : la première piste vidéo dans l'ordre
+     d'affichage. Sans piste vidéo il n'y a rien à ouvrir — bouton éteint,
+     et le titre nomme la sortie au lieu de laisser deviner.
+     LE PLACEMENT EST DÉLÉGUÉ EN ENTIER : cette action ne transmet QUE la
+     piste, jamais un temps. C'est ce qui la fait suivre la même règle que le
+     « + » d'en-tête de piste, « aimanter » compris (exigence 3 du §6). */
+  var pick=typeof p.onPick==="function";
+  m["bibliotheque"]={disabled:!(pick&&vid),
+    act:(pick&&vid)?function(){p.onPick(vid)}:null,
+    title:!pick?DZM_TB_SANS_HOTE
+      :vid?("Ouvrir la Bibliothèque et poser une vidéo, une image ou un "+
+        "rendu sur la piste "+String(vid).toUpperCase()+", à la tête de "+
+        "lecture — c'est la piste vidéo la plus haute du projet."+
+        dzmTbUndo("bibliotheque"))
+      :("Aucune piste vidéo dans ce projet : rien ne pourrait recevoir le "+
+        "clip. « vidéo » du groupe PISTES en crée une.")};
+  /* MOT — les trois valeurs viennent de DZM_WORD_ANIMS, la table qui sert
+     déjà la chip du bandeau : leur `v` EST la clé d'icône du §3, et leur `t`
+     la phrase qui décrit l'effet. Une seconde liste aurait divergé. */
+  var wa=String(p.wordAnim||"couleur");
+  var poseWa=typeof p.onWordAnim==="function";
+  DZM_WORD_ANIMS.forEach(function(a){
+    m[a.v]={toggle:!0,active:wa===a.v,disabled:!poseWa,
+      act:poseWa?function(){p.onWordAnim(a.v)}:null,
+      title:poseWa?(a.t+DZM_TB_MOT_ECART+dzmTbUndo(a.v)):DZM_TB_SANS_HOTE}});
+  /* AJOUTS — `emoji` ÉTAIT ÉTEINT À L'ÉTAPE 4 parce que son `fetch` et son
+     état d'attente vivaient DANS `DzmEmojiBtn` : il n'y avait rien à
+     appeler. L'étape 7 a sorti l'action du bouton (`dzmEmojiGo`) — elle est
+     maintenant appelée par les deux portes, et il n'y a toujours qu'un code.
+     L'ATTENTE ÉTEINT LE BOUTON, et son titre le DIT au lieu de le laisser
+     deviner : une seconde requête partie pendant la première ne détruirait
+     rien, mais elle poserait deux fois les mêmes emoji. */
+  var poseEmo=typeof p.onEmoji==="function";
+  var emoOcc=p.emojiBusy===!0;
+  m["emoji"]={disabled:!poseEmo||emoOcc,
+    act:(poseEmo&&!emoOcc)?function(){p.onEmoji()}:null,
+    title:!poseEmo?DZM_TB_SANS_HOTE
+      :emoOcc?DZM_TB_T_EMOJI_OCC
+      :(DZM_TB_T_EMOJI+DZM_TB_EMO_ECART+dzmTbUndo("emoji"))};
+  var poseTx=typeof p.onText==="function";
+  m["texte"]={toggle:!0,active:p.textOn===!0,disabled:!poseTx,
+    act:poseTx?function(){p.onText()}:null,
+    title:poseTx?(DZM_TB_T_TEXTE+DZM_TB_TXT_ECART+dzmTbUndo("texte"))
+      :DZM_TB_SANS_HOTE};
+  /* PROJETS — le sélecteur ÉTAIT ÉTEINT À L'ÉTAPE 4 parce qu'il portait son
+     état d'ouverture dans son composant : rien ne l'ouvrait de l'extérieur.
+     L'étape 7 lui a donné une DEMANDE d'ouverture (`openReq`), et c'est tout
+     ce que ce bouton fait — il n'ouvre AUCUN projet, ne touche ni la
+     timeline, ni la tête de lecture, ni l'historique. */
+  var posePj=typeof p.onProjets==="function";
+  m["projets"]={disabled:!posePj,
+    act:posePj?function(){p.onProjets()}:null,
+    title:posePj?(DZM_TB_T_PROJETS+dzmTbUndo("projets")):DZM_TB_SANS_HOTE};
+  return m}
+
+/* LA FRAME SUIVANTE, ISOLÉE POUR ÊTRE JOUABLE. Elle sert au §4.4 :
+   « poser l'état final, réactiver les transitions à la frame suivante ».
+   `requestAnimationFrame` EST APPELÉE SUR SON OBJET, jamais détachée — une
+   référence gardée puis appelée nue (`var raf=w.requestAnimationFrame;
+   raf(fn)`) lève « Illegal invocation » sous Blink et WebKit. C'est la forme
+   qui était écrite ici, et RIEN NE L'AURAIT VUE : ce chemin ne s'exécute
+   qu'au montage du composant à hooks, hors de portée du banc. D'où
+   l'extraction : ces six lignes-là, elles, se jouent sous node.
+   `cancelAnimationFrame` est exigée AUSSI : sans elle, l'annulateur ne
+   pourrait rien annuler, et un moteur qui n'aurait que la moitié de la
+   paire vaut mieux servi par un minuteur, qui s'annule vraiment. */
+function dzmTbFrame(w,fn){
+  var ok=!!(w&&typeof w.requestAnimationFrame==="function"
+            &&typeof w.cancelAnimationFrame==="function");
+  if(ok){
+    var id=w.requestAnimationFrame(fn);
+    return function(){w.cancelAnimationFrame(id)}}
+  var t=setTimeout(fn,0);
+  return function(){clearTimeout(t)}}
+
+/* ── ÉTAPE 5 DU §9 : LE DÉPORT ─────────────────────────────────────────────
+   Le §4.2 en entier, et de §4.4 la seule clé `offset`. Le retrait des neuf
+   contrôles du bandeau (§5) est l'étape 6, le câblage complet (§6)
+   l'étape 7 ; le §4.5 — clavier, `role="toolbar"`, mouvement réduit — est
+   l'étape 8, et le CLAVIER DE LA POIGNÉE ci-dessous en est le seul morceau
+   arrivé ici en avance : il est la contrepartie du geste souris de ce lot.
+
+   ── L'AVERTISSEMENT DU §9, PRIS AU MOT ──
+   « Tester d'abord le bornage : c'est là que se logent les régressions. »
+   « Une barre à moitié sortie de l'écran n'est pas récupérable. »
+   D'où la forme de ce lot : le CŒUR est `dzmTbBorne`, une fonction PURE qui
+   prend la position courante, le déplacement, le rectangle du conteneur,
+   celui de la barre et l'abscisse de la tête de lecture, et rend le décalage
+   BORNÉ puis AIMANTÉ. Pure = jouable sous node, et c'est la seule façon de
+   mesurer le bornage sans écran. Tout le reste — écouteurs, curseur,
+   persistance, mesure des rectangles — s'appuie dessus et n'en refait rien.
+
+   ── LE CONTENEUR DU BORNAGE, MESURÉ LE 05/09/2026 ──
+   Le §4.2 dit « la zone timeline + zone de prévisualisation ». Dans cette
+   base, ce sont DEUX nœuds, frères et empilés, tous deux enfants directs de
+   la racine `.dzsvm.svm-col` : `.svm-mid` (lecteur + inspecteur) puis
+   `.svm-tl` (la timeline, dont `.svm-trans` — l'ancrage de la barre — est le
+   premier enfant). Le RECTANGLE retenu est leur UNION, c'est-à-dire tout
+   l'écran SOUS la barre de titre. Trois raisons, chacune mesurée :
+   1. c'est le plus petit rectangle qui contienne les deux zones que le §4.2
+      nomme ; « zone de prévisualisation » seule (`.svm-playerzone`) est plus
+      étroite que la timeline — l'inspecteur occupe la droite de `.svm-mid` —
+      et l'union des deux ne serait alors PAS un rectangle, quand le §4.2
+      parle d'« un conteneur » au singulier avec une marge unique ;
+   2. le seul nœud exclu est `.svm-titlebar`, et c'est le bon : il porte le
+      nom du projet, le badge d'enregistrement, le format et le bouton de
+      rendu — des commandes qui doivent rester cliquables ;
+   3. TOUT le rectangle est à l'intérieur de `.dzsvm`, qui déclare
+      `overflow:hidden` (son-vfx-montage.css l.50) et qui est le SEUL
+      ancêtre rogneur de la chaîne — `.svm-mid` (l.210) et `.svm-tl` (l.303,
+      montage.css l.18, subs.css l.30) n'en déclarent aucun. Borner là-dedans
+      garantit donc qu'aucun pixel de la barre n'est coupé : elle reste
+      récupérable, ce que le §4.2 exige.
+   Borner contre `.svm-tl` SEULE aurait interdit ce que le §4.2 autorise
+   explicitement (monter dans la prévisualisation) ; borner contre la racine
+   entière aurait laissé la barre couvrir la barre de titre.
+
+   ── L'AXE DE LA TÊTE DE LECTURE ──
+   `.svm-phline` — un seul nœud dans le bundle, rendu SANS condition dans
+   `.svm-lanes`, large d'1 px (son-vfx-montage.css l.358), positionné en
+   `left:calc(88px + (100% - 88px) * phFrac)`. Son abscisse est donc lisible
+   à tout instant par `getBoundingClientRect()`, relâchement compris. Mais
+   `.svm-lanes` vit dans `.svm-scroll` (`overflow:auto`, l.331) et s'élargit
+   avec le zoom : la tête PEUT être hors du conteneur. C'est réglé sans
+   second pinçage — voir `dzmTbAimant`.
+
+   ── LE PRÉCÉDENT DU DÉPÔT, ET POURQUOI ON EN DIVERGE ──
+   `clipDown` du bundle glisse déjà dans cet écran. MESURÉ : il capture sa
+   géométrie au `pointerdown` (`rect`, `pxPerS`, `s0`, `e0`, la liste des
+   bords d'aimantation) — on fait pareil, c'est la discipline de la maison —
+   mais il pose `pointermove` / `pointerup` sur `e.currentTarget` et s'en
+   tire par `setPointerCapture`, qui redirige les événements vers l'élément
+   capturant. ICI, C'EST LA FENÊTRE, comme le §4.2 l'écrit, et ce n'est pas
+   par obéissance : le décalage est un état React, donc la barre se redessine
+   à chaque déplacement, et un écouteur posé sur un nœud que React
+   remplacerait mourrait avec lui — le nœud de `clipDown`, lui, survit à ses
+   propres rendus. `pointercancel` est écouté EN PLUS des deux du §4.2 : sans
+   lui, un geste repris par le système laisserait `grabbing` collé sur tout
+   le document, et ce serait un geste destructif sans retour.
+
+   ── LA CLÉ, MÊME ÉCART DÉCLARÉ QUE `dz_svm_tb_open` ──
+   Le §4.4 demande `deepotus.toolbar.offset` ; la maison dit `dz_*` (VINGT-SIX
+   clés `dz_*` distinctes dans le bundle livré aujourd'hui — les vingt-cinq
+   mesurées à l'étape 4, plus `dz_svm_tb_open` qu'elle a elle-même ajoutée —
+   contre trois `deepotus.*`, toutes trois hors de portée de cette chaîne).
+   Le §4.4 tranche lui-même : « dans le même espace de nommage que les
+   panneaux existants ». La FORME est du JSON, comme `dz_svm_keymap`, la
+   seule clé `dz_*` de cette base qui stocke autre chose qu'une chaîne plate.
+   ON STOCKE UN DÉCALAGE, JAMAIS DES COORDONNÉES : le §4.2 l'exige pour que
+   la barre garde sa place relative au redimensionnement de la fenêtre.
+
+   ── LE CLAVIER DE LA POIGNÉE : LIVRÉ ICI, PAS À L'ÉTAPE 8 ──
+   Le §4.5 le range dans l'accessibilité, mais il écrit aussi « Un objet
+   déplaçable à la souris seule n'est pas accessible ». Les deux autres
+   options étaient pires : livrer un déport souris-seule ferait vivre cette
+   régression jusqu'à l'étape 8, et rendre la poignée focusable sans lui
+   donner les flèches livrerait un bouton focusable qui ne fait rien. Le
+   cœur pur rend le clavier presque gratuit — un déplacement de ±8 px (±1
+   avec `Maj`) passe par le MÊME `dzmTbBorne` que la souris. RESTE POUR
+   L'ÉTAPE 8, ET C'EST DIT : la navigation aux flèches ENTRE LES BOUTONS
+   (`tabindex` roving) devra exclure la poignée de son groupe, sinon les
+   flèches auraient deux sens sur le même objet. */
+
+/* Les deux distances du §4.2, une fois chacune ; le banc les lit DANS le
+   handoff — ni la couche ni lui ne les retapent deux fois. */
+var DZM_TB_MARGE=8;
+var DZM_TB_AIMANT=12;
+/* Les deux pas du §4.5. */
+var DZM_TB_PAS=8;
+var DZM_TB_PAS_FIN=1;
+var DZM_TB_CLE_OFF="dz_svm_tb_off";
+/* La classe posée sur `document.body` pendant le geste (§4.2 : « cursor:
+   grabbing sur document.body — pas seulement sur la poignée »). */
+var DZM_TB_CL_DRAG="dzm-tbdrag";
+
+function dzmTbFini(v){return typeof v==="number"&&isFinite(v)}
+function dzmTbNb(v){return dzmTbFini(v)?v:0}
+
+/* UN RECTANGLE LISIBLE, OU RIEN — et « rien » n'est pas « zéro ».
+   `getBoundingClientRect()` d'un nœud jamais posé rend six zéros, et un nœud
+   détaché peut rendre des `NaN`. Les DEUX doivent être REFUSÉS, pas
+   normalisés : un rectangle nul pincerait la barre contre un coin qui
+   n'existe pas, et c'est le chemin de la RESTAURATION qui en mourrait — le
+   décalage d'un utilisateur, borné contre une mise en page pas encore
+   calculée, serait écrasé en silence. Refusé, le bornage est simplement
+   SAUTÉ et le décalage passe tel quel. */
+function dzmTbRect(q){
+  if(!q)return null;
+  var l=q.left,t=q.top,w=q.width,h=q.height;
+  if(!dzmTbFini(l)||!dzmTbFini(t)||!dzmTbFini(w)||!dzmTbFini(h))return null;
+  if(w<=0||h<=0)return null;
+  return {l:l,t:t,r:l+w,b:t+h,w:w,h:h}}
+
+/* L'UNION DES DEUX RECTANGLES — « la zone timeline + zone de prévisualisation ».
+   Pure : le banc la joue sans DOM. Un seul des deux lisible : c'est lui, et
+   le bornage se RESSERRE au lieu de disparaître. Rend la forme d'un
+   `DOMRect` (left/top/width/height), celle que tout le reste consomme. */
+function dzmTbBoite(p,q){
+  var a=dzmTbRect(p),b=dzmTbRect(q);
+  if(!a&&!b)return null;
+  if(!a)a=b;
+  else if(b){
+    var l=Math.min(a.l,b.l),t=Math.min(a.t,b.t);
+    a={l:l,t:t,w:Math.max(a.r,b.r)-l,h:Math.max(a.b,b.b)-t}}
+  return {left:a.l,top:a.t,width:a.w,height:a.h}}
+
+/* LA PINCE. Quand la barre NE TIENT PAS dans le conteneur, `mn` dépasse `mx`
+   et aucune position n'est licite : on rend `mn`, le bord d'ORIGINE (gauche,
+   haut). C'est délibéré et c'est le bord de la POIGNÉE — sans elle plus rien
+   ne se déplace, alors que `⌖` n'aurait de toute façon rien à réparer (à
+   décalage nul la barre déborderait pareil) et que l'onglet OUTILS, lui, ne
+   bouge jamais et replie la barre quoi qu'il arrive. Un
+   `Math.min(mx,Math.max(mn,v))` naïf aurait rendu `mx` : la poignée dehors,
+   à gauche. */
+function dzmTbPince(v,mn,mx){
+  if(mn>mx)return mn;
+  return v<mn?mn:(v>mx?mx:v)}
+
+/* LE PLUS PROCHE CANDIDAT À MOINS DE 12 px, ET QUI RESTE DANS LES BORNES.
+   Un candidat hors bornes n'en est PAS un — il est écarté, pas ramené.
+   CE QUE CET ÉCART FAIT VRAIMENT, MESURÉ PAR MUTATION ET PAS SUPPOSÉ : la
+   tête de lecture sortie du conteneur est réglée par le PINÇAGE, pas par
+   lui — `res.dx` étant déjà pincé, un candidat au-delà d'une borne est
+   forcément PLUS LOIN d'elle que la borne elle-même, donc il ne pouvait pas
+   gagner. Le seul cas où l'écart change la sortie est celui d'une barre trop
+   grande pour le conteneur, où AUCUNE borne n'est atteignable : sans lui,
+   `xmn` et `xmx` — qui se croisent — deviendraient des cibles et la barre
+   sauterait hors du conteneur au relâchement. C'est ce cas-là que le banc
+   exerce. (Ne pas re-pincer APRÈS l'aimantation reste, lui, un choix de
+   forme : re-pincer aurait collé la barre au bord au lieu de la laisser où
+   le doigt l'a lâchée, mais rien ne peut aujourd'hui le mettre en défaut.)
+   `<` strict : « à MOINS de 12 px » (§4.2). Le premier candidat gagne une
+   égalité — l'ordre de la liste est donc l'ordre de priorité. */
+function dzmTbAimant(v,cands,mn,mx){
+  var best=null,d=DZM_TB_AIMANT,i,e;
+  for(i=0;i<cands.length;i++){
+    if(cands[i][0]<mn||cands[i][0]>mx)continue;
+    e=Math.abs(cands[i][0]-v);
+    if(e<d){d=e;best=cands[i]}}
+  return best}
+
+/* ── LE CŒUR, PUR (§4.2) ───────────────────────────────────────────────────
+   `bar` est le rectangle de la barre TEL QU'IL EST AUJOURD'HUI, c'est-à-dire
+   décalé de (`dx`,`dy`) : on en déduit l'ancrage à décalage nul, et les
+   bornes s'expriment donc en DÉCALAGE, jamais en coordonnées.
+   `mx`/`my` : le déplacement depuis la saisie. `ph` : l'abscisse de l'axe de
+   la tête, ou rien. `aim` : vrai au seul relâchement (§4.2 — l'aimantation
+   est « au relâchement », pas pendant le geste, sinon la barre collerait aux
+   bords en cours de route).
+   AUCUNE SORTIE N'EST `NaN` : tout ce qui entre passe par `dzmTbNb`. Un
+   `NaN` écrit dans une translation CSS ne lève pas, il ANNULE la règle — la
+   barre sauterait à son ancrage sans un mot. */
+function dzmTbBorne(o){
+  o=o||{};
+  var dx=dzmTbNb(o.dx),dy=dzmTbNb(o.dy);
+  var res={dx:dx+dzmTbNb(o.mx),dy:dy+dzmTbNb(o.my),ax:"",ay:"",borne:!1};
+  var b=dzmTbRect(o.bar),c=dzmTbRect(o.cont);
+  if(!b||!c)return res;
+  res.borne=!0;
+  var x0=b.l-dx,y0=b.t-dy;
+  var xmn=c.l+DZM_TB_MARGE-x0,xmx=c.r-DZM_TB_MARGE-b.w-x0;
+  var ymn=c.t+DZM_TB_MARGE-y0,ymx=c.b-DZM_TB_MARGE-b.h-y0;
+  res.dx=dzmTbPince(res.dx,xmn,xmx);
+  res.dy=dzmTbPince(res.dy,ymn,ymx);
+  if(o.aim!==!0)return res;
+  /* LES QUATRE BORDS DU CONTENEUR sont représentés par les DEUX bornes de
+     chaque axe : bornées à 8 px, les positions « bord gauche » et « bord
+     gauche du conteneur » sont la même. Aimanter au bord NU aurait violé la
+     marge que la ligne du dessus vient de poser. */
+  var cx=[[xmn,"g"],[xmx,"d"]];
+  /* L'AXE DE LA TÊTE prend les DEUX bords verticaux de la barre : le §4.2
+     dit « un bord de la barre », pas « le bord gauche ». */
+  if(dzmTbFini(o.ph)){cx.push([o.ph-x0,"tg"],[o.ph-b.w-x0,"td"])}
+  var a=dzmTbAimant(res.dx,cx,xmn,xmx);
+  if(a){res.dx=a[0];res.ax=a[1]}
+  /* PAS D'AXE HORIZONTAL POUR LA TÊTE : `.svm-phline` est une VERTICALE
+     (`top:0; bottom:0; width:1px`). Deux bords seulement en ordonnée. */
+  var y=dzmTbAimant(res.dy,[[ymn,"h"],[ymx,"b"]],ymn,ymx);
+  if(y){res.dy=y[0];res.ay=y[1]}
+  return res}
+
+/* ── LA PERSISTANCE DU DÉCALAGE (§4.4) ─────────────────────────────────────
+   Même magasin injectable que `dz_svm_tb_open` : sous node il n'y a pas de
+   `localStorage`, et une fonction qu'on ne peut pas jouer n'est pas mesurée.
+   TOUTE VALEUR QUI N'EST PAS UN COUPLE DE NOMBRES RETOMBE SUR L'ORIGINE, et
+   c'est le filet de sécurité de la clé : un `dz_svm_tb_off` corrompu à la
+   main ne peut pas envoyer la barre hors de l'écran, il la ramène chez elle. */
+function dzmTbOffGet(st){
+  var s=st||dzmTbStore(),v=null;
+  try{v=s?s.getItem(DZM_TB_CLE_OFF):null}catch(e){return {dx:0,dy:0}}
+  if(typeof v!=="string")return {dx:0,dy:0};
+  try{v=JSON.parse(v)}catch(e){return {dx:0,dy:0}}
+  if(!v||typeof v!=="object")return {dx:0,dy:0};
+  return {dx:dzmTbNb(v.dx),dy:dzmTbNb(v.dy)}}
+/* REND CE QU'ELLE A ÉCRIT, comme `dzmTbOpenSet` : un magasin en panne fait
+   perdre la MÉMOIRE, jamais le déplacement en cours. */
+function dzmTbOffSet(o,st){
+  var s=st||dzmTbStore();
+  var v={dx:dzmTbNb(o&&o.dx),dy:dzmTbNb(o&&o.dy)};
+  try{if(s)s.setItem(DZM_TB_CLE_OFF,JSON.stringify(v))}catch(e){}
+  return v}
+
+/* ── LE GESTE (§4.2) ───────────────────────────────────────────────────────
+   `w` est un OBJET-FENÊTRE et `corps` un ÉLÉMENT-CORPS, tous deux reçus en
+   argument : c'est ce qui rend ces trente lignes jouables sous node avec des
+   faux, et c'est là que se mesure ce qu'aucune lecture de source ne dirait —
+   SUR QUOI les écouteurs sont posés, et qu'ils sont bien tous retirés.
+   Rend un ANNULATEUR, appelé aussi bien au relâchement qu'au démontage du
+   composant : sans lui, une barre démontée en plein geste laisserait le
+   curseur `grabbing` sur tout le document et trois écouteurs vivants.
+   LA DERNIÈRE POSITION CONNUE EST GARDÉE : un `pointerup` sans coordonnées
+   lisibles (cela arrive sur `pointercancel`) ne doit pas valoir « déplacement
+   nul » — la barre sauterait à sa position d'avant le geste. */
+function dzmTbSaisie(w,corps,geo,pose){
+  var vif=!0,lmx=0,lmy=0;
+  if(!w||typeof w.addEventListener!=="function"
+     ||typeof w.removeEventListener!=="function"
+     ||typeof pose!=="function"||!geo)return function(){};
+  function dep(ev){
+    var cx=ev?ev.clientX:void 0,cy=ev?ev.clientY:void 0;
+    if(dzmTbFini(cx)&&dzmTbFini(cy)){lmx=cx-geo.px;lmy=cy-geo.py}
+    return [lmx,lmy]}
+  function calc(ev,aim){
+    var m=dep(ev);
+    return dzmTbBorne({bar:geo.bar,cont:geo.cont,ph:geo.ph,
+      dx:geo.dx,dy:geo.dy,mx:m[0],my:m[1],aim:aim})}
+  function mv(ev){if(vif)pose(calc(ev,!1),!1)}
+  /* `pointercancel` TERMINE COMME UN RELÂCHEMENT — le §4.2 ne le nomme pas.
+     Rendre la barre à sa position d'avant le geste aurait été l'autre choix :
+     on garde ce que l'utilisateur a fait, c'est le plus indulgent des deux et
+     `⌖` reste là pour tout défaire. */
+  function up(ev){if(!vif)return;var res=calc(ev,!0);fin();pose(res,!0)}
+  function fin(){
+    if(!vif)return;
+    vif=!1;
+    try{w.removeEventListener("pointermove",mv);
+        w.removeEventListener("pointerup",up);
+        w.removeEventListener("pointercancel",up)}catch(e){}
+    try{if(corps&&corps.classList)corps.classList.remove(DZM_TB_CL_DRAG)}
+    catch(e){}}
+  w.addEventListener("pointermove",mv);
+  w.addEventListener("pointerup",up);
+  w.addEventListener("pointercancel",up);
+  try{if(corps&&corps.classList)corps.classList.add(DZM_TB_CL_DRAG)}catch(e){}
+  return fin}
+
+/* ── LA MESURE DES RECTANGLES, DEPUIS LA BARRE ELLE-MÊME ───────────────────
+   Aucune propriété neuve n'est demandée à l'écran, donc AUCUNE section de
+   patch neuve : on remonte de la barre à `.svm-tl` (le parent du bandeau),
+   puis on prend `.svm-mid` chez le même parent. Le `while` est BORNÉ — une
+   remontée d'arbre sans plafond est une boucle infinie en puissance. */
+var DZM_TB_REMONTEE=40;
+function dzmTbAncetre(el,cls){
+  var n=el,i=0;
+  while(n&&i<DZM_TB_REMONTEE){
+    if(n.classList&&typeof n.classList.contains==="function"
+       &&n.classList.contains(cls))return n;
+    n=n.parentNode;i++}
+  return null}
+function dzmTbLire(el){
+  if(!el||typeof el.getBoundingClientRect!=="function")return null;
+  var q;
+  try{q=el.getBoundingClientRect()}catch(e){return null}
+  return dzmTbRect(q)?q:null}
+function dzmTbConteneur(el){
+  var tl=dzmTbAncetre(el,"svm-tl");
+  if(!tl)return null;
+  var par=tl.parentNode;
+  var mid=(par&&typeof par.querySelector==="function")
+    ?par.querySelector(".svm-mid"):null;
+  return dzmTbBoite(dzmTbLire(tl),dzmTbLire(mid))}
+/* L'AXE, PAS LE BORD : `.svm-phline` fait 1 px, mais c'est son MILIEU que
+   l'œil lit comme la tête de lecture. */
+function dzmTbTete(el){
+  var tl=dzmTbAncetre(el,"svm-tl");
+  var ph=(tl&&typeof tl.querySelector==="function")
+    ?tl.querySelector(".svm-phline"):null;
+  var q=dzmTbRect(dzmTbLire(ph));
+  return q?q.l+q.w/2:null}
+/* TOUTE LA GÉOMÉTRIE EN UNE FOIS, AU `pointerdown` — la discipline de
+   `clipDown`, qui fige `rect`, `pxPerS` et les bords d'aimantation à la
+   saisie. Mesurer à chaque déplacement aurait fait bouger les bornes sous le
+   geste : la timeline se redessine pendant la lecture. */
+function dzmTbGeo(el,off,ev){
+  var bar=dzmTbLire(el);
+  if(!bar)return null;
+  return {bar:bar,cont:dzmTbConteneur(el),ph:dzmTbTete(el),
+    dx:dzmTbNb(off&&off.dx),dy:dzmTbNb(off&&off.dy),
+    px:dzmTbNb(ev&&ev.clientX),py:dzmTbNb(ev&&ev.clientY)}}
+
+/* ── LE RECADRAGE : LA BARRE RENTRE QUAND LA FENÊTRE RÉTRÉCIT ─────────────
+   LE TROU QUE CECI BOUCHE, ET IL EST RÉEL. Le décalage est stocké en
+   RELATIF (§4.2), donc la barre garde sa place quand la fenêtre change de
+   taille — mais « sa place » peut sortir du conteneur quand celui-ci
+   rétrécit, et le §4.2 dit qu'une barre à moitié sortie n'est pas
+   récupérable. L'onglet OUTILS, lui, ne bouge jamais et sait la replier ;
+   mais `⌖`, qui est LE filet de sécurité du déport, voyage AVEC la barre et
+   deviendrait injoignable. On recadre donc : au montage — ce qui règle le
+   cas courant, rétrécir puis recharger — et à chaque `resize`.
+   SANS AIMANTATION : le recadrage répare, il ne redécide pas d'une position
+   que l'utilisateur a choisie.
+   `null` VEUT DIRE « RIEN À FAIRE », et c'est distinct de `{dx:0,dy:0}` :
+   un conteneur non mesurable (écran caché, mise en page pas encore calculée)
+   NE DOIT PAS ramener la barre à l'origine — c'est exactement la régression
+   que `dzmTbRect` refuse déjà plus haut, et elle se rejouerait ici. */
+function dzmTbRecadre(el,off){
+  var geo=dzmTbGeo(el,off,null);
+  if(!geo)return null;
+  var res=dzmTbBorne({bar:geo.bar,cont:geo.cont,dx:geo.dx,dy:geo.dy,aim:!1});
+  /* UNE SEULE GARDE SUFFIT, ET C'EST MESURE : un conteneur non mesurable
+     fait rendre à `dzmTbBorne` le décalage INCHANGÉ, donc l'égalité
+     ci-dessous l'attrape déjà. Une seconde garde sur `res.borne` était
+     inatteignable — la campagne de mutation l'a montrée verte quel qu'en
+     soit le sens, et elle est partie. */
+  if(res.dx===geo.dx&&res.dy===geo.dy)return null;
+  return {dx:res.dx,dy:res.dy}}
+/* L'ÉCOUTE DU REDIMENSIONNEMENT, ISOLÉE POUR ÊTRE JOUABLE — même parade que
+   `dzmTbFrame` et `dzmTbSaisie` : la fenêtre est un ARGUMENT, donc le banc
+   la remplace par une fausse et mesure ce qui est posé et ce qui est rendu. */
+function dzmTbVeille(w,fn){
+  if(!w||typeof w.addEventListener!=="function"
+     ||typeof w.removeEventListener!=="function"
+     ||typeof fn!=="function")return function(){};
+  w.addEventListener("resize",fn);
+  return function(){w.removeEventListener("resize",fn)}}
+
+/* ── LE CLAVIER DE LA POIGNÉE (§4.5) ───────────────────────────────────────
+   `hasOwnProperty` PLUTÔT QU'UN ACCÈS NU : `DZM_TB_TOUCHES["constructor"]`
+   rendrait une fonction héritée, donc « vraie », et `v[0]` serait `undefined`
+   — un pas `NaN` sur une touche que personne n'a mappée. */
+var DZM_TB_TOUCHES={ArrowLeft:[-1,0],ArrowRight:[1,0],
+  ArrowUp:[0,-1],ArrowDown:[0,1]};
+function dzmTbTouche(k,maj){
+  var n=String(k);
+  if(!Object.prototype.hasOwnProperty.call(DZM_TB_TOUCHES,n))return null;
+  var v=DZM_TB_TOUCHES[n],p=maj===!0?DZM_TB_PAS_FIN:DZM_TB_PAS;
+  return {mx:v[0]*p,my:v[1]*p}}
+
+/* ══ ÉTAPE 8 DU §9 — CLAVIER, `role="toolbar"`, MOUVEMENT RÉDUIT (§4.5) ════
+
+   ── LA POIGNÉE EST HORS DU GROUPE ROVING, ET C'EST LA CONSIGNE DE L'ÉTAPE 5
+   Ses flèches déplacent la barre de 8 px (1 px avec Maj) ; celles du groupe
+   déplacent le FOCUS. Le même geste ne peut pas faire les deux sur le même
+   objet. `dzmTbTouche` ci-dessus et `dzmTbRoveDir` ci-dessous sont donc deux
+   tables séparées, et le sélecteur du groupe ne nomme pas `.dzm-tbgrip`.
+   CE QUE CELA COÛTE, ET C'EST UN ÉCART DÉCLARÉ : la barre a DEUX arrêts de
+   tabulation, la poignée puis le groupe — pas un. Le §4.5 demande « un seul
+   point d'entrée dans l'ordre de tabulation » ET « la poignée est un bouton
+   focusable » dans le même paragraphe ; sortir la poignée du parcours aurait
+   rendu son clavier inatteignable, c'est-à-dire annulé la phrase suivante du
+   même §4.5 (« un objet déplaçable à la souris seule n'est pas accessible »).
+   Le roving vaut donc pour les ONZE boutons — les neuf actions puis `⌖` et
+   `×` — et la poignée garde le sien.
+
+   ── LES DEUX CONTRÔLES DE FENÊTRE SONT DANS LE GROUPE ──
+   `⌖` « ne doit jamais être masqué » (§4.2) : c'est le filet de sécurité du
+   déport. Le laisser hors du roving lui aurait donné un troisième arrêt de
+   tabulation, ou aucun. */
+var DZM_TB_SEL_ROVE=".dzm-tbb,.dzm-tbwb";
+var DZM_TB_A_BARRE="Outils de création";
+/* HORIZONTALE : seules les flèches gauche/droite naviguent (§4.5, et
+   `aria-orientation="horizontal"` le promet). Haut/bas restent à l'écran —
+   ce sont ses sauts de coupe, et les voler ici serait un raccourci de plus
+   qui ne dit pas son nom. */
+var DZM_TB_ROVE_DIRS={ArrowLeft:-1,ArrowRight:1};
+function dzmTbRoveDir(k){
+  var n=String(k);
+  if(!Object.prototype.hasOwnProperty.call(DZM_TB_ROVE_DIRS,n))return 0;
+  return DZM_TB_ROVE_DIRS[n]}
+
+/* LE NOMBRE DE BOUTONS D'ACTION, DÉRIVÉ DU PLAN — jamais écrit en dur : le
+   jour où un groupe gagne un bouton, l'ordre plat et les deux index des
+   contrôles de fenêtre suivent tout seuls. */
+function dzmTbNbAct(plan){
+  var l=(plan&&plan.length)?plan:DZM_TB_PLAN,n=0,i;
+  for(i=0;i<l.length;i++)n+=((l[i]&&l[i].btns)||[]).length;
+  return n}
+
+/* L'ORDRE PLAT DU GROUPE, ET CE QUI Y EST ATTEIGNABLE. Il suit l'ordre du
+   DOM par CONSTRUCTION : les groupes du plan, dans l'ordre, puis `⌖` et `×`.
+   `DzmToolBar` peint dans ce même ordre et `dzmTbBoutons` le relit du DOM ;
+   le gestionnaire refuse de naviguer si les deux longueurs diffèrent — une
+   liste plus courte ferait viser à côté, en silence.
+   LES DEUX CONTRÔLES DE FENÊTRE SONT TOUJOURS ATTEIGNABLES : le §4.2
+   l'exige pour `⌖`, et `×` est la seule façon de replier au clavier depuis
+   la souris. Ils ne portent pas d'état `disabled` dans `DzmToolBar`.
+   UNE ENTRÉE ABSENTE COMPTE POUR ÉTEINTE, et c'est la MÊME règle que la
+   barre applique en peignant (`items[b.i]||{disabled:!0}`). La version
+   naïve — « absent donc rien à éteindre » — les aurait comptés ACTIFS, et
+   le point d'entrée du parcours serait tombé sur un bouton `disabled`,
+   c'est-à-dire nulle part. Le banc compare les deux côtés bouton par
+   bouton, sur un câblage plein, un câblage sans hôte et aucun câblage. */
+function dzmTbActifs(items){
+  var it=items||{},l=DZM_TB_PLAN,a=[],i,j,b,e;
+  for(i=0;i<l.length;i++){
+    b=(l[i]&&l[i].btns)||[];
+    for(j=0;j<b.length;j++){
+      e=it[b[j].i];
+      a.push(!!e&&e.disabled!==!0)}}
+  a.push(!0);a.push(!0);
+  return a}
+
+/* ── LE CŒUR : index courant + direction + boutons actifs → index suivant ──
+   PUR, donc joué sous node : c'est la seule façon de mesurer la traversée
+   des groupes sans navigateur.
+   IL BOUCLE (le dernier → le premier), comme une barre d'outils ARIA : sans
+   cela, le dernier bouton serait un cul-de-sac au clavier alors qu'il ne
+   l'est pas à la souris.
+   IL SAUTE LES ÉTEINTS : un bouton `disabled` ne prend pas le focus, et
+   poser `tabindex="0"` dessus retirerait la barre entière du parcours.
+   HORS BORNES — index négatif, trop grand, `NaN`, non entier, absent : on
+   repart du bord AMONT du sens de marche (avant le premier pour `+1`, après
+   le dernier pour `−1`), donc le premier appel `dzmTbRove(-1,1,a)` rend le
+   PREMIER actif. C'est la même fonction qui sert « aller au bouton suivant »
+   et « aller au premier bouton » (§4.1, le focus à l'ouverture).
+   LISTE VIDE OU TOUTE ÉTEINTE : `-1`. L'appelant ne pose alors AUCUN
+   `tabindex="0"` — une barre sans rien d'atteignable se saute, elle ne
+   piège pas le focus sur un bouton mort.
+   LA BOUCLE VISITE EXACTEMENT `n` CANDIDATS, chacun une fois : le pas vaut
+   ±1, donc elle termine toujours et ne peut pas manquer un actif. */
+function dzmTbRove(cour,dir,actifs){
+  var l=actifs||[],n=l.length;
+  if(!n)return -1;
+  var d=(Number(dir)<0)?-1:1;
+  var c=Number(cour);
+  if(!isFinite(c)||Math.floor(c)!==c||c<0||c>=n)c=(d>0)?-1:n;
+  var i,j;
+  for(i=1;i<=n;i++){
+    j=((c+d*i)%n+n)%n;
+    if(l[j])return j}
+  return -1}
+
+/* L'INDEX QUI PORTE `tabindex="0"`, ASSAINI À CHAQUE RENDU. Le point
+   d'entrée doit rester ATTEIGNABLE : si le bouton mémorisé vient d'être
+   éteint (la sélection a changé, une requête emoji est partie), le parcours
+   de tabulation retombe sur le PREMIER actif, jamais sur le suivant — c'est
+   un point d'entrée, pas une navigation. */
+function dzmTbRoveSain(cour,actifs){
+  var l=actifs||[],n=l.length;
+  var c=Number(cour);
+  if(isFinite(c)&&Math.floor(c)===c&&c>=0&&c<n&&l[c])return c;
+  return dzmTbRove(-1,1,l)}
+
+/* ── LES TROIS AIDES DE DOM, MINCES EXPRÈS ────────────────────────────────
+   Seule `dzmTbBoutons` appelle le DOM (`querySelectorAll`) ; les deux autres
+   travaillent sur le TABLEAU qu'elle rend, donc le banc les joue sur un faux
+   arbre — la même méthode que `dzmTbGeo` et `dzmTbSaisie` à l'étape 5. */
+function dzmTbBoutons(bar){
+  if(!bar||typeof bar.querySelectorAll!=="function")return [];
+  try{return Array.prototype.slice.call(bar.querySelectorAll(DZM_TB_SEL_ROVE))}
+  catch(e){return []}}
+function dzmTbIdx(l,el){
+  var a=l||[],i;
+  if(!el)return -1;
+  for(i=0;i<a.length;i++)if(a[i]===el)return i;
+  return -1}
+function dzmTbFocus(l,i){
+  var a=l||[],el=(typeof i==="number"&&i>=0&&i<a.length)?a[i]:null;
+  if(el&&typeof el.focus==="function"){el.focus();return !0}
+  return !1}
+/* « ÉCHAP […] REND LE FOCUS À L'ONGLET » (§4.5) — et RENDRE suppose qu'on
+   l'avait. Le raccourci, lui, replie depuis N'IMPORTE OÙ : la timeline, un
+   en-tête de piste, l'inspecteur. Y déplacer le focus ne serait pas le
+   rendre, ce serait le VOLER — et le voler coûte cher ici, parce qu'un
+   `<button>` qui a le focus consomme la barre d'espace, c'est-à-dire la
+   lecture. D'où cette garde, posée sur les DEUX chemins de repli. */
+function dzmTbDedans(bar,el){
+  if(!bar||!el)return !1;
+  if(bar===el)return !0;
+  if(typeof bar.contains!=="function")return !1;
+  try{return !!bar.contains(el)}catch(e){return !1}}
+
+/* LE RACCOURCI, DIT SUR L'ONGLET ET RELU À CHAQUE RENDU. La combo n'est pas
+   écrite ici : elle vient de `svmKeyLabel("toolbar")`, donc de la keymap
+   VIVANTE — un remappage se lit sur l'onglet comme il se lit déjà sur la
+   chip « lame ». Sans combo (hôte muet, action retirée de la table) : rien
+   n'est ajouté, jamais une parenthèse vide. */
+function dzmTbCombo(c){
+  var s=(typeof c==="string")?c.trim():"";
+  return s?(" Raccourci : "+s+"."):""}
+
+/* ── L'ONGLET D'APPEL (§2.1) ───────────────────────────────────────────────
+   Cinq pastilles aux cinq teintes — l'aperçu du contenu, on voit les
+   familles avant d'ouvrir — puis OUTILS, puis le chevron. `aria-expanded` et
+   `aria-controls` sont OBLIGATOIRES au §4.1 : sans eux l'onglet s'annonce
+   comme un bouton quelconque et rien ne dit ce qu'il ouvre.
+   LA TEINTE DES PASTILLES PASSE PAR LA CLASSE `dzm-g-<groupe>`, comme celle
+   des boutons : aucun nom de variable CSS n'est fabriqué en JS. */
+function DzmToolTab(o){
+  o=o||{};
+  var open=o.open===!0;
+  return r.jsx("button",{type:"button",className:"dzm-tbtab",ref:o.tabRef,
+    "aria-expanded":open?"true":"false","aria-controls":DZM_TB_ID,
+    title:(open?DZM_TB_T_REPLIER:"Ouvrir la barre d'outils de création.")
+      +dzmTbCombo(o.keyLbl),
+    onClick:function(){if(typeof o.onToggle==="function")o.onToggle()},
+    children:[
+      r.jsx("span",{className:"dzm-tbdots","aria-hidden":!0,
+        children:DZM_TB_GROUPES.map(function(g){
+          return r.jsx("span",{className:"dzm-tbdot dzm-g-"+g},g)})},"d"),
+      r.jsx("span",{className:"dzm-tblbl",children:"OUTILS"},"l"),
+      r.jsx("span",{className:"dzm-tbchev","aria-hidden":!0,
+        children:open?"▾":"▴"},"c")]},"tbtab")}
+
+/* ── LA BARRE (§2.2) ───────────────────────────────────────────────────────
+   Trois zones : poignée, groupes, contrôles de fenêtre.
+   ELLE RESTE DANS LE DOM QUAND ELLE EST REPLIÉE, et c'est ce qui permet
+   d'animer le repli (§4.1 : « Repli : l'inverse »). `visibility:hidden`,
+   posé par la feuille à la FIN de la transition, la retire du parcours de
+   tabulation et de l'arbre d'accessibilité — un `display:none` aurait coupé
+   l'animation, un simple `opacity:0` aurait laissé neuf boutons focusables
+   sous une barre invisible.
+   `data-noanim` : à la restauration, l'état final est posé SANS transition
+   (§4.4), réactivée à la frame suivante par le Dock. */
+function DzmToolBar(o){
+  o=o||{};
+  var open=o.open===!0;
+  var items=o.items||{};
+  /* LE DÉCALAGE EST NORMALISÉ ICI, une fois : la barre ne peint jamais un
+     `NaN` même si l'appelant lui en passe un. */
+  var off={dx:dzmTbNb(o.off&&o.off.dx),dy:dzmTbNb(o.off&&o.off.dy)};
+  var deporte=off.dx!==0||off.dy!==0;
+  /* ÉTAPE 8 — L'INDEX QUI PORTE LE POINT D'ENTRÉE. Il est ASSAINI ICI et
+     pas seulement chez l'appelant : la barre est un composant public, et un
+     index périmé (un bouton qui vient de s'éteindre) sortirait la barre
+     entière du parcours de tabulation. `-1` = rien d'atteignable, donc
+     aucun `tabindex="0"` posé — ce qui n'arrive pas dans l'application,
+     `⌖` et `×` n'étant jamais éteints. */
+  var actifs=dzmTbActifs(items);
+  var rove=dzmTbRoveSain(o.rove,actifs);
+  var nAct=dzmTbNbAct();
+  var ri=0;
+  var kids=[];
+  /* a. LA POIGNÉE (§2.2a, §4.2, §4.5) — UN BOUTON, plus un décor.
+     Elle porte le geste souris ET le clavier, elle n'est donc plus
+     `aria-hidden` : un nœud focusable caché des technologies d'assistance
+     est une faute, pas une précaution. Le glyphe, lui, le reste — c'est
+     `DzmTbIcon` qui le pose, et l'`aria-label` porte le sens. */
+  kids.push(r.jsx("button",{type:"button",className:"dzm-tbgrip",
+    title:DZM_TB_T_GRIP,"aria-label":DZM_TB_A_GRIP,
+    onPointerDown:o.onGrab,onKeyDown:o.onGripKey,
+    children:DzmTbIcon({name:"poignee",size:DZM_TB_PX_GRIP,k:"g"})},"grip"));
+  /* b. LES GROUPES — une colonne chacun, filet droit sauf le dernier. */
+  kids.push(r.jsx("span",{className:"dzm-tbzone",
+    children:DZM_TB_PLAN.map(function(gr,gi){
+      var tete=[r.jsx("span",{className:"dzm-tbht",children:gr.t},"t")];
+      if(gr.suf)tete.push(r.jsx("span",{className:"dzm-tbsuf",
+        children:" "+gr.suf},"s"));
+      /* ÉTAPE 8, §4.5 : « LA COULEUR N'EST JAMAIS LE SEUL PORTEUR
+         D'INFORMATION : chaque groupe a son en-tête en clair. » Il l'avait À
+         L'ŒIL et à l'œil seulement — un `<span>` posé au-dessus d'une rangée
+         de boutons n'est RATTACHÉ à rien. Le nom accessible de « vidéo »
+         était donc « vidéo », et rien ne disait de quoi. `role="group"`
+         avec le libellé VERBATIM du §2.2 (suffixe « — sélection » compris)
+         rend le rattachement programmatique : le groupe est annoncé à
+         l'entrée, comme la teinte le donne à l'œil.
+         L'EN-TÊTE N'EST PAS MASQUÉ POUR AUTANT : un moteur qui n'annoncerait
+         pas les groupes le lit encore en mode exploration. Une redite vaut
+         mieux qu'un silence. */
+      return r.jsx("span",{className:"dzm-tbgrp dzm-g-"+gr.g,
+        role:"group","aria-label":gr.t+(gr.suf?" "+gr.suf:""),
+        "data-last":gi===DZM_TB_PLAN.length-1?"":void 0,
+        children:[
+          r.jsx("span",{className:"dzm-tbhead",children:tete},"h"),
+          r.jsx("span",{className:"dzm-tbrow",
+            children:gr.btns.map(function(b){
+              /* UNE ENTRÉE MANQUANTE ÉTEINT LE BOUTON. Le repli n'est pas
+                 l'objet vide : `{}` aurait rendu un bouton d'apparence
+                 vivante sans action derrière — exactement le piège que ce
+                 lot refuse. Il n'arrive pas dans l'application (le câblage
+                 rend toujours les neuf entrées) ; il arriverait le jour où
+                 un bouton s'ajoute au plan sans passer par le câblage. */
+              var it=items[b.i]||{disabled:!0,title:DZM_TB_SANS_HOTE};
+              /* L'INDEX PLAT AVANCE DANS L'ORDRE DE PEINTURE — c'est ce qui
+                 fait que l'ordre du DOM et celui de `dzmTbActifs` sont le
+                 MÊME, sans qu'aucun des deux ne recopie l'autre. */
+              var ti=ri++;
+              return DzmToolBtn({group:gr.g,icon:b.i,label:b.l,
+                solo:gr.btns.length===1,toggle:it.toggle===!0,
+                active:it.active,disabled:it.disabled===!0,
+                tab:ti===rove,
+                title:it.title,aria:b.l,onAct:it.act,k:"b-"+b.i})})},"r")]},
+        gr.g)})},"zone"));
+  /* c. LES CONTRÔLES DE FENÊTRE — les deux vivants. */
+  kids.push(r.jsx("span",{className:"dzm-tbwin",children:[
+    r.jsx("button",{type:"button",className:"dzm-tbwb dzm-tbrc",
+      title:deporte?DZM_TB_T_RECENTRER:DZM_TB_T_RECENTREE,
+      "aria-label":"Recentrer la barre d'outils",
+      tabIndex:rove===nAct?0:-1,
+      onClick:function(){if(typeof o.onRecentrer==="function")o.onRecentrer()},
+      children:"⌖"},"rc"),
+    r.jsx("button",{type:"button",className:"dzm-tbwb dzm-tbcl",
+      title:DZM_TB_T_REPLIER,"aria-label":"Replier la barre d'outils",
+      tabIndex:rove===nAct+1?0:-1,
+      onClick:function(){if(typeof o.onClose==="function")o.onClose()},
+      children:"×"},"cl")]},"win"));
+  /* LA TRANSLATION PASSE PAR DEUX PROPRIÉTÉS PERSONNALISÉES FIXES, jamais
+     par une transformation écrite en JS : `transform` est déjà employée par
+     le repli (§4.1 — `translateY(6px)`) et les deux se seraient écrasées.
+     La feuille lit `--tbx`/`--tby` dans la propriété `translate`, qui est
+     indépendante de `transform` et se transitionne toute seule sur
+     `--dur-bar-snap` : l'aimantation du §4.2 s'anime sans un minuteur.
+     Les deux noms sont des LITTÉRAUX — rien n'est fabriqué par
+     concaténation, la règle de l'étape 3 tient.
+     `data-drag` coupe la transition pendant le geste : sans lui la barre
+     suivrait le pointeur avec 180 ms de retard. */
+  /* ÉTAPE 8 — `role="toolbar"` (§4.5), AU MOT, sur le nœud qui porte les
+     onze boutons ET la poignée. `aria-orientation="horizontal"` promet que
+     seules les flèches gauche/droite naviguent, et c'est exactement ce que
+     `dzmTbRoveDir` accepte ; `aria-label` nomme la barre — l'onglet dit
+     « OUTILS », mais un lecteur d'écran qui entre par Tab n'a pas lu
+     l'onglet.
+     LE CLAVIER EST SUR LE CONTENEUR, PAS SUR `window`, et c'est la réponse à
+     « comment ne pas voler Échap » : l'écouteur ne peut se déclencher que si
+     le focus est DANS la barre. Les autres panneaux qui écoutent Échap
+     (popover de jonction, popover de projets, panneau des raccourcis) le
+     font depuis `window` et gardent leur touche partout ailleurs. */
+  return r.jsx("div",{id:DZM_TB_ID,className:"dzm-tbar",ref:o.barRef,
+    role:"toolbar","aria-orientation":"horizontal",
+    "aria-label":DZM_TB_A_BARRE,onKeyDown:o.onBarKey,
+    style:{"--tbx":off.dx+"px","--tby":off.dy+"px"},
+    "data-off":open?void 0:"","data-noanim":o.anim===!0?void 0:"",
+    "data-drag":o.drag===!0?"":void 0,
+    children:kids},"tbar")}
+
+/* ── CE QUE LE DOCK AJOUTE AUX PROPRIÉTÉS DE L'ÉCRAN ─────────────────
+   ISOLÉE POUR ÊTRE JOUÉE, comme `dzmTbFrame` à l'étape 4 et pour la même
+   raison : cette décision-là — « le bouton emoji est-il vivant ? » — vivait
+   sinon dans le seul morceau à hooks du lot, donc hors de portée du banc.
+   DEUX PROPRIÉTÉS DE PLUS, ET RIEN D'AUTRE N'EST TOUCHÉ : l'objet de l'écran
+   est COPIÉ, jamais muté — il appartient au bundle, qui le reconstruit à
+   chaque rendu, et le muter ferait fuir l'état d'attente d'un rendu au
+   suivant.
+   `onEmoji` N'EST POSÉ QUE SI L'ÉCRAN A FOURNI DE QUOI RECEVOIR LES CLIPS :
+   sans `onEmojiAdd`, `dzmEmojiGo` ne saurait qu'écrire une note d'excuse, et
+   le bouton aurait l'air vivant en ne faisant rien — exactement ce que
+   l'étape 4 refusait déjà. Éteint, et `dzmTbCablage` le dit. */
+function dzmTbHote(o,emoji,occupe){
+  var h={},k;
+  o=o||{};
+  for(k in o)if(Object.prototype.hasOwnProperty.call(o,k))h[k]=o[k];
+  h.onEmoji=(typeof o.onEmojiAdd==="function"&&typeof emoji==="function")
+    ?emoji:null;
+  h.emojiBusy=occupe===!0;
+  return h}
+
+/* ── CE QUI EST MONTÉ DANS LE BANDEAU (§4.1, §4.4) ─────────────────────────
+   Le seul morceau à hooks du lot, et il est mince exprès : il tient l'état
+   `open`, le restaure sans animation, et passe le câblage à la barre. Tout
+   ce qui se mesure — le câblage, l'onglet, la barre — est pur et se joue
+   sous node ; ce composant-ci se lit dans la source et dans le bundle.
+   L'ONGLET ET LA BARRE SONT DEUX FRÈRES, pas un nid : l'onglet doit rester
+   accroché au bord du bandeau quand la barre partira en déport (étape 5). */
+function DzmToolDock(o){
+  o=o||{};
+  var st=x.useState(dzmTbOpenGet),open=st[0],setOpen=st[1];
+  /* LE DÉCALAGE EST RESTAURÉ AU PREMIER RENDU, donc posé AVANT la première
+     peinture, et `data-noanim` (déjà là depuis l'étape 4) coupe la
+     transition jusqu'à la frame suivante : c'est le « poser l'état final,
+     réactiver les transitions à la frame suivante » du §4.4, et la même
+     `dzmTbFrame` sert aux deux. Sans cela, une barre restaurée déportée
+     glisserait de son ancrage jusqu'à sa place à chaque chargement. */
+  var so=x.useState(dzmTbOffGet),off=so[0],setOff=so[1];
+  var sg=x.useState(!1),drag=sg[0],setDrag=sg[1];
+  var sa=x.useState(!1),anim=sa[0],setAnim=sa[1];
+  var bar=x.useRef(null),fin=x.useRef(null);
+  /* L'ATTENTE DE LA REQUÊTE EMOJI, ET POURQUOI ELLE EST ICI. `dzmEmojiGo`
+     n'a pas de hook : chaque porte tient la sienne. Celle du bandeau vit
+     dans `DzmEmojiBtn`, celle-ci dans le Dock — duplication TRANSITOIRE que
+     l'étape 6 solde en retirant l'autre porte. */
+  var sm=x.useState(0),emo=sm[0],setEmo=sm[1];
+  /* ── ÉTAPE 8 — LE POINT D'ENTRÉE DU ROVING, L'ONGLET, ET DEUX MIROIRS ───
+     `rove` est un INDEX DE SOUHAIT : la barre l'assainit à chaque rendu, il
+     n'a donc jamais besoin d'être remis en cause quand un bouton s'éteint.
+     `onglet` reçoit le focus qu'Échap et `×` rendent (§4.5).
+     `openRef` : le raccourci bascule depuis un effet qui ne dépend QUE de
+     son compteur — sans cette référence il lirait pour toujours l'état du
+     premier rendu, la forme de la maison (`clipsRef.current=props.clips`).
+     `vuOpen` : l'ouverture RESTAURÉE au montage ne prend PAS le focus. Le
+     §4.1 le donne « à l'ouverture », c'est-à-dire au geste ; la barre étant
+     ouverte par défaut depuis l'étape 6, le donner au montage volerait le
+     focus à chaque chargement de l'écran. `null` = premier passage. */
+  var srv=x.useState(0),rove=srv[0],setRove=srv[1];
+  var onglet=x.useRef(null);
+  var openRef=x.useRef(open);openRef.current=open;
+  var vuOpen=x.useRef(null);
+  /* LE DÉCALAGE COURANT DANS UNE RÉFÉRENCE, tenue à jour à chaque rendu —
+     la forme de la maison (`clipsRef.current=props.clips` dans le bundle).
+     L'écouteur de redimensionnement est posé UNE FOIS, au montage ; sans
+     cette référence il lirait pour toujours le décalage du premier rendu. */
+  var offRef=x.useRef(off);offRef.current=off;
+  /* LA MÉMOIRE DES LARGEURS (§5.3) : un bloc déjà sacrifié mesure zéro, et
+     sans elle l'échelle ne remonterait jamais quand la fenêtre s'élargit. */
+  var bdMem=x.useRef({});
+  x.useEffect(function(){
+    return dzmTbFrame((typeof window!=="undefined")?window:null,
+      function(){setAnim(!0)})},[]);
+  /* ── §5.3, L'HÔTE. Il MESURE le bandeau et POSE ce que `dzmBdPlan` a
+     décidé ; il ne décide rien lui-même. Il tourne au montage, à chaque
+     changement de taille du bandeau (`ResizeObserver` quand le moteur en a
+     un, `resize` de la fenêtre sinon — les deux existent rarement en même
+     temps, l'un suffit) et à chaque bascule de la barre.
+     PAS DE BOUCLE : sacrifier un bloc le passe en `display:none`, ce qui
+     change le CONTENU du bandeau, jamais sa BOÎTE — l'observateur ne se
+     réveille donc pas sur son propre effet. Mesuré au raisonnement, pas à
+     l'exécution : c'est de la dette navigateur, elle est dite.
+     RESTE ASSUMÉ : un changement de contenu SANS changement de taille (la
+     croix des rappels, un compteur de sous-titres qui gagne un chiffre)
+     n'est repris qu'au prochain redimensionnement. Le niveau est alors
+     périmé d'un cran, jamais faux dans le sens dangereux — il en cache un
+     peu trop, il n'en montre jamais trop. */
+  x.useEffect(function(){
+    var bd=dzmTbAncetre(bar.current,"svm-trans");
+    if(!bd)return;
+    function tour(){dzmBdTour(bd,bdMem.current)}
+    tour();
+    var w=(typeof window!=="undefined")?window:null;
+    var ro=null;
+    try{
+      if(w&&typeof w.ResizeObserver==="function"){
+        ro=new w.ResizeObserver(tour);ro.observe(bd)}}
+    catch(e){ro=null}
+    if(ro)return function(){try{ro.disconnect()}catch(e){}};
+    return dzmTbVeille(w,tour)},[open]);
+  /* LE RETOUR DU GESTE : si la barre se démonte au milieu d'un glissement,
+     l'annulateur retire les trois écouteurs ET la classe `grabbing` restée
+     sur le corps. Sans lui, tout le document garderait ce curseur, et rien
+     dans l'application ne saurait le lui reprendre. */
+  x.useEffect(function(){return function(){
+    if(fin.current){fin.current();fin.current=null}}},[]);
+  /* LE RECADRAGE, AU MONTAGE ET À CHAQUE REDIMENSIONNEMENT. `recadrer` rend
+     `null` quand il n'y a rien à faire : ni écriture inutile dans le
+     magasin, ni rendu de plus. */
+  x.useEffect(function(){
+    function recadrer(){
+      var v=dzmTbRecadre(bar.current,offRef.current);
+      if(v)setOff(dzmTbOffSet(v))}
+    recadrer();
+    return dzmTbVeille((typeof window!=="undefined")?window:null,
+      recadrer)},[]);
+  function bascule(){setOpen(function(v){return dzmTbOpenSet(!v)})}
+  /* ── ÉTAPE 8 — LE CÂBLAGE DU CLAVIER (§4.1, §4.5) ────────────────────────
+     `items` est HISSÉ hors du rendu : il servait déjà à peindre la barre, il
+     sert maintenant AUSSI à savoir quels boutons sont atteignables. Une
+     seconde table aurait divergé de la première au premier bouton éteint. */
+  var items=dzmTbCablage(dzmTbHote(o,emoji,!!emo));
+  function focusOnglet(){
+    var t=onglet.current;
+    if(t&&typeof t.focus==="function")t.focus()}
+  /* REPLIER REND TOUJOURS LE FOCUS À L'ONGLET, et pas seulement sur Échap.
+     `×` vit DANS la barre : sans cette ligne, le replier au clavier laissait
+     le focus sur un bouton passé en `visibility:hidden`, c'est-à-dire nulle
+     part — le navigateur le rend alors au `<body>` et la tabulation repart
+     du haut de l'écran. Mesuré au raisonnement sur la règle
+     `.dzm-tbar[data-off]{visibility:hidden}` de la feuille, pas à
+     l'exécution : c'est de la dette navigateur, elle est dite. */
+  /* LE FOCUS N'EST RENDU QUE S'IL ÉTAIT DANS LA BARRE (voir `dzmTbDedans`).
+     Les deux chemins de repli passent par ici, et le raccourci en a besoin :
+     il replie depuis n'importe où. */
+  function rendreFocus(){
+    var doc=(typeof document!=="undefined")?document:null;
+    if(dzmTbDedans(bar.current,doc&&doc.activeElement))focusOnglet()}
+  function replier(){setOpen(dzmTbOpenSet(!1));rendreFocus()}
+  /* LE FOCUS AU PREMIER BOUTON (§4.1), SUR LE GESTE SEULEMENT. Il passe par
+     le MÊME cœur pur que les flèches : « le premier actif » est
+     `dzmTbRove(-1, +1, …)`, pas une seconde règle. */
+  x.useEffect(function(){
+    if(vuOpen.current===null){vuOpen.current=open;return}
+    if(open&&!vuOpen.current){
+      var k=dzmTbRove(-1,1,dzmTbActifs(items));
+      if(k>=0){setRove(k);dzmTbFocus(dzmTbBoutons(bar.current),k)}}
+    vuOpen.current=open},[open]);
+  /* LE RACCOURCI (§4.1), REÇU COMME UNE DEMANDE. L'écran ne bascule pas la
+     barre : il COMPTE les demandes, exactement comme `openReq` pour la liste
+     des projets. La raison est la même — l'état d'ouverture appartient à ce
+     composant — et le compteur n'a pas d'ordre à respecter.
+     `treq<=0` GARDE LE MONTAGE : l'effet part une première fois à zéro, et
+     sans cette ligne la barre basculerait toute seule au chargement.
+     LA TOUCHE ELLE-MÊME N'EST PAS ICI : elle est déclarée dans SVM_ACTIONS
+     (patcher, section M20a), donc remappable et listée dans le panneau
+     « ? » comme les trente-deux autres. */
+  var treq=Number(o.toggleReq)||0;
+  x.useEffect(function(){
+    if(treq<=0)return;
+    var v=!openRef.current;
+    setOpen(dzmTbOpenSet(v));
+    if(!v)rendreFocus()},[treq]);
+  /* ÉCHAP ET LES FLÈCHES, SUR LA BARRE (§4.5) — ET LES DEUX NE TRAITENT PAS
+     LA PROPAGATION DE LA MÊME FAÇON. L'asymétrie est le cœur de ce bloc.
+
+     ── ÉCHAP : IL REPLIE ET REND LE FOCUS À L'ONGLET, ET IL LAISSE MONTER ──
+     L'écouteur est sur LA BARRE, pas sur `window` : il ne peut se déclencher
+     que si le focus est DANS la barre. C'est déjà ce qui empêche de voler la
+     touche aux autres panneaux partout ailleurs.
+     IL NE L'ARRÊTE PAS POUR AUTANT, et c'est une MESURE qui a corrigé la
+     première version de ce bloc : le bouton `projets` de la barre ouvre le
+     popover des projets SANS déplacer le focus, qui reste donc sur ce
+     bouton — dans la barre. Le popover ferme sur `Échap` par un écouteur
+     `window` de PHASE MONTANTE (montage.js, effet `[op]`), donc sous nous.
+     `stopPropagation` ici l'aurait étouffé : une frappe repliait la barre et
+     laissait le popover ouvert derrière, sans clavier pour le fermer.
+     C'EST AUSSI LA RÈGLE DE LA MAISON : `SVM_KEYS_INFO` décrit `Échap` comme
+     « fermer / annuler — touche fixe (panneaux, capture, flèches d'overlay) ».
+     Une touche fixe qui ferme PLUSIEURS choses ne s'accapare pas.
+     Reste assumé, dit ici : quand rien d'autre n'est ouvert, la frappe rend
+     aussi les flèches d'un overlay sélectionné à la tête de lecture. C'est
+     ce que « fermer / annuler » promet, pas un effet de bord.
+
+     ── LES FLÈCHES : ELLES, ON LES ARRÊTE ──
+     Sans quoi elles déplaceraient AUSSI la tête de lecture (`step_back` /
+     `step_fwd`) : deux gestes pour une frappe, et celui-là n'est pas un
+     « annuler » partagé, c'est une navigation qui appartient à la barre.
+     React pose son écouteur sur le conteneur racine, donc sous `window` :
+     arrêter là empêche bien l'événement natif d'y monter — c'est la mesure
+     de l'étape 5, reprise telle quelle.
+     Gauche/droite seulement, et seulement quand le focus est sur l'un des
+     onze boutons du groupe. La poignée n'y est pas — elle consomme déjà les
+     quatre flèches dans son propre `onKeyDown` et arrête leur propagation,
+     ce qui est exactement ce qui empêche un même geste d'avoir deux sens.
+     LES DEUX LONGUEURS DOIVENT S'ACCORDER : si le DOM ne rend pas autant de
+     boutons que le plan en décrit, on ne navigue pas — viser à côté au
+     clavier est pire que ne rien faire. */
+  function barKey(e){
+    if(!e)return;
+    if(e.key==="Escape"){
+      if(typeof e.preventDefault==="function")e.preventDefault();
+      replier();return}
+    var d=dzmTbRoveDir(e.key);
+    if(!d)return;
+    var l=dzmTbBoutons(bar.current),a=dzmTbActifs(items);
+    if(l.length!==a.length)return;
+    var doc=(typeof document!=="undefined")?document:null;
+    var i=dzmTbIdx(l,doc&&doc.activeElement);
+    if(i<0)return;
+    if(typeof e.preventDefault==="function")e.preventDefault();
+    if(typeof e.stopPropagation==="function")e.stopPropagation();
+    var j=dzmTbRove(i,d,a);
+    if(j<0)return;
+    setRove(j);dzmTbFocus(l,j)}
+  /* L'ACTION « emoji », RÉUTILISÉE : c'est `dzmEmojiGo`, la même fonction que
+     le bouton du bandeau appelle. La barre lui passe les trois ingrédients
+     que l'écran fournit (`emojiSegs`, `tracks`, `onEmojiAdd`) et son propre
+     couple d'attente. Elle ne calcule AUCUN temps : le placement des clips
+     appartient à `dzmEmojiClips`, comme avant. */
+  function emoji(){
+    dzmEmojiGo({segments:o.emojiSegs,tracks:o.tracks,note:o.note,
+      onAdd:o.onEmojiAdd,busy:emo,setBusy:setEmo})}
+  /* Le décalage n'est écrit dans le magasin qu'au RELÂCHEMENT : un
+     `setItem` par `pointermove` aurait écrit des centaines de fois par
+     geste, pour une seule position qui compte. */
+  function pose(res,fini){
+    setOff({dx:res.dx,dy:res.dy});
+    if(fini){setDrag(!1);dzmTbOffSet(res);fin.current=null}}
+  /* PAS DE `preventDefault` ICI, et c'est mesuré : sur `pointerdown` il
+     supprime les événements souris de compatibilité, donc le focus que ce
+     bouton doit recevoir. La sélection de texte que le §4.2 veut empêcher est
+     déjà coupée par `user-select:none` sur le corps — le remède que le §4.2
+     prescrit lui-même — et `touch-action:none` sur la poignée empêche le
+     défilement tactile. Bouton gauche seulement : un clic droit ouvre un
+     menu contextuel, il ne saisit pas. */
+  function saisir(e){
+    if(e&&e.button!=null&&e.button!==0)return;
+    var w=(typeof window!=="undefined")?window:null;
+    var doc=(typeof document!=="undefined")?document:null;
+    var geo=dzmTbGeo(bar.current,off,e);
+    if(!w||!geo)return;
+    if(fin.current)fin.current();
+    setDrag(!0);
+    fin.current=dzmTbSaisie(w,doc&&doc.body,geo,pose)}
+  /* LES FLÈCHES N'AIMANTENT PAS : le pas de 1 px du §4.5 n'aurait plus aucun
+     sens si un seuil de 12 px reprenait la main derrière lui.
+     `stopPropagation` EST NÉCESSAIRE, et c'est mesuré : l'écran écoute
+     `keydown` sur `window` et ne rend la main qu'aux `input`, `textarea`,
+     `select` et aux nœuds éditables — pas aux boutons. Sans elle, les flèches
+     déplaceraient la barre ET la tête de lecture. React pose son écouteur sur
+     le conteneur racine, donc sous `window` : arrêter la propagation là
+     empêche bien l'événement natif d'y monter. */
+  function clavier(e){
+    var p=dzmTbTouche(e&&e.key,e&&e.shiftKey===!0);
+    if(!p)return;
+    if(typeof e.preventDefault==="function")e.preventDefault();
+    if(typeof e.stopPropagation==="function")e.stopPropagation();
+    var geo=dzmTbGeo(bar.current,off,null);
+    var res=dzmTbBorne({bar:geo&&geo.bar,cont:geo&&geo.cont,
+      dx:off.dx,dy:off.dy,mx:p.mx,my:p.my,aim:!1});
+    setOff({dx:res.dx,dy:res.dy});dzmTbOffSet(res)}
+  /* `⌖` REMET `dx = dy = 0`, SANS PINCER (§4.2, au mot). C'est le filet de
+     sécurité : sa sortie doit être la même à tous les coups, quelle que soit
+     la mise en page du moment. L'ancrage est par construction dans la
+     timeline — il est posé par la feuille sous le bandeau. */
+  function recentrer(){setOff(dzmTbOffSet({dx:0,dy:0}))}
+  return r.jsx(r.Fragment,{children:[
+    DzmToolTab({open:open,onToggle:bascule,tabRef:onglet,keyLbl:o.keyLbl}),
+    DzmToolBar({open:open,anim:anim,off:off,drag:drag,barRef:bar,
+      items:items,rove:rove,onBarKey:barKey,
+      onGrab:saisir,onGripKey:clavier,
+      onRecentrer:recentrer,
+      onClose:replier})]})}
+
+
+/* ══ ÉTAPE 6 DU HANDOFF « BARRE OUTILS FLOTTANTE » — §5 ═══════════════════
+   LE BANDEAU REDISTRIBUÉ : ce qui l'a quitté (§5.1), et ce qui se dégrade
+   quand il n'a plus la largeur (§5.3).
+
+   AUCUN DES NEUF NE DISPARAÎT DE L'ÉCRAN. Ils sont câblés dans la barre
+   flottante depuis l'étape 7 — `dzmTbCablage` rend les neuf avec un `act`
+   non nul dès que l'écran fournit ses fonctions — et le défaut de la barre
+   passe à « ouverte » DANS CETTE MÊME ÉTAPE, pour qu'un utilisateur qui n'a
+   jamais touché l'onglet les ait sous les yeux au premier chargement.
+
+   ── LA PLACE RENDUE, ET SON PROTOCOLE. Sans navigateur on ne mesure pas
+   des pixels, on les DÉRIVE — le protocole est donc écrit, pas sous-entendu:
+   • chaque contrôle retiré est un bouton mono à 10 px ; l'avance de
+     JetBrains Mono (`--f-mono`) vaut 600/1000 d'em, soit 6,0 px par
+     caractère à 10 px. C'est une métrique de la fonte, pas une estimation ;
+   • la boîte est `border-box` (deepotus.tokens.css l.88 ET
+     son-vfx-montage.css l.56, les deux) : largeur = caractères
+     + rembourrage horizontal + les deux filets de 1 px ;
+   • l'intervalle que le nœud rendait est compté AVEC lui : 12 px pour un
+     enfant direct du bandeau (`gap:12px`, son-vfx-montage.css l.306), la
+     valeur du groupe pour les autres — 5 px dans `.dzm-add`, 4 px puis
+     2 px dans `.dzm-wa` (montage.css l.32, l.89, l.93).
+   RÉSERVE DITE : c'est une largeur NOMINALE. Une fonte de repli (Consolas,
+   0,55 em) en rendrait moins, une fonte système un peu plus. L'ordre de
+   grandeur ne dépend pas de la fonte — c'est plus de la moitié d'un bandeau
+   de 1 280 px — mais le chiffre exact, lui, en dépend, et il est écrit ici
+   pour pouvoir être contredit par une mesure. */
+var DZM_BD_PX_CAR=6;
+var DZM_BD_PX_BRD=2;
+function dzmBdPx(e){
+  var o=e||{};
+  if(typeof o.px==="number"&&isFinite(o.px))return o.px;
+  return String(o.lbl||"").length*DZM_BD_PX_CAR
+    +(Number(o.pad)||0)+DZM_BD_PX_BRD}
+
+/* LES DIX NŒUDS QUI ONT QUITTÉ LE BANDEAU (§5.1) : les neuf contrôles
+   (`ctl`) plus l'étiquette `mot`, que le §5.1 nomme elle aussi
+   (« l'étiquette MOT et ses trois options »). `lbl` est le libellé RÉEL du
+   bouton, celui que le composant écrit ; le banc les rapproche des deux
+   côtés, sans quoi cette table dériverait en silence de ce qu'elle décrit.
+   L'étiquette `mot` est le seul `px` en dur : 9 px avec `letter-spacing`
+   .06em sur trois caractères = 3 × (5,4 + 0,54) = 17,8, arrondi à 18. */
+var DZM_BD_RETIRES=[
+  {id:"piste-video",  ctl:!0, lbl:"+ piste vidéo", pad:16, gap:12},
+  {id:"piste-audio",  ctl:!0, lbl:"+ piste audio", pad:16, gap:5},
+  {id:"bibliotheque", ctl:!0, lbl:"Bibliothèque…", pad:16, gap:12},
+  {id:"mot",                  lbl:"mot",   px:18,          gap:12},
+  {id:"couleur",      ctl:!0, lbl:"couleur",       pad:14, gap:4},
+  {id:"rebond",       ctl:!0, lbl:"rebond",        pad:14, gap:2},
+  {id:"glow",         ctl:!0, lbl:"glow",          pad:14, gap:2},
+  {id:"emoji",        ctl:!0, lbl:"emoji",         pad:16, gap:12},
+  {id:"texte",        ctl:!0, lbl:"texte",         pad:16, gap:12},
+  {id:"projets",      ctl:!0, lbl:"projets",       pad:16, gap:12}];
+/* PURE, et c'est ce qui rend le chiffre rejouable : le banc le RECALCULE au
+   lieu de le recopier. `n` compte les CONTRÔLES — il doit valoir neuf, et le
+   banc l'exige : une table amputée d'une ligne rendrait un total plus petit
+   sans que rien ne le dise. */
+function dzmBdRetire(t){
+  var l=(t&&t.length)?t:DZM_BD_RETIRES,px=0,n=0,i,e;
+  for(i=0;i<l.length;i++){e=l[i];
+    px+=dzmBdPx(e)+(Number(e.gap)||0);
+    if(e.ctl===!0)n++}
+  return {px:px,n:n,nb:l.length}}
+
+/* ── §5.3 : LA DÉGRADATION EN LARGEUR RÉDUITE ─────────────────────────────
+   « Le bandeau ne doit JAMAIS passer sur deux lignes ni provoquer de
+   défilement horizontal. » Les deux moitiés ne coûtent pas la même chose :
+   • DEUX LIGNES — le bandeau est un conteneur flex sans `flex-wrap`, donc
+     `nowrap` par défaut ; la feuille l'écrit quand même, en VERROU, comme
+     elle écrit déjà `overflow:visible` pour l'onglet ;
+   • DÉFILEMENT — le bandeau ne défile pas non plus : il est en
+     `overflow:visible`, et `.dzsvm` rogne au bord de la fenêtre. Ce qui
+     dépasse n'est donc pas défilable, il est INVISIBLE. C'est le vrai mode
+     de panne de cet écran-ci, et c'est celui que l'échelle réduit.
+
+   L'ORDRE DE SACRIFICE DU §5.3, ADAPTÉ À CE QUI EXISTE — l'adaptation est
+   dite rang par rang, et chaque rang garde le PRINCIPE de celui du §5.3 :
+   1. §5.3 : « le contrôle de mix inline se réduit à son bouton panneau son ».
+      N'existe pas — ni mix inline ni panneau son, mesurés à zéro dans le
+      bundle. Le principe est « ce qui n'est là que par commodité, et dont la
+      version complète vit ailleurs, part le premier ». Dans ce bandeau c'est
+      la bande de RAPPELS de raccourcis : purement informative, déjà
+      refermable à la main par sa croix, et le panneau « ? » juste à côté en
+      dit plus qu'elle.
+   2. §5.3 : « les libellés des outils de coupe passent en icônes seules avec
+      infobulles ». Applicable AU MOT PRÈS : `aimanter`, `lame · <combo>` et
+      `ripple` portent déjà chacun un `title` en clair — l'exigence « ne pas
+      livrer un mode compact sans infobulles » (§2.3) est donc remplie sans
+      rien ajouter. La chip des sous-titres, quatrième de la même rangée,
+      NE SUIT PAS : le §5.3 la protège, et ses deux compteurs seraient
+      illisibles en glyphe.
+   3. §5.3 : « le bloc d'édition se replie dans un menu ⋯ ». Ce bloc n'existe
+      pas (`couper`, `coller`, `scinder`, `supprimer` : zéro dans le bundle,
+      et le §5.2 les demande NEUFS — hors de cette étape). Le principe est
+      « un bloc dont la version complète est un panneau se replie » : c'est
+      ici le métering maître, dont la rangée MIXAGE est le panneau.
+   4. §5.3 : « le timecode perd sa durée totale ». Applicable au mot : la
+      durée totale est un nœud à elle, dans le timecode.
+   NE SE DÉGRADENT JAMAIS (rang 0, §5.3 au mot) : le transport, les
+   sous-titres, le zoom et l'onglet OUTILS. L'annulation / rétablissement non
+   plus — c'est du transport pour la main qui la cherche.
+
+   LE CŒUR EST PUR, et c'est la seule façon de mesurer « jamais deux lignes »
+   sans navigateur : largeur disponible + largeurs des blocs → ce qui tombe.
+   L'hôte, plus bas, ne fait que MESURER et POSER ; il ne décide rien. */
+var DZM_BD_GAP=12;
+var DZM_BD_PX_SEP=13;
+var DZM_BD_PX_PAD=28;
+var DZM_BD_RANGS=[
+  {id:"hints",   rang:1, sel:".svm-hints",     esp:12},
+  {id:"coupe",   rang:2, sel:".svm-toolchips", esp:0, serre:!0},
+  {id:"metre",   rang:3, sel:".svm-meterslot", esp:25},
+  {id:"tctotal", rang:4, sel:".svm-tctotal",   esp:0}];
+/* La largeur d'un outil de coupe en ICÔNE SEULE, fixée PAR LA FEUILLE et non
+   devinée ici : 4 + 11 + 4 de rembourrage et de glyphe, plus les deux
+   filets. Le banc exige que /shared/montage.css porte bien ces trois
+   nombres — sans quoi cette constante mentirait sur ce que le navigateur
+   dessine, et la dégradation viserait à côté. */
+var DZM_BD_PX_ICONE=21;
+var DZM_BD_ATTR="data-bdoff";
+
+/* dzmBdPlan(dispo, blocs) → {niveau, off, besoin, ok}
+   `blocs` : [{id, px, rang}] — `px` mesuré par l'hôte, `rang` 0 pour ce qui
+   ne se sacrifie jamais. Le retour dit CE QUI TOMBE (`off`, dans l'ordre du
+   sacrifice), ce qu'il reste à porter (`besoin`) et si ça tient (`ok`).
+   `ok:!1` N'EST PAS UNE ERREUR MAIS UN AVEU : quand même le dernier rang ne
+   suffit pas, la fonction rend le plan le plus serré qu'elle sache ET dit
+   qu'il déborde. Une fonction qui aurait tu ce cas aurait promis une
+   garantie qu'elle ne tient pas.
+   ELLE NE MUTE RIEN : `cand` est un tableau NEUF, sans quoi le tri
+   réordonnerait la table de l'appelant — et l'ordre du §5.3 avec elle.
+   LE TRI EST TOTAL (rang, puis rang d'apparition) : deux blocs de même rang
+   tomberaient sinon dans un ordre que le moteur choisit. */
+function dzmBdPlan(dispo,blocs){
+  var l=(blocs&&blocs.length)?blocs:[];
+  var d=(typeof dispo==="number"&&isFinite(dispo))?dispo:0;
+  var cand=[],besoin=0,i,b,r,w;
+  for(i=0;i<l.length;i++){
+    b=l[i];
+    w=Math.max(0,Number(b&&b.px)||0);
+    besoin+=w;
+    r=Number(b&&b.rang)||0;
+    if(r>0)cand.push({id:b.id,rang:r,px:w,i:i})}
+  cand.sort(function(a,c){return a.rang===c.rang?a.i-c.i:a.rang-c.rang});
+  var off=[],niveau=0;
+  for(i=0;i<cand.length&&besoin>d;i++){
+    off.push(cand[i].id);
+    besoin-=cand[i].px;
+    niveau=cand[i].rang}
+  return {niveau:niveau,off:off,besoin:besoin,ok:besoin<=d}}
+
+/* ── L'HÔTE : MESURER, PUIS POSER ─────────────────────────────────────────
+   Tout ce qui suit touche le DOM et ne se joue pas sous node — c'est assumé,
+   et c'est pour cela que la DÉCISION n'y est pas. Il mesure des largeurs
+   NATURELLES (`scrollWidth` quand le nœud est déjà comprimé par
+   `text-overflow`), garde en mémoire celle d'un bloc déjà sacrifié — sinon
+   elle vaudrait zéro et l'échelle ne remonterait jamais quand la fenêtre
+   s'élargit — et écrit UNE chaîne sur le bandeau, que la feuille lit par
+   `~=`. Le bandeau appartient au bundle : on n'y ajoute aucun nœud, et
+   l'attribut posé n'est géré par React nulle part, donc rien ne l'efface. */
+function dzmBdLarg(el){
+  if(!el)return 0;
+  var a=Number(el.offsetWidth)||0,b=Number(el.scrollWidth)||0;
+  return Math.max(a,b)}
+/* Les nœuds HORS FLUX du bandeau — l'onglet, la barre, et la liste des
+   projets montée nue — ne prennent ni largeur ni intervalle. */
+var DZM_BD_HORS=".dzm-tbtab,.dzm-tbar,.dzm-proj";
+/* LES BLOCS QUI PORTENT UN FILET (§5.2) — la feuille leur donne 13 px de
+   marge en plus du `gap`, et ces 13 px comptent dans la largeur.
+   `.svm-hints` N'Y EST PAS : il est en `overflow:hidden`, un filet en
+   pseudo-élément y serait rogné, la feuille ne le lui dessine donc pas et
+   il n'a pas la marge. `.svm-zoom` non plus : son `margin-left:auto` EST
+   l'intercalaire du §5.2, le filet s'y pose sans marge. */
+var DZM_BD_SEP=".svm-transbtns,.svm-toolchips,.svm-meterslot";
+function dzmBdEst(el,sel){
+  if(!el||typeof el.matches!=="function")return !1;
+  try{return el.matches(sel)}catch(e){return !1}}
+function dzmBdOff(bd){
+  var v="";
+  try{v=(bd&&typeof bd.getAttribute==="function"
+    &&bd.getAttribute(DZM_BD_ATTR))||""}catch(e){v=""}
+  return " "+v+" "}
+function dzmBdSomme(l){
+  var t=0,i;
+  for(i=0;i<(l||[]).length;i++)t+=Math.max(0,Number(l[i].px)||0);
+  return t}
+function dzmBdMesure(bd,mem){
+  if(!bd||typeof bd.querySelector!=="function")return null;
+  var m=mem||{},dej=dzmBdOff(bd);
+  var kids=bd.children||[],cour=0,nv=0,i,el,w;
+  for(i=0;i<kids.length;i++){
+    el=kids[i];
+    if(dzmBdEst(el,DZM_BD_HORS))continue;
+    w=dzmBdLarg(el);
+    if(w<=0)continue;
+    nv++;cour+=w;
+    if(dzmBdEst(el,DZM_BD_SEP))cour+=DZM_BD_PX_SEP}
+  cour+=Math.max(0,nv-1)*DZM_BD_GAP;
+  var blocs=[],plein=cour,j,rg,cible,g;
+  for(j=0;j<DZM_BD_RANGS.length;j++){
+    rg=DZM_BD_RANGS[j];
+    if(dej.indexOf(" "+rg.id+" ")>=0){
+      g=Math.max(0,Number(m[rg.id])||0);
+      plein+=g}
+    else{
+      cible=bd.querySelector(rg.sel);
+      w=dzmBdLarg(cible);
+      g=rg.serre?Math.max(0,w-3*DZM_BD_PX_ICONE):(w>0?w+rg.esp:0);
+      if(g>0)m[rg.id]=g}
+    blocs.push({id:rg.id,rang:rg.rang,px:g})}
+  blocs.push({id:"reste",rang:0,
+    px:Math.max(0,plein-dzmBdSomme(blocs))});
+  return {dispo:Math.max(0,(Number(bd.clientWidth)||0)-DZM_BD_PX_PAD),
+    plein:plein,blocs:blocs,mem:m}}
+function dzmBdPose(bd,plan){
+  if(!bd||!plan||typeof bd.setAttribute!=="function")return null;
+  var v=(plan.off||[]).join(" ");
+  try{
+    if(bd.getAttribute(DZM_BD_ATTR)===v)return v;
+    if(v)bd.setAttribute(DZM_BD_ATTR,v);
+    else bd.removeAttribute(DZM_BD_ATTR)}
+  catch(e){return null}
+  return v}
+/* Le tour complet, pour que le Dock n'ait qu'une ligne à appeler. */
+function dzmBdTour(bd,mem){
+  var q=dzmBdMesure(bd,mem);
+  if(!q)return null;
+  var plan=dzmBdPlan(q.dispo,q.blocs);
+  dzmBdPose(bd,plan);
+  return {plan:plan,mesure:q}}
+
 /* ── export contrat ───────────────────────────────────────────────────────── */
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
@@ -14417,10 +17153,50 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   replaceBtn:dzmReplaceBtn,revertBtn:dzmRevertBtn,
   newerLine:dzmNewerLine,NewerHint:DzmNewerHint,
   move:dzmMove,moveTo:dzmMoveTo,add:dzmAdd,remove:dzmRemove,group:dzmGroup,
-  clipsOn:dzmClipsOn,emojiClips:dzmEmojiClips,WORD_ANIMS:DZM_WORD_ANIMS,
+  clipsOn:dzmClipsOn,emojiClips:dzmEmojiClips,emojiGo:dzmEmojiGo,
+  EMO_TITRE:DZM_EMO_TITRE,WORD_ANIMS:DZM_WORD_ANIMS,
   fitDur:dzmFitDur,durCtl:dzmDurCtl,secs:dzmSecs,DUR_MIN:DZM_DUR_MIN,
   clipLen:dzmClipLen,needDur:dzmNeedDur,askDur:dzmAskDur,
+  dialogueTrack:dzmDialogueTrack,trackPlein:dzmTrackPlein,wantsTwin:dzmWantsTwin,
+  audioOf:dzmAudioOf,audioSet:dzmAudioSet,audioForget:dzmAudioForget,
+  askAudio:dzmAskAudio,srcDurOr:dzmSrcDurOr,srcKey:dzmSrcKey,
+  uniqueId:dzmUniqueId,dedupeIds:dzmDedupeIds,seqMax:dzmSeqMax,
+  twinClip:dzmTwinClip,twinPlan:dzmTwinPlan,extract:dzmExtract,
+  extractBtn:dzmExtractBtn,overlayNote:dzmOverlayNote,
+  subsSources:dzmSubsSources,subsLabel:dzmSubsLabel,
+  subsTrDefaut:dzmSubsTrDefaut,subsTrBody:dzmSubsTrBody,
+  subsTrEnabled:dzmSubsTrEnabled,subsTrLabel:dzmSubsTrLabel,
+  subsTrTitle:dzmSubsTrTitle,subsTrNote:dzmSubsTrNote,
+  subsTrApply:dzmSubsTrApply,
+  isOverlayTrack:dzmIsOverlayTrack,overlayOrder:dzmOverlayOrder,
+  addDit:dzmAddDit,
   CLIP_DEFAUTS:DZM_CLIP_DEFAUTS,DUR_DELAI:DZM_DUR_DELAI,
+  tbTraces:DZM_TB_TRACES,tbIcons:DZM_TB_ICONS,tbParse:dzmTbParse,
+  tbSerial:dzmTbSerial,TbIcon:DzmTbIcon,ToolBtn:DzmToolBtn,
+  TB_GROUPES:DZM_TB_GROUPES,TB_PX:DZM_TB_PX,TB_PX_GRIP:DZM_TB_PX_GRIP,
+  TB_PLAN:DZM_TB_PLAN,TB_CLE_OPEN:DZM_TB_CLE_OPEN,TB_ID:DZM_TB_ID,
+  tbOpenGet:dzmTbOpenGet,tbOpenSet:dzmTbOpenSet,tbCablage:dzmTbCablage,tbFrame:dzmTbFrame,
+  tbHote:dzmTbHote,tbUndo:dzmTbUndo,TB_EFFETS:DZM_TB_EFFETS,
+  TB_H_TXT:DZM_TB_H_TXT,
+  tbBorne:dzmTbBorne,tbBoite:dzmTbBoite,tbPince:dzmTbPince,
+  tbSaisie:dzmTbSaisie,tbTouche:dzmTbTouche,tbGeo:dzmTbGeo,
+  tbRecadre:dzmTbRecadre,tbVeille:dzmTbVeille,
+  tbRove:dzmTbRove,tbRoveSain:dzmTbRoveSain,tbRoveDir:dzmTbRoveDir,
+  tbActifs:dzmTbActifs,tbNbAct:dzmTbNbAct,tbIdx:dzmTbIdx,tbFocus:dzmTbFocus,
+  tbDedans:dzmTbDedans,
+  tbBoutons:dzmTbBoutons,tbCombo:dzmTbCombo,
+  TB_SEL_ROVE:DZM_TB_SEL_ROVE,TB_A_BARRE:DZM_TB_A_BARRE,
+  TB_ROVE_DIRS:DZM_TB_ROVE_DIRS,
+  tbConteneur:dzmTbConteneur,tbTete:dzmTbTete,tbAncetre:dzmTbAncetre,
+  tbOffGet:dzmTbOffGet,tbOffSet:dzmTbOffSet,TB_CLE_OFF:DZM_TB_CLE_OFF,
+  TB_MARGE:DZM_TB_MARGE,TB_AIMANT:DZM_TB_AIMANT,TB_PAS:DZM_TB_PAS,
+  TB_PAS_FIN:DZM_TB_PAS_FIN,TB_CL_DRAG:DZM_TB_CL_DRAG,
+  ToolTab:DzmToolTab,ToolBar:DzmToolBar,ToolDock:DzmToolDock,tsOr:dzmTsOr,
+  bdRetires:DZM_BD_RETIRES,bdRetire:dzmBdRetire,bdPx:dzmBdPx,
+  bdPlan:dzmBdPlan,BD_RANGS:DZM_BD_RANGS,BD_PX_ICONE:DZM_BD_PX_ICONE,
+  BD_ATTR:DZM_BD_ATTR,BD_PX_CAR:DZM_BD_PX_CAR,BD_PX_SEP:DZM_BD_PX_SEP,
+  BD_GAP:DZM_BD_GAP,BD_SEP:DZM_BD_SEP,BD_HORS:DZM_BD_HORS,
+  bdMesure:dzmBdMesure,bdPose:dzmBdPose,bdTour:dzmBdTour,bdLarg:dzmBdLarg,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;
 

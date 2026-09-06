@@ -69,6 +69,31 @@ ete en P8.
       lui aussi entrer a sa longueur. Le piege de [4] ne la concerne pas —
       elle lit `format=duration`, pas `codec_type`, et un PNG y rend « N/A »,
       donc 0.0 : « je ne sais pas », jamais une duree inventee.
+  [7-bis] P12 — `GET /has-audio`, ajoutee le 06/09/2026 : « cette source
+      porte-t-elle un flux audio ? », durée en prime. ECART AU PLAN,
+      DECLARE : le plan la voulait dans test_montage_sources.py « sur un
+      .mp4 lavfi AVEC et SANS flux audio (motif de test_detect_silences_on_
+      a_built_file) ». Ce test EXISTE — backend/tests/test_transcribe_
+      service.py:376, pytest, un .wav lavfi (ton / silence / ton) construit
+      dans un dossier temporaire — et son MOTIF, la construction lavfi
+      d'une fixture jetable, est exactement ce que CE banc fait deja avec
+      `plan.mp4` (testsrc + sine 330 Hz : AVEC audio) et `quatre_couleurs.
+      mp4` (concat `a=0` : SANS audio), a cote de la section [7] dont la
+      route reprend le motif ; test_montage_sources.py, lui, ne fabrique
+      aucun media (`_run_ffmpeg` remplace par un talon, fixtures ecrites
+      par `write_bytes`). La premiere version de ce paragraphe, et le
+      paragraphe A du message du commit a30f6f3, affirmaient a tort « ce
+      test n'existe dans aucun banc (0 occurrence) » : la mesure avait ete
+      faite sur les seuls bancs test_montage_*, pas sur backend/tests.
+      La sonde est `_has_audio_stream`, LA fonction que la construction de
+      timeline et le rendu appellent — et c'est ce qui rend la mutation MA1
+      (inverser `bool(out)`) TROP LARGE par construction : elle rougit les
+      lignes de [7-bis] ET trois lignes de test_montage_pistes_rendu.py, la
+      fonction etant partagee (table MA ci-dessous, mesuree). Le fichier de
+      0 OCTET (`vide.mp4`) est le cas reel de la sauvegarde de l'utilisateur
+      (`demo complete videogen brute.mp4`, job f331277e) : 200, faux, dur 0
+      — c'est `dur` qui permet a l'ecran de dire « non sondable » et non
+      « muet ».
   [5] LE PIEGE PRINCIPAL DE LA TACHE — LE JOB DE PROXY N'EST PAS UN PLAN.
       `POST /proxy` cree un `JobRecord provider="montage_proxy"` ; or
       `montage_project` n'excluait que `provider == "montage"` porteur de
@@ -246,6 +271,42 @@ vertes de reference : media 67/0, sources 67/0, remplacer 99/0.
           media 66/1 : route_strip_sert_bien_468x44. C'est la mutation que
           l'ancienne forme de cette ligne (`content[:2] == JPEG`) laissait
           passer : elle ne regardait pas les dimensions qu'elle nomme.
+
+  LES DEUX DE P12 ([7-bis], `GET /has-audio`), mesurees le 06/09/2026 sur
+  la version COURANTE (ligne verte de reference : media 88/0,
+  pistes_rendu 33/0, sources 67/0), fichier restaure et sha256 verifie.
+  MA1  `_has_audio_stream` rend `not bool(out)` (le verdict inverse)
+          media 81/7 : les SEPT lignes route_has_audio_* qui lisent un
+          verdict (vrai_sur_une_video_qui_a_du_son, faux_sur_une_video_
+          muette, rend_la_meme_sonde_que_le_rendu, accepte_un_son_et_dit_
+          vrai, une_image_repond_faux_et_zero_sans_echouer, un_fichier_
+          vide_repond_faux_et_zero_sans_echouer, la_duree_en_prime_est_au_
+          millieme) — les trois 404 et le 403 restent verts, ils ne lisent
+          pas le verdict ; pistes_rendu 30/3 : route_musique_audible_
+          seule_3s, route_voix_plus_forte_que_musique, route_musique_
+          duckee_pendant_la_voix ; sources 67/0. TROP LARGE PAR CONSTRUCTION,
+          et c'est le point : la fonction est PARTAGEE avec la garde du rendu
+          (un clip audio dont la source est une video sans flux est saute),
+          donc le meme mensonge rougit les deux bancs.
+  MA2  la route rend `has_audio: True` sans sonder
+          media 84/4 : faux_sur_une_video_muette, rend_la_meme_sonde_que_le_
+          rendu, une_image_repond_faux_et_zero_sans_echouer, un_fichier_
+          vide_repond_faux_et_zero_sans_echouer (les quatre lignes qui
+          attendent FAUX) ; pistes_rendu 33/0, sources 67/0 — rien ailleurs.
+          C'est la ligne qui separe « la route lit la sonde » de « la route
+          repond oui ».
+  LES DEUX DU TOUR 2 (06/09/2026, memes conditions) :
+  MA3  la route est ABSENTE du routeur (`/has-audio` renommee)
+          media 76/12 : les sept lignes de verdict, les TROIS 404 — grace au
+          conjoint « Source introuvable » ajoute au tour 2 : sans lui elles
+          restaient VERTES, FastAPI rendant 404 `{"detail":"Not Found"}` sur
+          une route inconnue (faute n°2, assertion sans conjoint) —, le 403
+          et `aucun_appel_n_a_plante`.
+  MA4  `_media_source` leve 404 « Not Found » au lieu de « Source introuvable
+          pour ce precalcul. »
+          media 85/3 : EXACTEMENT les trois 404 de [7-bis], rien ailleurs.
+          C'est la ligne qui separe « la route passe par _media_source » de
+          « la route rend 404 ».
 
 LA LECON GENERALE DE CE BANC, ET ELLE VAUT POUR TOUT LE CHANTIER : UN TEMOIN
 DISTINGUABLE SE RETOURNE CONTRE TOUTE ASSERTION D'INEGALITE. Les gardes
@@ -747,6 +808,16 @@ SH([FF, "-y", "-v", "error",
     "-f", "lavfi", "-i", "color=c=white:s=320x240:r=25:d=1",
     "-filter_complex", "[0:v][1:v][2:v][3:v]concat=n=4:v=1:a=0[v]",
     "-map", "[v]", "-pix_fmt", "yuv420p", V4C])
+
+# UN FICHIER DE 0 OCTET — le cas REEL de la sauvegarde de l'utilisateur :
+# `demo complete videogen brute.mp4` (job f331277e) fait 0 octet sur disque
+# (mesure le 06/09/2026, base en copie `mode=ro`, dossier lu seulement). Il
+# EXISTE (`_resolve_src` le rend), ffprobe n'y lit ni flux ni duree : la
+# route doit repondre 200, `has_audio: false` ET `dur: 0` — c'est `dur` qui
+# permet a l'ecran de dire « non sondable » plutot que « muet ». Hors de la
+# garde `_manquants` ci-dessous : il est vide EXPRES.
+VIDE = str(LIB / "vide.mp4")
+GARDE(lambda: pathlib.Path(VIDE).write_bytes(b""), "ecriture du .mp4 vide")
 
 # LA GARDE DES FIXTURES, et il en faut une : tout ce banc repose sur cinq
 # fichiers fabriques par ffmpeg. S'ils manquent, les quarante lignes qui
@@ -1309,6 +1380,104 @@ check("route_duration_404_sans_src", r.status_code == 404,
 r = api("GET", "/api/montage/duration?src=" + Q({"file_path": V1}),
         client=("10.0.0.5", 4242))
 check("route_duration_403_hors_boucle_locale", r.status_code == 403,
+      f"{r.status_code} {r.text[:120]}")
+
+
+print("\n[7-bis] P12 — GET /has-audio : « cette source a-t-elle du son ? », "
+      "duree en prime.")
+# POURQUOI CETTE ROUTE EXISTE, MESURE PLUTOT QUE SUPPOSE : le rendu n'entre
+# JAMAIS l'audio embarque d'un clip video dans le graphe ffmpeg ([idx:v]
+# seul) — sans clip jumeau sur la piste de dialogue, un plan parlant sort
+# muet. La construction automatique pose ce jumeau depuis `_has_audio_stream`
+# ; l'ecran, lui, n'avait AUCUNE route pour le savoir (/duration lit
+# `format=duration`, /media-rules une liste d'extensions, /peaks decode tout
+# et rend 415 sur une video muette). Le `kapwing_sample.mp4` de l'utilisateur
+# (aac, 15,973 s) est sur V1 de sa sauvegarde SANS jumeau.
+# AVEC AUDIO : plan.mp4 porte une sinusoide a 330 Hz. Le conjoint `name` et
+# la duree (celle de /duration, au millieme) empechent un 404 ou un 415 de
+# verdir cette ligne.
+r = api("GET", "/api/montage/has-audio?src=" + Q({"file_path": V1}))
+d8 = J(r)
+check("route_has_audio_vrai_sur_une_video_qui_a_du_son",
+      r.status_code == 200 and d8.get("has_audio") is True
+      and d8.get("name") == "plan.mp4" and abs(d8.get("dur", -1) - 4.0) < 0.1,
+      f"{r.status_code} {d8}")
+# SANS AUDIO : quatre_couleurs.mp4 est un concat `a=0` — aucun flux. `false`
+# et non une erreur : la source existe, c'est son contenu qui est muet.
+# L'ecran distingue ce « muet mesure » d'un « muet faute de reponse ».
+r = api("GET", "/api/montage/has-audio?src=" + Q({"file_path": V4C}))
+d8b = J(r)
+check("route_has_audio_faux_sur_une_video_muette",
+      r.status_code == 200 and d8b.get("has_audio") is False
+      and d8b.get("name") == "quatre_couleurs.mp4"
+      and abs(d8b.get("dur", -1) - 4.0) < 0.1,
+      f"{r.status_code} {d8b}")
+# LA MEME SONDE QUE LE RENDU, pas une seconde : la route rend EXACTEMENT ce
+# que `_has_audio_stream` rend sur les deux fichiers — et les deux valeurs
+# DIFFERENT (conjoint : une sonde qui rendrait toujours vrai ne passe pas).
+_ha_v1 = M._has_audio_stream(pathlib.Path(V1))
+_ha_v4 = M._has_audio_stream(pathlib.Path(V4C))
+check("route_has_audio_rend_la_meme_sonde_que_le_rendu",
+      _ha_v1 is True and _ha_v4 is False
+      and d8.get("has_audio") == _ha_v1 and d8b.get("has_audio") == _ha_v4,
+      f"sonde v1={_ha_v1} v4c={_ha_v4} route={d8.get('has_audio')}/"
+      f"{d8b.get('has_audio')}")
+# `video=False`, COMME /duration : un SON porte un flux audio, la question a
+# un sens pour lui aussi (un .wav pose sur une piste video, mesure supporte
+# par le pre-vol) ; strip et proxy le refuseraient en 415.
+r = api("GET", "/api/montage/has-audio?src=" + Q({"file_path": MUS}))
+d8c = J(r)
+check("route_has_audio_accepte_un_son_et_dit_vrai",
+      r.status_code == 200 and d8c.get("has_audio") is True
+      and abs(d8c.get("dur", -1) - 6.0) < 0.1,
+      f"{r.status_code} {d8c}")
+# UNE IMAGE n'a aucun flux `a` : faux, dur 0, 200 — la verite, pas une erreur.
+r = api("GET", "/api/montage/has-audio?src=" + Q({"file_path": PNG}))
+d8d = J(r)
+check("route_has_audio_une_image_repond_faux_et_zero_sans_echouer",
+      r.status_code == 200 and d8d.get("has_audio") is False
+      and d8d.get("dur") == 0 and d8d.get("name") == "carton.png",
+      f"{r.status_code} {d8d}")
+# UN FICHIER DE 0 OCTET (le `demo complete videogen brute.mp4` de la
+# sauvegarde de l'utilisateur) : la source RESOUT, ffprobe ne lit rien —
+# 200, faux, dur 0, le nom. Le conjoint `d8b.dur > 0` (quatre_couleurs, la
+# video MUETTE, 4 s) est ce qui separe « non sondable » de « muet » : les
+# deux repondent faux, seul `dur` differe, et l'ecran lit `dur`.
+r = api("GET", "/api/montage/has-audio?src=" + Q({"file_path": VIDE}))
+d8f = J(r)
+check("route_has_audio_un_fichier_vide_repond_faux_et_zero_sans_echouer",
+      r.status_code == 200 and d8f.get("has_audio") is False
+      and d8f.get("dur") == 0 and d8f.get("name") == "vide.mp4"
+      and d8b.get("dur", 0) > 0,
+      f"{r.status_code} {d8f} muette_dur={d8b.get('dur')}")
+# LA DUREE EN PRIME EST CELLE DE /duration, au millieme (vingt_et_un.wav :
+# 21,233, pas 21) — le client s'en sert pour poser le clip a sa longueur sans
+# second aller-retour.
+r = api("GET", "/api/montage/has-audio?src=" + Q({"file_path": FRAC}))
+d8e = J(r)
+check("route_has_audio_la_duree_en_prime_est_au_millieme",
+      r.status_code == 200 and d8e.get("dur") == 21.233
+      and d8e.get("has_audio") is True,
+      f"{r.status_code} {d8e}")
+# LES TROIS 404 ET LE 403, par `_media_source` — jamais une seconde liste.
+# LE CONJOINT « Source introuvable » (tour 2) est le detail que `_media_source`
+# porte : une route ABSENTE du routeur rend 404 aussi (`{"detail":"Not
+# Found"}`), et ces trois lignes resteraient vertes sans lui — table MA3.
+r = api("GET", "/api/montage/has-audio?src=" + Q({"job_id": "inexistant"}))
+check("route_has_audio_404_source_inconnue",
+      r.status_code == 404 and "Source introuvable" in r.text,
+      f"{r.status_code} {r.text[:160]}")
+r = api("GET", "/api/montage/has-audio?src=pas-du-json")
+check("route_has_audio_404_src_illisible",
+      r.status_code == 404 and "Source introuvable" in r.text,
+      f"{r.status_code} {r.text[:160]}")
+r = api("GET", "/api/montage/has-audio")
+check("route_has_audio_404_sans_src",
+      r.status_code == 404 and "Source introuvable" in r.text,
+      f"{r.status_code} {r.text[:160]}")
+r = api("GET", "/api/montage/has-audio?src=" + Q({"file_path": V1}),
+        client=("10.0.0.5", 4242))
+check("route_has_audio_403_hors_boucle_locale", r.status_code == 403,
       f"{r.status_code} {r.text[:120]}")
 
 

@@ -7,6 +7,21 @@
   <link rel="stylesheet" href="vectorlab.css"/>
 </head>
 <body>
+  <svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true">
+    <symbol id="t-select" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7"></rect></symbol>
+    <symbol id="t-pen" viewBox="0 0 24 24"><path d="M3 12h7l4-5v10l-4-5H3z"></path><circle cx="18.5" cy="12" r="3.2"></circle></symbol>
+    <symbol id="t-rect" viewBox="0 0 24 24"><rect x="3.5" y="7" width="17" height="10" fill="none" stroke="currentColor" stroke-width="1.7"></rect></symbol>
+    <symbol id="t-ellipse" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4" fill="none" stroke="currentColor" stroke-width="1.7"></circle></symbol>
+    <symbol id="t-line" viewBox="0 0 24 24"><path d="M4 20 20 4" stroke="currentColor" stroke-width="1.7" fill="none"></path></symbol>
+    <symbol id="t-node" viewBox="0 0 24 24"><rect x="10.6" y="3" width="2.8" height="18"></rect><rect x="3" y="10.6" width="18" height="2.8"></rect><rect x="9.2" y="9.2" width="5.6" height="5.6" fill="#0e1114" stroke="currentColor" stroke-width="1.6"></rect></symbol>
+    <symbol id="t-scale" viewBox="0 0 24 24"><path d="M5 19 19 5" stroke="currentColor" stroke-width="1.7" fill="none"></path><path d="M13 5h6v6z"></path><path d="M11 19H5v-6z"></path></symbol>
+    <symbol id="t-pipette" viewBox="0 0 24 24"><path d="M12 2.6c3.4 4.6 5.6 7.8 5.6 10.4A5.6 5.6 0 0 1 12 18.6a5.6 5.6 0 0 1-5.6-5.6c0-2.6 2.2-5.8 5.6-10.4z"></path></symbol>
+    <symbol id="t-text" viewBox="0 0 24 24"><rect x="3.4" y="3.8" width="17.2" height="3"></rect><rect x="10.4" y="6.8" width="3.2" height="13.4"></rect></symbol>
+    <symbol id="v-arc" viewBox="0 0 24 24"><path d="M4 21V10.4C4 5.8 7.6 2.2 12 2.2s8 3.6 8 8.2V21z" opacity=".28"></path><rect x="4" y="14.4" width="16" height="6.6"></rect><rect x="11.1" y="2.4" width="1.8" height="18.6" opacity=".55"></rect></symbol>
+    <symbol id="v-rosette" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.4" opacity=".26"></circle><rect x="10.9" y="2.6" width="2.2" height="18.8"></rect><rect x="2.6" y="10.9" width="18.8" height="2.2"></rect><rect x="10.9" y="2.6" width="2.2" height="18.8" transform="rotate(45 12 12)" opacity=".55"></rect><rect x="10.9" y="2.6" width="2.2" height="18.8" transform="rotate(-45 12 12)" opacity=".55"></rect></symbol>
+    <symbol id="v-grille" viewBox="0 0 24 24"><path d="M12 2.4 21.6 12 12 21.6 2.4 12z" opacity=".26"></path><path d="M12 2.4 16.8 7.2 12 12 7.2 7.2zM12 12l4.8 4.8L12 21.6l-4.8-4.8z"></path></symbol>
+    <symbol id="v-plomb" viewBox="0 0 24 24"><path d="M2.6 12 8 3.4h8L21.4 12 16 20.6H8z" opacity=".24"></path><path d="M2.6 11.2h18.8v1.6H2.6zM7.3 3.8l8.9 16.8-1.4.8L5.9 4.6zM16.7 3.8 7.8 20.6l-1.4-.8L15.3 3z"></path></symbol>
+  </svg>
   <header class="bar">
     <div class="brand">◧ Vectorlab</div>
     <button id="btnBiblio" title="Bibliothèque des documents">⌂</button>
@@ -58,15 +73,15 @@
   </section>
   <div class="rangee">
     <nav id="outils" class="outils">
-      <button data-outil="select" class="actif" title="Sélection — déplacer, lasso, poignées (V)">▢</button>
-      <button data-outil="plume" title="Plume Bézier — clic = ancre, glisser = poignées, double-clic = finir, clic sur la première ancre = fermer (P)">✒</button>
-      <button data-outil="rect" title="Rectangle — Maj = carré (R)">▭</button>
-      <button data-outil="ellipse" title="Ellipse — Maj = cercle (E)">◯</button>
-      <button data-outil="ligne" title="Ligne — glisser pour tracer un segment, Maj = angles 45° (L)">╱</button>
-      <button data-outil="noeuds" title="Nœuds — glisser une ancre, double-clic = angle↔courbe, Suppr = retirer (N)">✜</button>
-      <button data-outil="mesure" title="Mesure — glisser pour lire longueur, angle et Δ sans rien créer (M)">⤢</button>
-      <button data-outil="pipette" title="Pipette — adopte le style de l'objet cliqué et l'applique à la sélection (I)">💧</button>
-      <button data-outil="texte" title="Texte — clic pour poser, double-clic (outil sélection) pour rééditer (T)">Ａ</button>
+      <button data-outil="select" class="actif" title="Sélection — déplacer, lasso, poignées (V)"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#t-select"></use></svg></button>
+      <button data-outil="plume" title="Plume Bézier — clic = ancre, glisser = poignées, double-clic = finir, clic sur la première ancre = fermer (P)"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#t-pen"></use></svg></button>
+      <button data-outil="rect" title="Rectangle — Maj = carré (R)"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#t-rect"></use></svg></button>
+      <button data-outil="ellipse" title="Ellipse — Maj = cercle (E)"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#t-ellipse"></use></svg></button>
+      <button data-outil="ligne" title="Ligne — glisser pour tracer un segment, Maj = angles 45° (L)"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#t-line"></use></svg></button>
+      <button data-outil="noeuds" title="Nœuds — glisser une ancre, double-clic = angle↔courbe, Suppr = retirer (N)"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#t-node"></use></svg></button>
+      <button data-outil="mesure" title="Mesure — glisser pour lire longueur, angle et Δ sans rien créer (M)"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#t-scale"></use></svg></button>
+      <button data-outil="pipette" title="Pipette — adopte le style de l'objet cliqué et l'applique à la sélection (I)"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#t-pipette"></use></svg></button>
+      <button data-outil="texte" title="Texte — clic pour poser, double-clic (outil sélection) pour rééditer (T)"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#t-text"></use></svg></button>
     </nav>
     <div class="scene">
       <canvas id="regleH" class="regle regle-h" height="24"></canvas>
@@ -75,6 +90,7 @@
         <main id="stage">
           <div id="canvasHost"></div>
           <svg id="overlay"></svg>
+          <div id="hintOutil" class="hint"></div>
         </main>
       </div>
     </div>
