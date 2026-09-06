@@ -433,9 +433,15 @@
 .dzsvm .dzm-tbb[disabled]{opacity:.38; cursor:not-allowed}
 .dzsvm .dzm-tbb[disabled]:hover{background:transparent;
   border-color:transparent}
-/* « aucun enfoncement » (§4.5). Le coupe-circuit global de la feuille de
-   tokens ramène les DURÉES à 1 ms ; il ne retire pas une transformation, qui
-   resterait donc appliquée, en un seul saut, tant que le doigt appuie. */
+/* « aucun enfoncement » (§4.5), LA TROISIÈME DES TROIS EXIGENCES DE MOUVEMENT
+   RÉDUIT — et la SEULE que le coupe-circuit global ne servait pas.
+   RECTIFICATION D'ATTRIBUTION, faite à l'étape 5 et reportée ici à l'étape 8 :
+   ce coupe-circuit ne vient PAS de shared/deepotus.tokens.css — dist/index.html
+   ne charge pas cette feuille — mais de son-vfx-montage.css l.1028
+   (`.dzsvm *, ::before, ::after` sous `prefers-reduced-motion:reduce`). Il
+   ramène `animation-duration` et `transition-duration` à .001 ms ; il ne
+   RETIRE pas une transformation, qui resterait donc appliquée, en un seul
+   saut, tant que le doigt appuie. D'où cette règle, qui la retire. */
 @media (prefers-reduced-motion:reduce){
   .dzsvm .dzm-tbb:active{transform:none}
 }
@@ -552,6 +558,17 @@
    rendu et le retire à la frame suivante. Sans cette règle, une barre
    restaurée ouverte entrerait en glissant à chaque chargement d'écran. */
 .dzsvm .dzm-tbar[data-noanim]{transition:none}
+/* MOUVEMENT RÉDUIT (§4.5), CE QUE LE COUPE-CIRCUIT NE COUVRE PAS. Il ramène
+   les DURÉES à .001 ms (`transition-duration`, son-vfx-montage.css l.1028) ;
+   il ne touche pas au DÉLAI. La règle ci-dessus retarde `visibility:hidden`
+   de `--dur-bar-open` pour que le repli s'anime : sous mouvement réduit, la
+   barre disparaissait donc en .001 ms mais restait FOCUSABLE 220 ms de plus,
+   après qu'Échap eut déjà rendu le focus à l'onglet. Le repli va au bout.
+   Elle est POSÉE APRÈS la règle qu'elle corrige — même spécificité, c'est
+   l'ordre qui tranche. */
+@media (prefers-reduced-motion:reduce){
+  .dzsvm .dzm-tbar[data-off]{transition-delay:0s}
+}
 
 /* a. LA POIGNÉE (§2.2a) — 26px, pleine hauteur, filet droit.
    TOUT CE QUI LA REND VIVANTE — `cursor:grab`, l'état de survol,
@@ -631,11 +648,13 @@
    Il vient de son-vfx-montage.css, chargée l.17. L'effet attendu est bien
    là ; c'est l'attribution qui était fausse.
 
-   ── CE QUI RESTE À L'ÉTAPE 8 ──
-   `role="toolbar"`, le `tabindex` roving et `Échap`. La poignée devra être
-   HORS du groupe roving : ses flèches déplacent la barre (§4.5), celles du
-   groupe naviguent entre les boutons — le même geste ne peut pas faire les
-   deux sur le même objet. */
+   ── CE QUE L'ÉTAPE 8 EN A FAIT ──
+   `role="toolbar"`, le `tabindex` roving et `Échap` sont livrés, et la
+   consigne est tenue : la poignée est HORS du groupe roving. Ses flèches
+   déplacent la barre (§4.5), celles du groupe déplacent le focus — le même
+   geste ne peut pas faire les deux sur le même objet. Le sélecteur du
+   groupe (`DZM_TB_SEL_ROVE`) ne nomme donc que `.dzm-tbb` et `.dzm-tbwb`,
+   et la poignée garde son propre arrêt de tabulation. */
 
 /* PENDANT LE GESTE, AUCUNE TRANSITION : la barre doit coller au pointeur.
    Sans cette règle elle le suivrait avec 180 ms de retard, ce qui se lit

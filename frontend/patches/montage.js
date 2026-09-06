@@ -2372,12 +2372,22 @@ function DzmToolBtn(o){
       r.jsx("span",{className:"dzm-tbl",children:lbl},"l")]};
   if(g)p["data-grp"]=g;
   if(tog)p["aria-pressed"]=mix?"mixed":(on?"true":"false");
+  /* ÉTAPE 8 — LE `tabindex` ROVING (§4.5), EN TROIS ÉTATS ET PAS DEUX :
+     `true` = le point d'entrée (0), `false` = dans le groupe mais hors du
+     parcours (−1), ABSENT = aucun attribut, donc le comportement natif du
+     `<button>`. Le troisième état existe parce que ce composant est public
+     et testé : un appelant qui monte un bouton HORS d'une barre roving ne
+     doit pas hériter d'un `-1` qui le sortirait du parcours sans raison. */
+  if(o.tab===!0)p.tabIndex=0;
+  else if(o.tab===!1)p.tabIndex=-1;
   return r.jsx("button",p,o.k||("tbb-"+(o.icon||g||"x")))}
-/* ── ÉTAPES 4, 5 ET 7 DU §9 : LA BARRE, SON ONGLET, SON DÉPORT, SON CÂBLAGE ─
+/* ── ÉTAPES 4, 5, 7 ET 8 DU §9 : LA BARRE, SON ONGLET, SON DÉPORT, SON
+   CÂBLAGE, SON CLAVIER ────────────────────────────────────────────────────
    Géométrie (§2.1, §2.2), contenu verbatim (§2.4), ouverture et repli (§4.1),
-   le déport (§4.2), de §4.4 LES DEUX CLÉS `open` et `offset`, et le câblage
-   du §6 EN ENTIER. Le retrait des neuf contrôles du bandeau (§5) est l'étape
-   6, `role="toolbar"` et le `tabindex` roving (§4.5) l'étape 8.
+   le déport (§4.2), de §4.4 LES DEUX CLÉS `open` et `offset`, le câblage
+   du §6 EN ENTIER, et depuis l'étape 8 le §4.5 : `role="toolbar"`, le
+   `tabindex` roving, Échap, le raccourci et le focus à l'ouverture. Le
+   retrait des neuf contrôles du bandeau (§5) est l'étape 6.
    L'ORDRE DES ÉTAPES 6 ET 7 EST INVERSÉ PAR RAPPORT AU §9, et c'est une
    décision, pas un oubli : `emoji` et `projets` étaient ÉTEINTS dans la
    barre à l'étape 4. Retirer d'abord leurs contrôles du bandeau les aurait
@@ -2735,8 +2745,10 @@ function dzmTbFrame(w,fn){
 
 /* ── ÉTAPE 5 DU §9 : LE DÉPORT ─────────────────────────────────────────────
    Le §4.2 en entier, et de §4.4 la seule clé `offset`. Le retrait des neuf
-   contrôles du bandeau (§5) reste l'étape 6, le câblage complet (§6)
-   l'étape 7, `role="toolbar"` et le `tabindex` roving (§4.5) l'étape 8.
+   contrôles du bandeau (§5) est l'étape 6, le câblage complet (§6)
+   l'étape 7 ; le §4.5 — clavier, `role="toolbar"`, mouvement réduit — est
+   l'étape 8, et le CLAVIER DE LA POIGNÉE ci-dessous en est le seul morceau
+   arrivé ici en avance : il est la contrepartie du geste souris de ce lot.
 
    ── L'AVERTISSEMENT DU §9, PRIS AU MOT ──
    « Tester d'abord le bornage : c'est là que se logent les régressions. »
@@ -3094,6 +3106,149 @@ function dzmTbTouche(k,maj){
   var v=DZM_TB_TOUCHES[n],p=maj===!0?DZM_TB_PAS_FIN:DZM_TB_PAS;
   return {mx:v[0]*p,my:v[1]*p}}
 
+/* ══ ÉTAPE 8 DU §9 — CLAVIER, `role="toolbar"`, MOUVEMENT RÉDUIT (§4.5) ════
+
+   ── LA POIGNÉE EST HORS DU GROUPE ROVING, ET C'EST LA CONSIGNE DE L'ÉTAPE 5
+   Ses flèches déplacent la barre de 8 px (1 px avec Maj) ; celles du groupe
+   déplacent le FOCUS. Le même geste ne peut pas faire les deux sur le même
+   objet. `dzmTbTouche` ci-dessus et `dzmTbRoveDir` ci-dessous sont donc deux
+   tables séparées, et le sélecteur du groupe ne nomme pas `.dzm-tbgrip`.
+   CE QUE CELA COÛTE, ET C'EST UN ÉCART DÉCLARÉ : la barre a DEUX arrêts de
+   tabulation, la poignée puis le groupe — pas un. Le §4.5 demande « un seul
+   point d'entrée dans l'ordre de tabulation » ET « la poignée est un bouton
+   focusable » dans le même paragraphe ; sortir la poignée du parcours aurait
+   rendu son clavier inatteignable, c'est-à-dire annulé la phrase suivante du
+   même §4.5 (« un objet déplaçable à la souris seule n'est pas accessible »).
+   Le roving vaut donc pour les ONZE boutons — les neuf actions puis `⌖` et
+   `×` — et la poignée garde le sien.
+
+   ── LES DEUX CONTRÔLES DE FENÊTRE SONT DANS LE GROUPE ──
+   `⌖` « ne doit jamais être masqué » (§4.2) : c'est le filet de sécurité du
+   déport. Le laisser hors du roving lui aurait donné un troisième arrêt de
+   tabulation, ou aucun. */
+var DZM_TB_SEL_ROVE=".dzm-tbb,.dzm-tbwb";
+var DZM_TB_A_BARRE="Outils de création";
+/* HORIZONTALE : seules les flèches gauche/droite naviguent (§4.5, et
+   `aria-orientation="horizontal"` le promet). Haut/bas restent à l'écran —
+   ce sont ses sauts de coupe, et les voler ici serait un raccourci de plus
+   qui ne dit pas son nom. */
+var DZM_TB_ROVE_DIRS={ArrowLeft:-1,ArrowRight:1};
+function dzmTbRoveDir(k){
+  var n=String(k);
+  if(!Object.prototype.hasOwnProperty.call(DZM_TB_ROVE_DIRS,n))return 0;
+  return DZM_TB_ROVE_DIRS[n]}
+
+/* LE NOMBRE DE BOUTONS D'ACTION, DÉRIVÉ DU PLAN — jamais écrit en dur : le
+   jour où un groupe gagne un bouton, l'ordre plat et les deux index des
+   contrôles de fenêtre suivent tout seuls. */
+function dzmTbNbAct(plan){
+  var l=(plan&&plan.length)?plan:DZM_TB_PLAN,n=0,i;
+  for(i=0;i<l.length;i++)n+=((l[i]&&l[i].btns)||[]).length;
+  return n}
+
+/* L'ORDRE PLAT DU GROUPE, ET CE QUI Y EST ATTEIGNABLE. Il suit l'ordre du
+   DOM par CONSTRUCTION : les groupes du plan, dans l'ordre, puis `⌖` et `×`.
+   `DzmToolBar` peint dans ce même ordre et `dzmTbBoutons` le relit du DOM ;
+   le gestionnaire refuse de naviguer si les deux longueurs diffèrent — une
+   liste plus courte ferait viser à côté, en silence.
+   LES DEUX CONTRÔLES DE FENÊTRE SONT TOUJOURS ATTEIGNABLES : le §4.2
+   l'exige pour `⌖`, et `×` est la seule façon de replier au clavier depuis
+   la souris. Ils ne portent pas d'état `disabled` dans `DzmToolBar`.
+   UNE ENTRÉE ABSENTE COMPTE POUR ÉTEINTE, et c'est la MÊME règle que la
+   barre applique en peignant (`items[b.i]||{disabled:!0}`). La version
+   naïve — « absent donc rien à éteindre » — les aurait comptés ACTIFS, et
+   le point d'entrée du parcours serait tombé sur un bouton `disabled`,
+   c'est-à-dire nulle part. Le banc compare les deux côtés bouton par
+   bouton, sur un câblage plein, un câblage sans hôte et aucun câblage. */
+function dzmTbActifs(items){
+  var it=items||{},l=DZM_TB_PLAN,a=[],i,j,b,e;
+  for(i=0;i<l.length;i++){
+    b=(l[i]&&l[i].btns)||[];
+    for(j=0;j<b.length;j++){
+      e=it[b[j].i];
+      a.push(!!e&&e.disabled!==!0)}}
+  a.push(!0);a.push(!0);
+  return a}
+
+/* ── LE CŒUR : index courant + direction + boutons actifs → index suivant ──
+   PUR, donc joué sous node : c'est la seule façon de mesurer la traversée
+   des groupes sans navigateur.
+   IL BOUCLE (le dernier → le premier), comme une barre d'outils ARIA : sans
+   cela, le dernier bouton serait un cul-de-sac au clavier alors qu'il ne
+   l'est pas à la souris.
+   IL SAUTE LES ÉTEINTS : un bouton `disabled` ne prend pas le focus, et
+   poser `tabindex="0"` dessus retirerait la barre entière du parcours.
+   HORS BORNES — index négatif, trop grand, `NaN`, non entier, absent : on
+   repart du bord AMONT du sens de marche (avant le premier pour `+1`, après
+   le dernier pour `−1`), donc le premier appel `dzmTbRove(-1,1,a)` rend le
+   PREMIER actif. C'est la même fonction qui sert « aller au bouton suivant »
+   et « aller au premier bouton » (§4.1, le focus à l'ouverture).
+   LISTE VIDE OU TOUTE ÉTEINTE : `-1`. L'appelant ne pose alors AUCUN
+   `tabindex="0"` — une barre sans rien d'atteignable se saute, elle ne
+   piège pas le focus sur un bouton mort.
+   LA BOUCLE VISITE EXACTEMENT `n` CANDIDATS, chacun une fois : le pas vaut
+   ±1, donc elle termine toujours et ne peut pas manquer un actif. */
+function dzmTbRove(cour,dir,actifs){
+  var l=actifs||[],n=l.length;
+  if(!n)return -1;
+  var d=(Number(dir)<0)?-1:1;
+  var c=Number(cour);
+  if(!isFinite(c)||Math.floor(c)!==c||c<0||c>=n)c=(d>0)?-1:n;
+  var i,j;
+  for(i=1;i<=n;i++){
+    j=((c+d*i)%n+n)%n;
+    if(l[j])return j}
+  return -1}
+
+/* L'INDEX QUI PORTE `tabindex="0"`, ASSAINI À CHAQUE RENDU. Le point
+   d'entrée doit rester ATTEIGNABLE : si le bouton mémorisé vient d'être
+   éteint (la sélection a changé, une requête emoji est partie), le parcours
+   de tabulation retombe sur le PREMIER actif, jamais sur le suivant — c'est
+   un point d'entrée, pas une navigation. */
+function dzmTbRoveSain(cour,actifs){
+  var l=actifs||[],n=l.length;
+  var c=Number(cour);
+  if(isFinite(c)&&Math.floor(c)===c&&c>=0&&c<n&&l[c])return c;
+  return dzmTbRove(-1,1,l)}
+
+/* ── LES TROIS AIDES DE DOM, MINCES EXPRÈS ────────────────────────────────
+   Seule `dzmTbBoutons` appelle le DOM (`querySelectorAll`) ; les deux autres
+   travaillent sur le TABLEAU qu'elle rend, donc le banc les joue sur un faux
+   arbre — la même méthode que `dzmTbGeo` et `dzmTbSaisie` à l'étape 5. */
+function dzmTbBoutons(bar){
+  if(!bar||typeof bar.querySelectorAll!=="function")return [];
+  try{return Array.prototype.slice.call(bar.querySelectorAll(DZM_TB_SEL_ROVE))}
+  catch(e){return []}}
+function dzmTbIdx(l,el){
+  var a=l||[],i;
+  if(!el)return -1;
+  for(i=0;i<a.length;i++)if(a[i]===el)return i;
+  return -1}
+function dzmTbFocus(l,i){
+  var a=l||[],el=(typeof i==="number"&&i>=0&&i<a.length)?a[i]:null;
+  if(el&&typeof el.focus==="function"){el.focus();return !0}
+  return !1}
+/* « ÉCHAP […] REND LE FOCUS À L'ONGLET » (§4.5) — et RENDRE suppose qu'on
+   l'avait. Le raccourci, lui, replie depuis N'IMPORTE OÙ : la timeline, un
+   en-tête de piste, l'inspecteur. Y déplacer le focus ne serait pas le
+   rendre, ce serait le VOLER — et le voler coûte cher ici, parce qu'un
+   `<button>` qui a le focus consomme la barre d'espace, c'est-à-dire la
+   lecture. D'où cette garde, posée sur les DEUX chemins de repli. */
+function dzmTbDedans(bar,el){
+  if(!bar||!el)return !1;
+  if(bar===el)return !0;
+  if(typeof bar.contains!=="function")return !1;
+  try{return !!bar.contains(el)}catch(e){return !1}}
+
+/* LE RACCOURCI, DIT SUR L'ONGLET ET RELU À CHAQUE RENDU. La combo n'est pas
+   écrite ici : elle vient de `svmKeyLabel("toolbar")`, donc de la keymap
+   VIVANTE — un remappage se lit sur l'onglet comme il se lit déjà sur la
+   chip « lame ». Sans combo (hôte muet, action retirée de la table) : rien
+   n'est ajouté, jamais une parenthèse vide. */
+function dzmTbCombo(c){
+  var s=(typeof c==="string")?c.trim():"";
+  return s?(" Raccourci : "+s+"."):""}
+
 /* ── L'ONGLET D'APPEL (§2.1) ───────────────────────────────────────────────
    Cinq pastilles aux cinq teintes — l'aperçu du contenu, on voit les
    familles avant d'ouvrir — puis OUTILS, puis le chevron. `aria-expanded` et
@@ -3104,9 +3259,10 @@ function dzmTbTouche(k,maj){
 function DzmToolTab(o){
   o=o||{};
   var open=o.open===!0;
-  return r.jsx("button",{type:"button",className:"dzm-tbtab",
+  return r.jsx("button",{type:"button",className:"dzm-tbtab",ref:o.tabRef,
     "aria-expanded":open?"true":"false","aria-controls":DZM_TB_ID,
-    title:open?DZM_TB_T_REPLIER:"Ouvrir la barre d'outils de création.",
+    title:(open?DZM_TB_T_REPLIER:"Ouvrir la barre d'outils de création.")
+      +dzmTbCombo(o.keyLbl),
     onClick:function(){if(typeof o.onToggle==="function")o.onToggle()},
     children:[
       r.jsx("span",{className:"dzm-tbdots","aria-hidden":!0,
@@ -3134,6 +3290,16 @@ function DzmToolBar(o){
      `NaN` même si l'appelant lui en passe un. */
   var off={dx:dzmTbNb(o.off&&o.off.dx),dy:dzmTbNb(o.off&&o.off.dy)};
   var deporte=off.dx!==0||off.dy!==0;
+  /* ÉTAPE 8 — L'INDEX QUI PORTE LE POINT D'ENTRÉE. Il est ASSAINI ICI et
+     pas seulement chez l'appelant : la barre est un composant public, et un
+     index périmé (un bouton qui vient de s'éteindre) sortirait la barre
+     entière du parcours de tabulation. `-1` = rien d'atteignable, donc
+     aucun `tabindex="0"` posé — ce qui n'arrive pas dans l'application,
+     `⌖` et `×` n'étant jamais éteints. */
+  var actifs=dzmTbActifs(items);
+  var rove=dzmTbRoveSain(o.rove,actifs);
+  var nAct=dzmTbNbAct();
+  var ri=0;
   var kids=[];
   /* a. LA POIGNÉE (§2.2a, §4.2, §4.5) — UN BOUTON, plus un décor.
      Elle porte le geste souris ET le clavier, elle n'est donc plus
@@ -3163,9 +3329,14 @@ function DzmToolBar(o){
                  rend toujours les neuf entrées) ; il arriverait le jour où
                  un bouton s'ajoute au plan sans passer par le câblage. */
               var it=items[b.i]||{disabled:!0,title:DZM_TB_SANS_HOTE};
+              /* L'INDEX PLAT AVANCE DANS L'ORDRE DE PEINTURE — c'est ce qui
+                 fait que l'ordre du DOM et celui de `dzmTbActifs` sont le
+                 MÊME, sans qu'aucun des deux ne recopie l'autre. */
+              var ti=ri++;
               return DzmToolBtn({group:gr.g,icon:b.i,label:b.l,
                 solo:gr.btns.length===1,toggle:it.toggle===!0,
                 active:it.active,disabled:it.disabled===!0,
+                tab:ti===rove,
                 title:it.title,aria:b.l,onAct:it.act,k:"b-"+b.i})})},"r")]},
         gr.g)})},"zone"));
   /* c. LES CONTRÔLES DE FENÊTRE — les deux vivants. */
@@ -3173,10 +3344,12 @@ function DzmToolBar(o){
     r.jsx("button",{type:"button",className:"dzm-tbwb dzm-tbrc",
       title:deporte?DZM_TB_T_RECENTRER:DZM_TB_T_RECENTREE,
       "aria-label":"Recentrer la barre d'outils",
+      tabIndex:rove===nAct?0:-1,
       onClick:function(){if(typeof o.onRecentrer==="function")o.onRecentrer()},
       children:"⌖"},"rc"),
     r.jsx("button",{type:"button",className:"dzm-tbwb dzm-tbcl",
       title:DZM_TB_T_REPLIER,"aria-label":"Replier la barre d'outils",
+      tabIndex:rove===nAct+1?0:-1,
       onClick:function(){if(typeof o.onClose==="function")o.onClose()},
       children:"×"},"cl")]},"win"));
   /* LA TRANSLATION PASSE PAR DEUX PROPRIÉTÉS PERSONNALISÉES FIXES, jamais
@@ -3189,7 +3362,20 @@ function DzmToolBar(o){
      concaténation, la règle de l'étape 3 tient.
      `data-drag` coupe la transition pendant le geste : sans lui la barre
      suivrait le pointeur avec 180 ms de retard. */
+  /* ÉTAPE 8 — `role="toolbar"` (§4.5), AU MOT, sur le nœud qui porte les
+     onze boutons ET la poignée. `aria-orientation="horizontal"` promet que
+     seules les flèches gauche/droite naviguent, et c'est exactement ce que
+     `dzmTbRoveDir` accepte ; `aria-label` nomme la barre — l'onglet dit
+     « OUTILS », mais un lecteur d'écran qui entre par Tab n'a pas lu
+     l'onglet.
+     LE CLAVIER EST SUR LE CONTENEUR, PAS SUR `window`, et c'est la réponse à
+     « comment ne pas voler Échap » : l'écouteur ne peut se déclencher que si
+     le focus est DANS la barre. Les autres panneaux qui écoutent Échap
+     (popover de jonction, popover de projets, panneau des raccourcis) le
+     font depuis `window` et gardent leur touche partout ailleurs. */
   return r.jsx("div",{id:DZM_TB_ID,className:"dzm-tbar",ref:o.barRef,
+    role:"toolbar","aria-orientation":"horizontal",
+    "aria-label":DZM_TB_A_BARRE,onKeyDown:o.onBarKey,
     style:{"--tbx":off.dx+"px","--tby":off.dy+"px"},
     "data-off":open?void 0:"","data-noanim":o.anim===!0?void 0:"",
     "data-drag":o.drag===!0?"":void 0,
@@ -3241,6 +3427,21 @@ function DzmToolDock(o){
      dans `DzmEmojiBtn`, celle-ci dans le Dock — duplication TRANSITOIRE que
      l'étape 6 solde en retirant l'autre porte. */
   var sm=x.useState(0),emo=sm[0],setEmo=sm[1];
+  /* ── ÉTAPE 8 — LE POINT D'ENTRÉE DU ROVING, L'ONGLET, ET DEUX MIROIRS ───
+     `rove` est un INDEX DE SOUHAIT : la barre l'assainit à chaque rendu, il
+     n'a donc jamais besoin d'être remis en cause quand un bouton s'éteint.
+     `onglet` reçoit le focus qu'Échap et `×` rendent (§4.5).
+     `openRef` : le raccourci bascule depuis un effet qui ne dépend QUE de
+     son compteur — sans cette référence il lirait pour toujours l'état du
+     premier rendu, la forme de la maison (`clipsRef.current=props.clips`).
+     `vuOpen` : l'ouverture RESTAURÉE au montage ne prend PAS le focus. Le
+     §4.1 le donne « à l'ouverture », c'est-à-dire au geste ; la barre étant
+     ouverte par défaut depuis l'étape 6, le donner au montage volerait le
+     focus à chaque chargement de l'écran. `null` = premier passage. */
+  var srv=x.useState(0),rove=srv[0],setRove=srv[1];
+  var onglet=x.useRef(null);
+  var openRef=x.useRef(open);openRef.current=open;
+  var vuOpen=x.useRef(null);
   /* LE DÉCALAGE COURANT DANS UNE RÉFÉRENCE, tenue à jour à chaque rendu —
      la forme de la maison (`clipsRef.current=props.clips` dans le bundle).
      L'écouteur de redimensionnement est posé UNE FOIS, au montage ; sans
@@ -3296,6 +3497,104 @@ function DzmToolDock(o){
     return dzmTbVeille((typeof window!=="undefined")?window:null,
       recadrer)},[]);
   function bascule(){setOpen(function(v){return dzmTbOpenSet(!v)})}
+  /* ── ÉTAPE 8 — LE CÂBLAGE DU CLAVIER (§4.1, §4.5) ────────────────────────
+     `items` est HISSÉ hors du rendu : il servait déjà à peindre la barre, il
+     sert maintenant AUSSI à savoir quels boutons sont atteignables. Une
+     seconde table aurait divergé de la première au premier bouton éteint. */
+  var items=dzmTbCablage(dzmTbHote(o,emoji,!!emo));
+  function focusOnglet(){
+    var t=onglet.current;
+    if(t&&typeof t.focus==="function")t.focus()}
+  /* REPLIER REND TOUJOURS LE FOCUS À L'ONGLET, et pas seulement sur Échap.
+     `×` vit DANS la barre : sans cette ligne, le replier au clavier laissait
+     le focus sur un bouton passé en `visibility:hidden`, c'est-à-dire nulle
+     part — le navigateur le rend alors au `<body>` et la tabulation repart
+     du haut de l'écran. Mesuré au raisonnement sur la règle
+     `.dzm-tbar[data-off]{visibility:hidden}` de la feuille, pas à
+     l'exécution : c'est de la dette navigateur, elle est dite. */
+  /* LE FOCUS N'EST RENDU QUE S'IL ÉTAIT DANS LA BARRE (voir `dzmTbDedans`).
+     Les deux chemins de repli passent par ici, et le raccourci en a besoin :
+     il replie depuis n'importe où. */
+  function rendreFocus(){
+    var doc=(typeof document!=="undefined")?document:null;
+    if(dzmTbDedans(bar.current,doc&&doc.activeElement))focusOnglet()}
+  function replier(){setOpen(dzmTbOpenSet(!1));rendreFocus()}
+  /* LE FOCUS AU PREMIER BOUTON (§4.1), SUR LE GESTE SEULEMENT. Il passe par
+     le MÊME cœur pur que les flèches : « le premier actif » est
+     `dzmTbRove(-1, +1, …)`, pas une seconde règle. */
+  x.useEffect(function(){
+    if(vuOpen.current===null){vuOpen.current=open;return}
+    if(open&&!vuOpen.current){
+      var k=dzmTbRove(-1,1,dzmTbActifs(items));
+      if(k>=0){setRove(k);dzmTbFocus(dzmTbBoutons(bar.current),k)}}
+    vuOpen.current=open},[open]);
+  /* LE RACCOURCI (§4.1), REÇU COMME UNE DEMANDE. L'écran ne bascule pas la
+     barre : il COMPTE les demandes, exactement comme `openReq` pour la liste
+     des projets. La raison est la même — l'état d'ouverture appartient à ce
+     composant — et le compteur n'a pas d'ordre à respecter.
+     `treq<=0` GARDE LE MONTAGE : l'effet part une première fois à zéro, et
+     sans cette ligne la barre basculerait toute seule au chargement.
+     LA TOUCHE ELLE-MÊME N'EST PAS ICI : elle est déclarée dans SVM_ACTIONS
+     (patcher, section M20a), donc remappable et listée dans le panneau
+     « ? » comme les trente-deux autres. */
+  var treq=Number(o.toggleReq)||0;
+  x.useEffect(function(){
+    if(treq<=0)return;
+    var v=!openRef.current;
+    setOpen(dzmTbOpenSet(v));
+    if(!v)rendreFocus()},[treq]);
+  /* ÉCHAP ET LES FLÈCHES, SUR LA BARRE (§4.5) — ET LES DEUX NE TRAITENT PAS
+     LA PROPAGATION DE LA MÊME FAÇON. L'asymétrie est le cœur de ce bloc.
+
+     ── ÉCHAP : IL REPLIE ET REND LE FOCUS À L'ONGLET, ET IL LAISSE MONTER ──
+     L'écouteur est sur LA BARRE, pas sur `window` : il ne peut se déclencher
+     que si le focus est DANS la barre. C'est déjà ce qui empêche de voler la
+     touche aux autres panneaux partout ailleurs.
+     IL NE L'ARRÊTE PAS POUR AUTANT, et c'est une MESURE qui a corrigé la
+     première version de ce bloc : le bouton `projets` de la barre ouvre le
+     popover des projets SANS déplacer le focus, qui reste donc sur ce
+     bouton — dans la barre. Le popover ferme sur `Échap` par un écouteur
+     `window` de PHASE MONTANTE (montage.js, effet `[op]`), donc sous nous.
+     `stopPropagation` ici l'aurait étouffé : une frappe repliait la barre et
+     laissait le popover ouvert derrière, sans clavier pour le fermer.
+     C'EST AUSSI LA RÈGLE DE LA MAISON : `SVM_KEYS_INFO` décrit `Échap` comme
+     « fermer / annuler — touche fixe (panneaux, capture, flèches d'overlay) ».
+     Une touche fixe qui ferme PLUSIEURS choses ne s'accapare pas.
+     Reste assumé, dit ici : quand rien d'autre n'est ouvert, la frappe rend
+     aussi les flèches d'un overlay sélectionné à la tête de lecture. C'est
+     ce que « fermer / annuler » promet, pas un effet de bord.
+
+     ── LES FLÈCHES : ELLES, ON LES ARRÊTE ──
+     Sans quoi elles déplaceraient AUSSI la tête de lecture (`step_back` /
+     `step_fwd`) : deux gestes pour une frappe, et celui-là n'est pas un
+     « annuler » partagé, c'est une navigation qui appartient à la barre.
+     React pose son écouteur sur le conteneur racine, donc sous `window` :
+     arrêter là empêche bien l'événement natif d'y monter — c'est la mesure
+     de l'étape 5, reprise telle quelle.
+     Gauche/droite seulement, et seulement quand le focus est sur l'un des
+     onze boutons du groupe. La poignée n'y est pas — elle consomme déjà les
+     quatre flèches dans son propre `onKeyDown` et arrête leur propagation,
+     ce qui est exactement ce qui empêche un même geste d'avoir deux sens.
+     LES DEUX LONGUEURS DOIVENT S'ACCORDER : si le DOM ne rend pas autant de
+     boutons que le plan en décrit, on ne navigue pas — viser à côté au
+     clavier est pire que ne rien faire. */
+  function barKey(e){
+    if(!e)return;
+    if(e.key==="Escape"){
+      if(typeof e.preventDefault==="function")e.preventDefault();
+      replier();return}
+    var d=dzmTbRoveDir(e.key);
+    if(!d)return;
+    var l=dzmTbBoutons(bar.current),a=dzmTbActifs(items);
+    if(l.length!==a.length)return;
+    var doc=(typeof document!=="undefined")?document:null;
+    var i=dzmTbIdx(l,doc&&doc.activeElement);
+    if(i<0)return;
+    if(typeof e.preventDefault==="function")e.preventDefault();
+    if(typeof e.stopPropagation==="function")e.stopPropagation();
+    var j=dzmTbRove(i,d,a);
+    if(j<0)return;
+    setRove(j);dzmTbFocus(l,j)}
   /* L'ACTION « emoji », RÉUTILISÉE : c'est `dzmEmojiGo`, la même fonction que
      le bouton du bandeau appelle. La barre lui passe les trois ingrédients
      que l'écran fournit (`emojiSegs`, `tracks`, `onEmojiAdd`) et son propre
@@ -3349,12 +3648,12 @@ function DzmToolDock(o){
      timeline — il est posé par la feuille sous le bandeau. */
   function recentrer(){setOff(dzmTbOffSet({dx:0,dy:0}))}
   return r.jsx(r.Fragment,{children:[
-    DzmToolTab({open:open,onToggle:bascule}),
+    DzmToolTab({open:open,onToggle:bascule,tabRef:onglet,keyLbl:o.keyLbl}),
     DzmToolBar({open:open,anim:anim,off:off,drag:drag,barRef:bar,
-      items:dzmTbCablage(dzmTbHote(o,emoji,!!emo)),
+      items:items,rove:rove,onBarKey:barKey,
       onGrab:saisir,onGripKey:clavier,
       onRecentrer:recentrer,
-      onClose:function(){setOpen(dzmTbOpenSet(!1))}})]})}
+      onClose:replier})]})}
 
 
 /* ══ ÉTAPE 6 DU HANDOFF « BARRE OUTILS FLOTTANTE » — §5 ═══════════════════
@@ -3618,6 +3917,12 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   tbBorne:dzmTbBorne,tbBoite:dzmTbBoite,tbPince:dzmTbPince,
   tbSaisie:dzmTbSaisie,tbTouche:dzmTbTouche,tbGeo:dzmTbGeo,
   tbRecadre:dzmTbRecadre,tbVeille:dzmTbVeille,
+  tbRove:dzmTbRove,tbRoveSain:dzmTbRoveSain,tbRoveDir:dzmTbRoveDir,
+  tbActifs:dzmTbActifs,tbNbAct:dzmTbNbAct,tbIdx:dzmTbIdx,tbFocus:dzmTbFocus,
+  tbDedans:dzmTbDedans,
+  tbBoutons:dzmTbBoutons,tbCombo:dzmTbCombo,
+  TB_SEL_ROVE:DZM_TB_SEL_ROVE,TB_A_BARRE:DZM_TB_A_BARRE,
+  TB_ROVE_DIRS:DZM_TB_ROVE_DIRS,
   tbConteneur:dzmTbConteneur,tbTete:dzmTbTete,tbAncetre:dzmTbAncetre,
   tbOffGet:dzmTbOffGet,tbOffSet:dzmTbOffSet,TB_CLE_OFF:DZM_TB_CLE_OFF,
   TB_MARGE:DZM_TB_MARGE,TB_AIMANT:DZM_TB_AIMANT,TB_PAS:DZM_TB_PAS,

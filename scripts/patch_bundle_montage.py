@@ -94,6 +94,17 @@ Sections :
       Les libellés « + vidéo » / « + audio » deviennent « + piste vidéo » /
       « + piste audio » — édition de `DzmTrackAdd` DANS LA COUCHE, pas une
       section de plus.
+  M19 l'onglet OUTILS et la barre flottante montés dans le bandeau ; depuis
+      l'étape 8 elle passe aussi `toggleReq` (la demande de bascule du
+      raccourci) et `keyLbl` (la combo VIVANTE, lue par `svmKeyLabel`) ;
+  M20a/M20b (étape 8, §4.1) LE RACCOURCI, inscrit dans le mécanisme
+      existant : une entrée de plus dans `SVM_ACTIONS` — donc remappable via
+      `dz_svm_keymap` et LISTÉE dans le panneau « ? » — et sa branche dans la
+      chaîne de dispatch du gestionnaire clavier. `T` est DÉJÀ PRIS par
+      `narration` (mesuré) : la touche est `O`, l'initiale du libellé
+      verbatim de l'onglet, mesurée libre. Voir le commentaire de A_M20A ;
+  M21 (étape 8, §4.5) les trois `aria-label` des chips de coupe, dont le
+      libellé passe en glyphe seul sous largeur réduite ;
   M15 / M16src (P6) REMPLACER LA SOURCE d'un plan sans perdre ses bornes, ses
       effets ni sa transition :
         M4b y gagne `dzmReplaceRef` (le plan visé, {id, tr, label}) ET son
@@ -321,7 +332,129 @@ R_M11 = ("  /* P3 — panneau « Texte » (monter en LISANT). Son état est À L
          "setDzProjReq=stDzPj[1];\n"
          "  function dzEmoAdd(cs){pushHistory();"
          "setClips(function(k){return (k||[]).concat(cs)});setDirty(!0)}\n"
+         "  /* étape 8 du handoff (§4.1) : LA DEMANDE DE BASCULE de la barre\n"
+         "     d'outils, un COMPTEUR pour la même raison que `dzProjReq` —\n"
+         "     l'état d'ouverture appartient au Dock, qui le persiste ; un\n"
+         "     booléen piloté d'ici en aurait fait une seconde source. C'est\n"
+         "     M20b, la branche du gestionnaire clavier, qui l'incrémente. */\n"
+         "  var stDzTb=x.useState(0),dzTbReq=stDzTb[0],"
+         "setDzTbReq=stDzTb[1];\n"
          + A_M11)
+
+# ── M20a (étape 8, §4.1) : LE RACCOURCI, INSCRIT DANS LE MÉCANISME EXISTANT
+# LE POINT DUR DE CETTE ÉTAPE, ET IL EST TRANCHÉ PAR LA MESURE. Le §4.1
+# demande `T`. MESURÉ dans le bundle livré le 06/09/2026 : `SVM_ACTIONS`
+# porte TRENTE-DEUX actions, et `{id:"narration",sec:"Affichage",…,combo:"T"}`
+# tient déjà `T` — le panneau Narration (texte → voix). Le §5 du brief
+# déconseille de la lui reprendre sans l'accord de l'utilisateur, et il a
+# raison : `narration` est une action VIVANTE de cet écran, son raccourci est
+# affiché dans le panneau « ? » et un utilisateur l'a peut-être dans les
+# doigts. On ne le vole pas.
+# LA TOUCHE RETENUE EST `O` — l'initiale du libellé VERBATIM de l'onglet,
+# `OUTILS` (§2.1). Elle est mesurée LIBRE des deux côtés :
+#   • aucune des 32 combos de `SVM_ACTIONS` ne vaut « O » (les vingt-six
+#     lettres nues occupées sont B D F G J K L M N R S T ; libres : A C E H
+#     I O P Q U V W X Y Z) ;
+#   • aucune comparaison à la lettre « o » ou au code « KeyO » dans le
+#     bundle : les six occurrences de ces motifs sont `subsKeyOf` (cinq) et
+#     `arm==="o"+p.id` (une), aucune n'est un raccourci ;
+#   • `svmComboReserved("O")` rend "" — ni touche du navigateur, ni Échap,
+#     ni Tab, ni Entrée, ni F<n>.
+# ELLE EST REMAPPABLE COMME LES AUTRES, et c'est tout l'intérêt de la poser
+# ICI plutôt que dans un écouteur inventé à côté : `svmKmLoad` accepte
+# désormais l'override `{"toolbar":"…"}` (elle rejette tout id absent de
+# `SVM_ACTION_BY_ID`), `svmKmMerge` la fait entrer dans `toAct`, et
+# `kbPanel` la LISTE — elle boucle sur `SVM_ACTIONS` sans filtre autre que
+# `sounds_drawer`. Un raccourci qui ne serait pas dans cette table serait
+# invisible du panneau, donc introuvable.
+# SECTION `Affichage`, JUSTE AVANT `keys_panel` : c'est la section des
+# panneaux qu'on ouvre et qu'on ferme, celle où vivent déjà `narration` et
+# le panneau des raccourcis lui-même.
+A_M20A = (' {id:"keys_panel",sec:"Affichage",lbl:"ouvrir / fermer ce panneau",'
+          'combo:"?"},')
+R_M20A = (' {id:"toolbar",sec:"Affichage",'
+          'lbl:"barre d\'outils de création (onglet OUTILS)",combo:"O"},\n'
+          + A_M20A)
+
+# ── M20b (étape 8, §4.1) : LA BRANCHE DE DISPATCH
+# Le gestionnaire clavier de l'écran est une chaîne de `if(id==="…")` ; une
+# action déclarée sans branche serait un raccourci mort, listé dans le
+# panneau et sans effet — exactement ce que ce chantier refuse.
+# ELLE N'OUVRE PAS LA BARRE, ELLE LA DEMANDE : `setDzTbReq` incrémente le
+# compteur de M11, que M19 passe au Dock. L'état d'ouverture reste dans le
+# Dock, qui le persiste dans `dz_svm_tb_open` — une seule source.
+# `setDzTbReq` est un setter de `useState` : stable d'un rendu à l'autre,
+# donc la fermeture de `onKey` (dépendances figées) ne le voit jamais
+# périmé, et la forme fonctionnelle `n+1` ne lit aucune valeur capturée.
+A_M20B = '      if(id==="narration"){narrToggle();return}'
+R_M20B = (A_M20B + "\n"
+          "      /* étape 8 du handoff « Barre Outils Flottante » (§4.1) :\n"
+          "         la barre d'outils de création. DEMANDE, pas ordre — le\n"
+          "         Dock tient l'état et le persiste. */\n"
+          '      if(id==="toolbar"){'
+          'setDzTbReq(function(n){return n+1});return}')
+
+# ── M21 (étape 8, §4.5) : LE NOM ACCESSIBLE DES TROIS CHIPS DE COUPE
+# « La couleur n'est jamais le seul porteur d'information » — et la FORME non
+# plus. L'étape 6 passe ces trois chips en GLYPHE SEUL sous largeur réduite
+# (`font-size:0` + `::before`, montage.css l.839-849) et elle a consigné leur
+# nom accessible comme reposant « sur leur `title` », non vérifié.
+# MESURE DU 06/09/2026, ET ELLE CONTREDIT CETTE NOTE : aucune des trois ne
+# porte d'`aria-label` — leur nom vient donc du CONTENU, et `title` n'est
+# qu'un REPLI que l'algorithme accname (§4.3.2, étape 2I) n'atteint que si le
+# contenu est vide. Or `font-size:0` n'est PAS un mécanisme de masquage : le
+# nœud texte reste dans l'arbre d'accessibilité (seuls `display:none`,
+# `visibility:hidden`, `hidden` et `aria-hidden` l'en sortent). Le nom
+# accessible en mode dégradé n'est donc pas le `title` : c'est le libellé,
+# PRÉCÉDÉ du glyphe du `::before` — accname prépend le contenu généré au nom
+# calculé depuis le sous-arbre.
+# CE QUI RESTE VRAI DE L'INQUIÉTUDE : ce nom-là dépend de deux détails de
+# moteur (l'inclusion du contenu généré, historiquement inégale) et il porte
+# un caractère de dessin — « ⇥aimanter » plutôt que « aimanter ». D'où ces
+# trois `aria-label` EXPLICITES : le nom devient le libellé, identique dans
+# les deux modes, indépendant du moteur, et il CONTIENT le texte visible
+# (WCAG 2.5.3 « Label in Name »), y compris la combo vivante de « lame »,
+# qui suit le remappage comme le fait déjà le contenu.
+# LE `title` NE BOUGE PAS : il reste la description, et c'est lui que
+# l'infobulle du mode compact affiche (§2.3 : « ne pas livrer un mode compact
+# sans infobulles »).
+A_M21 = (
+    'r.jsxs("div",{className:"svm-toolchips",children:[\n'
+    '          r.jsx("button",{className:"svm-toolchip","data-on":snap?"":void 0,\n'
+    '            title:"aimanter les bords, la tête et 0 ("'
+    '+svmKeyLabel("snap")+")",onClick:function(){setSnap(!snap)},'
+    'children:"aimanter"}),\n'
+    '          /* la chip AFFICHE la combo vivante — un remappage se lit ici aussi */\n'
+    '          r.jsx("button",{className:"svm-toolchip",'
+    'title:"couper le clip sélectionné à la tête ("+svmKeyLabel("blade")+")",'
+    'onClick:blade,children:"lame · "+svmKeyLabel("blade")}),\n'
+    '          r.jsx("button",{className:"svm-toolchip","data-on":ripple?"":void 0,\n'
+    '            title:"refermer les trous — suppression et rognage droit sur V1 ("'
+    '+svmKeyLabel("ripple")+")",onClick:function(){setRipple(!ripple)},'
+    'children:"ripple"}),')
+R_M21 = (
+    'r.jsxs("div",{className:"svm-toolchips",children:[\n'
+    '          /* étape 8 du handoff « Barre Outils Flottante » (§4.5) : les\n'
+    '             trois `aria-label`. Sous largeur réduite ces chips passent\n'
+    '             en glyphe seul (`font-size:0` + `::before`) ; sans nom\n'
+    '             explicite, leur nom accessible y porterait le caractère de\n'
+    '             dessin et dépendrait du moteur. Il reprend le texte\n'
+    '             visible, combo vivante comprise. */\n'
+    '          r.jsx("button",{className:"svm-toolchip","data-on":snap?"":void 0,\n'
+    '            "aria-label":"aimanter",\n'
+    '            title:"aimanter les bords, la tête et 0 ("'
+    '+svmKeyLabel("snap")+")",onClick:function(){setSnap(!snap)},'
+    'children:"aimanter"}),\n'
+    '          /* la chip AFFICHE la combo vivante — un remappage se lit ici aussi */\n'
+    '          r.jsx("button",{className:"svm-toolchip",'
+    '"aria-label":"lame · "+svmKeyLabel("blade"),'
+    'title:"couper le clip sélectionné à la tête ("+svmKeyLabel("blade")+")",'
+    'onClick:blade,children:"lame · "+svmKeyLabel("blade")}),\n'
+    '          r.jsx("button",{className:"svm-toolchip","data-on":ripple?"":void 0,\n'
+    '            "aria-label":"ripple",\n'
+    '            title:"refermer les trous — suppression et rognage droit sur V1 ("'
+    '+svmKeyLabel("ripple")+")",onClick:function(){setRipple(!ripple)},'
+    'children:"ripple"}),')
 
 # ── M11b (P3) : le bouton « texte » — RETIRÉ DU BANDEAU (étape 6, §5.1)
 # Même raison que M10, et la même contrepartie : la barre porte `texte` avec
@@ -1505,6 +1638,13 @@ R_M19 = (A_M19 + "\n"
          "onWordAnim:function(v){subsStyleSet({wordAnim:v})},"
          "textOn:dzTextOn,onText:function(){setDzTextOn(!dzTextOn)},"
          "emojiSegs:subsSegsOf(clips),note:fireNote,onEmojiAdd:dzEmoAdd,"
+         # Étape 8 (§4.1) — DEUX PROPRIÉTÉS DE PLUS, ET RIEN D'AUTRE.
+         # `toggleReq` : le compteur de demandes de bascule (M11 le déclare,
+         # M20b l'incrémente). `keyLbl` : la combo VIVANTE du raccourci, lue
+         # par `svmKeyLabel` — la même fonction qui fait suivre la chip
+         # « lame » à un remappage. L'onglet la dit dans son `title` : un
+         # raccourci qu'on ne peut lire nulle part n'existe qu'à moitié.
+         'toggleReq:dzTbReq,keyLbl:svmKeyLabel("toolbar"),'
          "onProjets:function(){setDzProjReq(function(n){return n+1})}}),")
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
@@ -1539,7 +1679,12 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            # P11 — un clip entre à la longueur de sa source.
            ("M18a-plafond-source", A_M18A, R_M18A),
            # Étape 4 du handoff « Barre Outils Flottante ».
-           ("M19-barre-outils", A_M19, R_M19)]
+           ("M19-barre-outils", A_M19, R_M19),
+           # Étape 8 du handoff : le raccourci (§4.1) et le nom accessible
+           # des chips dégradées (§4.5).
+           ("M20a-raccourci-action", A_M20A, R_M20A),
+           ("M20b-raccourci-dispatch", A_M20B, R_M20B),
+           ("M21-chips-nom-accessible", A_M21, R_M21)]
 
 
 def nl(text, crlf):

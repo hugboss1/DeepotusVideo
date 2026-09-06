@@ -31,8 +31,48 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 06/09/2026 (etape 5 du handoff « Barre Outils
-Flottante » — le deport) : 734 lignes, soit QUATRE-VINGT-NEUF de plus que
+COMPTE DE REFERENCE, 06/09/2026 (etape 8 du handoff « Barre Outils
+Flottante » — clavier, `role="toolbar"`, mouvement reduit) : 854 lignes, soit
+SOIXANTE-DIX de plus que les 784 de l'etape 7, et le compte se decompose :
+TRENTE-SIX lignes ecrites une a une dans la section [6-quater] neuve,
+VINGT-QUATRE que la boucle des jetons du Dock emet (vingt-trois jetons plus
+la ligne de l'asymetrie Echap / fleches), TROIS pour les `aria-label` des
+chips, et SEPT que la boucle sur `P.PATCHES` emet toute seule pour les trois
+sections neuves du patcher — M20a, M20b, M21. QUATRE lignes ont ete
+REECRITES plutot que supprimees, parce qu'elles ont fait leur travail en
+rougissant : « l'etape 8 n'est toujours pas livree » (qui exigeait
+`role:"toolbar"`, `tabIndex` et `aria-orientation` ABSENTS), celle du Dock
+(dont le cablage est desormais hisse hors du rendu) et les deux qui
+decoupaient le bloc de la barre par son en-tete de commentaire.
+LA CAMPAGNE DE MUTATION QUI FONDE [6-quater] : QUARANTE-NEUF mutations
+APPLIQUEES — trente-neuf sur la couche et la feuille, DIX sur le PATCHER
+(chacune suivie d'un rejeu complet de la chaine) — plus un temoin neutre, qui
+ne fait rougir que le bruit de fond connu
+(`bloc_EST_la_couche_octet_pour_octet`, rouge sur TOUTE mutation de la couche
+tant que le patcher n'a pas ete rejoue). Toutes rouges.
+UNE MESURE A CONTREDIT LA PREMIERE VERSION DE CE LOT, et elle ne vient pas
+d'un mutant mais d'une lecture : `Echap` arretait sa propagation. Le bouton
+`projets` de la barre ouvre le popover des projets SANS deplacer le focus,
+qui reste donc DANS la barre ; ce popover ferme sur `Echap` par un ecouteur
+`window` de phase MONTANTE, donc sous nous. Une frappe repliait la barre et
+laissait le popover ouvert derriere, sans clavier pour le fermer. `Echap`
+laisse desormais monter ; les FLECHES, elles, restent arretees.
+DEUX MUTANTS ont survecu a la premiere passe et ont fait
+reecrire ce qu'ils traversaient :
+  • retirer le `stopPropagation` d'UNE des deux branches laissait la ligne
+    verte — la meme instruction vit dans l'autre branche ET dans le clavier
+    de la poignee (faute n°2, forme « sous-chaine que la chaine ecrit
+    ailleurs ») ; la ligne compte desormais DANS `barKey` seul, verifie le
+    compte du Dock entier, et epingle la POSITION du seul survivant ;
+  • retourner la phrase d'attribution du mouvement reduit (« ne vient PAS de
+    la feuille de tokens » -> « vient de ») ne faisait rien rougir : aucune
+    ligne ne mesurait la RECTIFICATION elle-meme, seulement son effet.
+UNE FAUTE N°6 A ETE COMMISE ET CORRIGEE PENDANT L'ECRITURE : `HTML` est un
+`pathlib.Path`, pas du texte, et `"x" not in HTML` a TUE le banc au lieu de le
+faire rougir. `_lire` / `_HTML` sont la parade, et elle etait deja la.
+
+COMPTE PRECEDENT, 06/09/2026 (etape 5 du handoff — le deport) : 734 lignes,
+soit QUATRE-VINGT-NEUF de plus que
 les 645 de l'etape 4 : SOIXANTE-HUIT dans la section [6-ter] neuve, et
 VINGT ET UNE dans [6-bis], qui grossit d'une boucle de dix-sept jetons sur le
 Dock et de quatre lignes dedoublees. Cinq lignes de l'etape 4 qui
@@ -3935,6 +3975,189 @@ out.bd_hote_sans_bandeau=TBG(function(){
   return [T.bdMesure(null,{}),T.bdTour(null,{}),T.bdPose(null,{off:[]}),
     T.bdMesure({},{})]});
 
+/* ══ ETAPE 8 — LE `tabindex` ROVING, SON CŒUR PUR (§4.5) ═════════════════
+   « index courant + direction + liste des boutons actifs -> index suivant. »
+   C'est la seule facon de mesurer la traversee des groupes sans navigateur :
+   la fonction ne touche ni au DOM ni au focus, elle ne rend qu'un nombre. */
+function RV(c,d,a){return T.tbRove(c,d,a)}
+var A5=[!0,!0,!0,!0,!0];
+/* AVANCE ET BOUCLE : le dernier -> le premier. Sans la boucle, le dernier
+   bouton serait un cul-de-sac au clavier alors qu'il ne l'est pas a la
+   souris. */
+out.tb8_rove_avance=TBG(function(){
+  return [RV(0,1,A5),RV(1,1,A5),RV(3,1,A5),RV(4,1,A5)]});
+out.tb8_rove_recule=TBG(function(){
+  return [RV(4,-1,A5),RV(1,-1,A5),RV(0,-1,A5)]});
+/* LES ETEINTS SONT SAUTES, DANS LES DEUX SENS — un bouton `disabled` ne
+   prend pas le focus, s'arreter dessus perdrait le parcours. */
+var AD=[!0,!1,!1,!0,!1];
+out.tb8_rove_saute_eteints=TBG(function(){
+  return [RV(0,1,AD),RV(3,1,AD),RV(0,-1,AD),RV(3,-1,AD)]});
+/* UN SEUL ACTIF : toute direction y revient, et la boucle TERMINE. */
+out.tb8_rove_un_seul=TBG(function(){
+  var a=[!1,!1,!0,!1];
+  return [RV(2,1,a),RV(2,-1,a),RV(0,1,a)]});
+/* AUCUN ACTIF, LISTE VIDE, LISTE ABSENTE : -1, jamais une levee ni une
+   boucle infinie. -1 veut dire « aucun `tabindex=0` a poser ». */
+out.tb8_rove_rien=TBG(function(){
+  return [RV(0,1,[!1,!1]),RV(0,-1,[!1,!1]),RV(0,1,[]),RV(0,1,null),
+    RV(0,1,void 0)]});
+/* HORS BORNES : on repart du bord AMONT DU SENS DE MARCHE — avant le
+   premier pour +1, apres le dernier pour -1. C'est ce qui fait que
+   `tbRove(-1,1,a)` rend le PREMIER actif, et que « aller au suivant » et
+   « aller au premier » sont la meme fonction (§4.1, focus a l'ouverture).
+   `null` COERCE A ZERO et n'est donc PAS hors bornes ; `void 0` l'est.
+   Les deux sont mesures pour que la coercion soit epinglee, pas subie. */
+out.tb8_rove_hors_bornes=TBG(function(){
+  return [RV(-1,1,A5),RV(99,1,A5),RV(NaN,1,A5),RV(1.5,1,A5),RV("2",1,A5),
+    RV(void 0,1,A5),RV(null,1,A5),
+    RV(-1,-1,A5),RV(99,-1,A5),RV(void 0,-1,A5),RV(null,-1,A5)]});
+/* LA DIRECTION : seul un nombre NEGATIF recule ; tout le reste avance. */
+out.tb8_rove_dir_valeurs=TBG(function(){
+  return [RV(0,-5,A5),RV(0,0,A5),RV(0,"x",A5),RV(0,null,A5)]});
+/* PARCOURS COMPLET : n pas rendent les n index, chacun UNE fois. C'est ce
+   qui prouve que le pas vaut ±1 et qu'aucun bouton n'est inatteignable. */
+out.tb8_rove_parcours=TBG(function(){
+  var a=[!0,!0,!0,!0,!0,!0],vu=[],c=0,i;
+  for(i=0;i<6;i++){c=T.tbRove(c,1,a);vu.push(c)}
+  return vu});
+/* L'ASSAINISSEMENT DU POINT D'ENTREE — et il DIFFERE de la navigation :
+   un index perime retombe sur le PREMIER actif, jamais sur le suivant.
+   C'est un point d'entree, pas un deplacement. */
+out.tb8_rove_sain=TBG(function(){
+  var a=[!1,!0,!1,!0];
+  return [T.tbRoveSain(1,a),T.tbRoveSain(0,a),T.tbRoveSain(2,a),
+    T.tbRoveSain(9,a),T.tbRoveSain(NaN,a),T.tbRoveSain(1.5,a),
+    T.tbRoveSain(3,a),T.tbRoveSain(0,[!1,!1]),T.tbRoveSain(0,[]),
+    T.tbRoveSain(0,null)]});
+/* HORIZONTALE (§4.5, et `aria-orientation="horizontal"` le promet) : seules
+   gauche/droite naviguent. Haut/bas restent a l'ecran — ce sont ses sauts de
+   coupe. `constructor` et consorts : acces garde, pas un acces nu. */
+out.tb8_dir_touches=TBG(function(){
+  return ["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Home","End","a",
+    "Escape","","constructor","toString","__proto__",void 0,null]
+    .map(function(k){return T.tbRoveDir(k)})});
+/* LE NOMBRE DE BOUTONS D'ACTION, DERIVE DU PLAN. Une liste vide ou absente
+   retombe sur le plan reel : la barre ne peint jamais zero bouton. */
+out.tb8_nb_act=TBG(function(){
+  return [T.tbNbAct(),T.tbNbAct([{btns:[1,2,3]},{btns:[]},{}]),
+    T.tbNbAct([]),T.tbNbAct(null)]});
+/* L'ORDRE PLAT : neuf actions + `⌖` + `×`. Les deux derniers sont TOUJOURS
+   atteignables (§4.2 : `⌖` « ne doit jamais etre masque »). */
+out.tb8_actifs=TBG(function(){
+  var p=T.tbActifs(cabPlein),s=T.tbActifs(cabSansHote),
+      v=T.tbActifs(void 0),n=T.tbActifs(null);
+  return [p.length,p.join(","),s.join(","),v.join(","),n.join(",")]});
+/* ET LES DEUX COTES S'ACCORDENT, BOUTON PAR BOUTON. `dzmTbActifs` decide ce
+   qui est atteignable, `DzmToolBar` decide ce qui est peint eteint : deux
+   tables qui divergeraient feraient tomber le point d'entree sur un bouton
+   `disabled`, c'est-a-dire nulle part. MESUREE PAR MUTATION : la version
+   naive (« entree absente = rien a eteindre = actif ») rend `false` sur les
+   deux derniers plateaux. */
+function TB8LIRE(items){
+  var b=T.ToolBar({open:!0,items:items,rove:-1}),a=[];
+  b.p.children[1].p.children.forEach(function(z){
+    z.p.children[1].p.children.forEach(function(x){a.push(!x.p.disabled)})});
+  a.push(!b.p.children[2].p.children[0].p.disabled);
+  a.push(!b.p.children[2].p.children[1].p.disabled);
+  return a}
+out.tb8_actifs_accorde_la_barre=TBG(function(){
+  return [TB8LIRE(cabPlein).join(",")===T.tbActifs(cabPlein).join(","),
+    TB8LIRE(cabSansHote).join(",")===T.tbActifs(cabSansHote).join(","),
+    TB8LIRE(void 0).join(",")===T.tbActifs(void 0).join(","),
+    TB8LIRE(void 0).join(",")]});
+/* ── LE `tabindex` SUR LA BARRE PEINTE : UN SEUL 0, LES AUTRES A -1 ────── */
+function TB8TABS(o){
+  var b=T.ToolBar(o),a=[];
+  b.p.children[1].p.children.forEach(function(z){
+    z.p.children[1].p.children.forEach(function(x){a.push(x.p.tabIndex)})});
+  a.push(b.p.children[2].p.children[0].p.tabIndex);
+  a.push(b.p.children[2].p.children[1].p.tabIndex);
+  return a}
+function TB8UN(a){var n=0,i;for(i=0;i<a.length;i++)if(a[i]===0)n++;return n}
+out.tb8_tabindex=TBG(function(){
+  var t0=TB8TABS({open:!0,items:cabPlein,rove:0});
+  var t5=TB8TABS({open:!0,items:cabPlein,rove:5});
+  var tA=TB8TABS({open:!0,items:cabPlein,rove:9});
+  var tB=TB8TABS({open:!0,items:cabPlein,rove:10});
+  return [t0.length,t0.join(","),TB8UN(t0),TB8UN(t5),TB8UN(tA),TB8UN(tB),
+    t5.indexOf(0),tA.indexOf(0),tB.indexOf(0)]});
+/* UN INDEX PERIME NE FAIT PAS DISPARAITRE LE POINT D'ENTREE : sans hote,
+   les neuf sont eteints et il tombe sur `⌖` (index 9). */
+out.tb8_tabindex_assaini=TBG(function(){
+  return [TB8TABS({open:!0,items:cabSansHote,rove:0}).indexOf(0),
+    TB8TABS({open:!0,items:cabSansHote,rove:3}).indexOf(0),
+    TB8TABS({open:!0,items:cabPlein,rove:99}).indexOf(0),
+    TB8TABS({open:!0,items:cabPlein,rove:NaN}).indexOf(0),
+    TB8TABS({open:!0,items:cabPlein}).indexOf(0),
+    TB8UN(TB8TABS({open:!0,items:cabSansHote,rove:0}))]});
+/* LA POIGNEE EST HORS DU GROUPE — la consigne de l'etape 5, tenue : elle ne
+   porte AUCUN `tabIndex` et le selecteur du groupe ne la nomme pas. Sans
+   cela, les fleches auraient deux sens sur le meme objet. */
+out.tb8_poignee_hors_groupe=TBG(function(){
+  var g=T.ToolBar({open:!0,items:cabPlein,rove:0}).p.children[0];
+  return [g.p.className,("tabIndex" in g.p),T.TB_SEL_ROVE,
+    T.TB_SEL_ROVE.indexOf("tbgrip")<0,
+    T.TB_SEL_ROVE.indexOf("dzm-tbb")>=0,
+    T.TB_SEL_ROVE.indexOf("dzm-tbwb")>=0]});
+/* `role="toolbar"` ET SES DEUX ATTRIBUTS, VERBATIM DU §4.5. */
+out.tb8_role=TBG(function(){
+  var b=T.ToolBar({open:!0,items:cabPlein,onBarKey:function(){}});
+  var c=T.ToolBar({open:!0,items:cabPlein});
+  return [b.p.role,b.p["aria-orientation"],b.p["aria-label"],
+    typeof b.p.onKeyDown,typeof c.p.onKeyDown]});
+/* LE BOUTON D'ACTION : TROIS ETATS, DONT L'ABSENCE. Un appelant qui monte
+   un bouton HORS d'une barre roving ne doit pas heriter d'un -1. */
+out.tb8_btn_tab=TBG(function(){
+  var a=TBB({group:"pistes",icon:"texte",label:"t",tab:!0});
+  var b=TBB({group:"pistes",icon:"texte",label:"t",tab:!1});
+  var c=TBB({group:"pistes",icon:"texte",label:"t"});
+  var d2=TBB({group:"pistes",icon:"texte",label:"t",tab:1});
+  return [a.p.tabIndex,b.p.tabIndex,("tabIndex" in c.p),("tabIndex" in d2.p)]});
+/* ── LES TROIS AIDES DE DOM, SUR UN FAUX ARBRE ─────────────────────────── */
+function TB8EL(){var e={foc:0};e.focus=function(){e.foc++};return e}
+/* `tbBoutons` COPIE ce que le DOM rend : une NodeList vivante changerait
+   sous nos pieds entre la mesure et le focus. */
+out.tb8_boutons=TBG(function(){
+  var vu=[],l=[TB8EL(),TB8EL()];
+  var r1=T.tbBoutons({querySelectorAll:function(s){vu.push(s);return l}});
+  return [vu,r1.length,r1!==l,Array.isArray(r1)]});
+out.tb8_boutons_sans_dom=TBG(function(){
+  return [T.tbBoutons(null).length,T.tbBoutons({}).length,
+    T.tbBoutons({querySelectorAll:42}).length,
+    T.tbBoutons({querySelectorAll:function(){throw new Error("x")}}).length]});
+out.tb8_idx=TBG(function(){
+  var a=TB8EL(),b=TB8EL(),c=TB8EL(),l=[a,b,c];
+  return [T.tbIdx(l,a),T.tbIdx(l,c),T.tbIdx(l,TB8EL()),T.tbIdx(l,null),
+    T.tbIdx(null,a),T.tbIdx([],a)]});
+/* `tbFocus` REND CE QU'IL A FAIT, et il ne fait rien hors bornes, sur un
+   nœud sans `focus`, ou sur un index qui n'est pas un nombre. */
+out.tb8_focus=TBG(function(){
+  var a=TB8EL(),b=TB8EL(),l=[a,b];
+  var r=[T.tbFocus(l,1),T.tbFocus(l,9),T.tbFocus(l,-1),T.tbFocus(l,"1"),
+    T.tbFocus([{}],0),T.tbFocus(null,0),T.tbFocus(l,1.5)];
+  return [r,a.foc,b.foc]});
+/* « RENDRE » LE FOCUS SUPPOSE QU'ON L'AVAIT : le raccourci replie depuis
+   n'importe ou, et y deplacer le focus serait le VOLER. `contains` absent ou
+   qui leve : faux, jamais une levee. Le nœud LUI-MEME compte pour dedans. */
+out.tb8_dedans=TBG(function(){
+  var kid={},autre={};
+  var bar={contains:function(e){return e===kid}};
+  var casse={contains:function(){throw new Error("x")}};
+  return [T.tbDedans(bar,kid),T.tbDedans(bar,autre),T.tbDedans(bar,bar),
+    T.tbDedans(bar,null),T.tbDedans(null,kid),T.tbDedans({},kid),
+    T.tbDedans(casse,kid),T.tbDedans(null,null)]});
+/* LA COMBO DITE SUR L'ONGLET — jamais une parenthese vide. */
+out.tb8_combo=TBG(function(){
+  return [T.tbCombo("O"),T.tbCombo("  Maj+O "),T.tbCombo(""),T.tbCombo("   "),
+    T.tbCombo(null),T.tbCombo(void 0),T.tbCombo(42)]});
+out.tb8_onglet=TBG(function(){
+  var o={};
+  return [T.ToolTab({open:!1,keyLbl:"O"}).p.title,
+    T.ToolTab({open:!0,keyLbl:"O"}).p.title,
+    T.ToolTab({open:!1}).p.title,
+    T.ToolTab({open:!0,tabRef:o}).p.ref===o]});
+
 console.log(JSON.stringify(out));
 """
 # "use strict" en PROLOGUE du shim : concatene, celui de montage.js n'est
@@ -5837,12 +6060,20 @@ _DOCK = src[_i_dk:_j_dk] if 0 <= _i_dk < _j_dk else "DOCK-INTROUVABLE"
 # est trouve par `dzmTbAncetre(bar.current,"svm-trans")` : le jeton porte la
 # classe, sans quoi un remontee vers un autre parent passerait inapercue.
 check("tb_le_dock_restaure_persiste_rend_les_deux_et_serre_le_bandeau",
-      2500 < len(_DOCK) < 9500
+      # LES BORNES ENCADRENT LES DEUX FINS DE LIGNE : la copie de travail est
+      # en CRLF, un clone frais peut etre en LF, et le Dock pese ~600 octets
+      # de plus dans le premier cas. Une borne calee sur l'un des deux
+      # rougirait sur l'autre sans rien mesurer de vrai.
+      2500 < len(_DOCK) < 16000
       and "x.useState(dzmTbOpenGet)" in _DOCK
       and "dzmTbOpenSet(!v)" in _DOCK and "dzmTbOpenSet(!1)" in _DOCK
       and "x.useEffect(" in _DOCK and "dzmTbFrame(" in _DOCK
       and "DzmToolTab({" in _DOCK and "DzmToolBar({" in _DOCK
-      and "items:dzmTbCablage(dzmTbHote(o,emoji,!!emo))" in _DOCK
+      # ETAPE 8 : le cablage est HISSE hors du rendu (il sert AUSSI a savoir
+      # quels boutons sont atteignables), et la barre le recoit tel quel.
+      # Les DEUX jetons, sinon un `items:items` sans source resterait vert.
+      and "var items=dzmTbCablage(dzmTbHote(o,emoji,!!emo));" in _DOCK
+      and "items:items," in _DOCK
       and "anim:anim" in _DOCK
       and 'dzmTbAncetre(bar.current,"svm-trans")' in _DOCK
       and "dzmBdTour(bd,bdMem.current)" in _DOCK,
@@ -6368,7 +6599,7 @@ check("tb_le_dock_est_monte_dans_le_bandeau_de_transport",
 # `pointermove` et `pointerdown` sont attendus PRESENTS. La ligne d'avant les
 # exigeait absents ; elle a fait exactement son travail — c'est elle qui a
 # impose de la reecrire au lieu de laisser le reste dehors sans surveillance.
-_i_tb4 = src.find("\u00c9TAPES 4, 5 ET 7 DU \u00a79 : LA BARRE")
+_i_tb4 = src.find("DU \u00a79 : LA BARRE, SON ONGLET, SON D\u00c9PORT, SON")
 _j_tb4 = src.find("/* \u2500\u2500 export contrat", _i_tb4) if _i_tb4 >= 0 else -1
 _SRC_TB = src[_i_tb4:_j_tb4] if 0 <= _i_tb4 < _j_tb4 else "BLOC-INTROUVABLE"
 # L'ETAPE 7 EST DEDANS DESORMAIS, et les conjoints positifs le disent : le
@@ -6376,9 +6607,16 @@ _SRC_TB = src[_i_tb4:_j_tb4] if 0 <= _i_tb4 < _j_tb4 else "BLOC-INTROUVABLE"
 # `pointermove` present (etape 5) ; celle-ci ajoute les deux jetons de
 # l'etape 7. ETAPE 6 LIVREE : le bloc porte maintenant le §5 (la table des
 # retires et le plan de degradation), et c'est un CONJOINT POSITIF de plus.
-# SEULE L'ETAPE 8 RESTE DEHORS — clavier, `role="toolbar"`, `tabindex` roving,
-# `Echap`, mouvement reduit.
-check("tb_l_etape_8_n_est_toujours_pas_livree",
+# L'ETAPE 8 EST DEDANS DESORMAIS, et les conjoints positifs le disent : le
+# `role`, l'orientation, le libelle de la barre, le `tabindex` roving et le
+# gestionnaire de touches de la barre. La ligne d'avant exigeait ces jetons
+# ABSENTS ; elle a fait exactement son travail en rougissant, et elle est
+# REECRITE, pas supprimee.
+# `role:"toolbar"` AVEC LA SYNTAXE DE PROPRIETE : le jeton `role="toolbar"`
+# vit AUSSI dans deux commentaires de la couche (ceux qui annoncaient
+# l'etape), et le chercher nu aurait rendu cette ligne verte sur un
+# commentaire (faute n°2, forme « jeton trouve dans un commentaire »).
+check("tb_l_etape_8_est_livree",
       len(_SRC_TB) > 6000 and "function DzmToolBar(" in _SRC_TB
       and "function DzmToolDock(" in _SRC_TB
       and "pointermove" in _SRC_TB and "onPointerDown" in _SRC_TB
@@ -6386,10 +6624,22 @@ check("tb_l_etape_8_n_est_toujours_pas_livree",
       and "dzmEmojiGo({segments:o.emojiSegs" in _SRC_TB
       and "function dzmBdPlan(" in _SRC_TB
       and "DZM_BD_RETIRES=[" in _SRC_TB
-      and 'role:"toolbar"' not in _SRC_TB and "tabIndex" not in _SRC_TB
-      and "aria-orientation" not in _SRC_TB,
-      f"bloc={len(_SRC_TB)} o — la couche porte deja un morceau de "
-      f"l'etape 8, ou le bloc de la barre est introuvable")
+      and 'role:"toolbar"' in _code(_SRC_TB)
+      and '"aria-orientation":"horizontal"' in _code(_SRC_TB)
+      and '"aria-label":DZM_TB_A_BARRE' in _code(_SRC_TB)
+      and "onKeyDown:o.onBarKey" in _code(_SRC_TB)
+      # LE ROVING EST BIEN CELUI DE LA BARRE, pas un `tabIndex` pose au
+      # hasard : l'index plat des neuf, puis les deux index des controles
+      # de fenetre, derives de `dzmTbNbAct()`.
+      and "tab:ti===rove," in _code(_SRC_TB)
+      and "tabIndex:rove===nAct?0:-1," in _code(_SRC_TB)
+      and "tabIndex:rove===nAct+1?0:-1," in _code(_SRC_TB)
+      # ET LE BOUTON D'ACTION SAIT LE PORTER — il vit HORS de ce bloc
+      # (juste au-dessus), d'ou la mesure sur la couche entiere.
+      and "if(o.tab===!0)p.tabIndex=0;" in _code(src)
+      and "else if(o.tab===!1)p.tabIndex=-1;" in _code(src),
+      f"bloc={len(_SRC_TB)} o — un morceau de l'etape 8 manque, ou le bloc "
+      f"de la barre est introuvable")
 # LA DUPLICATION EST SOLDEE (§5.1). Cette ligne remplace le rappel du reste
 # assume qui vivait ici, et elle mesure la SOLDE, des deux cotes : les cinq
 # jetons que les sections posaient dans le bandeau ont disparu de la chaine —
@@ -7500,6 +7750,455 @@ check("bd_la_somme_des_blocs_redonne_le_besoin_plein",
 check("bd_l_hote_sans_bandeau_rend_null_au_lieu_de_lever",
       d.get("bd_hote_sans_bandeau") == [None, None, None, None],
       f'{d.get("bd_hote_sans_bandeau")}')
+
+# ══ [6-quater] ETAPE 8 DU HANDOFF — CLAVIER, `role="toolbar"`, MOUVEMENT
+#    REDUIT (§4.5) ET LE RACCOURCI (§4.1) ═══════════════════════════════════
+#
+# LE CŒUR DU ROVING EST PUR ET JOUE SOUS NODE : « index courant + direction +
+# liste des boutons actifs -> index suivant ». C'est la seule facon de mesurer
+# la traversee des groupes sans navigateur. Ce qui reste dehors est nomme en
+# fin de section : le focus reel, l'ordre de tabulation vu par le navigateur,
+# et ce qu'un lecteur d'ecran annonce.
+
+# ── LE CŒUR, PUR ──────────────────────────────────────────────────────────
+check("tb8_le_roving_avance_et_boucle",
+      d.get("tb8_rove_avance") == [1, 2, 4, 0], f'{d.get("tb8_rove_avance")}')
+check("tb8_le_roving_recule_et_boucle",
+      d.get("tb8_rove_recule") == [3, 0, 4], f'{d.get("tb8_rove_recule")}')
+# LES ETEINTS SONT SAUTES, DANS LES DEUX SENS. Plateau [actif, x, x, actif, x] :
+# depuis 0 en avant -> 3 ; depuis 3 en avant -> 0 (les deux derniers eteints,
+# on boucle) ; depuis 0 en arriere -> 3 ; depuis 3 en arriere -> 0.
+check("tb8_le_roving_saute_les_boutons_eteints",
+      d.get("tb8_rove_saute_eteints") == [3, 0, 3, 0],
+      f'{d.get("tb8_rove_saute_eteints")}')
+check("tb8_le_roving_avec_un_seul_actif_y_revient",
+      d.get("tb8_rove_un_seul") == [2, 2, 2], f'{d.get("tb8_rove_un_seul")}')
+# -1 = « aucun `tabindex=0` a poser » : une barre sans rien d'atteignable se
+# SAUTE, elle ne piege pas le focus sur un bouton mort. Aucune levee, aucune
+# boucle infinie — les cinq plateaux degeneres passent par la meme sortie.
+check("tb8_le_roving_sans_actif_rend_moins_un",
+      d.get("tb8_rove_rien") == [-1, -1, -1, -1, -1],
+      f'{d.get("tb8_rove_rien")}')
+# HORS BORNES : on repart du bord AMONT du sens de marche. Les onze cas
+# couvrent l'index negatif, l'index trop grand, `NaN`, le non-entier, la
+# chaine numerique (ACCEPTEE, c'est le meme index), `undefined` et `null` —
+# ces deux derniers DIFFERENT, et c'est epingle : `Number(null)` vaut 0, donc
+# `null` designe le bouton 0 et n'est pas hors bornes.
+check("tb8_le_roving_hors_bornes_repart_du_bord_amont",
+      d.get("tb8_rove_hors_bornes") == [0, 0, 0, 0, 3, 0, 1,
+                                        4, 4, 4, 4],
+      f'{d.get("tb8_rove_hors_bornes")}')
+check("tb8_seule_une_direction_negative_recule",
+      d.get("tb8_rove_dir_valeurs") == [4, 1, 1, 1],
+      f'{d.get("tb8_rove_dir_valeurs")}')
+# LE PARCOURS EST COMPLET ET SANS DOUBLON : six pas rendent les six index.
+# C'est ce qui prouve que le pas vaut ±1 — un pas de 2 sur six boutons en
+# laisserait trois inatteignables sans qu'aucun autre cas ne le voie.
+check("tb8_le_roving_visite_chaque_bouton_une_fois",
+      d.get("tb8_rove_parcours") == [1, 2, 3, 4, 5, 0],
+      f'{d.get("tb8_rove_parcours")}')
+# L'ASSAINISSEMENT DIFFERE DE LA NAVIGATION, et le troisieme element le dit :
+# depuis l'index 2 (eteint), `tbRoveSain` rend 1 — le PREMIER actif — la ou
+# `tbRove(2,1,…)` rendrait 3. Un point d'entree n'est pas un deplacement.
+check("tb8_le_point_d_entree_est_assaini_vers_le_premier_actif",
+      d.get("tb8_rove_sain") == [1, 1, 1, 1, 1, 1, 3, -1, -1, -1],
+      f'{d.get("tb8_rove_sain")}')
+# HORIZONTALE (§4.5) : gauche/droite seulement. Haut/bas restent a l'ecran —
+# ce sont ses sauts de coupe, et les voler ici serait un raccourci de plus qui
+# ne dit pas son nom. `constructor`, `toString`, `__proto__` : acces GARDE,
+# sinon la table heritee aurait rendu une fonction, donc une direction
+# « vraie » (meme piege que `dzmTbTouche` a l'etape 5).
+check("tb8_seules_les_fleches_horizontales_naviguent",
+      d.get("tb8_dir_touches") == [-1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      f'{d.get("tb8_dir_touches")}')
+check("tb8_le_nombre_de_boutons_vient_du_plan",
+      d.get("tb8_nb_act") == [9, 3, 9, 9], f'{d.get("tb8_nb_act")}')
+
+# ── L'ORDRE PLAT, ET SON ACCORD AVEC LA BARRE PEINTE ──────────────────────
+# ONZE ENTREES : les neuf actions puis `⌖` et `×`. Ces deux-la sont TOUJOURS
+# atteignables — le §4.2 l'exige pour `⌖` (« il ne doit jamais etre masque »),
+# et `×` est la seule facon de replier au clavier.
+_A_PLEIN = ",".join(["true"] * 11)
+_A_ETEINT = ",".join(["false"] * 9 + ["true", "true"])
+check("tb8_l_ordre_plat_compte_neuf_actions_plus_deux_controles",
+      d.get("tb8_actifs") is not None
+      and d["tb8_actifs"][0] == 11
+      and d["tb8_actifs"][1] == _A_PLEIN
+      and d["tb8_actifs"][2] == _A_ETEINT
+      and d["tb8_actifs"][3] == _A_ETEINT
+      and d["tb8_actifs"][4] == _A_ETEINT,
+      f'{d.get("tb8_actifs")}')
+# LES DEUX COTES S'ACCORDENT, BOUTON PAR BOUTON, SUR TROIS PLATEAUX. Sans cet
+# accord, le point d'entree du parcours tomberait sur un bouton `disabled`,
+# c'est-a-dire nulle part. MESUREE PAR MUTATION : la version naive de
+# `dzmTbActifs` (« entree absente = rien a eteindre = actif ») fait rougir
+# les deux derniers plateaux, et elle seule.
+check("tb8_les_actifs_et_la_barre_peinte_disent_la_meme_chose",
+      d.get("tb8_actifs_accorde_la_barre") == [True, True, True, _A_ETEINT],
+      f'{d.get("tb8_actifs_accorde_la_barre")}')
+
+# ── LE `tabindex` ROVING SUR LA BARRE PEINTE ──────────────────────────────
+# « Un seul point d'entree dans l'ordre de tabulation » (§4.5), mesure sur les
+# ONZE boutons : exactement un `0`, dix `-1`, et le `0` est a l'index demande.
+_T0 = ",".join(["0"] + ["-1"] * 10)
+check("tb8_un_seul_point_d_entree_et_il_suit_l_index",
+      d.get("tb8_tabindex") == [11, _T0, 1, 1, 1, 1, 5, 9, 10],
+      f'{d.get("tb8_tabindex")}')
+# UN INDEX PERIME NE FAIT PAS DISPARAITRE LE POINT D'ENTREE. Sans hote les
+# neuf actions sont eteintes : il tombe sur `⌖` (index 9), et il y a toujours
+# EXACTEMENT un `0`. Les trois derniers cas sont l'index trop grand, `NaN` et
+# l'absence de propriete.
+check("tb8_un_index_perime_retombe_sur_le_premier_actif",
+      d.get("tb8_tabindex_assaini") == [9, 9, 0, 0, 0, 1],
+      f'{d.get("tb8_tabindex_assaini")}')
+# LA CONSIGNE DE L'ETAPE 5, TENUE : la poignee est HORS du groupe. Ses fleches
+# deplacent la barre, celles du groupe deplacent le focus — le meme geste ne
+# peut pas faire les deux sur le meme objet. Elle ne porte AUCUN `tabIndex`
+# (elle garde donc son propre arret de tabulation, ecart declare) et le
+# selecteur du groupe ne la nomme pas.
+check("tb8_la_poignee_est_hors_du_groupe_roving",
+      d.get("tb8_poignee_hors_groupe") == ["dzm-tbgrip", False,
+                                           ".dzm-tbb,.dzm-tbwb",
+                                           True, True, True],
+      f'{d.get("tb8_poignee_hors_groupe")}')
+# `role="toolbar"`, VERBATIM DU §4.5, avec ses deux attributs. Le dernier
+# element est le conjoint qui empeche un `onKeyDown` code en dur : sans
+# gestionnaire fourni, la barre n'en pose pas.
+check("tb8_la_barre_est_un_role_toolbar_nomme_et_oriente",
+      d.get("tb8_role") == ["toolbar", "horizontal", "Outils de création",
+                            "function", "undefined"],
+      f'{d.get("tb8_role")}')
+# LE BOUTON D'ACTION PORTE TROIS ETATS, DONT L'ABSENCE — un appelant qui monte
+# un bouton HORS d'une barre roving ne doit pas heriter d'un `-1` qui le
+# sortirait du parcours. Le quatrieme cas (`tab:1`, truthy mais pas `true`)
+# ne pose rien : le contrat est strict, comme celui de `toggle` et `disabled`.
+check("tb8_le_bouton_porte_trois_etats_de_tabindex",
+      d.get("tb8_btn_tab") == [0, -1, False, False],
+      f'{d.get("tb8_btn_tab")}')
+
+# ── LES TROIS AIDES DE DOM, JOUEES SUR UN FAUX ARBRE ──────────────────────
+# `tbBoutons` interroge le DOM avec LE selecteur du groupe et COPIE ce qu'il
+# rend : une NodeList vivante changerait sous nos pieds entre la mesure et le
+# focus.
+check("tb8_les_boutons_sont_lus_par_le_selecteur_du_groupe_et_copies",
+      d.get("tb8_boutons") == [[".dzm-tbb,.dzm-tbwb"], 2, True, True],
+      f'{d.get("tb8_boutons")}')
+# SANS DOM, SANS METHODE, AVEC UNE METHODE QUI LEVE : liste vide, jamais une
+# levee. L'ecran peut monter avant que la barre existe.
+check("tb8_les_boutons_sans_dom_rendent_une_liste_vide",
+      d.get("tb8_boutons_sans_dom") == [0, 0, 0, 0],
+      f'{d.get("tb8_boutons_sans_dom")}')
+check("tb8_l_index_du_noeud_focalise",
+      d.get("tb8_idx") == [0, 2, -1, -1, -1, -1], f'{d.get("tb8_idx")}')
+# `tbFocus` REND CE QU'IL A FAIT, et il ne fait rien hors bornes, sur un nœud
+# sans `focus`, sur un index qui n'est pas un nombre ou qui n'est pas entier.
+# Les deux compteurs finaux sont le conjoint positif : un seul appel a porte.
+check("tb8_le_focus_ne_part_que_sur_un_noeud_focalisable",
+      d.get("tb8_focus") == [[True, False, False, False, False, False, False],
+                             0, 1],
+      f'{d.get("tb8_focus")}')
+
+# « RENDRE LE FOCUS A L'ONGLET » (§4.5) SUPPOSE QU'ON L'AVAIT. Echap ne part
+# que du dedans, mais LE RACCOURCI REPLIE DEPUIS N'IMPORTE OU — la timeline,
+# un en-tete de piste, l'inspecteur. Y deplacer le focus ne serait pas le
+# rendre, ce serait le VOLER, et le voler coute cher : un `<button>` focalise
+# consomme la barre d'espace, c'est-a-dire la lecture. Le nœud LUI-MEME
+# compte pour dedans ; un `contains` absent ou qui leve rend faux.
+check("tb8_le_focus_n_est_rendu_que_s_il_etait_dans_la_barre",
+      d.get("tb8_dedans") == [True, False, True, False, False, False,
+                              False, False],
+      f'{d.get("tb8_dedans")}')
+
+# ── LE RACCOURCI, DIT SUR L'ONGLET ────────────────────────────────────────
+# La combo n'est pas ecrite dans la couche : elle vient de
+# `svmKeyLabel("toolbar")`, donc de la keymap VIVANTE. Un remappage se lit sur
+# l'onglet comme il se lit deja sur la chip « lame ». Sans combo : rien
+# d'ajoute, jamais une parenthese vide.
+check("tb8_la_combo_est_dite_ou_rien_ne_l_est",
+      d.get("tb8_combo") == [" Raccourci : O.", " Raccourci : Maj+O.",
+                             "", "", "", "", ""],
+      f'{d.get("tb8_combo")}')
+check("tb8_l_onglet_dit_le_raccourci_et_recoit_sa_reference",
+      d.get("tb8_onglet") == [
+          "Ouvrir la barre d'outils de création. Raccourci : O.",
+          "Replier la barre d'outils sur son onglet. Raccourci : O.",
+          "Ouvrir la barre d'outils de création.",
+          True],
+      f'{d.get("tb8_onglet")}')
+
+# ── LE DOCK : CE QUE NODE NE JOUE PAS, LU DANS LA SOURCE ──────────────────
+# C'est le seul morceau a hooks du lot. Meme parade qu'aux etapes 4, 5 et 7 :
+# le cœur est mesure pour lui-meme plus haut, mais RIEN ne dirait qu'il est
+# APPELE. Chaque jeton est une INSTRUCTION ENTIERE, pas un nom — la mesure de
+# l'etape 5 (deux mutants ont survecu a des jetons trop courts) tient encore.
+for _tk8 in (
+        # ECHAP : replie ET rend le focus a l'onglet (§4.5). Les deux moities
+        # dans le meme appel : `replier` fait les deux, et `onClose` la
+        # reutilise — le `×` du clavier laissait sinon le focus nulle part.
+        'if(e.key==="Escape"){',
+        "replier();return}",
+        "function replier(){setOpen(dzmTbOpenSet(!1));rendreFocus()}",
+        "onClose:replier",
+        # ET LA GARDE EST SUR LES DEUX CHEMINS DE REPLI — Echap/`×` par
+        # `replier`, le raccourci par son effet. Sans elle, `O` frappe depuis
+        # la timeline aurait tire le focus jusqu'a l'onglet.
+        "if(dzmTbDedans(bar.current,doc&&doc.activeElement))focusOnglet()}",
+        # LES FLECHES : la direction vient du cœur pur, l'index courant du
+        # nœud reellement focalise, et on ne navigue pas si les deux
+        # longueurs different.
+        "var d=dzmTbRoveDir(e.key);",
+        "var l=dzmTbBoutons(bar.current),a=dzmTbActifs(items);",
+        "if(l.length!==a.length)return;",
+        "var i=dzmTbIdx(l,doc&&doc.activeElement);",
+        "var j=dzmTbRove(i,d,a);",
+        "setRove(j);dzmTbFocus(l,j)}",
+        "onBarKey:barKey",
+        # LE FOCUS A L'OUVERTURE (§4.1) — sur le GESTE seulement : `vuOpen`
+        # garde le montage, sinon la barre (ouverte par defaut depuis
+        # l'etape 6) volerait le focus a chaque chargement de l'ecran.
+        "if(vuOpen.current===null){vuOpen.current=open;return}",
+        "if(open&&!vuOpen.current){",
+        "var k=dzmTbRove(-1,1,dzmTbActifs(items));",
+        "if(k>=0){setRove(k);dzmTbFocus(dzmTbBoutons(bar.current),k)}}",
+        # LE RACCOURCI RECU COMME UNE DEMANDE, et sa garde de montage.
+        "var treq=Number(o.toggleReq)||0;",
+        "if(treq<=0)return;",
+        "var v=!openRef.current;",
+        "if(!v)rendreFocus()},[treq]);",
+        "openRef.current=open;",
+        # L'ONGLET RECOIT SA REFERENCE ET LA COMBO VIVANTE.
+        "tabRef:onglet,keyLbl:o.keyLbl",
+        "rove:rove,onBarKey:barKey",
+):
+    check("tb8_dock_" + re.sub(r"[^a-z0-9]+", "_", _tk8.lower()).strip("_")[:58],
+          _tk8 in _DOCK, f"absent du Dock : {_tk8!r}")
+# LES DEUX BRANCHES ARRETENT CHACUNE LA PROPAGATION, ET C'EST UN COMPTE, PAS
+# UNE SOUS-CHAINE. MESUREE PAR MUTATION : retirer le `stopPropagation` de la
+# SEULE branche Echap laissait la ligne verte, parce que la meme instruction
+# vit dans la branche des fleches (faute n°2, forme « sous-chaine que la
+# chaine ecrit ailleurs »). Ce que chacune empeche est different :
+#   • Echap — le gestionnaire global de l'ecran rendrait AUSSI les fleches
+#     d'un overlay selectionne a la tete de lecture, deux gestes pour une
+#     frappe ;
+#   • les fleches — elles deplaceraient AUSSI la tete de lecture
+#     (`step_back` / `step_fwd`), ce que la poignee evite deja pour les
+#     siennes depuis l'etape 5, et par la meme mesure.
+_i_bk = _DOCK.find("  function barKey(e){")
+_j_bk = _DOCK.find("\n  function ", _i_bk + 10) if _i_bk >= 0 else -1
+_BARKEY = _DOCK[_i_bk:_j_bk] if 0 <= _i_bk < _j_bk else "BARKEY-INTROUVABLE"
+# L'ASYMETRIE DES DEUX BRANCHES, ET C'EST UNE MESURE QUI A CORRIGE LA
+# PREMIERE VERSION DE CE BLOC. `barKey` porte DEUX `preventDefault` et UN
+# SEUL `stopPropagation`, et le seul est celui des FLECHES :
+#   • ECHAP LAISSE MONTER — le bouton `projets` de la barre ouvre le popover
+#     des projets SANS deplacer le focus, qui reste donc DANS la barre ; ce
+#     popover ferme sur Echap par un ecouteur `window` de phase MONTANTE
+#     (montage.js, effet `[op]`), donc sous nous. L'arreter etouffait cet
+#     ecouteur : une frappe repliait la barre et laissait le popover ouvert
+#     derriere, sans clavier pour le fermer. C'est aussi la regle que
+#     `SVM_KEYS_INFO` ecrit — « Echap : fermer / annuler, touche fixe » ;
+#   • LES FLECHES, ELLES, SONT ARRETEES — sans quoi elles deplaceraient AUSSI
+#     la tete de lecture (`step_back` / `step_fwd`).
+# LE COMPTE EST CELUI DE `barKey` SEUL : le clavier de la POIGNEE (`clavier`,
+# etape 5) porte la meme paire, et compter sur tout le Dock rend DEUX — donc
+# vert apres avoir retire celui des fleches (faute n°2, forme « sous-chaine
+# que la chaine ecrit ailleurs » — mesuree, ce mutant a survecu a la premiere
+# passe). LE CONJOINT DE POSITION est ce qui distingue les deux branches :
+# le `stopPropagation` suit immediatement la resolution de direction.
+check("tb8_dock_echap_laisse_monter_et_les_fleches_sont_arretees",
+      300 < len(_BARKEY) < 1600
+      and _BARKEY.count('if(typeof e.stopPropagation==="function")'
+                        'e.stopPropagation();') == 1
+      and _BARKEY.count('if(typeof e.preventDefault==="function")'
+                        'e.preventDefault();') == 2
+      and 0 < _BARKEY.find("var d=dzmTbRoveDir(e.key);")
+      < _BARKEY.find('if(typeof e.stopPropagation==="function")'
+                     "e.stopPropagation();")
+      and _DOCK.count('if(typeof e.stopPropagation==="function")'
+                      'e.stopPropagation();') == 2,
+      f'barKey={len(_BARKEY)} o '
+      f'stop={_BARKEY.count("e.stopPropagation();")} '
+      f'prevent={_BARKEY.count("e.preventDefault();")} '
+      f'dock={_DOCK.count("e.stopPropagation();")}')
+
+# ── LE RACCOURCI, INSCRIT DANS LE MECANISME EXISTANT (§4.1) ───────────────
+# LE POINT DUR DE CETTE ETAPE. Le §4.1 demande `T` ; `T` EST DEJA PRIS par
+# `narration` dans le bundle livre. La touche retenue est `O` — l'initiale du
+# libelle VERBATIM de l'onglet — et elle est declaree dans `SVM_ACTIONS`,
+# c'est-a-dire REMAPPABLE (`dz_svm_keymap`) et LISTEE dans le panneau « ? ».
+# Un ecouteur invente a cote aurait donne un raccourci invisible du panneau,
+# donc introuvable, et non remappable.
+_ACTS = re.search(r"var SVM_ACTIONS=\[(.*?)\];\r?\nvar SVM_ACTION_BY_ID",
+                  s, re.S)
+_ACTS = _ACTS.group(1) if _ACTS else ""
+_COMBOS = re.findall(
+    r'\{id:"([a-z_0-9]+)",sec:"([^"]+)",lbl:"[^"]*",combo:"([^"]+)"\}', _ACTS)
+_BY_COMBO = {}
+for _a, _sec, _c in _COMBOS:
+    _BY_COMBO.setdefault(_c, []).append(_a)
+# LE CONFLIT EST MESURE, PAS SUPPOSE : `T` appartient a `narration`, et il ne
+# lui est PAS repris. Conjoint positif : la table est bien celle de l'ecran
+# (elle porte les trente-trois actions, dont la nouvelle).
+check("tb8_le_T_du_handoff_appartient_deja_a_la_narration",
+      len(_COMBOS) == 33 and _BY_COMBO.get("T") == ["narration"],
+      f"actions={len(_COMBOS)} T={_BY_COMBO.get('T')}")
+# UNE COMBO PAR ACTION, ET AUCUNE EN DOUBLE : la nouvelle n'a rien vole.
+# `svmKmMerge` resoudrait une collision en silence (retour au defaut) — c'est
+# ici qu'elle doit se voir.
+check("tb8_aucune_combo_par_defaut_n_est_prise_deux_fois",
+      len(_COMBOS) == len(_BY_COMBO)
+      and all(len(v) == 1 for v in _BY_COMBO.values()),
+      f"{[k for k, v in _BY_COMBO.items() if len(v) > 1]}")
+check("tb8_l_action_de_la_barre_est_dans_la_table_des_raccourcis",
+      _BY_COMBO.get("O") == ["toolbar"]
+      and s.count(nl(P.R_M20A.split("\n")[0])) == 1,
+      f"O={_BY_COMBO.get('O')}")
+# `O` EST LIBRE DES DEUX COTES : aucune autre action ne la porte (ci-dessus),
+# et AUCUNE comparaison du bundle ne la lit — les seules occurrences de ces
+# motifs sont `subsKeyOf` et `arm==="o"+p.id`, dont aucune n'est un raccourci.
+check("tb8_la_touche_O_n_est_lue_par_aucun_autre_ecouteur",
+      s.count('KeyO') == 5 and s.count('==="o"') == 1
+      and s.count('==="O"') == 0 and s.count('key==="o"') == 0
+      and s.count('subsKeyOf') == 5 and s.count('arm==="o"+p.id') == 1,
+      f'KeyO={s.count("KeyO")} o={s.count("===" + chr(34) + "o" + chr(34))} '
+      f'subsKeyOf={s.count("subsKeyOf")}')
+# ET ELLE N'EST PAS RESERVEE : `svmComboReserved` refuse les touches du
+# navigateur, les F<n>, Echap, Tab et Entree. « O » n'est dans aucune liste.
+check("tb8_la_touche_O_n_est_pas_reservee_par_le_navigateur",
+      s.count(nl('var SVM_COMBO_RESERVED={"Ctrl+R":1,')) == 1
+      and '"O":1' not in s.split("function svmComboReserved")[0]
+      .split("var SVM_COMBO_RESERVED=")[-1],
+      "O figure dans SVM_COMBO_RESERVED")
+# LA BRANCHE DE DISPATCH EXISTE : une action declaree sans branche serait un
+# raccourci MORT, liste dans le panneau et sans effet. Elle DEMANDE la
+# bascule (un compteur), elle ne pilote pas l'etat — qui vit dans le Dock,
+# qui le persiste. `dzTbReq` est declare une fois et passe une fois.
+check("tb8_le_raccourci_a_sa_branche_et_elle_demande_la_bascule",
+      s.count(nl('if(id==="toolbar"){'
+                 'setDzTbReq(function(n){return n+1});return}')) == 1
+      and s.count(nl("var stDzTb=x.useState(0),dzTbReq=stDzTb[0],"
+                     "setDzTbReq=stDzTb[1];")) == 1
+      and s.count("toggleReq:dzTbReq,") == 1
+      and s.count('keyLbl:svmKeyLabel("toolbar")') == 1
+      and "toggleReq:dzTbReq," in P.R_M19,
+      f'branche={s.count(nl(chr(34)))} '
+      f'decl={s.count("var stDzTb=x.useState(0)")} '
+      f'prop={s.count("toggleReq:dzTbReq,")}')
+# LE PANNEAU « ? » LE LISTE : il boucle sur `SVM_ACTIONS` sans autre filtre
+# que `sounds_drawer`. Cette ligne mesure les DEUX faces — la boucle est
+# toujours celle-la (une seule occurrence dans le bundle), et la seule
+# exception nommee est bien `sounds_drawer`.
+check("tb8_le_panneau_des_raccourcis_liste_la_nouvelle_action",
+      s.count(nl("SVM_ACTIONS.forEach(function(a){\r\n"
+                 '      if(a.id==="sounds_drawer"&&!hasSfx)return;\r\n'
+                 "      rows.push({act:a})});")) == 1,
+      "la boucle de kbPanel a change de forme")
+
+# ── LE NOM ACCESSIBLE DES TROIS CHIPS DE COUPE (§4.5) ─────────────────────
+# « La couleur n'est jamais le seul porteur d'information » — et la FORME non
+# plus. L'etape 6 passe ces trois chips en GLYPHE SEUL sous largeur reduite ;
+# l'etape 8 leur donne un `aria-label` explicite, pour que leur nom ne
+# dependre ni du contenu genere par `::before` ni du moteur.
+# LES DEUX FACES : le `aria-label` dans le bundle, ET la regle de degradation
+# dans la feuille — sans elle, ces `aria-label` repareraient un mal absent.
+for _lbl8, _ct8 in (('"aria-label":"aimanter",', 1),
+                    ('"aria-label":"lame · "+svmKeyLabel("blade"),', 1),
+                    ('"aria-label":"ripple",', 1)):
+    check("tb8_chip_" + re.sub(r"[^a-z]+", "_", _lbl8.lower()).strip("_")[:40],
+          s.count(nl(_lbl8)) == _ct8, f"{_lbl8!r} x{s.count(nl(_lbl8))}")
+check("tb8_les_trois_chips_degradees_gardent_un_nom_et_une_infobulle",
+      _MC.count('[data-bdoff~="coupe"] .svm-toolchips') == 5
+      and "font-size:0" in _MC
+      and _MC.count(".svm-toolchip:nth-child(-n+3)") == 2
+      # QUATRE CHIPS DANS LE CONTENEUR, TROIS QUI SE DEGRADENT : la
+      # quatrieme est celle des sous-titres, que le §5.3 protege — ses deux
+      # compteurs seraient illisibles reduits a un glyphe, et elle n'a donc
+      # pas besoin d'un nom explicite. C'est `:nth-child(-n+3)` qui trace la
+      # frontiere, des deux cotes.
+      and s.count('className:"svm-toolchip"') == 4
+      # LE `title` NE BOUGE PAS : il reste la description, et c'est lui que
+      # l'infobulle du mode compact affiche (§2.3).
+      and s.count(nl('title:"aimanter les bords, la tête et 0 ("')) == 1
+      and s.count(nl('title:"couper le clip sélectionné à la tête ("')) == 1
+      and s.count(nl('title:"refermer les trous — suppression et rognage '
+                     'droit sur V1 ("')) == 1,
+      f'coupe={_MC.count(chr(91) + "data-bdoff~=" + chr(34) + "coupe" + chr(34) + "] .svm-toolchips")} '
+      f'chips={s.count(chr(34) + "svm-toolchip" + chr(34))}')
+
+# ── MOUVEMENT REDUIT (§4.5) : LES TROIS EXIGENCES, ET QUI LES TIENT ───────
+# 1. « durees a 1 ms » et 2. « aimantation immediate » : SERVIES PAR UNE REGLE
+#    QUI EXISTAIT DEJA — son-vfx-montage.css l.1028, `.dzsvm *` sous
+#    `prefers-reduced-motion:reduce`, qui ramene `animation-duration` et
+#    `transition-duration` a .001 ms. La barre vit dans `.dzsvm`, et TOUT son
+#    mouvement est en CSS : l'ouverture et le repli (`opacity`/`transform` sur
+#    `--dur-bar-open`) et l'aimantation (`translate` sur `--dur-bar-snap`).
+#    AUCUN MINUTEUR, aucune animation pilotee en JS — c'est ce que la
+#    troisieme moitie de cette ligne mesure, et c'est ce qui rend la premiere
+#    vraie. `setTimeout` survit dans `dzmTbFrame`, qui est un REPLI de
+#    `requestAnimationFrame` a delai zero : il ne dessine pas, il attend une
+#    frame.
+# 3. « aucun enfoncement » : LA SEULE QUI DEMANDAIT UNE REGLE NEUVE, posee a
+#    l'etape 3 — le coupe-circuit borne les DUREES, il ne RETIRE pas une
+#    transformation, qui resterait appliquee en un saut tant que le doigt
+#    appuie.
+# `_lire` PLUTOT QUE `read_text` : une feuille absente ou illisible doit
+# faire ROUGIR cette ligne, pas TUER le banc (faute n°6). `_lire` rend un
+# temoin distinguable, jamais "".
+_SVMCSS = _lire(ROOT / "frontend" / "dist" / "shared" / "son-vfx-montage.css")
+_COUPE = _regle(_SVMCSS, ".dzsvm *, .dzsvm *::before, .dzsvm *::after{")
+check("tb8_le_coupe_circuit_du_mouvement_reduit_vient_de_son_vfx_montage",
+      _COUPE is not None
+      and "transition-duration:.001ms!important" in _COUPE
+      and "animation-duration:.001ms!important" in _COUPE
+      and "@media (prefers-reduced-motion:reduce){" in _SVMCSS
+      # ET IL N'EST PAS DANS LA FEUILLE DE TOKENS, que dist/index.html NE
+      # CHARGE PAS : c'est la rectification d'attribution de l'etape 5, et
+      # la feuille la PORTE — sans ce conjoint, retourner la phrase du
+      # commentaire (« vient de » au lieu de « ne vient PAS de ») laissait
+      # le banc entierement vert.
+      and "deepotus.tokens.css" not in _HTML
+      and "son-vfx-montage.css" in _HTML
+      and _MC.count("ne vient PAS de shared/deepotus.tokens.css") == 2,
+      f"coupe={_COUPE!r} "
+      f'rectif={_MC.count("ne vient PAS de shared/deepotus.tokens.css")}')
+check("tb8_l_enfoncement_est_retire_et_le_delai_du_repli_aussi",
+      _regle(_MC, ".dzsvm .dzm-tbb:active{transform:none") is not None
+      and _regle(_MC, ".dzsvm .dzm-tbar[data-off]{transition-delay:0s")
+      is not None
+      and _MC.count("@media (prefers-reduced-motion:reduce){") == 2
+      # ET L'ATTRIBUTION EST CORRIGEE DANS LES DEUX COMMENTAIRES : c'est un
+      # commentaire qui mentait, la meme famille de faute que la chaine a
+      # deja payee deux fois. DEUX, un par bloc de mouvement reduit —
+      # l'enfoncement (etape 3, corrige ici) et le delai du repli (etape 8).
+      # Le compte, pas la sous-chaine : corriger l'un et laisser l'autre
+      # aurait laisse la ligne verte.
+      and _MC.count("son-vfx-montage.css l.1028") == 2
+      and "de la feuille de\n   tokens" not in _MC,
+      f'media={_MC.count("@media (prefers-reduced-motion:reduce){")} '
+      f'attribution={_MC.count("son-vfx-montage.css l.1028")}')
+# LE MOUVEMENT DE LA BARRE EST ENTIEREMENT EN CSS — c'est ce qui rend le
+# coupe-circuit suffisant pour les deux premieres exigences. Conjoint positif
+# d'abord : le bloc existe et il est gros.
+_CODE_TB8 = _code(_SRC_TB)
+_i_frm = _CODE_TB8.find("function dzmTbFrame(")
+_j_frm = _CODE_TB8.find("\nfunction ", _i_frm + 10) if _i_frm >= 0 else -1
+_HORS_FRM = ((_CODE_TB8[:_i_frm] + _CODE_TB8[_j_frm:])
+             if 0 <= _i_frm < _j_frm else "BLOC-INTROUVABLE")
+check("tb8_aucun_mouvement_de_la_barre_n_est_pilote_en_javascript",
+      len(_CODE_TB8) > 8000 and len(_HORS_FRM) > 8000
+      # LES SEULS `requestAnimationFrame` / `setTimeout` DU BLOC vivent dans
+      # `dzmTbFrame`, dont le travail est d'ATTENDRE UNE FRAME pour rendre la
+      # main aux transitions (§4.4) : il ne dessine pas, il ne compte pas de
+      # pas. Partout ailleurs dans le bloc : zero.
+      and _CODE_TB8.count("function dzmTbFrame(") == 1
+      and "requestAnimationFrame" not in _HORS_FRM
+      and "setTimeout" not in _HORS_FRM
+      and "setInterval" not in _CODE_TB8
+      and ".animate(" not in _code(src)
+      # ET LA FEUILLE N'ANIME RIEN NON PLUS : aucune `@keyframes`, donc tout
+      # le mouvement de la barre est une TRANSITION — exactement ce que le
+      # coupe-circuit borne.
+      and "@keyframes" not in _MC,
+      f"bloc={len(_CODE_TB8)} o hors_frame={len(_HORS_FRM)} o")
 
 # LA LIGNE QUI DIT QUE LE BANC A ROUGI PLUTOT QUE MEURE : aucun appel garde
 # n'a pose de temoin. Une panne de node — introuvable, ou un shim qui tourne
