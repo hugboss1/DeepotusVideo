@@ -31,7 +31,29 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 06/09/2026 (P13, TOUR 1 apres revue — la transcription
+COMPTE DE REFERENCE, 06/09/2026 (P15 — l'onglet OUTILS libere le pied du
+panneau Narration) : 1133 lignes, soit DEUX de plus que les 1131 de P13,
+MESUREES sur la sortie du banc : `narr_le_pied_libere_la_bande_de_l_onglet`
+(la regle exacte `.dzsvm .svm-narr` de montage.css, lue par `_regle` comme
+l'onglet et la barre) et `narr_le_debord_de_l_onglet_reste_celui_du_2_1`
+(le debord RECALCULE — |top| moins les deux filets LUS, 21 − 1 − 1 = 19 —
+contre le pied LU : 27 ≥ 19 + 8, la marge du §4.2 ; ni 19 ni 27 n'y est
+ecrit). SEPT MUTATIONS jouees sur des COPIES de l'arbre, jamais sur la
+feuille suivie — regle retiree → les DEUX rougissent (narr=None, pied=None :
+pas « seule » comme le plan l'annoncait, le pied illisible est un temoin,
+et sans la regle le debord n'est PAS libere) ; `padding-bottom:20px` → les
+deux (l'exacte, puis 20 < 27) ; `padding-bottom:28px` → la premiere SEULE
+(28 ≥ 27 laisse la seconde verte : c'est ce qui separe les deux lignes) ;
+`top:-30px` → la seconde (debord 28, pied 27 < 36) avec `tb_la_geometrie_
+de_l_onglet_est_celle_du_2_1`, attendu ; filet haut du bandeau retire
+(§5.2) → la seconde (filet-bandeau=0, debord 20, 27 < 28) avec `tb_le_
+bandeau_est_le_bloc_conteneur_de_l_onglet_et_fait_46px` ; filet haut de
+`.svm-tl` retire dans la feuille amont → la seconde SEULE (filet-tl=0,
+debord 20) ; feuille amont ABSENTE → 1118/15, la seconde rougit avec
+`filet-tl=None debord=None` et le banc ne meurt pas (trois temoins, ligne
+de compte imprimee). Les dix autres bancs, inchanges, rejoues.
+
+COMPTE PRECEDENT, 06/09/2026 (P13, TOUR 1 apres revue — la transcription
 vise la piste de dialogue, decale au bon endroit, et dit ce qu'elle va
 depenser) : 1131 lignes, soit CENT-VINGT de plus que les 1011 de P12
 (re-mesurees inchangees par le correctif de [6-ter], `4be857d`), et le
@@ -8195,6 +8217,71 @@ check("tb_la_geometrie_de_l_onglet_est_celle_du_2_1",
       and _R_DOT is not None and "width:5px" in _R_DOT
       and "height:5px" in _R_DOT,
       f"tab={_R_TAB!r} dot={_R_DOT!r}")
+# ── P15 — LE PIED DU PANNEAU NARRATION (fait n°6 du lot 5, 06/09/2026) ───
+# L'onglet du §2.1 monte de |top| MOINS les deux filets qu'il traverse — celui
+# du bandeau `.svm-trans` (§5.2, montage.css) et celui de `.svm-tl` (feuille
+# amont) — au-dessus du bord exterieur de la timeline : 21 − 1 − 1 = 19 px,
+# DANS le pied du panneau qui la precede. Tiroir Narration ouvert, ce pied est
+# celui de `.svm-narr` (`padding:14px`, feuille amont) : 5 px de la derniere
+# ligne de la note recouverts. La parade est UNE regle de montage.css sur ce
+# pied, lue par la MEME fonction que l'onglet et la barre ci-dessus (`_regle`,
+# premier corps du selecteur litteral) : la mutation « regle retiree » rend
+# `None`, jamais "" — un corps vide satisferait toute negation.
+_R_NARR = _regle(_MC, ".dzsvm .svm-narr{")
+check("narr_le_pied_libere_la_bande_de_l_onglet",
+      _R_NARR is not None and "padding-bottom:27px" in _R_NARR,
+      f"narr={_R_NARR!r}")
+
+
+def _px_signe(corps, prop):
+    """Valeur en px de la propriete `prop` — la propriete ENTIERE, pas un
+    suffixe : `top` ne lit pas `margin-top` — signe compris ; `None` sans."""
+    m = re.search(r"(?<![\w-])" + re.escape(prop) + r":\s*(-?\d+)px",
+                  corps or "")
+    return int(m.group(1)) if m else None
+
+
+def _filet_haut(corps_list):
+    """Largeur du filet HAUT que la cascade retient parmi des regles de meme
+    specificite : la DERNIERE qui declare `border-top` (ou le raccourci
+    `border`) gagne. Des regles sans aucune declaration valent 0 — c'est ce
+    que le navigateur calcule d'un `border-top-style:none`. AUCUNE regle du
+    tout rend `None` : feuille absente ou selecteur disparu, pas un filet
+    nul, et la ligne appelante rougit avec le temoin."""
+    if not corps_list:
+        return None
+    v = 0
+    for b in corps_list:
+        w = _px_signe(b, "border-top")
+        if w is None:
+            w = _px_signe(b, "border")
+        if w is not None:
+            v = w
+    return v
+
+
+# LE DEBORD, RECALCULE A PARTIR DES VALEURS LUES — ni 19 ni 27 n'est ecrit
+# ici : si l'onglet montait plus haut (`top:-30px`), si un filet tombait ou
+# si le pied maigrissait, la ligne rougit AVEC les valeurs lues. Le seul
+# nombre pose est la marge de 8 px du handoff (§4.2 : « une marge de 8 px »),
+# celle que la barre emploie deja (`top:calc(100% + 8px)`, `_R_BAR`).
+# Le filet du bandeau est celui des regles `.dzsvm .svm-trans` de montage.css
+# (deux : l'ancrage, puis la geometrie du §5.2 qui le declare) ; celui de
+# `.svm-tl` est lu dans la feuille amont, seule a le declarer (mesure : les
+# regles `.dzsvm .svm-tl` de montage.css et de subs.css n'en portent aucun).
+_MARGE_42 = 8                       # handoff §4.2 : « une marge de 8 px »
+_NARR_TOP = _px_signe(_R_TAB, "top")
+_NARR_FT = _filet_haut(_corps_de(_MC, ".svm-trans"))
+_NARR_FTL = _filet_haut(_corps_de(_HDCSS, ".svm-tl"))
+_NARR_PB = _px_signe(_R_NARR, "padding-bottom")
+_NARR_DEB = (abs(_NARR_TOP) - _NARR_FT - _NARR_FTL
+             if None not in (_NARR_TOP, _NARR_FT, _NARR_FTL) else None)
+check("narr_le_debord_de_l_onglet_reste_celui_du_2_1",
+      None not in (_NARR_TOP, _NARR_FT, _NARR_FTL, _NARR_PB, _NARR_DEB)
+      and _NARR_TOP < 0 and _NARR_DEB > 0
+      and _NARR_PB >= _NARR_DEB + _MARGE_42,
+      f"top={_NARR_TOP} filet-bandeau={_NARR_FT} filet-tl={_NARR_FTL} "
+      f"debord={_NARR_DEB} pied={_NARR_PB} marge={_MARGE_42}")
 # LES DEUX ETATS DE L'ONGLET viennent du tableau du §2.1, et la porte est
 # `aria-expanded` : l'apparence ne peut pas dire « ouvert » pendant que le
 # lecteur d'ecran annonce « replie ».

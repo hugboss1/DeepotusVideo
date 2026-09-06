@@ -873,3 +873,44 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
   > .svm-toolchip:nth-child(2)::before{content:"\2702\FE0E"}
 .dzsvm .svm-trans[data-bdoff~="coupe"] .svm-toolchips
   > .svm-toolchip:nth-child(3)::before{content:"\21C4"}
+
+/* ══ P15 — LE PIED DU PANNEAU NARRATION ══════════════════════════════════
+   L'ONGLET OUTILS DÉBORDE DE 19 PX VERS LE HAUT (21 − 1 − 1 DE FILETS), ET
+   LA NOTE DU PIED N'AVAIT QUE 14 PX. Mesuré le 06/09/2026 (fait n°6 du lot
+   5) : l'onglet du §2.1 est en `top:-21px` dans le bandeau `.svm-trans`,
+   compté depuis le bord de sa zone de rembourrage — donc SOUS son filet
+   haut de 1 px (§5.2, plus haut) — et le bandeau est le premier enfant de
+   `.svm-tl`, dont le filet haut fait 1 px aussi (son-vfx-montage.css
+   l.303). L'onglet monte donc de 21 − 1 − 1 = 19 px au-dessus du bord
+   extérieur de `.svm-tl`, c'est-à-dire DANS le panneau qui la précède, à
+   partir de x = 14 px. Tiroir Narration ouvert, ce panneau est
+   `<aside class="svm-narr">` (son-vfx-montage.css l.731 : 300 px,
+   `padding:14px`, colonne flex) dont la liste `flex:1 1 auto` plaque
+   « + Ajouter un bloc » puis la note `.svm-note` (« le texte reste
+   local… ») au fond : il ne restait que les 14 px du rembourrage, et
+   l'onglet recouvrait 5 px de la dernière ligne de la note.
+   LA PARADE EST DANS LE PIED, PAS DANS L'ONGLET : le §2.1 demande l'onglet
+   « débordant vers le haut », et `top:-21px`, `left:14px`, `height:21px`
+   ne bougent pas ; ni `.svm-trans`, ni `.svm-tl`, ni aucun z-index ne
+   change. 27 = 19 px de débord + 8 px, la marge que le handoff fixe
+   lui-même (§4.2 : « une marge de 8 px ») et que la barre emploie déjà
+   (`top:calc(100% + 8px)`). La règle gagne par la SPÉCIFICITÉ (0,2,0
+   contre le (0,1,0) de la feuille amont) ET par la CASCADE (index.html :
+   l.17 puis l.21) — les deux, comme l'ancrage de l'onglet plus haut.
+   `padding-bottom` seul : les trois autres côtés gardent les 14 px de la
+   feuille amont. Le banc recalcule le débord à partir des valeurs LUES
+   (`top`, les deux filets) et exige pied ≥ débord + 8 : aucun des deux
+   nombres n'y est recopié.
+   DETTE NAVIGATEUR, DITE : tiroir Narration FERMÉ, la même bande de 19 px
+   tombe sur `.svm-playerbar` (dans `.svm-playerzone`, rembourrage 10 px)
+   — non mesurable sans écran. Si une puce s'y trouve, la parade serait
+   `top:-14px` sur l'onglet (écart à déclarer contre le §2.1) ; elle n'est
+   pas prise ici. La mesure à faire dans la console du navigateur, tiroir
+   Narration OUVERT :
+     var t=document.querySelector('.dzm-tbtab').getBoundingClientRect(),
+         n=[...document.querySelectorAll('.svm-narr .svm-note')].pop()
+           .getBoundingClientRect();
+     [t.top, n.bottom, t.top>=n.bottom]        // attendu : true
+   puis tiroir FERMÉ, la même contre `.svm-playerbar` (t.top contre le
+   `bottom` de son dernier enfant). */
+.dzsvm .svm-narr{padding-bottom:27px}
