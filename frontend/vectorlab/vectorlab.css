@@ -229,3 +229,69 @@ button:disabled { opacity: .4; cursor: default; }
   border: 1px solid #3a4150; cursor: pointer; }
 .vit-sw:hover { outline: 2px solid #5b82b8; }
 .vit-plomb { border: 1px dashed #8b93a0; }
+
+/* ── refonte Vitrail (handoff « Vectorlab Vitrail », 06/09/2026) ──
+   Le rail d'outils passe en icônes 24×24 du handoff ; le panneau Vitrail
+   gagne les motifs tracés au glisser, les gammes de verre, l'éditeur de
+   teinte et la rangée IA ; la scène gagne la barre d'indice d'outil. */
+.outils button svg { width: 17px; height: 17px; display: block; margin: auto; }
+.hint {
+  position: absolute; left: 12px; bottom: 12px; z-index: 4;
+  padding: 4px 9px; font-size: 11px; color: #8b93a0;
+  background: rgba(16, 18, 22, .92); border: 1px solid #262b34;
+  pointer-events: none; max-width: 60%;
+}
+.hint:empty { display: none; }
+.vit-portee {
+  font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
+  color: #8b93a0; margin: 4px 0 2px;
+}
+.vit-portee-sel { color: #9db4d6; }
+.vit-motifs { display: flex; gap: 5px; margin-left: auto; }
+.vit-mbtn { width: 28px; height: 26px; padding: 0; }
+.vit-mbtn svg { width: 14px; height: 14px; display: block; margin: auto; }
+.vit-step {
+  display: flex; align-items: center; margin-left: auto;
+  border: 1px solid #313847; background: #232833; border-radius: 6px;
+}
+.vit-step button { border: 0; background: none; width: 22px; padding: 2px 0; }
+.vit-step b {
+  width: 24px; text-align: center; font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.vit-num { width: 18px; text-align: right; font-size: 11px; color: #8b93a0; }
+.vit-joint { display: flex; align-items: center; gap: 6px; color: #8b93a0; }
+.vit-gammes { display: flex; flex-wrap: wrap; gap: 5px; }
+.vit-gsw {
+  width: 30px; height: 20px; padding: 0; border-radius: 4px;
+  border: 1px solid #313847;
+}
+.vit-gsw.actif { outline: 2px solid #5b82b8; }
+.vit-gnom { font-size: 11px; color: #8b93a0; }
+.vit-slots { display: flex; gap: 4px; margin-left: auto; }
+.vit-tsw { width: 22px; height: 20px; padding: 0; border-radius: 4px;
+  border: 1px solid #313847; }
+.vit-tsw.actif { outline: 2px solid #5b82b8; }
+.vit-slotEd {
+  display: flex; flex-direction: column; gap: 6px; padding: 8px;
+  background: #14171d; border: 1px solid #262b34; border-radius: 6px;
+}
+.vit-slotTete { display: flex; align-items: center; gap: 8px;
+  font-size: 11px; color: #8b93a0; }
+.vit-slotTete button { margin-left: auto; width: 22px; padding: 2px 0; }
+.vit-prev { width: 26px; height: 18px; border: 1px solid #313847;
+  border-radius: 3px; }
+.vit-slotEd input[type="range"] { flex: 1; }
+.vit-slotEd input[type="text"] { flex: 1; background: #232833;
+  color: #d6d9de; border: 1px solid #313847; border-radius: 4px;
+  padding: 2px 6px; font-size: 12px; }
+.vit-banque { display: flex; flex-wrap: wrap; gap: 4px; padding-top: 4px;
+  border-top: 1px solid #262b34; }
+.vit-bsw { width: 20px; height: 18px; padding: 0; border-radius: 3px;
+  border: 1px solid #313847; }
+.vit-large { flex: 1; }
+.vit-iamsg { font-size: 10.5px; color: #8b93a0; }
+.vit-iamsg.err { color: #e08a8a; }
+#panneauVitrail input[type="text"] { background: #232833; color: #d6d9de;
+  border: 1px solid #313847; border-radius: 4px; padding: 3px 7px;
+  font-size: 12px; min-width: 0; flex: 1; }

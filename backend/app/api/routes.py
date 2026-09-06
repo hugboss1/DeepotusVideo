@@ -6550,6 +6550,77 @@ async def get_vector_vignette(doc_id: str):
     return Response(content=octets, media_type="image/png")
 
 
+_VECT_ILLU_D = None     # regex compilées au premier appel (module allégé)
+
+
+@router.post("/vector/illustration")
+async def vector_illustration(body: dict):
+    """Vectorlab — illustration vectorielle par le LLM configuré (handoff
+    « Vectorlab Vitrail », 06/09/2026). APPEL PAYANT sur la clé de
+    l'utilisateur — l'infobulle du bouton IA le dit avant le clic. Le modèle
+    rend un SVG de masses pleines (des pièces de verre) ; la réponse est
+    PARSÉE ET FILTRÉE ICI : seuls des `d` au charset chemin et des fonds
+    #rrggbb passent, 40 tracés au plus — rien de la réponse brute n'atteint
+    le client. Body: {prompt}. 200: {ok, paths:[{d, fill}], viewbox,
+    provider}. 400 sans prompt ou réponse illisible ; 502 modèle muet."""
+    import re as _re
+    global _VECT_ILLU_D
+    if _VECT_ILLU_D is None:
+        _VECT_ILLU_D = (
+            _re.compile(r"<path[^>]*?\sd=\"([^\"]+)\"[^>]*?>", _re.I),
+            _re.compile(r"fill=\"(#[0-9a-fA-F]{6})\""),
+            _re.compile(r"^[MmLlCcQqZzHhVvSsAaTt0-9eE\s.,+-]+$"),
+            _re.compile(r"viewBox=\"([\d.\s,-]+)\"", _re.I),
+        )
+    re_path, re_fill, re_d, re_vb = _VECT_ILLU_D
+    q = str((body or {}).get("prompt") or "").strip()
+    if not q:
+        raise HTTPException(400, "Décrire d'abord l'illustration.")
+    from app.services import summarizer as _SZ
+    consigne = (
+        "Illustration vectorielle pour un atelier de vitrail. Sujet : "
+        + q[:400] + ".\n"
+        "Réponds UNIQUEMENT par le code SVG, rien avant, rien après, pas "
+        "de bloc de code.\n"
+        "Format exact : <svg viewBox=\"0 0 100 100\"> puis uniquement des "
+        "<path d=\"...\" fill=\"#rrggbb\"/> puis </svg>.\n"
+        "Contraintes : de 5 à 22 tracés ; chemins fermés remplis, aucun "
+        "stroke, aucun gradient, aucune opacité ; masses simples comme des "
+        "pièces de verre découpées ; palette de 4 à 6 couleurs saturées de "
+        "verre coloré.")
+    loop = asyncio.get_running_loop()
+    try:
+        out, prov = await loop.run_in_executor(
+            None, lambda: _SZ._chat_dispatch(
+                consigne, "Tu produis du SVG strict, sans commentaire.",
+                4000))
+    except Exception as e:                              # noqa: BLE001
+        raise HTTPException(502, f"Le modèle n'a pas répondu : {e}")
+    txt = _re.sub(r"```[a-z]*", "", str(out or ""), flags=_re.I)
+    vb = [0.0, 0.0, 100.0, 100.0]
+    mvb = re_vb.search(txt)
+    if mvb:
+        try:
+            raw = [float(v) for v in _re.split(r"[\s,]+", mvb.group(1).strip())]
+            if len(raw) == 4 and raw[2] > 0 and raw[3] > 0:
+                vb = raw
+        except ValueError:
+            pass
+    paths = []
+    for m in re_path.finditer(txt):
+        d = m.group(1).strip()
+        if not re_d.match(d):
+            continue                       # charset hors chemin : écarté
+        mf = re_fill.search(m.group(0))
+        paths.append({"d": d, "fill": mf.group(1) if mf else "#c9a33f"})
+        if len(paths) >= 40:
+            break
+    if not paths:
+        raise HTTPException(400, "Réponse du modèle illisible — reformuler "
+                                 "la description.")
+    return {"ok": True, "paths": paths, "viewbox": vb, "provider": prov}
+
+
 @router.get("/vector/vitrail")
 async def vector_vitrail():
     """Le mode vitrail du Vectorlab lit la FICHE ÉPINGLÉE

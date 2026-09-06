@@ -754,3 +754,86 @@ def test_le_pont_cartes_deck_id_et_la_migration():
                     f"/api/vector/docs/{d['id']}")).status_code == 200
 
     asyncio.run(scenario())
+
+
+# ═══════════ POST /api/vector/illustration (handoff Vectorlab Vitrail) ═══
+# Le LLM est BOUCHONNÉ par attribut de module (la route lit
+# `summarizer._chat_dispatch` au moment de l'appel — aucun réseau, mesuré :
+# le bouchon compte ses appels). La réponse du modèle est FILTRÉE serveur :
+# seuls des `d` au charset chemin et des fonds #rrggbb passent.
+
+
+def test_vector_illustration_llm_bouchonne():
+    import asyncio
+
+    from httpx import ASGITransport, AsyncClient
+
+    from app.main import app
+    from app.services import summarizer as SZ
+
+    svg = ('<svg viewBox="0 0 120 100">'
+           '<path d="M0 0 L10 0 L10 10 Z" fill="#1e56c8"/>'
+           '<path d="M1 1 C2 2 3 3 4 4 Z"/>'
+           '<path d="M0 0 Levil(alert)" fill="#ff0000"/>'
+           '</svg>')
+    appels = []
+    vieux = SZ._chat_dispatch
+    SZ._chat_dispatch = lambda *a, **k: (appels.append(a) or (svg, "openai"))
+    try:
+        async def scenario():
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport,
+                                   base_url="http://t") as c:
+                r = await c.post("/api/vector/illustration",
+                                 json={"prompt": "un iris de vitrail"})
+                assert r.status_code == 200, r.text
+                d = r.json()
+                assert d["provider"] == "openai"
+                assert d["viewbox"] == [0.0, 0.0, 120.0, 100.0]
+                # le d aux parenthèses (hors charset chemin) est ÉCARTÉ ;
+                # le path sans fill reçoit l'ambre par défaut
+                assert [p["fill"] for p in d["paths"]] == \
+                    ["#1e56c8", "#c9a33f"], d["paths"]
+                assert len(appels) == 1  # un appel payant, pas deux
+                # sans prompt → 400 AVANT tout appel au modèle
+                r = await c.post("/api/vector/illustration", json={})
+                assert r.status_code == 400
+                assert len(appels) == 1
+        asyncio.run(scenario())
+    finally:
+        SZ._chat_dispatch = vieux
+
+
+def test_vector_illustration_reponse_illisible_et_modele_muet():
+    import asyncio
+
+    from httpx import ASGITransport, AsyncClient
+
+    from app.main import app
+    from app.services import summarizer as SZ
+
+    vieux = SZ._chat_dispatch
+    try:
+        async def scenario(attendu, detail_frag):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport,
+                                   base_url="http://t") as c:
+                r = await c.post("/api/vector/illustration",
+                                 json={"prompt": "x"})
+                assert r.status_code == attendu, r.text
+                assert detail_frag in r.json()["detail"]
+
+        # réponse sans le moindre path exploitable → 400 parlant
+        SZ._chat_dispatch = lambda *a, **k: ("voici une explication sans "
+                                             "svg", "openai")
+        asyncio.run(scenario(400, "illisible"))
+        # état vide : le modèle rend une chaîne vide → même 400, pas de mort
+        SZ._chat_dispatch = lambda *a, **k: ("", "openai")
+        asyncio.run(scenario(400, "illisible"))
+        # modèle muet (pas de clé, réseau coupé…) → 502 qui porte la cause
+        def _muet(*a, **k):
+            raise RuntimeError("aucune clé LLM configurée")
+        SZ._chat_dispatch = _muet
+        asyncio.run(scenario(502, "aucune clé LLM"))
+    finally:
+        SZ._chat_dispatch = vieux
