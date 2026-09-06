@@ -28,6 +28,7 @@
                          audioOf, audioSet, audioForget, askAudio, srcDurOr,
                          srcKey, uniqueId, dedupeIds, seqMax,
                          twinClip, twinPlan, extract, extractBtn,
+                         subsSources, subsLabel,
                          tbTraces, tbIcons, tbParse, tbSerial,
                          TbIcon, ToolBtn, TB_GROUPES, TB_PX, TB_PX_GRIP,
                          move, moveTo, add, remove, group, DEFAULTS}
@@ -2283,6 +2284,83 @@ function dzmDialogueTrack(ts){
     if(dzmKindOf(t.id,t.kind)==="audio")return "a1"}
   return ""}
 
+/* P13 — CE QUE LA TRANSCRIPTION VA DÉPENSER, ET SUR QUOI. Le geste
+   « Transcrire l'audio » envoie `src:null` : la route choisit elle-même les
+   clips de la piste de dialogue (même loi que le rendu : bus « dialogue »,
+   sinon a1, jamais une piste bouclée) porteurs d'une source, les transcrit
+   un par un et décale leurs mots de `start − srcIn`. La pastille de coût
+   doit annoncer CETTE dépense — la somme des `end − start` de ces clips —
+   et non la durée du projet, qui compte aussi les images, la musique et
+   les trous. PURE, jouée sous node. Rend {track, list, total, repli, step,
+   dit} : `list` triée par `start` ({id, tr, label, start, dur}), `total`
+   en secondes (millième), `repli` vrai quand aucun clip de dialogue ne
+   porte de source et que la PREMIÈRE V1 porteuse en tient lieu (la route
+   fait de même), `step` la ligne d'attente du tiroir, `dit` la phrase de
+   l'infobulle — "" quand rien n'est à envoyer : l'appelant retombe alors
+   sur la durée du projet, comme avant. Les clips sont ceux que le tiroir
+   reçoit (`subsSrcClips` : {id, tr, src, name, start, end, srcIn?}) ;
+   `name` est le libellé de la timeline, sinon la source est nommée par
+   son champ. Sans pistes (`ts` absent ou vide) : les pistes par défaut,
+   donc a1 — une liste PRÉSENTE sans piste de dialogue rend le repli V1.
+   TOUR 1 (revue du 06/09) — LA DÉPENSE EST PAR FICHIER DISTINCT : la route
+   ne transcrit qu'UNE fois un même fichier porté par deux clips (la lame
+   coupe un clip en deux de même `src`), et le moteur reçoit le fichier
+   ENTIER. Ce que le client en sait : la RÉUNION des fenêtres
+   [srcIn, srcIn + dur] que ses clips lisent — deux moitiés font le tout,
+   le même fichier posé deux fois compte une fois, un clip rogné reste une
+   borne BASSE (la phrase le dit) ; `files` compte les fichiers distincts. */
+function dzmSubsNum(v){var n=Number(v);return isFinite(n)?n:0}
+function dzmSubsKey(s){return (s&&typeof s==="object")?dzmSrcKey(s):String(s)}
+function dzmUnionLen(iv){
+  var l=iv.slice().sort(function(p,q){return p[0]-q[0]}),t=0,a=0,b=0,open=!1,i;
+  for(i=0;i<l.length;i++){
+    if(!open||l[i][0]>b){if(open&&b>a)t+=b-a;a=l[i][0];b=l[i][1];open=!0}
+    else if(l[i][1]>b)b=l[i][1]}
+  if(open&&b>a)t+=b-a;
+  return t}
+function dzmSubsLabel(c){
+  var s=c&&c.src;
+  if(c&&(c.name||c.label))return String(c.name||c.label);
+  if(s&&typeof s==="object")
+    return String(s.audio||s.image||s.name||s.filename||s.file_path||s.job_id||"source");
+  return s?String(s):"source"}
+function dzmSubsSources(clips,ts){
+  var cs=Array.isArray(clips)?clips:[],
+      dial=dzmDialogueTrack(Array.isArray(ts)&&ts.length?ts:DZM_DEFAULT_TRACKS),
+      list=[],v1=[],repli=!1,total=0,i,c,d;
+  for(i=0;i<cs.length;i++){c=cs[i];
+    if(!c||!c.src)continue;
+    d=dzmSubsNum(c.end)-dzmSubsNum(c.start);
+    if(!(d>0))continue;
+    var row={id:c.id,tr:String(c.tr),label:dzmSubsLabel(c),
+             start:dzmSubsNum(c.start),dur:Math.round(d*1000)/1000,
+             key:dzmSubsKey(c.src),srcIn:Math.max(0,dzmSubsNum(c.srcIn))};
+    if(dial&&row.tr===dial)list.push(row);
+    else if(row.tr==="v1")v1.push(row)}
+  var parStart=function(p,q){return p.start-q.start};
+  list.sort(parStart);
+  if(!list.length&&v1.length){v1.sort(parStart);list=[v1[0]];repli=!0}
+  var parKey={},keys=[],k;
+  for(i=0;i<list.length;i++){k=list[i].key;
+    if(!parKey[k]){parKey[k]=[];keys.push(k)}
+    parKey[k].push([list[i].srcIn,list[i].srcIn+list[i].dur])}
+  for(i=0;i<keys.length;i++)total+=dzmUnionLen(parKey[keys[i]]);
+  total=Math.round(total*1000)/1000;
+  var piste=(repli?"v1":dial).toUpperCase(),n=list.length,
+      noms=list.map(function(l){return l.label+" ("+dzmSecs(l.dur)+")"});
+  return {track:dial,list:list,total:total,repli:repli,files:keys.length,
+    step:!n?"envoi…":n===1?"envoi de "+list[0].label+"…"
+        :"envoi de "+n+" clips de "+piste+"…",
+    dit:!n?"":repli
+      ?"Aucun clip de la piste "+(dial||"de dialogue").toUpperCase()+
+       " ne porte de son : la vidéo "+noms[0]+" de V1 est envoyée entière, "+
+       "ses répliques posées à son instant."
+      :"Envoyé : "+n+" clip"+(n>1?"s":"")+
+       (keys.length<n?" ("+keys.length+" fichier"+(keys.length>1?"s":"")+")":"")+
+       " de la piste "+piste+" — "+noms.join(", ")+" — "+dzmSecs(total)+
+       " de son, chaque réplique posée à l'instant de son clip. Chaque fichier "+
+       "part entier chez le moteur : un clip rogné coûte la durée de son fichier."}}
+
 /* PLEIN CADRE OU INCRUSTATION. Le `type` est celui de dzmSkin : « vidéo »
    pour V1, « overlay/VFX » pour la V2 historique, « overlay » pour toute
    piste vidéo neuve. Une piste sans `type` compte comme plein cadre — donc
@@ -4331,6 +4409,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   uniqueId:dzmUniqueId,dedupeIds:dzmDedupeIds,seqMax:dzmSeqMax,
   twinClip:dzmTwinClip,twinPlan:dzmTwinPlan,extract:dzmExtract,
   extractBtn:dzmExtractBtn,overlayNote:dzmOverlayNote,
+  subsSources:dzmSubsSources,subsLabel:dzmSubsLabel,
   CLIP_DEFAUTS:DZM_CLIP_DEFAUTS,DUR_DELAI:DZM_DUR_DELAI,
   tbTraces:DZM_TB_TRACES,tbIcons:DZM_TB_ICONS,tbParse:dzmTbParse,
   tbSerial:dzmTbSerial,TbIcon:DzmTbIcon,ToolBtn:DzmToolBtn,

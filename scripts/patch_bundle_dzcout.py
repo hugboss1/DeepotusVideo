@@ -52,6 +52,25 @@ MARKER_ATTENDU = 7      # définition + window x2 + infobulle + total + puce x2
 # Sondes des maillons AMONT : si l'un de ces comptes bouge, c'est qu'un
 # patcher amont a été rejoué seul et a effacé ce qui le suivait.
 #
+# `montage` : 42 → 43 le 06/09/2026 (P13, tour 1 — revue). UNE référence de
+# plus au contrat `DzTracks`, et rien d'autre : `DzTracks.dialogueTrack` dans
+# le geste PAR PLAN du bloc subs (M24c ne suit plus `a1` par identifiant mais
+# la piste de dialogue du projet, comme M24j et la route). Compté des DEUX
+# côtés avant d'écrire ce nombre : 42 dans le bundle d'avant le tour 1
+# (`str.count` en octets), 43 après le rejeu — les trois sections M24k…M24m
+# et la couche n'en ajoutent aucune (commentaires compris).
+#
+# `montage` : 39 → 42 le 06/09/2026 (P13, « la transcription vise la piste
+# de dialogue »). TROIS références de plus au contrat `DzTracks`, et rien
+# d'autre : deux `DzTracks.subsSources` dans le bloc subs inliné (M24a, la
+# ligne d'attente qui nomme ce qui part ; M24e, la pastille de coût sur la
+# somme des clips de dialogue) et un `DzTracks.dialogueTrack` dans l'hôte
+# (M24j, `subsSrcClips` fait partir les clips de la piste de dialogue du
+# projet). Compté des DEUX côtés avant d'écrire ce nombre : 39 dans le
+# bundle d'avant P13, 42 après (simulation en mémoire du rejeu de montage
+# sur `.bak_montage`, `str.count` commentaires de la couche compris — la
+# couche reste à 5, les sections passent de 34 à 37).
+#
 # `montage` : 38 → 39 le 06/09/2026 (tour 2 de P12). La revue a mesuré que
 # la porte « Envoyer vers → Montage » (greffon libsend, `"v2"` en dur) posait
 # un plan sur une incrustation SANS SON ET SANS UN MOT : UNE référence de
@@ -128,7 +147,7 @@ STABLE_PROBES = [
     ("print3d", "__dzPrint3d", 3),
     ("navrail", "dz_nav_collapsed", 2),
     ("dzdesign", "__dzCatBar", 2),
-    ("montage", "DzTracks", 39),
+    ("montage", "DzTracks", 43),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

@@ -31,7 +31,41 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 06/09/2026 (apres P12 — le son d'un plan suit sa
+COMPTE DE REFERENCE, 06/09/2026 (P13, TOUR 1 apres revue — la transcription
+vise la piste de dialogue, decale au bon endroit, et dit ce qu'elle va
+depenser) : 1131 lignes, soit CENT-VINGT de plus que les 1011 de P12
+(re-mesurees inchangees par le correctif de [6-ter], `4be857d`), et le
+compte se decompose — MESURE sur la sortie du banc, ligne par ligne (la
+premiere redaction annoncait 48 + 11 la ou la sortie disait 49 + 10) :
+TRENTE-HUIT que la boucle sur `P.PATCHES` emet toute seule pour les TREIZE
+sections M24a…M24m (treize `_remplace`, douze `_ancre_consommee` — M24i
+reprend son ancre — et treize `couche_ne_cite_pas_l_ancre_de_`),
+SOIXANTE-HUIT dont le libelle commence par `P13_` (la divergence du bloc
+subs inline d'avec sa source, ligne par ligne ; les positions dans
+`transcribe` et dans `subsSrcClips` ; la liste des langues ET `subsCostOf`
+EXTRAITS du bundle et EXECUTES sous node ; la note de detection ; les deux
+faces de chaque identifiant ; les noms libres ; la route de l'autre cote
+du fil), et QUATORZE `js_subsSources*` / `js_subsLabel*` dans le harnais
+[3] (le cas de l'utilisateur, le repli V1, les etats vides, la loi des
+pistes, la purete, et — tour 1 — la depense par FICHIER distinct : la lame,
+le meme fichier pose deux fois, le clip rogne, la cle de source).
+LE BLOC SUBS INLINE DIVERGE DESORMAIS DE `frontend/patches/subs.js` SUR
+SEIZE LIGNES (M24a…M24g, M24k…M24m) ET DE `scripts/patch_bundle_subs.py`
+SUR CINQ (M24h…M24j) — subs.js est INTOUCHABLE (pas de `.bak_subs`, ancres
+consommees, aucun banc ne compare le bloc a sa source) et la correction est
+portee EN AVAL par le patcher montage ; la ligne `P13_le_bloc_subs_inline_
+diverge_de_sa_source_sur_seize_et_cinq_lignes` tient ce compte. CAMPAGNE
+DE MUTATION : onze sur la route (banc test_subs_transcribe_cible.py, dont
+R10 — la marque `clip` retiree — qui faisait MOURIR le banc d'un KeyError
+avant le tour 1 et le fait rougir depuis, et R12 — le cache par fichier
+retire) et dix-huit sur la couche / le patcher / la sonde dzcout (chaine
+rejouee a chaque fois, bundle restaure, sha256 verifie) — la table est
+dans le message du commit. UNE MESURE A CONTREDIT LA PREMIERE REDACTION :
+`props.srcRef` vaut DEUX dans le bundle apres M24b, et non zero — la ligne
+428 est un AUTRE composant (`props.srcRef.current`, une ref React) ; la
+ligne compte donc sur le corps de `transcribe` seul.
+
+COMPTE PRECEDENT, 06/09/2026 (apres P12 — le son d'un plan suit sa
 video) : 1011 lignes, 1011/0. RE-MESURE le meme jour, INCHANGE, par la
 SEPTIEME MORSURE DE LA FAUTE N°6, relevee par une revue qualite : sans le
 dossier design_handoff_barre_outils/, le banc MOURAIT a la ligne `cumul` de
@@ -2087,6 +2121,346 @@ for _nm in ("dzAuOn", "dzAu", "dzNeuf", "dzTw", "dzDd", "DZM_AUDIO_CACHE"):
     check("P12_nom_" + _nm + "_etait_libre_dans_le_bundle_d_entree",
           _dans_bak == 0, f"{_nm} apparait {_dans_bak}x dans .bak_montage")
 
+# ══ P13 — LA TRANSCRIPTION VISE LA PISTE DE DIALOGUE : les sections ══════
+# Les comptes generiques couvrent M24a…M24j par la boucle sur P.PATCHES. Ce
+# qui suit est ce qu'ils ne mesurent pas : l'ANCIEN texte disparu la ou le
+# remplacement ne le reprend pas mot pour mot, la POSITION de chaque ligne
+# neuve dans sa fonction, la liste des langues LUE et EXECUTEE, les deux
+# faces de chaque identifiant, et — parce que subs.js est INTOUCHABLE (pas de
+# .bak_subs, ancres consommees) — LE COMPTE DES LIGNES SUR LESQUELLES LE BLOC
+# SUBS INLINE DIVERGE DESORMAIS DE SA SOURCE : onze lignes de subs.js
+# (M24a…M24g) et cinq de patch_bundle_subs.py (M24h…M24j), mesure le
+# 06/09/2026 — chaque ancre est retrouvee UNE fois dans sa source et ZERO
+# fois dans le bundle (ou une fois quand le remplacement la reprend).
+print("\n[1-P13] la transcription vise la piste de dialogue — les sections")
+_SUBSJS = ROOT / "frontend" / "patches" / "subs.js"
+_PBS = ROOT / "scripts" / "patch_bundle_subs.py"
+_subsjs = _SUBSJS.read_text(encoding="utf-8").replace("\r\n", "\n") if _SUBSJS.is_file() else ""
+_pbs = _PBS.read_text(encoding="utf-8").replace("\r\n", "\n") if _PBS.is_file() else ""
+_div_subs, _div_pbs = 0, 0
+for _tag, _a, _r in P.PATCHES:
+    if not _tag.startswith("M24"):
+        continue
+    _al = _a.replace("\r\n", "\n")
+    _dans_subs, _dans_pbs = _subsjs.count(_al), _pbs.count(_al)
+    _attendu = "subs.js" if _tag[3] in "abcdefgklm" else "patch_bundle_subs"
+    check("P13_" + _tag + "_diverge_de_" + _attendu,
+          (_dans_subs, _dans_pbs) == ((1, 0) if _attendu == "subs.js" else (0, 1))
+          and s.count(nl(_a)) == (1 if _a in _r else 0),
+          f"subs.js={_dans_subs} patch_bundle_subs={_dans_pbs} bundle={s.count(nl(_a))}")
+    if _dans_subs == 1:
+        _div_subs += _al.count("\n") + 1
+    if _dans_pbs == 1:
+        _div_pbs += _al.count("\n") + 1
+# Tour 1 : M24k (une ligne), M24l et M24m (deux lignes chacune) portent la
+# divergence de subs.js de onze a SEIZE lignes ; l'hote reste a cinq.
+check("P13_le_bloc_subs_inline_diverge_de_sa_source_sur_seize_et_cinq_lignes",
+      _div_subs == 16 and _div_pbs == 5 and bool(_subsjs) and bool(_pbs),
+      f"subs.js={_div_subs} patch_bundle_subs={_div_pbs}")
+# M24b : sans plan, `src` part NUL — l'ancienne lecture de `props.srcRef` a
+# DISPARU du tiroir, et l'hote passe toujours la prop (morte, dite) : le
+# conjoint positif est la ligne neuve.
+# MESURE : `props.srcRef` vit encore DEUX fois dans le bundle — une fois a
+# la ligne 428, dans un AUTRE composant (`props.srcRef.current`, une ref
+# React sans rapport), une fois dans le commentaire de M24b. Le compte est
+# donc pris sur le corps de `transcribe` seul, et l'ancienne lecture
+# (`srcRef=props.srcRef||null`) est exigee absente du bundle entier.
+_tr_i = s.find(nl("  function transcribe(plan){"))
+_tr_j = s.find(nl("  if(!open)return null;"), _tr_i if _tr_i >= 0 else 0)
+_TRANSCRIBE = s[_tr_i:_tr_j] if 0 <= _tr_i < _tr_j else ""
+check("P13_sans_plan_src_part_nul_et_props_srcRef_n_est_plus_lu",
+      bool(_TRANSCRIBE)
+      and _TRANSCRIBE.count(nl("var cl=props.srcClips||null,srcRef=null;")) == 1
+      and _TRANSCRIBE.count("props.srcRef") == P.R_M24B.count("props.srcRef") == 1
+      and s.count("srcRef=props.srcRef||null") == 0
+      and s.count(nl("srcRef:subsSrcRef(),srcClips:subsSrcClips(clips),")) == 1,
+      f'neuf={_TRANSCRIBE.count(nl("var cl=props.srcClips||null,srcRef=null;"))} '
+      f'props.srcRef={_TRANSCRIBE.count("props.srcRef")} '
+      f'ancien={s.count("srcRef=props.srcRef||null")} corps={len(_TRANSCRIBE)} o')
+# M24c : la piste de DIALOGUE du projet (`dzTd`, par DzTracks.dialogueTrack,
+# repli a1) puis `start` — le tri vit ENTRE le filtre et `srcRef=av[0].src`,
+# et le plan sans clip porteur ne part plus. Tour 1 (revue du 06/09) : le
+# filtre suivait `a1` PAR IDENTIFIANT alors que M24j et la route visent la
+# piste de dialogue ; l'ancien filtre `c.tr==="a1"||c.tr==="v1"` a DISPARU du
+# corps de transcribe, et la note nomme la piste.
+_tr0 = s.find(nl("  function transcribe(plan){"))
+_tr1 = s.find(nl("  if(!open)return null;"), _tr0 if _tr0 >= 0 else 0)
+_CORPS_TR = s[_tr0:_tr1] if 0 <= _tr0 < _tr1 else ""
+_td = s.find(nl('var dzTd=DzTracks.dialogueTrack(props.srcTracks)||"a1",'),
+             _tr0 if _tr0 >= 0 else 0)
+_fl = s.find(nl('av=cl.filter(function(c){return c.src&&(c.tr===dzTd||c.tr==="v1")})'),
+             _tr0 if _tr0 >= 0 else 0)
+_so = s.find(nl('.sort(function(p,q){return (p.tr===dzTd?0:1)-(q.tr===dzTd?0:1)'),
+             _tr0 if _tr0 >= 0 else 0)
+_rf = s.find(nl("if(!av.length){setTrJob(null);"), _tr0 if _tr0 >= 0 else 0)
+_sr = s.find(nl("      srcRef=av[0].src}"), _tr0 if _tr0 >= 0 else 0)
+check("P13_le_geste_par_plan_trie_la_piste_de_dialogue_puis_start_avant_de_choisir",
+      _tr0 >= 0 and _td > _tr0 and _fl > _td and _so > _fl and _rf > _so and _sr > _rf
+      and (_sr - _tr0) < 3000 and bool(_CORPS_TR)
+      and _CORPS_TR.count('c.tr==="a1"||c.tr==="v1"') == 0
+      and _CORPS_TR.count('(p.tr==="a1"?0:1)') == 0
+      and _CORPS_TR.count('note2("Aucun clip "+dzTd.toUpperCase()+" ou V1 porteur') == 1
+      and s.count(nl("      if(av.length)srcRef=av[0].src}")) == 0
+      and s.count(nl("||subsN(p.start,0)-subsN(q.start,0)});")) == 1,
+      f"transcribe={_tr0} dzTd={_td} filtre={_fl} tri={_so} refus={_rf} choix={_sr} "
+      f'ancien_filtre={_CORPS_TR.count(chr(99) + ".tr===" + chr(34) + "a1" + chr(34) + "||")} '
+      f'note={_CORPS_TR.count("dzTd.toUpperCase()")}')
+# M24a + M24d : la ligne d'attente et les pistes, dans le corps de transcribe.
+_ss = s.find(nl("var dzSs=DzTracks.subsSources(props.srcClips,props.srcTracks);"),
+             _tr0 if _tr0 >= 0 else 0)
+_st = s.find(nl('setTrJob({busy:!0,step:plan?"plan "+plan.n+"…":dzSs.step,pct:0});'),
+             _tr0 if _tr0 >= 0 else 0)
+_po = s.find(nl('subsPost("/api/subtitles/transcribe",'), _tr0 if _tr0 >= 0 else 0)
+_tk = s.find(nl("tracks:props.srcTracks||null,"), _tr0 if _tr0 >= 0 else 0)
+_lg = s.find(nl("lang:lang,cps:subsN(style.maxChars,42)})"), _tr0 if _tr0 >= 0 else 0)
+check("P13_la_ligne_d_attente_nomme_ce_qui_part_et_les_pistes_partent",
+      _tr0 >= 0 and _tr0 < _ss < _st < _po < _tk < _lg and (_lg - _po) < 400
+      and s.count(nl('"…":"envoi…",pct:0});')) == 0
+      and s.count(nl("tracks:props.srcTracks||null,")) == 1,
+      f"transcribe={_tr0} dzSs={_ss} step={_st} post={_po} tracks={_tk} lang={_lg} "
+      f'ancien={s.count(nl(chr(34) + "…" + chr(34) + ":" + chr(34) + "envoi…" + chr(34) + ",pct:0});"))}')
+# M24e : la pastille somme les clips, AVANT que le bouton ne lise trAll.apres.
+_ca = s.find(nl("var dzSsAll=DzTracks.subsSources(props.srcClips,props.srcTracks);"))
+_ct = s.find(nl("var trAll=subsCostOf(trFree,dzSsAll.total>0?dzSsAll.total"))
+# Tour 1 (revue du 06/09) : la phrase « Envoyé : … » ne prefixe JAMAIS
+# l'infobulle d'un geste qui ne peut pas partir — `subsCostOf` rend
+# `{free:!1,ko:!0,apres:SUBS_EST.reason||…}` sans moteur (mesure sous node,
+# ligne `P13_subsCostOf_sous_auto…`), et la garde exige `!trAll.ko`.
+_cp = s.find(nl('if(!trAll.free&&!trAll.ko&&dzSsAll.dit)trAll.apres=dzSsAll.dit+" "+trAll.apres;'))
+_cb = s.find(nl('apres:trAll.apres+" REMPLACE toute la piste S1 par le résultat ("+'))
+check("P13_la_pastille_somme_les_clips_de_dialogue_avant_le_bouton",
+      0 <= _ca < _ct < _cp < _cb
+      and s.count(nl("var trAll=subsCostOf(trFree,subsN(props.dur,0),lang);")) == 0
+      and s.count(nl(":subsN(props.dur,0),lang);")) == 1
+      and s.count("if(!trAll.free&&dzSsAll.dit)") == 0
+      and "!trAll.ko&&" in P.R_M24E,
+      f"sources={_ca} cout={_ct} apres={_cp} bouton={_cb} "
+      f'ancien={s.count(nl("var trAll=subsCostOf(trFree,subsN(props.dur,0),lang);"))} '
+      f'sans_ko={s.count("if(!trAll.free&&dzSsAll.dit)")}')
+# M24f : la liste des langues est LUE dans le bundle et EXECUTEE avec
+# subsLangLab — pas recopiee. « auto » en tete, dix-sept entrees, le defaut
+# reste « fr » (la lecture du localStorage n'a pas bouge).
+_li = s.find(nl("var SUBS_LANGS=["))
+_lj = s.find("]];", _li) if _li >= 0 else -1
+_LANGS_SRC = s[_li:_lj + 3].replace("\r\n", "\n") if 0 <= _li < _lj else ""
+_LAB_SRC = ('function subsLangLab(c){\n  var k=String(c||"fr");\n'
+            '  for(var i=0;i<SUBS_LANGS.length;i++)if(SUBS_LANGS[i][0]===k)'
+            'return SUBS_LANGS[i][1];\n  return k}')
+check("P13_la_liste_des_langues_et_son_lecteur_sont_extraits_du_bundle",
+      bool(_LANGS_SRC) and s.count(nl("var SUBS_LANGS=[")) == 1
+      and s.count(nl(_LAB_SRC)) == 1
+      and s.count(nl('try{return localStorage.getItem("dz_subs_lang")||"fr"}'
+                     'catch(_e){return "fr"}}),')) == 1,
+      f"liste={len(_LANGS_SRC)} o lab={s.count(nl(_LAB_SRC))}")
+_shimL = pathlib.Path(TMP) / "shim_langs.js"
+_shimL.write_text('"use strict";\n' + _LANGS_SRC + "\n" + _LAB_SRC + "\n"
+                  + 'console.log(JSON.stringify({codes:SUBS_LANGS.map(function(o){return o[0]}),'
+                  'auto:subsLangLab("auto"),fr:subsLangLab("fr"),hi:subsLangLab("hi"),'
+                  'defaut:subsLangLab(""),inconnu:subsLangLab("xx")}));\n',
+                  encoding="utf-8")
+_rL = NODE(["node", str(_shimL)], timeout=60)
+try:
+    _dL = json.loads((_rL.stdout or "").strip().splitlines()[-1]) if _rL.returncode == 0 else {}
+except (ValueError, IndexError) as _e:
+    _dL = {"_temoin": temoin(_e)}
+_CODES_ATTENDUS = ["auto", "fr", "en", "es", "de", "it", "pt",
+                   "nl", "pl", "ru", "uk", "tr", "ar", "ja", "zh", "ko", "hi"]
+check("P13_auto_en_tete_dix_sept_langues_et_un_libelle_lisible",
+      _dL.get("codes") == _CODES_ATTENDUS
+      and _dL.get("auto") == "détection par le moteur"
+      and _dL.get("hi") == "hindi" and _dL.get("fr") == "français"
+      and _dL.get("defaut") == "français" and _dL.get("inconnu") == "xx",
+      f"codes={_dL.get('codes')} auto={_dL.get('auto')!r} "
+      f"defaut={_dL.get('defaut')!r} {_dL.get('_temoin', '')} "
+      f"{(_rL.stderr or '')[-200:]}")
+# M24k / M24l (tour 1) : `subsCostOf` est EXTRAIT du bundle (de sa tete a
+# la premiere ligne vide) et EXECUTE sous node avec la vraie liste des
+# langues et son vrai lecteur, le reste bouchonne (SUBS_EST fige, moteur
+# « elevenlabs », prix et delais en clair). Sous « auto » la pastille dit
+# « langue auto · elevenlabs · … » et l'infobulle « langue détectée par le
+# moteur : … » — plus jamais l'entree du selecteur « détection par le
+# moteur » dans une phrase ecrite pour un nom de langue ; sous « fr » rien
+# n'a bouge ; SANS MOTEUR l'objet porte `ko` — c'est le sens de la garde
+# `!trAll.ko` de M24e (l'infobulle d'un geste impossible ne commence pas par
+# « Envoyé »).
+_ci = s.find(nl("function subsCostOf(free,dur,lang,court){"))
+_cj = s.find("\r\n\r\n", _ci) if _ci >= 0 else -1
+_COST_SRC = s[_ci:_cj].replace("\r\n", "\n") if 0 <= _ci < _cj else ""
+_shimC = pathlib.Path(TMP) / "shim_cost.js"
+_shimC.write_text('"use strict";\n' + _LANGS_SRC + "\n" + _LAB_SRC + "\n"
+                  + 'var SUBS_EST={ok:!0,usdMin:0.4,over:5,rt:0.1,label:"ElevenLabs",'
+                  'model:"scribe_v1",reason:"pas de moteur"};\n'
+                  'function subsMoteurNom(court){return "elevenlabs"}\n'
+                  'function subsUsd(v){return v.toFixed(4)+" $"}\n'
+                  'function subsEta(e){return Math.round(e)+" s"}\n'
+                  'function subsFr(v,d){return String(v)}\n'
+                  'function subsN(v,d){var n=Number(v);return isFinite(n)?n:d}\n'
+                  + _COST_SRC + "\n"
+                  + 'var ko=(function(){SUBS_EST.ok=!1;var o=subsCostOf(!1,60,"auto");'
+                  'SUBS_EST.ok=!0;return o})();\n'
+                  'console.log(JSON.stringify({auto:subsCostOf(!1,60,"auto"),'
+                  'fr:subsCostOf(!1,60,"fr"),ko:ko,libre:subsCostOf(!0,60,"auto")}));\n',
+                  encoding="utf-8")
+_rC = NODE(["node", str(_shimC)], timeout=60)
+try:
+    _dC = json.loads((_rC.stdout or "").strip().splitlines()[-1]) if _rC.returncode == 0 else {}
+except (ValueError, IndexError) as _e:
+    _dC = {"_temoin": temoin(_e)}
+_auto, _fr, _ko = (_dC.get("auto") or {}), (_dC.get("fr") or {}), (_dC.get("ko") or {})
+check("P13_subsCostOf_sous_auto_dit_langue_auto_et_detectee_par_le_moteur",
+      bool(_COST_SRC) and _COST_SRC.count("\n") >= 20
+      and str(_auto.get("txt", "")).startswith("langue auto · elevenlabs · 0.4000 $ · ")
+      and ", langue détectée par le moteur : 0.4000 $ pour 60 s de son (" in str(_auto.get("apres", ""))
+      and "détection par le moteur" not in str(_auto.get("txt", "")) + str(_auto.get("apres", ""))
+      and _auto.get("free") is False and _auto.get("usd") == 0.4,
+      f"txt={_auto.get('txt')!r} apres={str(_auto.get('apres'))[:120]!r} "
+      f"{_dC.get('_temoin', '')} {(_rC.stderr or '')[-200:]}")
+check("P13_subsCostOf_sous_fr_n_a_pas_bouge",
+      str(_fr.get("txt", "")).startswith("français · elevenlabs · 0.4000 $ · ")
+      and ", langue français : 0.4000 $ pour 60 s de son (" in str(_fr.get("apres", ""))
+      and _fr.get("free") is False,
+      f"txt={_fr.get('txt')!r} apres={str(_fr.get('apres'))[:120]!r}")
+check("P13_subsCostOf_sans_moteur_porte_ko_et_la_raison_sans_Envoye",
+      _ko.get("ko") is True and _ko.get("free") is False
+      and _ko.get("apres") == "pas de moteur"
+      and str(_ko.get("txt", "")).endswith(" · coût indisponible")
+      and (_dC.get("libre") or {}).get("free") is True,
+      f"ko={_ko!r} libre={_dC.get('libre')!r}")
+# M24m (tour 1) : la note de detection en etat « ok » ne dit plus « d'accord
+# avec le selecteur » sous « auto » — le texte neuf vit DANS le bloc de la
+# note (entre `"sub-lgnote"` et `"sub-lgtxt"`), l'ancien titre a disparu.
+_ln0 = s.find('className:"sub-lgnote"')
+_ln1 = s.find('className:"sub-lgtxt"', _ln0 if _ln0 >= 0 else 0)
+_LGNOTE = s[_ln0:_ln1] if 0 <= _ln0 < _ln1 else ""
+check("P13_la_note_de_detection_sous_auto_ne_parle_pas_du_selecteur",
+      bool(_LGNOTE) and (_ln1 - _ln0) < 1200
+      and _LGNOTE.count(nl('?(lang==="auto"?"Sous « auto » le moteur détecte lui-même la '
+                           'langue ; lue sur le contenu : "')) == 1
+      and _LGNOTE.count(nl(':"La langue lue sur le contenu est d\'accord avec le sélecteur : ")+')) == 1
+      and s.count(nl(P.A_M24M)) == 0,
+      f'bloc={len(_LGNOTE)} o neuf={_LGNOTE.count("Sous « auto » le moteur détecte")} '
+      f"ancien={s.count(nl(P.A_M24M))}")
+# LES DIX CODES NEUFS SONT UNE CONNAISSANCE EXTERNE AU DEPOT, et la section
+# le DIT (c'est la seule garde possible sur un fait que rien ici ne mesure).
+check("P13_la_section_declare_la_connaissance_externe",
+      "CONNAISSANCE EXTERNE AU DÉPÔT" in P.R_M24F and "ISO-639-1" in P.R_M24F
+      and P.R_M24F.count('["auto","détection par le moteur"]') == 1,
+      "R_M24F ne declare pas l'origine des dix codes")
+# M24g : sous « auto », jamais « contre » ; l'ancienne forme a disparu ; la
+# garde de l'effet (`langPris`) est intacte — « auto » ne se choisit que par
+# le selecteur, donc toujours avec `pris`.
+check("P13_sous_auto_la_detection_n_a_rien_a_contredire",
+      s.count(nl('?((lang==="auto"||det.code===lang)?"ok":"contre")')) == 1
+      and s.count(nl('det.sur?(det.code===lang?"ok":"contre")')) == 0
+      and s.count(nl("if(langPris||!det.sur||det.code===lang)return;")) == 1,
+      f'neuf={s.count(nl(chr(63) + "((lang===" + chr(34) + "auto" + chr(34) + "||det.code===lang)"))} '
+      f'ancien={s.count(nl("det.sur?(det.code===lang?"))}')
+# M24h / M24i / M24j : l'hote. `srcIn` vit DANS subsSrcClips ; la piste de
+# dialogue du projet passe le filtre ; les pistes vont au tiroir.
+_sc0 = s.find(nl("  function subsSrcClips(cs){"))
+_dd = s.find(nl("var dzDial=DzTracks.dialogueTrack(svmTracksOf(proj));"), _sc0 if _sc0 >= 0 else 0)
+_ft = s.find(nl('||c.tr===dzDial})'), _sc0 if _sc0 >= 0 else 0)
+_si = s.find(nl("srcIn:Math.round(subsNum(c.srcIn)*1e3)/1e3,"), _sc0 if _sc0 >= 0 else 0)
+_sn = s.find(nl("  function subsNum(v){"), _sc0 if _sc0 >= 0 else 0)
+check("P13_l_hote_envoie_srcIn_et_les_clips_de_la_piste_de_dialogue",
+      _sc0 >= 0 and _sc0 < _dd < _ft < _si < _sn
+      and s.count(nl("srcIn:Math.round(subsNum(c.srcIn)*1e3)/1e3,")) == 1
+      and s.count(nl('||c.tr===dzDial})')) == 1,
+      f"subsSrcClips={_sc0} dzDial={_dd} filtre={_ft} srcIn={_si} subsNum={_sn}")
+check("P13_l_hote_passe_les_pistes_au_tiroir",
+      s.count(nl("srcTracks:svmTracksOf(proj)})}")) == 1
+      and s.count(nl("onPlanFlag:subsPlanFlag})}")) == 0
+      and s.count(nl("onPlanFlag:subsPlanFlag,")) == 1,
+      f'neuf={s.count(nl("srcTracks:svmTracksOf(proj)})}"))} '
+      f'ancien={s.count(nl("onPlanFlag:subsPlanFlag})}"))}')
+# AUCUN confirm() : la pastille et l'infobulle sont la convention (banc
+# test_subs_regle_des_gestes). Conjoint : les dix sections existent.
+check("P13_aucun_confirm_dans_les_sections",
+      all("confirm(" not in _r for _t, _a, _r in P.PATCHES if _t.startswith("M24"))
+      and sum(1 for _t, _a, _r in P.PATCHES if _t.startswith("M24")) == 13,
+      f'sections={sum(1 for _t, _a, _r in P.PATCHES if _t.startswith("M24"))}')
+# DEUX FACES : la couche exporte ce que le bundle appelle, autant de fois
+# que dit (subsSources x2 : la ligne d'attente et la pastille ; dialogueTrack
+# x2 : l'hote ET, depuis le tour 1, le geste par plan de M24c), et chaque
+# identifiant du bundle qu'une section lit est declare (recherche bornee
+# \b…\b dans la section).
+for _nom, _n in (("subsSources", 2), ("dialogueTrack", 2)):
+    check("P13_deux_faces_DzTracks_" + _nom,
+          s.count(nl("DzTracks." + _nom + "(")) == _n
+          and src.count(_nom + ":dzm" + _nom[0].upper() + _nom[1:]) == 1
+          and re.search(r"\bfunction dzm%s\(" % (_nom[0].upper() + _nom[1:]), src) is not None,
+          f'bundle={s.count(nl("DzTracks." + _nom + "("))} attendu={_n} '
+          f'couche={src.count(_nom + ":dzm" + _nom[0].upper() + _nom[1:])}')
+for _sec, _r, _pairs in (
+        ("M24a", P.R_M24A,
+         (("setTrJob", "var s2=x.useState(null),trJob=s2[0],setTrJob=s2[1];"),
+          ("props", "const SubsDrawer=(props)=>{"))),
+        ("M24c", P.R_M24C,
+         (("subsN", "function subsN(v,d){"),
+          ("note2", "function note2(m){fireNote(m);if(props.onNote)props.onNote(m)}"),
+          ("setTrJob", "var s2=x.useState(null),trJob=s2[0],setTrJob=s2[1];"),
+          ("props", "const SubsDrawer=(props)=>{"))),
+        ("M24k", P.R_M24K,
+         (("subsLangLab", "function subsLangLab(c){"),
+          ("subsMoteurNom", "function subsMoteurNom(court){"),
+          ("lang", "function subsCostOf(free,dur,lang,court){"))),
+        ("M24l", P.R_M24L,
+         (("subsLangLab", "function subsLangLab(c){"),
+          ("subsFr", "function subsFr(v,d){"),
+          ("lang", "function subsCostOf(free,dur,lang,court){"))),
+        ("M24m", P.R_M24M,
+         (("etat", 'var etat=!det.total?"vide":det.sur'),
+          ("lang", "lang=s3[0],setLang=s3[1];"))),
+        ("M24e", P.R_M24E,
+         (("subsCostOf", "function subsCostOf(free,dur,lang,court){"),
+          ("trFree", "var trFree=(props.srcClips||[]).some(function(c){"),
+          ("subsN", "function subsN(v,d){"))),
+        ("M24g", P.R_M24G,
+         (("det", "var det=x.useMemo(function(){"),
+          ("lang", "lang=s3[0],setLang=s3[1];"))),
+        ("M24h", P.R_M24H,
+         (("svmTracksOf", "function svmTracksOf(proj){"),
+          ("proj", "proj=stP[0],setProj=stP[1];"),
+          ("subsPlanFlag", "function subsPlanFlag(id,on){"))),
+        ("M24i", P.R_M24I,
+         (("subsNum", "function subsNum(v){var n=Number(v);return isFinite(n)?n:0}"),)),
+        ("M24j", P.R_M24J,
+         (("clipsRef", "var clipsRef=x.useRef(clips);clipsRef.current=clips;"),
+          ("svmTracksOf", "function svmTracksOf(proj){"),
+          ("proj", "proj=stP[0],setProj=stP[1];")))):
+    for _nm, _decl in _pairs:
+        _appele = re.search(r"\b%s\b" % re.escape(_nm), _r) is not None
+        check("P13_" + _sec + "_appelle_" + _nm + "_qui_est_declare",
+              _appele and s.count(nl(_decl)) >= 1,
+              f"appelé={_appele} déclaré={s.count(nl(_decl))} ({_decl})")
+# LES NOMS NEUFS etaient LIBRES dans le bundle d'entree.
+for _nm in ("dzSs", "dzSsAll", "srcTracks", "subsSources", "dzDial",
+            "dzmSubsSources", "dzmSubsLabel", "dzTd", "dzmUnionLen", "dzmSubsKey"):
+    _bak = BUNDLE.with_name(BUNDLE.name + ".bak_montage")
+    _dans_bak = (_bak.read_bytes().count(_nm.encode("utf-8"))
+                 if _bak.is_file() else -1)
+    check("P13_nom_" + _nm + "_etait_libre_dans_le_bundle_d_entree",
+          _dans_bak == 0, f"{_nm} apparait {_dans_bak}x dans .bak_montage")
+# LA ROUTE, DE L'AUTRE COTE DU FIL : elle lit `tracks` par la loi du rendu,
+# decale par `start − srcIn`, et enveloppe la ValueError du fournisseur.
+_RT = ROOT / "backend" / "app" / "api" / "routes.py"
+_rt = _RT.read_text(encoding="utf-8") if _RT.is_file() else ""
+check("P13_la_route_lit_les_pistes_decale_et_enveloppe",
+      _rt.count("def _subs_dialogue_ids(tracks)") == 1
+      and _rt.count("from app.services.montage_service import _tracks_meta") >= 1
+      and _rt.count("def _subs_shift_words(words: list, clip: dict | None)") == 1
+      and _rt.count("off = start - src_in") == 1
+      and _rt.count("pid = T.resolve_provider(provider)") == 1
+      and _rt.count("except ValueError as e:\n            raise HTTPException(400, str(e))") >= 1
+      and _rt.count('lang_stt = None if lang_raw in ("", "auto") else lang_raw') == 1
+      and _rt.count("        if p not in fichiers:\n            fichiers.append(p)") == 1
+      and _rt.count("words.extend(_subs_shift_words(cache[p], c))") == 1,
+      f'ids={_rt.count("def _subs_dialogue_ids(tracks)")} '
+      f'cache={_rt.count("words.extend(_subs_shift_words(cache[p], c))")} '
+      f'shift={_rt.count("off = start - src_in")} '
+      f'prov={_rt.count("pid = T.resolve_provider(provider)")} '
+      f'lang={_rt.count(chr(34) + "auto" + chr(34) + ") else lang_raw")}')
+
 # ── LA CHAINE AVAL, MESUREE ICI PLUTOT QUE DECOUVERTE AU REJEU SUIVANT ────
 # CE QUI A MORDU PENDANT P10, ET QUI A FAILLI MORDRE ICI. `patch_bundle_
 # dzcout.py` est un maillon AVAL de `montage` ; sa garde `guard_downstream`
@@ -3035,6 +3409,76 @@ out.eb_clic=P12(function(){var J=[];var b=T.extractBtn(PLAN,{tracks:T.DEFAULTS,
   clips:function(){return [PLAN]},setClips:function(c){J.push(c.length)},
   pushHistory:function(){},ask:function(s2,oo){oo.done(V_OUI,"b")}});
   b.p.onClick();return J});
+/* ══ P13 — subsSources : CE QUE LA TRANSCRIPTION VA DEPENSER, ET SUR QUOI ══
+   Les clips sont ceux que le tiroir recoit (subsSrcClips : id, tr, src,
+   name, start, end). Le cas de l'utilisateur (06/09) : kapwing_sample sur
+   V1 a 28,876 s, son jumeau A1 (P12), et le VIEUX MP3 de A1 a t = 0 — la
+   liste porte les deux clips A1, tries par start, et NOMME le vestige : c'est
+   ce que l'infobulle doit dire avant que le bouton ne depense. */
+var CS_SUBS=[{id:"v1u1_0",tr:"v1",src:{job_id:"k"},name:"kapwing_sample.mp4",start:28.876,end:44.849},
+  {id:"a1_k",tr:"a1",src:{job_id:"k"},name:"kapwing_sample · son du plan",start:28.876,end:44.849},
+  {id:"a1_old",tr:"a1",src:{audio:"s1_drift-746849.mp3"},name:"s1_drift",start:0,end:11.8},
+  {id:"a3x",tr:"a3",src:{audio:"sfx.mp3"},start:0,end:5},
+  {id:"a1_nosrc",tr:"a1",src:null,start:50,end:60},
+  {id:"a1_zero",tr:"a1",src:{audio:"z.mp3"},start:70,end:70},
+  {id:"a1_nan",tr:"a1",src:{audio:"n.mp3"},start:"x",end:"y"}];
+function SSID(o){return o.list.map(function(l){return l.id})}
+out.ss_user=P12(function(){var o=T.subsSources(CS_SUBS,TS_USER);
+  return [o.track,SSID(o),o.total,o.repli,o.step]});
+out.ss_dit=P12(function(){return T.subsSources(CS_SUBS,TS_USER).dit});
+out.ss_v1=P12(function(){var o=T.subsSources([CS_SUBS[0],CS_SUBS[3],CS_SUBS[4]],TS_USER);
+  return [SSID(o),o.total,o.repli,o.step,o.dit]});
+out.ss_v1_plus_tot=P12(function(){var o=T.subsSources([
+  {id:"vB",tr:"v1",src:{job_id:"b"},start:20,end:36},
+  {id:"vA",tr:"v1",src:{job_id:"a"},start:2,end:18}],TS_USER);
+  return [SSID(o),o.total,o.repli]});
+out.ss_vide=P12(function(){var o=T.subsSources([],TS_USER);
+  return [o.list.length,o.total,o.repli,o.step,o.dit]});
+out.ss_null=P12(function(){var o=T.subsSources(null,null);
+  return [o.track,o.list.length,o.total,o.step,o.dit]});
+out.ss_defauts=P12(function(){return [T.subsSources(CS_SUBS,[]).track,
+  T.subsSources(CS_SUBS,undefined).track,T.subsSources(CS_SUBS,"x").track]});
+out.ss_a4=P12(function(){var o=T.subsSources(CS_SUBS.concat([
+  {id:"a4x",tr:"a4",src:{audio:"d.mp3"},name:"dial4",start:3,end:5}]),
+  [{id:"v1"},{id:"a4",kind:"audio",bus:"dialogue"},{id:"a1",kind:"audio",bus:"sfx"}]);
+  return [o.track,SSID(o),o.total,o.repli]});
+out.ss_bouclee=P12(function(){var o=T.subsSources(CS_SUBS,
+  [{id:"v1"},{id:"a1",kind:"audio",bus:"dialogue",loop:!0}]);
+  return [o.track,o.repli,SSID(o),o.dit.indexOf("DE DIALOGUE")>=0]});
+out.ss_label=P12(function(){return [T.subsLabel({name:"n",label:"l",src:{audio:"a"}}),
+  T.subsLabel({label:"l",src:{audio:"a"}}),T.subsLabel({src:{audio:"a.mp3"}}),
+  T.subsLabel({src:{image:"i.png"}}),T.subsLabel({src:{job_id:"j"}}),
+  T.subsLabel({src:"plain"}),T.subsLabel({src:{}}),T.subsLabel(null)]});
+out.ss_pure=P12(function(){var cs=JSON.parse(JSON.stringify(CS_SUBS));
+  var o=T.subsSources(cs,TS_USER);o.list[0].id="MUTE";
+  return JSON.stringify(cs)===JSON.stringify(CS_SUBS)});
+/* Tour 1 (revue du 06/09) — LA DEPENSE EST PAR FICHIER DISTINCT. La lame
+   fabrique deux clips de meme `src` (srcIn avance) : deux moities font le
+   tout ; le meme fichier pose deux fois entier compte UNE fois ; un clip
+   rogne reste une borne basse, et la phrase dit que le fichier part entier. */
+out.ss_files_user=P12(function(){return T.subsSources(CS_SUBS,TS_USER).files});
+out.ss_lame=P12(function(){var o=T.subsSources([
+  {id:"k_a",tr:"a1",src:{audio:"v.mp3"},name:"v",start:10,end:11.5,srcIn:0},
+  {id:"k_b",tr:"a1",src:{audio:"v.mp3"},name:"v",start:11.5,end:13,srcIn:1.5}],TS_USER);
+  return [SSID(o),o.total,o.files,o.dit]});
+out.ss_deux_fois=P12(function(){var o=T.subsSources([
+  {id:"p",tr:"a1",src:{audio:"v.mp3"},name:"v",start:0,end:3,srcIn:0},
+  {id:"q",tr:"a1",src:{audio:"v.mp3"},name:"v",start:10,end:13,srcIn:0}],TS_USER);
+  return [o.total,o.files,o.dit.indexOf("2 clips (1 fichier)")>=0]});
+out.ss_chevauche=P12(function(){var o=T.subsSources([
+  {id:"p",tr:"a1",src:{audio:"v.mp3"},start:0,end:3,srcIn:0},
+  {id:"q",tr:"a1",src:{audio:"v.mp3"},start:10,end:13,srcIn:2}],TS_USER);
+  return [o.total,o.files]});
+out.ss_rogne=P12(function(){var o=T.subsSources([
+  {id:"p",tr:"a1",src:{audio:"v.mp3"},start:0,end:2,srcIn:1}],TS_USER);
+  return [o.total,o.files,o.dit.indexOf("Chaque fichier part entier chez le moteur")>=0,
+    o.dit.indexOf("(1 fichier)")>=0]});
+out.ss_cles=P12(function(){var o=T.subsSources([
+  {id:"p",tr:"a1",src:{job_id:"j",kind:"x"},start:0,end:3,srcIn:0},
+  {id:"q",tr:"a1",src:{kind:"x",job_id:"j"},start:10,end:13,srcIn:0},
+  {id:"r",tr:"a1",src:"plain",start:20,end:21,srcIn:0},
+  {id:"s",tr:"a1",src:"autre",start:30,end:31,srcIn:0}],TS_USER);
+  return [o.total,o.files]});
 /* ══ BARRE D'OUTILS — LES DIX TRACES ET LE BOUTON D'ACTION (etapes 2 et 3) ══
    L'ALLER-RETOUR EST LA MESURE. La couche garde les traces en CHAINE — le
    texte du §3, au caractere pres — et les traduit une fois au chargement.
@@ -5796,6 +6240,80 @@ check("js_extractBtn_le_titre_dit_le_refus_et_l_annulation",
       repr(d.get("eb_titre"))[:240])
 check("js_extractBtn_le_clic_appelle_le_moteur",
       d.get("eb_clic") == [2], repr(d.get("eb_clic")))
+
+# ── P13 : subsSources — ce que la transcription va depenser, sous node ────
+# LE CAS DE L'UTILISATEUR : les DEUX clips A1 (le vestige a t=0 ET le jumeau
+# du plan a 28,876), tries par start, 27,773 s au total — pas la duree du
+# projet ; le vestige est NOMME dans la phrase. Le conjoint qui empeche une
+# fonction qui rendrait tout : le clip a1 SANS source, celui de duree nulle
+# et celui aux bornes illisibles sont ABSENTS de la liste (sept clips en
+# entree, deux en sortie).
+check("js_subsSources_somme_les_clips_de_dialogue_tries_par_start",
+      d.get("ss_user") == ["a1", ["a1_old", "a1_k"], 27.773, False,
+                           "envoi de 2 clips de A1…"],
+      repr(d.get("ss_user")))
+check("js_subsSources_l_infobulle_nomme_chaque_source_et_le_total",
+      d.get("ss_dit") == ("Envoyé : 2 clips de la piste A1 — s1_drift (11,8 s), "
+                          "kapwing_sample · son du plan (16 s) — 27,8 s de son, "
+                          "chaque réplique posée à l'instant de son clip. Chaque "
+                          "fichier part entier chez le moteur : un clip rogné coûte "
+                          "la durée de son fichier."),
+      repr(d.get("ss_dit")))
+# LE REPLI V1 (la route fait de meme) : sans clip de dialogue porteur d'une
+# source, la premiere V1 au plus tot, seule, et la phrase le dit.
+check("js_subsSources_sans_dialogue_la_premiere_v1_et_c_est_dit",
+      d.get("ss_v1") == [["v1u1_0"], 15.973, True, "envoi de kapwing_sample.mp4…",
+                         "Aucun clip de la piste A1 ne porte de son : la vidéo "
+                         "kapwing_sample.mp4 (16 s) de V1 est envoyée entière, "
+                         "ses répliques posées à son instant."],
+      repr(d.get("ss_v1")))
+check("js_subsSources_le_repli_prend_la_v1_la_plus_tot_pas_la_premiere_listee",
+      d.get("ss_v1_plus_tot") == [["vA"], 16, True], repr(d.get("ss_v1_plus_tot")))
+# ETATS VIDES : rien a envoyer rend un total 0, un step neutre et une phrase
+# VIDE — c'est le signal sur lequel M24e retombe sur la duree du projet. Le
+# conjoint : `ss_user` ci-dessus rend bien une liste pleine.
+check("js_subsSources_etats_vides_rendent_total_0_et_phrase_vide",
+      d.get("ss_vide") == [0, 0, False, "envoi…", ""]
+      and d.get("ss_null") == ["a1", 0, 0, "envoi…", ""]
+      and (d.get("ss_user") or [None])[0] == "a1",
+      f'vide={d.get("ss_vide")!r} null={d.get("ss_null")!r}')
+check("js_subsSources_sans_pistes_les_defauts_donc_a1",
+      d.get("ss_defauts") == ["a1", "a1", "a1"], repr(d.get("ss_defauts")))
+# LA LOI DES PISTES : bus dialogue sous un autre identifiant → cette piste,
+# et a1 re-busee n'est plus visee ; une a1 BOUCLEE n'est pas une piste de
+# dialogue → repli V1, et la phrase nomme la piste « DE DIALOGUE ».
+check("js_subsSources_le_bus_dialogue_prime_sur_l_identifiant",
+      d.get("ss_a4") == ["a4", ["a4x"], 2, False], repr(d.get("ss_a4")))
+check("js_subsSources_une_piste_bouclee_n_est_jamais_visee",
+      d.get("ss_bouclee") == ["", True, ["v1u1_0"], True], repr(d.get("ss_bouclee")))
+check("js_subsLabel_nom_puis_libelle_puis_le_champ_de_la_source",
+      d.get("ss_label") == ["n", "l", "a.mp3", "i.png", "j", "plain", "source", "source"],
+      repr(d.get("ss_label")))
+check("js_subsSources_ne_mute_pas_les_clips_recus",
+      d.get("ss_pure") is True, repr(d.get("ss_pure")))
+# TOUR 1 (revue du 06/09) — LA DEPENSE EST PAR FICHIER DISTINCT, comme la
+# route (un appel par chemin resolu). La lame : deux moities [0;1,5] et
+# [1,5;3] du meme fichier font 3 s, UN fichier, et la phrase dit « 2 clips
+# (1 fichier) » ; le meme fichier pose deux fois entier compte 3 s et non 6 ;
+# deux fenetres qui se chevauchent ([0;3] et [2;5]) font 5 ; un clip rogne
+# ([1;3] du fichier) reste une borne BASSE de 2 s et la phrase dit que le
+# fichier part entier. Les cles : l'ordre des champs d'une source ne fait
+# pas deux fichiers ; deux sources texte distinctes en font deux.
+check("js_subsSources_la_lame_compte_le_fichier_une_fois",
+      d.get("ss_lame") == [["k_a", "k_b"], 3, 1,
+                           "Envoyé : 2 clips (1 fichier) de la piste A1 — v (1,5 s), v (1,5 s) "
+                           "— 3 s de son, chaque réplique posée à l'instant de son clip. "
+                           "Chaque fichier part entier chez le moteur : un clip rogné coûte "
+                           "la durée de son fichier."]
+      and d.get("ss_files_user") == 2,
+      f'lame={d.get("ss_lame")!r} files_user={d.get("ss_files_user")!r}')
+check("js_subsSources_le_meme_fichier_pose_deux_fois_compte_une_fois",
+      d.get("ss_deux_fois") == [3, 1, True] and d.get("ss_chevauche") == [5, 1],
+      f'deux_fois={d.get("ss_deux_fois")!r} chevauche={d.get("ss_chevauche")!r}')
+check("js_subsSources_un_clip_rogne_est_une_borne_basse_et_la_phrase_le_dit",
+      d.get("ss_rogne") == [2, 1, True, False], repr(d.get("ss_rogne")))
+check("js_subsSources_la_cle_de_source_ignore_l_ordre_des_champs",
+      d.get("ss_cles") == [5, 3], repr(d.get("ss_cles")))
 
 print("\n[3-bis] LE CABLAGE DE L'ECRAN, EXECUTE — addAsset, nudge, le "
       "glisser, le reglage")

@@ -8705,6 +8705,139 @@ def _subs_cues_to_segments(cues: list) -> list:
           "words": c.get("words")} for c in cues or []])
 
 
+# ── P13 (06/09/2026) — LA TRANSCRIPTION VISE LA PISTE DE DIALOGUE ET DÉCALE ──
+# Mesuré sur le journal du 06/09 : `transcribe: s1_drift-746849.mp3 (11.8s)`
+# — le vieux MP3 de A1, jamais la vidéo ; et `_subs_cues_to_segments(cues)`
+# posait les mots AU TEMPS DU FICHIER, sans le `start` ni le `srcIn` du clip.
+# Ça « marchait avant » parce que le vestige A1 était à t = 0. SIX aides
+# suivent ; QUATRE sont pures (`_subs_src_key`, `_subs_bornes`,
+# `_subs_carrier`, `_subs_shift_words`), DEUX résolvent (`_subs_dialogue_ids`
+# lit `_tracks_meta`, `_subs_dialogue_sources` résout les chemins). Toutes
+# testées par backend/tests/test_subs_transcribe_cible.py.
+
+def _subs_src_key(src) -> str:
+    """Clé de comparaison d'une source : JSON aux clés triées — la même loi
+    que la couche (`dzmSrcKey`, JSON.stringify des clés triées), pour que
+    `{job_id:"x"}` et `{"job_id": "x"}` soient la même source."""
+    try:
+        return json.dumps(src, sort_keys=True, ensure_ascii=False, default=str)
+    except (TypeError, ValueError):
+        return repr(src)
+
+
+def _subs_bornes(c: dict) -> tuple[float, float, float]:
+    """`(start, end, srcIn)` d'un clip du payload, en secondes, bornés :
+    jamais négatifs, `end >= start`. Le tiroir envoie `start`/`end` arrondis
+    au millième et — depuis P13 (section M24i du patcher montage) — `srcIn` ;
+    un payload d'avant, ou une sauvegarde, peut ne pas le porter : 0."""
+    def _f(v, d=0.0):
+        try:
+            x = float(v)
+        except (TypeError, ValueError):
+            return d
+        return x if x == x and x >= 0 else d      # NaN et négatifs → défaut
+    start = _f(c.get("start"))
+    end = max(start, _f(c.get("end"), start))
+    return start, end, _f(c.get("srcIn"))
+
+
+def _subs_dialogue_ids(tracks) -> set[str]:
+    """Les pistes de dialogue du payload : MÊME LOI que le rendu
+    (`montage_service._tracks_meta` — `tracks` absent ⇒ la table historique,
+    donc `a1`) : de genre audio et de bus « dialogue », jamais une piste
+    BOUCLÉE (le rendu joue une piste `loop` d'un bout à l'autre du film en
+    ignorant les bornes de son premier clip : son `start` ne décale rien).
+    Reste connu, dit ici : la couche (`DzTracks.dialogueTrack`) retombe sur
+    `a1` PAR IDENTIFIANT même quand un payload la re-buse ailleurs ; la
+    route suit `_tracks_meta` (le bus fait foi). Les deux ne diffèrent que
+    sur une a1 explicitement sortie du bus dialogue."""
+    from app.services.montage_service import _tracks_meta
+    meta = _tracks_meta(tracks)
+    return {tid for tid, m in meta.items()
+            if m["kind"] == "audio" and m["bus"] == "dialogue" and not m["loop"]}
+
+
+def _subs_carrier(clips: list, src, dial: set[str]) -> dict | None:
+    """Le clip du payload qui PORTE la source explicite `src` — c'est lui
+    qui décale les répliques. Préférence : piste de dialogue, puis v1, puis
+    le reste ; à rang égal, le plus TÔT (`start`). Le geste PAR PLAN du tiroir
+    envoie déjà les seuls clips qui chevauchent le plan (mesuré, bundle
+    `function transcribe(plan){` : filtre `subsN(c.end,0)>plan.start+.05…`,
+    aucun décalage côté client — le décalage vit ICI, une seule fois).
+    `None` quand aucun clip ne la porte : décalage 0, comme avant P13."""
+    key = _subs_src_key(src)
+    cands = [c for c in clips
+             if c.get("src") is not None and _subs_src_key(c.get("src")) == key]
+    if not cands:
+        return None
+
+    def _rang(c):
+        tr = str(c.get("tr") or "")
+        return (0 if tr in dial else 1 if tr == "v1" else 2, _subs_bornes(c)[0])
+    return min(cands, key=_rang)
+
+
+async def _subs_dialogue_sources(clips: list, dial: set[str]) -> list:
+    """Sans `src` explicite : TOUS les clips des pistes de dialogue porteurs
+    d'une source résoluble, triés par `start` — chacun sera transcrit et
+    décalé. Sans aucun : la PREMIÈRE v1 (au plus tôt) qui résout, seule,
+    décalée de même. Rend une liste de `(chemin, clip)`."""
+    out = []
+    for c in sorted((c for c in clips if str(c.get("tr") or "") in dial and c.get("src")),
+                    key=lambda c: _subs_bornes(c)[0]):
+        p = await _subs_resolve(c.get("src"))
+        if p is not None:
+            out.append((p, c))
+    if out:
+        return out
+    for c in sorted((c for c in clips if c.get("tr") == "v1" and c.get("src")),
+                    key=lambda c: _subs_bornes(c)[0]):
+        p = await _subs_resolve(c.get("src"))
+        if p is not None:
+            return [(p, c)]
+    return []
+
+
+def _subs_shift_words(words: list, clip: dict | None) -> list:
+    """Mots au temps du FICHIER → temps de la TIMELINE : `+ (start − srcIn)`,
+    COUPÉS à `[start, end]` (un mot qui déborde est rogné, un mot hors du
+    clip est jeté). Chaque mot est marqué du clip qui le porte (`clip`) :
+    `group_words` coupe une réplique à chaque changement de `clip`, donc deux
+    sources ne fusionnent jamais dans une même réplique. Sans clip porteur :
+    copie telle quelle (décalage 0 — le comportement d'avant P13).
+    DETTE DITE (revue du 06/09) : la vitesse C4 d'un clip V1 (`speed`,
+    montage_service `_v1_speed`) n'est PAS appliquée — un plan V1 à ×2
+    transcrit par `src` explicite SANS jumeau A1 verrait ses mots à
+    `start + (t − srcIn)` et non `/speed`. Mesuré : le tiroir n'envoie pas
+    `speed` (`subsSrcClips` écrit id/tr/src/name/srcIn/start/end, 0
+    occurrence de `speed`), et le jumeau A1 — le porteur préféré — garde sa
+    vitesse (l'audio d'un V1 n'entre jamais dans le graphe du rendu)."""
+    if clip is None:
+        return [dict(w) for w in words or []]
+    start, end, src_in = _subs_bornes(clip)
+    off = start - src_in
+    out = []
+    for w in words or []:
+        try:
+            s = float(w["start"]) + off
+            e = float(w["end"]) + off
+        except (KeyError, TypeError, ValueError):
+            continue
+        if e <= start or s >= end:
+            continue
+        w2 = dict(w)
+        w2["start"] = round(max(s, start), 3)
+        w2["end"] = round(min(e, end), 3)
+        try:
+            se = float(w.get("speech_end", w["end"])) + off
+        except (TypeError, ValueError):
+            se = e
+        w2["speech_end"] = round(min(max(se, w2["start"]), end), 3)
+        w2["clip"] = str(clip.get("id") or f"{clip.get('tr')}@{start}")
+        out.append(w2)
+    return out
+
+
 @router.post("/subtitles/from-narration")
 async def subtitles_from_narration(request: Request):
     """Sous-titres CRÉÉS depuis la narration — gratuit, hors ligne, exact.
@@ -8817,8 +8950,33 @@ async def subtitles_transcribe(request: Request, background_tasks: BackgroundTas
     2. **Transcription** (`stt`) — texte inconnu : appel payant ElevenLabs
        Scribe ou OpenAI Whisper, horodatage AU MOT.
 
-    Body : `{src?, clips?, lang?, cps?, provider?, mode?}` — `mode:"stt"`
-    force la transcription même si un texte est disponible.
+    Body : `{src?, clips?, tracks?, lang?, cps?, provider?, mode?}` —
+    `mode:"stt"` force la transcription même si un texte est disponible.
+
+    P13 (06/09/2026) — LA CIBLE, LE DÉCALAGE, LA LANGUE :
+    · sans `src`, en chemin STT, les SOURCES sont tous les clips des pistes
+      de dialogue (`tracks` du payload, même loi que le rendu, sinon `a1`)
+      porteurs d'une source résoluble, triés par `start` ; chacun est
+      transcrit, ses mots décalés de `start − srcIn` et coupés à
+      `[start, end]`, les répliques concaténées ; `step` nomme chaque fichier
+      (« transcription de kapwing_sample.mp4 (1/2) »), `usd` cumule,
+      `provider` est celui du dernier, `sources` liste les fichiers. UN MÊME
+      FICHIER porté par plusieurs clips (la lame coupe un clip en deux de
+      même `src`) part UNE fois : `transcribe` envoie et facture le fichier
+      ENTIER à chaque appel (`probe_duration`, mesuré) — un cache par chemin
+      résolu, puis un décalage par clip porteur. Sans aucune : la première
+      v1 qui résout, décalée de même ;
+    · avec `src` (le geste PAR PLAN) : UNE source, décalée par le clip du
+      payload qui la porte (dialogue avant v1, au plus tôt) — sans porteur,
+      décalage 0 comme avant. Le client ne décale pas (mesuré) ;
+    · `lang` vide ou « auto » ⇒ `None` chez le moteur (sa détection, la
+      branche `if language:` de `transcribe` redevient vivante) ; le calage
+      gratuit reçoit « fr » dans ce cas ;
+    · un `provider` inconnu ⇒ 400 (la `ValueError` de `resolve_provider`
+      sortait en 500, mesuré).
+    CE QUI N'EST PAS FAIT ICI : quand une narration écrite existe (`text` sur
+    a1/a3), le calage gratuit l'emporte et la STT ne tourne pas
+    (`use_align`) — inchangé.
     """
     from app.services import transcribe_service as T
     try:
@@ -8827,7 +8985,11 @@ async def subtitles_transcribe(request: Request, background_tasks: BackgroundTas
         body = {}
     if not isinstance(body, dict):
         body = {}
-    lang = str(body.get("lang") or "fr")[:5]
+    # P13 — « auto » (ou rien) : le MOTEUR détecte ; le calage gratuit,
+    # lui, a besoin d'un code (« fr » — `syllables` n'en fait rien de plus).
+    lang_raw = str(body.get("lang") or "").strip().lower()[:5]
+    lang_stt = None if lang_raw in ("", "auto") else lang_raw
+    lang = lang_stt or "fr"
     cps = int(body.get("cps") or T.CHARS_PER_SUBTITLE_DEFAULT)
     mode = str(body.get("mode") or "auto").lower()
     provider = str(body.get("provider") or "") or None
@@ -8841,29 +9003,26 @@ async def subtitles_transcribe(request: Request, background_tasks: BackgroundTas
     narr = [c for c in clips
             if c.get("tr") in ("a1", "a3") and str(c.get("text") or "").strip()]
 
-    src_path = await _subs_resolve(body.get("src"))
-    if src_path is None:
-        # rien d'explicite : la piste A1 du projet, puis la V1
-        for c in clips:
-            if c.get("tr") == "a1":
-                src_path = await _subs_resolve(c.get("src"))
-                if src_path is not None:
-                    break
-        if src_path is None:
-            for c in clips:
-                if c.get("tr") == "v1":
-                    src_path = await _subs_resolve(c.get("src"))
-                    if src_path is not None:
-                        break
-
     use_align = bool(narr) and mode != "stt"
+    # P13 — `(chemin, clip porteur)` : le clip décale, le chemin se transcrit.
+    sources: list = []
     if not use_align:
-        if src_path is None:
+        dial = _subs_dialogue_ids(body.get("tracks"))
+        src_path = await _subs_resolve(body.get("src"))
+        if src_path is not None:
+            sources = [(src_path, _subs_carrier(clips, body.get("src"), dial))]
+        else:
+            sources = await _subs_dialogue_sources(clips, dial)
+        if not sources:
             raise HTTPException(
                 400, "Aucun média à transcrire : posez un plan ou une voix off "
                      "sur la timeline, ou écrivez la narration (le calage d'un "
                      "texte connu est gratuit et plus exact).")
-        if T.resolve_provider(provider) is None:
+        try:
+            pid = T.resolve_provider(provider)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        if pid is None:
             raise HTTPException(
                 400, "Aucune clé de transcription configurée (Réglages : "
                      "ElevenLabs ou OpenAI). Le calage de la narration reste "
@@ -8872,6 +9031,14 @@ async def subtitles_transcribe(request: Request, background_tasks: BackgroundTas
     for c in narr:
         c["_path"] = await _subs_resolve(c.get("src"))
 
+    # P13 — les FICHIERS distincts, dans l'ordre de leur premier clip : un
+    # même chemin porté par deux clips n'est transcrit (et facturé) qu'une
+    # fois ; `noms` et `sources` le nomment une fois.
+    fichiers: list = []
+    for p, _c in sources:
+        if p not in fichiers:
+            fichiers.append(p)
+    noms = [p.name for p in fichiers]
     jid = uuid4().hex[:12]
     if len(_SUBS_JOBS) > _SUBS_JOBS_MAX:
         for k in list(_SUBS_JOBS)[:len(_SUBS_JOBS) - _SUBS_JOBS_MAX]:
@@ -8893,18 +9060,39 @@ async def subtitles_transcribe(request: Request, background_tasks: BackgroundTas
                 src_kind = "align"
                 extra = {"words": len(res["words"]), "blocks": res["blocks"]}
             else:
-                _subs_job_set(jid, pct=25,
-                              step=f"transcription de {src_path.name}")
-                res = await asyncio.to_thread(T.transcribe, src_path,
-                                              provider=provider, language=lang)
+                words, usd, prov, texts = [], 0.0, None, []
+                # UN appel par FICHIER distinct (`fichiers`), puis UN décalage
+                # par clip porteur (`sources`) : deux clips de même source —
+                # la lame — ne paient qu'une transcription.
+                n = len(fichiers)
+                cache: dict = {}
+                for k, p in enumerate(fichiers):
+                    _subs_job_set(jid, pct=25 + int(50 * k / n),
+                                  step=f"transcription de {p.name} ({k + 1}/{n})")
+                    res = await asyncio.to_thread(T.transcribe, p,
+                                                  provider=provider,
+                                                  language=lang_stt)
+                    cache[p] = res.get("words") or []
+                    usd += float(res.get("usd_estimated") or 0.0)
+                    # `transcribe` nomme le fournisseur `source` (pas `provider`)
+                    prov = res.get("source") or prov
+                    if res.get("text"):
+                        texts.append(str(res["text"]))
+                for p, c in sources:
+                    words.extend(_subs_shift_words(cache[p], c))
+                if not words:
+                    raise RuntimeError(
+                        "Le moteur n'a rendu aucun mot horodaté dans la "
+                        "fenêtre des clips (" + ", ".join(noms) + ") — média "
+                        "muet, format refusé, ou clip hors du fichier.")
+                for i, w in enumerate(words):
+                    w["i"] = i
                 _subs_job_set(jid, pct=75, step="découpe en répliques")
-                cues = T.group_words(res["words"], max_chars=cps)
+                cues = T.group_words(words, max_chars=cps)
                 src_kind = "stt"
-                # `transcribe` nomme le fournisseur `source` (pas `provider`)
-                extra = {"words": len(res["words"]),
-                         "usd": res.get("usd_estimated"),
-                         "provider": res.get("source"),
-                         "text": res.get("text")}
+                extra = {"words": len(words), "usd": round(usd, 4),
+                         "provider": prov, "text": "\n".join(texts),
+                         "sources": noms}
             segs = _subs_cues_to_segments(cues)
             _subs_job_set(jid, status="done", pct=100, step="terminé",
                           segments=segs, source=src_kind, **extra)
@@ -8916,9 +9104,10 @@ async def subtitles_transcribe(request: Request, background_tasks: BackgroundTas
     background_tasks.add_task(_run)
     return {"ok": True, "job_id": jid,
             "source": "align" if use_align else "stt",
+            "sources": noms,
             "message": ("Calage de la narration lancé (gratuit)."
                         if use_align else
-                        f"Transcription lancée sur {src_path.name}.")}
+                        "Transcription lancée sur " + ", ".join(noms) + ".")}
 
 
 @router.get("/subtitles/jobs/{jid}")

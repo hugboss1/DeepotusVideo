@@ -1822,6 +1822,178 @@ R_M23 = (
     "          note:fireNote}),\n"
     + A_M23)
 
+# ── P13 — LA TRANSCRIPTION VISE LA PISTE DE DIALOGUE ET DIT CE QU'ELLE VA
+# DÉPENSER (06/09/2026). Sept sections sur le BLOC SUBS INLINÉ (M24a…M24g),
+# trois sur l'HÔTE (M24h…M24j) et, au tour 1, trois de plus sur le bloc subs
+# (M24k…M24m, les libellés sous « auto »). `frontend/patches/subs.js` est
+# INTOUCHABLE (pas de `.bak_subs`, ses ancres sont consommées, aucun banc ne
+# compare le bloc inliné à sa source — mesuré) : ces sections portent la
+# correction EN AVAL, et le bloc inliné diverge désormais de subs.js sur les
+# lignes qu'elles remplacent (le banc bundle les compte).
+# Mesuré avant d'écrire (06/09, en octets, CRLF) : chaque ancre est 1/1 dans
+# le bundle ET dans .bak_montage ; A_M24F, A_M24G, A_M24D et A_M24J sont
+# multilignes (0 en LF, 1 en CRLF — `nl()` les aligne) ; les noms neufs
+# (`dzSs`, `dzSsAll`, `srcTracks`, `subsSources`, `dzDial`) sont 0/0.
+# CE QUE LE CLIENT FAISAIT, MESURÉ : `function transcribe(plan){` envoyait
+# TOUJOURS `src:props.srcRef` (premier a1 porteur d'une source, sinon
+# premier v1 — `subsSrcRef()`, hôte), donc le repli serveur n'était jamais
+# atteint et le vieux MP3 de A1 partait à la place du plan ; le geste PAR
+# PLAN filtrait `cl` aux clips chevauchant le plan et gardait `av[0].src`
+# dans l'ordre du tableau, sans tri ; AUCUN décalage côté client — le
+# résultat `got` n'est filtré qu'à la fenêtre du plan (`dans`). Le décalage
+# vit donc UNE fois, dans la route (`start − srcIn`), et le client ne décale
+# toujours pas.
+# M24a — la ligne d'attente nomme ce qui part (même fonction pure que la
+# pastille : DzTracks.subsSources).
+A_M24A = 'setTrJob({busy:!0,step:plan?"plan "+plan.n+"…":"envoi…",pct:0});'
+R_M24A = (
+    "/* P13 — la ligne d'attente nomme ce qui part : les clips de la piste\n"
+    "       de dialogue (sinon la première V1), par la même fonction pure\n"
+    "       que la pastille de coût. */\n"
+    "    var dzSs=DzTracks.subsSources(props.srcClips,props.srcTracks);\n"
+    '    setTrJob({busy:!0,step:plan?"plan "+plan.n+"…":dzSs.step,pct:0});')
+# M24b — sans plan, `src` part NUL : la route vise la piste de dialogue.
+A_M24B = "var cl=props.srcClips||null,srcRef=props.srcRef||null;"
+R_M24B = (
+    "var cl=props.srcClips||null,srcRef=null;\n"
+    "    /* P13 — sans plan, `src` part NUL : la route vise elle-même la piste\n"
+    "       de dialogue — tous ses clips porteurs d'une source, transcrits un\n"
+    "       par un, leurs mots décalés de `start − srcIn` et coupés au clip.\n"
+    "       `props.srcRef` (le premier a1, sinon le premier v1, jamais\n"
+    "       décalé) n'est plus envoyé : c'est lui qui faisait transcrire le\n"
+    "       vieux MP3 de A1 au lieu du plan (journal du 06/09/2026). */")
+# M24c — le geste par plan trie : a1 d'abord, puis `start` ; sans clip
+# porteur qui chevauche le plan, rien ne part (et c'est dit) — avant, le
+# premier a1 de TOUTE la timeline partait, contre paiement, pour rien.
+A_M24C = (
+    'var av=cl.filter(function(c){return c.src&&(c.tr==="a1"||c.tr==="v1")});\n'
+    "      if(av.length)srcRef=av[0].src}")
+R_M24C = (
+    "/* P13 — la piste de dialogue du projet d'abord (bus « dialogue », sinon\n"
+    "         a1 : le son du plan), puis v1, et au plus tôt : c'est le clip\n"
+    "         porteur que la route retrouve pour décaler les répliques. Rien\n"
+    "         qui chevauche : rien ne part, et c'est dit — avant, le premier\n"
+    "         a1 de toute la timeline partait, contre paiement, hors du plan.\n"
+    "         TOUR 1 (revue du 06/09) : le filtre suivait `a1` PAR IDENTIFIANT\n"
+    "         alors que subsSrcClips (M24j) et la route visent la piste de\n"
+    "         dialogue — sur une piste a4 de bus dialogue, le geste par plan\n"
+    "         envoyait la V1 entière et disait « Aucun clip A1 ». */\n"
+    '      var dzTd=DzTracks.dialogueTrack(props.srcTracks)||"a1",\n'
+    '          av=cl.filter(function(c){return c.src&&(c.tr===dzTd||c.tr==="v1")})\n'
+    '        .sort(function(p,q){return (p.tr===dzTd?0:1)-(q.tr===dzTd?0:1)\n'
+    "          ||subsN(p.start,0)-subsN(q.start,0)});\n"
+    "      if(!av.length){setTrJob(null);\n"
+    '        note2("Aucun clip "+dzTd.toUpperCase()+" ou V1 porteur d\'une source '
+    'ne chevauche le plan n° "+plan.n+" — rien n\'est envoyé.");return}\n'
+    "      srcRef=av[0].src}")
+# M24d — les pistes partent avec la requête : la route applique la loi du
+# rendu (`_tracks_meta`) aux clips qu'elle reçoit.
+A_M24D = ("{src:srcRef,clips:cl,\n"
+          "       lang:lang,cps:subsN(style.maxChars,42)})")
+R_M24D = ("{src:srcRef,clips:cl,\n"
+          "       /* P13 — les pistes du projet : la route y lit la piste de\n"
+          "          dialogue (même loi que le rendu). */\n"
+          "       tracks:props.srcTracks||null,\n"
+          "       lang:lang,cps:subsN(style.maxChars,42)})")
+# M24e — la pastille annonce CE QUI PART, l'infobulle nomme les sources.
+A_M24E = "var trAll=subsCostOf(trFree,subsN(props.dur,0),lang);"
+R_M24E = (
+    "/* P13 — la pastille annonce CE QUI PART : la somme des durées des clips\n"
+    "     de la piste de dialogue porteurs d'une source (sinon la première\n"
+    "     V1), par la fonction pure de la couche ; la durée du projet ne sert\n"
+    "     plus que quand rien n'est à envoyer. L'infobulle nomme les sources\n"
+    "     (libellé, nombre, secondes) avant le prix — jamais quand le geste ne\n"
+    "     peut pas partir (`ko` : aucun moteur configuré, bouton désactivé) :\n"
+    "     l'infobulle d'un geste impossible ne commence pas par « Envoyé ». */\n"
+    "  var dzSsAll=DzTracks.subsSources(props.srcClips,props.srcTracks);\n"
+    "  var trAll=subsCostOf(trFree,dzSsAll.total>0?dzSsAll.total\n"
+    "    :subsN(props.dur,0),lang);\n"
+    '  if(!trAll.free&&!trAll.ko&&dzSsAll.dit)trAll.apres=dzSsAll.dit+" "+trAll.apres;')
+# M24f — la langue « auto » en tête, et dix langues de plus. CONNAISSANCE
+# EXTERNE AU DÉPÔT, déclarée comme telle : nl, pl, ru, uk, tr, ar, ja, zh,
+# ko, hi sont des codes ISO-639-1, transmis tels quels (ElevenLabs
+# `language_code`, OpenAI `language`) — le fournisseur tranche ce qu'il
+# accepte ; rien dans le dépôt ne les valide. Le DÉFAUT reste « fr »
+# (`localStorage.getItem("dz_subs_lang")||"fr"`, intouché, 1/1 mesuré).
+A_M24F = ('var SUBS_LANGS=[["fr","français"],["en","anglais"],["es","espagnol"],\n'
+          '  ["de","allemand"],["it","italien"],["pt","portugais"]];')
+R_M24F = ('/* P13 — « auto » en TÊTE : la route transmet `None` au moteur, qui\n'
+          '   détecte lui-même (la branche `if language:` de transcribe() était\n'
+          '   morte : la route forçait « fr »). Les dix codes après « pt » sont\n'
+          '   une CONNAISSANCE EXTERNE AU DÉPÔT (ISO-639-1), transmis tels quels :\n'
+          '   le fournisseur tranche. Le défaut reste « fr ». */\n'
+          'var SUBS_LANGS=[["auto","détection par le moteur"],\n'
+          '  ["fr","français"],["en","anglais"],["es","espagnol"],\n'
+          '  ["de","allemand"],["it","italien"],["pt","portugais"],\n'
+          '  ["nl","néerlandais"],["pl","polonais"],["ru","russe"],["uk","ukrainien"],\n'
+          '  ["tr","turc"],["ar","arabe"],["ja","japonais"],["zh","chinois"],\n'
+          '  ["ko","coréen"],["hi","hindi"]];')
+# M24g — sous « auto », la détection n'a rien à contredire : « ok ».
+A_M24G = ('var etat=!det.total?"vide":det.sur?(det.code===lang?"ok":"contre")\n'
+          '        :"flou";')
+R_M24G = ('var etat=!det.total?"vide":det.sur\n'
+          '        /* P13 — « auto » n\'affirme aucune langue : la détection n\'a\n'
+          '           rien à contredire, l\'état est « ok » (la ligne dit ce qui\n'
+          '           a été lu, et sur combien de mots). */\n'
+          '        ?((lang==="auto"||det.code===lang)?"ok":"contre")\n'
+          '        :"flou";')
+# M24h — l'HÔTE passe les pistes au tiroir (`props.srcClips` ne les porte
+# pas : c'est une liste de {id,tr,src,name,start,end}, mesuré).
+A_M24H = "onPlanFlag:subsPlanFlag})}"
+R_M24H = ("onPlanFlag:subsPlanFlag,\n"
+          "      /* P13 — les pistes du projet, pour que le tiroir et la route\n"
+          "         visent la même piste de dialogue. */\n"
+          "      srcTracks:svmTracksOf(proj)})}")
+# M24i — l'HÔTE envoie `srcIn` : sans lui, la route ne peut retrancher que
+# `start` et un clip ROGNÉ à gauche verrait ses répliques décalées de
+# `srcIn` (mesuré : `subsSrcClips` n'écrivait que id/tr/src/name/start/end).
+A_M24I = "name:c.name||c.label||null,"
+R_M24I = ("name:c.name||c.label||null,\n"
+          "               /* P13 — `srcIn` : la route décale de `start − srcIn`. */\n"
+          "               srcIn:Math.round(subsNum(c.srcIn)*1e3)/1e3,")
+# M24j — l'HÔTE fait partir les clips de la piste de dialogue du projet,
+# même sous un autre identifiant que a1 : sans cela, la loi des pistes de
+# la route (`tracks`) ne verrait jamais leurs clips (mesuré : le filtre ne
+# laissait passer que a1, a3, v1).
+A_M24J = ("function subsSrcClips(cs){\n"
+          "    return ((cs||clipsRef.current)||[]).filter(function(c){\n"
+          '      return c.tr==="a1"||c.tr==="a3"||c.tr==="v1"})')
+R_M24J = ("function subsSrcClips(cs){\n"
+          "    /* P13 — la piste de dialogue du projet (bus « dialogue », sinon\n"
+          "       a1) fait partie de ce que la transcription reçoit, même sous\n"
+          "       un autre identifiant : c'est elle que la route vise. */\n"
+          "    var dzDial=DzTracks.dialogueTrack(svmTracksOf(proj));\n"
+          "    return ((cs||clipsRef.current)||[]).filter(function(c){\n"
+          '      return c.tr==="a1"||c.tr==="a3"||c.tr==="v1"||c.tr===dzDial})')
+
+# M24k / M24l / M24m — LES LIBELLÉS SOUS « AUTO » (tour 1, revue du 06/09).
+# `subsLangLab("auto")` rend l'entrée du sélecteur, « détection par le
+# moteur », que subsCostOf injectait dans des phrases écrites pour un NOM de
+# langue (« détection par le moteur · elevenlabs · … », « langue détection
+# par le moteur : … »), et la note de détection en état « ok » disait « la
+# langue lue est d'accord avec le sélecteur » alors que, sous « auto », le
+# sélecteur n'affirme rien (M24g force « ok »). Trois ancres 1/1 (bundle ET
+# .bak_montage, mesuré en octets ; M24l et M24m sur deux lignes CRLF).
+A_M24K = 'return {txt:subsLangLab(lang)+" · "+subsMoteurNom(court)+" · "+subsUsd(usd)+'
+R_M24K = ('/* P13 — sous « auto » la pastille dit « langue auto », pas l\'entrée du\n'
+          '     sélecteur (« détection par le moteur · elevenlabs · … »). */\n'
+          '  return {txt:(lang==="auto"?"langue auto":subsLangLab(lang))+" · "+'
+          'subsMoteurNom(court)+" · "+subsUsd(usd)+')
+A_M24L = ('", langue "+\n'
+          '      subsLangLab(lang)+" : "+subsUsd(usd)+" pour "+subsFr(d,1)+" s de son ("+')
+R_M24L = ('", langue "+\n'
+          '      /* P13 — sous « auto » : « détectée par le moteur ». */\n'
+          '      (lang==="auto"?"détectée par le moteur":subsLangLab(lang))+" : "+'
+          'subsUsd(usd)+" pour "+subsFr(d,1)+" s de son ("+')
+A_M24M = ('title:etat==="ok"\n'
+          '          ?"La langue lue sur le contenu est d\'accord avec le sélecteur : "+')
+R_M24M = ('title:etat==="ok"\n'
+          '          /* P13 — sous « auto » le sélecteur n\'affirme rien : la ligne dit\n'
+          '             ce que le moteur fera, et ce que le contenu a montré. */\n'
+          '          ?(lang==="auto"?"Sous « auto » le moteur détecte lui-même la langue ; '
+          'lue sur le contenu : "\n'
+          '            :"La langue lue sur le contenu est d\'accord avec le sélecteur : ")+')
+
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
            ("M5-payload", A_M5, R_M5), ("M6-save", A_M6, R_M6),
@@ -1868,7 +2040,25 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M22b-jumeau-ecrit", A_M22B, R_M22B),
            ("M22c-ids-uniques", A_M22C, R_M22C),
            ("M22d-reparation-persistee", A_M22D, R_M22D),
-           ("M23-extraire-le-son", A_M23, R_M23)]
+           ("M23-extraire-le-son", A_M23, R_M23),
+           # P13 — la transcription vise la piste de dialogue. M24a…M24g sur
+           # le bloc subs inliné (subs.js intouchable : porté EN AVAL), M24h…
+           # M24j sur l'hôte. Aucune de ces ancres n'est touchée par une
+           # section antérieure (1/1 dans le bundle patché ET dans le .bak).
+           ("M24a-step-nomme-la-source", A_M24A, R_M24A),
+           ("M24b-src-nul-sans-plan", A_M24B, R_M24B),
+           ("M24c-plan-trie-a1-puis-start", A_M24C, R_M24C),
+           ("M24d-tracks-partent", A_M24D, R_M24D),
+           ("M24e-pastille-somme-des-clips", A_M24E, R_M24E),
+           ("M24f-langue-auto-et-liste", A_M24F, R_M24F),
+           ("M24g-auto-jamais-contre", A_M24G, R_M24G),
+           ("M24h-hote-passe-les-pistes", A_M24H, R_M24H),
+           ("M24i-hote-envoie-srcin", A_M24I, R_M24I),
+           ("M24j-hote-clips-de-dialogue", A_M24J, R_M24J),
+           # Tour 1 (revue du 06/09) : les libellés sous « auto », bloc subs.
+           ("M24k-pastille-langue-auto", A_M24K, R_M24K),
+           ("M24l-infobulle-langue-auto", A_M24L, R_M24L),
+           ("M24m-note-detection-sous-auto", A_M24M, R_M24M)]
 
 
 def nl(text, crlf):

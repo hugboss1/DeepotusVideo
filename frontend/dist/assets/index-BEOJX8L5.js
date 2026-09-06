@@ -3815,11 +3815,17 @@ function DzMontage(props){
      média. On envoie donc la timeline réduite à ce qui sert, pas le modèle
      client entier. */
   function subsSrcClips(cs){
+    /* P13 — la piste de dialogue du projet (bus « dialogue », sinon
+       a1) fait partie de ce que la transcription reçoit, même sous
+       un autre identifiant : c'est elle que la route vise. */
+    var dzDial=DzTracks.dialogueTrack(svmTracksOf(proj));
     return ((cs||clipsRef.current)||[]).filter(function(c){
-      return c.tr==="a1"||c.tr==="a3"||c.tr==="v1"})
+      return c.tr==="a1"||c.tr==="a3"||c.tr==="v1"||c.tr===dzDial})
       .map(function(c){
         var o={id:c.id,tr:c.tr,src:c.src||null,
                name:c.name||c.label||null,
+               /* P13 — `srcIn` : la route décale de `start − srcIn`. */
+               srcIn:Math.round(subsNum(c.srcIn)*1e3)/1e3,
                start:Math.round(subsNum(c.start)*1e3)/1e3,
                end:Math.round(subsNum(c.end)*1e3)/1e3};
         if(c.text)o.text=String(c.text);
@@ -3857,7 +3863,10 @@ function DzMontage(props){
       onSeek:function(t){seekTo(Math.max(0,Math.min(durRef.current,t)))},
       onNote:fireNote,srcName:proj.name,
       srcRef:subsSrcRef(),srcClips:subsSrcClips(clips),
-      onPlanFlag:subsPlanFlag})}
+      onPlanFlag:subsPlanFlag,
+      /* P13 — les pistes du projet, pour que le tiroir et la route
+         visent la même piste de dialogue. */
+      srcTracks:svmTracksOf(proj)})}
   /* LE karaoké : le mot prononcé se surligne dans le lecteur, à l'échelle
      réelle du canevas de rendu (l'aperçu ne ment pas sur la taille).
      Le tiroir ouvert, le même bloc devient MANIPULABLE : cadre de sélection,
@@ -9980,8 +9989,17 @@ function subsFonts(){return SUBS_SVC.fonts||SUBS_FONTS_FB}
    silences réels du son (`/subtitles/transcribe` prend ce chemin de lui-même).
    0 $, hors ligne, orthographe exacte — là où une transcription payante écrit
    « Dipotus » pour « Deepotus ». */
-var SUBS_LANGS=[["fr","français"],["en","anglais"],["es","espagnol"],
-  ["de","allemand"],["it","italien"],["pt","portugais"]];
+/* P13 — « auto » en TÊTE : la route transmet `None` au moteur, qui
+   détecte lui-même (la branche `if language:` de transcribe() était
+   morte : la route forçait « fr »). Les dix codes après « pt » sont
+   une CONNAISSANCE EXTERNE AU DÉPÔT (ISO-639-1), transmis tels quels :
+   le fournisseur tranche. Le défaut reste « fr ». */
+var SUBS_LANGS=[["auto","détection par le moteur"],
+  ["fr","français"],["en","anglais"],["es","espagnol"],
+  ["de","allemand"],["it","italien"],["pt","portugais"],
+  ["nl","néerlandais"],["pl","polonais"],["ru","russe"],["uk","ukrainien"],
+  ["tr","turc"],["ar","arabe"],["ja","japonais"],["zh","chinois"],
+  ["ko","coréen"],["hi","hindi"]];
 function subsLangLab(c){
   var k=String(c||"fr");
   for(var i=0;i<SUBS_LANGS.length;i++)if(SUBS_LANGS[i][0]===k)return SUBS_LANGS[i][1];
@@ -10138,7 +10156,9 @@ function subsCostOf(free,dur,lang,court){
       "annoncé, donc le geste n'est pas offert."};
   var d=Math.max(0,subsN(dur,0));
   var usd=d/60*SUBS_EST.usdMin,eta=SUBS_EST.over+SUBS_EST.rt*d;
-  return {txt:subsLangLab(lang)+" · "+subsMoteurNom(court)+" · "+subsUsd(usd)+
+  /* P13 — sous « auto » la pastille dit « langue auto », pas l'entrée du
+     sélecteur (« détection par le moteur · elevenlabs · … »). */
+  return {txt:(lang==="auto"?"langue auto":subsLangLab(lang))+" · "+subsMoteurNom(court)+" · "+subsUsd(usd)+
       " · "+subsEta(eta),
     free:!1,usd:usd,eta:eta,
     /* le PRIX et l'ATTENTE se refont eux aussi : le tarif à la minute et la
@@ -10147,7 +10167,8 @@ function subsCostOf(free,dur,lang,court){
        qu'on croie le rapport sur parole. */
     apres:"Appel PAYANT à "+SUBS_EST.label+
       (SUBS_EST.model?" ("+SUBS_EST.model+")":"")+", langue "+
-      subsLangLab(lang)+" : "+subsUsd(usd)+" pour "+subsFr(d,1)+" s de son ("+
+      /* P13 — sous « auto » : « détectée par le moteur ». */
+      (lang==="auto"?"détectée par le moteur":subsLangLab(lang))+" : "+subsUsd(usd)+" pour "+subsFr(d,1)+" s de son ("+
       subsUsd(SUBS_EST.usdMin)+" la minute annoncés par le moteur × "+
       subsFr(d,1)+" ÷ 60), "+subsEta(eta)+" d'attente ("+
       subsFr(SUBS_EST.over,1)+" s de mise en route + "+
@@ -12008,19 +12029,46 @@ const SubsDrawer=(props)=>{
      trou effacerait le travail déjà fait sur les autres plans. */
   function transcribe(plan){
     if(trJob&&trJob.busy)return;
-    setTrJob({busy:!0,step:plan?"plan "+plan.n+"…":"envoi…",pct:0});
+    /* P13 — la ligne d'attente nomme ce qui part : les clips de la piste
+       de dialogue (sinon la première V1), par la même fonction pure
+       que la pastille de coût. */
+    var dzSs=DzTracks.subsSources(props.srcClips,props.srcTracks);
+    setTrJob({busy:!0,step:plan?"plan "+plan.n+"…":dzSs.step,pct:0});
     /* `clips` porte la timeline : le backend y trouve la NARRATION (texte déjà
        écrit) et cale dessus — gratuit, hors ligne, et orthographe exacte, là
        où une transcription payante écrit « Dipotus » pour « Deepotus ». Sans
        texte, il retombe sur la transcription du média `src`. */
-    var cl=props.srcClips||null,srcRef=props.srcRef||null;
+    var cl=props.srcClips||null,srcRef=null;
+    /* P13 — sans plan, `src` part NUL : la route vise elle-même la piste
+       de dialogue — tous ses clips porteurs d'une source, transcrits un
+       par un, leurs mots décalés de `start − srcIn` et coupés au clip.
+       `props.srcRef` (le premier a1, sinon le premier v1, jamais
+       décalé) n'est plus envoyé : c'est lui qui faisait transcrire le
+       vieux MP3 de A1 au lieu du plan (journal du 06/09/2026). */
     if(plan&&cl){
       cl=cl.filter(function(c){
         return subsN(c.end,0)>plan.start+.05&&subsN(c.start,0)<plan.end-.05});
-      var av=cl.filter(function(c){return c.src&&(c.tr==="a1"||c.tr==="v1")});
-      if(av.length)srcRef=av[0].src}
+      /* P13 — la piste de dialogue du projet d'abord (bus « dialogue », sinon
+         a1 : le son du plan), puis v1, et au plus tôt : c'est le clip
+         porteur que la route retrouve pour décaler les répliques. Rien
+         qui chevauche : rien ne part, et c'est dit — avant, le premier
+         a1 de toute la timeline partait, contre paiement, hors du plan.
+         TOUR 1 (revue du 06/09) : le filtre suivait `a1` PAR IDENTIFIANT
+         alors que subsSrcClips (M24j) et la route visent la piste de
+         dialogue — sur une piste a4 de bus dialogue, le geste par plan
+         envoyait la V1 entière et disait « Aucun clip A1 ». */
+      var dzTd=DzTracks.dialogueTrack(props.srcTracks)||"a1",
+          av=cl.filter(function(c){return c.src&&(c.tr===dzTd||c.tr==="v1")})
+        .sort(function(p,q){return (p.tr===dzTd?0:1)-(q.tr===dzTd?0:1)
+          ||subsN(p.start,0)-subsN(q.start,0)});
+      if(!av.length){setTrJob(null);
+        note2("Aucun clip "+dzTd.toUpperCase()+" ou V1 porteur d'une source ne chevauche le plan n° "+plan.n+" — rien n'est envoyé.");return}
+      srcRef=av[0].src}
     subsPost("/api/subtitles/transcribe",
       {src:srcRef,clips:cl,
+       /* P13 — les pistes du projet : la route y lit la piste de
+          dialogue (même loi que le rendu). */
+       tracks:props.srcTracks||null,
        lang:lang,cps:subsN(style.maxChars,42)})
       .then(function(d){
         var id=d&&d.job_id;
@@ -12078,7 +12126,17 @@ const SubsDrawer=(props)=>{
      le plus flatteur. */
   var trFree=(props.srcClips||[]).some(function(c){
     return (c.tr==="a1"||c.tr==="a3")&&String(c.text||"").trim()});
-  var trAll=subsCostOf(trFree,subsN(props.dur,0),lang);
+  /* P13 — la pastille annonce CE QUI PART : la somme des durées des clips
+     de la piste de dialogue porteurs d'une source (sinon la première
+     V1), par la fonction pure de la couche ; la durée du projet ne sert
+     plus que quand rien n'est à envoyer. L'infobulle nomme les sources
+     (libellé, nombre, secondes) avant le prix — jamais quand le geste ne
+     peut pas partir (`ko` : aucun moteur configuré, bouton désactivé) :
+     l'infobulle d'un geste impossible ne commence pas par « Envoyé ». */
+  var dzSsAll=DzTracks.subsSources(props.srcClips,props.srcTracks);
+  var trAll=subsCostOf(trFree,dzSsAll.total>0?dzSsAll.total
+    :subsN(props.dur,0),lang);
+  if(!trAll.free&&!trAll.ko&&dzSsAll.dit)trAll.apres=dzSsAll.dit+" "+trAll.apres;
   return r.jsxs("aside",{className:"sub-drawer",ref:rootRef,tabIndex:-1,
     role:"group","aria-label":"Sous-titres",
     onKeyDown:function(e){
@@ -12252,7 +12310,11 @@ const SubsDrawer=(props)=>{
        vérifie comme les autres chiffres du panneau. Quand elle ne tranche
        pas, elle le dit — et ne touche à rien. */
     tab!=="segments"?null:(function(){
-      var etat=!det.total?"vide":det.sur?(det.code===lang?"ok":"contre")
+      var etat=!det.total?"vide":det.sur
+        /* P13 — « auto » n'affirme aucune langue : la détection n'a
+           rien à contredire, l'état est « ok » (la ligne dit ce qui
+           a été lu, et sur combien de mots). */
+        ?((lang==="auto"||det.code===lang)?"ok":"contre")
         :"flou";
       var txt=etat==="vide"
         ?"Aucun texte à analyser : « "+subsLangLab(lang)+" » est le réglage, "+
@@ -12273,7 +12335,10 @@ const SubsDrawer=(props)=>{
          "annonce « "+subsLangLab(lang)+" » à chaque bouton qui dépense.";
       return r.jsxs("div",{className:"sub-lgnote","data-etat":etat,
         title:etat==="ok"
-          ?"La langue lue sur le contenu est d'accord avec le sélecteur : "+
+          /* P13 — sous « auto » le sélecteur n'affirme rien : la ligne dit
+             ce que le moteur fera, et ce que le contenu a montré. */
+          ?(lang==="auto"?"Sous « auto » le moteur détecte lui-même la langue ; lue sur le contenu : "
+            :"La langue lue sur le contenu est d'accord avec le sélecteur : ")+
            subsLangLab(det.code)+" ("+det.hits+" mots-outils reconnus sur "+
            det.total+" mots examinés). Rien à arbitrer."
           :void 0,children:[
@@ -12410,6 +12475,7 @@ window.DzSubs={ready:!0,Drawer:SubsDrawer,Overlay:SubsOverlay,Style:SubsStyle,
                          audioOf, audioSet, audioForget, askAudio, srcDurOr,
                          srcKey, uniqueId, dedupeIds, seqMax,
                          twinClip, twinPlan, extract, extractBtn,
+                         subsSources, subsLabel,
                          tbTraces, tbIcons, tbParse, tbSerial,
                          TbIcon, ToolBtn, TB_GROUPES, TB_PX, TB_PX_GRIP,
                          move, moveTo, add, remove, group, DEFAULTS}
@@ -14665,6 +14731,83 @@ function dzmDialogueTrack(ts){
     if(dzmKindOf(t.id,t.kind)==="audio")return "a1"}
   return ""}
 
+/* P13 — CE QUE LA TRANSCRIPTION VA DÉPENSER, ET SUR QUOI. Le geste
+   « Transcrire l'audio » envoie `src:null` : la route choisit elle-même les
+   clips de la piste de dialogue (même loi que le rendu : bus « dialogue »,
+   sinon a1, jamais une piste bouclée) porteurs d'une source, les transcrit
+   un par un et décale leurs mots de `start − srcIn`. La pastille de coût
+   doit annoncer CETTE dépense — la somme des `end − start` de ces clips —
+   et non la durée du projet, qui compte aussi les images, la musique et
+   les trous. PURE, jouée sous node. Rend {track, list, total, repli, step,
+   dit} : `list` triée par `start` ({id, tr, label, start, dur}), `total`
+   en secondes (millième), `repli` vrai quand aucun clip de dialogue ne
+   porte de source et que la PREMIÈRE V1 porteuse en tient lieu (la route
+   fait de même), `step` la ligne d'attente du tiroir, `dit` la phrase de
+   l'infobulle — "" quand rien n'est à envoyer : l'appelant retombe alors
+   sur la durée du projet, comme avant. Les clips sont ceux que le tiroir
+   reçoit (`subsSrcClips` : {id, tr, src, name, start, end, srcIn?}) ;
+   `name` est le libellé de la timeline, sinon la source est nommée par
+   son champ. Sans pistes (`ts` absent ou vide) : les pistes par défaut,
+   donc a1 — une liste PRÉSENTE sans piste de dialogue rend le repli V1.
+   TOUR 1 (revue du 06/09) — LA DÉPENSE EST PAR FICHIER DISTINCT : la route
+   ne transcrit qu'UNE fois un même fichier porté par deux clips (la lame
+   coupe un clip en deux de même `src`), et le moteur reçoit le fichier
+   ENTIER. Ce que le client en sait : la RÉUNION des fenêtres
+   [srcIn, srcIn + dur] que ses clips lisent — deux moitiés font le tout,
+   le même fichier posé deux fois compte une fois, un clip rogné reste une
+   borne BASSE (la phrase le dit) ; `files` compte les fichiers distincts. */
+function dzmSubsNum(v){var n=Number(v);return isFinite(n)?n:0}
+function dzmSubsKey(s){return (s&&typeof s==="object")?dzmSrcKey(s):String(s)}
+function dzmUnionLen(iv){
+  var l=iv.slice().sort(function(p,q){return p[0]-q[0]}),t=0,a=0,b=0,open=!1,i;
+  for(i=0;i<l.length;i++){
+    if(!open||l[i][0]>b){if(open&&b>a)t+=b-a;a=l[i][0];b=l[i][1];open=!0}
+    else if(l[i][1]>b)b=l[i][1]}
+  if(open&&b>a)t+=b-a;
+  return t}
+function dzmSubsLabel(c){
+  var s=c&&c.src;
+  if(c&&(c.name||c.label))return String(c.name||c.label);
+  if(s&&typeof s==="object")
+    return String(s.audio||s.image||s.name||s.filename||s.file_path||s.job_id||"source");
+  return s?String(s):"source"}
+function dzmSubsSources(clips,ts){
+  var cs=Array.isArray(clips)?clips:[],
+      dial=dzmDialogueTrack(Array.isArray(ts)&&ts.length?ts:DZM_DEFAULT_TRACKS),
+      list=[],v1=[],repli=!1,total=0,i,c,d;
+  for(i=0;i<cs.length;i++){c=cs[i];
+    if(!c||!c.src)continue;
+    d=dzmSubsNum(c.end)-dzmSubsNum(c.start);
+    if(!(d>0))continue;
+    var row={id:c.id,tr:String(c.tr),label:dzmSubsLabel(c),
+             start:dzmSubsNum(c.start),dur:Math.round(d*1000)/1000,
+             key:dzmSubsKey(c.src),srcIn:Math.max(0,dzmSubsNum(c.srcIn))};
+    if(dial&&row.tr===dial)list.push(row);
+    else if(row.tr==="v1")v1.push(row)}
+  var parStart=function(p,q){return p.start-q.start};
+  list.sort(parStart);
+  if(!list.length&&v1.length){v1.sort(parStart);list=[v1[0]];repli=!0}
+  var parKey={},keys=[],k;
+  for(i=0;i<list.length;i++){k=list[i].key;
+    if(!parKey[k]){parKey[k]=[];keys.push(k)}
+    parKey[k].push([list[i].srcIn,list[i].srcIn+list[i].dur])}
+  for(i=0;i<keys.length;i++)total+=dzmUnionLen(parKey[keys[i]]);
+  total=Math.round(total*1000)/1000;
+  var piste=(repli?"v1":dial).toUpperCase(),n=list.length,
+      noms=list.map(function(l){return l.label+" ("+dzmSecs(l.dur)+")"});
+  return {track:dial,list:list,total:total,repli:repli,files:keys.length,
+    step:!n?"envoi…":n===1?"envoi de "+list[0].label+"…"
+        :"envoi de "+n+" clips de "+piste+"…",
+    dit:!n?"":repli
+      ?"Aucun clip de la piste "+(dial||"de dialogue").toUpperCase()+
+       " ne porte de son : la vidéo "+noms[0]+" de V1 est envoyée entière, "+
+       "ses répliques posées à son instant."
+      :"Envoyé : "+n+" clip"+(n>1?"s":"")+
+       (keys.length<n?" ("+keys.length+" fichier"+(keys.length>1?"s":"")+")":"")+
+       " de la piste "+piste+" — "+noms.join(", ")+" — "+dzmSecs(total)+
+       " de son, chaque réplique posée à l'instant de son clip. Chaque fichier "+
+       "part entier chez le moteur : un clip rogné coûte la durée de son fichier."}}
+
 /* PLEIN CADRE OU INCRUSTATION. Le `type` est celui de dzmSkin : « vidéo »
    pour V1, « overlay/VFX » pour la V2 historique, « overlay » pour toute
    piste vidéo neuve. Une piste sans `type` compte comme plein cadre — donc
@@ -16713,6 +16856,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   uniqueId:dzmUniqueId,dedupeIds:dzmDedupeIds,seqMax:dzmSeqMax,
   twinClip:dzmTwinClip,twinPlan:dzmTwinPlan,extract:dzmExtract,
   extractBtn:dzmExtractBtn,overlayNote:dzmOverlayNote,
+  subsSources:dzmSubsSources,subsLabel:dzmSubsLabel,
   CLIP_DEFAUTS:DZM_CLIP_DEFAUTS,DUR_DELAI:DZM_DUR_DELAI,
   tbTraces:DZM_TB_TRACES,tbIcons:DZM_TB_ICONS,tbParse:dzmTbParse,
   tbSerial:dzmTbSerial,TbIcon:DzmTbIcon,ToolBtn:DzmToolBtn,
