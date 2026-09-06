@@ -9005,6 +9005,66 @@ async def subtitles_estimate(duration_s: float = 0.0, provider: str = "",
         raise HTTPException(400, str(e))
 
 
+@router.get("/subtitles/translate/estimate")
+async def subtitles_translate_estimate(chars: float = 0.0, target: str = ""):
+    """P16 — COÛT d'une traduction de répliques, AVANT de la lancer
+    (convention de l'app). `chars` = somme des caractères des répliques.
+    `{ok, usd, provider}` ; `ok:false` + `reason` lisible si aucune clé LLM
+    — même convention que /subtitles/estimate. Le protocole d'estimation des
+    tokens (une ESTIMATION, pas une mesure) est écrit dans
+    subs_translate_service.estimate_tokens."""
+    from app.services import subs_translate_service as TR
+    return TR.estimate(chars, target)
+
+
+@router.post("/subtitles/translate")
+async def subtitles_translate(request: Request):
+    """P16 (06/09/2026) — TRADUIRE LES RÉPLIQUES par le LLM configuré
+    (`summarizer._chat_dispatch`, même motif que POST /vector/illustration :
+    sync → run_in_executor, bouchonnable par attribut de module).
+
+    Body : `{segments:[{start,end,text}], target:"en", source?:"fr"}`.
+    CONTRAT STRICT : le prompt numérote les N répliques (`n|texte`), le
+    système exige N lignes `n|traduction` ; la réponse est re-parsée,
+    re-triée par numéro, et REFUSÉE en 400 si le compte diffère ou si un
+    numéro manque (« rien n'a été écrit ») — aucune réplique perdue en
+    silence. Une traduction qui contient « | » est conservée ENTIÈRE (le
+    découpage se fait au premier « | »). `start`/`end` de CHAQUE segment
+    sont CONSERVÉS : la traduction ne touche pas aux temps. Ni `source` ni
+    `target` ne sont validées contre une liste : le modèle tranche.
+    200 : {ok, segments, provider, usd, source, target}. 400 : segments
+    vides, target vide, ou contrat rompu. 502 : modèle muet.
+    """
+    from app.services import subs_translate_service as TR
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+    raw = body.get("segments")
+    segs = [s for s in raw if isinstance(s, dict)] if isinstance(raw, list) else []
+    if not segs:
+        raise HTTPException(400, "Aucune réplique à traduire — la piste S1 "
+                                 "est vide, ou `segments` ne porte rien.")
+    target = str(body.get("target") or "").strip()
+    if not target:
+        raise HTTPException(400, "`target` (langue cible) est nécessaire — "
+                                 "rien n'a été traduit.")
+    source = str(body.get("source") or "").strip() or None
+    loop = asyncio.get_running_loop()
+    try:
+        out = await loop.run_in_executor(
+            None, lambda: TR.translate(segs, target, source))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:                              # noqa: BLE001
+        raise HTTPException(502, f"Le modèle n'a pas répondu : {e}")
+    return {"ok": True, "segments": out["segments"],
+            "provider": out["provider"], "usd": out["usd"],
+            "source": source, "target": target}
+
+
 def _subs_job_set(jid: str, **kw) -> None:
     j = _SUBS_JOBS.setdefault(jid, {"status": "pending", "pct": 0, "step": ""})
     j.update(kw)

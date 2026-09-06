@@ -31,7 +31,24 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 06/09/2026 (P14 — deux sortes de pistes video, et v3
+COMPTE DE REFERENCE, 06/09/2026 (P16 — traduire les repliques) : 1301
+lignes, soit CINQUANTE-CINQ de plus que les 1246 de P14, MESUREES sur la
+sortie du banc et decomposees : QUATRE que la boucle sur `P.PATCHES` emet
+toute seule pour les DEUX sections M26a/M26b (deux `_remplace`, deux
+`couche_ne_cite_pas_l_ancre_de_` — les deux REPRENNENT leur ancre, donc
+aucune `_ancre_consommee`), TRENTE-NEUF dont le libelle commence par
+`P16_` (sept deux-faces `DzTracks.subsTr*`, quinze paires
+`appelle_…_qui_est_declare` — onze M26a, quatre M26b —, quatre
+declarations croisees M26a → M26b, neuf noms libres bornes , la rangee
+et ses deux URL, l'absence de confirm(), le pin statique heavy →
+pushHistory — la verite de l'infobulle —, la route et le service), et
+DOUZE `js_P16_*` sous node (defaut de cible, libelle, corps et ses etats
+vides, source nulle sous « auto », les quatre refus d'enabled,
+l'infobulle MOT POUR MOT au pluriel et au singulier, la note, la fusion
+apply — temps/ids conserves, mots jetes —, sa purete et son refus d'un
+compte faux).
+
+COMPTE PRECEDENT, 06/09/2026 (P14 — deux sortes de pistes video, et v3
 n'est plus un fantome) : 1246 lignes, soit CENT-TREIZE de plus que les 1133
 de P15, MESUREES sur la sortie du banc et decomposees : TRENTE-SIX que la
 boucle sur `P.PATCHES` emet toute seule pour les DOUZE sections M25a…M25l
@@ -2536,6 +2553,124 @@ check("P13_la_route_lit_les_pistes_decale_et_enveloppe",
       f'prov={_rt.count("pid = T.resolve_provider(provider)")} '
       f'lang={_rt.count(chr(34) + "auto" + chr(34) + ") else lang_raw")}')
 
+# ══ P16 — TRADUIRE LES REPLIQUES ═════════════════════════════════════════
+# Les comptes generiques couvrent M26a/M26b par la boucle sur P.PATCHES (les
+# deux sections REPRENNENT leur ancre : pas de `_ancre_consommee`). Ce qui
+# suit est ce qu'ils ne mesurent pas : les DEUX faces de chaque appel au
+# contrat (le bundle appelle UNE fois, la couche declare ET exporte), les
+# identifiants du bloc subs que les sections rappellent (\b…\b), la
+# declaration croisee M26a → M26b (le bouton lit l'etat que M26a pose), les
+# noms neufs libres (bornes \b — `dzTo` et `subsTr` NUS vivent dans des
+# identifiants plus longs de .bak_montage, 12 et 3 fois, mesure), les deux
+# URL, et la route de l'autre cote du fil.
+for _nom in ("subsTrDefaut", "subsTrBody", "subsTrEnabled", "subsTrLabel",
+             "subsTrTitle", "subsTrNote", "subsTrApply"):
+    check("P16_deux_faces_DzTracks_" + _nom,
+          s.count(nl("DzTracks." + _nom + "(")) == 1
+          and src.count(_nom + ":dzm" + _nom[0].upper() + _nom[1:]) == 1
+          and re.search(r"\bfunction dzm%s\(" % (_nom[0].upper() + _nom[1:]),
+                        src) is not None,
+          f'bundle={s.count(nl("DzTracks." + _nom + "("))} '
+          f'couche={src.count(_nom + ":dzm" + _nom[0].upper() + _nom[1:])}')
+for _sec, _r, _pairs in (
+        ("M26a", P.R_M26A,
+         (("subsJson", "function subsJson(url,opt){"),
+          ("subsN", "function subsN(v,d){"),
+          ("subsPl", "function subsPl(n,un,plur){"),
+          ("subsLangLab", "function subsLangLab(c){"),
+          ("subsLabelOf", "function subsLabelOf(txt){"),
+          ("note2", "function note2(m){fireNote(m);if(props.onNote)props.onNote(m)}"),
+          ("setTrJob", "var s2=x.useState(null),trJob=s2[0],setTrJob=s2[1];"),
+          ("segs", "  var segs=subsSort(props.segments||[]);"),
+          ("lang", "lang=s3[0],setLang=s3[1];"),
+          ("open", "  var open=!!props.open;"),
+          ("props", "const SubsDrawer=(props)=>{"))),
+        ("M26b", P.R_M26B,
+         (("subsActBtn", "function subsActBtn(o){"),
+          ("subsLangLab", "function subsLangLab(c){"),
+          ("subsUsd", "function subsUsd(v){"),
+          ("trJob", "var s2=x.useState(null),trJob=s2[0],setTrJob=s2[1];")))):
+    for _nm, _decl in _pairs:
+        _appele = re.search(r"\b%s\b" % re.escape(_nm), _r) is not None
+        check("P16_" + _sec + "_appelle_" + _nm + "_qui_est_declare",
+              _appele and s.count(nl(_decl)) >= 1,
+              f"appelé={_appele} déclaré={s.count(nl(_decl))} ({_decl})")
+# M26b lit l'etat et le geste que M26a declare : declares dans R_M26A,
+# employes dans R_M26B, et presents (bornes) au moins deux fois dans le
+# bundle livre (la declaration + l'usage).
+for _nm, _decl in (("dzTo", "dzTo=s9[0]"), ("dzTe", "dzTe=s9b[0]"),
+                   ("dzTrN", "var dzTrN=segs.length,"),
+                   ("dzTraduire", "function dzTraduire(){")):
+    check("P16_M26b_lit_" + _nm + "_que_M26a_declare",
+          _decl in P.R_M26A
+          and re.search(r"\b%s\b" % _nm, P.R_M26B) is not None
+          and len(re.findall(r"\b%s\b" % _nm, s)) >= 2,
+          f"decl_M26a={_decl in P.R_M26A} "
+          f"use_M26b={re.search(chr(92) + 'b' + _nm + chr(92) + 'b', P.R_M26B) is not None} "
+          f"bundle={len(re.findall(chr(92) + 'b' + _nm + chr(92) + 'b', s))}")
+# LES NOMS NEUFS etaient LIBRES dans le bundle d'entree — bornes \b :
+# `dzTo` nu compte 12 en sous-chaine dans .bak_montage (dzTouche…, mesure),
+# une recherche non bornee serait rouge a tort.
+_bak16 = BUNDLE.with_name(BUNDLE.name + ".bak_montage")
+_bak16_s = (_bak16.read_bytes().decode("utf-8-sig") if _bak16.is_file() else "")
+for _nm in ("dzTo", "dzTe", "dzTrN", "dzTrChars", "dzTraduire", "dz_subs_to",
+            "dzmSubsTrBody", "dzmSubsTrApply", "subsTrTitle"):
+    _n_bak = len(re.findall(r"\b%s\b" % _nm, _bak16_s))
+    _n_bun = len(re.findall(r"\b%s\b" % _nm, s))
+    check("P16_nom_" + _nm + "_etait_libre_dans_le_bundle_d_entree",
+          _n_bak == 0 and _n_bun >= 1,
+          f"{_nm} : .bak={_n_bak} (attendu 0) bundle={_n_bun} (attendu >=1)")
+# LA RANGEE, LES DEUX URL, PAS DE « auto » DANS LA CIBLE, l'etat retenu.
+check("P16_la_rangee_porte_la_cible_le_bouton_et_les_deux_urls",
+      s.count(nl('r.jsx("span",{className:"sub-trlangl",children:"vers"},"l"),')) == 1
+      and s.count(nl('onClick:dzTraduire,k:"trad"})})(),')) == 1
+      and s.count('"/api/subtitles/translate",') == 1
+      and s.count('"/api/subtitles/translate/estimate?chars="') == 1
+      and s.count('o[0]!=="auto"') == 1
+      and s.count('"dz_subs_to"') == 2,
+      f'vers={s.count(nl(chr(34) + "vers" + chr(34)))} '
+      f'post={s.count(chr(34) + "/api/subtitles/translate" + chr(34) + ",")} '
+      f'est={s.count(chr(34) + "/api/subtitles/translate/estimate?chars=" + chr(34))} '
+      f'sans_auto={s.count("o[0]!==" + chr(34) + "auto" + chr(34))} '
+      f'etat={s.count(chr(34) + "dz_subs_to" + chr(34))}')
+# CE QUE L'INFOBULLE PROMET, LE BUNDLE LE FAIT : l'application passe la
+# main a props.onChange avec `heavy` VRAI (!0) — c'est ce qui force le
+# pushHistory de subsCommit AVANT l'ecriture, la verite que subsTrTitle
+# ecrit. Pin STATIQUE sur le bundle livre (pas sur R_M26A : le bundle est
+# engendre par le patcher, la paire ne peut pas rougir — meme lecon que
+# le harnais [3-bis]). Conjoint : subsCommit pousse bien l'historique
+# sous heavy, et refuse S1 verrouillee en le disant.
+check("P16_l_application_passe_heavy_et_subsCommit_tient_la_promesse",
+      s.count(nl("if(props.onChange)props.onChange(dzNext,!0);")) == 1
+      and s.count(nl("if(heavy||now-((d&&d.hist.t)||0)>600)pushHistory();")) == 1
+      and s.count(nl('fireNote("Piste S1 verrouillée — déverrouillez-la '
+                     'pour modifier les sous-titres.");')) == 1,
+      f'apply={s.count(nl("if(props.onChange)props.onChange(dzNext,!0);"))} '
+      f'hist={s.count(nl("if(heavy||now-((d&&d.hist.t)||0)>600)pushHistory();"))}')
+# AUCUN confirm() dans les sections P16 — conjoint : les deux existent.
+check("P16_aucun_confirm_dans_les_sections",
+      all("confirm(" not in _r for _t, _a, _r in P.PATCHES if _t.startswith("M26"))
+      and sum(1 for _t, _a, _r in P.PATCHES if _t.startswith("M26")) == 2,
+      f'sections={sum(1 for _t, _a, _r in P.PATCHES if _t.startswith("M26"))}')
+# LA ROUTE ET LE SERVICE, DE L'AUTRE COTE DU FIL : contrat strict (compte,
+# double, premier « | »), temps conserves, ValueError → 400, modele muet →
+# 502, estimation declaree comme telle.
+_rt16 = (ROOT / "backend" / "app" / "api" / "routes.py").read_text(encoding="utf-8")
+_SVC16 = ROOT / "backend" / "app" / "services" / "subs_translate_service.py"
+_svc16 = _SVC16.read_text(encoding="utf-8") if _SVC16.is_file() else ""
+check("P16_la_route_et_le_service_tiennent_le_contrat",
+      _rt16.count('@router.post("/subtitles/translate")') == 1
+      and _rt16.count('@router.get("/subtitles/translate/estimate")') == 1
+      and _rt16.count("None, lambda: TR.translate(segs, target, source))") == 1
+      and _svc16.count("if len(vues) != n or manquants:") == 1
+      and _svc16.count("en double — rien n'a") == 1
+      and _svc16.count('_RE_LIGNE = re.compile(r"^(\\d{1,4})\\s*\\|(.*)$")') == 1
+      and _svc16.count("PROTOCOLE D'ESTIMATION — une estimation, PAS une mesure") == 1
+      and "raise HTTPException(502, f\"Le modèle n'a pas répondu : {e}\")" in _rt16,
+      f'post={_rt16.count("subtitles/translate")} '
+      f'garde={_svc16.count("if len(vues) != n or manquants:")} '
+      f'proto={_svc16.count(chr(80) + "ROTOCOLE D" + chr(39) + "ESTIMATION")}')
+
 # ══ P14 — DEUX SORTES DE PISTES VIDEO, ET V3 N'EST PLUS UN FANTOME ═══════
 # Les comptes generiques (`*_remplace`, `*_ancre_consommee`,
 # `couche_ne_cite_pas_l_ancre_de_*`) couvrent M25a…M25l par la boucle sur
@@ -3827,6 +3962,51 @@ out.ss_cles=P12(function(){var o=T.subsSources([
   {id:"r",tr:"a1",src:"plain",start:20,end:21,srcIn:0},
   {id:"s",tr:"a1",src:"autre",start:30,end:31,srcIn:0}],TS_USER);
   return [o.total,o.files]});
+/* ══ P16 — TRADUIRE LES REPLIQUES : le cœur calculable sous node ══════════
+   subsTrDefaut (la cible par defaut), subsTrLabel, subsTrBody (le corps de
+   la requete), subsTrEnabled (le droit de partir et sa raison), subsTrTitle
+   (l'infobulle, MOT POUR MOT), subsTrNote, subsTrApply (la fusion : temps
+   et ids conserves, texte/libelle remplaces, mots karaoke JETES — ils
+   epelaient l'ancien texte). Etats vides construits ; purete mesuree. */
+var TRL=[["auto","détection par le moteur"],["fr","français"],["en","anglais"]];
+out.str_defaut=P12(function(){return [T.subsTrDefaut("fr"),T.subsTrDefaut("en"),
+  T.subsTrDefaut("auto"),T.subsTrDefaut(""),T.subsTrDefaut(null)]});
+out.str_label=P12(function(){return [T.subsTrLabel("en",TRL),
+  T.subsTrLabel("xx",TRL),T.subsTrLabel("fr",null)]});
+out.str_body=P12(function(){return T.subsTrBody(
+  [{start:28.876,end:31.2,text:"Bonjour",id:"s1c1"},
+   {start:31.4,end:33,text:""}],"en","fr")});
+out.str_body_auto_source_nulle=P12(function(){
+  return T.subsTrBody([{start:0,end:1,text:"a"}],"en","auto").source});
+out.str_body_vide=P12(function(){return [T.subsTrBody([],"en","fr"),
+  T.subsTrBody([{text:"a"}],"","fr"),T.subsTrBody(null,"en","fr")]});
+out.str_enabled=P12(function(){return [
+  T.subsTrEnabled(3,{ok:!0},!1).on,
+  T.subsTrEnabled(3,{ok:!0},!0),
+  T.subsTrEnabled(0,{ok:!0},!1),
+  T.subsTrEnabled(3,{st:"none",reason:"pas de clé"},!1),
+  T.subsTrEnabled(3,null,!1).on]});
+out.str_title=P12(function(){return T.subsTrTitle(13)});
+out.str_title_une=P12(function(){return T.subsTrTitle(1)});
+out.str_note=P12(function(){return [T.subsTrNote(3,"en",TRL),
+  T.subsTrNote(1,"fr",TRL)]});
+var STR_SEGS=[{id:"a",tr:"s1",start:1,end:2,text:"un",label:"un",
+    words:[{w:"un"}]},
+  {id:"b",tr:"s1",start:3,end:4,text:"deux",label:"deux"}];
+out.str_apply=P12(function(){
+  var v=T.subsTrApply(STR_SEGS,
+    [{start:1,end:2,text:"one"},{start:3,end:4,text:"two"}],
+    function(t){return "L:"+t});
+  return v.map(function(sg){return [sg.id,sg.start,sg.end,sg.text,sg.label,
+    sg.words]})});
+out.str_apply_pure=P12(function(){
+  var av=JSON.stringify(STR_SEGS);
+  T.subsTrApply(STR_SEGS,[{text:"x"},{text:"y"}],null);
+  return JSON.stringify(STR_SEGS)===av});
+out.str_apply_compte_faux=P12(function(){
+  return [T.subsTrApply(STR_SEGS,[{text:"x"}],null),
+    T.subsTrApply([],[],null),T.subsTrApply(null,null,null)]});
+
 /* ══ BARRE D'OUTILS — LES DIX TRACES ET LE BOUTON D'ACTION (etapes 2 et 3) ══
    L'ALLER-RETOUR EST LA MESURE. La couche garde les traces en CHAINE — le
    texte du §3, au caractere pres — et les traduit une fois au chargement.
@@ -6812,6 +6992,73 @@ check("js_subsSources_un_clip_rogne_est_une_borne_basse_et_la_phrase_le_dit",
       d.get("ss_rogne") == [2, 1, True, False], repr(d.get("ss_rogne")))
 check("js_subsSources_la_cle_de_source_ignore_l_ordre_des_champs",
       d.get("ss_cles") == [5, 3], repr(d.get("ss_cles")))
+# ── P16 : le cœur calculable, lu depuis le harnais node ───────────────────
+check("js_P16_defaut_en_quand_on_transcrit_du_francais_sinon_fr",
+      d.get("str_defaut") == ["en", "fr", "fr", "fr", "fr"],
+      repr(d.get("str_defaut")))
+check("js_P16_label_nomme_la_langue_ou_retombe_sur_le_code",
+      d.get("str_label") == ["Traduire vers anglais", "Traduire vers xx",
+                             "Traduire vers fr"],
+      repr(d.get("str_label")))
+check("js_P16_body_porte_start_end_text_target_source_et_rien_d_autre",
+      d.get("str_body") == {"segments": [
+          {"start": 28.876, "end": 31.2, "text": "Bonjour"},
+          {"start": 31.4, "end": 33, "text": ""}],
+          "target": "en", "source": "fr"},
+      repr(d.get("str_body")))
+check("js_P16_body_sous_auto_la_source_part_nulle",
+      d.get("str_body_auto_source_nulle") is None
+      and isinstance(d.get("str_body"), dict),
+      repr(d.get("str_body_auto_source_nulle")))
+check("js_P16_body_etats_vides_rendent_null",
+      d.get("str_body_vide") == [None, None, None]
+      and isinstance(d.get("str_body"), dict),
+      repr(d.get("str_body_vide")))
+check("js_P16_enabled_les_quatre_refus_sont_dits",
+      d.get("str_enabled") == [
+          True,
+          {"on": False,
+           "pourquoi": "Un travail est déjà en cours — attendez sa fin."},
+          {"on": False,
+           "pourquoi": "Aucune réplique à traduire : la piste S1 est vide."},
+          {"on": False, "pourquoi": "pas de clé"},
+          False],
+      repr(d.get("str_enabled")))
+# L'INFOBULLE, MOT POUR MOT — c'est la phrase que le plan impose, puis la
+# verite MESUREE sur « Annuler » (props.onChange(…,!0) → subsCommit → UN
+# pushHistory avant l'ecriture ; S1 verrouillee, refus dit).
+check("js_P16_l_infobulle_dit_mot_pour_mot_ce_qui_se_passe",
+      d.get("str_title") == (
+          "REMPLACE le texte des 13 répliques de S1 par leur traduction ; "
+          "leurs temps sont conservés. « Annuler » de la timeline restaure "
+          "le texte d'avant (le remplacement pousse une entrée d'historique "
+          "avant d'écrire). Piste S1 verrouillée : rien n'est écrit, et "
+          "l'écran le dit."),
+      repr(d.get("str_title")))
+check("js_P16_l_infobulle_au_singulier_accorde_sa_traduction_et_son_temps",
+      d.get("str_title_une") == (
+          "REMPLACE le texte de la réplique de S1 par sa traduction ; son "
+          "temps est conservé. « Annuler » de la timeline restaure le texte "
+          "d'avant (le remplacement pousse une entrée d'historique avant "
+          "d'écrire). Piste S1 verrouillée : rien n'est écrit, et l'écran "
+          "le dit."),
+      repr(d.get("str_title_une")))
+check("js_P16_la_note_compte_et_nomme_la_langue",
+      d.get("str_note") == [
+          "3 répliques traduites vers anglais — relisez, la machine se trompe.",
+          "1 réplique traduite vers français — relisez, la machine se trompe."],
+      repr(d.get("str_note")))
+check("js_P16_apply_conserve_temps_et_ids_remplace_texte_et_jette_les_mots",
+      d.get("str_apply") == [["a", 1, 2, "one", "L:one", None],
+                             ["b", 3, 4, "two", "L:two", None]],
+      repr(d.get("str_apply")))
+check("js_P16_apply_ne_mute_pas_les_repliques_recues",
+      d.get("str_apply_pure") is True, repr(d.get("str_apply_pure")))
+check("js_P16_apply_refuse_un_compte_faux_en_rendant_null",
+      d.get("str_apply_compte_faux") == [None, None, None]
+      and isinstance(d.get("str_apply"), list),
+      repr(d.get("str_apply_compte_faux")))
+
 
 print("\n[3-bis] LE CABLAGE DE L'ECRAN, EXECUTE — addAsset, nudge, le "
       "glisser, le reglage")

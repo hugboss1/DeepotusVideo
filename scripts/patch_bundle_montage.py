@@ -2128,6 +2128,137 @@ A_M25L = '      if(!c||c.tr!=="v2"||!c.src||ovKeysOffRef.current)return !1;'
 R_M25L = ('      if(!c||!DzTracks.isOverlayTrack(c.tr,dzTracksRef.current)'
           '||!c.src||ovKeysOffRef.current)return !1;')
 
+
+# ══ P16 — TRADUIRE LES RÉPLIQUES (06/09/2026, tâche 22) ═════════════════════
+#
+# LE MANQUE, MESURÉ : aucune route ni aucun geste de traduction de
+# sous-titres n'existait dans l'application (le seul `translate_video` du
+# dépôt est HeyGen, jamais appelé) — remontée de l'utilisateur : « … ne
+# serait-ce que pour pouvoir la traduire ». Le serveur gagne
+# POST /api/subtitles/translate et GET /api/subtitles/translate/estimate
+# (routes.py, service subs_translate_service — contrat strict « N lignes
+# numérotées », 400 si le compte diffère, temps conservés) ; l'écran gagne,
+# dans la rangée `.sub-trrow` de l'onglet Répliques, une langue CIBLE
+# (« vers », mêmes langues que SUBS_LANGS SANS « auto » — on traduit VERS
+# une langue nommée) et un bouton « Traduire vers … » avec pastille de coût.
+#
+# DEUX sections sur le bloc subs inliné (subs.js INTOUCHABLE — même règle
+# que M24) : M26a pose l'état (cible `dz_subs_to`, défaut « en » quand la
+# transcription est « fr » — subsTrDefaut de la couche), l'estimation (GET
+# /translate/estimate, re-demandée à 400 ms de battement quand le texte ou
+# la cible change — une petite fonction dédiée, PAS une copie de SUBS_EST)
+# et le geste (dzTraduire) ; M26b pose le sélecteur et le bouton. Le cœur
+# calculable (corps de la requête, droit de partir, libellés, fusion du
+# résultat) vit dans la couche (DzTracks.subsTr*), joué sous node par le
+# banc bundle.
+#
+# LE GESTE EMPLOIE fetch DIRECT plutôt que subsPost, et c'est MESURÉ :
+# subsJson jette « réponse non JSON » sur tout `!res.ok` et PERDRAIT la
+# raison du 400/502 que la route écrit — ici elle est LUE dans le corps
+# JSON de l'erreur puis AFFICHÉE (« Traduction refusée (400) : la
+# traduction a rendu 2 lignes sur 3 … »).
+#
+# CE QU'« ANNULER » FAIT, MESURÉ : l'application passe par
+# props.onChange(next,!0) → subsCommit de l'hôte, `heavy` vrai → UN
+# pushHistory() AVANT l'écriture — un « Annuler » de la timeline restaure
+# les répliques d'avant ; S1 verrouillée, subsCommit refuse et le dit,
+# rien n'est écrit. L'infobulle du bouton (subsTrTitle, couche) écrit
+# cette vérité mot pour mot.
+#
+# Ancres mesurées le 06/09 (en octets, CRLF) : chacune 1/1 dans le bundle
+# ET dans .bak_montage ; A_M26B est multiligne (0 en LF, 1 en CRLF).
+# Les noms neufs (dzTo, dzTe, dzTrN, dzTrChars, dzTraduire, dz_subs_to,
+# subsTr*) étaient 0/0 des deux côtés EN RECHERCHE BORNÉE (… —
+# mesuré : `dzTo` et `subsTr` NUS apparaissent dans des identifiants
+# plus longs du bundle, 12 et 3 fois ; le banc borne donc lui aussi). Aucune des deux ancres ne tombe dans
+# le bloc `defaultLen…sfxInsert` que le harnais [3-bis] exécute. AUCUN
+# confirm() : la pastille et l'infobulle sont la convention du dépôt.
+# M26a — l'état, l'estimation, le geste (juste après les hooks du tiroir,
+# `segs`/`lang`/`trJob` déjà déclarés, AVANT le `if(!open)return null`).
+A_M26A = "  x.useEffect(function(){if(open)subsProbe()},[open]);"
+R_M26A = (
+    "  x.useEffect(function(){if(open)subsProbe()},[open]);\n"
+    "  /* P16 — LA CIBLE et le COÛT de la traduction, puis le geste. */\n"
+    "  var s9=x.useState(function(){\n"
+    '    try{var dzV=localStorage.getItem("dz_subs_to");if(dzV)return dzV}catch(_e){}\n'
+    "    return DzTracks.subsTrDefaut(lang)}),dzTo=s9[0],setDzTo=s9[1];\n"
+    '  var s9b=x.useState({st:"?"}),dzTe=s9b[0],setDzTe=s9b[1];\n'
+    "  var dzTrN=segs.length,\n"
+    '      dzTrChars=segs.reduce(function(a,sg){return a+String(sg.text||"").length},0);\n'
+    "  x.useEffect(function(){\n"
+    '    if(!open||!dzTrN){setDzTe({st:"vide"});return}\n'
+    "    var dzKill=setTimeout(function(){\n"
+    '      subsJson("/api/subtitles/translate/estimate?chars="+dzTrChars+\n'
+    '        "&target="+encodeURIComponent(dzTo)).then(function(a){\n'
+    '        setDzTe(a&&a.ok?{st:"ok",ok:!0,usd:subsN(a.usd,0),\n'
+    '            provider:String(a.provider||"")}\n'
+    '          :{st:"none",reason:String((a&&a.reason)||\n'
+    '            "Aucune clé LLM configurée (Réglages).")})},\n'
+    '      function(){setDzTe({st:"down",reason:"Le backend ne répond pas : "+\n'
+    "        \"le coût ne peut pas être annoncé, donc rien n'est lancé.\"})})},400);\n"
+    "    return function(){clearTimeout(dzKill)}},[open,dzTrN,dzTrChars,dzTo]);\n"
+    "  function dzTraduire(){\n"
+    "    var dzBody=DzTracks.subsTrBody(segs,dzTo,lang);\n"
+    "    if(!dzBody||(trJob&&trJob.busy))return;\n"
+    '    setTrJob({busy:!0,step:"traduction de "+subsPl(dzTrN,"réplique")+\n'
+    '      " vers "+subsLangLab(dzTo)+"…",pct:0});\n'
+    "    /* fetch DIRECT : subsPost jette « réponse non JSON » sur tout\n"
+    "       !res.ok (mesuré) et perdrait la raison du 400/502 que la route\n"
+    "       écrit — ici elle est lue puis affichée. */\n"
+    '    fetch("/api/subtitles/translate",{method:"POST",\n'
+    '      headers:{"Content-Type":"application/json"},\n'
+    "      body:JSON.stringify(dzBody)})\n"
+    "      .then(function(res){return res.json().then(\n"
+    "        function(dd){return {res:res,d:dd}},\n"
+    "        function(){return {res:res,d:null}})})\n"
+    "      .then(function(o){\n"
+    "        setTrJob(null);\n"
+    "        if(!o.res.ok){\n"
+    '          note2("Traduction refusée ("+o.res.status+") : "+\n'
+    '            String((o.d&&o.d.detail)||"raison non fournie"));return}\n'
+    "        var dzNext=DzTracks.subsTrApply(segs,(o.d&&o.d.segments)||[],subsLabelOf);\n"
+    '        if(!dzNext){note2("Réponse illisible : le compte des répliques "+\n'
+    "          \"ne correspond pas — rien n'a été écrit.\");return}\n"
+    "        if(props.onChange)props.onChange(dzNext,!0);\n"
+    "        note2(DzTracks.subsTrNote(dzNext.length,dzTo,SUBS_LANGS))},\n"
+    "      function(){setTrJob(null);\n"
+    '        note2("Traduction indisponible : POST /api/subtitles/translate "+\n'
+    '          "ne répond pas — le backend est-il lancé ?")})}')
+# M26b — le sélecteur « vers » et le bouton, dans la rangée `.sub-trrow`,
+# juste après le sélecteur de langue de la transcription. Les classes
+# `.sub-trlang`/`.sub-sel` sont RÉUTILISÉES : aucune règle CSS neuve
+# (mesuré : .sub-trrow porte flex-wrap:wrap, subs.css — la rangée replie
+# ses enfants toute seule).
+A_M26B = ('          children:SUBS_LANGS.map(function(o){\n'
+          '            return r.jsx("option",{value:o[0],children:o[1]},o[0])})},"s")]},"lg"),')
+R_M26B = (
+    "          children:SUBS_LANGS.map(function(o){\n"
+    '            return r.jsx("option",{value:o[0],children:o[1]},o[0])})},"s")]},"lg"),\n'
+    "      /* P16 — TRADUIRE : la cible (sans « auto » — on traduit VERS une\n"
+    "         langue nommée), puis le bouton qui dit ce qu'il remplace, son\n"
+    "         prix, et ce qu'« Annuler » fait (mesuré — subsTrTitle). */\n"
+    '      r.jsxs("label",{className:"sub-trlang",children:[\n'
+    '        r.jsx("span",{className:"sub-trlangl",children:"vers"},"l"),\n'
+    '        r.jsx("select",{className:"sub-sel",value:dzTo,\n'
+    '          "aria-label":"Langue cible de la traduction",\n'
+    '          title:"Langue vers laquelle « Traduire » réécrit le texte des "+\n'
+    '            "répliques. Leurs temps ne bougent pas.",\n'
+    "          onChange:function(e){var dzV=e.target.value;setDzTo(dzV);\n"
+    '            try{localStorage.setItem("dz_subs_to",dzV)}catch(_e){}},\n'
+    '          children:SUBS_LANGS.filter(function(o){return o[0]!=="auto"})\n'
+    "            .map(function(o){\n"
+    '              return r.jsx("option",{value:o[0],children:o[1]},o[0])})},"s")]},"tg"),\n'
+    "      (function(){\n"
+    "        var dzOn=DzTracks.subsTrEnabled(dzTrN,dzTe,!!(trJob&&trJob.busy));\n"
+    '        return subsActBtn({fam:"fix",\n'
+    "          label:DzTracks.subsTrLabel(dzTo,SUBS_LANGS),\n"
+    '          but:"traduire les répliques",quiet:!0,disabled:!dzOn.on,\n'
+    '          cost:trJob&&trJob.busy?"en cours…":dzTe.ok\n'
+    '            ?subsLangLab(dzTo)+" · "+(dzTe.provider||"LLM")+" · "+subsUsd(dzTe.usd)\n'
+    '            :(dzTe.st==="vide"?"aucune réplique":"coût indisponible"),\n'
+    "          apres:dzOn.on?DzTracks.subsTrTitle(dzTrN):dzOn.pourquoi,\n"
+    '          onClick:dzTraduire,k:"trad"})})(),')
+
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
            ("M5-payload", A_M5, R_M5), ("M6-save", A_M6, R_M6),
@@ -2209,7 +2340,12 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M25i-alignement-3x3", A_M25I, R_M25I),
            ("M25j-position-ici", A_M25J, R_M25J),
            ("M25k-fleches-du-clavier", A_M25K, R_M25K),
-           ("M25l-echap-du-clavier", A_M25L, R_M25L)]
+           ("M25l-echap-du-clavier", A_M25L, R_M25L),
+           # P16 — traduire les répliques : l'état/le geste puis
+           # la rangée. Aucune de ces ancres n'est touchée par une
+           # section antérieure (1/1 dans le bundle patché ET le .bak).
+           ("M26a-traduction-etat-et-geste", A_M26A, R_M26A),
+           ("M26b-traduction-rangee", A_M26B, R_M26B)]
 
 
 def nl(text, crlf):

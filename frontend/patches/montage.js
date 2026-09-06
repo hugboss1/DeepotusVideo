@@ -29,6 +29,9 @@
                          srcKey, uniqueId, dedupeIds, seqMax,
                          twinClip, twinPlan, extract, extractBtn,
                          subsSources, subsLabel,
+                         subsTrDefaut, subsTrBody, subsTrEnabled,
+                         subsTrLabel, subsTrTitle, subsTrNote,
+                         subsTrApply,
                          isOverlayTrack, overlayOrder, addDit,
                          tbTraces, tbIcons, tbParse, tbSerial,
                          TbIcon, ToolBtn, TB_GROUPES, TB_PX, TB_PX_GRIP,
@@ -2434,6 +2437,70 @@ function dzmSubsSources(clips,ts){
        " de son, chaque réplique posée à l'instant de son clip. Chaque fichier "+
        "part entier chez le moteur : un clip rogné coûte la durée de son fichier."}}
 
+/* ── P16 : TRADUIRE LES RÉPLIQUES — le cœur calculable ────────────────────
+   La rangée « Répliques » du tiroir de sous-titres gagne une langue cible
+   (état local `dz_subs_to`) et un bouton « Traduire vers … » (sections
+   M26a/M26b du patcher). TOUT ce qui se décide se décide ICI, en fonctions
+   PURES jouées sous node par le banc bundle : le corps de la requête
+   (subsTrBody), le droit de partir et sa raison (subsTrEnabled), le défaut
+   de la cible (subsTrDefaut — « en » quand on transcrit du français, sinon
+   « fr »), le libellé (subsTrLabel), l'infobulle (subsTrTitle — elle dit
+   MOT POUR MOT ce que le clic fait, et ce qu'« Annuler » fait : MESURÉ,
+   l'application passe par props.onChange(…, heavy) → le point d'écriture
+   unique des répliques de l'hôte, qui pousse UNE entrée d'historique avant
+   d'écrire et REFUSE en le disant quand la piste S1 est verrouillée), la
+   note de fin (subsTrNote) et la fusion du résultat (subsTrApply — temps
+   et identifiants des répliques CONSERVÉS, texte et libellé remplacés,
+   les mots karaoké d'avant JETÉS : ils épelaient l'ancien texte). */
+function dzmSubsTrDefaut(lang){return String(lang||"")==="fr"?"en":"fr"}
+function dzmSubsTrLangLab(code,langs){
+  var l=Array.isArray(langs)?langs:[],i;
+  for(i=0;i<l.length;i++)if(l[i]&&l[i][0]===code)return String(l[i][1]);
+  return String(code||"?")}
+function dzmSubsTrLabel(target,langs){
+  return "Traduire vers "+dzmSubsTrLangLab(target,langs)}
+function dzmSubsTrBody(segs,target,source){
+  var cs=Array.isArray(segs)?segs:[],t=String(target||"");
+  if(!cs.length||!t)return null;
+  return {segments:cs.map(function(s){
+      return {start:dzmSubsNum(s&&s.start),end:dzmSubsNum(s&&s.end),
+              text:String((s&&s.text)||"")}}),
+    target:t,
+    /* « auto » est une consigne de DÉTECTION, pas une langue : la route
+       reçoit alors source:null et laisse le modèle lire la langue. */
+    source:(source&&source!=="auto")?String(source):null}}
+function dzmSubsTrEnabled(n,est,busy){
+  if(busy)return {on:!1,pourquoi:"Un travail est déjà en cours — attendez sa fin."};
+  if(!(n>0))return {on:!1,pourquoi:"Aucune réplique à traduire : la piste S1 est vide."};
+  if(!est||!est.ok)return {on:!1,pourquoi:String((est&&est.reason)||
+    "Aucune clé LLM configurée (Réglages) — le coût ne peut pas être "+
+    "annoncé, donc rien n'est lancé.")};
+  return {on:!0,pourquoi:""}}
+function dzmSubsTrTitle(n){
+  if(!(n>1))return "REMPLACE le texte de la réplique de S1 par sa "+
+    "traduction ; son temps est conservé. « Annuler » de la timeline "+
+    "restaure le texte d'avant (le remplacement pousse une entrée "+
+    "d'historique avant d'écrire). Piste S1 verrouillée : rien n'est "+
+    "écrit, et l'écran le dit.";
+  return "REMPLACE le texte des "+n+" répliques de S1 par leur traduction ; "+
+    "leurs temps sont conservés. « Annuler » de la timeline restaure le "+
+    "texte d'avant (le remplacement pousse une entrée d'historique avant "+
+    "d'écrire). Piste S1 verrouillée : rien n'est écrit, et l'écran le dit."}
+function dzmSubsTrNote(n,target,langs){
+  return n+" réplique"+(n>1?"s":"")+" traduite"+(n>1?"s":"")+" vers "+
+    dzmSubsTrLangLab(target,langs)+" — relisez, la machine se trompe."}
+function dzmSubsTrApply(segs,rendus,labelOf){
+  var cs=Array.isArray(segs)?segs:[],rs=Array.isArray(rendus)?rendus:[];
+  if(!cs.length||cs.length!==rs.length)return null;
+  return cs.map(function(s,i){
+    var t=String((rs[i]&&rs[i].text)||""),out={},k;
+    for(k in s)if(Object.prototype.hasOwnProperty.call(s,k))out[k]=s[k];
+    out.text=t;
+    out.label=(typeof labelOf==="function")?labelOf(t):t;
+    out.words=null;
+    return out})}
+
+
 /* PLEIN CADRE OU INCRUSTATION. Le `type` est celui de dzmSkin : « vidéo »
    pour V1, « overlay/VFX » pour la V2 historique, « overlay » pour toute
    piste vidéo neuve. Une piste sans `type` compte comme plein cadre — donc
@@ -4568,6 +4635,10 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   twinClip:dzmTwinClip,twinPlan:dzmTwinPlan,extract:dzmExtract,
   extractBtn:dzmExtractBtn,overlayNote:dzmOverlayNote,
   subsSources:dzmSubsSources,subsLabel:dzmSubsLabel,
+  subsTrDefaut:dzmSubsTrDefaut,subsTrBody:dzmSubsTrBody,
+  subsTrEnabled:dzmSubsTrEnabled,subsTrLabel:dzmSubsTrLabel,
+  subsTrTitle:dzmSubsTrTitle,subsTrNote:dzmSubsTrNote,
+  subsTrApply:dzmSubsTrApply,
   isOverlayTrack:dzmIsOverlayTrack,overlayOrder:dzmOverlayOrder,
   addDit:dzmAddDit,
   CLIP_DEFAUTS:DZM_CLIP_DEFAUTS,DUR_DELAI:DZM_DUR_DELAI,

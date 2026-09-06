@@ -92,6 +92,18 @@ MARKER_ATTENDU = 7      # définition + window x2 + infobulle + total + puce x2
 # tant que cette ligne disait 29, et restauré son .bak (marqueur à 0 le
 # temps de la mettre à jour, 7 au rejeu suivant).
 #
+# `montage` : 53 → 60 le 06/09/2026 (P16 — traduire les répliques). SEPT
+# références de plus au contrat, toutes dans les deux sections M26a/M26b du
+# patcher montage : `DzTracks.subsTrDefaut(`, `DzTracks.subsTrBody(`,
+# `DzTracks.subsTrApply(` et `DzTracks.subsTrNote(` dans M26a (l'état, le
+# geste), `DzTracks.subsTrEnabled(`, `DzTracks.subsTrLabel(` et
+# `DzTracks.subsTrTitle(` dans M26b (la rangée) — aucun jeton en
+# commentaire. La couche, elle, reste à 5 (mesuré : les fonctions neuves
+# dzmSubsTr* n'écrivent pas le jeton, ni en code ni en commentaire).
+# COMPTÉ DES DEUX CÔTÉS AVANT D'ÉCRIRE CE NOMBRE : 53 dans le bundle de
+# f1b1006, 7 dans les sections (`(R_M26A+R_M26B).count`, ancres à 0), 60
+# après rejeu — en octets, `str.count`.
+#
 # `montage` : 43 → 53 le 06/09/2026 (P14 — deux sortes de pistes vidéo, et
 # v3 n'est plus un fantôme). DIX références de plus au contrat, toutes dans
 # les douze sections M25a…M25l du patcher montage : NEUF
@@ -160,7 +172,7 @@ STABLE_PROBES = [
     ("print3d", "__dzPrint3d", 3),
     ("navrail", "dz_nav_collapsed", 2),
     ("dzdesign", "__dzCatBar", 2),
-    ("montage", "DzTracks", 53),
+    ("montage", "DzTracks", 60),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────
