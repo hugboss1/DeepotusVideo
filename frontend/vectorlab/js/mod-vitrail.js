@@ -23,7 +23,7 @@
 // bibliothèque et le bandeau applicatif de la maquette ne sont pas repris
 // (ils existent, autrement, dans l'application).
 import { op_ajouter, op_calque_ajouter, op_calque_reordonner,
-         op_calque_renommer, idLibre, chemin_parser }
+         op_calque_renommer, op_redimensionner, idLibre, chemin_parser }
   from "./mod-doc.js";
 import { hexVersRgb, rgbVersHex, rgbVersHsl, hslVersRgb }
   from "./mod-couleur.js";
@@ -525,20 +525,38 @@ export function initVitrail(VL) {
      canevas (mod-ia). Rend le nombre de tracés posés. Le groupe est mis à
      l'échelle sur un carré de 60 % du petit côté de la page, centré. */
   VL.iaPoser = (d, q) => {
-    if (!etat.doc || !d || !Array.isArray(d.paths) || !d.paths.length) return 0;
+    const formes = (d && (d.formes
+      // rétro-compat : l'ancienne route rendait `paths:[{d,fill}]`
+      || (Array.isArray(d.paths) ? d.paths.map((p) => ({
+        type: "path", d: p.d, style: { fond: p.fill } })) : null))) || [];
+    if (!etat.doc || !formes.length) return 0;
+    const vb = d.viewbox && d.viewbox.length === 4 ? d.viewbox
+      : [0, 0, 100, 100];
     const cote = Math.min(etat.doc.taille.w, etat.doc.taille.h) * 0.6;
-    const vb = d.viewbox && d.viewbox.length === 4 ? d.viewbox : [0, 0, 100, 100];
-    const k = cote / Math.max(vb[2] || 100, vb[3] || 100);
-    const ox = (etat.doc.taille.w - cote) / 2 - vb[0] * k;
-    const oy = (etat.doc.taille.h - cote) / 2 - vb[1] * k;
+    // AUCUN `transform` sur le groupe (remontée du 07/09/2026 : « je dois
+    // pouvoir la sélectionner et la déplacer ou redimensionner comme toute
+    // autre forme »). Un `scale` de groupe faisait valoir un déplacement de
+    // 100 px du document 100 × k à l'écran, et l'outil Nœuds ne mordait pas
+    // sur des tracés exprimés dans un autre repère. Les formes sont donc
+    // posées au repère du viewBox, puis MISES À L'ÉCHELLE PAR LA COMMANDE
+    // DE REDIMENSIONNEMENT elle-même : la même que les poignées, déjà
+    // testée, qui réécrit les COORDONNÉES. Le groupe sort du geste sans
+    // transformation, comme un rectangle tracé à la main.
     const groupe = { type: "groupe", style: {},
       name: String(q || "illustration").slice(0, 24),
-      transform: `translate(${nb(ox)} ${nb(oy)}) scale(${nb(k)})`,
-      enfants: d.paths.map((p) => ({ type: "path", d: p.d,
-                                     style: { fond: p.fill } })) };
-    const id = VL.executer(op_ajouter, etat.calqueActif, groupe);
+      enfants: formes.map((f) => JSON.parse(JSON.stringify(f))) };
+    const id = VL.executer((doc) => {
+      const gid = op_ajouter(doc, etat.calqueActif, groupe);
+      const av = { x: vb[0], y: vb[1], w: vb[2] || 100, h: vb[3] || 100 };
+      const k = cote / Math.max(av.w, av.h);
+      op_redimensionner(doc, [gid], av, {
+        x: (etat.doc.taille.w - av.w * k) / 2,
+        y: (etat.doc.taille.h - av.h * k) / 2,
+        w: av.w * k, h: av.h * k });
+      return gid;
+    });
     if (id) { VL.setSelection([id]); VL.setOutil("select"); }
-    return id ? d.paths.length : 0;
+    return id ? formes.length : 0;
   };
 
   async function iaLancer() {
