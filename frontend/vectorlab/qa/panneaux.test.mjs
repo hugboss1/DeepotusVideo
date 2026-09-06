@@ -104,6 +104,8 @@ for (const [nom, m] of Object.entries(MOTIFS)) {
      g.type === "groupe" && g.vitrail && g.vitrail.motif === "arc"
      && g.vitrail.graine === 41 && g.vitrail.teintes.length === 6
      && g.vitrail.bbox.w === B.w);
+  ok("le groupe porte le NOM du motif (calques, §8.5 du handoff)",
+     g.name === "Baie à arc", String(g.name));
   let lever = "";
   try { construire_panneau("inconnu", B, O()); }
   catch (e) { lever = e.message; }

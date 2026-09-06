@@ -687,11 +687,12 @@ export function initOutils(VL) {
     rect: "glisser pour tracer · Maj contraint au carré",
     ellipse: "glisser pour tracer · Maj contraint au cercle",
     ligne: "glisser d'un point à l'autre · Maj = angles 45°",
-    noeuds: "cliquer une pièce · glisser ses ancres · double-clic = angle↔courbe",
+    noeuds: "cliquer une pièce · glisser ses ancres",
     mesure: "glisser pour lire longueur, angle et Δ — ne crée rien",
     pipette: "cliquer l'objet source : son style va à la sélection",
     texte: "cliquer la page pour écrire",
-    vitrail: "glisser une zone sur la page : le panneau de verre s'y génère",
+    vitrail: "glisser sur la page pour tracer la baie",
+    ia: "décrire l'illustration dans le panneau Vitrail",
   };
   function majHint() {
     const el = $("#hintOutil");

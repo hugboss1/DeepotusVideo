@@ -27,7 +27,15 @@ export function initCalques(VL) {
         <button data-act="descendre" title="Descendre d'un cran">▼</button>
         <button data-act="poubelle" title="Supprimer le calque et ses objets">🗑</button>
       </div>`).join("");
-    hote.innerHTML = lignes;
+    // §8.5 du handoff Vectorlab : document sans le moindre objet — le
+    // texte d'amorce et « Poser une baie d'exemple » (VL.vitrailExemple,
+    // câblé par délégation plus bas).
+    const vide = etat.doc.calques.every((c) => !c.objets.length);
+    hote.innerHTML = lignes + (vide ? `
+      <div class="vl-amorce">Document vide. Choisir un motif dans le
+      panneau Vitrail, puis tracer la baie sur la page.</div>
+      <button class="vl-amorce-btn" data-act="exemple"
+        title="Pose une baie à arc aux proportions de la démo — un seul geste, annulable">Poser une baie d'exemple</button>` : "");
   }
 
   $("#listeCalques").addEventListener("dblclick", (ev) => {
@@ -47,6 +55,10 @@ export function initCalques(VL) {
   });
 
   $("#listeCalques").addEventListener("click", (ev) => {
+    if (ev.target.dataset.act === "exemple") {
+      if (VL.vitrailExemple) VL.vitrailExemple();
+      return;
+    }
     const ligne = ev.target.closest(".calque");
     if (!ligne) return;
     if (ev.target.dataset.act === "opacite") return;   // l'input gère seul
