@@ -21,7 +21,7 @@
 
 export function initIA(VL) {
   const { $, etat } = VL;
-  let moteurs = null;            // [{id, modele}] — null tant qu'inconnu
+  let moteurs = null;            // [{moteur, modeles[], defaut}] — null si inconnu
   let injoignable = false;       // la ROUTE ne répond pas (≠ aucune clé)
   let actif = "";                // fournisseur choisi ("" = celui des Réglages)
   let busy = false;
@@ -45,9 +45,17 @@ export function initIA(VL) {
     return el;
   }
 
+  let modele = "";               // modèle choisi dans le moteur courant
+  try {
+    const mm = localStorage.getItem("dz_vl_ia_modele");
+    if (mm) modele = mm;
+  } catch (e) { /* stockage indisponible */ }
+
+  function entree(id) { return (moteurs || []).find((x) => x.moteur === id); }
+  function modelesDe(id) { const m = entree(id); return (m && m.modeles) || []; }
   function nomMoteur(id) {
-    const m = (moteurs || []).find((x) => x.id === id);
-    return m ? `${m.id} · ${m.modele}` : id;
+    const m = entree(id);
+    return m ? `${id} · ${modele || m.defaut}` : id;
   }
 
   function rendre() {
@@ -63,8 +71,11 @@ export function initIA(VL) {
     const vide = sans ? (muet
       ? "moteurs introuvables — relancer l'application"
       : "aucune clé configurée") : "";
-    const choisi = actif && dispo.some((m) => m.id === actif) ? actif
-      : (dispo[0] ? dispo[0].id : "");
+    const choisi = actif && dispo.some((m) => m.moteur === actif) ? actif
+      : (dispo[0] ? dispo[0].moteur : "");
+    const mods = modelesDe(choisi);
+    const modeleChoisi = modele && mods.includes(modele) ? modele
+      : (mods[0] || "");
     el.innerHTML = `
       <div class="ia-tete" data-poigne="1">
         <span class="ia-titre">Illustration IA</span>
@@ -83,9 +94,16 @@ export function initIA(VL) {
           <select id="iaMoteur" ${sans ? "disabled" : ""}
             title="Le moteur qui va dépenser VOTRE clé — la demande ne se replie jamais sur un autre">
             ${sans ? `<option>${vide}</option>`
-              : dispo.map((m) => `<option value="${m.id}"${
-                  m.id === choisi ? " selected" : ""}>${m.id} · ${
-                  m.modele}</option>`).join("")}
+              : dispo.map((m) => `<option value="${m.moteur}"${
+                  m.moteur === choisi ? " selected" : ""}>${m.moteur
+                  }</option>`).join("")}
+          </select></label>
+        <label class="ia-moteur">modèle
+          <select id="iaModele" ${sans ? "disabled" : ""}
+            title="Le modèle exact qui va produire le SVG. Un petit modèle rend des masses grossières : pour une illustration reconnaissable, prenez le plus capable de la liste.">
+            ${sans ? `<option>—</option>` : modelesDe(choisi).map((x) => `
+              <option value="${x}"${x === modeleChoisi ? " selected" : ""}>${
+                x}</option>`).join("")}
           </select></label>
         <textarea id="iaTexte" rows="2" placeholder="décrire une illustration…"
           ${sans ? "disabled" : ""}></textarea>
@@ -111,6 +129,8 @@ export function initIA(VL) {
         moteurs = d.moteurs;
         injoignable = false;
         if (!actif && d.actif) actif = d.actif;
+      } else if (d && Array.isArray(d.paths)) {
+        moteurs = []; injoignable = true;      // ancienne route, sans moteurs
       } else {
         moteurs = []; injoignable = true;
       }
@@ -128,9 +148,15 @@ export function initIA(VL) {
       rendre();
       return;
     }
+    const selM = $("#iaModele");
     if (sel && sel.value) {
       actif = sel.value;
       try { localStorage.setItem("dz_vl_ia_moteur", actif); }
+      catch (e) { /* stockage indisponible */ }
+    }
+    if (selM && selM.value && selM.value !== "—") {
+      modele = selM.value;
+      try { localStorage.setItem("dz_vl_ia_modele", modele); }
       catch (e) { /* stockage indisponible */ }
     }
     fil.push({ role: "moi", texte: q });
@@ -141,13 +167,16 @@ export function initIA(VL) {
     try {
       const r = await fetch("/api/vector/illustration", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: q, provider: actif }) });
+        body: JSON.stringify({ prompt: q, provider: actif, model: modele }) });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.detail || r.statusText);
       const n = VL.iaPoser ? VL.iaPoser(d, q) : 0;
       issue = { role: "machine",
-                texte: `${n} tracés posés · ${d.provider} — sélectionnés sur `
-                  + `la page, « Dégrouper » les rend indépendants` };
+                texte: `${n} formes posées · ${d.provider}`
+                  + (d.modele ? ` · ${d.modele}` : "")
+                  + ` — sélectionnées sur la page : déplaçables et `
+                  + `redimensionnables comme une forme ; « Dégrouper » les `
+                  + `rend indépendantes, l'outil Nœuds édite leurs points` };
     } catch (e) {
       issue = { role: "machine", texte: String(e.message || e).slice(0, 200),
                 err: true };
@@ -171,6 +200,12 @@ export function initIA(VL) {
     el.addEventListener("click", (ev) => {
       if (ev.target.dataset.act === "fermer") { fermer(); VL.setOutil("select"); }
       else if (ev.target.id === "iaGo") generer();
+    });
+    el.addEventListener("change", (ev) => {
+      if (ev.target.id !== "iaMoteur") return;
+      actif = ev.target.value;      // chaque moteur a SES modèles
+      modele = "";
+      rendre();
     });
     el.addEventListener("keydown", (ev) => {
       if (ev.key === "Enter" && !ev.shiftKey && ev.target.id === "iaTexte") {

@@ -6550,115 +6550,80 @@ async def get_vector_vignette(doc_id: str):
     return Response(content=octets, media_type="image/png")
 
 
-_VECT_ILLU_D = None     # regex compilées au premier appel (module allégé)
-
-
 @router.get("/vector/illustration/moteurs")
 async def vector_illustration_moteurs():
-    """Les moteurs de langage disponibles pour l'illustration du Vectorlab,
-    avec le modèle que chacun emploie. L'écran s'en sert pour NOMMER ce qui
-    va dépenser la clé de l'utilisateur avant qu'il clique. 200 toujours :
-    `moteurs: []` et `actif: null` quand aucune clé n'est configurée — un
-    écran qui sait dire « aucun moteur » vaut mieux qu'une erreur."""
-    from app.services import summarizer as _SZ
-    modeles = {"anthropic": settings.ANTHROPIC_MODEL,
-               "openai": settings.OPENAI_MODEL,
-               "gemini": settings.GEMINI_MODEL}
-    dispo = _SZ._available_providers()
-    return {"ok": True,
-            "moteurs": [{"id": p, "modele": modeles.get(p, "")}
-                        for p in dispo],
-            "actif": _SZ.active_provider() or None}
+    """Les moteurs de langage du Vectorlab, avec LEURS modèles.
+
+    Remontée du 07/09/2026 : « les moteurs doivent refléter tous les moteurs
+    dont je possède les clés, ou qui sont présents dans le reste de
+    l'application ». La première version ne lisait que
+    `summarizer._available_providers()` — elle omettait **ollama**, pourtant
+    connu du reste de l'application, et n'offrait qu'UN modèle par moteur.
+    Ici, chaque moteur configuré est INTERROGÉ pour sa vraie liste
+    (`vector_illustration.catalogue`), le modèle des Réglages en tête.
+
+    200 toujours : `moteurs: []` quand aucune clé n'est configurée — un
+    écran qui sait dire « aucun moteur » vaut mieux qu'une erreur.
+    """
+    from app.services import vector_illustration as VI
+    loop = asyncio.get_running_loop()
+    cat = await loop.run_in_executor(None, VI.catalogue)
+    return {"ok": True, "moteurs": cat,
+            "actif": cat[0]["moteur"] if cat else None}
 
 
 @router.post("/vector/illustration")
 async def vector_illustration(body: dict):
-    """Vectorlab — illustration vectorielle par le LLM configuré (handoff
-    « Vectorlab Vitrail », 06/09/2026). APPEL PAYANT sur la clé de
-    l'utilisateur — l'infobulle du bouton IA le dit avant le clic. Le modèle
-    rend un SVG de masses pleines (des pièces de verre) ; la réponse est
-    PARSÉE ET FILTRÉE ICI : seuls des `d` au charset chemin et des fonds
-    #rrggbb passent, 40 tracés au plus — rien de la réponse brute n'atteint
-    le client. Body: {prompt, provider?} — `provider` vise UN moteur
-    (anthropic|openai|gemini, cf. GET .../moteurs) sans repli ; absent, le
-    dispatch des Réglages décide. 200: {ok, paths:[{d, fill}], viewbox,
-    provider}. 400 sans prompt, moteur indisponible, ou réponse illisible ;
-    502 modèle muet."""
-    import re as _re
-    global _VECT_ILLU_D
-    if _VECT_ILLU_D is None:
-        _VECT_ILLU_D = (
-            _re.compile(r"<path[^>]*?\sd=\"([^\"]+)\"[^>]*?>", _re.I),
-            _re.compile(r"fill=\"(#[0-9a-fA-F]{6})\""),
-            _re.compile(r"^[MmLlCcQqZzHhVvSsAaTt0-9eE\s.,+-]+$"),
-            _re.compile(r"viewBox=\"([\d.\s,-]+)\"", _re.I),
-        )
-    re_path, re_fill, re_d, re_vb = _VECT_ILLU_D
+    """Vectorlab — illustration vectorielle ÉDITABLE par le moteur choisi.
+
+    APPEL PAYANT sur la clé de l'utilisateur — l'écran nomme le moteur ET le
+    modèle avant le clic. Le SVG rendu par le modèle est PARSÉ, FILTRÉ et
+    NORMALISÉ ici (`vector_illustration.formes_du_svg`) : il en sort des
+    formes du vocabulaire du document — `path` en M/L/C/Q/Z **absolus**
+    (arcs convertis en cubiques), `rect`, `ellipse` — que le client pose
+    sans aucun `transform`. C'est ce qui les rend déplaçables,
+    redimensionnables et éditables au nœud comme une forme tracée à la main
+    (remontée du 07/09/2026). Rien de la réponse brute n'atteint le client.
+
+    Body: {prompt, provider?, model?} — `provider` vise UN moteur
+    (cf. GET .../moteurs) et `model` UN modèle, tous deux SANS repli.
+    200: {ok, formes, viewbox, provider, modele}. 400 sans prompt, moteur
+    ou modèle indisponible, réponse illisible ; 502 modèle muet.
+    """
+    from app.services import vector_illustration as VI
     q = str((body or {}).get("prompt") or "").strip()
     if not q:
         raise HTTPException(400, "Décrire d'abord l'illustration.")
-    from app.services import summarizer as _SZ
-    consigne = (
-        "Illustration vectorielle pour un atelier de vitrail. Sujet : "
-        + q[:400] + ".\n"
-        "Réponds UNIQUEMENT par le code SVG, rien avant, rien après, pas "
-        "de bloc de code.\n"
-        "Format exact : <svg viewBox=\"0 0 100 100\"> puis uniquement des "
-        "<path d=\"...\" fill=\"#rrggbb\"/> puis </svg>.\n"
-        "Contraintes : de 5 à 22 tracés ; chemins fermés remplis, aucun "
-        "stroke, aucun gradient, aucune opacité ; masses simples comme des "
-        "pièces de verre découpées ; palette de 4 à 6 couleurs saturées de "
-        "verre coloré.")
-    # Fournisseur DEMANDÉ : on vise celui-là et on ne se replie pas —
-    # l'écran vient d'afficher son nom et son modèle, se rabattre en
-    # silence sur un autre ferait mentir cet affichage (et dépenserait une
-    # autre clé). Sans `provider`, le dispatch historique décide.
-    voulu = str((body or {}).get("provider") or "").strip().lower()
-    systeme = "Tu produis du SVG strict, sans commentaire."
-    if voulu and voulu not in _SZ._available_providers():
-        raise HTTPException(400, f"Moteur « {voulu} » indisponible : aucune "
+    dispo = VI.moteurs_configures()
+    if not dispo:
+        raise HTTPException(400, "Aucun moteur de langage configuré "
+                                 "(Réglages : Anthropic, OpenAI, Gemini ou "
+                                 "Ollama).")
+    moteur = str((body or {}).get("provider") or "").strip().lower() or dispo[0]
+    if moteur not in dispo:
+        raise HTTPException(400, f"Moteur « {moteur} » indisponible : aucune "
                                  f"clé configurée pour lui (Réglages).")
-
-    def _tirer():
-        if not voulu:
-            return _SZ._chat_dispatch(consigne, systeme, 4000)
-        if voulu == "anthropic":
-            return _SZ._anthropic_chat(consigne, systeme, 4000), "anthropic"
-        if voulu == "openai":
-            from app.services.openai_llm import chat as _c
-            return _c(consigne, system=systeme, max_tokens=4000), "openai"
-        from app.services.gemini_llm import chat as _c
-        return _c(consigne, system=systeme, max_tokens=4000), "gemini"
+    modele = str((body or {}).get("model") or "").strip() \
+        or VI.modele_defaut(moteur)
+    if not modele:
+        raise HTTPException(400, f"Aucun modèle pour « {moteur} ».")
 
     loop = asyncio.get_running_loop()
     try:
-        out, prov = await loop.run_in_executor(None, _tirer)
+        brut = await loop.run_in_executor(
+            None, lambda: VI.tirer(moteur, modele, VI.consigne(q),
+                                   "Tu produis du SVG strict, sans commentaire."))
     except Exception as e:                              # noqa: BLE001
         raise HTTPException(502, f"Le modèle n'a pas répondu : {e}")
-    txt = _re.sub(r"```[a-z]*", "", str(out or ""), flags=_re.I)
-    vb = [0.0, 0.0, 100.0, 100.0]
-    mvb = re_vb.search(txt)
-    if mvb:
-        try:
-            raw = [float(v) for v in _re.split(r"[\s,]+", mvb.group(1).strip())]
-            if len(raw) == 4 and raw[2] > 0 and raw[3] > 0:
-                vb = raw
-        except ValueError:
-            pass
-    paths = []
-    for m in re_path.finditer(txt):
-        d = m.group(1).strip()
-        if not re_d.match(d):
-            continue                       # charset hors chemin : écarté
-        mf = re_fill.search(m.group(0))
-        paths.append({"d": d, "fill": mf.group(1) if mf else "#c9a33f"})
-        if len(paths) >= 40:
-            break
-    if not paths:
+    formes, vb = VI.formes_du_svg(brut)
+    if not formes:
         raise HTTPException(400, "Réponse du modèle illisible — reformuler "
-                                 "la description.")
-    return {"ok": True, "paths": paths, "viewbox": vb, "provider": prov}
-
+                                 "la description, ou choisir un modèle plus "
+                                 "capable.")
+    logger.info(f"vectorlab illustration: {len(formes)} formes via "
+                f"{moteur}/{modele}")
+    return {"ok": True, "formes": formes, "viewbox": vb,
+            "provider": moteur, "modele": modele}
 
 @router.get("/vector/vitrail")
 async def vector_vitrail():

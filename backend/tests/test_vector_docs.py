@@ -763,45 +763,88 @@ def test_le_pont_cartes_deck_id_et_la_migration():
 # seuls des `d` au charset chemin et des fonds #rrggbb passent.
 
 
-def test_vector_illustration_llm_bouchonne():
+def test_vector_illustration_formes_editables_et_moteur_vise():
+    """La route rend des FORMES du vocabulaire du document, et vise le
+    moteur ET le modèle demandés (remontées du 07/09/2026)."""
     import asyncio
 
     from httpx import ASGITransport, AsyncClient
 
     from app.main import app
-    from app.services import summarizer as SZ
+    from app.services import vector_illustration as VI
 
     svg = ('<svg viewBox="0 0 120 100">'
-           '<path d="M0 0 L10 0 L10 10 Z" fill="#1e56c8"/>'
-           '<path d="M1 1 C2 2 3 3 4 4 Z"/>'
-           '<path d="M0 0 Levil(alert)" fill="#ff0000"/>'
+           '<path d="m5 5 h10 v10 z" fill="#1e56c8"/>'
+           '<circle cx="50" cy="50" r="20" fill="#c0202f"/>'
            '</svg>')
-    appels = []
-    vieux = SZ._chat_dispatch
-    SZ._chat_dispatch = lambda *a, **k: (appels.append(a) or (svg, "openai"))
+    vus = []
+    v_conf, v_tirer = VI.moteurs_configures, VI.tirer
+    VI.moteurs_configures = lambda: ["anthropic", "ollama"]
+    VI.tirer = lambda mo, md, p, sy, **k: (vus.append((mo, md)) or svg)
     try:
         async def scenario():
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport,
                                    base_url="http://t") as c:
                 r = await c.post("/api/vector/illustration",
-                                 json={"prompt": "un iris de vitrail"})
+                                 json={"prompt": "un iris",
+                                       "provider": "ollama",
+                                       "model": "llama3"})
                 assert r.status_code == 200, r.text
                 d = r.json()
-                assert d["provider"] == "openai"
+                # le moteur ET le modèle demandés, sans repli
+                assert vus == [("ollama", "llama3")], vus
+                assert d["provider"] == "ollama" and d["modele"] == "llama3"
                 assert d["viewbox"] == [0.0, 0.0, 120.0, 100.0]
-                # le d aux parenthèses (hors charset chemin) est ÉCARTÉ ;
-                # le path sans fill reçoit l'ambre par défaut
-                assert [p["fill"] for p in d["paths"]] == \
-                    ["#1e56c8", "#c9a33f"], d["paths"]
-                assert len(appels) == 1  # un appel payant, pas deux
-                # sans prompt → 400 AVANT tout appel au modèle
+                # des FORMES typées, pas des `paths` bruts : le path relatif
+                # est sorti ABSOLU, le cercle est devenu une ellipse
+                assert [f["type"] for f in d["formes"]] == ["path", "ellipse"]
+                assert d["formes"][0]["d"] == "M 5 5 L 15 5 L 15 15 Z"
+                assert d["formes"][1]["rx"] == 20
+
+                # moteur non configuré → 400, AUCUN appel payant
+                r = await c.post("/api/vector/illustration",
+                                 json={"prompt": "x", "provider": "openai"})
+                assert r.status_code == 400 and "openai" in r.json()["detail"]
+                assert len(vus) == 1, vus
+
+                # sans prompt → 400 avant tout appel
                 r = await c.post("/api/vector/illustration", json={})
                 assert r.status_code == 400
-                assert len(appels) == 1
+                assert len(vus) == 1, vus
         asyncio.run(scenario())
     finally:
-        SZ._chat_dispatch = vieux
+        VI.moteurs_configures, VI.tirer = v_conf, v_tirer
+
+
+def test_vector_illustration_moteurs_liste_les_modeles():
+    import asyncio
+
+    from httpx import ASGITransport, AsyncClient
+
+    from app.main import app
+    from app.services import vector_illustration as VI
+
+    v_cat = VI.catalogue
+    VI.catalogue = lambda **k: [
+        {"moteur": "anthropic", "modeles": ["claude-haiku-4-5", "claude-opus-5"],
+         "defaut": "claude-haiku-4-5"},
+        {"moteur": "ollama", "modeles": ["llama3"], "defaut": "llama3"}]
+    try:
+        async def scenario():
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport,
+                                   base_url="http://t") as c:
+                r = await c.get("/api/vector/illustration/moteurs")
+                assert r.status_code == 200, r.text
+                d = r.json()
+                assert [m["moteur"] for m in d["moteurs"]] ==                     ["anthropic", "ollama"], d
+                # PLUSIEURS modèles par moteur — c'est la remontée
+                assert len(d["moteurs"][0]["modeles"]) == 2, d
+                assert d["actif"] == "anthropic"
+        asyncio.run(scenario())
+    finally:
+        VI.catalogue = v_cat
 
 
 def test_vector_illustration_reponse_illisible_et_modele_muet():
@@ -810,121 +853,30 @@ def test_vector_illustration_reponse_illisible_et_modele_muet():
     from httpx import ASGITransport, AsyncClient
 
     from app.main import app
-    from app.services import summarizer as SZ
+    from app.services import vector_illustration as VI
 
-    vieux = SZ._chat_dispatch
+    v_conf, v_tirer = VI.moteurs_configures, VI.tirer
+    VI.moteurs_configures = lambda: ["anthropic"]
     try:
-        async def scenario(attendu, detail_frag):
+        async def scenario(attendu, frag):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport,
                                    base_url="http://t") as c:
                 r = await c.post("/api/vector/illustration",
                                  json={"prompt": "x"})
                 assert r.status_code == attendu, r.text
-                assert detail_frag in r.json()["detail"]
+                assert frag in r.json()["detail"], r.text
 
-        # réponse sans le moindre path exploitable → 400 parlant
-        SZ._chat_dispatch = lambda *a, **k: ("voici une explication sans "
-                                             "svg", "openai")
+        # réponse sans forme exploitable → 400 parlant
+        VI.tirer = lambda *a, **k: "voici une explication sans svg"
         asyncio.run(scenario(400, "illisible"))
-        # état vide : le modèle rend une chaîne vide → même 400, pas de mort
-        SZ._chat_dispatch = lambda *a, **k: ("", "openai")
+        # état vide : chaîne vide → même 400, pas de mort
+        VI.tirer = lambda *a, **k: ""
         asyncio.run(scenario(400, "illisible"))
-        # modèle muet (pas de clé, réseau coupé…) → 502 qui porte la cause
+        # modèle muet → 502 qui porte la cause
         def _muet(*a, **k):
-            raise RuntimeError("aucune clé LLM configurée")
-        SZ._chat_dispatch = _muet
-        asyncio.run(scenario(502, "aucune clé LLM"))
+            raise RuntimeError("Anthropic HTTP 429 — rate limited")
+        VI.tirer = _muet
+        asyncio.run(scenario(502, "429"))
     finally:
-        SZ._chat_dispatch = vieux
-
-
-# ═══════════ GET /vector/illustration/moteurs + POST provider ═══════════
-# Le choix du moteur (remontée du 06/09/2026 : « je dois pouvoir demander
-# ou sélectionner le modèle que je veux utiliser »). Le fournisseur DEMANDÉ
-# est visé sans repli : l'écran vient d'afficher son nom, se rabattre en
-# silence sur un autre le ferait mentir — et dépenserait une autre clé.
-
-
-def test_vector_illustration_moteurs_et_choix_du_provider():
-    import asyncio
-
-    from httpx import ASGITransport, AsyncClient
-
-    from app.main import app
-    from app.services import summarizer as SZ
-
-    svg = ('<svg viewBox="0 0 100 100">'
-           '<path d="M0 0 L10 0 L10 10 Z" fill="#1e56c8"/></svg>')
-    vus = []
-    v_disp, v_act = SZ._available_providers, SZ.active_provider
-    v_anth, v_chat = SZ._anthropic_chat, SZ._chat_dispatch
-    SZ._available_providers = lambda: ["anthropic", "gemini"]
-    SZ.active_provider = lambda: "anthropic"
-    SZ._anthropic_chat = lambda *a, **k: (vus.append("anthropic") or svg)
-    SZ._chat_dispatch = lambda *a, **k: (vus.append("dispatch") or
-                                         (svg, "anthropic"))
-    try:
-        async def scenario():
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport,
-                                   base_url="http://t") as c:
-                r = await c.get("/api/vector/illustration/moteurs")
-                assert r.status_code == 200, r.text
-                d = r.json()
-                assert [m["id"] for m in d["moteurs"]] == \
-                    ["anthropic", "gemini"], d
-                # chaque moteur NOMME son modèle : l'écran l'affiche
-                assert all(m["modele"] for m in d["moteurs"]), d
-                assert d["actif"] == "anthropic"
-
-                # provider explicite → ce moteur-là, pas le dispatch
-                r = await c.post("/api/vector/illustration",
-                                 json={"prompt": "un iris",
-                                       "provider": "anthropic"})
-                assert r.status_code == 200, r.text
-                assert vus == ["anthropic"], vus
-
-                # sans provider → le dispatch historique décide
-                r = await c.post("/api/vector/illustration",
-                                 json={"prompt": "un iris"})
-                assert r.status_code == 200, r.text
-                assert vus == ["anthropic", "dispatch"], vus
-
-                # moteur non configuré → 400 parlant, AUCUN appel payant
-                r = await c.post("/api/vector/illustration",
-                                 json={"prompt": "un iris",
-                                       "provider": "openai"})
-                assert r.status_code == 400, r.text
-                assert "openai" in r.json()["detail"]
-                assert vus == ["anthropic", "dispatch"], vus
-        asyncio.run(scenario())
-    finally:
-        SZ._available_providers, SZ.active_provider = v_disp, v_act
-        SZ._anthropic_chat, SZ._chat_dispatch = v_anth, v_chat
-
-
-def test_vector_illustration_moteurs_sans_aucune_cle():
-    import asyncio
-
-    from httpx import ASGITransport, AsyncClient
-
-    from app.main import app
-    from app.services import summarizer as SZ
-
-    v_disp, v_act = SZ._available_providers, SZ.active_provider
-    SZ._available_providers = lambda: []
-    SZ.active_provider = lambda: ""
-    try:
-        async def scenario():
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport,
-                                   base_url="http://t") as c:
-                r = await c.get("/api/vector/illustration/moteurs")
-                # 200 et une liste VIDE — un écran qui sait dire « aucun
-                # moteur » vaut mieux qu'une erreur
-                assert r.status_code == 200, r.text
-                assert r.json() == {"ok": True, "moteurs": [], "actif": None}
-        asyncio.run(scenario())
-    finally:
-        SZ._available_providers, SZ.active_provider = v_disp, v_act
+        VI.moteurs_configures, VI.tirer = v_conf, v_tirer
