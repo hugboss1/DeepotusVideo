@@ -1943,3 +1943,36 @@ cible dans la rangée `.sub-trrow` du bloc subs), `montage.css`, banc autonome n
 
 **Ordre d'exécution :** 18 → 19 → 21 → 20 → 22. Déploiement après 18/19/21 (Python
 touché : `stop.ps1`, l'utilisateur relance), puis après 20/22.
+
+## Lot 5 — exécuté (06/09/2026)
+
+Cinq tâches livrées le jour même, chacune par un implémenteur frais puis deux
+revues (conformité, qualité) avec boucle de correction, puis un vérificateur
+indépendant : **18** P12 `40537db` (2 tours), **19** P13 `db1eb80` (1 tour,
+précédée de `4be857d` — le banc bundle rougit au lieu de mourir sans le
+handoff, septième morsure de la faute n°6), **21** P15 `23fd81c` (revues
+coupées par la limite de session, relue et mesurée par la session
+principale), **20** P14 `65d9fce` (0 tour), **22** P16 `67edced` (0 tour).
+S'y ajoute la refonte Vectorlab du second handoff, `f1b1006` (hors Montage,
+même branche).
+
+**Chiffres de fin** : banc bundle 855 → **1301** ; bancs neufs
+`test_subs_transcribe_cible.py` 62 et `test_subs_traduction.py` 29 ;
+`test_montage_media.py` 77 → 88 ; chaîne 34 → **66 ancres** ; sonde dzcout
+29 → **60** ; `__dzCoutBlanc` 7 ; les quatre intouchables intacts de bout en
+bout. Déployé en deux fois (`_backup_predeploy_2026-09-06b…` puis `…c…`),
+installé = `67edced` vérifié par `git hash-object`, migrations rejouées sur
+copie (aucune table ni colonne neuve).
+
+**Écarts et restes assumés, mesurés** (détail dans les messages de commit) :
+la vitesse C4 d'un V1 n'est pas appliquée aux mots transcrits ; la marque
+`clip` du découpage repose sur des ids que P12 dédoublonne à l'écran mais pas
+dans le repli sauvegarde de la route ; le greffon libsend vise toujours `v2`
+(non distinguable proprement — la note `overlayNote` le dit) ; une piste
+« vidéo » n'a ni xfade, ni vitesse, ni effets (chantier « plusieurs
+séquences » non entrepris) ; la pastille de traduction estime sans le gabarit
+de numérotation ; deux commentaires du bundle disent encore « V2 » au-dessus
+de M25a/M25c ; la remise en queue DOM de l'aperçu n'est exercée par aucune
+exécution. Dette navigateur : tout ce lot est mesuré sous node et par le
+texte du bundle — la vérification à l'écran appartient à l'utilisateur
+(mesures console données dans les commits P15 et Vectorlab).
