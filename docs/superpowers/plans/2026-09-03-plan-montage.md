@@ -1589,3 +1589,357 @@ annuler rend les clips, pas la durée — exactement le piège que P3 avait choi
 d'éviter en ne touchant pas à `dur`. Ici on y touche **délibérément**, donc la
 note doit le dire à chaque fois, et l'en-tête du banc doit le consigner comme un
 reste assumé.
+
+## Lot 5 — remontées du 06/09/2026 : le son des plans, la cible et la langue de la transcription, les deux sortes de pistes vidéo, l'onglet OUTILS
+
+Quatre remontées de l'utilisateur, captures à l'appui, sur l'application déployée
+le matin même (`c59069d`, installé identique au dépôt fichier par fichier,
+`git hash-object`). Ses mots : « l'onglet outils apparaît, il faut remonter un peu le
+texte sous "ajouter un bloc" » ; « quand je clique sur ajouter une piste "vidéo" […]
+cela rajoute une piste overlay, je dois pouvoir choisir entre ajouter une piste
+overlay ou une piste vidéo » ; « je ne peux avoir une transcription audio d'une
+vidéo ou un rendu pour générer les sous-titres, cela fonctionnait avant » ; « à
+l'import d'une piste vidéo comportant un audio, je dois pouvoir avoir l'extraction de
+la piste audio visible sur la piste A1, de sorte que je puisse faire fonctionner la
+transcription dans la langue de mon choix ou celles qui me sont proposées par
+ElevenLabs […] ne serait-ce que pour pouvoir la traduire ».
+
+Tout ce qui suit a été **mesuré** le 06/09 par six lecteurs indépendants sur le
+worktree `c59069d`, chaque fait décisif soumis à deux sceptiques (les corrections
+retenues sont intégrées), puis complété par six mesures directes. Aucun appel réseau
+payant n'a été fait ; l'application de l'utilisateur tournait et n'a pas été touchée.
+
+### Fait n°1 — la transcription n'est pas cassée : elle vise le mauvais fichier, et pose les mots au temps du fichier
+
+Journal du jour (`%LOCALAPPDATA%\DeepotusVideoGenData\logs\deepotus-2026-09-06.log`,
+ligne 42) : `transcribe: s1_drift-746849.mp3 (11.8s) via elevenlabs ≈ 0.0013 $`. Elle a
+tourné — sur le vieux MP3 de la piste A1 (`a1_vo`, vestige d'une construction
+automatique sur des planches de sprites), jamais sur la vidéo.
+
+Les deux bouts choisissent A1 d'abord. Côté hôte, `subsSrcRef()` (écrit par la chaîne
+R_KIND de `patch_bundle_subs.py`, bundle 3806) rend le premier clip `a1` porteur d'un
+`src`, sinon le premier `v1` ; le tiroir l'envoie tel quel comme `src` pour le geste
+« Transcrire l'audio » (bundle 11951 `{src:srcRef,clips:cl,lang:lang,cps:…}`). Côté
+route (`routes.py:8845-8857`), sans `src` : première `a1` qui résout, puis première
+`v1`. Le geste PAR PLAN garde `av[0].src` — le premier clip a1/v1 chevauchant le plan,
+dans l'ordre du tableau `clips`, pas trié.
+
+**Et les mots sont posés au temps du fichier.** `_run` transcrit `src_path` puis
+`segs = _subs_cues_to_segments(cues)` (`routes.py:8896-8908`) : aucun décalage par le
+`start` ni le `srcIn` du clip source. Ça « marchait avant » parce que le vestige A1
+était à t = 0. Un plan `kapwing_sample` posé à 28,876 s verrait ses répliques
+atterrir entre 0 et 16 s.
+
+`kapwing_sample.mp4` porte bien du son : job `a54ee49f`, provider `ugc`,
+`assets/outputs/uploads/kapwing_sample.mp4`, flux aac 15,973 s (ffprobe). Le
+`tweet_2026-05-20` (`84078c36`, template) aussi (aac 20,821 s). `Memecoin` et
+`demo complete videogen brute` n'en ont **aucun**.
+
+### Fait n°2 — l'extraction existe, mais seulement dans la construction automatique
+
+`montage_project` (`montage_service.py:1191-1206`) pose, pour chaque job vidéo dont
+`_has_audio_stream(p)` est vrai, un clip
+`{"tr":"a1","id":"a1_<8>","label":"… · son du plan","src":{"job_id":…},"srcIn":0}` aligné
+sur le plan. Le rendu accepte un clip audio dont la source est une vidéo et **saute en
+silence** (`logger.warning`) une source sans flux (`2569-2573`). L'audio embarqué d'un
+clip V1 n'entre JAMAIS dans le graphe (`[idx:v]` seul, `1187-1190`) : sans jumeau A1,
+un plan parlant sort muet.
+
+`addAsset(src,label,kind,srcDur,trId,atTime)` (bundle 3905-4027), point d'entrée des
+SEPT portes (greffon libsend, relance askDur, sfxInsert, dépôt audio, dropOnTrack,
+trois clics du sélecteur, NewerHint), écrit un seul clip, `srcIn:0`, et rien d'autre.
+**Aucune route ne dit « cette source a un flux audio »** : `/duration` rend `{ok,dur,name}`
+(`format=duration`), `/media-rules` rend `{video_exts}`, `/peaks` est un décodage
+ffmpeg complet (120 s de délai) qui rend 415 sur une vidéo muette — pas une sonde.
+`_has_audio_stream` n'est exposé par rien.
+
+Deux pièges mesurés pour l'implémentation :
+- **`pickTrack(ts,"audio")` n'est pas A1** : première piste audio de l'ordre
+  d'affichage ; sur la sauvegarde du 04/09 (`[v1,a2,a1,a3,s1]`) il rend `a2`, la
+  MUSIQUE (`loop`, seule entrée bouclée et duckée). La cible est la piste de
+  `bus:"dialogue"` (les pistes audio portent `bus` dans `proj.tracks`), sinon `a1` par
+  identifiant, sinon refus DIT.
+- **deux `setClips(clipsRef.current.concat(…))` dans le même gestionnaire perdent le
+  premier clip** (`clipsRef.current=clips` n'est rafraîchi qu'au rendu, bundle 1723).
+  V1 et jumeau A1 partent dans UN concat après UN `pushHistory()` — un seul « Annuler »
+  retire les deux (l'historique mémorise `{clips, mixDb}`, 1950-1963).
+
+Le harnais [3-bis] du banc bundle EXÉCUTE le bloc `defaultLen+addAsset` livré sous
+node avec des bouchons figés : tout identifiant libre nouveau (`fetch`, un
+`DzTracks.xxx` inédit, une ref) tue le shim et emporte 211 assertions ; `add_bornes ==
+[[0, 21.233]]`, `add_hist == 1`, `len(add_sel) == 1` sont épinglés. La sonde amont de
+dzcout pinne `DzTracks` à **29** (`patch_bundle_dzcout.py:110`, `str.count` global,
+commentaires de la couche compris).
+
+### Fait n°3 — les identifiants de clips se répètent d'une session à l'autre
+
+`ovSeq=x.useRef(0)` (bundle), `ovSeq.current=` = 0 occurrence : le compteur repart à
+zéro à chaque chargement et `svmApplyProject` (2033) reprend `c.id` tel quel. Mesuré
+sur `montage_saved.json` de l'utilisateur (lecture seule) : `v1u1_0` porté par DEUX
+clips (`kapwing_sample` et `tweet_2026-05-20`, mêmes bornes 28,876 → 50,509) et
+`v1u2_0` par deux autres (`Memecoin` et `kapwing_sample`, 0,079 → 16,079). Le bundle
+supprime par `c.id!==id` (1 occurrence) et sélectionne par `c.id===selId` (3) :
+**supprimer l'un supprime l'autre**, et le second n'est jamais sélectionnable.
+
+### Fait n°4 — la langue se choisit déjà ; le moteur transcrit, il ne traduit pas
+
+`lang` est un état du tiroir (`localStorage dz_subs_lang`, défaut « fr »), choisi par
+un `<select>` de SIX langues (`SUBS_LANGS`, fr/en/es/de/it/pt, subs.js:1527 → bundle
+9912), rendu SEULEMENT sur l'onglet « Répliques », et ÉCRASÉ par une détection sur le
+contenu tant que l'utilisateur n'a pas choisi lui-même (`dz_subs_lang_pris`). La route
+force « fr » à défaut (`routes.py:8830`) et le transmet TOUJOURS — ElevenLabs
+`language_code`, OpenAI `language` — donc la branche `if language:` de
+`transcribe()` (1040, 1061) est morte depuis l'application : l'auto-détection du
+moteur n'est jamais sollicitée. Aucun paramètre de traduction dans les deux corps
+multipart ; **aucune route de traduction de sous-titres** dans l'application (le seul
+`translate_video` est HeyGen, jamais appelé). Le fichier part ENTIER chez le
+fournisseur (vidéo comprise ; 25 Mo chez OpenAI). Un `provider` inconnu lève
+`ValueError` non enveloppée → 500 (`8866`). AUCUN test ne frappe `POST
+/subtitles/transcribe` ni `transcribe()`.
+
+### Fait n°5 — « + piste vidéo » crée une piste d'incrustation, et v3 est un fantôme
+
+Le « + » d'en-tête de V1 (`thAdd`) n'ajoute pas de piste : il ouvre le sélecteur. La
+seule porte vivante est le bouton « vidéo » du groupe PISTES de la barre flottante
+(`DZM_TB_PLAN`, bundle 14797) : `dzmAdd(ts,"video")` fabrique `v`+n libre en tête,
+`dzmSkin` lui donne `type:"overlay"` (`montage.js:150`) — le mot affiché — et le titre
+dit déjà « piste vidéo d'overlay ». Au rendu, TOUTE piste vidéo ≠ `v1` est un overlay
+(`2536-2557`) : sans x/y/scale/rotate ni `motion_points`, chaîne **cover plein cadre**
+(`2034-2039`), `enable=between`, opaque ⇒ elle RECOUVRE V1 ; son audio n'entre jamais
+dans le graphe ; V1 reste maître de la durée, des trous noirs, des xfade, et un projet
+sans clip V1 est refusé en 400. Ce que V1 a et que les autres n'ont pas : xfade,
+vitesse, rack d'effets, trous noirs, maître de durée.
+
+**Quatre portes codent `"v2"` en dur** : aperçu (`k.tr==="v2"`, 2395), payload
+x/y/scale/rotate/motion_points (4178), inspecteur Overlay (4335), losanges de
+trajectoire (5993). Dès que V2 existe, « vidéo » crée **v3** : un clip posé dessus est
+INVISIBLE dans l'aperçu, sans inspecteur, et part cover plein cadre au rendu. La
+sauvegarde de l'utilisateur porte `tracks:[v3,v2,v1,a1,a2,a3,s1]` — c'est exactement
+cette piste. Le banc rapproche `DZM_TB_PLAN` du §2.4 du handoff (« `vidéo` · `audio` »)
+et les neuf tracés du §3 : tout bouton ajouté se déclare dans `design.md`.
+
+### Fait n°6 — l'onglet OUTILS recouvre 5 px de la note du panneau Narration, par construction
+
+`.dzsvm .dzm-tbtab{position:absolute; top:-21px; left:14px; height:21px; z-index:8}`
+dans `.svm-trans{position:relative; overflow:visible}` (montage.css 501-510, 503) :
+l'onglet monte de 19 px au-dessus du bord de `.svm-tl` (21 − 1 − 1 de filets). Le pied
+de `<aside class="svm-narr">` (300 px, `padding:14px`, colonne flex, la liste
+`flex:1 1 auto` plaque « + Ajouter un bloc » puis `div.svm-note` « le texte reste
+local — seul « Narrer » envoie le bloc à ElevenLabs » au fond) laisse 14 px : recouvrement
+**5 px** sur la dernière ligne de la note, à partir de x = 14 des deux côtés. Le
+handoff §2.1 demande l'onglet « débordant vers le haut » et ne réserve rien dans
+`.svm-mid`. Aucun `check` ne nomme `.svm-narr` ni `.svm-note` ; le banc épingle
+`top:-21px`/`left:14px` (6407). Tiroir fermé, la même bande tombe sur `.svm-playerbar`
+(dette navigateur).
+
+---
+
+### Tâche 18 — P12 : le son d'un plan suit sa vidéo (extraction à l'import, bouton, identifiants uniques)
+
+**Files :** `backend/app/services/montage_service.py`, `frontend/patches/montage.js`,
+`scripts/patch_bundle_montage.py`, `scripts/patch_bundle_dzcout.py` (sonde),
+`backend/tests/test_montage_bundle.py`, `backend/tests/test_montage_sources.py`,
+`frontend/dist/shared/montage.css` (si bouton).
+
+**Ancres mesurées (bundle / `.bak_montage`) :**
+
+| ancre | compte | usage |
+|---|---|---|
+| `    ovSeq.current++;\r\n    var id=tr2+"u"+ovSeq.current+"_"+Math.round(st*10);\r\n    pushHistory();` | 1/1 (CRLF obligatoire, 0/0 en LF) | le trio id + historique, AVANT le concat |
+| `setClips(clipsRef.current.concat([{tr:tr2,id:id,label:label,start:st,end:en,src:src,srcIn:0}]));` | 1/1 | l'unique écriture du clip |
+| `    setSelId(id);setDirty(!0);setOvPick("");` | 1/1 | juste après l'écriture |
+| `        transInspector(),` | 1/1 | site du bouton « Extraire le son » (libre, documenté l.1040-1044 du patcher) |
+| `    var first=cs.find(function(c){return c.tr==="v1"});` | à mesurer | `svmApplyProject`, site du re-semis et de la réparation des doublons |
+| `var dzCl=defaultLen(kind,srcDur);` | 1/0 | texte de R_M17A — la découverte `askDur` ; s'édite DANS la chaîne R_M17A |
+
+- [ ] **Étape 1 : la route qui sait.** `GET /api/montage/has-audio?src=<json>` sur le
+  motif de `/duration` (`_media_source(request, src, video=False)` + `asyncio.to_thread(_has_audio_stream, p)`)
+  → `{ok, has_audio, name, dur}` (la durée en prime : une seule sonde suffit aux deux
+  besoins, `_probe_duration` déjà là). 400 parlant si la source ne résout pas. Banc
+  dans `test_montage_sources.py`, à côté des `media_rules_*`/`prevol_*`, sur un `.mp4`
+  lavfi AVEC et SANS flux audio (motif de `test_detect_silences_on_a_built_file`),
+  prouvé par mutation (inverser `bool(out)`).
+- [ ] **Étape 2 : le cœur pur, sous node.** `DzTracks.dialogueTrack(ts)` → identifiant de
+  la piste de `bus:"dialogue"`, sinon `a1` si c'est une piste audio du projet, sinon
+  `""` — jamais une piste `loop`. `DzTracks.twinClip(clip, trId, clips)` → le clip
+  jumeau `{tr, id, label:label+" · son du plan", start, end, src, srcIn}` ou `null` s'il
+  existe déjà un clip de même `src` (comparé par `JSON.stringify` des clés triées)
+  chevauchant `[start,end]` sur cette piste. `DzTracks.uniqueId(clips, base)` → `base`
+  s'il est libre, sinon `base+"_"+n` (n minimal). `DzTracks.askAudio(src,{done,fetch,timer,delai})`
+  sur le motif EXACT de `dzmAskDur` (2196-2220 : délai 1 500 ms, `done` appelé une seule
+  fois, `"mesure"|"refus"|"delai"`), avec un **cache** par `JSON.stringify(src)` (un
+  même fichier posé deux fois n'est sondé qu'une fois ; le verdict porte `dur`). Chaque
+  ligne prouvée par mutation ; états vides construits (`ts` vide, `clips` vide, `src`
+  illisible, fetch qui rejette, délai).
+- [ ] **Étape 3 : `addAsset` pose le jumeau.** Quand `kind==="video"`, que la piste résolue
+  est de genre vidéo et que son `type` n'est pas une incrustation (`"overlay"` /
+  `"overlay/VFX"` — V1 est `"vidéo"`), et que le verdict n'est pas en cache : sortir
+  AVANT `pushHistory()` par `DzTracks.askAudio`, comme `askDur`, et rappeler `addAsset`
+  avec les mêmes arguments (le cache rend le rappel non récursif — c'est le verrou, à
+  prouver sous node). Verdict « a du son » : UN `pushHistory()`, UN `setClips(concat([clip, jumeau]))`,
+  ids par `uniqueId`. La note dit : le jumeau, la piste, et qu'« Annuler » retire les
+  deux. Verdict « muet » : rien de plus, la note le dit (« cette vidéo n'a pas de piste
+  audio »). Pas de piste de dialogue : rien de plus, la note dit « + piste audio ».
+  Le harnais [3-bis] bouchonne `DzTracks.askAudio` (comme `askDur`, l.5116-5117) et
+  ses épingles sont RÉÉCRITES avec les chiffres mesurés (deux paires dans `add_bornes`
+  quand le bouchon répond « oui », les anciennes quand il répond « non »).
+- [ ] **Étape 4 : le bouton pour les plans déjà posés.** `DzTracks.extractBtn(sel, ts, clips, onClick)`
+  sur le motif de `replaceBtn`/`revertBtn`, visible si le clip sélectionné est vidéo
+  avec `src` (V1, V2, V3…) ; même moteur : askAudio (cache) → `twinClip` → refus DIT si
+  le jumeau existe déjà ou si la source est muette. C'est ce qui rend son son au
+  `kapwing_sample` DÉJÀ posé sur V1 de l'utilisateur. Section ancrée sur
+  `        transInspector(),`. Contrôle à deux faces pour chaque identifiant lu.
+- [ ] **Étape 5 : les identifiants (fait n°3).** Dans `svmApplyProject`, après la
+  construction de `cs` : renommer les doublons par `uniqueId` (le PREMIER garde son id,
+  les suivants reçoivent `_2`, `_3`…) et le dire (`fireNote`, nombre de clips renommés) ;
+  re-semer `ovSeq.current` au plus grand `u<n>` rencontré. Dans `addAsset`, l'id passe
+  par `uniqueId` de toute façon. Banc : un projet chargé avec deux `v1u1_0` sort avec
+  deux ids distincts et une note ; un ajout après chargement ne reprend jamais un id
+  existant — mutation : retirer `uniqueId` doit rougir les deux.
+- [ ] **Étape 6 : rejouer et mesurer.** `--check`, `repatch_all.py --from montage` →
+  `montage OK` puis `dzcout OK` ; sonde dzcout mise à jour avec le compte des deux
+  côtés ; `bloc_EST_la_couche_octet_pour_octet` ; 7 `__dzCoutBlanc` ; les dix bancs.
+- [ ] **Étape 7 : commit.** `montage : P12 - le son d un plan suit sa video`.
+
+**Décision : automatique, comme la construction automatique** (`v1_voices` pose sans
+demander, pour TOUTE vidéo à flux audio) — parce que l'utilisateur qui importe une
+vidéo à sous-titrer « veut son audio sans avoir à le demander », que le geste est
+réversible d'un seul « Annuler », que le doublon est refusé, et que les pistes
+d'incrustation (B-roll) en sont exemptées par leur `type`. Le bouton de l'étape 4 est
+la porte pour tout le reste.
+
+**Réserve à porter :** aucune liaison V1↔A1 n'existe (déplacement, rognage, vitesse,
+remplacement de source non propagés) — c'est déjà le cas des « son du plan » de la
+construction automatique, et la chip « désynchronisé » existe. Le remplacement de
+source (P6) sort AVANT toute extraction : remplacer un V1 laisse le jumeau sur
+l'ancienne source — à dire dans la note de `replaceSrc`, pas à corriger ici.
+
+### Tâche 19 — P13 : la transcription vise la piste de dialogue, décale au bon endroit, et dit ce qu'elle va dépenser
+
+**Files :** `backend/app/api/routes.py` (`/subtitles/transcribe`, `/subtitles/estimate`),
+`scripts/patch_bundle_montage.py` (sections sur le bloc subs inliné — `subs.js` est
+INTOUCHABLE : pas de `.bak_subs`, ses ancres sont consommées ; aucun banc ne compare
+le bloc à sa source, mesuré), `backend/tests/test_montage_bundle.py`, un banc neuf
+`backend/tests/test_subs_transcribe_cible.py` (autonome, `TestClient`,
+`T.transcribe` BOUCHONNÉ — jamais de réseau).
+
+**Ancres mesurées 1/1 dans le bloc subs (CRLF) :** `var cl=props.srcClips||null,srcRef=props.srcRef||null;`
+(11945), `var av=cl.filter(function(c){return c.src&&(c.tr==="a1"||c.tr==="v1")});`
+(11949), `if(av.length)srcRef=av[0].src}` (11950), `setTrJob({busy:!0,step:plan?"plan "+plan.n+"…":"envoi…",pct:0});`
+(11940), `var trAll=subsCostOf(trFree,subsN(props.dur,0),lang);` (12010),
+`label:trAll.free?"Caler la narration écrite":"Transcrire l'audio",` (12140),
+`var SUBS_LANGS=[["fr","français"],["en","anglais"],["es","espagnol"],` (9912),
+`try{return localStorage.getItem("dz_subs_lang")||"fr"}catch(_e){return "fr"}}),` (11883).
+
+- [ ] **Étape 1 : la route décale et enchaîne.** Sans `src` explicite, en chemin STT : les
+  SOURCES sont tous les clips des pistes audio de bus dialogue (par `tracks` du
+  payload — même `_tracks_meta` que le rendu — sinon `tr=="a1"`) qui portent un `src`
+  résolvable, triés par `start` ; chacun est transcrit, ses mots décalés de
+  `start − srcIn` et coupés à `[start, end]` ; les cues sont concaténées. Sans aucune :
+  la première `v1`, décalée de même. Avec `src` explicite (geste par plan) : UNE
+  source, décalée par le clip du payload qui la porte (le premier chevauchant, a1
+  avant v1) — sinon 0 comme avant. `step` nomme chaque fichier ; `usd` cumule.
+  Le `provider` inconnu → 400 (enveloppe la `ValueError`). Banc : `T.transcribe`
+  bouchonné rend des mots à 0..3 s ; un clip A1 à `start=28.876` produit des segments
+  à 28.876.. ; deux clips A1 → deux appels, deux décalages ; explicite → un appel ;
+  mutation : retirer le décalage rougit.
+- [ ] **Étape 2 : l'écran dit et vise.** Section(s) du patcher montage sur le bloc subs :
+  (a) le geste « Transcrire l'audio » envoie `src:null` (la route choisit la piste de
+  dialogue) et la pastille de coût est calculée sur la SOMME des durées des clips de
+  dialogue porteurs d'un `src` (sinon `props.dur` comme avant), l'infobulle nomme les
+  sources (`label`, nombre, secondes) ; (b) le `step` affiché nomme la source ; (c) le
+  geste par plan préfère `a1` à `v1` (tri : a1 d'abord, puis `start`). Aucun `confirm()` :
+  la pastille et l'infobulle sont la convention du dépôt (banc
+  `test_subs_regle_des_gestes`). Mesurer que `/subtitles/estimate` sait déjà estimer
+  une durée arbitraire (`duration_s`) — oui, 8786-8801.
+- [ ] **Étape 3 : la langue « auto » et la liste.** Route : `lang` vide ou `"auto"` →
+  `None` transmis (la branche `if language:` redevient vivante) ; le calage gratuit
+  reçoit `"fr"` dans ce cas (`syllables` n'en fait rien, mesuré). Liste : `SUBS_LANGS`
+  gagne `["auto","détection par le moteur"]` en tête et — connaissance EXTERNE au dépôt,
+  à déclarer comme telle dans le commentaire — `nl, pl, ru, uk, tr, ar, ja, zh, ko, hi`
+  (ISO-639-1, transmis tels quels). Avec `lang==="auto"`, l'état « contre » de la
+  détection ne s'affiche pas (ancre `var etat=…` à mesurer). Le défaut RESTE « fr ».
+- [ ] **Étape 4 : rejouer, mesurer, commit.** `montage : P13 - la transcription vise la piste de dialogue`.
+
+**Ce qui n'est PAS fait ici :** quand une narration écrite existe (`text` sur a1/a3),
+le calage gratuit l'emporte et la STT ne tourne pas (`use_align`) — inchangé, à dire.
+
+### Tâche 20 — P14 : deux sortes de pistes vidéo, et v3 n'est plus un fantôme
+
+**Files :** `frontend/patches/montage.js` (`dzmAdd`, `dzmSkin`, `DZM_TB_PLAN`,
+`dzmTbParse`, `dzmTbCablage`), `scripts/patch_bundle_montage.py` (quatre sections sur
+les portes `"v2"`), `Design d'icônes applicatives/design_handoff_barre_outils/design.md`
+(§2.4, §3 : écart déclaré), `backend/tests/test_montage_bundle.py`, `montage.css`.
+
+**Ancres 1/1 (bundle de base) :** `if(k.tr==="v2"&&k.src&&(k.src.job_id||k.src.image)&&k.start<=t&&t<k.end)act[k.id]=k});`
+(2395, à confirmer), `if(c.tr==="v2"){` (4178), `if(!sel||sel.tr!=="v2"||!sel.src)return null;`
+(4335), `tr.id==="v2"?(svmMpOf(c)||[]).map(function(p,pi){` (5993).
+
+- [ ] **Étape 1 : le choix.** Le groupe PISTES offre `vidéo` · `incrust.` · `audio`.
+  `dzmAdd(ts,"video")` → `type:"vidéo"` ; `dzmAdd(ts,"overlay")` → `type:"overlay"` ;
+  `dzmSkin` respecte le type demandé. Titres : « vidéo » = « Ajouter une piste vidéo
+  plein cadre — ses plans RECOUVRENT V1 pendant leur durée et leur son est extrait sur
+  la piste de dialogue ; V1 reste la séquence maîtresse (durée, transitions, vitesse,
+  effets). » ; « incrust. » = « Ajouter une piste d'incrustation — image dans l'image,
+  réglable (position, échelle, rotation, opacité), muette. ». Dixième icône §3
+  (« incrustation » : cadre + cadre intérieur + croix), tracé déclaré dans `design.md`
+  avec la mention d'écart et la date ; le banc §2.4/§3 suit.
+- [ ] **Étape 2 : les quatre portes.** `"v2"` → « piste de genre vidéo autre que v1 »
+  (`trackKind(x)==="video"&&x!=="v1"`) dans l'aperçu, le payload, l'inspecteur, les
+  losanges. L'aperçu compose les overlays actifs dans l'ORDRE DES PISTES (la plus
+  haute listée au-dessus — même loi que `layer` au rendu, `204-207`) : mesurer comment
+  `ov` empile ses enfants et ordonner `act`. Le banc exécute sous node la fonction
+  d'ordre avec trois pistes.
+- [ ] **Étape 3 : le jumeau suit le type.** Une vidéo posée sur une piste `type:"vidéo"`
+  (V1 ou neuve) reçoit son jumeau (tâche 18) ; sur `overlay`/`overlay/VFX`, non — le
+  bouton de l'inspecteur reste. Banc : mutation du type rougit.
+- [ ] **Étape 4 : rejouer, mesurer, commit.** `montage : P14 - deux sortes de pistes video`.
+
+**Écart assumé :** une piste « vidéo » n'a ni xfade, ni vitesse, ni effets — le titre
+le dit ; les fournir est le chantier « plusieurs séquences » (coût élevé mesuré : le
+graphe V1 est gardé octet pour octet, les trous sont noirs, le maître de durée et le
+ducking partagent ce graphe). Non entrepris.
+
+### Tâche 21 — P15 : l'onglet OUTILS libère le pied du panneau Narration
+
+**Files :** `frontend/dist/shared/montage.css`, `backend/tests/test_montage_bundle.py`.
+
+- [ ] **Étape 1.** Nouveau bloc « pied du panneau Narration » dans `montage.css` :
+  `.dzsvm .svm-narr{padding-bottom:27px}` (19 px de débord + 8 px, la marge du
+  handoff §4.2). Spécificité (0,2,0) > `.svm-narr` (0,1,0) et chargée après. Le
+  handoff §2.1 reste intact (`top:-21px`). Banc : `narr_le_pied_libere_la_bande_de_l_onglet`
+  sur la règle exacte, prouvé par mutation ; les trois invariants (3 règles
+  `.svm-trans`, 3 règles `.svm-tl`, z-index 8 réservé) inchangés.
+- [ ] **Étape 2 : commit.** `montage : P15 - l onglet OUTILS libere le pied de la narration`.
+
+**Dette navigateur :** tiroir fermé, la bande de 19 px tombe sur `.svm-playerbar`
+(padding 10 px) — à mesurer à l'écran (`getBoundingClientRect` de `.dzm-tbtab` contre
+la barre du lecteur) ; si une puce s'y trouve, `top:-14px` (écart déclaré) est la
+parade.
+
+### Tâche 22 — P16 : traduire les répliques (le cas concret de l'utilisateur)
+
+**Files :** `backend/app/api/routes.py` (`POST /subtitles/translate`,
+`GET /subtitles/translate/estimate`), `backend/app/services/transcribe_service.py` ou
+un service neuf, `scripts/patch_bundle_montage.py` (bouton + sélecteur de langue
+cible dans la rangée `.sub-trrow` du bloc subs), `montage.css`, banc autonome neuf
+(`_chat_dispatch` BOUCHONNÉ).
+
+- [ ] **Étape 1 : la route.** `POST /subtitles/translate {segments:[{start,end,text}], target, source?}`
+  → `summarizer._chat_dispatch(prompt, system, max_tokens)` (mesuré : rend
+  `(texte, provider)`), contrat strict « N lignes numérotées → N lignes », timings
+  CONSERVÉS, refus 400 si le compte diffère (pas de réplique perdue en silence), coût
+  par `pricing` kind `"llm"` (`in_tok`/`out_tok` estimés sur les caractères).
+  `GET /subtitles/translate/estimate?chars=&target=` → `{ok, usd, provider}` ;
+  `ok:false` + raison si aucune clé LLM. Banc : bouchon qui rend N lignes → N segments
+  aux mêmes timings ; bouchon qui en rend N−1 → 400 ; mutation : retirer la garde
+  rougit.
+- [ ] **Étape 2 : l'écran.** Dans la rangée `.sub-trrow` : `<select>` « vers » (mêmes
+  langues que `SUBS_LANGS` sans « auto ») + bouton `subsActBtn` « Traduire vers … »
+  avec pastille de coût (`GET …/estimate`), infobulle « REMPLACE le texte des N
+  répliques, garde leurs temps ; « Annuler » de la timeline… » — mesurer si
+  `subsCommit` passe par `pushHistory` et le DIRE. Désactivé sans réplique ou sans clé.
+- [ ] **Étape 3 : rejouer, mesurer, commit.** `montage : P16 - traduire les repliques`.
+
+**Ordre d'exécution :** 18 → 19 → 21 → 20 → 22. Déploiement après 18/19/21 (Python
+touché : `stop.ps1`, l'utilisateur relance), puis après 20/22.
