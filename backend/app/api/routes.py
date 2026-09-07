@@ -6550,6 +6550,151 @@ async def get_vector_vignette(doc_id: str):
     return Response(content=octets, media_type="image/png")
 
 
+# ── Transfert entre machines (07/09/2026) ────────────────────────────────
+# Exporter tout ce que l'application a créé sur ce poste, le reprendre sur un
+# autre. Le travail est LONG (des gigaoctets) : il tourne en tâche de fond et
+# l'écran interroge son avancement — même motif que les jobs de sous-titres,
+# qui a déjà fait ses preuves. Le travail n'écrit JAMAIS de clé : la liste des
+# exclusions vit dans le service, et la route la rend pour que l'écran la
+# montre avant de partir.
+_TRANSFERT_JOBS: dict[str, dict] = {}
+_TRANSFERT_MAX = 8
+
+
+def _transfert_job_set(jid: str, **champs) -> None:
+    j = _TRANSFERT_JOBS.setdefault(jid, {})
+    j.update(champs)
+
+
+@router.get("/transfer/destinations")
+async def transfer_destinations(request: Request):
+    """Les volumes où écrire un paquet, avec leur place libre.
+
+    Le navigateur ne peut pas ouvrir le sélecteur de dossier du système :
+    l'écran affiche cette liste ET un champ libre. `_require_localhost` :
+    la liste des disques ne sort pas de la machine.
+    """
+    _require_localhost(request)
+    from app.services import transfert as TR
+    fichiers, poids = await asyncio.get_running_loop().run_in_executor(
+        None, TR.inventaire)
+    return {"ok": True, "destinations": TR.destinations(),
+            "apercu": {"fichiers": len(fichiers), "octets": poids},
+            "exclus": {"secrets": list(TR.SECRETS),
+                       "jetable": list(TR.JETABLE)}}
+
+
+@router.post("/transfer/export")
+async def transfer_export(body: dict, request: Request,
+                          background_tasks: BackgroundTasks):
+    """Lance l'export vers `destination`. Rend un `job_id` à interroger.
+
+    Body: {destination}. 400 si la destination n'existe pas, n'est pas un
+    dossier, ou si la place manque (le service compare AVANT d'écrire).
+    """
+    _require_localhost(request)
+    from app.services import transfert as TR
+    dest = str((body or {}).get("destination") or "").strip()
+    if not dest:
+        raise HTTPException(400, "Choisir d'abord une destination.")
+    d = Path(dest).expanduser()
+    if not d.is_dir():
+        raise HTTPException(400, f"Destination introuvable : {d}")
+    jid = uuid4().hex[:12]
+    etat = TR.Etat()
+    _transfert_job_set(jid, sens="export", statut="en cours", etat=etat.dict(),
+                       erreur=None, resultat=None)
+
+    def _courir():
+        try:
+            res = TR.exporter(d, etat)
+            _transfert_job_set(jid, statut="fini", etat=etat.dict(),
+                               resultat=res)
+        except Exception as e:                          # noqa: BLE001
+            logger.exception(f"transfert export {jid}: {e}")
+            _transfert_job_set(jid, statut="echec", etat=etat.dict(),
+                               erreur=str(e))
+
+    async def _fond():
+        await asyncio.get_running_loop().run_in_executor(None, _courir)
+
+    for k in list(_TRANSFERT_JOBS)[:-_TRANSFERT_MAX]:
+        _TRANSFERT_JOBS.pop(k, None)
+    background_tasks.add_task(_fond)
+    return {"ok": True, "job_id": jid,
+            "message": f"Export en cours vers {d}"}
+
+
+@router.post("/transfer/inspect")
+async def transfer_inspect(body: dict, request: Request):
+    """Ce qu'un paquet contient, AVANT de l'importer : date, machine
+    d'origine, nombre de fichiers, poids, lignes par table."""
+    _require_localhost(request)
+    from app.services import transfert as TR
+    d = str((body or {}).get("dossier") or "").strip()
+    if not d:
+        raise HTTPException(400, "Indiquer le dossier du paquet.")
+    try:
+        return {"ok": True, "manifeste": TR.lire_manifeste(d)}
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.post("/transfer/import")
+async def transfer_import(body: dict, request: Request,
+                          background_tasks: BackgroundTasks):
+    """Reprend un paquet dans CETTE installation (fusion, jamais écrasement).
+
+    Body: {dossier}. Les chemins absolus de la machine d'origine sont
+    ré-ancrés sur cette racine — sans quoi la bibliothèque pointerait dans
+    le vide (mesuré : `jobs.video_path` est absolu).
+    """
+    _require_localhost(request)
+    from app.services import transfert as TR
+    d = str((body or {}).get("dossier") or "").strip()
+    if not d:
+        raise HTTPException(400, "Indiquer le dossier du paquet.")
+    try:
+        man = TR.lire_manifeste(d)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    jid = uuid4().hex[:12]
+    etat = TR.Etat()
+    _transfert_job_set(jid, sens="import", statut="en cours", etat=etat.dict(),
+                       erreur=None, resultat=None)
+
+    def _courir():
+        try:
+            res = TR.importer(man["dossier"], etat)
+            _transfert_job_set(jid, statut="fini", etat=etat.dict(),
+                               resultat=res)
+        except Exception as e:                          # noqa: BLE001
+            logger.exception(f"transfert import {jid}: {e}")
+            _transfert_job_set(jid, statut="echec", etat=etat.dict(),
+                               erreur=str(e))
+
+    async def _fond():
+        await asyncio.get_running_loop().run_in_executor(None, _courir)
+
+    for k in list(_TRANSFERT_JOBS)[:-_TRANSFERT_MAX]:
+        _TRANSFERT_JOBS.pop(k, None)
+    background_tasks.add_task(_fond)
+    return {"ok": True, "job_id": jid, "manifeste": man,
+            "message": "Import en cours"}
+
+
+@router.get("/transfer/jobs/{jid}")
+async def transfer_job(jid: str, request: Request):
+    """L'avancement d'un transfert. 404 quand le job a expiré (mémoire du
+    processus : un redémarrage les perd, et le dit)."""
+    _require_localhost(request)
+    j = _TRANSFERT_JOBS.get(str(jid))
+    if not j:
+        raise HTTPException(404, "Transfert inconnu — il a peut-être expiré "
+                                 "avec le redémarrage de l'application.")
+    return {"ok": True, "job_id": jid, **j}
+
+
 @router.get("/vector/illustration/moteurs")
 async def vector_illustration_moteurs():
     """Les moteurs de langage du Vectorlab, avec LEURS modèles.
