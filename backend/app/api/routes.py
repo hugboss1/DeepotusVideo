@@ -6566,6 +6566,24 @@ def _transfert_job_set(jid: str, **champs) -> None:
     j.update(champs)
 
 
+def _transfert_job_vue(jid: str, j: dict) -> dict:
+    """L'avancement se LIT au moment de la demande, pas à la création.
+
+    Défaut mesuré le 07/09/2026 sur un export vers une clé USB : ranger
+    `etat.dict()` dans le job au démarrage y fige l'avancement. Le fil de
+    travail fait progresser l'OBJET `Etat`, jamais cette copie — l'écran
+    restait donc sur « attente · 0 % » pendant tout le transfert, puis
+    sautait à 100 %. Sur un paquet minuscule le saut est immédiat, ce qui
+    est exactement pourquoi ça n'avait pas été vu. On garde l'objet sous
+    `_etat` et on le sérialise à chaque lecture.
+    """
+    vue = {k: v for k, v in j.items() if not k.startswith("_")}
+    etat = j.get("_etat")
+    if etat is not None:
+        vue["etat"] = etat.dict()
+    return {"ok": True, "job_id": jid, **vue}
+
+
 @router.get("/transfer/destinations")
 async def transfer_destinations(request: Request):
     """Les volumes où écrire un paquet, avec leur place libre.
@@ -6602,18 +6620,16 @@ async def transfer_export(body: dict, request: Request,
         raise HTTPException(400, f"Destination introuvable : {d}")
     jid = uuid4().hex[:12]
     etat = TR.Etat()
-    _transfert_job_set(jid, sens="export", statut="en cours", etat=etat.dict(),
+    _transfert_job_set(jid, sens="export", statut="en cours", _etat=etat,
                        erreur=None, resultat=None)
 
     def _courir():
         try:
             res = TR.exporter(d, etat)
-            _transfert_job_set(jid, statut="fini", etat=etat.dict(),
-                               resultat=res)
+            _transfert_job_set(jid, statut="fini", resultat=res)
         except Exception as e:                          # noqa: BLE001
             logger.exception(f"transfert export {jid}: {e}")
-            _transfert_job_set(jid, statut="echec", etat=etat.dict(),
-                               erreur=str(e))
+            _transfert_job_set(jid, statut="echec", erreur=str(e))
 
     async def _fond():
         await asyncio.get_running_loop().run_in_executor(None, _courir)
@@ -6660,18 +6676,16 @@ async def transfer_import(body: dict, request: Request,
         raise HTTPException(400, str(e))
     jid = uuid4().hex[:12]
     etat = TR.Etat()
-    _transfert_job_set(jid, sens="import", statut="en cours", etat=etat.dict(),
+    _transfert_job_set(jid, sens="import", statut="en cours", _etat=etat,
                        erreur=None, resultat=None)
 
     def _courir():
         try:
             res = TR.importer(man["dossier"], etat)
-            _transfert_job_set(jid, statut="fini", etat=etat.dict(),
-                               resultat=res)
+            _transfert_job_set(jid, statut="fini", resultat=res)
         except Exception as e:                          # noqa: BLE001
             logger.exception(f"transfert import {jid}: {e}")
-            _transfert_job_set(jid, statut="echec", etat=etat.dict(),
-                               erreur=str(e))
+            _transfert_job_set(jid, statut="echec", erreur=str(e))
 
     async def _fond():
         await asyncio.get_running_loop().run_in_executor(None, _courir)
@@ -6692,7 +6706,7 @@ async def transfer_job(jid: str, request: Request):
     if not j:
         raise HTTPException(404, "Transfert inconnu — il a peut-être expiré "
                                  "avec le redémarrage de l'application.")
-    return {"ok": True, "job_id": jid, **j}
+    return _transfert_job_vue(str(jid), j)
 
 
 @router.get("/vector/illustration/moteurs")

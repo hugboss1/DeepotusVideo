@@ -16,6 +16,8 @@ Run: python tests/test_transfert.py
 import json
 import os
 import shutil
+import threading
+import time
 import sqlite3
 import sys
 import tempfile
@@ -343,6 +345,74 @@ check("un_format_inconnu_refuse_en_le_disant",
 m3 = refus("base absente", lambda: TR.lire_manifeste(faux))
 check("un_paquet_sans_base_refuse_en_le_disant",
       isinstance(m3, str) and "base" in m3.lower(), str(m3)[:120])
+
+# -- l'avancement PENDANT le travail (defaut remonte le 07/09/2026) --
+# L'ecran montrait « attente · 0 % » du debut a la fin d'un export vers une
+# cle USB : la route rangeait `etat.dict()` — une COPIE — a la creation du
+# job, alors que le fil de travail fait progresser l'OBJET. Les lignes
+# ci-dessus ne regardaient que l'etat final ; sur cinq fichiers le milieu
+# ne dure pas, et c'est precisement ce que le milieu doit prouver ici.
+from app.api.routes import _transfert_job_vue                # noqa: E402
+
+_e = TR.Etat()
+_job = {"sens": "export", "statut": "en cours", "_etat": _e, "erreur": None}
+_v0 = _transfert_job_vue("jid1", _job)
+_e.phase, _e.total, _e.fait = "fichiers", 4, 1
+_e.octets_total, _e.octets = 1000, 250
+_v1 = _transfert_job_vue("jid1", _job)
+check("la_vue_du_job_SUIT_l_objet_vivant_et_ne_fige_rien",
+      _v0["etat"]["pct"] == 0 and _v0["etat"]["phase"] == "attente"
+      and _v1["etat"]["pct"] == 25 and _v1["etat"]["phase"] == "fichiers"
+      and _v1["etat"]["fait"] == 1,
+      f"avant={_v0.get('etat')} apres={_v1.get('etat')}")
+check("la_vue_ne_laisse_pas_fuir_la_cle_privee",
+      "_etat" not in _v1 and _v1["job_id"] == "jid1"
+      and _v1["statut"] == "en cours", str(list(_v1)))
+
+# Un export REEL, observe pendant qu'il tourne. La racine porte assez de
+# fichiers pour que le milieu DURE : sans cela le banc ne distinguerait pas
+# « ca avance » de « ca saute a 100 % a la fin ».
+_gros = Path(_tmp, "poste_lent")
+(_gros / "assets").mkdir(parents=True, exist_ok=True)
+sqlite3.connect(str(_gros / "deepotus.db")).close()
+for _i in range(400):
+    (_gros / "assets" / f"p{_i:03d}.bin").write_bytes(b"x" * 40000)
+_dest_lent = Path(_tmp, "cible_lente")
+_dest_lent.mkdir(exist_ok=True)
+_vus = []
+_bilan = {}
+
+
+def _observer():
+    _e2 = TR.Etat()
+    _job2 = {"sens": "export", "statut": "en cours", "_etat": _e2}
+    _ancienne = TR.racine
+
+    def _travail():
+        try:
+            TR.exporter(_dest_lent, _e2)
+        except Exception as exc:                            # noqa: BLE001
+            _bilan["erreur"] = repr(exc)
+
+    TR.racine = lambda: _gros                               # noqa: E731
+    t = threading.Thread(target=_travail)
+    t.start()
+    while t.is_alive():
+        _vus.append(_transfert_job_vue("jid2", _job2)["etat"]["pct"])
+        time.sleep(0.004)
+    t.join()
+    TR.racine = _ancienne
+    return _e2
+
+
+_e2 = G("observer un export pendant qu'il tourne", _observer)
+_milieu = [p for p in _vus if 0 < p < 100]
+check("un_export_qui_dure_montre_un_avancement_qui_MONTE",
+      not _bilan.get("erreur") and len(_milieu) >= 2
+      and _vus == sorted(_vus) and getattr(_e2, "phase", None) == "fini",
+      f"erreur={_bilan.get('erreur')} releves={len(_vus)} "
+      f"milieu={_milieu[:6]} max={max(_vus) if _vus else None} "
+      f"phase={getattr(_e2, 'phase', None)}")
 
 check("aucun_appel_n_a_plante", _plantages == 0, f"{_plantages} plantage(s)")
 if _conn_a is not None:
