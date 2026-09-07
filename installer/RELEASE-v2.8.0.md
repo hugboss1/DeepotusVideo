@@ -46,6 +46,18 @@ avancement, fichier par fichier.
 - Le patcher de bundle lit et écrit désormais en octets : le mode texte
   repliait 17 204 fins de ligne CRLF en silence.
 
+### Mesures
+- Bancs autonomes : deux neufs — `test_transfert` **38** contrôles et
+  `test_transfert_bundle` **41** ; le banc du bundle reste à **1 301**. Chaque
+  ligne prouvée par mutation, y compris celle qui observe l'avancement
+  *pendant* un export de 400 fichiers.
+- Chaîne de patchers : le maillon `transfert` s'ajoute en aval de `dzcout`, et
+  le patch de version redevient le **dernier** maillon. Bundle 1 736 406 o,
+  17 570 CRLF intacts — le patcher lit et écrit désormais en octets, le mode
+  texte repliait les fins de ligne en silence.
+- Migration : **aucune table ni colonne nouvelle** — vos données restent telles
+  quelles ; l'installeur met à jour par-dessus l'existant.
+
 ### Rappel
 Le script `scripts\export-migration.ps1`, lui, copie l'installation **avec**
 les clés : il sert à déménager un poste entier, pas à partager du contenu. Le
