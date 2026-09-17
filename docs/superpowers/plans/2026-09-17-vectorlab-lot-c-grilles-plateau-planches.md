@@ -9,7 +9,64 @@
 > rang, D9 modules purs bancables). Branche : `chantier/vectorlab-affinity`,
 > après le lot A (`7c99667`). Ce plan est COMMIS avant le code.
 
-> **RELEVÉ DE LIVRAISON** : à écrire ici en fin de lot.
+> **RELEVÉ DE LIVRAISON (17/09/2026) : LOT C LIVRÉ, PROUVÉ EN RÉEL, DÉPLOYÉ.**
+>
+> **Livré** (7 commits `7a3ccee`→`f818bf7`, poussés) : `mod-grille.js` feuille
+> (carrée subdivisée, iso, tri, hex pointe/plat, origine, échelle, tracé
+> borné Liang–Barsky, garde 20 000 cellules, aimantation au réseau, hex
+> axial avec arrondi cubique, cellules disque/rectangle) ; `mod-aimant.js`
+> feuille (bords↔bords, centres↔centres, écarts réguliers, fusion) ; modèle :
+> `grille`, `terrains` (5 défauts fusionnés), objet `tuile` ancré (déplacer
+> ré-arrondit à la cellule, redimensionner/miroir sans effet), `op_tuiles_peindre`,
+> `op_plateau_generer` (grille hex centrée si absente, calque plateau +
+> numéros), `planches` + `compilerSVG(doc, {cadre})` ; UI : grille du document
+> tracée et aimantante (les guides priment), aimantation aux objets avec
+> lignes d'aide (rose bord, or écart), bouton ⌖, outil pinceau de tuiles (K)
+> avec aperçu, panneaux Grille / Terrains / Plateau / Planches / Assets,
+> export PNG par planche (`vector_<id>_p1_2x.png`).
+>
+> **TDD tenu** : RED constaté ×5 (modules et exports manquants) ; le banc
+> `aimant_objets` a démasqué une sémantique « tout contre tout » (un bord
+> s'aimantait au centre d'un voisin) corrigée en paires de même nature.
+> Bancs : node **514 contrôles** (+97 : grille 33, aimant_objets 13,
+> tuiles 30, planches 15, plateau_ui 6), pytest `test_vector_docs` **27
+> passed** (+2). Le snapshot du compilateur est inchangé.
+>
+> **Prouvé en réel** (backend du worktree 8799, données isolées, viewport
+> émulé 1400×900) : hex 40 → 296 hexagones tracés (`#dzGrille` 812 px de
+> haut), bouton « ⊞ hex 40 pointe » ; iso → 79 lignes ; carrée ÷4 → 208
+> lignes, « ⊞ 40 ÷4 » ; `aimantePt(41.2, 38.7)` → (40, 40). Générer rayon 3
+> terrain forêt numéroté → 37 tuiles `data-terrain="foret"` (66 px de haut)
+> + 37 textes, grille centrée en (600, 450), outil `tuiles` actif, calque
+> « plateau » actif. Pinceau (terrain mer) par `pointerdown/move/up` sur
+> (0,0), (1,0), (5,0 vide) → aperçu 2 puis toast « 2 tuile(s) peinte(s), 1
+> posée(s) », 38 tuiles, les trois en `mer`. Aimantation : r2 glissé à 223
+> se colle à **220** (bord droit de r1) avec deux lignes `aimant-bord`
+> `#d05aa0` ; r3 glissé à 443 se pose à **440** (écart 80 reproduit, ligne
+> `aimant-ecart`) — mesuré calques de tuiles cachés, sinon un bord de tuile
+> plus proche gagne (443,44 : le plus proche gagne, comportement voulu) ;
+> aimant coupé → 0 ligne, bouton rallumé. Planches : « ＋ sélection » → p1
+> (100,700,400×80), « ＋ page » → p2 (540,0,1200×900), deux `rect.planche`
+> d'overlay mesurables (332×66, 995×746), libellés, zoom planche 0,829 →
+> 2,565, PNG 2× de p1 → `vector_9165b7ff4044_p1_2x.png` 200 image/png
+> **800×160 = 2× la planche**. Assets : volet → 2 cartes (`offsetHeight` 96),
+> clic → image posée (toast). Sauver → relu : grille hex, 2 planches, 38
+> tuiles, v2. Négatifs : pinceau sur grille iso → toast « poser d'abord une
+> grille hexagonale », 38 tuiles inchangées ; `op_grille({pas:0})` → toast
+> « grille: pas > 0 requis », pas gardé à 40. Piège de mesure : un toast
+> antérieur a un minuteur de 2,6 s qui réécrit le message — attendre 3 s
+> avant de lire un négatif.
+>
+> **Déployé** : 8 fichiers installés = base lot A (`7c99667`) → sauvegarde
+> `_backup_predeploy_2026-09-17b-vectorlab-lotC` → copie depuis `git archive
+> f818bf7` → **62 fichiers = cible** ; l'app installée sert déjà
+> `mod-grille.js` en 200 (statiques relus du disque). **Aucun fichier
+> Python touché : aucune relance nécessaire.**
+>
+> **Reste** : `motif` de terrain stocké mais non rendu (lot F) ; miroir /
+> redimensionnement d'une tuile sans effet (ancrée) ; le générateur garde
+> une grille hex existante ; capture d'écran du volet impossible pendant la
+> preuve (rendu du volet caché en délai), les mesures DOM font foi.
 
 **Goal :** des grilles de document (carrée subdivisée, isométrique,
 triangulaire, hexagonale pointe/plat, taille, origine, échelle) tracées et
