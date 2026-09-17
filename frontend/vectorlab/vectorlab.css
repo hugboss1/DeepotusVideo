@@ -495,3 +495,90 @@ body.pixelart #canvasHost image { image-rendering: pixelated; }
 .ex-plan { max-height: 120px; overflow: auto; font-size: 11px; color: #8b93a0; border: 1px solid #20242d; padding: 3px 6px; }
 .ex-plan div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #overlay .tranche { pointer-events: none; }
+
+/* ══ Design aéré (17/09) — une couche qui surcharge les rangées, champs,
+   boutons et têtes du panneau de droite sans réécrire les lots ; rythme
+   vertical de 8 px, champs de 28 px, nombres centrés, têtes en petites
+   capitales, sous-sections marquées, bulles d'information stylées. ══ */
+:root {
+  --pan-gap: 8px; --pan-x: 14px; --pan-champ-h: 28px; --pan-libelle: 64px;
+  --pan-fond: #1b2028; --pan-bord: #333b49; --pan-bord-focus: #5b82b8; --pan-texte: #e2e6ec; --pan-muet: #97a0ae;
+}
+.panneau { width: 264px; }
+.panneau-defile > details[id] { padding: 2px 0 var(--pan-gap); }
+.panneau-defile > details[id] + details[id] { border-top: 1px solid #222731; }
+details[id] > summary.panneau-tete {
+  padding: 11px var(--pan-x); font-size: 11.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+  color: #cfd6e2; border-bottom: 0; line-height: 1.2;
+}
+details[id] > summary.panneau-tete::before { width: 14px; font-size: 12px; }
+details[id] > summary.panneau-tete:hover { background: #1c2129; }
+/* les contenus de section : marges égales, rythme régulier */
+#panneauStyle, #panneauApparence2, #panneauForme, #panneauNoeuds, #panneauInstantanes, #panneauPixel, #panneauExport,
+#panneauExportPlus, #panneauImage, #panneauReperes, #panneauGrille, #panneauTerrains, #panneauPlateau, #panneauPlanches,
+#panneauCarte, #panneauVitrail {
+  padding: 2px var(--pan-x) 6px; border-bottom: 0; display: flex; flex-direction: column; gap: var(--pan-gap);
+}
+#panneauApparence2 details, #panneauPixel details, #panneauExportPlus details { border-top: 1px dashed #2a303b; padding-top: var(--pan-gap); gap: var(--pan-gap); margin-top: 2px; }
+.px-tete { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #9db4d6; padding: 2px 0 4px; }
+/* rangées : libellé aligné à droite sur une colonne fixe, champs qui partagent le reste */
+.ap-ligne { gap: var(--pan-gap); min-height: var(--pan-champ-h); }
+.ap-ligne > span { width: var(--pan-libelle); flex: 0 0 var(--pan-libelle); font-size: 12px; color: var(--pan-muet); text-align: right; line-height: 1.2; }
+.ap-ligne > span:empty { flex-basis: var(--pan-libelle); }
+.ap-ligne > span[style*="width:auto"] { flex: 0 0 auto; width: auto; text-align: left; }
+#panneauCalques .ap-ligne input[type="number"], #panneauCalques .ap-ligne input[type="text"], #panneauCalques .ap-ligne select,
+#panneauCalques .a2-champs input[type="number"], #panneauCalques .ap-stop input[type="number"], #assetsRecherche {
+  height: var(--pan-champ-h); min-width: 0; flex: 1 1 48px; width: auto; padding: 0 8px; font-size: 13px;
+  background: var(--pan-fond); color: var(--pan-texte); border: 1px solid var(--pan-bord); border-radius: 6px;
+}
+#panneauCalques .ap-ligne input[type="number"], #panneauCalques .a2-champs input[type="number"], #panneauCalques .ap-stop input[type="number"] { text-align: center; font-variant-numeric: tabular-nums; }
+/* les champs texte à formule (X · Y · L · H) se centrent aussi ; les champs à placeholder (noms, recherche) restent à gauche */
+#panneauCalques .ap-ligne input[type="text"]:not([placeholder]) { text-align: center; font-variant-numeric: tabular-nums; }
+#panneauCalques input:focus, #panneauCalques select:focus { outline: none; border-color: var(--pan-bord-focus); box-shadow: 0 0 0 2px rgba(91, 130, 184, .25); }
+#panneauCalques .ap-ligne select { padding: 0 24px 0 8px; cursor: pointer; }
+#panneauCalques .ap-ligne input[type="range"] { height: var(--pan-champ-h); accent-color: #5b82b8; }
+#panneauCalques .ap-ligne input[type="color"] { width: var(--pan-champ-h); height: var(--pan-champ-h); border-radius: 6px; border: 1px solid var(--pan-bord); background: var(--pan-fond); padding: 2px; }
+#panneauCalques .ap-ligne > b { min-width: 30px; text-align: center; font-variant-numeric: tabular-nums; color: var(--pan-texte); }
+#panneauCalques .ap-ligne > i, #panneauCalques .ap-ligne > label { font-size: 12px; color: var(--pan-muet); display: flex; align-items: center; gap: 5px; min-height: var(--pan-champ-h); }
+/* boutons : même hauteur que les champs, centrés, partage de la largeur */
+#panneauCalques .ap-ligne > button, #panneauCalques .a2-effet button, #panneauCalques .ap-stop button {
+  height: var(--pan-champ-h); min-width: var(--pan-champ-h); padding: 0 10px; border-radius: 6px; flex: 1 1 auto;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 12.5px; line-height: 1; white-space: nowrap;
+}
+/* rangées d'icônes (aligner, distribuer, miroir, ordre, booléens) : partage égal de la largeur, sans marge interne */
+#panneauCalques .ap-ligne > button[data-al], #panneauCalques .ap-ligne > button[data-dist], #panneauCalques .ap-ligne > button[data-mir],
+#panneauCalques .ap-ligne > button[data-ordre], #panneauCalques .ap-ligne > button[data-bool], #panneauCalques .ap-ligne > button[data-attr] { flex: 1 1 0; min-width: 0; padding: 0 2px; }
+#panneauCalques .ap-ligne > button[title="Retirer"], #panneauCalques .ap-ligne > button[title="Supprimer"],
+#panneauCalques .ap-ligne > button[id$="X"], #panneauCalques .ap-ligne > button[id$="Raz"], #panneauCalques .ap-ligne > button[id$="Aucun"] { flex: 0 0 auto; }
+/* calques : le nom garde la place, l'opacité reste compacte */
+.calque { gap: 4px; padding: 6px 10px; }
+.calque .nom { min-width: 40px; }
+.calque input[type="number"] { width: 38px; flex: 0 0 38px; height: 24px; padding: 0 2px; text-align: center; border-radius: 5px; background: var(--pan-fond); color: var(--pan-texte); border: 1px solid var(--pan-bord); }
+.calque button { flex: 0 0 24px; width: 24px; min-width: 24px; height: 24px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 5px; font-size: 12px; }
+.nu-pastille, #panneauCalques .ap-ligne > .nu-pastille { width: var(--pan-champ-h); height: var(--pan-champ-h); flex: 0 0 var(--pan-champ-h); min-width: 0; padding: 0; border-radius: 6px; border: 1px solid var(--pan-bord); }
+.px-palette { gap: 6px; padding: 2px 0; }
+.px-pastille, .px-palette .px-pastille { width: 22px; height: 22px; flex: 0 0 22px; border-radius: 5px; }
+.a2-champs { gap: 6px 8px; }
+.a2-champs label { flex-direction: column; align-items: center; gap: 3px; font-size: 11px; min-width: 52px; }
+.a2-champs label i { letter-spacing: .02em; }
+#panneauCalques .a2-champs input[type="number"] { width: 56px; flex: 0 0 56px; }
+.a2-effet { border-left: 2px solid #3c5f92; padding-left: 8px; gap: 6px; }
+.ex-plan { padding: 6px 8px; border-radius: 6px; line-height: 1.5; }
+/* calques : rangées de 32 px */
+.calque { padding: 7px var(--pan-x); gap: 8px; min-height: 32px; }
+.panneau-calques > summary { padding: 11px var(--pan-x); }
+/* barre d'outils gauche : boutons proportionnés et centrés */
+.outils { gap: 8px; padding: 12px 8px; }
+.outils button { width: 38px; height: 38px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; }
+.outils button.actif { box-shadow: inset 0 0 0 1px #5b82b8; }
+/* la bulle d'information */
+.infobulle {
+  position: fixed; z-index: 95; max-width: 260px; padding: 8px 12px; pointer-events: none;
+  background: #0d1015; color: #e6e9ee; border: 1px solid #3a4150; border-radius: 8px;
+  font-size: 12px; line-height: 1.45; text-align: center; box-shadow: 0 6px 22px rgba(0, 0, 0, .45);
+}
+.infobulle .ib-tete { font-weight: 600; color: #f2f4f7; }
+.infobulle .ib-suite { color: #b6bec9; margin-top: 2px; }
+.infobulle::after { content: ""; position: absolute; left: 50%; top: -5px; width: 8px; height: 8px; transform: translateX(-50%) rotate(45deg);
+  background: #0d1015; border-left: 1px solid #3a4150; border-top: 1px solid #3a4150; }
+.infobulle.dessus::after { top: auto; bottom: -5px; border: 0; border-right: 1px solid #3a4150; border-bottom: 1px solid #3a4150; }

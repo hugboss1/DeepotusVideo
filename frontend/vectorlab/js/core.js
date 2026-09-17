@@ -17,6 +17,7 @@ import { initPersona } from "./mod-persona.js";
 import { initApparence2 } from "./mod-apparence2.js";
 import { initExportPlus } from "./mod-exportplus.js";
 import { initPanneaux } from "./mod-panneaux.js";
+import { initInfobulle } from "./mod-infobulle.js";
 import { initPixelUI } from "./mod-pixelui.js";
 import { op_noeud_supprimer } from "./mod-doc.js";
 import { UNITES, depuisUnite, formatNombre, libelle_mesure }
@@ -746,6 +747,7 @@ initPersona(VL);    // lot E (D8) : Vecteur / Pixel / Export — après initOuti
 initExportPlus(VL); // lot G : Export + (tranches, formats, impression, lot) — après initPersona (surPersona) et initExport (svgCourant)
 initPixelUI(VL);    // lot E : outils raster, sélections, ajustements, pixel-art — pose surOverlay/surTouche en chaîne
 initBrouillon(VL); // pose surCharge AVANT charger() (lot A)
+initInfobulle(VL);  // bulles d'information stylées, centrées, bornées (remplacent le title natif au survol)
 initPanneaux(VL);   // sections du panneau de droite : état ouvert / replié mémorisé (dz_vl_panneaux)
 window.VL = VL;
 charger();
