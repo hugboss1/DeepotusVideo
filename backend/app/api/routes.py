@@ -6444,6 +6444,38 @@ async def export_vector_doc(doc_id: str, body: dict):
         raise HTTPException(404, "Contenu du document introuvable")
 
 
+@router.post("/vector/docs/{doc_id}/pdf")
+async def vector_pdf(doc_id: str, pages: str = Form(default="[]"),
+                     pages_fichiers: list[UploadFile] = File(default=[])):
+    """Lot G (D7) : le PDF d'impression — multipart, `pages` = JSON
+    [{w_mm, h_mm, w_px, h_px}] dans l'ordre des fichiers JPEG
+    `pages_fichiers` (rendus au dpi choisi côté client). Stdlib pure,
+    une image DCTDecode par page ; rendu en téléchargement, rien n'est stocké."""
+    import json as _json
+    from app.services import pdf_service as PDF
+    from app.services.storage import VectorDoc, async_session_factory
+    async with async_session_factory() as session:
+        if not await session.get(VectorDoc, doc_id):
+            raise HTTPException(404, "Document introuvable")
+    if not pages_fichiers:
+        raise HTTPException(400, "pdf : aucune page")
+    try:
+        specs = _json.loads(pages or "[]")
+    except ValueError:
+        raise HTTPException(400, "pdf : pages illisibles")
+    if len(specs) != len(pages_fichiers):
+        raise HTTPException(400, "pdf : autant de descriptions que de fichiers")
+    lues = []
+    for spec, up in zip(specs, pages_fichiers):
+        lues.append({**spec, "jpeg": await up.read()})
+    try:
+        octets = PDF.creer_pdf(lues)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return Response(content=octets, media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="vector_{doc_id}.pdf"'})
+
+
 @router.get("/vector/docs/{doc_id}/export.svg")
 async def get_vector_export_svg(doc_id: str):
     from fastapi.responses import Response

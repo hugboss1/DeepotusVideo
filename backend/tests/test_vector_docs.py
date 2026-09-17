@@ -1333,3 +1333,66 @@ def test_les_champs_du_lot_f_font_l_aller_retour():
             assert objs["i1"]["symbole"] == "s1" and objs["k1"]["style"]["aligner"] == "justifie" and objs["t2"]["decalage"] == 25
 
     asyncio.run(scenario())
+
+
+# ── Y. lot G : le PDF d'impression (stdlib, une image JPEG par page) ───────
+
+# le plus petit JPEG valide : 1×1 gris (SOI … EOI)
+_JPEG_1PX = bytes.fromhex(
+    "ffd8ffe000104a46494600010100000100010000ffdb004300080606070605080707070909080a0c140d0c0b0b0c1912130f141d1a1f1e1d1a1c1c20242e2720222c231c1c2837292c30313434341f27393d38323c2e333432"
+    "ffc0000b080001000101011100ffc4001f0000010501010101010100000000000000000102030405060708090a0bffc400b5100002010303020403050504040000017d01020300041105122131410613516107227114328191a1082342b1c11552d1f02433627282090a161718191a25262728292a3435363738393a434445464748494a535455565758595a636465666768696a737475767778797a838485868788898a92939495969798999aa2a3a4a5a6a7a8a9aab2b3b4b5b6b7b8b9bac2c3c4c5c6c7c8c9cad2d3d4d5d6d7d8d9dae1e2e3e4e5e6e7e8e9eaf1f2f3f4f5f6f7f8f9fa"
+    "ffda0008010100003f00fbd3ffd9")
+
+
+def test_le_pdf_d_impression_stdlib():
+    import pytest, re
+    from app.services import pdf_service as PDF
+    pdf = PDF.creer_pdf([{"w_mm": 63.5, "h_mm": 88.9, "jpeg": _JPEG_1PX, "w_px": 1, "h_px": 1},
+                         {"w_mm": 210, "h_mm": 297, "jpeg": _JPEG_1PX, "w_px": 1, "h_px": 1}])
+    assert pdf.startswith(b"%PDF-1.4") and pdf.rstrip().endswith(b"%%EOF")
+    assert pdf.count(b"/Type /Page\n") == 2 or pdf.count(b"/Type /Page ") == 2 or len(re.findall(rb"/Type\s*/Page[^s]", pdf)) == 2
+    # la page en POINTS depuis les mm : 63,5 mm = 180 pt, 88,9 mm = 252 pt ; A4 = 595.28 × 841.89
+    assert b"/MediaBox [0 0 180 252]" in pdf and b"/MediaBox [0 0 595.28 841.89]" in pdf
+    # l'image : XObject JPEG (DCTDecode) aux dimensions pixel, dessinée pleine page
+    assert pdf.count(b"/Filter /DCTDecode") == 2 and b"/Width 1 /Height 1" in pdf
+    assert b"180 0 0 252 0 0 cm" in pdf and b"/Im0 Do" in pdf
+    # xref : autant d'entrées que d'objets + 1, startxref pointe sur « xref »
+    m = re.search(rb"startxref\n(\d+)\n%%EOF", pdf)
+    assert m and pdf[int(m.group(1)):].startswith(b"xref")
+    n_obj = len(re.findall(rb"\n(\d+) 0 obj", pdf))
+    assert re.search(rb"xref\n0 " + str(n_obj + 1).encode() + rb"\n", pdf)
+    # états vides : sans page, jpeg qui n'en est pas un, taille nulle
+    with pytest.raises(ValueError):
+        PDF.creer_pdf([])
+    with pytest.raises(ValueError):
+        PDF.creer_pdf([{"w_mm": 10, "h_mm": 10, "jpeg": b"PNG", "w_px": 1, "h_px": 1}])
+    with pytest.raises(ValueError):
+        PDF.creer_pdf([{"w_mm": 0, "h_mm": 10, "jpeg": _JPEG_1PX, "w_px": 1, "h_px": 1}])
+
+
+def test_la_route_pdf_du_document():
+    import asyncio, json
+    from httpx import AsyncClient, ASGITransport
+
+    async def scenario():
+        from app.main import app
+        from app.services.storage import init_db
+        await init_db()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://t") as c:
+            r = await c.post("/api/vector/docs", json={"name": "Pdf", "role": "libre", "doc": _doc()})
+            did = r.json()["id"]
+            pages = [{"w_mm": 63.5, "h_mm": 88.9, "w_px": 1, "h_px": 1}]
+            fichiers = [("pages_fichiers", ("page0.jpg", _JPEG_1PX, "image/jpeg"))]
+            # doc inconnu → 404 ; sans fichier → 400
+            r = await c.post("/api/vector/docs/nope/pdf", data={"pages": json.dumps(pages)}, files=fichiers)
+            assert r.status_code == 404
+            r = await c.post(f"/api/vector/docs/{did}/pdf", data={"pages": json.dumps(pages)})
+            assert r.status_code == 400
+            r = await c.post(f"/api/vector/docs/{did}/pdf", data={"pages": json.dumps(pages)}, files=fichiers)
+            assert r.status_code == 200, r.text
+            assert r.headers["content-type"].startswith("application/pdf")
+            assert r.content.startswith(b"%PDF-1.4") and b"/MediaBox [0 0 180 252]" in r.content
+            assert "attachment" in r.headers.get("content-disposition", "") and ".pdf" in r.headers.get("content-disposition", "")
+
+    asyncio.run(scenario())
