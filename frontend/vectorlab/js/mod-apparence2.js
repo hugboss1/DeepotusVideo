@@ -129,7 +129,9 @@ export function initApparence2(VL) {
     const effets = s.effets || [], contours = s.contours || [];
     const globales = d.couleursGlobales || {}, styles = d.styles || {}, symboles = d.symboles || {};
     const fondHex = typeof s.fond === "string" && /^#/.test(s.fond) ? s.fond : "#9DB4D6";
-    const texteSel = o && ["texte", "cadre", "textechemin"].includes(o.type);
+    // Texte + : l'objet de TÊTE de la sélection (un texte + un chemin sélectionnés → « sur le chemin »)
+    const o1 = sel ? ((VL.objetDe(etat.selection[0]) || {}).objet || null) : null;
+    const texteSel = o1 && ["texte", "cadre", "textechemin"].includes(o1.type);
     const nInst = (sid) => { let n = 0; const v = (objs) => { for (const x of objs || []) { if (x.type === "instance" && x.symbole === sid) n++; if (x.type === "groupe") v(x.enfants); } }; d.calques.forEach((c) => v(c.objets)); return n; };
     hote.innerHTML = `
       <details open><summary class="px-tete">Effets${effets.length ? ` · ${effets.length}` : ""}</summary>
@@ -159,8 +161,8 @@ export function initApparence2(VL) {
         ${Object.entries(globales).map(([n, h]) => `<div class="ap-ligne">${pastille(`glob_${n}`, h, "Changer la teinte partout")}<b style="flex:1">${esc(n)}</b>
           <button data-glob-fond="${n}" ${sel ? "" : "disabled"} title="Fond de la sélection = cette couleur globale">fond</button><button data-glob-contour="${n}" ${sel ? "" : "disabled"} title="Contour = cette couleur">contour</button><button data-glob-x="${n}" title="Supprimer (les références deviennent des hex)">✕</button></div>`).join("")}
         <div class="ap-ligne"><input type="text" id="a2GlobNom" placeholder="nom" style="flex:1"/>${pastille("a2GlobHex", fondHex, "Couleur à enregistrer")}<button id="a2GlobPlus" title="Enregistre une couleur globale">＋</button></div>
-        <div class="ap-ligne"><select id="a2Harm">${HARMONIES.map((h) => `<option value="${h.id}">${h.libelle}</option>`).join("")}</select><button id="a2HarmGen" title="Génère l'harmonie depuis la couleur de fond et l'ajoute à la palette du document">harmonie</button></div>
-        <div class="px-palette" id="a2HarmPal"></div>
+        <div class="ap-ligne"><select id="a2Harm">${HARMONIES.map((h) => `<option value="${h.id}"${etat.harmonie && etat.harmonie.type === h.id ? " selected" : ""}>${h.libelle}</option>`).join("")}</select><button id="a2HarmGen" title="Génère l'harmonie depuis la couleur de fond et l'ajoute à la palette du document">harmonie</button></div>
+        <div class="px-palette" id="a2HarmPal">${(etat.harmonie ? etat.harmonie.pal : []).map((c) => `<button class="px-pastille" data-couleur="${c}" style="background:${c}" title="${c} — clic : fond de la sélection"></button>`).join("")}</div>
       </details>
       <details ${Object.keys(styles).length ? "open" : ""}><summary class="px-tete">Styles d'objet</summary>
         ${Object.keys(styles).map((n) => `<div class="ap-ligne"><b style="flex:1">${esc(n)}</b><button data-st-app="${n}" ${sel ? "" : "disabled"} title="Applique (copie) ce style à la sélection">appliquer</button><button data-st-x="${n}" title="Supprimer le style">✕</button></div>`).join("")}
@@ -172,11 +174,11 @@ export function initApparence2(VL) {
           <button id="a2SymDetacher" ${o && o.type === "instance" ? "" : "disabled"} title="Détache l'instance en objets ordinaires">détacher</button></div>
       </details>
       ${texteSel ? `<details open><summary class="px-tete">Texte +</summary>
-        ${o.type === "texte" ? `<div class="ap-ligne"><span>Cadre</span><input type="number" id="a2CadreW" min="1" value="200" title="Largeur"/><input type="number" id="a2CadreH" min="1" value="100" title="Hauteur"/><button id="a2EnCadre" title="Le texte devient un cadre à paragraphes">→ cadre</button></div>` : ""}
-        ${o.type === "cadre" ? `<div class="ap-ligne"><span>Aligner</span><select id="a2Aligner">${["gauche", "centre", "droite", "justifie"].map((a) => `<option${(s.aligner || "gauche") === a ? " selected" : ""}>${a}</option>`).join("")}</select></div>
+        ${o1.type === "texte" && sel === 1 ? `<div class="ap-ligne"><span>Cadre</span><input type="number" id="a2CadreW" min="1" value="200" title="Largeur"/><input type="number" id="a2CadreH" min="1" value="100" title="Hauteur"/><button id="a2EnCadre" title="Le texte devient un cadre à paragraphes">→ cadre</button></div>` : ""}
+        ${o1.type === "cadre" && sel === 1 ? `<div class="ap-ligne"><span>Aligner</span><select id="a2Aligner">${["gauche", "centre", "droite", "justifie"].map((a) => `<option${(s.aligner || "gauche") === a ? " selected" : ""}>${a}</option>`).join("")}</select></div>
         <div class="ap-ligne"><span>Interl.</span><input type="number" id="a2Interligne" step="0.05" min="0.5" value="${s.interligne || 1.25}" title="Interligne (× corps)"/><input type="number" id="a2Retrait" min="0" value="${s.retrait || 0}" title="Retrait de première ligne (px)"/></div>` : ""}
-        ${o.type !== "textechemin" ? `<div class="ap-ligne"><button id="a2SurChemin" ${sel === 2 ? "" : "disabled"} title="Sélectionner le texte PUIS un chemin : le texte suit le chemin (le d est copié)">→ sur le chemin</button></div>` : ""}
-        ${o.type === "textechemin" ? `<div class="ap-ligne"><span>Décalage</span><input type="range" id="a2Decalage" min="0" max="100" value="${o.decalage || 0}"/><b id="a2DecalageVal">${o.decalage || 0} %</b></div>` : ""}
+        ${o1.type !== "textechemin" ? `<div class="ap-ligne"><button id="a2SurChemin" ${sel === 2 ? "" : "disabled"} title="Sélectionner le texte PUIS un chemin : le texte suit le chemin (le d est copié)">→ sur le chemin</button></div>` : ""}
+        ${o1.type === "textechemin" && sel === 1 ? `<div class="ap-ligne"><span>Décalage</span><input type="range" id="a2Decalage" min="0" max="100" value="${o1.decalage || 0}"/><b id="a2DecalageVal">${o1.decalage || 0} %</b></div>` : ""}
       </details>` : ""}
       <details ${etat.outil === "pinceauv" ? "open" : ""}><summary class="px-tete">Pinceau vectoriel (J)</summary>
         <div class="ap-ligne"><span>Largeur</span><input type="number" id="a2PvL" min="0.5" step="0.5" value="${etat.pinceauv.largeur}"/><select id="a2PvP">${PROFILS.map((p) => `<option value="${p.id}"${etat.pinceauv.profil === p.id ? " selected" : ""}>${p.libelle}</option>`).join("")}</select></div>
@@ -232,13 +234,14 @@ export function initApparence2(VL) {
     on("a2GlobPlus", "click", () => { const n = nom_valide($("#a2GlobNom").value); if (!n) { VL.toast("nom de couleur globale requis", true); return; } VL.executer(op_couleur_globale_definir, n, $("#a2GlobHex").dataset.hex); });
     on("a2HarmGen", "click", () => {
       const base = typeof s.fond === "string" && /^#/.test(s.fond) ? s.fond : "#9DB4D6";
+      const type = $("#a2Harm").value;                 // lu AVANT la commande : le panneau se re-rend
       let pal;
-      try { pal = palette_harmonique(base, $("#a2Harm").value); } catch (e) { VL.toast(e.message, true); return; }
-      $("#a2HarmPal").innerHTML = pal.map((c) => `<button class="px-pastille" data-couleur="${c}" style="background:${c}" title="${c} — clic : fond de la sélection"></button>`).join("");
-      $("#a2HarmPal").querySelectorAll("[data-couleur]").forEach((b) => b.addEventListener("click", () => patch({ fond: b.dataset.couleur })));
+      try { pal = palette_harmonique(base, type); } catch (e) { VL.toast(e.message, true); return; }
+      etat.harmonie = { type, pal };                    // les pastilles survivent au re-rendu
       VL.executer((doc) => { for (const c of pal) { try { op_palette_ajouter(doc, c); } catch (e) { /* déjà présente */ } } });
-      VL.toast(`harmonie ${$("#a2Harm").value} : ${pal.join(" ")}`);
+      VL.toast(`harmonie ${type} : ${pal.join(" ")}`);
     });
+    hote.querySelectorAll("#a2HarmPal [data-couleur]").forEach((b) => b.addEventListener("click", () => patch({ fond: b.dataset.couleur })));
     // styles
     on("a2StPlus", "click", () => { const n = nom_valide($("#a2StNom").value); if (!n) { VL.toast("nom de style requis", true); return; } VL.executer(op_style_definir, n, style()); });
     hote.querySelectorAll("[data-st-app]").forEach((b) => b.addEventListener("click", () => VL.executer(op_style_appliquer, etat.selection.slice(), b.dataset.stApp)));
