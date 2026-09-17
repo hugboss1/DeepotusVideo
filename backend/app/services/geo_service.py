@@ -23,6 +23,7 @@ ATTRIBUTION = {
     "terrarium": "Terrarium DEM — Mapzen / AWS Open Data (Terrain Tiles), sources SRTM, GMTED, ETOPO1 et al.",
 }
 TUILE = 256
+NODATA_SEUIL = -32000.0        # Terrarium : R=G=B=0 → −32768 = « sans donnée »
 
 
 def cache_dir() -> Path:
@@ -157,12 +158,20 @@ async def hauteurs(emprise: dict, zoom: int, max_tuiles: int = 16, max_cote: int
             tx, lx = divmod(px, TUILE)
             tw, th, hs = decodees[(c["xmin"] + tx, c["ymin"] + ty)]
             out.append(round(hs[ly * tw + lx], 1))
+    # « sans donnée » Terrarium (R=G=B=0 → −32768, mesuré sur les Alpes le
+    # 17/09) : remplacé par le minimum VALIDE — jamais un plateau à −32 km
+    valides = [v for v in out if v > NODATA_SEUIL]
+    if not valides:
+        raise ValueError("relief : aucune hauteur valide dans l'emprise (tuiles sans donnée)")
+    plancher = min(valides)
+    sans_donnee = sum(1 for v in out if v <= NODATA_SEUIL)
+    out = [v if v > NODATA_SEUIL else plancher for v in out]
     e = valider_emprise(emprise)
     lat0 = (e["minLat"] + e["maxLat"]) / 2
     # mètres au sol par pixel de mosaïque à cette latitude, × k
     pas_m = 2 * math.pi * 6378137 * math.cos(math.radians(lat0)) / (2 ** z * TUILE) * k
     return {"w": w, "h": h_, "min": min(out), "max": max(out), "pasM": round(pas_m, 3),
-            "zoom": z, "hauteurs": out, "emprise": e,
+            "zoom": z, "hauteurs": out, "emprise": e, "sans_donnee": sans_donnee,
             "attribution": ATTRIBUTION["terrarium"]}
 
 

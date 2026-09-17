@@ -62,8 +62,10 @@ def _brancher(monkeypatch, plat=100.0, carre=300.0):
     async def faux_get(url):
         APPELS.append(url)
         if "terrarium" in url:
-            # un carré haut au centre de chaque tuile
-            return _tuile_terrarium(lambda x, y: carre if 96 <= x < 160 and 96 <= y < 160 else plat)
+            # un carré haut au centre de chaque tuile, et un carré « sans
+            # donnée » (−32768, R=G=B=0 — mesuré sur les Alpes) en haut à gauche
+            return _tuile_terrarium(lambda x, y: -32768.0 if x < 32 and y < 32
+                                    else (carre if 96 <= x < 160 and 96 <= y < 160 else plat))
         return _tuile_osm((30, 120, 200))
 
     monkeypatch.setattr(G, "_get_bytes", faux_get)
@@ -102,8 +104,10 @@ def test_les_hauteurs_assemblent_rognent_et_mettent_en_cache(monkeypatch):
     r = asyncio.run(G.hauteurs(EMPRISE, z, max_cote=160))
     assert r["w"] <= 160 and r["h"] <= 160 and r["w"] >= 2 and r["h"] >= 2
     assert len(r["hauteurs"]) == r["w"] * r["h"]
+    # le « sans donnée » ne fait JAMAIS le minimum : il prend le plancher valide, et il est compté
     assert r["min"] == pytest.approx(100.0, abs=0.5)
     assert r["max"] == pytest.approx(300.0, abs=0.5)
+    assert r["sans_donnee"] > 0 and min(r["hauteurs"]) >= 99.5
     assert r["pasM"] > 0 and r["zoom"] == z
     assert len(APPELS) == n_tuiles                            # une requête par tuile
     # le cache disque : le second appel ne SORT pas
