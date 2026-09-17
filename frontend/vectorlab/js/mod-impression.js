@@ -232,7 +232,7 @@ export function initImpression(VL) {
           <button id="impApercu" class="primaire">Aperçu 3D</button>
           <p id="impResume" class="tr-etat">réglez, puis Aperçu</p><p id="impGarde" class="imp-garde"></p>
         </div>
-        <model-viewer id="impViewer" camera-controls auto-rotate shadow-intensity="1" exposure="1" class="imp-viewer"></model-viewer>
+        <model-viewer id="impViewer" loading="eager" reveal="auto" camera-controls auto-rotate shadow-intensity="1" exposure="1" class="imp-viewer"></model-viewer>
       </div>
       <div class="tr-pied"><button id="impUnStl" disabled title="Un seul STL + 3MF (tout le rendu en une pièce)">Un STL</button>
         <button id="impLot" disabled title="Un STL par tuile + plateau.3mf + nomenclature.csv">Lot par tuile</button>
