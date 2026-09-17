@@ -13,7 +13,7 @@ import { image_hrefs } from "./mod-image.js";
 export function initExport(VL) {
   const { $, etat } = VL;
 
-  async function svgCourant(transparent) {
+  async function svgCourant(transparent, cadre) {
     const doc = JSON.parse(JSON.stringify(etat.doc));
     if (transparent) delete doc.fond;
     // un SVG chargé comme <img> ne peut PAS charger d'images externes :
@@ -30,7 +30,7 @@ export function initExport(VL) {
         fr.readAsDataURL(b);
       }));
     }
-    return compilerSVG(doc, { image: (h) => carte.get(h) || h });
+    return compilerSVG(doc, { image: (h) => carte.get(h) || h, cadre });
   }
 
   async function exporterSVG() {
@@ -46,15 +46,16 @@ export function initExport(VL) {
                 + "/export.svg", "_blank");
   }
 
-  async function rasteriser(k, transparent) {
-    const svg = await svgCourant(transparent);
+  async function rasteriser(k, transparent, cadre) {
+    const svg = await svgCourant(transparent, cadre);
+    const taille = cadre || etat.doc.taille;       // lot C : une planche a SA taille
     return new Promise((res, rej) => {
       const blob = new Blob([svg], { type: "image/svg+xml" });
       const url = URL.createObjectURL(blob);
       const img = new Image();
       img.onload = () => {
-        const w = Math.round(etat.doc.taille.w * k);
-        const h = Math.round(etat.doc.taille.h * k);
+        const w = Math.round(taille.w * k);
+        const h = Math.round(taille.h * k);
         const cv = document.createElement("canvas");
         cv.width = w;
         cv.height = h;
@@ -72,11 +73,12 @@ export function initExport(VL) {
     });
   }
 
-  async function exporterPNG(k) {
+  async function exporterPNG(k, opts = {}) {
     const transparent = $("#expTransparent").checked;
-    const png = await rasteriser(k, transparent);
-    // le transparent porte son suffixe : il n'écrase jamais l'opaque
-    const nom = `vector_${etat.docId}_${k}x${transparent ? "_t" : ""}.png`;
+    const png = await rasteriser(k, transparent, opts.cadre);
+    // le transparent porte son suffixe : il n'écrase jamais l'opaque ; une
+    // planche porte le sien (lot C) — l'export du document reste stable
+    const nom = `vector_${etat.docId}${opts.suffixe || ""}_${k}x${transparent ? "_t" : ""}.png`;
     const fd = new FormData();
     fd.append("file", new File([png], nom, { type: "image/png" }));
     const r = await fetch("/api/images/upload", { method: "POST", body: fd });

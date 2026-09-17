@@ -4,8 +4,12 @@
 // raccourcis. Les outils et le panneau calques reçoivent ce cœur par
 // injection (initOutils/initCalques) — aucun cycle d'import.
 import { compilerSVG, chemin_parser, chemin_ancres, aimanter, Historique,
-         sommetDe, op_dupliquer, reperes_guides, reperes_rects }
+         sommetDe, op_dupliquer, reperes_guides, reperes_rects, planches_guides }
   from "./mod-doc.js";
+import { grille_d, grille_aimanter } from "./mod-grille.js";
+import { aimant_objets, aimant_ecarts, aimant_fusion } from "./mod-aimant.js";
+import { initPlateau, grilleLibelle } from "./mod-plateau.js";
+import { initPlanches } from "./mod-planches.js";
 import { UNITES, depuisUnite, formatNombre, libelle_mesure }
   from "./mod-unites.js";
 import { initOutils } from "./mod-tools.js";
@@ -46,6 +50,8 @@ const etat = {
   calqueActif: null,
   zoom: 1, tx: 40, ty: 40,
   grille: { active: true, pas: 8 },   // pas en px DOCUMENT (cf. dessinerGrille)
+  aimantObjets: true,            // lot C : bords, centres, écarts des voisins
+  terrainCourant: "plaine",      // lot C : le terrain du pinceau de tuiles
   pressePapiers: null,           // { ids, n } — coller duplique les sources
   histo: new Historique(100),
   // le style des NOUVEAUX objets — nourri par le panneau et la pipette
@@ -63,12 +69,55 @@ function ecranPt(x, y) {
   return [x * etat.zoom + etat.tx, y * etat.zoom + etat.ty];
 }
 function tolDoc() { return 6 / etat.zoom; }
+function grilleDoc() { return etat.doc && etat.doc.grille ? etat.doc.grille : null; }
 function aimantePt(x, y) {
   const g = etat.doc.guides || { v: [], h: [] };
-  const rg = reperes_guides(etat.doc);      // les repères de page aimantent aussi
+  const rg = reperes_guides(etat.doc), pg = planches_guides(etat.doc);   // repères et planches aimantent
+  const guidesV = (g.v || []).concat(rg.v, pg.v), guidesH = (g.h || []).concat(rg.h, pg.h);
+  const gd = grilleDoc();
+  if (gd && etat.grille.active) {
+    // lot C : la grille du DOCUMENT remplace le pas carré d'affichage — les
+    // guides d'abord (l'intention posée prime), puis le sommet du réseau
+    const tol = tolDoc();
+    const [gx, gy] = grille_aimanter(gd, x, y);
+    const ax = aimanter(x, { guides: guidesV }, tol), ay = aimanter(y, { guides: guidesH }, tol);
+    return [ax !== x ? ax : (Math.abs(gx - x) <= tol ? gx : x),
+            ay !== y ? ay : (Math.abs(gy - y) <= tol ? gy : y)];
+  }
   const pas = etat.grille.active ? etat.grille.pas : 0;
-  return [aimanter(x, { pas, guides: (g.v || []).concat(rg.v) }, tolDoc()),
-          aimanter(y, { pas, guides: (g.h || []).concat(rg.h) }, tolDoc())];
+  return [aimanter(x, { pas, guides: guidesV }, tolDoc()),
+          aimanter(y, { pas, guides: guidesH }, tolDoc())];
+}
+/* ── lot C : aimantation aux OBJETS — la bbox DOCUMENT d'un objet mesurée
+   au DOM (contour compris), les voisins d'une sélection en mouvement
+   (objets visibles non sélectionnés, planches, la page) ── */
+function bboxDocDe(id) {
+  const el = document.querySelector(`#canvasHost [data-objet="${id}"]`);
+  if (!el) return null;
+  const r = el.getBoundingClientRect(), r0 = stageRect();
+  return { x: (r.left - r0.left - etat.tx) / etat.zoom, y: (r.top - r0.top - etat.ty) / etat.zoom,
+           w: r.width / etat.zoom, h: r.height / etat.zoom };
+}
+function candidatsAimant() {
+  const sel = new Set(etat.selection);
+  const out = [];
+  for (const c of etat.doc.calques) {
+    if (!c.visible) continue;
+    for (const o of c.objets) {
+      if (sel.has(o.id)) continue;
+      const b = bboxDocDe(o.id);
+      if (b) out.push(b);
+    }
+  }
+  for (const p of etat.doc.planches || []) out.push({ x: p.x, y: p.y, w: p.w, h: p.h });
+  out.push({ x: 0, y: 0, w: etat.doc.taille.w, h: etat.doc.taille.h });   // la page
+  return out;
+}
+function aimanteBoite(b) {
+  if (!etat.aimantObjets) return { dx: 0, dy: 0, lignes: [] };
+  const cands = candidatsAimant();
+  const tol = tolDoc();
+  return aimant_fusion([aimant_objets(b, cands, tol), aimant_ecarts(b, cands, tol)]);
 }
 
 /* ── commandes ── */
@@ -206,7 +255,8 @@ const GRILLE_PAS = [2, 4, 8, 16, 24, 32, 48, 64];
 const GRILLE_MIN_ECRAN = 3;
 
 function grilleLisible() {
-  return etat.grille.pas * etat.zoom >= GRILLE_MIN_ECRAN;
+  const gd = grilleDoc();
+  return (gd ? gd.pas : etat.grille.pas) * etat.zoom >= GRILLE_MIN_ECRAN;
 }
 
 function dessinerGrille() {
@@ -223,8 +273,16 @@ function dessinerGrille() {
   g.setAttribute("shape-rendering", "crispEdges");
   g.setAttribute("pointer-events", "none");
   let d = "";
-  for (let x = pas; x < w; x += pas) d += `M${x} 0V${h}`;
-  for (let y = pas; y < h; y += pas) d += `M0 ${y}H${w}`;
+  const gd = grilleDoc();
+  if (gd) {
+    // lot C : la grille du document (carrée subdivisée, iso, tri, hex) —
+    // vide quand trop dense (garde de mod-grille), alors non tracée
+    d = grille_d(gd, etat.doc.taille);
+    if (!d) return;
+  } else {
+    for (let x = pas; x < w; x += pas) d += `M${x} 0V${h}`;
+    for (let y = pas; y < h; y += pas) d += `M0 ${y}H${w}`;
+  }
   const path = document.createElementNS(SNS, "path");
   path.setAttribute("d", d);
   path.setAttribute("fill", "none");
@@ -240,9 +298,9 @@ function majBoutonGrille() {
   const b = $("#btnGrille");
   if (!b) return;
   b.classList.toggle("actif", etat.grille.active);
-  b.textContent = "⊞ " + etat.grille.pas;
-  b.title = "Grille d'aimantation et repère visuel (G) — pas de "
-    + etat.grille.pas + " px"
+  b.textContent = grilleLibelle(grilleDoc(), etat.grille.pas);
+  b.title = "Grille d'aimantation et repère visuel (G) — "
+    + (grilleDoc() ? "grille du document (panneau Grille)" : "pas de " + etat.grille.pas + " px")
     + (etat.grille.active && !grilleLisible()
        ? " · trop serrée pour être tracée à ce zoom (aimantation active)"
        : "");
@@ -288,6 +346,17 @@ function rendreOverlay() {
       stroke: "#39b3d0", "stroke-width": 1, class: "guide",
       "data-guide": "h:" + i, "stroke-dasharray": "5 4" }));
   });
+  // planches (lot C) : cadres nommés — overlay seulement, jamais dans l'export
+  for (const p of etat.doc.planches || []) {
+    const [ex, ey] = ecranPt(p.x, p.y);
+    o.appendChild(ov("rect", { x: ex, y: ey, width: p.w * etat.zoom, height: p.h * etat.zoom,
+      fill: "none", stroke: "#e0b34a", "stroke-width": 1, class: "planche",
+      "data-planche": p.id, "pointer-events": "none" }));
+    const lbl = ov("text", { x: ex + 4, y: ey - 5, fill: "#e0b34a", "font-size": 11,
+      class: "planche-nom", "data-planche": p.id, "pointer-events": "none" });
+    lbl.textContent = p.nom;
+    o.appendChild(lbl);
+  }
   // repères de page (lot A) : coupe en rouge, zone sûre en vert — overlay
   // seulement, jamais dans l'export
   const rr = reperes_rects(etat.doc);
@@ -560,7 +629,7 @@ document.addEventListener("keydown", (ev) => {
   if (ev.ctrlKey) return;
   const outils = { v: "select", p: "plume", r: "rect", e: "ellipse",
                    n: "noeuds", i: "pipette", t: "texte",
-                   l: "ligne", m: "mesure" };
+                   l: "ligne", m: "mesure", k: "tuiles" };
   const k = ev.key.toLowerCase();
   if (outils[k]) { setOutil(outils[k]); return; }
   if (k === "g") { basculerGrille(); return; }
@@ -578,6 +647,15 @@ try {
   if (GRILLE_PAS.includes(memo)) etat.grille.pas = memo;
 } catch (e) { /* stockage indisponible */ }
 $("#btnGrille").addEventListener("click", basculerGrille);
+{
+  const ba = $("#btnAimant");
+  if (ba) {
+    ba.addEventListener("click", () => {
+      etat.aimantObjets = !etat.aimantObjets;
+      ba.classList.toggle("actif", etat.aimantObjets);
+    });
+  }
+}
 {
   const sel = $("#selGrille");
   if (sel) {
@@ -625,6 +703,7 @@ const VL = {
   setSelection, selectionElems, bboxSelectionEcran, bboxSelectionDoc,
   pathSelectionne, purgerSelection, objetDe,
   sommetDe: (id) => sommetDe(etat.doc, id),
+  grilleDoc, bboxDocDe, candidatsAimant, aimanteBoite,
   rendre, rendreOverlay, appliquerVue, setOutil, toast,
   surRendu: () => {}, surOutil: () => {}, surTouche: () => {},
   surSelection: () => {}, surCharge: () => {}, surSauve: () => {},
@@ -634,6 +713,8 @@ initCouleur(VL);
 initStyle(VL);
 initImage(VL);      // panneaux Image / Repères, après Apparence (lot A)
 initTrace(VL);      // le dialogue Vectoriser (lot A)
+initPlateau(VL);    // panneaux Grille / Terrains / Plateau (lot C)
+initPlanches(VL);   // panneau Planches (lot C)
 initOutils(VL);
 initExport(VL);
 initVitrail(VL);

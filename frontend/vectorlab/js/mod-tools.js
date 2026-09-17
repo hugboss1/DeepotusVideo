@@ -5,7 +5,9 @@
 import { op_ajouter, op_supprimer, op_deplacer, op_redimensionner, op_tourner,
          op_noeud_deplacer, op_noeud_convertir, op_noeud_supprimer,
          op_guide_ajouter, op_guide_deplacer, op_guide_supprimer, op_style,
+         op_tuiles_peindre,
          chemin_parser, chemin_serialiser, chemin_ancres } from "./mod-doc.js";
+import { hex_depuis_point, hex_centre, hex_d } from "./mod-grille.js";
 
 const SNS = "http://www.w3.org/2000/svg";
 
@@ -212,6 +214,21 @@ export function initOutils(VL) {
       return;
     }
 
+    if (etat.outil === "tuiles") {
+      // lot C : le pinceau de tuiles — les cellules survolées s'accumulent,
+      // UNE commande au relâcher (peint l'existant, pose le manquant)
+      const g = VL.grilleDoc();
+      if (!g || g.type !== "hex") {
+        VL.toast("pinceau : poser d'abord une grille hexagonale (panneau Plateau)", true);
+        return;
+      }
+      const cel = hex_depuis_point(dx, dy, g);
+      geste = { type: "tuiles", cellules: [cel], vues: new Set([cel.q + "," + cel.r]) };
+      apercuTuile(cel, true);
+      ev.preventDefault();
+      return;
+    }
+
     if (etat.outil === "texte") {
       const [ax, ay] = VL.aimantePt(dx, dy);
       const contenu = prompt("Texte :", "");
@@ -241,15 +258,30 @@ export function initOutils(VL) {
     if (geste.type === "move") {
       const [cx, cy] = VL.aimantePt(geste.b0.x + (dx - geste.x0),
                                     geste.b0.y + (dy - geste.y0));
-      geste.dxA = cx - geste.b0.x;
-      geste.dyA = cy - geste.b0.y;
+      // lot C : puis les voisins — bords, centres, écarts — avec leurs lignes d'aide
+      const am = VL.aimanteBoite({ x: cx, y: cy, w: geste.b0.w, h: geste.b0.h });
+      geste.dxA = cx + am.dx - geste.b0.x;
+      geste.dyA = cy + am.dy - geste.b0.y;
       for (const [el, orig] of geste.origines) {
         el.setAttribute("transform",
           `translate(${geste.dxA} ${geste.dyA})` + (orig ? " " + orig : ""));
       }
       VL.rendreOverlay();
-      etiquette(tmpDoc(), dx, dy,
-                VL.cote("delta", { dx: geste.dxA, dy: geste.dyA }));
+      const gl = tmpDoc();
+      for (const l of am.lignes) {
+        const couleur = l.type === "ecart" ? "#e0b34a" : "#d05aa0";
+        forme("line", l.axe === "v"
+          ? { x1: l.pos, y1: -1e4, x2: l.pos, y2: 1e4 }
+          : { x1: -1e4, y1: l.pos, x2: 1e4, y2: l.pos }, gl)
+          .setAttribute("style", `stroke:${couleur};stroke-width:${1 / etat.zoom}px;`
+            + `stroke-dasharray:${4 / etat.zoom} ${3 / etat.zoom}`);
+        gl.lastChild.setAttribute("class", "aimant-" + l.type);
+      }
+      etiquette(gl, dx, dy, VL.cote("delta", { dx: geste.dxA, dy: geste.dyA }));
+    } else if (geste.type === "tuiles") {
+      const cel = hex_depuis_point(dx, dy, VL.grilleDoc());
+      const k = cel.q + "," + cel.r;
+      if (!geste.vues.has(k)) { geste.vues.add(k); geste.cellules.push(cel); apercuTuile(cel, false); }
     } else if (geste.type === "lasso") {
       const r = stage.getBoundingClientRect();
       const x = Math.min(geste.ex0, ev.clientX) - r.left;
@@ -469,6 +501,9 @@ export function initOutils(VL) {
     } else if (g.type === "grad") {
       if (g.patch) VL.executer(VL.opDegradeModifier, g.gid, g.patch);
       else VL.rendreOverlay();
+    } else if (g.type === "tuiles") {
+      const r = VL.executer(op_tuiles_peindre, etat.calqueActif, g.cellules, etat.terrainCourant);
+      if (r) VL.toast(`${r.peintes.length} tuile(s) peinte(s), ${r.posees.length} posée(s)`);
     } else if (g.type === "guide-move") {
       if (g.pos === null) return;
       const r = stage.getBoundingClientRect();
@@ -478,6 +513,17 @@ export function initOutils(VL) {
       else VL.executer(op_guide_deplacer, g.axe, g.i, Math.round(g.pos * 10) / 10);
     }
   });
+
+  // l'aperçu du pinceau de tuiles : les cellules du geste, en surimpression
+  function apercuTuile(cel, premier) {
+    const g = VL.grilleDoc();
+    if (!g) return;
+    let grp = premier ? null : $("#ovTmp g[data-tuiles]");
+    if (!grp) { grp = tmpDoc(); if (!grp) return; grp.setAttribute("data-tuiles", "1"); }
+    const [cx, cy] = hex_centre(cel.q, cel.r, g);
+    forme("path", { d: hex_d(cx, cy, g.pas, g.orientation, g.echelle), fill: "rgba(224,179,74,.35)",
+                    stroke: "#e0b34a", "stroke-width": 1.5 / etat.zoom }, grp);
+  }
 
   /* ═══════════ double-clic : conversion d'ancre ═══════════ */
   stage.addEventListener("dblclick", (ev) => {
@@ -691,6 +737,7 @@ export function initOutils(VL) {
     mesure: "glisser pour lire longueur, angle et Δ — ne crée rien",
     pipette: "cliquer l'objet source : son style va à la sélection",
     texte: "cliquer la page pour écrire",
+    tuiles: "cliquer ou glisser sur les cellules : peint le terrain courant, pose la tuile manquante (K)",
     vitrail: "glisser sur la page pour tracer la baie",
     ia: "décrire l'illustration dans le panneau Vitrail",
   };

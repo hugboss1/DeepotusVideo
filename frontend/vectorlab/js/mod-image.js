@@ -146,6 +146,30 @@ export function initImage(VL) {
   });
   $("#libFermer").addEventListener("click", () => $("#libDlg").classList.add("hidden"));
 
+  /* ── panneau Assets (lot C) : la Bibliothèque en permanence dans le
+     panneau, un clic pose l'image — chargée à l'ouverture du volet ── */
+  const det = $("#assetsDetails");
+  let assets = null;
+  async function chargerAssets() {
+    $("#assetsGrille").innerHTML = `<p class="lib-vide">chargement…</p>`;
+    const d = await VL.api.get("/images");
+    assets = (d.images || []).slice().sort((a, b) => (b.mtime || 0) - (a.mtime || 0));
+    $("#assetsGrille").innerHTML = libListeHTML(assets, $("#assetsRecherche").value);
+  }
+  det.addEventListener("toggle", () => {
+    if (det.open && !assets) chargerAssets().catch((e) => VL.toast(e.message, true));
+  });
+  $("#assetsRecherche").addEventListener("input", () => {
+    $("#assetsGrille").innerHTML = libListeHTML(assets || [], $("#assetsRecherche").value);
+  });
+  $("#assetsGrille").addEventListener("click", (ev) => {
+    const b = ev.target.closest("[data-lib-nom]");
+    if (!b) return;
+    poserDepuisLibrary(b.dataset.libNom).catch((e) => VL.toast(e.message, true));
+  });
+  VL.poserDepuisLibrary = poserDepuisLibrary;
+  VL.chargerAssets = chargerAssets;
+
   /* ── fichier ── */
   const inputFichier = $("#imgFichierInput");
   inputFichier.addEventListener("change", () => {

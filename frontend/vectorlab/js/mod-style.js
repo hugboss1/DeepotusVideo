@@ -69,15 +69,7 @@ export function initStyle(VL) {
 
   /* la bbox DOCUMENT d'un objet, mesurée au DOM (contour compris) — les
      ops d'alignement restent pures, c'est l'écran qui mesure (E8) */
-  function bboxDocDe(id) {
-    const el = document.querySelector(`#canvasHost [data-objet="${id}"]`);
-    if (!el) return null;
-    const r = el.getBoundingClientRect();
-    const r0 = $("#stage").getBoundingClientRect();
-    return { x: (r.left - r0.left - etat.tx) / etat.zoom,
-             y: (r.top - r0.top - etat.ty) / etat.zoom,
-             w: r.width / etat.zoom, h: r.height / etat.zoom };
-  }
+  const bboxDocDe = (id) => VL.bboxDocDe(id);   // mesurée par le cœur (lot C)
   function pairesSelection() {
     return etat.selection
       .map((id) => ({ id, bbox: bboxDocDe(id) }))
