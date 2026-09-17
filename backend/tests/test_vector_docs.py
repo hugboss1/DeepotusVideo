@@ -880,3 +880,103 @@ def test_vector_illustration_reponse_illisible_et_modele_muet():
         asyncio.run(scenario(502, "429"))
     finally:
         VI.moteurs_configures, VI.tirer = v_conf, v_tirer
+
+
+# ── Q. lot A : le magasin d'IMAGES du document (D1 — jamais de base64) ───────
+
+_PNG_1PX = bytes.fromhex(
+    "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d"
+    "4944415478da63f8ffff3f0300050001ff2a5d2b0000000049454e44ae426082")
+
+
+def test_le_magasin_d_images_du_document():
+    import pytest
+    from app.services import vector_store as VS
+    did = VS.creer(_doc("Avec image"))
+    # état vide construit : aucune image, la lecture rend None, la liste []
+    assert VS.lister_images(did) == []
+    assert VS.lire_image(did, "img1.png") is None
+    n1 = VS.ecrire_image(did, _PNG_1PX)
+    n2 = VS.ecrire_image(did, _PNG_1PX + b"x")
+    assert (n1, n2) == ("img1.png", "img2.png")
+    dossier = pathlib.Path(os.environ["VECTOR_FOLDER"])
+    assert (dossier / f"{did}.img1.png").read_bytes() == _PNG_1PX
+    assert VS.lire_image(did, "img2.png") == _PNG_1PX + b"x"
+    assert VS.lister_images(did) == ["img1.png", "img2.png"]
+    # noms hors patron : refusés sans toucher le disque
+    for mauvais in ("../x.png", "img1.jpg", "autre.png", "img.png", ""):
+        assert VS.lire_image(did, mauvais) is None
+    # la copie (socle de « dupliquer ») emporte les images
+    dst = VS.creer(_doc("copie"))
+    VS.copier_images(did, dst)
+    assert VS.lister_images(dst) == ["img1.png", "img2.png"]
+    assert VS.lire_image(dst, "img1.png") == _PNG_1PX
+    # un doc sans image : la copie est un no-op silencieux
+    vide = VS.creer(_doc("vide"))
+    VS.copier_images(vide, dst)
+    assert VS.lister_images(dst) == ["img1.png", "img2.png"]
+    # document inconnu : refus parlant
+    with pytest.raises(FileNotFoundError):
+        VS.ecrire_image("inexistant", _PNG_1PX)
+
+
+def test_les_routes_images_du_document():
+    import asyncio
+    from httpx import AsyncClient, ASGITransport
+
+    async def scenario():
+        from app.main import app
+        from app.services.storage import init_db
+        await init_db()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://t") as c:
+            r = await c.post("/api/vector/docs", json={"name": "Img", "role": "libre",
+                                                       "doc": _doc()})
+            did = r.json()["id"]
+            # pas un PNG → 400 ; doc inconnu → 404
+            r = await c.post(f"/api/vector/docs/{did}/images", content=b"GIF89a",
+                             headers={"Content-Type": "image/png"})
+            assert r.status_code == 400 and "PNG" in r.json()["detail"]
+            r = await c.post("/api/vector/docs/nope/images", content=_PNG_1PX,
+                             headers={"Content-Type": "image/png"})
+            assert r.status_code == 404
+            # dépôt → nom stable, servi en image/png
+            r = await c.post(f"/api/vector/docs/{did}/images", content=_PNG_1PX,
+                             headers={"Content-Type": "image/png"})
+            assert r.status_code == 200 and r.json() == {"name": "img1.png"}
+            r = await c.get(f"/api/vector/docs/{did}/images/img1.png")
+            assert r.status_code == 200
+            assert r.headers["content-type"].startswith("image/png")
+            assert r.content == _PNG_1PX
+            # nom hors patron ou absent → 404 (jamais le catch-all SPA en 200)
+            for mauvais in ("img9.png", "x.png", "img1.PNG", "img1.png.bak"):
+                r = await c.get(f"/api/vector/docs/{did}/images/{mauvais}")
+                assert r.status_code == 404, mauvais
+            # « .. » : le client normalise le chemin AVANT l'envoi et la requête
+            # tombe dans le catch-all SPA (200 HTML — piège n°7) : ce qui compte
+            # est qu'AUCUN octet d'image ne sorte par cette porte
+            r = await c.get(f"/api/vector/docs/{did}/images/..%2Fimg1.png")
+            assert not r.headers.get("content-type", "").startswith("image/")
+            # le document qui RÉFÉRENCE l'image se sauve et se relit tel quel
+            doc = _doc()
+            doc["calques"][0]["objets"].append(
+                {"id": "o1", "type": "image", "x": 0, "y": 0, "w": 640, "h": 960,
+                 "href": "img1.png", "nat": {"w": 1, "h": 1}, "verrou": True})
+            doc["reperes"] = {"fondPerdu": [10, 10], "zoneSure": [30, 30]}
+            r = await c.put(f"/api/vector/docs/{did}", json={"doc": doc})
+            assert r.status_code == 200 and r.json()["version"] == 2
+            r = await c.get(f"/api/vector/docs/{did}")
+            assert r.json()["doc"]["calques"][0]["objets"][0]["href"] == "img1.png"
+            assert r.json()["doc"]["reperes"]["zoneSure"] == [30, 30]
+            # dupliquer emporte les images : la copie sert img1.png
+            r = await c.post(f"/api/vector/docs/{did}/duplicate", json={})
+            nid = r.json()["id"]
+            r = await c.get(f"/api/vector/docs/{nid}/images/img1.png")
+            assert r.status_code == 200 and r.content == _PNG_1PX
+            # supprimer archive le JSON ; les images restent (dit dans le service)
+            r = await c.delete(f"/api/vector/docs/{did}")
+            assert r.status_code == 200
+            from app.services import vector_store as VS
+            assert VS.lire_image(did, "img1.png") == _PNG_1PX
+
+    asyncio.run(scenario())

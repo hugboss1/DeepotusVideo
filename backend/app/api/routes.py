@@ -6412,6 +6412,7 @@ async def duplicate_vector_doc(doc_id: str, body: dict):
         except FileNotFoundError:
             raise HTTPException(404, "Contenu du document introuvable")
         VS.copier_vignette(doc_id, nid)
+        VS.copier_images(doc_id, nid)
         name = (str(body.get("name") or "").strip()
                 or f"{src.name} (copie)")[:120]
         session.add(VectorDoc(id=nid, name=name, chapter_id=chapter_id,
@@ -6547,6 +6548,40 @@ async def get_vector_vignette(doc_id: str):
     if octets is None:
         raise HTTPException(404, "Aucune vignette encore : elle naît au "
                                  "premier Sauver dans l'éditeur")
+    return Response(content=octets, media_type="image/png")
+
+
+_VECTOR_IMAGE_MAX = 40 * 1024 * 1024
+
+
+@router.post("/vector/docs/{doc_id}/images")
+async def add_vector_image(doc_id: str, request: Request):
+    """Lot A (D1) : corps binaire image/png — un calque image du document.
+    Stocké `<id>.img<n>.png` à côté du JSON ; rend {name} que l'objet
+    `image` porte en href. Jamais par /images/upload : la Library reste
+    propre, et le fichier suit le document (duplication, transfert)."""
+    from app.services import vector_store as VS
+    from app.services.storage import VectorDoc, async_session_factory
+    octets = await request.body()
+    if not octets.startswith(_PNG_MAGIC):
+        raise HTTPException(400, "image: un PNG est attendu")
+    if len(octets) > _VECTOR_IMAGE_MAX:
+        raise HTTPException(413, "image: 40 Mo au plus")
+    async with async_session_factory() as session:
+        if not await session.get(VectorDoc, doc_id):
+            raise HTTPException(404, "Document introuvable")
+    try:
+        return {"name": VS.ecrire_image(doc_id, octets)}
+    except FileNotFoundError:
+        raise HTTPException(404, "Contenu du document introuvable")
+
+
+@router.get("/vector/docs/{doc_id}/images/{name}")
+async def get_vector_image(doc_id: str, name: str):
+    from app.services import vector_store as VS
+    octets = VS.lire_image(doc_id, name)
+    if octets is None:
+        raise HTTPException(404, "Image du document introuvable")
     return Response(content=octets, media_type="image/png")
 
 

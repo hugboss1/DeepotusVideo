@@ -148,3 +148,55 @@ def copier_vignette(src: str, dst: str) -> None:
     octets = lire_vignette(src)
     if octets is not None:
         ecrire_vignette(dst, octets)
+
+
+# ── lot A (D1) : les IMAGES du document — `<did>.img<n>.png` à côté du JSON,
+# jamais de base64 dans le document. Le nom rendu (`img<n>.png`) est ce que
+# l'objet `image` du modèle porte en `href`. Le magasin stocke des octets ;
+# le magic PNG se vérifie à la ROUTE. La suppression du document (archive)
+# LAISSE les images : l'archive `.v<n>.json` les référence encore.
+_NOM_IMAGE = re.compile(r"img([0-9]+)\.png")
+
+
+def _numeros_images(did: str, d: Path) -> list[int]:
+    out = []
+    for p in d.glob(f"{did}.img*.png"):
+        m = re.fullmatch(re.escape(did) + r"\.img([0-9]+)\.png", p.name)
+        if m:
+            out.append(int(m.group(1)))
+    return sorted(out)
+
+
+def lister_images(did: str) -> list[str]:
+    return [f"img{n}.png" for n in _numeros_images(did, _dossier())]
+
+
+def ecrire_image(did: str, octets: bytes) -> str:
+    d = _dossier()
+    if not (d / f"{did}.json").is_file():
+        raise FileNotFoundError(did)
+    nums = _numeros_images(did, d)
+    n = (nums[-1] + 1) if nums else 1
+    nom = f"img{n}.png"
+    tmp = d / f"{did}.{nom}.tmp"
+    tmp.write_bytes(octets)
+    os.replace(tmp, d / f"{did}.{nom}")
+    return nom
+
+
+def lire_image(did: str, nom: str):
+    if not _NOM_IMAGE.fullmatch(nom or ""):
+        return None
+    p = _dossier() / f"{did}.{nom}"
+    return p.read_bytes() if p.is_file() else None
+
+
+def copier_images(src: str, dst: str) -> None:
+    """Socle de « dupliquer » : la copie emporte les images sous les MÊMES
+    noms (les href du JSON copié restent valides) — no-op sans image."""
+    d = _dossier()
+    for nom in lister_images(src):
+        octets = (d / f"{src}.{nom}").read_bytes()
+        tmp = d / f"{dst}.{nom}.tmp"
+        tmp.write_bytes(octets)
+        os.replace(tmp, d / f"{dst}.{nom}")
