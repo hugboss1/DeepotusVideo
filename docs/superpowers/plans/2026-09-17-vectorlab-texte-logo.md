@@ -10,7 +10,63 @@
 > sont celles du dist (OFL) et celles que l'utilisateur dépose ;
 > `queryLocalFonts` du navigateur est proposé quand il existe.
 
-> **RELEVÉ DE LIVRAISON** : à écrire ici en fin de lot.
+> **RELEVÉ DE LIVRAISON (17/09/2026) : LIVRÉ, PROUVÉ EN RÉEL, DÉPLOYÉ — Python touché : RELANCE du backend installé (8765) par l'utilisateur.**
+>
+> **Livré** (commits `054f0ec`→`05a5b7a`, poussés) : `mod-typo.js` —
+> bibliothèque de polices (16 OFL du dist + déposées + système par
+> `queryLocalFonts` quand le navigateur l'offre), `@font-face` injectés,
+> éditeur de texte EN PLACE (zone de saisie sur la scène dans la police, le
+> corps et la couleur du texte ; Entrée valide, Maj+Entrée = ligne, Échap
+> annule, double-clic réédite) — plus aucun `prompt` sur le chemin nominal
+> —, panneau Texte (contenu, sélecteur VISUEL des polices, dépôt d'une
+> police TTF / OTF / WOFF, polices du système, corps, graisse,
+> interlettrage, interligne, ancre, « un chemin par glyphe », Contours,
+> Logo 3D, Épaissir ±, → cadre, sur le chemin) ; modèle : texte
+> multi-lignes en `<tspan>`, `style.ancre`, `op_texte_vectoriser` par liste
+> de glyphes → groupe de chemins aux ids neufs ; export : les textes en
+> polices de bibliothèque deviennent des chemins (un SVG chargé en `<img>`
+> ne charge aucune police) ; backend `fonts_service.py` (`DATA_ROOT/fonts`,
+> magic vérifié, nom assaini, chemin refusé) + `GET /fonts`, `POST
+> /fonts/upload`, `GET /fonts/user/{name}` ; les rangées Fonte / 3D du
+> panneau Apparence ont migré dans le panneau Texte.
+>
+> **TDD** : RED ×3 (typo.test.mjs sur la vraie Anton.ttf, pytest magasin +
+> routes) ; node **970 contrôles sur 60 bancs**, pytest `test_vector_docs`
+> **40 passed** (+3).
+>
+> **Prouvé en réel** (8799, viewport 1400×900, `window.prompt` piégé :
+> jamais appelé) : 16 polices, 16 `@font-face`, Anton chargée par
+> `document.fonts` ; outil Texte + clic → texte posé et éditeur en place
+> focalisé (Anton 48 px) ; « DEEP » + Entrée → texte `Anton` 48, largeur
+> écran 86 px, outil revenu à la sélection ; sélecteur → **Bebas Neue**
+> (bouton actif, `font-family` du DOM), corps 72, ancre `middle`
+> (`text-anchor`), deux lignes → **2 tspans** ; double-clic → éditeur
+> rouvert avec « DEEP⏎OTUS », Échap → contenu intact ; Contours par glyphe →
+> groupe de **8 chemins** « DEEPOTUS », evenodd, 8 `<path>` au DOM ; outil
+> Nœuds sur une lettre → **22 ancres** ; contour ± 2 → chemin plus large (24
+> → 28 px) ; export : 0 `<text>` restant, `tx9` devenu `<path>` evenodd ;
+> Logo 3D → dialogue Impression 3D ouvert en mode **logo**, aperçu 3D
+> présent, le texte vectorisé ; dépôt d'une police par le champ fichier →
+> « Ma-Typo » déposée, 17 polices et 17 `@font-face`, chargée, listée par le
+> serveur, texte dans cette police vectorisé.
+>
+> **Deux défauts attrapés par la preuve** : des liaisons orphelines des
+> anciennes rangées Fonte (mod-style) cassaient tout rendu avec un texte
+> sélectionné ; après la pose d'un texte l'outil restait « texte » et le
+> double-clic ne rééditait pas.
+>
+> **Déployé** : 12 fichiers (= base `a1cc6ce` par hash-object, 3 absents)
+> → sauvegarde `_backup_predeploy_2026-09-17k-vectorlab-texte` → `git
+> archive 05a5b7a` → **12 = cible, 116/116 du Vectorlab = cible**, pré-vol
+> `import app.main` + `fonts_service` OK. **`routes.py` et
+> `fonts_service.py` touchés : l'utilisateur relance le backend installé.**
+>
+> **Reste** : les polices du système ne sont pas prouvées (permission du
+> navigateur) ; le rendu du texte à l'écran dépend des polices chargées par
+> `@font-face` (celles du système s'affichent si installées) ; l'éditeur en
+> place ignore la rotation d'un texte ; la graisse ne s'applique pas aux
+> contours (opentype prend la police telle quelle) ; l'édition des glyphes
+> passe par les outils Nœuds / Coin / booléens existants.
 
 **Goal :** l'outil Texte pose un texte et l'édite EN PLACE (zone de saisie
 sur la scène, Entrée valide, Maj+Entrée = nouvelle ligne, Échap annule ;
