@@ -6,6 +6,30 @@
 const escAttr = (v) => String(v)
   .replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 
+/* ── lot A (D1/D2) : l'objet `image` — href RELATIF (nom du PNG stocké à
+   côté du JSON du document, jamais de base64) ou URL absolue ; `nat` =
+   taille native ; `rognage` = fenêtre en px NATIFS ; `verrou` = ignoré
+   par toutes les commandes de sélection. */
+function _validerRognage(r, nat, ou) {
+  if (!r || typeof r !== "object") throw new Error(`${ou}: rognage {x,y,w,h}`);
+  const { x, y, w, h } = r;
+  if (!(x >= 0) || !(y >= 0) || !(w > 0) || !(h > 0)
+      || x + w > nat.w + 1e-6 || y + h > nat.h + 1e-6) {
+    throw new Error(`${ou}: rognage hors de l'image native`);
+  }
+}
+function _validerObjets(objs, ou) {
+  for (const o of objs) {
+    if (o.type === "image") {
+      if (typeof o.href !== "string" || !o.href) throw new Error(`image ${o.id}: href requis`);
+      if (!o.nat || !(o.nat.w > 0) || !(o.nat.h > 0)) throw new Error(`image ${o.id}: nat {w,h} positif requis`);
+      if (!(o.w > 0) || !(o.h > 0)) throw new Error(`image ${o.id}: taille positive requise`);
+      if (o.rognage !== undefined) _validerRognage(o.rognage, o.nat, `image ${o.id}`);
+    }
+    if (o.type === "groupe") _validerObjets(o.enfants || [], ou);
+  }
+}
+
 export function parserDoc(doc) {
   if (!doc || typeof doc !== "object") throw new Error("document: objet requis");
   if (!doc.v) throw new Error("document: champ v requis");
@@ -17,6 +41,7 @@ export function parserDoc(doc) {
     if (!c.id) throw new Error("calque sans id");
     if (!Array.isArray(c.objets)) throw new Error(`calque ${c.id}: objets[] requis`);
   }
+  for (const c of doc.calques) _validerObjets(c.objets, c.id);
   // éditeur complet (E1) : deux champs OPTIONNELS rétro-compatibles —
   // l'unité d'affichage (le document reste en px) et la palette sauvée
   if (doc.unites !== undefined) {
@@ -50,6 +75,7 @@ function styleAttrs(s = {}, ctx = {}) {
   if (s.opacite !== undefined && Number(s.opacite) !== 1) {
     out += ` opacity="${Number(s.opacite)}"`;
   }
+  if (s.regle) out += ` fill-rule="${escAttr(s.regle)}"`;
   return out;
 }
 
@@ -81,6 +107,18 @@ function compilerObjet(o, ctx = {}) {
       return `<g${t}${st}${tr}>`
            + (o.enfants || []).map((e) => compilerObjet(e, ctx)).join("")
            + `</g>`;
+    case "image": {
+      const url = (ctx.image || ((h) => h))(o.href);
+      const nat = o.nat;
+      const r = o.rognage || { x: 0, y: 0, w: nat.w, h: nat.h };
+      const verrou = o.verrou ? ` data-verrou="1"` : "";
+      return `<g${t}${verrou}${st}${tr}>`
+        + `<svg x="${+o.x}" y="${+o.y}" width="${+o.w}" height="${+o.h}"`
+        + ` viewBox="${+r.x} ${+r.y} ${+r.w} ${+r.h}" preserveAspectRatio="none">`
+        + `<image x="0" y="0" width="${+nat.w}" height="${+nat.h}"`
+        + ` href="${escAttr(url)}" preserveAspectRatio="none"/>`
+        + `</svg></g>`;
+    }
     default:
       // un type inconnu ne casse pas le document : il se voit au commentaire
       return `<!-- objet ${escAttr(o.id)}: type inconnu ${escAttr(o.type)} -->`;
@@ -153,7 +191,9 @@ function* _objetsCibles(doc, ids, { ignorerVerrouilles = true } = {}) {
   for (const c of doc.calques) {
     if (ignorerVerrouilles && c.verrou) continue;
     for (let i = c.objets.length - 1; i >= 0; i--) {
-      if (voulu.has(c.objets[i].id)) yield { calque: c, objet: c.objets[i], i };
+      if (voulu.has(c.objets[i].id) && !c.objets[i].verrou) {
+        yield { calque: c, objet: c.objets[i], i };
+      }
     }
   }
 }
@@ -199,7 +239,7 @@ export function op_supprimer(doc, ids) {
 
 function _decalerObjet(o, dx, dy) {
   switch (o.type) {
-    case "rect": o.x += dx; o.y += dy; break;
+    case "rect": case "image": o.x += dx; o.y += dy; break;
     case "ellipse": o.cx += dx; o.cy += dy; break;
     case "texte": o.x += dx; o.y += dy; break;
     case "path": {
@@ -266,7 +306,7 @@ function _mapperObjet(o, av, ap) {
   const fx = (X) => (X - av.x) * sx + ap.x;
   const fy = (Y) => (Y - av.y) * sy + ap.y;
   switch (o.type) {
-    case "rect":
+    case "rect": case "image":
       o.x = fx(o.x); o.y = fy(o.y);
       o.w = o.w * sx; o.h = o.h * sy; break;
     case "ellipse":
@@ -805,8 +845,8 @@ export function op_miroir(doc, ids, axe, bbox) {
   const fx = (X) => 2 * cx - X, fy = (Y) => 2 * cy - Y;
   const refl = (o) => {
     switch (o.type) {
-      case "rect":
-        if (H) o.x = fx(o.x) - o.w; else o.y = fy(o.y) - o.h; break;
+      case "rect": case "image":           // image : position seule — les
+        if (H) o.x = fx(o.x) - o.w; else o.y = fy(o.y) - o.h; break;   // pixels ne se retournent pas (écart dit)
       case "ellipse":
         if (H) o.cx = fx(o.cx); else o.cy = fy(o.cy); break;
       case "texte":                     // position seule — les glyphes ne
@@ -897,6 +937,32 @@ export function op_guide_supprimer(doc, axe, i) {
   g.splice(i, 1);
 }
 
+/* ── image (lot A) : rognage et verrou d'objet. Ces deux commandes
+   trouvent l'objet SANS passer par _objetsCibles — le verrou doit pouvoir
+   se retirer. Rognage en px natifs, borné à l'image ; null = entière. */
+function _trouverImage(doc, id) {
+  for (const c of doc.calques) {
+    const o = c.objets.find((x) => x.id === id);
+    if (o) {
+      if (o.type !== "image") throw new Error(`objet ${id}: pas une image`);
+      return o;
+    }
+  }
+  throw new Error(`image introuvable: ${id}`);
+}
+
+export function op_image_rogner(doc, id, rognage) {
+  const o = _trouverImage(doc, id);
+  if (rognage === null || rognage === undefined) { delete o.rognage; return; }
+  _validerRognage(rognage, o.nat, `image ${id}`);
+  o.rognage = { x: +rognage.x, y: +rognage.y, w: +rognage.w, h: +rognage.h };
+}
+
+export function op_image_verrou(doc, id, verrou) {
+  const o = _trouverImage(doc, id);
+  if (verrou) o.verrou = true; else delete o.verrou;
+}
+
 
 function _defs(doc) {
   const refs = [];
@@ -932,9 +998,9 @@ function _defs(doc) {
   return morceaux.length ? `<defs>${morceaux.join("")}</defs>` : "";
 }
 
-export function compilerSVG(doc) {
+export function compilerSVG(doc, opts = {}) {
   parserDoc(doc);
-  const ctx = { degrades: doc.degrades || {} };
+  const ctx = { degrades: doc.degrades || {}, image: opts.image };
   const w = +doc.taille.w, h = +doc.taille.h;
   const fond = doc.fond
     ? `<rect x="0" y="0" width="${w}" height="${h}"`
