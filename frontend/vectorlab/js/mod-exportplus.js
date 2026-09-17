@@ -160,7 +160,13 @@ export function initExportPlus(VL) {
     const anneaux = [];
     const visiter = (objs) => { for (const o of objs || []) { if (o.type === "groupe") { visiter(o.enfants); continue; } if (["texte", "cadre", "textechemin", "image", "instance"].includes(o.type)) continue; try { anneaux.push(...aplatir_objet(o)); } catch (e) { /* objet non aplatissable */ } } };
     for (const c of doc.calques) if (c.visible !== false) visiter(c.objets);
-    const dedans = anneaux.filter((a) => a.some(([x, y]) => x >= t.cadre.x && x <= t.cadre.x + t.cadre.w && y >= t.cadre.y && y <= t.cadre.y + t.cadre.h));
+    // un anneau compte s'il CHEVAUCHE la tranche (bbox), pas seulement s'il y a un sommet dedans
+    const c = t.cadre;
+    const dedans = anneaux.filter((a) => {
+      const xs = a.map((q) => q[0]), ys = a.map((q) => q[1]);
+      return Math.max(...xs) >= c.x && Math.min(...xs) <= c.x + c.w && Math.max(...ys) >= c.y && Math.min(...ys) <= c.y + c.h;
+    });
+    if (!dedans.length) return null;                 // rien à découper : la tranche est sautée (dit au toast)
     return dxf_de(polylignes_mm(dedans, t.cadre, dpiDoc()), { calque: t.nom });
   }
   function tranches() {
@@ -174,7 +180,7 @@ export function initExportPlus(VL) {
   async function exporterLot() {
     const r = reglages_lire(etat.exportPlus), p = plan();
     if (!p.length) throw new Error("rien à exporter");
-    const faits = [];
+    const faits = [], sautes = [];
     for (const e of p) {
       if (e.format === "pdf") {
         const k = r.dpi / dpiDoc(), specs = pages_pdf(e.tranches, dpiDoc(), r.saignee, k), fd = new FormData();
@@ -189,12 +195,16 @@ export function initExportPlus(VL) {
         if (!rp.ok) { const d = await rp.json().catch(() => ({})); throw new Error(d.detail || rp.statusText); }
         telecharger(await rp.blob(), e.nom); faits.push(e.nom); continue;
       }
-      if (e.format === "dxf") { telecharger(new Blob([dxfTranche(e.tranche, r)], { type: "application/dxf" }), e.nom); faits.push(e.nom); continue; }
+      if (e.format === "dxf") {
+        const dxf = dxfTranche(e.tranche, r);
+        if (!dxf) { sautes.push(e.nom); continue; }
+        telecharger(new Blob([dxf], { type: "application/dxf" }), e.nom); faits.push(e.nom); continue;
+      }
       const { svg, cadre } = await svgTranche(e.tranche, r);
       if (e.format === "svg") { telecharger(new Blob([svg], { type: "image/svg+xml" }), e.nom); faits.push(e.nom); continue; }
       faits.push(await deposer(await rasteriser(svg, cadre, e.k, e.format, r), e.nom));
     }
-    VL.toast(`export lot : ${faits.length} fichier(s) — ${faits.slice(0, 3).join(", ")}${faits.length > 3 ? "…" : ""}`);
+    VL.toast(`export lot : ${faits.length} fichier(s) — ${faits.slice(0, 3).join(", ")}${faits.length > 3 ? "…" : ""}${sautes.length ? ` · ${sautes.length} DXF vide(s) sauté(s)` : ""}`);
     return faits;
   }
 
