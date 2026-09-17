@@ -8,6 +8,7 @@ import { grille_normaliser, hex_centre, hex_d, hex_depuis_point, grille_cellules
 import { zoom_pour, echantillon_moyen, paliers_bornes, palier } from "./mod-geo.js";
 import { forme_d, forme_params_valider } from "./mod-formes.js";
 import { effets_valider, filtre_svg, MODES_FUSION, motif_valider, motif_svg, conique_svg } from "./mod-effets.js";
+import { couper_lignes, cadre_tspans, mesure_approx } from "./mod-texteplus.js";
 
 const escAttr = (v) => String(v)
   .replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
@@ -96,6 +97,15 @@ function _validerObjets(objs, ou) {
       if (o.hauteur_mm !== undefined && !(o.hauteur_mm >= 0)) {
         throw new Error(`tuile ${o.id}: hauteur_mm ≥ 0`);
       }
+    }
+    if (o.type === "cadre") {
+      if (!(o.w > 0) || !(o.h > 0)) throw new Error(`cadre ${o.id}: taille positive requise`);
+      if (typeof o.contenu !== "string") throw new Error(`cadre ${o.id}: contenu texte requis`);
+    }
+    if (o.type === "textechemin") {
+      if (typeof o.d !== "string" || !o.d) throw new Error(`textechemin ${o.id}: d requis`);
+      if (typeof o.contenu !== "string") throw new Error(`textechemin ${o.id}: contenu texte requis`);
+      if (o.decalage !== undefined && !(o.decalage >= 0 && o.decalage <= 100)) throw new Error(`textechemin ${o.id}: decalage 0..100`);
     }
     if (o.type === "instance") {
       if (typeof o.symbole !== "string" || !o.symbole) throw new Error(`instance ${o.id}: symbole requis`);
@@ -258,6 +268,15 @@ function _styleNu(s) {
   return o;
 }
 
+const _escTexte = (v) => String(v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+function _fonteAttrs(s) {
+  let attrs = "";
+  if (s.police) attrs += ` font-family="${escAttr(s.police)}"`;
+  attrs += ` font-size="${Number(s.corps || 16)}"`;
+  if (s.graisse) attrs += ` font-weight="${escAttr(s.graisse)}"`;
+  if (s.interlettrage) attrs += ` letter-spacing="${Number(s.interlettrage)}"`;
+  return attrs;
+}
 function compilerObjet(o, ctx = {}) {
   const s0 = o.style || {};
   // lot F : effets et contours multiples enveloppent l'objet dans <g data-objet>
@@ -289,14 +308,22 @@ function compilerObjet(o, ctx = {}) {
       return `<path${t} d="${escAttr(o.d)}"${st}${tr}/>`;
     case "texte": {
       const s = o.style || {};
-      const escTexte = (v) => String(v).replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;").replace(/>/g, "&gt;");
-      let attrs = ` x="${+o.x}" y="${+o.y}"`;
-      if (s.police) attrs += ` font-family="${escAttr(s.police)}"`;
-      attrs += ` font-size="${Number(s.corps || 16)}"`;
-      if (s.graisse) attrs += ` font-weight="${escAttr(s.graisse)}"`;
-      if (s.interlettrage) attrs += ` letter-spacing="${Number(s.interlettrage)}"`;
-      return `<text${t}${attrs}${st}${tr}>${escTexte(o.contenu || "")}</text>`;
+      return `<text${t} x="${+o.x}" y="${+o.y}"${_fonteAttrs(s)}${st}${tr}>${_escTexte(o.contenu || "")}</text>`;
+    }
+    case "cadre": {
+      // lot F : cadre de texte — coupe des lignes par la mesure injectée (opts.mesure)
+      const s = o.style || {};
+      const lignes = couper_lignes(o.contenu || "", o.w - Number(s.retrait || 0), s, ctx.mesure || mesure_approx);
+      const r = cadre_tspans(o, lignes, ctx.mesure || mesure_approx);
+      const deb = r.deborde ? ` data-deborde="1"` : "";
+      return `<text${t}${deb}${_fonteAttrs(s)}${st}${tr}>${r.html}</text>`;
+    }
+    case "textechemin": {
+      // lot F : texte sur chemin — le d est une COPIE, le chemin porteur est invisible
+      const s = o.style || {};
+      const pid = `tp_${escAttr(o.id)}`;
+      return `<g${t}${tr}><path id="${pid}" d="${escAttr(o.d)}" fill="none" stroke="none"/>`
+        + `<text${_fonteAttrs(s)}${st}><textPath href="#${pid}" startOffset="${+(o.decalage || 0)}%">${_escTexte(o.contenu || "")}</textPath></text></g>`;
     }
     case "instance": {
       // lot F : une instance est un <use> du symbole (défini une fois dans les defs)
@@ -463,7 +490,7 @@ function _decalerObjet(o, dx, dy) {
     case "rect": case "image": o.x += dx; o.y += dy; break;
     case "ellipse": case "forme": o.cx += dx; o.cy += dy; break;
     case "texte": case "instance": case "cadre": o.x += dx; o.y += dy; break;
-    case "path": {
+    case "path": case "textechemin": {
       const segs = chemin_parser(o.d);
       for (const s of segs) {
         for (let k = 0; k < s.p.length; k += 2) { s.p[k] += dx; s.p[k + 1] += dy; }
@@ -566,7 +593,7 @@ function _mapperObjet(o, av, ap, doc) {
         o.style.corps = Math.round(o.style.corps * sy * 100) / 100;
       }
       break;
-    case "path": {
+    case "path": case "textechemin": {
       const segs = chemin_parser(o.d);
       for (const s of segs) {
         for (let k = 0; k < s.p.length; k += 2) {
@@ -1037,6 +1064,31 @@ export function op_desecreter(doc, id) {
 }
 export const bbox_objet = (o, doc) => _bboxObjet(o, doc);
 
+/* ── lot F : cadre de texte et texte sur chemin ── */
+function _trouverType(doc, id, types) {
+  for (const { objet } of _objetsCibles(doc, [id])) {
+    if (!types.includes(objet.type)) throw new Error(`${id}: ${types.join("|")} attendu, pas ${objet.type}`);
+    return objet;
+  }
+  throw new Error(`objet introuvable: ${id}`);
+}
+export function op_texte_en_cadre(doc, id, w, h) {
+  if (!(w > 0) || !(h > 0)) throw new Error("cadre : taille positive requise");
+  const o = _trouverType(doc, id, ["texte"]);
+  const corps = Number((o.style && o.style.corps) || 16);
+  o.type = "cadre"; o.y = o.y - corps; o.w = +w; o.h = +h;
+}
+export function op_texte_sur_chemin(doc, idTexte, idChemin) {
+  const o = _trouverType(doc, idTexte, ["texte", "cadre"]);
+  const c = _trouverType(doc, idChemin, ["path", "forme"]);
+  o.type = "textechemin"; o.d = c.type === "forme" ? forme_d(c) : c.d; o.decalage = 0;
+  delete o.x; delete o.y; delete o.w; delete o.h;
+}
+export function op_textechemin_decalage(doc, id, pct) {
+  if (!(pct >= 0 && pct <= 100)) throw new Error("décalage : 0 à 100 %");
+  _trouverType(doc, id, ["textechemin"]).decalage = +pct;
+}
+
 /* ── lot F : styles d'objet (copie à l'application) ── */
 const _clone = (v) => JSON.parse(JSON.stringify(v));
 export function op_style_definir(doc, nom, style) {
@@ -1298,7 +1350,7 @@ export function op_miroir(doc, ids, axe, bbox) {
         if (H) o.cx = fx(o.cx); else o.cy = fy(o.cy); break;
       case "texte":                     // position seule — les glyphes ne
         if (H) o.x = fx(o.x); else o.y = fy(o.y); break;   // se reflètent pas
-      case "path": {
+      case "path": case "textechemin": {
         const segs = chemin_parser(o.d);
         for (const s of segs) {
           for (let k = 0; k < s.p.length; k += 2) {
@@ -1824,7 +1876,7 @@ function _bboxObjet(o, doc) {
     case "ellipse": return { x: o.cx - o.rx, y: o.cy - o.ry, w: 2 * o.rx, h: 2 * o.ry };
     case "forme": return { x: o.cx - o.r * (o.sx || 1), y: o.cy - o.r * (o.sy || 1), w: 2 * o.r * (o.sx || 1), h: 2 * o.r * (o.sy || 1) };
     case "texte": return { x: o.x, y: o.y, w: 0, h: 0 };
-    case "path": {
+    case "path": case "textechemin": {
       let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
       for (const s of chemin_parser(o.d)) for (let k = 0; k < s.p.length; k += 2) {
         x0 = Math.min(x0, s.p[k]); x1 = Math.max(x1, s.p[k]); y0 = Math.min(y0, s.p[k + 1]); y1 = Math.max(y1, s.p[k + 1]);
@@ -1993,7 +2045,7 @@ function _defs(doc, ctx = {}) {
 export function compilerSVG(doc, opts = {}) {
   parserDoc(doc);
   const ctx = { degrades: doc.degrades || {}, image: opts.image, motifs: doc.motifs || {},
-                globales: doc.couleursGlobales || {},
+                globales: doc.couleursGlobales || {}, mesure: opts.mesure,
                 grille: _grilleHex(doc), terrains: terrains_de(doc) };
   const w = +doc.taille.w, h = +doc.taille.h;
   // lot C : un cadre (planche) devient le viewBox — le fond reste celui de
