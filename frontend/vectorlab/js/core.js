@@ -727,12 +727,14 @@ initPlateau(VL);    // panneaux Grille / Terrains / Plateau (lot C)
 initPlanches(VL);   // panneau Planches (lot C)
 initImpression(VL); // dialogue Impression 3D + texte → chemins (lot D)
 initCarte(VL);      // panneau Carte réelle : GPX, fond, relief, courbes, tuiles (lot H)
-initOutils2(VL);    // formes, crayon, couteau, gomme, coin, constructeur, nœuds multiples, pivot, instantanés (lot B)
 initOutils(VL);
 initExport(VL);
 initVitrail(VL);
 initBiblio(VL);
 initIA(VL);        // le dialogue IA du canevas — après initOutils (surOutil)
+// lot B : APRÈS initOutils — mod-tools pose surTouche/surOutil sans chaîner,
+// un module initialisé avant lui perdrait ses crochets (mesuré : Entrée muette)
+initOutils2(VL);    // formes, crayon, couteau, gomme, coin, constructeur, nœuds multiples, pivot, instantanés (lot B)
 initBrouillon(VL); // pose surCharge AVANT charger() (lot A)
 window.VL = VL;
 charger();
