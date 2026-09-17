@@ -8,7 +8,52 @@
 > (`mod-flyout.js` : clic droit, angle, appui long) ; chaque menu délègue
 > aux commandes et panneaux existants — rien de nouveau au modèle.
 
-> **RELEVÉ DE LIVRAISON** : à écrire ici en fin de lot.
+> **RELEVÉ DE LIVRAISON (17/09/2026) : LIVRÉ, PROUVÉ EN RÉEL, DÉPLOYÉ (statiques seuls : aucune relance).**
+>
+> **Livré** (commits `c1c757e`→`3c32bf8`, poussés) : `mod-flyout.js` gagne
+> les bâtisseurs purs `flyout_choix`, `flyout_presets` (la valeur courante
+> hors liste passe en tête), `flyout_terrains` (pastille, hauteur),
+> `flyout_polices` (rendues dans leur famille, source en détail),
+> `flyout_actions` (désactivée si sa cible n'existe pas) et le registre
+> `MENUS` : **17 outils à menu** — Forme, Symboles, Sélection (aligner ×6,
+> ordre ×4, grouper / dégrouper, booléens ×4 ; tout désactivé sans
+> sélection), Nœuds (diviser, inverser, joindre, coins), Typographies (les
+> polices + Déposer), Pinceau vectoriel et Crayon (3 profils, largeurs 4 · 8
+> · 16 · 24), Gomme (6 · 12 · 24 · 48), Coin (5 · 10 · 20 · 40), Terrains
+> (fiche du document + Générer le plateau), Pinceau / Gomme raster (rayons 1
+> → 16, dureté nette / douce), Seau / Baguette (tolérances 0 · 16 · 48 · 96,
+> Global), Sélection raster (tout, aucune, inverser, croître, contracter,
+> par couleur), Tranches (les cinq modes + Effacer). Les boutons ajoutés
+> par les modules (pixel, export, pinceau vectoriel) sont armés
+> automatiquement ; un menu long défile (70 % de la fenêtre au plus).
+>
+> **TDD** : RED constaté (banc `flyout.test.mjs` étendu à 15 contrôles) ;
+> node **985 contrôles sur 61 bancs**, pytest `test_vector_docs` **40
+> passed**.
+>
+> **Prouvé en réel** (8799, viewport 1400×900) : **16 boutons armés** ;
+> Sélection à vide → aligner, grouper et booléens désactivés ; avec deux
+> objets → Grouper actif, clic → **groupe** ; Nœuds sur un chemin → 4
+> entrées, « Inverser » change le `d` ; Typographies sur t1 → **17 entrées**
+> (Anton marquée), « Bebas Neue » → police du texte ; Pinceau vectoriel →
+> calligraphie + 16 px, outil pris ; Crayon partage le menu ; Gomme 24,
+> Coin 20 ; Terrains → 5 pastilles, Plaine marquée, « Forêt » → terrain
+> courant + outil tuiles ; persona Pixel : pinceau raster rayon 8 + douce
+> (0,3), seau tolérance 48 + global, sélection raster 6 entrées toutes
+> désactivées sans image éditée, gomme / baguette / lasso ouverts ; persona
+> Export : tranche → 6 entrées, Document marqué, Effacer désactivé, « Chaque
+> planche » → mode `planches` et liste du panneau synchronisée ; Forme 7 et
+> Symboles 2 toujours là ; Échap ferme.
+>
+> **Déployé** : 3 fichiers (= base `4c1fc2a` par hash-object) → sauvegarde
+> `_backup_predeploy_2026-09-17m-vectorlab-menus2` → `git archive 3c32bf8`
+> → **3 = cible, 118/118 du Vectorlab = cible**. Aucun Python.
+>
+> **Reste** : Apparence (couleurs), Apparence +, Image, Repères, Grille,
+> Planches, Carte réelle et Bibliothèque n'ont pas de bouton d'outil et
+> restent dans le panneau (leurs réglages sont des formulaires, pas des
+> choix rapides) ; les menus délèguent aux boutons des panneaux — une
+> action y est désactivée quand le panneau ne la propose pas.
 
 **Goal :** chaque outil de la barre de gauche dont le panneau porte des
 choix ou des actions fréquentes gagne un menu détaché :
