@@ -1013,7 +1013,7 @@ def test_le_miroir_lot_a_images_et_cartes():
         assert m in core, m
     assert core.index("initBrouillon(VL)") < core.index("charger();")
     # le rendu passe le résolveur d'href ; l'overlay trace les repères
-    assert "compilerSVG(etat.doc, { image: VL.imageUrl })" in core
+    assert "compilerSVG(etat.doc, { image: VL.imageUrl, mesure: VL.mesureTexte })" in core   # lot F : la mesure du texte s ajoute
     assert "reperes_rects" in core and 'data-repere' in core
     # les surfaces : menu Image (4 sources + vectoriser), panneaux, dialogues
     for tok in ("imgBiblio", "imgFichier", "imgColler", "imgGenerer", "imgVectoriser",
@@ -1263,3 +1263,73 @@ def test_le_miroir_lot_e_persona_pixel():
     qa = vl / "qa"
     for b in ("pixel", "pixelart", "pixel_doc", "pixel_ui"):
         assert (qa / f"{b}.test.mjs").is_file(), b
+
+
+# ── X. lot F : miroir de l'apparence avancée (effets, motifs, symboles, texte +) ──
+
+def test_le_miroir_lot_f_apparence_avancee():
+    racine = pathlib.Path(__file__).resolve().parent.parent.parent
+    vl = racine / "frontend" / "vectorlab"
+    for m in ("mod-effets.js", "mod-texteplus.js", "mod-pinceauvec.js", "mod-apparence2.js"):
+        assert (vl / "js" / m).is_file(), m
+    for m in ("mod-effets.js", "mod-texteplus.js", "mod-pinceauvec.js"):
+        assert "import " not in (vl / "js" / m).read_text("utf-8"), m       # feuilles
+    core = (vl / "js" / "core.js").read_text("utf-8")
+    assert "initApparence2(VL)" in core and 'j: "pinceauv"' in core and "mesure: VL.mesureTexte" in core
+    assert core.index("initOutils(VL)") < core.index("initApparence2(VL)") < core.index("initBrouillon(VL)")
+    html = (vl / "index.html").read_text("utf-8")
+    assert 'id="panneauApparence2"' in html and 'id="apparence2Details"' in html
+    doc = (vl / "js" / "mod-doc.js").read_text("utf-8")
+    for op in ("op_motif_creer", "op_degrade_transparence", "op_couleur_globale_definir", "op_couleur_globale_supprimer",
+               "op_ecreter", "op_desecreter", "op_style_definir", "op_style_appliquer", "op_symbole_creer",
+               "op_instance_poser", "op_symbole_detacher", "op_texte_en_cadre", "op_texte_sur_chemin"):
+        assert f"export function {op}" in doc, op
+    assert '"conique"' in doc and "mix-blend-mode" in doc and "<clipPath id=" in doc and "<mask id=" in doc and '<use${t}' in doc
+    effets = (vl / "js" / "mod-effets.js").read_text("utf-8")
+    assert "feSpecularLighting" in effets and "MODES_FUSION" in effets and "<pattern" in effets
+    assert "export function palette_harmonique" in (vl / "js" / "mod-couleur.js").read_text("utf-8")
+    assert "mesure: VL.mesureTexte" in (vl / "js" / "mod-export.js").read_text("utf-8")
+    qa = vl / "qa"
+    for b in ("effets", "apparence2", "harmonie", "symboles", "texteplus", "pinceauvec", "apparence2_ui"):
+        assert (qa / f"{b}.test.mjs").is_file(), b
+
+
+def test_les_champs_du_lot_f_font_l_aller_retour():
+    """Un document avec effets, motif, couleurs globales, styles, symbole +
+    instance, cadre et texte sur chemin se sauve et se relit tel quel."""
+    import asyncio
+    from httpx import AsyncClient, ASGITransport
+
+    async def scenario():
+        from app.main import app
+        from app.services.storage import init_db
+        await init_db()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://t") as c:
+            doc = _doc()
+            doc["motifs"] = {"m1": {"type": "hachures", "pas": 8, "angle": 45, "epaisseur": 1, "couleur": "#1F1512"}}
+            doc["couleursGlobales"] = {"marque": "#12AB34"}
+            doc["styles"] = {"cerne": {"fond": "#FF0000", "effets": [{"type": "ombre"}]}}
+            doc["symboles"] = {"s1": {"nom": "pion", "bbox": {"x": 0, "y": 0, "w": 10, "h": 10},
+                                      "objets": [{"id": "q", "type": "rect", "x": 0, "y": 0, "w": 10, "h": 10, "style": {}}]}}
+            doc["calques"][0]["objets"] += [
+                {"id": "r1", "type": "rect", "x": 0, "y": 0, "w": 50, "h": 20,
+                 "style": {"fond": "motif:m1", "contour": "glob:marque", "epaisseur": 2, "fusion": "multiply",
+                           "effets": [{"type": "lueur", "flou": 3}], "contours": [{"couleur": "#0000FF", "epaisseur": 6}]}},
+                {"id": "i1", "type": "instance", "symbole": "s1", "x": 20, "y": 20, "sx": 1, "sy": 1, "style": {}},
+                {"id": "k1", "type": "cadre", "x": 0, "y": 40, "w": 100, "h": 40, "contenu": "un deux trois", "style": {"corps": 10, "aligner": "justifie"}},
+                {"id": "t2", "type": "textechemin", "d": "M 0 0 L 100 0", "contenu": "suivre", "decalage": 25, "style": {}},
+            ]
+            r = await c.post("/api/vector/docs", json={"name": "F", "role": "libre", "doc": doc})
+            assert r.status_code == 200, r.text
+            did = r.json()["id"]
+            r = await c.get(f"/api/vector/docs/{did}")
+            relu = r.json()["doc"]
+            assert relu["motifs"]["m1"]["pas"] == 8 and relu["couleursGlobales"]["marque"] == "#12AB34"
+            assert relu["styles"]["cerne"]["effets"][0]["type"] == "ombre"
+            assert relu["symboles"]["s1"]["objets"][0]["id"] == "q"
+            objs = {o["id"]: o for o in relu["calques"][0]["objets"]}
+            assert objs["r1"]["style"]["fusion"] == "multiply" and objs["r1"]["style"]["contours"][0]["epaisseur"] == 6
+            assert objs["i1"]["symbole"] == "s1" and objs["k1"]["style"]["aligner"] == "justifie" and objs["t2"]["decalage"] == 25
+
+    asyncio.run(scenario())
