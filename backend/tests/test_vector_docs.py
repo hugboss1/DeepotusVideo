@@ -1029,3 +1029,61 @@ def test_le_miroir_lot_a_images_et_cartes():
     assert "readAsDataURL" in exp and "image_hrefs" in exp
     doc = (vl / "js" / "mod-doc.js").read_text("utf-8")
     assert ";base64," not in doc and "data:image" not in doc   # le JETON, pas le mot
+
+
+# ── S. lot C : grille, terrains, tuiles, planches — aller-retour et surface ──
+
+def test_les_champs_du_lot_c_font_l_aller_retour():
+    import asyncio
+    from httpx import AsyncClient, ASGITransport
+
+    async def scenario():
+        from app.main import app
+        from app.services.storage import init_db
+        await init_db()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://t") as c:
+            doc = _doc("Plateau")
+            doc["grille"] = {"type": "hex", "pas": 40, "sous": 1, "orientation": "plat",
+                             "origine": [320, 480], "echelle": [1, 1]}
+            doc["terrains"] = {"lave": {"nom": "Lave", "couleur": "#D33", "hauteur_mm": 1, "motif": ""}}
+            doc["planches"] = [{"id": "p1", "nom": "Plateau", "x": 0, "y": 0, "w": 640, "h": 480}]
+            doc["calques"][0]["objets"].append({"id": "t1", "type": "tuile", "q": 0, "r": 0, "terrain": "lave"})
+            r = await c.post("/api/vector/docs", json={"name": "Plateau", "role": "libre", "doc": doc})
+            did = r.json()["id"]
+            r = await c.get(f"/api/vector/docs/{did}")
+            d = r.json()["doc"]
+            assert d["grille"]["orientation"] == "plat" and d["grille"]["origine"] == [320, 480]
+            assert d["terrains"]["lave"]["hauteur_mm"] == 1
+            assert d["planches"][0]["w"] == 640
+            assert d["calques"][0]["objets"][0]["type"] == "tuile"
+            # un document SANS ces champs reste intact (rétro-compatibilité)
+            r = await c.post("/api/vector/docs", json={"name": "V1", "role": "libre", "doc": _doc()})
+            r = await c.get(f"/api/vector/docs/{r.json()['id']}")
+            assert "grille" not in r.json()["doc"] and "planches" not in r.json()["doc"]
+
+    asyncio.run(scenario())
+
+
+def test_le_miroir_lot_c_grilles_plateau_planches():
+    racine = pathlib.Path(__file__).resolve().parent.parent.parent
+    vl = racine / "frontend" / "vectorlab"
+    html = (vl / "index.html").read_text("utf-8")
+    core = (vl / "js" / "core.js").read_text("utf-8")
+    for m in ("mod-grille.js", "mod-aimant.js", "mod-plateau.js", "mod-planches.js"):
+        assert (vl / "js" / m).is_file(), m
+    # les modules géométriques sont des FEUILLES : aucun import (bancables partout)
+    for m in ("mod-grille.js", "mod-aimant.js"):
+        assert "import " not in (vl / "js" / m).read_text("utf-8"), m
+    assert "initPlateau(VL)" in core and "initPlanches(VL)" in core
+    assert "grille_d(" in core and "aimant_fusion(" in core and "planches_guides(" in core
+    for tok in ("panneauGrille", "panneauTerrains", "panneauPlateau", "panneauPlanches",
+                "assetsDetails", "assetsGrille", "btnAimant"):
+        assert f'id="{tok}"' in html, tok
+    assert 'data-outil="tuiles"' in html
+    qa = vl / "qa"
+    for b in ("grille", "aimant_objets", "tuiles", "planches", "plateau_ui"):
+        assert (qa / f"{b}.test.mjs").is_file(), b
+    doc = (vl / "js" / "mod-doc.js").read_text("utf-8")
+    assert "TERRAINS_DEFAUT" in doc and "op_plateau_generer" in doc and "op_tuiles_peindre" in doc
+    assert 'case "tuile"' in doc and "opts.cadre" in doc
