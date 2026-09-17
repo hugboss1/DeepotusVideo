@@ -8,21 +8,36 @@
 import { compilerSVG } from "./mod-doc.js";
 import { aplatir_objet, contour_en_multi, versMulti } from "./mod-bool.js";
 import { extruder, stl_binaire } from "./mod-extrude.js";
+import { image_hrefs } from "./mod-image.js";
 
 export function initExport(VL) {
   const { $, etat } = VL;
 
-  function svgCourant(transparent) {
+  async function svgCourant(transparent) {
     const doc = JSON.parse(JSON.stringify(etat.doc));
     if (transparent) delete doc.fond;
-    return compilerSVG(doc);
+    // un SVG chargé comme <img> ne peut PAS charger d'images externes :
+    // chaque PNG du document est inliné en data: — pour l'export seulement,
+    // le JSON stocké ne porte jamais de base64 (D1)
+    const carte = new Map();
+    for (const href of image_hrefs(doc)) {
+      const r = await fetch(VL.imageUrl(href));
+      if (!r.ok) throw new Error(`image ${href} introuvable (${r.status})`);
+      const b = await r.blob();
+      carte.set(href, await new Promise((res, rej) => {
+        const fr = new FileReader();
+        fr.onload = () => res(fr.result); fr.onerror = () => rej(new Error("lecture image"));
+        fr.readAsDataURL(b);
+      }));
+    }
+    return compilerSVG(doc, { image: (h) => carte.get(h) || h });
   }
 
   async function exporterSVG() {
     const r = await fetch("/api/vector/docs/"
       + encodeURIComponent(etat.docId) + "/export", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ svg: svgCourant($("#expTransparent").checked) }),
+      body: JSON.stringify({ svg: await svgCourant($("#expTransparent").checked) }),
     });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.detail || r.statusText);
@@ -31,10 +46,10 @@ export function initExport(VL) {
                 + "/export.svg", "_blank");
   }
 
-  function rasteriser(k, transparent) {
+  async function rasteriser(k, transparent) {
+    const svg = await svgCourant(transparent);
     return new Promise((res, rej) => {
-      const blob = new Blob([svgCourant(transparent)],
-                            { type: "image/svg+xml" });
+      const blob = new Blob([svg], { type: "image/svg+xml" });
       const url = URL.createObjectURL(blob);
       const img = new Image();
       img.onload = () => {

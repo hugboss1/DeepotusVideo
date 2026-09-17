@@ -47,6 +47,17 @@
         <button id="expPrint3d" title="Extrude les calques visibles en relief imprimable (hauteurs en mm, surcharge par calque — les plombs d'un vitrail plus hauts que les verres), écrit un dossier STL + 3MF et propose d'ouvrir le slicer">→ Impression 3D…</button>
       </div>
     </span>
+    <span class="exp-conteneur">
+      <button id="btnImage" title="Poser une image dans le document (Bibliothèque, fichier, presse-papiers, génération) et la vectoriser">Image ▾</button>
+      <div id="imgMenu" class="exp-menu hidden">
+        <button id="imgBiblio" title="Choisir une image de la Bibliothèque unifiée">📚 Bibliothèque…</button>
+        <button id="imgFichier" title="Importer un fichier image (PNG, JPEG, WebP — stocké en PNG avec le document)">⬆ Fichier…</button>
+        <button id="imgColler" title="Coller l'image du presse-papiers (ou Ctrl+V sur la scène)">📋 Presse-papiers</button>
+        <button id="imgGenerer" title="Générer une image par le fournisseur des Réglages — dépense la clé">✦ Générer…</button>
+        <button id="imgVectoriser" title="Vectoriser une image du document en aplats de couleur — aperçu avant validation">◇ Vectoriser…</button>
+      </div>
+      <input type="file" id="imgFichierInput" accept="image/png,image/jpeg,image/webp" hidden/>
+    </span>
     <button id="btnSauver" class="primaire" title="Sauver (Ctrl+S)">Sauver</button>
   </header>
   <section id="biblio" class="biblio">
@@ -104,13 +115,27 @@
       </details>
       <div class="panneau-tete">Apparence</div>
       <div id="panneauStyle"></div>
+      <div class="panneau-tete" id="teteImage" hidden>Image</div>
+      <div id="panneauImage" hidden></div>
+      <div class="panneau-tete" title="Fond perdu et zone sûre — tracés à l'écran, aimantants, jamais exportés">Repères</div>
+      <div id="panneauReperes"></div>
       <div class="panneau-tete">Calques
         <button id="btnCalquePlus" title="Nouveau calque">＋</button>
       </div>
       <div id="listeCalques"></div>
     </aside>
   </div>
+  <div id="libDlg" class="vl-dlg hidden">
+    <div class="vl-dlg-boite">
+      <div class="vl-dlg-tete"><b>Bibliothèque</b>
+        <input id="libRecherche" type="search" placeholder="rechercher…"/>
+        <button id="libFermer" title="Fermer">✕</button></div>
+      <div id="libGrille" class="lib-grille"></div>
+    </div>
+  </div>
+  <div id="traceDlg" class="vl-dlg hidden"></div>
   <script src="vendor/martinez.umd.js"></script>
+  <script src="vendor/imagetracer_v1.2.6.js"></script>
   <script type="module" src="js/core.js"></script>
 </body>
 </html>

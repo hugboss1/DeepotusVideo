@@ -4,7 +4,8 @@
 // raccourcis. Les outils et le panneau calques reçoivent ce cœur par
 // injection (initOutils/initCalques) — aucun cycle d'import.
 import { compilerSVG, chemin_parser, chemin_ancres, aimanter, Historique,
-         sommetDe, op_dupliquer } from "./mod-doc.js";
+         sommetDe, op_dupliquer, reperes_guides, reperes_rects }
+  from "./mod-doc.js";
 import { UNITES, depuisUnite, formatNombre, libelle_mesure }
   from "./mod-unites.js";
 import { initOutils } from "./mod-tools.js";
@@ -15,6 +16,7 @@ import { initVitrail } from "./mod-vitrail.js";
 import { initBiblio } from "./mod-biblio.js";
 import { initIA } from "./mod-ia.js";
 import { initCouleur } from "./mod-couleur.js";
+import { initImage } from "./mod-image.js";
 
 const $ = (s) => document.querySelector(s);
 const api = {
@@ -61,9 +63,10 @@ function ecranPt(x, y) {
 function tolDoc() { return 6 / etat.zoom; }
 function aimantePt(x, y) {
   const g = etat.doc.guides || { v: [], h: [] };
+  const rg = reperes_guides(etat.doc);      // les repères de page aimantent aussi
   const pas = etat.grille.active ? etat.grille.pas : 0;
-  return [aimanter(x, { pas, guides: g.v || [] }, tolDoc()),
-          aimanter(y, { pas, guides: g.h || [] }, tolDoc())];
+  return [aimanter(x, { pas, guides: (g.v || []).concat(rg.v) }, tolDoc()),
+          aimanter(y, { pas, guides: (g.h || []).concat(rg.h) }, tolDoc())];
 }
 
 /* ── commandes ── */
@@ -176,7 +179,7 @@ function zoomAjuster() {
   appliquerVue();
 }
 function rendre() {
-  $("#canvasHost").innerHTML = etat.doc ? compilerSVG(etat.doc) : "";
+  $("#canvasHost").innerHTML = etat.doc ? compilerSVG(etat.doc, { image: VL.imageUrl }) : "";
   dessinerGrille();          // couche d'affichage, hors document et hors export
   $("#temoin").textContent = etat.sale ? "●" : "✓";
   $("#temoin").classList.toggle("sale", etat.sale);
@@ -283,6 +286,17 @@ function rendreOverlay() {
       stroke: "#39b3d0", "stroke-width": 1, class: "guide",
       "data-guide": "h:" + i, "stroke-dasharray": "5 4" }));
   });
+  // repères de page (lot A) : coupe en rouge, zone sûre en vert — overlay
+  // seulement, jamais dans l'export
+  const rr = reperes_rects(etat.doc);
+  for (const [k, couleur] of [["fondPerdu", "#d0553a"], ["zoneSure", "#3aa66b"]]) {
+    const rb = rr[k];
+    if (!rb) continue;
+    const [ex, ey] = ecranPt(rb.x, rb.y);
+    o.appendChild(ov("rect", { x: ex, y: ey, width: rb.w * etat.zoom, height: rb.h * etat.zoom,
+      fill: "none", stroke: couleur, "stroke-width": 1, "stroke-dasharray": "6 3",
+      class: "repere", "data-repere": k, "pointer-events": "none" }));
+  }
   // cadre + poignées de la sélection (outil sélection)
   const b = bboxSelectionEcran();
   if (b && etat.outil === "select") {
@@ -431,6 +445,7 @@ async function charger() {
     etat.tx = Math.max(20, (r.width - etat.doc.taille.w * etat.zoom) / 2);
     etat.ty = Math.max(20, (r.height - etat.doc.taille.h * etat.zoom) / 2);
     appliquerVue();
+    VL.surCharge();                    // le brouillon se propose ici (lot A)
   } catch (e) {
     $("#docMeta").classList.add("erreur");
     $("#docMeta").textContent = "erreur : " + e.message;
@@ -450,6 +465,7 @@ async function sauver() {
     etat.meta.version = r.version;
     etat.sale = false;
     majTete();
+    VL.surSauve();                     // le brouillon s'efface (lot A)
     $("#temoin").textContent = "✓";
     $("#temoin").classList.remove("sale");
     // phase 6 : la vignette suit la sauvegarde — jamais bloquante, son
@@ -609,11 +625,12 @@ const VL = {
   sommetDe: (id) => sommetDe(etat.doc, id),
   rendre, rendreOverlay, appliquerVue, setOutil, toast,
   surRendu: () => {}, surOutil: () => {}, surTouche: () => {},
-  surSelection: () => {},
+  surSelection: () => {}, surCharge: () => {}, surSauve: () => {},
 };
 initCalques(VL);
 initCouleur(VL);
 initStyle(VL);
+initImage(VL);      // panneaux Image / Repères, après Apparence (lot A)
 initOutils(VL);
 initExport(VL);
 initVitrail(VL);
