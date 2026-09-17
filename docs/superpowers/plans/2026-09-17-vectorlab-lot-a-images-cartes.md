@@ -8,8 +8,74 @@
 > (§4 lot A, décisions D1, D2, D5, D6, D7, D9). Branche : `chantier/vectorlab-affinity`.
 > Ce plan est COMMIS avant le code (patron des chantiers du 27/08).
 
-> **RELEVÉ DE LIVRAISON** : à écrire ici en fin de lot (livré / prouvé /
-> déployé / reste).
+> **RELEVÉ DE LIVRAISON (17/09/2026) : LOT A LIVRÉ, PROUVÉ EN RÉEL, DÉPLOYÉ.**
+>
+> **Livré** (10 commits sur `chantier/vectorlab-affinity`, T0→T8, tous
+> poussés) : imagetracerjs 1.2.6 vendorisé (Unlicense, écart dit) ; objet
+> `image` du modèle (href relatif, `nat`, `rognage`, `verrou` d'objet,
+> résolveur d'href de `compilerSVG(doc, opts)`, `fill-rule`) ; `reperes`
+> fond perdu / zone sûre (rects dérivés, guides aimantants, jamais compilés) ;
+> magasin d'images `<did>.img<n>.png` + routes `POST/GET
+> /vector/docs/{id}/images[/{name}]`, dupliquer copie les images ;
+> `mod-image.js` (Bibliothèque via `__dzLibPicker` du parent ou grille de
+> repli, fichier, presse-papiers ×2 voies, génération ; panneau Image :
+> rognage, verrou, Vectoriser ; panneau Repères) ; export SVG/PNG avec
+> images inlinées en `data:` (le JSON n'en porte jamais) ; `mod-trace.js`
+> (couleurs, lissage, seuil, définition, aperçu par LE compilateur, pose en
+> UNE commande dans un calque « vectorisé ») ; `mod-brouillon.js` (30 s,
+> restauré si pertinent, effacé au Sauver) ; Cardforge : `CF.vector.update`
+> + `CF.vector.image` au CORE, bouton « Éditer cette face dans le
+> Vectorlab » (`docFaceVec`, calque image verrouillé, repères depuis la
+> géométrie du jeu).
+>
+> **TDD tenu** : RED constaté avant chaque module (exports manquants ×5,
+> `AttributeError lister_images`, `cf-face-vlab-edit` absent). Bancs :
+> node **417 contrôles** (+89 : image 33, image_ui 16, reperes 13, trace 17,
+> brouillon 10), pytest `test_vector_docs` **25 passed** (+3), `cards_face`
+> 147, `cards_type` 348, `cards_core` vert. Deux pins corrigés EN LE DISANT :
+> le cas `..%2F` du client tombe dans le catch-all SPA (piège n°7 — assertion
+> « jamais une image ») ; un pin sur le MOT « base64 » rougissait sur un
+> commentaire (→ le jeton `;base64,`).
+>
+> **Prouvé en réel** (backend du worktree sur 8799, données isolées,
+> viewport émulé 1400×900 — un volet caché rend `#stage` 0×0 et
+> `elementFromPoint` nul, mesuré) : pose d'un PNG canvas 400×400 →
+> `href=/api/vector/docs/<id>/images/img1.png`, bbox 400 px, panneau Image
+> `offsetHeight` 106 ; drag pointeur synthétique x 175→259 (dx 84 = 60 px
+> écran / zoom 0,71, `translate` vu pendant le geste) ; poignée 4 : 400→297 ;
+> rognage 80/80/240/240 → `viewBox="80 80 240 240"` ; verrou → `data-verrou`
+> et drag sans effet (259→259), libéré → 259→315 ; repères 3 mm / 6 mm →
+> `[35.43, 35.43]` / `[70.87, 70.87]`, deux `rect.repere` d'overlay (679 et
+> 608 px de large), `aimantePt(35.9)` → 35.43 ; brouillon écrit, doc serveur
+> relu, `surCharge` + confirm → 1 objet restauré, `sale=true`, toast ; Sauver
+> → v2, clé effacée. **Le pont du spec** : Cardforge (poker_eu, 300 dpi,
+> toile 815×1110) → « Éditer cette face » → doc `92dd13f76ab7` ancré
+> `deck_id`, taille 815×1110, mm/300, `reperes {fondPerdu:[35.5,35.5],
+> zoneSure:[71,70.5]}`, calque « face (verrouillée) » avec l'image
+> `img1.png` (1 095 162 octets, décodée 815×1110) verrouillée, calque
+> « retouches » actif ; Vectoriser 8 couleurs → **2 876 chemins**, aperçu
+> `#trApercu` `offsetHeight` 540, Valider → calque « vectorisé » (2 876
+> objets) ; retouche : un chemin déplacé au pointeur (`d` changé, historique
+> annulable) ; Exporter PNG 2× → `vector_92dd13f76ab7_2x.png` 200 image/png
+> **1630×2220 = exactement le 2×** ; Cardforge « Poser 2× » → `face.src =
+> img:vector_92dd13f76ab7_2x.png`, **jauge 832 DPI « suffisante »** (source
+> 1630×2220 posée en 587,8×800,6 px dans la fenêtre du cadre — au-dessus de
+> 600 parce que la fenêtre d'illustration est plus petite que la toile ;
+> la jauge lit bien la trame 2×). Négatifs : Vectoriser sur un doc vide →
+> toast « aucune image dans le document — Image ▾ pour en poser une » ;
+> grille de repli Bibliothèque hors iframe (1 carte, `offsetHeight` 140).
+>
+> **Déployé** : 10 fichiers installés = base `5d01db2` (table hash-object)
+> → sauvegarde `_backup_predeploy_2026-09-17-vectorlab-lotA` → copie depuis
+> `git archive 30a3fc6` → **57 fichiers = cible** (hash-object), pré-vol du
+> python embarqué `import app.main` OK. Aucune migration de base. **Le
+> backend installé n'écoutait pas (8765 muet, journal du 07/09) : c'est
+> l'utilisateur qui relance.**
+>
+> **Reste** : l'écran « restaurer ? » n'a été exercé que par `surCharge`
+> simulé (le confirm au rechargement bloque le navigateur de preuve) ; le
+> miroir d'une image ne retourne que sa position ; la génération n'a pas
+> été tirée (clé absente en données isolées — la route est l'existante).
 
 **Goal :** poser des images dans un document du Vectorlab (Bibliothèque,
 fichier, presse-papiers, génération), les rogner, les verrouiller, les
