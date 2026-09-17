@@ -410,3 +410,15 @@ button:disabled { opacity: .4; cursor: default; }
 .planche-ligne small { color: #8b93a0; font-size: 11px; }
 .planche-ligne button { padding: 1px 5px; font-size: 12px; }
 details > summary.panneau-tete { cursor: pointer; list-style: none; }
+
+/* ── lot D : dialogue Impression 3D ── */
+.imp-boite { width: min(1100px, 95vw); }
+.imp-corps { display: flex; gap: 14px; padding: 12px; }
+.imp-regles { width: 260px; display: flex; flex-direction: column; gap: 8px; }
+.imp-regles label { display: flex; flex-direction: column; font-size: 12px; color: #9aa3b2; gap: 3px; }
+.imp-regles label.imp-ligne { flex-direction: row; align-items: center; gap: 6px; }
+.imp-regles input, .imp-regles select { background: #232833; color: #d6d9de; border: 1px solid #3a4150;
+  border-radius: 4px; padding: 3px 6px; }
+.imp-viewer { flex: 1; min-height: 360px; height: 60vh; background: #fff; border-radius: 6px; }
+.imp-garde { color: #e0b34a; font-size: 12px; margin: 0; }
+.imp-doc { color: #8b93a0; font-size: 12px; margin-left: 8px; }

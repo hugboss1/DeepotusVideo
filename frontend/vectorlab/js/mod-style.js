@@ -10,6 +10,7 @@ import { op_style, op_ordre, op_grouper, op_degrouper, op_degrade_creer,
          op_miroir, op_rect_rayon }
   from "./mod-doc.js";
 import { op_booleen, op_division } from "./mod-bool.js";
+import { POLICES } from "./mod-texte3d.js";
 
 const POINTILLES = [["", "plein"], ["6 4", "tirets"], ["2 3", "points"]];
 const JOINTS = ["round", "miter", "bevel"];
@@ -203,6 +204,11 @@ export function initStyle(VL) {
         <input type="number" id="apInterlettrage" step="0.5" min="-10"
                max="40" value="${s.interlettrage || 0}"
                title="Interlettrage"/>
+      </div>
+      <div class="ap-ligne"><span>3D</span>
+        <select id="apPolice3d" title="Police du dist (OFL) dont les glyphes deviennent les contours">${POLICES.map((p) =>
+          `<option value="${p.id}">${p.nom}</option>`).join("")}</select>
+        <button id="apVectoriserTexte" title="Remplace le texte par ses contours (opentype.js) — extrudable et booléen ; annulable par l'historique">Vectoriser</button>
       </div>` : ""}
       ${g ? `<div class="ap-stops" title="Stops du dégradé du fond">
         ${g.stops.map((st, i) => `<div class="ap-stop">
@@ -329,6 +335,11 @@ export function initStyle(VL) {
                                     ? null : e.target.value }));
       $("#apInterlettrage").addEventListener("change",
         (e) => appliquer({ interlettrage: +e.target.value || null }));
+      $("#apVectoriserTexte").addEventListener("click", () => {
+        if (!VL.vectoriserTexte) return;
+        VL.vectoriserTexte(etat.selection[0], $("#apPolice3d").value)
+          .catch((e) => VL.toast(e.message, true));
+      });
     }
     if (g) {
       hote.querySelectorAll("[data-stop]").forEach((btn) =>
