@@ -17,9 +17,10 @@ export function href_est_absolu(h) {
   return /^(data:|blob:|https?:|\/)/.test(String(h || ""));
 }
 
-export function image_url(docId, href) {
+export function image_url(docId, href, rev) {
   if (href_est_absolu(href)) return href;
-  return `/api/vector/docs/${encodeURIComponent(docId)}/images/${encodeURIComponent(href)}`;
+  const v = Number.isInteger(rev) && rev > 0 ? `?v=${rev}` : "";      // lot E : révision raster
+  return `/api/vector/docs/${encodeURIComponent(docId)}/images/${encodeURIComponent(href)}${v}`;
 }
 
 // la pose par défaut : contenue dans la page (jamais agrandie), centrée
@@ -53,6 +54,20 @@ export function image_hrefs(doc) {
   return out;
 }
 
+// lot E : la révision raster la plus haute portée par les objets qui
+// référencent `href` (plusieurs objets peuvent partager un PNG)
+export function image_rev_max(doc, href) {
+  let rev = 0;
+  const visiter = (objs) => {
+    for (const o of objs || []) {
+      if (o.type === "image" && o.href === href && (o.rev | 0) > rev) rev = o.rev | 0;
+      if (o.type === "groupe") visiter(o.enfants);
+    }
+  };
+  for (const c of doc.calques || []) visiter(c.objets);
+  return rev;
+}
+
 export function libListeHTML(images, q) {
   const f = String(q || "").toLowerCase();
   const vus = (images || []).filter((i) => !f || String(i.filename).toLowerCase().includes(f));
@@ -69,7 +84,7 @@ export function libListeHTML(images, q) {
 export function initImage(VL) {
   const { $, etat } = VL;
 
-  VL.imageUrl = (href) => image_url(etat.docId, href);
+  VL.imageUrl = (href, rev) => image_url(etat.docId, href, rev);
 
   async function deposer(png) {
     const r = await fetch(`/api/vector/docs/${encodeURIComponent(etat.docId)}/images`,

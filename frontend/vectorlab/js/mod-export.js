@@ -6,7 +6,7 @@
 // conditionnement de planche reste l'opt-in payant de la machinerie en
 // place, rien ne tire ici.
 import { compilerSVG } from "./mod-doc.js";
-import { image_hrefs } from "./mod-image.js";
+import { image_hrefs, image_rev_max } from "./mod-image.js";
 
 export function initExport(VL) {
   const { $, etat } = VL;
@@ -19,7 +19,7 @@ export function initExport(VL) {
     // le JSON stocké ne porte jamais de base64 (D1)
     const carte = new Map();
     for (const href of image_hrefs(doc)) {
-      const r = await fetch(VL.imageUrl(href));
+      const r = await fetch(VL.imageUrl(href, image_rev_max(doc, href)), { cache: "no-store" });   // lot E : jamais un PNG périmé
       if (!r.ok) throw new Error(`image ${href} introuvable (${r.status})`);
       const b = await r.blob();
       carte.set(href, await new Promise((res, rej) => {

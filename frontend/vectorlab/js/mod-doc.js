@@ -81,6 +81,7 @@ function _validerObjets(objs, ou) {
       if (!o.nat || !(o.nat.w > 0) || !(o.nat.h > 0)) throw new Error(`image ${o.id}: nat {w,h} positif requis`);
       if (!(o.w > 0) || !(o.h > 0)) throw new Error(`image ${o.id}: taille positive requise`);
       if (o.rognage !== undefined) _validerRognage(o.rognage, o.nat, `image ${o.id}`);
+      if (o.rev !== undefined && !(Number.isInteger(o.rev) && o.rev >= 0)) throw new Error(`image ${o.id}: rev entier ≥ 0`);
     }
     if (o.type === "forme") {
       if (!(o.r > 0)) throw new Error(`forme ${o.id}: rayon > 0 requis`);
@@ -141,6 +142,7 @@ export function parserDoc(doc) {
     }
   }
   if (doc.geo !== undefined) _validerGeo(doc.geo);
+  if (doc.pixelart !== undefined) _validerPixelart(doc.pixelart);
   return doc;
 }
 
@@ -209,7 +211,7 @@ function compilerObjet(o, ctx = {}) {
         + ` d="${hex_d(cx, cy, g.pas, g.orientation, g.echelle)}"${styleAttrs(s, ctx)}${tr}/>`;
     }
     case "image": {
-      const url = (ctx.image || ((h) => h))(o.href);
+      const url = (ctx.image || ((h) => h))(o.href, o.rev);
       const nat = o.nat;
       const r = o.rognage || { x: 0, y: 0, w: nat.w, h: nat.h };
       const verrou = o.verrou ? ` data-verrou="1"` : "";
@@ -1141,6 +1143,51 @@ export function op_image_rogner(doc, id, rognage) {
 export function op_image_verrou(doc, id, verrou) {
   const o = _trouverImage(doc, id);
   if (verrou) o.verrou = true; else delete o.verrou;
+}
+
+/* ── lot E (D1) : la RÉVISION raster d'un calque image — les pixels vivent
+   dans le PNG (journal `.pix<k>.png` côté serveur), le JSON ne porte qu'un
+   entier que le résolveur d'href ajoute en `?v=rev` pour casser le cache. */
+export function op_image_rev(doc, id, rev) {
+  const o = _trouverImage(doc, id);
+  if (!(Number.isInteger(rev) && rev >= 0)) throw new Error(`image ${id}: rev entier ≥ 0`);
+  if (rev > 0) o.rev = rev; else delete o.rev;
+}
+
+/* ── lot E : doc.pixelart = {tuile {w,h} entiers ≥ 1, palette [hex],
+   symetrie {h, v}} — les réglages du mode pixel-art, tous optionnels. */
+const _CLES_PIXELART = ["tuile", "palette", "symetrie"];
+const _HEX = /^#[0-9A-Fa-f]{6}$/;
+function _validerPixelart(p) {
+  if (!p || typeof p !== "object" || Array.isArray(p)) throw new Error("document: pixelart {tuile?, palette?, symetrie?}");
+  for (const k of Object.keys(p)) if (!_CLES_PIXELART.includes(k)) throw new Error(`pixelart: clé inconnue ${k}`);
+  if (p.tuile !== undefined) {
+    const t = p.tuile;
+    if (!t || !(Number.isInteger(t.w) && t.w >= 1) || !(Number.isInteger(t.h) && t.h >= 1)) {
+      throw new Error("pixelart.tuile: {w, h} entiers ≥ 1");
+    }
+  }
+  if (p.palette !== undefined) {
+    if (!Array.isArray(p.palette) || p.palette.some((c) => !_HEX.test(String(c)))) {
+      throw new Error("pixelart.palette: liste de couleurs #RRGGBB");
+    }
+  }
+  if (p.symetrie !== undefined && (!p.symetrie || typeof p.symetrie !== "object")) {
+    throw new Error("pixelart.symetrie: {h, v}");
+  }
+}
+export function op_pixelart(doc, patch) {
+  if (!patch || typeof patch !== "object") throw new Error("pixelart: patch requis");
+  const p = { ...(doc.pixelart || {}) };
+  for (const [k, v] of Object.entries(patch)) {
+    if (!_CLES_PIXELART.includes(k)) throw new Error(`pixelart: clé inconnue ${k}`);
+    if (v === null || v === undefined) { delete p[k]; continue; }
+    if (k === "tuile") p.tuile = { w: v.w, h: v.h };
+    else if (k === "palette") p.palette = Array.isArray(v) ? v.map((c) => String(c).toUpperCase()) : v;
+    else p.symetrie = { h: !!(v && v.h), v: !!(v && v.v) };
+  }
+  _validerPixelart(p);
+  if (Object.keys(p).length) doc.pixelart = p; else delete doc.pixelart;
 }
 
 /* ── vectorisation (lot A, D6) : les chemins tracés se posent d'un coup
