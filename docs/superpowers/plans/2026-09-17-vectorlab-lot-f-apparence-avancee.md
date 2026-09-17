@@ -10,7 +10,80 @@
 > Branche `chantier/vectorlab-affinity`, après le lot E (`8e2f8f0`). Ce
 > plan est COMMIS avant le code.
 
-> **RELEVÉ DE LIVRAISON** : à écrire ici en fin de lot.
+> **RELEVÉ DE LIVRAISON (17/09/2026) : LOT F LIVRÉ, PROUVÉ EN RÉEL, DÉPLOYÉ (statiques seuls : aucune relance).**
+>
+> **Livré** (10 commits `410c7f5`→`30ab83c`, poussés) : `mod-effets.js` feuille
+> (six effets chaînés dans UN `<filter>` par objet : ombre, ombre interne,
+> lueur, biseau spéculaire, contour par morphologie, incrustation ; 16 modes
+> de fusion ; motifs hachures / points / damier / grille en `<pattern>` ;
+> dégradé conique en 72 secteurs interpolés) ; modèle : `style.effets /
+> fusion / contours / masque` validés et compilés (enveloppe `<g data-objet>`
+> avec copies SANS id, `mix-blend-mode`, masque de luminance), `doc.motifs`
+> + fond `motif:<id>`, dégradé `conique` qui suit la forme,
+> `op_degrade_transparence`, `doc.couleursGlobales` (`glob:<nom>` résolu à
+> la compilation et à la suppression), écrêtage `groupe.clip` → `<clipPath>`
+> (`op_ecreter` / `op_desecreter`), `doc.styles` (copie à l'application),
+> `doc.symboles` + objet `instance` → `<use>` d'un `<g id=sym_>` des defs
+> (créer / poser / modifier / détacher / supprimer, origine qui suit la bbox
+> à l'échelle), objets `cadre` (mod-texteplus feuille : mesure injectable,
+> coupe aux mots / retours / caractères, tspans gauche / centre / droite /
+> justifié, retrait, débordement) et `textechemin` (`d` copié, décalage) ;
+> `mod-couleur` : `palette_harmonique` (5 harmonies) ; `mod-pinceauvec.js`
+> feuille (plat / fuseau / calligraphie → chemin fermé) ; UI
+> `mod-apparence2.js` (panneau Apparence + en sept sections, outil pinceau
+> vectoriel J, mesure du texte du navigateur injectée au rendu et à l'export).
+>
+> **TDD tenu** : RED ×7 (effets, apparence2, harmonie, symboles, texteplus,
+> pinceauvec, apparence2_ui). Bancs : node **948 contrôles** (+134 : effets
+> 27, apparence2 34, harmonie 8, symboles 21, texteplus 24, pinceauvec 12,
+> apparence2_ui 8), pytest `test_vector_docs` **34 passed** (+2 : miroir de
+> surface et aller-retour des champs). Le banc a redressé deux attentes :
+> les secteurs du conique prennent un rayon ×1,5 (couvrir les coins du
+> carré) et l'origine d'une instance recule de bx·sx sous l'échelle (la bbox
+> reste en place) ; un id libéré par une instance détachée se réattribue à
+> une copie (ids libres du modèle).
+>
+> **Prouvé en réel** (8799, données isolées, viewport 1400×900, gestes
+> pointeur synthétiques, lecture DOM) : ombre + lueur → `<g data-objet>
+> filter=url(#fx_r1)`, filtre de **10 primitives**, dx 12 relu dans
+> `feOffset`, retrait d'un effet ; fusion multiply → `mix-blend-mode` calculé
+> ; deux contours → **3 ellipses** (10, 6, principale), 2 copies
+> `data-contour` ; conique → `<pattern>` de **72 secteurs**, `fill=url(#g1)`
+> ; transparence → `<mask id=m_g2>` + `mask=url`, retrait ; motif damier
+> pas 12 → pattern à 2 rects ; coller dans → groupe `clip r1`, `clip-path`,
+> p1 dedans, libérer → 0 groupe ; couleur globale « Ma-marque » → fond
+> `glob:` rendu `#12AB34`, teinte changée → `#FF00FF` partout, suppression
+> → hex résolu ; harmonie triade → 3 couleurs dans la palette ; style
+> « cerne » (avec ombre) appliqué à e1 → `filter=url(#fx_e1)` ; symbole
+> « pion » (r1 + e1) → `<use href=#sym_s1>` de 360 px d'écran, seconde
+> instance posée `translate(24 24)`, **glissée au pointeur** (x 24 → 88),
+> détachée en rect + ellipse (1 `<use>` restant) ; texte → cadre 200×60 →
+> **2 tspans** coupés par `measureText` (92 px pour 14 caractères), justifié
+> → 1 `textLength` ; texte + chemin → `textechemin`, `<textPath
+> href=#tp_t1>`, p1 conservé, décalage 30 % relu ; pinceau vectoriel J,
+> largeur 12 → chemin **fermé de 19 sommets** rempli sans contour, 66 px de
+> haut ; Ctrl+Z → 5 objets ; sauvegarde → `styles`, `symboles`,
+> `textechemin` relus.
+>
+> **Deux défauts attrapés par la preuve** : la section Texte + ne s'affichait
+> qu'à sélection unique (texte + chemin n'offraient pas « sur le chemin ») ;
+> l'harmonie perdait son type et ses pastilles au re-rendu du panneau.
+>
+> **Déployé** : 18 fichiers (= base lot E `eea0020` vérifiés par
+> hash-object, 11 absents) → sauvegarde
+> `_backup_predeploy_2026-09-17g-vectorlab-lotF` (7 fichiers) → copie depuis
+> `git archive 30ab83c` → **18 = cible, 105/105 du Vectorlab = cible**.
+> **Aucun Python touché : aucune relance nécessaire.**
+>
+> **Reste** : le conique est une approximation en secteurs (pas de vrai
+> dégradé continu) ; les effets ne s'appliquent pas aux objets `image` ni
+> aux enfants d'un symbole ; le biseau est un éclairage spéculaire simple ;
+> le masque de transparence est linéaire gauche → droite (ses points se
+> règlent comme un dégradé) ; l'édition VIVANTE d'un symbole passe par
+> détacher → modifier → recréer (pas de mode d'édition en place) ; le cadre
+> de texte n'a pas de poignées propres (redimensionner par la bbox) ; le
+> texte sur chemin ne suit pas les modifications ultérieures du chemin (d
+> copié, dit dans la conception).
 
 **Goal :** donner au Vectorlab l'apparence de classe Affinity : effets de
 calque par filtres SVG (ombre externe / interne, lueur, biseau, contour,
