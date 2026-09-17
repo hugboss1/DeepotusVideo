@@ -1,7 +1,7 @@
 // flyout.test.mjs — mod-flyout : les menus détachés de la barre d'outils —
 // entrées du menu Forme (la courante marquée, un glyphe par forme), du menu
 // Symboles (état vide dit), position à droite du bouton bornée à la fenêtre.
-import { flyout_formes, flyout_symboles, flyout_position } from "../js/mod-flyout.js";
+import { flyout_formes, flyout_symboles, flyout_position, flyout_choix, flyout_presets, flyout_terrains, flyout_polices, flyout_actions, MENUS } from "../js/mod-flyout.js";
 import { FORMES } from "../js/mod-formes.js";
 
 const echecs = [];
@@ -21,8 +21,24 @@ const ok = (nom, cond, detail = "") => {
   ok("borné en bas : le menu remonte pour tenir dans la fenêtre", b.y === 900 - 6 - 220, JSON.stringify(b));
   ok("borné à droite : passe à gauche du bouton s'il ne tient pas", flyout_position({ x: 1300, y: 100, w: 38, h: 38 }, { w: 160, h: 100 }, { w: 1400, h: 900 }, 6).x === 1300 - 6 - 160);
 }
+/* ── les autres sections ── */
+{
+  const c = flyout_choix([{ id: "a", nom: "Alpha" }, { id: "b", nom: "Beta" }], "b", { glyphes: { a: "①" } });
+  ok("choix : une entrée par valeur, la courante marquée, glyphe optionnel", c.length === 2 && c[1].actif === true && c[0].glyphe === "①" && c[1].glyphe === "" && c[0].libelle === "Alpha" && c[0].id === "a", JSON.stringify(c));
+  const p = flyout_presets([4, 8, 16], 8, "px");
+  ok("presets : valeurs avec unité, la courante marquée, ids numériques", p.length === 3 && p[1].actif === true && p[1].libelle === "8 px" && p[2].valeur === 16, JSON.stringify(p));
+  ok("presets : courante hors liste → ajoutée en tête marquée", (() => { const q = flyout_presets([4, 8], 5, "px"); return q.length === 3 && q[0].valeur === 5 && q[0].actif; })());
+  const t = flyout_terrains({ mer: { nom: "Mer", couleur: "#2B5F9E", hauteur_mm: 0 }, plaine: { nom: "Plaine", couleur: "#7FB069", hauteur_mm: 2 } }, "plaine");
+  ok("terrains : pastille de couleur, nom, hauteur en détail, le courant marqué", t.length === 2 && t[1].actif && t[0].couleur === "#2B5F9E" && t[1].detail === "2 mm" && t[0].id === "mer", JSON.stringify(t));
+  ok("état vide : sans terrain → []", flyout_terrains({}, "x").length === 0);
+  const f = flyout_polices([{ id: "lib:a", famille: "Anton", source: "lib" }, { id: "user:b.ttf", famille: "B", source: "user" }], "Anton");
+  ok("polices : une entrée par police rendue dans sa famille, la courante marquée, source en détail", f.length === 2 && f[0].actif && f[0].famille === "Anton" && f[1].detail === "déposée" && f[0].detail === "bibliothèque", JSON.stringify(f));
+  const a = flyout_actions([{ id: "x", libelle: "X", cible: "#x" }, { id: "y", libelle: "Y", cible: "#y" }], (cible) => cible === "#x");
+  ok("actions : disponible = la cible existe, sinon désactivée", a[0].desactive === false && a[1].desactive === true && a[1].action === "cible");
+  ok("registre : un bâtisseur par outil à menu, les 18 outils attendus", ["select", "noeuds", "texte", "crayon", "pinceauv", "gomme", "coin", "tuiles", "forme", "symbole", "px-pinceau", "px-gomme", "px-seau", "px-baguette", "px-selrect", "px-lasso", "tranche"].every((k) => typeof MENUS[k] === "function"), Object.keys(MENUS).join(","));
+}
 if (echecs.length) {
   console.error("ECHECS flyout :\n- " + echecs.join("\n- "));
   process.exit(1);
 }
-console.log("QA flyout : PASS (7 controles)");
+console.log("QA flyout : PASS (15 controles)");

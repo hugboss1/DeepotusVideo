@@ -612,5 +612,7 @@ details[id] > summary.panneau-tete:hover { background: #1c2129; }
 .fo-item.actif { background: #2c4a75; border-color: #5b82b8; color: #fff; }
 .fo-item:disabled { opacity: .45; }
 .fo-glyphe { width: 18px; text-align: center; font-size: 15px; }
+.fo-pastille { width: 14px; height: 14px; border-radius: 3px; border: 1px solid #3a4150; flex: 0 0 14px; }
+#flyout { max-height: 70vh; overflow-y: auto; scrollbar-width: thin; }
 .fo-lib { flex: 1; }
 .fo-item small { color: #8b93a0; font-size: 11px; }

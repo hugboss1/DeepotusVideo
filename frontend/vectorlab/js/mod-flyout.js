@@ -1,13 +1,18 @@
 // mod-flyout.js — les menus DÉTACHÉS de la barre d'outils de gauche : un
 // bouton à menu porte une marque d'angle ; clic droit, clic sur l'angle ou
 // appui long ouvre le menu à côté du bouton (un seul à la fois, Échap ou
-// clic dehors le ferme). Menu Forme : les sept formes, la courante marquée
-// — choisir active l'outil Forme (pose au clic ou au glisser). Menu
-// Symboles : poser une instance de chaque symbole, ou en créer un depuis la
-// sélection. La partie haute est PURE.
+// clic dehors le ferme). Un menu par outil dont le panneau porte des choix
+// ou des actions fréquentes : Forme, Symboles, Sélection, Nœuds, Texte,
+// Crayon / Pinceau vectoriel, Gomme, Coin, Tuiles, Pixel (pinceau, gomme,
+// seau, baguette, sélections), Tranche. Les actions DÉLÈGUENT aux
+// commandes et aux boutons des panneaux existants — rien de nouveau au
+// modèle. La partie haute (bâtisseurs, registre) est PURE.
 import { FORMES } from "./mod-formes.js";
-import { op_symbole_creer, op_instance_poser } from "./mod-doc.js";
+import { op_symbole_creer, op_instance_poser, op_style, terrains_de } from "./mod-doc.js";
+import { PROFILS } from "./mod-pinceauvec.js";
+import { MODES } from "./mod-tranches.js";
 
+/* ── bâtisseurs purs ── */
 const GLYPHES = { polygone: "⬠", hexagone: "⬡", etoile: "☆", engrenage: "⚙", fleche: "➜", donut: "◎", spirale: "๑" };
 export function flyout_formes(formes, courante) {
   return (formes || []).map((f) => ({ id: f.id, libelle: f.nom, glyphe: GLYPHES[f.id] || "◇", actif: f.id === courante }));
@@ -18,6 +23,24 @@ export function flyout_symboles(symboles) {
   entrees.push({ id: "", libelle: "Créer depuis la sélection", detail: "", action: "creer" });
   return entrees;
 }
+export function flyout_choix(liste, courant, { glyphes = {} } = {}) {
+  return (liste || []).map((x) => ({ id: x.id, libelle: x.nom || x.libelle || x.id, glyphe: glyphes[x.id] || "", actif: x.id === courant, action: "choix" }));
+}
+export function flyout_presets(valeurs, courante, unite = "") {
+  const vals = (valeurs || []).slice();
+  if (courante !== undefined && courante !== null && !vals.includes(courante)) vals.unshift(courante);
+  return vals.map((v) => ({ id: String(v), valeur: v, libelle: `${v}${unite ? " " + unite : ""}`, actif: v === courante, action: "preset" }));
+}
+export function flyout_terrains(terrains, courant) {
+  return Object.entries(terrains || {}).map(([id, f]) => ({ id, libelle: f.nom || id, couleur: f.couleur, detail: `${+f.hauteur_mm || 0} mm`, actif: id === courant, action: "choix" }));
+}
+export function flyout_polices(polices, courante) {
+  const src = { lib: "bibliothèque", user: "déposée", systeme: "système" };
+  return (polices || []).map((p) => ({ id: p.id, libelle: p.famille, famille: p.famille, detail: src[p.source] || "", actif: p.famille === courante, action: "police" }));
+}
+export function flyout_actions(liste, disponible = () => true) {
+  return (liste || []).map((a) => ({ id: a.id, libelle: a.libelle, glyphe: a.glyphe || "", cible: a.cible, action: "cible", desactive: !disponible(a.cible) }));
+}
 export function flyout_position(bouton, taille, fenetre, marge = 6) {
   let x = bouton.x + bouton.w + marge;
   if (x + taille.w > fenetre.w - marge) x = bouton.x - marge - taille.w;
@@ -26,6 +49,91 @@ export function flyout_position(bouton, taille, fenetre, marge = 6) {
   return { x, y };
 }
 
+/* ── registre : outil → {titre, entrees, choisir(entree)} — `c` = contexte
+   {etat, existe(sel), cliquer(sel), setOutil, executer, toast, rendre} ── */
+const AL = [["gauche", "⇤ Aligner à gauche"], ["centreH", "⇔ Centrer horizontalement"], ["droite", "⇥ Aligner à droite"], ["haut", "⇧ Aligner en haut"], ["centreV", "⇕ Centrer verticalement"], ["bas", "⇩ Aligner en bas"]];
+const ORDRE = [["devant", "⤒ Tout devant"], ["avant", "↑ Un cran devant"], ["arriere", "↓ Un cran derrière"], ["derriere", "⤓ Tout derrière"]];
+const BOOL = [["union", "∪ Union"], ["soustraction", "⊖ Soustraction"], ["intersection", "∩ Intersection"], ["division", "⧉ Division"]];
+export const MENUS = {
+  forme: (c) => ({ titre: "Forme paramétrique", entrees: flyout_formes(FORMES, c.etat.formeCourante), choisir: (e) => {
+    c.etat.formeCourante = e.id; c.setOutil("forme"); c.toast(`forme « ${e.libelle} » : cliquer pour la poser (rayon 40) ou glisser depuis le centre`); c.rendre(); } }),
+  symbole: (c) => ({ titre: "Symboles", entrees: flyout_symboles(c.etat.doc && c.etat.doc.symboles), choisir: (e) => {
+    if (e.action === "poser") { const id = c.executer(op_instance_poser, c.etat.calqueActif, e.id, 24, 24); if (id) { c.setOutil("select"); c.selectionner([id]); } }
+    else if (e.action === "creer") {
+      if (!c.etat.selection.length) { c.toast("sélectionner d'abord les objets du symbole", true); return; }
+      const sid = c.executer(op_symbole_creer, c.etat.selection.slice(), undefined);
+      if (sid) c.toast(`symbole ${sid} créé — le menu Symboles le pose`);
+    } } }),
+  select: (c) => ({ titre: "Sélection", entrees: flyout_actions([
+    ...AL.map(([k, l]) => ({ id: "al-" + k, libelle: l, cible: `#panneauStyle [data-al="${k}"]` })),
+    ...ORDRE.map(([k, l]) => ({ id: "or-" + k, libelle: l, cible: `#panneauStyle [data-ordre="${k}"]` })),
+    { id: "grouper", libelle: "Grouper", cible: "#apGrouper" }, { id: "degrouper", libelle: "Dégrouper", cible: "#apDegrouper" },
+    ...BOOL.map(([k, l]) => ({ id: "bo-" + k, libelle: l, cible: `#panneauStyle [data-bool="${k}"]` })),
+  ], (sel) => c.etat.selection.length > 0 && c.existe(sel)), choisir: (e) => c.cliquer(e.cible) }),   // rien de sélectionné : tout est désactivé
+  noeuds: (c) => ({ titre: "Nœuds", entrees: flyout_actions([
+    { id: "diviser", libelle: "Diviser le segment", cible: "#ndDiviser" }, { id: "inverser", libelle: "Inverser le sens", cible: "#ndInverser" },
+    { id: "joindre", libelle: "Joindre deux chemins", cible: "#ndJoindre" }, { id: "coins", libelle: "Arrondir les coins", cible: "#ndCoins" },
+  ], c.existe), choisir: (e) => c.cliquer(e.cible) }),
+  texte: (c) => {
+    const t = c.etat.typo || { polices: [], courante: "" };
+    const sel = c.etat.selection.length === 1 ? c.objetDe(c.etat.selection[0]) : null;
+    const courante = sel && sel.objet.type === "texte" ? (sel.objet.style || {}).police : (t.polices.find((p) => p.id === t.courante) || {}).famille;
+    return { titre: "Typographies", entrees: [...flyout_polices(t.polices, courante), { id: "deposer", libelle: "⬆ Déposer une police…", action: "deposer" }], choisir: (e) => {
+      if (e.action === "deposer") { c.cliquer("#txDeposer") || c.toast("ouvrir le panneau Texte pour déposer une police", true); return; }
+      c.etat.typo.courante = e.id;
+      if (sel && (sel.objet.type === "texte" || sel.objet.type === "cadre")) c.style([sel.objet.id], { police: e.famille });
+      else { c.setOutil("texte"); c.rendre(); }
+    } };
+  },
+  crayon: (c) => MENUS.pinceauv(c),
+  pinceauv: (c) => {
+    const pv = c.etat.pinceauv || { profil: "fuseau", largeur: 8 };
+    return { titre: "Pinceau vectoriel", entrees: [...flyout_choix(PROFILS, pv.profil, { glyphes: { plat: "▬", fuseau: "◆", calligraphie: "✒" } }), ...flyout_presets([4, 8, 16, 24], pv.largeur, "px")], choisir: (e) => {
+      if (e.action === "choix") pv.profil = e.id; else pv.largeur = e.valeur;
+      c.setOutil("pinceauv"); c.rendre();
+    } };
+  },
+  gomme: (c) => ({ titre: "Gomme vectorielle", entrees: flyout_presets([6, 12, 24, 48], c.etat.gommeLargeur, "px"), choisir: (e) => { c.etat.gommeLargeur = e.valeur; c.setOutil("gomme"); c.rendre(); } }),
+  coin: (c) => ({ titre: "Coins arrondis", entrees: flyout_presets([5, 10, 20, 40], c.etat.coinRayon, "px"), choisir: (e) => { c.etat.coinRayon = e.valeur; c.setOutil("coin"); c.rendre(); } }),
+  tuiles: (c) => ({ titre: "Terrains", entrees: [...flyout_terrains(c.etat.doc ? terrains_de(c.etat.doc) : {}, c.etat.terrainCourant), { id: "plateau", libelle: "⬡ Générer le plateau…", action: "plateau" }], choisir: (e) => {
+    if (e.action === "plateau") { c.ouvrirSection("plateauDetails"); return; }
+    c.etat.terrainCourant = e.id; c.setOutil("tuiles"); c.rendre(); } }),
+  "px-pinceau": (c) => MENUS._pxPinceau(c, "px-pinceau"),
+  "px-gomme": (c) => MENUS._pxPinceau(c, "px-gomme"),
+  _pxPinceau: (c, outil) => {
+    const px = c.etat.px || { rayon: 4, durete: 1 };
+    return { titre: outil === "px-gomme" ? "Gomme raster" : "Pinceau raster", entrees: [...flyout_presets([1, 2, 4, 8, 16], px.rayon, "px"),
+      { id: "nette", libelle: "Dureté nette", action: "durete", valeur: 1, actif: px.durete >= 1 }, { id: "douce", libelle: "Dureté douce", action: "durete", valeur: 0.3, actif: px.durete < 1 }], choisir: (e) => {
+      if (e.action === "preset") px.rayon = e.valeur; else px.durete = e.valeur;
+      c.setOutil(outil); c.rendre();
+    } };
+  },
+  "px-seau": (c) => MENUS._pxTolerance(c, "px-seau"),
+  "px-baguette": (c) => MENUS._pxTolerance(c, "px-baguette"),
+  _pxTolerance: (c, outil) => {
+    const px = c.etat.px || { tolerance: 16, global: false };
+    return { titre: outil === "px-seau" ? "Seau" : "Baguette magique", entrees: [...flyout_presets([0, 16, 48, 96], px.tolerance, "de tolérance"),
+      ...(outil === "px-seau" ? [{ id: "global", libelle: "Global (tous les pixels semblables)", action: "global", actif: !!px.global }] : [])], choisir: (e) => {
+      if (e.action === "preset") px.tolerance = e.valeur; else px.global = !px.global;
+      c.setOutil(outil); c.rendre();
+    } };
+  },
+  "px-selrect": (c) => MENUS._pxSelection(c, "px-selrect"),
+  "px-lasso": (c) => MENUS._pxSelection(c, "px-lasso"),
+  _pxSelection: (c, outil) => ({ titre: "Sélection raster", entrees: flyout_actions([
+    { id: "tout", libelle: "Tout", cible: "#pxSelTout" }, { id: "aucune", libelle: "Aucune", cible: "#pxSelAucune" }, { id: "inverser", libelle: "Inverser", cible: "#pxSelInv" },
+    { id: "croitre", libelle: "Croître d'un pixel", cible: "#pxSelPlus" }, { id: "contracter", libelle: "Contracter d'un pixel", cible: "#pxSelMoins" }, { id: "couleur", libelle: "Par couleur courante", cible: "#pxSelCouleur" },
+  ], c.existe), choisir: (e) => { c.setOutil(outil); c.cliquer(e.cible); } }),
+  tranche: (c) => {
+    const ex = c.etat.exportPlus || { mode: "document" };
+    return { titre: "Tranches d'export", entrees: [...flyout_choix(MODES, ex.mode).map((e) => ({ ...e, libelle: e.libelle })), { id: "effacer", libelle: "✕ Effacer les tranches dessinées", action: "effacer", desactive: !(c.etat.tranches || []).length }], choisir: (e) => {
+      if (e.action === "effacer") { c.etat.tranches = []; c.rendre(); return; }
+      ex.mode = e.id; if (e.id === "dessinees") c.setOutil("tranche"); c.rendre();
+    } };
+  },
+};
+
+/* ── UI ── */
 export function initFlyout(VL) {
   const { $, etat } = VL;
   const hote = document.createElement("div");
@@ -34,56 +142,56 @@ export function initFlyout(VL) {
   let ouvertPour = null, timerLong = 0;
   const esc = (v) => String(v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
   function fermer() { hote.hidden = true; hote.innerHTML = ""; ouvertPour = null; }
-  function ouvrir(bouton, titre, entrees, surChoix) {
+  const ctx = {
+    etat, setOutil: VL.setOutil, executer: VL.executer, toast: VL.toast, selectionner: VL.setSelection, objetDe: VL.objetDe,
+    existe: (sel) => { const b = $(sel); return !!b && !b.disabled; },
+    cliquer: (sel) => { const b = $(sel); if (!b || b.disabled) return false; b.click(); return true; },
+    style: (ids, patch) => { if (ids.length) VL.executer(op_style, ids, patch); },
+    rendre: () => { if (etat.doc) { VL.rendre(); } },
+    ouvrirSection: (id) => { const d = $("#" + id); if (d) { d.open = true; d.scrollIntoView({ block: "start" }); } },
+  };
+  function ouvrir(bouton, nom) {
     if (ouvertPour === bouton) { fermer(); return; }
     fermer();
+    const menu = MENUS[nom](ctx);
     ouvertPour = bouton;
-    hote.innerHTML = `<div class="fo-titre">${esc(titre)}</div>` + entrees.map((e, i) =>
-      `<button class="fo-item${e.actif ? " actif" : ""}" data-i="${i}" ${e.desactive ? "disabled" : ""}>${e.glyphe ? `<span class="fo-glyphe">${e.glyphe}</span>` : ""}<span class="fo-lib">${esc(e.libelle)}</span>${e.detail ? `<small>${esc(e.detail)}</small>` : ""}</button>`).join("");
+    hote.innerHTML = `<div class="fo-titre">${esc(menu.titre)}</div>` + menu.entrees.map((e, i) =>
+      `<button class="fo-item${e.actif ? " actif" : ""}" data-i="${i}" ${e.desactive ? "disabled" : ""}${e.famille ? ` style="font-family:&quot;${esc(e.famille)}&quot;"` : ""}>`
+      + (e.couleur ? `<span class="fo-pastille" style="background:${esc(e.couleur)}"></span>` : e.glyphe ? `<span class="fo-glyphe">${e.glyphe}</span>` : "")
+      + `<span class="fo-lib">${esc(e.libelle)}</span>${e.detail ? `<small>${esc(e.detail)}</small>` : ""}</button>`).join("");
     hote.hidden = false;
     const r = bouton.getBoundingClientRect();
     const p = flyout_position({ x: r.left, y: r.top, w: r.width, h: r.height }, { w: hote.offsetWidth, h: hote.offsetHeight }, { w: window.innerWidth, h: window.innerHeight }, 6);
     hote.style.left = p.x + "px"; hote.style.top = p.y + "px";
-    hote.querySelectorAll(".fo-item").forEach((b) => b.addEventListener("click", () => { const e = entrees[+b.dataset.i]; fermer(); surChoix(e); }));
+    hote.querySelectorAll(".fo-item").forEach((b) => b.addEventListener("click", () => { const e = menu.entrees[+b.dataset.i]; fermer(); menu.choisir(e); }));
   }
-  const menus = {
-    forme: (b) => ouvrir(b, "Forme paramétrique", flyout_formes(FORMES, etat.formeCourante), (e) => {
-      etat.formeCourante = e.id; VL.setOutil("forme");
-      VL.toast(`forme « ${e.libelle} » : cliquer pour la poser (rayon 40) ou glisser depuis le centre`);
-      if (VL.surSelection) VL.surSelection();          // le panneau Forme reflète le choix
-    }),
-    symbole: (b) => ouvrir(b, "Symboles", flyout_symboles(etat.doc && etat.doc.symboles), (e) => {
-      if (e.action === "poser") { const id = VL.executer(op_instance_poser, etat.calqueActif, e.id, 24, 24); if (id) { VL.setOutil("select"); VL.setSelection([id]); } }
-      else if (e.action === "creer") {
-        if (!etat.selection.length) { VL.toast("sélectionner d'abord les objets du symbole", true); return; }
-        const sid = VL.executer(op_symbole_creer, etat.selection.slice(), undefined);
-        if (sid) VL.toast(`symbole ${sid} créé — le menu Symboles le pose`);
-      }
-    }),
-  };
   // le bouton Symboles (persona Vecteur) — il n'est qu'un menu
   {
     const b = document.createElement("button");
-    b.dataset.outil = "symbole"; b.dataset.menu = "symbole"; b.className = "a-menu"; b.title = "Symboles — poser une instance ou créer un symbole depuis la sélection (menu)"; b.textContent = "⧈";
-    b.addEventListener("click", (ev) => { ev.stopPropagation(); menus.symbole(b); });
+    b.dataset.outil = "symbole"; b.dataset.menu = "symbole"; b.title = "Symboles — poser une instance ou créer un symbole depuis la sélection (menu)"; b.textContent = "⧈";
+    b.addEventListener("click", (ev) => { ev.stopPropagation(); ouvrir(b, "symbole"); });
     $("#outils").appendChild(b);
   }
-  const bForme = $('#outils [data-outil="forme"]');
-  if (bForme) { bForme.dataset.menu = "forme"; bForme.classList.add("a-menu"); }
-  for (const b of document.querySelectorAll("#outils [data-menu]")) {
-    b.addEventListener("contextmenu", (ev) => { ev.preventDefault(); menus[b.dataset.menu](b); });
+  function armer(b) {
+    if (b.dataset.arme) return;
+    b.dataset.arme = "1"; b.classList.add("a-menu");
+    b.addEventListener("contextmenu", (ev) => { ev.preventDefault(); ouvrir(b, b.dataset.menu); });
     b.addEventListener("pointerdown", (ev) => {
       if (ev.button !== 0) return;
       const r = b.getBoundingClientRect();
-      // l'angle bas-droit (10 px) ouvre tout de suite ; ailleurs, un appui long
-      if (ev.clientX > r.right - 12 && ev.clientY > r.bottom - 12) { ev.preventDefault(); ev.stopPropagation(); menus[b.dataset.menu](b); b.dataset.angle = "1"; return; }
-      timerLong = setTimeout(() => { menus[b.dataset.menu](b); b.dataset.angle = "1"; }, 400);
+      if (ev.clientX > r.right - 12 && ev.clientY > r.bottom - 12) { ev.preventDefault(); ev.stopPropagation(); ouvrir(b, b.dataset.menu); b.dataset.angle = "1"; return; }
+      timerLong = setTimeout(() => { ouvrir(b, b.dataset.menu); b.dataset.angle = "1"; }, 400);
     });
     b.addEventListener("pointerup", () => clearTimeout(timerLong));
     b.addEventListener("pointerleave", () => clearTimeout(timerLong));
     b.addEventListener("click", (ev) => { if (b.dataset.angle) { delete b.dataset.angle; ev.stopImmediatePropagation(); ev.preventDefault(); } }, true);
   }
+  // tous les boutons dont l'outil a un menu — y compris ceux ajoutés par les modules
+  for (const b of document.querySelectorAll("#outils button[data-outil]")) {
+    const nom = b.dataset.menu || (MENUS[b.dataset.outil] && !b.dataset.outil.startsWith("_") ? b.dataset.outil : null);
+    if (nom && nom !== "symbole") { b.dataset.menu = nom; armer(b); }
+  }
   document.addEventListener("pointerdown", (ev) => { if (!hote.hidden && !hote.contains(ev.target) && !(ouvertPour && ouvertPour.contains(ev.target))) fermer(); }, true);
   document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && !hote.hidden) { fermer(); ev.stopImmediatePropagation(); } }, true);
-  VL.flyout = { ouvrir: (nom) => menus[nom] && menus[nom]($(`#outils [data-menu="${nom}"]`)), fermer, element: hote };   // la preuve
+  VL.flyout = { ouvrir: (nom) => ouvrir($(`#outils [data-menu="${nom}"]`) || $(`#outils [data-outil="${nom}"]`), nom), fermer, element: hote, menus: Object.keys(MENUS).filter((k) => !k.startsWith("_")) };   // la preuve
 }
