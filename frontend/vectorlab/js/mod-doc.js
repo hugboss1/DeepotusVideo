@@ -5,6 +5,7 @@
 
 import { grille_normaliser, hex_centre, hex_d, hex_depuis_point, grille_cellules }
   from "./mod-grille.js";
+import { zoom_pour, echantillon_moyen, paliers_bornes, palier } from "./mod-geo.js";
 
 const escAttr = (v) => String(v)
   .replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
@@ -134,6 +135,7 @@ export function parserDoc(doc) {
       _validerCadre(p, `planche ${p.id}`);
     }
   }
+  if (doc.geo !== undefined) _validerGeo(doc.geo);
   return doc;
 }
 
@@ -1256,6 +1258,128 @@ export function planches_guides(doc) {
   const v = [], h = [];
   for (const p of doc.planches || []) { v.push(p.x, p.x + p.w); h.push(p.y, p.y + p.h); }
   return { v: [...new Set(v)].sort((a, b) => a - b), h: [...new Set(h)].sort((a, b) => a - b) };
+}
+
+
+/* ── cartes réelles (lot H) : doc.geo = {centre [lat, lon], m_par_px, zoom,
+   emprise, emprise_px, attribution?, relief? {w, h, min, max, pasM,
+   hauteurs[w·h]}} — les hauteurs sont des DONNÉES (pas des pixels) ── */
+function _validerEmprise(e, ou) {
+  if (!e || typeof e !== "object") throw new Error(`${ou}: emprise requise`);
+  for (const k of ["minLat", "maxLat", "minLon", "maxLon"]) {
+    if (!Number.isFinite(e[k])) throw new Error(`${ou}: emprise.${k} numérique`);
+  }
+  if (!(e.minLat <= e.maxLat) || !(e.minLon <= e.maxLon)) throw new Error(`${ou}: emprise inversée`);
+}
+function _validerRelief(r) {
+  if (!r || typeof r !== "object") throw new Error("geo.relief: objet requis");
+  if (!(Number.isInteger(r.w) && r.w >= 2 && Number.isInteger(r.h) && r.h >= 2)) {
+    throw new Error("geo.relief: w et h entiers ≥ 2");
+  }
+  if (!Array.isArray(r.hauteurs) || r.hauteurs.length !== r.w * r.h) {
+    throw new Error("geo.relief: hauteurs = w·h nombres");
+  }
+  if (!Number.isFinite(r.min) || !Number.isFinite(r.max) || !(r.pasM > 0)) {
+    throw new Error("geo.relief: min, max, pasM > 0");
+  }
+}
+function _validerGeo(g) {
+  if (!g || typeof g !== "object") throw new Error("document: geo = objet");
+  if (!Array.isArray(g.centre) || g.centre.length !== 2 || !g.centre.every(Number.isFinite)) {
+    throw new Error("geo: centre [lat, lon]");
+  }
+  if (!(g.m_par_px > 0)) throw new Error("geo: m_par_px > 0");
+  if (g.emprise !== undefined) _validerEmprise(g.emprise, "geo");
+  if (g.emprise_px !== undefined) _validerCadre(g.emprise_px, "geo.emprise_px");
+  if (g.relief !== undefined) _validerRelief(g.relief);
+}
+
+const _STYLE_TRACE = { fond: "none", contour: "#d0553a", epaisseur: 3 };
+const _dDe = (pts) => "M " + pts.map(([x, y]) => `${nbc(x)} ${nbc(y)}`).join(" L ");
+
+// gpx = sortie de gpx_parser, cadre = sortie de cadrage (vers_px)
+export function op_geo_importer(doc, gpx, cadre) {
+  if (!gpx || !(gpx.n > 0)) throw new Error("import GPX : aucun point");
+  _validerEmprise(gpx.emprise, "import GPX");
+  const e = gpx.emprise;
+  const no = cadre.vers_px(e.maxLat, e.minLon), se = cadre.vers_px(e.minLat, e.maxLon);
+  const emprise_px = { x: Math.min(no[0], se[0]), y: Math.min(no[1], se[1]),
+                       w: Math.max(1, Math.abs(se[0] - no[0])), h: Math.max(1, Math.abs(se[1] - no[1])) };
+  doc.geo = { centre: [cadre.centre[0], cadre.centre[1]], m_par_px: cadre.m_par_px,
+              zoom: zoom_pour(e), emprise: { ...e }, emprise_px };
+  const cEmp = op_calque_ajouter(doc, "emprise");
+  op_ajouter(doc, cEmp, { type: "rect", ...emprise_px,
+    style: { fond: "none", contour: "#39b3d0", epaisseur: 1, pointilles: "6 4" } });
+  op_calque_verrou(doc, cEmp, true);
+  const cTrace = op_calque_ajouter(doc, "trace");
+  for (const t of gpx.traces) {
+    if (t.length < 2) continue;
+    op_ajouter(doc, cTrace, { type: "path", d: _dDe(t.map((p) => cadre.vers_px(p.lat, p.lon))),
+                              style: { ..._STYLE_TRACE } });
+  }
+  const cPts = op_calque_ajouter(doc, "points");
+  for (const p of gpx.points) {
+    const [x, y] = cadre.vers_px(p.lat, p.lon);
+    op_ajouter(doc, cPts, { type: "ellipse", cx: x, cy: y, rx: 5, ry: 5,
+                            style: { fond: "#e0b34a", contour: "#1F1512", epaisseur: 1 } });
+    if (p.nom) {
+      op_ajouter(doc, cPts, { type: "texte", x: x + 8, y: y - 6, contenu: p.nom,
+                              style: { fond: "#1F1512", police: "Segoe UI", corps: 14 } });
+    }
+  }
+  return { calques: { emprise: cEmp, trace: cTrace, points: cPts }, nPoints: gpx.n };
+}
+
+export function op_geo_relief(doc, relief) {
+  if (!doc.geo) throw new Error("relief : importer d'abord un GPX (doc.geo absent)");
+  _validerRelief(relief);
+  doc.geo.relief = { w: relief.w, h: relief.h, min: +relief.min, max: +relief.max, pasM: +relief.pasM,
+                     hauteurs: relief.hauteurs.map((v) => Math.round(v * 10) / 10),
+                     ...(relief.zoom !== undefined ? { zoom: relief.zoom } : {}) };
+  if (relief.attribution) doc.geo.attribution = String(relief.attribution);
+}
+
+export function op_geo_courbes(doc, lignes_px, pas) {
+  const lignes = (lignes_px || []).filter((l) => l && l.length >= 2);
+  if (!lignes.length) throw new Error("courbes : aucune ligne à ce pas");
+  const calqueId = op_calque_ajouter(doc, `courbes ${pas} m`);
+  for (const l of lignes) {
+    op_ajouter(doc, calqueId, { type: "path", d: _dDe(l),
+      style: { fond: "none", contour: "#6b4a2b", epaisseur: 1 } });
+  }
+  return { calqueId, n: lignes.length };
+}
+
+// la découpe : un plateau hex couvrant l'emprise, chaque tuile prend le
+// terrain de son palier d'altitude et une hauteur_mm proportionnelle
+const _TERRAINS_PALIERS = ["mer", "plaine", "foret", "colline", "montagne"];
+export function op_geo_tuiles(doc, spec = {}) {
+  const geo = doc.geo;
+  if (!geo || !geo.relief) throw new Error("tuiles : charger d'abord le relief");
+  const pas = +spec.pas > 0 ? +spec.pas : 40;
+  const relief_mm = +spec.relief_mm > 0 ? +spec.relief_mm : 10;
+  const E = geo.emprise_px;
+  const S3 = Math.sqrt(3);
+  const colonnes = Math.max(1, Math.ceil(E.w / (S3 * pas)) + 1);
+  const lignes = Math.max(1, Math.ceil(E.h / (1.5 * pas)) + 1);
+  doc.grille = grille_normaliser({ type: "hex", pas, orientation: "pointe",
+                                   origine: [E.x + pas * S3 / 2, E.y + pas] });
+  const r = op_plateau_generer(doc, { mode: "rect", colonnes, lignes, terrain: "plaine",
+                                      nom: spec.nom || "plateau relief" });
+  const R = geo.relief;
+  const bornes = paliers_bornes(R.min, R.max, _TERRAINS_PALIERS.length);
+  const amplitude = Math.max(1e-9, R.max - R.min);
+  const calque = _calque(doc, r.calqueId);
+  const rayonGrille = Math.max(0.5, pas / E.w * (R.w - 1) * 0.6);
+  for (const o of calque.objets) {
+    const [cx, cy] = hex_centre(o.q, o.r, doc.grille);
+    const gx = (cx - E.x) / E.w * (R.w - 1), gy = (cy - E.y) / E.h * (R.h - 1);
+    const alt = echantillon_moyen(R.hauteurs, R.w, R.h, gx, gy, rayonGrille);
+    if (alt === null) { o.terrain = "mer"; o.hauteur_mm = 0; continue; }
+    o.terrain = _TERRAINS_PALIERS[palier(alt, bornes)];
+    o.hauteur_mm = Math.round((alt - R.min) / amplitude * relief_mm * 10) / 10;
+  }
+  return { calqueId: r.calqueId, tuiles: r.tuiles, paliers: bornes };
 }
 
 
