@@ -1129,6 +1129,29 @@ export function op_vectoriser_poser(doc, objets, nom) {
 }
 
 
+/* ── texte → chemins (lot D) : l'objet garde son id et son fond, perd sa
+   fonte ; les glyphes à trous se peignent en evenodd ── */
+export function op_texte_vectoriser(doc, id, d) {
+  if (typeof d !== "string" || !d.trim()) {
+    throw new Error("vectoriser : chemin vide (texte vide ou police muette)");
+  }
+  for (const c of doc.calques) {
+    if (c.verrou) continue;
+    const i = c.objets.findIndex((o) => o.id === id);
+    if (i < 0) continue;
+    const o = c.objets[i];
+    if (o.type !== "texte") throw new Error(`${id}: pas un texte`);
+    const s = { ...(o.style || {}) };
+    for (const k of ["police", "corps", "graisse", "interlettrage"]) delete s[k];
+    if (!s.fond || s.fond === "none") s.fond = s.contour || "#1F1512";
+    c.objets[i] = { id: o.id, type: "path", d: chemin_serialiser(chemin_parser(d)),
+                    style: { ...s, regle: "evenodd" },
+                    ...(o.transform ? { transform: o.transform } : {}) };
+    return o.id;
+  }
+  throw new Error(`texte introuvable (ou calque verrouillé): ${id}`);
+}
+
 /* ── grille du document (lot C) : une commande, un patch fusionné ── */
 export function op_grille(doc, patch) {
   if (patch === null || patch === undefined) { delete doc.grille; return; }
