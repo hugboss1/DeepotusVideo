@@ -11,6 +11,7 @@ import { aimant_objets, aimant_ecarts, aimant_fusion } from "./mod-aimant.js";
 import { initPlateau, grilleLibelle } from "./mod-plateau.js";
 import { initPlanches } from "./mod-planches.js";
 import { initImpression } from "./mod-impression.js";
+import { initCarte } from "./mod-carte.js";
 import { UNITES, depuisUnite, formatNombre, libelle_mesure }
   from "./mod-unites.js";
 import { initOutils } from "./mod-tools.js";
@@ -717,6 +718,7 @@ initTrace(VL);      // le dialogue Vectoriser (lot A)
 initPlateau(VL);    // panneaux Grille / Terrains / Plateau (lot C)
 initPlanches(VL);   // panneau Planches (lot C)
 initImpression(VL); // dialogue Impression 3D + texte → chemins (lot D)
+initCarte(VL);      // panneau Carte réelle : GPX, fond, relief, courbes, tuiles (lot H)
 initOutils(VL);
 initExport(VL);
 initVitrail(VL);

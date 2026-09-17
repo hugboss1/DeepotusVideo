@@ -177,10 +177,12 @@ def test_le_miroir_lot_h_cartes_reelles():
     core = (vl / "js" / "core.js").read_text("utf-8")
     assert "initCarte(VL)" in core
     html = (vl / "index.html").read_text("utf-8")
-    assert 'id="panneauCarte"' in html and 'id="carteGpxInput"' in html
+    assert 'id="panneauCarte"' in html
     imp = (vl / "js" / "mod-impression.js").read_text("utf-8")
     assert 'value="relief"' in imp and "mod-relief.js" in imp
     carte = (vl / "js" / "mod-carte.js").read_text("utf-8")
+    # le panneau se rend par innerHTML : ses contrôles vivent dans le module
+    assert 'id="carteGpxInput"' in carte and 'id="carteFond"' in carte and 'id="carteRelief"' in carte
     assert "/api/geo/relief" in carte and "/api/geo/fond" in carte and "OpenStreetMap" in carte
     doc = (vl / "js" / "mod-doc.js").read_text("utf-8")
     for op in ("op_geo_importer", "op_geo_relief", "op_geo_courbes", "op_geo_tuiles"):

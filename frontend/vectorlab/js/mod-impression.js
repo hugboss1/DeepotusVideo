@@ -14,6 +14,8 @@ import { MUR_MIN_MM, extruder_biseau, extruder_evide, plateau_pieces, glb_de_tri
 import { terrains_de, op_texte_vectoriser } from "./mod-doc.js";
 import { hex_centre, hex_sommets } from "./mod-grille.js";
 import { POLICES, texte_vers_d } from "./mod-texte3d.js";
+import { plaque, graver, dalles, sous_grille } from "./mod-relief.js";
+import { chemin_parser } from "./mod-doc.js";
 
 /* ── pur ── */
 const num = (v, def) => {
@@ -21,14 +23,17 @@ const num = (v, def) => {
   return Number.isFinite(n) ? n : def;
 };
 export function reglages_lire(f) {
-  const mode = ["calques", "tuiles", "logo"].includes(f.mode) ? f.mode : "calques";
+  const mode = ["calques", "tuiles", "logo", "relief"].includes(f.mode) ? f.mode : "calques";
   const h0 = num(f.hauteur, 3);
   const hauteur = Math.max(0.2, h0 > 0 ? h0 : 3);
   const socle = Math.max(0, num(f.socle, 0));
   const biseau = Math.min(Math.max(0, num(f.biseau, 0)), Math.max(0, hauteur - 0.2));
   const mur = Math.max(MUR_MIN_MM, num(f.mur, 1.2));
   const plancher = Math.min(Math.max(0, num(f.plancher, 1)), Math.max(0, hauteur - 0.2));
-  return { mode, hauteur, socle, biseau, evide: !!f.evide, mur, plancher, pas: 0.2 };
+  const exageration = Math.min(10, Math.max(0.1, num(f.exageration, 1.5)));
+  const largeur = Math.max(10, num(f.largeur, 150));
+  const gravure = Math.max(0, num(f.gravure, 0));
+  return { mode, hauteur, socle, biseau, evide: !!f.evide, mur, plancher, pas: 0.2, exageration, largeur, gravure };
 }
 export function hauteurs_par_calque(texte, calques) {
   let globale = null;
@@ -105,7 +110,45 @@ export function initImpression(VL) {
   function construire(r) {
     const doc = etat.doc, compte = { ignores: 0 };
     const pieces = [];
-    if (r.mode === "tuiles") {
+    if (r.mode === "relief") {
+      // lot H : la plaque du terrain — mm/m horizontal = largeur / largeur au sol,
+      // z à la même échelle × exagération ; le tracé se GRAVE ; dalles si > 256 mm
+      const geo = doc.geo, R = geo && geo.relief;
+      if (!R) throw new Error("relief : charger d'abord le relief (panneau Carte réelle)");
+      const largeur_sol_m = R.pasM * (R.w - 1);
+      const mm_par_m = r.largeur / largeur_sol_m;
+      const socle = r.socle > 0 ? r.socle : 2;
+      let grid = R.hauteurs;
+      if (r.gravure > 0) {
+        const E = geo.emprise_px;
+        const lignes = [];
+        for (const c of doc.calques) {
+          if (c.nom !== "trace") continue;
+          for (const o of c.objets) {
+            if (o.type !== "path") continue;
+            const l = [];
+            for (const sg of chemin_parser(o.d)) {
+              if (sg.p.length < 2) continue;
+              const x = sg.p[sg.p.length - 2], y = sg.p[sg.p.length - 1];
+              l.push([(x - E.x) / E.w * (R.w - 1), (y - E.y) / E.h * (R.h - 1)]);
+            }
+            if (l.length) lignes.push(l);
+          }
+        }
+        if (lignes.length) grid = graver(grid, R.w, R.h, lignes, r.gravure / (mm_par_m * r.exageration), 0.7);
+      }
+      const cell_mm = r.largeur / (R.w - 1);
+      const hauteur_mm = cell_mm * (R.h - 1);
+      const maxCellules = Math.floor(256 / cell_mm);
+      const parts = (r.largeur > 256 || hauteur_mm > 256) ? dalles(R.w, R.h, Math.max(2, maxCellules)) : [{ nom: "relief", x0: 0, y0: 0, w: R.w, h: R.h }];
+      for (const d of parts) {
+        const sg = sous_grille(grid, R.w, R.h, d);
+        const tris = plaque(sg.grid, sg.w, sg.h, { largeur_mm: cell_mm * (sg.w - 1), socle_mm: socle, mm_par_m, exageration: r.exageration, z_min: R.min });
+        // chaque dalle à sa place sur le plateau (x vers l'est, y vers le nord)
+        const dx = d.x0 * cell_mm, dy = (R.h - 1 - (d.y0 + d.h - 1)) * cell_mm;
+        pieces.push({ nom: d.nom, tris: tris.map((t) => t.map(([x, y, z]) => [x + dx, y + dy, z])), hauteur_mm: socle });
+      }
+    } else if (r.mode === "tuiles") {
       const g = VL.grilleDoc();
       if (!g || g.type !== "hex") throw new Error("tuiles : le document n'a pas de grille hexagonale");
       const tuiles = doc.calques.filter((c) => c.visible)
@@ -143,7 +186,8 @@ export function initImpression(VL) {
   function lire() {
     return reglages_lire({ mode: $("#impMode").value, hauteur: $("#impHauteur").value,
       socle: $("#impSocle").value, biseau: $("#impBiseau").value, evide: $("#impEvide").checked,
-      mur: $("#impMur").value, plancher: $("#impPlancher").value });
+      mur: $("#impMur").value, plancher: $("#impPlancher").value,
+      exageration: $("#impExag").value, largeur: $("#impLargeur").value, gravure: $("#impGravure").value });
   }
   function apercu() {
     const r = lire();
@@ -158,7 +202,7 @@ export function initImpression(VL) {
     $("#impGarde").textContent = large > 256
       ? `⚠ ${Math.round(large)} mm dépasse le plateau de 256 mm — le lot par tuile imprime pièce à pièce` : "";
     $("#impUnStl").disabled = false;
-    $("#impLot").disabled = r.mode !== "tuiles";
+    $("#impLot").disabled = !(r.mode === "tuiles" || (r.mode === "relief" && c.pieces.length > 1));
     return courant;
   }
   async function unStl() {
@@ -213,7 +257,9 @@ export function initImpression(VL) {
     const doc = etat.doc, dpi = (doc.unites && doc.unites.dpi) || 96, s = 25.4 / dpi;
     const aHex = !!(doc.grille && doc.grille.type === "hex")
       && doc.calques.some((c) => c.objets.some((o) => o.type === "tuile"));
+    const aRelief = !!(doc.geo && doc.geo.relief);
     const mode = modeInitial || (aHex ? "tuiles" : (etat.selection.length ? "logo" : "calques"));
+    const largeurDefaut = doc.geo && doc.geo.emprise_px ? Math.round(doc.geo.emprise_px.w * s) : 150;
     dlg.innerHTML = `<div class="vl-dlg-boite imp-boite">
       <div class="vl-dlg-tete"><b>Impression 3D</b><span class="imp-doc">${Math.round(doc.taille.w * s)} × ${Math.round(doc.taille.h * s)} mm à ${dpi} dpi · plateau 256 mm</span><span class="spacer"></span><button id="impFermer" title="Fermer">✕</button></div>
       <div class="imp-corps">
@@ -221,10 +267,14 @@ export function initImpression(VL) {
           <label>Mode <select id="impMode">
             <option value="calques"${mode === "calques" ? " selected" : ""}>Calques (relief par calque)</option>
             <option value="tuiles"${mode === "tuiles" ? " selected" : ""}${aHex ? "" : " disabled"}>Tuiles (socle + terrain, lot)</option>
-            <option value="logo"${mode === "logo" ? " selected" : ""}>Logo (sélection unie : biseau / évidement)</option></select></label>
+            <option value="logo"${mode === "logo" ? " selected" : ""}>Logo (sélection unie : biseau / évidement)</option>
+            <option value="relief"${mode === "relief" ? " selected" : ""}${aRelief ? "" : " disabled"}>Relief (plaque du terrain GPX)</option></select></label>
+          <label class="imp-relief">Largeur de la plaque (mm) <input id="impLargeur" type="number" step="1" min="10" value="${largeurDefaut}"/></label>
+          <label class="imp-relief">Exagération verticale <input id="impExag" type="number" step="0.1" min="0.1" max="10" value="1.5"/></label>
+          <label class="imp-relief">Gravure du tracé (mm, 0 = aucune) <input id="impGravure" type="number" step="0.1" min="0" value="0.6"/></label>
           <label class="imp-calques">Hauteurs (mm, « nom=mm ») <input id="impHauteurs" type="text" value="3"/></label>
           <label class="imp-logo">Hauteur (mm) <input id="impHauteur" type="number" step="0.1" min="0.2" value="5"/></label>
-          <label class="imp-tuiles">Socle (mm) <input id="impSocle" type="number" step="0.1" min="0" value="2"/></label>
+          <label class="imp-tuiles imp-relief">Socle (mm) <input id="impSocle" type="number" step="0.1" min="0" value="2"/></label>
           <label class="imp-logo">Biseau (mm) <input id="impBiseau" type="number" step="0.1" min="0" value="0.6"/></label>
           <label class="imp-logo imp-ligne"><input type="checkbox" id="impEvide"/> évider (mur ≥ ${MUR_MIN_MM} mm)</label>
           <label class="imp-logo">Mur (mm) <input id="impMur" type="number" step="0.1" min="${MUR_MIN_MM}" value="1.2"/></label>
@@ -235,14 +285,15 @@ export function initImpression(VL) {
         <model-viewer id="impViewer" loading="eager" reveal="auto" camera-controls auto-rotate shadow-intensity="1" exposure="1" class="imp-viewer"></model-viewer>
       </div>
       <div class="tr-pied"><button id="impUnStl" disabled title="Un seul STL + 3MF (tout le rendu en une pièce)">Un STL</button>
-        <button id="impLot" disabled title="Un STL par tuile + plateau.3mf + nomenclature.csv">Lot par tuile</button>
+        <button id="impLot" disabled title="Un STL par tuile (ou par dalle de relief) + plateau.3mf + nomenclature.csv">Lot par tuile / dalle</button>
         <button id="impOuvrir" disabled title="Ouvrir le .3mf dans le slicer">Ouvrir le slicer</button></div></div>`;
     dlg.classList.remove("hidden");
     const majMode = () => {
       const m = $("#impMode").value;
       dlg.querySelectorAll(".imp-calques").forEach((e) => { e.style.display = m === "calques" ? "" : "none"; });
       dlg.querySelectorAll(".imp-logo").forEach((e) => { e.style.display = m === "logo" ? "" : "none"; });
-      dlg.querySelectorAll(".imp-tuiles").forEach((e) => { e.style.display = m === "tuiles" ? "" : "none"; });
+      dlg.querySelectorAll(".imp-tuiles").forEach((e) => { e.style.display = (m === "tuiles" || (m === "relief" && e.classList.contains("imp-relief"))) ? "" : "none"; });
+      dlg.querySelectorAll(".imp-relief:not(.imp-tuiles)").forEach((e) => { e.style.display = m === "relief" ? "" : "none"; });
     };
     majMode();
     const garde = (fn) => () => Promise.resolve().then(fn).catch((e) => {

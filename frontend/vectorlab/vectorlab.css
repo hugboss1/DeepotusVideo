@@ -422,3 +422,8 @@ details > summary.panneau-tete { cursor: pointer; list-style: none; }
 .imp-viewer { flex: 1; min-height: 360px; height: 60vh; background: #fff; border-radius: 6px; }
 .imp-garde { color: #e0b34a; font-size: 12px; margin: 0; }
 .imp-doc { color: #8b93a0; font-size: 12px; margin-left: 8px; }
+
+/* ── lot H : carte réelle ── */
+.carte-libelle { font-size: 12px; color: #9aa3b2; margin: 4px 0; }
+.carte-attribution { font-size: 10px; color: #8b93a0; margin: 2px 0; }
+#panneauCarte input[type="number"] { width: 56px; }
