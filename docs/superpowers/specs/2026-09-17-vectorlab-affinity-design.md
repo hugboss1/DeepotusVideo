@@ -11,8 +11,13 @@
 > utilisateurs ; analyser complètement Affinity fonction par fonction et
 > l'implémenter dans le Vectorlab. »
 
+> Précision du 17/09 : « Affinity » désigne bien la suite Affinity de Canva
+> (Vector, Pixel, Layout studios) ; l'inventaire du §2 en relève. Les
+> facilités propres à l'application Canva elle-même (gabarits, IA en ligne)
+> restent hors périmètre.
+
 > **STATUT : CONCEPTION SOUMISE À VALIDATION. Aucun code.** Le chantier est
-> trop vaste pour un seul plan : il est découpé en sept lots indépendants,
+> trop vaste pour un seul plan : il est découpé en huit lots indépendants,
 > chacun recevant son propre plan d'exécution (writing-plans) après accord
 > sur ce document et sur l'ordre des lots.
 
@@ -265,7 +270,7 @@ Chaque lot ajoute ses tests au banc `qa/` et ses miroirs pytest.
 
 ---
 
-## 4. Les sept lots
+## 4. Les huit lots
 
 Chaque lot = un spec court + un plan + une exécution TDD + preuve en réel +
 déploiement, indépendamment livrable. Ordre proposé par valeur pour le
@@ -332,6 +337,97 @@ PDF / DXF, multi-résolution en un tir, presets d'impression (fond perdu,
 traits de coupe, marques de repérage), nommage automatique, export lot.
 
 ---
+
+### Lot H — Cartes réelles : GPX, relief, plateau imprimable
+
+> Ajout du 17/09 (précision utilisateur) : « importer une carte type GPX
+> pour exploiter une carte réelle comme plateau de jeu, modifier l'aperçu
+> 3D et envoyer vers une impression 3D ».
+
+**Ce qu'un GPX contient et ne contient pas.** Un GPX porte des traces
+(suites de points lat/lon avec altitude le long du tracé), des points
+d'intérêt et une emprise. Il ne porte **aucun relief hors du tracé** : pour
+un plateau en relief il faut un modèle numérique de terrain (MNT). Source
+retenue : les tuiles d'altitude Terrarium d'AWS Open Data (publiques,
+gratuites, sans clé, PNG où l'altitude se décode par
+`(R·256 + G + B/256) − 32768`), mises en cache sur disque ; fond de carte
+optionnel par tuiles OpenStreetMap (attribution obligatoire, cache, usage
+modéré). Zéro clé, conforme au BYO keys ; sans réseau, le tracé seul
+s'importe quand même.
+
+**Workflow préconisé (cinq pas, chacun réversible).**
+
+1. **Importer** un `.gpx` : parse pur (`mod-geo.js`), projection Mercator
+   locale en mètres autour du centre de l'emprise, ajustement à la planche
+   (échelle affichée « 1 : 25 000 », largeur réelle en km, largeur imprimée
+   en mm). Naissent trois calques : `trace` (chemins), `points` (symboles,
+   nom en texte), `emprise` (rectangle verrouillé). Le document reste en px
+   à son dpi : l'échelle géographique est un champ optionnel
+   `geo {centre, zoom, echelle}`.
+2. **Habiller** : bouton « Fond de carte » (calque image OSM, lot A) et
+   « Relief » (calque image de hauteurs, niveaux de gris 16 bits stockés
+   PNG, plus ombrage calculé pour l'écran). Les courbes de niveau se
+   vectorisent par marching squares (`mod-geo.js`, pur) à un pas choisi
+   (10 m, 25 m…) : de vrais chemins, éditables, extrudables.
+3. **Découper** : le quadrillage hex du lot C se pose sur la carte ; chaque
+   tuile échantillonne le relief (moyenne ou médiane) et reçoit une
+   `hauteur_mm` quantifiée par paliers (fiche de terrains : mer, plaine,
+   colline, montagne, avec seuils d'altitude). L'utilisateur repeint les
+   tuiles au pinceau si le résultat déplaît.
+4. **Prévisualiser en 3D** : construction GLB côté backend
+   (`gltf_builder.py` existant) à partir soit de la grille de hauteurs
+   (plaque continue, tracé gravé ou en relief, exagération verticale
+   réglable), soit des tuiles (lot D) ; affichage dans le `<model-viewer>`
+   vendorisé ; réglages en direct : exagération, épaisseur du socle, pas de
+   quantification, résolution du maillage.
+5. **Imprimer** : la chaîne `print3d.py` existante écrit STL/3MF avec la
+   garde de 256 mm ; mode plaque (un fichier) ou mode tuiles (un STL par
+   tuile, un 3MF de plateau, nomenclature) ; découpe automatique d'une
+   plaque plus grande que le plateau en dalles emboîtables.
+
+**Implémentation.** `mod-geo.js` pur (GPX → points, projection, emprise,
+courbes de niveau, échantillonnage hex) banc node RED ; `geo_service.py`
+backend (tuiles Terrarium et OSM : téléchargement, cache
+`DeepotusVideoGenData\cache\geo`, assemblage en une image, décodage des
+hauteurs, rééchantillonnage) pytest avec tuiles synthétiques ;
+`mod-relief.js` (grille de hauteurs → triangles avec socle et murs,
+gravure du tracé) partage `stl_binaire` de `mod-extrude.js`. Dépend de A
+(image), C (tuiles), D (extrusion par tuile). Se place **après D**.
+
+### Complément au lot E — mode pixel-art « type Aseprite » vers le Tilelab
+
+> Précision utilisateur du 17/09 : « utiliser le Vectorlab comme générateur
+> de tuiles à envoyer vers le Tilelab : ne faudrait-il pas une fonction type
+> Aseprite ? »
+
+Oui. Le Tilelab (chantier 9e) consomme **une image de la Bibliothèque** et
+lui applique seamless, pixel-art optionnel et pavage 3×3 avec score de
+raccord. Le Vectorlab sait déjà exporter un PNG vers la Bibliothèque ; ce
+qui manque est la **fabrication délibérée d'une tuile pixel-art**, que le
+persona Pixel du lot E gagne sous la forme d'un mode dédié :
+
+- document en unités de tuile (16, 32, 48, 64 px), zoom au plus proche
+  voisin sans lissage, grille pixel visible, crayon 1 px, ligne et
+  rectangle pixel-parfaits, seau contigu ou global, symétrie H/V ;
+- **palette indexée** (8 à 64 entrées) : chaque pixel référence une entrée,
+  changer l'entrée repeint la tuile ; import d'une palette depuis le
+  document ou depuis une image ; réduction de couleurs à la vectorisation ;
+- **pixelisation d'un vecteur** : rasteriser la planche à N px sans
+  anticrénelage, puis quantifier sur la palette, pour dessiner la tuile en
+  vecteur et la livrer en pixel-art ;
+- **aperçu de raccord 3×3 en direct** (même métrique que le Tilelab), avec
+  décalage de moitié pour voir la couture ;
+- **feuille de tuiles** : plusieurs planches 32×32 exportées en une image
+  atlas plus un JSON d'index (nom, position, tags de terrain) ;
+- **cadres d'animation** avec pelure d'oignon et export en bande, pour le
+  Spritelab ;
+- « Envoyer vers Tilelab » et « Envoyer vers Spritelab » par le mécanisme
+  « Envoyer vers… » de la Bibliothèque (source `vectorlab`, provenance
+  tracée).
+
+Le raster d'un pixel-art n'est jamais lissé : `image-rendering: pixelated`
+à l'écran, et l'export PNG écrit les pixels tels quels, sans le rendu 2×/4×
+des documents vectoriels.
 
 ## 5. Hors périmètre (assumé)
 
