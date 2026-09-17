@@ -3,8 +3,62 @@
 // sert l'écran, l'export et le banc qa/ node. Le JSON est la vérité ; le
 // SVG n'en est qu'une projection.
 
+import { grille_normaliser, hex_centre, hex_d, hex_depuis_point, grille_cellules }
+  from "./mod-grille.js";
+
 const escAttr = (v) => String(v)
   .replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+
+/* ── lot C (D3) : la fiche de terrains — défauts fusionnés avec doc.terrains ── */
+export const TERRAINS_DEFAUT = Object.freeze({
+  mer:      Object.freeze({ nom: "Mer",      couleur: "#2B5F9E", hauteur_mm: 0, motif: "" }),
+  plaine:   Object.freeze({ nom: "Plaine",   couleur: "#7FB069", hauteur_mm: 2, motif: "" }),
+  foret:    Object.freeze({ nom: "Forêt",    couleur: "#3F7D3A", hauteur_mm: 3, motif: "" }),
+  colline:  Object.freeze({ nom: "Colline",  couleur: "#B08D57", hauteur_mm: 5, motif: "" }),
+  montagne: Object.freeze({ nom: "Montagne", couleur: "#8A8A8A", hauteur_mm: 8, motif: "" }),
+});
+const _CLE_TERRAIN = /^[a-z0-9_-]+$/;
+function _validerTerrain(k, f) {
+  if (!_CLE_TERRAIN.test(k)) throw new Error(`terrain: clé « ${k} » ([a-z0-9_-])`);
+  if (!f || typeof f !== "object") throw new Error(`terrain ${k}: fiche requise`);
+  if (f.couleur !== undefined && !/^#[0-9A-Fa-f]{3,8}$/.test(f.couleur)) {
+    throw new Error(`terrain ${k}: couleur hex`);
+  }
+  if (f.hauteur_mm !== undefined && !(+f.hauteur_mm >= 0)) {
+    throw new Error(`terrain ${k}: hauteur_mm ≥ 0`);
+  }
+}
+export function terrains_de(doc) {
+  const out = {};
+  for (const [k, f] of Object.entries(TERRAINS_DEFAUT)) out[k] = { ...f };
+  for (const [k, f] of Object.entries(doc.terrains || {})) {
+    out[k] = { ...(out[k] || { nom: k, couleur: "#888888", hauteur_mm: 0, motif: "" }), ...f };
+  }
+  return out;
+}
+export function op_terrain_definir(doc, cle, fiche) {
+  _validerTerrain(cle, fiche);
+  if (!doc.terrains) doc.terrains = {};
+  doc.terrains[cle] = { ...(doc.terrains[cle] || {}), ...fiche };
+}
+export function op_terrain_supprimer(doc, cle) {
+  if (!doc.terrains || !doc.terrains[cle]) {
+    throw new Error(`terrain ${cle}: pas de surcharge à retirer`);
+  }
+  delete doc.terrains[cle];
+  if (!Object.keys(doc.terrains).length) delete doc.terrains;
+}
+function _validerCadre(c, ou) {
+  if (!c || typeof c !== "object" || !(c.w > 0) || !(c.h > 0)
+      || !Number.isFinite(+c.x) || !Number.isFinite(+c.y)) {
+    throw new Error(`${ou}: cadre {x, y, w > 0, h > 0}`);
+  }
+}
+const _GRILLE_TUILE_DEFAUT = Object.freeze({ type: "hex", pas: 32, sous: 1, orientation: "pointe",
+                                             origine: [0, 0], echelle: [1, 1] });
+function _grilleHex(doc) {
+  return (doc.grille && doc.grille.type === "hex") ? doc.grille : _GRILLE_TUILE_DEFAUT;
+}
 
 /* ── lot A (D1/D2) : l'objet `image` — href RELATIF (nom du PNG stocké à
    côté du JSON du document, jamais de base64) ou URL absolue ; `nat` =
@@ -25,6 +79,15 @@ function _validerObjets(objs, ou) {
       if (!o.nat || !(o.nat.w > 0) || !(o.nat.h > 0)) throw new Error(`image ${o.id}: nat {w,h} positif requis`);
       if (!(o.w > 0) || !(o.h > 0)) throw new Error(`image ${o.id}: taille positive requise`);
       if (o.rognage !== undefined) _validerRognage(o.rognage, o.nat, `image ${o.id}`);
+    }
+    if (o.type === "tuile") {
+      if (!Number.isInteger(o.q) || !Number.isInteger(o.r)) {
+        throw new Error(`tuile ${o.id}: q et r entiers requis`);
+      }
+      if (typeof o.terrain !== "string" || !o.terrain) throw new Error(`tuile ${o.id}: terrain requis`);
+      if (o.hauteur_mm !== undefined && !(o.hauteur_mm >= 0)) {
+        throw new Error(`tuile ${o.id}: hauteur_mm ≥ 0`);
+      }
     }
     if (o.type === "groupe") _validerObjets(o.enfants || [], ou);
   }
@@ -56,6 +119,21 @@ export function parserDoc(doc) {
     throw new Error("document: palette = liste de couleurs");
   }
   if (doc.reperes !== undefined) _validerReperes(doc.reperes, doc.taille);
+  // lot C : grille du document, fiche de terrains, planches
+  if (doc.grille !== undefined) grille_normaliser(doc.grille);
+  if (doc.terrains !== undefined) {
+    if (!doc.terrains || typeof doc.terrains !== "object" || Array.isArray(doc.terrains)) {
+      throw new Error("document: terrains = {cle: fiche}");
+    }
+    for (const [k, f] of Object.entries(doc.terrains)) _validerTerrain(k, f);
+  }
+  if (doc.planches !== undefined) {
+    if (!Array.isArray(doc.planches)) throw new Error("document: planches = liste");
+    for (const p of doc.planches) {
+      if (!p || !p.id) throw new Error("planche sans id");
+      _validerCadre(p, `planche ${p.id}`);
+    }
+  }
   return doc;
 }
 
@@ -108,6 +186,18 @@ function compilerObjet(o, ctx = {}) {
       return `<g${t}${st}${tr}>`
            + (o.enfants || []).map((e) => compilerObjet(e, ctx)).join("")
            + `</g>`;
+    case "tuile": {
+      // D3 : la forme est DÉRIVÉE de la grille hex du document (sinon hex
+      // 32 pointe) ; la couleur vient de la fiche de terrains
+      const g = ctx.grille || _GRILLE_TUILE_DEFAUT;
+      const [cx, cy] = hex_centre(o.q, o.r, g);
+      const fiche = (ctx.terrains || {})[o.terrain];
+      const fond = fiche ? fiche.couleur : "#888888";
+      const inconnu = fiche ? "" : ` data-terrain-inconnu="1"`;
+      const s = { fond, contour: "#1F1512", epaisseur: 1, ...(o.style || {}) };
+      return `<path${t} data-q="${+o.q}" data-r="${+o.r}" data-terrain="${escAttr(o.terrain)}"${inconnu}`
+        + ` d="${hex_d(cx, cy, g.pas, g.orientation, g.echelle)}"${styleAttrs(s, ctx)}${tr}/>`;
+    }
     case "image": {
       const url = (ctx.image || ((h) => h))(o.href);
       const nat = o.nat;
@@ -294,9 +384,20 @@ function _gradMapper(g, fx, fy, kr) {
   }
 }
 
+// une tuile est ANCRÉE à la grille : son centre décalé se ré-arrondit à la
+// cellule (lot C, D3) — redimensionner et refléter sont sans effet sur elle
+function _decalerTuile(o, dx, dy, g) {
+  const [cx, cy] = hex_centre(o.q, o.r, g);
+  const a = hex_depuis_point(cx + dx, cy + dy, g);
+  o.q = a.q; o.r = a.r;
+}
+
 export function op_deplacer(doc, ids, dx, dy) {
   const objets = [..._objetsCibles(doc, ids)].map((t) => t.objet);
-  for (const o of objets) _decalerObjet(o, dx, dy);
+  const gh = _grilleHex(doc);
+  for (const o of objets) {
+    if (o.type === "tuile") _decalerTuile(o, dx, dy, gh); else _decalerObjet(o, dx, dy);
+  }
   for (const g of _gradsDeCibles(doc, objets)) {
     _gradMapper(g, (X) => X + dx, (Y) => Y + dy);
   }
@@ -826,7 +927,8 @@ export function op_dupliquer(doc, ids, dx = 12, dy = 12) {
     const clone = JSON.parse(JSON.stringify(objet));
     reid(clone);
     reGrad(clone);
-    _decalerObjet(clone, dx, dy);
+    if (clone.type === "tuile") _decalerTuile(clone, dx, dy, _grilleHex(doc));
+    else _decalerObjet(clone, dx, dy);
     for (const g of _gradsDeCibles(doc, [clone])) {
       _gradMapper(g, (X) => X + dx, (Y) => Y + dy);
     }
@@ -1027,6 +1129,113 @@ export function op_vectoriser_poser(doc, objets, nom) {
 }
 
 
+/* ── grille du document (lot C) : une commande, un patch fusionné ── */
+export function op_grille(doc, patch) {
+  if (patch === null || patch === undefined) { delete doc.grille; return; }
+  if (typeof patch !== "object") throw new Error("grille: patch objet requis");
+  doc.grille = grille_normaliser({ ...(doc.grille || {}), ...patch });
+}
+
+/* ── tuiles (D3) : objets de premier rang ancrés à la grille hex ── */
+export function tuile_a(doc, q, r) {
+  for (const c of doc.calques) for (const o of c.objets) {
+    if (o.type === "tuile" && o.q === q && o.r === r) return o;
+  }
+  return null;
+}
+
+// le pinceau : peint la tuile existante (calque déverrouillé), pose la
+// manquante dans le calque cible — un geste = une commande
+export function op_tuiles_peindre(doc, calqueId, cellules, terrain) {
+  if (!Array.isArray(cellules) || !cellules.length) throw new Error("pinceau: aucune cellule");
+  if (!terrains_de(doc)[terrain]) throw new Error(`pinceau: terrain inconnu ${terrain}`);
+  const c = _calque(doc, calqueId);
+  if (c.verrou) throw new Error(`calque verrouillé: ${calqueId}`);
+  const peintes = [], posees = [], vues = new Set();
+  for (const cel of cellules) {
+    const k = cel.q + "," + cel.r;
+    if (vues.has(k)) continue;
+    vues.add(k);
+    let existante = null, verrouillee = false;
+    for (const cl of doc.calques) for (const o of cl.objets) {
+      if (o.type === "tuile" && o.q === cel.q && o.r === cel.r) {
+        existante = o; verrouillee = !!cl.verrou;
+      }
+    }
+    if (existante) {
+      if (verrouillee) continue;
+      existante.terrain = terrain;
+      peintes.push(existante.id);
+    } else {
+      posees.push(op_ajouter(doc, calqueId, { type: "tuile", q: cel.q, r: cel.r, terrain }));
+    }
+  }
+  return { peintes, posees };
+}
+
+// le générateur : pose la grille hex (si absente, centrée sur la page) et
+// un calque de tuiles ; numérotation axiale optionnelle dans un second calque
+export function op_plateau_generer(doc, spec) {
+  const terrain = spec.terrain || "plaine";
+  if (!terrains_de(doc)[terrain]) throw new Error(`plateau: terrain inconnu ${terrain}`);
+  const cellules = grille_cellules(spec);          // refuse les specs invalides
+  if (!doc.grille || doc.grille.type !== "hex") {
+    doc.grille = grille_normaliser({ type: "hex", pas: +spec.pas || 32,
+      orientation: spec.orientation || "pointe",
+      origine: [doc.taille.w / 2, doc.taille.h / 2] });
+  }
+  const calqueId = op_calque_ajouter(doc, spec.nom || "plateau");
+  const tuiles = cellules.map((cel) =>
+    op_ajouter(doc, calqueId, { type: "tuile", q: cel.q, r: cel.r, terrain }));
+  const out = { calqueId, tuiles };
+  if (spec.numeroter) {
+    out.calqueNumeros = op_calque_ajouter(doc, "numéros");
+    const g = doc.grille;
+    for (const cel of cellules) {
+      const [cx, cy] = hex_centre(cel.q, cel.r, g);
+      op_ajouter(doc, out.calqueNumeros, { type: "texte", x: cx - g.pas * 0.45, y: cy + g.pas * 0.15,
+        contenu: `${cel.q},${cel.r}`,
+        style: { fond: "#1F1512", police: "Segoe UI", corps: Math.max(6, g.pas * 0.36) } });
+    }
+  }
+  return out;
+}
+
+/* ── planches (lot C) : des cadres nommés, jamais compilés, aimantants ── */
+export function planche_de(doc, id) {
+  return (doc.planches || []).find((p) => p.id === id) || null;
+}
+export function op_planche_ajouter(doc, spec) {
+  _validerCadre(spec, "planche");
+  if (!doc.planches) doc.planches = [];
+  const pris = new Set(doc.planches.map((p) => p.id));
+  let n = 1;
+  while (pris.has("p" + n)) n++;
+  const id = "p" + n;
+  doc.planches.push({ id, nom: String(spec.nom || `Planche ${n}`),
+                      x: +spec.x, y: +spec.y, w: +spec.w, h: +spec.h });
+  return id;
+}
+export function op_planche_modifier(doc, id, patch) {
+  const p = planche_de(doc, id);
+  if (!p) throw new Error(`planche inconnue: ${id}`);
+  const neuf = { ...p, ...(patch || {}) };
+  _validerCadre(neuf, `planche ${id}`);
+  Object.assign(p, { nom: String(neuf.nom), x: +neuf.x, y: +neuf.y, w: +neuf.w, h: +neuf.h });
+}
+export function op_planche_supprimer(doc, id) {
+  const p = planche_de(doc, id);
+  if (!p) throw new Error(`planche inconnue: ${id}`);
+  doc.planches.splice(doc.planches.indexOf(p), 1);
+  if (!doc.planches.length) delete doc.planches;
+}
+export function planches_guides(doc) {
+  const v = [], h = [];
+  for (const p of doc.planches || []) { v.push(p.x, p.x + p.w); h.push(p.y, p.y + p.h); }
+  return { v: [...new Set(v)].sort((a, b) => a - b), h: [...new Set(h)].sort((a, b) => a - b) };
+}
+
+
 function _defs(doc) {
   const refs = [];
   const vus = new Set();
@@ -1063,8 +1272,13 @@ function _defs(doc) {
 
 export function compilerSVG(doc, opts = {}) {
   parserDoc(doc);
-  const ctx = { degrades: doc.degrades || {}, image: opts.image };
+  const ctx = { degrades: doc.degrades || {}, image: opts.image,
+                grille: _grilleHex(doc), terrains: terrains_de(doc) };
   const w = +doc.taille.w, h = +doc.taille.h;
+  // lot C : un cadre (planche) devient le viewBox — le fond reste celui de
+  // la page entière, le viewBox rogne
+  let cadre = { x: 0, y: 0, w, h };
+  if (opts.cadre) { _validerCadre(opts.cadre, "cadre"); cadre = opts.cadre; }
   const fond = doc.fond
     ? `<rect x="0" y="0" width="${w}" height="${h}"`
       + ` fill="${escAttr(doc.fond)}" data-fond="1"/>`
@@ -1078,6 +1292,7 @@ export function compilerSVG(doc, opts = {}) {
          + c.objets.map((o) => compilerObjet(o, ctx)).join("") + `</g>`;
   }).join("");
   return `<svg xmlns="http://www.w3.org/2000/svg"`
-       + ` viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">`
+       + ` viewBox="${+cadre.x} ${+cadre.y} ${+cadre.w} ${+cadre.h}"`
+       + ` width="${+cadre.w}" height="${+cadre.h}">`
        + _defs(doc) + fond + calques + `</svg>`;
 }
