@@ -7,9 +7,10 @@ import { op_style, op_ordre, op_grouper, op_degrouper, op_degrade_creer,
          op_degrade_modifier, op_degrade_stop_ajouter,
          op_degrade_stop_modifier, op_degrade_stop_supprimer,
          op_deplacer, op_redimensionner, op_aligner, op_distribuer,
-         op_miroir, op_rect_rayon }
+         op_miroir, op_rect_rayon, op_incliner, op_dupliquer_puissance,
+         selection_par_attribut, formule }
   from "./mod-doc.js";
-import { op_booleen, op_division } from "./mod-bool.js";
+import { op_booleen, op_division, op_contour } from "./mod-bool.js";
 import { POLICES } from "./mod-texte3d.js";
 
 const POINTILLES = [["", "plein"], ["6 4", "tirets"], ["2 3", "points"]];
@@ -99,15 +100,15 @@ export function initStyle(VL) {
     hote.innerHTML = `
       ${b ? `
       <div class="ap-ligne"><span>X · Y</span>
-        <input type="number" id="apX" step="any" value="${nv(b.x)}"
+        <input type="text" id="apX" value="${nv(b.x)}"
                title="X de la sélection (${suf})"/>
-        <input type="number" id="apY" step="any" value="${nv(b.y)}"
+        <input type="text" id="apY" value="${nv(b.y)}"
                title="Y de la sélection (${suf})"/>
       </div>
       <div class="ap-ligne"><span>L · H</span>
-        <input type="number" id="apW" step="any" value="${nv(b.w)}"
+        <input type="text" id="apW" value="${nv(b.w)}"
                title="Largeur (${suf})"/>
-        <input type="number" id="apH" step="any" value="${nv(b.h)}"
+        <input type="text" id="apH" value="${nv(b.h)}"
                title="Hauteur (${suf})"/>
       </div>
       <div class="ap-ligne"><span>Aligner</span>
@@ -173,6 +174,27 @@ export function initStyle(VL) {
         <button id="apDegrouper" ${sel === 1 && objetReflete()
           && objetReflete().type === "groupe" ? "" : "disabled"}
                 title="Dissoudre le groupe (son transform suit les enfants)">Dégrouper</button>
+      </div>
+      <div class="ap-ligne"><span>Incliner</span>
+        <input type="number" id="apKx" step="1" value="0" title="Inclinaison horizontale skewX (°)"/>
+        <input type="number" id="apKy" step="1" value="0" title="Inclinaison verticale skewY (°)"/>
+        <button id="apIncliner" ${sel ? "" : "disabled"} title="Incline la sélection autour du pivot (⌖ déplaçable sur la scène)">↗</button>
+        <button id="apPivotRaz" title="Ramène le pivot au centre de la sélection">⌖</button>
+      </div>
+      <div class="ap-ligne"><span>Puissance</span>
+        <input type="number" id="apPn" min="1" max="200" value="3" title="Nombre de copies"/>
+        <input type="number" id="apPdx" step="any" value="20" title="Décalage X par copie (px)"/>
+        <input type="number" id="apPdy" step="any" value="0" title="Décalage Y par copie (px)"/>
+        <input type="number" id="apProt" step="1" value="0" title="Rotation par copie (°)"/>
+        <input type="number" id="apPech" step="0.05" min="0.05" value="1" title="Échelle par copie"/>
+        <button id="apPuissance" ${sel ? "" : "disabled"} title="Duplication puissance : n copies qui répètent la transformation">×n</button>
+      </div>
+      <div class="ap-ligne"><span>Attribut</span>
+        ${["fond", "contour", "type"].map((k) => `<button data-attr="${k}" ${sel === 1 ? "" : "disabled"} title="Sélectionner tous les objets de même ${k}">${k}</button>`).join("")}
+      </div>
+      <div class="ap-ligne"><span>Contour</span>
+        <input type="number" id="apDecal" step="any" value="5" title="Décalage en px : + vers le dehors, − vers le dedans"/>
+        <button id="apContour" ${sel ? "" : "disabled"} title="Crée un chemin décalé (copie au-dessus de l'original)">décaler</button>
       </div>
       <div class="ap-ligne"><span>Booléens</span>
         <button data-bool="union" ${sel >= 2 ? "" : "disabled"}
@@ -240,10 +262,36 @@ export function initStyle(VL) {
           }
         }
       };
-      $("#apX").addEventListener("change", (e) => majPos({ x: +e.target.value }));
-      $("#apY").addEventListener("change", (e) => majPos({ y: +e.target.value }));
-      $("#apW").addEventListener("change", (e) => majPos({ w: +e.target.value }));
-      $("#apH").addEventListener("change", (e) => majPos({ h: +e.target.value }));
+      // lot B : les champs acceptent des FORMULES (« +50% », « *2 », « 10+5 »)
+      const lireF = (cle, texte) => {
+        const b0 = VL.bboxSelectionDoc();
+        return formule(nv(b0[cle]), texte);
+      };
+      for (const [id, cle] of [["apX", "x"], ["apY", "y"], ["apW", "w"], ["apH", "h"]]) {
+        $("#" + id).addEventListener("change", (e) => {
+          try { majPos({ [cle]: lireF(cle, e.target.value) }); }
+          catch (er) { VL.toast(er.message, true); rendrePanneau(); }
+        });
+      }
+      $("#apIncliner").addEventListener("click", () => {
+        const b0 = VL.bboxSelectionDoc(); if (!b0) return;
+        const piv = etat.pivot || [b0.x + b0.w / 2, b0.y + b0.h / 2];
+        VL.executer(op_incliner, etat.selection.slice(), +$("#apKx").value || 0, +$("#apKy").value || 0, piv[0], piv[1]);
+      });
+      $("#apPivotRaz").addEventListener("click", () => { etat.pivot = null; VL.rendreOverlay(); });
+      $("#apPuissance").addEventListener("click", () => {
+        const ids = VL.executer(op_dupliquer_puissance, etat.selection.slice(), Math.round(+$("#apPn").value || 1),
+          { dx: +$("#apPdx").value || 0, dy: +$("#apPdy").value || 0, rotation: +$("#apProt").value || 0, echelle: +$("#apPech").value || 1 });
+        if (ids) VL.setSelection(ids);
+      });
+      hote.querySelectorAll("[data-attr]").forEach((btn) => btn.addEventListener("click", () => {
+        try { VL.setSelection(selection_par_attribut(etat.doc, etat.selection[0], btn.dataset.attr)); }
+        catch (er) { VL.toast(er.message, true); }
+      }));
+      $("#apContour").addEventListener("click", () => {
+        const ids = VL.executer(op_contour, etat.selection.slice(), +$("#apDecal").value || 0);
+        if (ids) VL.setSelection(ids);
+      });
       hote.querySelectorAll("[data-al]").forEach((btn) =>
         btn.addEventListener("click", () => {
           const paires = pairesSelection();

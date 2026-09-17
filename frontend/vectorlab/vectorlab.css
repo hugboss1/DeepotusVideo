@@ -427,3 +427,9 @@ details > summary.panneau-tete { cursor: pointer; list-style: none; }
 .carte-libelle { font-size: 12px; color: #9aa3b2; margin: 4px 0; }
 .carte-attribution { font-size: 10px; color: #8b93a0; margin: 2px 0; }
 #panneauCarte input[type="number"] { width: 56px; }
+
+/* ── lot B : poignées de forme, pivot, instantanés ── */
+.poignee-forme { cursor: crosshair; }
+.poignee-pivot { cursor: move; }
+.inst-ligne .nom { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.ap-ligne input[type="text"] { width: 52px; background: #232833; color: #d6d9de; border: 1px solid #3a4150; border-radius: 4px; padding: 2px 4px; }

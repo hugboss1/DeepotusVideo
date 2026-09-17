@@ -104,7 +104,8 @@ export function initOutils(VL) {
     if (poignee && etat.outil === "select" && etat.selection.length) {
       const b0 = VL.bboxSelectionDoc();
       if (poignee.dataset.poignee === "rot") {
-        const cx = b0.x + b0.w / 2, cy = b0.y + b0.h / 2;
+        const cx = etat.pivot ? etat.pivot[0] : b0.x + b0.w / 2;   // lot B : pivot déplaçable
+        const cy = etat.pivot ? etat.pivot[1] : b0.y + b0.h / 2;
         geste = { type: "rot", cx, cy, a0: Math.atan2(dy - cy, dx - cx),
                   angle: 0 };
       } else {

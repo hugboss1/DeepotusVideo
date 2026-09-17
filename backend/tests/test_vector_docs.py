@@ -1114,3 +1114,37 @@ def test_le_miroir_lot_d_impression_3d():
     qa = vl / "qa"
     for b in ("solide", "texte3d", "impression_ui"):
         assert (qa / f"{b}.test.mjs").is_file(), b
+
+
+# ── U. lot B : géométrie et gestes de classe Affinity ────────────────────────
+
+def test_le_miroir_lot_b_geometrie_gestes():
+    racine = pathlib.Path(__file__).resolve().parent.parent.parent
+    vl = racine / "frontend" / "vectorlab"
+    for m in ("mod-formes.js", "mod-crayon.js", "mod-noeuds.js", "mod-outils2.js"):
+        assert (vl / "js" / m).is_file(), m
+    for m in ("mod-formes.js", "mod-crayon.js"):
+        assert "import " not in (vl / "js" / m).read_text("utf-8"), m       # feuilles
+    core = (vl / "js" / "core.js").read_text("utf-8")
+    assert "initOutils2(VL)" in core and "new Historique()" in core
+    html = (vl / "index.html").read_text("utf-8")
+    for outil in ("forme", "crayon", "couteau", "gomme", "coin", "constructeur"):
+        assert f'data-outil="{outil}"' in html, outil
+    for tok in ("panneauForme", "panneauNoeuds", "panneauInstantanes"):
+        assert f'id="{tok}"' in html, tok
+    doc = (vl / "js" / "mod-doc.js").read_text("utf-8")
+    for op in ("op_forme_param", "op_forme_en_chemin", "op_incliner", "op_dupliquer_puissance",
+               "selection_par_attribut", "formule"):
+        assert f"export function {op}" in doc, op
+    assert "constructor(cap = 1000)" in doc and "instantane(nom, doc)" in doc
+    boolmod = (vl / "js" / "mod-bool.js").read_text("utf-8")
+    for op in ("op_couteau", "op_gomme", "op_contour", "atomes", "op_constructeur"):
+        assert f"export function {op}" in boolmod, op
+    style = (vl / "js" / "mod-style.js").read_text("utf-8")
+    assert "formule(" in style and 'id="apIncliner"' in style and 'id="apPuissance"' in style
+    assert 'type="text" id="apX"' in style                              # les formules
+    tools = (vl / "js" / "mod-tools.js").read_text("utf-8")
+    assert "etat.pivot" in tools
+    qa = vl / "qa"
+    for b in ("formes", "crayon", "noeuds2", "opsbool2", "gestes"):
+        assert (qa / f"{b}.test.mjs").is_file(), b

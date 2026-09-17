@@ -17,6 +17,12 @@
     <symbol id="t-scale" viewBox="0 0 24 24"><path d="M5 19 19 5" stroke="currentColor" stroke-width="1.7" fill="none"></path><path d="M13 5h6v6z"></path><path d="M11 19H5v-6z"></path></symbol>
     <symbol id="t-pipette" viewBox="0 0 24 24"><path d="M12 2.6c3.4 4.6 5.6 7.8 5.6 10.4A5.6 5.6 0 0 1 12 18.6a5.6 5.6 0 0 1-5.6-5.6c0-2.6 2.2-5.8 5.6-10.4z"></path></symbol>
     <symbol id="t-text" viewBox="0 0 24 24"><rect x="3.4" y="3.8" width="17.2" height="3"></rect><rect x="10.4" y="6.8" width="3.2" height="13.4"></rect></symbol>
+    <symbol id="t-forme" viewBox="0 0 24 24"><path d="M12 2.5l2.6 6.4 6.9.5-5.3 4.4 1.7 6.7L12 16.9l-5.9 3.6 1.7-6.7-5.3-4.4 6.9-.5z" fill="none" stroke="currentColor" stroke-width="1.6"></path></symbol>
+    <symbol id="t-crayon" viewBox="0 0 24 24"><path d="M3 20c3-8 8-12 15-16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path><path d="M16 6l2 2" stroke="currentColor" stroke-width="1.8"></path></symbol>
+    <symbol id="t-couteau" viewBox="0 0 24 24"><path d="M4 20L20 4" stroke="currentColor" stroke-width="1.8"></path><path d="M14 4h6v6" fill="none" stroke="currentColor" stroke-width="1.6"></path></symbol>
+    <symbol id="t-gomme" viewBox="0 0 24 24"><path d="M4 16l8-8 6 6-6 6H8z" fill="none" stroke="currentColor" stroke-width="1.7"></path><path d="M8 20h12" stroke="currentColor" stroke-width="1.7"></path></symbol>
+    <symbol id="t-coin" viewBox="0 0 24 24"><path d="M4 20V10a6 6 0 0 1 6-6h10" fill="none" stroke="currentColor" stroke-width="1.8"></path></symbol>
+    <symbol id="t-constructeur" viewBox="0 0 24 24"><circle cx="9" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="1.6"></circle><circle cx="15" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="1.6"></circle><path d="M12 7.2a6 6 0 0 1 0 9.6a6 6 0 0 1 0-9.6z"></path></symbol>
     <symbol id="t-hex" viewBox="0 0 24 24"><path d="M12 2.5 20.2 7.2v9.6L12 21.5 3.8 16.8V7.2z" fill="none" stroke="currentColor" stroke-width="1.7"></path></symbol>
     <symbol id="t-ai" viewBox="0 0 24 24"><path d="M12 1.8 14.4 9l7.2 2.4-7.2 2.4L12 21l-2.4-7.2L2.4 11.4 9.6 9z"></path><rect x="18.4" y="2.4" width="3.2" height="3.2" opacity=".6"></rect></symbol>
     <symbol id="v-arc" viewBox="0 0 24 24"><path d="M4 21V10.4C4 5.8 7.6 2.2 12 2.2s8 3.6 8 8.2V21z" opacity=".28"></path><rect x="4" y="14.4" width="16" height="6.6"></rect><rect x="11.1" y="2.4" width="1.8" height="18.6" opacity=".55"></rect></symbol>
@@ -97,6 +103,12 @@
       <button data-outil="mesure" title="Mesure — glisser pour lire longueur, angle et Δ sans rien créer (M)"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#t-scale"></use></svg></button>
       <button data-outil="pipette" title="Pipette — adopte le style de l'objet cliqué et l'applique à la sélection (I)"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#t-pipette"></use></svg></button>
       <button data-outil="texte" title="Texte — clic pour poser, double-clic (outil sélection) pour rééditer (T)"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#t-text"></use></svg></button>
+      <button data-outil="forme" title="Forme paramétrique — glisser depuis le centre ; la forme se choisit dans le panneau (F)"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#t-forme"></use></svg></button>
+      <button data-outil="crayon" title="Crayon à main levée lissé — fin près du début = fermé (B)"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#t-crayon"></use></svg></button>
+      <button data-outil="couteau" title="Couteau — tirer une droite à travers la sélection (X)"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#t-couteau"></use></svg></button>
+      <button data-outil="gomme" title="Gomme vectorielle — glisser sur les formes (W)"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#t-gomme"></use></svg></button>
+      <button data-outil="coin" title="Coin — cliquer une forme aux angles vifs pour arrondir (C)"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#t-coin"></use></svg></button>
+      <button data-outil="constructeur" title="Shape Builder — cliquer les régions, Entrée fusionne, Alt+Entrée retire (S)"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#t-constructeur"></use></svg></button>
       <button data-outil="tuiles" title="Pinceau de tuiles — peint le terrain courant, pose la tuile manquante (K)"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#t-hex"></use></svg></button>
       <button data-outil="ia" title="Illustration IA — décrire dans le panneau Vitrail (G)"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#t-ai"></use></svg></button>
     </nav>
@@ -118,6 +130,11 @@
       </details>
       <div class="panneau-tete">Apparence</div>
       <div id="panneauStyle"></div>
+      <div class="panneau-tete" title="La forme de l'outil Forme, ses paramètres quand une forme est sélectionnée, la largeur de la gomme et le rayon de l'outil Coin">Forme &amp; gestes</div>
+      <div id="panneauForme"></div>
+      <div class="panneau-tete" title="Nœuds multiples : lasso d'ancres (outil Nœuds), aligner, diviser, inverser, joindre, coins">Nœuds</div>
+      <div id="panneauNoeuds"></div>
+      <details id="instantanesDetails"><summary class="panneau-tete" title="Instantanés nommés de la session (historique de 1 000 pas)">Instantanés</summary><div id="panneauInstantanes"></div></details>
       <div class="panneau-tete" id="teteImage" hidden>Image</div>
       <div id="panneauImage" hidden></div>
       <div class="panneau-tete" title="Fond perdu et zone sûre — tracés à l'écran, aimantants, jamais exportés">Repères</div>

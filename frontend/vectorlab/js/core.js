@@ -12,6 +12,8 @@ import { initPlateau, grilleLibelle } from "./mod-plateau.js";
 import { initPlanches } from "./mod-planches.js";
 import { initImpression } from "./mod-impression.js";
 import { initCarte } from "./mod-carte.js";
+import { initOutils2 } from "./mod-outils2.js";
+import { op_noeud_supprimer } from "./mod-doc.js";
 import { UNITES, depuisUnite, formatNombre, libelle_mesure }
   from "./mod-unites.js";
 import { initOutils } from "./mod-tools.js";
@@ -55,7 +57,7 @@ const etat = {
   aimantObjets: true,            // lot C : bords, centres, écarts des voisins
   terrainCourant: "plaine",      // lot C : le terrain du pinceau de tuiles
   pressePapiers: null,           // { ids, n } — coller duplique les sources
-  histo: new Historique(100),
+  histo: new Historique(),        // lot B : 1 000 pas + instantanés nommés
   // le style des NOUVEAUX objets — nourri par le panneau et la pipette
   styleCourant: { fond: "#9DB4D6", contour: "#1F1512", epaisseur: 2 },
 };
@@ -509,7 +511,7 @@ async function charger() {
     const d = await api.get("/vector/docs/" + encodeURIComponent(id));
     etat.docId = id; etat.meta = d.meta; etat.doc = d.doc;
     etat.sale = false;
-    etat.histo = new Historique(100);
+    etat.histo = new Historique();
     etat.calqueActif = etat.doc.calques[etat.doc.calques.length - 1].id;
     majTete();
     rendre();
@@ -631,7 +633,8 @@ document.addEventListener("keydown", (ev) => {
   if (ev.ctrlKey) return;
   const outils = { v: "select", p: "plume", r: "rect", e: "ellipse",
                    n: "noeuds", i: "pipette", t: "texte",
-                   l: "ligne", m: "mesure", k: "tuiles" };
+                   l: "ligne", m: "mesure", k: "tuiles",
+                   f: "forme", b: "crayon", x: "couteau", w: "gomme", c: "coin", s: "constructeur" };
   const k = ev.key.toLowerCase();
   if (outils[k]) { setOutil(outils[k]); return; }
   if (k === "g") { basculerGrille(); return; }
@@ -706,6 +709,7 @@ const VL = {
   pathSelectionne, purgerSelection, objetDe,
   sommetDe: (id) => sommetDe(etat.doc, id),
   grilleDoc, bboxDocDe, candidatsAimant, aimanteBoite,
+  opNoeudSupprimer: op_noeud_supprimer,
   rendre, rendreOverlay, appliquerVue, setOutil, toast,
   surRendu: () => {}, surOutil: () => {}, surTouche: () => {},
   surSelection: () => {}, surCharge: () => {}, surSauve: () => {},
@@ -719,6 +723,7 @@ initPlateau(VL);    // panneaux Grille / Terrains / Plateau (lot C)
 initPlanches(VL);   // panneau Planches (lot C)
 initImpression(VL); // dialogue Impression 3D + texte → chemins (lot D)
 initCarte(VL);      // panneau Carte réelle : GPX, fond, relief, courbes, tuiles (lot H)
+initOutils2(VL);    // formes, crayon, couteau, gomme, coin, constructeur, nœuds multiples, pivot, instantanés (lot B)
 initOutils(VL);
 initExport(VL);
 initVitrail(VL);
