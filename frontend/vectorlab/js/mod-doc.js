@@ -55,6 +55,7 @@ export function parserDoc(doc) {
   if (doc.palette !== undefined && !Array.isArray(doc.palette)) {
     throw new Error("document: palette = liste de couleurs");
   }
+  if (doc.reperes !== undefined) _validerReperes(doc.reperes, doc.taille);
   return doc;
 }
 
@@ -935,6 +936,57 @@ export function op_guide_supprimer(doc, axe, i) {
   const g = _axeGuides(doc, axe);
   if (i < 0 || i >= g.length) throw new Error(`guide ${axe}[${i}] hors bornes`);
   g.splice(i, 1);
+}
+
+/* ── repères de page (lot A) : fond perdu et zone sûre — retraits [ox, oy]
+   en px document depuis les bords. Dessinés par l'overlay (jamais
+   compilés), aimantants (reperes_guides). Un nombre = retrait uniforme. */
+const _CLES_REPERES = ["fondPerdu", "zoneSure"];
+
+function _validerReperes(r, taille) {
+  if (!r || typeof r !== "object" || Array.isArray(r)) {
+    throw new Error("document: reperes {fondPerdu?, zoneSure?}");
+  }
+  for (const k of Object.keys(r)) {
+    if (!_CLES_REPERES.includes(k)) throw new Error(`reperes: clé inconnue ${k}`);
+    const v = r[k];
+    if (!Array.isArray(v) || v.length !== 2 || !(v[0] >= 0) || !(v[1] >= 0)
+        || v[0] >= taille.w / 2 || v[1] >= taille.h / 2) {
+      throw new Error(`reperes.${k}: [ox, oy] ≥ 0 et sous la demi-page`);
+    }
+  }
+}
+
+export function op_reperes(doc, patch) {
+  if (!patch || typeof patch !== "object") throw new Error("reperes: patch requis");
+  const r = { ...(doc.reperes || {}) };
+  for (const [k, v] of Object.entries(patch)) {
+    if (!_CLES_REPERES.includes(k)) throw new Error(`reperes: clé inconnue ${k}`);
+    if (v === null || v === undefined) { delete r[k]; continue; }
+    r[k] = typeof v === "number" ? [v, v] : v;
+  }
+  _validerReperes(r, doc.taille);
+  if (Object.keys(r).length) doc.reperes = r; else delete doc.reperes;
+}
+
+export function reperes_rects(doc) {
+  const out = { fondPerdu: null, zoneSure: null };
+  const r = doc.reperes || {};
+  const W = +doc.taille.w, H = +doc.taille.h;
+  for (const k of _CLES_REPERES) {
+    if (r[k]) out[k] = { x: r[k][0], y: r[k][1], w: W - 2 * r[k][0], h: H - 2 * r[k][1] };
+  }
+  return out;
+}
+
+export function reperes_guides(doc) {
+  const v = [], h = [];
+  const rects = reperes_rects(doc);
+  for (const k of _CLES_REPERES) {
+    const b = rects[k];
+    if (b) { v.push(b.x, b.x + b.w); h.push(b.y, b.y + b.h); }
+  }
+  return { v: [...new Set(v)].sort((a, b) => a - b), h: [...new Set(h)].sort((a, b) => a - b) };
 }
 
 /* ── image (lot A) : rognage et verrou d'objet. Ces deux commandes
