@@ -9516,6 +9516,31 @@ async def print3d_from_stl(request: Request, nom: str = "objet",
     return export
 
 
+@router.post("/print3d/lot")
+async def print3d_lot(nom: str = "plateau", source: str = "vectorlab",
+                      pieces: list[UploadFile] = File(default=[]),
+                      nomenclature: str = Form(default="")):
+    """Lot D : multipart — un STL binaire par pièce (`pieces`, nom de fichier
+    = nom de pièce) + la nomenclature CSV ; écrit un STL par pièce, le 3MF
+    de plateau et la nomenclature. Pièces en mm, jamais remises à l'échelle."""
+    from app.services import print3d as P3
+    if not pieces:
+        raise HTTPException(400, "lot : aucune pièce")
+    lues = []
+    for up in pieces:
+        octets = await up.read()
+        try:
+            tris = P3.lire_stl(octets)
+        except ValueError as e:
+            raise HTTPException(400, f"{up.filename}: {e}")
+        lues.append((Path(up.filename or "piece").stem, tris))
+    try:
+        return await asyncio.to_thread(P3.creer_lot, _print3d_base(), str(nom)[:80],
+                                       lues, nomenclature, str(source)[:40])
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
 @router.get("/print3d/exports")
 async def print3d_exports():
     from app.services import print3d as P3

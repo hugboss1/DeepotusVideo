@@ -356,3 +356,61 @@ def test_l_export_avertit_au_dela_du_plateau():
     petit = P3.creer_export(base, "Ca tient", _deux_triangles(),
                             cible_mm=80, source="banc")
     assert petit.get("avertissement") is None
+
+
+# ── F. lot D : le LOT d'impression — un STL par pièce, un 3MF de plateau, nomenclature ──
+
+def test_le_lot_ecrit_une_piece_par_stl_un_plateau_et_la_nomenclature():
+    from app.services import print3d as P3
+    base = pathlib.Path(_tmp, "print3d-lot")
+    pieces = [("tuile_0_0", _deux_triangles()), ("tuile_1_0", _deux_triangles())]
+    nomen = "piece;q;r;terrain;hauteur_mm;triangles\ntuile_0_0;0;0;plaine;4;2\ntuile_1_0;1;0;mer;2;2\n"
+    out = P3.creer_lot(base, "Plateau test", pieces, nomen, source="vectorlab")
+    d = base / out["dossier"]
+    assert out["pieces"] == 2
+    assert sorted(p.name for p in d.glob("*.stl")) == ["tuile_0_0.stl", "tuile_1_0.stl"]
+    assert (d / "plateau.3mf").is_file()
+    assert (d / "nomenclature.csv").read_text("utf-8") == nomen
+    meta = _json.loads((d / "impression.json").read_text("utf-8"))
+    assert meta["lot"] is True and meta["pieces"] == 2 and meta["triangles"] == 4
+    assert len(P3.lire_stl((d / "tuile_0_0.stl").read_bytes())) == 2
+    # la liste des exports voit le lot
+    assert any(e["dossier"] == out["dossier"] and e.get("lot") for e in P3.lister_exports(base))
+    # refus : aucune pièce ; nom de pièce hors patron (traversée)
+    with pytest.raises(ValueError):
+        P3.creer_lot(base, "Vide", [], "", source="banc")
+    with pytest.raises(ValueError):
+        P3.creer_lot(base, "Mauvais", [("../x", _deux_triangles())], "", source="banc")
+
+
+def test_la_route_lot_recoit_le_multipart():
+    import asyncio
+    from httpx import AsyncClient, ASGITransport
+
+    async def scenario():
+        from app.main import app
+        from app.services import print3d as P3
+        from app.services.storage import init_db
+        await init_db()
+        transport = ASGITransport(app=app)
+        stl = P3.ecrire_stl(_deux_triangles())
+        async with AsyncClient(transport=transport, base_url="http://t") as c:
+            r = await c.post("/api/print3d/lot", params={"nom": "Plateau banc", "source": "vectorlab"},
+                             files=[("pieces", ("tuile_0_0.stl", stl, "application/octet-stream")),
+                                    ("pieces", ("tuile_1_0.stl", stl, "application/octet-stream"))],
+                             data={"nomenclature": "piece;q;r;terrain;hauteur_mm;triangles\n"})
+            assert r.status_code == 200, r.text
+            d = r.json()
+            assert d["pieces"] == 2 and d["triangles"] == 4 and "dossier" in d
+            base = pathlib.Path(_tmp, "print3d")
+            assert (base / d["dossier"] / "plateau.3mf").is_file()
+            assert (base / d["dossier"] / "nomenclature.csv").is_file()
+            # sans pièce → 400 ; un STL illisible → 400
+            r = await c.post("/api/print3d/lot", params={"nom": "x"}, data={"nomenclature": ""})
+            assert r.status_code in (400, 422)
+            r = await c.post("/api/print3d/lot", params={"nom": "x"},
+                             files=[("pieces", ("a.stl", b"pas un stl", "application/octet-stream"))],
+                             data={"nomenclature": ""})
+            assert r.status_code == 400
+
+    asyncio.run(scenario())

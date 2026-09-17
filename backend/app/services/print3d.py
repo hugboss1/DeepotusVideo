@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 import struct
 import zipfile
 from xml.sax.saxutils import escape as _xml
@@ -354,6 +355,58 @@ def creer_export(base, nom, tris, cible_mm=None, source="",
         json.dumps(meta, ensure_ascii=False, indent=1), "utf-8")
     out = {"dossier": dossier.name, "stl": stl_nom, "mf3": mf3_nom,
            "triangles": len(monde)}
+    if avertissement:
+        out["avertissement"] = avertissement
+    return out
+
+
+_NOM_PIECE = re.compile(r"[A-Za-z0-9_-]{1,60}")
+
+
+def creer_lot(base, nom, pieces, nomenclature, source=""):
+    """Lot D : `<slug>-lot-<date>/` avec UN STL PAR PIÈCE (`<piece>.stl`), le
+    plateau assemblé `plateau.3mf` (toutes les pièces réunies), la
+    `nomenclature.csv` fournie par le client et `impression.json`
+    (`lot: true`). Les pièces arrivent en mm — aucune mise à l'échelle."""
+    import datetime as _dt
+    from pathlib import Path
+    if not pieces:
+        raise ValueError("lot : aucune pièce")
+    for nom_piece, _ in pieces:
+        if not _NOM_PIECE.fullmatch(str(nom_piece)):
+            raise ValueError(f"lot : nom de pièce invalide « {nom_piece} » ([A-Za-z0-9_-])")
+    base = Path(base)
+    base.mkdir(parents=True, exist_ok=True)
+    jour = _dt.datetime.now(_dt.timezone.utc).strftime("%Y%m%d")
+    racine = f"{_slug(nom)}-lot-{jour}"
+    dossier = base / racine
+    n = 2
+    while dossier.exists():
+        dossier = base / f"{racine}-{n}"
+        n += 1
+    dossier.mkdir()
+    tous = []
+    for nom_piece, tris in pieces:
+        (dossier / f"{nom_piece}.stl").write_bytes(ecrire_stl(tris))
+        tous.extend(tris)
+    (dossier / "plateau.3mf").write_bytes(ecrire_3mf(tous, nom=nom))
+    (dossier / "nomenclature.csv").write_text(str(nomenclature or ""), "utf-8")
+    bb = bbox(tous)
+    plus_grande = max(b[1] - b[0] for b in bb)
+    avertissement = None
+    if plus_grande > 256.0 + 1e-6:
+        avertissement = (f"{plus_grande:.0f} mm dépasse le plateau de la Centauri "
+                         "Carbon 2 (256 mm) — imprimer les pièces séparément "
+                         "(un STL par tuile)")
+    meta = {"nom": str(nom), "source": str(source), "lot": True,
+            "pieces": len(pieces), "stl": [f"{p}.stl" for p, _ in pieces],
+            "mf3": "plateau.3mf", "nomenclature": "nomenclature.csv",
+            "triangles": len(tous), "avertissement": avertissement,
+            "cree": _dt.datetime.now(_dt.timezone.utc).isoformat()}
+    (dossier / "impression.json").write_text(
+        json.dumps(meta, ensure_ascii=False, indent=1), "utf-8")
+    out = {"dossier": dossier.name, "pieces": len(pieces), "mf3": "plateau.3mf",
+           "triangles": len(tous)}
     if avertissement:
         out["avertissement"] = avertissement
     return out
