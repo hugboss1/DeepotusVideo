@@ -1087,3 +1087,30 @@ def test_le_miroir_lot_c_grilles_plateau_planches():
     doc = (vl / "js" / "mod-doc.js").read_text("utf-8")
     assert "TERRAINS_DEFAUT" in doc and "op_plateau_generer" in doc and "op_tuiles_peindre" in doc
     assert 'case "tuile"' in doc and "opts.cadre" in doc
+
+
+# ── T. lot D : impression 3D — modules, vendor, surface ─────────────────────
+
+def test_le_miroir_lot_d_impression_3d():
+    racine = pathlib.Path(__file__).resolve().parent.parent.parent
+    vl = racine / "frontend" / "vectorlab"
+    core = (vl / "js" / "core.js").read_text("utf-8")
+    for m in ("mod-solide.js", "mod-texte3d.js", "mod-impression.js"):
+        assert (vl / "js" / m).is_file(), m
+    assert "initImpression(VL)" in core
+    # opentype.js vendorisé sous MIT (D7) ; les polices sont celles du dist
+    assert (vl / "vendor" / "opentype.min.js").is_file()
+    assert "MIT" in (vl / "vendor" / "LICENSE-opentype.txt").read_text("utf-8")
+    t3 = (vl / "js" / "mod-texte3d.js").read_text("utf-8")
+    for police in ("Anton.ttf", "Inter.ttf", "Cinzel.ttf"):
+        assert police in t3 and (racine / "frontend" / "dist" / "fonts" / police).is_file(), police
+    # le modèle : texte → chemin ; le panneau Apparence porte le bouton
+    assert "export function op_texte_vectoriser" in (vl / "js" / "mod-doc.js").read_text("utf-8")
+    assert 'id="apVectoriserTexte"' in (vl / "js" / "mod-style.js").read_text("utf-8")
+    # le mur minimal est une constante nommée, la garde des 256 reste au backend
+    sol = (vl / "js" / "mod-solide.js").read_text("utf-8")
+    assert "MUR_MIN_MM = 0.8" in sol and "glb_de_triangles" in sol
+    assert "def creer_lot" in (racine / "backend" / "app" / "services" / "print3d.py").read_text("utf-8")
+    qa = vl / "qa"
+    for b in ("solide", "texte3d", "impression_ui"):
+        assert (qa / f"{b}.test.mjs").is_file(), b

@@ -332,12 +332,19 @@ def test_le_miroir_vectorlab_extrusion():
     racine = pathlib.Path(__file__).resolve().parent.parent.parent
     vlab = racine / "frontend" / "vectorlab"
     assert (vlab / "js" / "mod-extrude.js").is_file()
+    # lot D (17/09) : la voie 3D a DÉMÉNAGÉ de mod-export.js vers le dialogue
+    # mod-impression.js (modes calques / tuiles / logo, aperçu, lot) — le
+    # bouton du menu Exporter délègue ; les pins suivent le code, pas le nom
     exp = (vlab / "js" / "mod-export.js").read_text("utf-8")
-    assert "mod-extrude.js" in exp
-    assert "/api/print3d/from-stl" in exp and "/api/print3d/open" in exp
-    assert "ignor" in exp                      # les textes ignorés sont DITS
+    assert "VL.impression()" in exp
+    imp = (vlab / "js" / "mod-impression.js").read_text("utf-8")
+    assert "mod-extrude.js" in imp and "mod-solide.js" in imp
+    assert "/api/print3d/from-stl" in imp and "/api/print3d/open" in imp
+    assert "/api/print3d/lot" in imp
+    assert "ignor" in imp                      # les textes ignorés sont DITS
     html = (vlab / "index.html").read_text("utf-8")
-    assert 'id="expPrint3d"' in html
+    assert 'id="expPrint3d"' in html and 'id="impDlg"' in html
+    assert "model-viewer.min.js" in html and "opentype.min.js" in html
     boolmod = (vlab / "js" / "mod-bool.js").read_text("utf-8")
     assert "export function versMulti" in boolmod
 
