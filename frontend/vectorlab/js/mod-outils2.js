@@ -170,8 +170,8 @@ export function initOutils2(VL) {
     geste = null;
     const t = $("#ovTmp"); if (t) t.innerHTML = "";
     if (g.type === "forme") {
-      if (g.r < 2) return;
-      const o = forme_defaut(etat.formeCourante, g.cx, g.cy, g.r);
+      const r = g.r < 2 ? 40 : g.r;                 // clic sans glisser : la forme au rayon 40
+      const o = forme_defaut(etat.formeCourante, g.cx, g.cy, r);
       if (etat.formeCourante !== "spirale" && etat.formeCourante !== "donut") o.style = { ...etat.styleCourant };
       const id = VL.executer(op_ajouter, etat.calqueActif, o);
       if (id) { VL.setOutil("select"); VL.setSelection([id]); }

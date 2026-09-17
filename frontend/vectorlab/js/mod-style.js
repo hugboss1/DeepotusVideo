@@ -115,6 +115,8 @@ export function initStyle(VL) {
         <button data-al="gauche" title="Aligner à gauche (un seul objet : sur la page)">⇤</button>
         <button data-al="centreH" title="Centrer horizontalement">⇔</button>
         <button data-al="droite" title="Aligner à droite">⇥</button>
+      </div>
+      <div class="ap-ligne"><span></span>
         <button data-al="haut" title="Aligner en haut">⇧</button>
         <button data-al="centreV" title="Centrer verticalement">⇕</button>
         <button data-al="bas" title="Aligner en bas">⇩</button>
@@ -124,9 +126,9 @@ export function initStyle(VL) {
                 title="Distribuer horizontalement (écarts égaux, 3 objets au moins)">⇹</button>
         <button data-dist="v" ${sel >= 3 ? "" : "disabled"}
                 title="Distribuer verticalement">⇳</button>
-        <button data-mir="h" title="Miroir horizontal (géométrie brute — un objet tourné réfléchit sa géométrie)">◧↔◨</button>
-        <button data-mir="v" title="Miroir vertical">⬒↕⬓</button>
-        <button id="apDupliquer" title="Dupliquer la sélection (Ctrl+D)">⧉+</button>
+        <button data-mir="h" title="Miroir horizontal (géométrie brute — un objet tourné réfléchit sa géométrie)">⇄</button>
+        <button data-mir="v" title="Miroir vertical">⇅</button>
+        <button id="apDupliquer" title="Dupliquer la sélection (Ctrl+D)">⧉</button>
       </div>` : ""}`;
     hote.innerHTML += `
       <div class="ap-ligne"><span>Fond</span>
@@ -185,9 +187,11 @@ export function initStyle(VL) {
         <input type="number" id="apPn" min="1" max="200" value="3" title="Nombre de copies"/>
         <input type="number" id="apPdx" step="any" value="20" title="Décalage X par copie (px)"/>
         <input type="number" id="apPdy" step="any" value="0" title="Décalage Y par copie (px)"/>
+      </div>
+      <div class="ap-ligne"><span></span>
         <input type="number" id="apProt" step="1" value="0" title="Rotation par copie (°)"/>
         <input type="number" id="apPech" step="0.05" min="0.05" value="1" title="Échelle par copie"/>
-        <button id="apPuissance" ${sel ? "" : "disabled"} title="Duplication puissance : n copies qui répètent la transformation">×n</button>
+        <button id="apPuissance" ${sel ? "" : "disabled"} title="Duplication puissance : n copies qui répètent la transformation (nombre, décalage X · Y, rotation, échelle)">×n</button>
       </div>
       <div class="ap-ligne"><span>Attribut</span>
         ${["fond", "contour", "type"].map((k) => `<button data-attr="${k}" ${sel === 1 ? "" : "disabled"} title="Sélectionner tous les objets de même ${k}">${k}</button>`).join("")}

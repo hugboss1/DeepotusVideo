@@ -523,8 +523,12 @@ details[id] > summary.panneau-tete:hover { background: #1c2129; }
 .px-tete { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #9db4d6; padding: 2px 0 4px; }
 /* rangées : libellé aligné à droite sur une colonne fixe, champs qui partagent le reste */
 .ap-ligne { gap: var(--pan-gap); min-height: var(--pan-champ-h); }
-.ap-ligne > span { width: var(--pan-libelle); flex: 0 0 var(--pan-libelle); font-size: 12px; color: var(--pan-muet); text-align: right; line-height: 1.2; }
-.ap-ligne > span:empty { flex-basis: var(--pan-libelle); }
+/* le LIBELLÉ est le premier span de la rangée ; un span suivant (porte-boutons, unité) reste libre */
+.ap-ligne > span:first-child { width: var(--pan-libelle); flex: 0 0 var(--pan-libelle); font-size: 12px; color: var(--pan-muet); text-align: right; line-height: 1.2; }
+.ap-ligne > span:first-child:empty { flex-basis: var(--pan-libelle); }
+.ap-ligne > span:not(:first-child) { display: inline-flex; align-items: center; gap: 4px; min-width: 0; flex: 1 1 auto; flex-wrap: wrap; row-gap: 4px; }
+/* un porte-boutons (motifs du vitrail) : ses boutons se partagent la place sans marge */
+#panneauCalques .ap-ligne > span:not(:first-child) > button { flex: 1 1 28px; min-width: 28px; max-width: 44px; padding: 0; height: var(--pan-champ-h); border-radius: 6px; }
 .ap-ligne > span[style*="width:auto"] { flex: 0 0 auto; width: auto; text-align: left; }
 #panneauCalques .ap-ligne input[type="number"], #panneauCalques .ap-ligne input[type="text"], #panneauCalques .ap-ligne select,
 #panneauCalques .a2-champs input[type="number"], #panneauCalques .ap-stop input[type="number"], #assetsRecherche {
@@ -547,7 +551,7 @@ details[id] > summary.panneau-tete:hover { background: #1c2129; }
 }
 /* rangées d'icônes (aligner, distribuer, miroir, ordre, booléens) : partage égal de la largeur, sans marge interne */
 #panneauCalques .ap-ligne > button[data-al], #panneauCalques .ap-ligne > button[data-dist], #panneauCalques .ap-ligne > button[data-mir],
-#panneauCalques .ap-ligne > button[data-ordre], #panneauCalques .ap-ligne > button[data-bool], #panneauCalques .ap-ligne > button[data-attr] { flex: 1 1 0; min-width: 0; padding: 0 2px; }
+#panneauCalques .ap-ligne > button[data-ordre], #panneauCalques .ap-ligne > button[data-bool], #panneauCalques .ap-ligne > button[data-attr] { flex: 1 1 0; min-width: 30px; padding: 0 2px; }
 #panneauCalques .ap-ligne > button[title="Retirer"], #panneauCalques .ap-ligne > button[title="Supprimer"],
 #panneauCalques .ap-ligne > button[id$="X"], #panneauCalques .ap-ligne > button[id$="Raz"], #panneauCalques .ap-ligne > button[id$="Aucun"] { flex: 0 0 auto; }
 /* calques : le nom garde la place, l'opacité reste compacte */
@@ -591,3 +595,22 @@ details[id] > summary.panneau-tete:hover { background: #1c2129; }
 .tx-police:hover { border-color: #3a4150; }
 .tx-police.actif { background: #2c4a75; border-color: #5b82b8; color: #fff; }
 .tx-editeur { position: absolute; z-index: 20; min-height: 1.4em; padding: 2px 4px; margin: 0; background: rgba(255, 255, 255, .92); border: 1px dashed #39b3d0; border-radius: 3px; outline: none; resize: none; overflow: hidden; white-space: pre; box-shadow: 0 4px 16px rgba(0, 0, 0, .35); }
+
+/* ── lisibilité : garde-fou des rangées — un champ ne descend jamais sous 40 px,
+   une rangée trop chargée se replie au lieu d'écraser ses champs ── */
+.ap-ligne { flex-wrap: wrap; row-gap: 6px; }
+#panneauCalques .ap-ligne input[type="number"], #panneauCalques .ap-ligne input[type="text"], #panneauCalques .ap-ligne select { min-width: 40px; }
+#panneauCalques .ap-ligne > button { min-width: 30px; }
+#panneauCalques .ap-ligne > span[style*="width:auto"] { min-width: 0; }
+/* ── menus détachés de la barre ── */
+.outils button.a-menu { position: relative; }
+.outils button.a-menu::after { content: ""; position: absolute; right: 3px; bottom: 3px; border: 4px solid transparent; border-right-color: #8b93a0; border-bottom-color: #8b93a0; }
+#flyout { position: fixed; z-index: 96; min-width: 170px; padding: 6px; background: #14171d; border: 1px solid #3a4150; border-radius: 8px; box-shadow: 0 8px 26px rgba(0, 0, 0, .5); display: flex; flex-direction: column; gap: 2px; }
+.fo-titre { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #9db4d6; padding: 4px 8px 6px; }
+.fo-item { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; border-radius: 6px; background: transparent; border: 1px solid transparent; text-align: left; font-size: 13px; }
+.fo-item:hover { background: #1f2530; border-color: #313847; }
+.fo-item.actif { background: #2c4a75; border-color: #5b82b8; color: #fff; }
+.fo-item:disabled { opacity: .45; }
+.fo-glyphe { width: 18px; text-align: center; font-size: 15px; }
+.fo-lib { flex: 1; }
+.fo-item small { color: #8b93a0; font-size: 11px; }

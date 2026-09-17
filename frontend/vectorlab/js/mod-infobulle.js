@@ -25,7 +25,7 @@ export function initInfobulle(VL) {
   bulle.className = "infobulle";
   bulle.hidden = true;
   document.body.appendChild(bulle);
-  let courant = null;
+  let courant = null, timer = 0, supprime = null;
   const montrer = (el) => {
     const title = el.getAttribute("title");
     if (!title) return;
@@ -45,16 +45,25 @@ export function initInfobulle(VL) {
     courant = null;
     bulle.hidden = true;
   };
+  // la bulle attend 450 ms (un survol de passage ne la montre pas), ne
+  // revient pas sur l'élément qu'on vient de cliquer tant qu'on ne l'a pas
+  // quitté, et se cache dès qu'un champ ou une liste prend le focus
   document.addEventListener("mouseover", (ev) => {
     const el = ev.target.closest && ev.target.closest("[title]");
     if (el === courant) return;
-    cacher();
-    if (el && !el.closest(".vl-dlg") && el.closest("#outils, #panneauCalques, .bar, #personas, #hintOutil, .exp-menu")) montrer(el);
+    clearTimeout(timer); cacher();
+    if (!el || el === supprime) return;
+    if (!el.closest(".vl-dlg") && el.closest("#outils, #panneauCalques, .bar, #personas, #hintOutil, .exp-menu")) {
+      timer = setTimeout(() => { if (el.isConnected && el.matches(":hover")) montrer(el); }, 450);
+    }
   });
   document.addEventListener("mouseout", (ev) => {
-    if (courant && !courant.contains(ev.relatedTarget)) cacher();
+    if (ev.target === supprime && !supprime.contains(ev.relatedTarget)) supprime = null;
+    if (courant && !courant.contains(ev.relatedTarget)) { clearTimeout(timer); cacher(); }
   });
-  document.addEventListener("pointerdown", cacher, true);
+  document.addEventListener("pointerdown", (ev) => { clearTimeout(timer); supprime = ev.target.closest && ev.target.closest("[title], [data-tip]"); cacher(); }, true);
+  document.addEventListener("focusin", () => { clearTimeout(timer); cacher(); }, true);
+  document.addEventListener("wheel", () => { clearTimeout(timer); cacher(); }, { capture: true, passive: true });
   window.addEventListener("blur", cacher);
   VL.infobulle = { montrer, cacher, element: bulle };   // la preuve
 }
