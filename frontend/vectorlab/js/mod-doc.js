@@ -97,6 +97,11 @@ function _validerObjets(objs, ou) {
         throw new Error(`tuile ${o.id}: hauteur_mm ≥ 0`);
       }
     }
+    if (o.type === "instance") {
+      if (typeof o.symbole !== "string" || !o.symbole) throw new Error(`instance ${o.id}: symbole requis`);
+      if (!Number.isFinite(+o.x) || !Number.isFinite(+o.y)) throw new Error(`instance ${o.id}: x, y requis`);
+      if (!((o.sx === undefined || o.sx > 0) && (o.sy === undefined || o.sy > 0))) throw new Error(`instance ${o.id}: sx, sy > 0`);
+    }
     if (o.type === "groupe") {
       _validerObjets(o.enfants || [], ou);
       if (o.clip !== undefined && !(o.enfants || []).some((e) => e.id === o.clip)) {
@@ -191,6 +196,24 @@ export function parserDoc(doc) {
     }
   }
   _validerRefsMasques(doc);
+  if (doc.styles !== undefined) {
+    if (!doc.styles || typeof doc.styles !== "object" || Array.isArray(doc.styles)) throw new Error("document: styles = {nom: style}");
+    for (const [n, st] of Object.entries(doc.styles)) {
+      if (!_NOM_GLOBAL.test(n) || !st || typeof st !== "object") throw new Error(`style ${n}: nom [A-Za-z0-9_-] et objet`);
+      _validerStyleAvance(st, `style ${n}`);
+    }
+  }
+  if (doc.symboles !== undefined) {
+    if (!doc.symboles || typeof doc.symboles !== "object" || Array.isArray(doc.symboles)) throw new Error("document: symboles = {id: symbole}");
+    for (const [id, sy] of Object.entries(doc.symboles)) {
+      if (!sy || !Array.isArray(sy.objets)) throw new Error(`symbole ${id}: objets[] requis`);
+      _validerCadre(sy.bbox, `symbole ${id}`);
+      _validerObjets(sy.objets, `symbole ${id}`);
+    }
+  }
+  _visiterObjets(doc, (o) => {
+    if (o.type === "instance" && !(doc.symboles && doc.symboles[o.symbole])) throw new Error(`instance ${o.id}: symbole ${o.symbole} inconnu`);
+  });
   return doc;
 }
 
@@ -274,6 +297,13 @@ function compilerObjet(o, ctx = {}) {
       if (s.graisse) attrs += ` font-weight="${escAttr(s.graisse)}"`;
       if (s.interlettrage) attrs += ` letter-spacing="${Number(s.interlettrage)}"`;
       return `<text${t}${attrs}${st}${tr}>${escTexte(o.contenu || "")}</text>`;
+    }
+    case "instance": {
+      // lot F : une instance est un <use> du symbole (défini une fois dans les defs)
+      const sx = o.sx === undefined ? 1 : +o.sx, sy = o.sy === undefined ? 1 : +o.sy;
+      const ech = (sx !== 1 || sy !== 1) ? ` scale(${nbc(sx)} ${nbc(sy)})` : "";
+      const trI = ` transform="translate(${nbc(o.x)} ${nbc(o.y)})${ech}${o.transform ? " " + escAttr(o.transform) : ""}"`;
+      return `<use${t} href="#sym_${escAttr(o.symbole)}"${trI}/>`;
     }
     case "groupe": {
       // lot F : un groupe écrêté porte clip-path (la géométrie du conteneur est dans les defs)
@@ -432,7 +462,7 @@ function _decalerObjet(o, dx, dy) {
   switch (o.type) {
     case "rect": case "image": o.x += dx; o.y += dy; break;
     case "ellipse": case "forme": o.cx += dx; o.cy += dy; break;
-    case "texte": o.x += dx; o.y += dy; break;
+    case "texte": case "instance": case "cadre": o.x += dx; o.y += dy; break;
     case "path": {
       const segs = chemin_parser(o.d);
       for (const s of segs) {
@@ -505,11 +535,22 @@ export function op_deplacer(doc, ids, dx, dy) {
   }
 }
 
-function _mapperObjet(o, av, ap) {
+function _mapperObjet(o, av, ap, doc) {
   const sx = ap.w / av.w, sy = ap.h / av.h;
   const fx = (X) => (X - av.x) * sx + ap.x;
   const fy = (Y) => (Y - av.y) * sy + ap.y;
   switch (o.type) {
+    case "instance": {                   // lot F : l'échelle se cumule, l'origine suit la bbox
+      const b = _bboxObjet(o, doc) || { x: o.x, y: o.y, w: 0, h: 0 };
+      const sym = doc && doc.symboles && doc.symboles[o.symbole];
+      const nsx = (o.sx || 1) * sx, nsy = (o.sy || 1) * sy;
+      const bx = sym ? sym.bbox.x : 0, by = sym ? sym.bbox.y : 0;
+      o.x = fx(b.x) - bx * nsx; o.y = fy(b.y) - by * nsy;
+      o.sx = nsx; o.sy = nsy;
+      break;
+    }
+    case "cadre":
+      o.x = fx(o.x); o.y = fy(o.y); o.w = o.w * sx; o.h = o.h * sy; break;
     case "rect": case "image":
       o.x = fx(o.x); o.y = fy(o.y);
       o.w = o.w * sx; o.h = o.h * sy; break;
@@ -535,14 +576,14 @@ function _mapperObjet(o, av, ap) {
       o.d = chemin_serialiser(segs);
       break;
     }
-    case "groupe": (o.enfants || []).forEach((e) => _mapperObjet(e, av, ap)); break;
+    case "groupe": (o.enfants || []).forEach((e) => _mapperObjet(e, av, ap, doc)); break;
   }
 }
 
 export function op_redimensionner(doc, ids, bboxAvant, bboxApres) {
   if (!(bboxAvant.w > 0) || !(bboxAvant.h > 0)) return;
   const objets = [..._objetsCibles(doc, ids)].map((t) => t.objet);
-  for (const o of objets) _mapperObjet(o, bboxAvant, bboxApres);
+  for (const o of objets) _mapperObjet(o, bboxAvant, bboxApres, doc);
   const sx = bboxApres.w / bboxAvant.w, sy = bboxApres.h / bboxAvant.h;
   const fx = (X) => (X - bboxAvant.x) * sx + bboxApres.x;
   const fy = (Y) => (Y - bboxAvant.y) * sy + bboxApres.y;
@@ -993,6 +1034,92 @@ export function op_desecreter(doc, id) {
     }
   }
   throw new Error(`groupe écrêté introuvable: ${id}`);
+}
+export const bbox_objet = (o, doc) => _bboxObjet(o, doc);
+
+/* ── lot F : styles d'objet (copie à l'application) ── */
+const _clone = (v) => JSON.parse(JSON.stringify(v));
+export function op_style_definir(doc, nom, style) {
+  if (!_NOM_GLOBAL.test(String(nom || ""))) throw new Error("style : nom [A-Za-z0-9_-] requis");
+  if (!style || typeof style !== "object") throw new Error("style : objet requis");
+  _validerStyleAvance(style, `style ${nom}`);
+  if (!doc.styles) doc.styles = {};
+  doc.styles[nom] = _clone(style);
+}
+export function op_style_appliquer(doc, ids, nom) {
+  if (!doc.styles || !doc.styles[nom]) throw new Error(`style inconnu: ${nom}`);
+  let n = 0;
+  for (const { objet } of _objetsCibles(doc, ids)) { objet.style = { ...(objet.style || {}), ..._clone(doc.styles[nom]) }; n++; }
+  return n;
+}
+export function op_style_supprimer(doc, nom) {
+  if (!doc.styles || !doc.styles[nom]) throw new Error(`style inconnu: ${nom}`);
+  delete doc.styles[nom];
+  if (!Object.keys(doc.styles).length) delete doc.styles;
+}
+
+/* ── lot F : symboles VIVANTS — doc.symboles[id] = {nom, bbox, objets} ;
+   l'instance {symbole, x, y, sx, sy} est un <use> ; modifier le symbole
+   change toutes ses instances ; « détacher » copie les objets à leur place. */
+export function op_symbole_creer(doc, ids, nom) {
+  const voulu = new Set(ids || []);
+  const cibles = [];
+  for (const c of doc.calques) {
+    if (c.verrou) continue;
+    for (const o of c.objets) if (voulu.has(o.id)) cibles.push({ calque: c, objet: o });
+  }
+  if (!cibles.length) throw new Error("symbole : aucun objet");
+  const bs = cibles.map((t) => _bboxObjet(t.objet, doc)).filter(Boolean);
+  const x0 = Math.min(...bs.map((b) => b.x)), y0 = Math.min(...bs.map((b) => b.y));
+  const bbox = { x: x0, y: y0, w: Math.max(0.01, Math.max(...bs.map((b) => b.x + b.w)) - x0), h: Math.max(0.01, Math.max(...bs.map((b) => b.y + b.h)) - y0) };
+  if (!doc.symboles) doc.symboles = {};
+  let n = 1;
+  while (("s" + n) in doc.symboles) n++;
+  const sid = "s" + n;
+  const dernier = cibles[cibles.length - 1];
+  const iD = dernier.calque.objets.indexOf(dernier.objet);
+  const id = _idLibre(doc);
+  for (const { calque, objet } of cibles) calque.objets.splice(calque.objets.indexOf(objet), 1);
+  doc.symboles[sid] = { nom: nom || sid, bbox, objets: cibles.map((t) => t.objet) };
+  dernier.calque.objets.splice(Math.min(iD, dernier.calque.objets.length), 0, { id, type: "instance", symbole: sid, x: 0, y: 0, sx: 1, sy: 1, style: {} });
+  return sid;
+}
+export function op_instance_poser(doc, calqueId, sid, x, y) {
+  if (!doc.symboles || !doc.symboles[sid]) throw new Error(`symbole inconnu: ${sid}`);
+  return op_ajouter(doc, calqueId, { type: "instance", symbole: sid, x: +x, y: +y, sx: 1, sy: 1, style: {} });
+}
+export function op_symbole_modifier(doc, sid, fn) {
+  if (!doc.symboles || !doc.symboles[sid]) throw new Error(`symbole inconnu: ${sid}`);
+  const sym = doc.symboles[sid];
+  fn(sym.objets, sym);
+  _validerObjets(sym.objets, `symbole ${sid}`);
+}
+export function op_symbole_detacher(doc, idInstance) {
+  for (const c of doc.calques) {
+    if (c.verrou) continue;
+    const i = c.objets.findIndex((o) => o.id === idInstance);
+    if (i < 0) continue;
+    const inst = c.objets[i];
+    if (inst.type !== "instance") throw new Error(`${idInstance}: pas une instance`);
+    const sym = doc.symboles && doc.symboles[inst.symbole];
+    if (!sym) throw new Error(`symbole inconnu: ${inst.symbole}`);
+    const av = sym.bbox, ap = _bboxObjet(inst, doc);
+    c.objets.splice(i, 1);
+    // copies à ids NEUFS (insérées une à une : _idLibre voit chaque id posé),
+    // mappées de la bbox du symbole vers celle de l'instance
+    const copies = _clone(sym.objets);
+    copies.forEach((o, k) => { o.id = _idLibre(doc); _mapperObjet(o, av, ap, doc); c.objets.splice(i + k, 0, o); });
+    return copies.map((o) => o.id);
+  }
+  throw new Error(`instance introuvable: ${idInstance}`);
+}
+export function op_symbole_supprimer(doc, sid) {
+  if (!doc.symboles || !doc.symboles[sid]) throw new Error(`symbole inconnu: ${sid}`);
+  let n = 0;
+  _visiterObjets(doc, (o) => { if (o.type === "instance" && o.symbole === sid) n++; });
+  if (n) throw new Error(`symbole ${sid} : ${n} instance(s) encore posée(s)`);
+  delete doc.symboles[sid];
+  if (!Object.keys(doc.symboles).length) delete doc.symboles;
 }
 
 export function op_degrade_stop_ajouter(doc, id, stop) {
@@ -1685,9 +1812,15 @@ export function op_incliner(doc, ids, kx, ky, cx, cy) {
 }
 
 // la boîte GÉOMÉTRIQUE d'un objet (sans DOM) — pour la duplication puissance
-function _bboxObjet(o) {
+function _bboxObjet(o, doc) {
   switch (o.type) {
-    case "rect": case "image": return { x: o.x, y: o.y, w: o.w, h: o.h };
+    case "rect": case "image": case "cadre": return { x: o.x, y: o.y, w: o.w, h: o.h };
+    case "instance": {
+      const sym = doc && doc.symboles && doc.symboles[o.symbole];
+      if (!sym) return { x: o.x, y: o.y, w: 0, h: 0 };
+      const sx = o.sx === undefined ? 1 : o.sx, sy = o.sy === undefined ? 1 : o.sy;
+      return { x: o.x + sym.bbox.x * sx, y: o.y + sym.bbox.y * sy, w: sym.bbox.w * sx, h: sym.bbox.h * sy };
+    }
     case "ellipse": return { x: o.cx - o.rx, y: o.cy - o.ry, w: 2 * o.rx, h: 2 * o.ry };
     case "forme": return { x: o.cx - o.r * (o.sx || 1), y: o.cy - o.r * (o.sy || 1), w: 2 * o.r * (o.sx || 1), h: 2 * o.r * (o.sy || 1) };
     case "texte": return { x: o.x, y: o.y, w: 0, h: 0 };
@@ -1699,7 +1832,7 @@ function _bboxObjet(o) {
       return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
     }
     case "groupe": {
-      const bs = (o.enfants || []).map(_bboxObjet).filter(Boolean);
+      const bs = (o.enfants || []).map((e) => _bboxObjet(e, doc)).filter(Boolean);
       if (!bs.length) return null;
       const x0 = Math.min(...bs.map((b) => b.x)), y0 = Math.min(...bs.map((b) => b.y));
       return { x: x0, y: y0, w: Math.max(...bs.map((b) => b.x + b.w)) - x0, h: Math.max(...bs.map((b) => b.y + b.h)) - y0 };
@@ -1791,8 +1924,8 @@ export function formule(valeur, texte) {
 
 
 function _defs(doc, ctx = {}) {
-  const refs = [], motifs = [], masques = [], filtres = [], clips = [];
-  const vus = new Set(), vusM = new Set(), vusK = new Set();
+  const refs = [], motifs = [], masques = [], filtres = [], clips = [], symboles = [];
+  const vus = new Set(), vusM = new Set(), vusK = new Set(), vusS = new Set();
   const visiter = (objs) => {
     for (const o of objs) {
       const s = o.style || {};
@@ -1811,6 +1944,10 @@ function _defs(doc, ctx = {}) {
         if (!vusK.has(gid)) { vusK.add(gid); masques.push(gid); }
       }
       if (s.effets && s.effets.length) filtres.push(filtre_svg(`fx_${o.id}`, s.effets));
+      if (o.type === "instance" && doc.symboles && doc.symboles[o.symbole] && !vusS.has(o.symbole)) {
+        vusS.add(o.symbole);
+        symboles.push(`<g id="sym_${escAttr(o.symbole)}">` + doc.symboles[o.symbole].objets.map((e) => compilerObjet(e, { ...ctx, sansId: true })).join("") + `</g>`);
+      }
       if (o.type === "groupe") {
         if (o.clip) {
           const conteneur = (o.enfants || []).find((e) => e.id === o.clip);
@@ -1849,7 +1986,7 @@ function _defs(doc, ctx = {}) {
     morceaux.push(`<mask id="m_${escAttr(id)}"><rect x="0" y="0" width="${+w}" height="${+h}" fill="url(#${escAttr(id)})"/></mask>`);
   }
   for (const id of motifs) if (mots[id]) morceaux.push(motif_svg(id, { ...mots[id], couleur: _couleur(mots[id].couleur, ctx), fond: mots[id].fond ? _couleur(mots[id].fond, ctx) : undefined }));
-  morceaux.push(...filtres, ...clips);
+  morceaux.push(...symboles, ...filtres, ...clips);
   return morceaux.length ? `<defs>${morceaux.join("")}</defs>` : "";
 }
 
