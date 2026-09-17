@@ -1,4 +1,4 @@
 {
   "type": "commonjs",
-  "description": "vendor UMD (martinez, imagetracerjs) : commonjs pour le require du banc node; le navigateur charge en script classique (window.martinez, window.ImageTracer)."
+  "description": "vendor UMD (martinez, imagetracerjs, opentype.js) : commonjs pour le require du banc node; le navigateur charge en script classique (window.martinez, window.ImageTracer, window.opentype)."
 }
