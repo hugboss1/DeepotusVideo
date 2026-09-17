@@ -6576,6 +6576,32 @@ async def add_vector_image(doc_id: str, request: Request):
         raise HTTPException(404, "Contenu du document introuvable")
 
 
+@router.put("/vector/docs/{doc_id}/images/{name}")
+async def replace_vector_image(doc_id: str, name: str, request: Request):
+    """Lot E (D1) : le persona Pixel remplace les octets d'un calque image ;
+    l'état précédent part au journal `.pix<k>.png` (×10). Rend {name, rev}."""
+    from app.services import vector_store as VS
+    octets = await request.body()
+    if not octets.startswith(_PNG_MAGIC):
+        raise HTTPException(400, "image: un PNG est attendu")
+    if len(octets) > _VECTOR_IMAGE_MAX:
+        raise HTTPException(413, "image: 40 Mo au plus")
+    try:
+        rev = VS.remplacer_image(doc_id, name, octets)
+    except (ValueError, FileNotFoundError):
+        raise HTTPException(404, "Image du document introuvable")
+    return {"name": name, "rev": rev}
+
+
+@router.post("/vector/docs/{doc_id}/images/{name}/annuler")
+async def undo_vector_image(doc_id: str, name: str):
+    from app.services import vector_store as VS
+    rev = VS.annuler_image(doc_id, name)
+    if rev is None:
+        raise HTTPException(409, "Rien à annuler pour cette image")
+    return {"name": name, "rev": rev}
+
+
 @router.get("/vector/docs/{doc_id}/images/{name}")
 async def get_vector_image(doc_id: str, name: str):
     from app.services import vector_store as VS

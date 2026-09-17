@@ -1148,3 +1148,85 @@ def test_le_miroir_lot_b_geometrie_gestes():
     qa = vl / "qa"
     for b in ("formes", "crayon", "noeuds2", "opsbool2", "gestes"):
         assert (qa / f"{b}.test.mjs").is_file(), b
+
+
+# ── V. lot E : le journal raster du persona Pixel (D1 : `.pix<n>.png` ×10) ──
+
+def test_le_journal_raster_du_document():
+    import pytest
+    from app.services import vector_store as VS
+    did = VS.creer(_doc("Pixel"))
+    dossier = pathlib.Path(os.environ["VECTOR_FOLDER"])
+    # état vide construit : rien à annuler, rien à remplacer
+    assert VS.journal_images(did, "img1.png") == 0
+    assert VS.annuler_image(did, "img1.png") is None
+    with pytest.raises(FileNotFoundError):
+        VS.remplacer_image(did, "img1.png", _PNG_1PX)
+    VS.ecrire_image(did, _PNG_1PX)
+    # remplacer journalise l'état PRÉCÉDENT ; la révision compte les journaux
+    assert VS.remplacer_image(did, "img1.png", _PNG_1PX + b"A") == 1
+    assert VS.lire_image(did, "img1.png") == _PNG_1PX + b"A"
+    assert (dossier / f"{did}.img1.pix1.png").read_bytes() == _PNG_1PX
+    for k in range(2, 14):
+        VS.remplacer_image(did, "img1.png", _PNG_1PX + bytes([64 + k]))
+    # ×10 : les plus anciens sont tombés, le plus récent est pix10
+    assert VS.journal_images(did, "img1.png") == 10
+    assert not (dossier / f"{did}.img1.pix11.png").exists()
+    assert (dossier / f"{did}.img1.pix10.png").read_bytes() == _PNG_1PX + bytes([64 + 12])
+    # annuler rend l'état précédent et dépile
+    assert VS.annuler_image(did, "img1.png") == 9
+    assert VS.lire_image(did, "img1.png") == _PNG_1PX + bytes([64 + 12])
+    for _ in range(9):
+        VS.annuler_image(did, "img1.png")
+    assert VS.journal_images(did, "img1.png") == 0 and VS.annuler_image(did, "img1.png") is None
+    # noms hors patron : refusés
+    with pytest.raises(ValueError):
+        VS.remplacer_image(did, "../img1.png", _PNG_1PX)
+    # le journal ne pollue pas la liste des images ni la copie
+    assert VS.lister_images(did) == ["img1.png"]
+    dst = VS.creer(_doc("copie"))
+    VS.remplacer_image(did, "img1.png", _PNG_1PX + b"Z")
+    VS.copier_images(did, dst)
+    assert VS.lister_images(dst) == ["img1.png"] and VS.journal_images(dst, "img1.png") == 0
+
+
+def test_les_routes_du_journal_raster():
+    import asyncio
+    from httpx import AsyncClient, ASGITransport
+
+    async def scenario():
+        from app.main import app
+        from app.services.storage import init_db
+        await init_db()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://t") as c:
+            r = await c.post("/api/vector/docs", json={"name": "Pix", "role": "libre", "doc": _doc()})
+            did = r.json()["id"]
+            r = await c.post(f"/api/vector/docs/{did}/images", content=_PNG_1PX,
+                             headers={"Content-Type": "image/png"})
+            assert r.json() == {"name": "img1.png"}
+            # état vide : rien à annuler → 409 parlant ; image inconnue → 404 ; pas un PNG → 400
+            r = await c.post(f"/api/vector/docs/{did}/images/img1.png/annuler")
+            assert r.status_code == 409
+            r = await c.put(f"/api/vector/docs/{did}/images/img7.png", content=_PNG_1PX,
+                            headers={"Content-Type": "image/png"})
+            assert r.status_code == 404
+            r = await c.put(f"/api/vector/docs/{did}/images/img1.png", content=b"GIF89a",
+                            headers={"Content-Type": "image/png"})
+            assert r.status_code == 400
+            # remplacer → rev 1, l'image servie est la nouvelle
+            r = await c.put(f"/api/vector/docs/{did}/images/img1.png", content=_PNG_1PX + b"B",
+                            headers={"Content-Type": "image/png"})
+            assert r.status_code == 200 and r.json() == {"name": "img1.png", "rev": 1}
+            r = await c.get(f"/api/vector/docs/{did}/images/img1.png")
+            assert r.content == _PNG_1PX + b"B"
+            # annuler → rev 0, l'image d'origine revient
+            r = await c.post(f"/api/vector/docs/{did}/images/img1.png/annuler")
+            assert r.status_code == 200 and r.json() == {"name": "img1.png", "rev": 0}
+            r = await c.get(f"/api/vector/docs/{did}/images/img1.png")
+            assert r.content == _PNG_1PX
+            # le chemin de journal n'est PAS servi comme image
+            r = await c.get(f"/api/vector/docs/{did}/images/img1.pix1.png")
+            assert r.status_code == 404
+
+    asyncio.run(scenario())
