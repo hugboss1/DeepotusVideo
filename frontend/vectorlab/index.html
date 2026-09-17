@@ -125,30 +125,22 @@
       </div>
     </div>
     <aside id="panneauCalques" class="panneau">
+     <div class="panneau-defile">
       <details id="vitrailDetails">
         <summary class="panneau-tete" title="Le Panneau de verre — les deux encarts historiques (Vitrail / Panneau de verre) fusionnés (handoff §8.1) : réglages du prochain panneau OU retouche du panneau sélectionné, la portée est écrite en tête">Panneau de verre</summary>
         <div id="panneauVitrail"></div>
       </details>
-      <div class="panneau-tete">Apparence</div>
-      <div id="panneauStyle"></div>
+      <details id="styleDetails" open><summary class="panneau-tete">Apparence</summary><div id="panneauStyle"></div></details>
       <details id="apparence2Details" open><summary class="panneau-tete" title="Apparence de classe Affinity : effets, fusion, contours multiples, remplissages avancés, couleurs globales, styles, symboles, texte +">Apparence +</summary><div id="panneauApparence2"></div></details>
-      <div class="panneau-tete" title="La forme de l'outil Forme, ses paramètres quand une forme est sélectionnée, la largeur de la gomme et le rayon de l'outil Coin">Forme &amp; gestes</div>
-      <div id="panneauForme"></div>
-      <div class="panneau-tete" title="Nœuds multiples : lasso d'ancres (outil Nœuds), aligner, diviser, inverser, joindre, coins">Nœuds</div>
-      <div id="panneauNoeuds"></div>
+      <details id="formeDetails" open><summary class="panneau-tete" title="La forme de l'outil Forme, ses paramètres quand une forme est sélectionnée, la largeur de la gomme et le rayon de l'outil Coin">Forme &amp; gestes</summary><div id="panneauForme"></div></details>
+      <details id="noeudsDetails"><summary class="panneau-tete" title="Nœuds multiples : lasso d'ancres (outil Nœuds), aligner, diviser, inverser, joindre, coins">Nœuds</summary><div id="panneauNoeuds"></div></details>
       <details id="instantanesDetails"><summary class="panneau-tete" title="Instantanés nommés de la session (historique de 1 000 pas)">Instantanés</summary><div id="panneauInstantanes"></div></details>
-      <div class="panneau-tete seulement-pixel" id="tetePixel">Pixel</div>
-      <div id="panneauPixel" class="seulement-pixel"></div>
-      <div class="panneau-tete seulement-export" id="teteExport">Export</div>
-      <div id="panneauExport" class="seulement-export"></div>
-      <div class="panneau-tete seulement-export" id="teteExportPlus" title="Tranches, formats JPEG / WebP / PDF / DXF, multi-résolution, presets d'impression, export lot">Export +</div>
-      <div id="panneauExportPlus" class="seulement-export"></div>
-      <div class="panneau-tete" id="teteImage" hidden>Image</div>
-      <div id="panneauImage" hidden></div>
-      <div class="panneau-tete" title="Fond perdu et zone sûre — tracés à l'écran, aimantants, jamais exportés">Repères</div>
-      <div id="panneauReperes"></div>
-      <div class="panneau-tete" title="Grille du document : carrée subdivisée, isométrique, triangulaire, hexagonale — tracée et aimantante, sauvée avec le document">Grille</div>
-      <div id="panneauGrille"></div>
+      <details id="pixelDetails" class="seulement-pixel" open><summary class="panneau-tete" id="tetePixel">Pixel</summary><div id="panneauPixel"></div></details>
+      <details id="exportDetails" class="seulement-export" open><summary class="panneau-tete" id="teteExport">Export</summary><div id="panneauExport"></div></details>
+      <details id="exportPlusDetails" class="seulement-export" open><summary class="panneau-tete" id="teteExportPlus" title="Tranches, formats JPEG / WebP / PDF / DXF, multi-résolution, presets d'impression, export lot">Export +</summary><div id="panneauExportPlus"></div></details>
+      <details id="imageDetails" open hidden><summary class="panneau-tete" id="teteImage">Image</summary><div id="panneauImage"></div></details>
+      <details id="reperesDetails"><summary class="panneau-tete" title="Fond perdu et zone sûre — tracés à l'écran, aimantants, jamais exportés">Repères</summary><div id="panneauReperes"></div></details>
+      <details id="grilleDetails"><summary class="panneau-tete" title="Grille du document : carrée subdivisée, isométrique, triangulaire, hexagonale — tracée et aimantante, sauvée avec le document">Grille</summary><div id="panneauGrille"></div></details>
       <details id="plateauDetails"><summary class="panneau-tete" title="Fiche de terrains et générateur de quadrillage hexagonal">Plateau &amp; terrains</summary>
         <div id="panneauTerrains"></div><div id="panneauPlateau"></div></details>
       <details id="planchesDetails"><summary class="panneau-tete" title="Plusieurs surfaces nommées dans un même document, exportables une par une">Planches</summary><div id="panneauPlanches"></div></details>
@@ -156,10 +148,13 @@
         <div id="panneauCarte"></div></details>
       <details id="assetsDetails"><summary class="panneau-tete" title="La Bibliothèque unifiée dans le panneau — un clic pose l'image">Bibliothèque (Assets)</summary>
         <input id="assetsRecherche" type="search" placeholder="rechercher…"/><div id="assetsGrille" class="assets-grille"></div></details>
-      <div class="panneau-tete">Calques
+     </div>
+     <details id="calquesDetails" class="panneau-calques" open>
+      <summary class="panneau-tete">Calques
         <button id="btnCalquePlus" title="Nouveau calque">＋</button>
-      </div>
+      </summary>
       <div id="listeCalques"></div>
+     </details>
     </aside>
   </div>
   <div id="libDlg" class="vl-dlg hidden">

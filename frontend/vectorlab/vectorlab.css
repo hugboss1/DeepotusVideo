@@ -9,7 +9,7 @@
 select { color-scheme: dark; }
 html, body { height: 100%; margin: 0; }
 body {
-  display: flex; flex-direction: column;
+  display: flex; flex-direction: column; overflow: hidden;   /* la page ne grandit jamais : le panneau défile, pas la fenêtre */
   background: #101216; color: #d6d9de;
   font: 13px/1.45 "Segoe UI", system-ui, sans-serif;
   user-select: none;
@@ -76,9 +76,19 @@ button:disabled { opacity: .4; cursor: default; }
 #overlay .ancre { pointer-events: auto; cursor: move; }
 
 .panneau {
-  width: 210px; background: #171a20; border-left: 1px solid #262b34;
-  display: flex; flex-direction: column;
+  width: 240px; background: #171a20; border-left: 1px solid #262b34;
+  display: flex; flex-direction: column; min-height: 0;      /* un item flex ne peut plus imposer sa hauteur à la rangée */
 }
+/* deux zones : les réglages défilent, les calques restent collés en bas */
+.panneau-defile { flex: 1 1 auto; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #313847 transparent; }
+.panneau-calques { flex: 0 0 auto; max-height: 40%; display: flex; flex-direction: column; border-top: 2px solid #2c4a75; }
+.panneau-calques > summary { flex: 0 0 auto; }
+.panneau-calques > #listeCalques { flex: 1 1 auto; min-height: 0; overflow-y: auto; scrollbar-width: thin; }
+.panneau-calques:not([open]) { max-height: none; }
+details[id] > summary.panneau-tete::before { content: "▸"; display: inline-block; width: 12px; color: #8b93a0; font-size: 11px; transition: transform .12s; }
+details[id][open] > summary.panneau-tete::before { transform: rotate(90deg); }
+details[id] > summary.panneau-tete { gap: 4px; justify-content: flex-start; }
+details[id] > summary.panneau-tete > button { margin-left: auto; }
 .panneau-tete {
   display: flex; align-items: center; justify-content: space-between;
   padding: 8px 10px; font-weight: 600; border-bottom: 1px solid #262b34;

@@ -271,7 +271,8 @@ export function initImage(VL) {
   function rendrePanneauImage() {
     const t = etat.selection.length === 1 ? VL.objetDe(etat.selection[0]) : null;
     const o = t && t.objet.type === "image" ? t.objet : null;
-    tete.hidden = !o; hote.hidden = !o;
+    const dt = tete.closest("details");                 // la section Image entière se cache
+    if (dt) dt.hidden = !o; else { tete.hidden = !o; hote.hidden = !o; }
     if (!o) { hote.innerHTML = ""; return; }
     const r = o.rognage || { x: 0, y: 0, w: o.nat.w, h: o.nat.h };
     hote.innerHTML = `
