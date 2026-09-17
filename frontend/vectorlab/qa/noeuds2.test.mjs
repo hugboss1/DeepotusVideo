@@ -83,6 +83,9 @@ const CARRE = "M 0 0 L 100 0 L 100 100 L 0 100 Z";
   const g = doc("M 0 0 L 100 0 L 100 100 L 0 100 Z");
   op_coins_arrondir(g, ["p"], 500);
   ok("rayon trop grand : borné à la demi-arête (pas de croisement)", chemin(g).d.startsWith("M 50 0"), chemin(g).d);
+  // un RECTANGLE se convertit d'abord en chemin (mesuré en preuve : « 0 coin » sinon)
+  const r = doc(CARRE); r.calques[0].objets[0] = { id: "p", type: "rect", x: 0, y: 0, w: 100, h: 60, style: { fond: "#111" } };
+  ok("un rect : converti en chemin puis 4 coins arrondis, style gardé", op_coins_arrondir(r, ["p"], 10) === 4 && chemin(r).type === "path" && chemin(r).style.fond === "#111", JSON.stringify(chemin(r)));
 }
 {
   const segs = chemin_parser(CARRE);
@@ -94,4 +97,4 @@ if (echecs.length) {
   console.error("ECHECS noeuds2 :\n- " + echecs.join("\n- "));
   process.exit(1);
 }
-console.log("QA noeuds2 : PASS (21 controles)");
+console.log("QA noeuds2 : PASS (22 controles)");

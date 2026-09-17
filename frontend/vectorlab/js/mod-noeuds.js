@@ -4,6 +4,7 @@
 // coins (Q tangent), choisir des ancres au rectangle. Sur le d canonique de
 // mod-doc (chemin_parser / chemin_serialiser). PUR.
 import { chemin_parser, chemin_serialiser, chemin_ancres } from "./mod-doc.js";
+import { forme_d } from "./mod-formes.js";
 
 function _path(doc, id) {
   for (const c of doc.calques) {
@@ -131,6 +132,20 @@ export function op_coins_arrondir(doc, ids, rayon) {
   if (!(r > 0)) throw new Error("coins : rayon > 0 requis");
   let n = 0;
   for (const id of ids) {
+    // un rectangle ou une forme paramétrique devient d'abord un chemin (le
+    // coin se pose sur des droites) — mesuré en preuve : « 0 coin » sur un rect
+    for (const c of doc.calques) {
+      if (c.verrou) continue;
+      const k = c.objets.findIndex((x) => x.id === id);
+      if (k < 0) continue;
+      const o = c.objets[k];
+      if (o.type === "rect") {
+        c.objets[k] = { id: o.id, type: "path", style: { ...(o.style || {}) }, ...(o.transform ? { transform: o.transform } : {}),
+          d: `M ${o.x} ${o.y} L ${o.x + o.w} ${o.y} L ${o.x + o.w} ${o.y + o.h} L ${o.x} ${o.y + o.h} Z` };
+      } else if (o.type === "forme") {
+        c.objets[k] = { id: o.id, type: "path", style: { ...(o.style || {}) }, ...(o.transform ? { transform: o.transform } : {}), d: forme_d(o) };
+      }
+    }
     let cible;
     try { cible = _path(doc, id); } catch { continue; }
     const segs = chemin_parser(cible.objet.d), noeuds = _porteurs(segs);

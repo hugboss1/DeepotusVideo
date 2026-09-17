@@ -441,6 +441,9 @@ function rendreOverlay() {
       }
     }
   }
+  // lot B : les modules dessinent leurs poignées ici (formes, pivot, atomes) —
+  // le cœur appelle SA fonction locale, un module ne peut pas la remplacer
+  VL.surOverlay(o);
   // le groupe temporaire des outils (lasso, aperçus) — toujours en dernier
   o.appendChild(ov("g", { id: "ovTmp" }));
 }
@@ -713,6 +716,7 @@ const VL = {
   rendre, rendreOverlay, appliquerVue, setOutil, toast,
   surRendu: () => {}, surOutil: () => {}, surTouche: () => {},
   surSelection: () => {}, surCharge: () => {}, surSauve: () => {},
+  surOverlay: () => {},
 };
 initCalques(VL);
 initCouleur(VL);

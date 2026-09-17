@@ -413,9 +413,17 @@ function _cheminDe(doc, mp, style, transform) {
 }
 // remplace la cible par les chemins (un par multipolygone fourni), à sa place
 function _remplacer(cible, doc, multis) {
-  const neufs = multis.map((mp) => _cheminDe(doc, mp, cible.objet.style));
-  cible.calque.objets.splice(cible.calque.objets.indexOf(cible.objet), 1, ...neufs);
-  return neufs.map((o) => o.id);
+  // un chemin à la fois, INSÉRÉ avant de nommer le suivant : deux morceaux
+  // nommés d'un coup recevaient le même id (mesuré en preuve : deux « o3 »)
+  let i = cible.calque.objets.indexOf(cible.objet);
+  cible.calque.objets.splice(i, 1);
+  const ids = [];
+  for (const mp of multis) {
+    const o = _cheminDe(doc, mp, cible.objet.style);
+    cible.calque.objets.splice(i++, 0, o);
+    ids.push(o.id);
+  }
+  return ids;
 }
 
 export function op_couteau(doc, ids, ligne) {

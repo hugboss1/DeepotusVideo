@@ -42,6 +42,7 @@ const aireObj = (o) => Math.abs(aire_de(aplatir_objet(o)));
   const ids = op_gomme(d, ["r"], "M -10 50 L 110 50", 10);
   const total = objets(d).reduce((s, o) => s + aireObj(o), 0);
   ok("gomme horizontale de 10 : deux morceaux, aire totale 9000 (±1 %)", ids.length === 2 && pres(total, 9000, 90), `${ids.length} / ${total}`);
+  ok("les deux morceaux ont des ids DISTINCTS (mesuré en preuve : deux « o3 »)", new Set(ids).size === 2 && new Set(objets(d).map((o) => o.id)).size === objets(d).length, JSON.stringify(ids));
   const e = doc(rect("r", 0, 0, 100, 100));
   const ids3 = op_gomme(e, ["r"], "M -10 -50 L 110 -50", 10);
   ok("un trait hors de la forme : rien n'est retiré, la forme reste (dite intacte)", ids3.length === 1 && pres(aireObj(objets(e)[0]), 10000, 1));
@@ -85,4 +86,4 @@ if (echecs.length) {
   console.error("ECHECS opsbool2 :\n- " + echecs.join("\n- "));
   process.exit(1);
 }
-console.log("QA opsbool2 : PASS (16 controles)");
+console.log("QA opsbool2 : PASS (17 controles)");

@@ -212,12 +212,10 @@ export function initOutils2(VL) {
   });
 
   /* ── overlay : poignées de forme, pivot, ancres multiples, atomes ── */
-  const suivantOverlay = VL.rendreOverlay;
-  VL.rendreOverlay = () => {
-    suivantOverlay();
-    const o = $("#overlay");
+  // le cœur appelle SA rendreOverlay locale : on se greffe par le hook surOverlay
+  VL.surOverlay = (o) => {
     if (!o || !etat.doc) return;
-    const ov = (nom, attrs) => { const el = document.createElementNS(SNS, nom); for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v); o.insertBefore(el, o.lastChild); return el; };
+    const ov = (nom, attrs) => { const el = document.createElementNS(SNS, nom); for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v); o.appendChild(el); return el; };
     if (etat.outil === "select" && etat.selection.length === 1) {
       const t = VL.objetDe(etat.selection[0]);
       if (t && t.objet.type === "forme") {
