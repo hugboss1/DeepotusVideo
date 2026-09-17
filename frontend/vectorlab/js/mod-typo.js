@@ -120,6 +120,7 @@ export function initTypo(VL) {
       if (!t || (t.type !== "texte" && t.type !== "cadre")) throw new Error("texte introuvable");
       t.contenu = contenu;
     });
+    if (neuf) VL.setOutil("select");           // le texte posé, on revient à la sélection (double-clic pour rééditer)
     VL.setSelection([id]);
   }
   function _profond(doc, id) {

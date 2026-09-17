@@ -529,7 +529,7 @@ export function initOutils(VL) {
 
   /* ═══════════ double-clic : conversion d'ancre ═══════════ */
   stage.addEventListener("dblclick", (ev) => {
-    if (etat.outil === "select") {
+    if (etat.outil === "select" || etat.outil === "texte") {
       // rééditer un texte en place
       const el = ev.target.closest && ev.target.closest("[data-objet]");
       if (el) {

@@ -354,18 +354,7 @@ export function initStyle(VL) {
           if (id) VL.setSelection([id]);
         }
       }));
-    if (objetReflete() && objetReflete().type === "texte") {
-      $("#apPolice").addEventListener("change",
-        (e) => appliquer({ police: e.target.value || null }));
-      $("#apCorps").addEventListener("change",
-        (e) => appliquer({ corps: Math.max(4, +e.target.value || 16) }));
-      $("#apGraisse").addEventListener("change",
-        (e) => appliquer({ graisse: e.target.value === "normal"
-                                    ? null : e.target.value }));
-      $("#apInterlettrage").addEventListener("change",
-        (e) => appliquer({ interlettrage: +e.target.value || null }));
-      /* Texte & logo : la vectorisation est dans le panneau Texte (txContours) */
-    }
+    /* Texte & logo : fonte, corps, graisse, interlettrage et contours se règlent dans le panneau Texte (mod-typo) */
     if (g) {
       hote.querySelectorAll("[data-stop]").forEach((btn) =>
         btn.addEventListener("click", () => VL.ouvrirNuancier(
