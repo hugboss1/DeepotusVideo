@@ -12,7 +12,63 @@
 > purs). Branche `chantier/vectorlab-affinity`, après le lot C (`dd030e8`).
 > Ce plan est COMMIS avant le code.
 
-> **RELEVÉ DE LIVRAISON** : à écrire ici en fin de lot.
+> **RELEVÉ DE LIVRAISON (17/09/2026) : LOT D LIVRÉ, PROUVÉ EN RÉEL, DÉPLOYÉ — relance du backend à faire.**
+>
+> **Livré** (8 commits `830a99a`→`00a46cc`, poussés) : opentype.js 1.3.4
+> vendorisé (MIT) ; `mod-solide.js` (retrait par DIFFÉRENCES SUCCESSIVES —
+> l'union préalable du bandeau perdait son trou : carré 20 retiré de 2 →
+> aire 100 au lieu de 256, mesuré ; biseau en marches de 0,2 mm ; évidement
+> à mur ≥ 0,8 mm et plancher, refus parlants « mur » / « forme » ; pièces de
+> plateau socle + terrain, y retourné ; GLB minimal POSITION+NORMAL ;
+> nomenclature CSV) ; `mod-texte3d.js` (16 polices OFL du dist, commandes →
+> `d` canonique, `texte_vers_d` avec crénage et interlettrage) ;
+> `op_texte_vectoriser` (même id, même fond, evenodd) ; backend `creer_lot`
+> + `POST /print3d/lot` multipart (un STL par pièce, `plateau.3mf`,
+> `nomenclature.csv`, `impression.json` lot:true, garde 256 qui avertit) ;
+> `mod-impression.js` : dialogue à trois modes (calques / tuiles / logo),
+> aperçu 3D `<model-viewer>` du bundle (`loading="eager"`), « Un STL »,
+> « Lot par tuile », « Ouvrir le slicer », texte → chemins depuis Apparence
+> (sélecteur de police). Le `prompt()` du plan slicer a déménagé, pins
+> mis à jour EN LE DISANT.
+>
+> **TDD tenu** : RED ×4 (modules et `creer_lot` absents, route 405) ; le
+> banc solide a démasqué le trou perdu de l'union martinez → différences
+> progressives (256 exact, 6 ms). Bancs : node **558 contrôles** (+44 :
+> solide 26, texte3d 11, impression_ui 7), pytest `test_print3d` **13**
+> (+2), `test_vector_docs` **28** (+1).
+>
+> **Prouvé en réel** (backend du worktree 8799, données isolées, viewport
+> 1400×900) sur le plateau du lot C (38 tuiles) : dialogue ouvert par
+> Exporter → Impression 3D, mode Tuiles proposé d'office ; Aperçu en 10 ms
+> → **38 pièces, 760 triangles, 165 × 116 × 5 mm, 53 cm³**, hauteurs {5, 2}
+> (forêt 3 + socle 2 ; mer 0 + 2), viewer `src` blob, `offsetHeight` 540,
+> `model-viewer.loaded === true`, `getDimensions()` = 165,0 × 116,4 × 5
+> (égal au bbox calculé) ; **Lot par tuile** → `preuve-lot-c-lot-20260917`,
+> 38 pièces, 760 triangles, relu par `/api/print3d/exports` : lot true, 38
+> STL, `plateau.3mf`, `nomenclature.csv`. Logo (3 rects unis, h 5) : plein
+> 6720 mm³ > biseau 1 mm 6573 > évidé (mur 1,2, plancher 1) 2494 ;
+> `extruder_evide` mur 0,3 → « mur ≥ 0.8 mm », mur 6 → « mur trop épais pour
+> cette forme » ; `reglages_lire` borne le mur à 0,8 ; « Un STL » →
+> `preuve-lot-c-20260917`, 132 triangles. Texte « AB » Anton 120 →
+> Apparence → 16 polices → Vectoriser : `path` evenodd, fond gardé, 5
+> sous-chemins, `<path>` au DOM 112 px de large, annulable ; Logo → 2 956
+> triangles, 0 ignoré ; un texte non vectorisé ajouté → « 1 texte(s)
+> ignoré(s) » dit. Pièges : `model-viewer` ne charge pas à l'intersection
+> dans un volet caché (→ eager) ; son canvas reste 300×150 sans rAF, la
+> preuve est `loaded` + dimensions.
+>
+> **Déployé** : 7 fichiers du Vectorlab = base lot C (`dd030e8`),
+> `print3d.py` et `routes.py` = base lot A (`7c99667`) → sauvegarde
+> `_backup_predeploy_2026-09-17c-vectorlab-lotD` → copie depuis `git
+> archive 00a46cc` → **72 fichiers = cible**, pré-vol du python embarqué OK
+> (`creer_lot` importé). **`print3d.py` et `routes.py` sont du Python : la
+> route `/print3d/lot` n'existe qu'après relance — c'est l'utilisateur qui
+> relance.**
+>
+> **Reste** : biseau en marches (pas un chanfrein exact) ; texte vectorisé
+> irréversible hors historique ; polices proposées = 16 OFL sûres du dist ;
+> le plateau assemblé est un seul maillage 3MF (pas un objet par tuile) ;
+> capture d'écran du volet impossible pendant la preuve (rendu différé).
 
 **Goal :** depuis le Vectorlab, imprimer en 3D un plateau de tuiles (socle
 + relief par terrain, un STL par tuile, un 3MF de plateau, une
