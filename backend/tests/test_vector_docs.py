@@ -1106,7 +1106,7 @@ def test_le_miroir_lot_d_impression_3d():
         assert police in t3 and (racine / "frontend" / "dist" / "fonts" / police).is_file(), police
     # le modèle : texte → chemin ; le panneau Apparence porte le bouton
     assert "export function op_texte_vectoriser" in (vl / "js" / "mod-doc.js").read_text("utf-8")
-    assert 'id="apVectoriserTexte"' in (vl / "js" / "mod-style.js").read_text("utf-8")
+    assert 'id="txContours"' in (vl / "js" / "mod-typo.js").read_text("utf-8")   # Texte & logo : la vectorisation vit dans le panneau Texte
     # le mur minimal est une constante nommée, la garde des 256 reste au backend
     sol = (vl / "js" / "mod-solide.js").read_text("utf-8")
     assert "MUR_MIN_MM = 0.8" in sol and "glb_de_triangles" in sol
@@ -1424,3 +1424,59 @@ def test_le_miroir_lot_g_persona_export():
     qa = vl / "qa"
     for b in ("tranches", "dxf", "exportplus_ui"):
         assert (qa / f"{b}.test.mjs").is_file(), b
+
+
+# ── AA. Texte & logo : la bibliothèque de polices déposées (DATA_ROOT/fonts) ──
+
+_TTF_MIN = b"\x00\x01\x00\x00" + b"\x00" * 60
+
+
+def test_le_magasin_des_polices_deposees(tmp_path, monkeypatch):
+    import pytest
+    from app.services import fonts_service as FS
+    monkeypatch.setattr(FS, "DOSSIER", tmp_path / "fonts")
+    # état vide : aucune police, la lecture rend None
+    assert FS.lister() == []
+    assert FS.lire("MaTypo.ttf") is None
+    nom = FS.deposer("Ma Typo.ttf", _TTF_MIN)
+    assert nom == "Ma-Typo.ttf" and (tmp_path / "fonts" / "Ma-Typo.ttf").read_bytes() == _TTF_MIN
+    assert FS.lister() == [{"nom": "Ma-Typo.ttf", "famille": "Ma-Typo"}]
+    assert FS.lire("Ma-Typo.ttf") == _TTF_MIN
+    # OTF / WOFF / WOFF2 acceptés par leur magic ; PNG, extension inconnue, nom hors patron refusés
+    assert FS.deposer("b.otf", b"OTTO" + b"\x00" * 40).endswith(".otf")
+    assert FS.deposer("c.woff", b"wOFF" + b"\x00" * 40) == "c.woff"
+    assert FS.deposer("d.woff2", b"wOF2" + b"\x00" * 40) == "d.woff2"
+    for mauvais, octets in (("e.png", _TTF_MIN), ("f.ttf", b"\x89PNG" + b"\x00" * 40), ("../g.ttf", _TTF_MIN), ("h.ttf", b"")):
+        with pytest.raises(ValueError):
+            FS.deposer(mauvais, octets)
+    assert FS.lire("../Ma-Typo.ttf") is None and FS.lire("zz.ttf") is None
+
+
+def test_les_routes_des_polices(tmp_path, monkeypatch):
+    import asyncio
+    from httpx import AsyncClient, ASGITransport
+    from app.services import fonts_service as FS
+    monkeypatch.setattr(FS, "DOSSIER", tmp_path / "fonts")
+
+    async def scenario():
+        from app.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://t") as c:
+            r = await c.get("/api/fonts")
+            assert r.status_code == 200
+            d = r.json()
+            # la bibliothèque du dist (OFL) est listée avec sa source, les déposées à part
+            assert any(p["fichier"] == "Anton.ttf" and p["source"] == "lib" for p in d["lib"])
+            assert d["user"] == []
+            r = await c.post("/api/fonts/upload", files={"file": ("Ma Typo.ttf", _TTF_MIN, "font/ttf")})
+            assert r.status_code == 200 and r.json() == {"nom": "Ma-Typo.ttf", "famille": "Ma-Typo"}
+            r = await c.post("/api/fonts/upload", files={"file": ("x.ttf", b"\x89PNG" + b"\x00" * 40, "font/ttf")})
+            assert r.status_code == 400
+            r = await c.get("/api/fonts/user/Ma-Typo.ttf")
+            assert r.status_code == 200 and r.content == _TTF_MIN and r.headers["content-type"].startswith("font/")
+            r = await c.get("/api/fonts/user/zz.ttf")
+            assert r.status_code == 404
+            r = await c.get("/api/fonts")
+            assert r.json()["user"] == [{"nom": "Ma-Typo.ttf", "famille": "Ma-Typo"}]
+
+    asyncio.run(scenario())

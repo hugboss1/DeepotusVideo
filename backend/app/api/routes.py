@@ -6476,6 +6476,48 @@ async def vector_pdf(doc_id: str, pages: str = Form(default="[]"),
                     headers={"Content-Disposition": f'attachment; filename="vector_{doc_id}.pdf"'})
 
 
+# ── Texte & logo (D7) : la bibliothèque de polices — dist (OFL) + déposées ──
+_POLICES_DIST = [
+    ("Anton.ttf", "Anton"), ("ArchivoBlack.ttf", "Archivo Black"), ("BebasNeue.ttf", "Bebas Neue"),
+    ("Bungee.ttf", "Bungee"), ("Cinzel.ttf", "Cinzel"), ("IBMPlexSans.ttf", "IBM Plex Sans"),
+    ("Inter.ttf", "Inter"), ("JetBrainsMono.ttf", "JetBrains Mono"), ("Monoton.ttf", "Monoton"),
+    ("Pacifico.ttf", "Pacifico"), ("PermanentMarker.ttf", "Permanent Marker"), ("PressStart2P.ttf", "Press Start 2P"),
+    ("Righteous.ttf", "Righteous"), ("SpaceGrotesk.ttf", "Space Grotesk"), ("Staatliches.ttf", "Staatliches"),
+    ("AbrilFatface.ttf", "Abril Fatface"),
+]
+
+
+@router.get("/fonts")
+async def fonts_list():
+    """Les polices du dist dont la licence est claire (OFL, servies sur
+    /fonts/…) et celles déposées par l'utilisateur (/api/fonts/user/…)."""
+    from app.services import fonts_service as FS
+    return {"lib": [{"fichier": f, "nom": n, "source": "lib"} for f, n in _POLICES_DIST], "user": FS.lister()}
+
+
+@router.post("/fonts/upload")
+async def fonts_upload(file: UploadFile = File(...)):
+    from app.services import fonts_service as FS
+    octets = await file.read()
+    if len(octets) > 20 * 1024 * 1024:
+        raise HTTPException(413, "police : 20 Mo au plus")
+    try:
+        nom = FS.deposer(file.filename or "police.ttf", octets)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"nom": nom, "famille": Path(nom).stem}
+
+
+@router.get("/fonts/user/{name}")
+async def fonts_user(name: str):
+    from app.services import fonts_service as FS
+    octets = FS.lire(name)
+    if octets is None:
+        raise HTTPException(404, "Police introuvable")
+    return Response(content=octets, media_type=FS.MEDIA.get(Path(name).suffix.lower(), "application/octet-stream"),
+                    headers={"Cache-Control": "public, max-age=86400"})
+
+
 @router.get("/vector/docs/{doc_id}/export.svg")
 async def get_vector_export_svg(doc_id: str):
     from fastapi.responses import Response
