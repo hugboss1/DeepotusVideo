@@ -1230,3 +1230,36 @@ def test_les_routes_du_journal_raster():
             assert r.status_code == 404
 
     asyncio.run(scenario())
+
+
+# ── W. lot E : miroir de la surface — personas, persona Pixel, pixel-art ────
+
+def test_le_miroir_lot_e_persona_pixel():
+    racine = pathlib.Path(__file__).resolve().parent.parent.parent
+    vl = racine / "frontend" / "vectorlab"
+    for m in ("mod-pixel.js", "mod-pixelart.js", "mod-persona.js", "mod-pixelui.js"):
+        assert (vl / "js" / m).is_file(), m
+    for m in ("mod-pixel.js", "mod-pixelart.js"):
+        assert "import " not in (vl / "js" / m).read_text("utf-8"), m       # feuilles
+    core = (vl / "js" / "core.js").read_text("utf-8")
+    assert "initPersona(VL)" in core and "initPixelUI(VL)" in core
+    assert core.index("initOutils(VL)") < core.index("initPersona(VL)") < core.index("initPixelUI(VL)") < core.index("initBrouillon(VL)")
+    html = (vl / "index.html").read_text("utf-8")
+    for tok in ('id="personas"', 'id="panneauPixel"', 'id="panneauExport"'):
+        assert tok in html, tok
+    css = (vl / "vectorlab.css").read_text("utf-8")
+    for tok in ("persona-pixel", "persona-export", ".outil-pixel", "image-rendering: pixelated"):
+        assert tok in css, tok
+    doc = (vl / "js" / "mod-doc.js").read_text("utf-8")
+    for op in ("op_pixelart", "op_image_rev"):
+        assert f"export function {op}" in doc, op
+    assert "?v=${rev}" in (vl / "js" / "mod-image.js").read_text("utf-8")
+    ui = (vl / "js" / "mod-pixelui.js").read_text("utf-8")
+    assert '"/api/images/upload"' in ui and "/tilelab/" not in ui.replace("`/${surface}/`", "")   # la cible est calculée
+    assert "px-" in ui and "annuler" in ui
+    routes = (racine / "backend" / "app" / "api" / "routes.py").read_text("utf-8")
+    assert '@router.put("/vector/docs/{doc_id}/images/{name}")' in routes
+    assert '@router.post("/vector/docs/{doc_id}/images/{name}/annuler")' in routes
+    qa = vl / "qa"
+    for b in ("pixel", "pixelart", "pixel_doc", "pixel_ui"):
+        assert (qa / f"{b}.test.mjs").is_file(), b

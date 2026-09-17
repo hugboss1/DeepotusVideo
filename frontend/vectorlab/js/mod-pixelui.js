@@ -190,9 +190,11 @@ export function initPixelUI(VL) {
   function appliquer(t, g, depuis) {
     const pts = g.points.slice(depuis);
     if (!pts.length) return;
+    // pinceau et gomme JOIGNENT : le segment part du dernier point déjà appliqué
+    const joint = depuis > 0 ? g.points.slice(depuis - 1) : pts;
     switch (g.type) {
-      case "px-pinceau": for (const tr of traits(miroir(pts, false), pts.length)) pinceau(t, tr, opts()); break;
-      case "px-gomme": for (const tr of traits(miroir(pts, false), pts.length)) gomme(t, tr, opts()); break;
+      case "px-pinceau": for (const tr of traits(miroir(joint, false), joint.length)) pinceau(t, tr, opts()); break;
+      case "px-gomme": for (const tr of traits(miroir(joint, false), joint.length)) gomme(t, tr, opts()); break;
       case "px-crayon": {
         const pix = [];
         for (let i = 0; i < pts.length; i++) {
@@ -236,7 +238,7 @@ export function initPixelUI(VL) {
     const t = etat.px.tampon;
     const [px, py] = pixelDe(o, ev);
     const outil = etat.outil;
-    if (outil === "px-cloner" && ev.altKey) { etat.px.source = [px, py]; VL.toast(`source de clonage : (${Math.round(px)}, ${Math.round(py)})`); return; }
+    if (outil === "px-cloner" && ev.altKey) { etat.px.source = [px - 0.5, py - 0.5]; VL.toast(`source de clonage : (${Math.floor(px)}, ${Math.floor(py)})`); return; }
     if (outil === "px-cloner" && !etat.px.source) { VL.toast("Alt+clic pour fixer la source", true); return; }
     if (outil === "px-seau") {
       const x = Math.floor(px), y = Math.floor(py);
@@ -254,7 +256,8 @@ export function initPixelUI(VL) {
       return;
     }
     const entier = ["px-crayon", "px-ligne", "px-rectpx"].includes(outil);
-    const p0 = entier ? [Math.floor(px), Math.floor(py)] : [px, py];
+    // les outils à rayon prennent le CENTRE du pixel en entier (mod-pixel) : −0,5
+    const p0 = entier ? [Math.floor(px), Math.floor(py)] : [px - 0.5, py - 0.5];
     geste = { type: outil, points: [p0], x0: p0[0], y0: p0[1], shift: ev.shiftKey, alt: ev.altKey, applique: 0 };
     if (["px-pinceau", "px-gomme", "px-crayon", "px-cloner"].includes(outil)) {
       apercu = { w: t.w, h: t.h, data: new Uint8ClampedArray(t.data) };
@@ -269,7 +272,7 @@ export function initPixelUI(VL) {
     if (!o) return;
     const [px, py] = pixelDe(o, ev);
     const entier = ["px-crayon", "px-ligne", "px-rectpx"].includes(geste.type);
-    const p = entier ? [Math.floor(px), Math.floor(py)] : [px, py];
+    const p = entier ? [Math.floor(px), Math.floor(py)] : [px - 0.5, py - 0.5];
     const der = geste.points[geste.points.length - 1];
     if (der[0] === p[0] && der[1] === p[1]) return;
     geste.points.push(p);
@@ -549,9 +552,14 @@ export function initPixelUI(VL) {
     }
     return out;
   }
+  // la feuille prend les images À LA TAILLE DE TUILE du document (sinon
+  // celles de la taille de la première) : les autres calques image restent dehors
   async function feuille() {
-    const images = etat.doc.calques.flatMap((c) => c.objets.filter((o) => o.type === "image"));
-    if (!images.length) throw new Error("aucune image dans le document");
+    let images = etat.doc.calques.flatMap((c) => c.objets.filter((o) => o.type === "image"));
+    const tuile = etat.doc.pixelart && etat.doc.pixelart.tuile;
+    const ref = tuile || (images[0] && images[0].nat);
+    images = images.filter((o) => ref && o.nat.w === ref.w && o.nat.h === ref.h);
+    if (!images.length) throw new Error(tuile ? `aucune image à la taille de tuile ${tuile.w}×${tuile.h}` : "aucune image dans le document");
     const f = feuille_tuiles(await tamponsDe(images), Math.round(val("pxCols")));
     const base = `vector_${etat.docId}_feuille`;
     telecharger(await pngDe(f.img), base + ".png");
