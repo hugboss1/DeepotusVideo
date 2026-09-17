@@ -97,6 +97,32 @@ export function cmjnVersRgb({ c, m, j, n }) {
 
 /* ── pur : la palette étendue par défaut — 12 teintes × 3 clartés + 12
    neutres, générée (jamais recopiée à la main) ── */
+/* ── lot F : palettes harmoniques (pures) — la base reste EXACTE dans la
+   palette (l'aller-retour HSL arrondit), les autres teintes tournent sur le
+   cercle chromatique ; le monochrome décline la luminosité. */
+export const HARMONIES = [
+  { id: "complementaire", libelle: "Complémentaire" },
+  { id: "analogue", libelle: "Analogue" },
+  { id: "triade", libelle: "Triade" },
+  { id: "tetrade", libelle: "Tétrade" },
+  { id: "monochrome", libelle: "Monochrome" },
+];
+export function palette_harmonique(hex, type) {
+  if (!/^#[0-9A-Fa-f]{6}$/.test(String(hex || ""))) throw new Error(`couleur #RRGGBB attendue : ${hex}`);
+  if (!HARMONIES.some((h) => h.id === type)) throw new Error(`harmonie inconnue : ${type}`);
+  const base = String(hex).toUpperCase();
+  const hsl = rgbVersHsl(hexVersRgb(base));
+  const tourner = (deg) => rgbVersHex(hslVersRgb({ h: hsl.h + deg, s: hsl.s, l: hsl.l })).toUpperCase();
+  const lum = (l) => rgbVersHex(hslVersRgb({ h: hsl.h, s: hsl.s, l: Math.max(5, Math.min(95, l)) })).toUpperCase();
+  switch (type) {
+    case "complementaire": return [base, tourner(180)];
+    case "analogue": return [tourner(-30), base, tourner(30)];
+    case "triade": return [base, tourner(120), tourner(240)];
+    case "tetrade": return [base, tourner(90), tourner(180), tourner(270)];
+    default: return [lum(hsl.l - 30), lum(hsl.l - 15), base, lum(hsl.l + 15), lum(hsl.l + 30)];
+  }
+}
+
 export function palette_defaut() {
   const out = [];
   for (let h = 0; h < 360; h += 30) {
