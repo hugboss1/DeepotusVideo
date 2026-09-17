@@ -11,7 +11,64 @@
 > D (extrusion) — tous livrés. Branche `chantier/vectorlab-affinity`, après
 > le lot D (`f227982`). Ce plan est COMMIS avant le code.
 
-> **RELEVÉ DE LIVRAISON** : à écrire ici en fin de lot.
+> **RELEVÉ DE LIVRAISON (17/09/2026) : LOT H LIVRÉ, PROUVÉ SUR DONNÉES RÉELLES, DÉPLOYÉ — relance du backend à faire.**
+>
+> **Livré** (8 commits `2548fd8`→`abb2de8`, poussés) : `mod-geo.js` feuille
+> (GPX par expressions régulières, Mercator local à l'échelle vraie au
+> centre, cadrage à la page + « 1 : N », tuiles XYZ, marching squares
+> chaînés, échantillon, paliers, ombrage Horn) ; `mod-relief.js` feuille
+> (plaque fermée étanche avec socle et murs, gravure du tracé, dalles
+> numérotées à bord partagé, sous-grille) ; modèle : `doc.geo` validé,
+> `op_geo_importer` (calques emprise 🔒, trace, points), `op_geo_relief`,
+> `op_geo_courbes`, `op_geo_tuiles` (plateau hex sur l'emprise, terrain par
+> palier, `hauteur_mm` proportionnelle) ; backend `geo_service.py` (Terrarium
+> + OSM par hook réseau, cache disque `cache/geo`, décodage Pillow sans
+> numpy, mosaïque rognée, rééchantillonnée ≤ 160, « sans donnée » −32768 →
+> plancher valide et compté) + routes `/geo/relief`, `/geo/fond`,
+> `/geo/attribution` (400 / 502 parlants) ; UI `mod-carte.js` (panneau Carte
+> réelle : Importer GPX, Fond OSM avec attribution écrite au document,
+> Relief ombré en calque à 0,7, Courbes, Découper, Imprimer) ; mode
+> `relief` du dialogue Impression 3D (largeur, exagération, socle, gravure
+> du tracé, dalles si > 256 mm, lot par dalle).
+>
+> **TDD tenu** : RED ×5 (modules, exports, `geo_service`, route 405,
+> miroir). Bancs : node **628 contrôles** (+70 : geo 28, relief 17, geo_doc
+> 16, carte_ui 9), pytest `test_geo` **6 passed** (synthétiques Terrarium
+> avec carré haut ET carré « sans donnée », cache = zéro requête au second
+> appel, > 16 tuiles refusé AVANT toute requête, réseau muet → 502).
+>
+> **Prouvé sur données RÉELLES** (backend du worktree 8799, données isolées,
+> viewport 1400×900) autour de 45,0° N / 6,0° E (Alpes) : GPX synthétique de
+> 13 points + 1 waypoint → calques `emprise 🔒`, `trace`, `points`,
+> emprise_px 816 × 820, **« 1 : 13 900 · 3,0 km de large · 216 mm
+> imprimés »**, zoom 14 ; **Relief Terrarium réel** : 148 × 148 en 6,8 s la
+> première fois (1,3 s ensuite : cache), **1 445 → 2 850 m**, 20,27 m par
+> cellule, image ombrée posée en calque « relief (ombrage) » à 0,7 (le
+> premier appel avait rendu min −32768 : le « sans donnée » a été attrapé
+> ICI et corrigé) ; Courbes à 100 m → **25 chemins** au DOM ; Découper (hex
+> 40, relief 10 mm) → **195 tuiles**, cinq terrains (mer 109, plaine 14,
+> forêt 24, colline 36, montagne 12), hauteurs 0 → 9,1 mm, pinceau actif ;
+> **Fond OSM réel** posé en calque du bas (2,9 s), attribution © OpenStreetMap
+> contributors écrite dans `doc.geo` et affichée ; Impression 3D mode relief
+> proposé (4 champs) : plaque 216 mm, exagération 1,5, gravure 0,6 → **1
+> pièce, 87 612 triangles, 216 × 216 × 155 mm**, `model-viewer.loaded` et
+> `getDimensions()` = bbox ; la gravure ôte du volume (2 331 664 →
+> 2 331 321 mm³) ; largeur 400 → **4 dalles** `dalle_1_1…2_2`, garde « 400 mm
+> dépasse le plateau », lot actif ; « Un STL » → `preuve-lot-h-20260917` ;
+> Sauver → relu : `geo` + relief 21 904 hauteurs, 8 calques, 224 Ko de
+> JSON (les hauteurs sont des données, dit).
+>
+> **Déployé** : 6 fichiers = base lot D (`00a46cc`) → sauvegarde
+> `_backup_predeploy_2026-09-17d-vectorlab-lotH` → copie depuis `git archive
+> abb2de8` → **79 fichiers = cible**, pré-vol du python embarqué OK. **Python
+> touché (`geo_service.py`, `routes.py`) : les routes `/geo` n'existent
+> qu'après relance — c'est l'utilisateur qui relance.**
+>
+> **Reste** : dalles juxtaposées numérotées, sans tenons (le spec disait
+> « emboîtables ») ; le relief à l'échelle vraie × 1,5 fait 155 mm de haut
+> sur les Alpes — l'exagération se règle à la main ; les hauteurs vivent
+> dans le JSON du document (≤ 160 × 160) ; la trace GPX ne porte pas encore
+> ses altitudes en 3D (la gravure suit le tracé, pas le profil).
 
 **Goal :** importer un `.gpx`, le poser à l'échelle sur la page (trace,
 points, emprise), l'habiller d'un fond OSM et d'un relief Terrarium (ombré,
