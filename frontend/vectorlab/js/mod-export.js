@@ -28,7 +28,7 @@ export function initExport(VL) {
         fr.readAsDataURL(b);
       }));
     }
-    return compilerSVG(doc, { image: (h) => carte.get(h) || h, cadre });
+    return compilerSVG(doc, { image: (h) => carte.get(h) || h, cadre, mesure: VL.mesureTexte });   // lot F : les cadres de texte se coupent comme à l'écran
   }
 
   async function exporterSVG() {

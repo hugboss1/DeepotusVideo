@@ -443,6 +443,7 @@ body.persona-pixel #outils button[data-outil]:not(.outil-pixel):not([data-outil=
 body.persona-export #outils button[data-outil]:not([data-outil="select"]) { display: none; }
 body:not(.persona-pixel) .seulement-pixel { display: none !important; }
 body:not(.persona-export) .seulement-export { display: none !important; }
+body.persona-pixel #apparence2Details, body.persona-export #apparence2Details,
 body.persona-pixel #vitrailDetails, body.persona-pixel #panneauForme, body.persona-pixel #panneauNoeuds,
 body.persona-pixel #instantanesDetails, body.persona-pixel #plateauDetails, body.persona-pixel #planchesDetails,
 body.persona-pixel #carteDetails, body.persona-pixel #panneauReperes, body.persona-pixel #panneauGrille { display: none; }
@@ -462,3 +463,13 @@ body.pixelart #canvasHost image { image-rendering: pixelated; }
 .px-raccord { width: 100%; image-rendering: pixelated; border: 1px solid #262b34; }
 #overlay .px-couche { pointer-events: none; }
 #panneauPixel .img-src { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-style: normal; color: #8b93a0; font-size: 11px; }
+
+/* ── lot F : Apparence + ── */
+#panneauApparence2 { padding: 4px 10px 8px; display: flex; flex-direction: column; gap: 4px; }
+#panneauApparence2 details { border-top: 1px solid #20242d; padding-top: 4px; display: flex; flex-direction: column; gap: 5px; }
+.a2-effet { border-left: 2px solid #2c4a75; padding-left: 6px; display: flex; flex-direction: column; gap: 3px; }
+.a2-champs { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.a2-champs label { display: flex; align-items: center; gap: 3px; font-size: 11px; color: #8b93a0; }
+.a2-champs label i { font-style: normal; }
+.a2-champs input[type="number"] { width: 46px; background: #232833; color: #d6d9de; border: 1px solid #313847; }
+#panneauApparence2 input[type="text"] { background: #232833; color: #d6d9de; border: 1px solid #313847; padding: 2px 6px; }
