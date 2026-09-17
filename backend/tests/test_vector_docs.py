@@ -1396,3 +1396,31 @@ def test_la_route_pdf_du_document():
             assert "attachment" in r.headers.get("content-disposition", "") and ".pdf" in r.headers.get("content-disposition", "")
 
     asyncio.run(scenario())
+
+
+# ── Z. lot G : miroir du persona Export ──────────────────────────────────
+
+def test_le_miroir_lot_g_persona_export():
+    racine = pathlib.Path(__file__).resolve().parent.parent.parent
+    vl = racine / "frontend" / "vectorlab"
+    for m in ("mod-tranches.js", "mod-dxf.js", "mod-exportplus.js"):
+        assert (vl / "js" / m).is_file(), m
+    for m in ("mod-tranches.js", "mod-dxf.js"):
+        assert "import " not in (vl / "js" / m).read_text("utf-8"), m       # feuilles
+    core = (vl / "js" / "core.js").read_text("utf-8")
+    assert "initExportPlus(VL)" in core
+    assert core.index("initPersona(VL)") < core.index("initExportPlus(VL)") < core.index("initBrouillon(VL)")
+    assert "VL.svgCourant = svgCourant" in (vl / "js" / "mod-export.js").read_text("utf-8")
+    html = (vl / "index.html").read_text("utf-8")
+    assert 'id="panneauExportPlus"' in html
+    css = (vl / "vectorlab.css").read_text("utf-8")
+    assert ".outil-export" in css
+    ui = (vl / "js" / "mod-exportplus.js").read_text("utf-8")
+    assert '"/api/images/upload"' in ui and "/pdf`" in ui and "aplatir_objet" in ui
+    tr = (vl / "js" / "mod-tranches.js").read_text("utf-8")
+    assert "@${k}x" in tr and "marques_svg" in tr
+    assert (racine / "backend" / "app" / "services" / "pdf_service.py").is_file()
+    assert '@router.post("/vector/docs/{doc_id}/pdf")' in (racine / "backend" / "app" / "api" / "routes.py").read_text("utf-8")
+    qa = vl / "qa"
+    for b in ("tranches", "dxf", "exportplus_ui"):
+        assert (qa / f"{b}.test.mjs").is_file(), b
