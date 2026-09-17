@@ -89,6 +89,9 @@ details[id] > summary.panneau-tete::before { content: "▸"; display: inline-blo
 details[id][open] > summary.panneau-tete::before { transform: rotate(90deg); }
 details[id] > summary.panneau-tete { gap: 4px; justify-content: flex-start; }
 details[id] > summary.panneau-tete > button { margin-left: auto; }
+/* piège mesuré : la règle du navigateur qui cache le contenu d'un <details>
+   fermé perd contre un `#panneauX { display: flex }` (spécificité d'id) */
+#panneauCalques details:not([open]) > :not(summary) { display: none !important; }
 .panneau-tete {
   display: flex; align-items: center; justify-content: space-between;
   padding: 8px 10px; font-weight: 600; border-bottom: 1px solid #262b34;
@@ -455,12 +458,12 @@ body:not(.persona-export) #outils .outil-export { display: none; }
 body:not(.persona-pixel) .seulement-pixel { display: none !important; }
 body:not(.persona-export) .seulement-export { display: none !important; }
 body.persona-pixel #apparence2Details, body.persona-export #apparence2Details,
-body.persona-pixel #vitrailDetails, body.persona-pixel #panneauForme, body.persona-pixel #panneauNoeuds,
+body.persona-pixel #vitrailDetails, body.persona-pixel #formeDetails, body.persona-pixel #noeudsDetails,
 body.persona-pixel #instantanesDetails, body.persona-pixel #plateauDetails, body.persona-pixel #planchesDetails,
-body.persona-pixel #carteDetails, body.persona-pixel #panneauReperes, body.persona-pixel #panneauGrille { display: none; }
-body.persona-export #vitrailDetails, body.persona-export #panneauStyle, body.persona-export #panneauForme,
-body.persona-export #panneauNoeuds, body.persona-export #instantanesDetails, body.persona-export #panneauImage,
-body.persona-export #teteImage, body.persona-export #panneauReperes, body.persona-export #panneauGrille,
+body.persona-pixel #carteDetails, body.persona-pixel #reperesDetails, body.persona-pixel #grilleDetails { display: none; }
+body.persona-export #vitrailDetails, body.persona-export #styleDetails, body.persona-export #formeDetails,
+body.persona-export #noeudsDetails, body.persona-export #instantanesDetails, body.persona-export #imageDetails,
+body.persona-export #reperesDetails, body.persona-export #grilleDetails,
 body.persona-export #plateauDetails, body.persona-export #carteDetails, body.persona-export #assetsDetails { display: none; }
 .outils .outil-pixel { font-size: 15px; }
 body.pixelart #canvasHost image { image-rendering: pixelated; }
