@@ -409,8 +409,7 @@ export function initPixelUI(VL) {
       <div class="ap-ligne"><span>Tolér.</span>${num("pxTol", p.tolerance, 'min="0" max="255" title="Seau et baguette : écart de couleur admis"')}
         <label title="Le seau remplit TOUS les pixels semblables, contigus ou non"><input type="checkbox" id="pxGlobal"${p.global ? " checked" : ""}/> global</label></div>
       <details open><summary class="px-tete">Sélection${bb ? ` · ${bb.w}×${bb.h}` : " · aucune"}</summary>
-        <div class="ap-ligne"><button id="pxSelTout" ${t ? "" : "disabled"}>Tout</button><button id="pxSelAucune" ${p.masque ? "" : "disabled"}>Aucune</button><button id="pxSelInv" ${p.masque ? "" : "disabled"}>Inverser</button></div>
-        <div class="ap-ligne"><button id="pxSelPlus" ${p.masque ? "" : "disabled"} title="Croître d'un pixel">Croître</button><button id="pxSelMoins" ${p.masque ? "" : "disabled"} title="Contracter d'un pixel">Contracter</button><button id="pxSelCouleur" ${t ? "" : "disabled"} title="Tous les pixels de la couleur courante (± tolérance)">Par couleur</button></div>
+        <div class="ap-ligne"><span></span><i class="px-note">tout, aucune, inverser, croître, contracter, par couleur : menu des outils de sélection</i></div>
         <div class="ap-ligne"><button id="pxMasqueCalque" ${p.masque ? "" : "disabled"} title="Le masque devient la transparence du calque image (alpha ← min)">Masque de calque</button>
           <button id="pxVersVecteur" ${p.masque ? "" : "disabled"} title="Extrait la sélection en image posée à sa place, puis ouvre Vectoriser">→ vecteur</button></div>
       </details>
@@ -461,12 +460,6 @@ export function initPixelUI(VL) {
     on("pxPelure", "change", (ev) => { etat.px.pelure = ev.target.checked; chargerCadres().then(() => VL.rendreOverlay()); });
     const t = etat.px.tampon;
     const masqueOp = (fn) => () => { etat.px.masque = fn(); if (etat.px.masque && !sel_bbox(etat.px.masque, t.w, t.h)) etat.px.masque = null; VL.rendreOverlay(); rendrePanneau(); };
-    on("pxSelTout", "click", masqueOp(() => sel_rect(t.w, t.h, { x: 0, y: 0, w: t.w, h: t.h })));
-    on("pxSelAucune", "click", masqueOp(() => null));
-    on("pxSelInv", "click", masqueOp(() => sel_inverser(etat.px.masque)));
-    on("pxSelPlus", "click", masqueOp(() => sel_croitre(etat.px.masque, t.w, t.h, 1)));
-    on("pxSelMoins", "click", masqueOp(() => sel_contracter(etat.px.masque, t.w, t.h, 1)));
-    on("pxSelCouleur", "click", masqueOp(() => sel_couleur(t, etat.px.couleur, etat.px.tolerance)));
     const ajuster = (fn) => garde(async () => { fn(t, etat.px.masque); await commettre(); });
     on("pxMasqueCalque", "click", ajuster((im, m) => masque_calque(im, m)));
     on("pxNiveaux", "click", ajuster((im, m) => niveaux(im, { noir: val("pxNoir"), blanc: val("pxBlanc"), gamma: val("pxGamma") }, m)));
@@ -624,6 +617,16 @@ export function initPixelUI(VL) {
   VL.surPersona = () => { suivantPersona(); rendrePanneau(); };
   const suivantCharge = VL.surCharge;
   VL.surCharge = () => { suivantCharge(); etat.px.id = null; etat.px.tampon = null; etat.px.masque = null; cache.clear(); };
+  // les ACTIONS de sélection raster — appelées par les menus des outils de sélection
+  const masqueAction = (fn) => () => { const t = etat.px.tampon; if (!t) { VL.toast("éditer d'abord les pixels d'une image", true); return; }
+    let m = fn(t); if (m && !sel_bbox(m, t.w, t.h)) m = null; etat.px.masque = m; VL.rendreOverlay(); rendrePanneau(); };
+  VL.actions = VL.actions || {};
+  VL.actions.pixel = {
+    tout: masqueAction((t) => sel_rect(t.w, t.h, { x: 0, y: 0, w: t.w, h: t.h })), aucune: masqueAction(() => null),
+    inverser: masqueAction(() => etat.px.masque && sel_inverser(etat.px.masque)), croitre: masqueAction((t) => etat.px.masque && sel_croitre(etat.px.masque, t.w, t.h, 1)),
+    contracter: masqueAction((t) => etat.px.masque && sel_contracter(etat.px.masque, t.w, t.h, 1)), couleur: masqueAction((t) => sel_couleur(t, etat.px.couleur, etat.px.tolerance)),
+    peut: () => ({ tampon: !!etat.px.tampon, masque: !!etat.px.masque }),
+  };
   VL.pixelEditer = editer;                  // la preuve
   VL.pixelCommettre = garde(commettre);
   rendrePanneau();

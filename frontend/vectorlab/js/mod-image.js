@@ -232,19 +232,13 @@ export function initImage(VL) {
   }
 
   /* ── le menu ── */
-  const menu = $("#imgMenu");
-  $("#btnImage").addEventListener("click", () => menu.classList.toggle("hidden"));
   const garde = (fn) => () => {
-    menu.classList.add("hidden");
     Promise.resolve().then(fn).catch((e) => VL.toast(e.message, true));
   };
-  $("#imgBiblio").addEventListener("click", garde(ouvrirBiblio));
-  $("#imgFichier").addEventListener("click", garde(() => inputFichier.click()));
-  $("#imgColler").addEventListener("click", garde(collerImage));
-  $("#imgGenerer").addEventListener("click", garde(generer));
-  $("#imgVectoriser").addEventListener("click", garde(() => {
-    if (VL.vectoriser) VL.vectoriser(imageCible());
-  }));
+  // les ACTIONS de pose — appelées par le menu détaché Image (l'en-tête « Image ▾ » est parti)
+  VL.actions = VL.actions || {};
+  VL.actions.image = { biblio: garde(ouvrirBiblio), fichier: garde(() => inputFichier.click()), coller: garde(collerImage), generer: garde(generer),
+    vectoriser: garde(() => { if (VL.vectoriser) VL.vectoriser(imageCible()); }) };
 
   /* ── l'image cible d'une action : la sélection, sinon l'unique image ── */
   function imagesDuDoc() {

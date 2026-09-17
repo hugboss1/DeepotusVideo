@@ -216,7 +216,7 @@ export function initExportPlus(VL) {
     let p = [], erreur = "";
     try { p = plan(); } catch (e) { erreur = e.message; }
     hote.innerHTML = `
-      <div class="ap-ligne"><span>Tranches</span><select id="exMode">${MODES.map((m) => `<option value="${m.id}"${r.mode === m.id ? " selected" : ""}>${m.libelle}</option>`).join("")}</select></div>
+      <div class="ap-ligne"><span>Tranches</span><i class="px-note">${(MODES.find((m) => m.id === r.mode) || {}).libelle || r.mode} — menu du bouton Tranche</i></div>
       <div class="ap-ligne"><span></span><i class="px-note">${etat.tranches.length} dessinée(s)</i><button id="exTrancheOutil" title="Dessiner une tranche sur la scène">⧉ dessiner</button><button id="exTrancheX" ${etat.tranches.length ? "" : "disabled"} title="Efface les tranches dessinées">✕</button></div>
       <div class="ap-ligne"><span>Résol.</span><input type="text" id="exRes" value="${r.resolutions}" title="Résolutions raster, ex. 1, 2, 4 (suffixe @2x)" style="width:70px"/>
         <label title="Sans le fond du document"><input type="checkbox" id="exTransp"${r.transparent ? " checked" : ""}/> transp.</label></div>
@@ -231,7 +231,6 @@ export function initExportPlus(VL) {
       <div class="ap-ligne"><button id="exLot" class="primaire" ${p.length ? "" : "disabled"} style="flex:1" title="${resume_plan(p)}">Exporter le lot (${p.length})</button></div>`;
     const on = (id, ev, fn) => { const e = $("#" + id); if (e) e.addEventListener(ev, fn); };
     const maj = (patch) => { Object.assign(etat.exportPlus, patch); rendre(); };
-    on("exMode", "change", (ev) => maj({ mode: ev.target.value }));
     on("exTrancheOutil", "click", () => { VL.setPersona && etat.persona !== "export" && VL.setPersona("export"); VL.setOutil("tranche"); });
     on("exTrancheX", "click", () => { etat.tranches = []; VL.rendreOverlay(); rendre(); });
     on("exRes", "change", (ev) => maj({ resolutions: ev.target.value }));

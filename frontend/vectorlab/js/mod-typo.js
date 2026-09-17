@@ -226,9 +226,8 @@ export function initTypo(VL) {
     hote.innerHTML = `
       ${o ? `<textarea id="txContenu" rows="3" placeholder="Votre texte — Maj+Entrée : nouvelle ligne" title="Le contenu du texte (Entrée dans l'éditeur en place valide)">${esc(o.contenu || "")}</textarea>`
           : `<p class="px-note">Outil Texte (T) : cliquer sur la scène pose un texte et l'édite en place. Double-clic sur un texte pour le rééditer.</p>`}
-      <div class="tx-polices" id="txPolices" title="Bibliothèque de typographies : le nom est rendu dans sa police">
-        ${etat.typo.polices.map((p) => `<button class="tx-police${p.famille === familleCourante ? " actif" : ""}" data-police="${esc(p.id)}" style="font-family:&quot;${esc(p.famille)}&quot;" title="${esc(p.famille)} — ${p.source === "lib" ? "bibliothèque (OFL)" : p.source === "user" ? "déposée" : "police du système"}">${esc(p.famille)}</button>`).join("")}
-      </div>
+      <div class="ap-ligne"><span>Police</span><i class="px-note" style="font-family:&quot;${esc(familleCourante || "Segoe UI")}&quot;;font-size:14px">${esc(familleCourante || "—")}</i></div>
+      <div class="ap-ligne"><span></span><i class="px-note">se choisit dans le menu du bouton Texte</i></div>
       <div class="ap-ligne"><button id="txDeposer" title="Déposer un fichier TTF / OTF / WOFF : il rejoint la bibliothèque du poste">⬆ Déposer une police…</button>
         <button id="txSysteme" ${peutSystem ? "" : "disabled"} title="${peutSystem ? "Lister les polices installées sur ce poste (permission du navigateur)" : "Ce navigateur ne donne pas ses polices"}">💻 Système…</button></div>
       <input type="file" id="txFichier" accept=".ttf,.otf,.woff,.woff2" hidden/>

@@ -168,11 +168,6 @@ export function initApparence2(VL) {
         ${Object.keys(styles).map((n) => `<div class="ap-ligne"><b style="flex:1">${esc(n)}</b><button data-st-app="${n}" ${sel ? "" : "disabled"} title="Applique (copie) ce style à la sélection">appliquer</button><button data-st-x="${n}" title="Supprimer le style">✕</button></div>`).join("")}
         <div class="ap-ligne"><input type="text" id="a2StNom" placeholder="nom du style" style="flex:1"/><button id="a2StPlus" ${sel ? "" : "disabled"} title="Enregistre l'apparence de la sélection sous ce nom">＋</button></div>
       </details>
-      <details ${Object.keys(symboles).length ? "open" : ""}><summary class="px-tete">Symboles</summary>
-        ${Object.entries(symboles).map(([sid, sy]) => `<div class="ap-ligne"><b style="flex:1" title="${sid}">${esc(sy.nom)} · ${nInst(sid)}</b><button data-sym-poser="${sid}" title="Pose une instance">poser</button><button data-sym-x="${sid}" title="Supprimer (sans instance)">✕</button></div>`).join("")}
-        <div class="ap-ligne"><input type="text" id="a2SymNom" placeholder="nom du symbole" style="flex:1"/><button id="a2SymPlus" ${sel ? "" : "disabled"} title="La sélection devient un symbole vivant (une instance la remplace)">＋</button>
-          <button id="a2SymDetacher" ${o && o.type === "instance" ? "" : "disabled"} title="Détache l'instance en objets ordinaires">détacher</button></div>
-      </details>
       ${texteSel ? `<details open><summary class="px-tete">Texte +</summary>
         ${o1.type === "texte" && sel === 1 ? `<div class="ap-ligne"><span>Cadre</span><input type="number" id="a2CadreW" min="1" value="200" title="Largeur"/><input type="number" id="a2CadreH" min="1" value="100" title="Hauteur"/><button id="a2EnCadre" title="Le texte devient un cadre à paragraphes">→ cadre</button></div>` : ""}
         ${o1.type === "cadre" && sel === 1 ? `<div class="ap-ligne"><span>Aligner</span><select id="a2Aligner">${["gauche", "centre", "droite", "justifie"].map((a) => `<option${(s.aligner || "gauche") === a ? " selected" : ""}>${a}</option>`).join("")}</select></div>
@@ -247,10 +242,6 @@ export function initApparence2(VL) {
     hote.querySelectorAll("[data-st-app]").forEach((b) => b.addEventListener("click", () => VL.executer(op_style_appliquer, etat.selection.slice(), b.dataset.stApp)));
     hote.querySelectorAll("[data-st-x]").forEach((b) => b.addEventListener("click", () => VL.executer(op_style_supprimer, b.dataset.stX)));
     // symboles
-    on("a2SymPlus", "click", () => { const sid = VL.executer(op_symbole_creer, etat.selection.slice(), nom_valide($("#a2SymNom").value) || undefined); if (sid) VL.toast(`symbole ${sid} créé`); });
-    hote.querySelectorAll("[data-sym-poser]").forEach((b) => b.addEventListener("click", () => { const id = VL.executer(op_instance_poser, etat.calqueActif, b.dataset.symPoser, 24, 24); if (id) VL.setSelection([id]); }));
-    hote.querySelectorAll("[data-sym-x]").forEach((b) => b.addEventListener("click", () => VL.executer(op_symbole_supprimer, b.dataset.symX)));
-    on("a2SymDetacher", "click", () => { const ids = VL.executer(op_symbole_detacher, etat.selection[0]); if (ids) VL.setSelection(ids); });
     // texte +
     on("a2EnCadre", "click", () => VL.executer(op_texte_en_cadre, etat.selection[0], _num($("#a2CadreW").value, 200), _num($("#a2CadreH").value, 100)));
     on("a2Aligner", "change", (ev) => patch({ aligner: ev.target.value }));
@@ -266,6 +257,13 @@ export function initApparence2(VL) {
   }
   void op_supprimer;
 
+  // les ACTIONS des symboles — appelées par le menu détaché Symboles (la section du panneau est partie)
+  VL.actions = VL.actions || {};
+  VL.actions.symboles = {
+    detacher: () => { const ids = VL.executer(op_symbole_detacher, etat.selection[0]); if (ids) VL.setSelection(ids); },
+    supprimer: (sid) => VL.executer(op_symbole_supprimer, sid),
+    instanceSel: () => { const t = etat.selection.length === 1 && VL.objetDe(etat.selection[0]); return !!(t && t.objet.type === "instance"); },
+  };
   const suivantRendu = VL.surRendu;
   VL.surRendu = () => { suivantRendu(); rendre(); };
   const suivantSel = VL.surSelection;

@@ -111,25 +111,7 @@ export function initStyle(VL) {
         <input type="text" id="apH" value="${nv(b.h)}"
                title="Hauteur (${suf})"/>
       </div>
-      <div class="ap-ligne"><span>Aligner</span>
-        <button data-al="gauche" title="Aligner à gauche (un seul objet : sur la page)">⇤</button>
-        <button data-al="centreH" title="Centrer horizontalement">⇔</button>
-        <button data-al="droite" title="Aligner à droite">⇥</button>
-      </div>
-      <div class="ap-ligne"><span></span>
-        <button data-al="haut" title="Aligner en haut">⇧</button>
-        <button data-al="centreV" title="Centrer verticalement">⇕</button>
-        <button data-al="bas" title="Aligner en bas">⇩</button>
-      </div>
-      <div class="ap-ligne"><span></span>
-        <button data-dist="h" ${sel >= 3 ? "" : "disabled"}
-                title="Distribuer horizontalement (écarts égaux, 3 objets au moins)">⇹</button>
-        <button data-dist="v" ${sel >= 3 ? "" : "disabled"}
-                title="Distribuer verticalement">⇳</button>
-        <button data-mir="h" title="Miroir horizontal (géométrie brute — un objet tourné réfléchit sa géométrie)">⇄</button>
-        <button data-mir="v" title="Miroir vertical">⇅</button>
-        <button id="apDupliquer" title="Dupliquer la sélection (Ctrl+D)">⧉</button>
-      </div>` : ""}`;
+` : ""}`;
     hote.innerHTML += `
       <div class="ap-ligne"><span>Fond</span>
         <button class="nu-pastille" id="apFond" style="background:${fondCouleur}"
@@ -164,19 +146,6 @@ export function initStyle(VL) {
                value="${Math.round((s.opacite ?? 1) * 100)}"/>
         <b id="apOpaciteVal">${Math.round((s.opacite ?? 1) * 100)}</b>
       </div>
-      <div class="ap-ligne"><span>Ordre</span>
-        <button data-ordre="devant" title="Tout devant">⤒</button>
-        <button data-ordre="avant" title="Un cran devant">↑</button>
-        <button data-ordre="arriere" title="Un cran derrière">↓</button>
-        <button data-ordre="derriere" title="Tout derrière">⤓</button>
-      </div>
-      <div class="ap-ligne">
-        <button id="apGrouper" ${sel >= 2 ? "" : "disabled"}
-                title="Grouper la sélection (les transformations deviennent communes)">Grouper</button>
-        <button id="apDegrouper" ${sel === 1 && objetReflete()
-          && objetReflete().type === "groupe" ? "" : "disabled"}
-                title="Dissoudre le groupe (son transform suit les enfants)">Dégrouper</button>
-      </div>
       <div class="ap-ligne"><span>Incliner</span>
         <input type="number" id="apKx" step="1" value="0" title="Inclinaison horizontale skewX (°)"/>
         <input type="number" id="apKy" step="1" value="0" title="Inclinaison verticale skewY (°)"/>
@@ -199,16 +168,6 @@ export function initStyle(VL) {
       <div class="ap-ligne"><span>Contour</span>
         <input type="number" id="apDecal" step="any" value="5" title="Décalage en px : + vers le dehors, − vers le dedans"/>
         <button id="apDecaler" ${sel ? "" : "disabled"} title="Crée un chemin décalé (copie au-dessus de l'original)">décaler</button>
-      </div>
-      <div class="ap-ligne"><span>Booléens</span>
-        <button data-bool="union" ${sel >= 2 ? "" : "disabled"}
-                title="Union — fusionne la sélection en un chemin">∪</button>
-        <button data-bool="soustraction" ${sel >= 2 ? "" : "disabled"}
-                title="Soustraction — le plus BAS moins les autres">⊖</button>
-        <button data-bool="intersection" ${sel >= 2 ? "" : "disabled"}
-                title="Intersection — la partie commune">∩</button>
-        <button data-bool="division" ${sel >= 2 ? "" : "disabled"}
-                title="Division — le preset vitrail : la plaque (le plus BAS) est découpée par les autres — un plomb TRACÉ découpe par son épaisseur — en fragments indépendants ; les plombs restent">⧉</button>
       </div>
       ${objetReflete() && objetReflete().type === "rect" ? `
       <div class="ap-ligne"><span>Rayon</span>
@@ -278,31 +237,6 @@ export function initStyle(VL) {
         const ids = VL.executer(op_contour, etat.selection.slice(), +$("#apDecal").value || 0);
         if (ids) VL.setSelection(ids);
       });
-      hote.querySelectorAll("[data-al]").forEach((btn) =>
-        btn.addEventListener("click", () => {
-          const paires = pairesSelection();
-          if (!paires.length) return;
-          // UN objet s'aligne sur LA PAGE, plusieurs sur leur réunion
-          const ref = paires.length === 1
-            ? { x: 0, y: 0, w: etat.doc.taille.w, h: etat.doc.taille.h }
-            : reunion(paires);
-          VL.executer(op_aligner, paires, btn.dataset.al, ref);
-        }));
-      hote.querySelectorAll("[data-dist]").forEach((btn) =>
-        btn.addEventListener("click", () => {
-          const paires = pairesSelection();
-          if (paires.length >= 3) {
-            VL.executer(op_distribuer, paires, btn.dataset.dist);
-          }
-        }));
-      hote.querySelectorAll("[data-mir]").forEach((btn) =>
-        btn.addEventListener("click", () => {
-          const paires = pairesSelection();
-          if (!paires.length) return;
-          VL.executer(op_miroir, etat.selection.slice(), btn.dataset.mir,
-                      reunion(paires));
-        }));
-      $("#apDupliquer").addEventListener("click", VL.dupliquerSelection);
     }
     if (objetReflete() && objetReflete().type === "rect") {
       $("#apRayon").addEventListener("change", (e) => VL.executer(
@@ -333,32 +267,6 @@ export function initStyle(VL) {
     $("#apOpacite").addEventListener("change",
       (e) => appliquer({ opacite: +e.target.value === 100
                                   ? null : +e.target.value / 100 }));
-    hote.querySelectorAll("[data-ordre]").forEach((b) =>
-      b.addEventListener("click", () => {
-        if (etat.selection.length) {
-          VL.executer(op_ordre, etat.selection.slice(), b.dataset.ordre);
-        }
-      }));
-    $("#apGrouper").addEventListener("click", () => {
-      const id = VL.executer(op_grouper, etat.selection.slice());
-      if (id) VL.setSelection([id]);
-    });
-    $("#apDegrouper").addEventListener("click", () => {
-      const ids = VL.executer(op_degrouper, etat.selection[0]);
-      if (ids) VL.setSelection(ids);
-    });
-    hote.querySelectorAll("[data-bool]").forEach((b) =>
-      b.addEventListener("click", () => {
-        const sel2 = etat.selection.slice();
-        if (sel2.length < 2) return;
-        if (b.dataset.bool === "division") {
-          const ids = VL.executer(op_division, sel2);
-          if (ids) VL.setSelection(ids);
-        } else {
-          const id = VL.executer(op_booleen, sel2, b.dataset.bool);
-          if (id) VL.setSelection([id]);
-        }
-      }));
     /* Texte & logo : fonte, corps, graisse, interlettrage et contours se règlent dans le panneau Texte (mod-typo) */
     if (g) {
       hote.querySelectorAll("[data-stop]").forEach((btn) =>
@@ -379,6 +287,24 @@ export function initStyle(VL) {
     }
   }
 
+  // les ACTIONS de la sélection — appelées par le menu détaché Sélection (les
+  // rangées du panneau qui les portaient sont parties : une seule source)
+  VL.actions = VL.actions || {};
+  VL.actions.selection = {
+    aligner: (mode) => { const paires = pairesSelection(); if (!paires.length) return;
+      const ref = paires.length === 1 ? { x: 0, y: 0, w: etat.doc.taille.w, h: etat.doc.taille.h } : reunion(paires);
+      VL.executer(op_aligner, paires, mode, ref); },
+    distribuer: (axe) => { const paires = pairesSelection(); if (paires.length >= 3) VL.executer(op_distribuer, paires, axe); },
+    miroir: (axe) => { const paires = pairesSelection(); if (paires.length) VL.executer(op_miroir, etat.selection.slice(), axe, reunion(paires)); },
+    dupliquer: () => VL.dupliquerSelection(),
+    ordre: (mode) => { if (etat.selection.length) VL.executer(op_ordre, etat.selection.slice(), mode); },
+    grouper: () => { const id = VL.executer(op_grouper, etat.selection.slice()); if (id) VL.setSelection([id]); },
+    degrouper: () => { const ids = VL.executer(op_degrouper, etat.selection[0]); if (ids) VL.setSelection(ids); },
+    booleen: (op) => { const sel2 = etat.selection.slice(); if (sel2.length < 2) return;
+      if (op === "division") { const ids = VL.executer(op_division, sel2); if (ids) VL.setSelection(ids); }
+      else { const id = VL.executer(op_booleen, sel2, op); if (id) VL.setSelection([id]); } },
+    peut: () => ({ n: etat.selection.length, groupe: etat.selection.length === 1 && objetReflete() && objetReflete().type === "groupe" }),
+  };
   const suivantRendu = VL.surRendu;
   VL.surRendu = () => { suivantRendu(); rendrePanneau(); };
   const suivantSel = VL.surSelection;

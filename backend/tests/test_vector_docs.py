@@ -1015,9 +1015,13 @@ def test_le_miroir_lot_a_images_et_cartes():
     # le rendu passe le résolveur d'href ; l'overlay trace les repères
     assert "compilerSVG(etat.doc, { image: VL.imageUrl, mesure: VL.mesureTexte })" in core   # lot F : la mesure du texte s ajoute
     assert "reperes_rects" in core and 'data-repere' in core
-    # les surfaces : menu Image (4 sources + vectoriser), panneaux, dialogues
-    for tok in ("imgBiblio", "imgFichier", "imgColler", "imgGenerer", "imgVectoriser",
-                "panneauImage", "panneauReperes", "libDlg", "traceDlg"):
+    # les surfaces : les 4 sources + vectoriser sont des ACTIONS (VL.actions.image)
+    # servies par le menu détaché Image de la barre — l'en-tête « Image ▾ » est parti
+    image_js = (vl / "js" / "mod-image.js").read_text("utf-8")
+    for tok in ("biblio:", "fichier:", "coller:", "generer:", "vectoriser:"):
+        assert tok in image_js.split("VL.actions.image = {", 1)[1][:400], tok
+    assert 'id="btnImage"' not in html and 'id="imgFichierInput"' in html
+    for tok in ("panneauImage", "panneauReperes", "libDlg", "traceDlg"):
         assert f'id="{tok}"' in html, tok
     # le banc node porte les cinq bancs du lot
     qa = vl / "qa"

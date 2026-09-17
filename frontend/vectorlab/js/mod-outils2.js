@@ -281,8 +281,7 @@ export function initOutils2(VL) {
     const t = etat.selection.length === 1 ? VL.objetDe(etat.selection[0]) : null;
     const o = t && t.objet.type === "forme" ? t.objet : null;
     hF.innerHTML = `
-      <div class="ap-ligne"><span>Forme</span>
-        <select id="fmChoix" title="La forme que l'outil Forme trace">${FORMES.map((f) => `<option value="${f.id}"${f.id === etat.formeCourante ? " selected" : ""}>${f.nom}</option>`).join("")}</select></div>
+      <div class="ap-ligne"><span>Forme</span><i class="px-note">${(FORMES.find((f) => f.id === etat.formeCourante) || {}).nom || ""} — se choisit dans le menu du bouton Forme</i></div>
       ${o ? `<div class="ap-ligne"><span>Rayon</span><input type="number" id="fmR" step="any" min="1" value="${o.r}"/>
         <button id="fmCourbes" title="Fige la forme en chemin éditable (nœuds, booléens)">→ courbes</button></div>
       ${Object.entries(o.params).map(([k, v]) => `<div class="ap-ligne"><span>${k}</span>${k === "type"
@@ -290,7 +289,6 @@ export function initOutils2(VL) {
         : `<input type="number" data-fm="${k}" step="${k === "ratio" ? 0.05 : 1}" value="${v}"/>`}</div>`).join("")}` : ""}
       <div class="ap-ligne"><span>Gomme</span><input type="number" id="fmGomme" min="1" value="${etat.gommeLargeur}" title="Largeur de la gomme (px)"/>
         <span>Coin</span><input type="number" id="fmCoin" min="1" value="${etat.coinRayon}" title="Rayon de l'outil Coin (px)"/></div>`;
-    $("#fmChoix").addEventListener("change", (e) => { etat.formeCourante = e.target.value; VL.setOutil("forme"); });
     $("#fmGomme").addEventListener("change", (e) => { etat.gommeLargeur = Math.max(1, +e.target.value || 12); });
     $("#fmCoin").addEventListener("change", (e) => { etat.coinRayon = Math.max(1, +e.target.value || 10); });
     if (o) {
@@ -310,19 +308,19 @@ export function initOutils2(VL) {
     hN.innerHTML = `
       <div class="ap-ligne"><span>${p ? `${etat.ancresSel.length || (etat.ancreSel !== null ? 1 : 0)} ancre(s)` : "Nœuds"}</span>
         ${["gauche", "centreH", "droite", "haut", "centreV", "bas"].map((m) => `<button data-nal="${m}" ${p && etat.ancresSel.length > 1 ? "" : "disabled"} title="Aligner les ancres : ${m}">${{ gauche: "⇤", centreH: "⇹", droite: "⇥", haut: "⤒", centreV: "⇳", bas: "⤓" }[m]}</button>`).join("")}</div>
-      <div class="ap-ligne">
-        <button id="ndDiviser" ${p && etat.ancreSel !== null && etat.ancreSel > 0 ? "" : "disabled"} title="Ajoute une ancre au milieu du segment qui mène à l'ancre choisie">Diviser</button>
-        <button id="ndInverser" ${p ? "" : "disabled"} title="Inverse le sens du chemin">Inverser</button>
-        <button id="ndJoindre" ${deux ? "" : "disabled"} title="Joint les deux chemins ouverts sélectionnés (le second s'accroche au premier)">Joindre</button>
-        <button id="ndCoins" ${etat.selection.length ? "" : "disabled"} title="Arrondit les coins de la sélection au rayon de l'outil Coin">Coins</button></div>`;
+      <div class="ap-ligne"><span></span><i class="px-note">diviser, inverser, joindre, coins : menu du bouton Nœuds</i></div>`;
     hN.querySelectorAll("[data-nal]").forEach((b) => b.addEventListener("click", () => {
       if (p) VL.executer(op_noeuds_aligner, p.id, etat.ancresSel.slice(), b.dataset.nal);
     }));
-    $("#ndDiviser").addEventListener("click", () => { if (p) { const i = VL.executer(op_noeud_inserer, p.id, etat.ancreSel, 0.5); if (i !== undefined) { etat.ancreSel = i; etat.ancresSel = [i]; VL.rendreOverlay(); } } });
-    $("#ndInverser").addEventListener("click", () => { if (p) VL.executer(op_chemin_inverser, p.id); });
-    $("#ndJoindre").addEventListener("click", () => { const id = VL.executer(op_chemins_joindre, etat.selection[0], etat.selection[1]); if (id) VL.setSelection([id]); });
-    $("#ndCoins").addEventListener("click", () => { const n = VL.executer(op_coins_arrondir, etat.selection.slice(), etat.coinRayon); if (n !== undefined) VL.toast(`${n} coin(s) arrondi(s)`); });
   }
+  VL.actions = VL.actions || {};
+  VL.actions.noeuds = {
+    diviser: () => { const p = VL.pathSelectionne(); if (p && etat.ancreSel !== null && etat.ancreSel > 0) { const i = VL.executer(op_noeud_inserer, p.id, etat.ancreSel, 0.5); if (i !== undefined) { etat.ancreSel = i; etat.ancresSel = [i]; VL.rendreOverlay(); } } else VL.toast("choisir d'abord une ancre (outil Nœuds)", true); },
+    inverser: () => { const p = VL.pathSelectionne(); if (p) VL.executer(op_chemin_inverser, p.id); else VL.toast("sélectionner un chemin", true); },
+    joindre: () => { if (etat.selection.length !== 2) { VL.toast("sélectionner deux chemins ouverts", true); return; } const id = VL.executer(op_chemins_joindre, etat.selection[0], etat.selection[1]); if (id) VL.setSelection([id]); },
+    coins: () => { if (!etat.selection.length) return; const n = VL.executer(op_coins_arrondir, etat.selection.slice(), etat.coinRayon); if (n !== undefined) VL.toast(`${n} coin(s) arrondi(s)`); },
+    peut: () => ({ chemin: !!VL.pathSelectionne(), ancre: VL.pathSelectionne() && etat.ancreSel !== null && etat.ancreSel > 0, deux: etat.selection.length === 2, sel: etat.selection.length > 0 }),
+  };
   function rendreInstantanes() {
     if (!etat.doc) { hI.innerHTML = ""; return; }
     const noms = etat.histo.instantanes ? etat.histo.instantanes() : [];

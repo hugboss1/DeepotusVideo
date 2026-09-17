@@ -3,7 +3,28 @@
 // haut). Toute mutation passe par les commandes pures via VL.executer.
 import { op_calque_ajouter, op_calque_renommer, op_calque_reordonner,
          op_calque_visible, op_calque_verrou, op_calque_supprimer,
-         op_calque_opacite } from "./mod-doc.js";
+         op_calque_opacite, compilerSVG } from "./mod-doc.js";
+
+/* ── la MINIATURE d'un calque (pure) : le document compilé avec ce seul
+   calque visible, sans fond de page, ajusté dans une boîte w×h sur un
+   damier ; les data-objet / data-calque sont retirés (aucun hit-testing
+   dans une vignette) et les ids de defs préfixés pour ne pas entrer en
+   conflit avec le canevas. Un calque inconnu → chaîne vide. */
+export function vignette_calque_svg(doc, calqueId, w = 40, h = 28, image) {
+  if (!doc || !(doc.calques || []).some((c) => c.id === calqueId)) return "";
+  const d = JSON.parse(JSON.stringify(doc));
+  delete d.fond;
+  // les autres calques sont RETIRÉS (cachés, ils seraient compilés en display:none)
+  d.calques = d.calques.filter((c) => c.id === calqueId);
+  for (const c of d.calques) { c.visible = true; delete c.opacite; }
+  let svg;
+  try { svg = compilerSVG(d, { image }); } catch (e) { return ""; }
+  const pre = `v${String(calqueId).replace(/[^A-Za-z0-9_-]/g, "")}_`;
+  svg = svg.replace(/ data-objet="[^"]*"/g, "").replace(/ data-calque="[^"]*"/g, "").replace(/ data-nom="[^"]*"/g, "")
+           .replace(/ id="([^"]+)"/g, ` id="${pre}$1"`).replace(/url\(#([^)]+)\)/g, `url(#${pre}$1)`).replace(/href="#([^"]+)"/g, `href="#${pre}$1"`);
+  const damier = `<defs><pattern id="${pre}damier" width="8" height="8" patternUnits="userSpaceOnUse" patternContentUnits="userSpaceOnUse"><rect width="8" height="8" fill="#20242d"/><rect width="4" height="4" fill="#2b303b"/><rect x="4" y="4" width="4" height="4" fill="#2b303b"/></pattern></defs><rect x="0" y="0" width="${+d.taille.w}" height="${+d.taille.h}" fill="url(#${pre}damier)" data-damier="1"/>`;
+  return svg.replace(/^<svg([^>]*) width="[^"]*" height="[^"]*">/, (m, attrs) => `<svg${attrs} width="${w}" height="${h}" preserveAspectRatio="xMidYMid meet">` + damier);
+}
 
 export function initCalques(VL) {
   const { $, etat } = VL;
@@ -15,6 +36,7 @@ export function initCalques(VL) {
       <div class="calque${c.id === etat.calqueActif ? " actif" : ""}"
            data-calque="${c.id}"
            title="Clic : calque actif · double-clic sur le nom : renommer">
+        <span class="calque-vig" title="Le contenu de ce calque">${vignette_calque_svg(etat.doc, c.id, 40, 28, VL.imageUrl)}</span>
         <button data-act="oeil" class="${c.visible ? "" : "off"}"
                 title="Visibilité">👁</button>
         <button data-act="verrou" class="${c.verrou ? "" : "off"}"

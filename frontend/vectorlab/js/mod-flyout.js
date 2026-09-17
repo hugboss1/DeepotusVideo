@@ -61,23 +61,39 @@ const BOOL = [["union", "∪ Union"], ["soustraction", "⊖ Soustraction"], ["in
 export const MENUS = {
   forme: (c) => ({ titre: "Forme paramétrique", entrees: flyout_formes(FORMES, c.etat.formeCourante), choisir: (e) => {
     c.etat.formeCourante = e.id; c.setOutil("forme"); c.toast(`forme « ${e.libelle} » : cliquer pour la poser (rayon 40) ou glisser depuis le centre`); c.rendre(); } }),
-  symbole: (c) => ({ titre: "Symboles", entrees: flyout_symboles(c.etat.doc && c.etat.doc.symboles), choisir: (e) => {
-    if (e.action === "poser") { const id = c.executer(op_instance_poser, c.etat.calqueActif, e.id, 24, 24); if (id) { c.setOutil("select"); c.selectionner([id]); } }
-    else if (e.action === "creer") {
-      if (!c.etat.selection.length) { c.toast("sélectionner d'abord les objets du symbole", true); return; }
-      const sid = c.executer(op_symbole_creer, c.etat.selection.slice(), undefined);
-      if (sid) c.toast(`symbole ${sid} créé — le menu Symboles le pose`);
-    } } }),
-  select: (c) => ({ titre: "Sélection", entrees: flyout_actions([
-    ...AL.map(([k, l]) => ({ id: "al-" + k, libelle: l, cible: `#panneauStyle [data-al="${k}"]` })),
-    ...ORDRE.map(([k, l]) => ({ id: "or-" + k, libelle: l, cible: `#panneauStyle [data-ordre="${k}"]` })),
-    { id: "grouper", libelle: "Grouper", cible: "#apGrouper" }, { id: "degrouper", libelle: "Dégrouper", cible: "#apDegrouper" },
-    ...BOOL.map(([k, l]) => ({ id: "bo-" + k, libelle: l, cible: `#panneauStyle [data-bool="${k}"]` })),
-  ], (sel) => c.etat.selection.length > 0 && c.existe(sel)), choisir: (e) => c.cliquer(e.cible) }),   // rien de sélectionné : tout est désactivé
-  noeuds: (c) => ({ titre: "Nœuds", entrees: flyout_actions([
-    { id: "diviser", libelle: "Diviser le segment", cible: "#ndDiviser" }, { id: "inverser", libelle: "Inverser le sens", cible: "#ndInverser" },
-    { id: "joindre", libelle: "Joindre deux chemins", cible: "#ndJoindre" }, { id: "coins", libelle: "Arrondir les coins", cible: "#ndCoins" },
-  ], c.existe), choisir: (e) => c.cliquer(e.cible) }),
+  symbole: (c) => {
+    const S = (c.actions && c.actions.symboles) || {}, symboles = (c.etat.doc && c.etat.doc.symboles) || {};
+    return { titre: "Symboles", entrees: [...flyout_symboles(symboles),
+      { id: "detacher", libelle: "⇣ Détacher l'instance sélectionnée", action: "detacher", desactive: !(S.instanceSel && S.instanceSel()) },
+      ...Object.entries(symboles).map(([sid, sy]) => ({ id: sid, libelle: `✕ Supprimer « ${sy.nom || sid} »`, action: "supprimer" }))], choisir: (e) => {
+      if (e.action === "poser") { const id = c.executer(op_instance_poser, c.etat.calqueActif, e.id, 24, 24); if (id) { c.setOutil("select"); c.selectionner([id]); } }
+      else if (e.action === "creer") {
+        if (!c.etat.selection.length) { c.toast("sélectionner d'abord les objets du symbole", true); return; }
+        const sid = c.executer(op_symbole_creer, c.etat.selection.slice(), undefined);
+        if (sid) c.toast(`symbole ${sid} créé — le menu Symboles le pose`);
+      } else if (e.action === "detacher") S.detacher && S.detacher();
+      else if (e.action === "supprimer") S.supprimer && S.supprimer(e.id);
+    } };
+  },
+  select: (c) => {
+    const A = (c.actions && c.actions.selection) || {}, p = A.peut ? A.peut() : { n: c.etat.selection.length, groupe: false };
+    const e = (id, libelle, ok, fn) => ({ id, libelle, action: "fn", fn, desactive: !ok });
+    return { titre: "Sélection", entrees: [
+      ...AL.map(([k, l]) => e("al-" + k, l, p.n >= 1, () => A.aligner(k))),
+      e("dist-h", "⇹ Distribuer horizontalement", p.n >= 3, () => A.distribuer("h")), e("dist-v", "⇳ Distribuer verticalement", p.n >= 3, () => A.distribuer("v")),
+      e("mir-h", "⇄ Miroir horizontal", p.n >= 1, () => A.miroir("h")), e("mir-v", "⇅ Miroir vertical", p.n >= 1, () => A.miroir("v")),
+      e("dup", "⧉ Dupliquer (Ctrl+D)", p.n >= 1, () => A.dupliquer()),
+      ...ORDRE.map(([k, l]) => e("or-" + k, l, p.n >= 1, () => A.ordre(k))),
+      e("grouper", "Grouper", p.n >= 2, () => A.grouper()), e("degrouper", "Dégrouper", !!p.groupe, () => A.degrouper()),
+      ...BOOL.map(([k, l]) => e("bo-" + k, l, p.n >= 2, () => A.booleen(k))),
+    ], choisir: (x) => x.fn && x.fn() };
+  },
+  noeuds: (c) => {
+    const A = (c.actions && c.actions.noeuds) || {}, p = A.peut ? A.peut() : {};
+    const e = (id, libelle, ok, fn) => ({ id, libelle, action: "fn", fn, desactive: !ok });
+    return { titre: "Nœuds", entrees: [e("diviser", "Diviser le segment", !!p.ancre, () => A.diviser()), e("inverser", "Inverser le sens", !!p.chemin, () => A.inverser()),
+      e("joindre", "Joindre deux chemins", !!p.deux, () => A.joindre()), e("coins", "Arrondir les coins", !!p.sel, () => A.coins())], choisir: (x) => x.fn && x.fn() };
+  },
   texte: (c) => {
     const t = c.etat.typo || { polices: [], courante: "" };
     const sel = c.etat.selection.length === 1 ? c.objetDe(c.etat.selection[0]) : null;
@@ -124,23 +140,25 @@ export const MENUS = {
   },
   "px-selrect": (c) => MENUS._pxSelection(c, "px-selrect"),
   "px-lasso": (c) => MENUS._pxSelection(c, "px-lasso"),
-  _pxSelection: (c, outil) => ({ titre: "Sélection raster", entrees: flyout_actions([
-    { id: "tout", libelle: "Tout", cible: "#pxSelTout" }, { id: "aucune", libelle: "Aucune", cible: "#pxSelAucune" }, { id: "inverser", libelle: "Inverser", cible: "#pxSelInv" },
-    { id: "croitre", libelle: "Croître d'un pixel", cible: "#pxSelPlus" }, { id: "contracter", libelle: "Contracter d'un pixel", cible: "#pxSelMoins" }, { id: "couleur", libelle: "Par couleur courante", cible: "#pxSelCouleur" },
-  ], c.existe), choisir: (e) => { c.setOutil(outil); c.cliquer(e.cible); } }),
+  _pxSelection: (c, outil) => {
+    const A = (c.actions && c.actions.pixel) || {}, p = A.peut ? A.peut() : {};
+    const e = (id, libelle, ok, fn) => ({ id, libelle, action: "fn", fn, desactive: !ok });
+    return { titre: "Sélection raster", entrees: [e("tout", "Tout", !!p.tampon, () => A.tout()), e("aucune", "Aucune", !!p.masque, () => A.aucune()), e("inverser", "Inverser", !!p.masque, () => A.inverser()),
+      e("croitre", "Croître d'un pixel", !!p.masque, () => A.croitre()), e("contracter", "Contracter d'un pixel", !!p.masque, () => A.contracter()), e("couleur", "Par couleur courante", !!p.tampon, () => A.couleur())],
+      choisir: (x) => { c.setOutil(outil); x.fn && x.fn(); } };
+  },
   image: (c) => {
     const sel = c.etat.selection.length === 1 ? c.objetDe(c.etat.selection[0]) : null, img = sel && sel.objet.type === "image";
+    const I = (c.actions && c.actions.image) || {};
+    const e = (id, libelle, fn) => ({ id, libelle, action: "fn", fn, desactive: !fn });
     return { titre: "Image", entrees: [
-      ...flyout_actions([
-        { id: "biblio", libelle: "📚 Bibliothèque…", cible: "#imgBiblio" }, { id: "fichier", libelle: "⬆ Fichier…", cible: "#imgFichier" },
-        { id: "coller", libelle: "📋 Presse-papiers", cible: "#imgColler" }, { id: "generer", libelle: "✦ Générer…", cible: "#imgGenerer" },
-      ], c.existe),
+      e("biblio", "📚 Bibliothèque…", I.biblio), e("fichier", "⬆ Fichier…", I.fichier), e("coller", "📋 Presse-papiers", I.coller), e("generer", "✦ Générer…", I.generer),
       ...flyout_actions([
         { id: "vectoriser", libelle: "◇ Vectoriser cette image…", cible: "#imVectoriser" }, { id: "entiere", libelle: "↺ Image entière (sans rognage)", cible: "#imRognerRaz" },
         { id: "verrou", libelle: img && sel.objet.verrou ? "🔓 Déverrouiller" : "🔒 Verrouiller", cible: "#imVerrou" },
       ], (cible) => img && c.existe(cible)),
       { id: "pixels", libelle: "🖌 Éditer les pixels (persona Pixel)", action: "pixels", desactive: !img },
-    ], choisir: (e) => { if (e.action === "pixels") c.pixels(); else c.cliquer(e.cible); } };
+    ], choisir: (e) => { if (e.action === "pixels") c.pixels(); else if (e.action === "fn") e.fn && e.fn(); else c.cliquer(e.cible); } };
   },
   apparence: (c) => {
     const sel = c.etat.selection.length === 1 ? c.objetDe(c.etat.selection[0]) : null;
@@ -180,6 +198,7 @@ export function initFlyout(VL) {
   const esc = (v) => String(v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
   function fermer() { hote.hidden = true; hote.innerHTML = ""; ouvertPour = null; }
   const ctx = {
+    get actions() { return VL.actions || {}; },
     etat, setOutil: VL.setOutil, executer: VL.executer, toast: VL.toast, selectionner: VL.setSelection, objetDe: VL.objetDe,
     existe: (sel) => { const b = $(sel); return !!b && !b.disabled; },
     cliquer: (sel) => { const b = $(sel); if (!b || b.disabled) return false; b.click(); return true; },

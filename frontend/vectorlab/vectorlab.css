@@ -618,5 +618,15 @@ details[id] > summary.panneau-tete:hover { background: #1c2129; }
 .fo-glyphe { width: 18px; text-align: center; font-size: 15px; }
 .fo-pastille { width: 14px; height: 14px; border-radius: 3px; border: 1px solid #3a4150; flex: 0 0 14px; }
 #flyout { max-height: 70vh; overflow-y: auto; scrollbar-width: thin; }
+/* mesuré : `display: flex` bat l'attribut hidden — un menu fermé restait une boîte vide de 14 px */
+#flyout[hidden] { display: none; }
 .fo-lib { flex: 1; }
 .fo-item small { color: #8b93a0; font-size: 11px; }
+
+/* ── miniatures de calques : la rangée devient une grille — vignette à gauche
+   sur deux lignes, nom en haut, commandes en bas ── */
+.calque { display: grid; grid-template-columns: 40px repeat(6, auto); grid-template-rows: auto auto; gap: 4px 5px; align-items: center; padding: 6px 10px; }
+.calque-vig { grid-column: 1; grid-row: 1 / span 2; width: 40px; height: 28px; border: 1px solid #313847; border-radius: 4px; overflow: hidden; background: #14171d; display: block; }
+.calque-vig svg { display: block; }
+.calque .nom { grid-column: 2 / span 6; grid-row: 1; min-width: 0; font-weight: 600; }
+.calque input[type="number"] { width: 44px; flex: none; }
