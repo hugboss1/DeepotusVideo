@@ -993,3 +993,39 @@ def test_les_routes_images_du_document():
             assert VS.lire_image(did, "img1.png") == _PNG_1PX
 
     asyncio.run(scenario())
+
+
+# ── R. lot A : miroir de la surface du Vectorlab (vendor, modules, menus) ────
+
+def test_le_miroir_lot_a_images_et_cartes():
+    racine = pathlib.Path(__file__).resolve().parent.parent.parent
+    vl = racine / "frontend" / "vectorlab"
+    html = (vl / "index.html").read_text("utf-8")
+    core = (vl / "js" / "core.js").read_text("utf-8")
+    # le vendor et sa licence — zéro dépendance payante (D7)
+    assert (vl / "vendor" / "imagetracer_v1.2.6.js").is_file()
+    lic = (vl / "vendor" / "LICENSE-imagetracerjs.txt").read_text("utf-8")
+    assert "public domain" in lic.lower()
+    assert 'src="vendor/imagetracer_v1.2.6.js"' in html
+    # les trois modules, initialisés par le cœur ; le brouillon AVANT charger()
+    for m in ("mod-image.js", "mod-trace.js", "mod-brouillon.js"):
+        assert (vl / "js" / m).is_file(), m
+        assert m in core, m
+    assert core.index("initBrouillon(VL)") < core.index("charger();")
+    # le rendu passe le résolveur d'href ; l'overlay trace les repères
+    assert "compilerSVG(etat.doc, { image: VL.imageUrl })" in core
+    assert "reperes_rects" in core and 'data-repere' in core
+    # les surfaces : menu Image (4 sources + vectoriser), panneaux, dialogues
+    for tok in ("imgBiblio", "imgFichier", "imgColler", "imgGenerer", "imgVectoriser",
+                "panneauImage", "panneauReperes", "libDlg", "traceDlg"):
+        assert f'id="{tok}"' in html, tok
+    # le banc node porte les cinq bancs du lot
+    qa = vl / "qa"
+    for b in ("image", "image_ui", "reperes", "trace", "brouillon"):
+        assert (qa / f"{b}.test.mjs").is_file(), b
+    # le JSON d'un document ne porte JAMAIS de base64 (D1) : l'export inline,
+    # pas le modèle
+    exp = (vl / "js" / "mod-export.js").read_text("utf-8")
+    assert "readAsDataURL" in exp and "image_hrefs" in exp
+    doc = (vl / "js" / "mod-doc.js").read_text("utf-8")
+    assert ";base64," not in doc and "data:image" not in doc   # le JETON, pas le mot
