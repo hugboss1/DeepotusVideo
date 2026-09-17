@@ -11,8 +11,8 @@ import { image_hrefs, image_rev_max } from "./mod-image.js";
 export function initExport(VL) {
   const { $, etat } = VL;
 
-  async function svgCourant(transparent, cadre) {
-    const doc = JSON.parse(JSON.stringify(etat.doc));
+  async function svgCourant(transparent, cadre, docBase) {
+    const doc = JSON.parse(JSON.stringify(docBase || etat.doc));   // lot G : une tranche compile SON document (calque / objet isolé)
     if (transparent) delete doc.fond;
     // un SVG chargé comme <img> ne peut PAS charger d'images externes :
     // chaque PNG du document est inliné en data: — pour l'export seulement,
@@ -149,5 +149,6 @@ export function initExport(VL) {
   $("#expPrint3d").addEventListener("click", garde(imprimer3D));
 
   VL.exporterPNG = exporterPNG;      // la preuve et les phases suivantes
+  VL.svgCourant = svgCourant;        // lot G : le persona Export rend ses tranches par ici
   VL.vignette = vignette;            // le save de core.js l'appelle
 }

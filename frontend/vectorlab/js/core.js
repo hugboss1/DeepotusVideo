@@ -15,6 +15,7 @@ import { initCarte } from "./mod-carte.js";
 import { initOutils2 } from "./mod-outils2.js";
 import { initPersona } from "./mod-persona.js";
 import { initApparence2 } from "./mod-apparence2.js";
+import { initExportPlus } from "./mod-exportplus.js";
 import { initPixelUI } from "./mod-pixelui.js";
 import { op_noeud_supprimer } from "./mod-doc.js";
 import { UNITES, depuisUnite, formatNombre, libelle_mesure }
@@ -741,6 +742,7 @@ initIA(VL);        // le dialogue IA du canevas — après initOutils (surOutil)
 initOutils2(VL);    // formes, crayon, couteau, gomme, coin, constructeur, nœuds multiples, pivot, instantanés (lot B)
 initApparence2(VL); // lot F : Apparence + (effets, fusion, contours, motifs, couleurs globales, styles, symboles, texte +), pinceau vectoriel J
 initPersona(VL);    // lot E (D8) : Vecteur / Pixel / Export — après initOutils (surOutil)
+initExportPlus(VL); // lot G : Export + (tranches, formats, impression, lot) — après initPersona (surPersona) et initExport (svgCourant)
 initPixelUI(VL);    // lot E : outils raster, sélections, ajustements, pixel-art — pose surOverlay/surTouche en chaîne
 initBrouillon(VL); // pose surCharge AVANT charger() (lot A)
 window.VL = VL;

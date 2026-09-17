@@ -440,7 +440,8 @@ details > summary.panneau-tete { cursor: pointer; list-style: none; }
 .personas button.actif { background: #2c4a75; border-color: #5b82b8; color: #eef1f5; }
 body:not(.persona-pixel) #outils .outil-pixel { display: none; }
 body.persona-pixel #outils button[data-outil]:not(.outil-pixel):not([data-outil="select"]) { display: none; }
-body.persona-export #outils button[data-outil]:not([data-outil="select"]) { display: none; }
+body.persona-export #outils button[data-outil]:not([data-outil="select"]):not(.outil-export) { display: none; }
+body:not(.persona-export) #outils .outil-export { display: none; }
 body:not(.persona-pixel) .seulement-pixel { display: none !important; }
 body:not(.persona-export) .seulement-export { display: none !important; }
 body.persona-pixel #apparence2Details, body.persona-export #apparence2Details,
@@ -473,3 +474,11 @@ body.pixelart #canvasHost image { image-rendering: pixelated; }
 .a2-champs label i { font-style: normal; }
 .a2-champs input[type="number"] { width: 46px; background: #232833; color: #d6d9de; border: 1px solid #313847; }
 #panneauApparence2 input[type="text"] { background: #232833; color: #d6d9de; border: 1px solid #313847; padding: 2px 6px; }
+
+/* ── lot G : Export + ── */
+#panneauExportPlus { padding: 6px 10px; border-bottom: 1px solid #262b34; display: flex; flex-direction: column; gap: 6px; }
+#panneauExportPlus details { border-top: 1px solid #20242d; padding-top: 4px; display: flex; flex-direction: column; gap: 5px; }
+#panneauExportPlus input[type="text"] { background: #232833; color: #d6d9de; border: 1px solid #313847; padding: 2px 6px; }
+.ex-plan { max-height: 120px; overflow: auto; font-size: 11px; color: #8b93a0; border: 1px solid #20242d; padding: 3px 6px; }
+.ex-plan div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#overlay .tranche { pointer-events: none; }
