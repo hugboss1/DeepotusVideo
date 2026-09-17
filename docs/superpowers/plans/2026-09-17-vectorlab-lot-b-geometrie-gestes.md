@@ -9,7 +9,64 @@
 > purs). Branche `chantier/vectorlab-affinity`, après le lot H (`6209c4c`).
 > Ce plan est COMMIS avant le code.
 
-> **RELEVÉ DE LIVRAISON** : à écrire ici en fin de lot.
+> **RELEVÉ DE LIVRAISON (17/09/2026) : LOT B LIVRÉ, PROUVÉ EN RÉEL, DÉPLOYÉ (statiques seuls : aucune relance).**
+>
+> **Livré** (11 commits `d22f39d`→`0738aa4`, poussés) : `mod-formes.js` feuille
+> (polygone/hexagone, étoile, engrenage, flèche, donut, spirale linéaire ou
+> Fibonacci ; `d` recalculé ; poignées rayon/ratio/profondeur/tête) ;
+> `mod-crayon.js` feuille (RDP, Catmull-Rom → C, fermeture auto) ;
+> `mod-noeuds.js` (déplacer/aligner/transformer plusieurs ancres, diviser de
+> Casteljau, inverser, joindre, coins arrondis Q — rect et forme convertis
+> d'abord —, ancres au rectangle) ; `mod-bool.js` lot B (formes aplaties,
+> couteau par droite, gomme par trait gonflé, contour ± — dehors =
+> complément du retrait du complément —, atomes du Shape Builder,
+> constructeur fusionner/retirer) ; modèle : objet `forme` (sx/sy au
+> redimensionnement), `op_forme_param`, `op_forme_en_chemin`, `op_incliner`,
+> `op_dupliquer_puissance`, `selection_par_attribut`, `formule`,
+> `Historique(1000)` + instantanés nommés ; UI `mod-outils2.js` (six outils
+> F/B/X/W/C/S, poignées de forme, pivot déplaçable, lasso d'ancres, panneaux
+> Forme / Nœuds / Instantanés) ; panneau Apparence : X/Y/L/H à formules,
+> inclinaison, puissance, attribut, contour ; crochet `VL.surOverlay` du cœur.
+>
+> **TDD tenu** : RED ×5. Bancs : node **728 contrôles** (+100 : formes 25,
+> crayon 10, noeuds2 22, opsbool2 17, gestes 26), pytest `test_vector_docs`
+> **29 passed** (+1). Trois défauts de géométrie attrapés au BANC : les
+> unions successives martinez perdent des morceaux (11 247 / 11 846 / 11 616
+> pour 12 078) → dehors = complément du retrait, différences progressives ;
+> une tangente qui coïncide EXACTEMENT avec un bord égare martinez (483 mm²
+> perdus aux coins) → disque +1 % (aussi dans mod-solide) ; anneaux dégénérés
+> nettoyés. Trois défauts attrapés par la PREUVE : ids en double après
+> couteau/gomme (deux « o3 » — insertion progressive), « 0 coin » sur un rect
+> (converti d'abord), poignées de forme invisibles (le cœur appelle sa
+> `rendreOverlay` locale → crochet `surOverlay`) et Entrée du constructeur
+> muette (mod-tools écrasait `surTouche`/`surOutil` : `initOutils2` passe
+> après lui).
+>
+> **Prouvé en réel** (8799, données isolées, viewport 1400×900) : étoile
+> tracée au rayon par drag → r 80, 2 poignées + pivot au DOM ; poignée du
+> rayon tirée → **r = 50** exact ; panneau n=7 appliqué ; crayon 25 points
+> → chemin **20 C fermé** ; couteau sur un rect → **2 morceaux aux ids
+> distincts** ; gomme 20 px → 2 pièces, l'original remplacé ; coin 15 sur un
+> rect → **4 Q** ; constructeur : 2 clics → 2 marques d'overlay, Entrée →
+> **un chemin de 10 000** (A∖B + A∩B), Alt+Entrée sur l'intersection →
+> **15 000**, Échap vide ; lasso d'ancres → **2 ancres** jaunes, drag commun
+> déplace les deux ; pivot tiré en (100,450) puis inclinaison →
+> `translate(100 450) skewX(20) translate(-100 -450)` ; formules : L
+> « +50% » **100→150**, X « *2 » **500→1000**, « abc » refusée en toast ;
+> puissance 4 copies Δx 40 rot 10 → x 60/100/140/180, `rotate(40 …)` sur la
+> 4e ; attribut « fond » → 7 objets bleus ; contour +8 → copie plus grande ;
+> instantané « avant nettoyage » → vidage → restauration **12 objets**,
+> historique cap 1 000 ; indices d'outils lus.
+>
+> **Déployé** : 8 fichiers = base lot H (`abb2de8`) → sauvegarde
+> `_backup_predeploy_2026-09-17e-vectorlab-lotB` → copie depuis `git archive
+> 0738aa4` → **86 fichiers = cible**, l'app installée sert `mod-outils2.js`
+> en 200. **Aucun Python touché : aucune relance nécessaire.**
+>
+> **Reste** : contour destructif (copie, pas d'offset vivant) ; les
+> instantanés vivent dans la session ; le crayon ne lit pas la pression ;
+> Shape Builder par clics + Entrée (pas de glisser-fusionner) ; pas de banc
+> UI dédié pour `mod-outils2` (les gestes sont prouvés au navigateur).
 
 **Goal :** donner au Vectorlab les gestes vectoriels d'Affinity Designer :
 formes paramétriques à poignées, crayon lissé, couteau, gomme vectorielle,
