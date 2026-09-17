@@ -107,3 +107,28 @@ préremplissent.
 > poignée, puis `left_click_drag` réel de 26 px) : spirale r **60 → 72,13**,
 > centre inchangé, entrée d'historique posée. Déployé (statiques seuls).
 
+## Addendum 2 (17/09) : menus Image et Apparence — livrés, prouvés, déployés
+
+> Demande : « ajoute les menus détachés pour images et apparences aussi ».
+> Deux boutons de la barre (persona Vecteur, cachés ailleurs) qui ne sont
+> que des menus : **Image** (Bibliothèque, Fichier, Presse-papiers, Générer
+> → le menu Image de l'en-tête ; sur une image sélectionnée : Vectoriser,
+> Image entière, Verrouiller / Déverrouiller, Éditer les pixels → persona
+> Pixel + chargement) ; **Apparence** (Couleur de fond / de contour → le
+> nuancier, Sans fond, Sans contour, épaisseurs 1 · 2 · 4 · 8, opacités 100 ·
+> 75 · 50 · 25 — réglages qui patchent la sélection ou, à vide, le style
+> courant —, dégradé linéaire / radial / conique, transparence, motif,
+> effets ombre / lueur). Bâtisseur pur `flyout_reglages` (banc 18
+> contrôles). **Défaut latent trouvé en route** : deux boutons portaient
+> l'id `apContour` (la pastille de contour et « décaler ») — la pastille
+> déclenchait AUSSI le décalage et le bouton « décaler » était muet ;
+> renommé `apDecaler`.
+> **Prouvé** (8799, 1400×900) : 21 boutons visibles en Vecteur, les deux
+> cachés en Pixel ; Apparence sur r1 → **19 entrées**, épaisseur 8 et
+> opacité 0,5 posées, sans fond, ombre ajoutée, dégradé linéaire, nuancier
+> ouvert par « Couleur de contour » ; clic sur la pastille de contour → **0
+> objet ajouté** ; à vide, « 4 px » patche le style courant ; Image sans
+> sélection → 4 entrées désactivées ; sur une image → Verrouiller puis
+> Déverrouiller relus, « Éditer les pixels » → persona Pixel et tampon
+> **8×8 chargé**. Déployé (statiques seuls).
+

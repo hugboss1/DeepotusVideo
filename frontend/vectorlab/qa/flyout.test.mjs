@@ -1,7 +1,7 @@
 // flyout.test.mjs — mod-flyout : les menus détachés de la barre d'outils —
 // entrées du menu Forme (la courante marquée, un glyphe par forme), du menu
 // Symboles (état vide dit), position à droite du bouton bornée à la fenêtre.
-import { flyout_formes, flyout_symboles, flyout_position, flyout_choix, flyout_presets, flyout_terrains, flyout_polices, flyout_actions, MENUS } from "../js/mod-flyout.js";
+import { flyout_formes, flyout_symboles, flyout_position, flyout_choix, flyout_presets, flyout_terrains, flyout_polices, flyout_actions, flyout_reglages, MENUS } from "../js/mod-flyout.js";
 import { FORMES } from "../js/mod-formes.js";
 
 const echecs = [];
@@ -37,8 +37,15 @@ const ok = (nom, cond, detail = "") => {
   ok("actions : disponible = la cible existe, sinon désactivée", a[0].desactive === false && a[1].desactive === true && a[1].action === "cible");
   ok("registre : un bâtisseur par outil à menu, les 18 outils attendus", ["select", "noeuds", "texte", "crayon", "pinceauv", "gomme", "coin", "tuiles", "forme", "symbole", "px-pinceau", "px-gomme", "px-seau", "px-baguette", "px-selrect", "px-lasso", "tranche"].every((k) => typeof MENUS[k] === "function"), Object.keys(MENUS).join(","));
 }
+/* ── Image et Apparence ── */
+{
+  const r = flyout_reglages([1, 2, 4, 8], 2, "epaisseur", "px");
+  ok("réglages : une entrée par valeur avec son patch de style, la courante marquée", r.length === 4 && r[1].actif && JSON.stringify(r[2].patch) === '{"epaisseur":4}' && r[0].libelle === "1 px" && r[0].action === "style", JSON.stringify(r));
+  ok("réglages : opacité en pourcentage → patch en fraction", (() => { const o = flyout_reglages([100, 50], 100, "opacite", "%", (v) => v / 100); return o[1].patch.opacite === 0.5 && o[0].actif; })());
+  ok("registre : menus image et apparence", typeof MENUS.image === "function" && typeof MENUS.apparence === "function");
+}
 if (echecs.length) {
   console.error("ECHECS flyout :\n- " + echecs.join("\n- "));
   process.exit(1);
 }
-console.log("QA flyout : PASS (15 controles)");
+console.log("QA flyout : PASS (18 controles)");

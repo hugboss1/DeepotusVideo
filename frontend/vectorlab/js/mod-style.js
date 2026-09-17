@@ -198,7 +198,7 @@ export function initStyle(VL) {
       </div>
       <div class="ap-ligne"><span>Contour</span>
         <input type="number" id="apDecal" step="any" value="5" title="Décalage en px : + vers le dehors, − vers le dedans"/>
-        <button id="apContour" ${sel ? "" : "disabled"} title="Crée un chemin décalé (copie au-dessus de l'original)">décaler</button>
+        <button id="apDecaler" ${sel ? "" : "disabled"} title="Crée un chemin décalé (copie au-dessus de l'original)">décaler</button>
       </div>
       <div class="ap-ligne"><span>Booléens</span>
         <button data-bool="union" ${sel >= 2 ? "" : "disabled"}
@@ -273,7 +273,8 @@ export function initStyle(VL) {
         try { VL.setSelection(selection_par_attribut(etat.doc, etat.selection[0], btn.dataset.attr)); }
         catch (er) { VL.toast(er.message, true); }
       }));
-      $("#apContour").addEventListener("click", () => {
+      // id distinct de la pastille de contour (deux « apContour » liaient la pastille au décalage)
+      $("#apDecaler").addEventListener("click", () => {
         const ids = VL.executer(op_contour, etat.selection.slice(), +$("#apDecal").value || 0);
         if (ids) VL.setSelection(ids);
       });

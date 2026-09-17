@@ -41,6 +41,10 @@ export function flyout_polices(polices, courante) {
 export function flyout_actions(liste, disponible = () => true) {
   return (liste || []).map((a) => ({ id: a.id, libelle: a.libelle, glyphe: a.glyphe || "", cible: a.cible, action: "cible", desactive: !disponible(a.cible) }));
 }
+// réglages de style : chaque valeur porte son patch {cle: v} (ou f(v))
+export function flyout_reglages(valeurs, courante, cle, unite = "", f = (v) => v) {
+  return (valeurs || []).map((v) => ({ id: `${cle}-${v}`, valeur: v, libelle: `${v}${unite ? " " + unite : ""}`, actif: v === courante, action: "style", patch: { [cle]: f(v) } }));
+}
 export function flyout_position(bouton, taille, fenetre, marge = 6) {
   let x = bouton.x + bouton.w + marge;
   if (x + taille.w > fenetre.w - marge) x = bouton.x - marge - taille.w;
@@ -124,6 +128,39 @@ export const MENUS = {
     { id: "tout", libelle: "Tout", cible: "#pxSelTout" }, { id: "aucune", libelle: "Aucune", cible: "#pxSelAucune" }, { id: "inverser", libelle: "Inverser", cible: "#pxSelInv" },
     { id: "croitre", libelle: "Croître d'un pixel", cible: "#pxSelPlus" }, { id: "contracter", libelle: "Contracter d'un pixel", cible: "#pxSelMoins" }, { id: "couleur", libelle: "Par couleur courante", cible: "#pxSelCouleur" },
   ], c.existe), choisir: (e) => { c.setOutil(outil); c.cliquer(e.cible); } }),
+  image: (c) => {
+    const sel = c.etat.selection.length === 1 ? c.objetDe(c.etat.selection[0]) : null, img = sel && sel.objet.type === "image";
+    return { titre: "Image", entrees: [
+      ...flyout_actions([
+        { id: "biblio", libelle: "📚 Bibliothèque…", cible: "#imgBiblio" }, { id: "fichier", libelle: "⬆ Fichier…", cible: "#imgFichier" },
+        { id: "coller", libelle: "📋 Presse-papiers", cible: "#imgColler" }, { id: "generer", libelle: "✦ Générer…", cible: "#imgGenerer" },
+      ], c.existe),
+      ...flyout_actions([
+        { id: "vectoriser", libelle: "◇ Vectoriser cette image…", cible: "#imVectoriser" }, { id: "entiere", libelle: "↺ Image entière (sans rognage)", cible: "#imRognerRaz" },
+        { id: "verrou", libelle: img && sel.objet.verrou ? "🔓 Déverrouiller" : "🔒 Verrouiller", cible: "#imVerrou" },
+      ], (cible) => img && c.existe(cible)),
+      { id: "pixels", libelle: "🖌 Éditer les pixels (persona Pixel)", action: "pixels", desactive: !img },
+    ], choisir: (e) => { if (e.action === "pixels") c.pixels(); else c.cliquer(e.cible); } };
+  },
+  apparence: (c) => {
+    const sel = c.etat.selection.length === 1 ? c.objetDe(c.etat.selection[0]) : null;
+    const s = sel ? (sel.objet.style || {}) : (c.etat.styleCourant || {});
+    const n = c.etat.selection.length;
+    return { titre: "Apparence", entrees: [
+      ...flyout_actions([{ id: "fond", libelle: "■ Couleur de fond…", cible: "#apFond" }, { id: "sansfond", libelle: "∅ Sans fond", cible: "#apFondAucun" },
+        { id: "contour", libelle: "□ Couleur de contour…", cible: "#apContour" }, { id: "sanscontour", libelle: "∅ Sans contour", cible: "#apContourAucun" }], c.existe),
+      ...flyout_reglages([1, 2, 4, 8], +s.epaisseur || 2, "epaisseur", "px d'épaisseur"),
+      ...flyout_reglages([100, 75, 50, 25], Math.round((s.opacite ?? 1) * 100), "opacite", "% d'opacité", (v) => v / 100),
+      ...flyout_actions([{ id: "gradl", libelle: "▤ Dégradé linéaire", cible: "#apGradL" }, { id: "gradr", libelle: "◉ Dégradé radial", cible: "#apGradR" },
+        { id: "conique", libelle: "◔ Dégradé conique", cible: "#a2Conique" }, { id: "transp", libelle: "◧ Transparence", cible: "#a2Transp" },
+        { id: "motif", libelle: "▦ Motif", cible: "#a2Motif" }], (cible) => n >= 1 && c.existe(cible)),
+      { id: "ombre", libelle: "☁ Effet : ombre externe", action: "effet", valeur: "ombre", desactive: !n }, { id: "lueur", libelle: "✺ Effet : lueur", action: "effet", valeur: "lueur", desactive: !n },
+    ], choisir: (e) => {
+      if (e.action === "style") c.style(c.etat.selection.slice(), e.patch);
+      else if (e.action === "effet") { const sel2 = document.querySelector("#a2FxType"); if (sel2) { sel2.value = e.valeur; c.cliquer("#a2FxPlus"); } }
+      else c.cliquer(e.cible);
+    } };
+  },
   tranche: (c) => {
     const ex = c.etat.exportPlus || { mode: "document" };
     return { titre: "Tranches d'export", entrees: [...flyout_choix(MODES, ex.mode).map((e) => ({ ...e, libelle: e.libelle })), { id: "effacer", libelle: "✕ Effacer les tranches dessinées", action: "effacer", desactive: !(c.etat.tranches || []).length }], choisir: (e) => {
@@ -146,7 +183,8 @@ export function initFlyout(VL) {
     etat, setOutil: VL.setOutil, executer: VL.executer, toast: VL.toast, selectionner: VL.setSelection, objetDe: VL.objetDe,
     existe: (sel) => { const b = $(sel); return !!b && !b.disabled; },
     cliquer: (sel) => { const b = $(sel); if (!b || b.disabled) return false; b.click(); return true; },
-    style: (ids, patch) => { if (ids.length) VL.executer(op_style, ids, patch); },
+    style: (ids, patch) => { if (ids.length) VL.executer(op_style, ids, patch); else { Object.assign(etat.styleCourant, patch); VL.surSelection(); } },
+    pixels: () => { if (VL.setPersona) VL.setPersona("pixel"); setTimeout(() => { const b = $("#pxEditer"); if (b && !b.disabled) b.click(); }, 60); },
     rendre: () => { if (etat.doc) { VL.rendre(); } },
     ouvrirSection: (id) => { const d = $("#" + id); if (d) { d.open = true; d.scrollIntoView({ block: "start" }); } },
   };
@@ -164,6 +202,13 @@ export function initFlyout(VL) {
     const p = flyout_position({ x: r.left, y: r.top, w: r.width, h: r.height }, { w: hote.offsetWidth, h: hote.offsetHeight }, { w: window.innerWidth, h: window.innerHeight }, 6);
     hote.style.left = p.x + "px"; hote.style.top = p.y + "px";
     hote.querySelectorAll(".fo-item").forEach((b) => b.addEventListener("click", () => { const e = menu.entrees[+b.dataset.i]; fermer(); menu.choisir(e); }));
+  }
+  // les boutons Image et Apparence (persona Vecteur) — ils ne sont que des menus
+  for (const [nom, glyphe, titre] of [["image", "🖼", "Image — poser (Bibliothèque, fichier, presse-papiers, génération), vectoriser, rogner, verrou, pixels (menu)"], ["apparence", "🎨", "Apparence — fond, contour, épaisseur, opacité, dégradés, motif, effets (menu)"]]) {
+    const b = document.createElement("button");
+    b.dataset.outil = nom; b.dataset.menu = nom; b.title = titre; b.textContent = glyphe;
+    b.addEventListener("click", (ev) => { ev.stopPropagation(); ouvrir(b, nom); });
+    $("#outils").appendChild(b);
   }
   // le bouton Symboles (persona Vecteur) — il n'est qu'un menu
   {
@@ -189,7 +234,7 @@ export function initFlyout(VL) {
   // tous les boutons dont l'outil a un menu — y compris ceux ajoutés par les modules
   for (const b of document.querySelectorAll("#outils button[data-outil]")) {
     const nom = b.dataset.menu || (MENUS[b.dataset.outil] && !b.dataset.outil.startsWith("_") ? b.dataset.outil : null);
-    if (nom && nom !== "symbole") { b.dataset.menu = nom; armer(b); }
+    if (nom && !["symbole", "image", "apparence"].includes(nom)) { b.dataset.menu = nom; armer(b); }
   }
   document.addEventListener("pointerdown", (ev) => { if (!hote.hidden && !hote.contains(ev.target) && !(ouvertPour && ouvertPour.contains(ev.target))) fermer(); }, true);
   document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && !hote.hidden) { fermer(); ev.stopImmediatePropagation(); } }, true);
