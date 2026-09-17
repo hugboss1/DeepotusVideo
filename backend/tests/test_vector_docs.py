@@ -1480,3 +1480,27 @@ def test_les_routes_des_polices(tmp_path, monkeypatch):
             assert r.json()["user"] == [{"nom": "Ma-Typo.ttf", "famille": "Ma-Typo"}]
 
     asyncio.run(scenario())
+
+
+# ── AB. Texte & logo : miroir de la surface ─────────────────────────────
+
+def test_le_miroir_texte_et_logo():
+    racine = pathlib.Path(__file__).resolve().parent.parent.parent
+    vl = racine / "frontend" / "vectorlab"
+    assert (vl / "js" / "mod-typo.js").is_file()
+    core = (vl / "js" / "core.js").read_text("utf-8")
+    assert "initTypo(VL)" in core and core.index("initImpression(VL)") < core.index("initTypo(VL)") and core.index("initOutils(VL)") < core.index("initTypo(VL)")
+    tools = (vl / "js" / "mod-tools.js").read_text("utf-8")
+    assert "VL.poserTexte" in tools and "VL.editerTexte" in tools          # plus de prompt sur le chemin nominal
+    typo = (vl / "js" / "mod-typo.js").read_text("utf-8")
+    for tok in ("queryLocalFonts", '"/api/fonts/upload"', "@font-face", 'id="txContours"', 'id="txLogo"', "tx-editeur", "VL.textesEnChemins"):
+        assert tok in typo, tok
+    assert "VL.textesEnChemins" in (vl / "js" / "mod-export.js").read_text("utf-8")
+    assert 'id="panneauTexte"' in (vl / "index.html").read_text("utf-8")
+    doc = (vl / "js" / "mod-doc.js").read_text("utf-8")
+    assert "Array.isArray(d)" in doc and "<tspan x=" in doc
+    assert (racine / "backend" / "app" / "services" / "fonts_service.py").is_file()
+    routes = (racine / "backend" / "app" / "api" / "routes.py").read_text("utf-8")
+    for r in ('@router.get("/fonts")', '@router.post("/fonts/upload")', '@router.get("/fonts/user/{name}")'):
+        assert r in routes, r
+    assert (vl / "qa" / "typo.test.mjs").is_file()
