@@ -9541,6 +9541,46 @@ async def print3d_lot(nom: str = "plateau", source: str = "vectorlab",
         raise HTTPException(400, str(e))
 
 
+# ── Cartes réelles (lot H, 17/09/2026) : relief Terrarium et fond OSM ──────
+# Service geo_service : tuiles publiques sans clé, cache disque, décodage par
+# Pillow. Une emprise et un zoom en entrée ; une grille de hauteurs (JSON) ou
+# un PNG assemblé en sortie. Réseau muet → 502 parlant, jamais un 200 vide.
+
+def _geo_erreur(e: Exception):
+    if isinstance(e, ValueError):
+        raise HTTPException(400, str(e))
+    raise HTTPException(502, f"tuiles injoignables : {e}")
+
+
+@router.get("/geo/attribution")
+async def geo_attribution():
+    from app.services import geo_service as GEO
+    return dict(GEO.ATTRIBUTION)
+
+
+@router.post("/geo/relief")
+async def geo_relief(body: dict):
+    """Body: {emprise:{minLat,maxLat,minLon,maxLon}, zoom} → la grille des
+    hauteurs (m) rognée à l'emprise, ≤ 160 par côté, min/max/pasM."""
+    from app.services import geo_service as GEO
+    try:
+        return await GEO.hauteurs(body.get("emprise"), int(body.get("zoom") or 10))
+    except Exception as e:  # noqa: BLE001 — traduit en 400/502 parlants
+        _geo_erreur(e)
+
+
+@router.post("/geo/fond")
+async def geo_fond(body: dict):
+    """Body: {emprise, zoom} → PNG du fond OpenStreetMap assemblé et rogné.
+    L'attribution est due : le client l'affiche (GET /geo/attribution)."""
+    from app.services import geo_service as GEO
+    try:
+        png = await GEO.fond(body.get("emprise"), int(body.get("zoom") or 12))
+    except Exception as e:  # noqa: BLE001
+        _geo_erreur(e)
+    return Response(content=png, media_type="image/png")
+
+
 @router.get("/print3d/exports")
 async def print3d_exports():
     from app.services import print3d as P3
