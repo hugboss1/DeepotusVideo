@@ -704,6 +704,19 @@ def test_le_miroir_pont_cartes_mod_face():
     assert '"HEAD"' not in face and '"HEAD"' not in core
     assert "no-store" in core
     assert "IMGS.delete" in face
+    # lot A (D5) : le pont RETOUR — la face rendue par LE moteur (CF.cardBlob)
+    # part au magasin d'images du document par le CORE (CF.vector.image), le
+    # document se réécrit par le CORE (CF.vector.update) au format physique
+    # du jeu (canvas_px, dpi, repères = bleed_off_px / safe_off_px), la face
+    # est un calque image VERROUILLÉ, l'éditeur s'ouvre dessus.
+    assert 'id="cf-face-vlab-edit"' in face
+    assert "CF.vector.image(" in face and "CF.vector.update(" in face
+    assert "CF.cardBlob(" in face and "docFaceVec(" in face
+    for cle in ("bleed_off_px", "safe_off_px", "canvas_px", '"fondPerdu"', '"zoneSure"',
+                'type: "image"', "verrou: true"):
+        assert cle in face, cle
+    assert '"/images"' in core and 'update: vectorUpdate' in core and 'image: vectorImage' in core
+    assert '"image/png"' in core
 
 
 # ── M. le pont cartes : deck_id (colonne _auto_migrate) + migration réelle ───

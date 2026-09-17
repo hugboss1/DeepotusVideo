@@ -1960,6 +1960,44 @@
     chargerVecs();
   }
 
+  /* Le document « face à éditer » (lot A, D5) : la toile ENTIÈRE du jeu
+     (fond perdu compris) au dpi du jeu, les repères posés depuis LA
+     géométrie (bleed_off_px = ligne de coupe, safe_off_px = zone sûre),
+     la face rendue posée en calque image VERROUILLÉ sous un calque de
+     retouches vide et actif. `href` est le nom rendu par CF.vector.image. */
+  function docFaceVec(g, nom, href) {
+    const W = g.canvas_px[0], H = g.canvas_px[1];
+    return { v: 1, nom: nom, taille: { w: W, h: H },
+      unites: { affichage: "mm", dpi: g.dpi },
+      reperes: { "fondPerdu": [g.bleed_off_px[0], g.bleed_off_px[1]],
+                 "zoneSure": [g.safe_off_px[0], g.safe_off_px[1]] },
+      calques: [
+        { id: "c1", nom: "face (verrouillée)", visible: true, verrou: true, objets: [
+          { id: "o1", type: "image", x: 0, y: 0, w: W, h: H, href: href,
+            nat: { w: W, h: H }, verrou: true, style: {} } ] },
+        { id: "c2", nom: "retouches", visible: true, verrou: false, objets: [] } ] };
+  }
+
+  async function editerFaceVec() {
+    const did = vecDeckId();
+    if (!did) { CF.toast("aucun jeu ouvert", true); return; }
+    const g = CF.geom();
+    const nom = "Face " + (CF.current() + 1) + " — " + String(CF.doc().name || "carte").slice(0, 60);
+    CF.busy(true, "rendu de la face à " + g.canvas_px[0] + " x " + g.canvas_px[1] + " px…");
+    try {
+      const png = await CF.cardBlob(CF.current(), {});          /* LE moteur unique */
+      const d = await CF.vector.create({ name: nom, role: "libre", deck_id: did,
+        doc: docFaceVec(g, nom, "img1.png") });
+      const im = await CF.vector.image(d.id, png);
+      await CF.vector.update(d.id, docFaceVec(g, nom, im.name));
+      window.open("/vectorlab/?doc=" + encodeURIComponent(d.id), "_blank");
+      VECS = { deck: null, docs: [] };
+      chargerVecs();
+    } catch (e) {
+      CF.toast("éditer la face : " + String((e && e.message) || e), true);
+    } finally { CF.busy(false); }
+  }
+
   function vecExportNom(id) { return "vector_" + id + "_2x.png"; }
 
   async function poserVec(id) {
@@ -3476,6 +3514,7 @@
       + '<input class="search sm" id="cf-face-vlab-nom" type="text" placeholder="nom du nouveau document">'
       + '<button class="btn sm" type="button" id="cf-face-vlab-new" title="Crée un document ancré à ce jeu (taille = fenêtre d\'illustration) et l\'ouvre dans le Vectorlab">+ Nouveau</button>'
       + '<button class="btn sm" type="button" id="cf-face-vlab-refresh" title="Relit la liste (versions, vignettes, exports)">Rafraîchir</button>'
+      + '<button class="btn sm" type="button" id="cf-face-vlab-edit" title="Rend la face courante (le moteur, fond perdu compris), crée un document Vectorlab au format physique du jeu avec les repères de coupe et de zone sûre, la face en calque image verrouillé, et l\'ouvre — « Poser 2× » ramène le résultat">Éditer cette face dans le Vectorlab</button>'
       + '</div>'
       + '<div id="cf-face-vlab-liste">' + vecListeHTML() + '</div>'
       + '<p class="hint">Un document s\'édite dans le <b>Vectorlab</b> (nouvel onglet). « Poser 2× » pose son export PNG '
@@ -4082,6 +4121,7 @@
     });
 
     /* vectorlab */
+    q("#cf-face-vlab-edit").addEventListener("click", () => { editerFaceVec(); });
     q("#cf-face-vlab-new").addEventListener("click", () => {
       creerVec().catch((e) => CF.toast(String((e && e.message) || e), true));
     });
