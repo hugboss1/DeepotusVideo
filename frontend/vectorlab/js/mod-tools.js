@@ -232,6 +232,7 @@ export function initOutils(VL) {
 
     if (etat.outil === "texte") {
       const [ax, ay] = VL.aimantePt(dx, dy);
+      if (VL.poserTexte) { VL.poserTexte(ax, ay); ev.preventDefault(); return; }   // Texte & logo : édition en place
       const contenu = prompt("Texte :", "");
       if (contenu) {
         const sc = etat.styleCourant;
@@ -533,6 +534,7 @@ export function initOutils(VL) {
       const el = ev.target.closest && ev.target.closest("[data-objet]");
       if (el) {
         const o = _objetProfond(etat.doc, el.dataset.objet);
+        if (o && (o.type === "texte" || o.type === "cadre") && VL.editerTexte) { VL.editerTexte(o.id); return; }
         if (o && o.type === "texte") {
           const contenu = prompt("Texte :", o.contenu || "");
           if (contenu !== null) {

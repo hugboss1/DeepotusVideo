@@ -14,6 +14,7 @@ export function initExport(VL) {
   async function svgCourant(transparent, cadre, docBase) {
     const doc = JSON.parse(JSON.stringify(docBase || etat.doc));   // lot G : une tranche compile SON document (calque / objet isolé)
     if (transparent) delete doc.fond;
+    if (VL.textesEnChemins) await VL.textesEnChemins(doc);   // Texte & logo : un SVG en <img> ne charge aucune police
     // un SVG chargé comme <img> ne peut PAS charger d'images externes :
     // chaque PNG du document est inliné en data: — pour l'export seulement,
     // le JSON stocké ne porte jamais de base64 (D1)

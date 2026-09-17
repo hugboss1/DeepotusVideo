@@ -18,6 +18,7 @@ import { initApparence2 } from "./mod-apparence2.js";
 import { initExportPlus } from "./mod-exportplus.js";
 import { initPanneaux } from "./mod-panneaux.js";
 import { initInfobulle } from "./mod-infobulle.js";
+import { initTypo } from "./mod-typo.js";
 import { initPixelUI } from "./mod-pixelui.js";
 import { op_noeud_supprimer } from "./mod-doc.js";
 import { UNITES, depuisUnite, formatNombre, libelle_mesure }
@@ -742,6 +743,7 @@ initIA(VL);        // le dialogue IA du canevas — après initOutils (surOutil)
 // lot B : APRÈS initOutils — mod-tools pose surTouche/surOutil sans chaîner,
 // un module initialisé avant lui perdrait ses crochets (mesuré : Entrée muette)
 initOutils2(VL);    // formes, crayon, couteau, gomme, coin, constructeur, nœuds multiples, pivot, instantanés (lot B)
+initTypo(VL);       // Texte & logo : polices, éditeur en place, contours, logo 3D — après initImpression (VL.impression) et initOutils (crochets)
 initApparence2(VL); // lot F : Apparence + (effets, fusion, contours, motifs, couleurs globales, styles, symboles, texte +), pinceau vectoriel J
 initPersona(VL);    // lot E (D8) : Vecteur / Pixel / Export — après initOutils (surOutil)
 initExportPlus(VL); // lot G : Export + (tranches, formats, impression, lot) — après initPersona (surPersona) et initExport (svgCourant)

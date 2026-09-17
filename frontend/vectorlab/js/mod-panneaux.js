@@ -4,7 +4,7 @@
 // à des objets {id, open} (les <details> du DOM). Module FEUILLE.
 
 export const PANNEAUX_DEFAUT = Object.freeze({
-  vitrailDetails: false, styleDetails: true, apparence2Details: true, formeDetails: true, noeudsDetails: false,
+  vitrailDetails: false, styleDetails: true, texteDetails: true, apparence2Details: true, formeDetails: true, noeudsDetails: false,
   instantanesDetails: false, pixelDetails: true, exportDetails: true, exportPlusDetails: true, imageDetails: true,
   reperesDetails: false, grilleDetails: false, plateauDetails: false, planchesDetails: false, carteDetails: false,
   assetsDetails: false, calquesDetails: true,

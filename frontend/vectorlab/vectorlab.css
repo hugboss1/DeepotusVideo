@@ -582,3 +582,12 @@ details[id] > summary.panneau-tete:hover { background: #1c2129; }
 .infobulle::after { content: ""; position: absolute; left: 50%; top: -5px; width: 8px; height: 8px; transform: translateX(-50%) rotate(45deg);
   background: #0d1015; border-left: 1px solid #3a4150; border-top: 1px solid #3a4150; }
 .infobulle.dessus::after { top: auto; bottom: -5px; border: 0; border-right: 1px solid #3a4150; border-bottom: 1px solid #3a4150; }
+
+/* ── Texte & logo ── */
+#panneauTexte { padding: 2px var(--pan-x) 6px; display: flex; flex-direction: column; gap: var(--pan-gap); }
+#txContenu { width: 100%; min-height: 64px; resize: vertical; background: var(--pan-fond); color: var(--pan-texte); border: 1px solid var(--pan-bord); border-radius: 6px; padding: 6px 8px; font: 13px/1.4 "Segoe UI", system-ui, sans-serif; }
+.tx-polices { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; max-height: 190px; overflow-y: auto; scrollbar-width: thin; padding: 2px; border: 1px solid #262b34; border-radius: 6px; background: #14171d; }
+.tx-police { height: 34px; padding: 0 8px; font-size: 15px; line-height: 1; border-radius: 5px; background: #1b2028; border: 1px solid transparent; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
+.tx-police:hover { border-color: #3a4150; }
+.tx-police.actif { background: #2c4a75; border-color: #5b82b8; color: #fff; }
+.tx-editeur { position: absolute; z-index: 20; min-height: 1.4em; padding: 2px 4px; margin: 0; background: rgba(255, 255, 255, .92); border: 1px dashed #39b3d0; border-radius: 3px; outline: none; resize: none; overflow: hidden; white-space: pre; box-shadow: 0 4px 16px rgba(0, 0, 0, .35); }

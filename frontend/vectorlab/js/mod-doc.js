@@ -98,6 +98,10 @@ function _validerObjets(objs, ou) {
         throw new Error(`tuile ${o.id}: hauteur_mm ≥ 0`);
       }
     }
+    if (o.type === "texte" && o.style) {
+      if (o.style.ancre !== undefined && !["start", "middle", "end"].includes(o.style.ancre)) throw new Error(`texte ${o.id}: ancre start|middle|end`);
+      if (o.style.interligne !== undefined && !(o.style.interligne > 0)) throw new Error(`texte ${o.id}: interligne > 0`);
+    }
     if (o.type === "cadre") {
       if (!(o.w > 0) || !(o.h > 0)) throw new Error(`cadre ${o.id}: taille positive requise`);
       if (typeof o.contenu !== "string") throw new Error(`cadre ${o.id}: contenu texte requis`);
@@ -307,8 +311,14 @@ function compilerObjet(o, ctx = {}) {
     case "path":
       return `<path${t} d="${escAttr(o.d)}"${st}${tr}/>`;
     case "texte": {
+      // Texte & logo : plusieurs lignes en <tspan x dy>, ancre start | middle | end
       const s = o.style || {};
-      return `<text${t} x="${+o.x}" y="${+o.y}"${_fonteAttrs(s)}${st}${tr}>${_escTexte(o.contenu || "")}</text>`;
+      const anc = s.ancre && s.ancre !== "start" ? ` text-anchor="${escAttr(s.ancre)}"` : "";
+      const lignes = String(o.contenu || "").split("\n");
+      if (lignes.length <= 1) return `<text${t} x="${+o.x}" y="${+o.y}"${_fonteAttrs(s)}${anc}${st}${tr}>${_escTexte(o.contenu || "")}</text>`;
+      const dy = nbc(Number(s.corps || 16) * Number(s.interligne || 1.2));
+      return `<text${t} x="${+o.x}" y="${+o.y}"${_fonteAttrs(s)}${anc}${st}${tr}>`
+        + lignes.map((l, i) => `<tspan x="${+o.x}" dy="${i ? dy : 0}">${_escTexte(l)}</tspan>`).join("") + `</text>`;
     }
     case "cadre": {
       // lot F : cadre de texte — coupe des lignes par la mesure injectée (opts.mesure)
@@ -1573,6 +1583,31 @@ export function op_vectoriser_poser(doc, objets, nom) {
 /* ── texte → chemins (lot D) : l'objet garde son id et son fond, perd sa
    fonte ; les glyphes à trous se peignent en evenodd ── */
 export function op_texte_vectoriser(doc, id, d) {
+  // Texte & logo : une LISTE [{car, d}] = un chemin par glyphe → le texte
+  // devient un groupe (même id) de chemins aux ids neufs
+  if (Array.isArray(d)) {
+    if (!d.length) throw new Error("vectoriser : aucun glyphe (texte vide ou police muette)");
+    for (const c of doc.calques) {
+      if (c.verrou) continue;
+      const i = c.objets.findIndex((o) => o.id === id);
+      if (i < 0) continue;
+      const o = c.objets[i];
+      if (o.type !== "texte") throw new Error(`${id}: pas un texte`);
+      const s = { ...(o.style || {}) };
+      for (const k of ["police", "corps", "graisse", "interlettrage", "interligne", "ancre"]) delete s[k];
+      if (!s.fond || s.fond === "none") s.fond = s.contour || "#1F1512";
+      const enfants = [], ids = [];
+      c.objets[i] = { id: o.id, type: "groupe", style: {}, enfants, transform: o.transform };
+      if (!o.transform) delete c.objets[i].transform;
+      for (const g of d) {
+        const gid = _idLibre(doc);
+        enfants.push({ id: gid, type: "path", d: chemin_serialiser(chemin_parser(g.d)), car: g.car, style: { ...s, regle: "evenodd" } });
+        ids.push(gid);
+      }
+      return ids;
+    }
+    throw new Error(`texte introuvable (ou calque verrouillé): ${id}`);
+  }
   if (typeof d !== "string" || !d.trim()) {
     throw new Error("vectoriser : chemin vide (texte vide ou police muette)");
   }

@@ -212,26 +212,7 @@ export function initStyle(VL) {
                value="${objetReflete().rx || 0}"
                title="Rayon d'angle du rectangle (px du document, borné à min(L,H)/2 ; 0 = angles vifs)"/>
       </div>` : ""}
-      ${objetReflete() && objetReflete().type === "texte" ? `
-      <div class="ap-ligne"><span>Fonte</span>
-        <input type="text" id="apPolice" value="${s.police || "Segoe UI"}"
-               title="Famille de fonte" style="width:90px"/>
-        <input type="number" id="apCorps" min="4" max="400"
-               value="${s.corps || 16}" title="Corps"/>
-      </div>
-      <div class="ap-ligne"><span></span>
-        <select id="apGraisse" title="Graisse">${["normal", "bold", "300",
-          "600", "800"].map((g) => `<option${(s.graisse || "normal") === g
-          ? " selected" : ""}>${g}</option>`).join("")}</select>
-        <input type="number" id="apInterlettrage" step="0.5" min="-10"
-               max="40" value="${s.interlettrage || 0}"
-               title="Interlettrage"/>
-      </div>
-      <div class="ap-ligne"><span>3D</span>
-        <select id="apPolice3d" title="Police du dist (OFL) dont les glyphes deviennent les contours">${POLICES.map((p) =>
-          `<option value="${p.id}">${p.nom}</option>`).join("")}</select>
-        <button id="apVectoriserTexte" title="Remplace le texte par ses contours (opentype.js) — extrudable et booléen ; annulable par l'historique">Vectoriser</button>
-      </div>` : ""}
+      ${/* Texte & logo : fonte, corps, graisse, interlettrage et contours vivent dans le panneau Texte */ ""}
       ${g ? `<div class="ap-stops" title="Stops du dégradé du fond">
         ${g.stops.map((st, i) => `<div class="ap-stop">
           <button class="nu-pastille" data-stop="${i}"
@@ -383,11 +364,7 @@ export function initStyle(VL) {
                                     ? null : e.target.value }));
       $("#apInterlettrage").addEventListener("change",
         (e) => appliquer({ interlettrage: +e.target.value || null }));
-      $("#apVectoriserTexte").addEventListener("click", () => {
-        if (!VL.vectoriserTexte) return;
-        VL.vectoriserTexte(etat.selection[0], $("#apPolice3d").value)
-          .catch((e) => VL.toast(e.message, true));
-      });
+      /* Texte & logo : la vectorisation est dans le panneau Texte (txContours) */
     }
     if (g) {
       hote.querySelectorAll("[data-stop]").forEach((btn) =>
