@@ -47,7 +47,9 @@ export function inset_multi(mz, multi, d) {
                      [q[0] - nx, q[1] - ny], [p[0] - nx, p[1] - ny], [p[0] + nx, p[1] + ny]]];
       out = _propre(mz.diff(out, [quad]));
       if (!out.length) return out;
-      out = _propre(mz.diff(out, [[_disque(p[0], p[1], d)]]));
+      // +1 % : la tangente du disque ne coïncide plus avec le bord du
+      // quadrilatère (coïncidence exacte = martinez égaré, mesuré au lot B)
+      out = _propre(mz.diff(out, [[_disque(p[0], p[1], d * 1.01)]]));
       if (!out.length) return out;
     }
   }

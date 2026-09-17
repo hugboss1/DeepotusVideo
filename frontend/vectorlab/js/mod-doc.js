@@ -6,6 +6,7 @@
 import { grille_normaliser, hex_centre, hex_d, hex_depuis_point, grille_cellules }
   from "./mod-grille.js";
 import { zoom_pour, echantillon_moyen, paliers_bornes, palier } from "./mod-geo.js";
+import { forme_d, forme_params_valider } from "./mod-formes.js";
 
 const escAttr = (v) => String(v)
   .replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
@@ -80,6 +81,10 @@ function _validerObjets(objs, ou) {
       if (!o.nat || !(o.nat.w > 0) || !(o.nat.h > 0)) throw new Error(`image ${o.id}: nat {w,h} positif requis`);
       if (!(o.w > 0) || !(o.h > 0)) throw new Error(`image ${o.id}: taille positive requise`);
       if (o.rognage !== undefined) _validerRognage(o.rognage, o.nat, `image ${o.id}`);
+    }
+    if (o.type === "forme") {
+      if (!(o.r > 0)) throw new Error(`forme ${o.id}: rayon > 0 requis`);
+      forme_params_valider(o.forme, o.params);
     }
     if (o.type === "tuile") {
       if (!Number.isInteger(o.q) || !Number.isInteger(o.r)) {
@@ -188,6 +193,9 @@ function compilerObjet(o, ctx = {}) {
       return `<g${t}${st}${tr}>`
            + (o.enfants || []).map((e) => compilerObjet(e, ctx)).join("")
            + `</g>`;
+    case "forme":
+      // lot B (D2) : le d se RECALCULE à chaque compilation depuis les paramètres
+      return `<path${t} data-forme="${escAttr(o.forme)}" d="${forme_d(o)}"${st}${tr}/>`;
     case "tuile": {
       // D3 : la forme est DÉRIVÉE de la grille hex du document (sinon hex
       // 32 pointe) ; la couleur vient de la fiche de terrains
@@ -333,7 +341,7 @@ export function op_supprimer(doc, ids) {
 function _decalerObjet(o, dx, dy) {
   switch (o.type) {
     case "rect": case "image": o.x += dx; o.y += dy; break;
-    case "ellipse": o.cx += dx; o.cy += dy; break;
+    case "ellipse": case "forme": o.cx += dx; o.cy += dy; break;
     case "texte": o.x += dx; o.y += dy; break;
     case "path": {
       const segs = chemin_parser(o.d);
@@ -416,6 +424,9 @@ function _mapperObjet(o, av, ap) {
     case "ellipse":
       o.cx = fx(o.cx); o.cy = fy(o.cy);
       o.rx = Math.abs(o.rx * sx); o.ry = Math.abs(o.ry * sy); break;
+    case "forme":                        // les paramètres restent, sx/sy portent l'échelle
+      o.cx = fx(o.cx); o.cy = fy(o.cy);
+      o.sx = Math.abs((o.sx || 1) * sx); o.sy = Math.abs((o.sy || 1) * sy); break;
     case "texte":
       o.x = fx(o.x); o.y = fy(o.y);
       if (o.style && o.style.corps) {     // le corps suit la hauteur
@@ -825,12 +836,25 @@ export function op_degrade_supprimer(doc, id) {
    capturé et empile le courant côté refaire ; `refaire(courant)` fait
    l'inverse. Tout entre et sort en CLONE — aucune référence partagée. */
 export class Historique {
-  constructor(cap = 100) {
+  constructor(cap = 1000) {              // lot B : 1 000 pas (Affinity en offre 8 000)
     this.cap = cap;
     this._avant = [];
     this._apres = [];
+    this._instantanes = new Map();       // instantanés NOMMÉS de la session
   }
   _clone(doc) { return JSON.parse(JSON.stringify(doc)); }
+  instantane(nom, doc) {
+    const n = String(nom || "").trim();
+    if (!n) throw new Error("instantané : un nom est requis");
+    this._instantanes.set(n, this._clone(doc));
+    return n;
+  }
+  instantanes() { return [...this._instantanes.keys()]; }
+  restaurer(nom) {
+    const d = this._instantanes.get(String(nom));
+    if (!d) throw new Error(`instantané inconnu : ${nom}`);
+    return this._clone(d);
+  }
   capturer(doc) {
     this._avant.push(this._clone(doc));
     if (this._avant.length > this.cap) this._avant.shift();
@@ -952,7 +976,7 @@ export function op_miroir(doc, ids, axe, bbox) {
     switch (o.type) {
       case "rect": case "image":           // image : position seule — les
         if (H) o.x = fx(o.x) - o.w; else o.y = fy(o.y) - o.h; break;   // pixels ne se retournent pas (écart dit)
-      case "ellipse":
+      case "ellipse": case "forme":
         if (H) o.cx = fx(o.cx); else o.cy = fy(o.cy); break;
       case "texte":                     // position seule — les glyphes ne
         if (H) o.x = fx(o.x); else o.y = fy(o.y); break;   // se reflètent pas
@@ -1380,6 +1404,153 @@ export function op_geo_tuiles(doc, spec = {}) {
     o.hauteur_mm = Math.round((alt - R.min) / amplitude * relief_mm * 10) / 10;
   }
   return { calqueId: r.calqueId, tuiles: r.tuiles, paliers: bornes };
+}
+
+
+/* ══════════ lot B : formes paramétriques, inclinaison, puissance, attribut,
+   formules ══════════ */
+function _trouverForme(doc, id) {
+  for (const c of doc.calques) {
+    if (c.verrou) continue;
+    const o = c.objets.find((x) => x.id === id);
+    if (o) {
+      if (o.type !== "forme") throw new Error(`objet ${id}: pas une forme paramétrique`);
+      return { calque: c, objet: o };
+    }
+  }
+  throw new Error(`forme introuvable (ou calque verrouillé): ${id}`);
+}
+export function op_forme_param(doc, id, patch) {
+  const { objet } = _trouverForme(doc, id);
+  const neuf = { ...objet, ...(patch || {}), params: { ...objet.params, ...((patch || {}).params || {}) } };
+  if (!(neuf.r > 0)) throw new Error("forme : rayon > 0 requis");
+  forme_params_valider(neuf.forme, neuf.params);
+  Object.assign(objet, neuf);
+}
+export function op_forme_en_chemin(doc, id) {
+  const { calque, objet } = _trouverForme(doc, id);
+  const d = forme_d(objet);
+  const i = calque.objets.indexOf(objet);
+  calque.objets[i] = { id: objet.id, type: "path", d, style: { ...(objet.style || {}) },
+                       ...(objet.transform ? { transform: objet.transform } : {}) };
+  return objet.id;
+}
+
+// inclinaison (skew) autour d'un pivot — composée devant, comme op_tourner
+export function op_incliner(doc, ids, kx, ky, cx, cy) {
+  const ax = +kx || 0, ay = +ky || 0;
+  if (Math.abs(ax) >= 89 || Math.abs(ay) >= 89) throw new Error("inclinaison : angle sous 89°");
+  if (!ax && !ay) return;
+  const t = `translate(${nbc(cx)} ${nbc(cy)})` + (ax ? ` skewX(${nbc(ax)})` : "") + (ay ? ` skewY(${nbc(ay)})` : "")
+          + ` translate(${nbc(-cx)} ${nbc(-cy)})`;
+  for (const { objet } of _objetsCibles(doc, ids)) {
+    objet.transform = objet.transform ? `${t} ${objet.transform}` : t;
+  }
+}
+
+// la boîte GÉOMÉTRIQUE d'un objet (sans DOM) — pour la duplication puissance
+function _bboxObjet(o) {
+  switch (o.type) {
+    case "rect": case "image": return { x: o.x, y: o.y, w: o.w, h: o.h };
+    case "ellipse": return { x: o.cx - o.rx, y: o.cy - o.ry, w: 2 * o.rx, h: 2 * o.ry };
+    case "forme": return { x: o.cx - o.r * (o.sx || 1), y: o.cy - o.r * (o.sy || 1), w: 2 * o.r * (o.sx || 1), h: 2 * o.r * (o.sy || 1) };
+    case "texte": return { x: o.x, y: o.y, w: 0, h: 0 };
+    case "path": {
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (const s of chemin_parser(o.d)) for (let k = 0; k < s.p.length; k += 2) {
+        x0 = Math.min(x0, s.p[k]); x1 = Math.max(x1, s.p[k]); y0 = Math.min(y0, s.p[k + 1]); y1 = Math.max(y1, s.p[k + 1]);
+      }
+      return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+    }
+    case "groupe": {
+      const bs = (o.enfants || []).map(_bboxObjet).filter(Boolean);
+      if (!bs.length) return null;
+      const x0 = Math.min(...bs.map((b) => b.x)), y0 = Math.min(...bs.map((b) => b.y));
+      return { x: x0, y: y0, w: Math.max(...bs.map((b) => b.x + b.w)) - x0, h: Math.max(...bs.map((b) => b.y + b.h)) - y0 };
+    }
+    default: return null;
+  }
+}
+// duplication puissance : n copies, chacune répétant la transformation
+// (décalage, rotation cumulée, échelle cumulée autour de son centre)
+export function op_dupliquer_puissance(doc, ids, n, pas = {}) {
+  const N = +n;
+  if (!(Number.isInteger(N) && N >= 1 && N <= 200)) throw new Error("puissance : n entier de 1 à 200");
+  const dx = +pas.dx || 0, dy = +pas.dy || 0, rot = +pas.rotation || 0, ech = pas.echelle === undefined ? 1 : +pas.echelle;
+  if (!(ech > 0)) throw new Error("puissance : échelle > 0");
+  let sources = ids.slice();
+  const out = [];
+  for (let k = 1; k <= N; k++) {
+    const neufs = op_dupliquer(doc, sources, dx, dy);
+    for (const id of neufs) {
+      const t = [..._objetsCibles(doc, [id])][0];
+      if (!t) continue;
+      const b = _bboxObjet(t.objet);
+      if (b && b.w > 0 && b.h > 0 && ech !== 1) {
+        const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+        op_redimensionner(doc, [id], b, { x: cx - b.w * ech / 2, y: cy - b.h * ech / 2, w: b.w * ech, h: b.h * ech });
+      }
+      if (rot) {
+        const b2 = _bboxObjet(t.objet) || b || { x: 0, y: 0, w: 0, h: 0 };
+        // la rotation se cumule : la k-ième copie tourne de k × rot, sans hériter
+        t.objet.transform = undefined;
+        delete t.objet.transform;
+        op_tourner(doc, [id], b2.x + b2.w / 2, b2.y + b2.h / 2, rot * k);
+      }
+    }
+    out.push(...neufs);
+    sources = neufs;
+  }
+  return out;
+}
+
+// sélection par attribut : les objets (calques déverrouillés) qui partagent
+// une valeur avec la référence — fond, contour, epaisseur ou type
+const _ATTRIBUTS = new Set(["fond", "contour", "epaisseur", "type"]);
+export function selection_par_attribut(doc, refId, cle) {
+  if (!_ATTRIBUTS.has(cle)) throw new Error(`attribut inconnu : ${cle}`);
+  let ref = null;
+  for (const c of doc.calques) { const o = c.objets.find((x) => x.id === refId); if (o) ref = o; }
+  if (!ref) throw new Error(`référence introuvable : ${refId}`);
+  const val = (o) => cle === "type" ? o.type : (o.style || {})[cle];
+  const cible = val(ref);
+  const out = [];
+  for (const c of doc.calques) {
+    if (c.verrou) continue;
+    for (const o of c.objets) if (val(o) === cible && !o.verrou) out.push(o.id);
+  }
+  return out;
+}
+
+// les FORMULES du panneau : « +50% », « *2 », « 10+5 », « 42 » — relatif si
+// l'entrée commence par un opérateur, absolu sinon ; jamais d'évaluation libre
+export function formule(valeur, texte) {
+  const t = String(texte ?? "").trim().replace(/,/g, ".");
+  if (!t) throw new Error("formule : vide");
+  if (!/^[0-9+\-*/(). %]+$/.test(t)) throw new Error("formule : caractères non numériques");
+  if (/\*\*|\/\/|%[0-9(]/.test(t)) throw new Error("formule : opérateur inconnu");
+  const evaluer = (expr) => {
+    const e = expr.replace(/%/g, "");
+    if (!/^[0-9+\-*/(). ]+$/.test(e) || !/[0-9]/.test(e)) throw new Error("formule : illisible");
+    let v;
+    try { v = Function(`"use strict"; return (${e});`)(); } catch { throw new Error("formule : illisible"); }
+    if (!Number.isFinite(v)) throw new Error("formule : résultat non fini");
+    return v;
+  };
+  const op = t[0];
+  if ("+-*/".includes(op) && t.length > 1) {
+    const reste = t.slice(1).trim();
+    const pourcent = reste.endsWith("%");
+    const v = evaluer(reste);
+    if (op === "+") return pourcent ? valeur * (1 + v / 100) : valeur + v;
+    if (op === "-") return pourcent ? valeur * (1 - v / 100) : valeur - v;
+    if (pourcent) throw new Error("formule : % seulement avec + ou −");
+    if (op === "*") return valeur * v;
+    if (v === 0) throw new Error("formule : division par zéro");
+    return valeur / v;
+  }
+  const v = evaluer(t);
+  return t.endsWith("%") ? valeur * v / 100 : v;
 }
 
 
