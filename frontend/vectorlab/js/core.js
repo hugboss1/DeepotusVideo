@@ -17,6 +17,8 @@ import { initBiblio } from "./mod-biblio.js";
 import { initIA } from "./mod-ia.js";
 import { initCouleur } from "./mod-couleur.js";
 import { initImage } from "./mod-image.js";
+import { initTrace } from "./mod-trace.js";
+import { initBrouillon } from "./mod-brouillon.js";
 
 const $ = (s) => document.querySelector(s);
 const api = {
@@ -631,10 +633,12 @@ initCalques(VL);
 initCouleur(VL);
 initStyle(VL);
 initImage(VL);      // panneaux Image / Repères, après Apparence (lot A)
+initTrace(VL);      // le dialogue Vectoriser (lot A)
 initOutils(VL);
 initExport(VL);
 initVitrail(VL);
 initBiblio(VL);
 initIA(VL);        // le dialogue IA du canevas — après initOutils (surOutil)
+initBrouillon(VL); // pose surCharge AVANT charger() (lot A)
 window.VL = VL;
 charger();

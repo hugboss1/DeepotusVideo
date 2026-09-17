@@ -1015,6 +1015,17 @@ export function op_image_verrou(doc, id, verrou) {
   if (verrou) o.verrou = true; else delete o.verrou;
 }
 
+/* ── vectorisation (lot A, D6) : les chemins tracés se posent d'un coup
+   dans un calque NEUF au-dessus — une commande, une entrée d'historique. */
+export function op_vectoriser_poser(doc, objets, nom) {
+  if (!Array.isArray(objets) || !objets.length) {
+    throw new Error("rien à vectoriser (image vide ou seuil trop haut)");
+  }
+  const calqueId = op_calque_ajouter(doc, nom || "vectorisé");
+  const ids = objets.map((o) => op_ajouter(doc, calqueId, { ...o, id: undefined }));
+  return { calqueId, ids };
+}
+
 
 function _defs(doc) {
   const refs = [];
