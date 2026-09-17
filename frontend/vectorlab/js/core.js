@@ -13,6 +13,8 @@ import { initPlanches } from "./mod-planches.js";
 import { initImpression } from "./mod-impression.js";
 import { initCarte } from "./mod-carte.js";
 import { initOutils2 } from "./mod-outils2.js";
+import { initPersona } from "./mod-persona.js";
+import { initPixelUI } from "./mod-pixelui.js";
 import { op_noeud_supprimer } from "./mod-doc.js";
 import { UNITES, depuisUnite, formatNombre, libelle_mesure }
   from "./mod-unites.js";
@@ -735,6 +737,8 @@ initIA(VL);        // le dialogue IA du canevas — après initOutils (surOutil)
 // lot B : APRÈS initOutils — mod-tools pose surTouche/surOutil sans chaîner,
 // un module initialisé avant lui perdrait ses crochets (mesuré : Entrée muette)
 initOutils2(VL);    // formes, crayon, couteau, gomme, coin, constructeur, nœuds multiples, pivot, instantanés (lot B)
+initPersona(VL);    // lot E (D8) : Vecteur / Pixel / Export — après initOutils (surOutil)
+initPixelUI(VL);    // lot E : outils raster, sélections, ajustements, pixel-art — pose surOverlay/surTouche en chaîne
 initBrouillon(VL); // pose surCharge AVANT charger() (lot A)
 window.VL = VL;
 charger();

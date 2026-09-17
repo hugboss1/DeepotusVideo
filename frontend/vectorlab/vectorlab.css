@@ -433,3 +433,32 @@ details > summary.panneau-tete { cursor: pointer; list-style: none; }
 .poignee-pivot { cursor: move; }
 .inst-ligne .nom { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
 .ap-ligne input[type="text"] { width: 52px; background: #232833; color: #d6d9de; border: 1px solid #3a4150; border-radius: 4px; padding: 2px 4px; }
+
+/* ── lot E : personas (D8) et persona Pixel ── */
+.personas { display: flex; gap: 0; margin-left: 8px; }
+.personas button { padding: 3px 12px; font-size: 12px; letter-spacing: .03em; }
+.personas button.actif { background: #2c4a75; border-color: #5b82b8; color: #eef1f5; }
+body:not(.persona-pixel) #outils .outil-pixel { display: none; }
+body.persona-pixel #outils button[data-outil]:not(.outil-pixel):not([data-outil="select"]) { display: none; }
+body.persona-export #outils button[data-outil]:not([data-outil="select"]) { display: none; }
+body:not(.persona-pixel) .seulement-pixel { display: none !important; }
+body:not(.persona-export) .seulement-export { display: none !important; }
+body.persona-pixel #vitrailDetails, body.persona-pixel #panneauForme, body.persona-pixel #panneauNoeuds,
+body.persona-pixel #instantanesDetails, body.persona-pixel #plateauDetails, body.persona-pixel #planchesDetails,
+body.persona-pixel #carteDetails, body.persona-pixel #panneauReperes, body.persona-pixel #panneauGrille { display: none; }
+body.persona-export #vitrailDetails, body.persona-export #panneauStyle, body.persona-export #panneauForme,
+body.persona-export #panneauNoeuds, body.persona-export #instantanesDetails, body.persona-export #panneauImage,
+body.persona-export #teteImage, body.persona-export #panneauReperes, body.persona-export #panneauGrille,
+body.persona-export #plateauDetails, body.persona-export #carteDetails, body.persona-export #assetsDetails { display: none; }
+.outils .outil-pixel { font-size: 15px; }
+body.pixelart #canvasHost image { image-rendering: pixelated; }
+#panneauPixel, #panneauExport { padding: 6px 10px; border-bottom: 1px solid #262b34; display: flex; flex-direction: column; gap: 6px; }
+#panneauPixel details { border-top: 1px solid #20242d; padding-top: 4px; display: flex; flex-direction: column; gap: 5px; }
+.px-tete { cursor: pointer; font-weight: 600; font-size: 12px; color: #9db4d6; }
+.px-note { color: #8b93a0; font-size: 11px; margin: 0; }
+.px-palette { display: flex; flex-wrap: wrap; gap: 3px; min-height: 18px; }
+.px-pastille { width: 18px; height: 18px; padding: 0; border: 1px solid #313847; }
+.px-pastille.actif { outline: 2px solid #ffd166; outline-offset: -1px; }
+.px-raccord { width: 100%; image-rendering: pixelated; border: 1px solid #262b34; }
+#overlay .px-couche { pointer-events: none; }
+#panneauPixel .img-src { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-style: normal; color: #8b93a0; font-size: 11px; }
