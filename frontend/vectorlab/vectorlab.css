@@ -442,8 +442,12 @@ details > summary.panneau-tete { cursor: pointer; list-style: none; }
 #panneauCarte input[type="number"] { width: 56px; }
 
 /* ── lot B : poignées de forme, pivot, instantanés ── */
-.poignee-forme { cursor: crosshair; }
-.poignee-pivot { cursor: move; }
+/* mesuré le 17/09 : #overlay est en pointer-events none — une poignée qui
+   n'est pas ré-activée ici est INVISIBLE à la souris (la preuve du lot B
+   dispatchait sur l'élément, pas par le pointeur) */
+#overlay .poignee-forme { pointer-events: auto; cursor: crosshair; }
+#overlay .poignee-pivot { pointer-events: auto; cursor: move; }
+#overlay .poignee-forme:hover { r: 7px; }
 .inst-ligne .nom { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
 .ap-ligne input[type="text"] { width: 52px; background: #232833; color: #d6d9de; border: 1px solid #3a4150; border-radius: 4px; padding: 2px 4px; }
 

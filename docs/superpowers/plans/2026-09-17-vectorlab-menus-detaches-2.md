@@ -90,3 +90,20 @@ préremplissent.
 ## Tasks
 1. Bâtisseurs purs + registre (banc `flyout.test.mjs` étendu, RED d'abord).
 2. Preuve en réel : chaque menu ouvert, compté, une action jouée ; déploiement statiques ; relevé.
+
+## Addendum (17/09) : poignées de forme muettes à la souris — corrigé, prouvé, déployé
+
+> Signalé par l'utilisateur (capture d'une spirale) : « les ancres de
+> modification des formes (pastille jaune) ne fonctionnent sur aucune forme ».
+> **Cause** : `#overlay` est en `pointer-events: none` et seules les classes
+> listées sont ré-activées (`.poignee`, `.poignee-rot`, `.guide`, `.ancre`,
+> `.poignee-grad`) — `.poignee-forme` et `.poignee-pivot` (lot B) ne l'étaient
+> pas : une vraie souris passait au travers de la pastille et prenait l'objet.
+> La preuve du lot B dispatchait ses événements SUR l'élément, ce qui ne
+> passe pas par le test de pointeur — d'où un défaut invisible au banc.
+> **Correctif** : `#overlay .poignee-forme, #overlay .poignee-pivot {
+> pointer-events: auto }` (+ grossissement au survol). **Prouvé avec la
+> souris du navigateur** (viewport 1200×800, `elementFromPoint` = la
+> poignée, puis `left_click_drag` réel de 26 px) : spirale r **60 → 72,13**,
+> centre inchangé, entrée d'historique posée. Déployé (statiques seuls).
+
