@@ -9,7 +9,67 @@
 > modules purs). Branche `chantier/vectorlab-affinity`, après le lot F
 > (`f4c721e`). Ce plan est COMMIS avant le code.
 
-> **RELEVÉ DE LIVRAISON** : à écrire ici en fin de lot.
+> **RELEVÉ DE LIVRAISON (17/09/2026) : LOT G LIVRÉ, PROUVÉ EN RÉEL, DÉPLOYÉ — Python touché : RELANCE du backend installé (8765) par l'utilisateur.**
+>
+> **Livré** (7 commits `4dc4964`→`8cfece4`, poussés) : `mod-tranches.js`
+> feuille (cinq modes de tranche avec bbox injectée, résolutions bornées,
+> nommage `vector_<doc>_<tranche>@<k>x[_t].<ext>`, plan tranches ×
+> résolutions × formats — le PDF en une entrée —, saignée, marques de
+> coupe et de repérage en SVG) ; `mod-dxf.js` feuille (px → mm au dpi du
+> document, Y vers le haut, DXF R12 en `LWPOLYLINE` fermées) ; backend
+> `pdf_service.creer_pdf` (stdlib : pages en points depuis les mm, une
+> image JPEG `DCTDecode` par page, xref valide) et `POST
+> /vector/docs/{id}/pdf` multipart en téléchargement ; UI
+> `mod-exportplus.js` (panneau « Export + » : mode de tranche, résolutions,
+> six formats, preset d'impression — saignée mm, traits de coupe, repérage,
+> dpi, qualité —, plan de nommage visible, « Exporter le lot ») + outil
+> « tranche » dessinée (overlay, Échap), rendu canvas PNG / JPEG / WebP
+> avec marques, SVG par tranche, PDF par la route, DXF par `aplatir_objet`
+> ; `svgCourant` compile un document isolé (calque ou objet).
+>
+> **TDD tenu** : RED ×5 (tranches, dxf, pytest PDF + route, exportplus_ui).
+> Bancs : node **984 contrôles** (+36 : tranches 21, dxf 7, exportplus_ui
+> 8), pytest `test_vector_docs` **37 passed** (+3). Le banc a redressé deux
+> regex (les entiers DXF sont justifiés sur 6 colonnes ; le drapeau 70 de
+> la table des calques se comptait avec ceux des polylignes) et un lecteur
+> de réglages qui prenait une valeur absente pour 0.
+>
+> **Prouvé en réel** (8799, données isolées, viewport 1400×900, gestes
+> pointeur synthétiques, lecture DOM, ancres de téléchargement stubées et
+> relues) : onglet Export → panneau **294 px**, outils select + tranche
+> seuls ; plan par mode : document `_doc.png`, planches `_Recto` /
+> `_Verso`, calques `_fond` / `_detail`, objets `_r1` ; résolutions « 1, 2 »
+> et six formats → **9 entrées** nommées (`@2x`, `.jpg`, `.webp`, `.svg`,
+> `_lot.pdf`, `.dxf`) ; tranche dessinée au pointeur → `t1` (aimantée à la
+> grille), overlay 1, mode « dessinées » ; preset saignée 3 mm + coupe +
+> repérage + 150 dpi ; **export lot : 9 fichiers** — PNG 220×220, WebP
+> 220×220 (`image/webp`), JPEG @2x **440×440** servis par la Bibliothèque ;
+> SVG relu avec `data-marques`, **16 traits + 4 cercles**, viewBox élargi
+> −30 −30 220 220 ; PDF relu : `%PDF-1.4`, 1 page, `MediaBox 62.36 pt`
+> (= 22 mm : 9,6 mm + 2 × 3 mm de saignée + marques), `DCTDecode`, largeur
+> 130 px au dpi 150 ; DXF relu : 1 `LWPOLYLINE` sur le calque `t1`,
+> `$INSUNITS`, premier point (−1,2 ; 10,8) mm ; Échap → 0 tranche.
+>
+> **Un défaut attrapé par la preuve** : le DXF ne gardait que les anneaux
+> ayant un SOMMET dans la tranche — un rectangle qui l'englobe n'en a
+> aucun et faisait échouer tout le lot ; chevauchement de bbox, et une
+> tranche sans découpe est sautée en le disant.
+>
+> **Déployé** : 12 fichiers (= base lot F `30ab83c` vérifiés par
+> hash-object, 7 absents) → sauvegarde
+> `_backup_predeploy_2026-09-17h-vectorlab-lotG` (5 fichiers) → copie
+> depuis `git archive 8cfece4` → **12 = cible, 111/111 du Vectorlab =
+> cible**, pré-vol `import app.main` + `pdf_service` OK. **`routes.py` et
+> `pdf_service.py` touchés : l'utilisateur relance le backend installé.**
+>
+> **Reste** : le PDF est raster (JPEG au dpi choisi), pas vectoriel ; le
+> DXF ignore texte, images et instances (dit dans le panneau) ; le SVG par
+> tranche se télécharge (le SVG serveur du document reste celui du menu) ;
+> les tranches dessinées vivent dans la session ; la saignée montre les
+> objets qui débordent de la page mais n'étire pas le fond.
+>
+> **Le chantier « Vectorlab classe Affinity » est COMPLET : lots A, C, D,
+> H, B, E, F, G livrés dans l'ordre de la conception.**
 
 **Goal :** donner au persona Export les tranches (document, planches,
 calques, objets sélectionnés, tranches dessinées), les formats JPEG / WebP
