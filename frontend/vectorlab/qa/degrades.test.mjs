@@ -82,7 +82,7 @@ const banc = () => ({
   op_degrade_supprimer(d, id);
   ok("dégradé supprimé", !(id in d.degrades));
   let refus = 0;
-  try { op_degrade_creer(d, { type: "conique", stops: [] }); } catch { refus++; }
+  try { op_degrade_creer(d, { type: "mesh", stops: [] }); } catch { refus++; }   // lot F : conique est devenu un vrai type
   try { op_degrade_modifier(d, "gX", {}); } catch { refus++; }
   ok("type inconnu + id inconnu refusés", refus === 2, String(refus));
 }

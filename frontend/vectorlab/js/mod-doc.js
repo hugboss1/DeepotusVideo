@@ -7,6 +7,7 @@ import { grille_normaliser, hex_centre, hex_d, hex_depuis_point, grille_cellules
   from "./mod-grille.js";
 import { zoom_pour, echantillon_moyen, paliers_bornes, palier } from "./mod-geo.js";
 import { forme_d, forme_params_valider } from "./mod-formes.js";
+import { effets_valider, filtre_svg, MODES_FUSION, motif_valider, motif_svg, conique_svg } from "./mod-effets.js";
 
 const escAttr = (v) => String(v)
   .replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
@@ -96,8 +97,43 @@ function _validerObjets(objs, ou) {
         throw new Error(`tuile ${o.id}: hauteur_mm ≥ 0`);
       }
     }
-    if (o.type === "groupe") _validerObjets(o.enfants || [], ou);
+    if (o.type === "groupe") {
+      _validerObjets(o.enfants || [], ou);
+      if (o.clip !== undefined && !(o.enfants || []).some((e) => e.id === o.clip)) {
+        throw new Error(`groupe ${o.id}: clip doit désigner un enfant`);
+      }
+    }
+    if (o.style) _validerStyleAvance(o.style, `${o.type} ${o.id}`);
   }
+}
+
+/* ── lot F : l'apparence avancée d'un style — effets (liste ordonnée),
+   fusion (16 modes SVG), contours multiples, masque de transparence
+   (« grad:<id> ») ; couleurs « glob:<nom> » résolues à la compilation. */
+const _NOM_GLOBAL = /^[A-Za-z0-9_-]+$/;
+const _HEX6 = /^#[0-9A-Fa-f]{6}$/;
+function _validerStyleAvance(s, ou) {
+  if (s.effets !== undefined) { try { effets_valider(s.effets); } catch (e) { throw new Error(`${ou}: ${e.message}`); } }
+  if (s.fusion !== undefined && !MODES_FUSION.includes(s.fusion)) throw new Error(`${ou}: mode de fusion inconnu ${s.fusion}`);
+  if (s.contours !== undefined) {
+    if (!Array.isArray(s.contours)) throw new Error(`${ou}: contours = liste`);
+    for (const c of s.contours) {
+      if (!c || !(c.epaisseur > 0)) throw new Error(`${ou}: contour {couleur, epaisseur > 0}`);
+      if (!(_HEX6.test(String(c.couleur)) || /^glob:/.test(String(c.couleur)))) throw new Error(`${ou}: couleur de contour invalide`);
+    }
+  }
+  if (s.masque !== undefined && !/^grad:.+/.test(String(s.masque))) throw new Error(`${ou}: masque = grad:<id>`);
+}
+function _validerRefsMasques(doc) {
+  const degs = doc.degrades || {};
+  const visiter = (objs) => {
+    for (const o of objs || []) {
+      const m = o.style && o.style.masque;
+      if (m && !degs[m.slice(5)]) throw new Error(`${o.id}: masque ${m} inconnu`);
+      if (o.type === "groupe") visiter(o.enfants);
+    }
+  };
+  for (const c of doc.calques) visiter(c.objets);
 }
 
 export function parserDoc(doc) {
@@ -143,18 +179,42 @@ export function parserDoc(doc) {
   }
   if (doc.geo !== undefined) _validerGeo(doc.geo);
   if (doc.pixelart !== undefined) _validerPixelart(doc.pixelart);
+  // lot F : motifs, couleurs globales, masques de transparence
+  if (doc.motifs !== undefined) {
+    if (!doc.motifs || typeof doc.motifs !== "object" || Array.isArray(doc.motifs)) throw new Error("document: motifs = {id: motif}");
+    for (const [id, m] of Object.entries(doc.motifs)) { try { motif_valider(m); } catch (e) { throw new Error(`motif ${id}: ${e.message}`); } }
+  }
+  if (doc.couleursGlobales !== undefined) {
+    if (!doc.couleursGlobales || typeof doc.couleursGlobales !== "object" || Array.isArray(doc.couleursGlobales)) throw new Error("document: couleursGlobales = {nom: hex}");
+    for (const [n, h] of Object.entries(doc.couleursGlobales)) {
+      if (!_NOM_GLOBAL.test(n) || !_HEX6.test(String(h))) throw new Error(`couleur globale ${n}: nom [A-Za-z0-9_-] et #RRGGBB`);
+    }
+  }
+  _validerRefsMasques(doc);
   return doc;
 }
 
+// lot F : « glob:<nom> » → hex de doc.couleursGlobales (repli none)
+function _couleur(v, ctx) {
+  if (typeof v === "string" && v.startsWith("glob:")) {
+    const h = ctx.globales && ctx.globales[v.slice(5)];
+    return h || "none";
+  }
+  return v;
+}
 function styleAttrs(s = {}, ctx = {}) {
-  let fond = s.fond === undefined ? "none" : s.fond;
+  let fond = s.fond === undefined ? "none" : _couleur(s.fond, ctx);
   if (typeof fond === "string" && fond.startsWith("grad:")) {
     const gid = fond.slice(5);
     fond = (ctx.degrades && ctx.degrades[gid]) ? `url(#${gid})` : "none";
+  } else if (typeof fond === "string" && fond.startsWith("motif:")) {
+    const mid = fond.slice(6);
+    fond = (ctx.motifs && ctx.motifs[mid]) ? `url(#${mid})` : "none";
   }
   let out = ` fill="${escAttr(fond)}"`;
-  if (s.contour && s.contour !== "none") {
-    out += ` stroke="${escAttr(s.contour)}"`
+  const contour = _couleur(s.contour, ctx);
+  if (contour && contour !== "none") {
+    out += ` stroke="${escAttr(contour)}"`
         + ` stroke-width="${Number(s.epaisseur || 1)}"`
         + ` stroke-linejoin="${escAttr(s.joint || "round")}"`
         + ` stroke-linecap="round"`;
@@ -164,11 +224,35 @@ function styleAttrs(s = {}, ctx = {}) {
     out += ` opacity="${Number(s.opacite)}"`;
   }
   if (s.regle) out += ` fill-rule="${escAttr(s.regle)}"`;
+  if (s.fusion && s.fusion !== "normal") out += ` style="mix-blend-mode:${escAttr(s.fusion)}"`;
+  if (s.masque && ctx.degrades && ctx.degrades[s.masque.slice(5)]) out += ` mask="url(#m_${escAttr(s.masque.slice(5))})"`;
   return out;
+}
+const _CLES_AVANCEES = ["effets", "fusion", "contours", "masque"];
+function _styleNu(s) {
+  const o = { ...(s || {}) };
+  for (const k of _CLES_AVANCEES) delete o[k];
+  return o;
 }
 
 function compilerObjet(o, ctx = {}) {
-  const t = ` data-objet="${escAttr(o.id)}"`;
+  const s0 = o.style || {};
+  // lot F : effets et contours multiples enveloppent l'objet dans <g data-objet>
+  // (patron de l'image) ; les copies sont émises SANS id — un seul élément
+  // porte l'id, le hit-testing du cœur reste inchangé
+  if (!ctx.sansId && o.type !== "groupe" && o.type !== "image" && ((s0.effets && s0.effets.length) || (s0.contours && s0.contours.length))) {
+    const enfantCtx = { ...ctx, sansId: true };
+    const nu = { ...o, style: _styleNu(s0) };
+    const copies = (s0.contours || []).slice().sort((a, b) => b.epaisseur - a.epaisseur).map((c, i) =>
+      compilerObjet({ ...o, style: { fond: "none", contour: c.couleur, epaisseur: c.epaisseur, pointilles: c.pointilles, opacite: c.opacite, joint: s0.joint } }, enfantCtx)
+        .replace(/^<(\w+) /, `<$1 data-contour="${i}" `));
+    const filtre = s0.effets && s0.effets.length ? ` filter="url(#fx_${escAttr(o.id)})"` : "";
+    const fusion = s0.fusion && s0.fusion !== "normal" ? ` style="mix-blend-mode:${escAttr(s0.fusion)}"` : "";
+    const masque = s0.masque && ctx.degrades && ctx.degrades[s0.masque.slice(5)] ? ` mask="url(#m_${escAttr(s0.masque.slice(5))})"` : "";
+    const corps = compilerObjet(nu, enfantCtx);
+    return `<g data-objet="${escAttr(o.id)}"${filtre}${fusion}${masque}>` + copies.join("") + corps + `</g>`;
+  }
+  const t = ctx.sansId ? "" : ` data-objet="${escAttr(o.id)}"`;
   const tr = o.transform ? ` transform="${escAttr(o.transform)}"` : "";
   const st = styleAttrs(o.style, ctx);
   switch (o.type) {
@@ -191,10 +275,14 @@ function compilerObjet(o, ctx = {}) {
       if (s.interlettrage) attrs += ` letter-spacing="${Number(s.interlettrage)}"`;
       return `<text${t}${attrs}${st}${tr}>${escTexte(o.contenu || "")}</text>`;
     }
-    case "groupe":
-      return `<g${t}${st}${tr}>`
+    case "groupe": {
+      // lot F : un groupe écrêté porte clip-path (la géométrie du conteneur est dans les defs)
+      const clip = o.clip ? ` clip-path="url(#clip_${escAttr(o.id)})"` : "";
+      const fx = s0.effets && s0.effets.length ? ` filter="url(#fx_${escAttr(o.id)})"` : "";
+      return `<g${t}${clip}${fx}${st}${tr}>`
            + (o.enfants || []).map((e) => compilerObjet(e, ctx)).join("")
            + `</g>`;
+    }
     case "forme":
       // lot B (D2) : le d se RECALCULE à chaque compilation depuis les paramètres
       return `<path${t} data-forme="${escAttr(o.forme)}" d="${forme_d(o)}"${st}${tr}/>`;
@@ -370,6 +458,8 @@ function _decalerObjet(o, dx, dy) {
 function _gradIdsDe(objet, out) {
   const f = objet && objet.style && objet.style.fond;
   if (typeof f === "string" && f.startsWith("grad:")) out.add(f.slice(5));
+  const m = objet && objet.style && objet.style.masque;
+  if (typeof m === "string" && m.startsWith("grad:")) out.add(m.slice(5));   // lot F : le masque suit aussi
   if (objet && objet.type === "groupe") {
     (objet.enfants || []).forEach((e) => _gradIdsDe(e, out));
   }
@@ -765,7 +855,7 @@ export function op_ordre(doc, ids, mode) {
    compilation émet <defs> (stops triés par t) et retombe sur "none" si le
    dégradé manque — un document ne casse jamais. */
 
-const _TYPES_DEGRADE = new Set(["lineaire", "radial"]);
+const _TYPES_DEGRADE = new Set(["lineaire", "radial", "conique"]);
 
 function _degrades(doc) {
   if (!doc.degrades) doc.degrades = {};
@@ -794,16 +884,115 @@ export function op_degrade_creer(doc, spec) {
     g.x2 = +(spec.x2 ?? 1); g.y2 = +(spec.y2 ?? 0);
   } else {
     g.cx = +(spec.cx ?? 0); g.cy = +(spec.cy ?? 0); g.r = +(spec.r ?? 1);
+    if (spec.type === "conique") {
+      if (!(g.r > 0)) throw new Error("degrade conique: rayon > 0");
+      g.angle = +(spec.angle ?? 0);
+    }
   }
   degs[id] = g;
   return id;
 }
 
+// lot F : dégradé de TRANSPARENCE = un masque de luminance blanc → noir
+// posé sur la bbox de la sélection ; le style référence « grad:<id> »
+export function op_degrade_transparence(doc, ids, bbox) {
+  if (!bbox || !(bbox.w > 0) || !(bbox.h > 0)) throw new Error("transparence : bbox requise");
+  const id = op_degrade_creer(doc, { type: "lineaire", x1: bbox.x, y1: bbox.y + bbox.h / 2, x2: bbox.x + bbox.w, y2: bbox.y + bbox.h / 2,
+    stops: [{ t: 0, couleur: "#FFFFFF" }, { t: 1, couleur: "#000000" }] });
+  let n = 0;
+  for (const { objet } of _objetsCibles(doc, ids)) { objet.style = { ...(objet.style || {}), masque: `grad:${id}` }; n++; }
+  if (!n) { delete doc.degrades[id]; throw new Error("transparence : rien à masquer"); }
+  return id;
+}
+
 export function op_degrade_modifier(doc, id, patch) {
   const g = _degrade(doc, id);
-  for (const k of ["x1", "y1", "x2", "y2", "cx", "cy", "r"]) {
+  for (const k of ["x1", "y1", "x2", "y2", "cx", "cy", "r", "angle"]) {
     if (patch && k in patch) g[k] = +patch[k];
   }
+}
+
+/* ── lot F : motifs (doc.motifs), couleurs globales, écrêtage ── */
+function _visiterObjets(doc, fn) {
+  const visiter = (objs) => { for (const o of objs || []) { fn(o); if (o.type === "groupe") visiter(o.enfants); } };
+  for (const c of doc.calques) visiter(c.objets);
+}
+export function op_motif_creer(doc, spec) {
+  motif_valider(spec);
+  if (!doc.motifs) doc.motifs = {};
+  let n = 1;
+  while (("m" + n) in doc.motifs) n++;
+  doc.motifs["m" + n] = { ...spec };
+  return "m" + n;
+}
+export function op_motif_modifier(doc, id, patch) {
+  if (!doc.motifs || !doc.motifs[id]) throw new Error(`motif inconnu: ${id}`);
+  const m = { ...doc.motifs[id], ...(patch || {}) };
+  motif_valider(m);
+  doc.motifs[id] = m;
+}
+export function op_motif_supprimer(doc, id) {
+  if (!doc.motifs || !doc.motifs[id]) throw new Error(`motif inconnu: ${id}`);
+  delete doc.motifs[id];
+  _visiterObjets(doc, (o) => { if (o.style && o.style.fond === `motif:${id}`) o.style.fond = "none"; });
+}
+export function op_couleur_globale_definir(doc, nom, hex) {
+  if (!_NOM_GLOBAL.test(String(nom || ""))) throw new Error("couleur globale : nom [A-Za-z0-9_-] requis");
+  if (!_HEX6.test(String(hex || ""))) throw new Error("couleur globale : #RRGGBB requis");
+  if (!doc.couleursGlobales) doc.couleursGlobales = {};
+  doc.couleursGlobales[nom] = String(hex).toUpperCase();
+}
+// supprimer RÉSOUT chaque référence en hex : jamais de référence pendante
+export function op_couleur_globale_supprimer(doc, nom) {
+  if (!doc.couleursGlobales || !doc.couleursGlobales[nom]) throw new Error(`couleur globale inconnue: ${nom}`);
+  const hex = doc.couleursGlobales[nom], ref = `glob:${nom}`;
+  const res = (v) => (v === ref ? hex : v);
+  _visiterObjets(doc, (o) => {
+    if (!o.style) return;
+    if (o.style.fond !== undefined) o.style.fond = res(o.style.fond);
+    if (o.style.contour !== undefined) o.style.contour = res(o.style.contour);
+    for (const c of o.style.contours || []) c.couleur = res(c.couleur);
+  });
+  for (const g of Object.values(doc.degrades || {})) for (const st of g.stops || []) st.couleur = res(st.couleur);
+  for (const m of Object.values(doc.motifs || {})) { m.couleur = res(m.couleur); if (m.fond) m.fond = res(m.fond); }
+  delete doc.couleursGlobales[nom];
+  if (!Object.keys(doc.couleursGlobales).length) delete doc.couleursGlobales;
+}
+// écrêtage vectoriel (« coller dans ») : un groupe {clip} dont le premier
+// enfant est le conteneur ; les contenus sont rognés par sa géométrie
+export function op_ecreter(doc, idConteneur, ids) {
+  if (!Array.isArray(ids) || !ids.length) throw new Error("écrêter : rien à rogner");
+  const voulu = new Set(ids);
+  let hote = null, conteneur = null;
+  const contenus = [];
+  for (const c of doc.calques) {
+    if (c.verrou) continue;
+    for (const o of c.objets) {
+      if (o.id === idConteneur) { hote = c; conteneur = o; }
+      else if (voulu.has(o.id)) contenus.push({ calque: c, objet: o });
+    }
+  }
+  if (!conteneur) throw new Error(`écrêter : conteneur introuvable ${idConteneur}`);
+  if (!contenus.length) throw new Error("écrêter : contenus introuvables");
+  for (const { calque, objet } of contenus) calque.objets.splice(calque.objets.indexOf(objet), 1);
+  const iC = hote.objets.indexOf(conteneur);
+  hote.objets.splice(iC, 1);
+  const id = _idLibre(doc);
+  hote.objets.splice(iC, 0, { id, type: "groupe", clip: idConteneur, style: {}, enfants: [conteneur, ...contenus.map((t) => t.objet)] });
+  return id;
+}
+export function op_desecreter(doc, id) {
+  for (const c of doc.calques) {
+    if (c.verrou) continue;
+    const i = c.objets.findIndex((o) => o.id === id);
+    if (i >= 0) {
+      const g = c.objets[i];
+      if (g.type !== "groupe" || !g.clip) throw new Error(`${id}: pas un groupe écrêté`);
+      c.objets.splice(i, 1, ...g.enfants);
+      return g.enfants.map((e) => e.id);
+    }
+  }
+  throw new Error(`groupe écrêté introuvable: ${id}`);
 }
 
 export function op_degrade_stop_ajouter(doc, id, stop) {
@@ -1601,27 +1790,48 @@ export function formule(valeur, texte) {
 }
 
 
-function _defs(doc) {
-  const refs = [];
-  const vus = new Set();
+function _defs(doc, ctx = {}) {
+  const refs = [], motifs = [], masques = [], filtres = [], clips = [];
+  const vus = new Set(), vusM = new Set(), vusK = new Set();
   const visiter = (objs) => {
     for (const o of objs) {
-      const f = o.style && o.style.fond;
+      const s = o.style || {};
+      const f = s.fond;
       if (typeof f === "string" && f.startsWith("grad:")) {
         const gid = f.slice(5);
         if (!vus.has(gid)) { vus.add(gid); refs.push(gid); }
       }
-      if (o.type === "groupe") visiter(o.enfants || []);
+      if (typeof f === "string" && f.startsWith("motif:")) {
+        const mid = f.slice(6);
+        if (!vusM.has(mid)) { vusM.add(mid); motifs.push(mid); }
+      }
+      if (typeof s.masque === "string") {
+        const gid = s.masque.slice(5);
+        if (!vus.has(gid)) { vus.add(gid); refs.push(gid); }
+        if (!vusK.has(gid)) { vusK.add(gid); masques.push(gid); }
+      }
+      if (s.effets && s.effets.length) filtres.push(filtre_svg(`fx_${o.id}`, s.effets));
+      if (o.type === "groupe") {
+        if (o.clip) {
+          const conteneur = (o.enfants || []).find((e) => e.id === o.clip);
+          if (conteneur) clips.push(`<clipPath id="clip_${escAttr(o.id)}">` + compilerObjet({ ...conteneur, style: {} }, { ...ctx, sansId: true }) + `</clipPath>`);
+        }
+        visiter(o.enfants || []);
+      }
     }
   };
   for (const c of doc.calques) visiter(c.objets);
-  const degs = doc.degrades || {};
+  const degs = doc.degrades || {}, mots = doc.motifs || {};
   const morceaux = [];
   for (const id of refs) {
     const g = degs[id];
     if (!g) continue;                 // référence orpheline: le repli "none"
+    if (g.type === "conique") {       // lot F : secteurs interpolés en <pattern>
+      morceaux.push(conique_svg(id, { ...g, stops: g.stops.map((s) => ({ ...s, couleur: _couleur(s.couleur, ctx) })) }));
+      continue;
+    }
     const stops = [...g.stops].sort((a, b) => a.t - b.t).map((s) =>
-      `<stop offset="${+s.t}" stop-color="${escAttr(s.couleur)}"`
+      `<stop offset="${+s.t}" stop-color="${escAttr(_couleur(s.couleur, ctx))}"`
       + ((s.opacite !== undefined && +s.opacite !== 1)
          ? ` stop-opacity="${+s.opacite}"` : "") + `/>`).join("");
     morceaux.push(g.type === "lineaire"
@@ -1632,12 +1842,21 @@ function _defs(doc) {
         + ` cx="${+g.cx}" cy="${+g.cy}" r="${+g.r}">`
         + stops + `</radialGradient>`);
   }
+  // le masque de transparence : un rect plein-page peint par le dégradé (luminance)
+  const { w, h } = doc.taille;
+  for (const id of masques) {
+    if (!degs[id]) continue;
+    morceaux.push(`<mask id="m_${escAttr(id)}"><rect x="0" y="0" width="${+w}" height="${+h}" fill="url(#${escAttr(id)})"/></mask>`);
+  }
+  for (const id of motifs) if (mots[id]) morceaux.push(motif_svg(id, { ...mots[id], couleur: _couleur(mots[id].couleur, ctx), fond: mots[id].fond ? _couleur(mots[id].fond, ctx) : undefined }));
+  morceaux.push(...filtres, ...clips);
   return morceaux.length ? `<defs>${morceaux.join("")}</defs>` : "";
 }
 
 export function compilerSVG(doc, opts = {}) {
   parserDoc(doc);
-  const ctx = { degrades: doc.degrades || {}, image: opts.image,
+  const ctx = { degrades: doc.degrades || {}, image: opts.image, motifs: doc.motifs || {},
+                globales: doc.couleursGlobales || {},
                 grille: _grilleHex(doc), terrains: terrains_de(doc) };
   const w = +doc.taille.w, h = +doc.taille.h;
   // lot C : un cadre (planche) devient le viewBox — le fond reste celui de
@@ -1659,5 +1878,5 @@ export function compilerSVG(doc, opts = {}) {
   return `<svg xmlns="http://www.w3.org/2000/svg"`
        + ` viewBox="${+cadre.x} ${+cadre.y} ${+cadre.w} ${+cadre.h}"`
        + ` width="${+cadre.w}" height="${+cadre.h}">`
-       + _defs(doc) + fond + calques + `</svg>`;
+       + _defs(doc, ctx) + fond + calques + `</svg>`;
 }
