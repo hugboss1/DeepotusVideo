@@ -4,6 +4,40 @@
 > (exécution inline, TDD strict : RED constaté au banc avant le module pur).
 > Conception : `…-relooking-design.md` (R-D2 Histogramme ajouté, R-D9 audit final) ; « Reste » des relevés R1→R5.
 
+> **RELEVÉ DE LIVRAISON (18/09/2026) : LIVRÉ, PROUVÉ EN RÉEL, DÉPLOYÉ (statiques seuls : aucune relance) — LE RELOOKING R1→R6 EST COMPLET.**
+>
+> **Livré** (commits `db68ed1`, `5716f97`, poussés) : `mod-histogramme.js`
+> (quatre canaux de 256, pixels transparents ignorés, luminance Rec. 601,
+> moyenne / écart-type / médiane, `histogramme_chemins` normalisés au
+> maximum ; RED constaté, 6 contrôles — le banc a d'abord démasqué un pin
+> faux du test lui-même : le pic est à 255, pas à 0) ; `mod-statut.verbes_gras`
+> extrait (banc statut 10) et appliqué par `mod-infobulle` aux lignes de
+> suite des bulles ; onglet **Histogramme** en tête du groupe 1 de Pixel
+> (banc onglets : 2 / 4 / 4), `mod-pile.rendreHistogramme` sur
+> `etat.px.tampon` (svg 256 × 100, R / V / B / L en `screen`, note sans
+> pixels) ; `core.js` : `text.page-nom` = nom du document au-dessus de la
+> page quand il n'y a pas de planche ; nuancier en place compacté (SV 96
+> px) ; CSS R6.
+>
+> **Prouvé en réel** (8799, 1400 × 900) : `text.page-nom` = « preuve-r1 » ;
+> Pixel → onglets 2 / 4 / 4, Histogramme vide → la note ; PNG 8 × 8 RÉEL
+> (canvas → `toBlob`, 149 octets en python) posé par `VL.poserBlob` (objet
+> `o1`), « Éditer les pixels » → tampon 8 × 8 → histogramme 4 `path`,
+> « Moyenne 114 · Écart-type 48,26 · Médiane 110 · Pixels 64 » ; bulle de
+> la Plume : tête « Plume Bézier », suite « clic = ancre, **Glisser** =
+> poignées… » avec `<b>` ; audit final des deux personas : 0 rangée qui
+> déborde, 0 champ < 22 px, 0 onglet tronqué, bandes 32 / 42 / 32 / 26 / 22.
+>
+> **Déployé** : installé = base R5 `d0b351d` (139, 0 divergent) →
+> sauvegarde `_backup_predeploy_2026-09-18-relooking-r6` → 141/141 = cible.
+>
+> **Reste (assumé, hors périmètre du relooking)** : « clic » n'est pas un
+> verbe gras (seul « cliquer » l'est) ; l'Histogramme ne lit que les pixels
+> chargés par « Éditer les pixels » (pas l'image sélectionnée sans édition)
+> ; le nom du document se pose seulement sans planche (les planches
+> gardent leurs propres noms) ; Mise en page, IA Canva, Canaux, dock
+> déplaçable restent hors périmètre (R-D2).
+
 **Goal :** les derniers écarts relevés pendant l'exploration d'Affinity
 sont comblés — panneau **Histogramme** du persona Pixel (canaux RVB + L
 sur fond noir, moyenne / écart-type / médiane / pixels), bulles d'outil
