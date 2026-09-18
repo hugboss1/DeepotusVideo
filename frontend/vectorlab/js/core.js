@@ -24,6 +24,7 @@ import { initBarreOutils } from "./mod-barreoutils.js";
 import { initPixelUI } from "./mod-pixelui.js";
 import { initCharpente } from "./mod-charpente.js";
 import { initPile } from "./mod-pile.js";
+import { initBarreContexte } from "./mod-barrecontexte.js";
 import { op_noeud_supprimer } from "./mod-doc.js";
 import { UNITES, depuisUnite, formatNombre, libelle_mesure }
   from "./mod-unites.js";
@@ -760,5 +761,6 @@ initInfobulle(VL);  // bulles d'information stylées, centrées, bornées (rempl
 initPanneaux(VL);   // sections du panneau de droite : état ouvert / replié mémorisé (dz_vl_panneaux)
 initCharpente(VL);  // relooking Affinity : barre de menus, onglet de document, barre d'état, cotes — en dernier (lit VL.hints, VL.actions)
 initPile(VL);       // relooking Affinity : la pile de droite à onglets — après tous les rendus (redistribue les rangées d'Apparence)
+initBarreContexte(VL); // relooking Affinity : la barre contextuelle par outil, Configuration du document, Paramètres de l'appli
 window.VL = VL;
 charger();
