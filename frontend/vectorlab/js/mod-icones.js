@@ -1,0 +1,44 @@
+// mod-icones.js — le sprite d'icônes fines d'Affinity : un fragment SVG
+// par outil (viewBox 24, trait 1,5 currentColor, sans remplissage), posé
+// par `icone_svg`. Feuille pure ; l'inconnu reçoit un repli visible (carré
+// pointillé) plutôt qu'une exception — la preuve le démasque au banc.
+export const ICONES = {
+  select: '<path d="M6 4l11 8-4.6 1 2.8 5.2-2.2 1.2-2.8-5.2L6 17.5z"/>',
+  plume: '<path d="M4 20l4-4"/><path d="M8 16l8.5-8.5a2 2 0 0 1 2.8 0l-.3-.3a2 2 0 0 1 0 2.8L10.5 18.5 6 20z"/><path d="M14 8l2.5 2.5"/>',
+  crayon: '<path d="M4 20c2-7 6-12 14-15"/><path d="M15 6l3 3"/><path d="M4 20l1.5-4.5"/>',
+  pinceauv: '<path d="M4 20c1-5 4-8 9-11"/><path d="M13 9l3-3a1.6 1.6 0 0 1 2.3 2.3l-3 3z"/><path d="M6.5 20a3 3 0 0 0 3-3.5"/>',
+  rect: '<rect x="4" y="6" width="16" height="12" rx="1"/>',
+  ellipse: '<ellipse cx="12" cy="12" rx="8.5" ry="6.5"/>',
+  ligne: '<path d="M5 19L19 5"/><circle cx="5" cy="19" r="1.4"/><circle cx="19" cy="5" r="1.4"/>',
+  forme: '<path d="M12 3.5l2.4 5.6 6.1.5-4.6 4 1.4 6-5.3-3.2-5.3 3.2 1.4-6-4.6-4 6.1-.5z"/>',
+  noeuds: '<path d="M5 18c2-8 6-12 14-13"/><rect x="3.5" y="16.5" width="3" height="3"/><rect x="17.5" y="3.5" width="3" height="3"/><circle cx="11" cy="9" r="1.5"/><path d="M11 9l4.5-1.8"/>',
+  coin: '<path d="M4 20V10a6 6 0 0 1 6-6h10"/><path d="M4 12h2M10 4v2" stroke-dasharray="2 2"/>',
+  mesure: '<path d="M4 18L18 4"/><path d="M4 18l2 2M18 4l2 2"/><path d="M8 14l1.5 1.5M11 11l1.5 1.5M14 8l1.5 1.5"/>',
+  pipette: '<path d="M5 19l7.5-7.5"/><path d="M12 8.5l3.5 3.5"/><path d="M14 6.5l3.5-3.5a1.8 1.8 0 0 1 2.5 2.5L16.5 9"/><path d="M4 20l1.5-1.5"/>',
+  texte: '<path d="M5 6h14"/><path d="M12 6v13"/><path d="M9 19h6"/>',
+  couteau: '<path d="M4 20L15 9"/><path d="M13 5l6 6-3 3-6-6z"/>',
+  gomme: '<path d="M4 16l8-8 6 6-6 6H8z"/><path d="M8 20h12"/><path d="M9 11l5 5"/>',
+  constructeur: '<circle cx="9.5" cy="12" r="5.5"/><circle cx="14.5" cy="12" r="5.5"/><path d="M12 7.5v9" stroke-dasharray="2 2"/>',
+  tuiles: '<path d="M12 3l7.5 4.3v8.6L12 20.2 4.5 15.9V7.3z"/><path d="M12 3v8.6l7.5 4.3M12 11.6L4.5 15.9"/>',
+  ia: '<path d="M12 3l2 5.5L19.5 10.5 14 12.5 12 18l-2-5.5L4.5 10.5 10 8.5z"/><path d="M18.5 3.5v3M17 5h3"/>',
+  image: '<rect x="3.5" y="5" width="17" height="14" rx="1.5"/><circle cx="9" cy="10" r="1.8"/><path d="M4.5 18l5-5 3.5 3.5 3-3 4 4"/>',
+  apparence: '<circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17c-2 0-2-2-1-3s0-3-2-3-3-2-2-3 3-1 3-3-1-3 2-5z"/><circle cx="14.5" cy="8.5" r="1"/><circle cx="16.5" cy="12.5" r="1"/>',
+  symbole: '<rect x="4" y="4" width="9" height="9" rx="1"/><rect x="11" y="11" width="9" height="9" rx="1"/><path d="M8.5 13v-2h2"/>',
+  tranche: '<rect x="4" y="4" width="16" height="16" rx="1" stroke-dasharray="3 2"/><path d="M4 9h16M4 15h16M9 4v16M15 4v16"/>',
+  "px-pinceau": '<path d="M5 19c0-3 2-4 4-4l8-9a2 2 0 0 1 2.8 2.8l-9 8c0 2-1 4-4 4a2 2 0 0 1-1.8-1.8z"/><path d="M9 15l1.5 1.5"/>',
+  "px-gomme": '<path d="M4 16l8-8 6 6-6 6H8z"/><path d="M8 20h12"/>',
+  "px-seau": '<path d="M5 11l7-7 7 7-7 7z"/><path d="M12 4v3"/><path d="M19.5 14c0 1.5-1.2 2.5-1.2 3.5a1.2 1.2 0 0 0 2.4 0c0-1-1.2-2-1.2-3.5z"/>',
+  "px-crayon": '<path d="M5 19l1-4 10-10 3 3-10 10z"/><path d="M14 7l3 3"/><path d="M5 19h3"/>',
+  "px-ligne": '<path d="M5 19L19 5"/><path d="M5 19h2v-2M19 5h-2v2"/>',
+  "px-rectpx": '<rect x="5" y="6" width="14" height="12"/><path d="M5 9h2M5 12h2M5 15h2M17 9h2M17 12h2M17 15h2" stroke-dasharray="1 1"/>',
+  "px-selrect": '<rect x="4.5" y="5.5" width="15" height="13" stroke-dasharray="3 2"/>',
+  "px-lasso": '<path d="M12 4c4.5 0 8 2.2 8 5s-3.5 5-8 5-8-2.2-8-5 3.5-5 8-5z" stroke-dasharray="3 2"/><path d="M7 13.5c-1 2-1 4 1 6"/><circle cx="8.5" cy="15.5" r="1.3"/>',
+  "px-baguette": '<path d="M4 20l9-9"/><path d="M13 11l2-2"/><path d="M16.5 3.5v2.5M16.5 9.5V12M13 6.5h2.5M19 6.5h2.5"/><path d="M14 4l1 1M19 9l1 1M14 9l1-1M19 4l1-1"/>',
+  "px-cloner": '<circle cx="11" cy="13" r="5"/><path d="M11 8V5a2 2 0 0 1 2-2h4"/><path d="M15 3l2 2-2 2"/>',
+};
+const REPLI = '<rect x="5" y="5" width="14" height="14" rx="2" stroke-dasharray="2 2"/>';
+export function icone_svg(id, taille = 18) {
+  const corps = ICONES[id] || REPLI;
+  return `<svg class="ic" viewBox="0 0 24 24" width="${taille}" height="${taille}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${corps}</svg>`;
+}
+export const outils_sans_icone = (liste) => (Array.isArray(liste) ? liste : []).filter((id) => !ICONES[id]);
