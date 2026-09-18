@@ -165,7 +165,7 @@ export function initStyle(VL) {
       <div class="ap-ligne"><span>Attribut</span>
         ${["fond", "contour", "type"].map((k) => `<button data-attr="${k}" ${sel === 1 ? "" : "disabled"} title="Sélectionner tous les objets de même ${k}">${k}</button>`).join("")}
       </div>
-      <div class="ap-ligne"><span>Contour</span>
+      <div class="ap-ligne"><span>Décaler</span>
         <input type="number" id="apDecal" step="any" value="5" title="Décalage en px : + vers le dehors, − vers le dedans"/>
         <button id="apDecaler" ${sel ? "" : "disabled"} title="Crée un chemin décalé (copie au-dessus de l'original)">décaler</button>
       </div>

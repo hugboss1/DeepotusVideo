@@ -322,8 +322,16 @@ export function initCouleur(VL) {
     if (hote) hote.classList.add("hidden");
   }
 
-  VL.ouvrirNuancier = (hexInitial, onChoix, ancre) => {
+  // R4 : le nuancier vit EN PLACE dans l'onglet Couleur quand cet hôte est
+  // visible (la pastille Fond y ouvre le nuancier) ; sinon popover près de l'ancre
+  VL.nuancierInline = (hoteInline) => { inline = hoteInline || null; };
+  let inline = null;
+  const enPlace = () => !!(inline && inline.offsetParent !== null);
+  VL.ouvrirNuancier = (hexInitial, onChoix, ancre, forcerInline) => {
     if (!hote) construire();
+    const dedans = forcerInline || (enPlace() && ancre && inline.parentElement && inline.parentElement.contains(ancre));
+    if (dedans) { if (hote.parentElement !== inline) inline.appendChild(hote); }
+    else if (hote.parentElement !== document.body) document.body.appendChild(hote);
     let rgb;
     try { rgb = hexVersRgb(hexInitial); }
     catch (e) { rgb = { r: 157, g: 180, b: 214 }; }
@@ -331,11 +339,13 @@ export function initCouleur(VL) {
     $("#nuAvant").style.background = rgbVersHex(rgb);
     hote.classList.remove("hidden");
     // près de l'ancre, borné à la fenêtre
-    const r = ancre && ancre.getBoundingClientRect
-      ? ancre.getBoundingClientRect() : { left: 60, bottom: 60 };
-    const w = hote.offsetWidth || 210, h = hote.offsetHeight || 380;
-    hote.style.left = Math.max(6, Math.min(window.innerWidth - w - 6, r.left)) + "px";
-    hote.style.top = Math.max(6, Math.min(window.innerHeight - h - 6, r.bottom + 6)) + "px";
+    if (!dedans) {
+      const r = ancre && ancre.getBoundingClientRect
+        ? ancre.getBoundingClientRect() : { left: 60, bottom: 60 };
+      const w = hote.offsetWidth || 210, h = hote.offsetHeight || 380;
+      hote.style.left = Math.max(6, Math.min(window.innerWidth - w - 6, r.left)) + "px";
+      hote.style.top = Math.max(6, Math.min(window.innerHeight - h - 6, r.bottom + 6)) + "px";
+    } else { hote.style.left = ""; hote.style.top = ""; }
     VL._synchroniserNuancier();
   };
 }

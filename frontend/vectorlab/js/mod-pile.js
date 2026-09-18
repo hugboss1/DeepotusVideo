@@ -145,5 +145,10 @@ export function initPile(VL) {
   VL.surSelection = () => { sSel(); redistribuer(); };
   VL.surVue = () => { sVue(); rendreNavigateur(); };
   VL.surPersona = () => { sPersona(); rendreOnglets(); };
+  // R4 : l'hôte du nuancier en place, sous les rangées Fond / Opacité de l'onglet Couleur
+  {
+    const st = $("#panneauStyle");
+    if (st && !$("#panneauCouleurInline")) { const h = document.createElement("div"); h.id = "panneauCouleurInline"; st.insertAdjacentElement("afterend", h); if (VL.nuancierInline) VL.nuancierInline(h); }
+  }
   rendreOnglets(); redistribuer(); rendreEchantillons();
 }
