@@ -4,6 +4,44 @@
 > (exécution inline, TDD strict : RED constaté au banc avant le module pur).
 > Conception : `…-relooking-design.md` (R-D8 thème, R-D2 canevas uni).
 
+> **RELEVÉ DE LIVRAISON (18/09/2026) : LIVRÉ, PROUVÉ EN RÉEL, DÉPLOYÉ (statiques seuls : aucune relance).**
+>
+> **Livré** (commit `249afed`, poussé) : `mod-theme.js` (11 jetons,
+> `theme_css()`, 42 hex hérités, `hex_herites` hors commentaires) et le
+> BANC-GARDE `qa/theme.test.mjs` qui lit `vectorlab.css` (RED constaté sur
+> le module puis sur les 108 occurrences héritées ; 7 contrôles) ;
+> `vectorlab.css` : remplacement contrôlé par table (barre / fond / champ /
+> bord / muet / texte / sel, `#5b82b8 → #4a90e2`), `#stage` uni
+> `var(--aff-canevas)` sans `linear-gradient`, bloc `:root` des jetons,
+> couche « R4 densité » (body 12 px, boutons 24 px sans bordure, champs
+> 24 px fond `--aff-champ` coins 3 px, curseurs piste 4 px / poignée 12 px
+> blanche cerclée, règles `--aff-barre`, dialogues / menus / bulles sur les
+> jetons, `--pan-champ-h` 24) ; `mod-couleur` : `VL.nuancierInline(hote)` et
+> `ouvrirNuancier(hex, cb, ancre, forcerInline)` posent le nuancier EN PLACE
+> quand l'ancre est dans l'onglet Couleur (sinon popover fixe) ; `mod-pile`
+> crée `#panneauCouleurInline` sous `#panneauStyle` ; `mod-style` : libellé
+> « Décaler ».
+>
+> **Prouvé en réel** (8799, 1400 × 900) : body rgb(43,43,43), `#stage`
+> rgb(38,38,38) sans image de fond, règle rgb(35,35,35) ; champ X de
+> Transformer 24 px, fond rgb(31,31,31), coins 3 px ; select fusion fond
+> rgb(31,31,31) ; pastille Fond de l'onglet Couleur → `#nuancier` descendant
+> de `#panneauCouleurInline`, `position: static`, 561 px visibles ; hex
+> #123456 + OK → `style.fond` de l'objet = #123457 (arrondi HSV du
+> nuancier, comportement antérieur) ; pastille de couleur globale
+> (Apparence) → popover `fixed` dans body ; Trait : Contour · Trait ·
+> Décaler ; audit des deux personas : 0 champ < 22 px, 0 rangée qui
+> déborde ; banc node tous verts.
+>
+> **Déployé** : installé = base R3 `7911db6` (134, 0 divergent) →
+> sauvegarde `_backup_predeploy_2026-09-18-relooking-r4` → 136/136 = cible.
+>
+> **Reste** : le nuancier fait 561 px en place (SV 188 × 132 + champs +
+> palettes) — à compacter en R6 si le groupe 1 est trop court ; les hex
+> hors LEGACY (accents #e0b34a, #39b3d0, #d0553a, #3aa66b, #ffd166) restent
+> volontairement ; le nuancier arrondit la couleur saisie en hex par son
+> aller-retour HSV (antérieur).
+
 **Goal :** tout le Vectorlab est dans les couleurs et la densité d'Affinity
 — gris anthracite #2b2b2b / #232323, canevas uni #262626 sans damier,
 texte #d0d0d0, sélection bleue, champs de 24 px, rangées de 28 px, texte
