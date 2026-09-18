@@ -207,10 +207,11 @@ export function initFlyout(VL) {
     rendre: () => { if (etat.doc) { VL.rendre(); } },
     ouvrirSection: (id) => { const d = $("#" + id); if (d) { d.open = true; d.scrollIntoView({ block: "start" }); } },
   };
-  function ouvrir(bouton, nom) {
+  function ouvrir(bouton, nom) { if (bouton && MENUS[nom]) ouvrirMenu(bouton, MENUS[nom](ctx)); }
+  // R2 : un menu déjà construit (les familles d'outils de mod-barreoutils passent ici)
+  function ouvrirMenu(bouton, menu) {
     if (ouvertPour === bouton) { fermer(); return; }
     fermer();
-    const menu = MENUS[nom](ctx);
     ouvertPour = bouton;
     hote.innerHTML = `<div class="fo-titre">${esc(menu.titre)}</div>` + menu.entrees.map((e, i) =>
       `<button class="fo-item${e.actif ? " actif" : ""}" data-i="${i}" ${e.desactive ? "disabled" : ""}${e.famille ? ` style="font-family:&quot;${esc(e.famille)}&quot;"` : ""}>`
@@ -236,15 +237,19 @@ export function initFlyout(VL) {
     b.addEventListener("click", (ev) => { ev.stopPropagation(); ouvrir(b, "symbole"); });
     $("#outils").appendChild(b);
   }
+  // R2 : le triangle / l'appui long ouvrent d'abord la FAMILLE (mod-barreoutils,
+  // VL.familleOuvrir rend false pour une famille d'un seul membre), sinon le
+  // menu de réglages ; le clic droit garde toujours le menu de réglages
+  const ouvrirAngle = (b) => { if (VL.familleOuvrir && VL.familleOuvrir(b)) return; if (b.dataset.menu) ouvrir(b, b.dataset.menu); };
   function armer(b) {
     if (b.dataset.arme) return;
-    b.dataset.arme = "1"; b.classList.add("a-menu");
-    b.addEventListener("contextmenu", (ev) => { ev.preventDefault(); ouvrir(b, b.dataset.menu); });
+    b.dataset.arme = "1"; if (b.dataset.menu) b.classList.add("a-menu");
+    b.addEventListener("contextmenu", (ev) => { ev.preventDefault(); if (b.dataset.menu) ouvrir(b, b.dataset.menu); });
     b.addEventListener("pointerdown", (ev) => {
       if (ev.button !== 0) return;
       const r = b.getBoundingClientRect();
-      if (ev.clientX > r.right - 12 && ev.clientY > r.bottom - 12) { ev.preventDefault(); ev.stopPropagation(); ouvrir(b, b.dataset.menu); b.dataset.angle = "1"; return; }
-      timerLong = setTimeout(() => { ouvrir(b, b.dataset.menu); b.dataset.angle = "1"; }, 400);
+      if (ev.clientX > r.right - 12 && ev.clientY > r.bottom - 12) { ev.preventDefault(); ev.stopPropagation(); ouvrirAngle(b); b.dataset.angle = "1"; return; }
+      timerLong = setTimeout(() => { ouvrirAngle(b); b.dataset.angle = "1"; }, 400);
     });
     b.addEventListener("pointerup", () => clearTimeout(timerLong));
     b.addEventListener("pointerleave", () => clearTimeout(timerLong));
@@ -257,5 +262,5 @@ export function initFlyout(VL) {
   }
   document.addEventListener("pointerdown", (ev) => { if (!hote.hidden && !hote.contains(ev.target) && !(ouvertPour && ouvertPour.contains(ev.target))) fermer(); }, true);
   document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && !hote.hidden) { fermer(); ev.stopImmediatePropagation(); } }, true);
-  VL.flyout = { ouvrir: (nom) => ouvrir($(`#outils [data-menu="${nom}"]`) || $(`#outils [data-outil="${nom}"]`), nom), fermer, element: hote, menus: Object.keys(MENUS).filter((k) => !k.startsWith("_")) };   // la preuve
+  VL.flyout = { ouvrir: (nom) => ouvrir($(`#outils [data-menu="${nom}"]`) || $(`#outils [data-outil="${nom}"]`), nom), ouvrirMenu, armer, fermer, element: hote, menus: Object.keys(MENUS).filter((k) => !k.startsWith("_")) };   // la preuve
 }

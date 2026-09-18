@@ -668,3 +668,16 @@ details[id] > summary.panneau-tete:hover { background: #1c2129; }
 .mode-biblio .cb, .mode-biblio .dt, .mode-biblio .sb, .mode-biblio .pb-cotes, .mode-biblio .pb-doc { display: none; }
 .racc-boite { width: min(620px, 92vw); } .racc-corps { overflow: auto; padding: 8px 14px; max-height: 70vh; font-size: 12px; }
 .racc-corps table { border-collapse: collapse; width: 100%; } .racc-corps td { padding: 3px 8px; border-bottom: 1px solid #2c323d; } .racc-corps kbd { background: #1b2028; border: 1px solid var(--aff-bord); border-radius: 3px; padding: 1px 6px; font: 11px Consolas, monospace; }
+
+/* ══ R2 colonne d'outils Affinity : boutons carrés 30 px au pas de 36,
+   icônes fines, un bouton par famille (membre courant), triangle d'angle ══ */
+.outils { width: 44px; flex: 0 0 44px; gap: 6px; padding: 8px 7px; background: var(--aff-fond); border-right: 1px solid var(--aff-bord); overflow-y: auto; overflow-x: hidden; scrollbar-width: none; }
+.outils button { width: 30px; height: 30px; min-width: 30px; border-radius: 4px; border: 0; background: transparent; color: #c8c8c8; padding: 0; font-size: 0; box-shadow: none; }
+.outils button:hover { background: #3a3a3a; color: #fff; }
+.outils button.actif { background: #3c3c3c; color: #fff; box-shadow: none; }
+.outils button .ic { width: 18px; height: 18px; display: block; margin: auto; }
+.outils button.outil-repli { display: none !important; }
+.outils button.a-famille, .outils button.a-menu { position: relative; }
+.outils button.a-famille::after, .outils button.a-menu::after { content: ""; position: absolute; right: 2px; bottom: 2px; border: 3px solid transparent; border-right-color: #8a8a8a; border-bottom-color: #8a8a8a; }
+.outils .outil-pixel { font-size: 0; }
+#flyout .fo-item small { min-width: 14px; text-align: right; color: var(--aff-muet); }
