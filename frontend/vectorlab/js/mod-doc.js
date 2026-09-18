@@ -165,6 +165,8 @@ export function parserDoc(doc) {
   for (const c of doc.calques) {
     if (!c.id) throw new Error("calque sans id");
     if (!Array.isArray(c.objets)) throw new Error(`calque ${c.id}: objets[] requis`);
+    // relooking Affinity (R3) : mode de fusion de CALQUE optionnel (16 modes SVG)
+    if (c.fusion !== undefined && !MODES_FUSION.includes(c.fusion)) throw new Error(`calque ${c.id}: mode de fusion inconnu ${c.fusion}`);
   }
   for (const c of doc.calques) _validerObjets(c.objets, c.id);
   // éditeur complet (E1) : deux champs OPTIONNELS rétro-compatibles —
@@ -837,6 +839,14 @@ export function op_style(doc, ids, patch) {
 
 export function op_calque_opacite(doc, id, opacite) {
   _calque(doc, id).opacite = Math.max(0, Math.min(1, Number(opacite)));
+}
+/* relooking Affinity (R3) : le mode de fusion de CALQUE — la tête du panneau
+   Calques (« Normal ▾ ») ; `normal` RETIRE le champ (absent = normal) */
+export const MODES_FUSION_CALQUE = MODES_FUSION;
+export function op_calque_fusion(doc, id, mode) {
+  if (!MODES_FUSION.includes(mode)) throw new Error(`mode de fusion inconnu: ${mode}`);
+  const c = _calque(doc, id);
+  if (mode === "normal") delete c.fusion; else c.fusion = mode;
 }
 
 
@@ -2092,7 +2102,10 @@ export function compilerSVG(doc, opts = {}) {
       + ` fill="${escAttr(doc.fond)}" data-fond="1"/>`
     : "";
   const calques = doc.calques.map((c) => {
-    const cache = c.visible === false ? ` style="display:none"` : "";
+    const styles = [];
+    if (c.visible === false) styles.push("display:none");
+    if (c.fusion && c.fusion !== "normal") styles.push(`mix-blend-mode:${escAttr(c.fusion)}`);
+    const cache = styles.length ? ` style="${styles.join(";")}"` : "";
     const op = (c.opacite !== undefined && Number(c.opacite) !== 1)
       ? ` opacity="${Number(c.opacite)}"` : "";
     return `<g data-calque="${escAttr(c.id)}"`

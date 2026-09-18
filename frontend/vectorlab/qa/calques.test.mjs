@@ -1,7 +1,8 @@
 // calques.test.mjs — opérations de calques (T1.4) : ajouter, renommer,
 // réordonner, visibilité, verrou, supprimer (jamais le dernier).
 import { op_calque_ajouter, op_calque_renommer, op_calque_reordonner,
-         op_calque_visible, op_calque_verrou, op_calque_supprimer }
+         op_calque_visible, op_calque_verrou, op_calque_supprimer,
+         op_calque_fusion, MODES_FUSION_CALQUE, compilerSVG, parserDoc }
   from "../js/mod-doc.js";
 
 const echecs = [];
@@ -65,8 +66,22 @@ const ids = (d) => d.calques.map((c) => c.id).join(",");
   ok("calque inconnu → refus", refus === 2, String(refus));
 }
 
+/* ── relooking Affinity (R3) : le mode de fusion de CALQUE ── */
+{
+  const doc = banc();
+  op_calque_fusion(doc, "c1", "multiply");
+  ok("fusion : posée, compilée en mix-blend-mode sur le <g data-calque>", doc.calques[0].fusion === "multiply" && /data-calque="c1"[^>]*style="[^"]*mix-blend-mode:multiply/.test(compilerSVG(doc)), compilerSVG(doc).slice(0, 300));
+  op_calque_visible(doc, "c1", false);
+  ok("caché ET fusionné : les deux dans le même style", /data-calque="c1"[^>]*style="[^"]*display:none[^"]*mix-blend-mode:multiply|data-calque="c1"[^>]*style="[^"]*mix-blend-mode:multiply[^"]*display:none/.test(compilerSVG(doc)), compilerSVG(doc).slice(0, 300));
+  op_calque_visible(doc, "c1", true);
+  op_calque_fusion(doc, "c1", "normal");
+  ok("normal : le champ est RETIRÉ, rien de compilé", doc.calques[0].fusion === undefined && !compilerSVG(doc).includes("mix-blend-mode"));
+  ok("mode inconnu : refusé, document intact", (() => { try { op_calque_fusion(doc, "c1", "zz"); return false; } catch { return doc.calques[0].fusion === undefined; } })());
+  ok("parser : un calque à fusion connue passe, inconnue est refusée", (() => { const d = banc(); d.calques[0].fusion = "screen"; parserDoc(d); d.calques[0].fusion = "zz"; try { parserDoc(d); return false; } catch { return true; } })());
+  ok("état vide : sans fusion → normal implicite, 16 modes exposés dont normal en tête", MODES_FUSION_CALQUE.length === 16 && MODES_FUSION_CALQUE[0] === "normal" && !compilerSVG(banc()).includes("mix-blend-mode"));
+}
 if (echecs.length) {
   console.error("ECHECS calques :\n- " + echecs.join("\n- "));
   process.exit(1);
 }
-console.log("QA calques : PASS (8 controles)");
+console.log("QA calques : PASS (14 controles)");

@@ -1508,3 +1508,37 @@ def test_le_miroir_texte_et_logo():
     for r in ('@router.get("/fonts")', '@router.post("/fonts/upload")', '@router.get("/fonts/user/{name}")'):
         assert r in routes, r
     assert (vl / "qa" / "typo.test.mjs").is_file()
+
+
+# ── relooking Affinity (R3, 18/09/2026) : le mode de fusion de CALQUE est un
+# champ optionnel que le magasin ne connaît pas et ne doit pas perdre ─────────
+
+def test_le_miroir_fusion_de_calque_fait_l_aller_retour():
+    import asyncio
+    from httpx import AsyncClient, ASGITransport
+
+    async def scenario():
+        from app.main import app
+        from app.services.storage import init_db
+        await init_db()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://t") as c:
+            doc = _doc("Fusion")
+            doc["calques"][0]["fusion"] = "multiply"
+            r = await c.post("/api/vector/docs", json={"name": "Fusion", "role": "libre", "doc": doc})
+            assert r.status_code == 200, r.text
+            did = r.json()["id"]
+            r = await c.get(f"/api/vector/docs/{did}")
+            assert r.status_code == 200
+            assert r.json()["doc"]["calques"][0]["fusion"] == "multiply"
+            # un calque sans le champ ne le gagne pas (état vide)
+            doc2 = _doc("Sans")
+            r = await c.post("/api/vector/docs", json={"name": "Sans", "role": "libre", "doc": doc2})
+            r = await c.get(f"/api/vector/docs/{r.json()['id']}")
+            assert "fusion" not in r.json()["doc"]["calques"][0]
+            # le module JS expose la commande et la compile (pin du miroir)
+            src = (pathlib.Path(__file__).resolve().parents[2] / "frontend" / "vectorlab" / "js" / "mod-doc.js").read_text(encoding="utf-8")
+            assert "export function op_calque_fusion" in src
+            assert "mix-blend-mode" in src
+
+    asyncio.run(scenario())
