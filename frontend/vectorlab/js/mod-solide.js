@@ -9,6 +9,43 @@ import { hex_centre, hex_sommets } from "./mod-grille.js";
 
 export const MUR_MIN_MM = 0.8;          // deux passes d'une buse de 0,4
 
+/* ── R12 : la couleur d'une pièce (l'aperçu 3D et le 3MF la portent, le STL
+   ne le peut pas) ── */
+export const COULEUR_DEFAUT = "#D1C7B3";     // le blanc cassé d'avant R12 : un document sans couleur ne change pas
+const _HEX = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/;
+function _hex6(h) {
+  if (typeof h !== "string" || !_HEX.test(h)) return null;
+  return h.length === 4 ? "#" + h[1] + h[1] + h[2] + h[2] + h[3] + h[3] : h;
+}
+export function couleur_de_piece(objet, terrains) {
+  if (!objet) return COULEUR_DEFAUT;
+  if (objet.type === "tuile") {
+    const f = terrains && terrains[objet.terrain];
+    return (f && _hex6(f.couleur)) || "#888888";
+  }
+  const s = objet.style || {};
+  return _hex6(s.fond) || (s.contour && _hex6(s.contour.couleur)) || COULEUR_DEFAUT;
+}
+// le VOTE, pas la moyenne (une moyenne fait un marron)
+export function couleur_dominante(objets, terrains) {
+  const votes = new Map();
+  for (const o of objets || []) {
+    if (!o || o.type === "texte") continue;
+    const c = couleur_de_piece(o, terrains);
+    votes.set(c, (votes.get(c) || 0) + 1);
+  }
+  let best = COULEUR_DEFAUT, n = 0;
+  for (const [c, k] of votes) if (k > n) { best = c; n = k; }
+  return best;
+}
+// glTF veut le LINÉAIRE (même conversion que gltf_builder._srgb_to_linear)
+const _lin = (c) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+export function hex_vers_facteur(hex) {
+  const h = _hex6(hex) || COULEUR_DEFAUT;
+  const v = [1, 3, 5].map((i) => _lin(parseInt(h.slice(i, i + 2), 16) / 255));
+  return [v[0], v[1], v[2], 1];
+}
+
 function _ringsDe(multi) {
   const out = [];
   for (const poly of multi) for (const ring of poly) out.push(ring);
@@ -104,7 +141,7 @@ export function plateau_pieces(tuiles, terrains, g, { socle_mm, sMm }) {
       .map(([x, y]) => [x * sMm, -y * sMm]);
     ring.push([ring[0][0], ring[0][1]]);
     const piece = { nom: `tuile_${t.q}_${t.r}`.replace(/-/g, "m"), id: t.id, q: t.q, r: t.r,
-                    terrain: t.terrain, hauteur_mm: hauteur, centre_mm: [cx * sMm, -cy * sMm],
+                    terrain: t.terrain, couleur: (fiche && _hex6(fiche.couleur)) || "#888888", hauteur_mm: hauteur, centre_mm: [cx * sMm, -cy * sMm],
                     tris: hauteur > 0 ? extruder([[ring]], hauteur, 0) : [] };
     if (!fiche) piece.inconnu = true;
     out.push(piece);
@@ -112,55 +149,67 @@ export function plateau_pieces(tuiles, terrains, g, { socle_mm, sMm }) {
   return out;
 }
 
-/* ── GLB minimal : une primitive TRIANGLES, POSITION + NORMAL, sans index ── */
-export function glb_de_triangles(tris) {
-  if (!tris || !tris.length) throw new Error("GLB : aucun triangle");
-  const n = tris.length * 3;
-  const pos = new Float32Array(n * 3), nrm = new Float32Array(n * 3);
-  const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
-  let k = 0;
-  for (const [a, b, c] of tris) {
-    const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
-    const vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
-    let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
-    const l = Math.hypot(nx, ny, nz) || 1;
-    nx /= l; ny /= l; nz /= l;
-    for (const p of [a, b, c]) {
-      pos[k * 3] = p[0]; pos[k * 3 + 1] = p[1]; pos[k * 3 + 2] = p[2];
-      nrm[k * 3] = nx; nrm[k * 3 + 1] = ny; nrm[k * 3 + 2] = nz;
-      for (let i = 0; i < 3; i++) {
-        min[i] = Math.min(min[i], p[i]); max[i] = Math.max(max[i], p[i]);
+/* ── GLB minimal : un mesh, UNE PRIMITIVE PAR PIÈCE (POSITION + NORMAL, sans
+   index), un matériau par pièce (baseColorFactor sRGB → linéaire) ── */
+export function glb_de_pieces(pieces) {
+  const P = (pieces || []).filter((p) => p && p.tris && p.tris.length);
+  if (!P.length) throw new Error("GLB : aucun triangle");
+  const buffers = [], views = [], accessors = [], materials = [], primitives = [];
+  let off = 0;
+  for (const piece of P) {
+    const n = piece.tris.length * 3;
+    const pos = new Float32Array(n * 3), nrm = new Float32Array(n * 3);
+    const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
+    let k = 0;
+    for (const [a, b, c] of piece.tris) {
+      const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
+      const vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+      let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+      const l = Math.hypot(nx, ny, nz) || 1;
+      nx /= l; ny /= l; nz /= l;
+      for (const p of [a, b, c]) {
+        pos[k * 3] = p[0]; pos[k * 3 + 1] = p[1]; pos[k * 3 + 2] = p[2];
+        nrm[k * 3] = nx; nrm[k * 3 + 1] = ny; nrm[k * 3 + 2] = nz;
+        for (let i = 0; i < 3; i++) { min[i] = Math.min(min[i], p[i]); max[i] = Math.max(max[i], p[i]); }
+        k++;
       }
-      k++;
     }
+    const vPos = views.length;
+    views.push({ buffer: 0, byteOffset: off, byteLength: pos.byteLength, target: 34962 });
+    buffers.push(pos); off += pos.byteLength;
+    views.push({ buffer: 0, byteOffset: off, byteLength: nrm.byteLength, target: 34962 });
+    buffers.push(nrm); off += nrm.byteLength;
+    const aPos = accessors.length;
+    accessors.push({ bufferView: vPos, componentType: 5126, count: n, type: "VEC3", min, max });
+    accessors.push({ bufferView: vPos + 1, componentType: 5126, count: n, type: "VEC3" });
+    materials.push({ name: piece.nom || `piece${materials.length}`,
+      pbrMetallicRoughness: { baseColorFactor: hex_vers_facteur(piece.couleur), metallicFactor: 0, roughnessFactor: 0.6 } });
+    primitives.push({ attributes: { POSITION: aPos, NORMAL: aPos + 1 }, mode: 4, material: materials.length - 1 });
   }
-  const binLen = pos.byteLength + nrm.byteLength;
+  // les Float32 sont des multiples de 4 : aucun bourrage entre pièces
   const json = {
     asset: { version: "2.0", generator: "Deepotus Vectorlab" },
     scene: 0, scenes: [{ nodes: [0] }], nodes: [{ mesh: 0 }],
-    meshes: [{ primitives: [{ attributes: { POSITION: 0, NORMAL: 1 }, mode: 4, material: 0 }] }],
-    materials: [{ pbrMetallicRoughness: { baseColorFactor: [0.82, 0.78, 0.7, 1],
-                                          metallicFactor: 0, roughnessFactor: 0.6 } }],
-    buffers: [{ byteLength: binLen }],
-    bufferViews: [{ buffer: 0, byteOffset: 0, byteLength: pos.byteLength, target: 34962 },
-                  { buffer: 0, byteOffset: pos.byteLength, byteLength: nrm.byteLength, target: 34962 }],
-    accessors: [{ bufferView: 0, componentType: 5126, count: n, type: "VEC3", min, max },
-                { bufferView: 1, componentType: 5126, count: n, type: "VEC3" }],
+    meshes: [{ primitives }], materials,
+    buffers: [{ byteLength: off }], bufferViews: views, accessors,
   };
   let js = JSON.stringify(json);
   while (js.length % 4) js += " ";
   const jsBytes = new TextEncoder().encode(js);
-  const total = 12 + 8 + jsBytes.length + 8 + binLen;
+  const total = 12 + 8 + jsBytes.length + 8 + off;
   const out = new Uint8Array(total);
   const dv = new DataView(out.buffer);
   dv.setUint32(0, 0x46546C67, true); dv.setUint32(4, 2, true); dv.setUint32(8, total, true);
   dv.setUint32(12, jsBytes.length, true); dv.setUint32(16, 0x4E4F534A, true);
   out.set(jsBytes, 20);
   const offBin = 20 + jsBytes.length;
-  dv.setUint32(offBin, binLen, true); dv.setUint32(offBin + 4, 0x004E4942, true);
-  out.set(new Uint8Array(pos.buffer), offBin + 8);
-  out.set(new Uint8Array(nrm.buffer), offBin + 8 + pos.byteLength);
+  dv.setUint32(offBin, off, true); dv.setUint32(offBin + 4, 0x004E4942, true);
+  let cur = offBin + 8;
+  for (const b of buffers) { out.set(new Uint8Array(b.buffer), cur); cur += b.byteLength; }
   return out;
+}
+export function glb_de_triangles(tris) {
+  return glb_de_pieces([{ nom: "piece", tris, couleur: COULEUR_DEFAUT }]);
 }
 
 export function nomenclature_csv(pieces) {

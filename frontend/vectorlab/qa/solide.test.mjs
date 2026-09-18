@@ -106,8 +106,40 @@ const aireMulti = (mp) => mp.reduce((s, poly) => s + poly.reduce((t, ring, i) =>
      && lignes[2] === 'tuile_1_0;1;0;"mont;agne";14;1', csv);
 }
 
+
+/* ── R12 : couleurs de pièce, GLB multi-matériaux ── */
+{
+  const { COULEUR_DEFAUT, couleur_de_piece, couleur_dominante, hex_vers_facteur, glb_de_pieces } = await import("../js/mod-solide.js");
+  const T = TERRAINS_DEFAUT;
+  ok("tuile → couleur de la fiche du terrain", couleur_de_piece({ type: "tuile", terrain: "foret" }, T) === "#3F7D3A");
+  ok("tuile de terrain inconnu → gris de terrains_de", couleur_de_piece({ type: "tuile", terrain: "lave" }, T) === "#888888");
+  ok("fond hex → ce fond", couleur_de_piece({ type: "rect", style: { fond: "#ff0000" } }, T) === "#ff0000");
+  ok("fond dégradé → le contour hex", couleur_de_piece({ type: "path", style: { fond: "grad:g1", contour: { couleur: "#00ff00", epaisseur: 2 } } }, T) === "#00ff00");
+  ok("sans fond ni contour → COULEUR_DEFAUT (le blanc cassé d'avant)", couleur_de_piece({ type: "path", style: { fond: "none" } }, T) === COULEUR_DEFAUT && COULEUR_DEFAUT === "#D1C7B3");
+  ok("dominante = vote, pas moyenne", couleur_dominante([{ style: { fond: "#ff0000" } }, { style: { fond: "#0000ff" } }, { style: { fond: "#ff0000" } }], T) === "#ff0000");
+  ok("dominante d'une liste vide → défaut", couleur_dominante([], T) === COULEUR_DEFAUT);
+  const f = hex_vers_facteur("#ff8000");
+  ok("facteur glTF linéarisé : #ff8000 → [1, ≈0,216, 0, 1]", f.length === 4 && f[0] === 1 && pres(f[1], 0.2158, 0.002) && f[2] === 0 && f[3] === 1, JSON.stringify(f));
+  ok("hex court accepté, invalide → défaut", hex_vers_facteur("#fff")[0] === 1 && pres(hex_vers_facteur("bleu")[0], hex_vers_facteur(COULEUR_DEFAUT)[0], 1e-9));
+  const a = extruder([[carre(0, 0, 10)]], 2, 0), b = extruder([[carre(20, 0, 10)]], 3, 0);
+  const glb = glb_de_pieces([{ nom: "a", tris: a, couleur: "#ff0000" }, { nom: "b", tris: b, couleur: "#0000ff" }]);
+  const dv = new DataView(glb.buffer);
+  const jlen = dv.getUint32(12, true);
+  const json = JSON.parse(new TextDecoder().decode(glb.subarray(20, 20 + jlen)));
+  ok("GLB : 2 primitives, 2 matériaux, chacune sur son matériau", json.meshes[0].primitives.length === 2 && json.materials.length === 2
+     && json.meshes[0].primitives[0].material === 0 && json.meshes[0].primitives[1].material === 1, JSON.stringify(json.meshes));
+  ok("GLB : matériaux de couleurs DIFFÉRENTES (rouge puis bleu)", json.materials[0].pbrMetallicRoughness.baseColorFactor[0] === 1 && json.materials[1].pbrMetallicRoughness.baseColorFactor[2] === 1
+     && json.materials[0].pbrMetallicRoughness.baseColorFactor[2] === 0);
+  ok("GLB : accessors comptent les sommets de chaque pièce", json.accessors[0].count === a.length * 3 && json.accessors[2].count === b.length * 3);
+  ok("GLB : longueur totale = en-tête + JSON + BIN", dv.getUint32(8, true) === glb.length && glb.length % 4 === 0);
+  const g1 = glb_de_triangles(a), j1 = JSON.parse(new TextDecoder().decode(g1.subarray(20, 20 + new DataView(g1.buffer).getUint32(12, true))));
+  ok("glb_de_triangles reste : une primitive, le matériau par défaut", j1.materials.length === 1 && pres(j1.materials[0].pbrMetallicRoughness.baseColorFactor[0], hex_vers_facteur(COULEUR_DEFAUT)[0], 1e-6));
+  const g = grille_normaliser({ type: "hex", pas: 20 });
+  const P = plateau_pieces([{ id: "t1", type: "tuile", q: 0, r: 0, terrain: "mer" }], T, g, { socle_mm: 2, sMm: 1 });
+  ok("plateau_pieces pose la couleur de la fiche", P[0].couleur === "#2B5F9E");
+}
 if (echecs.length) {
   console.error("ECHECS solide :\n- " + echecs.join("\n- "));
   process.exit(1);
 }
-console.log("QA solide : PASS (26 controles)");
+console.log("QA solide : PASS (41 controles)");
