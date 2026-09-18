@@ -33,11 +33,16 @@ function _decalerAncre(segs, noeuds, i, dx, dy) {
   if (kn !== undefined && segs[kn].c === "C") { segs[kn].p[0] += dx; segs[kn].p[1] += dy; }
 }
 
+// R12 : la version PURE sur des segs (les gestes l'appellent à chaque
+// pointermove sans cloner le document) ; l'entrée n'est pas mutée
+export function noeuds_deplacer_segs(segs, indices, dx, dy) {
+  const out = segs.map((s) => ({ c: s.c, p: s.p.slice() })), noeuds = _porteurs(out);
+  for (const i of _indices(indices, noeuds.length)) _decalerAncre(out, noeuds, i, dx, dy);
+  return out;
+}
 export function op_noeuds_deplacer(doc, id, indices, dx, dy) {
   const { objet } = _path(doc, id);
-  const segs = chemin_parser(objet.d), noeuds = _porteurs(segs);
-  for (const i of _indices(indices, noeuds.length)) _decalerAncre(segs, noeuds, i, dx, dy);
-  objet.d = chemin_serialiser(segs);
+  objet.d = chemin_serialiser(noeuds_deplacer_segs(chemin_parser(objet.d), indices, dx, dy));
 }
 
 const _MODES = { gauche: ["x", "min"], centreH: ["x", "moy"], droite: ["x", "max"],
