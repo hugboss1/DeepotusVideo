@@ -11,6 +11,80 @@
 > Branche `chantier/vectorlab-affinity`, après R11 (`e2c692a`). Ce plan est
 > COMMIS avant le code.
 
+> **RELEVÉ DE LIVRAISON (19/09/2026, nuit du 18) : LIVRÉ, PROUVÉ EN RÉEL, DÉPLOYÉ — `print3d.py` et `routes.py` sont du Python : l'utilisateur relance le backend.**
+>
+> **Livré** (plan `5b23275`, puis `cef2d9a` → `82054df`, 9 commits) :
+> mod-solide : `COULEUR_DEFAUT` (le blanc cassé d'avant, donc rien ne change
+> sans couleur), `couleur_de_piece` (tuile → fiche du terrain, fond hex, sinon
+> contour hex, sinon défaut), `couleur_dominante` (vote), `hex_vers_facteur`
+> (sRGB → linéaire), `glb_de_pieces` (une primitive + un matériau PAR PIÈCE ;
+> `glb_de_triangles` conservé), `plateau_pieces` pose `couleur`,
+> `extruder_depouille` (retrait z·tan α en marches ≤ 0,2 mm, 24 au plus ;
+> angle négatif = extrusion retournée en z par `retourner_z`, la forme dessinée
+> devient le sommet), `extruder_biseau(…, { depouille })` ; print3d.py :
+> `ecrire_3mf` accepte des pièces `(nom, tris, couleur)` → `<basematerials>`
+> + UN OBJET PAR PIÈCE (ferme le reste « un seul maillage » du lot D), la
+> liste de triangles nue reste acceptée ; `creer_export(couleur)` ;
+> `creer_lot` à trois éléments ; routes `from-stl?couleur=` et `lot` Form
+> `couleurs` JSON (hex invalide ou JSON cassé = ignoré, jamais un 400) ;
+> mod-impression : pièces colorées (logo = dominante de la sélection, calque
+> = dominante de ses objets, relief = sable), `couleurs_json` /
+> `couleur_du_lot`, `reglages_lire.depouille` borné ±45, champ **Dépouille
+> des flancs (°)** + curseur synchronisés, l'évidement la désactive en le
+> disant ; mod-noeudapercu : `planificateur({raf, caf})` (une demande en vol,
+> `vider()` au relâchement) + `VL.apercuNoeuds.debut/poser/fin` ;
+> `noeuds_deplacer_segs` pur (mod-noeuds, `op_noeuds_deplacer` l'appelle) ;
+> les CINQ gestes (ancre de mod-tools, ancres de mod-outils2, poignée /
+> segment / échelle / rotation de mod-noeudui) posent l'aperçu par ce chemin
+> — plus aucun `JSON.parse(JSON.stringify(doc))` au pointermove, plus de
+> remise du `d` d'avant au pointerup ; le cœur et la boîte de transformation
+> dessinent depuis `etat.noeudsApercu` pendant le geste.
+>
+> **TDD tenu** : RED ×5 constatés (couleurs, dépouille, impression_ui ×2,
+> noeudapercu ; pytest ×2). Bancs : solide 26 → **52**, impression_ui 7 →
+> **11**, noeudapercu **10** (nouveau), pytest test_print3d 13 → **15** ;
+> `run.mjs` tous passés, `test_vector_docs` inchangé. Le banc de la dépouille
+> a démasqué UNE MARCHE d'écart au sommet (retrait / n par flanc) : la base
+> est gardée EXACTE (la forme dessinée), le sommet porte l'erreur ≤ 0,2 mm par
+> flanc — tolérance flottante corrigée par `4799168` (un commit était parti sur
+> un banc rouge, ma chaîne `grep` avait masqué l'échec — dit).
+>
+> **Prouvé en réel** (backend du worktree 8799, données isolées, viewport
+> 1400 × 900, document créé par `POST /vector/docs` — il lui faut `v: 1`) :
+> **nœuds** — ancre 1 tirée sur 6 `pointermove` : écart carré-de-l'ancre ↔
+> curseur **0,000 px** à chaque pas, sortante qui suit (+40, 0 conservé),
+> **0 `JSON.stringify` pendant le glisser**, `d` final = `d` de l'aperçu,
+> `etat.noeudsApercu` remis à null ; poignée sortante : 0,000 px ×3, `C 380
+> 220 …` ; segment : la droite devient `C 166.67 263.33 → 283.33 → 303.33`
+> (progressif), final = aperçu ; ancres 2 et 3 (mod-outils2) : 0,000 px ×3
+> chacune, la boîte de transformation suit exactement (−20 15, −40 30, −55
+> 35) ; 0 erreur. **Aperçu 3D** — mode Calques sur deux calques rouge / bleu :
+> GLB à **2 primitives, matériaux `[1,0,0,1]` et `[0,0,1,1]`**, `model-viewer
+> .loaded === true`, résumé « 89 × 81 × 3 mm · 2 pièce(s) » ; mode Logo sur
+> le rect rouge (31,75 mm, h 5) : dépouille 0 → base = sommet = 31,75 ;
+> **+30° → sommet 26,361** (31,75 − 5,774 + une marche 0,385) ; **−30° →
+> base 26,361, sommet 31,75** (miroir) ; curseur → champ (12) ; évider →
+> champ désactivé « l'évidement ignore la dépouille » ; « Un STL » →
+> `preuve-r12-20260918`, `impression.json.couleur = "#ff0000"`, le 3MF
+> contient `<base displaycolor="#FF0000FF"/>` et `<object … pid="1"
+> pindex="0">` (relu sur disque). Piège de preuve : dans le volet caché du
+> navigateur intégré `requestAnimationFrame` ne tire JAMAIS (`rafReel:
+> false` mesuré) — le planificateur lit le global à l'appel, la preuve l'a
+> substitué par un temporisateur de 16 ms ; dans un navigateur visible c'est
+> le vrai rAF.
+>
+> **Déployé** : 14 fichiers installés = base `e2c692a` (deux nouveaux) →
+> sauvegarde `_backup_predeploy_2026-09-18-relooking-r12` (12 fichiers) →
+> `git archive HEAD` → **14/14 = cible** par hash-object ; pré-vol du python
+> embarqué `import app.main` + `couleur_valide` OK. `test_print3d.py` n'est
+> pas installé (les bancs `qa/` le sont).
+>
+> **Reste (assumé)** : le STL ne porte pas de couleur (format) ; une pièce =
+> une couleur (pas de couleur par face) ; la dépouille négative avec biseau
+> fait partir le biseau du contour dessiné ; le mode Tuiles n'a pas été
+> rejoué en réel ici (couleur posée par `plateau_pieces`, bancée) ; la
+> capture d'écran du volet reste impossible pendant la preuve (rendu différé).
+
 ## Analyse
 
 ### (a) Pourquoi l'aperçu 3D est monochrome
