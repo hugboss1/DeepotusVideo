@@ -7,7 +7,7 @@
 import { libelle_selection, champs_de, appliquer_champ, params_lire, params_poser, params_serialiser } from "./mod-contexte.js";
 import { FORMES } from "./mod-formes.js";
 import { PROFILS } from "./mod-pinceauvec.js";
-import { terrains_de, op_style } from "./mod-doc.js";
+import { terrains_de, op_style, op_deplacer, op_redimensionner } from "./mod-doc.js";
 import { UNITES } from "./mod-unites.js";
 
 const CLE = "dz_vl_params";
@@ -22,7 +22,7 @@ export function initBarreContexte(VL) {
   const objetsSel = () => etat.selection.map((id) => { const t = VL.objetDe(id); return t ? t.objet : null; }).filter(Boolean);
   function vue() {
     return { selection: etat.selection, objets: objetsSel(), formeCourante: etat.formeCourante, formes: FORMES, gommeLargeur: etat.gommeLargeur, coinRayon: etat.coinRayon,
-             pinceauv: etat.pinceauv, profils: PROFILS, px: etat.px, terrainCourant: etat.terrainCourant, terrains: etat.doc ? terrains_de(etat.doc) : {}, typo: etat.typo, exportPlus: etat.exportPlus, plume: etat.plume };
+             pinceauv: etat.pinceauv, profils: PROFILS, px: etat.px, terrainCourant: etat.terrainCourant, terrains: etat.doc ? terrains_de(etat.doc) : {}, typo: etat.typo, exportPlus: etat.exportPlus, plume: etat.plume, aimantNoeuds: etat.aimantNoeuds, bbox: etat.selection.length ? VL.bboxSelectionDoc() : null };
   }
   function rendre() {
     hSel.textContent = libelle_selection(objetsSel());
@@ -43,6 +43,13 @@ export function initBarreContexte(VL) {
   function appliquer(id, valeur) {
     const patch = appliquer_champ(etat, id, valeur);
     if (patch.style) { if (etat.selection.length) VL.executer(op_style, etat.selection.slice(), patch.style); return; }
+    if (patch.bbox) {   // R10 : X · Y · L · H de la barre — déplacer ou redimensionner par les commandes existantes
+      const b0 = VL.bboxSelectionDoc(); if (!b0 || !etat.selection.length) return;
+      const b1 = { ...b0, ...patch.bbox };
+      if (patch.bbox.x !== undefined || patch.bbox.y !== undefined) VL.executer(op_deplacer, etat.selection.slice(), b1.x - b0.x, b1.y - b0.y);
+      else VL.executer(op_redimensionner, etat.selection.slice(), b0, b1);
+      return;
+    }
     for (const [k, v] of Object.entries(patch)) {
       if (v && typeof v === "object" && etat[k] && typeof etat[k] === "object") Object.assign(etat[k], v); else etat[k] = v;
     }

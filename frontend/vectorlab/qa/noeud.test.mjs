@@ -1,7 +1,7 @@
 // noeud.test.mjs — mod-noeud : l'outil Nœud de classe Affinity — segment le
 // plus proche d'un point, déformation d'un segment au glisser, poignées
 // (lisse / libre), suppression lisse, point sur un segment. Feuille.
-import { segment_proche, segment_tirer, poignee_deplacer, noeud_supprimer_lisse, point_segment } from "../js/mod-noeud.js";
+import { segment_proche, segment_tirer, poignee_deplacer, noeud_supprimer_lisse, point_segment, noeud_intelligent } from "../js/mod-noeud.js";
 import { chemin_parser, chemin_serialiser, chemin_ancres } from "../js/mod-doc.js";
 const echecs = []; const ok = (n, c, d = "") => { if (!c) echecs.push(n + (d ? " — " + String(d).slice(0, 250) : "")); };
 const pres = (a, b, e = 0.01) => Math.abs(a - b) <= e;
@@ -34,6 +34,10 @@ const P = (d) => chemin_parser(d), S = (s) => chemin_serialiser(s);
   ok("noeud_supprimer_lisse : un seul C entre les voisins avec leurs tangentes", sup.length === 2 && sup[1].c === "C" && sup[1].p.join() === "10,-10,90,10,100,0", S(sup));
   ok("noeud_supprimer_lisse : ancre d'extrémité → segment retiré ; 2 ancres → inchangé", chemin_ancres(noeud_supprimer_lisse(lisse, 2)).length === 2 && S(noeud_supprimer_lisse(P("M 0 0 L 5 5"), 0)) === "M 0 0 L 5 5");
   ok("noeud_supprimer_lisse sur un chemin de droites : reste une droite entre les voisins", S(noeud_supprimer_lisse(droit, 1)) === "M 0 0 L 100 100");
+  const ni = noeud_intelligent(P("M 0 0 L 100 0 L 100 100"), 1);
+  const ai = chemin_ancres(ni)[1];
+  ok("noeud_intelligent (R10) : tangente Catmull-Rom (suivant − précédent) / 6, entrante et sortante alignées, segments voisins en C", ni[1].c === "C" && ni[2].c === "C" && pres(ai.entrante.x, 100 - 100 / 6) && pres(ai.entrante.y, 0 - 100 / 6) && pres(ai.sortante.x, 100 + 100 / 6) && pres(ai.sortante.y, 100 / 6), S(ni));
+  ok("noeud_intelligent : première ancre → sortante seule (l'entrante n'existe pas sur M) ; fermé → la direction prend le voisin circulaire ; index hors chemin → inchangé", (() => { const o = noeud_intelligent(P("M 0 0 L 100 0 L 100 100"), 0); const f = noeud_intelligent(P("M 0 0 L 100 0 L 100 100 Z"), 0); const so = chemin_ancres(o)[0].sortante, sf = chemin_ancres(f)[0].sortante; return so && !chemin_ancres(o)[0].entrante && sf && Math.abs(so.x - sf.x) > 1 && S(noeud_intelligent(droit, 9)) === S(droit); })());
 }
 if (echecs.length) { console.error("ECHECS noeud :\n- " + echecs.join("\n- ")); process.exit(1); }
-console.log("QA noeud : PASS (14 controles)");
+console.log("QA noeud : PASS (16 controles)");

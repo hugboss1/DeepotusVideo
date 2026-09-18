@@ -28,6 +28,7 @@ import { initBarreContexte } from "./mod-barrecontexte.js";
 import { initOutils3 } from "./mod-outils3ui.js";
 import { initPlume } from "./mod-plumeui.js";
 import { initNoeudUI } from "./mod-noeudui.js";
+import { initSelectionUI } from "./mod-selectionui.js";
 import { op_noeud_supprimer } from "./mod-doc.js";
 import { UNITES, depuisUnite, formatNombre, libelle_mesure }
   from "./mod-unites.js";
@@ -769,6 +770,7 @@ initPersona(VL);    // lot E (D8) : Vecteur / Pixel / Export — après initOuti
 initExportPlus(VL); // lot G : Export + (tranches, formats, impression, lot) — après initPersona (surPersona) et initExport (svgCourant)
 initPixelUI(VL);    // lot E : outils raster, sélections, ajustements, pixel-art — pose surOverlay/surTouche en chaîne
 initBrouillon(VL); // pose surCharge AVANT charger() (lot A)
+initSelectionUI(VL); // R10 : Alt+glisser = copie déplacée, double-clic → Nœuds, survol — après initOutils
 initNoeudUI(VL);    // R9 : poignées tirables, segment déformable, insertion au double-clic, suppression lisse — après initOutils / initOutils2
 initPlume(VL);      // R8 : la Plume de classe Affinity — REMPLACE la plume de mod-tools (capture + stopPropagation) ; après initOutils (surOutil / surTouche)
 initOutils3(VL);    // R7 : Main, Loupe, Plan de travail, Dégradé, Transparence, Cadre, Recadrer, retouche raster — avant initFlyout / initBarreOutils (boutons dans la barre)

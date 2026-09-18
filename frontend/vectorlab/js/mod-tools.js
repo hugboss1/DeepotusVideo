@@ -180,7 +180,7 @@ export function initOutils(VL) {
                     [el, el.getAttribute("transform") || ""]) };
       } else {
         geste = { type: "lasso", ex0: ev.clientX, ey0: ev.clientY,
-                  shift: ev.shiftKey };
+                  shift: ev.shiftKey, touches: ev.altKey };   // R10 : Alt = objets touchés, sinon entièrement inclus
       }
       ev.preventDefault();
       return;
@@ -258,8 +258,10 @@ export function initOutils(VL) {
     const [dx, dy] = VL.docPt(ev.clientX, ev.clientY);
 
     if (geste.type === "move") {
-      const [cx, cy] = VL.aimantePt(geste.b0.x + (dx - geste.x0),
-                                    geste.b0.y + (dy - geste.y0));
+      // R10 (Affinity) : Maj contraint le déplacement à l'axe dominant
+      let mx = dx - geste.x0, my = dy - geste.y0;
+      if (ev.shiftKey) { if (Math.abs(mx) >= Math.abs(my)) my = 0; else mx = 0; }
+      const [cx, cy] = VL.aimantePt(geste.b0.x + mx, geste.b0.y + my);
       // lot C : puis les voisins — bords, centres, écarts — avec leurs lignes d'aide
       const am = VL.aimanteBoite({ x: cx, y: cy, w: geste.b0.w, h: geste.b0.h });
       geste.dxA = cx + am.dx - geste.b0.x;
@@ -312,6 +314,13 @@ export function initOutils(VL) {
         if ([0, 6, 7].includes(k)) b.x = b.x + b.w - w2;
         if ([0, 1, 2].includes(k)) b.y = b.y + b.h - h2;
         b.w = w2; b.h = h2;
+      }
+      if (ev.ctrlKey && geste.b0.w > 0 && geste.b0.h > 0) {
+        // R10 (Affinity) : Ctrl = depuis le centre — le côté opposé bouge du même delta
+        const b0 = geste.b0, ccx = b0.x + b0.w / 2, ccy = b0.y + b0.h / 2;
+        const dw = [0, 6, 7].includes(k) ? (b0.x - b.x) : [2, 3, 4].includes(k) ? (b.w - b0.w) : 0;
+        const dh = [0, 1, 2].includes(k) ? (b0.y - b.y) : [4, 5, 6].includes(k) ? (b.h - b0.h) : 0;
+        b.w = b0.w + 2 * dw; b.h = b0.h + 2 * dh; b.x = ccx - b.w / 2; b.y = ccy - b.h / 2;
       }
       b.w = Math.max(1, b.w); b.h = Math.max(1, b.h);
       geste.b1 = b;
@@ -377,7 +386,7 @@ export function initOutils(VL) {
       etiquette(g, x1, y1, VL.cote("segment",
         { dx: x1 - geste.x0, dy: y1 - geste.y0 }));
     } else if (geste.type === "ancre") {
-      const [ax, ay] = VL.aimantePt(dx, dy);
+      const [ax, ay] = etat.aimantNoeuds === false ? [dx, dy] : VL.aimantePt(dx, dy);   // R10 : magnétisme aux nœuds séparé
       geste.dxA = ax - geste.x0; geste.dyA = ay - geste.y0;
       const d2 = JSON.parse(JSON.stringify(geste.docAvant));
       op_noeud_deplacer(d2, geste.id, geste.i, geste.dxA, geste.dyA);
@@ -445,10 +454,11 @@ export function initOutils(VL) {
         const el = document.querySelector(`#canvasHost [data-objet="${id}"]`);
         if (!el) continue;
         const r = el.getBoundingClientRect();
-        if (r.left < g.rect.x + g.rect.w && r.right > g.rect.x
-            && r.top < g.rect.y + g.rect.h && r.bottom > g.rect.y) {
-          touches.push(id);
-        }
+        const x1 = g.rect.x + g.rect.w, y1 = g.rect.y + g.rect.h;
+        const dedans = g.touches
+          ? (r.left < x1 && r.right > g.rect.x && r.top < y1 && r.bottom > g.rect.y)
+          : (r.left >= g.rect.x && r.right <= x1 && r.top >= g.rect.y && r.bottom <= y1);
+        if (dedans) touches.push(id);
       }
       VL.setSelection(g.shift ? etat.selection.concat(touches) : touches);
     } else if (g.type === "resize") {

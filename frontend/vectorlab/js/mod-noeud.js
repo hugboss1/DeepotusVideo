@@ -101,3 +101,29 @@ export function noeud_supprimer_lisse(segs, i) {
   out.splice(k, 2, droit ? { c: "L", p: f } : { c: "C", p: [c1[0], c1[1], c2[0], c2[1], f[0], f[1]] });
   return out;
 }
+
+// R10 : conversion « Intelligent » d'Affinity — tangentes Catmull-Rom : direction
+// (suivant − précédent), longueur un sixième de cette corde ; l'entrante et la
+// sortante deviennent des poignées de C alignées ; l'ancre M n'a qu'une sortante
+export function noeud_intelligent(segs, i) {
+  const out = clone(segs);
+  const pk = porteurs(out), n = pk.length;
+  if (i < 0 || i >= n) return out;
+  const an = chemin_ancres(out);
+  const ferme = out.some((s) => s.c === "Z");
+  const a = an[i];
+  const prev = i > 0 ? an[i - 1] : (ferme && n > 1 ? an[n - 1] : a);
+  const next = i < n - 1 ? an[i + 1] : (ferme && n > 1 ? an[0] : a);
+  const vx = (next.x - prev.x) / 6, vy = (next.y - prev.y) / 6;
+  if (!vx && !vy) return out;
+  const k = pk[i], s = out[k];
+  if (s.c === "L") { const p0 = depart(out, k); out[k] = { c: "C", p: [p0[0], p0[1], a.x - vx, a.y - vy, a.x, a.y] }; }
+  else if (s.c === "C") { s.p[2] = a.x - vx; s.p[3] = a.y - vy; }
+  const kn = pk[i + 1];
+  if (kn !== undefined) {
+    const sn = out[kn];
+    if (sn.c === "L") out[kn] = { c: "C", p: [a.x + vx, a.y + vy, sn.p[0], sn.p[1], sn.p[0], sn.p[1]] };
+    else if (sn.c === "C") { sn.p[0] = a.x + vx; sn.p[1] = a.y + vy; }
+  }
+  return out;
+}

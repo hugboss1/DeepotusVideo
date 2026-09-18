@@ -808,3 +808,8 @@ body.sans-bulles .infobulle { display: none !important; }
 #overlay .poignee-noeud:hover { r: 5px; fill: #2b6fd6; }
 #overlay .ancre { cursor: move; }
 body[data-outil="noeuds"] #canvasHost [data-objet] { cursor: crosshair; }
+
+/* R10 : poignées de transformation d'une sélection de nœuds, survol */
+#overlay .poignee-noeuds-transf { pointer-events: auto; cursor: nwse-resize; }
+#overlay .poignee-noeuds-transf[data-k="rot"] { cursor: crosshair; }
+#overlay #ovSurvol { pointer-events: none; }

@@ -154,7 +154,7 @@ export function initOutils2(VL) {
       if (g) forme("rect", { x: Math.min(geste.x0, dx), y: Math.min(geste.y0, dy), width: Math.abs(dx - geste.x0), height: Math.abs(dy - geste.y0),
         fill: "rgba(224,179,74,.12)", stroke: "#e0b34a", "stroke-width": 1 / etat.zoom, "stroke-dasharray": `${4 / etat.zoom} ${3 / etat.zoom}` }, g);
     } else if (geste.type === "ancres") {
-      const [ax, ay] = VL.aimantePt(dx, dy);
+      const [ax, ay] = etat.aimantNoeuds === false ? [dx, dy] : VL.aimantePt(dx, dy);   // R10 : magnétisme aux nœuds séparé
       geste.dxA = ax - geste.x0; geste.dyA = ay - geste.y0;
       const d2 = JSON.parse(JSON.stringify(etat.doc));
       op_noeuds_deplacer(d2, geste.id, etat.ancresSel, geste.dxA, geste.dyA);

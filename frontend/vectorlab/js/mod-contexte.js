@@ -13,7 +13,7 @@ const opts = (liste, id = "id", lib = ["nom", "libelle", "famille"]) => (Array.i
 const nombre = (id, libelle, valeur, min, max, pas = 1) => ({ id, type: "number", libelle, valeur: +valeur || 0, min, max, pas });
 const select = (id, libelle, valeur, options) => ({ id, type: "select", libelle, valeur, options });
 const MODES_PLUME = [{ id: "plume", nom: "Plume" }, { id: "intelligent", nom: "Intelligent" }, { id: "polygone", nom: "Polygone" }, { id: "ligne", nom: "Ligne" }];
-const ACTIONS_PLUME = [["vif", "Vif"], ["lisse", "Lisse"], ["fractionner", "Fractionner"], ["ouvrir", "Ouvrir"], ["fermer", "Fermer"], ["lisserCourbe", "Courbe lisse"], ["relier", "Relier"], ["inverser", "Inverser"]];
+const ACTIONS_PLUME = [["vif", "Vif"], ["lisse", "Lisse"], ["intelligent", "Intelligent"], ["fractionner", "Fractionner"], ["ouvrir", "Ouvrir"], ["fermer", "Fermer"], ["lisserCourbe", "Courbe lisse"], ["relier", "Relier"], ["inverser", "Inverser"]];
 const ALIGN_NOEUDS = [["gauche", "⇤"], ["centreH", "⇔"], ["droite", "⇥"], ["haut", "⇧"], ["centreV", "⇕"], ["bas", "⇩"]];
 const MODES_TRANCHE = [{ id: "document", nom: "Document" }, { id: "objets", nom: "Par objet" }, { id: "planches", nom: "Par planche" }, { id: "calques", nom: "Par calque" }, { id: "dessinees", nom: "Dessinées" }];
 export function champs_de(outil, etat) {
@@ -25,10 +25,12 @@ export function champs_de(outil, etat) {
       if (!sel.length) return [{ id: "configDoc", type: "bouton", libelle: "Configuration du document…" }, { id: "parametres", type: "bouton", libelle: "Paramètres de l'appli…" }];
       const tete = (etat.objets || [])[0] || {};
       const op = tete.style && tete.style.opacite !== undefined ? +tete.style.opacite : 1;
-      return [nombre("opacite", "Opacité %", Math.round(op * 100), 0, 100)];
+      const b = etat.bbox || {};
+      const r2 = (v) => Math.round((+v || 0) * 100) / 100;
+      return [nombre("selX", "X", r2(b.x), -1e5, 1e5, 0.5), nombre("selY", "Y", r2(b.y), -1e5, 1e5, 0.5), nombre("selW", "L", r2(b.w), 1, 1e5, 0.5), nombre("selH", "H", r2(b.h), 1, 1e5, 0.5), nombre("opacite", "Opacité %", Math.round(op * 100), 0, 100)];
     }
     case "plume": return [select("plumeMode", "Mode", (etat.plume || {}).mode || "plume", opts(MODES_PLUME)), ...ACTIONS_PLUME.map(([a, l]) => ({ id: "plume:" + a, type: "bouton", libelle: l }))];
-    case "noeuds": return [...ACTIONS_PLUME.map(([a, l]) => ({ id: "plume:" + a, type: "bouton", libelle: l })), ...ALIGN_NOEUDS.map(([m, g]) => ({ id: "noeuds:al-" + m, type: "bouton", libelle: g, titre: "Aligner les nœuds : " + m }))];
+    case "noeuds": return [...ACTIONS_PLUME.map(([a, l]) => ({ id: "plume:" + a, type: "bouton", libelle: l })), ...ALIGN_NOEUDS.map(([m, g]) => ({ id: "noeuds:al-" + m, type: "bouton", libelle: g, titre: "Aligner les nœuds : " + m })), { id: "aimantNoeuds", type: "bascule", libelle: "Magnétisme", valeur: etat.aimantNoeuds !== false }];
     case "forme": return [select("formeCourante", "Forme", etat.formeCourante, opts(etat.formes))];
     case "gomme": return [nombre("gommeLargeur", "Largeur", etat.gommeLargeur, 1, 500)];
     case "coin": return [nombre("coinRayon", "Rayon", etat.coinRayon, 0, 500)];
@@ -60,6 +62,11 @@ export function appliquer_champ(etat, id, valeur) {
     case "typoCourante": return { typo: { ...(e.typo || {}), courante: String(valeur) } };
     case "trMode": return { exportPlus: { ...(e.exportPlus || {}), mode: String(valeur) } };
     case "opacite": return { style: { opacite: borne(valeur, 0, 100) / 100 } };
+    case "aimantNoeuds": return { aimantNoeuds: valeur === true || valeur === "true" || valeur === 1 };
+    case "selX": return { bbox: { x: borne(valeur, -1e5, 1e5) } };
+    case "selY": return { bbox: { y: borne(valeur, -1e5, 1e5) } };
+    case "selW": return { bbox: { w: borne(valeur, 1, 1e5) } };
+    case "selH": return { bbox: { h: borne(valeur, 1, 1e5) } };
     default: return {};
   }
 }

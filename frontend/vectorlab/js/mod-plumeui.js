@@ -148,6 +148,7 @@ export function initPlume(VL) {
   VL.actions.plume = {
     mode: (m) => { if (MODES_PLUME.some((x) => x.id === m)) P.mode = m; },
     vif: () => convertir("vif"),
+    intelligent: () => { const A = VL.actions.noeuds; if (A && A.intelligent) A.intelligent(); },
     lisse: () => convertir("lisse"),
     fractionner: () => { const c = ancreCible(); if (!c) { VL.toast("plume : aucun chemin", true); return; } const parts = chemin_fractionner(c.o.d, c.i); if (parts.length === 1 && parts[0] === c.o.d) { VL.toast("fractionner : choisir une ancre intérieure (outil Nœuds)", true); return; } VL.executer((doc) => { const o = doc.calques.flatMap((k) => k.objets).find((x) => x.id === c.o.id); o.d = parts[0]; if (parts[1]) { const cal = doc.calques.find((k) => k.objets.includes(o)); op_ajouter(doc, cal.id, { type: "path", d: parts[1], style: { ...(o.style || {}) } }); } }); },
     ouvrir: () => { const o = chemin(); if (!o) return; VL.executer((doc) => { const x = doc.calques.flatMap((k) => k.objets).find((y) => y.id === o.id); x.d = chemin_ouvrir(x.d); }); },
