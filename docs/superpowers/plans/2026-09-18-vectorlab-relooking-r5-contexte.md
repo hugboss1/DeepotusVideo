@@ -4,6 +4,45 @@
 > (exécution inline, TDD strict : RED constaté au banc avant le module pur).
 > Conception : `…-relooking-design.md` (R-D7).
 
+> **RELEVÉ DE LIVRAISON (18/09/2026) : LIVRÉ, PROUVÉ EN RÉEL, DÉPLOYÉ (statiques seuls : aucune relance).**
+>
+> **Livré** (commits `98167f5`, `d0b351d`, poussés) : `mod-contexte.js`
+> (`libelle_selection`, `champs_de` par outil — select / forme / gomme /
+> coin / crayon et pinceauv / px-pinceau-gomme-cloner / px-seau /
+> px-baguette / tuiles / texte / tranche —, `appliquer_champ` bornée et
+> pure, `PARAMS_DEFAUT / params_lire / params_poser / params_serialiser` ;
+> RED constaté, 13 contrôles) ; `mod-barrecontexte.js` : rendu dans
+> `#cbSelection` / `#cbOutil` à chaque outil / sélection / rendu /
+> persona, changements fusionnés dans `etat` (ou `op_style` pour
+> l'opacité) puis `VL.rendre()`, dialogues « Configuration du document »
+> (UNE commande : taille, unités / dpi, fond ; puis zoom ajusté) et
+> « Paramètres de l'appli » (bulles → `body.sans-bulles`, pas de grille →
+> `#selGrille` + `dz_vl_grille_pas`, aimantation) relus à l'ouverture ;
+> `VL.configurerDocument / VL.parametresAppli / VL.params` (les menus de
+> R1 ne toastent plus « lot R5 ») ; CSS R5.
+>
+> **Prouvé en réel** (8799, 1400 × 900) : sans sélection « Aucune
+> sélection » + les deux boutons ; rectangle → « 1 objet · rect » et
+> Opacité 100, saisie 40 → `style.opacite` 0,4 ; gomme → « Largeur » 12,
+> saisie 30 → `etat.gommeLargeur` 30 ; forme → 7 options, « etoile » →
+> `etat.formeCourante` ; Pixel + px-pinceau → `pxRayon, pxDurete` ;
+> Configuration : largeur 800 + 300 dpi → `taille.w` 800, `unites.dpi` 300,
+> onglet « @ 67%* », résumé « 800 × 960px, 0.77MP, px · 300 dpi »,
+> dialogue fermé ; Annuler → 640 ; Paramètres : bulles décochées + grille
+> 16 → `{"bulles":false,"grillePas":16,"aimant":true}`, `body.sans-bulles`,
+> `grille.pas` 16 et `#selGrille` 16 ; la barre ne déborde pas (1400 /
+> 1400), 32 px.
+>
+> **Déployé** : installé = base R4 `249afed` (136, 0 divergent) →
+> sauvegarde `_backup_predeploy_2026-09-18-relooking-r5` → 139/139 = cible.
+>
+> **Reste** : le nom du document ne se renomme pas depuis Configuration
+> (le PUT n'accepte que `doc`) ; les outils sans réglage (plume, noeuds,
+> mesure, pipette, couteau, constructeur, rect / ellipse / ligne, px-crayon
+> / ligne / rectpx, px-selrect / lasso) n'affichent que le libellé de la
+> sélection — les pastilles fond / contour inline (comme la Plume
+> d'Affinity) sont un raffinement R6 possible.
+
 **Goal :** la barre contextuelle suit l'outil ET la sélection comme dans
 Affinity : à gauche le libellé de la sélection (« Aucune sélection », « 1
 objet · rect », « 3 objets »), puis les réglages de l'outil courant en
