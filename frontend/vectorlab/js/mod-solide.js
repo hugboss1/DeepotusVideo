@@ -93,17 +93,48 @@ export function inset_multi(mz, multi, d) {
   return out;
 }
 
-export function extruder_biseau(mz, multi, hauteur, biseau, pasMm = 0.2) {
-  const h = +hauteur, b = +biseau;
+/* ── R12 : la dépouille — retrait r(z) = z · tan(angle), en marches de retrait
+   ≤ 0,2 mm (24 au plus : un texte de 300 arêtes reste sous la seconde) ;
+   angle négatif = la forme dessinée est le SOMMET (extrusion positive
+   retournée en z — aucun « outset », martinez perd des morceaux sur les
+   unions successives, mesuré au lot B) ── */
+export const DEPOUILLE_MAX = 45;
+export function retourner_z(tris, h) {
+  return tris.map(([a, b, c]) => [[a[0], a[1], h - a[2]], [c[0], c[1], h - c[2]], [b[0], b[1], h - b[2]]]);
+}
+export function extruder_depouille(mz, multi, hauteur, angleDeg, pasMm = 0.2, zBase = 0) {
+  const h = +hauteur, a = +angleDeg || 0;
+  if (!(h > 0)) throw new Error("dépouille : hauteur > 0 requise");
+  if (Math.abs(a) > DEPOUILLE_MAX) throw new Error(`dépouille : angle entre −${DEPOUILLE_MAX}° et ${DEPOUILLE_MAX}°`);
+  if (a === 0) return extruder(multi, h, zBase);
+  const retrait = h * Math.tan(Math.abs(a) * Math.PI / 180);
+  const n = Math.min(24, Math.max(1, Math.ceil(retrait / Math.max(0.05, +pasMm || 0.2))));
+  const dz = h / n;
+  const tris = [];
+  for (let k = 0; k < n; k++) {
+    const m = k === 0 ? multi : inset_multi(mz, multi, retrait * k / n);
+    if (!m.length) break;                        // la pointe se ferme d'elle-même
+    tris.push(...extruder(m, dz, k * dz));
+  }
+  const out = a > 0 ? tris : retourner_z(tris, h);
+  return zBase ? out.map((t) => t.map(([x, y, z]) => [x, y, z + zBase])) : out;
+}
+
+// R12 : option { depouille } — le corps sous le biseau prend la dépouille,
+// les marches du biseau partent du retrait atteint à z = h − b (une
+// dépouille négative retourne le corps : le biseau part du contour dessiné)
+export function extruder_biseau(mz, multi, hauteur, biseau, pasMm = 0.2, { depouille = 0 } = {}) {
+  const h = +hauteur, b = +biseau, dp = +depouille || 0;
   if (!(h > 0)) throw new Error("biseau : hauteur > 0 requise");
   if (!(b >= 0)) throw new Error("biseau : retrait ≥ 0 requis");
   if (b >= h) throw new Error("biseau : le retrait doit rester sous la hauteur");
-  if (b === 0) return extruder(multi, h, 0);
+  if (b === 0) return extruder_depouille(mz, multi, h, dp, pasMm);
   const n = Math.max(1, Math.ceil(b / Math.max(0.05, +pasMm || 0.2)));
   const dz = b / n;
-  const tris = extruder(multi, h - b, 0);
+  const tris = extruder_depouille(mz, multi, h - b, dp, pasMm);
+  const r0 = dp > 0 ? (h - b) * Math.tan(dp * Math.PI / 180) : 0;
   for (let k = 1; k <= n; k++) {
-    const m = inset_multi(mz, multi, (b * k) / n);
+    const m = inset_multi(mz, multi, r0 + (b * k) / n);
     if (!m.length) break;                       // la pointe se ferme d'elle-même
     tris.push(...extruder(m, dz, h - b + (k - 1) * dz));
   }

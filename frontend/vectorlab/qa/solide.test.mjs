@@ -138,8 +138,40 @@ const aireMulti = (mp) => mp.reduce((s, poly) => s + poly.reduce((t, ring, i) =>
   const P = plateau_pieces([{ id: "t1", type: "tuile", q: 0, r: 0, terrain: "mer" }], T, g, { socle_mm: 2, sMm: 1 });
   ok("plateau_pieces pose la couleur de la fiche", P[0].couleur === "#2B5F9E");
 }
+
+/* ── R12 : dépouille (angle des flancs) ── */
+{
+  const { extruder_depouille, retourner_z } = await import("../js/mod-solide.js");
+  const base = [[carre(0, 0, 20)]];
+  const largeurA = (tris, z, tol = 1e-6) => {   // largeur en x de la tranche à la cote z (sommets à cette cote)
+    let mn = Infinity, mx = -Infinity;
+    for (const t of tris) for (const p of t) if (Math.abs(p[2] - z) <= tol) { mn = Math.min(mn, p[0]); mx = Math.max(mx, p[0]); }
+    return mx - mn;
+  };
+  const droit = extruder_depouille(mz, base, 5, 0);
+  ok("angle 0 = extrusion droite (même volume)", pres(volume_de(droit), 2000, 1e-6));
+  const pos = extruder_depouille(mz, base, 5, 30);
+  // la base est EXACTE (la forme dessinée) ; le sommet porte l'erreur d'UNE marche par flanc (retrait / n ≤ 0,2 mm)
+  const retrait30 = 5 * Math.tan(Math.PI / 6), marche = retrait30 / Math.min(24, Math.ceil(retrait30 / 0.2));
+  ok("angle +30° : base 20, sommet rétréci de 2·5·tan30 ≈ 5,77 à une marche près", pres(largeurA(pos, 0), 20, 1e-6) && pres(largeurA(pos, 5), 20 - 2 * retrait30, 2 * marche + 1e-9) && largeurA(pos, 5) < 20 - 2 * retrait30 + 2 * marche, `${largeurA(pos, 0)} / ${largeurA(pos, 5)} (marche ${marche})`);
+  ok("angle +30° : volume entre celui du sommet et celui de la base", volume_de(pos) < 2000 && volume_de(pos) > (20 - 5.77) ** 2 * 5, volume_de(pos));
+  const neg = extruder_depouille(mz, base, 5, -30);
+  ok("angle −30° : le SOMMET garde 20, la base est rétrécie", pres(largeurA(neg, 5), 20, 1e-6) && largeurA(neg, 0) < 15, `${largeurA(neg, 0)} / ${largeurA(neg, 5)}`);
+  ok("angle −30° : même volume que +30° (miroir en z), et fermé (volume > 0)", pres(volume_de(neg), volume_de(pos), 1e-6) && volume_de(neg) > 0);
+  ok("z min 0 après retournement", Math.min(...neg.flatMap((t) => t.map((p) => p[2]))) >= -1e-9);
+  let refus = 0;
+  try { extruder_depouille(mz, base, 5, 60); } catch { refus++; }
+  try { extruder_depouille(mz, base, 0, 10); } catch { refus++; }
+  ok("angle > 45° et hauteur 0 refusés", refus === 2);
+  ok("retourner_z : z → h − z, orientation inversée (volume conservé positif)", pres(volume_de(retourner_z(droit, 5)), 2000, 1e-6));
+  const pointe = extruder_depouille(mz, base, 30, 45);  // retrait 30 > demi-côté 10 : la pointe se ferme d'elle-même
+  ok("la pointe se ferme sans erreur (pyramide tronquée en marches)", volume_de(pointe) > 0 && volume_de(pointe) < 20 * 20 * 30);
+  const combo = extruder_biseau(mz, base, 5, 1, 0.2, { depouille: 20 });
+  ok("biseau + dépouille : sommet plus étroit que la dépouille seule", largeurA(combo, 5) < largeurA(extruder_depouille(mz, base, 5, 20), 5) - 1);
+  ok("biseau sans option : inchangé", pres(volume_de(extruder_biseau(mz, base, 5, 1, 0.2)), volume_de(extruder_biseau(mz, base, 5, 1)), 1e-9));
+}
 if (echecs.length) {
   console.error("ECHECS solide :\n- " + echecs.join("\n- "));
   process.exit(1);
 }
-console.log("QA solide : PASS (41 controles)");
+console.log("QA solide : PASS (52 controles)");
