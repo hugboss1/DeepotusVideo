@@ -5,7 +5,9 @@
 // (une droite devient courbe), le double-clic sur un segment insère un
 // nœud à cet endroit, Suppr fait une suppression LISSE, la barre
 // contextuelle porte conversions / actions / alignements. Écouteurs en
-// CAPTURE sur #stage, aperçu par patch du clone, UNE commande au pointerup.
+// CAPTURE sur #stage, aperçu par VL.apercuNoeuds (R12 : chemin ET overlay
+// suivent le curseur à chaque pointermove, un cadre rAF au plus), UNE
+// commande au pointerup qui pose exactement ce qui est affiché.
 import { segment_proche, segment_tirer, poignee_deplacer, noeud_supprimer_lisse, noeud_intelligent } from "./mod-noeud.js";
 import { bbox_ancres, poignees_bbox, bbox_par_poignee, noeuds_tourner } from "./mod-selection.js";
 import { contraindre_angle } from "./mod-plume.js";
@@ -25,7 +27,6 @@ export function initNoeudUI(VL) {
   const actif = () => etat.outil === "noeuds" && !!etat.doc;
   const aimante = (dx, dy) => etat.aimantNoeuds === false ? [dx, dy] : VL.aimantePt(dx, dy);
   const chemin = () => VL.pathSelectionne();
-  const poserD = (id, d) => { const el = document.querySelector(`#canvasHost [data-objet="${id}"]`); if (el) { const p = el.tagName === "path" ? el : el.querySelector("path"); if (p) p.setAttribute("d", d); } };
 
   stage.addEventListener("pointerdown", (ev) => {
     if (!actif() || ev.button !== 0) return;
@@ -41,6 +42,7 @@ export function initNoeudUI(VL) {
         const cx = b0.x + b0.w / 2, cy = b0.y + b0.h / 2;
         geste = pt0.dataset.k === "rot" ? { type: "noeuds-rot", id: p.id, segs, d0: p.d, cx, cy, a0: Math.atan2(dy - cy, dx - cx) }
                                         : { type: "noeuds-echelle", id: p.id, segs, d0: p.d, k: +pt0.dataset.k, b0 };
+        VL.apercuNoeuds.debut(p.id, segs);
         ev.stopPropagation(); ev.preventDefault();
         try { stage.setPointerCapture(ev.pointerId); } catch (e) { /* synthétique */ }
         return;
@@ -51,6 +53,7 @@ export function initNoeudUI(VL) {
     if (pg) {
       geste = { type: "poignee", id: p.id, i: +pg.dataset.ancre, role: pg.dataset.role, segs, d0: p.d };
       etat.ancreSel = geste.i;
+      VL.apercuNoeuds.debut(p.id, segs);
       ev.stopPropagation(); ev.preventDefault();
       try { stage.setPointerCapture(ev.pointerId); } catch (e) { /* synthétique */ }
       return;
@@ -62,6 +65,7 @@ export function initNoeudUI(VL) {
       const sp = segment_proche(segs, [dx, dy], 8 / etat.zoom);
       if (sp) {
         geste = { type: "segment", id: p.id, k: sp.k, t: sp.t, x0: dx, y0: dy, segs, d0: p.d };
+        VL.apercuNoeuds.debut(p.id, segs);
         ev.stopPropagation(); ev.preventDefault();
         try { stage.setPointerCapture(ev.pointerId); } catch (e) { /* synthétique */ }
       }
@@ -90,13 +94,15 @@ export function initNoeudUI(VL) {
       segs = segment_tirer(geste.segs, geste.k, geste.t, dx - geste.x0, dy - geste.y0);
     }
     geste.d = chemin_serialiser(segs);
-    poserD(geste.id, geste.d);
+    VL.apercuNoeuds.poser(segs, geste.d);
   }, true);
   stage.addEventListener("pointerup", (ev) => {
     if (!geste) return;
     ev.stopPropagation();
     const g = geste; geste = null;
-    if (g.d && g.d !== g.d0) VL.executer((doc) => { const o = doc.calques.flatMap((c) => c.objets).find((x) => x.id === g.id); if (!o) throw new Error("chemin introuvable"); o.d = g.d; });
+    const fin = VL.apercuNoeuds.fin();           // R12 : ce qui est affiché est ce qui est posé
+    const d = fin && fin.d ? fin.d : g.d;
+    if (d && d !== g.d0) VL.executer((doc) => { const o = doc.calques.flatMap((c) => c.objets).find((x) => x.id === g.id); if (!o) throw new Error("chemin introuvable"); o.d = d; });
     else VL.rendreOverlay();
   }, true);
   // double-clic sur un segment : un nœud à cet endroit (sur une ancre, mod-tools convertit)
@@ -131,7 +137,7 @@ export function initNoeudUI(VL) {
     sOverlay(o);
     if (!actif() || !etat.ancresSel || etat.ancresSel.length < 2) return;
     const p = chemin(); if (!p) return;
-    const b = bbox_ancres(chemin_ancres(chemin_parser(p.d)), etat.ancresSel);
+    const b = bbox_ancres(chemin_ancres(etat.noeudsApercu || chemin_parser(p.d)), etat.ancresSel);   // R12 : depuis l'aperçu pendant le geste
     if (!b) return;
     const [ex, ey] = VL.ecranPt(b.x, b.y), be = { x: ex, y: ey, w: b.w * etat.zoom, h: b.h * etat.zoom };
     const el = (nom, attrs) => { const e = document.createElementNS(SNS, nom); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); o.appendChild(e); return e; };

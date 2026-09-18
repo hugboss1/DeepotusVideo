@@ -28,6 +28,7 @@ import { initBarreContexte } from "./mod-barrecontexte.js";
 import { initOutils3 } from "./mod-outils3ui.js";
 import { initPlume } from "./mod-plumeui.js";
 import { initNoeudUI } from "./mod-noeudui.js";
+import { initNoeudApercu } from "./mod-noeudapercu.js";
 import { initSelectionUI } from "./mod-selectionui.js";
 import { initTexteUI } from "./mod-texteui.js";
 import { op_noeud_supprimer } from "./mod-doc.js";
@@ -68,6 +69,7 @@ const etat = {
   outil: "select",
   selection: [],                 // ids d'objets
   ancreSel: null,                // index d'ancre (mode nœuds)
+  noeudsApercu: null,            // R12 : les segs de l'aperçu pendant un geste de nœud (l'overlay les lit)
   calqueActif: null,
   zoom: 1, tx: 40, ty: 40,
   grille: { active: true, pas: 8 },   // pas en px DOCUMENT (cf. dessinerGrille)
@@ -421,7 +423,8 @@ function rendreOverlay() {
   // ancres du mode nœuds
   const p = etat.outil === "noeuds" ? pathSelectionne() : null;
   if (p) {
-    const ancres = chemin_ancres(chemin_parser(p.d));
+    // R12 : pendant un geste, l'overlay se dessine depuis l'APERÇU, pas depuis le document
+    const ancres = chemin_ancres(etat.noeudsApercu || chemin_parser(p.d));
     for (const a of ancres) {
       const [ax, ay] = ecranPt(a.x, a.y);
       // R9 : les poignées sont des cibles (.poignee-noeud, data-ancre / data-role) — une poignée dégénérée (sur l'ancre) n'est pas dessinée
@@ -760,6 +763,7 @@ initPlanches(VL);   // panneau Planches (lot C)
 initImpression(VL); // dialogue Impression 3D + texte → chemins (lot D)
 initCarte(VL);      // panneau Carte réelle : GPX, fond, relief, courbes, tuiles (lot H)
 initOutils(VL);
+initNoeudApercu(VL); // R12 : l'aperçu des gestes de nœud (un cadre rAF, sans clone) — après initOutils, avant Outils2 / NoeudUI
 initExport(VL);
 initVitrail(VL);
 initBiblio(VL);

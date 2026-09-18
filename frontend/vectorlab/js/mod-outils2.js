@@ -6,11 +6,11 @@
 // listeners du cœur des outils (mod-tools) restent ; ce module écoute en
 // phase de CAPTURE et n'arrête la propagation que pour ses propres cibles.
 import { op_ajouter, op_forme_param, op_forme_en_chemin, op_supprimer } from "./mod-doc.js";
-import { chemin_parser, chemin_ancres } from "./mod-doc.js";
+import { chemin_parser, chemin_serialiser, chemin_ancres } from "./mod-doc.js";
 import { FORMES, forme_defaut, forme_d, forme_poignees, forme_poignee_deplacer } from "./mod-formes.js";
 import { lisser_vers_d } from "./mod-crayon.js";
 import { op_couteau, op_gomme, op_constructeur } from "./mod-bool.js";
-import { op_noeuds_deplacer, op_noeuds_aligner, op_noeud_inserer, op_chemin_inverser,
+import { noeuds_deplacer_segs, op_noeuds_aligner, op_noeud_inserer, op_chemin_inverser,
          op_chemins_joindre, op_coins_arrondir, ancres_dans_rect } from "./mod-noeuds.js";
 
 const SNS = "http://www.w3.org/2000/svg";
@@ -72,7 +72,8 @@ export function initOutils2(VL) {
       const anc = t.closest && t.closest(".ancre");
       const p = VL.pathSelectionne();
       if (anc && p && etat.ancresSel.length > 1 && etat.ancresSel.includes(+anc.dataset.ancre)) {
-        geste = { type: "ancres", id: p.id, x0: dx, y0: dy, dxA: 0, dyA: 0 };
+        geste = { type: "ancres", id: p.id, x0: dx, y0: dy, dxA: 0, dyA: 0, segs: chemin_parser(p.d), d0: p.d, d: null };
+        VL.apercuNoeuds.debut(p.id, geste.segs);   // R12 : segs parsés une fois, aucun clone
         ev.stopPropagation(); ev.preventDefault(); return;
       }
       if (anc && ev.shiftKey && p) {
@@ -156,11 +157,9 @@ export function initOutils2(VL) {
     } else if (geste.type === "ancres") {
       const [ax, ay] = etat.aimantNoeuds === false ? [dx, dy] : VL.aimantePt(dx, dy);   // R10 : magnétisme aux nœuds séparé
       geste.dxA = ax - geste.x0; geste.dyA = ay - geste.y0;
-      const d2 = JSON.parse(JSON.stringify(etat.doc));
-      op_noeuds_deplacer(d2, geste.id, etat.ancresSel, geste.dxA, geste.dyA);
-      const o = d2.calques.flatMap((c) => c.objets).find((x) => x.id === geste.id);
-      const el = document.querySelector(`#canvasHost [data-objet="${geste.id}"]`);
-      if (el && o) el.setAttribute("d", o.d);
+      const segs = noeuds_deplacer_segs(geste.segs, etat.ancresSel, geste.dxA, geste.dyA);
+      geste.d = chemin_serialiser(segs);
+      VL.apercuNoeuds.poser(segs, geste.d);      // R12 : chemin + overlay au curseur
     }
   });
 
@@ -204,10 +203,14 @@ export function initOutils2(VL) {
       etat.ancreSel = etat.ancresSel.length === 1 ? etat.ancresSel[0] : null;
       VL.rendreOverlay(); rendreNoeuds();
     } else if (g.type === "ancres") {
-      const el = document.querySelector(`#canvasHost [data-objet="${g.id}"]`);
-      const t2 = VL.objetDe(g.id);
-      if (el && t2) el.setAttribute("d", t2.objet.d);
-      if (g.dxA || g.dyA) VL.executer(op_noeuds_deplacer, g.id, etat.ancresSel.slice(), g.dxA, g.dyA);
+      const fin = VL.apercuNoeuds.fin();          // R12 : pose ce qui est affiché
+      if (fin && fin.d && fin.d !== g.d0) {
+        VL.executer((doc) => {
+          const o = doc.calques.flatMap((c) => c.objets).find((x) => x.id === g.id);
+          if (!o) throw new Error("chemin introuvable");
+          o.d = fin.d;
+        });
+      } else VL.rendre();
     }
   });
 

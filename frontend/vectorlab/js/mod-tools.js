@@ -3,11 +3,12 @@
 // pendant le geste, seuls des APERÇUS bougent (overlay ou attributs DOM
 // provisoires). Aucune mutation du document hors VL.executer.
 import { op_ajouter, op_supprimer, op_deplacer, op_redimensionner, op_tourner,
-         op_noeud_deplacer, op_noeud_convertir, op_noeud_supprimer,
+         op_noeud_convertir, op_noeud_supprimer,
          op_guide_ajouter, op_guide_deplacer, op_guide_supprimer, op_style,
          op_tuiles_peindre,
          chemin_parser, chemin_serialiser, chemin_ancres } from "./mod-doc.js";
 import { hex_depuis_point, hex_centre, hex_d } from "./mod-grille.js";
+import { noeuds_deplacer_segs } from "./mod-noeuds.js";
 
 const SNS = "http://www.w3.org/2000/svg";
 
@@ -121,8 +122,10 @@ export function initOutils(VL) {
       const p = VL.pathSelectionne();
       if (!p) return;
       etat.ancreSel = +ancre.dataset.ancre;
+      // R12 : les segs parsés UNE fois, aucun clone de document pendant le geste
       geste = { type: "ancre", id: p.id, i: etat.ancreSel, x0: dx, y0: dy,
-                docAvant: JSON.parse(JSON.stringify(etat.doc)) };
+                segs: chemin_parser(p.d), d0: p.d, d: null };
+      VL.apercuNoeuds.debut(p.id, geste.segs);
       VL.rendreOverlay();
       ev.preventDefault();
       return;
@@ -395,16 +398,10 @@ export function initOutils(VL) {
     } else if (geste.type === "ancre") {
       const [ax, ay] = etat.aimantNoeuds === false ? [dx, dy] : VL.aimantePt(dx, dy);   // R10 : magnétisme aux nœuds séparé
       geste.dxA = ax - geste.x0; geste.dyA = ay - geste.y0;
-      const d2 = JSON.parse(JSON.stringify(geste.docAvant));
-      op_noeud_deplacer(d2, geste.id, geste.i, geste.dxA, geste.dyA);
-      let d = null;
-      for (const c of d2.calques) {
-        const o = c.objets.find((x) => x.id === geste.id);
-        if (o) { d = o.d; break; }
-      }
-      const el = document.querySelector(
-        `#canvasHost [data-objet="${geste.id}"]`);
-      if (el && d) el.setAttribute("d", d);
+      // R12 : chemin + overlay suivent le curseur (un cadre rAF au plus)
+      const segs = noeuds_deplacer_segs(geste.segs, [geste.i], geste.dxA, geste.dyA);
+      geste.d = chemin_serialiser(segs);
+      VL.apercuNoeuds.poser(segs, geste.d);
     } else if (geste.type === "grad") {
       const [ax, ay] = VL.aimantePt(dx, dy);
       const gr = (etat.doc.degrades || {})[geste.gid];
@@ -509,14 +506,15 @@ export function initOutils(VL) {
       const id = VL.executer(op_ajouter, etat.calqueActif, objet);
       if (id) VL.setSelection([id]);
     } else if (g.type === "ancre") {
-      const el = document.querySelector(`#canvasHost [data-objet="${g.id}"]`);
-      if (el) {
-        const avant = docContient(g.id);
-        if (avant) el.setAttribute("d", avant.objet.d);
-      }
-      if (g.dxA || g.dyA) {
-        VL.executer(op_noeud_deplacer, g.id, g.i, g.dxA, g.dyA);
-      }
+      // R12 : le relâchement pose EXACTEMENT ce qui est affiché (le cadre en attente est vidé)
+      const fin = VL.apercuNoeuds.fin();
+      if (fin && fin.d && fin.d !== g.d0) {
+        VL.executer((doc) => {
+          const o = doc.calques.flatMap((c) => c.objets).find((x) => x.id === g.id);
+          if (!o) throw new Error("chemin introuvable");
+          o.d = fin.d;
+        });
+      } else VL.rendre();
     } else if (g.type === "grad") {
       if (g.patch) VL.executer(VL.opDegradeModifier, g.gid, g.patch);
       else VL.rendreOverlay();
