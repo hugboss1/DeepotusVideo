@@ -26,6 +26,7 @@ import { initCharpente } from "./mod-charpente.js";
 import { initPile } from "./mod-pile.js";
 import { initBarreContexte } from "./mod-barrecontexte.js";
 import { initOutils3 } from "./mod-outils3ui.js";
+import { initPlume } from "./mod-plumeui.js";
 import { op_noeud_supprimer } from "./mod-doc.js";
 import { UNITES, depuisUnite, formatNombre, libelle_mesure }
   from "./mod-unites.js";
@@ -763,6 +764,7 @@ initPersona(VL);    // lot E (D8) : Vecteur / Pixel / Export — après initOuti
 initExportPlus(VL); // lot G : Export + (tranches, formats, impression, lot) — après initPersona (surPersona) et initExport (svgCourant)
 initPixelUI(VL);    // lot E : outils raster, sélections, ajustements, pixel-art — pose surOverlay/surTouche en chaîne
 initBrouillon(VL); // pose surCharge AVANT charger() (lot A)
+initPlume(VL);      // R8 : la Plume de classe Affinity — REMPLACE la plume de mod-tools (capture + stopPropagation) ; après initOutils (surOutil / surTouche)
 initOutils3(VL);    // R7 : Main, Loupe, Plan de travail, Dégradé, Transparence, Cadre, Recadrer, retouche raster — avant initFlyout / initBarreOutils (boutons dans la barre)
 initFlyout(VL);     // menus détachés de la barre : Forme, Symboles
 initBarreOutils(VL); // relooking Affinity : familles d'outils, icônes fines, flyout vertical — après initFlyout (ouvrirMenu, armer)

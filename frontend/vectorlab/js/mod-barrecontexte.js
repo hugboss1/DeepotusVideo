@@ -22,7 +22,7 @@ export function initBarreContexte(VL) {
   const objetsSel = () => etat.selection.map((id) => { const t = VL.objetDe(id); return t ? t.objet : null; }).filter(Boolean);
   function vue() {
     return { selection: etat.selection, objets: objetsSel(), formeCourante: etat.formeCourante, formes: FORMES, gommeLargeur: etat.gommeLargeur, coinRayon: etat.coinRayon,
-             pinceauv: etat.pinceauv, profils: PROFILS, px: etat.px, terrainCourant: etat.terrainCourant, terrains: etat.doc ? terrains_de(etat.doc) : {}, typo: etat.typo, exportPlus: etat.exportPlus };
+             pinceauv: etat.pinceauv, profils: PROFILS, px: etat.px, terrainCourant: etat.terrainCourant, terrains: etat.doc ? terrains_de(etat.doc) : {}, typo: etat.typo, exportPlus: etat.exportPlus, plume: etat.plume };
   }
   function rendre() {
     hSel.textContent = libelle_selection(objetsSel());
@@ -36,7 +36,7 @@ export function initBarreContexte(VL) {
     }).join("");
     hOutil.querySelectorAll("[data-champ]").forEach((el) => {
       const id = el.dataset.champ;
-      if (el.tagName === "BUTTON") { el.addEventListener("click", () => { if (id === "configDoc") configurerDocument(); else if (id === "parametres") parametresAppli(); }); return; }
+      if (el.tagName === "BUTTON") { el.addEventListener("click", () => { if (id === "configDoc") configurerDocument(); else if (id === "parametres") parametresAppli(); else if (id.includes(":")) { const [m, a] = id.split(":"); const A = (VL.actions || {})[m]; if (A && A[a]) A[a](); } }); return; }
       el.addEventListener("change", () => appliquer(id, el.type === "checkbox" ? el.checked : el.value));
     });
   }

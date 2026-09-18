@@ -12,6 +12,8 @@ export function libelle_selection(objets) {
 const opts = (liste, id = "id", lib = ["nom", "libelle", "famille"]) => (Array.isArray(liste) ? liste : []).map((x) => ({ id: x[id], libelle: lib.map((k) => x[k]).find((v) => v) || String(x[id]) }));
 const nombre = (id, libelle, valeur, min, max, pas = 1) => ({ id, type: "number", libelle, valeur: +valeur || 0, min, max, pas });
 const select = (id, libelle, valeur, options) => ({ id, type: "select", libelle, valeur, options });
+const MODES_PLUME = [{ id: "plume", nom: "Plume" }, { id: "intelligent", nom: "Intelligent" }, { id: "polygone", nom: "Polygone" }, { id: "ligne", nom: "Ligne" }];
+const ACTIONS_PLUME = [["vif", "Vif"], ["lisse", "Lisse"], ["fractionner", "Fractionner"], ["ouvrir", "Ouvrir"], ["fermer", "Fermer"], ["lisserCourbe", "Courbe lisse"], ["relier", "Relier"], ["inverser", "Inverser"]];
 const MODES_TRANCHE = [{ id: "document", nom: "Document" }, { id: "objets", nom: "Par objet" }, { id: "planches", nom: "Par planche" }, { id: "calques", nom: "Par calque" }, { id: "dessinees", nom: "Dessinées" }];
 export function champs_de(outil, etat) {
   if (!etat || typeof etat !== "object") return [];
@@ -24,6 +26,7 @@ export function champs_de(outil, etat) {
       const op = tete.style && tete.style.opacite !== undefined ? +tete.style.opacite : 1;
       return [nombre("opacite", "Opacité %", Math.round(op * 100), 0, 100)];
     }
+    case "plume": return [select("plumeMode", "Mode", (etat.plume || {}).mode || "plume", opts(MODES_PLUME)), ...ACTIONS_PLUME.map(([a, l]) => ({ id: "plume:" + a, type: "bouton", libelle: l }))];
     case "forme": return [select("formeCourante", "Forme", etat.formeCourante, opts(etat.formes))];
     case "gomme": return [nombre("gommeLargeur", "Largeur", etat.gommeLargeur, 1, 500)];
     case "coin": return [nombre("coinRayon", "Rayon", etat.coinRayon, 0, 500)];
@@ -44,6 +47,7 @@ export function appliquer_champ(etat, id, valeur) {
     case "gommeLargeur": return { gommeLargeur: borne(valeur, 1, 500) };
     case "coinRayon": return { coinRayon: borne(valeur, 0, 500) };
     case "formeCourante": return { formeCourante: String(valeur) };
+    case "plumeMode": return { plume: { ...(e.plume || {}), mode: ["plume", "intelligent", "polygone", "ligne"].includes(String(valeur)) ? String(valeur) : "plume" } };
     case "terrainCourant": return { terrainCourant: String(valeur) };
     case "pvProfil": return { pinceauv: { ...(e.pinceauv || {}), profil: String(valeur) } };
     case "pvLargeur": return { pinceauv: { ...(e.pinceauv || {}), largeur: borne(valeur, 1, 200) } };
