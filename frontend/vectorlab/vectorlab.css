@@ -424,6 +424,10 @@ details > summary.panneau-tete { cursor: pointer; list-style: none; }
   border-radius: 4px; padding: 3px 6px; }
 .imp-viewer { flex: 1; min-height: 360px; height: 60vh; background: #fff; border-radius: 6px; }
 .imp-garde { color: #e0b34a; font-size: 12px; margin: 0; }
+/* R12 : curseur + champ de la dépouille sur une rangée */
+.imp-range { display: flex; gap: 6px; align-items: center; }
+.imp-range input[type=range] { flex: 1; min-width: 0; }
+.imp-range input[type=number] { width: 58px; }
 .imp-doc { color: var(--aff-muet); font-size: 12px; margin-left: 8px; }
 
 /* ── lot H : carte réelle ── */

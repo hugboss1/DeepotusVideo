@@ -12,6 +12,9 @@ const ok = (nom, cond, detail = "") => {
   ok("valeurs folles : mode calques, hauteur 3 par défaut, socle 0, biseau borné sous la hauteur, mur ≥ 0,8, plancher sous la hauteur",
      b.mode === "calques" && b.hauteur === 3 && b.socle === 0 && b.biseau < b.hauteur && b.mur === 0.8 && b.plancher < b.hauteur, JSON.stringify(b));
   ok("virgule décimale acceptée", reglages_lire({ hauteur: "2,5" }).hauteur === 2.5);
+  ok("dépouille lue, bornée ±45, 0 par défaut", reglages_lire({ mode: "logo", depouille: "20" }).depouille === 20
+     && reglages_lire({ mode: "logo", depouille: "90" }).depouille === 45 && reglages_lire({ mode: "logo", depouille: "-70" }).depouille === -45
+     && reglages_lire({ mode: "logo" }).depouille === 0 && reglages_lire({ depouille: "abc" }).depouille === 0);
 }
 {
   const h = hauteurs_par_calque("3, contours=5, Verres = 2", [{ nom: "verres" }, { nom: "contours" }, { nom: "autre" }]);
@@ -32,4 +35,4 @@ const ok = (nom, cond, detail = "") => {
   ok("couleur_du_lot sans couleur → null", couleur_du_lot([{ nom: "x" }]) === null);
 }
 if (echecs.length) { console.error("ECHECS impression_ui :\n- " + echecs.join("\n- ")); process.exit(1); }
-console.log("QA impression_ui : PASS (10 controles)");
+console.log("QA impression_ui : PASS (11 controles)");

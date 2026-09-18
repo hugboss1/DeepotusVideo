@@ -9,7 +9,7 @@
 // vectorisés sont ignorés et DITS, jamais bloquants.
 import { aplatir_objet, contour_en_multi, versMulti } from "./mod-bool.js";
 import { extruder, stl_binaire, volume_de } from "./mod-extrude.js";
-import { MUR_MIN_MM, extruder_biseau, extruder_evide, plateau_pieces, glb_de_pieces,
+import { MUR_MIN_MM, DEPOUILLE_MAX, extruder_biseau, extruder_evide, plateau_pieces, glb_de_pieces,
          nomenclature_csv, couleur_dominante } from "./mod-solide.js";
 import { terrains_de, op_texte_vectoriser } from "./mod-doc.js";
 import { hex_centre, hex_sommets } from "./mod-grille.js";
@@ -33,7 +33,9 @@ export function reglages_lire(f) {
   const exageration = Math.min(10, Math.max(0.1, num(f.exageration, 1.5)));
   const largeur = Math.max(10, num(f.largeur, 150));
   const gravure = Math.max(0, num(f.gravure, 0));
-  return { mode, hauteur, socle, biseau, evide: !!f.evide, mur, plancher, pas: 0.2, exageration, largeur, gravure };
+  // R12 : l'angle de dépouille des flancs (0 = droits, + = base plus large), borné ±45
+  const depouille = Math.max(-DEPOUILLE_MAX, Math.min(DEPOUILLE_MAX, num(f.depouille, 0)));
+  return { mode, hauteur, socle, biseau, evide: !!f.evide, mur, plancher, pas: 0.2, exageration, largeur, gravure, depouille };
 }
 export function hauteurs_par_calque(texte, calques) {
   let globale = null;
@@ -177,7 +179,7 @@ export function initImpression(VL) {
       if (!mp || !mp.length) throw new Error("logo : rien d'extrudable (sélection vide ou textes non vectorisés)");
       const mm = enMm(mp);
       const tris = r.evide ? extruder_evide(mz(), mm, r.hauteur, r.mur, r.plancher)
-                 : extruder_biseau(mz(), mm, r.hauteur, r.biseau, r.pas);
+                 : extruder_biseau(mz(), mm, r.hauteur, r.biseau, r.pas, { depouille: r.depouille });
       pieces.push({ nom: "logo", tris, hauteur_mm: r.hauteur, couleur: couleur_dominante(sel, terrains_de(doc)) });
     } else {
       const h = hauteurs_par_calque($("#impHauteurs").value, doc.calques);
@@ -199,7 +201,7 @@ export function initImpression(VL) {
   function lire() {
     return reglages_lire({ mode: $("#impMode").value, hauteur: $("#impHauteur").value,
       socle: $("#impSocle").value, biseau: $("#impBiseau").value, evide: $("#impEvide").checked,
-      mur: $("#impMur").value, plancher: $("#impPlancher").value,
+      mur: $("#impMur").value, plancher: $("#impPlancher").value, depouille: $("#impDepouille").value,
       exageration: $("#impExag").value, largeur: $("#impLargeur").value, gravure: $("#impGravure").value });
   }
   function apercu() {
@@ -292,6 +294,7 @@ export function initImpression(VL) {
           <label class="imp-logo">Hauteur (mm) <input id="impHauteur" type="number" step="0.1" min="0.2" value="5"/></label>
           <label class="imp-tuiles imp-relief">Socle (mm) <input id="impSocle" type="number" step="0.1" min="0" value="2"/></label>
           <label class="imp-logo">Biseau (mm) <input id="impBiseau" type="number" step="0.1" min="0" value="0.6"/></label>
+          <label class="imp-logo">Dépouille des flancs (°, 0 = droits, + = base plus large) <span class="imp-range"><input id="impDepouilleR" type="range" min="-${DEPOUILLE_MAX}" max="${DEPOUILLE_MAX}" step="1" value="0"/><input id="impDepouille" type="number" step="1" min="-${DEPOUILLE_MAX}" max="${DEPOUILLE_MAX}" value="0"/></span></label>
           <label class="imp-logo imp-ligne"><input type="checkbox" id="impEvide"/> évider (mur ≥ ${MUR_MIN_MM} mm)</label>
           <label class="imp-logo">Mur (mm) <input id="impMur" type="number" step="0.1" min="${MUR_MIN_MM}" value="1.2"/></label>
           <label class="imp-logo">Plancher (mm) <input id="impPlancher" type="number" step="0.1" min="0" value="1"/></label>
@@ -315,6 +318,14 @@ export function initImpression(VL) {
     const garde = (fn) => () => Promise.resolve().then(fn).catch((e) => {
       $("#impResume").textContent = e.message; VL.toast(e.message, true); });
     $("#impMode").addEventListener("change", majMode);
+    // R12 : curseur et champ de dépouille synchronisés ; l'évidement l'ignore (dit)
+    $("#impDepouilleR").addEventListener("input", () => { $("#impDepouille").value = $("#impDepouilleR").value; });
+    $("#impDepouille").addEventListener("input", () => { $("#impDepouilleR").value = $("#impDepouille").value; });
+    $("#impEvide").addEventListener("change", () => {
+      const e = $("#impEvide").checked;
+      $("#impDepouille").disabled = e; $("#impDepouilleR").disabled = e;
+      $("#impDepouille").title = e ? "l'évidement ignore la dépouille" : "";
+    });
     $("#impApercu").addEventListener("click", garde(apercu));
     $("#impUnStl").addEventListener("click", garde(unStl));
     $("#impLot").addEventListener("click", garde(lot));
