@@ -30,22 +30,19 @@
     <symbol id="v-grille" viewBox="0 0 24 24"><path d="M12 2.4 21.6 12 12 21.6 2.4 12z" opacity=".26"></path><path d="M12 2.4 16.8 7.2 12 12 7.2 7.2zM12 12l4.8 4.8L12 21.6l-4.8-4.8z"></path></symbol>
     <symbol id="v-plomb" viewBox="0 0 24 24"><path d="M2.6 12 8 3.4h8L21.4 12 16 20.6H8z" opacity=".24"></path><path d="M2.6 11.2h18.8v1.6H2.6zM7.3 3.8l8.9 16.8-1.4.8L5.9 4.6zM16.7 3.8 7.8 20.6l-1.4-.8L15.3 3z"></path></symbol>
   </svg>
-  <header class="bar">
-    <div class="brand">◧ Vectorlab</div>
-    <button id="btnBiblio" title="Bibliothèque des documents">⌂</button>
-    <div class="doc"><b id="docTitle">…</b> <span id="docMeta"></span></div>
-    <nav id="personas" class="personas" title="Persona : une surface, trois métiers (D8)"></nav>
-    <span id="temoin" title="État d'enregistrement">✓</span>
+  <nav id="menubar" class="mb" aria-label="Menus"></nav>
+  <header class="bar pb">
+    <div class="brand" title="Vectorlab">a</div>
+    <nav id="personas" class="personas" title="Persona : une surface, deux métiers (D8)"></nav>
+    <button id="btnBiblio" class="pb-icone" title="Bibliothèque des documents (Accueil)">⌂</button>
     <div class="spacer"></div>
-    <span id="zoomLabel" title="Molette : zoom · glisser (main ou fond) : déplacer">100 %</span>
-    <button id="btnUnite" title="Unité d'affichage des règles et des cotes (px → mm → cm → in) — sauvée avec le document, le dpi du document fait le pont physique">px</button>
-    <button id="btnGrille" title="Grille d'aimantation et repère visuel (G)">⊞ 8</button>
-    <select id="selGrille" title="Pas de la grille — en pixels du document"></select>
-    <button id="btnAimant" class="actif" title="Aimantation aux objets : bords, centres, écarts réguliers">⌖</button>
-    <button id="btnAnnuler" title="Annuler (Ctrl+Z)">↶</button>
-    <button id="btnRefaire" title="Refaire (Ctrl+Y)">↷</button>
+    <span id="pbCotes" class="pb-cotes" title="Cotes de la sélection">Pas de données</span>
+    <span id="pbDoc" class="pb-doc" title="Taille, unité et dpi du document"></span>
+    <span id="temoin" title="État d'enregistrement">✓</span>
+    <button id="btnAnnuler" class="pb-icone" title="Annuler (Ctrl+Z)">↶</button>
+    <button id="btnRefaire" class="pb-icone" title="Refaire (Ctrl+Y)">↷</button>
     <span class="exp-conteneur">
-      <button id="btnExporter" title="Exporter le document">Exporter ▾</button>
+      <button id="btnExporter" class="pb-export" title="Exporter le document"><i></i>Exporter SVG ▾</button>
       <div id="expMenu" class="exp-menu hidden">
         <button id="expSvg" title="Compile ici, stocké au serveur, servi sur export.svg">SVG (serveur)</button>
         <button id="expPng1" title="PNG taille du document → Library">PNG 1×</button>
@@ -60,7 +57,21 @@
       <input type="file" id="imgFichierInput" accept="image/png,image/jpeg,image/webp" hidden/>
     </span>
     <button id="btnSauver" class="primaire" title="Sauver (Ctrl+S)">Sauver</button>
+    <button id="btnAide" class="pb-icone" title="Raccourcis clavier (F1)">?</button>
   </header>
+  <div id="contexte" class="cb">
+    <span id="cbSelection">Aucune sélection</span>
+    <span class="cb-sep"></span>
+    <span id="cbOutil"></span>
+    <span class="cb-sep"></span>
+    <button id="btnGrille" title="Grille d'aimantation et repère visuel (G)">⊞ 8</button>
+    <select id="selGrille" title="Pas de la grille — en pixels du document"></select>
+    <button id="btnAimant" class="actif" title="Aimantation aux objets : bords, centres, écarts réguliers">⌖</button>
+    <button id="btnUnite" title="Unité d'affichage des règles et des cotes (px → mm → cm → in) — sauvée avec le document">px</button>
+    <span class="spacer"></span>
+    <span id="zoomLabel" title="Molette : zoom · glisser (main ou fond) : déplacer">100 %</span>
+  </div>
+  <div class="dt"><span id="docTitle" class="dt-onglet">…</span></div>
   <section id="biblio" class="biblio">
     <div class="bib-outils">
       <input id="bibNouvNom" type="text" placeholder="nom du nouveau document"/>
@@ -112,7 +123,6 @@
         <main id="stage">
           <div id="canvasHost"></div>
           <svg id="overlay"></svg>
-          <div id="hintOutil" class="hint"></div>
         </main>
       </div>
     </div>
@@ -150,6 +160,12 @@
      </details>
     </aside>
   </div>
+  <footer class="sb">
+    <span id="sbPages" class="sb-pages">|◀ ◀ 1 sur 1 ▶ ▶|</span>
+    <span id="hintOutil" class="sb-phrase"></span>
+    <span class="spacer"></span>
+    <span id="docMeta" class="sb-msg"></span>
+  </footer>
   <div id="libDlg" class="vl-dlg hidden">
     <div class="vl-dlg-boite">
       <div class="vl-dlg-tete"><b>Bibliothèque</b>

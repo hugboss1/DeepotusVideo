@@ -612,7 +612,8 @@ export function initPixelUI(VL) {
   const suivantSel = VL.surSelection;
   VL.surSelection = () => { suivantSel(); rendrePanneau(); };
   const suivantOutil = VL.surOutil;
-  VL.surOutil = () => { suivantOutil(); const h = $("#hintOutil"); if (h && HINTS_PIXEL[etat.outil]) h.textContent = HINTS_PIXEL[etat.outil]; };
+  VL.hints = Object.assign(VL.hints || {}, HINTS_PIXEL);
+  VL.surOutil = () => { suivantOutil(); if (VL.majStatut) VL.majStatut(); else { const h = $("#hintOutil"); if (h && HINTS_PIXEL[etat.outil]) h.textContent = HINTS_PIXEL[etat.outil]; } };
   const suivantPersona = VL.surPersona;
   VL.surPersona = () => { suivantPersona(); rendrePanneau(); };
   const suivantCharge = VL.surCharge;

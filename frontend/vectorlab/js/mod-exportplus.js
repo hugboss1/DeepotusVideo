@@ -250,7 +250,8 @@ export function initExportPlus(VL) {
   const suivantPersona = VL.surPersona;
   VL.surPersona = () => { suivantPersona(); rendre(); };
   const suivantOutil = VL.surOutil;
-  VL.surOutil = () => { suivantOutil(); const h = $("#hintOutil"); if (h && HINTS4[etat.outil]) h.textContent = HINTS4[etat.outil]; };
+  VL.hints = Object.assign(VL.hints || {}, HINTS4);
+  VL.surOutil = () => { suivantOutil(); if (VL.majStatut) VL.majStatut(); else { const h = $("#hintOutil"); if (h && HINTS4[etat.outil]) h.textContent = HINTS4[etat.outil]; } };
   VL.exporterLot = exporterLot;          // la preuve
   VL.planExport = plan;
   rendre();

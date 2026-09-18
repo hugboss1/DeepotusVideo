@@ -744,7 +744,9 @@ export function initOutils(VL) {
     vitrail: "glisser sur la page pour tracer la baie",
     ia: "décrire l'illustration dans le panneau Vitrail",
   };
+  VL.hints = Object.assign(VL.hints || {}, HINTS);   // la barre d'état (mod-charpente) lit les phrases ici
   function majHint() {
+    if (VL.majStatut) { VL.majStatut(); return; }
     const el = $("#hintOutil");
     if (el) el.textContent = HINTS[etat.outil] || "";
   }

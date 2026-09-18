@@ -344,5 +344,6 @@ export function initOutils2(VL) {
   VL.surSelection = () => { suivantSel(); etat.pivot = null; etat.ancresSel = []; rendreForme(); rendreNoeuds(); };
   const suivantOutil = VL.surOutil;
   VL.surOutil = () => { suivantOutil(); etat.atomesChoisis = []; if (etat.outil !== "noeuds") etat.ancresSel = []; rendreNoeuds();
-    const h = $("#hintOutil"); if (h && HINTS2[etat.outil]) h.textContent = HINTS2[etat.outil]; };
+    if (VL.majStatut) VL.majStatut(); else { const h = $("#hintOutil"); if (h && HINTS2[etat.outil]) h.textContent = HINTS2[etat.outil]; } };
+  VL.hints = Object.assign(VL.hints || {}, HINTS2);
 }

@@ -269,6 +269,7 @@ export function initApparence2(VL) {
   const suivantSel = VL.surSelection;
   VL.surSelection = () => { suivantSel(); rendre(); };
   const suivantOutil = VL.surOutil;
-  VL.surOutil = () => { suivantOutil(); const h = $("#hintOutil"); if (h && HINTS3[etat.outil]) h.textContent = HINTS3[etat.outil]; };
+  VL.hints = Object.assign(VL.hints || {}, HINTS3);
+  VL.surOutil = () => { suivantOutil(); if (VL.majStatut) VL.majStatut(); else { const h = $("#hintOutil"); if (h && HINTS3[etat.outil]) h.textContent = HINTS3[etat.outil]; } };
   rendre();
 }

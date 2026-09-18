@@ -21,6 +21,7 @@ import { initInfobulle } from "./mod-infobulle.js";
 import { initTypo } from "./mod-typo.js";
 import { initFlyout } from "./mod-flyout.js";
 import { initPixelUI } from "./mod-pixelui.js";
+import { initCharpente } from "./mod-charpente.js";
 import { op_noeud_supprimer } from "./mod-doc.js";
 import { UNITES, depuisUnite, formatNombre, libelle_mesure }
   from "./mod-unites.js";
@@ -229,6 +230,7 @@ function appliquerVue() {
   $("#btnUnite").textContent = unites().affichage;
   dessinerRegles();
   rendreOverlay();
+  VL.surVue();                       // l'onglet de document suit le zoom (charpente)
 }
 function zoomCent() { etat.zoom = 1; appliquerVue(); }
 function zoomAjuster() {
@@ -725,7 +727,7 @@ const VL = {
   rendre, rendreOverlay, appliquerVue, setOutil, toast,
   surRendu: () => {}, surOutil: () => {}, surTouche: () => {},
   surSelection: () => {}, surCharge: () => {}, surSauve: () => {},
-  surOverlay: () => {},
+  surOverlay: () => {}, surVue: () => {},
 };
 initCalques(VL);
 initCouleur(VL);
@@ -753,5 +755,6 @@ initBrouillon(VL); // pose surCharge AVANT charger() (lot A)
 initFlyout(VL);     // menus détachés de la barre : Forme, Symboles
 initInfobulle(VL);  // bulles d'information stylées, centrées, bornées (remplacent le title natif au survol)
 initPanneaux(VL);   // sections du panneau de droite : état ouvert / replié mémorisé (dz_vl_panneaux)
+initCharpente(VL);  // relooking Affinity : barre de menus, onglet de document, barre d'état, cotes — en dernier (lit VL.hints, VL.actions)
 window.VL = VL;
 charger();
