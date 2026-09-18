@@ -69,7 +69,7 @@ export function texte_multi_d(font, lignes, taille, x, y, interlettrage = 0, int
 export function initTypo(VL) {
   const { $, etat } = VL;
   const hote = $("#panneauTexte"), stage = $("#stage");
-  etat.typo = { polices: polices_toutes(POLICES, [], []), courante: "lib:anton", parGlyphe: true, systeme: [] };
+  etat.typo = { polices: polices_toutes(POLICES, [], []), courante: "lib:anton", parGlyphe: true, systeme: [], styleDefaut: { corps: 48 } };
   const fonts = new Map();               // id → opentype.Font
   const feuille = document.createElement("style");
   feuille.id = "typoFontFaces";
@@ -151,11 +151,12 @@ export function initTypo(VL) {
     return ta;
   };
   // l'outil Texte pose un texte vide et ouvre l'éditeur ; mod-tools délègue ici
-  VL.poserTexte = (x, y) => {
+  VL.poserTexte = (x, y, corps) => {
     const sc = etat.styleCourant;
     const fond = (sc.fond && sc.fond !== "none" && !String(sc.fond).startsWith("grad:")) ? sc.fond : (sc.contour && sc.contour !== "none" ? sc.contour : "#1F1512");
     const p = policeDe(etat.typo.courante);
-    const id = VL.executer(op_ajouter, etat.calqueActif, { type: "texte", x, y, contenu: "", style: { fond, police: p ? p.famille : "Segoe UI", corps: 48 } });
+    const sd = etat.typo.styleDefaut || {};   // R11 : les défauts posés par la barre contextuelle (graisse, italique, souligné, alignement…)
+    const id = VL.executer(op_ajouter, etat.calqueActif, { type: "texte", x, y, contenu: "", style: { fond, police: p ? p.famille : "Segoe UI", ...sd, corps: corps || sd.corps || 48 } });
     if (id) { VL.setSelection([id]); VL.editerTexte(id, { neuf: true }); }
     return id;
   };

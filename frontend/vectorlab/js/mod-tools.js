@@ -139,9 +139,10 @@ export function initOutils(VL) {
     const cible = t.closest && t.closest("[data-objet]");
     const idBrut = cible ? cible.dataset.objet : null;
     // cliquer un enfant de groupe sélectionne le GROUPE (remontée au sommet)
-    const idCible = idBrut ? (VL.sommetDe(idBrut) || idBrut) : null;
+    // R11 (Affinity) : Ctrl+clic vise l'ENFANT cliqué lui-même, sinon le sommet du groupe
+    const idCible = idBrut ? (ev.ctrlKey && etat.outil === "select" ? idBrut : (VL.sommetDe(idBrut) || idBrut)) : null;
     const selectionnable = idCible
-      && objetsSelectionnables().includes(idCible);
+      && (objetsSelectionnables().includes(idCible) || (ev.ctrlKey && etat.outil === "select" && !!VL.sommetDe(idBrut)));
 
     if (etat.outil === "pipette") {
       if (idBrut) {
@@ -173,7 +174,13 @@ export function initOutils(VL) {
           VL.setSelection(sel);
           return;                              // le shift ajuste, sans drag
         }
-        if (!sel.includes(idCible)) VL.setSelection([idCible]);
+        if (!sel.includes(idCible) && !(etat.selectionAuto === false && sel.length)) VL.setSelection([idCible]);
+        geste = { type: "move", x0: dx, y0: dy, dxA: 0, dyA: 0,
+                  b0: VL.bboxSelectionDoc(),
+                  origines: VL.selectionElems().map((el) =>
+                    [el, el.getAttribute("transform") || ""]) };
+      } else if (etat.selectionAuto === false && etat.selection.length && !ev.shiftKey) {
+        // R11 (Affinity) : Sélection auto décochée — tout glisser déplace la sélection courante sans en changer
         geste = { type: "move", x0: dx, y0: dy, dxA: 0, dyA: 0,
                   b0: VL.bboxSelectionDoc(),
                   origines: VL.selectionElems().map((el) =>

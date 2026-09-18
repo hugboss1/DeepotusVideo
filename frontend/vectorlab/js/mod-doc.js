@@ -98,6 +98,12 @@ function _validerObjets(objs, ou) {
         throw new Error(`tuile ${o.id}: hauteur_mm ≥ 0`);
       }
     }
+    if ((o.type === "texte" || o.type === "cadre" || o.type === "textechemin") && o.style) {
+      // R11 : italique / souligné booléens, graisse = normal | bold | 100..900
+      if (o.style.italique !== undefined && typeof o.style.italique !== "boolean") throw new Error(`${o.type} ${o.id}: italique booléen`);
+      if (o.style.souligne !== undefined && typeof o.style.souligne !== "boolean") throw new Error(`${o.type} ${o.id}: souligne booléen`);
+      if (o.style.graisse !== undefined && !(["normal", "bold", "bolder", "lighter"].includes(String(o.style.graisse)) || /^[1-9]00$/.test(String(o.style.graisse)))) throw new Error(`${o.type} ${o.id}: graisse normal|bold|100..900`);
+    }
     if (o.type === "texte" && o.style) {
       if (o.style.ancre !== undefined && !["start", "middle", "end"].includes(o.style.ancre)) throw new Error(`texte ${o.id}: ancre start|middle|end`);
       if (o.style.interligne !== undefined && !(o.style.interligne > 0)) throw new Error(`texte ${o.id}: interligne > 0`);
@@ -281,6 +287,8 @@ function _fonteAttrs(s) {
   attrs += ` font-size="${Number(s.corps || 16)}"`;
   if (s.graisse) attrs += ` font-weight="${escAttr(s.graisse)}"`;
   if (s.interlettrage) attrs += ` letter-spacing="${Number(s.interlettrage)}"`;
+  if (s.italique === true) attrs += ` font-style="italic"`;             // R11 : l'outil Texte d'Affinity
+  if (s.souligne === true) attrs += ` text-decoration="underline"`;
   return attrs;
 }
 function compilerObjet(o, ctx = {}) {
@@ -448,13 +456,19 @@ function _calque(doc, calqueId) {
 
 function* _objetsCibles(doc, ids, { ignorerVerrouilles = true } = {}) {
   const voulu = new Set(ids);
+  // R11 : les ENFANTS de groupe sont des cibles à part entière (Ctrl+clic
+  // d'Affinity) — un conteneur { id du calque, objets = enfants } est rendu
+  // pour eux, les appelants qui épissent `calque.objets[i]` restent justes
+  function* dans(c, liste) {
+    for (let i = liste.length - 1; i >= 0; i--) {
+      const o = liste[i];
+      if (voulu.has(o.id) && !o.verrou) yield { calque: liste === c.objets ? c : { id: c.id, nom: c.nom, verrou: c.verrou, objets: liste }, objet: o, i };
+      if (o.type === "groupe" && Array.isArray(o.enfants)) yield* dans(c, o.enfants);
+    }
+  }
   for (const c of doc.calques) {
     if (ignorerVerrouilles && c.verrou) continue;
-    for (let i = c.objets.length - 1; i >= 0; i--) {
-      if (voulu.has(c.objets[i].id) && !c.objets[i].verrou) {
-        yield { calque: c, objet: c.objets[i], i };
-      }
-    }
+    yield* dans(c, c.objets);
   }
 }
 

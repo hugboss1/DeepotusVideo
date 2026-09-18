@@ -22,7 +22,7 @@ export function initBarreContexte(VL) {
   const objetsSel = () => etat.selection.map((id) => { const t = VL.objetDe(id); return t ? t.objet : null; }).filter(Boolean);
   function vue() {
     return { selection: etat.selection, objets: objetsSel(), formeCourante: etat.formeCourante, formes: FORMES, gommeLargeur: etat.gommeLargeur, coinRayon: etat.coinRayon,
-             pinceauv: etat.pinceauv, profils: PROFILS, px: etat.px, terrainCourant: etat.terrainCourant, terrains: etat.doc ? terrains_de(etat.doc) : {}, typo: etat.typo, exportPlus: etat.exportPlus, plume: etat.plume, aimantNoeuds: etat.aimantNoeuds, bbox: etat.selection.length ? VL.bboxSelectionDoc() : null };
+             pinceauv: etat.pinceauv, profils: PROFILS, px: etat.px, terrainCourant: etat.terrainCourant, terrains: etat.doc ? terrains_de(etat.doc) : {}, typo: etat.typo, exportPlus: etat.exportPlus, plume: etat.plume, aimantNoeuds: etat.aimantNoeuds, selectionAuto: etat.selectionAuto, bbox: etat.selection.length ? VL.bboxSelectionDoc() : null };
   }
   function rendre() {
     hSel.textContent = libelle_selection(objetsSel());
@@ -43,6 +43,12 @@ export function initBarreContexte(VL) {
   function appliquer(id, valeur) {
     const patch = appliquer_champ(etat, id, valeur);
     if (patch.style) { if (etat.selection.length) VL.executer(op_style, etat.selection.slice(), patch.style); return; }
+    if (patch.styleTexte) {   // R11 : sur le texte sélectionné, sinon les défauts des prochains textes
+      const cibles = etat.selection.filter((id) => { const t = VL.objetDe(id); return t && ["texte", "cadre", "textechemin"].includes(t.objet.type); });
+      if (cibles.length) VL.executer(op_style, cibles, patch.styleTexte);
+      else { etat.typo = etat.typo || {}; etat.typo.styleDefaut = { ...(etat.typo.styleDefaut || {}), ...patch.styleTexte }; rendre(); }
+      return;
+    }
     if (patch.bbox) {   // R10 : X · Y · L · H de la barre — déplacer ou redimensionner par les commandes existantes
       const b0 = VL.bboxSelectionDoc(); if (!b0 || !etat.selection.length) return;
       const b1 = { ...b0, ...patch.bbox };

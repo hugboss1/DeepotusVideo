@@ -29,6 +29,7 @@ import { initOutils3 } from "./mod-outils3ui.js";
 import { initPlume } from "./mod-plumeui.js";
 import { initNoeudUI } from "./mod-noeudui.js";
 import { initSelectionUI } from "./mod-selectionui.js";
+import { initTexteUI } from "./mod-texteui.js";
 import { op_noeud_supprimer } from "./mod-doc.js";
 import { UNITES, depuisUnite, formatNombre, libelle_mesure }
   from "./mod-unites.js";
@@ -186,8 +187,10 @@ function setSelection(ids) {
   VL.surSelection();
 }
 function objetDe(id) {
+  // R11 : un ENFANT de groupe se trouve aussi (Ctrl+clic d'Affinity) — le calque rendu est le calque porteur
+  const dans = (liste) => { for (const x of liste) { if (x.id === id) return x; if (x.type === "groupe" && Array.isArray(x.enfants)) { const e = dans(x.enfants); if (e) return e; } } return null; };
   for (const c of etat.doc.calques) {
-    const o = c.objets.find((x) => x.id === id);
+    const o = dans(c.objets);
     if (o) return { calque: c, objet: o };
   }
   return null;
@@ -770,6 +773,7 @@ initPersona(VL);    // lot E (D8) : Vecteur / Pixel / Export — après initOuti
 initExportPlus(VL); // lot G : Export + (tranches, formats, impression, lot) — après initPersona (surPersona) et initExport (svgCourant)
 initPixelUI(VL);    // lot E : outils raster, sélections, ajustements, pixel-art — pose surOverlay/surTouche en chaîne
 initBrouillon(VL); // pose surCharge AVANT charger() (lot A)
+initTexteUI(VL);     // R11 : Texte d'Affinity (corps au glisser, texte sur chemin, débordement, Tab) — après initTypo (poserTexte)
 initSelectionUI(VL); // R10 : Alt+glisser = copie déplacée, double-clic → Nœuds, survol — après initOutils
 initNoeudUI(VL);    // R9 : poignées tirables, segment déformable, insertion au double-clic, suppression lisse — après initOutils / initOutils2
 initPlume(VL);      // R8 : la Plume de classe Affinity — REMPLACE la plume de mod-tools (capture + stopPropagation) ; après initOutils (surOutil / surTouche)

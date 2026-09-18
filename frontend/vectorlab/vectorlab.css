@@ -813,3 +813,6 @@ body[data-outil="noeuds"] #canvasHost [data-objet] { cursor: crosshair; }
 #overlay .poignee-noeuds-transf { pointer-events: auto; cursor: nwse-resize; }
 #overlay .poignee-noeuds-transf[data-k="rot"] { cursor: crosshair; }
 #overlay #ovSurvol { pointer-events: none; }
+
+/* R11 : indicateur de débordement d'un cadre de texte */
+#overlay .cadre-deborde { pointer-events: none; }

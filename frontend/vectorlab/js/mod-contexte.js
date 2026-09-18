@@ -16,18 +16,22 @@ const MODES_PLUME = [{ id: "plume", nom: "Plume" }, { id: "intelligent", nom: "I
 const ACTIONS_PLUME = [["vif", "Vif"], ["lisse", "Lisse"], ["intelligent", "Intelligent"], ["fractionner", "Fractionner"], ["ouvrir", "Ouvrir"], ["fermer", "Fermer"], ["lisserCourbe", "Courbe lisse"], ["relier", "Relier"], ["inverser", "Inverser"]];
 const ALIGN_NOEUDS = [["gauche", "⇤"], ["centreH", "⇔"], ["droite", "⇥"], ["haut", "⇧"], ["centreV", "⇕"], ["bas", "⇩"]];
 const MODES_TRANCHE = [{ id: "document", nom: "Document" }, { id: "objets", nom: "Par objet" }, { id: "planches", nom: "Par planche" }, { id: "calques", nom: "Par calque" }, { id: "dessinees", nom: "Dessinées" }];
+import { champs_texte, patch_texte } from "./mod-texte.js";
 export function champs_de(outil, etat) {
   if (!etat || typeof etat !== "object") return [];
   const px = etat.px || {}, pv = etat.pinceauv || {};
   switch (outil) {
     case "select": {
       const sel = etat.selection || [];
-      if (!sel.length) return [{ id: "configDoc", type: "bouton", libelle: "Configuration du document…" }, { id: "parametres", type: "bouton", libelle: "Paramètres de l'appli…" }];
+      const auto = { id: "selectionAuto", type: "bascule", libelle: "Sélection auto", valeur: etat.selectionAuto !== false };
+      if (!sel.length) return [auto, { id: "configDoc", type: "bouton", libelle: "Configuration du document…" }, { id: "parametres", type: "bouton", libelle: "Paramètres de l'appli…" }];
+      const o0 = (etat.objets || [])[0];
+      if (o0 && ["texte", "cadre", "textechemin"].includes(o0.type) && sel.length === 1) return [auto, ...champs_texte(o0.style || {}, (etat.typo || {}).polices)];
       const tete = (etat.objets || [])[0] || {};
       const op = tete.style && tete.style.opacite !== undefined ? +tete.style.opacite : 1;
       const b = etat.bbox || {};
       const r2 = (v) => Math.round((+v || 0) * 100) / 100;
-      return [nombre("selX", "X", r2(b.x), -1e5, 1e5, 0.5), nombre("selY", "Y", r2(b.y), -1e5, 1e5, 0.5), nombre("selW", "L", r2(b.w), 1, 1e5, 0.5), nombre("selH", "H", r2(b.h), 1, 1e5, 0.5), nombre("opacite", "Opacité %", Math.round(op * 100), 0, 100)];
+      return [auto, nombre("selX", "X", r2(b.x), -1e5, 1e5, 0.5), nombre("selY", "Y", r2(b.y), -1e5, 1e5, 0.5), nombre("selW", "L", r2(b.w), 1, 1e5, 0.5), nombre("selH", "H", r2(b.h), 1, 1e5, 0.5), nombre("opacite", "Opacité %", Math.round(op * 100), 0, 100)];
     }
     case "plume": return [select("plumeMode", "Mode", (etat.plume || {}).mode || "plume", opts(MODES_PLUME)), ...ACTIONS_PLUME.map(([a, l]) => ({ id: "plume:" + a, type: "bouton", libelle: l }))];
     case "noeuds": return [...ACTIONS_PLUME.map(([a, l]) => ({ id: "plume:" + a, type: "bouton", libelle: l })), ...ALIGN_NOEUDS.map(([m, g]) => ({ id: "noeuds:al-" + m, type: "bouton", libelle: g, titre: "Aligner les nœuds : " + m })), { id: "aimantNoeuds", type: "bascule", libelle: "Magnétisme", valeur: etat.aimantNoeuds !== false }];
@@ -39,7 +43,7 @@ export function champs_de(outil, etat) {
     case "px-seau": return [nombre("pxTolerance", "Tolérance", px.tolerance, 0, 255), { id: "pxGlobal", type: "bascule", libelle: "Global", valeur: !!px.global }];
     case "px-baguette": return [nombre("pxTolerance", "Tolérance", px.tolerance, 0, 255)];
     case "tuiles": return [select("terrainCourant", "Terrain", etat.terrainCourant, Object.entries(etat.terrains || {}).map(([id, t]) => ({ id, libelle: (t && t.nom) || id })))];
-    case "texte": { const t = etat.typo || {}; return [select("typoCourante", "Police", t.courante, opts(t.polices))]; }
+    case "texte": { const t = etat.typo || {}; const o = (etat.objets || [])[0]; const st = o && ["texte", "cadre", "textechemin"].includes(o.type) ? (o.style || {}) : (t.styleDefaut || {}); return champs_texte(st, t.polices); }
     case "tranche": return [select("trMode", "Mode", (etat.exportPlus || {}).mode || "document", opts(MODES_TRANCHE))];
     default: return [];
   }
@@ -63,11 +67,15 @@ export function appliquer_champ(etat, id, valeur) {
     case "trMode": return { exportPlus: { ...(e.exportPlus || {}), mode: String(valeur) } };
     case "opacite": return { style: { opacite: borne(valeur, 0, 100) / 100 } };
     case "aimantNoeuds": return { aimantNoeuds: valeur === true || valeur === "true" || valeur === 1 };
+    case "selectionAuto": return { selectionAuto: valeur === true || valeur === "true" || valeur === 1 };
     case "selX": return { bbox: { x: borne(valeur, -1e5, 1e5) } };
     case "selY": return { bbox: { y: borne(valeur, -1e5, 1e5) } };
     case "selW": return { bbox: { w: borne(valeur, 1, 1e5) } };
     case "selH": return { bbox: { h: borne(valeur, 1, 1e5) } };
-    default: return {};
+    default: {
+      if (String(id).startsWith("tx")) { const p = patch_texte(id, valeur, (e.typo || {}).polices); return Object.keys(p).length ? { styleTexte: p } : {}; }
+      return {};
+    }
   }
 }
 export const PARAMS_DEFAUT = Object.freeze({ bulles: true, grillePas: 8, aimant: true });
