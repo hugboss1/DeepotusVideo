@@ -802,3 +802,9 @@ body.sans-bulles .infobulle { display: none !important; }
 #overlay .page-nom { font-family: "Segoe UI", system-ui, sans-serif; }
 
 /* ══ R7 : les outils ajoutés (Main, Loupe, Image, Recadrer partagés par le sélecteur de persona ci-dessus) ══ */
+
+/* ══ R9 outil Nœud : poignées tirables, curseurs ══ */
+#overlay .poignee-noeud { pointer-events: auto; cursor: move; }
+#overlay .poignee-noeud:hover { r: 5px; fill: #2b6fd6; }
+#overlay .ancre { cursor: move; }
+body[data-outil="noeuds"] #canvasHost [data-objet] { cursor: crosshair; }

@@ -29,7 +29,7 @@ export function initBarreContexte(VL) {
     if (!etat.doc) { hOutil.innerHTML = ""; return; }
     const champs = champs_de(etat.outil, vue());
     hOutil.innerHTML = champs.map((c) => {
-      if (c.type === "bouton") return `<button class="cb-bouton" data-champ="${c.id}">${esc(c.libelle)}</button>`;
+      if (c.type === "bouton") return `<button class="cb-bouton" data-champ="${c.id}"${c.titre ? ` title="${esc(c.titre)}"` : ""}>${esc(c.libelle)}</button>`;
       if (c.type === "bascule") return `<label class="cb-champ"><input type="checkbox" data-champ="${c.id}" ${c.valeur ? "checked" : ""}/>${esc(c.libelle)}</label>`;
       if (c.type === "select") return `<label class="cb-champ"><span>${esc(c.libelle)}</span><select data-champ="${c.id}">${c.options.map((o) => `<option value="${esc(o.id)}"${o.id === c.valeur ? " selected" : ""}>${esc(o.libelle)}</option>`).join("")}</select></label>`;
       return `<label class="cb-champ"><span>${esc(c.libelle)}</span><input type="number" data-champ="${c.id}" value="${c.valeur}" min="${c.min}" max="${c.max}" step="${c.pas}"/></label>`;

@@ -14,6 +14,7 @@ const nombre = (id, libelle, valeur, min, max, pas = 1) => ({ id, type: "number"
 const select = (id, libelle, valeur, options) => ({ id, type: "select", libelle, valeur, options });
 const MODES_PLUME = [{ id: "plume", nom: "Plume" }, { id: "intelligent", nom: "Intelligent" }, { id: "polygone", nom: "Polygone" }, { id: "ligne", nom: "Ligne" }];
 const ACTIONS_PLUME = [["vif", "Vif"], ["lisse", "Lisse"], ["fractionner", "Fractionner"], ["ouvrir", "Ouvrir"], ["fermer", "Fermer"], ["lisserCourbe", "Courbe lisse"], ["relier", "Relier"], ["inverser", "Inverser"]];
+const ALIGN_NOEUDS = [["gauche", "⇤"], ["centreH", "⇔"], ["droite", "⇥"], ["haut", "⇧"], ["centreV", "⇕"], ["bas", "⇩"]];
 const MODES_TRANCHE = [{ id: "document", nom: "Document" }, { id: "objets", nom: "Par objet" }, { id: "planches", nom: "Par planche" }, { id: "calques", nom: "Par calque" }, { id: "dessinees", nom: "Dessinées" }];
 export function champs_de(outil, etat) {
   if (!etat || typeof etat !== "object") return [];
@@ -27,6 +28,7 @@ export function champs_de(outil, etat) {
       return [nombre("opacite", "Opacité %", Math.round(op * 100), 0, 100)];
     }
     case "plume": return [select("plumeMode", "Mode", (etat.plume || {}).mode || "plume", opts(MODES_PLUME)), ...ACTIONS_PLUME.map(([a, l]) => ({ id: "plume:" + a, type: "bouton", libelle: l }))];
+    case "noeuds": return [...ACTIONS_PLUME.map(([a, l]) => ({ id: "plume:" + a, type: "bouton", libelle: l })), ...ALIGN_NOEUDS.map(([m, g]) => ({ id: "noeuds:al-" + m, type: "bouton", libelle: g, titre: "Aligner les nœuds : " + m }))];
     case "forme": return [select("formeCourante", "Forme", etat.formeCourante, opts(etat.formes))];
     case "gomme": return [nombre("gommeLargeur", "Largeur", etat.gommeLargeur, 1, 500)];
     case "coin": return [nombre("coinRayon", "Rayon", etat.coinRayon, 0, 500)];

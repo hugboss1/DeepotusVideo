@@ -27,6 +27,7 @@ import { initPile } from "./mod-pile.js";
 import { initBarreContexte } from "./mod-barrecontexte.js";
 import { initOutils3 } from "./mod-outils3ui.js";
 import { initPlume } from "./mod-plumeui.js";
+import { initNoeudUI } from "./mod-noeudui.js";
 import { op_noeud_supprimer } from "./mod-doc.js";
 import { UNITES, depuisUnite, formatNombre, libelle_mesure }
   from "./mod-unites.js";
@@ -419,15 +420,18 @@ function rendreOverlay() {
     const ancres = chemin_ancres(chemin_parser(p.d));
     for (const a of ancres) {
       const [ax, ay] = ecranPt(a.x, a.y);
-      for (const pg of [a.entrante, a.sortante]) {
-        if (!pg) continue;
+      // R9 : les poignées sont des cibles (.poignee-noeud, data-ancre / data-role) — une poignée dégénérée (sur l'ancre) n'est pas dessinée
+      for (const [role, pg] of [["entrante", a.entrante], ["sortante", a.sortante]]) {
+        if (!pg || (pg.x === a.x && pg.y === a.y)) continue;
         const [px, py] = ecranPt(pg.x, pg.y);
         o.appendChild(ov("line", { x1: ax, y1: ay, x2: px, y2: py,
           stroke: "#8b93a0", "stroke-width": 1 }));
-        o.appendChild(ov("circle", { cx: px, cy: py, r: 3, fill: "#8b93a0" }));
+        o.appendChild(ov("circle", { cx: px, cy: py, r: 4, fill: "#8b93a0", stroke: "#fff", "stroke-width": 1,
+          class: "poignee-noeud", "data-ancre": a.i, "data-role": role }));
       }
+      const choisie = etat.ancreSel === a.i || (etat.ancresSel || []).includes(a.i);
       o.appendChild(ov("rect", { x: ax - 4, y: ay - 4, width: 8, height: 8,
-        fill: etat.ancreSel === a.i ? "#e0b34a" : "#eef1f5",
+        fill: choisie ? "#2b6fd6" : "#eef1f5",
         stroke: "#2c4a75", class: "ancre", "data-ancre": a.i,
         transform: `rotate(45 ${ax} ${ay})` }));
     }
@@ -634,6 +638,7 @@ function collerSelection() {
 /* ── outils : bascule ── */
 function setOutil(id) {
   etat.outil = id;
+  document.body.dataset.outil = id;                 // R9 : curseurs par outil en CSS
   document.querySelectorAll("#outils button").forEach((b) =>
     b.classList.toggle("actif", b.dataset.outil === id));
   VL.surOutil();
@@ -764,6 +769,7 @@ initPersona(VL);    // lot E (D8) : Vecteur / Pixel / Export — après initOuti
 initExportPlus(VL); // lot G : Export + (tranches, formats, impression, lot) — après initPersona (surPersona) et initExport (svgCourant)
 initPixelUI(VL);    // lot E : outils raster, sélections, ajustements, pixel-art — pose surOverlay/surTouche en chaîne
 initBrouillon(VL); // pose surCharge AVANT charger() (lot A)
+initNoeudUI(VL);    // R9 : poignées tirables, segment déformable, insertion au double-clic, suppression lisse — après initOutils / initOutils2
 initPlume(VL);      // R8 : la Plume de classe Affinity — REMPLACE la plume de mod-tools (capture + stopPropagation) ; après initOutils (surOutil / surTouche)
 initOutils3(VL);    // R7 : Main, Loupe, Plan de travail, Dégradé, Transparence, Cadre, Recadrer, retouche raster — avant initFlyout / initBarreOutils (boutons dans la barre)
 initFlyout(VL);     // menus détachés de la barre : Forme, Symboles
