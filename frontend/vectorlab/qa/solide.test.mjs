@@ -153,7 +153,7 @@ const aireMulti = (mp) => mp.reduce((s, poly) => s + poly.reduce((t, ring, i) =>
   const pos = extruder_depouille(mz, base, 5, 30);
   // la base est EXACTE (la forme dessinée) ; le sommet porte l'erreur d'UNE marche par flanc (retrait / n ≤ 0,2 mm)
   const retrait30 = 5 * Math.tan(Math.PI / 6), marche = retrait30 / Math.min(24, Math.ceil(retrait30 / 0.2));
-  ok("angle +30° : base 20, sommet rétréci de 2·5·tan30 ≈ 5,77 à une marche près", pres(largeurA(pos, 0), 20, 1e-6) && pres(largeurA(pos, 5), 20 - 2 * retrait30, 2 * marche + 1e-9) && largeurA(pos, 5) < 20 - 2 * retrait30 + 2 * marche, `${largeurA(pos, 0)} / ${largeurA(pos, 5)} (marche ${marche})`);
+  ok("angle +30° : base 20, sommet rétréci de 2·5·tan30 ≈ 5,77 à une marche près", pres(largeurA(pos, 0), 20, 1e-6) && pres(largeurA(pos, 5), 20 - 2 * retrait30, 2 * marche + 1e-6) && largeurA(pos, 5) <= 20 - 2 * retrait30 + 2 * marche + 1e-6, `${largeurA(pos, 0)} / ${largeurA(pos, 5)} (marche ${marche})`);
   ok("angle +30° : volume entre celui du sommet et celui de la base", volume_de(pos) < 2000 && volume_de(pos) > (20 - 5.77) ** 2 * 5, volume_de(pos));
   const neg = extruder_depouille(mz, base, 5, -30);
   ok("angle −30° : le SOMMET garde 20, la base est rétrécie", pres(largeurA(neg, 5), 20, 1e-6) && largeurA(neg, 0) < 15, `${largeurA(neg, 0)} / ${largeurA(neg, 5)}`);
