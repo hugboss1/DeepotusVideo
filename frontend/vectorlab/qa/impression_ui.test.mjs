@@ -24,5 +24,12 @@ const ok = (nom, cond, detail = "") => {
   ok("résumé : dimensions mm arrondies, pièces, triangles, ignorés dits", s.includes("50 × 30 × 4 mm") && s.includes("7 pièce") && s.includes("1200") && s.includes("2 texte"), s);
   ok("sans ignoré : rien de dit", !resume_impression({ triangles: 1, bbox_mm: [[0, 1], [0, 1], [0, 1]], pieces: 1, ignores: 0 }).includes("texte"));
 }
+{
+  const { couleurs_json, couleur_du_lot } = await import("../js/mod-impression.js");
+  const P = [{ nom: "a", couleur: "#ff0000" }, { nom: "b" }, { nom: "c", couleur: "#ff0000" }, { nom: "d", couleur: "#00ff00" }];
+  ok("couleurs_json : seules les pièces colorées, par nom", couleurs_json(P) === JSON.stringify({ a: "#ff0000", c: "#ff0000", d: "#00ff00" }));
+  ok("couleur_du_lot : le vote des pièces", couleur_du_lot(P) === "#ff0000");
+  ok("couleur_du_lot sans couleur → null", couleur_du_lot([{ nom: "x" }]) === null);
+}
 if (echecs.length) { console.error("ECHECS impression_ui :\n- " + echecs.join("\n- ")); process.exit(1); }
-console.log("QA impression_ui : PASS (7 controles)");
+console.log("QA impression_ui : PASS (10 controles)");

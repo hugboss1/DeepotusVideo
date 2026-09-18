@@ -9,8 +9,8 @@
 // vectorisés sont ignorés et DITS, jamais bloquants.
 import { aplatir_objet, contour_en_multi, versMulti } from "./mod-bool.js";
 import { extruder, stl_binaire, volume_de } from "./mod-extrude.js";
-import { MUR_MIN_MM, extruder_biseau, extruder_evide, plateau_pieces, glb_de_triangles,
-         nomenclature_csv } from "./mod-solide.js";
+import { MUR_MIN_MM, extruder_biseau, extruder_evide, plateau_pieces, glb_de_pieces,
+         nomenclature_csv, couleur_dominante } from "./mod-solide.js";
 import { terrains_de, op_texte_vectoriser } from "./mod-doc.js";
 import { hex_centre, hex_sommets } from "./mod-grille.js";
 import { POLICES, texte_vers_d } from "./mod-texte3d.js";
@@ -52,6 +52,19 @@ export function hauteurs_par_calque(texte, calques) {
     if (parCalque[k] !== undefined) out[k] = parCalque[k];
   }
   return { globale, parCalque: out };
+}
+// R12 : la couleur des pièces voyage vers le 3MF — par nom (lot) ou par vote (un STL)
+export function couleurs_json(pieces) {
+  const o = {};
+  for (const p of pieces || []) if (p && p.couleur) o[p.nom] = p.couleur;
+  return JSON.stringify(o);
+}
+export function couleur_du_lot(pieces) {
+  const votes = new Map();
+  for (const p of pieces || []) if (p && p.couleur) votes.set(p.couleur, (votes.get(p.couleur) || 0) + 1);
+  let best = null, n = 0;
+  for (const [c, k] of votes) if (k > n) { best = c; n = k; }
+  return best;
 }
 export function resume_impression({ triangles, bbox_mm, pieces, ignores }) {
   const dim = bbox_mm.map(([a, b]) => Math.round(b - a)).join(" × ") + " mm";
@@ -146,7 +159,7 @@ export function initImpression(VL) {
         const tris = plaque(sg.grid, sg.w, sg.h, { largeur_mm: cell_mm * (sg.w - 1), socle_mm: socle, mm_par_m, exageration: r.exageration, z_min: R.min });
         // chaque dalle à sa place sur le plateau (x vers l'est, y vers le nord)
         const dx = d.x0 * cell_mm, dy = (R.h - 1 - (d.y0 + d.h - 1)) * cell_mm;
-        pieces.push({ nom: d.nom, tris: tris.map((t) => t.map(([x, y, z]) => [x + dx, y + dy, z])), hauteur_mm: socle });
+        pieces.push({ nom: d.nom, tris: tris.map((t) => t.map(([x, y, z]) => [x + dx, y + dy, z])), hauteur_mm: socle, couleur: "#D8C9A3" });
       }
     } else if (r.mode === "tuiles") {
       const g = VL.grilleDoc();
@@ -165,7 +178,7 @@ export function initImpression(VL) {
       const mm = enMm(mp);
       const tris = r.evide ? extruder_evide(mz(), mm, r.hauteur, r.mur, r.plancher)
                  : extruder_biseau(mz(), mm, r.hauteur, r.biseau, r.pas);
-      pieces.push({ nom: "logo", tris, hauteur_mm: r.hauteur });
+      pieces.push({ nom: "logo", tris, hauteur_mm: r.hauteur, couleur: couleur_dominante(sel, terrains_de(doc)) });
     } else {
       const h = hauteurs_par_calque($("#impHauteurs").value, doc.calques);
       for (const c of doc.calques) {
@@ -175,7 +188,7 @@ export function initImpression(VL) {
         const mp = multiDe(c.objets, compte);
         if (!mp || !mp.length) continue;
         pieces.push({ nom: (c.nom || c.id).replace(/[^A-Za-z0-9_-]+/g, "_").slice(0, 40) || c.id,
-                      tris: extruder(enMm(mp), hc, 0), hauteur_mm: hc });
+                      tris: extruder(enMm(mp), hc, 0), hauteur_mm: hc, couleur: couleur_dominante(c.objets, terrains_de(doc)) });
       }
       if (!pieces.length) throw new Error("rien d'extrudable (calques visibles vides ?)");
     }
@@ -193,7 +206,7 @@ export function initImpression(VL) {
     const r = lire();
     const c = construire(r);
     if (courant && courant.glbUrl) URL.revokeObjectURL(courant.glbUrl);
-    courant = { ...c, r, glbUrl: URL.createObjectURL(new Blob([glb_de_triangles(c.tous)],
+    courant = { ...c, r, glbUrl: URL.createObjectURL(new Blob([glb_de_pieces(c.pieces)],
                                                                { type: "model/gltf-binary" })) };
     $("#impViewer").setAttribute("src", courant.glbUrl);
     $("#impResume").textContent = resume_impression({ triangles: c.tous.length, bbox_mm: c.bbox,
@@ -209,6 +222,8 @@ export function initImpression(VL) {
     if (!courant) apercu();
     const stl = stl_binaire(courant.tous);
     const ps = new URLSearchParams({ nom: etat.meta.name, source: "vectorlab", etanche: "inconnue" });
+    const cl = couleur_du_lot(courant.pieces);
+    if (cl) ps.set("couleur", cl);
     const r = await fetch("/api/print3d/from-stl?" + ps, { method: "POST",
       headers: { "Content-Type": "application/octet-stream" }, body: stl });
     const d = await r.json().catch(() => ({}));
@@ -223,6 +238,7 @@ export function initImpression(VL) {
       fd.append("pieces", new File([stl_binaire(p.tris)], p.nom + ".stl", { type: "application/octet-stream" }));
     }
     fd.append("nomenclature", nomenclature_csv(courant.pieces));
+    fd.append("couleurs", couleurs_json(courant.pieces));
     const ps = new URLSearchParams({ nom: etat.meta.name, source: "vectorlab" });
     const r = await fetch("/api/print3d/lot?" + ps, { method: "POST", body: fd });
     const d = await r.json().catch(() => ({}));
