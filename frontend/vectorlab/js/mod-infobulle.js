@@ -20,6 +20,7 @@ export function texte_bulle(title) {
   return t.split(/\s+[—·]\s+/).map((s) => s.trim()).filter(Boolean);
 }
 
+import { verbes_gras, statut_html } from "./mod-statut.js";
 export function initInfobulle(VL) {
   const bulle = document.createElement("div");
   bulle.className = "infobulle";
@@ -32,7 +33,8 @@ export function initInfobulle(VL) {
     el.dataset.tip = title;
     el.removeAttribute("title");
     courant = el;
-    bulle.innerHTML = texte_bulle(title).map((l, i) => `<div class="${i ? "ib-suite" : "ib-tete"}">${l.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</div>`).join("");
+    // R6 : bulle riche — le titre, puis les gestes aux verbes en gras (mod-statut)
+    bulle.innerHTML = texte_bulle(title).map((l, i) => `<div class="${i ? "ib-suite" : "ib-tete"}">${i ? statut_html(verbes_gras(l)) : l.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</div>`).join("");
     bulle.hidden = false;
     const r = el.getBoundingClientRect();
     const p = bulle_position({ x: r.left, y: r.top, w: r.width, h: r.height }, { w: bulle.offsetWidth, h: bulle.offsetHeight },

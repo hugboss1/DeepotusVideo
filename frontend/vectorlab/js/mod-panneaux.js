@@ -8,7 +8,7 @@ export const PANNEAUX_DEFAUT = Object.freeze({
   instantanesDetails: false, pixelDetails: true, exportDetails: true, exportPlusDetails: true, imageDetails: true,
   reperesDetails: false, grilleDetails: false, plateauDetails: false, planchesDetails: false, carteDetails: false,
   assetsDetails: false, calquesDetails: true,
-  echantillonsDetails: false, traitDetails: false, transformerDetails: true, navigateurDetails: false,   // R3 : onglets de la pile
+  echantillonsDetails: false, traitDetails: false, transformerDetails: true, navigateurDetails: false, histogrammeDetails: false,   // R3 / R6 : onglets de la pile
 });
 export function etat_lire(json) {
   const out = { ...PANNEAUX_DEFAUT };

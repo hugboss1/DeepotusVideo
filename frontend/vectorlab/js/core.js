@@ -374,6 +374,13 @@ function rendreOverlay() {
     lbl.textContent = p.nom;
     o.appendChild(lbl);
   }
+  // R6 : sans planche, le nom du document au-dessus de la page (le nom de planche d'Affinity)
+  if (!(etat.doc.planches || []).length && etat.meta) {
+    const [px0, py0] = ecranPt(0, 0);
+    const nom = ov("text", { x: px0, y: py0 - 5, fill: "#9a9a9a", "font-size": 11, class: "page-nom", "pointer-events": "none" });
+    nom.textContent = etat.meta.name;
+    o.appendChild(nom);
+  }
   // repères de page (lot A) : coupe en rouge, zone sûre en vert — overlay
   // seulement, jamais dans l'export
   const rr = reperes_rects(etat.doc);

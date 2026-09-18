@@ -8,6 +8,7 @@
 // sont rendus ici. `VL.ouvrirOnglet(id)` : les menus (R1) l'appellent.
 import { ONGLETS, onglets_de, onglet_de_section, actif_lire, actif_poser, actif_de, sections_ouvertes, actif_serialiser } from "./mod-onglets.js";
 import { echelle_vignette, cadre_vue, zoom_de_curseur, curseur_de_zoom } from "./mod-navigateur.js";
+import { histogramme, histogramme_chemins } from "./mod-histogramme.js";
 import { compilerSVG, op_style } from "./mod-doc.js";
 
 const VERS_TRANSFORMER = ["X · Y", "L · H", "Incliner", "Puissance"];
@@ -48,7 +49,7 @@ export function initPile(VL) {
     // les sections d'onglets absents de ce persona restent dans leur groupe précédent, fermées : les cacher
     const visibles = new Set(liste.flat().flatMap((id) => ONGLETS[id].sections));
     for (const x of Object.values(ONGLETS)) for (const sid of x.sections) { const d = section(sid); if (d) d.classList.toggle("hors-persona", !visibles.has(sid)); }
-    rendreNavigateur();
+    rendreNavigateur(); rendreHistogramme();
   }
   function activer(id) {
     const p = persona();
@@ -139,9 +140,20 @@ export function initPile(VL) {
     h.querySelector("#navPct").textContent = Math.round(etat.zoom * 100) + " %";
   }
 
+  /* ── Histogramme (R6) : les pixels chargés par « Éditer les pixels » ── */
+  function rendreHistogramme() {
+    const h = $("#panneauHistogramme");
+    if (!h) return;
+    const t = etat.px && etat.px.tampon;
+    if (!t) { h.innerHTML = `<p class="px-note">Éditer les pixels d'une image (persona Pixel, « Éditer les pixels ») pour lire son histogramme.</p>`; return; }
+    const hi = histogramme(t), c = histogramme_chemins(hi, 256, 100);
+    h.innerHTML = `<svg class="hist-svg" viewBox="0 0 256 100" preserveAspectRatio="none" aria-label="Histogramme"><path d="${c.r}" fill="#e33" opacity=".8"/><path d="${c.g}" fill="#3d3" opacity=".8"/><path d="${c.b}" fill="#36f" opacity=".8"/><path d="${c.l}" fill="#bbb" opacity=".55"/></svg>
+      <div class="hist-stats"><span>Moyenne : ${hi.moyenne}</span><span>Écart-type : ${hi.ecartType}</span><span>Médiane : ${hi.mediane}</span><span>Pixels : ${hi.pixels}</span></div>`;
+  }
+  VL.rendreHistogramme = rendreHistogramme;   // la preuve
   /* ── crochets : après TOUS les rendus des modules (initPile est le dernier) ── */
   const sRendu = VL.surRendu, sSel = VL.surSelection, sVue = VL.surVue, sPersona = VL.surPersona;
-  VL.surRendu = () => { sRendu(); redistribuer(); rendreEchantillons(); rendreNavigateur(); };
+  VL.surRendu = () => { sRendu(); redistribuer(); rendreEchantillons(); rendreNavigateur(); rendreHistogramme(); };
   VL.surSelection = () => { sSel(); redistribuer(); };
   VL.surVue = () => { sVue(); rendreNavigateur(); };
   VL.surPersona = () => { sPersona(); rendreOnglets(); };
