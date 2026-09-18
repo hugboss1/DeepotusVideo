@@ -7,6 +7,54 @@
 > de Vectorlab et rajoute des outils manquants qui sont présents dans
 > Affinity et pas encore présents dans Vectorlab ».
 
+> **RELEVÉ DE LIVRAISON (18/09/2026) : LIVRÉ, PROUVÉ EN RÉEL (campagne complète), DÉPLOYÉ (statiques seuls : aucune relance).**
+>
+> **Livré** (commits `98f9a8c` logos, `f6414b2`, poussés) : les deux
+> pastilles « a » retirées ; `mod-outils3.js` feuille (`rect_normalise`,
+> `zoom_rect`, `zoom_point`, `degrade_de_glisser`, `rognage_de_rect` qui
+> compose un rognage existant, `cadre_de_rect`, `disque_masque` ; RED
+> constaté, 14 contrôles) ; `mod-outils3ui.js` : dix outils — **Main** (H),
+> **Loupe** (Z : clic ×1,25, Alt ÷1,25, glisser ≥ 6 px cadre), **Plan de
+> travail** (planche nommée au glisser), **Dégradé** (fond courant → blanc,
+> une commande crée le dégradé et pose `grad:<id>`), **Transparence** (Y,
+> `op_degrade_transparence` sur le rectangle glissé), **Cadre de texte**
+> (objet `cadre` puis édition en place), **Recadrer** (rognage natif au
+> glisser, l'objet prend le rectangle ; double-clic retire), **Flou /
+> Éclaircir / Assombrir** (disque de masque sur le tampon, primitives
+> `flou` / `hsl` de mod-pixel, commit par `VL.pixelCommettre` = journal
+> des pixels) ; familles 16 Vecteur / 9 Pixel (Image et Vue partagées,
+> Recadrer dans Image, Retouche en Pixel), 10 icônes, champs de contexte
+> des pinceaux de retouche, phrases d'état, raccourcis H / Z / Y.
+>
+> **Campagne de test en réel** (8799, 1400 × 900, prompt / confirm / open
+> stubés, `window.onerror` et `console.error` capturés, `parserDoc` après
+> chaque passe) : 45 gestes d'outil dans les deux personas (rect, ellipse,
+> ligne, plume, couteau, constructeur, mesure, pipette, cadre, planche,
+> dégradé, transparence, recadrer, main, loupe, px-*) puis 22 autres
+> (sélection, nœuds, crayon, gomme, coin, forme, pinceau vectoriel, tuiles,
+> texte, et les 13 outils raster sur une image 16 × 16 RÉELLE éditée : rev
+> 1 → 10 du journal, sélections rectangle / baguette posent un masque,
+> pixels modifiés, rognage {1,3,10,8}) ; 65 entrées de menu disponibles
+> exécutées (Dupliquer +3, Coller +3, Union −2, ordre, groupe, verrou,
+> zoom, persona, onglets, pixel), 24 sautées volontairement (navigation,
+> exports, IA, dialogues, suppressions) ; 29 onglets activés (section
+> visible à chaque fois) ; 11 boutons de calques / contexte. **0 erreur, 0
+> exception, document valide à chaque passe.**
+>
+> **Défaut attrapé par la campagne** : en persona Pixel, Main / Loupe /
+> Image / Recadrer restaient cachés par le sélecteur de persona (spécificité
+> des `:not`) — ajoutés à ses exclusions, Image devient une famille des
+> deux personas.
+>
+> **Déployé** : installé = base logos `98f9a8c` (141, 0 divergent) →
+> sauvegarde `_backup_predeploy_2026-09-18-relooking-r7` → 144/144 = cible.
+>
+> **Reste (hors périmètre, assumé)** : pas de Perspective / Maillage /
+> Liquéfier / Déformer ni de Doigt / Correcteur / Patch (retouche avancée
+> sans primitive dans mod-pixel), pas d'outil Transformation de point ni de
+> Cadre d'image (le rognage couvre l'usage) ; Mise en page et IA Canva
+> restent hors périmètre.
+
 **Goal :** (1) une campagne de test en réel de TOUS les outils (gestes
 pointeur sur la scène), de toutes les entrées de menu disponibles, de
 tous les onglets et des actions de panneau, sans erreur de console ni
