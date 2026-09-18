@@ -4,6 +4,53 @@
 > (exécution inline, TDD strict : RED constaté au banc avant le module pur).
 > Conception : `…-relooking-design.md` (R-D6 familles, R-D1 icônes fines, R-D9).
 
+> **RELEVÉ DE LIVRAISON (18/09/2026) : LIVRÉ, PROUVÉ EN RÉEL, DÉPLOYÉ (statiques seuls : aucune relance).**
+>
+> **Livré** (commits `ccd4d1c`, `3ba2203`, poussés) : `mod-icones.js`
+> (32 icônes trait 1,5 / currentColor / viewBox 24, repli pointillé, RED
+> constaté, 6 contrôles) ; `mod-familles.js` (17 familles — 13 Vecteur, 6
+> Pixel, Déplacer et Tranche partagées —, `famille_de / famille_par_id /
+> membre_courant / choisir_membre / flyout_famille / touche_de`, 10
+> contrôles) ; `mod-flyout.js` gagne `ouvrirMenu(bouton, menu)` et
+> `armer` exposés, le triangle / l'appui long passent d'abord par
+> `VL.familleOuvrir` (une famille d'un membre rend false → menu de
+> réglages), le clic droit garde le menu de réglages ; `mod-barreoutils.js`
+> réordonne les boutons EXISTANTS de `#outils` (ids, `data-outil`,
+> écouteurs intacts), replie les membres non courants (`outil-repli`),
+> pose les icônes et le raccourci dans la bulle, mémorise `dz_vl_familles`,
+> chaîne `surOutil` (un raccourci bascule la famille) et enveloppe
+> `VL.flyout.ouvrir` (montre le membre avant d'ouvrir) ; `index.html` sans
+> `<use>` dans les boutons ; CSS R2 (colonne 44, boutons 30 × 30, pas 36,
+> actif = carré #3c3c3c, triangle d'angle).
+>
+> **TDD** : node tous bancs verts (icones 6, familles 10 — premier RED
+> réel : l'ordre des familles Pixel plaçait Tranche avant la Sélection, et
+> `famille_de("formes")` cherchait un OUTIL nommé formes → `famille_par_id`
+> ajouté).
+>
+> **Prouvé en réel** (8799, 1400 × 900) : `#outils` 44 px ; 13 boutons
+> visibles en Vecteur (select, noeuds, plume, rect, constructeur, texte,
+> image, apparence, symbole, mesure, tuiles, ia, tranche), 6 en Pixel
+> (select, px-selrect, px-pinceau, px-seau, px-crayon, tranche) ; tous 30 ×
+> 30 avec une icône de 18 ; `setOutil("crayon")` → plume repliée, crayon
+> visible et actif ; touche « e » → ellipse visible, rect replié ;
+> `VL.familleOuvrir(ellipse)` → flyout à 43 px du bord avec 4 entrées
+> « Outil Rectangle R · Outil Ellipse E · Outil Ligne L · Outil Forme
+> paramétrique F » ; clic « Outil Ligne » → outil ligne, bouton visible,
+> mémoire `{"plume":"crayon","formes":"ligne"}` ; clic droit sur gomme →
+> « Gomme vectorielle » (réglages) ; `VL.flyout.ouvrir("forme")` → forme
+> montrée puis menu « Forme paramétrique » ; audit : 0 bouton tronqué,
+> scrollWidth 44 / clientWidth 43 (bordure).
+>
+> **Déployé** : installé = base R1 `fbada07` (124, 0 divergent) →
+> sauvegarde `_backup_predeploy_2026-09-18-relooking-r2` → `git archive
+> HEAD` → 129/129 = cible. Aucun Python touché.
+>
+> **Reste** : le bouton d'une famille repliée n'est pas atteignable au
+> clic droit (cas synthétique seulement) ; les bulles des outils gardent
+> le `title` natif stylé par mod-infobulle (bulle riche titre + gestes :
+> R6) ; le sprite `<symbol>` de tête d'`index.html` est désormais inutilisé.
+
 **Goal :** la colonne d'outils ressemble à celle d'Affinity — boutons
 carrés 30 px au pas de 36, icônes fines monochromes (traits 1,5 px), un
 bouton par FAMILLE montrant le membre courant, petit triangle d'angle,
