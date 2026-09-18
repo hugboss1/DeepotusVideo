@@ -105,7 +105,7 @@ export function initCharpente(VL) {
     document.body.appendChild(d); ouvert = d; ouvertPour = titreEl;
   }
   if (mb) {
-    mb.innerHTML = `<span class="mb-logo" title="Vectorlab">a</span>` + MENUS_BARRE.map((m, i) => `<button class="mb-titre" data-i="${i}">${esc(m.titre)}</button>`).join("");
+    mb.innerHTML = MENUS_BARRE.map((m, i) => `<button class="mb-titre" data-i="${i}">${esc(m.titre)}</button>`).join("");
     mb.querySelectorAll(".mb-titre").forEach((b) => {
       b.addEventListener("click", (ev) => { ev.stopPropagation(); if (ouvertPour === b) fermer(); else ouvrirMenu(b, MENUS_BARRE[+b.dataset.i]); });
       b.addEventListener("pointerenter", () => { if (ouvert && ouvertPour !== b) ouvrirMenu(b, MENUS_BARRE[+b.dataset.i]); });
