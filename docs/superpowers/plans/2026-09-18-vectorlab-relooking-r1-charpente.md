@@ -4,6 +4,61 @@
 > (exécution inline, TDD strict : RED constaté au banc avant le module pur).
 > Conception : `docs/superpowers/specs/2026-09-18-vectorlab-affinity-relooking-design.md` (R-D1 à R-D4, R-D9).
 
+> **RELEVÉ DE LIVRAISON (18/09/2026) : LIVRÉ, PROUVÉ EN RÉEL, DÉPLOYÉ (statiques seuls : aucune relance).**
+>
+> **Livré** (commits `ed610c0`→`fbada07`, poussés) : `mod-statut.js` et
+> `mod-menus.js` feuilles (RED constaté, 9 + 9 contrôles) ; deux personas
+> (Vecteur, Pixel), l'export est un onglet et l'outil `tranche` est partagé
+> (pin `pixel_ui` mis à jour, 16 contrôles) ; `index.html` en six bandes
+> avec TOUS les ids conservés (`#hintOutil` et `#docMeta` vivent dans la
+> barre d'état, `#docTitle` dans l'onglet de document, `#btnGrille /
+> #selGrille / #btnAimant / #btnUnite` dans la barre contextuelle) ;
+> `mod-charpente.js` : barre de menus (table d'actions → `VL.*`,
+> `VL.actions.<module>`, boutons par id ; préfixes `bool: ordre: noeuds:
+> pixel: persona:`), `VL.menus.ouvrir/fermer/element` et `VL.menuAction /
+> VL.menuPeut` pour la preuve, aide Raccourcis (F1, 49 lignes), onglet
+> « nom @ zoom* », cotes « L × H unité », résumé « W × Hpx, MP, unité ·
+> dpi », pagination ; les cinq tables HINTS deviennent `VL.hints` et
+> `VL.majStatut` les pose en gras ; crochet `VL.surVue` dans le cœur (le
+> zoom met l'onglet à jour) ; couche CSS « R1 charpente » (variables
+> `--aff-*`).
+>
+> **TDD** : node **tous bancs verts** (statut 9, menus 9, pixel_ui 16),
+> pytest `test_vector_docs` **40 passed** (aucun champ nouveau).
+>
+> **Prouvé en réel** (8799, 1400 × 900, lecture DOM) : bandes `.mb` 32 /
+> `.pb` 42 / `.cb` 32 / `.dt` 26 / `.sb` 22, `#stage` 721, barre d'état au
+> bas de la fenêtre (900) ; 10 titres de menu ; Edition ouvert → 13
+> entrées, Dupliquer et Annuler grisés sans objet ; rectangle posé et
+> sélectionné → cotes « 120 × 80 px », phrase « 1 objet sélectionné.
+> **Glisser**… », Dupliquer par le menu → 2 objets, menu refermé,
+> `VL.menuAction("annuler")` → 1 ; outil rect → « **Glisser** pour tracer ·
+> **Maj** contraint au carré » ; onglet « preuve-r1 @ 100%* » puis « @ 50%* »
+> au zoom ; pastille Pixel rgb(207,111,227), Vecteur rgb(34,195,216) ; F1 →
+> 49 lignes ; Fichier 16 entrées sous la barre (top 28,5) ; Échap ferme ;
+> audit : aucune bande ne déborde (scrollWidth = clientWidth = 1400),
+> boutons contextuels 24 px ; 22 outils visibles en Vecteur, 12 en Pixel
+> dont `tranche`.
+>
+> **Deux défauts attrapés par la preuve** : `VL.cote` ne connaît que
+> rect / ellipse / segment / delta (les cotes appelaient « L » / « H » →
+> exception au premier clic de sélection) ; un commentaire `//` posé en
+> fin d'une ligne à accolade avalait le `}` (module entier refusé :
+> « Unexpected end of input ») — vérifier `node --check` avant toute
+> preuve ; la règle CSS du persona Pixel cachait `tranche` (exclusion
+> ajoutée).
+>
+> **Déployé** : installé = base `ea23a2b` (119 fichiers, 0 divergent par
+> hash-object) → sauvegarde `_backup_predeploy_2026-09-18-relooking-r1` →
+> `git archive HEAD frontend/vectorlab` → 124/124 = cible. Aucun Python
+> touché : aucune relance.
+>
+> **Reste** : la barre contextuelle n'a que le squelette (sélection, outil,
+> grille / aimant / unité) — le contenu par outil est le lot R5 ;
+> « Configuration du document… » et « Paramètres… » toastent « lot R5 » ;
+> les entrées `ouvre:` des menus ouvrent la section `<details>` en
+> attendant les onglets de R3 ; la colonne d'outils garde ses glyphes (R2).
+
 **Goal :** le Vectorlab s'ouvre dans la charpente d'Affinity — barre de
 menus fonctionnelle, pastilles Vecteur / Pixel, barre contextuelle
 (squelette), onglet de document, barre d'état avec phrase d'aide — sans
