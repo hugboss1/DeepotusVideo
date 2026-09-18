@@ -79,11 +79,23 @@
 > embarqué `import app.main` + `couleur_valide` OK. `test_print3d.py` n'est
 > pas installé (les bancs `qa/` le sont).
 >
+> **Mode Tuiles rejoué en réel sur le backend INSTALLÉ (19/09, port 8765)** :
+> document de quatre tuiles (mer, plaine, forêt, montagne) → mode « tuiles »
+> proposé d'office, aperçu GLB à **4 primitives, un matériau par terrain**
+> (`#2B5F9E`, `#7FB069`, `#3F7D3A`, `#8A8A8A`), hauteurs socle + terrain 2 /
+> 4 / 5 / 10 mm, `loaded` vrai ; « Lot par tuile » → 4 STL + nomenclature +
+> `plateau.3mf` à **quatre objets colorés** (`<base displaycolor>` ×4, un
+> `<item>` par objet) et `impression.json.couleurs` par pièce. Piège
+> mesuré : le premier lot est sorti à l'ANCIEN format (un objet, sans
+> matériau) — le processus 8765 datait du 18/09 19:05, les fichiers Python du
+> 19/09 00:02 : « relancé » se VÉRIFIE par `Get-Process … StartTime` contre le
+> `LastWriteTime` de l'installé, jamais sur parole ; relance faite ici avec
+> l'accord de l'utilisateur.
+>
 > **Reste (assumé)** : le STL ne porte pas de couleur (format) ; une pièce =
 > une couleur (pas de couleur par face) ; la dépouille négative avec biseau
-> fait partir le biseau du contour dessiné ; le mode Tuiles n'a pas été
-> rejoué en réel ici (couleur posée par `plateau_pieces`, bancée) ; la
-> capture d'écran du volet reste impossible pendant la preuve (rendu différé).
+> fait partir le biseau du contour dessiné ; la capture d'écran du volet
+> reste impossible pendant la preuve (rendu différé).
 
 ## Analyse
 
