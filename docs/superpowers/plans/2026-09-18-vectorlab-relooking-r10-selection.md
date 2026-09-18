@@ -29,6 +29,49 @@
 | Conversion « Intelligent » | `noeud_intelligent(segs, i)` pur : tangentes Catmull-Rom (direction voisin suivant − voisin précédent, longueurs proportionnelles aux distances) ; action `VL.actions.plume.intelligent` et bouton dans les barres Plume et Nœuds |
 | Magnétisme aux nœuds | `etat.aimantNoeuds` (défaut vrai), bascule « Magnétisme » dans la barre du Nœud ; respecté par le glisser d'ancre (mod-tools), d'ancres multiples (mod-outils2), de poignées et de segments (mod-noeudui) |
 
+> **RELEVÉ DE LIVRAISON (18/09/2026) : LIVRÉ, PROUVÉ EN RÉEL, DÉPLOYÉ (statiques seuls : aucune relance).**
+>
+> **Livré** (commit `4b04f00`, poussé) : `mod-selection.js` feuille
+> (`contraindre_axe`, `cadre_selection` inclus / touchés, `bbox_ancres`,
+> `poignees_bbox`, `bbox_par_poignee` proportions / centre,
+> `noeuds_tourner` ; RED constaté, 12 contrôles) ; `noeud_intelligent`
+> dans mod-noeud (Catmull-Rom, 16 contrôles) ; `mod-selectionui.js` :
+> Alt+glisser = copie déplacée qui PART DE LA PLACE de l'original (le
+> décalage d'`op_dupliquer` est compensé), double-clic sur une courbe →
+> outil Nœuds, survol en boîte bleue ; `mod-tools` : Maj contraint le
+> déplacement, Ctrl redimensionne depuis le centre, cadre entièrement
+> inclus par défaut et touchés avec Alt, magnétisme aux nœuds respecté ;
+> `mod-outils2` idem ; `mod-noeudui` : boîte + 8 poignées d'échelle (Maj
+> proportions) + poignée de rotation (Maj 15°) sur ≥ 2 ancres,
+> `VL.actions.noeuds.intelligent` ; barre contextuelle : X · Y · L · H de
+> la sélection (déplacer / redimensionner par les commandes existantes),
+> Intelligent dans Plume et Nœuds, bascule Magnétisme du Nœud.
+>
+> **Prouvé en réel** (8799, 1400 × 900, gestes pointeur) : cadre
+> (80,80)-(320,200) → `[s1]` inclus, avec Alt → `[s1, s2]` ; Maj pendant le
+> glisser → dx 50, dy 0 ; Alt+glisser → +1 objet, original immobile, copie
+> exactement à +60 ; Ctrl sur la poignée bas-droit → centre (350,130)
+> inchangé ; survol → `#ovSurvol rect` ; X = 500 et L = 50 par la barre ;
+> double-clic sur une courbe → outil Nœuds, 4 ancres avant et après ; 3
+> ancres → 9 poignées, échelle → `L 309 300 L 309 509` ; rotation Maj →
+> ancres tournées par pas de 15° ; Intelligent → ancre lisse en C ;
+> Magnétisme décoché → `etat.aimantNoeuds` false ; 0 erreur, document
+> valide.
+>
+> **Deux défauts attrapés par la preuve** : Maj tenu DÈS l'appui bascule
+> la sélection (comme Affinity) — la contrainte joue pendant le glisser ;
+> le double-clic passait aux Nœuds ET insérait un nœud : deux écouteurs
+> de capture sur le même élément ne s'arrêtent qu'avec
+> `stopImmediatePropagation` ; la copie Alt partait décalée de 12 px
+> (compensée).
+>
+> **Déployé** : installé = base R9 `595caa2` (150, 0 divergent) →
+> sauvegarde `_backup_predeploy_2026-09-18-relooking-r10` → 153/153 = cible.
+>
+> **Reste (assumé)** : Ctrl+clic pour sélectionner un enfant de groupe
+> (les enfants ne sont pas sélectionnables seuls) ; le mode « Sélection
+> auto » et le cycle Tab d'Affinity ; les trois restes de R9 sont clos.
+
 **Architecture :** `mod-selection.js` feuille : `contraindre_axe(dx, dy)`,
 `cadre_selection(boites, cadre, mode)` → ids, `bbox_ancres(ancres,
 indices)`, `poignees_bbox(b)` → 8 points + rotation, `bbox_par_poignee(b0,
