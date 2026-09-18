@@ -4,6 +4,60 @@
 > (exécution inline, TDD strict : RED constaté au banc avant le module pur).
 > Conception : `…-relooking-design.md` (R-D4 ids conservés, R-D5 correspondance, §3 rangée de calque).
 
+> **RELEVÉ DE LIVRAISON (18/09/2026) : LIVRÉ, PROUVÉ EN RÉEL, DÉPLOYÉ (statiques seuls : aucune relance — le miroir pytest ne touche pas au Python de l'application).**
+>
+> **Livré** (commits `5c8749c`, `7911db6`, poussés) : `calque.fusion`
+> (`op_calque_fusion`, `MODES_FUSION_CALQUE` = les 16 modes SVG, `normal`
+> retire le champ, parser strict, compilé en `mix-blend-mode` dans le
+> `style` du `<g data-calque>` avec `display:none`) — banc calques 8 → 14,
+> pytest `test_le_miroir_fusion_de_calque_fait_l_aller_retour` (RED puis
+> 41 passed) ; `mod-onglets.js` (20 onglets, groupes Vecteur 5 / 9 / 5 et
+> Pixel 1 / 4 / 4, défauts, `actif_lire / actif_poser / sections_ouvertes`,
+> 12 contrôles) ; `mod-navigateur.js` (`echelle_vignette`, `cadre_vue`
+> borné à la page, curseur logarithmique 5 % → 1600 %, 8 contrôles) ;
+> `mod-pile.js` : trois `.groupe` (onglets, chevron de repli, corps qui
+> défile), les `<details>` existantes DÉPLACÉES dans le corps de leur
+> onglet (summary masqué par CSS, onglet actif = `open`, hors-persona
+> cachées), `VL.ouvrirOnglet(id)` (bascule de persona si besoin),
+> redistribution des rangées de `#panneauStyle` par libellé vers
+> `#panneauTransformer` (X · Y, L · H, Incliner, Puissance) et
+> `#panneauTrait` (Contour, Trait, Pointillés, Joint, Décaler) après chaque
+> rendu — les écouteurs de mod-style suivent les nœuds —, Échantillons
+> (palette du document → fond, Maj = contour), Navigateur (vignette
+> compilée mise en cache par pas d'historique, cadre de vue, curseur, ±,
+> clic recentre) ; `mod-layers.js` : tête « Opacité [n] % · [fusion] »,
+> rangée `[chevron][vignette 28][nom][🔒][👁]` de 34 px, barre d'actions
+> (✎ · ◐ Réglage · ◫ Masque · ▦ Calque pixel · fx | ⧉ Groupe · ＋ · ▲ ·
+> ▼ · 🗑), `#btnCalquePlus` déplacé dans la barre ; `index.html` : quatre
+> sections nouvelles, plus de zones défile / calques ; `mod-panneaux`
+> connaît les quatre ids ; CSS R3.
+>
+> **Prouvé en réel** (8799, 1400 × 900) : `.panneau` 264, 3 groupes,
+> onglets 5 / 9 / 5 (Vecteur) et 1 / 4 / 4 (Pixel) ; sections ouvertes =
+> celles des onglets actifs, aucune section fermée visible ; « Trait » →
+> section ouverte (121 px) avec Contour / Trait ; rectangle sélectionné +
+> « Transformer » → X · Y, L · H, Incliner, Puissance, `#apX` = 60, saisie
+> L = 150 → `objet.w` 150 (les écouteurs ont suivi) ; mémoire
+> `{"vecteur":["trait","calques","transformer"],…}` ; « Planches » ouvre et
+> ferme Calques ; rangée de calque 35 px, vignette 28, active
+> rgb(43,111,214), 16 modes de fusion, 10 boutons d'action ; fusion
+> `multiply` → document ET `<g>` `style="mix-blend-mode:multiply"` ;
+> Navigateur 236 × 148, page 99 × 148, cadre 99 × 108, curseur 250 → zoom
+> 0,211 « 21 % » ; Pixel → onglets 1 / 4 / 4, sections hors persona à 0
+> px ; audit : aucune rangée d'onglets ne déborde (263 / 263).
+>
+> **Déployé** : installé = base R2 `3ba2203` (129, 0 divergent) →
+> sauvegarde `_backup_predeploy_2026-09-18-relooking-r3` → 134/134 =
+> cible.
+>
+> **Reste** : le nuancier reste un popover (le panneau Couleur n'a que
+> Fond / Opacité / Attribut / Rayon — inline en R4) ; « Aucune sélection »
+> de la barre contextuelle est encore statique (R5) ; l'Historique n'est
+> que les instantanés (la liste des pas n'a pas de libellés dans
+> `Historique`) ; les groupes ont un ordre fixe (pas de dock déplaçable,
+> assumé) ; la rangée Trait montre deux libellés « Contour » (pastille et
+> décalage — libellé « Décaler » à poser dans mod-style, R4).
+
 **Goal :** la pile de droite est celle d'Affinity — trois groupes de
 panneaux à onglets par persona (Vecteur : Couleur · Échantillons · Trait ·
 Apparence · Texte | Calques · Tracé · Image · Planches · Grille · Plateau ·
