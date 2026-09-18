@@ -446,7 +446,7 @@ details > summary.panneau-tete { cursor: pointer; list-style: none; }
 .personas button { padding: 3px 12px; font-size: 12px; letter-spacing: .03em; }
 .personas button.actif { background: var(--aff-sel); border-color: #4a90e2; color: var(--aff-texte); }
 body:not(.persona-pixel) #outils .outil-pixel { display: none; }
-body.persona-pixel #outils button[data-outil]:not(.outil-pixel):not([data-outil="select"]):not([data-outil="tranche"]) { display: none; }   /* la tranche est partagée (18/09) */
+body.persona-pixel #outils button[data-outil]:not(.outil-pixel):not([data-outil="select"]):not([data-outil="tranche"]):not([data-outil="main"]):not([data-outil="loupe"]):not([data-outil="image"]):not([data-outil="recadrer"]) { display: none; }   /* partagés (18/09) : tranche, main, loupe, image, recadrer */
 body.persona-export #outils button[data-outil]:not([data-outil="select"]):not(.outil-export) { display: none; }
 body:not(.persona-export) #outils .outil-export { display: none; }
 body:not(.persona-pixel) .seulement-pixel { display: none !important; }
@@ -800,3 +800,5 @@ body.sans-bulles .infobulle { display: none !important; }
 .hist-stats { font-size: 11px; color: var(--aff-muet); display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px; }
 #panneauCouleurInline > #nuancier #nuSV { height: 96px; }
 #overlay .page-nom { font-family: "Segoe UI", system-ui, sans-serif; }
+
+/* ══ R7 : les outils ajoutés (Main, Loupe, Image, Recadrer partagés par le sélecteur de persona ci-dessus) ══ */

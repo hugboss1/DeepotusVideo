@@ -28,7 +28,7 @@ export function champs_de(outil, etat) {
     case "gomme": return [nombre("gommeLargeur", "Largeur", etat.gommeLargeur, 1, 500)];
     case "coin": return [nombre("coinRayon", "Rayon", etat.coinRayon, 0, 500)];
     case "crayon": case "pinceauv": return [select("pvProfil", "Profil", pv.profil, opts(etat.profils)), nombre("pvLargeur", "Largeur", pv.largeur, 1, 200)];
-    case "px-pinceau": case "px-gomme": case "px-cloner": return [nombre("pxRayon", "Rayon", px.rayon, 1, 256), nombre("pxDurete", "Dureté", px.durete, 0, 1, 0.05)];
+    case "px-pinceau": case "px-gomme": case "px-cloner": case "px-flou": case "px-eclaircir": case "px-assombrir": return [nombre("pxRayon", "Rayon", px.rayon, 1, 256), nombre("pxDurete", "Dureté", px.durete, 0, 1, 0.05)];
     case "px-seau": return [nombre("pxTolerance", "Tolérance", px.tolerance, 0, 255), { id: "pxGlobal", type: "bascule", libelle: "Global", valeur: !!px.global }];
     case "px-baguette": return [nombre("pxTolerance", "Tolérance", px.tolerance, 0, 255)];
     case "tuiles": return [select("terrainCourant", "Terrain", etat.terrainCourant, Object.entries(etat.terrains || {}).map(([id, t]) => ({ id, libelle: (t && t.nom) || id })))];

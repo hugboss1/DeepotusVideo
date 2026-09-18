@@ -35,6 +35,16 @@ export const ICONES = {
   "px-lasso": '<path d="M12 4c4.5 0 8 2.2 8 5s-3.5 5-8 5-8-2.2-8-5 3.5-5 8-5z" stroke-dasharray="3 2"/><path d="M7 13.5c-1 2-1 4 1 6"/><circle cx="8.5" cy="15.5" r="1.3"/>',
   "px-baguette": '<path d="M4 20l9-9"/><path d="M13 11l2-2"/><path d="M16.5 3.5v2.5M16.5 9.5V12M13 6.5h2.5M19 6.5h2.5"/><path d="M14 4l1 1M19 9l1 1M14 9l1-1M19 4l1-1"/>',
   "px-cloner": '<circle cx="11" cy="13" r="5"/><path d="M11 8V5a2 2 0 0 1 2-2h4"/><path d="M15 3l2 2-2 2"/>',
+  main: '<path d="M8 12V6.5a1.5 1.5 0 0 1 3 0V11"/><path d="M11 10.5V5a1.5 1.5 0 0 1 3 0v6"/><path d="M14 11V6.5a1.5 1.5 0 0 1 3 0V12"/><path d="M17 12v-1a1.5 1.5 0 0 1 3 0v4.5c0 3-2.5 5.5-6 5.5h-1.5c-2 0-3.5-1-4.5-2.5L4.5 14a1.4 1.4 0 0 1 2.3-1.6L8 14"/>',
+  loupe: '<circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5"/><path d="M8 10.5h5M10.5 8v5"/>',
+  planche: '<rect x="5" y="5" width="14" height="14"/><path d="M2 5h20M2 19h20M5 2v20M19 2v20" stroke-dasharray="2 2"/>',
+  degrade: '<rect x="4" y="5" width="16" height="14" rx="1"/><path d="M8 5v14M11 5v14M14 5v14M17 5v14" opacity=".5"/><path d="M6 12h12"/>',
+  transparence: '<rect x="4" y="5" width="16" height="14" rx="1"/><path d="M4 5l16 14" /><path d="M6 7h2v2H6zM10 11h2v2h-2zM14 15h2v2h-2z"/>',
+  cadre: '<rect x="4" y="5" width="16" height="14"/><path d="M7 9h10M7 12h10M7 15h6"/>',
+  recadrer: '<path d="M7 2v15h15"/><path d="M2 7h15v15"/>',
+  "px-flou": '<circle cx="12" cy="12" r="6" stroke-dasharray="2 2"/><circle cx="12" cy="12" r="2.5"/>',
+  "px-eclaircir": '<circle cx="12" cy="12" r="4"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/>',
+  "px-assombrir": '<circle cx="12" cy="12" r="7"/><path d="M12 5a7 7 0 0 1 0 14z" fill="currentColor"/>',
 };
 const REPLI = '<rect x="5" y="5" width="14" height="14" rx="2" stroke-dasharray="2 2"/>';
 export function icone_svg(id, taille = 18) {

@@ -4,7 +4,7 @@
 import { FAMILLES, famille_de, famille_par_id, familles_de, membre_courant, choisir_membre, flyout_famille, touche_de } from "../js/mod-familles.js";
 const echecs = []; const ok = (n, c, d = "") => { if (!c) echecs.push(n + (d ? " — " + String(d).slice(0, 200) : "")); };
 {
-  ok("Vecteur : 13 familles dans l'ordre, Pixel : 6", familles_de("vecteur").length === 13 && familles_de("pixel").length === 6 && familles_de("vecteur")[0].id === "deplacer" && familles_de("pixel")[1].id === "pxselection", familles_de("vecteur").map((f) => f.id).join(",") + " | " + familles_de("pixel").map((f) => f.id).join(","));
+  ok("Vecteur : 16 familles dans l'ordre, Pixel : 9 (R7 : Dégradé, Plan de travail, Vue, Retouche, Image partagée)", familles_de("vecteur").length === 16 && familles_de("pixel").length === 9 && familles_de("vecteur")[0].id === "deplacer" && familles_de("pixel")[2].id === "pxselection" && familles_de("pixel")[1].id === "image", familles_de("vecteur").map((f) => f.id).join(",") + " | " + familles_de("pixel").map((f) => f.id).join(","));
   ok("Déplacer et Tranche sont dans les deux personas", familles_de("pixel").some((f) => f.id === "deplacer") && familles_de("pixel").some((f) => f.id === "tranche"));
   ok("famille_de : crayon → plume (3 membres), px-lasso → pxselection, inconnu → null", famille_de("crayon").id === "plume" && famille_de("plume").membres.length === 3 && famille_de("px-lasso").id === "pxselection" && famille_de("zz") === null);
   ok("membres uniques dans toutes les familles", (() => { const t = FAMILLES.flatMap((f) => f.membres.map((m) => m.outil)); return new Set(t).size === t.length; })());

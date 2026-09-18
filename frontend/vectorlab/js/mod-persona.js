@@ -15,7 +15,7 @@ export function persona_classe(id) {
 // à quel persona appartient un outil : la sélection est partagée par tous,
 // les outils `px-*` sont ceux du persona Pixel, le reste est vectoriel
 export function persona_de_outil(outil) {
-  if (outil === "select" || outil === "tranche") return "tous";   // la tranche (export) est un onglet des deux personas
+  if (["select", "tranche", "main", "loupe", "recadrer", "image"].includes(outil)) return "tous";   // la tranche (export) est un onglet des deux personas
   if (String(outil || "").startsWith("px-")) return "pixel";
   return "vecteur";
 }
