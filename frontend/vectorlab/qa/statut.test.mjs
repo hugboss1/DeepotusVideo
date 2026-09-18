@@ -1,7 +1,7 @@
 // statut.test.mjs — mod-statut : la barre d'état d'Affinity — phrase d'aide
 // aux verbes en gras selon l'outil et la sélection, onglet de document
 // « nom @ 73%* », pagination « 1 sur N ». Feuille.
-import { phrase_statut, statut_html, onglet_document, pagination } from "../js/mod-statut.js";
+import { phrase_statut, statut_html, onglet_document, pagination, verbes_gras } from "../js/mod-statut.js";
 const echecs = []; const ok = (n, c, d = "") => { if (!c) echecs.push(n + (d ? " — " + String(d).slice(0, 200) : "")); };
 {
   const p0 = phrase_statut("select", 0, {});
@@ -14,7 +14,8 @@ const echecs = []; const ok = (n, c, d = "") => { if (!c) echecs.push(n + (d ? "
   ok("html : échappe puis pose les <b>", statut_html("**Glisser** <x> & y") === "<b>Glisser</b> &lt;x&gt; &amp; y");
   ok("onglet : nom @ zoom, astérisque si sale", onglet_document({ name: "carte" }, 0.734, true) === "carte @ 73%*" && onglet_document({ name: "carte" }, 1, false) === "carte @ 100%");
   ok("onglet sans meta : « … »", onglet_document(null, 1, false) === "…");
+  ok("verbes_gras (R6, bulles riches) : les verbes connus en tête de segment, y compris après une virgule ; texte vide → vide", verbes_gras("glisser les poignées, Maj contraint") === "**Glisser** les poignées, **Maj** contraint" && verbes_gras("") === "" && verbes_gras(null) === "");
   ok("pagination : planches ou page unique", pagination([], null) === "1 sur 1" && pagination([{ id: "a" }, { id: "b" }], "b") === "2 sur 2" && pagination([{ id: "a" }], "zz") === "1 sur 1" && pagination(undefined, null) === "1 sur 1");
 }
 if (echecs.length) { console.error("ECHECS statut :\n- " + echecs.join("\n- ")); process.exit(1); }
-console.log("QA statut : PASS (9 controles)");
+console.log("QA statut : PASS (10 controles)");

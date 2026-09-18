@@ -5,7 +5,7 @@ import { ONGLETS, GROUPES, onglets_de, onglet_de_section, actif_lire, actif_pose
 const echecs = []; const ok = (n, c, d = "") => { if (!c) echecs.push(n + (d ? " — " + String(d).slice(0, 200) : "")); };
 {
   const v = onglets_de("vecteur"), p = onglets_de("pixel");
-  ok("Vecteur : 3 groupes de 5 / 9 / 5 onglets ; Pixel : 1 / 4 / 4", v.length === 3 && v.map((g) => g.length).join() === "5,9,5" && p.map((g) => g.length).join() === "1,4,4", v.map((g) => g.length).join() + " | " + p.map((g) => g.length).join());
+  ok("Vecteur : 3 groupes de 5 / 9 / 5 onglets ; Pixel : 2 / 4 / 4 (Histogramme en tête, R6)", v.length === 3 && v.map((g) => g.length).join() === "5,9,5" && p.map((g) => g.length).join() === "2,4,4" && p[0][0] === "histogramme", v.map((g) => g.length).join() + " | " + p.map((g) => g.length).join());
   ok("persona inconnu : []", onglets_de("zz").length === 0);
   const tousIds = Object.keys(ONGLETS);
   ok("chaque onglet a un libellé et ≥ 1 section ; chaque onglet des groupes existe", tousIds.every((id) => ONGLETS[id].libelle && ONGLETS[id].sections.length >= 1) && Object.values(GROUPES).flat(2).every((id) => ONGLETS[id]));

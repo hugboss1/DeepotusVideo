@@ -24,12 +24,13 @@ export const ONGLETS = {
   reperes: o("Repères", "reperesDetails"),
   exporter: o("Exporter", "exportDetails", "exportPlusDetails"),
   pixel: o("Pixel", "pixelDetails"),
+  histogramme: o("Histogramme", "histogrammeDetails"),
 };
 export const GROUPES = {
   vecteur: [["couleur", "echantillons", "trait", "apparence", "texte"],
             ["calques", "trace", "image", "planches", "grille", "plateau", "carte", "vitrail", "stock"],
             ["transformer", "navigateur", "historique", "reperes", "exporter"]],
-  pixel: [["couleur"], ["calques", "pixel", "image", "stock"], ["navigateur", "transformer", "historique", "exporter"]],
+  pixel: [["histogramme", "couleur"], ["calques", "pixel", "image", "stock"], ["navigateur", "transformer", "historique", "exporter"]],
 };
 const DEFAUTS = { vecteur: ["couleur", "calques", "transformer"], pixel: ["couleur", "calques", "navigateur"] };
 export const onglets_de = (persona) => GROUPES[persona] || [];

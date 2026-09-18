@@ -9,8 +9,13 @@ export function phrase_statut(outil, nSel, hints) {
   }
   const h = (hints || {})[outil];
   if (!h) return "";
-  // les verbes connus en tête de segment (début, après « · », « , » ou « = ») passent en gras avec majuscule
-  return h.replace(/(^|·\s*|,\s*|=\s*)([a-zéè-]+(?: droit)?)/gi, (m, sep, mot) => VERBES.includes(mot.toLowerCase()) ? `${sep}**${mot[0].toUpperCase()}${mot.slice(1)}**` : m);
+  return verbes_gras(h);
+}
+// les verbes connus en tête de segment (début, après « · », « , » ou « = »)
+// passent en gras avec majuscule — la barre d'état ET les bulles riches (R6)
+export function verbes_gras(texte) {
+  if (!texte) return "";
+  return String(texte).replace(/(^|·\s*|,\s*|=\s*)([a-zéè-]+(?: droit)?)/gi, (m, sep, mot) => VERBES.includes(mot.toLowerCase()) ? `${sep}**${mot[0].toUpperCase()}${mot.slice(1)}**` : m);
 }
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 export const statut_html = (s) => esc(s).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
