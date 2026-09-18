@@ -127,11 +127,14 @@
       </div>
     </div>
     <aside id="panneauCalques" class="panneau">
-     <div class="panneau-defile">
       <details id="vitrailDetails">
         <summary class="panneau-tete" title="Le Panneau de verre — les deux encarts historiques (Vitrail / Panneau de verre) fusionnés (handoff §8.1) : réglages du prochain panneau OU retouche du panneau sélectionné, la portée est écrite en tête">Panneau de verre</summary>
         <div id="panneauVitrail"></div>
       </details>
+      <details id="echantillonsDetails"><summary class="panneau-tete">Échantillons</summary><div id="panneauEchantillons"></div></details>
+      <details id="traitDetails"><summary class="panneau-tete">Trait</summary><div id="panneauTrait"></div></details>
+      <details id="transformerDetails"><summary class="panneau-tete">Transformer</summary><div id="panneauTransformer"></div></details>
+      <details id="navigateurDetails"><summary class="panneau-tete">Navigateur</summary><div id="panneauNavigateur"></div></details>
       <details id="styleDetails" open><summary class="panneau-tete">Apparence</summary><div id="panneauStyle"></div></details>
       <details id="texteDetails" open><summary class="panneau-tete" title="Texte & logo : bibliothèque de typographies, édition en place, contours par glyphe, logo 3D">Texte</summary><div id="panneauTexte"></div></details>
       <details id="apparence2Details" open><summary class="panneau-tete" title="Apparence de classe Affinity : effets, fusion, contours multiples, remplissages avancés, couleurs globales, styles, symboles, texte +">Apparence +</summary><div id="panneauApparence2"></div></details>
@@ -151,8 +154,7 @@
         <div id="panneauCarte"></div></details>
       <details id="assetsDetails"><summary class="panneau-tete" title="La Bibliothèque unifiée dans le panneau — un clic pose l'image">Bibliothèque (Assets)</summary>
         <input id="assetsRecherche" type="search" placeholder="rechercher…"/><div id="assetsGrille" class="assets-grille"></div></details>
-     </div>
-     <details id="calquesDetails" class="panneau-calques" open>
+     <details id="calquesDetails" open>
       <summary class="panneau-tete">Calques
         <button id="btnCalquePlus" title="Nouveau calque">＋</button>
       </summary>

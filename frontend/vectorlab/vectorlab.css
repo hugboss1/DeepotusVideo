@@ -681,3 +681,58 @@ details[id] > summary.panneau-tete:hover { background: #1c2129; }
 .outils button.a-famille::after, .outils button.a-menu::after { content: ""; position: absolute; right: 2px; bottom: 2px; border: 3px solid transparent; border-right-color: #8a8a8a; border-bottom-color: #8a8a8a; }
 .outils .outil-pixel { font-size: 0; }
 #flyout .fo-item small { min-width: 14px; text-align: right; color: var(--aff-muet); }
+
+/* ══ R3 pile de droite Affinity : trois groupes d'onglets, rangées de calques ══ */
+.panneau { width: 264px; flex: 0 0 264px; background: var(--aff-fond); border-left: 1px solid var(--aff-bord); display: flex; flex-direction: column; min-height: 0; }
+.groupe { display: flex; flex-direction: column; min-height: 0; flex: 1 1 0; border-bottom: 1px solid #1c1c1c; position: relative; }
+.groupe[data-g="1"] { flex: 1.6 1 0; }
+.groupe.replie { flex: 0 0 auto; }
+.groupe.replie .groupe-corps { display: none; }
+.groupe.replie .groupe-repli { transform: rotate(-90deg); }
+.onglets { display: flex; flex-wrap: wrap; gap: 2px; padding: 4px 26px 4px 6px; background: var(--aff-barre); border-bottom: 1px solid var(--aff-bord); flex: 0 0 auto; }
+.onglet { height: 22px; padding: 0 8px; border: 0; border-radius: 4px; background: transparent; color: var(--aff-muet); font-size: 11.5px; white-space: nowrap; }
+.onglet:hover { background: #333; color: var(--aff-texte); }
+.onglet.actif { background: #3c3c3c; color: #fff; font-weight: 600; }
+.groupe-repli { position: absolute; right: 4px; top: 5px; width: 20px; height: 20px; padding: 0; border: 0; background: transparent; color: var(--aff-muet); font-size: 13px; border-radius: 4px; transition: transform .12s; }
+.groupe-repli:hover { background: #333; }
+.groupe-corps { flex: 1 1 0; min-height: 0; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; scrollbar-color: #444 transparent; }
+#panneauCalques details[id] > summary.panneau-tete { display: none; }
+#panneauCalques details[id].hors-persona { display: none !important; }
+#panneauCalques details[id] { padding: 4px 0 8px; }
+#panneauCalques details[id] + details[id] { border-top: 1px dashed #333; }
+#panneauCalques details[id]:not([open]) { display: none; }
+#panneauStyle, #panneauTransformer, #panneauTrait, #panneauEchantillons, #panneauNavigateur { padding: 4px var(--pan-x) 4px; display: flex; flex-direction: column; gap: var(--pan-gap); }
+/* Échantillons */
+.ech-grille { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
+.ech-case { aspect-ratio: 1; border: 1px solid rgba(255,255,255,.12); border-radius: 3px; padding: 0; cursor: pointer; }
+.ech-case:hover { outline: 2px solid #fff; outline-offset: -1px; }
+/* Navigateur */
+.nav-vignette { position: relative; overflow: hidden; background: var(--aff-canevas); border: 1px solid var(--aff-bord); border-radius: 3px; cursor: crosshair; }
+.nav-page { position: absolute; background: #fff; overflow: hidden; }
+.nav-page svg { display: block; }
+.nav-cadre { position: absolute; border: 1px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.6); pointer-events: none; }
+.nav-zoom { align-items: center; } .nav-zoom input[type="range"] { flex: 1; }
+#panneauCalques .nav-zoom > button { flex: 0 0 24px; min-width: 24px; width: 24px; padding: 0; }
+.nav-zoom b { min-width: 42px; text-align: right; font-size: 11px; color: var(--aff-muet); }
+/* Calques Affinity */
+#calquesDetails { padding: 0 !important; }
+#calquesTete { display: flex; align-items: center; gap: 6px; padding: 4px 8px; font-size: 11px; color: var(--aff-muet); border-bottom: 1px solid var(--aff-bord); }
+#calquesTete input[type="number"] { width: 46px; height: 22px; padding: 0 4px; text-align: center; background: #1f1f1f; color: var(--aff-texte); border: 1px solid var(--aff-bord); border-radius: 3px; font-size: 11px; }
+#calquesTete select { height: 22px; flex: 1; min-width: 0; background: #1f1f1f; color: var(--aff-texte); border: 1px solid var(--aff-bord); border-radius: 3px; font-size: 11px; }
+#listeCalques { display: flex; flex-direction: column; }
+#listeCalques .calque { display: grid; grid-template-columns: 12px 30px 1fr 22px 22px; grid-template-rows: 34px; gap: 0 6px; align-items: center; padding: 0 6px 0 4px; min-height: 34px; border-bottom: 1px solid #262626; cursor: pointer; color: var(--aff-texte); }
+#listeCalques .calque:hover { background: #333; }
+#listeCalques .calque.actif { background: var(--aff-sel); color: #fff; }
+#listeCalques .calque .calque-chevron { width: 12px; color: var(--aff-muet); font-size: 10px; text-align: center; }
+#listeCalques .calque .calque-vig { grid-column: 2; grid-row: 1; width: 28px; height: 28px; border: 1px solid #555; border-radius: 3px; background: #1a1a1a; overflow: hidden; display: block; }
+#listeCalques .calque .calque-vig svg { display: block; }
+#listeCalques .calque .nom { grid-column: 3; grid-row: 1; min-width: 0; font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#listeCalques .calque button { width: 22px; height: 22px; min-width: 22px; padding: 0; border: 0; background: transparent; color: inherit; border-radius: 3px; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; }
+#listeCalques .calque button:hover { background: rgba(255,255,255,.14); }
+#listeCalques .calque button.off { opacity: .35; }
+#calquesActions { display: flex; align-items: center; gap: 2px; padding: 3px 6px; border-top: 1px solid var(--aff-bord); background: var(--aff-barre); }
+#calquesActions button { width: 24px; height: 24px; min-width: 24px; padding: 0; border: 0; border-radius: 3px; background: transparent; color: #c8c8c8; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; }
+#calquesActions button:hover { background: #3a3a3a; color: #fff; }
+#calquesActions .ca-sep { flex: 1; }
+#calquesActions button:disabled { opacity: .35; }
+.vl-amorce { padding: 8px 10px; } .vl-amorce-btn { width: calc(100% - 20px); margin: 0 10px 8px; }

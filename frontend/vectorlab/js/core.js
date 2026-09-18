@@ -23,6 +23,7 @@ import { initFlyout } from "./mod-flyout.js";
 import { initBarreOutils } from "./mod-barreoutils.js";
 import { initPixelUI } from "./mod-pixelui.js";
 import { initCharpente } from "./mod-charpente.js";
+import { initPile } from "./mod-pile.js";
 import { op_noeud_supprimer } from "./mod-doc.js";
 import { UNITES, depuisUnite, formatNombre, libelle_mesure }
   from "./mod-unites.js";
@@ -758,5 +759,6 @@ initBarreOutils(VL); // relooking Affinity : familles d'outils, icônes fines, f
 initInfobulle(VL);  // bulles d'information stylées, centrées, bornées (remplacent le title natif au survol)
 initPanneaux(VL);   // sections du panneau de droite : état ouvert / replié mémorisé (dz_vl_panneaux)
 initCharpente(VL);  // relooking Affinity : barre de menus, onglet de document, barre d'état, cotes — en dernier (lit VL.hints, VL.actions)
+initPile(VL);       // relooking Affinity : la pile de droite à onglets — après tous les rendus (redistribue les rangées d'Apparence)
 window.VL = VL;
 charger();

@@ -1,9 +1,13 @@
 // mod-layers.js — le panneau des calques (T1.4 côté UI). L'ordre du tableau
 // est l'ordre de peinture : le panneau s'affiche INVERSÉ (le dessus en
 // haut). Toute mutation passe par les commandes pures via VL.executer.
+// Relooking Affinity (R3, 18/09) : tête « Opacité · Normal » sur le calque
+// actif (mode de fusion de calque), rangée [chevron][vignette][nom][🔒][👁],
+// barre d'actions en bas (renommer, réglage, masque, calque pixel, FX |
+// groupe, nouveau, monter, descendre, supprimer). Les data-act restent.
 import { op_calque_ajouter, op_calque_renommer, op_calque_reordonner,
          op_calque_visible, op_calque_verrou, op_calque_supprimer,
-         op_calque_opacite, compilerSVG } from "./mod-doc.js";
+         op_calque_opacite, op_calque_fusion, MODES_FUSION_CALQUE, compilerSVG } from "./mod-doc.js";
 
 /* ── la MINIATURE d'un calque (pure) : le document compilé avec ce seul
    calque visible, sans fond de page, ajusté dans une boîte w×h sur un
@@ -16,7 +20,7 @@ export function vignette_calque_svg(doc, calqueId, w = 40, h = 28, image) {
   delete d.fond;
   // les autres calques sont RETIRÉS (cachés, ils seraient compilés en display:none)
   d.calques = d.calques.filter((c) => c.id === calqueId);
-  for (const c of d.calques) { c.visible = true; delete c.opacite; }
+  for (const c of d.calques) { c.visible = true; delete c.opacite; delete c.fusion; }
   let svg;
   try { svg = compilerSVG(d, { image }); } catch (e) { return ""; }
   const pre = `v${String(calqueId).replace(/[^A-Za-z0-9_-]/g, "")}_`;
@@ -26,28 +30,62 @@ export function vignette_calque_svg(doc, calqueId, w = 40, h = 28, image) {
   return svg.replace(/^<svg([^>]*) width="[^"]*" height="[^"]*">/, (m, attrs) => `<svg${attrs} width="${w}" height="${h}" preserveAspectRatio="xMidYMid meet">` + damier);
 }
 
+const LIB_FUSION = { normal: "Normal", multiply: "Produit", screen: "Superposition", overlay: "Incrustation", darken: "Obscurcir", lighten: "Éclaircir", "color-dodge": "Densité couleur −", "color-burn": "Densité couleur +", "hard-light": "Lumière crue", "soft-light": "Lumière tamisée", difference: "Différence", exclusion: "Exclusion", hue: "Teinte", saturation: "Saturation", color: "Couleur", luminosity: "Luminosité" };
+
 export function initCalques(VL) {
   const { $, etat } = VL;
+  const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+  const actif = () => etat.doc && etat.doc.calques.find((c) => c.id === etat.calqueActif);
+
+  // la tête et la barre d'actions (une fois) : autour de #listeCalques
+  const liste = $("#listeCalques");
+  const section = liste && liste.parentElement;
+  if (section && !$("#calquesTete")) {
+    const tete = document.createElement("div");
+    tete.id = "calquesTete";
+    tete.innerHTML = `<span>Opacité</span><input type="number" id="calqueOpacite" min="0" max="100" value="100" title="Opacité du calque actif (%)"/><span>%</span>
+      <select id="calqueFusion" title="Mode de fusion du calque actif">${MODES_FUSION_CALQUE.map((m) => `<option value="${m}">${LIB_FUSION[m] || m}</option>`).join("")}</select>`;
+    section.insertBefore(tete, liste);
+    const actions = document.createElement("div");
+    actions.id = "calquesActions";
+    actions.innerHTML = `<button data-act="renommer" title="Renommer le calque actif">✎</button>
+      <button data-act="reglage" title="Calque de réglage : niveaux, courbes, HSL… (onglet Pixel)">◐</button>
+      <button data-act="masque" title="Masque de luminance de la sélection (Apparence)">◫</button>
+      <button data-act="pixel" title="Nouveau calque pixel : poser une image de la Bibliothèque">▦</button>
+      <button data-act="fx" title="Effets de calque : ombre, lueur, biseau… (Apparence)">fx</button>
+      <span class="ca-sep"></span>
+      <button data-act="groupe" title="Grouper la sélection">⧉</button>
+      <button id="btnCalquePlus" title="Nouveau calque">＋</button>
+      <button data-act="monter" title="Monter le calque actif d'un cran">▲</button>
+      <button data-act="descendre" title="Descendre le calque actif d'un cran">▼</button>
+      <button data-act="poubelle" title="Supprimer le calque actif et ses objets">🗑</button>`;
+    section.appendChild(actions);
+    // l'ancien ＋ du summary (s'il existe encore) cède l'id au nouveau bouton
+    const vieux = section.querySelector("summary #btnCalquePlus"); if (vieux) vieux.remove();
+  }
+
+  function rendreTete() {
+    const c = actif();
+    const op = $("#calqueOpacite"), fu = $("#calqueFusion");
+    if (!op || !fu) return;
+    op.disabled = fu.disabled = !c;
+    if (!c) return;
+    if (document.activeElement !== op) op.value = Math.round((c.opacite ?? 1) * 100);
+    fu.value = c.fusion || "normal";
+  }
 
   function rendreCalques() {
     const hote = $("#listeCalques");
     if (!hote || !etat.doc) return;
     const lignes = [...etat.doc.calques].reverse().map((c) => `
       <div class="calque${c.id === etat.calqueActif ? " actif" : ""}"
-           data-calque="${c.id}"
+           data-calque="${esc(c.id)}"
            title="Clic : calque actif · double-clic sur le nom : renommer">
-        <span class="calque-vig" title="Le contenu de ce calque">${vignette_calque_svg(etat.doc, c.id, 40, 28, VL.imageUrl)}</span>
-        <button data-act="oeil" class="${c.visible ? "" : "off"}"
-                title="Visibilité">👁</button>
-        <button data-act="verrou" class="${c.verrou ? "" : "off"}"
-                title="Verrou">🔒</button>
-        <span class="nom">${c.nom || c.id}</span>
-        <input type="number" class="op" data-act="opacite" min="0" max="100"
-               value="${Math.round((c.opacite ?? 1) * 100)}"
-               title="Opacité du calque (%)"/>
-        <button data-act="monter" title="Monter d'un cran">▲</button>
-        <button data-act="descendre" title="Descendre d'un cran">▼</button>
-        <button data-act="poubelle" title="Supprimer le calque et ses objets">🗑</button>
+        <span class="calque-chevron"></span>
+        <span class="calque-vig" title="Le contenu de ce calque">${vignette_calque_svg(etat.doc, c.id, 28, 28, VL.imageUrl)}</span>
+        <span class="nom">${esc(c.nom || c.id)}</span>
+        <button data-act="verrou" class="${c.verrou ? "" : "off"}" title="Verrou">🔒</button>
+        <button data-act="oeil" class="${c.visible ? "" : "off"}" title="Visibilité">👁</button>
       </div>`).join("");
     // §8.5 du handoff Vectorlab : document sans le moindre objet — le
     // texte d'amorce et « Poser une baie d'exemple » (VL.vitrailExemple,
@@ -58,23 +96,19 @@ export function initCalques(VL) {
       panneau Vitrail, puis tracer la baie sur la page.</div>
       <button class="vl-amorce-btn" data-act="exemple"
         title="Pose une baie à arc aux proportions de la démo — un seul geste, annulable">Poser une baie d'exemple</button>` : "");
+    rendreTete();
   }
 
   $("#listeCalques").addEventListener("dblclick", (ev) => {
     const ligne = ev.target.closest(".calque");
     if (!ligne || !ev.target.classList.contains("nom")) return;
-    const id = ligne.dataset.calque;
+    renommer(ligne.dataset.calque);
+  });
+  function renommer(id) {
     const c = etat.doc.calques.find((x) => x.id === id);
     const nom = prompt("Nom du calque :", c ? c.nom : "");
     if (nom !== null) VL.executer(op_calque_renommer, id, nom);
-  });
-
-  $("#listeCalques").addEventListener("change", (ev) => {
-    const ligne = ev.target.closest(".calque");
-    if (!ligne || ev.target.dataset.act !== "opacite") return;
-    VL.executer(op_calque_opacite, ligne.dataset.calque,
-                Math.max(0, Math.min(100, +ev.target.value)) / 100);
-  });
+  }
 
   $("#listeCalques").addEventListener("click", (ev) => {
     if (ev.target.dataset.act === "exemple") {
@@ -83,31 +117,46 @@ export function initCalques(VL) {
     }
     const ligne = ev.target.closest(".calque");
     if (!ligne) return;
-    if (ev.target.dataset.act === "opacite") return;   // l'input gère seul
     const id = ligne.dataset.calque;
     const act = ev.target.dataset.act;
     const c = etat.doc.calques.find((x) => x.id === id);
     if (!c) return;
-    const i = etat.doc.calques.indexOf(c);
     if (act === "oeil") VL.executer(op_calque_visible, id, !c.visible);
     else if (act === "verrou") VL.executer(op_calque_verrou, id, !c.verrou);
-    else if (act === "monter") {              // monter à l'écran = vers la fin
-      VL.executer(op_calque_reordonner, id,
-                  Math.min(etat.doc.calques.length - 1, i + 1));
-    } else if (act === "descendre") {
-      VL.executer(op_calque_reordonner, id, Math.max(0, i - 1));
-    } else if (act === "poubelle") {
-      if (confirm(`Supprimer le calque « ${c.nom} » et ses objets ?`)) {
-        VL.executer(op_calque_supprimer, id);
-        if (etat.calqueActif === id) {
-          etat.calqueActif =
-            etat.doc.calques[etat.doc.calques.length - 1].id;
-          rendreCalques();
-        }
-      }
-    } else {
+    else {
       etat.calqueActif = id;
       rendreCalques();
+    }
+  });
+
+  // la tête : opacité et fusion du calque actif
+  $("#calqueOpacite")?.addEventListener("change", (ev) => {
+    const c = actif(); if (!c) return;
+    VL.executer(op_calque_opacite, c.id, Math.max(0, Math.min(100, +ev.target.value)) / 100);
+  });
+  $("#calqueFusion")?.addEventListener("change", (ev) => {
+    const c = actif(); if (!c) return;
+    VL.executer(op_calque_fusion, c.id, ev.target.value);
+  });
+
+  // la barre d'actions
+  $("#calquesActions")?.addEventListener("click", (ev) => {
+    const b = ev.target.closest("button"); if (!b || !etat.doc) return;
+    const act = b.dataset.act, c = actif();
+    const i = c ? etat.doc.calques.indexOf(c) : -1;
+    const A = VL.actions || {};
+    if (act === "renommer" && c) renommer(c.id);
+    else if (act === "reglage") VL.ouvrirOnglet && VL.ouvrirOnglet("pixel");
+    else if (act === "masque" || act === "fx") VL.ouvrirOnglet && VL.ouvrirOnglet("apparence");
+    else if (act === "pixel") { if (A.image && A.image.biblio) A.image.biblio(); else VL.ouvrirOnglet && VL.ouvrirOnglet("image"); }
+    else if (act === "groupe") { if (etat.selection.length >= 2 && A.selection) A.selection.grouper(); else VL.toast("grouper : sélectionner au moins deux objets", true); }
+    else if (act === "monter" && c) VL.executer(op_calque_reordonner, c.id, Math.min(etat.doc.calques.length - 1, i + 1));   // monter à l'écran = vers la fin
+    else if (act === "descendre" && c) VL.executer(op_calque_reordonner, c.id, Math.max(0, i - 1));
+    else if (act === "poubelle" && c) {
+      if (confirm(`Supprimer le calque « ${c.nom} » et ses objets ?`)) {
+        VL.executer(op_calque_supprimer, c.id);
+        if (!actif()) { etat.calqueActif = etat.doc.calques[etat.doc.calques.length - 1].id; rendreCalques(); }
+      }
     }
   });
 
