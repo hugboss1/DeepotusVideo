@@ -19,6 +19,43 @@
 | Curseur qui change au survol d'un nœud / d'une poignée / d'un segment | — | curseurs CSS sur `.ancre`, `.poignee-noeud`, chemin sélectionné en outil Nœuds |
 | Transformer une sélection de nœuds (rotation / échelle par poignées) | `op_noeuds_transformer` + panneau | conservé tel quel (hors barre) |
 
+> **RELEVÉ DE LIVRAISON (18/09/2026) : LIVRÉ, PROUVÉ EN RÉEL, DÉPLOYÉ (statiques seuls : aucune relance).**
+>
+> **Livré** (commit `595caa2`, poussé) : `mod-noeud.js` feuille
+> (`segment_proche` par échantillonnage, le Z compte comme la droite de
+> retour ; `segment_tirer` : une droite devient un C aux tiers puis les
+> deux contrôles reçoivent le déplacement pondéré 1 / (3 t (1 − t)) — la
+> courbe PASSE par le point tiré ; `poignee_deplacer` lisse — l'opposée
+> s'aligne en gardant sa longueur — ou libre ; `noeud_supprimer_lisse` : un
+> C entre les voisins avec leurs tangentes, une droite entre deux droites ;
+> `point_segment` ; RED constaté, 14 contrôles) ; `mod-noeudui.js` en
+> capture sur `#stage` : poignées tirables (`.poignee-noeud` du cœur, Alt =
+> libre, Maj = angle contraint, magnétisme sauf Alt), segment du chemin
+> sélectionné déformable au glisser, double-clic sur un segment = nœud
+> inséré au point (`op_noeud_inserer` à t), Suppr = suppression lisse
+> (chaînée avant mod-tools), `VL.actions.noeuds.aligner / al-*` ; barre
+> contextuelle de l'outil Nœuds = les huit actions de la Plume + six
+> alignements ; cœur : poignées dégénérées non dessinées, ancres choisies
+> en bleu plein, `body[data-outil]` ; CSS : curseurs.
+>
+> **Prouvé en réel** (8799, 1400 × 900, gestes pointeur sur un chemin
+> `M L C L`) : 2 poignées cliquables ; tirer la sortante du nœud 1 →
+> `C 339.95 59.98 …` ; Alt sur l'entrante du nœud 2 → seule l'entrante
+> bouge ; Maj → sortante contrainte à y = 100 ; tirer le milieu de la
+> droite → le segment devient `C` ; double-clic au milieu du dernier
+> segment → 4 → 5 ancres, ancre 3 sélectionnée ; Suppr → 4 ancres (lisse) ;
+> Vif ; bouton « ⇧ » de la barre → alignement haut de deux ancres ; curseur
+> `move` sur les ancres, `body[data-outil="noeuds"]` ; 14 champs dans la
+> barre ; 0 erreur, document valide.
+>
+> **Déployé** : installé = base R8 `45a2e4a` (147, 0 divergent) →
+> sauvegarde `_backup_predeploy_2026-09-18-relooking-r9` → 150/150 = cible.
+>
+> **Reste (assumé)** : pas de poignées de rotation / échelle sur la
+> sélection de nœuds (le panneau Nœuds garde `op_noeuds_transformer`) ;
+> pas de conversion « Intelligent » ; le magnétisme aux nœuds des autres
+> objets n'est pas un réglage séparé.
+
 **Architecture :** `mod-noeud.js` feuille : `segment_proche(segs, pt, tol)`
 → `{k, i, t, dist}` (k = index de segment, i = index de l'ancre de fin,
 échantillonnage 24 pas, le Z compte comme une droite de retour),
