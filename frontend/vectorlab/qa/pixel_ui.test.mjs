@@ -13,7 +13,8 @@ const ok = (nom, cond, detail = "") => {
 
 /* ── personas ── */
 {
-  ok("trois personas : vecteur, pixel, export", JSON.stringify(PERSONAS.map((p) => p.id)) === '["vecteur","pixel","export"]');
+  ok("deux personas : vecteur, pixel (l'export est un onglet, relooking 18/09)", JSON.stringify(PERSONAS.map((p) => p.id)) === '["vecteur","pixel"]');
+  ok("tranche : outil de tous les personas", persona_de_outil("tranche") === "tous");
   ok("classe body", persona_classe("pixel") === "persona-pixel" && persona_classe("zz") === "persona-vecteur");
   ok("les outils pixel appartiennent au persona Pixel, la sélection est partagée, la plume est vecteur",
      persona_de_outil("px-pinceau") === "pixel" && persona_de_outil("select") === "tous" && persona_de_outil("plume") === "vecteur");

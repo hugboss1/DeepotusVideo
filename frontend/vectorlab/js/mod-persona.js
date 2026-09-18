@@ -1,4 +1,5 @@
-// mod-persona.js — D8 : UNE surface, trois personas — Vecteur, Pixel, Export.
+// mod-persona.js — D8 : UNE surface, deux personas — Vecteur, Pixel (relooking
+// Affinity du 18/09 : l'export est un ONGLET de la pile, plus un persona).
 // Le persona est une classe sur <body> (`persona-vecteur|pixel|export`) : le
 // CSS montre les outils et panneaux de chacun, le document reste le même.
 // Le persona Export réunit les exports EXISTANTS (SVG, PNG, Bible,
@@ -7,7 +8,6 @@
 export const PERSONAS = [
   { id: "vecteur", libelle: "Vecteur", titre: "Dessin vectoriel : formes, chemins, nœuds, booléens, texte" },
   { id: "pixel", libelle: "Pixel", titre: "Retouche des calques image au pixel et mode pixel-art vers le Tilelab" },
-  { id: "export", libelle: "Export", titre: "Tous les exports du document : SVG, PNG, Bible, Impression 3D" },
 ];
 export function persona_classe(id) {
   return `persona-${PERSONAS.some((p) => p.id === id) ? id : "vecteur"}`;
@@ -15,7 +15,7 @@ export function persona_classe(id) {
 // à quel persona appartient un outil : la sélection est partagée par tous,
 // les outils `px-*` sont ceux du persona Pixel, le reste est vectoriel
 export function persona_de_outil(outil) {
-  if (outil === "select") return "tous";
+  if (outil === "select" || outil === "tranche") return "tous";   // la tranche (export) est un onglet des deux personas
   if (String(outil || "").startsWith("px-")) return "pixel";
   return "vecteur";
 }

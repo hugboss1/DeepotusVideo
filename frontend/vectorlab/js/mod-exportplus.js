@@ -57,7 +57,7 @@ export function initExportPlus(VL) {
   // l'outil tranche dans la barre (persona Export)
   {
     const b = document.createElement("button");
-    b.dataset.outil = "tranche"; b.className = "outil-export"; b.title = "Tranche — glisser un rectangle à exporter (persona Export)"; b.textContent = "⧉";
+    b.dataset.outil = "tranche"; b.title = "Tranche — glisser un rectangle à exporter (onglet Exporter)"; b.textContent = "⧉";
     b.addEventListener("click", () => VL.setOutil("tranche"));
     $("#outils").appendChild(b);
   }
