@@ -9598,7 +9598,8 @@ async def print3d_from_assets3d(job: str, body: dict):
 @router.post("/print3d/from-stl")
 async def print3d_from_stl(request: Request, nom: str = "objet",
                            cible_mm: float | None = None,
-                           source: str = "stl", etanche: str = "inconnue"):
+                           source: str = "stl", etanche: str = "inconnue",
+                           couleur: str | None = None):
     """Corps binaire = STL BINAIRE (la voie de la Forge 3D cartes et du
     Vectorlab). `cible_mm` absent = « tel quel » (les producteurs mm) ;
     `etanche=garantie` seulement quand le producteur le PROUVE (gate
@@ -9612,20 +9613,30 @@ async def print3d_from_stl(request: Request, nom: str = "objet",
     export = await asyncio.to_thread(
         P3.creer_export, _print3d_base(), str(nom)[:80], tris, cible_mm,
         str(source)[:40],
-        "garantie" if etanche == "garantie" else "inconnue")
+        "garantie" if etanche == "garantie" else "inconnue",
+        couleur)                        # R12 : hex #RRGGBB, invalide = ignoré
     return export
 
 
 @router.post("/print3d/lot")
 async def print3d_lot(nom: str = "plateau", source: str = "vectorlab",
                       pieces: list[UploadFile] = File(default=[]),
-                      nomenclature: str = Form(default="")):
+                      nomenclature: str = Form(default=""),
+                      couleurs: str = Form(default="")):
     """Lot D : multipart — un STL binaire par pièce (`pieces`, nom de fichier
     = nom de pièce) + la nomenclature CSV ; écrit un STL par pièce, le 3MF
     de plateau et la nomenclature. Pièces en mm, jamais remises à l'échelle."""
     from app.services import print3d as P3
     if not pieces:
         raise HTTPException(400, "lot : aucune pièce")
+    table = {}                          # R12 : {nom_piece: hex} — un confort, jamais un 400
+    if couleurs:
+        try:
+            table = json.loads(couleurs)
+        except ValueError:
+            table = {}
+        if not isinstance(table, dict):
+            table = {}
     lues = []
     for up in pieces:
         octets = await up.read()
@@ -9633,7 +9644,8 @@ async def print3d_lot(nom: str = "plateau", source: str = "vectorlab",
             tris = P3.lire_stl(octets)
         except ValueError as e:
             raise HTTPException(400, f"{up.filename}: {e}")
-        lues.append((Path(up.filename or "piece").stem, tris))
+        nom_piece = Path(up.filename or "piece").stem
+        lues.append((nom_piece, tris, table.get(nom_piece)))
     try:
         return await asyncio.to_thread(P3.creer_lot, _print3d_base(), str(nom)[:80],
                                        lues, nomenclature, str(source)[:40])

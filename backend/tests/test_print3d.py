@@ -421,3 +421,75 @@ def test_la_route_lot_recoit_le_multipart():
             assert r.status_code == 400
 
     asyncio.run(scenario())
+
+
+# ── R12 (18/09/2026) : le 3MF porte une couleur par pièce, un objet par pièce ──
+
+def test_le_3mf_porte_une_couleur_et_un_objet_par_piece():
+    import io
+    import xml.etree.ElementTree as ET
+    import zipfile
+    from app.services import print3d as P3
+    ns = "{http://schemas.microsoft.com/3dmanufacturing/core/2015/02}"
+    data = P3.ecrire_3mf([("a", _deux_triangles(), "#ff0000"), ("b", _deux_triangles(), None)], nom="Banc")
+    root = ET.fromstring(zipfile.ZipFile(io.BytesIO(data)).read("3D/3dmodel.model").decode("utf-8"))
+    objets = root.findall(f".//{ns}object")
+    assert len(objets) == 2 and [o.get("name") for o in objets] == ["a", "b"]
+    bases = root.findall(f".//{ns}basematerials/{ns}base")
+    assert len(bases) == 1 and bases[0].get("displaycolor") == "#FF0000FF"
+    assert objets[0].get("pid") == "1" and objets[0].get("pindex") == "0"
+    assert objets[1].get("pid") is None                   # sans couleur : aucun matériau
+    assert len(root.findall(f".//{ns}build/{ns}item")) == 2
+    # la voie d'avant (liste de triangles) donne toujours un objet unique sans matériau
+    old = ET.fromstring(zipfile.ZipFile(io.BytesIO(P3.ecrire_3mf(_deux_triangles(), nom="X"))).read("3D/3dmodel.model").decode("utf-8"))
+    assert len(old.findall(f".//{ns}object")) == 1 and not old.findall(f".//{ns}basematerials")
+    # export simple coloré + lot à trois éléments
+    base = pathlib.Path(_tmp, "print3d-couleur")
+    out = P3.creer_export(base, "Logo", _deux_triangles(), None, "vectorlab", couleur="#00ff00")
+    meta = _json.loads((base / out["dossier"] / "impression.json").read_text("utf-8"))
+    assert meta["couleur"] == "#00ff00"
+    x = ET.fromstring(zipfile.ZipFile(base / out["dossier"] / out["mf3"]).read("3D/3dmodel.model").decode("utf-8"))
+    assert x.find(f".//{ns}base").get("displaycolor") == "#00FF00FF"
+    lot = P3.creer_lot(base, "Plateau", [("t1", _deux_triangles(), "#2B5F9E"), ("t2", _deux_triangles())], "", source="banc")
+    y = ET.fromstring(zipfile.ZipFile(base / lot["dossier"] / "plateau.3mf").read("3D/3dmodel.model").decode("utf-8"))
+    assert len(y.findall(f".//{ns}object")) == 2 and y.find(f".//{ns}base").get("displaycolor") == "#2B5F9EFF"
+    # un hex invalide est ignoré, jamais un refus
+    out2 = P3.creer_export(base, "Logo2", _deux_triangles(), None, "vectorlab", couleur="bleu")
+    assert _json.loads((base / out2["dossier"] / "impression.json").read_text("utf-8"))["couleur"] is None
+
+
+def test_les_routes_print3d_transmettent_la_couleur():
+    import asyncio
+    import zipfile
+    import xml.etree.ElementTree as ET
+    from httpx import AsyncClient, ASGITransport
+    ns = "{http://schemas.microsoft.com/3dmanufacturing/core/2015/02}"
+
+    async def scenario():
+        from app.main import app
+        from app.services import print3d as P3
+        from app.services.storage import init_db
+        await init_db()
+        transport = ASGITransport(app=app)
+        stl = P3.ecrire_stl(_deux_triangles())
+        base = pathlib.Path(_tmp, "print3d")
+        async with AsyncClient(transport=transport, base_url="http://t") as c:
+            r = await c.post("/api/print3d/from-stl", params={"nom": "Logo couleur", "couleur": "#ff8000"},
+                             content=stl, headers={"Content-Type": "application/octet-stream"})
+            assert r.status_code == 200, r.text
+            x = ET.fromstring(zipfile.ZipFile(base / r.json()["dossier"] / r.json()["mf3"]).read("3D/3dmodel.model").decode("utf-8"))
+            assert x.find(f".//{ns}base").get("displaycolor") == "#FF8000FF"
+            r2 = await c.post("/api/print3d/lot", params={"nom": "Plateau couleur"},
+                              files=[("pieces", ("t1.stl", stl, "application/octet-stream")),
+                                     ("pieces", ("t2.stl", stl, "application/octet-stream"))],
+                              data={"nomenclature": "piece\n", "couleurs": _json.dumps({"t1": "#2B5F9E", "t2": "pas-un-hex"})})
+            assert r2.status_code == 200, r2.text
+            y = ET.fromstring(zipfile.ZipFile(base / r2.json()["dossier"] / "plateau.3mf").read("3D/3dmodel.model").decode("utf-8"))
+            objs = y.findall(f".//{ns}object")
+            assert len(objs) == 2 and objs[0].get("pid") == "1" and objs[1].get("pid") is None
+            # un JSON de couleurs cassé n'empêche pas le lot
+            r3 = await c.post("/api/print3d/lot", params={"nom": "Plateau sans"},
+                              files=[("pieces", ("t1.stl", stl, "application/octet-stream"))],
+                              data={"nomenclature": "", "couleurs": "{pas du json"})
+            assert r3.status_code == 200, r3.text
+    asyncio.run(scenario())
