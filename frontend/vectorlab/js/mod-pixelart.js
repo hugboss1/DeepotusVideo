@@ -105,6 +105,45 @@ export function quantifier(img, palette) {
   }
   return img;
 }
+/* ── lot 2 : tramage (True Pixel : None · Ordered · Floyd-S) et rastérisation
+   d'une image générée — l'entrée n'est jamais mutée ── */
+const _BAYER4 = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
+const _plusProche = (pal, r, g, b) => { let best = pal[0], d0 = Infinity; for (const c of pal) { const d = (c[0] - r) ** 2 + (c[1] - g) ** 2 + (c[2] - b) ** 2; if (d < d0) { d0 = d; best = c; } } return best; };
+export function dither_ordonne(img, palette, force = 32) {
+  if (!palette || !palette.length) throw new Error("tramage : palette vide");
+  const pal = palette.map(_rgb), out = { w: img.w, h: img.h, data: new Uint8ClampedArray(img.data) };
+  for (let y = 0; y < img.h; y++) for (let x = 0; x < img.w; x++) {
+    const k = (y * img.w + x) * 4;
+    if (out.data[k + 3] === 0) continue;
+    const t = (_BAYER4[y & 3][x & 3] / 16 - 0.5) * force;
+    const c = _plusProche(pal, out.data[k] + t, out.data[k + 1] + t, out.data[k + 2] + t);
+    out.data[k] = c[0]; out.data[k + 1] = c[1]; out.data[k + 2] = c[2];
+  }
+  return out;
+}
+export function dither_floyd(img, palette) {
+  if (!palette || !palette.length) throw new Error("tramage : palette vide");
+  const pal = palette.map(_rgb), out = { w: img.w, h: img.h, data: new Uint8ClampedArray(img.data) };
+  const err = new Float32Array(img.w * img.h * 3);
+  const diffuser = (x, y, e, f) => { if (x < 0 || x >= img.w || y >= img.h) return; const j = (y * img.w + x) * 3; err[j] += e[0] * f; err[j + 1] += e[1] * f; err[j + 2] += e[2] * f; };
+  for (let y = 0; y < img.h; y++) for (let x = 0; x < img.w; x++) {
+    const i = y * img.w + x, k = i * 4;
+    if (out.data[k + 3] === 0) continue;
+    const r = out.data[k] + err[i * 3], g = out.data[k + 1] + err[i * 3 + 1], b = out.data[k + 2] + err[i * 3 + 2];
+    const c = _plusProche(pal, r, g, b), e = [r - c[0], g - c[1], b - c[2]];
+    out.data[k] = c[0]; out.data[k + 1] = c[1]; out.data[k + 2] = c[2];
+    diffuser(x + 1, y, e, 7 / 16); diffuser(x - 1, y + 1, e, 3 / 16); diffuser(x, y + 1, e, 5 / 16); diffuser(x + 1, y + 1, e, 1 / 16);
+  }
+  return out;
+}
+export const DITHERS = ["aucun", "ordonne", "floyd"];
+export function rasteriser(img, { cible_w, palette = null, dither = "aucun" } = {}) {
+  if (!(cible_w >= 1)) throw new Error("rastériser : largeur cible ≥ 1");
+  if (!DITHERS.includes(dither)) throw new Error("rastériser : tramage aucun, ordonne ou floyd");
+  const p = pixeliser(img, Math.round(cible_w));
+  if (!palette || !palette.length) return p;
+  return dither === "ordonne" ? dither_ordonne(p, palette) : dither === "floyd" ? dither_floyd(p, palette) : quantifier(p, palette);
+}
 export function pixeliser(img, cible_w) {
   const w = Math.round(cible_w);
   if (!(w >= 1)) throw new Error("pixeliser : largeur cible ≥ 1 requise");

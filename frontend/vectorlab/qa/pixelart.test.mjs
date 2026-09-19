@@ -81,8 +81,28 @@ const hex = (r, g, b) => "#" + [r, g, b].map((v) => v.toString(16).padStart(2, "
   ok("l'entrée n'est pas mutée", (() => { const a = [[0, 0], [1, 0], [1, 1]]; pixel_parfait(a); return a.length === 3; })());
   ok("ligne_pixel reste brute (le filtre est à part)", l.length >= 4);
 }
+/* ── lot 2 : tramage ordonné / Floyd-Steinberg et rastérisation ── */
+{
+  const { dither_ordonne, dither_floyd, rasteriser } = await import("../js/mod-pixelart.js");
+  const g = tampon(16, 4); for (let y = 0; y < 4; y++) for (let x = 0; x < 16; x++) { const k = (y * 16 + x) * 4, v = Math.round(x * 255 / 15); g.data[k] = g.data[k + 1] = g.data[k + 2] = v; g.data[k + 3] = 255; }
+  const pal = ["#000000", "#FFFFFF"];
+  const o = dither_ordonne(g, pal), f = dither_floyd(g, pal), q = quantifier({ w: 16, h: 4, data: new Uint8ClampedArray(g.data) }, pal);   // quantifier MUTE (lot E) : une copie
+  const blancs = (im) => { let n = 0; for (let i = 0; i < im.w * im.h; i++) if (im.data[i * 4] === 255) n++; return n; };
+  ok("tramage ordonné : chaque pixel est DANS la palette", (() => { for (let i = 0; i < 64; i++) if (![0, 255].includes(o.data[i * 4])) return false; return true; })());
+  ok("tramage ordonné : le milieu du dégradé mélange noir et blanc (la quantification seule fait un seuil)", (() => { let mix = 0; for (let y = 0; y < 4; y++) for (let x = 6; x < 10; x++) if (o.data[(y * 16 + x) * 4] !== q.data[(y * 16 + x) * 4]) mix++; return mix > 0; })());
+  ok("tramage ordonné : ≈ la moitié de blancs (± 20 %)", Math.abs(blancs(o) - 32) <= 13, blancs(o));
+  ok("Floyd-Steinberg : dans la palette, et ≈ la moitié de blancs", (() => { for (let i = 0; i < 64; i++) if (![0, 255].includes(f.data[i * 4])) return false; return Math.abs(blancs(f) - 32) <= 10; })(), blancs(f));
+  ok("Floyd : alpha conservé, pixels transparents ignorés", (() => { const t = tampon(4, 1); t.data[3] = 255; const r = dither_floyd(t, pal); return r.data[3] === 255 && r.data[7] === 0; })());
+  ok("l'entrée n'est pas mutée", g.data[(2 * 16 + 8) * 4] === Math.round(8 * 255 / 15));
+  const im = tampon(32, 32); for (let i = 0; i < 32 * 32; i++) { im.data[i * 4] = (i % 32) * 8; im.data[i * 4 + 1] = 0; im.data[i * 4 + 2] = 0; im.data[i * 4 + 3] = 255; }
+  const r1 = rasteriser(im, { cible_w: 8, palette: ["#000000", "#FF0000"], dither: "aucun" });
+  ok("rastériser : 8 × 8, palette respectée", r1.w === 8 && r1.h === 8 && [0, 255].includes(r1.data[0]) && [0, 255].includes(r1.data[(7 * 8 + 7) * 4]));
+  ok("rastériser sans palette : pixelise seulement (couleurs libres)", rasteriser(im, { cible_w: 8 }).data[(3 * 8 + 4) * 4] > 0);
+  let refus = 0; try { rasteriser(im, { cible_w: 0 }); } catch { refus++; } try { rasteriser(im, { cible_w: 8, palette: pal, dither: "yoyo" }); } catch { refus++; }
+  ok("largeur nulle ou tramage inconnu → refus", refus === 2);
+}
 if (echecs.length) {
   console.error("ECHECS pixelart :\n- " + echecs.join("\n- "));
   process.exit(1);
 }
-console.log("QA pixelart : PASS (24 controles)");
+console.log("QA pixelart : PASS (33 controles)");
