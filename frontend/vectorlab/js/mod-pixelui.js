@@ -6,12 +6,12 @@
 // JSON ne porte qu'un entier, l'href gagne `?v=rev`. Le Ctrl+Z du document
 // ne rend pas les pixels : « Annuler pixels » dépile le journal (D1). Les
 // sélections (masques en px natifs) vivent dans la session.
-import { op_ajouter, op_calque_ajouter, op_image_rev, op_pixelart } from "./mod-doc.js";
+import { op_ajouter, op_calque_ajouter, op_image_rev, op_pixelart, op_supprimer } from "./mod-doc.js";
 import { pinceau, gomme, seau, sel_rect, sel_lasso, sel_baguette, sel_couleur, sel_croitre, sel_contracter,
          sel_inverser, sel_bbox, masque_calque, niveaux, courbes, hsl, noir_blanc, seuil, flou, cloner,
          extraire } from "./mod-pixel.js";
 import { ligne_pixel, rect_pixel, symetrie, palette_extraire, quantifier, pixeliser, raccord_3x3,
-         feuille_tuiles, bande, pelure, pixel_parfait } from "./mod-pixelart.js";
+         feuille_tuiles, bande, pelure, pelure_double, pixel_parfait } from "./mod-pixelart.js";
 
 const SNS = "http://www.w3.org/2000/svg";
 export const OUTILS_PIXEL = [
@@ -396,8 +396,9 @@ export function initPixelUI(VL) {
     };
     // pelure d'oignon : le cadre précédent à demi-alpha là où le courant est vide
     if (etat.px.pelure) {
-      const cadres = cadres_de(etat.doc), i = cadres.findIndex((c) => c.id === o.id), prec = i > 0 ? cache.get(cadres[i - 1].href) : null;
-      if (prec) fenetre("pxPelure", canvasDe(pelure(t, prec, 0.5)), 1);
+      const cadres = cadres_de(etat.doc), i = cadres.findIndex((c) => c.id === o.id);
+      const prec = i > 0 ? cache.get(cadres[i - 1].href) : null, suiv = i >= 0 && i + 1 < cadres.length ? cache.get(cadres[i + 1].href) : null;
+      if (prec || suiv) fenetre("pxPelure", canvasDe(pelure_double(t, prec, suiv, 0.5)), 1);   // lot 2 : rouge = précédent, bleu = suivant
     }
     if (apercu) fenetre("pxApercu", canvasDe(apercu), 1);
     // grille pixel quand un pixel fait 6 px d'écran au moins ; lignes de tuile plus marquées
@@ -438,6 +439,7 @@ export function initPixelUI(VL) {
       [etat.px.couleur, etat.px.secondaire] = [etat.px.secondaire, etat.px.couleur];
       rendrePanneau(); VL.surRendu(); ev.stopImmediatePropagation(); ev.preventDefault(); return;
     }
+    if (ev.key === "Enter" && cadres_de(etat.doc || {}).length > 1) { basculerLecture(); ev.stopImmediatePropagation(); ev.preventDefault(); return; }
     if (ev.key === "Escape" && etat.px.masque) { etat.px.masque = null; VL.rendreOverlay(); rendrePanneau(); ev.stopImmediatePropagation(); }
   }, true);
 
@@ -490,9 +492,16 @@ export function initPixelUI(VL) {
         <canvas id="pxRaccordCv" class="px-raccord" hidden></canvas>
         <div class="ap-ligne"><span>Feuille</span>${num("pxCols", 8, 'min="1" title="Colonnes de la feuille de tuiles"')}
           <button id="pxFeuille" title="Toutes les images du document (même taille) → PNG + index JSON téléchargés">PNG + JSON</button></div>
-        <div class="ap-ligne"><span>Cadres</span><i style="flex:1">${cadres.length} dans « cadres »</i>
-          <button id="pxCadreNouveau" ${o ? "" : "disabled"} title="Copie l'image éditée en nouveau cadre du calque « cadres »">＋</button></div>
-        <div class="ap-ligne"><label title="Le cadre précédent en transparence"><input type="checkbox" id="pxPelure"${p.pelure ? " checked" : ""}/> pelure</label>
+      </details>
+      <details open><summary class="px-tete">Ligne de temps · ${cadres.length} cadre(s)</summary>
+        <div id="pxTimeline" class="px-timeline">${cadres.length ? cadres.map((c, i) => `<canvas class="px-vignette${o && c.id === o.id ? " actif" : ""}" data-id="${c.id}" width="40" height="40" title="cadre ${i + 1} — cliquer pour l'éditer"></canvas>`).join("") : `<i class="px-note">aucun cadre — « ＋ Dupliquer » fait de l'image éditée le cadre 1</i>`}</div>
+        <div class="ap-ligne"><button id="pxPlay" ${cadres.length > 1 ? "" : "disabled"} title="Lecture / pause (Entrée)">${lecture.playing ? "⏸" : "▶"}</button>
+          <label title="Boucler"><input type="checkbox" id="pxLoop"${lecture.loop ? " checked" : ""}/> boucle</label><span style="width:auto">FPS</span>${num("pxFps", p.fps, 'min="1" max="60"')}
+          <canvas id="pxLecture" class="px-lecture" width="48" height="48"></canvas></div>
+        <div class="ap-ligne"><button id="pxCadreNouveau" ${o ? "" : "disabled"} title="Copie le cadre édité juste après lui">＋ Dupliquer</button>
+          <button id="pxCadreVide" ${o ? "" : "disabled"} title="Un cadre transparent juste après le courant">＋ Vide</button>
+          <button id="pxCadreSuppr" ${o && cadres.length > 1 && cadres.some((c) => c.id === o.id) ? "" : "disabled"} title="Supprime le cadre édité (annulable)">✕</button></div>
+        <div class="ap-ligne"><label title="Rouge = cadre précédent, bleu = suivant, en transparence"><input type="checkbox" id="pxPelure"${p.pelure ? " checked" : ""}/> pelure</label>
           <button id="pxBande" ${cadres.length ? "" : "disabled"} title="Les cadres côte à côte → PNG">Bande PNG</button></div>
         <div class="ap-ligne"><button id="pxTilelab" ${t ? "" : "disabled"} title="Dépose le PNG dans la Bibliothèque (source vectorlab) et ouvre le Tilelab">→ Tilelab</button>
           <button id="pxSpritelab" ${t ? "" : "disabled"} title="Dépose le PNG dans la Bibliothèque et ouvre le Spritelab">→ Spritelab</button></div>
@@ -544,7 +553,14 @@ export function initPixelUI(VL) {
       $("#pxScore").textContent = `score ${r.score}`;
     });
     on("pxFeuille", "click", garde(feuille));
-    on("pxCadreNouveau", "click", garde(nouveauCadre));
+    on("pxCadreNouveau", "click", garde(() => nouveauCadre(false)));
+    on("pxCadreVide", "click", garde(() => nouveauCadre(true)));
+    on("pxCadreSuppr", "click", garde(supprimerCadre));
+    on("pxPlay", "click", basculerLecture);
+    on("pxLoop", "change", (ev) => { lecture.loop = ev.target.checked; });
+    on("pxFps", "change", () => { etat.px.fps = Math.max(1, Math.min(60, Math.round(val("pxFps")))); });
+    hote.querySelectorAll(".px-vignette").forEach((cv) => cv.addEventListener("click", () => editer(cv.dataset.id)));
+    dessinerVignettes();
     on("pxBande", "click", garde(bandeCadres));
     on("pxTilelab", "click", garde(() => envoyer("tilelab")));
     on("pxSpritelab", "click", garde(() => envoyer("spritelab")));
@@ -616,11 +632,13 @@ export function initPixelUI(VL) {
     VL.toast(`feuille ${f.img.w}×${f.img.h}, ${f.index.length} tuiles — PNG + JSON téléchargés`);
   }
   async function chargerCadres() { try { await tamponsDe(cadres_de(etat.doc)); } catch (e) { VL.toast(e.message, true); } }
-  async function nouveauCadre() {
+  // lot 2 : dupliquer (copie) ou vide (transparent), inséré JUSTE APRÈS le cadre édité
+  async function nouveauCadre(vide) {
     const o = courant(), t = etat.px.tampon;
     const cadres = cadres_de(etat.doc), der = cadres[cadres.length - 1];
     const rect = der ? { x: der.x + der.w + 8, y: der.y, w: der.w, h: der.h } : { x: o.x, y: o.y + o.h + 8, w: o.w, h: o.h };
-    const n = await deposerNouvelleImage({ w: t.w, h: t.h, data: new Uint8ClampedArray(t.data) }, rect, null);
+    const data = vide ? new Uint8ClampedArray(t.w * t.h * 4) : new Uint8ClampedArray(t.data);
+    const n = await deposerNouvelleImage({ w: t.w, h: t.h, data }, rect, null);
     const id = VL.executer((doc) => {
       let c = doc.calques.find((k) => String(k.nom || "").toLowerCase() === "cadres");
       const cid = c ? c.id : op_calque_ajouter(doc, "cadres");
@@ -629,10 +647,56 @@ export function initPixelUI(VL) {
         // le premier cadre : l'image éditée devient le cadre 1 (déplacée dans « cadres »)
         for (const k of doc.calques) { const i = k.objets.findIndex((x) => x.id === o.id); if (i >= 0) { c.objets.push(k.objets.splice(i, 1)[0]); break; } }
       }
-      return op_ajouter(doc, cid, n.objet);
+      const id2 = op_ajouter(doc, cid, n.objet);
+      const iCour = c.objets.findIndex((x) => x.id === o.id), iNeuf = c.objets.findIndex((x) => x.id === id2);
+      if (iCour >= 0 && iNeuf > iCour + 1) c.objets.splice(iCour + 1, 0, c.objets.splice(iNeuf, 1)[0]);
+      return id2;
     });
     if (id) await editer(id);
   }
+  async function supprimerCadre() {
+    const o = courant(); const cadres = cadres_de(etat.doc), i = cadres.findIndex((c) => c.id === o.id);
+    if (i < 0 || cadres.length < 2) throw new Error("supprimer : au moins deux cadres, et un cadre édité");
+    const voisin = cadres[i + 1] || cadres[i - 1];
+    VL.executer(op_supprimer, [o.id]);
+    etat.px.id = null; etat.px.tampon = null; etat.px.masque = null;
+    await editer(voisin.id);
+  }
+  /* ── lot 2 : la ligne de temps — vignettes depuis le cache, lecture dans le panneau ── */
+  const lecture = { raf: 0, i: 0, acc: 0, last: 0, playing: false, loop: true };
+  function dessinerVignettes() {
+    const cadres = cadres_de(etat.doc); if (!cadres.length) return;
+    chargerCadres().then(() => {
+      hote.querySelectorAll(".px-vignette").forEach((cv) => {
+        const c = cadres.find((x) => x.id === cv.dataset.id), t = c && cache.get(c.href); if (!t) return;
+        const x = cv.getContext("2d"); x.imageSmoothingEnabled = false; x.clearRect(0, 0, 40, 40);
+        const k = Math.min(40 / t.w, 40 / t.h); x.drawImage(canvasDe(t), 0, 0, t.w * k, t.h * k);
+      });
+      if (lecture.playing) tickLecture();
+    });
+  }
+  function tickLecture() {
+    cancelAnimationFrame(lecture.raf);
+    const cadres = cadres_de(etat.doc), cv = $("#pxLecture");
+    if (!cv || cadres.length < 2) { lecture.playing = false; return; }
+    const tick = (ts) => {
+      if (!lecture.playing) return;
+      if (!lecture.last) lecture.last = ts;
+      lecture.acc += ts - lecture.last; lecture.last = ts;
+      const step = 1000 / (etat.px.fps || 12);
+      while (lecture.acc >= step) { lecture.acc -= step; if (lecture.i + 1 >= cadres.length && !lecture.loop) { lecture.playing = false; break; } lecture.i = (lecture.i + 1) % cadres.length; }
+      const t = cache.get(cadres[lecture.i].href);
+      if (t) { cv.width = t.w; cv.height = t.h; const x = cv.getContext("2d"); x.imageSmoothingEnabled = false; x.drawImage(canvasDe(t), 0, 0); }
+      lecture.raf = requestAnimationFrame(tick);
+    };
+    lecture.raf = requestAnimationFrame(tick);
+  }
+  function basculerLecture() {
+    lecture.playing = !lecture.playing; lecture.last = 0;
+    const b = $("#pxPlay"); if (b) b.textContent = lecture.playing ? "⏸" : "▶";
+    if (lecture.playing) chargerCadres().then(tickLecture); else cancelAnimationFrame(lecture.raf);
+  }
+  VL.pixelLecture = () => lecture;             // la preuve
   async function bandeCadres() {
     const cadres = cadres_de(etat.doc);
     const b = bande((await tamponsDe(cadres)).map((c) => c.img));
