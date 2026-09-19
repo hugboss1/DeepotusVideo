@@ -1558,7 +1558,7 @@ export function op_image_rev(doc, id, rev) {
 
 /* ── lot E : doc.pixelart = {tuile {w,h} entiers ≥ 1, palette [hex],
    symetrie {h, v}} — les réglages du mode pixel-art, tous optionnels. */
-const _CLES_PIXELART = ["tuile", "palette", "symetrie", "iso"];   // lot 2 : iso = tuile 2:1 en losange
+const _CLES_PIXELART = ["tuile", "palette", "symetrie", "iso", "modele", "calque"];   // lot 2 : iso = tuile 2:1 ; lot 3 : modele {id, cellule} + calque pixel
 const _HEX = /^#[0-9A-Fa-f]{6}$/;
 function _validerPixelart(p) {
   if (!p || typeof p !== "object" || Array.isArray(p)) throw new Error("document: pixelart {tuile?, palette?, symetrie?}");
@@ -1578,6 +1578,13 @@ function _validerPixelart(p) {
     throw new Error("pixelart.symetrie: {h, v}");
   }
   if (p.iso !== undefined && typeof p.iso !== "boolean") throw new Error("pixelart.iso: booléen");
+  if (p.modele !== undefined) {
+    const m = p.modele;
+    if (!m || typeof m !== "object" || !(typeof m.id === "string" && m.id) || !(Number.isInteger(m.cellule) && m.cellule >= 1)) {
+      throw new Error("pixelart.modele: {id (chaîne), cellule (entier ≥ 1)}");
+    }
+  }
+  if (p.calque !== undefined && !(typeof p.calque === "string" && p.calque)) throw new Error("pixelart.calque: id (chaîne)");
 }
 export function op_pixelart(doc, patch) {
   if (!patch || typeof patch !== "object") throw new Error("pixelart: patch requis");
@@ -1588,6 +1595,8 @@ export function op_pixelart(doc, patch) {
     if (k === "tuile") p.tuile = { w: v.w, h: v.h };
     else if (k === "palette") p.palette = Array.isArray(v) ? v.map((c) => String(c).toUpperCase()) : v;
     else if (k === "iso") p.iso = v;
+    else if (k === "modele") p.modele = { id: v && v.id !== undefined ? String(v.id) : "", cellule: v ? Math.round(+v.cellule) : 0 };
+    else if (k === "calque") p.calque = v;
     else p.symetrie = { h: !!(v && v.h), v: !!(v && v.v) };
   }
   _validerPixelart(p);

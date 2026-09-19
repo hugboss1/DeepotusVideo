@@ -81,8 +81,20 @@ const base = () => ({
   op_pixelart(d, { iso: null });
   ok("iso retiré par null", d.pixelart.iso === undefined);
 }
+/* ── lot 3 : pixelart.modele et pixelart.calque ── */
+{
+  const d = base();
+  op_pixelart(d, { modele: { id: "i1", cellule: 16 }, calque: "i1" });
+  ok("modele {id, cellule} et calque acceptés", d.pixelart.modele.id === "i1" && d.pixelart.modele.cellule === 16 && d.pixelart.calque === "i1");
+  let refus = 0;
+  for (const m of [{ modele: { id: "i1" } }, { modele: { id: "", cellule: 4 } }, { modele: { id: "i1", cellule: 0 } }, { calque: 7 }]) { try { op_pixelart(base(), m); } catch { refus++; } }
+  ok("modele sans cellule, id vide, cellule 0, calque non-chaîne → refusés", refus === 4, refus);
+  parserDoc(JSON.parse(JSON.stringify(d)));
+  op_pixelart(d, { modele: null, calque: null });
+  ok("retirés par null", d.pixelart === undefined || (d.pixelart.modele === undefined && d.pixelart.calque === undefined));
+}
 if (echecs.length) {
   console.error("ECHECS pixel_doc :\n- " + echecs.join("\n- "));
   process.exit(1);
 }
-console.log("QA pixel_doc : PASS (20 controles)");
+console.log("QA pixel_doc : PASS (23 controles)");
