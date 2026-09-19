@@ -14,6 +14,63 @@
 > `chantier/vectorlab-affinity`, après le lot 2 (`a4e33f3`). Ce plan est
 > COMMIS avant le code.
 
+> **RELEVÉ DE LIVRAISON (19/09/2026) : LIVRÉ, PROUVÉ EN RÉEL, DÉPLOYÉ — statiques seuls, aucune relance.**
+>
+> **Livré** (plan `09ac83d`, code `c636dd2` → `9792ac1`, 8 commits) :
+> mod-doc `pixelart.modele {id, cellule}` + `calque` ; mod-pixelart
+> `cellule_et_cible`, `echantillon_cellule` (exact / moyenne / dominante — la
+> dominante rend la moyenne de la classe gagnante à 64 niveaux),
+> `remplir_depuis_modele`, `couleurs_utilisees` ; mod-solide
+> `rects_de_pixels` (runs fusionnés verticalement), `pixels_vers_pieces`
+> (une pièce colorée et une hauteur par couleur, socle optionnel, y
+> retourné), `hauteurs_par_luminosite` ; mod-contexte champ Pipette ;
+> mod-impression `reglages_lire` mode `pixelart` (cellule mm, hmin / hmax),
+> `hauteurs_lire` ; UI : section « Modèle » (désigner — atténue à 0,6 PUIS
+> verrouille, une image verrouillée n'est plus une cible de commande,
+> mesuré —, cellule ↔ cible liées, boutons 4·8·16·32·64, tuile d'art, Créer
+> le calque pixel, Remplir depuis le modèle, Retirer), grille du modèle en
+> aperçu dans l'overlay (plafond 65 536 cellules), pipette Alt+clic qui lit
+> la CELLULE DU MODÈLE quand le calque pixel est édité (droit → swatch),
+> section Couleurs (swatches : clic / droit / Alt-retire / + courante /
+> Palette depuis le modèle ; couleurs utilisées → swatches), `VL.pixelTampon`,
+> `VL.actions.pixel.designerModele / creerCalquePixel / remplirDepuisModele /
+> paletteDepuisModele` ; dialogue Impression 3D : mode « Pixel-art » proposé
+> d'office quand un calque pixel existe, cellule mm, hauteurs min / max,
+> table par couleur préremplie par luminosité et modifiable, socle, lot = un
+> STL par couleur.
+>
+> **TDD tenu** : RED ×5 constatés ; bancs pixel_doc 20 → **23**, pixelart 43
+> → **54**, solide 52 → **62**, contexte 21 → **24**, impression_ui 11 →
+> **14** ; `run.mjs` par code de sortie (0).
+>
+> **Prouvé en réel** (8799, données isolées, 1400 × 900, modèle 64 × 64 à
+> quatre aplats rouge / vert / bleu / jaune) : Désigner → `modele {mod, 16}`,
+> verrou, opacité 0,6 (après correctif, rechargement) ; grille du modèle :
+> cadre + **10 lignes** (5 + 5) à cellule 16, cible 4 ; Créer → calque
+> « pixel », image **4 × 4 sur le rectangle exact du modèle** (40, 40, 256,
+> 256), éditée, grille d'aperçu retirée ; pipette moyenne (0,0) → `#FF0000`,
+> (3,0) → `#00C800`, exacte (0,3) → `#0000FF`, dominante (3,3) → `#FFDC00`,
+> Alt+droit → swatch `#FF0000` ; Remplir → 4 × 4 avec les quatre aplats aux
+> bonnes cases ; couleurs utilisées = les 4 ; Palette depuis le modèle (4) →
+> 4 swatches ; « → swatches » et « + courante » sans doublon (4) ;
+> **Impression 3D** : mode `pixelart` proposé d'office, table préremplie
+> (jaune 5 > vert 3,58 > rouge 1,74 > bleu 1), Aperçu → **4 pièces `px_*`
+> colorées d'aire 16 mm² chacune** (4 px × 2 mm²… soit 2 × 2 px × 4 mm²),
+> GLB à 4 matériaux `loaded`, ligne bleue éditée à 7 → hauteur 7, socle 1 →
+> 5 pièces, Lot → `preuve-lot3-lot-20260919` : 5 STL, `plateau.3mf` à 5
+> objets colorés (`#FF0000FF … #D1C7B3FF`), `impression.json.couleurs`. 0
+> erreur console.
+>
+> **Déployé** : 12 fichiers installés = base `a4e33f3` → sauvegarde
+> `_backup_predeploy_2026-09-19-pixel-lot3` → `git archive HEAD` → 12/12 =
+> cible ; l'installé (8765) sert `pixels_vers_pieces`. Aucun Python : pas de
+> relance.
+>
+> **Reste (assumé)** : les rectangles adjacents d'une même couleur gardent
+> des faces internes (un slicer les avale) ; un seul modèle par document ;
+> la grille d'aperçu suit le rectangle du modèle sans sa rotation ; les
+> palettes nommées partagées restent au lot 4.
+
 **Goal :** désigner une image comme modèle, régler cellule et taille cible
 avec la grille en aperçu, créer le calque pixel dessus, piocher les couleurs
 DANS le modèle (exacte / moyenne / dominante), pré-remplir, composer ses
