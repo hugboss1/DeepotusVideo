@@ -17,6 +17,71 @@
 > `VL.actions.pixel`. Branche `chantier/vectorlab-affinity`, après le lot 1
 > (`72e8093`). Ce plan est COMMIS avant le code.
 
+> **RELEVÉ DE LIVRAISON (19/09/2026) : LIVRÉ, PROUVÉ EN RÉEL, DÉPLOYÉ — statiques seuls, aucune relance.**
+>
+> **Livré** (plan `ae291f4`, code `e0d6cef` → `ff18609`, 10 commits) :
+> mod-pixel : pinceau et gomme `forme: "rond" | "carre"` (estampe de
+> Tchebychev) ; mod-pixelart : `pixel_parfait` (coins en L), `dither_ordonne`
+> (Bayer 4 × 4), `dither_floyd`, `rasteriser` (pixeliser + palette + tramage),
+> `pelure_double` (rouge = précédent, bleu = suivant), `masque_losange` (le
+> gabarit iso classique : 32 × 16 → rangées 4, 8, … 32 = 288 px),
+> **`masque_losanges` pavé par tuile** (ajouté APRÈS la preuve : le premier
+> jet bornait la peinture au losange de l'image entière, mesuré → refusé),
+> `pavage_iso` (voisines aux décalages ±w/2, ±h/2, score de raccord par
+> paires adjacentes) ; mod-doc : `pixelart.iso` booléen ; mod-contexte :
+> champs Forme (pinceau, gomme), Pixel-parfait (crayon), Secondaire (type
+> `couleur` nouveau, rendu `<input type=color>` + ∅ dans mod-barrecontexte) ;
+> mod-pixelui : secondaire au clic droit (∅ = gomme, `contextmenu` bloqué en
+> persona Pixel), Maj+clic = segment depuis le dernier point, Alt+clic =
+> pipette (droit → secondaire), crayon pixel-parfait qui repart du tampon de
+> départ à chaque cadre, X échange, panneau « Ligne de temps » (vignettes,
+> ▶/⏸ Entrée, boucle, FPS, ＋ Dupliquer et ＋ Vide insérés APRÈS le courant, ✕
+> Supprimer → édite le voisin), pelure double dans l'overlay, case « iso
+> 2:1 » (losanges de tuile dans la grille, peinture bornée au losange de la
+> tuile sous le curseur, « Raccord iso ×9 »), section « Rastériser cette
+> image » (largeur cible, palette libre / du doc / extraite N, tramage) +
+> `VL.actions.pixel.rasteriser / iso` ; **« Annuler pixels » restaure la
+> taille native** (défaut hérité du lot E rendu visible par la rastérisation :
+> un `nat` 16 × 16 restait sur une image revenue à 64 × 64 → clics décalés,
+> mesuré).
+>
+> **TDD tenu** : RED ×5 constatés. Bancs : pixel 34 → **37**, pixelart 19 →
+> **43**, pixel_doc → **20** (+3), contexte 17 → **21** ; `run.mjs` par code
+> de sortie (0). Trois contrôles de MES bancs étaient faux et le code juste
+> (indice de l'alpha, « rangée du milieu » d'un losange à hauteur paire,
+> `quantifier` qui mute en place) ; un commit (T4) est parti sur un banc
+> rouge masqué par une chaîne `grep` — corrigé au commit suivant, et depuis
+> les bancs se lisent PAR CODE DE SORTIE.
+>
+> **Prouvé en réel** (8799, données isolées, 1400 × 900, rAF substitué —
+> volet caché ; image 64 × 64 de dégradé rouge → bleu, cadres im1 / o2) :
+> clic droit avec secondaire `#00FF00` → pixel vert ; secondaire ∅ → pixel
+> alpha 0 ; `contextmenu` bloqué ; Alt+clic → `#FF0000`, Alt+droit →
+> secondaire `#0300FC` ; Maj+clic au crayon → segment (13→20, 12) rouge ;
+> pinceau carré rayon 2 → coin (38,38) peint, (37,40) non ; crayon
+> pixel-parfait sur un escalier → diagonale blanche, coins en L absents ; X
+> échange ; **ligne de temps** : Dupliquer → 2 cadres et 2 vignettes, Vide →
+> 3 (ordre im1, o1, o2, alpha 0), Entrée → index échantillonné
+> `011001100111`, Entrée → arrêt, Supprimer → 2 et le voisin édité ; pelure
+> : sur o2 rouge 4047 fantômes (précédent plein), sur im1 après une gomme en
+> (10,10) → **1 fantôme bleu exactement en (10,10)** ; **iso** : `pixelart.iso`
+> vrai, 8 losanges tracés à zoom 2, coins (0,0) et (31,0) de la tuile 1
+> REFUSÉS, (8,8) et (48,24) peints, « Raccord iso ×9 » 192 × 192 avec score ;
+> **rastériser** 64 → 16, 4 couleurs extraites, Floyd : `nat` 16 × 16, 4
+> couleurs, rev 4 → 5, rect 256 conservé ; Annuler → 64 × 64 et `nat` 64 × 64
+> (rev 4). 0 erreur console.
+>
+> **Déployé** : 11 fichiers installés = base `72e8093` → sauvegarde
+> `_backup_predeploy_2026-09-19-pixel-lot2` → `git archive HEAD` → 11/11 =
+> cible ; l'installé (8765) sert `masque_losanges`. Aucun Python : pas de
+> relance.
+>
+> **Reste (assumé)** : pas de sélection de plage libre dans la ligne de temps
+> (un cadre à la fois) ; la lecture se fait dans le panneau, pas sur le
+> canevas ; le raccord iso mesure l'image ENTIÈRE comme une tuile (à faire :
+> par tuile sous le curseur) ; pas de symétrie diagonale iso ; la palette
+> unifiée entre Spritelab / Tilelab / Pixel reste au lot 3.
+
 **Goal :** le persona Pixel gagne les gestes du Sprite Editor (couleur
 secondaire au clic droit — transparente = gomme —, Maj+clic = segment
 depuis le dernier point, Alt+clic = pipette, pinceau rond ou carré, crayon
