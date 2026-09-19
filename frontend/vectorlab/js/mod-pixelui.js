@@ -492,7 +492,10 @@ export function initPixelUI(VL) {
         if (!m) return `<details open><summary class="px-tete">Modèle</summary><div class="ap-ligne"><button id="pxDesigner" ${sel ? "" : "disabled"} title="L'image sélectionnée devient le modèle : verrouillée, atténuée, la grille des cellules s'affiche dessus">Désigner l'image sélectionnée comme modèle</button></div>
           <div class="ap-ligne"><span></span><i class="px-note">un modèle = une image générée ou importée sous le calque pixel ; la pipette (Alt+clic) y lit les couleurs</i></div></details>`;
         const cc = cellule_et_cible(m.nat, { cellule: pa.modele.cellule });
+        const P = pairesDe(), iAct = P.findIndex((q) => q.modele === m.id);
         return `<details open><summary class="px-tete">Modèle · ${m.href}</summary>
+          ${P.length > 1 ? `<div class="ap-ligne"><span>Paire</span><select id="pxPaire" title="Plusieurs modèles dans ce document : la paire active">${P.map((q, i) => { const om = objetImage(q.modele); return `<option value="${i}"${i === iAct ? " selected" : ""}>${om ? om.href : q.modele} · cellule ${q.cellule}${q.calque ? " · calque" : ""}</option>`; }).join("")}</select></div>` : ""}
+          <div class="ap-ligne"><span></span><button id="pxDesignerAutre" ${sel && sel.id !== m.id && !P.some((q) => q.modele === sel.id) ? "" : "disabled"} title="L'image sélectionnée devient un modèle DE PLUS (une nouvelle paire)">＋ modèle depuis la sélection</button></div>
           <div class="ap-ligne"><span>Cellule</span>${num("pxCellule", cc.cellule, 'min="1" title="Pixels du modèle par pixel d\'art"')}<span style="width:auto">px →</span>${num("pxCible", cc.cible_w, 'min="1" title="Largeur cible en pixels d\'art (la hauteur suit)"')}<span style="width:auto">× ${cc.cible_h}</span></div>
           <div class="ap-ligne"><span></span>${[4, 8, 16, 32, 64].map((v) => `<button class="pxCelluleRapide" data-c="${v}" ${v === cc.cellule ? 'class="actif"' : ""}>${v}</button>`).join("")}</div>
           <div class="ap-ligne"><label title="Pose aussi la taille de tuile d'art (grille pixel)"><input type="checkbox" id="pxTuileArtOn"/> tuile =</label>${num("pxTuileArt", p.cibleArt, 'min="1" style="width:52px"')}<button id="pxCreerCalque" ${cp ? "disabled" : ""} title="Une image transparente ${cc.cible_w}×${cc.cible_h} posée exactement sur le modèle, dans un calque « pixel »">Créer le calque pixel ${cc.cible_w}×${cc.cible_h}</button></div>
@@ -601,6 +604,7 @@ export function initPixelUI(VL) {
     on("pxPalModele", "click", garde(paletteDepuisModele));
     on("pxUtiliseesVers", "click", () => { const pal = new Set((etat.doc.pixelart || {}).palette || []); for (const c of couleurs_utilisees(t, 64)) pal.add(c); VL.executer(op_pixelart, { palette: [...pal] }); });
     on("pxDesigner", "click", () => { try { designerModele(etat.selection[0]); } catch (e) { VL.toast(e.message, true); } });
+    on("pxDesignerAutre", "click", () => { try { designerModele(etat.selection[0]); } catch (e) { VL.toast(e.message, true); } });
     on("pxCellule", "change", () => reglerCellule("cellule", val("pxCellule")));
     on("pxCible", "change", () => reglerCellule("cible", val("pxCible")));
     hote.querySelectorAll(".pxCelluleRapide").forEach((b) => b.addEventListener("click", () => reglerCellule("cellule", +b.dataset.c)));
@@ -608,7 +612,8 @@ export function initPixelUI(VL) {
     on("pxRamener", "change", (ev) => { etat.px.ramenerSwatches = ev.target.checked; });
     on("pxCreerCalque", "click", garde(creerCalquePixel));
     on("pxRemplir", "click", garde(remplirDepuisModele));
-    on("pxModeleRetirer", "click", () => { VL.executer(op_pixelart, { modele: null, calque: null }); VL.rendreOverlay(); });
+    on("pxModeleRetirer", "click", () => { const pa = etat.doc.pixelart || {}; const P = pairesDe().filter((q) => q.modele !== (pa.modele && pa.modele.id)); const n = P[0]; VL.executer(op_pixelart, { paires: P.length ? P : null, modele: n ? { id: n.modele, cellule: n.cellule } : null, calque: n ? (n.calque || null) : null }); VL.rendreOverlay(); });
+    on("pxPaire", "change", (ev) => activerPaire(+ev.target.value));
     on("pxPixeliser", "click", garde(async () => {
       const tuile = (etat.doc.pixelart && etat.doc.pixelart.tuile) || { w: Math.round(val("pxTuileW")) };
       etat.px.tampon = pixeliser(t, tuile.w);
@@ -801,32 +806,43 @@ export function initPixelUI(VL) {
 
   /* ── lot 3 : le calque modèle — grille en aperçu, calque pixel, remplissage, swatches ── */
   const modeleObjet = () => { const pa = etat.doc && etat.doc.pixelart; return pa && pa.modele ? objetImage(pa.modele.id) : null; };
+  // lot 5 : plusieurs modèles — les paires {modele, cellule, calque}, la paire ACTIVE = modele / calque
+  const pairesDe = () => { const pa = (etat.doc && etat.doc.pixelart) || {}; if (Array.isArray(pa.paires)) return pa.paires.map((q) => ({ ...q })); return pa.modele ? [{ modele: pa.modele.id, cellule: pa.modele.cellule, calque: pa.calque || null }] : []; };
+  function activerPaire(i) {
+    const P = pairesDe(), q = P[i]; if (!q) return;
+    VL.executer(op_pixelart, { paires: P, modele: { id: q.modele, cellule: q.cellule }, calque: q.calque || null });
+    VL.rendreOverlay();
+  }
   const calquePixelObjet = () => { const pa = etat.doc && etat.doc.pixelart; return pa && pa.calque ? objetImage(pa.calque) : null; };
   function grilleModele(ov) {
     const pa = etat.doc.pixelart || {}, m = modeleObjet();
     if (!m || calquePixelObjet()) return;
     const c = pa.modele.cellule, r = m.rognage || { x: 0, y: 0, w: m.nat.w, h: m.nat.h };
-    const [sx, sy] = VL.ecranPt(m.x, m.y), sw = m.w * etat.zoom, sh = m.h * etat.zoom, kx = sw / r.w, ky = sh / r.h;
-    const g = document.createElementNS(SNS, "g"); g.setAttribute("class", "px-grille-modele"); ov.appendChild(g);
+    // lot 5 : en coordonnées DOCUMENT sous la vue et sous la ROTATION du modèle (la même chaîne transform que le rendu)
+    const vue = document.createElementNS(SNS, "g"); vue.setAttribute("class", "px-grille-modele"); vue.setAttribute("transform", `translate(${etat.tx} ${etat.ty}) scale(${etat.zoom})`); ov.appendChild(vue);
+    const g = document.createElementNS(SNS, "g"); if (m.transform) g.setAttribute("transform", m.transform); vue.appendChild(g);
     const el = (nom, attrs) => { const e = document.createElementNS(SNS, nom); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); g.appendChild(e); return e; };
-    el("rect", { x: sx, y: sy, width: sw, height: sh, fill: "none", stroke: "#ffd166", "stroke-width": 1.5, "stroke-dasharray": "6 3" });
+    const z = 1 / etat.zoom, kx = m.w / r.w, ky = m.h / r.h;
+    el("rect", { x: m.x, y: m.y, width: m.w, height: m.h, fill: "none", stroke: "#ffd166", "stroke-width": 1.5 * z, "stroke-dasharray": `${6 * z} ${3 * z}` });
     if ((r.w / c) * (r.h / c) > 65536) return;
     let d = "";
-    for (let i = 0; i <= r.w; i += c) d += `M${sx + i * kx} ${sy}v${sh}`;
-    for (let j = 0; j <= r.h; j += c) d += `M${sx} ${sy + j * ky}h${sw}`;
-    el("path", { d, stroke: "rgba(255,209,102,.6)", "stroke-width": 1, fill: "none" });
+    for (let i = 0; i <= r.w; i += c) d += `M${m.x + i * kx} ${m.y}v${m.h}`;
+    for (let j = 0; j <= r.h; j += c) d += `M${m.x} ${m.y + j * ky}h${m.w}`;
+    el("path", { d, stroke: "rgba(255,209,102,.6)", "stroke-width": z, fill: "none" });
   }
   function designerModele(id) {
     const o = objetImage(id); if (!o) throw new Error("désigner : sélectionner une image");
     const cc = cellule_et_cible(o.nat, { cellule: 16 });
     // le style AVANT le verrou : une image verrouillée n'est plus une cible de commande (mesuré)
-    VL.executer((doc) => { op_pixelart(doc, { modele: { id, cellule: cc.cellule } }); if (!(o.style && o.style.opacite < 1)) op_style(doc, [id], { opacite: 0.6 }); if (!o.verrou) op_image_verrou(doc, id, true); });
+    const P = pairesDe(); let q = P.find((x) => x.modele === id);
+    if (!q) { q = { modele: id, cellule: cc.cellule, calque: null }; P.push(q); }
+    VL.executer((doc) => { op_pixelart(doc, { paires: P, modele: { id, cellule: q.cellule }, calque: q.calque || null }); if (!(o.style && o.style.opacite < 1)) op_style(doc, [id], { opacite: 0.6 }); if (!o.verrou) op_image_verrou(doc, id, true); });
     VL.rendreOverlay();
   }
   function reglerCellule(champ, valeur) {
     const pa = etat.doc.pixelart || {}, m = modeleObjet(); if (!m) return;
     const cc = cellule_et_cible(m.nat, champ === "cellule" ? { cellule: valeur } : { cible: valeur });
-    if (cc.cellule !== pa.modele.cellule) VL.executer(op_pixelart, { modele: { id: m.id, cellule: cc.cellule } });
+    if (cc.cellule !== pa.modele.cellule) { const P = pairesDe(); const q = P.find((x) => x.modele === m.id); if (q) q.cellule = cc.cellule; VL.executer(op_pixelart, { paires: P, modele: { id: m.id, cellule: cc.cellule } }); }
     else rendrePanneau();
     VL.rendreOverlay();
   }
@@ -840,7 +856,8 @@ export function initPixelUI(VL) {
       let c = doc.calques.find((k) => String(k.nom || "").toLowerCase() === "pixel");
       if (!c) { const cid = op_calque_ajouter(doc, "pixel"); c = doc.calques.find((k) => k.id === cid); }
       const id2 = op_ajouter(doc, c.id, n.objet);
-      op_pixelart(doc, { calque: id2, ...(tuileArt ? { tuile: { w: tuileArt, h: tuileArt } } : {}) });
+      const P = pairesDe(); const q = P.find((x) => x.modele === m.id); if (q) q.calque = id2;
+      op_pixelart(doc, { calque: id2, paires: P, ...(tuileArt ? { tuile: { w: tuileArt, h: tuileArt } } : {}) });
       return id2;
     });
     if (id) { await editer(id); VL.toast(`calque pixel ${cc.cible_w}×${cc.cible_h} posé sur le modèle`); }
