@@ -11,7 +11,7 @@ import { pinceau, gomme, seau, sel_rect, sel_lasso, sel_baguette, sel_couleur, s
          sel_inverser, sel_bbox, masque_calque, niveaux, courbes, hsl, noir_blanc, seuil, flou, cloner,
          extraire } from "./mod-pixel.js";
 import { ligne_pixel, rect_pixel, symetrie, palette_extraire, quantifier, pixeliser, raccord_3x3,
-         feuille_tuiles, bande, pelure } from "./mod-pixelart.js";
+         feuille_tuiles, bande, pelure, pixel_parfait } from "./mod-pixelart.js";
 
 const SNS = "http://www.w3.org/2000/svg";
 export const OUTILS_PIXEL = [
@@ -27,10 +27,10 @@ export const OUTILS_PIXEL = [
   { id: "px-cloner", touche: "c", glyphe: "⧉", titre: "Tampon de clonage — Alt+clic fixe la source, glisser peint (C)" },
 ];
 export const HINTS_PIXEL = {
-  "px-pinceau": "peindre sur l'image en cours d'édition · rayon, dureté, couleur dans le panneau Pixel",
+  "px-pinceau": "glisser peint · clic droit = secondaire (∅ = gomme) · Maj+clic = segment depuis le dernier point · Alt+clic = pipette · X échange",
   "px-gomme": "gommer : les pixels deviennent transparents (respecte la sélection)",
   "px-seau": "cliquer une zone : elle se remplit — Global remplit tous les pixels semblables",
-  "px-crayon": "dessiner pixel par pixel ; la symétrie du document se répercute",
+  "px-crayon": "un pixel de large, pixel-parfait (les coins en L s'effacent) · clic droit = secondaire · Maj+clic = segment · Alt+clic = pipette",
   "px-ligne": "glisser : une ligne pixel-parfaite entre les deux points",
   "px-rectpx": "glisser : le contour d'un rectangle, un pixel de large",
   "px-selrect": "glisser un rectangle · Maj ajoute · Alt retire · Échap désélectionne",
@@ -88,7 +88,8 @@ export function initPixelUI(VL) {
   const { $, etat } = VL;
   const stage = $("#stage");
   etat.px = { id: null, href: null, tampon: null, masque: null, rayon: 4, durete: 1, couleur: "#000000",
-              tolerance: 16, global: false, grille: true, pelure: false, source: null, occupe: false };
+              tolerance: 16, global: false, grille: true, pelure: false, source: null, occupe: false,
+              secondaire: null, forme: "rond", parfait: true, dernier: null, fps: 12 };   // lot 2 : gestes du Sprite Editor
   const cache = new Map();                  // href → tampon (cadres, pelure)
   let geste = null, apercu = null, rafId = 0;
 
@@ -185,23 +186,40 @@ export function initPixelUI(VL) {
     }
     return out;
   };
-  const opts = () => ({ rayon: etat.px.rayon, couleur: etat.px.couleur, durete: etat.px.durete, masque: etat.px.masque });
+  const masqueEffectif = () => etat.px.masque || undefined;   // T7 : le losange iso s'y greffe
+  const opts = (g) => ({ rayon: etat.px.rayon, couleur: (g && g.couleur) || etat.px.couleur, durete: etat.px.durete, masque: masqueEffectif(), forme: etat.px.forme });
+  // lot 2 : le crayon PIXEL-PARFAIT repart du tampon de départ à chaque cadre — tracé entier re-filtré
+  function crayonParfait(g) {
+    const t = { w: g.base.w, h: g.base.h, data: new Uint8ClampedArray(g.base.data) };
+    let pix = [];
+    for (let i = 0; i < g.points.length; i++) {
+      const a = g.points[Math.max(0, i - 1)], b = g.points[i];
+      const seg = i === 0 ? [b] : ligne_pixel(a[0], a[1], b[0], b[1]);
+      for (const p of seg) { const d = pix[pix.length - 1]; if (!d || d[0] !== p[0] || d[1] !== p[1]) pix.push(p); }
+    }
+    if (etat.px.parfait !== false) pix = pixel_parfait(pix);
+    for (const p of miroir(pix, true)) {
+      if (g.efface) gomme(t, [p], { rayon: 0.5, masque: masqueEffectif() });
+      else pinceau(t, [p], { rayon: 0.5, couleur: g.couleur || etat.px.couleur, masque: masqueEffectif() });
+    }
+    return t;
+  }
   // applique le geste courant sur un tampon (aperçu incrémental ou final)
   function appliquer(t, g, depuis) {
     const pts = g.points.slice(depuis);
     if (!pts.length) return;
     // pinceau et gomme JOIGNENT : le segment part du dernier point déjà appliqué
     const joint = depuis > 0 ? g.points.slice(depuis - 1) : pts;
-    switch (g.type) {
-      case "px-pinceau": for (const tr of traits(miroir(joint, false), joint.length)) pinceau(t, tr, opts()); break;
-      case "px-gomme": for (const tr of traits(miroir(joint, false), joint.length)) gomme(t, tr, opts()); break;
+    switch (g.efface && g.type === "px-pinceau" ? "px-gomme" : g.type) {
+      case "px-pinceau": for (const tr of traits(miroir(joint, false), joint.length)) pinceau(t, tr, opts(g)); break;
+      case "px-gomme": for (const tr of traits(miroir(joint, false), joint.length)) gomme(t, tr, opts(g)); break;
       case "px-crayon": {
         const pix = [];
         for (let i = 0; i < pts.length; i++) {
           const a = i ? pts[i - 1] : (depuis ? g.points[depuis - 1] : pts[0]);
           pix.push(...ligne_pixel(a[0], a[1], pts[i][0], pts[i][1]));
         }
-        for (const p of miroir(pix, true)) pinceau(t, [p], { rayon: 0.5, couleur: etat.px.couleur, masque: etat.px.masque });
+        for (const p of miroir(pix, true)) { if (g.efface) gomme(t, [p], { rayon: 0.5, masque: masqueEffectif() }); else pinceau(t, [p], { rayon: 0.5, couleur: g.couleur || etat.px.couleur, masque: masqueEffectif() }); }
         break;
       }
       case "px-cloner": {
@@ -224,8 +242,13 @@ export function initPixelUI(VL) {
   }
   const apercuDemander = () => { if (!rafId) rafId = requestAnimationFrame(apercuRendre); };
 
+  // lot 2 : le clic droit peint avec la secondaire — pas de menu contextuel en persona Pixel
+  stage.addEventListener("contextmenu", (ev) => { if (etat.doc && estPixel()) ev.preventDefault(); }, true);
+  const PEINTURE = ["px-pinceau", "px-crayon", "px-ligne", "px-rectpx", "px-seau"];
   stage.addEventListener("pointerdown", (ev) => {
-    if (ev.button !== 0 || !etat.doc || !estPixel()) return;
+    const droit = ev.button === 2;
+    if ((ev.button !== 0 && !droit) || !etat.doc || !estPixel()) return;
+    if (droit && !PEINTURE.includes(etat.outil)) return;
     ev.stopPropagation(); ev.preventDefault();
     const cible = ev.target.closest && ev.target.closest("[data-objet]");
     let o = courant();
@@ -238,15 +261,29 @@ export function initPixelUI(VL) {
     const t = etat.px.tampon;
     const [px, py] = pixelDe(o, ev);
     const outil = etat.outil;
+    // lot 2 : Alt+clic = pipette (le cloner garde Alt = source) — bouton droit + Alt → la secondaire
+    if (ev.altKey && outil !== "px-cloner" && (PEINTURE.includes(outil) || outil === "px-gomme")) {
+      const x = Math.floor(px), y = Math.floor(py);
+      if (x < 0 || y < 0 || x >= t.w || y >= t.h) return;
+      const k = (y * t.w + x) * 4;
+      if (t.data[k + 3] === 0) { VL.toast("pixel transparent — couleur inchangée"); return; }
+      const hex = "#" + [t.data[k], t.data[k + 1], t.data[k + 2]].map((v) => v.toString(16).padStart(2, "0").toUpperCase()).join("");
+      if (droit) etat.px.secondaire = hex; else etat.px.couleur = hex;
+      VL.toast(`${droit ? "secondaire" : "couleur"} : ${hex}`); rendrePanneau(); VL.surRendu();
+      return;
+    }
+    const couleur = droit ? etat.px.secondaire : etat.px.couleur, efface = droit && etat.px.secondaire === null;
     if (outil === "px-cloner" && ev.altKey) { etat.px.source = [px - 0.5, py - 0.5]; VL.toast(`source de clonage : (${Math.floor(px)}, ${Math.floor(py)})`); return; }
     if (outil === "px-cloner" && !etat.px.source) { VL.toast("Alt+clic pour fixer la source", true); return; }
     if (outil === "px-seau") {
       const x = Math.floor(px), y = Math.floor(py);
       if (x < 0 || y < 0 || x >= t.w || y >= t.h) return;
+      if (efface) { VL.toast("secondaire transparente : le seau ne remplit rien", true); return; }
       garde(async () => {
-        for (const [sx, sy] of miroir([[x, y]], true)) seau(t, sx, sy, etat.px.couleur, { tolerance: etat.px.tolerance, global: etat.px.global, masque: etat.px.masque });
+        for (const [sx, sy] of miroir([[x, y]], true)) seau(t, sx, sy, couleur, { tolerance: etat.px.tolerance, global: etat.px.global, masque: masqueEffectif() });
         await commettre();
       })();
+      etat.px.dernier = [x, y];
       return;
     }
     if (outil === "px-baguette") {
@@ -258,10 +295,20 @@ export function initPixelUI(VL) {
     const entier = ["px-crayon", "px-ligne", "px-rectpx"].includes(outil);
     // les outils à rayon prennent le CENTRE du pixel en entier (mod-pixel) : −0,5
     const p0 = entier ? [Math.floor(px), Math.floor(py)] : [px - 0.5, py - 0.5];
-    geste = { type: outil, points: [p0], x0: p0[0], y0: p0[1], shift: ev.shiftKey, alt: ev.altKey, applique: 0 };
+    // lot 2 : Maj+clic = un segment depuis le dernier point posé (pinceau, crayon, gomme) — une commande
+    if (ev.shiftKey && etat.px.dernier && ["px-pinceau", "px-gomme", "px-crayon"].includes(outil)) {
+      const d0 = entier ? [Math.floor(etat.px.dernier[0]), Math.floor(etat.px.dernier[1])] : [etat.px.dernier[0] - 0.5 + 0.5, etat.px.dernier[1]];
+      const g = { type: outil, points: [d0, p0], x0: d0[0], y0: d0[1], couleur, efface, applique: 0, base: t };
+      const res = outil === "px-crayon" ? crayonParfait(g) : (appliquer(t, g, 0), t);
+      etat.px.tampon = res; etat.px.dernier = p0;
+      garde(commettre)();
+      return;
+    }
+    geste = { type: outil, points: [p0], x0: p0[0], y0: p0[1], shift: ev.shiftKey, alt: ev.altKey, applique: 0, couleur, efface, base: t };
     if (["px-pinceau", "px-gomme", "px-crayon", "px-cloner"].includes(outil)) {
-      apercu = { w: t.w, h: t.h, data: new Uint8ClampedArray(t.data) };
-      appliquer(apercu, geste, 0); geste.applique = 1;
+      apercu = outil === "px-crayon" ? crayonParfait(geste) : { w: t.w, h: t.h, data: new Uint8ClampedArray(t.data) };
+      if (outil !== "px-crayon") appliquer(apercu, geste, 0);
+      geste.applique = 1;
       VL.rendreOverlay(); apercuDemander();
     }
   }, true);
@@ -276,7 +323,7 @@ export function initPixelUI(VL) {
     const der = geste.points[geste.points.length - 1];
     if (der[0] === p[0] && der[1] === p[1]) return;
     geste.points.push(p);
-    if (apercu) { appliquer(apercu, geste, geste.applique); geste.applique = geste.points.length; apercuDemander(); }
+    if (apercu) { if (geste.type === "px-crayon") apercu = crayonParfait(geste); else appliquer(apercu, geste, geste.applique); geste.applique = geste.points.length; apercuDemander(); }
     else dessinerTmp();
   }, true);
   stage.addEventListener("pointerup", (ev) => {
@@ -287,6 +334,7 @@ export function initPixelUI(VL) {
     const tmp = $("#ovTmp"); if (tmp) tmp.innerHTML = "";
     if (!o || !t) { apercu = null; return; }
     const p0 = g.points[0], p1 = g.points[g.points.length - 1];
+    etat.px.dernier = p1;                          // lot 2 : Maj+clic repartira d'ici
     if (["px-pinceau", "px-gomme", "px-crayon", "px-cloner"].includes(g.type)) {
       // l'aperçu EST le résultat : il a reçu tout le geste, incrémentalement
       etat.px.tampon = apercu; apercu = null;
@@ -296,7 +344,7 @@ export function initPixelUI(VL) {
     if (g.type === "px-ligne" || g.type === "px-rectpx") {
       const pix = g.type === "px-ligne" ? ligne_pixel(p0[0], p0[1], p1[0], p1[1]) : rect_pixel(p0[0], p0[1], p1[0], p1[1]);
       garde(async () => {
-        for (const p of miroir(pix, true)) pinceau(t, [p], { rayon: 0.5, couleur: etat.px.couleur, masque: etat.px.masque });
+        for (const p of miroir(pix, true)) { if (g.efface) gomme(t, [p], { rayon: 0.5, masque: masqueEffectif() }); else pinceau(t, [p], { rayon: 0.5, couleur: g.couleur || etat.px.couleur, masque: masqueEffectif() }); }
         await commettre();
       })();
       return;
@@ -385,6 +433,11 @@ export function initPixelUI(VL) {
     const k = ev.key.toLowerCase();
     const o = OUTILS_PIXEL.find((x) => x.touche === k);
     if (o) { VL.setOutil(o.id); ev.stopImmediatePropagation(); ev.preventDefault(); return; }
+    if (k === "x") {                         // lot 2 : échange primaire / secondaire
+      if (etat.px.secondaire === null) { VL.toast("secondaire transparente : rien à échanger"); return; }
+      [etat.px.couleur, etat.px.secondaire] = [etat.px.secondaire, etat.px.couleur];
+      rendrePanneau(); VL.surRendu(); ev.stopImmediatePropagation(); ev.preventDefault(); return;
+    }
     if (ev.key === "Escape" && etat.px.masque) { etat.px.masque = null; VL.rendreOverlay(); rendrePanneau(); ev.stopImmediatePropagation(); }
   }, true);
 
@@ -404,6 +457,7 @@ export function initPixelUI(VL) {
         : `<button id="pxEditer" ${sel ? "" : "disabled"} title="Charge les pixels de l'image sélectionnée">Éditer les pixels</button>`}</div>
       ${o ? `<div class="ap-ligne"><span></span><button id="pxAnnuler" title="Dépile le journal raster du serveur (dix états)">↶ Annuler pixels</button><button id="pxFermer" title="Quitte l'édition (les pixels sont déjà sauvés)">Terminer</button></div>` : ""}
       <div class="ap-ligne"><span>Couleur</span><input type="color" id="pxCouleur" value="${p.couleur}"/>
+        <span style="width:auto" title="Secondaire : clic droit ; ∅ = transparente = gomme">2ᵉ</span><input type="color" id="pxSecondaire" value="${p.secondaire || "#FFFFFF"}"${p.secondaire ? "" : ' class="vide"'}/><button id="pxSecVider" title="Secondaire transparente (le clic droit gomme)">∅</button>
         <span style="width:auto">rayon</span>${num("pxRayon", p.rayon, 'min="0.5" step="0.5" title="Rayon du pinceau, de la gomme, du clonage (px natifs)"')}</div>
       <div class="ap-ligne"><span>Dureté</span><input type="range" id="pxDurete" min="0" max="1" step="0.05" value="${p.durete}" title="1 = bord net, 0 = dégradé jusqu'au centre"/></div>
       <div class="ap-ligne"><span>Tolér.</span>${num("pxTol", p.tolerance, 'min="0" max="255" title="Seau et baguette : écart de couleur admis"')}
@@ -452,6 +506,8 @@ export function initPixelUI(VL) {
     on("pxAnnuler", "click", garde(annulerPixels));
     on("pxFermer", "click", () => { etat.px.id = null; etat.px.tampon = null; etat.px.masque = null; rendrePanneau(); VL.rendreOverlay(); });
     on("pxCouleur", "input", (ev) => { etat.px.couleur = ev.target.value.toUpperCase(); });
+    on("pxSecondaire", "input", (ev) => { etat.px.secondaire = ev.target.value.toUpperCase(); ev.target.classList.remove("vide"); });
+    on("pxSecVider", "click", () => { etat.px.secondaire = null; rendrePanneau(); });
     on("pxRayon", "change", () => { etat.px.rayon = Math.max(0.5, val("pxRayon")); });
     on("pxDurete", "input", () => { etat.px.durete = val("pxDurete"); });
     on("pxTol", "change", () => { etat.px.tolerance = Math.max(0, Math.min(255, val("pxTol"))); });
