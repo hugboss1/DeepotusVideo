@@ -23,5 +23,14 @@ const echecs = []; const ok = (n, c, d = "") => { if (!c) echecs.push(n + (d ? "
   ok("appliquer : champ inconnu → objet vide ; opacite → patch de style 0..1 ; pxGlobal → booléen ; terrain, police, mode", Object.keys(appliquer_champ({}, "zz", 1)).length === 0 && appliquer_champ({}, "opacite", 50).style.opacite === 0.5 && appliquer_champ({}, "opacite", 500).style.opacite === 1 && appliquer_champ({}, "pxGlobal", "true").px.global === true && appliquer_champ({}, "terrainCourant", "mer").terrainCourant === "mer" && appliquer_champ({}, "typoCourante", "lib:a").typo.courante === "lib:a" && appliquer_champ({}, "trMode", "objets").exportPlus.mode === "objets");
   ok("params : défauts (bulles, grille 8, aimant), lecture tolérante, pose immuable, clé inconnue refusée", PARAMS_DEFAUT.bulles === true && PARAMS_DEFAUT.grillePas === 8 && PARAMS_DEFAUT.aimant === true && params_lire("{oops").grillePas === 8 && params_lire(null).bulles === true && params_lire('{"bulles":false,"zz":1,"grillePas":"x"}').bulles === false && params_lire('{"grillePas":"x"}').grillePas === 8 && params_poser(PARAMS_DEFAUT, "grillePas", 16).grillePas === 16 && PARAMS_DEFAUT.grillePas === 8 && params_poser(PARAMS_DEFAUT, "zz", 1) === PARAMS_DEFAUT);
 }
+{
+  const px = { rayon: 4, durete: 1, forme: "carre", parfait: false, secondaire: null };
+  const c1 = champs_de("px-pinceau", { px }).map((c) => c.id);
+  ok("lot 2 — pinceau : champ Forme (rond / carré) et Secondaire", c1.includes("pxForme") && c1.includes("pxSecondaire"), c1.join());
+  const c2 = champs_de("px-crayon", { px });
+  ok("lot 2 — crayon : bascule Pixel-parfait (valeur lue dans etat.px.parfait) + Secondaire", c2.some((c) => c.id === "pxParfait" && c.type === "bascule" && c.valeur === false) && c2.some((c) => c.id === "pxSecondaire" && c.type === "couleur"));
+  ok("lot 2 — gomme : Forme mais pas Secondaire", champs_de("px-gomme", { px }).some((c) => c.id === "pxForme") && !champs_de("px-gomme", { px }).some((c) => c.id === "pxSecondaire"));
+  ok("lot 2 — appliquer : pxForme borné à rond / carré, pxParfait booléen, pxSecondaire hex ou null (vide = transparent)", appliquer_champ({ px }, "pxForme", "carre").px.forme === "carre" && appliquer_champ({ px }, "pxForme", "zz").px.forme === "rond" && appliquer_champ({ px }, "pxParfait", "true").px.parfait === true && appliquer_champ({ px }, "pxSecondaire", "#ff00aa").px.secondaire === "#FF00AA" && appliquer_champ({ px }, "pxSecondaire", "").px.secondaire === null);
+}
 if (echecs.length) { console.error("ECHECS contexte :\n- " + echecs.join("\n- ")); process.exit(1); }
-console.log("QA contexte : PASS (17 controles)");
+console.log("QA contexte : PASS (21 controles)");

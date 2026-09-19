@@ -31,6 +31,7 @@ export function initBarreContexte(VL) {
     hOutil.innerHTML = champs.map((c) => {
       if (c.type === "bouton") return `<button class="cb-bouton" data-champ="${c.id}"${c.titre ? ` title="${esc(c.titre)}"` : ""}>${esc(c.libelle)}</button>`;
       if (c.type === "bascule") return `<label class="cb-champ"><input type="checkbox" data-champ="${c.id}" ${c.valeur ? "checked" : ""}/>${esc(c.libelle)}</label>`;
+      if (c.type === "couleur") return `<label class="cb-champ cb-couleur"${c.titre ? ` title="${esc(c.titre)}"` : ""}><span>${esc(c.libelle)}</span><input type="color" data-champ="${c.id}" value="${c.valeur || "#000000"}"${c.valeur ? "" : ' class="vide"'}/><button type="button" class="cb-vider" data-vider="${c.id}" title="Transparent (la gomme)">∅</button></label>`;
       if (c.type === "select") return `<label class="cb-champ"><span>${esc(c.libelle)}</span><select data-champ="${c.id}">${c.options.map((o) => `<option value="${esc(o.id)}"${o.id === c.valeur ? " selected" : ""}>${esc(o.libelle)}</option>`).join("")}</select></label>`;
       return `<label class="cb-champ"><span>${esc(c.libelle)}</span><input type="number" data-champ="${c.id}" value="${c.valeur}" min="${c.min}" max="${c.max}" step="${c.pas}"/></label>`;
     }).join("");
@@ -39,6 +40,7 @@ export function initBarreContexte(VL) {
       if (el.tagName === "BUTTON") { el.addEventListener("click", () => { if (id === "configDoc") configurerDocument(); else if (id === "parametres") parametresAppli(); else if (id.includes(":")) { const [m, a] = id.split(":"); const A = (VL.actions || {})[m]; if (A && A[a]) A[a](); } }); return; }
       el.addEventListener("change", () => appliquer(id, el.type === "checkbox" ? el.checked : el.value));
     });
+    hOutil.querySelectorAll("[data-vider]").forEach((b) => b.addEventListener("click", () => { appliquer(b.dataset.vider, ""); rendre(); }));
   }
   function appliquer(id, valeur) {
     const patch = appliquer_champ(etat, id, valeur);

@@ -39,7 +39,11 @@ export function champs_de(outil, etat) {
     case "gomme": return [nombre("gommeLargeur", "Largeur", etat.gommeLargeur, 1, 500)];
     case "coin": return [nombre("coinRayon", "Rayon", etat.coinRayon, 0, 500)];
     case "crayon": case "pinceauv": return [select("pvProfil", "Profil", pv.profil, opts(etat.profils)), nombre("pvLargeur", "Largeur", pv.largeur, 1, 200)];
-    case "px-pinceau": case "px-gomme": case "px-cloner": case "px-flou": case "px-eclaircir": case "px-assombrir": return [nombre("pxRayon", "Rayon", px.rayon, 1, 256), nombre("pxDurete", "Dureté", px.durete, 0, 1, 0.05)];
+    // lot 2 (Sprite Editor) : Forme rond / carré, Secondaire (clic droit ; vide = transparent = gomme), Pixel-parfait du crayon
+    case "px-pinceau": return [nombre("pxRayon", "Rayon", px.rayon, 1, 256), nombre("pxDurete", "Dureté", px.durete, 0, 1, 0.05), select("pxForme", "Forme", px.forme || "rond", FORMES_PINCEAU), champSecondaire(px)];
+    case "px-gomme": return [nombre("pxRayon", "Rayon", px.rayon, 1, 256), nombre("pxDurete", "Dureté", px.durete, 0, 1, 0.05), select("pxForme", "Forme", px.forme || "rond", FORMES_PINCEAU)];
+    case "px-crayon": return [{ id: "pxParfait", type: "bascule", libelle: "Pixel-parfait", valeur: px.parfait !== false }, champSecondaire(px)];
+    case "px-cloner": case "px-flou": case "px-eclaircir": case "px-assombrir": return [nombre("pxRayon", "Rayon", px.rayon, 1, 256), nombre("pxDurete", "Dureté", px.durete, 0, 1, 0.05)];
     case "px-seau": return [nombre("pxTolerance", "Tolérance", px.tolerance, 0, 255), { id: "pxGlobal", type: "bascule", libelle: "Global", valeur: !!px.global }];
     case "px-baguette": return [nombre("pxTolerance", "Tolérance", px.tolerance, 0, 255)];
     case "tuiles": return [select("terrainCourant", "Terrain", etat.terrainCourant, Object.entries(etat.terrains || {}).map(([id, t]) => ({ id, libelle: (t && t.nom) || id })))];
@@ -49,6 +53,9 @@ export function champs_de(outil, etat) {
   }
 }
 const borne = (v, min, max) => Math.max(min, Math.min(max, Number.isFinite(+v) ? +v : min));
+const FORMES_PINCEAU = [{ id: "rond", libelle: "Rond" }, { id: "carre", libelle: "Carré" }];
+const champSecondaire = (px) => ({ id: "pxSecondaire", type: "couleur", libelle: "Secondaire", valeur: px.secondaire || null, titre: "Couleur du clic droit — vide = transparent = gomme" });
+const _HEX6 = /^#[0-9A-Fa-f]{6}$/;
 export function appliquer_champ(etat, id, valeur) {
   const e = etat || {};
   switch (id) {
@@ -63,6 +70,9 @@ export function appliquer_champ(etat, id, valeur) {
     case "pxDurete": return { px: { ...(e.px || {}), durete: borne(valeur, 0, 1) } };
     case "pxTolerance": return { px: { ...(e.px || {}), tolerance: borne(valeur, 0, 255) } };
     case "pxGlobal": return { px: { ...(e.px || {}), global: valeur === true || valeur === "true" || valeur === 1 } };
+    case "pxForme": return { px: { ...(e.px || {}), forme: String(valeur) === "carre" ? "carre" : "rond" } };
+    case "pxParfait": return { px: { ...(e.px || {}), parfait: valeur === true || valeur === "true" || valeur === 1 } };
+    case "pxSecondaire": return { px: { ...(e.px || {}), secondaire: _HEX6.test(String(valeur || "")) ? String(valeur).toUpperCase() : null } };
     case "typoCourante": return { typo: { ...(e.typo || {}), courante: String(valeur) } };
     case "trMode": return { exportPlus: { ...(e.exportPlus || {}), mode: String(valeur) } };
     case "opacite": return { style: { opacite: borne(valeur, 0, 100) / 100 } };
