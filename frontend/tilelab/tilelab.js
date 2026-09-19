@@ -283,7 +283,23 @@ const tlBase = () => (F.filename || "feuille").replace(/\.\w+$/, "");
 function feuilleAlignee() { const tc = TLF.taille_commune(F.tuiles); return TLF.feuille_alignee(F.tampon, F.tuiles, { cell_w: tc.w, cell_h: tc.h, cols: parseInt($("#tlExpCols").value, 10) || 8, pad: parseInt($("#tlExpPad").value, 10) || 0 }); }
 async function dlFeuille() { if (!F.tuiles.length) return toast("aucune tuile", true); const f = feuilleAlignee(), tc = TLF.taille_commune(F.tuiles); tlTelecharger(await tlPng(f.img), tlBase() + "_alignee.png"); tlTelecharger(new Blob([JSON.stringify({ cellule: tc, pad: parseInt($("#tlExpPad").value, 10) || 0, cols: parseInt($("#tlExpCols").value, 10) || 8, feuille: { w: f.img.w, h: f.img.h }, tuiles: f.index }, null, 2)], { type: "application/json" }), tlBase() + "_alignee.json"); toast(`feuille alignée ${f.img.w}×${f.img.h}, ${f.index.length} tuiles`); }
 async function dlTileset() { const R = TLF.placement_rendre(F.tampon, F.tuiles, F.placements, F.grille); tlTelecharger(await tlPng(R), tlBase() + "_tileset.png"); tlTelecharger(new Blob([JSON.stringify({ grille: F.grille, placements: TLF.placement_index(F.placements, F.grille) }, null, 2)], { type: "application/json" }), tlBase() + "_tileset.json"); toast(`tileset ${R.w}×${R.h}, ${F.placements.length} placements`); }
-async function dlTuiles() { const n = Math.min(64, F.tuiles.length); for (let i = 0; i < n; i++) { const t = F.tuiles[i], im = { w: t.w, h: t.h, data: new Uint8ClampedArray(t.w * t.h * 4) }; for (let y = 0; y < t.h; y++) im.data.set(F.tampon.data.subarray(((t.y + y) * F.tampon.w + t.x) * 4, ((t.y + y) * F.tampon.w + t.x + t.w) * 4), y * t.w * 4); tlTelecharger(await tlPng(im), `${tlBase()}_${t.nom}.png`); } toast(`${n} tuile(s) téléchargée(s)${F.tuiles.length > 64 ? " (plafond 64)" : ""}`); }
+// lot 5 : les tuiles séparées partent en UN zip (store, pur JS) — plus de rafale
+async function dlTuiles() {
+  if (!F.tuiles.length) return toast("aucune tuile", true);
+  const entrees = [];
+  for (const t of F.tuiles) { const im = { w: t.w, h: t.h, data: new Uint8ClampedArray(t.w * t.h * 4) }; for (let y = 0; y < t.h; y++) im.data.set(F.tampon.data.subarray(((t.y + y) * F.tampon.w + t.x) * 4, ((t.y + y) * F.tampon.w + t.x + t.w) * 4), y * t.w * 4); entrees.push({ nom: `${t.nom}.png`, data: new Uint8Array(await (await tlPng(im)).arrayBuffer()) }); }
+  const zip = DZ_ZIP.zip_store(entrees);
+  tlTelecharger(new Blob([zip], { type: "application/zip" }), `${tlBase()}_tuiles.zip`);
+  toast(`${entrees.length} tuile(s) dans ${tlBase()}_tuiles.zip`);
+}
+// lot 5 : réordonnancement — la tuile choisie glisse, les placements suivent
+function deplacerTuile(delta) {
+  if (F.sel < 0) return toast("choisis une tuile", true);
+  const i = F.sel, j = i + delta; if (j < 0 || j >= F.tuiles.length) return;
+  F.tuiles = TLF.tuiles_deplacer(F.tuiles, i, delta);
+  F.placements = F.placements.map((p) => ({ ...p, tuile: p.tuile === i ? j : p.tuile === j ? i : p.tuile }));
+  F.sel = j; rendreTuiles(); rendrePlacement();
+}
 async function saveLib() { if (!F.tuiles.length) return toast("aucune tuile", true); try { const f = feuilleAlignee(); const fd = new FormData(); fd.append("file", await tlPng(f.img), `tiles_feuille_${Date.now()}.png`); const r = await fetch("/api/images/upload", { method: "POST", body: fd }); const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.detail || r.statusText); toast(`sauvé en Library : ${d.filename}`); loadImages(); } catch (e) { toast(e.message, true); } }
 function renderFeuilleGrid() {
   const q = ($("#feuilleSearch").value || "").toLowerCase(), g = $("#feuilleGrid");
@@ -300,9 +316,10 @@ function feuilleWire() {
   $("#tlVider").onclick = () => { F.placements = []; if (F.tampon) { rendrePlacement(); rendreTuiles(); } };
   const cv = $("#tlPlacement"); cv.onclick = poser; cv.oncontextmenu = retirer;
   $("#tlDlFeuille").onclick = dlFeuille; $("#tlDlTileset").onclick = dlTileset; $("#tlDlTuiles").onclick = dlTuiles; $("#tlSaveLib").onclick = saveLib;
+  $("#tlAvant").onclick = () => deplacerTuile(-1); $("#tlApres").onclick = () => deplacerTuile(1);
 }
 if (window.TLF) feuilleWire(); else document.addEventListener("tlf-pret", feuilleWire, { once: true });
-window.__tl = Object.assign(window.__tl || {}, { feuille: { ouvrir: feuilleOuvrir, etat: () => F, detecter, poser: (c, r) => { F.placements = F.placements.filter((p) => !(p.c === c && p.r === r)); F.placements.push({ c, r, tuile: F.sel }); rendrePlacement(); rendreTuiles(); }, raccord, mode: tlMode } });
+window.__tl = Object.assign(window.__tl || {}, { feuille: { ouvrir: feuilleOuvrir, etat: () => F, detecter, deplacer: deplacerTuile, dlTuiles, poser: (c, r) => { F.placements = F.placements.filter((p) => !(p.c === c && p.r === r)); F.placements.push({ c, r, tuile: F.sel }); rendrePlacement(); rendreTuiles(); }, raccord, mode: tlMode } });
 
 /* poignée QA (harnais Puppeteer de la recette) */
 window.__tl = Object.assign(window.__tl || {}, {   // lot 4 : ne pas écraser la poignée « feuille » posée plus haut

@@ -101,6 +101,7 @@
     <div id="feuilleOut" class="tl-feuille hidden">
       <div class="tl-sec">Tuiles détectées <span id="tlTuilesCount" class="counter">—</span> <span class="hint">clic = choisir · double-clic = raccord ×9 · liseré cyan = déjà posée</span></div>
       <div id="tlTuiles" class="tl-tuiles"><div class="empty-note">Ouvre une planche à gauche.</div></div>
+      <div class="row"><span class="hint">Ordre de la tuile choisie :</span><button id="tlAvant" class="btn ghost" title="Un cran vers l'avant (les placements suivent)">◀</button><button id="tlApres" class="btn ghost" title="Un cran vers l'arrière">▶</button></div>
       <div class="tl-sec">Grille de placement</div>
       <div class="row">
         <select id="tlGrilleType" title="Carrée, ou iso 2:1 (losanges)"><option value="carree">Carrée</option><option value="iso">Iso 2:1</option></select>
@@ -119,7 +120,7 @@
         <label class="fld inline">marge <input id="tlExpPad" type="number" min="0" max="64" value="0" style="width:52px"></label>
         <button id="tlDlFeuille" class="btn" title="Chaque tuile centrée dans une cellule uniforme (taille commune + marge) + JSON">⬇ Feuille alignée + JSON</button>
         <button id="tlDlTileset" class="btn" title="La grille de placement peinte, en PNG + JSON des placements">⬇ Tileset + JSON</button>
-        <button id="tlDlTuiles" class="btn" title="Un PNG par tuile (64 au plus)">⬇ Tuiles séparées</button>
+        <button id="tlDlTuiles" class="btn" title="Un zip avec un PNG par tuile">⬇ Tuiles séparées (zip)</button>
         <button id="tlSaveLib" class="btn primary" title="La feuille alignée rejoint la Library (tiles_feuille_)">💾 Save to Library</button>
       </div>
     </div>
@@ -143,7 +144,7 @@
 </main>
 
 <div id="toast" class="toast hidden"></div>
-<script type="module">import * as T from "./feuille_tuiles.js"; import * as X from "/vectorlab/js/mod-pixelart.js"; window.TLF = T; window.PXA = X; document.dispatchEvent(new Event("tlf-pret"));</script>
+<script type="module">import * as T from "./feuille_tuiles.js"; import * as X from "/vectorlab/js/mod-pixelart.js"; import * as Z from "/spritelab/zip.js"; window.TLF = T; window.PXA = X; window.DZ_ZIP = Z; document.dispatchEvent(new Event("tlf-pret"));</script>
 <script type="module">import * as P from "/spritelab/palettes.js"; window.DZ_PALETTES = P; document.dispatchEvent(new Event("dz-palettes"));</script>
 <script src="tilelab.js"></script>
 </body>
