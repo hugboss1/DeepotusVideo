@@ -170,8 +170,31 @@ const aireMulti = (mp) => mp.reduce((s, poly) => s + poly.reduce((t, ring, i) =>
   ok("biseau + dépouille : sommet plus étroit que la dépouille seule", largeurA(combo, 5) < largeurA(extruder_depouille(mz, base, 5, 20), 5) - 1);
   ok("biseau sans option : inchangé", pres(volume_de(extruder_biseau(mz, base, 5, 1, 0.2)), volume_de(extruder_biseau(mz, base, 5, 1)), 1e-9));
 }
+/* ── lot 3 : pixel-art → pièces (rectangles de pixels, une pièce et une hauteur par couleur) ── */
+{
+  const { rects_de_pixels, pixels_vers_pieces, hauteurs_par_luminosite } = await import("../js/mod-solide.js");
+  const img = { w: 4, h: 3, data: new Uint8ClampedArray(4 * 3 * 4) };
+  const pose = (x, y, rgb) => { const k = (y * 4 + x) * 4; img.data[k] = rgb[0]; img.data[k + 1] = rgb[1]; img.data[k + 2] = rgb[2]; img.data[k + 3] = 255; };
+  pose(0, 0, [255, 0, 0]); pose(1, 0, [255, 0, 0]); pose(0, 1, [255, 0, 0]); pose(1, 1, [255, 0, 0]); pose(3, 2, [255, 0, 0]);
+  pose(2, 0, [0, 0, 255]); pose(2, 1, [0, 0, 255]); pose(2, 2, [0, 0, 255]);
+  const rr = rects_de_pixels(img, "#FF0000");
+  ok("rouge : 2 rectangles (le bloc 2 × 2 fusionné, le pixel isolé)", rr.length === 2 && rr.some((r) => r.w === 2 && r.h === 2) && rr.some((r) => r.w === 1 && r.h === 1), JSON.stringify(rr));
+  ok("bleu : 1 rectangle 1 × 3 (runs fusionnés verticalement)", JSON.stringify(rects_de_pixels(img, "#0000FF")) === JSON.stringify([{ x: 2, y: 0, w: 1, h: 3 }]), JSON.stringify(rects_de_pixels(img, "#0000FF")));
+  const P = pixels_vers_pieces(img, 2, { "#FF0000": 4, "#0000FF": 1.5 }, { socle_mm: 0 });
+  const aire = (tris) => tris.filter((t) => t[0][2] === t[1][2] && t[1][2] === t[2][2] && t[0][2] > 0).reduce((s, [a, b, c]) => s + Math.abs((b[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (b[1] - a[1])) / 2, 0);
+  ok("deux pièces nommées par hex, colorées, à leur hauteur", P.length === 2 && P[0].nom === "px_ff0000" && P[0].couleur === "#FF0000" && P[0].hauteur_mm === 4 && P[1].hauteur_mm === 1.5, JSON.stringify(P.map((p) => [p.nom, p.couleur, p.hauteur_mm])));
+  ok("aire du capot rouge = 5 pixels × 4 mm² = 20 ; bleu = 3 × 4 = 12", pres(aire(P[0].tris), 20, 1e-6) && pres(aire(P[1].tris), 12, 1e-6), `${aire(P[0].tris)} / ${aire(P[1].tris)}`);
+  ok("volume rouge = 20 × 4 = 80", pres(volume_de(P[0].tris), 80, 1e-6), volume_de(P[0].tris));
+  ok("y retourné : les pièces ont des y ≤ 0 (plateau y-haut)", P[0].tris.flat().some((p) => p[1] < 0) && !P[0].tris.flat().some((p) => p[1] > 0));
+  const S = pixels_vers_pieces(img, 2, { "#FF0000": 4, "#0000FF": 1.5 }, { socle_mm: 1 });
+  ok("socle : une pièce de plus, 8 × 6 × 1 mm sous les pièces, pièces posées à z = 1", S.length === 3 && S[2].nom === "socle" && pres(volume_de(S[2].tris), 48, 1e-6) && Math.min(...S[0].tris.flat().map((p) => p[2])) === 1, S.length);
+  ok("couleur sans hauteur → hauteur par défaut 2", pixels_vers_pieces(img, 2, {}, {})[0].hauteur_mm === 2);
+  const H = hauteurs_par_luminosite(["#000000", "#FFFFFF", "#808080"], 1, 5);
+  ok("hauteurs par luminosité : noir 1, blanc 5, gris ≈ 3", H["#000000"] === 1 && H["#FFFFFF"] === 5 && pres(H["#808080"], 3, 0.1), JSON.stringify(H));
+  ok("une seule couleur → max", hauteurs_par_luminosite(["#123456"], 1, 5)["#123456"] === 5);
+}
 if (echecs.length) {
   console.error("ECHECS solide :\n- " + echecs.join("\n- "));
   process.exit(1);
 }
-console.log("QA solide : PASS (52 controles)");
+console.log("QA solide : PASS (62 controles)");

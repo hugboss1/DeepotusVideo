@@ -243,6 +243,54 @@ export function glb_de_triangles(tris) {
   return glb_de_pieces([{ nom: "piece", tris, couleur: COULEUR_DEFAUT }]);
 }
 
+/* ── lot 3 : pixel-art → pièces (une par couleur, une hauteur par couleur) — les
+   pixels d'une couleur se fusionnent en rectangles (runs horizontaux, puis
+   fusion verticale des runs de mêmes bornes), sans martinez ── */
+const _hexPx = (d, k) => "#" + [d[k], d[k + 1], d[k + 2]].map((v) => v.toString(16).padStart(2, "0").toUpperCase()).join("");
+export function rects_de_pixels(img, couleur) {
+  const cible = String(couleur).toUpperCase(), out = [];
+  let ouverts = [];
+  for (let y = 0; y < img.h; y++) {
+    const runs = [];
+    for (let x = 0; x < img.w; x++) {
+      const k = (y * img.w + x) * 4;
+      if (img.data[k + 3] && _hexPx(img.data, k) === cible) { const d = runs[runs.length - 1]; if (d && d.x + d.w === x) d.w++; else runs.push({ x, w: 1 }); }
+    }
+    const suivants = [];
+    for (const r of runs) {
+      const o = ouverts.find((q) => q.x === r.x && q.w === r.w && q.y + q.h === y);
+      if (o) { o.h++; suivants.push(o); } else suivants.push({ x: r.x, y, w: r.w, h: 1 });
+    }
+    for (const o of ouverts) if (!suivants.includes(o)) out.push(o);
+    ouverts = suivants;
+  }
+  out.push(...ouverts);
+  return out;
+}
+// clair = haut, sombre = bas ; une seule couleur → max
+export function hauteurs_par_luminosite(couleurs, min_mm = 1, max_mm = 5) {
+  const lum = (h) => 0.2126 * parseInt(h.slice(1, 3), 16) + 0.7152 * parseInt(h.slice(3, 5), 16) + 0.0722 * parseInt(h.slice(5, 7), 16);
+  const ls = couleurs.map(lum), lo = Math.min(...ls), hi = Math.max(...ls), out = {};
+  couleurs.forEach((c, i) => { out[c] = hi === lo ? +max_mm : Math.round((+min_mm + (ls[i] - lo) / (hi - lo) * (+max_mm - +min_mm)) * 100) / 100; });
+  return out;
+}
+export function pixels_vers_pieces(img, cellule_mm, hauteurs = {}, { socle_mm = 0, hauteur_defaut = 2 } = {}) {
+  const c = +cellule_mm;
+  if (!(c > 0)) throw new Error("pixel-art : cellule en mm > 0");
+  const vues = new Set(), couleurs = [];
+  for (let k = 0; k < img.w * img.h; k++) { if (!img.data[k * 4 + 3]) continue; const h = _hexPx(img.data, k * 4); if (!vues.has(h)) { vues.add(h); couleurs.push(h); } }
+  const z0 = socle_mm > 0 ? +socle_mm : 0, out = [];
+  for (const hex of couleurs) {
+    const h = hauteurs[hex] !== undefined ? +hauteurs[hex] : hauteur_defaut;
+    if (!(h > 0)) continue;
+    // y RETOURNÉ (image y-bas → plateau y-haut), comme les tuiles
+    const multi = rects_de_pixels(img, hex).map((r) => [[[r.x * c, -r.y * c], [(r.x + r.w) * c, -r.y * c], [(r.x + r.w) * c, -(r.y + r.h) * c], [r.x * c, -(r.y + r.h) * c], [r.x * c, -r.y * c]]]);
+    out.push({ nom: "px_" + hex.slice(1).toLowerCase(), couleur: hex, hauteur_mm: h, tris: extruder(multi, h, z0) });
+  }
+  if (z0 > 0) out.push({ nom: "socle", couleur: COULEUR_DEFAUT, hauteur_mm: z0, tris: extruder([[[[0, 0], [img.w * c, 0], [img.w * c, -img.h * c], [0, -img.h * c], [0, 0]]]], z0, 0) });
+  return out;
+}
+
 export function nomenclature_csv(pieces) {
   const q = (v) => {
     const s = String(v ?? "");
