@@ -10,7 +10,8 @@
 import { aplatir_objet, contour_en_multi, versMulti } from "./mod-bool.js";
 import { extruder, stl_binaire, volume_de } from "./mod-extrude.js";
 import { MUR_MIN_MM, DEPOUILLE_MAX, extruder_biseau, extruder_evide, plateau_pieces, glb_de_pieces,
-         nomenclature_csv, couleur_dominante } from "./mod-solide.js";
+         nomenclature_csv, couleur_dominante, pixels_vers_pieces, hauteurs_par_luminosite } from "./mod-solide.js";
+import { couleurs_utilisees } from "./mod-pixelart.js";
 import { terrains_de, op_texte_vectoriser } from "./mod-doc.js";
 import { hex_centre, hex_sommets } from "./mod-grille.js";
 import { POLICES, texte_vers_d } from "./mod-texte3d.js";
@@ -97,6 +98,7 @@ export function initImpression(VL) {
   const { $, etat } = VL;
   const dlg = $("#impDlg");
   let courant = null;            // { pieces:[{nom, tris, …}], ignores, tous, bbox, glbUrl }
+  let pixelT = null;             // lot 3 : { id, tampon } du calque pixel-art à imprimer
 
   const mz = () => {
     if (!window.martinez) throw new Error("martinez indisponible (vendor non chargé)");
@@ -181,6 +183,12 @@ export function initImpression(VL) {
       if (!tuiles.length) throw new Error("tuiles : aucune tuile visible");
       pieces.push(...plateau_pieces(tuiles, terrains_de(doc), g, { socle_mm: r.socle, sMm: sMm() })
         .filter((p) => p.tris.length));
+    } else if (r.mode === "pixelart") {
+      // lot 3 : une pièce et une hauteur par couleur du calque pixel
+      if (!pixelT) throw new Error("pixel-art : le calque pixel se charge, réessayer");
+      const lignes = [...$("#impHauteurs").querySelectorAll("input[data-couleur]")].map((i) => ({ couleur: i.dataset.couleur, mm: i.value }));
+      pieces.push(...pixels_vers_pieces(pixelT.tampon, r.cellule_mm, hauteurs_lire(lignes, r.hmin), { socle_mm: r.socle }));
+      if (!pieces.length) throw new Error("pixel-art : aucun pixel opaque");
     } else if (r.mode === "logo") {
       const sel = etat.selection.length
         ? etat.selection.map((id) => VL.objetDe(id)).filter(Boolean).map((t) => t.objet)
@@ -209,7 +217,7 @@ export function initImpression(VL) {
   }
 
   function lire() {
-    return reglages_lire({ mode: $("#impMode").value, hauteur: $("#impHauteur").value,
+    return reglages_lire({ mode: $("#impMode").value, hauteur: $("#impHauteur").value, cellule: $("#impCellule").value, hmin: $("#impHmin").value, hmax: $("#impHmax").value,
       socle: $("#impSocle").value, biseau: $("#impBiseau").value, evide: $("#impEvide").checked,
       mur: $("#impMur").value, plancher: $("#impPlancher").value, depouille: $("#impDepouille").value,
       exageration: $("#impExag").value, largeur: $("#impLargeur").value, gravure: $("#impGravure").value });
@@ -227,7 +235,7 @@ export function initImpression(VL) {
     $("#impGarde").textContent = large > 256
       ? `⚠ ${Math.round(large)} mm dépasse le plateau de 256 mm — le lot par tuile imprime pièce à pièce` : "";
     $("#impUnStl").disabled = false;
-    $("#impLot").disabled = !(r.mode === "tuiles" || (r.mode === "relief" && c.pieces.length > 1));
+    $("#impLot").disabled = !(r.mode === "tuiles" || r.mode === "pixelart" || (r.mode === "relief" && c.pieces.length > 1));
     return courant;
   }
   async function unStl() {
@@ -286,7 +294,11 @@ export function initImpression(VL) {
     const aHex = !!(doc.grille && doc.grille.type === "hex")
       && doc.calques.some((c) => c.objets.some((o) => o.type === "tuile"));
     const aRelief = !!(doc.geo && doc.geo.relief);
-    const mode = modeInitial || (aHex ? "tuiles" : (etat.selection.length ? "logo" : "calques"));
+    // lot 3 : le calque pixel du modèle, sinon une image sélectionnée
+    const imgSel = etat.selection.map((id) => VL.objetDe(id)).filter((t) => t && t.objet.type === "image").map((t) => t.objet.id);
+    const pixelId = (doc.pixelart && doc.pixelart.calque && VL.objetDe(doc.pixelart.calque)) ? doc.pixelart.calque : (imgSel[0] || null);
+    pixelT = null;
+    const mode = modeInitial || (pixelId && doc.pixelart && doc.pixelart.calque ? "pixelart" : aHex ? "tuiles" : (etat.selection.length ? "logo" : "calques"));
     const largeurDefaut = doc.geo && doc.geo.emprise_px ? Math.round(doc.geo.emprise_px.w * s) : 150;
     dlg.innerHTML = `<div class="vl-dlg-boite imp-boite">
       <div class="vl-dlg-tete"><b>Impression 3D</b><span class="imp-doc">${Math.round(doc.taille.w * s)} × ${Math.round(doc.taille.h * s)} mm à ${dpi} dpi · plateau 256 mm</span><span class="spacer"></span><button id="impFermer" title="Fermer">✕</button></div>
@@ -296,13 +308,17 @@ export function initImpression(VL) {
             <option value="calques"${mode === "calques" ? " selected" : ""}>Calques (relief par calque)</option>
             <option value="tuiles"${mode === "tuiles" ? " selected" : ""}${aHex ? "" : " disabled"}>Tuiles (socle + terrain, lot)</option>
             <option value="logo"${mode === "logo" ? " selected" : ""}>Logo (sélection unie : biseau / évidement)</option>
-            <option value="relief"${mode === "relief" ? " selected" : ""}${aRelief ? "" : " disabled"}>Relief (plaque du terrain GPX)</option></select></label>
+            <option value="relief"${mode === "relief" ? " selected" : ""}${aRelief ? "" : " disabled"}>Relief (plaque du terrain GPX)</option>
+            <option value="pixelart"${mode === "pixelart" ? " selected" : ""}${pixelId ? "" : " disabled"}>Pixel-art (une pièce et une hauteur par couleur)</option></select></label>
+          <label class="imp-pixelart">Cellule (mm par pixel) <input id="impCellule" type="number" step="0.1" min="0.2" value="2"/></label>
+          <label class="imp-pixelart">Hauteurs min / max (mm) <span class="imp-range"><input id="impHmin" type="number" step="0.1" min="0.2" value="1"/><input id="impHmax" type="number" step="0.1" min="0.4" value="5"/><button id="impHauteursLum" title="Préremplit la table : clair haut, sombre bas">par luminosité</button></span></label>
+          <div class="imp-pixelart imp-hauteurs" id="impHauteurs"><i class="tr-etat">chargement du calque pixel…</i></div>
           <label class="imp-relief">Largeur de la plaque (mm) <input id="impLargeur" type="number" step="1" min="10" value="${largeurDefaut}"/></label>
           <label class="imp-relief">Exagération verticale <input id="impExag" type="number" step="0.1" min="0.1" max="10" value="1.5"/></label>
           <label class="imp-relief">Gravure du tracé (mm, 0 = aucune) <input id="impGravure" type="number" step="0.1" min="0" value="0.6"/></label>
           <label class="imp-calques">Hauteurs (mm, « nom=mm ») <input id="impHauteurs" type="text" value="3"/></label>
           <label class="imp-logo">Hauteur (mm) <input id="impHauteur" type="number" step="0.1" min="0.2" value="5"/></label>
-          <label class="imp-tuiles imp-relief">Socle (mm) <input id="impSocle" type="number" step="0.1" min="0" value="2"/></label>
+          <label class="imp-tuiles imp-relief imp-pixelart">Socle (mm) <input id="impSocle" type="number" step="0.1" min="0" value="2"/></label>
           <label class="imp-logo">Biseau (mm) <input id="impBiseau" type="number" step="0.1" min="0" value="0.6"/></label>
           <label class="imp-logo">Dépouille des flancs (°, 0 = droits, + = base plus large) <span class="imp-range"><input id="impDepouilleR" type="range" min="-${DEPOUILLE_MAX}" max="${DEPOUILLE_MAX}" step="1" value="0"/><input id="impDepouille" type="number" step="1" min="-${DEPOUILLE_MAX}" max="${DEPOUILLE_MAX}" value="0"/></span></label>
           <label class="imp-logo imp-ligne"><input type="checkbox" id="impEvide"/> évider (mur ≥ ${MUR_MIN_MM} mm)</label>
@@ -323,7 +339,17 @@ export function initImpression(VL) {
       dlg.querySelectorAll(".imp-logo").forEach((e) => { e.style.display = m === "logo" ? "" : "none"; });
       dlg.querySelectorAll(".imp-tuiles").forEach((e) => { e.style.display = (m === "tuiles" || (m === "relief" && e.classList.contains("imp-relief"))) ? "" : "none"; });
       dlg.querySelectorAll(".imp-relief:not(.imp-tuiles)").forEach((e) => { e.style.display = m === "relief" ? "" : "none"; });
+      dlg.querySelectorAll(".imp-pixelart").forEach((e) => { e.style.display = (m === "pixelart" || (m === "tuiles" && e.classList.contains("imp-tuiles")) || (m === "relief" && e.classList.contains("imp-relief"))) ? "" : "none"; });
     };
+    // lot 3 : la table des hauteurs par couleur du calque pixel
+    const tableHauteurs = (t) => {
+      const cs = couleurs_utilisees(t, 64), H = hauteurs_par_luminosite(cs, num($("#impHmin").value, 1), num($("#impHmax").value, 5));
+      $("#impHauteurs").innerHTML = cs.length ? cs.map((c) => `<label><span class="imp-pastille" style="background:${c}"></span>${c}<input type="number" step="0.1" min="0" data-couleur="${c}" value="${H[c]}"/></label>`).join("") : `<i class="tr-etat">aucun pixel opaque</i>`;
+    };
+    if (pixelId && VL.pixelTampon) {
+      VL.pixelTampon(pixelId).then((t) => { pixelT = { id: pixelId, tampon: t }; tableHauteurs(t); }).catch((e) => { $("#impHauteurs").innerHTML = `<i class="tr-etat">${e.message}</i>`; });
+    }
+    $("#impHauteursLum").addEventListener("click", () => { if (pixelT) tableHauteurs(pixelT.tampon); });
     majMode();
     const garde = (fn) => () => Promise.resolve().then(fn).catch((e) => {
       $("#impResume").textContent = e.message; VL.toast(e.message, true); });

@@ -834,3 +834,8 @@ body[data-outil="noeuds"] #canvasHost [data-objet] { cursor: crosshair; }
 #overlay .px-grille-modele { pointer-events: none; }
 .px-utilisees { opacity: .9; }
 .pxCelluleRapide.actif { outline: 2px solid #ffd166; outline-offset: -1px; }
+/* lot 3 : table des hauteurs par couleur du mode Pixel-art */
+.imp-hauteurs { display: flex; flex-direction: column; gap: 3px; max-height: 160px; overflow: auto; }
+.imp-hauteurs label { flex-direction: row !important; align-items: center; gap: 6px; }
+.imp-hauteurs input { width: 60px; }
+.imp-pastille { display: inline-block; width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--aff-bord); }
