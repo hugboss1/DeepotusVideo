@@ -17,9 +17,24 @@
 <main class="panes tl-panes">
   <!-- ══════════ 1. Source ══════════ -->
   <section class="pane src-pane">
-    <div class="pane-head"><h2>Image source</h2></div>
+    <div class="pane-head"><nav class="tabs" id="tlTabs">
+      <button class="tab active" data-m="seamless" title="Une image devient une tuile seamless (existant)">🧱 Seamless</button>
+      <button class="tab" data-m="feuille" title="Une planche de tuiles existante : détection, grille de placement, raccords, exports — tout en local">🗂 Feuille de tuiles</button></nav></div>
+    <div id="tlSeamlessSrc" class="src-body">
     <input id="imgSearch" class="search" placeholder="🔎 Filtrer les images…">
     <div id="imgGrid" class="img-grid tall"><div class="empty-note">Chargement de la Library…</div></div>
+    </div>
+    <!-- lot 4 : Feuille de tuiles -->
+    <div id="tlFeuilleSrc" class="src-body hidden">
+      <div class="upload-box">
+        <p class="hint">Une planche déjà faite (IA, autre outil, Vectorlab) : les tuiles se détectent par leur transparence, se posent sur une grille carrée ou iso pour tester les raccords, et s'exportent alignées. Rien n'est envoyé.</p>
+        <label class="btn" for="feuilleFile">📂 Ouvrir un PNG de mon PC</label>
+        <input type="file" id="feuilleFile" accept="image/png,image/webp" hidden>
+        <label class="fld inline" style="margin-top:8px">Côté min <input id="tlMin" type="number" min="1" max="256" value="2" style="width:60px" title="Une composante plus petite est ignorée (poussière)"> px <button id="tlDetecter" class="btn ghost" title="Redétecter les tuiles">Détecter</button></label>
+      </div>
+      <input id="feuilleSearch" class="search" placeholder="🔎 Filtrer les planches de la Library…">
+      <div id="feuilleGrid" class="img-grid tall"><div class="empty-note">Chargement de la Library…</div></div>
+    </div>
     <div class="hint">Textures sol/mur, motifs, feuillages… La tuile générée rejoint la Library (<i>gen_*.png</i>) et sert partout (Studio, Seedance, Sprite Lab).</div>
   </section>
 
@@ -82,6 +97,33 @@
 
     <div id="outEmpty" class="empty-note tall">La tuile et son pavage 3×3 s'affichent ici, avec le score de raccord avant → après (0 = parfait).</div>
 
+    <!-- lot 4 : la feuille de tuiles -->
+    <div id="feuilleOut" class="tl-feuille hidden">
+      <div class="tl-sec">Tuiles détectées <span id="tlTuilesCount" class="counter">—</span> <span class="hint">clic = choisir · double-clic = raccord ×9 · liseré cyan = déjà posée</span></div>
+      <div id="tlTuiles" class="tl-tuiles"><div class="empty-note">Ouvre une planche à gauche.</div></div>
+      <div class="tl-sec">Grille de placement</div>
+      <div class="row">
+        <select id="tlGrilleType" title="Carrée, ou iso 2:1 (losanges)"><option value="carree">Carrée</option><option value="iso">Iso 2:1</option></select>
+        <label class="fld inline">cols <input id="tlCols" type="number" min="1" max="64" value="4" style="width:52px"></label>
+        <label class="fld inline">rows <input id="tlRows" type="number" min="1" max="64" value="3" style="width:52px"></label>
+        <label class="fld inline">cellule <input id="tlCellW" type="number" min="1" max="1024" value="16" style="width:56px"> × <input id="tlCellH" type="number" min="1" max="1024" value="16" style="width:56px"></label>
+        <button id="tlVider" class="btn ghost" title="Retire tous les placements">Vider</button>
+      </div>
+      <div class="hint">Choisis une tuile puis clique les cellules · clic droit retire</div>
+      <div class="tl-place-wrap"><canvas id="tlPlacement" class="tl-placement"></canvas></div>
+      <div class="tl-sec">Raccord ×9 <span id="tlSeamScore" class="counter">—</span></div>
+      <canvas id="tlSeamCv" class="tl-seam" hidden></canvas>
+      <div class="tl-sec">Export</div>
+      <div class="row">
+        <label class="fld inline">colonnes <input id="tlExpCols" type="number" min="1" max="64" value="8" style="width:52px"></label>
+        <label class="fld inline">marge <input id="tlExpPad" type="number" min="0" max="64" value="0" style="width:52px"></label>
+        <button id="tlDlFeuille" class="btn" title="Chaque tuile centrée dans une cellule uniforme (taille commune + marge) + JSON">⬇ Feuille alignée + JSON</button>
+        <button id="tlDlTileset" class="btn" title="La grille de placement peinte, en PNG + JSON des placements">⬇ Tileset + JSON</button>
+        <button id="tlDlTuiles" class="btn" title="Un PNG par tuile (64 au plus)">⬇ Tuiles séparées</button>
+        <button id="tlSaveLib" class="btn primary" title="La feuille alignée rejoint la Library (tiles_feuille_)">💾 Save to Library</button>
+      </div>
+    </div>
+
     <div id="result" class="tl-result hidden">
       <div class="tl-scores">
         <span class="tl-chip">Raccord avant : <b id="scoreBefore">—</b></span>
@@ -101,6 +143,7 @@
 </main>
 
 <div id="toast" class="toast hidden"></div>
+<script type="module">import * as T from "./feuille_tuiles.js"; import * as X from "/vectorlab/js/mod-pixelart.js"; window.TLF = T; window.PXA = X; document.dispatchEvent(new Event("tlf-pret"));</script>
 <script type="module">import * as P from "/spritelab/palettes.js"; window.DZ_PALETTES = P; document.dispatchEvent(new Event("dz-palettes"));</script>
 <script src="tilelab.js"></script>
 </body>
