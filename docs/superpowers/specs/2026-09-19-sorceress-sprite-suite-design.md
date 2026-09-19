@@ -63,6 +63,20 @@ plus visible entre Spritelab, Tilelab et le persona Pixel.
 **D5 — Écartés** : génération IA de tuiles et de sprites rapides (crédits),
 matting neural, 3D → 2D (lourd, à rouvrir en lot dédié).
 
+## Répartition validée (19/09, utilisateur)
+
+| Surface | Rôle | Ce qu'elle reçoit de la Suite |
+|---|---|---|
+| **Game Assets → Spritelab** | production (image → Seedance → frames → planche) et **inspection** d'une planche existante | Analyzer : grille, sélection, Auto Align, sections, JSON (lot 1) ; Playground adapté (lot 4) |
+| **Game Assets → Tilelab** | tuile seamless et **feuille de tuiles** | Tile Studio : détection, grille de placement carrée / iso 2:1, seam check, exports (lot 3) |
+| **Vectorlab → persona Pixel** | **édition** : retouche des sprites et des tuiles, y compris **iso** (grille `mod-grille` iso du lot C, cadres = images du calque « cadres »), et **rastérisation d'une image générée** (poser l'image de la Library → `pixeliser` / `quantifier` → calque raster éditable, journal `.pix<k>.png`) | Sprite Editor : ligne de temps, secondaire au clic droit, Maj-ligne, Alt-pipette, pinceau carré, pixel-perfect, pelure double (lot 2) |
+| Library « Envoyer vers » | le pont entre les trois | conservé (28/08) |
+
+Le lot 2 devra donc contenir, en plus des gestes du Sprite Editor : un mode
+« tuile iso » du persona Pixel (cellule 2:1, symétrie sur la diagonale,
+raccord ×9 en diamant) et une commande « Rastériser cette image »
+(image générée → calque pixel à la taille cible, palette choisie).
+
 ## Lots proposés (ordre par valeur pour Rippled)
 
 1. **Spritelab « Feuille »** (D1) — inspection, sections, JSON.
