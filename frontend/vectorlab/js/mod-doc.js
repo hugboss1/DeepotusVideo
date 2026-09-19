@@ -1558,7 +1558,7 @@ export function op_image_rev(doc, id, rev) {
 
 /* ── lot E : doc.pixelart = {tuile {w,h} entiers ≥ 1, palette [hex],
    symetrie {h, v}} — les réglages du mode pixel-art, tous optionnels. */
-const _CLES_PIXELART = ["tuile", "palette", "symetrie"];
+const _CLES_PIXELART = ["tuile", "palette", "symetrie", "iso"];   // lot 2 : iso = tuile 2:1 en losange
 const _HEX = /^#[0-9A-Fa-f]{6}$/;
 function _validerPixelart(p) {
   if (!p || typeof p !== "object" || Array.isArray(p)) throw new Error("document: pixelart {tuile?, palette?, symetrie?}");
@@ -1577,6 +1577,7 @@ function _validerPixelart(p) {
   if (p.symetrie !== undefined && (!p.symetrie || typeof p.symetrie !== "object")) {
     throw new Error("pixelart.symetrie: {h, v}");
   }
+  if (p.iso !== undefined && typeof p.iso !== "boolean") throw new Error("pixelart.iso: booléen");
 }
 export function op_pixelart(doc, patch) {
   if (!patch || typeof patch !== "object") throw new Error("pixelart: patch requis");
@@ -1586,6 +1587,7 @@ export function op_pixelart(doc, patch) {
     if (v === null || v === undefined) { delete p[k]; continue; }
     if (k === "tuile") p.tuile = { w: v.w, h: v.h };
     else if (k === "palette") p.palette = Array.isArray(v) ? v.map((c) => String(c).toUpperCase()) : v;
+    else if (k === "iso") p.iso = v;
     else p.symetrie = { h: !!(v && v.h), v: !!(v && v.v) };
   }
   _validerPixelart(p);

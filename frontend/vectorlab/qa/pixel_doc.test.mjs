@@ -70,8 +70,19 @@ const base = () => ({
   })());
 }
 
+/* ── lot 2 : pixelart.iso ── */
+{
+  const d = base();
+  op_pixelart(d, { tuile: { w: 32, h: 16 }, iso: true });
+  ok("pixelart.iso accepté", d.pixelart.iso === true);
+  let refus = 0; try { op_pixelart(d, { iso: "oui" }); } catch { refus++; }
+  ok("iso non booléen refusé", refus === 1);
+  parserDoc(JSON.parse(JSON.stringify(d)));
+  op_pixelart(d, { iso: null });
+  ok("iso retiré par null", d.pixelart.iso === undefined);
+}
 if (echecs.length) {
   console.error("ECHECS pixel_doc :\n- " + echecs.join("\n- "));
   process.exit(1);
 }
-console.log("QA pixel_doc : PASS (17 controles)");
+console.log("QA pixel_doc : PASS (20 controles)");

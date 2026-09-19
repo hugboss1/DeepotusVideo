@@ -101,8 +101,28 @@ const hex = (r, g, b) => "#" + [r, g, b].map((v) => v.toString(16).padStart(2, "
   let refus = 0; try { rasteriser(im, { cible_w: 0 }); } catch { refus++; } try { rasteriser(im, { cible_w: 8, palette: pal, dither: "yoyo" }); } catch { refus++; }
   ok("largeur nulle ou tramage inconnu → refus", refus === 2);
 }
+/* ── lot 2 : pelure double, losange iso, pavage iso ── */
+{
+  const { pelure_double, masque_losange, pavage_iso } = await import("../js/mod-pixelart.js");
+  const cur = tampon(4, 1), prev = tampon(4, 1), next = tampon(4, 1);
+  const pose = (t, x, rgb) => { const k = x * 4; t.data[k] = rgb[0]; t.data[k + 1] = rgb[1]; t.data[k + 2] = rgb[2]; t.data[k + 3] = 255; };
+  pose(cur, 0, [0, 255, 0]); pose(prev, 0, [9, 9, 9]); pose(prev, 1, [9, 9, 9]); pose(next, 2, [9, 9, 9]); pose(next, 3, [9, 9, 9]); pose(prev, 3, [9, 9, 9]);
+  const d = pelure_double(cur, prev, next, 0.5);
+  ok("pelure double : le courant intact, le précédent ROUGE à demi-alpha, le suivant BLEU", d.data[1] === 255 && d.data[3] === 255 && d.data[4] === 255 && d.data[7] === 128 && d.data[10] === 255 && d.data[8] === 0 && d.data[11] === 128, Array.from(d.data).join(","));
+  ok("là où précédent ET suivant : mélange violet (rouge et bleu)", d.data[12] > 0 && d.data[14] > 0);
+  const m = masque_losange(8, 4);
+  ok("losange 8 × 4 : rangées de 4, 8, 8, 4 (coins dehors, rangées médianes pleines)", m[1 * 8 + 4] === 255 && m[0] === 0 && m[7] === 0 && m[3 * 8 + 0] === 0 && m[1 * 8 + 0] === 255 && m[2 * 8 + 7] === 255 && m[0 * 8 + 2] === 255 && m[0 * 8 + 1] === 0, Array.from(m).join(""));
+  const m32 = masque_losange(32, 16), rangee = (y) => { let n = 0; for (let x = 0; x < 32; x++) if (m32[y * 32 + x]) n++; return n; };
+  ok("losange 32 × 16 = le gabarit iso classique : rangées 4, 8, 12 … 32, 32 … 4 (288 pixels)", rangee(0) === 4 && rangee(1) === 8 && rangee(7) === 32 && rangee(8) === 32 && rangee(15) === 4 && Array.from(m32).filter(Boolean).length === 288, [rangee(0), rangee(1), rangee(7), rangee(15)].join());
+  const tuile = tampon(8, 4); for (let i = 0; i < 32; i++) if (m[i]) { tuile.data[i * 4] = 100; tuile.data[i * 4 + 1] = 200; tuile.data[i * 4 + 2] = 50; tuile.data[i * 4 + 3] = 255; }
+  const pv = pavage_iso(tuile);
+  ok("pavage iso : 3 × 3 tuiles → 24 × 12, score 1 pour une tuile unie", pv.img.w === 24 && pv.img.h === 12 && pv.score === 1, JSON.stringify([pv.img.w, pv.img.h, pv.score]));
+  ok("pavage iso : le centre est plein et une voisine décalée (w/2, h/2) aussi", pv.img.data[((6 * 24) + 12) * 4 + 3] === 255 && pv.img.data[((3 * 24) + 8) * 4 + 3] === 255);
+  const t2 = { w: 8, h: 4, data: new Uint8ClampedArray(tuile.data) }; for (let x = 0; x < 4; x++) for (let y = 0; y < 4; y++) if (m[y * 8 + x]) { t2.data[(y * 8 + x) * 4] = 250; }
+  ok("une tuile dont la moitié gauche diffère a un score < 1", pavage_iso(t2).score < 1);
+}
 if (echecs.length) {
   console.error("ECHECS pixelart :\n- " + echecs.join("\n- "));
   process.exit(1);
 }
-console.log("QA pixelart : PASS (33 controles)");
+console.log("QA pixelart : PASS (40 controles)");

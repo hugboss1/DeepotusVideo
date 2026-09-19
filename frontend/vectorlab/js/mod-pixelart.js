@@ -191,6 +191,56 @@ export function bande(imgs) {
   for (const im of imgs) { _copier(out, im, x, 0); x += im.w; }
   return out;
 }
+/* ── lot 2 : pelure double (Sprite Editor : rouge = précédent, bleu = suivant),
+   là où le courant est transparent ── */
+export function pelure_double(courant, precedent, suivant, alpha = 0.5) {
+  const out = { w: courant.w, h: courant.h, data: new Uint8ClampedArray(courant.data) };
+  const teinter = (src, rgbT) => {
+    if (!src) return;
+    for (let y = 0; y < Math.min(courant.h, src.h); y++) for (let x = 0; x < Math.min(courant.w, src.w); x++) {
+      const i = (y * courant.w + x) * 4, j = (y * src.w + x) * 4;
+      if (courant.data[i + 3] !== 0 || src.data[j + 3] === 0) continue;
+      const a = Math.round(src.data[j + 3] * alpha);
+      if (out.data[i + 3] === 0) { out.data[i] = rgbT[0]; out.data[i + 1] = rgbT[1]; out.data[i + 2] = rgbT[2]; out.data[i + 3] = a; }
+      else { out.data[i] = Math.max(out.data[i], rgbT[0]); out.data[i + 1] = Math.max(out.data[i + 1], rgbT[1]); out.data[i + 2] = Math.max(out.data[i + 2], rgbT[2]); out.data[i + 3] = Math.max(out.data[i + 3], a); }
+    }
+  };
+  teinter(precedent, [255, 0, 0]); teinter(suivant, [0, 0, 255]);
+  return out;
+}
+/* ── lot 2 : tuile iso 2:1 — le losange inscrit, le pavage aux décalages
+   (±w/2, ±h/2), le score de raccord = 1 − écart RGB moyen entre pixels
+   adjacents de la tuile centrale et de ses voisines ── */
+export function masque_losange(w, h) {
+  const m = new Uint8Array(w * h), cx = w / 2, cy = h / 2;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    // + 0,5 / cy : le gabarit iso classique (32 × 16 → rangées de 4, 8, … 32 pixels)
+    if (Math.abs((x + 0.5 - cx) / cx) + Math.abs((y + 0.5 - cy) / cy) <= 1 + 0.5 / cy) m[y * w + x] = 255;
+  }
+  return m;
+}
+export function pavage_iso(img) {
+  const { w, h } = img, m = masque_losange(w, h), W = w * 3, H = h * 3, out = _tampon(W, H), qui = new Int8Array(W * H).fill(-1);
+  const pos = [[w, h, 0], [w / 2, h / 2, 1], [3 * w / 2, h / 2, 2], [w / 2, 3 * h / 2, 3], [3 * w / 2, 3 * h / 2, 4], [0, h, 5], [2 * w, h, 6], [w, 0, 7], [w, 2 * h, 8]];
+  for (const [ox, oy, id] of pos) for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (!m[y * w + x]) continue;
+    const tx = Math.round(ox) + x, ty = Math.round(oy) + y;
+    if (tx < 0 || ty < 0 || tx >= W || ty >= H) continue;
+    const k = (ty * W + tx) * 4, j = (y * w + x) * 4;
+    out.data[k] = img.data[j]; out.data[k + 1] = img.data[j + 1]; out.data[k + 2] = img.data[j + 2]; out.data[k + 3] = img.data[j + 3];
+    qui[ty * W + tx] = id;
+  }
+  let s = 0, n = 0;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = y * W + x; if (qui[i] !== 0) continue;
+    for (const [dx, dy] of [[1, 0], [0, 1], [-1, 0], [0, -1]]) {
+      const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+      const j = ny * W + nx; if (qui[j] <= 0) continue;
+      for (let c = 0; c < 3; c++) s += Math.abs(out.data[i * 4 + c] - out.data[j * 4 + c]); n++;
+    }
+  }
+  return { img: out, score: n ? Math.round((1 - (s / n) / 255) * 1000) / 1000 : 1 };
+}
 export function pelure(courant, precedent, alpha = 0.5) {
   const out = { w: courant.w, h: courant.h, data: new Uint8ClampedArray(courant.data) };
   if (!precedent) return out;
