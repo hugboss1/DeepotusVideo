@@ -121,8 +121,16 @@ const hex = (r, g, b) => "#" + [r, g, b].map((v) => v.toString(16).padStart(2, "
   const t2 = { w: 8, h: 4, data: new Uint8ClampedArray(tuile.data) }; for (let x = 0; x < 4; x++) for (let y = 0; y < 4; y++) if (m[y * 8 + x]) { t2.data[(y * 8 + x) * 4] = 250; }
   ok("une tuile dont la moitié gauche diffère a un score < 1", pavage_iso(t2).score < 1);
 }
+{
+  const { masque_losanges, masque_losange } = await import("../js/mod-pixelart.js");
+  const m = masque_losanges(16, 8, 8, 4);        // quatre tuiles 8 × 4 pavées sur 16 × 8
+  const m1 = masque_losange(8, 4);
+  ok("losanges pavés : chaque tuile reprend le losange 8 × 4 (coin (8,0) dehors, centre de la 2e tuile dedans)", m[0 * 16 + 8] === 0 && m[1 * 16 + 12] === 255 && m[4 * 16 + 4] === 255 && m[7 * 16 + 15] === 0 && m[1 * 16 + 4] === m1[1 * 8 + 4], Array.from(m).join(""));
+  ok("losanges pavés : autant de pixels que 4 fois le losange unitaire", Array.from(m).filter(Boolean).length === 4 * Array.from(m1).filter(Boolean).length);
+  ok("sans tuile (0) → le losange de l'image entière", Array.from(masque_losanges(8, 4, 0, 0)).join("") === Array.from(m1).join(""));
+}
 if (echecs.length) {
   console.error("ECHECS pixelart :\n- " + echecs.join("\n- "));
   process.exit(1);
 }
-console.log("QA pixelart : PASS (40 controles)");
+console.log("QA pixelart : PASS (43 controles)");

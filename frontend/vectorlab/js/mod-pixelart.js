@@ -219,6 +219,14 @@ export function masque_losange(w, h) {
   }
   return m;
 }
+// le losange PAR TUILE, pavé sur toute l'image (la peinture iso est bornée
+// à la tuile sous le curseur) ; sans tuile → le losange de l'image entière
+export function masque_losanges(w, h, tw, th) {
+  if (!(tw >= 1) || !(th >= 1)) return masque_losange(w, h);
+  const u = masque_losange(tw, th), m = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) m[y * w + x] = u[(y % th) * tw + (x % tw)];
+  return m;
+}
 export function pavage_iso(img) {
   const { w, h } = img, m = masque_losange(w, h), W = w * 3, H = h * 3, out = _tampon(W, H), qui = new Int8Array(W * H).fill(-1);
   const pos = [[w, h, 0], [w / 2, h / 2, 1], [3 * w / 2, h / 2, 2], [w / 2, 3 * h / 2, 3], [3 * w / 2, 3 * h / 2, 4], [0, h, 5], [2 * w, h, 6], [w, 0, 7], [w, 2 * h, 8]];

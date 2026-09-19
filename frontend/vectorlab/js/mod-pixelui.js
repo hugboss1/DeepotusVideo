@@ -11,7 +11,7 @@ import { pinceau, gomme, seau, sel_rect, sel_lasso, sel_baguette, sel_couleur, s
          sel_inverser, sel_bbox, masque_calque, niveaux, courbes, hsl, noir_blanc, seuil, flou, cloner,
          extraire } from "./mod-pixel.js";
 import { ligne_pixel, rect_pixel, symetrie, palette_extraire, quantifier, pixeliser, raccord_3x3,
-         feuille_tuiles, bande, pelure, pelure_double, pixel_parfait, masque_losange, pavage_iso, rasteriser, DITHERS } from "./mod-pixelart.js";
+         feuille_tuiles, bande, pelure, pelure_double, pixel_parfait, masque_losange, masque_losanges, pavage_iso, rasteriser, DITHERS } from "./mod-pixelart.js";
 
 const SNS = "http://www.w3.org/2000/svg";
 export const OUTILS_PIXEL = [
@@ -191,7 +191,8 @@ export function initPixelUI(VL) {
   const masqueEffectif = () => {
     if (etat.px.masque) return etat.px.masque;
     const t = etat.px.tampon; if (!t || !(etat.doc.pixelart && etat.doc.pixelart.iso)) return undefined;
-    if (!losange || losange.w !== t.w || losange.h !== t.h) losange = { w: t.w, h: t.h, m: masque_losange(t.w, t.h) };
+    const tu = etat.doc.pixelart.tuile || { w: 0, h: 0 };
+    if (!losange || losange.w !== t.w || losange.h !== t.h || losange.tw !== tu.w || losange.th !== tu.h) losange = { w: t.w, h: t.h, tw: tu.w, th: tu.h, m: masque_losanges(t.w, t.h, tu.w, tu.h) };   // le losange de CHAQUE tuile
     return losange.m;
   };
   const opts = (g) => ({ rayon: etat.px.rayon, couleur: (g && g.couleur) || etat.px.couleur, durete: etat.px.durete, masque: masqueEffectif(), forme: etat.px.forme });
