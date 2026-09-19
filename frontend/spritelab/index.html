@@ -185,6 +185,7 @@
     <div id="outEmpty" class="empty-note tall">Le sheet généré et sa préviz animée s'affichent ici.</div>
 
     <div id="player" class="player hidden">
+      <div class="hint">WASD ou flèches déplacent le sprite dans la scène · Espace lecture / pause (Playground)</div>
       <div id="stage" class="stage bg-checker"><canvas id="cv" width="256" height="256"></canvas></div>
       <div class="pctrl">
         <button id="playBtn" class="btn" title="Lecture / pause">⏸</button>
@@ -192,8 +193,10 @@
         <select id="pzoom" title="Zoom">
           <option value="fit" selected>Ajusté</option><option value="1">1×</option><option value="2">2×</option><option value="4">4×</option>
         </select>
+        <button id="pflip" class="btn" title="Miroir gauche / droite (Invert L/R)">⇋</button>
+        <select id="pspeed" title="Vitesse de lecture"><option value="0.5">0,5×</option><option value="1" selected>1×</option><option value="2">2×</option></select>
         <select id="pbg" title="Fond de la préviz">
-          <option value="checker" selected>Damier</option><option value="#000000">Noir</option><option value="#ffffff">Blanc</option><option value="#00b140">Vert</option><option value="#ff00ff">Magenta</option>
+          <option value="checker" selected>Damier</option><option value="#000000">Noir</option><option value="#ffffff">Blanc</option><option value="#00b140">Vert</option><option value="sc-ciel">Ciel</option><option value="sc-exterieur">Extérieur</option><option value="sc-donjon">Donjon</option><option value="sc-cave">Cave</option><option value="#ff00ff">Magenta</option>
         </select>
       </div>
     </div>

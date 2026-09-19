@@ -353,7 +353,7 @@ async function generate() {
 }
 
 /* ───────── préviz + exports ───────── */
-const player = { imgs: [], n: 0, playing: true, raf: 0, last: 0, acc: 0, i: 0 };
+const player = { imgs: [], n: 0, playing: true, raf: 0, last: 0, acc: 0, i: 0, dx: 0, dy: 0, flip: false, speed: 1 };   // lot 5 : Playground
 
 function showResult(short, m) {
   sheet = { short, manifest: m };
@@ -395,7 +395,7 @@ function buildPlayer(short, m) {
     if (!player.last) player.last = t;
     if (player.playing) {
       player.acc += t - player.last;
-      const step = 1000 / fps;
+      const step = 1000 / (fps * (player.speed || 1));
       while (player.acc >= step) { player.acc -= step; player.i = (player.i + 1) % player.n; }
     }
     player.last = t;
@@ -420,8 +420,26 @@ function applyZoom() {
 }
 function applyBg() {
   const v = $("#pbg").value, stage = $("#stage");
-  stage.classList.toggle("bg-checker", v === "checker");
-  stage.style.background = v === "checker" ? "" : v;
+  stage.className = "stage" + (v === "checker" ? " bg-checker" : v.startsWith("sc-") ? " " + v : "");   // lot 5 : fonds de scène
+  stage.style.background = (v === "checker" || v.startsWith("sc-")) ? "" : v;
+}
+/* lot 5 : Playground — miroir, déplacement au clavier, vitesse */
+function applyPose() { const cv = $("#cv"); cv.style.transform = `translate(${player.dx}px, ${player.dy}px) scaleX(${player.flip ? -1 : 1})`; }
+function playgroundWire() {
+  $("#pflip").onclick = () => { player.flip = !player.flip; $("#pflip").classList.toggle("actif", player.flip); applyPose(); };
+  $("#pspeed").onchange = () => { player.speed = parseFloat($("#pspeed").value) || 1; };
+  document.addEventListener("keydown", (ev) => {
+    if (/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || "")) return;
+    if ($("#player").classList.contains("hidden")) return;
+    const k = ev.key.toLowerCase(), pas = 4, borne = 200;
+    if (k === "a" || k === "arrowleft") player.dx = Math.max(-borne, player.dx - pas);
+    else if (k === "d" || k === "arrowright") player.dx = Math.min(borne, player.dx + pas);
+    else if (k === "w" || k === "arrowup") player.dy = Math.max(-borne, player.dy - pas);
+    else if (k === "s" || k === "arrowdown") player.dy = Math.min(borne, player.dy + pas);
+    else if (k === " ") { player.playing = !player.playing; $("#playBtn").textContent = player.playing ? "⏸" : "▶"; }
+    else return;
+    ev.preventDefault(); applyPose();
+  });
 }
 
 async function saveToLibrary() {
@@ -600,6 +618,7 @@ function wire() {
   $("#pbg").onchange = () => { applyBg(); savePrefs(); };
   $("#saveLib").onclick = saveToLibrary;
   $("#toStudio").onclick = toStudio;
+  playgroundWire();   // lot 5
   // lot 1 : l'onglet Feuille se câble quand le module pur est chargé
   if (window.SLF) feuilleWire(); else document.addEventListener("slf-pret", feuilleWire, { once: true });
 }
@@ -670,7 +689,7 @@ function feuilleJoueur() {                      // le lecteur local : les cases 
   applyZoom(); applyBg();
   const ctx = cv.getContext("2d");
   const tick = (t) => { const fps = parseInt($("#pfps").value, 10) || 8; if (!player.last) player.last = t;
-    if (player.playing && player.n) { player.acc += t - player.last; const step = 1000 / fps; while (player.acc >= step) { player.acc -= step; player.i = (player.i + 1) % player.n; } }
+    if (player.playing && player.n) { player.acc += t - player.last; const step = 1000 / (fps * (player.speed || 1)); while (player.acc >= step) { player.acc -= step; player.i = (player.i + 1) % player.n; } }
     player.last = t;
     if (player.n) { const r = window.SLF.rect_case(F.g, idx[player.i]); ctx.clearRect(0, 0, cv.width, cv.height); ctx.imageSmoothingEnabled = false; ctx.drawImage(src, r.x, r.y, r.w, r.h, 0, 0, r.w, r.h); }
     player.raf = requestAnimationFrame(tick); };

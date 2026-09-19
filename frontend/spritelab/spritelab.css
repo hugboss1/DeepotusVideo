@@ -164,3 +164,9 @@ select option:disabled{color:var(--ink-muted)}
 .sections{display:flex;flex-direction:column;gap:4px}
 .section-row{display:flex;gap:8px;align-items:center;font-size:12.5px;border:1px solid var(--stroke);border-radius:8px;padding:4px 8px}
 .section-row .nom{flex:1;color:var(--ink-strong)}
+/* lot 5 : Playground — fonds de scène (dégradés, aucun fichier), miroir, déplacement */
+.stage.sc-ciel{background:linear-gradient(#7fc8ff,#e8f4ff)}
+.stage.sc-exterieur{background:linear-gradient(#8fd3ff 0 62%,#3f8f3a 62% 66%,#2e6b2a 66%)}
+.stage.sc-donjon{background:linear-gradient(#2a2a30,#17171b 60%,#3a3a44)}
+.stage.sc-cave{background:linear-gradient(#1d1410,#0b0806 70%,#2a1c14)}
+.stage canvas{transition:transform .05s linear}
