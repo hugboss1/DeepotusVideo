@@ -19,9 +19,9 @@ export const PALETTES = [
   { id: "sweetie16", nom: "Sweetie 16", backend: true, couleurs: _pal(["1A1C2C", "5D275D", "B13E53", "EF7D57", "FFCD75",
     "A7F070", "38B764", "257179", "29366F", "3B5DC9", "41A6F6", "73EFF7", "F4F4F4", "94B0C2", "566C86", "333C57"]) },
   { id: "onebit", nom: "1-bit", backend: true, couleurs: _pal(["000000", "FFFFFF"]) },
-  // locales (Sprite Editor de Sorceress : Grayscale 16, Handheld 4) — pas de pixelisation backend par nom
-  { id: "gray16", nom: "Grayscale 16", backend: false, couleurs: _pal(Array.from({ length: 16 }, (_, i) => Math.round(i * 255 / 15).toString(16).padStart(2, "0").repeat(3))) },
-  { id: "handheld4", nom: "Handheld 4", backend: false, couleurs: _pal(["2B2B26", "706B66", "A8A398", "E0DBCD"]) },
+  // Grayscale 16 et Handheld 4 (Sprite Editor de Sorceress) — backend depuis le lot 5 (pixel_ops.py les connaît)
+  { id: "gray16", nom: "Grayscale 16", backend: true, couleurs: _pal(Array.from({ length: 16 }, (_, i) => Math.round(i * 255 / 15).toString(16).padStart(2, "0").repeat(3))) },
+  { id: "handheld4", nom: "Handheld 4", backend: true, couleurs: _pal(["2B2B26", "706B66", "A8A398", "E0DBCD"]) },
 ];
 
 export function palette_de(id) {

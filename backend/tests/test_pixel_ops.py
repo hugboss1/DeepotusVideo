@@ -81,7 +81,10 @@ def test_normalize_rejects_out_of_range():
 
 
 def test_palettes_presets():
-    assert set(PALETTES) == {"pico8", "gameboy", "nes", "sweetie16", "onebit"}
+    # lot 5 (19/09/2026) : + Grayscale 16 et Handheld 4, les mêmes que frontend/spritelab/palettes.js
+    assert set(PALETTES) == {"pico8", "gameboy", "nes", "sweetie16", "onebit", "gray16", "handheld4"}
+    assert len(PALETTES["gray16"]) == 16 and PALETTES["gray16"][0] == (0, 0, 0) and PALETTES["gray16"][-1] == (255, 255, 255)
+    assert PALETTES["handheld4"][0] == (0x2B, 0x2B, 0x26) and len(PALETTES["handheld4"]) == 4
     assert len(PALETTES["pico8"]) == 16
     assert len(PALETTES["gameboy"]) == 4
     assert len(PALETTES["sweetie16"]) == 16
