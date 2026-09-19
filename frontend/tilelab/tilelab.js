@@ -224,7 +224,9 @@ function tlMode(m) {
 const tlTampon = (im) => { const c = document.createElement("canvas"); c.width = im.naturalWidth; c.height = im.naturalHeight; const x = c.getContext("2d"); x.drawImage(im, 0, 0); const d = x.getImageData(0, 0, c.width, c.height); return { w: c.width, h: c.height, data: d.data }; };
 const tlCanvasDe = (t) => { const c = document.createElement("canvas"); c.width = t.w; c.height = t.h; c.getContext("2d").putImageData(new ImageData(new Uint8ClampedArray(t.data), t.w, t.h), 0, 0); return c; };
 async function feuilleOuvrir(src, filename) {
-  const im = new Image(); im.crossOrigin = "anonymous"; im.src = src; await im.decode();
+  const im = new Image(); im.crossOrigin = "anonymous";
+  // onload plutôt que decode() : decode() reste SUSPENDU quand l'onglet est caché (mesuré au lot 5)
+  await new Promise((res, rej) => { im.onload = () => res(); im.onerror = () => rej(new Error("image illisible : " + String(src).slice(0, 60))); im.src = src; });
   F.img = im; F.tampon = tlTampon(im); F.filename = filename; F.placements = []; F.sel = -1;
   $("#srcChip").textContent = "Feuille : " + filename; $("#srcChip").classList.add("set");
   tlMode("feuille"); detecter();

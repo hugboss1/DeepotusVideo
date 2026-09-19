@@ -632,8 +632,9 @@ function wire() {
 const F = { img: null, tampon: null, filename: null, g: null, sel: [], occ: [], off: [], sections: [], dernier: null, peint: null, courant: 0 };
 const fTampon = () => { const c = document.createElement("canvas"); c.width = F.img.naturalWidth; c.height = F.img.naturalHeight; const x = c.getContext("2d"); x.drawImage(F.img, 0, 0); const d = x.getImageData(0, 0, c.width, c.height); return { w: c.width, h: c.height, data: d.data }; };
 async function feuilleOuvrir(src, filename) {
-  const im = new Image(); im.crossOrigin = "anonymous"; im.src = src;
-  await im.decode();
+  const im = new Image(); im.crossOrigin = "anonymous";
+  // onload plutôt que decode() : decode() reste SUSPENDU quand l'onglet est caché (mesuré au lot 5)
+  await new Promise((res, rej) => { im.onload = () => res(); im.onerror = () => rej(new Error("image illisible : " + String(src).slice(0, 60))); im.src = src; });
   F.img = im; F.filename = filename; F.tampon = fTampon(); F.off = []; F.sections = []; F.dernier = null; F.courant = 0;
   source = null;                                            // pas une source de génération : la chaîne Seedance reste à part
   const chip = $("#srcChip"); chip.textContent = "Feuille : " + filename; chip.classList.add("set");
