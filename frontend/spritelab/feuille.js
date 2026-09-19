@@ -77,7 +77,44 @@ export function aligner_frames(img, g, sel, mode = "deux") {
   }
   return out;
 }
+/* ── sections nommées (Start · Middle · End de l'Analyzer, en mieux nommé) :
+   sur les INDEX DE LA SÉLECTION, chevauchement permis, même nom = remplace ── */
 export const MODES_SECTION = ["boucle", "pingpong", "inverse"];
-export function section_definir() { throw new Error("section_definir : tâche 3"); }
-export function manifest_feuille() { throw new Error("manifest_feuille : tâche 3"); }
-export function feuille_recomposer() { throw new Error("feuille_recomposer : tâche 3"); }
+export function section_definir(sections, s, nFrames) {
+  const nom = String(s.nom || "").trim();
+  if (!nom) throw new Error("section : nom requis");
+  const debut = Math.floor(+s.debut), fin = Math.floor(+s.fin);
+  if (!(debut >= 0) || !(fin >= debut) || fin >= nFrames) throw new Error(`section : bornes 0 ≤ début ≤ fin < ${nFrames}`);
+  if (!MODES_SECTION.includes(s.mode)) throw new Error("section : mode boucle, pingpong ou inverse");
+  const out = (sections || []).filter((x) => x.nom !== nom);
+  out.push({ nom, debut, fin, mode: s.mode });
+  return out;
+}
+// manifest v2 : la forme de sprite_service (grid, frames{index, rect, offset},
+// fps) + sections + la case d'origine — un lecteur Unity / Godot existant le lit
+export function manifest_feuille({ img, g, sel, offsets, fps, sections, filename }) {
+  const frames = [];
+  for (let i = 0; i < g.cols * g.rows; i++) {
+    if (!sel[i]) continue;
+    const r = rect_case(g, i), o = (offsets && offsets[i]) || { dx: 0, dy: 0 };
+    frames.push({ index: frames.length, case: i, file: null, rect: { x: r.x, y: r.y, w: r.w, h: r.h }, offset: { dx: o.dx, dy: o.dy } });
+  }
+  return { version: 2, source: { kind: "feuille", filename: filename || null, w: img.w, h: img.h },
+           grid: { cols: g.cols, rows: g.rows, cell_w: g.cell_w, cell_h: g.cell_h },
+           frames, fps: +fps || 12, sections: (sections || []).map((s) => ({ ...s })) };
+}
+// la planche redessinée case par case avec ses décalages (bornés en amont) —
+// ce qui sort de sa cellule est perdu, jamais écrit chez la voisine
+export function feuille_recomposer(img, g, offsets) {
+  const out = { w: img.w, h: img.h, data: new Uint8ClampedArray(img.w * img.h * 4) };
+  for (let i = 0; i < g.cols * g.rows; i++) {
+    const r = rect_case(g, i), o = (offsets && offsets[i]) || { dx: 0, dy: 0 };
+    for (let y = 0; y < r.h; y++) for (let x = 0; x < r.w; x++) {
+      const sx = r.x + x, sy = r.y + y, tx = sx + o.dx, ty = sy + o.dy;
+      if (tx < r.x || ty < r.y || tx >= r.x + r.w || ty >= r.y + r.h || sx >= img.w || sy >= img.h) continue;
+      const ks = (sy * img.w + sx) * 4, kt = (ty * img.w + tx) * 4;
+      out.data[kt] = img.data[ks]; out.data[kt + 1] = img.data[ks + 1]; out.data[kt + 2] = img.data[ks + 2]; out.data[kt + 3] = img.data[ks + 3];
+    }
+  }
+  return out;
+}

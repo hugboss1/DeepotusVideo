@@ -56,5 +56,24 @@ const planche = () => { const im = tampon(60, 40); paver(im, 6, 6, 8, 8); paver(
   const o3 = aligner_frames(im3, { cols: 2, rows: 1, cell_w: 20, cell_h: 20 }, [true, true], "x");
   ok("borné : dx = 4 (le bord de la cellule), pas 10", o3[1].dx === 4 && o3[1].dy === 0, JSON.stringify(o3));
 }
+{
+  let S = section_definir([], { nom: "marche", debut: 0, fin: 3, mode: "boucle" }, 5);
+  ok("section posée", S.length === 1 && S[0].nom === "marche" && S[0].fin === 3);
+  S = section_definir(S, { nom: "saut", debut: 2, fin: 4, mode: "pingpong" }, 5);
+  ok("deux sections peuvent se chevaucher", S.length === 2);
+  S = section_definir(S, { nom: "marche", debut: 1, fin: 3, mode: "inverse" }, 5);
+  ok("même nom = remplace", S.length === 2 && S.find((s) => s.nom === "marche").debut === 1);
+  let refus = 0;
+  for (const mauvaise of [{ nom: "", debut: 0, fin: 1, mode: "boucle" }, { nom: "x", debut: 3, fin: 1, mode: "boucle" }, { nom: "x", debut: 0, fin: 9, mode: "boucle" }, { nom: "x", debut: 0, fin: 1, mode: "yoyo" }]) { try { section_definir(S, mauvaise, 5); } catch { refus++; } }
+  ok("nom vide, fin < début, hors bornes, mode inconnu → refusés", refus === 4);
+  const im = planche(), g = grille_detecter(im), sel = [true, true, true, false, true, false];
+  const off = aligner_frames(im, g, sel, "deux");
+  const m = manifest_feuille({ img: im, g, sel, offsets: off, fps: 12, sections: S, filename: "wizard.png" });
+  ok("manifest v2 : 4 frames dans l'ordre des cases, rect + offset, fps, sections, source feuille", m.version === 2 && m.frames.length === 4 && m.frames[3].index === 3 && m.frames[3].rect.x === 20 && m.frames[3].rect.y === 20 && m.frames[2].offset.dx === -2 && m.fps === 12 && m.sections.length === 2 && m.source.kind === "feuille" && m.source.filename === "wizard.png" && m.grid.cols === 3, JSON.stringify(m).slice(0, 200));
+  ok("frames[i].case = l'index de la case d'origine", m.frames[3].case === 4);
+  const out = feuille_recomposer(im, g, off);
+  ok("recomposée : même taille, la case 2 ramenée à (46, 6)", out.w === 60 && out.h === 40 && out.data[((6 * 60) + 46) * 4 + 3] === 255 && out.data[((13 * 60) + 53) * 4 + 3] === 255 && out.data[((15 * 60) + 55) * 4 + 3] === 0 && out.data[((8 * 60) + 48) * 4 + 3] === 255, "");
+  ok("recomposée sans décalage = identique", (() => { const z = feuille_recomposer(im, g, off.map(() => ({ dx: 0, dy: 0 }))); for (let k = 0; k < z.data.length; k++) if (z.data[k] !== im.data[k]) return false; return true; })());
+}
 if (echecs.length) { console.error("ECHECS feuille :\n- " + echecs.join("\n- ")); process.exit(1); }
-console.log("QA feuille : PASS (19 controles)");
+console.log("QA feuille : PASS (28 controles)");
