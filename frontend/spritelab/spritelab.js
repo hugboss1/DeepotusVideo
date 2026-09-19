@@ -110,7 +110,7 @@ function setSource(src) {
 async function loadImages() {
   try {
     libImages = (await api.get("/images")).images || [];
-    renderImgGrid();
+    renderImgGrid(); renderFeuilleGrid();
   } catch (e) {
     $("#imgGrid").innerHTML = `<div class="empty-note">Library indisponible : ${esc(e.message)}</div>`;
   }
@@ -483,6 +483,12 @@ function switchSrcTab(which) {
   $("#srcImage").classList.toggle("hidden", which !== "image");
   $("#srcRender").classList.toggle("hidden", which !== "render");
   $("#srcUpload").classList.toggle("hidden", which !== "upload");
+  $("#srcFeuille").classList.toggle("hidden", which !== "feuille");
+  // lot 1 : en mode Feuille la colonne du milieu montre la planche, pas le filmstrip
+  const feuille = which === "feuille" && !!F.tampon;
+  $("#feuillePane").classList.toggle("hidden", !feuille);
+  $("#strip").classList.toggle("hidden", feuille);
+  $("#feuilleOut").classList.toggle("hidden", !feuille);
   if (which === "starter") loadStarter();
 }
 
@@ -594,7 +600,113 @@ function wire() {
   $("#pbg").onchange = () => { applyBg(); savePrefs(); };
   $("#saveLib").onclick = saveToLibrary;
   $("#toStudio").onclick = toStudio;
+  // lot 1 : l'onglet Feuille se câble quand le module pur est chargé
+  if (window.SLF) feuilleWire(); else document.addEventListener("slf-pret", feuilleWire, { once: true });
 }
+
+
+/* ───────── lot 1 : Feuille existante (19/09) — tout en local, module pur feuille.js ─────────
+   La planche est un tampon {w, h, data} lu une fois ; la grille, la sélection,
+   les décalages et les sections vivent dans F ; le canvas de la colonne du
+   milieu redessine la planche RECOMPOSÉE (décalages appliqués) avec la grille
+   et la sélection ; le lecteur de droite lit les cases sélectionnées. */
+const F = { img: null, tampon: null, filename: null, g: null, sel: [], occ: [], off: [], sections: [], dernier: null, peint: null, courant: 0 };
+const fTampon = () => { const c = document.createElement("canvas"); c.width = F.img.naturalWidth; c.height = F.img.naturalHeight; const x = c.getContext("2d"); x.drawImage(F.img, 0, 0); const d = x.getImageData(0, 0, c.width, c.height); return { w: c.width, h: c.height, data: d.data }; };
+async function feuilleOuvrir(src, filename) {
+  const im = new Image(); im.crossOrigin = "anonymous"; im.src = src;
+  await im.decode();
+  F.img = im; F.filename = filename; F.tampon = fTampon(); F.off = []; F.sections = []; F.dernier = null; F.courant = 0;
+  source = null;                                            // pas une source de génération : la chaîne Seedance reste à part
+  const chip = $("#srcChip"); chip.textContent = "Feuille : " + filename; chip.classList.add("set");
+  switchSrcTab("feuille");
+  feuilleDetect();
+}
+function feuilleDetect() {
+  const g = window.SLF.grille_detecter(F.tampon);
+  $("#fCols").value = g.cols; $("#fRows").value = g.rows;
+  feuilleGrille();
+}
+function feuilleGrille() {
+  const cols = Math.max(1, parseInt($("#fCols").value, 10) || 1), rows = Math.max(1, parseInt($("#fRows").value, 10) || 1);
+  F.g = { cols, rows, cell_w: Math.floor(F.tampon.w / cols), cell_h: Math.floor(F.tampon.h / rows) };
+  F.occ = window.SLF.cases_occupees(F.tampon, F.g);
+  F.sel = F.occ.slice(); F.off = F.occ.map(() => ({ dx: 0, dy: 0 })); F.sections = []; F.dernier = null; F.courant = 0;
+  $("#fDims").textContent = `${F.tampon.w}×${F.tampon.h} · cases ${F.g.cell_w}×${F.g.cell_h}`;
+  feuilleDessiner(); feuilleJoueur();
+}
+function feuilleDessiner() {
+  const cv = $("#fCanvas"), g = F.g; cv.width = F.tampon.w; cv.height = F.tampon.h;
+  const x = cv.getContext("2d"); x.imageSmoothingEnabled = false;
+  const rec = window.SLF.feuille_recomposer(F.tampon, g, F.off);
+  x.putImageData(new ImageData(rec.data, rec.w, rec.h), 0, 0);
+  for (let i = 0; i < g.cols * g.rows; i++) {
+    const r = window.SLF.rect_case(g, i);
+    if (F.sel[i]) { x.fillStyle = "rgba(58,166,107,.22)"; x.fillRect(r.x, r.y, r.w, r.h); }
+    x.strokeStyle = i === F.courant ? "#39b3d0" : (F.sel[i] ? "#3aa66b" : (F.occ[i] ? "#3a3a3a" : "#222")); x.lineWidth = 1; x.strokeRect(r.x + .5, r.y + .5, r.w - 1, r.h - 1);
+    x.fillStyle = "#9a9a9a"; x.font = "9px system-ui"; x.fillText(String(i), r.x + 2, r.y + 9);
+  }
+  const n = F.sel.filter(Boolean).length; $("#fCount").textContent = `${n}/${F.occ.filter(Boolean).length}`;
+  $("#fSections").innerHTML = F.sections.map((s) => `<div class="section-row"><span class="nom">${esc(s.nom)}</span><span>${s.debut}–${s.fin}</span><span>${esc(s.mode)}</span><button class="btn ghost fSecDel" data-nom="${esc(s.nom)}" title="Retirer">✕</button></div>`).join("") || `<div class="hint">aucune section — sélectionne des cases puis « + depuis la sélection »</div>`;
+  $$(".fSecDel").forEach((b) => b.onclick = () => { F.sections = F.sections.filter((s) => s.nom !== b.dataset.nom); feuilleDessiner(); });
+}
+const fCaseDe = (ev) => { const cv = $("#fCanvas"), r = cv.getBoundingClientRect(); if (!r.width) return -1; const x = (ev.clientX - r.left) * cv.width / r.width, y = (ev.clientY - r.top) * cv.height / r.height; const c = Math.floor(x / F.g.cell_w), l = Math.floor(y / F.g.cell_h); return (c < 0 || l < 0 || c >= F.g.cols || l >= F.g.rows) ? -1 : l * F.g.cols + c; };
+function feuilleGestes() {
+  const cv = $("#fCanvas");
+  cv.onpointerdown = (ev) => { if (!F.g) return; const i = fCaseDe(ev); if (i < 0) return; ev.preventDefault(); try { cv.setPointerCapture(ev.pointerId); } catch (e) { /* synthétique */ }
+    F.sel = window.SLF.selection_clic(F.sel, i, { ctrl: ev.ctrlKey || ev.metaKey, shift: ev.shiftKey, dernier: F.dernier });
+    F.peint = F.sel[i]; F.dernier = i; F.courant = i; feuilleDessiner(); };
+  cv.onpointermove = (ev) => { if (F.peint === null || !(ev.buttons & 1)) return; const i = fCaseDe(ev); if (i < 0 || F.sel[i] === F.peint) return; F.sel = F.sel.slice(); F.sel[i] = F.peint; F.dernier = i; F.courant = i; feuilleDessiner(); };
+  cv.onpointerup = () => { if (F.peint === null) return; F.peint = null; feuilleJoueur(); };
+}
+function feuilleJoueur() {                      // le lecteur local : les cases sélectionnées, avec leurs décalages
+  cancelAnimationFrame(player.raf);
+  const rec = window.SLF.feuille_recomposer(F.tampon, F.g, F.off);
+  const src = document.createElement("canvas"); src.width = rec.w; src.height = rec.h; src.getContext("2d").putImageData(new ImageData(rec.data, rec.w, rec.h), 0, 0);
+  const idx = F.sel.map((v, i) => v ? i : -1).filter((i) => i >= 0);
+  const cv = $("#cv"); cv.width = F.g.cell_w; cv.height = F.g.cell_h;
+  $("#outEmpty").classList.add("hidden"); $("#player").classList.remove("hidden"); $("#exports").classList.add("hidden"); $("#sheetWrap").classList.add("hidden"); $("#feuilleOut").classList.remove("hidden");
+  $("#outInfo").textContent = `${F.g.cols}×${F.g.rows} · ${F.g.cell_w}px · ${idx.length} frames · ${F.filename || ""}`;
+  player.imgs = []; player.n = idx.length; player.i = 0; player.acc = 0; player.last = 0; player.playing = true; $("#playBtn").textContent = "⏸";
+  applyZoom(); applyBg();
+  const ctx = cv.getContext("2d");
+  const tick = (t) => { const fps = parseInt($("#pfps").value, 10) || 8; if (!player.last) player.last = t;
+    if (player.playing && player.n) { player.acc += t - player.last; const step = 1000 / fps; while (player.acc >= step) { player.acc -= step; player.i = (player.i + 1) % player.n; } }
+    player.last = t;
+    if (player.n) { const r = window.SLF.rect_case(F.g, idx[player.i]); ctx.clearRect(0, 0, cv.width, cv.height); ctx.imageSmoothingEnabled = false; ctx.drawImage(src, r.x, r.y, r.w, r.h, 0, 0, r.w, r.h); }
+    player.raf = requestAnimationFrame(tick); };
+  player.raf = requestAnimationFrame(tick);
+}
+function feuilleAligner(mode) { try { F.off = mode ? window.SLF.aligner_frames(F.tampon, F.g, F.sel, mode) : F.occ.map(() => ({ dx: 0, dy: 0 })); feuilleDessiner(); feuilleJoueur(); } catch (e) { toast(e.message, true); } }
+function feuilleManifest() { return window.SLF.manifest_feuille({ img: F.tampon, g: F.g, sel: F.sel, offsets: F.off, fps: parseInt($("#pfps").value, 10) || 12, sections: F.sections, filename: F.filename }); }
+function feuillePngBlob() { const rec = window.SLF.feuille_recomposer(F.tampon, F.g, F.off); const c = document.createElement("canvas"); c.width = rec.w; c.height = rec.h; c.getContext("2d").putImageData(new ImageData(rec.data, rec.w, rec.h), 0, 0); return new Promise((r) => c.toBlob(r, "image/png")); }
+const fTelecharger = (blob, nom) => { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nom; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
+const fBase = () => (F.filename || "feuille").replace(/\.\w+$/, "");
+function feuilleWire() {
+  $("#feuilleFile").onchange = (e) => { const f = e.target.files[0]; if (f) feuilleOuvrir(URL.createObjectURL(f), f.name).catch((err) => toast(err.message, true)); };
+  $("#feuilleSearch").oninput = renderFeuilleGrid;
+  $("#fDetect").onclick = feuilleDetect; $("#fOk").onclick = feuilleGrille;
+  $("#fAll").onclick = () => { F.sel = F.occ.slice(); feuilleDessiner(); feuilleJoueur(); };
+  $("#fNone").onclick = () => { F.sel = F.occ.map(() => false); feuilleDessiner(); feuilleJoueur(); };
+  $$(".fEvery").forEach((b) => b.onclick = () => { F.sel = window.SLF.selection_une_sur(F.occ, +b.dataset.n); feuilleDessiner(); feuilleJoueur(); });
+  $("#fAlDeux").onclick = () => feuilleAligner("deux"); $("#fAlX").onclick = () => feuilleAligner("x"); $("#fAlPieds").onclick = () => feuilleAligner("pieds"); $("#fAlZero").onclick = () => feuilleAligner(null);
+  $$(".fNudge").forEach((b) => b.onclick = () => { const o = F.off[F.courant]; if (!o) return; F.off = F.off.slice(); F.off[F.courant] = { dx: o.dx + +b.dataset.dx, dy: o.dy + +b.dataset.dy }; feuilleDessiner(); feuilleJoueur(); });
+  $("#fSecAdd").onclick = () => { const idx = F.sel.map((v, i) => v ? i : -1).filter((i) => i >= 0); if (!idx.length) return toast("sélectionne des cases d'abord", true);
+    try { F.sections = window.SLF.section_definir(F.sections, { nom: $("#fSecNom").value, debut: 0, fin: idx.length - 1, mode: $("#fSecMode").value }, idx.length); $("#fSecNom").value = ""; feuilleDessiner(); } catch (e) { toast(e.message, true); } };
+  $("#fCopyJson").onclick = async () => { try { await navigator.clipboard.writeText(JSON.stringify(feuilleManifest(), null, 2)); toast("manifest copié"); } catch (e) { toast("presse-papiers refusé : " + e.message, true); } };
+  $("#fDlJson").onclick = () => fTelecharger(new Blob([JSON.stringify(feuilleManifest(), null, 2)], { type: "application/json" }), fBase() + ".json");
+  $("#fDlPng").onclick = async () => fTelecharger(await feuillePngBlob(), fBase() + "_alignee.png");
+  $("#fSaveLib").onclick = async () => { try { const fd = new FormData(); fd.append("file", await feuillePngBlob(), `sprites_feuille_${Date.now()}.png`); const r = await fetch("/api/images/upload", { method: "POST", body: fd }); const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.detail || r.statusText); toast(`sauvé en Library : ${d.filename} — « Envoyer vers » le Vectorlab depuis la Library`); loadImages(); } catch (e) { toast(e.message, true); } };
+  feuilleGestes();
+}
+function renderFeuilleGrid() {
+  const q = ($("#feuilleSearch").value || "").toLowerCase();
+  const list = libImages.filter((im) => !q || im.filename.toLowerCase().includes(q));
+  const g = $("#feuilleGrid");
+  g.innerHTML = list.slice(0, 120).map((im) => `<img loading="lazy" data-fn="${esc(im.filename)}" title="${esc(im.filename)}" src="/api/images/${encodeURIComponent(im.filename)}">`).join("")
+    || `<div class="empty-note">Aucune image${q ? " pour « " + esc(q) + " »" : " dans la Library"}.</div>`;
+  g.querySelectorAll("img").forEach((el) => el.onclick = () => feuilleOuvrir(`/api/images/${encodeURIComponent(el.dataset.fn)}`, el.dataset.fn).catch((err) => toast(err.message, true)));
+}
+window.SL = Object.assign(window.SL || {}, { feuille: { ouvrir: feuilleOuvrir, etat: () => F, manifest: feuilleManifest, aligner: feuilleAligner } });   // la preuve
 
 /* ───────── restauration après remontage (fix préviz 20/07) ─────────
    L'iframe du hub est remontée à chaque navigation : sans ceci, un sheet
