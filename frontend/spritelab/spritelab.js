@@ -708,6 +708,16 @@ function renderFeuilleGrid() {
 }
 window.SL = Object.assign(window.SL || {}, { feuille: { ouvrir: feuilleOuvrir, etat: () => F, manifest: feuilleManifest, aligner: feuilleAligner } });   // la preuve
 
+
+/* ───────── lot 4 : palettes unifiées — le select se remplit depuis palettes.js ─────────
+   (les cinq palettes « backend » = pixel_ops.py, envoyées par nom) */
+function remplirPalettes() {
+  const sel = $("#pixPalette"); if (!sel || !window.DZ_PALETTES) return;
+  const courante = sel.value || "sweetie16";
+  sel.innerHTML = DZ_PALETTES.options_palettes({ backendSeulement: true, courante });
+}
+if (window.DZ_PALETTES) remplirPalettes(); else document.addEventListener("dz-palettes", remplirPalettes, { once: true });
+
 /* ───────── restauration après remontage (fix préviz 20/07) ─────────
    L'iframe du hub est remontée à chaque navigation : sans ceci, un sheet
    généré pendant qu'on a le dos tourné n'est JAMAIS montré (« préviz

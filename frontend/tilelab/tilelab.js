@@ -200,6 +200,16 @@ function wire() {
   document.querySelector(".pixelset").classList.add("off");
 }
 
+
+/* ───────── lot 4 : palettes unifiées — le select se remplit depuis palettes.js ─────────
+   (les cinq palettes « backend » = pixel_ops.py, envoyées par nom) */
+function remplirPalettes() {
+  const sel = $("#pixPalette"); if (!sel || !window.DZ_PALETTES) return;
+  const courante = sel.value || "sweetie16";
+  sel.innerHTML = DZ_PALETTES.options_palettes({ backendSeulement: true, courante });
+}
+if (window.DZ_PALETTES) remplirPalettes(); else document.addEventListener("dz-palettes", remplirPalettes, { once: true });
+
 /* poignée QA (harnais Puppeteer de la recette) */
 window.__tl = {
   get state() {

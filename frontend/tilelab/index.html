@@ -62,14 +62,7 @@
             <input id="pixTarget" type="number" min="8" max="512" value="64">
           </label>
           <label class="fld">Palette
-            <select id="pixPalette">
-              <option value="">Adaptative (N couleurs)</option>
-              <option value="pico8">PICO-8 (16)</option>
-              <option value="gameboy">Game Boy (4)</option>
-              <option value="nes">NES (14)</option>
-              <option value="sweetie16" selected>Sweetie 16</option>
-              <option value="onebit">1-bit (2)</option>
-            </select>
+            <select id="pixPalette" title="Palettes nommées partagées (spritelab/palettes.js = pixel_ops.py)"></select>
           </label>
           <label class="fld">Couleurs <span class="unit">si adaptative</span>
             <input id="pixColors" type="number" min="2" max="256" value="16">
@@ -108,6 +101,7 @@
 </main>
 
 <div id="toast" class="toast hidden"></div>
+<script type="module">import * as P from "/spritelab/palettes.js"; window.DZ_PALETTES = P; document.dispatchEvent(new Event("dz-palettes"));</script>
 <script src="tilelab.js"></script>
 </body>
 </html>

@@ -13,6 +13,7 @@ import { pinceau, gomme, seau, sel_rect, sel_lasso, sel_baguette, sel_couleur, s
 import { ligne_pixel, rect_pixel, symetrie, palette_extraire, quantifier, pixeliser, raccord_3x3,
          feuille_tuiles, bande, pelure, pelure_double, pixel_parfait, masque_losange, masque_losanges, pavage_iso, rasteriser, DITHERS,
          cellule_et_cible, echantillon_cellule, remplir_depuis_modele, couleurs_utilisees } from "./mod-pixelart.js";
+import { PALETTES } from "../../spritelab/palettes.js";   // lot 4 : les palettes nommées partagées avec Spritelab / Tilelab
 
 const SNS = "http://www.w3.org/2000/svg";
 export const OUTILS_PIXEL = [
@@ -529,6 +530,7 @@ export function initPixelUI(VL) {
         <div class="ap-ligne"><span>Palette</span>${num("pxPalN", (pa.palette || []).length || 8, 'min="2" max="64" title="Nombre de couleurs à extraire"')}
           <button id="pxPalExtraire" ${t ? "" : "disabled"} title="Palette indexée par median cut, sauvée avec le document">Extraire</button>
           <button id="pxQuantifier" ${t && pa.palette ? "" : "disabled"} title="Ramène chaque pixel à la couleur de palette la plus proche">Quantifier</button></div>
+        <div class="ap-ligne"><span>Préréglage</span><select id="pxPreset" title="Palettes nommées partagées avec le Spritelab et le Tilelab — remplace les swatches"><option value="">choisir…</option>${PALETTES.map((q) => `<option value="${q.id}">${q.nom} (${q.couleurs.length})</option>`).join("")}</select></div>
         <div class="ap-ligne"><span>Swatches</span><button id="pxSwatchPlus" title="Ajoute la couleur courante aux swatches">+ courante</button><button id="pxPalModele" ${modeleObjet() ? "" : "disabled"} title="Extrait N couleurs DU MODÈLE (median cut)">Palette depuis le modèle</button></div>
         <div class="px-palette" id="pxPalette" title="clic = courante · clic droit = secondaire · Alt+clic = retirer">${paletteHTML(pa.palette || [], p.couleur)}</div>
         ${t ? `<div class="ap-ligne"><span>Utilisées</span><button id="pxUtiliseesVers" title="Toutes les couleurs utilisées vont dans les swatches">→ swatches</button></div>
@@ -595,6 +597,7 @@ export function initPixelUI(VL) {
       b.addEventListener("contextmenu", (ev) => { ev.preventDefault(); etat.px.secondaire = b.dataset.couleur; rendrePanneau(); });
     });
     on("pxSwatchPlus", "click", () => ajouterSwatch(etat.px.couleur));
+    on("pxPreset", "change", (ev) => { const q = PALETTES.find((x) => x.id === ev.target.value); if (q) VL.executer(op_pixelart, { palette: q.couleurs.slice() }); });
     on("pxPalModele", "click", garde(paletteDepuisModele));
     on("pxUtiliseesVers", "click", () => { const pal = new Set((etat.doc.pixelart || {}).palette || []); for (const c of couleurs_utilisees(t, 64)) pal.add(c); VL.executer(op_pixelart, { palette: [...pal] }); });
     on("pxDesigner", "click", () => { try { designerModele(etat.selection[0]); } catch (e) { VL.toast(e.message, true); } });
