@@ -13,6 +13,22 @@ function _rgb(hex) {
   return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
 }
 
+// lot 2 : pixel-parfait (Aseprite) — dans un coin en L (a, b, c) où a et c
+// sont diagonaux, b est de trop ; un seul passage, l'entrée n'est pas mutée
+export function pixel_parfait(points) {
+  const out = [];
+  for (const p of points || []) {
+    const n = out.length;
+    if (n >= 2) {
+      const a = out[n - 2], b = out[n - 1];
+      const orthoAB = (a[0] === b[0]) !== (a[1] === b[1]), orthoBP = (b[0] === p[0]) !== (b[1] === p[1]);
+      const diagAP = Math.abs(a[0] - p[0]) === 1 && Math.abs(a[1] - p[1]) === 1;
+      if (orthoAB && orthoBP && diagAP) { out[n - 1] = p; continue; }
+    }
+    out.push(p);
+  }
+  return out;
+}
 export function ligne_pixel(x0, y0, x1, y1) {
   x0 |= 0; y0 |= 0; x1 |= 0; y1 |= 0;
   const pts = [], dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;

@@ -2,7 +2,7 @@
 // rectangle pixel-parfaits (Bresenham), symétrie, palette indexée (median
 // cut), quantification, pixelisation au plus proche voisin, score de raccord
 // 3×3, feuille de tuiles + index, bande, pelure d'oignon. Module feuille.
-import { ligne_pixel, rect_pixel, symetrie, palette_extraire, quantifier, pixeliser, raccord_3x3,
+import { pixel_parfait, ligne_pixel, rect_pixel, symetrie, palette_extraire, quantifier, pixeliser, raccord_3x3,
          feuille_tuiles, bande, pelure } from "../js/mod-pixelart.js";
 import { tampon, pinceau } from "../js/mod-pixel.js";
 
@@ -71,8 +71,18 @@ const hex = (r, g, b) => "#" + [r, g, b].map((v) => v.toString(16).padStart(2, "
   ok("feuille vide ou tailles différentes refusées", refus === 2);
 }
 
+/* ── lot 2 : le crayon pixel-parfait (Aseprite) ── */
+{
+  const l = ligne_pixel(0, 0, 3, 2);
+  const p = pixel_parfait([[0, 0], [1, 0], [1, 1], [2, 1], [2, 2]]);
+  ok("pixel-parfait : les coins en L perdent leur pixel médian → (0,0) (1,1) (2,2)", JSON.stringify(p) === "[[0,0],[1,1],[2,2]]", JSON.stringify(p));
+  ok("un tracé déjà diagonal ou droit ne change pas", JSON.stringify(pixel_parfait([[0, 0], [1, 0], [2, 0]])) === "[[0,0],[1,0],[2,0]]" && pixel_parfait([[0, 0], [1, 1]]).length === 2);
+  ok("moins de trois points : inchangé", pixel_parfait([[3, 3]]).length === 1 && pixel_parfait([]).length === 0);
+  ok("l'entrée n'est pas mutée", (() => { const a = [[0, 0], [1, 0], [1, 1]]; pixel_parfait(a); return a.length === 3; })());
+  ok("ligne_pixel reste brute (le filtre est à part)", l.length >= 4);
+}
 if (echecs.length) {
   console.error("ECHECS pixelart :\n- " + echecs.join("\n- "));
   process.exit(1);
 }
-console.log("QA pixelart : PASS (19 controles)");
+console.log("QA pixelart : PASS (24 controles)");

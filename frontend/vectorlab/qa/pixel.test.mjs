@@ -118,8 +118,19 @@ const compte = (m) => m.reduce((s, v) => s + (v ? 1 : 0), 0);
   ok("extraire sans sélection refusé", refus === 1);
 }
 
+/* ── lot 2 : le pinceau CARRÉ (Sprite Editor : ROUND / SQUARE) ── */
+{
+  const t = tampon(9, 9);
+  pinceau(t, [[4, 4]], { rayon: 2, couleur: "#FF0000", durete: 1, forme: "carre" });
+  const opaque = (x, y) => t.data[(y * 9 + x) * 4 + 3] === 255;
+  ok("pinceau carré rayon 2 : le coin (2,2) est peint (Tchebychev), pas (1,4)", opaque(2, 2) && opaque(6, 6) && !opaque(1, 4) && !opaque(4, 1));
+  const r = tampon(9, 9); pinceau(r, [[4, 4]], { rayon: 2, couleur: "#FF0000", durete: 1 });
+  ok("pinceau rond rayon 2 : le coin (2,2) n'est PAS peint", r.data[(2 * 9 + 2) * 4 + 3] === 0 && r.data[(4 * 9 + 2) * 4 + 3] === 255);
+  const g = tampon(5, 5); pinceau(g, [[2, 2]], { rayon: 2, couleur: "#00FF00", forme: "carre" }); gomme(g, [[2, 2]], { rayon: 1, forme: "carre" });
+  ok("gomme carrée rayon 1 : le centre et (1,1) vidés, (0,0) reste", g.data[(2 * 5 + 2) * 4 + 3] === 0 && g.data[(1 * 5 + 1) * 4 + 3] === 0 && g.data[0 + 3] === 255);
+}
 if (echecs.length) {
   console.error("ECHECS pixel :\n- " + echecs.join("\n- "));
   process.exit(1);
 }
-console.log("QA pixel : PASS (34 controles)");
+console.log("QA pixel : PASS (37 controles)");

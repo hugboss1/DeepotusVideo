@@ -48,19 +48,34 @@ function _disque(img, cx, cy, rayon, durete, masque, fn) {
     }
   }
 }
-export function pinceau(img, points, { rayon = 1, couleur = "#000000", durete = 1, masque } = {}) {
+// lot 2 : l'estampe CARRÉE (Sprite Editor : ROUND / SQUARE) — distance de
+// Tchebychev, même dureté
+function _carre(img, cx, cy, rayon, durete, masque, fn) {
+  const r = Math.max(0.5, +rayon || 1), d0 = r * Math.min(1, Math.max(0, durete));
+  for (let y = Math.max(0, Math.floor(cy - r)); y <= Math.min(img.h - 1, Math.ceil(cy + r)); y++) {
+    for (let x = Math.max(0, Math.floor(cx - r)); x <= Math.min(img.w - 1, Math.ceil(cx + r)); x++) {
+      const d = Math.max(Math.abs(x - cx), Math.abs(y - cy));
+      if (d > r) continue;
+      let a = d <= d0 ? 1 : (r > d0 ? 1 - (d - d0) / (r - d0) : 1);
+      a *= _m(masque, y * img.w + x);
+      if (a > 0) fn(y * img.w + x, a);
+    }
+  }
+}
+const _estampe = (forme) => (forme === "carre" ? _carre : _disque);
+export function pinceau(img, points, { rayon = 1, couleur = "#000000", durete = 1, masque, forme = "rond" } = {}) {
   const rgb = rgb_de(couleur);
   const vus = new Map();                      // un pixel n'est posé qu'à son alpha MAX du trait
   for (const [x, y] of _estampes(points, rayon)) {
-    _disque(img, x, y, rayon, durete, masque, (i, a) => { if (!vus.has(i) || vus.get(i) < a) vus.set(i, a); });
+    _estampe(forme)(img, x, y, rayon, durete, masque, (i, a) => { if (!vus.has(i) || vus.get(i) < a) vus.set(i, a); });
   }
   for (const [i, a] of vus) _poser(img, i, rgb, a);
   return img;
 }
-export function gomme(img, points, { rayon = 1, durete = 1, masque } = {}) {
+export function gomme(img, points, { rayon = 1, durete = 1, masque, forme = "rond" } = {}) {
   const vus = new Map();
   for (const [x, y] of _estampes(points, rayon)) {
-    _disque(img, x, y, rayon, durete, masque, (i, a) => { if (!vus.has(i) || vus.get(i) < a) vus.set(i, a); });
+    _estampe(forme)(img, x, y, rayon, durete, masque, (i, a) => { if (!vus.has(i) || vus.get(i) < a) vus.set(i, a); });
   }
   for (const [i, a] of vus) img.data[i * 4 + 3] = Math.round(img.data[i * 4 + 3] * (1 - a));
   return img;
