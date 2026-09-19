@@ -12,7 +12,8 @@ import { pinceau, gomme, seau, sel_rect, sel_lasso, sel_baguette, sel_couleur, s
          extraire } from "./mod-pixel.js";
 import { ligne_pixel, rect_pixel, symetrie, palette_extraire, quantifier, pixeliser, raccord_3x3,
          feuille_tuiles, bande, pelure, pelure_double, pixel_parfait, masque_losange, masque_losanges, pavage_iso, rasteriser, DITHERS,
-         cellule_et_cible, echantillon_cellule, remplir_depuis_modele, couleurs_utilisees } from "./mod-pixelart.js";
+         cellule_et_cible, echantillon_cellule, remplir_depuis_modele, couleurs_utilisees,
+         contour_sombre, accentuer, agrandir } from "./mod-pixelart.js";
 import { PALETTES } from "../../spritelab/palettes.js";   // lot 4 : les palettes nommées partagées avec Spritelab / Tilelab
 
 const SNS = "http://www.w3.org/2000/svg";
@@ -504,7 +505,8 @@ export function initPixelUI(VL) {
         </details>`; })()}
       <div class="ap-ligne"><span>Image</span>${o ? `<i class="img-src" id="pxNom" title="${o.href}">${o.href} · ${t.w}×${t.h}${o.rev ? ` · rév. ${o.rev}` : ""}</i>`
         : `<button id="pxEditer" ${sel ? "" : "disabled"} title="Charge les pixels de l'image sélectionnée">Éditer les pixels</button>`}</div>
-      ${o ? `<div class="ap-ligne"><span></span><button id="pxAnnuler" title="Dépile le journal raster du serveur (dix états)">↶ Annuler pixels</button><button id="pxFermer" title="Quitte l'édition (les pixels sont déjà sauvés)">Terminer</button></div>` : ""}
+      ${o ? `<div class="ap-ligne"><span></span><button id="pxAnnuler" title="Dépile le journal raster du serveur (dix états)">↶ Annuler pixels</button><button id="pxFermer" title="Quitte l'édition (les pixels sont déjà sauvés)">Terminer</button></div>
+      <div class="ap-ligne"><span>Export</span><select id="pxExpK" title="Échelle d'export (plus proche voisin)"><option value="1">×1</option><option value="2">×2</option><option value="4" selected>×4</option><option value="8">×8</option><option value="16">×16</option></select><button id="pxExpPng" title="Télécharge l'image éditée agrandie au plus proche voisin">⬇ PNG ×N</button></div>` : ""}
       <div class="ap-ligne"><span>Couleur</span><input type="color" id="pxCouleur" value="${p.couleur}"/>
         <span style="width:auto" title="Secondaire : clic droit ; ∅ = transparente = gomme">2ᵉ</span><input type="color" id="pxSecondaire" value="${p.secondaire || "#FFFFFF"}"${p.secondaire ? "" : ' class="vide"'}/><button id="pxSecVider" title="Secondaire transparente (le clic droit gomme)">∅</button>
         <span style="width:auto">rayon</span>${num("pxRayon", p.rayon, 'min="0.5" step="0.5" title="Rayon du pinceau, de la gomme, du clonage (px natifs)"')}</div>
@@ -521,6 +523,8 @@ export function initPixelUI(VL) {
         <div class="ap-ligne"><span>Courbe</span><span style="width:auto">128 →</span>${num("pxCourbe", 128, 'min="0" max="255" title="Sortie du point de contrôle du milieu"')}<button id="pxCourbes" ${t ? "" : "disabled"}>OK</button></div>
         <div class="ap-ligne"><span>HSL</span>${num("pxH", 0, 'min="-180" max="180" title="Teinte (°)"')}${num("pxS", 0, 'min="-100" max="100" title="Saturation (%)"')}${num("pxL", 0, 'min="-100" max="100" title="Luminosité (%)"')}<button id="pxHsl" ${t ? "" : "disabled"}>OK</button></div>
         <div class="ap-ligne"><button id="pxNB" ${t ? "" : "disabled"}>Noir &amp; blanc</button><span style="width:auto">seuil</span>${num("pxSeuilV", 128, 'min="0" max="255"')}<button id="pxSeuil" ${t ? "" : "disabled"}>OK</button></div>
+        <div class="ap-ligne"><span>Contour</span>${num("pxContourE", 1, 'min="1" max="4" title="Épaisseur du contour sombre (px)"')}<button id="pxContour" ${t ? "" : "disabled"} title="Ajoute un contour sombre autour de l'alpha (couleur secondaire, sinon #101010) — True Pixel « Outline / Dark Edges »">Contour sombre</button></div>
+        <div class="ap-ligne"><span>Accent.</span>${num("pxAccF", 1, 'min="0.1" max="2" step="0.1" title="Force de l\'accentuation des bords (masque flou)"')}<button id="pxAcc" ${t ? "" : "disabled"} title="Accentue les bords (True Pixel « Edge Enhance »)">Accentuer</button></div>
         <div class="ap-ligne"><span>Flou</span>${num("pxFlouR", 2, 'min="1" max="50" title="Rayon (px)"')}<button id="pxFlou" ${t ? "" : "disabled"}>OK</button></div>
       </details>
       <details ${pa.tuile ? "open" : ""}><summary class="px-tete">Pixel-art</summary>
@@ -589,6 +593,11 @@ export function initPixelUI(VL) {
     on("pxNB", "click", ajuster((im, m) => noir_blanc(im, m)));
     on("pxSeuil", "click", ajuster((im, m) => seuil(im, val("pxSeuilV"), m)));
     on("pxFlou", "click", ajuster((im, m) => flou(im, val("pxFlouR"), m)));
+    // lot 5 : retouches qui RENDENT un tampon neuf (purs) — commit, annulable
+    const remplacer = (fn) => garde(async () => { etat.px.tampon = fn(etat.px.tampon); await commettre(); });
+    on("pxContour", "click", remplacer((im) => contour_sombre(im, etat.px.secondaire || "#101010", Math.round(val("pxContourE")) || 1)));
+    on("pxAcc", "click", remplacer((im) => accentuer(im, val("pxAccF") || 1)));
+    on("pxExpPng", "click", garde(async () => { const k = Math.round(val("pxExpK")) || 1, im = agrandir(etat.px.tampon, k); const o2 = courant(); telecharger(await pngDe(im), `vector_${etat.docId}_${String(o2.href).replace(/\.png$/i, "")}_x${k}.png`); VL.toast(`PNG ×${k} : ${im.w}×${im.h}`); }));
     on("pxVersVecteur", "click", garde(versVecteur));
     on("pxTuileOK", "click", () => VL.executer(op_pixelart, { tuile: { w: Math.round(val("pxTuileW")), h: Math.round(val("pxTuileH")) } }));
     const symChange = () => VL.executer(op_pixelart, { symetrie: { h: $("#pxSymH").checked, v: $("#pxSymV").checked } });
