@@ -13,6 +13,58 @@
 > `…-sorceress-sprite-suite-inventaire.md` §5.1 (Sprite Analyzer).
 > Branche `chantier/vectorlab-affinity`. Ce plan est COMMIS avant le code.
 
+> **RELEVÉ DE LIVRAISON (19/09/2026) : LIVRÉ, PROUVÉ EN RÉEL, DÉPLOYÉ — statiques seuls, aucune relance.**
+>
+> **Livré** (plan `fab7cd7`, code `67cb2b1` → `08c283c`, 4 commits) :
+> `frontend/spritelab/feuille.js` pur (`grille_detecter` par bandes de
+> l'alpha — 1 × 1 sans colonne vide, jamais inventé —, `rect_case`,
+> `bbox_alpha`, `cases_occupees`, `selection_clic` clic / Ctrl / Maj,
+> `selection_une_sur` sur les occupées, `aligner_frames` deux / x / pieds
+> borné à la cellule, `section_definir` chevauchement permis et même nom =
+> remplace, `manifest_feuille` v2 de la forme de sprite_service +
+> `sections` + `case`, `feuille_recomposer`) ; banc node neuf
+> `frontend/spritelab/qa` (run.mjs + feuille.test.mjs) ; onglet « 🗂
+> Feuille » (PNG local ou Library), colonne du milieu = planche recomposée
+> avec grille, numéros, sélection verte et case courante cyan, barre
+> Auto-détecter / Grille col × row / Toutes / Aucune / Une sur 1-4, gestes
+> glisser-peindre, colonne de droite = lecteur local + Alignement (trois
+> modes, Remettre, nudges 1 px sur la case courante) + Sections + Export
+> (Copier le JSON, ⬇ JSON, ⬇ Planche alignée, Save to Library préfixe
+> `sprites_feuille_`) ; `window.SL.feuille` pour la preuve.
+>
+> **TDD tenu** : RED ×3 constatés (module absent, garde-places qui lèvent) ;
+> feuille **28 contrôles**. Un contrôle du plan était FAUX (la borne n'était
+> pas atteinte dans ma planche : le code rendait 6,6 et c'était juste) →
+> remplacé par un vrai cas de borne (pavé large : +10 voulu, +4 permis).
+>
+> **Prouvé en réel** (8799, données isolées, viewport 1400 × 900, rAF
+> substitué — volet caché) sur une planche 4 × 2 de 32 px fabriquée en page
+> : grille **4 × 2 détectée, 7/7 occupées** (`11111110`), colonne du milieu
+> basculée (filmstrip caché, planche visible), chip « Feuille : banc.png » ;
+> gestes `PointerEvent` sur `#fCanvas` : clic 1 → `01000000` 1/7, Ctrl 3 →
+> `01010000`, Maj 6 → `01011110`, glisser 0→2 → `11100000`, Une sur 2 →
+> `10101010`, Toutes → `11111110` ; **Les deux axes** → case 2 `−3,−4`, case
+> 5 `+2,0`, les autres 0 ; Pieds → `0,−4` ; nudge ↑ sur la case 2 → `−3,−5`
+> ; section « marche » 0–6 boucle posée, nom vide REFUSÉ (une seule ligne
+> DOM) ; « Copier le JSON » (clipboard stubé) → manifest **v2**, 7 frames,
+> `frames[2] = {case 2, rect 64,0,32,32, offset −3,−5}`, fps, grid 4 × 2,
+> source feuille banc.png, sections ; pixel recomposé de la case 2 relu rouge
+> à sa place ; lecteur 32 × 32 visible et qui tourne (n 7) ; Save to Library
+> → `sprites_feuille_<ts>.png` relu par `/api/images` (0 → 1), grille de
+> l'onglet mise à jour, toast parlant ; clic sur cette vignette → la planche
+> se rouvre (4 × 2, 7/7). 0 erreur console.
+>
+> **Déployé** : 3 fichiers installés = base `27bde1b`, 3 nouveaux →
+> sauvegarde `_backup_predeploy_2026-09-19-spritelab-feuille` → `git
+> archive HEAD` → **6/6 = cible** ; le backend installé (8765) sert déjà
+> `/spritelab/feuille.js` (200) sans relance.
+>
+> **Reste (assumé)** : grille non uniforme (marges inégales) non détectée
+> → saisir col × row ; sections définies sur la sélection entière (pas de
+> plage libre début–fin dans l'UI, le module pur le permet) ; pas de
+> capture d'écran (volet caché) ; l'ordre des cases suit la lecture, pas de
+> réordonnancement manuel.
+
 **Goal :** dans Spritelab, un quatrième onglet de source « Feuille » ouvre
 une planche PNG existante (Library ou fichier local), détecte sa grille,
 laisse sélectionner les cases au glisser (Ctrl ajoute / retire, Maj étend,
