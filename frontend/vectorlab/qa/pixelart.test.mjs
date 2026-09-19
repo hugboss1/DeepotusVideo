@@ -149,8 +149,27 @@ const hex = (r, g, b) => "#" + [r, g, b].map((v) => v.toString(16).padStart(2, "
   ok("couleurs utilisées triées par fréquence : rouge (12) puis bleu (4)", u.length === 2 && u[0] === "#FF0000" && u[1] === "#0000FF", u.join());
   ok("couleurs utilisées : plafond respecté", couleurs_utilisees(m, 1).length === 1);
 }
+/* ── lot 5 : retouche True Pixel — contour sombre, accentuer, agrandir ── */
+{
+  const { contour_sombre, accentuer, agrandir } = await import("../js/mod-pixelart.js");
+  const un = tampon(5, 5); un.data[(2 * 5 + 2) * 4] = 255; un.data[(2 * 5 + 2) * 4 + 3] = 255;
+  const c1 = contour_sombre(un, "#101010", 1);
+  const opaques = (im) => { let n = 0; for (let i = 0; i < im.w * im.h; i++) if (im.data[i * 4 + 3] === 255) n++; return n; };
+  ok("contour sombre 1 px : 5 opaques (la croix), le centre rouge intact, les nouveaux #101010", opaques(c1) === 5 && c1.data[(2 * 5 + 2) * 4] === 255 && c1.data[(1 * 5 + 2) * 4] === 16 && c1.data[(1 * 5 + 2) * 4 + 2] === 16, opaques(c1));
+  ok("contour sombre 2 px : 13 opaques (le losange)", opaques(contour_sombre(un, "#101010", 2)) === 13);
+  ok("l'entrée n'est pas mutée", opaques(un) === 1);
+  const g = tampon(3, 1); [0, 128, 255].forEach((v, x) => { g.data[x * 4] = g.data[x * 4 + 1] = g.data[x * 4 + 2] = v; g.data[x * 4 + 3] = 255; });
+  const a = accentuer(g, 1);
+  ok("accentuer : les bords s'écartent (0 reste ≤ 0… 255 reste 255, alpha conservé)", a.data[0] === 0 && a.data[8] === 255 && a.data[3] === 255 && a.data[11] === 255);
+  const b = tampon(4, 1); [0, 0, 255, 255].forEach((v, x) => { b.data[x * 4] = b.data[x * 4 + 1] = b.data[x * 4 + 2] = v; b.data[x * 4 + 3] = 255; });
+  const ab = accentuer(b, 1);
+  ok("accentuer un bord net : la marche est renforcée (le pixel sombre du bord reste 0, le clair 255) et force 0 = identique", ab.data[4] === 0 && ab.data[8] === 255 && Array.from(accentuer(b, 0).data).join() === Array.from(b.data).join());
+  const z = agrandir(un, 3);
+  ok("agrandir ×3 : 15 × 15, le pixel (2,2) devient le bloc (6..8, 6..8)", z.w === 15 && z.h === 15 && z.data[(6 * 15 + 6) * 4 + 3] === 255 && z.data[(8 * 15 + 8) * 4 + 3] === 255 && z.data[(5 * 15 + 6) * 4 + 3] === 0 && z.data[(9 * 15 + 8) * 4 + 3] === 0);
+  ok("agrandir k < 1 → refus", (() => { try { agrandir(un, 0); return false; } catch { return true; } })());
+}
 if (echecs.length) {
   console.error("ECHECS pixelart :\n- " + echecs.join("\n- "));
   process.exit(1);
 }
-console.log("QA pixelart : PASS (54 controles)");
+console.log("QA pixelart : PASS (61 controles)");

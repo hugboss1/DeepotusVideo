@@ -276,6 +276,44 @@ export function couleurs_utilisees(img, max = 64) {
   for (let k = 0; k < img.w * img.h; k++) { if (!d[k * 4 + 3]) continue; const h = _hexDe(d[k * 4], d[k * 4 + 1], d[k * 4 + 2]); votes.set(h, (votes.get(h) || 0) + 1); }
   return [...votes.entries()].sort((a, b) => b[1] - a[1]).slice(0, Math.max(1, max | 0)).map(([h]) => h);
 }
+/* ── lot 5 : retouche True Pixel — contour sombre (dilatation 4-connexe de
+   l'alpha), accentuer (masque flou 3 × 3, alpha conservé), agrandir (plus
+   proche voisin ×k) — l'entrée n'est jamais mutée ── */
+export function contour_sombre(img, couleur = "#101010", epaisseur = 1) {
+  const [r, g, b] = _rgb(couleur), out = { w: img.w, h: img.h, data: new Uint8ClampedArray(img.data) };
+  for (let e = 0; e < Math.max(1, epaisseur | 0); e++) {
+    const opaque = new Uint8Array(img.w * img.h);
+    for (let k = 0; k < img.w * img.h; k++) opaque[k] = out.data[k * 4 + 3] ? 1 : 0;
+    for (let y = 0; y < img.h; y++) for (let x = 0; x < img.w; x++) {
+      const k = y * img.w + x; if (opaque[k]) continue;
+      const voisin = (x > 0 && opaque[k - 1]) || (x + 1 < img.w && opaque[k + 1]) || (y > 0 && opaque[k - img.w]) || (y + 1 < img.h && opaque[k + img.w]);
+      if (voisin) { out.data[k * 4] = r; out.data[k * 4 + 1] = g; out.data[k * 4 + 2] = b; out.data[k * 4 + 3] = 255; }
+    }
+  }
+  return out;
+}
+export function accentuer(img, force = 1) {
+  const out = { w: img.w, h: img.h, data: new Uint8ClampedArray(img.data) }, f = +force || 0;
+  if (f === 0) return out;
+  const px = (x, y, c) => img.data[(Math.min(img.h - 1, Math.max(0, y)) * img.w + Math.min(img.w - 1, Math.max(0, x))) * 4 + c];
+  for (let y = 0; y < img.h; y++) for (let x = 0; x < img.w; x++) {
+    const k = (y * img.w + x) * 4; if (!img.data[k + 3]) continue;
+    for (let c = 0; c < 3; c++) {
+      let s = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) s += px(x + dx, y + dy, c);
+      out.data[k + c] = Math.max(0, Math.min(255, Math.round(img.data[k + c] + f * (img.data[k + c] - s / 9))));
+    }
+  }
+  return out;
+}
+export function agrandir(img, k) {
+  const n = Math.round(+k); if (!(n >= 1)) throw new Error("agrandir : facteur ≥ 1");
+  const out = _tampon(img.w * n, img.h * n);
+  for (let y = 0; y < out.h; y++) for (let x = 0; x < out.w; x++) {
+    const i = ((y / n | 0) * img.w + (x / n | 0)) * 4, j = (y * out.w + x) * 4;
+    out.data[j] = img.data[i]; out.data[j + 1] = img.data[i + 1]; out.data[j + 2] = img.data[i + 2]; out.data[j + 3] = img.data[i + 3];
+  }
+  return out;
+}
 export function pavage_iso(img) {
   const { w, h } = img, m = masque_losange(w, h), W = w * 3, H = h * 3, out = _tampon(W, H), qui = new Int8Array(W * H).fill(-1);
   const pos = [[w, h, 0], [w / 2, h / 2, 1], [3 * w / 2, h / 2, 2], [w / 2, 3 * h / 2, 3], [3 * w / 2, 3 * h / 2, 4], [0, h, 5], [2 * w, h, 6], [w, 0, 7], [w, 2 * h, 8]];
