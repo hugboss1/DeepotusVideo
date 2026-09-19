@@ -6,12 +6,13 @@
 // JSON ne porte qu'un entier, l'href gagne `?v=rev`. Le Ctrl+Z du document
 // ne rend pas les pixels : « Annuler pixels » dépile le journal (D1). Les
 // sélections (masques en px natifs) vivent dans la session.
-import { op_ajouter, op_calque_ajouter, op_image_rev, op_pixelart, op_supprimer } from "./mod-doc.js";
+import { op_ajouter, op_calque_ajouter, op_image_rev, op_pixelart, op_supprimer, op_image_verrou, op_style } from "./mod-doc.js";
 import { pinceau, gomme, seau, sel_rect, sel_lasso, sel_baguette, sel_couleur, sel_croitre, sel_contracter,
          sel_inverser, sel_bbox, masque_calque, niveaux, courbes, hsl, noir_blanc, seuil, flou, cloner,
          extraire } from "./mod-pixel.js";
 import { ligne_pixel, rect_pixel, symetrie, palette_extraire, quantifier, pixeliser, raccord_3x3,
-         feuille_tuiles, bande, pelure, pelure_double, pixel_parfait, masque_losange, masque_losanges, pavage_iso, rasteriser, DITHERS } from "./mod-pixelart.js";
+         feuille_tuiles, bande, pelure, pelure_double, pixel_parfait, masque_losange, masque_losanges, pavage_iso, rasteriser, DITHERS,
+         cellule_et_cible, echantillon_cellule, remplir_depuis_modele, couleurs_utilisees } from "./mod-pixelart.js";
 
 const SNS = "http://www.w3.org/2000/svg";
 export const OUTILS_PIXEL = [
@@ -89,7 +90,8 @@ export function initPixelUI(VL) {
   const stage = $("#stage");
   etat.px = { id: null, href: null, tampon: null, masque: null, rayon: 4, durete: 1, couleur: "#000000",
               tolerance: 16, global: false, grille: true, pelure: false, source: null, occupe: false,
-              secondaire: null, forme: "rond", parfait: true, dernier: null, fps: 12 };   // lot 2 : gestes du Sprite Editor
+              secondaire: null, forme: "rond", parfait: true, dernier: null, fps: 12,   // lot 2 : gestes du Sprite Editor
+              pipetteMode: "moyenne", cibleArt: 16, ramenerSwatches: false };          // lot 3 : le calque modèle
   const cache = new Map();                  // href → tampon (cadres, pelure)
   let geste = null, apercu = null, rafId = 0;
 
@@ -274,6 +276,18 @@ export function initPixelUI(VL) {
     if (ev.altKey && outil !== "px-cloner" && (PEINTURE.includes(outil) || outil === "px-gomme")) {
       const x = Math.floor(px), y = Math.floor(py);
       if (x < 0 || y < 0 || x >= t.w || y >= t.h) return;
+      // lot 3 : sur le calque pixel du modèle, la pipette lit LA CELLULE DU MODÈLE (exacte / moyenne / dominante)
+      const pa = etat.doc.pixelart || {};
+      if (pa.modele && o.id === pa.calque && objetImage(pa.modele.id)) {
+        garde(async () => {
+          const M = (await tamponsDe([objetImage(pa.modele.id)]))[0].img, c = pa.modele.cellule;
+          const hex = echantillon_cellule(M, { x: x * c, y: y * c, w: c, h: c }, etat.px.pipetteMode || "moyenne");
+          if (!hex) { VL.toast("cellule transparente dans le modèle — couleur inchangée"); return; }
+          if (droit) { ajouterSwatch(hex); VL.toast(`swatch ajouté : ${hex}`); }
+          else { etat.px.couleur = hex; VL.toast(`couleur du modèle (${etat.px.pipetteMode}) : ${hex}`); rendrePanneau(); VL.surRendu(); }
+        })();
+        return;
+      }
       const k = (y * t.w + x) * 4;
       if (t.data[k + 3] === 0) { VL.toast("pixel transparent — couleur inchangée"); return; }
       const hex = "#" + [t.data[k], t.data[k + 1], t.data[k + 2]].map((v) => v.toString(16).padStart(2, "0").toUpperCase()).join("");
@@ -393,6 +407,7 @@ export function initPixelUI(VL) {
   const suivantOverlay = VL.surOverlay;
   VL.surOverlay = (ov) => {
     suivantOverlay(ov);
+    if (etat.persona === "pixel") grilleModele(ov);      // lot 3 : l'aperçu de la grille sur le modèle
     const o = courant();
     if (!o || etat.persona !== "pixel") return;
     const t = etat.px.tampon;
@@ -471,6 +486,18 @@ export function initPixelUI(VL) {
     const bb = p.masque && t ? sel_bbox(p.masque, t.w, t.h) : null;
     const cadres = cadres_de(etat.doc);
     hote.innerHTML = `
+      ${(() => {
+        const m = modeleObjet(), cp = calquePixelObjet();
+        if (!m) return `<details open><summary class="px-tete">Modèle</summary><div class="ap-ligne"><button id="pxDesigner" ${sel ? "" : "disabled"} title="L'image sélectionnée devient le modèle : verrouillée, atténuée, la grille des cellules s'affiche dessus">Désigner l'image sélectionnée comme modèle</button></div>
+          <div class="ap-ligne"><span></span><i class="px-note">un modèle = une image générée ou importée sous le calque pixel ; la pipette (Alt+clic) y lit les couleurs</i></div></details>`;
+        const cc = cellule_et_cible(m.nat, { cellule: pa.modele.cellule });
+        return `<details open><summary class="px-tete">Modèle · ${m.href}</summary>
+          <div class="ap-ligne"><span>Cellule</span>${num("pxCellule", cc.cellule, 'min="1" title="Pixels du modèle par pixel d\'art"')}<span style="width:auto">px →</span>${num("pxCible", cc.cible_w, 'min="1" title="Largeur cible en pixels d\'art (la hauteur suit)"')}<span style="width:auto">× ${cc.cible_h}</span></div>
+          <div class="ap-ligne"><span></span>${[4, 8, 16, 32, 64].map((v) => `<button class="pxCelluleRapide" data-c="${v}" ${v === cc.cellule ? 'class="actif"' : ""}>${v}</button>`).join("")}</div>
+          <div class="ap-ligne"><label title="Pose aussi la taille de tuile d'art (grille pixel)"><input type="checkbox" id="pxTuileArtOn"/> tuile =</label>${num("pxTuileArt", p.cibleArt, 'min="1" style="width:52px"')}<button id="pxCreerCalque" ${cp ? "disabled" : ""} title="Une image transparente ${cc.cible_w}×${cc.cible_h} posée exactement sur le modèle, dans un calque « pixel »">Créer le calque pixel ${cc.cible_w}×${cc.cible_h}</button></div>
+          <div class="ap-ligne"><button id="pxRemplir" ${o && cp && o.id === cp.id ? "" : "disabled"} title="Remplit TOUT le calque pixel depuis le modèle par le mode de pipette courant (annulable)">Remplir depuis le modèle</button>
+            <label title="Chaque cellule ramenée à la swatch la plus proche"><input type="checkbox" id="pxRamener"${p.ramenerSwatches ? " checked" : ""}/> → swatches</label><button id="pxModeleRetirer" title="Le modèle redevient une image ordinaire">Retirer</button></div>
+        </details>`; })()}
       <div class="ap-ligne"><span>Image</span>${o ? `<i class="img-src" id="pxNom" title="${o.href}">${o.href} · ${t.w}×${t.h}${o.rev ? ` · rév. ${o.rev}` : ""}</i>`
         : `<button id="pxEditer" ${sel ? "" : "disabled"} title="Charge les pixels de l'image sélectionnée">Éditer les pixels</button>`}</div>
       ${o ? `<div class="ap-ligne"><span></span><button id="pxAnnuler" title="Dépile le journal raster du serveur (dix états)">↶ Annuler pixels</button><button id="pxFermer" title="Quitte l'édition (les pixels sont déjà sauvés)">Terminer</button></div>` : ""}
@@ -502,7 +529,10 @@ export function initPixelUI(VL) {
         <div class="ap-ligne"><span>Palette</span>${num("pxPalN", (pa.palette || []).length || 8, 'min="2" max="64" title="Nombre de couleurs à extraire"')}
           <button id="pxPalExtraire" ${t ? "" : "disabled"} title="Palette indexée par median cut, sauvée avec le document">Extraire</button>
           <button id="pxQuantifier" ${t && pa.palette ? "" : "disabled"} title="Ramène chaque pixel à la couleur de palette la plus proche">Quantifier</button></div>
-        <div class="px-palette" id="pxPalette">${paletteHTML(pa.palette || [], p.couleur)}</div>
+        <div class="ap-ligne"><span>Swatches</span><button id="pxSwatchPlus" title="Ajoute la couleur courante aux swatches">+ courante</button><button id="pxPalModele" ${modeleObjet() ? "" : "disabled"} title="Extrait N couleurs DU MODÈLE (median cut)">Palette depuis le modèle</button></div>
+        <div class="px-palette" id="pxPalette" title="clic = courante · clic droit = secondaire · Alt+clic = retirer">${paletteHTML(pa.palette || [], p.couleur)}</div>
+        ${t ? `<div class="ap-ligne"><span>Utilisées</span><button id="pxUtiliseesVers" title="Toutes les couleurs utilisées vont dans les swatches">→ swatches</button></div>
+        <div class="px-palette px-utilisees">${t.w * t.h <= 1000000 ? couleurs_utilisees(t, 64).map((c) => `<button data-couleur="${c}" class="px-pastille${c === p.couleur ? " actif" : ""}" style="background:${c}" title="${c}"></button>`).join("") || `<i class="px-note">calque vide</i>` : `<i class="px-note">image trop grande</i>`}</div>` : ""}
         <div class="ap-ligne"><span>Rastériser</span>${num("pxRastW", (pa.tuile && pa.tuile.w) || 64, 'min="1" max="4096" title="Largeur cible (px) — la hauteur suit"')}
           <select id="pxRastPal" title="Palette appliquée après la réduction"><option value="aucune">libre</option><option value="doc"${pa.palette ? "" : " disabled"}>palette du doc</option><option value="extraire">extraire N</option></select>
           <select id="pxRastDither" title="Tramage"><option value="aucun">sans tramage</option><option value="ordonne">ordonné</option><option value="floyd">Floyd-Steinberg</option></select></div>
@@ -560,7 +590,22 @@ export function initPixelUI(VL) {
     on("pxSymH", "change", symChange); on("pxSymV", "change", symChange);
     on("pxPalExtraire", "click", () => VL.executer(op_pixelart, { palette: palette_extraire(t, Math.round(val("pxPalN"))) }));
     on("pxQuantifier", "click", ajuster((im) => quantifier(im, etat.doc.pixelart.palette)));
-    hote.querySelectorAll(".px-pastille").forEach((b) => b.addEventListener("click", () => { etat.px.couleur = b.dataset.couleur; rendrePanneau(); }));
+    hote.querySelectorAll(".px-pastille").forEach((b) => {
+      b.addEventListener("click", (ev) => { if (ev.altKey && b.closest("#pxPalette")) { VL.executer(op_pixelart, { palette: (etat.doc.pixelart.palette || []).filter((c) => c !== b.dataset.couleur) }); return; } etat.px.couleur = b.dataset.couleur; rendrePanneau(); });
+      b.addEventListener("contextmenu", (ev) => { ev.preventDefault(); etat.px.secondaire = b.dataset.couleur; rendrePanneau(); });
+    });
+    on("pxSwatchPlus", "click", () => ajouterSwatch(etat.px.couleur));
+    on("pxPalModele", "click", garde(paletteDepuisModele));
+    on("pxUtiliseesVers", "click", () => { const pal = new Set((etat.doc.pixelart || {}).palette || []); for (const c of couleurs_utilisees(t, 64)) pal.add(c); VL.executer(op_pixelart, { palette: [...pal] }); });
+    on("pxDesigner", "click", () => { try { designerModele(etat.selection[0]); } catch (e) { VL.toast(e.message, true); } });
+    on("pxCellule", "change", () => reglerCellule("cellule", val("pxCellule")));
+    on("pxCible", "change", () => reglerCellule("cible", val("pxCible")));
+    hote.querySelectorAll(".pxCelluleRapide").forEach((b) => b.addEventListener("click", () => reglerCellule("cellule", +b.dataset.c)));
+    on("pxTuileArt", "change", () => { etat.px.cibleArt = Math.max(1, Math.round(val("pxTuileArt"))); });
+    on("pxRamener", "change", (ev) => { etat.px.ramenerSwatches = ev.target.checked; });
+    on("pxCreerCalque", "click", garde(creerCalquePixel));
+    on("pxRemplir", "click", garde(remplirDepuisModele));
+    on("pxModeleRetirer", "click", () => { VL.executer(op_pixelart, { modele: null, calque: null }); VL.rendreOverlay(); });
     on("pxPixeliser", "click", garde(async () => {
       const tuile = (etat.doc.pixelart && etat.doc.pixelart.tuile) || { w: Math.round(val("pxTuileW")) };
       etat.px.tampon = pixeliser(t, tuile.w);
@@ -750,6 +795,73 @@ export function initPixelUI(VL) {
   }
   VL.actions = VL.actions || {};
   VL.actions.pixel = Object.assign(VL.actions.pixel || {}, { rasteriser: garde(rasteriserImage), iso: (on) => VL.executer(op_pixelart, { iso: on ? true : null }) });
+
+  /* ── lot 3 : le calque modèle — grille en aperçu, calque pixel, remplissage, swatches ── */
+  const modeleObjet = () => { const pa = etat.doc && etat.doc.pixelart; return pa && pa.modele ? objetImage(pa.modele.id) : null; };
+  const calquePixelObjet = () => { const pa = etat.doc && etat.doc.pixelart; return pa && pa.calque ? objetImage(pa.calque) : null; };
+  function grilleModele(ov) {
+    const pa = etat.doc.pixelart || {}, m = modeleObjet();
+    if (!m || calquePixelObjet()) return;
+    const c = pa.modele.cellule, r = m.rognage || { x: 0, y: 0, w: m.nat.w, h: m.nat.h };
+    const [sx, sy] = VL.ecranPt(m.x, m.y), sw = m.w * etat.zoom, sh = m.h * etat.zoom, kx = sw / r.w, ky = sh / r.h;
+    const g = document.createElementNS(SNS, "g"); g.setAttribute("class", "px-grille-modele"); ov.appendChild(g);
+    const el = (nom, attrs) => { const e = document.createElementNS(SNS, nom); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); g.appendChild(e); return e; };
+    el("rect", { x: sx, y: sy, width: sw, height: sh, fill: "none", stroke: "#ffd166", "stroke-width": 1.5, "stroke-dasharray": "6 3" });
+    if ((r.w / c) * (r.h / c) > 65536) return;
+    let d = "";
+    for (let i = 0; i <= r.w; i += c) d += `M${sx + i * kx} ${sy}v${sh}`;
+    for (let j = 0; j <= r.h; j += c) d += `M${sx} ${sy + j * ky}h${sw}`;
+    el("path", { d, stroke: "rgba(255,209,102,.6)", "stroke-width": 1, fill: "none" });
+  }
+  function designerModele(id) {
+    const o = objetImage(id); if (!o) throw new Error("désigner : sélectionner une image");
+    const cc = cellule_et_cible(o.nat, { cellule: 16 });
+    VL.executer((doc) => { op_pixelart(doc, { modele: { id, cellule: cc.cellule } }); if (!o.verrou) op_image_verrou(doc, id, true); if (!(o.style && o.style.opacite < 1)) op_style(doc, [id], { opacite: 0.6 }); });
+    VL.rendreOverlay();
+  }
+  function reglerCellule(champ, valeur) {
+    const pa = etat.doc.pixelart || {}, m = modeleObjet(); if (!m) return;
+    const cc = cellule_et_cible(m.nat, champ === "cellule" ? { cellule: valeur } : { cible: valeur });
+    if (cc.cellule !== pa.modele.cellule) VL.executer(op_pixelart, { modele: { id: m.id, cellule: cc.cellule } });
+    else rendrePanneau();
+    VL.rendreOverlay();
+  }
+  async function creerCalquePixel() {
+    const pa = etat.doc.pixelart || {}, m = modeleObjet(); if (!m) throw new Error("désigner d'abord un modèle");
+    if (calquePixelObjet()) throw new Error("le calque pixel existe déjà (Terminer puis Retirer pour recommencer)");
+    const cc = cellule_et_cible(m.nat, { cellule: pa.modele.cellule });
+    const n = await deposerNouvelleImage({ w: cc.cible_w, h: cc.cible_h, data: new Uint8ClampedArray(cc.cible_w * cc.cible_h * 4) }, { x: m.x, y: m.y, w: m.w, h: m.h }, null);
+    const tuileArt = $("#pxTuileArtOn") && $("#pxTuileArtOn").checked ? Math.max(1, Math.round(val("pxTuileArt"))) : 0;
+    const id = VL.executer((doc) => {
+      let c = doc.calques.find((k) => String(k.nom || "").toLowerCase() === "pixel");
+      if (!c) { const cid = op_calque_ajouter(doc, "pixel"); c = doc.calques.find((k) => k.id === cid); }
+      const id2 = op_ajouter(doc, c.id, n.objet);
+      op_pixelart(doc, { calque: id2, ...(tuileArt ? { tuile: { w: tuileArt, h: tuileArt } } : {}) });
+      return id2;
+    });
+    if (id) { await editer(id); VL.toast(`calque pixel ${cc.cible_w}×${cc.cible_h} posé sur le modèle`); }
+  }
+  async function remplirDepuisModele() {
+    const pa = etat.doc.pixelart || {}, m = modeleObjet(), o = courant();
+    if (!m || !o || o.id !== pa.calque) throw new Error("éditer le calque pixel du modèle");
+    const M = (await tamponsDe([m]))[0].img, t = etat.px.tampon;
+    const pal = etat.px.ramenerSwatches && pa.palette && pa.palette.length ? pa.palette : null;
+    etat.px.tampon = remplir_depuis_modele(M, t.w, t.h, pa.modele.cellule, etat.px.pipetteMode || "moyenne", pal);
+    await commettre();
+    VL.toast(`rempli depuis le modèle (${etat.px.pipetteMode}${pal ? ", ramené aux swatches" : ""}) — annulable`);
+  }
+  function ajouterSwatch(hex) {
+    const pa = etat.doc.pixelart || {}, pal = pa.palette || [];
+    if (pal.includes(hex)) return;
+    VL.executer(op_pixelart, { palette: [...pal, hex] });
+  }
+  async function paletteDepuisModele() {
+    const m = modeleObjet(); if (!m) throw new Error("désigner d'abord un modèle");
+    const M = (await tamponsDe([m]))[0].img;
+    VL.executer(op_pixelart, { palette: palette_extraire(M, Math.round(val("pxPalN")) || 8) });
+  }
+  VL.pixelTampon = async (id) => { const o = objetImage(id); if (!o) throw new Error("pas une image"); return (await tamponsDe([o]))[0].img; };   // l'impression 3D (lot 3)
+  VL.actions.pixel = Object.assign(VL.actions.pixel || {}, { designerModele, creerCalquePixel: garde(creerCalquePixel), remplirDepuisModele: garde(remplirDepuisModele), paletteDepuisModele: garde(paletteDepuisModele) });
 
   /* ── crochets ── */
   const suivantRendu = VL.surRendu;

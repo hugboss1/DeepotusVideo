@@ -830,3 +830,7 @@ body[data-outil="noeuds"] #canvasHost [data-objet] { cursor: crosshair; }
 .px-vignette { width: 40px; height: 40px; image-rendering: pixelated; border: 1px solid var(--aff-bord); border-radius: 4px; background: repeating-conic-gradient(#2a2a2a 0 25%, #1c1c1c 0 50%) 0 0 / 8px 8px; cursor: pointer; }
 .px-vignette.actif { outline: 2px solid var(--aff-cyan, #39b3d0); outline-offset: -1px; }
 .px-lecture { width: 48px; height: 48px; image-rendering: pixelated; border: 1px solid var(--aff-bord); border-radius: 4px; margin-left: auto; }
+/* lot 3 : la grille du modèle (aperçu) et les couleurs utilisées */
+#overlay .px-grille-modele { pointer-events: none; }
+.px-utilisees { opacity: .9; }
+.pxCelluleRapide.actif { outline: 2px solid #ffd166; outline-offset: -1px; }
