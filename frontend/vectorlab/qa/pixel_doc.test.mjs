@@ -93,8 +93,20 @@ const base = () => ({
   op_pixelart(d, { modele: null, calque: null });
   ok("retirés par null", d.pixelart === undefined || (d.pixelart.modele === undefined && d.pixelart.calque === undefined));
 }
+/* ── lot 5 : plusieurs modèles — pixelart.paires ── */
+{
+  const d = base();
+  op_pixelart(d, { paires: [{ modele: "i1", cellule: 8, calque: null }, { modele: "i2", cellule: 16, calque: "i3" }] });
+  ok("paires acceptées (calque null ou id)", d.pixelart.paires.length === 2 && d.pixelart.paires[1].calque === "i3");
+  let refus = 0;
+  for (const m of [{ paires: "x" }, { paires: [{ cellule: 8 }] }, { paires: [{ modele: "i1", cellule: 0 }] }, { paires: [{ modele: "i1", cellule: 8, calque: 5 }] }]) { try { op_pixelart(base(), m); } catch { refus++; } }
+  ok("paires non-liste, sans modèle, cellule 0, calque non-chaîne → refusés", refus === 4, refus);
+  parserDoc(JSON.parse(JSON.stringify(d)));
+  op_pixelart(d, { paires: null });
+  ok("paires retirées par null", d.pixelart === undefined || d.pixelart.paires === undefined);
+}
 if (echecs.length) {
   console.error("ECHECS pixel_doc :\n- " + echecs.join("\n- "));
   process.exit(1);
 }
-console.log("QA pixel_doc : PASS (23 controles)");
+console.log("QA pixel_doc : PASS (26 controles)");
