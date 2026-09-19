@@ -816,7 +816,8 @@ export function initPixelUI(VL) {
   function designerModele(id) {
     const o = objetImage(id); if (!o) throw new Error("désigner : sélectionner une image");
     const cc = cellule_et_cible(o.nat, { cellule: 16 });
-    VL.executer((doc) => { op_pixelart(doc, { modele: { id, cellule: cc.cellule } }); if (!o.verrou) op_image_verrou(doc, id, true); if (!(o.style && o.style.opacite < 1)) op_style(doc, [id], { opacite: 0.6 }); });
+    // le style AVANT le verrou : une image verrouillée n'est plus une cible de commande (mesuré)
+    VL.executer((doc) => { op_pixelart(doc, { modele: { id, cellule: cc.cellule } }); if (!(o.style && o.style.opacite < 1)) op_style(doc, [id], { opacite: 0.6 }); if (!o.verrou) op_image_verrou(doc, id, true); });
     VL.rendreOverlay();
   }
   function reglerCellule(champ, valeur) {
