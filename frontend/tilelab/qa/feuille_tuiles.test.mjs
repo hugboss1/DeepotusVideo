@@ -1,7 +1,7 @@
 // feuille_tuiles.test.mjs — lot 4 Tilelab 2 : détection des tuiles par les
 // composantes connexes de l'alpha, taille commune, feuille alignée,
 // placement carré / iso, index des placements. Module feuille pur.
-import { tuiles_detecter, taille_commune, feuille_alignee, placement_rendre, placement_index } from "../feuille_tuiles.js";
+import { tuiles_detecter, taille_commune, feuille_alignee, placement_rendre, placement_index, tuiles_deplacer } from "../feuille_tuiles.js";
 const echecs = []; const ok = (n, c, d = "") => { if (!c) echecs.push(n + (d ? " — " + String(d).slice(0, 200) : "")); };
 const tampon = (w, h) => ({ w, h, data: new Uint8ClampedArray(w * h * 4) });
 const paver = (im, x0, y0, w, h, rgb = [255, 0, 0]) => { for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) { const k = (y * im.w + x) * 4; im.data[k] = rgb[0]; im.data[k + 1] = rgb[1]; im.data[k + 2] = rgb[2]; im.data[k + 3] = 255; } return im; };
@@ -34,5 +34,12 @@ const pl = paver(paver(paver(tampon(40, 20), 2, 2, 8, 8), 14, 2, 8, 8), 26, 4, 8
   ok("placement_index : liste {c, r, tuile, x, y}", JSON.stringify(placement_index([{ c: 2, r: 1, tuile: 1 }], g)) === JSON.stringify([{ c: 2, r: 1, tuile: 1, x: 16, y: 8 }]));
   ok("placement_index iso : (1,0) → x = 8, y = 2", JSON.stringify(placement_index([{ c: 1, r: 0, tuile: 1 }], gi)[0]) === JSON.stringify({ c: 1, r: 0, tuile: 1, x: 8, y: 2 }));
 }
+/* ── lot 5 : réordonnancement manuel ── */
+{
+  const T = [{ nom: "tuile_0", x: 0 }, { nom: "tuile_1", x: 1 }, { nom: "tuile_2", x: 2 }];
+  const D = tuiles_deplacer(T, 2, -1);
+  ok("déplacer la 3e d'un cran vers l'avant : x 0, 2, 1 renommées tuile_0..2", D.map((t) => t.x).join() === "0,2,1" && D.map((t) => t.nom).join() === "tuile_0,tuile_1,tuile_2", JSON.stringify(D));
+  ok("hors bornes → inchangé ; l'entrée n'est pas mutée", tuiles_deplacer(T, 0, -1).map((t) => t.x).join() === "0,1,2" && tuiles_deplacer(T, 2, 1).map((t) => t.x).join() === "0,1,2" && T[1].x === 1);
+}
 if (echecs.length) { console.error("ECHECS feuille_tuiles :\n- " + echecs.join("\n- ")); process.exit(1); }
-console.log("QA feuille_tuiles : PASS (13 controles)");
+console.log("QA feuille_tuiles : PASS (15 controles)");

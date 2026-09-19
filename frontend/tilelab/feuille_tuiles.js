@@ -44,6 +44,13 @@ export function tuiles_detecter(img, { min = 2 } = {}) {
   return boites.map((b, i) => ({ nom: `tuile_${i}`, ...b }));
 }
 
+// lot 5 : réordonnancement manuel — la tuile i glisse de delta (±1), les noms suivent l'ordre
+export function tuiles_deplacer(tuiles, i, delta) {
+  const out = (tuiles || []).map((t) => ({ ...t })), j = i + delta;
+  if (i < 0 || i >= out.length || j < 0 || j >= out.length) return out;
+  [out[i], out[j]] = [out[j], out[i]];
+  return out.map((t, k) => ({ ...t, nom: `tuile_${k}` }));
+}
 const _mediane = (v) => { const s = v.slice().sort((a, b) => a - b); return s.length ? s[(s.length - 1) >> 1] : 0; };
 export function taille_commune(tuiles) {
   if (!tuiles || !tuiles.length) return { w: 0, h: 0 };
