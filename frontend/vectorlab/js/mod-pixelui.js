@@ -152,6 +152,7 @@ export function initPixelUI(VL) {
     });
     rendrePanneau();
   }
+  let losange = null;                        // lot 2 : le masque iso pavé, mémorisé par taille
   const garde = (fn) => async (...a) => {
     if (etat.px.occupe) return;
     etat.px.occupe = true;
@@ -165,8 +166,9 @@ export function initPixelUI(VL) {
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.detail || r.statusText);
     const t = await lireTampon(o.href, d.rev || 0);
-    etat.px.tampon = t; cache.set(o.href, t);
-    VL.executer(op_image_rev, o.id, d.rev);
+    etat.px.tampon = t; cache.set(o.href, t); losange = null;
+    // lot 2 : la taille native SUIT l'image revenue (une rastérisation annulée rendait un nat faux → clics décalés, mesuré)
+    VL.executer((doc) => { if (o.nat.w !== t.w || o.nat.h !== t.h) op_image_nat(doc, o.id, { w: t.w, h: t.h }); op_image_rev(doc, o.id, d.rev); });
     VL.toast(`pixels annulés (révision ${d.rev})`);
     rendrePanneau();
   }
@@ -187,7 +189,6 @@ export function initPixelUI(VL) {
     return out;
   };
   // lot 2 : en tuile iso, la peinture est BORNÉE au losange quand aucune sélection n'est posée
-  let losange = null;
   const masqueEffectif = () => {
     if (etat.px.masque) return etat.px.masque;
     const t = etat.px.tampon; if (!t || !(etat.doc.pixelart && etat.doc.pixelart.iso)) return undefined;
