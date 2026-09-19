@@ -36,5 +36,25 @@ const planche = () => { const im = tampon(60, 40); paver(im, 6, 6, 8, 8); paver(
   ok("une sur 1 = toutes les occupées", selection_une_sur(occ, 1).filter(Boolean).length === 5);
   ok("l'entrée n'est pas mutée", (() => { const a = [false, false]; selection_clic(a, 0, {}); return a[0] === false; })());
 }
+{
+  const im = planche(), g = grille_detecter(im);
+  const sel = [true, true, true, false, false, false];        // la case 2 est décalée de +2 en x et +2 en y
+  const off = aligner_frames(im, g, sel, "deux");
+  ok("deux axes : la case 2 revient sur la première (dx −2, dy −2), les autres 0", off.length === 6 && off[0].dx === 0 && off[0].dy === 0 && off[2].dx === -2 && off[2].dy === -2 && off[3].dx === 0, JSON.stringify(off));
+  ok("x seulement : dy reste 0", aligner_frames(im, g, sel, "x")[2].dy === 0 && aligner_frames(im, g, sel, "x")[2].dx === -2);
+  ok("pieds : dx reste 0, le bas s'aligne", aligner_frames(im, g, sel, "pieds")[2].dx === 0 && aligner_frames(im, g, sel, "pieds")[2].dy === -2);
+  ok("une case non sélectionnée ou vide → 0, 0", aligner_frames(im, g, sel, "deux")[5].dx === 0);
+  let refus = 0; try { aligner_frames(im, g, sel, "diagonale"); } catch { refus++; }
+  ok("mode inconnu refusé", refus === 1);
+  const b = bbox_alpha(im, rect_case(g, 2));
+  ok("bbox alpha de la case 2 : 8 × 8 en (48, 8)", b.x === 48 && b.y === 8 && b.w === 8 && b.h === 8, JSON.stringify(b));
+  const im2 = paver(paver(tampon(40, 20), 6, 6, 8, 8), 20, 0, 8, 8);
+  const g2 = grille_detecter(im2), o2 = aligner_frames(im2, g2, [true, true], "deux");
+  ok("la case 1 (pavé en 20,0) remonte de 6 et se recentre de 6 sur la case 0", o2[1].dy === 6 && o2[1].dx === 6, JSON.stringify(o2));
+  // le décalage est BORNÉ à la cellule : un pavé large voudrait +10 mais ne peut bouger que de 4
+  const im3 = paver(paver(tampon(40, 20), 16, 0, 4, 8), 20, 0, 16, 8);
+  const o3 = aligner_frames(im3, { cols: 2, rows: 1, cell_w: 20, cell_h: 20 }, [true, true], "x");
+  ok("borné : dx = 4 (le bord de la cellule), pas 10", o3[1].dx === 4 && o3[1].dy === 0, JSON.stringify(o3));
+}
 if (echecs.length) { console.error("ECHECS feuille :\n- " + echecs.join("\n- ")); process.exit(1); }
-console.log("QA feuille : PASS (11 controles)");
+console.log("QA feuille : PASS (19 controles)");

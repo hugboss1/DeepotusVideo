@@ -54,7 +54,29 @@ export function selection_une_sur(occupees, n) {
 }
 
 export const MODES_ALIGNEMENT = ["deux", "x", "pieds"];
-export function aligner_frames() { throw new Error("aligner_frames : tâche 2"); }
+// décalage entier par case pour ramener le centre x et / ou le bas de l'alpha
+// sur ceux de la PREMIÈRE case sélectionnée (« Auto Align » de l'Analyzer :
+// les feuilles d'IA tremblent) ; borné à la cellule, jamais hors champ
+export function aligner_frames(img, g, sel, mode = "deux") {
+  if (!MODES_ALIGNEMENT.includes(mode)) throw new Error(`alignement : mode ${mode} inconnu (deux, x, pieds)`);
+  const n = g.cols * g.rows, out = [];
+  let ref = null;
+  for (let i = 0; i < n; i++) {
+    if (!sel[i]) continue;
+    const b = bbox_alpha(img, rect_case(g, i));
+    if (b) { const r = rect_case(g, i); ref = { cx: b.x - r.x + b.w / 2, bas: b.y - r.y + b.h }; break; }
+  }
+  for (let i = 0; i < n; i++) {
+    const r = rect_case(g, i), b = sel[i] ? bbox_alpha(img, r) : null;
+    if (!b || !ref) { out.push({ dx: 0, dy: 0 }); continue; }
+    let dx = mode === "pieds" ? 0 : Math.round(ref.cx - (b.x - r.x + b.w / 2));
+    let dy = mode === "x" ? 0 : Math.round(ref.bas - (b.y - r.y + b.h));
+    dx = Math.max(-(b.x - r.x), Math.min(r.w - (b.x - r.x + b.w), dx));
+    dy = Math.max(-(b.y - r.y), Math.min(r.h - (b.y - r.y + b.h), dy));
+    out.push({ dx, dy });
+  }
+  return out;
+}
 export const MODES_SECTION = ["boucle", "pingpong", "inverse"];
 export function section_definir() { throw new Error("section_definir : tâche 3"); }
 export function manifest_feuille() { throw new Error("manifest_feuille : tâche 3"); }
