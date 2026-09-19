@@ -129,8 +129,28 @@ const hex = (r, g, b) => "#" + [r, g, b].map((v) => v.toString(16).padStart(2, "
   ok("losanges pavés : autant de pixels que 4 fois le losange unitaire", Array.from(m).filter(Boolean).length === 4 * Array.from(m1).filter(Boolean).length);
   ok("sans tuile (0) → le losange de l'image entière", Array.from(masque_losanges(8, 4, 0, 0)).join("") === Array.from(m1).join(""));
 }
+/* ── lot 3 : le calque modèle — cellule ↔ cible, pipette sur le modèle, remplissage, couleurs utilisées ── */
+{
+  const { cellule_et_cible, echantillon_cellule, remplir_depuis_modele, couleurs_utilisees } = await import("../js/mod-pixelart.js");
+  ok("cellule 16 sur 64 × 48 → cible 4 × 3", JSON.stringify(cellule_et_cible({ w: 64, h: 48 }, { cellule: 16 })) === JSON.stringify({ cellule: 16, cible_w: 4, cible_h: 3 }));
+  ok("cible 32 sur 100 × 60 → cellule 3, cible réelle 34 × 20", JSON.stringify(cellule_et_cible({ w: 100, h: 60 }, { cible: 32 })) === JSON.stringify({ cellule: 3, cible_w: 34, cible_h: 20 }), JSON.stringify(cellule_et_cible({ w: 100, h: 60 }, { cible: 32 })));
+  ok("cellule > image → 1 × 1 ; cellule < 1 → 1", cellule_et_cible({ w: 10, h: 10 }, { cellule: 50 }).cible_w === 1 && cellule_et_cible({ w: 10, h: 10 }, { cellule: 0 }).cellule === 1);
+  const m = tampon(8, 8); for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) { const k = (y * 8 + x) * 4; const bleu = (x === 3 && y < 4); m.data[k] = bleu ? 0 : 255; m.data[k + 2] = bleu ? 255 : 0; m.data[k + 3] = 255; }
+  const r = { x: 0, y: 0, w: 4, h: 4 };
+  ok("exact = le pixel du centre (2,2) → rouge", echantillon_cellule(m, r, "exact") === "#FF0000");
+  ok("moyenne = (12·255)/16 rouge, (4·255)/16 bleu → #BF0040", echantillon_cellule(m, r, "moyenne") === "#BF0040", echantillon_cellule(m, r, "moyenne"));
+  ok("dominante → rouge", echantillon_cellule(m, r, "dominante") === "#FF0000");
+  ok("cellule transparente → null ; mode inconnu → refus", echantillon_cellule(m, { x: 4, y: 0, w: 4, h: 4 }, "moyenne") === null && (() => { try { echantillon_cellule(m, r, "zz"); return false; } catch { return true; } })());
+  const f = remplir_depuis_modele(m, 2, 2, 4, "dominante");
+  ok("remplir 8 × 8 par cellule 4 → 2 × 2 : (0,0) rouge, (1,0) transparent", f.w === 2 && f.h === 2 && f.data[0] === 255 && f.data[3] === 255 && f.data[7] === 0);
+  const fp = remplir_depuis_modele(m, 2, 2, 4, "moyenne", ["#000000", "#FF0000"]);
+  ok("avec palette : la moyenne #BF0040 est ramenée à #FF0000", fp.data[0] === 255 && fp.data[1] === 0 && fp.data[2] === 0);
+  const u = couleurs_utilisees(m);
+  ok("couleurs utilisées triées par fréquence : rouge (12) puis bleu (4)", u.length === 2 && u[0] === "#FF0000" && u[1] === "#0000FF", u.join());
+  ok("couleurs utilisées : plafond respecté", couleurs_utilisees(m, 1).length === 1);
+}
 if (echecs.length) {
   console.error("ECHECS pixelart :\n- " + echecs.join("\n- "));
   process.exit(1);
 }
-console.log("QA pixelart : PASS (43 controles)");
+console.log("QA pixelart : PASS (54 controles)");

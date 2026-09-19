@@ -227,6 +227,55 @@ export function masque_losanges(w, h, tw, th) {
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) m[y * w + x] = u[(y % th) * tw + (x % tw)];
   return m;
 }
+/* ── lot 3 : le calque modèle — cellule ↔ cible, pipette SUR LE MODÈLE (exacte,
+   moyenne, dominante), remplissage depuis le modèle, couleurs utilisées ── */
+export function cellule_et_cible(nat, { cellule, cible } = {}) {
+  const w = Math.max(1, nat.w | 0), h = Math.max(1, nat.h | 0);
+  const c = cellule !== undefined ? Math.max(1, Math.round(+cellule) || 1) : Math.max(1, Math.round(w / Math.max(1, Math.round(+cible) || 1)));
+  return { cellule: c, cible_w: Math.max(1, Math.ceil(w / c)), cible_h: Math.max(1, Math.ceil(h / c)) };
+}
+export const MODES_PIPETTE = ["exact", "moyenne", "dominante"];
+const _hexDe = (r, g, b) => "#" + [r, g, b].map((v) => Math.round(v).toString(16).padStart(2, "0").toUpperCase()).join("");
+const _classe = (d, k) => ((d[k] >> 2) << 12) | ((d[k + 1] >> 2) << 6) | (d[k + 2] >> 2);   // 64 niveaux par canal
+export function echantillon_cellule(img, rect, mode = "moyenne") {
+  if (!MODES_PIPETTE.includes(mode)) throw new Error("pipette : mode exact, moyenne ou dominante");
+  const x0 = Math.max(0, rect.x | 0), y0 = Math.max(0, rect.y | 0);
+  const x1 = Math.min(img.w, x0 + Math.max(1, rect.w | 0)), y1 = Math.min(img.h, y0 + Math.max(1, rect.h | 0));
+  if (x0 >= x1 || y0 >= y1) return null;
+  const d = img.data;
+  if (mode === "exact") {
+    const cx = Math.min(x1 - 1, x0 + ((x1 - x0) >> 1)), cy = Math.min(y1 - 1, y0 + ((y1 - y0) >> 1)), k = (cy * img.w + cx) * 4;
+    return d[k + 3] ? _hexDe(d[k], d[k + 1], d[k + 2]) : null;
+  }
+  let sr = 0, sg = 0, sb = 0, n = 0; const votes = new Map();
+  for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+    const k = (y * img.w + x) * 4; if (!d[k + 3]) continue;
+    n++; sr += d[k]; sg += d[k + 1]; sb += d[k + 2];
+    const q = _classe(d, k); votes.set(q, (votes.get(q) || 0) + 1);
+  }
+  if (!n) return null;
+  if (mode === "moyenne") return _hexDe(sr / n, sg / n, sb / n);
+  let best = -1, bn = 0; for (const [q, c] of votes) if (c > bn) { bn = c; best = q; }
+  // la dominante rend la MOYENNE des pixels de la classe gagnante, pas le centre de classe
+  let r = 0, g = 0, b = 0, m = 0;
+  for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const k = (y * img.w + x) * 4; if (d[k + 3] && _classe(d, k) === best) { r += d[k]; g += d[k + 1]; b += d[k + 2]; m++; } }
+  return _hexDe(r / m, g / m, b / m);
+}
+export function remplir_depuis_modele(modele, cible_w, cible_h, cellule, mode = "moyenne", palette = null) {
+  const out = _tampon(cible_w, cible_h);
+  for (let y = 0; y < cible_h; y++) for (let x = 0; x < cible_w; x++) {
+    const hex = echantillon_cellule(modele, { x: x * cellule, y: y * cellule, w: cellule, h: cellule }, mode);
+    if (!hex) continue;
+    const [r, g, b] = _rgb(hex), k = (y * cible_w + x) * 4;
+    out.data[k] = r; out.data[k + 1] = g; out.data[k + 2] = b; out.data[k + 3] = 255;
+  }
+  return palette && palette.length ? quantifier(out, palette) : out;
+}
+export function couleurs_utilisees(img, max = 64) {
+  const votes = new Map(), d = img.data;
+  for (let k = 0; k < img.w * img.h; k++) { if (!d[k * 4 + 3]) continue; const h = _hexDe(d[k * 4], d[k * 4 + 1], d[k * 4 + 2]); votes.set(h, (votes.get(h) || 0) + 1); }
+  return [...votes.entries()].sort((a, b) => b[1] - a[1]).slice(0, Math.max(1, max | 0)).map(([h]) => h);
+}
 export function pavage_iso(img) {
   const { w, h } = img, m = masque_losange(w, h), W = w * 3, H = h * 3, out = _tampon(W, H), qui = new Int8Array(W * H).fill(-1);
   const pos = [[w, h, 0], [w / 2, h / 2, 1], [3 * w / 2, h / 2, 2], [w / 2, 3 * h / 2, 3], [3 * w / 2, 3 * h / 2, 4], [0, h, 5], [2 * w, h, 6], [w, 0, 7], [w, 2 * h, 8]];
