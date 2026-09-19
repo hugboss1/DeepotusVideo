@@ -305,7 +305,7 @@ if (window.TLF) feuilleWire(); else document.addEventListener("tlf-pret", feuill
 window.__tl = Object.assign(window.__tl || {}, { feuille: { ouvrir: feuilleOuvrir, etat: () => F, detecter, poser: (c, r) => { F.placements = F.placements.filter((p) => !(p.c === c && p.r === r)); F.placements.push({ c, r, tuile: F.sel }); rendrePlacement(); rendreTuiles(); }, raccord, mode: tlMode } });
 
 /* poignée QA (harnais Puppeteer de la recette) */
-window.__tl = {
+window.__tl = Object.assign(window.__tl || {}, {   // lot 4 : ne pas écraser la poignée « feuille » posée plus haut
   get state() {
     return { selImage, busy, result };
   },
@@ -316,7 +316,7 @@ window.__tl = {
     updateRunEnabled();
   },
   run,
-};
+});
 
 (function init() {
   wire();
