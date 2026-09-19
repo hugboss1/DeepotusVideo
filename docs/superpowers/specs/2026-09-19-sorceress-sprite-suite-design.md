@@ -79,7 +79,14 @@ raccord ×9 en diamant) et une commande « Rastériser cette image »
 
 ## Lots proposés (ordre par valeur pour Rippled)
 
-1. **Spritelab « Feuille »** (D1) — inspection, sections, JSON.
-2. **Persona Pixel ligne de temps + gestes** (D2).
-3. **Tilelab 2** (D3) + palettes unifiées (D4).
-4. Playground et fonds illustrés, True Pixel « contour sombre » (adaptés).
+1. **Spritelab « Feuille »** (D1) — inspection, sections, JSON. LIVRÉ 19/09.
+2. **Persona Pixel ligne de temps + gestes** (D2) + tuile iso + rastériser. LIVRÉ 19/09.
+3. **Calque modèle et pixel-art guidé** (demande du 19/09, spec
+   `2026-09-19-vectorlab-calque-modele-pixel-design.md`) : modèle désigné,
+   cellule et taille cible liées avec aperçu de grille, calque pixel posé sur
+   le modèle, pipette exacte / moyenne / dominante depuis le modèle,
+   pré-remplissage, swatches + couleurs utilisées + palette depuis le
+   modèle, impression 3D « Pixel-art » (une pièce et une hauteur par
+   couleur).
+4. **Tilelab 2** (D3) + palettes unifiées (D4).
+5. Playground et fonds illustrés, True Pixel « contour sombre » (adaptés).
