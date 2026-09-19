@@ -34,5 +34,13 @@ const ok = (nom, cond, detail = "") => {
   ok("couleur_du_lot : le vote des pièces", couleur_du_lot(P) === "#ff0000");
   ok("couleur_du_lot sans couleur → null", couleur_du_lot([{ nom: "x" }]) === null);
 }
+{
+  const { hauteurs_lire } = await import("../js/mod-impression.js");
+  const r = reglages_lire({ mode: "pixelart", cellule: "2,5", hmin: "1", hmax: "6" });
+  ok("lot 3 — mode pixelart, cellule 2,5 mm, hauteurs min / max", r.mode === "pixelart" && r.cellule_mm === 2.5 && r.hmin === 1 && r.hmax === 6, JSON.stringify(r));
+  const b = reglages_lire({ mode: "pixelart", cellule: "0", hmin: "4", hmax: "2" });
+  ok("lot 3 — bornes : cellule ≥ 0,2, hmax ≥ hmin + 0,2", b.cellule_mm === 0.2 && b.hmax === 4.2, JSON.stringify(b));
+  ok("lot 3 — hauteurs_lire : mm par couleur, défaut sur valeur folle", JSON.stringify(hauteurs_lire([{ couleur: "#FF0000", mm: "3" }, { couleur: "#00FF00", mm: "abc" }], 2)) === JSON.stringify({ "#FF0000": 3, "#00FF00": 2 }));
+}
 if (echecs.length) { console.error("ECHECS impression_ui :\n- " + echecs.join("\n- ")); process.exit(1); }
-console.log("QA impression_ui : PASS (11 controles)");
+console.log("QA impression_ui : PASS (14 controles)");

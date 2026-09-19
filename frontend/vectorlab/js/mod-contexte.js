@@ -40,11 +40,11 @@ export function champs_de(outil, etat) {
     case "coin": return [nombre("coinRayon", "Rayon", etat.coinRayon, 0, 500)];
     case "crayon": case "pinceauv": return [select("pvProfil", "Profil", pv.profil, opts(etat.profils)), nombre("pvLargeur", "Largeur", pv.largeur, 1, 200)];
     // lot 2 (Sprite Editor) : Forme rond / carré, Secondaire (clic droit ; vide = transparent = gomme), Pixel-parfait du crayon
-    case "px-pinceau": return [nombre("pxRayon", "Rayon", px.rayon, 1, 256), nombre("pxDurete", "Dureté", px.durete, 0, 1, 0.05), select("pxForme", "Forme", px.forme || "rond", FORMES_PINCEAU), champSecondaire(px)];
+    case "px-pinceau": return [nombre("pxRayon", "Rayon", px.rayon, 1, 256), nombre("pxDurete", "Dureté", px.durete, 0, 1, 0.05), select("pxForme", "Forme", px.forme || "rond", FORMES_PINCEAU), champSecondaire(px), champPipette(px)];
     case "px-gomme": return [nombre("pxRayon", "Rayon", px.rayon, 1, 256), nombre("pxDurete", "Dureté", px.durete, 0, 1, 0.05), select("pxForme", "Forme", px.forme || "rond", FORMES_PINCEAU)];
-    case "px-crayon": return [{ id: "pxParfait", type: "bascule", libelle: "Pixel-parfait", valeur: px.parfait !== false }, champSecondaire(px)];
+    case "px-crayon": return [{ id: "pxParfait", type: "bascule", libelle: "Pixel-parfait", valeur: px.parfait !== false }, champSecondaire(px), champPipette(px)];
     case "px-cloner": case "px-flou": case "px-eclaircir": case "px-assombrir": return [nombre("pxRayon", "Rayon", px.rayon, 1, 256), nombre("pxDurete", "Dureté", px.durete, 0, 1, 0.05)];
-    case "px-seau": return [nombre("pxTolerance", "Tolérance", px.tolerance, 0, 255), { id: "pxGlobal", type: "bascule", libelle: "Global", valeur: !!px.global }];
+    case "px-seau": return [nombre("pxTolerance", "Tolérance", px.tolerance, 0, 255), { id: "pxGlobal", type: "bascule", libelle: "Global", valeur: !!px.global }, champPipette(px)];
     case "px-baguette": return [nombre("pxTolerance", "Tolérance", px.tolerance, 0, 255)];
     case "tuiles": return [select("terrainCourant", "Terrain", etat.terrainCourant, Object.entries(etat.terrains || {}).map(([id, t]) => ({ id, libelle: (t && t.nom) || id })))];
     case "texte": { const t = etat.typo || {}; const o = (etat.objets || [])[0]; const st = o && ["texte", "cadre", "textechemin"].includes(o.type) ? (o.style || {}) : (t.styleDefaut || {}); return champs_texte(st, t.polices); }
@@ -54,6 +54,8 @@ export function champs_de(outil, etat) {
 }
 const borne = (v, min, max) => Math.max(min, Math.min(max, Number.isFinite(+v) ? +v : min));
 const FORMES_PINCEAU = [{ id: "rond", libelle: "Rond" }, { id: "carre", libelle: "Carré" }];
+const MODES_PIPETTE_CTX = [{ id: "exact", libelle: "Exacte" }, { id: "moyenne", libelle: "Moyenne" }, { id: "dominante", libelle: "Dominante" }];
+const champPipette = (px) => select("pxPipetteMode", "Pipette", px.pipetteMode || "moyenne", MODES_PIPETTE_CTX);   // lot 3 : depuis le modèle
 const champSecondaire = (px) => ({ id: "pxSecondaire", type: "couleur", libelle: "Secondaire", valeur: px.secondaire || null, titre: "Couleur du clic droit — vide = transparent = gomme" });
 const _HEX6 = /^#[0-9A-Fa-f]{6}$/;
 export function appliquer_champ(etat, id, valeur) {
@@ -70,6 +72,7 @@ export function appliquer_champ(etat, id, valeur) {
     case "pxDurete": return { px: { ...(e.px || {}), durete: borne(valeur, 0, 1) } };
     case "pxTolerance": return { px: { ...(e.px || {}), tolerance: borne(valeur, 0, 255) } };
     case "pxGlobal": return { px: { ...(e.px || {}), global: valeur === true || valeur === "true" || valeur === 1 } };
+    case "pxPipetteMode": return { px: { ...(e.px || {}), pipetteMode: ["exact", "moyenne", "dominante"].includes(String(valeur)) ? String(valeur) : "moyenne" } };
     case "pxForme": return { px: { ...(e.px || {}), forme: String(valeur) === "carre" ? "carre" : "rond" } };
     case "pxParfait": return { px: { ...(e.px || {}), parfait: valeur === true || valeur === "true" || valeur === 1 } };
     case "pxSecondaire": return { px: { ...(e.px || {}), secondaire: _HEX6.test(String(valeur || "")) ? String(valeur).toUpperCase() : null } };

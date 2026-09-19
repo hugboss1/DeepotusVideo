@@ -23,7 +23,7 @@ const num = (v, def) => {
   return Number.isFinite(n) ? n : def;
 };
 export function reglages_lire(f) {
-  const mode = ["calques", "tuiles", "logo", "relief"].includes(f.mode) ? f.mode : "calques";
+  const mode = ["calques", "tuiles", "logo", "relief", "pixelart"].includes(f.mode) ? f.mode : "calques";
   const h0 = num(f.hauteur, 3);
   const hauteur = Math.max(0.2, h0 > 0 ? h0 : 3);
   const socle = Math.max(0, num(f.socle, 0));
@@ -35,7 +35,17 @@ export function reglages_lire(f) {
   const gravure = Math.max(0, num(f.gravure, 0));
   // R12 : l'angle de dépouille des flancs (0 = droits, + = base plus large), borné ±45
   const depouille = Math.max(-DEPOUILLE_MAX, Math.min(DEPOUILLE_MAX, num(f.depouille, 0)));
-  return { mode, hauteur, socle, biseau, evide: !!f.evide, mur, plancher, pas: 0.2, exageration, largeur, gravure, depouille };
+  // lot 3 : mode Pixel-art — cellule en mm, hauteurs min / max des couleurs
+  const cellule_mm = Math.max(0.2, num(f.cellule, 2));
+  const hmin = Math.max(0.2, num(f.hmin, 1));
+  const hmax = Math.max(hmin + 0.2, num(f.hmax, 5));
+  return { mode, hauteur, socle, biseau, evide: !!f.evide, mur, plancher, pas: 0.2, exageration, largeur, gravure, depouille, cellule_mm, hmin, hmax };
+}
+// lot 3 : la table des hauteurs par couleur du dialogue → {hex: mm}, défaut sur valeur folle
+export function hauteurs_lire(lignes, defaut) {
+  const out = {};
+  for (const l of lignes || []) { const v = num(l.mm, NaN); out[l.couleur] = Number.isFinite(v) && v > 0 ? v : defaut; }
+  return out;
 }
 export function hauteurs_par_calque(texte, calques) {
   let globale = null;
