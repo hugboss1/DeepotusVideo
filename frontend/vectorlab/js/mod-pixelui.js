@@ -11,7 +11,7 @@ import { pinceau, gomme, seau, sel_rect, sel_lasso, sel_baguette, sel_couleur, s
          sel_inverser, sel_bbox, masque_calque, niveaux, courbes, hsl, noir_blanc, seuil, flou, cloner,
          extraire } from "./mod-pixel.js";
 import { ligne_pixel, rect_pixel, symetrie, palette_extraire, quantifier, pixeliser, raccord_3x3,
-         feuille_tuiles, bande, pelure, pelure_double, pixel_parfait } from "./mod-pixelart.js";
+         feuille_tuiles, bande, pelure, pelure_double, pixel_parfait, masque_losange, pavage_iso, rasteriser, DITHERS } from "./mod-pixelart.js";
 
 const SNS = "http://www.w3.org/2000/svg";
 export const OUTILS_PIXEL = [
@@ -186,7 +186,14 @@ export function initPixelUI(VL) {
     }
     return out;
   };
-  const masqueEffectif = () => etat.px.masque || undefined;   // T7 : le losange iso s'y greffe
+  // lot 2 : en tuile iso, la peinture est BORNÉE au losange quand aucune sélection n'est posée
+  let losange = null;
+  const masqueEffectif = () => {
+    if (etat.px.masque) return etat.px.masque;
+    const t = etat.px.tampon; if (!t || !(etat.doc.pixelart && etat.doc.pixelart.iso)) return undefined;
+    if (!losange || losange.w !== t.w || losange.h !== t.h) losange = { w: t.w, h: t.h, m: masque_losange(t.w, t.h) };
+    return losange.m;
+  };
   const opts = (g) => ({ rayon: etat.px.rayon, couleur: (g && g.couleur) || etat.px.couleur, durete: etat.px.durete, masque: masqueEffectif(), forme: etat.px.forme });
   // lot 2 : le crayon PIXEL-PARFAIT repart du tampon de départ à chaque cadre — tracé entier re-filtré
   function crayonParfait(g) {
@@ -406,8 +413,15 @@ export function initPixelUI(VL) {
     if (etat.px.grille && kx >= 6 && ky >= 6) {
       const tuile = etat.doc.pixelart && etat.doc.pixelart.tuile, g = el("g", { class: "px-grille" });
       let d = "", dt = "";
-      for (let i = 0; i <= r.w; i++) { const x = sx + i * kx; ((tuile && (i + r.x) % tuile.w === 0) ? (dt += `M${x} ${sy}v${sh}`) : (d += `M${x} ${sy}v${sh}`)); }
-      for (let j = 0; j <= r.h; j++) { const y = sy + j * ky; ((tuile && (j + r.y) % tuile.h === 0) ? (dt += `M${sx} ${y}h${sw}`) : (d += `M${sx} ${y}h${sw}`)); }
+      const iso = !!(etat.doc.pixelart && etat.doc.pixelart.iso && tuile);
+      for (let i = 0; i <= r.w; i++) { const x = sx + i * kx; ((tuile && !iso && (i + r.x) % tuile.w === 0) ? (dt += `M${x} ${sy}v${sh}`) : (d += `M${x} ${sy}v${sh}`)); }
+      for (let j = 0; j <= r.h; j++) { const y = sy + j * ky; ((tuile && !iso && (j + r.y) % tuile.h === 0) ? (dt += `M${sx} ${y}h${sw}`) : (d += `M${sx} ${y}h${sw}`)); }
+      if (iso) {                                   // lot 2 : le losange 2:1 de chaque tuile
+        for (let j = 0; j * tuile.h < r.h; j++) for (let i = 0; i * tuile.w < r.w; i++) {
+          const x0 = sx + i * tuile.w * kx, y0 = sy + j * tuile.h * ky, x1 = x0 + tuile.w * kx, y1 = y0 + tuile.h * ky, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+          dt += `M${cx} ${y0}L${x1} ${cy}L${cx} ${y1}L${x0} ${cy}Z`;
+        }
+      }
       el("path", { d, stroke: "rgba(255,255,255,.14)", "stroke-width": 1, fill: "none" }, g);
       if (dt) el("path", { d: dt, stroke: "rgba(255,209,102,.55)", "stroke-width": 1, fill: "none" }, g);
     }
@@ -480,15 +494,20 @@ export function initPixelUI(VL) {
         <div class="ap-ligne"><span>Tuile</span>${num("pxTuileW", tuile.w, 'min="1" title="Largeur d\'une tuile (px)"')}<span style="width:auto">×</span>${num("pxTuileH", tuile.h, 'min="1"')}
           <button id="pxTuileOK" title="Pose les unités de tuile sur le document (rendu au plus proche voisin)">${pa.tuile ? "↻" : "OK"}</button></div>
         <div class="ap-ligne"><label><input type="checkbox" id="pxGrille"${p.grille ? " checked" : ""}/> grille pixel</label>
+          <label title="Tuile isométrique 2:1 : grille en losange, peinture bornée au losange, raccord en pavage iso"><input type="checkbox" id="pxIso"${pa.iso ? " checked" : ""}/> iso 2:1</label>
           <label title="Les gestes se répètent en miroir"><input type="checkbox" id="pxSymH"${s.h ? " checked" : ""}/> sym. H</label>
           <label><input type="checkbox" id="pxSymV"${s.v ? " checked" : ""}/> V</label></div>
         <div class="ap-ligne"><span>Palette</span>${num("pxPalN", (pa.palette || []).length || 8, 'min="2" max="64" title="Nombre de couleurs à extraire"')}
           <button id="pxPalExtraire" ${t ? "" : "disabled"} title="Palette indexée par median cut, sauvée avec le document">Extraire</button>
           <button id="pxQuantifier" ${t && pa.palette ? "" : "disabled"} title="Ramène chaque pixel à la couleur de palette la plus proche">Quantifier</button></div>
         <div class="px-palette" id="pxPalette">${paletteHTML(pa.palette || [], p.couleur)}</div>
+        <div class="ap-ligne"><span>Rastériser</span>${num("pxRastW", (pa.tuile && pa.tuile.w) || 64, 'min="1" max="4096" title="Largeur cible (px) — la hauteur suit"')}
+          <select id="pxRastPal" title="Palette appliquée après la réduction"><option value="aucune">libre</option><option value="doc"${pa.palette ? "" : " disabled"}>palette du doc</option><option value="extraire">extraire N</option></select>
+          <select id="pxRastDither" title="Tramage"><option value="aucun">sans tramage</option><option value="ordonne">ordonné</option><option value="floyd">Floyd-Steinberg</option></select></div>
+        <div class="ap-ligne"><span></span><button id="pxRasteriser" ${t ? "" : "disabled"} title="Une image générée (Bibliothèque → Image) devient un calque pixel éditable : réduction au plus proche voisin, palette, tramage — annulable">Rastériser cette image</button></div>
         <div class="ap-ligne"><button id="pxPixeliser" ${t ? "" : "disabled"} title="Réduit l'image à la largeur de tuile, au plus proche voisin">Pixeliser l'image</button>
           <button id="pxPixeliserVec" ${etat.selection.length && !o ? "" : "disabled"} title="Rastérise la sélection vectorielle en une tuile (plus proche voisin) posée à sa place">Pixeliser la sélection</button></div>
-        <div class="ap-ligne"><button id="pxRaccord" ${t ? "" : "disabled"} title="Mosaïque 3×3 et score de raccord (métrique du Tilelab)">Raccord 3×3</button><span id="pxScore" style="width:auto"></span></div>
+        <div class="ap-ligne"><button id="pxRaccord" ${t ? "" : "disabled"} title="${pa.iso ? "Pavage iso ×9 (décalages ±w/2, ±h/2) et score de raccord" : "Mosaïque 3×3 et score de raccord (métrique du Tilelab)"}">Raccord ${pa.iso ? "iso ×9" : "3×3"}</button><span id="pxScore" style="width:auto"></span></div>
         <canvas id="pxRaccordCv" class="px-raccord" hidden></canvas>
         <div class="ap-ligne"><span>Feuille</span>${num("pxCols", 8, 'min="1" title="Colonnes de la feuille de tuiles"')}
           <button id="pxFeuille" title="Toutes les images du document (même taille) → PNG + index JSON téléchargés">PNG + JSON</button></div>
@@ -546,8 +565,10 @@ export function initPixelUI(VL) {
       await commettre({ w: etat.px.tampon.w, h: etat.px.tampon.h });
     }));
     on("pxPixeliserVec", "click", garde(pixeliserSelection));
+    on("pxIso", "change", (ev) => { losange = null; VL.executer(op_pixelart, { iso: ev.target.checked ? true : null }); VL.rendreOverlay(); });
+    on("pxRasteriser", "click", garde(rasteriserImage));
     on("pxRaccord", "click", () => {
-      const r = raccord_3x3(t), cv = $("#pxRaccordCv");
+      const r = (etat.doc.pixelart && etat.doc.pixelart.iso) ? pavage_iso(t) : raccord_3x3(t), cv = $("#pxRaccordCv");
       cv.hidden = false; cv.width = r.img.w; cv.height = r.img.h;
       cv.getContext("2d").putImageData(new ImageData(new Uint8ClampedArray(r.img.data), r.img.w, r.img.h), 0, 0);
       $("#pxScore").textContent = `score ${r.score}`;
@@ -714,6 +735,19 @@ export function initPixelUI(VL) {
     VL.toast(`${d.filename} déposé dans la Bibliothèque — ${surface} s'ouvre`);
     window.open(`/${surface}/`, "_blank");
   }
+
+  // lot 2 : « Rastériser cette image » — pixeliser à la largeur cible, palette, tramage ; l'objet garde son rectangle
+  async function rasteriserImage() {
+    const t = etat.px.tampon; if (!t) throw new Error("éditer d'abord les pixels d'une image");
+    const mode = $("#pxRastPal").value, pa = etat.doc.pixelart || {};
+    const palette = mode === "doc" ? pa.palette : mode === "extraire" ? palette_extraire(t, Math.round(val("pxPalN")) || 8) : null;
+    const r = rasteriser(t, { cible_w: Math.round(val("pxRastW")), palette, dither: $("#pxRastDither").value });
+    etat.px.tampon = r; etat.px.masque = null; losange = null;
+    await commettre({ w: r.w, h: r.h });
+    VL.toast(`rastérisée : ${r.w}×${r.h}${palette ? `, ${palette.length} couleurs` : ""} (annulable : ↶ Annuler pixels)`);
+  }
+  VL.actions = VL.actions || {};
+  VL.actions.pixel = Object.assign(VL.actions.pixel || {}, { rasteriser: garde(rasteriserImage), iso: (on) => VL.executer(op_pixelart, { iso: on ? true : null }) });
 
   /* ── crochets ── */
   const suivantRendu = VL.surRendu;
