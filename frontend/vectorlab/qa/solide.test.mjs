@@ -193,8 +193,23 @@ const aireMulti = (mp) => mp.reduce((s, poly) => s + poly.reduce((t, ring, i) =>
   ok("hauteurs par luminosité : noir 1, blanc 5, gris ≈ 3", H["#000000"] === 1 && H["#FFFFFF"] === 5 && pres(H["#808080"], 3, 0.1), JSON.stringify(H));
   ok("une seule couleur → max", hauteurs_par_luminosite(["#123456"], 1, 5)["#123456"] === 5);
 }
+/* ── lot 5 : contours VRAIS des pièces de pixel-art (plus de faces internes) ── */
+{
+  const { contours_de_masque, pixels_vers_pieces } = await import("../js/mod-solide.js");
+  const M = (w, h, on) => { const m = new Uint8Array(w * h); for (const [x, y] of on) m[y * w + x] = 1; return m; };
+  const plein = contours_de_masque(M(2, 2, [[0, 0], [1, 0], [0, 1], [1, 1]]), 2, 2);
+  ok("carré plein 2 × 2 → un polygone, un anneau de 4 sommets (colinéaires élagués), fermé", plein.length === 1 && plein[0].length === 1 && plein[0][0].length === 5, JSON.stringify(plein));
+  const donut = contours_de_masque(M(3, 3, [[0, 0], [1, 0], [2, 0], [0, 1], [2, 1], [0, 2], [1, 2], [2, 2]]), 3, 3);
+  ok("anneau 3 × 3 → un extérieur (4 sommets) et un trou (4 sommets)", donut.length === 1 && donut[0].length === 2 && donut[0][0].length === 5 && donut[0][1].length === 5, JSON.stringify(donut));
+  ok("deux pixels séparés → deux polygones", contours_de_masque(M(3, 1, [[0, 0], [2, 0]]), 3, 1).length === 2);
+  ok("contact diagonal → deux polygones (pas de fusion)", contours_de_masque(M(2, 2, [[0, 0], [1, 1]]), 2, 2).length === 2);
+  const img = { w: 3, h: 3, data: new Uint8ClampedArray(36) }; for (const [x, y] of [[0, 0], [1, 0], [2, 0], [0, 1], [2, 1], [0, 2], [1, 2], [2, 2]]) { const k = (y * 3 + x) * 4; img.data[k] = 255; img.data[k + 3] = 255; }
+  const P = pixels_vers_pieces(img, 2, { "#FF0000": 3 });
+  ok("pièce donut : volume = 8 px × 4 mm² × 3 = 96 (le trou est un vrai trou)", pres(volume_de(P[0].tris), 96, 1e-6), volume_de(P[0].tris));
+  ok("pièce donut : ≤ 40 triangles (rectangles : 48 avec faces internes)", P[0].tris.length <= 40, P[0].tris.length);
+}
 if (echecs.length) {
   console.error("ECHECS solide :\n- " + echecs.join("\n- "));
   process.exit(1);
 }
-console.log("QA solide : PASS (62 controles)");
+console.log("QA solide : PASS (68 controles)");

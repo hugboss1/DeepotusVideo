@@ -274,6 +274,53 @@ export function hauteurs_par_luminosite(couleurs, min_mm = 1, max_mm = 5) {
   couleurs.forEach((c, i) => { out[c] = hi === lo ? +max_mm : Math.round((+min_mm + (ls[i] - lo) / (hi - lo) * (+max_mm - +min_mm)) * 100) / 100; });
   return out;
 }
+/* ── lot 5 : les contours VRAIS d'un masque binaire — arêtes de bord chaînées
+   (au sommet à quatre arêtes, on tourne à droite : deux régions en contact
+   diagonal restent séparées), colinéaires élagués, extérieurs (aire > 0 en
+   repère écran) et trous (aire < 0) rattachés par un point juste DANS le
+   trou — plus aucune face interne dans les pièces de pixel-art ── */
+function _aireSignee(r) { let a = 0; for (let i = 0; i + 1 < r.length; i++) a += r[i][0] * r[i + 1][1] - r[i + 1][0] * r[i][1]; return a / 2; }
+function _dedans(p, r) { let c = false; for (let i = 0, j = r.length - 2; i + 1 < r.length; j = i++) { const [xi, yi] = r[i], [xj, yj] = r[j]; if ((yi > p[1]) !== (yj > p[1]) && p[0] < (xj - xi) * (p[1] - yi) / (yj - yi) + xi) c = !c; } return c; }
+export function contours_de_masque(m, w, h) {
+  const dans = (x, y) => x >= 0 && y >= 0 && x < w && y < h && m[y * w + x] > 0;
+  const cle = (x, y) => y * (w + 1) + x, sorties = new Map(), aretes = [];
+  const pose = (x0, y0, x1, y1) => { const e = { a: [x0, y0], b: [x1, y1], vu: false }; aretes.push(e); const k = cle(x0, y0); if (!sorties.has(k)) sorties.set(k, []); sorties.get(k).push(e); };
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (!dans(x, y)) continue;
+    if (!dans(x, y - 1)) pose(x, y, x + 1, y);           // haut : vers la droite
+    if (!dans(x + 1, y)) pose(x + 1, y, x + 1, y + 1);   // droite : vers le bas
+    if (!dans(x, y + 1)) pose(x + 1, y + 1, x, y + 1);   // bas : vers la gauche
+    if (!dans(x - 1, y)) pose(x, y + 1, x, y);           // gauche : vers le haut
+  }
+  const anneaux = [];
+  for (const e0 of aretes) {
+    if (e0.vu) continue;
+    const ring = [e0.a]; let e = e0;
+    while (e && !e.vu) {
+      e.vu = true; ring.push(e.b);
+      const cands = (sorties.get(cle(e.b[0], e.b[1])) || []).filter((c) => !c.vu);
+      if (!cands.length) break;
+      const dx = e.b[0] - e.a[0], dy = e.b[1] - e.a[1];   // tourner à DROITE d'abord (repère écran) : (−dy, dx)
+      e = cands.find((c) => c.b[0] - c.a[0] === -dy && c.b[1] - c.a[1] === dx) || cands[0];
+    }
+    // colinéaires élagués (le dernier point = le premier)
+    const r = [];
+    for (let i = 0; i + 1 < ring.length; i++) {
+      const p = ring[(i - 1 + ring.length - 1) % (ring.length - 1)], q = ring[i], n = ring[i + 1];
+      if ((q[0] - p[0]) * (n[1] - q[1]) - (q[1] - p[1]) * (n[0] - q[0]) !== 0) r.push(q);
+    }
+    if (r.length >= 3) { r.push([r[0][0], r[0][1]]); anneaux.push(r); }
+  }
+  const exts = anneaux.filter((r) => _aireSignee(r) > 0).map((r) => [r]);
+  for (const t of anneaux.filter((r) => _aireSignee(r) < 0)) {
+    const dx = t[1][0] - t[0][0], dy = t[1][1] - t[0][1];
+    const p = [(t[0][0] + t[1][0]) / 2 + dy * 0.5, (t[0][1] + t[1][1]) / 2 - dx * 0.5];   // juste à GAUCHE de la première arête = dans le trou
+    const hote = exts.find((poly) => _dedans(p, poly[0]));
+    if (hote) hote.push(t);
+  }
+  return exts;
+}
+
 export function pixels_vers_pieces(img, cellule_mm, hauteurs = {}, { socle_mm = 0, hauteur_defaut = 2 } = {}) {
   const c = +cellule_mm;
   if (!(c > 0)) throw new Error("pixel-art : cellule en mm > 0");
@@ -283,8 +330,10 @@ export function pixels_vers_pieces(img, cellule_mm, hauteurs = {}, { socle_mm = 
   for (const hex of couleurs) {
     const h = hauteurs[hex] !== undefined ? +hauteurs[hex] : hauteur_defaut;
     if (!(h > 0)) continue;
-    // y RETOURNÉ (image y-bas → plateau y-haut), comme les tuiles
-    const multi = rects_de_pixels(img, hex).map((r) => [[[r.x * c, -r.y * c], [(r.x + r.w) * c, -r.y * c], [(r.x + r.w) * c, -(r.y + r.h) * c], [r.x * c, -(r.y + r.h) * c], [r.x * c, -r.y * c]]]);
+    // lot 5 : contours vrais (trous compris) ; y RETOURNÉ (image y-bas → plateau y-haut), comme les tuiles
+    const masque = new Uint8Array(img.w * img.h);
+    for (let k = 0; k < img.w * img.h; k++) if (img.data[k * 4 + 3] && _hexPx(img.data, k * 4) === hex) masque[k] = 1;
+    const multi = contours_de_masque(masque, img.w, img.h).map((poly) => poly.map((ring) => ring.map(([x, y]) => [x * c, -y * c])));
     out.push({ nom: "px_" + hex.slice(1).toLowerCase(), couleur: hex, hauteur_mm: h, tris: extruder(multi, h, z0) });
   }
   if (z0 > 0) out.push({ nom: "socle", couleur: COULEUR_DEFAUT, hauteur_mm: z0, tris: extruder([[[[0, 0], [img.w * c, 0], [img.w * c, -img.h * c], [0, -img.h * c], [0, 0]]]], z0, 0) });
