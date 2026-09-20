@@ -1,9 +1,23 @@
 [
   {
+    "id": "impDepouilleR",
+    "titre": "Dépouille des flancs",
+    "phrase": "Les côtés de ta pièce penchent : plus tu tournes, plus le bas devient large et le haut petit.",
+    "fichier": "impression.impDepouille.webp",
+    "version": 1
+  },
+  {
     "id": "pxContour",
     "titre": "Contour sombre",
     "phrase": "Un trait sombre entoure ton dessin pour qu'il se détache bien du fond.",
     "fichier": "pixelui.pxContour.webp",
+    "version": 1
+  },
+  {
+    "id": "pxCreerCalque",
+    "titre": "Créer le calque pixel",
+    "phrase": "Une feuille transparente se pose sur ton image modèle : tu dessines dessus, case par case.",
+    "fichier": "pixelui.pxCreerCalque.webp",
     "version": 1
   }
 ]
