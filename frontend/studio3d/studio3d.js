@@ -438,11 +438,11 @@ function paramsOf(nodeId, ph) {
    MÊME ORIGINE et SANS `sandbox` — vérifié ligne par ligne. Un navigateur qui
    l'étoufferait quand même rendrait `false`, donc `return` : la série survit,
    et l'échec penche du bon côté. */
-function ouvrirEtabli() {
+async function ouvrirEtabli() {
   const q = S.cfg.name ? `?job=${encodeURIComponent(S.cfg.name)}` : "";
   const url = `/etabli/${q}`;
   if (S.run && S.run.status === "running"
-      && !confirm("Une série Meshy tourne dans cette page : aller à l'Établi "
+      && !await window.__dzDialogue.confirmer("Une série Meshy tourne dans cette page : aller à l'Établi "
                   + "l'interrompt, et les crédits déjà consommés ne reviennent "
                   + "pas. Ta configuration, elle, sera retrouvée au retour. "
                   + "Quitter quand même ?")) return;

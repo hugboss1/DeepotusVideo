@@ -878,10 +878,10 @@
   async function imprimer3d(name) {
     if (!name) return;
     try {
-      const rep = prompt(
+      const rep = await window.__dzDialogue.saisir(
         "Taille cible en mm ? (vide = tel quel — la carte est déjà en mm "
         + "réels ; ex. 80 pour une figurine, 250 max sur le plateau "
-        + "Centauri Carbon 2 : 256)", "");
+        + "Centauri Carbon 2 : 256)", { valeur: "", ok: "Imprimer" });
       if (rep === null) return;
       let cible = null;
       if (rep.trim() !== "") {
@@ -903,8 +903,8 @@
       const d = await CF.print3d.fromStl(blob, bord);
       M.toast("dossier d'impression : " + d.dossier + " ("
         + d.triangles + " triangles)");
-      if (confirm("Export écrit (" + d.dossier
-                  + ") — ouvrir le .3mf dans le slicer ?")) {
+      if (await window.__dzDialogue.confirmer("Export écrit (" + d.dossier
+                  + ") — ouvrir le .3mf dans le slicer ?", { ok: "Ouvrir le slicer" })) {
         await CF.print3d.open(d.dossier);
       }
     } catch (e) {

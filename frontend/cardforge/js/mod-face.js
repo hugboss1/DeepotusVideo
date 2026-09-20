@@ -2021,7 +2021,7 @@
   }
 
   async function supprimerVec(id) {
-    if (!confirm("Supprimer ce document vectoriel ? Sa dernière version "
+    if (!await window.__dzDialogue.confirmer("Supprimer ce document vectoriel ? Sa dernière version "
                  + "reste archivée sur disque.")) return;
     try {
       await CF.vector.del(id);

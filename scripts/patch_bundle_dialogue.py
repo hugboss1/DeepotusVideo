@@ -9,13 +9,14 @@ frontend/dist/assets puis relancer patch_bundle_version.py seul — `version`
 reste le DERNIER maillon (procédure de patch_bundle_version.py).
 
 Le « 127.0.0.1:8765 indique » des captures de l'utilisateur est le titre du
-dialogue NATIF du navigateur. Le bundle porte 11 sites `confirm(` et 33
+dialogue NATIF du navigateur. Le bundle porte 11 sites `confirm(`, 2 sites `prompt(` et 33
 `alert(` :
   G1  injection de la couche `frontend/patches/dialogue.js` après le bloc
       Transfert (fin de module) : `window.__dzDialogue` + `window.alert`
       remplacé (les 33 alert passent par là sans réécriture) ;
-  G2..G12  les 11 sites `confirm(` réécrits en
-      `await window.__dzDialogue.confirmer(` ; les fonctions qui ne l'étaient
+  G2..G14  les 11 sites `confirm(` réécrits en
+      `await window.__dzDialogue.confirmer(` et les 2 `prompt(` en
+      `await window.__dzDialogue.saisir(` (le `doImport` devient async) ; les fonctions qui ne l'étaient
       pas deviennent async (le `onClick:f=>{…}` du job, la `function(){}` du
       rendu 3D, le `.then(function(x){…})` de l'impression 3D).
 
@@ -39,6 +40,7 @@ END = "/*__DZ_DIALOGUE_END__*/"
 ANCHOR_INJECT = "/*__DZ_TRANSFERT_END__*/"
 
 D = "await window.__dzDialogue.confirmer("
+P = "await window.__dzDialogue.saisir("
 
 # (tag, ancre, remplacement, occurrences attendues)
 PATCHES = [
@@ -74,6 +76,12 @@ PATCHES = [
     ("G11-brand",
      'async function v(){if(!confirm("Reset name, taglines, colors and logo to the deepotus defaults?',
      'async function v(){if(!' + D + '"Reset name, taglines, colors and logo to the deepotus defaults?', 1),
+    ("G13-feed-url",
+     'async function add(){var u=(prompt("RSS / Atom feed URL:")||"").trim();',
+     'async function add(){var u=(' + P + '"RSS / Atom feed URL:")||"").trim();', 1),
+    ("G14-emoji-nom",
+     'function doImport(e){const f=e.target.files&&e.target.files[0];e.target.value="";if(!f){return}const nm=prompt("Nom du raccourci',
+     'async function doImport(e){const f=e.target.files&&e.target.files[0];e.target.value="";if(!f){return}const nm=' + P + '"Nom du raccourci', 1),
     ("G12-print3d",
      '.then(function(x){if(!x.ok)throw new Error((x.d&&x.d.detail)||"export impossible");'
      'if(window.confirm("Dossier d\'impression écrit : "',

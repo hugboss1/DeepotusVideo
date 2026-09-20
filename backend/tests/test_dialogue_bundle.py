@@ -60,10 +60,15 @@ def main():
     for tag, a, r, n in P.PATCHES:
         check(f"{tag} : ancre consommée", s.count(a) == 0, str(s.count(a)))
         check(f"{tag} : remplacement présent ×{n}", s.count(r) == n, str(s.count(r)))
-    check(f"{len(P.PATCHES)} sections = les 11 sites confirm du relevé", len(P.PATCHES) == 11)
+    check(f"{len(P.PATCHES)} sections = 11 sites confirm + 2 sites prompt du relevé", len(P.PATCHES) == 13)
     hors = s[:i] + s[j:]
-    check("plus aucun confirm( natif hors couche",
-          re.search(r"(?<![\w.])confirm\(", hors) is None and "window.confirm(" not in hors)
+    check("plus aucun confirm( ni prompt( natif hors couche",
+          re.search(r"(?<![\w.])(?:confirm|prompt)\(", hors) is None and "window.confirm(" not in hors)
+    check("await __dzDialogue.saisir ×2 hors couche",
+          hors.count("await window.__dzDialogue.saisir(") == 2, str(hors.count("await window.__dzDialogue.saisir(")))
+    SRC = RACINE / "frontend" / "shared" / "dialogue.js"
+    check("la couche du patcher = frontend/shared/dialogue.js octet pour octet (source unique)",
+          SRC.exists() and COUCHE.read_bytes() == SRC.read_bytes())
     check("await __dzDialogue.confirmer ×11 hors couche (la couche le cite en commentaire)",
           hors.count("await window.__dzDialogue.confirmer(") == 11,
           str(hors.count("await window.__dzDialogue.confirmer(")))
