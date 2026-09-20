@@ -8,6 +8,14 @@
 
 **Tech :** pydantic-settings, starlette middleware, pytest (python embarqué), VBScript du lanceur.
 
+## Relevé de livraison (20/09/2026)
+
+- **Livré** : `APP_HOSTNAME = "deepotus.localhost"` + `app_url()` (config.py), `_ALLOWED_ORIGIN_HOSTS` élargi (main.py), `_is_private_host` reconnaît `*.localhost` (routes.py) — `81f42b7` ; lanceur `launch-silent.vbs` : sonde `/api/health` sur 127.0.0.1, ouverture de `http://deepotus.localhost:8765` ; huit titres « Deepotus — <outil> » ; guide FR/EN — `1484969`. `_require_localhost` inchangé (client TCP = 127.0.0.1 quel que soit le nom, prouvé).
+- **TDD** : `backend/tests/test_origine_nommee.py` RED (`AttributeError: APP_HOSTNAME`) → GREEN 11 tests ; `test_security_guards.py` (+ `deepotus.localhost` privé) : 50 passed en 2,8 s avec le python embarqué. Piège mesuré : `with TestClient(app)` lance le lifespan (réchauffage HeyGen, réseau) et le banc restait muet > 7 min — les tests de garde tournent SANS lifespan (`TestClient(app)` nu), le garde est un middleware et la route ne lit que le `.env`.
+- **Prouvé** (8799 relancé sur le nouveau code) : PowerShell `GET http://deepotus.localhost:8799/vectorlab/` → 200 ; navigateur intégré à 1400 × 900 : `location.hostname = "deepotus.localhost"`, `document.title = "Deepotus — Vectorlab"`, `VL` chargé, `#stage` 1067 × 721 ; depuis cette origine `POST /api/vector/docs` → 200 et `GET /api/settings/keys` → 200 ; `POST /api/settings/keys` avec `Origin: http://evil.example.com` → 403.
+- **Déployé** : 16 fichiers vers `%LOCALAPPDATA%\DeepotusVideoGen` (installé = base `c97f9b0` pour les 15 existants), sauvegarde `_backup_predeploy_2026-09-20-origine`, installé = cible par `git hash-object` ; pré-vol `import app.main` sur l'installé avec le python embarqué → `app_url() = http://deepotus.localhost:8765`. **Le backend installé (PID 26684, démarré le 19/09 15:38) est ANTÉRIEUR aux .py déployés (20/09 11:44) : Python touché → l'utilisateur relance** (le lanceur ouvrira alors l'URL nommée).
+- **Reste** : la relance par l'utilisateur ; l'Ollama `http://127.0.0.1:11434` du bundle est un serveur tiers, hors périmètre ; le port reste dans l'URL (écart assumé du spec).
+
 ---
 
 ## Relevé (code lu le 20/09/2026, branche à `c97f9b0`)
