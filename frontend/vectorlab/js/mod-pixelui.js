@@ -490,7 +490,7 @@ export function initPixelUI(VL) {
     hote.innerHTML = `
       ${(() => {
         const m = modeleObjet(), cp = calquePixelObjet();
-        if (!m) return `<details open><summary class="px-tete">Modèle</summary><div class="ap-ligne"><button id="pxDesigner" ${sel ? "" : "disabled"} title="L'image sélectionnée devient le modèle : verrouillée, atténuée, la grille des cellules s'affiche dessus">Désigner l'image sélectionnée comme modèle</button></div>
+        if (!m) return `<details open><summary class="px-tete">Modèle</summary><div class="ap-ligne"><button id="pxDesigner" ${sel ? "" : "disabled"} title="L'image sélectionnée devient le modèle : verrouillée, atténuée, la grille des cellules s'affiche dessus">Désigner comme modèle</button></div>
           <div class="ap-ligne"><span></span><i class="px-note">un modèle = une image générée ou importée sous le calque pixel ; la pipette (Alt+clic) y lit les couleurs</i></div></details>`;
         const cc = cellule_et_cible(m.nat, { cellule: pa.modele.cellule });
         const P = pairesDe(), iAct = P.findIndex((q) => q.modele === m.id);

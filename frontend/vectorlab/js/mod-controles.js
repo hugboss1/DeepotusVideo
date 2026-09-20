@@ -188,7 +188,7 @@ export function initControles(VL) {
   customElements.define("vl-bascule", VlBascule);
 
   /* ── l'audit in-page : rangées VISIBLES des panneaux visés, jugées par auditer() ── */
-  const PANNEAUX = ["#panneauStyle", "#panneauApparence2", "#panneauPixel", "#nuancier"];
+  const PANNEAUX = ["#panneauStyle", "#panneauApparence2", "#panneauPixel"];   // le nuancier (popover compact 210 px) est hors audit
   const MAISON = "vl-curseur, vl-bascule, vl-curseur-couleur";
   function mesurer(racines = PANNEAUX) {
     const out = [];
@@ -202,7 +202,7 @@ export function initControles(VL) {
           .filter((c) => c.matches(MAISON) || !c.closest(MAISON))
           .filter((c) => !c.classList.contains("px-pastille"));
         const controles = els.map((c) => { const r = c.getBoundingClientRect(); return { tag: c.tagName.toLowerCase(), type: c.getAttribute("type") || "", h: r.height, w: r.width, id: c.id || "" }; });
-        const boutons = l.matches(".vl-rangee") ? [...l.children].map((b) => ({ w: b.getBoundingClientRect().width })) : [];
+        const boutons = l.matches(".vl-rangee") ? [...l.children].filter((b) => b.tagName === "BUTTON").map((b) => ({ w: b.getBoundingClientRect().width })) : [];
         out.push({ id: `${sel} #${i}${l.id ? " " + l.id : ""}`, panneau: sel, scrollWidth: l.scrollWidth, clientWidth: l.clientWidth, controles, boutons });
       });
     }

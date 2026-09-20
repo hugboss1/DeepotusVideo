@@ -747,7 +747,7 @@ details[id] > summary.panneau-tete:hover { background: var(--aff-champ); }
 
 /* ══ R4 thème et densité Affinity : champs 24 px, rangées 26 px, texte 12 px,
    coins 4 px, curseurs à poignée ronde, selects sombres, règles assorties ══ */
-:root { --pan-champ-h: 24px; --pan-gap: 6px; --pan-fond: var(--aff-champ); --pan-bord: var(--aff-bord); --pan-bord-focus: #4a90e2; --pan-texte: var(--aff-texte); --pan-muet: var(--aff-muet); --cat: var(--aff-cyan); }
+:root { --pan-champ-h: 28px; /* finitions UI 20/09 : contrôles ≥ 28 px (audit d'ergonomie) — R4 les avait posés à 24 */ --pan-gap: 6px; --pan-fond: var(--aff-champ); --pan-bord: var(--aff-bord); --pan-bord-focus: #4a90e2; --pan-texte: var(--aff-texte); --pan-muet: var(--aff-muet); --cat: var(--aff-cyan); }
 body { background: var(--aff-fond); color: var(--aff-texte); font-size: 12px; }
 button { background: #3b3b3b; color: var(--aff-texte); border: 0; border-radius: 4px; font-size: 12px; }
 button:hover { background: #474747; }
@@ -755,12 +755,12 @@ button.primaire { background: var(--aff-sel); color: #fff; } button.primaire:hov
 button.actif { background: #4a4a4a; box-shadow: inset 0 0 0 1px #5a5a5a; }
 input[type="text"], input[type="search"], input[type="number"], select, textarea { background: var(--aff-champ); color: var(--aff-texte); border: 1px solid var(--aff-bord); border-radius: 3px; font-size: 12px; }
 input:focus, select:focus, textarea:focus { outline: none; border-color: #4a90e2; box-shadow: 0 0 0 2px rgba(74, 144, 226, .25); }
-#panneauCalques .ap-ligne input[type="number"], #panneauCalques .ap-ligne input[type="text"], #panneauCalques .ap-ligne select, #panneauCalques .a2-champs input[type="number"], #panneauCalques .ap-stop input[type="number"], #assetsRecherche { height: 24px; border-radius: 3px; font-size: 12px; padding: 0 6px; }
-#panneauCalques .ap-ligne > button, #panneauCalques .a2-effet button, #panneauCalques .ap-stop button { height: 24px; border-radius: 3px; font-size: 11.5px; }
-#panneauCalques .ap-ligne input[type="color"], .nu-pastille, #panneauCalques .ap-ligne > .nu-pastille { width: 24px; height: 24px; flex-basis: 24px; border-radius: 3px; }
+#panneauCalques .ap-ligne input[type="number"], #panneauCalques .ap-ligne input[type="text"], #panneauCalques .ap-ligne select, #panneauCalques .a2-champs input[type="number"], #panneauCalques .ap-stop input[type="number"], #assetsRecherche { height: var(--pan-champ-h); border-radius: 3px; font-size: 12px; padding: 0 6px; }
+#panneauCalques .ap-ligne > button, #panneauCalques .a2-effet button, #panneauCalques .ap-stop button { height: var(--pan-champ-h); border-radius: 3px; font-size: 11.5px; }
+#panneauCalques .ap-ligne input[type="color"], .nu-pastille, #panneauCalques .ap-ligne > .nu-pastille { width: var(--pan-champ-h); height: var(--pan-champ-h); flex-basis: var(--pan-champ-h); border-radius: 3px; }
 .ap-ligne { min-height: 26px; }
 .ap-ligne > span:first-child { font-size: 11px; }
-#panneauCalques .ap-ligne > span:not(:first-child) > button { height: 24px; border-radius: 3px; }
+#panneauCalques .ap-ligne > span:not(:first-child) > button { height: var(--pan-champ-h); border-radius: 3px; }
 /* curseurs : piste fine, poignée ronde blanche cerclée */
 input[type="range"] { -webkit-appearance: none; appearance: none; height: 24px; background: transparent; margin: 0; }
 input[type="range"]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: #555; }
@@ -874,6 +874,7 @@ vl-bascule:focus-visible .vl-bascule-piste { box-shadow: 0 0 0 2px var(--pan-bor
 vl-bascule[disabled] { opacity: .5; pointer-events: none; }
 #panneauCalques .ap-ligne > label:has(vl-bascule) { gap: 8px; }
 .vl-rangee { display: flex; gap: var(--pan-gap); min-height: var(--pan-champ-h); }
+#panneauCalques .ap-ligne > button { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #panneauCalques .vl-rangee > button { flex: 1 1 0; min-width: 0; max-width: none; height: var(--pan-champ-h); padding: 0 6px; border-radius: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #panneauCalques .px-palette { display: grid; grid-template-columns: repeat(6, 22px); gap: 6px; justify-content: start; }
 #nuancier vl-curseur-couleur[mode="teinte"] { height: 24px; }
