@@ -145,7 +145,7 @@ export function initBiblio(VL) {
   }
 
   async function dupliquer(id) {
-    const nom = prompt("Nom de la copie ? (vide = « (copie) »)", "");
+    const nom = await VL.dialogue.saisir("Nom de la copie ? (vide = « (copie) »)", { valeur: "", titre: "Dupliquer", valider: "Dupliquer" });
     if (nom === null) return;
     const r = await fetch("/api/vector/docs/" + encodeURIComponent(id)
       + "/duplicate", {
@@ -158,8 +158,7 @@ export function initBiblio(VL) {
   }
 
   async function supprimer(id) {
-    if (!confirm("Supprimer ce document ? Sa dernière version reste "
-                 + "archivée sur disque.")) return;
+    if (!await VL.dialogue.confirmer("Supprimer ce document ?\nSa dernière version reste archivée sur disque.", { ok: "Supprimer", danger: true })) return;
     const r = await fetch("/api/vector/docs/" + encodeURIComponent(id),
                           { method: "DELETE" });
     if (!r.ok) { VL.toast("suppression : " + r.status, true); return; }
@@ -193,9 +192,8 @@ export function initBiblio(VL) {
   });
 
   // le retour ⌂ depuis l'éditeur — confirm si le document est sale
-  $("#btnBiblio").addEventListener("click", () => {
-    if (etat.sale && !confirm("Des modifications non sauvées seront "
-                              + "perdues — retourner à la bibliothèque ?")) {
+  $("#btnBiblio").addEventListener("click", async () => {
+    if (etat.sale && !await VL.dialogue.confirmer("Des modifications non sauvées seront perdues." + BS + "nRetourner à la bibliothèque ?", { ok: "Quitter sans sauver", danger: true, titre: "Modifications non sauvées" })) {
       return;
     }
     location.href = "/vectorlab/";

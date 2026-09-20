@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 import struct
 import zipfile
 from xml.sax.saxutils import escape as _xml
@@ -247,12 +248,29 @@ _3MF_RELS = (
 )
 
 
-def ecrire_3mf(tris, nom="Deepotus") -> bytes:
-    """3MF minimal : sommets DÉDUPLIQUÉS, triangles indexés, un item de
-    build — le fichier qu'on OUVRE (l'unité mm y est dite, pas devinée)."""
-    index = {}
-    sommets = []
-    faces = []
+_HEX6 = re.compile(r"^#[0-9A-Fa-f]{6}$")
+
+
+def couleur_valide(c):
+    """Un hex #RRGGBB ou None — une couleur invalide est IGNORÉE (confort,
+    jamais un refus)."""
+    return c if isinstance(c, str) and _HEX6.match(c) else None
+
+
+def _pieces_de(tris_ou_pieces, nom):
+    """Accepte une liste de triangles (un objet, sans couleur) ou une liste
+    de (nom, tris[, couleur])."""
+    if tris_ou_pieces and isinstance(tris_ou_pieces[0], tuple) \
+            and isinstance(tris_ou_pieces[0][0], str):
+        out = []
+        for p in tris_ou_pieces:
+            out.append((str(p[0]), p[1], couleur_valide(p[2] if len(p) > 2 else None)))
+        return out
+    return [(str(nom), tris_ou_pieces, None)]
+
+
+def _mesh_xml(tris):
+    index, sommets, faces = {}, [], []
     for t in tris:
         ids = []
         for v in t:
@@ -264,19 +282,42 @@ def ecrire_3mf(tris, nom="Deepotus") -> bytes:
                 sommets.append(cle)
             ids.append(i)
         faces.append(ids)
+    xml = ["<mesh>", "<vertices>"]
+    xml += [f'<vertex x="{v[0]:g}" y="{v[1]:g}" z="{v[2]:g}"/>' for v in sommets]
+    xml += ["</vertices>", "<triangles>"]
+    xml += [f'<triangle v1="{a}" v2="{b}" v3="{c}"/>' for a, b, c in faces]
+    xml += ["</triangles>", "</mesh>"]
+    return xml
+
+
+def ecrire_3mf(tris_ou_pieces, nom="Deepotus") -> bytes:
+    """3MF minimal : sommets DÉDUPLIQUÉS, triangles indexés, UN OBJET PAR
+    PIÈCE, un item de build par objet ; les pièces colorées portent un
+    matériau `<basematerials>` (displaycolor #RRGGBBFF, cœur 3MF) — le
+    fichier qu'on OUVRE (l'unité mm y est dite, pas devinée). R12 : une
+    liste de triangles nue reste acceptée (un objet, sans couleur)."""
+    pieces = _pieces_de(tris_ou_pieces, nom)
+    colorees = [k for k, p in enumerate(pieces) if p[2]]
     xml = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         f'<model unit="millimeter" xml:lang="fr-FR" xmlns="{_3MF_NS}">',
         "<resources>",
-        f'<object id="1" type="model" name="{_xml(str(nom))}"><mesh>',
-        "<vertices>",
     ]
-    xml += [f'<vertex x="{v[0]:g}" y="{v[1]:g}" z="{v[2]:g}"/>'
-            for v in sommets]
-    xml += ["</vertices>", "<triangles>"]
-    xml += [f'<triangle v1="{a}" v2="{b}" v3="{c}"/>' for a, b, c in faces]
-    xml += ["</triangles>", "</mesh></object>", "</resources>",
-            '<build><item objectid="1"/></build>', "</model>"]
+    if colorees:
+        xml.append('<basematerials id="1">')
+        xml += [f'<base name="{_xml(pieces[k][0])}" displaycolor="{pieces[k][2].upper()}FF"/>'
+                for k in colorees]
+        xml.append("</basematerials>")
+    premier = 2 if colorees else 1
+    for k, (nom_piece, tris, c) in enumerate(pieces):
+        mat = f' pid="1" pindex="{colorees.index(k)}"' if c else ""
+        xml.append(f'<object id="{premier + k}" type="model" name="{_xml(nom_piece)}"{mat}>')
+        xml += _mesh_xml(tris)
+        xml.append("</object>")
+    xml.append("</resources>")
+    xml.append("<build>" + "".join(f'<item objectid="{premier + k}"/>'
+                                   for k in range(len(pieces))) + "</build>")
+    xml.append("</model>")
     tampon = io.BytesIO()
     with zipfile.ZipFile(tampon, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("[Content_Types].xml", _3MF_TYPES)
@@ -315,7 +356,7 @@ def _slug(nom: str) -> str:
 
 
 def creer_export(base, nom, tris, cible_mm=None, source="",
-                 etancheite="inconnue"):
+                 etancheite="inconnue", couleur=None):
     """Écrit `<slug>-<date>/` (STL + 3MF aux mm + impression.json) sous
     `base` et rend {dossier, stl, mf3, triangles}."""
     import datetime as _dt
@@ -334,7 +375,9 @@ def creer_export(base, nom, tris, cible_mm=None, source="",
     stl_nom = _slug(nom) + ".stl"
     mf3_nom = _slug(nom) + ".3mf"
     (dossier / stl_nom).write_bytes(ecrire_stl(monde))
-    (dossier / mf3_nom).write_bytes(ecrire_3mf(monde, nom=nom))
+    couleur = couleur_valide(couleur)          # R12 : la couleur voyage dans le 3MF
+    (dossier / mf3_nom).write_bytes(
+        ecrire_3mf([(str(nom), monde, couleur)] if couleur else monde, nom=nom))
     # la garde du plateau (Centauri Carbon 2 : 256 mm) — AVERTIT, n'interdit
     # pas : couper est le métier du slicer
     bb = bbox(monde)
@@ -347,13 +390,70 @@ def creer_export(base, nom, tris, cible_mm=None, source="",
     meta = {"nom": str(nom), "source": str(source),
             "cible_mm": (float(cible_mm) if cible_mm is not None else None),
             "etancheite": etancheite, "stl": stl_nom, "mf3": mf3_nom,
-            "triangles": len(monde),
+            "triangles": len(monde), "couleur": couleur,
             "avertissement": avertissement,
             "cree": _dt.datetime.now(_dt.timezone.utc).isoformat()}
     (dossier / "impression.json").write_text(
         json.dumps(meta, ensure_ascii=False, indent=1), "utf-8")
     out = {"dossier": dossier.name, "stl": stl_nom, "mf3": mf3_nom,
            "triangles": len(monde)}
+    if avertissement:
+        out["avertissement"] = avertissement
+    return out
+
+
+_NOM_PIECE = re.compile(r"[A-Za-z0-9_-]{1,60}")
+
+
+def creer_lot(base, nom, pieces, nomenclature, source=""):
+    """Lot D : `<slug>-lot-<date>/` avec UN STL PAR PIÈCE (`<piece>.stl`), le
+    plateau assemblé `plateau.3mf` (toutes les pièces réunies), la
+    `nomenclature.csv` fournie par le client et `impression.json`
+    (`lot: true`). Les pièces arrivent en mm — aucune mise à l'échelle.
+    R12 : une pièce est (nom, tris) ou (nom, tris, couleur) ; le plateau
+    devient UN OBJET PAR PIÈCE, coloré quand la couleur est un hex."""
+    import datetime as _dt
+    from pathlib import Path
+    if not pieces:
+        raise ValueError("lot : aucune pièce")
+    for p in pieces:
+        nom_piece = p[0]
+        if not _NOM_PIECE.fullmatch(str(nom_piece)):
+            raise ValueError(f"lot : nom de pièce invalide « {nom_piece} » ([A-Za-z0-9_-])")
+    base = Path(base)
+    base.mkdir(parents=True, exist_ok=True)
+    jour = _dt.datetime.now(_dt.timezone.utc).strftime("%Y%m%d")
+    racine = f"{_slug(nom)}-lot-{jour}"
+    dossier = base / racine
+    n = 2
+    while dossier.exists():
+        dossier = base / f"{racine}-{n}"
+        n += 1
+    dossier.mkdir()
+    tous = []
+    triples = [(str(p[0]), p[1], couleur_valide(p[2]) if len(p) > 2 else None) for p in pieces]
+    for nom_piece, tris, _ in triples:
+        (dossier / f"{nom_piece}.stl").write_bytes(ecrire_stl(tris))
+        tous.extend(tris)
+    (dossier / "plateau.3mf").write_bytes(ecrire_3mf(triples, nom=nom))
+    (dossier / "nomenclature.csv").write_text(str(nomenclature or ""), "utf-8")
+    bb = bbox(tous)
+    plus_grande = max(b[1] - b[0] for b in bb)
+    avertissement = None
+    if plus_grande > 256.0 + 1e-6:
+        avertissement = (f"{plus_grande:.0f} mm dépasse le plateau de la Centauri "
+                         "Carbon 2 (256 mm) — imprimer les pièces séparément "
+                         "(un STL par tuile)")
+    meta = {"nom": str(nom), "source": str(source), "lot": True,
+            "pieces": len(pieces), "stl": [f"{p[0]}.stl" for p in triples],
+            "couleurs": {p[0]: p[2] for p in triples if p[2]},
+            "mf3": "plateau.3mf", "nomenclature": "nomenclature.csv",
+            "triangles": len(tous), "avertissement": avertissement,
+            "cree": _dt.datetime.now(_dt.timezone.utc).isoformat()}
+    (dossier / "impression.json").write_text(
+        json.dumps(meta, ensure_ascii=False, indent=1), "utf-8")
+    out = {"dossier": dossier.name, "pieces": len(pieces), "mf3": "plateau.3mf",
+           "triangles": len(tous)}
     if avertissement:
         out["avertissement"] = avertissement
     return out

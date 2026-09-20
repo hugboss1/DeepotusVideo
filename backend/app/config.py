@@ -20,6 +20,16 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 # packaging scripts). Bump here only.
 APP_VERSION = "2.8.0"
 
+# Origine nommée (finitions UI, 20/09/2026) : les navigateurs résolvent
+# *.localhost en boucle locale sans fichier hosts (RFC 6761). Le serveur
+# ÉCOUTE toujours sur HOST (127.0.0.1) ; c'est l'URL OUVERTE qui porte le nom.
+APP_HOSTNAME = "deepotus.localhost"
+
+
+def app_url(port: int | None = None) -> str:
+    """L'URL que le lanceur ouvre ; `settings` est lu à l'appel."""
+    return f"http://{APP_HOSTNAME}:{port if port is not None else settings.PORT}"
+
 
 def _data_root() -> Path:
     """Stable per-user data dir, separate from the install dir."""

@@ -53,6 +53,10 @@ PALETTES: dict[str, tuple[tuple[int, int, int], ...]] = {
                       "41A6F6", "73EFF7", "F4F4F4", "94B0C2", "566C86",
                       "333C57"),
     "onebit": _pal("000000", "FFFFFF"),
+    # lot 5 (19/09/2026) : les deux palettes locales du Vectorlab deviennent
+    # pixelisables ici aussi — mêmes hex que frontend/spritelab/palettes.js
+    "gray16": _pal(*[f"{round(i * 255 / 15):02X}" * 3 for i in range(16)]),
+    "handheld4": _pal("2B2B26", "706B66", "A8A398", "E0DBCD"),
 }
 
 

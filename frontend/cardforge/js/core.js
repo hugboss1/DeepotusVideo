@@ -1545,7 +1545,25 @@
     if (!s) throw new Error("cardforge: CF.vector.del exige un identifiant de document");
     return jsonFetch("DELETE", "/vector/docs/" + encodeURIComponent(s));
   }
-  const vector = Object.freeze({ docs: vectorDocs, create: vectorCreate, del: vectorDel });
+  async function vectorUpdate(id, doc) {
+    const s = String(id == null ? "" : id);
+    if (!s) throw new Error("cardforge: CF.vector.update exige un identifiant de document");
+    if (!isPlain(doc)) throw new Error("cardforge: CF.vector.update exige un document (objet)");
+    return jsonFetch("PUT", "/vector/docs/" + encodeURIComponent(s), { doc: doc });
+  }
+  /* la face rendue par LE moteur (cardBlob) part au magasin d'images DU
+     DOCUMENT vectoriel — jamais par /images/upload : la Library reste
+     propre, et le PNG suit le document (duplication, transfert) */
+  async function vectorImage(id, blob) {
+    const s = String(id == null ? "" : id);
+    if (!s) throw new Error("cardforge: CF.vector.image exige un identifiant de document");
+    if (typeof Blob === "undefined" || !(blob instanceof Blob) || blob.type !== "image/png")
+      throw new Error("cardforge: CF.vector.image attend un Blob image/png (sorti de CF.cardBlob)");
+    return jsonFetch("POST", "/vector/docs/" + encodeURIComponent(s) + "/images", blob,
+      { "Content-Type": "image/png" });
+  }
+  const vector = Object.freeze({ docs: vectorDocs, create: vectorCreate, del: vectorDel,
+                                 update: vectorUpdate, image: vectorImage });
 
   /* Le depart imprimante 3D : le STL part par sa PROVENANCE (un Blob rapporte
      par M.api.blob), les champs du bordereau sont FILTRES ici — quatre cles,

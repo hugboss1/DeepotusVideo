@@ -1997,7 +1997,7 @@
     if (!n) return true;
     const lignes = PF.rows.filter((r) => r.level === "err").slice(0, 6)
       .map((r) => "  · " + r.card + " — " + r.message).join("\n");
-    const ok = (typeof confirm === "function") && confirm(
+    const ok = await window.__dzDialogue.confirmer(
       "Contrôle avant vol : " + n + " erreur(s).\n\n" + lignes
       + (n > 6 ? "\n  … et " + (n - 6) + " autre(s)" : "")
       + "\n\nCe fichier partira chez l’imprimeur avec ces défauts.\n"

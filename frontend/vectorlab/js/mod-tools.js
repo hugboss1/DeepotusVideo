@@ -3,9 +3,12 @@
 // pendant le geste, seuls des APERÇUS bougent (overlay ou attributs DOM
 // provisoires). Aucune mutation du document hors VL.executer.
 import { op_ajouter, op_supprimer, op_deplacer, op_redimensionner, op_tourner,
-         op_noeud_deplacer, op_noeud_convertir, op_noeud_supprimer,
+         op_noeud_convertir, op_noeud_supprimer,
          op_guide_ajouter, op_guide_deplacer, op_guide_supprimer, op_style,
+         op_tuiles_peindre,
          chemin_parser, chemin_serialiser, chemin_ancres } from "./mod-doc.js";
+import { hex_depuis_point, hex_centre, hex_d } from "./mod-grille.js";
+import { noeuds_deplacer_segs } from "./mod-noeuds.js";
 
 const SNS = "http://www.w3.org/2000/svg";
 
@@ -102,7 +105,8 @@ export function initOutils(VL) {
     if (poignee && etat.outil === "select" && etat.selection.length) {
       const b0 = VL.bboxSelectionDoc();
       if (poignee.dataset.poignee === "rot") {
-        const cx = b0.x + b0.w / 2, cy = b0.y + b0.h / 2;
+        const cx = etat.pivot ? etat.pivot[0] : b0.x + b0.w / 2;   // lot B : pivot déplaçable
+        const cy = etat.pivot ? etat.pivot[1] : b0.y + b0.h / 2;
         geste = { type: "rot", cx, cy, a0: Math.atan2(dy - cy, dx - cx),
                   angle: 0 };
       } else {
@@ -118,8 +122,10 @@ export function initOutils(VL) {
       const p = VL.pathSelectionne();
       if (!p) return;
       etat.ancreSel = +ancre.dataset.ancre;
+      // R12 : les segs parsés UNE fois, aucun clone de document pendant le geste
       geste = { type: "ancre", id: p.id, i: etat.ancreSel, x0: dx, y0: dy,
-                docAvant: JSON.parse(JSON.stringify(etat.doc)) };
+                segs: chemin_parser(p.d), d0: p.d, d: null };
+      VL.apercuNoeuds.debut(p.id, geste.segs);
       VL.rendreOverlay();
       ev.preventDefault();
       return;
@@ -136,9 +142,10 @@ export function initOutils(VL) {
     const cible = t.closest && t.closest("[data-objet]");
     const idBrut = cible ? cible.dataset.objet : null;
     // cliquer un enfant de groupe sélectionne le GROUPE (remontée au sommet)
-    const idCible = idBrut ? (VL.sommetDe(idBrut) || idBrut) : null;
+    // R11 (Affinity) : Ctrl+clic vise l'ENFANT cliqué lui-même, sinon le sommet du groupe
+    const idCible = idBrut ? (ev.ctrlKey && etat.outil === "select" ? idBrut : (VL.sommetDe(idBrut) || idBrut)) : null;
     const selectionnable = idCible
-      && objetsSelectionnables().includes(idCible);
+      && (objetsSelectionnables().includes(idCible) || (ev.ctrlKey && etat.outil === "select" && !!VL.sommetDe(idBrut)));
 
     if (etat.outil === "pipette") {
       if (idBrut) {
@@ -170,14 +177,20 @@ export function initOutils(VL) {
           VL.setSelection(sel);
           return;                              // le shift ajuste, sans drag
         }
-        if (!sel.includes(idCible)) VL.setSelection([idCible]);
+        if (!sel.includes(idCible) && !(etat.selectionAuto === false && sel.length)) VL.setSelection([idCible]);
+        geste = { type: "move", x0: dx, y0: dy, dxA: 0, dyA: 0,
+                  b0: VL.bboxSelectionDoc(),
+                  origines: VL.selectionElems().map((el) =>
+                    [el, el.getAttribute("transform") || ""]) };
+      } else if (etat.selectionAuto === false && etat.selection.length && !ev.shiftKey) {
+        // R11 (Affinity) : Sélection auto décochée — tout glisser déplace la sélection courante sans en changer
         geste = { type: "move", x0: dx, y0: dy, dxA: 0, dyA: 0,
                   b0: VL.bboxSelectionDoc(),
                   origines: VL.selectionElems().map((el) =>
                     [el, el.getAttribute("transform") || ""]) };
       } else {
         geste = { type: "lasso", ex0: ev.clientX, ey0: ev.clientY,
-                  shift: ev.shiftKey };
+                  shift: ev.shiftKey, touches: ev.altKey };   // R10 : Alt = objets touchés, sinon entièrement inclus
       }
       ev.preventDefault();
       return;
@@ -212,9 +225,26 @@ export function initOutils(VL) {
       return;
     }
 
+    if (etat.outil === "tuiles") {
+      // lot C : le pinceau de tuiles — les cellules survolées s'accumulent,
+      // UNE commande au relâcher (peint l'existant, pose le manquant)
+      const g = VL.grilleDoc();
+      if (!g || g.type !== "hex") {
+        VL.toast("pinceau : poser d'abord une grille hexagonale (panneau Plateau)", true);
+        return;
+      }
+      const cel = hex_depuis_point(dx, dy, g);
+      geste = { type: "tuiles", cellules: [cel], vues: new Set([cel.q + "," + cel.r]) };
+      apercuTuile(cel, true);
+      ev.preventDefault();
+      return;
+    }
+
     if (etat.outil === "texte") {
       const [ax, ay] = VL.aimantePt(dx, dy);
-      const contenu = prompt("Texte :", "");
+      if (VL.poserTexte) { VL.poserTexte(ax, ay); ev.preventDefault(); return; }   // Texte & logo : édition en place
+      ev.preventDefault();
+      VL.dialogue.saisir("Texte :", { valeur: "", titre: "Texte" }).then((contenu) => {
       if (contenu) {
         const sc = etat.styleCourant;
         const fill = (sc.fond && sc.fond !== "none"
@@ -226,6 +256,7 @@ export function initOutils(VL) {
             style: { fond: fill, police: "Segoe UI", corps: 24 } });
         if (id) { VL.setOutil("select"); VL.setSelection([id]); }
       }
+      });
       return;
     }
   });
@@ -239,17 +270,34 @@ export function initOutils(VL) {
     const [dx, dy] = VL.docPt(ev.clientX, ev.clientY);
 
     if (geste.type === "move") {
-      const [cx, cy] = VL.aimantePt(geste.b0.x + (dx - geste.x0),
-                                    geste.b0.y + (dy - geste.y0));
-      geste.dxA = cx - geste.b0.x;
-      geste.dyA = cy - geste.b0.y;
+      // R10 (Affinity) : Maj contraint le déplacement à l'axe dominant
+      let mx = dx - geste.x0, my = dy - geste.y0;
+      if (ev.shiftKey) { if (Math.abs(mx) >= Math.abs(my)) my = 0; else mx = 0; }
+      const [cx, cy] = VL.aimantePt(geste.b0.x + mx, geste.b0.y + my);
+      // lot C : puis les voisins — bords, centres, écarts — avec leurs lignes d'aide
+      const am = VL.aimanteBoite({ x: cx, y: cy, w: geste.b0.w, h: geste.b0.h });
+      geste.dxA = cx + am.dx - geste.b0.x;
+      geste.dyA = cy + am.dy - geste.b0.y;
       for (const [el, orig] of geste.origines) {
         el.setAttribute("transform",
           `translate(${geste.dxA} ${geste.dyA})` + (orig ? " " + orig : ""));
       }
       VL.rendreOverlay();
-      etiquette(tmpDoc(), dx, dy,
-                VL.cote("delta", { dx: geste.dxA, dy: geste.dyA }));
+      const gl = tmpDoc();
+      for (const l of am.lignes) {
+        const couleur = l.type === "ecart" ? "#e0b34a" : "#d05aa0";
+        forme("line", l.axe === "v"
+          ? { x1: l.pos, y1: -1e4, x2: l.pos, y2: 1e4 }
+          : { x1: -1e4, y1: l.pos, x2: 1e4, y2: l.pos }, gl)
+          .setAttribute("style", `stroke:${couleur};stroke-width:${1 / etat.zoom}px;`
+            + `stroke-dasharray:${4 / etat.zoom} ${3 / etat.zoom}`);
+        gl.lastChild.setAttribute("class", "aimant-" + l.type);
+      }
+      etiquette(gl, dx, dy, VL.cote("delta", { dx: geste.dxA, dy: geste.dyA }));
+    } else if (geste.type === "tuiles") {
+      const cel = hex_depuis_point(dx, dy, VL.grilleDoc());
+      const k = cel.q + "," + cel.r;
+      if (!geste.vues.has(k)) { geste.vues.add(k); geste.cellules.push(cel); apercuTuile(cel, false); }
     } else if (geste.type === "lasso") {
       const r = stage.getBoundingClientRect();
       const x = Math.min(geste.ex0, ev.clientX) - r.left;
@@ -278,6 +326,13 @@ export function initOutils(VL) {
         if ([0, 6, 7].includes(k)) b.x = b.x + b.w - w2;
         if ([0, 1, 2].includes(k)) b.y = b.y + b.h - h2;
         b.w = w2; b.h = h2;
+      }
+      if (ev.ctrlKey && geste.b0.w > 0 && geste.b0.h > 0) {
+        // R10 (Affinity) : Ctrl = depuis le centre — le côté opposé bouge du même delta
+        const b0 = geste.b0, ccx = b0.x + b0.w / 2, ccy = b0.y + b0.h / 2;
+        const dw = [0, 6, 7].includes(k) ? (b0.x - b.x) : [2, 3, 4].includes(k) ? (b.w - b0.w) : 0;
+        const dh = [0, 1, 2].includes(k) ? (b0.y - b.y) : [4, 5, 6].includes(k) ? (b.h - b0.h) : 0;
+        b.w = b0.w + 2 * dw; b.h = b0.h + 2 * dh; b.x = ccx - b.w / 2; b.y = ccy - b.h / 2;
       }
       b.w = Math.max(1, b.w); b.h = Math.max(1, b.h);
       geste.b1 = b;
@@ -343,18 +398,12 @@ export function initOutils(VL) {
       etiquette(g, x1, y1, VL.cote("segment",
         { dx: x1 - geste.x0, dy: y1 - geste.y0 }));
     } else if (geste.type === "ancre") {
-      const [ax, ay] = VL.aimantePt(dx, dy);
+      const [ax, ay] = etat.aimantNoeuds === false ? [dx, dy] : VL.aimantePt(dx, dy);   // R10 : magnétisme aux nœuds séparé
       geste.dxA = ax - geste.x0; geste.dyA = ay - geste.y0;
-      const d2 = JSON.parse(JSON.stringify(geste.docAvant));
-      op_noeud_deplacer(d2, geste.id, geste.i, geste.dxA, geste.dyA);
-      let d = null;
-      for (const c of d2.calques) {
-        const o = c.objets.find((x) => x.id === geste.id);
-        if (o) { d = o.d; break; }
-      }
-      const el = document.querySelector(
-        `#canvasHost [data-objet="${geste.id}"]`);
-      if (el && d) el.setAttribute("d", d);
+      // R12 : chemin + overlay suivent le curseur (un cadre rAF au plus)
+      const segs = noeuds_deplacer_segs(geste.segs, [geste.i], geste.dxA, geste.dyA);
+      geste.d = chemin_serialiser(segs);
+      VL.apercuNoeuds.poser(segs, geste.d);
     } else if (geste.type === "grad") {
       const [ax, ay] = VL.aimantePt(dx, dy);
       const gr = (etat.doc.degrades || {})[geste.gid];
@@ -411,10 +460,11 @@ export function initOutils(VL) {
         const el = document.querySelector(`#canvasHost [data-objet="${id}"]`);
         if (!el) continue;
         const r = el.getBoundingClientRect();
-        if (r.left < g.rect.x + g.rect.w && r.right > g.rect.x
-            && r.top < g.rect.y + g.rect.h && r.bottom > g.rect.y) {
-          touches.push(id);
-        }
+        const x1 = g.rect.x + g.rect.w, y1 = g.rect.y + g.rect.h;
+        const dedans = g.touches
+          ? (r.left < x1 && r.right > g.rect.x && r.top < y1 && r.bottom > g.rect.y)
+          : (r.left >= g.rect.x && r.right <= x1 && r.top >= g.rect.y && r.bottom <= y1);
+        if (dedans) touches.push(id);
       }
       VL.setSelection(g.shift ? etat.selection.concat(touches) : touches);
     } else if (g.type === "resize") {
@@ -458,17 +508,21 @@ export function initOutils(VL) {
       const id = VL.executer(op_ajouter, etat.calqueActif, objet);
       if (id) VL.setSelection([id]);
     } else if (g.type === "ancre") {
-      const el = document.querySelector(`#canvasHost [data-objet="${g.id}"]`);
-      if (el) {
-        const avant = docContient(g.id);
-        if (avant) el.setAttribute("d", avant.objet.d);
-      }
-      if (g.dxA || g.dyA) {
-        VL.executer(op_noeud_deplacer, g.id, g.i, g.dxA, g.dyA);
-      }
+      // R12 : le relâchement pose EXACTEMENT ce qui est affiché (le cadre en attente est vidé)
+      const fin = VL.apercuNoeuds.fin();
+      if (fin && fin.d && fin.d !== g.d0) {
+        VL.executer((doc) => {
+          const o = doc.calques.flatMap((c) => c.objets).find((x) => x.id === g.id);
+          if (!o) throw new Error("chemin introuvable");
+          o.d = fin.d;
+        });
+      } else VL.rendre();
     } else if (g.type === "grad") {
       if (g.patch) VL.executer(VL.opDegradeModifier, g.gid, g.patch);
       else VL.rendreOverlay();
+    } else if (g.type === "tuiles") {
+      const r = VL.executer(op_tuiles_peindre, etat.calqueActif, g.cellules, etat.terrainCourant);
+      if (r) VL.toast(`${r.peintes.length} tuile(s) peinte(s), ${r.posees.length} posée(s)`);
     } else if (g.type === "guide-move") {
       if (g.pos === null) return;
       const r = stage.getBoundingClientRect();
@@ -479,15 +533,27 @@ export function initOutils(VL) {
     }
   });
 
+  // l'aperçu du pinceau de tuiles : les cellules du geste, en surimpression
+  function apercuTuile(cel, premier) {
+    const g = VL.grilleDoc();
+    if (!g) return;
+    let grp = premier ? null : $("#ovTmp g[data-tuiles]");
+    if (!grp) { grp = tmpDoc(); if (!grp) return; grp.setAttribute("data-tuiles", "1"); }
+    const [cx, cy] = hex_centre(cel.q, cel.r, g);
+    forme("path", { d: hex_d(cx, cy, g.pas, g.orientation, g.echelle), fill: "rgba(224,179,74,.35)",
+                    stroke: "#e0b34a", "stroke-width": 1.5 / etat.zoom }, grp);
+  }
+
   /* ═══════════ double-clic : conversion d'ancre ═══════════ */
   stage.addEventListener("dblclick", (ev) => {
-    if (etat.outil === "select") {
+    if (etat.outil === "select" || etat.outil === "texte") {
       // rééditer un texte en place
       const el = ev.target.closest && ev.target.closest("[data-objet]");
       if (el) {
         const o = _objetProfond(etat.doc, el.dataset.objet);
+        if (o && (o.type === "texte" || o.type === "cadre") && VL.editerTexte) { VL.editerTexte(o.id); return; }
         if (o && o.type === "texte") {
-          const contenu = prompt("Texte :", o.contenu || "");
+          VL.dialogue.saisir("Texte :", { valeur: o.contenu || "", titre: "Texte" }).then((contenu) => {
           if (contenu !== null) {
             const cibleId = o.id;
             VL.executer((doc) => {
@@ -496,6 +562,7 @@ export function initOutils(VL) {
               c.contenu = contenu;
             });
           }
+          });
           return;
         }
       }
@@ -691,10 +758,13 @@ export function initOutils(VL) {
     mesure: "glisser pour lire longueur, angle et Δ — ne crée rien",
     pipette: "cliquer l'objet source : son style va à la sélection",
     texte: "cliquer la page pour écrire",
+    tuiles: "cliquer ou glisser sur les cellules : peint le terrain courant, pose la tuile manquante (K)",
     vitrail: "glisser sur la page pour tracer la baie",
     ia: "décrire l'illustration dans le panneau Vitrail",
   };
+  VL.hints = Object.assign(VL.hints || {}, HINTS);   // la barre d'état (mod-charpente) lit les phrases ici
   function majHint() {
+    if (VL.majStatut) { VL.majStatut(); return; }
     const el = $("#hintOutil");
     if (el) el.textContent = HINTS[etat.outil] || "";
   }

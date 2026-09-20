@@ -294,7 +294,7 @@ async function renderBible() {
     const btn3d = card.querySelector(".act-3d");
     if (btn3d) btn3d.addEventListener("click", () => entityTo3D(id));
     card.querySelector(".act-del").addEventListener("click", async () => {
-      if (!confirm(`Supprimer « ${ent().name} » de la bible ?`)) return;
+      if (!await window.__dzDialogue.confirmer(`Supprimer « ${ent().name} » de la bible ?`)) return;
       try {
         await api.send("DELETE", "/bible/entities/" + id);
         entities = entities.filter(x => x.id !== id);
@@ -482,7 +482,7 @@ async function chapterVo() {
   if (!scenes.length) { toast("Pas de scénario — 🎭 Adapter d'abord.", true); return; }
   const missing = scenes.filter(s => !s.vo_audio).length;
   const force = missing === 0 &&
-    confirm("Toutes les scènes ont déjà un voice-over. Tout régénérer ?");
+    await window.__dzDialogue.confirmer("Toutes les scènes ont déjà un voice-over. Tout régénérer ?", { ok: "Tout régénérer" });
   if (missing === 0 && !force) return;
   toast(`🔊 Voice-over du chapitre (${force ? scenes.length : missing} scènes)…`);
   try {
@@ -508,7 +508,7 @@ async function chapterVo() {
 
 async function adaptChapter() {
   if (!chapter) { toast("Ouvre un chapitre d'abord.", true); return; }
-  if (scenes.length && !confirm("Ré-adapter remplacera le scénario actuel de ce chapitre. Continuer ?")) return;
+  if (scenes.length && !await window.__dzDialogue.confirmer("Ré-adapter remplacera le scénario actuel de ce chapitre. Continuer ?", { ok: "Ré-adapter" })) return;
   toast("🎭 Adaptation en scénario… (30-90 s)");
   try {
     const r = await api.send("POST", `/chapters/${chapter.id}/screenplay/adapt`,
@@ -632,7 +632,7 @@ function renderBoard() {
       await loadShots(true);
     });
     card.querySelector(".act-delshot").addEventListener("click", async () => {
-      if (!confirm(`Supprimer le plan ${sh().idx + 1} ?`)) return;
+      if (!await window.__dzDialogue.confirmer(`Supprimer le plan ${sh().idx + 1} ?`)) return;
       await api.send("DELETE", "/shots/" + id);
       await loadShots(true);
     });
@@ -668,7 +668,7 @@ async function sketchShot(id, seed) {
 async function decoupe(method) {
   if (!chapter) { toast("Ouvre un chapitre d'abord.", true); return; }
   if (!$("#script").value.trim()) { toast("Le chapitre est vide.", true); return; }
-  if (shots.length && !confirm("Re-découper remplacera le storyboard actuel. Continuer ?")) return;
+  if (shots.length && !await window.__dzDialogue.confirmer("Re-découper remplacera le storyboard actuel. Continuer ?", { ok: "Re-découper" })) return;
   toast(method === "ai" ? "Découpage IA en cours… (10-30 s)" : "Découpage par paragraphes…");
   try {
     const r = await api.send("POST", `/chapters/${chapter.id}/storyboard/decoupe`,
@@ -750,7 +750,7 @@ async function entityTo3D(id) {
   toast("Choisis UNE vue — un moteur image→3D veut un seul angle, pas une planche.");
   openLibrary(id, async (f) => {
     const cout = eng.usd_texture != null ? `≈ ${eng.usd_texture} $` : "inconnu";
-    const ok = confirm(
+    const ok = await window.__dzDialogue.confirmer(
       `Verrouiller « ${ent.name} » en 3D ?\n\n` +
       `Moteur : ${eng.label || b.engine || "?"}\n` +
       `Pourquoi ce moteur : ${b.why || "—"}\n` +
@@ -1046,8 +1046,8 @@ async function loadVectorDocs() {
 
 async function vectorCreer(role) {
   if (!chapter) { toast("Ouvre d'abord un chapitre.", true); return; }
-  const nom = prompt(`Nom du nouvel élément (${VECTOR_ROLES[role]}) :`,
-                     `${VECTOR_ROLES[role]} — ${chapter.title || "chapitre"}`);
+  const nom = await window.__dzDialogue.saisir(`Nom du nouvel élément (${VECTOR_ROLES[role]}) :`,
+                     { valeur: `${VECTOR_ROLES[role]} — ${chapter.title || "chapitre"}`, ok: "Créer" });
   if (!nom) return;
   try {
     const d = await api.send("POST", "/vector/docs", {
@@ -1120,8 +1120,8 @@ async function vectorRetirer(docId) {
 
 async function vectorDupliquer(docId) {
   const src = vectorDocsChapitre.find(d => d.id === docId);
-  const nom = prompt("Nom de la copie indépendante :",
-                     `${(src && src.name) || "Élément"} (copie)`);
+  const nom = await window.__dzDialogue.saisir("Nom de la copie indépendante :",
+                     { valeur: `${(src && src.name) || "Élément"} (copie)`, ok: "Dupliquer" });
   if (!nom) return;
   try {
     await api.send("POST",
@@ -1220,7 +1220,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   });
   $("#chapterSelect").addEventListener("change", e => e.target.value && openChapter(e.target.value));
   $("#deleteChapter").addEventListener("click", async () => {
-    if (!chapter || !confirm(`Supprimer le chapitre « ${chapter.title} » ?`)) return;
+    if (!chapter || !await window.__dzDialogue.confirmer(`Supprimer le chapitre « ${chapter.title} » ?`)) return;
     await api.send("DELETE", "/chapters/" + chapter.id);
     chapter = null; $("#script").value = "";
     await loadChapters();
@@ -1277,7 +1277,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   document.querySelectorAll(".bible-pane .tab").forEach(t =>
     t.addEventListener("click", () => { setTab(t.dataset.kind); renderBible(); }));
   $("#addEntity").addEventListener("click", async () => {
-    const name = prompt(`Nom du nouveau ${KIND_LABEL[curKind].toLowerCase()} :`);
+    const name = await window.__dzDialogue.saisir(`Nom du nouveau ${KIND_LABEL[curKind].toLowerCase()} :`, { ok: "Créer" });
     if (!name || !name.trim()) return;
     const ent = await api.send("POST", "/bible/entities", { kind: curKind, name: name.trim() });
     entities.push(ent); renderBible();
@@ -1299,14 +1299,14 @@ window.addEventListener("DOMContentLoaded", async () => {
   // resets (storyboard + scénario)
   $("#boardReset").addEventListener("click", async () => {
     if (!chapter || !shots.length) { toast("Rien à réinitialiser.", true); return; }
-    if (!confirm(`Supprimer les ${shots.length} plans de ce storyboard ?`)) return;
+    if (!await window.__dzDialogue.confirmer(`Supprimer les ${shots.length} plans de ce storyboard ?`)) return;
     await api.send("DELETE", `/chapters/${chapter.id}/shots`);
     await loadShots(true);
     toast("Storyboard réinitialisé — 🎬 Découper pour en régénérer un.");
   });
   $("#spReset").addEventListener("click", async () => {
     if (!chapter || !scenes.length) { toast("Rien à réinitialiser.", true); return; }
-    if (!confirm(`Supprimer les ${scenes.length} scènes du scénario ? (le manuscrit reste intact)`)) return;
+    if (!await window.__dzDialogue.confirmer(`Supprimer les ${scenes.length} scènes du scénario ? (le manuscrit reste intact)`)) return;
     await api.send("DELETE", `/chapters/${chapter.id}/scenes`);
     await loadScenes(true);
     toast("Scénario réinitialisé — 🎭 Adapter pour en régénérer un.");
@@ -1374,7 +1374,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   });
   $("#libUrl").addEventListener("click", async () => {
     if (!libOnPick) return;
-    const url = prompt("URL de l'image (http…) :");
+    const url = await window.__dzDialogue.saisir("URL de l'image (http…) :", { placeholder: "https://…", ok: "Télécharger" });
     if (!url || !url.trim()) return;
     toast("Téléchargement de l'image…");
     try {

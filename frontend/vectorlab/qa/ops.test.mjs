@@ -91,6 +91,16 @@ const banc = () => ({
      d.calques[0].objets[0].transform);
 }
 
+/* ── R11 : un ENFANT de groupe est une cible à part entière (Ctrl+clic d'Affinity) ── */
+{
+  const d = { v: 1, taille: { w: 100, h: 100 }, calques: [{ id: "c", nom: "c", visible: true, verrou: false, objets: [
+    { id: "g", type: "groupe", enfants: [{ id: "e1", type: "rect", x: 10, y: 10, w: 5, h: 5, style: {} }, { id: "e2", type: "rect", x: 50, y: 10, w: 5, h: 5, style: {} }] }] }] };
+  op_deplacer(d, ["e1"], 7, 3);
+  ok("op_deplacer sur un enfant : lui seul bouge, son frère et le groupe restent", d.calques[0].objets[0].enfants[0].x === 17 && d.calques[0].objets[0].enfants[0].y === 13 && d.calques[0].objets[0].enfants[1].x === 50);
+  op_supprimer(d, ["e2"]);
+  ok("op_supprimer sur un enfant : retiré du groupe, le groupe reste avec l'autre enfant", d.calques[0].objets.length === 1 && d.calques[0].objets[0].enfants.length === 1 && d.calques[0].objets[0].enfants[0].id === "e1");
+  ok("état vide : un id inconnu ne cible rien, pas d'exception", (() => { op_deplacer(d, ["zz"], 1, 1); return d.calques[0].objets[0].enfants[0].x === 17; })());
+}
 if (echecs.length) {
   console.error("ECHECS ops :\n- " + echecs.join("\n- "));
   process.exit(1);

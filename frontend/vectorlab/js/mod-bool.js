@@ -9,6 +9,7 @@ import { chemin_parser, chemin_serialiser, idLibre } from "./mod-doc.js";
 /* ── résolveur martinez : injecté au banc, window.martinez à l'écran ── */
 let _mz = null;
 export function fournirMartinez(m) { _mz = m; }
+import { forme_d } from "./mod-formes.js";   // lot B : les formes s'aplatissent par leur d recalculé
 function _martinez() {
   if (_mz) return _mz;
   if (typeof window !== "undefined" && window.martinez) {
@@ -127,6 +128,8 @@ export function polylignes_objet(objet, tol = TOL, mParent = _IDENT) {
         points: _points_ellipse(objet.cx, objet.cy, objet.rx, objet.ry, tol) }]);
     case "path":
       return appl(_polylignes_path(objet.d, tol));
+    case "forme":
+      return appl(_polylignes_path(forme_d(objet), tol));
     case "groupe": {
       const out = [];
       for (const e of objet.enfants || []) {
@@ -369,4 +372,196 @@ export function aire_de(anneaux) {
     total += s / 2;
   }
   return Math.abs(total);
+}
+
+
+/* ══════════ lot B : couteau, gomme, contour, atomes du Shape Builder ══════════
+   Tout se CALCULE avant de muter ; les résultats sont des chemins (d issu de
+   _dDeMulti, trous forcés en orientation opposée) qui prennent le style de
+   la cible ; un refus ne laisse aucune trace. */
+function _ciblesB(doc, ids) {
+  const voulu = new Set(ids), out = [];
+  for (const c of doc.calques) {
+    if (c.verrou) continue;
+    c.objets.forEach((o, i) => { if (voulu.has(o.id) && !o.verrou) out.push({ calque: c, objet: o, i }); });
+  }
+  if (!out.length) throw new Error("aucun objet déverrouillé dans la sélection");
+  return out;
+}
+function _multiObjet(o) {
+  const fond = o.style && o.style.fond;
+  return (fond && fond !== "none") ? _versMulti(aplatir_objet(o)) : _contourEnMulti(o, TOL);
+}
+// nettoie ce que martinez laisse traîner : anneaux dégénérés (< 4 points,
+// trous à 2 sommets vus après une union de disque) qui font perdre la moitié
+// du quadrilatère suivant (mesuré : 250 au lieu de 500 sur la 4e arête)
+const _propreB = (mp) => (mp || []).map((poly) => (poly || []).filter((ring) => ring && ring.length >= 4))
+  .filter((poly) => poly.length && poly[0].length >= 4);
+function _idLibreB(doc) {
+  const pris = new Set();
+  for (const c of doc.calques) (function v(objs) { for (const o of objs) { pris.add(o.id); if (o.type === "groupe") v(o.enfants || []); } })(c.objets);
+  let n = 1;
+  while (pris.has("o" + n)) n++;
+  pris.add("o" + n);
+  return "o" + n;
+}
+function _cheminDe(doc, mp, style, transform) {
+  const o = { id: _idLibreB(doc), type: "path", d: _dDeMulti(mp), style: { ...(style || {}) } };
+  if (o.style.fond === undefined || o.style.fond === "none") o.style.fond = style && style.contour ? style.contour : "#9DB4D6";
+  if (transform) o.transform = transform;
+  return o;
+}
+// remplace la cible par les chemins (un par multipolygone fourni), à sa place
+function _remplacer(cible, doc, multis) {
+  // un chemin à la fois, INSÉRÉ avant de nommer le suivant : deux morceaux
+  // nommés d'un coup recevaient le même id (mesuré en preuve : deux « o3 »)
+  let i = cible.calque.objets.indexOf(cible.objet);
+  cible.calque.objets.splice(i, 1);
+  const ids = [];
+  for (const mp of multis) {
+    const o = _cheminDe(doc, mp, cible.objet.style);
+    cible.calque.objets.splice(i++, 0, o);
+    ids.push(o.id);
+  }
+  return ids;
+}
+
+export function op_couteau(doc, ids, ligne) {
+  const mz = _martinez();
+  const [x0, y0, x1, y1] = ligne.map(Number);
+  const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy);
+  if (!(L > 1e-9)) throw new Error("couteau : tirer une droite");
+  const ux = dx / L, uy = dy / L, nx = -uy, ny = ux, B = 1e5;
+  const cote = (s) => [[[[x0 - ux * B, y0 - uy * B], [x0 + ux * B, y0 + uy * B],
+                        [x0 + ux * B + nx * B * s, y0 + uy * B + ny * B * s], [x0 - ux * B + nx * B * s, y0 - uy * B + ny * B * s],
+                        [x0 - ux * B, y0 - uy * B]]]];
+  const gauche = cote(1), droite = cote(-1);
+  const plan = [];
+  for (const c of _ciblesB(doc, ids)) {
+    let mp;
+    try { mp = _multiObjet(c.objet); } catch { continue; }
+    const a = _propreB(mz.intersection(mp, gauche)), b = _propreB(mz.intersection(mp, droite));
+    if (a.length && b.length) plan.push({ c, morceaux: [a, b] });
+  }
+  if (!plan.length) throw new Error("le couteau ne coupe rien : la droite ne traverse aucune forme");
+  const out = [];
+  for (const { c, morceaux } of plan) out.push(..._remplacer(c, doc, morceaux));
+  return out;
+}
+
+export function op_gomme(doc, ids, dTrait, largeur) {
+  const mz = _martinez();
+  if (!(largeur > 0)) throw new Error("gomme : largeur > 0 requise");
+  const bande = _contourEnMulti({ type: "path", d: dTrait, style: { epaisseur: largeur } }, TOL);
+  const out = [];
+  for (const c of _ciblesB(doc, ids)) {
+    let mp;
+    try { mp = _multiObjet(c.objet); } catch { out.push(c.objet.id); continue; }
+    if (!bande.length) { out.push(c.objet.id); continue; }
+    const r = _propreB(mz.diff(mp, bande));
+    const avant = Math.abs(aire_multi(mp)), apres = r.length ? Math.abs(aire_multi(r)) : 0;
+    if (Math.abs(avant - apres) < 1e-6) { out.push(c.objet.id); continue; }    // intacte : rien à faire
+    if (!r.length) { c.calque.objets.splice(c.calque.objets.indexOf(c.objet), 1); continue; }
+    out.push(..._remplacer(c, doc, r.map((poly) => [poly])));
+  }
+  return out;
+}
+
+function _retraitB(mz, mp, d) {
+  let out = mp;
+  for (const poly of mp) for (const ring of poly) {
+    const pts = ring.slice(0, -1);
+    for (let k = 0; k < pts.length; k++) {
+      const p = pts[k], q = pts[(k + 1) % pts.length];
+      const ex = q[0] - p[0], ey = q[1] - p[1], lg = Math.hypot(ex, ey);
+      if (lg < 1e-9) continue;
+      const nx = -ey / lg * d, ny = ex / lg * d;
+      out = _propreB(mz.diff(out, [[[[p[0] + nx, p[1] + ny], [q[0] + nx, q[1] + ny], [q[0] - nx, q[1] - ny], [p[0] - nx, p[1] - ny], [p[0] + nx, p[1] + ny]]]]));
+      if (!out.length) return out;
+      // le disque déborde d'1 % : ses tangentes ne coïncident plus avec les
+      // bords du quadrilatère (la coïncidence exacte égarait martinez :
+      // 483 mm² perdus aux quatre coins d'un carré gonflé, mesuré)
+      out = _propreB(mz.diff(out, [[_disque(p[0], p[1], d * 1.01)]]));
+      if (!out.length) return out;
+    }
+  }
+  return out;
+}
+export function op_contour(doc, ids, decalage) {
+  const mz = _martinez();
+  const d = +decalage;
+  if (!d) throw new Error("contour : décalage non nul requis (+ dehors, − dedans)");
+  const out = [];
+  for (const c of _ciblesB(doc, ids)) {
+    const mp = _multiObjet(c.objet);
+    let r;
+    if (d > 0) {
+      // dehors = complément du RETRAIT du complément : les différences
+      // progressives sont robustes là où les unions successives de
+      // quadrilatères et de disques perdaient des morceaux (mesuré : 11846,
+      // 11616 au lieu de 12078 sur un carré de 100 gonflé de 5)
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (const poly of mp) for (const ring of poly) for (const [x, y] of ring) {
+        x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y);
+      }
+      const m = 3 * d;
+      const boite = [[[[x0 - m, y0 - m], [x1 + m, y0 - m], [x1 + m, y1 + m], [x0 - m, y1 + m], [x0 - m, y0 - m]]]];
+      const boiteInt = [[[[x0 - m + d, y0 - m + d], [x1 + m - d, y0 - m + d], [x1 + m - d, y1 + m - d], [x0 - m + d, y1 + m - d], [x0 - m + d, y0 - m + d]]]];
+      const complement = _propreB(mz.diff(boite, mp));
+      const retire = _retraitB(mz, complement, d);
+      r = _propreB(retire.length ? mz.diff(boiteInt, retire) : boiteInt);
+    } else {
+      r = _retraitB(mz, mp, -d);
+      if (!r.length) throw new Error("contour : le retrait vide la forme");
+    }
+    const neuf = _cheminDe(doc, r, c.objet.style);
+    c.calque.objets.splice(c.calque.objets.indexOf(c.objet) + 1, 0, neuf);
+    out.push(neuf.id);
+  }
+  return out;
+}
+
+/* ── Shape Builder : les ATOMES (régions élémentaires) de N formes ── */
+export function atomes(multis) {
+  const mz = _martinez();
+  let at = [];
+  for (const S of multis) {
+    const neufs = [];
+    let reste = S;
+    for (const a of at) {
+      const inter = _propreB(mz.intersection(a, S)), diff = _propreB(mz.diff(a, S));
+      if (inter.length && Math.abs(aire_multi(inter)) > 1e-9) neufs.push(inter);
+      if (diff.length && Math.abs(aire_multi(diff)) > 1e-9) neufs.push(diff);
+      if (reste.length) reste = _propreB(mz.diff(reste, a));
+    }
+    if (reste.length && Math.abs(aire_multi(reste)) > 1e-9) neufs.push(reste);
+    at = neufs;
+  }
+  return at;
+}
+export function point_dans_multi(mp, x, y) {
+  let dedans = false;
+  for (const poly of mp) for (const ring of poly) {
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const [xi, yi] = ring[i], [xj, yj] = ring[j];
+      if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) dedans = !dedans;
+    }
+  }
+  return dedans;
+}
+export function op_constructeur(doc, ids, points, mode = "fusionner") {
+  const mz = _martinez();
+  const cibles = _ciblesB(doc, ids);
+  const at = atomes(cibles.map((c) => _multiObjet(c.objet)));
+  const choisis = at.filter((a) => (points || []).some((p) => point_dans_multi(a, p.x, p.y)));
+  if (!choisis.length) throw new Error("constructeur : aucun atome sous le clic");
+  const garde = mode === "retirer" ? at.filter((a) => !choisis.includes(a)) : choisis;
+  if (!garde.length) throw new Error("constructeur : il ne resterait rien");
+  let r = garde[0];
+  for (const a of garde.slice(1)) r = _propreB(mz.union(r, a));
+  const bas = cibles[0];
+  const neuf = _cheminDe(doc, r, bas.objet.style);
+  for (const c of cibles.slice().reverse()) c.calque.objets.splice(c.calque.objets.indexOf(c.objet), 1);
+  bas.calque.objets.splice(Math.min(bas.i, bas.calque.objets.length), 0, neuf);
+  return neuf.id;
 }

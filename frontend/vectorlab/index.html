@@ -2,13 +2,13 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8"/>
-  <title>Vectorlab — Deepotus Video Gen</title>
+  <title>Deepotus — Vectorlab</title>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <link rel="stylesheet" href="vectorlab.css"/>
 </head>
 <body>
   <svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true">
-    <symbol id="t-select" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7"></rect></symbol>
+    <symbol id="t-select" viewBox="0 0 24 24"><path d="M5.5 3.2 19 12.6l-5.6 1.1 3.3 5.9-2.4 1.3-3.3-5.9-4 4.2z"></path></symbol>
     <symbol id="t-pen" viewBox="0 0 24 24"><path d="M3 12h7l4-5v10l-4-5H3z"></path><circle cx="18.5" cy="12" r="3.2"></circle></symbol>
     <symbol id="t-rect" viewBox="0 0 24 24"><rect x="3.5" y="7" width="17" height="10" fill="none" stroke="currentColor" stroke-width="1.7"></rect></symbol>
     <symbol id="t-ellipse" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4" fill="none" stroke="currentColor" stroke-width="1.7"></circle></symbol>
@@ -17,26 +17,31 @@
     <symbol id="t-scale" viewBox="0 0 24 24"><path d="M5 19 19 5" stroke="currentColor" stroke-width="1.7" fill="none"></path><path d="M13 5h6v6z"></path><path d="M11 19H5v-6z"></path></symbol>
     <symbol id="t-pipette" viewBox="0 0 24 24"><path d="M12 2.6c3.4 4.6 5.6 7.8 5.6 10.4A5.6 5.6 0 0 1 12 18.6a5.6 5.6 0 0 1-5.6-5.6c0-2.6 2.2-5.8 5.6-10.4z"></path></symbol>
     <symbol id="t-text" viewBox="0 0 24 24"><rect x="3.4" y="3.8" width="17.2" height="3"></rect><rect x="10.4" y="6.8" width="3.2" height="13.4"></rect></symbol>
+    <symbol id="t-forme" viewBox="0 0 24 24"><path d="M12 2.5l2.6 6.4 6.9.5-5.3 4.4 1.7 6.7L12 16.9l-5.9 3.6 1.7-6.7-5.3-4.4 6.9-.5z" fill="none" stroke="currentColor" stroke-width="1.6"></path></symbol>
+    <symbol id="t-crayon" viewBox="0 0 24 24"><path d="M3 20c3-8 8-12 15-16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path><path d="M16 6l2 2" stroke="currentColor" stroke-width="1.8"></path></symbol>
+    <symbol id="t-couteau" viewBox="0 0 24 24"><path d="M4 20L20 4" stroke="currentColor" stroke-width="1.8"></path><path d="M14 4h6v6" fill="none" stroke="currentColor" stroke-width="1.6"></path></symbol>
+    <symbol id="t-gomme" viewBox="0 0 24 24"><path d="M4 16l8-8 6 6-6 6H8z" fill="none" stroke="currentColor" stroke-width="1.7"></path><path d="M8 20h12" stroke="currentColor" stroke-width="1.7"></path></symbol>
+    <symbol id="t-coin" viewBox="0 0 24 24"><path d="M4 20V10a6 6 0 0 1 6-6h10" fill="none" stroke="currentColor" stroke-width="1.8"></path></symbol>
+    <symbol id="t-constructeur" viewBox="0 0 24 24"><circle cx="9" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="1.6"></circle><circle cx="15" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="1.6"></circle><path d="M12 7.2a6 6 0 0 1 0 9.6a6 6 0 0 1 0-9.6z"></path></symbol>
+    <symbol id="t-hex" viewBox="0 0 24 24"><path d="M12 2.5 20.2 7.2v9.6L12 21.5 3.8 16.8V7.2z" fill="none" stroke="currentColor" stroke-width="1.7"></path></symbol>
     <symbol id="t-ai" viewBox="0 0 24 24"><path d="M12 1.8 14.4 9l7.2 2.4-7.2 2.4L12 21l-2.4-7.2L2.4 11.4 9.6 9z"></path><rect x="18.4" y="2.4" width="3.2" height="3.2" opacity=".6"></rect></symbol>
     <symbol id="v-arc" viewBox="0 0 24 24"><path d="M4 21V10.4C4 5.8 7.6 2.2 12 2.2s8 3.6 8 8.2V21z" opacity=".28"></path><rect x="4" y="14.4" width="16" height="6.6"></rect><rect x="11.1" y="2.4" width="1.8" height="18.6" opacity=".55"></rect></symbol>
     <symbol id="v-rosette" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.4" opacity=".26"></circle><rect x="10.9" y="2.6" width="2.2" height="18.8"></rect><rect x="2.6" y="10.9" width="18.8" height="2.2"></rect><rect x="10.9" y="2.6" width="2.2" height="18.8" transform="rotate(45 12 12)" opacity=".55"></rect><rect x="10.9" y="2.6" width="2.2" height="18.8" transform="rotate(-45 12 12)" opacity=".55"></rect></symbol>
     <symbol id="v-grille" viewBox="0 0 24 24"><path d="M12 2.4 21.6 12 12 21.6 2.4 12z" opacity=".26"></path><path d="M12 2.4 16.8 7.2 12 12 7.2 7.2zM12 12l4.8 4.8L12 21.6l-4.8-4.8z"></path></symbol>
     <symbol id="v-plomb" viewBox="0 0 24 24"><path d="M2.6 12 8 3.4h8L21.4 12 16 20.6H8z" opacity=".24"></path><path d="M2.6 11.2h18.8v1.6H2.6zM7.3 3.8l8.9 16.8-1.4.8L5.9 4.6zM16.7 3.8 7.8 20.6l-1.4-.8L15.3 3z"></path></symbol>
   </svg>
-  <header class="bar">
-    <div class="brand">◧ Vectorlab</div>
-    <button id="btnBiblio" title="Bibliothèque des documents">⌂</button>
-    <div class="doc"><b id="docTitle">…</b> <span id="docMeta"></span></div>
-    <span id="temoin" title="État d'enregistrement">✓</span>
+  <nav id="menubar" class="mb" aria-label="Menus"></nav>
+  <header class="bar pb">
+    <nav id="personas" class="personas" title="Persona : une surface, deux métiers (D8)"></nav>
+    <button id="btnBiblio" class="pb-icone" title="Bibliothèque des documents (Accueil)">⌂</button>
     <div class="spacer"></div>
-    <span id="zoomLabel" title="Molette : zoom · glisser (main ou fond) : déplacer">100 %</span>
-    <button id="btnUnite" title="Unité d'affichage des règles et des cotes (px → mm → cm → in) — sauvée avec le document, le dpi du document fait le pont physique">px</button>
-    <button id="btnGrille" title="Grille d'aimantation et repère visuel (G)">⊞ 8</button>
-    <select id="selGrille" title="Pas de la grille — en pixels du document"></select>
-    <button id="btnAnnuler" title="Annuler (Ctrl+Z)">↶</button>
-    <button id="btnRefaire" title="Refaire (Ctrl+Y)">↷</button>
+    <span id="pbCotes" class="pb-cotes" title="Cotes de la sélection">Pas de données</span>
+    <span id="pbDoc" class="pb-doc" title="Taille, unité et dpi du document"></span>
+    <span id="temoin" title="État d'enregistrement">✓</span>
+    <button id="btnAnnuler" class="pb-icone" title="Annuler (Ctrl+Z)">↶</button>
+    <button id="btnRefaire" class="pb-icone" title="Refaire (Ctrl+Y)">↷</button>
     <span class="exp-conteneur">
-      <button id="btnExporter" title="Exporter le document">Exporter ▾</button>
+      <button id="btnExporter" class="pb-export" title="Exporter le document"><i></i>Exporter SVG ▾</button>
       <div id="expMenu" class="exp-menu hidden">
         <button id="expSvg" title="Compile ici, stocké au serveur, servi sur export.svg">SVG (serveur)</button>
         <button id="expPng1" title="PNG taille du document → Library">PNG 1×</button>
@@ -44,11 +49,28 @@
         <button id="expPng4" title="PNG quadruple → Library">PNG 4×</button>
         <label title="Compile sans le fond du document — coché d'office pour un calque de lumière"><input type="checkbox" id="expTransparent"/> fond transparent</label>
         <button id="expBible" title="Exporte en 2× et l'ajoute aux images d'inspiration d'une entité de la bible — les planches s'y conditionnent ensuite (machinerie existante, tir opt-in)">→ Bible…</button>
-        <button id="expPrint3d" title="Extrude les calques visibles en relief imprimable (hauteurs en mm, surcharge par calque — les plombs d'un vitrail plus hauts que les verres), écrit un dossier STL + 3MF et propose d'ouvrir le slicer">→ Impression 3D…</button>
+        <button id="expPrint3d" title="Impression 3D : calques en relief, plateau de tuiles (socle + terrain, un STL par tuile), logo (biseau, évidement) — aperçu 3D avant tir, STL + 3MF, ouverture du slicer">→ Impression 3D…</button>
       </div>
     </span>
+    <span class="exp-conteneur">
+      <input type="file" id="imgFichierInput" accept="image/png,image/jpeg,image/webp" hidden/>
+    </span>
     <button id="btnSauver" class="primaire" title="Sauver (Ctrl+S)">Sauver</button>
+    <button id="btnAide" class="pb-icone" title="Raccourcis clavier (F1)">?</button>
   </header>
+  <div id="contexte" class="cb">
+    <span id="cbSelection">Aucune sélection</span>
+    <span class="cb-sep"></span>
+    <span id="cbOutil"></span>
+    <span class="cb-sep"></span>
+    <button id="btnGrille" title="Grille d'aimantation et repère visuel (G)">⊞ 8</button>
+    <select id="selGrille" title="Pas de la grille — en pixels du document"></select>
+    <button id="btnAimant" class="actif" title="Aimantation aux objets : bords, centres, écarts réguliers">⌖</button>
+    <button id="btnUnite" title="Unité d'affichage des règles et des cotes (px → mm → cm → in) — sauvée avec le document">px</button>
+    <span class="spacer"></span>
+    <span id="zoomLabel" title="Molette : zoom · glisser (main ou fond) : déplacer">100 %</span>
+  </div>
+  <div class="dt"><span id="docTitle" class="dt-onglet">…</span></div>
   <section id="biblio" class="biblio">
     <div class="bib-outils">
       <input id="bibNouvNom" type="text" placeholder="nom du nouveau document"/>
@@ -75,16 +97,23 @@
   </section>
   <div class="rangee">
     <nav id="outils" class="outils">
-      <button data-outil="select" class="actif" title="Sélection — déplacer, lasso, poignées (V)"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#t-select"></use></svg></button>
-      <button data-outil="plume" title="Plume Bézier — clic = ancre, glisser = poignées, double-clic = finir, clic sur la première ancre = fermer (P)"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#t-pen"></use></svg></button>
-      <button data-outil="rect" title="Rectangle — Maj = carré (R)"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#t-rect"></use></svg></button>
-      <button data-outil="ellipse" title="Ellipse — Maj = cercle (E)"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#t-ellipse"></use></svg></button>
-      <button data-outil="ligne" title="Ligne — glisser pour tracer un segment, Maj = angles 45° (L)"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#t-line"></use></svg></button>
-      <button data-outil="noeuds" title="Nœuds — glisser une ancre, double-clic = angle↔courbe, Suppr = retirer (N)"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#t-node"></use></svg></button>
-      <button data-outil="mesure" title="Mesure — glisser pour lire longueur, angle et Δ sans rien créer (M)"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#t-scale"></use></svg></button>
-      <button data-outil="pipette" title="Pipette — adopte le style de l'objet cliqué et l'applique à la sélection (I)"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#t-pipette"></use></svg></button>
-      <button data-outil="texte" title="Texte — clic pour poser, double-clic (outil sélection) pour rééditer (T)"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#t-text"></use></svg></button>
-      <button data-outil="ia" title="Illustration IA — décrire dans le panneau Vitrail (G)"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#t-ai"></use></svg></button>
+      <button data-outil="select" class="actif" title="Sélection — déplacer, lasso, poignées (V)"></button>
+      <button data-outil="plume" title="Plume Bézier — clic = ancre, glisser = poignées, double-clic = finir, clic sur la première ancre = fermer (P)"></button>
+      <button data-outil="rect" title="Rectangle — Maj = carré (R)"></button>
+      <button data-outil="ellipse" title="Ellipse — Maj = cercle (E)"></button>
+      <button data-outil="ligne" title="Ligne — glisser pour tracer un segment, Maj = angles 45° (L)"></button>
+      <button data-outil="noeuds" title="Nœuds — glisser une ancre, double-clic = angle↔courbe, Suppr = retirer (N)"></button>
+      <button data-outil="mesure" title="Mesure — glisser pour lire longueur, angle et Δ sans rien créer (M)"></button>
+      <button data-outil="pipette" title="Pipette — adopte le style de l'objet cliqué et l'applique à la sélection (I)"></button>
+      <button data-outil="texte" title="Texte — clic pour poser, double-clic (outil sélection) pour rééditer (T)"></button>
+      <button data-outil="forme" title="Forme paramétrique — glisser depuis le centre ; la forme se choisit dans le panneau (F)"></button>
+      <button data-outil="crayon" title="Crayon à main levée lissé — fin près du début = fermé (B)"></button>
+      <button data-outil="couteau" title="Couteau — tirer une droite à travers la sélection (X)"></button>
+      <button data-outil="gomme" title="Gomme vectorielle — glisser sur les formes (W)"></button>
+      <button data-outil="coin" title="Coin — cliquer une forme aux angles vifs pour arrondir (C)"></button>
+      <button data-outil="constructeur" title="Shape Builder — cliquer les régions, Entrée fusionne, Alt+Entrée retire (S)"></button>
+      <button data-outil="tuiles" title="Pinceau de tuiles — peint le terrain courant, pose la tuile manquante (K)"></button>
+      <button data-outil="ia" title="Illustration IA — décrire dans le panneau Vitrail (G)"></button>
     </nav>
     <div class="scene">
       <canvas id="regleH" class="regle regle-h" height="24"></canvas>
@@ -93,7 +122,6 @@
         <main id="stage">
           <div id="canvasHost"></div>
           <svg id="overlay"></svg>
-          <div id="hintOutil" class="hint"></div>
         </main>
       </div>
     </div>
@@ -102,15 +130,59 @@
         <summary class="panneau-tete" title="Le Panneau de verre — les deux encarts historiques (Vitrail / Panneau de verre) fusionnés (handoff §8.1) : réglages du prochain panneau OU retouche du panneau sélectionné, la portée est écrite en tête">Panneau de verre</summary>
         <div id="panneauVitrail"></div>
       </details>
-      <div class="panneau-tete">Apparence</div>
-      <div id="panneauStyle"></div>
-      <div class="panneau-tete">Calques
+      <details id="histogrammeDetails"><summary class="panneau-tete">Histogramme</summary><div id="panneauHistogramme"></div></details>
+      <details id="echantillonsDetails"><summary class="panneau-tete">Échantillons</summary><div id="panneauEchantillons"></div></details>
+      <details id="traitDetails"><summary class="panneau-tete">Trait</summary><div id="panneauTrait"></div></details>
+      <details id="transformerDetails"><summary class="panneau-tete">Transformer</summary><div id="panneauTransformer"></div></details>
+      <details id="navigateurDetails"><summary class="panneau-tete">Navigateur</summary><div id="panneauNavigateur"></div></details>
+      <details id="styleDetails" open><summary class="panneau-tete">Apparence</summary><div id="panneauStyle"></div></details>
+      <details id="texteDetails" open><summary class="panneau-tete" title="Texte & logo : bibliothèque de typographies, édition en place, contours par glyphe, logo 3D">Texte</summary><div id="panneauTexte"></div></details>
+      <details id="apparence2Details" open><summary class="panneau-tete" title="Apparence de classe Affinity : effets, fusion, contours multiples, remplissages avancés, couleurs globales, styles, symboles, texte +">Apparence +</summary><div id="panneauApparence2"></div></details>
+      <details id="formeDetails" open><summary class="panneau-tete" title="La forme de l'outil Forme, ses paramètres quand une forme est sélectionnée, la largeur de la gomme et le rayon de l'outil Coin">Forme &amp; gestes</summary><div id="panneauForme"></div></details>
+      <details id="noeudsDetails"><summary class="panneau-tete" title="Nœuds multiples : lasso d'ancres (outil Nœuds), aligner, diviser, inverser, joindre, coins">Nœuds</summary><div id="panneauNoeuds"></div></details>
+      <details id="instantanesDetails"><summary class="panneau-tete" title="Instantanés nommés de la session (historique de 1 000 pas)">Instantanés</summary><div id="panneauInstantanes"></div></details>
+      <details id="pixelDetails" class="seulement-pixel" open><summary class="panneau-tete" id="tetePixel">Pixel</summary><div id="panneauPixel"></div></details>
+      <details id="exportDetails" class="seulement-export" open><summary class="panneau-tete" id="teteExport">Export</summary><div id="panneauExport"></div></details>
+      <details id="exportPlusDetails" class="seulement-export" open><summary class="panneau-tete" id="teteExportPlus" title="Tranches, formats JPEG / WebP / PDF / DXF, multi-résolution, presets d'impression, export lot">Export +</summary><div id="panneauExportPlus"></div></details>
+      <details id="imageDetails" open hidden><summary class="panneau-tete" id="teteImage">Image</summary><div id="panneauImage"></div></details>
+      <details id="reperesDetails"><summary class="panneau-tete" title="Fond perdu et zone sûre — tracés à l'écran, aimantants, jamais exportés">Repères</summary><div id="panneauReperes"></div></details>
+      <details id="grilleDetails"><summary class="panneau-tete" title="Grille du document : carrée subdivisée, isométrique, triangulaire, hexagonale — tracée et aimantante, sauvée avec le document">Grille</summary><div id="panneauGrille"></div></details>
+      <details id="plateauDetails"><summary class="panneau-tete" title="Fiche de terrains et générateur de quadrillage hexagonal">Plateau &amp; terrains</summary>
+        <div id="panneauTerrains"></div><div id="panneauPlateau"></div></details>
+      <details id="planchesDetails"><summary class="panneau-tete" title="Plusieurs surfaces nommées dans un même document, exportables une par une">Planches</summary><div id="panneauPlanches"></div></details>
+      <details id="carteDetails"><summary class="panneau-tete" title="Cartes réelles : GPX à l'échelle, fond OpenStreetMap, relief Terrarium, courbes de niveau, tuiles par palier, plateau imprimable">Carte réelle</summary>
+        <div id="panneauCarte"></div></details>
+      <details id="assetsDetails"><summary class="panneau-tete" title="La Bibliothèque unifiée dans le panneau — un clic pose l'image">Bibliothèque (Assets)</summary>
+        <input id="assetsRecherche" type="search" placeholder="rechercher…"/><div id="assetsGrille" class="assets-grille"></div></details>
+     <details id="calquesDetails" open>
+      <summary class="panneau-tete">Calques
         <button id="btnCalquePlus" title="Nouveau calque">＋</button>
-      </div>
+      </summary>
       <div id="listeCalques"></div>
+     </details>
     </aside>
   </div>
+  <footer class="sb">
+    <span id="sbPages" class="sb-pages">|◀ ◀ 1 sur 1 ▶ ▶|</span>
+    <span id="hintOutil" class="sb-phrase"></span>
+    <span class="spacer"></span>
+    <span id="docMeta" class="sb-msg"></span>
+  </footer>
+  <div id="libDlg" class="vl-dlg hidden">
+    <div class="vl-dlg-boite">
+      <div class="vl-dlg-tete"><b>Bibliothèque</b>
+        <input id="libRecherche" type="search" placeholder="rechercher…"/>
+        <button id="libFermer" title="Fermer">✕</button></div>
+      <div id="libGrille" class="lib-grille"></div>
+    </div>
+  </div>
+  <div id="traceDlg" class="vl-dlg hidden"></div>
+  <div id="impDlg" class="vl-dlg hidden"></div>
+  <div id="vlDlg" class="vl-dlg hidden"></div>
   <script src="vendor/martinez.umd.js"></script>
+  <script src="vendor/imagetracer_v1.2.6.js"></script>
+  <script src="vendor/opentype.min.js"></script>
+  <script type="module" src="/assets/model-viewer.min.js"></script>
   <script type="module" src="js/core.js"></script>
 </body>
 </html>

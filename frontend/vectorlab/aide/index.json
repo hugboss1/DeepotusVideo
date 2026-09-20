@@ -1,0 +1,44 @@
+[
+  {
+    "id": "a2Conique",
+    "titre": "Conique",
+    "phrase": "La couleur tourne autour du milieu de ta forme, comme les rayons d'une roue.",
+    "fichier": "apparence2.a2Conique.webp",
+    "version": 1
+  },
+  {
+    "id": "impDepouilleR",
+    "titre": "Dépouille des flancs",
+    "phrase": "Les côtés de ta pièce penchent : plus tu tournes, plus le bas devient large et le haut petit.",
+    "fichier": "impression.impDepouille.webp",
+    "version": 1
+  },
+  {
+    "id": "pxContour",
+    "titre": "Contour sombre",
+    "phrase": "Un trait sombre entoure ton dessin pour qu'il se détache bien du fond.",
+    "fichier": "pixelui.pxContour.webp",
+    "version": 1
+  },
+  {
+    "id": "pxCreerCalque",
+    "titre": "Créer le calque pixel",
+    "phrase": "Une feuille transparente se pose sur ton image modèle : tu dessines dessus, case par case.",
+    "fichier": "pixelui.pxCreerCalque.webp",
+    "version": 1
+  },
+  {
+    "id": "pxDesigner",
+    "titre": "Désigner comme modèle",
+    "phrase": "Ton image devient un modèle : elle pâlit, se fige, et une grille de cases se pose dessus pour te guider.",
+    "fichier": "pixelui.pxDesigner.webp",
+    "version": 1
+  },
+  {
+    "id": "pxPixeliser",
+    "titre": "Pixeliser l'image",
+    "phrase": "Ton image devient faite de gros carrés, comme des briques : autant de carrés que la taille de tuile.",
+    "fichier": "pixelui.pxPixeliser.webp",
+    "version": 1
+  }
+]

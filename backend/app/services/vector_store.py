@@ -148,3 +148,123 @@ def copier_vignette(src: str, dst: str) -> None:
     octets = lire_vignette(src)
     if octets is not None:
         ecrire_vignette(dst, octets)
+
+
+# ── lot A (D1) : les IMAGES du document — `<did>.img<n>.png` à côté du JSON,
+# jamais de base64 dans le document. Le nom rendu (`img<n>.png`) est ce que
+# l'objet `image` du modèle porte en `href`. Le magasin stocke des octets ;
+# le magic PNG se vérifie à la ROUTE. La suppression du document (archive)
+# LAISSE les images : l'archive `.v<n>.json` les référence encore.
+_NOM_IMAGE = re.compile(r"img([0-9]+)\.png")
+
+
+def _numeros_images(did: str, d: Path) -> list[int]:
+    out = []
+    for p in d.glob(f"{did}.img*.png"):
+        m = re.fullmatch(re.escape(did) + r"\.img([0-9]+)\.png", p.name)
+        if m:
+            out.append(int(m.group(1)))
+    return sorted(out)
+
+
+def lister_images(did: str) -> list[str]:
+    return [f"img{n}.png" for n in _numeros_images(did, _dossier())]
+
+
+def ecrire_image(did: str, octets: bytes) -> str:
+    d = _dossier()
+    if not (d / f"{did}.json").is_file():
+        raise FileNotFoundError(did)
+    nums = _numeros_images(did, d)
+    n = (nums[-1] + 1) if nums else 1
+    nom = f"img{n}.png"
+    tmp = d / f"{did}.{nom}.tmp"
+    tmp.write_bytes(octets)
+    os.replace(tmp, d / f"{did}.{nom}")
+    return nom
+
+
+def lire_image(did: str, nom: str):
+    if not _NOM_IMAGE.fullmatch(nom or ""):
+        return None
+    p = _dossier() / f"{did}.{nom}"
+    return p.read_bytes() if p.is_file() else None
+
+
+# ── lot E (D1) : le JOURNAL RASTER du persona Pixel — chaque remplacement
+# d'une image journalise l'état précédent sous `<did>.img<n>.pix<k>.png`,
+# dix au plus (les plus anciens tombent, comme les `.v<n>.json`) ; « Annuler
+# pixels » dépile. Le Ctrl+Z du document ne rend pas les pixels : ce journal
+# le fait. `rev` = nombre d'entrées du journal — le client l'ajoute en
+# `?v=rev` à l'href pour casser le cache sans toucher au JSON.
+JOURNAL_MAX = 10
+
+
+def _pix_de(did: str, nom: str, d: Path) -> list[int]:
+    base = nom[:-4]                                   # img<n>
+    out = []
+    for p in d.glob(f"{did}.{base}.pix*.png"):
+        m = re.fullmatch(re.escape(f"{did}.{base}") + r"\.pix([0-9]+)\.png", p.name)
+        if m:
+            out.append(int(m.group(1)))
+    return sorted(out)
+
+
+def journal_images(did: str, nom: str) -> int:
+    if not _NOM_IMAGE.fullmatch(nom or ""):
+        return 0
+    return len(_pix_de(did, nom, _dossier()))
+
+
+def remplacer_image(did: str, nom: str, octets: bytes) -> int:
+    """Remplace `nom` par `octets` en journalisant l'état précédent ; rend
+    la révision (taille du journal). ValueError hors patron, FileNotFoundError
+    si l'image n'existe pas."""
+    if not _NOM_IMAGE.fullmatch(nom or ""):
+        raise ValueError(nom)
+    d = _dossier()
+    cible = d / f"{did}.{nom}"
+    if not cible.is_file():
+        raise FileNotFoundError(nom)
+    base = nom[:-4]
+    nums = _pix_de(did, nom, d)
+    # décaler : pix1 (le plus ancien) tombe quand le journal est plein
+    if len(nums) >= JOURNAL_MAX:
+        for k in nums[: len(nums) - JOURNAL_MAX + 1]:
+            (d / f"{did}.{base}.pix{k}.png").unlink()
+        nums = _pix_de(did, nom, d)
+        for i, k in enumerate(nums, 1):
+            if k != i:
+                os.replace(d / f"{did}.{base}.pix{k}.png", d / f"{did}.{base}.pix{i}.png")
+        nums = list(range(1, len(nums) + 1))
+    k = (nums[-1] + 1) if nums else 1
+    os.replace(cible, d / f"{did}.{base}.pix{k}.png")
+    tmp = d / f"{did}.{nom}.tmp"
+    tmp.write_bytes(octets)
+    os.replace(tmp, cible)
+    return k
+
+
+def annuler_image(did: str, nom: str):
+    """Dépile la dernière entrée du journal dans `nom` ; rend la révision
+    restante, ou None s'il n'y a rien à annuler."""
+    if not _NOM_IMAGE.fullmatch(nom or ""):
+        return None
+    d = _dossier()
+    nums = _pix_de(did, nom, d)
+    if not nums:
+        return None
+    k = nums[-1]
+    os.replace(d / f"{did}.{nom[:-4]}.pix{k}.png", d / f"{did}.{nom}")
+    return len(nums) - 1
+
+
+def copier_images(src: str, dst: str) -> None:
+    """Socle de « dupliquer » : la copie emporte les images sous les MÊMES
+    noms (les href du JSON copié restent valides) — no-op sans image."""
+    d = _dossier()
+    for nom in lister_images(src):
+        octets = (d / f"{src}.{nom}").read_bytes()
+        tmp = d / f"{dst}.{nom}.tmp"
+        tmp.write_bytes(octets)
+        os.replace(tmp, d / f"{dst}.{nom}")

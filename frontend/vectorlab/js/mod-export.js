@@ -6,23 +6,37 @@
 // conditionnement de planche reste l'opt-in payant de la machinerie en
 // place, rien ne tire ici.
 import { compilerSVG } from "./mod-doc.js";
-import { aplatir_objet, contour_en_multi, versMulti } from "./mod-bool.js";
-import { extruder, stl_binaire } from "./mod-extrude.js";
+import { image_hrefs, image_rev_max } from "./mod-image.js";
 
 export function initExport(VL) {
   const { $, etat } = VL;
 
-  function svgCourant(transparent) {
-    const doc = JSON.parse(JSON.stringify(etat.doc));
+  async function svgCourant(transparent, cadre, docBase) {
+    const doc = JSON.parse(JSON.stringify(docBase || etat.doc));   // lot G : une tranche compile SON document (calque / objet isolé)
     if (transparent) delete doc.fond;
-    return compilerSVG(doc);
+    if (VL.textesEnChemins) await VL.textesEnChemins(doc);   // Texte & logo : un SVG en <img> ne charge aucune police
+    // un SVG chargé comme <img> ne peut PAS charger d'images externes :
+    // chaque PNG du document est inliné en data: — pour l'export seulement,
+    // le JSON stocké ne porte jamais de base64 (D1)
+    const carte = new Map();
+    for (const href of image_hrefs(doc)) {
+      const r = await fetch(VL.imageUrl(href, image_rev_max(doc, href)), { cache: "no-store" });   // lot E : jamais un PNG périmé
+      if (!r.ok) throw new Error(`image ${href} introuvable (${r.status})`);
+      const b = await r.blob();
+      carte.set(href, await new Promise((res, rej) => {
+        const fr = new FileReader();
+        fr.onload = () => res(fr.result); fr.onerror = () => rej(new Error("lecture image"));
+        fr.readAsDataURL(b);
+      }));
+    }
+    return compilerSVG(doc, { image: (h) => carte.get(h) || h, cadre, mesure: VL.mesureTexte });   // lot F : les cadres de texte se coupent comme à l'écran
   }
 
   async function exporterSVG() {
     const r = await fetch("/api/vector/docs/"
       + encodeURIComponent(etat.docId) + "/export", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ svg: svgCourant($("#expTransparent").checked) }),
+      body: JSON.stringify({ svg: await svgCourant($("#expTransparent").checked) }),
     });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.detail || r.statusText);
@@ -31,15 +45,16 @@ export function initExport(VL) {
                 + "/export.svg", "_blank");
   }
 
-  function rasteriser(k, transparent) {
+  async function rasteriser(k, transparent, cadre) {
+    const svg = await svgCourant(transparent, cadre);
+    const taille = cadre || etat.doc.taille;       // lot C : une planche a SA taille
     return new Promise((res, rej) => {
-      const blob = new Blob([svgCourant(transparent)],
-                            { type: "image/svg+xml" });
+      const blob = new Blob([svg], { type: "image/svg+xml" });
       const url = URL.createObjectURL(blob);
       const img = new Image();
       img.onload = () => {
-        const w = Math.round(etat.doc.taille.w * k);
-        const h = Math.round(etat.doc.taille.h * k);
+        const w = Math.round(taille.w * k);
+        const h = Math.round(taille.h * k);
         const cv = document.createElement("canvas");
         cv.width = w;
         cv.height = h;
@@ -57,11 +72,12 @@ export function initExport(VL) {
     });
   }
 
-  async function exporterPNG(k) {
+  async function exporterPNG(k, opts = {}) {
     const transparent = $("#expTransparent").checked;
-    const png = await rasteriser(k, transparent);
-    // le transparent porte son suffixe : il n'écrase jamais l'opaque
-    const nom = `vector_${etat.docId}_${k}x${transparent ? "_t" : ""}.png`;
+    const png = await rasteriser(k, transparent, opts.cadre);
+    // le transparent porte son suffixe : il n'écrase jamais l'opaque ; une
+    // planche porte le sien (lot C) — l'export du document reste stable
+    const nom = `vector_${etat.docId}${opts.suffixe || ""}_${k}x${transparent ? "_t" : ""}.png`;
     const fd = new FormData();
     fd.append("file", new File([png], nom, { type: "image/png" }));
     const r = await fetch("/api/images/upload", { method: "POST", body: fd });
@@ -92,7 +108,7 @@ export function initExport(VL) {
     }
     const liste = ents.map((e, i) => `${i + 1}) [${e.kind}] ${e.name}`)
       .join("\n");
-    const rep = prompt("Lier l'export 2× à quelle entité ?\n" + liste, "1");
+    const rep = await VL.dialogue.saisir("Lier l'export 2× à quelle entité ?\n" + liste, { valeur: "1", titre: "Vers la bible", valider: "Lier" });
     if (rep === null) return;
     const e = ents[(+rep || 0) - 1];
     if (!e) { VL.toast("numéro d'entité inconnu", true); return; }
@@ -104,79 +120,12 @@ export function initExport(VL) {
              + "peuvent s'y conditionner (tir opt-in)");
   }
 
-  /* ── impression 3D (phase 3 du plan slicer) : chaque calque visible
-     s'aplatit (fonds pleins par aplatir_objet, tracés par leur contour
-     GONFLÉ — les plombs), s'unit par martinez, puis s'extrude en prisme
-     fermé à SA hauteur (relief). Le y du SVG descend, celui du plateau
-     monte : retourné. Les textes sont ignorés et DITS, jamais bloquants. */
-  async function imprimer3D() {
-    const doc = etat.doc;
-    const dpi = (doc.unites && doc.unites.dpi) || 96;
-    const sMm = 25.4 / dpi;
-    const rep = prompt(
-      "Hauteur d'extrusion en mm ? Un nombre (ex. 3), plus des surcharges "
-      + "par calque « nom=mm » à la virgule (ex. « 2, contours=5 » : les "
-      + "plombs plus hauts que les verres).\nLe document fait "
-      + `${Math.round(doc.taille.w * sMm)} × ${Math.round(doc.taille.h * sMm)} mm `
-      + `à ${dpi} dpi — le plateau Centauri Carbon 2 fait 256 mm.`, "3");
-    if (rep === null) return;
-    let globale = null;
-    const surcharges = {};
-    for (const part of rep.split(",")) {
-      const t = part.trim();
-      if (!t) continue;
-      const m = /^(.+?)=([0-9.]+)$/.exec(t);
-      if (m) surcharges[m[1].trim().toLowerCase()] = +m[2];
-      else if (globale === null && +t > 0) globale = +t;
-    }
-    if (!(globale > 0)) throw new Error("hauteur en mm invalide");
-    const mz = window.martinez;
-    if (!mz) throw new Error("martinez indisponible (vendor non chargé)");
-    const tris = [];
-    let ignores = 0;
-    for (const c of doc.calques) {
-      if (!c.visible) continue;
-      const h = surcharges[(c.nom || "").toLowerCase()] ?? globale;
-      if (!(h > 0)) continue;
-      let mp = null;
-      for (const o of c.objets) {
-        if (o.type === "texte") { ignores++; continue; }
-        let m = null;
-        try {
-          const fond = o.style && o.style.fond;
-          m = (fond && fond !== "none")
-            ? versMulti(aplatir_objet(o))
-            : contour_en_multi(o);
-        } catch (e) { ignores++; continue; }
-        if (!m || !m.length) continue;
-        mp = mp ? mz.union(mp, m) : m;
-      }
-      if (!mp || !mp.length) continue;
-      const mmMulti = mp.map((poly) => poly.map((ring) =>
-        ring.map(([x, y]) => [x * sMm, -y * sMm])));
-      tris.push(...extruder(mmMulti, h, 0));
-    }
-    if (!tris.length) {
-      throw new Error("rien d'extrudable (calques visibles vides ?)");
-    }
-    const stl = stl_binaire(tris);
-    const ps = new URLSearchParams({ nom: etat.meta.name,
-      source: "vectorlab", etanche: "inconnue" });
-    const r = await fetch("/api/print3d/from-stl?" + ps, {
-      method: "POST",
-      headers: { "Content-Type": "application/octet-stream" }, body: stl });
-    const d = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(d.detail || r.statusText);
-    VL.toast(`dossier d'impression : ${d.dossier} (${d.triangles} triangles`
-      + (ignores ? `, ${ignores} objet(s) ignoré(s) — textes` : "") + ")");
-    if (confirm(`Export écrit (${d.dossier}) — ouvrir le .3mf dans le `
-                + "slicer ?")) {
-      const o = await fetch("/api/print3d/open", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dossier: d.dossier }) });
-      const od = await o.json().catch(() => ({}));
-      if (!o.ok) throw new Error(od.detail || o.statusText);
-    }
+  /* ── impression 3D : la voie du lot D — le dialogue de mod-impression.js
+     (modes calques / tuiles / logo, aperçu 3D, un STL ou un lot). Le
+     prompt() de la phase 3 du plan slicer a déménagé là-bas. */
+  function imprimer3D() {
+    if (!VL.impression) throw new Error("impression 3D indisponible (module non chargé)");
+    VL.impression();
   }
 
   /* ── le menu ── */
@@ -201,5 +150,6 @@ export function initExport(VL) {
   $("#expPrint3d").addEventListener("click", garde(imprimer3D));
 
   VL.exporterPNG = exporterPNG;      // la preuve et les phases suivantes
+  VL.svgCourant = svgCourant;        // lot G : le persona Export rend ses tranches par ici
   VL.vignette = vignette;            // le save de core.js l'appelle
 }

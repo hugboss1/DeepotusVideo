@@ -1,7 +1,7 @@
 // texte.test.mjs — texte SVG (T3.5) : fonte/corps/graisse/interlettrage
 // portés par style (op_style marche gratuitement), contenu échappé, posé
 // (déplacement) et transformable (rotation, corps à l'échelle au resize).
-import { compilerSVG, op_deplacer, op_redimensionner, op_tourner }
+import { compilerSVG, op_deplacer, op_redimensionner, op_tourner, parserDoc }
   from "../js/mod-doc.js";
 
 const echecs = [];
@@ -57,8 +57,17 @@ const banc = () => ({
   ok("y mappé", t.y === 80, String(t.y));
 }
 
+/* ── R11 : italique et souligné (l'outil Texte d'Affinity) ── */
+{
+  const d = { v: 1, taille: { w: 100, h: 100 }, calques: [{ id: "c", nom: "c", visible: true, verrou: false, objets: [
+    { id: "t", type: "texte", x: 5, y: 40, contenu: "abc", style: { corps: 20, graisse: "bold", italique: true, souligne: true, ancre: "middle", interlettrage: 2 } }] }] };
+  const svg = compilerSVG(d);
+  ok("italique et souligné : compilés en font-style et text-decoration, avec la graisse et l'ancre", svg.includes('font-style="italic"') && svg.includes('text-decoration="underline"') && svg.includes('font-weight="bold"') && svg.includes('text-anchor="middle"'), svg.slice(0, 300));
+  ok("état vide : sans italique ni souligné → rien de compilé", !compilerSVG({ ...d, calques: [{ ...d.calques[0], objets: [{ ...d.calques[0].objets[0], style: { corps: 20 } }] }] }).includes("font-style") && !compilerSVG({ ...d, calques: [{ ...d.calques[0], objets: [{ ...d.calques[0].objets[0], style: { corps: 20 } }] }] }).includes("text-decoration"));
+  ok("parser : italique / souligné non booléens refusés, graisse inconnue refusée", (() => { const p = (patch) => { const dd = JSON.parse(JSON.stringify(d)); Object.assign(dd.calques[0].objets[0].style, patch); try { parserDoc(dd); return true; } catch { return false; } }; return p({ italique: false }) && !p({ italique: "oui" }) && !p({ souligne: 1 }) && p({ graisse: "700" }) && !p({ graisse: "zz" }); })());
+}
 if (echecs.length) {
   console.error("ECHECS texte :\n- " + echecs.join("\n- "));
   process.exit(1);
 }
-console.log("QA texte : PASS (6 controles)");
+console.log("QA texte : PASS (9 controles)");

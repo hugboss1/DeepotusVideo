@@ -15,3 +15,19 @@
 .tl-imgs img, .tl-imgs canvas { width: 100%; height: auto; border-radius: 8px;
            border: 1px solid var(--stroke); background: var(--bg-panel);
            image-rendering: pixelated; }
+
+/* ── lot 4 : la feuille de tuiles ── */
+.src-body.hidden { display: none; }
+.tl-feuille { display: flex; flex-direction: column; gap: 8px; padding: 8px 12px; overflow-y: auto; }
+.tl-feuille.hidden { display: none; }
+.tl-sec { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); margin-top: 4px; display: flex; gap: 8px; align-items: center; }
+.tl-feuille .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.tl-feuille .fld.inline { display: inline-flex; align-items: center; gap: 4px; flex-direction: row; width: auto; }
+.tl-tuiles { display: flex; flex-wrap: wrap; gap: 6px; min-height: 40px; }
+.tl-tuile { position: relative; width: 56px; height: 56px; border: 1px solid var(--stroke); border-radius: 6px; cursor: pointer; background: repeating-conic-gradient(#2a2a2a 0 25%, #1c1c1c 0 50%) 0 0 / 8px 8px; image-rendering: pixelated; }
+.tl-tuile.sel { outline: 2px solid #ffd166; outline-offset: -1px; }
+.tl-tuile.placee { border-color: var(--cyan); box-shadow: 0 0 0 1px var(--cyan); }
+.tl-tuile .n { position: absolute; left: 2px; top: 1px; font-size: 9px; color: #ddd; text-shadow: 0 0 2px #000; }
+.tl-place-wrap { overflow: auto; background: var(--bg-base); border: 1px solid var(--stroke); border-radius: 8px; padding: 6px; }
+.tl-placement { image-rendering: pixelated; cursor: crosshair; background: repeating-conic-gradient(#2a2a2a 0 25%, #1c1c1c 0 50%) 0 0 / 8px 8px; }
+.tl-seam { image-rendering: pixelated; border: 1px solid var(--stroke); border-radius: 6px; max-width: 100%; }

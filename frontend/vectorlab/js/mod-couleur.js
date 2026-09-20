@@ -97,6 +97,32 @@ export function cmjnVersRgb({ c, m, j, n }) {
 
 /* ── pur : la palette étendue par défaut — 12 teintes × 3 clartés + 12
    neutres, générée (jamais recopiée à la main) ── */
+/* ── lot F : palettes harmoniques (pures) — la base reste EXACTE dans la
+   palette (l'aller-retour HSL arrondit), les autres teintes tournent sur le
+   cercle chromatique ; le monochrome décline la luminosité. */
+export const HARMONIES = [
+  { id: "complementaire", libelle: "Complémentaire" },
+  { id: "analogue", libelle: "Analogue" },
+  { id: "triade", libelle: "Triade" },
+  { id: "tetrade", libelle: "Tétrade" },
+  { id: "monochrome", libelle: "Monochrome" },
+];
+export function palette_harmonique(hex, type) {
+  if (!/^#[0-9A-Fa-f]{6}$/.test(String(hex || ""))) throw new Error(`couleur #RRGGBB attendue : ${hex}`);
+  if (!HARMONIES.some((h) => h.id === type)) throw new Error(`harmonie inconnue : ${type}`);
+  const base = String(hex).toUpperCase();
+  const hsl = rgbVersHsl(hexVersRgb(base));
+  const tourner = (deg) => rgbVersHex(hslVersRgb({ h: hsl.h + deg, s: hsl.s, l: hsl.l })).toUpperCase();
+  const lum = (l) => rgbVersHex(hslVersRgb({ h: hsl.h, s: hsl.s, l: Math.max(5, Math.min(95, l)) })).toUpperCase();
+  switch (type) {
+    case "complementaire": return [base, tourner(180)];
+    case "analogue": return [tourner(-30), base, tourner(30)];
+    case "triade": return [base, tourner(120), tourner(240)];
+    case "tetrade": return [base, tourner(90), tourner(180), tourner(270)];
+    default: return [lum(hsl.l - 30), lum(hsl.l - 15), base, lum(hsl.l + 15), lum(hsl.l + 30)];
+  }
+}
+
 export function palette_defaut() {
   const out = [];
   for (let h = 0; h < 360; h += 30) {
@@ -146,7 +172,7 @@ export function initCouleur(VL) {
     hote.className = "hidden";
     hote.innerHTML = `
       <canvas id="nuSV" width="188" height="132" title="Saturation / valeur"></canvas>
-      <input id="nuH" type="range" min="0" max="359" value="0" title="Teinte"/>
+      <vl-curseur-couleur id="nuH" mode="teinte" value="0" title="Teinte"></vl-curseur-couleur>
       <div class="nu-ligne">
         <span class="nu-bloc" id="nuAvant" title="Couleur d'origine"></span>
         <span class="nu-bloc" id="nuApres" title="Nouvelle couleur"></span>
@@ -296,8 +322,16 @@ export function initCouleur(VL) {
     if (hote) hote.classList.add("hidden");
   }
 
-  VL.ouvrirNuancier = (hexInitial, onChoix, ancre) => {
+  // R4 : le nuancier vit EN PLACE dans l'onglet Couleur quand cet hôte est
+  // visible (la pastille Fond y ouvre le nuancier) ; sinon popover près de l'ancre
+  VL.nuancierInline = (hoteInline) => { inline = hoteInline || null; };
+  let inline = null;
+  const enPlace = () => !!(inline && inline.offsetParent !== null);
+  VL.ouvrirNuancier = (hexInitial, onChoix, ancre, forcerInline) => {
     if (!hote) construire();
+    const dedans = forcerInline || (enPlace() && ancre && inline.parentElement && inline.parentElement.contains(ancre));
+    if (dedans) { if (hote.parentElement !== inline) inline.appendChild(hote); }
+    else if (hote.parentElement !== document.body) document.body.appendChild(hote);
     let rgb;
     try { rgb = hexVersRgb(hexInitial); }
     catch (e) { rgb = { r: 157, g: 180, b: 214 }; }
@@ -305,11 +339,13 @@ export function initCouleur(VL) {
     $("#nuAvant").style.background = rgbVersHex(rgb);
     hote.classList.remove("hidden");
     // près de l'ancre, borné à la fenêtre
-    const r = ancre && ancre.getBoundingClientRect
-      ? ancre.getBoundingClientRect() : { left: 60, bottom: 60 };
-    const w = hote.offsetWidth || 210, h = hote.offsetHeight || 380;
-    hote.style.left = Math.max(6, Math.min(window.innerWidth - w - 6, r.left)) + "px";
-    hote.style.top = Math.max(6, Math.min(window.innerHeight - h - 6, r.bottom + 6)) + "px";
+    if (!dedans) {
+      const r = ancre && ancre.getBoundingClientRect
+        ? ancre.getBoundingClientRect() : { left: 60, bottom: 60 };
+      const w = hote.offsetWidth || 210, h = hote.offsetHeight || 380;
+      hote.style.left = Math.max(6, Math.min(window.innerWidth - w - 6, r.left)) + "px";
+      hote.style.top = Math.max(6, Math.min(window.innerHeight - h - 6, r.bottom + 6)) + "px";
+    } else { hote.style.left = ""; hote.style.top = ""; }
     VL._synchroniserNuancier();
   };
 }

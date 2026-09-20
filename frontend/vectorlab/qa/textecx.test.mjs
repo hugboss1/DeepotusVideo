@@ -1,0 +1,17 @@
+// textecx.test.mjs — mod-texte : l'outil Texte de classe Affinity (R11) —
+// corps tiré au glisser, champs de style d'un texte (police, corps,
+// graisse, italique, souligné, alignement, interligne, interlettrage),
+// patch de style depuis un champ, cycle Tab de la sélection. Feuille.
+import { corps_de_glisser, champs_texte, patch_texte, cycle_suivant, GRAISSES, ANCRES } from "../js/mod-texte.js";
+const echecs = []; const ok = (n, c, d = "") => { if (!c) echecs.push(n + (d ? " — " + String(d).slice(0, 250) : "")); };
+{
+  ok("corps_de_glisser : la hauteur du glisser devient le corps, arrondi, minimum 8, un simple clic → le corps courant", corps_de_glisser(0, 0, 0, 37.4, 48) === 37 && corps_de_glisser(0, 50, 10, 46, 48) === 8 && corps_de_glisser(0, 0, 2, 3, 48) === 48 && corps_de_glisser(0, 0, 0, 200, 48) === 200);
+  const c = champs_texte({ police: "Anton", corps: 24, graisse: "bold", italique: true, ancre: "middle", interligne: 1.4, interlettrage: 2 }, [{ id: "lib:anton", famille: "Anton" }, { id: "lib:b", famille: "B" }]);
+  ok("champs_texte : police (select), corps, graisse, italique, souligné, alignement, interligne, interlettrage — dans cet ordre, valeurs relues", c.map((x) => x.id).join() === "txPolice,txCorps,txGraisse,txItalique,txSouligne,txAncre,txInterligne,txInterlettrage" && c[0].valeur === "lib:anton" && c[1].valeur === 24 && c[2].valeur === "bold" && c[3].valeur === true && c[4].valeur === false && c[5].valeur === "middle" && c[6].valeur === 1.4 && c[7].valeur === 2, JSON.stringify(c.map((x) => [x.id, x.valeur])));
+  ok("champs_texte : style vide → défauts (corps 16, normal, start, interligne 1.2, 0) ; police inconnue → première", (() => { const v = champs_texte({}, [{ id: "lib:x", famille: "X" }]); return v[0].valeur === "lib:x" && v[1].valeur === 16 && v[2].valeur === "normal" && v[5].valeur === "start" && v[6].valeur === 1.2 && v[7].valeur === 0; })() && champs_texte(null, []).length === 8);
+  ok("GRAISSES et ANCRES : listes exposées (normal / bold …, start / middle / end)", GRAISSES.some((g) => g.id === "bold") && ANCRES.map((a) => a.id).join() === "start,middle,end");
+  ok("patch_texte : chaque champ → un patch de style borné ; police → famille ; inconnu → {}", patch_texte("txCorps", "0", []).corps === 1 && patch_texte("txCorps", "500", []).corps === 500 && patch_texte("txGraisse", "bold", []).graisse === "bold" && patch_texte("txGraisse", "zz", []).graisse === "normal" && patch_texte("txItalique", true, []).italique === true && patch_texte("txSouligne", "false", []).souligne === false && patch_texte("txAncre", "end", []).ancre === "end" && patch_texte("txAncre", "zz", []).ancre === "start" && patch_texte("txInterligne", "9", []).interligne === 4 && patch_texte("txInterlettrage", "-50", []).interlettrage === -20 && patch_texte("txPolice", "lib:b", [{ id: "lib:b", famille: "B" }]).police === "B" && Object.keys(patch_texte("zz", 1, [])).length === 0);
+  ok("cycle_suivant : le suivant, boucle à la fin, sens inverse, sans courant → le premier, liste vide → null", cycle_suivant(["a", "b", "c"], "b", 1) === "c" && cycle_suivant(["a", "b", "c"], "c", 1) === "a" && cycle_suivant(["a", "b", "c"], "a", -1) === "c" && cycle_suivant(["a", "b", "c"], null, 1) === "a" && cycle_suivant(["a", "b", "c"], "zz", -1) === "c" && cycle_suivant([], "a", 1) === null);
+}
+if (echecs.length) { console.error("ECHECS textecx :\n- " + echecs.join("\n- ")); process.exit(1); }
+console.log("QA textecx : PASS (6 controles)");

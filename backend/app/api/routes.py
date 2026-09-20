@@ -70,8 +70,8 @@ def _is_private_host(h: str | None) -> bool:
     """True for hosts that must never be fetched on the user's behalf."""
     import ipaddress as _ipaddr
     h = (h or "").lower()
-    if h in ("localhost", "") or h.endswith(".local"):
-        return True
+    if h in ("localhost", "") or h.endswith(".local") or h.endswith(".localhost"):
+        return True   # *.localhost = boucle locale (RFC 6761), dont deepotus.localhost
     try:
         ip = _ipaddr.ip_address(h)
         return ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved
@@ -6412,6 +6412,7 @@ async def duplicate_vector_doc(doc_id: str, body: dict):
         except FileNotFoundError:
             raise HTTPException(404, "Contenu du document introuvable")
         VS.copier_vignette(doc_id, nid)
+        VS.copier_images(doc_id, nid)
         name = (str(body.get("name") or "").strip()
                 or f"{src.name} (copie)")[:120]
         session.add(VectorDoc(id=nid, name=name, chapter_id=chapter_id,
@@ -6441,6 +6442,80 @@ async def export_vector_doc(doc_id: str, body: dict):
         return {"filename": VS.ecrire_svg(doc_id, svg)}
     except FileNotFoundError:
         raise HTTPException(404, "Contenu du document introuvable")
+
+
+@router.post("/vector/docs/{doc_id}/pdf")
+async def vector_pdf(doc_id: str, pages: str = Form(default="[]"),
+                     pages_fichiers: list[UploadFile] = File(default=[])):
+    """Lot G (D7) : le PDF d'impression — multipart, `pages` = JSON
+    [{w_mm, h_mm, w_px, h_px}] dans l'ordre des fichiers JPEG
+    `pages_fichiers` (rendus au dpi choisi côté client). Stdlib pure,
+    une image DCTDecode par page ; rendu en téléchargement, rien n'est stocké."""
+    import json as _json
+    from app.services import pdf_service as PDF
+    from app.services.storage import VectorDoc, async_session_factory
+    async with async_session_factory() as session:
+        if not await session.get(VectorDoc, doc_id):
+            raise HTTPException(404, "Document introuvable")
+    if not pages_fichiers:
+        raise HTTPException(400, "pdf : aucune page")
+    try:
+        specs = _json.loads(pages or "[]")
+    except ValueError:
+        raise HTTPException(400, "pdf : pages illisibles")
+    if len(specs) != len(pages_fichiers):
+        raise HTTPException(400, "pdf : autant de descriptions que de fichiers")
+    lues = []
+    for spec, up in zip(specs, pages_fichiers):
+        lues.append({**spec, "jpeg": await up.read()})
+    try:
+        octets = PDF.creer_pdf(lues)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return Response(content=octets, media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="vector_{doc_id}.pdf"'})
+
+
+# ── Texte & logo (D7) : la bibliothèque de polices — dist (OFL) + déposées ──
+_POLICES_DIST = [
+    ("Anton.ttf", "Anton"), ("ArchivoBlack.ttf", "Archivo Black"), ("BebasNeue.ttf", "Bebas Neue"),
+    ("Bungee.ttf", "Bungee"), ("Cinzel.ttf", "Cinzel"), ("IBMPlexSans.ttf", "IBM Plex Sans"),
+    ("Inter.ttf", "Inter"), ("JetBrainsMono.ttf", "JetBrains Mono"), ("Monoton.ttf", "Monoton"),
+    ("Pacifico.ttf", "Pacifico"), ("PermanentMarker.ttf", "Permanent Marker"), ("PressStart2P.ttf", "Press Start 2P"),
+    ("Righteous.ttf", "Righteous"), ("SpaceGrotesk.ttf", "Space Grotesk"), ("Staatliches.ttf", "Staatliches"),
+    ("AbrilFatface.ttf", "Abril Fatface"),
+]
+
+
+@router.get("/fonts")
+async def fonts_list():
+    """Les polices du dist dont la licence est claire (OFL, servies sur
+    /fonts/…) et celles déposées par l'utilisateur (/api/fonts/user/…)."""
+    from app.services import fonts_service as FS
+    return {"lib": [{"fichier": f, "nom": n, "source": "lib"} for f, n in _POLICES_DIST], "user": FS.lister()}
+
+
+@router.post("/fonts/upload")
+async def fonts_upload(file: UploadFile = File(...)):
+    from app.services import fonts_service as FS
+    octets = await file.read()
+    if len(octets) > 20 * 1024 * 1024:
+        raise HTTPException(413, "police : 20 Mo au plus")
+    try:
+        nom = FS.deposer(file.filename or "police.ttf", octets)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"nom": nom, "famille": Path(nom).stem}
+
+
+@router.get("/fonts/user/{name}")
+async def fonts_user(name: str):
+    from app.services import fonts_service as FS
+    octets = FS.lire(name)
+    if octets is None:
+        raise HTTPException(404, "Police introuvable")
+    return Response(content=octets, media_type=FS.MEDIA.get(Path(name).suffix.lower(), "application/octet-stream"),
+                    headers={"Cache-Control": "public, max-age=86400"})
 
 
 @router.get("/vector/docs/{doc_id}/export.svg")
@@ -6547,6 +6622,66 @@ async def get_vector_vignette(doc_id: str):
     if octets is None:
         raise HTTPException(404, "Aucune vignette encore : elle naît au "
                                  "premier Sauver dans l'éditeur")
+    return Response(content=octets, media_type="image/png")
+
+
+_VECTOR_IMAGE_MAX = 40 * 1024 * 1024
+
+
+@router.post("/vector/docs/{doc_id}/images")
+async def add_vector_image(doc_id: str, request: Request):
+    """Lot A (D1) : corps binaire image/png — un calque image du document.
+    Stocké `<id>.img<n>.png` à côté du JSON ; rend {name} que l'objet
+    `image` porte en href. Jamais par /images/upload : la Library reste
+    propre, et le fichier suit le document (duplication, transfert)."""
+    from app.services import vector_store as VS
+    from app.services.storage import VectorDoc, async_session_factory
+    octets = await request.body()
+    if not octets.startswith(_PNG_MAGIC):
+        raise HTTPException(400, "image: un PNG est attendu")
+    if len(octets) > _VECTOR_IMAGE_MAX:
+        raise HTTPException(413, "image: 40 Mo au plus")
+    async with async_session_factory() as session:
+        if not await session.get(VectorDoc, doc_id):
+            raise HTTPException(404, "Document introuvable")
+    try:
+        return {"name": VS.ecrire_image(doc_id, octets)}
+    except FileNotFoundError:
+        raise HTTPException(404, "Contenu du document introuvable")
+
+
+@router.put("/vector/docs/{doc_id}/images/{name}")
+async def replace_vector_image(doc_id: str, name: str, request: Request):
+    """Lot E (D1) : le persona Pixel remplace les octets d'un calque image ;
+    l'état précédent part au journal `.pix<k>.png` (×10). Rend {name, rev}."""
+    from app.services import vector_store as VS
+    octets = await request.body()
+    if not octets.startswith(_PNG_MAGIC):
+        raise HTTPException(400, "image: un PNG est attendu")
+    if len(octets) > _VECTOR_IMAGE_MAX:
+        raise HTTPException(413, "image: 40 Mo au plus")
+    try:
+        rev = VS.remplacer_image(doc_id, name, octets)
+    except (ValueError, FileNotFoundError):
+        raise HTTPException(404, "Image du document introuvable")
+    return {"name": name, "rev": rev}
+
+
+@router.post("/vector/docs/{doc_id}/images/{name}/annuler")
+async def undo_vector_image(doc_id: str, name: str):
+    from app.services import vector_store as VS
+    rev = VS.annuler_image(doc_id, name)
+    if rev is None:
+        raise HTTPException(409, "Rien à annuler pour cette image")
+    return {"name": name, "rev": rev}
+
+
+@router.get("/vector/docs/{doc_id}/images/{name}")
+async def get_vector_image(doc_id: str, name: str):
+    from app.services import vector_store as VS
+    octets = VS.lire_image(doc_id, name)
+    if octets is None:
+        raise HTTPException(404, "Image du document introuvable")
     return Response(content=octets, media_type="image/png")
 
 
@@ -9463,7 +9598,8 @@ async def print3d_from_assets3d(job: str, body: dict):
 @router.post("/print3d/from-stl")
 async def print3d_from_stl(request: Request, nom: str = "objet",
                            cible_mm: float | None = None,
-                           source: str = "stl", etanche: str = "inconnue"):
+                           source: str = "stl", etanche: str = "inconnue",
+                           couleur: str | None = None):
     """Corps binaire = STL BINAIRE (la voie de la Forge 3D cartes et du
     Vectorlab). `cible_mm` absent = « tel quel » (les producteurs mm) ;
     `etanche=garantie` seulement quand le producteur le PROUVE (gate
@@ -9477,8 +9613,84 @@ async def print3d_from_stl(request: Request, nom: str = "objet",
     export = await asyncio.to_thread(
         P3.creer_export, _print3d_base(), str(nom)[:80], tris, cible_mm,
         str(source)[:40],
-        "garantie" if etanche == "garantie" else "inconnue")
+        "garantie" if etanche == "garantie" else "inconnue",
+        couleur)                        # R12 : hex #RRGGBB, invalide = ignoré
     return export
+
+
+@router.post("/print3d/lot")
+async def print3d_lot(nom: str = "plateau", source: str = "vectorlab",
+                      pieces: list[UploadFile] = File(default=[]),
+                      nomenclature: str = Form(default=""),
+                      couleurs: str = Form(default="")):
+    """Lot D : multipart — un STL binaire par pièce (`pieces`, nom de fichier
+    = nom de pièce) + la nomenclature CSV ; écrit un STL par pièce, le 3MF
+    de plateau et la nomenclature. Pièces en mm, jamais remises à l'échelle."""
+    from app.services import print3d as P3
+    if not pieces:
+        raise HTTPException(400, "lot : aucune pièce")
+    table = {}                          # R12 : {nom_piece: hex} — un confort, jamais un 400
+    if couleurs:
+        try:
+            table = json.loads(couleurs)
+        except ValueError:
+            table = {}
+        if not isinstance(table, dict):
+            table = {}
+    lues = []
+    for up in pieces:
+        octets = await up.read()
+        try:
+            tris = P3.lire_stl(octets)
+        except ValueError as e:
+            raise HTTPException(400, f"{up.filename}: {e}")
+        nom_piece = Path(up.filename or "piece").stem
+        lues.append((nom_piece, tris, table.get(nom_piece)))
+    try:
+        return await asyncio.to_thread(P3.creer_lot, _print3d_base(), str(nom)[:80],
+                                       lues, nomenclature, str(source)[:40])
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+# ── Cartes réelles (lot H, 17/09/2026) : relief Terrarium et fond OSM ──────
+# Service geo_service : tuiles publiques sans clé, cache disque, décodage par
+# Pillow. Une emprise et un zoom en entrée ; une grille de hauteurs (JSON) ou
+# un PNG assemblé en sortie. Réseau muet → 502 parlant, jamais un 200 vide.
+
+def _geo_erreur(e: Exception):
+    if isinstance(e, ValueError):
+        raise HTTPException(400, str(e))
+    raise HTTPException(502, f"tuiles injoignables : {e}")
+
+
+@router.get("/geo/attribution")
+async def geo_attribution():
+    from app.services import geo_service as GEO
+    return dict(GEO.ATTRIBUTION)
+
+
+@router.post("/geo/relief")
+async def geo_relief(body: dict):
+    """Body: {emprise:{minLat,maxLat,minLon,maxLon}, zoom} → la grille des
+    hauteurs (m) rognée à l'emprise, ≤ 160 par côté, min/max/pasM."""
+    from app.services import geo_service as GEO
+    try:
+        return await GEO.hauteurs(body.get("emprise"), int(body.get("zoom") or 10))
+    except Exception as e:  # noqa: BLE001 — traduit en 400/502 parlants
+        _geo_erreur(e)
+
+
+@router.post("/geo/fond")
+async def geo_fond(body: dict):
+    """Body: {emprise, zoom} → PNG du fond OpenStreetMap assemblé et rogné.
+    L'attribution est due : le client l'affiche (GET /geo/attribution)."""
+    from app.services import geo_service as GEO
+    try:
+        png = await GEO.fond(body.get("emprise"), int(body.get("zoom") or 12))
+    except Exception as e:  # noqa: BLE001
+        _geo_erreur(e)
+    return Response(content=png, media_type="image/png")
 
 
 @router.get("/print3d/exports")

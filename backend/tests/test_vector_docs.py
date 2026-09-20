@@ -704,6 +704,19 @@ def test_le_miroir_pont_cartes_mod_face():
     assert '"HEAD"' not in face and '"HEAD"' not in core
     assert "no-store" in core
     assert "IMGS.delete" in face
+    # lot A (D5) : le pont RETOUR — la face rendue par LE moteur (CF.cardBlob)
+    # part au magasin d'images du document par le CORE (CF.vector.image), le
+    # document se réécrit par le CORE (CF.vector.update) au format physique
+    # du jeu (canvas_px, dpi, repères = bleed_off_px / safe_off_px), la face
+    # est un calque image VERROUILLÉ, l'éditeur s'ouvre dessus.
+    assert 'id="cf-face-vlab-edit"' in face
+    assert "CF.vector.image(" in face and "CF.vector.update(" in face
+    assert "CF.cardBlob(" in face and "docFaceVec(" in face
+    for cle in ("bleed_off_px", "safe_off_px", "canvas_px", '"fondPerdu"', '"zoneSure"',
+                'type: "image"', "verrou: true"):
+        assert cle in face, cle
+    assert '"/images"' in core and 'update: vectorUpdate' in core and 'image: vectorImage' in core
+    assert '"image/png"' in core
 
 
 # ── M. le pont cartes : deck_id (colonne _auto_migrate) + migration réelle ───
@@ -880,3 +893,652 @@ def test_vector_illustration_reponse_illisible_et_modele_muet():
         asyncio.run(scenario(502, "429"))
     finally:
         VI.moteurs_configures, VI.tirer = v_conf, v_tirer
+
+
+# ── Q. lot A : le magasin d'IMAGES du document (D1 — jamais de base64) ───────
+
+_PNG_1PX = bytes.fromhex(
+    "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d"
+    "4944415478da63f8ffff3f0300050001ff2a5d2b0000000049454e44ae426082")
+
+
+def test_le_magasin_d_images_du_document():
+    import pytest
+    from app.services import vector_store as VS
+    did = VS.creer(_doc("Avec image"))
+    # état vide construit : aucune image, la lecture rend None, la liste []
+    assert VS.lister_images(did) == []
+    assert VS.lire_image(did, "img1.png") is None
+    n1 = VS.ecrire_image(did, _PNG_1PX)
+    n2 = VS.ecrire_image(did, _PNG_1PX + b"x")
+    assert (n1, n2) == ("img1.png", "img2.png")
+    dossier = pathlib.Path(os.environ["VECTOR_FOLDER"])
+    assert (dossier / f"{did}.img1.png").read_bytes() == _PNG_1PX
+    assert VS.lire_image(did, "img2.png") == _PNG_1PX + b"x"
+    assert VS.lister_images(did) == ["img1.png", "img2.png"]
+    # noms hors patron : refusés sans toucher le disque
+    for mauvais in ("../x.png", "img1.jpg", "autre.png", "img.png", ""):
+        assert VS.lire_image(did, mauvais) is None
+    # la copie (socle de « dupliquer ») emporte les images
+    dst = VS.creer(_doc("copie"))
+    VS.copier_images(did, dst)
+    assert VS.lister_images(dst) == ["img1.png", "img2.png"]
+    assert VS.lire_image(dst, "img1.png") == _PNG_1PX
+    # un doc sans image : la copie est un no-op silencieux
+    vide = VS.creer(_doc("vide"))
+    VS.copier_images(vide, dst)
+    assert VS.lister_images(dst) == ["img1.png", "img2.png"]
+    # document inconnu : refus parlant
+    with pytest.raises(FileNotFoundError):
+        VS.ecrire_image("inexistant", _PNG_1PX)
+
+
+def test_les_routes_images_du_document():
+    import asyncio
+    from httpx import AsyncClient, ASGITransport
+
+    async def scenario():
+        from app.main import app
+        from app.services.storage import init_db
+        await init_db()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://t") as c:
+            r = await c.post("/api/vector/docs", json={"name": "Img", "role": "libre",
+                                                       "doc": _doc()})
+            did = r.json()["id"]
+            # pas un PNG → 400 ; doc inconnu → 404
+            r = await c.post(f"/api/vector/docs/{did}/images", content=b"GIF89a",
+                             headers={"Content-Type": "image/png"})
+            assert r.status_code == 400 and "PNG" in r.json()["detail"]
+            r = await c.post("/api/vector/docs/nope/images", content=_PNG_1PX,
+                             headers={"Content-Type": "image/png"})
+            assert r.status_code == 404
+            # dépôt → nom stable, servi en image/png
+            r = await c.post(f"/api/vector/docs/{did}/images", content=_PNG_1PX,
+                             headers={"Content-Type": "image/png"})
+            assert r.status_code == 200 and r.json() == {"name": "img1.png"}
+            r = await c.get(f"/api/vector/docs/{did}/images/img1.png")
+            assert r.status_code == 200
+            assert r.headers["content-type"].startswith("image/png")
+            assert r.content == _PNG_1PX
+            # nom hors patron ou absent → 404 (jamais le catch-all SPA en 200)
+            for mauvais in ("img9.png", "x.png", "img1.PNG", "img1.png.bak"):
+                r = await c.get(f"/api/vector/docs/{did}/images/{mauvais}")
+                assert r.status_code == 404, mauvais
+            # « .. » : le client normalise le chemin AVANT l'envoi et la requête
+            # tombe dans le catch-all SPA (200 HTML — piège n°7) : ce qui compte
+            # est qu'AUCUN octet d'image ne sorte par cette porte
+            r = await c.get(f"/api/vector/docs/{did}/images/..%2Fimg1.png")
+            assert not r.headers.get("content-type", "").startswith("image/")
+            # le document qui RÉFÉRENCE l'image se sauve et se relit tel quel
+            doc = _doc()
+            doc["calques"][0]["objets"].append(
+                {"id": "o1", "type": "image", "x": 0, "y": 0, "w": 640, "h": 960,
+                 "href": "img1.png", "nat": {"w": 1, "h": 1}, "verrou": True})
+            doc["reperes"] = {"fondPerdu": [10, 10], "zoneSure": [30, 30]}
+            r = await c.put(f"/api/vector/docs/{did}", json={"doc": doc})
+            assert r.status_code == 200 and r.json()["version"] == 2
+            r = await c.get(f"/api/vector/docs/{did}")
+            assert r.json()["doc"]["calques"][0]["objets"][0]["href"] == "img1.png"
+            assert r.json()["doc"]["reperes"]["zoneSure"] == [30, 30]
+            # dupliquer emporte les images : la copie sert img1.png
+            r = await c.post(f"/api/vector/docs/{did}/duplicate", json={})
+            nid = r.json()["id"]
+            r = await c.get(f"/api/vector/docs/{nid}/images/img1.png")
+            assert r.status_code == 200 and r.content == _PNG_1PX
+            # supprimer archive le JSON ; les images restent (dit dans le service)
+            r = await c.delete(f"/api/vector/docs/{did}")
+            assert r.status_code == 200
+            from app.services import vector_store as VS
+            assert VS.lire_image(did, "img1.png") == _PNG_1PX
+
+    asyncio.run(scenario())
+
+
+# ── R. lot A : miroir de la surface du Vectorlab (vendor, modules, menus) ────
+
+def test_le_miroir_lot_a_images_et_cartes():
+    racine = pathlib.Path(__file__).resolve().parent.parent.parent
+    vl = racine / "frontend" / "vectorlab"
+    html = (vl / "index.html").read_text("utf-8")
+    core = (vl / "js" / "core.js").read_text("utf-8")
+    # le vendor et sa licence — zéro dépendance payante (D7)
+    assert (vl / "vendor" / "imagetracer_v1.2.6.js").is_file()
+    lic = (vl / "vendor" / "LICENSE-imagetracerjs.txt").read_text("utf-8")
+    assert "public domain" in lic.lower()
+    assert 'src="vendor/imagetracer_v1.2.6.js"' in html
+    # les trois modules, initialisés par le cœur ; le brouillon AVANT charger()
+    for m in ("mod-image.js", "mod-trace.js", "mod-brouillon.js"):
+        assert (vl / "js" / m).is_file(), m
+        assert m in core, m
+    assert core.index("initBrouillon(VL)") < core.index("charger();")
+    # le rendu passe le résolveur d'href ; l'overlay trace les repères
+    assert "compilerSVG(etat.doc, { image: VL.imageUrl, mesure: VL.mesureTexte })" in core   # lot F : la mesure du texte s ajoute
+    assert "reperes_rects" in core and 'data-repere' in core
+    # les surfaces : les 4 sources + vectoriser sont des ACTIONS (VL.actions.image)
+    # servies par le menu détaché Image de la barre — l'en-tête « Image ▾ » est parti
+    image_js = (vl / "js" / "mod-image.js").read_text("utf-8")
+    for tok in ("biblio:", "fichier:", "coller:", "generer:", "vectoriser:"):
+        assert tok in image_js.split("VL.actions.image = {", 1)[1][:400], tok
+    assert 'id="btnImage"' not in html and 'id="imgFichierInput"' in html
+    for tok in ("panneauImage", "panneauReperes", "libDlg", "traceDlg"):
+        assert f'id="{tok}"' in html, tok
+    # le banc node porte les cinq bancs du lot
+    qa = vl / "qa"
+    for b in ("image", "image_ui", "reperes", "trace", "brouillon"):
+        assert (qa / f"{b}.test.mjs").is_file(), b
+    # le JSON d'un document ne porte JAMAIS de base64 (D1) : l'export inline,
+    # pas le modèle
+    exp = (vl / "js" / "mod-export.js").read_text("utf-8")
+    assert "readAsDataURL" in exp and "image_hrefs" in exp
+    doc = (vl / "js" / "mod-doc.js").read_text("utf-8")
+    assert ";base64," not in doc and "data:image" not in doc   # le JETON, pas le mot
+
+
+# ── S. lot C : grille, terrains, tuiles, planches — aller-retour et surface ──
+
+def test_les_champs_du_lot_c_font_l_aller_retour():
+    import asyncio
+    from httpx import AsyncClient, ASGITransport
+
+    async def scenario():
+        from app.main import app
+        from app.services.storage import init_db
+        await init_db()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://t") as c:
+            doc = _doc("Plateau")
+            doc["grille"] = {"type": "hex", "pas": 40, "sous": 1, "orientation": "plat",
+                             "origine": [320, 480], "echelle": [1, 1]}
+            doc["terrains"] = {"lave": {"nom": "Lave", "couleur": "#D33", "hauteur_mm": 1, "motif": ""}}
+            doc["planches"] = [{"id": "p1", "nom": "Plateau", "x": 0, "y": 0, "w": 640, "h": 480}]
+            doc["calques"][0]["objets"].append({"id": "t1", "type": "tuile", "q": 0, "r": 0, "terrain": "lave"})
+            r = await c.post("/api/vector/docs", json={"name": "Plateau", "role": "libre", "doc": doc})
+            did = r.json()["id"]
+            r = await c.get(f"/api/vector/docs/{did}")
+            d = r.json()["doc"]
+            assert d["grille"]["orientation"] == "plat" and d["grille"]["origine"] == [320, 480]
+            assert d["terrains"]["lave"]["hauteur_mm"] == 1
+            assert d["planches"][0]["w"] == 640
+            assert d["calques"][0]["objets"][0]["type"] == "tuile"
+            # un document SANS ces champs reste intact (rétro-compatibilité)
+            r = await c.post("/api/vector/docs", json={"name": "V1", "role": "libre", "doc": _doc()})
+            r = await c.get(f"/api/vector/docs/{r.json()['id']}")
+            assert "grille" not in r.json()["doc"] and "planches" not in r.json()["doc"]
+
+    asyncio.run(scenario())
+
+
+def test_le_miroir_lot_c_grilles_plateau_planches():
+    racine = pathlib.Path(__file__).resolve().parent.parent.parent
+    vl = racine / "frontend" / "vectorlab"
+    html = (vl / "index.html").read_text("utf-8")
+    core = (vl / "js" / "core.js").read_text("utf-8")
+    for m in ("mod-grille.js", "mod-aimant.js", "mod-plateau.js", "mod-planches.js"):
+        assert (vl / "js" / m).is_file(), m
+    # les modules géométriques sont des FEUILLES : aucun import (bancables partout)
+    for m in ("mod-grille.js", "mod-aimant.js"):
+        assert "import " not in (vl / "js" / m).read_text("utf-8"), m
+    assert "initPlateau(VL)" in core and "initPlanches(VL)" in core
+    assert "grille_d(" in core and "aimant_fusion(" in core and "planches_guides(" in core
+    for tok in ("panneauGrille", "panneauTerrains", "panneauPlateau", "panneauPlanches",
+                "assetsDetails", "assetsGrille", "btnAimant"):
+        assert f'id="{tok}"' in html, tok
+    assert 'data-outil="tuiles"' in html
+    qa = vl / "qa"
+    for b in ("grille", "aimant_objets", "tuiles", "planches", "plateau_ui"):
+        assert (qa / f"{b}.test.mjs").is_file(), b
+    doc = (vl / "js" / "mod-doc.js").read_text("utf-8")
+    assert "TERRAINS_DEFAUT" in doc and "op_plateau_generer" in doc and "op_tuiles_peindre" in doc
+    assert 'case "tuile"' in doc and "opts.cadre" in doc
+
+
+# ── T. lot D : impression 3D — modules, vendor, surface ─────────────────────
+
+def test_le_miroir_lot_d_impression_3d():
+    racine = pathlib.Path(__file__).resolve().parent.parent.parent
+    vl = racine / "frontend" / "vectorlab"
+    core = (vl / "js" / "core.js").read_text("utf-8")
+    for m in ("mod-solide.js", "mod-texte3d.js", "mod-impression.js"):
+        assert (vl / "js" / m).is_file(), m
+    assert "initImpression(VL)" in core
+    # opentype.js vendorisé sous MIT (D7) ; les polices sont celles du dist
+    assert (vl / "vendor" / "opentype.min.js").is_file()
+    assert "MIT" in (vl / "vendor" / "LICENSE-opentype.txt").read_text("utf-8")
+    t3 = (vl / "js" / "mod-texte3d.js").read_text("utf-8")
+    for police in ("Anton.ttf", "Inter.ttf", "Cinzel.ttf"):
+        assert police in t3 and (racine / "frontend" / "dist" / "fonts" / police).is_file(), police
+    # le modèle : texte → chemin ; le panneau Apparence porte le bouton
+    assert "export function op_texte_vectoriser" in (vl / "js" / "mod-doc.js").read_text("utf-8")
+    assert 'id="txContours"' in (vl / "js" / "mod-typo.js").read_text("utf-8")   # Texte & logo : la vectorisation vit dans le panneau Texte
+    # le mur minimal est une constante nommée, la garde des 256 reste au backend
+    sol = (vl / "js" / "mod-solide.js").read_text("utf-8")
+    assert "MUR_MIN_MM = 0.8" in sol and "glb_de_triangles" in sol
+    assert "def creer_lot" in (racine / "backend" / "app" / "services" / "print3d.py").read_text("utf-8")
+    qa = vl / "qa"
+    for b in ("solide", "texte3d", "impression_ui"):
+        assert (qa / f"{b}.test.mjs").is_file(), b
+
+
+# ── U. lot B : géométrie et gestes de classe Affinity ────────────────────────
+
+def test_le_miroir_lot_b_geometrie_gestes():
+    racine = pathlib.Path(__file__).resolve().parent.parent.parent
+    vl = racine / "frontend" / "vectorlab"
+    for m in ("mod-formes.js", "mod-crayon.js", "mod-noeuds.js", "mod-outils2.js"):
+        assert (vl / "js" / m).is_file(), m
+    for m in ("mod-formes.js", "mod-crayon.js"):
+        assert "import " not in (vl / "js" / m).read_text("utf-8"), m       # feuilles
+    core = (vl / "js" / "core.js").read_text("utf-8")
+    assert "initOutils2(VL)" in core and "new Historique()" in core
+    html = (vl / "index.html").read_text("utf-8")
+    for outil in ("forme", "crayon", "couteau", "gomme", "coin", "constructeur"):
+        assert f'data-outil="{outil}"' in html, outil
+    for tok in ("panneauForme", "panneauNoeuds", "panneauInstantanes"):
+        assert f'id="{tok}"' in html, tok
+    doc = (vl / "js" / "mod-doc.js").read_text("utf-8")
+    for op in ("op_forme_param", "op_forme_en_chemin", "op_incliner", "op_dupliquer_puissance",
+               "selection_par_attribut", "formule"):
+        assert f"export function {op}" in doc, op
+    assert "constructor(cap = 1000)" in doc and "instantane(nom, doc)" in doc
+    boolmod = (vl / "js" / "mod-bool.js").read_text("utf-8")
+    for op in ("op_couteau", "op_gomme", "op_contour", "atomes", "op_constructeur"):
+        assert f"export function {op}" in boolmod, op
+    style = (vl / "js" / "mod-style.js").read_text("utf-8")
+    assert "formule(" in style and 'id="apIncliner"' in style and 'id="apPuissance"' in style
+    assert 'type="text" id="apX"' in style                              # les formules
+    tools = (vl / "js" / "mod-tools.js").read_text("utf-8")
+    assert "etat.pivot" in tools
+    qa = vl / "qa"
+    for b in ("formes", "crayon", "noeuds2", "opsbool2", "gestes"):
+        assert (qa / f"{b}.test.mjs").is_file(), b
+
+
+# ── V. lot E : le journal raster du persona Pixel (D1 : `.pix<n>.png` ×10) ──
+
+def test_le_journal_raster_du_document():
+    import pytest
+    from app.services import vector_store as VS
+    did = VS.creer(_doc("Pixel"))
+    dossier = pathlib.Path(os.environ["VECTOR_FOLDER"])
+    # état vide construit : rien à annuler, rien à remplacer
+    assert VS.journal_images(did, "img1.png") == 0
+    assert VS.annuler_image(did, "img1.png") is None
+    with pytest.raises(FileNotFoundError):
+        VS.remplacer_image(did, "img1.png", _PNG_1PX)
+    VS.ecrire_image(did, _PNG_1PX)
+    # remplacer journalise l'état PRÉCÉDENT ; la révision compte les journaux
+    assert VS.remplacer_image(did, "img1.png", _PNG_1PX + b"A") == 1
+    assert VS.lire_image(did, "img1.png") == _PNG_1PX + b"A"
+    assert (dossier / f"{did}.img1.pix1.png").read_bytes() == _PNG_1PX
+    for k in range(2, 14):
+        VS.remplacer_image(did, "img1.png", _PNG_1PX + bytes([64 + k]))
+    # ×10 : les plus anciens sont tombés, le plus récent est pix10
+    assert VS.journal_images(did, "img1.png") == 10
+    assert not (dossier / f"{did}.img1.pix11.png").exists()
+    assert (dossier / f"{did}.img1.pix10.png").read_bytes() == _PNG_1PX + bytes([64 + 12])
+    # annuler rend l'état précédent et dépile
+    assert VS.annuler_image(did, "img1.png") == 9
+    assert VS.lire_image(did, "img1.png") == _PNG_1PX + bytes([64 + 12])
+    for _ in range(9):
+        VS.annuler_image(did, "img1.png")
+    assert VS.journal_images(did, "img1.png") == 0 and VS.annuler_image(did, "img1.png") is None
+    # noms hors patron : refusés
+    with pytest.raises(ValueError):
+        VS.remplacer_image(did, "../img1.png", _PNG_1PX)
+    # le journal ne pollue pas la liste des images ni la copie
+    assert VS.lister_images(did) == ["img1.png"]
+    dst = VS.creer(_doc("copie"))
+    VS.remplacer_image(did, "img1.png", _PNG_1PX + b"Z")
+    VS.copier_images(did, dst)
+    assert VS.lister_images(dst) == ["img1.png"] and VS.journal_images(dst, "img1.png") == 0
+
+
+def test_les_routes_du_journal_raster():
+    import asyncio
+    from httpx import AsyncClient, ASGITransport
+
+    async def scenario():
+        from app.main import app
+        from app.services.storage import init_db
+        await init_db()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://t") as c:
+            r = await c.post("/api/vector/docs", json={"name": "Pix", "role": "libre", "doc": _doc()})
+            did = r.json()["id"]
+            r = await c.post(f"/api/vector/docs/{did}/images", content=_PNG_1PX,
+                             headers={"Content-Type": "image/png"})
+            assert r.json() == {"name": "img1.png"}
+            # état vide : rien à annuler → 409 parlant ; image inconnue → 404 ; pas un PNG → 400
+            r = await c.post(f"/api/vector/docs/{did}/images/img1.png/annuler")
+            assert r.status_code == 409
+            r = await c.put(f"/api/vector/docs/{did}/images/img7.png", content=_PNG_1PX,
+                            headers={"Content-Type": "image/png"})
+            assert r.status_code == 404
+            r = await c.put(f"/api/vector/docs/{did}/images/img1.png", content=b"GIF89a",
+                            headers={"Content-Type": "image/png"})
+            assert r.status_code == 400
+            # remplacer → rev 1, l'image servie est la nouvelle
+            r = await c.put(f"/api/vector/docs/{did}/images/img1.png", content=_PNG_1PX + b"B",
+                            headers={"Content-Type": "image/png"})
+            assert r.status_code == 200 and r.json() == {"name": "img1.png", "rev": 1}
+            r = await c.get(f"/api/vector/docs/{did}/images/img1.png")
+            assert r.content == _PNG_1PX + b"B"
+            # annuler → rev 0, l'image d'origine revient
+            r = await c.post(f"/api/vector/docs/{did}/images/img1.png/annuler")
+            assert r.status_code == 200 and r.json() == {"name": "img1.png", "rev": 0}
+            r = await c.get(f"/api/vector/docs/{did}/images/img1.png")
+            assert r.content == _PNG_1PX
+            # le chemin de journal n'est PAS servi comme image
+            r = await c.get(f"/api/vector/docs/{did}/images/img1.pix1.png")
+            assert r.status_code == 404
+
+    asyncio.run(scenario())
+
+
+# ── W. lot E : miroir de la surface — personas, persona Pixel, pixel-art ────
+
+def test_le_miroir_lot_e_persona_pixel():
+    racine = pathlib.Path(__file__).resolve().parent.parent.parent
+    vl = racine / "frontend" / "vectorlab"
+    for m in ("mod-pixel.js", "mod-pixelart.js", "mod-persona.js", "mod-pixelui.js"):
+        assert (vl / "js" / m).is_file(), m
+    for m in ("mod-pixel.js", "mod-pixelart.js"):
+        assert "import " not in (vl / "js" / m).read_text("utf-8"), m       # feuilles
+    core = (vl / "js" / "core.js").read_text("utf-8")
+    assert "initPersona(VL)" in core and "initPixelUI(VL)" in core
+    assert core.index("initOutils(VL)") < core.index("initPersona(VL)") < core.index("initPixelUI(VL)") < core.index("initBrouillon(VL)")
+    html = (vl / "index.html").read_text("utf-8")
+    for tok in ('id="personas"', 'id="panneauPixel"', 'id="panneauExport"'):
+        assert tok in html, tok
+    css = (vl / "vectorlab.css").read_text("utf-8")
+    for tok in ("persona-pixel", "persona-export", ".outil-pixel", "image-rendering: pixelated"):
+        assert tok in css, tok
+    doc = (vl / "js" / "mod-doc.js").read_text("utf-8")
+    for op in ("op_pixelart", "op_image_rev"):
+        assert f"export function {op}" in doc, op
+    assert "?v=${rev}" in (vl / "js" / "mod-image.js").read_text("utf-8")
+    ui = (vl / "js" / "mod-pixelui.js").read_text("utf-8")
+    assert '"/api/images/upload"' in ui and "/tilelab/" not in ui.replace("`/${surface}/`", "")   # la cible est calculée
+    assert "px-" in ui and "annuler" in ui
+    routes = (racine / "backend" / "app" / "api" / "routes.py").read_text("utf-8")
+    assert '@router.put("/vector/docs/{doc_id}/images/{name}")' in routes
+    assert '@router.post("/vector/docs/{doc_id}/images/{name}/annuler")' in routes
+    qa = vl / "qa"
+    for b in ("pixel", "pixelart", "pixel_doc", "pixel_ui"):
+        assert (qa / f"{b}.test.mjs").is_file(), b
+
+
+# ── X. lot F : miroir de l'apparence avancée (effets, motifs, symboles, texte +) ──
+
+def test_le_miroir_lot_f_apparence_avancee():
+    racine = pathlib.Path(__file__).resolve().parent.parent.parent
+    vl = racine / "frontend" / "vectorlab"
+    for m in ("mod-effets.js", "mod-texteplus.js", "mod-pinceauvec.js", "mod-apparence2.js"):
+        assert (vl / "js" / m).is_file(), m
+    for m in ("mod-effets.js", "mod-texteplus.js", "mod-pinceauvec.js"):
+        assert "import " not in (vl / "js" / m).read_text("utf-8"), m       # feuilles
+    core = (vl / "js" / "core.js").read_text("utf-8")
+    assert "initApparence2(VL)" in core and 'j: "pinceauv"' in core and "mesure: VL.mesureTexte" in core
+    assert core.index("initOutils(VL)") < core.index("initApparence2(VL)") < core.index("initBrouillon(VL)")
+    html = (vl / "index.html").read_text("utf-8")
+    assert 'id="panneauApparence2"' in html and 'id="apparence2Details"' in html
+    doc = (vl / "js" / "mod-doc.js").read_text("utf-8")
+    for op in ("op_motif_creer", "op_degrade_transparence", "op_couleur_globale_definir", "op_couleur_globale_supprimer",
+               "op_ecreter", "op_desecreter", "op_style_definir", "op_style_appliquer", "op_symbole_creer",
+               "op_instance_poser", "op_symbole_detacher", "op_texte_en_cadre", "op_texte_sur_chemin"):
+        assert f"export function {op}" in doc, op
+    assert '"conique"' in doc and "mix-blend-mode" in doc and "<clipPath id=" in doc and "<mask id=" in doc and '<use${t}' in doc
+    effets = (vl / "js" / "mod-effets.js").read_text("utf-8")
+    assert "feSpecularLighting" in effets and "MODES_FUSION" in effets and "<pattern" in effets
+    assert "export function palette_harmonique" in (vl / "js" / "mod-couleur.js").read_text("utf-8")
+    assert "mesure: VL.mesureTexte" in (vl / "js" / "mod-export.js").read_text("utf-8")
+    qa = vl / "qa"
+    for b in ("effets", "apparence2", "harmonie", "symboles", "texteplus", "pinceauvec", "apparence2_ui"):
+        assert (qa / f"{b}.test.mjs").is_file(), b
+
+
+def test_les_champs_du_lot_f_font_l_aller_retour():
+    """Un document avec effets, motif, couleurs globales, styles, symbole +
+    instance, cadre et texte sur chemin se sauve et se relit tel quel."""
+    import asyncio
+    from httpx import AsyncClient, ASGITransport
+
+    async def scenario():
+        from app.main import app
+        from app.services.storage import init_db
+        await init_db()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://t") as c:
+            doc = _doc()
+            doc["motifs"] = {"m1": {"type": "hachures", "pas": 8, "angle": 45, "epaisseur": 1, "couleur": "#1F1512"}}
+            doc["couleursGlobales"] = {"marque": "#12AB34"}
+            doc["styles"] = {"cerne": {"fond": "#FF0000", "effets": [{"type": "ombre"}]}}
+            doc["symboles"] = {"s1": {"nom": "pion", "bbox": {"x": 0, "y": 0, "w": 10, "h": 10},
+                                      "objets": [{"id": "q", "type": "rect", "x": 0, "y": 0, "w": 10, "h": 10, "style": {}}]}}
+            doc["calques"][0]["objets"] += [
+                {"id": "r1", "type": "rect", "x": 0, "y": 0, "w": 50, "h": 20,
+                 "style": {"fond": "motif:m1", "contour": "glob:marque", "epaisseur": 2, "fusion": "multiply",
+                           "effets": [{"type": "lueur", "flou": 3}], "contours": [{"couleur": "#0000FF", "epaisseur": 6}]}},
+                {"id": "i1", "type": "instance", "symbole": "s1", "x": 20, "y": 20, "sx": 1, "sy": 1, "style": {}},
+                {"id": "k1", "type": "cadre", "x": 0, "y": 40, "w": 100, "h": 40, "contenu": "un deux trois", "style": {"corps": 10, "aligner": "justifie"}},
+                {"id": "t2", "type": "textechemin", "d": "M 0 0 L 100 0", "contenu": "suivre", "decalage": 25, "style": {}},
+            ]
+            r = await c.post("/api/vector/docs", json={"name": "F", "role": "libre", "doc": doc})
+            assert r.status_code == 200, r.text
+            did = r.json()["id"]
+            r = await c.get(f"/api/vector/docs/{did}")
+            relu = r.json()["doc"]
+            assert relu["motifs"]["m1"]["pas"] == 8 and relu["couleursGlobales"]["marque"] == "#12AB34"
+            assert relu["styles"]["cerne"]["effets"][0]["type"] == "ombre"
+            assert relu["symboles"]["s1"]["objets"][0]["id"] == "q"
+            objs = {o["id"]: o for o in relu["calques"][0]["objets"]}
+            assert objs["r1"]["style"]["fusion"] == "multiply" and objs["r1"]["style"]["contours"][0]["epaisseur"] == 6
+            assert objs["i1"]["symbole"] == "s1" and objs["k1"]["style"]["aligner"] == "justifie" and objs["t2"]["decalage"] == 25
+
+    asyncio.run(scenario())
+
+
+# ── Y. lot G : le PDF d'impression (stdlib, une image JPEG par page) ───────
+
+# le plus petit JPEG valide : 1×1 gris (SOI … EOI)
+_JPEG_1PX = bytes.fromhex(
+    "ffd8ffe000104a46494600010100000100010000ffdb004300080606070605080707070909080a0c140d0c0b0b0c1912130f141d1a1f1e1d1a1c1c20242e2720222c231c1c2837292c30313434341f27393d38323c2e333432"
+    "ffc0000b080001000101011100ffc4001f0000010501010101010100000000000000000102030405060708090a0bffc400b5100002010303020403050504040000017d01020300041105122131410613516107227114328191a1082342b1c11552d1f02433627282090a161718191a25262728292a3435363738393a434445464748494a535455565758595a636465666768696a737475767778797a838485868788898a92939495969798999aa2a3a4a5a6a7a8a9aab2b3b4b5b6b7b8b9bac2c3c4c5c6c7c8c9cad2d3d4d5d6d7d8d9dae1e2e3e4e5e6e7e8e9eaf1f2f3f4f5f6f7f8f9fa"
+    "ffda0008010100003f00fbd3ffd9")
+
+
+def test_le_pdf_d_impression_stdlib():
+    import pytest, re
+    from app.services import pdf_service as PDF
+    pdf = PDF.creer_pdf([{"w_mm": 63.5, "h_mm": 88.9, "jpeg": _JPEG_1PX, "w_px": 1, "h_px": 1},
+                         {"w_mm": 210, "h_mm": 297, "jpeg": _JPEG_1PX, "w_px": 1, "h_px": 1}])
+    assert pdf.startswith(b"%PDF-1.4") and pdf.rstrip().endswith(b"%%EOF")
+    assert pdf.count(b"/Type /Page\n") == 2 or pdf.count(b"/Type /Page ") == 2 or len(re.findall(rb"/Type\s*/Page[^s]", pdf)) == 2
+    # la page en POINTS depuis les mm : 63,5 mm = 180 pt, 88,9 mm = 252 pt ; A4 = 595.28 × 841.89
+    assert b"/MediaBox [0 0 180 252]" in pdf and b"/MediaBox [0 0 595.28 841.89]" in pdf
+    # l'image : XObject JPEG (DCTDecode) aux dimensions pixel, dessinée pleine page
+    assert pdf.count(b"/Filter /DCTDecode") == 2 and b"/Width 1 /Height 1" in pdf
+    assert b"180 0 0 252 0 0 cm" in pdf and b"/Im0 Do" in pdf
+    # xref : autant d'entrées que d'objets + 1, startxref pointe sur « xref »
+    m = re.search(rb"startxref\n(\d+)\n%%EOF", pdf)
+    assert m and pdf[int(m.group(1)):].startswith(b"xref")
+    n_obj = len(re.findall(rb"\n(\d+) 0 obj", pdf))
+    assert re.search(rb"xref\n0 " + str(n_obj + 1).encode() + rb"\n", pdf)
+    # états vides : sans page, jpeg qui n'en est pas un, taille nulle
+    with pytest.raises(ValueError):
+        PDF.creer_pdf([])
+    with pytest.raises(ValueError):
+        PDF.creer_pdf([{"w_mm": 10, "h_mm": 10, "jpeg": b"PNG", "w_px": 1, "h_px": 1}])
+    with pytest.raises(ValueError):
+        PDF.creer_pdf([{"w_mm": 0, "h_mm": 10, "jpeg": _JPEG_1PX, "w_px": 1, "h_px": 1}])
+
+
+def test_la_route_pdf_du_document():
+    import asyncio, json
+    from httpx import AsyncClient, ASGITransport
+
+    async def scenario():
+        from app.main import app
+        from app.services.storage import init_db
+        await init_db()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://t") as c:
+            r = await c.post("/api/vector/docs", json={"name": "Pdf", "role": "libre", "doc": _doc()})
+            did = r.json()["id"]
+            pages = [{"w_mm": 63.5, "h_mm": 88.9, "w_px": 1, "h_px": 1}]
+            fichiers = [("pages_fichiers", ("page0.jpg", _JPEG_1PX, "image/jpeg"))]
+            # doc inconnu → 404 ; sans fichier → 400
+            r = await c.post("/api/vector/docs/nope/pdf", data={"pages": json.dumps(pages)}, files=fichiers)
+            assert r.status_code == 404
+            r = await c.post(f"/api/vector/docs/{did}/pdf", data={"pages": json.dumps(pages)})
+            assert r.status_code == 400
+            r = await c.post(f"/api/vector/docs/{did}/pdf", data={"pages": json.dumps(pages)}, files=fichiers)
+            assert r.status_code == 200, r.text
+            assert r.headers["content-type"].startswith("application/pdf")
+            assert r.content.startswith(b"%PDF-1.4") and b"/MediaBox [0 0 180 252]" in r.content
+            assert "attachment" in r.headers.get("content-disposition", "") and ".pdf" in r.headers.get("content-disposition", "")
+
+    asyncio.run(scenario())
+
+
+# ── Z. lot G : miroir du persona Export ──────────────────────────────────
+
+def test_le_miroir_lot_g_persona_export():
+    racine = pathlib.Path(__file__).resolve().parent.parent.parent
+    vl = racine / "frontend" / "vectorlab"
+    for m in ("mod-tranches.js", "mod-dxf.js", "mod-exportplus.js"):
+        assert (vl / "js" / m).is_file(), m
+    for m in ("mod-tranches.js", "mod-dxf.js"):
+        assert "import " not in (vl / "js" / m).read_text("utf-8"), m       # feuilles
+    core = (vl / "js" / "core.js").read_text("utf-8")
+    assert "initExportPlus(VL)" in core
+    assert core.index("initPersona(VL)") < core.index("initExportPlus(VL)") < core.index("initBrouillon(VL)")
+    assert "VL.svgCourant = svgCourant" in (vl / "js" / "mod-export.js").read_text("utf-8")
+    html = (vl / "index.html").read_text("utf-8")
+    assert 'id="panneauExportPlus"' in html
+    css = (vl / "vectorlab.css").read_text("utf-8")
+    assert ".outil-export" in css
+    ui = (vl / "js" / "mod-exportplus.js").read_text("utf-8")
+    assert '"/api/images/upload"' in ui and "/pdf`" in ui and "aplatir_objet" in ui
+    tr = (vl / "js" / "mod-tranches.js").read_text("utf-8")
+    assert "@${k}x" in tr and "marques_svg" in tr
+    assert (racine / "backend" / "app" / "services" / "pdf_service.py").is_file()
+    assert '@router.post("/vector/docs/{doc_id}/pdf")' in (racine / "backend" / "app" / "api" / "routes.py").read_text("utf-8")
+    qa = vl / "qa"
+    for b in ("tranches", "dxf", "exportplus_ui"):
+        assert (qa / f"{b}.test.mjs").is_file(), b
+
+
+# ── AA. Texte & logo : la bibliothèque de polices déposées (DATA_ROOT/fonts) ──
+
+_TTF_MIN = b"\x00\x01\x00\x00" + b"\x00" * 60
+
+
+def test_le_magasin_des_polices_deposees(tmp_path, monkeypatch):
+    import pytest
+    from app.services import fonts_service as FS
+    monkeypatch.setattr(FS, "DOSSIER", tmp_path / "fonts")
+    # état vide : aucune police, la lecture rend None
+    assert FS.lister() == []
+    assert FS.lire("MaTypo.ttf") is None
+    nom = FS.deposer("Ma Typo.ttf", _TTF_MIN)
+    assert nom == "Ma-Typo.ttf" and (tmp_path / "fonts" / "Ma-Typo.ttf").read_bytes() == _TTF_MIN
+    assert FS.lister() == [{"nom": "Ma-Typo.ttf", "famille": "Ma-Typo"}]
+    assert FS.lire("Ma-Typo.ttf") == _TTF_MIN
+    # OTF / WOFF / WOFF2 acceptés par leur magic ; PNG, extension inconnue, nom hors patron refusés
+    assert FS.deposer("b.otf", b"OTTO" + b"\x00" * 40).endswith(".otf")
+    assert FS.deposer("c.woff", b"wOFF" + b"\x00" * 40) == "c.woff"
+    assert FS.deposer("d.woff2", b"wOF2" + b"\x00" * 40) == "d.woff2"
+    for mauvais, octets in (("e.png", _TTF_MIN), ("f.ttf", b"\x89PNG" + b"\x00" * 40), ("../g.ttf", _TTF_MIN), ("h.ttf", b"")):
+        with pytest.raises(ValueError):
+            FS.deposer(mauvais, octets)
+    assert FS.lire("../Ma-Typo.ttf") is None and FS.lire("zz.ttf") is None
+
+
+def test_les_routes_des_polices(tmp_path, monkeypatch):
+    import asyncio
+    from httpx import AsyncClient, ASGITransport
+    from app.services import fonts_service as FS
+    monkeypatch.setattr(FS, "DOSSIER", tmp_path / "fonts")
+
+    async def scenario():
+        from app.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://t") as c:
+            r = await c.get("/api/fonts")
+            assert r.status_code == 200
+            d = r.json()
+            # la bibliothèque du dist (OFL) est listée avec sa source, les déposées à part
+            assert any(p["fichier"] == "Anton.ttf" and p["source"] == "lib" for p in d["lib"])
+            assert d["user"] == []
+            r = await c.post("/api/fonts/upload", files={"file": ("Ma Typo.ttf", _TTF_MIN, "font/ttf")})
+            assert r.status_code == 200 and r.json() == {"nom": "Ma-Typo.ttf", "famille": "Ma-Typo"}
+            r = await c.post("/api/fonts/upload", files={"file": ("x.ttf", b"\x89PNG" + b"\x00" * 40, "font/ttf")})
+            assert r.status_code == 400
+            r = await c.get("/api/fonts/user/Ma-Typo.ttf")
+            assert r.status_code == 200 and r.content == _TTF_MIN and r.headers["content-type"].startswith("font/")
+            r = await c.get("/api/fonts/user/zz.ttf")
+            assert r.status_code == 404
+            r = await c.get("/api/fonts")
+            assert r.json()["user"] == [{"nom": "Ma-Typo.ttf", "famille": "Ma-Typo"}]
+
+    asyncio.run(scenario())
+
+
+# ── AB. Texte & logo : miroir de la surface ─────────────────────────────
+
+def test_le_miroir_texte_et_logo():
+    racine = pathlib.Path(__file__).resolve().parent.parent.parent
+    vl = racine / "frontend" / "vectorlab"
+    assert (vl / "js" / "mod-typo.js").is_file()
+    core = (vl / "js" / "core.js").read_text("utf-8")
+    assert "initTypo(VL)" in core and core.index("initImpression(VL)") < core.index("initTypo(VL)") and core.index("initOutils(VL)") < core.index("initTypo(VL)")
+    tools = (vl / "js" / "mod-tools.js").read_text("utf-8")
+    assert "VL.poserTexte" in tools and "VL.editerTexte" in tools          # plus de prompt sur le chemin nominal
+    typo = (vl / "js" / "mod-typo.js").read_text("utf-8")
+    for tok in ("queryLocalFonts", '"/api/fonts/upload"', "@font-face", 'id="txContours"', 'id="txLogo"', "tx-editeur", "VL.textesEnChemins"):
+        assert tok in typo, tok
+    assert "VL.textesEnChemins" in (vl / "js" / "mod-export.js").read_text("utf-8")
+    assert 'id="panneauTexte"' in (vl / "index.html").read_text("utf-8")
+    doc = (vl / "js" / "mod-doc.js").read_text("utf-8")
+    assert "Array.isArray(d)" in doc and "<tspan x=" in doc
+    assert (racine / "backend" / "app" / "services" / "fonts_service.py").is_file()
+    routes = (racine / "backend" / "app" / "api" / "routes.py").read_text("utf-8")
+    for r in ('@router.get("/fonts")', '@router.post("/fonts/upload")', '@router.get("/fonts/user/{name}")'):
+        assert r in routes, r
+    assert (vl / "qa" / "typo.test.mjs").is_file()
+
+
+# ── relooking Affinity (R3, 18/09/2026) : le mode de fusion de CALQUE est un
+# champ optionnel que le magasin ne connaît pas et ne doit pas perdre ─────────
+
+def test_le_miroir_fusion_de_calque_fait_l_aller_retour():
+    import asyncio
+    from httpx import AsyncClient, ASGITransport
+
+    async def scenario():
+        from app.main import app
+        from app.services.storage import init_db
+        await init_db()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://t") as c:
+            doc = _doc("Fusion")
+            doc["calques"][0]["fusion"] = "multiply"
+            r = await c.post("/api/vector/docs", json={"name": "Fusion", "role": "libre", "doc": doc})
+            assert r.status_code == 200, r.text
+            did = r.json()["id"]
+            r = await c.get(f"/api/vector/docs/{did}")
+            assert r.status_code == 200
+            assert r.json()["doc"]["calques"][0]["fusion"] == "multiply"
+            # un calque sans le champ ne le gagne pas (état vide)
+            doc2 = _doc("Sans")
+            r = await c.post("/api/vector/docs", json={"name": "Sans", "role": "libre", "doc": doc2})
+            r = await c.get(f"/api/vector/docs/{r.json()['id']}")
+            assert "fusion" not in r.json()["doc"]["calques"][0]
+            # le module JS expose la commande et la compile (pin du miroir)
+            src = (pathlib.Path(__file__).resolve().parents[2] / "frontend" / "vectorlab" / "js" / "mod-doc.js").read_text(encoding="utf-8")
+            assert "export function op_calque_fusion" in src
+            assert "mix-blend-mode" in src
+
+    asyncio.run(scenario())

@@ -4,7 +4,34 @@
 // raccourcis. Les outils et le panneau calques reçoivent ce cœur par
 // injection (initOutils/initCalques) — aucun cycle d'import.
 import { compilerSVG, chemin_parser, chemin_ancres, aimanter, Historique,
-         sommetDe, op_dupliquer } from "./mod-doc.js";
+         sommetDe, op_dupliquer, reperes_guides, reperes_rects, planches_guides }
+  from "./mod-doc.js";
+import { grille_d, grille_aimanter } from "./mod-grille.js";
+import { aimant_objets, aimant_ecarts, aimant_fusion } from "./mod-aimant.js";
+import { initPlateau, grilleLibelle } from "./mod-plateau.js";
+import { initPlanches } from "./mod-planches.js";
+import { initImpression } from "./mod-impression.js";
+import { initCarte } from "./mod-carte.js";
+import { initOutils2 } from "./mod-outils2.js";
+import { initPersona } from "./mod-persona.js";
+import { initApparence2 } from "./mod-apparence2.js";
+import { initExportPlus } from "./mod-exportplus.js";
+import { initPanneaux } from "./mod-panneaux.js";
+import { initInfobulle } from "./mod-infobulle.js";
+import { initTypo } from "./mod-typo.js";
+import { initFlyout } from "./mod-flyout.js";
+import { initBarreOutils } from "./mod-barreoutils.js";
+import { initPixelUI } from "./mod-pixelui.js";
+import { initCharpente } from "./mod-charpente.js";
+import { initPile } from "./mod-pile.js";
+import { initBarreContexte } from "./mod-barrecontexte.js";
+import { initOutils3 } from "./mod-outils3ui.js";
+import { initPlume } from "./mod-plumeui.js";
+import { initNoeudUI } from "./mod-noeudui.js";
+import { initNoeudApercu } from "./mod-noeudapercu.js";
+import { initSelectionUI } from "./mod-selectionui.js";
+import { initTexteUI } from "./mod-texteui.js";
+import { op_noeud_supprimer } from "./mod-doc.js";
 import { UNITES, depuisUnite, formatNombre, libelle_mesure }
   from "./mod-unites.js";
 import { initOutils } from "./mod-tools.js";
@@ -15,6 +42,12 @@ import { initVitrail } from "./mod-vitrail.js";
 import { initBiblio } from "./mod-biblio.js";
 import { initIA } from "./mod-ia.js";
 import { initCouleur } from "./mod-couleur.js";
+import { initImage } from "./mod-image.js";
+import { initTrace } from "./mod-trace.js";
+import { initBrouillon } from "./mod-brouillon.js";
+import { initDialogue } from "./mod-dialogue.js";
+import { initControles } from "./mod-controles.js";
+import { initDidact } from "./mod-didact.js";
 
 const $ = (s) => document.querySelector(s);
 const api = {
@@ -39,11 +72,14 @@ const etat = {
   outil: "select",
   selection: [],                 // ids d'objets
   ancreSel: null,                // index d'ancre (mode nœuds)
+  noeudsApercu: null,            // R12 : les segs de l'aperçu pendant un geste de nœud (l'overlay les lit)
   calqueActif: null,
   zoom: 1, tx: 40, ty: 40,
   grille: { active: true, pas: 8 },   // pas en px DOCUMENT (cf. dessinerGrille)
+  aimantObjets: true,            // lot C : bords, centres, écarts des voisins
+  terrainCourant: "plaine",      // lot C : le terrain du pinceau de tuiles
   pressePapiers: null,           // { ids, n } — coller duplique les sources
-  histo: new Historique(100),
+  histo: new Historique(),        // lot B : 1 000 pas + instantanés nommés
   // le style des NOUVEAUX objets — nourri par le panneau et la pipette
   styleCourant: { fond: "#9DB4D6", contour: "#1F1512", epaisseur: 2 },
 };
@@ -59,11 +95,55 @@ function ecranPt(x, y) {
   return [x * etat.zoom + etat.tx, y * etat.zoom + etat.ty];
 }
 function tolDoc() { return 6 / etat.zoom; }
+function grilleDoc() { return etat.doc && etat.doc.grille ? etat.doc.grille : null; }
 function aimantePt(x, y) {
   const g = etat.doc.guides || { v: [], h: [] };
+  const rg = reperes_guides(etat.doc), pg = planches_guides(etat.doc);   // repères et planches aimantent
+  const guidesV = (g.v || []).concat(rg.v, pg.v), guidesH = (g.h || []).concat(rg.h, pg.h);
+  const gd = grilleDoc();
+  if (gd && etat.grille.active) {
+    // lot C : la grille du DOCUMENT remplace le pas carré d'affichage — les
+    // guides d'abord (l'intention posée prime), puis le sommet du réseau
+    const tol = tolDoc();
+    const [gx, gy] = grille_aimanter(gd, x, y);
+    const ax = aimanter(x, { guides: guidesV }, tol), ay = aimanter(y, { guides: guidesH }, tol);
+    return [ax !== x ? ax : (Math.abs(gx - x) <= tol ? gx : x),
+            ay !== y ? ay : (Math.abs(gy - y) <= tol ? gy : y)];
+  }
   const pas = etat.grille.active ? etat.grille.pas : 0;
-  return [aimanter(x, { pas, guides: g.v || [] }, tolDoc()),
-          aimanter(y, { pas, guides: g.h || [] }, tolDoc())];
+  return [aimanter(x, { pas, guides: guidesV }, tolDoc()),
+          aimanter(y, { pas, guides: guidesH }, tolDoc())];
+}
+/* ── lot C : aimantation aux OBJETS — la bbox DOCUMENT d'un objet mesurée
+   au DOM (contour compris), les voisins d'une sélection en mouvement
+   (objets visibles non sélectionnés, planches, la page) ── */
+function bboxDocDe(id) {
+  const el = document.querySelector(`#canvasHost [data-objet="${id}"]`);
+  if (!el) return null;
+  const r = el.getBoundingClientRect(), r0 = stageRect();
+  return { x: (r.left - r0.left - etat.tx) / etat.zoom, y: (r.top - r0.top - etat.ty) / etat.zoom,
+           w: r.width / etat.zoom, h: r.height / etat.zoom };
+}
+function candidatsAimant() {
+  const sel = new Set(etat.selection);
+  const out = [];
+  for (const c of etat.doc.calques) {
+    if (!c.visible) continue;
+    for (const o of c.objets) {
+      if (sel.has(o.id)) continue;
+      const b = bboxDocDe(o.id);
+      if (b) out.push(b);
+    }
+  }
+  for (const p of etat.doc.planches || []) out.push({ x: p.x, y: p.y, w: p.w, h: p.h });
+  out.push({ x: 0, y: 0, w: etat.doc.taille.w, h: etat.doc.taille.h });   // la page
+  return out;
+}
+function aimanteBoite(b) {
+  if (!etat.aimantObjets) return { dx: 0, dy: 0, lignes: [] };
+  const cands = candidatsAimant();
+  const tol = tolDoc();
+  return aimant_fusion([aimant_objets(b, cands, tol), aimant_ecarts(b, cands, tol)]);
 }
 
 /* ── commandes ── */
@@ -112,8 +192,10 @@ function setSelection(ids) {
   VL.surSelection();
 }
 function objetDe(id) {
+  // R11 : un ENFANT de groupe se trouve aussi (Ctrl+clic d'Affinity) — le calque rendu est le calque porteur
+  const dans = (liste) => { for (const x of liste) { if (x.id === id) return x; if (x.type === "groupe" && Array.isArray(x.enfants)) { const e = dans(x.enfants); if (e) return e; } } return null; };
   for (const c of etat.doc.calques) {
-    const o = c.objets.find((x) => x.id === id);
+    const o = dans(c.objets);
     if (o) return { calque: c, objet: o };
   }
   return null;
@@ -163,6 +245,7 @@ function appliquerVue() {
   $("#btnUnite").textContent = unites().affichage;
   dessinerRegles();
   rendreOverlay();
+  VL.surVue();                       // l'onglet de document suit le zoom (charpente)
 }
 function zoomCent() { etat.zoom = 1; appliquerVue(); }
 function zoomAjuster() {
@@ -176,7 +259,7 @@ function zoomAjuster() {
   appliquerVue();
 }
 function rendre() {
-  $("#canvasHost").innerHTML = etat.doc ? compilerSVG(etat.doc) : "";
+  $("#canvasHost").innerHTML = etat.doc ? compilerSVG(etat.doc, { image: VL.imageUrl, mesure: VL.mesureTexte }) : "";
   dessinerGrille();          // couche d'affichage, hors document et hors export
   $("#temoin").textContent = etat.sale ? "●" : "✓";
   $("#temoin").classList.toggle("sale", etat.sale);
@@ -201,7 +284,8 @@ const GRILLE_PAS = [2, 4, 8, 16, 24, 32, 48, 64];
 const GRILLE_MIN_ECRAN = 3;
 
 function grilleLisible() {
-  return etat.grille.pas * etat.zoom >= GRILLE_MIN_ECRAN;
+  const gd = grilleDoc();
+  return (gd ? gd.pas : etat.grille.pas) * etat.zoom >= GRILLE_MIN_ECRAN;
 }
 
 function dessinerGrille() {
@@ -218,8 +302,16 @@ function dessinerGrille() {
   g.setAttribute("shape-rendering", "crispEdges");
   g.setAttribute("pointer-events", "none");
   let d = "";
-  for (let x = pas; x < w; x += pas) d += `M${x} 0V${h}`;
-  for (let y = pas; y < h; y += pas) d += `M0 ${y}H${w}`;
+  const gd = grilleDoc();
+  if (gd) {
+    // lot C : la grille du document (carrée subdivisée, iso, tri, hex) —
+    // vide quand trop dense (garde de mod-grille), alors non tracée
+    d = grille_d(gd, etat.doc.taille);
+    if (!d) return;
+  } else {
+    for (let x = pas; x < w; x += pas) d += `M${x} 0V${h}`;
+    for (let y = pas; y < h; y += pas) d += `M0 ${y}H${w}`;
+  }
   const path = document.createElementNS(SNS, "path");
   path.setAttribute("d", d);
   path.setAttribute("fill", "none");
@@ -235,9 +327,9 @@ function majBoutonGrille() {
   const b = $("#btnGrille");
   if (!b) return;
   b.classList.toggle("actif", etat.grille.active);
-  b.textContent = "⊞ " + etat.grille.pas;
-  b.title = "Grille d'aimantation et repère visuel (G) — pas de "
-    + etat.grille.pas + " px"
+  b.textContent = grilleLibelle(grilleDoc(), etat.grille.pas);
+  b.title = "Grille d'aimantation et repère visuel (G) — "
+    + (grilleDoc() ? "grille du document (panneau Grille)" : "pas de " + etat.grille.pas + " px")
     + (etat.grille.active && !grilleLisible()
        ? " · trop serrée pour être tracée à ce zoom (aimantation active)"
        : "");
@@ -283,6 +375,35 @@ function rendreOverlay() {
       stroke: "#39b3d0", "stroke-width": 1, class: "guide",
       "data-guide": "h:" + i, "stroke-dasharray": "5 4" }));
   });
+  // planches (lot C) : cadres nommés — overlay seulement, jamais dans l'export
+  for (const p of etat.doc.planches || []) {
+    const [ex, ey] = ecranPt(p.x, p.y);
+    o.appendChild(ov("rect", { x: ex, y: ey, width: p.w * etat.zoom, height: p.h * etat.zoom,
+      fill: "none", stroke: "#e0b34a", "stroke-width": 1, class: "planche",
+      "data-planche": p.id, "pointer-events": "none" }));
+    const lbl = ov("text", { x: ex + 4, y: ey - 5, fill: "#e0b34a", "font-size": 11,
+      class: "planche-nom", "data-planche": p.id, "pointer-events": "none" });
+    lbl.textContent = p.nom;
+    o.appendChild(lbl);
+  }
+  // R6 : sans planche, le nom du document au-dessus de la page (le nom de planche d'Affinity)
+  if (!(etat.doc.planches || []).length && etat.meta) {
+    const [px0, py0] = ecranPt(0, 0);
+    const nom = ov("text", { x: px0, y: py0 - 5, fill: "#9a9a9a", "font-size": 11, class: "page-nom", "pointer-events": "none" });
+    nom.textContent = etat.meta.name;
+    o.appendChild(nom);
+  }
+  // repères de page (lot A) : coupe en rouge, zone sûre en vert — overlay
+  // seulement, jamais dans l'export
+  const rr = reperes_rects(etat.doc);
+  for (const [k, couleur] of [["fondPerdu", "#d0553a"], ["zoneSure", "#3aa66b"]]) {
+    const rb = rr[k];
+    if (!rb) continue;
+    const [ex, ey] = ecranPt(rb.x, rb.y);
+    o.appendChild(ov("rect", { x: ex, y: ey, width: rb.w * etat.zoom, height: rb.h * etat.zoom,
+      fill: "none", stroke: couleur, "stroke-width": 1, "stroke-dasharray": "6 3",
+      class: "repere", "data-repere": k, "pointer-events": "none" }));
+  }
   // cadre + poignées de la sélection (outil sélection)
   const b = bboxSelectionEcran();
   if (b && etat.outil === "select") {
@@ -305,18 +426,22 @@ function rendreOverlay() {
   // ancres du mode nœuds
   const p = etat.outil === "noeuds" ? pathSelectionne() : null;
   if (p) {
-    const ancres = chemin_ancres(chemin_parser(p.d));
+    // R12 : pendant un geste, l'overlay se dessine depuis l'APERÇU, pas depuis le document
+    const ancres = chemin_ancres(etat.noeudsApercu || chemin_parser(p.d));
     for (const a of ancres) {
       const [ax, ay] = ecranPt(a.x, a.y);
-      for (const pg of [a.entrante, a.sortante]) {
-        if (!pg) continue;
+      // R9 : les poignées sont des cibles (.poignee-noeud, data-ancre / data-role) — une poignée dégénérée (sur l'ancre) n'est pas dessinée
+      for (const [role, pg] of [["entrante", a.entrante], ["sortante", a.sortante]]) {
+        if (!pg || (pg.x === a.x && pg.y === a.y)) continue;
         const [px, py] = ecranPt(pg.x, pg.y);
         o.appendChild(ov("line", { x1: ax, y1: ay, x2: px, y2: py,
           stroke: "#8b93a0", "stroke-width": 1 }));
-        o.appendChild(ov("circle", { cx: px, cy: py, r: 3, fill: "#8b93a0" }));
+        o.appendChild(ov("circle", { cx: px, cy: py, r: 4, fill: "#8b93a0", stroke: "#fff", "stroke-width": 1,
+          class: "poignee-noeud", "data-ancre": a.i, "data-role": role }));
       }
+      const choisie = etat.ancreSel === a.i || (etat.ancresSel || []).includes(a.i);
       o.appendChild(ov("rect", { x: ax - 4, y: ay - 4, width: 8, height: 8,
-        fill: etat.ancreSel === a.i ? "#e0b34a" : "#eef1f5",
+        fill: choisie ? "#2b6fd6" : "#eef1f5",
         stroke: "#2c4a75", class: "ancre", "data-ancre": a.i,
         transform: `rotate(45 ${ax} ${ay})` }));
     }
@@ -352,6 +477,9 @@ function rendreOverlay() {
       }
     }
   }
+  // lot B : les modules dessinent leurs poignées ici (formes, pivot, atomes) —
+  // le cœur appelle SA fonction locale, un module ne peut pas la remplacer
+  VL.surOverlay(o);
   // le groupe temporaire des outils (lasso, aperçus) — toujours en dernier
   o.appendChild(ov("g", { id: "ovTmp" }));
 }
@@ -422,7 +550,7 @@ async function charger() {
     const d = await api.get("/vector/docs/" + encodeURIComponent(id));
     etat.docId = id; etat.meta = d.meta; etat.doc = d.doc;
     etat.sale = false;
-    etat.histo = new Historique(100);
+    etat.histo = new Historique();
     etat.calqueActif = etat.doc.calques[etat.doc.calques.length - 1].id;
     majTete();
     rendre();
@@ -431,6 +559,7 @@ async function charger() {
     etat.tx = Math.max(20, (r.width - etat.doc.taille.w * etat.zoom) / 2);
     etat.ty = Math.max(20, (r.height - etat.doc.taille.h * etat.zoom) / 2);
     appliquerVue();
+    VL.surCharge();                    // le brouillon se propose ici (lot A)
   } catch (e) {
     $("#docMeta").classList.add("erreur");
     $("#docMeta").textContent = "erreur : " + e.message;
@@ -450,6 +579,7 @@ async function sauver() {
     etat.meta.version = r.version;
     etat.sale = false;
     majTete();
+    VL.surSauve();                     // le brouillon s'efface (lot A)
     $("#temoin").textContent = "✓";
     $("#temoin").classList.remove("sale");
     // phase 6 : la vignette suit la sauvegarde — jamais bloquante, son
@@ -518,6 +648,7 @@ function collerSelection() {
 /* ── outils : bascule ── */
 function setOutil(id) {
   etat.outil = id;
+  document.body.dataset.outil = id;                 // R9 : curseurs par outil en CSS
   document.querySelectorAll("#outils button").forEach((b) =>
     b.classList.toggle("actif", b.dataset.outil === id));
   VL.surOutil();
@@ -542,7 +673,9 @@ document.addEventListener("keydown", (ev) => {
   if (ev.ctrlKey) return;
   const outils = { v: "select", p: "plume", r: "rect", e: "ellipse",
                    n: "noeuds", i: "pipette", t: "texte",
-                   l: "ligne", m: "mesure" };
+                   l: "ligne", m: "mesure", k: "tuiles",
+                   f: "forme", b: "crayon", x: "couteau", w: "gomme", c: "coin", s: "constructeur",
+                   j: "pinceauv" };
   const k = ev.key.toLowerCase();
   if (outils[k]) { setOutil(outils[k]); return; }
   if (k === "g") { basculerGrille(); return; }
@@ -560,6 +693,15 @@ try {
   if (GRILLE_PAS.includes(memo)) etat.grille.pas = memo;
 } catch (e) { /* stockage indisponible */ }
 $("#btnGrille").addEventListener("click", basculerGrille);
+{
+  const ba = $("#btnAimant");
+  if (ba) {
+    ba.addEventListener("click", () => {
+      etat.aimantObjets = !etat.aimantObjets;
+      ba.classList.toggle("actif", etat.aimantObjets);
+    });
+  }
+}
 {
   const sel = $("#selGrille");
   if (sel) {
@@ -607,17 +749,51 @@ const VL = {
   setSelection, selectionElems, bboxSelectionEcran, bboxSelectionDoc,
   pathSelectionne, purgerSelection, objetDe,
   sommetDe: (id) => sommetDe(etat.doc, id),
+  grilleDoc, bboxDocDe, candidatsAimant, aimanteBoite,
+  opNoeudSupprimer: op_noeud_supprimer,
   rendre, rendreOverlay, appliquerVue, setOutil, toast,
   surRendu: () => {}, surOutil: () => {}, surTouche: () => {},
-  surSelection: () => {},
+  surSelection: () => {}, surCharge: () => {}, surSauve: () => {},
+  surOverlay: () => {}, surVue: () => {},
 };
 initCalques(VL);
 initCouleur(VL);
 initStyle(VL);
+initImage(VL);      // panneaux Image / Repères, après Apparence (lot A)
+initTrace(VL);      // le dialogue Vectoriser (lot A)
+initPlateau(VL);    // panneaux Grille / Terrains / Plateau (lot C)
+initPlanches(VL);   // panneau Planches (lot C)
+initImpression(VL); // dialogue Impression 3D + texte → chemins (lot D)
+initCarte(VL);      // panneau Carte réelle : GPX, fond, relief, courbes, tuiles (lot H)
 initOutils(VL);
+initNoeudApercu(VL); // R12 : l'aperçu des gestes de nœud (un cadre rAF, sans clone) — après initOutils, avant Outils2 / NoeudUI
 initExport(VL);
 initVitrail(VL);
+initDialogue(VL);   // finitions UI : VL.dialogue AVANT tout appelant (biblio, calques, brouillon…)
+initControles(VL);  // finitions UI : <vl-curseur> / <vl-bascule> / <vl-curseur-couleur> définis AVANT tout rendu de panneau
 initBiblio(VL);
 initIA(VL);        // le dialogue IA du canevas — après initOutils (surOutil)
+// lot B : APRÈS initOutils — mod-tools pose surTouche/surOutil sans chaîner,
+// un module initialisé avant lui perdrait ses crochets (mesuré : Entrée muette)
+initOutils2(VL);    // formes, crayon, couteau, gomme, coin, constructeur, nœuds multiples, pivot, instantanés (lot B)
+initTypo(VL);       // Texte & logo : polices, éditeur en place, contours, logo 3D — après initImpression (VL.impression) et initOutils (crochets)
+initApparence2(VL); // lot F : Apparence + (effets, fusion, contours, motifs, couleurs globales, styles, symboles, texte +), pinceau vectoriel J
+initPersona(VL);    // lot E (D8) : Vecteur / Pixel / Export — après initOutils (surOutil)
+initExportPlus(VL); // lot G : Export + (tranches, formats, impression, lot) — après initPersona (surPersona) et initExport (svgCourant)
+initPixelUI(VL);    // lot E : outils raster, sélections, ajustements, pixel-art — pose surOverlay/surTouche en chaîne
+initBrouillon(VL); // pose surCharge AVANT charger() (lot A)
+initTexteUI(VL);     // R11 : Texte d'Affinity (corps au glisser, texte sur chemin, débordement, Tab) — après initTypo (poserTexte)
+initSelectionUI(VL); // R10 : Alt+glisser = copie déplacée, double-clic → Nœuds, survol — après initOutils
+initNoeudUI(VL);    // R9 : poignées tirables, segment déformable, insertion au double-clic, suppression lisse — après initOutils / initOutils2
+initPlume(VL);      // R8 : la Plume de classe Affinity — REMPLACE la plume de mod-tools (capture + stopPropagation) ; après initOutils (surOutil / surTouche)
+initOutils3(VL);    // R7 : Main, Loupe, Plan de travail, Dégradé, Transparence, Cadre, Recadrer, retouche raster — avant initFlyout / initBarreOutils (boutons dans la barre)
+initFlyout(VL);     // menus détachés de la barre : Forme, Symboles
+initBarreOutils(VL); // relooking Affinity : familles d'outils, icônes fines, flyout vertical — après initFlyout (ouvrirMenu, armer)
+initInfobulle(VL);  // bulles d'information stylées, centrées, bornées (remplacent le title natif au survol)
+initDidact(VL);     // finitions UI : fiches didactiques animées (survol long 900 ms, « ? »), aide/index.json
+initPanneaux(VL);   // sections du panneau de droite : état ouvert / replié mémorisé (dz_vl_panneaux)
+initCharpente(VL);  // relooking Affinity : barre de menus, onglet de document, barre d'état, cotes — en dernier (lit VL.hints, VL.actions)
+initPile(VL);       // relooking Affinity : la pile de droite à onglets — après tous les rendus (redistribue les rangées d'Apparence)
+initBarreContexte(VL); // relooking Affinity : la barre contextuelle par outil, Configuration du document, Paramètres de l'appli
 window.VL = VL;
 charger();

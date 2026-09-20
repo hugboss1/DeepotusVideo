@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sprite Lab — Deepotus Video Gen</title>
+<title>Deepotus — Sprite Lab</title>
 <link rel="stylesheet" href="spritelab.css">
 </head>
 <body>
@@ -22,6 +22,7 @@
         <button class="tab" data-src="image" title="Choisir une image de la Library et l'animer avec Seedance sur fond uni">🖼 Image</button>
         <button class="tab" data-src="render" title="Partir d'un render vidéo existant">🎬 Render</button>
         <button class="tab" data-src="upload" title="Importer une vidéo de ton PC">📤 Vidéo</button>
+        <button class="tab" data-src="feuille" title="Ouvrir une planche existante (Library ou fichier) : grille, sélection, alignement, sections, JSON — tout en local">🗂 Feuille</button>
       </nav>
     </div>
 
@@ -79,6 +80,17 @@
         <div id="upStatus" class="status hidden"></div>
       </div>
     </div>
+
+    <!-- Feuille existante (lot 1, 19/09) : inspecter une planche déjà faite — tout en local -->
+    <div id="srcFeuille" class="src-body hidden">
+      <div class="upload-box">
+        <p class="hint">Une planche déjà faite (par l'IA, par un autre outil, par toi) : la grille se détecte, les cases se choisissent, les frames s'alignent, les sections se nomment. Rien n'est envoyé, aucun crédit.</p>
+        <label class="btn" for="feuilleFile">📂 Ouvrir un PNG de mon PC</label>
+        <input type="file" id="feuilleFile" accept="image/png,image/webp" hidden>
+      </div>
+      <input id="feuilleSearch" class="search" placeholder="🔎 Filtrer les planches de la Library…">
+      <div id="feuilleGrid" class="img-grid"><div class="empty-note">Chargement de la Library…</div></div>
+    </div>
   </section>
 
   <!-- ══════════ 2. Filmstrip + réglages ══════════ -->
@@ -88,6 +100,17 @@
       <span id="stripCount" class="counter">—</span>
       <button id="stripAll" class="btn ghost" title="Tout garder / tout enlever">☑ Tout</button>
       <button id="extractBtn" class="btn" title="Ré-extraire les frames de la source avec les réglages fps / max ci-dessous (local, gratuit)">🔄 Ré-extraire</button>
+    </div>
+    <div id="feuillePane" class="feuille hidden">
+      <div class="feuille-bar">
+        <button id="fDetect" class="btn" title="Détecter colonnes, lignes et cases occupées par les colonnes vides de la planche">Auto-détecter</button>
+        <label class="fld inline">Grille <input id="fCols" type="number" min="1" max="64" value="1"> × <input id="fRows" type="number" min="1" max="64" value="1"> <button id="fOk" class="btn ghost" title="Appliquer ces colonnes et lignes">OK</button></label>
+        <span id="fDims" class="counter">—</span><span id="fCount" class="counter">0/0</span>
+        <button id="fAll" class="btn ghost" title="Sélectionner toutes les cases occupées">Toutes</button><button id="fNone" class="btn ghost" title="Vider la sélection">Aucune</button>
+        <span class="fld inline">Une sur <button class="btn ghost fEvery" data-n="1">1</button><button class="btn ghost fEvery" data-n="2">2</button><button class="btn ghost fEvery" data-n="3">3</button><button class="btn ghost fEvery" data-n="4">4</button></span>
+      </div>
+      <div class="hint feuille-hint">Glisser peint la sélection · Ctrl ajoute / retire · Maj étend depuis la dernière case</div>
+      <div id="fWrap" class="feuille-wrap"><canvas id="fCanvas"></canvas></div>
     </div>
     <div id="strip" class="strip"><div class="empty-note">Choisis une source à gauche — les frames extraites s'affichent ici.<br><br>Clic = garder/enlever une frame · Shift-clic = plage</div></div>
 
@@ -134,14 +157,7 @@
             <input id="pixTarget" type="number" min="8" max="512" value="64">
           </label>
           <label class="fld">Palette
-            <select id="pixPalette">
-              <option value="">Adaptative (N couleurs)</option>
-              <option value="pico8">PICO-8 (16)</option>
-              <option value="gameboy">Game Boy (4)</option>
-              <option value="nes">NES (14)</option>
-              <option value="sweetie16" selected>Sweetie 16</option>
-              <option value="onebit">1-bit (2)</option>
-            </select>
+            <select id="pixPalette" title="Palettes nommées partagées (spritelab/palettes.js = pixel_ops.py)"></select>
           </label>
           <label class="fld">Couleurs <span class="unit">si adaptative</span>
             <input id="pixColors" type="number" min="2" max="256" value="16">
@@ -169,6 +185,7 @@
     <div id="outEmpty" class="empty-note tall">Le sheet généré et sa préviz animée s'affichent ici.</div>
 
     <div id="player" class="player hidden">
+      <div class="hint">WASD ou flèches déplacent le sprite dans la scène · Espace lecture / pause (Playground)</div>
       <div id="stage" class="stage bg-checker"><canvas id="cv" width="256" height="256"></canvas></div>
       <div class="pctrl">
         <button id="playBtn" class="btn" title="Lecture / pause">⏸</button>
@@ -176,8 +193,10 @@
         <select id="pzoom" title="Zoom">
           <option value="fit" selected>Ajusté</option><option value="1">1×</option><option value="2">2×</option><option value="4">4×</option>
         </select>
+        <button id="pflip" class="btn" title="Miroir gauche / droite (Invert L/R)">⇋</button>
+        <select id="pspeed" title="Vitesse de lecture"><option value="0.5">0,5×</option><option value="1" selected>1×</option><option value="2">2×</option></select>
         <select id="pbg" title="Fond de la préviz">
-          <option value="checker" selected>Damier</option><option value="#000000">Noir</option><option value="#ffffff">Blanc</option><option value="#00b140">Vert</option><option value="#ff00ff">Magenta</option>
+          <option value="checker" selected>Damier</option><option value="#000000">Noir</option><option value="#ffffff">Blanc</option><option value="#00b140">Vert</option><option value="sc-ciel">Ciel</option><option value="sc-exterieur">Extérieur</option><option value="sc-donjon">Donjon</option><option value="sc-cave">Cave</option><option value="#ff00ff">Magenta</option>
         </select>
       </div>
     </div>
@@ -190,6 +209,20 @@
       <button id="toStudio" class="btn hidden" title="Ouvre le Studio avec ce sheet comme nœud Image">🎛 → Studio</button>
     </div>
 
+    <div id="feuilleOut" class="feuille-out hidden">
+      <div class="settings">
+        <div class="settings-sec">Alignement <span class="hint">sur la première frame sélectionnée</span></div>
+        <div class="row"><button id="fAlDeux" class="btn" title="Centre horizontal et pieds">Les deux axes</button><button id="fAlX" class="btn" title="Centre horizontal seulement">Gauche / droite</button><button id="fAlPieds" class="btn" title="Bas de l'alpha seulement (les pieds)">Pieds</button><button id="fAlZero" class="btn ghost" title="Retirer tous les décalages">Remettre</button></div>
+        <div class="row nudges"><span class="hint">Frame courante :</span><button class="btn ghost fNudge" data-dx="0" data-dy="-1" title="1 px vers le haut">↑</button><button class="btn ghost fNudge" data-dx="-1" data-dy="0" title="1 px vers la gauche">←</button><button class="btn ghost fNudge" data-dx="1" data-dy="0" title="1 px vers la droite">→</button><button class="btn ghost fNudge" data-dx="0" data-dy="1" title="1 px vers le bas">↓</button></div>
+        <div class="settings-sec">Sections</div>
+        <div id="fSections" class="sections"></div>
+        <div class="row"><input id="fSecNom" class="fld-in" placeholder="nom (marche, saut…)"><select id="fSecMode" title="Mode de lecture"><option value="boucle">boucle</option><option value="pingpong">ping-pong</option><option value="inverse">inversé</option></select><button id="fSecAdd" class="btn" title="La section = la sélection courante, dans l'ordre de lecture">+ depuis la sélection</button></div>
+        <div class="settings-sec">Export</div>
+        <div class="row"><button id="fCopyJson" class="btn" title="Copie le manifest v2 (grille, frames, décalages, fps, sections)">📋 Copier le JSON</button><button id="fDlJson" class="btn" title="Télécharge le manifest JSON">⬇ JSON</button><button id="fDlPng" class="btn" title="Télécharge la planche alignée (PNG)">⬇ Planche alignée</button><button id="fSaveLib" class="btn primary" title="Sauve la planche alignée en Library (préfixe sprites_feuille_) — de là, « Envoyer vers » le Vectorlab">💾 Save to Library</button></div>
+        <div id="fStatus" class="status hidden"></div>
+      </div>
+    </div>
+
     <div id="sheetWrap" class="sheetwrap hidden">
       <div class="sheet-title">Sheet</div>
       <img id="sheetImg" alt="sprite sheet">
@@ -198,6 +231,9 @@
 </main>
 
 <div id="toast" class="toast hidden"></div>
+<script type="module">import * as SLF from "./feuille.js"; window.SLF = SLF; document.dispatchEvent(new Event("slf-pret"));</script>
+<script type="module">import * as P from "/spritelab/palettes.js"; window.DZ_PALETTES = P; document.dispatchEvent(new Event("dz-palettes"));</script>
+<script src="/shared/dialogue.js"></script>
 <script src="spritelab.js"></script>
 </body>
 </html>
