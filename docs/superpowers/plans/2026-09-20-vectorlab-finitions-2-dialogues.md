@@ -8,6 +8,14 @@
 
 **Tech :** ES modules du Vectorlab, banc `node frontend/vectorlab/qa/run.mjs`, patcher python à contrat (octets, garde-chaîne, sonde), pytest miroir `backend/tests/test_dialogue_bundle.py`.
 
+## Relevé de livraison (20/09/2026)
+
+- **Livré** : `mod-dialogue.js` (pur + DOM, `VL.dialogue.confirmer/informer/saisir` asynchrones, `#vlDlg`, CSS aux jetons `--aff-*`, `--vl-danger` local) — `6d0cbe7` ; les 18 appels natifs des dix modules remplacés (appelants async, brouillon « Restaurer » / « Repartir du serveur » avec l'heure) — `ec47998` ; bundle : couche `frontend/patches/dialogue.js` (`window.__dzDialogue`, `window.alert` remplacé) + `scripts/patch_bundle_dialogue.py` (11 sites `confirm(` réécrits en `await`, garde-chaîne, sonde amont transfert, octets) — `0965ea6`.
+- **TDD** : `qa/dialogue.test.mjs` RED (module absent) → GREEN 7 contrôles, `run.mjs` intégral vert ; `backend/tests/test_dialogue_bundle.py` RED 27 FAIL → 35 PASS / 0 FAIL ; `test_transfert_bundle.py` 41/41 ; `node --check` sur le bundle et les dix modules. Les 26 FAIL de `test_montage_bundle.py` sont PRÉEXISTANTS (ils cherchent un `.bak_montage` absent du worktree, mesuré sur le bundle d'avant patch).
+- **Prouvé** (8799, navigateur intégré, 1400 × 900, `window.confirm/alert/prompt` stubés pour LEVER, `onerror` capturé, zéro erreur) : clic réel poubelle → `#vlDlg` 440 × 139 px, titre « Confirmer », boutons « Annuler » (défaut, focus) / « Supprimer » rouge `rgb(192,57,43)` ; Entrée → fermé, 2 calques conservés ; clic « Supprimer » → 1 calque. Brouillon posé en localStorage puis rechargement → « Brouillon non sauvé », « Repartir du serveur » / « Restaurer » (focus), clic Restaurer → `sale = true`, `w = 222`. Export 2× vers la bible (`#expBible`) → saisie « Vers la bible », champ « 1 » focalisé, Échap → fermé, aucun PUT. Bundle (`/`) : `window.alert("…")` → `[role=dialog].dz-dialogue` 128 px « Information » / « Fermer », Échap le ferme ; `__dzDialogue.confirmer("Delete this render…")` → Annuler défaut, Supprimer rouge, clic réel « Supprimer » → `true`.
+- **Déployé** : 18 fichiers vers `%LOCALAPPDATA%\DeepotusVideoGen` (installé = base `b5ea7ea` pour les 13 existants, 5 neufs), sauvegarde `_backup_predeploy_2026-09-20-dialogues`, installé = cible vérifié par `git hash-object` ; `GET :8765/vectorlab/js/mod-dialogue.js` 200, le bundle servi porte `__DZ_DIALOGUE_BEGIN__`. Statiques seuls : aucune relance.
+- **Reste** : le clic réel sur une poubelle de la Library du bundle n'a pas été rejoué (l'écran d'accueil demande l'onboarding sur les données vierges de 8799) ; les 11 sites sont prouvés par le banc miroir et le composant par clic réel. Les 33 `alert(` du bundle passent par `window.alert` remplacé, pas par réécriture.
+
 ---
 
 ## Relevé (code lu le 20/09/2026, branche `chantier/vectorlab-affinity` à `b5ea7ea`)
