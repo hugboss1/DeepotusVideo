@@ -367,6 +367,19 @@ details[id] > summary.panneau-tete > button { margin-left: auto; }
   border-bottom: 1px solid var(--aff-bord); }
 .vl-dlg-tete input[type="search"] { flex: 1; background: var(--aff-champ); color: var(--aff-texte);
   border: 1px solid var(--aff-bord); border-radius: 4px; padding: 4px 8px; }
+
+/* ── finitions UI (20/09) : dialogues maison confirmer / informer / saisir (mod-dialogue) ── */
+.vl-dlg { --vl-danger: #c0392b; }
+.vl-dlg-petite { width: min(440px, 92vw); }
+.vl-dlg-corps { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; line-height: 1.45; }
+.vl-dlg-corps p { margin: 0; }
+.vl-dlg-corps input { background: var(--aff-champ); color: var(--aff-texte); border: 1px solid var(--aff-bord); border-radius: 4px; padding: 5px 8px; font: inherit; }
+.vl-dlg-pied { display: flex; gap: 8px; justify-content: flex-end; padding: 10px 14px; border-top: 1px solid var(--aff-bord); }
+.vl-dlg-pied button { min-width: 88px; height: 28px; padding: 0 12px; border-radius: 4px; background: var(--aff-champ); color: var(--aff-texte); border: 1px solid var(--aff-bord); cursor: pointer; }
+.vl-dlg-pied button.vl-dlg-defaut { background: var(--aff-sel); border-color: var(--aff-sel); color: var(--aff-texte); }
+.vl-dlg-pied button.vl-dlg-danger { background: var(--vl-danger); border-color: var(--vl-danger); color: var(--aff-texte); }
+.vl-dlg-pied button:focus-visible { outline: 2px solid var(--aff-cyan); outline-offset: 1px; }
+
 .lib-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   gap: 8px; padding: 12px; overflow: auto; }
 .lib-carte { background: var(--aff-champ); border: 1px solid var(--aff-bord); border-radius: 6px;
