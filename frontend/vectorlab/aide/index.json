@@ -1,1 +1,9 @@
-[]
+[
+  {
+    "id": "pxContour",
+    "titre": "Contour sombre",
+    "phrase": "Un trait sombre entoure ton dessin pour qu'il se détache bien du fond.",
+    "fichier": "pixelui.pxContour.webp",
+    "version": 1
+  }
+]
