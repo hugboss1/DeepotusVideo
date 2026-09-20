@@ -1,7 +1,9 @@
 ' ============================================================
 ' DEEPOTUS VIDEO GEN -- Silent launcher (no console windows)
 ' Starts the backend hidden (it also serves the built frontend),
-' waits for /api/health, then opens the default browser.
+' waits for /api/health (on 127.0.0.1), then opens the default browser on
+' http://deepotus.localhost:8765 -- browsers resolve *.localhost to loopback
+' without any hosts file (RFC 6761): the app has a NAME, not an IP.
 '
 ' Python resolution order:
 '   1. <app>\runtime\python\python.exe   (installer build: embedded runtime)
@@ -13,12 +15,13 @@
 ' ============================================================
 Option Explicit
 
-Dim fso, shell, appDir, py, url, attempts, binDir, env
+Dim fso, shell, appDir, py, url, urlApp, attempts, binDir, env
 Set fso = CreateObject("Scripting.FileSystemObject")
 Set shell = CreateObject("WScript.Shell")
 
 appDir = fso.GetParentFolderName(fso.GetParentFolderName(WScript.ScriptFullName))
 url = "http://127.0.0.1:8765"
+urlApp = "http://deepotus.localhost:8765"
 
 py = appDir & "\runtime\python\python.exe"
 If Not fso.FileExists(py) Then py = appDir & "\backend\.venv\Scripts\python.exe"
@@ -60,7 +63,7 @@ attempts = 0
 Do While attempts < 90
   WScript.Sleep 500
   If HealthOk() Then
-    shell.Run url, 1, False
+    shell.Run urlApp, 1, False
     WScript.Quit 0
   End If
   attempts = attempts + 1
