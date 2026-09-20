@@ -218,7 +218,7 @@ export function initImage(VL) {
 
   /* ── génération : la route existante, la clé dépensée est dite ── */
   async function generer() {
-    const p = prompt("Décrire l'image à générer (dépense la clé du fournisseur des Réglages) :", "");
+    const p = await VL.dialogue.saisir("Décrire l'image à générer (dépense la clé du fournisseur des Réglages) :", { valeur: "", titre: "Générer une image", valider: "Générer" });
     if (!p) return;
     VL.toast("génération en cours…");
     const r = await fetch("/api/images/generate", { method: "POST",
@@ -238,7 +238,7 @@ export function initImage(VL) {
   // les ACTIONS de pose — appelées par le menu détaché Image (l'en-tête « Image ▾ » est parti)
   VL.actions = VL.actions || {};
   VL.actions.image = { biblio: garde(ouvrirBiblio), fichier: garde(() => inputFichier.click()), coller: garde(collerImage), generer: garde(generer),
-    vectoriser: garde(() => { if (VL.vectoriser) VL.vectoriser(imageCible()); }) };
+    vectoriser: garde(async () => { if (VL.vectoriser) VL.vectoriser(await imageCible()); }) };
 
   /* ── l'image cible d'une action : la sélection, sinon l'unique image ── */
   function imagesDuDoc() {
@@ -246,14 +246,14 @@ export function initImage(VL) {
     for (const c of etat.doc.calques) for (const o of c.objets) if (o.type === "image") out.push(o);
     return out;
   }
-  function imageCible() {
+  async function imageCible() {
     const t = etat.selection.length === 1 ? VL.objetDe(etat.selection[0]) : null;
     if (t && t.objet.type === "image") return t.objet.id;
     const toutes = imagesDuDoc();
     if (toutes.length === 1) return toutes[0].id;
     if (!toutes.length) throw new Error("aucune image dans le document — Image ▾ pour en poser une");
-    const rep = prompt("Quelle image ?\n" + toutes.map((o, i) =>
-      `${i + 1}) ${o.id} — ${o.href} (${o.nat.w}×${o.nat.h})`).join("\n"), "1");
+    const rep = await VL.dialogue.saisir("Quelle image ?\n" + toutes.map((o, i) =>
+      `${i + 1}) ${o.id} — ${o.href} (${o.nat.w}×${o.nat.h})`).join("\n"), { valeur: "1", titre: "Image cible" });
     if (rep === null) throw new Error("annulé");
     const o = toutes[(+rep || 0) - 1];
     if (!o) throw new Error("numéro inconnu");

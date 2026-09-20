@@ -39,7 +39,7 @@ export function initBrouillon(VL) {
   setInterval(ecrire, BROUILLON_PERIODE_MS);
 
   const suivantCharge = VL.surCharge;
-  VL.surCharge = () => {
+  VL.surCharge = async () => {
     suivantCharge();
     const k = brouillon_cle(etat.docId);
     const b = lire(k);
@@ -47,8 +47,9 @@ export function initBrouillon(VL) {
       if (b) effacer(k);                 // périmé : on ne le reproposera pas
       return;
     }
-    if (confirm(`Un ${brouillon_libelle(b)} de ce document n'a pas été sauvé. Le restaurer ?\n`
-                + `(Annuler = repartir de la version ${etat.meta.version} du serveur ; le brouillon est alors oublié.)`)) {
+    if (await VL.dialogue.confirmer(`Un ${brouillon_libelle(b)} de ce document n'a pas été sauvé.\n`
+                + `Repartir du serveur = version ${etat.meta.version} ; le brouillon est alors oublié.`,
+                { titre: "Brouillon non sauvé", ok: "Restaurer", annuler: "Repartir du serveur" })) {
       try { etat.doc = parserDoc(b.doc); }
       catch (e) { VL.toast("brouillon illisible : " + e.message, true); effacer(k); return; }
       etat.sale = true;

@@ -108,7 +108,7 @@ export function initExport(VL) {
     }
     const liste = ents.map((e, i) => `${i + 1}) [${e.kind}] ${e.name}`)
       .join("\n");
-    const rep = prompt("Lier l'export 2× à quelle entité ?\n" + liste, "1");
+    const rep = await VL.dialogue.saisir("Lier l'export 2× à quelle entité ?\n" + liste, { valeur: "1", titre: "Vers la bible", valider: "Lier" });
     if (rep === null) return;
     const e = ents[(+rep || 0) - 1];
     if (!e) { VL.toast("numéro d'entité inconnu", true); return; }

@@ -55,9 +55,9 @@ export function initPlanches(VL) {
         .then((f) => VL.toast(`${f} déposé (planche ${p.nom})`))
         .catch((e) => VL.toast(e.message, true));
     }));
-    hote.querySelectorAll("[data-pl-renommer]").forEach((b) => b.addEventListener("click", () => {
+    hote.querySelectorAll("[data-pl-renommer]").forEach((b) => b.addEventListener("click", async () => {
       const p = planche_de(etat.doc, b.dataset.plRenommer);
-      const nom = prompt("Nom de la planche :", p.nom);
+      const nom = await VL.dialogue.saisir("Nom de la planche :", { valeur: p.nom, titre: "Renommer la planche", valider: "Renommer" });
       if (nom !== null) VL.executer(op_planche_modifier, p.id, { nom });
     }));
     hote.querySelectorAll("[data-pl-supprimer]").forEach((b) =>

@@ -81,18 +81,18 @@ export function initPlateau(VL) {
       el.addEventListener("click", () => { etat.terrainCourant = el.dataset.terrain; rendreTerrains(); });
       el.addEventListener("dblclick", () => retoucher(el.dataset.terrain));
     });
-    $("#terPlus").addEventListener("click", () => {
-      const cle = prompt("Clé du terrain ([a-z0-9_-]) :", "sable");
+    $("#terPlus").addEventListener("click", async () => {
+      const cle = await VL.dialogue.saisir("Clé du terrain ([a-z0-9_-]) :", { valeur: "sable", titre: "Nouveau terrain" });
       if (!cle) return;
       retoucher(cle.trim().toLowerCase(), true);
     });
     $("#terMoins").addEventListener("click", () => VL.executer(op_terrain_supprimer, etat.terrainCourant));
   }
-  function retoucher(cle, neuf) {
+  async function retoucher(cle, neuf) {
     const f = terrains_de(etat.doc)[cle] || { nom: cle, couleur: "#C2B280", hauteur_mm: 1 };
-    const nom = prompt("Nom :", f.nom); if (nom === null) return;
-    const couleur = prompt("Couleur hex :", f.couleur); if (couleur === null) return;
-    const h = prompt("Hauteur d'extrusion (mm) :", String(f.hauteur_mm)); if (h === null) return;
+    const nom = await VL.dialogue.saisir("Nom :", { valeur: f.nom, titre: "Terrain " + cle }); if (nom === null) return;
+    const couleur = await VL.dialogue.saisir("Couleur hex :", { valeur: f.couleur, titre: "Terrain " + cle }); if (couleur === null) return;
+    const h = await VL.dialogue.saisir("Hauteur d'extrusion (mm) :", { valeur: String(f.hauteur_mm), titre: "Terrain " + cle }); if (h === null) return;
     const avant = JSON.stringify(etat.doc.terrains || {});
     VL.executer(op_terrain_definir, cle, { nom, couleur: couleur.trim(), hauteur_mm: Math.max(0, +h || 0) });
     if (JSON.stringify(etat.doc.terrains || {}) !== avant || neuf) {

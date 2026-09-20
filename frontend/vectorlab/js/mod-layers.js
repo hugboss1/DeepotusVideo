@@ -104,9 +104,9 @@ export function initCalques(VL) {
     if (!ligne || !ev.target.classList.contains("nom")) return;
     renommer(ligne.dataset.calque);
   });
-  function renommer(id) {
+  async function renommer(id) {
     const c = etat.doc.calques.find((x) => x.id === id);
-    const nom = prompt("Nom du calque :", c ? c.nom : "");
+    const nom = await VL.dialogue.saisir("Nom du calque :", { valeur: c ? c.nom : "", titre: "Renommer le calque", valider: "Renommer" });
     if (nom !== null) VL.executer(op_calque_renommer, id, nom);
   }
 
@@ -140,7 +140,7 @@ export function initCalques(VL) {
   });
 
   // la barre d'actions
-  $("#calquesActions")?.addEventListener("click", (ev) => {
+  $("#calquesActions")?.addEventListener("click", async (ev) => {
     const b = ev.target.closest("button"); if (!b || !etat.doc) return;
     const act = b.dataset.act, c = actif();
     const i = c ? etat.doc.calques.indexOf(c) : -1;
@@ -153,7 +153,7 @@ export function initCalques(VL) {
     else if (act === "monter" && c) VL.executer(op_calque_reordonner, c.id, Math.min(etat.doc.calques.length - 1, i + 1));   // monter à l'écran = vers la fin
     else if (act === "descendre" && c) VL.executer(op_calque_reordonner, c.id, Math.max(0, i - 1));
     else if (act === "poubelle" && c) {
-      if (confirm(`Supprimer le calque « ${c.nom} » et ses objets ?`)) {
+      if (await VL.dialogue.confirmer(`Supprimer le calque « ${c.nom} » et ses objets ?`, { ok: "Supprimer", danger: true })) {
         VL.executer(op_calque_supprimer, c.id);
         if (!actif()) { etat.calqueActif = etat.doc.calques[etat.doc.calques.length - 1].id; rendreCalques(); }
       }

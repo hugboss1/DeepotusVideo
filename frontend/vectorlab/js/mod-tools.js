@@ -243,7 +243,8 @@ export function initOutils(VL) {
     if (etat.outil === "texte") {
       const [ax, ay] = VL.aimantePt(dx, dy);
       if (VL.poserTexte) { VL.poserTexte(ax, ay); ev.preventDefault(); return; }   // Texte & logo : édition en place
-      const contenu = prompt("Texte :", "");
+      ev.preventDefault();
+      VL.dialogue.saisir("Texte :", { valeur: "", titre: "Texte" }).then((contenu) => {
       if (contenu) {
         const sc = etat.styleCourant;
         const fill = (sc.fond && sc.fond !== "none"
@@ -255,6 +256,7 @@ export function initOutils(VL) {
             style: { fond: fill, police: "Segoe UI", corps: 24 } });
         if (id) { VL.setOutil("select"); VL.setSelection([id]); }
       }
+      });
       return;
     }
   });
@@ -551,7 +553,7 @@ export function initOutils(VL) {
         const o = _objetProfond(etat.doc, el.dataset.objet);
         if (o && (o.type === "texte" || o.type === "cadre") && VL.editerTexte) { VL.editerTexte(o.id); return; }
         if (o && o.type === "texte") {
-          const contenu = prompt("Texte :", o.contenu || "");
+          VL.dialogue.saisir("Texte :", { valeur: o.contenu || "", titre: "Texte" }).then((contenu) => {
           if (contenu !== null) {
             const cibleId = o.id;
             VL.executer((doc) => {
@@ -560,6 +562,7 @@ export function initOutils(VL) {
               c.contenu = contenu;
             });
           }
+          });
           return;
         }
       }
