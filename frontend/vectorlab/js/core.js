@@ -47,6 +47,7 @@ import { initTrace } from "./mod-trace.js";
 import { initBrouillon } from "./mod-brouillon.js";
 import { initDialogue } from "./mod-dialogue.js";
 import { initControles } from "./mod-controles.js";
+import { initDidact } from "./mod-didact.js";
 
 const $ = (s) => document.querySelector(s);
 const api = {
@@ -789,6 +790,7 @@ initOutils3(VL);    // R7 : Main, Loupe, Plan de travail, Dégradé, Transparenc
 initFlyout(VL);     // menus détachés de la barre : Forme, Symboles
 initBarreOutils(VL); // relooking Affinity : familles d'outils, icônes fines, flyout vertical — après initFlyout (ouvrirMenu, armer)
 initInfobulle(VL);  // bulles d'information stylées, centrées, bornées (remplacent le title natif au survol)
+initDidact(VL);     // finitions UI : fiches didactiques animées (survol long 900 ms, « ? »), aide/index.json
 initPanneaux(VL);   // sections du panneau de droite : état ouvert / replié mémorisé (dz_vl_panneaux)
 initCharpente(VL);  // relooking Affinity : barre de menus, onglet de document, barre d'état, cotes — en dernier (lit VL.hints, VL.actions)
 initPile(VL);       // relooking Affinity : la pile de droite à onglets — après tous les rendus (redistribue les rangées d'Apparence)

@@ -879,3 +879,12 @@ vl-bascule[disabled] { opacity: .5; pointer-events: none; }
 #panneauCalques .px-palette { display: grid; grid-template-columns: repeat(6, 22px); gap: 6px; justify-content: start; }
 #nuancier vl-curseur-couleur[mode="teinte"] { height: 24px; }
 #nuancier .vl-teintes { height: 24px; }
+
+/* ── finitions UI (20/09) : l'encart didactique (mod-didact) — 320 px, image animée à trois temps, titre, phrase ── */
+.vl-didact { position: fixed; z-index: 70; width: 320px; box-sizing: border-box; background: var(--aff-fond); color: var(--aff-texte); border: 1px solid var(--aff-bord); border-radius: 6px; box-shadow: 0 12px 34px rgba(0, 0, 0, .55); overflow: hidden; }
+.vl-didact.hidden { display: none; }
+.vl-didact-anim { display: block; width: 320px; height: 200px; background: var(--aff-canevas); }
+.vl-didact-titre { font-weight: 700; font-size: 13px; padding: 8px 12px 2px; }
+.vl-didact-phrase { font-size: 13px; line-height: 1.45; color: var(--aff-texte); padding: 0 12px 10px; }
+.vl-didact-q { flex: 0 0 18px; width: 18px; height: 18px; min-width: 18px; max-width: 18px; padding: 0; border-radius: 50%; border: 1px solid var(--aff-bord); background: transparent; color: var(--aff-muet); font-size: 11px; line-height: 16px; cursor: help; margin-left: 2px; }
+.vl-didact-q:hover { color: var(--aff-texte); border-color: var(--aff-muet); }
