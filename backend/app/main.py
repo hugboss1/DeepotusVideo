@@ -85,7 +85,7 @@ def _migrate_legacy_data():
 _migrate_legacy_data()
 
 from app.api.routes import router
-from app.config import settings, APP_VERSION
+from app.config import settings, APP_VERSION, APP_HOSTNAME
 from app.services.storage import init_db
 from app.services.news_service import news_daily_loop
 from app.services.marketing import schedule_loop
@@ -203,7 +203,8 @@ if _DEV:
 import urllib.parse as _urlparse
 from starlette.responses import JSONResponse as _JSONResponse
 
-_ALLOWED_ORIGIN_HOSTS = {"127.0.0.1", "localhost", "::1", ""}
+# + l'origine nommée deepotus.localhost (finitions UI, 20/09/2026)
+_ALLOWED_ORIGIN_HOSTS = {"127.0.0.1", "localhost", "::1", "", APP_HOSTNAME}
 
 
 @app.middleware("http")
@@ -543,7 +544,8 @@ app.mount("/emoji-custom", _SFEmojiC(directory=str(_emoji_custom_dir)), name="em
 
 # ── Packaging: serve the built frontend (frontend/dist) from this process.
 # One port, one process, no Node at runtime — the silent launcher just
-# starts uvicorn and opens http://127.0.0.1:8765 in the default browser.
+# starts uvicorn and opens http://deepotus.localhost:8765 in the default
+# browser (scripts/launch-silent.vbs ; *.localhost = loopback, RFC 6761).
 # In dev (no dist or Vite running on 5173) this mount simply isn't hit.
 _dist = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
 if _dist.is_dir() and (_dist / "index.html").is_file():

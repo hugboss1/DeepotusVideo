@@ -70,8 +70,8 @@ def _is_private_host(h: str | None) -> bool:
     """True for hosts that must never be fetched on the user's behalf."""
     import ipaddress as _ipaddr
     h = (h or "").lower()
-    if h in ("localhost", "") or h.endswith(".local"):
-        return True
+    if h in ("localhost", "") or h.endswith(".local") or h.endswith(".localhost"):
+        return True   # *.localhost = boucle locale (RFC 6761), dont deepotus.localhost
     try:
         ip = _ipaddr.ip_address(h)
         return ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved

@@ -66,7 +66,7 @@ def test_cinematic_reference_images_are_guarded():
 @pytest.mark.parametrize("host,private", [
     ("127.0.0.1", True), ("localhost", True), ("192.168.1.1", True),
     ("10.0.0.5", True), ("172.16.0.1", True), ("169.254.169.254", True),
-    ("::1", True), ("printer.local", True), ("", True),
+    ("::1", True), ("printer.local", True), ("", True), ("deepotus.localhost", True),
     ("example.com", False), ("8.8.8.8", False), ("v3.fal.media", False),
 ])
 def test_private_host_detection(host, private):
