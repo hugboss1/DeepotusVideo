@@ -172,7 +172,7 @@ export function initCouleur(VL) {
     hote.className = "hidden";
     hote.innerHTML = `
       <canvas id="nuSV" width="188" height="132" title="Saturation / valeur"></canvas>
-      <input id="nuH" type="range" min="0" max="359" value="0" title="Teinte"/>
+      <vl-curseur-couleur id="nuH" mode="teinte" value="0" title="Teinte"></vl-curseur-couleur>
       <div class="nu-ligne">
         <span class="nu-bloc" id="nuAvant" title="Couleur d'origine"></span>
         <span class="nu-bloc" id="nuApres" title="Nouvelle couleur"></span>

@@ -196,12 +196,7 @@ details[id] > summary.panneau-tete > button { margin-left: auto; }
 }
 #nuancier.hidden { display: none; }
 #nuSV { border-radius: 0; cursor: crosshair; touch-action: none; }
-#nuH { width: 100%; margin: 0; -webkit-appearance: none; height: 12px;
-  border-radius: 0; outline: none;
-  background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00); }
-#nuH::-webkit-slider-thumb { -webkit-appearance: none; width: 14px;
-  height: 14px; border-radius: 50%; background: var(--aff-texte);
-  border: 2px solid var(--aff-barre); }
+/* #nuH : la teinte est un <vl-curseur-couleur mode="teinte"> (mod-controles) depuis le 20/09 */
 .nu-ligne { display: flex; align-items: center; gap: 6px; }
 .nu-bloc { width: 26px; height: 22px; border-radius: 0;
   border: 1px solid var(--aff-bord); }
@@ -852,3 +847,34 @@ body[data-outil="noeuds"] #canvasHost [data-objet] { cursor: crosshair; }
 .imp-hauteurs label { flex-direction: row !important; align-items: center; gap: 6px; }
 .imp-hauteurs input { width: 60px; }
 .imp-pastille { display: inline-block; width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--aff-bord); }
+
+/* ── finitions UI (20/09) : contrôles maison — curseur, curseur de couleur, bascule, rangée égale ── */
+vl-curseur { display: inline-flex; align-items: center; gap: 8px; flex: 1 1 60px; min-width: 0; height: var(--pan-champ-h); --vl-f: 0; outline: none; }
+vl-curseur[disabled] { opacity: .5; pointer-events: none; }
+.vl-curseur-piste { position: relative; flex: 1 1 auto; height: var(--pan-champ-h); cursor: pointer; touch-action: none; }
+.vl-curseur-piste::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 4px; margin-top: -2px; border-radius: 2px; background: var(--aff-bord); }
+.vl-curseur-plein { position: absolute; left: 0; top: 50%; height: 4px; margin-top: -2px; border-radius: 2px; width: calc(var(--vl-f) * 100%); background: var(--aff-sel); }
+.vl-curseur-poignee { position: absolute; top: 50%; left: calc(var(--vl-f) * 100%); width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: var(--aff-texte); border: 2px solid var(--aff-fond); box-shadow: 0 0 0 1px var(--aff-bord); }
+vl-curseur:focus-visible .vl-curseur-poignee { box-shadow: 0 0 0 2px var(--pan-bord-focus); }
+#panneauCalques .ap-ligne vl-curseur .vl-curseur-val, vl-curseur .vl-curseur-val { flex: 0 0 44px; width: 44px; height: var(--pan-champ-h); text-align: center; font-variant-numeric: tabular-nums; background: var(--pan-fond); color: var(--pan-texte); border: 1px solid var(--pan-bord); border-radius: 6px; font-size: 12px; padding: 0 4px; }
+vl-curseur-couleur { display: inline-flex; align-items: center; height: var(--pan-champ-h); --vl-couleur: transparent; --vl-f: 0; flex: 0 0 auto; position: relative; }
+vl-curseur-couleur[mode="teinte"] { flex: 1 1 60px; width: 100%; }
+.vl-teintes { flex: 1 1 auto; height: var(--pan-champ-h); position: relative; cursor: pointer; touch-action: none; }
+.vl-teintes::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 10px; margin-top: -5px; border-radius: 5px; background: linear-gradient(to right, hsl(0 100% 50%), hsl(60 100% 50%), hsl(120 100% 50%), hsl(180 100% 50%), hsl(240 100% 50%), hsl(300 100% 50%), hsl(360 100% 50%)); }
+.vl-teintes .vl-curseur-poignee { background: var(--vl-couleur); }
+.vl-couleur-pastille { display: inline-block; width: var(--pan-champ-h); height: var(--pan-champ-h); border-radius: 6px; border: 1px solid var(--pan-bord); background: var(--vl-couleur); cursor: pointer; box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
+vl-curseur-couleur.vide .vl-couleur-pastille { background: repeating-conic-gradient(var(--aff-bord) 0 25%, var(--aff-champ) 0 50%) 0 0 / 8px 8px; }
+.vl-couleur-natif { position: absolute; width: 0; height: 0; opacity: 0; pointer-events: none; border: 0; padding: 0; }
+vl-bascule { display: inline-flex; align-items: center; height: var(--pan-champ-h); cursor: pointer; outline: none; flex: 0 0 auto; }
+.vl-bascule-piste { position: relative; width: 34px; height: 18px; border-radius: 9px; background: var(--aff-bord); transition: background .12s; }
+.vl-bascule-bouton { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--aff-texte); transition: left .12s; }
+vl-bascule[checked] .vl-bascule-piste { background: var(--aff-sel); }
+vl-bascule[checked] .vl-bascule-bouton { left: 18px; }
+vl-bascule:focus-visible .vl-bascule-piste { box-shadow: 0 0 0 2px var(--pan-bord-focus); }
+vl-bascule[disabled] { opacity: .5; pointer-events: none; }
+#panneauCalques .ap-ligne > label:has(vl-bascule) { gap: 8px; }
+.vl-rangee { display: flex; gap: var(--pan-gap); min-height: var(--pan-champ-h); }
+#panneauCalques .vl-rangee > button { flex: 1 1 0; min-width: 0; max-width: none; height: var(--pan-champ-h); padding: 0 6px; border-radius: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#panneauCalques .px-palette { display: grid; grid-template-columns: repeat(6, 22px); gap: 6px; justify-content: start; }
+#nuancier vl-curseur-couleur[mode="teinte"] { height: 24px; }
+#nuancier .vl-teintes { height: 24px; }

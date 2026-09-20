@@ -499,23 +499,23 @@ export function initPixelUI(VL) {
           <div class="ap-ligne"><span></span><button id="pxDesignerAutre" ${sel && sel.id !== m.id && !P.some((q) => q.modele === sel.id) ? "" : "disabled"} title="L'image sélectionnée devient un modèle DE PLUS (une nouvelle paire)">＋ modèle depuis la sélection</button></div>
           <div class="ap-ligne"><span>Cellule</span>${num("pxCellule", cc.cellule, 'min="1" title="Pixels du modèle par pixel d\'art"')}<span style="width:auto">px →</span>${num("pxCible", cc.cible_w, 'min="1" title="Largeur cible en pixels d\'art (la hauteur suit)"')}<span style="width:auto">× ${cc.cible_h}</span></div>
           <div class="ap-ligne"><span></span>${[4, 8, 16, 32, 64].map((v) => `<button class="pxCelluleRapide" data-c="${v}" ${v === cc.cellule ? 'class="actif"' : ""}>${v}</button>`).join("")}</div>
-          <div class="ap-ligne"><label title="Pose aussi la taille de tuile d'art (grille pixel)"><input type="checkbox" id="pxTuileArtOn"/> tuile =</label>${num("pxTuileArt", p.cibleArt, 'min="1" style="width:52px"')}<button id="pxCreerCalque" ${cp ? "disabled" : ""} title="Une image transparente ${cc.cible_w}×${cc.cible_h} posée exactement sur le modèle, dans un calque « pixel »">Créer le calque pixel ${cc.cible_w}×${cc.cible_h}</button></div>
+          <div class="ap-ligne"><label title="Pose aussi la taille de tuile d'art (grille pixel)"><vl-bascule id="pxTuileArtOn"></vl-bascule> tuile =</label>${num("pxTuileArt", p.cibleArt, 'min="1" style="width:52px"')}<button id="pxCreerCalque" ${cp ? "disabled" : ""} title="Une image transparente ${cc.cible_w}×${cc.cible_h} posée exactement sur le modèle, dans un calque « pixel »">Créer le calque pixel ${cc.cible_w}×${cc.cible_h}</button></div>
           <div class="ap-ligne"><button id="pxRemplir" ${o && cp && o.id === cp.id ? "" : "disabled"} title="Remplit TOUT le calque pixel depuis le modèle par le mode de pipette courant (annulable)">Remplir depuis le modèle</button>
-            <label title="Chaque cellule ramenée à la swatch la plus proche"><input type="checkbox" id="pxRamener"${p.ramenerSwatches ? " checked" : ""}/> → swatches</label><button id="pxModeleRetirer" title="Le modèle redevient une image ordinaire">Retirer</button></div>
+            <label title="Chaque cellule ramenée à la swatch la plus proche"><vl-bascule id="pxRamener"${p.ramenerSwatches ? " checked" : ""}></vl-bascule> → swatches</label><button id="pxModeleRetirer" title="Le modèle redevient une image ordinaire">Retirer</button></div>
         </details>`; })()}
       <div class="ap-ligne"><span>Image</span>${o ? `<i class="img-src" id="pxNom" title="${o.href}">${o.href} · ${t.w}×${t.h}${o.rev ? ` · rév. ${o.rev}` : ""}</i>`
         : `<button id="pxEditer" ${sel ? "" : "disabled"} title="Charge les pixels de l'image sélectionnée">Éditer les pixels</button>`}</div>
       ${o ? `<div class="ap-ligne"><span></span><button id="pxAnnuler" title="Dépile le journal raster du serveur (dix états)">↶ Annuler pixels</button><button id="pxFermer" title="Quitte l'édition (les pixels sont déjà sauvés)">Terminer</button></div>
       <div class="ap-ligne"><span>Export</span><select id="pxExpK" title="Échelle d'export (plus proche voisin)"><option value="1">×1</option><option value="2">×2</option><option value="4" selected>×4</option><option value="8">×8</option><option value="16">×16</option></select><button id="pxExpPng" title="Télécharge l'image éditée agrandie au plus proche voisin">⬇ PNG ×N</button></div>` : ""}
-      <div class="ap-ligne"><span>Couleur</span><input type="color" id="pxCouleur" value="${p.couleur}"/>
-        <span style="width:auto" title="Secondaire : clic droit ; ∅ = transparente = gomme">2ᵉ</span><input type="color" id="pxSecondaire" value="${p.secondaire || "#FFFFFF"}"${p.secondaire ? "" : ' class="vide"'}/><button id="pxSecVider" title="Secondaire transparente (le clic droit gomme)">∅</button>
-        <span style="width:auto">rayon</span>${num("pxRayon", p.rayon, 'min="0.5" step="0.5" title="Rayon du pinceau, de la gomme, du clonage (px natifs)"')}</div>
-      <div class="ap-ligne"><span>Dureté</span><input type="range" id="pxDurete" min="0" max="1" step="0.05" value="${p.durete}" title="1 = bord net, 0 = dégradé jusqu'au centre"/></div>
-      <div class="ap-ligne"><span>Tolér.</span>${num("pxTol", p.tolerance, 'min="0" max="255" title="Seau et baguette : écart de couleur admis"')}
-        <label title="Le seau remplit TOUS les pixels semblables, contigus ou non"><input type="checkbox" id="pxGlobal"${p.global ? " checked" : ""}/> global</label></div>
+      <div class="ap-ligne"><span>Couleur</span><vl-curseur-couleur id="pxCouleur" value="${p.couleur}"></vl-curseur-couleur>
+        <span style="width:auto" title="Secondaire : clic droit ; ∅ = transparente = gomme">2ᵉ</span><vl-curseur-couleur id="pxSecondaire" value="${p.secondaire || "#FFFFFF"}"${p.secondaire ? "" : ' class="vide"'}></vl-curseur-couleur><button id="pxSecVider" title="Secondaire transparente (le clic droit gomme)">∅</button>
+        <span style="width:auto">rayon</span><vl-curseur id="pxRayon" min="0.5" max="64" step="0.5" value="${p.rayon}" title="Rayon du pinceau, de la gomme, du clonage (px natifs)"></vl-curseur></div>
+      <div class="ap-ligne"><span>Dureté</span><vl-curseur id="pxDurete" min="0" max="1" step="0.05" value="${p.durete}" title="1 = bord net, 0 = dégradé jusqu'au centre"></vl-curseur></div>
+      <div class="ap-ligne"><span>Tolér.</span><vl-curseur id="pxTol" min="0" max="255" step="1" value="${p.tolerance}" title="Seau et baguette : écart de couleur admis"></vl-curseur>
+        <label title="Le seau remplit TOUS les pixels semblables, contigus ou non"><vl-bascule id="pxGlobal"${p.global ? " checked" : ""}></vl-bascule> global</label></div>
       <details open><summary class="px-tete">Sélection${bb ? ` · ${bb.w}×${bb.h}` : " · aucune"}</summary>
         <div class="ap-ligne"><span></span><i class="px-note">tout, aucune, inverser, croître, contracter, par couleur : menu des outils de sélection</i></div>
-        <div class="ap-ligne"><button id="pxMasqueCalque" ${p.masque ? "" : "disabled"} title="Le masque devient la transparence du calque image (alpha ← min)">Masque de calque</button>
+        <div class="vl-rangee"><button id="pxMasqueCalque" ${p.masque ? "" : "disabled"} title="Le masque devient la transparence du calque image (alpha ← min)">Masque de calque</button>
           <button id="pxVersVecteur" ${p.masque ? "" : "disabled"} title="Extrait la sélection en image posée à sa place, puis ouvre Vectoriser">→ vecteur</button></div>
       </details>
       <details><summary class="px-tete">Ajustements</summary>
@@ -523,19 +523,19 @@ export function initPixelUI(VL) {
         <div class="ap-ligne"><span>Courbe</span><span style="width:auto">128 →</span>${num("pxCourbe", 128, 'min="0" max="255" title="Sortie du point de contrôle du milieu"')}<button id="pxCourbes" ${t ? "" : "disabled"}>OK</button></div>
         <div class="ap-ligne"><span>HSL</span>${num("pxH", 0, 'min="-180" max="180" title="Teinte (°)"')}${num("pxS", 0, 'min="-100" max="100" title="Saturation (%)"')}${num("pxL", 0, 'min="-100" max="100" title="Luminosité (%)"')}<button id="pxHsl" ${t ? "" : "disabled"}>OK</button></div>
         <div class="ap-ligne"><button id="pxNB" ${t ? "" : "disabled"}>Noir &amp; blanc</button><span style="width:auto">seuil</span>${num("pxSeuilV", 128, 'min="0" max="255"')}<button id="pxSeuil" ${t ? "" : "disabled"}>OK</button></div>
-        <div class="ap-ligne"><span>Contour</span>${num("pxContourE", 1, 'min="1" max="4" title="Épaisseur du contour sombre (px)"')}<button id="pxContour" ${t ? "" : "disabled"} title="Ajoute un contour sombre autour de l'alpha (couleur secondaire, sinon #101010) — True Pixel « Outline / Dark Edges »">Contour sombre</button></div>
-        <div class="ap-ligne"><span>Accent.</span>${num("pxAccF", 1, 'min="0.1" max="2" step="0.1" title="Force de l\'accentuation des bords (masque flou)"')}<button id="pxAcc" ${t ? "" : "disabled"} title="Accentue les bords (True Pixel « Edge Enhance »)">Accentuer</button></div>
-        <div class="ap-ligne"><span>Flou</span>${num("pxFlouR", 2, 'min="1" max="50" title="Rayon (px)"')}<button id="pxFlou" ${t ? "" : "disabled"}>OK</button></div>
+        <div class="ap-ligne"><span>Contour</span><vl-curseur id="pxContourE" min="1" max="4" step="1" value="1" title="Épaisseur du contour sombre (px)"></vl-curseur><button id="pxContour" ${t ? "" : "disabled"} title="Ajoute un contour sombre autour de l'alpha (couleur secondaire, sinon #101010) — True Pixel « Outline / Dark Edges »">Contour sombre</button></div>
+        <div class="ap-ligne"><span>Accent.</span><vl-curseur id="pxAccF" min="0.1" max="2" step="0.1" value="1" title="Force de l\'accentuation des bords (masque flou)"></vl-curseur><button id="pxAcc" ${t ? "" : "disabled"} title="Accentue les bords (True Pixel « Edge Enhance »)">Accentuer</button></div>
+        <div class="ap-ligne"><span>Flou</span><vl-curseur id="pxFlouR" min="1" max="50" step="1" value="2" title="Rayon (px)"></vl-curseur><button id="pxFlou" ${t ? "" : "disabled"}>OK</button></div>
       </details>
       <details ${pa.tuile ? "open" : ""}><summary class="px-tete">Pixel-art</summary>
         <div class="ap-ligne"><span>Tuile</span>${num("pxTuileW", tuile.w, 'min="1" title="Largeur d\'une tuile (px)"')}<span style="width:auto">×</span>${num("pxTuileH", tuile.h, 'min="1"')}
           <button id="pxTuileOK" title="Pose les unités de tuile sur le document (rendu au plus proche voisin)">${pa.tuile ? "↻" : "OK"}</button></div>
-        <div class="ap-ligne"><label><input type="checkbox" id="pxGrille"${p.grille ? " checked" : ""}/> grille pixel</label>
-          <label title="Tuile isométrique 2:1 : grille en losange, peinture bornée au losange, raccord en pavage iso"><input type="checkbox" id="pxIso"${pa.iso ? " checked" : ""}/> iso 2:1</label>
-          <label title="Les gestes se répètent en miroir"><input type="checkbox" id="pxSymH"${s.h ? " checked" : ""}/> sym. H</label>
-          <label><input type="checkbox" id="pxSymV"${s.v ? " checked" : ""}/> V</label></div>
-        <div class="ap-ligne"><span>Palette</span>${num("pxPalN", (pa.palette || []).length || 8, 'min="2" max="64" title="Nombre de couleurs à extraire"')}
-          <button id="pxPalExtraire" ${t ? "" : "disabled"} title="Palette indexée par median cut, sauvée avec le document">Extraire</button>
+        <div class="ap-ligne"><label><vl-bascule id="pxGrille"${p.grille ? " checked" : ""}></vl-bascule> grille pixel</label>
+          <label title="Tuile isométrique 2:1 : grille en losange, peinture bornée au losange, raccord en pavage iso"><vl-bascule id="pxIso"${pa.iso ? " checked" : ""}></vl-bascule> iso 2:1</label>
+          <label title="Les gestes se répètent en miroir"><vl-bascule id="pxSymH"${s.h ? " checked" : ""}></vl-bascule> sym. H</label>
+          <label><vl-bascule id="pxSymV"${s.v ? " checked" : ""}></vl-bascule> V</label></div>
+        <div class="ap-ligne"><span>Palette</span>${num("pxPalN", (pa.palette || []).length || 8, 'min="2" max="64" title="Nombre de couleurs à extraire"')}<span style="width:auto">couleurs</span></div>
+        <div class="vl-rangee"><button id="pxPalExtraire" ${t ? "" : "disabled"} title="Palette indexée par median cut, sauvée avec le document">Extraire</button>
           <button id="pxQuantifier" ${t && pa.palette ? "" : "disabled"} title="Ramène chaque pixel à la couleur de palette la plus proche">Quantifier</button></div>
         <div class="ap-ligne"><span>Préréglage</span><select id="pxPreset" title="Palettes nommées partagées avec le Spritelab et le Tilelab — remplace les swatches"><option value="">choisir…</option>${PALETTES.map((q) => `<option value="${q.id}">${q.nom} (${q.couleurs.length})</option>`).join("")}</select></div>
         <div class="ap-ligne"><span>Swatches</span><button id="pxSwatchPlus" title="Ajoute la couleur courante aux swatches">+ courante</button><button id="pxPalModele" ${modeleObjet() ? "" : "disabled"} title="Extrait N couleurs DU MODÈLE (median cut)">Palette depuis le modèle</button></div>
@@ -546,9 +546,9 @@ export function initPixelUI(VL) {
           <select id="pxRastPal" title="Palette appliquée après la réduction"><option value="aucune">libre</option><option value="doc"${pa.palette ? "" : " disabled"}>palette du doc</option><option value="extraire">extraire N</option></select>
           <select id="pxRastDither" title="Tramage"><option value="aucun">sans tramage</option><option value="ordonne">ordonné</option><option value="floyd">Floyd-Steinberg</option></select></div>
         <div class="ap-ligne"><span></span><button id="pxRasteriser" ${t ? "" : "disabled"} title="Une image générée (Bibliothèque → Image) devient un calque pixel éditable : réduction au plus proche voisin, palette, tramage — annulable">Rastériser cette image</button></div>
-        <div class="ap-ligne"><button id="pxPixeliser" ${t ? "" : "disabled"} title="Réduit l'image à la largeur de tuile, au plus proche voisin">Pixeliser l'image</button>
+        <div class="vl-rangee"><button id="pxPixeliser" ${t ? "" : "disabled"} title="Réduit l'image à la largeur de tuile, au plus proche voisin">Pixeliser l'image</button>
           <button id="pxPixeliserVec" ${etat.selection.length && !o ? "" : "disabled"} title="Rastérise la sélection vectorielle en une tuile (plus proche voisin) posée à sa place">Pixeliser la sélection</button></div>
-        <div class="ap-ligne"><button id="pxRaccord" ${t ? "" : "disabled"} title="${pa.iso ? "Pavage iso ×9 (décalages ±w/2, ±h/2) et score de raccord" : "Mosaïque 3×3 et score de raccord (métrique du Tilelab)"}">Raccord ${pa.iso ? "iso ×9" : "3×3"}</button><span id="pxScore" style="width:auto"></span></div>
+        <div class="vl-rangee"><button id="pxRaccord" ${t ? "" : "disabled"} title="${pa.iso ? "Pavage iso ×9 (décalages ±w/2, ±h/2) et score de raccord" : "Mosaïque 3×3 et score de raccord (métrique du Tilelab)"}">Raccord ${pa.iso ? "iso ×9" : "3×3"}</button><span id="pxScore" style="width:auto"></span></div>
         <canvas id="pxRaccordCv" class="px-raccord" hidden></canvas>
         <div class="ap-ligne"><span>Feuille</span>${num("pxCols", 8, 'min="1" title="Colonnes de la feuille de tuiles"')}
           <button id="pxFeuille" title="Toutes les images du document (même taille) → PNG + index JSON téléchargés">PNG + JSON</button></div>
@@ -556,14 +556,14 @@ export function initPixelUI(VL) {
       <details open><summary class="px-tete">Ligne de temps · ${cadres.length} cadre(s)</summary>
         <div id="pxTimeline" class="px-timeline">${cadres.length ? cadres.map((c, i) => `<canvas class="px-vignette${o && c.id === o.id ? " actif" : ""}" data-id="${c.id}" width="40" height="40" title="cadre ${i + 1} — cliquer pour l'éditer"></canvas>`).join("") : `<i class="px-note">aucun cadre — « ＋ Dupliquer » fait de l'image éditée le cadre 1</i>`}</div>
         <div class="ap-ligne"><button id="pxPlay" ${cadres.length > 1 ? "" : "disabled"} title="Lecture / pause (Entrée)">${lecture.playing ? "⏸" : "▶"}</button>
-          <label title="Boucler"><input type="checkbox" id="pxLoop"${lecture.loop ? " checked" : ""}/> boucle</label><span style="width:auto">FPS</span>${num("pxFps", p.fps, 'min="1" max="60"')}
+          <label title="Boucler"><vl-bascule id="pxLoop"${lecture.loop ? " checked" : ""}></vl-bascule> boucle</label><span style="width:auto">FPS</span><vl-curseur id="pxFps" min="1" max="60" step="1" value="${p.fps}" title="Images par seconde"></vl-curseur>
           <canvas id="pxLecture" class="px-lecture" width="48" height="48"></canvas></div>
-        <div class="ap-ligne"><button id="pxCadreNouveau" ${o ? "" : "disabled"} title="Copie le cadre édité juste après lui">＋ Dupliquer</button>
+        <div class="vl-rangee"><button id="pxCadreNouveau" ${o ? "" : "disabled"} title="Copie le cadre édité juste après lui">＋ Dupliquer</button>
           <button id="pxCadreVide" ${o ? "" : "disabled"} title="Un cadre transparent juste après le courant">＋ Vide</button>
           <button id="pxCadreSuppr" ${o && cadres.length > 1 && cadres.some((c) => c.id === o.id) ? "" : "disabled"} title="Supprime le cadre édité (annulable)">✕</button></div>
-        <div class="ap-ligne"><label title="Rouge = cadre précédent, bleu = suivant, en transparence"><input type="checkbox" id="pxPelure"${p.pelure ? " checked" : ""}/> pelure</label>
+        <div class="ap-ligne"><label title="Rouge = cadre précédent, bleu = suivant, en transparence"><vl-bascule id="pxPelure"${p.pelure ? " checked" : ""}></vl-bascule> pelure</label>
           <button id="pxBande" ${cadres.length ? "" : "disabled"} title="Les cadres côte à côte → PNG">Bande PNG</button></div>
-        <div class="ap-ligne"><button id="pxTilelab" ${t ? "" : "disabled"} title="Dépose le PNG dans la Bibliothèque (source vectorlab) et ouvre le Tilelab">→ Tilelab</button>
+        <div class="vl-rangee"><button id="pxTilelab" ${t ? "" : "disabled"} title="Dépose le PNG dans la Bibliothèque (source vectorlab) et ouvre le Tilelab">→ Tilelab</button>
           <button id="pxSpritelab" ${t ? "" : "disabled"} title="Dépose le PNG dans la Bibliothèque et ouvre le Spritelab">→ Spritelab</button></div>
       </details>`;
     lier();

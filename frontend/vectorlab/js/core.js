@@ -46,6 +46,7 @@ import { initImage } from "./mod-image.js";
 import { initTrace } from "./mod-trace.js";
 import { initBrouillon } from "./mod-brouillon.js";
 import { initDialogue } from "./mod-dialogue.js";
+import { initControles } from "./mod-controles.js";
 
 const $ = (s) => document.querySelector(s);
 const api = {
@@ -768,6 +769,7 @@ initNoeudApercu(VL); // R12 : l'aperçu des gestes de nœud (un cadre rAF, sans 
 initExport(VL);
 initVitrail(VL);
 initDialogue(VL);   // finitions UI : VL.dialogue AVANT tout appelant (biblio, calques, brouillon…)
+initControles(VL);  // finitions UI : <vl-curseur> / <vl-bascule> / <vl-curseur-couleur> définis AVANT tout rendu de panneau
 initBiblio(VL);
 initIA(VL);        // le dialogue IA du canevas — après initOutils (surOutil)
 // lot B : APRÈS initOutils — mod-tools pose surTouche/surOutil sans chaîner,

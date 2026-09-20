@@ -142,9 +142,8 @@ export function initStyle(VL) {
           </option>`).join("")}</select>
       </div>
       <div class="ap-ligne"><span>Opacité</span>
-        <input type="range" id="apOpacite" min="0" max="100"
-               value="${Math.round((s.opacite ?? 1) * 100)}"/>
-        <b id="apOpaciteVal">${Math.round((s.opacite ?? 1) * 100)}</b>
+        <vl-curseur id="apOpacite" min="0" max="100" step="1"
+               value="${Math.round((s.opacite ?? 1) * 100)}"></vl-curseur>
       </div>
       <div class="ap-ligne"><span>Incliner</span>
         <input type="number" id="apKx" step="1" value="0" title="Inclinaison horizontale skewX (°)"/>
@@ -262,8 +261,6 @@ export function initStyle(VL) {
     $("#apJoint").addEventListener("change",
       (e) => appliquer({ joint: e.target.value === "round"
                                 ? null : e.target.value }));
-    $("#apOpacite").addEventListener("input",
-      (e) => { $("#apOpaciteVal").textContent = e.target.value; });
     $("#apOpacite").addEventListener("change",
       (e) => appliquer({ opacite: +e.target.value === 100
                                   ? null : +e.target.value / 100 }));
