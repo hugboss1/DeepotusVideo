@@ -31,17 +31,29 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 21/09/2026 (D-11, la plage I/O) : 1332 lignes, soit DIX
-de plus que les 1322 du tour D-0. SIX que la boucle sur `P.PATCHES` emet
-toute seule pour les trois sections neuves R1, R2 et R3 (deux chacune :
-`_remplace` et `couche_ne_cite_pas_l_ancre_de_` — aucune `_ancre_consommee`,
-les trois remplacements REPRENNENT leur ancre), et QUATRE nommees ici :
-`D11_la_plage_part_avec_la_sauvegarde` et `D11_la_plage_revient_avec_le_projet`
-(les sections « R4 » et « R5 » du plan sont REPLIEES dans R_M6 et R_M7 —
-leurs ancres sont des textes que ces remplacements POSENT, compte 0 dans
-.bak_montage, mesure du 21/09/2026 : une section a part aurait abandonne au
-premier `--check`), `D11_la_bande_est_montee_dans_la_regle_et_la_regle_est_positionnee`
-et `D11_la_barre_rend_null_sans_plage_valide`.
+COMPTE DE REFERENCE, 21/09/2026 (D-11, revue qualite de la tache 4) : 1339
+lignes, soit SEPT de plus que les 1332 du premier tour D-11. Les ONZE lignes
+nommees `D11_*` tiennent desormais tout le lot :
+  · la persistance — `D11_la_plage_part_avec_la_sauvegarde` et
+    `D11_la_plage_revient_avec_le_projet` (les sections « R4 » et « R5 » du
+    plan sont REPLIEES dans R_M6 et R_M7 : leurs ancres sont des textes que
+    ces remplacements POSENT, compte 0 dans .bak_montage, mesure du
+    21/09/2026 — une section a part aurait abandonne au premier `--check`) ;
+  · la bande sur la regle — `..._est_montee_dans_la_regle_et_la_regle_est_positionnee`,
+    `..._rend_null_sans_plage_valide`, `..._est_bornee_a_la_regle` (la forme),
+    plus les DEUX cas JOUES sous node avec le stub JSX,
+    `D11_une_plage_plus_longue_que_la_duree_tient_dans_la_regle` et
+    `D11_une_entree_hors_champ_ne_rend_pas_une_bande_a_l_envers` ;
+  · la sortie tot de R2 — `D11_une_plage_inchangee_ne_pousse_ni_historique_ni_dirty`
+    et `D11_la_plage_absente_du_projet_de_depart_vaut_null` (le projet de
+    DEPART est `useState({demo:!0,...})`, SANS cle `range` : sans le repli
+    `||null`, X sur une plage vide au demarrage poussait l'historique) ;
+  · les notes de demi-plage — `D11_une_demi_plage_est_dite_par_une_note` ;
+  · le partage des options de coupe — `D11_les_options_de_coupe_ne_sont_ecrites_qu_une_fois`.
+SIX AUTRES lignes viennent de la boucle sur `P.PATCHES`, qui les emet toute
+seule pour les trois sections neuves R1, R2 et R3 (deux chacune : `_remplace`
+et `couche_ne_cite_pas_l_ancre_de_` — aucune `_ancre_consommee`, les trois
+remplacements REPRENNENT leur ancre).
 DEUX LIGNES PRE-EXISTANTES REMESUREES, pas relachees :
   · `M12_utilise_DzTracks_pas_DzMontage` comptait UN `DzTracks.rippleCut` ;
     il y en a DEUX depuis R2 (« Maj+X » coupe la plage sur toutes les
@@ -51,9 +63,22 @@ DEUX LIGNES PRE-EXISTANTES REMESUREES, pas relachees :
     range_clear, range_cut) et la table en porte 37. La ligne voisine
     `tb8_aucune_combo_par_defaut_n_est_prise_deux_fois` n'a PAS bouge : c'est
     elle qui mesure que I, U, X et Maj+X ne volent rien.
-MUTATION APPLIQUEE le 21/09/2026 : `.dzsvm .svm-ruler{position:relative}`
-renomme dans montage.css -> `D11_la_bande_est_montee_dans_la_regle...` rougit
-(`css_ruler=0`), 1331/1, et le banc revient a 1332/0 la feuille restauree.
+MUTATION APPLIQUEE le 21/09/2026 (revue) : la garde `0 <= a` de
+`montage_service._save_record` relachee en `a < b` ->
+`d11_une_entree_negative_n_est_pas_stockee` de test_montage_projets.py rougit
+(`range={'in': -1.0, 'out': 2.0}`), 143/1 ; garde restauree, 144/0.
+
+COMPTE PRECEDENT, 21/09/2026 (D-11, premier tour) : 1332 lignes, soit DIX de
+plus que les 1322 du tour D-0 — SIX de la boucle sur `P.PATCHES` (R1, R2, R3)
+et QUATRE nommees. La revue qualite en a ajoute SEPT : les deux cas joues de
+la bande, `D11_la_plage_absente_du_projet_de_depart_vaut_null` (fenetre
+`undefined` REELLE), `D11_une_demi_plage_est_dite_par_une_note`,
+`D11_la_bande_est_bornee_a_la_regle`,
+`D11_les_options_de_coupe_ne_sont_ecrites_qu_une_fois` et
+`D11_une_plage_inchangee_ne_pousse_ni_historique_ni_dirty`.
+MUTATION DE CE TOUR-LA : `.dzsvm .svm-ruler{position:relative}` renomme dans
+montage.css -> `D11_la_bande_est_montee_dans_la_regle...` rougit
+(`css_ruler=0`), 1331/1, et le banc revenait a 1332/0 la feuille restauree.
 
 COMPTE PRECEDENT, 21/09/2026 (D-0, troisieme tour — corrections de banc de
 la revue qualite) : 1322 lignes, soit DEUX de plus que les 1320 du second
@@ -619,21 +644,46 @@ check("D11_la_bande_est_bornee_a_la_regle",
 # la comparaison par reference vient AVANT le premier `pushHistory()` de la
 # branche. Mesuree sur le remplacement ET sur le bundle livre -- un pin sur le
 # seul `P.R_R2` benirait une section que la chaine n'aurait pas posee.
-_R2IN = P.R_R2[P.R_R2.index('if(id==="range_in"'):
-               P.R_R2.index('if(id==="range_cut"')]
-_R2ID = "dzNx===(dzProjRef.current&&dzProjRef.current.range)"
+# ROUGIR, PAS MOURIR (faute n6). Les bornes de la tranche sont cherchees par
+# `find()`, pas par `index()` : au niveau module, un `index()` sur un fragment
+# renomme LEVE et emporte les ~1330 autres lignes du banc avant leur premier
+# mot. « Les deux bornes ont ete trouvees » devient donc une CONDITION du
+# check, comme chez les voisines, et la tranche retombe sur la chaine vide.
+_R2A, _R2B = 'if(id==="range_in"', 'if(id==="range_cut"'
+_i0, _i1 = P.R_R2.find(_R2A), P.R_R2.find(_R2B)
+_R2IN = P.R_R2[_i0:_i1] if 0 <= _i0 < _i1 else ""
+_R2SO = ("if(dzNx===dzCur||(dzNx&&dzCur&&dzNx.in===dzCur.in"
+         "&&dzNx.out===dzCur.out))return;")
+_j0, _j1 = _R2IN.find(_R2SO), _R2IN.find("pushHistory()")
 check("D11_une_plage_inchangee_ne_pousse_ni_historique_ni_dirty",
-      _R2ID in _R2IN and "pushHistory()" in _R2IN
-      and _R2IN.index(_R2ID) < _R2IN.index("pushHistory()")
-      and _R2IN.count("if(" + _R2ID + ")return;") == 1
-      and s.count(nl("if(" + _R2ID + ")return;")) == 1
+      0 <= _i0 < _i1 and 0 <= _j0 < _j1
+      and _R2IN.count(_R2SO) == 1 and s.count(nl(_R2SO)) == 1
       # et la plage n'est PLUS calculee dans le setProj : l'ancienne forme
       # `rangeSet(p.range,...)` y lisait le projet une seconde fois.
       and "rangeSet(p.range," not in s,
-      f'idx_id={_R2IN.index(_R2ID) if _R2ID in _R2IN else -1} '
-      f'idx_push={_R2IN.index("pushHistory()") if "pushHistory()" in _R2IN else -1} '
-      f'bundle={s.count(nl("if(" + _R2ID + ")return;"))} '
+      f'bornes={_i0}/{_i1} sortie_tot={_j0} pushHistory={_j1} '
+      f'section={_R2IN.count(_R2SO)} bundle={s.count(nl(_R2SO))} '
       f'ancienne={s.count("rangeSet(p.range,")}')
+# POINT 1 DE LA REVUE : `undefined` REPLIE SUR `null`, et la fenetre etait
+# REELLE. Le projet de DEPART du bundle est `useState({demo:!0,...})` -- il
+# n'a PAS de cle `range`, et il n'en gagne une que par svmApplyProject (R_M7),
+# c'est-a-dire apres un CHARGEMENT de projet. Sur la demo `proj.range` vaut
+# donc `undefined`, `rangeSet` rend `null`, et `null===undefined` est FAUX :
+# X sur une plage vide AU DEMARRAGE poussait l'historique et allumait
+# « NON ENREGISTRE ». La ligne tient les DEUX faits, le repli et sa raison --
+# le jour ou l'etat de depart gagnerait une cle `range`, elle rougirait et
+# dirait que le repli n'a plus de motif, au lieu de le garder par habitude.
+_DEMO = re.search(r"useState\(\{demo:!0,[^)]{0,240}\}\)", s)
+_DEMO = _DEMO.group(0) if _DEMO else ""
+check("D11_la_plage_absente_du_projet_de_depart_vaut_null",
+      s.count(nl("var dzCur=(dzProjRef.current"
+                 "&&dzProjRef.current.range)||null;")) == 1
+      and "DzTracks.rangeSet(dzCur,dzW,phRef.current," in P.R_R2
+      and "rangeSet(dzProjRef.current&&dzProjRef.current.range," not in s
+      and len(_DEMO) > 0 and "range" not in _DEMO,
+      f'dzCur={s.count(nl("var dzCur=(dzProjRef.current&&dzProjRef.current.range)||null;"))} '
+      f'passe={"DzTracks.rangeSet(dzCur,dzW,phRef.current," in P.R_R2} '
+      f'demo={len(_DEMO)} o, range_dedans={"range" in _DEMO}')
 # M-4 : UNE DEMI-PLAGE SE DIT. Entre I et U la regle est MUETTE -- `DzmRangeBar`
 # rend `null` tant que la plage n'est pas complete (ligne du dessus). Sans
 # note, la premiere frappe n'avait donc aucun retour a l'ecran. Les deux sens
@@ -660,13 +710,14 @@ check("D11_les_options_de_coupe_ne_sont_ecrites_qu_une_fois",
       # le SEUL `{loopTracks:...}` litteral du bundle est celui que rend
       # `dzmCutOpts` lui-meme, DANS la couche : tout autre est un appelant qui
       # a rebati la paire a la main. Mesure du 21/09/2026 : 1 et 1.
-      and s.count("loopTracks:lt") == src.count("loopTracks:lt") == 1
-      and "loopTracks:dzLoop" not in s and "locked:dzLk" not in s
-      and "locked:lk}" not in P.R_M12,
+      # Cette forme GENERALE remplace les trois negations nominatives du
+      # premier jet (`loopTracks:dzLoop`, `locked:dzLk`, `locked:lk}`) : elles
+      # ne nommaient que les deux appelants d'hier, et un TROISIEME les aurait
+      # laissees vertes.
+      and s.count("loopTracks:lt") == src.count("loopTracks:lt") == 1,
       f'decl={src.count("function dzmCutOpts(proj,trackSt){")} '
       f'appels={s.count("DzTracks.cutOpts(")} '
-      f'restes={s.count("loopTracks:lt")}/{src.count("loopTracks:lt")} '
-      f'dzLoop={s.count("loopTracks:dzLoop")}')
+      f'restes={s.count("loopTracks:lt")}/{src.count("loopTracks:lt")}')
 # ── M9c (05/09/2026) : LE « + » N'EST PLUS SOUS LA SURIMPRESSION ────────────
 # Défaut rapporté par l'utilisateur : « sur la piste V1 vidéo, le bouton
 # "ajouter une vidéo" est caché par l'overlay de déplacement lorsque la souris
@@ -5931,6 +5982,19 @@ out.tb8_onglet=TBG(function(){
     T.ToolTab({open:!1}).p.title,
     T.ToolTab({open:!0,tabRef:o}).p.ref===o]});
 
+/* D-11 : LA BANDE DE LA REGLE, JOUEE. Le pin de forme dit que les deux
+   Math.min sont ecrits ; ceci dit ce qu ils CALCULENT. Cas 1 : la plage
+   deborde a droite (out 90 pour une duree de 10) -- l entree tient a 10 %,
+   la largeur est rabotee au reste de la regle. Cas 2 : l entree ELLE-MEME
+   est hors champ (in 20 pour 10) -- gauche collee a 100 %, largeur nulle,
+   jamais une bande a l envers. */
+out.rb_deborde=TBG(function(){
+  var n=T.RangeBar({range:{in:1,out:90},dur:10});
+  return n&&n.p&&n.p.style?[n.p.style.left,n.p.style.width]:"PAS DE STYLE"});
+out.rb_entree_hors_champ=TBG(function(){
+  var n=T.RangeBar({range:{in:20,out:30},dur:10});
+  return n&&n.p&&n.p.style?[n.p.style.left,n.p.style.width]:"PAS DE STYLE"});
+
 console.log(JSON.stringify(out));
 """
 # "use strict" en PROLOGUE du shim : concatene, celui de montage.js n'est
@@ -10948,6 +11012,26 @@ check("tb8_l_onglet_dit_le_raccourci_et_recoit_sa_reference",
           "Ouvrir la barre d'outils de création.",
           True],
       f'{d.get("tb8_onglet")}')
+
+# ── D-11 : LA BANDE DE LA REGLE, JOUEE ───────────────────────────
+# `D11_la_bande_est_bornee_a_la_regle` dit que les deux Math.min sont ECRITS ;
+# ces deux lignes disent ce qu'ils CALCULENT. Une plage est PERSISTEE : elle
+# survit a un raccourcissement de la duree, et `dzmRangeFrom` -- la seule
+# garde du composant -- ne connait pas la duree. Sans le bornage, `left`
+# passait 100 % et la bande sortait de la regle par la droite.
+# Les 88 px sont la GOUTTIERE, la meme soustraction que `phFromEvent`.
+check("D11_une_plage_plus_longue_que_la_duree_tient_dans_la_regle",
+      d.get("rb_deborde") == ["calc(88px + (100% - 88px) * 0.1)",
+                              "calc((100% - 88px) * 0.9)"],
+      f'{d.get("rb_deborde")}')
+# ET L'ENTREE ELLE-MEME HORS CHAMP : gauche collee au bout, largeur NULLE.
+# C'est `Math.min(100-l, ...)` qui le donne -- un simple `Math.min(100, w)`
+# aurait rendu 100 % de large a partir de 100 % de gauche, soit une bande de
+# deux largeurs de regle.
+check("D11_une_entree_hors_champ_ne_rend_pas_une_bande_a_l_envers",
+      d.get("rb_entree_hors_champ") == ["calc(88px + (100% - 88px) * 1)",
+                                        "calc((100% - 88px) * 0)"],
+      f'{d.get("rb_entree_hors_champ")}')
 
 # ── LE DOCK : CE QUE NODE NE JOUE PAS, LU DANS LA SOURCE ──────────────────
 # C'est le seul morceau a hooks du lot. Meme parade qu'aux etapes 4, 5 et 7 :

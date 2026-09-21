@@ -4692,8 +4692,12 @@ function dzmRangeLen(r){
 function DzmRangeBar(o){
   var rg=dzmRangeFrom(o&&o.range),d=Number(o&&o.dur)||1;
   if(!rg)return null;
-  /* BORNÉ À LA RÈGLE. Une plage PERSISTÉE peut survivre à un raccourcissement
-     de la durée : sans ces deux Math.min, la bande débordait la règle à droite. */
+  /* BORNÉ À LA RÈGLE (21/09/2026). Une plage est PERSISTÉE : elle survit à un
+     raccourcissement de la durée, et `rg.out` peut alors dépasser `dur` —
+     `dzmRangeFrom`, qui garde ce composant, ne connaît pas la durée et ne peut
+     donc pas borner à sa place. Sans ces deux Math.min, `left` passait 100 % et
+     la bande débordait la règle à droite. `100-l` pour la largeur : une entrée
+     déjà hors champ laisse une bande de zéro, pas une bande à l'envers. */
   var l=Math.min(100,rg.in/d*100),w=Math.min(100-l,(rg.out-rg.in)/d*100);
   return r.jsx("div",{className:"dzm-range",
     title:"Plage "+rg.in.toFixed(2)+" s → "+rg.out.toFixed(2)+" s — I : entrée, "+

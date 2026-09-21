@@ -64,6 +64,13 @@ out.r_out_avant_in=T.rangeSet({in:6,out:8},"out",4,10);
 /* la plage degeneree : `in` colle a la duree, puis `out` ne peut plus suivre */
 out.r_in_a_dur=T.rangeSet(null,"in",10,10);
 out.r_from_degenere=T.rangeFrom({in:10,out:10});
+/* le projet de DEPART du bundle n a pas de cle `range` : `undefined`, pas
+   `null`. rangeSet doit rendre `null` dans les deux cas, sinon la sortie tot
+   de R2 compare `null` a `undefined` et laisse passer. */
+out.r_undef_clear=T.rangeSet(undefined,"clear",0,10);
+out.r_undef_tete_illisible=T.rangeSet(void 0,"in",NaN,10);
+/* MEME playhead, MEME bout : un objet NEUF, egal en valeurs. */
+out.r_meme_valeur=T.rangeSet({in:3.2,out:null},"in",3.2,10);
 /* [2b] cutOpts : les options de coupe, partagees par R2 et le tiroir Texte */
 /* pistes CHOISIES hors table par defaut (« v9 » n y est pas) : sans cela la
    ligne verdirait sur les defauts, ou A2 est DEJA en boucle. */
@@ -149,6 +156,30 @@ check("range_degeneree_n_est_pas_une_plage",
       "r_from_degenere" in D and D["r_from_degenere"] is None,
       f'"r_from_degenere" in D={"r_from_degenere" in D} '
       f'v={D.get("r_from_degenere")!r}')
+# `undefined` N EST PAS `null`, ET LA FENETRE ETAIT REELLE : le projet de
+# DEPART du bundle est `useState({demo:!0,...})`, SANS cle `range` (mesure du
+# 21/09/2026). Si `rangeSet` rendait `undefined` ici, la sortie tot de R2
+# comparerait `undefined` a `null` -- faux -- et X sur une plage vide au
+# demarrage pousserait l historique. ASSERTIONS NEGATIVES GARDEES, et le `in D`
+# porte VRAIMENT : `JSON.stringify` OMET une cle dont la valeur est
+# `undefined`, donc la cle absente est exactement le mode de panne vise.
+check("range_clear_sur_un_projet_sans_plage_rend_null",
+      "r_undef_clear" in D and D["r_undef_clear"] is None,
+      f'"r_undef_clear" in D={"r_undef_clear" in D} '
+      f'v={D.get("r_undef_clear")!r}')
+check("range_tete_illisible_sur_un_projet_sans_plage_rend_null",
+      "r_undef_tete_illisible" in D and D["r_undef_tete_illisible"] is None,
+      f'"r_undef_tete_illisible" in D={"r_undef_tete_illisible" in D} '
+      f'v={D.get("r_undef_tete_illisible")!r}')
+# I PUIS I AU MEME PLAYHEAD : `rangeSet` construit un objet NEUF a chaque
+# "in" / "out", meme quand la tete n a pas bouge d un pouce. C est la mesure
+# qui JUSTIFIE le second terme de la sortie tot de R2 (egalite de VALEURS) :
+# l identite de reference seule ne pouvait pas voir ce cas. Le banc epingle
+# ici l egalite des valeurs ; la forme du test, elle, est tenue par
+# `D11_une_plage_inchangee_...` du banc bundle.
+check("range_meme_bout_au_meme_playhead_rend_une_plage_egale",
+      D.get("r_meme_valeur") == {"in": 3.2, "out": None},
+      D.get("r_meme_valeur"))
 
 print("\n[2b] cutOpts : les options de coupe, ecrites une seule fois")
 # I-2 : la paire {loopTracks, locked} etait rebatie a l identique dans R_M12

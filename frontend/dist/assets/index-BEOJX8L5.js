@@ -3192,7 +3192,7 @@ function DzMontage(props){
       if(id==="redo"){redo();return}
       if(id==="snap"){setSnap(function(s){return !s});return}
       if(id==="ripple"){setRipple(function(v){return !v});return}
-      if(id==="range_in"||id==="range_out"||id==="range_clear"){var dzW=id.slice(6);var dzNx=DzTracks.rangeSet(dzProjRef.current&&dzProjRef.current.range,dzW,phRef.current,dzProjRef.current&&dzProjRef.current.dur);if(dzNx===(dzProjRef.current&&dzProjRef.current.range))return;pushHistory();setProj(function(p){return Object.assign({},p,{range:dzNx})});setDirty(!0);if(dzNx&&dzNx.in!=null&&dzNx.out==null)fireNote("Entrée à "+dzNx.in.toFixed(2)+" s — U pose la sortie");else if(dzNx&&dzNx.out!=null&&dzNx.in==null)fireNote("Sortie à "+dzNx.out.toFixed(2)+" s — I pose l'entrée");return}
+      if(id==="range_in"||id==="range_out"||id==="range_clear"){var dzW=id.slice(6);var dzCur=(dzProjRef.current&&dzProjRef.current.range)||null;var dzNx=DzTracks.rangeSet(dzCur,dzW,phRef.current,dzProjRef.current&&dzProjRef.current.dur);if(dzNx===dzCur||(dzNx&&dzCur&&dzNx.in===dzCur.in&&dzNx.out===dzCur.out))return;pushHistory();setProj(function(p){return Object.assign({},p,{range:dzNx})});setDirty(!0);if(dzNx&&dzNx.in!=null&&dzNx.out==null)fireNote("Entrée à "+dzNx.in.toFixed(2)+" s — U pose la sortie");else if(dzNx&&dzNx.out!=null&&dzNx.in==null)fireNote("Sortie à "+dzNx.out.toFixed(2)+" s — I pose l'entrée");return}
       if(id==="range_cut"){var dzRg=DzTracks.rangeFrom(dzProjRef.current&&dzProjRef.current.range);if(!dzRg){fireNote("Aucune plage : I pose l'entrée, U la sortie.");return}var dzRc=DzTracks.rippleCut(clipsRef.current,dzRg.in,dzRg.out,DzTracks.cutOpts(dzProjRef.current,trackStRef.current));pushHistory();setClips(dzRc.clips);setProj(function(p){return Object.assign({},p,{range:null})});setDirty(!0);fireNote("Plage "+dzRg.in.toFixed(2)+" → "+dzRg.out.toFixed(2)+" s coupée sur toutes les pistes — "+dzRc.removed.toFixed(2)+" s retirés, la suite remonte.");return}
       if(id==="zoom_in"){zoomApply(zoomPctRef.current*1.25);return}
       if(id==="zoom_out"){zoomApply(zoomPctRef.current/1.25);return}
@@ -17252,8 +17252,12 @@ function dzmRangeLen(r){
 function DzmRangeBar(o){
   var rg=dzmRangeFrom(o&&o.range),d=Number(o&&o.dur)||1;
   if(!rg)return null;
-  /* BORNÉ À LA RÈGLE. Une plage PERSISTÉE peut survivre à un raccourcissement
-     de la durée : sans ces deux Math.min, la bande débordait la règle à droite. */
+  /* BORNÉ À LA RÈGLE (21/09/2026). Une plage est PERSISTÉE : elle survit à un
+     raccourcissement de la durée, et `rg.out` peut alors dépasser `dur` —
+     `dzmRangeFrom`, qui garde ce composant, ne connaît pas la durée et ne peut
+     donc pas borner à sa place. Sans ces deux Math.min, `left` passait 100 % et
+     la bande débordait la règle à droite. `100-l` pour la largeur : une entrée
+     déjà hors champ laisse une bande de zéro, pas une bande à l'envers. */
   var l=Math.min(100,rg.in/d*100),w=Math.min(100-l,(rg.out-rg.in)/d*100);
   return r.jsx("div",{className:"dzm-range",
     title:"Plage "+rg.in.toFixed(2)+" s → "+rg.out.toFixed(2)+" s — I : entrée, "+

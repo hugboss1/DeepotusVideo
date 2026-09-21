@@ -1107,7 +1107,6 @@ check("d11_une_borne_infinie_ne_touche_jamais_le_disque",
       _r.status_code == 200 and _f.get("clips") is not None
       and "range" not in _f and "_illisible" not in _f,
       f'{_r.status_code} {_f.get("range")!r} {_f.get("_illisible")!r}')
-wipe_courant()
 
 # UNE ENTREE NEGATIVE. `0 <= a` est la moitie de la garde que le cas
 # « inversee » ne joue pas : une plage {-1, 2} est bien ORDONNEE, elle passe

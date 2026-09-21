@@ -2439,11 +2439,22 @@ R_R1 = (A_R1 + "\n"
 # passe avant (ordre de PATCHES). `blade()`, juste au-dessus, lit deja
 # `phRef.current`.
 # SORTIE TOT (revue du 21/09/2026). La branche I / U / X calcule D'ABORD la
-# plage suivante, puis la compare PAR REFERENCE a l'ancienne : `dzmRangeSet`
-# rend `range||null` quand rien ne change (tete illisible, `which` inconnu) et
-# `null` sur « clear » -- X sur une plage DEJA vide compare donc null a null
-# et sort, c'est voulu. Sans cette sortie tot, chaque frappe sterile empilait
+# plage suivante, puis la compare a l'ancienne : `dzmRangeSet` rend
+# `range||null` quand rien ne change (tete illisible, `which` inconnu) et
+# `null` sur « clear ». Sans cette sortie tot, chaque frappe sterile empilait
 # un instantane d'historique et allumait « NON ENREGISTRE » pour rien.
+# `dzCur` REPLIE `undefined` SUR `null`, et ce n'est pas une precaution : le
+# projet de DEPART du bundle est `useState({demo:!0,name:"teaser_abyss",...})`
+# -- MESURE du 21/09/2026, il n'a PAS de cle `range`, et il n'en gagne une que
+# par svmApplyProject (R_M7), c'est-a-dire apres un chargement de projet. Sur
+# la demo, `proj.range` vaut donc `undefined` ; `rangeSet` rend `null` ; et
+# `null===undefined` est FAUX. X sur une plage vide au demarrage poussait
+# l'historique et allumait « NON ENREGISTRE » -- exactement le defaut que la
+# sortie tot devait fermer. Compare a `dzCur`, X sort.
+# EGALITE DE VALEURS en second terme : `rangeSet` construit un objet NEUF a
+# chaque "in" / "out", meme quand la tete n'a pas bouge d'un pouce. I puis I
+# au meme playhead rendait deux objets distincts mais IDENTIQUES en valeurs,
+# et l'identite seule ne pouvait pas le voir.
 # UNE DEMI-PLAGE SE DIT (M-4) : apres I seul, ou apres U seul, une note dit
 # quelle touche pose l'autre bout. La bande de la regle, elle, se tait tant
 # que la plage n'est pas COMPLETE (R3) : sans la note, l'utilisateur n'avait
@@ -2459,9 +2470,10 @@ A_R2 = 'if(id==="ripple"){setRipple(function(v){return !v});return}'
 R_R2 = (A_R2 + "\n"
         '      if(id==="range_in"||id==="range_out"||id==="range_clear"){'
         'var dzW=id.slice(6);'
-        'var dzNx=DzTracks.rangeSet(dzProjRef.current&&dzProjRef.current.range,'
-        'dzW,phRef.current,dzProjRef.current&&dzProjRef.current.dur);'
-        'if(dzNx===(dzProjRef.current&&dzProjRef.current.range))return;'
+        'var dzCur=(dzProjRef.current&&dzProjRef.current.range)||null;'
+        'var dzNx=DzTracks.rangeSet(dzCur,dzW,phRef.current,'
+        'dzProjRef.current&&dzProjRef.current.dur);'
+        'if(dzNx===dzCur||(dzNx&&dzCur&&dzNx.in===dzCur.in&&dzNx.out===dzCur.out))return;'
         'pushHistory();setProj(function(p){return Object.assign({},p,{range:dzNx})});'
         'setDirty(!0);'
         'if(dzNx&&dzNx.in!=null&&dzNx.out==null)'
