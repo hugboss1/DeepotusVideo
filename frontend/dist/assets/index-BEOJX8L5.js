@@ -3192,8 +3192,8 @@ function DzMontage(props){
       if(id==="redo"){redo();return}
       if(id==="snap"){setSnap(function(s){return !s});return}
       if(id==="ripple"){setRipple(function(v){return !v});return}
-      if(id==="range_in"||id==="range_out"||id==="range_clear"){pushHistory();var dzW=id.slice(6);setProj(function(p){return Object.assign({},p,{range:DzTracks.rangeSet(p.range,dzW,phRef.current,p.dur)})});setDirty(!0);return}
-      if(id==="range_cut"){var dzRg=DzTracks.rangeFrom(dzProjRef.current&&dzProjRef.current.range);if(!dzRg){fireNote("Aucune plage : I pose l'entrée, U la sortie.");return}var dzLk={};Object.keys(trackStRef.current).forEach(function(k){if(trackStRef.current[k]&&trackStRef.current[k].l)dzLk[k]=!0});var dzLoop=svmTracksOf(dzProjRef.current).filter(function(t){return t.loop}).map(function(t){return t.id});var dzRc=DzTracks.rippleCut(clipsRef.current,dzRg.in,dzRg.out,{loopTracks:dzLoop,locked:dzLk});pushHistory();setClips(dzRc.clips);setProj(function(p){return Object.assign({},p,{range:null})});setDirty(!0);fireNote("Plage "+dzRg.in.toFixed(2)+" → "+dzRg.out.toFixed(2)+" s coupée sur toutes les pistes — "+dzRc.removed.toFixed(2)+" s retirés, la suite remonte.");return}
+      if(id==="range_in"||id==="range_out"||id==="range_clear"){var dzW=id.slice(6);var dzNx=DzTracks.rangeSet(dzProjRef.current&&dzProjRef.current.range,dzW,phRef.current,dzProjRef.current&&dzProjRef.current.dur);if(dzNx===(dzProjRef.current&&dzProjRef.current.range))return;pushHistory();setProj(function(p){return Object.assign({},p,{range:dzNx})});setDirty(!0);if(dzNx&&dzNx.in!=null&&dzNx.out==null)fireNote("Entrée à "+dzNx.in.toFixed(2)+" s — U pose la sortie");else if(dzNx&&dzNx.out!=null&&dzNx.in==null)fireNote("Sortie à "+dzNx.out.toFixed(2)+" s — I pose l'entrée");return}
+      if(id==="range_cut"){var dzRg=DzTracks.rangeFrom(dzProjRef.current&&dzProjRef.current.range);if(!dzRg){fireNote("Aucune plage : I pose l'entrée, U la sortie.");return}var dzRc=DzTracks.rippleCut(clipsRef.current,dzRg.in,dzRg.out,DzTracks.cutOpts(dzProjRef.current,trackStRef.current));pushHistory();setClips(dzRc.clips);setProj(function(p){return Object.assign({},p,{range:null})});setDirty(!0);fireNote("Plage "+dzRg.in.toFixed(2)+" → "+dzRg.out.toFixed(2)+" s coupée sur toutes les pistes — "+dzRc.removed.toFixed(2)+" s retirés, la suite remonte.");return}
       if(id==="zoom_in"){zoomApply(zoomPctRef.current*1.25);return}
       if(id==="zoom_out"){zoomApply(zoomPctRef.current/1.25);return}
       if(id==="zoom100"){zoomApply(100);return}
@@ -5622,17 +5622,14 @@ function DzMontage(props){
           onCut:function(rg,al){
             if(!rg||!rg.length)return;
             var rs=rg.slice().sort(function(u,v){return v[0]-u[0]});
-            var lk={};Object.keys(trackSt||{}).forEach(function(k){
-              if(trackSt[k]&&trackSt[k].l)lk[k]=1});
-            var lt=svmTracksOf(proj).filter(function(t){return t.loop})
-              .map(function(t){return t.id});
+            var dzO=DzTracks.cutOpts(proj,trackSt);
             pushHistory();
             /* les mots calés du tiroir, recollés sur LEUR clip : sans
                eux, fendre un bloc de narration laisserait la phrase
                entière sur les deux moitiés. */
             var cs=DzTracks.withWords(clipsRef.current||[],al),rm=0;
             rs.forEach(function(p){
-              var res=DzTracks.rippleCut(cs,p[0],p[1],{loopTracks:lt,locked:lk});
+              var res=DzTracks.rippleCut(cs,p[0],p[1],dzO);
               cs=res.clips;rm+=res.removed});
             rm=Math.round(rm*1000)/1000;
             /* les mots prêtés ne servaient qu'à répartir le texte :
@@ -5642,7 +5639,7 @@ function DzMontage(props){
               .filter(function(t){return t.kind==="subs"})
               .map(function(t){return t.id})));
             setDirty(!0);
-            var vk=Object.keys(lk);
+            var vk=Object.keys(dzO.locked);
             fireNote(rs.length+" coupe"+(rs.length>1?"s":"")+" — "+
               rm.toFixed(2)+" s retirés. Annuler défait la coupe entièrement. La durée du projet ne bouge pas : la fin de la timeline est maintenant vide, raccourcissez-la si vous voulez."+
               (vk.length?" Pistes verrouillées ("+vk.join(", ").toUpperCase()+") : leurs clips n'ont pas bougé.":""))}}),
@@ -17205,6 +17202,17 @@ function dzmHistApply(p,s){
   for(i=0;i<DZM_HIST_CLES.length;i++){k=DZM_HIST_CLES[i];if(k in s)n[k]=s[k]}
   return n}
 
+/* options de rippleCut depuis l'état des pistes : pistes en boucle (elles
+   ne rippent pas) et pistes verrouillées (elles ne bougent pas). PURE.
+   UN SEUL endroit : la coupe par plage (R2, « Maj+X ») et le tiroir Texte
+   (M12) construisaient la MÊME paire à deux endroits ; deux copies d'une
+   même condition divergent à la première retouche. */
+function dzmCutOpts(proj,trackSt){
+  var lk={},st=trackSt&&typeof trackSt==="object"?trackSt:{};
+  Object.keys(st).forEach(function(k){if(st[k]&&st[k].l)lk[k]=!0});
+  var lt=svmTracksOf(proj).filter(function(t){return t.loop}).map(function(t){return t.id});
+  return {loopTracks:lt,locked:lk}}
+
 /* ── D-11 (21/09/2026) : LA PLAGE D'ENTRÉE / SORTIE ───────────────────────
    `proj.range` = {in, out} (secondes, null si non posé) ou null. Pure :
    `dzmRangeSet(range, which, t, dur)` rend la plage suivante ; "in" après
@@ -17244,8 +17252,10 @@ function dzmRangeLen(r){
 function DzmRangeBar(o){
   var rg=dzmRangeFrom(o&&o.range),d=Number(o&&o.dur)||1;
   if(!rg)return null;
-  var l=rg.in/d*100,w=(rg.out-rg.in)/d*100;
-  return r.jsx("div",{className:"dzm-range","data-testid":"dzm-range",
+  /* BORNÉ À LA RÈGLE. Une plage PERSISTÉE peut survivre à un raccourcissement
+     de la durée : sans ces deux Math.min, la bande débordait la règle à droite. */
+  var l=Math.min(100,rg.in/d*100),w=Math.min(100-l,(rg.out-rg.in)/d*100);
+  return r.jsx("div",{className:"dzm-range",
     title:"Plage "+rg.in.toFixed(2)+" s → "+rg.out.toFixed(2)+" s — I : entrée, "+
       "U : sortie, X : effacer, Maj+X : couper la plage (toutes pistes, ripple)",
     style:{left:"calc(88px + (100% - 88px) * "+(l/100)+")",width:"calc((100% - 88px) * "+(w/100)+")"}})}
@@ -17253,7 +17263,7 @@ function DzmRangeBar(o){
 /* ── export contrat ───────────────────────────────────────────────────────── */
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
-  TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,withWords:dzmWithWords,
+  TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,
   dropWords:dzmDropWords,
   gradeAllBtn:dzmGradeAllBtn,gradeAll:dzmGradeAll,gradeOf:dzmGradeOf,
   Projects:DzmProjects,projLine:dzmProjLine,projWhen:dzmProjWhen,

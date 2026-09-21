@@ -59,6 +59,16 @@ out.r_neg=T.rangeSet(null,"in",-4,10);
 out.r_clear=T.rangeSet({in:1,out:2},"clear",0,10);
 out.r_from=[T.rangeFrom({in:"1.5",out:4}),T.rangeFrom({in:5,out:2}),T.rangeFrom("x"),T.rangeFrom({in:1})];
 out.r_len=[T.rangeLen({in:1,out:4.5}),T.rangeLen(null),T.rangeLen({in:2,out:null})];
+/* la sortie posee AVANT l entree : `in` retombe a 0, jamais de plage inversee */
+out.r_out_avant_in=T.rangeSet({in:6,out:8},"out",4,10);
+/* la plage degeneree : `in` colle a la duree, puis `out` ne peut plus suivre */
+out.r_in_a_dur=T.rangeSet(null,"in",10,10);
+out.r_from_degenere=T.rangeFrom({in:10,out:10});
+/* [2b] cutOpts : les options de coupe, partagees par R2 et le tiroir Texte */
+/* pistes CHOISIES hors table par defaut (« v9 » n y est pas) : sans cela la
+   ligne verdirait sur les defauts, ou A2 est DEJA en boucle. */
+out.co=T.cutOpts({tracks:[{id:"v1",kind:"video"},{id:"v9",kind:"video",loop:!0}]},{v1:{l:1},v9:{}});
+out.co_vide=T.cutOpts(null,null);
 console.log(JSON.stringify(out));
 """
 print("\n[1] histSnap / histApply sous node")
@@ -120,6 +130,45 @@ check("range_clear_rend_null", "r_clear" in D and D["r_clear"] is None,
 check("range_from_assainit",
       D.get("r_from") == [{"in": 1.5, "out": 4}, None, None, None], D.get("r_from"))
 check("range_len", D.get("r_len") == [3.5, 0, 0], D.get("r_len"))
+# LA SORTIE POSEE AVANT L ENTREE. Symetrique de `range_entree_apres_la_sortie`
+# (qui pousse `out` a `dur`) : ici c est `in` qui retombe a 0. Les deux
+# branches sont tenues, sinon une plage INVERSEE atteindrait `rippleCut`, qui
+# la retournerait en silence -- la regle montrerait une chose, la coupe en
+# ferait une autre.
+check("range_sortie_avant_l_entree_ramene_l_entree_a_zero",
+      D.get("r_out_avant_in") == {"in": 0, "out": 4}, D.get("r_out_avant_in"))
+# LA TETE EN BOUT DE TIMELINE est une entree VALIDE : `dzmRangeNum` borne a
+# `dur`, il ne refuse pas. C est la plage DEGENEREE qui suit (in == out) que
+# `dzmRangeFrom` doit refuser -- et c est lui, pas `rangeSet`, qui garde
+# `DzmRangeBar` et « Maj+X ».
+check("range_entree_a_la_duree_est_gardee",
+      D.get("r_in_a_dur") == {"in": 10, "out": None}, D.get("r_in_a_dur"))
+# ASSERTION NEGATIVE GARDEE : la cle doit d abord ETRE LA. Sans le `in D`, un
+# shim muet suffirait a verdir la ligne.
+check("range_degeneree_n_est_pas_une_plage",
+      "r_from_degenere" in D and D["r_from_degenere"] is None,
+      f'"r_from_degenere" in D={"r_from_degenere" in D} '
+      f'v={D.get("r_from_degenere")!r}')
+
+print("\n[2b] cutOpts : les options de coupe, ecrites une seule fois")
+# I-2 : la paire {loopTracks, locked} etait rebatie a l identique dans R_M12
+# et dans R_R2. Elle est PURE et vit dans la couche ; ces deux lignes jouent
+# ce que le pin de forme du banc bundle ne peut pas jouer -- le comportement.
+# `l` (verrouillee) devient une CLE de `locked` ; `loop` devient un ID dans
+# `loopTracks` ; une piste ni l un ni l autre n apparait nulle part.
+check("cut_opts_separe_le_verrou_de_la_boucle",
+      D.get("co") == {"loopTracks": ["v9"], "locked": {"v1": True}}, D.get("co"))
+# ECART MESURE CONTRE LA CONSIGNE DE REVUE (21/09/2026), et la mesure gagne :
+# la revue attendait `{loopTracks: [], locked: {}}` pour `cutOpts(null,null)`.
+# FAUX -- `svmTracksOf(null)` passe par `dzmTsOr`, qui rend la table PAR
+# DEFAUT, et A2 (musique) y porte `loop:!0` (montage.js l. 170). Un projet nul
+# EST la timeline par defaut partout ailleurs dans la couche ; rendre une
+# liste vide ici ferait ripper une piste que l ecran montre en boucle. Ce que
+# la ligne tient : aucun verrou (l etat est nul) et la boucle PAR DEFAUT,
+# nommee -- la cle est etablie presente avant la comparaison.
+check("cut_opts_sans_projet_ni_etat_ne_verrouille_rien",
+      "co_vide" in D and D["co_vide"] == {"loopTracks": ["a2"], "locked": {}},
+      f'"co_vide" in D={"co_vide" in D} v={D.get("co_vide")!r}')
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

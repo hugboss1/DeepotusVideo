@@ -4642,6 +4642,17 @@ function dzmHistApply(p,s){
   for(i=0;i<DZM_HIST_CLES.length;i++){k=DZM_HIST_CLES[i];if(k in s)n[k]=s[k]}
   return n}
 
+/* options de rippleCut depuis l'état des pistes : pistes en boucle (elles
+   ne rippent pas) et pistes verrouillées (elles ne bougent pas). PURE.
+   UN SEUL endroit : la coupe par plage (R2, « Maj+X ») et le tiroir Texte
+   (M12) construisaient la MÊME paire à deux endroits ; deux copies d'une
+   même condition divergent à la première retouche. */
+function dzmCutOpts(proj,trackSt){
+  var lk={},st=trackSt&&typeof trackSt==="object"?trackSt:{};
+  Object.keys(st).forEach(function(k){if(st[k]&&st[k].l)lk[k]=!0});
+  var lt=svmTracksOf(proj).filter(function(t){return t.loop}).map(function(t){return t.id});
+  return {loopTracks:lt,locked:lk}}
+
 /* ── D-11 (21/09/2026) : LA PLAGE D'ENTRÉE / SORTIE ───────────────────────
    `proj.range` = {in, out} (secondes, null si non posé) ou null. Pure :
    `dzmRangeSet(range, which, t, dur)` rend la plage suivante ; "in" après
@@ -4681,8 +4692,10 @@ function dzmRangeLen(r){
 function DzmRangeBar(o){
   var rg=dzmRangeFrom(o&&o.range),d=Number(o&&o.dur)||1;
   if(!rg)return null;
-  var l=rg.in/d*100,w=(rg.out-rg.in)/d*100;
-  return r.jsx("div",{className:"dzm-range","data-testid":"dzm-range",
+  /* BORNÉ À LA RÈGLE. Une plage PERSISTÉE peut survivre à un raccourcissement
+     de la durée : sans ces deux Math.min, la bande débordait la règle à droite. */
+  var l=Math.min(100,rg.in/d*100),w=Math.min(100-l,(rg.out-rg.in)/d*100);
+  return r.jsx("div",{className:"dzm-range",
     title:"Plage "+rg.in.toFixed(2)+" s → "+rg.out.toFixed(2)+" s — I : entrée, "+
       "U : sortie, X : effacer, Maj+X : couper la plage (toutes pistes, ripple)",
     style:{left:"calc(88px + (100% - 88px) * "+(l/100)+")",width:"calc((100% - 88px) * "+(w/100)+")"}})}
@@ -4690,7 +4703,7 @@ function DzmRangeBar(o){
 /* ── export contrat ───────────────────────────────────────────────────────── */
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
-  TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,withWords:dzmWithWords,
+  TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,
   dropWords:dzmDropWords,
   gradeAllBtn:dzmGradeAllBtn,gradeAll:dzmGradeAll,gradeOf:dzmGradeOf,
   Projects:DzmProjects,projLine:dzmProjLine,projWhen:dzmProjWhen,

@@ -185,7 +185,13 @@ STABLE_PROBES = [
     # de dispatch du clavier (R2), RangeBar sur la regle (R3), rangeFrom
     # dans le payload de sauvegarde (repli R4 dans R_M6) et rangeFrom a la
     # restauration (repli R5 dans R_M7).
-    ("montage", "DzTracks", 69),
+    # 21/09/2026 D-11, revue de la tache 4 : 69 -> 71, MESURE apres rejeu
+    # (la chaine a refuse, « sonde montage x71 (want 69) »). DEUX references
+    # de plus, et rien d'autre : `DzTracks.cutOpts`, les options de coupe
+    # {loopTracks, locked} sorties dans la couche parce que R_R2 et R_M12 les
+    # rebatissaient a l'identique -- un appel dans chacune. La sortie tot de
+    # R2 et les bornes de la bande n'en ajoutent aucune.
+    ("montage", "DzTracks", 71),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

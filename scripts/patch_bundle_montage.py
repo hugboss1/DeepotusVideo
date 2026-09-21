@@ -175,6 +175,21 @@ Sections :
       commentaire de R_M17G). Pas de H8 : `svmTracksSet` appelle DÉJÀ
       `pushHistory()`, les pistes entrent d'elles-mêmes.
 
+  R1/R2/R3 (D-11, 21/09/2026) LA PLAGE D'ENTRÉE / SORTIE. Quatre actions de
+      plus dans SVM_ACTIONS — I, U, X et Maj+X — donc remappables via
+      `dz_svm_keymap` et LISTÉES dans le panneau « ? », comme les autres (R1).
+      La branche de dispatch (R2) calcule la plage suivante AVANT de rien
+      pousser et SORT TÔT si elle n'a pas changé : une frappe stérile n'empile
+      ni historique ni « NON ENREGISTRÉ ». Une demi-plage se dit par une note,
+      la règle restant muette tant que les deux bouts ne sont pas posés.
+      La bande sur la règle (R3) est montée juste après la gouttière.
+      « R4 » (la clé `range` de la sauvegarde) et « R5 » (celle de la
+      restauration) ne sont PAS des sections : elles sont REPLIÉES dans R_M6 et
+      R_M7, dont elles visaient un texte POSÉ — comme `project_id` de M14 l'est
+      déjà. Le cœur est pur et vit dans la couche (`DzTracks.rangeSet` /
+      `rangeFrom` / `rangeLen` / `RangeBar`), avec `cutOpts`, les options de
+      coupe que R2 et le tiroir Texte (M12) partagent désormais.
+
 Mécanique identique à patch_bundle_subs.py : restauration du .bak dédié puis
 ré-application, chaque ancre devant apparaître EXACTEMENT une fois, sinon
 abandon sans rien écrire. Le miroir du résultat est
@@ -620,18 +635,14 @@ R_M12 = (A_M12 + '\n'
          '          onCut:function(rg,al){\n'
          '            if(!rg||!rg.length)return;\n'
          '            var rs=rg.slice().sort(function(u,v){return v[0]-u[0]});\n'
-         '            var lk={};Object.keys(trackSt||{}).forEach(function(k){\n'
-         '              if(trackSt[k]&&trackSt[k].l)lk[k]=1});\n'
-         '            var lt=svmTracksOf(proj).filter(function(t){return t.loop})\n'
-         '              .map(function(t){return t.id});\n'
+         '            var dzO=DzTracks.cutOpts(proj,trackSt);\n'
          '            pushHistory();\n'
          '            /* les mots calés du tiroir, recollés sur LEUR clip : sans\n'
          '               eux, fendre un bloc de narration laisserait la phrase\n'
          '               entière sur les deux moitiés. */\n'
          '            var cs=DzTracks.withWords(clipsRef.current||[],al),rm=0;\n'
          '            rs.forEach(function(p){\n'
-         '              var res=DzTracks.rippleCut(cs,p[0],p[1],'
-         '{loopTracks:lt,locked:lk});\n'
+         '              var res=DzTracks.rippleCut(cs,p[0],p[1],dzO);\n'
          '              cs=res.clips;rm+=res.removed});\n'
          '            rm=Math.round(rm*1000)/1000;\n'
          '            /* les mots prêtés ne servaient qu\'à répartir le texte :\n'
@@ -641,7 +652,7 @@ R_M12 = (A_M12 + '\n'
          '              .filter(function(t){return t.kind===\"subs\"})\n'
          '              .map(function(t){return t.id})));\n'
          '            setDirty(!0);\n'
-         '            var vk=Object.keys(lk);\n'
+         '            var vk=Object.keys(dzO.locked);\n'
          '            fireNote(rs.length+" coupe"+(rs.length>1?"s":"")+" — "+\n'
          '              rm.toFixed(2)+\" s retirés. Annuler défait la coupe '
          'entièrement. La durée du projet ne bouge pas : la fin de la timeline '
@@ -2427,6 +2438,18 @@ R_R1 = (A_R1 + "\n"
 # la couche injectee dans le MEME scope module ; `dzProjRef` vient de H1, qui
 # passe avant (ordre de PATCHES). `blade()`, juste au-dessus, lit deja
 # `phRef.current`.
+# SORTIE TOT (revue du 21/09/2026). La branche I / U / X calcule D'ABORD la
+# plage suivante, puis la compare PAR REFERENCE a l'ancienne : `dzmRangeSet`
+# rend `range||null` quand rien ne change (tete illisible, `which` inconnu) et
+# `null` sur « clear » -- X sur une plage DEJA vide compare donc null a null
+# et sort, c'est voulu. Sans cette sortie tot, chaque frappe sterile empilait
+# un instantane d'historique et allumait « NON ENREGISTRE » pour rien.
+# UNE DEMI-PLAGE SE DIT (M-4) : apres I seul, ou apres U seul, une note dit
+# quelle touche pose l'autre bout. La bande de la regle, elle, se tait tant
+# que la plage n'est pas COMPLETE (R3) : sans la note, l'utilisateur n'avait
+# AUCUN retour entre la premiere frappe et la seconde.
+# `cutOpts` : la paire {loopTracks, locked} etait construite ICI et dans
+# R_M12, a l'identique. Elle vit maintenant dans la couche, une seule fois.
 # ECART ASSUME CONTRE LE PLAN, MESURE : `dzmRippleCut` rend
 # `{clips, removed}` ou `removed` est la LONGUEUR RETIREE EN SECONDES
 # (`return {clips:out,removed:len}`, montage.js), PAS un nombre de clips. La
@@ -2435,14 +2458,21 @@ R_R1 = (A_R1 + "\n"
 A_R2 = 'if(id==="ripple"){setRipple(function(v){return !v});return}'
 R_R2 = (A_R2 + "\n"
         '      if(id==="range_in"||id==="range_out"||id==="range_clear"){'
-        'pushHistory();var dzW=id.slice(6);'
-        'setProj(function(p){return Object.assign({},p,{range:DzTracks.rangeSet(p.range,dzW,phRef.current,p.dur)})});'
-        'setDirty(!0);return}\n'
+        'var dzW=id.slice(6);'
+        'var dzNx=DzTracks.rangeSet(dzProjRef.current&&dzProjRef.current.range,'
+        'dzW,phRef.current,dzProjRef.current&&dzProjRef.current.dur);'
+        'if(dzNx===(dzProjRef.current&&dzProjRef.current.range))return;'
+        'pushHistory();setProj(function(p){return Object.assign({},p,{range:dzNx})});'
+        'setDirty(!0);'
+        'if(dzNx&&dzNx.in!=null&&dzNx.out==null)'
+        'fireNote("Entrée à "+dzNx.in.toFixed(2)+" s — U pose la sortie");'
+        'else if(dzNx&&dzNx.out!=null&&dzNx.in==null)'
+        'fireNote("Sortie à "+dzNx.out.toFixed(2)+" s — I pose l\'entrée");'
+        'return}\n'
         '      if(id==="range_cut"){var dzRg=DzTracks.rangeFrom(dzProjRef.current&&dzProjRef.current.range);'
         'if(!dzRg){fireNote("Aucune plage : I pose l\'entrée, U la sortie.");return}'
-        'var dzLk={};Object.keys(trackStRef.current).forEach(function(k){if(trackStRef.current[k]&&trackStRef.current[k].l)dzLk[k]=!0});'
-        'var dzLoop=svmTracksOf(dzProjRef.current).filter(function(t){return t.loop}).map(function(t){return t.id});'
-        'var dzRc=DzTracks.rippleCut(clipsRef.current,dzRg.in,dzRg.out,{loopTracks:dzLoop,locked:dzLk});'
+        'var dzRc=DzTracks.rippleCut(clipsRef.current,dzRg.in,dzRg.out,'
+        'DzTracks.cutOpts(dzProjRef.current,trackStRef.current));'
         'pushHistory();setClips(dzRc.clips);'
         'setProj(function(p){return Object.assign({},p,{range:null})});setDirty(!0);'
         'fireNote("Plage "+dzRg.in.toFixed(2)+" → "+dzRg.out.toFixed(2)+" s coupée sur toutes les pistes — "+dzRc.removed.toFixed(2)+" s retirés, la suite remonte.");return}')

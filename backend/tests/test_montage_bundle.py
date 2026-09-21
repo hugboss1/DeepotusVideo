@@ -599,6 +599,74 @@ check("D11_la_barre_rend_null_sans_plage_valide",
       and src.count("if(!rg)return null;") == 1,
       f'DzmRangeBar={src.count("function DzmRangeBar(o){")} '
       f'garde={src.count("if(!rg)return null;")}')
+# LA BANDE NE DEBORDE PAS LA REGLE. Une plage est PERSISTEE (R4/R5) : elle
+# survit a un raccourcissement de la duree, et `rg.out` peut alors depasser
+# `dur`. Sans les deux Math.min, `left` passait 100 % et `width` debordait a
+# droite -- la bande sortait de la regle. Le composant ne peut pas BORNER par
+# `dzmRangeFrom`, qui ne connait pas la duree : la borne est ici.
+check("D11_la_bande_est_bornee_a_la_regle",
+      src.count("var l=Math.min(100,rg.in/d*100),"
+                "w=Math.min(100-l,(rg.out-rg.in)/d*100);") == 1
+      and nl("var l=Math.min(100,rg.in/d*100),") in s
+      and src.count("var l=rg.in/d*100,") == 0,
+      f'borne={src.count("var l=Math.min(100,rg.in/d*100),")} '
+      f'ancienne={src.count("var l=rg.in/d*100,")}')
+# I-1 (revue du 21/09/2026) : UNE FRAPPE STERILE NE POUSSE RIEN. La branche
+# I / U / X calculait la plage suivante DANS le `setProj` et poussait
+# l'historique AVANT de savoir si quoi que ce soit avait change : X sur une
+# plage deja vide, ou I la tete illisible, empilaient un instantane identique
+# et allumaient « NON ENREGISTRE ». La FORME qui le garantit est un ordre :
+# la comparaison par reference vient AVANT le premier `pushHistory()` de la
+# branche. Mesuree sur le remplacement ET sur le bundle livre -- un pin sur le
+# seul `P.R_R2` benirait une section que la chaine n'aurait pas posee.
+_R2IN = P.R_R2[P.R_R2.index('if(id==="range_in"'):
+               P.R_R2.index('if(id==="range_cut"')]
+_R2ID = "dzNx===(dzProjRef.current&&dzProjRef.current.range)"
+check("D11_une_plage_inchangee_ne_pousse_ni_historique_ni_dirty",
+      _R2ID in _R2IN and "pushHistory()" in _R2IN
+      and _R2IN.index(_R2ID) < _R2IN.index("pushHistory()")
+      and _R2IN.count("if(" + _R2ID + ")return;") == 1
+      and s.count(nl("if(" + _R2ID + ")return;")) == 1
+      # et la plage n'est PLUS calculee dans le setProj : l'ancienne forme
+      # `rangeSet(p.range,...)` y lisait le projet une seconde fois.
+      and "rangeSet(p.range," not in s,
+      f'idx_id={_R2IN.index(_R2ID) if _R2ID in _R2IN else -1} '
+      f'idx_push={_R2IN.index("pushHistory()") if "pushHistory()" in _R2IN else -1} '
+      f'bundle={s.count(nl("if(" + _R2ID + ")return;"))} '
+      f'ancienne={s.count("rangeSet(p.range,")}')
+# M-4 : UNE DEMI-PLAGE SE DIT. Entre I et U la regle est MUETTE -- `DzmRangeBar`
+# rend `null` tant que la plage n'est pas complete (ligne du dessus). Sans
+# note, la premiere frappe n'avait donc aucun retour a l'ecran. Les deux sens
+# sont tenus : I seul, et U seul (qui pose `in` a 0 -- donc jamais `in` nul --
+# SAUF quand `out` est pose sur une plage vide, cas de cette seconde note).
+check("D11_une_demi_plage_est_dite_par_une_note",
+      s.count(nl('if(dzNx&&dzNx.in!=null&&dzNx.out==null)fireNote("Entr\u00e9e \u00e0 "')) == 1
+      and s.count(nl('else if(dzNx&&dzNx.out!=null&&dzNx.in==null)fireNote("Sortie \u00e0 "')) == 1
+      and "U pose la sortie" in _R2IN and "I pose l\'entr\u00e9e" in _R2IN,
+      f'in={s.count(nl("dzNx.in!=null&&dzNx.out==null"))} '
+      f'out={s.count(nl("dzNx.out!=null&&dzNx.in==null"))}')
+# I-2 : LES OPTIONS DE COUPE NE SONT ECRITES QU'UNE FOIS. `{loopTracks,
+# locked}` etait construit a l'identique dans R_M12 (le tiroir Texte) et dans
+# R_R2 (« Maj+X ») : deux copies d'une meme condition divergent a la premiere
+# retouche -- c'est deja la lecon de `dzmTsOr`. Les DEUX faces sont tenues :
+# la fonction pure existe dans la couche, et AUCUN appelant ne rebatit la
+# paire a la main.
+check("D11_les_options_de_coupe_ne_sont_ecrites_qu_une_fois",
+      src.count("function dzmCutOpts(proj,trackSt){") == 1
+      and src.count("cutOpts:dzmCutOpts,") == 1
+      and s.count("DzTracks.cutOpts(") == 2
+      and "DzTracks.cutOpts(proj,trackSt)" in P.R_M12
+      and "DzTracks.cutOpts(dzProjRef.current,trackStRef.current)" in P.R_R2
+      # le SEUL `{loopTracks:...}` litteral du bundle est celui que rend
+      # `dzmCutOpts` lui-meme, DANS la couche : tout autre est un appelant qui
+      # a rebati la paire a la main. Mesure du 21/09/2026 : 1 et 1.
+      and s.count("loopTracks:lt") == src.count("loopTracks:lt") == 1
+      and "loopTracks:dzLoop" not in s and "locked:dzLk" not in s
+      and "locked:lk}" not in P.R_M12,
+      f'decl={src.count("function dzmCutOpts(proj,trackSt){")} '
+      f'appels={s.count("DzTracks.cutOpts(")} '
+      f'restes={s.count("loopTracks:lt")}/{src.count("loopTracks:lt")} '
+      f'dzLoop={s.count("loopTracks:dzLoop")}')
 # ── M9c (05/09/2026) : LE « + » N'EST PLUS SOUS LA SURIMPRESSION ────────────
 # Défaut rapporté par l'utilisateur : « sur la piste V1 vidéo, le bouton
 # "ajouter une vidéo" est caché par l'overlay de déplacement lorsque la souris

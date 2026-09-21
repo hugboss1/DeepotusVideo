@@ -1109,6 +1109,52 @@ check("d11_une_borne_infinie_ne_touche_jamais_le_disque",
       f'{_r.status_code} {_f.get("range")!r} {_f.get("_illisible")!r}')
 wipe_courant()
 
+# UNE ENTREE NEGATIVE. `0 <= a` est la moitie de la garde que le cas
+# « inversee » ne joue pas : une plage {-1, 2} est bien ORDONNEE, elle passe
+# `a < b`. Sans le `0 <=`, elle serait stockee et la bande de la regle
+# partirait a gauche de la timeline.
+wipe_courant()
+_tl = TL("plage", n=1)
+_tl["range"] = {"in": -1, "out": 2}
+_r = c.post("/api/montage/save", json=_tl)
+_c = cur()
+check("d11_une_entree_negative_n_est_pas_stockee",
+      _r.status_code == 200 and _c.get("saved") is True and "range" not in _c,
+      f'{_r.status_code} saved={_c.get("saved")} range={_c.get("range")!r}')
+
+# UNE PLAGE DE LONGUEUR NULLE. `a < b` est STRICT, et c est la meme borne que
+# `dzmRangeFrom` cote couche (`b<=a` -> null) : une plage degeneree ne coupe
+# rien, et la reservir ferait afficher une bande de zero pixel que rien ne
+# peut plus saisir.
+wipe_courant()
+_tl = TL("plage", n=1)
+_tl["range"] = {"in": 2, "out": 2}
+_r = c.post("/api/montage/save", json=_tl)
+_c = cur()
+check("d11_une_plage_de_longueur_nulle_n_est_pas_stockee",
+      _r.status_code == 200 and _c.get("saved") is True and "range" not in _c,
+      f'{_r.status_code} saved={_c.get("saved")} range={_c.get("range")!r}')
+
+# UN EXPOSANT HORS DOUBLE. `1e999` n est pas `Infinity` dans le TEXTE envoye :
+# c est un litteral JSON parfaitement legal, que `json.loads` convertit en
+# `inf` SANS passer par le jeton `Infinity`. Un assainissement qui se serait
+# contente de refuser la chaine « Infinity » l aurait laisse passer. Le corps
+# est ecrit a la main pour la meme raison que le cas `inf` du dessus (httpx
+# encode avec `allow_nan=False`), mais ici c est le LITTERAL qui est le sujet.
+wipe_courant()
+_tl = TL("plage", n=1)
+_brut = json.dumps(_tl).encode("utf-8")
+assert _brut.endswith(b"}")
+_brut = _brut[:-1] + b', "range": {"in": 0, "out": 1e999}}'
+_r = c.post("/api/montage/save", content=_brut,
+            headers={"content-type": "application/json"})
+_f = JF(SAVED)
+check("d11_un_exposant_hors_double_ne_touche_jamais_le_disque",
+      _r.status_code == 200 and _f.get("clips") is not None
+      and "range" not in _f and "_illisible" not in _f,
+      f'{_r.status_code} {_f.get("range")!r} {_f.get("_illisible")!r}')
+wipe_courant()
+
 c.__exit__(None, None, None)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)
