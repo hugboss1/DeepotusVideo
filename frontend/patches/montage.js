@@ -4609,6 +4609,30 @@ function dzmBdTour(bd,mem){
   dzmBdPose(bd,plan);
   return {plan:plan,mesure:q}}
 
+/* ── D-0 (21/09/2026) : L'HISTORIQUE COMPLET ─────────────────────────────
+   MESURÉ sur le bundle : `pushHistory` n'empilait que {clips, mixDb} ; les
+   pistes, la durée, le style S1, la plage et les marqueurs restaient hors
+   d'atteinte de Ctrl+Z, et six titres de l'écran le disaient. Un instantané
+   porte désormais SEPT clés, toutes des RÉFÉRENCES (les tableaux sont
+   traités en immutable partout : stocker la référence suffit, comme avant).
+   `histApply` ne touche QUE les clés que l'instantané PORTE : un h0
+   historique {clips, mixDb} capturé par un geste amont reste valable. */
+var DZM_HIST_CLES=["tracks","dur","subsStyle","range","markers"];
+function dzmHistSnap(o){
+  if(!o||typeof o!=="object")return {};
+  var s={},p=o.proj,i,k;
+  if("clips" in o)s.clips=o.clips;
+  if("mixDb" in o)s.mixDb=o.mixDb;
+  if(p&&typeof p==="object")for(i=0;i<DZM_HIST_CLES.length;i++){
+    k=DZM_HIST_CLES[i];if(k in p)s[k]=p[k]}
+  return s}
+function dzmHistApply(p,s){
+  if(!s||typeof s!=="object")return p;
+  var base=(p&&typeof p==="object")?p:{},n=Object.assign({},base),i,k;
+  if("mixDb" in s)n.mixDb=s.mixDb;
+  for(i=0;i<DZM_HIST_CLES.length;i++){k=DZM_HIST_CLES[i];if(k in s)n[k]=s[k]}
+  return n}
+
 /* ── export contrat ───────────────────────────────────────────────────────── */
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
@@ -4668,5 +4692,6 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   BD_ATTR:DZM_BD_ATTR,BD_PX_CAR:DZM_BD_PX_CAR,BD_PX_SEP:DZM_BD_PX_SEP,
   BD_GAP:DZM_BD_GAP,BD_SEP:DZM_BD_SEP,BD_HORS:DZM_BD_HORS,
   bdMesure:dzmBdMesure,bdPose:dzmBdPose,bdTour:dzmBdTour,bdLarg:dzmBdLarg,
+  histSnap:dzmHistSnap,histApply:dzmHistApply,HIST_CLES:DZM_HIST_CLES,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;
