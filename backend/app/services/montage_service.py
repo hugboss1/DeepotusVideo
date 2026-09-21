@@ -157,31 +157,45 @@ _XFADE_FAMILIES = {
     "formes":      {"label": "formes",      "noms": ["circlecrop", "rectcrop", "circleopen", "circleclose",
                                                      "vertopen", "vertclose", "horzopen", "horzclose", "radial"]},
     "zooms":       {"label": "zooms",       "noms": ["zoomin", "squeezeh", "squeezev"]},
+    # `distance` (famille fondus) n'a ni direction ni forme, juste un mélange
+    # pixel à pixel — plus proche d'un fondu que des cinq autres familles.
     "pixels":      {"label": "pixels",      "noms": ["pixelize", "hblur", "hlslice", "hrslice", "vuslice",
                                                      "vdslice", "hlwind", "hrwind", "vuwind", "vdwind"]},
 }
-for _f in _XFADE_FAMILIES.values():
-    for _n in _f["noms"]:
-        _XFADE.setdefault(_n, (_n, None))
+# `update` plutôt qu'une boucle `for _f/_n` : cette dernière laissait `_f` et
+# `_n` en variables de MODULE (fuite constatée en revue).
+_XFADE.update({n: (n, None) for f in _XFADE_FAMILIES.values() for n in f["noms"]
+               if n not in _XFADE})
 # Ceux que le lecteur VIVANT sait jouer en CSS (D-12) : un voile noir/blanc,
 # ou une baisse d'opacité — tout le reste n'est visible qu'après Preview.
 _XFADE_LIVE = ("fade", "fadeblack", "fadewhite")
 _XFADE_LABELS = {  # libellés français du catalogue ; le nom xfade reste l'id
-    "fade": "fondu", "fadeblack": "fondu noir", "fadewhite": "fondu blanc", "fadegrays": "fondu gris",
-    "fadefast": "fondu rapide", "fadeslow": "fondu lent", "dissolve": "dissolution", "distance": "distance",
-    "slideleft": "glisse à gauche", "slideright": "glisse à droite", "slideup": "glisse en haut", "slidedown": "glisse en bas",
-    "coverleft": "couvre à gauche", "coverright": "couvre à droite", "coverup": "couvre en haut", "coverdown": "couvre en bas",
-    "revealleft": "révèle à gauche", "revealright": "révèle à droite", "revealup": "révèle en haut", "revealdown": "révèle en bas",
-    "wipeleft": "volet gauche", "wiperight": "volet droit", "wipeup": "volet haut", "wipedown": "volet bas",
+    "fade": "fondu", "fadeblack": "fondu noir", "fadewhite": "fondu blanc",
+    "fadegrays": "fondu gris", "fadefast": "fondu rapide", "fadeslow": "fondu lent",
+    "dissolve": "dissolution", "distance": "distance",
+    "slideleft": "glisse à gauche", "slideright": "glisse à droite",
+    "slideup": "glisse en haut", "slidedown": "glisse en bas",
+    "coverleft": "couvre à gauche", "coverright": "couvre à droite",
+    "coverup": "couvre en haut", "coverdown": "couvre en bas",
+    "revealleft": "révèle à gauche", "revealright": "révèle à droite",
+    "revealup": "révèle en haut", "revealdown": "révèle en bas",
+    "wipeleft": "volet gauche", "wiperight": "volet droit",
+    "wipeup": "volet haut", "wipedown": "volet bas",
     "wipetl": "volet ↖", "wipetr": "volet ↗", "wipebl": "volet ↙", "wipebr": "volet ↘",
-    "smoothleft": "volet doux gauche", "smoothright": "volet doux droit", "smoothup": "volet doux haut", "smoothdown": "volet doux bas",
-    "diagtl": "diagonale ↖", "diagtr": "diagonale ↗", "diagbl": "diagonale ↙", "diagbr": "diagonale ↘",
-    "circlecrop": "cercle (recadre)", "rectcrop": "rectangle (recadre)", "circleopen": "cercle ouvre", "circleclose": "cercle ferme",
-    "vertopen": "rideau vertical ouvre", "vertclose": "rideau vertical ferme", "horzopen": "rideau horizontal ouvre",
-    "horzclose": "rideau horizontal ferme", "radial": "balayage radial",
+    "smoothleft": "volet doux gauche", "smoothright": "volet doux droit",
+    "smoothup": "volet doux haut", "smoothdown": "volet doux bas",
+    "diagtl": "diagonale ↖", "diagtr": "diagonale ↗",
+    "diagbl": "diagonale ↙", "diagbr": "diagonale ↘",
+    "circlecrop": "cercle (recadre)", "rectcrop": "rectangle (recadre)",
+    "circleopen": "cercle ouvre", "circleclose": "cercle ferme",
+    "vertopen": "rideau vertical ouvre", "vertclose": "rideau vertical ferme",
+    "horzopen": "rideau horizontal ouvre", "horzclose": "rideau horizontal ferme",
+    "radial": "balayage radial",
     "zoomin": "zoom avant", "squeezeh": "écrase horizontal", "squeezev": "écrase vertical",
-    "pixelize": "pixélisé", "hblur": "flou horizontal", "hlslice": "tranches → droite", "hrslice": "tranches → gauche",
-    "vuslice": "tranches ↑", "vdslice": "tranches ↓", "hlwind": "vent → droite", "hrwind": "vent → gauche",
+    "pixelize": "pixélisé", "hblur": "flou horizontal",
+    "hlslice": "tranches → droite", "hrslice": "tranches → gauche",
+    "vuslice": "tranches ↑", "vdslice": "tranches ↓",
+    "hlwind": "vent → droite", "hrwind": "vent → gauche",
     "vuwind": "vent ↑", "vdwind": "vent ↓",
 }
 
