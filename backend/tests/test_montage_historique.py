@@ -29,6 +29,7 @@ out.snap_cles=Object.keys(s).sort();
 out.snap_copie=s.clips===P.clips&&s.tracks===P.proj.tracks;   /* refs conservees, pas de copie */
 out.snap_vide=T.histSnap(null);
 out.snap_sans_proj=Object.keys(T.histSnap({clips:[],mixDb:{}})).sort();
+out.snap_hors_proj=Object.keys(T.histSnap({clips:[],mixDb:{},dur:7,tracks:[{id:"z"}]})).sort();
 var p1={tracks:[{id:"v1"}],dur:99,subsStyle:{wordAnim:"couleur"},range:null,markers:[],mixDb:{dialogue:0},name:"x"};
 var a=T.histApply(p1,s);
 out.apply_dur=a.dur; out.apply_tracks=a.tracks.length; out.apply_anim=a.subsStyle.wordAnim;
@@ -57,14 +58,16 @@ else:
     try:
         D = json.loads(derniere) if derniere else {}
     except Exception as e:
-        D = {}; check("js_shim_rend_un_objet_json", False, temoin(e))
-    check("js_shim_rend_un_objet_json", isinstance(D, dict) and bool(D), repr(derniere)[:160])
+        D = {}; check("js_shim_json_illisible", False, temoin(e))
+    else:
+        check("js_shim_rend_un_objet_json", isinstance(D, dict) and bool(D), repr(derniere)[:160])
 check("hist_snap_porte_les_sept_cles",
       D.get("snap_cles") == ["clips", "dur", "markers", "mixDb", "range", "subsStyle", "tracks"],
       D.get("snap_cles"))
 check("hist_snap_garde_les_references", D.get("snap_copie") is True)
 check("hist_snap_nul_rend_objet_vide", D.get("snap_vide") == {})
 check("hist_snap_sans_proj_ne_porte_que_clips_et_mix", D.get("snap_sans_proj") == ["clips", "mixDb"])
+check("hist_snap_ne_lit_les_cinq_cles_que_dans_proj", D.get("snap_hors_proj") == ["clips", "mixDb"], D.get("snap_hors_proj"))
 check("hist_apply_restaure_duree_pistes_style_plage_marqueurs",
       D.get("apply_dur") == 10 and D.get("apply_tracks") == 1 and D.get("apply_anim") == "glow"
       and D.get("apply_range") == {"in": 1, "out": 3} and D.get("apply_markers") == 1,
@@ -76,5 +79,6 @@ check("hist_apply_partiel_ne_touche_que_ce_qu_il_porte",
       {k: D.get(k) for k in ("partiel_dur", "partiel_mix", "partiel_tracks")})
 check("hist_apply_instantane_nul_rend_le_projet_tel_quel", D.get("apply_nul") is True)
 check("hist_apply_projet_nul_ne_meurt_pas", D.get("apply_mou") == 10)
+shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)
