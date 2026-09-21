@@ -139,6 +139,62 @@ _XFADE = {
     "flash": ("fadewhite", None),
 }
 
+# D-20 (21/09/2026) — LES 58 TRANSITIONS DE L'FFMPEG LIVRÉ (8.1.1 essentials,
+# `-h filter=xfade`, indices 0…57), par familles. Chaque nom xfade est SA
+# PROPRE clé : le client stocke des noms nus (svmTransBase garde le premier
+# mot) et cette table est la seule autorité — GET /transitions la sert, le
+# client n'en a pas de copie. Les neuf clés historiques restent au-dessus.
+_XFADE_FAMILIES = {
+    "fondus":      {"label": "fondus",      "noms": ["fade", "fadeblack", "fadewhite", "fadegrays",
+                                                     "fadefast", "fadeslow", "dissolve", "distance"]},
+    "glissements": {"label": "glissements", "noms": ["slideleft", "slideright", "slideup", "slidedown",
+                                                     "coverleft", "coverright", "coverup", "coverdown",
+                                                     "revealleft", "revealright", "revealup", "revealdown"]},
+    "volets":      {"label": "volets",      "noms": ["wipeleft", "wiperight", "wipeup", "wipedown",
+                                                     "wipetl", "wipetr", "wipebl", "wipebr",
+                                                     "smoothleft", "smoothright", "smoothup", "smoothdown",
+                                                     "diagtl", "diagtr", "diagbl", "diagbr"]},
+    "formes":      {"label": "formes",      "noms": ["circlecrop", "rectcrop", "circleopen", "circleclose",
+                                                     "vertopen", "vertclose", "horzopen", "horzclose", "radial"]},
+    "zooms":       {"label": "zooms",       "noms": ["zoomin", "squeezeh", "squeezev"]},
+    "pixels":      {"label": "pixels",      "noms": ["pixelize", "hblur", "hlslice", "hrslice", "vuslice",
+                                                     "vdslice", "hlwind", "hrwind", "vuwind", "vdwind"]},
+}
+for _f in _XFADE_FAMILIES.values():
+    for _n in _f["noms"]:
+        _XFADE.setdefault(_n, (_n, None))
+# Ceux que le lecteur VIVANT sait jouer en CSS (D-12) : un voile noir/blanc,
+# ou une baisse d'opacité — tout le reste n'est visible qu'après Preview.
+_XFADE_LIVE = ("fade", "fadeblack", "fadewhite")
+_XFADE_LABELS = {  # libellés français du catalogue ; le nom xfade reste l'id
+    "fade": "fondu", "fadeblack": "fondu noir", "fadewhite": "fondu blanc", "fadegrays": "fondu gris",
+    "fadefast": "fondu rapide", "fadeslow": "fondu lent", "dissolve": "dissolution", "distance": "distance",
+    "slideleft": "glisse à gauche", "slideright": "glisse à droite", "slideup": "glisse en haut", "slidedown": "glisse en bas",
+    "coverleft": "couvre à gauche", "coverright": "couvre à droite", "coverup": "couvre en haut", "coverdown": "couvre en bas",
+    "revealleft": "révèle à gauche", "revealright": "révèle à droite", "revealup": "révèle en haut", "revealdown": "révèle en bas",
+    "wipeleft": "volet gauche", "wiperight": "volet droit", "wipeup": "volet haut", "wipedown": "volet bas",
+    "wipetl": "volet ↖", "wipetr": "volet ↗", "wipebl": "volet ↙", "wipebr": "volet ↘",
+    "smoothleft": "volet doux gauche", "smoothright": "volet doux droit", "smoothup": "volet doux haut", "smoothdown": "volet doux bas",
+    "diagtl": "diagonale ↖", "diagtr": "diagonale ↗", "diagbl": "diagonale ↙", "diagbr": "diagonale ↘",
+    "circlecrop": "cercle (recadre)", "rectcrop": "rectangle (recadre)", "circleopen": "cercle ouvre", "circleclose": "cercle ferme",
+    "vertopen": "rideau vertical ouvre", "vertclose": "rideau vertical ferme", "horzopen": "rideau horizontal ouvre",
+    "horzclose": "rideau horizontal ferme", "radial": "balayage radial",
+    "zoomin": "zoom avant", "squeezeh": "écrase horizontal", "squeezev": "écrase vertical",
+    "pixelize": "pixélisé", "hblur": "flou horizontal", "hlslice": "tranches → droite", "hrslice": "tranches → gauche",
+    "vuslice": "tranches ↑", "vdslice": "tranches ↓", "hlwind": "vent → droite", "hrwind": "vent → gauche",
+    "vuwind": "vent ↑", "vdwind": "vent ↓",
+}
+
+
+def transitions_catalog() -> dict:
+    """Le catalogue que le client affiche : familles ordonnées, items {id, label, live}."""
+    return {"familles": [
+        {"id": k, "label": f["label"],
+         "items": [{"id": n, "label": _XFADE_LABELS.get(n, n), "live": n in _XFADE_LIVE}
+                   for n in f["noms"]]}
+        for k, f in _XFADE_FAMILIES.items()]}
+
+
 # 4:5 était proposé par les menus du bundle et géré par animation_service,
 # mais absent d'ici : un montage en 4:5 retombait silencieusement en 9:16.
 _CANVAS = {"9:16": (1080, 1920), "16:9": (1920, 1080), "1:1": (1080, 1080),
@@ -1515,6 +1571,13 @@ async def montage_newer(job_id: str = ""):
         if len(out) >= 5:
             break
     return {"ok": True, "origin": "heuristique", "candidates": out}
+
+
+@router.get("/transitions")
+async def montage_transitions():
+    """D-20 — les 58 transitions xfade par familles, avec le drapeau `live`
+    (jouable en direct dans le lecteur vivant). Le client n'en a pas de copie."""
+    return transitions_catalog()
 
 
 @router.get("/effects")
