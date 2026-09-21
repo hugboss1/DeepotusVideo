@@ -2728,6 +2728,82 @@ R_R2 = (A_R2 + "\n"
 A_R3 = 'r.jsx("div",{className:"svm-gutter"}),'
 R_R3 = A_R3 + 'r.jsx(DzTracks.RangeBar,{range:proj.range,dur:dur}),'
 
+# ── D-3 (21/09/2026) : ROLL, SLIP, SLIDE ───────────────────────────────────
+# T1 : les modificateurs sont lus AU POINTERDOWN, une seule fois -- le geste
+# ne change pas de nature en cours de route. `svmEdgeAt` a deja pose `edge`
+# juste avant, et le verrou de piste a deja rendu la main plus haut : une
+# piste verrouillee ne slippe ni ne slide.
+A_T1 = "var x0=e.clientX,s0=c.start,e0=c.end,moved=!1,tgt=e.currentTarget;"
+R_T1 = (A_T1 + "\n"
+        '    var dzSlip=!!e.altKey&&edge==="m",dzSlide=!!e.shiftKey&&!e.altKey&&edge==="m";\n'
+        "    var dzSd=Number(c.srcDur)||0;")
+# MESURE du 21/09/2026 : `c.srcDur` vaut 0 occurrence dans le bundle -- aucun
+# cache de duree de source par clip n'existe cote ecran. `dzSd` vaut donc 0
+# et `dzmSlip` n'applique que la borne BASSE (srcIn >= 0) ; la borne haute
+# reste inconnue a l'ecran et c'est le rendu qui borne au disponible.
+# ECART ASSUME ET DATE : « D-3 : borne haute du slip non bornee a l'ecran ».
+
+# T2 : slip et slide rejouent depuis `h0` (etat du pointerdown), AVANT la
+# branche historique de `mv` -- pas de derive, et `up()` n'a rien a
+# court-circuiter : MESURE du 21/09/2026, `up()` de `clipDown` ne recalcule
+# aucun clip depuis `s0/e0`, il lit `clipsRef.current` pour `fitDur` et
+# pousse `h0` dans l'historique. Les deux gestes lui conviennent tels quels.
+A_T2 = "      snapAt=null;\n      var w=0,delta=0;"
+R_T2 = ("      snapAt=null;\n"
+        "      if(dzSlip){setClips(DzTracks.slip(h0.clips,c.id,ds,{srcDur:dzSd}));return}\n"
+        "      if(dzSlide){var dzNs=doSnap(s0+ds);setClips(DzTracks.slide(h0.clips,c.id,dzNs-s0));setSnapT(snapAt);return}\n"
+        "      var w=0,delta=0;")
+
+# T3 : Alt sur la poignee GAUCHE de l'etendue de transition.
+A_T3 = "onPointerDown:function(e){transSpanDown(e,j2.right,-1,j2.t)}}),"
+R_T3 = "onPointerDown:function(e){if(e.altKey){dzRollDown(e,j2);return}transSpanDown(e,j2.right,-1,j2.t)}}),"
+
+# T3b : ECART CONTESTE ET ASSUME (21/09/2026). Le plan ne prevoyait que T3,
+# mais MESURE : `.svm-transspan` (et donc ses deux poignees) n'est rendu que
+# si `on`, c'est-a-dire si la jonction PORTE une transition -- sur une coupe
+# franche, l'ancre de T3 n'existe pas dans le DOM et le roll serait
+# INATTEIGNABLE, alors que le roll de Resolve vise precisement la coupe. Le
+# losange `.svm-junc`, lui, est rendu SANS condition pour chaque jonction :
+# c'est lui qui rend le geste atteignable partout.
+A_T3B = ('                      "aria-label":"Transition entre "+j2.left.label+" et "+j2.right.label,\n'
+         "                      onPointerDown:function(e){e.stopPropagation()},")
+R_T3B = ('                      "aria-label":"Transition entre "+j2.left.label+" et "+j2.right.label,\n'
+         "                      onPointerDown:function(e){if(e.altKey){dzRollDown(e,j2);return}e.stopPropagation()},")
+
+# T4 : le geste de roll, a cote de `transSpanDown` -- DANS le composant,
+# donc `trackStRef`, `durRef`, `setClips`, `setDirty`, `pushHistory`,
+# `dzmHistHost` et `transHoverShow/Hide` sont tous en portee (mesure : ce
+# sont exactement ceux qu'utilise `transSpanDown`, juste en dessous).
+# La piste est remontee par la CLASSE `.svm-lane` et non par un nombre de
+# parents : le losange en est fils direct, les poignees a deux crans.
+A_T4 = "function transSpanDown(e,jc,edge,t){"
+R_T4 = ("function dzRollDown(e,j2){\n"
+        "    e.stopPropagation();e.preventDefault();\n"
+        "    var tgt=e.currentTarget;\n"
+        '    var lane=tgt.closest?tgt.closest(".svm-lane"):null;\n'
+        "    if(!lane)return;\n"
+        "    if(trackStRef.current[j2.right.tr]&&trackStRef.current[j2.right.tr].l)return;\n"
+        "    try{tgt.setPointerCapture&&tgt.setPointerCapture(e.pointerId)}catch(_c){}\n"
+        "    var pxPerS=Math.max(1,lane.getBoundingClientRect().width)/durRef.current;\n"
+        "    var x0=e.clientX,h0=dzmHistHost(),moved=!1;\n"
+        '    transHoverShow(j2.t,"roll");\n'
+        "    function mv(ev){var ds=(ev.clientX-x0)/pxPerS;\n"
+        "      if(Math.abs(ev.clientX-x0)>3)moved=!0;if(!moved)return;\n"
+        '      transHoverShow(j2.t,"roll "+(ds>=0?"+":"")+ds.toFixed(2)+" s");\n'
+        "      setClips(DzTracks.roll(h0.clips,j2.left.id,j2.right.id,ds))}\n"
+        '    function up(){tgt.removeEventListener("pointermove",mv);tgt.removeEventListener("pointerup",up);\n'
+        "      transHoverHide();if(moved){setDirty(!0);pushHistory(h0)}}\n"
+        '    tgt.addEventListener("pointermove",mv);tgt.addEventListener("pointerup",up)}\n'
+        "  function transSpanDown(e,jc,edge,t){")
+
+# T5 : le titre des clips DIT les trois gestes -- c'est la seule decouverte
+# possible, le curseur contextuel n'etant pas livre (ecart assume et date :
+# « D-3 : curseur contextuel non livre », rien dans montage.css).
+A_T5 = '" — bords : rogner / allonger · centre : déplacer"'
+R_T5 = ('" — bords : rogner / allonger · centre : déplacer · '
+        'Alt+centre : slip · Maj+centre : slide · Alt+losange : roll"')
+
+
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
            ("M5-payload", A_M5, R_M5), ("M6-save", A_M6, R_M6),
@@ -2831,7 +2907,18 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            # le bundle d'entree et aucune section anterieure n'y touche.
            ("R1-plage-actions", A_R1, R_R1),
            ("R2-plage-dispatch", A_R2, R_R2),
-           ("R3-plage-regle", A_R3, R_R3)]
+           ("R3-plage-regle", A_R3, R_R3),
+           # D-3 (21/09/2026) — roll, slip, slide. Les six ancres valent
+           # 1/1 dans le .bak_montage ET dans le bundle patche : aucune
+           # section anterieure ne les touche. T4 pose `dzRollDown` que
+           # T3 et T3b appellent (ordre indifferent : declaration de
+           # fonction, hissee dans le corps du composant).
+           ("T1-trim-modificateurs", A_T1, R_T1),
+           ("T2-trim-slip-slide", A_T2, R_T2),
+           ("T3-trim-roll-poignee", A_T3, R_T3),
+           ("T3b-trim-roll-losange", A_T3B, R_T3B),
+           ("T4-trim-roll-geste", A_T4, R_T4),
+           ("T5-trim-titre", A_T5, R_T5)]
 
 
 def nl(text, crlf):

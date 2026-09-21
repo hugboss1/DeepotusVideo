@@ -4966,6 +4966,71 @@ function dzmModeLabel(m){
   for(i=0;i<DZM_MODES.length;i++)if(DZM_MODES[i][0]===k)return DZM_MODES[i][1];
   return DZM_MODES[0][1]}
 
+/* ── D-3 (21/09/2026) : ROLL, SLIP, SLIDE (Resolve : trim contextuel) ────
+   Tout est PUR et relatif à l'ÉTAT DU POINTERDOWN (h0.clips) : le geste
+   rejoue `ds` depuis l'origine, jamais depuis l'état précédent (dérive).
+   slip  : Alt + glisser le centre — bornes fixes, srcIn -= ds × vitesse ;
+   slide : Maj + glisser le centre — le clip bouge, le voisin gauche s'allonge,
+           le voisin droit se raccourcit (min 0,3 s) et son srcIn avance ;
+   roll  : Alt + glisser la jonction — fin du gauche = début du droit =
+           jonction + ds (min 0,3 s de chaque côté), srcIn du droit suit.
+   `dzmSrcLen` rend la longueur TIMELINE (end-start) : la longueur SOURCE
+   consommée vaut donc `dzmSrcLen(c)*vitesse` — c'est elle qui borne le slip.
+   Doctrine mesurée dans `dzmRippleCut`/`dzmCarve` : on n'INVENTE jamais un
+   `srcIn` sur un clip qui n'a ni `srcIn` ni `src` (un titre n'a pas de
+   fenêtre de source). */
+function dzmVoisins(cs,c){
+  var g=null,d=null;
+  if(!Array.isArray(cs)||!c)return {g:g,d:d};
+  cs.forEach(function(k){if(!k||k.tr!==c.tr||k.id===c.id)return;
+    if(Math.abs(Number(k.end)-Number(c.start))<=.1&&(!g||Number(k.end)>Number(g.end)))g=k;
+    if(Math.abs(Number(k.start)-Number(c.end))<=.1&&(!d||Number(k.start)<Number(d.start)))d=k});
+  return {g:g,d:d}}
+function dzmSlip(clips,id,ds,opts){
+  var cs=Array.isArray(clips)?clips:[],d=Number(ds);if(!isFinite(d))d=0;
+  var sd=Number(opts&&opts.srcDur)||0;
+  var c=cs.filter(function(k){return k&&k.id===id})[0];
+  /* pas de source, pas de fenêtre à faire glisser : geste sans objet */
+  if(!c||(c.srcIn==null&&!c.src))return cs.slice();
+  return cs.map(function(k){
+    if(!k||k.id!==id)return k;
+    var sp=dzmSpeedNum(k),len=dzmSrcLen(k)*sp,si=(Number(k.srcIn)||0)-d*sp;
+    if(si<0)si=0;
+    if(sd>0&&si>sd-len)si=Math.max(0,sd-len);
+    return Object.assign({},k,{srcIn:dzmR3(si)})})}
+function dzmSlide(clips,id,ds){
+  var cs=Array.isArray(clips)?clips:[],d=Number(ds);if(!isFinite(d))d=0;
+  var c=cs.filter(function(k){return k&&k.id===id})[0];
+  if(!c||!d)return cs.slice();
+  var v=dzmVoisins(cs,c);
+  if(!v.d)return cs.slice();                     /* sans voisin droit : pas un slide */
+  var dmax=(Number(v.d.end)-Number(v.d.start))-.3,
+      dmin=v.g?-((Number(v.g.end)-Number(v.g.start))-.3):-Number(c.start);
+  d=Math.max(dmin,Math.min(dmax,d));
+  return cs.map(function(k){
+    if(!k)return k;
+    if(k.id===c.id)return Object.assign({},k,
+      {start:dzmR3(Number(k.start)+d),end:dzmR3(Number(k.end)+d)});
+    if(v.g&&k.id===v.g.id)return Object.assign({},k,{end:dzmR3(Number(k.end)+d)});
+    if(k.id===v.d.id){var q=Object.assign({},k,{start:dzmR3(Number(k.start)+d)});
+      if(k.srcIn!=null||k.src)q.srcIn=dzmR3(Math.max(0,(Number(k.srcIn)||0)+d*dzmSpeedNum(k)));
+      return q}
+    return k})}
+function dzmRoll(clips,leftId,rightId,ds){
+  var cs=Array.isArray(clips)?clips:[],d=Number(ds);if(!isFinite(d))d=0;
+  var L=cs.filter(function(k){return k&&k.id===leftId})[0],
+      R=cs.filter(function(k){return k&&k.id===rightId})[0];
+  if(!L||!R||!d)return cs.slice();
+  var dmin=-((Number(L.end)-Number(L.start))-.3),dmax=(Number(R.end)-Number(R.start))-.3;
+  d=Math.max(dmin,Math.min(dmax,d));
+  return cs.map(function(k){
+    if(!k)return k;
+    if(k.id===L.id)return Object.assign({},k,{end:dzmR3(Number(k.end)+d)});
+    if(k.id===R.id){var q=Object.assign({},k,{start:dzmR3(Number(k.start)+d)});
+      if(k.srcIn!=null||k.src)q.srcIn=dzmR3(Math.max(0,(Number(k.srcIn)||0)+d*dzmSpeedNum(k)));
+      return q}
+    return k})}
+
 /* ── export contrat ───────────────────────────────────────────────────────── */
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
@@ -5029,6 +5094,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   rangeSet:dzmRangeSet,rangeFrom:dzmRangeFrom,rangeLen:dzmRangeLen,
   RangeBar:DzmRangeBar,
   insere:dzmInsere,MODES:DZM_MODES,REFUS:DZM_REFUS,carve:dzmCarve,
+  slip:dzmSlip,slide:dzmSlide,roll:dzmRoll,voisins:dzmVoisins,
   ModeBar:DzmModeBar,MODE_T:DZM_MODE_T,modeLabel:dzmModeLabel,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;

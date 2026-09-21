@@ -210,7 +210,14 @@ STABLE_PROBES = [
     # (la sonde compte du texte, commentaires compris), et `DzTracks.fitDur`
     # gagne un appel (3 -> 4 : `dzAv`, la fin reelle d'AVANT l'insertion, qui
     # borne la phrase de l'allongement).
-    ("montage", "DzTracks", 75),
+    # 21/09/2026 D-3, tache 7 (roll, slip, slide) : 75 -> 78, MESURE apres
+    # rejeu (la chaine a refuse, « sonde montage x78 (want 75) »). TROIS
+    # references de plus, nommees : DzTracks.slip et DzTracks.slide dans
+    # le `mv` de clipDown (T2), DzTracks.roll dans le `mv` de dzRollDown
+    # (T4). T1, T3, T3b et T5 n'en ajoutent aucune : modificateurs lus,
+    # appels a `dzRollDown` (fonction locale, pas un membre de DzTracks)
+    # et texte d'infobulle.
+    ("montage", "DzTracks", 78),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

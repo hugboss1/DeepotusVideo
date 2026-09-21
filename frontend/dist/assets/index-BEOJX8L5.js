@@ -3260,6 +3260,8 @@ function DzMontage(props){
     var cRect=e.currentTarget.getBoundingClientRect();
     var edge=svmEdgeAt(e.clientX,cRect);
     var x0=e.clientX,s0=c.start,e0=c.end,moved=!1,tgt=e.currentTarget;
+    var dzSlip=!!e.altKey&&edge==="m",dzSlide=!!e.shiftKey&&!e.altKey&&edge==="m";
+    var dzSd=Number(c.srcDur)||0;
     try{tgt.setPointerCapture&&tgt.setPointerCapture(e.pointerId)}catch(_c){}
     var h0=dzmHistHost(),snapAt=null;
     var edges=[0,durRef.current,phRef.current];
@@ -3279,6 +3281,8 @@ function DzMontage(props){
     function mv(ev){var ds=(ev.clientX-x0)/pxPerS;
       if(Math.abs(ev.clientX-x0)>3)moved=!0;if(!moved)return;
       snapAt=null;
+      if(dzSlip){setClips(DzTracks.slip(h0.clips,c.id,ds,{srcDur:dzSd}));return}
+      if(dzSlide){var dzNs=doSnap(s0+ds);setClips(DzTracks.slide(h0.clips,c.id,dzNs-s0));setSnapT(snapAt);return}
       var w=0,delta=0;
       if(edge==="r"){
         /* P10 — plus de plafond ni de limite de ripple : c'est
@@ -3698,6 +3702,23 @@ function DzMontage(props){
      de la coupe (le bloc reste centré sur la jonction). Clamp 0,1..1 s, pas
      0,05 ; une seule entrée d'historique au relâchement ; clic sans mouvement
      = ouvrir le réglage (aux petits zooms le bloc couvre le losange). */
+  function dzRollDown(e,j2){
+    e.stopPropagation();e.preventDefault();
+    var tgt=e.currentTarget;
+    var lane=tgt.closest?tgt.closest(".svm-lane"):null;
+    if(!lane)return;
+    if(trackStRef.current[j2.right.tr]&&trackStRef.current[j2.right.tr].l)return;
+    try{tgt.setPointerCapture&&tgt.setPointerCapture(e.pointerId)}catch(_c){}
+    var pxPerS=Math.max(1,lane.getBoundingClientRect().width)/durRef.current;
+    var x0=e.clientX,h0=dzmHistHost(),moved=!1;
+    transHoverShow(j2.t,"roll");
+    function mv(ev){var ds=(ev.clientX-x0)/pxPerS;
+      if(Math.abs(ev.clientX-x0)>3)moved=!0;if(!moved)return;
+      transHoverShow(j2.t,"roll "+(ds>=0?"+":"")+ds.toFixed(2)+" s");
+      setClips(DzTracks.roll(h0.clips,j2.left.id,j2.right.id,ds))}
+    function up(){tgt.removeEventListener("pointermove",mv);tgt.removeEventListener("pointerup",up);
+      transHoverHide();if(moved){setDirty(!0);pushHistory(h0)}}
+    tgt.addEventListener("pointermove",mv);tgt.addEventListener("pointerup",up)}
   function transSpanDown(e,jc,edge,t){
     e.stopPropagation();e.preventDefault();
     var tgt=e.currentTarget,span=tgt.parentElement,
@@ -6098,7 +6119,7 @@ function DzMontage(props){
                       if(locked){el.style.cursor="";return}
                       el.style.cursor=svmEdgeAt(e.clientX,el.getBoundingClientRect())==="m"?"grab":"col-resize"},
                     title:locked?c.label+" — piste verrouillée"
-                      :c.label+" — bords : rogner / allonger · centre : déplacer"+
+                      :c.label+" — bords : rogner / allonger · centre : déplacer · Alt+centre : slip · Maj+centre : slide · Alt+losange : roll"+
                         (vpMode?" · double-clic : losange d'automation":""),
                     children:[
                       media,
@@ -6198,7 +6219,7 @@ function DzMontage(props){
                       children:[
                       r.jsx("i",{className:"svm-transhandle","data-side":"l","aria-hidden":!0,
                         onClick:function(e){e.stopPropagation()},
-                        onPointerDown:function(e){transSpanDown(e,j2.right,-1,j2.t)}}),
+                        onPointerDown:function(e){if(e.altKey){dzRollDown(e,j2);return}transSpanDown(e,j2.right,-1,j2.t)}}),
                       r.jsx("i",{className:"svm-transhandle","data-side":"r","aria-hidden":!0,
                         onClick:function(e){e.stopPropagation()},
                         onPointerDown:function(e){transSpanDown(e,j2.right,1,j2.t)}})]}):null,
@@ -6208,7 +6229,7 @@ function DzMontage(props){
                       style:{left:"calc("+j2.t/dur*100+"% - 5px)"},
                       title:"Transition : "+svmTransLabel(j2.right.transition)+(on?" · "+s2.toFixed(2)+" s":"")+" — cliquer pour régler",
                       "aria-label":"Transition entre "+j2.left.label+" et "+j2.right.label,
-                      onPointerDown:function(e){e.stopPropagation()},
+                      onPointerDown:function(e){if(e.altKey){dzRollDown(e,j2);return}e.stopPropagation()},
                       onPointerEnter:function(){transHoverShow(j2.t,transHoverTxt(j2.right,on,s2))},
                       onPointerLeave:transHoverHide,
                       onClick:function(e){e.stopPropagation();openTransPop(j2.right.id,e)}})]},"jx"+j2.right.id)}):null]})]},tr.id)}),
@@ -17587,6 +17608,71 @@ function dzmModeLabel(m){
   for(i=0;i<DZM_MODES.length;i++)if(DZM_MODES[i][0]===k)return DZM_MODES[i][1];
   return DZM_MODES[0][1]}
 
+/* ── D-3 (21/09/2026) : ROLL, SLIP, SLIDE (Resolve : trim contextuel) ────
+   Tout est PUR et relatif à l'ÉTAT DU POINTERDOWN (h0.clips) : le geste
+   rejoue `ds` depuis l'origine, jamais depuis l'état précédent (dérive).
+   slip  : Alt + glisser le centre — bornes fixes, srcIn -= ds × vitesse ;
+   slide : Maj + glisser le centre — le clip bouge, le voisin gauche s'allonge,
+           le voisin droit se raccourcit (min 0,3 s) et son srcIn avance ;
+   roll  : Alt + glisser la jonction — fin du gauche = début du droit =
+           jonction + ds (min 0,3 s de chaque côté), srcIn du droit suit.
+   `dzmSrcLen` rend la longueur TIMELINE (end-start) : la longueur SOURCE
+   consommée vaut donc `dzmSrcLen(c)*vitesse` — c'est elle qui borne le slip.
+   Doctrine mesurée dans `dzmRippleCut`/`dzmCarve` : on n'INVENTE jamais un
+   `srcIn` sur un clip qui n'a ni `srcIn` ni `src` (un titre n'a pas de
+   fenêtre de source). */
+function dzmVoisins(cs,c){
+  var g=null,d=null;
+  if(!Array.isArray(cs)||!c)return {g:g,d:d};
+  cs.forEach(function(k){if(!k||k.tr!==c.tr||k.id===c.id)return;
+    if(Math.abs(Number(k.end)-Number(c.start))<=.1&&(!g||Number(k.end)>Number(g.end)))g=k;
+    if(Math.abs(Number(k.start)-Number(c.end))<=.1&&(!d||Number(k.start)<Number(d.start)))d=k});
+  return {g:g,d:d}}
+function dzmSlip(clips,id,ds,opts){
+  var cs=Array.isArray(clips)?clips:[],d=Number(ds);if(!isFinite(d))d=0;
+  var sd=Number(opts&&opts.srcDur)||0;
+  var c=cs.filter(function(k){return k&&k.id===id})[0];
+  /* pas de source, pas de fenêtre à faire glisser : geste sans objet */
+  if(!c||(c.srcIn==null&&!c.src))return cs.slice();
+  return cs.map(function(k){
+    if(!k||k.id!==id)return k;
+    var sp=dzmSpeedNum(k),len=dzmSrcLen(k)*sp,si=(Number(k.srcIn)||0)-d*sp;
+    if(si<0)si=0;
+    if(sd>0&&si>sd-len)si=Math.max(0,sd-len);
+    return Object.assign({},k,{srcIn:dzmR3(si)})})}
+function dzmSlide(clips,id,ds){
+  var cs=Array.isArray(clips)?clips:[],d=Number(ds);if(!isFinite(d))d=0;
+  var c=cs.filter(function(k){return k&&k.id===id})[0];
+  if(!c||!d)return cs.slice();
+  var v=dzmVoisins(cs,c);
+  if(!v.d)return cs.slice();                     /* sans voisin droit : pas un slide */
+  var dmax=(Number(v.d.end)-Number(v.d.start))-.3,
+      dmin=v.g?-((Number(v.g.end)-Number(v.g.start))-.3):-Number(c.start);
+  d=Math.max(dmin,Math.min(dmax,d));
+  return cs.map(function(k){
+    if(!k)return k;
+    if(k.id===c.id)return Object.assign({},k,
+      {start:dzmR3(Number(k.start)+d),end:dzmR3(Number(k.end)+d)});
+    if(v.g&&k.id===v.g.id)return Object.assign({},k,{end:dzmR3(Number(k.end)+d)});
+    if(k.id===v.d.id){var q=Object.assign({},k,{start:dzmR3(Number(k.start)+d)});
+      if(k.srcIn!=null||k.src)q.srcIn=dzmR3(Math.max(0,(Number(k.srcIn)||0)+d*dzmSpeedNum(k)));
+      return q}
+    return k})}
+function dzmRoll(clips,leftId,rightId,ds){
+  var cs=Array.isArray(clips)?clips:[],d=Number(ds);if(!isFinite(d))d=0;
+  var L=cs.filter(function(k){return k&&k.id===leftId})[0],
+      R=cs.filter(function(k){return k&&k.id===rightId})[0];
+  if(!L||!R||!d)return cs.slice();
+  var dmin=-((Number(L.end)-Number(L.start))-.3),dmax=(Number(R.end)-Number(R.start))-.3;
+  d=Math.max(dmin,Math.min(dmax,d));
+  return cs.map(function(k){
+    if(!k)return k;
+    if(k.id===L.id)return Object.assign({},k,{end:dzmR3(Number(k.end)+d)});
+    if(k.id===R.id){var q=Object.assign({},k,{start:dzmR3(Number(k.start)+d)});
+      if(k.srcIn!=null||k.src)q.srcIn=dzmR3(Math.max(0,(Number(k.srcIn)||0)+d*dzmSpeedNum(k)));
+      return q}
+    return k})}
+
 /* ── export contrat ───────────────────────────────────────────────────────── */
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
@@ -17650,6 +17736,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   rangeSet:dzmRangeSet,rangeFrom:dzmRangeFrom,rangeLen:dzmRangeLen,
   RangeBar:DzmRangeBar,
   insere:dzmInsere,MODES:DZM_MODES,REFUS:DZM_REFUS,carve:dzmCarve,
+  slip:dzmSlip,slide:dzmSlide,roll:dzmRoll,voisins:dzmVoisins,
   ModeBar:DzmModeBar,MODE_T:DZM_MODE_T,modeLabel:dzmModeLabel,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;

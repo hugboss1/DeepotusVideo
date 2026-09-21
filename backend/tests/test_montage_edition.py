@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""L1 — LES MODES D'EDITION (D-2) : le coeur JS est EXECUTE sous node
+"""L1 — LES MODES D'EDITION (D-2) ET LES TRIMS ROLL/SLIP/SLIDE (D-3) : le coeur JS est EXECUTE sous node
 (frontend/patches/montage.js, celui que le patcher injecte), jamais lu.
 Shim par FICHIER, jamais `node -e`.
 Run : & $PY tests\test_montage_edition.py   (depuis backend/)"""
@@ -116,6 +116,38 @@ out.refus_table=T.REFUS?T.REFUS.slice():null;
 var mp="";try{T.MODES.push(["z","z"])}catch(err){mp=err.name}
 var mw="";try{T.MODES[0][0]="zz"}catch(err){mw=err.name}
 out.modes_gel=[T.MODES.length,mp,T.MODES[0][0],mw];
+/* ── D-3 : roll, slip, slide ── (cles suffixees 3 : `mou` et `pur` sont
+   DEJA pris par le bloc D-2 ci-dessus, une collision les aurait ecrases) */
+var K3=[{tr:"v1",id:"p1",start:0,end:4,srcIn:0,src:{a:1}},
+        {tr:"v1",id:"p2",start:4,end:8,srcIn:2,src:{a:1}},
+        {tr:"v1",id:"p3",start:8,end:10,srcIn:0,src:{a:1}}];
+function tri3(cs){return cs.filter(function(c){return c.tr==="v1"})
+  .sort(function(a,b){return a.start-b.start})
+  .map(function(c){return [c.id,c.start,c.end,c.srcIn]})}
+out.slip=tri3(T.slip(K3,"p2",1,{srcDur:10}));
+out.slip_borne_bas=tri3(T.slip(K3,"p2",5,{srcDur:10}));
+out.slip_borne_haut=tri3(T.slip(K3,"p2",-9,{srcDur:10}));
+out.slip_vitesse=tri3(T.slip(K3.map(function(c){
+  return c.id==="p2"?Object.assign({},c,{speed:2}):c}),"p2",1,{srcDur:20}));
+/* doctrine : un titre (ni srcIn ni src) ne gagne pas de fenetre de source */
+out.slip_titre=(function(){var TT=[{tr:"v1",id:"tt",start:0,end:4,text:"t"}];
+  return ("srcIn" in T.slip(TT,"tt",1,{srcDur:10})[0])})();
+out.slide=tri3(T.slide(K3,"p2",1));
+out.slide_neg=tri3(T.slide(K3,"p2",-1));
+out.slide_borne=tri3(T.slide(K3,"p2",5));
+out.slide_sans_voisin=tri3(T.slide(K3,"p3",1));
+out.roll=tri3(T.roll(K3,"p1","p2",-1));
+out.roll_avant=tri3(T.roll(K3,"p1","p2",1));
+out.roll_borne=tri3(T.roll(K3,"p1","p2",-9));
+/* dzmVoisins : le contact se mesure a 0,1 s pres, sur la MEME piste */
+out.voisins=(function(){var v=T.voisins(K3,K3[1]);
+  return [v.g?v.g.id:null,v.d?v.d.id:null]})();
+out.voisins_autre_piste=(function(){
+  var X=[{tr:"v1",id:"a",start:0,end:4},{tr:"v2",id:"b",start:4,end:8}];
+  var v=T.voisins(X,X[0]);return [v.g?v.g.id:null,v.d?v.d.id:null]})();
+out.mou3=[T.slip(null,"p2",1,{}).length,T.slide(K3,"zz",1).length,
+          T.roll(K3,"p1","zz",1).length,tri3(T.roll(K3,"p1","p2",NaN))[0][2]];
+out.pur3=K3[1].srcIn===2&&K3[0].end===4&&K3[2].start===8;
 console.log(JSON.stringify(out));
 """
 print("\n[1] dzmInsere sous node")
@@ -263,7 +295,8 @@ try:
             vide_dv = {}
     # aucune des cles utilisees par les `check` positifs plus haut ne doit
     # apparaitre dans D quand la source est vide (T.MODES etc n'existent pas)
-    vide_cles = ["modes","ecraser","inserer","fin","dessus_piste","ripple","remplir","jumeau"]
+    vide_cles = ["modes","ecraser","inserer","fin","dessus_piste","ripple","remplir","jumeau",
+                 "slip","slide","roll","voisins","mou3","pur3"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -274,6 +307,50 @@ try:
           f"returncode={'n/a' if rv is None else rv.returncode} D={vide_dv!r}")
 finally:
     shutil.rmtree(vide_dir, ignore_errors=True)
+
+print("\n[3] D-3 : roll, slip, slide sous node")
+# Faute n6 : chaque lecture indexee passe par `at()`, qui rend un TEMOIN
+# distinguable (et jamais egal a une attente) quand la cle manque ou que la
+# liste est trop courte -- une lecture nue `D.get("slip_borne_bas")[1]`
+# mourrait sur l'etat vide au lieu de rougir.
+def at(k, *ix):
+    v = D.get(k)
+    for i in ix:
+        if not isinstance(v, list) or len(v) <= i:
+            return f"<absent:{k}{list(ix)}>"
+        v = v[i]
+    return v
+
+check("slip_deplace_la_source_sans_bouger_le_clip",
+      D.get("slip") == [["p1",0,4,0],["p2",4,8,1],["p3",8,10,0]], D.get("slip"))
+check("slip_borne_bas", at("slip_borne_bas",1) == ["p2",4,8,0], at("slip_borne_bas",1))
+check("slip_borne_haut", at("slip_borne_haut",1) == ["p2",4,8,6], at("slip_borne_haut",1))
+check("slip_suit_la_vitesse", at("slip_vitesse",1) == ["p2",4,8,0], at("slip_vitesse",1))
+check("slip_titre_ne_gagne_pas_de_srcIn",
+      "slip_titre" in D and D.get("slip_titre") is False, D.get("slip_titre"))
+check("slide_les_voisins_compensent",
+      D.get("slide") == [["p1",0,5,0],["p2",5,9,2],["p3",9,10,1]], D.get("slide"))
+check("slide_negatif",
+      D.get("slide_neg") == [["p1",0,3,0],["p2",3,7,2],["p3",7,10,0]], D.get("slide_neg"))
+check("slide_borne_par_le_voisin_droit",
+      isinstance(at("slide_borne",2,1), (int, float))
+      and isinstance(at("slide_borne",2,2), (int, float))
+      and at("slide_borne",2,1) - at("slide_borne",2,2) <= -0.3 + 1e-9
+      and at("slide_borne",2,2) == 10, D.get("slide_borne"))
+check("slide_sans_voisin_droit_ne_bouge_pas",
+      D.get("slide_sans_voisin") == [["p1",0,4,0],["p2",4,8,2],["p3",8,10,0]],
+      D.get("slide_sans_voisin"))
+check("roll_recule",
+      D.get("roll") == [["p1",0,3,0],["p2",3,8,1],["p3",8,10,0]], D.get("roll"))
+check("roll_avance",
+      D.get("roll_avant") == [["p1",0,5,0],["p2",5,8,3],["p3",8,10,0]], D.get("roll_avant"))
+check("roll_borne_a_0_3_s", at("roll_borne",0,2) == 0.3, at("roll_borne",0,2))
+check("voisins_de_contact", D.get("voisins") == ["p1","p3"], D.get("voisins"))
+check("voisins_ignorent_les_autres_pistes",
+      "voisins_autre_piste" in D and D.get("voisins_autre_piste") == [None, None],
+      D.get("voisins_autre_piste"))
+check("trims_entrees_molles", "mou3" in D and D.get("mou3") == [0, 3, 3, 4], D.get("mou3"))
+check("trims_purs", D.get("pur3") is True, D.get("pur3"))
 
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")

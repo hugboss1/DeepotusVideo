@@ -80,6 +80,26 @@ UNE FAUTE N°6 ATTRAPEE PENDANT L'ECRITURE : `_CSSM.split(borne)[1]` leve
 IndexError quand la borne disparait — un banc doit ROUGIR, pas MOURIR. La
 parade est `_apres()`, qui rend "" et fait rougir ses lectrices.
 
+COMPTE PRECEDENT, 21/09/2026 (D-3, tache 7 - roll, slip, slide) : 1414
+lignes, dont une rouge au premier passage -- `D2_le_cablage_n_ajoute_qu_une
+_section_celle_du_verrou` comptait 75 triplets EN DUR alors qu'elle ne
+parle que du delta de D-2 ; D-3 en ajoute SIX (T1, T2, T3, T3b, T4, T5)
+et le compte passe a 81. Une section neuve, [3-quater], porte le lot :
+VINGT-SEPT pins de forme -- l'ordre des lectures de T1 (entre `svmEdgeAt`
+et le `h0` de H5), la sortie tot de T2 AVANT la branche de rognage et le
+rejeu depuis `h0` et jamais depuis `clipsRef`, la poignee gauche seule
+changee par T3 (la droite reste un `transSpanDown` nu), le losange
+`.svm-junc` rendu SANS condition la ou `.svm-transspan` est sous `on?`
+(T3b), les dix mesures du corps de `dzRollDown` (pose juste avant
+`transSpanDown`, huit symboles de closure, la piste remontee par
+`closest(".svm-lane")` et jamais par `parentElement`, le verrou, une
+seule entree d'historique), le titre de T5 et la disparition de
+l'ancien, les DEUX ecarts assumes et dates (borne haute du slip
+inconnue faute de `c.srcDur` a l'ecran ; aucun curseur contextuel dans
+la feuille) et les cinq lignes du coeur pur exporte. NON-VACUITE DU
+CABLAGE : `R_T5 = A_T5` dans le patcher, chaine rejouee, fait rougir
+`D3_T5_le_titre_dit_les_trois_gestes_et_l_ancienne_phrase_a_disparu`.
+
 COMPTE PRECEDENT, 21/09/2026 (D-2, tache 6, premier tour) : 1379 lignes, soit QUARANTE de plus que les 1339 de D-11. Une
 section neuve, [3-ter], porte le lot : VINGT-SEPT pins statiques (les trois
 ancres du cablage mesurees A ZERO dans .bak_montage — c'est ce qui interdit
@@ -8630,8 +8650,13 @@ check("D2_l_ancre_E3_a_ete_consommee_par_M22b",
 # aux trois autres, que des remplacements POSENT. 74 -> 75 triplets, 75 -> 76
 # ancres (`--check` compte aussi M2, le lien CSS de dist/index.html, qui
 # n'est pas un triplet de PATCHES).
+# 21/09/2026 D-3 (tache 7) : ce compte etait ABSOLU (75) alors que la
+# ligne ne parle que du delta de D-2. D-3 ajoute SIX triplets
+# (T1, T2, T3, T3b, T4, T5) -> 81. Le conjoint qui porte le SENS de la
+# ligne est le second : « E4-verrou-apres-mode » est le SEUL triplet
+# que D-2 ait ajoute, et il est toujours la.
 check("D2_le_cablage_n_ajoute_qu_une_section_celle_du_verrou",
-      len(P.PATCHES) == 75
+      len(P.PATCHES) == 81
       and [t for t in P.PATCHES if t[0] == "E4-verrou-apres-mode"],
       f"{len(P.PATCHES)} triplets dans PATCHES")
 check("D2_E4_son_ancre_EXISTE_dans_le_bak_contrairement_aux_trois_autres",
@@ -12009,6 +12034,159 @@ check("tb8_aucun_mouvement_de_la_barre_n_est_pilote_en_javascript",
       # coupe-circuit borne.
       and "@keyframes" not in _MC,
       f"bloc={len(_CODE_TB8)} o hors_frame={len(_HORS_FRM)} o")
+
+# ══════════════════════════════════════════════════════════════════════════
+# [3-quater] D-3 (21/09/2026) — ROLL, SLIP, SLIDE. Le coeur pur est mesure
+# par test_montage_edition.py (section [3], 48/0) ; ce qui suit est le
+# CABLAGE : six sections T1, T2, T3, T3b, T4, T5, et leur FORME dans le
+# bundle livre — l'ordre des branches, la portee de la fonction posee, et ce
+# que les sections NE font PAS.
+# ══════════════════════════════════════════════════════════════════════════
+print("\n[3-quater] D-3 — roll, slip, slide, cables : T1…T5")
+
+_D3_SEC = ("T1-trim-modificateurs", "T2-trim-slip-slide", "T3-trim-roll-poignee",
+           "T3b-trim-roll-losange", "T4-trim-roll-geste", "T5-trim-titre")
+check("D3_les_six_sections_sont_dans_PATCHES",
+      [t[0] for t in P.PATCHES if t[0] in _D3_SEC] == list(_D3_SEC),
+      f"{[t[0] for t in P.PATCHES if t[0].startswith(('T1-', 'T2-', 'T3', 'T4-', 'T5-'))]}")
+
+# T1 — les modificateurs sont lus AU POINTERDOWN, entre le calcul de `edge`
+# (svmEdgeAt) et la capture de l'instantane d'historique (H5). L'ordre est la
+# mesure : lus plus tard, ils changeraient de valeur en cours de geste.
+_i_edge = s.find(nl("var edge=svmEdgeAt(e.clientX,cRect);"))
+_i_mod = s.find(nl('var dzSlip=!!e.altKey&&edge==="m",dzSlide=!!e.shiftKey&&!e.altKey&&edge==="m";'))
+_i_h0 = s.find(nl("var h0=dzmHistHost(),snapAt=null;"))
+check("D3_T1_les_modificateurs_sont_lus_au_pointerdown_entre_edge_et_h0",
+      s.count(nl('var dzSlip=!!e.altKey&&edge==="m",dzSlide=!!e.shiftKey&&!e.altKey&&edge==="m";')) == 1
+      and s.count(nl("var dzSd=Number(c.srcDur)||0;")) == 1
+      and 0 <= _i_edge < _i_mod < _i_h0,
+      f"edge={_i_edge} mod={_i_mod} h0={_i_h0}")
+# ECART ASSUME ET DATE (21/09/2026) : aucun clip ne porte `srcDur` a l'ecran
+# — la borne HAUTE du slip est donc inconnue et `dzSd` vaut 0. La ligne
+# l'ENONCE plutot que de la taire : si un jour un `c.srcDur` apparait, elle
+# rougit et la borne haute devient mesurable.
+check("D3_T1_ecart_la_borne_haute_du_slip_est_inconnue_a_l_ecran",
+      s.count(nl("c.srcDur")) == 1 and s.count(nl("srcDur:dzSd")) == 1,
+      f'c.srcDur={s.count(nl("c.srcDur"))}')
+
+# T2 — les deux branches sortent TOT, avant `var w=0,delta=0;` (la branche
+# historique du rognage). Placees apres, elles n'auraient jamais la main.
+_i_slip = s.find(nl("if(dzSlip){setClips(DzTracks.slip(h0.clips,c.id,ds,{srcDur:dzSd}));return}"))
+_i_slide = s.find(nl("if(dzSlide){var dzNs=doSnap(s0+ds);setClips(DzTracks.slide(h0.clips,c.id,dzNs-s0));setSnapT(snapAt);return}"))
+_i_w = s.find(nl("      var w=0,delta=0;"))
+check("D3_T2_slip_et_slide_sortent_avant_la_branche_de_rognage",
+      s.count(nl("if(dzSlip){setClips(DzTracks.slip(")) == 1
+      and s.count(nl("if(dzSlide){var dzNs=doSnap(")) == 1
+      and 0 <= _i_slip < _i_slide < _i_w,
+      f"slip={_i_slip} slide={_i_slide} w={_i_w}")
+# LE GESTE REJOUE DEPUIS L'INSTANTANE, JAMAIS DEPUIS L'ETAT COURANT : c'est
+# la difference entre « slip de +1 s » et une derive qui s'accumule frame par
+# frame. La negation nomme l'erreur qu'elle interdit.
+check("D3_T2_les_deux_gestes_rejouent_depuis_h0_et_jamais_depuis_clipsRef",
+      s.count(nl("DzTracks.slip(h0.clips,")) == 1
+      and s.count(nl("DzTracks.slide(h0.clips,")) == 1
+      and s.count(nl("DzTracks.slip(clipsRef")) == 0
+      and s.count(nl("DzTracks.slide(clipsRef")) == 0,
+      f'slip_h0={s.count(nl("DzTracks.slip(h0.clips,"))} '
+      f'slip_ref={s.count(nl("DzTracks.slip(clipsRef"))}')
+
+# T3 — Alt sur la poignee GAUCHE de l'etendue de transition. La poignee
+# DROITE n'a pas bouge : sans ce second conjoint, la ligne serait vraie d'un
+# patch qui aurait reecrit les deux.
+check("D3_T3_alt_sur_la_poignee_gauche_et_la_droite_intacte",
+      s.count(nl("onPointerDown:function(e){if(e.altKey){dzRollDown(e,j2);return}"
+                 "transSpanDown(e,j2.right,-1,j2.t)}}),")) == 1
+      and s.count(nl("onPointerDown:function(e){transSpanDown(e,j2.right,1,j2.t)}}")) == 1
+      and s.count(nl("onPointerDown:function(e){transSpanDown(e,j2.right,-1,j2.t)}}),")) == 0,
+      "la poignee droite doit rester un transSpanDown nu")
+
+# T3b — ECART CONTESTE ET ASSUME. MESURE : `.svm-transspan` (et donc ses deux
+# poignees, l'ancre de T3) n'est rendu que si `on` — une jonction SANS
+# transition, c'est-a-dire une coupe franche, n'a pas de poignee du tout. Le
+# losange `.svm-junc`, lui, est rendu pour CHAQUE jonction sans condition :
+# c'est lui qui rend le roll atteignable la ou Resolve le place.
+_i_span = s.find(nl('on?r.jsxs("div",{className:"svm-transspan"'))
+_i_junc = s.find(nl('r.jsx("button",{className:"svm-junc"'))
+check("D3_T3b_le_losange_est_rendu_sans_condition_l_etendue_non",
+      _i_span >= 0 and _i_junc >= 0
+      and s.count(nl('on?r.jsxs("div",{className:"svm-transspan"')) == 1
+      and s.count(nl('r.jsx("button",{className:"svm-junc"')) == 1
+      # le losange n'est precede d'aucun ternaire : le caractere qui ouvre sa
+      # ligne est une virgule de liste, pas un `?`.
+      and s[_i_junc - 1] != "?",
+      f"span={_i_span} junc={_i_junc} avant_junc={s[_i_junc-1]!r}")
+check("D3_T3b_le_losange_porte_le_roll_sans_perdre_son_stopPropagation",
+      s.count(nl("onPointerDown:function(e){if(e.altKey){dzRollDown(e,j2);return}"
+                 "e.stopPropagation()},")) == 1,
+      "Alt -> roll, sinon le losange continue d'avaler le pointerdown")
+
+# T4 — `dzRollDown` est pose JUSTE AVANT `transSpanDown`, donc DANS le corps
+# du composant : c'est la seule facon d'avoir `trackStRef`, `durRef`,
+# `setClips`, `setDirty`, `pushHistory` et `dzmHistHost` en portee. La preuve
+# n'est pas la position seule mais le fait qu'il utilise EXACTEMENT les
+# symboles de closure que `transSpanDown`, juste dessous, utilise deja.
+_i_roll = s.find(nl("function dzRollDown(e,j2){"))
+_i_span_fn = s.find(nl("function transSpanDown(e,jc,edge,t){"))
+_CORPS_ROLL = s[_i_roll:_i_span_fn] if 0 <= _i_roll < _i_span_fn else "ABSENT"
+check("D3_T4_dzRollDown_est_pose_juste_avant_transSpanDown",
+      s.count(nl("function dzRollDown(e,j2){")) == 1
+      and 0 <= _i_roll < _i_span_fn
+      and len(_CORPS_ROLL) < 1600,
+      f"roll={_i_roll} span={_i_span_fn} corps={len(_CORPS_ROLL)} o")
+for _lbl, _sym in (("trackStRef", "trackStRef.current"), ("durRef", "durRef.current"),
+                   ("setClips", "setClips("), ("setDirty", "setDirty(!0)"),
+                   ("pushHistory", "pushHistory(h0)"), ("dzmHistHost", "dzmHistHost()"),
+                   ("transHoverShow", "transHoverShow("), ("transHoverHide", "transHoverHide()")):
+    check("D3_T4_le_geste_de_roll_a_en_portee_" + _lbl,
+          _sym in _CORPS_ROLL and nl(_sym) in s,
+          f"{_sym!r} absent du corps de dzRollDown")
+# LA PISTE EST REMONTEE PAR SA CLASSE, PAS PAR UN NOMBRE DE PARENTS : le
+# losange est fils DIRECT de `.svm-lane`, les poignees en sont a deux crans.
+# Un `parentElement.parentElement` — ce que fait `transSpanDown`, qui ne
+# connait que les poignees — aurait donne la mauvaise largeur au losange, et
+# donc une echelle px/s fausse.
+check("D3_T4_la_piste_est_remontee_par_la_classe_et_pas_par_les_parents",
+      'tgt.closest(".svm-lane")' in _CORPS_ROLL
+      and "parentElement" not in _CORPS_ROLL,
+      f'closest={"oui" if "closest" in _CORPS_ROLL else "non"} '
+      f'parentElement={"present" if "parentElement" in _CORPS_ROLL else "absent"}')
+check("D3_T4_une_piste_verrouillee_ne_roule_pas",
+      "if(trackStRef.current[j2.right.tr]&&trackStRef.current[j2.right.tr].l)return;" in _CORPS_ROLL,
+      "le verrou de piste doit rendre la main avant toute capture")
+check("D3_T4_une_seule_entree_d_historique_et_seulement_si_le_geste_a_bouge",
+      _CORPS_ROLL.count("pushHistory(") == 1
+      and "if(moved){setDirty(!0);pushHistory(h0)}" in _CORPS_ROLL
+      and _CORPS_ROLL.count("setClips(") == 1,
+      f'push={_CORPS_ROLL.count("pushHistory(")} setClips={_CORPS_ROLL.count("setClips(")}')
+
+# T5 — le titre DIT les trois gestes. L'ancienne phrase a DISPARU : sinon la
+# section aurait ete appliquee a cote, ou deux fois.
+check("D3_T5_le_titre_dit_les_trois_gestes_et_l_ancienne_phrase_a_disparu",
+      s.count(nl('Alt+centre : slip · Maj+centre : slide · Alt+losange : roll"')) == 1
+      and s.count(nl('" — bords : rogner / allonger · centre : déplacer"')) == 0,
+      f'{s.count(nl(chr(34) + " — bords : rogner / allonger · centre : déplacer" + chr(34)))}')
+# ECART ASSUME ET DATE (21/09/2026) : « D-3 : curseur contextuel non livre ».
+# Le titre est la SEULE decouverte du geste ; la feuille n'a pas bouge.
+check("D3_ecart_aucun_curseur_contextuel_dans_la_feuille",
+      "slip" not in _MC and "slide" not in _MC and "col-resize" not in _MC,
+      "ecart assume : le titre porte seul la decouverte des trois gestes")
+
+# LE COEUR PUR EST EXPORTE ET C'EST LUI QUE LE BUNDLE APPELLE : la couche
+# injectee (src) porte les quatre fonctions, le bundle les appelle une fois
+# chacune, et le bundle ne REDEFINIT aucune d'elles.
+for _nm, _decl, _exp in (("slip", "function dzmSlip(clips,id,ds,opts){", "slip:dzmSlip"),
+                         ("slide", "function dzmSlide(clips,id,ds){", "slide:dzmSlide"),
+                         ("roll", "function dzmRoll(clips,leftId,rightId,ds){", "roll:dzmRoll"),
+                         ("voisins", "function dzmVoisins(cs,c){", "voisins:dzmVoisins")):
+    check("D3_le_coeur_" + _nm + "_est_declare_une_fois_et_exporte",
+          src.count(_decl) == 1 and src.count(_exp) == 1
+          and s.count(nl(_decl)) == 1,
+          f"decl_src={src.count(_decl)} exp={src.count(_exp)} decl_bundle={s.count(nl(_decl))}")
+check("D3_les_trois_gestes_appellent_la_couche_une_fois_chacun",
+      s.count(nl("DzTracks.slip(")) == 1 and s.count(nl("DzTracks.slide(")) == 1
+      and s.count(nl("DzTracks.roll(")) == 1,
+      f'slip={s.count(nl("DzTracks.slip("))} slide={s.count(nl("DzTracks.slide("))} '
+      f'roll={s.count(nl("DzTracks.roll("))}')
 
 # LA LIGNE QUI DIT QUE LE BANC A ROUGI PLUTOT QUE MEURE : aucun appel garde
 # n'a pose de temoin. Une panne de node — introuvable, ou un shim qui tourne
