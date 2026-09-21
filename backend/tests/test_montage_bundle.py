@@ -2739,12 +2739,23 @@ check("P12_le_rappel_repasse_les_memes_arguments",
 # Ce qui change est la forme retenue : `dzIns.clips` porte le plan, son
 # jumeau, ET les clips fendus / pousses des modes « inserer », « en fin »
 # et « ripple ». Un `concat` ici doublerait le clip.
+# D-21 — LES BORNES D'`addAsset`, pour que la negation reste la sienne.
+_iAA0 = s.find(nl("function addAsset(src,label,kind,srcDur,trId,atTime){"))
+_iAAins = s.find(nl("var dzIns=DzTracks.insere(clipsRef.current||[],"),
+                 _iAA0 if _iAA0 >= 0 else 0)
 check("D2_addAsset_ecrit_par_insere_et_plus_par_concat",
       s.count(nl("setClips(dzIns.clips);")) == 1
       and s.count(nl("setClips(clipsRef.current.concat(dzTw&&dzTw.clip?"
                      "[dzNeuf,dzTw.clip]:[dzNeuf]));")) == 0
       and s.count(nl("setClips(clipsRef.current.concat([{tr:tr2,id:id,")) == 0
-      and s.count(nl("setClips(clipsRef.current.concat(")) == 0,
+      # D-21 (21/09/2026) : LE SEUL `concat` RESTANT EST CELUI DU CARTON DE
+      # TITRE (`dzTtAdd`, TT4a), et il est NOMME. La negation d'origine
+      # portait sur `addAsset` : elle est gardee ENTIERE -- entre la
+      # signature d'`addAsset` et son `dzIns`, il n'y a aucun `concat`.
+      and s.count(nl("setClips(clipsRef.current.concat([t]));setSelId(t.id);")) == 1
+      and s.count(nl("setClips(clipsRef.current.concat(")) == 1
+      and _iAA0 >= 0 and _iAAins > _iAA0
+      and nl("setClips(clipsRef.current.concat(") not in s[_iAA0:_iAAins],
       f'insere={s.count(nl("setClips(dzIns.clips);"))} '
       f'concat={s.count(nl("setClips(clipsRef.current.concat("))}')
 # LA PHRASE DU JUMEAU ENTRE DANS LA NOTE DE L'AJOUT par `dzTail`, sans que
@@ -3528,7 +3539,10 @@ for _sec, _r, _pairs in (
           ("livePoolGet", "function livePoolGet("),
           ("livePoolKey", "function livePoolKey("))),
         ("M25c", P.R_M25C,
-         (("c", "clips.filter(function(c){return c.src}).map(function(c){"),
+         # D-21 (TT2) : les cartons de titre, qui n'ont PAS de `src`, passent
+         # desormais le filtre -- `c` est declare par la forme neuve.
+         (("c", 'clips.filter(function(c){return c.src||c.kind==="title"})'
+               ".map(function(c){"),
           ("dzTracksRef", "var dzTracksRef=x.useRef(null);"))),
         ("M25d", P.R_M25D,
          (("sel", "var sel=clips.find("),
@@ -3773,9 +3787,15 @@ else:
 probe = """
 var out={};
 var T=window.DzTracks;
-out.skin_len=(SVM_TRACKS.length===T.DEFAULTS.length);
+/* D-21 (21/09/2026) : la couche porte UNE piste de plus que le bundle --
+   t1, la piste des titres, EN TETE. Les six historiques suivent, dans le
+   meme ordre et au meme habillage : le decalage d'UN rang est ce qu'on
+   compare, et `skin_tete` dit que la piste de trop est bien celle-la. */
+out.skin_len=(SVM_TRACKS.length+1===T.DEFAULTS.length);
+out.skin_tete=[T.DEFAULTS[0].id,T.DEFAULTS[0].kind,T.DEFAULTS[0].name,
+  T.DEFAULTS[0].type,T.DEFAULTS[0].h,T.DEFAULTS[0].c,T.DEFAULTS[0].mix];
 out.skin_diff=SVM_TRACKS.map(function(t,i){
-  var d=T.DEFAULTS[i]||{},bad=[];
+  var d=T.DEFAULTS[i+1]||{},bad=[];
   ["id","name","type","h","c","mix"].forEach(function(k){
     if(t[k]!==d[k])bad.push(k+" "+JSON.stringify(t[k])+" ≠ "+JSON.stringify(d[k]))});
   return bad.join(", ")}).filter(function(z){return z});
@@ -4354,7 +4374,14 @@ out.p14_ord_loi=P12(function(){var o=T.overlayOrder(["c2","c3","c4"],P14_CL,P14_
 out.p14_ord_pure=P12(function(){var ids=["c4","c2"],a=JSON.stringify([ids,P14_CL,P14_TS3]);
   T.overlayOrder(ids,P14_CL,P14_TS3);return a===JSON.stringify([ids,P14_CL,P14_TS3])});
 /* le choix */
-out.p14_add=P12(function(){return [T.add(T.DEFAULTS,"video")[0],T.add(T.DEFAULTS,"overlay")[0]]
+/* D-21 (21/09/2026) : `T.DEFAULTS[0]` n'est plus la piste NEUVE -- c'est t1,
+   la piste des titres, qui ouvre la table depuis D-21 et sous laquelle les
+   pistes video naissent. Les quatre mesures de P14 prennent donc la piste
+   PAR SON NOM : ce qu'elles voulaient dire depuis le debut. */
+function TRK(ts,id){var i;for(i=0;i<(ts||[]).length;i++)
+  if(ts[i]&&ts[i].id===id)return ts[i];return {}}
+out.p14_add=P12(function(){return [TRK(T.add(T.DEFAULTS,"video"),"v3"),
+  TRK(T.add(T.DEFAULTS,"overlay"),"v3")]
   .map(function(t){return [t.id,t.type,t.h,t.c,t.kind]})});
 out.p14_add_0409=P12(function(){return [T.add(TS_0409,"video")[0],T.add(TS_0409,"overlay")[0]]
   .map(function(t){return [t.id,t.type]})});
@@ -4373,13 +4400,16 @@ out.p14_addDit_v2=P12(function(){var r=T.addDit(TS_0409,"overlay");return [r.id,
 out.p14_addDit_vide=P12(function(){var r=T.addDit([],"video");return [r.id,r.type,r.tracks.length]});
 /* la persistance : le payload porte le type « vidéo » d'une piste autre que
    v1, et RIEN d'autre ; l'aller-retour rend la piste avec son habillage */
-out.p14_payload=P12(function(){return [T.payload({tracks:T.add(T.DEFAULTS,"video")})[0],
-  T.payload({tracks:T.add(T.DEFAULTS,"overlay")})[0],T.payload({tracks:T.DEFAULTS})[1]]});
+out.p14_payload=P12(function(){return [
+  TRK(T.payload({tracks:T.add(T.DEFAULTS,"video")}),"v3"),
+  TRK(T.payload({tracks:T.add(T.DEFAULTS,"overlay")}),"v3"),
+  TRK(T.payload({tracks:T.DEFAULTS}),"v1")]});
 out.p14_roundtrip=P12(function(){
   var f=T.from(T.payload({tracks:T.add(T.DEFAULTS,"video")}));
   var g=T.from(T.payload({tracks:T.add(T.DEFAULTS,"overlay")}));
-  return [[f[0].id,f[0].type,f[0].h,T.trackPlein(f,"v3"),T.wantsTwin("video",f,"v3")],
-          [g[0].id,g[0].type,g[0].h,T.trackPlein(g,"v3"),T.wantsTwin("video",g,"v3")]]});
+  var f3=TRK(f,"v3"),g3=TRK(g,"v3");
+  return [[f3.id,f3.type,f3.h,T.trackPlein(f,"v3"),T.wantsTwin("video",f,"v3")],
+          [g3.id,g3.type,g3.h,T.trackPlein(g,"v3"),T.wantsTwin("video",g,"v3")]]});
 /* le jumeau suit le type (taches 18 et 20) : piste neuve « vidéo » → jumeau ;
    « overlay » → pas de jumeau, et l'incrustation est DITE */
 out.p14_jumeau=P12(function(){var fv=T.add(T.DEFAULTS,"video"),fo=T.add(T.DEFAULTS,"overlay");
@@ -5003,8 +5033,11 @@ function CABTYPES(k, ts) {
 }
 out.tb_c_video_types = TBG(function () { return CABTYPES("piste-video", CAB_TS) });
 out.tb_c_incrust_types = TBG(function () { return CABTYPES("piste-incrust", CAB_TS) });
+/* D-21 : la piste NEUVE est nommee, pas prise au rang 0 -- depuis D-21 le
+   rang 0 de la table est t1, la piste des titres. */
 out.tb_c_incrust_v3_type = TBG(function () {
-  return CABTYPES("piste-incrust", T.DEFAULTS)[0].split(":")[1] });
+  return (CABTYPES("piste-incrust", T.DEFAULTS).filter(function (z) {
+    return z.indexOf("v3:") === 0 })[0] || "").split(":")[1] });
 out.tb_c_lier = TBG(function () {
   var vu = [];
   T.tbCablage({
@@ -6692,7 +6725,11 @@ else:
     check("js_shim_rend_un_objet_json", _mal == "",
           f"{_mal} — {len(_lignes)} ligne(s), dernière={_derniere[:120]!r}")
 
-BASE = ["v2", "v1", "a1", "a2", "a3", "s1"]
+# D-21 (21/09/2026) — LA PISTE DES TITRES OUVRE LA LISTE. Les six
+# historiques n'ont ni change d'ordre ni change d'habillage : t1 s'AJOUTE en
+# tete, et `js_defauts_meme_habillage_que_le_bundle` compare les six une a
+# une avec SVM_TRACKS, decalees d'un rang.
+BASE = ["t1", "v2", "v1", "a1", "a2", "a3", "s1"]
 check("js_defauts_identiques_a_SVM_TRACKS", d.get("base") == BASE, str(d.get("base")))
 # LE point de non-divergence : mêmes six pistes, mêmes noms, mêmes hauteurs,
 # mêmes couleurs que la table du bundle. C'est ce qui garantit que l'écran
@@ -6700,7 +6737,13 @@ check("js_defauts_identiques_a_SVM_TRACKS", d.get("base") == BASE, str(d.get("ba
 check("js_defauts_meme_habillage_que_le_bundle",
       d.get("skin_len") is True and d.get("skin_diff") == [],
       f'len={d.get("skin_len")} diff={d.get("skin_diff")}')
-check("js_move_a3_monte", d.get("move_a3_up") == ["v2", "v1", "a1", "a3", "a2", "s1"],
+# ET LA PISTE DE TROP EST NOMMEE, sinon « une de plus » aurait ete vrai de
+# n'importe quoi. Son habillage est celui de S1 (l'autre piste de texte) a
+# la hauteur pres, celle d'une bande d'incrustation.
+check("js_la_piste_de_trop_est_celle_des_titres",
+      d.get("skin_tete") == ["t1", "title", "T1", "titres", 40,
+                             "--c-text", 11], d.get("skin_tete"))
+check("js_move_a3_monte", d.get("move_a3_up") == ["t1", "v2", "v1", "a1", "a3", "a2", "s1"],
       str(d.get("move_a3_up")))
 check("js_move_v1_refuse", d.get("move_v1_up") == BASE, str(d.get("move_v1_up")))
 check("js_move_v2_descend_refuse", d.get("move_v2_down") == BASE,
@@ -6710,18 +6753,23 @@ check("js_drag_v2_bloque_au_groupe", d.get("drag_v2_to_s1") == BASE,
 # le cas qui RÉUSSIT : sans lui, un moveTo qui ne bougerait jamais rien
 # passerait le banc.
 check("js_drag_a1_sous_a3",
-      d.get("moveto_a1_apres_a3") == ["v2", "v1", "a2", "a3", "a1", "s1"],
+      d.get("moveto_a1_apres_a3") == ["t1", "v2", "v1", "a2", "a3", "a1", "s1"],
       str(d.get("moveto_a1_apres_a3")))
+# D-21 — « TOUT EN HAUT » VEUT DIRE SOUS LES TITRES. Sans la borne posee
+# dans `dzmAdd`, v3 naissait AU-DESSUS de t1, c'est-a-dire hors de son
+# groupe (`dzmGroup` range t1 avec les incrustations) : les ▲ ▼ n'auraient
+# plus pu l'en faire redescendre. Le label ne bouge pas, l'attente si.
 check("js_add_video_en_v3_tout_en_haut",
-      d.get("add_video") == ["v3"] + BASE, str(d.get("add_video")))
+      d.get("add_video") == ["t1", "v3", "v2", "v1", "a1", "a2", "a3", "s1"],
+      str(d.get("add_video")))
 check("js_add_audio_en_a4_avant_s1",
-      d.get("add_audio") == ["v2", "v1", "a1", "a2", "a3", "a4", "s1"],
+      d.get("add_audio") == ["t1", "v2", "v1", "a1", "a2", "a3", "a4", "s1"],
       str(d.get("add_audio")))
 check("js_remove_v1_refuse", d.get("rm_v1") == BASE, str(d.get("rm_v1")))
 # B1 : retirer S1 emportait TOUS les sous-titres (ce sont ses clips), rien
 # ne savait la recréer, et l'autosave figeait la perte au rechargement.
 check("js_remove_s1_refuse", d.get("rm_s1") == BASE, str(d.get("rm_s1")))
-check("js_remove_a2", d.get("rm_a2") == ["v2", "v1", "a1", "a3", "s1"],
+check("js_remove_a2", d.get("rm_a2") == ["t1", "v2", "v1", "a1", "a3", "s1"],
       str(d.get("rm_a2")))
 check("js_bus_defaut_identique_au_bundle",
       d.get("bus_defaut") == {"a1": "dialogue", "a2": "musique", "a3": "sfx"},
@@ -6732,7 +6780,8 @@ check("js_bus_mute_en_place", d.get("bus_meme_objet") is True,
       "svmTrackBusSync a REMPLACÉ l'objet — les neuf lecteurs du bundle "
       "garderaient l'ancien")
 check("js_payload_minimal",
-      d.get("payload") == [{"id": "v2", "kind": "video"},
+      d.get("payload") == [{"id": "t1", "kind": "title"},
+                           {"id": "v2", "kind": "video"},
                            {"id": "v1", "kind": "video"},
                            {"id": "a1", "kind": "audio", "bus": "dialogue"},
                            {"id": "a2", "kind": "audio", "bus": "musique", "loop": True},
@@ -8117,9 +8166,12 @@ _SHORT = _ligne("svmShort", 'function svmShort(s){var d=Math.round(s*10),'
                 'svmPad2(Math.floor(r2/10))+"."+(r2%10)}')
 _SPEED = _ligne("svmSpeedOf", 'function svmSpeedOf(c){return c&&typeof '
                 'c.speed==="number"&&c.speed>0?c.speed:1}')
+# D-21 (21/09/2026) : `trackKind` connait un QUATRIEME genre, « title » (la
+# piste t1). Elle est EXTRAITE, jamais recopiee : c'est cette ligne-ci qui
+# rougit si la section TT1 cesse d'etre appliquee.
 _KIND = _ligne("trackKind", 'function trackKind(trId){var k=String(trId||"")'
                '.charAt(0);\n    return k==="a"?"audio":k==="s"?"subs":'
-               '"video"}')
+               'k==="t"?"title":"video"}')
 _KBSEL = _ligne("svmKbSelClip", 'function svmKbSelClip(){var id=selRef.current;'
                 '\n    return clipsRef.current.find(function(k){'
                 'return k.id===id})||null}')
@@ -9240,7 +9292,11 @@ check("D2_le_refus_de_verrou_ne_ferme_pas_le_selecteur",
       # ne se recouvrent plus -- les deux sont des `.svm-pop` a `top:96`.
       # Le compte reste EXACT : c'est lui qui empeche un retrait ailleurs de
       # passer pour la correction d'I-5.
-      and s.count(nl('setOvPick("")')) == 5,
+      # D-21 (TT1b) : 5 -> 6. Le sixieme est le refus de la piste des
+      # TITRES, pose en TETE d'`addAsset` -- une piste de titres ne recoit
+      # aucun asset, et le selecteur se ferme sur ce refus-la (contrairement
+      # au refus de VERROU, que cette ligne mesure).
+      and s.count(nl('setOvPick("")')) == 6,
       f'refus={_iref} fin={_ifin} '
       f'setOvPick={s.count(nl(chr(115) + "etOvPick" + chr(40) + chr(34) + chr(34) + chr(41)))}')
 # LE JETON N'EST JAMAIS AFFICHE : c'est `dzIns.note`, la phrase francaise,
@@ -12363,8 +12419,15 @@ for _a, _sec, _c in _COMBOS:
 # K1) y declare swap_left et swap_right. Les deux combos (Ctrl+←, Ctrl+→)
 # sont libres, mesure encore par `tb8_aucune_combo_par_defaut_n_est_prise_
 # deux_fois`, qui n'a pas eu a changer.
+# 43 -> 44 le 21/09/2026 (D-21, tache 6) : TT4 (replie dans R_R1, juste
+# apres W1) y declare `title_add`. La combo « Maj+T » est libre -- ce que
+# `tb8_aucune_combo_par_defaut_n_est_prise_deux_fois` MESURE, sans avoir eu
+# a changer -- et « T » reste a la narration, ce que cette ligne-ci dit
+# toujours : « Maj+T » ne la vole pas, le dispatch cherchant d'abord la
+# combo EXACTE.
 check("tb8_le_T_du_handoff_appartient_deja_a_la_narration",
-      len(_COMBOS) == 43 and _BY_COMBO.get("T") == ["narration"],
+      len(_COMBOS) == 44 and _BY_COMBO.get("T") == ["narration"]
+      and _BY_COMBO.get("Maj+T") == ["title_add"],
       f"actions={len(_COMBOS)} T={_BY_COMBO.get('T')}")
 # UNE COMBO PAR ACTION, ET AUCUNE EN DOUBLE : la nouvelle n'a rien vole.
 # `svmKmMerge` resoudrait une collision en silence (retour au defaut) — c'est
@@ -12442,7 +12505,13 @@ check("tb8_les_trois_chips_degradees_gardent_un_nom_et_une_infobulle",
       # deux chiffres des sous-titres) serait illisible reduit a un glyphe.
       # C'est `:nth-child(-n+3)` qui trace la frontiere, des deux cotes, et
       # la chip neuve porte tout de meme son `aria-label` (mesure ci-dessus).
-      and s.count('className:"svm-toolchip"') == 5
+      # 5 -> 6 le 21/09/2026 : D-21 (TT5) ajoute « T+ », poser un titre,
+      # JUSTE APRES « losange n » -- donc en cinquieme position, HORS du
+      # `:nth-child(-n+3)` qui degrade, pour la meme raison que les deux
+      # qui la precedent : « T+ » reduit a un glyphe ne dirait plus rien.
+      # Elle porte tout de meme son `aria-label` (« poser un titre »).
+      and s.count('className:"svm-toolchip"') == 6
+      and s.count('"aria-label":"poser un titre",') == 1
       # LE `title` NE BOUGE PAS : il reste la description, et c'est lui que
       # l'infobulle du mode compact affiche (§2.3).
       and s.count(nl('title:"aimanter les bords, la tête et 0 ("')) == 1
@@ -13625,6 +13694,182 @@ check("D12_la_feuille_pose_le_voile_sans_z_index",
       and ".svm-tf{position:absolute; inset:0; pointer-events:none; z-index:3}" in _SVMCSS
       and ".sub-ov{z-index:3}" in _SUBSCSS,
       f"regle={_R_VEIL!r}")
+
+# ══════════════════════════════════════════════════════════════════════════
+# D-21 (21/09/2026, tâche 6) — LE GENRE `title`, LA PISTE t1, POSER UN TITRE
+# ══════════════════════════════════════════════════════════════════════════
+# SIX DES HUIT MORCEAUX SONT DES REPLIS, et c'est la mesure qui le dit : leur
+# texte vaut 0 dans .bak_montage (aucune section ne pourrait le prendre pour
+# ancre), il est DANS la section citée, et il vaut 1 dans le bundle livré.
+# Même forme que E1/K1/K2/K3/K5/W1/W2/X1/V1.
+for _lblt, _txtt, _sect, _nomt in (
+        ("TT1b_une_piste_de_titres_ne_recoit_aucun_asset",
+         'if(trackKind(trId||"v2")==="title"){', P.R_M15, "R_M15"),
+        ("TT2_le_carton_passe_le_filtre_du_payload",
+         'clips.filter(function(c){return c.src||c.kind==="title"})',
+         P.R_M5, "R_M5"),
+        ("TT3_la_piste_revient_avec_le_projet",
+         'return _t&&(d.clips||[]).some(function(c){return c&&c.kind==="title"})',
+         P.R_M7, "R_M7"),
+        ("TT4a_le_geste_est_declare_une_fois",
+         "  function dzTtAdd(){", P.R_M16REF, "R_M16REF"),
+        ("TT4_l_action_est_dans_la_table_des_raccourcis",
+         '{id:"title_add",sec:"Montage",lbl:"titre : poser un carton a la tete",'
+         'combo:"Maj+T"},', P.R_R1, "R_R1"),
+        ("TT4_le_dispatch_appelle_le_geste",
+         'if(id==="title_add"){dzTtAdd();return}', P.R_R2, "R_R2"),
+        ("TT5_la_chip_T_plus_appelle_le_meme_geste",
+         'onClick:function(){dzTtAdd()},children:"T+"}),', P.R_K5, "R_K5")):
+    check("D21_" + _lblt,
+          s.count(nl(_txtt)) == 1 and _txtt in _sect
+          and (_bak.count(_nlb(_txtt)) == 0 if _bak else False),
+          f'bundle={s.count(nl(_txtt))} dans_{_nomt}={_txtt in _sect} '
+          f'bak={_bak.count(_nlb(_txtt)) if _bak else "?"}')
+# TT1 ET TT2b SONT DE VRAIES SECTIONS : leurs ancres valent 1/1 dans
+# .bak_montage. Les deux faces à chaque fois — la forme d'AVANT a disparu du
+# bundle livré et elle EXISTAIT dans le .bak. Sans la face .bak, « 0 » serait
+# vrai d'un texte qui n'a jamais existé.
+_TT1_VIEUX = ('  function trackKind(trId){var k=String(trId||"").charAt(0);\n'
+              '    return k==="a"?"audio":k==="s"?"subs":"video"}')
+check("D21_TT1_trackKind_connait_un_quatrieme_genre",
+      s.count(nl(P.R_TT1)) == 1 and s.count(nl(_TT1_VIEUX)) == 0
+      and (_bak.count(_nlb(_TT1_VIEUX)) == 1 if _bak else False)
+      and ("TT1-genre-title", P.A_TT1, P.R_TT1) in P.PATCHES,
+      f'neuf={s.count(nl(P.R_TT1))} vieux={s.count(nl(_TT1_VIEUX))} '
+      f'bak={_bak.count(_nlb(_TT1_VIEUX)) if _bak else "?"}')
+# ET LES SEIZE APPELS NE SONT QUE DES EGALITES : c'est CE qui fait que t1
+# refuse le dépôt d'asset, la pile d'effets et le mixage sans qu'aucun des
+# seize sites soit réécrit. Une comparaison `!==` de plus et un genre inconnu
+# serait devenu acceptable quelque part.
+# MESURE du 21/09/2026 : 16 occurrences dans .bak_montage (1 declaration +
+# 15 appels), 20 dans le bundle livre (la declaration, 18 appels DIRECTEMENT
+# compares, et `var rkd=trackKind(rk.tr)` dont la ligne suivante compare
+# `rkd!==akd`). Aucune n'est un `switch`, aucune n'est une lecture nue : un
+# genre inconnu ne peut donc etre accepte nulle part.
+_TKAPP = re.findall(r'trackKind\([^()]*\)\s*([!=]==)', s)
+check("D21_les_seize_appels_de_trackKind_sont_des_egalites",
+      (_bak.count(_nlb("trackKind(")) == 16 if _bak else False)
+      and s.count(nl("trackKind(")) == 20
+      and len(_TKAPP) == 18 and all(k in ("===", "!==") for k in _TKAPP)
+      and s.count(nl("var rkd=trackKind(rk.tr);")) == 1
+      and s.count(nl("if(rkd!==akd){")) == 1,
+      f'bak={_bak.count(_nlb("trackKind(")) if _bak else "?"} '
+      f'livre={s.count(nl("trackKind("))} comparaisons={len(_TKAPP)}')
+_TT2B_VIEUX = ('        var o={tr:c.tr,src:c.src,start:c.start,end:c.end,'
+               'srcIn:c.srcIn||0,')
+check("D21_TT2b_le_carton_emporte_son_genre_et_son_titre",
+      s.count(nl(P.R_TT2B)) == 1
+      and s.count(nl(_TT2B_VIEUX + "transition:")) == 0
+      and (_bak.count(_nlb(_TT2B_VIEUX)) == 1 if _bak else False)
+      and ("TT2b-payload-carton", P.A_TT2B, P.R_TT2B) in P.PATCHES
+      and s.count(nl("kind:c.kind,title:c.title,")) == 1,
+      f'neuf={s.count(nl(P.R_TT2B))} bak={_bak.count(_nlb(_TT2B_VIEUX)) if _bak else "?"}')
+# LA FORME D'AVANT DU FILTRE A DISPARU, et elle existait : sans cette ligne,
+# « le carton passe » aurait pu être vrai d'un second filtre ajouté à côté du
+# premier — le clip aurait alors été jeté deux lignes plus loin.
+_TT2_VIEUX = "clips.filter(function(c){return c.src}).map(function(c){"
+check("D21_TT2_l_ancien_filtre_a_disparu_du_bundle",
+      s.count(nl(_TT2_VIEUX)) == 0
+      and (_bak.count(_nlb(_TT2_VIEUX)) == 1 if _bak else False),
+      f'livre={s.count(nl(_TT2_VIEUX))} '
+      f'bak={_bak.count(_nlb(_TT2_VIEUX)) if _bak else "?"}')
+# UN SEUL INSTANTANÉ D'HISTORIQUE PAR TITRE POSÉ. `svmTracksSet` (M4b) en
+# pousse un ; `dzTtAdd` n'en pousse un lui-même que dans l'autre branche.
+# Les DEUX faces : la forme exacte du `if/else`, et le fait que le corps du
+# geste ne porte AUCUN second `pushHistory`.
+_iTT = s.find(nl("  function dzTtAdd(){"))
+_iTTfin = s.find(nl("le gabarit et le texte.\")}"), _iTT if _iTT >= 0 else 0)
+check("D21_poser_un_titre_ne_coute_qu_un_instantane",
+      _iTT >= 0 and _iTTfin > _iTT
+      and s.count(nl("if(ts2!==ts)svmTracksSet(ts2);else pushHistory();")) == 1
+      and s[_iTT:_iTTfin].count(nl("pushHistory()")) == 1
+      and s.count(nl("function svmTracksSet(ts){pushHistory();")) == 1,
+      f'geste={_iTT} fin={_iTTfin} '
+      f'push={s[_iTT:_iTTfin].count(nl("pushHistory()")) if _iTT >= 0 else -1}')
+# LE GESTE A DEUX DÉCLENCHEURS ET UNE SEULE ÉCRITURE : le raccourci (TT4) et
+# la chip (TT5) appellent tous deux `dzTtAdd`. Une troisième écriture du
+# geste serait une seconde source de vérité — c'est ce que la négation dit.
+check("D21_les_deux_declencheurs_passent_par_le_meme_geste",
+      s.count(nl("dzTtAdd()")) == 3
+      and s.count(nl("DzTracks.titleNew(")) == 1,
+      f'appels={s.count(nl("dzTtAdd()"))} '
+      f'titleNew={s.count(nl("DzTracks.titleNew("))}')
+# TT3 NE POSE LA PISTE QUE S'IL Y A UN CARTON. La négation porte sur la
+# forme INCONDITIONNELLE que le plan proposait d'abord : un projet sans titre
+# aurait gagné une bande vide à chaque rechargement.
+check("D21_TT3_un_projet_sans_carton_ne_gagne_pas_de_bande_vide",
+      s.count(nl("tracks:DzTracks.titleTrack(svmTracksFrom(d.tracks))")) == 0
+      and s.count(nl("var _t=svmTracksFrom(d.tracks);")) == 1
+      and s.count(nl("?DzTracks.titleTrack(_t):_t})(),")) == 1,
+      f'inconditionnel={s.count(nl("tracks:DzTracks.titleTrack(svmTracksFrom(d.tracks))"))}')
+# LES NOMS NEUFS ÉTAIENT LIBRES dans le bundle d'entrée — bornes \b. Un nom
+# déjà pris aurait été écrasé en silence (`var` en portée de fonction).
+# `_libre` ET `_bak_txt` SONT TOUS DEUX REDEFINIS plus haut dans ce banc (des
+# variables locales de boucle ont repris leurs noms — dette relevée le
+# 21/09/2026, non corrigée ici : renommer ces noms-là toucherait des sections
+# qui ne sont pas de ce lot). La mesure est donc écrite EN CLAIR, sur `_bak`,
+# la chaîne du .bak_montage déjà chargée pour D-5, avec les mêmes bornes
+# d'identifiant que `_libre`.
+def _libre21(nm, txt):
+    if txt is None:
+        return -1
+    return len(re.findall(r"(?<![A-Za-z0-9_$])%s(?![A-Za-z0-9_$])"
+                          % re.escape(nm), txt))
+
+
+for _nmt in ("dzTtAdd", "title_add", "titleTrack", "titleNew", "titleAt",
+             "titleHtml", "dzmTitresAt", "dzmTtEsc"):
+    _nbt = _libre21(_nmt, _bak if _bak else None)
+    check("D21_nom_" + _nmt + "_etait_libre_dans_le_bundle_d_entree",
+          _nbt == 0, f"{_nmt} apparait {_nbt}x dans .bak_montage")
+# LA COMBO ÉTAIT LIBRE, ET ELLE NE VOLE PAS « T ». Les trois faces : « Maj+T »
+# valait 0 dans le .bak, « T » y valait 1 (la narration, qui la garde), et
+# « Maj+T » n'est dans AUCUNE des deux listes de combos réservées.
+check("D21_la_combo_Maj_T_etait_libre_et_ne_vole_pas_la_narration",
+      bool(_bak) and _bak.count(_nlb('combo:"Maj+T"')) == 0
+      and _bak.count(_nlb('combo:"T"')) == 1
+      and s.count(nl('combo:"Maj+T"')) == 1
+      and s.count(nl('combo:"T"')) == 1
+      and '"Maj+T":1' not in s.split("function svmComboReserved")[0]
+      .split("var SVM_COMBO_RESERVED=")[-1],
+      f'bak_majT={_bak.count(_nlb(chr(99) + "ombo:" + chr(34) + "Maj+T" + chr(34))) if _bak else "?"}')
+# ET LE DISPATCH LA DISTINGUE DE « T » : `onKey` cherche d'abord la combo
+# EXACTE (`m[combo]`), et ne retombe sur la variante sans Maj que lorsque la
+# combo complète est inconnue de la table. Même mesure que « Maj+M ».
+check("D21_le_dispatch_cherche_la_combo_exacte_avant_la_variante_sans_maj",
+      s.count(nl('if(m[combo]!=null)act={id:m[combo],mag:!1};')) == 1
+      and s.count(nl('var mi=combo.indexOf("Maj+");')) == 1,
+      f'exact={s.count(nl(chr(105) + "f(m[combo]!=null)"))}')
+# LE CONTRAT : les quatre fonctions sont exportées, et `group`/`pickTrack`/
+# `remove` ne sont PAS ré-exportées sous un second nom (le plan proposait
+# `removeTrack` : une seconde porte sur la même fonction).
+check("D21_les_quatre_fonctions_sont_au_contrat_et_rien_n_est_duplique",
+      src.count("titleTrack:dzmTitleTrack,titleNew:dzmTitleNew,") == 1
+      and src.count("titleAt:dzmTitleAt,titleHtml:dzmTitleHtml,") == 1
+      and src.count("removeTrack:") == 0
+      and src.count("group:dzmGroup,") == 1
+      and src.count("pickTrack:dzmPickTrack,") == 1
+      and src.count("remove:dzmRemove,") == 1,
+      f'removeTrack={src.count("removeTrack:")} group={src.count("group:dzmGroup,")}')
+# LA COUCHE NE RECOPIE AUCUN DES HUIT GABARITS, et c'est la règle du lot :
+# `titles.TEMPLATES` (backend) décide seul de la police, de la taille, de la
+# couleur et du placement. Les huit noms sont cherchés dans le FICHIER de la
+# couche — aucun ne doit y être écrit, pas même en repli.
+_GAB8 = ("plein_cadre", "legende", "compteur", "chapitre", "citation",
+         "hashtag", "cta")
+# Les noms sont cherches ENTRE GUILLEMETS : un gabarit recopie serait un
+# litteral de chaine. Sans les guillemets, « compteur » et « cta » sont des
+# tranches de la PROSE francaise de la couche (« un compteur », « compacte »)
+# -- mesure du 21/09/2026, la premiere version de cette ligne rougissait sur
+# deux faux positifs.
+check("D21_la_couche_ne_recopie_aucun_gabarit",
+      all(('"%s"' % g) not in src for g in _GAB8)
+      # « tiers_inferieur » est le SEUL nom écrit côté client, et il l'est
+      # dans le PATCHER (le carton neuf que Maj+T pose), jamais dans la
+      # couche : c'est un ARGUMENT, pas une table de défauts.
+      and '"tiers_inferieur"' not in src
+      and s.count(nl('{template:"tiers_inferieur",text:"Titre"}')) == 1,
+      f'trouves={[g for g in _GAB8 if (chr(34) + g + chr(34)) in src]}')
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

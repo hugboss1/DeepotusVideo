@@ -408,6 +408,86 @@ out.vl_gel=(function(){var a=[];
   a.push(T.VEIL.fade,Object.keys(T.VEIL).length);return a})();
 /* PURETE : la timeline d'entree n'est pas touchee. */
 out.vl_pur=VC.length===4&&VC[1].transition==="fadeblack"&&VC[1].transition_s===1;
+/* --- [6] D-21 : LE GENRE `title`, LA PISTE t1 ET LE CARTON --------------
+   Un titre est un clip SANS `src` sur t1. Les quatre fonctions sont PURES
+   et ne recopient AUCUN des huit gabarits : le nom du gabarit traverse, le
+   backend decide. */
+out.tt_defaut=T.DEFAULTS.some(function(t){return t.id==="t1"&&t.kind==="title"});
+/* t1 EST LA PREMIERE LIGNE de la table, pas seulement presente : au-dessus
+   de v2, donc tout en haut de la timeline. */
+out.tt_defaut_tete=T.DEFAULTS[0]&&T.DEFAULTS[0].id;
+out.tt_ensure=T.titleTrack([{id:"v1",kind:"video"},{id:"a1",kind:"audio"}]).map(function(t){return t.id});
+out.tt_ensure_deja=T.titleTrack([{id:"t1",kind:"title"},{id:"v1",kind:"video"}]).length;
+/* DEJA LA = LE MEME TABLEAU, pas une copie : l'appelant compare l'identite
+   pour savoir s'il doit payer un `pushHistory`. Et une piste t1 SANS `kind`
+   (vieille sauvegarde) compte deja comme une piste de titres. */
+out.tt_ensure_identite=(function(){var ts=[{id:"t1",kind:"title"},{id:"v1",kind:"video"}];
+  return T.titleTrack(ts)===ts})();
+out.tt_ensure_sans_kind=T.titleTrack([{id:"t1"},{id:"v1"}]).length;
+/* L'HABILLAGE DE LA PISTE POSEE vient de la table : sans hauteur, la bande
+   ferait 0 px et porterait pourtant ses cartons. */
+out.tt_ensure_habillage=(function(){var t=T.titleTrack([{id:"v1",kind:"video"}])[0];
+  return [t.id,t.kind,t.name,t.h>0]})();
+out.tt_group=[T.group({id:"t1",kind:"title"}),T.group({id:"v1",kind:"video"}),T.group({id:"s1",kind:"subs"})];
+out.tt_pick=T.pickTrack([{id:"v1",kind:"video"},{id:"t1",kind:"title"}],"title");
+/* LE GENRE SE DEDUIT DE L'INITIALE, comme `trackKind` du bundle (TT1) : une
+   piste t1 sans `kind` est une piste de titres pour `pickTrack` aussi. */
+out.tt_pick_sans_kind=T.pickTrack([{id:"v1"},{id:"t1"}],"title");
+out.tt_pick_absente=T.pickTrack([{id:"v1",kind:"video"}],"title");
+/* `from` (restauration) GARDE le genre title : mesure qui dit si TT3 a
+   besoin d'un repli sur le genre, ou seulement sur la piste manquante. */
+out.tt_from=T.from([{id:"t1",kind:"title"},{id:"v1",kind:"video"}])
+  .map(function(t){return [t.id,t.kind,t.h]});
+var TN=T.titleNew({template:"cta",text:"Abonnez-vous"},4,[],"t1");
+out.tt_new=[TN.tr,TN.kind,TN.start,TN.end,TN.title.template,TN.title.text,"src" in TN];
+/* LE LIBELLE DE LA BANDE est le texte tronque a 24 : la timeline dessine
+   `c.label`, et un carton sans libelle n'aurait montre que son identifiant. */
+out.tt_new_label=T.titleNew({text:"Abonnez-vous a la chaine du Deepotus"},0,[],"t1").label;
+out.tt_new_sans_texte=T.titleNew({template:"cta",text:"  "},4,[],"t1");
+/* NI TITRE MOU, NI TEXTE NON-CHAINE : `null`, jamais une levee ni un carton
+   muet. Meme regle que `title_spec` du backend (`isinstance(str)`). */
+out.tt_new_mous=[T.titleNew(null,4,[],"t1"),T.titleNew({text:42},4,[],"t1"),
+  T.titleNew({text:"a"},NaN,[],"t1").start,T.titleNew({text:"a"},-3,[],"t1").start];
+out.tt_new_id_unique=T.titleNew({text:"a"},0,[{id:"t1u1"}],"t1").id!=="t1u1";
+/* LES CLES QUE L'APPELANT NE DIT PAS SONT ABSENTES, elles ne valent pas ""
+   ni 0 : les defauts des huit gabarits vivent dans `titles.TEMPLATES`, et
+   un `size:0` parti d'ici aurait donne 24 px au lieu des 64 du gabarit. */
+out.tt_new_cles=Object.keys(T.titleNew({text:"a"},0,[],"t1").title);
+out.tt_new_cles_pleines=Object.keys(T.titleNew({template:"legende",text:"a",
+  sub:"b",color:"or",font:"Inter",size:80},0,[],"t1").title).sort();
+out.tt_at=[!!T.titleAt([{tr:"t1",kind:"title",start:1,end:3,title:{text:"x"}},{tr:"v1",start:0,end:9,src:{a:1}}],2),
+  !!T.titleAt([{tr:"t1",kind:"title",start:1,end:3,title:{text:"x"}}],5)];
+/* FIN EXCLUE, DEBUT INCLUS, et le DERNIER DEPART gagne : les trois regles
+   de `svmActiveV1`. Le clip rendu est NOMME -- une ligne sur « non nul »
+   aurait ete verte sur le mauvais carton. */
+var TA=[{tr:"t1",kind:"title",id:"a",start:0,end:4,title:{text:"a"}},
+        {tr:"t1",kind:"title",id:"b",start:2,end:6,title:{text:"b"}}];
+out.tt_at_recouvrement=[(T.titleAt(TA,0)||{}).id,(T.titleAt(TA,3)||{}).id,
+  (T.titleAt(TA,4)||{}).id,T.titleAt(TA,6)];
+out.tt_at_mous=[T.titleAt(null,1),T.titleAt(TA,NaN),
+  T.titleAt([{tr:"v1",id:"z",start:0,end:9,src:{a:1}}],1)];
+out.tt_html=T.titleHtml({tr:"t1",kind:"title",start:0,end:4,title:{template:"tiers_inferieur",text:"<b>Ab",sub:"ep"}},1);
+/* LES QUATRE CARACTERES : &, <, > et le guillemet. L'esperluette PASSE EN
+   PREMIER, sinon `&lt;` serait devenu `&amp;lt;`. */
+out.tt_html_esc=T.titleHtml({kind:"title",start:0,end:4,title:{text:'a&b<c>d"e'}},1);
+/* HORS DE LA PLAGE, RIEN : l'appelant ecrit la chaine telle quelle dans
+   `innerHTML`, et « vide » y vaut « efface ». */
+out.tt_html_hors=[T.titleHtml({kind:"title",start:2,end:4,title:{text:"x"}},5),
+  T.titleHtml({kind:"title",start:2,end:4,title:{text:"x"}},2),
+  T.titleHtml({kind:"title",start:2,end:4,title:{text:"x"}},4)];
+out.tt_html_mous=[T.titleHtml(null,1),T.titleHtml({kind:"title",title:{text:" "}},1),
+  T.titleHtml({tr:"v1",start:0,end:4,src:{a:1}},1)];
+/* UN GABARIT INCONNU NE REND QUE `dzm-tt` : la regle de base l'affiche au
+   lieu de le faire disparaitre, et AUCUNE seconde table de huit noms n'est
+   ecrite ici. Un nom hostile est assaini aux caracteres d'un identifiant --
+   la classe ne peut pas sortir de l'attribut. */
+out.tt_html_gabarit=[T.titleHtml({kind:"title",start:0,end:4,title:{text:"x"}},1),
+  T.titleHtml({kind:"title",start:0,end:4,title:{template:'a"><img src=x ',text:"x"}},1)];
+out.tt_remove=T.remove([{id:"t1",kind:"title"},{id:"v1",kind:"video"}],"t1").length;
+/* PURETE : ni la liste de pistes ni celle des clips n'est touchee. */
+out.tt_pur=(function(){var ts=[{id:"v1",kind:"video"}],cs=[{id:"z"}];
+  T.titleTrack(ts);T.titleNew({text:"a"},0,cs,"t1");T.titleAt(cs,1);
+  return ts.length===1&&cs.length===1})();
 console.log(JSON.stringify(out));
 """
 print("\n[1] dzmInsere sous node")
@@ -574,7 +654,18 @@ try:
                  "vl_loin","vl_milieu","vl_avant","vl_apres","vl_pixel",
                  "vl_blanc","vl_fade","vl_premier","vl_mou","vl_nom_compose",
                  "vl_deux_jonctions","vl_egalite","vl_trou","vl_heritage",
-                 "vl_hors_v1","vl_bornes","vl_bord","vl_gel","vl_pur"]
+                 "vl_hors_v1","vl_bornes","vl_bord","vl_gel","vl_pur",
+                 # D-21 (tache 6) : les VINGT-NEUF cles de la section [6].
+                 # Sans elles, la garde de l'etat vide s'arreterait a [5b]
+                 # et une section [6] entierement creuse passerait.
+                 "tt_defaut","tt_defaut_tete","tt_ensure","tt_ensure_deja",
+                 "tt_ensure_identite","tt_ensure_sans_kind","tt_ensure_habillage",
+                 "tt_group","tt_pick","tt_pick_sans_kind","tt_pick_absente",
+                 "tt_from","tt_new","tt_new_label","tt_new_sans_texte",
+                 "tt_new_mous","tt_new_id_unique","tt_new_cles",
+                 "tt_new_cles_pleines","tt_at","tt_at_recouvrement","tt_at_mous",
+                 "tt_html","tt_html_esc","tt_html_hors","tt_html_mous",
+                 "tt_html_gabarit","tt_remove","tt_pur"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -981,6 +1072,109 @@ check("vl_la_duree_est_bornee_comme_dans_le_bundle",
 check("vl_la_table_des_trois_fondus_est_gelee",
       D.get("vl_gel") == ["TypeError", "TypeError", "dim", 3], D.get("vl_gel"))
 check("vl_pur", D.get("vl_pur") is True, D.get("vl_pur"))
+
+print("\n[6] D-21 le genre title, la piste t1 et le carton")
+# LA PISTE EXISTE, ET ELLE EST EN TETE. Les deux faces : le genre `title`
+# (quatrieme genre, ni video ni audio ni subs) et le RANG -- un carton se
+# lit par-dessus tout, la bande doit etre la premiere.
+check("tt_la_piste_des_titres_est_dans_la_table_des_defauts",
+      D.get("tt_defaut") is True and D.get("tt_defaut_tete") == "t1",
+      f'defaut={D.get("tt_defaut")!r} tete={D.get("tt_defaut_tete")!r}')
+check("tt_la_piste_manquante_est_posee_en_tete",
+      D.get("tt_ensure") == ["t1", "v1", "a1"], D.get("tt_ensure"))
+# DEJA LA = RIEN DE POSE, et le MEME tableau : l'appelant compare
+# l'identite pour ne pas payer un instantane d'historique pour rien.
+check("tt_une_piste_deja_la_rend_le_meme_tableau",
+      D.get("tt_ensure_deja") == 2 and D.get("tt_ensure_identite") is True
+      and D.get("tt_ensure_sans_kind") == 2,
+      f'len={D.get("tt_ensure_deja")!r} identite={D.get("tt_ensure_identite")!r} '
+      f'sans_kind={D.get("tt_ensure_sans_kind")!r}')
+# L'HABILLAGE, SINON UNE BANDE DE 0 PX portant pourtant ses cartons.
+check("tt_la_piste_posee_porte_son_habillage",
+      D.get("tt_ensure_habillage") == ["t1", "title", "T1", True],
+      D.get("tt_ensure_habillage"))
+# LE GROUPE DU HAUT : un carton ne peut pas descendre sous V1 par les fleches.
+check("tt_le_titre_est_dans_le_groupe_du_haut",
+      D.get("tt_group") == [0, 1, 3], D.get("tt_group"))
+check("tt_la_piste_se_choisit_par_son_genre",
+      D.get("tt_pick") == "t1" and D.get("tt_pick_sans_kind") == "t1"
+      and D.get("tt_pick_absente") == "",
+      f'pick={D.get("tt_pick")!r} sans_kind={D.get("tt_pick_sans_kind")!r} '
+      f'absente={D.get("tt_pick_absente")!r}')
+# LA RESTAURATION GARDE LE GENRE, mesure du 21/09/2026 : `svmTracksFrom` ne
+# rabat PAS un `kind` inconnu sur « video » -- TT3 n'a donc a replier que la
+# piste MANQUANTE, pas le genre.
+check("tt_la_restauration_garde_le_genre_title_et_l_habillage",
+      D.get("tt_from") == [["t1", "title", 40], ["v1", "video", 54]],
+      D.get("tt_from"))
+# LE CARTON : piste, genre, bornes (4 s, la duree d'une IMAGE), gabarit,
+# texte -- et PAS DE `src`, la cle qui distingue un titre d'un plan.
+check("tt_le_carton_neuf_est_un_clip_sans_source",
+      D.get("tt_new") == ["t1", "title", 4, 8, "cta", "Abonnez-vous", False],
+      D.get("tt_new"))
+check("tt_le_libelle_de_la_bande_est_le_texte_tronque",
+      D.get("tt_new_label") == "Abonnez-vous a la chaine", D.get("tt_new_label"))
+# SANS TEXTE, PAS DE CARTON -- et la cle EXISTE (mesure faite, `null`) :
+# c'est ce qui distingue « refus » de « rien mesure ». Meme regle que
+# `titles.title_spec` du backend.
+check("tt_un_carton_sans_texte_n_est_pas_pose",
+      "tt_new_sans_texte" in D and D.get("tt_new_sans_texte") is None,
+      D.get("tt_new_sans_texte"))
+check("tt_les_entrees_molles_ne_levent_pas",
+      D.get("tt_new_mous") == [None, None, 0, 0], D.get("tt_new_mous"))
+check("tt_l_identifiant_du_carton_est_unique",
+      D.get("tt_new_id_unique") is True, D.get("tt_new_id_unique"))
+# AUCUNE SECONDE AUTORITE SUR LES DEFAUTS : ce que l'appelant ne dit pas est
+# ABSENT, et c'est `titles.TEMPLATES` qui tranche. Un `size:0` parti d'ici
+# aurait donne 24 px (le plancher de `title_spec`) au lieu des 64 du gabarit.
+check("tt_les_cles_non_dites_sont_absentes_du_titre",
+      D.get("tt_new_cles") == ["text"]
+      and D.get("tt_new_cles_pleines") == ["color", "font", "size", "sub",
+                                           "template", "text"],
+      f'nues={D.get("tt_new_cles")!r} pleines={D.get("tt_new_cles_pleines")!r}')
+check("tt_le_carton_sous_la_tete_se_trouve_ou_manque",
+      D.get("tt_at") == [True, False], D.get("tt_at"))
+# FIN EXCLUE, DEBUT INCLUS, DERNIER DEPART GAGNANT : le carton est NOMME.
+check("tt_de_deux_cartons_qui_se_recouvrent_le_dernier_parti_gagne",
+      D.get("tt_at_recouvrement") == ["a", "b", "b", None],
+      D.get("tt_at_recouvrement"))
+check("tt_sans_carton_ni_tete_lisible_il_n_y_a_rien_sous_la_tete",
+      D.get("tt_at_mous") == [None, None, None], D.get("tt_at_mous"))
+# L'APERCU : la classe porte le gabarit, le texte est ECHAPPE, le sous-texte
+# est HORS du bloc du texte.
+check("tt_l_apercu_porte_le_gabarit_et_echappe_le_texte",
+      isinstance(D.get("tt_html"), str)
+      and "&lt;b&gt;Ab" in D["tt_html"]
+      and "dzm-tt dzm-tt-tiers_inferieur" in D["tt_html"]
+      and "<i>ep</i>" in D["tt_html"]
+      and "<b>&lt;b&gt;Ab</b>" in D["tt_html"],
+      D.get("tt_html"))
+check("tt_les_quatre_caracteres_sont_echappes_l_esperluette_en_premier",
+      isinstance(D.get("tt_html_esc"), str)
+      and "a&amp;b&lt;c&gt;d&quot;e" in D["tt_html_esc"]
+      and "&amp;lt;" not in D["tt_html_esc"], D.get("tt_html_esc"))
+# HORS PLAGE : chaine VIDE, que l'appelant ecrit telle quelle. Debut INCLUS,
+# fin EXCLUE : la cle du milieu est la seule non vide.
+check("tt_hors_de_sa_plage_l_apercu_est_vide",
+      isinstance(D.get("tt_html_hors"), list) and len(D.get("tt_html_hors")) == 3
+      and D["tt_html_hors"][0] == "" and D["tt_html_hors"][1] != ""
+      and D["tt_html_hors"][2] == "", D.get("tt_html_hors"))
+check("tt_sans_carton_ni_texte_l_apercu_est_vide",
+      D.get("tt_html_mous") == ["", "", ""], D.get("tt_html_mous"))
+# UN GABARIT INCONNU N'EST PAS UN GABARIT PAR DEFAUT ECRIT ICI : la classe
+# de base seule. Et un nom hostile ne sort pas de l'attribut.
+check("tt_un_gabarit_inconnu_ne_rend_que_la_classe_de_base",
+      isinstance(D.get("tt_html_gabarit"), list)
+      and len(D.get("tt_html_gabarit")) == 2
+      and 'class="dzm-tt">' in D["tt_html_gabarit"][0]
+      and "dzm-tt-" not in D["tt_html_gabarit"][0]
+      and 'class="dzm-tt dzm-tt-aimgsrcx">' in D["tt_html_gabarit"][1]
+      and "<img" not in D["tt_html_gabarit"][1], D.get("tt_html_gabarit"))
+# t1 SE RETIRE, contrairement a s1 : un montage sans carton n'a pas besoin de
+# la bande, et `titleNew` la fait recreer par `titleTrack` au prochain titre.
+check("tt_la_piste_des_titres_se_retire_contrairement_a_s1",
+      D.get("tt_remove") == 1, D.get("tt_remove"))
+check("tt_pur", D.get("tt_pur") is True, D.get("tt_pur"))
 
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")

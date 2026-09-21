@@ -1548,6 +1548,7 @@ var SVM_ACTIONS=[
  {id:"marker_index",sec:"Montage",lbl:"marqueurs : l'index",combo:"Ctrl+M"},
  {id:"swap_left",sec:"Montage",lbl:"echanger avec le plan precedent",combo:"Ctrl+←"},
  {id:"swap_right",sec:"Montage",lbl:"echanger avec le plan suivant",combo:"Ctrl+→"},
+ {id:"title_add",sec:"Montage",lbl:"titre : poser un carton a la tete",combo:"Maj+T"},
  {id:"zoom_in",sec:"Affichage",lbl:"zoom avant (crans)",combo:"Ctrl+="},
  {id:"zoom_out",sec:"Affichage",lbl:"zoom arrière (crans)",combo:"Ctrl+-"},
  {id:"zoom100",sec:"Affichage",lbl:"zoom 100 %",combo:"Maj+Z"},
@@ -1739,6 +1740,11 @@ function DzMontage(props){
      premier rendu). Même motif que durRef, juste au-dessus. */
   var dzTracksRef=x.useRef(null);dzTracksRef.current=svmTracksOf(proj);
   var stDzM=x.useState("ecraser"),dzMode=stDzM[0],setDzMode=stDzM[1];
+  function dzTtAdd(){var t=DzTracks.titleNew({template:"tiers_inferieur",text:"Titre"},phRef.current,clipsRef.current,"t1");
+    var ts=svmTracksOf(dzProjRef.current),ts2=DzTracks.titleTrack(ts);
+    if(ts2!==ts)svmTracksSet(ts2);else pushHistory();
+    setClips(clipsRef.current.concat([t]));setSelId(t.id);setDirty(!0);
+    fireNote("Titre posé à "+t.start.toFixed(2)+" s sur T1 — "+"l'inspecteur règle le gabarit et le texte.")}
   var stDzMk=x.useState(!1),dzMkOn=stDzMk[0],setDzMkOn=stDzMk[1];
   var dzMkOnRef=x.useRef(!1);dzMkOnRef.current=dzMkOn;
   function dzMkToggle(v){var n=arguments.length?!!v:!dzMkOnRef.current;if(n)setOvPick("");setDzMkOn(n)}
@@ -2135,7 +2141,7 @@ function DzMontage(props){
        Bibliothèque — et ses ids (`v1_<job>`, `a1_<job>`, `c<i>`) ne se
        répètent pas. La note de M22c le dit dans les deux cas. */
     histRef.current={u:[],r:[]};setHistTick(function(t){return t+1});
-    var np={demo:!1,tracks:svmTracksFrom(d.tracks),project_id:d.project_id,v1NonVideo:Array.isArray(d.v1_non_video)?d.v1_non_video:null,range:DzTracks.rangeFrom(d.range),markers:DzTracks.markersFrom(d.markers),name:d.name||"montage",version:"v1",ratio:d.ratio||"9:16",
+    var np={demo:!1,tracks:(function(){var _t=svmTracksFrom(d.tracks);return _t&&(d.clips||[]).some(function(c){return c&&c.kind==="title"})?DzTracks.titleTrack(_t):_t})(),project_id:d.project_id,v1NonVideo:Array.isArray(d.v1_non_video)?d.v1_non_video:null,range:DzTracks.rangeFrom(d.range),markers:DzTracks.markersFrom(d.markers),name:d.name||"montage",version:"v1",ratio:d.ratio||"9:16",
       dur:Math.max(1,Number(d.duration)||maxEnd),mixDb:d.mix||SVM_DEMO_MIX};
     if(d.saved){
       /* restauration des commutateurs + réglages ducking sauvegardés */
@@ -3247,6 +3253,7 @@ function DzMontage(props){
       if(id==="marker_prev"||id==="marker_next"){var dzMkD=id==="marker_next"?1:-1;var dzMkG=DzTracks.markerNext(dzProjRef.current&&dzProjRef.current.markers,phRef.current,dzMkD);if(dzMkG!=null)seekTo(dzMkG);else fireNote("Aucun marqueur "+(dzMkD>0?"après":"avant")+" la tête.");return}
       if(id==="marker_index"){dzMkToggle();return}
       if(id==="swap_left"||id==="swap_right"){var dzC=(clipsRef.current||[]).filter(function(k){return k&&k.id===selRef.current})[0];if(!dzC){fireNote("Échanger : sélectionnez d'abord un plan.");return}if(trackStRef.current[dzC.tr]&&trackStRef.current[dzC.tr].l){fireNote("Piste "+dzC.tr.toUpperCase()+" verrouillée.");return}var dzSw=DzTracks.swap(clipsRef.current,dzC.id,id==="swap_left"?-1:1);if(dzSw.every(function(k,i){return k===clipsRef.current[i]})){fireNote("Aucun plan voisin de ce côté.");return}pushHistory();setClips(dzSw);setDirty(!0);fireNote("« "+(dzC.label||dzC.id)+" » échangé avec le plan "+(id==="swap_left"?"précédent":"suivant")+".");return}
+      if(id==="title_add"){dzTtAdd();return}
       if(id==="zoom_in"){zoomApply(zoomPctRef.current*1.25);return}
       if(id==="zoom_out"){zoomApply(zoomPctRef.current/1.25);return}
       if(id==="zoom100"){zoomApply(100);return}
@@ -3829,7 +3836,7 @@ function DzMontage(props){
      d'effets, le mixage par clip — chacun teste un genre et ne trouve pas le
      sien sur S1. */
   function trackKind(trId){var k=String(trId||"").charAt(0);
-    return k==="a"?"audio":k==="s"?"subs":"video"}
+    return k==="a"?"audio":k==="s"?"subs":k==="t"?"title":"video"}
 
   /* ── couche sous-titres (frontend/patches/subs.js) — feature-detect : si
      elle est absente, tout ce qui suit rend `null` et le Montage retombe
@@ -4064,6 +4071,9 @@ function DzMontage(props){
     return DzTracks.clipLen(kind,srcDur,{image:4,audio:8,video:6});
   }
   function addAsset(src,label,kind,srcDur,trId,atTime){
+    if(trackKind(trId||"v2")==="title"){
+      fireNote("La piste des titres ne reçoit que des cartons — "+svmKeyLabelNow("title_add")+" en pose un.");
+      setOvPick("");return}
     /* P6 — MODE REMPLACEMENT, en court-circuit AVANT tout le reste :
        un remplacement ne choisit pas de piste, il garde celle du
        plan. Le mode est CONSOMMÉ dès l'entrée (une seule fois par
@@ -4376,8 +4386,8 @@ function DzMontage(props){
          (`layer`) et en bus de mixage. Un backend qui ne connaît pas
          encore la clé l'ignore et rend exactement ce qu'il rendait. */
       tracks:svmTracksPayload(proj),
-      clips:clips.filter(function(c){return c.src}).map(function(c){
-        var o={tr:c.tr,src:c.src,start:c.start,end:c.end,srcIn:c.srcIn||0,
+      clips:clips.filter(function(c){return c.src||c.kind==="title"}).map(function(c){
+        var o={tr:c.tr,src:c.src,start:c.start,end:c.end,srcIn:c.srcIn||0,kind:c.kind,title:c.title,
           transition:c.transition||"cut",transition_s:c.transition_s||0,
           /* contournés (bypass du rack VFX) : retirés du RENDU, gardés dans
              le projet — la clé `off` ne quitte jamais le client */
@@ -5918,6 +5928,7 @@ function DzMontage(props){
           r.jsx("button",{className:"svm-toolchip","data-on":dzMkOn?"":void 0,
             "aria-label":"marqueurs",
             title:"Marqueurs — index ("+svmKeyLabel("marker_index")+") · "+svmKeyLabel("marker_toggle")+" pose/retire à la tête",onClick:function(){dzMkToggle()},children:"◆ "+((proj.markers||[]).length)}),
+          r.jsx("button",{className:"svm-toolchip","aria-label":"poser un titre",title:"Poser un titre à la tête ("+svmKeyLabel("title_add")+")",onClick:function(){dzTtAdd()},children:"T+"}),
           /* sous-titres : la chip dit combien de lignes porte la piste et
              combien sont SIGNALÉES — les deux chiffres sortent du verdict,
              donc ils valent exactement ceux du badge d'onglet du tiroir et
@@ -12875,6 +12886,18 @@ window.DzSubs={ready:!0,Drawer:SubsDrawer,Overlay:SubsOverlay,Style:SubsStyle,
    lit : `kind`, `bus`, `loop`. Un projet sans `tracks` retombe ici et
    l'écran ne bouge pas d'un pixel. */
 var DZM_DEFAULT_TRACKS=[
+ /* D-21 (21/09/2026) — LA PISTE DES TITRES, TOUT EN HAUT. Un carton se lit
+    PAR-DESSUS tout le reste au rendu (la gravure ASS est le dernier maillon
+    vidéo, après les incrustations), et l'écran doit le dire : t1 est donc la
+    PREMIÈRE ligne de la timeline, au-dessus même de V2.
+    `kind:"title"` est un QUATRIÈME genre, ni vidéo ni audio ni sous-titres :
+    le bloc sonvfx teste partout une égalité (`trackKind(x)==="video"`,
+    « ==="audio" », « ==="subs" ») et ne trouve donc JAMAIS le sien sur t1 —
+    dépôt d'asset, pile d'effets, mixage par clip et bouton « + » de l'en-tête
+    la refusent tous, exactement comme ils refusent S1. C'est la recette
+    écrite au-dessus de `trackKind` dans le bundle, suivie à la lettre.
+    `mix:11` et `--c-text` : l'habillage de S1, l'autre piste de texte. */
+ {id:"t1",name:"T1",type:"titres",h:40,c:"--c-text",mix:11,kind:"title"},
  {id:"v2",name:"V2",type:"overlay/VFX",h:40,c:"--c-3d",mix:13,kind:"video"},
  {id:"v1",name:"V1",type:"vidéo",h:54,c:"--c-video",mix:12,kind:"video"},
  {id:"a1",name:"A1",type:"dialogue",h:52,c:"--c-audio",mix:13,kind:"audio",bus:"dialogue"},
@@ -12902,15 +12925,30 @@ function dzmSkin(id,kind,type){
     h:48,c:"--c-3d",mix:13,kind:"audio",bus:"sfx"};
   if(kind==="subs")return {id:id,name:String(id).toUpperCase(),type:"sous-titres",
     h:44,c:"--c-text",mix:11,kind:"subs"};
+  /* D-21 — une piste de titres HORS table (t2, si un jour il en naissait une)
+     prend le même habillage que t1. Rien ne fabrique d'identifiant t<n>
+     aujourd'hui (`dzmAdd` ne rend que des v… et des a…) : cette branche sert
+     la RESTAURATION d'une sauvegarde qui en porterait une, jamais une
+     création. Sans elle, une telle piste revenait en bande « overlay » de
+     0 px de nom, portant pourtant ses cartons. */
+  if(kind==="title")return {id:id,name:String(id).toUpperCase(),type:"titres",
+    h:40,c:"--c-text",mix:11,kind:"title"};
   if(type==="vidéo")return {id:id,name:String(id).toUpperCase(),type:"vidéo",
     h:54,c:"--c-video",mix:13,kind:"video"};
   return {id:id,name:String(id).toUpperCase(),type:"overlay",h:40,c:"--c-3d",
     mix:13,kind:"video"}}
 
+/* D-21 — « t » EST LE QUATRIÈME GENRE. La table est celle de `trackKind` du
+   bundle (section TT1 du patcher), à l'initiale près : les deux lisent la
+   MÊME lettre et rendent le MÊME mot, sinon la couche et l'écran auraient
+   divergé sur t1. MESURE du 21/09/2026 : dans `.bak_montage`, AUCUN
+   identifiant de piste ne commence par « t » (les 18 occurrences de `id:"t`
+   sont des ports de nœuds, des gabarits `tpl_…`, des canaux et des voix —
+   relevées une à une), donc la lettre était libre. */
 function dzmKindOf(id,kind){
   if(kind)return kind;
   var k=String(id||"").charAt(0);
-  return k==="a"?"audio":k==="s"?"subs":"video"}
+  return k==="a"?"audio":k==="s"?"subs":k==="t"?"title":"video"}
 
 /* LE REPLI DES PISTES, ÉCRIT UNE FOIS. « Une liste vide vaut les six pistes
    de base » était écrit à deux endroits ; l'étape 4 de la barre en voulait un
@@ -12973,9 +13011,16 @@ function svmTrackBusSync(ts){
    audio au milieu, sous-titres en bas. Un déplacement ne sort JAMAIS de son
    groupe — c'est ce qui garantit que V1 reste la piste de base du rendu et
    que le backend n'a jamais à arbitrer une timeline incohérente. */
+/* D-21 — LE TITRE EST DANS LE GROUPE DU HAUT, celui des incrustations : un
+   carton se lit par-dessus l'image, jamais dessous, et le déplacement ▲ ▼ ne
+   doit pas pouvoir le faire passer sous V1. Il partage donc le groupe 0 avec
+   V2 — les deux s'échangent librement entre eux, et c'est sans conséquence :
+   la gravure ASS passe APRÈS toutes les incrustations au rendu, quel que soit
+   l'ordre des bandes. `dzmTitleTrack` l'insère EN TÊTE, donc au-dessus de V2
+   à sa naissance. */
 function dzmGroup(t){
   var k=t&&t.kind;
-  return k==="video"?(t.id==="v1"?1:0):k==="audio"?2:3}
+  return k==="title"?0:k==="video"?(t.id==="v1"?1:0):k==="audio"?2:3}
 function dzmIndex(ts,id){
   for(var i=0;i<ts.length;i++)if(ts[i].id===id)return i;
   return -1}
@@ -13022,7 +13067,12 @@ function dzmAdd(ts,kind){
     if(ids.indexOf(id)>=0)continue;
     t=dzmSkin(id,genre,type);
     if(type!=="vidéo"||t.type==="vidéo"||n>=99)break}
-  var at=genre==="video"?0:dzmSubsAt(ts);
+  /* D-21 — « EN HAUT » VEUT DIRE SOUS LES TITRES. La piste t1 est la
+     PREMIÈRE bande de la timeline ; sans cette borne, une piste vidéo neuve
+     naissait AU-DESSUS d'elle, c'est-à-dire hors de son groupe (dzmGroup
+     range t1 avec les incrustations, groupe 0), et les ▲ ▼ ne pouvaient
+     plus l'en faire redescendre — une piste coincée au premier coup. */
+  var at=genre==="video"?dzmTitresAt(ts):dzmSubsAt(ts);
   var out=ts.slice();out.splice(at<0?ts.length:at,0,t);return out}
 /* LA PISTE, ET LA PHRASE QUI LA DIT (P14). Rend {tracks, id, type, note} :
    la liste neuve, l'identifiant créé, son type d'habillage et la note que
@@ -13047,6 +13097,12 @@ function dzmAddDit(ts,kind){
     " : image dans l'image, réglable (position, échelle, rotation, "+
     "opacité), muette.";
   return {tracks:out,id:neuf.id,type:ty,note:note}}
+/* Le rang de la PREMIÈRE piste qui n'est pas une piste de titres, c'est-à-
+   dire le haut du groupe des incrustations. `0` quand il n'y a aucun titre :
+   le comportement d'avant D-21, à l'octet près. */
+function dzmTitresAt(ts){
+  for(var i=0;i<ts.length;i++)if(dzmKindOf(ts[i]&&ts[i].id,ts[i]&&ts[i].kind)!=="title")return i;
+  return ts.length}
 function dzmSubsAt(ts){
   for(var i=0;i<ts.length;i++)if(ts[i].kind==="subs")return i;
   return -1}
@@ -13080,7 +13136,8 @@ function dzmClipsOn(clips,id){
    `id`, et exiger `kind` l'aurait fait rendre "" — c'est-à-dire un refus,
    sur un projet parfaitement valable. */
 function dzmPickTrack(ts,kind){
-  var want=kind==="audio"?"audio":kind==="subs"?"subs":"video";
+  var want=kind==="audio"?"audio":kind==="subs"?"subs":
+    kind==="title"?"title":"video";
   var list=(ts&&ts.length)?ts:[];
   for(var i=0;i<list.length;i++){
     var t=list[i];
@@ -18241,6 +18298,119 @@ function dzmVeil(clips,t){
     if(!best||a>best.alpha)best={color:DZM_VEIL[k],alpha:a}}
   return best||{color:null,alpha:0}}
 
+/* ── D-21 (21/09/2026) : LES CARTONS DE TITRE, CÔTÉ COEUR ──────────────────
+   Un titre est un CLIP SANS `src` sur la piste t1. Tout est déjà là pour
+   qu'il vive : la persistance range `clips` tel quel (POST /save n'exige
+   aucune clé), `GET /project` le resservait déjà, et le backend grave
+   `montage_service._titles_ass` à partir de `c.title` pour tout clip dont la
+   PISTE porte `kind:"title"` (mesuré, tâches 4 et 5).
+
+   AUCUNE DE CES QUATRE FONCTIONS NE RECOPIE LA TABLE DES HUIT GABARITS. Le
+   nom du gabarit est une CHAÎNE qui traverse : `titleNew` l'assainit aux
+   caractères d'un identifiant, `titleHtml` en fait une classe CSS, et c'est
+   `titles.TEMPLATES` (backend) qui décide seul de la police, de la taille,
+   de la couleur, du placement et de l'animation. Un gabarit inconnu retombe
+   donc sur le défaut DU BACKEND, jamais sur un second défaut écrit ici —
+   même règle que `dzmVideoExt`, qui n'écrit aucune extension, et que
+   `dzmTransLabel`, qui ne nomme aucune transition. */
+
+/* L'ÉCHAPPEMENT, PARCE QUE L'APERÇU VIVANT EST ÉCRIT EN `innerHTML`. Le
+   texte vient de l'utilisateur : « <b> » doit s'AFFICHER, pas gras. Les
+   quatre caractères sont ceux qui comptent dans un corps d'élément et dans
+   une valeur d'attribut ; `&` passe EN PREMIER, sinon les entités posées
+   par les suivants seraient ré-échappées. */
+function dzmTtEsc(v){return String(v==null?"":v)
+  .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+  .replace(/"/g,"&quot;")}
+
+/* La piste t1 si elle manque, EN TÊTE. Rend le MÊME tableau quand elle est
+   déjà là : l'appelant compare l'identité pour savoir s'il doit écrire
+   (`svmTracksSet` pousse l'historique, on ne le paie pas pour rien).
+   Le genre se DÉDUIT quand la piste ne le porte pas (dzmKindOf) : une liste
+   restaurée d'une vieille sauvegarde n'a que des `id`, et exiger `kind`
+   aurait fait poser une SECONDE piste t1 par-dessus la première. */
+function dzmTitleTrack(ts){
+  var list=(ts&&ts.length)?ts:[],i,t;
+  for(i=0;i<list.length;i++){t=list[i];
+    if(t&&t.id&&dzmKindOf(t.id,t.kind)==="title")return ts}
+  var out=list.slice();out.unshift(dzmSkin("t1","title"));return out}
+
+/* LE CARTON NEUF, ou `null`. PURE.
+   `null` SANS TEXTE, et c'est la même règle que `titles.title_spec` côté
+   serveur (« un carton sans texte n'est pas un carton ») : la poser AUSSI
+   ici évite d'empiler un instantané d'historique et d'allumer « NON
+   ENREGISTRÉ » pour un clip que le rendu ignorerait ensuite en silence.
+   QUATRE CLÉS SONT OMISES QUAND L'APPELANT N'EN DIT RIEN (`template`,
+   `sub`, `color`, `font`, `size`) : les défauts des huit gabarits vivent
+   dans `titles.TEMPLATES`, et une valeur écrite ici — un `size:0`, une
+   couleur vide — serait une SECONDE autorité que le backend devrait ensuite
+   démêler (`title_spec` borne `size` à 24 au minimum : un zéro parti d'ici
+   aurait donné 24 px au lieu des 64 du gabarit).
+   DURÉE : celle d'une IMAGE (`DZM_CLIP_DEFAUTS.image`, 4 s) — un carton n'a
+   pas plus de longueur naturelle qu'une image cadrée. */
+function dzmTitleNew(title,t,clips,tr){
+  var o=title&&typeof title==="object"?title:{};
+  var txt=(typeof o.text==="string"?o.text:"").trim();
+  if(!txt)return null;
+  var piste=String(tr||"t1");
+  var v=Number(t);if(!isFinite(v)||v<0)v=0;
+  var t0=dzmR3(v),len=dzmR3(Number(DZM_CLIP_DEFAUTS.image)||4);
+  /* le rang du carton sur la piste, pour que l'identifiant se lise (t1u1,
+     t1u2…) ; `uniqueId` tranche ensuite contre TOUS les clips du projet. */
+  var n=1;
+  (Array.isArray(clips)?clips:[]).forEach(function(c){if(c&&c.kind==="title")n++});
+  var ti={text:txt};
+  var tpl=(typeof o.template==="string"?o.template:"").replace(/[^a-z0-9_]/g,"");
+  if(tpl)ti.template=tpl;
+  var sub=(typeof o.sub==="string"?o.sub:"").trim();
+  if(sub)ti.sub=sub;
+  if(typeof o.color==="string"&&o.color)ti.color=o.color;
+  if(typeof o.font==="string"&&o.font)ti.font=o.font;
+  var sz=Number(o.size);if(isFinite(sz)&&sz>0)ti.size=Math.round(sz);
+  return {tr:piste,kind:"title",id:dzmUniqueId(clips,piste+"u"+n),
+    label:txt.slice(0,24),start:t0,end:dzmR3(t0+len),title:ti}}
+
+/* LE CARTON SOUS LA TÊTE, ou `null`. FIN EXCLUE et DERNIER DÉPART GAGNANT :
+   les deux règles de `svmActiveV1` du bundle, reprises telles quelles — un
+   carton qui finit à 4 s a cédé la place à 4 s exactement, et deux cartons
+   qui se recouvrent montrent le plus RÉCEMMENT commencé. À égalité de
+   départ, le DERNIER du tableau l'emporte (`>=`) : c'est le dernier posé,
+   donc celui que l'utilisateur vient d'écrire. */
+function dzmTitleAt(clips,t){
+  var cs=Array.isArray(clips)?clips:[],v=Number(t),i,c,s,e,best=null;
+  if(!isFinite(v))return null;
+  for(i=0;i<cs.length;i++){c=cs[i];
+    if(!c||c.kind!=="title")continue;
+    s=Number(c.start);e=Number(c.end);
+    if(!isFinite(s)||!isFinite(e))continue;
+    if(v<s||v>=e)continue;
+    if(!best||s>=Number(best.start))best=c}
+  return best}
+
+/* L'APERÇU VIVANT, EN HTML. Chaîne VIDE quand il n'y a rien à montrer (pas
+   un carton, pas de texte, tête hors de la plage) : l'appelant écrit cette
+   chaîne telle quelle dans `innerHTML`, et « vide » y vaut « efface ».
+   LA CLASSE PORTE LE GABARIT (`dzm-tt-<gabarit>`) et c'est la FEUILLE qui
+   place, colore et anime — pas une seconde table de styles ici. Un gabarit
+   inconnu ne rend QUE `dzm-tt` : la règle de base l'affiche au lieu de le
+   faire disparaître, et le 480p fait foi de toute façon.
+   LE 480p FAIT FOI, ET C'EST ÉCRIT : cet aperçu est une APPROXIMATION (pas
+   de police embarquée, pas d'animation d'entrée, pas de boîte au pixel) —
+   la gravure ASS est la seule vérité. */
+function dzmTitleHtml(clip,t){
+  var c=clip&&typeof clip==="object"?clip:null;
+  if(!c||c.kind!=="title")return "";
+  var o=c.title&&typeof c.title==="object"?c.title:{};
+  var txt=(typeof o.text==="string"?o.text:"").trim();
+  if(!txt)return "";
+  var v=Number(t);
+  if(isFinite(v)){var s=Number(c.start),e=Number(c.end);
+    if(isFinite(s)&&isFinite(e)&&(v<s||v>=e))return ""}
+  var tpl=(typeof o.template==="string"?o.template:"").replace(/[^a-z0-9_]/g,"");
+  var sub=(typeof o.sub==="string"?o.sub:"").trim();
+  return '<div class="dzm-tt'+(tpl?" dzm-tt-"+tpl:"")+'">'+
+    "<b>"+dzmTtEsc(txt)+"</b>"+(sub?"<i>"+dzmTtEsc(sub)+"</i>":"")+"</div>"}
+
 /* ── export contrat ───────────────────────────────────────────────────────── */
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
@@ -18308,6 +18478,11 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   markersFrom:dzmMarkersFrom,MARKER_COLORS:DZM_MARKER_COLORS,
   Markers:DzmMarkers,MarkerIndex:DzmMarkerIndex,
   veil:dzmVeil,VEIL:Object.freeze(DZM_VEIL),
+  /* D-21 — `group`, `pickTrack` et `remove` sont DÉJÀ au contrat (P9, P14) :
+     rien n'est ré-exporté sous un second nom, une clé de plus aurait été une
+     seconde porte sur la même fonction. */
+  titleTrack:dzmTitleTrack,titleNew:dzmTitleNew,
+  titleAt:dzmTitleAt,titleHtml:dzmTitleHtml,ttEsc:dzmTtEsc,
   transList:dzmTransList,transLabel:dzmTransLabel,transFamily:dzmTransFamily,
   transLive:dzmTransLive,transDir:dzmTransDir,TransGrid:DzmTransGrid,
   TRANS_FAM:DZM_TRANS_FAM,TRANS_DIR:DZM_TRANS_DIR,TRANS_TT:DZM_TRANS_TT,

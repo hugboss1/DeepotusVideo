@@ -307,7 +307,22 @@ R_M5 = ("      /* P1 — l'ORDRE des pistes, du haut vers le bas : c'est lui que
         "         (`layer`) et en bus de mixage. Un backend qui ne connaît pas\n"
         "         encore la clé l'ignore et rend exactement ce qu'il rendait. */\n"
         "      tracks:svmTracksPayload(proj),\n"
-        "      clips:clips.filter(function(c){return c.src}).map(function(c){")
+        # -- « TT2 » (D-21, 21/09/2026) : LES CARTONS DE TITRE PASSENT LE
+        # FILTRE. REPLI, et c'est une MESURE : la ligne
+        # `      clips:clips.filter(function(c){return c.src}).map(...)` vaut
+        # bien 1 dans .bak_montage, mais elle est l'ANCRE A_M5 -- consommee
+        # par CE remplacement, qui la reprend en queue. Une section a part
+        # l'aurait donc cherchee dans un bundle ou M5 l'a deja reecrite :
+        # `--check` (qui ne regarde que le .bak) aurait dit oui, et la chaine
+        # aurait abandonne au rejeu. Meme technique que R4/R5 dans R_M6/R_M7.
+        # UN TITRE EST UN CLIP SANS `src` : sans ce `||c.kind==="title"`, il
+        # ne quittait JAMAIS le client et le backend n'avait rien a graver.
+        # LA GARDE `c.src.job_id` DE LA VITESSE, TROIS LIGNES PLUS BAS, EST
+        # DEJA SURE : elle est precedee de `c.tr==="v1"&&`, et un carton vit
+        # sur t1 -- le court-circuit sort AVANT la lecture (mesure du
+        # 21/09/2026 sur le texte du .bak, que rien ne reecrit ici).
+        '      clips:clips.filter(function(c){return c.src||c.kind==="title"})'
+        ".map(function(c){")
 
 # ── M6 : autosave ───────────────────────────────────────────────────────────
 A_M6 = "      duration_master:durMaster,ducking:ducking,clips:clips,"
@@ -370,7 +385,25 @@ R_M6 = ("      duration_master:durMaster,ducking:ducking,clips:clips,\n"
 # défensif — un backend antérieur à P8, ou une réponse tronquée, n'a pas la
 # clé — mais il ne couvre pas le chemin qu'on lui prêtait.
 A_M7 = 'var np={demo:!1,name:d.name||"montage",version:"v1",ratio:d.ratio||"9:16",'
-R_M7 = ('var np={demo:!1,tracks:svmTracksFrom(d.tracks),'
+# -- « TT3 » (D-21, 21/09/2026) : LA PISTE DES TITRES REVIENT AVEC LE PROJET.
+# REPLI, et c'est une MESURE : `tracks:svmTracksFrom(d.tracks)` vaut 0 dans
+# .bak_montage -- c'est CE remplacement-ci qui l'ecrit. Meme technique que
+# R5 et K6.
+# LA PISTE N'EST POSEE QUE S'IL Y A UN CARTON A PORTER. Une sauvegarde d'un
+# projet SANS titre ne gagne donc pas une bande vide au rechargement ; une
+# sauvegarde d'avant D-21 qui porterait des cartons (impossible aujourd'hui,
+# possible demain si la piste est retiree a la main puis le projet rouvert)
+# la retrouve.
+# `_t` EST TESTE AVANT : `svmTracksFrom` rend `null` quand la liste est
+# illisible ou qu'elle a perdu v1, et « null » veut dire « garde les six
+# defauts » -- qui portent DEJA t1. `titleTrack(null)` aurait rendu une liste
+# d'UNE piste (t1 seule), c'est-a-dire un montage sans V1.
+# LE GENRE, LUI, N'A PAS BESOIN DE REPLI : mesure du 21/09/2026 (banc
+# d'edition, `tt_la_restauration_garde_le_genre_title_et_l_habillage`),
+# `svmTracksFrom` GARDE un `kind:"title"` et lui rend son habillage.
+R_M7 = ('var np={demo:!1,tracks:(function(){var _t=svmTracksFrom(d.tracks);'
+        'return _t&&(d.clips||[]).some(function(c){return c&&c.kind==="title"})'
+        '?DzTracks.titleTrack(_t):_t})(),'
         'project_id:d.project_id,'
         'v1NonVideo:Array.isArray(d.v1_non_video)?d.v1_non_video:null,'
         # D-11 — ET LA PLAGE REVIENT AVEC LE PROJET. « R5 » du plan,
@@ -877,6 +910,39 @@ R_M16REF = (A_M16REF + "\n"
             # est un état d'outil et non une propriété du projet.
             '  var stDzM=x.useState("ecraser"),dzMode=stDzM[0],'
             "setDzMode=stDzM[1];\n"
+            # -- « TT4a » (D-21, 21/09/2026) : POSER UN TITRE, LE GESTE --
+            # REPLIE ICI, meme mesure que « E1 », « K3 », « X1 » et « V1 » :
+            # la ligne `dzTracksRef` qui sert d'ancre a ce remplacement vaut
+            # 0 dans .bak_montage.
+            # UNE FONCTION DECLAREE, ET C'EST LE PRECEDENT `dzMkToggle` : le
+            # geste a DEUX declencheurs -- le raccourci (TT4, dans le `onKey`
+            # d'un `useEffect`, d'ou aucune fonction ne sort) et la chip
+            # « T+ » (TT5, dans l'arbre rendu). L'ecrire aux deux endroits
+            # aurait fait deux sources de verite pour un meme bouton.
+            # Declaration HISSEE dans le corps du composant : l'ordre
+            # d'ecriture par rapport a `svmTracksSet` (M4b) et aux refs n'y
+            # change rien, et tout est resolu a l'APPEL.
+            # UN SEUL INSTANTANE D'HISTORIQUE, ET C'EST MESURE :
+            # `svmTracksSet` (M4b) fait deja `pushHistory()` avant d'ecrire
+            # les pistes. Poser un titre est UN geste -- deux instantanes
+            # auraient fait « Annuler » deux fois : la piste sans le carton,
+            # puis le carton sans la piste. Les DEUX branches en paient donc
+            # EXACTEMENT un : `svmTracksSet` quand t1 manque, `pushHistory`
+            # quand `titleTrack` rend le MEME tableau (mesure, banc
+            # d'edition `tt_une_piste_deja_la_rend_le_meme_tableau`) -- et
+            # aucun `setProj` inutile dans ce second cas.
+            # PAS DE GARDE `if(!t)` : le texte est le LITTERAL « Titre » et
+            # `titleNew` ne rend `null` que sur un texte vide -- un bras mort
+            # que rien n'aurait pu faire rougir (meme lecon que le
+            # `dzSw===clipsRef.current` ecarte a la revue du 21/09/2026).
+            "  function dzTtAdd(){"
+            'var t=DzTracks.titleNew({template:"tiers_inferieur",text:"Titre"},'
+            'phRef.current,clipsRef.current,"t1");\n'
+            "    var ts=svmTracksOf(dzProjRef.current),ts2=DzTracks.titleTrack(ts);\n"
+            "    if(ts2!==ts)svmTracksSet(ts2);else pushHistory();\n"
+            "    setClips(clipsRef.current.concat([t]));setSelId(t.id);setDirty(!0);\n"
+            '    fireNote("Titre posé à "+t.start.toFixed(2)+" s sur T1 — "'
+            '+"l\'inspecteur règle le gabarit et le texte.")}\n'
             # -- « K3 » (D-5) : L'INDEX DES MARQUEURS EST-IL OUVERT ? --
             # REPLIE ICI, meme mesure que « E1 » juste au-dessus : la
             # ligne `dzTracksRef` qui sert d'ancre a ce remplacement vaut
@@ -1296,6 +1362,41 @@ R_M16D = (A_M16D + '\n'
 # ── M15 (P6) : le mode remplacement, en tête d'addAsset ────────────────────
 A_M15 = "  function addAsset(src,label,kind,srcDur,trId,atTime){"
 R_M15 = (A_M15 + "\n"
+         # -- « TT1b » (D-21, 21/09/2026) : UNE PISTE DE TITRES NE RECOIT
+         # AUCUN ASSET. REPLI dans R_M15 parce que l'ancre naturelle
+         # (`    var tr2=trId||"v2",d=durRef.current;`) vaut 1 dans
+         # .bak_montage mais 0 dans le bundle patche -- M15 la reecrit, et
+         # une section a part aurait passe `--check` pour abandonner au
+         # rejeu. Elle est donc posee ICI, en TETE de R_M15.
+         # POURQUOI ELLE EXISTE, ET C'EST UN ECART MESURE CONTRE LE PLAN :
+         # celui-ci annoncait qu'`addAsset` refuserait t1 « comme il refuse
+         # s1 ». MESURE du 21/09/2026 : `addAsset` n'interroge PAS
+         # `trackKind` -- il ne teste que le VERROU de piste. Les seize
+         # egalites de `trackKind` ferment le glisser-depose (`svmDragOk`,
+         # `dropOnTrack`) et la pile d'effets, mais PAS le bouton « + » de
+         # l'en-tete de piste : son `onClick` n'aiguille que sur « subs » et
+         # retombe sinon sur `openPicker`, qui appelle `addAsset`. Sans cette
+         # garde, le « + » de T1 posait un PLAN VIDEO sur la piste des
+         # titres -- un clip que le backend collecte comme carton, que
+         # `title_spec` refuse faute de `title`, et qui disparaissait du
+         # rendu en ne laissant qu'une ligne de journal.
+         # LE COURT-CIRCUIT EST LE PREMIER DE TOUS, avant meme le mode
+         # remplacement : une piste de titres ne recoit pas davantage un
+         # remplacement qu'un ajout, et le mode ne doit pas etre CONSOMME
+         # par un refus.
+         # `svmKeyLabelNow` PLUTOT QUE `svmKeyLabel` : la premiere est
+         # declaree au niveau MODULE (une seule definition, 3 appels dans le
+         # .bak) et lit la keymap vivante de localStorage -- aucune
+         # discussion de portee, et la note ne ment pas apres un remappage.
+         '    if(trackKind(trId||"v2")==="title"){\n'
+         '      fireNote("La piste des titres ne reçoit que des cartons — "'
+         # LA PHRASE NE REPREND PAS CELLE DE L'INDEX DES MARQUEURS (« … en
+         # pose un a la tete de lecture. ») : cette formule-la est comptee a
+         # UN par la ligne `D5_I5_les_trois_textes_lisent_la_keymap_vivante`,
+         # qui verifie qu'elle n'a pas disparu. Deux phrases identiques
+         # auraient fait rougir une ligne qui n'a rien a voir avec D-21.
+         '+svmKeyLabelNow("title_add")+" en pose un.");\n'
+         '      setOvPick("");return}\n'
          "    /* P6 — MODE REMPLACEMENT, en court-circuit AVANT tout le reste :\n"
          "       un remplacement ne choisit pas de piste, il garde celle du\n"
          "       plan. Le mode est CONSOMMÉ dès l'entrée (une seule fois par\n"
@@ -2791,7 +2892,20 @@ R_R1 = (A_R1 + "\n"
         # cette branche, donc Ctrl+\u2190 / Ctrl+\u2192 ne sont PAS captures par
         # l'overlay -- pas besoin d'Alt+\u2190/\u2192 de repli.
         '\n {id:"swap_left",sec:"Montage",lbl:"echanger avec le plan precedent",combo:"Ctrl+\u2190"},\n'
-        ' {id:"swap_right",sec:"Montage",lbl:"echanger avec le plan suivant",combo:"Ctrl+\u2192"},')
+        ' {id:"swap_right",sec:"Montage",lbl:"echanger avec le plan suivant",combo:"Ctrl+\u2192"},'
+        # -- « TT4 » (D-21, 21/09/2026), premiere moitie : POSER UN TITRE ---
+        # REPLIEE ICI, meme technique que K1 et W1 : l'ancre naturelle (la
+        # ligne `swap_right` ci-dessus) est un texte que CE remplacement
+        # POSE -- 0 dans .bak_montage, 1 dans le bundle livre.
+        # COMBO MESUREE LIBRE le 21/09/2026 sur .bak_montage : `combo:"Maj+T"`
+        # vaut 0 (et `combo:"Alt+T"` aussi, repli non necessaire) ; `combo:"T"`
+        # vaut 1, c'est le panneau Narration. « Maj+T » n'est pas dans
+        # SVM_COMBO_RESERVED (qui ne porte que Ctrl+T et Ctrl+Maj+T).
+        # « Maj+T » NE SERA PAS CONFONDUE AVEC « T » : MESURE du dispatch,
+        # `onKey` cherche d'abord `m[combo]` EXACT et ne retombe sur la
+        # variante sans Maj que si la combo complete est INCONNUE de la
+        # table -- elle y est desormais. Meme raisonnement que « Maj+M ».
+        '\n {id:"title_add",sec:"Montage",lbl:"titre : poser un carton a la tete",combo:"Maj+T"},')
 
 # ── R2 (D-11) : la branche de dispatch ─────────────────────────────────────
 # PORTEE MESUREE dans `onKey` (meme corps de composant, closure) : `phRef`,
@@ -2931,7 +3045,28 @@ R_R2 = (A_R2 + "\n"
         'fireNote("Aucun plan voisin de ce côté.");return}'
         'pushHistory();setClips(dzSw);setDirty(!0);'
         'fireNote("« "+(dzC.label||dzC.id)+" » échangé avec le plan "'
-        '+(id==="swap_left"?"précédent":"suivant")+".");return}')
+        '+(id==="swap_left"?"précédent":"suivant")+".");return}'
+        # -- « TT4 » (D-21), seconde moitie : LE DISPATCH DU TITRE ----------
+        # REPLIE ICI pour la meme raison que K2 et W2 : l'ancre est la
+        # branche `swap_left` que CE remplacement-ci pose (0 dans le .bak).
+        # UN SEUL `pushHistory`, ET C'EST MESURE. `svmTracksSet` (M4b) fait
+        # deja `pushHistory();svmTrackBusSync(ts);setProj(...);setDirty(!0)`.
+        # Poser un titre est UN geste : l'instantane doit donc etre pris UNE
+        # fois, AVANT la piste ET avant le clip -- sinon « Annuler » rendait
+        # la piste sans le carton, puis le carton sans la piste.
+        # LES DEUX BRANCHES PAIENT EXACTEMENT UN INSTANTANE : quand t1
+        # manque, c'est `svmTracksSet` qui le pousse ; quand elle est deja
+        # la, `titleTrack` rend le MEME tableau (mesure, banc d'edition
+        # `tt_une_piste_deja_la_rend_le_meme_tableau`) et on pousse
+        # nous-memes. Aucun `setProj` inutile dans le second cas.
+        # LE GESTE VIT DANS `dzTtAdd` (TT4a, replie dans R_M16REF) ET PAS
+        # ICI : la chip « T+ » (TT5) le declenche aussi, et le dispatch du
+        # clavier est enferme dans le `onKey` d'un `useEffect` -- aucune
+        # fonction n'en sort. Ecrire le geste aux DEUX endroits aurait fait
+        # deux sources de verite pour un meme bouton, exactement ce que le
+        # §5.1 du handoff interdit ; `dzMkToggle` est le precedent (K2, K5
+        # et K7 l'appellent tous les trois).
+        '\n      if(id==="title_add"){dzTtAdd();return}')
 
 # ── R3 (D-11) : la bande sur la regle, apres la gouttiere ──────────────────
 # `DzmRangeBar` rend `null` tant que la plage n'est pas COMPLETE : la regle
@@ -3060,7 +3195,24 @@ R_K5 = (A_K5 + "\n"
         '+") \u00b7 "+svmKeyLabel("marker_toggle")'
         '+" pose/retire \u00e0 la t\u00eate",'
         'onClick:function(){dzMkToggle()},'
-        'children:"\u25c6 "+((proj.markers||[]).length)}),')
+        'children:"\u25c6 "+((proj.markers||[]).length)}),'
+        # -- « TT5 » (D-21, 21/09/2026) : LA CHIP « T+ » ---------------------
+        # REPLIEE ICI : l'ancre du plan (« a cote de ◆ n ») est la chip des
+        # marqueurs que CE remplacement-ci pose -- 0 dans .bak_montage.
+        # ELLE NE PORTE PAS D'ETAT (`data-on`) : poser un titre est un GESTE,
+        # pas une bascule, contrairement a « ripple » et a l'index des
+        # marqueurs. Son `aria-label` suit la regle de M21 : sous largeur
+        # reduite les chips passent en glyphe seul, et « T+ » nu serait leur
+        # nom accessible.
+        # LA COMBO VIENT DE LA KEYMAP VIVANTE (`svmKeyLabel`, declaree dans
+        # ce composant) : l'action est remappable par le panneau « ? », et
+        # une infobulle qui dirait « Maj+T » en dur MENTIRAIT apres un
+        # remappage. Meme lecon que I-5.
+        '\n          r.jsx("button",{className:"svm-toolchip",'
+        '"aria-label":"poser un titre",'
+        'title:"Poser un titre à la tête ("+svmKeyLabel("title_add")+")",'
+        'onClick:function(){dzTtAdd()},'
+        'children:"T+"}),')
 
 # -- K5b : le panneau de l'index, parmi les popovers -------------------------
 # POSE JUSTE APRES `ovPicker()`, au milieu des autres panneaux flottants : il
@@ -3269,6 +3421,50 @@ R_V3 = (A_V3 + "\n"
         "        dzVe.style.opacity=String(dzVv.alpha||0)}}")
 
 
+# ══════════════════════════════════════════════════════════════════════════
+# D-21 (21/09/2026, tache 6) — LE GENRE `title` ET CE QUE LE CARTON EMPORTE
+# ══════════════════════════════════════════════════════════════════════════
+# Les SIX autres morceaux du lot (TT1b, TT2, TT3, TT4 en deux moities, TT5)
+# visent des textes que d'autres remplacements POSENT, ou une ancre CONSOMMEE
+# (A_M5) : ils sont REPLIES la-bas, chacun avec sa mesure. Ces deux ancres-ci
+# valent 1/1 dans .bak_montage et aucune section anterieure n'y touche.
+#
+# TT1 : LE QUATRIEME GENRE DE PISTE. `trackKind` ne lit que l'INITIALE de
+# l'identifiant, et c'est la recette ecrite au-dessus de lui dans le bundle :
+# « le declarer ici suffit a ce que tout le reste refuse deja ce qu'il faut ».
+# MESURE du 21/09/2026 : les SEIZE appels de `trackKind` dans .bak_montage
+# sont TOUS des EGALITES (`==="video"`, `==="audio"`, `==="subs"`), relevees
+# une a une -- un genre « title » ne trouve donc le sien nulle part, et t1
+# refuse le depot d'asset (`svmDragOk`, `dropOnTrack`), la pile d'effets, le
+# mixage par clip et l'inspecteur audio, exactement comme S1. Le SEUL trou
+# etait le bouton « + » de l'en-tete, qui ne passe pas par `trackKind` :
+# TT1b le ferme dans `addAsset`.
+# ET LA LETTRE ETAIT LIBRE : les 18 occurrences de `id:"t` du .bak sont des
+# ports de noeuds (`id:"text"`, `id:"ticker"`), des gabarits (`id:"tpl_…"`),
+# des sujets, des canaux (`id:"telegram"`) et des voix (`id:"tide"`) -- AUCUN
+# identifiant de PISTE ne commence par « t ». Relevees une a une.
+A_TT1 = ('  function trackKind(trId){var k=String(trId||"").charAt(0);\n'
+         '    return k==="a"?"audio":k==="s"?"subs":"video"}')
+R_TT1 = ('  function trackKind(trId){var k=String(trId||"").charAt(0);\n'
+         '    return k==="a"?"audio":k==="s"?"subs":k==="t"?"title":"video"}')
+
+# TT2b : CE QUE LE CARTON EMPORTE AU RENDU. Le backend reconnait un titre a
+# la PISTE (`_tracks_meta[tr].kind === "title"`, mesure de la tache 5) et lit
+# `c.title` -- sans cette cle, le clip partait NU et `title_spec` rendait
+# `None` : un carton compte « ignore » dans le journal, invisible a l'ecran.
+# `kind` PART AUSSI, et ce n'est pas une redondance : c'est la cle que le
+# filtre de R_M5 (TT2) interroge pour laisser passer un clip sans `src`, et
+# le backend a de quoi journaliser un carton pose sur une piste qui n'est PAS
+# de titres.
+# LE PAYLOAD D'UN PROJET SANS CARTON NE CHANGE PAS D'UN OCTET : les deux
+# valeurs sont `undefined` sur tous les autres clips, et `JSON.stringify`
+# OMET une cle dont la valeur est `undefined`. Mesure au banc.
+A_TT2B = ('        var o={tr:c.tr,src:c.src,start:c.start,end:c.end,'
+          'srcIn:c.srcIn||0,')
+R_TT2B = ('        var o={tr:c.tr,src:c.src,start:c.start,end:c.end,'
+          'srcIn:c.srcIn||0,kind:c.kind,title:c.title,')
+
+
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
            ("M5-payload", A_M5, R_M5), ("M6-save", A_M6, R_M6),
@@ -3419,7 +3615,17 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            # disjointes et ni l'une ni l'autre n'est creee par un
            # remplacement.
            ("V2-voile-cadre", A_V2, R_V2),
-           ("V3-voile-livesync", A_V3, R_V3)]
+           ("V3-voile-livesync", A_V3, R_V3),
+           # D-21 (21/09/2026) - le genre `title` et la piste t1. TT1b, TT2,
+           # TT3, TT4 (deux moities) et TT5 sont REPLIES dans R_M15, R_M5,
+           # R_M7, R_R1/R_R2 et R_K5 (ancres posees par un remplacement, ou
+           # consommee pour A_M5). Les deux ancres ci-dessous valent 1/1
+           # dans .bak_montage ET dans le bundle patche : aucune section
+           # anterieure ne touche ni a `trackKind` ni a la ligne `var o=`
+           # du payload de rendu (TT2 ne reecrit que le FILTRE, deux lignes
+           # plus haut).
+           ("TT1-genre-title", A_TT1, R_TT1),
+           ("TT2b-payload-carton", A_TT2B, R_TT2B)]
 
 
 def nl(text, crlf):

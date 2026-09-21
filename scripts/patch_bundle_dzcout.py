@@ -253,7 +253,19 @@ STABLE_PROBES = [
     # MESURE : la chaine a refuse, « sonde montage x91 (want 90) », AVANT
     # que ce nombre ne soit ecrit -- 90 dans le bundle de 1e0b1bc, +1 par
     # V3, 91 apres rejeu, en octets, `str.count`.
-    ("montage", "DzTracks", 91),
+    # `montage` : 91 -> 94 le 21/09/2026 (D-21, tache 6 : le genre `title`,
+    # la piste t1, poser un titre). TROIS references de plus, et trois
+    # seulement : `titleNew(` et `titleTrack(` dans le geste `dzTtAdd`
+    # (TT4a, replie dans R_M16REF), et `titleTrack(` dans la restauration
+    # (TT3, replie dans R_M7). TT1 (le quatrieme genre de `trackKind`),
+    # TT1b (le refus d'`addAsset`), TT2/TT2b (le payload de rendu) et TT5
+    # (la chip « T+ », qui appelle `dzTtAdd`) n'en ajoutent AUCUNE : elles
+    # ne parlent pas a la couche. La prose de ces sections est ecrite SANS
+    # le jeton (« la couche », « titleTrack() ») parce que la sonde compte
+    # du TEXTE, commentaires compris -- lecon du premier jet de X2.
+    # MESURE : la chaine a refuse, « sonde montage x94 (want 91) », AVANT
+    # que ce nombre ne soit ecrit.
+    ("montage", "DzTracks", 94),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────
