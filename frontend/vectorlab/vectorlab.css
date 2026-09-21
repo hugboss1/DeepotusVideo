@@ -888,3 +888,19 @@ vl-bascule[disabled] { opacity: .5; pointer-events: none; }
 .vl-didact-phrase { font-size: 13px; line-height: 1.45; color: var(--aff-texte); padding: 0 12px 10px; }
 .vl-didact-q { flex: 0 0 18px; width: 18px; height: 18px; min-width: 18px; max-width: 18px; padding: 0; border-radius: 50%; border: 1px solid var(--aff-bord); background: transparent; color: var(--aff-muet); font-size: 11px; line-height: 16px; cursor: help; margin-left: 2px; }
 .vl-didact-q:hover { color: var(--aff-texte); border-color: var(--aff-muet); }
+
+/* ── 21/09 : barre contextuelle en icônes, arbre des calques, loupe de la pipette ── */
+.cb-bouton.cb-icone { width: 28px; min-width: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--aff-texte); }
+.cb-bouton.cb-icone .ic { display: block; }
+.cb-sep { display: inline-block; width: 1px; height: 18px; background: var(--aff-bord); margin: 0 4px; vertical-align: middle; }
+#listeCalques .calque .calque-chevron { cursor: pointer; }
+#listeCalques .calque-objet { display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 6px 0 calc(16px + 14px * var(--niv, 1)); font-size: 12px; color: var(--aff-texte); border-bottom: 1px solid var(--aff-champ); cursor: pointer; }
+#listeCalques .calque-objet:hover { background: var(--aff-champ); }
+#listeCalques .calque-objet.selectionne { background: color-mix(in srgb, var(--aff-sel) 28%, transparent); }
+#listeCalques .calque-objet .co-ic { display: inline-flex; color: var(--aff-muet); flex: 0 0 14px; }
+#listeCalques .calque-objet .nom { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; }
+#listeCalques .calque-objet[data-genre="masque"], #listeCalques .calque-objet[data-genre="ecretage"], #listeCalques .calque-objet[data-genre="effet"] { color: var(--aff-muet); font-style: italic; }
+.vl-loupe { position: fixed; z-index: 80; width: 120px; pointer-events: none; text-align: center; }
+.vl-loupe.hidden { display: none; }
+.vl-loupe canvas { display: block; width: 120px; height: 120px; border-radius: 50%; border: 2px solid var(--aff-texte); box-shadow: 0 4px 14px rgba(0, 0, 0, .5); background: var(--aff-canevas); image-rendering: pixelated; }
+.vl-loupe-val { display: inline-block; margin-top: 4px; font: 11px/1.4 ui-monospace, monospace; background: var(--aff-fond); color: var(--aff-texte); border: 1px solid var(--aff-bord); border-radius: 10px; padding: 1px 8px; white-space: nowrap; }

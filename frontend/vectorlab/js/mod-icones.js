@@ -45,6 +45,32 @@ export const ICONES = {
   "px-flou": '<circle cx="12" cy="12" r="6" stroke-dasharray="2 2"/><circle cx="12" cy="12" r="2.5"/>',
   "px-eclaircir": '<circle cx="12" cy="12" r="4"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/>',
   "px-assombrir": '<circle cx="12" cy="12" r="7"/><path d="M12 5a7 7 0 0 1 0 14z" fill="currentColor"/>',
+  // 21/09 : les actions de la barre contextuelle (Nœuds / Plume) et les alignements
+  vif: '<path d="M4 18L12 6l8 12"/><circle cx="12" cy="6" r="1.4"/>',
+  lisse: '<path d="M4 16c4-8 12-8 16 0"/><circle cx="12" cy="10" r="1.4"/><path d="M7 10h10" opacity=".5"/>',
+  intelligent: '<path d="M4 16c4-8 12-8 16 0"/><path d="M12 4v2M8.5 5l1 1.7M15.5 5l-1 1.7"/>',
+  fractionner: '<path d="M4 12h6M14 12h6"/><path d="M12 5v14" stroke-dasharray="2 2"/><circle cx="10" cy="12" r="1.2"/><circle cx="14" cy="12" r="1.2"/>',
+  ouvrir: '<path d="M6 17a7 7 0 1 1 12 0"/><circle cx="6" cy="17" r="1.4"/><circle cx="18" cy="17" r="1.4"/>',
+  fermer: '<path d="M6 17a7 7 0 1 1 12 0z"/><circle cx="12" cy="17" r="1.4"/>',
+  lisserCourbe: '<path d="M4 18c3-9 5-12 8-6s5 3 8-6"/>',
+  relier: '<path d="M4 12h5M15 12h5"/><path d="M9 12l3-3 3 3-3 3z"/>',
+  inverser: '<path d="M5 8h11l-3-3M19 16H8l3 3"/>',
+  "al-gauche": '<path d="M5 4v16"/><rect x="8" y="7" width="10" height="4"/><rect x="8" y="13" width="6" height="4"/>',
+  "al-centreH": '<path d="M12 4v16" stroke-dasharray="2 2"/><rect x="6" y="7" width="12" height="4"/><rect x="8" y="13" width="8" height="4"/>',
+  "al-droite": '<path d="M19 4v16"/><rect x="6" y="7" width="10" height="4"/><rect x="10" y="13" width="6" height="4"/>',
+  "al-haut": '<path d="M4 5h16"/><rect x="7" y="8" width="4" height="10"/><rect x="13" y="8" width="4" height="6"/>',
+  "al-centreV": '<path d="M4 12h16" stroke-dasharray="2 2"/><rect x="7" y="6" width="4" height="12"/><rect x="13" y="8" width="4" height="8"/>',
+  "al-bas": '<path d="M4 19h16"/><rect x="7" y="6" width="4" height="10"/><rect x="13" y="10" width="4" height="6"/>',
+  configDoc: '<rect x="5" y="3" width="14" height="18" rx="1"/><path d="M9 8h6M9 12h6M9 16h3"/>',
+  parametres: '<circle cx="12" cy="12" r="3"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.5 1.5M16.9 16.9l1.5 1.5M5.6 18.4l1.5-1.5M16.9 7.1l1.5-1.5"/>',
+  // 21/09 : les types de rangées du panneau Calques
+  calque: '<path d="M12 4l9 5-9 5-9-5z"/><path d="M3 14l9 5 9-5"/>',
+  groupe: '<rect x="4" y="4" width="10" height="10"/><rect x="10" y="10" width="10" height="10"/>',
+  path: '<path d="M4 18C8 4 16 20 20 6"/><circle cx="4" cy="18" r="1.3"/><circle cx="20" cy="6" r="1.3"/>',
+  instance: '<rect x="4" y="4" width="12" height="12"/><path d="M8 20h12V8"/>',
+  ecretage: '<rect x="4" y="4" width="16" height="16" rx="2" stroke-dasharray="3 2"/><circle cx="12" cy="12" r="5"/>',
+  masque: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 4v16"/><path d="M12 4h8v16h-8z" fill="currentColor" opacity=".35"/>',
+  effet: '<path d="M12 3l2.2 5.3L20 9l-4.4 3.9L17 19l-5-3-5 3 1.4-6.1L4 9l5.8-.7z"/>',
 };
 const REPLI = '<rect x="5" y="5" width="14" height="14" rx="2" stroke-dasharray="2 2"/>';
 export function icone_svg(id, taille = 18) {
