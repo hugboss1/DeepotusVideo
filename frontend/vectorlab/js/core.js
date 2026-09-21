@@ -27,6 +27,7 @@ import { initPile } from "./mod-pile.js";
 import { initBarreContexte } from "./mod-barrecontexte.js";
 import { initOutils3 } from "./mod-outils3ui.js";
 import { initPlume } from "./mod-plumeui.js";
+import { initPipetteUI } from "./mod-pipetteui.js";
 import { initNoeudUI } from "./mod-noeudui.js";
 import { initNoeudApercu } from "./mod-noeudapercu.js";
 import { initSelectionUI } from "./mod-selectionui.js";
@@ -785,6 +786,7 @@ initBrouillon(VL); // pose surCharge AVANT charger() (lot A)
 initTexteUI(VL);     // R11 : Texte d'Affinity (corps au glisser, texte sur chemin, débordement, Tab) — après initTypo (poserTexte)
 initSelectionUI(VL); // R10 : Alt+glisser = copie déplacée, double-clic → Nœuds, survol — après initOutils
 initNoeudUI(VL);    // R9 : poignées tirables, segment déformable, insertion au double-clic, suppression lisse — après initOutils / initOutils2
+initPipetteUI(VL);  // 21/09 : le Sélecteur de couleur (capture ; Ctrl + clic reste la pipette de style de mod-tools)
 initPlume(VL);      // R8 : la Plume de classe Affinity — REMPLACE la plume de mod-tools (capture + stopPropagation) ; après initOutils (surOutil / surTouche)
 initOutils3(VL);    // R7 : Main, Loupe, Plan de travail, Dégradé, Transparence, Cadre, Recadrer, retouche raster — avant initFlyout / initBarreOutils (boutons dans la barre)
 initFlyout(VL);     // menus détachés de la barre : Forme, Symboles

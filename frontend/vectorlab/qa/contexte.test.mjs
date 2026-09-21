@@ -39,5 +39,18 @@ const echecs = []; const ok = (n, c, d = "") => { if (!c) echecs.push(n + (d ? "
   ok("lot 3 — pinceau et seau : Pipette aussi ; gomme non", champs_de("px-pinceau", { px }).some((x) => x.id === "pxPipetteMode") && champs_de("px-seau", { px }).some((x) => x.id === "pxPipetteMode") && !champs_de("px-gomme", { px }).some((x) => x.id === "pxPipetteMode"));
   ok("lot 3 — appliquer : pxPipetteMode borné, inconnu → moyenne", appliquer_champ({ px }, "pxPipetteMode", "dominante").px.pipetteMode === "dominante" && appliquer_champ({ px }, "pxPipetteMode", "zz").px.pipetteMode === "moyenne");
 }
+{
+  // 21/09 : la barre en ICÔNES — chaque bouton d'action porte une icône connue et garde son libellé (la bulle)
+  const { ICONES } = await import("../js/mod-icones.js");
+  const { boutons_groupes } = await import("../js/mod-contexte.js");
+  const n = champs_de("noeuds", {}).filter((c) => c.type === "bouton");
+  ok("icônes (21/09) : les 15 boutons de l'outil Nœuds portent une icône d'ICONES et un libellé", n.length === 15 && n.every((c) => c.icone && ICONES[c.icone] && c.libelle), n.map((c) => c.id + ":" + c.icone).join());
+  const pl = champs_de("plume", {}).filter((c) => c.type === "bouton");
+  ok("icônes (21/09) : les boutons de la Plume aussi", pl.length === 9 && pl.every((c) => c.icone && ICONES[c.icone]));
+  const s0 = champs_de("select", { selection: [] }).filter((c) => c.type === "bouton");
+  ok("icônes (21/09) : Configuration du document et Paramètres de l'appli en icônes", s0.length === 2 && s0.every((c) => c.icone && ICONES[c.icone]));
+  const g = boutons_groupes(champs_de("noeuds", {}));
+  ok("boutons_groupes : les actions plume:* puis les alignements noeuds:al-* forment deux groupes ; état vide → []", g.length === 2 && g[0].length === 9 && g[1].length === 6 && boutons_groupes([]).length === 0, JSON.stringify(g.map((x) => x.length)));
+}
 if (echecs.length) { console.error("ECHECS contexte :\n- " + echecs.join("\n- ")); process.exit(1); }
 console.log("QA contexte : PASS (24 controles)");

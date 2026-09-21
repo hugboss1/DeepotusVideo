@@ -17,6 +17,20 @@ const ACTIONS_PLUME = [["vif", "Vif"], ["lisse", "Lisse"], ["intelligent", "Inte
 const ALIGN_NOEUDS = [["gauche", "⇤"], ["centreH", "⇔"], ["droite", "⇥"], ["haut", "⇧"], ["centreV", "⇕"], ["bas", "⇩"]];
 const MODES_TRANCHE = [{ id: "document", nom: "Document" }, { id: "objets", nom: "Par objet" }, { id: "planches", nom: "Par planche" }, { id: "calques", nom: "Par calque" }, { id: "dessinees", nom: "Dessinées" }];
 import { champs_texte, patch_texte } from "./mod-texte.js";
+import { champs_pipette, appliquer_pipette } from "./mod-pipette.js";
+/* 21/09 : les boutons d'une barre, regroupés par préfixe d'id (plume:*, noeuds:*, …) — un séparateur entre les groupes */
+export function boutons_groupes(champs) {
+  const out = [];
+  let prec = null;
+  for (const c of Array.isArray(champs) ? champs : []) {
+    if (!c || c.type !== "bouton") continue;
+    const pre = String(c.id).includes(":") ? String(c.id).split(":")[0] : "";
+    if (!out.length || pre !== prec) out.push([]);
+    out[out.length - 1].push(c);
+    prec = pre;
+  }
+  return out;
+}
 export function champs_de(outil, etat) {
   if (!etat || typeof etat !== "object") return [];
   const px = etat.px || {}, pv = etat.pinceauv || {};
@@ -24,7 +38,7 @@ export function champs_de(outil, etat) {
     case "select": {
       const sel = etat.selection || [];
       const auto = { id: "selectionAuto", type: "bascule", libelle: "Sélection auto", valeur: etat.selectionAuto !== false };
-      if (!sel.length) return [auto, { id: "configDoc", type: "bouton", libelle: "Configuration du document…" }, { id: "parametres", type: "bouton", libelle: "Paramètres de l'appli…" }];
+      if (!sel.length) return [auto, { id: "configDoc", type: "bouton", libelle: "Configuration du document…", icone: "configDoc" }, { id: "parametres", type: "bouton", libelle: "Paramètres de l'appli…", icone: "parametres" }];
       const o0 = (etat.objets || [])[0];
       if (o0 && ["texte", "cadre", "textechemin"].includes(o0.type) && sel.length === 1) return [auto, ...champs_texte(o0.style || {}, (etat.typo || {}).polices)];
       const tete = (etat.objets || [])[0] || {};
@@ -33,8 +47,8 @@ export function champs_de(outil, etat) {
       const r2 = (v) => Math.round((+v || 0) * 100) / 100;
       return [auto, nombre("selX", "X", r2(b.x), -1e5, 1e5, 0.5), nombre("selY", "Y", r2(b.y), -1e5, 1e5, 0.5), nombre("selW", "L", r2(b.w), 1, 1e5, 0.5), nombre("selH", "H", r2(b.h), 1, 1e5, 0.5), nombre("opacite", "Opacité %", Math.round(op * 100), 0, 100)];
     }
-    case "plume": return [select("plumeMode", "Mode", (etat.plume || {}).mode || "plume", opts(MODES_PLUME)), ...ACTIONS_PLUME.map(([a, l]) => ({ id: "plume:" + a, type: "bouton", libelle: l }))];
-    case "noeuds": return [...ACTIONS_PLUME.map(([a, l]) => ({ id: "plume:" + a, type: "bouton", libelle: l })), ...ALIGN_NOEUDS.map(([m, g]) => ({ id: "noeuds:al-" + m, type: "bouton", libelle: g, titre: "Aligner les nœuds : " + m })), { id: "aimantNoeuds", type: "bascule", libelle: "Magnétisme", valeur: etat.aimantNoeuds !== false }];
+    case "plume": return [select("plumeMode", "Mode", (etat.plume || {}).mode || "plume", opts(MODES_PLUME)), ...ACTIONS_PLUME.map(([a, l]) => ({ id: "plume:" + a, type: "bouton", libelle: l, icone: a }))];
+    case "noeuds": return [...ACTIONS_PLUME.map(([a, l]) => ({ id: "plume:" + a, type: "bouton", libelle: l, icone: a })), ...ALIGN_NOEUDS.map(([m, g]) => ({ id: "noeuds:al-" + m, type: "bouton", libelle: g, icone: "al-" + m, titre: "Aligner les nœuds : " + m })), { id: "aimantNoeuds", type: "bascule", libelle: "Magnétisme", valeur: etat.aimantNoeuds !== false }];
     case "forme": return [select("formeCourante", "Forme", etat.formeCourante, opts(etat.formes))];
     case "gomme": return [nombre("gommeLargeur", "Largeur", etat.gommeLargeur, 1, 500)];
     case "coin": return [nombre("coinRayon", "Rayon", etat.coinRayon, 0, 500)];
@@ -48,6 +62,7 @@ export function champs_de(outil, etat) {
     case "px-baguette": return [nombre("pxTolerance", "Tolérance", px.tolerance, 0, 255)];
     case "tuiles": return [select("terrainCourant", "Terrain", etat.terrainCourant, Object.entries(etat.terrains || {}).map(([id, t]) => ({ id, libelle: (t && t.nom) || id })))];
     case "texte": { const t = etat.typo || {}; const o = (etat.objets || [])[0]; const st = o && ["texte", "cadre", "textechemin"].includes(o.type) ? (o.style || {}) : (t.styleDefaut || {}); return champs_texte(st, t.polices); }
+    case "pipette": return champs_pipette(etat);   // 21/09 : le Sélecteur de couleur
     case "tranche": return [select("trMode", "Mode", (etat.exportPlus || {}).mode || "document", opts(MODES_TRANCHE))];
     default: return [];
   }
@@ -59,6 +74,7 @@ const champPipette = (px) => select("pxPipetteMode", "Pipette", px.pipetteMode |
 const champSecondaire = (px) => ({ id: "pxSecondaire", type: "couleur", libelle: "Secondaire", valeur: px.secondaire || null, titre: "Couleur du clic droit — vide = transparent = gomme" });
 const _HEX6 = /^#[0-9A-Fa-f]{6}$/;
 export function appliquer_champ(etat, id, valeur) {
+  if (String(id).startsWith("pip")) return appliquer_pipette(etat, id, valeur);   // 21/09
   const e = etat || {};
   switch (id) {
     case "gommeLargeur": return { gommeLargeur: borne(valeur, 1, 500) };

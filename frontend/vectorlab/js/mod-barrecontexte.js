@@ -4,6 +4,7 @@
 // « Configuration du document… » (taille, dpi, unité, fond — UNE commande)
 // et « Paramètres de l'appli… » (bulles, pas de grille, aimantation —
 // dz_vl_params, relus à l'ouverture). Traduit et délègue.
+import { icone_svg } from "./mod-icones.js";
 import { libelle_selection, champs_de, appliquer_champ, params_lire, params_poser, params_serialiser } from "./mod-contexte.js";
 import { FORMES } from "./mod-formes.js";
 import { PROFILS } from "./mod-pinceauvec.js";
@@ -28,8 +29,17 @@ export function initBarreContexte(VL) {
     hSel.textContent = libelle_selection(objetsSel());
     if (!etat.doc) { hOutil.innerHTML = ""; return; }
     const champs = champs_de(etat.outil, vue());
+    let prefixePrec = null;
     hOutil.innerHTML = champs.map((c) => {
-      if (c.type === "bouton") return `<button class="cb-bouton" data-champ="${c.id}"${c.titre ? ` title="${esc(c.titre)}"` : ""}>${esc(c.libelle)}</button>`;
+      if (c.type === "bouton") {
+        // 21/09 : des ICÔNES à bulle (le libellé devient le title) ; un séparateur entre deux groupes (plume:* | noeuds:*)
+        const pre = String(c.id).includes(":") ? String(c.id).split(":")[0] : "";
+        const sep = prefixePrec !== null && pre !== prefixePrec ? `<span class="cb-sep"></span>` : "";
+        prefixePrec = pre;
+        if (c.icone) return `${sep}<button class="cb-bouton cb-icone" data-champ="${c.id}" title="${esc(c.titre || c.libelle)}" aria-label="${esc(c.libelle)}">${icone_svg(c.icone, 16)}</button>`;
+        return `${sep}<button class="cb-bouton" data-champ="${c.id}"${c.titre ? ` title="${esc(c.titre)}"` : ""}>${esc(c.libelle)}</button>`;
+      }
+      prefixePrec = null;
       if (c.type === "bascule") return `<label class="cb-champ"><input type="checkbox" data-champ="${c.id}" ${c.valeur ? "checked" : ""}/>${esc(c.libelle)}</label>`;
       if (c.type === "couleur") return `<label class="cb-champ cb-couleur"${c.titre ? ` title="${esc(c.titre)}"` : ""}><span>${esc(c.libelle)}</span><input type="color" data-champ="${c.id}" value="${c.valeur || "#000000"}"${c.valeur ? "" : ' class="vide"'}/><button type="button" class="cb-vider" data-vider="${c.id}" title="Transparent (la gomme)">∅</button></label>`;
       if (c.type === "select") return `<label class="cb-champ"><span>${esc(c.libelle)}</span><select data-champ="${c.id}">${c.options.map((o) => `<option value="${esc(o.id)}"${o.id === c.valeur ? " selected" : ""}>${esc(o.libelle)}</option>`).join("")}</select></label>`;
