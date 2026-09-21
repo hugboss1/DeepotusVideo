@@ -57,6 +57,65 @@ out.jumeau=sv(j,"a1");
 out.mou=[T.insere(null,N,"ecraser",{}).clips.length,T.insere(C,null,"ecraser",{}).clips.length,
          T.insere(C,N,"zzz",{}).mode,T.insere(C,N,"ecraser",{locked:{v1:1}}).refus];
 out.pur=C.length===4&&C[0].end===4;
+/* ── revue du 21/09/2026 : verrous, jumeau synchrone, ids, jetons ───────── */
+var FULL=C.concat([{tr:"v3",id:"t1",start:0,end:8,src:{a:1}}]);
+var TW={tr:"a1",id:"xa",start:2,end:5,src:{b:1}};
+/* C1 : le repli de « dessus » repasse par la garde de verrou */
+var rv=T.insere(FULL,N,"dessus",{tracks:TS,locked:{v1:1}});
+out.dessus_repli_verrou=[rv.refus,rv.track,sv(rv,"v1")];
+/* C2 : piste jumelle verrouillée → la vidéo est posée, le son non */
+var jv=T.insere(C,N,"ecraser",{tracks:TS,twin:TW,locked:{a1:1}});
+out.jumeau_verrou=[jv.refus,sv(jv,"a1"),sv(jv,"v1").length,jv.note!==""];
+/* C3 : un clip AUDIO en « dessus » ne monte pas sur une piste vidéo */
+var da=T.insere(C,{tr:"a1",id:"xs",start:2,end:5,src:{b:1}},"dessus",{tracks:TS});
+out.dessus_audio=[da.track,da.refus,da.mode];
+/* I1 : jumeau synchrone en ripple (tête 2, clip [6,9[) */
+var jr=T.insere(C,Object.assign({},N,{start:6,end:9}),"ripple_ecraser",{tracks:TS,head:2,twin:TW});
+out.jumeau_ripple=[sv(jr,"v1").filter(function(q){return q[0]==="x"})[0],
+                   sv(jr,"a1").filter(function(q){return q[0]==="xa"})[0]];
+/* I2 : jumeau en « fin » aux bornes RÉELLES du clip vidéo posé (a1 finit à 20) */
+var CF=C.concat([{tr:"a1",id:"n2",start:12,end:20,src:{a:1}}]);
+var jf=T.insere(CF,N,"fin",{tracks:TS,twin:TW});
+out.jumeau_fin=[sv(jf,"v1").filter(function(q){return q[0]==="x"})[0],
+                sv(jf,"a1").filter(function(q){return q[0]==="xa"})[0]];
+/* I3 : jumeau en « remplir » reprend la vitesse du clip vidéo posé */
+var jm=T.insere(C,Object.assign({},N,{srcDur:6}),"remplir",{tracks:TS,range:{in:2,out:5},twin:TW});
+out.jumeau_remplir=[(jm.clips.filter(function(c){return c.id==="xa"})[0]||{}).speed,
+                    sv(jm,"a1").filter(function(q){return q[0]==="xa"})[0]];
+/* I4 : le jumeau survit au repli « dessus » */
+var jd=T.insere(FULL,N,"dessus",{tracks:TS,twin:TW});
+out.jumeau_repli=[jd.refus,sv(jd,"a1").filter(function(q){return q[0]==="xa"})[0]];
+/* I6 : identifiant déjà pris sur le montage */
+var ic=T.insere(C,Object.assign({},N,{id:"p2"}),"ecraser",{tracks:TS});
+out.id_collision=[sv(ic,"v1").map(function(q){return q[0]}),ic.id];
+/* longueur nulle : repli sur la durée vidéo par défaut */
+out.len0=sv(T.insere(C,Object.assign({},N,{start:2,end:2}),"ecraser",{tracks:TS}),"v1")
+  .filter(function(q){return q[0]==="x"})[0];
+/* fente d'un clip à vitesse : la fenêtre de source avance de (b−s)×speed */
+var CV=[{tr:"v1",id:"p1",start:0,end:4,src:{a:1},srcIn:10,speed:2}];
+out.fend_vitesse=sv(T.insere(CV,N,"inserer",{tracks:TS}),"v1");
+/* ripple, tête dans un TROU : aucun clip dessous → repli « ecraser » */
+var CH=[{tr:"v1",id:"p1",start:0,end:1,src:{a:1}},{tr:"v1",id:"p2",start:6,end:9,src:{a:1}}];
+var rh=T.insere(CH,Object.assign({},N,{start:3,end:6}),"ripple_ecraser",{tracks:TS,head:3});
+out.ripple_trou=[rh.mode,sv(rh,"v1")];
+/* doctrine `dzmRippleCut` : pas de source, pas de fenêtre de source */
+var TT=[{tr:"v1",id:"tt",start:0,end:10,text:"t"}];
+out.titre_carve=T.carve(TT,"v1",2,5).map(function(c){return [c.id,c.start,c.end,("srcIn" in c)]});
+var tp=T.insere([],{tr:"v1",id:"tx",start:0,end:3,text:"t"},"ecraser",{tracks:TS});
+out.titre_pose=("srcIn" in tp.clips[0]);
+/* M1 : la vitesse écrêtée est DITE */
+var ec=T.insere(C,Object.assign({},N,{srcDur:100}),"remplir",{tracks:TS,range:{in:2,out:5}});
+out.ecrete=[(ec.clips.filter(function(c){return c.id==="x"})[0]||{}).speed,ec.note];
+/* I7 : tous les refus rencontrés sont des JETONS */
+out.refus_lus=[e.refus,i.refus,f.refus,d.refus,r.refus,m.refus,j.refus,rv.refus,jv.refus,
+               da.refus,jd.refus,T.insere(C,N,"ecraser",{locked:{v1:1}}).refus,
+               T.insere(null,N,"ecraser",{}).refus,T.insere(C,null,"ecraser",{}).refus]
+  .filter(function(x){return x!==""});
+out.refus_table=T.REFUS?T.REFUS.slice():null;
+/* M3 : MODES exporté GELÉ (tableau ET paires) */
+var mp="";try{T.MODES.push(["z","z"])}catch(err){mp=err.name}
+var mw="";try{T.MODES[0][0]="zz"}catch(err){mw=err.name}
+out.modes_gel=[T.MODES.length,mp,T.MODES[0][0],mw];
 console.log(JSON.stringify(out));
 """
 print("\n[1] dzmInsere sous node")
@@ -72,17 +131,23 @@ else:
     check("js_shim_execute", r.returncode == 0, (r.stderr or "")[-600:])
     lignes = (r.stdout or "").strip().splitlines()
     derniere = lignes[-1] if lignes else ""
+    # M7 (revue 21/09) : l'ancien label `js_shim_json_illisible` n'EXISTAIT
+    # qu'en echec -- un banc vert ne disait donc rien de la lisibilite du
+    # JSON. Label renomme `js_shim_json_lisible` et TOUJOURS evalue, comme
+    # `js_shim_rend_un_objet_json`, qui sort du `else` pour la meme raison.
+    lisible, temoin_json = True, ""
     try:
         D = json.loads(derniere) if derniere else {}
     except Exception as e:
-        D = {}; check("js_shim_json_illisible", False, temoin(e))
-    else:
-        check("js_shim_rend_un_objet_json", isinstance(D, dict) and bool(D), repr(derniere)[:160])
+        D = {}; lisible = False; temoin_json = temoin(e)
+    check("js_shim_json_lisible", lisible, temoin_json)
+    check("js_shim_rend_un_objet_json", isinstance(D, dict) and bool(D), repr(derniere)[:160])
 
 check("modes_les_six", D.get("modes") == ["ecraser","inserer","fin","dessus","ripple_ecraser","remplir"],
       D.get("modes"))
 check("ecraser_rogne_et_fend", D.get("ecraser") == [["p1",0,2,None],["x",2,5,0],["p2",5,8,1]], D.get("ecraser"))
-check("ecraser_ne_touche_pas_les_autres_pistes", D.get("ecraser_autres") == 1)
+check("ecraser_ne_touche_pas_les_autres_pistes", D.get("ecraser_autres") == 1,
+      D.get("ecraser_autres"))
 check("inserer_fend_et_pousse", D.get("inserer") == [["p1",0,2,None],["x",2,5,0],["p1_r",5,7,2],["p2",7,11,None]],
       D.get("inserer"))
 check("fin_apres_le_dernier", D.get("fin") == [["p1",0,4,None],["p2",4,8,None],["x",8,11,0]], D.get("fin"))
@@ -120,6 +185,62 @@ check("entrees_molles", "mou" in D and D.get("mou") == [0, 4, "ecraser", "verrou
       f'"mou" in D={"mou" in D} v={D.get("mou")!r}')
 check("insere_est_pur", D.get("pur") is True)
 
+# ── revue du 21/09/2026 : les quinze lignes du second tour ────────────────
+# REGLE DES ASSERTIONS NEGATIVES : chaque ligne qui nie quelque chose
+# (« v1 inchangee », « pas de srcIn », « le son n'a pas ete pose ») etablit
+# D'ABORD que la cle mesuree EST LA -- sinon un shim muet la ferait verdir.
+check("dessus_repli_respecte_le_verrou",
+      "dessus_repli_verrou" in D and
+      D.get("dessus_repli_verrou") == ["verrou", "v1", [["p1",0,4,None],["p2",4,8,None]]],
+      f'{"dessus_repli_verrou" in D} {D.get("dessus_repli_verrou")!r}')
+check("jumeau_refuse_sur_piste_verrouillee",
+      "jumeau_verrou" in D and
+      D.get("jumeau_verrou") == ["verrou_jumeau", [["n1",0,8,None]], 3, True],
+      f'{"jumeau_verrou" in D} {D.get("jumeau_verrou")!r}')
+check("dessus_refuse_un_clip_audio",
+      D.get("dessus_audio") == ["a1", "aucune_piste", "ecraser"], D.get("dessus_audio"))
+check("jumeau_reste_synchrone_en_ripple",
+      "jumeau_ripple" in D and D.get("jumeau_ripple") == [["x",0,3,0],["xa",0,3,0]],
+      f'{"jumeau_ripple" in D} {D.get("jumeau_ripple")!r}')
+check("jumeau_reste_synchrone_en_fin",
+      "jumeau_fin" in D and D.get("jumeau_fin") == [["x",8,11,0],["xa",8,11,0]],
+      f'{"jumeau_fin" in D} {D.get("jumeau_fin")!r}')
+check("jumeau_reprend_la_vitesse_en_remplir",
+      D.get("jumeau_remplir") == [2, ["xa",2,5,0]], D.get("jumeau_remplir"))
+check("jumeau_pose_meme_en_repli_dessus",
+      D.get("jumeau_repli") == ["aucune_piste", ["xa",2,5,0]], D.get("jumeau_repli"))
+# ECART MESURE CONTRE LA REVUE (21/09/2026), et la mesure gagne : la revue
+# annoncait des identifiants v1 en ["p1","p2","p2_r"]. Rejoue sous node sur
+# le coeur corrige : `sv` TRIE PAR `start`, et le clip pose occupe [2,5[
+# tandis que le `p2` survivant est rogne a [5,8[ -- l'ordre CHRONOLOGIQUE
+# est donc ["p1","p2_r","p2"]. Le fond est celui que la revue demandait :
+# c'est le clip POSE qui est renomme (`p2_r`), l'existant garde son `p2`.
+check("id_en_collision_renomme",
+      D.get("id_collision") == [["p1","p2_r","p2"], "p2_r"], D.get("id_collision"))
+check("longueur_nulle_repli_six_secondes", D.get("len0") == ["x",2,8,0], D.get("len0"))
+check("fend_avec_vitesse",
+      D.get("fend_vitesse") == [["p1",0,2,10],["x",2,5,0],["p1_r",5,7,14]], D.get("fend_vitesse"))
+check("ripple_tete_dans_un_trou",
+      D.get("ripple_trou") == ["ecraser", [["p1",0,1,None],["x",3,6,0],["p2",6,9,None]]],
+      D.get("ripple_trou"))
+check("titre_sans_source_ne_gagne_pas_de_srcIn",
+      "titre_carve" in D and "titre_pose" in D and
+      D.get("titre_carve") == [["tt",0,2,False],["tt_r",5,10,False]] and
+      D.get("titre_pose") is False,
+      f'carve={D.get("titre_carve")!r} pose={D.get("titre_pose")!r}')
+check("vitesse_ecretee_est_dite",
+      isinstance(D.get("ecrete"), list) and D.get("ecrete")[:1] == [4]
+      and isinstance(D.get("ecrete")[1], str) and "×4" in D.get("ecrete")[1],
+      D.get("ecrete"))
+JETONS = ["clips", "clip", "verrou", "verrou_jumeau", "aucune_piste"]
+check("refus_sont_des_jetons",
+      isinstance(D.get("refus_lus"), list) and len(D.get("refus_lus")) >= 5
+      and all(x in JETONS for x in D.get("refus_lus"))
+      and D.get("refus_table") == JETONS,
+      f'lus={D.get("refus_lus")!r} table={D.get("refus_table")!r}')
+check("modes_exportes_immuables",
+      D.get("modes_gel") == [6, "TypeError", "ecraser", "TypeError"], D.get("modes_gel"))
+
 print("\n[2] etat vide (garde des assertions negatives)")
 # Copie du banc pointee sur un fichier VIDE : si le shim meurt ou `D` reste
 # `{}`, AUCUNE ligne au-dessus de celle-ci ne doit verdir sauf via un `in D`
@@ -127,13 +248,10 @@ print("\n[2] etat vide (garde des assertions negatives)")
 # donc elle rougit aussi). Prouve ici sur une COPIE dans un dossier temporaire.
 vide_dir = tempfile.mkdtemp(prefix="dzl1_vide_")
 try:
-    vide_src = os.path.join(vide_dir, "montage_vide.js")
-    with open(vide_src, "w", encoding="utf-8") as fh: fh.write("")
     vide_shim = os.path.join(vide_dir, "shim.js")
     with open(vide_shim, "w", encoding="utf-8") as fh:
         fh.write('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + "" + "\n" + PROBE)
     rv = sh([NODE, vide_shim]) if NODE else None
-    vide_ok = 0
     if rv is not None and rv.returncode != 0:
         vide_dv = {}
     else:
@@ -147,8 +265,13 @@ try:
     # apparaitre dans D quand la source est vide (T.MODES etc n'existent pas)
     vide_cles = ["modes","ecraser","inserer","fin","dessus_piste","ripple","remplir","jumeau"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
-    print(f"  (etat vide : returncode={'n/a' if rv is None else rv.returncode}, "
-          f"D={vide_dv!r}, cles_absentes={vide_absent})")
+    # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
+    # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
+    # vide est ecrite EN LIGNE dans le shim (le fichier `montage_vide.js`
+    # d'avant n'etait jamais relu : code mort, retire).
+    check("etat_vide_aucune_cle_positive",
+          isinstance(vide_dv, dict) and vide_absent,
+          f"returncode={'n/a' if rv is None else rv.returncode} D={vide_dv!r}")
 finally:
     shutil.rmtree(vide_dir, ignore_errors=True)
 

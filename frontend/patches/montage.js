@@ -4711,67 +4711,133 @@ function DzmRangeBar(o){
      ecraser         pose et rogne/fend ce qui est dessous (même piste) ;
      inserer         fend au point d'entrée et POUSSE la suite de la piste ;
      fin             pose après le dernier clip de la piste, tête ignorée ;
-     dessus          pose sur la piste vidéo LIBRE la plus proche au-dessus ;
+     dessus          pose sur la piste LIBRE la plus proche au-dessus, du
+                     MÊME genre que la piste visée (une image ne va pas
+                     atterrir sur A2, un son ne va pas atterrir sur V3) ;
      ripple_ecraser  retire le clip sous la tête, pose À SA PLACE (depuis
                      le DÉBUT du clip remplacé), recale la suite ;
-     remplir         (fit to fill) bornes = plage I/O, vitesse = source/plage.
-   Rend {clips, track, mode, refus}. `opts.twin` (le jumeau A1 de P12) suit
-   le même mode SUR SA PISTE — y compris `inserer`, qui la ripple aussi :
-   MESURÉ ET TRANCHÉ le 21/09/2026, le son posé en même temps que sa vidéo
-   doit rester synchrone, donc la piste jumelle est poussée comme l'est la
-   piste visée (le commentaire du plan d'origine, qui disait l'inverse,
-   contredisait le code qu'il livrait lui-même — c'est le comportement qui
-   gagne).
+     remplir         (fit to fill) bornes = plage I/O, vitesse = source/plage,
+                     ÉCRÊTÉE à [0,25 ; 4] — et `srcIn` REMIS À 0 : la plage
+                     décide des bornes de timeline, la vitesse absorbe tout
+                     le reste de la source, donc on repart de son début.
 
-   FENTE : `dzmCarve` NE réutilise PAS `dzmRippleCut` (l. ~567) — mesuré :
-   `dzmRippleCut` retire du TEMPS et RIPPLE toutes les pistes non verrouillées
-   / non bouclées, ce qu'`ecraser`/`inserer`/`remplir` ne doivent PAS faire
-   (ils ne touchent QUE la piste visée, et ne décalent rien d'autre que ce que
-   `inserer`/`ripple_ecraser` décalent explicitement plus bas). `dzmCarve` a
-   donc son propre fondu, mais son schéma de nommage est ALIGNÉ, mesuré sur
-   `newId` de `dzmRippleCut` : même suffixe `_r`, même compteur collé sans
-   séparateur (`_r`, puis `_r2`, `_r3`…), même table nue anti-`__proto__`.
+   CE QUE FAIT LE JUMEAU, EXACTEMENT (`opts.twin`, le son du plan de P12) —
+   réécrit le 21/09/2026 après mesure, l'ancienne phrase (« la piste jumelle
+   est poussée comme l'est la piste visée ») décrivait une intention, pas le
+   code :
+     · `ecraser`, `inserer`, `dessus` (qui retombe en `ecraser`) : le jumeau
+       est posé SUR SA PISTE, au MÊME mode, aux bornes DEMANDÉES du clip
+       vidéo (`clip.start`/`clip.end`) — `inserer` ripple donc aussi la piste
+       jumelle, sinon le son posé perdrait la synchro que la vidéo vient de
+       gagner ;
+     · `ripple_ecraser` : même mode sur la piste jumelle, avec `opts.head`
+       RELAYÉE TELLE QUELLE (mesuré : la réécrire à `clip.start` décalait le
+       son de 4 s sur head 2 / clip [6,9[). La tête est une position de
+       TIMELINE, commune aux deux pistes ;
+     · `fin` et `remplir` : le jumeau est posé en `ecraser` aux bornes RÉELLES
+       du clip vidéo posé — pour `fin` parce que la fin de la piste jumelle
+       n'est pas celle de la piste visée (mesuré : x [4,7[ sur v1, mais [20,23[
+       sur a1 si on relançait `fin` là-bas), pour `remplir` parce que les
+       bornes sont celles de la plage. `remplir` propage en plus au jumeau la
+       `speed` calculée (sinon v1 ×2 et a1 ×1 : désynchronisé d'entrée) ;
+     · piste jumelle VERROUILLÉE : rien n'est posé pour le son (la vidéo, elle,
+       est posée), `refus` vaut `"verrou_jumeau"` — même refus que celui que
+       `dzmTwinPlan` prononce déjà, et la `note` le dit.
+
+   RIPPLE ET LES AUTRES PISTES — CHOIX ASSUMÉ : `ripple_ecraser` ne recale QUE
+   la piste visée (et, quand il y a un jumeau, la piste jumelle, par le même
+   appel sur elle). C'est l'inverse de `dzmRippleCut` (l. ~567), qui recale
+   TOUTES les pistes non verrouillées : un ripple overwrite de Resolve est
+   LOCAL à la piste, et c'est le jumeau — pas un recalage global — qui porte
+   la synchro du son avec sa vidéo.
+
+   FENTE : `dzmCarve` NE réutilise PAS `dzmRippleCut` — mesuré : `dzmRippleCut`
+   retire du TEMPS et RIPPLE toutes les pistes non verrouillées / non bouclées,
+   ce qu'`ecraser`/`inserer`/`remplir` ne doivent PAS faire (ils ne touchent QUE
+   la piste visée). `dzmCarve` a donc son propre fondu, mais son schéma de
+   nommage est ALIGNÉ, mesuré sur `newId` de `dzmRippleCut` : même suffixe `_r`,
+   même compteur collé sans séparateur (`_r`, puis `_r2`, `_r3`…), même table
+   nue anti-`__proto__` — et `dzmPose` utilise EXACTEMENT le même mécanisme
+   quand l'identifiant du clip posé est DÉJÀ PRIS sur le montage (mesuré : sans
+   ça, poser un clip `p2` sur une piste qui a déjà `p2` rendait les identifiants
+   ["p1","p2","p2"], et le bundle sélectionne/édite PAR identifiant).
+
+   SOURCE ET `srcIn` : la doctrine de `dzmRippleCut` vaut ici aussi — « pas de
+   source, pas de fenêtre de source ». `dzmCarve` n'écrit `srcIn` sur un morceau,
+   et `dzmPose` n'en force un à 0, QUE si le clip en portait un ou porte un
+   `src`. Un clip de TITRE (`{text:"…"}`, sans `src`) ne gagne donc aucun
+   `srcIn` qui ferait mentir l'inspecteur.
+
+   PARTAGE D'OBJETS : le montage rendu n'est PAS un clone profond. Les clips
+   que l'opération ne touche pas sont les MÊMES objets que dans `clips` (seuls
+   les clips rognés / fendus / décalés et le clip posé sont recopiés, à plat,
+   par `Object.assign`). Les fonctions sont pures au sens où elles ne MUTENT
+   rien : l'appelant peut comparer par identité pour savoir ce qui a bougé,
+   mais ne doit pas muter un clip du résultat en croyant travailler sur une
+   copie.
 
    ORDRE DES PISTES POUR « dessus » : mesuré sur `dzmOverlayOrder` (l. ~2587,
    commentaire « compose la piste listée le plus haut AU-DESSUS ») — dans
    une liste de pistes, l'INDEX LE PLUS PETIT est la piste la PLUS HAUTE à
    l'écran. `dzmInsere` cherche donc, à partir de la piste visée, vers les
-   index DÉCROISSANTS (0 en tête) : c'est la même loi que `layer`. */
-var DZM_MODES=[["ecraser","écraser"],["inserer","insérer"],["fin","en fin"],
-  ["dessus","au-dessus"],["ripple_ecraser","écraser en ripple"],["remplir","remplir la plage"]];
+   index DÉCROISSANTS (0 en tête) : c'est la même loi que `layer`. Quand rien
+   n'est libre au-dessus (ou que la piste visée n'est même pas dans
+   `opts.tracks`), il n'y a PAS de sortie anticipée : le mode retombe en
+   `ecraser` sur la piste visée et le chemin NORMAL reprend — la garde de
+   verrou et la pose du jumeau s'appliquent donc aussi à ce repli (mesuré :
+   l'ancien `return` écrivait sur une piste verrouillée et perdait le son). */
+var DZM_MODES=Object.freeze([["ecraser","écraser"],["inserer","insérer"],
+  ["fin","en fin"],["dessus","au-dessus"],["ripple_ecraser","écraser en ripple"],
+  ["remplir","remplir la plage"]].map(function(p){return Object.freeze(p)}));
+/* Les refus sont des JETONS STABLES, jamais une phrase : la phrase française
+   vit dans `note` (que l'appelant concatène à la sienne), le jeton vit dans
+   `refus` (que l'appelant teste). */
+var DZM_REFUS=Object.freeze(["clips","clip","verrou","verrou_jumeau","aucune_piste"]);
 function dzmModeOk(m){return DZM_MODES.some(function(o){return o[0]===m})?m:"ecraser"}
+function dzmNoteJoin(a,b){return a?(b?a+" ; "+b:a):(b||"")}
 function dzmTrackEnd(clips,tr){
   var m=0;(clips||[]).forEach(function(c){if(c&&c.tr===tr&&Number(c.end)>m)m=Number(c.end)});
   return dzmR3(m)}
 function dzmOverlap(clips,tr,a,b,skip){
   return (clips||[]).some(function(c){return c&&c.tr===tr&&c.id!==skip&&
     Number(c.start)<b-1e-6&&Number(c.end)>a+1e-6})}
+function dzmTaken(clips){
+  var t=Object.create(null);
+  (clips||[]).forEach(function(c){if(c&&c.id!=null)t[String(c.id)]=1});return t}
+function dzmFreeId(taken,id){
+  var base=String(id)+"_r",n=base,i=2;while(taken[n])n=base+(i++);taken[n]=1;return n}
 /* fend/rogne ce qui est sous [a,b[ sur UNE piste, sans rien décaler */
 function dzmCarve(clips,tr,a,b){
-  var out=[],taken=Object.create(null);
-  (clips||[]).forEach(function(c){if(c&&c.id!=null)taken[String(c.id)]=1});
-  function nid(id){var base=String(id)+"_r",n=base,i=2;while(taken[n])n=base+(i++);taken[n]=1;return n}
+  var out=[],taken=dzmTaken(clips);
   (clips||[]).forEach(function(c){
     if(!c||c.tr!==tr){out.push(c);return}
-    var s=Number(c.start)||0,e=Number(c.end)||0,sp=dzmSpeedNum(c),si=Number(c.srcIn)||0;
+    var s=Number(c.start)||0,e=Number(c.end)||0,sp=dzmSpeedNum(c),si=Number(c.srcIn)||0,q;
     if(e<=a||s>=b){out.push(c);return}
     if(s<a)out.push(Object.assign({},c,{end:dzmR3(a)}));
-    if(e>b)out.push(Object.assign({},c,{id:s<a?nid(c.id):c.id,start:dzmR3(b),
-      srcIn:dzmR3(si+(b-s)*sp)}))});
+    if(e>b){q=Object.assign({},c,{id:s<a?dzmFreeId(taken,c.id):c.id,start:dzmR3(b)});
+      if(c.srcIn!=null||c.src)q.srcIn=dzmR3(si+(b-s)*sp);
+      out.push(q)}});
   return out}
+/* Rend {clips, clip} : `clip` est le clip POSÉ, avec son identifiant DÉFINITIF
+   (renommé s'il était pris) — c'est lui que la branche jumelle relit. */
 function dzmPose(clips,tr,clip,st,en,extra){
-  var k=Object.assign({},clip,{tr:tr,start:dzmR3(st),end:dzmR3(en)},extra||{});
-  if(k.srcIn==null)k.srcIn=0;
-  return clips.concat([k])}
+  var cs=clips||[],c=clip||{},taken=dzmTaken(cs);
+  var k=Object.assign({},c,{tr:tr,start:dzmR3(st),end:dzmR3(en)},extra||{});
+  if(c.id!=null&&taken[String(c.id)])k.id=dzmFreeId(taken,c.id);
+  if(c.srcIn!=null||c.src){if(k.srcIn==null)k.srcIn=0}
+  else if("srcIn" in k)delete k.srcIn;
+  return {clips:cs.concat([k]),clip:k}}
 function dzmInsereUn(clips,clip,mode,opts,tr){
-  var st=Number(clip.start)||0,len=dzmR3((Number(clip.end)||0)-st),o=opts||{};
+  var st=Number(clip.start)||0,len=dzmR3((Number(clip.end)||0)-st),o=opts||{},p;
   if(!(len>0))len=dzmR3(Number(DZM_CLIP_DEFAUTS.video)||6);
-  if(mode==="fin"){st=dzmTrackEnd(clips,tr);return {clips:dzmPose(clips,tr,clip,st,st+len),mode:mode}}
+  if(mode==="fin"){st=dzmTrackEnd(clips,tr);p=dzmPose(clips,tr,clip,st,st+len);
+    return {clips:p.clips,pose:p.clip,mode:mode,note:""}}
   if(mode==="inserer"){
     var cut=dzmCarve(clips,tr,st,st);            /* fend à st sans rien retirer */
     cut=cut.map(function(c){return (c&&c.tr===tr&&Number(c.start)>=st-1e-6)?
       Object.assign({},c,{start:dzmR3(Number(c.start)+len),end:dzmR3(Number(c.end)+len)}):c});
-    return {clips:dzmPose(cut,tr,clip,st,st+len),mode:mode}}
+    p=dzmPose(cut,tr,clip,st,st+len);
+    return {clips:p.clips,pose:p.clip,mode:mode,note:""}}
   if(mode==="ripple_ecraser"){
     var h=Number(o.head);if(!isFinite(h))h=st;
     var under=(clips||[]).filter(function(c){return c&&c.tr===tr&&Number(c.start)<=h+1e-6&&Number(c.end)>h+1e-6})[0];
@@ -4780,43 +4846,78 @@ function dzmInsereUn(clips,clip,mode,opts,tr){
     var rest=(clips||[]).filter(function(c){return c!==under}).map(function(c){
       return (c&&c.tr===tr&&Number(c.start)>=Number(under.end)-1e-6)?
         Object.assign({},c,{start:dzmR3(Number(c.start)+d),end:dzmR3(Number(c.end)+d)}):c});
-    return {clips:dzmPose(rest,tr,clip,s0,s0+len),mode:mode}}
+    p=dzmPose(rest,tr,clip,s0,s0+len);
+    return {clips:p.clips,pose:p.clip,mode:mode,note:""}}
   if(mode==="remplir"){
     var rg=dzmRangeFrom(o.range);
     if(!rg)return dzmInsereUn(clips,clip,"ecraser",o,tr);
-    var plage=dzmR3(rg.out-rg.in),sd=Number(clip.srcDur)||0,sp=sd>0?dzmR3(sd/plage):1;
-    sp=Math.max(.25,Math.min(4,sp));
-    return {clips:dzmPose(dzmCarve(clips,tr,rg.in,rg.out),tr,clip,rg.in,rg.out,{speed:sp,srcIn:0}),mode:mode}}
-  return {clips:dzmPose(dzmCarve(clips,tr,st,st+len),tr,clip,st,st+len),mode:"ecraser"}}
+    var plage=dzmR3(rg.out-rg.in),sd=Number(clip.srcDur)||0,brut=sd>0?dzmR3(sd/plage):1;
+    var sp=Math.max(.25,Math.min(4,brut)),nt="";
+    /* L'ÉCRÊTAGE EST DIT. Une source de 100 s dans une plage de 3 s demande
+       ×33,3 : on écrête à ×4, et le clip posé ne montrera donc PAS toute la
+       source. Se taire ferait croire à un « remplir » exact. */
+    if(sp!==brut)nt=sp>=4?"vitesse écrêtée à ×4 (source trop longue pour la plage)":
+      "vitesse écrêtée à ×0,25 (source trop courte pour la plage)";
+    p=dzmPose(dzmCarve(clips,tr,rg.in,rg.out),tr,clip,rg.in,rg.out,{speed:sp,srcIn:0});
+    return {clips:p.clips,pose:p.clip,mode:mode,note:nt}}
+  p=dzmPose(dzmCarve(clips,tr,st,st+len),tr,clip,st,st+len);
+  return {clips:p.clips,pose:p.clip,mode:"ecraser",note:""}}
 /* GARDE : un `clips` qui n'est même pas une liste est une ENTRÉE MOLLE, pas
    un projet vide légitime. MESURÉ au banc (T.insere(null,N,"ecraser",{})) :
    sans cette garde, `cs` retombait sur `[]` et le clip s'y posait quand même
    (1 clip rendu) — la même faiblesse que la garde `!clip` juste en dessous
    traite déjà côté clip, mais qui manquait côté `clips`. Avec la garde, les
-   DEUX entrées molles rendent la même chose : rien n'est posé. */
+   DEUX entrées molles rendent la même chose : rien n'est posé.
+   REND {clips, track, mode, refus, note, id} : `refus` est un jeton de
+   DZM_REFUS (`""` si rien à dire), `note` la phrase française à afficher
+   (`""` sinon), `id` l'identifiant DÉFINITIF du clip posé (`null` si rien
+   n'a été posé) — l'appelant en a besoin puisque `dzmPose` renomme un
+   identifiant déjà pris. */
 function dzmInsere(clips,clip,mode,opts){
-  var o=opts||{},m=dzmModeOk(mode);
-  if(!Array.isArray(clips))return {clips:[],track:null,mode:m,refus:"clips"};
+  var o=opts||{},m=dzmModeOk(mode),lk=(o&&o.locked)||{},refus="",note="";
+  if(!Array.isArray(clips))return {clips:[],track:null,mode:m,refus:"clips",note:"",id:null};
   var cs=clips;
-  if(!clip||typeof clip!=="object")return {clips:cs.slice(),track:null,mode:m,refus:"clip"};
+  if(!clip||typeof clip!=="object")return {clips:cs.slice(),track:null,mode:m,refus:"clip",note:"",id:null};
   var tr=clip.tr;
   if(m==="dessus"){
     var ts=Array.isArray(o.tracks)?o.tracks:[],i,t,st=Number(clip.start)||0,en=Number(clip.end)||0,ix=-1;
-    for(i=0;i<ts.length;i++)if(ts[i]&&ts[i].id===tr)ix=i;
-    var found=null;
-    for(i=ix-1;i>=0;i--){t=ts[i];if(t&&t.kind==="video"&&!dzmOverlap(cs,t.id,st,en)){found=t.id;break}}
-    if(!found)return Object.assign(dzmInsereUn(cs,clip,"ecraser",o,tr),{track:tr,refus:"aucune piste libre au-dessus"});
-    tr=found;m="ecraser"}
-  if(o.locked&&o.locked[tr])return {clips:cs.slice(),track:tr,mode:m,refus:"verrou"};
-  var res=dzmInsereUn(cs,clip,m,o,tr);
+    for(i=0;i<ts.length;i++)if(ts[i]&&ts[i].id===tr){ix=i;break}
+    /* MÊME GENRE que la piste visée : filtrer sur `kind==="video"` seul
+       envoyait un clip AUDIO de A1 sur V3 (mesuré). Piste visée absente de
+       `opts.tracks` : `ix` reste −1, aucune candidate, on retombe en
+       `ecraser` — le repli normal. */
+    var kind=(ix>=0&&ts[ix])?ts[ix].kind:null,found=null;
+    for(i=ix-1;i>=0;i--){t=ts[i];if(t&&t.kind===kind&&!dzmOverlap(cs,t.id,st,en)){found=t.id;break}}
+    if(found==null){m="ecraser";refus="aucune_piste";
+      note="aucune piste libre au-dessus : posé sur "+String(tr==null?"":tr).toUpperCase()}
+    else{tr=found;m="ecraser"}}
+  if(lk[tr])return {clips:cs.slice(),track:tr,mode:m,refus:"verrou",note:"",id:null};
+  var res=dzmInsereUn(cs,clip,m,o,tr),pose=res.pose||null;
+  note=dzmNoteJoin(note,res.note);
   if(o.twin&&typeof o.twin==="object"&&o.twin.tr){
-    var tw=Object.assign({},o.twin,{start:clip.start,end:clip.end});
-    if(res.mode==="fin"){var xc=res.clips.filter(function(c){return c.id===clip.id})[0];
-      if(xc)tw=Object.assign({},tw,{start:xc.start,end:xc.end})}
-    res.clips=dzmInsereUn(res.clips,tw,res.mode==="remplir"?"ecraser":res.mode,
-      Object.assign({},o,{head:clip.start}),tw.tr).clips}
-  res.track=tr;res.refus=res.refus||"";
-  return res}
+    var tw=o.twin;
+    if(lk[tw.tr]){
+      /* Le jumeau est refusé, la vidéo est posée : `refus` prend le jeton du
+         jumeau (l'appelant apprend ce qui MANQUE), `note` garde les deux
+         phrases. */
+      refus="verrou_jumeau";
+      note=dzmNoteJoin(note,"piste "+String(tw.tr).toUpperCase()+
+        " verrouillée : le son n'a pas été posé")}
+    else{
+      var tm=res.mode,tc;
+      if(tm==="fin"||tm==="remplir"){
+        tc=Object.assign({},tw,pose?{start:pose.start,end:pose.end}:
+          {start:clip.start,end:clip.end});
+        if(tm==="remplir"){tc.speed=dzmSpeedNum(pose);
+          if(tw.srcIn!=null||tw.src)tc.srcIn=0}
+        tm="ecraser"}
+      else tc=Object.assign({},tw,{start:clip.start,end:clip.end});
+      /* `o` est relayé TEL QUEL : `o.head` est une position de TIMELINE,
+         commune aux deux pistes (la réécrire à `clip.start` désynchronisait
+         le son de 4 s en `ripple_ecraser`, mesuré). */
+      res.clips=dzmInsereUn(res.clips,tc,tm,o,tc.tr).clips}}
+  return {clips:res.clips,track:tr,mode:res.mode,refus:refus,note:note,
+    id:pose?pose.id:null}}
 
 /* ── export contrat ───────────────────────────────────────────────────────── */
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
@@ -4880,6 +4981,6 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   histSnap:dzmHistSnap,histApply:dzmHistApply,HIST_CLES:DZM_HIST_CLES,
   rangeSet:dzmRangeSet,rangeFrom:dzmRangeFrom,rangeLen:dzmRangeLen,
   RangeBar:DzmRangeBar,
-  insere:dzmInsere,MODES:DZM_MODES,carve:dzmCarve,
+  insere:dzmInsere,MODES:DZM_MODES,REFUS:DZM_REFUS,carve:dzmCarve,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;
