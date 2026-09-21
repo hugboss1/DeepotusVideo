@@ -1759,6 +1759,8 @@ function DzMontage(props){
       .catch(function(){});
     return function(){al=!1}},[]);
   var dzVeilRef=x.useRef(null);
+  var dzTtHistAt=x.useRef(0);
+  var stDzTtN=x.useState(0),dzTtNonce=stDzTtN[0],setDzTtNonce=stDzTtN[1];
   var dzTtHostRef=x.useRef(null);
   var stDzTt=x.useState(null),dzTitles=stDzTt[0],setDzTitles=stDzTt[1];
   x.useEffect(function(){var al=!0;
@@ -5621,12 +5623,17 @@ function DzMontage(props){
             style:{transform:"scale("+vzoom+")",transformOrigin:"center center"}}):null,
           liveOn?r.jsx("div",{className:"svm-liveov",ref:liveOvRef,
             style:{transform:"scale("+vzoom+")",transformOrigin:"center center"}}):null,
+          /* D-21 — L'APERÇU VIVANT DU CARTON. Vide, et écrit
+             impérativement par `liveSync` à chaque frame. POSÉ
+             AVANT LE VOILE : au rendu, les titres sont gravés
+             APRÈS les `xfade`, donc un fondu passe par-dessus le
+             titre — et pas par-dessus les sous-titres. */
+          liveOn?r.jsx("div",{className:"svm-livetitle",ref:dzTtHostRef,"aria-hidden":!0}):null,
           /* D-12 — LE VOILE DES FONDUS EN DIRECT. Vide, transparent au
              repos, et écrit impérativement par `liveSync` (couleur +
              opacité) à chaque frame : le lecteur vivant n'a qu'un
              hôte, donc pas de crossfade A/B — un voile dit OÙ tombe
              la transition et COMBIEN elle dure. */
-          liveOn?r.jsx("div",{className:"svm-livetitle",ref:dzTtHostRef,"aria-hidden":!0}):null,
           liveOn?r.jsx("i",{className:"svm-xfveil",ref:dzVeilRef,"aria-hidden":!0}):null,
           liveOn&&!liveClip?r.jsx("div",{className:"svm-livegap",children:"trou"}):null,
           /* cadre de sélection des overlays : boîte + 8 poignées (échelle) +
@@ -5807,11 +5814,18 @@ function DzMontage(props){
         transInspector(),
         sel&&trackKind(sel.tr)==="title"?r.jsx(DzTracks.TitleInspector,{clip:sel,
           gabarits:dzTitles&&dzTitles.gabarits,
-          fonts:dzTitles&&dzTitles.fonts,colors:dzTitles&&dzTitles.colors,
+          fonts:dzTitles&&dzTitles.fonts,colors:dzTitles&&dzTitles.colors,nonce:dzTtNonce,
           onChange:function(id,p){
             var cs=DzTracks.titleUpdate(clipsRef.current,id,p);
-            if(cs===clipsRef.current)return;
-            pushHistory();setClips(cs);setDirty(!0)}}):null,
+            if(cs===clipsRef.current){
+              if(p&&typeof p.text==="string"&&!p.text.trim()){
+                fireNote("Un carton sans texte n'est pas un carton — le titre précédent est conservé.");
+                setDzTtNonce(function(dzK){return dzK+1})}
+              return}
+            var dzTtN=Date.now();
+            if(dzTtN-dzTtHistAt.current>600)pushHistory();
+            dzTtHistAt.current=dzTtN;
+            setClips(cs);setDirty(!0)}}):null,
         /* P3 — les coupes sont appliquées de la FIN vers le DÉBUT :
            une coupe tardive ne décale pas les précédentes, donc les
            plages restent justes sans être recalculées entre deux. Un
@@ -13586,14 +13600,20 @@ var DzmTrackBtns=function(props){
        (`titleTrack`, mesuré). Le genre est DÉDUIT (`dzmKindOf`) et non lu
        tel quel : une piste restaurée d'une vieille sauvegarde n'a que son
        `id`, et `tr.kind` y vaut `undefined`. La combo vient de la keymap
-       VIVANTE : un remappage aurait rendu « Maj+T » faux. */
+       VIVANTE : un remappage aurait rendu « Maj+T » faux.
+       LE GENRE EST DÉDUIT UNE FOIS, POUR LES DEUX BRANCHES (correctif du
+       22/09/2026) : la branche audio lisait encore `tr.kind` NU, et une
+       piste a1 restaurée sans `kind` s'y voyait offrir « + vidéo ». Deux
+       lectures du même genre par deux chemins différents, c'est une
+       divergence qui attend son tour. */
+    var kd=dzmKindOf(tr.id,tr.kind);
     note("Piste "+(tr.name||tr.id)+" retirée"+
       (n?" avec "+n+" clip"+(n>1?"s":""):"")+
       (n?" — annuler ramène les clips ; la piste, elle, "+
-         (dzmKindOf(tr.id,tr.kind)==="title"
+         (kd==="title"
           ?"revient avec "+dzmCombo("title_add","Maj+T")+
            ", qui repose un carton (même identifiant)."
-          :"se rajoute par « + "+(tr.kind==="audio"?"audio":"vidéo")+
+          :"se rajoute par « + "+(kd==="audio"?"audio":"vidéo")+
            " » (même identifiant)."):"."))}
   return r.jsxs("div",{className:"dzm-hb",draggable:!0,
     title:"Glisser pour réordonner la piste (ou ▲ ▼)",
@@ -18092,10 +18112,14 @@ function DzmMarkerIndex(o){
            chaine. CE QUE CELA COUTE, ET C'EST ASSUME : valider par Entree
            remonte le titre, donc change la cle, donc remonte l'input — le
            focus est perdu. Un etat local resynchronise par `useEffect` le
-           garderait, mais `DzmMarkerIndex` n'est PAS un composant a hooks
-           (il est appele comme une fonction depuis le rendu de l'hote, au
-           milieu d'un `?:`), et lui en donner un serait un appel de hook
-           conditionnel. */
+           garderait, mais c'est LUI qu'on ne veut pas : la raison de la cle
+           porteuse est precisement qu'AUCUN etat local ne doit doubler le
+           projet, sinon Ctrl+Z repeint l'hote et pas le champ. (Correctif
+           du 22/09/2026 : ce commentaire donnait une raison FAUSSE — « ce
+           n'est pas un composant a hooks » — alors que l'hote le monte par
+           un `r.jsx` sur `MarkerIndex`, donc comme un vrai composant,
+           ou un hook serait parfaitement legal. Le choix est delibere, pas
+           impose.) */
         r.jsx("input",{className:"dzm-mktitre",defaultValue:m.title,
           placeholder:"titre","aria-label":"Titre du marqueur "+dzTc(m.t),
           onBlur:function(e){titre(m,e)},
@@ -18552,8 +18576,15 @@ function dzmTitleUpdate(clips,id,patch){
     var v=p[k].trim();
     if(!v){if(k in t){delete t[k];bouge=!0}}
     else if(v!==t[k]){t[k]=v;bouge=!0}});
+  /* LA TAILLE EST BORNÉE 24..200 ICI AUSSI (22/09/2026) : la réglette ne
+     peut pas en sortir, mais `titleUpdate` est PUBLIQUE — un appel venu
+     d'ailleurs aurait écrit un `size:5000` que la sauvegarde aurait gardé
+     et que seul le rendu aurait ramené à 200, sans le dire. Les mêmes
+     bornes que `title_spec` (`max(24, min(200, …))`) et que l'`<input
+     type=range>` : trois fois la même règle, et jamais trois règles. */
   if(p.size!=null){var nz=Math.round(Number(p.size));
-    if(isFinite(nz)&&nz>0&&nz!==t.size){t.size=nz;bouge=!0}}
+    if(isFinite(nz)&&nz>0){nz=Math.max(24,Math.min(200,nz));
+      if(nz!==t.size){t.size=nz;bouge=!0}}}
   if(!bouge)return cs;
   var lab=typeof t.text==="string"?t.text.slice(0,24):cible.label;
   return cs.map(function(c){
@@ -18565,12 +18596,20 @@ function dzmTitleUpdate(clips,id,patch){
    borne `w` à 96..640 et PAIR ; 180 traverse tel quel. Une largeur par
    vignette aurait multiplié les entrées du cache serveur par autant. */
 var DZM_TT_CARD_W=180;
-/* L'INSPECTEUR DU CARTON. Appelé COMME UNE FONCTION depuis le rendu de
-   l'hôte, au milieu d'un `?:` — donc SANS HOOK, exactement comme
-   `DzmMarkerIndex` : aucun état local, aucun `useEffect`, tout l'état vit
-   dans le clip. C'est ce qui impose les champs NON CONTRÔLÉS et la clé qui
-   porte la valeur (React ignore `defaultValue` à la mise à jour : après un
-   Ctrl+Z, l'hôte rendait l'ancien texte et l'input gardait le neuf).
+/* L'INSPECTEUR DU CARTON. AUCUN ÉTAT LOCAL, AUCUN HOOK — et c'est un CHOIX,
+   pas une contrainte : TT6 le monte par un `r.jsx` sur `TitleInspector`,
+   donc comme un vrai composant, où un `useState` serait parfaitement légal.
+   (Correctif du 22/09/2026 : ce commentaire disait « appelé comme une
+   fonction, donc sans hook » — c'était faux.) La vraie raison est que TOUT
+   l'état vit dans le clip : un état local le doublerait, et après un Ctrl+Z
+   l'hôte repeindrait l'ancien texte pendant que le champ garderait le neuf.
+   D'où les champs NON CONTRÔLÉS et la clé qui porte la valeur (React ignore
+   `defaultValue` à la mise à jour).
+   CE QUE CELA COÛTE, ET C'EST ASSUMÉ : valider par Entrée remonte le texte,
+   donc change la clé, donc REMONTE l'input — le focus est perdu et le
+   curseur revient en fin de champ. C'est le même prix que l'index des
+   marqueurs paie déjà (I-3 de D-5), et la contrepartie est qu'un Ctrl+Z ne
+   laisse JAMAIS le champ mentir sur le projet.
    LES HUIT VIGNETTES SONT DES PNG DU SERVEUR, gravés par le MÊME ASS que le
    rendu (`GET /title-preview`) : une maquette CSS aurait menti sur la
    police, la boîte et le placement, c'est-à-dire sur tout ce qui distingue
@@ -18581,6 +18620,14 @@ var DZM_TT_CARD_W=180;
    HUIT PNG à chaque cran de la réglette de taille. Le cadre 9:16 du
    serveur fait foi pour la vignette ; l'aperçu vivant, lui, porte les
    réglages.
+   ET SEULE LA CARTE CHOISIE PORTE LE TEXTE RÉEL (22/09/2026) : les sept
+   autres montrent le mot « Titre », sans sous-texte. Sans cela, CHAQUE
+   édition de texte gravait HUIT PNG neufs — huit ffmpeg d'environ 0,3 s,
+   huit entrées de cache de plus, à chaque blur. Avec, une édition n'en
+   grave qu'UN, et les sept autres sont les mêmes vignettes pour tous les
+   projets de la machine : le cache les sert une fois pour toutes. Ce que
+   la galerie doit montrer, c'est le GABARIT ; le texte de l'utilisateur,
+   c'est la carte choisie et l'aperçu vivant qui le disent.
    UN PUSH PAR CHANGEMENT RÉEL : le texte et le sous-texte partent au BLUR
    et sur Entrée (un `onChange` par frappe poussait un instantané
    d'historique par caractère, défaut déjà corrigé pour les marqueurs) ; le
@@ -18603,6 +18650,13 @@ function DzmTitleInspector(o){
   var txt=typeof ti.text==="string"?ti.text:"";
   var sub=typeof ti.sub==="string"?ti.sub:"";
   var cur=dzmTtTpl(ti.template);
+  /* LE JETON DE REMONTAGE. L'hôte l'incrémente quand il REFUSE un patch
+     (vider le champ Texte) : le clip ne change pas, donc la clé porteuse de
+     valeur ne changerait pas, donc React garderait à l'écran l'input vidé
+     alors que le carton a gardé son texte — un champ qui ment. Le jeton
+     entre dans les deux clés et force le remontage : le champ se recolle
+     sur la valeur du projet. Il vaut 0 quand l'hôte n'en dit rien. */
+  var nz=Number(o&&o.nonce)||0;
   /* le gabarit COURANT du catalogue : c'est lui qui nomme les défauts
      affichés dans les deux `<select>` et sous la réglette. Absent (le
      catalogue n'est pas arrivé, ou le carton porte un nom inconnu), les
@@ -18623,20 +18677,28 @@ function DzmTitleInspector(o){
   var vignette=txt.trim()||"Titre";
   return r.jsxs("div",{className:"dzm-ttinsp",children:[
     r.jsx("div",{className:"svm-poptitle",children:"Titre — gabarit"}),
-    r.jsx("div",{className:"dzm-ttcards",role:"group",
+    /* SANS CATALOGUE, UNE PHRASE PLUTÔT QU'UNE GRILLE VIDE. Le `fetch` de
+       `/titles` échoue en silence (même parti pris que le catalogue des
+       transitions) : une grille de zéro case laisserait l'utilisateur
+       devant un trou sans nom. La phrase dit ce qui manque ET ce qui
+       marche encore — le texte, le sous-texte et le corps restent
+       réglables, et le rendu garde les défauts du gabarit. */
+    gs.length?r.jsx("div",{className:"dzm-ttcards",role:"group",
       "aria-label":"Gabarits de titre",
       children:gs.map(function(g){
-        var gid=String(g.id||""),lab=String(g.label||gid);
+        var gid=String(g.id||""),lab=String(g.label||gid),ici=cur===gid;
         return r.jsxs("button",{className:"dzm-ttcard",
-          "data-sel":cur===gid?"":void 0,"aria-pressed":cur===gid,
+          "data-sel":ici?"":void 0,"aria-pressed":ici,
           title:lab+" ("+gid+")",
           onClick:function(){if(gid&&gid!==cur)maj({template:gid})},children:[
           r.jsx("img",{className:"dzm-ttimg",loading:"lazy",alt:"",
             src:"/api/montage/title-preview?template="+encodeURIComponent(gid)+
-              "&text="+encodeURIComponent(vignette)+
-              (sub?"&sub="+encodeURIComponent(sub):"")+
+              "&text="+encodeURIComponent(ici?vignette:"Titre")+
+              (ici&&sub?"&sub="+encodeURIComponent(sub):"")+
               "&w="+DZM_TT_CARD_W}),
-          r.jsx("span",{className:"dzm-ttname",children:lab})]},gid)})}),
+          r.jsx("span",{className:"dzm-ttname",children:lab})]},gid)})}):
+      r.jsx("div",{className:"svm-note",
+        children:"Gabarits indisponibles — le texte reste réglable."}),
     r.jsxs("label",{className:"dzm-ttrow",children:[
       r.jsx("span",{className:"dzm-ttlab",children:"Texte"}),
       r.jsx("input",{className:"dzm-ttxt",defaultValue:txt,
@@ -18644,7 +18706,7 @@ function DzmTitleInspector(o){
         "aria-label":"Texte du carton",
         onBlur:function(e){pousse("text",txt,e)},
         onKeyDown:function(e){if(e.key==="Enter")pousse("text",txt,e)}},
-        c.id+"|"+txt)]}),
+        c.id+"|"+nz+"|"+txt)]}),
     r.jsxs("label",{className:"dzm-ttrow",children:[
       r.jsx("span",{className:"dzm-ttlab",children:"Sous-texte"}),
       r.jsx("input",{className:"dzm-ttxt",defaultValue:sub,
@@ -18652,7 +18714,7 @@ function DzmTitleInspector(o){
         "aria-label":"Sous-texte du carton",
         onBlur:function(e){pousse("sub",sub,e)},
         onKeyDown:function(e){if(e.key==="Enter")pousse("sub",sub,e)}},
-        c.id+"|s|"+sub)]}),
+        c.id+"|s|"+nz+"|"+sub)]}),
     r.jsxs("label",{className:"dzm-ttrow",children:[
       r.jsx("span",{className:"dzm-ttlab",children:"Couleur"}),
       r.jsx("select",{className:"dzm-ttsel",

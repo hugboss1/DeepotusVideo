@@ -724,17 +724,40 @@ R_M12 = (A_M12 + '\n'
          # empile une entree d'historique qui ne defait rien et allume « NON
          # ENREGISTRE ». L'inspecteur filtre DEJA le blur inchange ; les deux
          # gardes ne couvrent pas le meme cas et ne se remplacent pas.
+         # UN REFUS DE TEXTE VIDE SE DIT, ET REND LE CHAMP A SA VALEUR
+         # (22/09/2026) : sans ces deux lignes, effacer le titre ne faisait
+         # RIEN -- pas de note, pas de setClips, donc pas de re-rendu, donc
+         # un input reste VIDE a l'ecran alors que le carton a garde son
+         # texte. Le jeton `dzTtNonce` entre dans la cle des deux champs :
+         # l'incrementer force le remontage et le champ se recolle. Le
+         # setter FONCTIONNEL, parce que ce rappel peut tenir une fermeture
+         # perimee (l'inspecteur n'est re-rendu qu'au changement de `sel`).
+         # LA FENETRE DE 600 ms EST CELLE DE `nudgeHistAt` (M17b) et de
+         # `dzDurHistAt` (H6), et elle est ici pour le CLAVIER : la reglette
+         # de corps remonte au relachement, et chaque fleche est un `keyup`
+         # -- cinq crans faisaient cinq instantanes, et « annuler » remontait
+         # cran par cran. Elle coalesce aussi deux reglages voisins en une
+         # entree, et c'est le comportement que les deux precedents ont deja
+         # choisi : « annuler » defait un GESTE, pas ses vingt morceaux.
          # `pushHistory` AVANT `setClips`, comme partout ailleurs dans ce
          # composant : l'instantane doit porter l'etat D'AVANT.
          '        sel&&trackKind(sel.tr)==="title"'
          '?r.jsx(DzTracks.TitleInspector,{clip:sel,\n'
          '          gabarits:dzTitles&&dzTitles.gabarits,\n'
          '          fonts:dzTitles&&dzTitles.fonts,'
-         'colors:dzTitles&&dzTitles.colors,\n'
+         'colors:dzTitles&&dzTitles.colors,nonce:dzTtNonce,\n'
          '          onChange:function(id,p){\n'
          '            var cs=DzTracks.titleUpdate(clipsRef.current,id,p);\n'
-         '            if(cs===clipsRef.current)return;\n'
-         '            pushHistory();setClips(cs);setDirty(!0)}}):null,\n'
+         '            if(cs===clipsRef.current){\n'
+         '              if(p&&typeof p.text==="string"&&!p.text.trim()){\n'
+         '                fireNote("Un carton sans texte n\'est pas un '
+         'carton — le titre précédent est conservé.");\n'
+         '                setDzTtNonce(function(dzK){return dzK+1})}\n'
+         '              return}\n'
+         '            var dzTtN=Date.now();\n'
+         '            if(dzTtN-dzTtHistAt.current>600)pushHistory();\n'
+         '            dzTtHistAt.current=dzTtN;\n'
+         '            setClips(cs);setDirty(!0)}}):null,\n'
          '        /* P3 — les coupes sont appliquées de la FIN vers le DÉBUT :\n'
          '           une coupe tardive ne décale pas les précédentes, donc les\n'
          '           plages restent justes sans être recalculées entre deux. Un\n'
@@ -1101,6 +1124,22 @@ R_M16REF = (A_M16REF + "\n"
             # aurait été plus bruyante qu'utile.
             # `al` annule la pose après démontage (StrictMode rejoue les
             # effets `[]` en double).
+            # L'HORLOGE DE RAFALE DE L'INSPECTEUR : meme fenetre de 600 ms
+            # que `nudgeHistAt` (M17b), `dzDurHistAt` (H6) et
+            # `dzStyleHistAt`. La reglette de corps remonte a chaque
+            # RELACHEMENT, et au CLAVIER chaque fleche est un `keyup` :
+            # cinq crans faisaient cinq instantanes, et « annuler » remontait
+            # cran par cran. Une REF et pas un etat : elle ne se lit qu'a
+            # l'interieur du rappel, personne ne se re-rend pour elle.
+            # ET LE JETON DE REMONTAGE DU CHAMP TEXTE : incremente quand
+            # l'hote REFUSE un patch (texte vide). Le clip ne bouge pas,
+            # donc la cle porteuse de valeur ne bougerait pas, donc React
+            # garderait a l'ecran l'input VIDE alors que le carton a garde
+            # son texte. Un ETAT ici, et pas une ref : c'est precisement un
+            # re-rendu qu'on veut.
+            "  var dzTtHistAt=x.useRef(0);\n"
+            "  var stDzTtN=x.useState(0),dzTtNonce=stDzTtN[0],"
+            "setDzTtNonce=stDzTtN[1];\n"
             "  var dzTtHostRef=x.useRef(null);\n"
             "  var stDzTt=x.useState(null),dzTitles=stDzTt[0],"
             "setDzTitles=stDzTt[1];\n"
@@ -3441,14 +3480,16 @@ R_X4 = "  return DzTracks.transLabel(b,SVM_TRANS,window.__dzTransCat||null)}"
 # voile les jouerait DEUX FOIS.
 A_V2 = ('liveOn&&!liveClip?r.jsx("div",{className:"svm-livegap",'
         'children:"trou"}):null,')
-R_V2 = ('/* D-12 — LE VOILE DES FONDUS EN DIRECT. Vide, transparent au\n'
-        "             repos, et écrit impérativement par `liveSync` (couleur +\n"
-        '             opacité) à chaque frame : le lecteur vivant n\'a qu\'un\n'
-        "             hôte, donc pas de crossfade A/B — un voile dit OÙ tombe\n"
-        '             la transition et COMBIEN elle dure. */\n'
+R_V2 = (
         # -- « TT7 » (D-21, 22/09/2026) : L'HOTE DE L'APERCU DE TITRE ------
         # REPLIE ICI, et c'est le plan lui-meme qui le prevoit : l'ancre
         # (la ligne du « trou ») est CONSOMMEE par V2, posee en tache 3.
+        # EN TETE DU REMPLACEMENT, ET AVEC SON PROPRE COMMENTAIRE : la
+        # premiere redaction posait la ligne SOUS le commentaire « D-12 --
+        # LE VOILE DES FONDUS EN DIRECT », qui decrit le voile et pas
+        # l'hote de titre -- a l'ecran du bundle, le commentaire semblait
+        # documenter la ligne suivante, qui n'etait plus la sienne
+        # (correctif du 22/09/2026).
         # AVANT LE VOILE DANS LE DOM, et c'est une TRANCHE, pas un detail.
         # Au rendu, la gravure ASS des titres est chainee AVANT S1 mais
         # APRES les `xfade` (tache 5, mesure) : un fondu au raccord passe
@@ -3465,8 +3506,18 @@ R_V2 = ('/* D-12 — LE VOILE DES FONDUS EN DIRECT. Vide, transparent au\n'
         # VIDE AU MONTAGE : `liveSync` (TT8) ecrit son `innerHTML` a la
         # premiere frame. Aucun enfant JSX, donc React ne se bat jamais
         # avec l'ecriture imperative.
+        "/* D-21 — L'APERÇU VIVANT DU CARTON. Vide, et écrit\n"
+        "             impérativement par `liveSync` à chaque frame. POSÉ\n"
+        "             AVANT LE VOILE : au rendu, les titres sont gravés\n"
+        "             APRÈS les `xfade`, donc un fondu passe par-dessus le\n"
+        "             titre — et pas par-dessus les sous-titres. */\n"
         '          liveOn?r.jsx("div",{className:"svm-livetitle",'
         'ref:dzTtHostRef,"aria-hidden":!0}):null,\n'
+        "          /* D-12 — LE VOILE DES FONDUS EN DIRECT. Vide, transparent au\n"
+        "             repos, et écrit impérativement par `liveSync` (couleur +\n"
+        "             opacité) à chaque frame : le lecteur vivant n'a qu'un\n"
+        "             hôte, donc pas de crossfade A/B — un voile dit OÙ tombe\n"
+        "             la transition et COMBIEN elle dure. */\n"
         '          liveOn?r.jsx("i",{className:"svm-xfveil",ref:dzVeilRef,'
         '"aria-hidden":!0}):null,\n'
         '          ') + A_V2

@@ -6666,17 +6666,23 @@ out.ti_cartes=TBG(function(){
 /* L URL DE LA VIGNETTE NE PORTE QUE LE GABARIT, LE TEXTE, LE SOUS-TEXTE ET
    LA LARGEUR : la couleur, la police et le corps en sont VOLONTAIREMENT
    absents (ils changent l image sans changer le GABARIT, et les y mettre
-   aurait fait regraver HUIT PNG a chaque cran de la reglette). */
-out.ti_url=TBG(function(){
+   aurait fait regraver HUIT PNG a chaque cran de la reglette).
+   ET SEULE LA CARTE CHOISIE PORTE LE TEXTE REEL : les sept autres montrent
+   le mot « Titre », sans sous-texte -- sans quoi CHAQUE edition de texte
+   gravait huit PNG neufs au lieu d un. */
+out.ti_url_cartes=TBG(function(){
   var n=TIN({clip:{tr:"t1",kind:"title",id:"t1u1",start:0,end:4,
     title:{template:"cta",text:"a&b",sub:"s u",color:"cyan",font:"Anton",size:99}}});
-  return n.p.children[1].p.children[0].p.children[0].p.src});
+  var g=n.p.children[1].p.children;
+  function u(k){return g.filter(function(b){return b.k===k})[0].p.children[0].p.src}
+  return [u("cta"),u("plein_cadre")]});
 /* SANS TEXTE, LA VIGNETTE MONTRE « Titre » -- une URL a `text=` vide fait
-   un 400 cote serveur (`title_spec` rend None) et huit cases cassees. */
+   un 400 cote serveur (`title_spec` rend None) et une case cassee. */
 out.ti_url_sans_texte=TBG(function(){
   var n=TIN({clip:{tr:"t1",kind:"title",id:"t1u1",start:0,end:4,
     title:{template:"cta",text:"  "}}});
-  return n.p.children[1].p.children[0].p.children[0].p.src});
+  var g=n.p.children[1].p.children;
+  return g.filter(function(b){return b.k==="cta"})[0].p.children[0].p.src});
 out.ti_non_titre=TBG(function(){
   return [T.TitleInspector({clip:{tr:"v1",id:"z",src:{a:1}}}),
     T.TitleInspector({}),T.TitleInspector(null)]});
@@ -6684,7 +6690,7 @@ out.ti_non_titre=TBG(function(){
    option « (du gabarit) ». L inspecteur reste utilisable par son texte. */
 out.ti_sans_catalogue=TBG(function(){
   var n=T.TitleInspector({clip:TICL});
-  return [n.p.children[1].p.children.length,
+  return [n.p.children[1].p.className,n.p.children[1].p.children,
     n.p.children[4].p.children[1].p.children.length,
     n.p.children[5].p.children[1].p.children.length,
     n.p.children[4].p.children[1].p.children[0].p.children]});
@@ -6707,6 +6713,13 @@ out.ti_cle_input=TBG(function(){
     id:"t1u1",start:0,end:4,title:{template:"cta",text:t,sub:u}}});
     return [n.p.children[2].p.children[1].k,n.p.children[3].p.children[1].k]}
   return [cl("a","x"),cl("b","x"),cl("a","y")]});
+/* LE JETON DE REMONTAGE ENTRE DANS LES DEUX CLES : quand l hote REFUSE un
+   patch (texte vide), le clip ne bouge pas -- sans le jeton, React garderait
+   a l ecran l input VIDE alors que le carton a garde son texte. */
+out.ti_cle_nonce=TBG(function(){
+  function cl(nv){var n=T.TitleInspector({clip:TICL,nonce:nv});
+    return [n.p.children[2].p.children[1].k,n.p.children[3].p.children[1].k]}
+  return [cl(0),cl(1)]});
 /* LE CLIC SUR UNE CARTE REMONTE LE GABARIT ; LA CARTE DEJA CHOISIE NE
    REMONTE RIEN (sans quoi re-cliquer le gabarit courant empilait un
    instantane d historique qui ne defait rien). */
@@ -14027,7 +14040,7 @@ check("D21_TT3_un_projet_sans_carton_ne_gagne_pas_de_bande_vide",
 # 22/09/2026 qui corrige la version précédente de ce commentaire : elle
 # nommait AUSSI `_bak_txt`, à tort — `_bak_txt` est défini une seule fois
 # (l. 2958) et n'est jamais réécrit ; `_libre`, lui, est repris comme
-# variable locale d'une comparaison de bornes (l. 11261), et l'appeler ici
+# variable locale d'une comparaison de bornes (l. 11288), et l'appeler ici
 # lèverait « not callable ». Dette non corrigée dans ce lot : renommer cette
 # variable-là toucherait des sections qui n'en sont pas. La mesure est donc
 # écrite EN CLAIR, sur `_bak`, la chaîne du .bak_montage déjà chargée pour
@@ -14217,8 +14230,13 @@ check("D21_l_inspecteur_rend_huit_cartes_et_marque_celle_du_carton",
       # UNE SEULE carte marquée, et c'est celle du gabarit du carton.
       and d["ti_cartes"][3] == ["cta"]
       and d["ti_cartes"][4] == "img" and d["ti_cartes"][5] == "lazy"
+      # I-4 (faute n6) : `_GAB_ORDRE[0]` n'est lu qu'APRES avoir etabli
+      # que la liste n'est pas vide — une extraction ratee levait un
+      # IndexError et emportait les trois lignes de cette famille au lieu
+      # de les faire rougir.
+      and bool(_GAB_ORDRE)
       and d["ti_cartes"][6] == ("/api/montage/title-preview?template="
-                                + _GAB_ORDRE[0] + "&text=Ab&w=180")
+                                + _GAB_ORDRE[0] + "&text=Titre&w=180")
       and d["ti_cartes"][7] == _LAB_SVC.get(_GAB_ORDRE[0])
       # `data-sel` est un crochet de STYLE, `aria-pressed` la même
       # information pour un lecteur d'écran — les deux, pas l'un ou l'autre.
@@ -14229,14 +14247,17 @@ check("D21_l_inspecteur_rend_huit_cartes_et_marque_celle_du_carton",
 # moitié négative, la ligne serait verte d'une URL qui regrave huit PNG à
 # chaque cran de la réglette.
 check("D21_l_url_de_la_vignette_encode_le_texte_et_ignore_les_reglages",
-      d.get("ti_url") == ("/api/montage/title-preview?template="
-                          + _GAB_ORDRE[0] + "&text=a%26b&sub=s%20u&w=180"),
-      f'{d.get("ti_url")}')
+      bool(_GAB_ORDRE)
+      and d.get("ti_url_cartes")
+      == ["/api/montage/title-preview?template=cta&text=a%26b&sub=s%20u&w=180",
+          "/api/montage/title-preview?template=" + _GAB_ORDRE[0]
+          + "&text=Titre&w=180"],
+      f'{d.get("ti_url_cartes")}')
 # UN CARTON SANS TEXTE MONTRE « Titre » : un `text=` vide fait un 400 côté
 # serveur (`title_spec` rend None) et huit cases cassées.
 check("D21_une_vignette_sans_texte_montre_le_mot_Titre",
-      d.get("ti_url_sans_texte") == ("/api/montage/title-preview?template="
-                                     + _GAB_ORDRE[0] + "&text=Titre&w=180"),
+      d.get("ti_url_sans_texte")
+      == "/api/montage/title-preview?template=cta&text=Titre&w=180",
       f'{d.get("ti_url_sans_texte")}')
 check("D21_l_inspecteur_ne_rend_rien_hors_d_un_carton",
       d.get("ti_non_titre") == [None, None, None], f'{d.get("ti_non_titre")}')
@@ -14244,7 +14265,9 @@ check("D21_l_inspecteur_ne_rend_rien_hors_d_un_carton",
 # option « (du gabarit) ». Le carton reste réglable par son texte, et le
 # rendu garde ses défauts — l'échec du `fetch` est silencieux, comme X1.
 check("D21_sans_catalogue_l_inspecteur_n_invente_ni_gabarit_ni_police",
-      d.get("ti_sans_catalogue") == [0, 1, 1, "(du gabarit)"],
+      d.get("ti_sans_catalogue")
+      == ["svm-note", "Gabarits indisponibles — le texte reste réglable.",
+          1, 1, "(du gabarit)"],
       f'{d.get("ti_sans_catalogue")}')
 # QUATRE GESTES, DEUX REMONTÉES : le champ est NON CONTRÔLÉ, il ne part
 # qu'au blur et sur Entrée, et un blur sans changement ne remonte rien —
@@ -14261,10 +14284,15 @@ check("D21_le_texte_ne_remonte_qu_au_blur_ou_a_l_entree_et_s_il_a_change",
 # l'input gardait le neuf. Les deux clés sont DISTINCTES entre elles (un
 # `id` seul aurait fait deux enfants de même clé dans le même parent).
 check("D21_la_cle_des_deux_champs_porte_leur_valeur",
-      d.get("ti_cle_input") == [["t1u1|a", "t1u1|s|x"],
-                                ["t1u1|b", "t1u1|s|x"],
-                                ["t1u1|a", "t1u1|s|y"]],
-      f'{d.get("ti_cle_input")}')
+      d.get("ti_cle_input") == [["t1u1|0|a", "t1u1|s|0|x"],
+                                ["t1u1|0|b", "t1u1|s|0|x"],
+                                ["t1u1|0|a", "t1u1|s|0|y"]]
+      # ET LE JETON DE REMONTAGE LES CHANGE TOUTES DEUX : c'est lui qui
+      # recolle le champ quand l'hote REFUSE le patch et que le clip, donc
+      # la valeur, n'a pas bouge.
+      and d.get("ti_cle_nonce") == [["t1u1|0|Ab", "t1u1|s|0|"],
+                                    ["t1u1|1|Ab", "t1u1|s|1|"]],
+      f'{d.get("ti_cle_input")} jeton={d.get("ti_cle_nonce")}')
 # LE CLIC REMONTE LE GABARIT NU ; LA CARTE DÉJÀ CHOISIE NE REMONTE RIEN.
 check("D21_le_clic_remonte_le_gabarit_et_la_carte_choisie_se_tait",
       d.get("ti_carte_clic") == [["t1u1", {"template": _GAB_ORDRE[0]}]],
@@ -14295,6 +14323,59 @@ check("D21_la_taille_part_au_relachement_et_jamais_pendant_le_glisse",
       and d["ti_taille"][5] == [["t1u1", {"size": 90}]]
       and d["ti_taille"][6] == "68 px",
       f'{d.get("ti_taille")}')
+# I-1 (revue du 22/09/2026) : LA RÉGLETTE NE PAIE QU'UN INSTANTANÉ PAR
+# RAFALE. Elle remonte au RELÂCHEMENT, et au clavier chaque flèche est un
+# `keyup` : cinq crans faisaient cinq `pushHistory`, et « annuler » remontait
+# cran par cran. Même fenêtre de 600 ms que `nudgeHistAt` (M17b) et
+# `dzDurHistAt` (H6) — les deux précédents sont mesurés ici aussi, sinon la
+# comparaison n'aurait plus de référent.
+check("D21_TT6_la_reglette_ne_paie_qu_un_instantane_par_rafale",
+      s.count(nl("var dzTtHistAt=x.useRef(0);")) == 1
+      and "var dzTtHistAt=x.useRef(0);" in P.R_M16REF
+      and (_bak.count(_nlb("dzTtHistAt")) == 0 if _bak else False)
+      and s.count(nl("if(dzTtN-dzTtHistAt.current>600)pushHistory();")) == 1
+      and s.count(nl("dzTtHistAt.current=dzTtN;")) == 1
+      # ET LA SECTION NE PAIE PLUS D'INSTANTANÉ NU : sans cette moitié, un
+      # `pushHistory()` laissé à côté de la fenêtre l'aurait rendue inutile.
+      and P.R_M12.count("pushHistory()") == 2
+      and P.R_M12.count("if(dzTtN-dzTtHistAt.current>600)pushHistory();") == 1
+      and s.count(nl("if(now-nudgeHistAt.current>600)pushHistory();")) == 1
+      and s.count(nl("if(dzN-dzDurHistAt.current>600)pushHistory();")) == 1,
+      f'ref={s.count(nl("var dzTtHistAt=x.useRef(0);"))} '
+      f'fenetre={s.count(nl("if(dzTtN-dzTtHistAt.current>600)pushHistory();"))}')
+# I-2 (revue du 22/09/2026) : VIDER LE CHAMP TEXTE EST REFUSÉ À VOIX HAUTE,
+# ET LE CHAMP SE RECOLLE. Le refus passait par l'identité du tableau : pas de
+# `setClips`, donc pas de re-rendu, donc un input VIDE à l'écran pendant que
+# le carton gardait son texte. La note le dit, et le jeton force le
+# remontage — les deux, parce qu'une note seule aurait laissé le champ mentir.
+check("D21_TT6_un_texte_vide_est_refuse_a_voix_haute_et_le_champ_se_recolle",
+      s.count(nl('if(p&&typeof p.text==="string"&&!p.text.trim()){')) == 1
+      and s.count(nl('fireNote("Un carton sans texte n\'est pas un carton'
+                     ' — le titre précédent est conservé.");')) == 1
+      and s.count(nl("setDzTtNonce(function(dzK){return dzK+1})")) == 1
+      and s.count(nl("var stDzTtN=x.useState(0),dzTtNonce=stDzTtN[0],"
+                     "setDzTtNonce=stDzTtN[1];")) == 1
+      and "var stDzTtN=x.useState(0)" in P.R_M16REF
+      and (_bak.count(_nlb("dzTtNonce")) == 0 if _bak else False)
+      # LE JETON EST PASSÉ EN PROP ET IL ENTRE DANS LES DEUX CLÉS : sans
+      # l'un ou l'autre, l'incrémenter ne remonterait rien.
+      and s.count(nl("nonce:dzTtNonce,")) == 1
+      and src.count('c.id+"|"+nz+"|"+txt)') == 1
+      and src.count('c.id+"|s|"+nz+"|"+sub)') == 1,
+      f'garde={s.count(nl(chr(105) + chr(102) + "(p&&typeof p.text=="))} '
+      f'jeton={s.count(nl("nonce:dzTtNonce,"))}')
+# M-3 : LE COMMENTAIRE DU VOILE DOCUMENTE LE VOILE. La première rédaction
+# posait la ligne de l'hôte de titre SOUS le commentaire « D-12 — LE VOILE
+# DES FONDUS EN DIRECT », qui décrit l'élément suivant : à la lecture du
+# bundle, il semblait documenter une ligne qui n'était plus la sienne.
+check("D21_TT7_chaque_ligne_du_cadre_porte_son_propre_commentaire",
+      0 < s.find(nl("/* D-21 — L'APERÇU VIVANT DU CARTON."))
+          < s.find(nl('className:"svm-livetitle"'))
+          < s.find(nl("/* D-12 — LE VOILE DES FONDUS EN DIRECT."))
+          < s.find(nl('className:"svm-xfveil"'))
+      and s.count(nl("/* D-21 — L'APERÇU VIVANT DU CARTON.")) == 1,
+      f'apercu={s.find(nl("/* D-21 — L\'APERÇU VIVANT DU CARTON."))} '
+      f'voile={s.find(nl("/* D-12 — LE VOILE DES FONDUS EN DIRECT."))}')
 check("D21_l_inspecteur_sans_rappel_ne_leve_jamais",
       d.get("ti_sans_rappels") == "sans_levee", f'{d.get("ti_sans_rappels")}')
 # LE CONTRAT : les deux clés neuves sont exportées, et rien n'est dupliqué.

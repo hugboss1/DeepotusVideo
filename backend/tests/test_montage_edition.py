@@ -537,6 +537,30 @@ out.tu_pur=(function(){var av=JSON.stringify(TU);
   return [JSON.stringify(TU)===av,TU.length===2]})();
 out.tu_mou=[T.titleUpdate(null,"a",{text:"x"}).length,
   T.titleUpdate("x","a",{text:"x"}).length];
+/* LE SOUS-TEXTE EST TRONQUE A 160, comme `MAX_SUB` du backend -- et c'est
+   une borne DIFFERENTE de celle du texte : les deux sont mesurees, sinon
+   « 120 partout » passerait. */
+out.tu_sub_tronque=T.titleUpdate(TU,"t1u1",{sub:new Array(300).join("z")})[0].title.sub.length;
+/* LE LIBELLE EST RECALCULE DEPUIS LE TEXTE, y compris quand c'est une AUTRE
+   cle qui bouge : le carton porte `label:"Ab"` et un changement de couleur
+   ne doit pas le figer sur un premier jet -- ici le texte n'a pas change,
+   donc le libelle ne change pas non plus, et c'est ce qu'on mesure. */
+out.tu_label_suit=(function(){
+  var a=T.titleUpdate(TU,"t1u1",{text:"Abonnez-vous"});
+  var b=T.titleUpdate(a,"t1u1",{color:"or"});
+  return [a[0].label,b[0].label,TU[0].label]})();
+/* LES CLES INCONNUES SONT IGNOREES : un patch qui ne porte que `zzz` ne
+   change rien (meme tableau), et un patch mixte n'emporte QUE les cles
+   connues -- `zzz` ne se retrouve pas dans le `title` sauvegarde. */
+out.tu_cles_inconnues=(function(){
+  var a=T.titleUpdate(TU,"t1u1",{zzz:1,id:"autre",start:99})===TU;
+  var b=T.titleUpdate(TU,"t1u1",{zzz:1,text:"Neuf"});
+  return [a,Object.keys(b[0].title).sort(),b[0].start]})();
+/* LA TAILLE EST BORNEE 24..200 ICI AUSSI : `titleUpdate` est PUBLIQUE, et un
+   appel venu d'ailleurs aurait ecrit un `size:5000` que la sauvegarde aurait
+   garde et que seul le rendu aurait ramene a 200, sans le dire. */
+out.tu_taille_bornee=[T.titleUpdate(TU,"t1u1",{size:5000})[0].title.size,
+  T.titleUpdate(TU,"t1u1",{size:1})[0].title.size];
 console.log(JSON.stringify(out));
 """
 print("\n[1] dzmInsere sous node")
@@ -717,7 +741,9 @@ try:
                  "tt_html_gabarit","tt_remove","tt_pur",
                  # D-21 (tache 7) : les NEUF cles de la section [6b].
                  "tu_texte","tu_inchange","tu_tronque","tu_label",
-                 "tu_gabarit","tu_vide","tu_taille","tu_pur","tu_mou"]
+                 "tu_gabarit","tu_vide","tu_taille","tu_pur","tu_mou",
+                 "tu_sub_tronque","tu_label_suit","tu_cles_inconnues",
+                 "tu_taille_bornee"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -1263,6 +1289,24 @@ check("tu_la_taille_est_un_entier_et_refuse_ce_qui_n_en_est_pas_un",
 check("tu_pur", D.get("tu_pur") == [True, True], D.get("tu_pur"))
 check("tu_les_entrees_molles_ne_levent_pas",
       D.get("tu_mou") == [0, 0], D.get("tu_mou"))
+# M-6 (revue du 22/09/2026) : les trois lignes qui manquaient.
+check("tu_le_sous_texte_est_tronque_a_cent_soixante",
+      D.get("tu_sub_tronque") == 160, D.get("tu_sub_tronque"))
+# LE LIBELLE SUIT LE TEXTE ET RIEN D'AUTRE : il change quand le texte change
+# et reste stable quand c'est la couleur qui bouge. Le troisieme element est
+# la purete — l'entree garde le sien.
+check("tu_le_libelle_suit_le_texte_et_seulement_lui",
+      D.get("tu_label_suit") == ["Abonnez-vous", "Abonnez-vous", "Ab"],
+      D.get("tu_label_suit"))
+# LES CLES INCONNUES SONT IGNOREES : un patch qui n'en porte QUE rend le
+# meme tableau, et un patch mixte n'emporte que les cles connues — `zzz`
+# n'entre pas dans le `title` sauvegarde, `start` ne bouge pas.
+check("tu_les_cles_inconnues_sont_ignorees",
+      D.get("tu_cles_inconnues") == [True, ["template", "text"], 0],
+      D.get("tu_cles_inconnues"))
+# M-1 : les memes bornes que la reglette et que `title_spec`.
+check("tu_la_taille_est_bornee_vingt_quatre_deux_cents",
+      D.get("tu_taille_bornee") == [200, 24], D.get("tu_taille_bornee"))
 
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
