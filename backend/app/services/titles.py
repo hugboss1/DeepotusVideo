@@ -487,7 +487,8 @@ def render_title_png(spec: dict, w: int, h: int, t: float | None = None) -> Path
 
     Cache par cle dans le dossier d'apercu des effets, meme motif tmp ->
     `replace` et meme verrou par destination que `effects_preview` — dont les
-    fonctions `ffmpeg_bin()`, `cache_dir()` et `_frame_lock()` sont REUTILISEES
+    fonctions `ffmpeg_bin()`, `cache_dir()`, `_frame_lock()` et
+    `_prune_cache()` sont REUTILISEES
     telles quelles (mesure du 21/09/2026 : elles existent bien sous ces noms).
 
     21/09/2026 — le fond est ecrit `color=c=0x14181d` : la forme `#14181d`
@@ -496,7 +497,8 @@ def render_title_png(spec: dict, w: int, h: int, t: float | None = None) -> Path
     Le `.ass` passe par `subtitles_filter()` : construire le filtre a la main
     laisserait le chemin Windows non echappe (un `C:` casse le graphe).
     """
-    from app.services.effects_preview import ffmpeg_bin, cache_dir, _frame_lock
+    from app.services.effects_preview import (ffmpeg_bin, cache_dir,
+                                             _frame_lock, _prune_cache)
 
     if not spec:
         return None
@@ -530,6 +532,11 @@ def render_title_png(spec: dict, w: int, h: int, t: float | None = None) -> Path
             logger.warning("apercu de titre : ffmpeg a rendu {} ({})", r.returncode, err)
         if tmp.is_file() and tmp.stat().st_size:
             tmp.replace(out)
+            # Le dossier de cache est PARTAGE avec les vignettes
+            # d'effets : le meme balayage le borne, motif par motif
+            # (cf. `_CACHE_MOTIFS`). Sans cet appel, chaque reglage
+            # d'apercu inedit laisserait un PNG et un .ass de plus.
+            _prune_cache()
             return out
         if tmp.is_file():
             tmp.unlink()

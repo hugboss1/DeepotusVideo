@@ -640,7 +640,8 @@ check("d21_sans_titre_la_commande_est_intacte",
 # Non-regression : ajouter le mot-cle ne doit RIEN changer a la commande
 # historique. Le temoin positif est la presence de `[outv]` dans `_fc0`.
 check("d21_une_liste_de_titres_vide_vaut_l_absence_de_titres",
-      "[outv]" in _fc0 and BUILD(titles_ass=[]) == _fc0 and BUILD(titles_ass=None) == _fc0)
+      "[outv]" in _fc0 and BUILD(titles_ass=[]) == _fc0 and BUILD(titles_ass=None) == _fc0,
+      (_fc0[-160:], BUILD(titles_ass=[])[-160:]))
 
 # --- la collecte des clips titre du rendu ----------------------------------
 _meta2 = MS._tracks_meta([{"id": "v1", "kind": "video"}, {"id": "t1", "kind": "title"}])
@@ -655,19 +656,37 @@ _clips_t = [
     "pas un dict",
 ]
 _coll = getattr(MS, "_titles_ass", None)
-_ass_t = _coll(_clips_t, _meta2, (540, 960), "banc_t") if callable(_coll) else None
+
+
+def COLL(clips, meta_, stem):
+    """(chemins, infos) de `_titles_ass`, ou un temoin — la fonction ABSENTE
+    (etat vide) doit faire rougir, jamais tuer le banc."""
+    if not callable(_coll):
+        return None, {}
+    v = _coll(clips, meta_, (540, 960), stem)
+    return v if isinstance(v, tuple) and len(v) == 2 else (v, {})
+
+
+_ass_t, _inf_t = COLL(_clips_t, _meta2, "banc_t")
 check("d21_la_collecte_range_les_titres_par_debut_et_ignore_le_vide",
       isinstance(_ass_t, list) and len(_ass_t) == 2
       and all(os.path.isfile(p) for p in _ass_t)
       and "Abysse" in pathlib.Path(_ass_t[0]).read_text(encoding="utf-8")
       and "Abonnez-vous" in pathlib.Path(_ass_t[1]).read_text(encoding="utf-8"),
       [os.path.basename(p) for p in _ass_t] if isinstance(_ass_t, list) else _ass_t)
+# Un clip titre ECARTE (texte de trois espaces) est COMPTE, pas avale : sans
+# ce compte, un carton vide disparaitrait du rendu sans laisser de trace.
+check("d21_le_clip_titre_sans_texte_est_compte_comme_ignore",
+      isinstance(_ass_t, list) and len(_ass_t) == 2
+      and (_inf_t or {}).get("titres") == 2 and (_inf_t or {}).get("ignores") == 1,
+      _inf_t)
 # L'etat vide de la collecte : la MEME liste de clips, mais aucune piste de
 # genre `title` declaree — negation precedee du temoin positif ci-dessus.
-_ass_0 = (_coll(_clips_t, MS._tracks_meta([{"id": "v1", "kind": "video"}]),
-                (540, 960), "banc_0") if callable(_coll) else None)
+_ass_0, _inf_0 = COLL(_clips_t, MS._tracks_meta([{"id": "v1", "kind": "video"}]),
+                      "banc_0")
 check("d21_sans_piste_titre_la_collecte_ne_grave_rien",
-      isinstance(_ass_t, list) and len(_ass_t) == 2 and _ass_0 == [], _ass_0)
+      isinstance(_ass_t, list) and len(_ass_t) == 2 and _ass_0 == []
+      and (_inf_0 or {}).get("ignores") == 0, (_ass_0, _inf_0))
 
 # --- le rendu transmet vraiment ces ASS ------------------------------------
 # Une VRAIE source : le pre-vol P8 refuse ce qu'aucun demultiplexeur n'ouvre,
@@ -720,6 +739,12 @@ _gab = d.get("gabarits") or []
 check("d21_la_route_titles_liste_les_huit_gabarits",
       r.status_code == 200 and [g.get("id") for g in _gab] == list(T("TEMPLATES", {})),
       str(d)[:200])
+# La table des libelles couvre EXACTEMENT les gabarits : une entree perdue
+# parmi les quatre dont le libelle vaut l'identifiant (compteur, chapitre,
+# citation, hashtag) passerait sinon au vert par le repli `LABELS.get(k, k)`.
+check("d21_la_table_des_libelles_couvre_exactement_les_gabarits",
+      set(T("LABELS", {})) == set(T("TEMPLATES", {})) != set(),
+      sorted(set(T("LABELS", {})) ^ set(T("TEMPLATES", {}))))
 check("d21_chaque_gabarit_porte_son_libelle_francais_et_sa_fonte",
       r.status_code == 200 and len(_gab) == 8
       and all(set(g) >= {"id", "label", "font", "size", "color", "box", "anim"}
@@ -793,8 +818,70 @@ r = c.get("/api/montage/title-preview",
           params={"template": "cta", "text": "Abysse", "w": "abc"})
 check("d21_une_largeur_illisible_retombe_sur_le_defaut",
       r.status_code == 200 and _png(r) == (270, 480), (r.status_code, _png(r)))
+r = c.get("/api/montage/title-preview",
+          params={"template": "cta", "text": "Abysse", "w": "inf"})
+check("d21_une_largeur_infinie_retombe_sur_le_defaut",
+      r.status_code == 200 and _png(r) == (270, 480), (r.status_code, _png(r)))
+r = c.get("/api/montage/title-preview",
+          params={"template": "cta", "text": "Abysse", "w": 271})
+check("d21_une_largeur_impaire_est_ramenee_au_pair_inferieur",
+      r.status_code == 200 and _png(r) == (270, 480), (r.status_code, _png(r)))
 r = c.get("/api/montage/title-preview", params={"template": "cta", "text": ""})
 check("d21_l_apercu_sans_texte_est_un_400", r.status_code == 400, r.status_code)
+# Les PARAMETRES arrivent vraiment jusqu'a la gravure : `sub` et `color`
+# changent les OCTETS du PNG. Temoin positif d'abord (les trois reponses sont
+# des PNG lisibles), puis l'inegalite.
+_rn = c.get("/api/montage/title-preview",
+            params={"template": "legende", "text": "Abysse", "w": 270})
+_rs2 = c.get("/api/montage/title-preview",
+             params={"template": "legende", "text": "Abysse", "sub": "ep. 3",
+                     "w": 270})
+_rc = c.get("/api/montage/title-preview",
+            params={"template": "legende", "text": "Abysse", "color": "rouge",
+                    "w": 270})
+check("d21_le_sous_texte_change_l_image_de_l_apercu",
+      _png(_rn) == (270, 480) and _png(_rs2) == (270, 480)
+      and _rn.content != _rs2.content, (len(_rn.content), len(_rs2.content)))
+check("d21_la_couleur_de_charte_change_l_image_de_l_apercu",
+      _png(_rn) == (270, 480) and _png(_rc) == (270, 480)
+      and _rn.content != _rc.content, (len(_rn.content), len(_rc.content)))
+# 503 et non 500 quand ffmpeg ne rend rien : l'outil manque, la requete est
+# valide. Mesure par remplacement de `render_title_png` (la route l'importe a
+# l'appel), restaure aussitot.
+_vrai_png = T("render_title_png", _rien)
+try:
+    TI.render_title_png = lambda *a, **k: None
+    _r503 = c.get("/api/montage/title-preview",
+                  params={"template": "cta", "text": "Abysse", "w": 270})
+finally:
+    TI.render_title_png = _vrai_png
+check("d21_un_apercu_que_ffmpeg_ne_rend_pas_est_un_503",
+      _r503.status_code == 503, _r503.status_code)
+
+# --- le cache d'apercu est BORNE -------------------------------------------
+# Le dossier d'apercu est partage avec les vignettes d'effets : son balayage
+# doit connaitre les DEUX fichiers que pose un apercu de titre (le PNG et son
+# ASS). `keep` est reduit le temps de la mesure, sans quoi il faudrait 800
+# apercus pour voir la borne.
+from app.services import effects_preview as EP            # noqa: E402
+
+
+def _cnt(motif):
+    return len([p for p in EP.cache_dir().glob(motif) if ".tmp." not in p.name])
+
+
+_vrai_prune = EP._prune_cache
+try:
+    EP._prune_cache = lambda keep=2, motifs=None: _vrai_prune(
+        2, motifs if motifs is not None else EP._CACHE_MOTIFS)
+    for _i in range(6):
+        c.get("/api/montage/title-preview",
+              params={"template": "cta", "text": "purge %d" % _i, "w": 270})
+finally:
+    EP._prune_cache = _vrai_prune
+_npng, _nass = _cnt("tt_*.png"), _cnt("title_prev_*.ass")
+check("d21_le_cache_des_apercus_de_titre_est_borne",
+      _npng > 0 and _npng <= 2 and _nass > 0 and _nass <= 2, (_npng, _nass))
 
 print(f"\n=== {ok} passed, {fail} failed ===")
 c.__exit__(None, None, None)

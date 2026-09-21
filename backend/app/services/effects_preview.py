@@ -320,15 +320,29 @@ def source_still(source: str | None, t: float, job_video: Path | None = None):
 
 
 # --------------------------------------------------------------- le rendu ---
-def _prune_cache(keep: int = 800):
-    try:
-        files = sorted((p for p in cache_dir().glob("fx_*.jpg")
-                        if ".tmp." not in p.name),
-                       key=lambda p: p.stat().st_mtime, reverse=True)
-        for p in files[keep:]:
-            p.unlink(missing_ok=True)
-    except OSError:
-        pass
+#: Ce que ce dossier de cache contient, par MOTIF. Les vignettes d'effets
+#: (`fx_*.jpg`) n'y sont plus seules depuis D-21 (21/09/2026) : les aperçus de
+#: titre y déposent une image (`tt_*.png`) ET l'ASS qui l'a gravée
+#: (`title_prev_*.ass`, écrit par `titles.to_ass_title(..., dest=cache_dir())`).
+#: Un balayage qui ne connaîtrait que le premier motif laisserait les deux
+#: autres grossir sans fin — chaque réglage d'aperçu inédit ajoute un couple.
+_CACHE_MOTIFS = ("fx_*.jpg", "tt_*.png", "title_prev_*.ass")
+
+
+def _prune_cache(keep: int = 800, motifs=_CACHE_MOTIFS):
+    """Borne le cache d'aperçu : les `keep` fichiers les plus RÉCENTS de
+    chaque motif survivent, le reste est effacé. Le quota est par motif et
+    non global : sinon une rafale d'aperçus de titre chasserait les vignettes
+    d'effets, et réciproquement."""
+    for motif in motifs:
+        try:
+            files = sorted((p for p in cache_dir().glob(motif)
+                            if ".tmp." not in p.name),
+                           key=lambda p: p.stat().st_mtime, reverse=True)
+            for p in files[keep:]:
+                p.unlink(missing_ok=True)
+        except OSError:
+            pass
 
 
 def render_preview(effect_type: str, raw_params: dict, *, source=None,

@@ -29,6 +29,15 @@ Câblage « timeline → rendu » du handoff son_vfx_montage :
                               écrit ATOMIQUEMENT (tmp + os.replace) dans
                               montage_saved.json au répertoire de données
                               (settings.images_path.parent, à côté d'audio/).
+  GET  /api/montage/transitions   D-20 — les 58 xfade de l'ffmpeg livré, par
+                              familles, avec le drapeau `live` (jouable en
+                              direct par le lecteur vivant). Catalogue SERVI :
+                              le client n'en a aucune copie.
+  GET  /api/montage/titles    D-21 — les huit gabarits de titre (libellé FR,
+                              fonte, corps, couleur, boîte, animation).
+  GET  /api/montage/title-preview  D-21 — l'aperçu PNG 9:16 d'un titre, gravé
+                              par le MÊME ASS que le rendu ; largeur bornée
+                              96..640, cache d'un jour, 400 sans texte.
   GET  /api/montage/peaks     P7 — l'enveloppe d'onde d'une source, précalculée
                               et mise en cache (JSON rendu par `peaks`, jamais
                               un chemin : voir la route). `bins` écrêté
@@ -1625,10 +1634,15 @@ def _prev_w(raw, defaut: int = 270) -> int:
     doit retomber sur le défaut, pas refuser l'image. La borne haute n'est
     pas cosmétique : chaque largeur inédite grave un `.ass` et un PNG de
     plus dans le cache, donc une largeur libre serait un cache sans fond.
+
+    `OverflowError` est attrapé au même titre que `ValueError` : `float("inf")`
+    et `float("1e400")` valent tous deux l'infini, et `int(inf)` LÈVE — la
+    route rendait alors un 500 là où sa promesse est le repli (mesuré le
+    21/09/2026, `w=inf`).
     """
     try:
         w = int(float(str(raw)))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         w = defaut
     w = max(96, min(640, w))
     return w - w % 2
@@ -2491,11 +2505,16 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     # `,format=yuv420p[outv]` d'après se pose sur `[tt{n-1}]` quand il n'y a
     # pas de S1 (mesuré : `[tt0]format=yuv420p[outv]`) — les deux branches
     # ci-dessous partent de `cur`, aucune ne suppose un nom de maillon.
-    if titles_ass:
+    # Un titre qui DÉPASSE la fin de V1 n'est pas prolongé : la sortie est
+    # coupée par `-t total` comme tout le reste, et l'événement ASS qui
+    # courait encore disparaît avec l'image. Resolve, lui, allonge la
+    # timeline jusqu'au dernier clip de n'importe quelle piste — écart à
+    # dater dans la conception à la tâche 8.
+    if titles_ass or subs_ass:
         from app.services.subtitle_service import subtitles_filter
-        for j, tpath in enumerate(titles_ass):
-            parts.append(f"[{cur}]{subtitles_filter(tpath)}[tt{j}]")
-            cur = f"tt{j}"
+    for j, tpath in enumerate(titles_ass or []):
+        parts.append(f"[{cur}]{subtitles_filter(tpath)}[tt{j}]")
+        cur = f"tt{j}"
 
     # --- S1 : GRAVURE des sous-titres (dernier maillon de la chaîne vidéo) ---
     # `fontsdir` n'est pas une précaution : sans lui libass cherche dans les
@@ -2504,7 +2523,6 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     # sur une autre — le rendu cesserait de ressembler à l'aperçu sans qu'aucune
     # erreur ffmpeg ne le signale. subtitles_filter() le pose toujours.
     if subs_ass:
-        from app.services.subtitle_service import subtitles_filter
         parts.append(f"[{cur}]{subtitles_filter(subs_ass)},"
                      f"format=yuv420p[outv]")
     else:
@@ -2617,8 +2635,9 @@ def _subs_ass(payload, canvas: tuple[int, int], stem: str) -> tuple[Path | None,
     return p, info
 
 
-def _titles_ass(clips, meta: dict, canvas: tuple[int, int], stem: str) -> list[str]:
-    """D-21 — les clips TITRE de la timeline → la liste de leurs ASS.
+def _titles_ass(clips, meta: dict, canvas: tuple[int, int],
+                stem: str) -> tuple[list[str], dict]:
+    """D-21 — les clips TITRE de la timeline → (chemins des ASS, infos).
 
     Un clip titre vit sur une piste de genre `title` (cf. `_tracks_meta`) et
     n'a PAS de `src` : c'est `titles.title_spec` qui décide s'il y a quelque
@@ -2630,9 +2649,15 @@ def _titles_ass(clips, meta: dict, canvas: tuple[int, int], stem: str) -> list[s
     Fonction à part, et non quelques lignes dans `montage_render` : c'est la
     seule forme sous laquelle la collecte est jouable par un banc sans
     lancer un rendu complet (le pré-vol P8 exige une source qu'ffmpeg ouvre).
+
+    `infos` = {titres, ignores} — un clip titre ÉCARTÉ est compté et
+    journalisé, jamais avalé en silence : sans ce compte, un carton dont le
+    texte est vide disparaîtrait du rendu sans laisser de trace, et
+    l'utilisateur chercherait dans ffmpeg une faute qui est dans sa timeline
+    (même précédent que `info["unsupported"]` de `_subs_ass`).
     """
     from app.services import titles as TI
-    specs = []
+    specs, ignores = [], 0
     for c in clips or []:
         if not isinstance(c, dict):
             continue
@@ -2641,13 +2666,21 @@ def _titles_ass(clips, meta: dict, canvas: tuple[int, int], stem: str) -> list[s
         s = TI.title_spec(c)
         if s:
             specs.append(s)
+        else:
+            ignores += 1
     specs.sort(key=lambda s: s.get("start", 0.0))
     out = []
     for i, s in enumerate(specs):
         p = TI.to_ass_title(s, canvas, f"{stem}_t{i}")
         if p is not None:
             out.append(str(p))
-    return out
+        else:
+            ignores += 1
+    if ignores:
+        logger.warning(f"montage {stem}: {ignores} clip(s) titre ignoré(s) — "
+                       f"texte vide, durée nulle ou `title` illisible ; "
+                       f"{len(out)} titre(s) gravé(s).")
+    return out, {"titres": len(out), "ignores": ignores}
 
 
 def _run_ffmpeg(cmd, out: Path) -> Path:
@@ -2947,7 +2980,7 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
             # un ASS chacun, écrits AVANT la commande comme celui de S1, au
             # canevas RÉEL du rendu (aperçu 480p compris, pour que les corps
             # suivent). Aucun clip titre : liste vide, commande historique.
-            titles_ass = await asyncio.to_thread(
+            titles_ass, titles_info = await asyncio.to_thread(
                 _titles_ass, clips, meta, (w, h), f"montage_{short}")
 
             cmd, total = _build_montage_command(
@@ -2972,8 +3005,9 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                        f"{', '.join(subs_info['unsupported'])}"
                        if subs_info["unsupported"] else ""))
             if titles_ass:
-                logger.info(f"montage {short}: {len(titles_ass)} titre(s) gravé(s) "
-                            f"avant S1 — "
+                logger.info(f"montage {short}: {titles_info['titres']} titre(s) "
+                            f"gravé(s) avant S1 "
+                            f"({titles_info['ignores']} ignoré(s)) — "
                             f"{', '.join(Path(p).name for p in titles_ass[:4])}")
             await asyncio.to_thread(_run_ffmpeg, cmd, out)
 
