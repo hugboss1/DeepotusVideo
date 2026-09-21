@@ -277,7 +277,14 @@ out.mk_t_types=[T.markersFrom([{t:!0},{t:[]},{t:{}},{t:2}])
    Le repli sur le catalogue est mesuré à part (tl_fam_du_catalogue). */
 var CAT={familles:[{id:"fondus",label:"fondus",items:[{id:"fade",label:"fondu",live:!0},{id:"fadeblack",label:"fondu noir",live:!0}]},
   {id:"pixels",label:"pixels",items:[{id:"pixelize",label:"pixélisé",live:!1}]}]};
-var LEG=[["cut","coupe sèche"],["fade","fondu"],["glitch","pixélisé"]];
+/* `fade` EST DANS LES DEUX SOURCES, ET AVEC DEUX LIBELLES DIFFERENTS --
+   c'est la seule facon que `tl_label_catalogue_prime` ait de mesurer
+   VRAIMENT la priorite. Mesure du 22/09/2026 (campagne
+   mutations_montage_l2.py, n°4) : avec « fondu » des deux cotes, la
+   ligne restait VERTE alors que `dzmTransLabel` avait cesse de lire le
+   catalogue -- elle ne separait pas les deux autorites, elle les
+   confondait. */
+var LEG=[["cut","coupe sèche"],["fade","fondu simple"],["glitch","pixélisé"]];
 out.tl_liste=T.transList(LEG,CAT).map(function(f){return [f.id,f.items.map(function(i){return i.id})]});
 out.tl_cut_en_tete=T.transList(LEG,CAT)[0].items[0].id;
 out.tl_sans_catalogue=T.transList(LEG,null).map(function(f){return [f.id,f.items.length]});

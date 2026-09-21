@@ -318,6 +318,16 @@ check("d21_sans_texte_pas_de_titre",
       isinstance(title_spec({"title": {"template": "cta", "text": "ok"}, "start": 0, "end": 1}), dict)
       and title_spec({"title": {"template": "cta"}, "start": 0, "end": 1}) is None,
       title_spec({"title": {"template": "cta"}, "start": 0, "end": 1}))
+# ET LE TEXTE PRESENT MAIS BLANC, qui n'est PAS le meme cas : la ligne
+# ci-dessus passe une entree SANS LA CLE `text`, refusee par la garde de
+# type (`isinstance(..., str)`) bien avant `if not text`. Mesure du
+# 22/09/2026 (campagne mutations_montage_l2.py, n°7) : retirer `if not
+# text: return None` laissait la ligne du dessus VERTE. Meme temoin
+# positif d'abord, puis la negation.
+check("d21_un_texte_blanc_n_est_pas_un_titre",
+      isinstance(title_spec({"title": {"template": "cta", "text": "ok"}, "start": 0, "end": 1}), dict)
+      and title_spec({"title": {"template": "cta", "text": "   "}, "start": 0, "end": 1}) is None,
+      title_spec({"title": {"template": "cta", "text": "   "}, "start": 0, "end": 1}))
 # SIX ENTREES HOSTILES : rien de ce qui vient du client ne doit LEVER. Chacune
 # rend None (rien a graver) ou un spec entierement borne. Le temoin positif
 # (une entree saine rend bien un spec) est la ligne au-dessus.

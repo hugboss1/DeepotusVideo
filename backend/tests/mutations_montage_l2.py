@@ -58,17 +58,18 @@ python embarque, un processus par execution de banc) : LES DIX-SEPT SONT
 ROUGES, AUCUN SURVIVANT, et chacune rougit EXACTEMENT les lignes declarees
 ci-dessous. Les fichiers sont restaures a l'octet apres chacune (sha256
 verifie). Comptes des bancs au repos : bundle 1636/0, edition 158/0,
-historique 51/0, projets 159/0, l2 77/0.
+historique 51/0, projets 159/0, l2 78/0 (77 avant la ligne que la n°7
+a fait ecrire).
 
     #   fonction visee                        banc     rouges
     0   _XFADE_FAMILIES sans « zooms »        l2       5
     1   _XFADE_LIVE elargi a dissolve         l2       1
     2   transitions_catalog sans `live`       l2       2
     3   dzmTransList sans « coupe » en tete   edition  5
-    4   dzmTransLabel ignore le catalogue     edition  1
+    4   dzmTransLabel ignore le catalogue     edition  2
     5   dzmVeil sans la garde du voisin       edition  2
     6   dzmVeil alpha constant                edition  5
-    7   title_spec accepte le texte vide      l2       5
+    7   title_spec accepte le texte vide      l2       6
     8   _ass_text ecrit un BOM                l2       1
     9   titles_ass chaine APRES S1            l2       2
    10   dzmTitleNew pose `src:{}`             edition  1
@@ -84,18 +85,20 @@ CINQ CHOSES QUE CETTE TABLE A MESUREES, ET QUI NE SE DEVINAIENT PAS :
     `zoomin/squeezeh/squeezev` des CLES de `_XFADE` (elles n'y entrent que
     par `_XFADE.update` sur les familles), donc la table des 58, la route et
     les libelles parlent eux aussi ;
-  · la n°4 laisse VERTE la ligne qui dit « le catalogue prime sur
-    l'historique » : sa fixture donne le MEME libelle des deux cotes pour
-    `fade`. La ligne est CREUSE, et c'est ce script qui le montre (detail
-    et correctif d'un mot en commentaire de la n°4) ;
+  · la n°4 a d'abord laisse VERTE la ligne qui dit « le catalogue prime sur
+    l'historique » : sa fixture donnait le MEME libelle des deux cotes pour
+    `fade`, donc la ligne etait CREUSE. LEG porte desormais « fondu simple »
+    (test_montage_edition.py l. 280) et la mutation rougit DEUX lignes ;
   · la n°6 (alpha constant) ne touche PAS `vl_au_raccord_le_voile_noir_est
     _plein` : au raccord exact la formule rend deja 1, et un alpha constant
     de 1 y est JUSTE. Ce sont la montee, le bord de fenetre, le choix entre
     deux jonctions proches et le croise des bornes qui voient la pente --
     une ligne qui ne mesure qu'UN POINT ne peut pas voir une pente ;
   · la n°7 laisse VERTE `d21_sans_texte_pas_de_titre`, qui n'eprouve que la
-    cle `text` ABSENTE, jamais le texte PRESENT MAIS VIDE (commentaire de la
-    n°7). Quatre autres lignes attrapent la panne par ricochet ;
+    cle `text` ABSENTE : c'est la garde de TYPE qui la refuse, pas celle-ci.
+    Le texte PRESENT MAIS BLANC n'etait nomme par aucune ligne -- d'ou
+    `d21_un_texte_blanc_n_est_pas_un_titre`, ecrite le 22/09/2026, et la
+    mutation rougit desormais SIX lignes ;
   · la n°11 rougit CINQUANTE-NEUF lignes, et ce n'est pas du bruit gratuit :
     `trackKind` est l'une des tranches de cablage que le banc bundle EXTRAIT
     du bundle livre et EXECUTE sous node (`_KIND`), si bien que la casser
@@ -171,18 +174,14 @@ M = [
     (B_EDIT, JS,
      "if(it.id===id&&it.label)return String(it.label)}",
      "if(!1)return String(it.label)}",
-     ["tl_le_libelle_vient_du_catalogue_puis_de_l_historique_puis_du_nom"]),
-    # `tl_le_catalogue_prime_sur_l_historique_pour_un_nom_commun` N'EST PAS
-    # DECLAREE ICI, ET C'EST UNE MESURE : elle reste VERTE sous cette
-    # mutation. Son montage dit `transLabel("fade",LEG,CAT)` doit rendre
-    # « fondu » -- mais `LEG` porte `["fade","fondu"]` et `CAT` porte
-    # `{id:"fade",label:"fondu"}` : les DEUX sources donnent le MEME mot,
-    # donc la ligne ne peut pas separer « le catalogue prime » de « c'est
-    # l'historique qui a parle », ce que son commentaire affirme pourtant
-    # etre sa raison d'etre. Elle est CREUSE. Le correctif tient en un mot
-    # dans la fixture du banc (l. 280 de test_montage_edition.py) :
-    # `["fade","fondu simple"]` cote LEG -- non applique ici, ce script ne
-    # touche pas aux bancs.
+     # LA SECONDE LIGNE A ETE GAGNEE LE 22/09/2026, ET C'EST CETTE MUTATION
+    # QUI L'A EXIGEE : `tl_le_catalogue_prime...` restait VERTE parce que sa
+    # fixture donnait « fondu » pour `fade` des DEUX cotes (LEG et CAT) --
+    # elle ne separait pas les deux autorites, elle les confondait. LEG porte
+    # desormais « fondu simple » (test_montage_edition.py l. 280) et la
+    # ligne mesure ce que son commentaire annonce.
+    ["tl_le_libelle_vient_du_catalogue_puis_de_l_historique_puis_du_nom",
+      "tl_le_catalogue_prime_sur_l_historique_pour_un_nom_commun"]),
     # ── D-12, le voile du lecteur vivant ─────────────────────────────────
     # 5 — le voile SANS la garde du voisin gauche : le tout premier clip de
     #     V1, qui n'a aucune jonction a fondre, se met a noircir au temps 0,
@@ -208,16 +207,16 @@ M = [
     (B_L2, TI,
      "    if not text:\n        return None\n",
      "",
-     ["d21_l_apercu_sans_texte_est_un_400",
+     # `d21_sans_texte_pas_de_titre` N'EST PAS DECLAREE, ET C'EST JUSTE :
+     # elle passe `{"template":"cta"}`, une entree SANS LA CLE `text`, que la
+     # garde d'AVANT (`isinstance(t.get("text"), str)`) refuse deja. Le cas
+     # de CETTE mutation -- le texte PRESENT MAIS BLANC -- n'etait NOMME par
+     # aucune ligne avant le 22/09/2026 ; quatre lignes l'attrapaient par
+     # ricochet (la collecte, le rendu, la route d'apercu). C'est cette
+     # mutation qui a fait ecrire `d21_un_texte_blanc_n_est_pas_un_titre`.
+     ["d21_un_texte_blanc_n_est_pas_un_titre",
+      "d21_l_apercu_sans_texte_est_un_400",
       "d21_le_clip_titre_sans_texte_est_compte_comme_ignore"]),
-    # `d21_sans_texte_pas_de_titre` N'EST PAS DECLAREE, ET C'EST UNE MESURE :
-    # elle reste VERTE sous cette mutation. Elle passe `{"template":"cta"}`,
-    # une entree SANS LA CLE `text` -- et c'est la garde d'AVANT
-    # (`isinstance(t.get("text"), str)`) qui la refuse, pas celle-ci. Le cas
-    # qui manque au banc est le texte PRESENT MAIS VIDE (`""` ou `"   "`),
-    # que quatre autres lignes attrapent par ricochet (la collecte, le rendu,
-    # la route d'apercu) mais qu'aucune ne NOMME. Ligne manquante :
-    # `title_spec({"title":{"template":"cta","text":"   "},...}) is None`.
     # 8 — le `.ass` ecrit AVEC un BOM : libass decale la premiere ligne et
     #     rien dans ffmpeg ne le signale. Meme regle que `_subs_ass`.
     (B_L2, TI,
