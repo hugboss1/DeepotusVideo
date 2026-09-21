@@ -1617,13 +1617,24 @@ async def montage_titles():
     """D-21 — les huit gabarits de titre, leur libellé français et ce qui les
     distingue à l'œil (fonte, corps à 1080 p, couleur de charte, couleur de
     boîte, tags d'animation). Le client n'en a aucune copie : même précédent
-    que `GET /transitions`, `GET /effects` et `GET /media-rules`."""
+    que `GET /transitions`, `GET /effects` et `GET /media-rules`.
+
+    `fonts` ET `colors` PARTENT AVEC (22/09/2026) : l'inspecteur de titres
+    offre les seize familles embarquées et les cinq couleurs de la charte,
+    et `DzSubs.FONTS` — l'autre source que le client aurait pu lire — ne les
+    porte PAS (mesuré : `SUBS_FONTS_FB` est une liste de douze polices
+    SYSTÈME, « Segoe UI », « Arial », « Impact »… — aucune n'est gravable
+    par libass, qui ne voit que le `fontsdir` embarqué). Les deux tables
+    sont celles que `title_spec` interroge pour accepter ou remplacer ;
+    servir autre chose aurait fait proposer à l'écran des valeurs que le
+    rendu remplace en silence."""
     from app.services import titles as TI
     return {"gabarits": [
         {"id": k, "label": TI.LABELS.get(k, k), "font": t["font"],
          "size": t["size"], "color": t["color"], "box": t["box"],
          "anim": t["anim"]}
-        for k, t in TI.TEMPLATES.items()]}
+        for k, t in TI.TEMPLATES.items()],
+        "fonts": list(TI.S.FONT_FILES), "colors": list(TI.BRAND)}
 
 
 def _prev_w(raw, defaut: int = 270) -> int:

@@ -701,6 +701,40 @@ R_M8 = (R_M14 + '\n'
 # est vide après une coupe, à l'utilisateur de la raccourcir s'il veut.
 A_M12 = "        transInspector(),"
 R_M12 = (A_M12 + '\n'
+         # -- « TT6 » (D-21, 22/09/2026) : L'INSPECTEUR DU CARTON ------------
+         # REPLIE dans R_M12 parce que l'ancre naturelle (la ligne du
+         # TextDrawer, derniere de ce remplacement) vaut 0 dans .bak_montage :
+         # c'est CE remplacement qui l'ecrit. Meme mesure que E1/K3/X1/V1.
+         # POSE AVANT le TextDrawer et non apres, et c'est une MESURE contre
+         # la lettre du plan : la colonne d'inspection se lit de haut en bas
+         # et les trois lignes qui PRECEDENT l'ancre (`transInspector()` et
+         # ses voisines) sont les inspecteurs du clip SELECTIONNE. Le tiroir
+         # de texte, lui, est un panneau de PROJET (il liste toute la
+         # narration) et il ferme la colonne. Glisser l'inspecteur du carton
+         # sous lui l'aurait mis a un ecran de son clip.
+         # LA GARDE EST `trackKind(sel.tr)==="title"` ET NON `sel.tr==="t1"` :
+         # le plan ecrivait l'egalite sur l'identifiant. TT1 a fait de `t`
+         # l'INITIALE du genre -- une seconde piste de titres (t2) serait
+         # restee sans inspecteur, et la garde aurait dit autre chose que les
+         # seize autres sites du bundle, qui interrogent tous `trackKind`.
+         # AUCUN INSTANTANE POUR UN PATCH REFUSE, et c'est l'IDENTITE qui le
+         # dit : `titleUpdate` rend le MEME tableau quand rien n'a bouge
+         # (texte vide, gabarit qui ne survit pas a l'assainissement, valeur
+         # identique). Sans ce test, un blur sur un champ non touche aurait
+         # empile une entree d'historique qui ne defait rien et allume « NON
+         # ENREGISTRE ». L'inspecteur filtre DEJA le blur inchange ; les deux
+         # gardes ne couvrent pas le meme cas et ne se remplacent pas.
+         # `pushHistory` AVANT `setClips`, comme partout ailleurs dans ce
+         # composant : l'instantane doit porter l'etat D'AVANT.
+         '        sel&&trackKind(sel.tr)==="title"'
+         '?r.jsx(DzTracks.TitleInspector,{clip:sel,\n'
+         '          gabarits:dzTitles&&dzTitles.gabarits,\n'
+         '          fonts:dzTitles&&dzTitles.fonts,'
+         'colors:dzTitles&&dzTitles.colors,\n'
+         '          onChange:function(id,p){\n'
+         '            var cs=DzTracks.titleUpdate(clipsRef.current,id,p);\n'
+         '            if(cs===clipsRef.current)return;\n'
+         '            pushHistory();setClips(cs);setDirty(!0)}}):null,\n'
          '        /* P3 — les coupes sont appliquées de la FIN vers le DÉBUT :\n'
          '           une coupe tardive ne décale pas les précédentes, donc les\n'
          '           plages restent justes sans être recalculées entre deux. Un\n'
@@ -760,7 +794,25 @@ R_M12 = (A_M12 + '\n'
 # L'ancre n'est PAS reprise telle quelle dans le remplacement (le `)]` devient
 # `),`) : test_montage_bundle.py exigera donc de la voir DISPARAÎTRE.
 A_M13 = '        (sel&&sel.tr==="s1"?null:vfxStackSection())]})]}),'
-R_M13 = ('        (sel&&sel.tr==="s1"?null:vfxStackSection()),\n'
+R_M13 = (
+         # -- « TT9b » (D-21, 22/09/2026) : LA PILE D'EFFETS SE TAIT AUSSI
+         # SUR UN CARTON. REPLI dans R_M13 parce que l'ancre EST la ligne
+         # que M13 reecrit (elle vaut 1 dans .bak_montage et 0 apres M13) :
+         # une section a part aurait passe `--check` pour abandonner au
+         # rejeu -- meme mesure que TT1b dans R_M15.
+         # POURQUOI : `vfxStackSection()` rend « Effets sur ce clip » avec
+         # son bouton « remplacer le plan », qui appelle `openPicker(sel.tr)`
+         # -- soit `openPicker("t1")` sur un carton, c'est-a-dire le
+         # selecteur d'assets ouvert sur la piste qui n'en recoit aucun.
+         # TT1b arretait le degat DANS `addAsset` (avec une note), mais
+         # l'ecran proposait encore le geste. Un carton n'a pas davantage
+         # d'effets video : il n'a pas de `src`, la chaine `_fx` du payload
+         # ne le voit jamais.
+         # `trackKind(sel.tr)` POUR LES DEUX GENRES, et pas deux egalites
+         # sur des identifiants : c'est la forme des seize autres sites du
+         # bundle, et une piste s2 ou t2 y serait traitee comme sa soeur.
+         '        (sel&&(trackKind(sel.tr)==="subs"'
+         '||trackKind(sel.tr)==="title")?null:vfxStackSection()),\n'
          '        /* P4 — le geste GLOBAL de l\'étalonnage : les quatre valeurs\n'
          '           du plan sélectionné recopiées sur tous les autres plans\n'
          '           réels de SA piste (pas « v1 » en dur : un plan V2 peut\n'
@@ -1023,6 +1075,42 @@ R_M16REF = (A_M16REF + "\n"
             # le parti pris des deux hôtes du lecteur (`liveHostRef`,
             # `liveOvRef`), remplis impérativement eux aussi.
             "  var dzVeilRef=x.useRef(null);\n"
+            # ── « TT7ref » (D-21, 22/09/2026) : L'HÔTE DE L'APERÇU DE
+            # TITRE ET LE CATALOGUE DES GABARITS ──────────────────────
+            # REPLIÉS ICI, même mesure que « E1 », « K3 », « X1 » et
+            # « V1 » : l'ancre de ce remplacement (`dzTracksRef`) vaut 0
+            # dans .bak_montage.
+            # L'HÔTE EST UNE REF, PAS UN ÉTAT, et pour la raison du
+            # voile : `liveSync` le remplit IMPÉRATIVEMENT à chaque
+            # frame (TT8). Un état aurait re-rendu l'arbre entier
+            # soixante fois par seconde pour une chaîne de HTML.
+            # LE CATALOGUE EST UN ÉTAT, lui, et c'est la raison inverse :
+            # l'inspecteur (TT6) est du JSX, il doit se re-rendre quand
+            # les huit gabarits arrivent. Il n'est PAS posé sur `window`
+            # — contrairement au catalogue des transitions (X1), qui
+            # devait être lisible depuis `svmTransLabel`, fonction de
+            # niveau MODULE. Ici tout le monde est dans le composant.
+            # UNE SEULE FOIS (dépendances VIDES) : les huit gabarits,
+            # les seize polices et les cinq couleurs sont des constantes
+            # du serveur, pas des données de projet.
+            # L'ÉCHEC EST SILENCIEUX ET ASSUMÉ, comme X1 : sans
+            # catalogue l'inspecteur rend zéro vignette et ses deux
+            # `<select>` sont réduits à « (du gabarit) » — le carton
+            # reste réglable par son texte, et le rendu garde ses
+            # défauts. Une erreur à l'écran pour un panneau de confort
+            # aurait été plus bruyante qu'utile.
+            # `al` annule la pose après démontage (StrictMode rejoue les
+            # effets `[]` en double).
+            "  var dzTtHostRef=x.useRef(null);\n"
+            "  var stDzTt=x.useState(null),dzTitles=stDzTt[0],"
+            "setDzTitles=stDzTt[1];\n"
+            "  x.useEffect(function(){var al=!0;\n"
+            '    fetch("/api/montage/titles")\n'
+            "      .then(function(rp){return rp.ok?rp.json():null})\n"
+            "      .then(function(d){if(al&&d&&Array.isArray(d.gabarits))"
+            "setDzTitles(d)})\n"
+            "      .catch(function(){});\n"
+            "    return function(){al=!1}},[]);\n"
             "  /* P9 — « le VRAI projet est-il arrivé ? ». Tant que\n"
             "     `svmApplyProject` n'a pas remplacé la maquette, `proj` est la\n"
             "     démo : sans `tracks`, donc svmTracksOf retombe sur les six\n"
@@ -3358,6 +3446,27 @@ R_V2 = ('/* D-12 — LE VOILE DES FONDUS EN DIRECT. Vide, transparent au\n'
         '             opacité) à chaque frame : le lecteur vivant n\'a qu\'un\n'
         "             hôte, donc pas de crossfade A/B — un voile dit OÙ tombe\n"
         '             la transition et COMBIEN elle dure. */\n'
+        # -- « TT7 » (D-21, 22/09/2026) : L'HOTE DE L'APERCU DE TITRE ------
+        # REPLIE ICI, et c'est le plan lui-meme qui le prevoit : l'ancre
+        # (la ligne du « trou ») est CONSOMMEE par V2, posee en tache 3.
+        # AVANT LE VOILE DANS LE DOM, et c'est une TRANCHE, pas un detail.
+        # Au rendu, la gravure ASS des titres est chainee AVANT S1 mais
+        # APRES les `xfade` (tache 5, mesure) : un fondu au raccord passe
+        # donc PAR-DESSUS le titre, alors qu'il ne touche pas aux
+        # sous-titres. L'ecran doit dire la meme chose -- le titre est
+        # SOUS le voile, les sous-titres DESSUS. Sans z-index : dans
+        # `.svm-frame` tous les enfants sont absolus et aucun des voisins
+        # qui comptent n'en porte, l'ordre du DOM suffit (meme mesure que
+        # V2).
+        # CONDITIONNE PAR `liveOn` comme le voile et les deux couches : en
+        # apercu 480p c'est un `<video>` qui joue le rendu, titre GRAVE
+        # compris -- y superposer l'apercu HTML l'aurait affiche DEUX fois,
+        # et le faux par-dessus le vrai.
+        # VIDE AU MONTAGE : `liveSync` (TT8) ecrit son `innerHTML` a la
+        # premiere frame. Aucun enfant JSX, donc React ne se bat jamais
+        # avec l'ecriture imperative.
+        '          liveOn?r.jsx("div",{className:"svm-livetitle",'
+        'ref:dzTtHostRef,"aria-hidden":!0}):null,\n'
         '          liveOn?r.jsx("i",{className:"svm-xfveil",ref:dzVeilRef,'
         '"aria-hidden":!0}):null,\n'
         '          ') + A_V2
@@ -3418,7 +3527,32 @@ R_V3 = (A_V3 + "\n"
         '      var dzVk=dzVv.color+"|"+dzVv.alpha;\n'
         "      if(dzVe._dzVeil!==dzVk){dzVe._dzVeil=dzVk;\n"
         '        dzVe.style.background=(dzVv.color&&dzVv.color!=="dim")?dzVv.color:"#000";\n'
-        "        dzVe.style.opacity=String(dzVv.alpha||0)}}")
+        "        dzVe.style.opacity=String(dzVv.alpha||0)}}\n"
+        "    /* TT8 (D-21) — L'APERCU VIVANT DU CARTON, au meme endroit et\n"
+        "       pour les memes raisons que le voile : EN TETE, parce que\n"
+        "       `liveSync` sort tot quand les hotes ne sont pas montes et\n"
+        "       que l'apercu doit etre EFFACE meme dans ce cas -- sinon un\n"
+        "       titre survivrait a un passage en apercu 480p, ou l'image\n"
+        "       porte deja le titre GRAVE : on l'aurait vu en double.\n"
+        "       LA TETE EST BORNEE COMME CELLE DU VOILE (`dzVt`), pas brute :\n"
+        "       le clip montre est choisi sur `min(ph, dur-0.001)`, et un\n"
+        "       carton qui finit exactement a la fin de la timeline aurait\n"
+        "       disparu une frame avant l'image qu'il accompagne.\n"
+        "       LA SIGNATURE `_dzHtml` EVITE L'ECRITURE INUTILE : `liveSync`\n"
+        "       tourne a CHAQUE frame et la chaine est la meme pendant toute\n"
+        "       la duree du carton. Sans elle, un `innerHTML` par frame --\n"
+        "       donc un sous-arbre DETRUIT et RECONSTRUIT soixante fois par\n"
+        "       seconde, ce qui aurait relance l'animation CSS d'entree en\n"
+        "       boucle et rendu le titre illisible. Meme parade que\n"
+        "       `_dzVeil` ci-dessus, `_svmTfSig` et `_svmKey` plus bas.\n"
+        "       LA COUCHE ECHAPPE LE TEXTE (`ttEsc`) : il vient de\n"
+        "       l'utilisateur et il part en `innerHTML`. */\n"
+        "    var dzTtH=dzTtHostRef.current;\n"
+        "    if(dzTtH){\n"
+        "      var dzTtT=Math.min(phRef.current,Math.max(0,durRef.current-.001));\n"
+        "      var dzTtC=DzTracks.titleAt(clipsRef.current,dzTtT);\n"
+        '      var dzTtX=dzTtC?DzTracks.titleHtml(dzTtC,dzTtT):"";\n'
+        "      if(dzTtH._dzHtml!==dzTtX){dzTtH._dzHtml=dzTtX;dzTtH.innerHTML=dzTtX}}")
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -3458,11 +3592,83 @@ R_TT1 = ('  function trackKind(trId){var k=String(trId||"").charAt(0);\n'
 # de titres.
 # LE PAYLOAD D'UN PROJET SANS CARTON NE CHANGE PAS D'UN OCTET : les deux
 # valeurs sont `undefined` sur tous les autres clips, et `JSON.stringify`
-# OMET une cle dont la valeur est `undefined`. Mesure au banc.
+# OMET une cle dont la valeur est `undefined` -- la cle EXISTE dans l'objet,
+# elle est ABSENTE de la chaine. MESURE AU BANC, sous node :
+# `D21_TT2b_un_projet_sans_carton_envoie_le_payload_d_avant` de
+# test_montage_bundle.py (ajoutee le 22/09/2026 ; la premiere redaction de
+# cette prose annoncait la mesure sans la fournir).
 A_TT2B = ('        var o={tr:c.tr,src:c.src,start:c.start,end:c.end,'
           'srcIn:c.srcIn||0,')
 R_TT2B = ('        var o={tr:c.tr,src:c.src,start:c.start,end:c.end,'
           'srcIn:c.srcIn||0,kind:c.kind,title:c.title,')
+
+# TT9 : L'INSPECTEUR In/Out/Duree SE TAIT SUR UN CARTON. (Sa jumelle TT9b,
+# la pile d'effets, est REPLIEE dans R_M13, dont l'ancre est la ligne meme
+# qu'il fallait reecrire.)
+# POURQUOI : « une fenetre de source, ca ne veut rien dire pour une ligne de
+# texte » -- le commentaire du bundle, ecrit pour S1, vaut MOT POUR MOT pour
+# un carton, qui n'a pas de `src` non plus. La section rendait donc In, Out,
+# Duree et Vitesse sur un clip sans source : quatre reglages qui ne
+# s'appliquent a rien, et un `svmSetV1Speed` qui aurait ecrit une `speed` sur
+# un titre.
+# LA SECTION « Sous-titre » PREND LE RELAIS POUR S1 ; pour un carton, c'est
+# l'inspecteur de titre (TT6) qui le prend, pose quatre lignes plus bas dans
+# la meme colonne.
+A_TT9 = '          return sel&&sel.tr==="s1"?null'
+R_TT9 = ('          return sel&&(trackKind(sel.tr)==="subs"'
+         '||trackKind(sel.tr)==="title")?null')
+
+# TT10 : `c.src.job_id` SUR UN CLIP QUI PEUT NE PAS AVOIR DE `src`.
+# TT2 (tache 6) a fait sauter l'invariant du payload -- `renderPayload`
+# jetait tout clip sans `src` (`clips.filter(function(c){return c.src})`), et
+# c'est justement ce filtre que TT2 a ouvert pour laisser passer les cartons.
+# Toute ligne du corps de la boucle qui DEREFERENCE `c.src` leve desormais un
+# TypeError sur le premier carton : « Cannot read properties of undefined
+# (reading 'job_id') ». Mesure : c'est la SEULE des lignes de la boucle a le
+# faire (les autres lisent `c.effects`, `c.opacity`, `c.gain`… sur `c`).
+# LA CORRECTION GARDE LE SENS : `c.src&&c.src.job_id` dit « un VRAI plan
+# video », ce que la ligne voulait deja dire -- un clip sans source n'en est
+# pas un, et un carton ne defile pas.
+A_TT10 = ('        if(c.tr==="v1"&&c.src.job_id&&typeof c.speed==="number"'
+          '&&c.speed>0&&')
+R_TT10 = ('        if(c.tr==="v1"&&c.src&&c.src.job_id&&'
+          'typeof c.speed==="number"&&c.speed>0&&')
+
+# TT11 : LE « + » DE L'EN-TETE DE T1 DISAIT ET FAISAIT FAUX.
+# L'infobulle promettait « Ajouter une image ou un rendu a la tete de
+# lecture » (quatrieme branche du ternaire, celle qui ramasse tout ce qui
+# n'est ni subs ni audio) et le clic ouvrait `openPicker("t1")` : le
+# selecteur d'assets, sur la piste qui n'en recoit aucun. TT1b rattrapait la
+# chute DANS `addAsset` -- une note, et rien de pose. Le bouton mentait donc
+# deux fois : sur ce qu'il propose et sur ce qu'il fait.
+# IL POSE MAINTENANT UN CARTON, par le MEME `dzTtAdd` que le raccourci (TT4)
+# et la chip « T+ » (TT5) : troisieme declencheur, zero troisieme ecriture du
+# geste. Les deux autres branches sont intactes.
+# L'INFOBULLE NE REPREND PAS LA PHRASE DE TT1b (« La piste des titres ne
+# recoit que des cartons — … en pose un »), et c'est une MESURE : cette
+# phrase-la est comptee a UN par `D5_I5_les_trois_textes_lisent_la_keymap_
+# vivante`, et un bouton qui POSE un carton ne peut pas dire « Maj+T en pose
+# un » -- ce serait renvoyer ailleurs pour ce qu'il fait lui-meme. Elle dit
+# le geste ET la restriction, et elle lit la keymap VIVANTE
+# (`svmKeyLabelNow`, niveau MODULE) comme les quatre autres textes de D-5/
+# D-21.
+A_TT11 = ('                :"Ajouter une image ou un rendu à la tête de '
+          'lecture",\n'
+          '              onClick:function(){\n'
+          '                if(trackKind(tr.id)==="subs"){subsAddHere();'
+          'return}\n'
+          '                openPicker(tr.id)},children:"+"},"add");')
+R_TT11 = ('                :trackKind(tr.id)==="title"\n'
+          '                ?"Poser un carton de titre à la tête de lecture ("'
+          '+svmKeyLabelNow("title_add")+") — la piste des titres ne reçoit '
+          'aucun autre média"\n'
+          '                :"Ajouter une image ou un rendu à la tête de '
+          'lecture",\n'
+          '              onClick:function(){\n'
+          '                if(trackKind(tr.id)==="subs"){subsAddHere();'
+          'return}\n'
+          '                if(trackKind(tr.id)==="title"){dzTtAdd();return}\n'
+          '                openPicker(tr.id)},children:"+"},"add");')
 
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
@@ -3625,7 +3831,16 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            # du payload de rendu (TT2 ne reecrit que le FILTRE, deux lignes
            # plus haut).
            ("TT1-genre-title", A_TT1, R_TT1),
-           ("TT2b-payload-carton", A_TT2B, R_TT2B)]
+           ("TT2b-payload-carton", A_TT2B, R_TT2B),
+           # D-21 (22/09/2026, tache 7) — les restes de la revue de la
+           # tache 6. TT6 (l'inspecteur), TT7 (l'hote de l'apercu), TT8
+           # (son ecriture) et TT9b (la pile d'effets) sont REPLIES dans
+           # R_M12, R_V2, R_V3 et R_M13 : leurs ancres sont des lignes que
+           # ces remplacements POSENT ou REECRIVENT. Ces trois-ci valent
+           # 1/1 dans .bak_montage.
+           ("TT9-inout-carton", A_TT9, R_TT9),
+           ("TT10-payload-src-mou", A_TT10, R_TT10),
+           ("TT11-plus-de-t1-pose-un-carton", A_TT11, R_TT11)]
 
 
 def nl(text, crlf):

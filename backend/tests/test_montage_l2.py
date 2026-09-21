@@ -764,6 +764,42 @@ check("d21_chaque_gabarit_porte_son_libelle_francais_et_sa_fonte",
       == {"plein_cadre": "plein cadre", "tiers_inferieur": "tiers inférieur",
           "legende": "légende", "cta": "appel à l'action"},
       str(_gab)[:240])
+# D-21 (tache 7) : LES SEIZE POLICES ET LES CINQ COULEURS PARTENT AVEC LES
+# GABARITS. L'inspecteur du client les offre dans deux `<select>`, et il n'en
+# a AUCUNE copie -- meme regle que les huit gabarits. Les deux listes sont
+# celles que `title_spec` interroge (`font not in S.FONT_FILES`, `color not
+# in BRAND`) : servir autre chose aurait fait proposer a l'ecran des valeurs
+# que le rendu remplace en silence. La mesure porte sur l'IDENTITE avec les
+# tables du service, pas sur un compte -- un compte serait reste vert apres
+# un renommage.
+_subs_ff = list(getattr(S, "FONT_FILES", {}))
+check("d21_la_route_titles_sert_les_seize_polices_gravables",
+      r.status_code == 200 and len(_subs_ff) == 16
+      and d.get("fonts") == _subs_ff,
+      f'servies={d.get("fonts")} service={_subs_ff}')
+check("d21_la_route_titles_sert_les_cinq_couleurs_de_la_charte",
+      r.status_code == 200 and d.get("colors") == list(T("BRAND", {}))
+      and len(d.get("colors") or []) == 5,
+      f'servies={d.get("colors")} charte={list(T("BRAND", {}))}')
+# ET L'INSPECTEUR N'EN A AUCUNE COPIE : ni les seize familles, ni les cinq
+# noms de la charte, ni leurs hex ne sont ecrits dans son corps — il ne
+# connait que ses proprietes. LA MESURE PORTE SUR LE CORPS DE LA FONCTION et
+# non sur le fichier entier, et c'est une MESURE : la couche porte deja une
+# table `DZM_MARKER_COLORS` (D-5) dont trois noms — « or », « cyan »,
+# « rouge » — sont ceux de la charte par coincidence (les hex, eux,
+# different). Une ligne sur le fichier entier rougissait sur ce faux positif.
+# La negation etablit d'abord que le corps a ete TROUVE et qu'il est long.
+_CJS = pathlib.Path(__file__).resolve().parents[2] / "frontend" / "patches" / "montage.js"
+_cjs = _CJS.read_text(encoding="utf-8") if _CJS.is_file() else ""
+_i7a = _cjs.find("function DzmTitleInspector(")
+_i7b = _cjs.find("/* ── export contrat", _i7a) if _i7a >= 0 else -1
+_corps7 = _cjs[_i7a:_i7b] if 0 <= _i7a < _i7b else ""
+_fuite7 = ([f for f in _subs_ff if ('"%s"' % f) in _corps7]
+           + [k for k in T("BRAND", {}) if ('"%s"' % k) in _corps7]
+           + [v for v in T("BRAND", {}).values() if v in _corps7])
+check("d21_l_inspecteur_ne_recopie_ni_les_polices_ni_les_couleurs",
+      len(_corps7) > 2000 and not _fuite7,
+      f"corps={len(_corps7)} o fuites={_fuite7}")
 
 # --- GET /title-preview ----------------------------------------------------
 

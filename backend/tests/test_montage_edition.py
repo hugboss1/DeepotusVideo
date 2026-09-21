@@ -467,9 +467,11 @@ out.tt_at_recouvrement=[(T.titleAt(TA,0)||{}).id,(T.titleAt(TA,3)||{}).id,
 out.tt_at_mous=[T.titleAt(null,1),T.titleAt(TA,NaN),
   T.titleAt([{tr:"v1",id:"z",start:0,end:9,src:{a:1}}],1)];
 out.tt_html=T.titleHtml({tr:"t1",kind:"title",start:0,end:4,title:{template:"tiers_inferieur",text:"<b>Ab",sub:"ep"}},1);
-/* LES QUATRE CARACTERES : &, <, > et le guillemet. L'esperluette PASSE EN
+/* LES CINQ CARACTERES : &, <, >, le guillemet et l'APOSTROPHE (ajoutee le
+   22/09/2026 : l'echappeur etait juste a moitie). L'esperluette PASSE EN
    PREMIER, sinon `&lt;` serait devenu `&amp;lt;`. */
-out.tt_html_esc=T.titleHtml({kind:"title",start:0,end:4,title:{text:'a&b<c>d"e'}},1);
+out.tt_html_esc=T.titleHtml({kind:"title",start:0,end:4,
+  title:{text:'a&b<c>d"e'+String.fromCharCode(39)+"f"}},1);
 /* HORS DE LA PLAGE, RIEN : l'appelant ecrit la chaine telle quelle dans
    `innerHTML`, et « vide » y vaut « efface ». */
 out.tt_html_hors=[T.titleHtml({kind:"title",start:2,end:4,title:{text:"x"}},5),
@@ -488,6 +490,53 @@ out.tt_remove=T.remove([{id:"t1",kind:"title"},{id:"v1",kind:"video"}],"t1").len
 out.tt_pur=(function(){var ts=[{id:"v1",kind:"video"}],cs=[{id:"z"}];
   T.titleTrack(ts);T.titleNew({text:"a"},0,cs,"t1");T.titleAt(cs,1);
   return ts.length===1&&cs.length===1})();
+/* --- [6b] D-21 (tache 7) : REGLER UN CARTON ------------------------------
+   `titleUpdate(clips,id,patch)` est PURE. L'IDENTITE du tableau rendu est le
+   signal « rien n'a bouge » : c'est elle qui empeche l'hote de payer un
+   pushHistory pour un blur qui n'a rien touche. */
+var TU=[{tr:"t1",kind:"title",id:"t1u1",label:"Ab",start:0,end:4,
+         title:{template:"cta",text:"Ab"}},
+        {tr:"v1",id:"z",start:0,end:9,src:{a:1}}];
+out.tu_texte=(function(){var q=T.titleUpdate(TU,"t1u1",{text:"Abonnez-vous"});
+  return [q!==TU,q[0].title.text,q[0].label,q[1]===TU[1],TU[0].title.text]})();
+/* SEPT REFUS, UN PAR REGLE -- et chacun rend LE MEME tableau. Sans cette
+   ligne, une fonction qui recopierait toujours passerait `tu_texte`. */
+out.tu_inchange=[T.titleUpdate(TU,"t1u1",{text:"Ab"})===TU,
+  T.titleUpdate(TU,"t1u1",{text:"   "})===TU,
+  T.titleUpdate(TU,"t1u1",{template:"!!!"})===TU,
+  T.titleUpdate(TU,"t1u1",{})===TU,
+  T.titleUpdate(TU,"zzz",{text:"x"})===TU,
+  T.titleUpdate(TU,"z",{text:"x"})===TU,
+  T.titleUpdate(TU,"t1u1",null)===TU];
+/* LE TEXTE EST TRONQUE A 120 et le LIBELLE DE LA BANDE suit a 24 : la
+   timeline dessine `c.label`, un carton renomme aurait garde son premier
+   jet. */
+out.tu_tronque=T.titleUpdate(TU,"t1u1",{text:new Array(200).join("x")})[0].title.text.length;
+out.tu_label=T.titleUpdate(TU,"t1u1",{text:new Array(60).join("y")})[0].label.length;
+/* LE GABARIT PASSE EN MINUSCULES AVANT d'etre assaini (sans quoi « CTA »
+   devenait "" et « Plein_Cadre » devenait « lein_adre »), et un nom hostile
+   ne sort pas de l'attribut. */
+out.tu_gabarit=[T.titleUpdate(TU,"t1u1",{template:"Plein_Cadre"})[0].title.template,
+  T.titleUpdate(TU,"t1u1",{template:'a"><img '})[0].title.template];
+/* LA CHAINE VIDE EFFACE LA CLE -- c'est le choix « (du gabarit) » de
+   l'inspecteur, qui doit RETIRER le reglage et non ecrire un `color:""`.
+   ET LA COUCHE NE JUGE NI LA COULEUR NI LA POLICE : elle n'a aucune copie
+   de BRAND ni de FONT_FILES, le backend assainit (`color not in BRAND`). */
+out.tu_vide=(function(){
+  var a=T.titleUpdate(TU,"t1u1",{color:"or",font:"Anton",sub:"s"});
+  var b=T.titleUpdate(a,"t1u1",{color:""});
+  var q=T.titleUpdate(a,"t1u1",{sub:"  "});
+  return [Object.keys(a[0].title).sort(),"color" in b[0].title,
+    "sub" in q[0].title,T.titleUpdate(TU,"t1u1",{color:"mauve"})[0].title.color]})();
+out.tu_taille=[T.titleUpdate(TU,"t1u1",{size:"88"})[0].title.size,
+  T.titleUpdate(TU,"t1u1",{size:"abc"})===TU,
+  T.titleUpdate(TU,"t1u1",{size:0})===TU];
+/* PURETE : ni le tableau, ni le clip, ni son objet `title` ne bougent. */
+out.tu_pur=(function(){var av=JSON.stringify(TU);
+  T.titleUpdate(TU,"t1u1",{text:"zz",size:99,color:"cyan"});
+  return [JSON.stringify(TU)===av,TU.length===2]})();
+out.tu_mou=[T.titleUpdate(null,"a",{text:"x"}).length,
+  T.titleUpdate("x","a",{text:"x"}).length];
 console.log(JSON.stringify(out));
 """
 print("\n[1] dzmInsere sous node")
@@ -665,7 +714,10 @@ try:
                  "tt_new_mous","tt_new_id_unique","tt_new_cles",
                  "tt_new_cles_pleines","tt_at","tt_at_recouvrement","tt_at_mous",
                  "tt_html","tt_html_esc","tt_html_hors","tt_html_mous",
-                 "tt_html_gabarit","tt_remove","tt_pur"]
+                 "tt_html_gabarit","tt_remove","tt_pur",
+                 # D-21 (tache 7) : les NEUF cles de la section [6b].
+                 "tu_texte","tu_inchange","tu_tronque","tu_label",
+                 "tu_gabarit","tu_vide","tu_taille","tu_pur","tu_mou"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -1149,10 +1201,14 @@ check("tt_l_apercu_porte_le_gabarit_et_echappe_le_texte",
       and "<i>ep</i>" in D["tt_html"]
       and "<b>&lt;b&gt;Ab</b>" in D["tt_html"],
       D.get("tt_html"))
-check("tt_les_quatre_caracteres_sont_echappes_l_esperluette_en_premier",
+check("tt_les_cinq_caracteres_sont_echappes_l_esperluette_en_premier",
       isinstance(D.get("tt_html_esc"), str)
-      and "a&amp;b&lt;c&gt;d&quot;e" in D["tt_html_esc"]
-      and "&amp;lt;" not in D["tt_html_esc"], D.get("tt_html_esc"))
+      and "a&amp;b&lt;c&gt;d&quot;e&#39;f" in D["tt_html_esc"]
+      and "&amp;lt;" not in D["tt_html_esc"]
+      # l'apostroPHE BRUTE a disparu du corps rendu : la moitie negative,
+      # sans quoi la ligne serait verte d'un echappeur qui AJOUTERAIT
+      # l'entite sans retirer le caractere.
+      and chr(39) not in D["tt_html_esc"], D.get("tt_html_esc"))
 # HORS PLAGE : chaine VIDE, que l'appelant ecrit telle quelle. Debut INCLUS,
 # fin EXCLUE : la cle du milieu est la seule non vide.
 check("tt_hors_de_sa_plage_l_apercu_est_vide",
@@ -1175,6 +1231,38 @@ check("tt_un_gabarit_inconnu_ne_rend_que_la_classe_de_base",
 check("tt_la_piste_des_titres_se_retire_contrairement_a_s1",
       D.get("tt_remove") == 1, D.get("tt_remove"))
 check("tt_pur", D.get("tt_pur") is True, D.get("tt_pur"))
+
+print("\n[6b] D-21 regler un carton : titleUpdate")
+# LE TABLEAU EST NEUF, le texte et le LIBELLE suivent, le clip voisin est le
+# MEME objet (rien n'est recopie pour rien), et l'entree n'a pas bouge.
+check("tu_le_texte_change_le_libelle_suit_et_le_voisin_ne_bouge_pas",
+      D.get("tu_texte") == [True, "Abonnez-vous", "Abonnez-vous", True, "Ab"],
+      D.get("tu_texte"))
+# LES SEPT REFUS RENDENT LE MEME TABLEAU : c'est l'IDENTITE qui dit a l'hote
+# de ne pas payer de pushHistory. Sans cette ligne, une fonction qui
+# recopierait TOUJOURS passerait la precedente.
+check("tu_sept_patchs_refuses_rendent_le_meme_tableau",
+      D.get("tu_inchange") == [True] * 7, D.get("tu_inchange"))
+check("tu_le_texte_est_tronque_a_cent_vingt_et_le_libelle_a_vingt_quatre",
+      D.get("tu_tronque") == 120 and D.get("tu_label") == 24,
+      f'texte={D.get("tu_tronque")} libelle={D.get("tu_label")}')
+# MINUSCULES AVANT L'ASSAINISSEMENT : sans `toLowerCase()`, « Plein_Cadre »
+# devenait « lein_adre » — un gabarit qui n'existe pas, remplace en silence
+# par le defaut du backend.
+check("tu_le_gabarit_passe_en_minuscules_avant_d_etre_assaini",
+      D.get("tu_gabarit") == ["plein_cadre", "aimg"],
+      D.get("tu_gabarit"))
+# LA CHAINE VIDE EFFACE, une valeur pose, et la couche n'est juge de rien :
+# « mauve » traverse, c'est `title_spec` qui le remplacera.
+check("tu_la_chaine_vide_efface_la_cle_et_la_couche_ne_juge_pas_la_charte",
+      D.get("tu_vide") == [["color", "font", "sub", "template", "text"],
+                           False, False, "mauve"],
+      D.get("tu_vide"))
+check("tu_la_taille_est_un_entier_et_refuse_ce_qui_n_en_est_pas_un",
+      D.get("tu_taille") == [88, True, True], D.get("tu_taille"))
+check("tu_pur", D.get("tu_pur") == [True, True], D.get("tu_pur"))
+check("tu_les_entrees_molles_ne_levent_pas",
+      D.get("tu_mou") == [0, 0], D.get("tu_mou"))
 
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")

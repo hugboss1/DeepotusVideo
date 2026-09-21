@@ -265,7 +265,18 @@ STABLE_PROBES = [
     # du TEXTE, commentaires compris -- lecon du premier jet de X2.
     # MESURE : la chaine a refuse, « sonde montage x94 (want 91) », AVANT
     # que ce nombre ne soit ecrit.
-    ("montage", "DzTracks", 94),
+    # `montage` : 94 -> 98 le 22/09/2026 (D-21, tache 7 : l'inspecteur des
+    # titres et l'apercu vivant). QUATRE references de plus, et quatre
+    # seulement : `TitleInspector` et `titleUpdate(` dans l'inspecteur
+    # monte par TT6 (replie dans R_M12), `titleAt(` et `titleHtml(` dans
+    # l'ecriture de l'apercu par TT8 (replie dans R_V3). TT7 (l'hote),
+    # TT7ref (la ref et le catalogue), TT9/TT9b (les deux inspecteurs qui
+    # se taisent), TT10 (le payload) et TT11 (le « + » de T1) n'en ajoutent
+    # AUCUNE : elles ne parlent pas a la couche. La prose de ces sections
+    # est ecrite SANS le jeton, meme lecon que ci-dessus.
+    # MESURE : la chaine a refuse, « sonde montage x98 (want 94) », AVANT
+    # que ce nombre ne soit ecrit.
+    ("montage", "DzTracks", 98),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

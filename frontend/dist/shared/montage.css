@@ -1138,3 +1138,126 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
   60%,100%{clip-path:circle(75% at 50% 50%)}}
 @keyframes dzmtZoom{0%,20%{transform:scale(.2); opacity:0}
   60%,100%{transform:scale(1); opacity:1}}
+/* ── D-21 (22/09/2026) : L'INSPECTEUR DU CARTON ET L'APERÇU VIVANT ────────
+   DEUX BLOCS, DEUX MONDES. En haut l'INSPECTEUR — du chrome d'application,
+   dans la colonne d'inspection de 300 px, qui reprend les jetons de
+   `.dzm-mkidx` juste au-dessus. En bas l'APERÇU VIVANT — de l'IMAGE, posée
+   dans le cadre du lecteur, qui ne reprend AUCUN jeton d'interface : ses
+   couleurs sont les cinq de `titles.BRAND`, recopiées en dur, parce que ce
+   qu'il imite n'est pas l'application mais la VIDÉO.
+   LA RECOPIE DES CINQ HEX EST ASSUMÉE : c'est du STYLE, pas une autorité.
+   `title_spec` reste seul juge de ce qui est gravé ; si la charte changeait,
+   un aperçu d'un ton à côté serait un défaut cosmétique, pas un faux rendu
+   — et le 480p, lui, ne bougerait pas d'un pixel. */
+.dzsvm .dzm-ttinsp{font-family:var(--f-mono); font-size:10.5px;
+  margin-top:10px}
+/* DEUX COLONNES, ET LA CASE A UNE HAUTEUR EXPLICITE. Leçon de la
+   Bibliothèque (28/08) : une case en `overflow:hidden` peut contribuer ~0 à
+   la hauteur intrinsèque de sa rangée — la grille s'effondre à quelques
+   pixels sans que le DOM ne dise rien. La vignette est en 9:16 (le cadre
+   que sert `GET /title-preview`), donc la case porte son `aspect-ratio` et
+   l'image le remplit. */
+.dzsvm .dzm-ttcards{display:grid; grid-template-columns:repeat(2,1fr);
+  gap:6px; margin-top:6px}
+.dzsvm .dzm-ttcard{display:flex; flex-direction:column; gap:3px; padding:3px;
+  border-radius:7px; border:1px solid var(--stroke, #2a2930);
+  background:var(--panel2, var(--bg-panel-2, #1c1c21));
+  color:var(--ink3, var(--ink-dim, #8a857d)); cursor:pointer;
+  font-family:inherit; font-size:9.5px; text-align:center}
+.dzsvm .dzm-ttcard:hover{border-color:var(--accent, #d8a657)}
+.dzsvm .dzm-ttcard[data-sel]{border-color:var(--accent, #d8a657);
+  color:var(--ink, var(--ink-strong, #f2efe9));
+  box-shadow:inset 0 0 0 1px var(--accent, #d8a657)}
+.dzsvm .dzm-ttimg{display:block; width:100%; aspect-ratio:9/16; height:auto;
+  min-height:54px; border-radius:4px; background:#000; object-fit:cover}
+.dzsvm .dzm-ttname{display:block; line-height:12px;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.dzsvm .dzm-ttrow{display:flex; gap:6px; align-items:center; margin-top:6px}
+.dzsvm .dzm-ttlab{flex:0 0 58px;
+  color:var(--ink3, var(--ink-dim, #8a857d))}
+/* MÊME CHROME QUE `.dzm-mktitre` (l. 995) : sans lui, un input NU — fond
+   blanc, texte noir, bordure système — dans un panneau sombre. */
+.dzsvm .dzm-ttxt{flex:1 1 auto; min-width:0; height:20px; padding:0 6px;
+  border-radius:5px; border:1px solid var(--stroke, #2a2930);
+  background:var(--panel, var(--bg-panel, #17161a));
+  color:var(--ink, var(--ink-strong, #f2efe9)); font-size:11px;
+  font-family:inherit}
+.dzsvm .dzm-ttxt:focus{outline:none; border-color:var(--accent, #d8a657)}
+.dzsvm .dzm-ttsel{flex:1 1 auto; min-width:0; font-family:var(--f-mono);
+  font-size:10px}
+.dzsvm .dzm-ttsize{flex:1 1 auto; min-width:0}
+.dzsvm .dzm-ttnb{flex:0 0 42px; text-align:right;
+  color:var(--ink3, var(--ink-dim, #8a857d)); font-variant-numeric:tabular-nums}
+/* ── L'HÔTE DE L'APERÇU VIVANT ────────────────────────────────────────────
+   Posé dans `.svm-frame` juste AVANT le voile des fondus, et rempli
+   impérativement par `liveSync`. SOUS LE VOILE, ET C'EST UNE TRANCHE : au
+   rendu, la gravure des titres est chaînée avant S1 mais APRÈS les `xfade`
+   — un fondu au raccord passe donc par-dessus le titre, alors qu'il ne
+   touche pas aux sous-titres. Pas de `z-index` : dans `.svm-frame` tous les
+   enfants sont absolus et aucun des voisins qui comptent n'en porte,
+   l'ordre du DOM suffit (même mesure que `.svm-xfveil`).
+   `container-type:size` + `cqh` : le corps du titre est une FRACTION de la
+   hauteur du cadre (`size`/1080 dans `titles.TEMPLATES`), et le cadre
+   change de taille avec la fenêtre. Le motif est celui de `.svm-stage`
+   (son-vfx-montage.css l. 214), avec le même `@supports` : sans unités de
+   conteneur, on retombe sur des px tenables plutôt que sur rien.
+   LES POLICES EMBARQUÉES NE SONT PAS CHARGÉES PAR LE NAVIGATEUR, ET C'EST
+   MESURÉ (22/09/2026) : les seuls `@font-face` de l'application déclarent
+   QUATRE familles, nommées « … Local » (IBMPlex, Inter, Grotesk, JBMono) —
+   les seize `FONT_FILES` que libass grave, elles, ne sont servies à aucune
+   feuille. Chaque gabarit nomme donc sa famille RÉELLE en tête (elle rend
+   juste si l'utilisateur l'a installée) puis un repli qui lui ressemble.
+   C'est un aperçu APPROCHÉ, et il le dit déjà sous l'inspecteur : le
+   Preview 480p fait foi.
+   CE QUE L'APERÇU NE MONTRE PAS, ET C'EST UN ÉCART DATÉ : la couleur, la
+   police et le corps CHOISIS par l'utilisateur. `titleHtml` (tâche 6) ne
+   porte que le nom du gabarit dans sa classe, et les règles ci-dessous
+   rendent les DÉFAUTS du gabarit. Le rendu, lui, applique les trois
+   réglages. Reporté en tâche 8. */
+.dzsvm .svm-livetitle{position:absolute; inset:0; pointer-events:none;
+  overflow:hidden}
+@supports (width:1cqh){.dzsvm .svm-livetitle{container-type:size}}
+.dzsvm .dzm-tt{position:absolute; left:50%; top:50%;
+  transform:translate(-50%,-50%); max-width:86%; text-align:center;
+  line-height:1.12; font-size:18px; font-weight:700;
+  color:#eef2f6; text-shadow:0 1px 2px rgba(20,24,29,.85);
+  white-space:pre-wrap; overflow-wrap:break-word; pointer-events:none}
+@supports (width:1cqh){.dzsvm .dzm-tt{font-size:5.9cqh}}
+.dzsvm .dzm-tt b{font-weight:inherit}
+.dzsvm .dzm-tt i{display:block; font-style:normal; font-size:.55em;
+  opacity:.85; margin-top:.25em}
+/* LES HUIT GABARITS — placement (`an` + `y` de `titles.TEMPLATES`), famille,
+   corps (`size`/1080) et couleurs de la charte. */
+.dzsvm .dzm-tt-plein_cadre{color:#e6b23c; font-size:20px;
+  font-family:Anton,"Arial Narrow",Impact,sans-serif}
+.dzsvm .dzm-tt-tiers_inferieur{left:7%; top:80%; transform:translate(0,-100%);
+  text-align:left; color:#eef2f6; background:#e6b23c; font-size:11px;
+  padding:.14em .4em; text-shadow:none;
+  font-family:"Bebas Neue",Bahnschrift,"Arial Narrow",sans-serif}
+.dzsvm .dzm-tt-legende{left:50%; top:90%; transform:translate(-50%,-100%);
+  color:#eef2f6; background:#14181d; font-size:7px; padding:.2em .5em;
+  text-shadow:none; font-weight:600;
+  font-family:Inter,"Inter Local",var(--f-ui),sans-serif}
+.dzsvm .dzm-tt-compteur{color:#00e5ff; font-size:16px;
+  font-family:"JetBrains Mono","JBMono Local",var(--f-mono),monospace}
+.dzsvm .dzm-tt-chapitre{left:7%; top:50%; transform:translate(0,-50%);
+  text-align:left; color:#eef2f6; font-size:14px;
+  font-family:Cinzel,"Trajan Pro",Georgia,serif}
+.dzsvm .dzm-tt-citation{top:45%; color:#eef2f6; font-size:10px;
+  font-family:"Abril Fatface",Georgia,serif}
+.dzsvm .dzm-tt-hashtag{left:93%; top:12%; transform:translate(-100%,-100%);
+  text-align:right; color:#e6b23c; background:#14181d; font-size:12px;
+  padding:.14em .4em; text-shadow:none;
+  font-family:Bungee,Impact,sans-serif}
+.dzsvm .dzm-tt-cta{top:85%; color:#14181d; background:#e6b23c; font-size:12px;
+  padding:.18em .5em; text-shadow:none;
+  font-family:"Archivo Black",Impact,sans-serif}
+@supports (width:1cqh){
+  .dzsvm .dzm-tt-plein_cadre{font-size:11.1cqh}
+  .dzsvm .dzm-tt-tiers_inferieur{font-size:5.93cqh}
+  .dzsvm .dzm-tt-legende{font-size:3.7cqh}
+  .dzsvm .dzm-tt-compteur{font-size:8.89cqh}
+  .dzsvm .dzm-tt-chapitre{font-size:7.4cqh}
+  .dzsvm .dzm-tt-citation{font-size:5.19cqh}
+  .dzsvm .dzm-tt-hashtag{font-size:6.67cqh}
+  .dzsvm .dzm-tt-cta{font-size:6.3cqh}}

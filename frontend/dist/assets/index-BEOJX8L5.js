@@ -1759,6 +1759,14 @@ function DzMontage(props){
       .catch(function(){});
     return function(){al=!1}},[]);
   var dzVeilRef=x.useRef(null);
+  var dzTtHostRef=x.useRef(null);
+  var stDzTt=x.useState(null),dzTitles=stDzTt[0],setDzTitles=stDzTt[1];
+  x.useEffect(function(){var al=!0;
+    fetch("/api/montage/titles")
+      .then(function(rp){return rp.ok?rp.json():null})
+      .then(function(d){if(al&&d&&Array.isArray(d.gabarits))setDzTitles(d)})
+      .catch(function(){});
+    return function(){al=!1}},[]);
   /* P9 — « le VRAI projet est-il arrivé ? ». Tant que
      `svmApplyProject` n'a pas remplacé la maquette, `proj` est la
      démo : sans `tracks`, donc svmTracksOf retombe sur les six
@@ -2456,6 +2464,31 @@ function DzMontage(props){
       if(dzVe._dzVeil!==dzVk){dzVe._dzVeil=dzVk;
         dzVe.style.background=(dzVv.color&&dzVv.color!=="dim")?dzVv.color:"#000";
         dzVe.style.opacity=String(dzVv.alpha||0)}}
+    /* TT8 (D-21) — L'APERCU VIVANT DU CARTON, au meme endroit et
+       pour les memes raisons que le voile : EN TETE, parce que
+       `liveSync` sort tot quand les hotes ne sont pas montes et
+       que l'apercu doit etre EFFACE meme dans ce cas -- sinon un
+       titre survivrait a un passage en apercu 480p, ou l'image
+       porte deja le titre GRAVE : on l'aurait vu en double.
+       LA TETE EST BORNEE COMME CELLE DU VOILE (`dzVt`), pas brute :
+       le clip montre est choisi sur `min(ph, dur-0.001)`, et un
+       carton qui finit exactement a la fin de la timeline aurait
+       disparu une frame avant l'image qu'il accompagne.
+       LA SIGNATURE `_dzHtml` EVITE L'ECRITURE INUTILE : `liveSync`
+       tourne a CHAQUE frame et la chaine est la meme pendant toute
+       la duree du carton. Sans elle, un `innerHTML` par frame --
+       donc un sous-arbre DETRUIT et RECONSTRUIT soixante fois par
+       seconde, ce qui aurait relance l'animation CSS d'entree en
+       boucle et rendu le titre illisible. Meme parade que
+       `_dzVeil` ci-dessus, `_svmTfSig` et `_svmKey` plus bas.
+       LA COUCHE ECHAPPE LE TEXTE (`ttEsc`) : il vient de
+       l'utilisateur et il part en `innerHTML`. */
+    var dzTtH=dzTtHostRef.current;
+    if(dzTtH){
+      var dzTtT=Math.min(phRef.current,Math.max(0,durRef.current-.001));
+      var dzTtC=DzTracks.titleAt(clipsRef.current,dzTtT);
+      var dzTtX=dzTtC?DzTracks.titleHtml(dzTtC,dzTtT):"";
+      if(dzTtH._dzHtml!==dzTtX){dzTtH._dzHtml=dzTtX;dzTtH.innerHTML=dzTtX}}
     var host=liveHostRef.current,ov=liveOvRef.current;
     if(!host||!ov){liveVideoRef.current=null;livePoolPause();return}
     var t=Math.min(phRef.current,Math.max(0,durRef.current-.001));
@@ -4397,7 +4430,7 @@ function DzMontage(props){
           opacity:c.opacity};
         /* vitesse V1 (C) — jointe seulement hors 100 % et pour un VRAI plan
            vidéo (une image n'a pas de défilement) : payload d'avant sinon */
-        if(c.tr==="v1"&&c.src.job_id&&typeof c.speed==="number"&&c.speed>0&&
+        if(c.tr==="v1"&&c.src&&c.src.job_id&&typeof c.speed==="number"&&c.speed>0&&
            Math.abs(c.speed-1)>1e-6)o.speed=Math.round(c.speed*100)/100;
         /* mixage par clip (pistes audio) — joint seulement si non nul :
            un projet sans réglage envoie exactement le payload d'avant */
@@ -5593,6 +5626,7 @@ function DzMontage(props){
              opacité) à chaque frame : le lecteur vivant n'a qu'un
              hôte, donc pas de crossfade A/B — un voile dit OÙ tombe
              la transition et COMBIEN elle dure. */
+          liveOn?r.jsx("div",{className:"svm-livetitle",ref:dzTtHostRef,"aria-hidden":!0}):null,
           liveOn?r.jsx("i",{className:"svm-xfveil",ref:dzVeilRef,"aria-hidden":!0}):null,
           liveOn&&!liveClip?r.jsx("div",{className:"svm-livegap",children:"trou"}):null,
           /* cadre de sélection des overlays : boîte + 8 poignées (échelle) +
@@ -5698,7 +5732,7 @@ function DzMontage(props){
                   return r.jsx("option",{value:String(p3),children:p3+" %"},p3)})})]},"Vitesse"))}
           /* In / Out / Vitesse : une fenêtre de source, ça ne veut rien dire
              pour une ligne de texte — la section « Sous-titre » prend le relais */
-          return sel&&sel.tr==="s1"?null
+          return sel&&(trackKind(sel.tr)==="subs"||trackKind(sel.tr)==="title")?null
             :r.jsx("div",{className:"svm-props",children:kids})})(),
         subsInspector(),
         /* P6 — le remplacement de source, posé ENTRE la fenêtre
@@ -5771,6 +5805,13 @@ function DzMontage(props){
           pushHistory:pushHistory,setClips:setClips,setDirty:setDirty,
           note:fireNote}),
         transInspector(),
+        sel&&trackKind(sel.tr)==="title"?r.jsx(DzTracks.TitleInspector,{clip:sel,
+          gabarits:dzTitles&&dzTitles.gabarits,
+          fonts:dzTitles&&dzTitles.fonts,colors:dzTitles&&dzTitles.colors,
+          onChange:function(id,p){
+            var cs=DzTracks.titleUpdate(clipsRef.current,id,p);
+            if(cs===clipsRef.current)return;
+            pushHistory();setClips(cs);setDirty(!0)}}):null,
         /* P3 — les coupes sont appliquées de la FIN vers le DÉBUT :
            une coupe tardive ne décale pas les précédentes, donc les
            plages restent justes sans être recalculées entre deux. Un
@@ -5865,7 +5906,7 @@ function DzMontage(props){
           r.jsxs("div",{children:[
             r.jsx("div",{className:"svm-dmtitle",children:"Maître de durée"}),
             r.jsx("div",{className:"svm-dmhint",children:"La voix off ne sera jamais coupée"})]})]}),
-        (sel&&sel.tr==="s1"?null:vfxStackSection()),
+        (sel&&(trackKind(sel.tr)==="subs"||trackKind(sel.tr)==="title")?null:vfxStackSection()),
         /* P4 — le geste GLOBAL de l'étalonnage : les quatre valeurs
            du plan sélectionné recopiées sur tous les autres plans
            réels de SA piste (pas « v1 » en dur : un plan V2 peut
@@ -6066,9 +6107,12 @@ function DzMontage(props){
                 ?"Écrire un sous-titre à la tête de lecture"
                 :trackKind(tr.id)==="audio"
                 ?"Ajouter un son de la Bibliothèque à la tête de lecture"
+                :trackKind(tr.id)==="title"
+                ?"Poser un carton de titre à la tête de lecture ("+svmKeyLabelNow("title_add")+") — la piste des titres ne reçoit aucun autre média"
                 :"Ajouter une image ou un rendu à la tête de lecture",
               onClick:function(){
                 if(trackKind(tr.id)==="subs"){subsAddHere();return}
+                if(trackKind(tr.id)==="title"){dzTtAdd();return}
                 openPicker(tr.id)},children:"+"},"add");
             var thType=r.jsx("span",{className:"svm-ttype",title:tr.type,children:tr.type},"type");
             var thM=bus?r.jsx("button",{className:"svm-minibtn svm-tkbtn",
@@ -13534,10 +13578,23 @@ var DzmTrackBtns=function(props){
     set(dzmRemove(ts,tr.id));
     if(n&&props.setClips)props.setClips(function(cs){
       return (cs||[]).filter(function(c){return c.tr!==tr.id})});
+    /* CE QUE LA NOTE PROMET DOIT EXISTER (correctif du 22/09/2026, revue
+       de la tâche 6). La phrase renvoyait à « + audio » ou « + vidéo » et
+       la piste des TITRES retombait sur « + vidéo » : or aucun bouton de ce
+       nom ne repose T1 — la bande revient par le raccourci « poser un
+       titre », qui recrée la piste EN TÊTE avant d'y poser le carton
+       (`titleTrack`, mesuré). Le genre est DÉDUIT (`dzmKindOf`) et non lu
+       tel quel : une piste restaurée d'une vieille sauvegarde n'a que son
+       `id`, et `tr.kind` y vaut `undefined`. La combo vient de la keymap
+       VIVANTE : un remappage aurait rendu « Maj+T » faux. */
     note("Piste "+(tr.name||tr.id)+" retirée"+
       (n?" avec "+n+" clip"+(n>1?"s":""):"")+
-      (n?" — annuler ramène les clips ; la piste, elle, se rajoute par "+
-         "« + "+(tr.kind==="audio"?"audio":"vidéo")+" » (même identifiant).":"."))}
+      (n?" — annuler ramène les clips ; la piste, elle, "+
+         (dzmKindOf(tr.id,tr.kind)==="title"
+          ?"revient avec "+dzmCombo("title_add","Maj+T")+
+           ", qui repose un carton (même identifiant)."
+          :"se rajoute par « + "+(tr.kind==="audio"?"audio":"vidéo")+
+           " » (même identifiant)."):"."))}
   return r.jsxs("div",{className:"dzm-hb",draggable:!0,
     title:"Glisser pour réordonner la piste (ou ▲ ▼)",
     onDragStart:function(e){
@@ -17969,9 +18026,16 @@ function dzmMarkersFrom(v){
    de closure : la couche ne peut pas l'atteindre. Resolu A L'APPEL, comme
    `svmTcFF`, et avec le meme repli : sous node le symbole n'existe pas, et
    `svmKeyLabelNow` rend "" sur une action inconnue. */
-function dzmMarkerCombo(){
+/* LA RÉSOLUTION EST ÉCRITE UNE SEULE FOIS (22/09/2026) : D-21 a un SECOND
+   texte à faire parler la keymap (la note de retrait de la piste T1), et
+   recopier la ligne `typeof svmKeyLabelNow` aurait fait DEUX résolutions du
+   même symbole — c'est exactement ce que la ligne
+   `D5_I5_les_trois_textes_lisent_la_keymap_vivante` compte à UN. Le repli
+   reste un ARGUMENT : chaque appelant nomme le sien, aucun défaut caché. */
+function dzmCombo(id,repli){
   var f=typeof svmKeyLabelNow==="function"?svmKeyLabelNow:null;
-  return (f&&f("marker_toggle"))||"Maj+M"}
+  return (f&&f(id))||repli}
+function dzmMarkerCombo(){return dzmCombo("marker_toggle","Maj+M")}
 function DzmMarkers(o){
   var ms=Array.isArray(o&&o.markers)?o.markers.filter(Boolean):[],
       d=Number(o&&o.dur)||1,go=o&&o.onSeek;
@@ -18314,14 +18378,33 @@ function dzmVeil(clips,t){
    même règle que `dzmVideoExt`, qui n'écrit aucune extension, et que
    `dzmTransLabel`, qui ne nomme aucune transition. */
 
+/* LE NOM DE GABARIT, ASSAINI AUX CARACTÈRES D'UN IDENTIFIANT — et rendu
+   MINUSCULE AVANT (correctif du 22/09/2026, revue de la tâche 6). Les huit
+   clés de `titles.TEMPLATES` sont en minuscules ; le filtre `[^a-z0-9_]`
+   MANGEAIT donc les capitales au lieu de les ramener : « CTA » devenait ""
+   (aucune classe, aucun gabarit envoyé) et « Plein_Cadre » devenait
+   « lein_adre », un nom qui n'existe pas et que le backend remplace en
+   silence par son défaut. `toLowerCase()` d'abord, et les deux cas rendent
+   le gabarit attendu. Un nom hostile reste assaini : la classe ne peut pas
+   sortir de l'attribut.
+   TROIS APPELANTS, UNE SEULE RÈGLE : `titleNew`, `titleHtml` et
+   `titleUpdate` — trois copies auraient divergé à la première retouche. */
+function dzmTtTpl(v){
+  return (typeof v==="string"?v:"").toLowerCase().replace(/[^a-z0-9_]/g,"")}
+
 /* L'ÉCHAPPEMENT, PARCE QUE L'APERÇU VIVANT EST ÉCRIT EN `innerHTML`. Le
    texte vient de l'utilisateur : « <b> » doit s'AFFICHER, pas gras. Les
-   quatre caractères sont ceux qui comptent dans un corps d'élément et dans
+   CINQ caractères sont ceux qui comptent dans un corps d'élément et dans
    une valeur d'attribut ; `&` passe EN PREMIER, sinon les entités posées
-   par les suivants seraient ré-échappées. */
+   par les suivants seraient ré-échappées.
+   L'APOSTROPHE EST DU LOT (revue du 22/09/2026). Elle ne sert à rien tant
+   que CETTE fonction n'écrit que des corps d'élément — mais elle est la
+   moitié manquante d'un échappeur d'attribut, et le jour où l'aperçu vivant
+   porterait un `title='…'` la fuite serait silencieuse. Cinq caractères
+   coûtent une ligne ; un échappeur à moitié juste coûte une faille. */
 function dzmTtEsc(v){return String(v==null?"":v)
   .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
-  .replace(/"/g,"&quot;")}
+  .replace(/"/g,"&quot;").replace(/'/g,"&#39;")}
 
 /* La piste t1 si elle manque, EN TÊTE. Rend le MÊME tableau quand elle est
    déjà là : l'appelant compare l'identité pour savoir s'il doit écrire
@@ -18360,7 +18443,7 @@ function dzmTitleNew(title,t,clips,tr){
   var n=1;
   (Array.isArray(clips)?clips:[]).forEach(function(c){if(c&&c.kind==="title")n++});
   var ti={text:txt};
-  var tpl=(typeof o.template==="string"?o.template:"").replace(/[^a-z0-9_]/g,"");
+  var tpl=dzmTtTpl(o.template);
   if(tpl)ti.template=tpl;
   var sub=(typeof o.sub==="string"?o.sub:"").trim();
   if(sub)ti.sub=sub;
@@ -18406,10 +18489,204 @@ function dzmTitleHtml(clip,t){
   var v=Number(t);
   if(isFinite(v)){var s=Number(c.start),e=Number(c.end);
     if(isFinite(s)&&isFinite(e)&&(v<s||v>=e))return ""}
-  var tpl=(typeof o.template==="string"?o.template:"").replace(/[^a-z0-9_]/g,"");
+  var tpl=dzmTtTpl(o.template);
   var sub=(typeof o.sub==="string"?o.sub:"").trim();
   return '<div class="dzm-tt'+(tpl?" dzm-tt-"+tpl:"")+'">'+
     "<b>"+dzmTtEsc(txt)+"</b>"+(sub?"<i>"+dzmTtEsc(sub)+"</i>":"")+"</div>"}
+
+/* ── D-21 (22/09/2026) : RÉGLER UN CARTON, ET L'INSPECTEUR QUI LE RÈGLE ────
+   `dzmTitleUpdate(clips, id, patch)` est PURE et rend la liste entière. Elle
+   ne rend un TABLEAU NEUF que lorsqu'il y a eu un changement RÉEL ; sinon
+   elle rend LE MÊME TABLEAU, et l'identité EST le signal — exactement comme
+   `titleTrack` et `dzmMove`. C'est ce qui permet à l'hôte de ne payer un
+   `pushHistory` que pour un vrai changement : un patch refusé (texte vide,
+   gabarit qui ne survit pas à l'assainissement, valeur identique) n'allume
+   ni « NON ENREGISTRÉ » ni une entrée d'historique qui ne défait rien.
+   CE QUE LA COUCHE NE SAIT PAS, ELLE NE LE JUGE PAS — et c'est un ÉCART
+   MESURÉ contre la lettre du plan, qui demandait « gabarit inconnu →
+   inchangé » et une couleur « hors BRAND → inchangée » :
+     . les huit noms de gabarits vivent dans `titles.TEMPLATES` et la ligne
+       `D21_la_couche_ne_recopie_aucun_gabarit` du banc bundle INTERDIT d'en
+       écrire un seul ici. Le seul « inconnu » que la couche puisse trancher
+       est le nom qui ne survit PAS à l'assainissement (`dzmTtTpl` rend "")
+       — celui-là est refusé ; les autres traversent, et `title_spec`
+       retombe sur son défaut. L'inspecteur, lui, ne propose QUE les huit du
+       serveur : l'utilisateur ne peut pas en frapper un douzième ;
+     . `BRAND` et `FONT_FILES` sont dans le même cas. La couche accepte
+       toute chaîne non vide et le BACKEND assainit (`color not in BRAND`
+       → couleur du gabarit). Écrire ici une seconde table de cinq couleurs
+       et de seize polices aurait été une seconde autorité à démêler.
+   LA CHAÎNE VIDE EFFACE LA CLÉ (`sub`, `color`, `font`) : c'est le choix
+   « (du gabarit) » de l'inspecteur, et il doit RETIRER le réglage, pas
+   écrire un `color:""` que `title_spec` devrait ensuite ignorer.
+   UN TEXTE VIDE EST REFUSÉ, exactement comme dans `titleNew` et dans
+   `title_spec` (« un carton sans texte n'est pas un carton ») : vider le
+   champ ne fabrique pas un clip que le rendu jetterait en silence — l'input
+   repart de l'ancien texte au remontage (sa clé porte la valeur).
+   LE LIBELLÉ DE LA BANDE SUIT LE TEXTE : la timeline dessine `c.label`, et
+   sans cette ligne le carton aurait gardé le nom de son premier jet.
+   LES BORNES 120/160 SONT CELLES DU BACKEND (`MAX_TEXT`, `MAX_SUB`), et
+   elles sont ici pour que le champ ne PARAISSE pas accepter ce qui sera
+   coupé — le serveur reste l'autorité, la couche n'est qu'une politesse. */
+var DZM_TT_MAX_TEXT=120,DZM_TT_MAX_SUB=160;
+function dzmTitleUpdate(clips,id,patch){
+  var cs=Array.isArray(clips)?clips:[];
+  var p=patch&&typeof patch==="object"?patch:null;
+  var cible=null,i;
+  if(p){for(i=0;i<cs.length;i++){
+    if(cs[i]&&cs[i].id===id&&cs[i].kind==="title"){cible=cs[i];break}}}
+  if(!cible)return cs;
+  var t0=cible.title&&typeof cible.title==="object"?cible.title:{};
+  var t=Object.assign({},t0),bouge=!1;
+  var tpl=dzmTtTpl(p.template);
+  if(tpl&&tpl!==t.template){t.template=tpl;bouge=!0}
+  if(typeof p.text==="string"){
+    var tx=p.text.replace(/\r\n/g,"\n").slice(0,DZM_TT_MAX_TEXT);
+    if(tx.trim()&&tx!==t.text){t.text=tx;bouge=!0}}
+  if(typeof p.sub==="string"){
+    var sb=p.sub.replace(/\r\n/g,"\n").slice(0,DZM_TT_MAX_SUB);
+    if(!sb.trim()){if("sub" in t){delete t.sub;bouge=!0}}
+    else if(sb!==t.sub){t.sub=sb;bouge=!0}}
+  ["color","font"].forEach(function(k){
+    if(typeof p[k]!=="string")return;
+    var v=p[k].trim();
+    if(!v){if(k in t){delete t[k];bouge=!0}}
+    else if(v!==t[k]){t[k]=v;bouge=!0}});
+  if(p.size!=null){var nz=Math.round(Number(p.size));
+    if(isFinite(nz)&&nz>0&&nz!==t.size){t.size=nz;bouge=!0}}
+  if(!bouge)return cs;
+  var lab=typeof t.text==="string"?t.text.slice(0,24):cible.label;
+  return cs.map(function(c){
+    return c===cible?Object.assign({},c,{title:t,label:lab}):c})}
+
+/* LA LARGEUR DES VIGNETTES. 180 px : la colonne d'inspection fait 300 px de
+   large et la galerie est à DEUX colonnes — 180 dans une case de ~140
+   laisse la marge d'un écran à 2× sans repasser par le serveur. La route
+   borne `w` à 96..640 et PAIR ; 180 traverse tel quel. Une largeur par
+   vignette aurait multiplié les entrées du cache serveur par autant. */
+var DZM_TT_CARD_W=180;
+/* L'INSPECTEUR DU CARTON. Appelé COMME UNE FONCTION depuis le rendu de
+   l'hôte, au milieu d'un `?:` — donc SANS HOOK, exactement comme
+   `DzmMarkerIndex` : aucun état local, aucun `useEffect`, tout l'état vit
+   dans le clip. C'est ce qui impose les champs NON CONTRÔLÉS et la clé qui
+   porte la valeur (React ignore `defaultValue` à la mise à jour : après un
+   Ctrl+Z, l'hôte rendait l'ancien texte et l'input gardait le neuf).
+   LES HUIT VIGNETTES SONT DES PNG DU SERVEUR, gravés par le MÊME ASS que le
+   rendu (`GET /title-preview`) : une maquette CSS aurait menti sur la
+   police, la boîte et le placement, c'est-à-dire sur tout ce qui distingue
+   les huit gabarits. `loading="lazy"` — le panneau peut être hors champ.
+   L'URL NE PORTE QUE `template`, `text`, `sub` ET `w`. La couleur, la
+   police et le CORPS en sont VOLONTAIREMENT absents : ils changent
+   l'image sans changer le GABARIT, et les y mettre aurait fait regraver
+   HUIT PNG à chaque cran de la réglette de taille. Le cadre 9:16 du
+   serveur fait foi pour la vignette ; l'aperçu vivant, lui, porte les
+   réglages.
+   UN PUSH PAR CHANGEMENT RÉEL : le texte et le sous-texte partent au BLUR
+   et sur Entrée (un `onChange` par frappe poussait un instantané
+   d'historique par caractère, défaut déjà corrigé pour les marqueurs) ; le
+   gabarit part au CLIC ; couleur et police au `change` d'un `<select>`, qui
+   ne se frappe pas en rafale ; la TAILLE part au relâchement
+   (`onPointerUp`/`onKeyUp`/`onBlur`) et JAMAIS pendant le glissé — React
+   câble `onChange` d'un `<input type=range>` sur l'événement `input`, qui
+   tire à chaque pixel : cinquante instantanés pour un geste.
+   CE QUE CELA COÛTE, ET C'EST ASSUMÉ : le nombre affiché à côté de la
+   réglette ne bouge qu'au relâchement (pas d'état local pour le suivre).
+   Le curseur, lui, glisse normalement — c'est le navigateur qui le tient. */
+function DzmTitleInspector(o){
+  var c=o&&o.clip&&typeof o.clip==="object"?o.clip:null;
+  if(!c||c.kind!=="title")return null;
+  var gs=Array.isArray(o&&o.gabarits)?o.gabarits.filter(Boolean):[];
+  var fonts=Array.isArray(o&&o.fonts)?o.fonts.filter(Boolean):[];
+  var cols=Array.isArray(o&&o.colors)?o.colors.filter(Boolean):[];
+  var on=typeof (o&&o.onChange)==="function"?o.onChange:function(){};
+  var ti=c.title&&typeof c.title==="object"?c.title:{};
+  var txt=typeof ti.text==="string"?ti.text:"";
+  var sub=typeof ti.sub==="string"?ti.sub:"";
+  var cur=dzmTtTpl(ti.template);
+  /* le gabarit COURANT du catalogue : c'est lui qui nomme les défauts
+     affichés dans les deux `<select>` et sous la réglette. Absent (le
+     catalogue n'est pas arrivé, ou le carton porte un nom inconnu), les
+     champs disent « (du gabarit) » sans prétendre savoir lequel. */
+  var gab=null,gi;
+  for(gi=0;gi<gs.length;gi++){if(String(gs[gi].id)===cur){gab=gs[gi];break}}
+  var taille=Number(ti.size)||Number(gab&&gab.size)||64;
+  function maj(p){on(c.id,p)}
+  /* REMONTE SEULEMENT SI ÇA A CHANGÉ — la moitié qui empêche un instantané
+     d'historique sur un blur qui n'a rien touché. */
+  function pousse(cle,avant,e){
+    var v=e&&e.target?String(e.target.value):"";
+    if(v===String(avant==null?"":avant))return;
+    var p={};p[cle]=v;maj(p)}
+  function pousseNb(avant,e){
+    var n=Math.round(Number(e&&e.target?e.target.value:NaN));
+    if(!isFinite(n)||n===Number(avant))return;maj({size:n})}
+  var vignette=txt.trim()||"Titre";
+  return r.jsxs("div",{className:"dzm-ttinsp",children:[
+    r.jsx("div",{className:"svm-poptitle",children:"Titre — gabarit"}),
+    r.jsx("div",{className:"dzm-ttcards",role:"group",
+      "aria-label":"Gabarits de titre",
+      children:gs.map(function(g){
+        var gid=String(g.id||""),lab=String(g.label||gid);
+        return r.jsxs("button",{className:"dzm-ttcard",
+          "data-sel":cur===gid?"":void 0,"aria-pressed":cur===gid,
+          title:lab+" ("+gid+")",
+          onClick:function(){if(gid&&gid!==cur)maj({template:gid})},children:[
+          r.jsx("img",{className:"dzm-ttimg",loading:"lazy",alt:"",
+            src:"/api/montage/title-preview?template="+encodeURIComponent(gid)+
+              "&text="+encodeURIComponent(vignette)+
+              (sub?"&sub="+encodeURIComponent(sub):"")+
+              "&w="+DZM_TT_CARD_W}),
+          r.jsx("span",{className:"dzm-ttname",children:lab})]},gid)})}),
+    r.jsxs("label",{className:"dzm-ttrow",children:[
+      r.jsx("span",{className:"dzm-ttlab",children:"Texte"}),
+      r.jsx("input",{className:"dzm-ttxt",defaultValue:txt,
+        maxLength:DZM_TT_MAX_TEXT,placeholder:"Titre",
+        "aria-label":"Texte du carton",
+        onBlur:function(e){pousse("text",txt,e)},
+        onKeyDown:function(e){if(e.key==="Enter")pousse("text",txt,e)}},
+        c.id+"|"+txt)]}),
+    r.jsxs("label",{className:"dzm-ttrow",children:[
+      r.jsx("span",{className:"dzm-ttlab",children:"Sous-texte"}),
+      r.jsx("input",{className:"dzm-ttxt",defaultValue:sub,
+        maxLength:DZM_TT_MAX_SUB,placeholder:"(aucun)",
+        "aria-label":"Sous-texte du carton",
+        onBlur:function(e){pousse("sub",sub,e)},
+        onKeyDown:function(e){if(e.key==="Enter")pousse("sub",sub,e)}},
+        c.id+"|s|"+sub)]}),
+    r.jsxs("label",{className:"dzm-ttrow",children:[
+      r.jsx("span",{className:"dzm-ttlab",children:"Couleur"}),
+      r.jsx("select",{className:"dzm-ttsel",
+        value:typeof ti.color==="string"?ti.color:"",
+        "aria-label":"Couleur du carton",
+        onChange:function(e){pousse("color",ti.color,e)},
+        children:[r.jsx("option",{value:"",
+          children:"(du gabarit"+(gab&&gab.color?" — "+gab.color:"")+")"},"")]
+          .concat(cols.map(function(k){
+            return r.jsx("option",{value:String(k),children:String(k)},
+              String(k))}))})]}),
+    r.jsxs("label",{className:"dzm-ttrow",children:[
+      r.jsx("span",{className:"dzm-ttlab",children:"Police"}),
+      r.jsx("select",{className:"dzm-ttsel",
+        value:typeof ti.font==="string"?ti.font:"",
+        "aria-label":"Police du carton",
+        onChange:function(e){pousse("font",ti.font,e)},
+        children:[r.jsx("option",{value:"",
+          children:"(du gabarit"+(gab&&gab.font?" — "+gab.font:"")+")"},"")]
+          .concat(fonts.map(function(f){
+            return r.jsx("option",{value:String(f),children:String(f)},
+              String(f))}))})]}),
+    r.jsxs("label",{className:"dzm-ttrow",children:[
+      r.jsx("span",{className:"dzm-ttlab",children:"Taille"}),
+      r.jsx("input",{className:"dzm-ttsize",type:"range",min:24,max:200,step:1,
+        defaultValue:String(taille),
+        "aria-label":"Corps du titre à 1080 p, en pixels",
+        onPointerUp:function(e){pousseNb(taille,e)},
+        onKeyUp:function(e){pousseNb(taille,e)},
+        onBlur:function(e){pousseNb(taille,e)}},c.id+"|z|"+taille),
+      r.jsx("span",{className:"dzm-ttnb",children:taille+" px"})]}),
+    r.jsx("div",{className:"svm-note",
+      children:"Le placement et l'animation viennent du gabarit. "+
+        "L'aperçu du lecteur est approché : Preview 480p fait foi."})]})}
 
 /* ── export contrat ───────────────────────────────────────────────────────── */
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
@@ -18483,6 +18760,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
      seconde porte sur la même fonction. */
   titleTrack:dzmTitleTrack,titleNew:dzmTitleNew,
   titleAt:dzmTitleAt,titleHtml:dzmTitleHtml,ttEsc:dzmTtEsc,
+  titleUpdate:dzmTitleUpdate,TitleInspector:DzmTitleInspector,
   transList:dzmTransList,transLabel:dzmTransLabel,transFamily:dzmTransFamily,
   transLive:dzmTransLive,transDir:dzmTransDir,TransGrid:DzmTransGrid,
   TRANS_FAM:DZM_TRANS_FAM,TRANS_DIR:DZM_TRANS_DIR,TRANS_TT:DZM_TRANS_TT,

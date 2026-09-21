@@ -1375,8 +1375,17 @@ check("M12_pousse_l_historique_avant_de_couper",
       len(re.findall(r"pushHistory\(\);[\s\S]{0,420}DzTracks\.rippleCut\(",
                      s)) == 1,
       str(len(re.findall(r"pushHistory\(\);[\s\S]{0,420}DzTracks\.rippleCut\(", s))))
+# LA MESURE EST SCOPEE AU TIROIR DE TEXTE (22/09/2026) : depuis la tache 7,
+# TT6 — l'inspecteur des titres — est REPLIE dans la meme section et paie son
+# propre instantane. Compter sur R_M12 ENTIER aurait rougi pour une raison
+# qui n'a rien a voir avec la coupe. Le conjoint tient l'autre moitie : DEUX
+# en tout dans la section, un par geste, et pas trois.
+_R_M12_CUT = P.R_M12[P.R_M12.find("r.jsx(DzTracks.TextDrawer,"):]
 check("M12_un_seul_pushHistory_pour_le_lot",
-      P.R_M12.count("pushHistory()") == 1, str(P.R_M12.count("pushHistory()")))
+      len(_R_M12_CUT) > 800 and _R_M12_CUT.count("pushHistory()") == 1
+      and P.R_M12.count("pushHistory()") == 2,
+      f"coupe={_R_M12_CUT.count('pushHistory()')} "
+      f"section={P.R_M12.count('pushHistory()')} taille={len(_R_M12_CUT)}")
 # I4 — M12 NE TOUCHE PLUS a la duree du projet, et c'est ce qui rend
 # « annuler » COMPLET. `pushHistory` ne memorise que {clips, mixDb} ; pire,
 # la restauration au chargement fait
@@ -6607,6 +6616,135 @@ out.tg_direct_sans_cat=TBG(function(){
     for(j=0;j<g.length;j++){if(g[j].p.title.indexOf("Preview")>=0)n++}
     if(l[i].k==="historiques")h=g.length}
   return [n,h]});
+/* -- R_TT2B : LE PAYLOAD D UN PROJET SANS CARTON NE CHANGE PAS D UN OCTET.
+   La prose de la section l affirmait « mesure au banc » sans banc (dette
+   relevee le 22/09/2026). La voici : `kind` et `title` valent `undefined`
+   sur tous les clips qui ne sont pas des cartons, et `JSON.stringify` OMET
+   une cle dont la valeur est `undefined` -- la cle EXISTE dans l objet
+   (`in` la trouve) et elle est ABSENTE de la chaine envoyee au serveur.
+   Les deux formes de l objet sont ecrites ici cote a cote ; le fait qu elles
+   soient bien celles de la section est tenu, lui, par la ligne
+   `D21_TT2b_le_carton_emporte_son_genre_et_son_titre`, qui epingle le texte
+   du remplacement. */
+out.tt2b_payload_identique=TBG(function(){
+  var c={tr:"v1",src:{a:1},start:0,end:4,srcIn:0,transition:"fade"};
+  var av={tr:c.tr,src:c.src,start:c.start,end:c.end,srcIn:c.srcIn||0,
+    transition:c.transition};
+  var ap={tr:c.tr,src:c.src,start:c.start,end:c.end,srcIn:c.srcIn||0,
+    kind:c.kind,title:c.title,transition:c.transition};
+  return [JSON.stringify(av)===JSON.stringify(ap),
+    "kind" in ap,JSON.stringify(ap).indexOf("kind")<0,
+    Object.keys(JSON.parse(JSON.stringify(ap))).length]});
+/* ET LE CARTON, LUI, LES EMPORTE : sans ce conjoint, la ligne ci-dessus
+   serait verte de deux cles qui ne partent JAMAIS. */
+out.tt2b_le_carton_les_emporte=TBG(function(){
+  var c={tr:"t1",kind:"title",start:0,end:4,srcIn:0,title:{text:"Ab"}};
+  var ap={tr:c.tr,src:c.src,start:c.start,end:c.end,srcIn:c.srcIn||0,
+    kind:c.kind,title:c.title};
+  var j=JSON.parse(JSON.stringify(ap));
+  return [j.kind,j.title.text,"src" in j]});
+/* -- D-21 (tache 7) : L INSPECTEUR DU CARTON, RENDU PAR LE STUB JSX ------
+   `r.jsxs` est encore pose (remis a null juste apres). Le catalogue est
+   celui que sert GET /titles -- huit gabarits, seize polices, cinq
+   couleurs -- EXTRAIT de titles.py et de subtitle_service.py par le banc
+   Python, sous le jeton __DZ_TITLES__. Une copie a la main derivait au
+   premier gabarit ajoute. */
+var TIC=__DZ_TITLES__;
+var TICL={tr:"t1",kind:"title",id:"t1u1",label:"Ab",start:0,end:4,
+  title:{template:"cta",text:"Ab"}};
+function TIN(o){var q={clip:TICL,gabarits:TIC.gabarits,fonts:TIC.fonts,
+  colors:TIC.colors},k;for(k in o)q[k]=o[k];return T.TitleInspector(q)}
+out.ti_cartes=TBG(function(){
+  var n=TIN({}),g=n.p.children[1].p.children;
+  return [n.p.className,g.length,g.map(function(b){return b.k}),
+    g.filter(function(b){return b.p["data-sel"]===""})
+      .map(function(b){return b.k}),
+    g[0].p.children[0].t,g[0].p.children[0].p.loading,
+    g[0].p.children[0].p.src,g[0].p.children[1].p.children,
+    g[0].p["aria-pressed"],
+    g.filter(function(b){return b.k==="cta"})[0].p["aria-pressed"]]});
+/* L URL DE LA VIGNETTE NE PORTE QUE LE GABARIT, LE TEXTE, LE SOUS-TEXTE ET
+   LA LARGEUR : la couleur, la police et le corps en sont VOLONTAIREMENT
+   absents (ils changent l image sans changer le GABARIT, et les y mettre
+   aurait fait regraver HUIT PNG a chaque cran de la reglette). */
+out.ti_url=TBG(function(){
+  var n=TIN({clip:{tr:"t1",kind:"title",id:"t1u1",start:0,end:4,
+    title:{template:"cta",text:"a&b",sub:"s u",color:"cyan",font:"Anton",size:99}}});
+  return n.p.children[1].p.children[0].p.children[0].p.src});
+/* SANS TEXTE, LA VIGNETTE MONTRE « Titre » -- une URL a `text=` vide fait
+   un 400 cote serveur (`title_spec` rend None) et huit cases cassees. */
+out.ti_url_sans_texte=TBG(function(){
+  var n=TIN({clip:{tr:"t1",kind:"title",id:"t1u1",start:0,end:4,
+    title:{template:"cta",text:"  "}}});
+  return n.p.children[1].p.children[0].p.children[0].p.src});
+out.ti_non_titre=TBG(function(){
+  return [T.TitleInspector({clip:{tr:"v1",id:"z",src:{a:1}}}),
+    T.TitleInspector({}),T.TitleInspector(null)]});
+/* SANS CATALOGUE : zero vignette, et les deux <select> reduits a la seule
+   option « (du gabarit) ». L inspecteur reste utilisable par son texte. */
+out.ti_sans_catalogue=TBG(function(){
+  var n=T.TitleInspector({clip:TICL});
+  return [n.p.children[1].p.children.length,
+    n.p.children[4].p.children[1].p.children.length,
+    n.p.children[5].p.children[1].p.children.length,
+    n.p.children[4].p.children[1].p.children[0].p.children]});
+/* LE CHAMP EST NON CONTROLE ET NE REMONTE QU AU BLUR/ENTREE, ET SEULEMENT
+   S IL A CHANGE : QUATRE gestes, DEUX remontees -- meme mesure que
+   `mk_index_titre` pour l index des marqueurs. */
+out.ti_texte=TBG(function(){
+  var vu=[],n=TIN({onChange:function(i,q){vu.push([i,q])}});
+  var e=n.p.children[2].p.children[1];
+  e.p.onBlur({target:{value:"Ab"}});
+  e.p.onKeyDown({key:"x",target:{value:"zz"}});
+  e.p.onBlur({target:{value:"Abo"}});
+  e.p.onKeyDown({key:"Enter",target:{value:"Abon"}});
+  return [e.p.defaultValue,e.p.value===void 0,e.p.maxLength,vu]});
+/* LA CLE DE L INPUT PORTE LA VALEUR : React IGNORE `defaultValue` a la mise
+   a jour, et apres Ctrl+Z l hote rendait l ancien texte pendant que l input
+   gardait le neuf. Les deux champs, pas seulement le premier. */
+out.ti_cle_input=TBG(function(){
+  function cl(t,u){var n=T.TitleInspector({clip:{tr:"t1",kind:"title",
+    id:"t1u1",start:0,end:4,title:{template:"cta",text:t,sub:u}}});
+    return [n.p.children[2].p.children[1].k,n.p.children[3].p.children[1].k]}
+  return [cl("a","x"),cl("b","x"),cl("a","y")]});
+/* LE CLIC SUR UNE CARTE REMONTE LE GABARIT ; LA CARTE DEJA CHOISIE NE
+   REMONTE RIEN (sans quoi re-cliquer le gabarit courant empilait un
+   instantane d historique qui ne defait rien). */
+out.ti_carte_clic=TBG(function(){
+  var vu=[],n=TIN({onChange:function(i,q){vu.push([i,q])}});
+  var g=n.p.children[1].p.children;
+  g[0].p.onClick();
+  g.filter(function(b){return b.k==="cta"})[0].p.onClick();
+  return vu});
+out.ti_selects=TBG(function(){
+  var vu=[],n=TIN({onChange:function(i,q){vu.push([i,q])}});
+  var co=n.p.children[4].p.children[1],fo=n.p.children[5].p.children[1];
+  co.p.onChange({target:{value:"cyan"}});
+  fo.p.onChange({target:{value:"Anton"}});
+  co.p.onChange({target:{value:""}});
+  return [co.p.value,fo.p.value,co.p.children.length,fo.p.children.length,
+    co.p.children[0].p.value,vu]});
+/* LA TAILLE PART AU RELACHEMENT ET JAMAIS PENDANT LE GLISSE : React cable
+   `onChange` d un <input type=range> sur l evenement `input`, qui tire a
+   chaque pixel -- cinquante instantanes pour un geste. `onChange` est donc
+   ABSENT, et c est ce que la sonde mesure. */
+out.ti_taille=TBG(function(){
+  var vu=[],n=TIN({onChange:function(i,q){vu.push([i,q])}});
+  var rg=n.p.children[6].p.children[1];
+  rg.p.onPointerUp({target:{value:"68"}});
+  rg.p.onBlur({target:{value:"68"}});
+  rg.p.onKeyUp({target:{value:"90"}});
+  rg.p.onPointerUp({target:{value:"abc"}});
+  return [rg.p.type,rg.p.min,rg.p.max,rg.p.defaultValue,
+    rg.p.onChange===void 0,vu,n.p.children[6].p.children[2].p.children]});
+out.ti_sans_rappels=TBG(function(){
+  var n=TIN({});
+  n.p.children[1].p.children[0].p.onClick();
+  n.p.children[2].p.children[1].p.onBlur({target:{value:"zz"}});
+  n.p.children[3].p.children[1].p.onKeyDown({key:"Enter",target:{value:"q"}});
+  n.p.children[4].p.children[1].p.onChange({target:{value:"cyan"}});
+  n.p.children[6].p.children[1].p.onPointerUp({target:{value:"99"}});
+  return "sans_levee"});
 r.jsxs=null;
 console.log(JSON.stringify(out));
 """
@@ -6660,6 +6798,48 @@ _TRANS_CAT_JS = json.dumps({"familles": [
                for _n in _f.get("noms", [])]}
     for _k, _f in _TRANS_FAM_SVC.items()]}, ensure_ascii=False)
 
+# D-21 (tache 7) — LE CATALOGUE DES TITRES VENU DES SERVICES, jamais recopie :
+# les huit gabarits (identifiant, libelle, fonte, corps, couleur) viennent de
+# `titles.py`, les seize polices de `subtitle_service.FONT_FILES`, les cinq
+# couleurs de `titles.BRAND` — meme technique que `_TRANS_FAM_SVC`. Une copie
+# figee ici divergerait au premier gabarit ajoute, et l'inspecteur serait beni
+# sur un catalogue mort.
+# LE REPLI EST DIT ET N'EST PAS VIDE DE SENS : sans extraction, la sonde
+# recevrait `{gabarits:[]}` et les six lignes de rendu rougiraient toutes sans
+# dire d'ou vient le mal. La ligne dediee ci-dessous rougit SEULE. Faute n6.
+def _lire21(p21):
+    """Lecture tolerante : un fichier ABSENT rend "" et fait rougir la
+    ligne d extraction ci-dessous, jamais mourir le banc (faute n6)."""
+    try:
+        return p21.read_text(encoding="utf-8")
+    except Exception:
+        return ""
+
+
+_TITLESPY = _lire21(ROOT / "backend" / "app" / "services" / "titles.py")
+_SUBSVC = _lire21(ROOT / "backend" / "app" / "services" / "subtitle_service.py")
+_TPL_SVC = re.findall(
+    r'^    "(\w+)":\s*\{"font": "([^"]+)",\s*"size": (\d+),\s*"color": "(\w+)"',
+    _TITLESPY, re.M)
+_m_lab21 = re.search(r"^LABELS = \{(.*?)\n\}", _TITLESPY, re.S | re.M)
+_LAB_SVC = (dict(re.findall(r'"(\w+)": "([^"]*)"', _m_lab21.group(1)))
+            if _m_lab21 else {})
+_m_brand = re.search(r"^BRAND = \{(.*?)\}", _TITLESPY, re.S | re.M)
+_BRAND_SVC = re.findall(r'"(\w+)":', _m_brand.group(1)) if _m_brand else []
+_m_ff21 = re.search(r"^FONT_FILES: dict\[str, str\] = \{(.*?)\n\}",
+                    _SUBSVC, re.S | re.M)
+_FONTS_SVC = re.findall(r'"([^"]+)": "', _m_ff21.group(1)) if _m_ff21 else []
+check("D21_le_catalogue_des_titres_est_extractible_pour_le_banc",
+      len(_TPL_SVC) == 8 and set(_LAB_SVC) == {_t[0] for _t in _TPL_SVC}
+      and len(_BRAND_SVC) == 5 and len(_FONTS_SVC) == 16,
+      f"gabarits={len(_TPL_SVC)} libelles={len(_LAB_SVC)} "
+      f"couleurs={len(_BRAND_SVC)} polices={len(_FONTS_SVC)}")
+_TITLES_JS = json.dumps({
+    "gabarits": [{"id": _g, "label": _LAB_SVC.get(_g, _g), "font": _fo,
+                  "size": int(_sz), "color": _co}
+                 for _g, _fo, _sz, _co in _TPL_SVC],
+    "fonts": _FONTS_SVC, "colors": _BRAND_SVC}, ensure_ascii=False)
+
 _m_exts = re.search(r"_VIDEO_EXTS = \(([^)]*)\)", SVC)
 _exts_svc = re.findall(r'"([^"]+)"', _m_exts.group(1)) if _m_exts else []
 check("backend_la_liste_video_est_extractible_pour_le_banc",
@@ -6698,7 +6878,8 @@ shim.write_text('"use strict";\n' + "var window={};var SVM_TRACK_BUS={};\n" + JS
                 + RULER_SRC + _TRANS_SRC + src + "\n"
                 + probe.replace("__DZ_VIDEO_EXTS__",
                                 json.dumps(_exts_svc or [".mp4"]))
-                       .replace("__DZ_TRANS_CAT__", _TRANS_CAT_JS),
+                       .replace("__DZ_TRANS_CAT__", _TRANS_CAT_JS)
+                       .replace("__DZ_TITLES__", _TITLES_JS),
                 encoding="utf-8")
 r = NODE(["node", str(shim)])
 if r.returncode != 0:
@@ -13159,7 +13340,17 @@ check("D5_I5_les_trois_textes_lisent_la_keymap_vivante",
       # besoin. Elle passe par le meme `dzmMarkerCombo()` que l'infobulle du
       # losange, donc par la meme keymap vivante. DEUX appels dans la
       # couche, un par texte.
-      and src.count('f("marker_toggle")') == 1
+      # D-21 (tache 7) : LA RESOLUTION EST FACTORISEE. Le second texte a
+      # faire parler la keymap (la note de retrait de la piste T1) aurait
+      # demande une SECONDE ligne `typeof svmKeyLabelNow`, que le conjoint
+      # ci-dessus compte a UN. Elle vit desormais dans `dzmCombo(id,repli)`,
+      # que les deux appellent avec LEUR identifiant et LEUR repli -- aucun
+      # defaut cache, une seule resolution.
+      and src.count("function dzmCombo(id,repli){") == 1
+      and src.count("(f&&f(id))||repli") == 1
+      and src.count('dzmCombo("marker_toggle","Maj+M")') == 1
+      and src.count('dzmCombo("title_add","Maj+T")') == 1
+      and src.count('f("marker_toggle")') == 0
       # LE COMPTE PORTE SUR LES APPELS, pas sur le mot : la DECLARATION
       # `function dzmMarkerCombo(){` contient elle aussi « dzmMarkerCombo() »
       # (mesure : 3 occurrences du mot, 1 declaration et 2 appels).
@@ -13238,9 +13429,15 @@ for _lblx, _txtx, _secx, _nomx in (
           f'bundle={s.count(nl(_txtx))} dans_{_nomx}={_txtx in _secx} '
           f'bak={_bak.count(_nlb(_txtx)) if _bak else "?"}')
 # ET IL N'EST TIRÉ QU'UNE FOIS : dépendances VIDES, une seule route citée.
+# DEUX ANNULATIONS depuis la tâche 7 (22/09/2026), et non plus une : TT7ref
+# pose un SECOND effet `[]` — celui du catalogue des titres — avec la même
+# parade `al`. Le compte des annulations est donc celui des effets à
+# dépendances vides de ces deux sections, un par route ; le compte des
+# `fetch` par route, lui, reste à UN et c'est lui qui dit « une seule fois ».
 check("D20_X1_le_catalogue_est_tire_une_seule_fois_et_annulable",
       s.count(nl('fetch("/api/montage/transitions")')) == 1
-      and s.count(nl("return function(){al=!1}},[]);")) == 1,
+      and s.count(nl('fetch("/api/montage/titles")')) == 1
+      and s.count(nl("return function(){al=!1}},[]);")) == 2,
       f'fetch={s.count(nl(chr(34) + "/api/montage/transitions" + chr(34)))} '
       f'annulation={s.count(nl("return function(){al=!1}},[]);"))}')
 # X2 : LA GRILLE DE SEPT TUILES N'EXISTE PLUS. Les deux faces — elle valait 1
@@ -13746,11 +13943,17 @@ check("D21_TT1_trackKind_connait_un_quatrieme_genre",
 # compares, et `var rkd=trackKind(rk.tr)` dont la ligne suivante compare
 # `rkd!==akd`). Aucune n'est un `switch`, aucune n'est une lecture nue : un
 # genre inconnu ne peut donc etre accepte nulle part.
+# 22/09/2026 (tache 7) : 20 -> 27 occurrences, 18 -> 25 comparaisons. SEPT
+# de plus, toutes des EGALITES elles aussi : TT6 (l'inspecteur du carton est
+# monte sur `trackKind(sel.tr)==="title"`), TT9 et TT9b (les deux inspecteurs
+# qui se taisent, deux egalites chacun -- « subs » et « title ») et TT11
+# (l'infobulle et le clic du « + » de T1). Aucune n'est un `switch`, aucune
+# n'est une lecture nue.
 _TKAPP = re.findall(r'trackKind\([^()]*\)\s*([!=]==)', s)
 check("D21_les_seize_appels_de_trackKind_sont_des_egalites",
       (_bak.count(_nlb("trackKind(")) == 16 if _bak else False)
-      and s.count(nl("trackKind(")) == 20
-      and len(_TKAPP) == 18 and all(k in ("===", "!==") for k in _TKAPP)
+      and s.count(nl("trackKind(")) == 27
+      and len(_TKAPP) == 25 and all(k in ("===", "!==") for k in _TKAPP)
       and s.count(nl("var rkd=trackKind(rk.tr);")) == 1
       and s.count(nl("if(rkd!==akd){")) == 1,
       f'bak={_bak.count(_nlb("trackKind(")) if _bak else "?"} '
@@ -13764,6 +13967,17 @@ check("D21_TT2b_le_carton_emporte_son_genre_et_son_titre",
       and ("TT2b-payload-carton", P.A_TT2B, P.R_TT2B) in P.PATCHES
       and s.count(nl("kind:c.kind,title:c.title,")) == 1,
       f'neuf={s.count(nl(P.R_TT2B))} bak={_bak.count(_nlb(_TT2B_VIEUX)) if _bak else "?"}')
+# ET LE PAYLOAD D'UN PROJET SANS CARTON NE CHANGE PAS D'UN OCTET — la mesure
+# que la prose de R_TT2B annonçait sans la fournir (dette relevée le
+# 22/09/2026). `kind` et `title` valent `undefined` sur tous les autres
+# clips ; la clé EXISTE dans l'objet et elle est ABSENTE de la chaîne.
+# LE CONJOINT EST L'AUTRE MOITIÉ : sur un carton, les deux clés partent bien
+# — sans lui, la ligne serait verte de deux clés qui ne partent jamais.
+check("D21_TT2b_un_projet_sans_carton_envoie_le_payload_d_avant",
+      d.get("tt2b_payload_identique") == [True, True, True, 6]
+      and d.get("tt2b_le_carton_les_emporte") == ["title", "Ab", False],
+      f'sans_carton={d.get("tt2b_payload_identique")} '
+      f'carton={d.get("tt2b_le_carton_les_emporte")}')
 # LA FORME D'AVANT DU FILTRE A DISPARU, et elle existait : sans cette ligne,
 # « le carton passe » aurait pu être vrai d'un second filtre ajouté à côté du
 # premier — le clip aurait alors été jeté deux lignes plus loin.
@@ -13789,8 +14003,13 @@ check("D21_poser_un_titre_ne_coute_qu_un_instantane",
 # LE GESTE A DEUX DÉCLENCHEURS ET UNE SEULE ÉCRITURE : le raccourci (TT4) et
 # la chip (TT5) appellent tous deux `dzTtAdd`. Une troisième écriture du
 # geste serait une seconde source de vérité — c'est ce que la négation dit.
+# 22/09/2026 (tache 7) : TROIS declencheurs, et toujours UNE seule ecriture
+# du geste. Le troisieme est le « + » de l'en-tete de T1 (TT11), qui ouvrait
+# `openPicker("t1")` -- le selecteur d'assets sur la piste qui n'en recoit
+# aucun. 3 -> 4 occurrences : la declaration et les trois appels.
 check("D21_les_deux_declencheurs_passent_par_le_meme_geste",
-      s.count(nl("dzTtAdd()")) == 3
+      s.count(nl("dzTtAdd()")) == 4
+      and s.count(nl("function dzTtAdd(){")) == 1
       and s.count(nl("DzTracks.titleNew(")) == 1,
       f'appels={s.count(nl("dzTtAdd()"))} '
       f'titleNew={s.count(nl("DzTracks.titleNew("))}')
@@ -13804,12 +14023,15 @@ check("D21_TT3_un_projet_sans_carton_ne_gagne_pas_de_bande_vide",
       f'inconditionnel={s.count(nl("tracks:DzTracks.titleTrack(svmTracksFrom(d.tracks))"))}')
 # LES NOMS NEUFS ÉTAIENT LIBRES dans le bundle d'entrée — bornes \b. Un nom
 # déjà pris aurait été écrasé en silence (`var` en portée de fonction).
-# `_libre` ET `_bak_txt` SONT TOUS DEUX REDEFINIS plus haut dans ce banc (des
-# variables locales de boucle ont repris leurs noms — dette relevée le
-# 21/09/2026, non corrigée ici : renommer ces noms-là toucherait des sections
-# qui ne sont pas de ce lot). La mesure est donc écrite EN CLAIR, sur `_bak`,
-# la chaîne du .bak_montage déjà chargée pour D-5, avec les mêmes bornes
-# d'identifiant que `_libre`.
+# SEUL `_libre` EST REDEFINI plus haut dans ce banc, et c'est une MESURE du
+# 22/09/2026 qui corrige la version précédente de ce commentaire : elle
+# nommait AUSSI `_bak_txt`, à tort — `_bak_txt` est défini une seule fois
+# (l. 2958) et n'est jamais réécrit ; `_libre`, lui, est repris comme
+# variable locale d'une comparaison de bornes (l. 11261), et l'appeler ici
+# lèverait « not callable ». Dette non corrigée dans ce lot : renommer cette
+# variable-là toucherait des sections qui n'en sont pas. La mesure est donc
+# écrite EN CLAIR, sur `_bak`, la chaîne du .bak_montage déjà chargée pour
+# D-5, avec les mêmes bornes d'identifiant que `_libre`.
 def _libre21(nm, txt):
     if txt is None:
         return -1
@@ -13870,6 +14092,244 @@ check("D21_la_couche_ne_recopie_aucun_gabarit",
       and '"tiers_inferieur"' not in src
       and s.count(nl('{template:"tiers_inferieur",text:"Titre"}')) == 1,
       f'trouves={[g for g in _GAB8 if (chr(34) + g + chr(34)) in src]}')
+
+# ══════════════════════════════════════════════════════════════════════════
+# D-21 (22/09/2026, tâche 7) — L'INSPECTEUR DES TITRES ET L'APERÇU VIVANT
+# ══════════════════════════════════════════════════════════════════════════
+# CINQ DES HUIT MORCEAUX SONT DES REPLIS, et c'est la mesure qui le dit :
+# leur texte vaut 0 dans .bak_montage (aucune section ne pourrait le prendre
+# pour ancre), il est DANS la section citée, et il vaut 1 dans le bundle
+# livré. Même forme que E1/K3/X1/V1/TT1b.
+for _lbl7, _txt7, _sec7, _nom7 in (
+        ("TT6_l_inspecteur_est_monte_sur_le_genre_title",
+         'sel&&trackKind(sel.tr)==="title"'
+         '?r.jsx(DzTracks.TitleInspector,{clip:sel,', P.R_M12, "R_M12"),
+        ("TT7ref_l_hote_et_le_catalogue_vivent_dans_le_composant",
+         "var dzTtHostRef=x.useRef(null);", P.R_M16REF, "R_M16REF"),
+        ("TT7_l_hote_de_l_apercu_est_un_enfant_du_cadre",
+         'liveOn?r.jsx("div",{className:"svm-livetitle",ref:dzTtHostRef,'
+         '"aria-hidden":!0}):null,', P.R_V2, "R_V2"),
+        ("TT8_l_apercu_est_ecrit_par_liveSync",
+         "var dzTtH=dzTtHostRef.current;", P.R_V3, "R_V3"),
+        ("TT9b_la_pile_d_effets_se_tait_sur_un_carton",
+         '(sel&&(trackKind(sel.tr)==="subs"||trackKind(sel.tr)==="title")'
+         '?null:vfxStackSection())', P.R_M13, "R_M13")):
+    check("D21_" + _lbl7,
+          s.count(nl(_txt7)) == 1 and _txt7 in _sec7
+          and (_bak.count(_nlb(_txt7)) == 0 if _bak else False),
+          f'bundle={s.count(nl(_txt7))} dans_{_nom7}={_txt7 in _sec7} '
+          f'bak={_bak.count(_nlb(_txt7)) if _bak else "?"}')
+# LES TROIS SECTIONS À PART, elles, ont une ancre RÉELLE : elle vaut 1 dans
+# .bak_montage, elle vaut 0 dans le bundle livré (le remplacement l'a
+# consommée) et le remplacement vaut 1. Sans la face .bak, « 0 » serait vrai
+# d'un texte qui n'a jamais existé.
+for _lbl8, _a8, _r8, _sec8 in (
+        ("TT9_l_inspecteur_in_out_se_tait_sur_un_carton",
+         P.A_TT9, P.R_TT9, "TT9-inout-carton"),
+        ("TT10_le_payload_ne_dereference_plus_un_src_absent",
+         P.A_TT10, P.R_TT10, "TT10-payload-src-mou"),
+        ("TT11_le_plus_de_T1_pose_un_carton_au_lieu_d_ouvrir_le_selecteur",
+         P.A_TT11, P.R_TT11, "TT11-plus-de-t1-pose-un-carton")):
+    check("D21_" + _lbl8,
+          s.count(nl(_r8)) == 1 and s.count(nl(_a8)) == 0
+          and (_bak.count(_nlb(_a8)) == 1 if _bak else False)
+          and (_sec8, _a8, _r8) in P.PATCHES,
+          f'neuf={s.count(nl(_r8))} vieux={s.count(nl(_a8))} '
+          f'bak={_bak.count(_nlb(_a8)) if _bak else "?"}')
+# TT10 EST UNE CORRECTION D'INVARIANT, PAS UN CONFORT, et la mesure le dit :
+# le filtre de R_M5 laisse passer les clips SANS `src` depuis TT2, et cette
+# ligne-là était la SEULE du corps de la boucle du payload à déréférencer
+# `c.src`. Un carton posé sur un projet réel faisait donc lever le payload
+# entier — « Cannot read properties of undefined ».
+_I_PAY = s.find(nl('clips.filter(function(c){return c.src||c.kind==="title"})'))
+_I_PAYF = s.find(nl("return o})"), _I_PAY if _I_PAY >= 0 else 0)
+_CORPS_PAY = s[_I_PAY:_I_PAYF] if 0 <= _I_PAY < _I_PAYF else ""
+_I_PAYB = _bak.find(_nlb("clips.filter(function(c){return c.src})")) if _bak else -1
+_I_PAYBF = _bak.find(_nlb("return o})"), _I_PAYB) if _I_PAYB >= 0 else -1
+_CORPS_PAYB = _bak[_I_PAYB:_I_PAYBF] if 0 <= _I_PAYB < _I_PAYBF else ""
+check("D21_TT10_plus_aucun_dereferencement_nu_de_src_dans_le_payload",
+      len(_CORPS_PAY) > 1500 and len(_CORPS_PAYB) > 1500
+      # LA MESURE EST « LA SEULE OCCURRENCE EST LA GARDEE » et non
+      # « le texte a disparu » : `c.src&&c.src.job_id` CONTIENT
+      # `c.src.job_id` — la premiere redaction de cette ligne rougissait
+      # sur sa propre correction (mesure du 22/09/2026).
+      and _CORPS_PAY.count("c.src.job_id") == 1
+      and _CORPS_PAY.count("c.src&&c.src.job_id") == 1
+      # le conjoint : la forme FAUTIVE existait bien dans le CORPS DU
+      # PAYLOAD du .bak — sans lui, « une seule et elle est gardee »
+      # serait vrai d'une ligne jamais ecrite. La mesure est SCOPEE au
+      # corps : `c.src.job_id` vaut 16 dans le .bak ENTIER (le bundle
+      # minifie a d'autres `c` et d'autres `src`), et un compte sur le
+      # fichier n'aurait rien dit de cette boucle-la.
+      and _CORPS_PAYB.count("c.src.job_id") == 1
+      and _CORPS_PAYB.count("c.src&&c.src.job_id") == 0,
+      f'corps={len(_CORPS_PAY)} o total={_CORPS_PAY.count("c.src.job_id")} '
+      f'gardees={_CORPS_PAY.count("c.src&&c.src.job_id")} '
+      f'bak={len(_CORPS_PAYB)} o / {_CORPS_PAYB.count("c.src.job_id")}')
+# L'ORDRE DU DOM EST LA TRANCHE : l'aperçu du titre est SOUS le voile et
+# au-dessus des deux couches. Au rendu, les titres sont gravés avant S1 mais
+# APRÈS les `xfade` — un fondu passe donc par-dessus le titre et pas par
+# -dessus les sous-titres. L'écran dit la même chose, et sans `z-index`.
+check("D21_TT7_l_apercu_est_sous_le_voile_et_au_dessus_des_deux_couches",
+      s.count(nl('className:"svm-livetitle"')) == 1
+      and 0 < s.find(nl('className:"svm-live",ref:liveHostRef'))
+              < s.find(nl('className:"svm-liveov",ref:liveOvRef'))
+              < s.find(nl('className:"svm-livetitle"'))
+              < s.find(nl('className:"svm-xfveil"'))
+              < s.find(nl('className:"svm-livegap"')),
+      f'hote={s.count(nl(chr(34) + "svm-livetitle" + chr(34)))}')
+# L'ÉCRITURE EST EN TÊTE DE `liveSync`, comme celle du voile, et pour la même
+# raison : la fonction sort tôt quand les hôtes ne sont pas montés, et
+# l'aperçu doit être EFFACÉ même dans ce cas — sinon un titre survivrait au
+# passage en aperçu 480p, où l'image porte déjà le titre GRAVÉ.
+_I_LS7 = s.find(nl("  function liveSync(){"))
+_I_TT8 = s.find(nl("var dzTtH=dzTtHostRef.current;"))
+_I_HO7 = s.find(nl("var host=liveHostRef.current,ov=liveOvRef.current;"))
+check("D21_TT8_l_apercu_est_ecrit_en_tete_de_liveSync_et_borne_comme_l_image",
+      _I_LS7 >= 0 and _I_TT8 > _I_LS7 and _I_HO7 > _I_TT8
+      and s.count(nl("var dzTtT=Math.min(phRef.current,"
+                     "Math.max(0,durRef.current-.001));")) == 1
+      and s.count(nl("DzTracks.titleAt(clipsRef.current,dzTtT)")) == 1
+      and s.count(nl('DzTracks.titleHtml(dzTtC,dzTtT):"";')) == 1
+      # LA SIGNATURE ÉVITE UN `innerHTML` PAR FRAME : sans elle, le
+      # sous-arbre serait détruit et reconstruit soixante fois par seconde,
+      # l'animation CSS d'entrée relancée en boucle, le titre illisible.
+      and s.count(nl("if(dzTtH._dzHtml!==dzTtX){dzTtH._dzHtml=dzTtX;"
+                     "dzTtH.innerHTML=dzTtX}}")) == 1
+      # ET C'EST LA SEULE ÉCRITURE D'`innerHTML` DE NOS SECTIONS : une
+      # seconde serait une seconde autorité sur le même hôte.
+      and sum(_r.count(".innerHTML=") for _t, _a, _r in P.PATCHES) == 1,
+      f"liveSync={_I_LS7} apercu={_I_TT8} host={_I_HO7}")
+# LES NOMS NEUFS ÉTAIENT LIBRES dans le bundle d'entrée — bornes \b.
+for _nm7 in ("dzTtHostRef", "dzTitles", "setDzTitles", "stDzTt", "dzTtH",
+             "dzTtT", "dzTtC", "dzTtX", "_dzHtml", "dzmTitleUpdate",
+             "DzmTitleInspector", "dzmTtTpl", "dzmCombo"):
+    _nb7 = _libre21(_nm7, _bak if _bak else None)
+    check("D21_nom_" + _nm7 + "_etait_libre_dans_le_bundle_d_entree",
+          _nb7 == 0 and _libre21(_nm7, s) >= 1,
+          f"{_nm7} : .bak={_nb7} (attendu 0) bundle={_libre21(_nm7, s)}")
+# ── CE QUE LE STUB JSX A RENDU ────────────────────────────────────────────
+_GAB_ORDRE = [_t[0] for _t in _TPL_SVC]
+check("D21_l_inspecteur_rend_huit_cartes_et_marque_celle_du_carton",
+      isinstance(d.get("ti_cartes"), list) and len(d.get("ti_cartes") or []) == 10
+      and d["ti_cartes"][0] == "dzm-ttinsp"
+      and d["ti_cartes"][1] == 8 and d["ti_cartes"][2] == _GAB_ORDRE
+      # UNE SEULE carte marquée, et c'est celle du gabarit du carton.
+      and d["ti_cartes"][3] == ["cta"]
+      and d["ti_cartes"][4] == "img" and d["ti_cartes"][5] == "lazy"
+      and d["ti_cartes"][6] == ("/api/montage/title-preview?template="
+                                + _GAB_ORDRE[0] + "&text=Ab&w=180")
+      and d["ti_cartes"][7] == _LAB_SVC.get(_GAB_ORDRE[0])
+      # `data-sel` est un crochet de STYLE, `aria-pressed` la même
+      # information pour un lecteur d'écran — les deux, pas l'un ou l'autre.
+      and d["ti_cartes"][8] is False and d["ti_cartes"][9] is True,
+      f'{d.get("ti_cartes")}')
+# L'URL NE PORTE QUE CE QUI CHANGE LE GABARIT : le texte et le sous-texte
+# sont ENCODÉS, la couleur / la police / le corps sont ABSENTS. Sans la
+# moitié négative, la ligne serait verte d'une URL qui regrave huit PNG à
+# chaque cran de la réglette.
+check("D21_l_url_de_la_vignette_encode_le_texte_et_ignore_les_reglages",
+      d.get("ti_url") == ("/api/montage/title-preview?template="
+                          + _GAB_ORDRE[0] + "&text=a%26b&sub=s%20u&w=180"),
+      f'{d.get("ti_url")}')
+# UN CARTON SANS TEXTE MONTRE « Titre » : un `text=` vide fait un 400 côté
+# serveur (`title_spec` rend None) et huit cases cassées.
+check("D21_une_vignette_sans_texte_montre_le_mot_Titre",
+      d.get("ti_url_sans_texte") == ("/api/montage/title-preview?template="
+                                     + _GAB_ORDRE[0] + "&text=Titre&w=180"),
+      f'{d.get("ti_url_sans_texte")}')
+check("D21_l_inspecteur_ne_rend_rien_hors_d_un_carton",
+      d.get("ti_non_titre") == [None, None, None], f'{d.get("ti_non_titre")}')
+# SANS CATALOGUE : zéro vignette, et les deux `<select>` réduits à la seule
+# option « (du gabarit) ». Le carton reste réglable par son texte, et le
+# rendu garde ses défauts — l'échec du `fetch` est silencieux, comme X1.
+check("D21_sans_catalogue_l_inspecteur_n_invente_ni_gabarit_ni_police",
+      d.get("ti_sans_catalogue") == [0, 1, 1, "(du gabarit)"],
+      f'{d.get("ti_sans_catalogue")}')
+# QUATRE GESTES, DEUX REMONTÉES : le champ est NON CONTRÔLÉ, il ne part
+# qu'au blur et sur Entrée, et un blur sans changement ne remonte rien —
+# même mesure que `mk_index_titre` pour l'index des marqueurs.
+check("D21_le_texte_ne_remonte_qu_au_blur_ou_a_l_entree_et_s_il_a_change",
+      isinstance(d.get("ti_texte"), list) and len(d.get("ti_texte") or []) == 4
+      and d["ti_texte"][0] == "Ab" and d["ti_texte"][1] is True
+      and d["ti_texte"][2] == 120
+      and d["ti_texte"][3] == [["t1u1", {"text": "Abo"}],
+                               ["t1u1", {"text": "Abon"}]],
+      f'{d.get("ti_texte")}')
+# LA CLÉ DES DEUX CHAMPS PORTE LEUR VALEUR : React IGNORE `defaultValue` à la
+# mise à jour, et après Ctrl+Z l'hôte rendait l'ancien texte pendant que
+# l'input gardait le neuf. Les deux clés sont DISTINCTES entre elles (un
+# `id` seul aurait fait deux enfants de même clé dans le même parent).
+check("D21_la_cle_des_deux_champs_porte_leur_valeur",
+      d.get("ti_cle_input") == [["t1u1|a", "t1u1|s|x"],
+                                ["t1u1|b", "t1u1|s|x"],
+                                ["t1u1|a", "t1u1|s|y"]],
+      f'{d.get("ti_cle_input")}')
+# LE CLIC REMONTE LE GABARIT NU ; LA CARTE DÉJÀ CHOISIE NE REMONTE RIEN.
+check("D21_le_clic_remonte_le_gabarit_et_la_carte_choisie_se_tait",
+      d.get("ti_carte_clic") == [["t1u1", {"template": _GAB_ORDRE[0]}]],
+      f'{d.get("ti_carte_clic")}')
+# LES DEUX `<select>` : cinq couleurs + « (du gabarit) », seize polices +
+# « (du gabarit) », et la chaîne vide REMONTE quand elle change — c'est elle
+# qui EFFACE le réglage. Ici elle ne change pas (rien n'était posé), donc
+# elle ne remonte pas : deux remontées pour trois gestes.
+check("D21_les_deux_selects_offrent_la_charte_et_les_seize_polices",
+      isinstance(d.get("ti_selects"), list) and len(d.get("ti_selects") or []) == 6
+      and d["ti_selects"][0] == "" and d["ti_selects"][1] == ""
+      and d["ti_selects"][2] == len(_BRAND_SVC) + 1
+      and d["ti_selects"][3] == len(_FONTS_SVC) + 1
+      and d["ti_selects"][4] == ""
+      and d["ti_selects"][5] == [["t1u1", {"color": "cyan"}],
+                                 ["t1u1", {"font": _FONTS_SVC[4]}]],
+      f'{d.get("ti_selects")}')
+# LA TAILLE PART AU RELÂCHEMENT ET JAMAIS PENDANT LE GLISSÉ : `onChange` est
+# ABSENT (React le câblerait sur l'événement `input`, qui tire à chaque
+# pixel). Quatre gestes, UNE remontée : deux valeurs identiques au défaut du
+# gabarit, une valeur neuve, une valeur illisible.
+check("D21_la_taille_part_au_relachement_et_jamais_pendant_le_glisse",
+      isinstance(d.get("ti_taille"), list) and len(d.get("ti_taille") or []) == 7
+      and d["ti_taille"][0] == "range" and d["ti_taille"][1] == 24
+      and d["ti_taille"][2] == 200
+      and d["ti_taille"][3] == str(dict((_t[0], _t[2]) for _t in _TPL_SVC)["cta"])
+      and d["ti_taille"][4] is True
+      and d["ti_taille"][5] == [["t1u1", {"size": 90}]]
+      and d["ti_taille"][6] == "68 px",
+      f'{d.get("ti_taille")}')
+check("D21_l_inspecteur_sans_rappel_ne_leve_jamais",
+      d.get("ti_sans_rappels") == "sans_levee", f'{d.get("ti_sans_rappels")}')
+# LE CONTRAT : les deux clés neuves sont exportées, et rien n'est dupliqué.
+check("D21_l_inspecteur_et_titleUpdate_sont_au_contrat",
+      src.count("titleUpdate:dzmTitleUpdate,"
+                "TitleInspector:DzmTitleInspector,") == 1
+      and src.count("function DzmTitleInspector(") == 1
+      and src.count("function dzmTitleUpdate(") == 1,
+      f'contrat={src.count("titleUpdate:dzmTitleUpdate,")}')
+# LA FEUILLE : la galerie est à deux colonnes et la case porte une hauteur
+# EXPLICITE (`aspect-ratio` + `min-height`). Leçon de la Bibliothèque
+# (28/08) : une case en `overflow:hidden` peut contribuer ~0 à la hauteur
+# intrinsèque de sa rangée — 998 lignes de 2 px, et le DOM ne dit rien.
+_R_CARDS = _regle(_MC, ".dzsvm .dzm-ttcards{")
+_R_IMG = _regle(_MC, ".dzsvm .dzm-ttimg{")
+_R_HOTE = _regle(_MC, ".dzsvm .svm-livetitle{")
+_R_TT = _regle(_MC, ".dzsvm .dzm-tt{")
+check("D21_la_feuille_pose_la_galerie_a_deux_colonnes_et_la_case_a_une_hauteur",
+      _R_CARDS is not None and "grid-template-columns:repeat(2,1fr)" in _R_CARDS
+      and _R_IMG is not None and "aspect-ratio:9/16" in _R_IMG
+      and "min-height:" in _R_IMG,
+      f"cartes={_R_CARDS!r} image={_R_IMG!r}")
+# L'HÔTE ET L'APERÇU : pas de `z-index` (l'ordre du DOM suffit, même mesure
+# que le voile), `pointer-events:none` des deux côtés, et les HUIT gabarits
+# ont chacun leur règle de placement.
+check("D21_la_feuille_pose_l_hote_et_les_huit_gabarits",
+      _R_HOTE is not None and "position:absolute" in _R_HOTE
+      and "inset:0" in _R_HOTE and "pointer-events:none" in _R_HOTE
+      and "z-index" not in _R_HOTE
+      and _R_TT is not None and "pointer-events:none" in _R_TT
+      and "z-index" not in _R_TT
+      and all(_regle(_MC, ".dzsvm .dzm-tt-%s{" % _g) is not None
+              for _g in _GAB_ORDRE),
+      f"hote={_R_HOTE!r} manquants="
+      f"{[_g for _g in _GAB_ORDRE if _regle(_MC, '.dzsvm .dzm-tt-%s{' % _g) is None]}")
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")
