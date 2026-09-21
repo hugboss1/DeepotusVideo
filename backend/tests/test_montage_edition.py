@@ -158,6 +158,18 @@ out.roll_borne_source=tri3(T.roll(K3,"p1","p2",-9));
 out.roll_borne_haut=tri3(T.roll(K3,"p1","p2",9));
 out.roll_non_contigu=tri3(T.roll(K3,"p1","p3",1));
 out.roll_vitesse=tri3(T.roll(K3V,"p2","p3",1));
+/* I2 : la garde de jonction a DEUX moities. Le clip audio n'est pas filtre
+   par `tri3`, donc la sonde rend la liste ENTIERE avec sa piste. */
+out.roll_pistes_diff=(function(){
+  var X=[{tr:"v1",id:"a",start:0,end:4,srcIn:0,src:{a:1}},
+         {tr:"a1",id:"b",start:4,end:8,srcIn:0,src:{a:1}}];
+  return T.roll(X,"a","b",1)
+    .map(function(c){return [c.id,c.tr,c.start,c.end,c.srcIn]})})();
+/* I1 : la borne de tete de source se compte EN SOURCE, donc divisee par la
+   vitesse. p3 va a x2 avec srcIn 1 : il ne reste qu'une DEMI-seconde de
+   timeline devant sa tete, pas une seconde. */
+out.slide_tete_source_vitesse=tri3(T.slide(K3V,"p2",-9));
+out.roll_tete_source_vitesse=tri3(T.roll(K3V,"p2","p3",-9));
 out.slip_borne_haut_vitesse=tri3(T.slip(K3.map(function(c){
   return c.id==="p2"?Object.assign({},c,{speed:2}):c}),"p2",-100,{srcDur:20}));
 /* dzmVoisins : le contact se mesure a 0,1 s pres, sur la MEME piste */
@@ -325,7 +337,8 @@ try:
                  "slip","slide","roll","voisins","mou3","pur3",
                  "slide_borne_gauche","slide_sans_gauche",
                  "roll_borne_source","roll_non_contigu",
-                 "voisins_dixieme_exact"]
+                 "voisins_dixieme_exact","roll_pistes_diff",
+                 "slide_tete_source_vitesse","roll_tete_source_vitesse"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -419,6 +432,25 @@ check("roll_refuse_deux_clips_non_contigus",
       D.get("roll_non_contigu"))
 check("roll_la_source_du_droit_suit_la_vitesse",
       at("roll_vitesse",2) == ["p3",9,10,3], at("roll_vitesse",2))
+# I2, SECONDE MOITIE DE LA GARDE : `a` (V1) et `b` (A1) sont CONTIGUS en
+# temps -- seule la piste les separe. Sans cette ligne, retirer `L.tr!==R.tr`
+# ne faisait rougir personne : le mutant survivait.
+check("roll_refuse_deux_pistes_differentes",
+      "roll_pistes_diff" in D
+      and D.get("roll_pistes_diff") == [["a","v1",0,4,0],["b","a1",4,8,0]],
+      D.get("roll_pistes_diff"))
+# I1, LA DIVISION PAR LA VITESSE : p3 va a x2 avec srcIn 1, donc il ne reste
+# qu'une DEMI-seconde de timeline devant sa tete de source. Sans le
+# `/dzmSpeedNum(...)`, la borne vaudrait -1 et p3 partirait a 7 : le mutant
+# survivait aux lignes a vitesse 1, ou diviser par 1 ne se voit pas.
+check("slide_la_tete_de_source_se_compte_en_source",
+      D.get("slide_tete_source_vitesse")
+      == [["p1",0,3.5,0],["p2",3.5,7.5,2],["p3",7.5,10,0]],
+      D.get("slide_tete_source_vitesse"))
+check("roll_la_tete_de_source_se_compte_en_source",
+      D.get("roll_tete_source_vitesse")
+      == [["p1",0,4,0],["p2",4,7.5,2],["p3",7.5,10,0]],
+      D.get("roll_tete_source_vitesse"))
 check("voisins_de_contact", D.get("voisins") == ["p1","p3"], D.get("voisins"))
 check("voisins_ignorent_les_autres_pistes",
       "voisins_autre_piste" in D and D.get("voisins_autre_piste") == [None, None],
