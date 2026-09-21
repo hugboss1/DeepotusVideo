@@ -144,6 +144,37 @@ Sections :
       `revertSrc`) ; backend/tests/test_montage_remplacer.py l'exécute sous
       node et mesure la route.
 
+  H1…H7 (D-0, 21/09/2026) L'HISTORIQUE COMPLET. Ctrl+Z ne rendait que
+      {clips, mixDb} ; il rend désormais AUSSI les pistes, la durée, le style
+      des sous-titres, la plage et les marqueurs. Le cœur est PUR et vit dans
+      la couche (`DzTracks.histSnap` / `histApply`) ; SIX sections et un pli
+      le branchent :
+        H1 `dzProjRef` (le projet relu à chaque rendu — `pushHistory`, `undo`
+           et `redo` sont des useCallback à dépendances VIDES, ils ne voient
+           jamais `proj`), `dzmHistHost()` qui en tire l'instantané, et les
+           deux horloges de rafale `dzStyleHistAt` / `dzDurHistAt` ;
+        H2 `pushHistory()` sans argument empile l'instantané COMPLET ;
+        H3 `undo` et H4 `redo` restaurent tout l'instantané — corps entiers en
+           ancre (`setClips(s.clips);` seul apparaît deux fois), clips rendus
+           par `if("clips" in s)` (histApply ne les touche pas : ils vivent
+           dans `clipsRef`, pas dans `proj`), et `svmTrackBusSync` resynchronisé
+           sur les pistes revenues ;
+        H5 le `h0` du glisser de clip capture l'état ENTIER — sans quoi le
+           relâchement de M17f, qui ALLONGE la durée, empilait un h0 sans
+           `dur` et « Annuler » rendait les clips mais pas la timeline ;
+        « H6 » — le réglage explicite de durée — n'est PAS une section : son
+           ancre serait posée par R_M17G, donc invisible de `--check` et
+           absente du compte générique du banc. Le geste est REPLIÉ dans
+           R_M17G (même motif que M10 dans R_M8) ;
+        H7 le style S1 (`subsStyleSet`) entre dans l'historique. Comme le
+           réglage de durée : une entrée par rafale de 600 ms — même fenêtre
+           que `nudgeHistAt` (M17b).
+      Les six phrases de l'écran qui disaient la réserve d'historique sont
+      réécrites en conséquence (montage.js : DZM_DUR_UNDO, DZM_TB_H_CLIPS,
+      DZM_TB_H_PISTE, DZM_TB_H_STYLE ; ici : R_M17A, R_M17B, R_M17F, et le
+      commentaire de R_M17G). Pas de H8 : `svmTracksSet` appelle DÉJÀ
+      `pushHistory()`, les pistes entrent d'elles-mêmes.
+
 Mécanique identique à patch_bundle_subs.py : restauration du .bak dédié puis
 ré-application, chaque ancre devant apparaître EXACTEMENT une fois, sinon
 abandon sans rien écrire. Le miroir du résultat est
@@ -1395,8 +1426,8 @@ R_M17A = (
     "    var dzTail=dzCl.note+(dzGrew?(\" La timeline a été allongée de \"+\n"
     "      svmRuler(Math.round(d))+\" à \"+svmRuler(Math.round(dzGrew))+\n"
     "      \" : le clip garde sa longueur entière au lieu d'être rogné sur la \"+\n"
-    "      \"fin du projet. « Annuler » retire le clip mais NE raccourcit PAS \"+\n"
-    "      \"la timeline — le réglage de durée, à côté du zoom, la reprend.\"):\"\");\n"
+    "      \"fin du projet. « Annuler » retire le clip, et \"+\n"
+    "      \"rend aussi la durée d'avant.\"):\"\");\n"
     "    if(dzGrew)setProj(function(p){"
     "return Object.assign({},p,{dur:dzGrew})});\n")
 
@@ -1439,9 +1470,8 @@ R_M17B = (
     "return Object.assign({},p,{dur:dzNd})});\n"
     "        fireNote(\"Timeline allongée à \"+svmRuler(Math.round(dzNd))+\n"
     "          \" : « \"+(c.label||\"le clip\")+\" » dépasse la fin du projet, \"+\n"
-    "          \"et n'a PAS été rogné pour autant. « Annuler » le ramène en \"+\n"
-    "          \"place mais NE raccourcit PAS la timeline — le \"+\n"
-    "          \"réglage de durée, à côté du zoom, la reprend.\")}\n"
+    "          \"et n'a PAS été rogné pour autant. « Annuler » le ramène \"+\n"
+    "          \"en place, et rend aussi la durée d'avant.\")}\n"
     "      setDirty(!0)},\n")
 
 # ── M17c (P10) : `ripMax` disparaît avec le plafond qu'il servait ───────────
@@ -1517,9 +1547,8 @@ R_M17F = (
     '          fireNote("Timeline allongée de "+svmRuler(Math.round(dzU0))+'
     '" à "+\n'
     '            svmRuler(Math.round(dzUd))+" : le geste dépassait la fin du "+\n'
-    '            "projet, et rien n\'a été rogné. « Annuler » rend les clips "+\n'
-    '            "mais NE raccourcit PAS la timeline — le réglage de durée, "+\n'
-    '            "à côté du zoom, la reprend.")}}}\n')
+    '            "projet, et rien n\'a été rogné. « Annuler » rend les "+\n'
+    '            "clips, et rend aussi la durée d\'avant.")}}}\n')
 
 # ── M17g (P10) : le réglage explicite de la durée, dans le transport ───────
 # L'ANCRE est la QUEUE de l'expression du zoom : `" % · "+svmRuler(…)+
@@ -1545,11 +1574,17 @@ R_M17G = ('" %"]}),\n'
           '        /* P10 — la durée du projet CESSE D\'ÊTRE UN AFFICHAGE. Elle\n'
           '           s\'allonge et se raccourcit ici, d\'une graduation de la\n'
           '           règle à la fois ; raccourcir sous la fin du dernier clip\n'
-          '           est REFUSÉ, jamais fait en silence. Le geste n\'entre pas\n'
-          '           dans l\'historique (qui ne porte que {clips, mixDb}) et\n'
-          '           chaque note le dit — le retour, c\'est ce contrôle. */\n'
+          '           est REFUSÉ, jamais fait en silence. Depuis D-0 (le\n'
+          '           21/09/2026, « H6 », replié ICI) le geste ENTRE dans\n'
+          '           l\'historique, une entrée par rafale de 600 ms, et\n'
+          '           chaque note le dit. */\n'
           '        DzTracks.durCtl({dur:dur,step:tickStep,clips:clips,\n'
-          '          onSet:function(v){setProj(function(p){'
+          '          /* D-0 — MÊME FENÊTRE QUE `nudgeHistAt` (M17b) : une\n'
+          '             rafale de clics sur « + » vaut UNE entrée, pas trente. */\n'
+          '          onSet:function(v){var dzN=Date.now();\n'
+          '            if(dzN-dzDurHistAt.current>600)pushHistory();\n'
+          '            dzDurHistAt.current=dzN;\n'
+          '            setProj(function(p){'
           'return Object.assign({},p,{dur:v})});setDirty(!0)},\n'
           '          note:fireNote}),')
 
@@ -2259,6 +2294,91 @@ R_M26B = (
     "          apres:dzOn.on?DzTracks.subsTrTitle(dzTrN):dzOn.pourquoi,\n"
     '          onClick:dzTraduire,k:"trad"})})(),')
 
+# ══════════════════════════════════════════════════════════════════════════
+# D-0 (21/09/2026) — L'HISTORIQUE COMPLET, CÂBLÉ. Le cœur est PUR et vit dans
+# la couche (`DzTracks.histSnap` / `histApply`, joués sous node par
+# backend/tests/test_montage_historique.py) ; ces sept sections le BRANCHENT.
+# ══════════════════════════════════════════════════════════════════════════
+
+# ── H1 (D-0) : la ref du projet et l'instantané complet, à côté de histRef ─
+# `pushHistory`, `undo` et `redo` sont des useCallback à dépendances vides :
+# ils ne voient JAMAIS `proj` — d'où une ref relue à chaque rendu, même motif
+# que `dzTracksRef` (M16ref). MESURÉ : `proj` est déclaré 5 281 octets AVANT
+# `histRef` dans le même corps de composant, l'affectation à chaque rendu lit
+# donc bien la valeur du rendu courant et non `undefined`.
+# `dzmHistHost()` est LE seul lecteur de l'état courant pour l'historique :
+# les gestes qui capturaient h0 à la main passent par lui (H5), les autres
+# gardent leur {clips, mixDb} — histApply s'en accommode (banc L0 [1],
+# « partiel »).
+# L'ANCRE REPREND LE COMMENTAIRE DE FIN DE LIGNE (« piles annuler /
+# rétablir ») : sans lui, le remplacement l'aurait poussé sur la dernière
+# ligne insérée, où il aurait décrit `dzDurHistAt` au lieu de `histRef`.
+A_H1 = "var histRef=x.useRef({u:[],r:[]}); /* piles annuler / rétablir */"
+R_H1 = (A_H1 + "\n"
+        "  var dzProjRef=x.useRef(null);dzProjRef.current=proj;\n"
+        "  function dzmHistHost(){return DzTracks.histSnap({clips:clipsRef.current,"
+        "mixDb:mixRef.current,proj:dzProjRef.current})}\n"
+        "  var dzStyleHistAt=x.useRef(0);\n"
+        "  var dzDurHistAt=x.useRef(0);")
+
+# ── H2 (D-0) : ce que pushHistory empile sans argument ─────────────────────
+A_H2 = "h.u.push(prev||{clips:clipsRef.current,mixDb:mixRef.current});"
+R_H2 = "h.u.push(prev||dzmHistHost());"
+
+# ── H3 / H4 (D-0) : undo et redo restaurent TOUT l'instantané ──────────────
+# Le corps entier est l'ancre : `setClips(s.clips);` seul apparaît deux fois.
+# `histApply` IGNORE DÉLIBÉRÉMENT la clé `clips` (les clips ne vivent pas
+# dans `proj` mais dans `clipsRef`/`setClips`) : c'est le `if("clips" in s)`
+# juste au-dessus qui les rend, et lui seul.
+A_H3 = ("var undo=x.useCallback(function(){\n"
+        "    var h=histRef.current;if(!h.u.length)return;\n"
+        "    var s=h.u.pop();\n"
+        "    h.r.push({clips:clipsRef.current,mixDb:mixRef.current});\n"
+        "    if(h.r.length>60)h.r.shift();\n"
+        "    setClips(s.clips);\n"
+        "    setProj(function(p){return Object.assign({},p,{mixDb:s.mixDb})});\n"
+        "    setDirty(!0);setHistTick(function(t){return t+1})},[]);")
+R_H3 = ("var undo=x.useCallback(function(){\n"
+        "    var h=histRef.current;if(!h.u.length)return;\n"
+        "    var s=h.u.pop();\n"
+        "    h.r.push(dzmHistHost());\n"
+        "    if(h.r.length>60)h.r.shift();\n"
+        "    if(\"clips\" in s)setClips(s.clips);\n"
+        "    /* D-0 — pistes, durée, style S1, plage, marqueurs reviennent avec\n"
+        "       le mixage ; SVM_TRACK_BUS suit les pistes restaurées. `histApply`\n"
+        "       ne touche PAS aux clips : c'est la ligne du dessus qui les rend. */\n"
+        "    if(\"tracks\" in s)svmTrackBusSync(s.tracks);\n"
+        "    setProj(function(p){return DzTracks.histApply(p,s)});\n"
+        "    setDirty(!0);setHistTick(function(t){return t+1})},[]);")
+A_H4 = A_H3.replace("var undo=", "var redo=").replace("!h.u.length", "!h.r.length") \
+           .replace("h.u.pop()", "h.r.pop()").replace("h.r.push(", "h.u.push(") \
+           .replace("h.r.length>60)h.r.shift", "h.u.length>60)h.u.shift")
+R_H4 = R_H3.replace("var undo=", "var redo=").replace("!h.u.length", "!h.r.length") \
+           .replace("h.u.pop()", "h.r.pop()").replace("h.r.push(", "h.u.push(") \
+           .replace("h.r.length>60)h.r.shift", "h.u.length>60)h.u.shift")
+
+# ── H5 (D-0) : le h0 du glisser de clip capture l'état ENTIER ──────────────
+# Sans quoi le relâchement de M17f (qui allonge la durée) empilait un h0 sans
+# `dur`, et « Annuler » rendait les clips mais pas la timeline.
+A_H5 = "var h0={clips:clipsRef.current,mixDb:mixRef.current},snapAt=null;"
+R_H5 = "var h0=dzmHistHost(),snapAt=null;"
+
+# ── H6 (D-0) : le réglage de durée entre dans l'historique ─────────────────
+# PAS DE SECTION H6. MESURÉ le 21/09/2026 : son ancre — la ligne `onSet` du
+# contrôle de durée — n'existe pas dans le bundle d'entrée, elle est POSÉE
+# par R_M17G. Une section de plus y aurait cassé DEUX invariants du banc :
+# `--check`, qui compte les ancres sur le seul état PRÉ-patch, déclarait H6
+# introuvable ; et la boucle générique `M17g-transport-duree_remplace`
+# comptait 0, puisque R_M17G n'apparaissait plus verbatim dans le bundle.
+# La modification est donc REPLIÉE dans R_M17G, exactement comme M10 dans
+# R_M8 et M9c dans R_M9b. Le banc la mesure sous node (`ct_hist`).
+
+# ── H7 (D-0) : le style S1 entre dans l'historique (même fenêtre) ──────────
+A_H7 = "function subsStyleSet(patch){"
+R_H7 = ("function subsStyleSet(patch){\n"
+        "    var dzN=Date.now();if(dzN-dzStyleHistAt.current>600)pushHistory();"
+        "dzStyleHistAt.current=dzN;")
+
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
            ("M5-payload", A_M5, R_M5), ("M6-save", A_M6, R_M6),
@@ -2345,7 +2465,16 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            # la rangée. Aucune de ces ancres n'est touchée par une
            # section antérieure (1/1 dans le bundle patché ET le .bak).
            ("M26a-traduction-etat-et-geste", A_M26A, R_M26A),
-           ("M26b-traduction-rangee", A_M26B, R_M26B)]
+           ("M26b-traduction-rangee", A_M26B, R_M26B),
+           # D-0 (21/09/2026) — l'historique complet : la ref et
+           # l'instantané, la pile, undo/redo, le h0 du glisser, la
+           # durée et le style. Aucune de ces ancres n'est touchée par
+           # une section antérieure (H6 vit DANS le remplacement de
+           # M17g, qui passe avant).
+           ("H1-hist-ref", A_H1, R_H1), ("H2-hist-push", A_H2, R_H2),
+           ("H3-hist-undo", A_H3, R_H3), ("H4-hist-redo", A_H4, R_H4),
+           ("H5-hist-h0-clip", A_H5, R_H5),
+           ("H7-hist-style", A_H7, R_H7)]
 
 
 def nl(text, crlf):
@@ -2447,6 +2576,11 @@ def main():
     if check:
         # Contrôle à sec : on valide les ancres sur l'état PRÉ-patch
         # (le .bak s'il existe, sinon le bundle courant), sans rien écrire.
+        # CE CONTRÔLE NE VOIT QUE L'ÉTAT D'ENTRÉE : une section dont l'ancre
+        # serait POSÉE par une section antérieure y compterait 0. C'est la
+        # raison pour laquelle une telle modification est REPLIÉE dans la
+        # section qui pose son ancre (voir « H6 » dans R_M17G), jamais
+        # ajoutée à PATCHES.
         src = bak if bak.exists() else bundle
         s, _ = read_text(src)
         crlf = "\r\n" in s

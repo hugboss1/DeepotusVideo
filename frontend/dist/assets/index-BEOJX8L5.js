@@ -1783,6 +1783,10 @@ function DzMontage(props){
   var zoomPctRef=x.useRef(zoomPct);zoomPctRef.current=zoomPct;
   var tlScrollRef=x.useRef(null),pendScrollRef=x.useRef(null);
   var histRef=x.useRef({u:[],r:[]}); /* piles annuler / rétablir */
+  var dzProjRef=x.useRef(null);dzProjRef.current=proj;
+  function dzmHistHost(){return DzTracks.histSnap({clips:clipsRef.current,mixDb:mixRef.current,proj:dzProjRef.current})}
+  var dzStyleHistAt=x.useRef(0);
+  var dzDurHistAt=x.useRef(0);
   var stHT=x.useState(0),setHistTick=stHT[1];
   /* lecteur vivant + molette J/K/L + zones sûres */
   var playingRef=x.useRef(playing);playingRef.current=playing;
@@ -1949,25 +1953,33 @@ function DzMontage(props){
      stocker les références suffit. */
   var pushHistory=x.useCallback(function(prev){
     var h=histRef.current;
-    h.u.push(prev||{clips:clipsRef.current,mixDb:mixRef.current});
+    h.u.push(prev||dzmHistHost());
     if(h.u.length>60)h.u.shift();
     h.r.length=0;
     setHistTick(function(t){return t+1})},[]);
   var undo=x.useCallback(function(){
     var h=histRef.current;if(!h.u.length)return;
     var s=h.u.pop();
-    h.r.push({clips:clipsRef.current,mixDb:mixRef.current});
+    h.r.push(dzmHistHost());
     if(h.r.length>60)h.r.shift();
-    setClips(s.clips);
-    setProj(function(p){return Object.assign({},p,{mixDb:s.mixDb})});
+    if("clips" in s)setClips(s.clips);
+    /* D-0 — pistes, durée, style S1, plage, marqueurs reviennent avec
+       le mixage ; SVM_TRACK_BUS suit les pistes restaurées. `histApply`
+       ne touche PAS aux clips : c'est la ligne du dessus qui les rend. */
+    if("tracks" in s)svmTrackBusSync(s.tracks);
+    setProj(function(p){return DzTracks.histApply(p,s)});
     setDirty(!0);setHistTick(function(t){return t+1})},[]);
   var redo=x.useCallback(function(){
     var h=histRef.current;if(!h.r.length)return;
     var s=h.r.pop();
-    h.u.push({clips:clipsRef.current,mixDb:mixRef.current});
+    h.u.push(dzmHistHost());
     if(h.u.length>60)h.u.shift();
-    setClips(s.clips);
-    setProj(function(p){return Object.assign({},p,{mixDb:s.mixDb})});
+    if("clips" in s)setClips(s.clips);
+    /* D-0 — pistes, durée, style S1, plage, marqueurs reviennent avec
+       le mixage ; SVM_TRACK_BUS suit les pistes restaurées. `histApply`
+       ne touche PAS aux clips : c'est la ligne du dessus qui les rend. */
+    if("tracks" in s)svmTrackBusSync(s.tracks);
+    setProj(function(p){return DzTracks.histApply(p,s)});
     setDirty(!0);setHistTick(function(t){return t+1})},[]);
   /* suppression d'un clip (id explicite : Suppr, inspecteur, blocs de
      narration) — ripple actif : les clips SUIVANTS de la même piste remontent
@@ -3230,7 +3242,7 @@ function DzMontage(props){
     var edge=svmEdgeAt(e.clientX,cRect);
     var x0=e.clientX,s0=c.start,e0=c.end,moved=!1,tgt=e.currentTarget;
     try{tgt.setPointerCapture&&tgt.setPointerCapture(e.pointerId)}catch(_c){}
-    var h0={clips:clipsRef.current,mixDb:mixRef.current},snapAt=null;
+    var h0=dzmHistHost(),snapAt=null;
     var edges=[0,durRef.current,phRef.current];
     clipsRef.current.forEach(function(k){if(k.id!==c.id){edges.push(k.start,k.end)}});
     /* ripple : rognage du bord droit d'un clip V1 — les clips suivants de la
@@ -3283,9 +3295,8 @@ function DzMontage(props){
           setProj(function(p){return Object.assign({},p,{dur:dzUd})});
           fireNote("Timeline allongée de "+svmRuler(Math.round(dzU0))+" à "+
             svmRuler(Math.round(dzUd))+" : le geste dépassait la fin du "+
-            "projet, et rien n'a été rogné. « Annuler » rend les clips "+
-            "mais NE raccourcit PAS la timeline — le réglage de durée, "+
-            "à côté du zoom, la reprend.")}}}
+            "projet, et rien n'a été rogné. « Annuler » rend les "+
+            "clips, et rend aussi la durée d'avant.")}}}
     tgt.addEventListener("pointermove",mv);tgt.addEventListener("pointerup",up)}
 
   /* ── édition du mixage : glisser sur le rail = régler le dB du canal ──
@@ -3581,9 +3592,8 @@ function DzMontage(props){
       if(dzNd>d){setProj(function(p){return Object.assign({},p,{dur:dzNd})});
         fireNote("Timeline allongée à "+svmRuler(Math.round(dzNd))+
           " : « "+(c.label||"le clip")+" » dépasse la fin du projet, "+
-          "et n'a PAS été rogné pour autant. « Annuler » le ramène en "+
-          "place mais NE raccourcit PAS la timeline — le "+
-          "réglage de durée, à côté du zoom, la reprend.")}
+          "et n'a PAS été rogné pour autant. « Annuler » le ramène "+
+          "en place, et rend aussi la durée d'avant.")}
       setDirty(!0)},
     gain:function(dd){
       var c=svmKbSelClip();
@@ -3740,6 +3750,7 @@ function DzMontage(props){
     var d=subsLayer();
     return Object.assign(d?d.defaultStyle():{},proj.subsStyle||{})}
   function subsStyleSet(patch){
+    var dzN=Date.now();if(dzN-dzStyleHistAt.current>600)pushHistory();dzStyleHistAt.current=dzN;
     setProj(function(p){
       var d=subsLayer();
       var st=Object.assign(d?d.defaultStyle():{},p.subsStyle||{},patch||{});
@@ -4079,8 +4090,8 @@ function DzMontage(props){
     var dzTail=dzCl.note+(dzGrew?(" La timeline a été allongée de "+
       svmRuler(Math.round(d))+" à "+svmRuler(Math.round(dzGrew))+
       " : le clip garde sa longueur entière au lieu d'être rogné sur la "+
-      "fin du projet. « Annuler » retire le clip mais NE raccourcit PAS "+
-      "la timeline — le réglage de durée, à côté du zoom, la reprend."):"");
+      "fin du projet. « Annuler » retire le clip, et "+
+      "rend aussi la durée d'avant."):"");
     if(dzGrew)setProj(function(p){return Object.assign({},p,{dur:dzGrew})});
     ovSeq.current++;
     /* P12 — l'identifiant est UNIQUE contre les clips existants (une
@@ -5811,11 +5822,17 @@ function DzMontage(props){
         /* P10 — la durée du projet CESSE D'ÊTRE UN AFFICHAGE. Elle
            s'allonge et se raccourcit ici, d'une graduation de la
            règle à la fois ; raccourcir sous la fin du dernier clip
-           est REFUSÉ, jamais fait en silence. Le geste n'entre pas
-           dans l'historique (qui ne porte que {clips, mixDb}) et
-           chaque note le dit — le retour, c'est ce contrôle. */
+           est REFUSÉ, jamais fait en silence. Depuis D-0 (le
+           21/09/2026, « H6 », replié ICI) le geste ENTRE dans
+           l'historique, une entrée par rafale de 600 ms, et
+           chaque note le dit. */
         DzTracks.durCtl({dur:dur,step:tickStep,clips:clips,
-          onSet:function(v){setProj(function(p){return Object.assign({},p,{dur:v})});setDirty(!0)},
+          /* D-0 — MÊME FENÊTRE QUE `nudgeHistAt` (M17b) : une
+             rafale de clics sur « + » vaut UNE entrée, pas trente. */
+          onSet:function(v){var dzN=Date.now();
+            if(dzN-dzDurHistAt.current>600)pushHistory();
+            dzDurHistAt.current=dzN;
+            setProj(function(p){return Object.assign({},p,{dur:v})});setDirty(!0)},
           note:fireNote}),
         /* rappels permanents (R2/I5) — mono 10px discret, masquable par ×
            (dz_hints_off, définitif) ; « B sons » seulement si la couche vit */
@@ -14579,9 +14596,9 @@ function dzmSecs(v){
    la couche les appelle et que le bundle les déclare. */
 function dzmDurTxt(v){return svmRuler(Math.round(v))}
 
-var DZM_DUR_UNDO=" « Annuler » ne rend pas la durée du projet : l'historique "+
-  "de cet écran ne mémorise que les clips et le mixage. C'est ce réglage-ci "+
-  "qui la reprend, dans les deux sens.";
+var DZM_DUR_UNDO=" « Annuler » (Ctrl+Z) rend aussi la durée du projet : elle "+
+  "entre dans l'historique depuis le 21/09/2026, avec les pistes, le style "+
+  "des sous-titres, la plage et les marqueurs.";
 
 function dzmDurBtn(cls,lbl,ttl,aria,fn,key){
   return r.jsx("button",{className:"svm-zoomstep dzm-durb "+cls,
@@ -15799,14 +15816,12 @@ var DZM_TB_T_PROJETS="Ouvrir la liste des projets de montage — enregistrer "+
    patchs ouvre, et l'élargir toucherait TOUS les gestes de l'écran. On DIT
    la limite à chaque bouton, et le retour qui existe vraiment. */
 var DZM_TB_H_CLIPS=" « Annuler » (Ctrl+Z) retire d'un coup ce qui vient "+
-  "d'être posé : l'historique de cet écran mémorise les clips et le mixage.";
-var DZM_TB_H_PISTE=" « Annuler » (Ctrl+Z) NE retire PAS la piste : "+
-  "l'historique de cet écran ne mémorise que les clips et le mixage, et le "+
-  "pas qu'il consomme après ce geste ne défait donc rien de visible. Le "+
-  "« × » de l'en-tête de la piste la retire.";
-var DZM_TB_H_STYLE=" « Annuler » (Ctrl+Z) ne revient pas dessus : ce "+
-  "réglage n'entre pas dans l'historique, une annulation défera le geste "+
-  "d'AVANT. Le retour, c'est de rechoisir.";
+  "d'être posé : l'historique de cet écran mémorise tout l'état du montage.";
+var DZM_TB_H_PISTE=" « Annuler » (Ctrl+Z) retire la piste : l'historique de "+
+  "cet écran mémorise les pistes depuis le 21/09/2026. Le « × » de l'en-tête "+
+  "de la piste la retire aussi.";
+var DZM_TB_H_STYLE=" « Annuler » (Ctrl+Z) revient dessus : ce réglage entre "+
+  "dans l'historique (une entrée par rafale de 600 ms).";
 var DZM_TB_H_PANNEAU=" Ouvrir ou fermer ce panneau n'entre pas dans "+
   "l'historique et ne déplace pas la tête de lecture.";
 var DZM_TB_H_PROJET=" Ouvrir la liste n'entre pas dans l'historique et ne "+
@@ -17138,6 +17153,30 @@ function dzmBdTour(bd,mem){
   dzmBdPose(bd,plan);
   return {plan:plan,mesure:q}}
 
+/* ── D-0 (21/09/2026) : L'HISTORIQUE COMPLET ─────────────────────────────
+   MESURÉ sur le bundle : `pushHistory` n'empilait que {clips, mixDb} ; les
+   pistes, la durée, le style S1, la plage et les marqueurs restaient hors
+   d'atteinte de Ctrl+Z, et six titres de l'écran le disaient. Un instantané
+   porte désormais SEPT clés, toutes des RÉFÉRENCES (les tableaux sont
+   traités en immutable partout : stocker la référence suffit, comme avant).
+   `histApply` ne touche QUE les clés que l'instantané PORTE : un h0
+   historique {clips, mixDb} capturé par un geste amont reste valable. */
+var DZM_HIST_CLES=["tracks","dur","subsStyle","range","markers"];
+function dzmHistSnap(o){
+  if(!o||typeof o!=="object")return {};
+  var s={},p=o.proj,i,k;
+  if("clips" in o)s.clips=o.clips;
+  if("mixDb" in o)s.mixDb=o.mixDb;
+  if(p&&typeof p==="object")for(i=0;i<DZM_HIST_CLES.length;i++){
+    k=DZM_HIST_CLES[i];if(k in p)s[k]=p[k]}
+  return s}
+function dzmHistApply(p,s){
+  if(!s||typeof s!=="object")return p;
+  var base=(p&&typeof p==="object")?p:{},n=Object.assign({},base),i,k;
+  if("mixDb" in s)n.mixDb=s.mixDb;
+  for(i=0;i<DZM_HIST_CLES.length;i++){k=DZM_HIST_CLES[i];if(k in s)n[k]=s[k]}
+  return n}
+
 /* ── export contrat ───────────────────────────────────────────────────────── */
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
@@ -17197,6 +17236,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   BD_ATTR:DZM_BD_ATTR,BD_PX_CAR:DZM_BD_PX_CAR,BD_PX_SEP:DZM_BD_PX_SEP,
   BD_GAP:DZM_BD_GAP,BD_SEP:DZM_BD_SEP,BD_HORS:DZM_BD_HORS,
   bdMesure:dzmBdMesure,bdPose:dzmBdPose,bdTour:dzmBdTour,bdLarg:dzmBdLarg,
+  histSnap:dzmHistSnap,histApply:dzmHistApply,HIST_CLES:DZM_HIST_CLES,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;
 

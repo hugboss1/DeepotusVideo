@@ -2050,9 +2050,9 @@ function dzmSecs(v){
    la couche les appelle et que le bundle les déclare. */
 function dzmDurTxt(v){return svmRuler(Math.round(v))}
 
-var DZM_DUR_UNDO=" « Annuler » ne rend pas la durée du projet : l'historique "+
-  "de cet écran ne mémorise que les clips et le mixage. C'est ce réglage-ci "+
-  "qui la reprend, dans les deux sens.";
+var DZM_DUR_UNDO=" « Annuler » (Ctrl+Z) rend aussi la durée du projet : elle "+
+  "entre dans l'historique depuis le 21/09/2026, avec les pistes, le style "+
+  "des sous-titres, la plage et les marqueurs.";
 
 function dzmDurBtn(cls,lbl,ttl,aria,fn,key){
   return r.jsx("button",{className:"svm-zoomstep dzm-durb "+cls,
@@ -3270,14 +3270,12 @@ var DZM_TB_T_PROJETS="Ouvrir la liste des projets de montage — enregistrer "+
    patchs ouvre, et l'élargir toucherait TOUS les gestes de l'écran. On DIT
    la limite à chaque bouton, et le retour qui existe vraiment. */
 var DZM_TB_H_CLIPS=" « Annuler » (Ctrl+Z) retire d'un coup ce qui vient "+
-  "d'être posé : l'historique de cet écran mémorise les clips et le mixage.";
-var DZM_TB_H_PISTE=" « Annuler » (Ctrl+Z) NE retire PAS la piste : "+
-  "l'historique de cet écran ne mémorise que les clips et le mixage, et le "+
-  "pas qu'il consomme après ce geste ne défait donc rien de visible. Le "+
-  "« × » de l'en-tête de la piste la retire.";
-var DZM_TB_H_STYLE=" « Annuler » (Ctrl+Z) ne revient pas dessus : ce "+
-  "réglage n'entre pas dans l'historique, une annulation défera le geste "+
-  "d'AVANT. Le retour, c'est de rechoisir.";
+  "d'être posé : l'historique de cet écran mémorise tout l'état du montage.";
+var DZM_TB_H_PISTE=" « Annuler » (Ctrl+Z) retire la piste : l'historique de "+
+  "cet écran mémorise les pistes depuis le 21/09/2026. Le « × » de l'en-tête "+
+  "de la piste la retire aussi.";
+var DZM_TB_H_STYLE=" « Annuler » (Ctrl+Z) revient dessus : ce réglage entre "+
+  "dans l'historique (une entrée par rafale de 600 ms).";
 var DZM_TB_H_PANNEAU=" Ouvrir ou fermer ce panneau n'entre pas dans "+
   "l'historique et ne déplace pas la tête de lecture.";
 var DZM_TB_H_PROJET=" Ouvrir la liste n'entre pas dans l'historique et ne "+

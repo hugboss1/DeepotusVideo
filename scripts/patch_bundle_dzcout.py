@@ -172,7 +172,10 @@ STABLE_PROBES = [
     ("print3d", "__dzPrint3d", 3),
     ("navrail", "dz_nav_collapsed", 2),
     ("dzdesign", "__dzCatBar", 2),
-    ("montage", "DzTracks", 60),
+    # 21/09/2026 D-0 : 63 apres H1…H7 (l'historique complet cable — trois
+    # references de plus : DzTracks.histSnap dans dzmHistHost, et
+    # DzTracks.histApply dans undo et dans redo).
+    ("montage", "DzTracks", 63),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

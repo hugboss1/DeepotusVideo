@@ -31,7 +31,42 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 06/09/2026 (P16 — traduire les repliques) : 1301
+COMPTE DE REFERENCE, 21/09/2026 (D-0 — l'historique complet cable) : 1319
+lignes, soit DIX-HUIT de plus que les 1301 de P16, MESUREES sur la sortie du
+banc et decomposees : SEIZE que la boucle sur `P.PATCHES` emet toute seule
+pour les SIX sections H1…H5 et H7 (six `_remplace`, six
+`couche_ne_cite_pas_l_ancre_de_`, et QUATRE `_ancre_consommee` — H1 et H7
+REPRENNENT leur ancre, les quatre autres non), plus DEUX ecrites a la main :
+`D0_undo_restaure_tout_l_instantane` (undo et redo passent par `histApply`,
+les deux piles empilent l'instantane complet, `pushHistory` n'empile plus
+{clips, mixDb}) et `js_transport_le_reglage_entre_dans_l_historique` (le
+repli « H6 » dans R_M17G, joue sous node : un clic sur « + » pousse UNE
+entree et ecrit 18).
+IL N'Y A PAS DE SECTION H6, et c'est une MESURE : son ancre — la ligne
+`onSet` du controle de duree — est POSEE par R_M17G, si bien que `--check`
+la declarait introuvable et que `M17g-transport-duree_remplace` comptait 0.
+Repliee dans R_M17G (meme motif que M10 dans R_M8), les deux redeviennent
+vraies.
+QUATRE LIGNES ONT ETE REECRITES plutot que supprimees, parce qu'elles ont
+fait leur travail en rougissant sur la phrase d'hier : les trois
+`P10_M17*_dit_que_annuler_…` et `P10_le_controle_dit_la_reserve…` — la
+reserve « annuler ne rend pas la duree » n'existe plus, la negation
+`NE raccourcit PAS` reste en conjoint pour qu'une phrase d'avant oubliee
+rougisse. `P10_aucune_entree_d_historique_de_plus` exige desormais
+EXACTEMENT UN `pushHistory();` dans le code de R_M17G, la ou elle en
+exigeait zero.
+DEUX DEFAUTS DE MESURE DEMASQUES PAR CE LOT, tous deux anterieurs :
+  · les trois boucles `nom_…_etait_libre_dans_le_bundle_d_entree`
+    comptaient une SOUS-CHAINE. `dzDial` y valait DIX-HUIT dans
+    .bak_montage — dix-huit `__dzDialogue`, poses par le maillon
+    `dialogue` EN AMONT de montage. Le compte est desormais borne par les
+    mots (`_libre`), et il dit ce qu'il pretendait dire ;
+  · la tranche `_SRC_TB` de la barre d'outils s'arretait a
+    `/* ── export contrat`, si bien que le cœur pur D-0 de la tache 1
+    (`dzmHistSnap`) tombait dedans et faisait rougir
+    `tb7_exigence3_aimanter_n_a_qu_un_lecteur…` sur le jeton `Snap`. La
+    borne s'arrete maintenant a l'en-tete D-0.
+COMPTE PRECEDENT, 06/09/2026 (P16 — traduire les repliques) : 1301
 lignes, soit CINQUANTE-CINQ de plus que les 1246 de P14, MESUREES sur la
 sortie du banc et decomposees : QUATRE que la boucle sur `P.PATCHES` emet
 toute seule pour les DEUX sections M26a/M26b (deux `_remplace`, deux
@@ -409,6 +444,22 @@ for tag, a, r in P.PATCHES:
     if a not in r:
         check(tag + "_ancre_consommee", s.count(nl(a)) == 0,
               f"count={s.count(nl(a))}")
+# ── D-0 (21/09/2026) : L'HISTORIQUE COMPLET, LE FOND ───────────────────────
+# Les sept sections H1…H7 sont deja comptees une a une par la boucle
+# ci-dessus. CETTE ligne mesure ce que la boucle ne voit pas : que undo ET
+# redo passent bien par `histApply` (DEUX occurrences, une par sens), que les
+# deux piles empilent l'instantane COMPLET, et que `pushHistory` ne pose plus
+# {clips, mixDb} en dur. Une section H3 ou H4 reecrite pour ne rendre que le
+# mixage passerait sa propre ligne `_remplace` et rougirait ici.
+check("D0_undo_restaure_tout_l_instantane",
+      s.count(nl("setProj(function(p){return DzTracks.histApply(p,s)});")) == 2
+      and s.count(nl("h.r.push(dzmHistHost());")) == 1
+      and s.count(nl("h.u.push(dzmHistHost());")) == 1
+      and s.count(nl("h.u.push(prev||dzmHistHost());")) == 1
+      and s.count(nl("h.u.push(prev||{clips:clipsRef.current,"
+                     "mixDb:mixRef.current});")) == 0,
+      "undo/redo ne passent pas par histApply, ou pushHistory empile encore "
+      "{clips,mixDb}")
 # ── M9c (05/09/2026) : LE « + » N'EST PLUS SOUS LA SURIMPRESSION ────────────
 # Défaut rapporté par l'utilisateur : « sur la piste V1 vidéo, le bouton
 # "ajouter une vidéo" est caché par l'overlay de déplacement lorsque la souris
@@ -1843,12 +1894,13 @@ check("P10_le_backend_recalcule_la_duree_du_film",
       and SVC.count('dur = float(body.get("duration") or 0)') == 1,
       f"seg_durs={SVC.count('cur, total = ' + chr(34) + 'n0' + chr(34) + ', seg_durs[0]')} "
       f"save={SVC.count('dur = float(body.get(' + chr(34) + 'duration' + chr(34) + ') or 0)')}")
-# AUCUNE ENTREE D'HISTORIQUE DE PLUS. `pushHistory` ne memorise que
-# {clips, mixDb} : une entree posee pour un geste qui ne change NI l'un NI
-# l'autre donnerait un « annuler » qui ne retourne rien. M17a s'appuie sur le
-# `pushHistory()` deja present dans addAsset (la ligne
+# AUCUNE ENTREE D'HISTORIQUE DE PLUS POUR LES GESTES DE CLIP. M17a s'appuie
+# sur le `pushHistory()` deja present dans addAsset (la ligne
 # `M16a_refuse_avant_de_pousser_l_historique` compte 1 dans ce corps), M17b et
-# M17f reprennent celui d'avant a l'identique, M17g n'en pose aucun.
+# M17f reprennent celui d'avant a l'identique. M17g, LUI, EN POSE UN DEPUIS
+# D-0 (21/09/2026) : le reglage explicite de duree entre dans l'historique
+# (repli « H6 »), une entree par rafale de 600 ms — et c'est EXACTEMENT UN
+# appel, pas deux, sous peine de deux « annuler » pour un clic.
 # LA LIGNE VISE LE CODE, PAS LA PROSE — et elle a mordu : P11 a ajoute a
 # M17a un commentaire qui NOMME `pushHistory` (« on sort ici, avant
 # pushHistory ») pour dire justement qu'il n'en pose pas. La ligne rougissait
@@ -1868,23 +1920,25 @@ check("P10_aucune_entree_d_historique_de_plus",
       and "DzTracks.fitDur" in _code(P.R_M17A)
       and P.R_M17B.count("pushHistory();") == 1
       and P.R_M17F.count("pushHistory(h0)") == 1
-      and "pushHistory" not in _code(P.R_M17G),
+      and _code(P.R_M17G).count("pushHistory();") == 1,
       f"a={'pushHistory' in _code(P.R_M17A)} "
       f"a_code={len(_code(P.R_M17A))}/{len(P.R_M17A)} o "
       f"b={P.R_M17B.count('pushHistory();')} "
       f"f={P.R_M17F.count('pushHistory(h0)')} "
-      f"g={'pushHistory' in _code(P.R_M17G)}")
-# LA RESERVE CENTRALE, DITE PARTOUT : `proj.dur` n'entre pas dans
-# l'historique. Etendre puis annuler rend les clips, PAS la duree. Les trois
-# notes de geste le disent et NOMMENT le retour ; le controle explicite le dit
-# a chacune des siennes par `DZM_DUR_UNDO`, concatene dans `put`.
+      f"g={_code(P.R_M17G).count('pushHistory();')}")
+# LA NOUVELLE VERITE, DITE PARTOUT (D-0, 21/09/2026) : `proj.dur` entre
+# DESORMAIS dans l'historique. Etendre puis annuler rend les clips ET la
+# duree. Les trois notes de geste le disent ; le controle explicite le dit a
+# chacune des siennes par `DZM_DUR_UNDO`, concatene dans `put`. La negation
+# `NE raccourcit PAS` est le conjoint : elle rougirait si une phrase d'avant
+# avait survecu a la reecriture.
 for _t, _r in (("M17a_ajout", P.R_M17A), ("M17b_nudge", P.R_M17B),
                ("M17f_relachement", P.R_M17F)):
-    check("P10_" + _t + "_dit_que_annuler_ne_rend_pas_la_duree",
-          "NE raccourcit PAS" in _r and "réglage de durée" in _r,
-          "la note ne dit pas ce qu'« annuler » ne restaure pas")
+    check("P10_" + _t + "_dit_que_annuler_rend_la_duree",
+          "rend aussi la durée" in _r and "NE raccourcit PAS" not in _r,
+          "la note ne dit pas qu'« annuler » rend aussi la durée")
 check("P10_le_controle_dit_la_reserve_a_chacune_de_ses_notes",
-      "« Annuler » ne rend pas la durée du projet" in src
+      "« Annuler » (Ctrl+Z) rend aussi la durée du projet" in src
       and src.count("msg+DZM_DUR_UNDO") == 1
       and src.count("function put(nv,msg){if(set)set(nv);"
                     "if(note)note(msg+DZM_DUR_UNDO)}") == 1,
@@ -2206,10 +2260,28 @@ check("css_porte_le_bouton_extraire_le_son",
       "montage.css n'habille pas « Extraire le son »")
 # LA COUCHE NE CITE AUCUN identifiant minifie du bundle qu'elle ne declare
 # pas : les noms neufs de P12 sont mesures LIBRES dans le bundle d'entree.
+# LE COMPTE EST BORNE PAR LES MOTS, ET C'EST UNE MESURE : un `count` NU
+# comptait `dzDial` DIX-HUIT fois dans .bak_montage le 21/09/2026 — dix-huit
+# `__dzDialogue`, poses par le maillon `dialogue`, EN AMONT de montage. La
+# sous-chaine disait « nom deja pris » d'un nom qui ne l'etait pas. Les
+# bornes refusent lettre, chiffre, `_` et `$` des deux cotes : c'est ce qui
+# fait la difference entre un identifiant et un morceau d'identifiant.
+def _libre(nm, txt):
+    """Le nombre d'occurrences de `nm` comme IDENTIFIANT ENTIER dans `txt`."""
+    if txt is None:
+        return -1
+    return len(re.findall(r"(?<![A-Za-z0-9_$])%s(?![A-Za-z0-9_$])"
+                          % re.escape(nm), txt))
+
+
+def _bak_txt():
+    """Le .bak_montage en texte, ou None s'il n'existe pas."""
+    _b = BUNDLE.with_name(BUNDLE.name + ".bak_montage")
+    return _b.read_bytes().decode("utf-8", "replace") if _b.is_file() else None
+
+
 for _nm in ("dzAuOn", "dzAu", "dzNeuf", "dzTw", "dzDd", "DZM_AUDIO_CACHE"):
-    _bak = BUNDLE.with_name(BUNDLE.name + ".bak_montage")
-    _dans_bak = (_bak.read_bytes().count(_nm.encode("utf-8"))
-                 if _bak.is_file() else -1)
+    _dans_bak = _libre(_nm, _bak_txt())
     check("P12_nom_" + _nm + "_etait_libre_dans_le_bundle_d_entree",
           _dans_bak == 0, f"{_nm} apparait {_dans_bak}x dans .bak_montage")
 
@@ -2528,9 +2600,7 @@ for _sec, _r, _pairs in (
 # LES NOMS NEUFS etaient LIBRES dans le bundle d'entree.
 for _nm in ("dzSs", "dzSsAll", "srcTracks", "subsSources", "dzDial",
             "dzmSubsSources", "dzmSubsLabel", "dzTd", "dzmUnionLen", "dzmSubsKey"):
-    _bak = BUNDLE.with_name(BUNDLE.name + ".bak_montage")
-    _dans_bak = (_bak.read_bytes().count(_nm.encode("utf-8"))
-                 if _bak.is_file() else -1)
+    _dans_bak = _libre(_nm, _bak_txt())
     check("P13_nom_" + _nm + "_etait_libre_dans_le_bundle_d_entree",
           _dans_bak == 0, f"{_nm} apparait {_dans_bak}x dans .bak_montage")
 # LA ROUTE, DE L'AUTRE COTE DU FIL : elle lit `tracks` par la loi du rendu,
@@ -2847,7 +2917,7 @@ for _sec, _r, _pairs in (
 # aurait ete ecrase en silence (`var` en portee de fonction).
 for _nm in ("dzOrd", "dzOrdSig", "dzReord", "_dzOrdSig", "isOverlayTrack",
             "overlayOrder", "dzmAddDit", "piste-incrust"):
-    _dans_bak = _bak_s.count(_nm) if _bak_s else -1
+    _dans_bak = _libre(_nm, _bak_s) if _bak_s else -1
     check("P14_nom_" + _nm + "_etait_libre_dans_le_bundle_d_entree",
           _dans_bak == 0, f"{_nm} apparait {_dans_bak}x dans .bak_montage")
 # AUCUNE SECTION P14 NE TOMBE DANS LE BLOC QUE LE HARNAIS [3-bis] EXECUTE
@@ -3405,7 +3475,7 @@ out.dc_mou_plus=DCLIC(dF,"p")&&dF.got[0];
    `dc_notes_comptees` empeche ce `every` d'etre vrai sur du vide. */
 out.dc_toutes_les_notes_disent_la_reserve=[dA.msgs,dA3.msgs,dB.msgs]
   .reduce(function(a,b){return a.concat(b)},[])
-  .every(function(m){return m.indexOf("« Annuler » ne rend pas la durée")>=0});
+  .every(function(m){return m.indexOf("rend aussi la durée")>=0});
 out.dc_notes_comptees=dA.msgs.length+dA3.msgs.length+dB.msgs.length;
 /* un « − » nu ne dit pas de combien : les trois elements nomment le pas */
 out.dc_titres_nomment_le_pas=["m","v","p"].every(function(k){
@@ -6185,7 +6255,7 @@ check("js_durctl_entrees_illisibles_retombent_sur_le_plancher_et_un_pas_de_1s",
       f'{d.get("dc_mou_valeur")!r} / {d.get("dc_mou_plus")!r}')
 # LA RESERVE CENTRALE DANS CHAQUE NOTE. Le `every` du sondage est vrai sur du
 # vide : le compte des notes est le conjoint qui l'en empeche.
-check("js_durctl_chaque_note_dit_que_annuler_ne_rend_pas_la_duree",
+check("js_durctl_chaque_note_dit_que_annuler_rend_la_duree",
       d.get("dc_notes_comptees") == 3
       and d.get("dc_toutes_les_notes_disent_la_reserve") is True,
       f'notes={d.get("dc_notes_comptees")} '
@@ -7208,6 +7278,18 @@ function ECRAN(o){
   var selRef={current:o.sel||null};
   var ovSeq={current:Number(o.seq)||0};
   var nudgeHistAt={current:0};
+  /* D-0 (21/09/2026) — LES TROIS NOUVEAUX LIBRES DU CABLAGE, bouchonnes
+     comme leurs freres : `dzmHistHost` est la MEME expression que dans le
+     bundle (H1) et appelle la VRAIE `DzTracks.histSnap` de la couche
+     chargee plus haut — rien n'est recopie ; `dzDurHistAt` est l'horloge
+     de rafale du reglage de duree (repli « H6 » dans M17g), `dzStyleHistAt`
+     celle du style S1, que ce shim n'execute pas mais qui coute zero. */
+  var dzProjRef={current:null};
+  var dzDurHistAt={current:0};
+  var dzStyleHistAt={current:0};
+  function dzmHistHost(){dzProjRef.current=proj;
+    return DzTracks.histSnap({clips:clipsRef.current,mixDb:mixRef.current,
+      proj:dzProjRef.current})}
   var ovKeysOffRef={current:!1};
   var dzReadyRef={current:o.pasPrete?!1:!0};
   var dzTracksRef={current:o.pistes||null};
@@ -7550,6 +7632,7 @@ out.ct_boutons=((CT&&CT.p&&CT.p.children)||[]).map(function(k){
   return k&&k.k});
 var bp=BTN(CT,"p");if(bp&&bp.p.onClick)bp.p.onClick();
 out.ct_plus=E7.J.proj.slice();
+out.ct_hist=E7.J.hist;
 out.ct_dirty=E7.J.dirty;
 out.ct_note=E7.J.notes[0]||"";
 var E8=ECRAN({dur:16});
@@ -7642,7 +7725,7 @@ check("js_add_la_timeline_s_allonge_pour_l_accueillir",
 check("js_add_l_allongement_est_DIT_et_chiffre",
       "La timeline a été allongée de 0:16 à 0:22" in w.get("add_note", "")
       and "la longueur ENTIÈRE de la source" in w.get("add_note", "")
-      and "NE raccourcit PAS la timeline" in w.get("add_note", ""),
+      and "rend aussi la durée d'avant" in w.get("add_note", ""),
       repr(w.get("add_note"))[:220])
 check("js_add_son_la_note_dit_le_jumeau_la_piste_et_l_annulation",
       "Son du plan extrait sur A1" in w.get("add_note", "")
@@ -7870,7 +7953,7 @@ check("js_nudge_le_decalage_etend_la_timeline",
 check("js_nudge_l_allongement_est_DIT_et_nomme_le_clip",
       w.get("nd_note", "").startswith("Timeline allongée à 0:17")
       and "« plan »" in w.get("nd_note", "")
-      and "NE raccourcit PAS la timeline" in w.get("nd_note", ""),
+      and "rend aussi la durée d'avant" in w.get("nd_note", ""),
       repr(w.get("nd_note"))[:200])
 # LA NOTE NE PARLE QUE QUAND LA DUREE CHANGE VRAIMENT : une touche maintenue
 # vaut trente pas par seconde. Le conjoint est le deplacement REEL du clip.
@@ -7920,9 +8003,17 @@ check("js_transport_le_controle_porte_ses_quatre_boutons",
       w.get("ct_classe") == "dzm-durctl"
       and w.get("ct_boutons") == ["m", "v", "p", "f"]
       and "(+2 s)" in w.get("ct_note", "")
-      and "ne rend pas la durée du projet" in w.get("ct_note", ""),
+      and "rend aussi la durée du projet" in w.get("ct_note", ""),
       f'{w.get("ct_classe")} {w.get("ct_boutons")} '
       f'{repr(w.get("ct_note"))[:140]}')
+# D-0 (21/09/2026) — LE REGLAGE DE DUREE ENTRE DANS L'HISTORIQUE. C'est le
+# repli « H6 » dans R_M17G, joue ICI : un clic sur « + » pousse UNE entree
+# avant d'ecrire. Le conjoint qui empeche cette ligne d'etre verte a vide est
+# `ct_plus` au-dessus — la duree a bel et bien ete ECRITE (18) ; une entree
+# poussee sans ecriture, ou une ecriture sans entree, rougit.
+check("js_transport_le_reglage_entre_dans_l_historique",
+      w.get("ct_hist") == 1 and w.get("ct_plus") == [18],
+      f'hist={w.get("ct_hist")} ecritures={w.get("ct_plus")}')
 
 # ══════════════════════════════════════════════════════════════════════════
 # [6] LA BARRE D'OUTILS DEPORTABLE — etapes 1, 2 et 3 du §9 du handoff
@@ -9220,7 +9311,16 @@ check("tb_le_dock_est_monte_dans_le_bandeau_de_transport",
 # exigeait absents ; elle a fait exactement son travail — c'est elle qui a
 # impose de la reecrire au lieu de laisser le reste dehors sans surveillance.
 _i_tb4 = src.find("DU \u00a79 : LA BARRE, SON ONGLET, SON D\u00c9PORT, SON")
-_j_tb4 = src.find("/* \u2500\u2500 export contrat", _i_tb4) if _i_tb4 >= 0 else -1
+# LA BORNE DE FIN S'ARRETE AU CŒUR D-0, PAS A L'EXPORT — et c'est une
+# MESURE du 21/09/2026 : la tache 1 a pose `dzmHistSnap` / `dzmHistApply`
+# ENTRE la fin du §9 et `/* ── export contrat`, si bien que la tranche
+# « barre d'outils » avalait le jeton `Snap` et faisait rougir
+# `tb7_exigence3_aimanter_n_a_qu_un_lecteur_et_la_barre_n_en_est_pas_un`
+# pour du code qui n'a rien d'une barre. La borne suit donc le DERNIER
+# jeton du §9 ; l'ancienne reste en repli si le cœur D-0 disparaissait.
+_j_tb4 = src.find("/* \u2500\u2500 D-0 (21/09/2026)", _i_tb4) if _i_tb4 >= 0 else -1
+if _j_tb4 < 0:
+    _j_tb4 = src.find("/* \u2500\u2500 export contrat", _i_tb4) if _i_tb4 >= 0 else -1
 _SRC_TB = src[_i_tb4:_j_tb4] if 0 <= _i_tb4 < _j_tb4 else "BLOC-INTROUVABLE"
 # L'ETAPE 7 EST DEDANS DESORMAIS, et les conjoints positifs le disent : le
 # Dock appelle `dzmTbHote` et `dzmEmojiGo`. La ligne d'avant exigeait
