@@ -77,9 +77,10 @@ export function initPipetteUI(VL) {
     loupe.style.left = (ev.clientX - 60) + "px"; loupe.style.top = (ev.clientY - 60 - 76) + "px";
     loupe.classList.remove("hidden");
   }
-  function appliquerCouleur(hex, ev) {
-    const cible = ev.target.closest && ev.target.closest("[data-objet]");
-    const d = pipette_decision({ appliquer: etat.pipette.appliquer, alt: ev.altKey, ctrl: false, droit: ev.button === 2 || (ev.buttons & 2) === 2 || geste.droit, selection: etat.selection, cible: cible && cible.dataset.objet });
+  function appliquerCouleur(hex, ev, droit) {
+    // `ev.button` n'est pas assignable (getter) : le bouton du geste voyage à part
+    const cible = ev.target && ev.target.closest && ev.target.closest("[data-objet]");
+    const d = pipette_decision({ appliquer: etat.pipette.appliquer, alt: ev.altKey, ctrl: false, droit: !!droit, selection: etat.selection, cible: cible && cible.dataset.objet });
     if (!hex) { VL.toast("transparent — couleur inchangée"); return; }
     if (d.action === "fond" || d.action === "contour") {
       VL.executer(op_style, etat.selection.slice(), d.action === "fond" ? { fond: hex } : { contour: hex, epaisseur: (etat.styleCourant && etat.styleCourant.epaisseur) || 2 });
@@ -109,7 +110,7 @@ export function initPipetteUI(VL) {
     ev.stopImmediatePropagation();
     const g = geste; geste = null;
     loupe.classList.add("hidden");
-    const fin = () => { const e = raster ? (lire(ev) || g.dernier) : g.dernier; appliquerCouleur(e && e.hex, Object.assign(ev, { button: g.droit ? 2 : ev.button })); };
+    const fin = () => { const e = raster ? (lire(ev) || g.dernier) : g.dernier; appliquerCouleur(e && e.hex, ev, g.droit); };
     if (raster) fin(); else setTimeout(fin, 250);   // le rendu arrive encore
   }, true);
   VL.hints = Object.assign(VL.hints || {}, { pipette: "Cliquer ou Glisser pour prélever une couleur — Ctrl : le style de l'objet · Maj : loupe · Alt : appliquer à la sélection" });
