@@ -5823,8 +5823,9 @@ function DzMontage(props){
                 setDzTtNonce(function(dzK){return dzK+1})}
               return}
             var dzTtN=Date.now();
-            if(dzTtN-dzTtHistAt.current>600)pushHistory();
-            dzTtHistAt.current=dzTtN;
+            if(p.size==null){pushHistory();dzTtHistAt.current=0}
+            else{if(dzTtN-dzTtHistAt.current>600)pushHistory();
+              dzTtHistAt.current=dzTtN}
             setClips(cs);setDirty(!0)}}):null,
         /* P3 — les coupes sont appliquées de la FIN vers le DÉBUT :
            une coupe tardive ne décale pas les précédentes, donc les

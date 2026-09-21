@@ -736,9 +736,17 @@ R_M12 = (A_M12 + '\n'
          # `dzDurHistAt` (H6), et elle est ici pour le CLAVIER : la reglette
          # de corps remonte au relachement, et chaque fleche est un `keyup`
          # -- cinq crans faisaient cinq instantanes, et « annuler » remontait
-         # cran par cran. Elle coalesce aussi deux reglages voisins en une
-         # entree, et c'est le comportement que les deux precedents ont deja
-         # choisi : « annuler » defait un GESTE, pas ses vingt morceaux.
+         # cran par cran.
+         # ELLE NE COUVRE QUE LA TAILLE, ET C'EST UNE CORRECTION (22/09/2026,
+         # re-revue) : posee sur TOUS les reglages, elle coalescait des
+         # gestes HETEROGENES -- taper un texte puis cliquer un gabarit 50 ms
+         # plus tard ne faisait qu'UNE entree, et « annuler » defaisait les
+         # deux d'un coup. Les deux precedents cites ne bornent chacun qu'UN
+         # reglage (`nudgeHistAt` le deplacement d'un overlay, `dzDurHistAt`
+         # la duree du projet) : la fenetre y est le prix d'une RAFALE sur le
+         # MEME reglage, jamais un melange. Le texte, le gabarit, la couleur
+         # et la police poussent donc SEC, et remettent l'horloge a zero pour
+         # que la rafale suivante recommence par un instantane a elle.
          # `pushHistory` AVANT `setClips`, comme partout ailleurs dans ce
          # composant : l'instantane doit porter l'etat D'AVANT.
          '        sel&&trackKind(sel.tr)==="title"'
@@ -755,8 +763,9 @@ R_M12 = (A_M12 + '\n'
          '                setDzTtNonce(function(dzK){return dzK+1})}\n'
          '              return}\n'
          '            var dzTtN=Date.now();\n'
-         '            if(dzTtN-dzTtHistAt.current>600)pushHistory();\n'
-         '            dzTtHistAt.current=dzTtN;\n'
+         '            if(p.size==null){pushHistory();dzTtHistAt.current=0}\n'
+         '            else{if(dzTtN-dzTtHistAt.current>600)pushHistory();\n'
+         '              dzTtHistAt.current=dzTtN}\n'
          '            setClips(cs);setDirty(!0)}}):null,\n'
          '        /* P3 — les coupes sont appliquées de la FIN vers le DÉBUT :\n'
          '           une coupe tardive ne décale pas les précédentes, donc les\n'

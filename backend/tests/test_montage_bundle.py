@@ -1378,12 +1378,14 @@ check("M12_pousse_l_historique_avant_de_couper",
 # LA MESURE EST SCOPEE AU TIROIR DE TEXTE (22/09/2026) : depuis la tache 7,
 # TT6 — l'inspecteur des titres — est REPLIE dans la meme section et paie son
 # propre instantane. Compter sur R_M12 ENTIER aurait rougi pour une raison
-# qui n'a rien a voir avec la coupe. Le conjoint tient l'autre moitie : DEUX
-# en tout dans la section, un par geste, et pas trois.
+# qui n'a rien a voir avec la coupe. Le conjoint tient l'autre moitie : TROIS
+# en tout dans la section depuis la re-revue du 22/09/2026 — un pour la
+# coupe, et DEUX pour l'inspecteur, qui separe le geste sec (texte, gabarit,
+# selects) de la rafale de la reglette.
 _R_M12_CUT = P.R_M12[P.R_M12.find("r.jsx(DzTracks.TextDrawer,"):]
 check("M12_un_seul_pushHistory_pour_le_lot",
       len(_R_M12_CUT) > 800 and _R_M12_CUT.count("pushHistory()") == 1
-      and P.R_M12.count("pushHistory()") == 2,
+      and P.R_M12.count("pushHistory()") == 3,
       f"coupe={_R_M12_CUT.count('pushHistory()')} "
       f"section={P.R_M12.count('pushHistory()')} taille={len(_R_M12_CUT)}")
 # I4 — M12 NE TOUCHE PLUS a la duree du projet, et c'est ce qui rend
@@ -6750,6 +6752,37 @@ out.ti_taille=TBG(function(){
   rg.p.onPointerUp({target:{value:"abc"}});
   return [rg.p.type,rg.p.min,rg.p.max,rg.p.defaultValue,
     rg.p.onChange===void 0,vu,n.p.children[6].p.children[2].p.children]});
+/* -- LE RAPPEL DE TT6, EXTRAIT DU BUNDLE ET JOUE ICI ---------------------
+   Les pins mesurent le TEXTE de la section ; celle-ci mesure ce qu il FAIT.
+   L horloge est INJECTEE : `Date` est masque par une variable locale, donc
+   `Date.now()` du corps extrait lit `h`. Les quatre collaborateurs de l hote
+   (`pushHistory`, `setClips`, `fireNote`, `setDzTtNonce`) sont des espions.
+   LA FENETRE NE COUVRE QUE LA TAILLE : cinq crans de reglette en 200 ms
+   valent UN instantane, mais un texte puis un gabarit 50 ms plus tard en
+   valent DEUX -- une fenetre posee sur tous les reglages aurait fait
+   defaire les deux gestes d un seul Ctrl+Z. */
+out.tt6_rafale=TBG(function(){
+  var vu=[],h=100000,nonce=0;
+  var Date={now:function(){return h}};
+  var clipsRef={current:[{tr:"t1",kind:"title",id:"t1u1",label:"Ab",
+    start:0,end:4,title:{template:"cta",text:"Ab",size:68}}]};
+  var dzTtHistAt={current:0};
+  function pushHistory(){vu.push("H")}
+  function setClips(cs){clipsRef.current=cs}
+  function setDirty(){}
+  function fireNote(m){vu.push("N")}
+  function setDzTtNonce(f){nonce=f(nonce)}
+  var o={__DZ_TT6_ONCHANGE__};
+  var i;
+  for(i=0;i<5;i++){h+=50;o.onChange("t1u1",{size:70+i})}   /* rafale */
+  var apresReglette=vu.length;
+  h+=50;o.onChange("t1u1",{text:"Neuf"});                  /* autre geste */
+  h+=50;o.onChange("t1u1",{template:"legende"});           /* autre geste */
+  h+=50;o.onChange("t1u1",{text:"  "});                    /* refuse */
+  h+=50;o.onChange("t1u1",{size:90});   /* apres un geste sec : un de plus */
+  var c=clipsRef.current[0];
+  return [apresReglette,vu.join(""),nonce,
+    c.title.text,c.title.template,c.title.size,c.label]});
 out.ti_sans_rappels=TBG(function(){
   var n=TIN({});
   n.p.children[1].p.children[0].p.onClick();
@@ -6853,6 +6886,26 @@ _TITLES_JS = json.dumps({
                  for _g, _fo, _sz, _co in _TPL_SVC],
     "fonts": _FONTS_SVC, "colors": _BRAND_SVC}, ensure_ascii=False)
 
+# D-21 (re-revue du 22/09/2026) — LE `onChange` DE TT6, EXTRAIT DU BUNDLE ET
+# JOUÉ SOUS NODE. Les pins de TT6 mesurent le TEXTE de la section ; ils ne
+# disent rien du COMPORTEMENT — « cinq crans de réglette valent un
+# instantané » et « un texte puis un gabarit en valent deux » sont des
+# affirmations sur une exécution, pas sur une chaîne. Le corps est donc
+# extrait du bundle LIVRÉ (jamais recopié : une copie à la main aurait
+# certifié un code qui n'est plus celui qui tourne) et exécuté avec une
+# horloge INJECTÉE — `Date` est masqué par une variable locale dans le shim.
+# LE REPLI EST DIT : sans extraction, le jeton devient un objet vide, la
+# sonde rend un témoin et la ligne dédiée ci-dessous rougit SEULE.
+_m_tt6 = re.search(r"onChange:function\(id,p\)\{.*?setClips\(cs\);setDirty\(!0\)\}",
+                   s.replace("\r\n", "\n"), re.S)
+_TT6_JS = _m_tt6.group(0) if _m_tt6 else "onChange:function(){return 'PAS-EXTRAIT'}"
+check("D21_le_rappel_de_l_inspecteur_est_extractible_du_bundle",
+      _m_tt6 is not None
+      and s.count(nl("onChange:function(id,p){")) == 1
+      and "DzTracks.titleUpdate(clipsRef.current,id,p)" in _TT6_JS
+      and "dzTtHistAt.current" in _TT6_JS and len(_TT6_JS) < 1200,
+      f"extrait={_m_tt6 is not None} taille={len(_TT6_JS)}")
+
 _m_exts = re.search(r"_VIDEO_EXTS = \(([^)]*)\)", SVC)
 _exts_svc = re.findall(r'"([^"]+)"', _m_exts.group(1)) if _m_exts else []
 check("backend_la_liste_video_est_extractible_pour_le_banc",
@@ -6892,7 +6945,8 @@ shim.write_text('"use strict";\n' + "var window={};var SVM_TRACK_BUS={};\n" + JS
                 + probe.replace("__DZ_VIDEO_EXTS__",
                                 json.dumps(_exts_svc or [".mp4"]))
                        .replace("__DZ_TRANS_CAT__", _TRANS_CAT_JS)
-                       .replace("__DZ_TITLES__", _TITLES_JS),
+                       .replace("__DZ_TITLES__", _TITLES_JS)
+                       .replace("__DZ_TT6_ONCHANGE__", _TT6_JS),
                 encoding="utf-8")
 r = NODE(["node", str(shim)])
 if r.returncode != 0:
@@ -14295,7 +14349,11 @@ check("D21_la_cle_des_deux_champs_porte_leur_valeur",
       f'{d.get("ti_cle_input")} jeton={d.get("ti_cle_nonce")}')
 # LE CLIC REMONTE LE GABARIT NU ; LA CARTE DÉJÀ CHOISIE NE REMONTE RIEN.
 check("D21_le_clic_remonte_le_gabarit_et_la_carte_choisie_se_tait",
-      d.get("ti_carte_clic") == [["t1u1", {"template": _GAB_ORDRE[0]}]],
+      # I-4bis : l'attendu est CONSTRUIT avant toute comparaison — sans la
+      # garde, un catalogue vide levait un IndexError ICI, c'est-a-dire au
+      # niveau module, et emportait le banc ENTIER au lieu d'une ligne.
+      bool(_GAB_ORDRE)
+      and d.get("ti_carte_clic") == [["t1u1", {"template": _GAB_ORDRE[0]}]],
       f'{d.get("ti_carte_clic")}')
 # LES DEUX `<select>` : cinq couleurs + « (du gabarit) », seize polices +
 # « (du gabarit) », et la chaîne vide REMONTE quand elle change — c'est elle
@@ -14334,15 +14392,36 @@ check("D21_TT6_la_reglette_ne_paie_qu_un_instantane_par_rafale",
       and "var dzTtHistAt=x.useRef(0);" in P.R_M16REF
       and (_bak.count(_nlb("dzTtHistAt")) == 0 if _bak else False)
       and s.count(nl("if(dzTtN-dzTtHistAt.current>600)pushHistory();")) == 1
-      and s.count(nl("dzTtHistAt.current=dzTtN;")) == 1
+      # LA FENÊTRE NE COUVRE QUE LA TAILLE (re-revue du 22/09/2026) : posée
+      # sur tous les réglages, elle coalesçait des gestes HÉTÉROGÈNES — un
+      # texte puis un gabarit 50 ms plus tard ne faisaient qu'une entrée.
+      # Les deux précédents cités ne bornent chacun qu'UN réglage.
+      and s.count(nl("if(p.size==null){pushHistory();"
+                     "dzTtHistAt.current=0}")) == 1
+      and s.count(nl("dzTtHistAt.current=dzTtN}")) == 1
       # ET LA SECTION NE PAIE PLUS D'INSTANTANÉ NU : sans cette moitié, un
       # `pushHistory()` laissé à côté de la fenêtre l'aurait rendue inutile.
-      and P.R_M12.count("pushHistory()") == 2
+      and P.R_M12.count("pushHistory()") == 3
       and P.R_M12.count("if(dzTtN-dzTtHistAt.current>600)pushHistory();") == 1
+      and P.R_M12.count("if(p.size==null){pushHistory();") == 1
       and s.count(nl("if(now-nudgeHistAt.current>600)pushHistory();")) == 1
       and s.count(nl("if(dzN-dzDurHistAt.current>600)pushHistory();")) == 1,
       f'ref={s.count(nl("var dzTtHistAt=x.useRef(0);"))} '
       f'fenetre={s.count(nl("if(dzTtN-dzTtHistAt.current>600)pushHistory();"))}')
+# …ET CE N'EST PAS QU'UNE CHAÎNE : le rappel EXTRAIT DU BUNDLE est JOUÉ, avec
+# une horloge injectée. Cinq crans de réglette en 200 ms = UN instantané ;
+# un texte puis un gabarit 50 ms plus tard = DEUX de plus, pas un ; un texte
+# vide = aucun, une note et le jeton ; une réglette APRÈS un geste sec = un
+# de plus (l'horloge a été remise à zéro, la rafale suivante repart à elle).
+# Le clip final porte bien les trois réglages et son libellé suit le texte.
+check("D21_TT6_joue_la_fenetre_ne_coalesce_que_la_reglette",
+      isinstance(d.get("tt6_rafale"), list) and len(d.get("tt6_rafale") or []) == 7
+      and d["tt6_rafale"][0] == 1
+      and d["tt6_rafale"][1] == "HHHNH"
+      and d["tt6_rafale"][2] == 1
+      and d["tt6_rafale"][3] == "Neuf" and d["tt6_rafale"][4] == "legende"
+      and d["tt6_rafale"][5] == 90 and d["tt6_rafale"][6] == "Neuf",
+      f'{d.get("tt6_rafale")}')
 # I-2 (revue du 22/09/2026) : VIDER LE CHAMP TEXTE EST REFUSÉ À VOIX HAUTE,
 # ET LE CHAMP SE RECOLLE. Le refus passait par l'identité du tableau : pas de
 # `setClips`, donc pas de re-rendu, donc un input VIDE à l'écran pendant que
