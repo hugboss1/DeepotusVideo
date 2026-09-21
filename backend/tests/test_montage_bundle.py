@@ -31,7 +31,31 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 21/09/2026 (D-4, tache 9 — echanger deux plans voisins) :
+COMPTE DE REFERENCE, 21/09/2026 (D-20, tache 2 — la galerie des transitions,
+cote ecran) : 1529 lignes, soit TRENTE-HUIT de plus que les 1491 de D-4.
+Une seule ligne existante a ete REECRITE et c'est une CORRECTION :
+`tb8_aucun_mouvement_de_la_barre_n_est_pilote_en_javascript` exigeait
+« aucune @keyframes DANS montage.css », ce qui melait deux sujets — la
+feuille porte desormais les quatre animations de l'apercu des transitions,
+qui n'ont rien a voir avec la barre. Elle mesure maintenant ce qu'elle
+VOULAIT dire : aucune regle `.dzm-tb*` ne declare `animation:`, et les
+seules @keyframes de la feuille sont les quatre neuves, NOMMEES.
+Les trente-sept neuves : deux extractions gardees (le catalogue du service
+et la table des sept historiques du bundle, toutes deux avec repli et
+ligne dediee), les deux replis X1 dans R_M16REF, le tir unique et
+annulable, X2 (la galerie + la survie du curseur et du bouton), X3/X3b,
+X4, quatre noms libres dans le .bak, huit lignes de RENDU par le stub JSX
+(sept groupes / 62 tuiles, les trois historiques, la tuile choisie, la
+non choisie, le clic, l'infobulle du direct, la galerie SANS catalogue) et
+cinq lignes de FEUILLE (six familles + quatre sens, les trois animations
+empruntees non redeclarees, les deux apercus historiques non ecrases, le
+mouvement reduit deja couvrant, et le banc CROISE entre la copie cliente
+des familles et _XFADE_FAMILIES du service) -- dont la ligne qui repose la
+PAUSE, le SURVOL et le FIGEMENT sur `[data-fam]` : nos six regles de famille
+ecrivent le RACCOURCI `animation:`, qui remet `animation-play-state` a
+`running`, et sans elles les 58 tuiles neuves s'agiteraient en permanence.
+
+COMPTE PRECEDENT, 21/09/2026 (D-4, tache 9 — echanger deux plans voisins) :
 1491 lignes, soit CINQ de plus que les 1486 de D-5. W1 (replie dans R_R1) et
 W2 (replie dans R_R2) ajoutent chacun un pin de forme (D4_W1.../D4_W2...),
 plus les combos, le nom des fleches gauche/droite et l appel unique a
@@ -6416,6 +6440,64 @@ out.mk_combo_vivante=TBG(function(){
   return T.Markers({markers:[{id:"m1",t:3}],dur:10})[0].p.title});
 out.mk_tc_resolu_a_l_appel=TBG(function(){
   return T.Markers({markers:[{id:"m1",t:5}],dur:10})[0].p["aria-label"]});
+/* -- D-20 : LA GALERIE DES TRANSITIONS, RENDUE PAR LE STUB JSX ------------
+   `r.jsxs` vaut `null` dans le stub ; la grille en a besoin (chaque famille
+   et chaque tuile ont plusieurs enfants). Il est pose ici et REMIS A NULL
+   aussitot apres, comme pour l index des marqueurs plus haut.
+   LE CATALOGUE EST CELUI DU SERVEUR, mot pour mot : les six familles et les
+   58 noms sont ceux de _XFADE_FAMILIES, injectes par le banc Python sous le
+   jeton __DZ_TRANS_CAT__. Une copie a la main derivait au premier ajout. */
+r.jsxs=function(t,p,k){return{t:t,p:p,k:k}};
+var TCAT=__DZ_TRANS_CAT__;
+out.tg_rendu=TBG(function(){
+  var l=T.TransGrid({legacy:SVM_TRANS,cat:TCAT,cur:"wipetl"});
+  var fams=l.map(function(f){return [f.k,f.p.children[1].p.children.length]});
+  var tuiles=0,i;for(i=0;i<l.length;i++)tuiles+=l[i].p.children[1].p.children.length;
+  return [l.length,tuiles,fams]});
+out.tg_tuile=TBG(function(){
+  var l=T.TransGrid({legacy:SVM_TRANS,cat:TCAT,cur:"wipetl"});
+  var g=l.filter(function(f){return f.k==="volets"})[0].p.children[1].p.children;
+  var tu=g.filter(function(b){return b.k==="wipetl"})[0];
+  var pv=tu.p.children[0];
+  return [tu.p.className,tu.p["data-sel"],tu.p.title,
+          pv.p.className,pv.p["data-tt"],pv.p["data-fam"],pv.p["data-dir"],
+          tu.p.children[1].p.children]});
+/* LA TUILE NON CHOISIE N A PAS `data-sel` -- sans cette moitie, la ligne
+   ci-dessus serait vraie d une grille qui pose l attribut partout. */
+out.tg_non_choisie=TBG(function(){
+  var l=T.TransGrid({legacy:SVM_TRANS,cat:TCAT,cur:"wipetl"});
+  var g=l.filter(function(f){return f.k==="volets"})[0].p.children[1].p.children;
+  var tu=g.filter(function(b){return b.k==="wipeleft"})[0];
+  return [tu.p["data-sel"],tu.p.children[0].p["data-dir"]]});
+/* LE CLIC REMONTE L IDENTIFIANT NU, et sans rappel rien ne leve. */
+out.tg_clic=TBG(function(){
+  var vu=[],l=T.TransGrid({legacy:SVM_TRANS,cat:TCAT,cur:"cut",
+    onPick:function(id){vu.push(id)}});
+  l[0].p.children[1].p.children[0].p.onClick();
+  T.TransGrid({legacy:SVM_TRANS,cat:TCAT,cur:"cut"})[0]
+    .p.children[1].p.children[0].p.onClick();
+  return vu});
+/* LES TROIS HISTORIQUES : ceux des sept du bundle que le catalogue n a PAS.
+   `fade`, `dissolve` et `fadeblack` y sont, donc ils n y sont pas. */
+out.tg_historiques=TBG(function(){
+  var l=T.TransGrid({legacy:SVM_TRANS,cat:TCAT,cur:"cut"});
+  var h=l.filter(function(f){return f.k==="historiques"})[0];
+  return h?h.p.children[1].p.children.map(function(b){return b.k}):"PAS DE GROUPE"});
+/* L INFOBULLE DIT CE QUI N EST PAS JOUE EN DIRECT (D-12) : `fade` est live,
+   `wipetl` ne l est pas. */
+out.tg_direct=TBG(function(){
+  var l=T.TransGrid({legacy:SVM_TRANS,cat:TCAT,cur:"cut"});
+  function tt(fam,id){var g=l.filter(function(f){return f.k===fam})[0].p.children[1].p.children;
+    return g.filter(function(b){return b.k===id})[0].p.title}
+  return [tt("fondus","fade").indexOf("Preview")<0,
+          tt("volets","wipetl").indexOf("Preview")>0]});
+/* SANS CATALOGUE, la galerie est EXACTEMENT celle d avant D-20 : une famille
+   « coupe » et les six historiques -- sept tuiles, comme SVM_TRANS. */
+out.tg_sans_catalogue=TBG(function(){
+  var l=T.TransGrid({legacy:SVM_TRANS,cat:null,cur:"cut"});
+  var n=0,i;for(i=0;i<l.length;i++)n+=l[i].p.children[1].p.children.length;
+  return [l.map(function(f){return f.k}),n]});
+r.jsxs=null;
 console.log(JSON.stringify(out));
 """
 # "use strict" en PROLOGUE du shim : concatene, celui de montage.js n'est
@@ -6435,6 +6517,39 @@ JSX = 'var r={jsx:function(t,p,k){return{t:t,p:p,k:k}},jsxs:null};\n'
 # planche/maillage/faux-ami restent justes — et la ligne dediee ci-dessous
 # rougit SEULE. Rougir, pas mourir : le `groupe(1)` d'un `re.search` absent
 # aurait leve, et emporte les 80 assertions de la section [3].
+# LE CATALOGUE DES TRANSITIONS VENU DU SERVICE, jamais recopie a la main :
+# les six familles, les 58 noms, les libelles francais et le drapeau `live`
+# sont EXTRAITS du texte de montage_service.py -- meme technique que
+# `_VIDEO_EXTS` plus haut. Une copie figee dans ce banc divergerait au
+# premier ajout, et la galerie serait benie sur un catalogue mort.
+# LE REPLI EST DIT ET IL N'EST PAS VIDE DE SENS : sans extraction, la sonde
+# recevrait `{familles: []}` et les six lignes de rendu rougiraient toutes
+# sans dire pourquoi. La ligne dediee ci-dessous rougit SEULE. Faute n6.
+_m_fam = re.search(r"_XFADE_FAMILIES = \{(.*?)\n\}", SVC, re.S)
+_TRANS_FAM_SVC = {}
+if _m_fam:
+    for _k7, _lb7, _ns7 in re.findall(
+            r'"(\w+)":\s*\{"label": "([^"]+)",\s*"noms": \[(.*?)\]\}',
+            _m_fam.group(1), re.S):
+        _TRANS_FAM_SVC[_k7] = {"label": _lb7, "noms": re.findall(r'"([^"]+)"', _ns7)}
+_m_lab = re.search(r"_XFADE_LABELS = \{(.*?)\n\}", SVC, re.S)
+_TRANS_LAB_SVC = dict(re.findall(r'"([^"]+)":\s*"([^"]+)"', _m_lab.group(1))) if _m_lab else {}
+_m_liv = re.search(r"_XFADE_LIVE = \(([^)]*)\)", SVC)
+_TRANS_LIVE_SVC = re.findall(r'"([^"]+)"', _m_liv.group(1)) if _m_liv else []
+check("D20_le_catalogue_du_service_est_extractible_pour_le_banc",
+      len(_TRANS_FAM_SVC) == 6
+      and sum(len(_f.get("noms", [])) for _f in _TRANS_FAM_SVC.values()) == 58
+      and len(_TRANS_LAB_SVC) == 58 and _TRANS_LIVE_SVC == ["fade", "fadeblack", "fadewhite"],
+      f"familles={len(_TRANS_FAM_SVC)} "
+      f"noms={sum(len(_f.get('noms', [])) for _f in _TRANS_FAM_SVC.values())} "
+      f"libelles={len(_TRANS_LAB_SVC)} live={_TRANS_LIVE_SVC}")
+_TRANS_CAT_JS = json.dumps({"familles": [
+    {"id": _k, "label": _f.get("label", _k),
+     "items": [{"id": _n, "label": _TRANS_LAB_SVC.get(_n, _n),
+                "live": _n in _TRANS_LIVE_SVC}
+               for _n in _f.get("noms", [])]}
+    for _k, _f in _TRANS_FAM_SVC.items()]}, ensure_ascii=False)
+
 _m_exts = re.search(r"_VIDEO_EXTS = \(([^)]*)\)", SVC)
 _exts_svc = re.findall(r'"([^"]+)"', _m_exts.group(1)) if _m_exts else []
 check("backend_la_liste_video_est_extractible_pour_le_banc",
@@ -6456,11 +6571,24 @@ check("bundle_svmRuler_et_svmPad2_extraites",
       s.count(nl(_PAD2)) == 1 and s.count(nl(_RULER)) == 1,
       f"pad2={s.count(nl(_PAD2))} ruler={s.count(nl(_RULER))}")
 RULER_SRC = _PAD2 + "\n" + _RULER + "\n"
+# D-20 : `SVM_TRANS` du BUNDLE, extraite et jouee a cote de la couche --
+# meme technique que svmRuler/svmPad2 ci-dessus. La galerie prend les sept
+# historiques en parametre (`legacy`) : les recopier ici ferait une
+# seconde version qui divergerait de la premiere au premier changement de
+# libelle. Le repli est une table VIDE, et la ligne dediee rougit SEULE :
+# sans elle, les sept lignes de rendu diraient toutes « ReferenceError »
+# sans dire d'ou vient le mal (faute n6, deja payee ici par _VIDEO_EXTS).
+_m_trans = re.search(r"var SVM_TRANS=\[.*?\];", s.replace("\r\n", "\n"), re.S)
+_TRANS_SRC = (_m_trans.group(0) + "\n") if _m_trans else "var SVM_TRANS=[];\n"
+check("D20_la_table_des_sept_historiques_est_extractible_du_bundle",
+      _m_trans is not None and _TRANS_SRC.count('["') == 7,
+      f"paires={_TRANS_SRC.count(chr(91) + chr(34))}")
 shim.write_text('"use strict";\n' + "var window={};var SVM_TRACK_BUS={};\n" + JSX
                 + SVM_SRC.replace("\r\n", "\n") + "\n"
-                + RULER_SRC + src + "\n"
+                + RULER_SRC + _TRANS_SRC + src + "\n"
                 + probe.replace("__DZ_VIDEO_EXTS__",
-                                json.dumps(_exts_svc or [".mp4"])),
+                                json.dumps(_exts_svc or [".mp4"]))
+                       .replace("__DZ_TRANS_CAT__", _TRANS_CAT_JS),
                 encoding="utf-8")
 r = NODE(["node", str(shim)])
 if r.returncode != 0:
@@ -12317,10 +12445,20 @@ check("tb8_aucun_mouvement_de_la_barre_n_est_pilote_en_javascript",
       and "setTimeout" not in _HORS_FRM
       and "setInterval" not in _CODE_TB8
       and ".animate(" not in _code(src)
-      # ET LA FEUILLE N'ANIME RIEN NON PLUS : aucune `@keyframes`, donc tout
-      # le mouvement de la barre est une TRANSITION — exactement ce que le
-      # coupe-circuit borne.
-      and "@keyframes" not in _MC,
+      # ET LA FEUILLE N'ANIME PAS LA BARRE NON PLUS : tout son mouvement est
+      # une TRANSITION — exactement ce que le coupe-circuit borne.
+      # LA MESURE A ETE RESSERREE LE 21/09/2026 (D-20, tache 2), ET C'EST
+      # UNE CORRECTION : elle disait « aucune @keyframes DANS LA FEUILLE »,
+      # ce qui melait deux sujets. montage.css porte desormais les quatre
+      # animations de l'apercu des transitions (dzmtSlideDir, dzmtWipeDir,
+      # dzmtCircle, dzmtZoom) qui n'ont rien a voir avec la barre. Ce qui
+      # est mesure ici, c'est ce que la ligne VOULAIT dire : aucune regle
+      # de la barre ne declare `animation:`, et les seules @keyframes de la
+      # feuille sont les quatre neuves, NOMMEES.
+      and not [r for r in _MC.split("}") if "dzm-tb" in r.split("{")[0]
+               and "animation:" in r]
+      and sorted(re.findall(r"@keyframes\s+([A-Za-z0-9_-]+)", _MC))
+          == ["dzmtCircle", "dzmtSlideDir", "dzmtWipeDir", "dzmtZoom"],
       f"bloc={len(_CODE_TB8)} o hors_frame={len(_HORS_FRM)} o")
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -12915,6 +13053,200 @@ check("D5_les_marqueurs_etaient_deja_dans_les_cles_de_l_historique",
 # AUCUN temoin pose apres elle. Sa promesse — « aucun appel garde n'a leve » —
 # n'etait vraie que de la premiere moitie du banc. Une ligne de queue doit
 # etre EN QUEUE ; les sections s'ajoutent, elle doit rester la derniere.
+
+# ══════════════════════════════════════════════════════════════════════════
+# D-20 (21/09/2026, tâche 2) — LA GALERIE DES TRANSITIONS, CÔTÉ ÉCRAN
+# ══════════════════════════════════════════════════════════════════════════
+# X1 EST UN REPLI, et c'est la mesure qui le dit : son texte vaut 0 dans
+# .bak_montage (aucune section ne pourrait le prendre pour ancre), il est
+# DANS R_M16REF, et il vaut 1 dans le bundle livré. Même forme que E1/K3.
+for _lblx, _txtx, _secx, _nomx in (
+        ("X1_le_catalogue_est_charge_une_fois",
+         "var stDzCat=x.useState(null),dzTransCat=stDzCat[0],", P.R_M16REF, "R_M16REF"),
+        ("X1_le_catalogue_est_aussi_pose_en_global",
+         "window.__dzTransCat=d;setDzTransCat(d)", P.R_M16REF, "R_M16REF")):
+    check("D20_" + _lblx,
+          s.count(nl(_txtx)) == 1 and _txtx in _secx
+          and (_bak.count(_nlb(_txtx)) == 0 if _bak else False),
+          f'bundle={s.count(nl(_txtx))} dans_{_nomx}={_txtx in _secx} '
+          f'bak={_bak.count(_nlb(_txtx)) if _bak else "?"}')
+# ET IL N'EST TIRÉ QU'UNE FOIS : dépendances VIDES, une seule route citée.
+check("D20_X1_le_catalogue_est_tire_une_seule_fois_et_annulable",
+      s.count(nl('fetch("/api/montage/transitions")')) == 1
+      and s.count(nl("return function(){al=!1}},[]);")) == 1,
+      f'fetch={s.count(nl(chr(34) + "/api/montage/transitions" + chr(34)))} '
+      f'annulation={s.count(nl("return function(){al=!1}},[]);"))}')
+# X2 : LA GRILLE DE SEPT TUILES N'EXISTE PLUS. Les deux faces — elle valait 1
+# dans .bak_montage, elle vaut 0 dans le livré — et la galerie l'a remplacée.
+# Sans la face .bak, « 0 » serait vrai d'un texte qui n'a jamais existé.
+_VIEILLE = '"svm-transgrid",children:SVM_TRANS.map(function(o){'
+check("D20_X2_la_grille_est_la_galerie",
+      s.count(nl("DzTracks.TransGrid")) == 1
+      and s.count(nl(_VIEILLE)) == 0
+      and (_bak.count(_nlb(_VIEILLE)) == 1 if _bak else False)
+      and s.count(nl("onPick:function(id){svmSetTransType(jc.id,id)}}),")) == 1,
+      f'grille={s.count(nl("DzTracks.TransGrid"))} '
+      f'vieille={s.count(nl(_VIEILLE))} '
+      f'bak={_bak.count(_nlb(_VIEILLE)) if _bak else "?"}')
+# ET LA SUITE DU POPOVER EST INTACTE : le curseur de durée et le bouton
+# « Appliquer à toutes les coupes » sont hors de l'ancre de X2. Une ancre
+# trop longue les aurait emportés sans que rien ne le dise.
+check("D20_X2_le_curseur_de_duree_et_le_bouton_survivent",
+      s.count(nl('"aria-label":"Durée de la transition",')) == 1
+      and s.count(nl('children:"Appliquer à toutes les coupes"')) == 1
+      and s.count(nl("onClick:function(){svmApplyTransAll(base,isCut?0:s2)},")) == 1,
+      f'curseur={s.count(nl(chr(34) + "aria-label" + chr(34) + ":" + chr(34) + "Durée de la transition" + chr(34) + ","))} '
+      f'bouton={s.count(nl("children:" + chr(34) + "Appliquer à toutes les coupes" + chr(34)))}')
+# X3/X3b : « connu » et les options se demandent à la LISTE. Les deux ancres
+# ont DISPARU (le remplacement ne les reprend pas) — la boucle générique le
+# mesure déjà ; ce qui suit est ce qu'elle ne voit pas : DEUX appels à
+# `transList`, un par section, et plus un seul `SVM_TRANS.some` / `.map`.
+check("D20_X3_le_select_liste_le_catalogue",
+      s.count(nl("DzTracks.transList(SVM_TRANS,dzTransCat)")) == 2
+      and s.count(nl("SVM_TRANS.some(")) == 0
+      and s.count(nl("SVM_TRANS.map(")) == 0
+      and (_bak.count(_nlb("SVM_TRANS.some(")) == 1 if _bak else False)
+      and (_bak.count(_nlb("SVM_TRANS.map(")) == 2 if _bak else False)
+      and s.count(nl('children:f.label+" · "+it.label},it.id)')) == 1,
+      f'transList={s.count(nl("DzTracks.transList(SVM_TRANS,dzTransCat)"))} '
+      f'some={s.count(nl("SVM_TRANS.some("))} map={s.count(nl("SVM_TRANS.map("))} '
+      f'bak_some={_bak.count(_nlb("SVM_TRANS.some(")) if _bak else "?"} '
+      f'bak_map={_bak.count(_nlb("SVM_TRANS.map(")) if _bak else "?"}')
+# X4 : le libellé du losange vient de la couche, et le `find` des sept a
+# disparu. `SVM_TRANS` reste DÉCLARÉ (c'est le repli hors-ligne) : la mesure
+# porte sur la LECTURE, pas sur la table.
+check("D20_X4_le_libelle_vient_du_catalogue",
+      s.count(nl("DzTracks.transLabel(b,SVM_TRANS,window.__dzTransCat||null)")) == 1
+      and s.count(nl("SVM_TRANS.find(")) == 0
+      and (_bak.count(_nlb("SVM_TRANS.find(")) == 1 if _bak else False)
+      and s.count(nl("var SVM_TRANS=[")) == 1,
+      f'couche={s.count(nl("DzTracks.transLabel(b,SVM_TRANS,window.__dzTransCat||null)"))} '
+      f'find={s.count(nl("SVM_TRANS.find("))} '
+      f'bak_find={_bak.count(_nlb("SVM_TRANS.find(")) if _bak else "?"} '
+      f'table={s.count(nl("var SVM_TRANS=["))}')
+# LES NOMS NEUFS ÉTAIENT LIBRES dans le bundle d'entrée — bornes \b.
+for _nmx in ("dzTransCat", "setDzTransCat", "stDzCat", "__dzTransCat"):
+    _nb = len(re.findall(r"\b%s\b" % _nmx, _bak)) if _bak else -1
+    _nu = len(re.findall(r"\b%s\b" % _nmx, s))
+    check("D20_nom_" + _nmx.strip("_") + "_etait_libre_dans_le_bundle_d_entree",
+          _nb == 0 and _nu >= 1, f"{_nmx} : .bak={_nb} (attendu 0) bundle={_nu}")
+
+# ── CE QUE LE STUB JSX A RENDU ────────────────────────────────────────────
+# SEPT groupes : « coupe », « historiques » et les six familles du serveur.
+# 62 tuiles : 1 + 3 historiques (les sept du bundle moins cut, fade,
+# dissolve et fadeblack, qui sont AU catalogue) + 58.
+check("D20_la_galerie_rend_sept_groupes_et_soixante_deux_tuiles",
+      isinstance(d.get("tg_rendu"), list) and len(d.get("tg_rendu") or []) == 3
+      and d["tg_rendu"][0] == 8 and d["tg_rendu"][1] == 62
+      and [f[0] for f in d["tg_rendu"][2]]
+          == ["coupe", "historiques", "fondus", "glissements", "volets",
+              "formes", "zooms", "pixels"]
+      and [f[1] for f in d["tg_rendu"][2]] == [1, 3, 8, 12, 16, 9, 3, 10],
+      f'{d.get("tg_rendu")}')
+check("D20_les_trois_historiques_sont_ceux_qui_ne_sont_pas_au_catalogue",
+      d.get("tg_historiques") == ["glitch", "slide", "flash"],
+      f'{d.get("tg_historiques")}')
+# LA TUILE PORTE TOUT : la classe du bundle, `data-sel` parce qu'elle est
+# choisie, l'infobulle, la micro-scène avec `data-tt` (les règles du bundle),
+# `data-fam` (la nôtre) et `data-dir`.
+check("D20_la_tuile_choisie_porte_sa_classe_sa_scene_sa_famille_et_son_sens",
+      d.get("tg_tuile") == ["svm-transtile", "", "volet ↖ (wipetl) — visible après Preview",
+                            "svm-tprev", "wipetl", "volets", None, "volet ↖"],
+      f'{d.get("tg_tuile")}')
+# ET LA NON CHOISIE N'A PAS `data-sel` — la moitié qui manquait.
+check("D20_une_tuile_non_choisie_n_a_pas_data_sel",
+      d.get("tg_non_choisie") == [None, "left"], f'{d.get("tg_non_choisie")}')
+check("D20_le_clic_remonte_l_identifiant_nu_et_sans_rappel_rien_ne_leve",
+      d.get("tg_clic") == ["cut"], f'{d.get("tg_clic")}')
+check("D20_l_infobulle_dit_ce_qui_n_est_pas_joue_en_direct",
+      d.get("tg_direct") == [True, True], f'{d.get("tg_direct")}')
+# SANS CATALOGUE, L'ÉCRAN D'AVANT D-20 : sept tuiles, deux groupes. C'est la
+# ligne qui dit que l'échec silencieux de X1 ne vide pas la galerie.
+check("D20_sans_catalogue_la_galerie_est_celle_d_avant",
+      d.get("tg_sans_catalogue") == [["coupe", "historiques"], 7],
+      f'{d.get("tg_sans_catalogue")}')
+
+# ── LA FEUILLE ────────────────────────────────────────────────────────────
+# Les six familles animées, les quatre sens, le titre de famille et le
+# défilement du popover. `svmtFull`, `svmtFade`, `svmtGlitch` et `--ease`
+# sont RÉUTILISÉS de son-vfx-montage.css (intouchable), pas redéclarés :
+# les deux faces sont mesurées.
+check("D20_la_feuille_anime_les_six_familles_et_les_quatre_sens",
+      all(('.dzsvm .svm-tprev[data-fam="%s"]' % _f) in _MC
+          for _f in ("fondus", "glissements", "volets", "formes", "zooms", "pixels"))
+      and all(('.dzsvm .svm-tprev[data-dir="%s"]' % _dd) in _MC
+              for _dd in ("left", "right", "up", "down"))
+      and ".dzsvm .dzm-transfam-t{font-family:var(--f-mono);" in _MC
+      and ".dzsvm .dzm-transgrid{grid-template-columns:repeat(3,1fr)}" in _MC
+      and ".dzsvm .svm-transpop{max-height:52vh; overflow:auto}" in _MC,
+      f'familles={[_f for _f in ("fondus", "glissements", "volets", "formes", "zooms", "pixels") if (chr(46) + "dzsvm .svm-tprev[data-fam=" + chr(34) + _f + chr(34) + "]") not in _MC]}')
+# LES TROIS ANIMATIONS EMPRUNTÉES VIVENT DANS L'AUTRE FEUILLE, ET UNE SEULE
+# FOIS : les redéclarer ici ferait deux versions qui divergeraient.
+check("D20_les_animations_empruntees_ne_sont_pas_redeclarees",
+      _SVMCSS.count("@keyframes svmtFull{") == 1
+      and _SVMCSS.count("@keyframes svmtFade{") == 1
+      and _SVMCSS.count("@keyframes svmtGlitch{") == 1
+      and "--ease:" in _SVMCSS
+      and "@keyframes svmtFull" not in _MC
+      and "@keyframes svmtFade" not in _MC
+      and "@keyframes svmtGlitch" not in _MC,
+      f'svmtFull={_SVMCSS.count("@keyframes svmtFull{")} '
+      f'dans_montage={"@keyframes svmtFull" in _MC}')
+# LES DEUX EXCLUSIONS : `dissolve` et `fadeblack` sont AU catalogue (famille
+# « fondus ») et portent DÉJÀ une règle [data-tt] du bundle avec une AUTRE
+# animation. Nos sélecteurs sont plus spécifiques : sans les `:not`, la
+# galerie effacerait deux aperçus existants. `fade` n'en a pas besoin — les
+# deux règles demandent la même svmtFade, et c'est mesuré des deux côtés.
+check("D20_les_deux_apercus_historiques_du_catalogue_ne_sont_pas_ecrases",
+      '.dzsvm .svm-tprev[data-fam="fondus"]:not([data-tt="dissolve"]):not([data-tt="fadeblack"]) .svm-tb{' in _MC
+      and _SVMCSS.count('.svm-tprev[data-tt="dissolve"] .svm-tb{animation:svmtFull 1.6s linear infinite, svmtDiss') == 1
+      and _SVMCSS.count('.svm-tprev[data-tt="fade"] .svm-tb{animation:svmtFull 1.6s linear infinite, svmtFade') == 1,
+      f'not={chr(46) + "dzsvm .svm-tprev[data-fam=" + chr(34) + "fondus" + chr(34) in _MC} '
+      f'diss={_SVMCSS.count(chr(46) + "svm-tprev[data-tt=" + chr(34) + "dissolve" + chr(34) + "] .svm-tb{")}')
+# LES TROIS ÉTATS DE LA MICRO-SCÈNE SONT REPOSÉS, ET C'EST LA LIGNE QUI DIT
+# POURQUOI : nos six règles de famille écrivent le RACCOURCI `animation:`,
+# qui remet `animation-play-state` à `running`. Sans les trois règles de
+# montage.css, les 58 tuiles neuves s'agiteraient en permanence (la pause du
+# bundle est à 3, la nôtre à 4) et la tuile choisie ne se figerait pas
+# (égalité 4 = 4, et montage.css est chargée APRÈS). Les deux faces : les
+# règles du bundle existent toujours, les nôtres aussi.
+check("D20_la_pause_le_survol_et_le_figement_sont_reposes_sur_la_famille",
+      ".dzsvm .svm-tprev[data-fam] .svm-tb{animation-play-state:paused}" in _MC
+      and ".dzsvm .svm-transtile:focus-visible .svm-tprev[data-fam] .svm-tb{" in _MC
+      and ".dzsvm .svm-transtile[data-sel] .svm-tprev[data-fam] .svm-tb{animation:none;" in _MC
+      # ET ELLES VIENNENT APRÈS LES ANIMATIONS DE FAMILLE : à spécificité
+      # égale (4 = 4), c'est l'ORDRE qui tranche pour la pause.
+      and _MC.index(".dzsvm .svm-tprev[data-fam] .svm-tb{animation-play-state:paused}")
+          > _MC.index('.dzsvm .svm-tprev[data-fam="pixels"] .svm-tb{')
+      # 4, MESURE : la pause, le survol (hover ET focus-visible, deux
+      # citations) et le figement du bundle citent chacun
+      # `.svm-tprev[data-tt] .svm-tb` dans leur selecteur multiple.
+      and _SVMCSS.count(".svm-tprev[data-tt] .svm-tb,") == 4
+      and _SVMCSS.count('.svm-transtile[data-sel] .svm-tprev[data-tt] .svm-tb{width:100%;') == 1,
+      f'pause={".dzsvm .svm-tprev[data-fam] .svm-tb{animation-play-state:paused}" in _MC} '
+      f'fige={".dzsvm .svm-transtile[data-sel] .svm-tprev[data-fam] .svm-tb{animation:none;" in _MC}')
+# LE MOUVEMENT RÉDUIT COUVRE DÉJÀ LES 58 : la règle `!important` de
+# son-vfx-montage.css porte sur `.svm-tprev .svm-tb` SANS `[data-tt]` — elle
+# éteint donc aussi les animations de famille. Rien à ajouter, et c'est
+# mesuré plutôt que supposé.
+check("D20_le_mouvement_reduit_eteint_aussi_les_animations_de_famille",
+      _SVMCSS.count(".dzsvm .svm-tprev .svm-ta,.dzsvm .svm-tprev .svm-tb{animation:none!important;") == 1
+      and "@media (prefers-reduced-motion:reduce){" in _SVMCSS,
+      f'regle={_SVMCSS.count(".dzsvm .svm-tprev .svm-ta,.dzsvm .svm-tprev .svm-tb{animation:none!important;")}')
+# LA COPIE CLIENTE DES FAMILLES EST CELLE DU SERVEUR, NOM POUR NOM. C'est LE
+# banc croisé : la couche porte une table de style, le service porte
+# l'autorité, et rien ne les tenait ensemble.
+_FAM_JS = {}
+for _k6 in ("fondus", "glissements", "volets", "formes", "zooms", "pixels"):
+    _m6 = re.search(r"\n  %s:\[([^\]]*)\]" % _k6, src)
+    _FAM_JS[_k6] = re.findall(r'"([^"]+)"', _m6.group(1)) if _m6 else []
+check("D20_la_copie_cliente_des_familles_est_celle_du_service",
+      bool(_TRANS_FAM_SVC)
+      and all(_FAM_JS.get(_k6) == list(_TRANS_FAM_SVC.get(_k6, {}).get("noms", []))
+              for _k6 in _FAM_JS)
+      and sum(len(_v6) for _v6 in _FAM_JS.values()) == 58,
+      f'client={ {k: len(v) for k, v in _FAM_JS.items()} } '
+      f'service={ {k: len(v.get("noms", [])) for k, v in _TRANS_FAM_SVC.items()} }')
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

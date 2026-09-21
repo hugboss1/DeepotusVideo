@@ -997,3 +997,68 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
   font-family:inherit}
 .dzsvm .dzm-mktitre:focus{outline:none;
   border-color:var(--accent, #d8a657)}
+
+/* ── D-20 (21/09/2026) — LA GALERIE DES TRANSITIONS ────────────────────────
+   Aperçu animé des 58 transitions : UNE animation par FAMILLE, la direction
+   en variable (--tx/--ty). Les sept règles [data-tt] de son-vfx-montage.css
+   (intouchable) restent en place et gardent la main sur ce qui leur est
+   propre — la moitié GAUCHE (svmtFull), la pause hors survol, le figement de
+   la tuile choisie, et le voile ::after de fadeblack/flash.
+   MESURÉ : `svmtFull`, `svmtFade`, `svmtGlitch` et `--ease` existent bien
+   dans son-vfx-montage.css (l. 525, 527, 536, 36) — on les RÉUTILISE, on ne
+   les redéclare pas. Seules les quatre animations neuves sont `dzmt*`.
+   LES DEUX EXCLUSIONS SONT UNE MESURE, pas une précaution : `dissolve` et
+   `fadeblack` sont AU CATALOGUE (famille « fondus ») ET portent déjà une
+   règle [data-tt] du bundle, avec une animation DIFFÉRENTE de svmtFade
+   (svmtDiss, et svmtCutMid doublé du voile noir). Nos sélecteurs sont plus
+   spécifiques (.dzsvm en tête) : sans ces deux `:not`, la galerie EFFACERAIT
+   deux aperçus existants. `fade` n'a pas besoin d'exclusion — la règle du
+   bundle et la nôtre demandent la MÊME svmtFade. */
+.dzsvm .dzm-transfam{margin-top:8px}
+.dzsvm .dzm-transfam-t{font-family:var(--f-mono); font-size:10px;
+  color:var(--ink3, #8a8580); text-transform:uppercase; letter-spacing:.06em;
+  margin:6px 0 2px}
+.dzsvm .dzm-transgrid{grid-template-columns:repeat(3,1fr)}
+/* 62 tuiles dans un popover de 276 px : la galerie défile, le popover non. */
+.dzsvm .svm-transpop{max-height:52vh; overflow:auto}
+.dzsvm .svm-tprev[data-dir="left"]{--tx:-100%; --ty:0}
+.dzsvm .svm-tprev[data-dir="right"]{--tx:100%; --ty:0}
+.dzsvm .svm-tprev[data-dir="up"]{--tx:0; --ty:-100%}
+.dzsvm .svm-tprev[data-dir="down"]{--tx:0; --ty:100%}
+.dzsvm .svm-tprev[data-fam="fondus"]:not([data-tt="dissolve"]):not([data-tt="fadeblack"]) .svm-tb{
+  animation:svmtFull 1.6s linear infinite, svmtFade 1.6s linear infinite}
+.dzsvm .svm-tprev[data-fam="glissements"] .svm-tb{
+  animation:svmtFull 1.6s linear infinite, dzmtSlideDir 1.6s var(--ease) infinite}
+.dzsvm .svm-tprev[data-fam="volets"] .svm-tb{
+  animation:svmtFull 1.6s linear infinite, dzmtWipeDir 1.6s linear infinite}
+.dzsvm .svm-tprev[data-fam="formes"] .svm-tb{
+  animation:svmtFull 1.6s linear infinite, dzmtCircle 1.6s linear infinite}
+.dzsvm .svm-tprev[data-fam="zooms"] .svm-tb{
+  animation:svmtFull 1.6s linear infinite, dzmtZoom 1.6s var(--ease) infinite}
+.dzsvm .svm-tprev[data-fam="pixels"] .svm-tb{
+  animation:svmtFull 1.6s linear infinite, svmtGlitch 1.6s steps(2,end) infinite}
+/* LES TROIS ÉTATS DE LA MICRO-SCÈNE, REPOSÉS PLUS SPÉCIFIQUES — ET C'EST
+   UNE CORRECTION MESURÉE, pas une précaution. Le bundle met les scènes en
+   PAUSE au repos (`animation-play-state:paused` sur
+   `.svm-tprev[data-tt] .svm-tb`, spécificité 3), les fait tourner au survol
+   (4) et FIGE la tuile choisie sur son état final (`animation:none` sur
+   `.svm-transtile[data-sel] .svm-tprev[data-tt] .svm-tb`, spécificité 4).
+   Nos six règles de famille sont à 4 et écrivent le RACCOURCI `animation:`,
+   qui REMET `animation-play-state` à `running` : sans les trois règles
+   ci-dessous, les 58 tuiles neuves s'agiteraient toutes en permanence (la
+   pause perd, 3 < 4) et la tuile choisie ne se figerait pas (égalité 4 = 4,
+   et montage.css est chargée APRÈS). Les trois états sont donc reposés sur
+   `[data-fam]`, à 4 (après les animations : l'ordre tranche), 5 et 6. */
+.dzsvm .svm-tprev[data-fam] .svm-tb{animation-play-state:paused}
+.dzsvm .svm-transtile:hover .svm-tprev[data-fam] .svm-tb,
+.dzsvm .svm-transtile:focus-visible .svm-tprev[data-fam] .svm-tb{
+  animation-play-state:running}
+.dzsvm .svm-transtile[data-sel] .svm-tprev[data-fam] .svm-tb{animation:none;
+  width:100%; opacity:1; transform:none}
+@keyframes dzmtSlideDir{0%,20%{transform:translate(var(--tx,100%),var(--ty,0))}
+  60%,100%{transform:translate(0,0)}}
+@keyframes dzmtWipeDir{0%,20%{clip-path:inset(0 0 0 100%)} 60%,100%{clip-path:inset(0)}}
+@keyframes dzmtCircle{0%,20%{clip-path:circle(0% at 50% 50%)}
+  60%,100%{clip-path:circle(75% at 50% 50%)}}
+@keyframes dzmtZoom{0%,20%{transform:scale(.2); opacity:0}
+  60%,100%{transform:scale(1); opacity:1}}

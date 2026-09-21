@@ -1222,7 +1222,7 @@ var SVM_TRANS=[["cut","coupe sèche"],["fade","fondu"],["dissolve","dissolution"
  ["fadeblack","fondu noir"],["glitch","pixélisé"],["slide","glissement"],["flash","fondu blanc"]];
 function svmTransBase(t){return String(t||"cut").split(/\s+/)[0]||"cut"}
 function svmTransLabel(t){var b=svmTransBase(t);
-  var f=SVM_TRANS.find(function(o){return o[0]===b});return f?f[1]:b}
+  return DzTracks.transLabel(b,SVM_TRANS,window.__dzTransCat||null)}
 function svmTransS(c){return Math.min(1,Math.max(.1,Number(c&&c.transition_s)||.4))}
 /* jonctions V1 : deux clips consécutifs dont l'écart ≤ 0,1 s (au-delà : trou) */
 function svmV1Junctions(cs){
@@ -1744,6 +1744,14 @@ function DzMontage(props){
   function dzMkToggle(v){var n=arguments.length?!!v:!dzMkOnRef.current;if(n)setOvPick("");setDzMkOn(n)}
   x.useEffect(function(){if(ovPick)setDzMkOn(!1)},[ovPick]);
   var dzModeRef=x.useRef(dzMode);dzModeRef.current=dzMode;
+  var stDzCat=x.useState(null),dzTransCat=stDzCat[0],setDzTransCat=stDzCat[1];
+  x.useEffect(function(){var al=!0;
+    fetch("/api/montage/transitions")
+      .then(function(rp){return rp.ok?rp.json():null})
+      .then(function(d){if(al&&d&&Array.isArray(d.familles)){
+        window.__dzTransCat=d;setDzTransCat(d)}})
+      .catch(function(){});
+    return function(){al=!1}},[]);
   /* P9 — « le VRAI projet est-il arrivé ? ». Tant que
      `svmApplyProject` n'a pas remplacé la maquette, `proj` est la
      démo : sans `tracks`, donc svmTracksOf retombe sur les six
@@ -4933,15 +4941,17 @@ function DzMontage(props){
     var base=svmTransBase(jc.transition),isCut=base==="cut",s2=svmTransS(jc);
     return r.jsxs("div",{className:"svm-pop svm-transpop",style:{left:transPop.x},children:[
       r.jsx("div",{className:"svm-poptitle",children:"Transition de coupe"}),
-      r.jsx("div",{className:"svm-transgrid",children:SVM_TRANS.map(function(o){
-        return r.jsxs("button",{className:"svm-transtile","data-sel":base===o[0]?"":void 0,
-          title:o[1]+" ("+o[0]+")",
-          onClick:function(){svmSetTransType(jc.id,o[0])},children:[
-          /* micro-scène A/B — aperçu animé du type ; la tuile sélectionnée est
-             figée sur l'état final, reduced-motion la rend statique */
-          r.jsxs("span",{className:"svm-tprev","data-tt":o[0],"aria-hidden":!0,children:[
-            r.jsx("i",{className:"svm-ta"}),r.jsx("i",{className:"svm-tb"})]}),
-          r.jsx("span",{className:"svm-ttl",children:o[1]})]},o[0])})}),
+      /* D-20 — LA GALERIE. Les sept tuiles cèdent la place à
+         TransGrid() de la couche : « coupe », puis les historiques du
+         bundle qui ne sont pas au catalogue, puis les six
+         familles servies. La couche garde `.svm-transtile`,
+         `.svm-tprev` et `data-tt` — les règles du bundle
+         continuent d'animer la moitié gauche, de mettre en
+         pause hors survol et de figer la tuile choisie ;
+         `data-fam` et `data-dir` n'ajoutent que l'animation de
+         la moitié droite, dans montage.css. */
+      r.jsx(DzTracks.TransGrid,{legacy:SVM_TRANS,cat:dzTransCat,cur:base,
+        onPick:function(id){svmSetTransType(jc.id,id)}}),
       r.jsxs("div",{className:"svm-fxedit",style:{marginTop:10},children:[
         r.jsx("span",{className:"svm-fxeditname",children:"Durée"}),
         r.jsx("span",{className:"svm-transbound","aria-hidden":!0,children:"0.1 s"}),
@@ -4962,7 +4972,8 @@ function DzMontage(props){
     if(!sel||sel.tr!=="v1")return null;
     var left=svmLeftNeighbor(clips,sel);
     var base=svmTransBase(sel.transition),isCut=base==="cut",s2=svmTransS(sel);
-    var known=SVM_TRANS.some(function(o){return o[0]===base});
+    var known=DzTracks.transList(SVM_TRANS,dzTransCat).some(function(f){
+      return f.items.some(function(it){return it.id===base})});
     return r.jsxs("div",{className:"svm-transinsp",children:[
       r.jsx("div",{className:"svm-propk",children:"Transition"}),
       left?r.jsxs("div",{style:{display:"flex",gap:7,marginTop:6,alignItems:"center"},children:[
@@ -4970,8 +4981,10 @@ function DzMontage(props){
           value:base,title:"Transition avec le plan précédent","aria-label":"Type de transition",
           onChange:function(e){svmSetTransType(sel.id,e.target.value)},
           children:(known?[]:[r.jsx("option",{value:base,children:base+" (hérité)"},"_leg")])
-            .concat(SVM_TRANS.map(function(o){
-              return r.jsx("option",{value:o[0],children:o[1]},o[0])}))}),
+            .concat(DzTracks.transList(SVM_TRANS,dzTransCat)
+              .reduce(function(a,f){return a.concat(f.items.map(function(it){
+                return r.jsx("option",{value:it.id,
+                  children:f.label+" · "+it.label},it.id)}))},[]))}),
         r.jsx("input",{className:"svm-transdur",type:"number",min:.1,max:1,step:.05,
           value:isCut?"":s2,disabled:isCut,
           title:"Durée de la transition (0,1 à 1 s)","aria-label":"Durée de la transition (s)",
@@ -17992,6 +18005,95 @@ function dzmSwap(clips,id,dir){
     if(k===a)return Object.assign({},k,{start:dzmR3(e-la),end:dzmR3(e)});
     return k})}
 
+/* ── D-20 (21/09/2026) : LA GALERIE DES TRANSITIONS ────────────────────────
+   Le backend sert le catalogue (GET /api/montage/transitions : six familles,
+   58 transitions, leurs libellés et un drapeau `live`). Ici : la FORME de la
+   galerie — « coupe » en tête, puis les historiques du bundle QUI NE SONT PAS
+   au catalogue (« historiques »), puis les familles du serveur.
+   POURQUOI UNE COPIE DES FAMILLES CÔTÉ CLIENT (`DZM_TRANS_FAM`) ALORS QUE LE
+   SERVEUR LES SERT : ce n'est pas la même question. Le catalogue dit CE QUI
+   EXISTE (les libellés, le direct) et il arrive par le réseau, donc en retard
+   ou jamais ; `DZM_TRANS_FAM` dit À QUOI RESSEMBLE une transition, et c'est
+   ce que la micro-scène CSS doit savoir AU PREMIER RENDU pour animer la
+   tuile. La table est donc une table de STYLE, pas une autorité : elle ne
+   décide d'aucun rendu, elle choisit une animation. Le repli sur le
+   catalogue (la boucle `fs` ci-dessous) couvre le jour où le serveur
+   ajouterait une famille que cette copie ne connaît pas encore : la tuile
+   portera son `data-fam`, sans animation dédiée, plutôt que rien.
+   La correspondance des deux tables est tenue par un banc croisé. */
+var DZM_TRANS_FAM={
+  fondus:["fade","fadeblack","fadewhite","fadegrays","fadefast","fadeslow","dissolve","distance"],
+  glissements:["slideleft","slideright","slideup","slidedown","coverleft","coverright","coverup","coverdown","revealleft","revealright","revealup","revealdown"],
+  volets:["wipeleft","wiperight","wipeup","wipedown","wipetl","wipetr","wipebl","wipebr","smoothleft","smoothright","smoothup","smoothdown","diagtl","diagtr","diagbl","diagbr"],
+  formes:["circlecrop","rectcrop","circleopen","circleclose","vertopen","vertclose","horzopen","horzclose","radial"],
+  zooms:["zoomin","squeezeh","squeezev"],
+  pixels:["pixelize","hblur","hlslice","hrslice","vuslice","vdslice","hlwind","hrwind","vuwind","vdwind"]};
+/* la DIRECTION du geste, posée en data-dir : une seule animation par famille
+   suffit alors pour les quatre sens. Les « slice » et les « wind » vont à
+   l'envers de leur nom (hl = moitié gauche qui part, donc l'entrant vient de
+   la droite) — c'est mesuré sur ffmpeg, pas deviné du nom. */
+var DZM_TRANS_DIR={left:["slideleft","coverleft","revealleft","wipeleft","smoothleft","hrslice","hrwind"],
+  right:["slideright","coverright","revealright","wiperight","smoothright","hlslice","hlwind"],
+  up:["slideup","coverup","revealup","wipeup","smoothup","vuslice","vuwind"],
+  down:["slidedown","coverdown","revealdown","wipedown","smoothdown","vdslice","vdwind"]};
+/* les familles du catalogue, ASSAINIES une fois pour toutes : le JSON vient
+   du reseau, une entree nulle ou sans `items` y est possible, et les quatre
+   lecteurs ci-dessous la traversaient (mesure : `{familles:[null,…]}` tuait
+   le shim sur `fs[i].items` — rougir, pas mourir). */
+function dzmTransFams(cat){
+  var fs=cat&&Array.isArray(cat.familles)?cat.familles:[];
+  return fs.filter(function(f){return f&&f.id!=null}).map(function(f){
+    return {id:f.id,label:f.label,items:(Array.isArray(f.items)?f.items:[]).filter(function(it){return it&&it.id!=null})}})}
+function dzmTransFamily(id,cat){
+  if(id==="cut")return "coupe";
+  var k;for(k in DZM_TRANS_FAM)if(DZM_TRANS_FAM[k].indexOf(id)>=0)return k;
+  var fs=dzmTransFams(cat),i,j;
+  for(i=0;i<fs.length;i++)for(j=0;j<fs[i].items.length;j++)if(fs[i].items[j].id===id)return String(fs[i].id);
+  return ""}
+function dzmTransDir(id){var k;for(k in DZM_TRANS_DIR)if(DZM_TRANS_DIR[k].indexOf(id)>=0)return k;return ""}
+/* `live` est dit par le SERVEUR et par lui seul (D-12 joue ces fondus-là dans
+   le lecteur vivant) : pas de copie cliente. Sans catalogue, seule la coupe
+   franche est « en direct » — elle ne demande aucun voile. */
+function dzmTransLive(id,cat){
+  var fs=dzmTransFams(cat),i,j;
+  for(i=0;i<fs.length;i++)for(j=0;j<fs[i].items.length;j++){var it=fs[i].items[j];if(it.id===id)return !!it.live}
+  return id==="cut"}
+function dzmTransLabel(id,legacy,cat){
+  var fs=dzmTransFams(cat),i,j;
+  for(i=0;i<fs.length;i++)for(j=0;j<fs[i].items.length;j++){var it=fs[i].items[j];if(it.id===id&&it.label)return String(it.label)}
+  var lg=(Array.isArray(legacy)?legacy:[]).filter(function(o){return o&&o[0]===id})[0];
+  return lg?String(lg[1]):String(id)}
+function dzmTransList(legacy,cat){
+  var lg=Array.isArray(legacy)?legacy:[],fs=dzmTransFams(cat);
+  var inCat={},out=[{id:"coupe",label:"coupe",items:[{id:"cut",label:dzmTransLabel("cut",lg,cat),live:!0}]}];
+  fs.forEach(function(f){f.items.forEach(function(it){inCat[it.id]=1})});
+  var hist=lg.filter(function(o){return o&&o[0]!=="cut"&&!inCat[o[0]]}).map(function(o){return {id:String(o[0]),label:String(o[1]),live:dzmTransLive(o[0],cat)}});
+  if(hist.length)out.push({id:"historiques",label:"historiques",items:hist});
+  fs.forEach(function(f){out.push({id:String(f.id),label:String(f.label||f.id),
+    items:f.items.map(function(it){return {id:String(it.id),label:String(it.label||it.id),live:!!it.live}})})});
+  return out}
+/* la grille : une rangée de titre par famille, les tuiles reprennent la
+   classe `.svm-transtile` et la micro-scène `.svm-tprev` du bundle ; la
+   famille et la direction sont posées en data-* pour l'animation CSS de
+   montage.css (une règle par famille, la direction en variable).
+   `data-tt` EST GARDÉ sur toutes les tuiles, y compris les 58 neuves : c'est
+   LUI qui porte, dans son-vfx-montage.css (intouchable), l'animation de la
+   moitié GAUCHE, la pause hors survol et le figement de la tuile choisie.
+   Sans lui, les 58 tuiles neuves s'agiteraient toutes en permanence. */
+function DzmTransGrid(o){
+  var lst=dzmTransList(o&&o.legacy,o&&o.cat),cur=o&&o.cur,on=typeof (o&&o.onPick)==="function"?o.onPick:function(){};
+  return lst.map(function(f){
+    return r.jsxs("div",{className:"dzm-transfam",children:[
+      r.jsx("div",{className:"dzm-transfam-t",children:f.label}),
+      r.jsx("div",{className:"svm-transgrid dzm-transgrid",children:f.items.map(function(it){
+        var fam=dzmTransFamily(it.id,o&&o.cat),dir=dzmTransDir(it.id);
+        return r.jsxs("button",{className:"svm-transtile","data-sel":cur===it.id?"":void 0,
+          title:it.label+" ("+it.id+")"+(it.live?"":" — visible après Preview"),
+          onClick:function(){on(it.id)},children:[
+          r.jsxs("span",{className:"svm-tprev","data-tt":it.id,"data-fam":fam,"data-dir":dir||void 0,"aria-hidden":!0,
+            children:[r.jsx("i",{className:"svm-ta"}),r.jsx("i",{className:"svm-tb"})]}),
+          r.jsx("span",{className:"svm-ttl",children:it.label})]},it.id)})})]},f.id)})}
+
 /* ── export contrat ───────────────────────────────────────────────────────── */
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
@@ -18058,6 +18160,9 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   markerUpdate:dzmMarkerUpdate,markerNext:dzmMarkerNext,
   markersFrom:dzmMarkersFrom,MARKER_COLORS:DZM_MARKER_COLORS,
   Markers:DzmMarkers,MarkerIndex:DzmMarkerIndex,
+  transList:dzmTransList,transLabel:dzmTransLabel,transFamily:dzmTransFamily,
+  transLive:dzmTransLive,transDir:dzmTransDir,TransGrid:DzmTransGrid,
+  TRANS_FAM:Object.freeze(DZM_TRANS_FAM),TRANS_DIR:Object.freeze(DZM_TRANS_DIR),
   insere:dzmInsere,MODES:DZM_MODES,REFUS:DZM_REFUS,carve:dzmCarve,
   slip:dzmSlip,slide:dzmSlide,roll:dzmRoll,voisins:dzmVoisins,swap:dzmSwap,
   ModeBar:DzmModeBar,MODE_T:DZM_MODE_T,modeLabel:dzmModeLabel,

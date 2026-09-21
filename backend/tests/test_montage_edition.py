@@ -266,6 +266,66 @@ out.mk_t_types=[T.markersFrom([{t:!0},{t:[]},{t:{}},{t:2}])
                 T.markerAdd([],!0,{}).length,
                 T.markerAdd([],[],{}).length,
                 T.markerAdd([],2,{}).length];
+/* --- [5] D-20 : LA GALERIE DES TRANSITIONS ------------------------------
+   `CAT` est un catalogue MINUSCULE (deux familles, trois transitions) et
+   c'est délibéré : il ne ressemble pas à celui du serveur, ce qui rend
+   visible ce que chaque fonction lui demande VRAIMENT. `transFamily` rend
+   "volets" pour `wipetl` alors que CAT n'a pas cette famille -- la table des
+   familles est CLIENTE (DZM_TRANS_FAM, une table de STYLE : elle choisit
+   l'animation de la micro-scène dès le premier rendu, avant que le réseau
+   ait répondu) et le catalogue ne sert qu'aux libellés et au drapeau `live`.
+   Le repli sur le catalogue est mesuré à part (tl_fam_du_catalogue). */
+var CAT={familles:[{id:"fondus",label:"fondus",items:[{id:"fade",label:"fondu",live:!0},{id:"fadeblack",label:"fondu noir",live:!0}]},
+  {id:"pixels",label:"pixels",items:[{id:"pixelize",label:"pixélisé",live:!1}]}]};
+var LEG=[["cut","coupe sèche"],["fade","fondu"],["glitch","pixélisé"]];
+out.tl_liste=T.transList(LEG,CAT).map(function(f){return [f.id,f.items.map(function(i){return i.id})]});
+out.tl_cut_en_tete=T.transList(LEG,CAT)[0].items[0].id;
+out.tl_sans_catalogue=T.transList(LEG,null).map(function(f){return [f.id,f.items.length]});
+out.tl_label=[T.transLabel("fadeblack",LEG,CAT),T.transLabel("cut",LEG,CAT),T.transLabel("zzz",LEG,CAT)];
+out.tl_fam=[T.transFamily("wipetl",CAT),T.transFamily("cut",CAT),T.transFamily("zzz",CAT)];
+out.tl_live=[T.transLive("fade",CAT),T.transLive("pixelize",CAT),T.transLive("cut",CAT),T.transLive("zzz",CAT)];
+out.tl_pur=CAT.familles.length===2&&LEG.length===3;
+/* le REPLI : une famille que la table cliente ne connait pas est LUE dans le
+   catalogue. Sans cette moitié, ajouter une famille au serveur donnerait des
+   tuiles sans `data-fam` du tout. */
+out.tl_fam_du_catalogue=T.transFamily("zz1",{familles:[{id:"neuve",label:"n",items:[{id:"zz1",label:"z"}]}]});
+/* les libellés du CATALOGUE priment sur ceux des sept historiques : `fade`
+   est dans les deux, et c'est le serveur qui parle. */
+out.tl_label_catalogue_prime=T.transLabel("fade",LEG,CAT);
+/* la DIRECTION : quatre sens, et le vide pour ce qui n'en a pas. `hlslice`
+   va à DROITE (la moitié gauche part, l'entrant vient de la droite). */
+out.tl_dir=[T.transDir("slideleft"),T.transDir("wipeup"),T.transDir("hlslice"),
+            T.transDir("fade"),T.transDir("zzz")];
+/* la table cliente COUVRE les 58 : chaque nom y est UNE SEULE FOIS. Le banc
+   croisé avec le backend vit dans test_montage_l2.py ; ici on mesure la
+   cohérence interne de la copie. */
+out.tl_fam_58=(function(){var a=[],k,i;
+  for(k in T.TRANS_FAM)for(i=0;i<T.TRANS_FAM[k].length;i++)a.push(T.TRANS_FAM[k][i]);
+  var u={},dbl=0,j;for(j=0;j<a.length;j++){if(u[a[j]])dbl++;u[a[j]]=1}
+  return [a.length,Object.keys(u).length,dbl,Object.keys(T.TRANS_FAM)]})();
+/* les tables sont GELEES, comme MODES et MARKER_COLORS : le shim est en mode
+   strict, une ecriture y leve. */
+out.tl_gel=(function(){var a=[];
+  try{T.TRANS_FAM.zzz=["x"];a.push("no")}catch(e){a.push(e.constructor.name)}
+  try{T.TRANS_DIR.zzz=["x"];a.push("no")}catch(e){a.push(e.constructor.name)}
+  return a})();
+/* MOUS : aucune de ces entrees ne doit lever, et la CLE existe toujours. */
+out.tl_mous=[T.transList(null,null).length,T.transList("x","y").length,
+             T.transList(LEG,{familles:"x"}).length,
+             T.transList(LEG,{familles:[null,{id:"f",items:[null,{id:"a"}]}]})
+               .map(function(f){return [f.id,f.items.length]}),
+             T.transLabel(null,null,null),T.transFamily(null,null),
+             T.transLive(null,null),T.transDir(null)];
+/* LA COMPOSANTE : elle EXISTE et ne touche a `r` qu'a l'appel (le shim de ce
+   banc n'a pas de stub JSX -- son RENDU est mesure par test_montage_bundle). */
+out.tl_grille_existe=typeof T.TransGrid;
+/* `window.__dzTransCat` : X4 lit ce global au niveau MODULE. Sous node, en
+   "use strict" avec `var window={}`, la lecture d'une propriete ABSENTE rend
+   `undefined` et ne leve pas -- c'est la mesure qui autorise la forme
+   `window.__dzTransCat||null` ecrite dans le patcher. */
+out.tl_global_ne_leve_pas=(function(){
+  try{return [window.__dzTransCat||null,"pas de levee"]}
+  catch(e){return ["LEVEE",e.constructor.name]}})();
 console.log(JSON.stringify(out));
 """
 print("\n[1] dzmInsere sous node")
@@ -422,7 +482,10 @@ try:
                  "mk_liste","mk_next","mk_from","mk_colors","mk_gel",
                  "mk_update","mk_composants","mk_from_plafond",
                  "mk_from_espacement","mk_t_vide","mk_toggle_le_plus_proche",
-                 "mk_from_eps_exact","mk_t_types"]
+                 "mk_from_eps_exact","mk_t_types",
+                 "tl_liste","tl_sans_catalogue","tl_label","tl_fam",
+                 "tl_live","tl_dir","tl_fam_58","tl_gel","tl_mous",
+                 "tl_grille_existe","tl_global_ne_leve_pas"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -685,6 +748,64 @@ check("mk_un_ecart_d_exactement_un_eps_est_trop_proche",
 check("mk_un_ecart_d_exactement_un_eps_serait_injoignable",
       "mk_eps_injoignable" in D and D.get("mk_eps_injoignable") == [None, None],
       f'{"mk_eps_injoignable" in D} {D.get("mk_eps_injoignable")!r}')
+
+print("\n[5] D-20 galerie des transitions")
+# LA LISTE : « coupe » d'abord, puis les historiques du bundle QUE LE
+# CATALOGUE N'A PAS, puis les familles servies. Le plan attendait ici
+# [coupe, fondus, pixels] et il avait TORT : `glitch` est dans LEG et n'est
+# dans aucune famille de CAT -- il DOIT former le groupe « historiques »,
+# sinon la transition d'un vieux montage disparaîtrait de la galerie. C'est
+# exactement ce que `tl_sans_catalogue` (que le plan écrit juste) dit de
+# l'autre côté : sans catalogue, les deux historiques restent.
+check("tl_la_liste_commence_par_les_coupes_puis_les_familles",
+      D.get("tl_liste") == [["coupe", ["cut"]], ["historiques", ["glitch"]],
+                            ["fondus", ["fade", "fadeblack"]], ["pixels", ["pixelize"]]],
+      D.get("tl_liste"))
+check("tl_cut_reste_en_tete", D.get("tl_cut_en_tete") == "cut", D.get("tl_cut_en_tete"))
+check("tl_sans_catalogue_les_historiques_restent",
+      D.get("tl_sans_catalogue") == [["coupe", 1], ["historiques", 2]], D.get("tl_sans_catalogue"))
+check("tl_le_libelle_vient_du_catalogue_puis_de_l_historique_puis_du_nom",
+      D.get("tl_label") == ["fondu noir", "coupe sèche", "zzz"], D.get("tl_label"))
+# ET LE CATALOGUE PRIME, mesuré sur un nom qui est DANS LES DEUX : sans cette
+# ligne, `tl_label` serait vraie d'une fonction qui regarde d'abord LEG.
+check("tl_le_catalogue_prime_sur_l_historique_pour_un_nom_commun",
+      D.get("tl_label_catalogue_prime") == "fondu", D.get("tl_label_catalogue_prime"))
+check("tl_la_famille_est_connue_ou_vide", D.get("tl_fam") == ["volets", "coupe", ""], D.get("tl_fam"))
+# LE REPLI SUR LE CATALOGUE : une famille que la copie cliente ignore est
+# quand même nommée. C'est la moitié que `tl_fam` ne voit pas.
+check("tl_une_famille_inconnue_de_la_copie_est_lue_dans_le_catalogue",
+      D.get("tl_fam_du_catalogue") == "neuve", D.get("tl_fam_du_catalogue"))
+check("tl_le_direct_est_dit_par_le_catalogue",
+      "tl_live" in D and D["tl_live"] == [True, False, True, False], D.get("tl_live"))
+check("tl_la_direction_a_quatre_sens_et_un_vide",
+      D.get("tl_dir") == ["left", "up", "right", "", ""], D.get("tl_dir"))
+# LA COPIE CLIENTE COUVRE LES 58 SANS DOUBLON, et ses six familles portent
+# les noms du serveur. Le banc CROISÉ avec `_XFADE_FAMILIES` vit dans
+# test_montage_l2.py ; ici, la cohérence interne.
+check("tl_la_copie_cliente_porte_58_noms_distincts_en_six_familles",
+      D.get("tl_fam_58") == [58, 58, 0,
+                             ["fondus", "glissements", "volets", "formes", "zooms", "pixels"]],
+      D.get("tl_fam_58"))
+check("tl_les_deux_tables_sont_gelees",
+      D.get("tl_gel") == ["TypeError", "TypeError"], D.get("tl_gel"))
+# MOUS : rien ne lève, et chaque repli est CHIFFRÉ. Le 4e élément mesure
+# qu'une famille nulle et une entrée nulle sont écartées sans emporter la
+# famille qui les entoure.
+check("tl_les_entrees_molles_ne_levent_pas",
+      "tl_mous" in D and D.get("tl_mous") == [1, 1, 2,
+                                              [["coupe", 1], ["historiques", 2], ["f", 1]],
+                                              "null", "", False, ""],
+      D.get("tl_mous"))
+check("tl_la_grille_est_une_fonction", D.get("tl_grille_existe") == "function",
+      D.get("tl_grille_existe"))
+# LA MESURE QUI AUTORISE `window.__dzTransCat||null` DANS X4 : sous node, en
+# "use strict" et avec `var window={}`, lire une propriété ABSENTE rend
+# `undefined` -- ce n'est pas une variable non déclarée, donc aucune
+# ReferenceError. La forme du patcher tient.
+check("tl_le_global_du_catalogue_ne_leve_pas_en_strict",
+      D.get("tl_global_ne_leve_pas") == [None, "pas de levee"],
+      D.get("tl_global_ne_leve_pas"))
+check("tl_pur", D.get("tl_pur") is True, D.get("tl_pur"))
 
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")

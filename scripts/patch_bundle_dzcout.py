@@ -231,7 +231,18 @@ STABLE_PROBES = [
     # D-4 (21/09/2026, tache 9) : 85 -> 86 -- W2 ajoute UN appel de plus,
     # `DzTracks.swap(...)`, dans la branche de dispatch swap_left/swap_right
     # repliee dans R_R2. Mesure sous --check apres l'ajout.
-    ("montage", "DzTracks", 86),
+    # D-20 (21/09/2026, tâche 2) : 86 -> 90 -- la galerie des
+    # transitions. QUATRE références de plus, MESURÉES après rejeu (la
+    # chaîne a refusé, « sonde montage x90 (want 86) ») et nommées :
+    # DzTracks.TransGrid (la grille du popover de jonction, X2),
+    # DzTracks.transList DEUX FOIS (X3, le `known` de l'inspecteur, et
+    # X3b, les options du <select>) et DzTracks.transLabel (X4, le
+    # libellé au niveau module). X1, le chargement du catalogue replié
+    # dans R_M16REF, n'en ajoute aucune : c'est un fetch, pas un appel
+    # à la couche. Un premier jet en comptait 91 -- la référence de trop
+    # était dans un COMMENTAIRE JS de R_X2 (la sonde compte du texte,
+    # commentaires compris) : la prose dit désormais « TransGrid() ».
+    ("montage", "DzTracks", 90),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

@@ -913,6 +913,37 @@ R_M16REF = (A_M16REF + "\n"
             # `ovPick` est donc DEJA declare, et l'effet lit sa vraie valeur.
             "  x.useEffect(function(){if(ovPick)setDzMkOn(!1)},[ovPick]);\n"
             "  var dzModeRef=x.useRef(dzMode);dzModeRef.current=dzMode;\n"
+            # ── « X1 » (D-20) : LE CATALOGUE DES TRANSITIONS ─────────
+            # REPLIÉ ICI, même mesure que « E1 » et « K3 » ci-dessus :
+            # l'ancre de ce remplacement (`dzTracksRef`) vaut 0 dans
+            # .bak_montage. GET /api/montage/transitions rend les six
+            # familles, leurs libellés et le drapeau `live` (tâche 1).
+            # LE CATALOGUE EST POSÉ DEUX FOIS, ET C'EST NÉCESSAIRE :
+            # dans l'ÉTAT (la galerie X2 et le <select> X3b vivent dans
+            # le composant et doivent se re-rendre quand il arrive) et
+            # sur `window.__dzTransCat` (X4 retouche `svmTransLabel`,
+            # qui est au niveau MODULE — hors de tout composant, elle ne
+            # peut lire aucun état ; c'est elle qui titre le losange de
+            # jonction et l'étendue de la timeline).
+            # UNE SEULE FOIS : l'effet a des dépendances VIDES. Le
+            # catalogue est une constante du serveur (la table _XFADE),
+            # pas une donnée de projet.
+            # L'ÉCHEC EST SILENCIEUX ET C'EST ASSUMÉ : sans catalogue,
+            # `dzmTransList` retombe sur les sept transitions
+            # historiques du bundle — l'écran reste exactement celui
+            # d'avant D-20 au lieu de se vider.
+            # `al` annule la pose après démontage (StrictMode rejoue les
+            # effets `[]` en double : sans lui, un setState sur un arbre
+            # démonté, le no-op silencieux de React 18).
+            "  var stDzCat=x.useState(null),dzTransCat=stDzCat[0],"
+            "setDzTransCat=stDzCat[1];\n"
+            "  x.useEffect(function(){var al=!0;\n"
+            "    fetch(\"/api/montage/transitions\")\n"
+            "      .then(function(rp){return rp.ok?rp.json():null})\n"
+            "      .then(function(d){if(al&&d&&Array.isArray(d.familles)){\n"
+            "        window.__dzTransCat=d;setDzTransCat(d)}})\n"
+            "      .catch(function(){});\n"
+            "    return function(){al=!1}},[]);\n"
             "  /* P9 — « le VRAI projet est-il arrivé ? ». Tant que\n"
             "     `svmApplyProject` n'a pas remplacé la maquette, `proj` est la\n"
             "     démo : sans `tracks`, donc svmTracksOf retombe sur les six\n"
@@ -3064,6 +3095,77 @@ R_K7 = ('if(e.key==="Escape"){\n'
         "        return}")
 
 
+# ══ D-20 (21/09/2026) — LA GALERIE DES TRANSITIONS, CÔTÉ ÉCRAN ═════════
+# Le bundle ne connaissait que SEPT transitions (`SVM_TRANS`, niveau
+# module). L'ffmpeg livré en porte 58, que le backend sert maintenant par
+# familles (GET /api/montage/transitions, tâche 1). Les quatre sections
+# ci-dessous branchent l'écran dessus SANS toucher ni à `SVM_TRANS` (les
+# sept restent le repli hors-ligne et la liste des libellés FR) ni aux
+# sept règles `.svm-tprev[data-tt]` de son-vfx-montage.css (intouchable).
+# X1 est REPLIÉ dans R_M16REF (son ancre vaut 0 dans .bak_montage) ; les
+# quatre ancres ci-dessous valent 1/1 dans .bak_montage — mesuré le
+# 21/09/2026 — et aucune section antérieure n'y touche.
+
+# ── X2 : la grille de sept tuiles devient la galerie par familles ─────
+# L'ANCRE EST LE BLOC ENTIER, de la <div class=svm-transgrid> jusqu'à la
+# dernière tuile incluse : un remplacement de la seule PREMIÈRE ligne
+# aurait laissé derrière lui le corps du `map` — neuf lignes orphelines
+# et un bundle que `node --check` refuse. Ce qui SUIT (le curseur de
+# durée, « Appliquer à toutes les coupes ») n'est pas dans l'ancre.
+A_X2 = ('      r.jsx("div",{className:"svm-transgrid",children:SVM_TRANS.map(function(o){\n'
+        '        return r.jsxs("button",{className:"svm-transtile","data-sel":base===o[0]?"":void 0,\n'
+        '          title:o[1]+" ("+o[0]+")",\n'
+        '          onClick:function(){svmSetTransType(jc.id,o[0])},children:[\n'
+        '          /* micro-scène A/B — aperçu animé du type ; la tuile sélectionnée est\n'
+        "             figée sur l'état final, reduced-motion la rend statique */\n"
+        '          r.jsxs("span",{className:"svm-tprev","data-tt":o[0],"aria-hidden":!0,children:[\n'
+        '            r.jsx("i",{className:"svm-ta"}),r.jsx("i",{className:"svm-tb"})]}),\n'
+        '          r.jsx("span",{className:"svm-ttl",children:o[1]})]},o[0])})}),')
+R_X2 = ('      /* D-20 — LA GALERIE. Les sept tuiles cèdent la place à\n'
+        '         TransGrid() de la couche : « coupe », puis les historiques du\n'
+        '         bundle qui ne sont pas au catalogue, puis les six\n'
+        '         familles servies. La couche garde `.svm-transtile`,\n'
+        '         `.svm-tprev` et `data-tt` — les règles du bundle\n'
+        "         continuent d'animer la moitié gauche, de mettre en\n"
+        '         pause hors survol et de figer la tuile choisie ;\n'
+        "         `data-fam` et `data-dir` n'ajoutent que l'animation de\n"
+        '         la moitié droite, dans montage.css. */\n'
+        '      r.jsx(DzTracks.TransGrid,{legacy:SVM_TRANS,cat:dzTransCat,cur:base,\n'
+        '        onPick:function(id){svmSetTransType(jc.id,id)}}),')
+
+# ── X3 : « ce nom est-il connu ? » se demande à la LISTE COMPLÈTE ──────
+# Sans cette section, un `wipetl` choisi dans la galerie serait revenu
+# dans l'inspecteur étiqueté « wipetl (hérité) » ET en double (une fois
+# comme option d'héritage, une fois dans sa famille) : `known` ne
+# regardait que les sept de SVM_TRANS. L'option « (hérité) » garde tout
+# son sens pour un nom qui n'est NI au catalogue NI dans les sept — un
+# vieux projet, ou un catalogue qui n'est pas arrivé.
+A_X3 = "    var known=SVM_TRANS.some(function(o){return o[0]===base});"
+R_X3 = ('    var known=DzTracks.transList(SVM_TRANS,dzTransCat).some(function(f){\n'
+        '      return f.items.some(function(it){return it.id===base})});')
+
+# ── X3b : le <select> liste tout le catalogue, une option par nom ─────
+# « famille · libellé » plutôt qu'un <optgroup> : le <select> porte la
+# classe `.svm-secbtn` du bundle et un optgroup y serait rendu par le
+# système, hors charte. La forme dit la même chose sans une règle de plus.
+A_X3B = ('            .concat(SVM_TRANS.map(function(o){\n'
+         '              return r.jsx("option",{value:o[0],children:o[1]},o[0])}))}),')
+R_X3B = ('            .concat(DzTracks.transList(SVM_TRANS,dzTransCat)\n'
+         '              .reduce(function(a,f){return a.concat(f.items.map(function(it){\n'
+         '                return r.jsx("option",{value:it.id,\n'
+         '                  children:f.label+" · "+it.label},it.id)}))},[]))}),')
+
+# ── X4 : le libellé du losange et de l'étendue vient du catalogue ──────
+# `svmTransLabel` est au niveau MODULE (elle sert au losange de jonction,
+# à l'infobulle de l'étendue et au titre du clip) : elle ne peut lire
+# aucun état de composant, d'où `window.__dzTransCat`, posé par l'effet de
+# X1 EN MÊME TEMPS que l'état. Sans catalogue (page fraîche, serveur
+# muet), la couche retombe sur les sept libellés de SVM_TRANS puis sur le
+# nom nu — exactement ce que faisait la ligne remplacée.
+A_X4 = "  var f=SVM_TRANS.find(function(o){return o[0]===b});return f?f[1]:b}"
+R_X4 = "  return DzTracks.transLabel(b,SVM_TRANS,window.__dzTransCat||null)}"
+
+
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
            ("M5-payload", A_M5, R_M5), ("M6-save", A_M6, R_M6),
@@ -3193,7 +3295,17 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            # K3, replie dans R_M16REF, qui passe AVANT (ordre de PATCHES) --
            # et `dzMkToggle` est une DECLARATION de fonction, hissee dans le
            # corps du composant : l'ordre d'ecriture n'y change rien.
-           ("K7-echap-ferme-index", A_K7, R_K7)]
+           ("K7-echap-ferme-index", A_K7, R_K7),
+           # D-20 (21/09/2026) - la galerie des transitions. X1 est
+           # REPLIE dans R_M16REF (ancre posee par un remplacement,
+           # comptee 0 dans .bak_montage). Les quatre ancres ci-dessous
+           # valent 1/1 dans .bak_montage ET dans le bundle patche :
+           # aucune section anterieure ne touche ni a SVM_TRANS, ni a
+           # transPopover, ni a transInspector, ni a svmTransLabel.
+           ("X2-galerie-transitions", A_X2, R_X2),
+           ("X3-select-connu", A_X3, R_X3),
+           ("X3b-select-catalogue", A_X3B, R_X3B),
+           ("X4-libelle-catalogue", A_X4, R_X4)]
 
 
 def nl(text, crlf):
