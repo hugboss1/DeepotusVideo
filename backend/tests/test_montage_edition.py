@@ -366,6 +366,15 @@ out.vl_nom_compose=T.veil([{tr:"v1",id:"a",start:0,end:4,src:{job_id:"j"}},
 out.vl_deux_jonctions=T.veil([{tr:"v1",id:"a",start:0,end:4,src:{job_id:"j"}},
   {tr:"v1",id:"b",start:4,end:4.6,src:{job_id:"j"},transition:"fadeblack",transition_s:1},
   {tr:"v1",id:"c",start:4.6,end:8,src:{job_id:"j"},transition:"fadewhite",transition_s:1}],4.4);
+/* A EGALITE D'ALPHA, LE PREMIER DU TABLEAU GARDE LA MAIN : a 4,3 les
+   deux triangles valent 0,4 (4,3 est a 0,3 de 4 ET a 0,3 de 4,6). C'est la
+   COULEUR qui le dit -- l'alpha, lui, serait le meme des deux cotes. */
+out.vl_egalite=T.veil([{tr:"v1",id:"a",start:0,end:4,src:{job_id:"j"}},
+  {tr:"v1",id:"b",start:4,end:4.6,src:{job_id:"j"},transition:"fadeblack",transition_s:1},
+  {tr:"v1",id:"c",start:4.6,end:8,src:{job_id:"j"},transition:"fadewhite",transition_s:1}],4.3);
+/* LE BORD EXACT DE LA FENETRE : a 4,5 (jonction 4, duree 1) l'alpha vaut
+   ZERO. Pas de couleur pour un voile qui ne se voit pas. */
+out.vl_bord=T.veil(VC,4.5);
 /* UN TROU > 0,1 s N'EST PAS UNE JONCTION : `dzmVoisins` ne rend rien a
    gauche, et ffmpeg ne jouerait pas de xfade non plus. */
 out.vl_trou=T.veil([{tr:"v1",id:"a",start:0,end:4,src:{job_id:"j"}},
@@ -558,7 +567,14 @@ try:
                  "mk_from_eps_exact","mk_t_types",
                  "tl_liste","tl_sans_catalogue","tl_label","tl_fam",
                  "tl_live","tl_dir","tl_fam_58","tl_gel","tl_mous",
-                 "tl_grille_existe","tl_global_ne_leve_pas","tl_doublons"]
+                 "tl_grille_existe","tl_global_ne_leve_pas","tl_doublons",
+                 # D-12 (revue 21/09) : la section [5b] n'etait couverte par
+                 # AUCUNE de ces cles -- la garde de l'etat vide s'arretait
+                 # a [5]. Les DIX-HUIT que la sonde ecrit y sont desormais.
+                 "vl_loin","vl_milieu","vl_avant","vl_apres","vl_pixel",
+                 "vl_blanc","vl_fade","vl_premier","vl_mou","vl_nom_compose",
+                 "vl_deux_jonctions","vl_egalite","vl_trou","vl_heritage",
+                 "vl_hors_v1","vl_bornes","vl_bord","vl_gel","vl_pur"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -924,6 +940,16 @@ check("vl_le_fondu_simple_est_un_mecanisme_pas_une_couleur",
 # rougir -- mesuree le 21/09/2026.
 check("vl_le_premier_clip_n_a_aucune_jonction_a_fondre",
       "vl_premier" in D and D["vl_premier"].get("alpha") == 0, D.get("vl_premier"))
+# A EGALITE, LE PREMIER DU TABLEAU : `>` et non `>=`. La couleur est la
+# seule chose qui distingue les deux candidats -- une ligne sur l'alpha
+# seul aurait ete vraie des deux cotes.
+check("vl_a_egalite_d_alpha_le_premier_du_tableau_garde_la_main",
+      D.get("vl_egalite") == {"color": "#000", "alpha": 0.4}, D.get("vl_egalite"))
+# LE BORD EXACT : alpha nul, et AUCUNE couleur. Avant la revue, la fonction
+# rendait `{"color": "#000", "alpha": 0}` -- un voile noir invisible que
+# l'appelant devait demeler. La cle existe : mesure faite, zero.
+check("vl_au_bord_exact_de_la_fenetre_il_n_y_a_plus_de_voile",
+      D.get("vl_bord") == {"color": None, "alpha": 0}, D.get("vl_bord"))
 check("vl_un_trou_de_plus_d_un_dixieme_n_est_pas_une_jonction",
       "vl_trou" in D and D["vl_trou"].get("alpha") == 0, D.get("vl_trou"))
 check("vl_les_entrees_molles_rendent_zero_sans_lever",

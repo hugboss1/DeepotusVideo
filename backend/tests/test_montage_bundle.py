@@ -31,7 +31,17 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 21/09/2026 (D-12, tache 3 — les fondus simples joues en
+COMPTE DE REFERENCE, 21/09/2026 (D-12, tache 3, TOUR DE REVUE) : 1549 lignes,
+soit DEUX de plus que les 1547 du premier tour. Les deux sont les bancs
+CROISES que la revue exige : les trois cles de `DZM_VEIL` comparees a
+`_XFADE_LIVE` du service (extraites des DEUX fichiers, jamais recopiees), et
+le triplet de bornes (1 / .1 / .4) extrait par la MEME regex de `svmTransS`
+du .bak ET de `dzmVeil` de la couche. Une ligne existante est REECRITE sans
+en gagner (`D12_le_voile_est_ecrit_en_tete...` : la tete BORNEE et la
+signature `_dzVeil`), et une autre PERD un conjoint tautologique (« aucune
+section ne s'appelle V1 » ne mesurait que le choix d'etiquette).
+
+COMPTE PRECEDENT, 21/09/2026 (D-12, tache 3 — les fondus simples joues en
 direct) : 1547 lignes, soit DIX de plus que les 1537 de D-20. DEUX viennent
 de la boucle sur `P.PATCHES`, qui les emet toute seule pour les sections V2
 et V3 (leurs ancres sont REPRISES dans leur remplacement : pas de ligne
@@ -13494,9 +13504,10 @@ check("D20_la_copie_cliente_des_familles_est_celle_du_service",
 # V1 EST UN REPLI, PAS UNE SECTION : la ref naît dans R_M16REF, exactement
 # comme E1, K3 et X1. Les trois faces : elle est dans le remplacement, elle
 # n'est PAS un triplet de PATCHES, et le bundle patché la porte.
+# (Le conjoint « aucune section ne s'appelle V1 » a ete RETIRE a la revue :
+# il ne mesurait que le choix d'etiquette de ce patcher-ci, donc rien.)
 check("D12_la_ref_du_voile_est_repliee_dans_R_M16REF",
       P.R_M16REF.count("var dzVeilRef=x.useRef(null);") == 1
-      and not [_t for _t, _a, _r in P.PATCHES if _t.startswith("V1")]
       and s.count(nl("var dzVeilRef=x.useRef(null);")) == 1
       # ET SON ANCRE VAUT BIEN 0 DANS LE .bak : c'est CE qui impose le repli.
       # Sans ce conjoint, « repliée » ne serait qu'un choix de rédaction.
@@ -13530,7 +13541,22 @@ _I_HO = s.find(nl("var host=liveHostRef.current,ov=liveOvRef.current;"))
 check("D12_le_voile_est_ecrit_en_tete_de_liveSync",
       _I_LS >= 0 and _I_VE > _I_LS and _I_HO > _I_VE
       and s.count(nl("var dzVe=dzVeilRef.current;")) == 1
-      and s.count(nl("DzTracks.veil(clipsRef.current,phRef.current)")) == 1,
+      and s.count(nl("DzTracks.veil(clipsRef.current,dzVt)")) == 1
+      # LA TÊTE EST BORNÉE COMME CELLE DE L'IMAGE, pas brute : le clip
+      # montré est choisi sur `min(ph, dur-.001)`, et le voile doit parler
+      # de CETTE image-là. Les deux bornes sont mesurées côte à côte — la
+      # ligne du voile et celle du lecteur, mot pour mot la même.
+      and s.count(nl("var dzVt=Math.min(phRef.current,"
+                     "Math.max(0,durRef.current-.001));")) == 1
+      and s.count(nl("var t=Math.min(phRef.current,"
+                     "Math.max(0,durRef.current-.001));")) == 1
+      # ET L'ÉCRITURE EST GARDÉE PAR UNE SIGNATURE : `liveSync` tourne à
+      # chaque frame et le voile est nul presque tout le temps. Même parade
+      # que `_svmTfSig` / `_svmKey`, qui sont toujours là (le conjoint : si
+      # cette technique disparaissait du bundle, la comparaison n'aurait
+      # plus de précédent à citer).
+      and s.count(nl("if(dzVe._dzVeil!==dzVk){dzVe._dzVeil=dzVk;")) == 1
+      and s.count(nl("if(el._svmTfSig!==tsig)")) == 1,
       f"liveSync={_I_LS} veil={_I_VE} host={_I_HO}")
 # ET L'HÔTE N'EST JAMAIS TOUCHÉ — c'est l'écart déclaré avec le plan, et il
 # se mesure des DEUX côtés : nos sections n'écrivent pas son opacité, et
@@ -13549,6 +13575,37 @@ check("D12_l_opacite_de_l_hote_n_est_ecrite_nulle_part",
       and ".svm-live{background:#000}" in _SVMCSS
       and "background:repeating-linear-gradient(45deg,var(--panel2)" in _SVMCSS,
       f'corps={len(_CORPS_LS)} o')
+# LES TROIS FONDUS JOUABLES EN DIRECT SONT CEUX DU SERVICE, NOM POUR NOM.
+# C'est le banc croisé que la prose de la couche annonce : `DZM_VEIL` dit
+# COMMENT voiler, `_XFADE_LIVE` dit QUELS noms le catalogue marque `live`,
+# et rien ne les tenait ensemble — ajouter `dissolve` au service aurait
+# donné une tuile sans « visible après Preview » qui ne se serait pas jouée.
+# EXTRAIT DES DEUX FICHIERS, jamais recopié (même technique que `_FAM_JS` /
+# `_TRANS_FAM_SVC`). Le repli est DIT : `[]` des deux côtés serait égal et
+# la ligne serait creuse, d'où le conjoint `len(...) == 3`.
+_m_veil = re.search(r"var DZM_VEIL=\{([^}]*)\};", src)
+_VEIL_JS = re.findall(r"(\w+):", _m_veil.group(1)) if _m_veil else []
+check("D12_les_trois_fondus_de_la_couche_sont_ceux_du_service",
+      len(_VEIL_JS) == 3 and len(_TRANS_LIVE_SVC) == 3
+      and sorted(_VEIL_JS) == sorted(_TRANS_LIVE_SVC)
+      # ET LES TROIS SONT BIEN DES NOMS xfade DU CATALOGUE : une clé qui ne
+      # serait dans aucune famille serait un voile qu'aucune tuile ne pose.
+      and all(_n2 in [_x for _f2 in _TRANS_FAM_SVC.values()
+                      for _x in _f2.get("noms", [])] for _n2 in _VEIL_JS),
+      f"couche={sorted(_VEIL_JS)} service={sorted(_TRANS_LIVE_SVC)}")
+# ET LA DURÉE DU VOILE EST BORNÉE COMME CELLE DU BUNDLE. `dzmVeil` ne peut
+# pas appeler `svmTransS` (elle est au niveau module du bundle, la couche est
+# injectée avant) : elle RECOPIE `min(1, max(.1, x || .4))`. Les deux
+# triplets sont extraits par la MÊME regex, sur les deux fichiers, et
+# comparés — changer une borne d'un côté fait rougir cette ligne.
+_RX_BORNE = r"Math\.min\(([\d.]+),Math\.max\(([\d.]+),Number\([^)]*\)\|\|([\d.]+)\)\)"
+_m_b_bun = re.search(r"function svmTransS\(c\)\{return " + _RX_BORNE, _bak)
+_m_b_js = re.search(r"var s=" + _RX_BORNE, src)
+_B_BUN = _m_b_bun.groups() if _m_b_bun else ()
+_B_JS = _m_b_js.groups() if _m_b_js else ()
+check("D12_les_bornes_de_duree_sont_celles_du_bundle",
+      len(_B_BUN) == 3 and _B_BUN == _B_JS and _B_BUN == ("1", ".1", ".4"),
+      f"bundle={_B_BUN} couche={_B_JS}")
 # LA FEUILLE : le voile est posé SANS `z-index`, et les trois voisins qui le
 # justifient sont mesurés. `.svm-live`/`.svm-liveov` n'en portent pas (donc
 # l'ordre du DOM suffit à les couvrir) ; `.svm-tf` porte 3 et `.sub-ov` de

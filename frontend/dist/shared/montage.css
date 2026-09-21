@@ -1121,9 +1121,15 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
    même raison inverse : ils ne sont pas dans l'image.
    LE FOND EST NOIR PAR DÉFAUT parce que c'est le fond du lecteur lui-même
    (`.svm-live{background:#000}`) : si l'écriture impérative échouait, le
-   voile resterait invisible (opacité 0) plutôt que blanc. */
+   voile resterait invisible (opacité 0) plutôt que blanc.
+   `will-change:opacity` : l'opacité est réécrite à chaque frame pendant
+   un fondu (`liveSync` tourne à chaque frame) ; l'annoncer évite au
+   compositeur de repromouvoir la couche à chaque montée. La propriété est
+   seule et sur un élément VIDE, donc le coût mémoire est celui d'un
+   rectangle — la règle « n'annoncez pas tout le temps » vise les gros
+   sous-arbres, pas un voile plein cadre qui n'a aucun enfant. */
 .dzsvm .svm-xfveil{position:absolute; inset:0; pointer-events:none;
-  opacity:0; background:#000}
+  opacity:0; background:#000; will-change:opacity}
 @keyframes dzmtSlideDir{0%,20%{transform:translate(var(--tx,100%),var(--ty,0))}
   60%,100%{transform:translate(0,0)}}
 @keyframes dzmtWipeDir{0%,20%{clip-path:var(--wipe0,inset(0 0 0 100%))}

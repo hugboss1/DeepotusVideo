@@ -3243,15 +3243,30 @@ A_V3 = "  function liveSync(){"
 R_V3 = (A_V3 + "\n"
         "    /* D-12 — LE VOILE DES TROIS FONDUS JOUABLES EN DIRECT. En TÊTE :\n"
         "       `liveSync` sort tôt quand les hôtes ne sont pas montés, et le\n"
-        "       voile doit être remis à zéro même dans ce cas. La couche dit\n"
-        "       la couleur et l'alpha ; « dim » (le fondu simple) est voilé en\n"
-        "       noir comme le reste — l'hôte est noir, le résultat est le même\n"
-        "       et rien n'est écrit sur un élément média partagé. */\n"
+        "       voile doit être remis à zéro même dans ce cas.\n"
+        "       LA TÊTE EST BORNÉE COMME CELLE DE L'IMAGE, pas brute : le clip\n"
+        "       montré est choisi sur `min(ph, dur-0.001)` (trois lignes plus\n"
+        "       bas) — voiler sur `ph` aurait fait, à la toute fin de la\n"
+        "       timeline, un voile qui ne correspond plus à l'image affichée.\n"
+        "       « dim » (le fondu simple) est voilé EN NOIR comme `fadeblack`,\n"
+        "       et c'est assumé : avec un hôte unique les deux se voient\n"
+        "       PAREIL à l'écran — seul le rendu ffmpeg les sépare (l'un\n"
+        "       croise deux images, l'autre passe par le noir). La couche\n"
+        "       garde le verdict distinct ; l'écran ne peut pas encore le\n"
+        "       montrer. L'hôte n'est jamais touché : il est noir, et rien\n"
+        "       n'est écrit sur un élément média partagé par le pool.\n"
+        "       LA SIGNATURE `_dzVeil` ÉVITE L'ÉCRITURE INUTILE : `liveSync`\n"
+        "       tourne à CHAQUE frame et le voile est nul presque tout le\n"
+        "       temps — sans elle, deux écritures de style par frame pour\n"
+        "       rien. Même parade que `_svmTfSig` et `_svmKey` plus bas. */\n"
         "    var dzVe=dzVeilRef.current;\n"
-        "    if(dzVe){var dzVv=DzTracks.veil(clipsRef.current,phRef.current);\n"
-        '      dzVe.style.background=(dzVv.color&&dzVv.color!=="dim")?dzVv.color:"#000";\n'
-        "      dzVe.style.opacity=String(dzVv.alpha||0)}")
-
+        "    if(dzVe){\n"
+        "      var dzVt=Math.min(phRef.current,Math.max(0,durRef.current-.001));\n"
+        "      var dzVv=DzTracks.veil(clipsRef.current,dzVt);\n"
+        '      var dzVk=dzVv.color+"|"+dzVv.alpha;\n'
+        "      if(dzVe._dzVeil!==dzVk){dzVe._dzVeil=dzVk;\n"
+        '        dzVe.style.background=(dzVv.color&&dzVv.color!=="dim")?dzVv.color:"#000";\n'
+        "        dzVe.style.opacity=String(dzVv.alpha||0)}}")
 
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),

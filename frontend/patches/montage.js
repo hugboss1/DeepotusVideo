@@ -5476,7 +5476,9 @@ function DzmTransGrid(o){
    les 55 autres, qui ne sont visibles qu'apres Preview (c'est ce que dit
    l'infobulle « visible apres Preview » de la galerie, et c'est le drapeau
    `live` du catalogue qui les separe : la table ci-dessous et la liste
-   `_XFADE_LIVE` du service sont tenues ensemble par un banc croise).
+   `_XFADE_LIVE` du service sont tenues ensemble par le banc croise
+   `D12_les_trois_fondus_de_la_couche_sont_ceux_du_service` de
+   test_montage_bundle.py, qui EXTRAIT les deux listes de leur fichier).
    LA JONCTION EST CELLE DU CLIP DE DROITE, comme au rendu : c'est `c` qui
    porte `transition` et `transition_s`, et la jonction est `c.start`. Le
    voile est TRIANGULAIRE sur [t0-s/2, t0+s/2] -- il monte de 0 a 1 au
@@ -5503,14 +5505,28 @@ function dzmVeil(clips,t){
   for(i=0;i<cs.length;i++){c=cs[i];if(!c||c.tr!=="v1"||!c.src)continue;
     k=String(c.transition||"cut").split(/\s+/)[0];
     if(!Object.prototype.hasOwnProperty.call(DZM_VEIL,k))continue;
+    /* LES MEMES BORNES QUE `svmTransS` DU BUNDLE (0,1 - 1 s, defaut 0,4) :
+       recopiees parce que la couche ne peut pas appeler une fonction du
+       bundle, et CROISEES par le banc
+       `D12_les_bornes_de_duree_sont_celles_du_bundle`, qui extrait le
+       triplet des DEUX sources et les compare. */
     var s=Math.min(1,Math.max(.1,Number(c.transition_s)||.4)),t0=Number(c.start)||0;
     if(Math.abs(v-t0)>s/2)continue;
     var g=dzmVoisins(cs,c).g;if(!g)continue;
     var a=dzmR3(1-Math.abs(v-t0)/(s/2));
+    /* ALPHA NUL = PAS DE VOILE, ET PAS « UN VOILE NOIR INVISIBLE ». Au BORD
+       EXACT de la fenetre (v-t0 = s/2) la formule rend 0 : sans cette
+       ligne, la fonction rendait {color:"#000",alpha:0}, une couleur pour
+       un voile qui ne se voit pas -- l'appelant n'a pas a demeler ca. */
+    if(!(a>0))continue;
     /* DEUX JONCTIONS DANS LA MEME FENETRE : deux clips tres courts (moins
        d'une seconde) mettent leurs deux triangles l'un sur l'autre. Le
        MAXIMUM l'emporte -- deux voiles ne s'additionnent pas a l'ecran, et
-       c'est la transition la plus proche qui compte. */
+       c'est la transition la plus proche qui compte.
+       A EGALITE D'ALPHA, C'EST L'ORDRE DU TABLEAU QUI TRANCHE : `>` et non
+       `>=`, donc le PREMIER rencontre garde la main. Meme regle que
+       `dzmVoisins` et `dzmTransList` -- et c'est la COULEUR qui le rend
+       visible, pas l'alpha (banc `vl_egalite`). */
     if(!best||a>best.alpha)best={color:DZM_VEIL[k],alpha:a}}
   return best||{color:null,alpha:0}}
 

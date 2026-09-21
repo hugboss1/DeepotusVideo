@@ -2426,14 +2426,30 @@ function DzMontage(props){
   function liveSync(){
     /* D-12 — LE VOILE DES TROIS FONDUS JOUABLES EN DIRECT. En TÊTE :
        `liveSync` sort tôt quand les hôtes ne sont pas montés, et le
-       voile doit être remis à zéro même dans ce cas. La couche dit
-       la couleur et l'alpha ; « dim » (le fondu simple) est voilé en
-       noir comme le reste — l'hôte est noir, le résultat est le même
-       et rien n'est écrit sur un élément média partagé. */
+       voile doit être remis à zéro même dans ce cas.
+       LA TÊTE EST BORNÉE COMME CELLE DE L'IMAGE, pas brute : le clip
+       montré est choisi sur `min(ph, dur-0.001)` (trois lignes plus
+       bas) — voiler sur `ph` aurait fait, à la toute fin de la
+       timeline, un voile qui ne correspond plus à l'image affichée.
+       « dim » (le fondu simple) est voilé EN NOIR comme `fadeblack`,
+       et c'est assumé : avec un hôte unique les deux se voient
+       PAREIL à l'écran — seul le rendu ffmpeg les sépare (l'un
+       croise deux images, l'autre passe par le noir). La couche
+       garde le verdict distinct ; l'écran ne peut pas encore le
+       montrer. L'hôte n'est jamais touché : il est noir, et rien
+       n'est écrit sur un élément média partagé par le pool.
+       LA SIGNATURE `_dzVeil` ÉVITE L'ÉCRITURE INUTILE : `liveSync`
+       tourne à CHAQUE frame et le voile est nul presque tout le
+       temps — sans elle, deux écritures de style par frame pour
+       rien. Même parade que `_svmTfSig` et `_svmKey` plus bas. */
     var dzVe=dzVeilRef.current;
-    if(dzVe){var dzVv=DzTracks.veil(clipsRef.current,phRef.current);
-      dzVe.style.background=(dzVv.color&&dzVv.color!=="dim")?dzVv.color:"#000";
-      dzVe.style.opacity=String(dzVv.alpha||0)}
+    if(dzVe){
+      var dzVt=Math.min(phRef.current,Math.max(0,durRef.current-.001));
+      var dzVv=DzTracks.veil(clipsRef.current,dzVt);
+      var dzVk=dzVv.color+"|"+dzVv.alpha;
+      if(dzVe._dzVeil!==dzVk){dzVe._dzVeil=dzVk;
+        dzVe.style.background=(dzVv.color&&dzVv.color!=="dim")?dzVv.color:"#000";
+        dzVe.style.opacity=String(dzVv.alpha||0)}}
     var host=liveHostRef.current,ov=liveOvRef.current;
     if(!host||!ov){liveVideoRef.current=null;livePoolPause();return}
     var t=Math.min(phRef.current,Math.max(0,durRef.current-.001));
@@ -18171,7 +18187,9 @@ function DzmTransGrid(o){
    les 55 autres, qui ne sont visibles qu'apres Preview (c'est ce que dit
    l'infobulle « visible apres Preview » de la galerie, et c'est le drapeau
    `live` du catalogue qui les separe : la table ci-dessous et la liste
-   `_XFADE_LIVE` du service sont tenues ensemble par un banc croise).
+   `_XFADE_LIVE` du service sont tenues ensemble par le banc croise
+   `D12_les_trois_fondus_de_la_couche_sont_ceux_du_service` de
+   test_montage_bundle.py, qui EXTRAIT les deux listes de leur fichier).
    LA JONCTION EST CELLE DU CLIP DE DROITE, comme au rendu : c'est `c` qui
    porte `transition` et `transition_s`, et la jonction est `c.start`. Le
    voile est TRIANGULAIRE sur [t0-s/2, t0+s/2] -- il monte de 0 a 1 au
@@ -18198,14 +18216,28 @@ function dzmVeil(clips,t){
   for(i=0;i<cs.length;i++){c=cs[i];if(!c||c.tr!=="v1"||!c.src)continue;
     k=String(c.transition||"cut").split(/\s+/)[0];
     if(!Object.prototype.hasOwnProperty.call(DZM_VEIL,k))continue;
+    /* LES MEMES BORNES QUE `svmTransS` DU BUNDLE (0,1 - 1 s, defaut 0,4) :
+       recopiees parce que la couche ne peut pas appeler une fonction du
+       bundle, et CROISEES par le banc
+       `D12_les_bornes_de_duree_sont_celles_du_bundle`, qui extrait le
+       triplet des DEUX sources et les compare. */
     var s=Math.min(1,Math.max(.1,Number(c.transition_s)||.4)),t0=Number(c.start)||0;
     if(Math.abs(v-t0)>s/2)continue;
     var g=dzmVoisins(cs,c).g;if(!g)continue;
     var a=dzmR3(1-Math.abs(v-t0)/(s/2));
+    /* ALPHA NUL = PAS DE VOILE, ET PAS « UN VOILE NOIR INVISIBLE ». Au BORD
+       EXACT de la fenetre (v-t0 = s/2) la formule rend 0 : sans cette
+       ligne, la fonction rendait {color:"#000",alpha:0}, une couleur pour
+       un voile qui ne se voit pas -- l'appelant n'a pas a demeler ca. */
+    if(!(a>0))continue;
     /* DEUX JONCTIONS DANS LA MEME FENETRE : deux clips tres courts (moins
        d'une seconde) mettent leurs deux triangles l'un sur l'autre. Le
        MAXIMUM l'emporte -- deux voiles ne s'additionnent pas a l'ecran, et
-       c'est la transition la plus proche qui compte. */
+       c'est la transition la plus proche qui compte.
+       A EGALITE D'ALPHA, C'EST L'ORDRE DU TABLEAU QUI TRANCHE : `>` et non
+       `>=`, donc le PREMIER rencontre garde la main. Meme regle que
+       `dzmVoisins` et `dzmTransList` -- et c'est la COULEUR qui le rend
+       visible, pas l'alpha (banc `vl_egalite`). */
     if(!best||a>best.alpha)best={color:DZM_VEIL[k],alpha:a}}
   return best||{color:null,alpha:0}}
 
