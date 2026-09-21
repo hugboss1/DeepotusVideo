@@ -31,7 +31,15 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 21/09/2026 (D-12, tache 3, TOUR DE REVUE) : 1549 lignes,
+COMPTE DE REFERENCE, 22/09/2026 (cloture du lot L2, tache 8) : 1636 lignes,
+soit QUATRE-VINGT-SEPT de plus que les 1549 de D-12. Elles ont ete posees
+par les taches 4 a 7 (D-21, les cartons de titre : la section TT1 sur
+`trackKind`, les huit replis TT2..TT10, les pins de l'inspecteur et de
+l'apercu vivant) sans que cette en-tete soit remise a jour -- la tache 8
+la remesure et la redit. RIEN n'est ajoute ici : le compte est celui que
+le banc IMPRIME (`=== 1636 passed, 0 failed ===`), pas une addition.
+
+COMPTE PRECEDENT, 21/09/2026 (D-12, tache 3, TOUR DE REVUE) : 1549 lignes,
 soit DEUX de plus que les 1547 du premier tour. Les deux sont les bancs
 CROISES que la revue exige : les trois cles de `DZM_VEIL` comparees a
 `_XFADE_LIVE` du service (extraites des DEUX fichiers, jamais recopiees), et
