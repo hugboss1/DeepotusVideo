@@ -76,6 +76,32 @@ out.r_meme_valeur=T.rangeSet({in:3.2,out:null},"in",3.2,10);
    ligne verdirait sur les defauts, ou A2 est DEJA en boucle. */
 out.co=T.cutOpts({tracks:[{id:"v1",kind:"video"},{id:"v9",kind:"video",loop:!0}]},{v1:{l:1},v9:{}});
 out.co_vide=T.cutOpts(null,null);
+/* [3] swap : ECHANGER deux plans voisins (D-4) */
+var K=[{tr:"v1",id:"p1",start:0,end:4,srcIn:0,src:{a:1}},
+       {tr:"v1",id:"p2",start:4,end:8,srcIn:2,src:{a:1}},
+       {tr:"v1",id:"p3",start:8,end:10,srcIn:0,src:{a:1}}];
+var KJ=JSON.stringify(K);
+function parKId(cs,id){return cs.filter(function(k){return k.id===id})[0]}
+function brefs(cs){return cs.map(function(k){return{id:k.id,start:k.start,end:k.end}})}
+var sw1=T.swap(K,"p2",-1);
+out.sw1_p2=parKId(sw1,"p2");out.sw1_p1=parKId(sw1,"p1");out.sw1_p3=parKId(sw1,"p3");
+out.sw1_order=sw1.map(function(k){return k.id});
+out.sw_pure=JSON.stringify(K)===KJ;
+out.sw_p1_left=brefs(T.swap(K,"p1",-1));
+out.sw_p3_right=brefs(T.swap(K,"p3",1));
+out.sw_zz=brefs(T.swap(K,"zz",1));
+var KGap=[{tr:"v1",id:"g1",start:0,end:4},{tr:"v1",id:"g2",start:4.2,end:8}];
+out.sw_gap=brefs(T.swap(KGap,"g2",-1));
+out.sw_null=T.swap(null,"p1",1);
+var sw2=T.swap(K,"p2",1);
+out.sw2_p2=parKId(sw2,"p2");out.sw2_p3=parKId(sw2,"p3");out.sw2_p1=parKId(sw2,"p1");
+var KOther=[{tr:"v1",id:"o1",start:0,end:4},{tr:"v1",id:"o2",start:4,end:8},
+            {tr:"a1",id:"oa",start:0,end:8}];
+out.sw_other_piste=parKId(T.swap(KOther,"o2",-1),"oa");
+var KTitre=[{tr:"v1",id:"t1",start:0,end:3},{tr:"v1",id:"t2",start:3,end:6}];
+out.sw_titre=T.swap(KTitre,"t2",-1);
+out.sw_dir0=brefs(T.swap(K,"p2",0));
+out.sw_dirNaN=brefs(T.swap(K,"p2",NaN));
 console.log(JSON.stringify(out));
 """
 print("\n[1] histSnap / histApply sous node")
@@ -200,6 +226,70 @@ check("cut_opts_separe_le_verrou_de_la_boucle",
 check("cut_opts_sans_projet_ni_etat_ne_verrouille_rien",
       "co_vide" in D and D["co_vide"] == {"loopTracks": ["a2"], "locked": {}},
       f'"co_vide" in D={"co_vide" in D} v={D.get("co_vide")!r}')
+
+print("\n[3] swap : ECHANGER deux plans voisins (D-4)")
+check("swap_p2_gauche_p2_prend_la_place_de_p1",
+      D.get("sw1_p2") == {"tr": "v1", "id": "p2", "start": 0, "end": 4, "srcIn": 2, "src": {"a": 1}},
+      D.get("sw1_p2"))
+check("swap_p2_gauche_p1_prend_la_place_de_p2",
+      D.get("sw1_p1") == {"tr": "v1", "id": "p1", "start": 4, "end": 8, "srcIn": 0, "src": {"a": 1}},
+      D.get("sw1_p1"))
+check("swap_p2_gauche_p3_ne_bouge_pas",
+      D.get("sw1_p3") == {"tr": "v1", "id": "p3", "start": 8, "end": 10, "srcIn": 0, "src": {"a": 1}},
+      D.get("sw1_p3"))
+check("swap_ordre_du_tableau_rendu_inchange",
+      D.get("sw1_order") == ["p1", "p2", "p3"], D.get("sw1_order"))
+check("swap_est_pur_K_non_mute", D.get("sw_pure") is True)
+check("swap_p1_sans_voisin_gauche_inchange",
+      D.get("sw_p1_left") == [{"id": "p1", "start": 0, "end": 4},
+                               {"id": "p2", "start": 4, "end": 8},
+                               {"id": "p3", "start": 8, "end": 10}],
+      D.get("sw_p1_left"))
+check("swap_p3_sans_voisin_droit_inchange",
+      D.get("sw_p3_right") == [{"id": "p1", "start": 0, "end": 4},
+                                {"id": "p2", "start": 4, "end": 8},
+                                {"id": "p3", "start": 8, "end": 10}],
+      D.get("sw_p3_right"))
+check("swap_id_inconnu_inchange",
+      D.get("sw_zz") == [{"id": "p1", "start": 0, "end": 4},
+                          {"id": "p2", "start": 4, "end": 8},
+                          {"id": "p3", "start": 8, "end": 10}],
+      D.get("sw_zz"))
+check("swap_voisin_hors_tolerance_de_contact_inchange",
+      D.get("sw_gap") == [{"id": "g1", "start": 0, "end": 4}, {"id": "g2", "start": 4.2, "end": 8}],
+      D.get("sw_gap"))
+check("swap_projet_nul_rend_tableau_vide", D.get("sw_null") == [], D.get("sw_null"))
+check("swap_p2_droite_p3_prend_la_place_de_p2",
+      D.get("sw2_p3") == {"tr": "v1", "id": "p3", "start": 4, "end": 6, "srcIn": 0, "src": {"a": 1}},
+      D.get("sw2_p3"))
+check("swap_p2_droite_p2_prend_la_place_de_p3",
+      D.get("sw2_p2") == {"tr": "v1", "id": "p2", "start": 6, "end": 10, "srcIn": 2, "src": {"a": 1}},
+      D.get("sw2_p2"))
+check("swap_p2_droite_p1_ne_bouge_pas",
+      D.get("sw2_p1") == {"tr": "v1", "id": "p1", "start": 0, "end": 4, "srcIn": 0, "src": {"a": 1}},
+      D.get("sw2_p1"))
+check("swap_les_autres_pistes_ne_bougent_pas",
+      D.get("sw_other_piste") == {"tr": "a1", "id": "oa", "start": 0, "end": 8}, D.get("sw_other_piste"))
+# ASSERTION NEGATIVE GARDEE : un clip de titre sans `src` n'a pas de `srcIn` --
+# JSON.stringify OMET une cle a `undefined`, donc l'absence de la cle EST le
+# mode de panne vise (un `srcIn:null` invente passerait un `== None` nu).
+_sw_titre = D.get("sw_titre") or [{}, {}]
+check("swap_clip_de_titre_sans_src_pas_de_srcIn_invente",
+      len(_sw_titre) == 2
+      and {"tr": "v1", "id": "t1", "start": 3, "end": 6} == _sw_titre[0]
+      and {"tr": "v1", "id": "t2", "start": 0, "end": 3} == _sw_titre[1]
+      and "srcIn" not in _sw_titre[0] and "srcIn" not in _sw_titre[1],
+      _sw_titre)
+check("swap_dir_zero_inchange",
+      D.get("sw_dir0") == [{"id": "p1", "start": 0, "end": 4},
+                            {"id": "p2", "start": 4, "end": 8},
+                            {"id": "p3", "start": 8, "end": 10}],
+      D.get("sw_dir0"))
+check("swap_dir_nan_inchange",
+      D.get("sw_dirNaN") == [{"id": "p1", "start": 0, "end": 4},
+                              {"id": "p2", "start": 4, "end": 8},
+                              {"id": "p3", "start": 8, "end": 10}],
+      D.get("sw_dirNaN"))
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

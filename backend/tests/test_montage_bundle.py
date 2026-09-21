@@ -80,6 +80,14 @@ UNE FAUTE N°6 ATTRAPEE PENDANT L'ECRITURE : `_CSSM.split(borne)[1]` leve
 IndexError quand la borne disparait — un banc doit ROUGIR, pas MOURIR. La
 parade est `_apres()`, qui rend "" et fait rougir ses lectrices.
 
+COMPTE PRECEDENT, 21/09/2026 (D-4, tache 9 — echanger deux plans voisins) :
+1491 lignes, soit CINQ de plus que les 1486 de D-5. W1 (replie dans R_R1) et
+W2 (replie dans R_R2) ajoutent chacun un pin de forme (D4_W1.../D4_W2...),
+plus les combos, le nom des fleches gauche/droite et l appel unique a
+`DzTracks.swap` : sept lignes neuves, deux existantes reecrites en place
+(tb8_le_T_du_handoff... 41->43, D5_les_marqueurs_etaient_deja... pushHistory
+3->4) sans en gagner de ligne.
+
 COMPTE PRECEDENT, 21/09/2026 (D-5, tache 8, SECOND TOUR) : 1486 lignes, et
 ce banc-ci n en gagne AUCUNE -- les quatre residus se ferment par des
 CONJOINTS sur des lignes existantes et par deux bancs voisins :
@@ -12146,8 +12154,12 @@ for _a, _sec, _c in _COMBOS:
 # marker_toggle, marker_prev, marker_next et marker_index. Les quatre
 # combos (Maj+M, Ctrl+haut, Ctrl+bas, Ctrl+M) sont libres, et c'est encore
 # `tb8_aucune_combo_par_defaut_n_est_prise_deux_fois` qui le MESURE.
+# 41 -> 43 le 21/09/2026 (D-4, tache 9) : W1 (replie dans R_R1, juste apres
+# K1) y declare swap_left et swap_right. Les deux combos (Ctrl+←, Ctrl+→)
+# sont libres, mesure encore par `tb8_aucune_combo_par_defaut_n_est_prise_
+# deux_fois`, qui n'a pas eu a changer.
 check("tb8_le_T_du_handoff_appartient_deja_a_la_narration",
-      len(_COMBOS) == 41 and _BY_COMBO.get("T") == ["narration"],
+      len(_COMBOS) == 43 and _BY_COMBO.get("T") == ["narration"],
       f"actions={len(_COMBOS)} T={_BY_COMBO.get('T')}")
 # UNE COMBO PAR ACTION, ET AUCUNE EN DOUBLE : la nouvelle n'a rien vole.
 # `svmKmMerge` resoudrait une collision en silence (retour au defaut) — c'est
@@ -12579,6 +12591,44 @@ check("D5_le_nom_des_fleches_sous_ctrl_vient_de_la_table_du_bundle",
       and s.count(nl('(e.ctrlKey||e.metaKey?"Ctrl+":"")')) == 1,
       f'table={s.count(nl(chr(39) + "ArrowUp:" + chr(34)))} '
       f'prefixe={s.count(nl(chr(39) + "(e.ctrlKey||e.metaKey?" + chr(34)))}')
+
+# \u2550\u2550 D-4 (21/09/2026) : ECHANGER DEUX PLANS VOISINS \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+# LES DEUX REPLIS, NOMMES UN A UN, meme technique que K1/K2 : le texte est
+# DANS le bundle livre (1), il est DANS le remplacement qui le porte, et il
+# vaut 0 dans .bak_montage -- un pin sur le seul remplacement benirait une
+# section que la chaine n'aurait pas posee.
+for _lbl9, _txt9, _sec9, _nom9 in (
+        ("W1_les_deux_actions_sont_declarees",
+         ' {id:"swap_left",sec:"Montage",', P.R_R1, "R_R1"),
+        ("W2_le_dispatch_echange",
+         'if(id==="swap_left"||id==="swap_right"){', P.R_R2, "R_R2")):
+    check("D4_" + _lbl9,
+          s.count(nl(_txt9)) == 1 and _txt9 in _sec9
+          and (_bak.count(_nlb(_txt9)) == 0 if _bak else False),
+          f'bundle={s.count(nl(_txt9))} dans_{_nom9}={_txt9 in _sec9} '
+          f'bak={_bak.count(_nlb(_txt9)) if _bak else "?"}')
+# LES DEUX COMBOS ETAIENT LIBRES DANS LE .bak, ET NE SONT PLUS QU'UNE FOIS
+# DANS LE BUNDLE LIVRE -- meme mesure que D5_les_quatre_combos_etaient_
+# libres_et_ne_sont_plus_qu_une_fois, sur Ctrl+\u2190 et Ctrl+\u2192.
+_SWC = ["Ctrl+\u2190", "Ctrl+\u2192"]
+check("D4_les_deux_combos_etaient_libres_et_ne_sont_plus_qu_une_fois",
+      bool(_bak)
+      and all(_bak.count(_nlb('combo:"%s"' % c)) == 0 for c in _SWC)
+      and all(s.count(nl('combo:"%s"' % c)) == 1 for c in _SWC),
+      f'bak={[_bak.count(_nlb("combo:" + chr(34) + c + chr(34))) for c in _SWC] if _bak else "?"} '
+      f'livre={[s.count(nl("combo:" + chr(34) + c + chr(34))) for c in _SWC]}')
+# LE NOM DES FLECHES GAUCHE/DROITE SOUS CTRL vient de la MEME table que D-5
+# (ArrowLeft/ArrowRight, pas ArrowUp/ArrowDown) -- mesure separee pour ne
+# pas confondre les deux paires si l'une des quatre entrees bougeait seule.
+check("D4_le_nom_des_fleches_gauche_droite_sous_ctrl_vient_de_la_table_du_bundle",
+      s.count(nl('ArrowLeft:"\u2190",ArrowRight:"\u2192"')) == 1,
+      f'table={s.count(nl(chr(39) + "ArrowLeft:" + chr(34)))}')
+# DzTracks.swap EST APPELE UNE SEULE FOIS -- meme forme que D-3 pour
+# slip/slide/roll : la couche fait le calcul, l'ecran ne fait que dispatcher.
+check("D4_l_echange_appelle_la_couche_une_fois",
+      s.count(nl("DzTracks.swap(")) == 1,
+      f'appels={s.count(nl("DzTracks.swap("))}')
+
 # LA COUCHE NE LIT PAS `svmTcFF` AU CHARGEMENT. Le symbole vit dans le bloc
 # sonvfx du bundle (7 occurrences, meme portee module) mais n'existe NI sous
 # node NI ici : une lecture au chargement aurait tue le shim. La forme est
@@ -12846,11 +12896,13 @@ check("D5_I7_le_champ_de_titre_a_sa_regle",
 # ne manquait que le `pushHistory()` avant chaque ecriture. Les DEUX faces :
 # la cle est dans la table de l'instantane, et les TROIS ecritures du lot
 # (bascule au clavier, retrait et modification depuis l'index) la poussent.
+# 3 -> 4 le 21/09/2026 (D-4, tache 9) : W2 (replie dans R_R2, juste apres la
+# branche marker_index) pousse une QUATRIEME fois, avant l'echange.
 check("D5_les_marqueurs_etaient_deja_dans_les_cles_de_l_historique",
       src.count('"markers"') >= 1
       and 'markers' in src[src.index("DZM_HIST_CLES"):
                            src.index("DZM_HIST_CLES") + 260]
-      and P.R_R2.count("pushHistory();") == 3,
+      and P.R_R2.count("pushHistory();") == 4,
       f'cles={src[src.index("DZM_HIST_CLES"):src.index("DZM_HIST_CLES") + 160]!r} '
       f'pushHistory_R2={P.R_R2.count("pushHistory();")}')
 

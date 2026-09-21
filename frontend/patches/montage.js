@@ -5280,6 +5280,26 @@ function DzmMarkerIndex(o){
       r.jsx("button",{className:"svm-secbtn",onClick:o&&o.onClose,
         children:"Fermer"})})]})}
 
+/* ── D-4 : ÉCHANGER un plan avec son voisin de gauche (dir −1) ou de droite ─
+   `dzmSwap(clips,id,dir)` échange le clip `id` avec son voisin de contact
+   (≤0,1s, `dzmVoisins`) côté `dir`. Les DEUX clips gardent leur durée et
+   leurs autres champs (srcIn compris) : seules `start`/`end` bougent, pour
+   que l'échange se lise par les BORNES et non par l'index dans le tableau
+   rendu. Une transition portée par le clip V1 (`transition`,
+   `transition_s`) reste attachée à ce clip pendant l'échange — c'est le
+   comportement de Resolve, la transition « suit » le plan, pas la place. */
+function dzmSwap(clips,id,dir){
+  var cs=Array.isArray(clips)?clips:[],c=cs.filter(function(k){return k&&k.id===id})[0];
+  if(!c||!(dir===1||dir===-1))return cs.slice();
+  var v=dzmVoisins(cs,c),n=dir<0?v.g:v.d;
+  if(!n)return cs.slice();
+  var a=dir<0?n:c,b=dir<0?c:n;                   /* a précède b */
+  var la=Number(a.end)-Number(a.start),lb=Number(b.end)-Number(b.start),s=Number(a.start);
+  return cs.map(function(k){
+    if(k===b)return Object.assign({},k,{start:dzmR3(s),end:dzmR3(s+lb)});
+    if(k===a)return Object.assign({},k,{start:dzmR3(s+lb),end:dzmR3(s+lb+la)});
+    return k})}
+
 /* ── export contrat ───────────────────────────────────────────────────────── */
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
@@ -5347,7 +5367,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   markersFrom:dzmMarkersFrom,MARKER_COLORS:DZM_MARKER_COLORS,
   Markers:DzmMarkers,MarkerIndex:DzmMarkerIndex,
   insere:dzmInsere,MODES:DZM_MODES,REFUS:DZM_REFUS,carve:dzmCarve,
-  slip:dzmSlip,slide:dzmSlide,roll:dzmRoll,voisins:dzmVoisins,
+  slip:dzmSlip,slide:dzmSlide,roll:dzmRoll,voisins:dzmVoisins,swap:dzmSwap,
   ModeBar:DzmModeBar,MODE_T:DZM_MODE_T,modeLabel:dzmModeLabel,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;

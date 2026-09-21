@@ -2727,7 +2727,27 @@ R_R1 = (A_R1 + "\n"
         '\n {id:"marker_toggle",sec:"Montage",lbl:"marqueur : poser / retirer a la tete",combo:"Maj+M"},\n'
         ' {id:"marker_prev",sec:"Montage",lbl:"marqueur precedent",combo:"Ctrl+\u2191"},\n'
         ' {id:"marker_next",sec:"Montage",lbl:"marqueur suivant",combo:"Ctrl+\u2193"},\n'
-        ' {id:"marker_index",sec:"Montage",lbl:"marqueurs : l\'index",combo:"Ctrl+M"},')
+        ' {id:"marker_index",sec:"Montage",lbl:"marqueurs : l\'index",combo:"Ctrl+M"},'
+        # -- \u00ab W1 \u00bb (D-4, 21/09/2026) : LES DEUX ACTIONS DE L'ECHANGE --------
+        # REPLIEE ICI, meme technique que K1 : l'ancre du plan (\u00ab apres la
+        # ligne marker_index de K1 \u00bb) n'existe pas dans .bak_montage -- c'est
+        # K1, juste au-dessus, qui la pose. Une section qui la prendrait pour
+        # ancre serait refusee par `--check`, qui ne regarde que le .bak.
+        # COMBOS MESUREES LIBRES le 21/09/2026 sur la table SVM_ACTIONS du
+        # .bak_montage : ni \u00ab Ctrl+\u2190 \u00bb, ni \u00ab Ctrl+\u2192 \u00bb n'y figurent (seuls \u00ab
+        # Ctrl+\u2191 \u00bb et \u00ab Ctrl+\u2193 \u00bb le sont, par K1), et aucune des deux n'est
+        # dans SVM_COMBO_RESERVED. LE NOM DES FLECHES SOUS CTRL vient de
+        # `svmComboOfEvent` : `SVM_EV_NAMES` mappe ArrowLeft/ArrowRight sur
+        # les CARACTERES \u00ab \u2190 \u00bb/\u00ab \u2192 \u00bb, et le prefixe \u00ab Ctrl+ \u00bb est concatene
+        # tel quel -- donc \u00ab Ctrl+\u2190 \u00bb, jamais \u00ab Ctrl+ArrowLeft \u00bb.
+        # CONTEXTE MESURE (M25k, fl\u00e8ches de l'overlay) : `ovArrow` n'est
+        # invoque QUE pour les quatre actions `step_back`/`step_fwd`/
+        # `cut_prev`/`cut_next` (branche dediee dans `onKey`, plus haut dans
+        # le meme composant) ; `swap_left`/`swap_right` ne passent jamais par
+        # cette branche, donc Ctrl+\u2190 / Ctrl+\u2192 ne sont PAS captures par
+        # l'overlay -- pas besoin d'Alt+\u2190/\u2192 de repli.
+        '\n {id:"swap_left",sec:"Montage",lbl:"echanger avec le plan precedent",combo:"Ctrl+\u2190"},\n'
+        ' {id:"swap_right",sec:"Montage",lbl:"echanger avec le plan suivant",combo:"Ctrl+\u2192"},')
 
 # ── R2 (D-11) : la branche de dispatch ─────────────────────────────────────
 # PORTEE MESUREE dans `onKey` (meme corps de composant, closure) : `phRef`,
@@ -2841,7 +2861,31 @@ R_R2 = (A_R2 + "\n"
         'phRef.current,dzMkD);'
         'if(dzMkG!=null)seekTo(dzMkG);'
         'else fireNote("Aucun marqueur "+(dzMkD>0?"apr\u00e8s":"avant")+" la t\u00eate.");return}\n'
-        '      if(id==="marker_index"){dzMkToggle();return}')
+        '      if(id==="marker_index"){dzMkToggle();return}\n'
+        # -- « W2 » (D-4) : LE DISPATCH DE L'ECHANGE -------------------------
+        # REPLIE ICI pour la meme raison que K2 : l'ancre du plan (« apres la
+        # branche marker_index ») est le texte que CE remplacement-ci pose --
+        # 0 dans le .bak. PORTEE MESUREE dans le MEME corps de composant que
+        # K2 : `clipsRef`, `selRef` (27 occurrences dans le .bak, `delClip`
+        # le lit deja), `trackStRef`, `fireNote`, `pushHistory`, `setClips`,
+        # `setDirty` y sont tous declares. `DzTracks.swap` rend des objets
+        # IDENTIQUES (memes references) quand rien ne change -- c'est
+        # `dzmSwap` qui rend `cs.slice()` sur toute sortie tot -- et
+        # `dzSw.every(function(k,i){return k===clipsRef.current[i]})` suffit
+        # a le voir ; identite de reference seule, pas d'egalite de valeurs a
+        # construire (contrairement a la plage, R_R2 plus haut).
+        '      if(id==="swap_left"||id==="swap_right"){'
+        'var dzC=(clipsRef.current||[]).filter(function(k){'
+        'return k&&k.id===selRef.current})[0];'
+        'if(!dzC){fireNote("Échanger : sélectionnez d\'abord un plan.");return}'
+        'if(trackStRef.current[dzC.tr]&&trackStRef.current[dzC.tr].l){'
+        'fireNote("Piste "+dzC.tr.toUpperCase()+" verrouillée.");return}'
+        'var dzSw=DzTracks.swap(clipsRef.current,dzC.id,id==="swap_left"?-1:1);'
+        'if(dzSw===clipsRef.current||dzSw.every(function(k,i){return k===clipsRef.current[i]})){'
+        'fireNote("Aucun plan voisin de ce côté.");return}'
+        'pushHistory();setClips(dzSw);setDirty(!0);'
+        'fireNote("« "+(dzC.label||dzC.id)+" » échangé avec le plan "'
+        '+(id==="swap_left"?"précédent":"suivant")+".");return}')
 
 # ── R3 (D-11) : la bande sur la regle, apres la gouttiere ──────────────────
 # `DzmRangeBar` rend `null` tant que la plage n'est pas COMPLETE : la regle

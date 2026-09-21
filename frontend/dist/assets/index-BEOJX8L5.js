@@ -1546,6 +1546,8 @@ var SVM_ACTIONS=[
  {id:"marker_prev",sec:"Montage",lbl:"marqueur precedent",combo:"Ctrl+↑"},
  {id:"marker_next",sec:"Montage",lbl:"marqueur suivant",combo:"Ctrl+↓"},
  {id:"marker_index",sec:"Montage",lbl:"marqueurs : l'index",combo:"Ctrl+M"},
+ {id:"swap_left",sec:"Montage",lbl:"echanger avec le plan precedent",combo:"Ctrl+←"},
+ {id:"swap_right",sec:"Montage",lbl:"echanger avec le plan suivant",combo:"Ctrl+→"},
  {id:"zoom_in",sec:"Affichage",lbl:"zoom avant (crans)",combo:"Ctrl+="},
  {id:"zoom_out",sec:"Affichage",lbl:"zoom arrière (crans)",combo:"Ctrl+-"},
  {id:"zoom100",sec:"Affichage",lbl:"zoom 100 %",combo:"Maj+Z"},
@@ -3209,6 +3211,7 @@ function DzMontage(props){
       if(id==="marker_toggle"){var dzMkL=(dzProjRef.current&&dzProjRef.current.markers)||[];var dzMkT=Number(phRef.current)||0,dzMkN=DzTracks.markerAdd(dzMkL,dzMkT,{});if(dzMkN.length===dzMkL.length){fireNote(dzMkL.length>=200?"Plafond atteint — 200 marqueurs au maximum par montage.":"Tête de lecture illisible — marqueur non posé.");return}pushHistory();setProj(function(p){return Object.assign({},p,{markers:dzMkN})});setDirty(!0);fireNote(dzMkN.length<dzMkL.length?("Marqueur retiré à "+dzMkT.toFixed(2)+" s."):("Marqueur posé à "+dzMkT.toFixed(2)+" s — "+svmKeyLabel("marker_index")+" : l'index."));return}
       if(id==="marker_prev"||id==="marker_next"){var dzMkD=id==="marker_next"?1:-1;var dzMkG=DzTracks.markerNext(dzProjRef.current&&dzProjRef.current.markers,phRef.current,dzMkD);if(dzMkG!=null)seekTo(dzMkG);else fireNote("Aucun marqueur "+(dzMkD>0?"après":"avant")+" la tête.");return}
       if(id==="marker_index"){dzMkToggle();return}
+      if(id==="swap_left"||id==="swap_right"){var dzC=(clipsRef.current||[]).filter(function(k){return k&&k.id===selRef.current})[0];if(!dzC){fireNote("Échanger : sélectionnez d'abord un plan.");return}if(trackStRef.current[dzC.tr]&&trackStRef.current[dzC.tr].l){fireNote("Piste "+dzC.tr.toUpperCase()+" verrouillée.");return}var dzSw=DzTracks.swap(clipsRef.current,dzC.id,id==="swap_left"?-1:1);if(dzSw===clipsRef.current||dzSw.every(function(k,i){return k===clipsRef.current[i]})){fireNote("Aucun plan voisin de ce côté.");return}pushHistory();setClips(dzSw);setDirty(!0);fireNote("« "+(dzC.label||dzC.id)+" » échangé avec le plan "+(id==="swap_left"?"précédent":"suivant")+".");return}
       if(id==="zoom_in"){zoomApply(zoomPctRef.current*1.25);return}
       if(id==="zoom_out"){zoomApply(zoomPctRef.current/1.25);return}
       if(id==="zoom100"){zoomApply(100);return}
@@ -17942,6 +17945,26 @@ function DzmMarkerIndex(o){
       r.jsx("button",{className:"svm-secbtn",onClick:o&&o.onClose,
         children:"Fermer"})})]})}
 
+/* ── D-4 : ÉCHANGER un plan avec son voisin de gauche (dir −1) ou de droite ─
+   `dzmSwap(clips,id,dir)` échange le clip `id` avec son voisin de contact
+   (≤0,1s, `dzmVoisins`) côté `dir`. Les DEUX clips gardent leur durée et
+   leurs autres champs (srcIn compris) : seules `start`/`end` bougent, pour
+   que l'échange se lise par les BORNES et non par l'index dans le tableau
+   rendu. Une transition portée par le clip V1 (`transition`,
+   `transition_s`) reste attachée à ce clip pendant l'échange — c'est le
+   comportement de Resolve, la transition « suit » le plan, pas la place. */
+function dzmSwap(clips,id,dir){
+  var cs=Array.isArray(clips)?clips:[],c=cs.filter(function(k){return k&&k.id===id})[0];
+  if(!c||!(dir===1||dir===-1))return cs.slice();
+  var v=dzmVoisins(cs,c),n=dir<0?v.g:v.d;
+  if(!n)return cs.slice();
+  var a=dir<0?n:c,b=dir<0?c:n;                   /* a précède b */
+  var la=Number(a.end)-Number(a.start),lb=Number(b.end)-Number(b.start),s=Number(a.start);
+  return cs.map(function(k){
+    if(k===b)return Object.assign({},k,{start:dzmR3(s),end:dzmR3(s+lb)});
+    if(k===a)return Object.assign({},k,{start:dzmR3(s+lb),end:dzmR3(s+lb+la)});
+    return k})}
+
 /* ── export contrat ───────────────────────────────────────────────────────── */
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
@@ -18009,7 +18032,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   markersFrom:dzmMarkersFrom,MARKER_COLORS:DZM_MARKER_COLORS,
   Markers:DzmMarkers,MarkerIndex:DzmMarkerIndex,
   insere:dzmInsere,MODES:DZM_MODES,REFUS:DZM_REFUS,carve:dzmCarve,
-  slip:dzmSlip,slide:dzmSlide,roll:dzmRoll,voisins:dzmVoisins,
+  slip:dzmSlip,slide:dzmSlide,roll:dzmRoll,voisins:dzmVoisins,swap:dzmSwap,
   ModeBar:DzmModeBar,MODE_T:DZM_MODE_T,modeLabel:dzmModeLabel,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;

@@ -228,7 +228,10 @@ STABLE_PROBES = [
     # K1 (les quatre actions), K3 (l'etat du panneau), K5 (la chip) et
     # la moitie SAUVEGARDE de K6 (`markers:(proj.markers||[])`, une
     # lecture nue du projet) n'en ajoutent aucune.
-    ("montage", "DzTracks", 85),
+    # D-4 (21/09/2026, tache 9) : 85 -> 86 -- W2 ajoute UN appel de plus,
+    # `DzTracks.swap(...)`, dans la branche de dispatch swap_left/swap_right
+    # repliee dans R_R2. Mesure sous --check apres l'ajout.
+    ("montage", "DzTracks", 86),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────
