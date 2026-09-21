@@ -31,56 +31,7 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 21/09/2026 (D-2, tache 6, TOUR DE CORRECTION) : 1398
-lignes, soit DIX-NEUF de plus que les 1379 du premier tour. La DIX-NEUVIEME
-est `js_D2_dessus_remonte_meme_quand_la_piste_visee_est_vide`, et elle a une
-histoire : la note de M-5 disait « la piste visee etait occupee a cet
-instant », ce qui est FAUX — `dzmInsere` en mode « dessus » remonte TOUJOURS
-vers la premiere piste libre du meme genre, sans jamais regarder
-l'occupation de la piste visee (mesure sous node : pistes [v2, v1], AUCUN
-clip, clip vise sur v1 -> {track:"v2", refus:"", note:""}). La note enonce
-desormais le MODE. La ligne neuve joue ce cas-la — une V1 VIDE — et NIE
-l'ancienne phrase mot pour mot ; la remettre fait rougir les DEUX lignes
-« dessus » (mutation jouee et retiree, 1396/2). Ce que ces
-dix-huit tiennent, dans l'ordre de la liste fermee du controleur :
-  · I-1, la course « remplir la plage » / plage effacee, prise aux DEUX
-    bouts : le mode SUIT la plage (R_R2 appelle `setDzMode("ecraser")` sur
-    range_clear ET range_cut — portee mesuree, `setDzMode` et la branche de
-    dispatch sont dans le MEME corps de composant), et si la course a lieu
-    quand meme la note le DIT. `js_D2_remplir_sans_plage_retombe_en_ecraser
-    _sans_rien_dire` est REMPLACEE par `..._ET_LE_DIT`, qui exige la phrase.
-  · I-2, `DzTracks.secs` (un formateur de DUREE, qui arrondissait la vitesse
-    0,25 en « x0,3 ») ne formate plus la vitesse. Conjoint : `secs` existe
-    toujours dans la couche, on a cesse de le detourner.
-  · I-3, `srcDur` passe par `opts` et `dzmPose` le retire de la copie posee.
-    La sonde LIT LES CLES du clip pose : sept, nommees une a une.
-  · I-4, la typographie de la rangee et le contraste de la chip active — le
-    defaut garde est mesure (`--panel2` peint la chip allumee ET le fond du
-    `.svm-pop` : elle y disparaissait).
-  · I-5, le refus de verrou ne ferme plus le selecteur.
-  · conformite 1, pas de rangee en mode « Remplacer la source ».
-  · conformite 5, la phrase de l'allongement est BORNEE (`dzAv`).
-  · conformite 7 / « E4 », le verrou de la piste VISEE ne precede plus le
-    mode : deplace dans `insere()`, ou la piste REELLE est connue. C'est la
-    SEULE section ajoutee au patcher (74 -> 75 triplets, 75 -> 76 ancres) et
-    la seule des quatre « E » dont l'ancre existe dans .bak_montage — elle
-    vient du greffon amont. Deux lignes node : « au-dessus » pose sur V2
-    quand V1 est verrouillee, et « ecraser » refuse toujours, avec la phrase
-    d'origine MOT POUR MOT.
-  · M-1 (la table d'infobulles precede son lecteur), M-3 (la phrase du coeur
-    capitalisee), M-4 (les commentaires JS ne citent plus le namespace — la
-    sonde dzcout compte du TEXTE), M-5 (la piste n'est plus repetee).
-NON-VACUITE, TROIS MUTATIONS JOUEES ET RETIREES : `R_E4 = A_E4` (la garde
-reste a sa place) fait rougir `js_D2_E4_au_dessus_pose_sur_V2_quand_V1_est
-_verrouillee` + deux pins ; retirer un `setDzMode("ecraser")` de R_R2 fait
-rougir `D2_I1_effacer_la_plage_desarme_le_mode_remplir` ; remettre `srcDur`
-sur le clip ET retirer le `delete` de `dzmPose` fait rougir les DEUX lignes
-d'I-3 (`ecraser` rend alors huit cles, `srcDur` comprise).
-UNE FAUTE N°6 ATTRAPEE PENDANT L'ECRITURE : `_CSSM.split(borne)[1]` leve
-IndexError quand la borne disparait — un banc doit ROUGIR, pas MOURIR. La
-parade est `_apres()`, qui rend "" et fait rougir ses lectrices.
-
-COMPTE PRECEDENT, 21/09/2026 (D-4, tache 9 — echanger deux plans voisins) :
+COMPTE DE REFERENCE, 21/09/2026 (D-4, tache 9 — echanger deux plans voisins) :
 1491 lignes, soit CINQ de plus que les 1486 de D-5. W1 (replie dans R_R1) et
 W2 (replie dans R_R2) ajoutent chacun un pin de forme (D4_W1.../D4_W2...),
 plus les combos, le nom des fleches gauche/droite et l appel unique a
@@ -258,6 +209,55 @@ inconnue faute de `c.srcDur` a l'ecran ; aucun curseur contextuel dans
 la feuille) et les cinq lignes du coeur pur exporte. NON-VACUITE DU
 CABLAGE : `R_T5 = A_T5` dans le patcher, chaine rejouee, fait rougir
 `D3_T5_le_titre_dit_les_trois_gestes_et_l_ancienne_phrase_a_disparu`.
+
+COMPTE PRECEDENT, 21/09/2026 (D-2, tache 6, TOUR DE CORRECTION) : 1398
+lignes, soit DIX-NEUF de plus que les 1379 du premier tour. La DIX-NEUVIEME
+est `js_D2_dessus_remonte_meme_quand_la_piste_visee_est_vide`, et elle a une
+histoire : la note de M-5 disait « la piste visee etait occupee a cet
+instant », ce qui est FAUX — `dzmInsere` en mode « dessus » remonte TOUJOURS
+vers la premiere piste libre du meme genre, sans jamais regarder
+l'occupation de la piste visee (mesure sous node : pistes [v2, v1], AUCUN
+clip, clip vise sur v1 -> {track:"v2", refus:"", note:""}). La note enonce
+desormais le MODE. La ligne neuve joue ce cas-la — une V1 VIDE — et NIE
+l'ancienne phrase mot pour mot ; la remettre fait rougir les DEUX lignes
+« dessus » (mutation jouee et retiree, 1396/2). Ce que ces
+dix-huit tiennent, dans l'ordre de la liste fermee du controleur :
+  · I-1, la course « remplir la plage » / plage effacee, prise aux DEUX
+    bouts : le mode SUIT la plage (R_R2 appelle `setDzMode("ecraser")` sur
+    range_clear ET range_cut — portee mesuree, `setDzMode` et la branche de
+    dispatch sont dans le MEME corps de composant), et si la course a lieu
+    quand meme la note le DIT. `js_D2_remplir_sans_plage_retombe_en_ecraser
+    _sans_rien_dire` est REMPLACEE par `..._ET_LE_DIT`, qui exige la phrase.
+  · I-2, `DzTracks.secs` (un formateur de DUREE, qui arrondissait la vitesse
+    0,25 en « x0,3 ») ne formate plus la vitesse. Conjoint : `secs` existe
+    toujours dans la couche, on a cesse de le detourner.
+  · I-3, `srcDur` passe par `opts` et `dzmPose` le retire de la copie posee.
+    La sonde LIT LES CLES du clip pose : sept, nommees une a une.
+  · I-4, la typographie de la rangee et le contraste de la chip active — le
+    defaut garde est mesure (`--panel2` peint la chip allumee ET le fond du
+    `.svm-pop` : elle y disparaissait).
+  · I-5, le refus de verrou ne ferme plus le selecteur.
+  · conformite 1, pas de rangee en mode « Remplacer la source ».
+  · conformite 5, la phrase de l'allongement est BORNEE (`dzAv`).
+  · conformite 7 / « E4 », le verrou de la piste VISEE ne precede plus le
+    mode : deplace dans `insere()`, ou la piste REELLE est connue. C'est la
+    SEULE section ajoutee au patcher (74 -> 75 triplets, 75 -> 76 ancres) et
+    la seule des quatre « E » dont l'ancre existe dans .bak_montage — elle
+    vient du greffon amont. Deux lignes node : « au-dessus » pose sur V2
+    quand V1 est verrouillee, et « ecraser » refuse toujours, avec la phrase
+    d'origine MOT POUR MOT.
+  · M-1 (la table d'infobulles precede son lecteur), M-3 (la phrase du coeur
+    capitalisee), M-4 (les commentaires JS ne citent plus le namespace — la
+    sonde dzcout compte du TEXTE), M-5 (la piste n'est plus repetee).
+NON-VACUITE, TROIS MUTATIONS JOUEES ET RETIREES : `R_E4 = A_E4` (la garde
+reste a sa place) fait rougir `js_D2_E4_au_dessus_pose_sur_V2_quand_V1_est
+_verrouillee` + deux pins ; retirer un `setDzMode("ecraser")` de R_R2 fait
+rougir `D2_I1_effacer_la_plage_desarme_le_mode_remplir` ; remettre `srcDur`
+sur le clip ET retirer le `delete` de `dzmPose` fait rougir les DEUX lignes
+d'I-3 (`ecraser` rend alors huit cles, `srcDur` comprise).
+UNE FAUTE N°6 ATTRAPEE PENDANT L'ECRITURE : `_CSSM.split(borne)[1]` leve
+IndexError quand la borne disparait — un banc doit ROUGIR, pas MOURIR. La
+parade est `_apres()`, qui rend "" et fait rougir ses lectrices.
 
 COMPTE PRECEDENT, 21/09/2026 (D-2, tache 6, premier tour) : 1379 lignes, soit QUARANTE de plus que les 1339 de D-11. Une
 section neuve, [3-ter], porte le lot : VINGT-SEPT pins statiques (les trois
