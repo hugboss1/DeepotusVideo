@@ -1000,32 +1000,53 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
 
 /* ── D-20 (21/09/2026) — LA GALERIE DES TRANSITIONS ────────────────────────
    Aperçu animé des 58 transitions : UNE animation par FAMILLE, la direction
-   en variable (--tx/--ty). Les sept règles [data-tt] de son-vfx-montage.css
-   (intouchable) restent en place et gardent la main sur ce qui leur est
-   propre — la moitié GAUCHE (svmtFull), la pause hors survol, le figement de
-   la tuile choisie, et le voile ::after de fadeblack/flash.
+   en variable (--tx / --ty / --wipe0). Les sept règles [data-tt] de
+   son-vfx-montage.css (intouchable) restent en place et gardent la main sur
+   ce qui leur est propre — la moitié GAUCHE (svmtFull), le voile ::after de
+   fadeblack/flash, et les sept aperçus historiques.
    MESURÉ : `svmtFull`, `svmtFade`, `svmtGlitch` et `--ease` existent bien
-   dans son-vfx-montage.css (l. 525, 527, 536, 36) — on les RÉUTILISE, on ne
-   les redéclare pas. Seules les quatre animations neuves sont `dzmt*`.
-   LES DEUX EXCLUSIONS SONT UNE MESURE, pas une précaution : `dissolve` et
-   `fadeblack` sont AU CATALOGUE (famille « fondus ») ET portent déjà une
-   règle [data-tt] du bundle, avec une animation DIFFÉRENTE de svmtFade
-   (svmtDiss, et svmtCutMid doublé du voile noir). Nos sélecteurs sont plus
-   spécifiques (.dzsvm en tête) : sans ces deux `:not`, la galerie EFFACERAIT
-   deux aperçus existants. `fade` n'a pas besoin d'exclusion — la règle du
-   bundle et la nôtre demandent la MÊME svmtFade. */
+   dans son-vfx-montage.css (l. 525, 527, 536, 36) — on les RÉUTILISE.
+   TOUTES LES RÈGLES DE FAMILLE PÈSENT (0,4,0), ET C'EST LA CONDITION DE
+   TOUT LE RESTE. La première version excluait `dissolve` et `fadeblack` par
+   deux `:not([data-tt=…])` dans la règle `fondus` : elle pesait alors
+   (0,6,0), passait devant la pause au repos (0,4,0) et SIX tuiles (fade,
+   fadewhite, fadegrays, fadefast, fadeslow, distance) s'animaient en
+   permanence. L'exclusion est remontée dans la COUCHE : `DZM_TRANS_TT`
+   n'appose pas `data-fam` sur ces deux-là, qui gardent leurs règles du
+   bundle. Aucune règle de famille ne porte donc de `:not`, et la pause,
+   écrite après à la même spécificité, les couvre toutes. */
 .dzsvm .dzm-transfam{margin-top:8px}
 .dzsvm .dzm-transfam-t{font-family:var(--f-mono); font-size:10px;
   color:var(--ink3, #8a8580); text-transform:uppercase; letter-spacing:.06em;
   margin:6px 0 2px}
+/* LA TUILE PASSE EN COLONNE — mesure, pas goût. Le popover fait 276 px et
+   porte 12 px de marge intérieure : 252 px utiles ; trois colonnes à 6 px de
+   gouttière donnent 80 px par tuile, moins 16 px de `padding:6px 8px` = 64,
+   moins la micro-scène (34) et sa gouttière (6) : il restait VINGT-QUATRE
+   pixels au libellé, soit deux ou trois caractères avant l'ellipse. En
+   colonne, le libellé prend les 68 px pleins (padding ramené à 6) sur DEUX
+   lignes à 9,5 px ≈ 26 caractères — le plus long du catalogue, « rideau
+   horizontal ferme », en fait 23. L'autre issue mesurée, deux colonnes en
+   rangée, donnait 67 px sur UNE ligne à 10,5 px (≈ 12 caractères) et 31
+   rangées au lieu de 21 : moins lisible ET plus long. */
 .dzsvm .dzm-transgrid{grid-template-columns:repeat(3,1fr)}
-/* 62 tuiles dans un popover de 276 px : la galerie défile, le popover non. */
+.dzsvm .dzm-transgrid .svm-transtile{flex-direction:column; align-items:stretch;
+  gap:4px; padding:6px; text-align:center}
+.dzsvm .dzm-transgrid .svm-tprev{margin:0 auto}
+.dzsvm .dzm-transgrid .svm-ttl{flex:none; white-space:normal; overflow:hidden;
+  font-size:9.5px; line-height:1.15; max-height:2.3em; text-overflow:clip}
+/* 62 tuiles dans un popover de 276 px : la galerie défile, le popover non.
+   MESURÉ à l'écran (volet 800 × 768) : popover 399 px, bas à 448 < 768 —
+   il tient dans le cadre, donc pas de seconde borne en `calc(100vh - …)`. */
 .dzsvm .svm-transpop{max-height:52vh; overflow:auto}
-.dzsvm .svm-tprev[data-dir="left"]{--tx:-100%; --ty:0}
-.dzsvm .svm-tprev[data-dir="right"]{--tx:100%; --ty:0}
-.dzsvm .svm-tprev[data-dir="up"]{--tx:0; --ty:-100%}
-.dzsvm .svm-tprev[data-dir="down"]{--tx:0; --ty:100%}
-.dzsvm .svm-tprev[data-fam="fondus"]:not([data-tt="dissolve"]):not([data-tt="fadeblack"]) .svm-tb{
+/* LA DIRECTION, EN VARIABLES. `--tx/--ty` servent au glissement, `--wipe0`
+   à la position de DÉPART du volet : sans lui, `dzmtWipeDir` partait
+   toujours de la droite et les seize volets étaient identiques. */
+.dzsvm .svm-tprev[data-dir="left"]{--tx:-100%; --ty:0; --wipe0:inset(0 100% 0 0)}
+.dzsvm .svm-tprev[data-dir="right"]{--tx:100%; --ty:0; --wipe0:inset(0 0 0 100%)}
+.dzsvm .svm-tprev[data-dir="up"]{--tx:0; --ty:-100%; --wipe0:inset(100% 0 0 0)}
+.dzsvm .svm-tprev[data-dir="down"]{--tx:0; --ty:100%; --wipe0:inset(0 0 100% 0)}
+.dzsvm .svm-tprev[data-fam="fondus"] .svm-tb{
   animation:svmtFull 1.6s linear infinite, svmtFade 1.6s linear infinite}
 .dzsvm .svm-tprev[data-fam="glissements"] .svm-tb{
   animation:svmtFull 1.6s linear infinite, dzmtSlideDir 1.6s var(--ease) infinite}
@@ -1037,18 +1058,31 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
   animation:svmtFull 1.6s linear infinite, dzmtZoom 1.6s var(--ease) infinite}
 .dzsvm .svm-tprev[data-fam="pixels"] .svm-tb{
   animation:svmtFull 1.6s linear infinite, svmtGlitch 1.6s steps(2,end) infinite}
-/* LES TROIS ÉTATS DE LA MICRO-SCÈNE, REPOSÉS PLUS SPÉCIFIQUES — ET C'EST
-   UNE CORRECTION MESURÉE, pas une précaution. Le bundle met les scènes en
-   PAUSE au repos (`animation-play-state:paused` sur
-   `.svm-tprev[data-tt] .svm-tb`, spécificité 3), les fait tourner au survol
-   (4) et FIGE la tuile choisie sur son état final (`animation:none` sur
-   `.svm-transtile[data-sel] .svm-tprev[data-tt] .svm-tb`, spécificité 4).
-   Nos six règles de famille sont à 4 et écrivent le RACCOURCI `animation:`,
-   qui REMET `animation-play-state` à `running` : sans les trois règles
-   ci-dessous, les 58 tuiles neuves s'agiteraient toutes en permanence (la
-   pause perd, 3 < 4) et la tuile choisie ne se figerait pas (égalité 4 = 4,
-   et montage.css est chargée APRÈS). Les trois états sont donc reposés sur
-   `[data-fam]`, à 4 (après les animations : l'ordre tranche), 5 et 6. */
+/* LA PHASE DE REPOS, UNE PAR FAMILLE — même dispositif que les sept délais
+   du bundle (son-vfx-montage.css l. 495-503). Le raccourci `animation:`
+   ci-dessus remet `animation-delay` à 0 : sans ces six lignes, les 52 tuiles
+   de famille étaient toutes figées sur la MÊME image (B plein, début de
+   cycle) et le popover montrait un damier uniforme. Les six valeurs sont
+   réparties sur le cycle de 1,6 s et distinctes deux à deux ; à l'intérieur
+   d'une famille les tuiles restent jumelles, et c'est assumé : elles
+   PARTAGENT leur animation, c'est le sens même du regroupement. */
+.dzsvm .svm-tprev[data-fam="fondus"] .svm-tb{animation-delay:-.68s}
+.dzsvm .svm-tprev[data-fam="glissements"] .svm-tb{animation-delay:-.54s}
+.dzsvm .svm-tprev[data-fam="volets"] .svm-tb{animation-delay:-.36s}
+.dzsvm .svm-tprev[data-fam="formes"] .svm-tb{animation-delay:-.90s}
+.dzsvm .svm-tprev[data-fam="zooms"] .svm-tb{animation-delay:-1.12s}
+.dzsvm .svm-tprev[data-fam="pixels"] .svm-tb{animation-delay:-.44s}
+/* LES TROIS ÉTATS DE LA MICRO-SCÈNE, REPOSÉS SUR [data-fam] — ET C'EST UNE
+   CORRECTION MESURÉE, pas une précaution. Le bundle met les scènes en PAUSE
+   au repos (`animation-play-state:paused` sur `.svm-tprev[data-tt] .svm-tb`,
+   spécificité (0,3,0)), les fait tourner au survol (0,4,0) et FIGE la tuile
+   choisie (`animation:none`, (0,4,0)). Nos six règles de famille sont à
+   (0,4,0) et écrivent le RACCOURCI `animation:`, qui REMET
+   `animation-play-state` à `running` : sans les trois règles ci-dessous, les
+   58 tuiles neuves s'agiteraient en permanence (la pause du bundle perd,
+   3 < 4) et la tuile choisie ne se figerait pas (égalité 4 = 4, et
+   montage.css est chargée APRÈS). Les trois états sont donc reposés à
+   (0,4,0) — après les animations, l'ordre tranche —, (0,5,0) et (0,6,0). */
 .dzsvm .svm-tprev[data-fam] .svm-tb{animation-play-state:paused}
 .dzsvm .svm-transtile:hover .svm-tprev[data-fam] .svm-tb,
 .dzsvm .svm-transtile:focus-visible .svm-tprev[data-fam] .svm-tb{
@@ -1057,7 +1091,8 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
   width:100%; opacity:1; transform:none}
 @keyframes dzmtSlideDir{0%,20%{transform:translate(var(--tx,100%),var(--ty,0))}
   60%,100%{transform:translate(0,0)}}
-@keyframes dzmtWipeDir{0%,20%{clip-path:inset(0 0 0 100%)} 60%,100%{clip-path:inset(0)}}
+@keyframes dzmtWipeDir{0%,20%{clip-path:var(--wipe0,inset(0 0 0 100%))}
+  60%,100%{clip-path:inset(0)}}
 @keyframes dzmtCircle{0%,20%{clip-path:circle(0% at 50% 50%)}
   60%,100%{clip-path:circle(75% at 50% 50%)}}
 @keyframes dzmtZoom{0%,20%{transform:scale(.2); opacity:0}

@@ -31,7 +31,20 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 21/09/2026 (D-20, tache 2 — la galerie des transitions,
+COMPTE DE REFERENCE, 21/09/2026 (D-20, tache 2, TOUR DE CORRECTION) : 1537
+lignes, soit HUIT de plus que les 1529 du premier tour. Les huit : la
+SPECIFICITE calculee regle par regle (avec son temoin de methode : appliquee
+a la forme fautive, la fonction rend bien 6), `dissolve`/`fadeblack` sans
+`data-fam`, la phase de repos par famille, le volet qui LIT sa direction,
+la tuile en colonne, le groupe nomme et l'etat de la tuile, le silence sur
+le direct sans catalogue, et la liste blanche des @keyframes sortie dans
+une ligne propre. DEUX lignes existantes reecrites : celle des deux apercus
+historiques (l'exclusion a quitte la feuille pour la couche) et
+`tb8_aucun_mouvement...`, qui itere desormais par REGLES
+(`([^{}]*)\{([^{}]*)\}` sur la feuille SANS ses commentaires) au lieu de
+`split("}")` -- une `animation:` posee sous un `@media` y passait.
+
+COMPTE PRECEDENT, 21/09/2026 (D-20, tache 2 — la galerie des transitions,
 cote ecran) : 1529 lignes, soit TRENTE-HUIT de plus que les 1491 de D-4.
 Une seule ligne existante a ete REECRITE et c'est une CORRECTION :
 `tb8_aucun_mouvement_de_la_barre_n_est_pilote_en_javascript` exigeait
@@ -6497,6 +6510,41 @@ out.tg_sans_catalogue=TBG(function(){
   var l=T.TransGrid({legacy:SVM_TRANS,cat:null,cur:"cut"});
   var n=0,i;for(i=0;i<l.length;i++)n+=l[i].p.children[1].p.children.length;
   return [l.map(function(f){return f.k}),n]});
+/* LES DEUX QUE LE BUNDLE ANIME DEJA : pas de `data-fam` DU TOUT (omis, pas
+   vide -- `[data-fam]` matche un attribut PRESENT, fut-il vide), et `data-tt`
+   toujours la. La tuile garde donc les regles du bundle. */
+out.tg_sans_fam=TBG(function(){
+  var l=T.TransGrid({legacy:SVM_TRANS,cat:TCAT,cur:"cut"});
+  var g=l.filter(function(f){return f.k==="fondus"})[0].p.children[1].p.children;
+  return ["dissolve","fadeblack"].map(function(id){
+    var pv=g.filter(function(b){return b.k===id})[0].p.children[0];
+    return [id,pv.p["data-fam"],pv.p["data-tt"]]})});
+/* LA DIRECTION RENDUE, sur les deux familles qui la CONSOMMENT (volets via
+   --wipe0, glissements via --tx/--ty) et sur une qui ne la consomme pas. */
+out.tg_dir_rendue=TBG(function(){
+  var l=T.TransGrid({legacy:SVM_TRANS,cat:TCAT,cur:"cut"});
+  function pv(fam,id){var g=l.filter(function(f){return f.k===fam})[0].p.children[1].p.children;
+    var b=g.filter(function(q){return q.k===id})[0].p.children[0];
+    return [id,b.p["data-fam"],b.p["data-dir"]]}
+  return [pv("volets","wipeleft"),pv("volets","wiperight"),
+          pv("glissements","slideleft"),pv("zooms","zoomin")]});
+/* L ACCESSIBILITE : la famille est un GROUPE nomme, la tuile dit son etat. */
+out.tg_aria=TBG(function(){
+  var l=T.TransGrid({legacy:SVM_TRANS,cat:TCAT,cur:"wipetl"});
+  var f=l.filter(function(q){return q.k==="volets"})[0];
+  var g=f.p.children[1].p.children;
+  return [[f.p.role,f.p["aria-label"]],
+          g.filter(function(b){return b.k==="wipetl"})[0].p["aria-pressed"],
+          g.filter(function(b){return b.k==="wipeleft"})[0].p["aria-pressed"]]});
+/* SANS CATALOGUE, AUCUNE TUILE NE PARLE DU DIRECT : `live` y est faux pour
+   tout sauf la coupe, et l ecrire serait une affirmation sans appui. Le
+   conjoint : les six historiques sont bien la, donc le zero n est pas creux. */
+out.tg_direct_sans_cat=TBG(function(){
+  var l=T.TransGrid({legacy:SVM_TRANS,cat:null,cur:"cut"}),n=0,h=0,i,j,g;
+  for(i=0;i<l.length;i++){g=l[i].p.children[1].p.children;
+    for(j=0;j<g.length;j++){if(g[j].p.title.indexOf("Preview")>=0)n++}
+    if(l[i].k==="historiques")h=g.length}
+  return [n,h]});
 r.jsxs=null;
 console.log(JSON.stringify(out));
 """
@@ -12429,6 +12477,29 @@ check("tb8_l_enfoncement_est_retire_et_le_delai_du_repli_aussi",
 # LE MOUVEMENT DE LA BARRE EST ENTIEREMENT EN CSS — c'est ce qui rend le
 # coupe-circuit suffisant pour les deux premieres exigences. Conjoint positif
 # d'abord : le bloc existe et il est gros.
+# LES REGLES DE LA FEUILLE, PAR PAIRES (selecteur, corps) — et non par
+# `split("}")`, qui etait FAUX : une regle imbriquee dans un `@media`
+# voyait son selecteur colle au `@media ...{`, et une `animation:` posee
+# la serait passee sans un mot. `findall` sur `([^{}]*)\{([^{}]*)\}` ne
+# rend que les blocs de DECLARATIONS (les plus internes), quel que soit
+# leur emboitement.
+# LES COMMENTAIRES SONT RETIRES D'ABORD, et c'est une MESURE : cette
+# feuille documente ses propres pieges, et le texte « :not([data-tt=…]) »
+# d'un commentaire se retrouvait dans le SELECTEUR de la regle suivante --
+# une ligne qui interdit les `:not` rougissait a cause de la phrase qui
+# explique pourquoi on les a retires.
+_MC_NU = re.sub(r"/\*.*?\*/", "", _MC, flags=re.S)
+_REGLES_MC = re.findall(r"([^{}]*)\{([^{}]*)\}", _MC_NU)
+_TB_ANIM = [_s8.strip()[:60] for _s8, _c8 in _REGLES_MC
+            if "dzm-tb" in _s8 and "animation:" in _c8]
+# LA LISTE BLANCHE DES @keyframes DE LA FEUILLE, nommee plutot que
+# enfouie dans un `and` : ce sont les QUATRE animations de l'apercu des
+# transitions (D-20), et rien d'autre. Le jour ou une cinquieme parait,
+# c'est ICI qu'on l'inscrit, en connaissance de cause.
+_KF_D20 = ["dzmtCircle", "dzmtSlideDir", "dzmtWipeDir", "dzmtZoom"]
+_KF_MC = sorted(re.findall(r"@keyframes\s+([A-Za-z0-9_-]+)", _MC))
+check("D20_la_feuille_ne_porte_que_les_quatre_keyframes_de_la_galerie",
+      _KF_MC == _KF_D20, f"{_KF_MC}")
 _CODE_TB8 = _code(_SRC_TB)
 _i_frm = _CODE_TB8.find("function dzmTbFrame(")
 _j_frm = _CODE_TB8.find("\nfunction ", _i_frm + 10) if _i_frm >= 0 else -1
@@ -12455,10 +12526,8 @@ check("tb8_aucun_mouvement_de_la_barre_n_est_pilote_en_javascript",
       # est mesure ici, c'est ce que la ligne VOULAIT dire : aucune regle
       # de la barre ne declare `animation:`, et les seules @keyframes de la
       # feuille sont les quatre neuves, NOMMEES.
-      and not [r for r in _MC.split("}") if "dzm-tb" in r.split("{")[0]
-               and "animation:" in r]
-      and sorted(re.findall(r"@keyframes\s+([A-Za-z0-9_-]+)", _MC))
-          == ["dzmtCircle", "dzmtSlideDir", "dzmtWipeDir", "dzmtZoom"],
+      and _TB_ANIM == []
+      and _KF_MC == _KF_D20,
       f"bloc={len(_CODE_TB8)} o hors_frame={len(_HORS_FRM)} o")
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -13128,14 +13197,18 @@ check("D20_X4_le_libelle_vient_du_catalogue",
 for _nmx in ("dzTransCat", "setDzTransCat", "stDzCat", "__dzTransCat"):
     _nb = len(re.findall(r"\b%s\b" % _nmx, _bak)) if _bak else -1
     _nu = len(re.findall(r"\b%s\b" % _nmx, s))
-    check("D20_nom_" + _nmx.strip("_") + "_etait_libre_dans_le_bundle_d_entree",
+    # LE LABEL PORTE LE NOM TEL QUEL : `.strip("_")` donnait le MEME label
+    # a `dzTransCat` et a `__dzTransCat` -- deux lignes indistinguables.
+    check("D20_nom_" + _nmx + "_etait_libre_dans_le_bundle_d_entree",
           _nb == 0 and _nu >= 1, f"{_nmx} : .bak={_nb} (attendu 0) bundle={_nu}")
 
 # ── CE QUE LE STUB JSX A RENDU ────────────────────────────────────────────
-# SEPT groupes : « coupe », « historiques » et les six familles du serveur.
+# HUIT groupes : « coupe », « historiques » et les SIX familles du serveur
+# (1 + 1 + 6). Le libellé disait « sept » et comptait bien 8 : il mentait
+# sur ce qu'il mesurait — corrigé le 21/09/2026 (revue de la tâche 2).
 # 62 tuiles : 1 + 3 historiques (les sept du bundle moins cut, fade,
 # dissolve et fadeblack, qui sont AU catalogue) + 58.
-check("D20_la_galerie_rend_sept_groupes_et_soixante_deux_tuiles",
+check("D20_la_galerie_rend_huit_groupes_et_soixante_deux_tuiles",
       isinstance(d.get("tg_rendu"), list) and len(d.get("tg_rendu") or []) == 3
       and d["tg_rendu"][0] == 8 and d["tg_rendu"][1] == 62
       and [f[0] for f in d["tg_rendu"][2]]
@@ -13192,39 +13265,157 @@ check("D20_les_animations_empruntees_ne_sont_pas_redeclarees",
       and "@keyframes svmtGlitch" not in _MC,
       f'svmtFull={_SVMCSS.count("@keyframes svmtFull{")} '
       f'dans_montage={"@keyframes svmtFull" in _MC}')
-# LES DEUX EXCLUSIONS : `dissolve` et `fadeblack` sont AU catalogue (famille
-# « fondus ») et portent DÉJÀ une règle [data-tt] du bundle avec une AUTRE
-# animation. Nos sélecteurs sont plus spécifiques : sans les `:not`, la
-# galerie effacerait deux aperçus existants. `fade` n'en a pas besoin — les
-# deux règles demandent la même svmtFade, et c'est mesuré des deux côtés.
+# L'EXCLUSION VIT DANS LA COUCHE, PAS DANS LA FEUILLE — et c'est la
+# correction du 21/09/2026 (revue). `dissolve` et `fadeblack` sont AU
+# catalogue (famille « fondus ») et portent DEJA une regle [data-tt] du
+# bundle avec une AUTRE animation. La premiere version les ecartait par deux
+# `:not([data-tt=…])` dans la regle `fondus` : la regle pesait alors (0,6,0)
+# et passait devant la pause au repos. Ils sont desormais ecartes par
+# `DZM_TRANS_TT` dans la couche, qui ne leur pose pas `data-fam`. Les trois
+# faces : la liste existe et elle est GELEE, elle est citee par la grille, et
+# les regles du bundle qu'elle protege sont toujours la.
 check("D20_les_deux_apercus_historiques_du_catalogue_ne_sont_pas_ecrases",
-      '.dzsvm .svm-tprev[data-fam="fondus"]:not([data-tt="dissolve"]):not([data-tt="fadeblack"]) .svm-tb{' in _MC
+      src.count('var DZM_TRANS_TT=Object.freeze(["dissolve","fadeblack"]);') == 1
+      and src.count('DZM_TRANS_TT.indexOf(it.id)>=0?"":dzmTransFamily(') == 1
       and _SVMCSS.count('.svm-tprev[data-tt="dissolve"] .svm-tb{animation:svmtFull 1.6s linear infinite, svmtDiss') == 1
-      and _SVMCSS.count('.svm-tprev[data-tt="fade"] .svm-tb{animation:svmtFull 1.6s linear infinite, svmtFade') == 1,
-      f'not={chr(46) + "dzsvm .svm-tprev[data-fam=" + chr(34) + "fondus" + chr(34) in _MC} '
+      # 2 : l'animation ET le delai du bundle citent tous deux
+      # `.svm-tprev[data-tt="fadeblack"] .svm-tb,` en tete de selecteur
+      # multiple (avec `::after`, le voile noir).
+      and _SVMCSS.count('.svm-tprev[data-tt="fadeblack"] .svm-tb,') == 2
+      # ET AUCUN `:not` N'A SURVECU DANS LA FEUILLE : c'est la forme qui a
+      # coute le defaut. Le commentaire qui l'explique n'est pas un selecteur,
+      # donc la mesure porte sur les SELECTEURS, pas sur le texte.
+      and not [_sx for _sx, _cx in _REGLES_MC if ":not(" in _sx and "data-fam" in _sx],
+      f'liste={src.count(chr(39) + "var DZM_TRANS_TT=" + chr(39)) if False else src.count("var DZM_TRANS_TT=")} '
+      f'grille={src.count("DZM_TRANS_TT.indexOf(")} '
       f'diss={_SVMCSS.count(chr(46) + "svm-tprev[data-tt=" + chr(34) + "dissolve" + chr(34) + "] .svm-tb{")}')
-# LES TROIS ÉTATS DE LA MICRO-SCÈNE SONT REPOSÉS, ET C'EST LA LIGNE QUI DIT
-# POURQUOI : nos six règles de famille écrivent le RACCOURCI `animation:`,
-# qui remet `animation-play-state` à `running`. Sans les trois règles de
-# montage.css, les 58 tuiles neuves s'agiteraient en permanence (la pause du
-# bundle est à 3, la nôtre à 4) et la tuile choisie ne se figerait pas
-# (égalité 4 = 4, et montage.css est chargée APRÈS). Les deux faces : les
-# règles du bundle existent toujours, les nôtres aussi.
+# LA SPÉCIFICITÉ, CALCULÉE PLUTÔT QUE SUPPOSÉE — c'est LA ligne qui tient
+# tout le reste. La pause au repos ne l'emporte que si CHAQUE règle de
+# famille pèse au plus autant qu'elle ; la première version excluait
+# `dissolve` et `fadeblack` par deux `:not(...)` dans la règle `fondus`, qui
+# pesait alors (0,6,0) contre (0,4,0) : SIX tuiles (fade, fadewhite,
+# fadegrays, fadefast, fadeslow, distance) s'animaient en permanence.
+# L'exclusion est remontée dans la couche (DZM_TRANS_TT). Mesurer l'ORDRE
+# seul, comme le faisait la version d'avant, n'aurait rien vu.
+def _spec(sel):
+    """c = classes + attributs + pseudo-classes, les arguments d'un
+    `:not(...)` comptant comme s'ils étaient écrits à sa place (Selectors 4).
+    Aucun de ces sélecteurs ne porte d'id ni d'élément : b et a sont nuls."""
+    _s = sel.replace(":not(", "").replace(")", "")
+    return (len(re.findall(r"\[[^\]]*\]", _s))
+            + len(re.findall(r"\.[A-Za-z_-]", _s))
+            + len(re.findall(r":[A-Za-z-]", _s)))
+
+
+_SEL_PAUSE = ".dzsvm .svm-tprev[data-fam] .svm-tb"
+_SPEC_PAUSE = _spec(_SEL_PAUSE)
+_SEL_FAM = [_s9.strip() for _s9, _c9 in _REGLES_MC
+            if "[data-fam=" in _s9 and ".svm-tb" in _s9 and "animation:" in _c9]
+_TROP = [(_s9, _spec(_s9)) for _s9 in _SEL_FAM if _spec(_s9) > _SPEC_PAUSE]
+check("D20_aucune_regle_de_famille_ne_pese_plus_que_la_pause_au_repos",
+      len(_SEL_FAM) == 6 and _SPEC_PAUSE == 4 and _TROP == []
+      # ET AUCUNE NE PORTE DE `:not` : c'est la forme qui a coûté le défaut,
+      # et une règle à (0,4,0) écrite AVEC un `:not` serait un hasard.
+      and not [_s9 for _s9 in _SEL_FAM if ":not(" in _s9]
+      # LE TÉMOIN DE LA MÉTHODE : appliquée à la forme FAUTIVE, la fonction
+      # rend bien 6 — sans cette ligne, un `_spec` qui rendrait 4 pour tout
+      # laisserait `_TROP` vide et la mesure serait creuse.
+      and _spec('.dzsvm .svm-tprev[data-fam="fondus"]'
+                ':not([data-tt="dissolve"]):not([data-tt="fadeblack"]) .svm-tb') == 6,
+      f"familles={len(_SEL_FAM)} pause={_SPEC_PAUSE} trop_lourdes={_TROP}")
+# LES DEUX QUE LE BUNDLE ANIME DÉJÀ NE REÇOIVENT PAS `data-fam` — omis, pas
+# vide : `[data-fam]` matche un attribut PRESENT, fût-il vide.
+check("D20_dissolve_et_fadeblack_n_ont_pas_de_data_fam",
+      d.get("tg_sans_fam") == [["dissolve", None, "dissolve"],
+                               ["fadeblack", None, "fadeblack"]],
+      f'{d.get("tg_sans_fam")}')
+# LA PHASE DE REPOS, UNE PAR FAMILLE. Le raccourci `animation:` remet
+# `animation-delay` à 0 : sans ces six lignes, les 52 tuiles de famille
+# étaient figées sur la MÊME image et le popover montrait un damier uni.
+# Six valeurs, DISTINCTES deux à deux, négatives et dans le cycle de 1,6 s.
+_DEL = dict(re.findall(
+    r'\.dzsvm \.svm-tprev\[data-fam="(\w+)"\] \.svm-tb\{animation-delay:(-[\d.]+)s\}', _MC))
+check("D20_chaque_famille_a_sa_phase_de_repos",
+      sorted(_DEL) == ["fondus", "formes", "glissements", "pixels", "volets", "zooms"]
+      and len(set(_DEL.values())) == 6
+      and all(0 < -float(_v) <= 1.6 for _v in _DEL.values())
+      # ET ELLES SONT ÉCRITES APRÈS LES RACCOURCIS : même spécificité (4),
+      # l'ordre tranche — comme les sept délais du bundle.
+      # FAUTE N6 : `.index()` LEVE quand le selecteur a bouge, et une
+      # ligne de banc doit ROUGIR, PAS MOURIR. MESURE le 21/09/2026 :
+      # la mutation qui remet les deux `:not` dans la regle `fondus`
+      # tuait le banc ENTIER ici (aucune ligne de compte) au lieu de
+      # faire rougir les deux lignes qu'elle vise.
+      and _MC.find('.dzsvm .svm-tprev[data-fam="fondus"] .svm-tb{\n  animation:') >= 0
+      and _MC.find('.dzsvm .svm-tprev[data-fam="fondus"] .svm-tb{animation-delay:')
+          > _MC.find('.dzsvm .svm-tprev[data-fam="fondus"] .svm-tb{\n  animation:'),
+      f"{_DEL}")
+# LA DIRECTION EST CONSOMMÉE PAR LE VOLET, PAS SEULEMENT DÉCLARÉE. Sans
+# `--wipe0`, `dzmtWipeDir` partait toujours de la droite : les seize volets
+# rendaient la MÊME image dans les quatre sens.
+check("D20_le_volet_lit_la_direction",
+      all(("--wipe0:inset(%s)" % _w) in _MC for _w in
+          ("0 100% 0 0", "0 0 0 100%", "100% 0 0 0", "0 0 100% 0"))
+      and "@keyframes dzmtWipeDir{0%,20%{clip-path:var(--wipe0,inset(0 0 0 100%))}" in _MC
+      and "@keyframes dzmtSlideDir{0%,20%{transform:translate(var(--tx,100%),var(--ty,0))}" in _MC
+      # ET LE RENDU LES POSE : `wipeleft` (volets, via --wipe0) et `slideleft`
+      # (glissements, via --tx/--ty) sont les deux familles qui la consomment.
+      and d.get("tg_dir_rendue") == [["wipeleft", "volets", "left"],
+                                     ["wiperight", "volets", "right"],
+                                     ["slideleft", "glissements", "left"],
+                                     ["zoomin", "zooms", None]],
+      f'css={"--wipe0" in _MC} rendu={d.get("tg_dir_rendue")}')
+# LA TUILE EST EN COLONNE — mesure : 276 px de popover, 12 de marge, trois
+# colonnes à 6 px de gouttière = 80 px par tuile ; en rangée il restait
+# VINGT-QUATRE pixels au libellé (80 − 16 de padding − 34 d'aperçu − 6).
+check("D20_la_tuile_met_le_libelle_sous_l_apercu",
+      ".dzsvm .dzm-transgrid .svm-transtile{flex-direction:column;" in _MC
+      and ".dzsvm .dzm-transgrid .svm-ttl{flex:none; white-space:normal;" in _MC
+      and "font-size:9.5px; line-height:1.15; max-height:2.3em;" in _MC
+      # ET LA RÈGLE DU BUNDLE, qui met le libellé sur UNE ligne avec ellipse,
+      # est toujours là : la nôtre la couvre par spécificité (3 > 2), elle ne
+      # la remplace pas.
+      and _SVMCSS.count(".svm-transtile .svm-ttl{flex:1; min-width:0; white-space:nowrap;") == 1
+      and _spec(".dzsvm .dzm-transgrid .svm-ttl") == 3
+      and _spec(".svm-transtile .svm-ttl") == 2,
+      f'colonne={".dzsvm .dzm-transgrid .svm-transtile{flex-direction:column;" in _MC}')
+# L'ACCESSIBILITÉ : chaque famille est un groupe NOMMÉ, chaque tuile dit si
+# elle est choisie. `data-sel` est un crochet de STYLE, `aria-pressed` la
+# même information pour un lecteur d'écran — les deux, pas l'un ou l'autre.
+check("D20_chaque_famille_est_un_groupe_nomme_et_la_tuile_dit_son_etat",
+      d.get("tg_aria") == [["group", "Transitions — volets"], True, False],
+      f'{d.get("tg_aria")}')
+# « VISIBLE APRÈS PREVIEW » NE SE DIT QUE SI LE CATALOGUE EST ARRIVÉ : sans
+# lui, `live` est faux pour tout sauf la coupe, et l'écrire sur les six
+# historiques serait une affirmation que rien ne soutient — c'est le SERVEUR
+# qui dit le direct (D-12). Le conjoint : les six historiques sont bien là,
+# donc le zéro n'est pas creux.
+check("D20_sans_catalogue_aucune_tuile_ne_parle_du_direct",
+      d.get("tg_direct_sans_cat") == [0, 6], f'{d.get("tg_direct_sans_cat")}')
+# LES TROIS ÉTATS DE LA MICRO-SCÈNE SONT REPOSÉS SUR [data-fam], ET C'EST LA
+# LIGNE QUI DIT POURQUOI : nos six règles de famille écrivent le RACCOURCI
+# `animation:`, qui remet `animation-play-state` à `running`. Sans les trois
+# règles de montage.css, les 58 tuiles neuves s'agiteraient en permanence (la
+# pause du bundle est à 3, la nôtre à 4) et la tuile choisie ne se figerait
+# pas (égalité 4 = 4, et montage.css est chargée APRÈS).
 check("D20_la_pause_le_survol_et_le_figement_sont_reposes_sur_la_famille",
       ".dzsvm .svm-tprev[data-fam] .svm-tb{animation-play-state:paused}" in _MC
       and ".dzsvm .svm-transtile:focus-visible .svm-tprev[data-fam] .svm-tb{" in _MC
       and ".dzsvm .svm-transtile[data-sel] .svm-tprev[data-fam] .svm-tb{animation:none;" in _MC
-      # ET ELLES VIENNENT APRÈS LES ANIMATIONS DE FAMILLE : à spécificité
-      # égale (4 = 4), c'est l'ORDRE qui tranche pour la pause.
-      and _MC.index(".dzsvm .svm-tprev[data-fam] .svm-tb{animation-play-state:paused}")
-          > _MC.index('.dzsvm .svm-tprev[data-fam="pixels"] .svm-tb{')
-      # 4, MESURE : la pause, le survol (hover ET focus-visible, deux
-      # citations) et le figement du bundle citent chacun
-      # `.svm-tprev[data-tt] .svm-tb` dans leur selecteur multiple.
+      # ET APRÈS LA DERNIÈRE RÈGLE DE FAMILLE : à spécificité égale (4 = 4,
+      # mesurée ci-dessus), c'est l'ORDRE qui tranche.
+      # MEME PARADE : `find()` partout, et « les six ont ete trouvees »
+      # est une CONDITION, pas une hypothese.
+      and len(_SEL_FAM) == 6 and all(_MC.find(_s9) >= 0 for _s9 in _SEL_FAM)
+      and _MC.find(".dzsvm .svm-tprev[data-fam] .svm-tb{animation-play-state:paused}")
+          > max(_MC.find(_s9) for _s9 in _SEL_FAM)
+      # 4, MESURE : la pause, le survol (hover ET focus-visible) et le
+      # figement du bundle citent chacun `.svm-tprev[data-tt] .svm-tb` dans
+      # leur selecteur multiple.
       and _SVMCSS.count(".svm-tprev[data-tt] .svm-tb,") == 4
-      and _SVMCSS.count('.svm-transtile[data-sel] .svm-tprev[data-tt] .svm-tb{width:100%;') == 1,
+      and _SVMCSS.count(".svm-transtile[data-sel] .svm-tprev[data-tt] .svm-tb{width:100%;") == 1,
       f'pause={".dzsvm .svm-tprev[data-fam] .svm-tb{animation-play-state:paused}" in _MC} '
-      f'fige={".dzsvm .svm-transtile[data-sel] .svm-tprev[data-fam] .svm-tb{animation:none;" in _MC}')
+      f'familles={len(_SEL_FAM)}')
 # LE MOUVEMENT RÉDUIT COUVRE DÉJÀ LES 58 : la règle `!important` de
 # son-vfx-montage.css porte sur `.svm-tprev .svm-tb` SANS `[data-tt]` — elle
 # éteint donc aussi les animations de famille. Rien à ajouter, et c'est

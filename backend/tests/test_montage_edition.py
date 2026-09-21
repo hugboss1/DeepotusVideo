@@ -303,11 +303,17 @@ out.tl_fam_58=(function(){var a=[],k,i;
   for(k in T.TRANS_FAM)for(i=0;i<T.TRANS_FAM[k].length;i++)a.push(T.TRANS_FAM[k][i]);
   var u={},dbl=0,j;for(j=0;j<a.length;j++){if(u[a[j]])dbl++;u[a[j]]=1}
   return [a.length,Object.keys(u).length,dbl,Object.keys(T.TRANS_FAM)]})();
-/* les tables sont GELEES, comme MODES et MARKER_COLORS : le shim est en mode
-   strict, une ecriture y leve. */
+/* les tables sont GELEES EN PROFONDEUR, comme MODES et MARKER_COLORS : le
+   shim est en mode strict, une ecriture y leve. `Object.freeze` est
+   SUPERFICIEL -- les deux dernieres lignes visent les TABLEAUX portes par
+   les objets, qui restaient modifiables quand seul l objet etait scelle
+   (mesure : `TRANS_FAM.fondus.push("zzz")` passait en silence). */
 out.tl_gel=(function(){var a=[];
   try{T.TRANS_FAM.zzz=["x"];a.push("no")}catch(e){a.push(e.constructor.name)}
   try{T.TRANS_DIR.zzz=["x"];a.push("no")}catch(e){a.push(e.constructor.name)}
+  try{T.TRANS_FAM.fondus.push("zzz");a.push("no")}catch(e){a.push(e.constructor.name)}
+  try{T.TRANS_DIR.left[0]="zzz";a.push("no")}catch(e){a.push(e.constructor.name)}
+  a.push(T.TRANS_FAM.fondus.length,T.TRANS_DIR.left[0]);
   return a})();
 /* MOUS : aucune de ces entrees ne doit lever, et la CLE existe toujours. */
 out.tl_mous=[T.transList(null,null).length,T.transList("x","y").length,
@@ -318,6 +324,11 @@ out.tl_mous=[T.transList(null,null).length,T.transList("x","y").length,
              T.transLive(null,null),T.transDir(null)];
 /* LA COMPOSANTE : elle EXISTE et ne touche a `r` qu'a l'appel (le shim de ce
    banc n'a pas de stub JSX -- son RENDU est mesure par test_montage_bundle). */
+/* M2 : `SVM_TRANS` est une liste de PAIRES -- rien n y interdit deux
+   entrees de meme nom. Sans dedoublonnage, la galerie rendait deux tuiles
+   de meme cle React. Le PREMIER gagne, libelle compris. */
+out.tl_doublons=T.transList([["cut","c"],["glitch","un"],["glitch","deux"],["slide","s"]],null)
+  .map(function(f){return [f.id,f.items.map(function(i){return [i.id,i.label]})]});
 out.tl_grille_existe=typeof T.TransGrid;
 /* `window.__dzTransCat` : X4 lit ce global au niveau MODULE. Sous node, en
    "use strict" avec `var window={}`, la lecture d'une propriete ABSENTE rend
@@ -485,7 +496,7 @@ try:
                  "mk_from_eps_exact","mk_t_types",
                  "tl_liste","tl_sans_catalogue","tl_label","tl_fam",
                  "tl_live","tl_dir","tl_fam_58","tl_gel","tl_mous",
-                 "tl_grille_existe","tl_global_ne_leve_pas"]
+                 "tl_grille_existe","tl_global_ne_leve_pas","tl_doublons"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -786,8 +797,13 @@ check("tl_la_copie_cliente_porte_58_noms_distincts_en_six_familles",
       D.get("tl_fam_58") == [58, 58, 0,
                              ["fondus", "glissements", "volets", "formes", "zooms", "pixels"]],
       D.get("tl_fam_58"))
-check("tl_les_deux_tables_sont_gelees",
-      D.get("tl_gel") == ["TypeError", "TypeError"], D.get("tl_gel"))
+# LE GEL EST PROFOND, ET LES DEUX DERNIERES VALEURS LE PROUVENT : la
+# levee ne suffit pas a dire que RIEN n'a change (un `push` peut lever
+# APRES avoir ecrit, selon le moteur). Les deux conjoints positifs
+# relisent la longueur et le premier element.
+check("tl_les_deux_tables_sont_gelees_en_profondeur",
+      D.get("tl_gel") == ["TypeError", "TypeError", "TypeError", "TypeError",
+                          8, "slideleft"], D.get("tl_gel"))
 # MOUS : rien ne lève, et chaque repli est CHIFFRÉ. Le 4e élément mesure
 # qu'une famille nulle et une entrée nulle sont écartées sans emporter la
 # famille qui les entoure.
@@ -796,6 +812,10 @@ check("tl_les_entrees_molles_ne_levent_pas",
                                               [["coupe", 1], ["historiques", 2], ["f", 1]],
                                               "null", "", False, ""],
       D.get("tl_mous"))
+check("tl_un_historique_en_double_ne_donne_qu_une_tuile",
+      D.get("tl_doublons") == [["coupe", [["cut", "c"]]],
+                               ["historiques", [["glitch", "un"], ["slide", "s"]]]],
+      D.get("tl_doublons"))
 check("tl_la_grille_est_une_fonction", D.get("tl_grille_existe") == "function",
       D.get("tl_grille_existe"))
 # LA MESURE QUI AUTORISE `window.__dzTransCat||null` DANS X4 : sous node, en

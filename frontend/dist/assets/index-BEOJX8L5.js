@@ -18044,6 +18044,30 @@ function dzmTransFams(cat){
   var fs=cat&&Array.isArray(cat.familles)?cat.familles:[];
   return fs.filter(function(f){return f&&f.id!=null}).map(function(f){
     return {id:f.id,label:f.label,items:(Array.isArray(f.items)?f.items:[]).filter(function(it){return it&&it.id!=null})}})}
+/* LES DEUX TABLES SONT GELEES EN PROFONDEUR : `Object.freeze` est
+   SUPERFICIEL -- il scelle l'objet, pas les tableaux qu'il porte, et
+   `TRANS_FAM.fondus.push("zzz")` passait donc en silence. Les tableaux
+   sont scelles AVANT l'objet ; l'export ne fait que les repasser. */
+(function(){var k;
+  for(k in DZM_TRANS_FAM)Object.freeze(DZM_TRANS_FAM[k]);
+  for(k in DZM_TRANS_DIR)Object.freeze(DZM_TRANS_DIR[k]);
+  Object.freeze(DZM_TRANS_FAM);Object.freeze(DZM_TRANS_DIR)})();
+/* LES DEUX QUE LE BUNDLE ANIME DEJA AUTREMENT. `son-vfx-montage.css`
+   (intouchable) porte sept regles `.svm-tprev[data-tt="…"] .svm-tb`.
+   Cinq visent des noms HORS catalogue (cut, glitch, slide, flash, fade
+   mis a part) ; DEUX visent des noms QUI SONT au catalogue et demandent
+   une animation DIFFERENTE de celle de leur famille : `dissolve`
+   (svmtDiss) et `fadeblack` (svmtCutMid + le voile ::after). Ces deux-la
+   ne recoivent PAS de `data-fam` : ils gardent les regles du bundle, et
+   nos six regles de famille restent toutes a la MEME specificite
+   (0,4,0) -- c'est ce qui permet a la pause au repos, ecrite apres et a
+   la meme specificite, de les couvrir TOUTES. Un `:not()` dans la regle
+   `fondus` aurait pese (0,6,0) et laisse SIX tuiles (fade, fadewhite,
+   fadegrays, fadefast, fadeslow, distance) s'agiter en permanence : la
+   liste est une decision de CASCADE, pas de style. `fade` en est absent
+   a dessein -- sa regle du bundle et la notre demandent la MEME svmtFade,
+   et la notre lui rend un delai de famille. */
+var DZM_TRANS_TT=Object.freeze(["dissolve","fadeblack"]);
 function dzmTransFamily(id,cat){
   if(id==="cut")return "coupe";
   var k;for(k in DZM_TRANS_FAM)if(DZM_TRANS_FAM[k].indexOf(id)>=0)return k;
@@ -18063,11 +18087,26 @@ function dzmTransLabel(id,legacy,cat){
   for(i=0;i<fs.length;i++)for(j=0;j<fs[i].items.length;j++){var it=fs[i].items[j];if(it.id===id&&it.label)return String(it.label)}
   var lg=(Array.isArray(legacy)?legacy:[]).filter(function(o){return o&&o[0]===id})[0];
   return lg?String(lg[1]):String(id)}
+/* LE PREMIER GAGNE, DES DEUX COTES. `dzmTransLabel` rend le libelle de la
+   PREMIERE famille du catalogue qui porte l'id, et `dzmTransFamily` la
+   PREMIERE famille de la copie cliente : un nom servi dans deux familles
+   se range dans celle du haut. La grille, elle, ne cherche RIEN : chaque
+   tuile lit `it.label` DE SA FAMILLE, celui que `dzmTransList` y a
+   depose -- une tuile ne peut donc pas porter le libelle d'une autre
+   famille. Le banc croise mesure quaucun des 58 noms du service n est
+   dans deux familles : ce commentaire dit ce qui arriverait, il ne decrit
+   pas un defaut vivant. */
 function dzmTransList(legacy,cat){
   var lg=Array.isArray(legacy)?legacy:[],fs=dzmTransFams(cat);
   var inCat={},out=[{id:"coupe",label:"coupe",items:[{id:"cut",label:dzmTransLabel("cut",lg,cat),live:!0}]}];
   fs.forEach(function(f){f.items.forEach(function(it){inCat[it.id]=1})});
-  var hist=lg.filter(function(o){return o&&o[0]!=="cut"&&!inCat[o[0]]}).map(function(o){return {id:String(o[0]),label:String(o[1]),live:dzmTransLive(o[0],cat)}});
+  /* DEDOUBLONNE PAR ID : `SVM_TRANS` est une liste de paires, rien n'y
+     interdit deux entrees de meme nom, et la galerie aurait rendu deux
+     tuiles de MEME CLE React -- un avertissement en console et une tuile
+     qui ne se met pas a jour. Le PREMIER gagne, comme partout ici. */
+  var vus={},hist=lg.filter(function(o){
+    if(!o||o[0]==="cut"||inCat[o[0]]||vus[o[0]])return !1;
+    vus[o[0]]=1;return !0}).map(function(o){return {id:String(o[0]),label:String(o[1]),live:dzmTransLive(o[0],cat)}});
   if(hist.length)out.push({id:"historiques",label:"historiques",items:hist});
   fs.forEach(function(f){out.push({id:String(f.id),label:String(f.label||f.id),
     items:f.items.map(function(it){return {id:String(it.id),label:String(it.label||it.id),live:!!it.live}})})});
@@ -18076,21 +18115,34 @@ function dzmTransList(legacy,cat){
    classe `.svm-transtile` et la micro-scène `.svm-tprev` du bundle ; la
    famille et la direction sont posées en data-* pour l'animation CSS de
    montage.css (une règle par famille, la direction en variable).
-   `data-tt` EST GARDÉ sur toutes les tuiles, y compris les 58 neuves : c'est
-   LUI qui porte, dans son-vfx-montage.css (intouchable), l'animation de la
-   moitié GAUCHE, la pause hors survol et le figement de la tuile choisie.
-   Sans lui, les 58 tuiles neuves s'agiteraient toutes en permanence. */
+   `data-tt` EST GARDÉ sur toutes les tuiles, y compris les 58 neuves :
+   c'est LUI qui porte, dans son-vfx-montage.css (intouchable), l'animation
+   de la moitié GAUCHE et le voile des fondus au noir/blanc. La pause au
+   repos, le survol et le figement de la tuile choisie sont REPOSÉS sur
+   `data-fam` dans montage.css : nos règles de famille écrivent le
+   raccourci `animation:`, qui remet `animation-play-state` à `running`. */
 function DzmTransGrid(o){
   var lst=dzmTransList(o&&o.legacy,o&&o.cat),cur=o&&o.cur,on=typeof (o&&o.onPick)==="function"?o.onPick:function(){};
+  /* LE CATALOGUE EST-IL ARRIVE ? Sans lui, `live` est FAUX pour tout sauf
+     la coupe -- et ecrire « visible apres Preview » sur les six
+     historiques serait une affirmation que rien ne soutient : le direct
+     est dit par le SERVEUR (D-12), pas par nous. Tant qu il n a pas
+     repondu, l'infobulle se tait sur ce point. */
+  var dit=!!(o&&o.cat&&Array.isArray(o.cat.familles)&&o.cat.familles.length);
   return lst.map(function(f){
-    return r.jsxs("div",{className:"dzm-transfam",children:[
+    return r.jsxs("div",{className:"dzm-transfam",role:"group",
+      "aria-label":"Transitions — "+f.label,children:[
       r.jsx("div",{className:"dzm-transfam-t",children:f.label}),
       r.jsx("div",{className:"svm-transgrid dzm-transgrid",children:f.items.map(function(it){
-        var fam=dzmTransFamily(it.id,o&&o.cat),dir=dzmTransDir(it.id);
+        /* `data-fam` est OMIS (pas vide) pour les deux que le bundle anime
+           deja : `[data-fam]` matche un attribut PRESENT, fut-il vide. */
+        var fam=DZM_TRANS_TT.indexOf(it.id)>=0?"":dzmTransFamily(it.id,o&&o.cat);
+        var dir=dzmTransDir(it.id);
         return r.jsxs("button",{className:"svm-transtile","data-sel":cur===it.id?"":void 0,
-          title:it.label+" ("+it.id+")"+(it.live?"":" — visible après Preview"),
+          "aria-pressed":cur===it.id,
+          title:it.label+" ("+it.id+")"+(dit&&!it.live?" — visible après Preview":""),
           onClick:function(){on(it.id)},children:[
-          r.jsxs("span",{className:"svm-tprev","data-tt":it.id,"data-fam":fam,"data-dir":dir||void 0,"aria-hidden":!0,
+          r.jsxs("span",{className:"svm-tprev","data-tt":it.id,"data-fam":fam||void 0,"data-dir":dir||void 0,"aria-hidden":!0,
             children:[r.jsx("i",{className:"svm-ta"}),r.jsx("i",{className:"svm-tb"})]}),
           r.jsx("span",{className:"svm-ttl",children:it.label})]},it.id)})})]},f.id)})}
 
@@ -18162,7 +18214,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   Markers:DzmMarkers,MarkerIndex:DzmMarkerIndex,
   transList:dzmTransList,transLabel:dzmTransLabel,transFamily:dzmTransFamily,
   transLive:dzmTransLive,transDir:dzmTransDir,TransGrid:DzmTransGrid,
-  TRANS_FAM:Object.freeze(DZM_TRANS_FAM),TRANS_DIR:Object.freeze(DZM_TRANS_DIR),
+  TRANS_FAM:DZM_TRANS_FAM,TRANS_DIR:DZM_TRANS_DIR,TRANS_TT:DZM_TRANS_TT,
   insere:dzmInsere,MODES:DZM_MODES,REFUS:DZM_REFUS,carve:dzmCarve,
   slip:dzmSlip,slide:dzmSlide,roll:dzmRoll,voisins:dzmVoisins,swap:dzmSwap,
   ModeBar:DzmModeBar,MODE_T:DZM_MODE_T,modeLabel:dzmModeLabel,
