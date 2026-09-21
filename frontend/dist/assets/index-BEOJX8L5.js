@@ -17753,14 +17753,18 @@ function dzmMarkerColor(c){
 function dzmMarkerHex(c){
   var o=DZM_MARKER_COLORS.filter(function(x){return x[0]===c})[0];
   return (o||DZM_MARKER_COLORS[0])[1]}
-/* I-6 (revue du 21/09/2026) : LE MEME `t` DES DEUX COTES. `Number("")`
-   vaut ZERO en JavaScript, quand `float("")` LEVE en Python : un marqueur
-   `{t:""}` etait accepte a 0 s par le client et jete par le serveur, donc il
-   disparaissait au rechargement sans un mot. Le lecteur est desormais
-   STRICT, et il dit `null` sur ce que le backend refuse : rien, une chaine
-   vide ou blanche, un non-nombre, un infini, un negatif. */
+/* LE MEME `t` DES DEUX COTES (revue du 21/09/2026 ; l'etiquette « I-6 »
+   qu'avait ce bloc etait FAUSSE — I-6 nommait les `.index()` nus du banc).
+   `Number("")` vaut ZERO en JavaScript, quand `float("")` LEVE en Python :
+   un marqueur `{t:""}` etait accepte a 0 s par le client et jete par le
+   serveur, donc il disparaissait au rechargement sans un mot.
+   R-3 (seconde revue) : LE TYPE EST REFUSE AVANT LA VALEUR. `Number(true)`
+   vaut 1 et `Number([])` vaut 0 : un booleen devenait un marqueur a 1 s et
+   un tableau vide un marqueur a 0 s — exactement ce que `_save_record`
+   refuse depuis son test `isinstance(t, bool)`. Seuls un NOMBRE et une
+   CHAINE sont des temps. */
 function dzmMarkerT(v){
-  if(v==null)return null;
+  if(typeof v!=="number"&&typeof v!=="string")return null;
   if(typeof v==="string"&&!v.replace(/\s/g,""))return null;
   var n=Number(v);
   return (isFinite(n)&&n>=0)?n:null}
@@ -17823,6 +17827,13 @@ function dzmMarkerNext(ms,t,dir){
        qui est a moins d'un EPS. Le tri PRECEDE le filtre : c'est toujours le
        PREMIER de deux voisins qui reste, et les doublons exacts tombent par
        la meme regle (distance nulle) ;
+     · R-1 (seconde revue du 21/09/2026) : LA BORNE EST LARGE (`<=`), PAS
+       STRICTE. `markerNext` saute tout ce qui n'est pas `t > v + EPS` :
+       un couple a EXACTEMENT 0,150 s passait un filtre strict et restait
+       injoignable DANS LES DEUX SENS (mesure : 697 couples au millieme
+       entre 0 et 10 s). `markerAdd` traitait deja « exactement EPS »
+       comme trop proche (`d <= dmin + 1e-9`) : les trois bornes disent
+       desormais la meme chose ;
      · le plafond s'applique APRES le filtre — 200 marqueurs UTILES, pas 200
        entrees dont la moitie serait jetee. Meme ordre que `_save_record`. */
 function dzmMarkersFrom(v){
@@ -17836,7 +17847,7 @@ function dzmMarkersFrom(v){
   var out=[];
   dzmMarkersSort(brut).forEach(function(m){
     if(out.length>=DZM_MARKER_MAX)return;
-    if(out.length&&m.t-out[out.length-1].t<DZM_MARKER_EPS)return;
+    if(out.length&&m.t-out[out.length-1].t<=DZM_MARKER_EPS+1e-9)return;
     m.id="m"+(out.length+1);out.push(m)});
   return out}
 /* LES LOSANGES SUR LA RÈGLE. Même gouttière de 88 px que `DzmRangeBar`, et
@@ -17925,7 +17936,8 @@ function DzmMarkerIndex(o){
           onClick:function(){if(o.onRemove)o.onRemove(m.id)},
           children:"\u2716"})]},m.id)}):
       r.jsx("div",{className:"svm-note",
-        children:"Aucun marqueur — Maj+M en pose un à la tête de lecture."}),
+        children:"Aucun marqueur — "+dzmMarkerCombo()+
+          " en pose un à la tête de lecture."}),
     r.jsx("div",{className:"svm-poprow",children:
       r.jsx("button",{className:"svm-secbtn",onClick:o&&o.onClose,
         children:"Fermer"})})]})}

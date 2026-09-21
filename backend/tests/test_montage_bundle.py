@@ -80,6 +80,40 @@ UNE FAUTE N°6 ATTRAPEE PENDANT L'ECRITURE : `_CSSM.split(borne)[1]` leve
 IndexError quand la borne disparait — un banc doit ROUGIR, pas MOURIR. La
 parade est `_apres()`, qui rend "" et fait rougir ses lectrices.
 
+COMPTE PRECEDENT, 21/09/2026 (D-5, tache 8, SECOND TOUR) : 1486 lignes, et
+ce banc-ci n en gagne AUCUNE -- les quatre residus se ferment par des
+CONJOINTS sur des lignes existantes et par deux bancs voisins :
+  . R-1 -- les filtres d espacement de `dzmMarkersFrom` et de
+    `_save_record` etaient STRICTS quand `markerNext` exige `t > v + EPS`
+    strict lui aussi : un couple a EXACTEMENT 0,150 s passait le filtre et
+    restait INJOIGNABLE DANS LES DEUX SENS (697 couples au millieme entre 0
+    et 10 s). Les deux bornes passent a `<=` (+1e-9, la tolerance de
+    flottant : 1,15 - 1,00 vaut 0,15000000000000013 en double) et disent
+    donc ce que `markerAdd` disait deja. Bance dans
+    test_montage_edition.py (`mk_un_ecart_d_exactement_un_eps_est_trop_
+    proche` et `..._serait_injoignable`) et dans test_montage_projets.py
+    (`d5_un_ecart_d_exactement_un_eps_est_trop_proche` et son conjoint
+    positif a 0,151) ;
+  . R-2 -- la note de l index VIDE, celle qui APPREND le geste, ecrivait
+    encore « Maj+M » en dur. Elle passe par `dzmMarkerCombo()`, et
+    `D5_I5_les_trois_textes_lisent_la_keymap_vivante` gagne la negation,
+    son conjoint positif (la phrase existe toujours) et le compte des
+    APPELS -- le mot « dzmMarkerCombo() » apparait 3 fois dans la couche,
+    dont une dans sa propre DECLARATION ;
+  . R-3 -- `dzmMarkerT` refuse le TYPE avant la valeur : `Number(true)`
+    vaut 1 et `Number([])` vaut 0, quand `_save_record` les jette deja
+    (`isinstance(t, bool)`, et `float([])` leve) ;
+  . R-4 -- l etiquette « I-6 » du commentaire de `dzmMarkerT` etait FAUSSE
+    (I-6 nommait les `.index()` nus de ce banc) : corrigee sur place.
+MUTATIONS, sur COPIES, restaurees ensuite : le filtre de la couche rendu
+STRICT -> `mk_un_ecart_d_exactement_un_eps_est_trop_proche` rougit SEULE
+(88/1) ; celui du backend rendu STRICT ->
+`d5_un_ecart_d_exactement_un_eps_est_trop_proche` rougit SEULE (158/1) ;
+la note de l index vide rendue a « Maj+M » en dur, chaine rejouee ->
+`D5_I5_les_trois_textes_lisent_la_keymap_vivante` rougit SEULE (1485/1) ;
+le garde-type de `dzmMarkerT` retire ->
+`mk_un_temps_qui_n_est_ni_nombre_ni_chaine_est_refuse` rougit SEULE (88/1).
+
 COMPTE PRECEDENT, 21/09/2026 (D-5, tache 8, TOUR DE CORRECTION) : 1474
 lignes. DOUZE lignes naissent, QUATRE pre-existantes changent, et UNE
 section de cablage s ajoute (K7, Echap) :
@@ -6323,7 +6357,8 @@ r.jsxs=function(t,p,k){return{t:t,p:p,k:k}};
 out.mk_index_vide=TBG(function(){
   var n=T.MarkerIndex({markers:[]});
   return [n.p.className,n.p.children[0].p.children,
-    n.p.children[1].t,n.p.children[1].p.className]});
+    n.p.children[1].t,n.p.children[1].p.className,
+    n.p.children[1].p.children]});
 out.mk_index_rangees=TBG(function(){
   var vu=[],n=T.MarkerIndex({markers:[{id:"m1",t:3,color:"bleu",title:"a",note:""}],
     onSeek:function(t){vu.push(["seek",t])},
@@ -12625,9 +12660,15 @@ check("D5_le_timecode_change_quand_le_symbole_apparait",
       and d.get("mk_rendu") != "INDEFINI"
       and "5 s" in str((d.get("mk_rendu") or [None] * 7)[6]),
       f'{d.get("mk_tc_resolu_a_l_appel")!r} vs {d.get("mk_rendu")}')
+# R-2 : ET LA NOTE DIT LA COMBO VIVANTE. Le repli (« Maj+M ») est celui que
+# la couche rend quand `svmKeyLabelNow` n'existe pas -- et sous ce shim, a ce
+# moment-la, il n'existe pas encore : c'est la meme preuve de resolution a
+# l'appel que pour l'infobulle du losange, qui est mesuree juste apres.
 check("D5_l_index_vide_dit_le_geste_au_lieu_de_se_taire",
       d.get("mk_index_vide") == ["svm-pop dzm-mkidx", "Marqueurs \u2014 0",
-                                 "div", "svm-note"],
+                                 "div", "svm-note",
+                                 "Aucun marqueur \u2014 Maj+M en pose un "
+                                 "\u00e0 la t\u00eate de lecture."],
       f'{d.get("mk_index_vide")}')
 # UNE RANGEE, QUATRE CONTROLES : aller, recolorer, renommer, retirer. Le
 # champ de titre est NON CONTROLE (`defaultValue` pose, `value` ABSENT) --
@@ -12756,11 +12797,27 @@ check("D5_I5_les_trois_textes_lisent_la_keymap_vivante",
       # variable locale (`f`), exactement comme `dzTc` pour `svmTcFF` : la
       # mesure porte sur la resolution et sur l'identifiant d'action.
       and src.count('typeof svmKeyLabelNow==="function"?svmKeyLabelNow:null') == 1
+      # R-2 (seconde revue du 21/09/2026) : QUATRIEME TEXTE. La note de
+      # l'index VIDE -- celle qui apprend le geste a qui n'a pas encore de
+      # marqueur -- ecrivait « Maj+M » en dur : c'est precisement la phrase
+      # qu'un remappage rendait fausse pour le seul utilisateur qui en a
+      # besoin. Elle passe par le meme `dzmMarkerCombo()` que l'infobulle du
+      # losange, donc par la meme keymap vivante. DEUX appels dans la
+      # couche, un par texte.
       and src.count('f("marker_toggle")') == 1
+      # LE COMPTE PORTE SUR LES APPELS, pas sur le mot : la DECLARATION
+      # `function dzmMarkerCombo(){` contient elle aussi « dzmMarkerCombo() »
+      # (mesure : 3 occurrences du mot, 1 declaration et 2 appels).
+      and src.count("+dzmMarkerCombo()+") == 2
+      and src.count("function dzmMarkerCombo(){") == 1
       # et PLUS AUCUNE combo ecrite en dur dans ces trois textes
       and s.count(nl('index (Ctrl+M)')) == 0
       and s.count(nl('Maj+M pose/retire')) == 0
-      and s.count(nl('Ctrl+M : l\'index.')) == 0,
+      and s.count(nl('Ctrl+M : l\'index.')) == 0
+      and s.count(nl('Maj+M en pose un')) == 0
+      # …et le conjoint positif : la phrase EXISTE toujours, combo mise
+      # a part. Sans lui, la negation serait vraie d'une note disparue.
+      and s.count(nl('" en pose un \u00e0 la t\u00eate de lecture."')) == 1,
       f'index={s.count(nl(chr(115) + "vmKeyLabel(" + chr(34) + "marker_index"))} '
       f'toggle={s.count(nl(chr(115) + "vmKeyLabel(" + chr(34) + "marker_toggle"))} '
       f'couche={src.count("typeof svmKeyLabelNow==")}')

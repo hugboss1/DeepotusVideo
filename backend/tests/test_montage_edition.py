@@ -241,6 +241,14 @@ out.mk_toggle_le_plus_proche_bas=(function(){
 out.mk_from_espacement=T.markersFrom([{t:1},{t:1.12},{t:5}])
   .map(function(m){return [m.id,m.t]});
 out.mk_from_doublon=T.markersFrom([{t:2},{t:2}]).length;
+/* R-1 : EXACTEMENT UN EPS est TROP PROCHE. Un filtre strict laissait
+   passer le couple (0 ; 0,150), que markerNext ne peut atteindre ni en
+   avant (il exige t > v+EPS) ni en arriere (t < v-EPS). Le conjoint
+   positif : un cheveu de plus (0,151) passe, lui. */
+out.mk_from_eps_exact=[T.markersFrom([{t:0},{t:.15}]).map(function(m){return m.t}),
+                       T.markersFrom([{t:0},{t:.151}]).map(function(m){return m.t})];
+out.mk_eps_injoignable=[T.markerNext([{id:"a",t:0},{id:"b",t:.15}],0,1),
+                        T.markerNext([{id:"a",t:0},{id:"b",t:.15}],.15,-1)];
 out.mk_from_espacement_trie=T.markersFrom([{t:5},{t:1.12},{t:1}])
   .map(function(m){return m.t});
 /* t:"" -- `Number("")` vaut ZERO en JS et `float("")` LEVE en Python :
@@ -250,6 +258,14 @@ out.mk_t_vide=[T.markersFrom([{t:""},{t:"  "},{t:null},{t:3}])
                T.markerAdd([],"",{}).length,
                T.markerAdd([],null,{}).length,
                T.markerAdd([],"4",{}).length];
+/* R-3 : LE TYPE EST REFUSE AVANT LA VALEUR. `Number(true)` vaut 1 et
+   `Number([])` vaut 0 : un booleen devenait un marqueur a 1 s, un tableau
+   vide un marqueur a 0 s. Seuls un NOMBRE et une CHAINE sont des temps. */
+out.mk_t_types=[T.markersFrom([{t:!0},{t:[]},{t:{}},{t:2}])
+                  .map(function(m){return m.t}),
+                T.markerAdd([],!0,{}).length,
+                T.markerAdd([],[],{}).length,
+                T.markerAdd([],2,{}).length];
 console.log(JSON.stringify(out));
 """
 print("\n[1] dzmInsere sous node")
@@ -405,7 +421,8 @@ try:
                  "slide_tete_source_vitesse","roll_tete_source_vitesse",
                  "mk_liste","mk_next","mk_from","mk_colors","mk_gel",
                  "mk_update","mk_composants","mk_from_plafond",
-                 "mk_from_espacement","mk_t_vide","mk_toggle_le_plus_proche"]
+                 "mk_from_espacement","mk_t_vide","mk_toggle_le_plus_proche",
+                 "mk_from_eps_exact","mk_t_types"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -647,6 +664,27 @@ check("mk_restauration_trie_avant_de_filtrer",
 # une chaine qui EST un nombre reste acceptee.
 check("mk_un_temps_vide_est_refuse_comme_au_backend",
       D.get("mk_t_vide") == [[3], 0, 0, 1], D.get("mk_t_vide"))
+# R-3 (seconde revue du 21/09/2026) : UN BOOLEEN N'EST PAS UN TEMPS.
+# `Number(true)` vaut 1 et `Number([])` vaut 0 -- le premier devenait un
+# marqueur a 1 s, le second un marqueur a 0 s, quand `_save_record` les
+# refuse (test `isinstance(t, bool)`, et `float([])` leve). Le dernier
+# terme de chaque moitie est le conjoint positif : un vrai nombre passe.
+check("mk_un_temps_qui_n_est_ni_nombre_ni_chaine_est_refuse",
+      D.get("mk_t_types") == [[2], 0, 0, 1], D.get("mk_t_types"))
+# R-1 (seconde revue) : EXACTEMENT UN EPS EST TROP PROCHE. Le filtre etait
+# STRICT quand `markerNext` exige `t > v + EPS` strict lui aussi : un
+# couple a 0,150 s pile passait le filtre et restait INJOIGNABLE dans les
+# DEUX sens (mesure : 697 couples au millieme entre 0 et 10 s). La seconde
+# moitie est le conjoint positif -- un cheveu de plus, et les deux restent.
+check("mk_un_ecart_d_exactement_un_eps_est_trop_proche",
+      at("mk_from_eps_exact", 0) == [0] and at("mk_from_eps_exact", 1) == [0, 0.151],
+      f'{at("mk_from_eps_exact",0)!r} {at("mk_from_eps_exact",1)!r}')
+# ET LA RAISON, MESUREE PLUTOT QUE DITE : depuis 0, le marqueur a 0,150 est
+# introuvable en avant ; depuis 0,150, celui de 0 est introuvable en
+# arriere. C'est ce couple-la que le filtre large empeche d'exister.
+check("mk_un_ecart_d_exactement_un_eps_serait_injoignable",
+      "mk_eps_injoignable" in D and D.get("mk_eps_injoignable") == [None, None],
+      f'{"mk_eps_injoignable" in D} {D.get("mk_eps_injoignable")!r}')
 
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")

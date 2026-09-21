@@ -1306,6 +1306,33 @@ check("d5_un_temps_vide_est_jete_une_chaine_chiffree_passe",
       and [m.get("t") for m in _mk] == [4.0],
       f'{_r.status_code} {_mk!r}')
 
+# R-1 (seconde revue du 21/09/2026) : EXACTEMENT UN EPS EST TROP PROCHE. Le
+# filtre etait STRICT des deux cotes quand `markerNext` exige `t > v + EPS`
+# strict lui aussi : un couple a 0,150 s pile passait et restait INJOIGNABLE
+# dans les deux sens (mesure : 697 couples au millieme entre 0 et 10 s). Le
+# second cas est le conjoint positif -- un cheveu de plus, et les deux
+# marqueurs restent, donc la ligne ne verdit pas sur un filtre qui jetterait
+# tout.
+wipe_courant()
+_tl = TL("marq", n=1)
+_tl["markers"] = [{"t": 0}, {"t": 0.15}]
+_r = c.post("/api/montage/save", json=_tl)
+_mk = cur().get("markers")
+check("d5_un_ecart_d_exactement_un_eps_est_trop_proche",
+      _r.status_code == 200 and isinstance(_mk, list)
+      and [m.get("t") for m in _mk] == [0.0],
+      f'{_r.status_code} {_mk!r}')
+
+wipe_courant()
+_tl = TL("marq", n=1)
+_tl["markers"] = [{"t": 0}, {"t": 0.151}]
+_r = c.post("/api/montage/save", json=_tl)
+_mk = cur().get("markers")
+check("d5_un_ecart_d_un_cheveu_de_plus_qu_un_eps_passe",
+      _r.status_code == 200 and isinstance(_mk, list)
+      and [m.get("t") for m in _mk] == [0.0, 0.151],
+      f'{_r.status_code} {_mk!r}')
+
 # UN `t` BOOLEEN. `float(True)` vaut 1.0 en Python -- sans le test explicite,
 # `{"t": true}` serait devenu un marqueur a 1 s, ce qu aucun client n a
 # jamais voulu envoyer. Le conjoint positif : la cle est absente, pas la

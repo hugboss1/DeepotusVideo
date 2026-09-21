@@ -781,7 +781,8 @@ _MONTAGE_MARKER_COLORS = ("or", "rouge", "vert", "bleu", "violet", "cyan")
 # Et l'ÉCART MINIMAL entre deux marqueurs, celui de DZM_MARKER_EPS dans la
 # couche. Deux marqueurs plus proches que cela ne sont pas deux marqueurs :
 # le second est injoignable au clavier, et la bascule Maj+M retirerait le
-# premier des deux.
+# premier des deux. L'écart est refusé À PARTIR de cette valeur, bornes
+# comprises (cf. le commentaire du filtre, plus bas).
 _MONTAGE_MARKER_EPS = 0.15
 
 
@@ -907,7 +908,18 @@ def _save_record(body) -> dict:
         for m in sorted(brut, key=lambda e: e["t"]):
             if len(out_mk) >= 200:
                 break
-            if out_mk and m["t"] - out_mk[-1]["t"] < _MONTAGE_MARKER_EPS:
+            # R-1 (seconde revue du 21/09/2026) : LA BORNE EST LARGE, PAS
+            # STRICTE. `markerNext` saute tout ce qui n'est pas
+            # `t > v + EPS` : un couple à EXACTEMENT 0,150 s passait un
+            # filtre strict et restait injoignable DANS LES DEUX SENS
+            # (mesure : 697 couples au millième entre 0 et 10 s).
+            # `markerAdd` traitait déjà « exactement EPS » comme trop
+            # proche : les trois bornes disent maintenant la même chose.
+            # Le 1e-9 est la même tolérance de flottant que côté client —
+            # 1.15 - 1.0 vaut 0.15000000000000013 en double.
+            if (out_mk
+                    and m["t"] - out_mk[-1]["t"]
+                    <= _MONTAGE_MARKER_EPS + 1e-9):
                 continue
             out_mk.append(m)
         if out_mk:
