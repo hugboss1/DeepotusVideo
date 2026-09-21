@@ -242,7 +242,18 @@ STABLE_PROBES = [
     # à la couche. Un premier jet en comptait 91 -- la référence de trop
     # était dans un COMMENTAIRE JS de R_X2 (la sonde compte du texte,
     # commentaires compris) : la prose dit désormais « TransGrid() ».
-    ("montage", "DzTracks", 90),
+    # `montage` : 90 -> 91 le 21/09/2026 (D-12, les fondus simples joues
+    # en direct). UNE reference de plus au contrat, et une seule : le
+    # `veil(` de V3, en tete de `liveSync`. V1 (la ref du voile, repliee
+    # dans R_M16REF) et V2 (le `<i>` du cadre) n'en ajoutent aucune --
+    # l'une est un `useRef`, l'autre un element de rendu. La prose de ces
+    # trois sections est ecrite SANS le jeton (« la couche », « veil() »)
+    # parce que la sonde compte du TEXTE, commentaires compris : c'est la
+    # lecon du premier jet de X2, qui avait compte 91 pour un commentaire.
+    # MESURE : la chaine a refuse, « sonde montage x91 (want 90) », AVANT
+    # que ce nombre ne soit ecrit -- 90 dans le bundle de 1e0b1bc, +1 par
+    # V3, 91 apres rejeu, en octets, `str.count`.
+    ("montage", "DzTracks", 91),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

@@ -337,6 +337,68 @@ out.tl_grille_existe=typeof T.TransGrid;
 out.tl_global_ne_leve_pas=(function(){
   try{return [window.__dzTransCat||null,"pas de levee"]}
   catch(e){return ["LEVEE",e.constructor.name]}})();
+/* --- [5b] D-12 : LE VOILE DES FONDUS EN DIRECT ---------------------------
+   `VC` est une timeline de quatre plans de 4 s : la jonction a mesurer est
+   celle de `b` (fadeblack, 1 s), et les deux autres transitions sont la
+   pour dire ce que la fonction REFUSE (pixelize : pas jouable en direct) et
+   ce qu'elle accepte en blanc (fadewhite, 0,4 s). */
+var VC=[{tr:"v1",id:"a",start:0,end:4,src:{job_id:"j"}},
+        {tr:"v1",id:"b",start:4,end:8,src:{job_id:"j"},transition:"fadeblack",transition_s:1},
+        {tr:"v1",id:"c",start:8,end:12,src:{job_id:"j"},transition:"pixelize",transition_s:.5},
+        {tr:"v1",id:"d",start:12,end:16,src:{job_id:"j"},transition:"fadewhite",transition_s:.4}];
+out.vl_loin=T.veil(VC,2);
+out.vl_milieu=T.veil(VC,4);
+out.vl_avant=T.veil(VC,3.75);
+out.vl_apres=T.veil(VC,4.25);
+out.vl_pixel=T.veil(VC,8);
+out.vl_blanc=T.veil(VC,12).color;
+out.vl_fade=T.veil([{tr:"v1",id:"a",start:0,end:4,src:{job_id:"j"}},
+  {tr:"v1",id:"b",start:4,end:8,src:{job_id:"j"},transition:"fade",transition_s:.4}],4);
+out.vl_premier=T.veil([{tr:"v1",id:"b",start:0,end:8,src:{job_id:"j"},transition:"fadeblack",transition_s:1}],0);
+out.vl_mou=[T.veil(null,1).alpha,T.veil(VC,NaN).alpha];
+/* LE NOM COMPOSE : le bundle stocke « <nom> <duree> » depuis toujours
+   (svmTransBase garde le premier mot) ; la couche doit le lire pareil. */
+out.vl_nom_compose=T.veil([{tr:"v1",id:"a",start:0,end:4,src:{job_id:"j"}},
+  {tr:"v1",id:"b",start:4,end:8,src:{job_id:"j"},transition:"fadeblack 0.4"}],4);
+/* DEUX JONCTIONS DANS LA MEME FENETRE : `b` dure 0,6 s, les triangles de
+   `b` (4 +- 0,5) et de `c` (4,6 +- 0,5) se recouvrent a 4,4. Le MAX gagne,
+   donc `c` (0,6) et non `b` (0,2) -- la couleur le prouve. */
+out.vl_deux_jonctions=T.veil([{tr:"v1",id:"a",start:0,end:4,src:{job_id:"j"}},
+  {tr:"v1",id:"b",start:4,end:4.6,src:{job_id:"j"},transition:"fadeblack",transition_s:1},
+  {tr:"v1",id:"c",start:4.6,end:8,src:{job_id:"j"},transition:"fadewhite",transition_s:1}],4.4);
+/* UN TROU > 0,1 s N'EST PAS UNE JONCTION : `dzmVoisins` ne rend rien a
+   gauche, et ffmpeg ne jouerait pas de xfade non plus. */
+out.vl_trou=T.veil([{tr:"v1",id:"a",start:0,end:4,src:{job_id:"j"}},
+  {tr:"v1",id:"b",start:4.5,end:8,src:{job_id:"j"},transition:"fadeblack",transition_s:1}],4.5);
+/* L'HERITAGE DU PROTOTYPE : `DZM_VEIL["constructor"]` est une FONCTION,
+   donc vraie. Sans `hasOwnProperty`, le voile aurait pris `Object` pour
+   une couleur et l'ecran se serait assombri sur un nom quelconque. */
+out.vl_heritage=[T.veil([{tr:"v1",id:"a",start:0,end:4,src:{job_id:"j"}},
+  {tr:"v1",id:"b",start:4,end:8,src:{job_id:"j"},transition:"constructor"}],4),
+  T.veil([{tr:"v1",id:"a",start:0,end:4,src:{job_id:"j"}},
+  {tr:"v1",id:"b",start:4,end:8,src:{job_id:"j"},transition:"toString"}],4)];
+/* LES AUTRES PISTES ET LES CLIPS SANS SOURCE SONT HORS SUJET : le lecteur
+   vivant ne montre que V1, et un clip sans `src` (un TITRE, D-21) n'a
+   aucune image a fondre. */
+out.vl_hors_v1=[T.veil([{tr:"v2",id:"a",start:0,end:4,src:{job_id:"j"}},
+  {tr:"v2",id:"b",start:4,end:8,src:{job_id:"j"},transition:"fadeblack",transition_s:1}],4).alpha,
+  T.veil([{tr:"v1",id:"a",start:0,end:4,src:{job_id:"j"}},
+  {tr:"v1",id:"b",start:4,end:8,transition:"fadeblack",transition_s:1}],4).alpha];
+/* LES BORNES DE `svmTransS` (0,1 - 1 s) SONT CELLES DU BUNDLE : une duree
+   de 9 s est ramenee a 1 (fenetre +-0,5), une de 0,01 a 0,1 (+-0,05). */
+out.vl_bornes=[T.veil([{tr:"v1",id:"a",start:0,end:4,src:{job_id:"j"}},
+  {tr:"v1",id:"b",start:4,end:8,src:{job_id:"j"},transition:"fadeblack",transition_s:9}],4.6).alpha,
+  T.veil([{tr:"v1",id:"a",start:0,end:4,src:{job_id:"j"}},
+  {tr:"v1",id:"b",start:4,end:8,src:{job_id:"j"},transition:"fadeblack",transition_s:.01}],4.04).alpha];
+/* LA TABLE EST GELEE, comme TRANS_FAM et MARKER_COLORS. Elle est PLATE
+   (trois chaines) : un seul `Object.freeze` suffit, et les deux dernieres
+   valeurs relisent le contenu -- la levee ne dit pas que rien n'a change. */
+out.vl_gel=(function(){var a=[];
+  try{T.VEIL.zzz="#f0f";a.push("no")}catch(e){a.push(e.constructor.name)}
+  try{T.VEIL.fade="#f0f";a.push("no")}catch(e){a.push(e.constructor.name)}
+  a.push(T.VEIL.fade,Object.keys(T.VEIL).length);return a})();
+/* PURETE : la timeline d'entree n'est pas touchee. */
+out.vl_pur=VC.length===4&&VC[1].transition==="fadeblack"&&VC[1].transition_s===1;
 console.log(JSON.stringify(out));
 """
 print("\n[1] dzmInsere sous node")
@@ -826,6 +888,73 @@ check("tl_le_global_du_catalogue_ne_leve_pas_en_strict",
       D.get("tl_global_ne_leve_pas") == [None, "pas de levee"],
       D.get("tl_global_ne_leve_pas"))
 check("tl_pur", D.get("tl_pur") is True, D.get("tl_pur"))
+
+print("\n[5b] D-12 le voile des fondus en direct")
+# LOIN DE TOUTE JONCTION : AUCUNE couleur, alpha nul. C'est l'etat VIDE de
+# cette section -- sans lui, une fonction qui rendrait toujours `{#000,1}`
+# passerait les lignes qui suivent.
+check("vl_loin_d_une_jonction_il_n_y_a_pas_de_voile",
+      D.get("vl_loin") == {"color": None, "alpha": 0}, D.get("vl_loin"))
+# AU RACCORD, LE VOILE EST PLEIN, et il est NOIR parce que la transition du
+# clip de DROITE est `fadeblack` -- c'est le clip de droite qui la porte,
+# ici comme au rendu ffmpeg.
+check("vl_au_raccord_le_voile_noir_est_plein",
+      D.get("vl_milieu") == {"color": "#000", "alpha": 1}, D.get("vl_milieu"))
+# LA MONTEE ET LA DESCENTE SONT SYMETRIQUES : a une demi-fenetre de part et
+# d'autre, la meme moitie. Les deux, pas une : une fonction qui ne
+# regarderait que `v >= t0` serait verte sur la seule descente.
+check("vl_la_montee_et_la_descente_valent_une_moitie_chacune",
+      "vl_avant" in D and "vl_apres" in D
+      and D["vl_avant"].get("alpha") == 0.5 and D["vl_apres"].get("alpha") == 0.5,
+      f'{D.get("vl_avant")} {D.get("vl_apres")}')
+# LES 55 AUTRES NE SE JOUENT PAS EN DIRECT, et la CLE existe quand meme :
+# c'est ce qui distingue « mesure faite, zero » de « rien mesure ».
+check("vl_une_transition_hors_direct_ne_pose_aucun_voile",
+      "vl_pixel" in D and isinstance(D["vl_pixel"], dict)
+      and D["vl_pixel"].get("alpha") == 0 and D["vl_pixel"].get("color") is None,
+      D.get("vl_pixel"))
+check("vl_le_fondu_blanc_pose_un_voile_blanc", D.get("vl_blanc") == "#fff",
+      D.get("vl_blanc"))
+# LE FONDU SIMPLE N'EST PAS UNE COULEUR : « dim » nomme un MECANISME (baisser
+# l'image) que l'appelant traduit ; la fonction ne choisit aucun style.
+check("vl_le_fondu_simple_est_un_mecanisme_pas_une_couleur",
+      D.get("vl_fade") == {"color": "dim", "alpha": 1}, D.get("vl_fade"))
+# LE PREMIER CLIP N'A PAS DE JONCTION : sans voisin gauche EN CONTACT, rien.
+# C'est la ligne que la mutation « retirer la garde du voisin gauche » fait
+# rougir -- mesuree le 21/09/2026.
+check("vl_le_premier_clip_n_a_aucune_jonction_a_fondre",
+      "vl_premier" in D and D["vl_premier"].get("alpha") == 0, D.get("vl_premier"))
+check("vl_un_trou_de_plus_d_un_dixieme_n_est_pas_une_jonction",
+      "vl_trou" in D and D["vl_trou"].get("alpha") == 0, D.get("vl_trou"))
+check("vl_les_entrees_molles_rendent_zero_sans_lever",
+      D.get("vl_mou") == [0, 0], D.get("vl_mou"))
+# LE NOM COMPOSE « <nom> <duree> » est celui que le bundle ecrit depuis
+# toujours ; `svmTransBase` garde le premier mot, la couche aussi.
+check("vl_un_nom_compose_a_l_ancienne_est_lu_sur_son_premier_mot",
+      D.get("vl_nom_compose") == {"color": "#000", "alpha": 1},
+      D.get("vl_nom_compose"))
+# DEUX JONCTIONS DANS LA MEME FENETRE : le MAXIMUM l'emporte. La couleur le
+# prouve -- `#fff` vient de `c` (0,6) et non de `b` (0,2).
+check("vl_de_deux_jonctions_proches_la_plus_forte_l_emporte",
+      D.get("vl_deux_jonctions") == {"color": "#fff", "alpha": 0.6},
+      D.get("vl_deux_jonctions"))
+# L'HERITAGE DU PROTOTYPE : sans `hasOwnProperty`, « constructor » rendait
+# une FONCTION en guise de couleur.
+check("vl_un_nom_herite_du_prototype_ne_pose_aucun_voile",
+      D.get("vl_heritage") == [{"color": None, "alpha": 0},
+                               {"color": None, "alpha": 0}], D.get("vl_heritage"))
+# HORS V1 ET SANS SOURCE : le lecteur vivant ne montre que V1, et un clip
+# sans `src` (un TITRE) n'a aucune image a fondre.
+check("vl_les_autres_pistes_et_les_clips_sans_source_sont_ignores",
+      D.get("vl_hors_v1") == [0, 0], D.get("vl_hors_v1"))
+# LES BORNES DE `svmTransS` SONT REPRISES TELLES QUELLES : 9 s ramene a 1
+# (a 4,6 la demi-fenetre vaut 0,5 et l'ecart 0,6 : DEHORS, donc zero) et
+# 0,01 ramene a 0,1 (a 4,04 il reste 1 - 0,04/0,05 = 0,2).
+check("vl_la_duree_est_bornee_comme_dans_le_bundle",
+      D.get("vl_bornes") == [0, 0.2], D.get("vl_bornes"))
+check("vl_la_table_des_trois_fondus_est_gelee",
+      D.get("vl_gel") == ["TypeError", "TypeError", "dim", 3], D.get("vl_gel"))
+check("vl_pur", D.get("vl_pur") is True, D.get("vl_pur"))
 
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")

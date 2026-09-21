@@ -1072,23 +1072,58 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
 .dzsvm .svm-tprev[data-fam="formes"] .svm-tb{animation-delay:-.90s}
 .dzsvm .svm-tprev[data-fam="zooms"] .svm-tb{animation-delay:-1.12s}
 .dzsvm .svm-tprev[data-fam="pixels"] .svm-tb{animation-delay:-.44s}
-/* LES TROIS ÉTATS DE LA MICRO-SCÈNE, REPOSÉS SUR [data-fam] — ET C'EST UNE
-   CORRECTION MESURÉE, pas une précaution. Le bundle met les scènes en PAUSE
-   au repos (`animation-play-state:paused` sur `.svm-tprev[data-tt] .svm-tb`,
-   spécificité (0,3,0)), les fait tourner au survol (0,4,0) et FIGE la tuile
-   choisie (`animation:none`, (0,4,0)). Nos six règles de famille sont à
-   (0,4,0) et écrivent le RACCOURCI `animation:`, qui REMET
-   `animation-play-state` à `running` : sans les trois règles ci-dessous, les
-   58 tuiles neuves s'agiteraient en permanence (la pause du bundle perd,
-   3 < 4) et la tuile choisie ne se figerait pas (égalité 4 = 4, et
-   montage.css est chargée APRÈS). Les trois états sont donc reposés à
-   (0,4,0) — après les animations, l'ordre tranche —, (0,5,0) et (0,6,0). */
+/* LES TROIS ÉTATS DE LA MICRO-SCÈNE, REPOSÉS SUR [data-fam] — ET LES
+   SPÉCIFICITÉS SONT RECOMPTÉES ICI (revue du 21/09/2026 : la version
+   précédente de ce commentaire en donnait deux fausses). Le bundle met les
+   scènes en PAUSE au repos (`.svm-tprev[data-tt] .svm-tb`, deux classes +
+   un attribut = (0,3,0)), les fait tourner au survol
+   (`.svm-transtile:hover .svm-tprev[data-tt] .svm-tb` : deux classes, une
+   pseudo-classe, un attribut, une classe = (0,5,0)) et FIGE la tuile
+   choisie (`.svm-transtile[data-sel] .svm-tprev[data-tt] .svm-tb`,
+   `animation:none`, (0,5,0) de la même façon).
+   NOS SIX RÈGLES DE FAMILLE PÈSENT (0,4,0) et écrivent le RACCOURCI
+   `animation:`, qui REMET `animation-play-state` à `running`. CE QUI EST
+   NÉCESSAIRE, ET CE QUI NE L'EST PAS :
+   — la PAUSE ci-dessous l'est. Celle du bundle pèse 3 et perd contre nos 4 :
+     sans elle, les 58 tuiles neuves s'agiteraient en permanence. La nôtre
+     pèse 4 aussi, et c'est l'ORDRE qui tranche (elle est écrite après).
+   — le SURVOL et le FIGEMENT ci-dessous ne le sont PAS : ceux du bundle
+     pèsent (0,5,0) et passent DÉJÀ devant nos 4. Les nôtres, à (0,6,0) —
+     une classe de plus, `.dzsvm` —, ne font que les redire sur `[data-fam]`,
+     et c'est la SPÉCIFICITÉ qui les fait gagner (6 > 5), pas l'ordre de
+     chargement des feuilles. On les garde parce qu'elles disent l'intention
+     sur le crochet neuf ; on ne leur fait pas porter une correction qu'elles
+     n'apportent pas. */
 .dzsvm .svm-tprev[data-fam] .svm-tb{animation-play-state:paused}
 .dzsvm .svm-transtile:hover .svm-tprev[data-fam] .svm-tb,
 .dzsvm .svm-transtile:focus-visible .svm-tprev[data-fam] .svm-tb{
   animation-play-state:running}
 .dzsvm .svm-transtile[data-sel] .svm-tprev[data-fam] .svm-tb{animation:none;
   width:100%; opacity:1; transform:none}
+/* ── D-12 (21/09/2026) : LE VOILE DES FONDUS JOUÉS EN DIRECT ──────────────
+   Un `<i>` vide, posé dans `.svm-frame` juste après les deux couches du
+   lecteur vivant, et écrit impérativement par `liveSync` (couleur + opacité)
+   à chaque frame. Au repos il est totalement transparent : il ne coûte rien
+   et ne se voit pas.
+   PAS DE `z-index`, ET C'EST MESURÉ. Dans `.svm-frame`, TOUS les enfants
+   sont `position:absolute` et AUCUN des voisins qui comptent ne porte de
+   `z-index` : `.svm-live` et `.svm-liveov` (son-vfx-montage.css l. 558)
+   sont à `auto`, donc l'ordre du DOM suffit — le voile est écrit APRÈS eux,
+   il les couvre. Un `z-index:6`, lui, serait passé devant TOUT : devant le
+   cadre de sélection des overlays (`.svm-tf`, z-index 3), devant la chip de
+   zoom, devant les zones sûres, et devant les SOUS-TITRES (`.sub-ov` de
+   subs.css, z-index 3 — 6 en mode placement).
+   ET LES SOUS-TITRES RESTENT DESSUS, PARCE QUE LE RENDU FAIT PAREIL : la
+   gravure ASS (`subtitles_filter`) est le DERNIER maillon vidéo de la
+   commande ffmpeg, appliqué APRÈS les `xfade` — au rendu, un fondu au noir
+   n'efface pas le sous-titre. Un voile qui les recouvrirait mentirait sur
+   l'image finale. Les guides et les chips d'interface restent dessus pour la
+   même raison inverse : ils ne sont pas dans l'image.
+   LE FOND EST NOIR PAR DÉFAUT parce que c'est le fond du lecteur lui-même
+   (`.svm-live{background:#000}`) : si l'écriture impérative échouait, le
+   voile resterait invisible (opacité 0) plutôt que blanc. */
+.dzsvm .svm-xfveil{position:absolute; inset:0; pointer-events:none;
+  opacity:0; background:#000}
 @keyframes dzmtSlideDir{0%,20%{transform:translate(var(--tx,100%),var(--ty,0))}
   60%,100%{transform:translate(0,0)}}
 @keyframes dzmtWipeDir{0%,20%{clip-path:var(--wipe0,inset(0 0 0 100%))}

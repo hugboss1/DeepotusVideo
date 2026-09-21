@@ -1752,6 +1752,7 @@ function DzMontage(props){
         window.__dzTransCat=d;setDzTransCat(d)}})
       .catch(function(){});
     return function(){al=!1}},[]);
+  var dzVeilRef=x.useRef(null);
   /* P9 — « le VRAI projet est-il arrivé ? ». Tant que
      `svmApplyProject` n'a pas remplacé la maquette, `proj` est la
      démo : sans `tracks`, donc svmTracksOf retombe sur les six
@@ -2423,6 +2424,16 @@ function DzMontage(props){
           try{el2.currentTime=tt}catch(_e){}}})})}
   /* synchro des couches après CHAQUE rendu — idempotente et bon marché */
   function liveSync(){
+    /* D-12 — LE VOILE DES TROIS FONDUS JOUABLES EN DIRECT. En TÊTE :
+       `liveSync` sort tôt quand les hôtes ne sont pas montés, et le
+       voile doit être remis à zéro même dans ce cas. La couche dit
+       la couleur et l'alpha ; « dim » (le fondu simple) est voilé en
+       noir comme le reste — l'hôte est noir, le résultat est le même
+       et rien n'est écrit sur un élément média partagé. */
+    var dzVe=dzVeilRef.current;
+    if(dzVe){var dzVv=DzTracks.veil(clipsRef.current,phRef.current);
+      dzVe.style.background=(dzVv.color&&dzVv.color!=="dim")?dzVv.color:"#000";
+      dzVe.style.opacity=String(dzVv.alpha||0)}
     var host=liveHostRef.current,ov=liveOvRef.current;
     if(!host||!ov){liveVideoRef.current=null;livePoolPause();return}
     var t=Math.min(phRef.current,Math.max(0,durRef.current-.001));
@@ -5551,6 +5562,12 @@ function DzMontage(props){
             style:{transform:"scale("+vzoom+")",transformOrigin:"center center"}}):null,
           liveOn?r.jsx("div",{className:"svm-liveov",ref:liveOvRef,
             style:{transform:"scale("+vzoom+")",transformOrigin:"center center"}}):null,
+          /* D-12 — LE VOILE DES FONDUS EN DIRECT. Vide, transparent au
+             repos, et écrit impérativement par `liveSync` (couleur +
+             opacité) à chaque frame : le lecteur vivant n'a qu'un
+             hôte, donc pas de crossfade A/B — un voile dit OÙ tombe
+             la transition et COMBIEN elle dure. */
+          liveOn?r.jsx("i",{className:"svm-xfveil",ref:dzVeilRef,"aria-hidden":!0}):null,
           liveOn&&!liveClip?r.jsx("div",{className:"svm-livegap",children:"trou"}):null,
           /* cadre de sélection des overlays : boîte + 8 poignées (échelle) +
              rotation, guides d'alignement et badge de geste — positionnés
@@ -18146,6 +18163,52 @@ function DzmTransGrid(o){
             children:[r.jsx("i",{className:"svm-ta"}),r.jsx("i",{className:"svm-tb"})]}),
           r.jsx("span",{className:"svm-ttl",children:it.label})]},it.id)})})]},f.id)})}
 
+/* ── D-12 (21/09/2026) : LES FONDUS SIMPLES JOUES EN DIRECT, PAR UN VOILE ──
+   Le lecteur vivant n'a qu'UN clip visible a la fois (`svmActiveV1` en rend
+   un seul) : un vrai crossfade A/B demanderait deux hotes et deux elements
+   media. Un VOILE suffit pour les trois fondus que Resolve montre en
+   lecture -- noir, blanc, et le fondu simple. Le rendu ffmpeg fait foi pour
+   les 55 autres, qui ne sont visibles qu'apres Preview (c'est ce que dit
+   l'infobulle « visible apres Preview » de la galerie, et c'est le drapeau
+   `live` du catalogue qui les separe : la table ci-dessous et la liste
+   `_XFADE_LIVE` du service sont tenues ensemble par un banc croise).
+   LA JONCTION EST CELLE DU CLIP DE DROITE, comme au rendu : c'est `c` qui
+   porte `transition` et `transition_s`, et la jonction est `c.start`. Le
+   voile est TRIANGULAIRE sur [t0-s/2, t0+s/2] -- il monte de 0 a 1 au
+   raccord puis redescend. Ce n'est pas la courbe de `xfade` (qui croise
+   deux images sans passer par le noir, sauf `fadeblack`) : c'est la seule
+   courbe qu'un hote unique puisse jouer, et elle dit au monteur OU tombe la
+   transition et COMBIEN elle dure. Le mensonge serait de ne rien montrer.
+   LE VOISIN GAUCHE EST EXIGE. Sans clip a gauche EN CONTACT (<= 0,1 s,
+   `dzmVoisins`), il n'y a pas de jonction : un premier clip, ou un clip
+   apres un trou, porte peut-etre un nom de transition -- le rendu ne la
+   jouera pas davantage (`xfade` a besoin de deux segments), et un ecran
+   qui s'assombrirait au demarrage serait un defaut, pas un aperçu.
+   `hasOwnProperty` PLUTOT QUE `DZM_VEIL[k]` : `String(c.transition)` vient
+   du projet, et « constructor » ou « toString » auraient rendu une valeur
+   HERITEE, donc vraie -- le voile aurait pris une fonction pour une
+   couleur. Mesure sous node, ligne `vl_heritage` du banc.
+   « dim » N'EST PAS UNE COULEUR, c'est un MECANISME : le fondu simple n'a
+   pas de couche a poser, il baisse l'image. La fonction le NOMME pour que
+   l'appelant choisisse -- elle ne decide d'aucun style. */
+var DZM_VEIL={fadeblack:"#000",fadewhite:"#fff",fade:"dim"};
+function dzmVeil(clips,t){
+  var cs=Array.isArray(clips)?clips:[],v=Number(t),i,c,k,best=null;
+  if(!isFinite(v))return {color:null,alpha:0};
+  for(i=0;i<cs.length;i++){c=cs[i];if(!c||c.tr!=="v1"||!c.src)continue;
+    k=String(c.transition||"cut").split(/\s+/)[0];
+    if(!Object.prototype.hasOwnProperty.call(DZM_VEIL,k))continue;
+    var s=Math.min(1,Math.max(.1,Number(c.transition_s)||.4)),t0=Number(c.start)||0;
+    if(Math.abs(v-t0)>s/2)continue;
+    var g=dzmVoisins(cs,c).g;if(!g)continue;
+    var a=dzmR3(1-Math.abs(v-t0)/(s/2));
+    /* DEUX JONCTIONS DANS LA MEME FENETRE : deux clips tres courts (moins
+       d'une seconde) mettent leurs deux triangles l'un sur l'autre. Le
+       MAXIMUM l'emporte -- deux voiles ne s'additionnent pas a l'ecran, et
+       c'est la transition la plus proche qui compte. */
+    if(!best||a>best.alpha)best={color:DZM_VEIL[k],alpha:a}}
+  return best||{color:null,alpha:0}}
+
 /* ── export contrat ───────────────────────────────────────────────────────── */
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
@@ -18212,6 +18275,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   markerUpdate:dzmMarkerUpdate,markerNext:dzmMarkerNext,
   markersFrom:dzmMarkersFrom,MARKER_COLORS:DZM_MARKER_COLORS,
   Markers:DzmMarkers,MarkerIndex:DzmMarkerIndex,
+  veil:dzmVeil,VEIL:Object.freeze(DZM_VEIL),
   transList:dzmTransList,transLabel:dzmTransLabel,transFamily:dzmTransFamily,
   transLive:dzmTransLive,transDir:dzmTransDir,TransGrid:DzmTransGrid,
   TRANS_FAM:DZM_TRANS_FAM,TRANS_DIR:DZM_TRANS_DIR,TRANS_TT:DZM_TRANS_TT,

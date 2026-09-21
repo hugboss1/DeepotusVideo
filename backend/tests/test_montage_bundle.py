@@ -31,7 +31,26 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 21/09/2026 (D-20, tache 2, TOUR DE CORRECTION) : 1537
+COMPTE DE REFERENCE, 21/09/2026 (D-12, tache 3 — les fondus simples joues en
+direct) : 1547 lignes, soit DIX de plus que les 1537 de D-20. DEUX viennent
+de la boucle sur `P.PATCHES`, qui les emet toute seule pour les sections V2
+et V3 (leurs ancres sont REPRISES dans leur remplacement : pas de ligne
+`_ancre_consommee`). QUATRE sont les pins D-12 que la boucle ne voit pas :
+V1 repliee dans R_M16REF (avec la mesure qui l'impose, l'ancre a 0 dans le
+.bak), le voile conditionne par `liveOn` et place dans le bon ordre du DOM,
+l'ecriture en TETE de `liveSync`, et l'opacite de l'hote JAMAIS ecrite
+(l'ecart declare avec le plan). Une CINQUIEME est la feuille : le voile pose
+SANS `z-index`, avec les trois voisins qui le justifient. La SIXIEME est la
+reserve cosmetique de la revue precedente, fermee ici : les quatre poids de
+specificite du survol et du figement, CALCULES par `_spec` au lieu d'etre
+affirmes -- le survol et le figement du bundle pesent (0,5,0), pas 4, et les
+notres (0,6,0), donc la specificite tranche seule et non l'ordre de
+chargement. Les commentaires jumeaux de ce banc ET de montage.css sont
+corriges. Les DEUX dernieres viennent de la seconde boucle generique
+(`couche_ne_cite_pas_l_ancre_de_...`), pour les memes deux sections.
+DECOMPTE MESURE, pas devine : 2 + 6 + 2 = 10.
+
+COMPTE PRECEDENT, 21/09/2026 (D-20, tache 2, TOUR DE CORRECTION) : 1537
 lignes, soit HUIT de plus que les 1529 du premier tour. Les huit : la
 SPECIFICITE calculee regle par regle (avec son temoin de methode : appliquee
 a la forme fautive, la fonction rend bien 6), `dissolve`/`fadeblack` sans
@@ -13392,12 +13411,39 @@ check("D20_chaque_famille_est_un_groupe_nomme_et_la_tuile_dit_son_etat",
 # donc le zéro n'est pas creux.
 check("D20_sans_catalogue_aucune_tuile_ne_parle_du_direct",
       d.get("tg_direct_sans_cat") == [0, 6], f'{d.get("tg_direct_sans_cat")}')
-# LES TROIS ÉTATS DE LA MICRO-SCÈNE SONT REPOSÉS SUR [data-fam], ET C'EST LA
-# LIGNE QUI DIT POURQUOI : nos six règles de famille écrivent le RACCOURCI
-# `animation:`, qui remet `animation-play-state` à `running`. Sans les trois
-# règles de montage.css, les 58 tuiles neuves s'agiteraient en permanence (la
-# pause du bundle est à 3, la nôtre à 4) et la tuile choisie ne se figerait
-# pas (égalité 4 = 4, et montage.css est chargée APRÈS).
+# LES TROIS ÉTATS DE LA MICRO-SCÈNE SONT REPOSÉS SUR [data-fam], ET LES
+# SPÉCIFICITÉS SONT RECOMPTÉES ICI (revue du 21/09/2026 : la version
+# précédente de ce commentaire en donnait deux fausses, et la feuille aussi).
+# Nos six règles de famille écrivent le RACCOURCI `animation:`, qui remet
+# `animation-play-state` à `running`. Sans la PAUSE de montage.css, les 58
+# tuiles neuves s'agiteraient en permanence : celle du bundle pèse (0,3,0) et
+# perd contre nos (0,4,0) ; la nôtre pèse 4 aussi et gagne par l'ORDRE.
+# LE SURVOL ET LE FIGEMENT DU BUNDLE, EUX, PÈSENT (0,5,0) — cinq simples
+# sélecteurs chacun, pas quatre — et passent DÉJÀ devant nos règles de
+# famille : les nôtres, à (0,6,0), ne les corrigent pas, elles les redisent
+# sur `[data-fam]`. Ce n'est donc PAS « égalité 4 = 4 et montage.css chargée
+# APRÈS » : c'est 6 > 5, et la spécificité tranche seule.
+# ET LES QUATRE POIDS SONT CALCULÉS, PAS AFFIRMÉS — c'est la correction
+# elle-même : `_spec` a déjà servi ci-dessus, on la rebraque sur les quatre
+# sélecteurs en jeu. Sans cette ligne, la prose corrigée ci-dessus ne serait
+# qu'une autre prose.
+check("D20_les_poids_du_survol_et_du_figement_sont_cinq_contre_six",
+      _spec(".svm-tprev[data-tt] .svm-tb") == 3
+      and _spec(".svm-transtile:hover .svm-tprev[data-tt] .svm-tb") == 5
+      and _spec(".svm-transtile[data-sel] .svm-tprev[data-tt] .svm-tb") == 5
+      and _spec(".dzsvm .svm-transtile:hover .svm-tprev[data-fam] .svm-tb") == 6
+      and _spec(".dzsvm .svm-transtile[data-sel] .svm-tprev[data-fam] .svm-tb") == 6
+      # ET LES QUATRE SÉLECTEURS EXISTENT VRAIMENT DANS LES DEUX FEUILLES :
+      # calculer le poids d'un sélecteur imaginaire ne mesurerait rien.
+      and ".svm-transtile:hover .svm-tprev[data-tt] .svm-tb," in _SVMCSS
+      and ".svm-transtile[data-sel] .svm-tprev[data-tt] .svm-tb," in _SVMCSS
+      and ".dzsvm .svm-transtile:hover .svm-tprev[data-fam] .svm-tb," in _MC
+      and ".dzsvm .svm-transtile[data-sel] .svm-tprev[data-fam] .svm-tb{" in _MC
+      # ET LE TÉMOIN DE LA PROSE : la formule fausse ne doit plus être écrite
+      # nulle part, ni dans la feuille ni dans ce banc.
+      and "égalité 4 = 4" not in _MC,
+      f'bundle_survol={_spec(".svm-transtile:hover .svm-tprev[data-tt] .svm-tb")} '
+      f'notre_survol={_spec(".dzsvm .svm-transtile:hover .svm-tprev[data-fam] .svm-tb")}')
 check("D20_la_pause_le_survol_et_le_figement_sont_reposes_sur_la_famille",
       ".dzsvm .svm-tprev[data-fam] .svm-tb{animation-play-state:paused}" in _MC
       and ".dzsvm .svm-transtile:focus-visible .svm-tprev[data-fam] .svm-tb{" in _MC
@@ -13438,6 +13484,90 @@ check("D20_la_copie_cliente_des_familles_est_celle_du_service",
       and sum(len(_v6) for _v6 in _FAM_JS.values()) == 58,
       f'client={ {k: len(v) for k, v in _FAM_JS.items()} } '
       f'service={ {k: len(v.get("noms", [])) for k, v in _TRANS_FAM_SVC.items()} }')
+
+# ══ D-12 (21/09/2026) — LES FONDUS SIMPLES JOUÉS EN DIRECT ═══════════════
+# Les deux sections V2 et V3 sont déjà comptées une à une par la boucle sur
+# `P.PATCHES`. Ce qui suit est ce qu'elle ne voit pas : que V1 est bien
+# REPLIÉE (et non une section de plus), que le voile n'existe QUE dans le
+# lecteur vivant, que l'écriture est en TÊTE de `liveSync`, et que la feuille
+# le pose sans `z-index`.
+# V1 EST UN REPLI, PAS UNE SECTION : la ref naît dans R_M16REF, exactement
+# comme E1, K3 et X1. Les trois faces : elle est dans le remplacement, elle
+# n'est PAS un triplet de PATCHES, et le bundle patché la porte.
+check("D12_la_ref_du_voile_est_repliee_dans_R_M16REF",
+      P.R_M16REF.count("var dzVeilRef=x.useRef(null);") == 1
+      and not [_t for _t, _a, _r in P.PATCHES if _t.startswith("V1")]
+      and s.count(nl("var dzVeilRef=x.useRef(null);")) == 1
+      # ET SON ANCRE VAUT BIEN 0 DANS LE .bak : c'est CE qui impose le repli.
+      # Sans ce conjoint, « repliée » ne serait qu'un choix de rédaction.
+      and _bak.count(nl(P.A_M16REF)) == 1
+      and _bak.count(nl("var dzTracksRef=x.useRef(null);")) == 0,
+      f'repli={P.R_M16REF.count("var dzVeilRef=x.useRef(null);")} '
+      f'bundle={s.count(nl("var dzVeilRef=x.useRef(null);"))}')
+# LE VOILE N'EXISTE QUE DANS LE LECTEUR VIVANT. En aperçu 480p c'est un
+# `<video>` qui joue le RENDU, transitions comprises : un voile par-dessus
+# les jouerait deux fois. La garde est `liveOn`, la même que les deux
+# couches du lecteur — et elle est mesurée SUR LA LIGNE, pas ailleurs.
+check("D12_le_voile_est_conditionne_par_le_lecteur_vivant",
+      s.count(nl('liveOn?r.jsx("i",{className:"svm-xfveil",ref:dzVeilRef,'
+                 '"aria-hidden":!0}):null,')) == 1
+      and s.count(nl('className:"svm-xfveil"')) == 1
+      # ET IL EST POSÉ APRÈS LES DEUX COUCHES DU LECTEUR, AVANT LE RESTE :
+      # c'est l'ordre du DOM qui fait tout le travail de l'empilement.
+      and 0 < s.find(nl('className:"svm-live",ref:liveHostRef'))
+              < s.find(nl('className:"svm-liveov",ref:liveOvRef'))
+              < s.find(nl('className:"svm-xfveil"'))
+              < s.find(nl('className:"svm-livegap"'))
+              < s.find(nl('className:"svm-tf",children:')),
+      f'voile={s.count(nl(chr(34) + "svm-xfveil" + chr(34)))}')
+# L'ÉCRITURE EST EN TÊTE DE `liveSync`, ET LA MESURE EST UN ORDRE : la ref du
+# voile est lue AVANT `var host=`. `liveSync` sort tôt quand les hôtes ne sont
+# pas montés — écrire le voile après cette sortie l'aurait laissé plein au
+# passage en aperçu 480p.
+_I_LS = s.find(nl("  function liveSync(){"))
+_I_VE = s.find(nl("var dzVe=dzVeilRef.current;"))
+_I_HO = s.find(nl("var host=liveHostRef.current,ov=liveOvRef.current;"))
+check("D12_le_voile_est_ecrit_en_tete_de_liveSync",
+      _I_LS >= 0 and _I_VE > _I_LS and _I_HO > _I_VE
+      and s.count(nl("var dzVe=dzVeilRef.current;")) == 1
+      and s.count(nl("DzTracks.veil(clipsRef.current,phRef.current)")) == 1,
+      f"liveSync={_I_LS} veil={_I_VE} host={_I_HO}")
+# ET L'HÔTE N'EST JAMAIS TOUCHÉ — c'est l'écart déclaré avec le plan, et il
+# se mesure des DEUX côtés : nos sections n'écrivent pas son opacité, et
+# `liveSync` n'en écrit aucune non plus (les cinq `host.` de son corps sont
+# des enfants et une clé de pool). Baisser l'opacité de l'hôte aurait fait
+# apparaître le DAMIER de `.svm-frame`, pas du noir.
+_CORPS_LS = s[_I_LS:s.find(nl("  x.useEffect(function(){liveSync()});"))] if _I_LS >= 0 else ""
+check("D12_l_opacite_de_l_hote_n_est_ecrite_nulle_part",
+      len(_CORPS_LS) > 2000
+      and "liveHostRef.current.style" not in _CORPS_LS
+      and "host.style" not in _CORPS_LS
+      and not [_t for _t, _a, _r in P.PATCHES
+               if _t.startswith("V") and "liveHostRef.current.style" in _r]
+      # ET LE FOND DU LECTEUR EST BIEN NOIR : c'est la mesure qui rend le
+      # voile noir ÉQUIVALENT à la baisse d'opacité que le plan demandait.
+      and ".svm-live{background:#000}" in _SVMCSS
+      and "background:repeating-linear-gradient(45deg,var(--panel2)" in _SVMCSS,
+      f'corps={len(_CORPS_LS)} o')
+# LA FEUILLE : le voile est posé SANS `z-index`, et les trois voisins qui le
+# justifient sont mesurés. `.svm-live`/`.svm-liveov` n'en portent pas (donc
+# l'ordre du DOM suffit à les couvrir) ; `.svm-tf` porte 3 et `.sub-ov` de
+# subs.css porte 3 aussi (6 en placement) — un `z-index:6` sur le voile
+# serait passé devant les sous-titres, que la gravure ASS pose APRÈS les
+# xfade au rendu.
+_SUBSCSS = _lire(ROOT / "frontend" / "dist" / "shared" / "subs.css")
+_R_VEIL = _regle(_MC, ".dzsvm .svm-xfveil{")
+check("D12_la_feuille_pose_le_voile_sans_z_index",
+      _R_VEIL is not None
+      and "position:absolute" in _R_VEIL and "inset:0" in _R_VEIL
+      and "pointer-events:none" in _R_VEIL
+      and "opacity:0" in _R_VEIL and "background:#000" in _R_VEIL
+      and "z-index" not in _R_VEIL
+      and ".svm-live,.svm-liveov{position:absolute; inset:0; pointer-events:none;"
+          " overflow:hidden}" in _SVMCSS
+      and ".svm-tf{position:absolute; inset:0; pointer-events:none; z-index:3}" in _SVMCSS
+      and ".sub-ov{z-index:3}" in _SUBSCSS,
+      f"regle={_R_VEIL!r}")
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

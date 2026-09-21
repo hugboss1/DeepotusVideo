@@ -944,6 +944,19 @@ R_M16REF = (A_M16REF + "\n"
             "        window.__dzTransCat=d;setDzTransCat(d)}})\n"
             "      .catch(function(){});\n"
             "    return function(){al=!1}},[]);\n"
+            # ── « V1 » (D-12) : LA REF DU VOILE DU LECTEUR ───────────
+            # REPLIÉE ICI, même mesure que « E1 », « K3 » et « X1 »
+            # ci-dessus : l'ancre de ce remplacement (`dzTracksRef`)
+            # vaut 0 dans .bak_montage, donc aucune section ne peut la
+            # prendre pour ancre.
+            # UNE REF ET PAS UN ÉTAT, et c'est la nature du voile qui
+            # l'impose : il change à CHAQUE frame (la boucle `step`
+            # fait `setPh`, donc `liveSync` tourne à chaque frame). Un
+            # état aurait re-rendu l'arbre entier soixante fois par
+            # seconde pour deux propriétés de style. C'est exactement
+            # le parti pris des deux hôtes du lecteur (`liveHostRef`,
+            # `liveOvRef`), remplis impérativement eux aussi.
+            "  var dzVeilRef=x.useRef(null);\n"
             "  /* P9 — « le VRAI projet est-il arrivé ? ». Tant que\n"
             "     `svmApplyProject` n'a pas remplacé la maquette, `proj` est la\n"
             "     démo : sans `tracks`, donc svmTracksOf retombe sur les six\n"
@@ -3166,6 +3179,81 @@ A_X4 = "  var f=SVM_TRANS.find(function(o){return o[0]===b});return f?f[1]:b}"
 R_X4 = "  return DzTracks.transLabel(b,SVM_TRANS,window.__dzTransCat||null)}"
 
 
+# ══ D-12 (21/09/2026) — LES FONDUS SIMPLES JOUÉS EN DIRECT ════════════
+# Le lecteur vivant ne montre qu'UN clip à la fois (`svmActiveV1`) : à la
+# jonction, l'image bascule sèchement quelle que soit la transition. Les
+# 58 `xfade` restent invisibles avant Preview, ce que la galerie dit déjà
+# (« visible après Preview ») — mais les trois fondus que le catalogue
+# marque `live` (fade, fadeblack, fadewhite) SE JOUENT, par un voile.
+# V1 est REPLIÉE dans R_M16REF (son ancre vaut 0 dans .bak_montage) ; les
+# deux ancres ci-dessous valent 1/1 dans .bak_montage — mesuré le
+# 21/09/2026 — et aucune section antérieure ne touche au cadre du lecteur
+# ni au corps de `liveSync`.
+
+# ── V2 : le voile est un enfant du cadre, juste après les deux couches ──
+# L'ANCRE EST LA LIGNE DU « trou » : elle suit IMMÉDIATEMENT `.svm-liveov`,
+# et c'est la seule place possible. Le voile doit couvrir le fond ET les
+# overlays (donc après eux dans le DOM) sans couvrir les sous-titres, le
+# cadre de sélection ni les guides (donc avant eux, et SANS `z-index` :
+# mesuré, aucun de ces trois voisins n'en porte, l'ordre du DOM suffit).
+# CONDITIONNÉ PAR `liveOn`, comme les deux couches : en aperçu 480p c'est
+# un `<video>` qui joue le rendu, transitions COMPRISES — y superposer un
+# voile les jouerait DEUX FOIS.
+A_V2 = ('liveOn&&!liveClip?r.jsx("div",{className:"svm-livegap",'
+        'children:"trou"}):null,')
+R_V2 = ('/* D-12 — LE VOILE DES FONDUS EN DIRECT. Vide, transparent au\n'
+        "             repos, et écrit impérativement par `liveSync` (couleur +\n"
+        '             opacité) à chaque frame : le lecteur vivant n\'a qu\'un\n'
+        "             hôte, donc pas de crossfade A/B — un voile dit OÙ tombe\n"
+        '             la transition et COMBIEN elle dure. */\n'
+        '          liveOn?r.jsx("i",{className:"svm-xfveil",ref:dzVeilRef,'
+        '"aria-hidden":!0}):null,\n'
+        '          ') + A_V2
+
+# ── V3 : l'écriture, EN TÊTE de `liveSync` ────────────────────────────
+# EN TÊTE, et pas ailleurs : `liveSync` sort tôt (`if(!host||!ov){…return}`)
+# quand les deux hôtes ne sont pas encore montés, et le voile doit quand
+# même être remis à zéro dans ce cas — sinon un voile plein survivrait à un
+# passage en aperçu 480p. La ref est donc lue AVANT `var host=`.
+#
+# MESURE QUI AUTORISE CETTE FORME (21/09/2026) : `liveSync` ne réécrit
+# JAMAIS `liveHostRef.current.style.*` plus bas dans son corps — les cinq
+# seules occurrences de `host.` y sont `_svmKey`, `firstChild`,
+# `removeChild` et `appendChild`. Le repli prévu par le plan (poser
+# l'opacité sur `liveVideoRef.current`) n'a donc pas lieu d'être.
+#
+# ET POURTANT L'HÔTE N'EST PAS TOUCHÉ, ce qui est un ÉCART ASSUMÉ avec le
+# plan : il demandait, pour « dim » (le fondu simple), `host.style.opacity
+# = 1 - alpha`. DEUX MESURES l'écartent.
+#   1. `.svm-live{background:#000}` et `.svm-frame` porte un DAMIER
+#      (`repeating-linear-gradient` panel2/panel3). Baisser l'opacité de
+#      l'hôte ne fait pas apparaître du noir : elle fait apparaître le
+#      DAMIER. Le résultat voulu — « l'image s'efface sur le noir du
+#      lecteur » — est obtenu EXACTEMENT par un voile noir à alpha :
+#      a·noir + (1−a)·image, soit l'image à (1−a) SUR DU NOIR. Les deux
+#      calculs ne diffèrent que par ce qu'il y a dessous, et c'est là que
+#      la forme du plan se trompait.
+#   2. L'élément média est PARTAGÉ (pool LRU par source) et l'hôte change
+#      d'enfant AU RACCORD, c'est-à-dire au milieu du fondu : une opacité
+#      posée sur l'ancien enfant lui survivrait dans le pool.
+# « dim » reste un verdict DISTINCT dans la couche (le mécanisme, pas la
+# couleur) : le jour où le lecteur aura deux hôtes, c'est lui qui dira
+# qu'il faut croiser plutôt que voiler.
+A_V3 = "  function liveSync(){"
+R_V3 = (A_V3 + "\n"
+        "    /* D-12 — LE VOILE DES TROIS FONDUS JOUABLES EN DIRECT. En TÊTE :\n"
+        "       `liveSync` sort tôt quand les hôtes ne sont pas montés, et le\n"
+        "       voile doit être remis à zéro même dans ce cas. La couche dit\n"
+        "       la couleur et l'alpha ; « dim » (le fondu simple) est voilé en\n"
+        "       noir comme le reste — l'hôte est noir, le résultat est le même\n"
+        "       et rien n'est écrit sur un élément média partagé. */\n"
+        "    var dzVe=dzVeilRef.current;\n"
+        "    if(dzVe){var dzVv=DzTracks.veil(clipsRef.current,phRef.current);\n"
+        '      dzVe.style.background=(dzVv.color&&dzVv.color!=="dim")?dzVv.color:"#000";\n'
+        "      dzVe.style.opacity=String(dzVv.alpha||0)}")
+
+
+
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
            ("M5-payload", A_M5, R_M5), ("M6-save", A_M6, R_M6),
@@ -3305,7 +3393,18 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("X2-galerie-transitions", A_X2, R_X2),
            ("X3-select-connu", A_X3, R_X3),
            ("X3b-select-catalogue", A_X3B, R_X3B),
-           ("X4-libelle-catalogue", A_X4, R_X4)]
+           ("X4-libelle-catalogue", A_X4, R_X4),
+           # D-12 (21/09/2026) - les fondus simples en direct. V1 est
+           # REPLIEE dans R_M16REF (ancre posee par un remplacement,
+           # comptee 0 dans .bak_montage). Les deux ancres ci-dessous
+           # valent 1/1 dans .bak_montage ET dans le bundle patche :
+           # aucune section anterieure ne touche au cadre du lecteur
+           # ni au corps de `liveSync`. V2 passe AVANT V3, mais
+           # l'ordre n'a aucune importance ici : les deux ancres sont
+           # disjointes et ni l'une ni l'autre n'est creee par un
+           # remplacement.
+           ("V2-voile-cadre", A_V2, R_V2),
+           ("V3-voile-livesync", A_V3, R_V3)]
 
 
 def nl(text, crlf):
