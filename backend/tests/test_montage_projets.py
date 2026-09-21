@@ -1040,6 +1040,75 @@ check("i2_les_routes_repondent_encore_apres_la_course",
       r.status_code == 200 and cur().get("saved") is True,
       f"{r.status_code} {r.text[:120]}")
 
+print("\n[17] D-11 la PLAGE d entree / sortie : assainie au POST, reservie au GET")
+# Le plan numerotait cette section « [7] » ; [7] est PRIS depuis P5 (le tri
+# par `updated_at`) et deux etiquettes identiques rendraient la sortie
+# illisible. Elle prend donc le premier numero libre, [17].
+# ETAT VIDE CONSTRUIT (regle des assertions negatives) : le courant est
+# efface AVANT chaque cas, et le cas « sans range » est joue EN PREMIER pour
+# etablir que l absence de la cle n est pas un artefact de la mesure. Les
+# trois refus (inversee, chaine, absente) sont des negations : chacune exige
+# d abord que la reponse SOIT une timeline sauvegardee, sinon un 404 ou un
+# {} de `J()` les ferait verdir a vide.
+wipe_courant()
+wipe()
+_tl = TL("plage", n=1)
+_r = c.post("/api/montage/save", json=_tl)
+_c = cur()
+check("d11_sans_range_la_cle_est_absente",
+      _r.status_code == 200 and _c.get("saved") is True and "range" not in _c,
+      f'{_r.status_code} saved={_c.get("saved")} range={_c.get("range")!r}')
+
+wipe_courant()
+_tl = TL("plage", n=1)
+_tl["range"] = {"in": 1, "out": 3}
+_r = c.post("/api/montage/save", json=_tl)
+_c = cur()
+check("d11_une_plage_valide_revient_en_flottants",
+      _r.status_code == 200 and _c.get("range") == {"in": 1.0, "out": 3.0}
+      and all(isinstance(v, float) for v in (_c.get("range") or {}).values()),
+      f'{_r.status_code} {_c.get("range")!r}')
+
+wipe_courant()
+_tl = TL("plage", n=1)
+_tl["range"] = {"in": 3, "out": 1}
+_r = c.post("/api/montage/save", json=_tl)
+_c = cur()
+check("d11_une_plage_inversee_n_est_pas_stockee",
+      _r.status_code == 200 and _c.get("saved") is True and "range" not in _c,
+      f'{_r.status_code} saved={_c.get("saved")} range={_c.get("range")!r}')
+
+wipe_courant()
+_tl = TL("plage", n=1)
+_tl["range"] = "x"
+_r = c.post("/api/montage/save", json=_tl)
+_c = cur()
+check("d11_une_plage_qui_n_est_pas_un_objet_n_est_pas_stockee",
+      _r.status_code == 200 and _c.get("saved") is True and "range" not in _c,
+      f'{_r.status_code} saved={_c.get("saved")} range={_c.get("range")!r}')
+
+# Le fichier du COURANT, lu sur le DISQUE : c est lui que GET /project relit,
+# et c est la que `Infinity` (non standard) irait se loger si l assainissement
+# ne bornait que NaN. La cle doit etre absente, et le fichier relisible.
+wipe_courant()
+_tl = TL("plage", n=1)
+_tl["range"] = {"in": 0, "out": float("inf")}
+# ENVOI EN CONTENU BRUT, et la raison est une MESURE du 21/09/2026 : httpx
+# encode `json=` avec `allow_nan=False` et LEVE sur un `inf` cote client -- le
+# banc mourait avant d avoir rien mesure. Un client qui n est pas httpx (une
+# autre fenetre, un script) n a pas cette pudeur, et `Infinity` est
+# exactement ce que `json.loads` du serveur accepte. Le corps est donc ecrit
+# a la main, avec `allow_nan=True`.
+_r = c.post("/api/montage/save",
+            content=json.dumps(_tl, allow_nan=True).encode("utf-8"),
+            headers={"content-type": "application/json"})
+_f = JF(SAVED)
+check("d11_une_borne_infinie_ne_touche_jamais_le_disque",
+      _r.status_code == 200 and _f.get("clips") is not None
+      and "range" not in _f and "_illisible" not in _f,
+      f'{_r.status_code} {_f.get("range")!r} {_f.get("_illisible")!r}')
+wipe_courant()
+
 c.__exit__(None, None, None)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

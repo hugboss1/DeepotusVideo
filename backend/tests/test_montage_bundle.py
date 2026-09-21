@@ -31,7 +31,31 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 21/09/2026 (D-0, troisieme tour — corrections de banc de
+COMPTE DE REFERENCE, 21/09/2026 (D-11, la plage I/O) : 1332 lignes, soit DIX
+de plus que les 1322 du tour D-0. SIX que la boucle sur `P.PATCHES` emet
+toute seule pour les trois sections neuves R1, R2 et R3 (deux chacune :
+`_remplace` et `couche_ne_cite_pas_l_ancre_de_` — aucune `_ancre_consommee`,
+les trois remplacements REPRENNENT leur ancre), et QUATRE nommees ici :
+`D11_la_plage_part_avec_la_sauvegarde` et `D11_la_plage_revient_avec_le_projet`
+(les sections « R4 » et « R5 » du plan sont REPLIEES dans R_M6 et R_M7 —
+leurs ancres sont des textes que ces remplacements POSENT, compte 0 dans
+.bak_montage, mesure du 21/09/2026 : une section a part aurait abandonne au
+premier `--check`), `D11_la_bande_est_montee_dans_la_regle_et_la_regle_est_positionnee`
+et `D11_la_barre_rend_null_sans_plage_valide`.
+DEUX LIGNES PRE-EXISTANTES REMESUREES, pas relachees :
+  · `M12_utilise_DzTracks_pas_DzMontage` comptait UN `DzTracks.rippleCut` ;
+    il y en a DEUX depuis R2 (« Maj+X » coupe la plage sur toutes les
+    pistes). Le chiffre passe a 2 et la ligne gagne son detail ;
+  · `tb8_le_T_du_handoff_appartient_deja_a_la_narration` exigeait 33 actions
+    dans SVM_ACTIONS ; R1 en declare quatre (range_in, range_out,
+    range_clear, range_cut) et la table en porte 37. La ligne voisine
+    `tb8_aucune_combo_par_defaut_n_est_prise_deux_fois` n'a PAS bouge : c'est
+    elle qui mesure que I, U, X et Maj+X ne volent rien.
+MUTATION APPLIQUEE le 21/09/2026 : `.dzsvm .svm-ruler{position:relative}`
+renomme dans montage.css -> `D11_la_bande_est_montee_dans_la_regle...` rougit
+(`css_ruler=0`), 1331/1, et le banc revient a 1332/0 la feuille restauree.
+
+COMPTE PRECEDENT, 21/09/2026 (D-0, troisieme tour — corrections de banc de
 la revue qualite) : 1322 lignes, soit DEUX de plus que les 1320 du second
 tour — UNE de la tache 3, D-1
 (`D1_la_barre_flotte_AU_DESSUS_du_transport_pas_sur_les_pistes`), et UNE
@@ -527,6 +551,54 @@ check("D0_une_cle_absente_est_portee_par_l_instantane",
       and src.count("ABSENT EST UN \u00c9TAT") == 1,
       f'sans_condition={src.count("k=DZM_HIST_CLES[i];s[k]=p[k]}")} '
       f'reste_de_condition={src.count("if(k in p)")}')
+# ── D-11 (21/09/2026) : LA PLAGE I/O, CE QUE LA BOUCLE NE VOIT PAS ─────────
+# R1, R2 et R3 sont deja comptees une a une par la boucle ci-dessus. « R4 »
+# (la plage part avec la sauvegarde) et « R5 » (elle revient avec le projet)
+# n'existent PAS comme sections : leurs ancres sont des textes que R_M6 et
+# R_M7 POSENT — compte 0 dans .bak_montage, donc `--check` les aurait
+# declarees introuvables et les lignes `M6-save_remplace` /
+# `M7-apply_remplace` seraient tombees a 0. Elles sont REPLIEES, meme
+# technique que H6 dans R_M17G. La boucle les couvre par ricochet (le
+# remplacement entier de M6 et de M7 les contient) ; CES lignes-ci les
+# nomment, pour qu'un repli defait se voie sous son propre nom.
+check("D11_la_plage_part_avec_la_sauvegarde",
+      s.count(nl("      range:DzTracks.rangeFrom(proj.range),")) == 1
+      and "range:DzTracks.rangeFrom(proj.range)," in P.R_M6,
+      f'bundle={s.count(nl("      range:DzTracks.rangeFrom(proj.range),"))} '
+      f'R_M6={"range:DzTracks.rangeFrom(proj.range)," in P.R_M6}')
+check("D11_la_plage_revient_avec_le_projet",
+      s.count(nl("range:DzTracks.rangeFrom(d.range),")) == 1
+      and "range:DzTracks.rangeFrom(d.range)," in P.R_M7,
+      f'bundle={s.count(nl("range:DzTracks.rangeFrom(d.range),"))} '
+      f'R_M7={"range:DzTracks.rangeFrom(d.range)," in P.R_M7}')
+# LA BANDE EST DANS LA REGLE, PAS DANS LES VOIES. `.svm-ruler` n'a AUCUN
+# `position` dans son-vfx-montage.css : sans la regle de montage.css, la
+# bande absolue se serait calee sur `.svm-lanes` (`position:relative`) et
+# aurait barre TOUTES les pistes. Les deux moities sont tenues ici : le
+# composant est monte DANS la regle (juste apres la gouttiere), et la feuille
+# positionne la regle.
+_RULER = re.search(r'className:"svm-ruler".*?className:"svm-tick"',
+                   s.replace("\r\n", "\n"), re.S)
+_RULER = _RULER.group(0) if _RULER else ""
+_CSS_M = (ROOT / "frontend" / "dist" / "shared" / "montage.css").read_text(
+    encoding="utf-8")
+check("D11_la_bande_est_montee_dans_la_regle_et_la_regle_est_positionnee",
+      len(_RULER) > 0
+      and _RULER.count('r.jsx(DzTracks.RangeBar,{range:proj.range,dur:dur}),') == 1
+      and _RULER.index("svm-gutter") < _RULER.index("DzTracks.RangeBar")
+      and _CSS_M.count(".dzsvm .svm-ruler{position:relative}") == 1
+      and _CSS_M.count(".dzsvm .dzm-range{position:absolute;") == 1,
+      f'regle={len(_RULER)} o barre={_RULER.count("DzTracks.RangeBar")} '
+      f'css_ruler={_CSS_M.count(".dzsvm .svm-ruler{position:relative}")}')
+# LE COMPOSANT SE TAIT SANS PLAGE COMPLETE : c'est ce qui rend R3 inoffensive
+# tant que I et U n'ont pas ete frappes. La FORME est tenue ici, le
+# COMPORTEMENT est joue sous node par test_montage_historique.py [2].
+check("D11_la_barre_rend_null_sans_plage_valide",
+      src.count("function DzmRangeBar(o){") == 1
+      and src.count("var rg=dzmRangeFrom(o&&o.range)") == 1
+      and src.count("if(!rg)return null;") == 1,
+      f'DzmRangeBar={src.count("function DzmRangeBar(o){")} '
+      f'garde={src.count("if(!rg)return null;")}')
 # ── M9c (05/09/2026) : LE « + » N'EST PLUS SOUS LA SURIMPRESSION ────────────
 # Défaut rapporté par l'utilisateur : « sur la piste V1 vidéo, le bouton
 # "ajouter une vidéo" est caché par l'overlay de déplacement lorsque la souris
@@ -797,10 +869,16 @@ for _nm in ("stDzTx", "dzTextOn", "setDzTextOn"):
     _dehors = s.count(_nm) - (P.R_M11 + P.R_M12 + P.R_M19).count(_nm)
     check("M11_nom_" + _nm + "_n_ecrase_rien", _dehors == 0,
           f"{_nm} apparait {_dehors}x hors des sections qui l'ecrivent")
+# DEUX appels a `rippleCut` depuis le 21/09/2026 (D-11) : celui de M12 (la
+# lame qui referme) et celui de R2 (« Maj+X », couper la plage sur toutes
+# les pistes). Le chiffre est REMESURE, pas relache : une troisieme porte
+# ajoutee sans y penser rougirait encore.
 check("M12_utilise_DzTracks_pas_DzMontage",
       "DzMontage.TextDrawer" not in s and "DzMontage.rippleCut" not in s
       and s.count("DzTracks.TextDrawer") == 1
-      and s.count("DzTracks.rippleCut") == 1)
+      and s.count("DzTracks.rippleCut") == 2,
+      f'TextDrawer={s.count("DzTracks.TextDrawer")} '
+      f'rippleCut={s.count("DzTracks.rippleCut")}')
 # Le CŒUR de P3 doit etre DANS le bloc livre, pas seulement dans la source du
 # patcher : sans cette ligne, un bloc vide passerait les comptes d'ancres.
 check("bloc_contient_rippleCut", nl("rippleCut:dzmRippleCut,") in s
@@ -10914,9 +10992,13 @@ for _a, _sec, _c in _COMBOS:
     _BY_COMBO.setdefault(_c, []).append(_a)
 # LE CONFLIT EST MESURE, PAS SUPPOSE : `T` appartient a `narration`, et il ne
 # lui est PAS repris. Conjoint positif : la table est bien celle de l'ecran
-# (elle porte les trente-trois actions, dont la nouvelle).
+# (elle porte les TRENTE-SEPT actions, dont la nouvelle). 33 -> 37 le
+# 21/09/2026 : D-11 (R1) y declare range_in, range_out, range_clear et
+# range_cut. Les quatre combos I, U, X et Maj+X sont libres, et c'est la
+# ligne `tb8_aucune_combo_par_defaut_n_est_prise_deux_fois`, juste en
+# dessous, qui le MESURE — elle n'a pas eu a changer.
 check("tb8_le_T_du_handoff_appartient_deja_a_la_narration",
-      len(_COMBOS) == 33 and _BY_COMBO.get("T") == ["narration"],
+      len(_COMBOS) == 37 and _BY_COMBO.get("T") == ["narration"],
       f"actions={len(_COMBOS)} T={_BY_COMBO.get('T')}")
 # UNE COMBO PAR ACTION, ET AUCUNE EN DOUBLE : la nouvelle n'a rien vole.
 # `svmKmMerge` resoudrait une collision en silence (retour au defaut) — c'est

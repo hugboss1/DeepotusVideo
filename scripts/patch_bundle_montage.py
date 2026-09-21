@@ -278,7 +278,19 @@ R_M6 = ("      duration_master:durMaster,ducking:ducking,clips:clips,\n"
         "         backend n'écrit dans le projet QUE si cette clé désigne un\n"
         "         fichier existant : sans elle (montage sans nom), rien ne\n"
         "         change, pas un fichier n'est semé. */\n"
-        "      project_id:proj.project_id,")
+        "      project_id:proj.project_id,\n"
+        # D-11 (21/09/2026) — LA PLAGE PART AVEC LA SAUVEGARDE. C'est la
+        # section « R4 » du plan, REPLIEE ici : son ancre
+        # (`      project_id:proj.project_id,`) est un texte que CE
+        # remplacement-ci POSE. MESURE sur .bak_montage (etat pre-patch, le
+        # seul que `--check` regarde) : compte 0, donc une section a part
+        # aurait abandonne au premier `--check` et aurait fait tomber
+        # `M6-save_remplace` a 0 dans le banc du bundle. Meme technique que
+        # H6 dans R_M17G, M10 dans R_M8 et M9c dans R_M9b.
+        # `rangeFrom` ASSAINIT avant l'envoi : une plage a moitie posee (I
+        # sans U) ou inversee part en `null`, et le backend n'a pas a s'en
+        # defendre deux fois.
+        "      range:DzTracks.rangeFrom(proj.range),")
 
 # ── M7 : restauration ───────────────────────────────────────────────────────
 # TROIS clés, et la troisième est de P9. `v1_non_video` est rendu par
@@ -309,6 +321,11 @@ A_M7 = 'var np={demo:!1,name:d.name||"montage",version:"v1",ratio:d.ratio||"9:16
 R_M7 = ('var np={demo:!1,tracks:svmTracksFrom(d.tracks),'
         'project_id:d.project_id,'
         'v1NonVideo:Array.isArray(d.v1_non_video)?d.v1_non_video:null,'
+        # D-11 — ET LA PLAGE REVIENT AVEC LE PROJET. « R5 » du plan,
+        # REPLIEE pour la meme raison que R4 : l'ancre du plan est le
+        # texte `v1NonVideo:…` que CE remplacement pose (compte 0 dans
+        # .bak_montage, mesure du 21/09/2026).
+        'range:DzTracks.rangeFrom(d.range),'
         'name:d.name||"montage",version:"v1",ratio:d.ratio||"9:16",')
 
 # ── M8 : barre de transport ─────────────────────────────────────────────────
@@ -2387,6 +2404,55 @@ R_H7 = ("function subsStyleSet(patch){\n"
         "    var dzN=Date.now();if(dzN-dzStyleHistAt.current>600)pushHistory();"
         "dzStyleHistAt.current=dzN;")
 
+# ── D-11 (21/09/2026) : LA PLAGE D'ENTREE / SORTIE ─────────────────────────
+# Trois sections seulement : les deux dernieres du plan (« R4 » la sauvegarde,
+# « R5 » la restauration) sont REPLIEES dans R_M6 et R_M7, dont elles visaient
+# un texte POSE — voir les commentaires la-bas.
+#
+# ── R1 (D-11) : quatre actions dans SVM_ACTIONS (remappables, listees) ─────
+# Lettres MESUREES libres le 21/09/2026 sur la table SVM_ACTIONS du bundle
+# d'entree : I, U, X et Maj+X n'y sont pris par personne (B D F G J K L M N R
+# S T le sont, C sous Alt, Z sous Ctrl et sous Maj).
+A_R1 = ' {id:"ripple",sec:"Montage",lbl:"ripple — refermer les trous",combo:"R"},'
+R_R1 = (A_R1 + "\n"
+        ' {id:"range_in",sec:"Montage",lbl:"plage : point d\'entrée à la tête",combo:"I"},\n'
+        ' {id:"range_out",sec:"Montage",lbl:"plage : point de sortie à la tête",combo:"U"},\n'
+        ' {id:"range_clear",sec:"Montage",lbl:"plage : effacer",combo:"X"},\n'
+        ' {id:"range_cut",sec:"Montage",lbl:"plage : couper (toutes pistes, ripple)",combo:"Maj+X"},')
+
+# ── R2 (D-11) : la branche de dispatch ─────────────────────────────────────
+# PORTEE MESUREE dans `onKey` (meme corps de composant, closure) : `phRef`,
+# `clipsRef`, `trackStRef`, `fireNote`, `pushHistory`, `setProj`, `setClips`,
+# `setDirty` y sont declares par le bundle ; `svmTracksOf` est une fonction de
+# la couche injectee dans le MEME scope module ; `dzProjRef` vient de H1, qui
+# passe avant (ordre de PATCHES). `blade()`, juste au-dessus, lit deja
+# `phRef.current`.
+# ECART ASSUME CONTRE LE PLAN, MESURE : `dzmRippleCut` rend
+# `{clips, removed}` ou `removed` est la LONGUEUR RETIREE EN SECONDES
+# (`return {clips:out,removed:len}`, montage.js), PAS un nombre de clips. La
+# note du plan disait « N clip(s) retire(s) » et aurait donc menti a chaque
+# coupe. Elle dit maintenant les secondes.
+A_R2 = 'if(id==="ripple"){setRipple(function(v){return !v});return}'
+R_R2 = (A_R2 + "\n"
+        '      if(id==="range_in"||id==="range_out"||id==="range_clear"){'
+        'pushHistory();var dzW=id.slice(6);'
+        'setProj(function(p){return Object.assign({},p,{range:DzTracks.rangeSet(p.range,dzW,phRef.current,p.dur)})});'
+        'setDirty(!0);return}\n'
+        '      if(id==="range_cut"){var dzRg=DzTracks.rangeFrom(dzProjRef.current&&dzProjRef.current.range);'
+        'if(!dzRg){fireNote("Aucune plage : I pose l\'entrée, U la sortie.");return}'
+        'var dzLk={};Object.keys(trackStRef.current).forEach(function(k){if(trackStRef.current[k]&&trackStRef.current[k].l)dzLk[k]=!0});'
+        'var dzLoop=svmTracksOf(dzProjRef.current).filter(function(t){return t.loop}).map(function(t){return t.id});'
+        'var dzRc=DzTracks.rippleCut(clipsRef.current,dzRg.in,dzRg.out,{loopTracks:dzLoop,locked:dzLk});'
+        'pushHistory();setClips(dzRc.clips);'
+        'setProj(function(p){return Object.assign({},p,{range:null})});setDirty(!0);'
+        'fireNote("Plage "+dzRg.in.toFixed(2)+" → "+dzRg.out.toFixed(2)+" s coupée sur toutes les pistes — "+dzRc.removed.toFixed(2)+" s retirés, la suite remonte.");return}')
+
+# ── R3 (D-11) : la bande sur la regle, apres la gouttiere ──────────────────
+# `DzmRangeBar` rend `null` tant que la plage n'est pas COMPLETE : la regle
+# reste exactement celle d'avant jusqu'a ce que I et U aient ete frappes.
+A_R3 = 'r.jsx("div",{className:"svm-gutter"}),'
+R_R3 = A_R3 + 'r.jsx(DzTracks.RangeBar,{range:proj.range,dur:dur}),'
+
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
            ("M5-payload", A_M5, R_M5), ("M6-save", A_M6, R_M6),
@@ -2482,7 +2548,14 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("H1-hist-ref", A_H1, R_H1), ("H2-hist-push", A_H2, R_H2),
            ("H3-hist-undo", A_H3, R_H3), ("H4-hist-redo", A_H4, R_H4),
            ("H5-hist-h0-clip", A_H5, R_H5),
-           ("H7-hist-style", A_H7, R_H7)]
+           ("H7-hist-style", A_H7, R_H7),
+           # D-11 (21/09/2026) — la plage I/O. R4 et R5 du plan sont
+           # repliees dans R_M6 et R_M7 (ancres POSEES, compte 0 dans
+           # .bak_montage). Les trois ancres ci-dessous valent 1/1 dans
+           # le bundle d'entree et aucune section anterieure n'y touche.
+           ("R1-plage-actions", A_R1, R_R1),
+           ("R2-plage-dispatch", A_R2, R_R2),
+           ("R3-plage-regle", A_R3, R_R3)]
 
 
 def nl(text, crlf):

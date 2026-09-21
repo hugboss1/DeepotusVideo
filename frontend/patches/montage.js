@@ -4642,6 +4642,51 @@ function dzmHistApply(p,s){
   for(i=0;i<DZM_HIST_CLES.length;i++){k=DZM_HIST_CLES[i];if(k in s)n[k]=s[k]}
   return n}
 
+/* ── D-11 (21/09/2026) : LA PLAGE D'ENTRÉE / SORTIE ───────────────────────
+   `proj.range` = {in, out} (secondes, null si non posé) ou null. Pure :
+   `dzmRangeSet(range, which, t, dur)` rend la plage suivante ; "in" après
+   "out" pousse "out" à dur (jamais une plage inversée) ; "clear" rend null.
+   Persistée par POST /save (`range`), restaurée par `dzmRangeFrom`. */
+function dzmRangeNum(v,dur){
+  var n=Number(v);if(!isFinite(n))return null;
+  var d=Number(dur);if(!isFinite(d)||d<0)d=0;
+  return Math.max(0,Math.min(d,dzmR3(n)))}
+function dzmRangeSet(range,which,t,dur){
+  var r=range&&typeof range==="object"?{in:range.in,out:range.out}:{in:null,out:null};
+  if(which==="clear")return null;
+  var v=dzmRangeNum(t,dur);
+  if(v==null)return range||null;
+  if(which==="in"){r.in=v;if(r.out!=null&&r.out<=v)r.out=dzmRangeNum(dur,dur)}
+  else if(which==="out"){r.out=v;if(r.in!=null&&r.in>=v)r.in=0}
+  else return range||null;
+  if(r.in==null)r.in=null;if(r.out==null)r.out=null;
+  return r}
+function dzmRangeFrom(v){
+  if(!v||typeof v!=="object")return null;
+  var a=Number(v.in),b=Number(v.out);
+  if(!isFinite(a)||!isFinite(b)||a<0||b<=a)return null;
+  return {in:dzmR3(a),out:dzmR3(b)}}
+function dzmRangeLen(r){
+  if(!r||typeof r!=="object")return 0;
+  var a=Number(r.in),b=Number(r.out);
+  return (isFinite(a)&&isFinite(b)&&b>a)?dzmR3(b-a):0}
+/* la barre sur la règle : deux poignées et la bande entre elles.
+   `dzmRangeFrom` fait ici office de garde : sans plage COMPLÈTE et valide
+   (une entrée seule, une plage inversée, rien du tout), le composant rend
+   `null` et la règle est exactement celle d'avant — c'est ce qui rend la
+   section R3 inoffensive tant que I / U n'ont pas été frappés.
+   Les 88 px retranchés sont la GOUTTIÈRE (`.svm-gutter`, 88 px collants) :
+   la même soustraction que `phFromEvent` du bundle, qui lit la tête de
+   lecture à `(clientX - left - 88) / (width - 88)`. */
+function DzmRangeBar(o){
+  var rg=dzmRangeFrom(o&&o.range),d=Number(o&&o.dur)||1;
+  if(!rg)return null;
+  var l=rg.in/d*100,w=(rg.out-rg.in)/d*100;
+  return r.jsx("div",{className:"dzm-range","data-testid":"dzm-range",
+    title:"Plage "+rg.in.toFixed(2)+" s → "+rg.out.toFixed(2)+" s — I : entrée, "+
+      "U : sortie, X : effacer, Maj+X : couper la plage (toutes pistes, ripple)",
+    style:{left:"calc(88px + (100% - 88px) * "+(l/100)+")",width:"calc((100% - 88px) * "+(w/100)+")"}})}
+
 /* ── export contrat ───────────────────────────────────────────────────────── */
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
@@ -4702,5 +4747,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   BD_GAP:DZM_BD_GAP,BD_SEP:DZM_BD_SEP,BD_HORS:DZM_BD_HORS,
   bdMesure:dzmBdMesure,bdPose:dzmBdPose,bdTour:dzmBdTour,bdLarg:dzmBdLarg,
   histSnap:dzmHistSnap,histApply:dzmHistApply,HIST_CLES:DZM_HIST_CLES,
+  rangeSet:dzmRangeSet,rangeFrom:dzmRangeFrom,rangeLen:dzmRangeLen,
+  RangeBar:DzmRangeBar,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;

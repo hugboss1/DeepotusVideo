@@ -1538,6 +1538,10 @@ var SVM_ACTIONS=[
  {id:"redo",sec:"Montage",lbl:"rétablir (Ctrl+Maj+annuler aussi)",combo:"Ctrl+Y"},
  {id:"snap",sec:"Montage",lbl:"aimanter (bords, tête, 0)",combo:"N"},
  {id:"ripple",sec:"Montage",lbl:"ripple — refermer les trous",combo:"R"},
+ {id:"range_in",sec:"Montage",lbl:"plage : point d'entrée à la tête",combo:"I"},
+ {id:"range_out",sec:"Montage",lbl:"plage : point de sortie à la tête",combo:"U"},
+ {id:"range_clear",sec:"Montage",lbl:"plage : effacer",combo:"X"},
+ {id:"range_cut",sec:"Montage",lbl:"plage : couper (toutes pistes, ripple)",combo:"Maj+X"},
  {id:"zoom_in",sec:"Affichage",lbl:"zoom avant (crans)",combo:"Ctrl+="},
  {id:"zoom_out",sec:"Affichage",lbl:"zoom arrière (crans)",combo:"Ctrl+-"},
  {id:"zoom100",sec:"Affichage",lbl:"zoom 100 %",combo:"Maj+Z"},
@@ -2110,7 +2114,7 @@ function DzMontage(props){
        Bibliothèque — et ses ids (`v1_<job>`, `a1_<job>`, `c<i>`) ne se
        répètent pas. La note de M22c le dit dans les deux cas. */
     histRef.current={u:[],r:[]};setHistTick(function(t){return t+1});
-    var np={demo:!1,tracks:svmTracksFrom(d.tracks),project_id:d.project_id,v1NonVideo:Array.isArray(d.v1_non_video)?d.v1_non_video:null,name:d.name||"montage",version:"v1",ratio:d.ratio||"9:16",
+    var np={demo:!1,tracks:svmTracksFrom(d.tracks),project_id:d.project_id,v1NonVideo:Array.isArray(d.v1_non_video)?d.v1_non_video:null,range:DzTracks.rangeFrom(d.range),name:d.name||"montage",version:"v1",ratio:d.ratio||"9:16",
       dur:Math.max(1,Number(d.duration)||maxEnd),mixDb:d.mix||SVM_DEMO_MIX};
     if(d.saved){
       /* restauration des commutateurs + réglages ducking sauvegardés */
@@ -2161,6 +2165,7 @@ function DzMontage(props){
          fichier existant : sans elle (montage sans nom), rien ne
          change, pas un fichier n'est semé. */
       project_id:proj.project_id,
+      range:DzTracks.rangeFrom(proj.range),
       /* style des sous-titres : envoyé pour le jour où la sauvegarde serveur
          le connaîtra (les segments, eux, sont déjà dans `clips` et sont
          stockés tels quels) ; en attendant c'est dz_subs_style qui le retient */
@@ -3187,6 +3192,8 @@ function DzMontage(props){
       if(id==="redo"){redo();return}
       if(id==="snap"){setSnap(function(s){return !s});return}
       if(id==="ripple"){setRipple(function(v){return !v});return}
+      if(id==="range_in"||id==="range_out"||id==="range_clear"){pushHistory();var dzW=id.slice(6);setProj(function(p){return Object.assign({},p,{range:DzTracks.rangeSet(p.range,dzW,phRef.current,p.dur)})});setDirty(!0);return}
+      if(id==="range_cut"){var dzRg=DzTracks.rangeFrom(dzProjRef.current&&dzProjRef.current.range);if(!dzRg){fireNote("Aucune plage : I pose l'entrée, U la sortie.");return}var dzLk={};Object.keys(trackStRef.current).forEach(function(k){if(trackStRef.current[k]&&trackStRef.current[k].l)dzLk[k]=!0});var dzLoop=svmTracksOf(dzProjRef.current).filter(function(t){return t.loop}).map(function(t){return t.id});var dzRc=DzTracks.rippleCut(clipsRef.current,dzRg.in,dzRg.out,{loopTracks:dzLoop,locked:dzLk});pushHistory();setClips(dzRc.clips);setProj(function(p){return Object.assign({},p,{range:null})});setDirty(!0);fireNote("Plage "+dzRg.in.toFixed(2)+" → "+dzRg.out.toFixed(2)+" s coupée sur toutes les pistes — "+dzRc.removed.toFixed(2)+" s retirés, la suite remonte.");return}
       if(id==="zoom_in"){zoomApply(zoomPctRef.current*1.25);return}
       if(id==="zoom_out"){zoomApply(zoomPctRef.current/1.25);return}
       if(id==="zoom100"){zoomApply(100);return}
@@ -5880,7 +5887,7 @@ function DzMontage(props){
         r.jsxs("div",{className:"svm-lanes",style:{width:zoomPct+"%"},children:[
           r.jsxs("div",{className:"svm-ruler",onPointerDown:rulerDown,
             onPointerMove:rulerHover,onPointerLeave:rulerLeave,children:[
-            r.jsx("div",{className:"svm-gutter"}),
+            r.jsx("div",{className:"svm-gutter"}),r.jsx(DzTracks.RangeBar,{range:proj.range,dur:dur}),
             ticks.map(function(t3){return r.jsx("div",{className:"svm-tick",children:svmRuler(t3)},t3)})]}),
           svmTracksOf(proj).map(function(tr){
             var bus=SVM_TRACK_BUS[tr.id];
@@ -17198,6 +17205,51 @@ function dzmHistApply(p,s){
   for(i=0;i<DZM_HIST_CLES.length;i++){k=DZM_HIST_CLES[i];if(k in s)n[k]=s[k]}
   return n}
 
+/* ── D-11 (21/09/2026) : LA PLAGE D'ENTRÉE / SORTIE ───────────────────────
+   `proj.range` = {in, out} (secondes, null si non posé) ou null. Pure :
+   `dzmRangeSet(range, which, t, dur)` rend la plage suivante ; "in" après
+   "out" pousse "out" à dur (jamais une plage inversée) ; "clear" rend null.
+   Persistée par POST /save (`range`), restaurée par `dzmRangeFrom`. */
+function dzmRangeNum(v,dur){
+  var n=Number(v);if(!isFinite(n))return null;
+  var d=Number(dur);if(!isFinite(d)||d<0)d=0;
+  return Math.max(0,Math.min(d,dzmR3(n)))}
+function dzmRangeSet(range,which,t,dur){
+  var r=range&&typeof range==="object"?{in:range.in,out:range.out}:{in:null,out:null};
+  if(which==="clear")return null;
+  var v=dzmRangeNum(t,dur);
+  if(v==null)return range||null;
+  if(which==="in"){r.in=v;if(r.out!=null&&r.out<=v)r.out=dzmRangeNum(dur,dur)}
+  else if(which==="out"){r.out=v;if(r.in!=null&&r.in>=v)r.in=0}
+  else return range||null;
+  if(r.in==null)r.in=null;if(r.out==null)r.out=null;
+  return r}
+function dzmRangeFrom(v){
+  if(!v||typeof v!=="object")return null;
+  var a=Number(v.in),b=Number(v.out);
+  if(!isFinite(a)||!isFinite(b)||a<0||b<=a)return null;
+  return {in:dzmR3(a),out:dzmR3(b)}}
+function dzmRangeLen(r){
+  if(!r||typeof r!=="object")return 0;
+  var a=Number(r.in),b=Number(r.out);
+  return (isFinite(a)&&isFinite(b)&&b>a)?dzmR3(b-a):0}
+/* la barre sur la règle : deux poignées et la bande entre elles.
+   `dzmRangeFrom` fait ici office de garde : sans plage COMPLÈTE et valide
+   (une entrée seule, une plage inversée, rien du tout), le composant rend
+   `null` et la règle est exactement celle d'avant — c'est ce qui rend la
+   section R3 inoffensive tant que I / U n'ont pas été frappés.
+   Les 88 px retranchés sont la GOUTTIÈRE (`.svm-gutter`, 88 px collants) :
+   la même soustraction que `phFromEvent` du bundle, qui lit la tête de
+   lecture à `(clientX - left - 88) / (width - 88)`. */
+function DzmRangeBar(o){
+  var rg=dzmRangeFrom(o&&o.range),d=Number(o&&o.dur)||1;
+  if(!rg)return null;
+  var l=rg.in/d*100,w=(rg.out-rg.in)/d*100;
+  return r.jsx("div",{className:"dzm-range","data-testid":"dzm-range",
+    title:"Plage "+rg.in.toFixed(2)+" s → "+rg.out.toFixed(2)+" s — I : entrée, "+
+      "U : sortie, X : effacer, Maj+X : couper la plage (toutes pistes, ripple)",
+    style:{left:"calc(88px + (100% - 88px) * "+(l/100)+")",width:"calc((100% - 88px) * "+(w/100)+")"}})}
+
 /* ── export contrat ───────────────────────────────────────────────────────── */
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
@@ -17258,6 +17310,8 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   BD_GAP:DZM_BD_GAP,BD_SEP:DZM_BD_SEP,BD_HORS:DZM_BD_HORS,
   bdMesure:dzmBdMesure,bdPose:dzmBdPose,bdTour:dzmBdTour,bdLarg:dzmBdLarg,
   histSnap:dzmHistSnap,histApply:dzmHistApply,HIST_CLES:DZM_HIST_CLES,
+  rangeSet:dzmRangeSet,rangeFrom:dzmRangeFrom,rangeLen:dzmRangeLen,
+  RangeBar:DzmRangeBar,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;
 

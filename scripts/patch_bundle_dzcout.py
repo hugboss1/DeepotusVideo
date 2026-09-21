@@ -179,7 +179,13 @@ STABLE_PROBES = [
     # appelle `svmTrackBusSync(s.tracks)` NU, qui retombe deja sur
     # DZM_DEFAULT_TRACKS quand la cle manquait ; un `||DzTracks.DEFAULTS`
     # aurait ajoute deux jetons sans rien changer au comportement.
-    ("montage", "DzTracks", 63),
+    # 21/09/2026 D-11 : 63 -> 69, MESURE apres rejeu (la chaine a refuse au
+    # premier passage, « sonde montage x69 (want 63) »). SIX references de
+    # plus, la plage I/O : rangeSet, rangeFrom et rippleCut dans la branche
+    # de dispatch du clavier (R2), RangeBar sur la regle (R3), rangeFrom
+    # dans le payload de sauvegarde (repli R4 dans R_M6) et rangeFrom a la
+    # restauration (repli R5 dans R_M7).
+    ("montage", "DzTracks", 69),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

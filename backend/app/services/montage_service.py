@@ -823,6 +823,25 @@ def _save_record(body) -> dict:
     # inconnue, donc hors du rendu. GET /project les resert à l'éditeur.
     if isinstance(body.get("tracks"), list):
         data["tracks"] = body["tracks"]
+    # D-11 : la plage d'entrée/sortie {in, out} en secondes. Assainie ICI —
+    # deux nombres finis, 0 <= in < out — et pas seulement à l'écran : le
+    # payload n'est pas de confiance (un autre client, une version plus
+    # ancienne de la couche). Absente ou invalide : la clé n'est PAS
+    # stockée, et GET /project ne la resert donc pas — rien ne change pour
+    # un montage qui n'a jamais posé de plage.
+    rg = body.get("range")
+    if isinstance(rg, dict):
+        try:
+            a, b = float(rg.get("in")), float(rg.get("out"))
+            # `math.isfinite` plutot que le seul `a == a` du plan : MESURE du
+            # 21/09/2026 — `float("Infinity")` passe `b == b` ET `0 <= a < b`,
+            # et un `inf` stocke ressort en `Infinity` dans le JSON du fichier,
+            # que json.loads relit mais qu aucun JSON.parse de navigateur
+            # n accepte. isfinite couvre NaN et les deux infinis d un coup.
+            if math.isfinite(a) and math.isfinite(b) and 0 <= a < b:
+                data["range"] = {"in": round(a, 3), "out": round(b, 3)}
+        except (TypeError, ValueError):
+            pass
     return data
 
 
@@ -1072,6 +1091,8 @@ async def montage_project(limit: int = 4):
             # premier autosave venu cassait le lien.
             if isinstance(saved.get("project_id"), str) and saved["project_id"]:
                 out["project_id"] = saved["project_id"]
+            if isinstance(saved.get("range"), dict):
+                out["range"] = saved["range"]         # D-11 (cf. POST /save)
             if pruned:
                 out["saved_pruned"] = True
                 out["pruned"] = pruned

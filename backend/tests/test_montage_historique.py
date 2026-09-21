@@ -50,6 +50,15 @@ var s2=T.histSnap({clips:[],mixDb:{},proj:{dur:5}});
 out.absent_porte_la_cle="tracks" in s2&&s2.tracks===void 0;
 var a2=T.histApply({tracks:[{id:"v9"}],dur:1},s2);
 out.absent_restaure="tracks" in a2&&a2.tracks===void 0&&a2.dur===5;
+/* [2] plage I/O */
+out.r_in=T.rangeSet(null,"in",3.2,10);
+out.r_out=T.rangeSet({in:3.2,out:null},"out",7,10);
+out.r_inverse=T.rangeSet({in:6,out:8},"in",9,10);       /* in > out : out suit */
+out.r_borne=T.rangeSet(null,"out",99,10);
+out.r_neg=T.rangeSet(null,"in",-4,10);
+out.r_clear=T.rangeSet({in:1,out:2},"clear",0,10);
+out.r_from=[T.rangeFrom({in:"1.5",out:4}),T.rangeFrom({in:5,out:2}),T.rangeFrom("x"),T.rangeFrom({in:1})];
+out.r_len=[T.rangeLen({in:1,out:4.5}),T.rangeLen(null),T.rangeLen({in:2,out:null})];
 console.log(JSON.stringify(out));
 """
 print("\n[1] histSnap / histApply sous node")
@@ -95,6 +104,22 @@ check("hist_snap_porte_une_cle_absente_comme_absente",
 check("hist_apply_restaure_l_absence",
       D.get("absent_restaure") is True,
       f'absent_restaure={D.get("absent_restaure")}')
+print("\n[2] plage I/O")
+check("range_in_pose_l_entree", D.get("r_in") == {"in": 3.2, "out": None}, D.get("r_in"))
+check("range_out_pose_la_sortie", D.get("r_out") == {"in": 3.2, "out": 7}, D.get("r_out"))
+check("range_entree_apres_la_sortie_pousse_la_sortie", D.get("r_inverse") == {"in": 9, "out": 10},
+      D.get("r_inverse"))
+check("range_borne_a_la_duree", D.get("r_borne") == {"in": None, "out": 10}, D.get("r_borne"))
+check("range_jamais_negative", D.get("r_neg") == {"in": 0, "out": None}, D.get("r_neg"))
+# REGLE DES ASSERTIONS NEGATIVES. Le plan ecrivait `D.get("r_clear") is None` :
+# a VIDE (shim muet, cle absente) cette ligne VERDIT toute seule -- mesure du
+# 21/09/2026, banc rouge avant implementation, 1 passed / 22 failed, et le seul
+# passed etait celui-la. La cle doit d'abord ETRE LA, et valoir null ensuite.
+check("range_clear_rend_null", "r_clear" in D and D["r_clear"] is None,
+      f'"r_clear" in D={"r_clear" in D} v={D.get("r_clear")!r}')
+check("range_from_assainit",
+      D.get("r_from") == [{"in": 1.5, "out": 4}, None, None, None], D.get("r_from"))
+check("range_len", D.get("r_len") == [3.5, 0, 0], D.get("r_len"))
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

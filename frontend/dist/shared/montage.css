@@ -922,3 +922,17 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
    puis tiroir FERMÉ, la même contre `.svm-playerbar` (t.top contre le
    `bottom` de son dernier enfant). */
 .dzsvm .svm-narr{padding-bottom:27px}
+
+/* D-11 — la plage I/O sur la regle : bande ambre translucide, 4 px de haut,
+   posee au pied de la regle (18 px) ; ne capte aucun pointeur.
+   MESURE le 21/09/2026 : `.svm-ruler` de son-vfx-montage.css (l.333) n'a
+   AUCUN `position` — c'est `.svm-lanes` qui est `position:relative`. Sans la
+   ligne ci-dessous, la bande se serait donc calee sur les voies ENTIERES et
+   aurait barre toutes les pistes, pas la regle. La regle n'est pas dupliquee :
+   elle n'existe nulle part ailleurs.
+   `--gold` n'est defini par AUCUNE des six feuilles de /shared (mesure du
+   21/09/2026) : c'est le repli #f0b429 qui peint, et il est ecrit pour qu'un
+   jeton `--gold` ajoute plus tard reprenne la main sans toucher ici. */
+.dzsvm .svm-ruler{position:relative}
+.dzsvm .dzm-range{position:absolute; bottom:0; height:4px; pointer-events:none;
+  background:var(--gold, #f0b429); opacity:.7; z-index:3}
