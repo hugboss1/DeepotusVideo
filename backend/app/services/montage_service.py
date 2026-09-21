@@ -778,6 +778,11 @@ def _delete_saved() -> bool:
 # frontend/patches/montage.js. Une couleur inconnue retombe sur « or »,
 # des DEUX côtés — le client ne peut pas être la seule garde.
 _MONTAGE_MARKER_COLORS = ("or", "rouge", "vert", "bleu", "violet", "cyan")
+# Et l'ÉCART MINIMAL entre deux marqueurs, celui de DZM_MARKER_EPS dans la
+# couche. Deux marqueurs plus proches que cela ne sont pas deux marqueurs :
+# le second est injoignable au clavier, et la bascule Maj+M retirerait le
+# premier des deux.
+_MONTAGE_MARKER_EPS = 0.15
 
 
 def _save_record(body) -> dict:
@@ -860,22 +865,37 @@ def _save_record(body) -> dict:
     # LISTE VIDE : la clé n'est PAS écrite, exactement comme `range` — un
     # montage dont on vient de retirer le dernier marqueur revient donc sans
     # marqueur, et rien ne change pour un montage qui n'en a jamais eu.
+    # I-2 (revue du 21/09/2026) : L'INVARIANT D'ESPACEMENT EST TENU ICI
+    # AUSSI. Le client ne peut pas en être la seule garde — une timeline
+    # écrite par un autre client, ou un fichier édité à la main, pouvait
+    # porter 1,00 et 1,12 : le second était INJOIGNABLE par « marqueur
+    # suivant / précédent », qui saute tout ce qui est à moins d'un
+    # `DZM_MARKER_EPS` de la tête. Le TRI PRÉCÈDE le filtre (c'est toujours
+    # le premier de deux voisins qui reste), et les doublons exacts tombent
+    # par la même règle — distance nulle. Le plafond s'applique APRÈS :
+    # 200 marqueurs UTILES, pas 200 entrées dont la moitié serait jetée.
+    # Même ordre, à la constante près, que `dzmMarkersFrom` de la couche.
     mks = body.get("markers")
     if isinstance(mks, list):
-        out_mk = []
+        brut = []
         for m in mks:
-            if len(out_mk) >= 200:
-                break
             if not isinstance(m, dict):
                 continue
+            t = m.get("t")
+            # `float("")` LÈVE, et c'est voulu : une chaîne vide n'est pas un
+            # temps. Le client dit la même chose depuis `dzmMarkerT` — avant
+            # lui, `Number("")` valait ZÉRO côté écran et le marqueur
+            # disparaissait au rechargement sans un mot.
+            if isinstance(t, bool) or t is None:
+                continue
             try:
-                t = float(m.get("t"))
+                t = float(t)
             except (TypeError, ValueError):
                 continue
             if not math.isfinite(t) or t < 0:
                 continue
             col = m.get("color")
-            out_mk.append({
+            brut.append({
                 "t": round(t, 3),
                 "color": col if col in _MONTAGE_MARKER_COLORS else "or",
                 "title": ("" if m.get("title") is None
@@ -883,6 +903,13 @@ def _save_record(body) -> dict:
                 "note": ("" if m.get("note") is None
                          else str(m.get("note")))[:1000],
             })
+        out_mk = []
+        for m in sorted(brut, key=lambda e: e["t"]):
+            if len(out_mk) >= 200:
+                break
+            if out_mk and m["t"] - out_mk[-1]["t"] < _MONTAGE_MARKER_EPS:
+                continue
+            out_mk.append(m)
         if out_mk:
             data["markers"] = out_mk
     return data

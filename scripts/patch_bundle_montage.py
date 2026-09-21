@@ -887,6 +887,31 @@ R_M16REF = (A_M16REF + "\n"
             # perimee -- K2 et K5 ne font que le BASCULER, par le setter
             # fonctionnel, qui recoit toujours la valeur vivante.
             "  var stDzMk=x.useState(!1),dzMkOn=stDzMk[0],setDzMkOn=stDzMk[1];\n"
+            # I-4 (revue du 21/09/2026) : L'INDEX ET LE SELECTEUR D'ASSETS
+            # SE RECOUVRAIENT. Les deux sont des `.svm-pop` a `top:96` et
+            # rien ne fermait l'un quand l'autre s'ouvrait : deux panneaux
+            # empiles au meme pixel, et le second illisible. La ref est
+            # NECESSAIRE ici (contrairement a ce que disait la premiere
+            # version de ce commentaire) : `dzMkToggle` doit LIRE l'etat
+            # pour savoir si elle OUVRE -- et elle est appelee depuis
+            # `onKey`, qui peut tenir une fermeture perimee.
+            # LA BASCULE EST LE SEUL CHEMIN : K2 (le raccourci), K5 (la
+            # chip) et K7 (Echap) l'appellent tous, donc l'exclusion ne
+            # peut pas etre oubliee d'un cote.
+            "  var dzMkOnRef=x.useRef(!1);dzMkOnRef.current=dzMkOn;\n"
+            "  function dzMkToggle(v){"
+            "var n=arguments.length?!!v:!dzMkOnRef.current;"
+            'if(n)setOvPick("");setDzMkOn(n)}\n'
+            # ET L'AUTRE SENS, par EFFET plutot que par une seconde retouche
+            # d'`openPicker` : le selecteur s'ouvre depuis PLUSIEURS chemins
+            # (le « + » d'en-tete de piste, le bouton « lier » de la barre,
+            # le greffon « Envoyer vers -> Montage »), qui passent tous par
+            # l'ETAT `ovPick`. Un effet sur cet etat les couvre tous ; une
+            # ligne posee dans `openPicker` n'en aurait couvert qu'un.
+            # MESURE : `var stO=x.useState(""),ovPick=stO[0]` est a l'offset
+            # 784168 du .bak et l'ancre de CE remplacement a 785144 --
+            # `ovPick` est donc DEJA declare, et l'effet lit sa vraie valeur.
+            "  x.useEffect(function(){if(ovPick)setDzMkOn(!1)},[ovPick]);\n"
             "  var dzModeRef=x.useRef(dzMode);dzModeRef.current=dzMode;\n"
             "  /* P9 — « le VRAI projet est-il arrivé ? ». Tant que\n"
             "     `svmApplyProject` n'a pas remplacé la maquette, `proj` est la\n"
@@ -2788,20 +2813,35 @@ R_R2 = (A_R2 + "\n"
         '\n      if(id==="marker_toggle"){'
         'var dzMkL=(dzProjRef.current&&dzProjRef.current.markers)||[];'
         'var dzMkT=Number(phRef.current)||0,dzMkN=DzTracks.markerAdd(dzMkL,dzMkT,{});'
+        # LA NOTE NE MENT PLUS SUR LA CAUSE (revue du 21/09/2026) :
+        # elle disait « 200 au maximum » meme quand `markerAdd` avait
+        # refuse pour une tout autre raison. Les deux cas sont
+        # desormais DISTINGUES -- le plafond, et une tete de lecture
+        # illisible (`dzmMarkerT` rend `null` sur NaN, sur l'infini,
+        # sur un negatif, sur une chaine vide).
         'if(dzMkN.length===dzMkL.length){'
-        'fireNote("Marqueur impossible ici \u2014 200 au maximum par montage.");return}'
+        'fireNote(dzMkL.length>=200'
+        '?"Plafond atteint \u2014 200 marqueurs au maximum par montage."'
+        ':"T\u00eate de lecture illisible \u2014 marqueur non pos\u00e9.");return}'
         'pushHistory();'
         'setProj(function(p){return Object.assign({},p,{markers:dzMkN})});setDirty(!0);'
         'fireNote(dzMkN.length<dzMkL.length'
         '?("Marqueur retir\u00e9 \u00e0 "+dzMkT.toFixed(2)+" s.")'
-        ':("Marqueur pos\u00e9 \u00e0 "+dzMkT.toFixed(2)+" s \u2014 Ctrl+M : l\'index."));return}\n'
+        # I-5 : LA COMBO VIENT DE LA KEYMAP VIVANTE, jamais du texte.
+        # Les quatre actions sont remappables (panneau « ? ») et une
+        # note qui dit « Ctrl+M » apres un remappage MENT.
+        # `svmKeyLabel` est declaree DANS ce composant
+        # (`return km.byId[id]||…`) : elle lit la keymap fusionnee du
+        # rendu courant, exactement comme la chip « lame ».
+        ':("Marqueur pos\u00e9 \u00e0 "+dzMkT.toFixed(2)+" s \u2014 "'
+        '+svmKeyLabel("marker_index")+" : l\'index."));return}\n'
         '      if(id==="marker_prev"||id==="marker_next"){'
         'var dzMkD=id==="marker_next"?1:-1;'
         'var dzMkG=DzTracks.markerNext(dzProjRef.current&&dzProjRef.current.markers,'
         'phRef.current,dzMkD);'
         'if(dzMkG!=null)seekTo(dzMkG);'
         'else fireNote("Aucun marqueur "+(dzMkD>0?"apr\u00e8s":"avant")+" la t\u00eate.");return}\n'
-        '      if(id==="marker_index"){setDzMkOn(function(v){return !v});return}')
+        '      if(id==="marker_index"){dzMkToggle();return}')
 
 # ── R3 (D-11) : la bande sur la regle, apres la gouttiere ──────────────────
 # `DzmRangeBar` rend `null` tant que la plage n'est pas COMPLETE : la regle
@@ -2926,9 +2966,10 @@ R_K5 = (A_K5 + "\n"
         '          r.jsx("button",{className:"svm-toolchip",'
         '"data-on":dzMkOn?"":void 0,\n'
         '            "aria-label":"marqueurs",\n'
-        '            title:"Marqueurs \u2014 index (Ctrl+M) \u00b7 Maj+M pose/retire '
-        '\u00e0 la t\u00eate",'
-        'onClick:function(){setDzMkOn(function(v){return !v})},'
+        '            title:"Marqueurs \u2014 index ("+svmKeyLabel("marker_index")'
+        '+") \u00b7 "+svmKeyLabel("marker_toggle")'
+        '+" pose/retire \u00e0 la t\u00eate",'
+        'onClick:function(){dzMkToggle()},'
         'children:"\u25c6 "+((proj.markers||[]).length)}),')
 
 # -- K5b : le panneau de l'index, parmi les popovers -------------------------
@@ -2954,6 +2995,27 @@ R_K5B = (A_K5B + "\n"
          "setProj(function(p){return Object.assign({},p,"
          "{markers:DzTracks.markerUpdate(p.markers,id,patch)})});setDirty(!0)}"
          "}):null,")
+
+
+# ── K7 (D-5) : ECHAP FERME L'INDEX ────────────────────────────────────────
+# LA VOIE EST CELLE DU BUNDLE, pas une seconde. MESURE du 21/09/2026 : trois
+# panneaux se ferment sur Echap, chacun a sa facon -- `kbPanel` par une
+# branche de `onKey` sous le voile, `transPopover` par un `keydown` de
+# fenetre en capture, et le champ de recherche par son propre `onKeyDown`.
+# La quatrieme voie est la BRANCHE `Escape` DE `onKey`, qui existe deja (1/1
+# dans le .bak) et qui rendait la main quand aucun overlay n'etait
+# selectionne : c'est la que l'index se ferme, AVANT ce repli. Rien de neuf
+# n'est ecoute, et l'ordre est celui qu'on attend -- Echap ferme d'abord le
+# panneau ouvert, et ne retombe sur les fleches de l'overlay qu'ensuite.
+A_K7 = ('if(e.key==="Escape"){\n'
+        "        if(kbAudioRef.current&&kbAudioRef.current.ovEsc&&"
+        "kbAudioRef.current.ovEsc())e.preventDefault();\n"
+        "        return}")
+R_K7 = ('if(e.key==="Escape"){\n'
+        "        if(dzMkOnRef.current){e.preventDefault();dzMkToggle(!1);return}\n"
+        "        if(kbAudioRef.current&&kbAudioRef.current.ovEsc&&"
+        "kbAudioRef.current.ovEsc())e.preventDefault();\n"
+        "        return}")
 
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
@@ -3079,7 +3141,13 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            # de la ligne de la chip `ripple`, que M21 (qui passe avant)
            # reecrit en tete mais reprend mot pour mot en queue.
            ("K5-chip-marqueurs", A_K5, R_K5),
-           ("K5b-index-marqueurs", A_K5B, R_K5B)]
+           ("K5b-index-marqueurs", A_K5B, R_K5B),
+           # K7 : Echap. Ancre 1/1 dans .bak_montage, et aucune section
+           # anterieure n'y touche. `dzMkOnRef` et `dzMkToggle` viennent de
+           # K3, replie dans R_M16REF, qui passe AVANT (ordre de PATCHES) --
+           # et `dzMkToggle` est une DECLARATION de fonction, hissee dans le
+           # corps du composant : l'ordre d'ecriture n'y change rien.
+           ("K7-echap-ferme-index", A_K7, R_K7)]
 
 
 def nl(text, crlf):

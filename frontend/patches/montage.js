@@ -5091,6 +5091,17 @@ function dzmMarkerColor(c){
 function dzmMarkerHex(c){
   var o=DZM_MARKER_COLORS.filter(function(x){return x[0]===c})[0];
   return (o||DZM_MARKER_COLORS[0])[1]}
+/* I-6 (revue du 21/09/2026) : LE MEME `t` DES DEUX COTES. `Number("")`
+   vaut ZERO en JavaScript, quand `float("")` LEVE en Python : un marqueur
+   `{t:""}` etait accepte a 0 s par le client et jete par le serveur, donc il
+   disparaissait au rechargement sans un mot. Le lecteur est desormais
+   STRICT, et il dit `null` sur ce que le backend refuse : rien, une chaine
+   vide ou blanche, un non-nombre, un infini, un negatif. */
+function dzmMarkerT(v){
+  if(v==null)return null;
+  if(typeof v==="string"&&!v.replace(/\s/g,""))return null;
+  var n=Number(v);
+  return (isFinite(n)&&n>=0)?n:null}
 function dzmMarkerTexte(v,max){
   var s=v==null?"":String(v);return s.length>max?s.slice(0,max):s}
 function dzmMarkerId(ms){
@@ -5100,10 +5111,17 @@ function dzmMarkerId(ms){
 function dzmMarkersSort(ms){
   return ms.slice().sort(function(a,b){return a.t-b.t})}
 function dzmMarkerAdd(ms,t,o){
-  var l=Array.isArray(ms)?ms.filter(Boolean):[],v=Number(t);
-  if(!isFinite(v)||v<0)return l.slice();
-  var near=l.filter(function(m){
-    return Math.abs(Number(m.t)-v)<=DZM_MARKER_EPS})[0];
+  var l=Array.isArray(ms)?ms.filter(Boolean):[],v=dzmMarkerT(t);
+  if(v==null)return l.slice();
+  /* I-1 (revue du 21/09/2026) : LE PLUS PROCHE, PAS LE PREMIER. Le filtre
+     rendait le premier marqueur DE LA LISTE dans la tolerance ; avec A a
+     1,00 et B a 1,10, une tete a 1,09 retirait A. Mesure du 21/09/2026.
+     La liste est triee, mais deux marqueurs peuvent etre a moins de 2 EPS
+     l'un de l'autre et encadrer la tete : c'est la DISTANCE qui tranche. */
+  var near=null,dmin=DZM_MARKER_EPS;
+  l.forEach(function(m){
+    var d=Math.abs(Number(m.t)-v);
+    if(d<=dmin+1e-9&&(near===null||d<dmin)){near=m;dmin=d}});
   if(near&&!(o&&o.force))return l.filter(function(m){return m!==near});
   if(l.length>=DZM_MARKER_MAX)return l.slice();
   var m={id:dzmMarkerId(l),t:dzmR3(v),color:dzmMarkerColor(o&&o.color),
@@ -5132,23 +5150,49 @@ function dzmMarkerNext(ms,t,dir){
   if(dir>=0){for(i=0;i<l.length;i++)if(l[i].t>v+DZM_MARKER_EPS)return l[i].t}
   else{for(i=l.length-1;i>=0;i--)if(l[i].t<v-DZM_MARKER_EPS)return l[i].t}
   return null}
-/* RESTAURATION : les identifiants sont REGÉNÉRÉS (m1…mN) et jamais relus du
-   disque — deux marqueurs d'un vieux fichier pouvaient porter le même. */
+/* RESTAURATION. TROIS regles, et la deuxieme est celle qui manquait :
+     · les identifiants sont REGENERES (m1..mN), jamais relus du disque —
+       deux marqueurs d'un vieux fichier pouvaient porter le meme, et
+       `markerRemove` en aurait retire deux ;
+     · L'INVARIANT D'ESPACEMENT (>= DZM_MARKER_EPS) est tenu ICI AUSSI.
+       I-2, revue du 21/09/2026 : `markerAdd` etait le seul a le tenir, donc
+       un fichier (ou un autre client) pouvait poser 1,00 et 1,12 — et le
+       second etait INJOIGNABLE par Ctrl+haut / Ctrl+bas, qui sautent tout ce
+       qui est a moins d'un EPS. Le tri PRECEDE le filtre : c'est toujours le
+       PREMIER de deux voisins qui reste, et les doublons exacts tombent par
+       la meme regle (distance nulle) ;
+     · le plafond s'applique APRES le filtre — 200 marqueurs UTILES, pas 200
+       entrees dont la moitie serait jetee. Meme ordre que `_save_record`. */
 function dzmMarkersFrom(v){
-  var out=[];
+  var brut=[];
   (Array.isArray(v)?v:[]).forEach(function(m){
-    if(out.length>=DZM_MARKER_MAX)return;
     if(!m||typeof m!=="object")return;
-    var t=Number(m.t);if(!isFinite(t)||t<0)return;
-    out.push({id:dzmMarkerId(out),t:dzmR3(t),color:dzmMarkerColor(m.color),
+    var t=dzmMarkerT(m.t);if(t==null)return;
+    brut.push({t:dzmR3(t),color:dzmMarkerColor(m.color),
       title:dzmMarkerTexte(m.title,DZM_MARKER_TITRE_MAX),
       note:dzmMarkerTexte(m.note,DZM_MARKER_NOTE_MAX)})});
-  return dzmMarkersSort(out)}
+  var out=[];
+  dzmMarkersSort(brut).forEach(function(m){
+    if(out.length>=DZM_MARKER_MAX)return;
+    if(out.length&&m.t-out[out.length-1].t<DZM_MARKER_EPS)return;
+    m.id="m"+(out.length+1);out.push(m)});
+  return out}
 /* LES LOSANGES SUR LA RÈGLE. Même gouttière de 88 px que `DzmRangeBar`, et
    même borne : un marqueur PERSISTÉ survit à un raccourcissement de la durée
    et `t` peut alors dépasser `dur` — sans le Math.min, `left` passait 100 %.
    `svmTcFF` (le timecode du bloc sonvfx) est résolu À L'APPEL et jamais au
    chargement : sous node, la couche est seule et le symbole n'existe pas. */
+/* I-5 : LA COMBO N'EST PAS ECRITE EN DUR. Les quatre actions du lot sont
+   REMAPPABLES (panneau « ? »), et une infobulle qui dit « Maj+M » apres un
+   remappage MENT. `svmKeyLabelNow` est la lecture de la keymap vivante au
+   NIVEAU MODULE du bundle (celle que le tiroir Sons emploie deja, 3
+   occurrences) — `svmKeyLabel`, lui, vit DANS le composant et lit son `km`
+   de closure : la couche ne peut pas l'atteindre. Resolu A L'APPEL, comme
+   `svmTcFF`, et avec le meme repli : sous node le symbole n'existe pas, et
+   `svmKeyLabelNow` rend "" sur une action inconnue. */
+function dzmMarkerCombo(){
+  var f=typeof svmKeyLabelNow==="function"?svmKeyLabelNow:null;
+  return (f&&f("marker_toggle"))||"Maj+M"}
 function DzmMarkers(o){
   var ms=Array.isArray(o&&o.markers)?o.markers.filter(Boolean):[],
       d=Number(o&&o.dur)||1,go=o&&o.onSeek;
@@ -5158,9 +5202,20 @@ function DzmMarkers(o){
     return r.jsx("button",{className:"dzm-mk",
       "aria-label":"Marqueur "+dzTc(m.t)+(m.title?" — "+m.title:""),
       title:(m.title||"marqueur")+" · "+dzTc(m.t)+(m.note?"\n"+m.note:"")+
-        "\nclic : aller · Maj+M à la tête : retirer",
+        "\nclic : aller · "+dzmMarkerCombo()+" à la tête : retirer",
       style:{left:"calc(88px + (100% - 88px) * "+(l/100)+")",
         background:dzmMarkerHex(m.color)},
+      /* C-1 (revue du 21/09/2026) : SANS CECI LE CLIC NE VA NULLE PART. Le
+         parent `.svm-ruler` porte `onPointerDown:rulerDown`, qui prend la
+         capture du pointeur et fait `seekTo(phFromEvent(e, el))` : la tete
+         partait SOUS LE CURSEUR avant que le `click` du bouton n'arrive, et
+         le losange semblait mort a deux pixels pres. Meme parade que
+         `vpDown` du bundle (`e.stopPropagation(); e.preventDefault()`), et
+         c'est le POINTERDOWN qu'il faut avaler : le `click`, lui, arrive
+         trop tard. */
+      onPointerDown:function(e){
+        if(e&&e.stopPropagation)e.stopPropagation();
+        if(e&&e.preventDefault)e.preventDefault()},
       onClick:function(){if(go)go(m.t)}},m.id)})}
 /* L'INDEX. Le titre part sur `onBlur` (et sur Entrée), PAS sur chaque
    frappe : `onChange` poussait un instantané d'historique par caractère et
@@ -5185,10 +5240,24 @@ function DzmMarkerIndex(o){
             if(o.onChange)o.onChange(m.id,{color:e.target.value})},
           children:DZM_MARKER_COLORS.map(function(c){
             return r.jsx("option",{value:c[0],children:c[0]},c[0])})}),
+        /* I-3 (revue du 21/09/2026) : LA CLE PORTE LE TITRE. Le champ est
+           NON CONTROLE (`defaultValue`) — c'est ce qui l'empeche de remonter
+           a chaque frappe — mais React IGNORE `defaultValue` a la mise a
+           jour : apres Ctrl+Z, le projet rendait l'ancien titre pendant que
+           l'input gardait le neuf. Une cle qui porte la VALEUR force le
+           remontage des que l'amont change, et le champ repart de la bonne
+           chaine. CE QUE CELA COUTE, ET C'EST ASSUME : valider par Entree
+           remonte le titre, donc change la cle, donc remonte l'input — le
+           focus est perdu. Un etat local resynchronise par `useEffect` le
+           garderait, mais `DzmMarkerIndex` n'est PAS un composant a hooks
+           (il est appele comme une fonction depuis le rendu de l'hote, au
+           milieu d'un `?:`), et lui en donner un serait un appel de hook
+           conditionnel. */
         r.jsx("input",{className:"dzm-mktitre",defaultValue:m.title,
           placeholder:"titre","aria-label":"Titre du marqueur "+dzTc(m.t),
           onBlur:function(e){titre(m,e)},
-          onKeyDown:function(e){if(e.key==="Enter")titre(m,e)}}),
+          onKeyDown:function(e){if(e.key==="Enter")titre(m,e)}},
+          m.id+"|"+m.title),
         r.jsx("button",{className:"svm-minibtn",title:"Retirer ce marqueur",
           "aria-label":"Retirer le marqueur "+dzTc(m.t),
           onClick:function(){if(o.onRemove)o.onRemove(m.id)},

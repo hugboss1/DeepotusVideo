@@ -982,3 +982,18 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
 .dzsvm .dzm-mkrow .svm-fxchip{flex:0 0 auto}
 .dzsvm .dzm-mkcol{flex:0 0 auto; max-width:80px; font-family:var(--f-mono);
   font-size:10px}
+/* I-7 (revue du 21/09/2026) : SANS CECI, UN INPUT NU. Le champ de titre
+   heritait du chrome du navigateur -- fond blanc, texte noir, bordure
+   systeme -- dans un panneau sombre. Le bloc est celui de `.dzm-projin`
+   (l. 216), le champ de renommage des projets : meme jetons, memes replis,
+   meme mise au point a l'accent. Il n'est pas DUPLIQUE par paresse : les
+   deux champs n'ont ni la meme largeur ni le meme voisinage, et `.dzm-projin`
+   porte un `flex` que la rangee des marqueurs donne deja par
+   `.dzm-mkrow input`. */
+.dzsvm .dzm-mktitre{height:20px; padding:0 6px;
+  border-radius:5px; border:1px solid var(--stroke, #2a2930);
+  background:var(--panel, var(--bg-panel, #17161a));
+  color:var(--ink, var(--ink-strong, #f2efe9)); font-size:11px;
+  font-family:inherit}
+.dzsvm .dzm-mktitre:focus{outline:none;
+  border-color:var(--accent, #d8a657)}

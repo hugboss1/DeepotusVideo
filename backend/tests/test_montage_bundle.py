@@ -80,6 +80,55 @@ UNE FAUTE N°6 ATTRAPEE PENDANT L'ECRITURE : `_CSSM.split(borne)[1]` leve
 IndexError quand la borne disparait — un banc doit ROUGIR, pas MOURIR. La
 parade est `_apres()`, qui rend "" et fait rougir ses lectrices.
 
+COMPTE PRECEDENT, 21/09/2026 (D-5, tache 8, TOUR DE CORRECTION) : 1474
+lignes. DOUZE lignes naissent, QUATRE pre-existantes changent, et UNE
+section de cablage s ajoute (K7, Echap) :
+  . C-1 -- `D5_C1_le_losange_avale_son_pointerdown`. Le clic sur un losange
+    n allait NULLE PART : `.svm-ruler` porte `onPointerDown:rulerDown`, qui
+    prend la capture du pointeur et fait `seekTo(phFromEvent(e, el))`. Le
+    `click` du bouton arrivait trop tard. Meme parade que `vpDown` ;
+  . I-1 -- la bascule retirait le PREMIER marqueur de la tolerance, pas le
+    plus proche (A a 1,00, B a 1,10, tete a 1,09 -> A tombait). Deux sens
+    joues dans test_montage_edition.py ;
+  . I-2 -- l invariant d espacement n etait tenu que par `markerAdd` :
+    `markersFrom` ET `_save_record` le tiennent desormais (tri, puis rejet
+    de tout voisin a moins d un EPS, puis plafond). Bances des deux cotes ;
+  . I-3 -- `D5_I3_l_input_remonte_quand_le_titre_amont_change`. React
+    IGNORE `defaultValue` a la mise a jour : apres Ctrl+Z l input gardait
+    le titre neuf. La cle porte desormais la valeur ;
+  . I-4 -- `D5_I4_les_deux_panneaux_s_excluent` et
+    `D5_I4_echap_ferme_l_index_avant_le_repli_des_overlays`. L index et le
+    selecteur d assets sont deux `.svm-pop` a `top:96` et se recouvraient ;
+    K7 greffe Echap sur la branche `Escape` de `onKey` qui existait DEJA ;
+  . I-5 -- `D5_I5_les_trois_textes_lisent_la_keymap_vivante` et
+    `D5_I5_la_combo_du_losange_change_quand_la_keymap_change`. Trois textes
+    ecrivaient « Ctrl+M » / « Maj+M » EN DUR alors que les actions sont
+    remappables. Les deux du composant passent par `svmKeyLabel`, celui de
+    la couche par `svmKeyLabelNow` (niveau MODULE), resolu a l appel ;
+  . I-6 -- deux `.index()` NUS (`_RULER5` et la position de la chip) :
+    `find()` + condition, comme chez les voisines ;
+  . I-7 -- `D5_I7_le_champ_de_titre_a_sa_regle` : le champ heritait du
+    chrome du navigateur dans un panneau sombre.
+QUATRE LIGNES PRE-EXISTANTES REMESUREES :
+  `D2_le_refus_de_verrou_ne_ferme_pas_le_selecteur` (4 -> 5 `setOvPick("")`,
+  le cinquieme etant celui de `dzMkToggle`), `D5_le_cablage_n_ajoute_que_
+  deux_sections` -> `..._trois_sections` (K7), `D5_K2_le_dispatch_ouvre_l_
+  index` (le texte passe par `dzMkToggle()`), et trois DETAILS de `check()`
+  qui n imprimaient rien de vrai (`s.count(nl(chr(34)))` comptait les
+  guillemets du bundle, `src.count("'var dzTc=")` comptait zero).
+MUTATIONS APPLIQUEES, sur COPIES, restaurees ensuite :
+  . la parade C-1 retiree de la couche, chaine rejouee ->
+    `D5_C1_le_losange_avale_son_pointerdown` rougit SEULE (1485/1) ;
+  . le filtre d ecart retire de `_save_record` ->
+    `d5_deux_marqueurs_trop_proches_ne_font_qu_un` et
+    `d5_le_tri_precede_le_filtre_et_les_doublons_fusionnent` rougissent
+    (155/2) ;
+  . la bascule rend au PREMIER de la tolerance ->
+    `mk_la_bascule_retire_le_marqueur_le_plus_proche` rougit SEULE (85/1) ;
+  . la cle de l input redevient `m.id` seul, chaine rejouee ->
+    `D5_I3_l_input_remonte_quand_le_titre_amont_change` rougit SEULE
+    (1485/1).
+
 COMPTE PRECEDENT, 21/09/2026 (D-5, tache 8 - les marqueurs) : 1442 lignes.
 Le lot en ajoute TRENTE-DEUX et en remesure TROIS.
 QUATRE viennent de la boucle sur `P.PATCHES`, qui les emet toute seule pour
@@ -6250,6 +6299,16 @@ out.mk_rendu=TBG(function(){
 out.mk_rendu_borne=TBG(function(){
   var l=T.Markers({markers:[{id:"m1",t:90},{id:"m2",t:-5}],dur:10});
   return [l[0].p.style.left,l[1].p.style.left]});
+/* C-1 : LE POINTERDOWN EST AVALE. Sans cela, `.svm-ruler` (le parent)
+   prend la capture du pointeur dans `rulerDown` et fait
+   `seekTo(phFromEvent(e, el))` : la tete partait SOUS LE CURSEUR avant que
+   le `click` du bouton n arrive. La sonde compte les deux appels. */
+out.mk_rendu_pointerdown=TBG(function(){
+  var n=0,d=0,l=T.Markers({markers:[{id:"m1",t:3}],dur:10});
+  l[0].p.onPointerDown({stopPropagation:function(){n++},
+    preventDefault:function(){d++}});
+  l[0].p.onPointerDown({});                 /* evenement nu : jamais de levee */
+  return [n,d,typeof l[0].p.onPointerDown]});
 out.mk_rendu_seek=TBG(function(){
   var vu=[],l=T.Markers({markers:[{id:"m1",t:3}],dur:10,
     onSeek:function(t){vu.push(t)}});
@@ -6289,6 +6348,17 @@ out.mk_index_titre=TBG(function(){
   kids[2].p.onBlur({target:{value:"b"}});            /* change : remonte */
   kids[2].p.onKeyDown({key:"Enter",target:{value:"c"}});
   return vu});
+/* I-3 : LA CLE DE L INPUT PORTE LE TITRE. React IGNORE `defaultValue` a la
+   mise a jour : apres Ctrl+Z, l hote rendait l ancien titre et l input
+   gardait le neuf. Une cle qui change force le remontage. */
+out.mk_index_cle_input=TBG(function(){
+  function cle(t){return T.MarkerIndex({markers:[{id:"m1",t:3,color:"or",
+    title:t,note:""}]}).p.children[1][0].p.children[2].k}
+  return [cle("a"),cle("b")]});
+/* I-5 : la combo de l infobulle vient de `svmKeyLabelNow`, resolu A L APPEL
+   -- absent sous ce shim, le repli « Maj+M » ; pose, c est lui qui parle. */
+out.mk_combo_repli=TBG(function(){
+  return T.Markers({markers:[{id:"m1",t:3}],dur:10})[0].p.title});
 out.mk_index_sans_rappels=TBG(function(){
   var kids=T.MarkerIndex({markers:[{id:"m1",t:3,color:"or",title:"",note:""}]})
     .p.children[1][0].p.children;
@@ -6298,6 +6368,9 @@ out.mk_index_sans_rappels=TBG(function(){
   return "sans_levee"});
 r.jsxs=null;
 svmTcFF=function(t){return "TC"+t};
+var svmKeyLabelNow=function(id){return id==="marker_toggle"?"Ctrl+Alt+K":""};
+out.mk_combo_vivante=TBG(function(){
+  return T.Markers({markers:[{id:"m1",t:3}],dur:10})[0].p.title});
 out.mk_tc_resolu_a_l_appel=TBG(function(){
   return T.Markers({markers:[{id:"m1",t:5}],dur:10})[0].p["aria-label"]});
 console.log(JSON.stringify(out));
@@ -8914,7 +8987,12 @@ check("D2_le_refus_de_verrou_ne_ferme_pas_le_selecteur",
       _iref >= 0 and _ifin > _iref
       and "fireNote(dzIns.track===tr2" in s[_iref:_ifin]
       and 'setOvPick("")' not in s[_iref:_ifin]
-      and s.count(nl('setOvPick("")')) == 4,
+      # 4 -> 5 le 21/09/2026 : D-5 (I-4) en ajoute UN, dans `dzMkToggle`
+      # (repli K3 dans R_M16REF), pour que l'index et le selecteur d'assets
+      # ne se recouvrent plus -- les deux sont des `.svm-pop` a `top:96`.
+      # Le compte reste EXACT : c'est lui qui empeche un retrait ailleurs de
+      # passer pour la correction d'I-5.
+      and s.count(nl('setOvPick("")')) == 5,
       f'refus={_iref} fin={_ifin} '
       f'setOvPick={s.count(nl(chr(115) + "etOvPick" + chr(40) + chr(34) + chr(34) + chr(41)))}')
 # LE JETON N'EST JAMAIS AFFICHE : c'est `dzIns.note`, la phrase francaise,
@@ -12388,8 +12466,9 @@ check("D3_les_trois_gestes_appellent_la_couche_une_fois_chacun",
 # verrait -- et le compte de `PATCHES` n'est PAS lu en dur (un absolu que
 # tout lot suivant ferait rougir).
 _K_TAGS = [t[0] for t in P.PATCHES if t[0].startswith("K")]
-check("D5_le_cablage_n_ajoute_que_deux_sections",
-      _K_TAGS == ["K5-chip-marqueurs", "K5b-index-marqueurs"],
+check("D5_le_cablage_n_ajoute_que_trois_sections",
+      _K_TAGS == ["K5-chip-marqueurs", "K5b-index-marqueurs",
+                  "K7-echap-ferme-index"],
       f"{_K_TAGS} (sur {len(P.PATCHES)} triplets)")
 # LES DEUX ANCRES EXISTENT DANS LE .bak, contrairement aux cinq repliees.
 # L'ancre de K5 est la QUEUE de la ligne de la chip `ripple` et non la ligne
@@ -12418,8 +12497,14 @@ for _lbl5, _txt5, _sec5, _nom5 in (
         ("K2_le_dispatch_saute_au_marqueur",
          'if(id==="marker_prev"||id==="marker_next"){', P.R_R2, "R_R2"),
         ("K2_le_dispatch_ouvre_l_index",
-         'if(id==="marker_index"){setDzMkOn(function(v){return !v});return}',
-         P.R_R2, "R_R2"),
+         'if(id==="marker_index"){dzMkToggle();return}', P.R_R2, "R_R2"),
+        ("K3_la_bascule_exclusive",
+         'function dzMkToggle(v){var n=arguments.length?!!v:'
+         '!dzMkOnRef.current;if(n)setOvPick("");setDzMkOn(n)}',
+         P.R_M16REF, "R_M16REF"),
+        ("K3_l_effet_ferme_l_index_quand_le_selecteur_s_ouvre",
+         "x.useEffect(function(){if(ovPick)setDzMkOn(!1)},[ovPick]);",
+         P.R_M16REF, "R_M16REF"),
         ("K3_l_etat_du_panneau",
          "var stDzMk=x.useState(!1),dzMkOn=stDzMk[0],setDzMkOn=stDzMk[1];",
          P.R_M16REF, "R_M16REF"),
@@ -12457,7 +12542,8 @@ check("D5_les_quatre_combos_etaient_libres_et_ne_sont_plus_qu_une_fois",
 check("D5_le_nom_des_fleches_sous_ctrl_vient_de_la_table_du_bundle",
       s.count(nl('ArrowUp:"\u2191",ArrowDown:"\u2193"')) == 1
       and s.count(nl('(e.ctrlKey||e.metaKey?"Ctrl+":"")')) == 1,
-      f'table={s.count(nl(chr(34)))} ')
+      f'table={s.count(nl(chr(39) + "ArrowUp:" + chr(34)))} '
+      f'prefixe={s.count(nl(chr(39) + "(e.ctrlKey||e.metaKey?" + chr(34)))}')
 # LA COUCHE NE LIT PAS `svmTcFF` AU CHARGEMENT. Le symbole vit dans le bloc
 # sonvfx du bundle (7 occurrences, meme portee module) mais n'existe NI sous
 # node NI ici : une lecture au chargement aurait tue le shim. La forme est
@@ -12472,7 +12558,7 @@ check("D5_le_timecode_est_resolu_a_l_appel_jamais_au_chargement",
       # pourquoi -- c'est la forme d'appel qui est interdite, pas le mot.
       and src.count("svmTcFF(") == 0 and src.count("dzTc(") == 6
       and s.count(nl("function svmTcFF(s){")) == 1,
-      f'resolutions={src.count(chr(39) + "var dzTc=")} '
+      f'resolutions={src.count(chr(118) + "ar dzTc=typeof")} '
       f'appels_directs={src.count("svmTcFF(")} dzTc={src.count("dzTc(")} '
       f'declaration={s.count(nl("function svmTcFF(s){"))}')
 # LA FEUILLE : les losanges vivent DANS la regle, au-dessus de la bande de
@@ -12492,11 +12578,18 @@ check("D5_les_losanges_sont_montes_dans_la_regle_positionnee",
 _RULER5 = re.search(r'className:"svm-ruler".*?className:"svm-tick"',
                     s.replace("\r\n", "\n"), re.S)
 _RULER5 = _RULER5.group(0) if _RULER5 else ""
+# I-6 (revue du 21/09/2026) : `index()` LEVE, et une ligne de banc doit
+# ROUGIR, PAS MOURIR. Au niveau module, une levee ici emporterait les ~30
+# lignes qui suivent avant leur premier mot. `find()` rend -1, et « les deux
+# ont ete trouves » devient une CONDITION -- meme parade que chez les
+# voisines de D-11.
+_iBar5 = _RULER5.find("DzTracks.RangeBar")
+_iMk5 = _RULER5.find("DzTracks.Markers")
 check("D5_les_losanges_viennent_apres_la_bande_dans_la_regle",
       len(_RULER5) > 0
       and _RULER5.count("r.jsx(DzTracks.Markers,{markers:proj.markers,") == 1
-      and _RULER5.index("DzTracks.RangeBar") < _RULER5.index("DzTracks.Markers"),
-      f'regle={len(_RULER5)} o marqueurs={_RULER5.count("DzTracks.Markers")}')
+      and 0 <= _iBar5 < _iMk5,
+      f'regle={len(_RULER5)} o bande={_iBar5} marqueurs={_iMk5}')
 
 # ── D-5 : CE QUE LE STUB JSX A RENDU ──────────────────────────────────────
 check("D5_un_losange_porte_sa_place_sa_couleur_et_son_nom",
@@ -12568,19 +12661,130 @@ check("D5_le_panneau_est_conditionnel_et_entre_dans_l_historique",
                      "setDirty(!0)}")) == 1
       and s.count(nl("{markers:DzTracks.markerUpdate(p.markers,id,patch)})});"
                      "setDirty(!0)}")) == 1,
-      f'panneau={s.count(nl("dzMkOn?r.jsx(DzTracks.MarkerIndex,"))} '
+      f'panneau={s.count(nl(chr(100) + "zMkOn?r.jsx(DzTracks.MarkerIndex,"))} '
       f'pushHistory={P.R_K5B.count("pushHistory();setProj(")}')
 # LA CHIP DIT LE NOMBRE, et elle est la QUATRIEME -- hors du
 # `:nth-child(-n+3)` qui degrade en glyphe seul, parce que son compteur
 # serait illisible reduit a un losange. Elle porte tout de meme son nom
 # accessible, comme ses trois voisines (§4.5).
+_iRip5 = s.find(nl('children:"ripple"}),'))
+_iMkChip5 = s.find(nl('"aria-label":"marqueurs",'))
 check("D5_la_chip_dit_le_nombre_de_marqueurs",
       s.count(nl('children:"\u25c6 "+((proj.markers||[]).length)}),')) == 1
       and s.count(nl('"aria-label":"marqueurs",')) == 1
       and s.count(nl('"data-on":dzMkOn?"":void 0,')) == 1
-      and s.index(nl('children:"ripple"}),'))
-          < s.index(nl('"aria-label":"marqueurs",')),
-      f'chip={s.count(nl(chr(34)))}')
+      # I-6 : `find()`, jamais `index()` -- et la condition d'abord.
+      and 0 <= _iRip5 < _iMkChip5,
+      f'chip={s.count(nl(chr(39) + "aria-label" + chr(39) + ":" + chr(39)
+                         + "marqueurs" + chr(39) + ","))} '
+      f'ripple={_iRip5} marqueurs={_iMkChip5}')
+# ── C-1 : LE LOSANGE AVALE SON POINTERDOWN ───────────────────────────────
+# MESURE du 21/09/2026 : `.svm-ruler` porte `onPointerDown:rulerDown` (1/1
+# dans le .bak), et `rulerDown` fait `setPointerCapture` puis
+# `seekTo(phFromEvent(e, el))`. Le `click` du bouton arrivait APRES : la
+# tete etait deja partie sous le curseur, et le losange semblait mort a deux
+# pixels pres. Meme parade que `vpDown` du bundle. Les DEUX moities : la
+# cause est toujours la (le parent seeke au pointerdown), et le bouton
+# l'avale.
+check("D5_C1_le_losange_avale_son_pointerdown",
+      d.get("mk_rendu_pointerdown") == [1, 1, "function"]
+      # LE MOT NU COMPTE 2 dans le bundle livre, et le second est le
+      # COMMENTAIRE de la couche qui explique la parade -- la sonde compte
+      # du texte. La mesure porte donc sur l'ATTRIBUT, avec sa classe.
+      and s.count(nl('className:"svm-ruler",onPointerDown:rulerDown,')) == 1
+      and s.count(nl("seekTo(phFromEvent(e,el));")) == 1,
+      f'{d.get("mk_rendu_pointerdown")} '
+      f'regle={s.count(nl(chr(99) + "lassName:" + chr(34) + "svm-ruler"
+                          + chr(34) + ",onPointerDown:rulerDown,"))}')
+# ── I-3 : LA CLE DE L'INPUT PORTE LE TITRE ───────────────────────────────
+# React IGNORE `defaultValue` a la mise a jour : apres Ctrl+Z, l'hote
+# rendait l'ancien titre pendant que l'input gardait le neuf. La cle change
+# avec la valeur, donc l'input remonte et repart de la bonne chaine. La
+# ligne mesure que les deux cles DIFFERENT -- une cle constante (`m.id`)
+# rendrait deux fois la meme.
+check("D5_I3_l_input_remonte_quand_le_titre_amont_change",
+      d.get("mk_index_cle_input") == ["m1|a", "m1|b"]
+      and src.count('m.id+"|"+m.title') == 1,
+      f'{d.get("mk_index_cle_input")} '
+      f'couche={src.count(chr(109) + chr(46) + "id+")}')
+# ── I-4 : L'INDEX ET LE SELECTEUR NE SE RECOUVRENT PLUS ──────────────────
+# Les deux sont des `.svm-pop` a `top:96` -- MESURE : le panneau de l'index
+# porte `style:{top:96}` et `ovPicker` aussi. Rien ne fermait l'un quand
+# l'autre s'ouvrait. LES DEUX SENS sont tenus : la bascule ferme le
+# selecteur, et un effet sur l'ETAT `ovPick` ferme l'index (l'etat, pas
+# `openPicker` : le selecteur s'ouvre depuis plusieurs chemins).
+check("D5_I4_les_deux_panneaux_s_excluent",
+      s.count(nl('function dzMkToggle(v){var n=arguments.length?!!v:'
+                 '!dzMkOnRef.current;if(n)setOvPick("");setDzMkOn(n)}')) == 1
+      and s.count(nl("x.useEffect(function(){if(ovPick)setDzMkOn(!1)},"
+                     "[ovPick]);")) == 1
+      and src.count('className:"svm-pop dzm-mkidx",style:{top:96}') == 1
+      and s.count(nl('className:"svm-pop",style:{top:96')) >= 1
+      # ET PLUS AUCUNE BASCULE NUE : les trois chemins (K2, K5, K7) passent
+      # par `dzMkToggle`. Une quatrieme ecrite a la main oublierait
+      # l'exclusion.
+      and s.count(nl("setDzMkOn(function(v){return !v})")) == 0
+      and s.count(nl("dzMkToggle(")) == 4,
+      f'bascule={s.count(nl(chr(102) + "unction dzMkToggle(v){"))} '
+      f'appels={s.count(nl(chr(100) + "zMkToggle("))} '
+      f'nues={s.count(nl("setDzMkOn(function(v){return !v})"))}')
+# ECHAP FERME L'INDEX, PAR LA VOIE DU BUNDLE. K7 se greffe sur la branche
+# `Escape` de `onKey` qui existait DEJA (1/1 dans le .bak) : rien de neuf
+# n'est ecoute. L'ORDRE compte et il est mesure -- l'index se ferme AVANT le
+# repli `ovEsc` des overlays, sinon Echap aurait rendu les fleches a la tete
+# sans fermer le panneau ouvert.
+_iEsc = s.find(nl("if(dzMkOnRef.current){e.preventDefault();"
+                  "dzMkToggle(!1);return}"))
+_iOvE = s.find(nl("if(kbAudioRef.current&&kbAudioRef.current.ovEsc&&"))
+check("D5_I4_echap_ferme_l_index_avant_le_repli_des_overlays",
+      0 <= _iEsc < _iOvE
+      and bool(_bak) and _bak.count(_nlb(P.A_K7)) == 1
+      and s.count(nl("dzMkToggle(!1)")) == 1,
+      f'index={_iEsc} overlays={_iOvE} '
+      f'bak={_bak.count(_nlb(P.A_K7)) if _bak else "?"}')
+# ── I-5 : LES COMBOS VIENNENT DE LA KEYMAP VIVANTE ───────────────────────
+# Les quatre actions sont REMAPPABLES : un texte en dur MENT des le premier
+# remappage. Trois endroits le disaient -- le `title` de la chip, la note de
+# la pose, et l'infobulle du losange. Les deux premiers passent par
+# `svmKeyLabel` (declaree DANS le composant) ; le troisieme vit dans la
+# couche, qui ne peut pas l'atteindre, et passe par `svmKeyLabelNow` (niveau
+# MODULE, 3 occurrences dans le .bak, deja employee par le tiroir Sons).
+check("D5_I5_les_trois_textes_lisent_la_keymap_vivante",
+      s.count(nl('svmKeyLabel("marker_index")')) == 2
+      and s.count(nl('svmKeyLabel("marker_toggle")')) == 1
+      # DANS LA COUCHE le symbole est resolu A L'APPEL puis APPELE par la
+      # variable locale (`f`), exactement comme `dzTc` pour `svmTcFF` : la
+      # mesure porte sur la resolution et sur l'identifiant d'action.
+      and src.count('typeof svmKeyLabelNow==="function"?svmKeyLabelNow:null') == 1
+      and src.count('f("marker_toggle")') == 1
+      # et PLUS AUCUNE combo ecrite en dur dans ces trois textes
+      and s.count(nl('index (Ctrl+M)')) == 0
+      and s.count(nl('Maj+M pose/retire')) == 0
+      and s.count(nl('Ctrl+M : l\'index.')) == 0,
+      f'index={s.count(nl(chr(115) + "vmKeyLabel(" + chr(34) + "marker_index"))} '
+      f'toggle={s.count(nl(chr(115) + "vmKeyLabel(" + chr(34) + "marker_toggle"))} '
+      f'couche={src.count("typeof svmKeyLabelNow==")}')
+# ET ELLE EST RESOLUE A L'APPEL, comme `svmTcFF` : la MEME sonde, le MEME
+# composant, rendu deux fois -- la premiere sans le symbole (repli
+# « Maj+M »), la seconde avec (le stub rend « Ctrl+Alt+K »).
+check("D5_I5_la_combo_du_losange_change_quand_la_keymap_change",
+      isinstance(d.get("mk_combo_repli"), str)
+      and "Maj+M \u00e0 la t\u00eate" in d.get("mk_combo_repli", "")
+      and isinstance(d.get("mk_combo_vivante"), str)
+      and "Ctrl+Alt+K \u00e0 la t\u00eate" in d.get("mk_combo_vivante", ""),
+      f'repli={d.get("mk_combo_repli")!r} vivante={d.get("mk_combo_vivante")!r}')
+# ── I-7 : LE CHAMP DE TITRE EST HABILLE ──────────────────────────────────
+# Sans regle, il heritait du chrome du navigateur -- fond blanc, texte noir,
+# bordure systeme -- dans un panneau sombre. Le bloc reprend celui de
+# `.dzm-projin` (le renommage de projet), jetons compris, et la mise au
+# point a l'accent. Le conjoint positif : le modele est toujours la.
+check("D5_I7_le_champ_de_titre_a_sa_regle",
+      _CSS_M.count(".dzsvm .dzm-mktitre{height:20px;") == 1
+      and _CSS_M.count(".dzsvm .dzm-mktitre:focus{outline:none;") == 1
+      and _CSS_M.count(".dzsvm .dzm-projin{flex:1 1 auto;") == 1
+      and "var(--stroke, #2a2930)" in _CSS_M,
+      f'mktitre={_CSS_M.count(".dzsvm .dzm-mktitre{height:20px;")} '
+      f'focus={_CSS_M.count(".dzsvm .dzm-mktitre:focus{outline:none;")}')
 # LES MARQUEURS ENTRENT DANS L'HISTORIQUE, et la cle y etait DEJA (D-0) : il
 # ne manquait que le `pushHistory()` avant chaque ecriture. Les DEUX faces :
 # la cle est dans la table de l'instantane, et les TROIS ecritures du lot

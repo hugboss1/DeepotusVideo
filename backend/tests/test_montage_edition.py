@@ -225,6 +225,31 @@ out.mk_gel=(function(){var a=[T.MARKER_COLORS.length];
   return a})();
 /* les deux composants EXISTENT et ne lisent PAS svmTcFF au chargement */
 out.mk_composants=[typeof T.Markers,typeof T.MarkerIndex];
+/* I-1 : la BASCULE retire le PLUS PROCHE. A a 1,00 et B a 1,10 encadrent une
+   tete a 1,09 : les deux sont dans la tolerance, c est B qui doit tomber. */
+out.mk_toggle_le_plus_proche=(function(){
+  var L=[{id:"a",t:1,color:"or",title:"A",note:""},
+         {id:"b",t:1.1,color:"or",title:"B",note:""}];
+  return T.markerAdd(L,1.09,{}).map(function(m){return m.title})})();
+out.mk_toggle_le_plus_proche_bas=(function(){
+  var L=[{id:"a",t:1,color:"or",title:"A",note:""},
+         {id:"b",t:1.1,color:"or",title:"B",note:""}];
+  return T.markerAdd(L,1.01,{}).map(function(m){return m.title})})();
+/* I-2 : l invariant d espacement est tenu par la RESTAURATION aussi. Sans
+   lui, 1,12 apres 1,00 etait injoignable par markerNext. Le doublon exact
+   tombe par la meme regle (distance nulle). */
+out.mk_from_espacement=T.markersFrom([{t:1},{t:1.12},{t:5}])
+  .map(function(m){return [m.id,m.t]});
+out.mk_from_doublon=T.markersFrom([{t:2},{t:2}]).length;
+out.mk_from_espacement_trie=T.markersFrom([{t:5},{t:1.12},{t:1}])
+  .map(function(m){return m.t});
+/* t:"" -- `Number("")` vaut ZERO en JS et `float("")` LEVE en Python :
+   le client acceptait a 0 s ce que le serveur jetait. Aligne. */
+out.mk_t_vide=[T.markersFrom([{t:""},{t:"  "},{t:null},{t:3}])
+                 .map(function(m){return m.t}),
+               T.markerAdd([],"",{}).length,
+               T.markerAdd([],null,{}).length,
+               T.markerAdd([],"4",{}).length];
 console.log(JSON.stringify(out));
 """
 print("\n[1] dzmInsere sous node")
@@ -379,7 +404,8 @@ try:
                  "voisins_dixieme_exact","roll_pistes_diff",
                  "slide_tete_source_vitesse","roll_tete_source_vitesse",
                  "mk_liste","mk_next","mk_from","mk_colors","mk_gel",
-                 "mk_update","mk_composants","mk_from_plafond"]
+                 "mk_update","mk_composants","mk_from_plafond",
+                 "mk_from_espacement","mk_t_vide","mk_toggle_le_plus_proche"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -540,11 +566,13 @@ check("mk_suivant_et_precedent_trouvent_vraiment",
       D.get("mk_next_vrai") == [2.004, 7, 7, 2.004], D.get("mk_next_vrai"))
 check("mk_restauration_assainit_et_trie",
       D.get("mk_from") == [[1.5,"bleu","ok","n"],[3,"or","5",""]], D.get("mk_from"))
-# LES IDS SONT REGENERES m1..mN, et ils sont UNIQUES apres le tri : ils sont
-# attribues dans l'ordre d'ARRIVEE (m1 au t=3, m2 au t=1, m3 au t=2), donc
-# la liste triee les porte dans le desordre -- ce qui compte est l'unicite.
+# LES IDS SONT REGENERES m1..mN, DANS L'ORDRE CHRONOLOGIQUE. Revue du
+# 21/09/2026 : ils etaient attribues dans l'ordre d'ARRIVEE, puis la liste
+# etait triee -- d'ou des ids dans le desordre (m2, m3, m1). L'ordre du
+# filtre d'espacement (I-2) impose de trier AVANT, et la numerotation suit
+# donc la chronologie. C'est aussi ce que l'index affiche.
 check("mk_restauration_regenere_des_ids_uniques",
-      at("mk_from_ids", 0) == ["m2","m3","m1"] and at("mk_from_ids", 1) == 3,
+      at("mk_from_ids", 0) == ["m1","m2","m3"] and at("mk_from_ids", 1) == 3,
       f'{at("mk_from_ids",0)!r} {at("mk_from_ids",1)!r}')
 check("mk_restauration_tronque_a_deux_cents", D.get("mk_from_plafond") == 200,
       D.get("mk_from_plafond"))
@@ -581,6 +609,44 @@ check("mk_les_fonctions_sont_pures",
 # banc du bundle, qui RENDS les composants avec un stub JSX.
 check("mk_les_deux_composants_sont_exportes",
       D.get("mk_composants") == ["function", "function"], D.get("mk_composants"))
+# I-1 (revue du 21/09/2026) : LA BASCULE RETIRE LE PLUS PROCHE, PAS LE
+# PREMIER DE LA LISTE. Mesure d'avant le correctif : A a 1,00, B a 1,10,
+# tete a 1,09 -> A tombait, parce que `filter(...)[0]` rend le premier de la
+# liste TRIEE et non le plus proche. Les DEUX sens sont joues -- une tete a
+# 1,01 doit, elle, retirer A : sans le second cas, un `[l.length-1]` nu
+# (« le dernier ») passerait la premiere ligne.
+check("mk_la_bascule_retire_le_marqueur_le_plus_proche",
+      D.get("mk_toggle_le_plus_proche") == ["A"]
+      and D.get("mk_toggle_le_plus_proche_bas") == ["B"],
+      f'1.09={D.get("mk_toggle_le_plus_proche")!r} '
+      f'1.01={D.get("mk_toggle_le_plus_proche_bas")!r}')
+# I-2 : L'INVARIANT D'ESPACEMENT EST TENU PAR `markersFrom` AUSSI. Avant le
+# correctif, `markerAdd` en etait la SEULE gardienne : un fichier (ou un
+# autre client) pouvait poser 1,00 et 1,12, et le second etait INJOIGNABLE
+# par Ctrl+haut / Ctrl+bas, qui sautent tout ce qui est a moins d'un EPS de
+# la tete. Les ids sont REGENERES apres le filtre : m1, m2, jamais un trou.
+check("mk_restauration_tient_l_ecart_minimal",
+      D.get("mk_from_espacement") == [["m1", 1], ["m2", 5]],
+      D.get("mk_from_espacement"))
+# LE DOUBLON EXACT TOMBE PAR LA MEME REGLE -- distance nulle, donc < EPS.
+# Sans ce conjoint, un filtre ecrit `0 < d < EPS` passerait la ligne du
+# dessus en laissant deux marqueurs au MEME temps.
+check("mk_restauration_fusionne_les_doublons_exacts",
+      "mk_from_doublon" in D and D.get("mk_from_doublon") == 1,
+      f'{"mk_from_doublon" in D} {D.get("mk_from_doublon")!r}')
+# LE TRI PRECEDE LE FILTRE : donne en desordre, c'est toujours le PREMIER
+# CHRONOLOGIQUE de deux voisins qui reste. Un filtre applique avant le tri
+# aurait garde 5 et 1,12 et jete 1.
+check("mk_restauration_trie_avant_de_filtrer",
+      D.get("mk_from_espacement_trie") == [1, 5],
+      D.get("mk_from_espacement_trie"))
+# `t:""` -- `Number("")` vaut ZERO en JavaScript quand `float("")` LEVE en
+# Python : le client acceptait a 0 s un marqueur que le serveur jetait, et
+# il disparaissait au rechargement sans un mot. `dzmMarkerT` dit desormais
+# la meme chose que le backend. Le dernier terme est le conjoint positif :
+# une chaine qui EST un nombre reste acceptee.
+check("mk_un_temps_vide_est_refuse_comme_au_backend",
+      D.get("mk_t_vide") == [[3], 0, 0, 1], D.get("mk_t_vide"))
 
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")

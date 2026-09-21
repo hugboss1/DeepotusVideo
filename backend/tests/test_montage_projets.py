@@ -1257,6 +1257,68 @@ check("d5_l_identifiant_du_client_n_est_pas_stocke",
       _r.status_code == 200 and _m0.get("t") == 1.0 and "id" not in _m0,
       f'{_r.status_code} {_c.get("markers")!r}')
 
+# I-2 (revue du 21/09/2026) : L INVARIANT D ESPACEMENT EST TENU ICI AUSSI.
+# Le client ne peut pas en etre la seule garde -- une timeline ecrite par un
+# autre client, ou un fichier edite a la main, pouvait porter 1,00 et 1,12,
+# et le second etait INJOIGNABLE par « marqueur suivant / precedent », qui
+# saute tout ce qui est a moins d un EPS de la tete. Meme cas que le banc
+# du coeur pur (`mk_restauration_tient_l_ecart_minimal`), joue ici de bout
+# en bout : POST, disque, GET.
+wipe_courant()
+_tl = TL("marq", n=1)
+_tl["markers"] = [{"t": 1}, {"t": 1.12}, {"t": 5}]
+_r = c.post("/api/montage/save", json=_tl)
+_c = cur()
+_mk = _c.get("markers")
+check("d5_deux_marqueurs_trop_proches_ne_font_qu_un",
+      _r.status_code == 200 and isinstance(_mk, list) and len(_mk) == 2
+      and [m.get("t") for m in _mk] == [1.0, 5.0],
+      f'{_r.status_code} {_mk!r}')
+
+# LE TRI PRECEDE LE FILTRE : donne en desordre, c est toujours le PREMIER
+# CHRONOLOGIQUE de deux voisins qui reste. Et le DOUBLON EXACT tombe par la
+# meme regle -- distance nulle, donc < EPS : sans ce second cas, un filtre
+# ecrit `0 < d < EPS` passerait la ligne du dessus en laissant deux
+# marqueurs au MEME temps.
+wipe_courant()
+_tl = TL("marq", n=1)
+_tl["markers"] = [{"t": 5}, {"t": 1.12}, {"t": 1}, {"t": 5}]
+_r = c.post("/api/montage/save", json=_tl)
+_c = cur()
+_mk = _c.get("markers")
+check("d5_le_tri_precede_le_filtre_et_les_doublons_fusionnent",
+      _r.status_code == 200 and isinstance(_mk, list)
+      and [m.get("t") for m in _mk] == [1.0, 5.0],
+      f'{_r.status_code} {_mk!r}')
+
+# UN `t` VIDE EST JETE, ET LE CLIENT DIT LA MEME CHOSE. `float("")` LEVE en
+# Python quand `Number("")` vaut ZERO en JavaScript : avant `dzmMarkerT`,
+# l ecran acceptait a 0 s un marqueur que le serveur jetait. Le conjoint
+# positif est la troisieme entree -- une chaine qui EST un nombre passe.
+wipe_courant()
+_tl = TL("marq", n=1)
+_tl["markers"] = [{"t": ""}, {"t": None}, {"t": "4"}]
+_r = c.post("/api/montage/save", json=_tl)
+_c = cur()
+_mk = _c.get("markers")
+check("d5_un_temps_vide_est_jete_une_chaine_chiffree_passe",
+      _r.status_code == 200 and isinstance(_mk, list)
+      and [m.get("t") for m in _mk] == [4.0],
+      f'{_r.status_code} {_mk!r}')
+
+# UN `t` BOOLEEN. `float(True)` vaut 1.0 en Python -- sans le test explicite,
+# `{"t": true}` serait devenu un marqueur a 1 s, ce qu aucun client n a
+# jamais voulu envoyer. Le conjoint positif : la cle est absente, pas la
+# timeline.
+wipe_courant()
+_tl = TL("marq", n=1)
+_tl["markers"] = [{"t": True}]
+_r = c.post("/api/montage/save", json=_tl)
+_c = cur()
+check("d5_un_temps_booleen_n_est_pas_un_temps",
+      _r.status_code == 200 and _c.get("saved") is True and "markers" not in _c,
+      f'{_r.status_code} saved={_c.get("saved")} markers={_c.get("markers")!r}')
+
 # UN `t` INFINI NE TOUCHE JAMAIS LE DISQUE -- meme mesure et meme parade que
 # pour la plage : httpx encode `json=` avec `allow_nan=False` et LEVE cote
 # client, donc le corps est ecrit a la main. Le fichier du COURANT est relu
