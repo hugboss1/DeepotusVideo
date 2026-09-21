@@ -2765,10 +2765,23 @@ R_T3 = "onPointerDown:function(e){if(e.altKey){dzRollDown(e,j2);return}transSpan
 # INATTEIGNABLE, alors que le roll de Resolve vise precisement la coupe. Le
 # losange `.svm-junc`, lui, est rendu SANS condition pour chaque jonction :
 # c'est lui qui rend le geste atteignable partout.
+# I3 (revue du 21/09/2026) : `preventDefault()` sur le pointerdown NE
+# SUPPRIME PAS le `click` qui suit -- apres un Alt+glisser sur le losange,
+# `openTransPop` s'ouvrait par-dessus le roll qu'on venait de faire.
+# L'ancre est ETENDUE jusqu'au `onClick` pour le neutraliser dans la MEME
+# section (elle vaut 1/1 dans le .bak, mesure du 21/09/2026 ; le `onClick`
+# seul vaut 1 lui aussi, mais l'etendre garde les deux mains du meme geste
+# dans le meme remplacement).
 A_T3B = ('                      "aria-label":"Transition entre "+j2.left.label+" et "+j2.right.label,\n'
-         "                      onPointerDown:function(e){e.stopPropagation()},")
+         "                      onPointerDown:function(e){e.stopPropagation()},\n"
+         "                      onPointerEnter:function(){transHoverShow(j2.t,transHoverTxt(j2.right,on,s2))},\n"
+         "                      onPointerLeave:transHoverHide,\n"
+         "                      onClick:function(e){e.stopPropagation();openTransPop(j2.right.id,e)}})]}")
 R_T3B = ('                      "aria-label":"Transition entre "+j2.left.label+" et "+j2.right.label,\n'
-         "                      onPointerDown:function(e){if(e.altKey){dzRollDown(e,j2);return}e.stopPropagation()},")
+         "                      onPointerDown:function(e){if(e.altKey){dzRollDown(e,j2);return}e.stopPropagation()},\n"
+         "                      onPointerEnter:function(){transHoverShow(j2.t,transHoverTxt(j2.right,on,s2))},\n"
+         "                      onPointerLeave:transHoverHide,\n"
+         "                      onClick:function(e){e.stopPropagation();if(e.altKey)return;openTransPop(j2.right.id,e)}})]}")
 
 # T4 : le geste de roll, a cote de `transSpanDown` -- DANS le composant,
 # donc `trackStRef`, `durRef`, `setClips`, `setDirty`, `pushHistory`,

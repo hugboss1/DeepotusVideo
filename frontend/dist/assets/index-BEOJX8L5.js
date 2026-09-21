@@ -6232,7 +6232,7 @@ function DzMontage(props){
                       onPointerDown:function(e){if(e.altKey){dzRollDown(e,j2);return}e.stopPropagation()},
                       onPointerEnter:function(){transHoverShow(j2.t,transHoverTxt(j2.right,on,s2))},
                       onPointerLeave:transHoverHide,
-                      onClick:function(e){e.stopPropagation();openTransPop(j2.right.id,e)}})]},"jx"+j2.right.id)}):null]})]},tr.id)}),
+                      onClick:function(e){e.stopPropagation();if(e.altKey)return;openTransPop(j2.right.id,e)}})]},"jx"+j2.right.id)}):null]})]},tr.id)}),
           snapT!=null?r.jsx("div",{className:"svm-snapline",style:{left:"calc(88px + (100% - 88px) * "+(snapT/dur)+")"}}):null,
           r.jsx("div",{className:"svm-phline",style:{left:"calc(88px + (100% - 88px) * "+phFrac+")"}}),
           r.jsx("div",{className:"svm-phtri",style:{left:"calc(88px + (100% - 88px) * "+phFrac+")"}}),
@@ -17615,18 +17615,38 @@ function dzmModeLabel(m){
    slide : Maj + glisser le centre — le clip bouge, le voisin gauche s'allonge,
            le voisin droit se raccourcit (min 0,3 s) et son srcIn avance ;
    roll  : Alt + glisser la jonction — fin du gauche = début du droit =
-           jonction + ds (min 0,3 s de chaque côté), srcIn du droit suit.
+           jonction + ds (min 0,3 s de chaque côté), srcIn du droit suit ;
+           la jonction doit être une VRAIE jonction (même piste, contact).
+   BORNE DE TÊTE DE SOURCE (I1, revue du 21/09/2026) : reculer une jonction
+   ou un clip recule le `srcIn` du voisin DROIT. Le déplacement `d` est donc
+   borné par `-srcIn / vitesse` de ce voisin — borner la seule VALEUR écrite
+   (`Math.max(0, …)`) laissait le clip commencer plus tôt avec un srcIn à 0,
+   c'est-à-dire du média INVENTÉ avant la tête de sa source.
    `dzmSrcLen` rend la longueur TIMELINE (end-start) : la longueur SOURCE
    consommée vaut donc `dzmSrcLen(c)*vitesse` — c'est elle qui borne le slip.
    Doctrine mesurée dans `dzmRippleCut`/`dzmCarve` : on n'INVENTE jamais un
    `srcIn` sur un clip qui n'a ni `srcIn` ni `src` (un titre n'a pas de
    fenêtre de source). */
+/* Voisins de CONTACT, sur la MEME piste, a un dixieme de seconde pres.
+   DEPARTAGE, revue du 21/09/2026 : ce n'est PAS « le plus proche » — a
+   gauche c'est la borne la plus AVANCEE (max end), a droite la plus
+   RECULEE (min start). Les deux regles different des qu'un candidat
+   chevauche legerement : end = start-0,02 et end = start+0,05 sont tous
+   deux en contact, « max end » prend le second, « le plus proche » le
+   premier. La regle retenue est celle des bornes, parce que c'est elle qui
+   rend le voisin que le trim va DEPLACER.
+   TOLERANCE : `<= .1+1e-9` et non `<= .1` — un contact de 0,1 s EXACTE se
+   mesure 0,10000000000000009 en flottant (4 - 3,9) et tombait dehors.
+   RESTES CONNUS, NON TRAITES ICI (revue du 21/09/2026) : la fonction est en
+   O(n) par appel et le `mv` d'un geste la rappelle a chaque frame ; elle
+   ignore les clips de longueur nulle ; et elle ne dit pas lequel de deux
+   voisins EXACTEMENT a egalite l'emporte (le premier rencontre gagne). */
 function dzmVoisins(cs,c){
-  var g=null,d=null;
+  var g=null,d=null,tol=.1+1e-9;
   if(!Array.isArray(cs)||!c)return {g:g,d:d};
   cs.forEach(function(k){if(!k||k.tr!==c.tr||k.id===c.id)return;
-    if(Math.abs(Number(k.end)-Number(c.start))<=.1&&(!g||Number(k.end)>Number(g.end)))g=k;
-    if(Math.abs(Number(k.start)-Number(c.end))<=.1&&(!d||Number(k.start)<Number(d.start)))d=k});
+    if(Math.abs(Number(k.end)-Number(c.start))<=tol&&(!g||Number(k.end)>Number(g.end)))g=k;
+    if(Math.abs(Number(k.start)-Number(c.end))<=tol&&(!d||Number(k.start)<Number(d.start)))d=k});
   return {g:g,d:d}}
 function dzmSlip(clips,id,ds,opts){
   var cs=Array.isArray(clips)?clips:[],d=Number(ds);if(!isFinite(d))d=0;
@@ -17648,6 +17668,13 @@ function dzmSlide(clips,id,ds){
   if(!v.d)return cs.slice();                     /* sans voisin droit : pas un slide */
   var dmax=(Number(v.d.end)-Number(v.d.start))-.3,
       dmin=v.g?-((Number(v.g.end)-Number(v.g.start))-.3):-Number(c.start);
+  /* I1 (revue du 21/09/2026) : reculer le clip fait RECULER le srcIn du
+     voisin droit, et `Math.max(0,...)` ne bornait que la VALEUR ECRITE —
+     le voisin gardait alors sa nouvelle borne de gauche avec un srcIn 0,
+     c'est-a-dire du media INVENTE avant la tete de sa source. C'est `d`
+     qu'il faut borner, pas le srcIn. */
+  if(v.d.srcIn!=null||v.d.src)
+    dmin=Math.max(dmin,-(Number(v.d.srcIn)||0)/dzmSpeedNum(v.d));
   d=Math.max(dmin,Math.min(dmax,d));
   return cs.map(function(k){
     if(!k)return k;
@@ -17663,7 +17690,15 @@ function dzmRoll(clips,leftId,rightId,ds){
   var L=cs.filter(function(k){return k&&k.id===leftId})[0],
       R=cs.filter(function(k){return k&&k.id===rightId})[0];
   if(!L||!R||!d)return cs.slice();
+  /* I2 (revue du 21/09/2026) : un roll n'a de sens que sur une JONCTION —
+     meme piste, bornes en contact. Sans cette garde, `roll(cs,"a","z")` sur
+     deux clips etrangers rallongeait l'un et deplacait l'autre, chacun dans
+     son coin : deux clips mutiles et aucune jonction deplacee. */
+  if(L.tr!==R.tr||Math.abs(Number(R.start)-Number(L.end))>.1+1e-9)return cs.slice();
   var dmin=-((Number(L.end)-Number(L.start))-.3),dmax=(Number(R.end)-Number(R.start))-.3;
+  /* I1 : meme mesure que dans le slide — reculer la jonction recule le
+     srcIn du clip DROIT ; on borne `d`, pas la valeur ecrite. */
+  if(R.srcIn!=null||R.src)dmin=Math.max(dmin,-(Number(R.srcIn)||0)/dzmSpeedNum(R));
   d=Math.max(dmin,Math.min(dmax,d));
   return cs.map(function(k){
     if(!k)return k;

@@ -80,6 +80,31 @@ UNE FAUTE N°6 ATTRAPEE PENDANT L'ECRITURE : `_CSSM.split(borne)[1]` leve
 IndexError quand la borne disparait — un banc doit ROUGIR, pas MOURIR. La
 parade est `_apres()`, qui rend "" et fait rougir ses lectrices.
 
+COMPTE PRECEDENT, 21/09/2026 (D-3, tache 7, TOUR DE CORRECTION) : 1441
+lignes. Le lot ne touche presque pas ce banc-ci -- il vit dans le coeur
+pur et dans test_montage_edition.py (48 -> 58 / 0) -- mais TROIS lignes
+d'ici changent et UNE naît :
+  . M8 -- `D2_le_cablage_n_ajoute_qu_une_section_celle_du_verrou` ne
+    compte plus `len(P.PATCHES)` EN DUR (un absolu que tout lot suivant
+    faisait rougir sans qu'aucun cablage de D-2 ait bouge) : elle mesure
+    le PREFIXE des tags, `[t for t in PATCHES if t[0].startswith("E")]`
+    == ["E4-verrou-apres-mode"].
+  . M9 -- `D3_ecart_aucun_curseur_contextuel_dans_la_feuille` cherchait
+    les MOTS « slip » / « slide » dans toute la feuille : un
+    `@keyframes slide-in` sans rapport l'aurait fait rougir. Elle ne lit
+    plus que les lignes `cursor:`, avec un conjoint positif (la feuille
+    en porte deja).
+  . `D3_T1_ecart_la_borne_haute_du_slip_est_inconnue_a_l_ecran` NOMME
+    desormais la cause : la couche fait `if("srcDur" in k)delete
+    k.srcDur` sur tout clip pose.
+  . I3 -- ligne NEUVE `D3_T3b_alt_neutralise_aussi_le_clic_qui_ouvre_le
+    _reglage` : `preventDefault()` sur un pointerdown NE SUPPRIME PAS le
+    `click` qui suit, et `openTransPop` s'ouvrait par-dessus le roll
+    qu'on venait de faire. L'ancre de T3b est ETENDUE jusqu'au `onClick`
+    (1/1 dans le .bak, mesure). NON-VACUITE : rendre au `onClick` sa
+    forme d'origine dans R_T3B, chaine rejouee, fait rougir cette ligne
+    et elle seule. 1441 -> 1442 / 0.
+
 COMPTE PRECEDENT, 21/09/2026 (D-3, tache 7 - roll, slip, slide) : 1414
 lignes, dont une rouge au premier passage -- `D2_le_cablage_n_ajoute_qu_une
 _section_celle_du_verrou` comptait 75 triplets EN DUR alors qu'elle ne
@@ -8650,15 +8675,15 @@ check("D2_l_ancre_E3_a_ete_consommee_par_M22b",
 # aux trois autres, que des remplacements POSENT. 74 -> 75 triplets, 75 -> 76
 # ancres (`--check` compte aussi M2, le lien CSS de dist/index.html, qui
 # n'est pas un triplet de PATCHES).
-# 21/09/2026 D-3 (tache 7) : ce compte etait ABSOLU (75) alors que la
-# ligne ne parle que du delta de D-2. D-3 ajoute SIX triplets
-# (T1, T2, T3, T3b, T4, T5) -> 81. Le conjoint qui porte le SENS de la
-# ligne est le second : « E4-verrou-apres-mode » est le SEUL triplet
-# que D-2 ait ajoute, et il est toujours la.
+# 21/09/2026 D-3 (tache 7), revue : ce compte etait ABSOLU (75, puis 81)
+# alors que la ligne ne parle que du DELTA de D-2. Tout lot suivant la
+# faisait rougir sans qu'aucun cablage de D-2 ait bouge. Elle mesure
+# desormais le PREFIXE des tags : D-2 a nomme ses sections « E… », et
+# il n'y en a QU'UNE, le verrou.
+_E_TAGS = [t[0] for t in P.PATCHES if t[0].startswith("E")]
 check("D2_le_cablage_n_ajoute_qu_une_section_celle_du_verrou",
-      len(P.PATCHES) == 81
-      and [t for t in P.PATCHES if t[0] == "E4-verrou-apres-mode"],
-      f"{len(P.PATCHES)} triplets dans PATCHES")
+      _E_TAGS == ["E4-verrou-apres-mode"],
+      f"{_E_TAGS} (sur {len(P.PATCHES)} triplets)")
 check("D2_E4_son_ancre_EXISTE_dans_le_bak_contrairement_aux_trois_autres",
       bool(_bak) and _bak.count(_nlb(P.A_E4)) == 1
       and s.count(nl(P.A_E4)) == 0,
@@ -12065,9 +12090,17 @@ check("D3_T1_les_modificateurs_sont_lus_au_pointerdown_entre_edge_et_h0",
 # — la borne HAUTE du slip est donc inconnue et `dzSd` vaut 0. La ligne
 # l'ENONCE plutot que de la taire : si un jour un `c.srcDur` apparait, elle
 # rougit et la borne haute devient mesurable.
+# LA CAUSE EST NOMMEE, pas seulement constatee : la couche EFFACE
+# `srcDur` de tout clip pose (`srcDur` est une mesure de la SOURCE,
+# pas une propriete du clip). C'est pour cela qu'aucun clip ne la
+# porte a l'ecran -- et le jour ou cette regle changera, la ligne
+# rougira et la borne haute deviendra mesurable.
+_D3_EFFACE = 'if("srcDur" in k)delete k.srcDur;'
 check("D3_T1_ecart_la_borne_haute_du_slip_est_inconnue_a_l_ecran",
-      s.count(nl("c.srcDur")) == 1 and s.count(nl("srcDur:dzSd")) == 1,
-      f'c.srcDur={s.count(nl("c.srcDur"))}')
+      s.count(nl("c.srcDur")) == 1 and s.count(nl("srcDur:dzSd")) == 1
+      and src.count(_D3_EFFACE) == 1,
+      f'c.srcDur={s.count(nl("c.srcDur"))} '
+      f'efface_dans_la_couche={src.count(_D3_EFFACE)}')
 
 # T2 — les deux branches sortent TOT, avant `var w=0,delta=0;` (la branche
 # historique du rognage). Placees apres, elles n'auraient jamais la main.
@@ -12119,6 +12152,18 @@ check("D3_T3b_le_losange_porte_le_roll_sans_perdre_son_stopPropagation",
       s.count(nl("onPointerDown:function(e){if(e.altKey){dzRollDown(e,j2);return}"
                  "e.stopPropagation()},")) == 1,
       "Alt -> roll, sinon le losange continue d'avaler le pointerdown")
+# I3 (revue du 21/09/2026) : `preventDefault()` sur le pointerdown NE
+# SUPPRIME PAS le `click` qui suit. Apres un Alt+glisser sur le losange,
+# `openTransPop` s'ouvrait par-dessus le roll. Le `onClick` sort donc
+# sous Alt -- en gardant son `stopPropagation`, qui protege le scrub de
+# la piste dessous. L'ancienne forme a DISPARU : sinon la section aurait
+# ete posee a cote.
+check("D3_T3b_alt_neutralise_aussi_le_clic_qui_ouvre_le_reglage",
+      s.count(nl("onClick:function(e){e.stopPropagation();if(e.altKey)return;"
+                 "openTransPop(j2.right.id,e)}")) == 1
+      and s.count(nl("onClick:function(e){e.stopPropagation();"
+                     "openTransPop(j2.right.id,e)}})]}")) == 0,
+      "le clic du losange doit sortir sous Alt, sans perdre son stopPropagation")
 
 # T4 — `dzRollDown` est pose JUSTE AVANT `transSpanDown`, donc DANS le corps
 # du composant : c'est la seule facon d'avoir `trackStRef`, `durRef`,
@@ -12167,9 +12212,18 @@ check("D3_T5_le_titre_dit_les_trois_gestes_et_l_ancienne_phrase_a_disparu",
       f'{s.count(nl(chr(34) + " — bords : rogner / allonger · centre : déplacer" + chr(34)))}')
 # ECART ASSUME ET DATE (21/09/2026) : « D-3 : curseur contextuel non livre ».
 # Le titre est la SEULE decouverte du geste ; la feuille n'a pas bouge.
+# M9 (revue) : la ligne cherchait les MOTS « slip » et « slide » dans
+# toute la feuille -- un `@keyframes slide-in` sans aucun rapport
+# l'aurait fait rougir. Elle ne mesure plus que ce dont elle parle :
+# les declarations de CURSEUR, et le fait que la feuille en porte
+# deja (conjoint positif, sinon « aucun curseur ajoute » serait vrai
+# d'une feuille vide ou introuvable).
+_MC_CURS = [_l.strip() for _l in _MC.splitlines() if "cursor:" in _l]
 check("D3_ecart_aucun_curseur_contextuel_dans_la_feuille",
-      "slip" not in _MC and "slide" not in _MC and "col-resize" not in _MC,
-      "ecart assume : le titre porte seul la decouverte des trois gestes")
+      len(_MC_CURS) > 0
+      and not [_l for _l in _MC_CURS
+               if "col-resize" in _l or "ew-resize" in _l or "slip" in _l],
+      f"ecart assume ; curseurs de la feuille : {_MC_CURS}")
 
 # LE COEUR PUR EST EXPORTE ET C'EST LUI QUE LE BUNDLE APPELLE : la couche
 # injectee (src) porte les quatre fonctions, le bundle les appelle une fois

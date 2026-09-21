@@ -132,19 +132,45 @@ out.slip_vitesse=tri3(T.slip(K3.map(function(c){
 /* doctrine : un titre (ni srcIn ni src) ne gagne pas de fenetre de source */
 out.slip_titre=(function(){var TT=[{tr:"v1",id:"tt",start:0,end:4,text:"t"}];
   return ("srcIn" in T.slip(TT,"tt",1,{srcDur:10})[0])})();
+/* I1 (revue du 21/09/2026) : reculer p2 recule le srcIn de p3, et p3 part
+   de srcIn 0 -- sur K3 NU, tout recul est donc borne a zero. Les lignes qui
+   veulent voir un recul travaillent sur des variantes ou p3 porte de la
+   source devant lui : K3N (p3 srcIn 2) et K3D (p3 srcIn 9). */
+var K3N=K3.map(function(c){return c.id==="p3"?Object.assign({},c,{srcIn:2}):c});
+var K3D=K3.map(function(c){return c.id==="p3"?Object.assign({},c,{srcIn:9}):c});
+var K3G=K3.map(function(c){return c.id==="p2"?Object.assign({},c,{srcIn:9}):c});
+var K3V=K3.map(function(c){return c.id==="p3"?Object.assign({},c,{srcIn:1,speed:2}):c});
 out.slide=tri3(T.slide(K3,"p2",1));
-out.slide_neg=tri3(T.slide(K3,"p2",-1));
+out.slide_neg=tri3(T.slide(K3N,"p2",-1));
 out.slide_borne=tri3(T.slide(K3,"p2",5));
+out.slide_borne_gauche=tri3(T.slide(K3D,"p2",-9));
+out.slide_borne_source_droite=tri3(T.slide(K3,"p2",-9));
 out.slide_sans_voisin=tri3(T.slide(K3,"p3",1));
+out.slide_sans_gauche=(function(){
+  var G=[{tr:"v1",id:"c",start:2,end:6,srcIn:0,src:{a:1}},
+         {tr:"v1",id:"d",start:6,end:12,srcIn:5,src:{a:1}}];
+  return tri3(T.slide(G,"c",-5))})();
+out.slide_vitesse=tri3(T.slide(K3V,"p2",1));
 out.roll=tri3(T.roll(K3,"p1","p2",-1));
 out.roll_avant=tri3(T.roll(K3,"p1","p2",1));
-out.roll_borne=tri3(T.roll(K3,"p1","p2",-9));
+out.roll_borne=tri3(T.roll(K3G,"p1","p2",-9));
+out.roll_borne_source=tri3(T.roll(K3,"p1","p2",-9));
+out.roll_borne_haut=tri3(T.roll(K3,"p1","p2",9));
+out.roll_non_contigu=tri3(T.roll(K3,"p1","p3",1));
+out.roll_vitesse=tri3(T.roll(K3V,"p2","p3",1));
+out.slip_borne_haut_vitesse=tri3(T.slip(K3.map(function(c){
+  return c.id==="p2"?Object.assign({},c,{speed:2}):c}),"p2",-100,{srcDur:20}));
 /* dzmVoisins : le contact se mesure a 0,1 s pres, sur la MEME piste */
 out.voisins=(function(){var v=T.voisins(K3,K3[1]);
   return [v.g?v.g.id:null,v.d?v.d.id:null]})();
 out.voisins_autre_piste=(function(){
   var X=[{tr:"v1",id:"a",start:0,end:4},{tr:"v2",id:"b",start:4,end:8}];
   var v=T.voisins(X,X[0]);return [v.g?v.g.id:null,v.d?v.d.id:null]})();
+/* M2 : 4 - 3,9 vaut 0,10000000000000009 en flottant -- un contact d'un
+   dixieme EXACT tombait dehors avec `<= .1` nu. */
+out.voisins_dixieme_exact=(function(){
+  var X=[{tr:"v1",id:"a",start:0,end:3.9},{tr:"v1",id:"b",start:4,end:8}];
+  var v=T.voisins(X,X[1]);return v.g?v.g.id:null})();
 out.mou3=[T.slip(null,"p2",1,{}).length,T.slide(K3,"zz",1).length,
           T.roll(K3,"p1","zz",1).length,tri3(T.roll(K3,"p1","p2",NaN))[0][2]];
 out.pur3=K3[1].srcIn===2&&K3[0].end===4&&K3[2].start===8;
@@ -296,7 +322,10 @@ try:
     # aucune des cles utilisees par les `check` positifs plus haut ne doit
     # apparaitre dans D quand la source est vide (T.MODES etc n'existent pas)
     vide_cles = ["modes","ecraser","inserer","fin","dessus_piste","ripple","remplir","jumeau",
-                 "slip","slide","roll","voisins","mou3","pur3"]
+                 "slip","slide","roll","voisins","mou3","pur3",
+                 "slide_borne_gauche","slide_sans_gauche",
+                 "roll_borne_source","roll_non_contigu",
+                 "voisins_dixieme_exact"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -326,17 +355,41 @@ check("slip_deplace_la_source_sans_bouger_le_clip",
 check("slip_borne_bas", at("slip_borne_bas",1) == ["p2",4,8,0], at("slip_borne_bas",1))
 check("slip_borne_haut", at("slip_borne_haut",1) == ["p2",4,8,6], at("slip_borne_haut",1))
 check("slip_suit_la_vitesse", at("slip_vitesse",1) == ["p2",4,8,0], at("slip_vitesse",1))
+# La borne HAUTE aussi compte en source : longueur consommee = 4 x 2 = 8,
+# donc srcIn plafonne a 20 - 8 = 12 et non a 20 - 4 = 16.
+check("slip_borne_haut_suit_la_vitesse",
+      at("slip_borne_haut_vitesse",1) == ["p2",4,8,12], at("slip_borne_haut_vitesse",1))
 check("slip_titre_ne_gagne_pas_de_srcIn",
       "slip_titre" in D and D.get("slip_titre") is False, D.get("slip_titre"))
 check("slide_les_voisins_compensent",
       D.get("slide") == [["p1",0,5,0],["p2",5,9,2],["p3",9,10,1]], D.get("slide"))
+# I1 : sur K3 NU, p3 part de srcIn 0 et tout recul est borne a zero. La
+# ligne travaille donc sur K3N (p3 srcIn 2), et le srcIn de p3 RECULE de 1.
 check("slide_negatif",
-      D.get("slide_neg") == [["p1",0,3,0],["p2",3,7,2],["p3",7,10,0]], D.get("slide_neg"))
+      D.get("slide_neg") == [["p1",0,3,0],["p2",3,7,2],["p3",7,10,1]], D.get("slide_neg"))
+# M4 : attente CHIFFREE EXACTE, et non deux inegalites -- la forme d'avant
+# etait vraie de toute une famille de resultats.
 check("slide_borne_par_le_voisin_droit",
-      isinstance(at("slide_borne",2,1), (int, float))
-      and isinstance(at("slide_borne",2,2), (int, float))
-      and at("slide_borne",2,1) - at("slide_borne",2,2) <= -0.3 + 1e-9
-      and at("slide_borne",2,2) == 10, D.get("slide_borne"))
+      D.get("slide_borne") == [["p1",0,5.7,0],["p2",5.7,9.7,2],["p3",9.7,10,1.7]],
+      D.get("slide_borne"))
+# LA BORNE GAUCHE, vue pour de bon : p3 porte 9 s de source devant lui, donc
+# la tete de source ne borne plus rien et c'est p1 (4 s, min 0,3) qui arrete
+# le recul a -3,7.
+check("slide_borne_par_le_voisin_gauche",
+      D.get("slide_borne_gauche") == [["p1",0,0.3,0],["p2",0.3,4.3,2],["p3",4.3,10,5.3]],
+      D.get("slide_borne_gauche"))
+# I1 : la MEME demande sur K3 nu ne bouge RIEN -- p3 n'a pas de source avant
+# sa tete. C'est la ligne qui aurait rougi avant le correctif : le slide
+# reculait p3 jusqu'a 4,3 avec un srcIn ecrete a 0, soit 4,3 s inventees.
+check("slide_borne_par_la_tete_de_source_du_voisin_droit",
+      D.get("slide_borne_source_droite") == [["p1",0,4,0],["p2",4,8,2],["p3",8,10,0]],
+      D.get("slide_borne_source_droite"))
+# SANS VOISIN GAUCHE, la borne est le zero de la timeline -- et la tete de
+# source du droit (5 s) est plus large, donc c'est bien zero qui arrete.
+check("slide_sans_voisin_gauche_s_arrete_a_zero",
+      D.get("slide_sans_gauche") == [["c",0,4,0],["d",4,12,3]], D.get("slide_sans_gauche"))
+check("slide_la_source_du_voisin_droit_suit_la_vitesse",
+      at("slide_vitesse",2) == ["p3",9,10,3], at("slide_vitesse",2))
 check("slide_sans_voisin_droit_ne_bouge_pas",
       D.get("slide_sans_voisin") == [["p1",0,4,0],["p2",4,8,2],["p3",8,10,0]],
       D.get("slide_sans_voisin"))
@@ -344,11 +397,35 @@ check("roll_recule",
       D.get("roll") == [["p1",0,3,0],["p2",3,8,1],["p3",8,10,0]], D.get("roll"))
 check("roll_avance",
       D.get("roll_avant") == [["p1",0,5,0],["p2",5,8,3],["p3",8,10,0]], D.get("roll_avant"))
+# I1 : sur K3 nu, la borne de TETE DE SOURCE de p2 (-2) est plus serree que
+# celle des 0,3 s (-3,7) -- la ligne ne verrait donc plus la borne qu'elle
+# nomme. Elle joue sur K3G (p2 srcIn 9), ou la source ne borne plus rien.
 check("roll_borne_a_0_3_s", at("roll_borne",0,2) == 0.3, at("roll_borne",0,2))
+check("roll_borne_haut_a_0_3_s",
+      D.get("roll_borne_haut") == [["p1",0,7.7,0],["p2",7.7,8,5.7],["p3",8,10,0]],
+      D.get("roll_borne_haut"))
+# I1 : la jonction ne recule pas au-dela de la tete de source du clip DROIT.
+# Avant le correctif, p2 partait a 0,3 avec un srcIn ecrete a 0 : 1,7 s de
+# media INVENTE devant sa source.
+check("roll_ne_depasse_pas_la_tete_de_source_du_droit",
+      D.get("roll_borne_source") == [["p1",0,2,0],["p2",2,8,0],["p3",8,10,0]],
+      D.get("roll_borne_source"))
+# I2 : p1 et p3 ne se touchent pas -- ce n'est pas une jonction, rien ne
+# bouge. La cle doit EXISTER : sans ce conjoint, la ligne serait vraie d'un
+# banc ou la sonde n'a jamais tourne.
+check("roll_refuse_deux_clips_non_contigus",
+      "roll_non_contigu" in D
+      and D.get("roll_non_contigu") == [["p1",0,4,0],["p2",4,8,2],["p3",8,10,0]],
+      D.get("roll_non_contigu"))
+check("roll_la_source_du_droit_suit_la_vitesse",
+      at("roll_vitesse",2) == ["p3",9,10,3], at("roll_vitesse",2))
 check("voisins_de_contact", D.get("voisins") == ["p1","p3"], D.get("voisins"))
 check("voisins_ignorent_les_autres_pistes",
       "voisins_autre_piste" in D and D.get("voisins_autre_piste") == [None, None],
       D.get("voisins_autre_piste"))
+check("voisins_le_contact_a_un_dixieme_exact",
+      "voisins_dixieme_exact" in D and D.get("voisins_dixieme_exact") == "a",
+      D.get("voisins_dixieme_exact"))
 check("trims_entrees_molles", "mou3" in D and D.get("mou3") == [0, 3, 3, 4], D.get("mou3"))
 check("trims_purs", D.get("pur3") is True, D.get("pur3"))
 
