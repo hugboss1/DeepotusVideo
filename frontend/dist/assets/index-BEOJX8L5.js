@@ -4161,8 +4161,8 @@ function DzMontage(props){
        EFFECTIF : « au-dessus » rend toujours "ecraser" sur une autre
        piste, c'est donc le changement de PISTE qui le trahit, et le
        repli « aucune piste libre » parle par `dzIns.note`. */
-    if(dzIns.track&&dzIns.track!==tr2)dzTail+=" Posé au-dessus : la "+
-      "piste visée était occupée à cet instant.";
+    if(dzIns.track&&dzIns.track!==tr2)dzTail+=" Posé sur la piste "+
+      "libre au-dessus (mode « au-dessus »).";
     else if(dzIns.mode!=="ecraser")dzTail+=" Mode « "+
       DzTracks.modeLabel(dzIns.mode)+" »."+
       ((dzP&&Number(dzP.speed)>0&&Number(dzP.speed)!==1)?

@@ -1996,7 +1996,14 @@ R_M22A = (
     "    else dzTail+=DzTracks.overlayNote(kind,dzTs,tr2);\n"
     # M-5 — LA PISTE N'EST PAS RÉPÉTÉE : `tr2` vient d'être réaffecté à
     # `dzIns.track`, et la note principale dit déjà « ajouté sur V2 à … ».
-    # Ce qu'il reste à dire est POURQUOI la piste a changé.
+    # Ce qu'il reste à dire est le MODE, et RIEN D'AUTRE. Une version de
+    # cette phrase disait « la piste visée était occupée à cet instant » :
+    # c'était FAUX, et c'est mesuré (21/09/2026, `dzmInsere` joué sous node,
+    # pistes [v2, v1], clips VIDES, clip visé sur v1 en « dessus » →
+    # `{track:"v2", refus:"", note:""}`). Le mode remonte TOUJOURS vers la
+    # première piste libre du même genre au-dessus ; il ne regarde jamais
+    # l'occupation de la piste visée. La note énonce donc le mode appliqué,
+    # exactement comme la branche `else` juste en dessous.
     # I-2 — LA VITESSE EST FORMATÉE SUR PLACE. `DzTracks.secs` est un
     # formateur de DURÉE : il arrondit au dixième et rendait « ×0,3 » pour
     # une vitesse de 0,25 (mesuré le 21/09/2026), en plus de coller un « s »
@@ -2005,8 +2012,8 @@ R_M22A = (
     "       EFFECTIF : « au-dessus » rend toujours \"ecraser\" sur une autre\n"
     "       piste, c'est donc le changement de PISTE qui le trahit, et le\n"
     "       repli « aucune piste libre » parle par `dzIns.note`. */\n"
-    "    if(dzIns.track&&dzIns.track!==tr2)dzTail+=\" Posé au-dessus : la \"+\n"
-    "      \"piste visée était occupée à cet instant.\";\n"
+    "    if(dzIns.track&&dzIns.track!==tr2)dzTail+=\" Posé sur la piste \"+\n"
+    "      \"libre au-dessus (mode « au-dessus »).\";\n"
     "    else if(dzIns.mode!==\"ecraser\")dzTail+=\" Mode « \"+\n"
     "      DzTracks.modeLabel(dzIns.mode)+\" ».\"+\n"
     "      ((dzP&&Number(dzP.speed)>0&&Number(dzP.speed)!==1)?\n"

@@ -31,8 +31,17 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 21/09/2026 (D-2, tache 6, TOUR DE CORRECTION) : 1397
-lignes, soit DIX-HUIT de plus que les 1379 du premier tour. Ce que ces
+COMPTE DE REFERENCE, 21/09/2026 (D-2, tache 6, TOUR DE CORRECTION) : 1398
+lignes, soit DIX-NEUF de plus que les 1379 du premier tour. La DIX-NEUVIEME
+est `js_D2_dessus_remonte_meme_quand_la_piste_visee_est_vide`, et elle a une
+histoire : la note de M-5 disait « la piste visee etait occupee a cet
+instant », ce qui est FAUX — `dzmInsere` en mode « dessus » remonte TOUJOURS
+vers la premiere piste libre du meme genre, sans jamais regarder
+l'occupation de la piste visee (mesure sous node : pistes [v2, v1], AUCUN
+clip, clip vise sur v1 -> {track:"v2", refus:"", note:""}). La note enonce
+desormais le MODE. La ligne neuve joue ce cas-la — une V1 VIDE — et NIE
+l'ancienne phrase mot pour mot ; la remettre fait rougir les DEUX lignes
+« dessus » (mutation jouee et retiree, 1396/2). Ce que ces
 dix-huit tiennent, dans l'ordre de la liste fermee du controleur :
   · I-1, la course « remplir la plage » / plage effacee, prise aux DEUX
     bouts : le mode SUIT la plage (R_R2 appelle `setDzMode("ecraser")` sur
@@ -8177,6 +8186,13 @@ out.m_dessus_plein=MODE("dessus",AVEC({clips:DEUX().concat(
    selection doit porter. */
 out.m_collision=MODE("ecraser",AVEC({at:0,clips:[
   {tr:"v1",id:"v1u1_0",label:"vieux",start:12,end:14,src:{job_id:4},srcIn:0}]}));
+/* M-5 (second tour) — « AU-DESSUS » SUR UNE V1 VIDE. Le mode remonte
+   TOUJOURS vers la premiere piste libre du meme genre : il ne regarde
+   JAMAIS l'occupation de la piste visee. Une version de la note pretendait
+   le contraire (« la piste visee etait occupee a cet instant ») et mentait
+   donc sur ce cas-ci, mesure sous node : pistes [v2, v1], AUCUN clip, clip
+   vise sur v1 -> {track:"v2", refus:"", note:""}. La note enonce le MODE. */
+out.m_dessus_vide=MODE("dessus",AVEC({clips:[]}));
 /* « E4 » — LE VERROU DE LA PISTE VISEE NE PRECEDE PLUS LE MODE. V1 est
    VERROUILLEE, V2 est libre : « au-dessus » doit POSER sur V2 (avant, le
    geste etait refuse alors que rien n'allait sur V1) ; « ecraser », lui,
@@ -8886,12 +8902,24 @@ check("js_D2_fin_pose_apres_le_dernier_clip_et_ignore_la_tete",
 check("js_D2_dessus_pose_sur_la_piste_libre_au_dessus_et_le_dit",
       _M("dessus").get("pistes") == ["v1", "v1", "v2"]
       and _M("dessus").get("bornes") == [[0, 4], [4, 8], [2, 5]]
-      # M-5 (21/09/2026) : la piste n'est PLUS repetee — `tr2` a ete
-      # reaffecte, et la note principale dit deja « ajoute sur V2 a … ».
-      and "Posé au-dessus : la piste visée était occupée à cet instant."
+      # M-5 (21/09/2026, second tour) : la piste n'est PLUS repetee — `tr2`
+      # a ete reaffecte, et la note principale dit deja « ajoute sur V2 a
+      # … ». Ce qui reste est l'ENONCE DU MODE, et rien d'autre.
+      and "Posé sur la piste libre au-dessus (mode « au-dessus »)."
       in _M("dessus").get("note", "")
       and "Posé sur V2" not in _M("dessus").get("note", ""),
       f'{_M("dessus").get("pistes")} note={_M("dessus").get("note", "")[-140:]!r}')
+# M-5 — LE CAS QUI DEMASQUAIT LA PHRASE FAUSSE : la piste visee est VIDE,
+# et « au-dessus » remonte quand meme. La negation nomme l'ancienne phrase,
+# mot pour mot : elle rougirait si on la remettait.
+check("js_D2_dessus_remonte_meme_quand_la_piste_visee_est_vide",
+      _M("dessus_vide").get("pistes") == ["v2"]
+      and _M("dessus_vide").get("bornes") == [[2, 5]]
+      and "Posé sur la piste libre au-dessus (mode « au-dessus »)."
+      in _M("dessus_vide").get("note", "")
+      and "occupée à cet instant" not in _M("dessus_vide").get("note", ""),
+      f'{_M("dessus_vide").get("pistes")} {_M("dessus_vide").get("bornes")} '
+      f'note={_M("dessus_vide").get("note", "")[-160:]!r}')
 check("js_D2_ripple_remplace_le_clip_sous_la_tete_et_recale_la_suite",
       _M("ripple").get("bornes") == [[3, 7], [0, 3]]
       and _M("ripple").get("ids") == ["p2", "v1u1_20"],
