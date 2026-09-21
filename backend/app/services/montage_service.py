@@ -238,6 +238,15 @@ def _tracks_meta(raw) -> dict:
     `kind` manquant se déduit de l'initiale (a… audio, s… sous-titres,
     sinon vidéo) ; `bus` inconnu retombe sur `sfx` (jamais de bus inventé
     dans le mixage) ; `loop` n'a de sens que sur une piste audio.
+
+    Genres CONNUS du rendu : `video` (V1 et overlays), `audio` (les trois
+    bus), `subs` (S1, gravée en dernier) et, depuis D-21 (21/09/2026),
+    `title` — une piste de cartons, dont les clips n'ont PAS de `src` et
+    sont gravés en ASS avant S1 (cf. `_titles_ass`). Une piste `title` ne
+    gagne ni `layer` (elle n'est pas composée par overlay) ni bus de mixage.
+    Il n'y a toujours AUCUNE liste blanche de genres : un `kind` inconnu
+    reste déclarable, et ses clips restent simplement inertes au rendu — ce
+    comportement est mesuré, et D-21 ne le change pas.
     `layer` ne concerne que les pistes VIDÉO autres que v1 : la dernière
     listée (la plus BASSE à l'écran) prend 0, la première listée le rang le
     plus haut — `_build_montage_command` composant par `layer` croissant,
@@ -1594,6 +1603,72 @@ async def montage_transitions():
     return transitions_catalog()
 
 
+@router.get("/titles")
+async def montage_titles():
+    """D-21 — les huit gabarits de titre, leur libellé français et ce qui les
+    distingue à l'œil (fonte, corps à 1080 p, couleur de charte, couleur de
+    boîte, tags d'animation). Le client n'en a aucune copie : même précédent
+    que `GET /transitions`, `GET /effects` et `GET /media-rules`."""
+    from app.services import titles as TI
+    return {"gabarits": [
+        {"id": k, "label": TI.LABELS.get(k, k), "font": t["font"],
+         "size": t["size"], "color": t["color"], "box": t["box"],
+         "anim": t["anim"]}
+        for k, t in TI.TEMPLATES.items()]}
+
+
+def _prev_w(raw, defaut: int = 270) -> int:
+    """Largeur d'aperçu BORNÉE 96..640 et PAIRE.
+
+    Le paramètre est reçu en CHAÎNE et non en `int` : FastAPI répondrait 422
+    sur `w=abc`, alors qu'un aperçu est un confort — une largeur illisible
+    doit retomber sur le défaut, pas refuser l'image. La borne haute n'est
+    pas cosmétique : chaque largeur inédite grave un `.ass` et un PNG de
+    plus dans le cache, donc une largeur libre serait un cache sans fond.
+    """
+    try:
+        w = int(float(str(raw)))
+    except (TypeError, ValueError):
+        w = defaut
+    w = max(96, min(640, w))
+    return w - w % 2
+
+
+@router.get("/title-preview")
+async def montage_title_preview(template: str = "", text: str = "", sub: str = "",
+                                color: str = "", font: str = "", size: str = "",
+                                w: str = "270"):
+    """D-21 — l'aperçu PNG d'un titre, gravé par le même ASS que le rendu.
+
+    Cadre VERTICAL 9:16 (hauteur = largeur × 16/9, paire) : l'aperçu montre
+    le titre dans le format du montage court, où le placement des gabarits a
+    été mesuré. Le PNG est rendu dans un THREAD (ffmpeg dure ~0,3 s) et
+    servi avec un `Cache-Control` d'un jour — la clé de cache contient le
+    spec entier et `titles.FORMAT_V`, donc un nouveau réglage donne une
+    nouvelle URL et jamais une image périmée.
+
+    400 quand il n'y a rien à écrire (texte vide : `title_spec` rend None) —
+    la faute est du client. 503 quand ffmpeg n'a rendu aucune image : c'est
+    l'outil qui manque, pas la requête qui est fautive.
+    """
+    from app.services import titles as TI
+    ww = _prev_w(w)
+    hh = ww * 16 // 9
+    hh -= hh % 2
+    spec = TI.title_spec({"title": {"template": template, "text": text, "sub": sub,
+                                    "color": color, "font": font, "size": size},
+                          "start": 0, "end": 3})
+    if not spec:
+        raise HTTPException(400, "Aperçu de titre : il n'y a rien à écrire — "
+                                 "donne un texte.")
+    p = await asyncio.to_thread(TI.render_title_png, spec, ww, hh)
+    if p is None or not Path(p).is_file():
+        raise HTTPException(503, "Aperçu de titre : ffmpeg n'a rendu aucune "
+                                 "image — réessaie, ou lance le rendu.")
+    return FileResponse(str(p), media_type="image/png",
+                        headers={"Cache-Control": "public, max-age=86400"})
+
+
 @router.get("/effects")
 async def montage_effects():
     """Catalogue du moteur Effects / Mask pour le sélecteur d'effets par clip
@@ -1938,7 +2013,7 @@ async def _resolve_src(src: dict | None) -> Path | None:
 
 def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                            ducking, duration_master, preview, out,
-                           audio_only=False, subs_ass=None):
+                           audio_only=False, subs_ass=None, titles_ass=None):
     """Commande ffmpeg complète (sync, testable). v1/v2/a_clips/music portent
     des chemins déjà résolus + durées sondées.
 
@@ -1970,6 +2045,12 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     avant `format=yuv420p` : le texte passe donc au-dessus des overlays V2 et
     couvre l'extension du maître de durée. None (défaut) : chaîne historique
     intacte, octet pour octet.
+    D-21 : `titles_ass` = liste de chemins ASS (un par clip TITRE, déjà
+    triés par début). Ils sont gravés JUSTE AVANT `subs_ass` — `[tt0]`,
+    `[tt1]`… — pour que S1 reste le dernier maillon vidéo. Liste vide ou
+    None (défaut) : chaîne historique intacte, octet pour octet. Le graphe
+    `audio_only` n'ouvre aucune vidéo et rend AVANT ce bloc : un titre n'y
+    entre jamais.
     Sans ces champs, la commande émise est identique octet pour octet à
     l'historique (non-régression testée).
 
@@ -2401,6 +2482,21 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                "-f", "null", "-"]
         return cmd, total
 
+    # --- T1 : GRAVURE des TITRES (D-21, 21/09/2026) ---------------------
+    # Un `.ass` par clip titre, gravé par le MÊME filtre que S1 — donc avec
+    # le même `fontsdir` embarqué et le même échappement de chemin. Les
+    # titres passent AVANT les sous-titres : S1 reste le dernier maillon
+    # vidéo, un sous-titre ne doit jamais se retrouver sous un carton.
+    # `cur` est repris à chaque maillon, si bien que le
+    # `,format=yuv420p[outv]` d'après se pose sur `[tt{n-1}]` quand il n'y a
+    # pas de S1 (mesuré : `[tt0]format=yuv420p[outv]`) — les deux branches
+    # ci-dessous partent de `cur`, aucune ne suppose un nom de maillon.
+    if titles_ass:
+        from app.services.subtitle_service import subtitles_filter
+        for j, tpath in enumerate(titles_ass):
+            parts.append(f"[{cur}]{subtitles_filter(tpath)}[tt{j}]")
+            cur = f"tt{j}"
+
     # --- S1 : GRAVURE des sous-titres (dernier maillon de la chaîne vidéo) ---
     # `fontsdir` n'est pas une précaution : sans lui libass cherche dans les
     # fontes SYSTÈME, ne trouve pas les fontes embarquées (Anton, Bebas Neue,
@@ -2519,6 +2615,39 @@ def _subs_ass(payload, canvas: tuple[int, int], stem: str) -> tuple[Path | None,
             "wordAnim:« couleur » EST le karaoké — karaoké éteint, aucun mot "
             "ne change de couleur")
     return p, info
+
+
+def _titles_ass(clips, meta: dict, canvas: tuple[int, int], stem: str) -> list[str]:
+    """D-21 — les clips TITRE de la timeline → la liste de leurs ASS.
+
+    Un clip titre vit sur une piste de genre `title` (cf. `_tracks_meta`) et
+    n'a PAS de `src` : c'est `titles.title_spec` qui décide s'il y a quelque
+    chose à graver (texte vide, `title` qui n'est pas un dict, durée nulle…
+    → None, clip ignoré SANS lever). L'ordre rendu est celui du DÉBUT des
+    clips, pas celui du tableau `clips` : deux titres qui se recouvrent sont
+    alors empilés dans l'ordre où le spectateur les voit apparaître.
+
+    Fonction à part, et non quelques lignes dans `montage_render` : c'est la
+    seule forme sous laquelle la collecte est jouable par un banc sans
+    lancer un rendu complet (le pré-vol P8 exige une source qu'ffmpeg ouvre).
+    """
+    from app.services import titles as TI
+    specs = []
+    for c in clips or []:
+        if not isinstance(c, dict):
+            continue
+        if (meta.get(str(c.get("tr"))) or {}).get("kind") != "title":
+            continue
+        s = TI.title_spec(c)
+        if s:
+            specs.append(s)
+    specs.sort(key=lambda s: s.get("start", 0.0))
+    out = []
+    for i, s in enumerate(specs):
+        p = TI.to_ass_title(s, canvas, f"{stem}_t{i}")
+        if p is not None:
+            out.append(str(p))
+    return out
 
 
 def _run_ffmpeg(cmd, out: Path) -> Path:
@@ -2814,11 +2943,18 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
             subs_ass, subs_info = await asyncio.to_thread(
                 _subs_ass, body.get("subtitles"), (w, h), f"montage_{short}")
 
+            # D-21 : les clips TITRE (piste de genre `title`, sans `src`) →
+            # un ASS chacun, écrits AVANT la commande comme celui de S1, au
+            # canevas RÉEL du rendu (aperçu 480p compris, pour que les corps
+            # suivent). Aucun clip titre : liste vide, commande historique.
+            titles_ass = await asyncio.to_thread(
+                _titles_ass, clips, meta, (w, h), f"montage_{short}")
+
             cmd, total = _build_montage_command(
                 v1, v2, a_clips, music, w=w, h=h, fps=fps,
                 mix_db=mix, ducking=ducking,
                 duration_master=duration_master, preview=preview, out=out,
-                subs_ass=subs_ass)
+                subs_ass=subs_ass, titles_ass=titles_ass)
             fx_n = sum(len(c["effects"] or []) for c in v1)
             logger.info(f"montage {short}: {len(v1)} clips V1 ({fx_n} effets), "
                         f"{len(v2)} overlays V2, {len(a_clips)} audio, "
@@ -2835,6 +2971,10 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                     + (f" — non gravable : "
                        f"{', '.join(subs_info['unsupported'])}"
                        if subs_info["unsupported"] else ""))
+            if titles_ass:
+                logger.info(f"montage {short}: {len(titles_ass)} titre(s) gravé(s) "
+                            f"avant S1 — "
+                            f"{', '.join(Path(p).name for p in titles_ass[:4])}")
             await asyncio.to_thread(_run_ffmpeg, cmd, out)
 
             dur = await loop.run_in_executor(None, _probe_duration, out)

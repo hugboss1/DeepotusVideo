@@ -525,6 +525,277 @@ check("d21_chaque_gabarit_produit_un_ass_valide",
                               for f in _tous),
       [str(f) for f in _tous if f is None or not f.is_file()][:3])
 
+
+print("\n[3] D-21 la piste t1 est gravee avant S1, routes titles et title-preview")
+import io                                              # noqa: E402
+import pathlib                                         # noqa: E402
+import subprocess                                      # noqa: E402
+
+# La section ne lance ffmpeg QUE la ou elle mesure une image : la commande de
+# rendu est mesuree comme TEXTE (elle n'est jamais executee), donc un fichier
+# d'un octet suffit a la porter. Le rendu reel de la fin de section, lui, veut
+# une VRAIE source (le pre-vol P8 refuse ce qu'aucun demultiplexeur n'ouvre) :
+# elle est fabriquee par ffmpeg juste avant.
+V1F = str(pathlib.Path(TMP) / "v1.mp4")
+pathlib.Path(V1F).write_bytes(b"x")
+
+
+def TL(name="titres", n=1, dur=4, src=None):
+    """Timeline minimale — recopiee de tests/test_montage_projets.py."""
+    return {"name": name, "ratio": "9:16", "duration": dur, "mix": {},
+            "clips": [{"tr": "v1", "id": "v%d" % i, "start": 0, "end": 4,
+                       "src": {"file_path": src or V1F}} for i in range(n)]}
+
+
+def wipe_courant():
+    """Le COURANT efface — l'etat vide de la persistance de cette section."""
+    try:
+        (pathlib.Path(TMP) / "montage_saved.json").unlink()
+    except OSError:
+        pass
+
+
+def V1SPEC(**kw):
+    """Forme d'un clip V1 pour `_build_montage_command`, RECOPIEE du plus
+    petit appel vert de tests/test_montage_pistes_rendu.py (`v1_spec()`)."""
+    d = {"path": V1F, "src_dur": 4.0, "src_in": 0.0, "start": 0.0, "end": 4.0,
+         "transition": "cut", "transition_s": 0.0, "speed": 0.0, "effects": None}
+    d.update(kw)
+    return d
+
+
+def FLAT(cmd):
+    return " ".join(cmd) if isinstance(cmd, list) else str(cmd)
+
+
+def BUILD(**kw):
+    """`_build_montage_command` avec les arguments constants de la section.
+    Un `TypeError` (mot-cle `titles_ass` pas encore accepte : l'ETAT VIDE de
+    cette section) rend un temoin au lieu de tuer le banc — les checks
+    rougissent alors au lieu de disparaitre."""
+    a = {"w": 64, "h": 64, "fps": 25, "mix_db": {}, "ducking": False,
+         "duration_master": False, "preview": True,
+         "out": os.path.join(TMP, "o.mp4")}
+    a.update(kw)
+    try:
+        cmd, _ = MS._build_montage_command([V1SPEC()], [], [], None, **a)
+    except TypeError as e:
+        return "TypeError: %s" % e
+    return FLAT(cmd)
+
+
+meta = MS._tracks_meta([{"id": "v1", "kind": "video"}, {"id": "t1", "kind": "title"},
+                        {"id": "s1", "kind": "subs"}])
+check("d21_tracks_meta_declare_le_genre_title",
+      (meta.get("t1") or {}).get("kind") == "title", meta.get("t1"))
+# Une piste de titres n'est NI une couche video composee (elle ne gagne aucun
+# rang) NI une piste audio bouclee : la negation est precedee, dans la MEME
+# expression, du temoin positif qui etablit que la piste a bien ete declaree.
+check("d21_la_piste_titre_n_est_ni_une_couche_video_ni_une_boucle",
+      (meta.get("t1") or {}).get("kind") == "title"
+      and (meta.get("t1") or {}).get("layer") == 0
+      and (meta.get("t1") or {}).get("loop") is False,
+      meta.get("t1"))
+
+wipe_courant()
+_tl = TL("titres", n=2)
+_tl["tracks"] = [{"id": "v1", "kind": "video"}, {"id": "t1", "kind": "title"}]
+_tl["clips"].append({"tr": "t1", "id": "tt1", "kind": "title", "start": 1, "end": 3,
+                     "title": {"template": "tiers_inferieur", "text": "Abysse",
+                               "sub": "ep. 3"}})
+_rs = c.post("/api/montage/save", json=_tl)
+_cur = J(c.get("/api/montage/project"))
+check("d21_le_clip_titre_survit_a_la_sauvegarde",
+      _rs.status_code == 200
+      and any(k.get("tr") == "t1" and (k.get("title") or {}).get("text") == "Abysse"
+              for k in (_cur.get("clips") or [])),
+      str(_cur.get("clips"))[:200])
+
+# --- la commande : les titres AVANT S1 -------------------------------------
+_t0 = os.path.join(TMP, "t0.ass")
+_t1 = os.path.join(TMP, "t1.ass")
+_sa = os.path.join(TMP, "s.ass")
+for _p in (_t0, _t1, _sa):
+    pathlib.Path(_p).write_text("x", encoding="utf-8")
+
+_fc = BUILD(titles_ass=[_t0], subs_ass=_sa)
+_it, _isb = _fc.find("t0.ass"), _fc.find("s.ass")
+check("d21_le_titre_est_grave_avant_les_sous_titres",
+      0 <= _it < _isb and "[tt0]" in _fc, (_it, _isb, _fc[-240:]))
+_fc2 = BUILD(titles_ass=[_t0, _t1], subs_ass=_sa)
+check("d21_deux_titres_sont_chaines_dans_l_ordre",
+      _fc2.find("t0.ass") >= 0
+      and _fc2.find("t0.ass") < _fc2.find("t1.ass") < _fc2.find("s.ass")
+      and "[tt0]" in _fc2 and "[tt1]" in _fc2 and "[tt0]subtitles=" in _fc2,
+      _fc2[-300:])
+# SANS S1 mais AVEC un titre : la sortie doit rester produite — le dernier
+# maillon `format=yuv420p[outv]` se pose alors sur le titre, pas sur S1.
+_fc3 = BUILD(titles_ass=[_t0])
+check("d21_sans_sous_titres_la_sortie_reste_produite",
+      "[tt0]" in _fc3 and "[outv]" in _fc3 and "[tt0]format=yuv420p[outv]" in _fc3,
+      _fc3[-240:])
+_fc0 = BUILD()
+check("d21_sans_titre_la_commande_est_intacte",
+      "[outv]" in _fc0 and "tt0" not in _fc0, _fc0[-240:])
+# Non-regression : ajouter le mot-cle ne doit RIEN changer a la commande
+# historique. Le temoin positif est la presence de `[outv]` dans `_fc0`.
+check("d21_une_liste_de_titres_vide_vaut_l_absence_de_titres",
+      "[outv]" in _fc0 and BUILD(titles_ass=[]) == _fc0 and BUILD(titles_ass=None) == _fc0)
+
+# --- la collecte des clips titre du rendu ----------------------------------
+_meta2 = MS._tracks_meta([{"id": "v1", "kind": "video"}, {"id": "t1", "kind": "title"}])
+_clips_t = [
+    {"tr": "v1", "id": "v0", "start": 0, "end": 6, "src": {"file_path": V1F}},
+    {"tr": "t1", "id": "b", "kind": "title", "start": 4, "end": 5,
+     "title": {"template": "cta", "text": "Abonnez-vous"}},
+    {"tr": "t1", "id": "a", "kind": "title", "start": 1, "end": 2,
+     "title": {"template": "plein_cadre", "text": "Abysse"}},
+    {"tr": "t1", "id": "vide", "kind": "title", "start": 2, "end": 3,
+     "title": {"template": "cta", "text": "   "}},
+    "pas un dict",
+]
+_coll = getattr(MS, "_titles_ass", None)
+_ass_t = _coll(_clips_t, _meta2, (540, 960), "banc_t") if callable(_coll) else None
+check("d21_la_collecte_range_les_titres_par_debut_et_ignore_le_vide",
+      isinstance(_ass_t, list) and len(_ass_t) == 2
+      and all(os.path.isfile(p) for p in _ass_t)
+      and "Abysse" in pathlib.Path(_ass_t[0]).read_text(encoding="utf-8")
+      and "Abonnez-vous" in pathlib.Path(_ass_t[1]).read_text(encoding="utf-8"),
+      [os.path.basename(p) for p in _ass_t] if isinstance(_ass_t, list) else _ass_t)
+# L'etat vide de la collecte : la MEME liste de clips, mais aucune piste de
+# genre `title` declaree — negation precedee du temoin positif ci-dessus.
+_ass_0 = (_coll(_clips_t, MS._tracks_meta([{"id": "v1", "kind": "video"}]),
+                (540, 960), "banc_0") if callable(_coll) else None)
+check("d21_sans_piste_titre_la_collecte_ne_grave_rien",
+      isinstance(_ass_t, list) and len(_ass_t) == 2 and _ass_0 == [], _ass_0)
+
+# --- le rendu transmet vraiment ces ASS ------------------------------------
+# Une VRAIE source : le pre-vol P8 refuse ce qu'aucun demultiplexeur n'ouvre,
+# donc le fichier d'un octet ne passerait pas /render. Rien n'est encode ici :
+# `_run_ffmpeg` est remplace par un no-op le temps de l'appel, et
+# `_build_montage_command` par un espion qui note `titles_ass` puis delegue.
+_REAL = str(pathlib.Path(TMP) / "reel.mp4")
+try:
+    from app.services.effects_preview import ffmpeg_bin as _fb
+    subprocess.run([_fb(), "-y", "-loglevel", "error", "-f", "lavfi", "-i",
+                    "testsrc2=s=64x64:r=10:d=1", "-c:v", "libx264", "-pix_fmt",
+                    "yuv420p", _REAL], check=False, capture_output=True, timeout=60)
+except Exception as _e:                    # ffmpeg injoignable : le check rougit
+    print("  (ffmpeg injoignable pour la source reelle : %s)" % _e)
+_cap = {}
+_vrai_build, _vrai_run = MS._build_montage_command, MS._run_ffmpeg
+
+
+def _espion(*a, **k):
+    _cap["titles_ass"] = k.get("titles_ass")
+    return _vrai_build(*a, **k)
+
+
+_tlr = TL("rendu", n=1, src=_REAL)
+_tlr["preview"] = True
+_tlr["tracks"] = [{"id": "v1", "kind": "video"}, {"id": "t1", "kind": "title"}]
+_tlr["clips"] += [
+    {"tr": "t1", "id": "z", "kind": "title", "start": 2, "end": 3,
+     "title": {"template": "cta", "text": "Abonnez-vous"}},
+    {"tr": "t1", "id": "y", "kind": "title", "start": 0, "end": 1,
+     "title": {"template": "plein_cadre", "text": "Abysse"}},
+    {"tr": "t1", "id": "x", "kind": "title", "start": 1, "end": 2,
+     "title": {"template": "cta", "text": ""}},
+]
+MS._build_montage_command, MS._run_ffmpeg = _espion, (lambda cmd, out: None)
+try:
+    _rr = c.post("/api/montage/render", json=_tlr)
+finally:
+    MS._build_montage_command, MS._run_ffmpeg = _vrai_build, _vrai_run
+_tta = _cap.get("titles_ass")
+check("d21_le_rendu_transmet_les_ass_des_titres_au_graphe",
+      _rr.status_code == 200 and isinstance(_tta, list) and len(_tta) == 2
+      and all(os.path.isfile(p) for p in _tta)
+      and "Abysse" in pathlib.Path(_tta[0]).read_text(encoding="utf-8"),
+      (_rr.status_code, _tta))
+
+# --- GET /titles -----------------------------------------------------------
+r = c.get("/api/montage/titles"); d = J(r)
+_gab = d.get("gabarits") or []
+check("d21_la_route_titles_liste_les_huit_gabarits",
+      r.status_code == 200 and [g.get("id") for g in _gab] == list(T("TEMPLATES", {})),
+      str(d)[:200])
+check("d21_chaque_gabarit_porte_son_libelle_francais_et_sa_fonte",
+      r.status_code == 200 and len(_gab) == 8
+      and all(set(g) >= {"id", "label", "font", "size", "color", "box", "anim"}
+              for g in _gab)
+      and all(isinstance(g.get("label"), str) and g["label"] for g in _gab)
+      # Quatre identifiants SONT deja des mots francais (compteur, chapitre,
+      # citation, hashtag) : leur libelle vaut leur id, et c'est verifie
+      # EXPLICITEMENT plutot qu'exclu en silence (meme precedent que
+      # `distance` en [1]). Les quatre autres doivent, eux, avoir ete
+      # traduits — c'est la que se voit une table oubliee.
+      and {g["id"]: g["label"] for g in _gab if g["id"] in
+           ("compteur", "chapitre", "citation", "hashtag")}
+      == {"compteur": "compteur", "chapitre": "chapitre",
+          "citation": "citation", "hashtag": "hashtag"}
+      and {g["id"]: g["label"] for g in _gab if g["id"] in
+           ("plein_cadre", "tiers_inferieur", "legende", "cta")}
+      == {"plein_cadre": "plein cadre", "tiers_inferieur": "tiers inférieur",
+          "legende": "légende", "cta": "appel à l'action"},
+      str(_gab)[:240])
+
+# --- GET /title-preview ----------------------------------------------------
+
+
+def _png(resp):
+    """Dimensions du PNG rendu, ou None — jamais un `Image.open` nu."""
+    try:
+        return Image.open(io.BytesIO(resp.content)).size
+    except Exception:
+        return None
+
+
+r = c.get("/api/montage/title-preview",
+          params={"template": "cta", "text": "Abonnez-vous", "w": 270})
+check("d21_l_apercu_est_un_png",
+      r.status_code == 200
+      and r.headers.get("content-type", "").startswith("image/png")
+      and len(r.content) > 500, (r.status_code, r.headers.get("content-type")))
+check("d21_l_apercu_est_vertical_a_la_largeur_demandee",
+      r.status_code == 200 and _png(r) == (270, 480), _png(r))
+check("d21_l_apercu_porte_un_cache_control",
+      r.status_code == 200
+      and r.headers.get("cache-control", "") == "public, max-age=86400",
+      r.headers.get("cache-control"))
+# Le CACHE : une seconde requete identique doit servir le MEME fichier, pas en
+# regraver un. Mesure DIRECTE sur le disque (horodatage en nanosecondes du PNG
+# du cache) ; temoin positif : le fichier existe avant la seconde requete.
+_spec_p = T("title_spec", _rien)({"title": {"template": "cta", "text": "Abonnez-vous"},
+                                  "start": 0, "end": 3})
+_pp = T("render_title_png", _rien)(_spec_p, 270, 480)
+_mt0 = os.stat(_pp).st_mtime_ns if _pp and os.path.isfile(_pp) else None
+r2 = c.get("/api/montage/title-preview",
+           params={"template": "cta", "text": "Abonnez-vous", "w": 270})
+_mt1 = os.stat(_pp).st_mtime_ns if _pp and os.path.isfile(_pp) else None
+check("d21_un_second_apercu_identique_sort_du_cache",
+      _mt0 is not None and r2.status_code == 200
+      and r2.headers.get("content-type", "").startswith("image/png")
+      and _mt1 == _mt0 and len(r2.content) == len(r.content), (_mt0, _mt1))
+r = c.get("/api/montage/title-preview",
+          params={"template": "gabarit_inconnu", "text": "Abysse", "w": 270})
+check("d21_un_gabarit_inconnu_replie_sur_plein_cadre",
+      r.status_code == 200 and _png(r) == (270, 480), (r.status_code, _png(r)))
+r = c.get("/api/montage/title-preview",
+          params={"template": "cta", "text": "Abysse", "w": 5000})
+check("d21_la_largeur_de_l_apercu_est_bornee_en_haut",
+      r.status_code == 200 and _png(r) == (640, 1136), (r.status_code, _png(r)))
+r = c.get("/api/montage/title-preview",
+          params={"template": "cta", "text": "Abysse", "w": 10})
+check("d21_la_largeur_de_l_apercu_est_bornee_en_bas",
+      r.status_code == 200 and _png(r) == (96, 170), (r.status_code, _png(r)))
+r = c.get("/api/montage/title-preview",
+          params={"template": "cta", "text": "Abysse", "w": "abc"})
+check("d21_une_largeur_illisible_retombe_sur_le_defaut",
+      r.status_code == 200 and _png(r) == (270, 480), (r.status_code, _png(r)))
+r = c.get("/api/montage/title-preview", params={"template": "cta", "text": ""})
+check("d21_l_apercu_sans_texte_est_un_400", r.status_code == 400, r.status_code)
+
 print(f"\n=== {ok} passed, {fail} failed ===")
 c.__exit__(None, None, None)
 sys.exit(1 if fail else 0)

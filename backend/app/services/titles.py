@@ -94,6 +94,22 @@ TEMPLATES = {
                         "anim": "\\fscx90\\fscy90\\t(0,{in},\\fscx105\\fscy105)"
                                 "\\t({in},{in2},\\fscx100\\fscy100)"},
 }
+#: gabarit -> libellé FRANÇAIS servi par `GET /api/montage/titles`. La table
+#: vit ICI et non dans la route : c'est le module qui déclare les gabarits qui
+#: les nomme, et le client n'en a aucune copie (même précédent que
+#: `_XFADE_LABELS` pour les transitions). Un gabarit sans entrée retomberait
+#: sur son identifiant : la table est donc tenue à jour avec `TEMPLATES`.
+LABELS = {
+    "plein_cadre": "plein cadre",
+    "tiers_inferieur": "tiers inférieur",
+    "legende": "légende",
+    "compteur": "compteur",
+    "chapitre": "chapitre",
+    "citation": "citation",
+    "hashtag": "hashtag",
+    "cta": "appel à l'action",
+}
+
 DEFAULT_TEMPLATE = "plein_cadre"
 MAX_TEXT = 120
 MAX_SUB = 160
