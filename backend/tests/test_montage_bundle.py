@@ -31,7 +31,36 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 21/09/2026 (D-0, second tour — « absent est un etat ») :
+COMPTE DE REFERENCE, 21/09/2026 (D-0, troisieme tour — corrections de banc de
+la revue qualite) : 1322 lignes, soit DEUX de plus que les 1320 du second
+tour — UNE de la tache 3, D-1
+(`D1_la_barre_flotte_AU_DESSUS_du_transport_pas_sur_les_pistes`), et UNE
+d'ici : `tb4_la_borne_D0_de_la_tranche_barre_est_trouvee`.
+TROIS DEFAUTS DE BANC REPARES, tous trois nes du second tour :
+  · LE REPLI SILENCIEUX. La borne de fin de la tranche `_SRC_TB` retombait
+    sur `/* ── export contrat` quand l'en-tete D-0 n'etait pas trouve —
+    c'est-a-dire qu'elle RESTAURAIT toute seule le defaut qu'on venait de
+    corriger (le cœur D-0 avale par la tranche de la barre, jeton `Snap`).
+    Le repli est SUPPRIME : borne introuvable -> -1 -> « BLOC-INTROUVABLE »
+    -> la ligne neuve rougit. MUTATION APPLIQUEE le 21/09/2026 sur une COPIE
+    de montage.js (en-tete D-0 renomme) : elle rougit (`en-tete D-0=-1`), et
+    les quatre lignes conjointes de la barre rougissent avec elle ;
+  · LE COMMENTAIRE DU BOUCHON [3-bis] disait « la MEME expression que dans
+    le bundle » pour `dzmHistHost`, alors que l'affectation
+    `dzProjRef.current=proj` — posee a cote de la DECLARATION dans le
+    bundle, relue a chaque RENDU — est repliee DANS la fonction ici, parce
+    que ce shim n'a pas de rendu. La phrase dit desormais ce qui est ;
+  · LA FENETRE DE 600 ms N'ETAIT PAS MESUREE. La sonde clique maintenant
+    « + » DEUX fois dans le MEME tick, sur un controle reconstruit a la
+    duree qui vient d'etre ecrite : `ct_plus` vaut [18, 20] (pas de 2 s,
+    depart a 16) et `ct_hist` vaut UN. MUTATION APPLIQUEE : en retirant la
+    fenetre du bundle d'une copie (`if(dzN-dzDurHistAt.current>600)`
+    supprime), `ct_hist` passe a 2 et
+    `js_transport_le_reglage_entre_dans_l_historique` rougit, pendant que
+    `ct_plus` reste [18, 20] — l'ecriture est bien le conjoint positif.
+    `js_transport_le_reglage_ecrit_la_duree` suit : [18, 20] et deux
+    armements de l'autosauvegarde.
+COMPTE PRECEDENT, 21/09/2026 (D-0, second tour — « absent est un etat ») :
 1320 lignes, soit UNE de plus que les 1319 du premier tour :
 `D0_une_cle_absente_est_portee_par_l_instantane`. LE DEFAUT QU'ELLE GARDE A
 ETE VU A L'ECRAN, pas devine : sur le projet de demonstration, qui n'a PAS de
@@ -7322,9 +7351,12 @@ function ECRAN(o){
   var ovSeq={current:Number(o.seq)||0};
   var nudgeHistAt={current:0};
   /* D-0 (21/09/2026) — LES TROIS NOUVEAUX LIBRES DU CABLAGE, bouchonnes
-     comme leurs freres : `dzmHistHost` est la MEME expression que dans le
-     bundle (H1) et appelle la VRAIE `DzTracks.histSnap` de la couche
-     chargee plus haut — rien n'est recopie ; `dzDurHistAt` est l'horloge
+     comme leurs freres : `dzmHistHost` fait le MEME APPEL a la VRAIE
+     `DzTracks.histSnap` de la couche chargee plus haut — rien n'est
+     recopie. LA REF, ELLE, EST AFFECTEE SUR PLACE : dans le bundle
+     `dzProjRef.current=proj` vit a cote de la declaration, relue a chaque
+     RENDU ; ce shim n'a pas de rendu, l'affectation est donc repliee dans
+     la fonction, ou elle rend la meme valeur. `dzDurHistAt` est l'horloge
      de rafale du reglage de duree (repli « H6 » dans M17g), `dzStyleHistAt`
      celle du style S1, que ce shim n'execute pas mais qui coute zero. */
   var dzProjRef={current:null};
@@ -7674,6 +7706,14 @@ out.ct_classe=(CT&&CT.p&&CT.p.className)||null;
 out.ct_boutons=((CT&&CT.p&&CT.p.children)||[]).map(function(k){
   return k&&k.k});
 var bp=BTN(CT,"p");if(bp&&bp.p.onClick)bp.p.onClick();
+/* D-0 — LA FENETRE DE 600 ms, JOUEE. Un SECOND clic dans le MEME tick,
+   donc a moins de 600 ms du premier : il ECRIT la duree (16 -> 18 -> 20)
+   mais ne pousse PAS une seconde entree d'historique. Le controle est
+   reconstruit sur la duree qui vient d'etre ecrite, ce que fait le rendu
+   de l'ecran a chaque frappe. Sans la fenetre, `ct_hist` vaudrait 2 et
+   une rafale de trente clics maintenus vaudrait trente « annuler ». */
+var bp2=BTN(E7.durCtl(E7.projet().dur,2,[{end:8}]),"p");
+if(bp2&&bp2.p.onClick)bp2.p.onClick();
 out.ct_plus=E7.J.proj.slice();
 out.ct_hist=E7.J.hist;
 out.ct_dirty=E7.J.dirty;
@@ -8037,9 +8077,13 @@ check("js_glisser_le_bord_droit_n_est_plus_plafonne",
 # MUTATION :1315 (l'`onSet` qui n'ecrit rien) : les trois boutons du controle
 # sont CLIQUES ici, et c'est leur ecriture qu'on lit. « ajuster » paie la
 # dette de P3 (ramener la fin sur le dernier clip : 16 -> 8).
+# DEUX ECRITURES SUR « + » DEPUIS D-0 : la sonde clique DEUX fois dans le
+# meme tick pour mesurer la fenetre de 600 ms (voir la ligne
+# `js_transport_le_reglage_entre_dans_l_historique`). Le pas est 2 s, la
+# duree part de 16 : 18 puis 20, et l'autosauvegarde est armee aux DEUX.
 check("js_transport_le_reglage_ecrit_la_duree",
-      w.get("ct_plus") == [18] and w.get("ct_moins") == [14]
-      and w.get("ct_ajuste") == [8] and w.get("ct_dirty") == 1,
+      w.get("ct_plus") == [18, 20] and w.get("ct_moins") == [14]
+      and w.get("ct_ajuste") == [8] and w.get("ct_dirty") == 2,
       f'+={w.get("ct_plus")} -={w.get("ct_moins")} '
       f'ajuste={w.get("ct_ajuste")} dirty={w.get("ct_dirty")}')
 check("js_transport_le_controle_porte_ses_quatre_boutons",
@@ -8055,7 +8099,7 @@ check("js_transport_le_controle_porte_ses_quatre_boutons",
 # `ct_plus` au-dessus — la duree a bel et bien ete ECRITE (18) ; une entree
 # poussee sans ecriture, ou une ecriture sans entree, rougit.
 check("js_transport_le_reglage_entre_dans_l_historique",
-      w.get("ct_hist") == 1 and w.get("ct_plus") == [18],
+      w.get("ct_hist") == 1 and w.get("ct_plus") == [18, 20],
       f'hist={w.get("ct_hist")} ecritures={w.get("ct_plus")}')
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -9360,10 +9404,17 @@ _i_tb4 = src.find("DU \u00a79 : LA BARRE, SON ONGLET, SON D\u00c9PORT, SON")
 # « barre d'outils » avalait le jeton `Snap` et faisait rougir
 # `tb7_exigence3_aimanter_n_a_qu_un_lecteur_et_la_barre_n_en_est_pas_un`
 # pour du code qui n'a rien d'une barre. La borne suit donc le DERNIER
-# jeton du §9 ; l'ancienne reste en repli si le cœur D-0 disparaissait.
+# jeton du §9.
+# PAS DE REPLI SUR `/* ── export contrat` : un repli aurait RESTAURE EN
+# SILENCE le defaut qu'on vient de corriger le jour ou l'en-tete D-0
+# bougerait de nom. La borne introuvable rend -1, `_SRC_TB` retombe sur
+# « BLOC-INTROUVABLE » et la ligne ci-dessous ROUGIT — c'est elle qui tient
+# la promesse. MESUREE PAR MUTATION le 21/09/2026 : en renommant l'en-tete
+# D-0 dans une COPIE de montage.js, elle rougit.
 _j_tb4 = src.find("/* \u2500\u2500 D-0 (21/09/2026)", _i_tb4) if _i_tb4 >= 0 else -1
-if _j_tb4 < 0:
-    _j_tb4 = src.find("/* \u2500\u2500 export contrat", _i_tb4) if _i_tb4 >= 0 else -1
+check("tb4_la_borne_D0_de_la_tranche_barre_est_trouvee", _j_tb4 > _i_tb4 >= 0,
+      f"debut du §9={_i_tb4} en-tete D-0={_j_tb4} — la tranche de la barre "
+      f"d'outils n'a plus de fin nommee, elle irait jusqu'a l'export")
 _SRC_TB = src[_i_tb4:_j_tb4] if 0 <= _i_tb4 < _j_tb4 else "BLOC-INTROUVABLE"
 # L'ETAPE 7 EST DEDANS DESORMAIS, et les conjoints positifs le disent : le
 # Dock appelle `dzmTbHote` et `dzmEmojiGo`. La ligne d'avant exigeait

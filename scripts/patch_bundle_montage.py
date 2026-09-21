@@ -2303,9 +2303,12 @@ R_M26B = (
 # ── H1 (D-0) : la ref du projet et l'instantané complet, à côté de histRef ─
 # `pushHistory`, `undo` et `redo` sont des useCallback à dépendances vides :
 # ils ne voient JAMAIS `proj` — d'où une ref relue à chaque rendu, même motif
-# que `dzTracksRef` (M16ref). MESURÉ : `proj` est déclaré 5 281 octets AVANT
-# `histRef` dans le même corps de composant, l'affectation à chaque rendu lit
-# donc bien la valeur du rendu courant et non `undefined`.
+# que `dzTracksRef` (M16ref). MESURÉ : `proj` est déclaré PLUS HAUT dans le
+# même corps de composant (`var stP=x.useState({demo:!0,…}),proj=…`), donc
+# AVANT cette ligne ; l'affectation à chaque rendu lit bien la valeur du
+# rendu courant et non `undefined`. Pas de chiffre ici : la distance en
+# octets dépend de la borne qu'on choisit et se périme au premier patch
+# amont — c'est l'ORDRE qui compte, et il est stable.
 # `dzmHistHost()` est LE seul lecteur de l'état courant pour l'historique :
 # les gestes qui capturaient h0 à la main passent par lui (H5), les autres
 # gardent leur {clips, mixDb} — histApply s'en accommode (banc L0 [1],
