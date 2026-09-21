@@ -8,6 +8,14 @@
 
 **Tech :** ES modules, bancs `node frontend/vectorlab/qa/run.mjs`, preuve 8799 à 1400 × 900, déploiement par hash, statiques seuls.
 
+## Relevé de livraison (21/09/2026)
+
+- **Livré** (`4d83c9e`, `HEAD`) : `mod-pipette.js` pur (`echantillon_rayon`, `hex_de_rgb`, `champs_pipette`, `appliquer_pipette`, `pipette_decision`, rayons Point / 3 × 3 / 5 × 5 / 9 × 9, sources Global / Calque courant) + `mod-pipetteui.js` (capture sur `#stage`, rendu offscreen du document à l'échelle écran, loupe 120 px ×8 avec croix et lecture R : G : B, Maj = loupe, Alt = appliquer, clic droit = contour, Ctrl = l'ancienne pipette de style de mod-tools, `VL.hints.pipette`) ; barre contextuelle : `type: "bouton"` + `icone` → `.cb-bouton.cb-icone` 28 px à bulle, 17 icônes neuves (vif, lisse, intelligent, fractionner, ouvrir, fermer, courbe lisse, relier, inverser, six alignements, configuration, paramètres), `boutons_groupes` + séparateur `.cb-sep` ; Calques : `arbre_calques` pur (objets sous le calque, enfants de groupe, « Masque d'écrêtage », « Masque de transparence », « Effets (n) », repli persisté `dz_vl_calques_plies`), rangées `.calque-objet` indentées avec icône de type, clic = sélection (Maj = ajout), masque / effets → onglet Apparence, chevron ▾/▸.
+- **TDD** : `qa/arbre_calques.test.mjs` (6), `qa/pipette.test.mjs` (12), `qa/contexte.test.mjs` +4 — RED (modules absents / champs sans icône) → GREEN ; `run.mjs` intégral vert.
+- **Prouvé** (8799, 1400 × 900, zéro erreur) : outil Nœuds → 15 boutons icône de 28 px, 0 texte, 1 séparateur, titres « Vif, Lisse, Intelligent, Fractionner… », pas de débordement ; arbre : `C:c1 / o:o2 / o:o1 / o:r1*`, clic sur une rangée → sélection + surbrillance, chevron 3 → 0 → 3 rangées ; pipette sur le rectangle #CF6FE3 : loupe visible pendant le glisser (120 px, lecture « R : 207 G : 111 B : 227 », rendu 1067 × 721), pointerup → `styleCourant.fond` #9DB4D6 → #CF6FE3 ; rectangle sélectionné → son fond prend #CF6FE3 ; clic droit → contour #CF6FE3 ; Alt → couleur courante (#FFD166) sans toucher la sélection ; Maj → loupe cachée ; Ctrl + clic → épaisseur 7 et pointillés copiés (contrat ancien). Un défaut démasqué par la preuve et corrigé : `ev.button` n'est pas assignable (le bouton du geste voyage à part).
+- **Bug du crayon pixel** : NON reproduit — cinq scénarios rejoués (onglet Calques → Pixel, calque pixel 8 × 8 sur modèle, persona Vecteur → Pixel) : tampon ET PNG servi portent le pixel, `rev` bumpé, PUT 200 ; le document réel `b03cb918deab` (calque pixel 48 × 64 sur modèle 768 × 1024) a son journal `img9.pix4…pix10` écrit ; aucun correctif à l'aveugle — séquence exacte demandée à l'utilisateur.
+- **Déployé** : voir la table ci-dessous (statiques seuls).
+
 ---
 
 ## Relevé (code lu le 21/09/2026 à `8815cba`)
