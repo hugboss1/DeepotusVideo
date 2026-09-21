@@ -584,6 +584,11 @@ def _regle(css_txt, sel):
 
 
 _R_HB = _regle(CSS.read_text(encoding="utf-8"), ".dzsvm .dzm-hb{")
+_R_TBAR = _regle(CSS.read_text(encoding="utf-8"), ".dzsvm .dzm-tbar{")
+check("D1_la_barre_flotte_AU_DESSUS_du_transport_pas_sur_les_pistes",
+      _R_TBAR is not None and "bottom:calc(100% + 8px)" in _R_TBAR
+      and "top:calc(100% + 8px)" not in _R_TBAR and "top:auto" in _R_TBAR,
+      f"regle .dzm-tbar : {_R_TBAR!r}")
 _R_THEAD = _regle(_HDCSS, ".svm-thead{")
 check("la_surimpression_recouvre_la_PREMIERE_rangee_de_l_en_tete",
       _R_HB is not None and _R_THEAD is not None
@@ -9135,7 +9140,7 @@ def _filet_haut(corps_list):
 # ici : si l'onglet montait plus haut (`top:-30px`), si un filet tombait ou
 # si le pied maigrissait, la ligne rougit AVEC les valeurs lues. Le seul
 # nombre pose est la marge de 8 px du handoff (§4.2 : « une marge de 8 px »),
-# celle que la barre emploie deja (`top:calc(100% + 8px)`, `_R_BAR`).
+# celle que la barre emploie deja (`bottom:calc(100% + 8px)`, D-1, `_R_BAR`).
 # Le filet du bandeau est celui des regles `.dzsvm .svm-trans` de montage.css
 # (deux : l'ancrage, puis la geometrie du §5.2 qui le declare) ; celui de
 # `.svm-tl` est lu dans la feuille amont, seule a le declarer (mesure : les
@@ -9164,7 +9169,7 @@ check("tb_l_onglet_ouvert_se_lit_d_une_piece_avec_la_barre",
       f"tab={_R_TAB!r} ouvert={_R_TABO!r}")
 check("tb_la_geometrie_de_la_barre_est_celle_du_2_2",
       _R_BAR is not None and "position:absolute" in _R_BAR
-      and "left:14px" in _R_BAR and "top:calc(100% + 8px)" in _R_BAR
+      and "left:14px" in _R_BAR and "bottom:calc(100% + 8px)" in _R_BAR
       and "display:flex" in _R_BAR and "align-items:stretch" in _R_BAR
       and "border-radius:0" in _R_BAR
       and "background:var(--bar-srf," in _R_BAR
@@ -9185,7 +9190,7 @@ check("tb_la_barre_flotte_par_son_ombre_et_par_rien_d_autre",
 # retire les neuf boutons du parcours de tabulation.
 check("tb_le_repli_anime_l_opacite_et_six_pixels_jamais_la_hauteur",
       _R_BOFF is not None and "opacity:0" in _R_BOFF
-      and "transform:translateY(6px)" in _R_BOFF
+      and "transform:translateY(-6px)" in _R_BOFF
       and "visibility:hidden" in _R_BOFF
       and "pointer-events:none" in _R_BOFF
       and "height" not in _R_BOFF
@@ -9950,18 +9955,19 @@ check("tb_d_le_redimensionnement_est_ecoute_sur_la_fenetre_et_rendu",
 
 # ── LA FEUILLE HABILLE LE DEPORT ──────────────────────────────────────────
 # LA TRANSLATION PASSE PAR `translate`, PAS PAR `transform` : `transform` est
-# deja prise par le repli du §4.1 (`translateY(6px)`), et les deux se
-# seraient ecrasees. `translate` est independante et se transitionne a part,
-# donc l'aimantation s'anime sur `--dur-bar-snap` (180 ms) pendant que
+# deja prise par le repli du §4.1 (`translateY(-6px)`, D-1 : la barre flotte
+# desormais AU-DESSUS du bandeau, son repli glisse donc vers le HAUT), et les
+# deux se seraient ecrasees. `translate` est independante et se transitionne
+# a part, donc l'aimantation s'anime sur `--dur-bar-snap` (180 ms) pendant que
 # l'ouverture garde `--dur-bar-open` (220 ms). AUCUN MINUTEUR.
 check("tb_d_le_decalage_passe_par_translate_et_s_anime_sur_dur_bar_snap",
       _R_BAR is not None
       and "translate:var(--tbx, 0px) var(--tby, 0px)" in _R_BAR
       and "translate var(--dur-bar-snap," in _R_BAR
       and "transform var(--dur-bar-open," in _R_BAR
-      and _R_BOFF is not None and "transform:translateY(6px)" in _R_BOFF
+      and _R_BOFF is not None and "transform:translateY(-6px)" in _R_BOFF
       and "translate" not in _R_BOFF.split("transition")[0]
-      .replace("transform:translateY(6px)", ""),
+      .replace("transform:translateY(-6px)", ""),
       f"bar={_R_BAR!r}")
 # PENDANT LE GESTE, AUCUNE TRANSITION : sans cette regle la barre suivrait le
 # pointeur avec 180 ms de retard.

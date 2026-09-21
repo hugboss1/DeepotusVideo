@@ -531,13 +531,19 @@
 
 /* ── LA BARRE (§2.2) ───────────────────────────────────────────────────────
    ANCRAGE D'ORIGINE : `left:14px` — le même que l'onglet (§2.1), pour que
-   les deux partagent un bord gauche — et `top:calc(100% + 8px)`, soit 8px
-   sous le bandeau. Le 8 est celui du prototype (`barS: bottom:8px`) et celui
-   du §4.2 (« une marge de 8 px ») : deux fois attesté dans le handoff, jamais
-   choisi ici. La barre flotte donc SUR la timeline, comme dans le tour 2a.
+   les deux partagent un bord gauche — et `bottom:calc(100% + 8px)`, soit 8px
+   au-dessus du bandeau. Le 8 est celui du prototype (`barS: bottom:8px`) et
+   celui du §4.2 (« une marge de 8 px ») : deux fois attesté dans le handoff,
+   jamais choisi ici.
+   D-1 (21/09/2026) — MESURÉ : à `top:calc(100% + 8px)` la barre (831 × 83 à
+   (246,595) en 1400 × 900) recouvrait V2 et V1 (y 606–700) : un clic sur un
+   clip de V2 tombait sur ses boutons. Elle flotte désormais AU-DESSUS du
+   bandeau de transport, sur le pied de la zone de prévisualisation ; le
+   conteneur de bornage (timeline ∪ prévisualisation) et l'aimantation ne
+   changent pas, `dz_svm_tb_off` reste relatif à cette nouvelle origine.
    L'OMBRE PORTÉE EST LE SEUL SIGNAL DE FLOTTEMENT (§1.3) : ni flou
    d'arrière-plan ni transparence — la timeline défile dessous. */
-.dzsvm .dzm-tbar{position:absolute; left:14px; top:calc(100% + 8px);
+.dzsvm .dzm-tbar{position:absolute; left:14px; top:auto; bottom:calc(100% + 8px);
   z-index:8; --lbl:block;
   display:flex; align-items:stretch; box-sizing:border-box;
   background:var(--bar-srf, #13171c);
@@ -555,8 +561,10 @@
    fin de la transition, la sort du parcours de tabulation et de l'arbre
    d'accessibilité. Un `display:none` aurait coupé l'animation ; un simple
    `opacity:0` aurait laissé neuf boutons focusables sous une barre invisible.
-   `pointer-events:none` évite qu'elle intercepte un clic pendant la sortie. */
-.dzsvm .dzm-tbar[data-off]{opacity:0; transform:translateY(6px);
+   `pointer-events:none` évite qu'elle intercepte un clic pendant la sortie.
+   D-1 : la barre flotte maintenant AU-DESSUS du bandeau — son repli glisse
+   donc vers le HAUT (`translateY(-6px)`, et non plus vers le bas). */
+.dzsvm .dzm-tbar[data-off]{opacity:0; transform:translateY(-6px);
   visibility:hidden; pointer-events:none;
   transition:opacity var(--dur-bar-open, 220ms) var(--ease-panel, ease),
     transform var(--dur-bar-open, 220ms) var(--ease-panel, ease),
@@ -630,8 +638,8 @@
    §4.2 ; étape 5 de son §9).
 
    ── POURQUOI `translate:` ET PAS `transform:` ──
-   `transform` est DÉJÀ prise par le repli du §4.1 (`translateY(6px)` sous
-   `[data-off]`) : y écrire aussi le décalage aurait fait que l'une des deux
+   `transform` est DÉJÀ prise par le repli du §4.1 (`translateY(-6px)` sous
+   `[data-off]`, D-1) : y écrire aussi le décalage aurait fait que l'une des deux
    règles écrase l'autre — la barre repliée aurait sauté à son ancrage, ou la
    barre déportée serait entrée sans glisser. `translate` est une propriété
    INDÉPENDANTE, composée avec `transform` par le moteur, et elle se
@@ -894,7 +902,7 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
    ne bougent pas ; ni `.svm-trans`, ni `.svm-tl`, ni aucun z-index ne
    change. 27 = 19 px de débord + 8 px, la marge que le handoff fixe
    lui-même (§4.2 : « une marge de 8 px ») et que la barre emploie déjà
-   (`top:calc(100% + 8px)`). La règle gagne par la SPÉCIFICITÉ (0,2,0
+   (`bottom:calc(100% + 8px)`, D-1). La règle gagne par la SPÉCIFICITÉ (0,2,0
    contre le (0,1,0) de la feuille amont) ET par la CASCADE (index.html :
    l.17 puis l.21) — les deux, comme l'ancrage de l'onglet plus haut.
    `padding-bottom` seul : les trois autres côtés gardent les 14 px de la
