@@ -191,7 +191,17 @@ STABLE_PROBES = [
     # {loopTracks, locked} sorties dans la couche parce que R_R2 et R_M12 les
     # rebatissaient a l'identique -- un appel dans chacune. La sortie tot de
     # R2 et les bornes de la bande n'en ajoutent aucune.
-    ("montage", "DzTracks", 71),
+    # 21/09/2026 D-2, tache 6 (cablage des modes d'edition) : 71 -> 76,
+    # MESURE apres rejeu (la chaine a refuse, « sonde montage x76 (want 71) »).
+    # CINQ references de plus, nommees : DzTracks.ModeBar (la rangee de chips
+    # dans le selecteur, repli « E2 » dans R_M15B), DzTracks.insere (l'appel
+    # de R_M22A) et le `DzTracks.insere` cite par le COMMENTAIRE JS qui le
+    # precede -- la sonde compte des occurrences de texte, commentaires
+    # compris --, DzTracks.modeLabel et DzTracks.secs (la note dit le mode
+    # applique et la vitesse de « remplir »). DzTracks.fitDur ne bouge pas :
+    # l'appel a seulement DEMENAGE de R_M17A vers R_M22A, ou il se mesure sur
+    # `dzIns.clips` au lieu du seul clip pose (1 -> 0 et 0 -> 1, mesure).
+    ("montage", "DzTracks", 76),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

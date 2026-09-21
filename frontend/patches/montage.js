@@ -4919,6 +4919,43 @@ function dzmInsere(clips,clip,mode,opts){
   return {clips:res.clips,track:tr,mode:res.mode,refus:refus,note:note,
     id:pose?pose.id:null}}
 
+/* ── D-2 (21/09/2026) : LA RANGÉE DES MODES, dans le sélecteur d'assets ────
+   Six chips EXCLUSIVES (role="radiogroup" / "radio"), une seule allumée :
+   `data-on` est le marqueur d'état des chips voisines du bundle
+   (`.svm-toolchip[data-on]`, son-vfx-montage.css l.323 — MESURÉ, la règle de
+   base n'est PAS scopée au bandeau de transport, seules les surcharges de
+   taille le sont), et `svm-toolchip` leur classe. Le composant ne décide de
+   RIEN : il rend le mode courant et rappelle `onMode`. `dzmModeOk` le borne,
+   donc une valeur inconnue allume « écraser » plutôt que rien.
+   « remplir » EST ÉTEINT SANS PLAGE : `dzmInsere` retomberait en silence sur
+   « écraser » (dzmInsereUn, branche "remplir" : `if(!rg)return … "ecraser"`),
+   et un mode qui ment est pire qu'un mode grisé — le `title` dit quoi faire. */
+function DzmModeBar(o){
+  var cur=dzmModeOk(o&&o.mode),on=typeof (o&&o.onMode)==="function"?o.onMode:function(){};
+  return r.jsx("div",{className:"dzm-modebar",role:"radiogroup",
+    "aria-label":"Mode d'édition",
+    children:DZM_MODES.map(function(m){
+      var dis=m[0]==="remplir"&&!dzmRangeFrom(o&&o.range);
+      return r.jsx("button",{className:"svm-toolchip dzm-modechip",role:"radio",
+        "aria-checked":cur===m[0]?"true":"false","data-on":cur===m[0]?"":void 0,
+        disabled:dis||void 0,
+        title:DZM_MODE_T[m[0]]+(dis?" — posez d'abord une plage (I / U).":""),
+        onClick:function(){on(m[0])},children:m[1]},m[0])})})}
+var DZM_MODE_T={
+  ecraser:"Écraser : le clip se pose à la tête et rogne ou fend ce qui est dessous.",
+  inserer:"Insérer : fend à la tête et pousse la suite de la piste (ripple).",
+  fin:"En fin : après le dernier clip de la piste, la tête est ignorée.",
+  dessus:"Au-dessus : sur la piste vidéo libre la plus proche au-dessus (titres, PIP).",
+  ripple_ecraser:"Écraser en ripple : remplace le clip sous la tête, la suite se recale à la nouvelle durée.",
+  remplir:"Remplir la plage : bornes = plage I/O, vitesse calculée pour la remplir (V1)."};
+/* Le LIBELLÉ français d'un mode, lu dans DZM_MODES (table gelée, source
+   unique) : la note d'ajout d'`addAsset` le dit quand le mode appliqué n'est
+   pas « écraser ». Un mode inconnu rend celui d'« écraser », comme dzmModeOk. */
+function dzmModeLabel(m){
+  var k=dzmModeOk(m),i;
+  for(i=0;i<DZM_MODES.length;i++)if(DZM_MODES[i][0]===k)return DZM_MODES[i][1];
+  return DZM_MODES[0][1]}
+
 /* ── export contrat ───────────────────────────────────────────────────────── */
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
@@ -4982,5 +5019,6 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   rangeSet:dzmRangeSet,rangeFrom:dzmRangeFrom,rangeLen:dzmRangeLen,
   RangeBar:DzmRangeBar,
   insere:dzmInsere,MODES:DZM_MODES,REFUS:DZM_REFUS,carve:dzmCarve,
+  ModeBar:DzmModeBar,MODE_T:DZM_MODE_T,modeLabel:dzmModeLabel,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;

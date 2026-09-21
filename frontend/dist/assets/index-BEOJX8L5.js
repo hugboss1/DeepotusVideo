@@ -1732,6 +1732,8 @@ function DzMontage(props){
      « Envoyer vers → Montage » l'appelle depuis la fermeture du
      premier rendu). Même motif que durRef, juste au-dessus. */
   var dzTracksRef=x.useRef(null);dzTracksRef.current=svmTracksOf(proj);
+  var stDzM=x.useState("ecraser"),dzMode=stDzM[0],setDzMode=stDzM[1];
+  var dzModeRef=x.useRef(dzMode);dzModeRef.current=dzMode;
   /* P9 — « le VRAI projet est-il arrivé ? ». Tant que
      `svmApplyProject` n'a pas remplacé la maquette, `proj` est la
      démo : sans `tracks`, donc svmTracksOf retombe sur les six
@@ -4103,28 +4105,72 @@ function DzMontage(props){
         addAsset(src,label,kind,dzV>0?dzV:-1,trId,st)}});return}
     var dzCl=defaultLen(kind,srcDur);
     var en=st+dzCl.len;if(en-st<.5)st=Math.max(0,en-1);
-    var dzFit=DzTracks.fitDur([{end:en}],d,0),dzGrew=dzFit>d?dzFit:0;
-    var dzTail=dzCl.note+(dzGrew?(" La timeline a été allongée de "+
-      svmRuler(Math.round(d))+" à "+svmRuler(Math.round(dzGrew))+
-      " : le clip garde sa longueur entière au lieu d'être rogné sur la "+
-      "fin du projet. « Annuler » retire le clip, et "+
-      "rend aussi la durée d'avant."):"");
-    if(dzGrew)setProj(function(p){return Object.assign({},p,{dur:dzGrew})});
-    ovSeq.current++;
+    /* D-2 — LE MODE D'ÉDITION DÉCIDE DE L'ÉCRITURE. `dzModeRef` est
+       l'état de la rangée de chips du sélecteur ; `DzTracks.insere` rend
+       la timeline ENTIÈRE, jumeau compris. Le numéro d'ordre n'est
+       CONSOMMÉ qu'une fois l'insertion acceptée, et le refus sort AVANT
+       `pushHistory()` : rien d'écrit, rien dans la pile d'annulation. */
+    var dzSeq=ovSeq.current+1;
     /* P12 — l'identifiant est UNIQUE contre les clips existants (une
        sauvegarde rechargée peut en porter d'anciens du même rang), et
        le jumeau est décidé AVANT le seul pushHistory du geste : sa
        phrase rejoint la note de l'ajout — et une incrustation, exemptée
        de sonde, est DITE aussi (overlayNote), jamais tue. */
     var id=DzTracks.uniqueId(clipsRef.current||[],
-      tr2+"u"+ovSeq.current+"_"+Math.round(st*10));
+      tr2+"u"+dzSeq+"_"+Math.round(st*10));
     var dzNeuf={tr:tr2,id:id,label:label,start:st,end:en,src:src,srcIn:0};
     var dzTw=dzAuOn?DzTracks.twinPlan(dzNeuf,dzTs,clipsRef.current||[],dzAu,
       function(t){return !!(trackStRef.current[t]&&trackStRef.current[t].l)}):null;
+    var dzIns=DzTracks.insere(clipsRef.current||[],
+      Object.assign({},dzNeuf,{srcDur:Number(srcDur)||0}),dzModeRef.current,
+      {tracks:dzTs,twin:dzTw&&dzTw.clip,head:phRef.current,
+       range:dzProjRef.current&&dzProjRef.current.range,
+       locked:(function(){var o={},k;for(k in trackStRef.current)
+         if(trackStRef.current[k]&&trackStRef.current[k].l)o[k]=!0;
+         return o})()});
+    if(dzIns.refus==="verrou"){setOvPick("");
+      fireNote("Piste "+String(dzIns.track).toUpperCase()+" verrouillée — "+
+        "rien n'a été posé. Déverrouillez-la, ou choisissez un autre "+
+        "mode d'édition.");return}
+    ovSeq.current=dzSeq;
+    /* LE CLIP RÉELLEMENT POSÉ : `dzmPose` RENOMME un identifiant déjà
+       pris, et « en fin » / « remplir » le posent à d'autres bornes que
+       [st,en[. On le relit par `dzIns.id` pour que la note dise la
+       position VRAIE et que la sélection porte sur le bon clip. */
+    var dzP=null,dzJ;
+    for(dzJ=0;dzJ<dzIns.clips.length;dzJ++)
+      if(dzIns.clips[dzJ]&&dzIns.clips[dzJ].id===dzIns.id)dzP=dzIns.clips[dzJ];
+    var dzFit=DzTracks.fitDur(dzIns.clips,d,0),dzGrew=dzFit>d?dzFit:0;
+    var dzTail=dzCl.note+(dzGrew?(" La timeline a été allongée de "+
+      svmRuler(Math.round(d))+" à "+svmRuler(Math.round(dzGrew))+
+      " : le clip garde sa longueur entière au lieu d'être rogné sur la "+
+      "fin du projet. « Annuler » retire le clip, et "+
+      "rend aussi la durée d'avant."):"");
     if(dzTw)dzTail+=dzTw.note;
     else dzTail+=DzTracks.overlayNote(kind,dzTs,tr2);
+    /* D-2 — LE MODE APPLIQUÉ EST DIT, COURT. `dzIns.mode` est le mode
+       EFFECTIF : « au-dessus » rend toujours "ecraser" sur une autre
+       piste, c'est donc le changement de PISTE qui le trahit, et le
+       repli « aucune piste libre » parle par `dzIns.note`. */
+    if(dzIns.track&&dzIns.track!==tr2)dzTail+=" Posé sur "+
+      String(dzIns.track).toUpperCase()+" (au-dessus).";
+    else if(dzIns.mode!=="ecraser")dzTail+=" Mode « "+
+      DzTracks.modeLabel(dzIns.mode)+" »."+
+      ((dzP&&Number(dzP.speed)>0&&Number(dzP.speed)!==1)?
+        " Vitesse ×"+DzTracks.secs(dzP.speed).replace(" s","")+".":"");
+    /* Le JETON `dzIns.refus` n'est jamais affiché : la phrase française
+       est `dzIns.note` (écrêtage de vitesse, aucune piste libre…). */
+    if(dzIns.note)dzTail+=" "+dzIns.note+".";
+    if(dzGrew)setProj(function(p){return Object.assign({},p,{dur:dzGrew})});
+    /* LA NOTE ET LA SÉLECTION DISENT LE RÉEL : `id`, `tr2` et `st` sont
+       RELUS sur le clip posé avant que la fin d'`addAsset` (setSelId,
+       fireNote) ne les emploie — c'est la même variable, pas une
+       seconde source de vérité. La phrase de la piste absente, le choix
+       des pistes et `overlayNote` ont déjà lu `tr2` au-dessus : leur
+       sens ne change pas. */
+    id=dzIns.id||id;tr2=dzIns.track||tr2;if(dzP)st=Number(dzP.start)||0;
     pushHistory();
-    setClips(clipsRef.current.concat(dzTw&&dzTw.clip?[dzNeuf,dzTw.clip]:[dzNeuf]));
+    setClips(dzIns.clips);
     setSelId(id);setDirty(!0);setOvPick("");
     fireNote("« "+label+" » ajouté sur "+tr2.toUpperCase()+" à "
       +svmShort(st)+" — glissez / rognez sur la piste."+
@@ -4687,6 +4733,8 @@ function DzMontage(props){
       r.jsx("div",{className:"svm-poptitle",children:dzmA
         ?("Remplacer la source de « "+(dzmA.label||"ce plan")+" »")
         :("Ajouter sur la piste "+tr2.toUpperCase())}),
+      r.jsx(DzTracks.ModeBar,{mode:dzMode,onMode:setDzMode,
+        range:proj.range}),
       r.jsx("div",{className:"svm-popnote",style:{marginTop:6},
         children:dzmA?("Le prochain élément choisi REMPLACERA la source de ce plan (piste "+dzmA.tr.toUpperCase()+") au lieu d'être posé : ses bornes, ses effets, sa transition et son mixage restent en place. Un glisser-déposer compte aussi comme un choix — la piste et l'instant du dépôt sont alors ignorés. Fermez ce panneau pour annuler.")
                :audio?("Posé à la tête de lecture ("+svmShort(ph)+"). A1 = dialogue, A2 = musique (ducking auto), A3 = SFX.")
@@ -17479,6 +17527,43 @@ function dzmInsere(clips,clip,mode,opts){
   return {clips:res.clips,track:tr,mode:res.mode,refus:refus,note:note,
     id:pose?pose.id:null}}
 
+/* ── D-2 (21/09/2026) : LA RANGÉE DES MODES, dans le sélecteur d'assets ────
+   Six chips EXCLUSIVES (role="radiogroup" / "radio"), une seule allumée :
+   `data-on` est le marqueur d'état des chips voisines du bundle
+   (`.svm-toolchip[data-on]`, son-vfx-montage.css l.323 — MESURÉ, la règle de
+   base n'est PAS scopée au bandeau de transport, seules les surcharges de
+   taille le sont), et `svm-toolchip` leur classe. Le composant ne décide de
+   RIEN : il rend le mode courant et rappelle `onMode`. `dzmModeOk` le borne,
+   donc une valeur inconnue allume « écraser » plutôt que rien.
+   « remplir » EST ÉTEINT SANS PLAGE : `dzmInsere` retomberait en silence sur
+   « écraser » (dzmInsereUn, branche "remplir" : `if(!rg)return … "ecraser"`),
+   et un mode qui ment est pire qu'un mode grisé — le `title` dit quoi faire. */
+function DzmModeBar(o){
+  var cur=dzmModeOk(o&&o.mode),on=typeof (o&&o.onMode)==="function"?o.onMode:function(){};
+  return r.jsx("div",{className:"dzm-modebar",role:"radiogroup",
+    "aria-label":"Mode d'édition",
+    children:DZM_MODES.map(function(m){
+      var dis=m[0]==="remplir"&&!dzmRangeFrom(o&&o.range);
+      return r.jsx("button",{className:"svm-toolchip dzm-modechip",role:"radio",
+        "aria-checked":cur===m[0]?"true":"false","data-on":cur===m[0]?"":void 0,
+        disabled:dis||void 0,
+        title:DZM_MODE_T[m[0]]+(dis?" — posez d'abord une plage (I / U).":""),
+        onClick:function(){on(m[0])},children:m[1]},m[0])})})}
+var DZM_MODE_T={
+  ecraser:"Écraser : le clip se pose à la tête et rogne ou fend ce qui est dessous.",
+  inserer:"Insérer : fend à la tête et pousse la suite de la piste (ripple).",
+  fin:"En fin : après le dernier clip de la piste, la tête est ignorée.",
+  dessus:"Au-dessus : sur la piste vidéo libre la plus proche au-dessus (titres, PIP).",
+  ripple_ecraser:"Écraser en ripple : remplace le clip sous la tête, la suite se recale à la nouvelle durée.",
+  remplir:"Remplir la plage : bornes = plage I/O, vitesse calculée pour la remplir (V1)."};
+/* Le LIBELLÉ français d'un mode, lu dans DZM_MODES (table gelée, source
+   unique) : la note d'ajout d'`addAsset` le dit quand le mode appliqué n'est
+   pas « écraser ». Un mode inconnu rend celui d'« écraser », comme dzmModeOk. */
+function dzmModeLabel(m){
+  var k=dzmModeOk(m),i;
+  for(i=0;i<DZM_MODES.length;i++)if(DZM_MODES[i][0]===k)return DZM_MODES[i][1];
+  return DZM_MODES[0][1]}
+
 /* ── export contrat ───────────────────────────────────────────────────────── */
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
@@ -17542,6 +17627,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   rangeSet:dzmRangeSet,rangeFrom:dzmRangeFrom,rangeLen:dzmRangeLen,
   RangeBar:DzmRangeBar,
   insere:dzmInsere,MODES:DZM_MODES,REFUS:DZM_REFUS,carve:dzmCarve,
+  ModeBar:DzmModeBar,MODE_T:DZM_MODE_T,modeLabel:dzmModeLabel,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;
 

@@ -936,3 +936,14 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
 .dzsvm .svm-ruler{position:relative}
 .dzsvm .dzm-range{position:absolute; bottom:0; height:4px; pointer-events:none;
   background:var(--gold, #f0b429); opacity:.7; z-index:3}
+
+/* D-2 (21/09/2026) -- LA RANGEE DES MODES D'EDITION, dans le selecteur
+   d'assets (.svm-pop, 300 px de large, mesure dans son-vfx-montage.css
+   l.388) : SIX chips ne tiennent pas sur une ligne, d'ou `flex-wrap`. Les
+   chips elles-memes sont des `.svm-toolchip` du bundle -- la regle de base
+   (son-vfx-montage.css l.319-323) n'est PAS scopee au bandeau de transport,
+   seules les surcharges de taille le sont : rien n'est redefini ici, sauf
+   l'etat DESACTIVE, que le bandeau n'a jamais eu a montrer. */
+.dzsvm .dzm-modebar{display:flex; flex-wrap:wrap; gap:4px; margin-top:8px}
+.dzsvm .dzm-modechip[disabled]{opacity:.42; cursor:not-allowed}
+.dzsvm .dzm-modechip[disabled]:hover{border-color:var(--stroke); color:var(--ink3)}

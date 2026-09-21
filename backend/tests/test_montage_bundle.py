@@ -31,7 +31,28 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 21/09/2026 (D-11, revue qualite de la tache 4) : 1339
+COMPTE DE REFERENCE, 21/09/2026 (D-2, tache 6 — le cablage des modes
+d'edition) : 1379 lignes, soit QUARANTE de plus que les 1339 de D-11. Une
+section neuve, [3-ter], porte le lot : VINGT-SEPT pins statiques (les trois
+ancres du cablage mesurees A ZERO dans .bak_montage — c'est ce qui interdit
+d'en faire des sections et impose le repli dans R_M16REF / R_M15B / R_M22A
++ R_M22B —, l'etat et la ref du mode, la rangee de chips entre le titre et
+la note du selecteur, les six infobulles, la chip « remplir » grisee sans
+plage, le marqueur `data-on` des chips voisines, la feuille, l'ordre
+refus-avant-pushHistory et le jeton jamais affiche) et DOUZE lignes `js_D2_*`
+qui JOUENT les six modes par le vrai `addAsset` sous node. Trois lignes
+existantes ont ete REECRITES plutot que doublees :
+`P12_un_seul_concat_porte_le_plan_et_son_jumeau` devient
+`D2_addAsset_ecrit_par_insere_et_plus_par_concat` (sa negation d'origine est
+CONSERVEE), `P12_le_compteur_est_re_seme_une_fois` nomme les DEUX ecrivains,
+et `P10_aucune_entree_d_historique_de_plus` suit le `pushHistory` de l'ajout
+dans R_M22A. NON-VACUITE PROUVEE PAR DEUX MUTATIONS : `if(!1&&lk[tr])` dans
+`dzmInsere` fait rougir
+`js_D2_dessus_sur_une_piste_verrouillee_ne_pose_RIEN_et_le_dit` (le clip se
+pose sur la piste VERROUILLEE, hist=1) ; retirer `id=dzIns.id||id;` de
+R_M22A fait rougir `D2_la_selection_et_la_note_relisent_le_clip_pose`.
+
+COMPTE PRECEDENT, 21/09/2026 (D-11, revue qualite de la tache 4) : 1339
 lignes, soit SEPT de plus que les 1332 du premier tour D-11. Les ONZE lignes
 nommees `D11_*` tiennent desormais tout le lot :
   · la persistance — `D11_la_plage_part_avec_la_sauvegarde` et
@@ -2081,7 +2102,11 @@ check("P10_la_duree_a_enfin_des_ecrivains",
       and s.count(nl("dur:Math.max(1,Number(d.duration)||maxEnd)")) == 1,
       f"ecrivains={s.count(nl('Object.assign({},p,{dur:'))} "
       f"chargement={s.count(nl('dur:Math.max(1,Number(d.duration)||maxEnd)'))}")
-for _t, _r in (("M17a_ajout", P.R_M17A), ("M17b_nudge", P.R_M17B),
+# D-2 (21/09/2026) : `M17a_ajout` lit DESORMAIS R_M17A + R_M22A. Le
+# `setProj(dur)` de l'ajout a demenage dans R_M22A, ou l'allongement se
+# mesure sur la timeline RENDUE par `DzTracks.insere` (voir la note « E3 »
+# du patcher) : le lire dans R_M17A seul rendait cette ligne creuse.
+for _t, _r in (("M17a_ajout", P.R_M17A + P.R_M22A), ("M17b_nudge", P.R_M17B),
                ("M17f_relachement", P.R_M17F), ("M17g_transport", P.R_M17G)):
     check("P10_" + _t + "_ecrit_bien_la_duree",
           "Object.assign({},p,{dur:" in _r, _r[:80])
@@ -2090,10 +2115,18 @@ for _t, _r in (("M17a_ajout", P.R_M17A), ("M17b_nudge", P.R_M17B),
 # DEUX durees. Elle est assemblee par M17a (`dzTail`) et emise par M16b, qui
 # la concatene — les deux moitieds sont comptees ensemble, sans quoi retirer
 # `+dzTail` de la note laissait la phrase construite et jamais affichee.
+# D-2 : `dzTail` est DECLARE par R_M22A depuis le 21/09/2026 (il lui faut
+# `dzIns.clips`), `dzCl` restant declare par R_M17A. La ligne compte donc
+# sur les DEUX, et EXIGE que la declaration soit dans R_M22A : une
+# reecriture qui la remettrait dans R_M17A remesurerait l'allongement sur
+# le seul clip pose, et les modes qui poussent la piste mentiraient.
 check("P10_M17a_la_note_dit_l_allongement_et_de_combien",
-      "dzTail" in P.R_M17A and "+dzTail)}" in P.R_M16B
-      and "La timeline a été allongée de " in P.R_M17A
-      and "svmRuler(Math.round(dzGrew))" in P.R_M17A,
+      "var dzTail=dzCl.note+(dzGrew?" in P.R_M22A
+      and "var dzTail=" not in P.R_M17A
+      and "var dzCl=defaultLen(kind,srcDur);" in P.R_M17A
+      and "+dzTail)}" in P.R_M16B
+      and "La timeline a été allongée de " in P.R_M22A
+      and "svmRuler(Math.round(dzGrew))" in P.R_M22A,
       "la note de l'ajout ne dit plus que la timeline a grandi")
 # `DzTracks`, JAMAIS `DzMontage` : le bundle declare deja `function DzMontage`
 # au premier niveau, et redeclarer ce nom est une SyntaxError en semantique
@@ -2183,15 +2216,26 @@ def _code(js):
     return re.sub(r"/\*.*?\*/", "", js, flags=re.S)
 
 
+# D-2 (21/09/2026) : R_M17A ne PARLE MEME PLUS de `pushHistory` — son
+# commentaire P11 est parti avec le calcul de l'allongement. L'appel unique
+# de l'ajout est celui de R_M22A, qui le DEPLACE apres le refus de verrou
+# (un `return` apres `pushHistory()` aurait laisse un instantane fantome
+# dans la pile, et le premier « Annuler » n'aurait rien fait). La ligne
+# compte donc UN appel dans le CODE de R_M22A, ZERO dans R_M17A des deux
+# cotes (code et prose), et exige qu'il reste du code a mesurer.
 check("P10_aucune_entree_d_historique_de_plus",
       "pushHistory" not in _code(P.R_M17A)
-      and "pushHistory" in P.R_M17A          # le commentaire, lui, le NOMME
-      and "DzTracks.fitDur" in _code(P.R_M17A)
+      and "pushHistory" in P.R_M17A          # le commentaire P11, lui, le NOMME
+      and len(_code(P.R_M17A)) > 200
+      and _code(P.R_M22A).count("pushHistory();") == 1
+      and "DzTracks.fitDur" in _code(P.R_M22A)
+      and "DzTracks.fitDur" not in P.R_M17A
       and P.R_M17B.count("pushHistory();") == 1
       and P.R_M17F.count("pushHistory(h0)") == 1
       and _code(P.R_M17G).count("pushHistory();") == 1,
       f"a={'pushHistory' in _code(P.R_M17A)} "
       f"a_code={len(_code(P.R_M17A))}/{len(P.R_M17A)} o "
+      f"a22={_code(P.R_M22A).count('pushHistory();')} "
       f"b={P.R_M17B.count('pushHistory();')} "
       f"f={P.R_M17F.count('pushHistory(h0)')} "
       f"g={_code(P.R_M17G).count('pushHistory();')}")
@@ -2201,7 +2245,9 @@ check("P10_aucune_entree_d_historique_de_plus",
 # chacune des siennes par `DZM_DUR_UNDO`, concatene dans `put`. La negation
 # `NE raccourcit PAS` est le conjoint : elle rougirait si une phrase d'avant
 # avait survecu a la reecriture.
-for _t, _r in (("M17a_ajout", P.R_M17A), ("M17b_nudge", P.R_M17B),
+# D-2 : meme demenagement que ci-dessus — la phrase de l'allongement est
+# assemblee par R_M22A depuis le 21/09/2026.
+for _t, _r in (("M17a_ajout", P.R_M17A + P.R_M22A), ("M17b_nudge", P.R_M17B),
                ("M17f_relachement", P.R_M17F)):
     check("P10_" + _t + "_dit_que_annuler_rend_la_duree",
           "rend aussi la durée" in _r and "NE raccourcit PAS" not in _r,
@@ -2308,10 +2354,12 @@ _aa0 = s.find(nl("function addAsset(src,label,kind,srcDur,trId,atTime){"))
 _ask = s.find(nl("DzTracks.askDur(src,{done:function(dzV){"),
               _aa0 if _aa0 >= 0 else 0)
 # LE `pushHistory` DE L'AJOUT, pas le premier venu : le court-circuit de
-# remplacement (P6) en pose un AVANT, plus haut dans le meme corps. C'est
-# `setClips(clipsRef.current.concat(` qui identifie l'ajout sans ambiguite.
-_ph = s.find(nl("setClips(clipsRef.current.concat("),
-             _aa0 if _aa0 >= 0 else 0)
+# remplacement (P6) en pose un AVANT, plus haut dans le meme corps. C'etait
+# `setClips(clipsRef.current.concat(` qui identifiait l'ajout ; depuis D-2
+# (21/09/2026) l'unique ecriture de l'ajout est `setClips(dzIns.clips);` —
+# le concat a disparu, et la ligne
+# `D2_addAsset_ecrit_par_insere_et_plus_par_concat` le NIE explicitement.
+_ph = s.find(nl("setClips(dzIns.clips);"), _aa0 if _aa0 >= 0 else 0)
 check("P11_la_mesure_sort_avant_que_l_historique_ne_soit_pousse",
       _aa0 >= 0 and _ask > _aa0 and _ph > _ask,
       f"addAsset={_aa0} askDur={_ask} ajout={_ph}")
@@ -2373,7 +2421,7 @@ _au = s.find(nl("DzTracks.askAudio(src,{done:function(){"), _aa0 if _aa0 >= 0 el
 _ask2 = s.find(nl("DzTracks.askDur(src,{done:function(dzV){"), _aa0 if _aa0 >= 0 else 0)
 _tw = s.find(nl("DzTracks.twinPlan(dzNeuf,dzTs,clipsRef.current||[],dzAu,"),
              _aa0 if _aa0 >= 0 else 0)
-_ph2 = s.find(nl("    pushHistory();\n    setClips(clipsRef.current.concat("),
+_ph2 = s.find(nl("    pushHistory();\n    setClips(dzIns.clips);"),
               _aa0 if _aa0 >= 0 else 0)
 check("P12_la_sonde_audio_sort_avant_la_duree_qui_sort_avant_l_historique",
       _aa0 >= 0 and _au > _aa0 and _ask2 > _au and _tw > _ask2 and _ph2 > _tw,
@@ -2388,14 +2436,21 @@ check("P12_le_rappel_repasse_les_memes_arguments",
       and s.count(nl("srcDur=DzTracks.srcDurOr(kind,srcDur,dzAu);")) == 1,
       f'rappel={s.count(nl("addAsset(src,label,kind,srcDur,trId,st)"))} '
       f'srcDurOr={s.count(nl("srcDur=DzTracks.srcDurOr(kind,srcDur,dzAu);"))}')
-# UN SEUL CONCAT, qui porte les deux clips ; l'ancienne ecriture a disparu.
-check("P12_un_seul_concat_porte_le_plan_et_son_jumeau",
-      s.count(nl("setClips(clipsRef.current.concat(dzTw&&dzTw.clip?"
-                 "[dzNeuf,dzTw.clip]:[dzNeuf]));")) == 1
+# D-2 (21/09/2026) — UNE SEULE ECRITURE, ET C'EST `DzTracks.insere` QUI LA
+# REND. La ligne P12 `un_seul_concat_porte_le_plan_et_son_jumeau` est
+# REMPLACEE, pas supprimee : elle niait deja l'ecriture d'AVANT P12
+# (`concat([{tr:tr2,…}])`), et cette negation-la est CONSERVEE ci-dessous.
+# Ce qui change est la forme retenue : `dzIns.clips` porte le plan, son
+# jumeau, ET les clips fendus / pousses des modes « inserer », « en fin »
+# et « ripple ». Un `concat` ici doublerait le clip.
+check("D2_addAsset_ecrit_par_insere_et_plus_par_concat",
+      s.count(nl("setClips(dzIns.clips);")) == 1
+      and s.count(nl("setClips(clipsRef.current.concat(dzTw&&dzTw.clip?"
+                     "[dzNeuf,dzTw.clip]:[dzNeuf]));")) == 0
       and s.count(nl("setClips(clipsRef.current.concat([{tr:tr2,id:id,")) == 0
-      and s.count(nl("setClips(clipsRef.current.concat(")) == 1,
-      f'neuf={s.count(nl("setClips(clipsRef.current.concat(dzTw&&dzTw.clip?"))} '
-      f'total={s.count(nl("setClips(clipsRef.current.concat("))}')
+      and s.count(nl("setClips(clipsRef.current.concat(")) == 0,
+      f'insere={s.count(nl("setClips(dzIns.clips);"))} '
+      f'concat={s.count(nl("setClips(clipsRef.current.concat("))}')
 # LA PHRASE DU JUMEAU ENTRE DANS LA NOTE DE L'AJOUT par `dzTail`, sans que
 # la fin de note de M16b ne bouge (`+dzTail)}` reste unique — P11 le tient).
 check("P12_la_phrase_du_jumeau_entre_dans_la_note_de_l_ajout",
@@ -2404,10 +2459,13 @@ check("P12_la_phrase_du_jumeau_entre_dans_la_note_de_l_ajout",
       f'tail={s.count(nl("if(dzTw)dzTail+=dzTw.note;"))} '
       f'fin={s.count(nl("+dzTail)}"))}')
 # L'IDENTIFIANT DE L'AJOUT PASSE PAR uniqueId, et l'ancienne forme a disparu.
+# D-2 : le rang n'est plus `ovSeq.current` mais `dzSeq`, un CANDIDAT
+# (`ovSeq.current+1`) que le refus de verrou ne consomme pas.
 check("P12_l_identifiant_de_l_ajout_passe_par_uniqueId",
       s.count(nl('var id=DzTracks.uniqueId(clipsRef.current||[],\n'
-                 '      tr2+"u"+ovSeq.current+"_"+Math.round(st*10));')) == 1
-      and s.count(nl('var id=tr2+"u"+ovSeq.current+"_"+Math.round(st*10);')) == 0,
+                 '      tr2+"u"+dzSeq+"_"+Math.round(st*10));')) == 1
+      and s.count(nl('var id=tr2+"u"+ovSeq.current+"_"+Math.round(st*10);')) == 0
+      and s.count(nl('var dzSeq=ovSeq.current+1;')) == 1,
       f'{s.count(nl("var id=DzTracks.uniqueId(clipsRef.current||[],"))}')
 # svmApplyProject : le dedoublonnage AVANT `setClips(cs)`, et le re-semis du
 # compteur — positions dans le corps.
@@ -2422,9 +2480,22 @@ check("P12_svmApplyProject_dedoublonne_et_re_seme_avant_d_ecrire",
       f"apply={_ap0} dedupe={_dd} seq={_sq} setClips={_sc}")
 # `ovSeq.current=` n'existait NULLE PART dans le bundle (mesure, fait n°3) :
 # il existe maintenant UNE fois, au re-semis.
+# D-2 (21/09/2026) : DEUX ecrivains, nommes. Le re-semis de M22c, et la
+# CONSOMMATION du candidat dans M22a (`ovSeq.current=dzSeq;`), qui n'a lieu
+# qu'une fois l'insertion acceptee — un ajout refuse pour verrou ne troue
+# plus la numerotation. `ovSeq.current++` a disparu avec lui.
 check("P12_le_compteur_est_re_seme_une_fois",
-      s.count("ovSeq.current=Math.max(") == 1 and s.count("ovSeq.current=") == 1,
-      f'{s.count("ovSeq.current=")}')
+      s.count("ovSeq.current=Math.max(") == 1
+      and s.count("ovSeq.current=dzSeq;") == 1
+      and s.count("ovSeq.current=") == 2
+      # `ovSeq.current++` ne survit QUE dans le bloc de narration d'A1
+      # (`var id="a1n"+ovSeq.current+…`), mesure du 21/09/2026 : ce geste-la
+      # n'est pas un ajout d'asset, n'a pas de mode d'edition et ne passe pas
+      # par `addAsset`. La forme d'addAsset, elle, a bien disparu.
+      and s.count("ovSeq.current++") == 1
+      and s.count(nl('ovSeq.current++;\n    var id="a1n"+ovSeq.current+')) == 1,
+      f'{s.count("ovSeq.current=")} dzSeq={s.count("ovSeq.current=dzSeq;")} '
+      f'pp={s.count("ovSeq.current++")}')
 # M22a (tour 2) : quand aucun jumeau ne parle, l'incrustation est DITE — la
 # branche `else` appelle `overlayNote`, declaree ET exportee par la couche.
 check("P12_M22a_l_incrustation_est_dite_quand_le_jumeau_ne_parle_pas",
@@ -2482,12 +2553,33 @@ for _sec, _r, _pairs in (
           ("dzTs", "var dzTs=dzTracksRef.current||svmTracksOf(proj);"),
           ("dzAuOn", "var dzAuOn=DzTracks.wantsTwin(kind,dzTs,tr2);"),
           ("dzAu", "var dzAu=dzAuOn?DzTracks.audioOf(src):null;"),
-          ("dzTail", "var dzTail=dzCl.note+(dzGrew?"))),
+          ("dzTail", "var dzTail=dzCl.note+(dzGrew?"),
+          # D-2 (21/09/2026) — les six libres NEUFS du cablage des modes.
+          # `dzModeRef` et l'etat qui le nourrit viennent du repli « E1 »
+          # dans R_M16REF ; `phRef` porte la tete de lecture pour
+          # « ripple » ; `dzProjRef` porte `range` pour « remplir » ;
+          # `dzCl` et `d` sont les restes de R_M17A que R_M22A lit.
+          ("dzModeRef", "var dzModeRef=x.useRef(dzMode);"),
+          # `dzMode` (l'ETAT) n'apparait PAS ici, et c'est le point d'« E1 » :
+          # `addAsset` peut etre appelee depuis la fermeture du PREMIER rendu,
+          # ou l'etat vaudrait toujours "ecraser". Seule la REF est lue. La
+          # ligne `D2_E1_declare_l_etat_et_la_ref` tient l'autre face.
+          ("phRef", "var rafRef=x.useRef(0),phRef=x.useRef(ph);phRef.current=ph;"),
+          ("dzProjRef", "var dzProjRef=x.useRef(null);dzProjRef.current=proj;"),
+          ("dzCl", "var dzCl=defaultLen(kind,srcDur);"),
+          ("setOvPick", "setOvPick=st"),
+          ("fireNote", "fireNote=nt[1]"),
+          ("setProj", "proj=stP[0],setProj=stP[1];"),
+          ("svmRuler", "function svmRuler(s){"),
+          ("dzNeuf", "var dzNeuf={tr:tr2,id:id,label:label,start:st,end:en,"),
+          ("dzTw", "var dzTw=dzAuOn?DzTracks.twinPlan("))),
+        # D-2 : R_M22B N'EST PLUS QU'UNE LIGNE — `setClips(dzIns.clips);`. Les
+        # trois paires qu'elle portait (dzNeuf, dzTw, clipsRef) ont suivi le
+        # code dans M22a, juste au-dessus : les deux faces restent tenues,
+        # elles ont seulement change de section.
         ("M22b", P.R_M22B,
-         (("dzNeuf", "var dzNeuf={tr:tr2,id:id,label:label,start:st,end:en,"),
-          ("dzTw", "var dzTw=dzAuOn?DzTracks.twinPlan("),
-          ("setClips", "setClips=st1[1]"),
-          ("clipsRef", "var clipsRef=x.useRef(clips);clipsRef.current=clips;"))),
+         (("dzIns", "var dzIns=DzTracks.insere(clipsRef.current||[],"),
+          ("setClips", "setClips=st1[1]"))),
         ("M22c", P.R_M22C,
          (("cs", "var cs=(d.clips||[]).map(function(c,i){"),
           ("fireNote", "fireNote=nt[1]"),
@@ -7553,6 +7645,10 @@ function ECRAN(o){
   var J={proj:[],clips:[],sel:[],dirty:0,notes:[],pick:[],hist:0,snapT:[],
          arm:[],attente:[],dirtyV:[]};
   var proj={dur:Number(o.dur)||16,demo:!1,mixDb:{}};
+  /* D-2 — la plage I/O du projet, quand le cas en pose une (mode
+     « remplir la plage »). Absente par defaut, comme le projet de demo du
+     bundle, qui n'a pas de cle `range` tant que I / U n'ont pas ete frappes. */
+  if(o.range)proj.range=o.range;
   var durRef={current:proj.dur};
   var clipsRef={current:(o.clips||[]).slice()};
   var phRef={current:Number(o.ph)||0};
@@ -7569,9 +7665,21 @@ function ECRAN(o){
      la fonction, ou elle rend la meme valeur. `dzDurHistAt` est l'horloge
      de rafale du reglage de duree (repli « H6 » dans M17g), `dzStyleHistAt`
      celle du style S1, que ce shim n'execute pas mais qui coute zero. */
-  var dzProjRef={current:null};
+  /* D-2 (21/09/2026) — `dzProjRef` PORTE LE PROJET DES LE DEPART. Dans le
+     bundle il est reecrit a chaque RENDU (`dzProjRef.current=proj`, a cote
+     de `histRef`) ; ce shim n'a pas de rendu, l'affectation etait donc
+     repliee dans `dzmHistHost` — la seule fonction qui le lisait. `addAsset`
+     le lit DESORMAIS aussi (la plage I/O du mode « remplir la plage »), et
+     un `null` y aurait rendu la plage introuvable quoi qu'on passe. Il est
+     donc pose ici ET rafraichi par `setProj`, exactement comme un rendu. */
+  var dzProjRef={current:proj};
   var dzDurHistAt={current:0};
   var dzStyleHistAt={current:0};
+  /* D-2 — LE MODE D'EDITION, la ref que lit `addAsset` (repli « E1 » dans
+     R_M16REF). L'etat `dzMode` et la rangee de chips vivent dans le rendu,
+     que ce shim ne joue pas : ce qui DECIDE est la ref, et c'est elle qui
+     est bouchonnee. Defaut « ecraser », comme `x.useState("ecraser")`. */
+  var dzModeRef={current:o.mode||"ecraser"};
   function dzmHistHost(){dzProjRef.current=proj;
     return DzTracks.histSnap({clips:clipsRef.current,mixDb:mixRef.current,
       proj:dzProjRef.current})}
@@ -7934,6 +8042,91 @@ out.ct_moins=E8.J.proj.slice();
 var E9=ECRAN({dur:16});
 var bf=BTN(E9.durCtl(16,2,[{end:8}]),"f");if(bf&&bf.p.onClick)bf.p.onClick();
 out.ct_ajuste=E9.J.proj.slice();
+/* ── D-2 (21/09/2026) : LES MODES D'EDITION, JOUES PAR addAsset ──────────
+   LES DEUX BOUCHONS SONT REPOSES, ET C'EST UNE MESURE. La ligne
+   `ask_rendue` ci-dessus REND les vraies `askDur` / `askAudio` a la couche
+   (elle mesure justement que ce banc ne la laisse pas bouchonnee). Or les
+   sondes qui suivent passent par `addAsset`, qui DEMANDE le verdict audio
+   des qu'on pose une video sur une piste video PLEIN CADRE : sans bouchon,
+   la vraie part chercher `fetch` chez node (URL relative -> rejet, reponse
+   en micro-tache) et `addAsset` SORT EN SILENCE. Mesure du 21/09/2026 :
+   zero clip, zero note, zero entree d'historique, aucune exception — et les
+   onze lignes ci-dessous auraient ete VERTES sur du vide si elles avaient
+   ete ecrites a l'envers. Elles sont ecrites a l'endroit : chacune EXIGE des
+   bornes.
+   `dzModeRef` est la ref du cablage « E1 » ; ECRAN la bouchonne par
+   `o.mode`. La couche chargee est la VRAIE (`DzTracks.insere`), le cablage
+   est la CHAINE EXACTE du bundle : ce qui suit mesure le FIL, de la chip
+   choisie jusqu'aux bornes ecrites et a la phrase dite. */
+window.DzTracks.askDur=function(sr,op){askVus.push([sr,op])};
+window.DzTracks.askAudio=function(sr,op){auVus.push([sr,op])};
+function MODE(m,o){
+  o=o||{};o.mode=m;
+  var E=ECRAN(o);
+  var nAv=auVus.length;
+  E.addAsset(o.src||{job_id:200},o.label||"neuf.mp4","video",
+    Number(o.srcDur)||3,o.tr||"v1",o.at==null?null:o.at);
+  /* LE VERDICT AUDIO DOIT ETRE RENDU : `wantsTwin` est VRAI sur une piste
+     video plein cadre, et `addAsset` SORT sur la sonde tant qu'elle n'a pas
+     repondu (mesure du 21/09/2026 : sans cette reponse, zero clip, zero
+     note, et les dix lignes ci-dessous etaient vertes sur du vide). On
+     repond « pas de son » : un seul clip, aucun jumeau, le mode seul
+     decide. Le CACHE d'`audioSet` fait que seule la PREMIERE sonde part —
+     toutes ces sondes partagent `{job_id:200}`. */
+  if(auVus.length>nAv)REPOND({has_audio:!1,dur:3,pourquoi:"mesure"});
+  return {bornes:BORNES(E.etat().clips),
+    ids:E.etat().clips.map(function(c){return c.id}),
+    pistes:E.etat().clips.map(function(c){return c.tr}),
+    vitesses:E.etat().clips.map(function(c){return c.speed==null?null:c.speed}),
+    sel:E.J.sel,hist:E.J.hist,note:E.J.notes[0]||"",
+    notes:E.J.notes.length,dur:E.etat().dur,proj:E.J.proj,seq:E.seq()}}
+/* La piste v1 porte DEJA deux plans colles ; la tete est a 2. Aucune sonde
+   audio : `pistes` ne contient pas de piste de dialogue, donc pas de jumeau
+   (wantsTwin est faux) et rien ne bloque la sonde. */
+/* L'INDEX 0 EST LA PISTE LA PLUS HAUTE (dzmOverlayOrder, « compose la piste
+   listee le plus haut AU-DESSUS ») : v2 est donc AU-DESSUS de v1, et c'est
+   ce que le mode « au-dessus » cherche. Mesure du 21/09/2026 : avec v1 en
+   tete, aucune candidate et repli silencieux en « ecraser ». */
+var TS1=[{id:"v2",kind:"video",type:"overlay"},{id:"v1",kind:"video",type:"vidéo"},
+  {id:"s1",kind:"subs"}];
+function DEUX(){return [
+  {tr:"v1",id:"p1",label:"p1",start:0,end:4,src:{job_id:1},srcIn:0},
+  {tr:"v1",id:"p2",label:"p2",start:4,end:8,src:{job_id:2},srcIn:0}]}
+var BASE={dur:16,ph:2,pistes:TS1,clips:DEUX()};
+function AVEC(x){var o={},k;for(k in BASE)o[k]=BASE[k];
+  o.clips=DEUX();for(k in (x||{}))o[k]=x[k];return o}
+out.m_ecraser=MODE("ecraser",AVEC({}));
+out.m_inserer=MODE("inserer",AVEC({}));
+out.m_fin=MODE("fin",AVEC({}));
+out.m_dessus=MODE("dessus",AVEC({}));
+out.m_ripple=MODE("ripple_ecraser",AVEC({}));
+/* « remplir la plage » : la plage [10,13[ du PROJET, lue par addAsset dans
+   `dzProjRef.current.range`. La source dure 6 s pour une plage de 3 s :
+   vitesse ×2, et le clip prend EXACTEMENT les bornes de la plage. */
+out.m_remplir=MODE("remplir",AVEC({range:{in:10,out:13},srcDur:6}));
+/* SANS PLAGE, « remplir » retombe en « ecraser » — la chip est ETEINTE a
+   l'ecran pour cette raison, et c'est ce repli que la sonde epingle. */
+out.m_remplir_sans_plage=MODE("remplir",AVEC({}));
+/* UN MODE INCONNU (un etat corrompu, une vieille cle) vaut « ecraser ». */
+out.m_inconnu=MODE("zz_inexistant",AVEC({}));
+/* LE VERROU PAR « au-dessus » : v1 est LIBRE (addAsset ne refuse donc pas),
+   mais la seule piste video au-dessus, v2, est VERROUILLEE. `dzmInsere` ne
+   filtre les candidates que sur le chevauchement : elle la choisit, puis
+   rend refus:"verrou". RIEN ne doit etre ecrit, et surtout pas d'entree
+   d'historique — c'est le chemin que le plan croyait mort. */
+out.m_dessus_verrou=MODE("dessus",AVEC({verrous:{v2:{l:!0}}}));
+/* PAS DE PISTE LIBRE AU-DESSUS : v2 est occupee sur [2,5[. Repli sur v1,
+   DIT par `dzIns.note`. */
+out.m_dessus_plein=MODE("dessus",AVEC({clips:DEUX().concat(
+  [{tr:"v2",id:"o1",label:"o1",start:0,end:9,src:{job_id:3},srcIn:0}])}));
+/* L'IDENTIFIANT EN COLLISION : la piste porte deja `v1u1_0`, l'id que
+   l'ajout allait forger. `dzmPose` le renomme, et c'est le NOUVEAU que la
+   selection doit porter. */
+out.m_collision=MODE("ecraser",AVEC({at:0,clips:[
+  {tr:"v1",id:"v1u1_0",label:"vieux",start:12,end:14,src:{job_id:4},srcIn:0}]}));
+/* et les vraies sont RENDUES, comme apres la section P12. */
+window.DzTracks.askDur=vraiAsk;window.DzTracks.askAudio=vraiAu;
+out.m_rendues=(window.DzTracks.askDur===vraiAsk&&window.DzTracks.askAudio===vraiAu);
 console.log(JSON.stringify(out));
 """
 
@@ -8311,6 +8504,250 @@ check("js_transport_le_controle_porte_ses_quatre_boutons",
 check("js_transport_le_reglage_entre_dans_l_historique",
       w.get("ct_hist") == 1 and w.get("ct_plus") == [18, 20],
       f'hist={w.get("ct_hist")} ecritures={w.get("ct_plus")}')
+
+# ══════════════════════════════════════════════════════════════════════════
+# D-2 (21/09/2026) — LES MODES D'EDITION, CABLES A L'ECRAN (tache 6)
+# Les six chips du selecteur, l'etat qui les porte, et `addAsset` qui ecrit
+# PAR `DzTracks.insere`. Le coeur pur est mesure par test_montage_edition.py
+# (32/0) ; ce qui suit est le CABLAGE : ce que le bundle contient, et ce que
+# le bundle FAIT quand on le joue sous node.
+# ══════════════════════════════════════════════════════════════════════════
+print("\n[3-ter] D-2 — les modes d'edition, cables : E1, E2, E3")
+# LA MESURE QUI COMMANDE TOUTE LA FORME DU CABLAGE : les trois textes vises
+# valent ZERO dans .bak_montage (l'entree du patcher) et UN dans le bundle
+# livre. Une section a part serait refusee par `--check`. C'est pourquoi E1,
+# E2 et E3 sont REPLIES dans R_M16REF / R_M15B / R_M22A+R_M22B.
+_BAK = (ROOT / "frontend" / "dist" / "assets"
+        / "index-BEOJX8L5.js.bak_montage")
+_bak = _BAK.read_text(encoding="utf-8") if _BAK.is_file() else ""
+
+
+def _nlb(t):
+    """`nl()` du .bak : meme parade, autre fichier."""
+    return t.replace("\n", "\r\n") if "\r\n" in _bak else t
+
+
+_E_ANCRES = (
+    ("E1", "var dzTracksRef=x.useRef(null);"
+           "dzTracksRef.current=svmTracksOf(proj);"),
+    ("E2", ':("Ajouter sur la piste "+tr2.toUpperCase())}),'),
+    ("E3", "setClips(clipsRef.current.concat(dzTw&&dzTw.clip?"
+           "[dzNeuf,dzTw.clip]:[dzNeuf]));"),
+)
+check("D2_le_bak_du_patcher_est_lisible", len(_bak) > 100000, f"{len(_bak)} o")
+for _tag, _txt in _E_ANCRES:
+    check("D2_ancre_" + _tag + "_vaut_zero_dans_le_bak",
+          bool(_bak) and _bak.count(_nlb(_txt)) == 0,
+          f"bak={_bak.count(_nlb(_txt))} (texte cree par un remplacement)")
+# LES TROIS PREMIERES existent bien dans le LIVRE (sinon la mesure ci-dessus
+# serait vraie pour une raison creuse : un texte qui n'existe nulle part).
+check("D2_les_deux_ancres_creees_existent_dans_le_livre",
+      s.count(nl(_E_ANCRES[0][1])) == 1 and s.count(nl(_E_ANCRES[1][1])) == 1,
+      f'E1={s.count(nl(_E_ANCRES[0][1]))} E2={s.count(nl(_E_ANCRES[1][1]))}')
+# E3, LUI, A ETE CONSOMME : R_M22B l'a remplace par `setClips(dzIns.clips);`.
+check("D2_l_ancre_E3_a_ete_consommee_par_M22b",
+      s.count(nl(_E_ANCRES[2][1])) == 0
+      and s.count(nl("setClips(dzIns.clips);")) == 1,
+      f'ancienne={s.count(nl(_E_ANCRES[2][1]))}')
+# AUCUNE SECTION N'A ETE AJOUTEE : le compte d'ancres reste celui d'hier.
+check("D2_le_cablage_n_ajoute_aucune_section", len(P.PATCHES) == 74,
+      f"{len(P.PATCHES)} triplets dans PATCHES")
+# « E1 » — L'ETAT *ET* LA REF, dans R_M16REF, et rien de plus.
+check("D2_E1_declare_l_etat_et_la_ref",
+      'var stDzM=x.useState("ecraser"),dzMode=stDzM[0],setDzMode=stDzM[1];'
+      in nl(P.R_M16REF).replace("\r\n", "\n")
+      and "var dzModeRef=x.useRef(dzMode);dzModeRef.current=dzMode;"
+      in P.R_M16REF
+      and s.count(nl("var dzModeRef=x.useRef(dzMode);"
+                     "dzModeRef.current=dzMode;")) == 1
+      # LA NEGATION, et son conjoint : l'etat n'est lu NULLE PART ailleurs
+      # que par la rangee de chips (E2). `addAsset` lit la REF.
+      and "dzMode" in s
+      and s.count("dzMode:") == 0,
+      f'ref={s.count(nl("var dzModeRef=x.useRef(dzMode);"))}')
+# « E2 » — LA RANGEE, ENTRE LE TITRE ET LA NOTE du selecteur. Les positions,
+# `find` jamais `index` (faute n°6) : les trois reperes valent -1 quand ils
+# manquent, et la ligne EXIGE qu'ils aient ete trouves ET ordonnes.
+_pt = s.find(nl(':("Ajouter sur la piste "+tr2.toUpperCase())}),'))
+_pm = s.find(nl("r.jsx(DzTracks.ModeBar,{mode:dzMode,onMode:setDzMode,"))
+_pn = s.find(nl('r.jsx("div",{className:"svm-popnote",style:{marginTop:6},'))
+check("D2_E2_la_rangee_est_entre_le_titre_et_la_note",
+      _pt >= 0 and _pm > _pt and _pn > _pm,
+      f"titre={_pt} rangee={_pm} note={_pn}")
+check("D2_E2_la_rangee_recoit_la_plage_du_projet",
+      s.count(nl("r.jsx(DzTracks.ModeBar,{mode:dzMode,onMode:setDzMode,\n"
+                 "        range:proj.range}),")) == 1,
+      f'{s.count(nl("DzTracks.ModeBar"))}')
+# LA COUCHE : le composant, la table d'infobulles, le libelle — declares ET
+# exportes. Deux faces, comme partout ailleurs dans ce banc.
+for _nm, _decl, _exp in (("ModeBar", "function DzmModeBar(o){", "ModeBar:DzmModeBar"),
+                         ("MODE_T", "var DZM_MODE_T={", "MODE_T:DZM_MODE_T"),
+                         ("modeLabel", "function dzmModeLabel(m){",
+                          "modeLabel:dzmModeLabel")):
+    check("D2_la_couche_declare_et_exporte_" + _nm,
+          src.count(_decl) == 1 and src.count(_exp) == 1,
+          f'decl={src.count(_decl)} export={src.count(_exp)}')
+# LES SIX INFOBULLES, une par mode de DZM_MODES — aucune orpheline, aucune
+# manquante. La table gelee du coeur est la source unique.
+_mt0 = src.find("var DZM_MODE_T={")
+_mt1 = src.find("\n/*", _mt0 if _mt0 >= 0 else 0)
+_MT = src[_mt0:_mt1] if _mt0 >= 0 and _mt1 > _mt0 else ""
+check("D2_chaque_mode_a_son_infobulle",
+      bool(_MT) and src.count("var DZM_MODE_T={") == 1
+      # `ripple_ecraser:"` CONTIENT `ecraser:"` — d'ou le saut de ligne ou
+      # l'accolade en tete de cle, mesure du 21/09/2026 (un compte nu sur la
+      # couche entiere rendait 2 pour « ecraser » et la ligne mentait).
+      and all(_MT.count("\n  " + _k + ':"') == 1 or _MT.count("{" + _k + ':"') == 1
+              for _k in ("ecraser", "inserer", "fin", "dessus",
+                         "ripple_ecraser", "remplir"))
+      and _MT.count(':"') == 6,
+      f"table={len(_MT)} o, cles={_MT.count(chr(58) + chr(34))}")
+# LA CHIP « remplir » S'ETEINT SANS PLAGE, et c'est `dzmRangeFrom` qui juge
+# — la MEME garde que `dzmInsereUn`, pas une seconde regle.
+check("D2_la_chip_remplir_s_eteint_sans_plage",
+      'var dis=m[0]==="remplir"&&!dzmRangeFrom(o&&o.range);' in src
+      and "disabled:dis||void 0," in src
+      and 'posez d\'abord une plage (I / U).' in src,
+      "la chip « remplir » ne se grise plus sans plage")
+# LE MARQUEUR D'ETAT EST CELUI DES CHIPS VOISINES (`data-on`), et la classe
+# aussi (`svm-toolchip`) : mesure dans la feuille du bundle, pas une
+# supposition. `.svm-toolchip[data-on]` n'est PAS scopee au bandeau.
+_SVMCSS = (ROOT / "frontend" / "dist" / "shared"
+           / "son-vfx-montage.css").read_text(encoding="utf-8")
+check("D2_les_chips_reprennent_le_marqueur_des_voisines",
+      '"svm-toolchip dzm-modechip"' in src
+      and 'role:"radio"' in src
+      and '"data-on":cur===m[0]?"":void 0' in src
+      and _SVMCSS.count(".svm-toolchip[data-on]{") == 1,
+      "la chip n'emploie plus le marqueur d'etat du bundle")
+check("D2_le_css_porte_la_rangee",
+      CSS.read_text(encoding="utf-8").count(".dzsvm .dzm-modebar{") == 1
+      and "flex-wrap:wrap" in CSS.read_text(encoding="utf-8")
+      and CSS.read_text(encoding="utf-8").count(".dzsvm .dzm-modechip[disabled]{") == 1,
+      "la feuille ne porte pas la rangée des modes")
+# « E3 » — L'ORDRE DANS addAsset : le refus de verrou sort AVANT
+# `pushHistory()`, et le compteur n'est consomme qu'apres lui. Positions,
+# `find` jamais `index`.
+_i0 = s.find(nl("function addAsset(src,label,kind,srcDur,trId,atTime){"))
+_iins = s.find(nl("var dzIns=DzTracks.insere(clipsRef.current||[],"),
+               _i0 if _i0 >= 0 else 0)
+_iref = s.find(nl('if(dzIns.refus==="verrou"){setOvPick("");'),
+               _i0 if _i0 >= 0 else 0)
+_iseq = s.find(nl("ovSeq.current=dzSeq;"), _i0 if _i0 >= 0 else 0)
+_iph = s.find(nl("    pushHistory();\n    setClips(dzIns.clips);"),
+              _i0 if _i0 >= 0 else 0)
+check("D2_le_refus_de_verrou_sort_avant_pushHistory",
+      _i0 >= 0 and _iins > _i0 and _iref > _iins and _iseq > _iref
+      and _iph > _iseq,
+      f"addAsset={_i0} insere={_iins} refus={_iref} seq={_iseq} hist={_iph}")
+# LE JETON N'EST JAMAIS AFFICHE : c'est `dzIns.note`, la phrase francaise,
+# qui entre dans la note. Le conjoint positif empeche la negation d'etre
+# vraie sur un cablage qui n'afficherait rien du tout.
+check("D2_la_note_dit_la_phrase_et_jamais_le_jeton",
+      s.count(nl('if(dzIns.note)dzTail+=" "+dzIns.note+".";')) == 1
+      and s.count("dzTail+=dzIns.refus") == 0
+      # `dzIns.refus` apparait DEUX fois : le test du verrou, et le
+      # commentaire JS qui dit pourquoi le jeton n'est jamais affiche.
+      # C'est le CODE qui est compte ici, pas la prose.
+      and s.count('if(dzIns.refus==="verrou")') == 1
+      and s.count("dzIns.refus") == 2,
+      f'note={s.count(nl("if(dzIns.note)dzTail"))} '
+      f'refus={s.count("dzIns.refus")}')
+# LA SELECTION, LA PISTE ET L'INSTANT SONT RELUS SUR LE CLIP POSE : un
+# identifiant renomme, une piste changee par « au-dessus », des bornes
+# deplacees par « en fin » — la note et la selection doivent dire le REEL.
+check("D2_la_selection_et_la_note_relisent_le_clip_pose",
+      s.count(nl("id=dzIns.id||id;tr2=dzIns.track||tr2;"
+                 "if(dzP)st=Number(dzP.start)||0;")) == 1
+      and s.count(nl("setSelId(id);setDirty(!0);setOvPick(\"\");")) == 1,
+      "l'identifiant définitif ne remonte plus jusqu'à setSelId")
+
+# ── LES SIX MODES, JOUES SOUS NODE ────────────────────────────────────────
+check("js_D2_les_vraies_sondes_sont_rendues_apres_le_bloc",
+      w.get("m_rendues") is True,
+      f'{w.get("m_rendues")}')
+def _M(k):
+    return w.get("m_" + k) or {}
+
+
+check("js_D2_ecraser_rogne_ce_qui_est_dessous",
+      _M("ecraser").get("bornes") == [[0, 2], [5, 8], [2, 5]]
+      and _M("ecraser").get("ids") == ["p1", "p2", "v1u1_20"]
+      and _M("ecraser").get("hist") == 1,
+      f'{_M("ecraser").get("bornes")} ids={_M("ecraser").get("ids")}')
+check("js_D2_inserer_fend_et_pousse_la_suite",
+      _M("inserer").get("bornes") == [[0, 2], [5, 7], [7, 11], [2, 5]]
+      and _M("inserer").get("dur") == 16
+      and _M("inserer").get("proj") == []
+      and "Mode « insérer »." in _M("inserer").get("note", ""),
+      f'{_M("inserer").get("bornes")} dur={_M("inserer").get("dur")} '
+      f'note={_M("inserer").get("note", "")[-120:]!r}')
+check("js_D2_fin_pose_apres_le_dernier_clip_et_ignore_la_tete",
+      _M("fin").get("bornes") == [[0, 4], [4, 8], [8, 11]]
+      and "Mode « en fin »." in _M("fin").get("note", ""),
+      f'{_M("fin").get("bornes")} note={_M("fin").get("note", "")[-120:]!r}')
+check("js_D2_dessus_pose_sur_la_piste_libre_au_dessus_et_le_dit",
+      _M("dessus").get("pistes") == ["v1", "v1", "v2"]
+      and _M("dessus").get("bornes") == [[0, 4], [4, 8], [2, 5]]
+      and "Posé sur V2 (au-dessus)." in _M("dessus").get("note", ""),
+      f'{_M("dessus").get("pistes")} note={_M("dessus").get("note", "")[-140:]!r}')
+check("js_D2_ripple_remplace_le_clip_sous_la_tete_et_recale_la_suite",
+      _M("ripple").get("bornes") == [[3, 7], [0, 3]]
+      and _M("ripple").get("ids") == ["p2", "v1u1_20"],
+      f'{_M("ripple").get("bornes")} ids={_M("ripple").get("ids")}')
+check("js_D2_remplir_prend_les_bornes_de_la_plage_et_calcule_la_vitesse",
+      _M("remplir").get("bornes") == [[0, 4], [4, 8], [10, 13]]
+      and _M("remplir").get("vitesses") == [None, None, 2]
+      and "Vitesse ×2." in _M("remplir").get("note", ""),
+      f'{_M("remplir").get("bornes")} v={_M("remplir").get("vitesses")} '
+      f'note={_M("remplir").get("note", "")[-140:]!r}')
+# SANS PLAGE, LE REPLI — et il est SILENCIEUX. La negation etablit d'abord
+# que la cle existe : `bornes` est la, et c'est celle d'« ecraser ».
+check("js_D2_remplir_sans_plage_retombe_en_ecraser_sans_rien_dire",
+      "bornes" in _M("remplir_sans_plage")
+      and _M("remplir_sans_plage").get("bornes") == _M("ecraser").get("bornes")
+      and "Mode «" not in _M("remplir_sans_plage").get("note", "")
+      and "Vitesse" not in _M("remplir_sans_plage").get("note", ""),
+      f'{_M("remplir_sans_plage").get("bornes")} '
+      f'note={_M("remplir_sans_plage").get("note", "")[-120:]!r}')
+check("js_D2_un_mode_inconnu_vaut_ecraser",
+      "bornes" in _M("inconnu")
+      and _M("inconnu").get("bornes") == _M("ecraser").get("bornes")
+      and "Mode «" not in _M("inconnu").get("note", ""),
+      f'{_M("inconnu").get("bornes")}')
+# LE CHEMIN QUE LE PLAN CROYAIT MORT : `refus:"verrou"` par « au-dessus ».
+# RIEN n'est ecrit — ni clip, ni historique, ni compteur — et c'est DIT.
+check("js_D2_dessus_sur_une_piste_verrouillee_ne_pose_RIEN_et_le_dit",
+      "bornes" in _M("dessus_verrou")
+      and _M("dessus_verrou").get("bornes") == [[0, 4], [4, 8]]
+      and _M("dessus_verrou").get("hist") == 0
+      and _M("dessus_verrou").get("seq") == 0
+      and _M("dessus_verrou").get("sel") == []
+      and "Piste V2 verrouillée" in _M("dessus_verrou").get("note", "")
+      and "rien n'a été posé" in _M("dessus_verrou").get("note", ""),
+      f'{_M("dessus_verrou").get("bornes")} hist={_M("dessus_verrou").get("hist")} '
+      f'seq={_M("dessus_verrou").get("seq")} '
+      f'note={_M("dessus_verrou").get("note", "")[:160]!r}')
+check("js_D2_aucune_piste_libre_au_dessus_replie_sur_la_piste_visee_et_le_dit",
+      _M("dessus_plein").get("pistes") == ["v1", "v1", "v2", "v1"]
+      and "aucune piste libre au-dessus : posé sur V1"
+      in _M("dessus_plein").get("note", ""),
+      f'{_M("dessus_plein").get("pistes")} '
+      f'note={_M("dessus_plein").get("note", "")[-160:]!r}')
+# L'IDENTIFIANT EN COLLISION EST RENOMME, ET C'EST LUI QU'ON SELECTIONNE.
+# ECART DECLARE, MESURE PLUTOT QUE TU (21/09/2026) : ce qui renomme ICI est
+# `DzTracks.uniqueId`, appele AVANT `insere` — `dzIns.id` vaut donc deja
+# `id`, et retirer `id=dzIns.id||id;` du bundle NE FAIT PAS rougir cette
+# ligne-ci (mutation jouee : seule `D2_la_selection_et_la_note_relisent_le
+# _clip_pose` rougit). `dzIns.id` est un FILET, pas un chemin, tant
+# qu'`uniqueId` garde la main ; il le redeviendrait le jour ou `dzmPose`
+# renommerait quelque chose qu'`uniqueId` n'a pas vu (un clip ajoute par le
+# mode lui-meme). La ligne mesure ce qu'elle mesure : la chaine complete,
+# de l'id pris jusqu'a la selection.
+check("js_D2_un_identifiant_en_collision_est_renomme_et_c_est_lui_qu_on_selectionne",
+      _M("collision").get("ids") == ["v1u1_0", "v1u1_0_2"]
+      and _M("collision").get("sel") == ["v1u1_0_2"],
+      f'ids={_M("collision").get("ids")} sel={_M("collision").get("sel")}')
 
 # ══════════════════════════════════════════════════════════════════════════
 # [6] LA BARRE D'OUTILS DEPORTABLE — etapes 1, 2 et 3 du §9 du handoff
