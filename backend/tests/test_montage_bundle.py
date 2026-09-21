@@ -12622,7 +12622,7 @@ check("D4_les_deux_combos_etaient_libres_et_ne_sont_plus_qu_une_fois",
 # pas confondre les deux paires si l'une des quatre entrees bougeait seule.
 check("D4_le_nom_des_fleches_gauche_droite_sous_ctrl_vient_de_la_table_du_bundle",
       s.count(nl('ArrowLeft:"\u2190",ArrowRight:"\u2192"')) == 1,
-      f'table={s.count(nl(chr(39) + "ArrowLeft:" + chr(34)))}')
+      f'table={s.count(nl("ArrowLeft:" + chr(34) + "\u2190" + chr(34) + ",ArrowRight:" + chr(34) + "\u2192" + chr(34)))}')
 # DzTracks.swap EST APPELE UNE SEULE FOIS -- meme forme que D-3 pour
 # slip/slide/roll : la couche fait le calcul, l'ecran ne fait que dispatcher.
 check("D4_l_echange_appelle_la_couche_une_fois",

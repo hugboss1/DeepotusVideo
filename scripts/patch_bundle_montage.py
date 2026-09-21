@@ -2868,12 +2868,14 @@ R_R2 = (A_R2 + "\n"
         # 0 dans le .bak. PORTEE MESUREE dans le MEME corps de composant que
         # K2 : `clipsRef`, `selRef` (27 occurrences dans le .bak, `delClip`
         # le lit deja), `trackStRef`, `fireNote`, `pushHistory`, `setClips`,
-        # `setDirty` y sont tous declares. `DzTracks.swap` rend des objets
-        # IDENTIQUES (memes references) quand rien ne change -- c'est
-        # `dzmSwap` qui rend `cs.slice()` sur toute sortie tot -- et
+        # `setDirty` y sont tous declares. `DzTracks.swap` rend TOUJOURS un
+        # tableau NEUF (`cs.map(...)` ou `cs.slice()`, jamais `clips`
+        # lui-meme) -- `dzSw===clipsRef.current` serait donc FAUX a chaque
+        # appel, un bras mort ECARTE (revue du 21/09/2026, M3) --
         # `dzSw.every(function(k,i){return k===clipsRef.current[i]})` suffit
-        # a le voir ; identite de reference seule, pas d'egalite de valeurs a
-        # construire (contrairement a la plage, R_R2 plus haut).
+        # SEUL a voir la sortie tot : identite de reference ELEMENT PAR
+        # ELEMENT, pas d'egalite de valeurs a construire (contrairement a la
+        # plage, R_R2 plus haut).
         '      if(id==="swap_left"||id==="swap_right"){'
         'var dzC=(clipsRef.current||[]).filter(function(k){'
         'return k&&k.id===selRef.current})[0];'
@@ -2881,7 +2883,7 @@ R_R2 = (A_R2 + "\n"
         'if(trackStRef.current[dzC.tr]&&trackStRef.current[dzC.tr].l){'
         'fireNote("Piste "+dzC.tr.toUpperCase()+" verrouillée.");return}'
         'var dzSw=DzTracks.swap(clipsRef.current,dzC.id,id==="swap_left"?-1:1);'
-        'if(dzSw===clipsRef.current||dzSw.every(function(k,i){return k===clipsRef.current[i]})){'
+        'if(dzSw.every(function(k,i){return k===clipsRef.current[i]})){'
         'fireNote("Aucun plan voisin de ce côté.");return}'
         'pushHistory();setClips(dzSw);setDirty(!0);'
         'fireNote("« "+(dzC.label||dzC.id)+" » échangé avec le plan "'

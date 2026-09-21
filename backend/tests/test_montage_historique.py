@@ -102,6 +102,30 @@ var KTitre=[{tr:"v1",id:"t1",start:0,end:3},{tr:"v1",id:"t2",start:3,end:6}];
 out.sw_titre=T.swap(KTitre,"t2",-1);
 out.sw_dir0=brefs(T.swap(K,"p2",0));
 out.sw_dirNaN=brefs(T.swap(K,"p2",NaN));
+/* C2(a) (revue du 21/09/2026) : PRECISION A QUATRE DECIMALES -- un mutant
+   qui omettrait `dzmR3` (les bornes rendues brutes) survivrait a un banc
+   qui ne teste que des entiers/trois-decimales ronds. `r2` est en contact
+   PARFAIT de `r1` (ecart nul) : le seul role de cette fixture est de forcer
+   une borne EXTERIEURE (`e=2.4445`) qui ne s'arrondit pas a elle-meme. */
+var KPrec=[{tr:"v1",id:"r1",start:0,end:1.0005},{tr:"v1",id:"r2",start:1.0005,end:2.4445}];
+out.sw_prec=brefs(T.swap(KPrec,"r2",-1));
+/* C2(b) (revue du 21/09/2026, C1) : UN TROU DE 0,05 S -- les DEUX bornes
+   exterieures du couple (h1.start=0, h2.end=8) restent fixes ; l'ecart
+   tolere par `dzmVoisins` (h2 commence a 4,05, pas 4) ne disparait pas, il
+   se retrouve au raccord INTERIEUR, maintenant entre h2 (nouvel h2:[0,3.95])
+   et h1 (nouvel h1:[4,8]) -- le meme trou de 0,05 s, de l'autre cote. */
+var KGap2=[{tr:"v1",id:"h1",start:0,end:4},{tr:"v1",id:"h2",start:4.05,end:8},
+           {tr:"v1",id:"h3",start:8,end:10}];
+out.sw_gap_interieur=brefs(T.swap(KGap2,"h2",-1));
+/* C2(c) : LA TRANSITION D'ENTREE SUIT LE CLIP QUI LA PORTE (ecart C3,
+   assume et date) -- `dzmSwap` ne touche qu'a `start`/`end`, donc
+   `transition`/`transition_s` restent sur x2 apres l'echange, meme si x2
+   devient le premier clip de la piste (ou le fondu, cote ecran, n'aurait
+   alors plus de raccord k-1|k a consommer -- non corrige par ce lot). */
+var KTrans=[{tr:"v1",id:"x1",start:0,end:4},
+            {tr:"v1",id:"x2",start:4,end:8,transition:"fondu",transition_s:.4}];
+var swTrans=T.swap(KTrans,"x2",-1);
+out.sw_trans_x1=parKId(swTrans,"x1");out.sw_trans_x2=parKId(swTrans,"x2");
 console.log(JSON.stringify(out));
 """
 print("\n[1] histSnap / histApply sous node")
@@ -290,6 +314,37 @@ check("swap_dir_nan_inchange",
                               {"id": "p2", "start": 4, "end": 8},
                               {"id": "p3", "start": 8, "end": 10}],
       D.get("sw_dirNaN"))
+# C2(a) (revue du 21/09/2026) : LES BORNES SONT ARRONDIES A TROIS DECIMALES.
+# MESURE sous node : r1[0,1.0005] / r2[1.0005,2.4445] (ecart nul) echange en
+# r2[0,1.444] / r1[1.444,2.445] -- la borne exterieure e=2.4445 EST arrondie
+# (2.445), pas laissee brute. Un mutant qui retirerait `dzmR3` des deux
+# `Object.assign` rendrait `end:2.4445` ici (brut) au lieu de `2.445` : cette
+# ligne rougit, elle est le seul garde-fou du lot contre ce mutant-la.
+check("swap_les_bornes_sont_arrondies_meme_a_quatre_decimales",
+      D.get("sw_prec") == [{"id": "r1", "start": 1.444, "end": 2.445},
+                            {"id": "r2", "start": 0, "end": 1.444}],
+      D.get("sw_prec"))
+# C2(b)/C1 : LES DEUX BORNES EXTERIEURES SONT ANCREES -- un trou de 0,05 s
+# (tolere par `dzmVoisins`, <=0,1 s) ne se televporte pas au raccord
+# SUIVANT : h1[0,4] reste attache a h3[8,10] par ses BORNES EXTERIEURES
+# (0 et 8, inchangees), et l'ecart de 0,05 s se retrouve au raccord
+# INTERIEUR du couple echange -- entre le nouvel h2[0,3.95] et le nouvel
+# h1[4,8]. h3, hors du couple, ne bouge pas d'un pouce.
+check("swap_un_trou_tolere_reste_au_raccord_interieur",
+      D.get("sw_gap_interieur") == [{"id": "h1", "start": 4, "end": 8},
+                                     {"id": "h2", "start": 0, "end": 3.95},
+                                     {"id": "h3", "start": 8, "end": 10}],
+      D.get("sw_gap_interieur"))
+# C2(c) : LA TRANSITION D'ENTREE SUIT LE CLIP QUI LA PORTE (ecart C3, assume
+# et date 21/09/2026) -- x2 porte `transition`/`transition_s` AVANT
+# l'echange ; APRES, il les porte ENCORE, alors meme qu'il est devenu le
+# PREMIER clip de la piste (le fondu, cote ecran, n'aurait alors plus de
+# raccord k-1|k a consommer -- non corrige par ce lot, reporte a la tache 10).
+check("swap_la_transition_suit_le_clip_qui_la_porte",
+      D.get("sw_trans_x2") == {"tr": "v1", "id": "x2", "start": 0, "end": 4,
+                                "transition": "fondu", "transition_s": .4}
+      and D.get("sw_trans_x1") == {"tr": "v1", "id": "x1", "start": 4, "end": 8},
+      {"x1": D.get("sw_trans_x1"), "x2": D.get("sw_trans_x2")})
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

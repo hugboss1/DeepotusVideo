@@ -3211,7 +3211,7 @@ function DzMontage(props){
       if(id==="marker_toggle"){var dzMkL=(dzProjRef.current&&dzProjRef.current.markers)||[];var dzMkT=Number(phRef.current)||0,dzMkN=DzTracks.markerAdd(dzMkL,dzMkT,{});if(dzMkN.length===dzMkL.length){fireNote(dzMkL.length>=200?"Plafond atteint — 200 marqueurs au maximum par montage.":"Tête de lecture illisible — marqueur non posé.");return}pushHistory();setProj(function(p){return Object.assign({},p,{markers:dzMkN})});setDirty(!0);fireNote(dzMkN.length<dzMkL.length?("Marqueur retiré à "+dzMkT.toFixed(2)+" s."):("Marqueur posé à "+dzMkT.toFixed(2)+" s — "+svmKeyLabel("marker_index")+" : l'index."));return}
       if(id==="marker_prev"||id==="marker_next"){var dzMkD=id==="marker_next"?1:-1;var dzMkG=DzTracks.markerNext(dzProjRef.current&&dzProjRef.current.markers,phRef.current,dzMkD);if(dzMkG!=null)seekTo(dzMkG);else fireNote("Aucun marqueur "+(dzMkD>0?"après":"avant")+" la tête.");return}
       if(id==="marker_index"){dzMkToggle();return}
-      if(id==="swap_left"||id==="swap_right"){var dzC=(clipsRef.current||[]).filter(function(k){return k&&k.id===selRef.current})[0];if(!dzC){fireNote("Échanger : sélectionnez d'abord un plan.");return}if(trackStRef.current[dzC.tr]&&trackStRef.current[dzC.tr].l){fireNote("Piste "+dzC.tr.toUpperCase()+" verrouillée.");return}var dzSw=DzTracks.swap(clipsRef.current,dzC.id,id==="swap_left"?-1:1);if(dzSw===clipsRef.current||dzSw.every(function(k,i){return k===clipsRef.current[i]})){fireNote("Aucun plan voisin de ce côté.");return}pushHistory();setClips(dzSw);setDirty(!0);fireNote("« "+(dzC.label||dzC.id)+" » échangé avec le plan "+(id==="swap_left"?"précédent":"suivant")+".");return}
+      if(id==="swap_left"||id==="swap_right"){var dzC=(clipsRef.current||[]).filter(function(k){return k&&k.id===selRef.current})[0];if(!dzC){fireNote("Échanger : sélectionnez d'abord un plan.");return}if(trackStRef.current[dzC.tr]&&trackStRef.current[dzC.tr].l){fireNote("Piste "+dzC.tr.toUpperCase()+" verrouillée.");return}var dzSw=DzTracks.swap(clipsRef.current,dzC.id,id==="swap_left"?-1:1);if(dzSw.every(function(k,i){return k===clipsRef.current[i]})){fireNote("Aucun plan voisin de ce côté.");return}pushHistory();setClips(dzSw);setDirty(!0);fireNote("« "+(dzC.label||dzC.id)+" » échangé avec le plan "+(id==="swap_left"?"précédent":"suivant")+".");return}
       if(id==="zoom_in"){zoomApply(zoomPctRef.current*1.25);return}
       if(id==="zoom_out"){zoomApply(zoomPctRef.current/1.25);return}
       if(id==="zoom100"){zoomApply(100);return}
@@ -17950,19 +17950,46 @@ function DzmMarkerIndex(o){
    (≤0,1s, `dzmVoisins`) côté `dir`. Les DEUX clips gardent leur durée et
    leurs autres champs (srcIn compris) : seules `start`/`end` bougent, pour
    que l'échange se lise par les BORNES et non par l'index dans le tableau
-   rendu. Une transition portée par le clip V1 (`transition`,
-   `transition_s`) reste attachée à ce clip pendant l'échange — c'est le
-   comportement de Resolve, la transition « suit » le plan, pas la place. */
+   rendu.
+   LES DEUX BORNES EXTÉRIEURES DU COUPLE SONT ANCRÉES, PAS UNE SEULE
+   (correctif du 21/09/2026, revue) : `s=a.start` ET `e=b.end` sont lus
+   AVANT tout calcul, et les deux clips sont reposés À L'INTÉRIEUR de
+   `[s,e]` — `b` en tête (`{start:s,end:s+lb}`), `a` en queue
+   (`{start:e-la,end:e}`). Ancrer `s` seul (comme la première version)
+   RECALCULAIT la borne droite de `a` depuis `s+lb+la` : un écart entre
+   les deux clips (le trou ou le chevauchement toléré par `dzmVoisins`,
+   jusqu'à 0,1 s) se retrouvait ABSORBÉ — un trou de 0,05 s TÉLÉPORTAIT
+   `a` au raccord suivant (mesuré : p1[0,4] p2[4.05,8] p3[8,10] →
+   `swap(p2,-1)` rendait p2[0,3.95] p1[3.95,7.95] p3[8,10], p1 collé à p3
+   au lieu de laisser 0,05 s) et un chevauchement de 0,05 s faisait MORDRE
+   `a` sur son voisin suivant. Avec les deux bornes ancrées, l'écart ne
+   disparaît ni ne se déplace vers l'extérieur : il RESTE AU RACCORD
+   INTÉRIEUR, maintenant entre les deux clips échangés (p2[0,3.95]
+   p1[4,8] p3[8,10] — le même trou de 0,05 s, simplement de l'autre
+   côté). Deux clips JOINTIFS (écart nul) rendent donc exactement le
+   résultat d'avant : ancrer une borne ou les deux ne change rien quand
+   il n'y a rien à préserver.
+   TRANSITION D'ENTRÉE, ÉCART ASSUMÉ ET DATÉ (21/09/2026) : `transition`/
+   `transition_s` est portée par le clip mais c'est une propriété du BORD
+   ENTRANT — `montage_service` applique le fondu du segment k au raccord
+   k-1|k, et le segment 0 (premier de la piste) n'en consomme aucun.
+   `dzmSwap` ne touche qu'à `start`/`end` : la transition reste attachée
+   au CLIP qui la porte, donc échanger déplace le fondu vers la nouvelle
+   place de ce clip — et le fait DISPARAÎTRE s'il devient le premier de
+   la piste (plus de raccord k-1|k à son entrée). Non couvert par ce lot,
+   à reporter dans la conception de la tâche 10 (les jonctions/transitions
+   de D-4/D-11 suivantes). */
 function dzmSwap(clips,id,dir){
   var cs=Array.isArray(clips)?clips:[],c=cs.filter(function(k){return k&&k.id===id})[0];
   if(!c||!(dir===1||dir===-1))return cs.slice();
   var v=dzmVoisins(cs,c),n=dir<0?v.g:v.d;
   if(!n)return cs.slice();
   var a=dir<0?n:c,b=dir<0?c:n;                   /* a précède b */
-  var la=Number(a.end)-Number(a.start),lb=Number(b.end)-Number(b.start),s=Number(a.start);
+  var la=Number(a.end)-Number(a.start),lb=Number(b.end)-Number(b.start);
+  var s=Number(a.start),e=Number(b.end);         /* bornes extérieures ancrées */
   return cs.map(function(k){
     if(k===b)return Object.assign({},k,{start:dzmR3(s),end:dzmR3(s+lb)});
-    if(k===a)return Object.assign({},k,{start:dzmR3(s+lb),end:dzmR3(s+lb+la)});
+    if(k===a)return Object.assign({},k,{start:dzmR3(e-la),end:dzmR3(e)});
     return k})}
 
 /* ── export contrat ───────────────────────────────────────────────────────── */
