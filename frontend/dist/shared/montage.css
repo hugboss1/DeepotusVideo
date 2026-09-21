@@ -944,6 +944,16 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
    (son-vfx-montage.css l.319-323) n'est PAS scopee au bandeau de transport,
    seules les surcharges de taille le sont : rien n'est redefini ici, sauf
    l'etat DESACTIVE, que le bandeau n'a jamais eu a montrer. */
-.dzsvm .dzm-modebar{display:flex; flex-wrap:wrap; gap:4px; margin-top:8px}
+.dzsvm .dzm-modebar{display:flex; flex-wrap:wrap; gap:4px; margin-top:8px;
+  font-family:var(--f-mono); font-size:10px}
+/* LA CHIP ACTIVE, DANS LE PANNEAU. `.svm-toolchip[data-on]` peint
+   `--panel2`, qui est le fond du bandeau de transport -- dans le
+   `.svm-pop`, dont le fond est deja `--panel2`, la chip allumee
+   DISPARAISSAIT (mesure du 21/09/2026 : meme jeton des deux cotes).
+   `--panel3` et `--accent` sont definis par /shared/son-vfx-montage.css
+   (20 et 94 occurrences, mesurees) : la chip allumee se detache donc
+   par son fond ET par sa bordure, sans inventer de jeton. */
+.dzsvm .svm-pop .dzm-modechip[data-on]{background:var(--panel3);
+  border-color:var(--accent); color:var(--ink)}
 .dzsvm .dzm-modechip[disabled]{opacity:.42; cursor:not-allowed}
 .dzsvm .dzm-modechip[disabled]:hover{border-color:var(--stroke); color:var(--ink3)}

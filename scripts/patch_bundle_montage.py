@@ -209,6 +209,13 @@ Sections :
       le calcul de l'allongement de la timeline : il doit désormais se mesurer
       sur les clips RENDUS par l'insertion, puisqu'en `inserer` / `fin` /
       `ripple_ecraser` la suite de la piste est POUSSÉE au-delà de `en`.
+      « E4 » (tour de correction du 21/09/2026) EST, LUI, UNE VRAIE SECTION :
+      son ancre — la garde de verrou qui testait la piste VISÉE — vient du
+      greffon AMONT son-vfx-montage.js et vaut donc 1 dans .bak_montage
+      (mesuré). Elle est DÉPLACÉE dans `insere()`, qui seul connaît la piste
+      RÉELLE : en « au-dessus » avec V1 verrouillée et V2 libre, le geste
+      était refusé alors que RIEN n'allait sur V1. Le compte d'ancres passe
+      donc de 75 à 76, et `PATCHES` de 74 à 75 triplets.
 
 Mécanique identique à patch_bundle_subs.py : restauration du .bak dédié puis
 ré-application, chaque ancre devant apparaître EXACTEMENT une fois, sinon
@@ -1382,7 +1389,12 @@ R_M15B = (
     # `range` vient de `proj` et non d'une ref parce que ce panneau est
     # RENDU : il voit la plage courante, et la chip « remplir la plage »
     # s'éteint donc d'elle-même tant qu'I / U n'ont pas été frappés.
-    '      r.jsx(DzTracks.ModeBar,{mode:dzMode,onMode:setDzMode,\n'
+    # LA RANGÉE N'EXISTE PAS EN MODE REMPLACEMENT, et c'est une MESURE :
+    # `addAsset` COURT-CIRCUITE sur `dzmReplaceRef.current` dès son
+    # entrée (P6), AVANT la piste, avant la tête, avant le mode. Six
+    # chips cliquables qui ne décident de rien sont un mensonge ; et le
+    # titre du panneau dit déjà « Remplacer la source de … ».
+    '      dzmA?null:r.jsx(DzTracks.ModeBar,{mode:dzMode,onMode:setDzMode,\n'
     '        range:proj.range}),\n'
     '      r.jsx("div",{className:"svm-popnote",style:{marginTop:6},\n'
     '        children:dzmA?("Le prochain élément choisi REMPLACERA la '
@@ -1462,6 +1474,32 @@ R_M15B = (
 # à ce qu'il capture. On l'écrit ici parce que c'est ici que `dzFit` est
 # connu, et que les lignes suivantes (ovSeq, id, pushHistory, setClips)
 # appartiennent au bundle et ne sont pas dans cette ancre.
+
+# ── « E4 » (D-2, 21/09/2026) : LE VERROU SE JUGE APRÈS LE MODE ───────────
+# LE DÉFAUT, MESURÉ : cette garde-ci teste la piste VISÉE, et elle précède le
+# mode d'édition. En « au-dessus » avec V1 verrouillée et V2 libre, le geste
+# était refusé alors que RIEN n'allait sur V1 : c'est V2 qui devait recevoir
+# le clip. La garde n'est pas supprimée, elle est DÉPLACÉE — `dzmInsere`
+# teste déjà `opts.locked[piste finale]` et rend `refus:"verrou"` avec la
+# piste CONCERNÉE dans `track` (R_M22A). La phrase d'origine est reprise MOT
+# POUR MOT quand la piste refusée est bien celle qu'on visait : sur ce
+# chemin-là, rien ne change pour l'utilisateur.
+# L'ANCRE EST UNE VRAIE SECTION, elle : son texte vaut 1 dans .bak_montage
+# (mesuré) parce qu'il vient du greffon amont son-vfx-montage.js, qu'on ne
+# touche PAS. C'est la seule des quatre « E » qui en soit une ; E1, E2 et E3
+# visent des textes que d'autres remplacements POSENT. Le compte d'ancres
+# passe donc de 75 à 76, et `PATCHES` de 74 à 75 triplets.
+# CE QUE ÇA COÛTE, DIT : sur une piste verrouillée, la sonde audio
+# (`askAudio`) part maintenant AVANT le refus — un aller-retour réseau,
+# mis en cache, sans écriture. Aucun clip, aucun historique : les deux
+# gardes qui comptent (`pushHistory`, `setClips`) restent derrière le refus.
+A_E4 = '    if(trackStRef.current[tr2]&&trackStRef.current[tr2].l){\n      fireNote("Piste "+tr2.toUpperCase()+" verrouillée — déverrouillez-la pour ajouter.");return}\n'
+R_E4 = ("    /* « E4 » (D-2) — LE VERROU DE PISTE SE JUGE APRÈS LE MODE, dans\n"
+        "       `insere()` : le mode « au-dessus » CHANGE de piste, et\n"
+        "       refuser ici sur la piste visée refusait un geste qui n'allait\n"
+        "       pas s'y poser. Le refus, sa phrase d'origine comprise, vit\n"
+        "       désormais au seul endroit qui connaît la piste RÉELLE. */\n")
+
 A_M17A = ('    st=Math.min(Math.max(0,st),Math.max(0,d-1));\n'
           '    var en=Math.min(d,st+defaultLen(kind,srcDur));'
           'if(en-st<.5)st=Math.max(0,en-1);\n')
@@ -1879,20 +1917,21 @@ R_M22A = (
     #  3. L'allongement (`dzFit`/`dzGrew`) se mesure sur `dzIns.clips`, la
     #     timeline ENTIÈRE : voir la note d'E3 au-dessus de R_M17A.
     #
-    # LE REFUS « verrou » N'EST PAS UN FILET, C'EST UN CHEMIN — mesuré :
-    # `addAsset` refuse déjà une piste VISÉE verrouillée plus haut
-    # (« Piste … verrouillée — déverrouillez-la pour ajouter »), mais le mode
-    # « au-dessus » CHANGE de piste, et `dzmInsere` ne filtre les candidates
-    # que sur le CHEVAUCHEMENT (`dzmOverlap`), jamais sur le verrou : une
-    # piste libre mais verrouillée au-dessus rend donc `refus:"verrou"` avec
-    # `track` = CETTE piste-là. La note nomme `dzIns.track`, pas `tr2`.
+    # LE REFUS « verrou » EST LE SEUL, depuis « E4 » (21/09/2026) : la garde
+    # héritée qui testait la piste VISÉE a été déplacée ici, parce que le mode
+    # « au-dessus » CHANGE de piste — refuser sur la piste visée refusait un
+    # geste qui n'allait pas s'y poser. `dzmInsere` ne filtre les candidates
+    # que sur le CHEVAUCHEMENT (`dzmOverlap`), jamais sur le verrou : c'est
+    # donc `refus:"verrou"` + `track` qui décident, et les DEUX cas ont leur
+    # phrase (piste visée : celle d'avant, mot pour mot ; autre piste : elle
+    # la nomme et renvoie au mode, qui reste à l'écran).
     # `verrou_jumeau`, lui, EST un filet : `twinPlan` refuse déjà une piste de
     # dialogue verrouillée et rend `dzTw` nul avec sa phrase (banc
     # `verrou_note`) — le jeton n'a donc pas de chemin ici, et il n'est lu
     # que par `dzIns.note`, qui le dirait si jamais il en gagnait un.
     "    /* D-2 — LE MODE D'ÉDITION DÉCIDE DE L'ÉCRITURE. `dzModeRef` est\n"
-    "       l'état de la rangée de chips du sélecteur ; `DzTracks.insere` rend\n"
-    "       la timeline ENTIÈRE, jumeau compris. Le numéro d'ordre n'est\n"
+    "       l'état de la rangée de chips du sélecteur ; `insere()` rend la\n"
+    "       timeline ENTIÈRE, jumeau compris. Le numéro d'ordre n'est\n"
     "       CONSOMMÉ qu'une fois l'insertion acceptée, et le refus sort AVANT\n"
     "       `pushHistory()` : rien d'écrit, rien dans la pile d'annulation. */\n"
     "    var dzSeq=ovSeq.current+1;\n"
@@ -1906,17 +1945,30 @@ R_M22A = (
     "    var dzNeuf={tr:tr2,id:id,label:label,start:st,end:en,src:src,srcIn:0};\n"
     "    var dzTw=dzAuOn?DzTracks.twinPlan(dzNeuf,dzTs,clipsRef.current||[],dzAu,\n"
     "      function(t){return !!(trackStRef.current[t]&&trackStRef.current[t].l)}):null;\n"
-    "    var dzIns=DzTracks.insere(clipsRef.current||[],\n"
-    "      Object.assign({},dzNeuf,{srcDur:Number(srcDur)||0}),dzModeRef.current,\n"
+    # I-3 — `srcDur` PASSE PAR LES OPTIONS, PAS PAR LE CLIP. C'est une mesure
+    # de la SOURCE : posée sur le clip, elle entrait dans la sauvegarde et
+    # dans le payload de rendu (huit clés au lieu de sept, mesuré le
+    # 21/09/2026). Seul le mode « remplir » la lit, pour calculer la vitesse ;
+    # `dzmPose` retire désormais la clé de la copie posée, ce qui couvre aussi
+    # l'appelant qui la mettrait quand même sur le clip.
+    "    var dzIns=DzTracks.insere(clipsRef.current||[],dzNeuf,dzModeRef.current,\n"
     "      {tracks:dzTs,twin:dzTw&&dzTw.clip,head:phRef.current,\n"
+    "       srcDur:Number(srcDur)||0,\n"
     "       range:dzProjRef.current&&dzProjRef.current.range,\n"
     "       locked:(function(){var o={},k;for(k in trackStRef.current)\n"
     "         if(trackStRef.current[k]&&trackStRef.current[k].l)o[k]=!0;\n"
     "         return o})()});\n"
-    "    if(dzIns.refus===\"verrou\"){setOvPick(\"\");\n"
-    "      fireNote(\"Piste \"+String(dzIns.track).toUpperCase()+\" verrouillée — \"+\n"
-    "        \"rien n'a été posé. Déverrouillez-la, ou choisissez un autre \"+\n"
-    "        \"mode d'édition.\");return}\n"
+    # I-5 — LE REFUS NE FERME PAS LE SÉLECTEUR : il disait « choisissez un
+    # autre mode » en escamotant la rangée qui les porte. Les deux refus
+    # frères du même corps (piste absente, source d'un autre genre) laissent
+    # déjà le panneau ouvert ; celui-ci s'aligne.
+    "    if(dzIns.refus===\"verrou\"){\n"
+    "      fireNote(dzIns.track===tr2\n"
+    "        ?(\"Piste \"+String(tr2).toUpperCase()+\" verrouillée — \"+\n"
+    "          \"déverrouillez-la pour ajouter.\")\n"
+    "        :(\"Piste \"+String(dzIns.track).toUpperCase()+\" verrouillée — \"+\n"
+    "          \"rien n'a été posé. Déverrouillez-la, ou choisissez un \"+\n"
+    "          \"autre mode d'édition.\"));return}\n"
     "    ovSeq.current=dzSeq;\n"
     "    /* LE CLIP RÉELLEMENT POSÉ : `dzmPose` RENOMME un identifiant déjà\n"
     "       pris, et « en fin » / « remplir » le posent à d'autres bornes que\n"
@@ -1925,27 +1977,55 @@ R_M22A = (
     "    var dzP=null,dzJ;\n"
     "    for(dzJ=0;dzJ<dzIns.clips.length;dzJ++)\n"
     "      if(dzIns.clips[dzJ]&&dzIns.clips[dzJ].id===dzIns.id)dzP=dzIns.clips[dzJ];\n"
+    # CONFORMITÉ 5 — LA PHRASE DE L'ALLONGEMENT EST BORNÉE. « Le clip garde sa
+    # longueur entière au lieu d'être rogné sur la fin du projet » est FAUSSE
+    # quand la timeline débordait DÉJÀ (un projet dont `dur` a été raccourci
+    # à la main porte des clips au-delà, et le contrôle de la barre de
+    # transport le permet depuis P10) : ce n'est alors pas CE clip qui a fait
+    # grandir la durée. `dzAv` mesure la fin réelle d'AVANT l'insertion.
+    "    var dzAv=DzTracks.fitDur(clipsRef.current||[],d,0);\n"
     "    var dzFit=DzTracks.fitDur(dzIns.clips,d,0),dzGrew=dzFit>d?dzFit:0;\n"
     "    var dzTail=dzCl.note+(dzGrew?(\" La timeline a été allongée de \"+\n"
     "      svmRuler(Math.round(d))+\" à \"+svmRuler(Math.round(dzGrew))+\n"
-    "      \" : le clip garde sa longueur entière au lieu d'être rogné sur la \"+\n"
-    "      \"fin du projet. « Annuler » retire le clip, et \"+\n"
+    "      (dzAv>d?\" pour tenir tout ce qu'elle porte.\"\n"
+    "        :\" : le clip garde sa longueur entière au lieu d'être rogné sur \"+\n"
+    "          \"la fin du projet.\")+\n"
+    "      \" « Annuler » retire le clip, et \"+\n"
     "      \"rend aussi la durée d'avant.\"):\"\");\n"
     "    if(dzTw)dzTail+=dzTw.note;\n"
     "    else dzTail+=DzTracks.overlayNote(kind,dzTs,tr2);\n"
+    # M-5 — LA PISTE N'EST PAS RÉPÉTÉE : `tr2` vient d'être réaffecté à
+    # `dzIns.track`, et la note principale dit déjà « ajouté sur V2 à … ».
+    # Ce qu'il reste à dire est POURQUOI la piste a changé.
+    # I-2 — LA VITESSE EST FORMATÉE SUR PLACE. `DzTracks.secs` est un
+    # formateur de DURÉE : il arrondit au dixième et rendait « ×0,3 » pour
+    # une vitesse de 0,25 (mesuré le 21/09/2026), en plus de coller un « s »
+    # qu'il fallait retirer après coup. Une virgule décimale suffit.
     "    /* D-2 — LE MODE APPLIQUÉ EST DIT, COURT. `dzIns.mode` est le mode\n"
     "       EFFECTIF : « au-dessus » rend toujours \"ecraser\" sur une autre\n"
     "       piste, c'est donc le changement de PISTE qui le trahit, et le\n"
     "       repli « aucune piste libre » parle par `dzIns.note`. */\n"
-    "    if(dzIns.track&&dzIns.track!==tr2)dzTail+=\" Posé sur \"+\n"
-    "      String(dzIns.track).toUpperCase()+\" (au-dessus).\";\n"
+    "    if(dzIns.track&&dzIns.track!==tr2)dzTail+=\" Posé au-dessus : la \"+\n"
+    "      \"piste visée était occupée à cet instant.\";\n"
     "    else if(dzIns.mode!==\"ecraser\")dzTail+=\" Mode « \"+\n"
     "      DzTracks.modeLabel(dzIns.mode)+\" ».\"+\n"
     "      ((dzP&&Number(dzP.speed)>0&&Number(dzP.speed)!==1)?\n"
-    "        \" Vitesse ×\"+DzTracks.secs(dzP.speed).replace(\" s\",\"\")+\".\":\"\");\n"
+    "        \" Vitesse ×\"+String(dzP.speed).replace(\".\",\",\")+\".\":\"\");\n"
+    # I-1a — LE MODE DEMANDÉ N'EST PAS TOUJOURS LE MODE APPLIQUÉ. « remplir la
+    # plage » retombe en « écraser » quand la plage a disparu entre le clic
+    # sur la chip et l'ajout. R_R2 désarme désormais le mode quand la plage
+    # devient nulle (X, Maj+X), mais la course reste possible : un
+    # glisser-déposer, le greffon « Envoyer vers → Montage », un rappel
+    # d'`askAudio` parti avant l'effacement. Le silence était le pire des cas :
+    # le clip s'écrasait sous la tête sans un mot.
+    "    if(dzModeRef.current===\"remplir\"&&dzIns.mode!==\"remplir\")\n"
+    "      dzTail+=\" Plage effacée : posé en écraser.\";\n"
+    # M-3 — la phrase du cœur entre dans une PHRASE : première lettre capitale.
     "    /* Le JETON `dzIns.refus` n'est jamais affiché : la phrase française\n"
-    "       est `dzIns.note` (écrêtage de vitesse, aucune piste libre…). */\n"
-    "    if(dzIns.note)dzTail+=\" \"+dzIns.note+\".\";\n"
+    "       est `dzIns.note` (écrêtage de vitesse, aucune piste libre…), et\n"
+    "       elle est capitalisée parce qu'elle suit un point. */\n"
+    "    if(dzIns.note)dzTail+=\" \"+dzIns.note.charAt(0).toUpperCase()+\n"
+    "      dzIns.note.slice(1)+\".\";\n"
     "    if(dzGrew)setProj(function(p){"
     "return Object.assign({},p,{dur:dzGrew})});\n"
     "    /* LA NOTE ET LA SÉLECTION DISENT LE RÉEL : `id`, `tr2` et `st` sont\n"
@@ -2614,6 +2694,12 @@ R_R2 = (A_R2 + "\n"
         'if(dzNx===dzCur||(dzNx&&dzCur&&dzNx.in===dzCur.in&&dzNx.out===dzCur.out))return;'
         'pushHistory();setProj(function(p){return Object.assign({},p,{range:dzNx})});'
         'setDirty(!0);'
+        # D-2 (21/09/2026) — EFFACER LA PLAGE DÉSARME « remplir la plage ».
+        # Sans cette ligne, X laissait `dzModeRef.current` à "remplir"
+        # pendant que la chip devenait GRISÉE : le prochain ajout tombait
+        # dans le repli silencieux de `dzmInsereUn` (`if(!rg) … ecraser`)
+        # et écrasait sous la tête sans un mot. Le mode suit la plage.
+        'if(!dzNx&&dzModeRef.current==="remplir")setDzMode("ecraser");'
         'if(dzNx&&dzNx.in!=null&&dzNx.out==null)'
         'fireNote("Entrée à "+dzNx.in.toFixed(2)+" s — U pose la sortie");'
         'else if(dzNx&&dzNx.out!=null&&dzNx.in==null)'
@@ -2625,6 +2711,8 @@ R_R2 = (A_R2 + "\n"
         'DzTracks.cutOpts(dzProjRef.current,trackStRef.current));'
         'pushHistory();setClips(dzRc.clips);'
         'setProj(function(p){return Object.assign({},p,{range:null})});setDirty(!0);'
+        # D-2 — même désarmement pour Maj+X, qui met `range:null`.
+        'if(dzModeRef.current==="remplir")setDzMode("ecraser");'
         'fireNote("Plage "+dzRg.in.toFixed(2)+" → "+dzRg.out.toFixed(2)+" s coupée sur toutes les pistes — "+dzRc.removed.toFixed(2)+" s retirés, la suite remonte.");return}')
 
 # ── R3 (D-11) : la bande sur la regle, apres la gouttiere ──────────────────
@@ -2655,6 +2743,7 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M15b-picker-arme", A_M15B, R_M15B),
            ("M16src-inspecteur-source", A_M16, R_M16),
            # P10 — la timeline s'étend au lieu de rogner.
+           ("E4-verrou-apres-mode", A_E4, R_E4),
            ("M17a-ajout-etend", A_M17A, R_M17A),
            ("M17b-nudge-etend", A_M17B, R_M17B),
            ("M17c-ripmax-mort", A_M17C, R_M17C),

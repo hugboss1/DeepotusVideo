@@ -201,7 +201,16 @@ STABLE_PROBES = [
     # applique et la vitesse de « remplir »). DzTracks.fitDur ne bouge pas :
     # l'appel a seulement DEMENAGE de R_M17A vers R_M22A, ou il se mesure sur
     # `dzIns.clips` au lieu du seul clip pose (1 -> 0 et 0 -> 1, mesure).
-    ("montage", "DzTracks", 76),
+    # 21/09/2026 D-2, tour de correction : 76 -> 75, MESURE apres rejeu (la
+    # chaine a refuse, « sonde montage x75 (want 76) »). UNE reference de
+    # moins, NET, et les trois mouvements sont nommes : `DzTracks.secs` sort
+    # (I-2 : c'est un formateur de DUREE, il arrondissait la vitesse 0,25 en
+    # « x0,3 » -- la note la formate desormais sur place), les DEUX
+    # `DzTracks.insere` cites par des COMMENTAIRES JS deviennent `insere()`
+    # (la sonde compte du texte, commentaires compris), et `DzTracks.fitDur`
+    # gagne un appel (3 -> 4 : `dzAv`, la fin reelle d'AVANT l'insertion, qui
+    # borne la phrase de l'allongement).
+    ("montage", "DzTracks", 75),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

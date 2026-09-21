@@ -4823,6 +4823,12 @@ function dzmCarve(clips,tr,a,b){
 function dzmPose(clips,tr,clip,st,en,extra){
   var cs=clips||[],c=clip||{},taken=dzmTaken(cs);
   var k=Object.assign({},c,{tr:tr,start:dzmR3(st),end:dzmR3(en)},extra||{});
+  /* `srcDur` EST UNE MESURE DE LA SOURCE, PAS UNE PROPRIÉTÉ DU CLIP. Seul le
+     mode « remplir » le lit, pour calculer la vitesse ; le laisser ici le
+     faisait entrer dans la sauvegarde et dans le payload de rendu (huit
+     clés au lieu de sept, mesuré le 21/09/2026). Même doctrine que `srcIn`
+     ci-dessous : pas de source, pas de fenêtre de source. */
+  if("srcDur" in k)delete k.srcDur;
   if(c.id!=null&&taken[String(c.id)])k.id=dzmFreeId(taken,c.id);
   if(c.srcIn!=null||c.src){if(k.srcIn==null)k.srcIn=0}
   else if("srcIn" in k)delete k.srcIn;
@@ -4851,7 +4857,11 @@ function dzmInsereUn(clips,clip,mode,opts,tr){
   if(mode==="remplir"){
     var rg=dzmRangeFrom(o.range);
     if(!rg)return dzmInsereUn(clips,clip,"ecraser",o,tr);
-    var plage=dzmR3(rg.out-rg.in),sd=Number(clip.srcDur)||0,brut=sd>0?dzmR3(sd/plage):1;
+    /* LA LONGUEUR DE LA SOURCE vient d'`opts` (ce que le câblage passe) ou,
+       à défaut, du clip lui-même (ce que le banc édition passe). `dzmPose`
+       retire la clé de la copie posée dans les deux cas. */
+    var plage=dzmR3(rg.out-rg.in);
+    var sd=Number(o.srcDur)||Number(clip.srcDur)||0,brut=sd>0?dzmR3(sd/plage):1;
     var sp=Math.max(.25,Math.min(4,brut)),nt="";
     /* L'ÉCRÊTAGE EST DIT. Une source de 100 s dans une plage de 3 s demande
        ×33,3 : on écrête à ×4, et le clip posé ne montrera donc PAS toute la
@@ -4930,6 +4940,13 @@ function dzmInsere(clips,clip,mode,opts){
    « remplir » EST ÉTEINT SANS PLAGE : `dzmInsere` retomberait en silence sur
    « écraser » (dzmInsereUn, branche "remplir" : `if(!rg)return … "ecraser"`),
    et un mode qui ment est pire qu'un mode grisé — le `title` dit quoi faire. */
+var DZM_MODE_T={
+  ecraser:"Écraser : le clip se pose à la tête et rogne ou fend ce qui est dessous.",
+  inserer:"Insérer : fend à la tête et pousse la suite de la piste (ripple).",
+  fin:"En fin : après le dernier clip de la piste, la tête est ignorée.",
+  dessus:"Au-dessus : sur la piste vidéo libre la plus proche au-dessus (titres, PIP).",
+  ripple_ecraser:"Écraser en ripple : remplace le clip sous la tête, la suite se recale à la nouvelle durée.",
+  remplir:"Remplir la plage : bornes = plage I/O, vitesse calculée pour la remplir (V1)."};
 function DzmModeBar(o){
   var cur=dzmModeOk(o&&o.mode),on=typeof (o&&o.onMode)==="function"?o.onMode:function(){};
   return r.jsx("div",{className:"dzm-modebar",role:"radiogroup",
@@ -4941,13 +4958,6 @@ function DzmModeBar(o){
         disabled:dis||void 0,
         title:DZM_MODE_T[m[0]]+(dis?" — posez d'abord une plage (I / U).":""),
         onClick:function(){on(m[0])},children:m[1]},m[0])})})}
-var DZM_MODE_T={
-  ecraser:"Écraser : le clip se pose à la tête et rogne ou fend ce qui est dessous.",
-  inserer:"Insérer : fend à la tête et pousse la suite de la piste (ripple).",
-  fin:"En fin : après le dernier clip de la piste, la tête est ignorée.",
-  dessus:"Au-dessus : sur la piste vidéo libre la plus proche au-dessus (titres, PIP).",
-  ripple_ecraser:"Écraser en ripple : remplace le clip sous la tête, la suite se recale à la nouvelle durée.",
-  remplir:"Remplir la plage : bornes = plage I/O, vitesse calculée pour la remplir (V1)."};
 /* Le LIBELLÉ français d'un mode, lu dans DZM_MODES (table gelée, source
    unique) : la note d'ajout d'`addAsset` le dit quand le mode appliqué n'est
    pas « écraser ». Un mode inconnu rend celui d'« écraser », comme dzmModeOk. */
