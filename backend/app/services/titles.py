@@ -107,7 +107,7 @@ _AN_MILIEU = (4, 5, 6)
 #: differemment doivent donner des cles differentes, sinon un `.ass` ou un
 #: `.png` d'une version precedente serait reservi depuis le cache. A INCREMENTER
 #: des que `_ass_text` ou la commande ffmpeg change.
-FORMAT_V = 2
+FORMAT_V = 4
 
 #: Apercu : duree bornee du clip normalise, et instant par defaut.
 _PREV_DUR_MIN, _PREV_DUR_MAX = 0.2, 10.0
@@ -164,34 +164,136 @@ def title_spec(clip: dict) -> dict | None:
             "color": color, "font": font, "size": size, "start": start, "end": end}
 
 
-def _wrap(text: str, w: int, size: int) -> str:
-    """Repli automatique par LARGEUR APPROCHEE.
+#: famille -> avance moyenne d'une majuscule, en em. Mesuree UNE FOIS par
+#: famille (cf. `_avance_maj`).
+_AV_CACHE: dict[str, float] = {}
+#: Repli quand la fonte est illisible : l'avance de la plus large des seize
+#: familles embarquees (Archivo Black, 0,769 em) arrondie au-dessus. Mieux
+#: vaut replier trop tot que deborder du cadre.
+_AV_FALLBACK = 0.78
+
+
+def _avance_maj(family: str) -> float:
+    """Avance moyenne d'une MAJUSCULE de `family`, en em.
+
+    21/09/2026 — la constante « 0,55 em par caractere » etait fausse des deux
+    cotes : mesure a `ImageFont.truetype(...).getlength("A..Z")/26`, les seize
+    familles embarquees vont de 0,389 em (Bebas Neue) a 0,769 em (Archivo
+    Black). Un `chapitre` en Cinzel (0,681) etait rogne de ~42 px a droite sur
+    un cadre de 540 px, et `plein_cadre`, `legende` et `citation` touchaient
+    les deux bords. Les titres sont ecrits en capitales bien plus souvent que
+    les sous-titres : c'est l'avance des MAJUSCULES qui borne la ligne.
+
+    Pillow est present cote backend — `subtitle_service._measure_px` s'en sert
+    deja, avec le meme import paresseux dans un `try` et le meme repli
+    silencieux. Le resultat est mis en cache par famille : une seule ouverture
+    de .ttf par fonte et par processus.
+    """
+    key = (family or "").strip()
+    if key in _AV_CACHE:
+        return _AV_CACHE[key]
+    val = _AV_FALLBACK
+    p = S.font_path(key)
+    if p is not None:
+        try:
+            from PIL import ImageFont
+
+            f = ImageFont.truetype(str(p), 100)
+            val = f.getlength("ABCDEFGHIJKLMNOPQRSTUVWXYZ") / 26 / 100
+            if not (0.1 <= val <= 2.0):
+                val = _AV_FALLBACK
+        except Exception:
+            val = _AV_FALLBACK
+    _AV_CACHE[key] = val
+    return val
+
+
+#: (famille, corps px) -> objet ImageFont, ou None si la fonte est illisible.
+_FONT_CACHE: dict[tuple[str, int], object] = {}
+
+
+def _mesureur(font: str, size: int):
+    """Objet de mesure de la fonte au corps voulu, ou None.
+
+    Meme chemin que `subtitle_service._measure_px` : import paresseux de
+    Pillow dans un `try`, repli silencieux. Le cache evite de rouvrir le .ttf
+    a chaque ligne repliee.
+    """
+    key = ((font or "").strip(), max(4, int(size)))
+    if key in _FONT_CACHE:
+        return _FONT_CACHE[key]
+    f = None
+    p = S.font_path(key[0])
+    if p is not None:
+        try:
+            from PIL import ImageFont
+
+            f = ImageFont.truetype(str(p), key[1])
+        except Exception:
+            f = None
+    _FONT_CACHE[key] = f
+    return f
+
+
+def _wrap(text: str, w: int, size: int, font: str) -> str:
+    """Repli automatique par LARGEUR REELLEMENT MESUREE.
 
     L'en-tete porte `WrapStyle: 2` (repli automatique desactive, comme
     `subtitle_service.to_ass`) : sans cette fonction, un titre long deborderait
-    du cadre en silence. On ne mesure pas la fonte (ce serait ouvrir Pillow a
-    chaque evenement) : on prend 0,55 em de large par caractere en moyenne sur
-    90 % du cadre, soit `W*0.9/(size*0.55)` caracteres par ligne, jamais moins
-    de 8. `size` est ici l'em DESSINE en pixels, avant le facteur
-    `font_line_height` de la ligne `Style:` — c'est bien la largeur du glyphe
-    qui compte, pas la hauteur de ligne. Les sauts de ligne poses par l'auteur
-    sont respectes ; un mot plus long qu'une ligne est coupe net.
+    du cadre en silence.
+
+    21/09/2026 — deux versions de cette fonction ont ete MESUREES et rejetees
+    avant celle-ci, bbox horizontale relevee a l'image sur un cadre de 540 px :
+
+    * « 0,55 em par caractere » : `chapitre` (Cinzel) rendait (40, 539) et
+      `plein_cadre`, `legende`, `citation` touchaient les DEUX bords ;
+    * « avance MOYENNE des majuscules de la famille » (0,389 a 0,769 em selon
+      la fonte, cf. `_avance_maj`) : mieux, mais `chapitre` restait a
+      (40, 539) — la moyenne des 26 capitales sous-estime un mot fait de M, O,
+      U et N, exactement le cas d'un titre.
+
+    On mesure donc la ligne CANDIDATE avec la vraie fonte au vrai corps
+    (`getlength`), comme le fait le controle de qualite des sous-titres. Le
+    comptage de caracteres a `_avance_maj` reste le repli quand Pillow ou le
+    fichier de fonte manque : approche, mais jamais absent.
+
+    `size` est ici l'em DESSINE en pixels, avant le facteur `font_line_height`
+    de la ligne `Style:` — c'est la largeur du glyphe qui compte, pas la
+    hauteur de ligne. Les sauts de ligne poses par l'auteur sont respectes ;
+    un mot plus large qu'une ligne est coupe net.
     """
-    per = max(8, int(w * 0.9 / max(1.0, size * 0.55)))
+    lim = w * 0.9
+    f = _mesureur(font, size)
+    if f is None:
+        per = max(6, int(lim / max(1.0, size * _avance_maj(font))))
+
+        def trop_large(s):
+            return len(s) > per
+    else:
+        def trop_large(s):
+            try:
+                return f.getlength(s) > lim
+            except Exception:
+                return len(s) * size * _avance_maj(font) > lim
+
     out: list[str] = []
     for para in str(text).split("\n"):
         ligne = ""
         for mot in para.split(" "):
-            while len(mot) > per:
+            while trop_large(mot):
                 if ligne:
                     out.append(ligne)
                     ligne = ""
-                out.append(mot[:per])
-                mot = mot[per:]
+                # coupe nette : le plus grand prefixe qui tient encore
+                n = len(mot) - 1
+                while n > 1 and trop_large(mot[:n]):
+                    n -= 1
+                out.append(mot[:n])
+                mot = mot[n:]
             if not mot:
                 continue
             cand = mot if not ligne else ligne + " " + mot
-            if len(cand) > per:
+            if trop_large(cand):
                 out.append(ligne)
                 ligne = mot
             else:
@@ -271,7 +373,7 @@ def _ass_text(spec: dict, canvas: tuple[int, int]) -> str:
     posi = "" if "\\move(" in anim else "\\pos(%d,%d)" % (xa, y)
     pre = "{\\an%d%s\\fad(%d,%d)%s}" % (tpl["an"], posi, fin, fout, anim)
     t0, t1 = S._ass_time(spec["start"]), S._ass_time(spec["end"])
-    corps = _wrap(spec["text"], W, size)
+    corps = _wrap(spec["text"], W, size, spec["font"])
     lines.append("Dialogue: 0,%s,%s,DzT,,0,0,0,,%s%s"
                  % (t0, t1, pre, S._ass_escape(corps)))
 
@@ -296,7 +398,7 @@ def _ass_text(spec: dict, canvas: tuple[int, int]) -> str:
             ysub = y + int(round(av * (n + 0.25)))
         pre2 = "{\\an%d\\pos(%d,%d)\\fad(%d,%d)}" % (tpl["an"], xa, ysub, fin, fout)
         lines.append("Dialogue: 1,%s,%s,DzS,,0,0,0,,%s%s"
-                     % (t0, t1, pre2, S._ass_escape(_wrap(spec["sub"], W, subsize))))
+                     % (t0, t1, pre2, S._ass_escape(_wrap(spec["sub"], W, subsize, spec["font"]))))
     return "\n".join(lines) + "\n"
 
 

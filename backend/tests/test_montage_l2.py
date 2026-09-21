@@ -242,6 +242,21 @@ def sombres(im, y0, y1):
     return sum(im.crop((0, int(h * y0), w, int(h * y1))).histogram()[:60])
 
 
+def bords(im, frac=.02):
+    """Pixels CLAIRS dans les `frac` colonnes de gauche ET de droite du cadre.
+
+    C'est la mesure de DEBORDEMENT horizontal : `WrapStyle: 2` coupe le repli
+    de libass, donc un titre trop large pour sa ligne sort du cadre et se fait
+    rogner par ffmpeg sans le moindre avertissement. -1 quand il n'y a pas
+    d'image."""
+    if im is None:
+        return -1
+    w, h = im.size
+    k = max(1, int(w * frac))
+    return (sum(im.crop((0, 0, k, h)).histogram()[151:])
+            + sum(im.crop((w - k, 0, w, h)).histogram()[151:]))
+
+
 def _ev(txt, n):
     """n-ieme ligne `Dialogue:`, ou "" (faute n6)."""
     evs = [l for l in txt.splitlines() if l.startswith("Dialogue:")]
@@ -423,7 +438,10 @@ check("d21_le_tiers_inferieur_porte_du_texte_et_le_haut_rien",
 # l'ancre) resterait dans les 70-90 % et passerait inapercu — mesure du
 # 21/09/2026 : la mutation an 1 -> 7 ne rougit QUE grace a ceci. La boite OR
 # etant elle-meme claire, on exige AUSSI des pixels sombres : ce sont les
-# lettres, pas le rectangle.
+# lettres, pas le rectangle. A LIRE AVEC PRUDENCE sur CE gabarit : son titre
+# est BLANC sur la boite or, ce sont donc surtout le contour et le SOUS-TEXTE
+# a l'encre (cf. le check de la boite claire) qui fournissent ces pixels
+# sombres — la contrainte forte de placement reste la bande .82-.98 vide.
 check("d21_le_tiers_inferieur_ne_descend_pas_sous_son_ancrage",
       im is not None and clairs(im, .70, .80) > 150 and sombres(im, .70, .80) > 150
       and clairs(im, .82, .98) < 20,
@@ -461,7 +479,10 @@ check("d21_le_cta_est_juste_au_dessus_du_bas",
       (clairs(im5, .78, .92), sombres(im5, .78, .92), clairs(im5, 0, .20)))
 # L'APERCU D'UN CLIP POSE TARD DANS LA TIMELINE. Sans normalisation a start=0,
 # le titre serait grave a 30 s et l'image extraite a 1 s serait VIDE — puis
-# mise en cache, donc vide pour toujours.
+# mise en cache, donc vide pour toujours. La duree du clip normalise est en
+# outre bornee a 10 s : au-dela, l'apercu ne ferait que faire generer a ffmpeg
+# des secondes de fond uni jamais regardees, et `t = min(1, duree/2)` tomberait
+# de toute facon a 1 s.
 im6 = _im(render_title_png(title_spec({"title": {"template": "plein_cadre", "text": "TARDIF"},
                                        "start": 30, "end": 34}), 540, 960))
 check("d21_l_apercu_d_un_clip_pose_a_30_s_n_est_pas_vide",
@@ -473,6 +494,29 @@ _subs = SET.outputs_path / "subtitles"
 _fuites = sorted(q.name for q in _subs.glob("title_prev_*")) if _subs.is_dir() else []
 check("d21_les_ass_d_apercu_ne_fuient_pas_dans_le_dossier_des_sous_titres",
       im6 is not None and _subs.is_dir() and not _fuites, _fuites[:3])
+# LE TITRE NE DOIT PAS DEBORDER DU CADRE. Deux gabarits dans les deux fontes
+# les plus LARGES des seize embarquees (Archivo Black 0,769 em de majuscule,
+# Cinzel 0,681) et un texte en capitales : aucun pixel clair dans les 2 % de
+# colonnes de gauche ni de droite. Mesures du 21/09/2026 sur 540 px, bbox
+# horizontale : avec « 0,55 em par caractere » `chapitre` rendait (40, 539) —
+# rogne a droite ; avec l'avance MOYENNE des majuscules, encore (40, 539) ;
+# avec la largeur reellement mesuree, (37, 499) et `cta` (43, 496).
+for _tpl in ("cta", "chapitre"):
+    _imb = _im(render_title_png(title_spec({"title": {"template": _tpl,
+                                                      "text": "COMMUNAUTE MONDIALE"},
+                                            "start": 0, "end": 4}), 540, 960))
+    check("d21_le_titre_ne_deborde_pas_du_cadre_" + _tpl,
+          _imb is not None and clairs(_imb, .10, .95) > 150 and bords(_imb) == 0,
+          (clairs(_imb, .10, .95), bords(_imb)))
+# Le pire cas de largeur : des M et des W, sur les trois gabarits qui
+# touchaient les DEUX bords avant correction.
+for _tpl in ("plein_cadre", "legende", "citation"):
+    _imw = _im(render_title_png(title_spec({"title": {"template": _tpl,
+                                                      "text": "MMMMMMM WWWWWWW MMMMMMM"},
+                                            "start": 0, "end": 4}), 540, 960))
+    check("d21_le_pire_cas_de_largeur_tient_dans_le_cadre_" + _tpl,
+          _imw is not None and clairs(_imw, .05, .98) > 150 and bords(_imw) == 0,
+          (clairs(_imw, .05, .98), bords(_imw)))
 _tous = [to_ass_title(title_spec({"title": {"template": k, "text": "x", "sub": "y"},
                                   "start": 0, "end": 2}), (1920, 1080), "t_" + k)
          for k in TEMPLATES]
