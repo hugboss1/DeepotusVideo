@@ -5066,6 +5066,139 @@ function dzmRoll(clips,leftId,rightId,ds){
       return q}
     return k})}
 
+/* ── D-5 (21/09/2026) : LES MARQUEURS ──────────────────────────────────────
+   Un marqueur est {id, t, color, title, note} : un repère posé sur la RÈGLE,
+   à la tête de lecture, que l'on retrouve d'un raccourci et que l'index
+   (Ctrl+M) liste, renomme, recolore et retire.
+   TROIS règles qui ne se devinent pas :
+     · POSER SUR UN MARQUEUR LE RETIRE (bascule à ±DZM_MARKER_EPS). C'est le
+       geste de Resolve : la même touche pose et dépose. `{force:true}` passe
+       outre — l'index, lui, doit pouvoir doubler un repère si on le lui
+       demande ;
+     · `dzmMarkerNext` IGNORE le marqueur SOUS LA TÊTE (même EPS). « Aller au
+       suivant » depuis un marqueur doit aller au SUIVANT, pas rester sur
+       place. Un `>v+1e-6` nu rendait 2,004 pour une tête à 2,000 — mesuré ;
+     · la liste est TRIÉE PAR t, toujours : la règle et l'index lisent la
+       même chronologie, et `markerNext` peut s'arrêter au premier trouvé. */
+var DZM_MARKER_COLORS=Object.freeze([["or","#f0b429"],["rouge","#e5484d"],
+  ["vert","#46a758"],["bleu","#3e8be2"],["violet","#8e4ec6"],
+  ["cyan","#12a594"]].map(function(p){return Object.freeze(p)}));
+var DZM_MARKER_EPS=.15;
+var DZM_MARKER_MAX=200;            /* même plafond que le backend */
+var DZM_MARKER_TITRE_MAX=200,DZM_MARKER_NOTE_MAX=1e3;
+function dzmMarkerColor(c){
+  return DZM_MARKER_COLORS.some(function(o){return o[0]===c})?c:"or"}
+function dzmMarkerHex(c){
+  var o=DZM_MARKER_COLORS.filter(function(x){return x[0]===c})[0];
+  return (o||DZM_MARKER_COLORS[0])[1]}
+function dzmMarkerTexte(v,max){
+  var s=v==null?"":String(v);return s.length>max?s.slice(0,max):s}
+function dzmMarkerId(ms){
+  var n=1,id;
+  do{id="m"+n++}while((ms||[]).some(function(m){return m&&m.id===id}));
+  return id}
+function dzmMarkersSort(ms){
+  return ms.slice().sort(function(a,b){return a.t-b.t})}
+function dzmMarkerAdd(ms,t,o){
+  var l=Array.isArray(ms)?ms.filter(Boolean):[],v=Number(t);
+  if(!isFinite(v)||v<0)return l.slice();
+  var near=l.filter(function(m){
+    return Math.abs(Number(m.t)-v)<=DZM_MARKER_EPS})[0];
+  if(near&&!(o&&o.force))return l.filter(function(m){return m!==near});
+  if(l.length>=DZM_MARKER_MAX)return l.slice();
+  var m={id:dzmMarkerId(l),t:dzmR3(v),color:dzmMarkerColor(o&&o.color),
+    title:dzmMarkerTexte(o&&o.title,DZM_MARKER_TITRE_MAX),
+    note:dzmMarkerTexte(o&&o.note,DZM_MARKER_NOTE_MAX)};
+  return dzmMarkersSort(l.concat([m]))}
+function dzmMarkerRemove(ms,id){
+  return (Array.isArray(ms)?ms:[]).filter(function(m){
+    return !!m&&m.id!==id})}
+/* PATCH PARTIEL, jamais un remplacement : seules les clés PRÉSENTES dans
+   `patch` bougent, et chacune repasse par l'assainissement — l'index envoie
+   ce que l'utilisateur tape, pas ce que la couche voudrait. Un id inconnu
+   rend la liste telle quelle. */
+function dzmMarkerUpdate(ms,id,patch){
+  var p=patch&&typeof patch==="object"?patch:{};
+  return (Array.isArray(ms)?ms:[]).filter(Boolean).map(function(m){
+    if(m.id!==id)return m;
+    var q=Object.assign({},m);
+    if("color" in p)q.color=dzmMarkerColor(p.color);
+    if("title" in p)q.title=dzmMarkerTexte(p.title,DZM_MARKER_TITRE_MAX);
+    if("note" in p)q.note=dzmMarkerTexte(p.note,DZM_MARKER_NOTE_MAX);
+    return q})}
+function dzmMarkerNext(ms,t,dir){
+  var l=dzmMarkersSort((Array.isArray(ms)?ms:[]).filter(Boolean)),
+      v=Number(t)||0,i;
+  if(dir>=0){for(i=0;i<l.length;i++)if(l[i].t>v+DZM_MARKER_EPS)return l[i].t}
+  else{for(i=l.length-1;i>=0;i--)if(l[i].t<v-DZM_MARKER_EPS)return l[i].t}
+  return null}
+/* RESTAURATION : les identifiants sont REGÉNÉRÉS (m1…mN) et jamais relus du
+   disque — deux marqueurs d'un vieux fichier pouvaient porter le même. */
+function dzmMarkersFrom(v){
+  var out=[];
+  (Array.isArray(v)?v:[]).forEach(function(m){
+    if(out.length>=DZM_MARKER_MAX)return;
+    if(!m||typeof m!=="object")return;
+    var t=Number(m.t);if(!isFinite(t)||t<0)return;
+    out.push({id:dzmMarkerId(out),t:dzmR3(t),color:dzmMarkerColor(m.color),
+      title:dzmMarkerTexte(m.title,DZM_MARKER_TITRE_MAX),
+      note:dzmMarkerTexte(m.note,DZM_MARKER_NOTE_MAX)})});
+  return dzmMarkersSort(out)}
+/* LES LOSANGES SUR LA RÈGLE. Même gouttière de 88 px que `DzmRangeBar`, et
+   même borne : un marqueur PERSISTÉ survit à un raccourcissement de la durée
+   et `t` peut alors dépasser `dur` — sans le Math.min, `left` passait 100 %.
+   `svmTcFF` (le timecode du bloc sonvfx) est résolu À L'APPEL et jamais au
+   chargement : sous node, la couche est seule et le symbole n'existe pas. */
+function DzmMarkers(o){
+  var ms=Array.isArray(o&&o.markers)?o.markers.filter(Boolean):[],
+      d=Number(o&&o.dur)||1,go=o&&o.onSeek;
+  var dzTc=typeof svmTcFF==="function"?svmTcFF:dzmSecs;
+  return ms.map(function(m){
+    var l=Math.min(100,Math.max(0,(Number(m.t)||0)/d*100));
+    return r.jsx("button",{className:"dzm-mk",
+      "aria-label":"Marqueur "+dzTc(m.t)+(m.title?" — "+m.title:""),
+      title:(m.title||"marqueur")+" · "+dzTc(m.t)+(m.note?"\n"+m.note:"")+
+        "\nclic : aller · Maj+M à la tête : retirer",
+      style:{left:"calc(88px + (100% - 88px) * "+(l/100)+")",
+        background:dzmMarkerHex(m.color)},
+      onClick:function(){if(go)go(m.t)}},m.id)})}
+/* L'INDEX. Le titre part sur `onBlur` (et sur Entrée), PAS sur chaque
+   frappe : `onChange` poussait un instantané d'historique par caractère et
+   « Annuler » remontait lettre à lettre. La couleur, elle, part tout de
+   suite — un <select> ne se frappe pas en rafale. */
+function DzmMarkerIndex(o){
+  var ms=Array.isArray(o&&o.markers)?o.markers.filter(Boolean):[];
+  var dzTc=typeof svmTcFF==="function"?svmTcFF:dzmSecs;
+  function titre(m,e){
+    var v=e&&e.target?e.target.value:"";
+    if(v===m.title)return;
+    if(o.onChange)o.onChange(m.id,{title:v})}
+  return r.jsxs("div",{className:"svm-pop dzm-mkidx",style:{top:96},children:[
+    r.jsx("div",{className:"svm-poptitle",children:"Marqueurs — "+ms.length}),
+    ms.length?ms.map(function(m){
+      return r.jsxs("div",{className:"dzm-mkrow",children:[
+        r.jsx("button",{className:"svm-fxchip",title:"aller à ce marqueur",
+          onClick:function(){if(o.onSeek)o.onSeek(m.t)},children:dzTc(m.t)}),
+        r.jsx("select",{className:"dzm-mkcol",value:m.color,
+          "aria-label":"Couleur du marqueur "+dzTc(m.t),
+          onChange:function(e){
+            if(o.onChange)o.onChange(m.id,{color:e.target.value})},
+          children:DZM_MARKER_COLORS.map(function(c){
+            return r.jsx("option",{value:c[0],children:c[0]},c[0])})}),
+        r.jsx("input",{className:"dzm-mktitre",defaultValue:m.title,
+          placeholder:"titre","aria-label":"Titre du marqueur "+dzTc(m.t),
+          onBlur:function(e){titre(m,e)},
+          onKeyDown:function(e){if(e.key==="Enter")titre(m,e)}}),
+        r.jsx("button",{className:"svm-minibtn",title:"Retirer ce marqueur",
+          "aria-label":"Retirer le marqueur "+dzTc(m.t),
+          onClick:function(){if(o.onRemove)o.onRemove(m.id)},
+          children:"\u2716"})]},m.id)}):
+      r.jsx("div",{className:"svm-note",
+        children:"Aucun marqueur — Maj+M en pose un à la tête de lecture."}),
+    r.jsx("div",{className:"svm-poprow",children:
+      r.jsx("button",{className:"svm-secbtn",onClick:o&&o.onClose,
+        children:"Fermer"})})]})}
+
 /* ── export contrat ───────────────────────────────────────────────────────── */
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
@@ -5128,6 +5261,10 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   histSnap:dzmHistSnap,histApply:dzmHistApply,HIST_CLES:DZM_HIST_CLES,
   rangeSet:dzmRangeSet,rangeFrom:dzmRangeFrom,rangeLen:dzmRangeLen,
   RangeBar:DzmRangeBar,
+  markerAdd:dzmMarkerAdd,markerRemove:dzmMarkerRemove,
+  markerUpdate:dzmMarkerUpdate,markerNext:dzmMarkerNext,
+  markersFrom:dzmMarkersFrom,MARKER_COLORS:DZM_MARKER_COLORS,
+  Markers:DzmMarkers,MarkerIndex:DzmMarkerIndex,
   insere:dzmInsere,MODES:DZM_MODES,REFUS:DZM_REFUS,carve:dzmCarve,
   slip:dzmSlip,slide:dzmSlide,roll:dzmRoll,voisins:dzmVoisins,
   ModeBar:DzmModeBar,MODE_T:DZM_MODE_T,modeLabel:dzmModeLabel,

@@ -774,6 +774,12 @@ def _delete_saved() -> bool:
     return False
 
 
+# D-5 : les SIX couleurs de marqueur, celles de DZM_MARKER_COLORS dans
+# frontend/patches/montage.js. Une couleur inconnue retombe sur « or »,
+# des DEUX côtés — le client ne peut pas être la seule garde.
+_MONTAGE_MARKER_COLORS = ("or", "rouge", "vert", "bleu", "violet", "cyan")
+
+
 def _save_record(body) -> dict:
     """Le modèle de timeline COURANTE, normalisé depuis un corps client — et
     le SEUL endroit où cette normalisation vit. Lève HTTPException(400) sur
@@ -842,6 +848,43 @@ def _save_record(body) -> dict:
                 data["range"] = {"in": round(a, 3), "out": round(b, 3)}
         except (TypeError, ValueError):
             pass
+    # D-5 : les MARQUEURS de la règle, {t, color, title, note}. Assainis ICI
+    # et pas seulement à l'écran, pour la raison qui vaut déjà pour `range` :
+    # le payload n'est pas de confiance (un autre client, une version plus
+    # ancienne de la couche, un fichier édité à la main). Les entrées
+    # illisibles sont JETÉES une à une — pas la liste entière : un seul
+    # marqueur abîmé ne doit pas emporter les quarante autres.
+    # L'IDENTIFIANT N'EST PAS STOCKÉ : le client le régénère (`markersFrom`,
+    # m1..mN). Deux marqueurs d'un vieux fichier pouvaient porter le même, et
+    # « retirer » en aurait retiré deux.
+    # LISTE VIDE : la clé n'est PAS écrite, exactement comme `range` — un
+    # montage dont on vient de retirer le dernier marqueur revient donc sans
+    # marqueur, et rien ne change pour un montage qui n'en a jamais eu.
+    mks = body.get("markers")
+    if isinstance(mks, list):
+        out_mk = []
+        for m in mks:
+            if len(out_mk) >= 200:
+                break
+            if not isinstance(m, dict):
+                continue
+            try:
+                t = float(m.get("t"))
+            except (TypeError, ValueError):
+                continue
+            if not math.isfinite(t) or t < 0:
+                continue
+            col = m.get("color")
+            out_mk.append({
+                "t": round(t, 3),
+                "color": col if col in _MONTAGE_MARKER_COLORS else "or",
+                "title": ("" if m.get("title") is None
+                          else str(m.get("title")))[:200],
+                "note": ("" if m.get("note") is None
+                         else str(m.get("note")))[:1000],
+            })
+        if out_mk:
+            data["markers"] = out_mk
     return data
 
 
@@ -1093,6 +1136,8 @@ async def montage_project(limit: int = 4):
                 out["project_id"] = saved["project_id"]
             if isinstance(saved.get("range"), dict):
                 out["range"] = saved["range"]         # D-11 (cf. POST /save)
+            if isinstance(saved.get("markers"), list):
+                out["markers"] = saved["markers"]     # D-5 (cf. POST /save)
             if pruned:
                 out["saved_pruned"] = True
                 out["pruned"] = pruned

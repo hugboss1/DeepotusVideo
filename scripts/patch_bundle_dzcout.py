@@ -217,7 +217,18 @@ STABLE_PROBES = [
     # (T4). T1, T3, T3b et T5 n'en ajoutent aucune : modificateurs lus,
     # appels a `dzRollDown` (fonction locale, pas un membre de DzTracks)
     # et texte d'infobulle.
-    ("montage", "DzTracks", 78),
+    # 21/09/2026 D-5, tache 8 (les marqueurs) : 78 -> 85, MESURE apres
+    # rejeu (la chaine a refuse, « sonde montage x85 (want 78) »). SEPT
+    # references de plus, nommees : DzTracks.markerAdd et
+    # DzTracks.markerNext dans la branche de dispatch du clavier (repli
+    # « K2 » dans R_R2), DzTracks.Markers sur la regle (repli « K4 »
+    # dans R_R3), DzTracks.MarkerIndex, DzTracks.markerRemove et
+    # DzTracks.markerUpdate dans le panneau de l'index (K5b), et
+    # DzTracks.markersFrom a la restauration (repli « K6 » dans R_M7).
+    # K1 (les quatre actions), K3 (l'etat du panneau), K5 (la chip) et
+    # la moitie SAUVEGARDE de K6 (`markers:(proj.markers||[])`, une
+    # lecture nue du projet) n'en ajoutent aucune.
+    ("montage", "DzTracks", 85),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

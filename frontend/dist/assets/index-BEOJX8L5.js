@@ -1542,6 +1542,10 @@ var SVM_ACTIONS=[
  {id:"range_out",sec:"Montage",lbl:"plage : point de sortie à la tête",combo:"U"},
  {id:"range_clear",sec:"Montage",lbl:"plage : effacer",combo:"X"},
  {id:"range_cut",sec:"Montage",lbl:"plage : couper (toutes pistes, ripple)",combo:"Maj+X"},
+ {id:"marker_toggle",sec:"Montage",lbl:"marqueur : poser / retirer a la tete",combo:"Maj+M"},
+ {id:"marker_prev",sec:"Montage",lbl:"marqueur precedent",combo:"Ctrl+↑"},
+ {id:"marker_next",sec:"Montage",lbl:"marqueur suivant",combo:"Ctrl+↓"},
+ {id:"marker_index",sec:"Montage",lbl:"marqueurs : l'index",combo:"Ctrl+M"},
  {id:"zoom_in",sec:"Affichage",lbl:"zoom avant (crans)",combo:"Ctrl+="},
  {id:"zoom_out",sec:"Affichage",lbl:"zoom arrière (crans)",combo:"Ctrl+-"},
  {id:"zoom100",sec:"Affichage",lbl:"zoom 100 %",combo:"Maj+Z"},
@@ -1733,6 +1737,7 @@ function DzMontage(props){
      premier rendu). Même motif que durRef, juste au-dessus. */
   var dzTracksRef=x.useRef(null);dzTracksRef.current=svmTracksOf(proj);
   var stDzM=x.useState("ecraser"),dzMode=stDzM[0],setDzMode=stDzM[1];
+  var stDzMk=x.useState(!1),dzMkOn=stDzMk[0],setDzMkOn=stDzMk[1];
   var dzModeRef=x.useRef(dzMode);dzModeRef.current=dzMode;
   /* P9 — « le VRAI projet est-il arrivé ? ». Tant que
      `svmApplyProject` n'a pas remplacé la maquette, `proj` est la
@@ -2116,7 +2121,7 @@ function DzMontage(props){
        Bibliothèque — et ses ids (`v1_<job>`, `a1_<job>`, `c<i>`) ne se
        répètent pas. La note de M22c le dit dans les deux cas. */
     histRef.current={u:[],r:[]};setHistTick(function(t){return t+1});
-    var np={demo:!1,tracks:svmTracksFrom(d.tracks),project_id:d.project_id,v1NonVideo:Array.isArray(d.v1_non_video)?d.v1_non_video:null,range:DzTracks.rangeFrom(d.range),name:d.name||"montage",version:"v1",ratio:d.ratio||"9:16",
+    var np={demo:!1,tracks:svmTracksFrom(d.tracks),project_id:d.project_id,v1NonVideo:Array.isArray(d.v1_non_video)?d.v1_non_video:null,range:DzTracks.rangeFrom(d.range),markers:DzTracks.markersFrom(d.markers),name:d.name||"montage",version:"v1",ratio:d.ratio||"9:16",
       dur:Math.max(1,Number(d.duration)||maxEnd),mixDb:d.mix||SVM_DEMO_MIX};
     if(d.saved){
       /* restauration des commutateurs + réglages ducking sauvegardés */
@@ -2168,6 +2173,7 @@ function DzMontage(props){
          change, pas un fichier n'est semé. */
       project_id:proj.project_id,
       range:DzTracks.rangeFrom(proj.range),
+      markers:(proj.markers||[]),
       /* style des sous-titres : envoyé pour le jour où la sauvegarde serveur
          le connaîtra (les segments, eux, sont déjà dans `clips` et sont
          stockés tels quels) ; en attendant c'est dz_subs_style qui le retient */
@@ -3196,6 +3202,9 @@ function DzMontage(props){
       if(id==="ripple"){setRipple(function(v){return !v});return}
       if(id==="range_in"||id==="range_out"||id==="range_clear"){var dzW=id.slice(6);var dzCur=(dzProjRef.current&&dzProjRef.current.range)||null;var dzNx=DzTracks.rangeSet(dzCur,dzW,phRef.current,dzProjRef.current&&dzProjRef.current.dur);if(dzNx===dzCur||(dzNx&&dzCur&&dzNx.in===dzCur.in&&dzNx.out===dzCur.out))return;pushHistory();setProj(function(p){return Object.assign({},p,{range:dzNx})});setDirty(!0);if(!dzNx&&dzModeRef.current==="remplir")setDzMode("ecraser");if(dzNx&&dzNx.in!=null&&dzNx.out==null)fireNote("Entrée à "+dzNx.in.toFixed(2)+" s — U pose la sortie");else if(dzNx&&dzNx.out!=null&&dzNx.in==null)fireNote("Sortie à "+dzNx.out.toFixed(2)+" s — I pose l'entrée");return}
       if(id==="range_cut"){var dzRg=DzTracks.rangeFrom(dzProjRef.current&&dzProjRef.current.range);if(!dzRg){fireNote("Aucune plage : I pose l'entrée, U la sortie.");return}var dzRc=DzTracks.rippleCut(clipsRef.current,dzRg.in,dzRg.out,DzTracks.cutOpts(dzProjRef.current,trackStRef.current));pushHistory();setClips(dzRc.clips);setProj(function(p){return Object.assign({},p,{range:null})});setDirty(!0);if(dzModeRef.current==="remplir")setDzMode("ecraser");fireNote("Plage "+dzRg.in.toFixed(2)+" → "+dzRg.out.toFixed(2)+" s coupée sur toutes les pistes — "+dzRc.removed.toFixed(2)+" s retirés, la suite remonte.");return}
+      if(id==="marker_toggle"){var dzMkL=(dzProjRef.current&&dzProjRef.current.markers)||[];var dzMkT=Number(phRef.current)||0,dzMkN=DzTracks.markerAdd(dzMkL,dzMkT,{});if(dzMkN.length===dzMkL.length){fireNote("Marqueur impossible ici — 200 au maximum par montage.");return}pushHistory();setProj(function(p){return Object.assign({},p,{markers:dzMkN})});setDirty(!0);fireNote(dzMkN.length<dzMkL.length?("Marqueur retiré à "+dzMkT.toFixed(2)+" s."):("Marqueur posé à "+dzMkT.toFixed(2)+" s — Ctrl+M : l'index."));return}
+      if(id==="marker_prev"||id==="marker_next"){var dzMkD=id==="marker_next"?1:-1;var dzMkG=DzTracks.markerNext(dzProjRef.current&&dzProjRef.current.markers,phRef.current,dzMkD);if(dzMkG!=null)seekTo(dzMkG);else fireNote("Aucun marqueur "+(dzMkD>0?"après":"avant")+" la tête.");return}
+      if(id==="marker_index"){setDzMkOn(function(v){return !v});return}
       if(id==="zoom_in"){zoomApply(zoomPctRef.current*1.25);return}
       if(id==="zoom_out"){zoomApply(zoomPctRef.current/1.25);return}
       if(id==="zoom100"){zoomApply(100);return}
@@ -5468,6 +5477,10 @@ function DzMontage(props){
     popover(),
     fxPicker(),
     ovPicker(),
+    dzMkOn?r.jsx(DzTracks.MarkerIndex,{markers:proj.markers,onSeek:seekTo,
+      onClose:function(){setDzMkOn(!1)},
+      onRemove:function(id){pushHistory();setProj(function(p){return Object.assign({},p,{markers:DzTracks.markerRemove(p.markers,id)})});setDirty(!0)},
+      onChange:function(id,patch){pushHistory();setProj(function(p){return Object.assign({},p,{markers:DzTracks.markerUpdate(p.markers,id,patch)})});setDirty(!0)}}):null,
     transPopover(),
     kbPanel(),
     /* tiroir sons + tiroir narration + lecteur + inspecteur */
@@ -5849,6 +5862,9 @@ function DzMontage(props){
           r.jsx("button",{className:"svm-toolchip","data-on":ripple?"":void 0,
             "aria-label":"ripple",
             title:"refermer les trous — suppression et rognage droit sur V1 ("+svmKeyLabel("ripple")+")",onClick:function(){setRipple(!ripple)},children:"ripple"}),
+          r.jsx("button",{className:"svm-toolchip","data-on":dzMkOn?"":void 0,
+            "aria-label":"marqueurs",
+            title:"Marqueurs — index (Ctrl+M) · Maj+M pose/retire à la tête",onClick:function(){setDzMkOn(function(v){return !v})},children:"◆ "+((proj.markers||[]).length)}),
           /* sous-titres : la chip dit combien de lignes porte la piste et
              combien sont SIGNALÉES — les deux chiffres sortent du verdict,
              donc ils valent exactement ceux du badge d'onglet du tiroir et
@@ -5966,7 +5982,7 @@ function DzMontage(props){
         r.jsxs("div",{className:"svm-lanes",style:{width:zoomPct+"%"},children:[
           r.jsxs("div",{className:"svm-ruler",onPointerDown:rulerDown,
             onPointerMove:rulerHover,onPointerLeave:rulerLeave,children:[
-            r.jsx("div",{className:"svm-gutter"}),r.jsx(DzTracks.RangeBar,{range:proj.range,dur:dur}),
+            r.jsx("div",{className:"svm-gutter"}),r.jsx(DzTracks.RangeBar,{range:proj.range,dur:dur}),r.jsx(DzTracks.Markers,{markers:proj.markers,dur:dur,onSeek:seekTo}),
             ticks.map(function(t3){return r.jsx("div",{className:"svm-tick",children:svmRuler(t3)},t3)})]}),
           svmTracksOf(proj).map(function(tr){
             var bus=SVM_TRACK_BUS[tr.id];
@@ -17708,6 +17724,139 @@ function dzmRoll(clips,leftId,rightId,ds){
       return q}
     return k})}
 
+/* ── D-5 (21/09/2026) : LES MARQUEURS ──────────────────────────────────────
+   Un marqueur est {id, t, color, title, note} : un repère posé sur la RÈGLE,
+   à la tête de lecture, que l'on retrouve d'un raccourci et que l'index
+   (Ctrl+M) liste, renomme, recolore et retire.
+   TROIS règles qui ne se devinent pas :
+     · POSER SUR UN MARQUEUR LE RETIRE (bascule à ±DZM_MARKER_EPS). C'est le
+       geste de Resolve : la même touche pose et dépose. `{force:true}` passe
+       outre — l'index, lui, doit pouvoir doubler un repère si on le lui
+       demande ;
+     · `dzmMarkerNext` IGNORE le marqueur SOUS LA TÊTE (même EPS). « Aller au
+       suivant » depuis un marqueur doit aller au SUIVANT, pas rester sur
+       place. Un `>v+1e-6` nu rendait 2,004 pour une tête à 2,000 — mesuré ;
+     · la liste est TRIÉE PAR t, toujours : la règle et l'index lisent la
+       même chronologie, et `markerNext` peut s'arrêter au premier trouvé. */
+var DZM_MARKER_COLORS=Object.freeze([["or","#f0b429"],["rouge","#e5484d"],
+  ["vert","#46a758"],["bleu","#3e8be2"],["violet","#8e4ec6"],
+  ["cyan","#12a594"]].map(function(p){return Object.freeze(p)}));
+var DZM_MARKER_EPS=.15;
+var DZM_MARKER_MAX=200;            /* même plafond que le backend */
+var DZM_MARKER_TITRE_MAX=200,DZM_MARKER_NOTE_MAX=1e3;
+function dzmMarkerColor(c){
+  return DZM_MARKER_COLORS.some(function(o){return o[0]===c})?c:"or"}
+function dzmMarkerHex(c){
+  var o=DZM_MARKER_COLORS.filter(function(x){return x[0]===c})[0];
+  return (o||DZM_MARKER_COLORS[0])[1]}
+function dzmMarkerTexte(v,max){
+  var s=v==null?"":String(v);return s.length>max?s.slice(0,max):s}
+function dzmMarkerId(ms){
+  var n=1,id;
+  do{id="m"+n++}while((ms||[]).some(function(m){return m&&m.id===id}));
+  return id}
+function dzmMarkersSort(ms){
+  return ms.slice().sort(function(a,b){return a.t-b.t})}
+function dzmMarkerAdd(ms,t,o){
+  var l=Array.isArray(ms)?ms.filter(Boolean):[],v=Number(t);
+  if(!isFinite(v)||v<0)return l.slice();
+  var near=l.filter(function(m){
+    return Math.abs(Number(m.t)-v)<=DZM_MARKER_EPS})[0];
+  if(near&&!(o&&o.force))return l.filter(function(m){return m!==near});
+  if(l.length>=DZM_MARKER_MAX)return l.slice();
+  var m={id:dzmMarkerId(l),t:dzmR3(v),color:dzmMarkerColor(o&&o.color),
+    title:dzmMarkerTexte(o&&o.title,DZM_MARKER_TITRE_MAX),
+    note:dzmMarkerTexte(o&&o.note,DZM_MARKER_NOTE_MAX)};
+  return dzmMarkersSort(l.concat([m]))}
+function dzmMarkerRemove(ms,id){
+  return (Array.isArray(ms)?ms:[]).filter(function(m){
+    return !!m&&m.id!==id})}
+/* PATCH PARTIEL, jamais un remplacement : seules les clés PRÉSENTES dans
+   `patch` bougent, et chacune repasse par l'assainissement — l'index envoie
+   ce que l'utilisateur tape, pas ce que la couche voudrait. Un id inconnu
+   rend la liste telle quelle. */
+function dzmMarkerUpdate(ms,id,patch){
+  var p=patch&&typeof patch==="object"?patch:{};
+  return (Array.isArray(ms)?ms:[]).filter(Boolean).map(function(m){
+    if(m.id!==id)return m;
+    var q=Object.assign({},m);
+    if("color" in p)q.color=dzmMarkerColor(p.color);
+    if("title" in p)q.title=dzmMarkerTexte(p.title,DZM_MARKER_TITRE_MAX);
+    if("note" in p)q.note=dzmMarkerTexte(p.note,DZM_MARKER_NOTE_MAX);
+    return q})}
+function dzmMarkerNext(ms,t,dir){
+  var l=dzmMarkersSort((Array.isArray(ms)?ms:[]).filter(Boolean)),
+      v=Number(t)||0,i;
+  if(dir>=0){for(i=0;i<l.length;i++)if(l[i].t>v+DZM_MARKER_EPS)return l[i].t}
+  else{for(i=l.length-1;i>=0;i--)if(l[i].t<v-DZM_MARKER_EPS)return l[i].t}
+  return null}
+/* RESTAURATION : les identifiants sont REGÉNÉRÉS (m1…mN) et jamais relus du
+   disque — deux marqueurs d'un vieux fichier pouvaient porter le même. */
+function dzmMarkersFrom(v){
+  var out=[];
+  (Array.isArray(v)?v:[]).forEach(function(m){
+    if(out.length>=DZM_MARKER_MAX)return;
+    if(!m||typeof m!=="object")return;
+    var t=Number(m.t);if(!isFinite(t)||t<0)return;
+    out.push({id:dzmMarkerId(out),t:dzmR3(t),color:dzmMarkerColor(m.color),
+      title:dzmMarkerTexte(m.title,DZM_MARKER_TITRE_MAX),
+      note:dzmMarkerTexte(m.note,DZM_MARKER_NOTE_MAX)})});
+  return dzmMarkersSort(out)}
+/* LES LOSANGES SUR LA RÈGLE. Même gouttière de 88 px que `DzmRangeBar`, et
+   même borne : un marqueur PERSISTÉ survit à un raccourcissement de la durée
+   et `t` peut alors dépasser `dur` — sans le Math.min, `left` passait 100 %.
+   `svmTcFF` (le timecode du bloc sonvfx) est résolu À L'APPEL et jamais au
+   chargement : sous node, la couche est seule et le symbole n'existe pas. */
+function DzmMarkers(o){
+  var ms=Array.isArray(o&&o.markers)?o.markers.filter(Boolean):[],
+      d=Number(o&&o.dur)||1,go=o&&o.onSeek;
+  var dzTc=typeof svmTcFF==="function"?svmTcFF:dzmSecs;
+  return ms.map(function(m){
+    var l=Math.min(100,Math.max(0,(Number(m.t)||0)/d*100));
+    return r.jsx("button",{className:"dzm-mk",
+      "aria-label":"Marqueur "+dzTc(m.t)+(m.title?" — "+m.title:""),
+      title:(m.title||"marqueur")+" · "+dzTc(m.t)+(m.note?"\n"+m.note:"")+
+        "\nclic : aller · Maj+M à la tête : retirer",
+      style:{left:"calc(88px + (100% - 88px) * "+(l/100)+")",
+        background:dzmMarkerHex(m.color)},
+      onClick:function(){if(go)go(m.t)}},m.id)})}
+/* L'INDEX. Le titre part sur `onBlur` (et sur Entrée), PAS sur chaque
+   frappe : `onChange` poussait un instantané d'historique par caractère et
+   « Annuler » remontait lettre à lettre. La couleur, elle, part tout de
+   suite — un <select> ne se frappe pas en rafale. */
+function DzmMarkerIndex(o){
+  var ms=Array.isArray(o&&o.markers)?o.markers.filter(Boolean):[];
+  var dzTc=typeof svmTcFF==="function"?svmTcFF:dzmSecs;
+  function titre(m,e){
+    var v=e&&e.target?e.target.value:"";
+    if(v===m.title)return;
+    if(o.onChange)o.onChange(m.id,{title:v})}
+  return r.jsxs("div",{className:"svm-pop dzm-mkidx",style:{top:96},children:[
+    r.jsx("div",{className:"svm-poptitle",children:"Marqueurs — "+ms.length}),
+    ms.length?ms.map(function(m){
+      return r.jsxs("div",{className:"dzm-mkrow",children:[
+        r.jsx("button",{className:"svm-fxchip",title:"aller à ce marqueur",
+          onClick:function(){if(o.onSeek)o.onSeek(m.t)},children:dzTc(m.t)}),
+        r.jsx("select",{className:"dzm-mkcol",value:m.color,
+          "aria-label":"Couleur du marqueur "+dzTc(m.t),
+          onChange:function(e){
+            if(o.onChange)o.onChange(m.id,{color:e.target.value})},
+          children:DZM_MARKER_COLORS.map(function(c){
+            return r.jsx("option",{value:c[0],children:c[0]},c[0])})}),
+        r.jsx("input",{className:"dzm-mktitre",defaultValue:m.title,
+          placeholder:"titre","aria-label":"Titre du marqueur "+dzTc(m.t),
+          onBlur:function(e){titre(m,e)},
+          onKeyDown:function(e){if(e.key==="Enter")titre(m,e)}}),
+        r.jsx("button",{className:"svm-minibtn",title:"Retirer ce marqueur",
+          "aria-label":"Retirer le marqueur "+dzTc(m.t),
+          onClick:function(){if(o.onRemove)o.onRemove(m.id)},
+          children:"\u2716"})]},m.id)}):
+      r.jsx("div",{className:"svm-note",
+        children:"Aucun marqueur — Maj+M en pose un à la tête de lecture."}),
+    r.jsx("div",{className:"svm-poprow",children:
+      r.jsx("button",{className:"svm-secbtn",onClick:o&&o.onClose,
+        children:"Fermer"})})]})}
+
 /* ── export contrat ───────────────────────────────────────────────────────── */
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
@@ -17770,6 +17919,10 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   histSnap:dzmHistSnap,histApply:dzmHistApply,HIST_CLES:DZM_HIST_CLES,
   rangeSet:dzmRangeSet,rangeFrom:dzmRangeFrom,rangeLen:dzmRangeLen,
   RangeBar:DzmRangeBar,
+  markerAdd:dzmMarkerAdd,markerRemove:dzmMarkerRemove,
+  markerUpdate:dzmMarkerUpdate,markerNext:dzmMarkerNext,
+  markersFrom:dzmMarkersFrom,MARKER_COLORS:DZM_MARKER_COLORS,
+  Markers:DzmMarkers,MarkerIndex:DzmMarkerIndex,
   insere:dzmInsere,MODES:DZM_MODES,REFUS:DZM_REFUS,carve:dzmCarve,
   slip:dzmSlip,slide:dzmSlide,roll:dzmRoll,voisins:dzmVoisins,
   ModeBar:DzmModeBar,MODE_T:DZM_MODE_T,modeLabel:dzmModeLabel,

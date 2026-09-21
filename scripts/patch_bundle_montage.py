@@ -332,7 +332,17 @@ R_M6 = ("      duration_master:durMaster,ducking:ducking,clips:clips,\n"
         # `rangeFrom` ASSAINIT avant l'envoi : une plage a moitie posee (I
         # sans U) ou inversee part en `null`, et le backend n'a pas a s'en
         # defendre deux fois.
-        "      range:DzTracks.rangeFrom(proj.range),")
+        "      range:DzTracks.rangeFrom(proj.range),\n"
+        # D-5 (21/09/2026) -- LES MARQUEURS PARTENT AVEC LA SAUVEGARDE.
+        # « K6 » du plan, REPLIE ici pour la meme raison que R4 : son ancre
+        # est la ligne `range:` que CE remplacement pose (0 dans le .bak).
+        # LA LISTE PART TELLE QUELLE, et une liste VIDE part aussi : le
+        # backend ne stocke alors PAS la cle, donc un montage dont on vient
+        # de retirer le dernier marqueur revient bien SANS marqueur -- la
+        # cle absente et la liste vide disent la meme chose, et c'est voulu.
+        # L'assainissement est fait DEUX FOIS (le backend au POST,
+        # `markersFrom` au GET) : le payload n'est pas de confiance.
+        "      markers:(proj.markers||[]),")
 
 # ── M7 : restauration ───────────────────────────────────────────────────────
 # TROIS clés, et la troisième est de P9. `v1_non_video` est rendu par
@@ -368,6 +378,11 @@ R_M7 = ('var np={demo:!1,tracks:svmTracksFrom(d.tracks),'
         # texte `v1NonVideo:…` que CE remplacement pose (compte 0 dans
         # .bak_montage, mesure du 21/09/2026).
         'range:DzTracks.rangeFrom(d.range),'
+        # D-5 -- ET LES MARQUEURS REVIENNENT AVEC LE PROJET. « K6 », seconde
+        # moitie, REPLIEE pour la meme raison que R5. `markersFrom` REGENERE
+        # les identifiants (m1..mN) : deux marqueurs d'un vieux fichier
+        # pouvaient porter le meme, et `markerRemove` en aurait retire deux.
+        'markers:DzTracks.markersFrom(d.markers),'
         'name:d.name||"montage",version:"v1",ratio:d.ratio||"9:16",')
 
 # ── M8 : barre de transport ─────────────────────────────────────────────────
@@ -862,6 +877,16 @@ R_M16REF = (A_M16REF + "\n"
             # est un état d'outil et non une propriété du projet.
             '  var stDzM=x.useState("ecraser"),dzMode=stDzM[0],'
             "setDzMode=stDzM[1];\n"
+            # -- « K3 » (D-5) : L'INDEX DES MARQUEURS EST-IL OUVERT ? --
+            # REPLIE ICI, meme mesure que « E1 » juste au-dessus : la
+            # ligne `dzTracksRef` qui sert d'ancre a ce remplacement vaut
+            # 0 dans .bak_montage. L'etat vit le temps de l'onglet, comme
+            # `dzMode`, `ripple` et `snap` : un panneau ouvert n'est pas
+            # une propriete du projet. Pas de ref jumelle, contrairement a
+            # `dzModeRef` : personne ne LIT cet etat depuis une fermeture
+            # perimee -- K2 et K5 ne font que le BASCULER, par le setter
+            # fonctionnel, qui recoit toujours la valeur vivante.
+            "  var stDzMk=x.useState(!1),dzMkOn=stDzMk[0],setDzMkOn=stDzMk[1];\n"
             "  var dzModeRef=x.useRef(dzMode);dzModeRef.current=dzMode;\n"
             "  /* P9 — « le VRAI projet est-il arrivé ? ». Tant que\n"
             "     `svmApplyProject` n'a pas remplacé la maquette, `proj` est la\n"
@@ -2654,7 +2679,30 @@ R_R1 = (A_R1 + "\n"
         ' {id:"range_in",sec:"Montage",lbl:"plage : point d\'entrée à la tête",combo:"I"},\n'
         ' {id:"range_out",sec:"Montage",lbl:"plage : point de sortie à la tête",combo:"U"},\n'
         ' {id:"range_clear",sec:"Montage",lbl:"plage : effacer",combo:"X"},\n'
-        ' {id:"range_cut",sec:"Montage",lbl:"plage : couper (toutes pistes, ripple)",combo:"Maj+X"},')
+        ' {id:"range_cut",sec:"Montage",lbl:"plage : couper (toutes pistes, ripple)",combo:"Maj+X"},'
+        # -- « K1 » (D-5, 21/09/2026) : LES QUATRE ACTIONS DES MARQUEURS ---
+        # REPLIEES ICI, et c'est une MESURE : la ligne `range_cut` ci-dessus
+        # vaut 0 dans .bak_montage (c'est CE remplacement qui l'ecrit) et 1
+        # dans le bundle livre -- une section qui la prendrait pour ancre
+        # serait refusee par `--check`, qui ne regarde que l'etat pre-patch.
+        # Meme technique que R4/R5 dans R_M6/R_M7 et H6 dans R_M17G.
+        # COMBOS MESUREES LIBRES le 21/09/2026 sur la table SVM_ACTIONS du
+        # bundle d'entree : elle porte « M » (muet) mais NI « Maj+M », NI
+        # « Ctrl+M », NI « Ctrl+haut », NI « Ctrl+bas ». Aucune des quatre
+        # n'est dans SVM_COMBO_RESERVED (Ctrl+R/W/T/N, Ctrl+Maj+I/J/C,
+        # Alt+F4).
+        # LE NOM DES FLECHES SOUS CTRL SE LIT DANS `svmComboOfEvent` :
+        # SVM_EV_NAMES mappe ArrowUp / ArrowDown sur les CARACTERES fleches
+        # et le prefixe « Ctrl+ » est concatene tel quel -- donc « Ctrl+ »
+        # suivi de la fleche, jamais « Ctrl+ArrowUp ».
+        # « Maj+M » NE SERA PAS CONFONDUE AVEC « M » (muet) : le dispatch
+        # cherche d'abord `m[combo]` EXACT et ne retombe sur la variante
+        # sans Maj que lorsque la combo complete est inconnue de la table.
+        # Elle y est desormais.
+        '\n {id:"marker_toggle",sec:"Montage",lbl:"marqueur : poser / retirer a la tete",combo:"Maj+M"},\n'
+        ' {id:"marker_prev",sec:"Montage",lbl:"marqueur precedent",combo:"Ctrl+\u2191"},\n'
+        ' {id:"marker_next",sec:"Montage",lbl:"marqueur suivant",combo:"Ctrl+\u2193"},\n'
+        ' {id:"marker_index",sec:"Montage",lbl:"marqueurs : l\'index",combo:"Ctrl+M"},')
 
 # ── R2 (D-11) : la branche de dispatch ─────────────────────────────────────
 # PORTEE MESUREE dans `onKey` (meme corps de composant, closure) : `phRef`,
@@ -2720,13 +2768,54 @@ R_R2 = (A_R2 + "\n"
         'setProj(function(p){return Object.assign({},p,{range:null})});setDirty(!0);'
         # D-2 — même désarmement pour Maj+X, qui met `range:null`.
         'if(dzModeRef.current==="remplir")setDzMode("ecraser");'
-        'fireNote("Plage "+dzRg.in.toFixed(2)+" → "+dzRg.out.toFixed(2)+" s coupée sur toutes les pistes — "+dzRc.removed.toFixed(2)+" s retirés, la suite remonte.");return}')
+        'fireNote("Plage "+dzRg.in.toFixed(2)+" → "+dzRg.out.toFixed(2)+" s coupée sur toutes les pistes — "+dzRc.removed.toFixed(2)+" s retirés, la suite remonte.");return}'
+        # -- « K2 » (D-5) : LE DISPATCH DES QUATRE MARQUEURS ---------------
+        # REPLIE ICI pour la meme raison que K1 : l'ancre du plan est la
+        # branche `range_cut` que CE remplacement-ci pose (0 dans le .bak).
+        # PORTEE : `phRef`, `fireNote`, `pushHistory`, `setProj`, `setDirty`
+        # et `seekTo` sont declares par le bundle dans le MEME corps de
+        # composant ; `dzProjRef` vient de H1 et `setDzMkOn` de K3, tous deux
+        # AVANT dans l'ordre de PATCHES. `seekTo` est un `x.useCallback`
+        # declare a l'offset 809767 du .bak, la branche de dispatch a
+        # 855826 : il precede, et il prend des SECONDES (`setPh(p)` puis
+        # `v.currentTime = Math.min(p, v.duration||p)`) -- la meme unite que
+        # `markerNext`, qui rend un `t`.
+        # LE PLAFOND SE DIT AU LIEU DE SE TAIRE : `markerAdd` rend une COPIE
+        # inchangee au-dela de 200 marqueurs (et sur une tete illisible).
+        # Sans cette sortie tot, la frappe sterile empilait un instantane
+        # d'historique identique et allumait « NON ENREGISTRE » pour rien --
+        # exactement le defaut que la sortie tot de la plage a ferme.
+        '\n      if(id==="marker_toggle"){'
+        'var dzMkL=(dzProjRef.current&&dzProjRef.current.markers)||[];'
+        'var dzMkT=Number(phRef.current)||0,dzMkN=DzTracks.markerAdd(dzMkL,dzMkT,{});'
+        'if(dzMkN.length===dzMkL.length){'
+        'fireNote("Marqueur impossible ici \u2014 200 au maximum par montage.");return}'
+        'pushHistory();'
+        'setProj(function(p){return Object.assign({},p,{markers:dzMkN})});setDirty(!0);'
+        'fireNote(dzMkN.length<dzMkL.length'
+        '?("Marqueur retir\u00e9 \u00e0 "+dzMkT.toFixed(2)+" s.")'
+        ':("Marqueur pos\u00e9 \u00e0 "+dzMkT.toFixed(2)+" s \u2014 Ctrl+M : l\'index."));return}\n'
+        '      if(id==="marker_prev"||id==="marker_next"){'
+        'var dzMkD=id==="marker_next"?1:-1;'
+        'var dzMkG=DzTracks.markerNext(dzProjRef.current&&dzProjRef.current.markers,'
+        'phRef.current,dzMkD);'
+        'if(dzMkG!=null)seekTo(dzMkG);'
+        'else fireNote("Aucun marqueur "+(dzMkD>0?"apr\u00e8s":"avant")+" la t\u00eate.");return}\n'
+        '      if(id==="marker_index"){setDzMkOn(function(v){return !v});return}')
 
 # ── R3 (D-11) : la bande sur la regle, apres la gouttiere ──────────────────
 # `DzmRangeBar` rend `null` tant que la plage n'est pas COMPLETE : la regle
 # reste exactement celle d'avant jusqu'a ce que I et U aient ete frappes.
 A_R3 = 'r.jsx("div",{className:"svm-gutter"}),'
-R_R3 = A_R3 + 'r.jsx(DzTracks.RangeBar,{range:proj.range,dur:dur}),'
+# « K4 » (D-5) : LES LOSANGES DES MARQUEURS, REPLIES ICI. L'ancre du plan
+# (« apres RangeBar ») est le texte que CE remplacement-ci pose : 0 dans
+# .bak_montage. Ils viennent APRES la bande de plage dans l'ordre du DOM et
+# portent un `z-index` superieur (4 contre 3, montage.css) : un marqueur pose
+# dans une plage reste cliquable. `DzmMarkers` rend un TABLEAU (`ms.map`), que
+# React aplatit dans les enfants de la regle -- pas un conteneur de plus, donc
+# rien ne s'interpose entre `.svm-ruler` et les elements absolus qu'elle cale.
+R_R3 = (A_R3 + 'r.jsx(DzTracks.RangeBar,{range:proj.range,dur:dur}),'
+        'r.jsx(DzTracks.Markers,{markers:proj.markers,dur:dur,onSeek:seekTo}),')
 
 # ── D-3 (21/09/2026) : ROLL, SLIP, SLIDE ───────────────────────────────────
 # T1 : les modificateurs sont lus AU POINTERDOWN, une seule fois -- le geste
@@ -2815,6 +2904,56 @@ R_T4 = ("function dzRollDown(e,j2){\n"
 A_T5 = '" — bords : rogner / allonger · centre : déplacer"'
 R_T5 = ('" — bords : rogner / allonger · centre : déplacer · '
         'Alt+centre : slip · Maj+centre : slide · Alt+losange : roll"')
+
+
+# -- D-5 (21/09/2026) : LA CHIP « losange n » ET LE PANNEAU DE L'INDEX ------
+# Les SEULES deux sections du lot : K1, K2, K3, K4 et K6 visaient des textes
+# que d'autres remplacements POSENT, et sont donc REPLIEES la-bas (voir leurs
+# commentaires). Ces deux ancres-ci, elles, valent 1/1 dans .bak_montage.
+#
+# -- K5 : la chip des marqueurs, dans la rangee d'outils ---------------------
+# L'ANCRE N'EST PAS LA LIGNE ENTIERE, ET C'EST UNE MESURE. La ligne complete
+# de la chip `ripple` est REECRITE par la section M21 (qui lui ajoute un
+# `"aria-label":"ripple",`), laquelle passe AVANT dans l'ordre de PATCHES :
+# une ancre prise sur la ligne entiere du .bak ne se retrouverait plus dans la
+# chaine au moment ou K5 s'applique. La QUEUE de la ligne, elle, est reprise
+# MOT POUR MOT par R_M21 -- comptee 1 dans .bak_montage ET 1 apres M21.
+# La chip neuve prend le meme `aria-label` que ses trois voisines pour la
+# raison que M21 a ecrite : sous largeur reduite elles passent en glyphe seul
+# (`font-size:0` + `::before`), et le losange nu serait leur nom accessible.
+A_K5 = 'onClick:function(){setRipple(!ripple)},children:"ripple"}),'
+R_K5 = (A_K5 + "\n"
+        '          r.jsx("button",{className:"svm-toolchip",'
+        '"data-on":dzMkOn?"":void 0,\n'
+        '            "aria-label":"marqueurs",\n'
+        '            title:"Marqueurs \u2014 index (Ctrl+M) \u00b7 Maj+M pose/retire '
+        '\u00e0 la t\u00eate",'
+        'onClick:function(){setDzMkOn(function(v){return !v})},'
+        'children:"\u25c6 "+((proj.markers||[]).length)}),')
+
+# -- K5b : le panneau de l'index, parmi les popovers -------------------------
+# POSE JUSTE APRES `ovPicker()`, au milieu des autres panneaux flottants : il
+# herite ainsi de leur contexte d'empilement et se ferme comme eux.
+# L'HISTOIRE N'EST POUSSEE QU'AU CHANGEMENT REEL, et c'est la lecon de la
+# sortie tot de R2 : un `pushHistory()` PAR FRAPPE remplissait la pile lettre
+# a lettre et « Annuler » remontait le titre caractere par caractere. DEUX
+# parades, et elles sont dans la COUCHE, pas ici : le champ de titre est
+# NON CONTROLE (`defaultValue`) et ne remonte qu'au `blur` ou sur Entree, et
+# `DzmMarkerIndex` ne rappelle `onChange` que si la valeur a VRAIMENT change.
+# La couleur, elle, part tout de suite -- un <select> ne se frappe pas en
+# rafale.
+A_K5B = "    ovPicker(),"
+R_K5B = (A_K5B + "\n"
+         "    dzMkOn?r.jsx(DzTracks.MarkerIndex,{markers:proj.markers,"
+         "onSeek:seekTo,\n"
+         "      onClose:function(){setDzMkOn(!1)},\n"
+         "      onRemove:function(id){pushHistory();"
+         "setProj(function(p){return Object.assign({},p,"
+         "{markers:DzTracks.markerRemove(p.markers,id)})});setDirty(!0)},\n"
+         "      onChange:function(id,patch){pushHistory();"
+         "setProj(function(p){return Object.assign({},p,"
+         "{markers:DzTracks.markerUpdate(p.markers,id,patch)})});setDirty(!0)}"
+         "}):null,")
 
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
@@ -2931,7 +3070,16 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("T3-trim-roll-poignee", A_T3, R_T3),
            ("T3b-trim-roll-losange", A_T3B, R_T3B),
            ("T4-trim-roll-geste", A_T4, R_T4),
-           ("T5-trim-titre", A_T5, R_T5)]
+           ("T5-trim-titre", A_T5, R_T5),
+           # D-5 (21/09/2026) - les marqueurs. DEUX sections seulement :
+           # K1, K2, K3, K4 et K6 sont REPLIEES dans R_R1, R_R2, R_M16REF,
+           # R_R3, R_M6 et R_M7, dont elles visaient un texte POSE (ancres
+           # comptees 0 dans .bak_montage). Les deux ancres ci-dessous
+           # valent 1/1 dans le bundle d'entree ; celle de K5 est la QUEUE
+           # de la ligne de la chip `ripple`, que M21 (qui passe avant)
+           # reecrit en tete mais reprend mot pour mot en queue.
+           ("K5-chip-marqueurs", A_K5, R_K5),
+           ("K5b-index-marqueurs", A_K5B, R_K5B)]
 
 
 def nl(text, crlf):

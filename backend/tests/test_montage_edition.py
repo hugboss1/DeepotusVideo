@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""L1 — LES MODES D'EDITION (D-2) ET LES TRIMS ROLL/SLIP/SLIDE (D-3) : le coeur JS est EXECUTE sous node
+"""L1 — LES MODES D'EDITION (D-2), LES TRIMS ROLL/SLIP/SLIDE (D-3) ET LES MARQUEURS (D-5) : le coeur JS est EXECUTE sous node
 (frontend/patches/montage.js, celui que le patcher injecte), jamais lu.
 Shim par FICHIER, jamais `node -e`.
 Run : & $PY tests\test_montage_edition.py   (depuis backend/)"""
@@ -186,6 +186,45 @@ out.voisins_dixieme_exact=(function(){
 out.mou3=[T.slip(null,"p2",1,{}).length,T.slide(K3,"zz",1).length,
           T.roll(K3,"p1","zz",1).length,tri3(T.roll(K3,"p1","p2",NaN))[0][2]];
 out.pur3=K3[1].srcIn===2&&K3[0].end===4&&K3[2].start===8;
+/* ── D-5 : MARQUEURS ET INDEX ───────────────────────────────────────────── */
+var M=[];
+M=T.markerAdd(M,2.004,{title:"intro"}); M=T.markerAdd(M,7,{color:"rouge",title:"b"}); M=T.markerAdd(M,4,{});
+out.mk_liste=M.map(function(m){return [m.t,m.color,m.title]});
+out.mk_ids_uniques=new Set(M.map(function(m){return m.id})).size===3;
+out.mk_toggle=T.markerAdd(M,2.1,{}).length;             /* <= 0,15 s : retire, pas double */
+out.mk_force=T.markerAdd(M,2.1,{force:!0}).length;      /* force : AJOUTE */
+out.mk_remove=T.markerRemove(M,M[1].id).length;
+out.mk_remove_inconnu=T.markerRemove(M,"zz").length;
+out.mk_next=[T.markerNext(M,2,1),T.markerNext(M,2,-1),T.markerNext(M,9,1),T.markerNext(M,0,-1)];
+out.mk_next_vrai=[T.markerNext(M,0,1),T.markerNext(M,9,-1),T.markerNext(M,4,1),T.markerNext(M,4,-1)];
+out.mk_from=T.markersFrom([{t:"3",color:"zz",title:5},{t:-1},"x",{t:1.5,color:"bleu",title:"ok",note:"n"}]).map(function(m){return [m.t,m.color,m.title,m.note]});
+out.mk_from_ids=(function(){var l=T.markersFrom([{t:3},{t:1},{t:2}]);
+  return [l.map(function(m){return m.id}),new Set(l.map(function(m){return m.id})).size]})();
+out.mk_colors=T.MARKER_COLORS.map(function(c){return c[0]});
+out.mk_pur=M.length===3;
+/* t negatif / NaN : ignores, la liste ne bouge pas (et la cle EXISTE) */
+out.mk_mous=[T.markerAdd(M,-1,{}).length,T.markerAdd(M,NaN,{}).length,
+             T.markerAdd(null,1,{}).length,T.markersFrom("x").length,
+             T.markerRemove(null,"m1").length];
+/* markersFrom tronque a 200, comme le backend */
+out.mk_from_plafond=T.markersFrom((function(){var a=[],i;
+  for(i=0;i<250;i++)a.push({t:i});return a})()).length;
+/* markerUpdate : couleur assainie, titre/note en chaine, id inconnu inchange */
+out.mk_update=(function(){var l=T.markerUpdate(M,M[0].id,{color:"zz",title:7,note:null});
+  return [l[0].color,l[0].title,l[0].note,l.length]})();
+out.mk_update_couleur=T.markerUpdate(M,M[0].id,{color:"cyan"})[0].color;
+out.mk_update_partiel=(function(){var l=T.markerUpdate(M,M[0].id,{color:"vert"});
+  return [l[0].color,l[0].title]})();
+out.mk_update_inconnu=T.markerUpdate(M,"zz",{color:"vert"}).map(function(m){return [m.t,m.color]});
+out.mk_update_pur=M[0].color==="or"&&M[0].title==="intro";
+/* MARKER_COLORS gelee comme MODES : six paires, ecriture refusee en strict */
+out.mk_gel=(function(){var a=[T.MARKER_COLORS.length];
+  try{T.MARKER_COLORS.push(["x","#000"]);a.push("no")}catch(e){a.push(e.constructor.name)}
+  a.push(T.MARKER_COLORS[0][0]);
+  try{T.MARKER_COLORS[0][0]="x";a.push("no")}catch(e){a.push(e.constructor.name)}
+  return a})();
+/* les deux composants EXISTENT et ne lisent PAS svmTcFF au chargement */
+out.mk_composants=[typeof T.Markers,typeof T.MarkerIndex];
 console.log(JSON.stringify(out));
 """
 print("\n[1] dzmInsere sous node")
@@ -338,7 +377,9 @@ try:
                  "slide_borne_gauche","slide_sans_gauche",
                  "roll_borne_source","roll_non_contigu",
                  "voisins_dixieme_exact","roll_pistes_diff",
-                 "slide_tete_source_vitesse","roll_tete_source_vitesse"]
+                 "slide_tete_source_vitesse","roll_tete_source_vitesse",
+                 "mk_liste","mk_next","mk_from","mk_colors","mk_gel",
+                 "mk_update","mk_composants","mk_from_plafond"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -460,6 +501,86 @@ check("voisins_le_contact_a_un_dixieme_exact",
       D.get("voisins_dixieme_exact"))
 check("trims_entrees_molles", "mou3" in D and D.get("mou3") == [0, 3, 3, 4], D.get("mou3"))
 check("trims_purs", D.get("pur3") is True, D.get("pur3"))
+
+print("\n[4] D-5 : marqueurs et index sous node")
+# Faute n6 : toute lecture indexee passe par `at()` (defini en [3]).
+check("mk_liste_triee_par_t_couleur_par_defaut_or",
+      D.get("mk_liste") == [[2.004,"or","intro"],[4,"or",""],[7,"rouge","b"]],
+      D.get("mk_liste"))
+check("mk_les_identifiants_sont_uniques",
+      "mk_ids_uniques" in D and D.get("mk_ids_uniques") is True,
+      f'{"mk_ids_uniques" in D} {D.get("mk_ids_uniques")!r}')
+# LA BASCULE : reposer a moins de 0,15 s d'un marqueur le RETIRE au lieu de
+# le doubler (geste de Resolve, une seule touche). `{force:true}` passe
+# outre -- l'index doit pouvoir doubler un repere si on le lui demande.
+check("mk_reposer_sous_l_eps_retire_au_lieu_de_doubler", D.get("mk_toggle") == 2,
+      D.get("mk_toggle"))
+check("mk_force_ajoute_meme_pres_d_un_existant", D.get("mk_force") == 4,
+      D.get("mk_force"))
+check("mk_retirer_par_id", D.get("mk_remove") == 2, D.get("mk_remove"))
+# NEGATION GARDEE : « un id inconnu ne retire rien » serait vraie d'un banc
+# muet -- la cle doit d'abord ETRE LA, et la longueur vaut celle de depart.
+check("mk_retirer_un_id_inconnu_ne_retire_rien",
+      "mk_remove_inconnu" in D and D.get("mk_remove_inconnu") == 3,
+      f'{"mk_remove_inconnu" in D} {D.get("mk_remove_inconnu")!r}')
+# ECART MESURE CONTRE LE PLAN, ET LE PLAN AVAIT RAISON POUR UNE AUTRE
+# RAISON QUE LA SIENNE. Le plan attendait `markerNext(M,2,1) == 4` en
+# annoncant un `>v+1e-6` : avec ce seuil-la, le premier t superieur a 2 est
+# 2,004 et la ligne aurait rougi. Le seuil est donc DZM_MARKER_EPS (0,15),
+# pas 1e-6, et c'est le bon sens pour Ctrl+Bas : « aller au SUIVANT » depuis
+# un marqueur doit quitter celui sous la tete, pas y rester. Les trois
+# `null` du plan tiennent avec l'un comme avec l'autre -- seule la premiere
+# valeur distingue les deux seuils, et c'est elle qui tranche.
+check("mk_suivant_ignore_le_marqueur_sous_la_tete",
+      D.get("mk_next") == [4, None, None, None], D.get("mk_next"))
+# LE CONJOINT POSITIF des trois `null` ci-dessus : dans les quatre memes
+# directions, depuis des tetes qui ONT un voisin, la fonction le trouve.
+# Sans cette ligne, un `markerNext` qui rendrait TOUJOURS `null` passerait.
+check("mk_suivant_et_precedent_trouvent_vraiment",
+      D.get("mk_next_vrai") == [2.004, 7, 7, 2.004], D.get("mk_next_vrai"))
+check("mk_restauration_assainit_et_trie",
+      D.get("mk_from") == [[1.5,"bleu","ok","n"],[3,"or","5",""]], D.get("mk_from"))
+# LES IDS SONT REGENERES m1..mN, et ils sont UNIQUES apres le tri : ils sont
+# attribues dans l'ordre d'ARRIVEE (m1 au t=3, m2 au t=1, m3 au t=2), donc
+# la liste triee les porte dans le desordre -- ce qui compte est l'unicite.
+check("mk_restauration_regenere_des_ids_uniques",
+      at("mk_from_ids", 0) == ["m2","m3","m1"] and at("mk_from_ids", 1) == 3,
+      f'{at("mk_from_ids",0)!r} {at("mk_from_ids",1)!r}')
+check("mk_restauration_tronque_a_deux_cents", D.get("mk_from_plafond") == 200,
+      D.get("mk_from_plafond"))
+check("mk_les_six_couleurs",
+      D.get("mk_colors") == ["or","rouge","vert","bleu","violet","cyan"],
+      D.get("mk_colors"))
+check("mk_couleurs_exportees_immuables",
+      D.get("mk_gel") == [6, "TypeError", "or", "TypeError"], D.get("mk_gel"))
+# ENTREES MOLLES, cle exigee d'abord : t negatif et NaN sont IGNORES (la
+# liste rendue garde ses trois marqueurs), une liste nulle ou une chaine
+# rendent une liste vide, et `markerRemove(null, ...)` ne meurt pas.
+check("mk_entrees_molles",
+      "mk_mous" in D and D.get("mk_mous") == [3, 3, 1, 0, 0],
+      f'{"mk_mous" in D} {D.get("mk_mous")!r}')
+check("mk_update_assainit_couleur_et_chaines",
+      D.get("mk_update") == ["or", "7", "", 3], D.get("mk_update"))
+check("mk_update_accepte_une_couleur_connue",
+      D.get("mk_update_couleur") == "cyan", D.get("mk_update_couleur"))
+# PATCH PARTIEL : une cle ABSENTE du patch ne doit pas ecraser la valeur.
+# Sans ce conjoint, un `markerUpdate` qui reconstruirait l'entree entiere
+# (titre remis a "") passerait les deux lignes du dessus.
+check("mk_update_ne_touche_pas_les_cles_absentes_du_patch",
+      D.get("mk_update_partiel") == ["vert", "intro"], D.get("mk_update_partiel"))
+check("mk_update_d_un_id_inconnu_ne_change_rien",
+      "mk_update_inconnu" in D
+      and D.get("mk_update_inconnu") == [[2.004,"or"],[4,"or"],[7,"rouge"]],
+      f'{"mk_update_inconnu" in D} {D.get("mk_update_inconnu")!r}')
+check("mk_les_fonctions_sont_pures",
+      D.get("mk_pur") is True and D.get("mk_update_pur") is True,
+      f'add={D.get("mk_pur")!r} update={D.get("mk_update_pur")!r}')
+# LES DEUX COMPOSANTS EXISTENT SOUS NODE, ou `svmTcFF` n'est PAS defini :
+# c'est la preuve que la couche ne le lit pas AU CHARGEMENT. La resolution a
+# l'appel (`typeof svmTcFF==="function"?svmTcFF:dzmSecs`) est tenue par le
+# banc du bundle, qui RENDS les composants avec un stub JSX.
+check("mk_les_deux_composants_sont_exportes",
+      D.get("mk_composants") == ["function", "function"], D.get("mk_composants"))
 
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")

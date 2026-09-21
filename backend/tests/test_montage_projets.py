@@ -1154,6 +1154,128 @@ check("d11_un_exposant_hors_double_ne_touche_jamais_le_disque",
       f'{_r.status_code} {_f.get("range")!r} {_f.get("_illisible")!r}')
 wipe_courant()
 
+print("\n[18] D-5 les MARQUEURS : assainis au POST, reservis au GET")
+# Le plan laissait le numero libre ; [17] est PRIS par la plage I/O, donc
+# celle-ci prend [18]. MEME GABARIT que [17], et la meme regle : l etat vide
+# est CONSTRUIT (`wipe_courant()` avant chaque cas), le cas « sans markers »
+# est joue EN PREMIER pour etablir que l absence de la cle n est pas un
+# artefact de la mesure, et CHAQUE negation exige d abord
+# `status_code == 200 and saved is True` -- sinon un 404 ou un `{}` de `J()`
+# la ferait verdir a vide.
+wipe_courant()
+wipe()
+_tl = TL("marq", n=1)
+_r = c.post("/api/montage/save", json=_tl)
+_c = cur()
+check("d5_sans_markers_la_cle_est_absente",
+      _r.status_code == 200 and _c.get("saved") is True and "markers" not in _c,
+      f'{_r.status_code} saved={_c.get("saved")} markers={_c.get("markers")!r}')
+
+wipe_courant()
+_tl = TL("marq", n=1)
+_tl["markers"] = [{"t": 2, "color": "rouge", "title": "a", "note": "n"}]
+_r = c.post("/api/montage/save", json=_tl)
+_c = cur()
+check("d5_un_marqueur_valide_revient_tel_quel",
+      _r.status_code == 200
+      and _c.get("markers") == [{"t": 2.0, "color": "rouge",
+                                 "title": "a", "note": "n"}]
+      and isinstance((_c.get("markers") or [{}])[0].get("t"), float),
+      f'{_r.status_code} {_c.get("markers")!r}')
+
+# TROIS ENTREES ABIMEES ET UNE BONNE, DANS LA MEME LISTE : c est la forme qui
+# compte. Une entree illisible est JETEE toute seule, elle n emporte pas la
+# liste ; une couleur inconnue retombe sur « or » (jamais sur rien) ; un titre
+# qui n est pas une chaine en devient une. Si l assainissement jetait la liste
+# entiere, la cle serait absente et la ligne rougirait.
+wipe_courant()
+_tl = TL("marq", n=1)
+_tl["markers"] = [{"t": -1}, {"t": "x"}, {"t": 1, "color": "zz", "title": 5}]
+_r = c.post("/api/montage/save", json=_tl)
+_c = cur()
+check("d5_les_entrees_abimees_sont_jetees_une_a_une",
+      _r.status_code == 200
+      and _c.get("markers") == [{"t": 1.0, "color": "or",
+                                 "title": "5", "note": ""}],
+      f'{_r.status_code} {_c.get("markers")!r}')
+
+wipe_courant()
+_tl = TL("marq", n=1)
+_tl["markers"] = "x"
+_r = c.post("/api/montage/save", json=_tl)
+_c = cur()
+check("d5_des_markers_qui_ne_sont_pas_une_liste_ne_sont_pas_stockes",
+      _r.status_code == 200 and _c.get("saved") is True and "markers" not in _c,
+      f'{_r.status_code} saved={_c.get("saved")} markers={_c.get("markers")!r}')
+
+# LA LISTE VIDE NE STOCKE RIEN, et c est VOULU : c est ainsi qu un montage
+# dont on vient de retirer le dernier marqueur revient sans marqueur. Le
+# client envoie TOUJOURS la cle (`markers:(proj.markers||[])`), donc sans
+# cette regle un `[]` aurait ete ecrit sur le disque a chaque autosave.
+wipe_courant()
+_tl = TL("marq", n=1)
+_tl["markers"] = []
+_r = c.post("/api/montage/save", json=_tl)
+_c = cur()
+check("d5_une_liste_vide_ne_stocke_pas_la_cle",
+      _r.status_code == 200 and _c.get("saved") is True and "markers" not in _c,
+      f'{_r.status_code} saved={_c.get("saved")} markers={_c.get("markers")!r}')
+
+wipe_courant()
+_tl = TL("marq", n=1)
+_tl["markers"] = [{"t": i} for i in range(250)]
+_r = c.post("/api/montage/save", json=_tl)
+_c = cur()
+_mk = _c.get("markers")
+check("d5_deux_cent_cinquante_marqueurs_sont_tronques_a_deux_cents",
+      _r.status_code == 200 and isinstance(_mk, list) and len(_mk) == 200
+      and _mk[0].get("t") == 0.0 and _mk[-1].get("t") == 199.0,
+      f'{_r.status_code} n={len(_mk) if isinstance(_mk, list) else _mk!r}')
+
+wipe_courant()
+_tl = TL("marq", n=1)
+_tl["markers"] = [{"t": 1, "title": "x" * 5000, "note": "y" * 5000}]
+_r = c.post("/api/montage/save", json=_tl)
+_c = cur()
+_m0 = (_c.get("markers") or [{}])[0]
+check("d5_un_titre_de_cinq_mille_caracteres_est_tronque",
+      _r.status_code == 200 and len(_m0.get("title", "")) == 200
+      and len(_m0.get("note", "")) == 1000,
+      f'{_r.status_code} titre={len(_m0.get("title", ""))} '
+      f'note={len(_m0.get("note", ""))}')
+
+# L IDENTIFIANT N EST PAS STOCKE : le client le regenere. Negation gardee par
+# le conjoint positif -- la cle `markers` doit d abord ETRE LA, avec sa
+# premiere entree, sinon « pas d id » serait vraie d une liste absente.
+wipe_courant()
+_tl = TL("marq", n=1)
+_tl["markers"] = [{"t": 1, "id": "m42"}]
+_r = c.post("/api/montage/save", json=_tl)
+_c = cur()
+_m0 = (_c.get("markers") or [{}])[0]
+check("d5_l_identifiant_du_client_n_est_pas_stocke",
+      _r.status_code == 200 and _m0.get("t") == 1.0 and "id" not in _m0,
+      f'{_r.status_code} {_c.get("markers")!r}')
+
+# UN `t` INFINI NE TOUCHE JAMAIS LE DISQUE -- meme mesure et meme parade que
+# pour la plage : httpx encode `json=` avec `allow_nan=False` et LEVE cote
+# client, donc le corps est ecrit a la main. Le fichier du COURANT est relu
+# sur le DISQUE, puisque c est lui que GET /project relit.
+wipe_courant()
+_tl = TL("marq", n=1)
+_tl["markers"] = [{"t": float("inf")}, {"t": 2}]
+_r = c.post("/api/montage/save",
+            content=json.dumps(_tl, allow_nan=True).encode("utf-8"),
+            headers={"content-type": "application/json"})
+_f = JF(SAVED)
+check("d5_un_t_infini_ne_touche_jamais_le_disque",
+      _r.status_code == 200 and _f.get("clips") is not None
+      and _f.get("markers") == [{"t": 2.0, "color": "or",
+                                 "title": "", "note": ""}]
+      and "_illisible" not in _f,
+      f'{_r.status_code} {_f.get("markers")!r} {_f.get("_illisible")!r}')
+wipe_courant()
+
 c.__exit__(None, None, None)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

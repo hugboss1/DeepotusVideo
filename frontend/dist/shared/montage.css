@@ -957,3 +957,28 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
   border-color:var(--accent); color:var(--ink)}
 .dzsvm .dzm-modechip[disabled]{opacity:.42; cursor:not-allowed}
 .dzsvm .dzm-modechip[disabled]:hover{border-color:var(--stroke); color:var(--ink3)}
+
+/* D-5 (21/09/2026) -- LES MARQUEURS SUR LA REGLE ET LEUR INDEX.
+   Les losanges vivent dans `.svm-ruler`, qui est deja `position:relative`
+   grace a la regle de D-11 ci-dessus (elle n'est PAS dupliquee) : sans
+   elle, ils se seraient cales sur `.svm-lanes` et auraient flotte au-dessus
+   de toutes les pistes. `z-index:4` les met AU-DESSUS de la bande de plage
+   (z-index 3) -- un marqueur pose dans une plage doit rester cliquable --
+   et, contrairement a elle, ils gardent leurs evenements de pointeur :
+   c'est tout leur interet. `top:2px` plutot que 0 pour ne pas mordre le
+   liseré de la regle. */
+.dzsvm .dzm-mk{position:absolute; top:2px; width:8px; height:8px;
+  margin-left:-4px; border-radius:2px; border:0; padding:0; cursor:pointer;
+  z-index:4}
+.dzsvm .dzm-mk:hover{outline:1px solid var(--ink); outline-offset:1px}
+/* UNE RANGEE PAR MARQUEUR : le timecode (chip mono), la couleur, le titre
+   qui prend toute la place restante, la corbeille. `min-width:0` sur le
+   champ est ce qui autorise le `flex-shrink` a l'interieur du `.svm-pop`
+   (300 px) : sans lui, la largeur INTRINSEQUE d'un <input> (~170 px) aurait
+   pousse la corbeille hors du panneau. */
+.dzsvm .dzm-mkidx{font-family:var(--f-mono); font-size:10.5px}
+.dzsvm .dzm-mkrow{display:flex; gap:6px; align-items:center; margin-top:6px}
+.dzsvm .dzm-mkrow input{flex:1 1 auto; min-width:0}
+.dzsvm .dzm-mkrow .svm-fxchip{flex:0 0 auto}
+.dzsvm .dzm-mkcol{flex:0 0 auto; max-width:80px; font-family:var(--f-mono);
+  font-size:10px}

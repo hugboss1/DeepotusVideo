@@ -80,6 +80,49 @@ UNE FAUTE N°6 ATTRAPEE PENDANT L'ECRITURE : `_CSSM.split(borne)[1]` leve
 IndexError quand la borne disparait — un banc doit ROUGIR, pas MOURIR. La
 parade est `_apres()`, qui rend "" et fait rougir ses lectrices.
 
+COMPTE PRECEDENT, 21/09/2026 (D-5, tache 8 - les marqueurs) : 1442 lignes.
+Le lot en ajoute TRENTE-DEUX et en remesure TROIS.
+QUATRE viennent de la boucle sur `P.PATCHES`, qui les emet toute seule pour
+les DEUX sections neuves K5 et K5b (`_remplace` et
+`couche_ne_cite_pas_l_ancre_de_` chacune -- aucune `_ancre_consommee`, les
+deux remplacements REPRENNENT leur ancre). Les VINGT-HUIT autres sont
+nommees `D5_*` : la garde par PREFIXE (`_K_TAGS`, meme forme que `_E_TAGS`
+de D-2), l existence des deux ancres dans le .bak, les HUIT replis nommes un
+a un (K1 les quatre actions, K2 en trois branches, K3 l etat, K4 les
+losanges, K6 des deux cotes -- chacun mesure le texte DANS le bundle, DANS
+le remplacement qui le porte, et ABSENT du .bak), les quatre combos, le nom
+des fleches pris a `svmComboOfEvent`, la feuille, l ordre dans la regle, et
+les douze lignes JOUEES par le stub JSX.
+TROIS LIGNES PRE-EXISTANTES REMESUREES, pas relachees :
+  . `tb7_exigence2_la_chaine_ne_nomme_jamais_setPh_ni_seekTo` interdisait
+    `seekTo` a la CHAINE ENTIERE alors que l exigence du handoff porte sur
+    les neuf boutons de la BARRE. « Aller au marqueur suivant » n a pas
+    d autre sens que de deplacer la tete. Renommee
+    `tb7_exigence2_seul_le_lot_des_marqueurs_bouge_la_tete`, elle mesure
+    desormais que les sections qui nomment `seekTo` sont EXACTEMENT
+    R2/R3/K5b, et que la couche, elle, n en nomme toujours aucun ;
+  . `tb8_le_T_du_handoff_appartient_deja_a_la_narration` : 37 -> 41 actions
+    (K1 en declare quatre). `tb8_aucune_combo_par_defaut_n_est_prise_deux_
+    fois` n a PAS bouge -- c est elle qui mesure que Maj+M, Ctrl+haut,
+    Ctrl+bas et Ctrl+M ne volent rien ;
+  . `tb8_les_trois_chips_degradees_gardent_un_nom_et_une_infobulle` : 4 -> 5
+    chips. La chip des marqueurs est la QUATRIEME, hors du
+    `:nth-child(-n+3)` qui degrade en glyphe seul.
+UNE FAUTE N6 ATTRAPEE PENDANT L ECRITURE : `_RULER` (la tranche de la regle
+du bundle) est REAFFECTE au milieu du fichier a la source de `svmRuler`. La
+premiere ecriture du pin lisait donc 73 octets de `svmPad2` au lieu de la
+regle -- elle a ROUGI au lieu de bénir, et la tranche est desormais
+recalculee sous son propre nom `_RULER5`.
+MUTATIONS APPLIQUEES le 21/09/2026, sur COPIES, restaurees ensuite :
+  . coeur pur -- `dzmMarkerNext` repasse du seuil DZM_MARKER_EPS au `1e-6`
+    qu annoncait le plan -> `mk_suivant_ignore_le_marqueur_sous_la_tete` de
+    test_montage_edition.py rougit SEULE (`[2.004, None, None, None]`),
+    80/1 ; seuil restaure, 81/0 ;
+  . backend -- la troncature a 200 de `_save_record` retiree ->
+    `d5_deux_cent_cinquante_marqueurs_sont_tronques_a_deux_cents` de
+    test_montage_projets.py rougit SEULE (`n=250`), 152/1 ; troncature
+    restauree, 153/0.
+
 COMPTE PRECEDENT, 21/09/2026 (D-3, tache 7, TOUR DE CORRECTION) : 1441
 lignes. Le lot ne touche presque pas ce banc-ci -- il vit dans le coeur
 pur et dans test_montage_edition.py (48 -> 58 / 0) -- mais TROIS lignes
@@ -6187,6 +6230,76 @@ out.rb_entree_hors_champ=TBG(function(){
   var n=T.RangeBar({range:{in:20,out:30},dur:10});
   return n&&n.p&&n.p.style?[n.p.style.left,n.p.style.width]:"PAS DE STYLE"});
 
+
+/* ── D-5 : LES MARQUEURS, RENDUS PAR LE STUB JSX ─────────────────────────
+   `svmTcFF` (le timecode du bloc sonvfx) N EXISTE PAS sous ce shim : seule
+   la table SVM_TRACKS du bundle y est extraite. Il est DECLARE ici par un
+   `var` -- hisse, donc visible de la couche -- et n est AFFECTE qu apres les
+   premieres mesures : la couche doit retomber sur `dzmSecs` avant, et
+   prendre `svmTcFF` apres. Si elle le lisait AU CHARGEMENT, la seconde
+   mesure rendrait encore « 5 s ». C est la preuve que la resolution se fait
+   A L APPEL.
+   `r.jsxs` vaut `null` dans le stub : l index en a besoin. Il est pose ici
+   et REMIS A NULL aussitot apres, pour ne rien changer aux mesures qui
+   suivent. */
+var svmTcFF;
+out.mk_rendu=TBG(function(){
+  var l=T.Markers({markers:[{id:"m1",t:5,color:"rouge",title:"a",note:"n"}],dur:10});
+  return [l.length,l[0].t,l[0].p.className,l[0].k,l[0].p.style.left,
+    l[0].p.style.background,l[0].p["aria-label"]]});
+out.mk_rendu_borne=TBG(function(){
+  var l=T.Markers({markers:[{id:"m1",t:90},{id:"m2",t:-5}],dur:10});
+  return [l[0].p.style.left,l[1].p.style.left]});
+out.mk_rendu_seek=TBG(function(){
+  var vu=[],l=T.Markers({markers:[{id:"m1",t:3}],dur:10,
+    onSeek:function(t){vu.push(t)}});
+  l[0].p.onClick();return vu});
+out.mk_rendu_sans_onseek=TBG(function(){
+  var l=T.Markers({markers:[{id:"m1",t:3}],dur:10});l[0].p.onClick();
+  return "sans_levee"});
+out.mk_rendu_mou=TBG(function(){
+  return [T.Markers({}).length,T.Markers({markers:"x"}).length,
+    T.Markers({markers:[null,{id:"m1",t:1}]}).length]});
+r.jsxs=function(t,p,k){return{t:t,p:p,k:k}};
+out.mk_index_vide=TBG(function(){
+  var n=T.MarkerIndex({markers:[]});
+  return [n.p.className,n.p.children[0].p.children,
+    n.p.children[1].t,n.p.children[1].p.className]});
+out.mk_index_rangees=TBG(function(){
+  var vu=[],n=T.MarkerIndex({markers:[{id:"m1",t:3,color:"bleu",title:"a",note:""}],
+    onSeek:function(t){vu.push(["seek",t])},
+    onRemove:function(i){vu.push(["rm",i])},
+    onChange:function(i,q){vu.push(["ch",i,q])}});
+  var rg=n.p.children[1][0],kids=rg.p.children;
+  kids[0].p.onClick();
+  kids[1].p.onChange({target:{value:"vert"}});
+  kids[3].p.onClick();
+  return [n.p.children[0].p.children,rg.p.className,kids.length,
+    kids[2].p.defaultValue,kids[2].p.value===void 0,vu]});
+/* LE TITRE NE REMONTE QUE S IL A CHANGE : c est ce qui empeche un
+   pushHistory PAR FRAPPE. Le champ est NON CONTROLE (`defaultValue`), donc
+   il ne remonte qu au `blur` ou sur Entree -- et un blur sans changement ne
+   remonte rien du tout. */
+out.mk_index_titre=TBG(function(){
+  var vu=[],n=T.MarkerIndex({markers:[{id:"m1",t:3,color:"or",title:"a",note:""}],
+    onChange:function(i,q){vu.push([i,q])}});
+  var kids=n.p.children[1][0].p.children;
+  kids[2].p.onBlur({target:{value:"a"}});            /* inchange : rien */
+  kids[2].p.onKeyDown({key:"x",target:{value:"zz"}});/* pas Entree : rien */
+  kids[2].p.onBlur({target:{value:"b"}});            /* change : remonte */
+  kids[2].p.onKeyDown({key:"Enter",target:{value:"c"}});
+  return vu});
+out.mk_index_sans_rappels=TBG(function(){
+  var kids=T.MarkerIndex({markers:[{id:"m1",t:3,color:"or",title:"",note:""}]})
+    .p.children[1][0].p.children;
+  kids[0].p.onClick();kids[3].p.onClick();
+  kids[1].p.onChange({target:{value:"vert"}});
+  kids[2].p.onBlur({target:{value:"z"}});
+  return "sans_levee"});
+r.jsxs=null;
+svmTcFF=function(t){return "TC"+t};
+out.mk_tc_resolu_a_l_appel=TBG(function(){
+  return T.Markers({markers:[{id:"m1",t:5}],dur:10})[0].p["aria-label"]});
 console.log(JSON.stringify(out));
 """
 # "use strict" en PROLOGUE du shim : concatene, celui de montage.js n'est
@@ -11161,12 +11274,30 @@ check("tb7_exigence2_les_dix_actions_ne_lisent_ni_n_ecrivent_la_tete",
 #    positifs d'abord : les deux textes existent et sont gros, et le bundle
 #    porte bien les huit `setPh(` qu'on lui connait — sans eux, la negation
 #    serait vraie d'un fichier vide.
-check("tb7_exigence2_la_chaine_ne_nomme_jamais_setPh_ni_seekTo",
+# 21/09/2026 D-5 (tache 8) : CETTE NEGATION ETAIT TROP LARGE, et elle a
+# rougi au premier passage du lot des marqueurs. L'exigence du handoff est
+# « aucune action DE LA BARRE D'OUTILS FLOTTANTE ne deplace la tete » ; la
+# ligne, elle, interdisait `seekTo` a la CHAINE ENTIERE. Or « aller au
+# marqueur suivant » (Ctrl+bas) n'a pas d'autre sens que de deplacer la
+# tete : c'est le geste meme. La ligne mesure donc desormais deux choses
+# distinctes, et aucune n'est relachee :
+#   . la couche pure n'appelle NI `setPh` NI `seekTo` -- elle recoit un
+#     `onSeek` et ne connait pas le nom du setter de l'hote (inchange) ;
+#   . les sections qui nomment `seekTo` sont EXACTEMENT les trois du lot
+#     D-5 (K2 replie dans R_R2, K4 replie dans R_R3, et K5b), NOMMEES ici.
+#     Une quatrieme -- une action de la barre, par exemple -- ferait rougir.
+# `setPh`, lui, reste interdit a TOUTE section : c'est le setter nu, celui
+# qui ne recale pas le <video>, et rien de ce qu'on ajoute n'a a le toucher.
+_SEEK_TAGS = sorted(t for t, _a, r in P.PATCHES if "seekTo" in r)
+check("tb7_exigence2_seul_le_lot_des_marqueurs_bouge_la_tete",
       len(_SECTIONS) > 10000 and len(_code(src)) > 60000
       and s.count(nl("setPh(")) == 8
-      and "setPh" not in _SECTIONS and "seekTo" not in _SECTIONS
-      and "setPh" not in _code(src) and "seekTo" not in _code(src),
+      and "setPh" not in _SECTIONS
+      and "setPh" not in _code(src) and "seekTo" not in _code(src)
+      and _SEEK_TAGS == ["K5b-index-marqueurs", "R2-plage-dispatch",
+                         "R3-plage-regle"],
       f'setPh dans le bundle={s.count(nl("setPh("))} '
+      f'sections_qui_cherchent={_SEEK_TAGS} '
       f'sections={len(_SECTIONS)} o couche={len(_code(src))} o')
 # 3. LE SEUL `setPh` QUI RAMENE A ZERO EST CELUI DE `svmApplyProject`, et
 #    aucun des neuf chemins ne l'atteint : `projets` OUVRE la liste, il
@@ -11898,8 +12029,12 @@ for _a, _sec, _c in _COMBOS:
 # range_cut. Les quatre combos I, U, X et Maj+X sont libres, et c'est la
 # ligne `tb8_aucune_combo_par_defaut_n_est_prise_deux_fois`, juste en
 # dessous, qui le MESURE — elle n'a pas eu a changer.
+# 37 -> 41 le 21/09/2026 : D-5 (K1, replie dans R_R1) y declare
+# marker_toggle, marker_prev, marker_next et marker_index. Les quatre
+# combos (Maj+M, Ctrl+haut, Ctrl+bas, Ctrl+M) sont libres, et c'est encore
+# `tb8_aucune_combo_par_defaut_n_est_prise_deux_fois` qui le MESURE.
 check("tb8_le_T_du_handoff_appartient_deja_a_la_narration",
-      len(_COMBOS) == 37 and _BY_COMBO.get("T") == ["narration"],
+      len(_COMBOS) == 41 and _BY_COMBO.get("T") == ["narration"],
       f"actions={len(_COMBOS)} T={_BY_COMBO.get('T')}")
 # UNE COMBO PAR ACTION, ET AUCUNE EN DOUBLE : la nouvelle n'a rien vole.
 # `svmKmMerge` resoudrait une collision en silence (retour au defaut) — c'est
@@ -11969,12 +12104,15 @@ check("tb8_les_trois_chips_degradees_gardent_un_nom_et_une_infobulle",
       _MC.count('[data-bdoff~="coupe"] .svm-toolchips') == 5
       and "font-size:0" in _MC
       and _MC.count(".svm-toolchip:nth-child(-n+3)") == 2
-      # QUATRE CHIPS DANS LE CONTENEUR, TROIS QUI SE DEGRADENT : la
-      # quatrieme est celle des sous-titres, que le §5.3 protege — ses deux
-      # compteurs seraient illisibles reduits a un glyphe, et elle n'a donc
-      # pas besoin d'un nom explicite. C'est `:nth-child(-n+3)` qui trace la
-      # frontiere, des deux cotes.
-      and s.count('className:"svm-toolchip"') == 4
+      # CINQ CHIPS DANS LE CONTENEUR, TROIS QUI SE DEGRADENT. 4 -> 5 le
+      # 21/09/2026 : D-5 (K5) ajoute « losange n », les marqueurs, JUSTE
+      # APRES `ripple` — donc en quatrieme position, HORS du
+      # `:nth-child(-n+3)` qui degrade. Les deux dernieres sont protegees
+      # pour la meme raison : leur compteur (le nombre de marqueurs, les
+      # deux chiffres des sous-titres) serait illisible reduit a un glyphe.
+      # C'est `:nth-child(-n+3)` qui trace la frontiere, des deux cotes, et
+      # la chip neuve porte tout de meme son `aria-label` (mesure ci-dessus).
+      and s.count('className:"svm-toolchip"') == 5
       # LE `title` NE BOUGE PAS : il reste la description, et c'est lui que
       # l'infobulle du mode compact affiche (§2.3).
       and s.count(nl('title:"aimanter les bords, la tête et 0 ("')) == 1
@@ -12241,6 +12379,219 @@ check("D3_les_trois_gestes_appellent_la_couche_une_fois_chacun",
       and s.count(nl("DzTracks.roll(")) == 1,
       f'slip={s.count(nl("DzTracks.slip("))} slide={s.count(nl("DzTracks.slide("))} '
       f'roll={s.count(nl("DzTracks.roll("))}')
+
+# ══ D-5 (21/09/2026) : LES MARQUEURS ET LEUR INDEX ════════════════════════
+# LA GARDE PAR PREFIXE, comme pour « E » (D-2). Le lot n'ajoute QUE DEUX
+# sections ; les cinq autres visaient des textes que d'autres remplacements
+# POSENT et sont REPLIEES. Un jour ou l'on cablerait une troisieme section
+# « K… » sans se demander si elle pouvait etre repliee, c'est ici que ca se
+# verrait -- et le compte de `PATCHES` n'est PAS lu en dur (un absolu que
+# tout lot suivant ferait rougir).
+_K_TAGS = [t[0] for t in P.PATCHES if t[0].startswith("K")]
+check("D5_le_cablage_n_ajoute_que_deux_sections",
+      _K_TAGS == ["K5-chip-marqueurs", "K5b-index-marqueurs"],
+      f"{_K_TAGS} (sur {len(P.PATCHES)} triplets)")
+# LES DEUX ANCRES EXISTENT DANS LE .bak, contrairement aux cinq repliees.
+# L'ancre de K5 est la QUEUE de la ligne de la chip `ripple` et non la ligne
+# entiere : M21, qui passe AVANT, lui ajoute un `aria-label` en tete. La
+# ligne mesure les DEUX faits -- la queue vaut 1 dans le .bak, et M21 la
+# reprend mot pour mot (sinon K5 ne trouverait plus rien a l'application).
+check("D5_les_deux_ancres_existent_dans_le_bak",
+      bool(_bak) and _bak.count(_nlb(P.A_K5)) == 1
+      and _bak.count(_nlb(P.A_K5B)) == 1
+      and P.A_K5 in P.R_M21,
+      f'bak_K5={_bak.count(_nlb(P.A_K5)) if _bak else "?"} '
+      f'bak_K5b={_bak.count(_nlb(P.A_K5B)) if _bak else "?"} '
+      f'dans_M21={P.A_K5 in P.R_M21}')
+# LES CINQ REPLIS, NOMMES UN A UN. La boucle sur `P.PATCHES` les couvre par
+# ricochet (le remplacement entier de R_R1, R_R2, R_M16REF, R_R3, R_M6 et
+# R_M7 les contient) ; CES lignes-ci les nomment, pour qu'un repli defait se
+# voie sous son propre nom et non comme une section qui aurait bouge.
+# CHACUNE TIENT LES DEUX FACES : le texte est DANS le bundle livre (1), et il
+# est DANS le remplacement qui le porte -- un pin sur le seul remplacement
+# benirait une section que la chaine n'aurait pas posee.
+for _lbl5, _txt5, _sec5, _nom5 in (
+        ("K1_les_quatre_actions_sont_declarees",
+         ' {id:"marker_toggle",sec:"Montage",', P.R_R1, "R_R1"),
+        ("K2_le_dispatch_pose_le_marqueur",
+         'if(id==="marker_toggle"){', P.R_R2, "R_R2"),
+        ("K2_le_dispatch_saute_au_marqueur",
+         'if(id==="marker_prev"||id==="marker_next"){', P.R_R2, "R_R2"),
+        ("K2_le_dispatch_ouvre_l_index",
+         'if(id==="marker_index"){setDzMkOn(function(v){return !v});return}',
+         P.R_R2, "R_R2"),
+        ("K3_l_etat_du_panneau",
+         "var stDzMk=x.useState(!1),dzMkOn=stDzMk[0],setDzMkOn=stDzMk[1];",
+         P.R_M16REF, "R_M16REF"),
+        ("K4_les_losanges_sur_la_regle",
+         "r.jsx(DzTracks.Markers,{markers:proj.markers,dur:dur,onSeek:seekTo}),",
+         P.R_R3, "R_R3"),
+        ("K6_les_marqueurs_partent_avec_la_sauvegarde",
+         "      markers:(proj.markers||[]),", P.R_M6, "R_M6"),
+        ("K6_les_marqueurs_reviennent_avec_le_projet",
+         "markers:DzTracks.markersFrom(d.markers),", P.R_M7, "R_M7")):
+    check("D5_" + _lbl5,
+          s.count(nl(_txt5)) == 1 and _txt5 in _sec5
+          and (_bak.count(_nlb(_txt5)) == 0 if _bak else False),
+          f'bundle={s.count(nl(_txt5))} dans_{_nom5}={_txt5 in _sec5} '
+          f'bak={_bak.count(_nlb(_txt5)) if _bak else "?"}')
+# LES QUATRE COMBOS SONT LIBRES DANS LE .bak, ET C'EST LA MESURE QUI LE DIT.
+# `tb8_aucune_combo_par_defaut_n_est_prise_deux_fois` mesure deja qu'aucune
+# n'est en double dans la table LIVREE ; celle-ci mesure l'autre moitie --
+# elles n'existaient PAS avant. « M » (muet) etait deja pris, et il l'est
+# reste : c'est la variante « Maj+M » qui est neuve, et le dispatch cherche
+# `m[combo]` EXACT avant de retomber sur la variante sans Maj.
+_MKC = ["Maj+M", "Ctrl+\u2191", "Ctrl+\u2193", "Ctrl+M"]
+check("D5_les_quatre_combos_etaient_libres_et_ne_sont_plus_qu_une_fois",
+      bool(_bak)
+      and all(_bak.count(_nlb('combo:"%s"' % c)) == 0 for c in _MKC)
+      and all(s.count(nl('combo:"%s"' % c)) == 1 for c in _MKC)
+      and _bak.count(_nlb('combo:"M"')) == 1,
+      f'bak={[_bak.count(_nlb("combo:" + chr(34) + c + chr(34))) for c in _MKC] if _bak else "?"} '
+      f'livre={[s.count(nl("combo:" + chr(34) + c + chr(34))) for c in _MKC]}')
+# LE NOM DES FLECHES SOUS CTRL vient de `svmComboOfEvent`, PAS de nous : la
+# table SVM_EV_NAMES mappe ArrowUp / ArrowDown sur les caracteres fleches, et
+# le prefixe « Ctrl+ » est concatene tel quel. Le jour ou cette table
+# changerait, les deux raccourcis deviendraient injoignables EN SILENCE --
+# c'est cette ligne qui le dirait.
+check("D5_le_nom_des_fleches_sous_ctrl_vient_de_la_table_du_bundle",
+      s.count(nl('ArrowUp:"\u2191",ArrowDown:"\u2193"')) == 1
+      and s.count(nl('(e.ctrlKey||e.metaKey?"Ctrl+":"")')) == 1,
+      f'table={s.count(nl(chr(34)))} ')
+# LA COUCHE NE LIT PAS `svmTcFF` AU CHARGEMENT. Le symbole vit dans le bloc
+# sonvfx du bundle (7 occurrences, meme portee module) mais n'existe NI sous
+# node NI ici : une lecture au chargement aurait tue le shim. La forme est
+# tenue des deux cotes -- la resolution est ecrite `typeof …==="function"`, et
+# elle est ECRITE DEUX FOIS, une par composant, jamais hissee dans une
+# variable de module qui serait, elle, evaluee au chargement.
+check("D5_le_timecode_est_resolu_a_l_appel_jamais_au_chargement",
+      src.count('var dzTc=typeof svmTcFF==="function"?svmTcFF:dzmSecs;') == 2
+      # ET IL N'EST JAMAIS APPELE PAR SON NOM dans la couche : `svmTcFF(`
+      # vaut 0, les six appels passent par `dzTc(`. Les cinq occurrences du
+      # mot sont les deux resolutions et trois COMMENTAIRES qui disent
+      # pourquoi -- c'est la forme d'appel qui est interdite, pas le mot.
+      and src.count("svmTcFF(") == 0 and src.count("dzTc(") == 6
+      and s.count(nl("function svmTcFF(s){")) == 1,
+      f'resolutions={src.count(chr(39) + "var dzTc=")} '
+      f'appels_directs={src.count("svmTcFF(")} dzTc={src.count("dzTc(")} '
+      f'declaration={s.count(nl("function svmTcFF(s){"))}')
+# LA FEUILLE : les losanges vivent DANS la regle, au-dessus de la bande de
+# plage, et la regle est deja positionnee (regle de D-11, PAS dupliquee).
+check("D5_les_losanges_sont_montes_dans_la_regle_positionnee",
+      _CSS_M.count(".dzsvm .svm-ruler{position:relative}") == 1
+      and _CSS_M.count(".dzsvm .dzm-mk{position:absolute;") == 1
+      and "z-index:4" in _CSS_M
+      and _CSS_M.count(".dzsvm .dzm-mkrow input{flex:1 1 auto; min-width:0}") == 1,
+      f'ruler={_CSS_M.count(".dzsvm .svm-ruler{position:relative}")} '
+      f'mk={_CSS_M.count(".dzsvm .dzm-mk{position:absolute;")}')
+# LES LOSANGES SONT APRES LA BANDE DANS L'ORDRE DU DOM, et tous deux DANS la
+# regle. `_RULER` est la tranche `svm-ruler` -> `svm-tick` du bundle livre.
+# `_RULER` a ETE REAFFECTE depuis (a la source de `svmRuler`, pour le shim
+# de la section [3]) : la tranche est RECALCULEE ici sous son propre nom --
+# une faute n6 en puissance, attrapee au premier passage (`regle=73 o`).
+_RULER5 = re.search(r'className:"svm-ruler".*?className:"svm-tick"',
+                    s.replace("\r\n", "\n"), re.S)
+_RULER5 = _RULER5.group(0) if _RULER5 else ""
+check("D5_les_losanges_viennent_apres_la_bande_dans_la_regle",
+      len(_RULER5) > 0
+      and _RULER5.count("r.jsx(DzTracks.Markers,{markers:proj.markers,") == 1
+      and _RULER5.index("DzTracks.RangeBar") < _RULER5.index("DzTracks.Markers"),
+      f'regle={len(_RULER5)} o marqueurs={_RULER5.count("DzTracks.Markers")}')
+
+# ── D-5 : CE QUE LE STUB JSX A RENDU ──────────────────────────────────────
+check("D5_un_losange_porte_sa_place_sa_couleur_et_son_nom",
+      d.get("mk_rendu") == [1, "button", "dzm-mk", "m1",
+                            "calc(88px + (100% - 88px) * 0.5)", "#e5484d",
+                            "Marqueur 5 s \u2014 a"],
+      f'{d.get("mk_rendu")}')
+# BORNE A LA REGLE, exactement comme la bande de plage : un marqueur est
+# PERSISTE et survit a un raccourcissement de la duree. Sans le Math.min,
+# `left` passait 100 % ; sans le Math.max, un `t` negatif lu d'un vieux
+# fichier serait parti a gauche de la timeline.
+check("D5_un_losange_hors_champ_tient_dans_la_regle",
+      d.get("mk_rendu_borne") == ["calc(88px + (100% - 88px) * 1)",
+                                  "calc(88px + (100% - 88px) * 0)"],
+      f'{d.get("mk_rendu_borne")}')
+check("D5_le_clic_sur_un_losange_va_a_son_temps",
+      d.get("mk_rendu_seek") == [3], f'{d.get("mk_rendu_seek")}')
+# SANS RAPPEL, RIEN NE LEVE : l'ecran peut monter avant que `seekTo` existe.
+# Negation gardee par le temoin, qui n'est rendu QUE si l'appel est alle au
+# bout (TBG rend "INDEFINI" ou l'erreur sinon).
+check("D5_un_losange_sans_rappel_ne_leve_pas",
+      d.get("mk_rendu_sans_onseek") == "sans_levee",
+      f'{d.get("mk_rendu_sans_onseek")}')
+check("D5_les_entrees_molles_ne_rendent_aucun_losange",
+      "mk_rendu_mou" in d and d.get("mk_rendu_mou") == [0, 0, 1],
+      f'{"mk_rendu_mou" in d} {d.get("mk_rendu_mou")!r}')
+# LA PREUVE QUE `svmTcFF` EST RESOLU A L'APPEL : la MEME sonde, le MEME
+# composant, rendu deux fois -- la premiere sans le symbole (repli `dzmSecs`,
+# « 5 s »), la seconde avec (le stub rend « TC5 »). Une lecture au chargement
+# aurait fige le repli et la seconde mesure dirait encore « 5 s ».
+check("D5_le_timecode_change_quand_le_symbole_apparait",
+      d.get("mk_tc_resolu_a_l_appel") == "Marqueur TC5"
+      and d.get("mk_rendu") != "INDEFINI"
+      and "5 s" in str((d.get("mk_rendu") or [None] * 7)[6]),
+      f'{d.get("mk_tc_resolu_a_l_appel")!r} vs {d.get("mk_rendu")}')
+check("D5_l_index_vide_dit_le_geste_au_lieu_de_se_taire",
+      d.get("mk_index_vide") == ["svm-pop dzm-mkidx", "Marqueurs \u2014 0",
+                                 "div", "svm-note"],
+      f'{d.get("mk_index_vide")}')
+# UNE RANGEE, QUATRE CONTROLES : aller, recolorer, renommer, retirer. Le
+# champ de titre est NON CONTROLE (`defaultValue` pose, `value` ABSENT) --
+# c'est ce qui l'empeche de remonter a chaque frappe.
+check("D5_une_rangee_porte_les_quatre_gestes",
+      d.get("mk_index_rangees") == ["Marqueurs \u2014 1", "dzm-mkrow", 4, "a",
+                                    True,
+                                    [["seek", 3], ["ch", "m1", {"color": "vert"}],
+                                     ["rm", "m1"]]],
+      f'{d.get("mk_index_rangees")}')
+# LE TITRE NE REMONTE QUE S'IL A CHANGE, ET SEULEMENT AU BLUR OU SUR ENTREE.
+# C'est la parade au `pushHistory` PAR FRAPPE, et elle est dans la COUCHE :
+# quatre gestes joues, DEUX remontees. Un blur sans changement ne remonte
+# rien, une touche qui n'est pas Entree non plus.
+check("D5_le_titre_ne_remonte_qu_au_changement_reel",
+      d.get("mk_index_titre") == [["m1", {"title": "b"}],
+                                  ["m1", {"title": "c"}]],
+      f'{d.get("mk_index_titre")}')
+check("D5_l_index_sans_rappels_ne_leve_pas",
+      d.get("mk_index_sans_rappels") == "sans_levee",
+      f'{d.get("mk_index_sans_rappels")}')
+# LE PANNEAU EST POSE PARMI LES POPOVERS, et il est CONDITIONNEL : sans
+# `dzMkOn`, rien n'est monte. Les deux rappels d'ecriture passent par
+# `pushHistory()` AVANT le `setProj` -- sans quoi « Annuler » ne rendrait
+# jamais un marqueur retire par la corbeille.
+check("D5_le_panneau_est_conditionnel_et_entre_dans_l_historique",
+      s.count(nl("dzMkOn?r.jsx(DzTracks.MarkerIndex,"
+                 "{markers:proj.markers,onSeek:seekTo,")) == 1
+      and P.R_K5B.count("pushHistory();setProj(") == 2
+      and s.count(nl("{markers:DzTracks.markerRemove(p.markers,id)})});"
+                     "setDirty(!0)}")) == 1
+      and s.count(nl("{markers:DzTracks.markerUpdate(p.markers,id,patch)})});"
+                     "setDirty(!0)}")) == 1,
+      f'panneau={s.count(nl("dzMkOn?r.jsx(DzTracks.MarkerIndex,"))} '
+      f'pushHistory={P.R_K5B.count("pushHistory();setProj(")}')
+# LA CHIP DIT LE NOMBRE, et elle est la QUATRIEME -- hors du
+# `:nth-child(-n+3)` qui degrade en glyphe seul, parce que son compteur
+# serait illisible reduit a un losange. Elle porte tout de meme son nom
+# accessible, comme ses trois voisines (§4.5).
+check("D5_la_chip_dit_le_nombre_de_marqueurs",
+      s.count(nl('children:"\u25c6 "+((proj.markers||[]).length)}),')) == 1
+      and s.count(nl('"aria-label":"marqueurs",')) == 1
+      and s.count(nl('"data-on":dzMkOn?"":void 0,')) == 1
+      and s.index(nl('children:"ripple"}),'))
+          < s.index(nl('"aria-label":"marqueurs",')),
+      f'chip={s.count(nl(chr(34)))}')
+# LES MARQUEURS ENTRENT DANS L'HISTORIQUE, et la cle y etait DEJA (D-0) : il
+# ne manquait que le `pushHistory()` avant chaque ecriture. Les DEUX faces :
+# la cle est dans la table de l'instantane, et les TROIS ecritures du lot
+# (bascule au clavier, retrait et modification depuis l'index) la poussent.
+check("D5_les_marqueurs_etaient_deja_dans_les_cles_de_l_historique",
+      src.count('"markers"') >= 1
+      and 'markers' in src[src.index("DZM_HIST_CLES"):
+                           src.index("DZM_HIST_CLES") + 260]
+      and P.R_R2.count("pushHistory();") == 3,
+      f'cles={src[src.index("DZM_HIST_CLES"):src.index("DZM_HIST_CLES") + 160]!r} '
+      f'pushHistory_R2={P.R_R2.count("pushHistory();")}')
 
 # LA LIGNE QUI DIT QUE LE BANC A ROUGI PLUTOT QUE MEURE : aucun appel garde
 # n'a pose de temoin. Une panne de node — introuvable, ou un shim qui tourne
