@@ -172,9 +172,13 @@ STABLE_PROBES = [
     ("print3d", "__dzPrint3d", 3),
     ("navrail", "dz_nav_collapsed", 2),
     ("dzdesign", "__dzCatBar", 2),
-    # 21/09/2026 D-0 : 63 apres H1…H7 (l'historique complet cable — trois
+    # 21/09/2026 D-0 : 63 apres H1…H5/H7 (l'historique complet cable — trois
     # references de plus : DzTracks.histSnap dans dzmHistHost, et
-    # DzTracks.histApply dans undo et dans redo).
+    # DzTracks.histApply dans undo et dans redo). REMESURE le meme jour apres
+    # le correctif « absent est un etat » : toujours 63 — la resynchro du bus
+    # appelle `svmTrackBusSync(s.tracks)` NU, qui retombe deja sur
+    # DZM_DEFAULT_TRACKS quand la cle manquait ; un `||DzTracks.DEFAULTS`
+    # aurait ajoute deux jetons sans rien changer au comportement.
     ("montage", "DzTracks", 63),
 ]
 

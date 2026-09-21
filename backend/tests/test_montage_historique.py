@@ -40,6 +40,16 @@ var b=T.histApply(p1,{clips:[],mixDb:{dialogue:-3}});
 out.partiel_dur=b.dur; out.partiel_mix=b.mixDb.dialogue; out.partiel_tracks=b.tracks.length;
 out.apply_nul=T.histApply(p1,null)===p1;
 out.apply_mou=T.histApply(null,s).dur;
+/* ABSENT EST UN ÉTAT (correctif du 21/09/2026, vu à l'écran sur le projet de
+   démonstration : pas de clé `proj.tracks`, donc l'instantané ne la portait
+   pas et « Annuler » laissait la piste ajoutée). Le projet d'avant n'a QUE
+   `dur` : l'instantané doit porter les cinq clés quand même, `tracks` à
+   `undefined`, et `histApply` doit réécrire cette absence par-dessus un
+   projet qui, lui, a des pistes. */
+var s2=T.histSnap({clips:[],mixDb:{},proj:{dur:5}});
+out.absent_porte_la_cle="tracks" in s2&&s2.tracks===void 0;
+var a2=T.histApply({tracks:[{id:"v9"}],dur:1},s2);
+out.absent_restaure="tracks" in a2&&a2.tracks===void 0&&a2.dur===5;
 console.log(JSON.stringify(out));
 """
 print("\n[1] histSnap / histApply sous node")
@@ -79,6 +89,12 @@ check("hist_apply_partiel_ne_touche_que_ce_qu_il_porte",
       {k: D.get(k) for k in ("partiel_dur", "partiel_mix", "partiel_tracks")})
 check("hist_apply_instantane_nul_rend_le_projet_tel_quel", D.get("apply_nul") is True)
 check("hist_apply_projet_nul_ne_meurt_pas", D.get("apply_mou") == 10)
+check("hist_snap_porte_une_cle_absente_comme_absente",
+      D.get("absent_porte_la_cle") is True,
+      f'absent_porte_la_cle={D.get("absent_porte_la_cle")}')
+check("hist_apply_restaure_l_absence",
+      D.get("absent_restaure") is True,
+      f'absent_restaure={D.get("absent_restaure")}')
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

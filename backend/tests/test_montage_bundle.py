@@ -31,7 +31,25 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 21/09/2026 (D-0 — l'historique complet cable) : 1319
+COMPTE DE REFERENCE, 21/09/2026 (D-0, second tour — « absent est un etat ») :
+1320 lignes, soit UNE de plus que les 1319 du premier tour :
+`D0_une_cle_absente_est_portee_par_l_instantane`. LE DEFAUT QU'ELLE GARDE A
+ETE VU A L'ECRAN, pas devine : sur le projet de demonstration, qui n'a PAS de
+cle `proj.tracks`, ajouter une piste « audio » puis allonger la timeline,
+Ctrl+Z rendait 1:04 mais LAISSAIT A4. `dzmHistSnap` ne copiait une cle que si
+`k in p` ; la cle manquante n'entrait donc pas dans l'instantane et
+`histApply` n'avait rien a remettre. Les cinq cles sont desormais copiees
+SANS condition — `undefined` EST l'etat a restaurer. Le conjoint qui joue les
+deux sens sous node vit dans test_montage_historique.py
+(`hist_snap_porte_une_cle_absente_comme_absente`,
+`hist_apply_restaure_l_absence`, 15/0) ; les deux y rougissent quand on
+remet `if(k in p)` — mutation appliquee et mesuree le 21/09/2026.
+`D0_undo_restaure_tout_l_instantane` y gagne le compte du bus
+(`svmTrackBusSync(s.tracks)` DEUX fois, une par sens). L'APPEL RESTE NU :
+`svmTrackBusSync(undefined)` retombe deja sur DZM_DEFAULT_TRACKS, la table
+meme que `svmTracksOf` rend sans `proj.tracks` (les trois bus joues sous node
+sont identiques) — la sonde `DzTracks` de dzcout reste donc a 63.
+COMPTE PRECEDENT, 21/09/2026 (D-0 — l'historique complet cable) : 1319
 lignes, soit DIX-HUIT de plus que les 1301 de P16, MESUREES sur la sortie du
 banc et decomposees : SEIZE que la boucle sur `P.PATCHES` emet toute seule
 pour les SIX sections H1…H5 et H7 (six `_remplace`, six
@@ -445,21 +463,41 @@ for tag, a, r in P.PATCHES:
         check(tag + "_ancre_consommee", s.count(nl(a)) == 0,
               f"count={s.count(nl(a))}")
 # ── D-0 (21/09/2026) : L'HISTORIQUE COMPLET, LE FOND ───────────────────────
-# Les sept sections H1…H7 sont deja comptees une a une par la boucle
+# Les six sections H1…H5 et H7 sont deja comptees une a une par la boucle
 # ci-dessus. CETTE ligne mesure ce que la boucle ne voit pas : que undo ET
-# redo passent bien par `histApply` (DEUX occurrences, une par sens), que les
-# deux piles empilent l'instantane COMPLET, et que `pushHistory` ne pose plus
+# redo passent bien par `histApply` (DEUX occurrences, une par sens), que le
+# bus des pistes est resynchronise dans les DEUX sens, que les deux piles
+# empilent l'instantane COMPLET, et que `pushHistory` ne pose plus
 # {clips, mixDb} en dur. Une section H3 ou H4 reecrite pour ne rendre que le
 # mixage passerait sa propre ligne `_remplace` et rougirait ici.
+# L'APPEL AU BUS EST NU (`s.tracks`, sans repli) ET C'EST MESURE :
+# `svmTrackBusSync(undefined)` retombe sur DZM_DEFAULT_TRACKS, la table meme
+# que `svmTracksOf` rend sans `proj.tracks` — les trois bus sont identiques
+# (joue sous node le 21/09/2026). Un `||DzTracks.DEFAULTS` n'aurait rien
+# ajoute qu'un jeton de plus a la sonde de dzcout.
 check("D0_undo_restaure_tout_l_instantane",
       s.count(nl("setProj(function(p){return DzTracks.histApply(p,s)});")) == 2
+      and s.count(nl('if("tracks" in s)svmTrackBusSync(s.tracks);')) == 2
       and s.count(nl("h.r.push(dzmHistHost());")) == 1
       and s.count(nl("h.u.push(dzmHistHost());")) == 1
       and s.count(nl("h.u.push(prev||dzmHistHost());")) == 1
       and s.count(nl("h.u.push(prev||{clips:clipsRef.current,"
                      "mixDb:mixRef.current});")) == 0,
-      "undo/redo ne passent pas par histApply, ou pushHistory empile encore "
-      "{clips,mixDb}")
+      "undo/redo ne passent pas par histApply, le bus ne suit pas les pistes "
+      "restaurees, ou pushHistory empile encore {clips,mixDb}")
+# ABSENT EST UN ETAT : la couche copie les CINQ cles SANS condition `in`.
+# MESURE A L'ECRAN le 21/09/2026 (projet de demonstration, sans
+# `proj.tracks`) : avec la condition, « Annuler » rendait la duree et
+# LAISSAIT la piste ajoutee. Le conjoint positif est la ligne du dessous du
+# banc test_montage_historique.py, qui JOUE les deux sens sous node ; ici on
+# tient la FORME, pour qu'un retour en arriere dans la couche se voie aussi
+# depuis le banc du bundle.
+check("D0_une_cle_absente_est_portee_par_l_instantane",
+      src.count("k=DZM_HIST_CLES[i];s[k]=p[k]}") == 1
+      and src.count("if(k in p)") == 0
+      and src.count("ABSENT EST UN \u00c9TAT") == 1,
+      f'sans_condition={src.count("k=DZM_HIST_CLES[i];s[k]=p[k]}")} '
+      f'reste_de_condition={src.count("if(k in p)")}')
 # ── M9c (05/09/2026) : LE « + » N'EST PLUS SOUS LA SURIMPRESSION ────────────
 # Défaut rapporté par l'utilisateur : « sur la piste V1 vidéo, le bouton
 # "ajouter une vidéo" est caché par l'overlay de déplacement lorsque la souris

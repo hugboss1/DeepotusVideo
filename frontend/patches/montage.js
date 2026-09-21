@@ -4614,7 +4614,18 @@ function dzmBdTour(bd,mem){
    porte désormais SEPT clés, toutes des RÉFÉRENCES (les tableaux sont
    traités en immutable partout : stocker la référence suffit, comme avant).
    `histApply` ne touche QUE les clés que l'instantané PORTE : un h0
-   historique {clips, mixDb} capturé par un geste amont reste valable. */
+   historique {clips, mixDb} capturé par un geste amont reste valable.
+
+   ABSENT EST UN ÉTAT, ET IL EST RESTAURÉ COMME TEL. MESURÉ À L'ÉCRAN le
+   21/09/2026 sur le projet de démonstration, qui n'a PAS de clé
+   `proj.tracks` (`svmTracksOf` retombe alors sur DZM_DEFAULT_TRACKS) :
+   ajouter une piste « audio » puis allonger la timeline, Ctrl+Z rendait la
+   durée mais LAISSAIT la piste A4. La cause : l'instantané d'avant ne
+   portait pas `tracks` — la clé n'existait pas — donc `histApply` n'avait
+   rien à remettre. Les CINQ clés sont donc copiées SANS condition dès que
+   `proj` est un objet : `s[k]=p[k]` vaut `undefined` quand la clé manque,
+   `k in s` reste vrai, et `histApply` réécrit l'absence. Même trou, même
+   correctif, pour `range`, `markers` et `subsStyle`. */
 var DZM_HIST_CLES=["tracks","dur","subsStyle","range","markers"];
 function dzmHistSnap(o){
   if(!o||typeof o!=="object")return {};
@@ -4622,7 +4633,7 @@ function dzmHistSnap(o){
   if("clips" in o)s.clips=o.clips;
   if("mixDb" in o)s.mixDb=o.mixDb;
   if(p&&typeof p==="object")for(i=0;i<DZM_HIST_CLES.length;i++){
-    k=DZM_HIST_CLES[i];if(k in p)s[k]=p[k]}
+    k=DZM_HIST_CLES[i];s[k]=p[k]}
   return s}
 function dzmHistApply(p,s){
   if(!s||typeof s!=="object")return p;
