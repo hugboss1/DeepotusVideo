@@ -14969,6 +14969,7 @@ check("RT2_le_payload_joint_retime_seulement_avec_une_vitesse",
 # LA COUCHE PORTE LES DEUX PURES, LES DEUX EXPORTS ET LES DEUX RANGEES ; le
 # useState de la rampe vient APRES la garde `!c` (sans clip, `x` n'est pas lu).
 _RT_HOTE = src[src.find("function DzmPlanProps(o){"):src.find("function DzmDzRects(o){")]
+_RT_CORPS = src[src.find("function dzmRampe(clips,id,t,spdL,spdR){"):src.find("function DzmPlanProps(o){")]
 check("RT_la_couche_porte_retimeOf_rampe_les_exports_et_les_deux_rangees",
       src.count("function dzmRetimeOf(c){") == 1 and src.count("function dzmRampe(clips,id,t,spdL,spdR){") == 1
       and src.count("retimeOf:dzmRetimeOf,") == 1 and src.count("rampe:dzmRampe,") == 1
@@ -14979,7 +14980,11 @@ check("RT_la_couche_porte_retimeOf_rampe_les_exports_et_les_deux_rangees",
       and _RT_HOTE.find("if(!c)return null;") < _RT_HOTE.find("x.useState(2)") and _RT_HOTE.count("x.useState(") == 1
       and src.count("R.srcIn=dzmR3((Number(c.srcIn)||0)+(t-s)*sp);") == 1  # la regle de dzmCarve
       and src.count("delete R.transition;delete R.transition_s;") == 1
-      and src.count("Date.now().toString(36)") == 0,  # l'identifiant vient de dzmFreeId, pas de l'horloge
+      # revue : vitesse SANS arrondi (remplir pose 1,333) et continuite du zoom au raccord
+      and _RT_CORPS.count("return v>0?Math.max(.25,Math.min(4,v)):1}") == 1 and _RT_CORPS.count("Math.round(v*100)") == 0
+      and _RT_CORPS.count("var d=dzmDzOf(c);if(d){var m=dzmDzAtN(d,(t-s)/(e-s));") == 1
+      and _RT_CORPS.count("L.dz=Object.assign({},d,{x1:m.x,y1:m.y,w1:m.w});R.dz=Object.assign({},d,{x0:m.x,y0:m.y,w0:m.w})}") == 1
+      and _RT_CORPS.count("Date.now().toString(36)") == 0,  # l'identifiant vient de dzmFreeId, pas de l'horloge (corps de dzmRampe seul)
       f"pures={src.count('function dzmRampe(')} rangees={_RT_HOTE.count('row(\"Interpolation\",')}/{_RT_HOTE.count('row(\"Rampe\",')}")
 
 check("aucun_appel_n_a_plante", _plantages == 0,

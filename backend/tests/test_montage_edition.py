@@ -615,6 +615,12 @@ out.rt_rampe_trans=RR&&RR.clips.map(function(c){return c.transition||null});
 /* ECART MESURE CONTRE LE PLAN : le plan sondait p2 a t=5, qui est DANS p2 [4,6[ (aucun refus) -- t=7 est hors */
 out.rt_rampe_refus=[T.rampe(RC,"p1",0.1,1,2).refus,T.rampe(RC,"p1",3.9,1,2).refus,T.rampe(RC,"zz",2,1,2).refus,T.rampe(RC,"p2",7,1,2).refus];
 out.rt_rampe_pur=JSON.stringify(RC[0])==='{"id":"p1","tr":"v1","start":0,"end":4,"srcIn":1,"speed":2,"src":{"job_id":"j"},"transition":"fade","transition_s":0.5}';
+/* revue : la vitesse n'est PAS arrondie (« remplir » pose 1,333) -- la gauche garde 1.333, R.srcIn = 1 + 2*1.333 */
+var RF=T.rampe([{id:"f1",tr:"v1",start:0,end:4,srcIn:1,speed:1.333,src:{job_id:"j"}}],"f1",2,1.333,2);
+out.rt_rampe_fine=RF&&[RF.clips[0].speed,RF.clips[1].srcIn];
+/* revue : continuite du zoom au raccord -- la fenetre a t ferme la gauche et ouvre la droite ; sans dz, aucune cle dz */
+var RZ=T.rampe([{id:"z1",tr:"v1",start:0,end:4,srcIn:0,dz:{x0:0,y0:0,w0:1,x1:.2,y1:.2,w1:.6,ease:"lin"},src:{job_id:"j"}}],"z1",2,1,2);
+out.rt_rampe_dz=RZ&&[RZ.clips[0].dz.w1===RZ.clips[1].dz.w0&&RZ.clips[0].dz.x1===RZ.clips[1].dz.x0,RZ.clips[0].dz.w1,RZ.clips[1].dz.w1,RZ.clips[0].dz.w0,"dz" in RR.clips[0]||"dz" in RR.clips[1]];
 console.log(JSON.stringify(out));
 """
 print("\n[1] dzmInsere sous node")
@@ -802,7 +808,8 @@ try:
                  "dz_norm","dz_norm_clamp","dz_norm_vide","dz_at","dz_at_doux",
                  "dz_preset","dz_move","dz_scale","dz_css","dz_of","dz_pur","dz_comp",
                  # D-15 (L3, tache 4) : les CINQ cles de la section [15].
-                 "rt_of","rt_rampe","rt_rampe_trans","rt_rampe_refus","rt_rampe_pur"]
+                 "rt_of","rt_rampe","rt_rampe_trans","rt_rampe_refus","rt_rampe_pur",
+                 "rt_rampe_fine","rt_rampe_dz"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -1439,6 +1446,12 @@ check("rt_rampe_la_droite_perd_la_transition_la_gauche_la_garde",
 check("rt_rampe_refuse_les_bords_a_moins_de_0_3_s_l_inconnu_et_le_hors_clip",
       "rt_rampe_refus" in D and D["rt_rampe_refus"] == ["bord", "bord", "clip", "hors"], D.get("rt_rampe_refus"))
 check("rt_rampe_pur", D.get("rt_rampe_pur") is True)
+# revue : SANS arrondi au centieme -- 1.333 reste 1.333 et srcIn = dzmR3(1 + 2*1.333) = 3.666
+check("rt_rampe_ne_rond_pas_la_vitesse_et_srcin_suit_la_vitesse_fine",
+      D.get("rt_rampe_fine") == [1.333, 3.666], D.get("rt_rampe_fine"))
+# revue : la fenetre a t (lin, u=.5 -> w=.8) ferme la gauche et ouvre la droite ; sans dz, aucune cle dz
+check("rt_rampe_garde_le_zoom_continu_au_raccord_et_sans_dz_n_en_pose_pas",
+      D.get("rt_rampe_dz") == [True, 0.8, 0.6, 1, False], D.get("rt_rampe_dz"))
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

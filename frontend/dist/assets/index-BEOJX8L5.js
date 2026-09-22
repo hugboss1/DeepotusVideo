@@ -18959,9 +18959,16 @@ function dzmRampe(clips,id,t,spdL,spdR){
   t=Number(t);var s=Number(c.start)||0,e=Number(c.end)||0;
   if(!(t>s&&t<e))return ko("hors");
   if(t-s<.3||e-t<.3)return ko("bord");
-  var cl=function(v){v=Number(v);return v>0?Math.max(.25,Math.min(4,Math.round(v*100)/100)):1},sp=dzmSpeedNum(c);
+  /* SANS arrondi : « remplir » pose des vitesses à trois décimales (1,333) ;
+     une gauche réécrite à 1,33 consommerait moins de source que R.srcIn ne
+     le suppose (trou ≈ t·0,003 s au raccord). Le select fournit déjà deux décimales. */
+  var cl=function(v){v=Number(v);return v>0?Math.max(.25,Math.min(4,v)):1},sp=dzmSpeedNum(c);
   var L=Object.assign({},c,{end:dzmR3(t)}),R=Object.assign({},c,{id:dzmFreeId(dzmTaken(cs),c.id),start:dzmR3(t)});
   if(c.srcIn!=null||c.src)R.srcIn=dzmR3((Number(c.srcIn)||0)+(t-s)*sp);
+  /* continuité du zoom au raccord : la fenêtre à t devient la fin de la gauche
+     et le début de la droite — la LAME du bundle, elle, hérite `dz` tel quel
+     (reste daté pour la clôture) */
+  var d=dzmDzOf(c);if(d){var m=dzmDzAtN(d,(t-s)/(e-s));L.dz=Object.assign({},d,{x1:m.x,y1:m.y,w1:m.w});R.dz=Object.assign({},d,{x0:m.x,y0:m.y,w0:m.w})}
   if(cl(spdL)===1)delete L.speed;else L.speed=cl(spdL);
   if(cl(spdR)===1)delete R.speed;else R.speed=cl(spdR);
   delete R.transition;delete R.transition_s;
