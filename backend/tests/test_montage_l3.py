@@ -845,6 +845,19 @@ check("d9_un_effet_avec_ses_propres_bornes_locales_est_ramene_dans_le_clip",
       "blend@ajfx0" in _cl and "1.500 blend@ajfx0e0env all_opacity 1" in _cl
       and "3.000 blend@ajfx0e0env all_opacity 0.0000" in _cl,
       [s for s in _cl.split("\\;") if "blend@ajfx0" in s][:6])
+# Revue (23/09) : des bornes LOCALES hors du clip (t0 5, t1 6 dans un clip
+# [1, 2]) ou trop courtes (0,98..1,0) donnaient t1-t0 < 0,05 → _timed rendait
+# la chaine NUE : `[n0]vignette=angle=0.600[aj0]` sans sendcmd, l'effet PLEIN
+# CADRE de 0 a total (mesure avant correctif). Attendu : l'effet est ignore,
+# commande historique. Temoin positif : _cl porte bien un blend@ajfx0.
+_chors = BUILD(adjust_clips=[{"start": 1, "end": 2, "effects": [{"type": "vignette", "intensity": 60, "t0": 5, "t1": 6}]}])
+check("d9_des_bornes_locales_hors_du_clip_ignorent_l_effet_jamais_plein_cadre",
+      _c0.startswith("ffmpeg") and "blend@ajfx0" in _cl and _chors == _c0,
+      [s for s in _chors.split(";") if "aj0" in s][:3])
+_ccourt = BUILD(adjust_clips=[{"start": 1, "end": 2, "effects": [{"type": "vignette", "intensity": 60, "t0": 0.98, "t1": 1.0}]}])
+check("d9_des_bornes_locales_trop_courtes_ignorent_l_effet_jamais_plein_cadre",
+      _c0.startswith("ffmpeg") and "blend@ajfx0" in _cl and _ccourt == _c0,
+      [s for s in _ccourt.split(";") if "aj0" in s][:3])
 # --- mesure ffmpeg reelle : fond gris 3 s + ajustement vignette sur [1, 2] →
 # rc 0, 75 images ; le coin est plus sombre a t=1,5 qu'a t=0,5 et a t=2,5
 # (source STATIQUE, pas testsrc2 : seul un fond fixe rend le bornage mesurable

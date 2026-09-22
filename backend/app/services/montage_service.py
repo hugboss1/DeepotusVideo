@@ -2293,8 +2293,10 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     agit sur tout ce qui est dessous. L'horloge y est GLOBALE : [start,
     end] devient t0/t1 de chaque effet (bornage de `_timed`, split +
     sendcmd + blend, jamais `enable=`) ; un effet qui porte déjà t0/t1
-    (bornes LOCALES posées par le rack) est ramené dans [start, end]. Clip
-    sans effet connu, bornes illisibles ou hors durée : rien n'est émis.
+    (bornes LOCALES posées par le rack) est ramené dans [start, end] ; hors
+    du clip ou < 0,05 s : l'effet est ignoré, jamais plein cadre (revue
+    23/09/2026). Clip sans effet connu, bornes illisibles ou hors durée :
+    rien n'est émis.
     None ou liste vide (défaut) : chaîne historique intacte, octet pour
     octet.
     Sans ces champs, la commande émise est identique octet pour octet à
@@ -2825,11 +2827,10 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     # exploitable : rien n'est émis (commande historique) — la garde
     # `not effs` est indispensable, build_chain([]) rendrait `[in]null[out]`
     # et changerait la commande. `_fx` est le même module que celui des
-    # segments V1 (import local, portée de la fonction). `total` est la
-    # durée APRÈS le maître de durée : un clip qui déborde est coupé à la
-    # fin réelle de la vidéo, un clip qui commence après elle est ignoré.
-    if adjust_clips:
-        from app.services import effects_engine as _fx
+    # segments V1 (lié plus haut, sous le même `if not audio_only:` — le
+    # post-pass vient après le return d'audio_only). `total` est la durée
+    # APRÈS le maître de durée : un clip qui déborde est coupé à la fin
+    # réelle de la vidéo, un clip qui commence après elle est ignoré.
     for j, aj in enumerate(adjust_clips or []):
         if not isinstance(aj, dict):
             continue
@@ -2853,7 +2854,14 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                 lt0, lt1 = 0.0, a1 - a0
             e2["t0"] = round(a0 + lt0, 3)
             e2["t1"] = round(min(a1, a0 + lt1), 3)
+            # Revue (23/09/2026) : bornes locales HORS du clip ou < 0,05 s
+            # → _timed rendrait la chaîne NUE (effet plein cadre, 0..total,
+            # mesuré : `[n0]vignette=angle=0.600[aj0]` sans sendcmd). Rien.
+            if e2["t1"] - e2["t0"] < 0.05:
+                continue
             bounded.append(e2)
+        if not bounded:
+            continue
         parts += _fx.build_chain(bounded, cur, f"aj{j}", f"ajfx{j}",
                                  {"w": w, "h": h, "dur": total, "fps": fps})
         cur = f"aj{j}"
