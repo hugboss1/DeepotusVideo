@@ -6183,6 +6183,35 @@ function dzmStabState(job){
   if(job.status==="done")return "analysée";
   if(job.status==="failed")return "échec : "+String(job.error||"?");
   return "analyse "+Math.round(Number(job.progress)||0)+" %"}
+/* ── D-14 (22/09/2026) : KEYFRAMES D'ÉCHELLE ET D'OPACITÉ SUR LES OVERLAYS ──
+   Contrat du rendu (T7a) : un point sans `scale` (ou `opacity`) ne participe
+   pas à CETTE animation ; sans point porteur, la statique du clip reste.
+   dzmMpLerp2 = svmMpLerp du bundle (lerp sur le SOUS-ENSEMBLE porteur,
+   constante hors bornes) avec un défaut `dv`, et sans supposer les points
+   triés. dzmMpKeep : mesuré, svmMpPlace construit un point NEUF
+   {t,x,y,rotate} — il perdait scale/opacity du patch ET du point écrasé ;
+   ceci les reporte (le patch `vals` gagne, sinon le point `prev`), bornées
+   comme le backend (.05..3 au millième, 0..1 au centième), jamais de clé
+   sans valeur finie. */
+function dzmMpLerp2(pts,tl,key,dv){
+  var ps=[],i,v;
+  for(i=0;i<(pts||[]).length;i++){v=Number(pts[i]&&pts[i][key]);
+    if(pts[i]&&pts[i][key]!=null&&isFinite(v))ps.push({t:Number(pts[i].t)||0,v:v})}
+  if(!ps.length)return dv;
+  ps.sort(function(a,b){return a.t-b.t});tl=Number(tl)||0;
+  if(tl<=ps[0].t)return ps[0].v;
+  var last=ps[ps.length-1];
+  if(tl>=last.t)return last.v;
+  for(i=1;i<ps.length;i++){var p0=ps[i-1],p1=ps[i];
+    if(tl<p1.t)return p0.v+(p1.v-p0.v)*(tl-p0.t)/Math.max(.001,p1.t-p0.t)}
+  return last.v}
+var DZM_MP_EXTRA={scale:[.05,3,1000],opacity:[0,1,100]};
+function dzmMpKeep(np,vals,prev){
+  Object.keys(DZM_MP_EXTRA).forEach(function(k){
+    var b=DZM_MP_EXTRA[k],v=Number(vals&&vals[k]!=null?vals[k]:prev?prev[k]:null);
+    if((vals&&vals[k]!=null)||(prev&&prev[k]!=null))
+      if(isFinite(v))np[k]=Math.min(b[1],Math.max(b[0],Math.round(v*b[2])/b[2]))});
+  return np}
 /* L'HÔTE DES PROPRIÉTÉS DE PLAN (D-13, puis D-15 et D-16) : UNE section de
    l'inspecteur, montée UNE fois (DZ1) sur un clip V1 réel. props : {clip,
    u (avancement 0..1 de la tête dans le clip), speed (vitesse du clip),
@@ -6363,5 +6392,6 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   dzScale:dzmDzScale,dzCss:dzmDzCss,PlanProps:DzmPlanProps,DzRects:DzmDzRects,
   retimeOf:dzmRetimeOf,rampe:dzmRampe,
   stabNorm:dzmStabNorm,stabOf:dzmStabOf,stabState:dzmStabState,
+  mpLerp2:dzmMpLerp2,mpKeep:dzmMpKeep,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;

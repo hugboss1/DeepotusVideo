@@ -31,7 +31,19 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 22/09/2026 (lot L3, tache 6, D-16) : 1710 lignes,
+COMPTE DE REFERENCE, 22/09/2026 (lot L3, tache 7, D-14 client) : 1738 lignes,
+soit VINGT-HUIT de plus que les 1710 de D-16 : les VINGT-DEUX lignes que la
+boucle sur `P.PATCHES` emet seule pour les HUIT sections KF1..KF5 (huit
+`_remplace`, huit `couche_ne_cite_pas_l_ancre_de_`, SIX `_ancre_consommee` :
+KF2b et KF4 reprennent leur ancre en tete) et la section [D-14] en queue
+(SIX pins : l'echelle interpolee dans svmOvTfAt, le point unique aligne +
+le point ecrase qui garde ses cles (mpKeep dans svmMpPlace), les champs
+Echelle/Opacite qui ecrivent le point, le payload q.scale/q.opacity,
+l'opacite en direct hors R_V3, la couche). Le pin DZ de la queue est
+reecrit (DZ1..DZ4 puis KF1..KF5, sonde 112) ; la garde « K… » de D-5
+exclut le prefixe KF.
+
+COMPTE PRECEDENT, 22/09/2026 (lot L3, tache 6, D-16) : 1710 lignes,
 soit CINQ de plus que les 1705 de D-15 : la section [D-16] en queue (CINQ
 pins : l'hote recoit stabJob/onStab dans DZ1, le repli de l'etat et du suivi
 du job dans R_M16REF (garde dzAliveRef, erreurs nommees), le payload `stab`
@@ -13149,7 +13161,11 @@ check("D3_les_trois_gestes_appellent_la_couche_une_fois_chacun",
 # « K… » sans se demander si elle pouvait etre repliee, c'est ici que ca se
 # verrait -- et le compte de `PATCHES` n'est PAS lu en dur (un absolu que
 # tout lot suivant ferait rougir).
-_K_TAGS = [t[0] for t in P.PATCHES if t[0].startswith("K")]
+# D-14 (22/09/2026, L3 tache 7) : les huit sections `KF…` (keyframes
+# d'echelle/opacite, huit ancres LIBRES 1/1 dans le .bak, mesurees) portent
+# le prefixe du plan ; elles ne sont pas des « K » de marqueurs -- exclues ici,
+# et comptees par le pin de la queue (DZ1..DZ4 puis KF1..KF5).
+_K_TAGS = [t[0] for t in P.PATCHES if t[0].startswith("K") and not t[0].startswith("KF")]
 check("D5_le_cablage_n_ajoute_que_trois_sections",
       _K_TAGS == ["K5-chip-marqueurs", "K5b-index-marqueurs",
                   "K7-echap-ferme-index"],
@@ -14936,15 +14952,17 @@ check("DZ_la_feuille_porte_les_rectangles_et_l_hote",
 # de dzcout dit 105 (99 + PlanProps + DzRects + dzCss + dzOf ; revue :
 # DZ3 appelle dzCss directement, plus de dzOf la ; D-15 : + rampe dans DZ1
 # + retimeOf dans DZ4 ; D-16 : + stabOf dans DZ4 -- AUCUNE section neuve, la
-# queue reste DZ1..DZ4).
+# queue reste DZ1..DZ4 ; D-14 (tache 7) : HUIT sections KF1..KF5 APRES DZ4,
+# sonde 112 = 108 + mpLerp2 x3 (KF1, KF3b, KF5) + mpKeep x1 (KF2b)).
 _DZ_TAGS = [t for t, _a, _r in P.PATCHES]
 _DZ_I = _DZ_TAGS.index("EA6-bandeau-ferme-au-lancement")
-check("DZ_le_patcher_porte_les_quatre_sections_en_queue_apres_EA6_et_la_sonde_dit_108",
-      [t.split("-")[0] for t in _DZ_TAGS[_DZ_I + 1:]] == ["DZ1", "DZ2", "DZ3", "DZ4"]
+check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_en_queue_apres_EA6_et_la_sonde_dit_112",
+      [t.split("-")[0] for t in _DZ_TAGS[_DZ_I + 1:]] == ["DZ1", "DZ2", "DZ3", "DZ4",
+                                                          "KF1", "KF2", "KF2b", "KF3a", "KF3b", "KF3c", "KF4", "KF5"]
       and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
               and s.count(nl(a)) == (1 if a in r else 0)
               for _t, a, r in P.PATCHES[_DZ_I + 1:])
-      and _sonde.get("montage") == 108 and s.count("DzTracks") == 108
+      and _sonde.get("montage") == 112 and s.count("DzTracks") == 112
       if _bak else False,
       f"queue={_DZ_TAGS[_DZ_I + 1:]} sonde={_sonde.get('montage')} bundle={s.count('DzTracks')}")
 
@@ -15065,6 +15083,76 @@ check("SB_la_feuille_porte_la_chip_et_les_curseurs",
                                           '.dzsvm .dzm-stab-st[data-st="failed"]{color:#e0453f}',
                                           ".dzsvm .dzm-stab input[type=range]{width:90px;vertical-align:middle}")),
       f"done={_SB_CSS.count('.dzsvm .dzm-stab-st[data-st=')}")
+
+# ══════════════════════════════════════════════════════════════════════════
+print("\n[D-14] keyframes d'echelle et d'opacite sur les overlays (client)")
+# L'ECHELLE EN DIRECT : svmOvTfAt (source unique du lecteur, du cadre et de
+# l'inspecteur) lit la lerp sur les porteurs, defaut la statique ; la ligne
+# figee `scale:base.scale,` a disparu. Temoin : le .bak ne connait pas mpLerp2.
+check("KF1_svmOvTfAt_interpole_l_echelle_sur_les_points_porteurs",
+      s.count(nl(P.R_KF1)) == 1 and s.count("          scale:base.scale,") == 0
+      and s.count('mr=svmMpLerp(mp,tl,"rotate");') == 1  # le reste de svmOvTfAt est intact
+      and (_bak.count(P.A_KF1) == 1 and _bak.count("mpLerp2") == 0 if _bak else False),
+      f"kf1={s.count(nl(P.R_KF1))} fige={s.count('          scale:base.scale,')} bak={_bak.count('mpLerp2') if _bak else '?'}")
+# UN POINT UNIQUE ALIGNE AUSSI scale/opacity (il ne part pas au rendu) ; le
+# point ecrase par svmMpPlace GARDE ses cles (mpKeep AVANT `var out=`).
+# CONTRE LE PLAN : `res.pts` recopie deja les points non touches, ce qui les
+# perdait est le point NEUF de svmMpPlace — le pin mesure la, pas dans svmMpApply.
+_KF_PLACE = s[s.find("  function svmMpPlace(c,vals){"):s.find("  function svmMpPlace(c,vals){") + 1400]
+check("KF2_point_unique_aligne_et_point_ecrase_garde_scale_opacite",
+      s.count("scale:one&&one.scale!=null?one.scale:t.scale,") == 1
+      and s.count("opacity:one&&one.opacity!=null?(one.opacity>=1?void 0:one.opacity):k.opacity,") == 1
+      and _KF_PLACE.count("DzTracks.mpKeep(np,vals,bi>=0?pts[bi]:null);") == 1 and s.count("DzTracks.mpKeep(") == 1
+      and 0 < _KF_PLACE.find("DzTracks.mpKeep(") < _KF_PLACE.find("var out=pts.slice();")
+      and (_bak.count("one&&one.scale") == 0 and _bak.count("mpKeep") == 0
+           and _bak.count("var np={t:bi>=0?pts[bi].t:t,") == 1 if _bak else False),  # le point NEUF, mesure
+      f"apply={s.count('scale:one&&one.scale!=null?one.scale:t.scale,')} keep={s.count('DzTracks.mpKeep(')} bak={_bak.count('mpKeep') if _bak else '?'}")
+# LES CHAMPS ECHELLE ET OPACITE ECRIVENT LE POINT quand une trajectoire
+# existe (svmMpField, comme Rotation), sinon le clip comme avant ; l'infobulle
+# « ne se keyframe pas » a disparu ; vOp lit l'opacite interpolee a la tete
+# (phc est pose AVANT, la ligne `var t=` de l'inspecteur le lit deja).
+check("KF3_echelle_et_opacite_ecrivent_le_point_le_plus_proche_de_la_tete",
+      s.count("if(mp)svmMpField(sel,{scale:v});else svmOvTfField({scale:v})") == 1
+      and s.count("if(mp){svmMpField(sel,{opacity:nv});return}") == 1
+      and s.count("Object.assign({},k,{opacity:nv>=1?void 0:nv}):k}));") == 1  # la voie statique reste
+      and s.count("l'échelle ne se keyframe pas : valeur unique") == 0
+      and s.count('(100 = pleine largeur)"+kfTT,') == 1 and s.count('("+vOp+" %)"+kfTT,') == 1
+      and s.count('var vOp=Math.round((mp?DzTracks.mpLerp2(mp,phc-sel.start,"opacity",') == 1
+      and 0 < s.find("var t=(mp?svmOvTfAt(sel,phc):tf)") < s.find("var vOp=Math.round((mp?DzTracks.mpLerp2(")
+      and (_bak.count("l'échelle ne se keyframe pas : valeur unique") == 1
+           and _bak.count("svmMpField(sel,{scale:") == 0 and _bak.count("svmMpField(sel,{opacity:") == 0 if _bak else False),
+      f"scale={s.count('if(mp)svmMpField(sel,{scale:v})')} op={s.count('if(mp){svmMpField(sel,{opacity:nv});return}')} bak={_bak.count('svmMpField(sel,{scale:') if _bak else '?'}")
+# LE PAYLOAD JOINT q.scale / q.opacity PAR POINT, seulement s'ils existent,
+# entre q.rotate et `return q` ; le .bak n'en joint aucun. CONTRE LE PLAN :
+# M25c ne consomme que `if(c.tr==="v2"){`, la ligne q.rotate est libre (1/1).
+check("KF4_le_payload_joint_scale_et_opacity_par_point_seulement_s_ils_existent",
+      s.count("q.scale=") == 1 and s.count("q.opacity=") == 1
+      and s.count("if(p.scale!=null&&isFinite(Number(p.scale)))q.scale=Math.round(Number(p.scale)*1000)/1000;") == 1
+      and s.count("if(p.opacity!=null&&isFinite(Number(p.opacity)))q.opacity=Math.round(Number(p.opacity)*100)/100;") == 1
+      and 0 < s.find(nl(P.A_KF4)) < s.find("q.scale=") < s.find("q.opacity=") < s.find("              return q})}}")
+      and (_bak.count("q.scale=") == 0 and _bak.count("q.opacity=") == 0 and _bak.count(P.A_KF4) == 1 if _bak else False),
+      f"scale={s.count('q.scale=')} opacity={s.count('q.opacity=')} bak={_bak.count('q.scale=') if _bak else '?'}")
+# L'OPACITE EN DIRECT : liveSync applique la lerp (t global, k le clip),
+# UNE ecriture `el.style.opacity=` comme avant, hors R_V3 (mesure : la ligne
+# n'y est pas), AVANT la transformation (ktf).
+check("KF5_liveSync_applique_l_opacite_interpolee_hors_R_V3",
+      s.count('var kOp=DzTracks.mpLerp2(svmMpOf(k)||[],t-k.start,"opacity",k.opacity==null?1:k.opacity);') == 1
+      and s.count("el.style.opacity=") == 1 and s.count('el.style.opacity=kOp>=1?"":String(Math.round(kOp*100)/100);') == 1
+      and "el.style.opacity" not in P.R_V3 and "kOp" not in P.R_V3
+      and 0 < s.find("var kOp=DzTracks.mpLerp2(") < s.find("var ktf=dragTfRef.current&&dragTfRef.current.id===id?dragTfRef.current:svmOvTfAt(k,t);")
+      # temoin `var kOp=` et non `kOp` : le .bak porte `duckOpen` (mesure : 8 sous-chaines)
+      and (_bak.count("el.style.opacity=") == 1 and _bak.count("var kOp=") == 0 if _bak else False),
+      f"kop={s.count('var kOp=DzTracks.mpLerp2(')} style={s.count('el.style.opacity=')} bak={_bak.count('el.style.opacity=') if _bak else '?'}")
+# LA COUCHE PORTE LES DEUX PURES ET LES DEUX EXPORTS ; le corps ne lit ni
+# `r` ni `x` (pur), trie SA copie (jamais l'entree), defaut sans porteur.
+_KF_CORPS = src[src.find("function dzmMpLerp2(pts,tl,key,dv){"):src.find("/* L'HÔTE DES PROPRIÉTÉS DE PLAN")]
+check("KF_la_couche_porte_mpLerp2_mpKeep_et_les_exports",
+      src.count("function dzmMpLerp2(pts,tl,key,dv){") == 1 and src.count("function dzmMpKeep(np,vals,prev){") == 1
+      and src.count("mpLerp2:dzmMpLerp2,mpKeep:dzmMpKeep,") == 1
+      and len(_KF_CORPS) > 200 and "r.jsx" not in _KF_CORPS and "x.use" not in _KF_CORPS
+      and _KF_CORPS.count("if(!ps.length)return dv;") == 1 and _KF_CORPS.count("ps.sort(function(a,b){return a.t-b.t});") == 1
+      and _KF_CORPS.count("var DZM_MP_EXTRA={scale:[.05,3,1000],opacity:[0,1,100]};") == 1,
+      f"pures={src.count('function dzmMpLerp2(')}/{src.count('function dzmMpKeep(')} corps={len(_KF_CORPS)}")
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

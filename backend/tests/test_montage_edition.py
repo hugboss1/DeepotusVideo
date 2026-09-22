@@ -628,6 +628,20 @@ out.sb_state=[T.stabState(null),T.stabState({status:"running",progress:40}),T.st
 /* purete : l'entree n'est pas mutee ; un entier est rendu (12.6 -> 13) */
 var SBI={on:true,smooth:12.6,crop:"black",zoom:3.4};var SBN=T.stabNorm(SBI);
 out.sb_pur=[JSON.stringify(SBI)==='{"on":true,"smooth":12.6,"crop":"black","zoom":3.4}',SBN&&SBN.smooth,SBN&&SBN.zoom];
+/* [17] D-14 : keyframes d'echelle et d'opacite (client) -- mpLerp2 : lerp sur le SOUS-ENSEMBLE porteur, constante hors bornes, defaut sans porteur */
+var KP=[{t:0,x:.5,y:.5,scale:.5},{t:1,x:.6,y:.5},{t:2,x:.7,y:.5,scale:1.5,opacity:.2}];
+out.kf_lerp=[T.mpLerp2(KP,1,"scale",1),T.mpLerp2(KP,.5,"scale",1),Math.round(T.mpLerp2(KP,1.5,"x",0)*1000)/1000];
+out.kf_lerp_hors=[T.mpLerp2(KP,-3,"scale",1),T.mpLerp2(KP,9,"scale",1),T.mpLerp2(KP,0,"opacity",1),T.mpLerp2(KP,5,"opacity",1)];
+out.kf_lerp_defaut=[T.mpLerp2(KP,1,"zz",7),T.mpLerp2([],1,"scale",.3),T.mpLerp2(null,1,"scale",null),T.mpLerp2([{t:0,x:0,y:0,scale:"abc"}],0,"scale",2)];
+/* points NON tries et t manquant (0) : meme resultat que tries */
+out.kf_lerp_desordre=[T.mpLerp2([{t:2,scale:1.5},{t:0,scale:.5}],1,"scale",1),T.mpLerp2([{scale:.5},{t:2,scale:1.5}],.5,"scale",1)];
+/* mpKeep : le patch gagne, sinon le point ecrase, bornes .05..3 / 0..1, arrondi 0,001 / 0,01 ; sans source, aucune cle */
+var NP={t:1,x:.5,y:.5,rotate:0},VP={t:1,x:.5,y:.5,rotate:0,scale:9,opacity:.123456},PV={t:1,x:.1,y:.1,scale:.7,opacity:.4};
+var K1=T.mpKeep(NP,VP,PV);
+out.kf_keep=[K1===NP,K1.scale,K1.opacity,T.mpKeep({t:1},{t:1,x:0},PV).scale,T.mpKeep({t:1},{t:1,x:0},PV).opacity,T.mpKeep({t:1},{scale:-4,opacity:-1},null).scale,T.mpKeep({t:1},{scale:-4,opacity:-1},null).opacity];
+var K2=T.mpKeep({t:1,x:.5,y:.5,rotate:0},{t:1,x:.5,y:.5,rotate:0},null),K3=T.mpKeep({t:1},{scale:"zz",opacity:null},{opacity:"x"});
+out.kf_keep_absent=["scale" in K2,"opacity" in K2,"scale" in K3,"opacity" in K3,Object.keys(K2).length];
+out.kf_pur=[JSON.stringify(KP)==='[{"t":0,"x":0.5,"y":0.5,"scale":0.5},{"t":1,"x":0.6,"y":0.5},{"t":2,"x":0.7,"y":0.5,"scale":1.5,"opacity":0.2}]',JSON.stringify(VP)==='{"t":1,"x":0.5,"y":0.5,"rotate":0,"scale":9,"opacity":0.123456}',JSON.stringify(PV)==='{"t":1,"x":0.1,"y":0.1,"scale":0.7,"opacity":0.4}'];
 console.log(JSON.stringify(out));
 """
 print("\n[1] dzmInsere sous node")
@@ -818,7 +832,10 @@ try:
                  "rt_of","rt_rampe","rt_rampe_trans","rt_rampe_refus","rt_rampe_pur",
                  "rt_rampe_fine","rt_rampe_dz",
                  # D-16 (L3, tache 6) : les QUATRE cles de la section [16].
-                 "sb_norm","sb_of","sb_state","sb_pur"]
+                 "sb_norm","sb_of","sb_state","sb_pur",
+                 # D-14 (L3, tache 7) : les SEPT cles de la section [17].
+                 "kf_lerp","kf_lerp_hors","kf_lerp_defaut","kf_lerp_desordre",
+                 "kf_keep","kf_keep_absent","kf_pur"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -1473,6 +1490,23 @@ check("sb_of_lit_le_clip",
 check("sb_state_phrase_les_quatre_etats",
       D.get("sb_state") == ["à analyser", "analyse 40 %", "analysée", "échec : x", "échec : ?", "analyse 0 %"], D.get("sb_state"))
 check("sb_norm_pur_et_entier", D.get("sb_pur") == [True, 13, 3], D.get("sb_pur"))
+
+print("\n[17] D-14 keyframes d'echelle et d'opacite (client)")
+# le sous-ensemble porteur seul : a t=1 le point sans scale ne pese pas (0.5 -> 1.5 sur [0,2] = 1 a t=1, .75 a t=.5) ; x se lit sur les trois (arrondi : .6+.1*.5 = .6499999 en flottant, comme svmMpLerp)
+check("kf_lerp2_interpole_sur_le_sous_ensemble_porteur",
+      D.get("kf_lerp") == [1, 0.75, 0.65], D.get("kf_lerp"))
+check("kf_lerp2_constante_hors_bornes_du_sous_ensemble",
+      D.get("kf_lerp_hors") == [0.5, 1.5, 0.2, 0.2], D.get("kf_lerp_hors"))
+check("kf_lerp2_rend_le_defaut_sans_point_porteur_mous_compris",
+      "kf_lerp_defaut" in D and D["kf_lerp_defaut"] == [7, 0.3, None, 2], D.get("kf_lerp_defaut"))
+check("kf_lerp2_ne_suppose_pas_les_points_tries",
+      D.get("kf_lerp_desordre") == [1, 0.75], D.get("kf_lerp_desordre"))
+# mpKeep : 9 -> 3 (borne), .123456 -> .12 ; sans patch le point ecrase donne .7/.4 ; -4 -> .05, -1 -> 0
+check("kf_keep_reporte_le_patch_sinon_le_point_ecrase_avec_les_bornes_du_backend",
+      D.get("kf_keep") == [True, 3, 0.12, 0.7, 0.4, 0.05, 0], D.get("kf_keep"))
+check("kf_keep_ne_pose_aucune_cle_sans_source_finie",
+      D.get("kf_keep_absent") == [False, False, False, False, 4], D.get("kf_keep_absent"))
+check("kf_pur", D.get("kf_pur") == [True, True, True], D.get("kf_pur"))
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

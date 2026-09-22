@@ -4013,6 +4013,69 @@ R_DZ4 = (A_DZ4 + "\n"
          "        /* D-16 : la stabilisation -- jointe seulement si elle existe */\n"
          '        var sbD=c.tr==="v1"&&DzTracks.stabOf(c);if(sbD)o.stab=sbD;')
 
+# ══ D-14 (L3 tache 7, 22/09/2026) — KEYFRAMES D'ECHELLE ET D'OPACITE ═══════
+# Le contrat du rendu (T7a) : `motion_points[{t,x,y,rotate?,scale?,opacity?}]`,
+# un point sans la cle ne participe pas a cette animation, sans porteur la
+# statique reste. MESURE dans le .bak (toutes 1/1, 0 dans ce patcher) :
+#   KF1  svmOvTfAt fige `scale:base.scale` — devient la lerp sur les porteurs
+#        (defaut : la statique). Le lecteur vivant, le cadre de selection et
+#        l'inspecteur lisent svmOvTfAt : l'echelle en direct vient de la.
+#   KF2  svmMpApply aligne les statiques x/y/rotate sur un point UNIQUE
+#        (invariant d'honnetete : il ne part pas au rendu) — scale/opacity
+#        suivent la meme regle, sinon lecteur (lerp) et rendu (statique)
+#        divergeraient a un point. LE PLAN visait ici « garder scale/opacity
+#        des points » : `res.pts` recopie deja les points non touches
+#        (pts.slice()) — ce qui les PERDAIT est svmMpPlace (KF2b).
+#   KF2b svmMpPlace construit un point NEUF {t,x,y,rotate} : le patch
+#        {scale:v} de svmMpField et les cles du point ecrase tombaient.
+#        DzTracks.mpKeep les reporte (patch, sinon point ecrase, bornes).
+#   KF3a le champ Echelle : avec une trajectoire, il ecrit le point le plus
+#        proche de la tete (svmMpField, comme Rotation) ; l'infobulle « ne se
+#        keyframe pas » devient celle des autres champs (kfTT).
+#   KF3b vOp lit l'opacite interpolee a la tete quand une trajectoire existe.
+#   KF3c le curseur Opacite ecrit le point (svmMpField porte son historique).
+#   KF4  le payload joint q.scale (0,001) / q.opacity (0,01) quand presents.
+#        Le plan disait ce bloc CONSOMME par M25c : M25c ne consomme que sa
+#        premiere ligne `if(c.tr==="v2"){` ; la ligne `q.rotate=` est libre.
+#   KF5  liveSync : l'opacite appliquee a l'overlay vivant est interpolee
+#        (`t` global, `k` le clip — noms mesures) ; hors R_V3 (mesure 0).
+A_KF1 = "          scale:base.scale,"
+R_KF1 = '          scale:DzTracks.mpLerp2(mp,tl,"scale",base.scale),'
+A_KF2 = "        x:one?one.x:t.x,y:one?one.y:t.y,scale:t.scale,"
+R_KF2 = ("        x:one?one.x:t.x,y:one?one.y:t.y,scale:one&&one.scale!=null?one.scale:t.scale,\n"
+         "        opacity:one&&one.opacity!=null?(one.opacity>=1?void 0:one.opacity):k.opacity,")
+A_KF2B = "      rotate:Math.min(180,Math.max(-180,Math.round((Number(vals.rotate)||0)*10)/10))};"
+R_KF2B = (A_KF2B + "\n"
+          "    /* D-14 : scale/opacity du patch, sinon du point écrasé (bornes du backend) */\n"
+          "    DzTracks.mpKeep(np,vals,bi>=0?pts[bi]:null);")
+A_KF3A = ('          title:"Largeur de l\'overlay en % de celle du canvas (100 = pleine largeur)"+\n'
+          '            (mp?" — l\'échelle ne se keyframe pas : valeur unique pour toute la durée":""),\n'
+          '          "aria-label":"Échelle (%)",\n'
+          '          onChange:function(e){var v=Number(e.target.value);\n'
+          '            if(isFinite(v)&&v>0)svmOvTfField({scale:Math.min(3,Math.max(.05,v/100))})}}),')
+R_KF3A = ('          title:"Largeur de l\'overlay en % de celle du canvas (100 = pleine largeur)"+kfTT,\n'
+          '          "aria-label":"Échelle (%)",\n'
+          '          onChange:function(e){var v=Number(e.target.value);\n'
+          '            if(!isFinite(v)||v<=0)return;v=Math.min(3,Math.max(.05,v/100));\n'
+          '            if(mp)svmMpField(sel,{scale:v});else svmOvTfField({scale:v})}}),')
+A_KF3B = "    var vOp=Math.round((sel.opacity==null?1:sel.opacity)*100);"
+R_KF3B = ('    var vOp=Math.round((mp?DzTracks.mpLerp2(mp,phc-sel.start,"opacity",sel.opacity==null?1:sel.opacity)'
+          ':(sel.opacity==null?1:sel.opacity))*100);')
+A_KF3C = ('          title:"Opacité de l\'overlay ("+vOp+" %)","aria-label":"Opacité de l\'overlay",\n'
+          '          onChange:function(e){var nv=Number(e.target.value)/100;var id=selRef.current;')
+R_KF3C = ('          title:"Opacité de l\'overlay ("+vOp+" %)"+kfTT,"aria-label":"Opacité de l\'overlay",\n'
+          '          onChange:function(e){var nv=Number(e.target.value)/100;var id=selRef.current;\n'
+          '            if(mp){svmMpField(sel,{opacity:nv});return}')
+A_KF4 = "                q.rotate=Math.round(Number(p.rotate)*10)/10;"
+R_KF4 = (A_KF4 + "\n"
+         "              /* D-14 : échelle / opacité par point — jointes seulement si présentes */\n"
+         "              if(p.scale!=null&&isFinite(Number(p.scale)))q.scale=Math.round(Number(p.scale)*1000)/1000;\n"
+         "              if(p.opacity!=null&&isFinite(Number(p.opacity)))q.opacity=Math.round(Number(p.opacity)*100)/100;")
+A_KF5 = '      el.style.opacity=k.opacity==null?"":String(k.opacity);'
+R_KF5 = ('      /* D-14 : opacité interpolée sur les points porteurs (statique sinon) */\n'
+         '      var kOp=DzTracks.mpLerp2(svmMpOf(k)||[],t-k.start,"opacity",k.opacity==null?1:k.opacity);\n'
+         '      el.style.opacity=kOp>=1?"":String(Math.round(kOp*100)/100);')
+
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
            ("M5-payload", A_M5, R_M5), ("M6-save", A_M6, R_M6),
@@ -4203,7 +4266,16 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("DZ1-proprietes-de-plan", A_DZ1, R_DZ1),
            ("DZ2-rectangles-du-lecteur", A_DZ2, R_DZ2),
            ("DZ3-zoom-en-direct", A_DZ3, R_DZ3),
-           ("DZ4-payload-dz", A_DZ4, R_DZ4)]
+           ("DZ4-payload-dz", A_DZ4, R_DZ4),
+           # D-14 (L3 tache 7) — keyframes d'echelle et d'opacite, en queue.
+           ("KF1-echelle-interpolee", A_KF1, R_KF1),
+           ("KF2-point-unique-aligne", A_KF2, R_KF2),
+           ("KF2b-point-garde-echelle-opacite", A_KF2B, R_KF2B),
+           ("KF3a-champ-echelle", A_KF3A, R_KF3A),
+           ("KF3b-opacite-a-la-tete", A_KF3B, R_KF3B),
+           ("KF3c-curseur-opacite", A_KF3C, R_KF3C),
+           ("KF4-payload-scale-opacity", A_KF4, R_KF4),
+           ("KF5-opacite-en-direct", A_KF5, R_KF5)]
 
 
 def nl(text, crlf):

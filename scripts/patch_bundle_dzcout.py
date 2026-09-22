@@ -301,7 +301,12 @@ STABLE_PROBES = [
     # 22/09/2026, revue de D-16 : 106 -> 108. DEUX de plus : la cle de
     # source canonique `srcKey(` dans DZ1 (stabJob) et dans le repli
     # dzStabStart (R_M16REF), a la place d un JSON.stringify a l ordre pres.
-    ("montage", "DzTracks", 108),
+    # 22/09/2026, D-14 (lot L3, tache 7) : 108 -> 112. QUATRE de plus, en
+    # huit sections KF1..KF5 : `mpLerp2(` dans svmOvTfAt (KF1, l echelle
+    # interpolee), dans vOp de l inspecteur (KF3b) et dans liveSync (KF5,
+    # l opacite en direct) ; `mpKeep(` dans svmMpPlace (KF2b). KF2, KF3a,
+    # KF3c et KF4 n en ajoutent aucune (svmMpField, code nu).
+    ("montage", "DzTracks", 112),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────
