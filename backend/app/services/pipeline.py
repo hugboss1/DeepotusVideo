@@ -1305,11 +1305,16 @@ class Pipeline:
         job PAR SON IDENTIFIANT et ne dépend pas de cette fenêtre — c'est ce
         que rend `POST /api/montage/proxy`.
         """
-        from app.services.montage_service import _PROXY_PROVIDER
+        # D-16 (22/09/2026) : l'analyse vidstab (`montage_stab`, POST
+        # /api/montage/stab) est le second précalcul par source — même
+        # statut, même fenêtre à protéger. Import TARDIF, comme avant : pas
+        # de cycle (montage_service n'importe pas pipeline).
+        from app.services.montage_service import _PROXY_PROVIDER, _STAB_PROVIDER
         async with async_session_factory() as session:
             res = await session.execute(
                 select(JobRecord)
-                .where(func.coalesce(JobRecord.provider, "") != _PROXY_PROVIDER)
+                .where(func.coalesce(JobRecord.provider, "")
+                       .notin_((_PROXY_PROVIDER, _STAB_PROVIDER)))
                 .order_by(JobRecord.created_at.desc()).limit(limit)
             )
             return list(res.scalars().all())

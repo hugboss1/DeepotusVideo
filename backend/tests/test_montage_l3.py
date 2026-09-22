@@ -545,6 +545,53 @@ else:
     check("d16_le_job_stab_finit_done_et_le_trf_existe",
           str(_st.get("status", "")).lower() == "done" and _st.get("provider") == "montage_stab"
           and _spp4 is not None and _spp4.exists() and _spp4.stat().st_size > 1000, (_st, _spp4))
+    # Le job d'analyse est INVISIBLE des jobs et du cout (pipeline.list_jobs,
+    # cost_usage, _JOBS_SANS_DEPENSE) — temoin : un job `ugc` pose a la main
+    # est liste, et la reponse de cout porte total_usd. Le job est depose
+    # dans un finally : cost_usage lit TOUS les jobs done. Les coroutines
+    # passent par le portail du TestClient (`c.portal.call`) : le moteur
+    # aiosqlite vit sur SA boucle, un `asyncio.run` neuf ne la partage pas.
+    from app.services.storage import JobRecord as _JR, async_session_factory as _asf
+    _JID = "cafe0000-d16d-4000-8000-000000000001"
+
+    async def _pose(jid, prov):
+        async with _asf() as s:
+            s.add(_JR(id=jid, status="done", progress=100, title="temoin d16",
+                      image_filename="ugc_temoin", provider=prov))
+            await s.commit()
+
+    async def _depose(jid):
+        async with _asf() as s:
+            j = await s.get(_JR, jid)
+            if j is not None:
+                await s.delete(j); await s.commit()
+
+    _jobs, _cout = [], {}
+    try:
+        c.portal.call(_pose, _JID, "ugc")
+        _rj = c.get("/api/jobs", params={"limit": 200}); _jobs = _rj.json() if _rj.status_code == 200 else []
+        _rc = c.get("/api/cost/usage"); _cout = J(_rc)
+    except Exception as _e:
+        print("  (temoin jobs/cout : %s)" % _e)
+    finally:
+        c.portal.call(_depose, _JID)
+    _ids = [j.get("job_id") for j in _jobs if isinstance(j, dict)]   # cle `job_id` (_job_to_dict)
+    check("d16_le_job_stab_est_invisible_de_get_jobs_le_temoin_ugc_y_est",
+          str(_st.get("status", "")).lower() == "done" and _JID in _ids and d1.get("job_id") not in _ids,
+          (len(_ids), d1.get("job_id") in _ids, _JID in _ids,
+           [(j.get("job_id"), j.get("provider"), j.get("status")) for j in _jobs if isinstance(j, dict)][:5]))
+    _byp = _cout.get("by_provider") if isinstance(_cout.get("by_provider"), dict) else None
+    check("d16_le_cout_ignore_le_job_stab_sans_cle_non_tarife",
+          _rc.status_code == 200 and "total_usd" in _cout and _byp is not None
+          and not any("montage_stab" in str(k) for k in _byp), (_rc.status_code, _byp))
+    # Banc croise : la chaine litterale de la table des jobs sans depense EST
+    # la constante du service (pipeline/routes l'importent, la table non).
+    from app.api import routes as _routes
+    check("d16_montage_stab_est_dans_les_jobs_sans_depense_et_vaut_la_constante",
+          A("_STAB_PROVIDER", None) == "montage_stab"
+          and A("_STAB_PROVIDER", None) in getattr(_routes, "_JOBS_SANS_DEPENSE", {})
+          and "montage_proxy" in getattr(_routes, "_JOBS_SANS_DEPENSE", {}),
+          (A("_STAB_PROVIDER", None), sorted(getattr(_routes, "_JOBS_SANS_DEPENSE", {}))))
     r2 = c.post("/api/montage/stab", json={"src": {"file_path": _SRC4}}); d2 = J(r2)
     r3 = c.get("/api/montage/stab", params={"src": json.dumps({"file_path": _SRC4})}); d3 = J(r3)
     check("d16_second_post_repond_ready_sans_job_et_get_ready_true",
