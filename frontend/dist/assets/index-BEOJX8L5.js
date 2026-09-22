@@ -1746,7 +1746,7 @@ function DzMontage(props){
     setClips(clipsRef.current.map(function(k){if(k.id!==id)return k;var nk=Object.assign({},k,patch);
       Object.keys(patch).forEach(function(q){if(patch[q]===void 0)delete nk[q]});return nk}));setDirty(!0)}
   var stDzStab=x.useState({}),dzStabJobs=stDzStab[0],setDzStabJobs=stDzStab[1];
-  function dzStabStart(src){var key=JSON.stringify(src);
+  function dzStabStart(src){var key=DzTracks.srcKey(src);
     var put=function(v){if(dzAliveRef.current)setDzStabJobs(function(m){var n=Object.assign({},m);n[key]=v;return n})};
     var tick=function(id){fetch("/api/jobs/"+id).then(function(r3){return r3.json()}).then(function(j){
       var st=j&&j.status;if(!st)return put({status:"failed",error:(j&&j.detail)||"job introuvable"});
@@ -5900,7 +5900,7 @@ function DzMontage(props){
             var res=DzTracks.rampe(clipsRef.current,selRef.current,t,sL,sR);
             if(res.refus){fireNote(res.refus==="bord"?"Trop près d'un bord (0,3 s)":"Impossible de diviser ici");return}
             pushHistory();setClips(res.clips);setSelId(res.right);setDirty(!0)},
-          stabJob:dzStabJobs[JSON.stringify(sel.src)]||null,onStab:function(){dzStabStart(sel.src)},
+          stabJob:dzStabJobs[DzTracks.srcKey(sel.src)]||null,onStab:function(){dzStabStart(sel.src)},
           onChange:dzPlanSet}):null,
         ovInspector(),
         audioInspector(),
@@ -19052,11 +19052,13 @@ function DzmPlanProps(o){
      range tire onChange à chaque cran, la rafale de 600 ms fait UNE entrée)
      et le sort des bords (lourd). props : stabJob = état du job de CETTE
      source ({status,progress,error}|null), onStab() = demander l'analyse. */
-  var sb=dzmStabOf(c),sj=o.stabJob||null,sjEnCours=!!sj&&sj.status!=="done"&&sj.status!=="failed";
+  /* revue : « Analyser » n'est réarmé que sur un échec — après « analysée »
+     un second clic ne ferait qu'un POST inoffensif (le cache n'est jamais purgé) */
+  var sb=dzmStabOf(c),sj=o.stabJob||null,sjBloque=!!sj&&sj.status!=="failed";
   kids.push(row("Stabilis.",r.jsxs("span",{className:"dzm-plan-hint dzm-stab",children:[
     r.jsx("input",{type:"checkbox",checked:!!sb,title:"Stabiliser le plan (vidstab, deux passes au rendu)",
       onChange:function(e){on({stab:e.target.checked?dzmStabNorm({on:!0}):void 0},!0)}}),
-    r.jsx("button",{className:"svm-minibtn",disabled:!sb||sjEnCours,
+    r.jsx("button",{className:"svm-minibtn",disabled:!sb||sjBloque,
       title:"Analyser la source maintenant (sinon le rendu le fera, plus long)",
       onClick:function(){if(typeof o.onStab==="function")o.onStab()},children:"Analyser"}),
     r.jsx("span",{className:"dzm-stab-st","data-st":sj?sj.status:"",children:sb?dzmStabState(sj):""})]}),"stab"));

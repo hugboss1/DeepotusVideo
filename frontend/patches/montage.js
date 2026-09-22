@@ -6226,11 +6226,13 @@ function DzmPlanProps(o){
      range tire onChange à chaque cran, la rafale de 600 ms fait UNE entrée)
      et le sort des bords (lourd). props : stabJob = état du job de CETTE
      source ({status,progress,error}|null), onStab() = demander l'analyse. */
-  var sb=dzmStabOf(c),sj=o.stabJob||null,sjEnCours=!!sj&&sj.status!=="done"&&sj.status!=="failed";
+  /* revue : « Analyser » n'est réarmé que sur un échec — après « analysée »
+     un second clic ne ferait qu'un POST inoffensif (le cache n'est jamais purgé) */
+  var sb=dzmStabOf(c),sj=o.stabJob||null,sjBloque=!!sj&&sj.status!=="failed";
   kids.push(row("Stabilis.",r.jsxs("span",{className:"dzm-plan-hint dzm-stab",children:[
     r.jsx("input",{type:"checkbox",checked:!!sb,title:"Stabiliser le plan (vidstab, deux passes au rendu)",
       onChange:function(e){on({stab:e.target.checked?dzmStabNorm({on:!0}):void 0},!0)}}),
-    r.jsx("button",{className:"svm-minibtn",disabled:!sb||sjEnCours,
+    r.jsx("button",{className:"svm-minibtn",disabled:!sb||sjBloque,
       title:"Analyser la source maintenant (sinon le rendu le fera, plus long)",
       onClick:function(){if(typeof o.onStab==="function")o.onStab()},children:"Analyser"}),
     r.jsx("span",{className:"dzm-stab-st","data-st":sj?sj.status:"",children:sb?dzmStabState(sj):""})]}),"stab"));

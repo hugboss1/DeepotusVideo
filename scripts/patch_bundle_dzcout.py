@@ -298,7 +298,10 @@ STABLE_PROBES = [
     # occurrence via `sbD`). L hote (DZ1, stabJob/onStab) et le repli du
     # suivi de job (R_M16REF) n en ajoutent aucune. MESURE : la chaine a
     # refuse, « sonde montage x106 (want 105) », avant cette ligne.
-    ("montage", "DzTracks", 106),
+    # 22/09/2026, revue de D-16 : 106 -> 108. DEUX de plus : la cle de
+    # source canonique `srcKey(` dans DZ1 (stabJob) et dans le repli
+    # dzStabStart (R_M16REF), a la place d un JSON.stringify a l ordre pres.
+    ("montage", "DzTracks", 108),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

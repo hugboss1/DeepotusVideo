@@ -1030,7 +1030,7 @@ R_M16REF = (A_M16REF + "\n"
             # `;return}` du corps (quatre) et la garde `if(!dzAliveRef...` (une)
             # -- ce repli n'en ajoute aucun.
             "  var stDzStab=x.useState({}),dzStabJobs=stDzStab[0],setDzStabJobs=stDzStab[1];\n"
-            "  function dzStabStart(src){var key=JSON.stringify(src);\n"
+            "  function dzStabStart(src){var key=DzTracks.srcKey(src);\n"
             "    var put=function(v){if(dzAliveRef.current)setDzStabJobs(function(m){var n=Object.assign({},m);n[key]=v;return n})};\n"
             '    var tick=function(id){fetch("/api/jobs/"+id).then(function(r3){return r3.json()}).then(function(j){\n'
             '      var st=j&&j.status;if(!st)return put({status:"failed",error:(j&&j.detail)||"job introuvable"});\n'
@@ -3981,7 +3981,9 @@ R_DZ1 = ('        /* D-13 : les proprietes de plan (clip V1 reel seulement) */\n
          # cle JSON de `src`, comme le cache backend est par source) et le
          # declencheur -- PAS d'ancre neuve, l'etat et le geste sont replies
          # dans R_M16REF (dzStabJobs / dzStabStart).
-         '          stabJob:dzStabJobs[JSON.stringify(sel.src)]||null,onStab:function(){dzStabStart(sel.src)},\n'
+         # revue : la cle est CANONIQUE (`srcKey`, cles triees -- la regle
+         # tranchee pour dzmTwinClip), jamais un JSON.stringify a l ordre pres.
+         '          stabJob:dzStabJobs[DzTracks.srcKey(sel.src)]||null,onStab:function(){dzStabStart(sel.src)},\n'
          '          onChange:dzPlanSet}):null,\n'
          + A_DZ1)
 A_DZ2 = '            r.jsx("div",{className:"svm-tfbadge",ref:tfBadgeRef})]}):null,'

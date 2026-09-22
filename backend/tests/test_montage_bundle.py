@@ -37,7 +37,9 @@ pins : l'hote recoit stabJob/onStab dans DZ1, le repli de l'etat et du suivi
 du job dans R_M16REF (garde dzAliveRef, erreurs nommees), le payload `stab`
 apres `retime`, la couche, la feuille) -- AUCUNE ligne generique de la boucle :
 D-16 etend R_DZ1, R_M16REF et R_DZ4 sans section ni ancre neuve ; la sonde
-passe a 106 (stabOf dans DZ4) et le pin DZ de la queue est reecrit.
+passe a 106 (stabOf dans DZ4) puis 108 a la revue (la cle de source est
+`srcKey(`, canonique, dans DZ1 et dans le repli) ; le pin DZ de la queue est
+reecrit. Le compte de lignes ne bouge pas (conditions ajoutees aux pins).
 
 COMPTE PRECEDENT, 22/09/2026 (lot L3, tache 4, D-15) : 1705 lignes,
 soit TROIS de plus que les 1702 de D-13 : la section [D-15] en queue (TROIS
@@ -14937,12 +14939,12 @@ check("DZ_la_feuille_porte_les_rectangles_et_l_hote",
 # queue reste DZ1..DZ4).
 _DZ_TAGS = [t for t, _a, _r in P.PATCHES]
 _DZ_I = _DZ_TAGS.index("EA6-bandeau-ferme-au-lancement")
-check("DZ_le_patcher_porte_les_quatre_sections_en_queue_apres_EA6_et_la_sonde_dit_106",
+check("DZ_le_patcher_porte_les_quatre_sections_en_queue_apres_EA6_et_la_sonde_dit_108",
       [t.split("-")[0] for t in _DZ_TAGS[_DZ_I + 1:]] == ["DZ1", "DZ2", "DZ3", "DZ4"]
       and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
               and s.count(nl(a)) == (1 if a in r else 0)
               for _t, a, r in P.PATCHES[_DZ_I + 1:])
-      and _sonde.get("montage") == 106 and s.count("DzTracks") == 106
+      and _sonde.get("montage") == 108 and s.count("DzTracks") == 108
       if _bak else False,
       f"queue={_DZ_TAGS[_DZ_I + 1:]} sonde={_sonde.get('montage')} bundle={s.count('DzTracks')}")
 
@@ -15002,7 +15004,8 @@ print("\n[D-16] la section Stabilisation, l'analyse suivie par le job")
 # PAS d'ancre neuve, DZ1 finit comme avant). Temoins : le .bak ne connait ni
 # stabJob, ni dzStabStart.
 check("SB1_l_hote_recoit_stabJob_par_source_et_onStab",
-      s.count("stabJob:dzStabJobs[JSON.stringify(sel.src)]||null,onStab:function(){dzStabStart(sel.src)},") == 1
+      s.count("stabJob:dzStabJobs[DzTracks.srcKey(sel.src)]||null,onStab:function(){dzStabStart(sel.src)},") == 1
+      and s.count("dzStabJobs[JSON.stringify(") == 0  # revue : cle canonique, jamais a l'ordre des cles pres
       and s.count(nl("          onChange:dzPlanSet}):null,\n        ovInspector(),")) == 1
       and (_bak.count("stabJob") == 0 and _bak.count("dzStabStart") == 0 if _bak else False),
       f"hote={s.count('onStab:function(){dzStabStart(sel.src)}')} bak={_bak.count('stabJob') if _bak else '?'}")
@@ -15016,6 +15019,8 @@ check("SB_le_repli_suit_le_job_par_source_et_s_eteint_au_demontage",
       and s.count("function dzStabStart(src){") == 1
       and 0 < s.find("function dzPlanSet(") < s.find("function dzStabStart(") < s.find("var dzAliveRef=x.useRef(!0)")
       and _SB_FN.count("if(dzAliveRef.current)setDzStabJobs(") == 1
+      and _SB_FN.count("var key=DzTracks.srcKey(src);") == 1 and _SB_FN.count("srcKey(") == 1
+      and _SB_FN.count("JSON.stringify(src)") == 0  # revue : la cle est canonique (srcKey, cles triees)
       and _SB_FN.count("if(!fin&&dzAliveRef.current)setTimeout(function(){tick(id)},1500)") == 1
       and _SB_FN.count(";return}") == 0 and _SB_FN.count("if(!dzAliveRef.current)return;") == 0  # les comptes P9 restent a 4 et 1
       and _SB_FN.count('fetch("/api/montage/stab",{method:"POST"') == 1 and _SB_FN.count('fetch("/api/jobs/"+id)') == 1
@@ -15048,8 +15053,9 @@ check("SB_la_couche_porte_les_pures_les_exports_et_la_section",
       and _SB_HOTE.count("on({stab:e.target.checked?dzmStabNorm({on:!0}):void 0},!0)") == 1
       and _SB_HOTE.count("on({stab:dzmStabNorm(Object.assign({},sb,p))},!1)") == 1
       and _SB_HOTE.count("on({stab:dzmStabNorm(Object.assign({},sb,{crop:v}))},!0)") == 1
-      and _SB_HOTE.count('sjEnCours=!!sj&&sj.status!=="done"&&sj.status!=="failed"') == 1
-      and _SB_HOTE.count("disabled:!sb||sjEnCours,") == 1 and _SB_HOTE.count('children:"Analyser"') == 1
+      # revue : « Analyser » n'est rearme que sur un echec (done = cache present, jamais purge)
+      and _SB_HOTE.count('sjBloque=!!sj&&sj.status!=="failed"') == 1 and _SB_HOTE.count("sjEnCours") == 0
+      and _SB_HOTE.count("disabled:!sb||sjBloque,") == 1 and _SB_HOTE.count('children:"Analyser"') == 1
       and _SB_HOTE.count('"data-st":sj?sj.status:""') == 1
       and _SB_HOTE.count("x.useState(") == 1,
       f"rangees={_SB_HOTE.count('row(\"Stabilis.\",')}/{_SB_HOTE.count('row(\"Bords\",')} useState={_SB_HOTE.count('x.useState(')}")
