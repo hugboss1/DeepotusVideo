@@ -217,6 +217,25 @@ check("e4_fichier_disparu_409", r.status_code == 409, f"{r.status_code} {r.text[
 r = c.get("/api/schedule"); L = J(r); lst = L.get("_liste") if isinstance(L.get("_liste"), list) else []
 check("e4_le_409_fichier_disparu_n_a_rien_cree", r.status_code == 200 and len(lst) == (NPOSTS if JID else 0), len(lst))
 
+print("\n[3] croise : les sept pistes par defaut du client (montage.js) == celles du service")
+# `_CLIENT_DEFAULT_TRACKS` est le MIROIR de `DZM_DEFAULT_TRACKS` reduit a ce
+# que `_tracks_meta` lit (id/kind/bus/loop). La table du client est EXTRAITE
+# de montage.js en OCTETS par une regex GARDEE (faute n°6 : si elle ne
+# matche plus, la premiere ligne ROUGIT avec « extraites=0 », elle ne meurt
+# pas), jamais recopiee ici.
+import re
+from app.services.montage_service import _CLIENT_DEFAULT_TRACKS as _SRV
+_JS = pathlib.Path(__file__).resolve().parents[2] / "frontend" / "patches" / "montage.js"
+_js = _JS.read_bytes().decode("utf-8-sig") if _JS.is_file() else ""
+_m = re.search(r"var DZM_DEFAULT_TRACKS=\[(.*?)\];", _js, re.S)
+_ent = re.findall(r'\{id:"(\w+)",[^{}]*?kind:"(\w+)"(?:,bus:"(\w+)")?(?:,loop:(!0))?\}', _m.group(1)) if _m else []
+_cli = [dict({"id": i, "kind": k}, **({"bus": b} if b else {}), **({"loop": True} if lp else {}))
+        for i, k, b, lp in _ent]
+check("ea_croise_les_sept_pistes_par_defaut_du_client_sont_celles_du_service",
+      bool(_cli) and _cli == list(_SRV), f"extraites={len(_cli)} client={_cli} service={_SRV}")
+check("ea_croise_les_deux_tables_ont_sept_entrees", len(_cli) == 7 and len(_SRV) == 7,
+      (len(_cli), len(_SRV)))
+
 c.__exit__(None, None, None)
 print(f"\n=== {ok} passed, {fail} failed, {skip} skipped ===")
 sys.exit(1 if fail else 0)
