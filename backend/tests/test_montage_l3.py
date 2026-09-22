@@ -29,10 +29,12 @@ que la mesure a eu lieu (`isinstance(f, str)`, `"zoompan" in _cz`…).
 [2] D-15 RETIME. Un clip V1 porte un champ OPTIONNEL `retime` : "nearest"
 (historique : fps= duplique ou saute), "blend" (tblend moyenne de deux images
 voisines) ou "flow" (minterpolate a compensation de mouvement). `_v1_retime`
-ne rend que "blend" | "flow", None pour tout le reste. Le fragment est pose
-ENTRE `setpts=PTS/spd` et `fps={fps}` (MESURE le 22/09 : les deux passent en
-aval d'un setpts et CHANGENT le compte d'images ; tpad/trim en aval ramenent a
-seg_durs[k]) ; sans vitesse le champ est IGNORE (commande historique). Etat
+ne rend que "blend" | "flow", None pour tout le reste. Ordre MESURE le 22/09
+(revue) : setpts → [minterpolate] → fps → [tblend] → [zoompan] → format —
+`flow` AVANT fps= (il fabrique ses images a la cadence demandee), `blend`
+APRES fps= (avant : (A+B)/2,(A+B)/2,… tout flou ; apres : A,(A+B)/2,B,… = le
+Frame Blend de Resolve) ; scd au defaut fdiff ; tpad/trim en aval ramenent a
+seg_durs[k] ; sans vitesse le champ est IGNORE (commande historique). Etat
 vide : `A("_v1_retime")` rend "ABSENT" ; `BUILD(retime=…)` sur une spec qui
 ne connait pas le champ produit la commande historique → rouge. Mesure reelle :
 flow a x0.5 sur 2 s de source → 4 s et 100 images (SKIP sans ffmpeg).
@@ -296,6 +298,27 @@ else:
           and _ecart(_a1, _a50) > 0.5 and _ecart(_a1, _b1) == 0.0 and _ecart(_a50, _b50) == 0.0,
           (_st, _rc15, _ecart(_a1, _a50), _ecart(_a1, _b1), _ecart(_a50, _b50)))
 
+    # Variante -ss (src_in=0.5) sur les deux sources : 1,5 s de source restante
+    # → 37 images ; memes images aux deux bouts, temoin : le zoom a eu lieu.
+    _rss = {}
+    for _nom, _src in (("s0", _SRC), ("s15", _SRC15)):
+        _o = os.path.join(TMP, "dzss_" + _nom + ".mp4")
+        _rss[_nom] = (-1, _o)
+        try:
+            _cs_, _ = MS._build_montage_command([dict(_spec, path=_src, src_in=0.5)], [], [], None,
+                                                w=64, h=64, fps=25, mix_db={}, ducking=False,
+                                                duration_master=False, preview=True, out=_o)
+            _rss[_nom] = (subprocess.run([_FB] + list(_cs_[1:]), check=False, capture_output=True,
+                                         timeout=120).returncode, _o)
+        except (TypeError, OSError, subprocess.TimeoutExpired) as _e:
+            print("  (rendu -ss %s : %s)" % (_nom, _e))
+    _s1, _s37, _t1, _t37 = (_img(_rss["s0"][1], 1), _img(_rss["s0"][1], 37),
+                            _img(_rss["s15"][1], 1), _img(_rss["s15"][1], 37))
+    check("d13_avec_ss_la_source_a_start_time_1_5_rend_le_meme_zoom_qu_a_0",
+          _st.startswith("1.5") and _rss["s0"][0] == 0 and _rss["s15"][0] == 0
+          and _ecart(_s1, _s37) > 0.5 and _ecart(_s1, _t1) == 0.0 and _ecart(_s37, _t37) == 0.0,
+          (_rss["s0"][0], _rss["s15"][0], _ecart(_s1, _s37), _ecart(_s1, _t1), _ecart(_s37, _t37)))
+
 print("\n[2] D-15 retime : blend / flow s'intercalent entre setpts et fps")
 _v1_retime = A("_v1_retime", lambda c: "ABSENT")
 check("d15_nearest_absent_ou_inconnu_rend_none",
@@ -310,21 +333,31 @@ check("d15_sans_retime_les_commandes_sont_l_historique",
       "setpts=PTS/2,fps=25," in _cs and BUILD(retime=None) == _c0 and BUILD(retime=None, speed=2.0) == _cs
       and "tblend" not in _cs and "minterpolate" not in _cs, _cs[:400])
 _cb = BUILD(speed=2.0, retime="blend")
-check("d15_blend_pose_tblend_average_entre_setpts_et_fps",
-      "setpts=PTS/2,tblend=all_mode=average,fps=25," in _cb, _cb[:400])
+# Revue 22/09 : tblend AVANT fps= a x0.5 rendrait (A+B)/2,(A+B)/2,(B+C)/2…
+# (tout flou) ; APRES fps= : A,(A+B)/2,B,… = le Frame Blend de Resolve.
+# tblend consomme la premiere image (49/50 mesure, pts des 0,04) : le
+# setpts=PTS-STARTPTS qui le suit rebase a 0, le tpad aval clone la fin.
+check("d15_blend_pose_tblend_average_apres_fps_avant_format",
+      "setpts=PTS/2,fps=25,tblend=all_mode=average,setpts=PTS-STARTPTS,format=yuv420p," in _cb, _cb[:400])
 _cf = BUILD(speed=0.5, retime="flow")
+# scd au defaut ffmpeg (fdiff) : `scd=none` interpolerait a travers une coupe.
 check("d15_flow_pose_minterpolate_mci_a_la_cadence_du_canvas_entre_setpts_et_fps",
-      "setpts=PTS/0.5,minterpolate=fps=25:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1:scd=none,fps=25," in _cf,
-      _cf[:400])
+      "setpts=PTS/0.5,minterpolate=fps=25:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1,fps=25," in _cf
+      and "scd=" not in _cf, _cf[:400])
 check("d15_sans_vitesse_retime_ne_change_rien",
-      "fps=25,format=yuv420p" in _c0 and BUILD(retime="flow") == _c0 and BUILD(retime="blend") == _c0)
+      "fps=25,format=yuv420p" in _c0 and BUILD(retime="flow") == _c0 and BUILD(retime="blend") == _c0, _c0[:200])
 check("d15_un_retime_inconnu_avec_vitesse_reste_l_historique",
       "setpts=PTS/2,fps=25," in _cs and BUILD(speed=2.0, retime="zzz") == _cs
       and BUILD(speed=2.0, retime="nearest") == _cs)
 _cfz = BUILD(speed=0.5, retime="flow", dz={"x0": 0.0, "y0": 0.0, "w0": 1.0, "x1": 0.2, "y1": 0.2, "w1": 0.6, "ease": "lin"})
-check("d15_avec_dz_l_ordre_est_setpts_retime_fps_zoompan_format",
-      _cfz.find("setpts=PTS/0.5,minterpolate=") > 0 and _cfz.find(":scd=none,fps=25,zoompan=") > 0
+check("d15_avec_dz_l_ordre_est_setpts_minterpolate_fps_zoompan_format",
+      _cfz.find("setpts=PTS/0.5,minterpolate=") > 0 and _cfz.find(":vsbmc=1,fps=25,zoompan=") > 0
       and _cfz.find(":fps=25,format=yuv420p,tpad=") > 0, _cfz[:500])
+_cbz = BUILD(speed=0.5, retime="blend", dz={"x0": 0.0, "y0": 0.0, "w0": 1.0, "x1": 0.2, "y1": 0.2, "w1": 0.6, "ease": "lin"})
+_pf, _pb, _pz = (_cbz.find("setpts=PTS/0.5,fps=25,"), _cbz.find(",tblend=all_mode=average,setpts=PTS-STARTPTS,zoompan="),
+                 _cbz.find(":fps=25,format=yuv420p,tpad="))
+check("d15_avec_dz_l_ordre_est_setpts_fps_tblend_zoompan_format",
+      0 < _pf < _pb < _pz and "minterpolate" not in _cbz, (_pf, _pb, _pz, _cbz[:500]))
 
 # --- mesure ffmpeg reelle : flow a x0.5 sur 2 s de source → 4 s, 100 images.
 # d timeline = min(want, d_src/spd) : end-start=4 et src_dur=2 → d_src=2, d=4 ;
@@ -333,33 +366,38 @@ check("d15_avec_dz_l_ordre_est_setpts_retime_fps_zoompan_format",
 if _FB is None:
     check("d15_rendu_reel_SKIP_sans_ffmpeg", True)
 else:
-    _OUTF = os.path.join(TMP, "flow.mp4")
+  # blend : tblend sort N-1 images (la premiere), rebasees a 0 puis le tpad
+  # clone la derniere → 100 images, 4,000 s. Durée lue sur le FLUX VIDEO :
+  # celle du format est dominee par l'audio anullsrc de 4 s (99 images y
+  # lisaient 4,0 s — mesure).
+  for _rt, _tem in (("flow", "minterpolate=fps=25"), ("blend", "tblend=all_mode=average")):
+    _OUTF = os.path.join(TMP, _rt + ".mp4")
     _cmdf, _rcf, _errf = None, -1, "commande absente"
     try:
         _cmdf, _ = MS._build_montage_command(
-            [V1SPEC(path=_SRC, src_dur=2.0, src_in=0.0, start=0.0, end=4.0, speed=0.5, retime="flow")],
+            [V1SPEC(path=_SRC, src_dur=2.0, src_in=0.0, start=0.0, end=4.0, speed=0.5, retime=_rt)],
             [], [], None, w=64, h=64, fps=25, mix_db={}, ducking=False,
             duration_master=False, preview=True, out=_OUTF)
         _cmdf = [_FB] + list(_cmdf[1:])
         _rf = subprocess.run(_cmdf, check=False, capture_output=True, text=True, timeout=300)
         _rcf, _errf = _rf.returncode, (_rf.stderr or "")[-400:]
     except (TypeError, OSError, subprocess.TimeoutExpired) as _e:
-        print("  (rendu flow : %s)" % _e)
+        print("  (rendu %s : %s)" % (_rt, _e))
     _nbf, _durf = -1, -1.0
     try:
         _pf = subprocess.run([os.path.join(os.path.dirname(_FB), "ffprobe"), "-v", "error",
                               "-count_frames", "-select_streams", "v:0", "-show_entries",
-                              "stream=nb_read_frames:format=duration", "-of", "csv=p=0", _OUTF],
+                              "stream=duration,nb_read_frames", "-of", "csv=p=0", _OUTF],
                              check=False, capture_output=True, text=True, timeout=60)
-        _lig = [l.strip() for l in (_pf.stdout or "").splitlines() if l.strip()]
-        _nbf = int(_lig[0]) if _lig else -1
-        _durf = float(_lig[1]) if len(_lig) > 1 else -1.0
+        _lig = [x for x in (_pf.stdout or "").strip().split(",") if x]   # duration,nb
+        _durf = float(_lig[0]) if _lig else -1.0
+        _nbf = int(_lig[-1]) if len(_lig) > 1 else -1
     except (ValueError, OSError, subprocess.TimeoutExpired) as _e:
-        print("  (ffprobe flow : %s)" % _e)
-    check("d15_rendu_reel_flow_x0_5_rend_0_avec_minterpolate_dans_la_chaine",
-          _rcf == 0 and "minterpolate=fps=25" in FLAT(_cmdf or []) and os.path.isfile(_OUTF), (_rcf, _errf))
-    check("d15_rendu_reel_flow_x0_5_dure_4_s_et_100_images",
-          _rcf == 0 and "minterpolate=fps=25" in FLAT(_cmdf or []) and _nbf == 100 and abs(_durf - 4.0) < 0.05,
+        print("  (ffprobe %s : %s)" % (_rt, _e))
+    check(f"d15_rendu_reel_{_rt}_x0_5_rend_0_avec_{_tem.split('=')[0]}_dans_la_chaine",
+          _rcf == 0 and _tem in FLAT(_cmdf or []) and os.path.isfile(_OUTF), (_rcf, _errf))
+    check(f"d15_rendu_reel_{_rt}_x0_5_dure_4_s_et_100_images",
+          _rcf == 0 and _tem in FLAT(_cmdf or []) and _nbf == 100 and abs(_durf - 4.0) < 0.05,
           (_nbf, _durf))
 
 print(f"\n=== {ok} passed, {fail} failed ===")

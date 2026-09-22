@@ -862,11 +862,17 @@ def _dz_filter(dz: dict, w: int, h: int, fps: int, dur: float) -> str:
 # "nearest" (historique : fps= duplique ou saute, None) | "blend" (tblend
 # moyenne deux images voisines : flou de mouvement au ralenti, traîne à
 # l'accéléré) | "flow" (minterpolate à compensation de mouvement, LENT).
-# Sans vitesse, aucun sens : ignoré. MESURÉ le 22/09 : les deux passent en
-# aval d'un setpts et CHANGENT le nombre d'images → posés entre
-# `setpts=PTS/spd` et `fps={fps}`, le tpad/trim aval ramenant à seg_durs[k].
-_RETIME = {"blend": "tblend=all_mode=average",
-           "flow": "minterpolate=fps={fps}:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1:scd=none"}
+# Sans vitesse, aucun sens : ignoré. MESURÉ le 22/09 (revue) : `flow` va
+# AVANT `fps=` (minterpolate fabrique ses images à la cadence demandée) ;
+# `blend` va APRÈS `fps=` — posé avant, à ×0,5, tblend donne (A+B)/2,(A+B)/2,
+# (B+C)/2… (tout flou, aucune intermédiaire) ; après : A,(A+B)/2,B,(B+C)/2…
+# = le Frame Blend de Resolve. tblend CONSOMME la première image (sortie à
+# partir de pts 1/fps : 49 images sur 50, mesuré) et le trim aval coupait
+# le segment d'une image (99 / 3,960 s) → setpts=PTS-STARTPTS juste après
+# rebase à 0, le tpad aval clone la dernière (100 / 4,000 s mesurés). scd au
+# défaut ffmpeg (fdiff) : scd=none interpolerait à travers une coupe interne.
+_RETIME = {"blend": "tblend=all_mode=average,setpts=PTS-STARTPTS",
+           "flow": "minterpolate=fps={fps}:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1"}
 
 
 def _v1_retime(c: dict) -> str | None:
@@ -2170,10 +2176,11 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     dupliquée) et AVANT `format=yuv420p` ; le temps est `it` borné à la durée
     du segment, tpad/trim/xfade en aval ne voient aucune différence.
     D-15 : `retime` sur v1 ("blend" | "flow", None = inchangé) — n'a de sens
-    qu'AVEC `speed` : le fragment `_RETIME[retime]` (tblend moyenne, ou
-    minterpolate mci à la cadence du canvas) est posé ENTRE `setpts=PTS/speed`
-    et `fps={fps}` — il change le compte d'images, fps= le rematérialise et
-    tpad/trim ramènent à seg_durs[k]. Sans vitesse : ignoré, chaîne historique.
+    qu'AVEC `speed`. Ordre : setpts → [minterpolate] → fps → [tblend] →
+    [zoompan] → format. `flow` (minterpolate mci à la cadence du canvas) va
+    AVANT `fps=` ; `blend` (tblend moyenne) va APRÈS `fps=`, sur le flux déjà
+    rematérialisé (A,(A+B)/2,B,… = Frame Blend) ; tpad/trim ramènent à
+    seg_durs[k]. Sans vitesse : ignoré, chaîne historique.
     S1 : `subs_ass` = chemin d'un fichier ASS déjà écrit (piste de
     sous-titres). Il devient le DERNIER maillon de la chaîne vidéo, juste
     avant `format=yuv420p` : le texte passe donc au-dessus des overlays V2 et
@@ -2278,15 +2285,15 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             dzf = s.get("dz")
             dzp = f",{_dz_filter(dzf, w, h, fps, seg_durs[k])}" if isinstance(dzf, dict) else ""
             if spd:
-                # D-15 : retime blend|flow — fragment posé ENTRE setpts et
-                # fps (il change le compte d'images, fps= le rematérialise).
+                # D-15 : retime — `flow` (minterpolate) AVANT fps=, `blend`
+                # (tblend) APRÈS fps= et avant le zoompan (voir _RETIME).
                 # Sans `retime` connu : rtp vide, préfixe C4 historique.
                 rt = _v1_retime(s)
                 rtp = f",{_RETIME[rt].format(fps=fps)}" if rt else ""
                 pre = (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
                        f"crop={w}:{h},setsar=1,"
-                       f"setpts=PTS/{sfx_service.fnum(spd)}{rtp},"
-                       f"fps={fps}{dzp},format=yuv420p")
+                       f"setpts=PTS/{sfx_service.fnum(spd)}{rtp if rt == 'flow' else ''},"
+                       f"fps={fps}{rtp if rt == 'blend' else ''}{dzp},format=yuv420p")
             else:
                 pre = sf if not dzp else (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
                                           f"crop={w}:{h},setsar=1,fps={fps}{dzp},format=yuv420p")
@@ -2994,6 +3001,9 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                                 f"{c.get('label') or c.get('src')}")
                     return
                 sdur = await loop.run_in_executor(None, _probe_duration, p)
+                if _v1_retime(c) == "flow":
+                    logger.info(f"montage: retime flow (minterpolate mci, LENT) — "
+                                f"{c.get('label') or c.get('src')}")
                 v1.append({"path": p, "src_dur": sdur or 9999.0,
                            "src_in": max(0.0, float(c.get("srcIn") or 0)),
                            "start": float(c.get("start") or 0),
