@@ -1277,6 +1277,7 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
 .dzsvm .dzm-plan-t{font-family:var(--f-mono);font-size:10px;color:var(--ink2);text-transform:uppercase;letter-spacing:.06em;margin:6px 0 2px}
 .dzsvm .dzm-plan-hint{font-family:var(--f-mono);font-size:10px;color:var(--ink2)}
 .dzsvm .dzm-dzwrap{position:absolute;inset:0;pointer-events:none}
+.dzsvm .svm-live>.svm-livemedia{transform-origin:0 0}
 .dzsvm .dzm-dzrect{position:absolute;box-sizing:border-box;border:2px solid #3fbf5a;pointer-events:auto;cursor:move;touch-action:none}
 .dzsvm .dzm-dzrect[data-k="fin"]{border-color:#e0453f}
 .dzsvm .dzm-dzlab{position:absolute;left:0;top:0;font:10px var(--f-mono);color:#fff;background:rgba(0,0,0,.6);padding:0 4px;pointer-events:none}

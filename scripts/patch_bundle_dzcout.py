@@ -287,7 +287,9 @@ STABLE_PROBES = [
     # payload (DZ4, `dzOf(`). Le repli `dzPlanSet` (R_M16REF) n en ajoute
     # aucune. MESURE : la chaine a refuse, « sonde montage x104 (want 99) »,
     # avant cette ligne.
-    ("montage", "DzTracks", 104),
+    # 22/09/2026, revue de D-13 : 104 -> 103. DZ3 appelle `dzCss(c.dz,u)`
+    # directement (rend "" sur absent/invalide) : plus de `dzOf(` la.
+    ("montage", "DzTracks", 103),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

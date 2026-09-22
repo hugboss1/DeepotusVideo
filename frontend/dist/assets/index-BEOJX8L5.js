@@ -1740,7 +1740,8 @@ function DzMontage(props){
      premier rendu). Même motif que durRef, juste au-dessus. */
   var dzTracksRef=x.useRef(null);dzTracksRef.current=svmTracksOf(proj);
   var dzPlanHist=x.useRef(0);
-  function dzPlanSet(patch,heavy){var id=selRef.current,now=Date.now();
+  function dzPlanSet(patch,heavy){var tl=trackStRef.current.v1;if(tl&&tl.l)return;
+    var id=selRef.current,now=Date.now();
     if(heavy||now-dzPlanHist.current>600)pushHistory();dzPlanHist.current=now;
     setClips(clipsRef.current.map(function(k){if(k.id!==id)return k;var nk=Object.assign({},k,patch);
       Object.keys(patch).forEach(function(q){if(patch[q]===void 0)delete nk[q]});return nk}));setDirty(!0)}
@@ -2517,9 +2518,10 @@ function DzMontage(props){
     if(lv&&c){
       lv._svmClip=c.id;
       /* D-13 : le zoom dynamique EN DIRECT -- meme geometrie que le zoompan
-         du rendu, sur la <video> active ; ecrit seulement s'il change */
-      var dzZ=DzTracks.dzOf(c),dzT=dzZ?DzTracks.dzCss(dzZ,(t-c.start)/Math.max(.04,c.end-c.start)):"";
-      if(lv.style.transform!==dzT){lv.style.transformOrigin="0 0";lv.style.transform=dzT}
+         du rendu, sur la <video> active ; ecrit seulement s'il change --
+         l'origine 0 0 est posee par la feuille (.svm-live>.svm-livemedia) */
+      var dzT=DzTracks.dzCss(c.dz,(t-c.start)/Math.max(.04,c.end-c.start));
+      if(lv.style.transform!==dzT)lv.style.transform=dzT;
       /* vitesse du clip V1 (C) : la source défile à vitesse × la timeline —
          le mapping tête→temps source ET le playbackRate suivent, l'aperçu
          est fidèle au rendu (clamp 0.25..4 : la plage HTMLMediaElement) */
@@ -5666,7 +5668,6 @@ function DzMontage(props){
             r.jsx("div",{className:"svm-tfbadge",ref:tfBadgeRef}),
             /* D-13 : les deux fenetres du zoom dynamique du clip V1 selectionne */
             sel&&sel.tr==="v1"&&sel.dz?r.jsx(DzTracks.DzRects,{dz:sel.dz,
-              box:(function(){var h=frameRef.current;return h?{w:h.clientWidth,h:h.clientHeight}:{w:1,h:1}})(),
               onChange:function(nd){dzPlanSet({dz:nd})}}):null]}):null,
           /* zones sûres (G) : tiers + centre + marges verticales 9:16 */
           safeOn?r.jsxs("div",{className:"svm-safe","aria-hidden":!0,children:[
@@ -18905,11 +18906,12 @@ function dzmDzNorm(raw){
   o.ease=raw.ease==="lin"?"lin":"doux";
   return o}
 function dzmDzOf(c){return c&&c.dz?dzmDzNorm(c.dz):null}
-function dzmDzAt(dz,u){
-  var d=dzmDzNorm(dz);if(!d)return {x:0,y:0,w:1};
+/* interpolation sur un `d` DEJA normalise (partagee par dzmDzAt et dzmDzCss) */
+function dzmDzAtN(d,u){
   u=Math.max(0,Math.min(1,Number(u)||0));
   if(d.ease!=="lin")u=u*u*(3-2*u);
   return {x:dzmDzR(d.x0+(d.x1-d.x0)*u),y:dzmDzR(d.y0+(d.y1-d.y0)*u),w:dzmDzR(d.w0+(d.w1-d.w0)*u)}}
+function dzmDzAt(dz,u){var d=dzmDzNorm(dz);return d?dzmDzAtN(d,u):{x:0,y:0,w:1}}
 function dzmDzPreset(name){
   if(name==="in")return dzmDzNorm({x0:0,y0:0,w0:1,x1:.2,y1:.2,w1:.6});
   if(name==="out")return dzmDzNorm({x0:.2,y0:.2,w0:.6,x1:0,y1:0,w1:1});
@@ -18929,11 +18931,12 @@ function dzmDzScale(dz,k,dw){
   return dzmDzNorm(o)||d}
 /* la transformation CSS de la <video> pour la fenêtre à u : scale = 1/w,
    puis translation de −x·s / −y·s (en % de la boîte de l'élément), origine
-   0 0 — l'appelant pose transformOrigin:"0 0". "" quand il n'y a pas de zoom.
+   0 0 — posée par la FEUILLE (`.svm-live>.svm-livemedia{transform-origin:0 0}`),
+   pas par l'appelant. "" quand il n'y a pas de zoom (dz absent ou invalide).
    UN SEUL arrondi (1e4) pour les trois nombres. */
 function dzmDzCss(dz,u){
   var d=dzmDzNorm(dz);if(!d)return "";
-  var r=dzmDzAt(d,u),s=1/r.w,f=function(v){return String(Math.round(v*1e4)/1e4)};
+  var r=dzmDzAtN(d,u),s=1/r.w,f=function(v){return String(Math.round(v*1e4)/1e4)};
   return "translate("+f(-r.x*s*100)+"%, "+f(-r.y*s*100)+"%) scale("+f(s)+")"}
 /* L'HÔTE DES PROPRIÉTÉS DE PLAN (D-13, puis D-15 et D-16) : UNE section de
    l'inspecteur, montée UNE fois (DZ1) sur un clip V1 réel. props : {clip,
@@ -18950,7 +18953,7 @@ function DzmPlanProps(o){
     onChange:function(e){cb(e.target.value)},children:opts.map(function(p){return r.jsx("option",{value:p[0],children:p[1]},p[0])})})};
   var kids=[row("Zoom dyn.",sel(dz?(dz.w1<dz.w0?"in":dz.w1>dz.w0?"out":"custom"):"off",
     [["off","aucun"],["in","zoom avant"],["out","zoom arrière"],["custom","personnalisé"]],
-    function(v){on({dz:v==="off"?void 0:v==="custom"?(dz||dzmDzPreset("in")):dzmDzPreset(v)},!0)},
+    function(v){if(v==="custom"&&dz)return;on({dz:v==="off"?void 0:v==="custom"?(dz||dzmDzPreset("in")):dzmDzPreset(v)},!0)},
     "Zoom dynamique : deux fenêtres, début (vert) et fin (rouge) du plan — glisser les rectangles dans le lecteur, le rendu interpole"),"dz")];
   if(dz){
     kids.push(row("Courbe",sel(dz.ease,[["doux","douce"],["lin","linéaire"]],function(v){on({dz:Object.assign({},dz,{ease:v})},!0)},"Interpolation du zoom"),"dz-ease"));
@@ -18960,20 +18963,27 @@ function DzmPlanProps(o){
     r.jsx("div",{className:"svm-props",children:kids})]})}
 /* LES DEUX RECTANGLES (vert = début, rouge = fin) dans le cadre du lecteur,
    en % du cadre — glisser le corps = déplacer, glisser le coin = échelle.
-   props : {dz, onChange(dz), box:{w,h} en px du cadre} ; le geste écoute la
-   FENÊTRE (la forme de la maison, comme la barre d'outils §4.2 — jamais de
-   capture sur l'élément) et rejoue l'état du pointerdown par les pures. */
+   props : {dz, onChange(dz)} ; le cadre est MESURÉ au pointerdown (la boîte
+   du wrap = le cadre, hors vzoom) ; le geste écoute la FENÊTRE (la forme de
+   la maison, comme la barre d'outils §4.2 — jamais de capture sur l'élément),
+   filtre son pointerId, coalesce par rAF (un setClips par image, pas par
+   événement) et rejoue l'état du pointerdown par les pures. */
 function DzmDzRects(o){
-  var dz=dzmDzNorm(o&&o.dz),on=typeof (o&&o.onChange)==="function"?o.onChange:function(){},box=(o&&o.box)||{w:1,h:1};
+  var dz=dzmDzNorm(o&&o.dz),on=typeof (o&&o.onChange)==="function"?o.onChange:function(){};
   if(!dz)return null;
   var mk=function(k){
     var s=k?"1":"0",x=dz["x"+s],y=dz["y"+s],w=dz["w"+s];
     var down=function(mode){return function(e){
-      var w=window,sx=e.clientX,sy=e.clientY,base=dz;
+      if(e.button)return;
+      var wrap=e.currentTarget.closest(".dzm-dzwrap"),bx=wrap?wrap.getBoundingClientRect():null;
+      if(!bx||bx.width<2)return;
+      var w=window,sx=e.clientX,sy=e.clientY,base=dz,pid=e.pointerId,last=null,raf=0;
       e.preventDefault();e.stopPropagation();
-      var mv=function(e2){var dx=(e2.clientX-sx)/Math.max(1,box.w),dy=(e2.clientY-sy)/Math.max(1,box.h);
-        on(mode==="move"?dzmDzMove(base,k,dx,dy):dzmDzScale(base,k,dx))};
-      var up=function(){w.removeEventListener("pointermove",mv);w.removeEventListener("pointerup",up);w.removeEventListener("pointercancel",up)};
+      var mv=function(e2){if(e2.pointerId!==pid)return;last=e2;
+        if(!raf)raf=requestAnimationFrame(function(){raf=0;var dx=(last.clientX-sx)/bx.width,dy=(last.clientY-sy)/bx.height;
+          on(mode==="move"?dzmDzMove(base,k,dx,dy):dzmDzScale(base,k,dx))})};
+      var up=function(e2){if(e2.pointerId!==pid)return;if(raf)cancelAnimationFrame(raf);raf=0;
+        w.removeEventListener("pointermove",mv);w.removeEventListener("pointerup",up);w.removeEventListener("pointercancel",up)};
       w.addEventListener("pointermove",mv);w.addEventListener("pointerup",up);w.addEventListener("pointercancel",up)}};
     return r.jsxs("div",{className:"dzm-dzrect","data-k":k?"fin":"debut",
       style:{left:(x*100)+"%",top:(y*100)+"%",width:(w*100)+"%",height:(w*100)+"%"},

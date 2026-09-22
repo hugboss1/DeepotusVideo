@@ -35,7 +35,7 @@ COMPTE DE REFERENCE, 22/09/2026 (lot L3, tache 2, D-13) : 1702 lignes,
 soit DIX-SEPT de plus que les 1685 de E-A : la section [D-13] en queue
 (HUIT pins : le repli dzPlanSet, l'hote et la tete `ph`, les rectangles dans
 .svm-tf, le direct hors R_V3, le payload, la couche, la feuille, la queue +
-la sonde 104) et les NEUF lignes que la boucle sur `P.PATCHES` emet seule
+la sonde 103 apres la revue) et les NEUF lignes que la boucle sur `P.PATCHES` emet seule
 pour DZ1..DZ4 (quatre `_remplace`, quatre `couche_ne_cite_pas_l_ancre_de_`,
 UN `_ancre_consommee` : seule DZ2 ne reprend pas son ancre). Le pin E4 sur
 la queue de PATCHES est REECRIT par position, sur place.
@@ -14825,12 +14825,14 @@ print("\n[D-13] le zoom dynamique : l'hote des proprietes de plan, les rectangle
 # .bak_montage) : UNE fonction pour l'hote ET les rectangles, une REF pour la
 # rafale d'historique (un `var` du corps serait recree a chaque rendu —
 # mesure : chaque `setClips` re-rend le composant). Temoin : 0 dans le .bak.
-_DZ_SET = "function dzPlanSet(patch,heavy){var id=selRef.current,now=Date.now();"
+_DZ_SET = "function dzPlanSet(patch,heavy){var tl=trackStRef.current.v1;if(tl&&tl.l)return;"
 _DZ_REF = "var dzPlanHist=x.useRef(0);"
 check("DZ_le_geste_dzPlanSet_et_sa_ref_sont_replies_dans_R_M16REF",
       _DZ_SET in P.R_M16REF and _DZ_REF in P.R_M16REF
       and s.count(_DZ_SET) == 1 and s.count(_DZ_REF) == 1
       and s.count("if(heavy||now-dzPlanHist.current>600)pushHistory();dzPlanHist.current=now;") == 1
+      and s.count("function dzPlanSet(patch,heavy){var tl=trackStRef.current.v1;if(tl&&tl.l)return;") == 1
+      and _bak.count("trackStRef.current.v2&&trackStRef.current.v2.l)return;") >= 1  # la forme de ovHandleDown
       and s.count("var dzPlanHist={") == 0
       and (_bak.count("dzPlanSet") == 0 and _bak.count("dzPlanHist") == 0 if _bak else False),
       f"set={s.count(_DZ_SET)} ref={s.count(_DZ_REF)} bak={_bak.count('dzPlanHist') if _bak else '?'}")
@@ -14855,7 +14857,8 @@ _dz_hdcss = _HDCSS if isinstance(_HDCSS, str) else ""   # deja le TEXTE de la fe
 check("DZ2_les_rectangles_vivent_dans_svm_tf_et_lisent_le_cadre",
       s.count(nl(_DZ_RECT)) == 1
       and s.count(nl('              onChange:function(nd){dzPlanSet({dz:nd})}}):null]}):null,')) == 1
-      and s.count("var h=frameRef.current;return h?{w:h.clientWidth,h:h.clientHeight}:{w:1,h:1}") == 1
+      and "box:" not in P.R_DZ2 and s.count("frameRef.current;return h?") == 0
+      and src.count('closest(".dzm-dzwrap")') == 1 and src.count("wrap.getBoundingClientRect()") == 1
       and _dz_hdcss.count(_DZ_TF) == 1
       and (_bak.count("DzTracks.DzRects") == 0 and _bak.count("dzm-dzrect") == 0 if _bak else False),
       f"rect={s.count(nl(_DZ_RECT))} tf={_dz_hdcss.count(_DZ_TF)} bak={_bak.count('DzTracks.DzRects') if _bak else '?'}")
@@ -14863,10 +14866,11 @@ check("DZ2_les_rectangles_vivent_dans_svm_tf_et_lisent_le_cadre",
 # (1/1 dans le .bak), PAS un repli dans R_V3 : en tete de liveSync ni la
 # <video> ni le clip actif ne sont connus. La transformation n'est ecrite
 # que si elle change ; l'origine est 0 0.
-_DZ_LIVE = 'var dzZ=DzTracks.dzOf(c),dzT=dzZ?DzTracks.dzCss(dzZ,(t-c.start)/Math.max(.04,c.end-c.start)):"";'
+_DZ_LIVE = 'var dzT=DzTracks.dzCss(c.dz,(t-c.start)/Math.max(.04,c.end-c.start));'
 check("DZ3_le_zoom_en_direct_ecrit_la_video_active_hors_R_V3",
       s.count(_DZ_LIVE) == 1 and s.count("DzTracks.dzCss(") == 1
-      and s.count('if(lv.style.transform!==dzT){lv.style.transformOrigin="0 0";lv.style.transform=dzT}') == 1
+      and s.count("if(lv.style.transform!==dzT)lv.style.transform=dzT;") == 1
+      and s.count("transformOrigin") == _bak.count("transformOrigin")  # l'origine vient de la feuille
       and "dzCss" not in P.R_V3 and "dzOf" not in P.R_V3
       and (_bak.count("      lv._svmClip=c.id;") == 1 and _bak.count("DzTracks.dzCss(") == 0 if _bak else False),
       f"live={s.count(_DZ_LIVE)} css={s.count('DzTracks.dzCss(')} v3={'dzCss' in P.R_V3}")
@@ -14883,6 +14887,7 @@ check("DZ4_le_payload_joint_dz_seulement_s_il_existe",
 # LA COUCHE PORTE LES SEPT PURES, LES DEUX COMPOSANTS ET LES NEUF EXPORTS ;
 # le geste des rectangles ecoute la FENETRE (la forme de la maison — le pin
 # tb_d de la barre exige deja `.setPointerCapture(` = 0 sur toute la couche).
+_DZ_RECTS = src[src.find("function DzmDzRects(o){"):src.find("var DzTracks={")]
 _DZ_EXP = ("dzNorm:dzmDzNorm,", "dzOf:dzmDzOf,", "dzAt:dzmDzAt,", "dzPreset:dzmDzPreset,",
            "dzMove:dzmDzMove,", "dzScale:dzmDzScale,", "dzCss:dzmDzCss,",
            "PlanProps:DzmPlanProps,", "DzRects:DzmDzRects,")
@@ -14891,29 +14896,36 @@ check("DZ_la_couche_porte_les_pures_les_composants_et_les_exports",
       and all(src.count(t) == 1 for t in ("function dzmDzNorm(raw){", "function dzmDzAt(dz,u){",
                                            "function dzmDzCss(dz,u){", "function DzmPlanProps(o){",
                                            "function DzmDzRects(o){"))
-      and src.count("var w=window,sx=e.clientX,sy=e.clientY,base=dz;") == 1
-      and src.count('w.addEventListener("pointercancel",up)') >= 1
+      and src.count("var w=window,sx=e.clientX,sy=e.clientY,base=dz,pid=e.pointerId,last=null,raf=0;") == 1
+      and _DZ_RECTS.count('w.addEventListener("pointercancel",up)') == 1  # (la barre en a un aussi : compte dans le corps)
+      and _DZ_RECTS.count("requestAnimationFrame(") == 1 and _DZ_RECTS.count("cancelAnimationFrame(raf)") == 1
+      and _DZ_RECTS.count("if(e.button)return;") == 1 and _DZ_RECTS.count("if(e2.pointerId!==pid)return;") == 2
+      and _DZ_RECTS.count("if(!bx||bx.width<2)return;") == 1
+      and src.count('if(v==="custom"&&dz)return;') == 1
+      and src.count("function dzmDzAtN(d,u){") == 1 and src.count("dzmDzAtN(d,u)") == 3
       and src.count("if(o.x0===0&&o.y0===0&&o.x1===0&&o.y1===0&&o.w0>=1&&o.w1>=1)return null;") == 1,
       f"exports={[src.count(t) for t in _DZ_EXP]} fenetre={src.count('var w=window,sx=e.clientX')}")
 _DZ_CSS = CSS.read_text(encoding="utf-8")
 check("DZ_la_feuille_porte_les_rectangles_et_l_hote",
       all(_DZ_CSS.count(t) == 1 for t in (".dzsvm .dzm-plan{", ".dzsvm .dzm-plan-t{", ".dzsvm .dzm-plan-hint{",
                                           ".dzsvm .dzm-dzwrap{position:absolute;inset:0;pointer-events:none}",
+                                          ".dzsvm .svm-live>.svm-livemedia{transform-origin:0 0}",
                                           '.dzsvm .dzm-dzrect[data-k="fin"]{border-color:#e0453f}',
                                           ".dzsvm .dzm-dzlab{", ".dzsvm .dzm-dzh{"))
       and _DZ_CSS.count("pointer-events:auto;cursor:move;touch-action:none}") == 1,
       f"wrap={_DZ_CSS.count('.dzsvm .dzm-dzwrap{')} rect={_DZ_CSS.count('.dzsvm .dzm-dzrect{')}")
 # LE PATCHER PORTE LES QUATRE SECTIONS EN QUEUE, APRES EA6, ancres 1/1 dans
 # le .bak (la boucle du haut mesure aussi ; ceci fixe l'ORDRE), et la sonde
-# de dzcout dit 104 (99 + PlanProps + DzRects + dzOf + dzCss + dzOf).
+# de dzcout dit 103 (99 + PlanProps + DzRects + dzCss + dzOf ; revue :
+# DZ3 appelle dzCss directement, plus de dzOf la).
 _DZ_TAGS = [t for t, _a, _r in P.PATCHES]
 _DZ_I = _DZ_TAGS.index("EA6-bandeau-ferme-au-lancement")
-check("DZ_le_patcher_porte_les_quatre_sections_en_queue_apres_EA6_et_la_sonde_dit_104",
+check("DZ_le_patcher_porte_les_quatre_sections_en_queue_apres_EA6_et_la_sonde_dit_103",
       [t.split("-")[0] for t in _DZ_TAGS[_DZ_I + 1:]] == ["DZ1", "DZ2", "DZ3", "DZ4"]
       and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
               and s.count(nl(a)) == (1 if a in r else 0)
               for _t, a, r in P.PATCHES[_DZ_I + 1:])
-      and _sonde.get("montage") == 104 and s.count("DzTracks") == 104
+      and _sonde.get("montage") == 103 and s.count("DzTracks") == 103
       if _bak else False,
       f"queue={_DZ_TAGS[_DZ_I + 1:]} sonde={_sonde.get('montage')} bundle={s.count('DzTracks')}")
 

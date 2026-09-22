@@ -1000,9 +1000,12 @@ R_M16REF = (A_M16REF + "\n"
             # retirees, UNE entree d'historique par rafale de 600 ms (un
             # glisser = un « Annuler »), `heavy` force l'entree (un select).
             # La date de la rafale est une REF : un `var` du corps serait
-            # recree a chaque rendu et chaque `setClips` re-rend.
+            # recree a chaque rendu et chaque `setClips` re-rend. La piste
+            # VERROUILLEE refuse (forme de `ovHandleDown` ; l'hote et les
+            # rectangles ne se montent que sur v1).
             "  var dzPlanHist=x.useRef(0);\n"
-            "  function dzPlanSet(patch,heavy){var id=selRef.current,now=Date.now();\n"
+            "  function dzPlanSet(patch,heavy){var tl=trackStRef.current.v1;if(tl&&tl.l)return;\n"
+            "    var id=selRef.current,now=Date.now();\n"
             "    if(heavy||now-dzPlanHist.current>600)pushHistory();dzPlanHist.current=now;\n"
             "    setClips(clipsRef.current.map(function(k){if(k.id!==id)return k;var nk=Object.assign({},k,patch);\n"
             "      Object.keys(patch).forEach(function(q){if(patch[q]===void 0)delete nk[q]});return nk}));setDirty(!0)}\n"
@@ -3922,7 +3925,7 @@ R_EA6 = A_EA6 + 'setDzFin(null);'
 #     z-index:3, hors vzoom -- mesure de la feuille du bundle) et non apres :
 #     pose apres, `.dzm-dzwrap` aurait ete recouvert par les hotes `.svm-live`
 #     (transform => contexte d'empilement) et les % auraient ete ceux du cadre
-#     de toute facon. `box` lit `frameRef` (le cadre), meme taille que .svm-tf.
+#     de toute facon ; le cadre est mesure au pointerdown depuis le wrap.
 A_DZ1 = "        ovInspector(),"
 R_DZ1 = ('        /* D-13 : les proprietes de plan (clip V1 reel seulement) */\n'
          '        sel&&sel.tr==="v1"&&sel.src&&sel.src.job_id?r.jsx(DzTracks.PlanProps,{clip:sel,\n'
@@ -3933,14 +3936,14 @@ A_DZ2 = '            r.jsx("div",{className:"svm-tfbadge",ref:tfBadgeRef})]}):nu
 R_DZ2 = ('            r.jsx("div",{className:"svm-tfbadge",ref:tfBadgeRef}),\n'
          '            /* D-13 : les deux fenetres du zoom dynamique du clip V1 selectionne */\n'
          '            sel&&sel.tr==="v1"&&sel.dz?r.jsx(DzTracks.DzRects,{dz:sel.dz,\n'
-         '              box:(function(){var h=frameRef.current;return h?{w:h.clientWidth,h:h.clientHeight}:{w:1,h:1}})(),\n'
          '              onChange:function(nd){dzPlanSet({dz:nd})}}):null]}):null,')
 A_DZ3 = "      lv._svmClip=c.id;"
 R_DZ3 = (A_DZ3 + "\n"
          "      /* D-13 : le zoom dynamique EN DIRECT -- meme geometrie que le zoompan\n"
-         "         du rendu, sur la <video> active ; ecrit seulement s'il change */\n"
-         '      var dzZ=DzTracks.dzOf(c),dzT=dzZ?DzTracks.dzCss(dzZ,(t-c.start)/Math.max(.04,c.end-c.start)):"";\n'
-         '      if(lv.style.transform!==dzT){lv.style.transformOrigin="0 0";lv.style.transform=dzT}')
+         "         du rendu, sur la <video> active ; ecrit seulement s'il change --\n"
+         "         l'origine 0 0 est posee par la feuille (.svm-live>.svm-livemedia) */\n"
+         '      var dzT=DzTracks.dzCss(c.dz,(t-c.start)/Math.max(.04,c.end-c.start));\n'
+         '      if(lv.style.transform!==dzT)lv.style.transform=dzT;')
 A_DZ4 = "           Math.abs(c.speed-1)>1e-6)o.speed=Math.round(c.speed*100)/100;"
 R_DZ4 = (A_DZ4 + "\n"
          "        /* D-13 : le zoom dynamique -- joint seulement s'il existe (payload d'avant sinon) */\n"
