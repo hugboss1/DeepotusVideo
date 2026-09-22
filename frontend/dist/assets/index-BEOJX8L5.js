@@ -4449,6 +4449,8 @@ function DzMontage(props){
            Math.abs(c.speed-1)>1e-6)o.speed=Math.round(c.speed*100)/100;
         /* D-13 : le zoom dynamique -- joint seulement s'il existe (payload d'avant sinon) */
         var dzD=c.tr==="v1"&&DzTracks.dzOf(c);if(dzD)o.dz=dzD;
+        /* D-15 : l'interpolation du retime -- jointe seulement avec une vitesse */
+        var rtD=o.speed&&DzTracks.retimeOf(c);if(rtD)o.retime=rtD;
         /* mixage par clip (pistes audio) — joint seulement si non nul :
            un projet sans réglage envoie exactement le payload d'avant */
         if(trackKind(c.tr)==="audio"){
@@ -5876,6 +5878,11 @@ function DzMontage(props){
         /* D-13 : les proprietes de plan (clip V1 reel seulement) */
         sel&&sel.tr==="v1"&&sel.src&&sel.src.job_id?r.jsx(DzTracks.PlanProps,{clip:sel,
           u:sel.end>sel.start?Math.max(0,Math.min(1,(ph-sel.start)/(sel.end-sel.start))):0,
+          speed:svmSpeedOf(sel),head:ph,
+          onRampe:function(t,sL,sR){var tl=trackStRef.current.v1;if(tl&&tl.l){fireNote("Piste V1 verrouillée — division bloquée.");return}
+            var res=DzTracks.rampe(clipsRef.current,selRef.current,t,sL,sR);
+            if(res.refus){fireNote(res.refus==="bord"?"Trop près d'un bord (0,3 s)":"Impossible de diviser ici");return}
+            pushHistory();setClips(res.clips);setSelId(res.right);setDirty(!0)},
           onChange:dzPlanSet}):null,
         ovInspector(),
         audioInspector(),
@@ -18938,15 +18945,43 @@ function dzmDzCss(dz,u){
   var d=dzmDzNorm(dz);if(!d)return "";
   var r=dzmDzAtN(d,u),s=1/r.w,f=function(v){return String(Math.round(v*1e4)/1e4)};
   return "translate("+f(-r.x*s*100)+"%, "+f(-r.y*s*100)+"%) scale("+f(s)+")"}
+/* ── D-15 (22/09/2026) : INTERPOLATION ET RAMPE ───────────────────────────
+   `retime` = "blend" | "flow" (nearest = absent, l'historique) ; le backend
+   ne le lit qu'avec une vitesse ≠ 1. La RAMPE de Resolve devient « diviser
+   à t puis deux vitesses » : MÊME règle que dzmCarve pour la partie droite
+   (srcIn + (t − start) · ancienne vitesse, identifiant libre par dzmFreeId),
+   la droite perd sa transition d'entrée (elle est au milieu du plan). Bornes
+   0,3 s aux deux bords. Rend {clips, left, right, refus:""|"clip"|"hors"|"bord"}. */
+function dzmRetimeOf(c){var v=c&&c.retime;return v==="blend"||v==="flow"?v:null}
+function dzmRampe(clips,id,t,spdL,spdR){
+  var cs=Array.isArray(clips)?clips:[],c=cs.filter(function(k){return k&&k.id===id})[0],ko=function(m){return {clips:cs,left:null,right:null,refus:m}};
+  if(!c)return ko("clip");
+  t=Number(t);var s=Number(c.start)||0,e=Number(c.end)||0;
+  if(!(t>s&&t<e))return ko("hors");
+  if(t-s<.3||e-t<.3)return ko("bord");
+  var cl=function(v){v=Number(v);return v>0?Math.max(.25,Math.min(4,Math.round(v*100)/100)):1},sp=dzmSpeedNum(c);
+  var L=Object.assign({},c,{end:dzmR3(t)}),R=Object.assign({},c,{id:dzmFreeId(dzmTaken(cs),c.id),start:dzmR3(t)});
+  if(c.srcIn!=null||c.src)R.srcIn=dzmR3((Number(c.srcIn)||0)+(t-s)*sp);
+  if(cl(spdL)===1)delete L.speed;else L.speed=cl(spdL);
+  if(cl(spdR)===1)delete R.speed;else R.speed=cl(spdR);
+  delete R.transition;delete R.transition_s;
+  var out=[];cs.forEach(function(k){out.push(k===c?L:k);if(k===c)out.push(R)});
+  return {clips:out,left:L.id,right:R.id,refus:""}}
 /* L'HÔTE DES PROPRIÉTÉS DE PLAN (D-13, puis D-15 et D-16) : UNE section de
    l'inspecteur, montée UNE fois (DZ1) sur un clip V1 réel. props : {clip,
-   u (avancement 0..1 de la tête dans le clip), onChange(patch, heavy)} —
-   `onChange` reçoit un patch de clip ({dz:…} ou {dz:void 0}) et l'appelant
-   écrit l'historique. `r` n'est lu qu'à l'appel, comme DzmTitleInspector. */
+   u (avancement 0..1 de la tête dans le clip), speed (vitesse du clip),
+   head (tête de lecture, s), onChange(patch, heavy), onRampe(t, spdL, spdR)}
+   — `onChange` reçoit un patch de clip ({dz:…} ou {dz:void 0}) et l'appelant
+   écrit l'historique. `r` n'est lu qu'à l'appel, comme DzmTitleInspector.
+   Le useState de la rampe vient APRÈS la garde `!c` : l'hôte n'est monté
+   qu'avec un clip (DZ1), l'ordre des hooks est donc stable — et sans clip
+   le composant rend null sans toucher `x` (banc). */
 function DzmPlanProps(o){
   var c=o&&o.clip,on=typeof (o&&o.onChange)==="function"?o.onChange:function(){};
   if(!c)return null;
-  var dz=dzmDzOf(c);
+  var st=x.useState(2),rampSpd=st[0],setRampSpd=st[1];
+  var dz=dzmDzOf(c),spd=Number(o.speed)||1,rt=dzmRetimeOf(c),head=Number(o.head);
+  var inClip=isFinite(head)&&head-c.start>=.3&&c.end-head>=.3;
   var row=function(label,kids,key){return r.jsxs("div",{className:"svm-prop dzm-plan-row",children:[
     r.jsx("div",{className:"svm-propk",children:label}),r.jsx("div",{className:"svm-propv",children:kids})]},key)};
   var sel=function(cur,opts,cb,title){return r.jsx("select",{className:"svm-vitsel",value:cur,title:title,
@@ -18959,6 +18994,17 @@ function DzmPlanProps(o){
     kids.push(row("Courbe",sel(dz.ease,[["doux","douce"],["lin","linéaire"]],function(v){on({dz:Object.assign({},dz,{ease:v})},!0)},"Interpolation du zoom"),"dz-ease"));
     kids.push(row("Fenêtres",r.jsx("span",{className:"dzm-plan-hint",
       children:"début "+Math.round(dz.w0*100)+" % · fin "+Math.round(dz.w1*100)+" %"}),"dz-w"))}
+  /* D-15 : l'interpolation du retime (sans effet à 100 %, le backend ne la lit qu'avec une vitesse) */
+  kids.push(row("Interpolation",sel(rt||"nearest",[["nearest","image voisine"],["blend","fondu d'images"],["flow","flux optique (lent)"]],
+    function(v){on({retime:v==="nearest"?void 0:v},!0)},
+    spd===1?"Sans effet à 100 % — change d'abord la vitesse":"Qualité du retime (D-15) : fondu = flou de mouvement, flux optique = images intermédiaires calculées"),"rt"));
+  /* D-15 : la rampe = diviser à la tête, la partie droite à la vitesse choisie */
+  kids.push(row("Rampe",r.jsxs("span",{className:"dzm-plan-hint",children:[
+    r.jsx("button",{className:"svm-minibtn",disabled:!inClip,
+      title:inClip?"Diviser le plan à la tête : la partie gauche garde sa vitesse, la droite passe à la vitesse choisie":"Placer la tête à 0,3 s au moins des deux bords du plan",
+      onClick:function(){if(typeof o.onRampe==="function")o.onRampe(head,spd,rampSpd)},children:"Diviser à la tête →"}),
+    sel(String(rampSpd),[["0.5","50 %"],["0.75","75 %"],["1","100 %"],["1.5","150 %"],["2","200 %"],["3","300 %"]],
+      function(v){setRampSpd(Number(v))},"Vitesse de la partie droite")]}),"rampe"));
   return r.jsxs("div",{className:"dzm-plan",children:[r.jsx("div",{className:"dzm-plan-t",children:"Propriétés du plan"}),
     r.jsx("div",{className:"svm-props",children:kids})]})}
 /* LES DEUX RECTANGLES (vert = début, rouge = fin) dans le cadre du lecteur,
@@ -19075,6 +19121,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   publishDefaults:dzmPublishDefaults,FinBandeau:DzmFinBandeau,CHANNELS:DZM_CHANNELS,
   dzNorm:dzmDzNorm,dzOf:dzmDzOf,dzAt:dzmDzAt,dzPreset:dzmDzPreset,dzMove:dzmDzMove,
   dzScale:dzmDzScale,dzCss:dzmDzCss,PlanProps:DzmPlanProps,DzRects:DzmDzRects,
+  retimeOf:dzmRetimeOf,rampe:dzmRampe,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;
 

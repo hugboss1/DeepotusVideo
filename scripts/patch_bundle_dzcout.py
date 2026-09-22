@@ -289,7 +289,11 @@ STABLE_PROBES = [
     # avant cette ligne.
     # 22/09/2026, revue de D-13 : 104 -> 103. DZ3 appelle `dzCss(c.dz,u)`
     # directement (rend "" sur absent/invalide) : plus de `dzOf(` la.
-    ("montage", "DzTracks", 103),
+    # 22/09/2026, D-15 (lot L3, tache 4) : 103 -> 105. DEUX de plus, sans
+    # section neuve : la rampe dans DZ1 (`rampe(`) et l interpolation dans le
+    # payload DZ4 (`retimeOf(`, UNE occurrence via `rtD`). MESURE : la chaine
+    # a refuse, « sonde montage x105 (want 103) », avant cette ligne.
+    ("montage", "DzTracks", 105),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

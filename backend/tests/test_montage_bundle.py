@@ -31,7 +31,14 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 22/09/2026 (lot L3, tache 2, D-13) : 1702 lignes,
+COMPTE DE REFERENCE, 22/09/2026 (lot L3, tache 4, D-15) : 1705 lignes,
+soit TROIS de plus que les 1702 de D-13 : la section [D-15] en queue (TROIS
+pins : l'hote recoit vitesse et tete + la rampe sur les refs, le payload
+`retime` seulement avec une vitesse, la couche) -- AUCUNE ligne generique
+de la boucle : D-15 etend R_DZ1 et R_DZ4 sans section ni ancre neuve ; la
+sonde passe a 105 (rampe + retimeOf) et le pin DZ de la queue est reecrit.
+
+COMPTE PRECEDENT, 22/09/2026 (lot L3, tache 2, D-13) : 1702 lignes,
 soit DIX-SEPT de plus que les 1685 de E-A : la section [D-13] en queue
 (HUIT pins : le repli dzPlanSet, l'hote et la tete `ph`, les rectangles dans
 .svm-tf, le direct hors R_V3, le payload, la couche, la feuille, la queue +
@@ -14916,18 +14923,64 @@ check("DZ_la_feuille_porte_les_rectangles_et_l_hote",
       f"wrap={_DZ_CSS.count('.dzsvm .dzm-dzwrap{')} rect={_DZ_CSS.count('.dzsvm .dzm-dzrect{')}")
 # LE PATCHER PORTE LES QUATRE SECTIONS EN QUEUE, APRES EA6, ancres 1/1 dans
 # le .bak (la boucle du haut mesure aussi ; ceci fixe l'ORDRE), et la sonde
-# de dzcout dit 103 (99 + PlanProps + DzRects + dzCss + dzOf ; revue :
-# DZ3 appelle dzCss directement, plus de dzOf la).
+# de dzcout dit 105 (99 + PlanProps + DzRects + dzCss + dzOf ; revue :
+# DZ3 appelle dzCss directement, plus de dzOf la ; D-15 : + rampe dans DZ1
+# + retimeOf dans DZ4 -- AUCUNE section neuve, la queue reste DZ1..DZ4).
 _DZ_TAGS = [t for t, _a, _r in P.PATCHES]
 _DZ_I = _DZ_TAGS.index("EA6-bandeau-ferme-au-lancement")
-check("DZ_le_patcher_porte_les_quatre_sections_en_queue_apres_EA6_et_la_sonde_dit_103",
+check("DZ_le_patcher_porte_les_quatre_sections_en_queue_apres_EA6_et_la_sonde_dit_105",
       [t.split("-")[0] for t in _DZ_TAGS[_DZ_I + 1:]] == ["DZ1", "DZ2", "DZ3", "DZ4"]
       and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
               and s.count(nl(a)) == (1 if a in r else 0)
               for _t, a, r in P.PATCHES[_DZ_I + 1:])
-      and _sonde.get("montage") == 103 and s.count("DzTracks") == 103
+      and _sonde.get("montage") == 105 and s.count("DzTracks") == 105
       if _bak else False,
       f"queue={_DZ_TAGS[_DZ_I + 1:]} sonde={_sonde.get('montage')} bundle={s.count('DzTracks')}")
+
+# ══════════════════════════════════════════════════════════════════════════
+print("\n[D-15] l'interpolation dans l'hote et la rampe par division")
+# L'HOTE RECOIT LA VITESSE ET LA TETE (R_DZ1 etendu, PAS d'ancre neuve) ; la
+# rampe fend a la tete par DzTracks.rampe sur les refs, refuse la piste
+# verrouillee (forme de svmSetV1Speed), UNE entree d'historique, selectionne
+# la partie droite par setSelId (la forme d'addAsset : `setSelId(id);setDirty(!0)`).
+# Temoins : le .bak ne connait ni onRampe, ni rampe(, ni la note de division.
+_RT_RAMPE = "var res=DzTracks.rampe(clipsRef.current,selRef.current,t,sL,sR);"
+check("RT1_l_hote_recoit_vitesse_et_tete_et_la_rampe_fend_sur_les_refs",
+      s.count("speed:svmSpeedOf(sel),head:ph,") == 1 and s.count("onRampe:function(t,sL,sR){") == 1
+      and s.count(_RT_RAMPE) == 1 and s.count("DzTracks.rampe(") == 1
+      and s.count('if(res.refus){fireNote(res.refus==="bord"?"Trop près d\'un bord (0,3 s)":"Impossible de diviser ici");return}') == 1
+      and s.count("pushHistory();setClips(res.clips);setSelId(res.right);setDirty(!0)") == 1
+      and s.count('fireNote("Piste V1 verrouillée — division bloquée.")') == 1
+      and _bak.count("setSelId(id);setDirty(!0)") >= 1  # la forme de la selection
+      and s.count(nl("          onChange:dzPlanSet}):null,\n        ovInspector(),")) == 1  # DZ1 finit comme avant
+      and (_bak.count("onRampe") == 0 and _bak.count("DzTracks.rampe(") == 0
+           and _bak.count("division bloquée") == 0 and _bak.count("speed:svmSpeedOf(sel)") == 0 if _bak else False),
+      f"speed={s.count('speed:svmSpeedOf(sel),head:ph,')} rampe={s.count('DzTracks.rampe(')} bak={_bak.count('onRampe') if _bak else '?'}")
+# LE PAYLOAD JOINT `retime` SEULEMENT AVEC UNE VITESSE (R_DZ4 etendu) :
+# `o.speed` n'est pose que sur un V1 reel a vitesse != 1 (ligne d'ancre) ;
+# UNE occurrence de `retimeOf(` (via rtD) -- la sonde compte chaque jeton.
+check("RT2_le_payload_joint_retime_seulement_avec_une_vitesse",
+      s.count("var rtD=o.speed&&DzTracks.retimeOf(c);if(rtD)o.retime=rtD;") == 1
+      and s.count("o.retime=") == 1 and s.count("DzTracks.retimeOf(") == 1
+      # `if(c.tr==="v2"){` est CONSOMMEE par M25c (isOverlayTrack) : l'ordre se mesure sur le mixage audio qui suit
+      and 0 < s.find("if(dzD)o.dz=dzD;") < s.find("var rtD=o.speed&&") < s.find('        if(trackKind(c.tr)==="audio"){')
+      and (_bak.count("o.retime=") == 0 and _bak.count("retimeOf") == 0 if _bak else False),
+      f"retime={s.count('o.retime=')} retimeOf={s.count('DzTracks.retimeOf(')} bak={_bak.count('retimeOf') if _bak else '?'}")
+# LA COUCHE PORTE LES DEUX PURES, LES DEUX EXPORTS ET LES DEUX RANGEES ; le
+# useState de la rampe vient APRES la garde `!c` (sans clip, `x` n'est pas lu).
+_RT_HOTE = src[src.find("function DzmPlanProps(o){"):src.find("function DzmDzRects(o){")]
+check("RT_la_couche_porte_retimeOf_rampe_les_exports_et_les_deux_rangees",
+      src.count("function dzmRetimeOf(c){") == 1 and src.count("function dzmRampe(clips,id,t,spdL,spdR){") == 1
+      and src.count("retimeOf:dzmRetimeOf,") == 1 and src.count("rampe:dzmRampe,") == 1
+      and _RT_HOTE.count('row("Interpolation",') == 1 and _RT_HOTE.count('row("Rampe",') == 1
+      and _RT_HOTE.count('children:"Diviser à la tête →"') == 1
+      and _RT_HOTE.count("o.onRampe(head,spd,rampSpd)") == 1
+      and _RT_HOTE.count('"Sans effet à 100 % — change d\'abord la vitesse"') == 1
+      and _RT_HOTE.find("if(!c)return null;") < _RT_HOTE.find("x.useState(2)") and _RT_HOTE.count("x.useState(") == 1
+      and src.count("R.srcIn=dzmR3((Number(c.srcIn)||0)+(t-s)*sp);") == 1  # la regle de dzmCarve
+      and src.count("delete R.transition;delete R.transition_s;") == 1
+      and src.count("Date.now().toString(36)") == 0,  # l'identifiant vient de dzmFreeId, pas de l'horloge
+      f"pures={src.count('function dzmRampe(')} rangees={_RT_HOTE.count('row(\"Interpolation\",')}/{_RT_HOTE.count('row(\"Rampe\",')}")
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

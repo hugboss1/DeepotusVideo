@@ -605,6 +605,16 @@ out.dz_pur=JSON.stringify(DZ1)==='{"x0":0,"y0":0,"w0":1,"x1":0.2,"y1":0.2,"w1":0
    pas lu) ; PlanProps avec un clip touche `r` -> le shim strict leve */
 out.dz_comp=[typeof T.PlanProps,typeof T.DzRects,T.PlanProps({clip:null}),T.DzRects({dz:null}),
   (function(){try{T.PlanProps({clip:{id:"c",tr:"v1"}});return "rendu"}catch(e){return "leve"}})()];
+/* [15] D-15 : interpolation et rampe de vitesse (client) */
+out.rt_of=[T.retimeOf({retime:"flow"}),T.retimeOf({retime:"blend"}),T.retimeOf({retime:"nearest"}),T.retimeOf({}),T.retimeOf({retime:9})];
+var RC=[{id:"p1",tr:"v1",start:0,end:4,srcIn:1,speed:2,src:{job_id:"j"},transition:"fade",transition_s:.5},{id:"p2",tr:"v1",start:4,end:6,src:{job_id:"j"}}];
+var RR=T.rampe(RC,"p1",2,1,4);
+out.rt_rampe=RR&&RR.clips.map(function(c){return [c.id===RR.left?"L":c.id===RR.right?"R":c.id,c.start,c.end,c.srcIn,c.speed||1]});
+/* la partie droite ne reprend PAS la transition d'entree (elle est au milieu du plan) ; la gauche la garde */
+out.rt_rampe_trans=RR&&RR.clips.map(function(c){return c.transition||null});
+/* ECART MESURE CONTRE LE PLAN : le plan sondait p2 a t=5, qui est DANS p2 [4,6[ (aucun refus) -- t=7 est hors */
+out.rt_rampe_refus=[T.rampe(RC,"p1",0.1,1,2).refus,T.rampe(RC,"p1",3.9,1,2).refus,T.rampe(RC,"zz",2,1,2).refus,T.rampe(RC,"p2",7,1,2).refus];
+out.rt_rampe_pur=JSON.stringify(RC[0])==='{"id":"p1","tr":"v1","start":0,"end":4,"srcIn":1,"speed":2,"src":{"job_id":"j"},"transition":"fade","transition_s":0.5}';
 console.log(JSON.stringify(out));
 """
 print("\n[1] dzmInsere sous node")
@@ -790,7 +800,9 @@ try:
                  "tu_taille_bornee",
                  # D-13 (L3, tache 2) : les DOUZE cles de la section [14].
                  "dz_norm","dz_norm_clamp","dz_norm_vide","dz_at","dz_at_doux",
-                 "dz_preset","dz_move","dz_scale","dz_css","dz_of","dz_pur","dz_comp"]
+                 "dz_preset","dz_move","dz_scale","dz_css","dz_of","dz_pur","dz_comp",
+                 # D-15 (L3, tache 4) : les CINQ cles de la section [15].
+                 "rt_of","rt_rampe","rt_rampe_trans","rt_rampe_refus","rt_rampe_pur"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -1415,6 +1427,18 @@ check("dz_of_lit_le_clip_et_rend_null_hors_zoom",
 check("dz_pur", D.get("dz_pur") is True)
 check("dz_composants_existent_et_rendent_null_sans_clip_ni_zoom",
       D.get("dz_comp") == ["function", "function", None, None, "leve"], D.get("dz_comp"))
+print("\n[15] D-15 interpolation et rampe (client)")
+check("rt_of_ne_rend_que_blend_ou_flow_sinon_null",
+      D.get("rt_of") == ["flow", "blend", None, None, None], D.get("rt_of"))
+# srcIn de la partie droite = srcIn + (t - start) * ancienne vitesse = 1 + 2*2 = 5 :
+# la REGLE DE dzmCarve (`si+(b-s)*sp`), mesuree identique a celle du plan.
+check("rt_rampe_fend_a_t_et_pose_les_deux_vitesses_srcin_propage_a_l_ancienne_vitesse",
+      D.get("rt_rampe") == [["L", 0, 2, 1, 1], ["R", 2, 4, 5, 4], ["p2", 4, 6, None, 1]], D.get("rt_rampe"))
+check("rt_rampe_la_droite_perd_la_transition_la_gauche_la_garde",
+      D.get("rt_rampe_trans") == ["fade", None, None], D.get("rt_rampe_trans"))
+check("rt_rampe_refuse_les_bords_a_moins_de_0_3_s_l_inconnu_et_le_hors_clip",
+      "rt_rampe_refus" in D and D["rt_rampe_refus"] == ["bord", "bord", "clip", "hors"], D.get("rt_rampe_refus"))
+check("rt_rampe_pur", D.get("rt_rampe_pur") is True)
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

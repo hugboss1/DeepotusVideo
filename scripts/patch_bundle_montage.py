@@ -3930,6 +3930,18 @@ A_DZ1 = "        ovInspector(),"
 R_DZ1 = ('        /* D-13 : les proprietes de plan (clip V1 reel seulement) */\n'
          '        sel&&sel.tr==="v1"&&sel.src&&sel.src.job_id?r.jsx(DzTracks.PlanProps,{clip:sel,\n'
          '          u:sel.end>sel.start?Math.max(0,Math.min(1,(ph-sel.start)/(sel.end-sel.start))):0,\n'
+         # D-15 (L3 tache 4) : la vitesse et la tete pour l'interpolation et la
+         # rampe -- PAS de nouvelle ancre, tout tient dans ce remplacement. La
+         # rampe fend a la tete (DzTracks.rampe, meme regle que dzmCarve),
+         # refuse la piste verrouillee comme svmSetV1Speed, UNE entree
+         # d'historique, et selectionne la partie droite (setSelId, la forme
+         # d'addAsset). Noms MESURES dans le .bak : fireNote (svmUseNote),
+         # pushHistory(), setSelId, clipsRef/selRef.current, setDirty(!0).
+         '          speed:svmSpeedOf(sel),head:ph,\n'
+         '          onRampe:function(t,sL,sR){var tl=trackStRef.current.v1;if(tl&&tl.l){fireNote("Piste V1 verrouillée — division bloquée.");return}\n'
+         '            var res=DzTracks.rampe(clipsRef.current,selRef.current,t,sL,sR);\n'
+         '            if(res.refus){fireNote(res.refus==="bord"?"Trop près d\'un bord (0,3 s)":"Impossible de diviser ici");return}\n'
+         '            pushHistory();setClips(res.clips);setSelId(res.right);setDirty(!0)},\n'
          '          onChange:dzPlanSet}):null,\n'
          + A_DZ1)
 A_DZ2 = '            r.jsx("div",{className:"svm-tfbadge",ref:tfBadgeRef})]}):null,'
@@ -3947,7 +3959,12 @@ R_DZ3 = (A_DZ3 + "\n"
 A_DZ4 = "           Math.abs(c.speed-1)>1e-6)o.speed=Math.round(c.speed*100)/100;"
 R_DZ4 = (A_DZ4 + "\n"
          "        /* D-13 : le zoom dynamique -- joint seulement s'il existe (payload d'avant sinon) */\n"
-         '        var dzD=c.tr==="v1"&&DzTracks.dzOf(c);if(dzD)o.dz=dzD;')
+         '        var dzD=c.tr==="v1"&&DzTracks.dzOf(c);if(dzD)o.dz=dzD;\n'
+         # D-15 (L3 tache 4) : l'interpolation ne vaut qu'AVEC une vitesse
+         # (`o.speed` n'est pose que sur un V1 reel a vitesse != 1, ligne
+         # d'ancre) -- payload d'avant octet pour octet sinon.
+         "        /* D-15 : l'interpolation du retime -- jointe seulement avec une vitesse */\n"
+         '        var rtD=o.speed&&DzTracks.retimeOf(c);if(rtD)o.retime=rtD;')
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
