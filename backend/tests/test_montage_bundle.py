@@ -31,7 +31,16 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 22/09/2026 (lot E-A, tache 5, E-4, revue) : 1685
+COMPTE DE REFERENCE, 22/09/2026 (lot L3, tache 2, D-13) : 1702 lignes,
+soit DIX-SEPT de plus que les 1685 de E-A : la section [D-13] en queue
+(HUIT pins : le repli dzPlanSet, l'hote et la tete `ph`, les rectangles dans
+.svm-tf, le direct hors R_V3, le payload, la couche, la feuille, la queue +
+la sonde 104) et les NEUF lignes que la boucle sur `P.PATCHES` emet seule
+pour DZ1..DZ4 (quatre `_remplace`, quatre `couche_ne_cite_pas_l_ancre_de_`,
+UN `_ancre_consommee` : seule DZ2 ne reprend pas son ancre). Le pin E4 sur
+la queue de PATCHES est REECRIT par position, sur place.
+
+COMPTE PRECEDENT, 22/09/2026 (lot E-A, tache 5, E-4, revue) : 1685
 lignes, soit QUATRE de plus que les 1681 du premier tour : la section EA6
 (le bandeau se ferme au lancement d'un rendu) emet DEUX lignes generiques
 (`_remplace` et `couche_ne_cite_pas_l_ancre_de_` -- PAS d'`_ancre_consommee` :
@@ -14780,12 +14789,13 @@ check("E4_la_feuille_porte_le_bandeau",
 _E4_TAGS = [t for t, _a, _r in P.PATCHES]
 _E4_I = _E4_TAGS.index("EA3-studio-ouvrir-montage")
 check("E4_le_patcher_porte_les_huit_sections_en_queue_apres_EA3",
-      [t.split("-")[0] for t in _E4_TAGS[_E4_I + 1:]] == ["EA4", "EA5a", "EA5b", "EA5c", "EA5d", "EA5d2", "EA5e", "EA6"]
+      # (reecrit PAR POSITION le 22/09, L3 : les sections DZ suivent EA6)
+      [t.split("-")[0] for t in _E4_TAGS[_E4_I + 1:_E4_I + 9]] == ["EA4", "EA5a", "EA5b", "EA5c", "EA5d", "EA5d2", "EA5e", "EA6"]
       and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
               and s.count(nl(a)) == (1 if a in r else 0)  # EA6 REPREND son ancre
-              for _t, a, r in P.PATCHES[_E4_I + 1:])
+              for _t, a, r in P.PATCHES[_E4_I + 1:_E4_I + 9])
       if _bak else False,
-      f"queue={_E4_TAGS[_E4_I + 1:]}")
+      f"queue={_E4_TAGS[_E4_I + 1:_E4_I + 9]}")
 check("E4_l_infobulle_E3_dit_cet_episode_aux_chapitres_et_ce_rendu_au_studio",
       "%s" in P._EA_TIP and s.count("Poser cet épisode sur la piste V1") == 1
       and s.count("Poser ce rendu sur la piste V1") == 1 and s.count("Poser ce rendu") == 1
@@ -14808,6 +14818,104 @@ check("E4_un_refus_non_json_remonte_le_statut",
       s.count(nl("res.json().catch(function(){return null}).then(function(j){throw (j&&j.detail)||res.status})")) == 1
       and s.count("res.json().then(function(j){throw") == 0,
       f"count={s.count('res.json().catch(function(){return null})')}")
+
+# ══════════════════════════════════════════════════════════════════════════
+print("\n[D-13] le zoom dynamique : l'hote des proprietes de plan, les rectangles, le direct, le payload")
+# LE GESTE COMMUN EST REPLIE DANS R_M16REF (sa ligne d'ancre vaut 0 dans
+# .bak_montage) : UNE fonction pour l'hote ET les rectangles, une REF pour la
+# rafale d'historique (un `var` du corps serait recree a chaque rendu —
+# mesure : chaque `setClips` re-rend le composant). Temoin : 0 dans le .bak.
+_DZ_SET = "function dzPlanSet(patch,heavy){var id=selRef.current,now=Date.now();"
+_DZ_REF = "var dzPlanHist=x.useRef(0);"
+check("DZ_le_geste_dzPlanSet_et_sa_ref_sont_replies_dans_R_M16REF",
+      _DZ_SET in P.R_M16REF and _DZ_REF in P.R_M16REF
+      and s.count(_DZ_SET) == 1 and s.count(_DZ_REF) == 1
+      and s.count("if(heavy||now-dzPlanHist.current>600)pushHistory();dzPlanHist.current=now;") == 1
+      and s.count("var dzPlanHist={") == 0
+      and (_bak.count("dzPlanSet") == 0 and _bak.count("dzPlanHist") == 0 if _bak else False),
+      f"set={s.count(_DZ_SET)} ref={s.count(_DZ_REF)} bak={_bak.count('dzPlanHist') if _bak else '?'}")
+# L'HOTE LIT LA TETE `ph` (l'etat st3 — le plan disait `phc`, qui n'existe
+# pas : 0 dans le .bak ET dans le livre) et ne se monte que sur un clip V1
+# REEL (src.job_id), juste avant `ovInspector()`.
+_DZ_HOTE = 'sel&&sel.tr==="v1"&&sel.src&&sel.src.job_id?r.jsx(DzTracks.PlanProps,{clip:sel,'
+check("DZ1_l_hote_lit_la_tete_ph_et_ne_monte_que_sur_un_v1_reel",
+      s.count(nl(_DZ_HOTE)) == 1 and s.count("(ph-sel.start)/(sel.end-sel.start)") == 1
+      and s.count(nl("          onChange:dzPlanSet}):null,\n        ovInspector(),")) == 1
+      and s.count("(phc-") == 0  # le jeton nu compte 15 (`graphc`...) : la forme exacte, pas le mot
+      and (_bak.count("DzTracks.PlanProps") == 0 and _bak.count("(phc-") == 0 if _bak else False),
+      f"hote={s.count(nl(_DZ_HOTE))} ph={s.count('(ph-sel.start)/(sel.end-sel.start)')} phc={s.count('(phc-')}")
+# LES RECTANGLES VIVENT DANS `.svm-tf` (et non apres, comme le plan le
+# proposait) : la feuille du bundle dit `.svm-tf{position:absolute; inset:0;
+# pointer-events:none; z-index:3}` — le cadre entier, hors vzoom, au-dessus
+# des hotes. `box` lit `frameRef` (le cadre, meme boite). Temoins : le
+# .bak ne connait ni DzRects ni la classe.
+_DZ_RECT = 'sel&&sel.tr==="v1"&&sel.dz?r.jsx(DzTracks.DzRects,{dz:sel.dz,'
+_DZ_TF = ".svm-tf{position:absolute; inset:0; pointer-events:none; z-index:3}"
+_dz_hdcss = _HDCSS if isinstance(_HDCSS, str) else ""   # deja le TEXTE de la feuille (l. ~1161), ou un temoin
+check("DZ2_les_rectangles_vivent_dans_svm_tf_et_lisent_le_cadre",
+      s.count(nl(_DZ_RECT)) == 1
+      and s.count(nl('              onChange:function(nd){dzPlanSet({dz:nd})}}):null]}):null,')) == 1
+      and s.count("var h=frameRef.current;return h?{w:h.clientWidth,h:h.clientHeight}:{w:1,h:1}") == 1
+      and _dz_hdcss.count(_DZ_TF) == 1
+      and (_bak.count("DzTracks.DzRects") == 0 and _bak.count("dzm-dzrect") == 0 if _bak else False),
+      f"rect={s.count(nl(_DZ_RECT))} tf={_dz_hdcss.count(_DZ_TF)} bak={_bak.count('DzTracks.DzRects') if _bak else '?'}")
+# LE ZOOM EN DIRECT EST UNE SECTION PROPRE (DZ3) SUR `lv._svmClip=c.id;`
+# (1/1 dans le .bak), PAS un repli dans R_V3 : en tete de liveSync ni la
+# <video> ni le clip actif ne sont connus. La transformation n'est ecrite
+# que si elle change ; l'origine est 0 0.
+_DZ_LIVE = 'var dzZ=DzTracks.dzOf(c),dzT=dzZ?DzTracks.dzCss(dzZ,(t-c.start)/Math.max(.04,c.end-c.start)):"";'
+check("DZ3_le_zoom_en_direct_ecrit_la_video_active_hors_R_V3",
+      s.count(_DZ_LIVE) == 1 and s.count("DzTracks.dzCss(") == 1
+      and s.count('if(lv.style.transform!==dzT){lv.style.transformOrigin="0 0";lv.style.transform=dzT}') == 1
+      and "dzCss" not in P.R_V3 and "dzOf" not in P.R_V3
+      and (_bak.count("      lv._svmClip=c.id;") == 1 and _bak.count("DzTracks.dzCss(") == 0 if _bak else False),
+      f"live={s.count(_DZ_LIVE)} css={s.count('DzTracks.dzCss(')} v3={'dzCss' in P.R_V3}")
+# LE PAYLOAD JOINT `dz` SEULEMENT S'IL EXISTE : la ligne d'arrondi de la
+# vitesse (1/1 dans le .bak, 0 dans le patcher avant DZ4) est l'ancre ;
+# `o.dz=` n'existe qu'une fois et nulle part dans le .bak (payload d'avant
+# octet pour octet sans zoom).
+check("DZ4_le_payload_joint_dz_seulement_s_il_existe",
+      s.count(nl(P.A_DZ4 + "\n")) == 1
+      and s.count('var dzD=c.tr==="v1"&&DzTracks.dzOf(c);if(dzD)o.dz=dzD;') == 1
+      and s.count("o.dz=") == 1
+      and (_bak.count(P.A_DZ4) == 1 and _bak.count("o.dz=") == 0 if _bak else False),
+      f"dz={s.count('o.dz=')} bak_ancre={_bak.count(P.A_DZ4) if _bak else '?'}")
+# LA COUCHE PORTE LES SEPT PURES, LES DEUX COMPOSANTS ET LES NEUF EXPORTS ;
+# le geste des rectangles ecoute la FENETRE (la forme de la maison — le pin
+# tb_d de la barre exige deja `.setPointerCapture(` = 0 sur toute la couche).
+_DZ_EXP = ("dzNorm:dzmDzNorm,", "dzOf:dzmDzOf,", "dzAt:dzmDzAt,", "dzPreset:dzmDzPreset,",
+           "dzMove:dzmDzMove,", "dzScale:dzmDzScale,", "dzCss:dzmDzCss,",
+           "PlanProps:DzmPlanProps,", "DzRects:DzmDzRects,")
+check("DZ_la_couche_porte_les_pures_les_composants_et_les_exports",
+      all(src.count(t) == 1 for t in _DZ_EXP)
+      and all(src.count(t) == 1 for t in ("function dzmDzNorm(raw){", "function dzmDzAt(dz,u){",
+                                           "function dzmDzCss(dz,u){", "function DzmPlanProps(o){",
+                                           "function DzmDzRects(o){"))
+      and src.count("var w=window,sx=e.clientX,sy=e.clientY,base=dz;") == 1
+      and src.count('w.addEventListener("pointercancel",up)') >= 1
+      and src.count("if(o.x0===0&&o.y0===0&&o.x1===0&&o.y1===0&&o.w0>=1&&o.w1>=1)return null;") == 1,
+      f"exports={[src.count(t) for t in _DZ_EXP]} fenetre={src.count('var w=window,sx=e.clientX')}")
+_DZ_CSS = CSS.read_text(encoding="utf-8")
+check("DZ_la_feuille_porte_les_rectangles_et_l_hote",
+      all(_DZ_CSS.count(t) == 1 for t in (".dzsvm .dzm-plan{", ".dzsvm .dzm-plan-t{", ".dzsvm .dzm-plan-hint{",
+                                          ".dzsvm .dzm-dzwrap{position:absolute;inset:0;pointer-events:none}",
+                                          '.dzsvm .dzm-dzrect[data-k="fin"]{border-color:#e0453f}',
+                                          ".dzsvm .dzm-dzlab{", ".dzsvm .dzm-dzh{"))
+      and _DZ_CSS.count("pointer-events:auto;cursor:move;touch-action:none}") == 1,
+      f"wrap={_DZ_CSS.count('.dzsvm .dzm-dzwrap{')} rect={_DZ_CSS.count('.dzsvm .dzm-dzrect{')}")
+# LE PATCHER PORTE LES QUATRE SECTIONS EN QUEUE, APRES EA6, ancres 1/1 dans
+# le .bak (la boucle du haut mesure aussi ; ceci fixe l'ORDRE), et la sonde
+# de dzcout dit 104 (99 + PlanProps + DzRects + dzOf + dzCss + dzOf).
+_DZ_TAGS = [t for t, _a, _r in P.PATCHES]
+_DZ_I = _DZ_TAGS.index("EA6-bandeau-ferme-au-lancement")
+check("DZ_le_patcher_porte_les_quatre_sections_en_queue_apres_EA6_et_la_sonde_dit_104",
+      [t.split("-")[0] for t in _DZ_TAGS[_DZ_I + 1:]] == ["DZ1", "DZ2", "DZ3", "DZ4"]
+      and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
+              and s.count(nl(a)) == (1 if a in r else 0)
+              for _t, a, r in P.PATCHES[_DZ_I + 1:])
+      and _sonde.get("montage") == 104 and s.count("DzTracks") == 104
+      if _bak else False,
+      f"queue={_DZ_TAGS[_DZ_I + 1:]} sonde={_sonde.get('montage')} bundle={s.count('DzTracks')}")
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

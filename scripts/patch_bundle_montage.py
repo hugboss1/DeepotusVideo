@@ -993,6 +993,19 @@ R_M16REF = (A_M16REF + "\n"
             "     premier rendu). Même motif que durRef, juste au-dessus. */\n"
             "  var dzTracksRef=x.useRef(null);"
             "dzTracksRef.current=svmTracksOf(proj);\n"
+            # ── D-13 (22/09/2026, L3 tache 2) : LE GESTE DES PROPRIETES DE PLAN
+            # REPLIE ICI, meme mesure que E1/TT4a : la ligne `dzTracksRef` vaut
+            # 0 dans .bak_montage. UNE fonction pour l'hote (DZ1) ET les
+            # rectangles (DZ2) : un patch de clip, les cles `undefined`
+            # retirees, UNE entree d'historique par rafale de 600 ms (un
+            # glisser = un « Annuler »), `heavy` force l'entree (un select).
+            # La date de la rafale est une REF : un `var` du corps serait
+            # recree a chaque rendu et chaque `setClips` re-rend.
+            "  var dzPlanHist=x.useRef(0);\n"
+            "  function dzPlanSet(patch,heavy){var id=selRef.current,now=Date.now();\n"
+            "    if(heavy||now-dzPlanHist.current>600)pushHistory();dzPlanHist.current=now;\n"
+            "    setClips(clipsRef.current.map(function(k){if(k.id!==id)return k;var nk=Object.assign({},k,patch);\n"
+            "      Object.keys(patch).forEach(function(q){if(patch[q]===void 0)delete nk[q]});return nk}));setDirty(!0)}\n"
             # ── E-4 (22/09/2026) : LE BANDEAU DE FIN DE RENDU ─────────
             # REPLIÉ ICI, même mesure que E1 : la ligne vaut 0 dans
             # .bak_montage. Posé par EA4 (rendu final « done »), consommé
@@ -3886,6 +3899,53 @@ R_EA5E = ('    popover(),\n'
 A_EA6 = 'if(proj.demo||(job&&job.status!=="failed"))return;'
 R_EA6 = A_EA6 + 'setDzFin(null);'
 
+# ══════════════════════════════════════════════════════════════════════════
+# D-13 (22/09/2026, lot L3, tache 2) — LE ZOOM DYNAMIQUE COTE ECRAN
+# ══════════════════════════════════════════════════════════════════════════
+# Quatre ancres du bundle d'origine, toutes 1/1 dans .bak_montage et 0 dans
+# ce patcher (mesurees le 22/09) : l'appel `ovInspector()` de l'aside, la
+# derniere ligne du cadre `.svm-tf`, la ligne `lv._svmClip=c.id;` de
+# liveSync, la ligne d'arrondi de la vitesse du payload. Le geste commun
+# (`dzPlanSet`) et sa rafale d'historique sont REPLIES dans R_M16REF, a cote
+# de `dzTracksRef` (ligne posee par ce remplacement, 0 dans .bak_montage).
+#
+# ECARTS MESURES AVEC LE PLAN :
+#   - la tete de lecture de l'aside s'appelle `ph` (l'etat `st3`), pas `phc` ;
+#   - `var dzPlanHist={t:0}` dans le corps du composant aurait ete RECREE a
+#     chaque rendu (chaque `setClips` re-rend) : la rafale de 600 ms n'aurait
+#     jamais tenu. C'est une ref (`x.useRef(0)`), comme `durRef` juste au-dessus ;
+#   - le zoom en direct n'est PAS replie dans R_V3 : en tete de liveSync ni
+#     le clip actif ni la <video> ne sont connus (ils sont calcules plus bas).
+#     L'ancre `lv._svmClip=c.id;` est 1/1, et la, `lv`, `c` et `t` sont
+#     exactement ceux du lecteur -- section propre DZ3 ;
+#   - les rectangles vont DANS `.svm-tf` (position:absolute;inset:0 du cadre,
+#     z-index:3, hors vzoom -- mesure de la feuille du bundle) et non apres :
+#     pose apres, `.dzm-dzwrap` aurait ete recouvert par les hotes `.svm-live`
+#     (transform => contexte d'empilement) et les % auraient ete ceux du cadre
+#     de toute facon. `box` lit `frameRef` (le cadre), meme taille que .svm-tf.
+A_DZ1 = "        ovInspector(),"
+R_DZ1 = ('        /* D-13 : les proprietes de plan (clip V1 reel seulement) */\n'
+         '        sel&&sel.tr==="v1"&&sel.src&&sel.src.job_id?r.jsx(DzTracks.PlanProps,{clip:sel,\n'
+         '          u:sel.end>sel.start?Math.max(0,Math.min(1,(ph-sel.start)/(sel.end-sel.start))):0,\n'
+         '          onChange:dzPlanSet}):null,\n'
+         + A_DZ1)
+A_DZ2 = '            r.jsx("div",{className:"svm-tfbadge",ref:tfBadgeRef})]}):null,'
+R_DZ2 = ('            r.jsx("div",{className:"svm-tfbadge",ref:tfBadgeRef}),\n'
+         '            /* D-13 : les deux fenetres du zoom dynamique du clip V1 selectionne */\n'
+         '            sel&&sel.tr==="v1"&&sel.dz?r.jsx(DzTracks.DzRects,{dz:sel.dz,\n'
+         '              box:(function(){var h=frameRef.current;return h?{w:h.clientWidth,h:h.clientHeight}:{w:1,h:1}})(),\n'
+         '              onChange:function(nd){dzPlanSet({dz:nd})}}):null]}):null,')
+A_DZ3 = "      lv._svmClip=c.id;"
+R_DZ3 = (A_DZ3 + "\n"
+         "      /* D-13 : le zoom dynamique EN DIRECT -- meme geometrie que le zoompan\n"
+         "         du rendu, sur la <video> active ; ecrit seulement s'il change */\n"
+         '      var dzZ=DzTracks.dzOf(c),dzT=dzZ?DzTracks.dzCss(dzZ,(t-c.start)/Math.max(.04,c.end-c.start)):"";\n'
+         '      if(lv.style.transform!==dzT){lv.style.transformOrigin="0 0";lv.style.transform=dzT}')
+A_DZ4 = "           Math.abs(c.speed-1)>1e-6)o.speed=Math.round(c.speed*100)/100;"
+R_DZ4 = (A_DZ4 + "\n"
+         "        /* D-13 : le zoom dynamique -- joint seulement s'il existe (payload d'avant sinon) */\n"
+         '        var dzD=c.tr==="v1"&&DzTracks.dzOf(c);if(dzD)o.dz=dzD;')
+
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
            ("M5-payload", A_M5, R_M5), ("M6-save", A_M6, R_M6),
@@ -4070,7 +4130,13 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("EA5d-barre-rendre", A_EA5D, R_EA5D),
            ("EA5d2-popover-bouton-rendre", A_EA5D2, R_EA5D2),
            ("EA5e-bandeau-de-fin", A_EA5E, R_EA5E),
-           ("EA6-bandeau-ferme-au-lancement", A_EA6, R_EA6)]
+           ("EA6-bandeau-ferme-au-lancement", A_EA6, R_EA6),
+           # D-13 (22/09/2026, L3 tache 2) : quatre ancres du bundle d'origine,
+           # 1/1 dans .bak_montage ; dzPlanSet est replie dans R_M16REF.
+           ("DZ1-proprietes-de-plan", A_DZ1, R_DZ1),
+           ("DZ2-rectangles-du-lecteur", A_DZ2, R_DZ2),
+           ("DZ3-zoom-en-direct", A_DZ3, R_DZ3),
+           ("DZ4-payload-dz", A_DZ4, R_DZ4)]
 
 
 def nl(text, crlf):

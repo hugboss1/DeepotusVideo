@@ -281,7 +281,13 @@ STABLE_PROBES = [
     # (le rendu final qui ne publie plus), EA5a..d (quatre libelles) et
     # le repli dzFin (R_M16REF) n'en ajoutent aucune. MESURE : la chaine
     # a refuse, « sonde montage x99 (want 98) », avant cette ligne.
-    ("montage", "DzTracks", 99),
+    # 22/09/2026, D-13 (lot L3, tache 2) : 99 -> 104. CINQ de plus : l hote
+    # des proprietes de plan (DZ1, `PlanProps`), les rectangles du lecteur
+    # (DZ2, `DzRects`), le zoom en direct (DZ3, `dzOf(` + `dzCss(`) et le
+    # payload (DZ4, `dzOf(`). Le repli `dzPlanSet` (R_M16REF) n en ajoute
+    # aucune. MESURE : la chaine a refuse, « sonde montage x104 (want 99) »,
+    # avant cette ligne.
+    ("montage", "DzTracks", 104),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

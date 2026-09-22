@@ -1739,6 +1739,11 @@ function DzMontage(props){
      « Envoyer vers → Montage » l'appelle depuis la fermeture du
      premier rendu). Même motif que durRef, juste au-dessus. */
   var dzTracksRef=x.useRef(null);dzTracksRef.current=svmTracksOf(proj);
+  var dzPlanHist=x.useRef(0);
+  function dzPlanSet(patch,heavy){var id=selRef.current,now=Date.now();
+    if(heavy||now-dzPlanHist.current>600)pushHistory();dzPlanHist.current=now;
+    setClips(clipsRef.current.map(function(k){if(k.id!==id)return k;var nk=Object.assign({},k,patch);
+      Object.keys(patch).forEach(function(q){if(patch[q]===void 0)delete nk[q]});return nk}));setDirty(!0)}
   var stDzFin=x.useState(null),dzFin=stDzFin[0],setDzFin=stDzFin[1];
   var stDzM=x.useState("ecraser"),dzMode=stDzM[0],setDzMode=stDzM[1];
   function dzTtAdd(){var t=DzTracks.titleNew({template:"tiers_inferieur",text:"Titre"},phRef.current,clipsRef.current,"t1");
@@ -2511,6 +2516,10 @@ function DzMontage(props){
     var lv=liveVideoRef.current;
     if(lv&&c){
       lv._svmClip=c.id;
+      /* D-13 : le zoom dynamique EN DIRECT -- meme geometrie que le zoompan
+         du rendu, sur la <video> active ; ecrit seulement s'il change */
+      var dzZ=DzTracks.dzOf(c),dzT=dzZ?DzTracks.dzCss(dzZ,(t-c.start)/Math.max(.04,c.end-c.start)):"";
+      if(lv.style.transform!==dzT){lv.style.transformOrigin="0 0";lv.style.transform=dzT}
       /* vitesse du clip V1 (C) : la source défile à vitesse × la timeline —
          le mapping tête→temps source ET le playbackRate suivent, l'aperçu
          est fidèle au rendu (clamp 0.25..4 : la plage HTMLMediaElement) */
@@ -4436,6 +4445,8 @@ function DzMontage(props){
            vidéo (une image n'a pas de défilement) : payload d'avant sinon */
         if(c.tr==="v1"&&c.src&&c.src.job_id&&typeof c.speed==="number"&&c.speed>0&&
            Math.abs(c.speed-1)>1e-6)o.speed=Math.round(c.speed*100)/100;
+        /* D-13 : le zoom dynamique -- joint seulement s'il existe (payload d'avant sinon) */
+        var dzD=c.tr==="v1"&&DzTracks.dzOf(c);if(dzD)o.dz=dzD;
         /* mixage par clip (pistes audio) — joint seulement si non nul :
            un projet sans réglage envoie exactement le payload d'avant */
         if(trackKind(c.tr)==="audio"){
@@ -5652,7 +5663,11 @@ function DzMontage(props){
                 r.jsx("i",{className:"svm-tfrot",
                   title:"Rotation — glisser (aimant 0 / ±45 / 90°)",
                   onPointerDown:function(e2){ovHandleDown(e2,"rotate")}},"rot")])}),
-            r.jsx("div",{className:"svm-tfbadge",ref:tfBadgeRef})]}):null,
+            r.jsx("div",{className:"svm-tfbadge",ref:tfBadgeRef}),
+            /* D-13 : les deux fenetres du zoom dynamique du clip V1 selectionne */
+            sel&&sel.tr==="v1"&&sel.dz?r.jsx(DzTracks.DzRects,{dz:sel.dz,
+              box:(function(){var h=frameRef.current;return h?{w:h.clientWidth,h:h.clientHeight}:{w:1,h:1}})(),
+              onChange:function(nd){dzPlanSet({dz:nd})}}):null]}):null,
           /* zones sûres (G) : tiers + centre + marges verticales 9:16 */
           safeOn?r.jsxs("div",{className:"svm-safe","aria-hidden":!0,children:[
             r.jsx("div",{className:"svm-safe3v",style:{left:"33.333%"}}),
@@ -5857,6 +5872,10 @@ function DzMontage(props){
             fireNote(rs.length+" coupe"+(rs.length>1?"s":"")+" — "+
               rm.toFixed(2)+" s retirés. Annuler défait la coupe entièrement. La durée du projet ne bouge pas : la fin de la timeline est maintenant vide, raccourcissez-la si vous voulez."+
               (vk.length?" Pistes verrouillées ("+vk.join(", ").toUpperCase()+") : leurs clips n'ont pas bougé.":""))}}),
+        /* D-13 : les proprietes de plan (clip V1 reel seulement) */
+        sel&&sel.tr==="v1"&&sel.src&&sel.src.job_id?r.jsx(DzTracks.PlanProps,{clip:sel,
+          u:sel.end>sel.start?Math.max(0,Math.min(1,(ph-sel.start)/(sel.end-sel.start))):0,
+          onChange:dzPlanSet}):null,
         ovInspector(),
         audioInspector(),
         r.jsxs("div",{style:{display:"flex",alignItems:"center",margin:"20px 0 10px"},children:[
@@ -18866,6 +18885,103 @@ function DzmFinBandeau(o){
           .then(function(){setSt(DZM_FIN_OK)}).catch(function(e){setSt("Envoi impossible : "+String(e))})},children:"Envoyer vers le Scheduler"}),
       r.jsx("button",{className:"svm-secbtn",onClick:function(){o.onLib&&o.onLib()},children:"Voir dans la Bibliothèque"}),
       r.jsx("button",{className:"svm-secbtn",onClick:function(){o.onClose&&o.onClose()},children:"Fermer"})]})]})}
+/* ── D-13 (22/09/2026) : LE ZOOM DYNAMIQUE ───────────────────────────────
+   `dz` = {x0,y0,w0,x1,y1,w1,ease} en FRACTIONS du cadre — MÊMES bornes que
+   `montage_service._dz_spec` (w ∈ [0.1,1], x/y ∈ [0,1−w], plein cadre aux
+   deux bouts = null). Le rendu est un zoompan (backend) ; en direct, le
+   lecteur applique `dzmDzCss` à la <video> active (translate puis scale,
+   origine 0 0) — même géométrie, pas le même moteur. */
+function dzmDzR(v){return Math.round(v*1e6)/1e6}
+function dzmDzNorm(raw){
+  if(!raw||typeof raw!=="object")return null;
+  var ks=["x0","y0","w0","x1","y1","w1"],o={},i,v;
+  for(i=0;i<ks.length;i++){v=Number(raw[ks[i]]);if(!isFinite(v))return null;o[ks[i]]=v}
+  ["0","1"].forEach(function(s){
+    o["w"+s]=Math.max(.1,Math.min(1,o["w"+s]));
+    o["x"+s]=dzmDzR(Math.max(0,Math.min(1-o["w"+s],o["x"+s])));
+    o["y"+s]=dzmDzR(Math.max(0,Math.min(1-o["w"+s],o["y"+s])));
+    o["w"+s]=dzmDzR(o["w"+s])});
+  if(o.x0===0&&o.y0===0&&o.x1===0&&o.y1===0&&o.w0>=1&&o.w1>=1)return null;
+  o.ease=raw.ease==="lin"?"lin":"doux";
+  return o}
+function dzmDzOf(c){return c&&c.dz?dzmDzNorm(c.dz):null}
+function dzmDzAt(dz,u){
+  var d=dzmDzNorm(dz);if(!d)return {x:0,y:0,w:1};
+  u=Math.max(0,Math.min(1,Number(u)||0));
+  if(d.ease!=="lin")u=u*u*(3-2*u);
+  return {x:dzmDzR(d.x0+(d.x1-d.x0)*u),y:dzmDzR(d.y0+(d.y1-d.y0)*u),w:dzmDzR(d.w0+(d.w1-d.w0)*u)}}
+function dzmDzPreset(name){
+  if(name==="in")return dzmDzNorm({x0:0,y0:0,w0:1,x1:.2,y1:.2,w1:.6});
+  if(name==="out")return dzmDzNorm({x0:.2,y0:.2,w0:.6,x1:0,y1:0,w1:1});
+  return null}
+/* k = 0 (début) | 1 (fin) ; dx/dy en fraction du cadre — le rectangle reste
+   dans le cadre, la largeur ne bouge pas */
+function dzmDzMove(dz,k,dx,dy){
+  var d=dzmDzNorm(dz);if(!d)return null;var s=k?"1":"0",o=Object.assign({},d);
+  o["x"+s]=o["x"+s]+(Number(dx)||0);o["y"+s]=o["y"+s]+(Number(dy)||0);
+  return dzmDzNorm(o)||d}
+/* dw en fraction : la largeur change AUTOUR DU CENTRE du rectangle, bornée
+   [0.1, 1] et ramenée dans le cadre par la normalisation */
+function dzmDzScale(dz,k,dw){
+  var d=dzmDzNorm(dz);if(!d)return null;var s=k?"1":"0",o=Object.assign({},d);
+  var w0=o["w"+s],w1=Math.max(.1,Math.min(1,w0+(Number(dw)||0))),cx=o["x"+s]+w0/2,cy=o["y"+s]+w0/2;
+  o["w"+s]=w1;o["x"+s]=cx-w1/2;o["y"+s]=cy-w1/2;
+  return dzmDzNorm(o)||d}
+/* la transformation CSS de la <video> pour la fenêtre à u : scale = 1/w,
+   puis translation de −x·s / −y·s (en % de la boîte de l'élément), origine
+   0 0 — l'appelant pose transformOrigin:"0 0". "" quand il n'y a pas de zoom.
+   UN SEUL arrondi (1e4) pour les trois nombres. */
+function dzmDzCss(dz,u){
+  var d=dzmDzNorm(dz);if(!d)return "";
+  var r=dzmDzAt(d,u),s=1/r.w,f=function(v){return String(Math.round(v*1e4)/1e4)};
+  return "translate("+f(-r.x*s*100)+"%, "+f(-r.y*s*100)+"%) scale("+f(s)+")"}
+/* L'HÔTE DES PROPRIÉTÉS DE PLAN (D-13, puis D-15 et D-16) : UNE section de
+   l'inspecteur, montée UNE fois (DZ1) sur un clip V1 réel. props : {clip,
+   u (avancement 0..1 de la tête dans le clip), onChange(patch, heavy)} —
+   `onChange` reçoit un patch de clip ({dz:…} ou {dz:void 0}) et l'appelant
+   écrit l'historique. `r` n'est lu qu'à l'appel, comme DzmTitleInspector. */
+function DzmPlanProps(o){
+  var c=o&&o.clip,on=typeof (o&&o.onChange)==="function"?o.onChange:function(){};
+  if(!c)return null;
+  var dz=dzmDzOf(c);
+  var row=function(label,kids,key){return r.jsxs("div",{className:"svm-prop dzm-plan-row",children:[
+    r.jsx("div",{className:"svm-propk",children:label}),r.jsx("div",{className:"svm-propv",children:kids})]},key)};
+  var sel=function(cur,opts,cb,title){return r.jsx("select",{className:"svm-vitsel",value:cur,title:title,
+    onChange:function(e){cb(e.target.value)},children:opts.map(function(p){return r.jsx("option",{value:p[0],children:p[1]},p[0])})})};
+  var kids=[row("Zoom dyn.",sel(dz?(dz.w1<dz.w0?"in":dz.w1>dz.w0?"out":"custom"):"off",
+    [["off","aucun"],["in","zoom avant"],["out","zoom arrière"],["custom","personnalisé"]],
+    function(v){on({dz:v==="off"?void 0:v==="custom"?(dz||dzmDzPreset("in")):dzmDzPreset(v)},!0)},
+    "Zoom dynamique : deux fenêtres, début (vert) et fin (rouge) du plan — glisser les rectangles dans le lecteur, le rendu interpole"),"dz")];
+  if(dz){
+    kids.push(row("Courbe",sel(dz.ease,[["doux","douce"],["lin","linéaire"]],function(v){on({dz:Object.assign({},dz,{ease:v})},!0)},"Interpolation du zoom"),"dz-ease"));
+    kids.push(row("Fenêtres",r.jsx("span",{className:"dzm-plan-hint",
+      children:"début "+Math.round(dz.w0*100)+" % · fin "+Math.round(dz.w1*100)+" %"}),"dz-w"))}
+  return r.jsxs("div",{className:"dzm-plan",children:[r.jsx("div",{className:"dzm-plan-t",children:"Propriétés du plan"}),
+    r.jsx("div",{className:"svm-props",children:kids})]})}
+/* LES DEUX RECTANGLES (vert = début, rouge = fin) dans le cadre du lecteur,
+   en % du cadre — glisser le corps = déplacer, glisser le coin = échelle.
+   props : {dz, onChange(dz), box:{w,h} en px du cadre} ; le geste écoute la
+   FENÊTRE (la forme de la maison, comme la barre d'outils §4.2 — jamais de
+   capture sur l'élément) et rejoue l'état du pointerdown par les pures. */
+function DzmDzRects(o){
+  var dz=dzmDzNorm(o&&o.dz),on=typeof (o&&o.onChange)==="function"?o.onChange:function(){},box=(o&&o.box)||{w:1,h:1};
+  if(!dz)return null;
+  var mk=function(k){
+    var s=k?"1":"0",x=dz["x"+s],y=dz["y"+s],w=dz["w"+s];
+    var down=function(mode){return function(e){
+      var w=window,sx=e.clientX,sy=e.clientY,base=dz;
+      e.preventDefault();e.stopPropagation();
+      var mv=function(e2){var dx=(e2.clientX-sx)/Math.max(1,box.w),dy=(e2.clientY-sy)/Math.max(1,box.h);
+        on(mode==="move"?dzmDzMove(base,k,dx,dy):dzmDzScale(base,k,dx))};
+      var up=function(){w.removeEventListener("pointermove",mv);w.removeEventListener("pointerup",up);w.removeEventListener("pointercancel",up)};
+      w.addEventListener("pointermove",mv);w.addEventListener("pointerup",up);w.addEventListener("pointercancel",up)}};
+    return r.jsxs("div",{className:"dzm-dzrect","data-k":k?"fin":"debut",
+      style:{left:(x*100)+"%",top:(y*100)+"%",width:(w*100)+"%",height:(w*100)+"%"},
+      title:(k?"Fin":"Début")+" du zoom — glisser : déplacer · coin : échelle",
+      onPointerDown:down("move"),children:[
+        r.jsx("span",{className:"dzm-dzlab",children:k?"fin":"début"}),
+        r.jsx("i",{className:"dzm-dzh",onPointerDown:down("scale")})]},k)};
+  return r.jsxs("div",{className:"dzm-dzwrap",children:[mk(0),mk(1)]})}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,
@@ -18947,6 +19063,8 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   projetNeuf:dzmProjetNeuf,instantaneNom:dzmInstantaneNom,
   channelsNorm:dzmChannelsNorm,publishLocal:dzmPublishLocal,publishIso:dzmPublishIso,
   publishDefaults:dzmPublishDefaults,FinBandeau:DzmFinBandeau,CHANNELS:DZM_CHANNELS,
+  dzNorm:dzmDzNorm,dzOf:dzmDzOf,dzAt:dzmDzAt,dzPreset:dzmDzPreset,dzMove:dzmDzMove,
+  dzScale:dzmDzScale,dzCss:dzmDzCss,PlanProps:DzmPlanProps,DzRects:DzmDzRects,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;
 

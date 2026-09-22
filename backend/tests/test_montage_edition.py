@@ -588,6 +588,23 @@ out.pb_iso=typeof T.publishIso("2026-09-22T16:15")==="string"&&/Z$/.test(T.publi
 /* l'arrondi monte au QUART D'HEURE SUIVANT meme quand +2 h tombe pile :
    14:00:00 -> 16:00 (rien a monter) ; 14:00:01 -> 16:15 */
 out.pb_local_pile=[T.publishLocal(new Date(2026,8,22,14,0,0)),T.publishLocal(new Date(2026,8,22,14,0,1))];
+/* [14] D-13 : le zoom dynamique, cote client */
+var DZ1={x0:0,y0:0,w0:1,x1:.2,y1:.2,w1:.6};
+out.dz_norm=T.dzNorm(DZ1);
+out.dz_norm_clamp=T.dzNorm({x0:.9,y0:-1,w0:.02,x1:5,y1:5,w1:3});
+out.dz_norm_vide=[T.dzNorm(null),T.dzNorm({x0:0,y0:0,w0:1,x1:0,y1:0,w1:1}),T.dzNorm({x0:"a"})];
+out.dz_at=[T.dzAt(DZ1,0),T.dzAt(DZ1,1),T.dzAt(Object.assign({ease:"lin"},DZ1),.5)];
+out.dz_at_doux=T.dzAt(DZ1,.5);
+out.dz_preset=[T.dzPreset("in"),T.dzPreset("out"),T.dzPreset("zzz")];
+out.dz_move=[T.dzMove(DZ1,1,.5,.5),T.dzMove(DZ1,0,.1,.1)];
+out.dz_scale=[T.dzScale(DZ1,1,.3),T.dzScale(DZ1,1,-.9)];
+out.dz_css=[T.dzCss(DZ1,0),T.dzCss(DZ1,1),T.dzCss(null,.5)];
+out.dz_of=[T.dzOf({dz:DZ1}),T.dzOf({dz:{x0:0,y0:0,w0:1,x1:0,y1:0,w1:1}}),T.dzOf({})];
+out.dz_pur=JSON.stringify(DZ1)==='{"x0":0,"y0":0,"w0":1,"x1":0.2,"y1":0.2,"w1":0.6}';
+/* les deux composants EXISTENT et rendent null sans clip / sans zoom (r n'est
+   pas lu) ; PlanProps avec un clip touche `r` -> le shim strict leve */
+out.dz_comp=[typeof T.PlanProps,typeof T.DzRects,T.PlanProps({clip:null}),T.DzRects({dz:null}),
+  (function(){try{T.PlanProps({clip:{id:"c",tr:"v1"}});return "rendu"}catch(e){return "leve"}})()];
 console.log(JSON.stringify(out));
 """
 print("\n[1] dzmInsere sous node")
@@ -770,7 +787,10 @@ try:
                  "tu_texte","tu_inchange","tu_tronque","tu_label",
                  "tu_gabarit","tu_vide","tu_taille","tu_pur","tu_mou",
                  "tu_sub_tronque","tu_label_suit","tu_cles_inconnues",
-                 "tu_taille_bornee"]
+                 "tu_taille_bornee",
+                 # D-13 (L3, tache 2) : les DOUZE cles de la section [14].
+                 "dz_norm","dz_norm_clamp","dz_norm_vide","dz_at","dz_at_doux",
+                 "dz_preset","dz_move","dz_scale","dz_css","dz_of","dz_pur","dz_comp"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -1365,6 +1385,36 @@ check("pb_local_est_la_forme_datetime_local", D.get("pb_local") == "2026-09-22T1
 check("pb_local_pile_ne_monte_pas_une_seconde_monte", D.get("pb_local_pile") == ["2026-09-22T16:00", "2026-09-22T16:15"], D.get("pb_local_pile"))
 check("pb_iso_convertit_l_heure_locale_en_utc_z_et_vide_sur_invalide", D.get("pb_iso") is True)
 
+print("\n[14] D-13 zoom dynamique (client)")
+check("dz_norm_clampe_et_pose_ease_doux",
+      D.get("dz_norm") == {"x0": 0, "y0": 0, "w0": 1, "x1": 0.2, "y1": 0.2, "w1": 0.6, "ease": "doux"}, D.get("dz_norm"))
+check("dz_norm_tient_les_memes_bornes_que_le_backend",
+      D.get("dz_norm_clamp") == {"x0": 0.9, "y0": 0, "w0": 0.1, "x1": 0, "y1": 0, "w1": 1, "ease": "doux"}, D.get("dz_norm_clamp"))
+check("dz_norm_rend_null_pour_vide_plein_cadre_et_invalide",
+      "dz_norm_vide" in D and D["dz_norm_vide"] == [None, None, None], D.get("dz_norm_vide"))
+check("dz_at_rend_le_rectangle_debut_fin_et_le_milieu_lineaire",
+      D.get("dz_at") == [{"x": 0, "y": 0, "w": 1}, {"x": 0.2, "y": 0.2, "w": 0.6}, {"x": 0.1, "y": 0.1, "w": 0.8}], D.get("dz_at"))
+check("dz_at_doux_est_la_smoothstep_a_mi_course_egale_au_lineaire",
+      D.get("dz_at_doux") == {"x": 0.1, "y": 0.1, "w": 0.8}, D.get("dz_at_doux"))
+check("dz_preset_in_zoome_au_centre_out_l_inverse_inconnu_null",
+      D.get("dz_preset") == [{"x0": 0, "y0": 0, "w0": 1, "x1": 0.2, "y1": 0.2, "w1": 0.6, "ease": "doux"},
+                             {"x0": 0.2, "y0": 0.2, "w0": 0.6, "x1": 0, "y1": 0, "w1": 1, "ease": "doux"}, None], D.get("dz_preset"))
+check("dz_move_deplace_un_rectangle_en_restant_dans_le_cadre",
+      D.get("dz_move") == [dict(D["dz_norm"], x1=0.4, y1=0.4), D["dz_norm"]] if isinstance(D.get("dz_norm"), dict) else False, D.get("dz_move"))
+# faute n6 : `at` ne descend que des listes -- un dict au bout se lit avec un repli
+_dzs = lambda i, k: (at("dz_scale", i) if isinstance(at("dz_scale", i), dict) else {}).get(k, -1)
+check("dz_scale_change_la_largeur_autour_du_centre_borne_0_1",
+      "dz_scale" in D and _dzs(0, "w1") == 0.9 and abs(_dzs(0, "x1") - 0.05) < 1e-9
+      and _dzs(1, "w1") == 0.1 and abs(_dzs(1, "x1") - 0.45) < 1e-9, D.get("dz_scale"))
+# ECART MESURE (22/09/2026) : le plan attendait `-33.3333%` ET `scale(1.66667)`
+# avec UN arrondi a 1e5 -- incoherent (-33.33333 a 1e5). Un seul arrondi, 1e4.
+check("dz_css_est_une_translation_puis_une_echelle_origine_0_0",
+      D.get("dz_css") == ["translate(0%, 0%) scale(1)", "translate(-33.3333%, -33.3333%) scale(1.6667)", ""], D.get("dz_css"))
+check("dz_of_lit_le_clip_et_rend_null_hors_zoom",
+      "dz_of" in D and at("dz_of", 0) == D.get("dz_norm") and at("dz_of", 1) is None and at("dz_of", 2) is None, D.get("dz_of"))
+check("dz_pur", D.get("dz_pur") is True)
+check("dz_composants_existent_et_rendent_null_sans_clip_ni_zoom",
+      D.get("dz_comp") == ["function", "function", None, None, "leve"], D.get("dz_comp"))
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

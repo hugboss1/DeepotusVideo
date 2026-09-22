@@ -1271,3 +1271,13 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
 .dzsvm .dzm-fin-ch{font:11px var(--f-mono)}
 .dzsvm .dzm-fin input[type=text]{flex:1;min-width:120px}
 .dzsvm .dzm-fin-st{font:11px var(--f-mono);color:var(--ink2);margin-top:6px}
+/* D-13 (22/09/2026) — propriétés de plan et rectangles du zoom dynamique.
+   Les rectangles vivent DANS .svm-tf (inset:0 du cadre, hors vzoom, z-index 3). */
+.dzsvm .dzm-plan{margin-top:10px}
+.dzsvm .dzm-plan-t{font-family:var(--f-mono);font-size:10px;color:var(--ink2);text-transform:uppercase;letter-spacing:.06em;margin:6px 0 2px}
+.dzsvm .dzm-plan-hint{font-family:var(--f-mono);font-size:10px;color:var(--ink2)}
+.dzsvm .dzm-dzwrap{position:absolute;inset:0;pointer-events:none}
+.dzsvm .dzm-dzrect{position:absolute;box-sizing:border-box;border:2px solid #3fbf5a;pointer-events:auto;cursor:move;touch-action:none}
+.dzsvm .dzm-dzrect[data-k="fin"]{border-color:#e0453f}
+.dzsvm .dzm-dzlab{position:absolute;left:0;top:0;font:10px var(--f-mono);color:#fff;background:rgba(0,0,0,.6);padding:0 4px;pointer-events:none}
+.dzsvm .dzm-dzh{position:absolute;right:-5px;bottom:-5px;width:10px;height:10px;background:#fff;border:1px solid #000;cursor:nwse-resize}
