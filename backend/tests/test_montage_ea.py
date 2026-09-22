@@ -108,12 +108,86 @@ check("e1_autosave_garde_vide_quand_le_client_le_renvoie",
       r.status_code == 200 and d.get("saved") is True and d.get("vide") is True, str(d)[:200])
 r = c.post("/api/montage/save", json={"name": "neuf", "clips": CLIP_A1})
 d = J(c.get("/api/montage/project"))
-# MESURE (`return` du repli Bibliotheque, `:1455` au 22/09) : il rend {ok, has_assets:<bool>,
+# MESURE (le `return` du repli Bibliotheque, `"saved": False`) : il rend {ok, has_assets:<bool>,
 # saved:False, ...} — sur des donnees vierges, has_assets est faux.
 check("e1_sans_vide_et_sans_v1_l_ancien_chemin_reconstruit_depuis_la_bibliotheque",
       r.status_code == 200 and d.get("ok") is True and d.get("saved") is False
       and d.get("has_assets") is False and "vide" not in d, str(d)[:200])
 
+
+print("\n[2] E-4 publier = un brouillon Scheduler cree par le backend, a la demande")
+# Une source REELLE : mp4 testsrc2 de 2 s via ffmpeg_bin (SKIP dit sans
+# ffmpeg — les lignes qui exigent JID se marquent SKIP, jamais vertes a vide),
+# envoyee par POST /api/videos/upload -> job `done` porteur d'un .mp4.
+import datetime as _dt, json, subprocess, pathlib
+_SRC = str(pathlib.Path(TMP) / "reel.mp4")
+try:
+    from app.services.effects_preview import ffmpeg_bin as _fb
+    subprocess.run([_fb(), "-y", "-loglevel", "error", "-f", "lavfi", "-i",
+                    "testsrc2=s=64x64:r=10:d=2", "-c:v", "libx264", "-pix_fmt",
+                    "yuv420p", _SRC], check=False, capture_output=True, timeout=60)
+except Exception as _e:
+    print("  (ffmpeg injoignable : %s)" % _e)
+JID = ""
+if os.path.exists(_SRC) and os.path.getsize(_SRC) > 0:
+    with open(_SRC, "rb") as _fh:
+        d = J(c.post("/api/videos/upload", files={"file": ("reel.mp4", _fh, "video/mp4")}))
+    JID = str(d.get("job_id") or "")
+skip = 0
+def check_jid(label, cond, detail=""):
+    global skip
+    if not JID: skip += 1; print(f"  SKIP  {label} (pas de source reelle)")
+    else: check(label, cond, detail)
+r = c.post("/api/montage/publish", json={"job_id": "nope"})
+check("e4_job_inconnu_404", r.status_code == 404, r.status_code)
+r = c.post("/api/montage/publish", json={})
+check("e4_sans_job_id_400", r.status_code == 400, r.status_code)
+r = c.post("/api/montage/publish", json={"job_id": JID, "channels": ["x", "zzz", "youtube"],
+                                         "caption": "salut", "project_id": "m_abc12345"}); d = J(r)
+P = d.get("post") if isinstance(d.get("post"), dict) else {}
+check_jid("e4_200_rend_le_post_avec_id_et_job",
+          r.status_code == 200 and d.get("ok") is True and bool(P) and P.get("job_id") == JID
+          and isinstance(P.get("id"), str) and P.get("id") != "", str(d)[:200])
+# MESURE : _post_to_dict rend `channels` en LISTE, `brief` en dict decode, run_at suffixe « Z ».
+check_jid("e4_les_canaux_sont_filtres_par_la_liste_blanche", P.get("channels") == ["x", "youtube"],
+          P.get("channels"))
+check_jid("e4_statut_brouillon_mode_assiste", P.get("status") == "draft" and P.get("mode") == "assisted",
+          (P.get("status"), P.get("mode")))
+def _parse(s):
+    try: return _dt.datetime.fromisoformat(str(s).replace("Z", ""))
+    except Exception: return None
+ra = _parse(P.get("run_at"))
+check_jid("e4_run_at_par_defaut_est_a_deux_heures",
+          ra is not None and 110 * 60 <= (ra - _dt.datetime.utcnow()).total_seconds() <= 130 * 60,
+          P.get("run_at"))
+_b = P.get("brief"); _bd = _b if isinstance(_b, dict) else {}
+check_jid("e4_project_id_voyage_dans_brief", _bd.get("project_id") == "m_abc12345", _b)
+check_jid("e4_la_legende_est_celle_envoyee_le_titre_celui_du_job",
+          P.get("caption") == "salut" and P.get("title") == "reel", (P.get("caption"), P.get("title")))
+r = c.post("/api/montage/publish", json={"job_id": JID, "channels": [], "run_at": "2026-12-01T09:00:00"})
+d = J(r); P2 = d.get("post") if isinstance(d.get("post"), dict) else {}
+check_jid("e4_canaux_vides_retombent_sur_x_et_run_at_explicite_est_garde",
+          r.status_code == 200 and P2.get("channels") == ["x"]
+          and str(P2.get("run_at", "")).startswith("2026-12-01T09:00") and P2.get("brief") is None
+          and P2.get("caption") == "reel", str(d)[:200])
+check_jid("e4_run_at_invalide_400",
+          c.post("/api/montage/publish", json={"job_id": JID, "run_at": "hier"}).status_code == 400)
+r = c.get("/api/schedule"); L = J(r); lst = L.get("_liste") if isinstance(L.get("_liste"), list) else []
+check_jid("e4_deux_brouillons_existent_dans_le_scheduler",
+          r.status_code == 200 and len(lst) == 2 and all(p.get("job_id") == JID for p in lst), len(lst))
+# 409 : un job `queued` fabrique en base DANS la boucle de l'app (portal) — le
+# moteur aiosqlite est lie a cette boucle, un asyncio.run() a part ne le verrait pas.
+from app.services.storage import JobRecord as _JR, async_session_factory as _ASF
+async def _mk_queued():
+    async with _ASF() as s:
+        s.add(_JR(id="q_en_cours", status="queued", image_filename="x.png", title="encours"))
+        await s.commit()
+c.portal.call(_mk_queued)
+r = c.post("/api/montage/publish", json={"job_id": "q_en_cours"})
+check("e4_job_non_termine_409", r.status_code == 409, f"{r.status_code} {r.text[:100]}")
+r = c.get("/api/schedule"); L = J(r); lst = L.get("_liste") if isinstance(L.get("_liste"), list) else []
+check("e4_le_409_n_a_rien_cree", r.status_code == 200 and len(lst) == (2 if JID else 0), len(lst))
+
 c.__exit__(None, None, None)
-print(f"\n=== {ok} passed, {fail} failed ===")
+print(f"\n=== {ok} passed, {fail} failed, {skip} skipped ===")
 sys.exit(1 if fail else 0)

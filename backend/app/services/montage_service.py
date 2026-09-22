@@ -117,7 +117,7 @@ import json
 import math
 import re
 import subprocess
-from datetime import datetime as _dt
+from datetime import datetime as _dt, timedelta as _td
 from pathlib import Path
 from uuid import uuid4
 
@@ -3439,6 +3439,43 @@ async def montage_peaks(request: Request, src: str = "", bins: int = 300):
         return await asyncio.to_thread(MM.peaks, p, bins)
     except Exception as e:
         raise _media_http(e)
+
+
+@router.post("/publish")
+async def montage_publish(request: Request):
+    """E-4 (22/09/2026) — le brouillon Scheduler est créé ICI, à la demande,
+    jamais en effet de bord d'un rendu. Body : {job_id, channels?, run_at?,
+    caption?, title?, project_id?}. Canaux filtrés par la liste blanche du
+    plan (plan_schema._CHANNELS), ["x"] à défaut ; run_at = maintenant + 2 h
+    (naïf UTC, comme le Scheduler le stocke) à défaut ; project_id voyage
+    dans `brief` (colonne Text JSON existante : pas de migration). Même
+    fabrique que le Scheduler (create_scheduled_post — son 400 sur run_at
+    invalide remonte tel quel), importée LAZY comme routes.py importe ce
+    module dans l'autre sens."""
+    body = await _json_body(request)
+    jid = str(body.get("job_id") or "").strip()
+    if not jid:
+        raise HTTPException(400, "job_id manquant.")
+    async with async_session_factory() as session:
+        job = await session.get(JobRecord, jid)
+    if job is None:
+        raise HTTPException(404, "Rendu introuvable.")
+    fp = job.final_video_path or job.video_path
+    if str(job.status) != JobStatus.DONE.value or not fp or not _is_video_artifact(Path(fp)):
+        raise HTTPException(409, "Ce rendu n'est pas terminé (ou n'est pas une vidéo).")
+    from app.services.plan_schema import _CHANNELS
+    ch = [c for c in (body.get("channels") or []) if isinstance(c, str) and c in _CHANNELS] or ["x"]
+    run_at = (str(body.get("run_at") or "").strip()
+              or (_dt.utcnow() + _td(hours=2)).replace(microsecond=0).isoformat())
+    titre = str(body.get("title") or job.title or "Montage")[:200]
+    post = {"title": titre,
+            "caption": body["caption"] if isinstance(body.get("caption"), str) else titre,
+            "channels": ch, "run_at": run_at, "status": "draft", "mode": "assisted", "job_id": jid}
+    pid = body.get("project_id")
+    if isinstance(pid, str) and pid:
+        post["brief"] = {"project_id": pid}
+    from app.api.routes import create_scheduled_post
+    return {"ok": True, "post": await create_scheduled_post(post)}
 
 
 @router.get("/strip")
