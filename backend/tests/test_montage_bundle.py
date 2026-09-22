@@ -15282,7 +15282,9 @@ check("D9_AJ6_le_clip_d_ajustement_porte_data_kind_et_les_hachures_inline",
       s.count(nl('"data-kind":c.kind||void 0,')) == 1
       and s.count('background:isPh||c.kind==="adjust"?"repeating-linear-gradient(') == 1
       and s.count('background:isPh?"repeating-linear-gradient(') == 0
-      and "data-kind" not in _AJ_CSS
+      # temoin POSITIF sur la feuille (revue 23/09/2026) : un montage.css
+      # vide ou tronque laissait la negation verte ; `.svm-clip` y vaut 2.
+      and ".svm-clip" in _AJ_CSS and "data-kind" not in _AJ_CSS
       and (_bak.count('background:isPh?"repeating-linear-gradient(') == 1
            and _bak.count("data-kind") == 0 if _bak else False),
       f"kind={s.count(nl(chr(34) + 'data-kind' + chr(34) + ':c.kind||void 0,'))} css={'data-kind' in _AJ_CSS}")
