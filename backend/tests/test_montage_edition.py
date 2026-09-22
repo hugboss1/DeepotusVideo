@@ -642,6 +642,18 @@ out.kf_keep=[K1===NP,K1.scale,K1.opacity,T.mpKeep({t:1},{t:1,x:0},PV).scale,T.mp
 var K2=T.mpKeep({t:1,x:.5,y:.5,rotate:0},{t:1,x:.5,y:.5,rotate:0},null),K3=T.mpKeep({t:1},{scale:"zz",opacity:null},{opacity:"x"});
 out.kf_keep_absent=["scale" in K2,"opacity" in K2,"scale" in K3,"opacity" in K3,Object.keys(K2).length];
 out.kf_pur=[JSON.stringify(KP)==='[{"t":0,"x":0.5,"y":0.5,"scale":0.5},{"t":1,"x":0.6,"y":0.5},{"t":2,"x":0.7,"y":0.5,"scale":1.5,"opacity":0.2}]',JSON.stringify(VP)==='{"t":1,"x":0.5,"y":0.5,"rotate":0,"scale":9,"opacity":0.123456}',JSON.stringify(PV)==='{"t":1,"x":0.1,"y":0.1,"scale":0.7,"opacity":0.4}'];
+/* [18] D-9 : la piste d'ajustement (client) -- « j » = cinquieme genre ; `group` prend un OBJET (mesure : dzmGroup(t) lit t.kind/t.id, le plan ecrivait group("j1","adjust") a tort) */
+out.aj_kind=[T.kindOf("j1"),T.kindOf("j2","adjust"),T.kindOf("a1"),T.kindOf("t1"),T.kindOf("v1")];
+var AJS=T.skin("j1","adjust");
+out.aj_skin=[AJS.kind,AJS.type,AJS.id,typeof AJS.h];
+var TS0=T.DEFAULTS.map(function(t){return t.id});
+var TS1=T.adjustTrack(T.DEFAULTS);
+out.aj_track=[TS1.map(function(t){return t.id}),T.adjustTrack(TS1)===TS1,T.adjustTrack([]).map(function(t){return t.id}),T.adjustTrack([{id:"j1"}]).length];
+var AJC=[{id:"p",tr:"v1",start:0,end:10}];
+out.aj_new=T.adjustNew(2.5,AJC,"j1");
+out.aj_new_dur=[T.adjustNew(9,AJC,"j1").end,T.adjustNew(-1,AJC,"j1"),T.adjustNew(1,[],"j1"),T.adjustNew(0,[{id:"j1u1",tr:"j1",kind:"adjust",start:0,end:3}].concat(AJC),"j1").id];
+out.aj_group=[T.group({id:"j1",kind:"adjust"}),T.group({id:"t1",kind:"title"}),T.group({id:"v2",kind:"video"}),T.group({id:"a1",kind:"audio"})];
+out.aj_pur=[TS0.join()===T.DEFAULTS.map(function(t){return t.id}).join(),TS1.length===T.DEFAULTS.length+1,AJC.length===1&&AJC[0].end===10];
 console.log(JSON.stringify(out));
 """
 print("\n[1] dzmInsere sous node")
@@ -835,7 +847,9 @@ try:
                  "sb_norm","sb_of","sb_state","sb_pur",
                  # D-14 (L3, tache 7) : les SEPT cles de la section [17].
                  "kf_lerp","kf_lerp_hors","kf_lerp_defaut","kf_lerp_desordre",
-                 "kf_keep","kf_keep_absent","kf_pur"]
+                 "kf_keep","kf_keep_absent","kf_pur",
+                 # D-9 (L3, tache 9) : les SEPT cles de la section [18].
+                 "aj_kind","aj_skin","aj_track","aj_new","aj_new_dur","aj_group","aj_pur"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -1507,6 +1521,26 @@ check("kf_keep_reporte_le_patch_sinon_le_point_ecrase_avec_les_bornes_du_backend
 check("kf_keep_ne_pose_aucune_cle_sans_source_finie",
       D.get("kf_keep_absent") == [False, False, False, False, 4], D.get("kf_keep_absent"))
 check("kf_pur", D.get("kf_pur") == [True, True, True], D.get("kf_pur"))
+
+print("\n[18] D-9 piste d'ajustement (client)")
+check("aj_kind_j_est_le_cinquieme_genre",
+      D.get("aj_kind") == ["adjust", "adjust", "audio", "title", "video"], D.get("aj_kind"))
+check("aj_skin_habille_la_piste",
+      "aj_skin" in D and D["aj_skin"] == ["adjust", "ajustement", "j1", "number"], D.get("aj_skin"))
+# j1 sous t1 (le haut du groupe des incrustations, dzmTitresAt), idempotent, ["j1"] sur liste vide,
+# et une liste restauree qui ne porte que l'id (kindOf lit la lettre) ne recoit pas une seconde j1
+check("aj_track_pose_j1_sous_t1_au_dessus_de_v2_idempotent",
+      "aj_track" in D and D["aj_track"] == [["t1", "j1", "v2", "v1", "a1", "a2", "a3", "s1"], True, ["j1"], 1], D.get("aj_track"))
+check("aj_new_est_un_clip_sans_src_de_3_s_a_la_tete",
+      "aj_new" in D and isinstance(D["aj_new"], dict) and D["aj_new"]["tr"] == "j1" and D["aj_new"]["start"] == 2.5
+      and D["aj_new"]["end"] == 5.5 and "src" not in D["aj_new"] and D["aj_new"]["kind"] == "adjust"
+      and D["aj_new"]["effects"] == [] and D["aj_new"]["label"] == "Ajustement" and D["aj_new"]["id"] == "j1u1", D.get("aj_new"))
+# borne par max(end) des clips ; null si t<0 ; null sur une liste vide ; le second clip se nomme j1u2
+check("aj_new_est_borne_par_la_fin_de_la_timeline_et_refuse_le_negatif_et_le_vide",
+      "aj_new_dur" in D and D["aj_new_dur"] == [10, None, None, "j1u2"], D.get("aj_new_dur"))
+check("aj_group_range_l_ajustement_avec_les_titres_et_les_incrustations",
+      D.get("aj_group") == [0, 0, 0, 2], D.get("aj_group"))
+check("aj_pur", D.get("aj_pur") == [True, True, True], D.get("aj_pur"))
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

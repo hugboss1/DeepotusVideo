@@ -306,7 +306,12 @@ STABLE_PROBES = [
     # interpolee), dans vOp de l inspecteur (KF3b) et dans liveSync (KF5,
     # l opacite en direct) ; `mpKeep(` dans svmMpPlace (KF2b). KF2, KF3a,
     # KF3c et KF4 n en ajoutent aucune (svmMpField, code nu).
-    ("montage", "DzTracks", 112),
+    # 22/09/2026, D-9 (lot L3, tache 9) : 112 -> 114. DEUX de plus, dans le
+    # repli dzAjAdd (R_M16REF) : `adjustNew(` (le clip de 3 s) et
+    # `adjustTrack(` (la piste j1 nait avec le premier clip). AJ2a/AJ2b,
+    # AJ6a/AJ6b et les replis TT1/M5/TT11/R1/R2/K5 n en ajoutent aucune.
+    # MESURE : la chaine a refuse, « sonde montage x114 (want 112) ».
+    ("montage", "DzTracks", 114),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

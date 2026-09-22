@@ -1549,6 +1549,7 @@ var SVM_ACTIONS=[
  {id:"swap_left",sec:"Montage",lbl:"echanger avec le plan precedent",combo:"Ctrl+←"},
  {id:"swap_right",sec:"Montage",lbl:"echanger avec le plan suivant",combo:"Ctrl+→"},
  {id:"title_add",sec:"Montage",lbl:"titre : poser un carton a la tete",combo:"Maj+T"},
+ {id:"adjust_add",sec:"Montage",lbl:"ajustement : poser un clip a la tete",combo:"Maj+J"},
  {id:"zoom_in",sec:"Affichage",lbl:"zoom avant (crans)",combo:"Ctrl+="},
  {id:"zoom_out",sec:"Affichage",lbl:"zoom arrière (crans)",combo:"Ctrl+-"},
  {id:"zoom100",sec:"Affichage",lbl:"zoom 100 %",combo:"Maj+Z"},
@@ -1767,6 +1768,12 @@ function DzMontage(props){
     if(ts2!==ts)svmTracksSet(ts2);else pushHistory();
     setClips(clipsRef.current.concat([t]));setSelId(t.id);setDirty(!0);
     fireNote("Titre posé à "+t.start.toFixed(2)+" s sur T1 — "+"l'inspecteur règle le gabarit et le texte.")}
+  function dzAjAdd(){var c=DzTracks.adjustNew(phRef.current,clipsRef.current,"j1");
+    if(!c){fireNote("Rien à ajuster ici — pose d'abord un plan");return}
+    var ts=svmTracksOf(dzProjRef.current),ts2=DzTracks.adjustTrack(ts);
+    if(ts2!==ts)svmTracksSet(ts2);else pushHistory();
+    setClips(clipsRef.current.concat([c]));setSelId(c.id);setDirty(!0);
+    fireNote("Clip d'ajustement posé sur J1 — ouvre le rack VFX pour lui donner des effets")}
   var stDzMk=x.useState(!1),dzMkOn=stDzMk[0],setDzMkOn=stDzMk[1];
   var dzMkOnRef=x.useRef(!1);dzMkOnRef.current=dzMkOn;
   function dzMkToggle(v){var n=arguments.length?!!v:!dzMkOnRef.current;if(n)setOvPick("");setDzMkOn(n)}
@@ -3322,6 +3329,7 @@ function DzMontage(props){
       if(id==="marker_index"){dzMkToggle();return}
       if(id==="swap_left"||id==="swap_right"){var dzC=(clipsRef.current||[]).filter(function(k){return k&&k.id===selRef.current})[0];if(!dzC){fireNote("Échanger : sélectionnez d'abord un plan.");return}if(trackStRef.current[dzC.tr]&&trackStRef.current[dzC.tr].l){fireNote("Piste "+dzC.tr.toUpperCase()+" verrouillée.");return}var dzSw=DzTracks.swap(clipsRef.current,dzC.id,id==="swap_left"?-1:1);if(dzSw.every(function(k,i){return k===clipsRef.current[i]})){fireNote("Aucun plan voisin de ce côté.");return}pushHistory();setClips(dzSw);setDirty(!0);fireNote("« "+(dzC.label||dzC.id)+" » échangé avec le plan "+(id==="swap_left"?"précédent":"suivant")+".");return}
       if(id==="title_add"){dzTtAdd();return}
+      if(id==="adjust_add"){dzAjAdd();return}
       if(id==="zoom_in"){zoomApply(zoomPctRef.current*1.25);return}
       if(id==="zoom_out"){zoomApply(zoomPctRef.current/1.25);return}
       if(id==="zoom100"){zoomApply(100);return}
@@ -3904,7 +3912,7 @@ function DzMontage(props){
      d'effets, le mixage par clip — chacun teste un genre et ne trouve pas le
      sien sur S1. */
   function trackKind(trId){var k=String(trId||"").charAt(0);
-    return k==="a"?"audio":k==="s"?"subs":k==="t"?"title":"video"}
+    return k==="a"?"audio":k==="s"?"subs":k==="t"?"title":k==="j"?"adjust":"video"}
 
   /* ── couche sous-titres (frontend/patches/subs.js) — feature-detect : si
      elle est absente, tout ce qui suit rend `null` et le Montage retombe
@@ -4454,7 +4462,7 @@ function DzMontage(props){
          (`layer`) et en bus de mixage. Un backend qui ne connaît pas
          encore la clé l'ignore et rend exactement ce qu'il rendait. */
       tracks:svmTracksPayload(proj),
-      clips:clips.filter(function(c){return c.src||c.kind==="title"}).map(function(c){
+      clips:clips.filter(function(c){return c.src||c.kind==="title"||c.kind==="adjust"}).map(function(c){
         var o={tr:c.tr,src:c.src,start:c.start,end:c.end,srcIn:c.srcIn||0,kind:c.kind,title:c.title,
           transition:c.transition||"cut",transition_s:c.transition_s||0,
           /* contournés (bypass du rack VFX) : retirés du RENDU, gardés dans
@@ -4814,8 +4822,9 @@ function DzMontage(props){
      historiques partout ailleurs (démo, clips audio, couche absente). */
   function vfxStackSection(){
     var d=vfxLayer();
-    if(d&&d.Stack&&sel&&sel.src&&trackKind(sel.tr)==="video")
-      return r.jsx(d.Stack,{effects:sel.effects||[],clip:sel,
+    if(d&&d.Stack&&sel&&((sel.src&&trackKind(sel.tr)==="video")||sel.kind==="adjust"))
+      return r.jsxs(r.Fragment,{children:[sel.kind==="adjust"?r.jsx(SvmLabel,{style:{margin:"20px 0 10px"},children:"Ajustement — ses effets s'appliquent à tout ce qui est dessous, visibles après Preview"}):null,
+      r.jsx(d.Stack,{effects:sel.effects||[],clip:sel,
         dur:Math.max(.1,sel.end-sel.start),
         onOpenPanel:function(){setFxPick(!fxPick)},
         onChange:function(next,heavy){
@@ -4826,7 +4835,7 @@ function DzMontage(props){
           d.hist.t=now;
           setClips(clipsRef.current.map(function(k){
             return k.id===id?Object.assign({},k,{effects:next}):k}));
-          setDirty(!0)}});
+          setDirty(!0)}})]});
     return vfxLegacySection()}
   function vfxLegacySection(){
     return r.jsxs(r.Fragment,{children:[
@@ -6039,6 +6048,7 @@ function DzMontage(props){
             "aria-label":"marqueurs",
             title:"Marqueurs — index ("+svmKeyLabel("marker_index")+") · "+svmKeyLabel("marker_toggle")+" pose/retire à la tête",onClick:function(){dzMkToggle()},children:"◆ "+((proj.markers||[]).length)}),
           r.jsx("button",{className:"svm-toolchip","aria-label":"poser un titre",title:"Poser un titre à la tête ("+svmKeyLabel("title_add")+")",onClick:function(){dzTtAdd()},children:"T+"}),
+          r.jsx("button",{className:"svm-toolchip","aria-label":"poser un clip d'ajustement",title:"Poser un clip d'ajustement à la tête ("+svmKeyLabel("adjust_add")+")",onClick:function(){dzAjAdd()},children:"J+"}),
           /* sous-titres : la chip dit combien de lignes porte la piste et
              combien sont SIGNALÉES — les deux chiffres sortent du verdict,
              donc ils valent exactement ceux du badge d'onglet du tiroir et
@@ -6176,11 +6186,14 @@ function DzMontage(props){
                 ?"Écrire un sous-titre à la tête de lecture"
                 :trackKind(tr.id)==="audio"
                 ?"Ajouter un son de la Bibliothèque à la tête de lecture"
+                :trackKind(tr.id)==="adjust"
+                ?"Poser un clip d'ajustement de 3 s à la tête de lecture — ses effets s'appliquent à tout ce qui est dessous"
                 :trackKind(tr.id)==="title"
                 ?"Poser un carton de titre à la tête de lecture ("+svmKeyLabelNow("title_add")+") — la piste des titres ne reçoit aucun autre média"
                 :"Ajouter une image ou un rendu à la tête de lecture",
               onClick:function(){
                 if(trackKind(tr.id)==="subs"){subsAddHere();return}
+                if(trackKind(tr.id)==="adjust"){dzAjAdd();return}
                 if(trackKind(tr.id)==="title"){dzTtAdd();return}
                 openPicker(tr.id)},children:"+"},"add");
             var thType=r.jsx("span",{className:"svm-ttype",title:tr.type,children:tr.type},"type");
@@ -6283,9 +6296,10 @@ function DzMontage(props){
                     "data-locked":locked?"":void 0,
                     "data-narr":isPh?"":void 0,
                     "data-media":media&&tr.id==="v1"?"":void 0,
+                    "data-kind":c.kind||void 0,
                     style:{left:c.start/dur*100+"%",width:(c.end-c.start)/dur*100+"%",
                       borderColor:isSel?"var(--accent)":isPh?"var(--stroke2)":"color-mix(in srgb, var("+tr.c+") 53%, transparent)",
-                      background:isPh?"repeating-linear-gradient(-45deg,transparent 0 5px, color-mix(in srgb, var("+tr.c+") 26%, transparent) 5px 6px)":isSel?"color-mix(in srgb, var(--accent) 20%, transparent)":"color-mix(in srgb, var("+tr.c+") "+tr.mix+"%, transparent)"},
+                      background:isPh||c.kind==="adjust"?"repeating-linear-gradient(-45deg,transparent 0 5px, color-mix(in srgb, var("+tr.c+") 26%, transparent) 5px 6px)":isSel?"color-mix(in srgb, var(--accent) 20%, transparent)":"color-mix(in srgb, var("+tr.c+") "+tr.mix+"%, transparent)"},
                     /* le problème se voit SUR la timeline. La pastille porte
                        la SÉVÉRITÉ que le verdict a décidée — la même que la
                        pastille de la ligne dans le tiroir, réplique par
@@ -13046,6 +13060,12 @@ function dzmSkin(id,kind,type){
      0 px de nom, portant pourtant ses cartons. */
   if(kind==="title")return {id:id,name:String(id).toUpperCase(),type:"titres",
     h:40,c:"--c-text",mix:11,kind:"title"};
+  /* D-9 — la piste d'AJUSTEMENT (j1) : ses clips n'ont pas de source, ils
+     portent des effets qui s'appliquent à tout ce qui est dessous au rendu.
+     Habillage d'incrustation (teinte --c-3d) : c'est le groupe qu'elle
+     rejoint (dzmGroup). */
+  if(kind==="adjust")return {id:id,name:String(id).toUpperCase(),type:"ajustement",
+    h:40,c:"--c-3d",mix:13,kind:"adjust"};
   if(type==="vidéo")return {id:id,name:String(id).toUpperCase(),type:"vidéo",
     h:54,c:"--c-video",mix:13,kind:"video"};
   return {id:id,name:String(id).toUpperCase(),type:"overlay",h:40,c:"--c-3d",
@@ -13061,7 +13081,10 @@ function dzmSkin(id,kind,type){
 function dzmKindOf(id,kind){
   if(kind)return kind;
   var k=String(id||"").charAt(0);
-  return k==="a"?"audio":k==="s"?"subs":k==="t"?"title":"video"}
+  return k==="a"?"audio":k==="s"?"subs":k==="t"?"title":k==="j"?"adjust":"video"}
+/* D-9 — « j » EST LE CINQUIÈME GENRE (même table que TT1/AJ1 du patcher).
+   MESURE du 22/09/2026 : `id:"j` vaut 8 dans .bak_montage, tous des
+   `job_…`/`jog_…` — aucun identifiant de PISTE. La lettre était libre. */
 
 /* LE REPLI DES PISTES, ÉCRIT UNE FOIS. « Une liste vide vaut les six pistes
    de base » était écrit à deux endroits ; l'étape 4 de la barre en voulait un
@@ -13133,7 +13156,7 @@ function svmTrackBusSync(ts){
    à sa naissance. */
 function dzmGroup(t){
   var k=t&&t.kind;
-  return k==="title"?0:k==="video"?(t.id==="v1"?1:0):k==="audio"?2:3}
+  return k==="title"||k==="adjust"?0:k==="video"?(t.id==="v1"?1:0):k==="audio"?2:3}
 function dzmIndex(ts,id){
   for(var i=0;i<ts.length;i++)if(ts[i].id===id)return i;
   return -1}
@@ -18587,6 +18610,33 @@ function dzmTitleNew(title,t,clips,tr){
   return {tr:piste,kind:"title",id:dzmUniqueId(clips,piste+"u"+n),
     label:txt.slice(0,24),start:t0,end:dzmR3(t0+len),title:ti}}
 
+/* D-9 — LA PISTE D'AJUSTEMENT, POSÉE UNE FOIS. Même contrat que
+   `dzmTitleTrack` (le MÊME tableau si une piste `adjust` existe déjà, le
+   genre DÉDUIT quand la piste ne le porte pas), mais insérée SOUS les
+   titres (`dzmTitresAt`) : la gravure ASS passe après tout au rendu, et
+   l'ajustement doit rester au-dessus des incrustations qu'il traite. Sur
+   une liste vide : `["j1"]`. PURE. */
+function dzmAdjustTrack(ts){
+  var list=(ts&&ts.length)?ts:[],i,t;
+  for(i=0;i<list.length;i++){t=list[i];
+    if(t&&t.id&&dzmKindOf(t.id,t.kind)==="adjust")return ts}
+  var out=list.slice();out.splice(dzmTitresAt(list),0,dzmSkin("j1","adjust"));return out}
+
+/* LE CLIP D'AJUSTEMENT NEUF, ou `null`. PURE. SANS clé `src` (le payload le
+   laisse passer par son genre, comme un carton), `effects:[]` — c'est le
+   rack VFX qui les lui donne. TROIS SECONDES bornées par la fin de la
+   timeline (`max(end)` des clips) ; `null` sous une tête négative ou sur un
+   projet vide : rien à ajuster, aucun instantané d'historique pour rien. */
+function dzmAdjustNew(t,clips,tr){
+  var cs=Array.isArray(clips)?clips:[],v=Number(t);
+  if(!cs.length||!isFinite(v)||v<0)return null;
+  var piste=String(tr||"j1"),fin=0,n=1;
+  cs.forEach(function(c){if(c){if(c.end>fin)fin=c.end;if(c.kind==="adjust")n++}});
+  var t0=dzmR3(v),t1=dzmR3(Math.min(t0+3,fin));
+  if(t1<=t0)return null;
+  return {tr:piste,kind:"adjust",id:dzmUniqueId(cs,piste+"u"+n),
+    label:"Ajustement",start:t0,end:t1,effects:[]}}
+
 /* LE CARTON SOUS LA TÊTE, ou `null`. FIN EXCLUE et DERNIER DÉPART GAGNANT :
    les deux règles de `svmActiveV1` du bundle, reprises telles quelles — un
    carton qui finit à 4 s a cédé la place à 4 s exactement, et deux cartons
@@ -19212,6 +19262,9 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
      rien n'est ré-exporté sous un second nom, une clé de plus aurait été une
      seconde porte sur la même fonction. */
   titleTrack:dzmTitleTrack,titleNew:dzmTitleNew,
+  /* D-9 — `kindOf` entre au contrat : c'est la table des genres elle-même
+     (aucune autre porte n'y menait, le banc [18] la lit). */
+  kindOf:dzmKindOf,adjustTrack:dzmAdjustTrack,adjustNew:dzmAdjustNew,
   titleAt:dzmTitleAt,titleHtml:dzmTitleHtml,ttEsc:dzmTtEsc,
   titleUpdate:dzmTitleUpdate,TitleInspector:DzmTitleInspector,
   transList:dzmTransList,transLabel:dzmTransLabel,transFamily:dzmTransFamily,

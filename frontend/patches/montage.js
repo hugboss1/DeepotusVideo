@@ -211,6 +211,12 @@ function dzmSkin(id,kind,type){
      0 px de nom, portant pourtant ses cartons. */
   if(kind==="title")return {id:id,name:String(id).toUpperCase(),type:"titres",
     h:40,c:"--c-text",mix:11,kind:"title"};
+  /* D-9 — la piste d'AJUSTEMENT (j1) : ses clips n'ont pas de source, ils
+     portent des effets qui s'appliquent à tout ce qui est dessous au rendu.
+     Habillage d'incrustation (teinte --c-3d) : c'est le groupe qu'elle
+     rejoint (dzmGroup). */
+  if(kind==="adjust")return {id:id,name:String(id).toUpperCase(),type:"ajustement",
+    h:40,c:"--c-3d",mix:13,kind:"adjust"};
   if(type==="vidéo")return {id:id,name:String(id).toUpperCase(),type:"vidéo",
     h:54,c:"--c-video",mix:13,kind:"video"};
   return {id:id,name:String(id).toUpperCase(),type:"overlay",h:40,c:"--c-3d",
@@ -226,7 +232,10 @@ function dzmSkin(id,kind,type){
 function dzmKindOf(id,kind){
   if(kind)return kind;
   var k=String(id||"").charAt(0);
-  return k==="a"?"audio":k==="s"?"subs":k==="t"?"title":"video"}
+  return k==="a"?"audio":k==="s"?"subs":k==="t"?"title":k==="j"?"adjust":"video"}
+/* D-9 — « j » EST LE CINQUIÈME GENRE (même table que TT1/AJ1 du patcher).
+   MESURE du 22/09/2026 : `id:"j` vaut 8 dans .bak_montage, tous des
+   `job_…`/`jog_…` — aucun identifiant de PISTE. La lettre était libre. */
 
 /* LE REPLI DES PISTES, ÉCRIT UNE FOIS. « Une liste vide vaut les six pistes
    de base » était écrit à deux endroits ; l'étape 4 de la barre en voulait un
@@ -298,7 +307,7 @@ function svmTrackBusSync(ts){
    à sa naissance. */
 function dzmGroup(t){
   var k=t&&t.kind;
-  return k==="title"?0:k==="video"?(t.id==="v1"?1:0):k==="audio"?2:3}
+  return k==="title"||k==="adjust"?0:k==="video"?(t.id==="v1"?1:0):k==="audio"?2:3}
 function dzmIndex(ts,id){
   for(var i=0;i<ts.length;i++)if(ts[i].id===id)return i;
   return -1}
@@ -5752,6 +5761,33 @@ function dzmTitleNew(title,t,clips,tr){
   return {tr:piste,kind:"title",id:dzmUniqueId(clips,piste+"u"+n),
     label:txt.slice(0,24),start:t0,end:dzmR3(t0+len),title:ti}}
 
+/* D-9 — LA PISTE D'AJUSTEMENT, POSÉE UNE FOIS. Même contrat que
+   `dzmTitleTrack` (le MÊME tableau si une piste `adjust` existe déjà, le
+   genre DÉDUIT quand la piste ne le porte pas), mais insérée SOUS les
+   titres (`dzmTitresAt`) : la gravure ASS passe après tout au rendu, et
+   l'ajustement doit rester au-dessus des incrustations qu'il traite. Sur
+   une liste vide : `["j1"]`. PURE. */
+function dzmAdjustTrack(ts){
+  var list=(ts&&ts.length)?ts:[],i,t;
+  for(i=0;i<list.length;i++){t=list[i];
+    if(t&&t.id&&dzmKindOf(t.id,t.kind)==="adjust")return ts}
+  var out=list.slice();out.splice(dzmTitresAt(list),0,dzmSkin("j1","adjust"));return out}
+
+/* LE CLIP D'AJUSTEMENT NEUF, ou `null`. PURE. SANS clé `src` (le payload le
+   laisse passer par son genre, comme un carton), `effects:[]` — c'est le
+   rack VFX qui les lui donne. TROIS SECONDES bornées par la fin de la
+   timeline (`max(end)` des clips) ; `null` sous une tête négative ou sur un
+   projet vide : rien à ajuster, aucun instantané d'historique pour rien. */
+function dzmAdjustNew(t,clips,tr){
+  var cs=Array.isArray(clips)?clips:[],v=Number(t);
+  if(!cs.length||!isFinite(v)||v<0)return null;
+  var piste=String(tr||"j1"),fin=0,n=1;
+  cs.forEach(function(c){if(c){if(c.end>fin)fin=c.end;if(c.kind==="adjust")n++}});
+  var t0=dzmR3(v),t1=dzmR3(Math.min(t0+3,fin));
+  if(t1<=t0)return null;
+  return {tr:piste,kind:"adjust",id:dzmUniqueId(cs,piste+"u"+n),
+    label:"Ajustement",start:t0,end:t1,effects:[]}}
+
 /* LE CARTON SOUS LA TÊTE, ou `null`. FIN EXCLUE et DERNIER DÉPART GAGNANT :
    les deux règles de `svmActiveV1` du bundle, reprises telles quelles — un
    carton qui finit à 4 s a cédé la place à 4 s exactement, et deux cartons
@@ -6377,6 +6413,9 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
      rien n'est ré-exporté sous un second nom, une clé de plus aurait été une
      seconde porte sur la même fonction. */
   titleTrack:dzmTitleTrack,titleNew:dzmTitleNew,
+  /* D-9 — `kindOf` entre au contrat : c'est la table des genres elle-même
+     (aucune autre porte n'y menait, le banc [18] la lit). */
+  kindOf:dzmKindOf,adjustTrack:dzmAdjustTrack,adjustNew:dzmAdjustNew,
   titleAt:dzmTitleAt,titleHtml:dzmTitleHtml,ttEsc:dzmTtEsc,
   titleUpdate:dzmTitleUpdate,TitleInspector:DzmTitleInspector,
   transList:dzmTransList,transLabel:dzmTransLabel,transFamily:dzmTransFamily,

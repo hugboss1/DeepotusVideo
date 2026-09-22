@@ -321,7 +321,11 @@ R_M5 = ("      /* P1 — l'ORDRE des pistes, du haut vers le bas : c'est lui que
         # DEJA SURE : elle est precedee de `c.tr==="v1"&&`, et un carton vit
         # sur t1 -- le court-circuit sort AVANT la lecture (mesure du
         # 21/09/2026 sur le texte du .bak, que rien ne reecrit ici).
-        '      clips:clips.filter(function(c){return c.src||c.kind==="title"})'
+        # AJ3 (D-9, 22/09/2026) : le clip d'AJUSTEMENT passe aussi -- sans
+        # `src`, comme un carton ; `kind` est joint pour TOUT clip par TT2b
+        # et `effects` est dans le litteral `o` du .bak (mesure) : le backend
+        # le collecte dans adjust_clips par le genre de sa piste (`j1`).
+        '      clips:clips.filter(function(c){return c.src||c.kind==="title"||c.kind==="adjust"})'
         ".map(function(c){")
 
 # ── M6 : autosave ───────────────────────────────────────────────────────────
@@ -1099,6 +1103,21 @@ R_M16REF = (A_M16REF + "\n"
             "    setClips(clipsRef.current.concat([t]));setSelId(t.id);setDirty(!0);\n"
             '    fireNote("Titre posé à "+t.start.toFixed(2)+" s sur T1 — "'
             '+"l\'inspecteur règle le gabarit et le texte.")}\n'
+            # -- « AJ4 » (D-9, 22/09/2026) : POSER UN CLIP D'AJUSTEMENT -----
+            # Modele EXACT de dzTtAdd : la piste j1 nait ici si elle manque
+            # (`adjustTrack`, sous t1 ; svmTracksSet pousse DEJA l'historique,
+            # sinon on pousse nous-memes), puis le clip de 3 s a la tete.
+            # `adjustNew` rend null sur un projet vide ou une tete negative :
+            # rien n'est pose, rien n'est pousse, la note le dit. Trois
+            # portes appellent CE geste : le « + » de j1 (TT11), la chip
+            # « J+ » (K5) et Maj+J (R1/R2) -- une seule source de verite.
+            "  function dzAjAdd(){"
+            'var c=DzTracks.adjustNew(phRef.current,clipsRef.current,"j1");\n'
+            '    if(!c){fireNote("Rien à ajuster ici — pose d\'abord un plan");return}\n'
+            "    var ts=svmTracksOf(dzProjRef.current),ts2=DzTracks.adjustTrack(ts);\n"
+            "    if(ts2!==ts)svmTracksSet(ts2);else pushHistory();\n"
+            "    setClips(clipsRef.current.concat([c]));setSelId(c.id);setDirty(!0);\n"
+            '    fireNote("Clip d\'ajustement posé sur J1 — ouvre le rack VFX pour lui donner des effets")}\n'
             # -- « K3 » (D-5) : L'INDEX DES MARQUEURS EST-IL OUVERT ? --
             # REPLIE ICI, meme mesure que « E1 » juste au-dessus : la
             # ligne `dzTracksRef` qui sert d'ancre a ce remplacement vaut
@@ -3113,7 +3132,17 @@ R_R1 = (A_R1 + "\n"
         # `onKey` cherche d'abord `m[combo]` EXACT et ne retombe sur la
         # variante sans Maj que si la combo complete est INCONNUE de la
         # table -- elle y est desormais. Meme raisonnement que « Maj+M ».
-        '\n {id:"title_add",sec:"Montage",lbl:"titre : poser un carton a la tete",combo:"Maj+T"},')
+        '\n {id:"title_add",sec:"Montage",lbl:"titre : poser un carton a la tete",combo:"Maj+T"},'
+        # -- « AJ5 » (D-9, 22/09/2026) : POSER UN CLIP D'AJUSTEMENT ----------
+        # Meme porte que les titres (Maj+T / T+), PAS un bouton de la barre
+        # flottante : le plan de la barre est confronte au design.md (§2.4,
+        # §3 onze traces pinnes six fois, §6) et au cablage (dix boutons,
+        # TB7, _ATTENDU_B7) -- un 4e bouton PISTES aurait coute une douzaine
+        # de pins et une ligne de handoff pour un geste que dzAjAdd fait
+        # deja (la piste nait avec le premier clip, comme t1). COMBO MESUREE
+        # LIBRE le 22/09/2026 : `combo:"Maj+J"` vaut 0 dans .bak_montage ;
+        # `combo:"J"` y vaut 1 et le dispatch cherche la combo EXACTE d'abord.
+        '\n {id:"adjust_add",sec:"Montage",lbl:"ajustement : poser un clip a la tete",combo:"Maj+J"},')
 
 # ── R2 (D-11) : la branche de dispatch ─────────────────────────────────────
 # PORTEE MESUREE dans `onKey` (meme corps de composant, closure) : `phRef`,
@@ -3274,7 +3303,8 @@ R_R2 = (A_R2 + "\n"
         # deux sources de verite pour un meme bouton, exactement ce que le
         # §5.1 du handoff interdit ; `dzMkToggle` est le precedent (K2, K5
         # et K7 l'appellent tous les trois).
-        '\n      if(id==="title_add"){dzTtAdd();return}')
+        '\n      if(id==="title_add"){dzTtAdd();return}'
+        '\n      if(id==="adjust_add"){dzAjAdd();return}')
 
 # ── R3 (D-11) : la bande sur la regle, apres la gouttiere ──────────────────
 # `DzmRangeBar` rend `null` tant que la plage n'est pas COMPLETE : la regle
@@ -3420,7 +3450,13 @@ R_K5 = (A_K5 + "\n"
         '"aria-label":"poser un titre",'
         'title:"Poser un titre à la tête ("+svmKeyLabel("title_add")+")",'
         'onClick:function(){dzTtAdd()},'
-        'children:"T+"}),')
+        'children:"T+"}),'
+        # -- « AJ5 » (D-9, 22/09/2026) : LA CHIP « J+ », modele exact de T+.
+        '\n          r.jsx("button",{className:"svm-toolchip",'
+        '"aria-label":"poser un clip d\'ajustement",'
+        'title:"Poser un clip d\'ajustement à la tête ("+svmKeyLabel("adjust_add")+")",'
+        'onClick:function(){dzAjAdd()},'
+        'children:"J+"}),')
 
 # -- K5b : le panneau de l'index, parmi les popovers -------------------------
 # POSE JUSTE APRES `ovPicker()`, au milieu des autres panneaux flottants : il
@@ -3711,8 +3747,11 @@ R_V3 = (A_V3 + "\n"
 # identifiant de PISTE ne commence par « t ». Relevees une a une.
 A_TT1 = ('  function trackKind(trId){var k=String(trId||"").charAt(0);\n'
          '    return k==="a"?"audio":k==="s"?"subs":"video"}')
+# AJ1 (D-9, 22/09/2026) : « j » = adjust, REPLI ici (la ligne est celle que
+# TT1 reecrit). MESURE : `id:"j` vaut 8 dans .bak_montage, tous des `job_…`/
+# `jog_…` -- aucun identifiant de PISTE. Meme table que dzmKindOf (couche).
 R_TT1 = ('  function trackKind(trId){var k=String(trId||"").charAt(0);\n'
-         '    return k==="a"?"audio":k==="s"?"subs":k==="t"?"title":"video"}')
+         '    return k==="a"?"audio":k==="s"?"subs":k==="t"?"title":k==="j"?"adjust":"video"}')
 
 # TT2b : CE QUE LE CARTON EMPORTE AU RENDU. Le backend reconnait un titre a
 # la PISTE (`_tracks_meta[tr].kind === "title"`, mesure de la tache 5) et lit
@@ -3790,7 +3829,13 @@ A_TT11 = ('                :"Ajouter une image ou un rendu à la tête de '
           '                if(trackKind(tr.id)==="subs"){subsAddHere();'
           'return}\n'
           '                openPicker(tr.id)},children:"+"},"add");')
-R_TT11 = ('                :trackKind(tr.id)==="title"\n'
+# AJ4 (D-9, 22/09/2026) : le « + » de l'en-tete de j1 pose un clip
+# d'ajustement (dzAjAdd, replie dans R_M16REF) -- REPLI ici, la ligne est
+# celle que TT11 reecrit.
+R_TT11 = ('                :trackKind(tr.id)==="adjust"\n'
+          '                ?"Poser un clip d\'ajustement de 3 s à la tête de '
+          'lecture — ses effets s\'appliquent à tout ce qui est dessous"\n'
+          '                :trackKind(tr.id)==="title"\n'
           '                ?"Poser un carton de titre à la tête de lecture ("'
           '+svmKeyLabelNow("title_add")+") — la piste des titres ne reçoit '
           'aucun autre média"\n'
@@ -3799,6 +3844,7 @@ R_TT11 = ('                :trackKind(tr.id)==="title"\n'
           '              onClick:function(){\n'
           '                if(trackKind(tr.id)==="subs"){subsAddHere();'
           'return}\n'
+          '                if(trackKind(tr.id)==="adjust"){dzAjAdd();return}\n'
           '                if(trackKind(tr.id)==="title"){dzTtAdd();return}\n'
           '                openPicker(tr.id)},children:"+"},"add");')
 
@@ -4080,6 +4126,41 @@ R_KF4 = (A_KF4 + "\n"
          "              /* D-14 : échelle / opacité par point — jointes seulement si présentes */\n"
          "              if(p.scale!=null&&isFinite(Number(p.scale)))q.scale=Math.round(Number(p.scale)*1000)/1000;\n"
          "              if(p.opacity!=null&&isFinite(Number(p.opacity)))q.opacity=Math.round(Number(p.opacity)*100)/100;")
+# ── AJ2 (D-9, 22/09/2026) : LE RACK VFX SUR UN CLIP SANS SOURCE ───────────
+# La garde du rack exigeait `sel.src` ET une piste video : un clip
+# d'ajustement n'a pas de source, il est accepte par son GENRE. Le lecteur
+# vivant ne joue pas ses effets (aucun clip sans `src` n'y entre : mesure,
+# svmActiveV1 et liveSync exigent `c.src`) -- le rack le DIT, par un
+# SvmLabel au-dessus de la pile (le Stack n'a pas de zone de note : mesure).
+# AJ2a ouvre le Fragment, AJ2b le referme sur la ligne qui rend la section
+# historique (1/1 dans .bak_montage, patcher 0 -- PAS `vfxStackSection`,
+# bak 2 / patcher 3).
+A_AJ2A = ('    if(d&&d.Stack&&sel&&sel.src&&trackKind(sel.tr)==="video")\n'
+          '      return r.jsx(d.Stack,{effects:sel.effects||[],clip:sel,')
+R_AJ2A = ('    if(d&&d.Stack&&sel&&((sel.src&&trackKind(sel.tr)==="video")||sel.kind==="adjust"))\n'
+          '      return r.jsxs(r.Fragment,{children:[sel.kind==="adjust"?r.jsx(SvmLabel,'
+          '{style:{margin:"20px 0 10px"},children:"Ajustement — ses effets s\'appliquent '
+          'à tout ce qui est dessous, visibles après Preview"}):null,\n'
+          '      r.jsx(d.Stack,{effects:sel.effects||[],clip:sel,')
+A_AJ2B = ('          setDirty(!0)}});\n'
+          '    return vfxLegacySection()}')
+R_AJ2B = ('          setDirty(!0)}})]});\n'
+          '    return vfxLegacySection()}')
+
+# ── AJ6 (D-9) : LE CLIP D'AJUSTEMENT SE LIT SUR LA TIMELINE ────────────────
+# `data-kind` sur chaque clip (undefined = attribut absent, comme data-narr),
+# et les HACHURES : celles du fantome de narration, dans le `style` inline
+# (un style inline gagne sur la feuille ; poser le meme gradient en CSS
+# aurait exige `!important` -- mesure : `background:` est inline). Aucune
+# ligne de montage.css.
+A_AJ6A = '                    "data-media":media&&tr.id==="v1"?"":void 0,'
+R_AJ6A = (A_AJ6A + '\n'
+          '                    "data-kind":c.kind||void 0,')
+A_AJ6B = ('background:isPh?"repeating-linear-gradient(-45deg,transparent 0 5px, '
+          'color-mix(in srgb, var("+tr.c+") 26%, transparent) 5px 6px)":')
+R_AJ6B = ('background:isPh||c.kind==="adjust"?"repeating-linear-gradient(-45deg,transparent 0 5px, '
+          'color-mix(in srgb, var("+tr.c+") 26%, transparent) 5px 6px)":')
+
 A_KF5 = '      el.style.opacity=k.opacity==null?"":String(k.opacity);'
 R_KF5 = ('      /* D-14 : opacité interpolée sur les points porteurs (statique sinon) */\n'
          '      var kOp=DzTracks.mpLerp2(svmMpOf(k)||[],t-k.start,"opacity",k.opacity==null?1:k.opacity);\n'
@@ -4285,7 +4366,12 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("KF3b-opacite-a-la-tete", A_KF3B, R_KF3B),
            ("KF3c-curseur-opacite", A_KF3C, R_KF3C),
            ("KF4-payload-scale-opacity", A_KF4, R_KF4),
-           ("KF5-opacite-en-direct", A_KF5, R_KF5)]
+           ("KF5-opacite-en-direct", A_KF5, R_KF5),
+           # D-9 (L3 tache 9) — le rack sur un clip sans source, les hachures.
+           ("AJ2a-rack-accepte-l-ajustement", A_AJ2A, R_AJ2A),
+           ("AJ2b-rack-referme-le-fragment", A_AJ2B, R_AJ2B),
+           ("AJ6a-data-kind-sur-le-clip", A_AJ6A, R_AJ6A),
+           ("AJ6b-hachures-de-l-ajustement", A_AJ6B, R_AJ6B)]
 
 
 def nl(text, crlf):

@@ -31,7 +31,24 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 22/09/2026 (lot L3, tache 7, D-14 client, revue) :
+COMPTE DE REFERENCE, 22/09/2026 (lot L3, tache 9, D-9 client) :
+1772 lignes, soit TRENTE de plus que les 1742 de D-14 (revue) :
+les DOUZE lignes que la boucle sur `P.PATCHES` emet seule pour les QUATRE
+sections AJ2a, AJ2b, AJ6a, AJ6b (quatre `_remplace`, quatre
+`couche_ne_cite_pas_l_ancre_de_`, TROIS `_ancre_consommee` : AJ6a reprend
+son ancre en tete) et la section [D-9] en queue (SEPT replis mesures 0/1,
+le geste dzAjAdd -- refus avant instantane --, sept noms libres, la combo
+Maj+J libre, le rack AJ2, la timeline AJ6, la couche). REALIGNES ET NOMMES :
+M16a (5 `;return}`), D2 (deux concat nommes), M25c/TT2/TT10/E1 (le filtre
+porte `adjust`), trackKind extrait (cinq genres), tb8 (45 actions, 7 chips),
+seize appels (29/27), un instantane (la forme if/else vaut 2), la queue
+(AJ2a..AJ6b, sonde 114). AJ5 n'est PAS un bouton de la barre flottante :
+le plan de la barre est confronte au design.md (§2.4, §3 x6, §6) et au
+cablage (dix boutons, TB7, _ATTENDU_B7) -- une douzaine de pins et une ligne
+de handoff pour un geste que dzAjAdd fait deja ; la porte est celle des
+titres (chip J+, Maj+J, « + » de J1). Aucune ligne de montage.css.
+
+COMPTE PRECEDENT, 22/09/2026 (lot L3, tache 7, D-14 client, revue) :
 1742 lignes, soit QUATRE de plus que les 1738 de D-14 : la section KF2c
 (svmMpRemove : un point restant aligne aussi scale/opacity ; TROIS lignes
 generiques, l'ancre est consommee) et son pin dans [D-14] ; la queue
@@ -1938,9 +1955,11 @@ _i_push = _body.find("pushHistory();")
 # Compté sur LE COUPLE : deux des quatre `;return}` (le relais vers addAsset
 # et le refus du plafond) ont suivi `dzAddWhenReady` dans R_M16REF. Le total
 # du greffon P9 est inchangé — c'est lui qui compte, pas sa répartition.
+# D-9 (22/09/2026) : 4 -> 5, le refus de `dzAjAdd` (« Rien à ajuster ici »,
+# replie dans R_M16REF, AVANT tout pushHistory -- mesure dans [D-9]).
 _n_ret = _P9C.count(";return}")
 check("M16a_refuse_avant_de_pousser_l_historique",
-      bool(_body) and _body.count("pushHistory();") == 1 and _n_ret == 4
+      bool(_body) and _body.count("pushHistory();") == 1 and _n_ret == 5
       and _i_refus >= 0 and _i_push >= 0 and _i_refus < _i_push,
       f"dernier refus={_i_refus} pushHistory();={_i_push} "
       f"returns={_n_ret} corps={len(_body)} o "
@@ -2866,7 +2885,10 @@ check("D2_addAsset_ecrit_par_insere_et_plus_par_concat",
       # portait sur `addAsset` : elle est gardee ENTIERE -- entre la
       # signature d'`addAsset` et son `dzIns`, il n'y a aucun `concat`.
       and s.count(nl("setClips(clipsRef.current.concat([t]));setSelId(t.id);")) == 1
-      and s.count(nl("setClips(clipsRef.current.concat(")) == 1
+      # D-9 (22/09/2026) : 1 -> 2, le clip d'ajustement (`dzAjAdd`), NOMME
+      # lui aussi ; addAsset n'en porte toujours aucun (conjoint suivant).
+      and s.count(nl("setClips(clipsRef.current.concat([c]));setSelId(c.id);")) == 1
+      and s.count(nl("setClips(clipsRef.current.concat(")) == 2
       and _iAA0 >= 0 and _iAAins > _iAA0
       and nl("setClips(clipsRef.current.concat(") not in s[_iAA0:_iAAins],
       f'insere={s.count(nl("setClips(dzIns.clips);"))} '
@@ -3655,8 +3677,8 @@ for _sec, _r, _pairs in (
         ("M25c", P.R_M25C,
          # D-21 (TT2) : les cartons de titre, qui n'ont PAS de `src`, passent
          # desormais le filtre -- `c` est declare par la forme neuve.
-         (("c", 'clips.filter(function(c){return c.src||c.kind==="title"})'
-               ".map(function(c){"),
+         (("c", 'clips.filter(function(c){return c.src||c.kind==="title"'
+               '||c.kind==="adjust"}).map(function(c){'),
           ("dzTracksRef", "var dzTracksRef=x.useRef(null);"))),
         ("M25d", P.R_M25D,
          (("sel", "var sel=clips.find("),
@@ -8520,9 +8542,10 @@ _SPEED = _ligne("svmSpeedOf", 'function svmSpeedOf(c){return c&&typeof '
 # D-21 (21/09/2026) : `trackKind` connait un QUATRIEME genre, « title » (la
 # piste t1). Elle est EXTRAITE, jamais recopiee : c'est cette ligne-ci qui
 # rougit si la section TT1 cesse d'etre appliquee.
+# D-9 (22/09/2026) : un CINQUIEME genre, « adjust » (j1) -- AJ1, repli TT1.
 _KIND = _ligne("trackKind", 'function trackKind(trId){var k=String(trId||"")'
                '.charAt(0);\n    return k==="a"?"audio":k==="s"?"subs":'
-               'k==="t"?"title":"video"}')
+               'k==="t"?"title":k==="j"?"adjust":"video"}')
 _KBSEL = _ligne("svmKbSelClip", 'function svmKbSelClip(){var id=selRef.current;'
                 '\n    return clipsRef.current.find(function(k){'
                 'return k.id===id})||null}')
@@ -12776,9 +12799,12 @@ for _a, _sec, _c in _COMBOS:
 # a changer -- et « T » reste a la narration, ce que cette ligne-ci dit
 # toujours : « Maj+T » ne la vole pas, le dispatch cherchant d'abord la
 # combo EXACTE.
+# 44 -> 45 le 22/09/2026 (D-9, tache 9) : AJ5 (replie dans R_R1) declare
+# `adjust_add` sur « Maj+J » -- libre (mesure dans [D-9]).
 check("tb8_le_T_du_handoff_appartient_deja_a_la_narration",
-      len(_COMBOS) == 44 and _BY_COMBO.get("T") == ["narration"]
-      and _BY_COMBO.get("Maj+T") == ["title_add"],
+      len(_COMBOS) == 45 and _BY_COMBO.get("T") == ["narration"]
+      and _BY_COMBO.get("Maj+T") == ["title_add"]
+      and _BY_COMBO.get("Maj+J") == ["adjust_add"],
       f"actions={len(_COMBOS)} T={_BY_COMBO.get('T')}")
 # UNE COMBO PAR ACTION, ET AUCUNE EN DOUBLE : la nouvelle n'a rien vole.
 # `svmKmMerge` resoudrait une collision en silence (retour au defaut) — c'est
@@ -12861,8 +12887,12 @@ check("tb8_les_trois_chips_degradees_gardent_un_nom_et_une_infobulle",
       # `:nth-child(-n+3)` qui degrade, pour la meme raison que les deux
       # qui la precedent : « T+ » reduit a un glyphe ne dirait plus rien.
       # Elle porte tout de meme son `aria-label` (« poser un titre »).
-      and s.count('className:"svm-toolchip"') == 6
+      # 6 -> 7 le 22/09/2026 : D-9 (AJ5) ajoute « J+ », poser un clip
+      # d'ajustement, JUSTE APRES « T+ » -- sixieme position, HORS du
+      # `:nth-child(-n+3)`, meme raison ; son `aria-label` est mesure.
+      and s.count('className:"svm-toolchip"') == 7
       and s.count('"aria-label":"poser un titre",') == 1
+      and s.count('"aria-label":"poser un clip d\'ajustement",') == 1
       # LE `title` NE BOUGE PAS : il reste la description, et c'est lui que
       # l'infobulle du mode compact affiche (§2.3).
       and s.count(nl('title:"aimanter les bords, la tête et 0 ("')) == 1
@@ -14077,7 +14107,8 @@ for _lblt, _txtt, _sect, _nomt in (
         ("TT1b_une_piste_de_titres_ne_recoit_aucun_asset",
          'if(trackKind(trId||"v2")==="title"){', P.R_M15, "R_M15"),
         ("TT2_le_carton_passe_le_filtre_du_payload",
-         'clips.filter(function(c){return c.src||c.kind==="title"})',
+         # D-9 (AJ3, 22/09/2026) : le meme filtre laisse passer l'ajustement.
+         'clips.filter(function(c){return c.src||c.kind==="title"||c.kind==="adjust"})',
          P.R_M5, "R_M5"),
         ("TT3_la_piste_revient_avec_le_projet",
          'return _t&&(d.clips||[]).some(function(c){return c&&c.kind==="title"})',
@@ -14126,8 +14157,10 @@ check("D21_TT1_trackKind_connait_un_quatrieme_genre",
 _TKAPP = re.findall(r'trackKind\([^()]*\)\s*([!=]==)', s)
 check("D21_les_seize_appels_de_trackKind_sont_des_egalites",
       (_bak.count(_nlb("trackKind(")) == 16 if _bak else False)
-      and s.count(nl("trackKind(")) == 27
-      and len(_TKAPP) == 25 and all(k in ("===", "!==") for k in _TKAPP)
+      # 22/09/2026 (D-9, tache 9) : 27 -> 29, 25 -> 27. DEUX de plus, des
+      # EGALITES : TT11 (l'infobulle et le clic du « + » de J1, `==="adjust"`).
+      and s.count(nl("trackKind(")) == 29
+      and len(_TKAPP) == 27 and all(k in ("===", "!==") for k in _TKAPP)
       and s.count(nl("var rkd=trackKind(rk.tr);")) == 1
       and s.count(nl("if(rkd!==akd){")) == 1,
       f'bak={_bak.count(_nlb("trackKind(")) if _bak else "?"} '
@@ -14169,7 +14202,8 @@ _iTT = s.find(nl("  function dzTtAdd(){"))
 _iTTfin = s.find(nl("le gabarit et le texte.\")}"), _iTT if _iTT >= 0 else 0)
 check("D21_poser_un_titre_ne_coute_qu_un_instantane",
       _iTT >= 0 and _iTTfin > _iTT
-      and s.count(nl("if(ts2!==ts)svmTracksSet(ts2);else pushHistory();")) == 1
+      # D-9 (22/09/2026) : 1 -> 2, `dzAjAdd` reprend la forme (mesure [D-9]).
+      and s.count(nl("if(ts2!==ts)svmTracksSet(ts2);else pushHistory();")) == 2
       and s[_iTT:_iTTfin].count(nl("pushHistory()")) == 1
       and s.count(nl("function svmTracksSet(ts){pushHistory();")) == 1,
       f'geste={_iTT} fin={_iTTfin} '
@@ -14315,7 +14349,7 @@ for _lbl8, _a8, _r8, _sec8 in (
 # ligne-là était la SEULE du corps de la boucle du payload à déréférencer
 # `c.src`. Un carton posé sur un projet réel faisait donc lever le payload
 # entier — « Cannot read properties of undefined ».
-_I_PAY = s.find(nl('clips.filter(function(c){return c.src||c.kind==="title"})'))
+_I_PAY = s.find(nl('clips.filter(function(c){return c.src||c.kind==="title"||c.kind==="adjust"})'))
 _I_PAYF = s.find(nl("return o})"), _I_PAY if _I_PAY >= 0 else 0)
 _CORPS_PAY = s[_I_PAY:_I_PAYF] if 0 <= _I_PAY < _I_PAYF else ""
 _I_PAYB = _bak.find(_nlb("clips.filter(function(c){return c.src})")) if _bak else -1
@@ -14624,7 +14658,7 @@ for _lble, _txte, _sece, _nome in (
 _I_SP = s.find(nl("function svmSavePayload(){"))
 _I_SPF = s.find(nl("      project_id:proj.project_id,"), _I_SP)
 _CORPS_SP = s[_I_SP:_I_SPF] if 0 <= _I_SP < _I_SPF else ""
-_I_RPF = s.find(nl('clips.filter(function(c){return c.src||c.kind==="title"})'))
+_I_RPF = s.find(nl('clips.filter(function(c){return c.src||c.kind==="title"||c.kind==="adjust"})'))
 _I_RP = s.rfind(nl("      tracks:svmTracksPayload(proj),"), 0, _I_RPF)
 _CORPS_RP = s[_I_RP:_I_RPF] if 0 <= _I_RP < _I_RPF else ""
 _I_NP = s.find("var np={demo:!1,")
@@ -14963,13 +14997,16 @@ check("DZ_la_feuille_porte_les_rectangles_et_l_hote",
 # sonde 112 = 108 + mpLerp2 x3 (KF1, KF3b, KF5) + mpKeep x1 (KF2b)).
 _DZ_TAGS = [t for t, _a, _r in P.PATCHES]
 _DZ_I = _DZ_TAGS.index("EA6-bandeau-ferme-au-lancement")
-check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_en_queue_apres_EA6_et_la_sonde_dit_112",
+# D-9 (tache 9) : QUATRE sections AJ2a, AJ2b, AJ6a, AJ6b APRES KF5, sonde 114
+# = 112 + adjustNew x1 + adjustTrack x1 (le repli dzAjAdd de R_M16REF).
+check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_en_queue_apres_EA6_et_la_sonde_dit_114",
       [t.split("-")[0] for t in _DZ_TAGS[_DZ_I + 1:]] == ["DZ1", "DZ2", "DZ3", "DZ4",
-                                                          "KF1", "KF2", "KF2b", "KF2c", "KF3a", "KF3b", "KF3c", "KF4", "KF5"]
+                                                          "KF1", "KF2", "KF2b", "KF2c", "KF3a", "KF3b", "KF3c", "KF4", "KF5",
+                                                          "AJ2a", "AJ2b", "AJ6a", "AJ6b"]
       and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
               and s.count(nl(a)) == (1 if a in r else 0)
               for _t, a, r in P.PATCHES[_DZ_I + 1:])
-      and _sonde.get("montage") == 112 and s.count("DzTracks") == 112
+      and _sonde.get("montage") == 114 and s.count("DzTracks") == 114
       if _bak else False,
       f"queue={_DZ_TAGS[_DZ_I + 1:]} sonde={_sonde.get('montage')} bundle={s.count('DzTracks')}")
 
@@ -15169,6 +15206,99 @@ check("KF_la_couche_porte_mpLerp2_mpKeep_et_les_exports",
       and _KF_CORPS.count("if(!ps.length)return dv;") == 1 and _KF_CORPS.count("ps.sort(function(a,b){return a.t-b.t});") == 1
       and _KF_CORPS.count("var DZM_MP_EXTRA={scale:[.05,3,1000],opacity:[0,1,100]};") == 1,
       f"pures={src.count('function dzmMpLerp2(')}/{src.count('function dzmMpKeep(')} corps={len(_KF_CORPS)}")
+
+# ══════════════════════════════════════════════════════════════════════════
+print("\n[D-9] la piste d'ajustement j1, le clip sans source, le rack VFX")
+# SIX REPLIS, et c'est la mesure qui le dit (0 dans .bak, DANS la section
+# citee, 1 dans le bundle livre) -- meme forme que D21 : la table des genres
+# (TT1), le filtre du payload (M5), le « + » de J1 (TT11 x2), le geste
+# (M16REF), la keymap (R1), le dispatch (R2), la chip (K5).
+for _lbla, _txta, _seca, _noma in (
+        # la forme a QUATRE espaces : celle de trackKind (le bundle porte
+        # aussi dzmKindOf de la couche, a deux espaces -- mesure : 2 sinon)
+        ("AJ1_trackKind_connait_un_cinquieme_genre",
+         '    return k==="a"?"audio":k==="s"?"subs":k==="t"?"title":k==="j"?"adjust":"video"}',
+         P.R_TT1, "R_TT1"),
+        ("AJ4_le_plus_de_J1_pose_un_clip_d_ajustement",
+         'if(trackKind(tr.id)==="adjust"){dzAjAdd();return}', P.R_TT11, "R_TT11"),
+        ("AJ4_l_infobulle_du_plus_de_J1_dit_le_geste",
+         'ses effets s\'appliquent à tout ce qui est dessous"', P.R_TT11, "R_TT11"),
+        ("AJ4a_le_geste_est_declare_une_fois",
+         "  function dzAjAdd(){", P.R_M16REF, "R_M16REF"),
+        ("AJ5_l_action_est_dans_la_table_des_raccourcis",
+         '{id:"adjust_add",sec:"Montage",lbl:"ajustement : poser un clip a la tete",combo:"Maj+J"},',
+         P.R_R1, "R_R1"),
+        ("AJ5_le_dispatch_appelle_le_geste",
+         'if(id==="adjust_add"){dzAjAdd();return}', P.R_R2, "R_R2"),
+        ("AJ5_la_chip_J_plus_appelle_le_meme_geste",
+         'onClick:function(){dzAjAdd()},children:"J+"}),', P.R_K5, "R_K5")):
+    check("D9_" + _lbla,
+          s.count(nl(_txta)) == 1 and _txta in _seca
+          and (_bak.count(_nlb(_txta)) == 0 if _bak else False),
+          f'bundle={s.count(nl(_txta))} dans_{_noma}={_txta in _seca} '
+          f'bak={_bak.count(_nlb(_txta)) if _bak else "?"}')
+# LE GESTE : le refus (`adjustNew` null) sort AVANT tout instantane ; la
+# piste nait par `adjustTrack` (svmTracksSet pousse) sinon UN pushHistory ;
+# le clip est concatene et selectionne par setSelId ; UNE seule ecriture des
+# pistes. Bornes de signature : de `dzAjAdd(){` a la note finale.
+_iAJ = s.find(nl("  function dzAjAdd(){"))
+_iAJf = s.find(nl("pour lui donner des effets\")}"), _iAJ if _iAJ >= 0 else 0)
+_AJG = s[_iAJ:_iAJf] if 0 <= _iAJ < _iAJf else ""
+check("D9_poser_un_ajustement_refuse_avant_tout_instantane_et_n_en_coute_qu_un",
+      len(_AJG) > 200 and len(_AJG) < 700
+      and _AJG.count('DzTracks.adjustNew(phRef.current,clipsRef.current,"j1")') == 1
+      and _AJG.count("DzTracks.adjustTrack(ts)") == 1
+      and 0 < _AJG.find("if(!c){fireNote(") < _AJG.find("pushHistory()")
+      and _AJG.count("pushHistory()") == 1 and _AJG.count("svmTracksSet(") == 1
+      and _AJG.count("setSelId(c.id);setDirty(!0);") == 1,
+      f"corps={len(_AJG)} o refus={_AJG.find('if(!c){fireNote(')} push={_AJG.find('pushHistory()')}")
+# LES NOMS ETAIENT LIBRES, LA COMBO AUSSI (et « J » reste a qui l'avait).
+for _nma in ("dzAjAdd", "adjust_add", "adjustTrack", "adjustNew",
+             "dzmAdjustTrack", "dzmAdjustNew", "kindOf"):
+    _nba = _libre21(_nma, _bak if _bak else None)
+    check("D9_nom_" + _nma + "_etait_libre_dans_le_bundle_d_entree",
+          _nba == 0, f"{_nma} apparait {_nba}x dans .bak_montage")
+check("D9_la_combo_Maj_J_etait_libre_et_ne_vole_pas_J",
+      bool(_bak) and _bak.count(_nlb('combo:"Maj+J"')) == 0
+      and _bak.count(_nlb('combo:"J"')) == 1
+      and s.count(nl('combo:"Maj+J"')) == 1 and s.count(nl('combo:"J"')) == 1,
+      f'bak={_bak.count(_nlb(chr(99) + "ombo:" + chr(34) + "Maj+J" + chr(34))) if _bak else "?"}')
+# LE RACK SUR UN CLIP SANS SOURCE : la garde d'AVANT a disparu, la neuve est
+# UNE, le Fragment est ouvert (AJ2a) ET referme (AJ2b) -- l'un sans l'autre
+# ne passerait pas `node --check`, mais on le mesure quand meme -- et la
+# phrase « visibles après Preview » est dans le rack, une fois.
+check("D9_AJ2_le_rack_VFX_accepte_un_clip_d_ajustement_et_dit_l_apercu",
+      s.count(nl(P.A_AJ2A)) == 0 and s.count(nl(P.R_AJ2A)) == 1
+      and s.count(nl(P.A_AJ2B)) == 0 and s.count(nl(P.R_AJ2B)) == 1
+      and s.count("visibles après Preview") == 1
+      and (_bak.count(_nlb(P.A_AJ2A)) == 1 and _bak.count(_nlb(P.A_AJ2B)) == 1
+           and _bak.count("visibles après Preview") == 0 if _bak else False),
+      f"garde={s.count(nl(P.R_AJ2A))} fin={s.count(nl(P.R_AJ2B))} phrase={s.count('visibles après Preview')}")
+# LA TIMELINE : `data-kind` sur le clip, les hachures du fantome reprises
+# INLINE (un style inline gagne : aucune ligne de CSS n'a ete ecrite, et le
+# banc l'exige -- montage.css ne connait pas `data-kind`).
+_AJ_CSS = _lire(ROOT / "frontend" / "dist" / "shared" / "montage.css")
+check("D9_AJ6_le_clip_d_ajustement_porte_data_kind_et_les_hachures_inline",
+      s.count(nl('"data-kind":c.kind||void 0,')) == 1
+      and s.count('background:isPh||c.kind==="adjust"?"repeating-linear-gradient(') == 1
+      and s.count('background:isPh?"repeating-linear-gradient(') == 0
+      and "data-kind" not in _AJ_CSS
+      and (_bak.count('background:isPh?"repeating-linear-gradient(') == 1
+           and _bak.count("data-kind") == 0 if _bak else False),
+      f"kind={s.count(nl(chr(34) + 'data-kind' + chr(34) + ':c.kind||void 0,'))} css={'data-kind' in _AJ_CSS}")
+# LA COUCHE : « j » dans dzmKindOf, adjust dans le groupe 0, les deux pures,
+# les trois exports -- et PAS de j1 dans DZM_DEFAULT_TRACKS (l'ordre des sept
+# est pinne plus haut) ni de label dans DZM_BD_RETIRES (neuf controles).
+_AJ_CORPS = src[src.find("function dzmAdjustTrack(ts){"):src.find("/* LE CARTON SOUS LA TÊTE")]
+check("D9_la_couche_porte_kindOf_j_group_adjustTrack_adjustNew_et_les_exports",
+      src.count('k==="t"?"title":k==="j"?"adjust":"video"}') == 1
+      and src.count('return k==="title"||k==="adjust"?0:') == 1
+      and src.count("function dzmAdjustTrack(ts){") == 1 and src.count("function dzmAdjustNew(t,clips,tr){") == 1
+      and src.count("kindOf:dzmKindOf,adjustTrack:dzmAdjustTrack,adjustNew:dzmAdjustNew,") == 1
+      and len(_AJ_CORPS) > 300 and "r.jsx" not in _AJ_CORPS and "x.use" not in _AJ_CORPS
+      and _AJ_CORPS.count('dzmSkin("j1","adjust")') == 1 and "src:" not in _AJ_CORPS
+      and src.count('{id:"j1"') == 0 and src.count('"piste-ajust"') == 0,
+      f"kindOf={src.count('kindOf:dzmKindOf,')} corps={len(_AJ_CORPS)}")
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")
