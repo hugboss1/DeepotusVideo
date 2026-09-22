@@ -6166,6 +6166,23 @@ function dzmRampe(clips,id,t,spdL,spdR){
   delete R.transition;delete R.transition_s;
   var out=[];cs.forEach(function(k){out.push(k===c?L:k);if(k===c)out.push(R)});
   return {clips:out,left:L.id,right:R.id,refus:""}}
+/* ── D-16 (22/09/2026) : STABILISATION ───────────────────────────────────
+   `stab` = {on, smooth 1..100, crop keep|black, zoom −30..30} — mêmes bornes
+   que `_v1_stab` du backend (null hors `on` : la clé est alors retirée du
+   clip). L'analyse (.trf) vit chez le backend, PAR SOURCE : le client la
+   DEMANDE (POST /api/montage/stab, contrat de /proxy) et la suit par
+   GET /api/jobs/{id} — premier consommateur client d'un job « par source ».
+   stabState phrase l'état d'un job {status,progress,error}|null. */
+function dzmStabNorm(raw){
+  if(!raw||typeof raw!=="object"||!raw.on)return null;
+  var n=function(v,lo,hi,dv){v=Number(v);return isFinite(v)?Math.round(Math.max(lo,Math.min(hi,v))):dv};
+  return {on:!0,smooth:n(raw.smooth,1,100,15),crop:raw.crop==="black"?"black":"keep",zoom:n(raw.zoom,-30,30,0)}}
+function dzmStabOf(c){return c&&c.stab?dzmStabNorm(c.stab):null}
+function dzmStabState(job){
+  if(!job)return "à analyser";
+  if(job.status==="done")return "analysée";
+  if(job.status==="failed")return "échec : "+String(job.error||"?");
+  return "analyse "+Math.round(Number(job.progress)||0)+" %"}
 /* L'HÔTE DES PROPRIÉTÉS DE PLAN (D-13, puis D-15 et D-16) : UNE section de
    l'inspecteur, montée UNE fois (DZ1) sur un clip V1 réel. props : {clip,
    u (avancement 0..1 de la tête dans le clip), speed (vitesse du clip),
@@ -6204,6 +6221,28 @@ function DzmPlanProps(o){
       onClick:function(){if(typeof o.onRampe==="function")o.onRampe(head,spd,rampSpd)},children:"Diviser à la tête →"}),
     sel(String(rampSpd),[["0.5","50 %"],["0.75","75 %"],["1","100 %"],["1.5","150 %"],["2","200 %"],["3","300 %"]],
       function(v){setRampSpd(Number(v))},"Vitesse de la partie droite")]}),"rampe"));
+  /* D-16 : la stabilisation — case (lourd), « Analyser » (désactivé pendant
+     l'analyse), chip d'état ; puis, si active, deux curseurs (léger : le
+     range tire onChange à chaque cran, la rafale de 600 ms fait UNE entrée)
+     et le sort des bords (lourd). props : stabJob = état du job de CETTE
+     source ({status,progress,error}|null), onStab() = demander l'analyse. */
+  var sb=dzmStabOf(c),sj=o.stabJob||null,sjEnCours=!!sj&&sj.status!=="done"&&sj.status!=="failed";
+  kids.push(row("Stabilis.",r.jsxs("span",{className:"dzm-plan-hint dzm-stab",children:[
+    r.jsx("input",{type:"checkbox",checked:!!sb,title:"Stabiliser le plan (vidstab, deux passes au rendu)",
+      onChange:function(e){on({stab:e.target.checked?dzmStabNorm({on:!0}):void 0},!0)}}),
+    r.jsx("button",{className:"svm-minibtn",disabled:!sb||sjEnCours,
+      title:"Analyser la source maintenant (sinon le rendu le fera, plus long)",
+      onClick:function(){if(typeof o.onStab==="function")o.onStab()},children:"Analyser"}),
+    r.jsx("span",{className:"dzm-stab-st","data-st":sj?sj.status:"",children:sb?dzmStabState(sj):""})]}),"stab"));
+  if(sb){
+    var rng=function(key,lo,hi,label,title){return row(label,r.jsxs("span",{className:"dzm-plan-hint dzm-stab",children:[
+      r.jsx("input",{type:"range",min:lo,max:hi,value:sb[key],title:title,
+        onChange:function(e){var p={};p[key]=Number(e.target.value);on({stab:dzmStabNorm(Object.assign({},sb,p))},!1)}}),
+      " "+sb[key]]}),"stab-"+key)};
+    kids.push(rng("smooth",1,100,"Lissage","Fenêtre de lissage (images) — 15 par défaut"));
+    kids.push(rng("zoom",-30,30,"Zoom","Zoom fixe en % pour cacher les bords (0 = optzoom)"));
+    kids.push(row("Bords",sel(sb.crop,[["keep","garder"],["black","noir"]],
+      function(v){on({stab:dzmStabNorm(Object.assign({},sb,{crop:v}))},!0)},"Que faire des bords découverts"),"stab-crop"))}
   return r.jsxs("div",{className:"dzm-plan",children:[r.jsx("div",{className:"dzm-plan-t",children:"Propriétés du plan"}),
     r.jsx("div",{className:"svm-props",children:kids})]})}
 /* LES DEUX RECTANGLES (vert = début, rouge = fin) dans le cadre du lecteur,
@@ -6321,5 +6360,6 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   dzNorm:dzmDzNorm,dzOf:dzmDzOf,dzAt:dzmDzAt,dzPreset:dzmDzPreset,dzMove:dzmDzMove,
   dzScale:dzmDzScale,dzCss:dzmDzCss,PlanProps:DzmPlanProps,DzRects:DzmDzRects,
   retimeOf:dzmRetimeOf,rampe:dzmRampe,
+  stabNorm:dzmStabNorm,stabOf:dzmStabOf,stabState:dzmStabState,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;

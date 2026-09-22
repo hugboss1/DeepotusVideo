@@ -1745,6 +1745,21 @@ function DzMontage(props){
     if(heavy||now-dzPlanHist.current>600)pushHistory();dzPlanHist.current=now;
     setClips(clipsRef.current.map(function(k){if(k.id!==id)return k;var nk=Object.assign({},k,patch);
       Object.keys(patch).forEach(function(q){if(patch[q]===void 0)delete nk[q]});return nk}));setDirty(!0)}
+  var stDzStab=x.useState({}),dzStabJobs=stDzStab[0],setDzStabJobs=stDzStab[1];
+  function dzStabStart(src){var key=JSON.stringify(src);
+    var put=function(v){if(dzAliveRef.current)setDzStabJobs(function(m){var n=Object.assign({},m);n[key]=v;return n})};
+    var tick=function(id){fetch("/api/jobs/"+id).then(function(r3){return r3.json()}).then(function(j){
+      var st=j&&j.status;if(!st)return put({status:"failed",error:(j&&j.detail)||"job introuvable"});
+      var fin=st==="done"||st==="failed";put({status:fin?st:"running",progress:Number(j.progress)||0,error:j.error||null});
+      if(!fin&&dzAliveRef.current)setTimeout(function(){tick(id)},1500)})
+      .catch(function(e){put({status:"failed",error:String(e)})})};
+    put({status:"running",progress:0});
+    fetch("/api/montage/stab",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({src:src})})
+      .then(function(r2){return r2.json().then(function(d){return {ok:r2.ok,d:d}})}).then(function(o){
+        if(o.ok&&o.d&&o.d.ready)return put({status:"done"});
+        if(!o.ok||!o.d||!o.d.job_id)return put({status:"failed",error:(o.d&&(o.d.detail||o.d.error))||"refus"});
+        put({status:"running",progress:10});tick(o.d.job_id)})
+      .catch(function(e){put({status:"failed",error:String(e)})})}
   var stDzFin=x.useState(null),dzFin=stDzFin[0],setDzFin=stDzFin[1];
   var stDzM=x.useState("ecraser"),dzMode=stDzM[0],setDzMode=stDzM[1];
   function dzTtAdd(){var t=DzTracks.titleNew({template:"tiers_inferieur",text:"Titre"},phRef.current,clipsRef.current,"t1");
@@ -4451,6 +4466,8 @@ function DzMontage(props){
         var dzD=c.tr==="v1"&&DzTracks.dzOf(c);if(dzD)o.dz=dzD;
         /* D-15 : l'interpolation du retime -- jointe seulement avec une vitesse */
         var rtD=o.speed&&DzTracks.retimeOf(c);if(rtD)o.retime=rtD;
+        /* D-16 : la stabilisation -- jointe seulement si elle existe */
+        var sbD=c.tr==="v1"&&DzTracks.stabOf(c);if(sbD)o.stab=sbD;
         /* mixage par clip (pistes audio) — joint seulement si non nul :
            un projet sans réglage envoie exactement le payload d'avant */
         if(trackKind(c.tr)==="audio"){
@@ -5883,6 +5900,7 @@ function DzMontage(props){
             var res=DzTracks.rampe(clipsRef.current,selRef.current,t,sL,sR);
             if(res.refus){fireNote(res.refus==="bord"?"Trop près d'un bord (0,3 s)":"Impossible de diviser ici");return}
             pushHistory();setClips(res.clips);setSelId(res.right);setDirty(!0)},
+          stabJob:dzStabJobs[JSON.stringify(sel.src)]||null,onStab:function(){dzStabStart(sel.src)},
           onChange:dzPlanSet}):null,
         ovInspector(),
         audioInspector(),
@@ -18974,6 +18992,23 @@ function dzmRampe(clips,id,t,spdL,spdR){
   delete R.transition;delete R.transition_s;
   var out=[];cs.forEach(function(k){out.push(k===c?L:k);if(k===c)out.push(R)});
   return {clips:out,left:L.id,right:R.id,refus:""}}
+/* ── D-16 (22/09/2026) : STABILISATION ───────────────────────────────────
+   `stab` = {on, smooth 1..100, crop keep|black, zoom −30..30} — mêmes bornes
+   que `_v1_stab` du backend (null hors `on` : la clé est alors retirée du
+   clip). L'analyse (.trf) vit chez le backend, PAR SOURCE : le client la
+   DEMANDE (POST /api/montage/stab, contrat de /proxy) et la suit par
+   GET /api/jobs/{id} — premier consommateur client d'un job « par source ».
+   stabState phrase l'état d'un job {status,progress,error}|null. */
+function dzmStabNorm(raw){
+  if(!raw||typeof raw!=="object"||!raw.on)return null;
+  var n=function(v,lo,hi,dv){v=Number(v);return isFinite(v)?Math.round(Math.max(lo,Math.min(hi,v))):dv};
+  return {on:!0,smooth:n(raw.smooth,1,100,15),crop:raw.crop==="black"?"black":"keep",zoom:n(raw.zoom,-30,30,0)}}
+function dzmStabOf(c){return c&&c.stab?dzmStabNorm(c.stab):null}
+function dzmStabState(job){
+  if(!job)return "à analyser";
+  if(job.status==="done")return "analysée";
+  if(job.status==="failed")return "échec : "+String(job.error||"?");
+  return "analyse "+Math.round(Number(job.progress)||0)+" %"}
 /* L'HÔTE DES PROPRIÉTÉS DE PLAN (D-13, puis D-15 et D-16) : UNE section de
    l'inspecteur, montée UNE fois (DZ1) sur un clip V1 réel. props : {clip,
    u (avancement 0..1 de la tête dans le clip), speed (vitesse du clip),
@@ -19012,6 +19047,28 @@ function DzmPlanProps(o){
       onClick:function(){if(typeof o.onRampe==="function")o.onRampe(head,spd,rampSpd)},children:"Diviser à la tête →"}),
     sel(String(rampSpd),[["0.5","50 %"],["0.75","75 %"],["1","100 %"],["1.5","150 %"],["2","200 %"],["3","300 %"]],
       function(v){setRampSpd(Number(v))},"Vitesse de la partie droite")]}),"rampe"));
+  /* D-16 : la stabilisation — case (lourd), « Analyser » (désactivé pendant
+     l'analyse), chip d'état ; puis, si active, deux curseurs (léger : le
+     range tire onChange à chaque cran, la rafale de 600 ms fait UNE entrée)
+     et le sort des bords (lourd). props : stabJob = état du job de CETTE
+     source ({status,progress,error}|null), onStab() = demander l'analyse. */
+  var sb=dzmStabOf(c),sj=o.stabJob||null,sjEnCours=!!sj&&sj.status!=="done"&&sj.status!=="failed";
+  kids.push(row("Stabilis.",r.jsxs("span",{className:"dzm-plan-hint dzm-stab",children:[
+    r.jsx("input",{type:"checkbox",checked:!!sb,title:"Stabiliser le plan (vidstab, deux passes au rendu)",
+      onChange:function(e){on({stab:e.target.checked?dzmStabNorm({on:!0}):void 0},!0)}}),
+    r.jsx("button",{className:"svm-minibtn",disabled:!sb||sjEnCours,
+      title:"Analyser la source maintenant (sinon le rendu le fera, plus long)",
+      onClick:function(){if(typeof o.onStab==="function")o.onStab()},children:"Analyser"}),
+    r.jsx("span",{className:"dzm-stab-st","data-st":sj?sj.status:"",children:sb?dzmStabState(sj):""})]}),"stab"));
+  if(sb){
+    var rng=function(key,lo,hi,label,title){return row(label,r.jsxs("span",{className:"dzm-plan-hint dzm-stab",children:[
+      r.jsx("input",{type:"range",min:lo,max:hi,value:sb[key],title:title,
+        onChange:function(e){var p={};p[key]=Number(e.target.value);on({stab:dzmStabNorm(Object.assign({},sb,p))},!1)}}),
+      " "+sb[key]]}),"stab-"+key)};
+    kids.push(rng("smooth",1,100,"Lissage","Fenêtre de lissage (images) — 15 par défaut"));
+    kids.push(rng("zoom",-30,30,"Zoom","Zoom fixe en % pour cacher les bords (0 = optzoom)"));
+    kids.push(row("Bords",sel(sb.crop,[["keep","garder"],["black","noir"]],
+      function(v){on({stab:dzmStabNorm(Object.assign({},sb,{crop:v}))},!0)},"Que faire des bords découverts"),"stab-crop"))}
   return r.jsxs("div",{className:"dzm-plan",children:[r.jsx("div",{className:"dzm-plan-t",children:"Propriétés du plan"}),
     r.jsx("div",{className:"svm-props",children:kids})]})}
 /* LES DEUX RECTANGLES (vert = début, rouge = fin) dans le cadre du lecteur,
@@ -19129,6 +19186,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   dzNorm:dzmDzNorm,dzOf:dzmDzOf,dzAt:dzmDzAt,dzPreset:dzmDzPreset,dzMove:dzmDzMove,
   dzScale:dzmDzScale,dzCss:dzmDzCss,PlanProps:DzmPlanProps,DzRects:DzmDzRects,
   retimeOf:dzmRetimeOf,rampe:dzmRampe,
+  stabNorm:dzmStabNorm,stabOf:dzmStabOf,stabState:dzmStabState,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;
 

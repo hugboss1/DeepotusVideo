@@ -293,7 +293,12 @@ STABLE_PROBES = [
     # section neuve : la rampe dans DZ1 (`rampe(`) et l interpolation dans le
     # payload DZ4 (`retimeOf(`, UNE occurrence via `rtD`). MESURE : la chaine
     # a refuse, « sonde montage x105 (want 103) », avant cette ligne.
-    ("montage", "DzTracks", 105),
+    # 22/09/2026, D-16 (lot L3, tache 6) : 105 -> 106. UNE de plus, sans
+    # section neuve : la stabilisation dans le payload DZ4 (`stabOf(`, UNE
+    # occurrence via `sbD`). L hote (DZ1, stabJob/onStab) et le repli du
+    # suivi de job (R_M16REF) n en ajoutent aucune. MESURE : la chaine a
+    # refuse, « sonde montage x106 (want 105) », avant cette ligne.
+    ("montage", "DzTracks", 106),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

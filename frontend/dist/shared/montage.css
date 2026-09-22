@@ -1282,3 +1282,7 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
 .dzsvm .dzm-dzrect[data-k="fin"]{border-color:#e0453f}
 .dzsvm .dzm-dzlab{position:absolute;left:0;top:0;font:10px var(--f-mono);color:#fff;background:rgba(0,0,0,.6);padding:0 4px;pointer-events:none}
 .dzsvm .dzm-dzh{position:absolute;right:-5px;bottom:-5px;width:10px;height:10px;background:#fff;border:1px solid #000;cursor:nwse-resize}
+/* D-16 (22/09/2026) — stabilisation : chip d'état et curseurs de l'hôte. */
+.dzsvm .dzm-stab-st[data-st="done"]{color:#3fbf5a}
+.dzsvm .dzm-stab-st[data-st="failed"]{color:#e0453f}
+.dzsvm .dzm-stab input[type=range]{width:90px;vertical-align:middle}

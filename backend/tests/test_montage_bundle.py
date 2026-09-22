@@ -31,7 +31,15 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 22/09/2026 (lot L3, tache 4, D-15) : 1705 lignes,
+COMPTE DE REFERENCE, 22/09/2026 (lot L3, tache 6, D-16) : 1710 lignes,
+soit CINQ de plus que les 1705 de D-15 : la section [D-16] en queue (CINQ
+pins : l'hote recoit stabJob/onStab dans DZ1, le repli de l'etat et du suivi
+du job dans R_M16REF (garde dzAliveRef, erreurs nommees), le payload `stab`
+apres `retime`, la couche, la feuille) -- AUCUNE ligne generique de la boucle :
+D-16 etend R_DZ1, R_M16REF et R_DZ4 sans section ni ancre neuve ; la sonde
+passe a 106 (stabOf dans DZ4) et le pin DZ de la queue est reecrit.
+
+COMPTE PRECEDENT, 22/09/2026 (lot L3, tache 4, D-15) : 1705 lignes,
 soit TROIS de plus que les 1702 de D-13 : la section [D-15] en queue (TROIS
 pins : l'hote recoit vitesse et tete + la rampe sur les refs, le payload
 `retime` seulement avec une vitesse, la couche) -- AUCUNE ligne generique
@@ -14925,15 +14933,16 @@ check("DZ_la_feuille_porte_les_rectangles_et_l_hote",
 # le .bak (la boucle du haut mesure aussi ; ceci fixe l'ORDRE), et la sonde
 # de dzcout dit 105 (99 + PlanProps + DzRects + dzCss + dzOf ; revue :
 # DZ3 appelle dzCss directement, plus de dzOf la ; D-15 : + rampe dans DZ1
-# + retimeOf dans DZ4 -- AUCUNE section neuve, la queue reste DZ1..DZ4).
+# + retimeOf dans DZ4 ; D-16 : + stabOf dans DZ4 -- AUCUNE section neuve, la
+# queue reste DZ1..DZ4).
 _DZ_TAGS = [t for t, _a, _r in P.PATCHES]
 _DZ_I = _DZ_TAGS.index("EA6-bandeau-ferme-au-lancement")
-check("DZ_le_patcher_porte_les_quatre_sections_en_queue_apres_EA6_et_la_sonde_dit_105",
+check("DZ_le_patcher_porte_les_quatre_sections_en_queue_apres_EA6_et_la_sonde_dit_106",
       [t.split("-")[0] for t in _DZ_TAGS[_DZ_I + 1:]] == ["DZ1", "DZ2", "DZ3", "DZ4"]
       and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
               and s.count(nl(a)) == (1 if a in r else 0)
               for _t, a, r in P.PATCHES[_DZ_I + 1:])
-      and _sonde.get("montage") == 105 and s.count("DzTracks") == 105
+      and _sonde.get("montage") == 106 and s.count("DzTracks") == 106
       if _bak else False,
       f"queue={_DZ_TAGS[_DZ_I + 1:]} sonde={_sonde.get('montage')} bundle={s.count('DzTracks')}")
 
@@ -14986,6 +14995,70 @@ check("RT_la_couche_porte_retimeOf_rampe_les_exports_et_les_deux_rangees",
       and _RT_CORPS.count("L.dz=Object.assign({},d,{x1:m.x,y1:m.y,w1:m.w});R.dz=Object.assign({},d,{x0:m.x,y0:m.y,w0:m.w})}") == 1
       and _RT_CORPS.count("Date.now().toString(36)") == 0,  # l'identifiant vient de dzmFreeId, pas de l'horloge (corps de dzmRampe seul)
       f"pures={src.count('function dzmRampe(')} rangees={_RT_HOTE.count('row(\"Interpolation\",')}/{_RT_HOTE.count('row(\"Rampe\",')}")
+
+# ══════════════════════════════════════════════════════════════════════════
+print("\n[D-16] la section Stabilisation, l'analyse suivie par le job")
+# L'HOTE RECOIT L'ETAT DU JOB DE SA SOURCE ET LE DECLENCHEUR (R_DZ1 etendu,
+# PAS d'ancre neuve, DZ1 finit comme avant). Temoins : le .bak ne connait ni
+# stabJob, ni dzStabStart.
+check("SB1_l_hote_recoit_stabJob_par_source_et_onStab",
+      s.count("stabJob:dzStabJobs[JSON.stringify(sel.src)]||null,onStab:function(){dzStabStart(sel.src)},") == 1
+      and s.count(nl("          onChange:dzPlanSet}):null,\n        ovInspector(),")) == 1
+      and (_bak.count("stabJob") == 0 and _bak.count("dzStabStart") == 0 if _bak else False),
+      f"hote={s.count('onStab:function(){dzStabStart(sel.src)}')} bak={_bak.count('stabJob') if _bak else '?'}")
+# L'ETAT ET LE SUIVI SONT REPLIES DANS R_M16REF, entre dzPlanSet et dzAliveRef
+# (le meme corps : la garde est resolue a l'appel) : running AVANT le POST,
+# `ready` -> done sans job, refus/reseau/job introuvable -> failed AVEC message,
+# polling a 1,5 s (la cadence de launchRender) qui s'eteint au demontage.
+_SB_FN = s[s.find("function dzStabStart(src){"):s.find("function dzStabStart(src){") + 1600]
+check("SB_le_repli_suit_le_job_par_source_et_s_eteint_au_demontage",
+      s.count("var stDzStab=x.useState({}),dzStabJobs=stDzStab[0],setDzStabJobs=stDzStab[1];") == 1
+      and s.count("function dzStabStart(src){") == 1
+      and 0 < s.find("function dzPlanSet(") < s.find("function dzStabStart(") < s.find("var dzAliveRef=x.useRef(!0)")
+      and _SB_FN.count("if(dzAliveRef.current)setDzStabJobs(") == 1
+      and _SB_FN.count("if(!fin&&dzAliveRef.current)setTimeout(function(){tick(id)},1500)") == 1
+      and _SB_FN.count(";return}") == 0 and _SB_FN.count("if(!dzAliveRef.current)return;") == 0  # les comptes P9 restent a 4 et 1
+      and _SB_FN.count('fetch("/api/montage/stab",{method:"POST"') == 1 and _SB_FN.count('fetch("/api/jobs/"+id)') == 1
+      and _SB_FN.count('put({status:"running",progress:0});') == 1 and _SB_FN.count('if(o.ok&&o.d&&o.d.ready)return put({status:"done"});') == 1
+      and _SB_FN.count('return put({status:"failed",error:(o.d&&(o.d.detail||o.d.error))||"refus"});') == 1
+      and _SB_FN.count('return put({status:"failed",error:(j&&j.detail)||"job introuvable"});') == 1
+      and _SB_FN.count('put({status:"failed",error:String(e)})') == 2  # POST et polling : aucun catch muet
+      and _SB_FN.count("catch(function(){})") == 0
+      and _SB_FN.count('st==="done"||st==="failed"') == 1 and _SB_FN.count("toLowerCase") == 0  # status mesure en minuscules
+      and (_bak.count("dzStabJobs") == 0 and _bak.count("montage/stab") == 0 if _bak else False),
+      f"fn={s.count('function dzStabStart(src){')} catch_muet={_SB_FN.count('catch(function(){})')} bak={_bak.count('montage/stab') if _bak else '?'}")
+# LE PAYLOAD JOINT `stab` SEULEMENT S'IL EXISTE (R_DZ4 etendu), apres `retime`
+# et avant le mixage audio ; UNE occurrence de `stabOf(` (via sbD).
+check("SB4_le_payload_joint_stab_seulement_s_il_existe",
+      s.count('var sbD=c.tr==="v1"&&DzTracks.stabOf(c);if(sbD)o.stab=sbD;') == 1
+      and s.count("o.stab=") == 1 and s.count("DzTracks.stabOf(") == 1
+      and 0 < s.find("var rtD=o.speed&&") < s.find("var sbD=") < s.find('        if(trackKind(c.tr)==="audio"){')
+      and (_bak.count("o.stab=") == 0 and _bak.count("stabOf") == 0 if _bak else False),
+      f"stab={s.count('o.stab=')} stabOf={s.count('DzTracks.stabOf(')} bak={_bak.count('stabOf') if _bak else '?'}")
+# LA COUCHE PORTE LES TROIS PURES, LES TROIS EXPORTS ET LES RANGEES : la case
+# (lourd), « Analyser » desactive pendant l'analyse, la chip d'etat, les deux
+# curseurs (LEGER : rafale) et les bords (lourd) ; toujours UN useState.
+_SB_HOTE = src[src.find("function DzmPlanProps(o){"):src.find("function DzmDzRects(o){")]
+check("SB_la_couche_porte_les_pures_les_exports_et_la_section",
+      all(src.count(t) == 1 for t in ("function dzmStabNorm(raw){", "function dzmStabOf(c){", "function dzmStabState(job){",
+                                       "stabNorm:dzmStabNorm,stabOf:dzmStabOf,stabState:dzmStabState,"))
+      and src.count("return {on:!0,smooth:n(raw.smooth,1,100,15),crop:raw.crop===\"black\"?\"black\":\"keep\",zoom:n(raw.zoom,-30,30,0)}}") == 1
+      and _SB_HOTE.count('row("Stabilis.",') == 1 and _SB_HOTE.count('row("Bords",') == 1
+      and _SB_HOTE.count('rng("smooth",1,100,"Lissage",') == 1 and _SB_HOTE.count('rng("zoom",-30,30,"Zoom",') == 1
+      and _SB_HOTE.count("on({stab:e.target.checked?dzmStabNorm({on:!0}):void 0},!0)") == 1
+      and _SB_HOTE.count("on({stab:dzmStabNorm(Object.assign({},sb,p))},!1)") == 1
+      and _SB_HOTE.count("on({stab:dzmStabNorm(Object.assign({},sb,{crop:v}))},!0)") == 1
+      and _SB_HOTE.count('sjEnCours=!!sj&&sj.status!=="done"&&sj.status!=="failed"') == 1
+      and _SB_HOTE.count("disabled:!sb||sjEnCours,") == 1 and _SB_HOTE.count('children:"Analyser"') == 1
+      and _SB_HOTE.count('"data-st":sj?sj.status:""') == 1
+      and _SB_HOTE.count("x.useState(") == 1,
+      f"rangees={_SB_HOTE.count('row(\"Stabilis.\",')}/{_SB_HOTE.count('row(\"Bords\",')} useState={_SB_HOTE.count('x.useState(')}")
+_SB_CSS = CSS.read_text(encoding="utf-8")
+check("SB_la_feuille_porte_la_chip_et_les_curseurs",
+      all(_SB_CSS.count(t) == 1 for t in ('.dzsvm .dzm-stab-st[data-st="done"]{color:#3fbf5a}',
+                                          '.dzsvm .dzm-stab-st[data-st="failed"]{color:#e0453f}',
+                                          ".dzsvm .dzm-stab input[type=range]{width:90px;vertical-align:middle}")),
+      f"done={_SB_CSS.count('.dzsvm .dzm-stab-st[data-st=')}")
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

@@ -1009,6 +1009,41 @@ R_M16REF = (A_M16REF + "\n"
             "    if(heavy||now-dzPlanHist.current>600)pushHistory();dzPlanHist.current=now;\n"
             "    setClips(clipsRef.current.map(function(k){if(k.id!==id)return k;var nk=Object.assign({},k,patch);\n"
             "      Object.keys(patch).forEach(function(q){if(patch[q]===void 0)delete nk[q]});return nk}));setDirty(!0)}\n"
+            # ── D-16 (22/09/2026, L3 tache 6) : L'ANALYSE DE STABILISATION
+            # REPLIEE ICI (meme mesure : l'ancre est posee par ce remplacement).
+            # Un etat PAR SOURCE (cle = JSON de `src`, comme le cache backend
+            # est par source) : {status,progress,error}. POST /api/montage/stab
+            # rend {ok,ready,job_id} (contrat de /proxy) : `ready` = analyse
+            # deja en cache -> done sans job ; sinon suivi par GET /api/jobs/
+            # {id} toutes les 1,5 s (la cadence de launchRender), `status`
+            # MESURE en minuscules (`JobStatus.DONE.value`, launchRender
+            # compare `d.status==="done"` nu). L'etat passe a « running » AVANT
+            # le POST : le bouton est desactive des le clic (pas de double
+            # demande). Toute erreur -- refus HTTP ({detail}), reseau, job
+            # introuvable -- finit en « failed » AVEC message : le plan
+            # avalait l'erreur du polling (`.catch(function(){})`), ce qui
+            # laissait la chip a « analyse n % » et le bouton mort pour de bon.
+            # Le polling s'ETEINT au demontage : `put` ne pose rien et la
+            # replanification s'arrete si `dzAliveRef` (P9, plus bas dans ce
+            # meme corps -- resolue a l'appel) est tombee. Les sorties
+            # precoces sont des `return put(...)` : le pin P9 compte les
+            # `;return}` du corps (quatre) et la garde `if(!dzAliveRef...` (une)
+            # -- ce repli n'en ajoute aucun.
+            "  var stDzStab=x.useState({}),dzStabJobs=stDzStab[0],setDzStabJobs=stDzStab[1];\n"
+            "  function dzStabStart(src){var key=JSON.stringify(src);\n"
+            "    var put=function(v){if(dzAliveRef.current)setDzStabJobs(function(m){var n=Object.assign({},m);n[key]=v;return n})};\n"
+            '    var tick=function(id){fetch("/api/jobs/"+id).then(function(r3){return r3.json()}).then(function(j){\n'
+            '      var st=j&&j.status;if(!st)return put({status:"failed",error:(j&&j.detail)||"job introuvable"});\n'
+            '      var fin=st==="done"||st==="failed";put({status:fin?st:"running",progress:Number(j.progress)||0,error:j.error||null});\n'
+            "      if(!fin&&dzAliveRef.current)setTimeout(function(){tick(id)},1500)})\n"
+            '      .catch(function(e){put({status:"failed",error:String(e)})})};\n'
+            '    put({status:"running",progress:0});\n'
+            '    fetch("/api/montage/stab",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({src:src})})\n'
+            "      .then(function(r2){return r2.json().then(function(d){return {ok:r2.ok,d:d}})}).then(function(o){\n"
+            '        if(o.ok&&o.d&&o.d.ready)return put({status:"done"});\n'
+            '        if(!o.ok||!o.d||!o.d.job_id)return put({status:"failed",error:(o.d&&(o.d.detail||o.d.error))||"refus"});\n'
+            '        put({status:"running",progress:10});tick(o.d.job_id)})\n'
+            '      .catch(function(e){put({status:"failed",error:String(e)})})}\n'
             # ── E-4 (22/09/2026) : LE BANDEAU DE FIN DE RENDU ─────────
             # REPLIÉ ICI, même mesure que E1 : la ligne vaut 0 dans
             # .bak_montage. Posé par EA4 (rendu final « done »), consommé
@@ -3942,6 +3977,11 @@ R_DZ1 = ('        /* D-13 : les proprietes de plan (clip V1 reel seulement) */\n
          '            var res=DzTracks.rampe(clipsRef.current,selRef.current,t,sL,sR);\n'
          '            if(res.refus){fireNote(res.refus==="bord"?"Trop près d\'un bord (0,3 s)":"Impossible de diviser ici");return}\n'
          '            pushHistory();setClips(res.clips);setSelId(res.right);setDirty(!0)},\n'
+         # D-16 (L3 tache 6) : l'etat du job d'analyse de CETTE source (par
+         # cle JSON de `src`, comme le cache backend est par source) et le
+         # declencheur -- PAS d'ancre neuve, l'etat et le geste sont replies
+         # dans R_M16REF (dzStabJobs / dzStabStart).
+         '          stabJob:dzStabJobs[JSON.stringify(sel.src)]||null,onStab:function(){dzStabStart(sel.src)},\n'
          '          onChange:dzPlanSet}):null,\n'
          + A_DZ1)
 A_DZ2 = '            r.jsx("div",{className:"svm-tfbadge",ref:tfBadgeRef})]}):null,'
@@ -3964,7 +4004,12 @@ R_DZ4 = (A_DZ4 + "\n"
          # (`o.speed` n'est pose que sur un V1 reel a vitesse != 1, ligne
          # d'ancre) -- payload d'avant octet pour octet sinon.
          "        /* D-15 : l'interpolation du retime -- jointe seulement avec une vitesse */\n"
-         '        var rtD=o.speed&&DzTracks.retimeOf(c);if(rtD)o.retime=rtD;')
+         '        var rtD=o.speed&&DzTracks.retimeOf(c);if(rtD)o.retime=rtD;\n'
+         # D-16 (L3 tache 6) : la stabilisation, jointe seulement si elle
+         # existe (normalisee par la couche, UNE occurrence de `stabOf(` via
+         # `sbD` -- la sonde compte chaque jeton) ; payload d'avant sinon.
+         "        /* D-16 : la stabilisation -- jointe seulement si elle existe */\n"
+         '        var sbD=c.tr==="v1"&&DzTracks.stabOf(c);if(sbD)o.stab=sbD;')
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),

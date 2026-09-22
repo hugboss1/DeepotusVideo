@@ -621,6 +621,13 @@ out.rt_rampe_fine=RF&&[RF.clips[0].speed,RF.clips[1].srcIn];
 /* revue : continuite du zoom au raccord -- la fenetre a t ferme la gauche et ouvre la droite ; sans dz, aucune cle dz */
 var RZ=T.rampe([{id:"z1",tr:"v1",start:0,end:4,srcIn:0,dz:{x0:0,y0:0,w0:1,x1:.2,y1:.2,w1:.6,ease:"lin"},src:{job_id:"j"}}],"z1",2,1,2);
 out.rt_rampe_dz=RZ&&[RZ.clips[0].dz.w1===RZ.clips[1].dz.w0&&RZ.clips[0].dz.x1===RZ.clips[1].dz.x0,RZ.clips[0].dz.w1,RZ.clips[1].dz.w1,RZ.clips[0].dz.w0,"dz" in RR.clips[0]||"dz" in RR.clips[1]];
+/* [16] D-16 : stabilisation, cote client (memes bornes que _v1_stab) */
+out.sb_norm=[T.stabNorm({on:true}),T.stabNorm({on:true,smooth:999,crop:"black",zoom:-80}),T.stabNorm({on:false}),T.stabNorm(null),T.stabNorm({on:true,smooth:"x",crop:1,zoom:"7"})];
+out.sb_of=[T.stabOf({stab:{on:true,smooth:30}}),T.stabOf({}),T.stabOf({stab:{on:false,smooth:30}})];
+out.sb_state=[T.stabState(null),T.stabState({status:"running",progress:40}),T.stabState({status:"done"}),T.stabState({status:"failed",error:"x"}),T.stabState({status:"failed"}),T.stabState({status:"running",progress:"zz"})];
+/* purete : l'entree n'est pas mutee ; un entier est rendu (12.6 -> 13) */
+var SBI={on:true,smooth:12.6,crop:"black",zoom:3.4};var SBN=T.stabNorm(SBI);
+out.sb_pur=[JSON.stringify(SBI)==='{"on":true,"smooth":12.6,"crop":"black","zoom":3.4}',SBN&&SBN.smooth,SBN&&SBN.zoom];
 console.log(JSON.stringify(out));
 """
 print("\n[1] dzmInsere sous node")
@@ -809,7 +816,9 @@ try:
                  "dz_preset","dz_move","dz_scale","dz_css","dz_of","dz_pur","dz_comp",
                  # D-15 (L3, tache 4) : les CINQ cles de la section [15].
                  "rt_of","rt_rampe","rt_rampe_trans","rt_rampe_refus","rt_rampe_pur",
-                 "rt_rampe_fine","rt_rampe_dz"]
+                 "rt_rampe_fine","rt_rampe_dz",
+                 # D-16 (L3, tache 6) : les QUATRE cles de la section [16].
+                 "sb_norm","sb_of","sb_state","sb_pur"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -1452,6 +1461,18 @@ check("rt_rampe_ne_rond_pas_la_vitesse_et_srcin_suit_la_vitesse_fine",
 # revue : la fenetre a t (lin, u=.5 -> w=.8) ferme la gauche et ouvre la droite ; sans dz, aucune cle dz
 check("rt_rampe_garde_le_zoom_continu_au_raccord_et_sans_dz_n_en_pose_pas",
       D.get("rt_rampe_dz") == [True, 0.8, 0.6, 1, False], D.get("rt_rampe_dz"))
+
+print("\n[16] D-16 stabilisation (client)")
+check("sb_norm_tient_les_bornes_du_backend_et_rend_null_hors_on",
+      D.get("sb_norm") == [{"on": True, "smooth": 15, "crop": "keep", "zoom": 0},
+                           {"on": True, "smooth": 100, "crop": "black", "zoom": -30},
+                           None, None, {"on": True, "smooth": 15, "crop": "keep", "zoom": 7}], D.get("sb_norm"))
+check("sb_of_lit_le_clip",
+      "sb_of" in D and D["sb_of"] == [{"on": True, "smooth": 30, "crop": "keep", "zoom": 0}, None, None], D.get("sb_of"))
+# un echec sans message dit « ? » ; un progres non numerique dit 0 %
+check("sb_state_phrase_les_quatre_etats",
+      D.get("sb_state") == ["à analyser", "analyse 40 %", "analysée", "échec : x", "échec : ?", "analyse 0 %"], D.get("sb_state"))
+check("sb_norm_pur_et_entier", D.get("sb_pur") == [True, 13, 3], D.get("sb_pur"))
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)
