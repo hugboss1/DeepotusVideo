@@ -407,6 +407,11 @@ _AUDIO_EXTS = (".mp3", ".wav", ".m4a", ".ogg", ".flac", ".aac", ".opus",
 # Un second test Python serait ici du code que rien ne peut faire rougir
 # seul.
 _PROXY_PROVIDER = "montage_proxy"
+# D-16 : l'analyse vidstab (`POST /stab`) est le second précalcul PAR SOURCE
+# suivi par un job sans artefact — même statut que le proxy pour tout ce qui
+# filtre par `provider` (ici `/newer` ; `GET /api/jobs` de pipeline.py et
+# `cost_usage` de routes.py ne connaissent encore que `_PROXY_PROVIDER`).
+_STAB_PROVIDER = "montage_stab"
 
 
 def _is_video_artifact(p: Path) -> bool:
@@ -878,6 +883,44 @@ _RETIME = {"blend": "tblend=all_mode=average,setpts=PTS-STARTPTS",
 def _v1_retime(c: dict) -> str | None:
     v = c.get("retime")
     return v if isinstance(v, str) and v in _RETIME else None
+
+
+# D-16 (22/09/2026) — STABILISATION. Champ optionnel `stab` d'un clip V1 :
+# {on, smooth 1..100 (défaut 15), crop "keep"|"black", zoom −30..30}. Le
+# fichier .trf est résolu PAR SOURCE au rendu (`montage_media.stab_detect`,
+# cache chemin+mtime) — jamais envoyé par le client. Dans la chaîne, la
+# transformation lit la source ENTIÈRE puis `trim` fait le travail de
+# -ss/-t (mesuré : les transformations sont indexées par image d'entrée).
+def _v1_stab(c: dict) -> dict | None:
+    raw = c.get("stab")
+    if not isinstance(raw, dict) or not raw.get("on"):
+        return None
+
+    def num(k, lo, hi, dv):
+        try:
+            f = float(raw.get(k, dv))
+        except (TypeError, ValueError):
+            f = float("nan")
+        return int(round(max(lo, min(hi, f)))) if f == f else int(dv)
+    return {"smooth": num("smooth", 1, 100, 15),
+            "crop": "black" if raw.get("crop") == "black" else "keep",
+            "zoom": num("zoom", -30, 30, 0)}
+
+
+def _v1_stab_trf(s: dict) -> Path | None:
+    """Le `.trf` d'un segment V1 stabilisé, ou None (segment historique).
+    `stab` sans `trf`, ou `trf` disparu (cache purgé entre l'analyse et le
+    rendu) : on prévient et on rend le plan NON stabilisé plutôt qu'un rendu
+    qui échoue — la commande reste alors celle de l'historique."""
+    st = s.get("stab")
+    if not isinstance(st, dict):
+        return None
+    trf = st.get("trf")
+    if trf and Path(trf).is_file():
+        return Path(trf)
+    logger.warning(f"montage: stabilisation sans analyse (.trf absent), plan "
+                   f"rendu tel quel — {Path(str(s.get('path') or '')).name}")
+    return None
 
 
 # ------------------------------------------------------------------- save ---
@@ -1666,7 +1709,7 @@ async def montage_newer(job_id: str = ""):
             # le cache. `notin_` sur le même `coalesce`, pour la raison de la
             # décision 4 ci-dessus : un `provider` NUL ne doit pas tomber.
             .where(func.coalesce(JobRecord.provider, "")
-                   .notin_(("montage", _PROXY_PROVIDER)))
+                   .notin_(("montage", _PROXY_PROVIDER, _STAB_PROVIDER)))
             # PAS de `id != job_id` — le plan l'écrivait, la mesure le rend
             # INUTILE : la comparaison de date est STRICTE, et la référence
             # n'est pas plus récente qu'elle-même. Mutation jouée le
@@ -2181,6 +2224,15 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     AVANT `fps=` ; `blend` (tblend moyenne) va APRÈS `fps=`, sur le flux déjà
     rematérialisé (A,(A+B)/2,B,… = Frame Blend) ; tpad/trim ramènent à
     seg_durs[k]. Sans vitesse : ignoré, chaîne historique.
+    D-16 : `stab` sur v1 (None = inchangé, sinon {smooth, crop, zoom, trf}
+    — clampé par _v1_stab, `trf` posé par /render après stab_detect). Avec
+    un `trf` existant, l'entrée n'est plus tronquée par -ss/-t (le .trf est
+    indexé par image d'ENTRÉE) et la chaîne commence par
+    `vidstabtransform=input='…':smoothing:crop:zoom:optzoom=1:interpol=
+    bilinear,trim=start=src_in:duration=d_src,setpts=PTS-STARTPTS,` avant
+    `scale=`. `stab` sans `trf` (ou `trf` disparu) : warning, plan historique.
+    L'audio d'une entrée V1 n'entre jamais dans le graphe (MESURÉ) : l'entrée
+    entière ne désynchronise rien.
     S1 : `subs_ass` = chemin d'un fichier ASS déjà écrit (piste de
     sous-titres). Il devient le DERNIER maillon de la chaîne vidéo, juste
     avant `format=yuv420p` : le texte passe donc au-dessus des overlays V2 et
@@ -2233,7 +2285,7 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
         segs.append(c)
         prev_end = c["end"]
 
-    seg_durs, seg_idx = [], []
+    seg_durs, seg_idx, seg_stab = [], [], {}   # seg_stab : k → (trf, d_src)
     for s in segs:
         if s.get("gap"):
             if not audio_only:
@@ -2255,9 +2307,19 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             else:
                 d_src = d = round(min(want, avail), 3)
             if not audio_only:
-                if s["src_in"] > 0:
-                    inputs.extend(["-ss", str(s["src_in"])])
-                inputs.extend(["-t", str(d_src), "-i", str(s["path"])])
+                # D-16 : un plan stabilisé lit sa source ENTIÈRE (ni -ss ni
+                # -t) — vidstabtransform indexe le .trf par image d'entrée ;
+                # le trim se fait dans la chaîne (voir `stab_pre` plus bas).
+                # MESURÉ (grep ":a]") : l'audio d'une entrée V1 n'est jamais
+                # référencé dans le graphe — aucune désynchronisation.
+                trf = _v1_stab_trf(s)
+                if trf is None:
+                    if s["src_in"] > 0:
+                        inputs.extend(["-ss", str(s["src_in"])])
+                    inputs.extend(["-t", str(d_src), "-i", str(s["path"])])
+                else:
+                    inputs.extend(["-i", str(s["path"])])
+                    seg_stab[len(seg_durs)] = (trf, d_src)
             seg_durs.append(d)
         if not audio_only:
             seg_idx.append(idx)
@@ -2297,6 +2359,21 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             else:
                 pre = sf if not dzp else (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
                                           f"crop={w}:{h},setsar=1,fps={fps}{dzp},format=yuv420p")
+            # D-16 : stabilisation — vidstabtransform sur la source entière
+            # PUIS trim=start=src_in:duration=d_src (ce que -ss/-t faisaient),
+            # AVANT le recadrage : les bords découverts (crop=keep|black,
+            # zoom) se décident à la résolution de la source. Segment absent
+            # de seg_stab : préfixe historique octet pour octet.
+            if k in seg_stab:
+                from app.services.subtitle_service import _ff_escape_path
+                trf, d_src = seg_stab[k]
+                st = s["stab"]
+                pre = (f"vidstabtransform=input='{_ff_escape_path(trf)}':"
+                       f"smoothing={st['smooth']}:crop={st['crop']}:zoom={st['zoom']}:"
+                       f"optzoom=1:interpol=bilinear,"
+                       f"trim=start={sfx_service.fnum(s['src_in'])}:"
+                       f"duration={sfx_service.fnum(d_src)},"
+                       f"setpts=PTS-STARTPTS,{pre}")
             chain = (f"{pre},tpad=stop_mode=clone:stop_duration={seg_durs[k]},"
                      f"trim=0:{seg_durs[k]},setpts=PTS-STARTPTS")
             reff = s.get("effects")
@@ -3004,6 +3081,23 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                 if _v1_retime(c) == "flow":
                     logger.info(f"montage: retime flow (minterpolate mci, LENT) — "
                                 f"{c.get('label') or c.get('src')}")
+                st = _v1_stab(c)
+                if st:
+                    # D-16 : l'analyse manquante se fait ICI, dans le job de
+                    # rendu (déjà en tâche de fond) — le cache par source
+                    # rend l'appel immédiat si POST /stab l'a déjà faite.
+                    from app.services import montage_media as MM
+                    async with async_session_factory() as session:
+                        jr = await session.get(JobRecord, job_id)
+                        if jr is not None:
+                            jr.current_step = "Analyse de stabilisation"
+                            await session.commit()
+                    try:
+                        trf = await asyncio.to_thread(MM.stab_detect, p)
+                    except Exception as e:
+                        await _fail(f"Stabilisation impossible : {e}")
+                        return
+                    st["trf"] = str(trf)
                 v1.append({"path": p, "src_dur": sdur or 9999.0,
                            "src_in": max(0.0, float(c.get("srcIn") or 0)),
                            "start": float(c.get("start") or 0),
@@ -3013,6 +3107,7 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                            "speed": _v1_speed(c),  # C4 — 0.0 = historique
                            "dz": _dz_spec(c),      # D-13 — None = historique
                            "retime": _v1_retime(c),  # D-15 — None = historique
+                           "stab": st,             # D-16 — None = historique
                            "effects": (c.get("effects")
                                        if isinstance(c.get("effects"), list)
                                        else None)})
@@ -3626,10 +3721,21 @@ async def montage_proxy_build(request: Request,
     l'écran n'a donc jamais besoin de lire ce chemin sur le job, et rien de
     ce qui interroge un artefact ne peut confondre un cache avec un plan."""
     from app.services import montage_media as MM
+    return await _precalcul_de_fond(
+        request, background_tasks, MM.proxy_path, MM.proxy, _PROXY_PROVIDER,
+        "proxy", "Aperçu 480p", "Aperçu prêt")
+
+
+async def _precalcul_de_fond(request, background_tasks, path_fn, build_fn,
+                             provider, prefix, step, step_done):
+    """Le corps commun de `POST /proxy` et `POST /stab` (D-16) : un précalcul
+    PAR SOURCE, en tâche de fond, suivi par un `JobRecord` sans artefact.
+    `path_fn(p)` rend le chemin de cache sans rien fabriquer, `build_fn(p)`
+    fabrique (bloquant, passé à `to_thread`). Réponse `{ok, ready, job_id}`."""
     body = await _json_body(request)
     p = await _media_source(request, body.get("src"), video=True)
     try:
-        out = await asyncio.to_thread(MM.proxy_path, p)
+        out = await asyncio.to_thread(path_fn, p)
     except Exception as e:
         raise _media_http(e)
     if out.exists():
@@ -3639,25 +3745,25 @@ async def montage_proxy_build(request: Request,
     async with async_session_factory() as session:
         session.add(JobRecord(
             id=job_id, status=JobStatus.GENERATING_VIDEO.value, progress=10,
-            title=f"proxy — {p.name}"[:60],
-            provider=_PROXY_PROVIDER,
+            title=f"{prefix} — {p.name}"[:60],
+            provider=provider,
             # `image_filename` est NON NUL en base (storage.py l. 24) : il
             # faut donc y écrire quelque chose. On suit la forme déjà en
             # usage pour les jobs qui n'ont pas d'image — `asset3d_<…>`,
             # `sprite_<court>` (routes.py) — c'est-à-dire un libellé SANS
             # EXTENSION : aucun filtre par extension ne peut le prendre pour
             # un média, et il dit ce qu'il est.
-            image_filename=f"montage_proxy_{job_id[:8]}",
+            image_filename=f"{provider}_{job_id[:8]}",
             # final_video_path / video_path : DÉLIBÉRÉMENT absents. Un cache
             # n'est pas un artefact — voir `_PROXY_PROVIDER` en tête.
-            current_step="Aperçu 480p"))
+            current_step=step))
         await session.commit()
 
     async def _run():
         try:
-            await asyncio.to_thread(MM.proxy, p)
+            await asyncio.to_thread(build_fn, p)
         except Exception as e:
-            logger.warning(f"montage: apercu 480p echoue — {e}")
+            logger.warning(f"montage: {step.lower()} echoue — {e}")
             async with async_session_factory() as session:
                 jr = await session.get(JobRecord, job_id)
                 if jr is not None:
@@ -3671,12 +3777,38 @@ async def montage_proxy_build(request: Request,
             if jr is not None:
                 jr.status = JobStatus.DONE.value
                 jr.progress = 100
-                jr.current_step = "Aperçu prêt"
+                jr.current_step = step_done
                 jr.completed_at = _dt.utcnow()
                 await session.commit()
 
     background_tasks.add_task(_run)
     return {"ok": True, "ready": False, "job_id": job_id}
+
+
+@router.post("/stab")
+async def montage_stab_build(request: Request,
+                             background_tasks: BackgroundTasks):
+    """D-16 — lance (ou confirme) l'analyse vidstab d'une source ; même
+    contrat que `POST /proxy` : `{ok, ready, job_id}`, suivi par
+    `GET /api/jobs/{id}` (provider `montage_stab`, sans artefact). Le rendu
+    fait lui-même l'analyse manquante ; cette route sert à l'anticiper."""
+    from app.services import montage_media as MM
+    return await _precalcul_de_fond(
+        request, background_tasks, MM.stab_path, MM.stab_detect, _STAB_PROVIDER,
+        "stab", "Analyse de stabilisation", "Analyse prête")
+
+
+@router.get("/stab")
+async def montage_stab_state(request: Request, src: str = ""):
+    """`{ready}` — l'analyse vidstab de `src` est-elle en cache ? Ne fabrique
+    jamais (même règle que `GET /proxy`) ; le `.trf` n'est jamais servi."""
+    from app.services import montage_media as MM
+    p = await _media_source(request, src, video=True)
+    try:
+        out = await asyncio.to_thread(MM.stab_path, p)
+    except Exception as e:
+        raise _media_http(e)
+    return {"ready": out.exists()}
 
 
 @router.get("/proxy")

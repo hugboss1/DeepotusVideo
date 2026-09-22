@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Précalculs du Montage : pics d'onde, filmstrip, proxy 480p.
+"""Précalculs du Montage : pics d'onde, filmstrip, proxy 480p, analyse vidstab.
 
 Tâche 8 / P7 (« lecture fluide — mesurer, précalculer »), MOITIÉ BACKEND. Ce
 module ne sert AUCUNE route et ne connaît AUCUNE règle du Montage : il
@@ -76,7 +76,7 @@ class MediaError(RuntimeError):
 # leur extension (peaks → .json, proxy → .mp4, strip → .jpg, vérifié sur sept
 # valeurs), mais une seule des trois par le chemin prévu. On lit donc la
 # famille explicitement, et un genre inconnu LÈVE au lieu de devenir un .jpg.
-_EXT = {"peaks": ".json", "strip": ".jpg", "proxy": ".mp4"}
+_EXT = {"peaks": ".json", "strip": ".jpg", "proxy": ".mp4", "stab": ".trf"}
 _RE_FAMILLE = re.compile(r"^[a-z]+")
 
 # 2 000 échantillons par seconde : 300 cases pour 10 minutes de musique font
@@ -371,5 +371,45 @@ def proxy(src) -> Path:
         except OSError:
             pass
         raise MediaError("aperçu 480p impossible pour « %s » — %s"
+                         % (Path(src).name, _lignes_utiles(r.stderr)))
+    return _ecrire(tmp, out)
+
+
+def stab_path(src) -> Path:
+    """D-16 — le fichier de transformations vidstab d'une source (cache par
+    chemin + mtime + genre, comme le proxy). NE FABRIQUE RIEN : `GET /stab`
+    s'en sert pour répondre `ready` sans lancer d'analyse."""
+    return _cache_path(src, "stab")
+
+
+def stab_detect(src) -> Path:
+    """D-16 — passe 1 de la stabilisation : `vidstabdetect` sur TOUTE la
+    source, en cache. Idempotent (rend le fichier s'il existe), atomique
+    (`_tmp_de` garde l'extension `.trf`, puis `os.replace`).
+
+    TOUTE la source, et pas le seul extrait du plan : les transformations du
+    `.trf` sont indexées par IMAGE D'ENTRÉE, et le rendu lit donc la source
+    entière puis `trim` (voir `_build_montage_command`) — les images doivent
+    coïncider. Un seul `.trf` par source sert tous les plans qui la découpent.
+    `shakiness=5:accuracy=15` = défauts ffmpeg (accuracy max = 15, mesuré le
+    22/09/2026 sur 8.1.1). Le chemin de `result=` est échappé comme un ASS
+    (`'C\\:/…'`, `subtitle_service._ff_escape_path`) : MESURÉ, la seule
+    forme qui passe sous Windows. Échec (rc ≠ 0, fichier absent ou < 8
+    octets) → `MediaError` (un `RuntimeError`), rien n'est mis en cache."""
+    out = stab_path(src)
+    if out.exists():
+        return out
+    from app.services.subtitle_service import _ff_escape_path
+    tmp = _tmp_de(out)
+    r = _run(["ffmpeg", "-y", "-v", "error", "-i", str(src), "-an", "-vf",
+              "vidstabdetect=shakiness=5:accuracy=15:result='%s'"
+              % _ff_escape_path(tmp), "-f", "null", "-"],
+             timeout=900, quoi="l'analyse de stabilisation")
+    if r.returncode != 0 or not tmp.exists() or tmp.stat().st_size < 8:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+        raise MediaError("analyse de stabilisation impossible pour « %s » — %s"
                          % (Path(src).name, _lignes_utiles(r.stderr)))
     return _ecrire(tmp, out)

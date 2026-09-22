@@ -38,6 +38,24 @@ seg_durs[k] ; sans vitesse le champ est IGNORE (commande historique). Etat
 vide : `A("_v1_retime")` rend "ABSENT" ; `BUILD(retime=…)` sur une spec qui
 ne connait pas le champ produit la commande historique → rouge. Mesure reelle :
 flow a x0.5 sur 2 s de source → 4 s et 100 images (SKIP sans ffmpeg).
+[3] D-16 STABILISATION. Un clip V1 porte un champ OPTIONNEL `stab` : {on,
+smooth 1..100 (defaut 15), crop keep|black, zoom -30..30}. `_v1_stab` le
+clampe (None hors `on`). Le `.trf` de vidstabdetect est un cache PAR SOURCE
+(`montage_media.stab_path` / `stab_detect`, extension `.trf`, jamais fabrique
+par une lecture). Dans la chaine, un segment `stab` AVEC `trf` existant lit sa
+source ENTIERE (plus de -ss/-t : le .trf est indexe par image d'entree) et
+commence par `vidstabtransform=input='C\\:/…':smoothing:crop:zoom:optzoom=1:
+interpol=bilinear,trim=start=src_in:duration=d_src,setpts=PTS-STARTPTS,`
+AVANT `scale=` ; `stab` sans `trf` (ou trf disparu) = commande historique.
+MESURE (grep ":a]") : l'audio d'une entree V1 n'entre jamais dans le graphe,
+l'entree entiere ne desynchronise rien. Etat vide : `A("_v1_stab")` rend
+"ABSENT", `_EXT` sans "stab", `stab_path` absent, `BUILD(stab=…)` ignore.
+Mesure reelle : testsrc2 3 s → .trf > 1 000 o, rendu rc 0 et 75 images.
+[6] D-16 ROUTES /stab. `POST /stab` = le contrat de `POST /proxy` ({ok,
+ready, job_id}, provider `montage_stab`, suivi par GET /api/jobs/{id}) ;
+`GET /stab` = {ready} sans jamais fabriquer. Espion /render : un clip V1 avec
+`stab:{on:true}` → la spec V1 porte `stab.trf` (= stab_path de la source) et la
+commande contient vidstabtransform ; sans `stab`, ni le champ ni le filtre.
 
 La mesure ffmpeg reelle (fin de section) est en SKIP si ffmpeg est injoignable,
 comme les bancs-miroirs du depot.
@@ -102,12 +120,19 @@ def FLAT(cmd):
     return " ".join(cmd) if isinstance(cmd, list) else str(cmd)
 
 
+def TL(name="l3", n=1, dur=4, src=None):
+    """Timeline minimale pour /render — recopiee de tests/test_montage_l2.py."""
+    return {"name": name, "ratio": "9:16", "duration": dur, "mix": {},
+            "clips": [{"tr": "v1", "id": "v%d" % i, "start": 0, "end": 4,
+                       "src": {"file_path": src or V1F}} for i in range(n)]}
+
+
 def BUILD(**kw):
     """`_build_montage_command` avec les arguments constants de la section.
     Les mots-cles de V1SPEC (`dz`, `speed`) vont au clip ; le reste aux
     arguments nommes. Un `TypeError` (mot-cle inconnu : l'ETAT VIDE) rend un
     temoin au lieu de tuer le banc."""
-    clip = {k: kw.pop(k) for k in ("dz", "speed", "retime") if k in kw}
+    clip = {k: kw.pop(k) for k in ("dz", "speed", "retime", "stab", "src_in") if k in kw}
     a = {"w": 64, "h": 64, "fps": 25, "mix_db": {}, "ducking": False,
          "duration_master": False, "preview": True,
          "out": os.path.join(TMP, "o.mp4")}
@@ -399,6 +424,167 @@ else:
     check(f"d15_rendu_reel_{_rt}_x0_5_dure_4_s_et_100_images",
           _rcf == 0 and _tem in FLAT(_cmdf or []) and _nbf == 100 and abs(_durf - 4.0) < 0.05,
           (_nbf, _durf))
+
+print("\n[3] D-16 stabilisation : analyse en cache, transformation avant le recadrage")
+from app.services import montage_media as MM                 # noqa: E402
+_v1_stab = A("_v1_stab", lambda c: "ABSENT")
+check("d16_stab_absent_ou_faux_rend_none",
+      _v1_stab({}) is None and _v1_stab({"stab": "x"}) is None and _v1_stab({"stab": {"on": False}}) is None,
+      [_v1_stab(x) for x in ({}, {"stab": "x"}, {"stab": {"on": False}})])
+check("d16_stab_vrai_porte_les_defauts_15_keep_0",
+      _v1_stab({"stab": {"on": True}}) == {"smooth": 15, "crop": "keep", "zoom": 0}, _v1_stab({"stab": {"on": True}}))
+check("d16_stab_est_clampe_smooth_1_100_zoom_m30_30_crop_black_ou_keep",
+      _v1_stab({"stab": {"on": True, "smooth": 999, "crop": "black", "zoom": -80}}) == {"smooth": 100, "crop": "black", "zoom": -30}
+      and _v1_stab({"stab": {"on": True, "smooth": 0, "crop": "zzz", "zoom": "7"}}) == {"smooth": 1, "crop": "keep", "zoom": 7}
+      and _v1_stab({"stab": {"on": True, "smooth": "nan", "zoom": None}}) == {"smooth": 15, "crop": "keep", "zoom": 0},
+      (_v1_stab({"stab": {"on": True, "smooth": 999, "crop": "black", "zoom": -80}}),
+       _v1_stab({"stab": {"on": True, "smooth": 0, "crop": "zzz", "zoom": "7"}}),
+       _v1_stab({"stab": {"on": True, "smooth": "nan", "zoom": None}})))
+check("d16_le_cache_stab_a_son_extension_trf", getattr(MM, "_EXT", {}).get("stab") == ".trf", getattr(MM, "_EXT", None))
+_sp = getattr(MM, "stab_path", None)
+_src = os.path.join(TMP, "s.txt"); open(_src, "wb").write(b"x")
+_spp = _sp(pathlib.Path(_src)) if callable(_sp) else None
+check("d16_stab_path_est_dans_montage_cache_et_ne_fabrique_rien",
+      _spp is not None and str(_spp).endswith("_stab.trf") and _spp.parent.name == "montage_cache"
+      and not _spp.exists(), _spp)
+_c0 = BUILD()
+check("d16_sans_stab_la_commande_est_l_historique",
+      "fps=25,format=yuv420p" in _c0 and BUILD(stab=None) == _c0 and "vidstab" not in _c0, _c0[:200])
+_trf = os.path.join(TMP, "a b.trf"); open(_trf, "wb").write(b"TRF1")
+_cs = BUILD(stab={"smooth": 20, "crop": "black", "zoom": 5, "trf": _trf}, src_in=1.5)
+_ch = BUILD(src_in=1.5)     # temoin : SANS stab, src_in=1.5 passe bien par -ss/-t
+check("d16_avec_stab_l_entree_n_est_plus_tronquee_par_ss_t",
+      " -ss 1.5 " in _ch and " -t 2.5 " in _ch.split("-filter_complex")[0]
+      and "vidstabtransform=" in _cs and " -ss 1.5" not in _cs
+      and " -t " not in _cs.split("-filter_complex")[0], _cs[:300])
+check("d16_la_transformation_precede_trim_puis_le_recadrage",
+      "vidstabtransform=input='" in _cs
+      and ":smoothing=20:crop=black:zoom=5:optzoom=1:interpol=bilinear,trim=start=1.5:duration=2.5,setpts=PTS-STARTPTS,scale=64:64" in _cs
+      and 0 < _cs.find("vidstabtransform=") < _cs.find("scale=64:64"), _cs[:400])
+check("d16_le_chemin_trf_est_echappe_comme_un_ass",
+      "vidstabtransform=" in _cs and "input='" + _trf.replace("\\", "/").replace(":", r"\:") + "':" in _cs, _cs[:400])
+check("d16_stab_sans_trf_est_ignore_avec_la_commande_historique",
+      "vidstabtransform=" in _cs and BUILD(stab={"smooth": 20, "crop": "keep", "zoom": 0}) == _c0
+      and BUILD(stab={"smooth": 20, "crop": "keep", "zoom": 0, "trf": os.path.join(TMP, "absent.trf")}) == _c0)
+
+# --- mesure ffmpeg reelle : vidstabdetect sur 3 s, puis la transformation
+# dans la chaine → 75 images a 25 i/s (vidstabtransform preserve le compte).
+if _FB is None:
+    check("d16_analyse_reelle_SKIP_sans_ffmpeg", True)
+else:
+    _SRC3 = str(pathlib.Path(TMP) / "src3.mp4")
+    _g3 = subprocess.run([_FB, "-y", "-loglevel", "error", "-f", "lavfi", "-i",
+                          "testsrc2=s=64x64:r=25:d=3", "-c:v", "libx264", "-pix_fmt",
+                          "yuv420p", _SRC3], check=False, capture_output=True, timeout=60)
+    _sd = getattr(MM, "stab_detect", None)
+    _trf3, _err3 = None, "ABSENT"
+    try:
+        _trf3 = _sd(pathlib.Path(_SRC3)) if callable(_sd) else None
+        _trf3b = _sd(pathlib.Path(_SRC3)) if callable(_sd) else None   # idempotent
+    except Exception as _e:
+        _err3, _trf3b = str(_e)[-300:], None
+    _n3 = os.path.getsize(_trf3) if _trf3 and os.path.isfile(_trf3) else -1
+    check("d16_analyse_reelle_ecrit_un_trf_de_plus_de_1000_octets_en_cache",
+          _g3.returncode == 0 and _trf3 is not None and _n3 > 1000
+          and _trf3 == _sp(pathlib.Path(_SRC3)) and _trf3b == _trf3
+          and not list(pathlib.Path(_trf3).parent.glob("*.tmp*")), (_n3, _err3))
+    _OUT3 = os.path.join(TMP, "stab.mp4")
+    _cmd3, _rc3, _e3 = None, -1, "commande absente"
+    try:
+        _cmd3, _ = MS._build_montage_command(
+            [V1SPEC(path=_SRC3, src_dur=3.0, src_in=0.0, start=0.0, end=3.0,
+                    stab={"smooth": 10, "crop": "black", "zoom": 5, "trf": str(_trf3)})],
+            [], [], None, w=64, h=64, fps=25, mix_db={}, ducking=False,
+            duration_master=False, preview=True, out=_OUT3)
+        _r3 = subprocess.run([_FB] + list(_cmd3[1:]), check=False, capture_output=True,
+                             text=True, timeout=180)
+        _rc3, _e3 = _r3.returncode, (_r3.stderr or "")[-400:]
+    except (TypeError, OSError, subprocess.TimeoutExpired) as _e:
+        print("  (rendu stab : %s)" % _e)
+    _nb3 = -1
+    try:
+        _p3 = subprocess.run([os.path.join(os.path.dirname(_FB), "ffprobe"), "-v", "error",
+                              "-count_frames", "-select_streams", "v:0", "-show_entries",
+                              "stream=nb_read_frames", "-of", "csv=p=0", _OUT3],
+                             check=False, capture_output=True, text=True, timeout=60)
+        _nb3 = int((_p3.stdout or "").strip() or -1)
+    except (ValueError, OSError, subprocess.TimeoutExpired) as _e:
+        print("  (ffprobe stab : %s)" % _e)
+    check("d16_rendu_reel_avec_vidstabtransform_rend_0_et_75_images",
+          _n3 > 1000 and _rc3 == 0 and "vidstabtransform=" in FLAT(_cmd3 or [])
+          and _nb3 == 75, (_rc3, _nb3, _e3))
+
+print("\n[6] D-16 routes /stab")
+r = c.post("/api/montage/stab", json={"src": {"job_id": "nope"}}); d = J(r)
+check("d16_post_stab_source_inconnue_400_ou_404", r.status_code in (400, 404), (r.status_code, d))
+r = c.get("/api/montage/stab", params={"src": json.dumps({"job_id": "nope"})}); d = J(r)
+check("d16_get_stab_repond_ready_false_ou_404_sans_fabriquer",
+      r.status_code in (200, 404) and (r.status_code == 404 or d.get("ready") is False), (r.status_code, d))
+if _FB is None:
+    check("d16_routes_reelles_SKIP_sans_ffmpeg", True)
+else:
+    # Une source NEUVE (4 s) : son cache est vide, POST doit lancer un job.
+    _SRC4 = str(pathlib.Path(TMP) / "src4.mp4")
+    subprocess.run([_FB, "-y", "-loglevel", "error", "-f", "lavfi", "-i",
+                    "testsrc2=s=64x64:r=25:d=4", "-c:v", "libx264", "-pix_fmt",
+                    "yuv420p", _SRC4], check=False, capture_output=True, timeout=60)
+    r = c.get("/api/montage/stab", params={"src": json.dumps({"file_path": _SRC4})}); d0 = J(r)
+    r1 = c.post("/api/montage/stab", json={"src": {"file_path": _SRC4}}); d1 = J(r1)
+    check("d16_get_puis_post_stab_lancent_un_job_sans_avoir_fabrique",
+          r.status_code == 200 and d0.get("ready") is False
+          and r1.status_code == 200 and d1.get("ok") is True and d1.get("ready") is False
+          and isinstance(d1.get("job_id"), str), (r.status_code, d0, r1.status_code, d1))
+    import time as _time
+    _st, _t0 = {}, _time.time()
+    while _time.time() - _t0 < 60:
+        _st = J(c.get("/api/jobs/%s" % d1.get("job_id")))
+        if str(_st.get("status", "")).lower() in ("done", "failed"):
+            break
+        _time.sleep(0.5)
+    _spp4 = _sp(pathlib.Path(_SRC4)) if callable(_sp) else None
+    check("d16_le_job_stab_finit_done_et_le_trf_existe",
+          str(_st.get("status", "")).lower() == "done" and _st.get("provider") == "montage_stab"
+          and _spp4 is not None and _spp4.exists() and _spp4.stat().st_size > 1000, (_st, _spp4))
+    r2 = c.post("/api/montage/stab", json={"src": {"file_path": _SRC4}}); d2 = J(r2)
+    r3 = c.get("/api/montage/stab", params={"src": json.dumps({"file_path": _SRC4})}); d3 = J(r3)
+    check("d16_second_post_repond_ready_sans_job_et_get_ready_true",
+          r2.status_code == 200 and d2 == {"ok": True, "ready": True, "job_id": None}
+          and r3.status_code == 200 and d3.get("ready") is True, (d2, d3))
+    # Espion /render : la spec V1 porte `stab` avec le trf de la source.
+    _cap = {}
+    _vrai_build, _vrai_run = MS._build_montage_command, MS._run_ffmpeg
+
+    def _espion(*a, **k):
+        _cap["v1"] = a[0] if a else None
+        _cmd = _vrai_build(*a, **k)
+        _cap["cmd"] = FLAT(_cmd[0] if isinstance(_cmd, tuple) else _cmd)
+        return _cmd
+
+    _tlr = TL("rendu", n=1, src=_SRC4); _tlr["preview"] = True
+    _tlr["clips"][0]["stab"] = {"on": True, "smooth": 30}
+    MS._build_montage_command, MS._run_ffmpeg = _espion, (lambda cmd, out: None)
+    try:
+        _rr = c.post("/api/montage/render", json=_tlr)
+    finally:
+        MS._build_montage_command, MS._run_ffmpeg = _vrai_build, _vrai_run
+    _v1c = (_cap.get("v1") or [{}])[0] if isinstance(_cap.get("v1"), list) else {}
+    _stc = _v1c.get("stab") if isinstance(_v1c, dict) else None
+    check("d16_le_rendu_porte_stab_avec_le_trf_de_la_source_et_vidstabtransform",
+          _rr.status_code == 200 and isinstance(_stc, dict) and _stc.get("smooth") == 30
+          and _stc.get("trf") == str(_spp4) and "vidstabtransform=input=" in (_cap.get("cmd") or ""),
+          (_rr.status_code, _stc, (_cap.get("cmd") or "")[:200]))
+    # Etat vide : le MEME rendu sans `stab` ne porte ni le champ ni le filtre.
+    _cap.clear(); _tlr["clips"][0].pop("stab")
+    MS._build_montage_command, MS._run_ffmpeg = _espion, (lambda cmd, out: None)
+    try:
+        _rr0 = c.post("/api/montage/render", json=_tlr)
+    finally:
+        MS._build_montage_command, MS._run_ffmpeg = _vrai_build, _vrai_run
+    _v1c0 = (_cap.get("v1") or [{}])[0] if isinstance(_cap.get("v1"), list) else {}
+    check("d16_sans_stab_le_rendu_ne_porte_ni_le_champ_ni_le_filtre",
+          isinstance(_stc, dict) and _rr0.status_code == 200 and isinstance(_v1c0, dict) and "path" in _v1c0
+          and _v1c0.get("stab") is None and "vidstab" not in (_cap.get("cmd") or "x"),
+          (_rr0.status_code, _v1c0.get("stab"), (_cap.get("cmd") or "")[:120]))
 
 print(f"\n=== {ok} passed, {fail} failed ===")
 c.__exit__(None, None, None)
