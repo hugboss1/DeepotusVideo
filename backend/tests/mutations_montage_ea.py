@@ -115,7 +115,7 @@ B_EA = "tests/test_montage_ea.py"
 B_EDIT = "tests/test_montage_edition.py"
 B_BUND = "tests/test_montage_bundle.py"
 
-# (banc, fichier, ancien | [(ancien, nouveau)...], nouveau, lignes attendues rouges)
+# (banc, fichier, ancien, nouveau, lignes attendues rouges)
 M = [
     # ── E-1, le drapeau `vide` (backend) ─────────────────────────────────
     # 0 — `_save_record` ne recopie plus `vide` : l'autosave le perd, et
@@ -263,7 +263,7 @@ def main():
         # LE MOTIF EST ECRIT EN LF ET REMIS DANS LA FIN DE LIGNE DU FICHIER.
         eol = "\r\n" if "\r\n" in brut else "\n"
         txt = brut.replace("\r\n", "\n")
-        paires = old if isinstance(old, list) else [(old, new)]
+        paires = [(old, new)]
         for o, n_ in paires:
             # EXACTEMENT UNE FOIS : deux sites mutes rendraient le verdict
             # illisible (quelle ligne rouge accuse lequel ?).
@@ -297,6 +297,9 @@ def main():
         print(f"     sha {sha_avant[:10]}={sha_apres[:10]}")
         sys.stdout.flush()
     print(json.dumps([b[:2] for b in bilan], ensure_ascii=False))
+    # LU PAR CODE DE SORTIE, jamais par grep : 1 des qu'une mutation survit,
+    # meurt ou rougit ailleurs que la ligne nommee (revue du 22/09/2026).
+    sys.exit(0 if bilan and all(v == "ROUGE" for _, v, _, _ in bilan) else 1)
 
 
 if __name__ == "__main__":
