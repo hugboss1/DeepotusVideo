@@ -3747,6 +3747,62 @@ R_TT11 = ('                :trackKind(tr.id)==="title"\n'
           '                openPicker(tr.id)},children:"+"},"add");')
 
 
+# ── EA1 (E-3, 22/09/2026) : LA PORTE « ENVOYER VERS… » DE LA BIBLIOTHÈQUE
+# VISE V1. La greffe S4 de libsend (AMONT, intouchable) est REMPLACÉE ici, à
+# l'identique sauf le 5e argument de la branche vidéo : "v1" — addAsset
+# (M16a) prend v1 si elle existe, sinon pickTrack ; sur une piste PLEIN
+# CADRE, wantsTwin est vrai et le jumeau A1 est posé (M22a/M22b). Sur "v2"
+# la vidéo arrivait MUETTE (incrustation, jamais sondée) et, sans piste v2,
+# INVISIBLE (sauvegarde du 04/09). L'IMAGE reste une incrustation "v2".
+# La couche porte la vieille phrase dans une prose datée du 06/09 (« vise
+# "v2" EN DUR ») : le banc compte donc la forme CODE, queue `}catch` incluse.
+A_EA1 = ('  x.useEffect(function(){var p=null;try{p=window.__dzMontageAdd;'
+         'delete window.__dzMontageAdd}catch(_e){}'
+         'if(!p)return;setTimeout(function(){try{if(p.image)'
+         'addAsset({image:p.image},p.image,"image",0,"v2");'
+         'else if(p.job_id)addAsset({job_id:p.job_id},p.title||p.job_id,'
+         '"video",p.dur||0,"v2")}catch(_e2){}},450)},[]);'
+         'function defaultLen(kind,srcDur){')
+R_EA1 = A_EA1.replace('"video",p.dur||0,"v2")', '"video",p.dur||0,"v1")')
+assert A_EA1 != R_EA1
+
+# ── EA2 (E-3) : CHAPITRES — « Ouvrir dans le Montage » AVANT « Send to
+# Scheduler ». Même boîte aux lettres que la Bibliothèque
+# (`window.__dzMontageAdd`, consommée par EA1 au montage de l'écran), même
+# navigation que le bouton voisin (CustomEvent deepotus:navigate — le seul
+# mécanisme portable : `__dzSendNav` est enfermé dans le bloc libsend).
+# `K` étale ses props (`...l`) : `title` passe. `epJob` et `title` sont les
+# locales du composant (le bouton voisin les lit déjà). Le job `episode` ne
+# stocke AUCUNE durée de scène : UN plan, pas un par scène (écart daté).
+_EA_NAV = ('window.dispatchEvent(new CustomEvent("deepotus:navigate",'
+           '{detail:{view:"montage"}}))')
+_EA_TIP = ('title:"Poser ce rendu sur la piste V1 du Montage, à la tête de '
+           'lecture, avec son son",')
+A_EA2 = ('r.jsx(K,{variant:"primary",size:"sm",icon:"calendar",'
+         'onClick:sendEpisodeToScheduler,children:"Send to Scheduler"})')
+R_EA2 = ('r.jsx(K,{variant:"outline",size:"sm",icon:"film",' + _EA_TIP +
+         'onClick:function(){window.__dzMontageAdd={job_id:epJob,'
+         'title:title||"Épisode"};' + _EA_NAV + '},'
+         'children:"Ouvrir dans le Montage"}),' + A_EA2)
+
+# ── EA3 (E-3) : STUDIO — même bouton dans la rangée du résultat (déjà
+# flex/gap:8). `children:` y est un ÉLÉMENT unique : l'ancre court jusqu'à
+# la FIN de l'expression (mesurée 1/1) et la rangée passe en tableau clé
+# ("mont", "dl") ; l'<a> « Download » est repris tel quel. `n.title` n'est
+# pas lu ailleurs dans ce bloc : repli « Rendu Studio ».
+_EA3_A = ('r.jsx("a",{href:D.jobVideoUrl(n.id),download:!0,'
+          'style:{flex:1,textDecoration:"none"},children:r.jsx(K,{'
+          'variant:"outline",size:"sm",icon:"download",style:{width:"100%"},'
+          'children:"Download"})}')
+A_EA3 = ('r.jsx("div",{style:{marginTop:10,display:"flex",gap:8},children:'
+         + _EA3_A + ')})')
+R_EA3 = ('r.jsx("div",{style:{marginTop:10,display:"flex",gap:8},children:['
+         'r.jsx(K,{variant:"outline",size:"sm",icon:"film",' + _EA_TIP +
+         'onClick:function(){window.__dzMontageAdd={job_id:n.id,'
+         'title:n.title||"Rendu Studio"};' + _EA_NAV + '},'
+         'children:"Ouvrir dans le Montage"},"mont"),'
+         + _EA3_A + ',"dl")]})')
+
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
            ("M5-payload", A_M5, R_M5), ("M6-save", A_M6, R_M6),
@@ -3916,7 +3972,13 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            # 1/1 dans .bak_montage.
            ("TT9-inout-carton", A_TT9, R_TT9),
            ("TT10-payload-src-mou", A_TT10, R_TT10),
-           ("TT11-plus-de-t1-pose-un-carton", A_TT11, R_TT11)]
+           ("TT11-plus-de-t1-pose-un-carton", A_TT11, R_TT11),
+           # E-3 (22/09/2026) : la porte sur V1, les deux boutons. EA1 REPREND
+           # la greffe S4 de libsend (1/1 dans .bak_montage) ; EA2/EA3 sont
+           # des ancres du bundle d'origine, 1/1 aussi.
+           ("EA1-porte-bibliotheque-v1", A_EA1, R_EA1),
+           ("EA2-chapitres-ouvrir-montage", A_EA2, R_EA2),
+           ("EA3-studio-ouvrir-montage", A_EA3, R_EA3)]
 
 
 def nl(text, crlf):

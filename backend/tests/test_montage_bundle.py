@@ -31,7 +31,15 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 22/09/2026 (lot E-A, tache 2, E-1 client) : 1641 lignes,
+COMPTE DE REFERENCE, 22/09/2026 (lot E-A, tache 3, E-3) : 1652 lignes,
+soit ONZE de plus que les 1641 de E-1 : la section [E-3] en queue (la
+porte sur V1, les deux boutons, l'ordre des triplets) et les lignes que la
+boucle sur `P.PATCHES` emet seule pour EA1/EA2/EA3. Trois pins sont
+REECRITS sans en gagner : M16a et P14 mesuraient le greffon libsend « v2 »
+dans le bundle LIVRE (il y est desormais « v1 », reecrit en aval ; ils le
+lisent dans .bak_montage), D2 prenait « EA » pour un prefixe de D-2.
+
+COMPTE PRECEDENT, 22/09/2026 (lot E-A, tache 2, E-1 client) : 1641 lignes,
 soit CINQ de plus que les 1636 de la cloture de L2 : la section [E-1] en
 queue (les deux replis `vide` -- R_M6, pas R_M5 comme le plan le disait, la
 mesure a tranche --, leur emplacement, la couche, la feuille). Le compte est
@@ -1813,11 +1821,20 @@ for _nm, _decl in (("pickTrack", "function dzmPickTrack(ts,kind){"),
 # LE GREFFON AMONT EST INTACT, et c'est le point : la correction se porte en
 # AVAL. Si cette ligne rougit, quelqu'un a edite patch_bundle_libsend.py — le
 # maillon dont le rejeu solitaire efface tout ce qui suit.
+# 22/09/2026 E-3 : le greffon est mesure dans .bak_montage (l'etat AVANT
+# montage, ou libsend l'a pose : "v2", 1) ; le bundle LIVRE le porte
+# REECRIT par EA1 ("v1", 1) et plus jamais sous sa forme "v2". La
+# correction est bien restee en aval : le .bak n'a pas bouge.
+_M16A_G = 'addAsset({job_id:p.job_id},p.title||p.job_id,"video",p.dur||0,"v%s")'
+_M16A_P = BUNDLE.with_name(BUNDLE.name + ".bak_montage")
+_M16A_B = _M16A_P.read_bytes().decode("utf-8-sig") if _M16A_P.is_file() else ""
 check("M16a_le_greffon_amont_n_a_pas_ete_touche",
-      s.count(nl('addAsset({job_id:p.job_id},p.title||p.job_id,'
-                 '"video",p.dur||0,"v2")')) == 1
+      _M16A_B.count(_M16A_G % 2) == 1 and _M16A_B.count(_M16A_G % 1) == 0
+      and s.count(_M16A_G % 1) == 1 and s.count(_M16A_G % 2) == 0
       and s.count("window.__dzMontageAdd") >= 1,
-      "le greffon libsend a bougé — la correction devait rester en aval")
+      f"bak(v2,v1)=({_M16A_B.count(_M16A_G % 2)},{_M16A_B.count(_M16A_G % 1)}) "
+      f"bundle(v1,v2)=({s.count(_M16A_G % 1)},{s.count(_M16A_G % 2)}) — "
+      "le greffon libsend a bougé, ou EA1 ne l'a pas réécrit")
 # LES TROIS REFUS SORTENT AVANT `pushHistory()` : un clip refusé ne doit pas
 # laisser derrière lui une entrée d'historique qui ne défait rien.
 _a0 = s.find(nl(P.R_M16A))
@@ -3459,12 +3476,16 @@ check("P14_plus_aucune_porte_v2_en_dur_dans_le_code_de_l_ecran",
 # LA DEMO, LA TABLE HISTORIQUE ET LE GREFFON GARDENT LE LEUR : ce n'est pas
 # une chasse au mot, c'est une regle ecrite une fois. `SVM_TRACKS` et
 # `DZM_DEFAULT_TRACKS` portent la meme ligne v2 (2), la demo ses trois clips
-# (le premier suffit), et le greffon amont reste INTACT (M16a le tient aussi).
+# (le premier suffit), et le greffon amont reste INTACT dans .bak_montage
+# (M16a le tient aussi) — 22/09/2026 E-3 : le bundle LIVRE, lui, le porte
+# reecrit sur "v1" par EA1 ; c'est la seule porte v2 que E-3 ferme.
 check("P14_la_demo_la_table_et_le_greffon_gardent_leur_v2",
       s.count(nl('{tr:"v2",id:"v2c1"')) == 1
       and s.count(nl('{id:"v2",name:"V2",type:"overlay/VFX"')) == 2
+      and _bak_s.count('addAsset({job_id:p.job_id},p.title||p.job_id,"video",'
+                       'p.dur||0,"v2")') == 1
       and s.count('addAsset({job_id:p.job_id},p.title||p.job_id,"video",'
-                  'p.dur||0,"v2")') == 1,
+                  'p.dur||0,"v1")') == 1,
       f'demo={s.count(nl(chr(123) + "tr:" + chr(34) + "v2" + chr(34) + ",id:" + chr(34) + "v2c1" + chr(34)))} '
       f'table={s.count(nl(chr(123) + "id:" + chr(34) + "v2" + chr(34) + ",name:" + chr(34) + "V2" + chr(34)))}')
 # NEUF PORTES LISENT LA REGLE, une fois chacune ; l'apercu lit l'ordre. Le
@@ -9428,7 +9449,9 @@ check("D2_l_ancre_E3_a_ete_consommee_par_M22b",
 # faisait rougir sans qu'aucun cablage de D-2 ait bouge. Elle mesure
 # desormais le PREFIXE des tags : D-2 a nomme ses sections « E… », et
 # il n'y en a QU'UNE, le verrou.
-_E_TAGS = [t[0] for t in P.PATCHES if t[0].startswith("E")]
+# 22/09/2026 E-3 : le lot E-A nomme les siennes « EA<n> » ; le prefixe de
+# D-2 est « E<chiffre> » (E1..E4), mesure par regex, pas par lettre.
+_E_TAGS = [t[0] for t in P.PATCHES if re.match(r"E\d", t[0])]
 check("D2_le_cablage_n_ajoute_qu_une_section_celle_du_verrou",
       _E_TAGS == ["E4-verrou-apres-mode"],
       f"{_E_TAGS} (sur {len(P.PATCHES)} triplets)")
@@ -14585,6 +14608,72 @@ check("E1_la_feuille_pose_nouveau_et_la_chip_vide",
       and _R_CHIP is not None and "var(--f-mono)" in _R_CHIP
       and "var(--ink2)" in _R_CHIP,
       f"new={_R_NEW!r} chip={_R_CHIP!r}")
+
+# ═══════════════════════════════════════════════════════════════════════════
+# [E-3] LOT E-A — « OUVRIR DANS LE MONTAGE » (Chapitres, Studio) ET LA PORTE
+# DE LA BIBLIOTHÈQUE SUR V1
+# ═══════════════════════════════════════════════════════════════════════════
+print("\n[E-3] lot E-A — Ouvrir dans le Montage, porte Bibliothèque sur V1")
+# LA PORTE (EA1) : la greffe S4 de libsend (AMONT) posait la VIDÉO sur "v2"
+# — une incrustation, donc MUETTE (wantsTwin exige une piste plein cadre) et,
+# sans piste v2, invisible. Elle vise maintenant "v1" ; l'IMAGE reste une
+# incrustation "v2" — c'est le témoin que le bundle est lu au bon endroit.
+# Dans .bak_montage, "v2" vaut 1 pour la vidéo et "v1" 0 : c'est bien EA1.
+_E3_V1 = '"video",p.dur||0,"v1")}catch(_e2){}},450)},[]);function defaultLen(kind,srcDur){'
+# (la forme CODE, avec sa queue `}catch(_e2)` : la couche porte la même
+# phrase dans une PROSE datée du 06/09 -- « vise "v2" EN DUR » -- que le
+# plan n'avait pas vue ; un `count("v2)") == 0` nu serait rouge à jamais.)
+_E3_V2 = '"video",p.dur||0,"v2")}catch(_e2)'
+_E3_IMG = '{image:p.image},p.image,"image",0,"v2")'
+check("E3_la_porte_de_la_bibliotheque_pose_la_video_sur_v1_et_l_image_sur_v2",
+      s.count(_E3_V1) == 1 and s.count(_E3_V2) == 0 and s.count(_E3_IMG) == 1
+      and (_bak.count(_E3_V1) == 0 and _bak.count(_E3_V2) == 1
+           and _bak.count(_E3_IMG) == 1 if _bak else False),
+      f"v1={s.count(_E3_V1)} v2={s.count(_E3_V2)} img={s.count(_E3_IMG)} "
+      f"bak(v1,v2)={(_bak.count(_E3_V1), _bak.count(_E3_V2)) if _bak else '?'}")
+# LES DEUX BOUTONS (EA2 Chapitres, EA3 Studio) : même libellé, même
+# navigation que « Send to Scheduler » (CustomEvent deepotus:navigate, le
+# seul mécanisme portable — `__dzSendNav` est enfermé dans le bloc libsend),
+# même boîte aux lettres que la Bibliothèque (`window.__dzMontageAdd` :
+# DEUX expéditeurs libsend dans .bak_montage, QUATRE après).
+# Chapitres : le bouton PRÉCÈDE « Send to Scheduler » dans le même tableau,
+# avec `epJob` et `title`. Studio : la rangée passe d'un enfant unique à un
+# tableau clé ("mont", "dl") — « Download » est CONSERVÉ tel quel.
+_E3_LBL = 'children:"Ouvrir dans le Montage"'
+_E3_NAV = 'window.dispatchEvent(new CustomEvent("deepotus:navigate",{detail:{view:"montage"}}))'
+_E3_CH = ('onClick:function(){window.__dzMontageAdd={job_id:epJob,title:title||"Épisode"};'
+          + _E3_NAV + '},' + _E3_LBL + '}),'
+          'r.jsx(K,{variant:"primary",size:"sm",icon:"calendar",onClick:sendEpisodeToScheduler,'
+          'children:"Send to Scheduler"})')
+_E3_ST = ('r.jsx("div",{style:{marginTop:10,display:"flex",gap:8},children:[r.jsx(K,{variant:"outline",'
+          'size:"sm",icon:"film",title:')
+_E3_ST2 = ('onClick:function(){window.__dzMontageAdd={job_id:n.id,title:n.title||"Rendu Studio"};'
+           + _E3_NAV + '},' + _E3_LBL + '},"mont"),r.jsx("a",{href:D.jobVideoUrl(n.id),download:!0,'
+           'style:{flex:1,textDecoration:"none"},children:r.jsx(K,{variant:"outline",size:"sm",'
+           'icon:"download",style:{width:"100%"},children:"Download"})},"dl")]})')
+check("E3_ouvrir_dans_le_montage_deux_fois_chapitres_avant_scheduler_studio_en_tableau",
+      s.count(_E3_LBL) == 2 and s.count(_E3_NAV) == 2
+      and s.count(_E3_CH) == 1 and s.count(_E3_ST) == 1 and s.count(_E3_ST2) == 1
+      and s.count("window.__dzMontageAdd={") == 4
+      and s.count('detail:{view:"scheduler"}') == 1
+      and s.count('icon:"film"') == _bak.count('icon:"film"') + 2
+      and (_bak.count(_E3_LBL) == 0 and _bak.count(_E3_NAV) == 0
+           and _bak.count("window.__dzMontageAdd={") == 2
+           and _bak.count('detail:{view:"scheduler"}') == 1 if _bak else False),
+      f"lbl={s.count(_E3_LBL)} nav={s.count(_E3_NAV)} ch={s.count(_E3_CH)} "
+      f"st={s.count(_E3_ST)}/{s.count(_E3_ST2)} add={s.count('window.__dzMontageAdd={')} "
+      f"film={s.count('icon:\"film\"')} bak_film={_bak.count('icon:\"film\"') if _bak else '?'}")
+# ET LE PATCHER LES PORTE, en queue de PATCHES, après TT11 : les ancres EA1/
+# EA2/EA3 valent 1 dans .bak_montage, 0 dans la source du patcher (règle de
+# la chaîne), et chaque remplacement est RETROUVÉ 1/1 (la boucle générique
+# du haut le mesure aussi — ceci fixe l'ORDRE et les étiquettes).
+_E3_TAGS = [t for t, _a, _r in P.PATCHES]
+check("E3_le_patcher_porte_EA1_EA2_EA3_en_queue_apres_TT11",
+      _E3_TAGS[-4:-3] == ["TT11-plus-de-t1-pose-un-carton"]
+      and [t.split("-")[0] for t in _E3_TAGS[-3:]] == ["EA1", "EA2", "EA3"]
+      and all(_bak.count(a) == 1 and s.count(r) == 1 for t, a, r in P.PATCHES[-3:])
+      if _bak else False,
+      f"queue={_E3_TAGS[-4:]}")
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")
