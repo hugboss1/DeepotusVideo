@@ -117,7 +117,7 @@ import json
 import math
 import re
 import subprocess
-from datetime import datetime as _dt, timedelta as _td
+from datetime import datetime as _dt, timedelta as _td, timezone as _tz
 from pathlib import Path
 from uuid import uuid4
 
@@ -3461,16 +3461,30 @@ async def montage_publish(request: Request):
     if job is None:
         raise HTTPException(404, "Rendu introuvable.")
     fp = job.final_video_path or job.video_path
-    if str(job.status) != JobStatus.DONE.value or not fp or not _is_video_artifact(Path(fp)):
+    # Revue E-4 : `_is_video_artifact` ne juge que le suffixe — un rendu dont
+    # le fichier a disparu n'est pas publiable.
+    if (str(job.status) != JobStatus.DONE.value or not fp
+            or not _is_video_artifact(Path(fp)) or not Path(fp).is_file()):
         raise HTTPException(409, "Ce rendu n'est pas terminé (ou n'est pas une vidéo).")
     from app.services.plan_schema import _CHANNELS
-    ch = [c for c in (body.get("channels") or []) if isinstance(c, str) and c in _CHANNELS] or ["x"]
-    run_at = (str(body.get("run_at") or "").strip()
-              or (_dt.utcnow() + _td(hours=2)).replace(microsecond=0).isoformat())
-    titre = str(body.get("title") or job.title or "Montage")[:200]
+    chs = body.get("channels") if isinstance(body.get("channels"), list) else []
+    ch = [c for c in chs if isinstance(c, str) and c in _CHANNELS] or ["x"]
+    # Revue E-4 : le Scheduler stocke run_at NAÏF et jette un fuseau fourni
+    # (« +02:00 » devenait 09:00 UTC, 2 h en retard) — ramené en UTC ici.
+    if body.get("run_at") in (None, ""):
+        run_at = (_dt.utcnow() + _td(hours=2)).replace(microsecond=0)
+    else:
+        try:
+            run_at = _dt.fromisoformat(str(body["run_at"]).strip().replace("Z", ""))
+        except ValueError:
+            raise HTTPException(400, "run_at invalide.")
+        if run_at.tzinfo is not None:
+            run_at = run_at.astimezone(_tz.utc).replace(tzinfo=None)
+    titre = (body["title"] if isinstance(body.get("title"), str) and body["title"].strip()
+             else (job.title or "Montage"))[:200]
     post = {"title": titre,
-            "caption": body["caption"] if isinstance(body.get("caption"), str) else titre,
-            "channels": ch, "run_at": run_at, "status": "draft", "mode": "assisted", "job_id": jid}
+            "caption": (body["caption"] if isinstance(body.get("caption"), str) else titre)[:4000],
+            "channels": ch, "run_at": run_at.isoformat(), "status": "draft", "mode": "assisted", "job_id": jid}
     pid = body.get("project_id")
     if isinstance(pid, str) and pid:
         post["brief"] = {"project_id": pid}

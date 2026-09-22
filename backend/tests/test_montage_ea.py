@@ -134,6 +134,7 @@ if os.path.exists(_SRC) and os.path.getsize(_SRC) > 0:
         d = J(c.post("/api/videos/upload", files={"file": ("reel.mp4", _fh, "video/mp4")}))
     JID = str(d.get("job_id") or "")
 skip = 0
+NPOSTS = 0
 def check_jid(label, cond, detail=""):
     global skip
     if not JID: skip += 1; print(f"  SKIP  {label} (pas de source reelle)")
@@ -172,9 +173,26 @@ check_jid("e4_canaux_vides_retombent_sur_x_et_run_at_explicite_est_garde",
           and P2.get("caption") == "reel", str(d)[:200])
 check_jid("e4_run_at_invalide_400",
           c.post("/api/montage/publish", json={"job_id": JID, "run_at": "hier"}).status_code == 400)
+check_jid("e4_run_at_nombre_400",
+          c.post("/api/montage/publish", json={"job_id": JID, "run_at": 12345}).status_code == 400)
+# Revue E-4 : un fuseau fourni est RAMENE en UTC avant stockage naif (le
+# Scheduler le jetait : +02:00 stocke 09:00, post 2 h en retard).
+r = c.post("/api/montage/publish", json={"job_id": JID, "run_at": "2026-12-01T09:00:00+02:00"})
+d = J(r); P3 = d.get("post") if isinstance(d.get("post"), dict) else {}
+check_jid("e4_run_at_avec_fuseau_est_ramene_en_utc",
+          r.status_code == 200 and str(P3.get("run_at", "")).startswith("2026-12-01T07:00"), P3.get("run_at"))
+r = c.post("/api/montage/publish", json={"job_id": JID, "run_at": "2026-12-01T09:00:00Z",
+                                         "channels": "youtube", "title": 42, "caption": "k" * 5000})
+d = J(r); P4 = d.get("post") if isinstance(d.get("post"), dict) else {}
+check_jid("e4_run_at_z_inchange_canaux_chaine_x_titre_non_chaine_job_legende_bornee_4000",
+          r.status_code == 200 and str(P4.get("run_at", "")).startswith("2026-12-01T09:00")
+          and P4.get("channels") == ["x"] and P4.get("title") == "reel"
+          and len(P4.get("caption") or "") == 4000,
+          (P4.get("run_at"), P4.get("channels"), P4.get("title"), len(P4.get("caption") or "")))
+NPOSTS = 4
 r = c.get("/api/schedule"); L = J(r); lst = L.get("_liste") if isinstance(L.get("_liste"), list) else []
 check_jid("e4_deux_brouillons_existent_dans_le_scheduler",
-          r.status_code == 200 and len(lst) == 2 and all(p.get("job_id") == JID for p in lst), len(lst))
+          r.status_code == 200 and len(lst) == NPOSTS and all(p.get("job_id") == JID for p in lst), len(lst))
 # 409 : un job `queued` fabrique en base DANS la boucle de l'app (portal) — le
 # moteur aiosqlite est lie a cette boucle, un asyncio.run() a part ne le verrait pas.
 from app.services.storage import JobRecord as _JR, async_session_factory as _ASF
@@ -186,7 +204,18 @@ c.portal.call(_mk_queued)
 r = c.post("/api/montage/publish", json={"job_id": "q_en_cours"})
 check("e4_job_non_termine_409", r.status_code == 409, f"{r.status_code} {r.text[:100]}")
 r = c.get("/api/schedule"); L = J(r); lst = L.get("_liste") if isinstance(L.get("_liste"), list) else []
-check("e4_le_409_n_a_rien_cree", r.status_code == 200 and len(lst) == (2 if JID else 0), len(lst))
+check("e4_le_409_n_a_rien_cree", r.status_code == 200 and len(lst) == (NPOSTS if JID else 0), len(lst))
+# Revue E-4 : un job `done` dont le .mp4 a DISPARU (suffixe bon, fichier absent) -> 409.
+async def _mk_disparu():
+    async with _ASF() as s:
+        s.add(_JR(id="d_disparu", status="done", image_filename="x.png", title="disparu",
+                  final_video_path=str(pathlib.Path(TMP) / "disparu.mp4")))
+        await s.commit()
+c.portal.call(_mk_disparu)
+r = c.post("/api/montage/publish", json={"job_id": "d_disparu"})
+check("e4_fichier_disparu_409", r.status_code == 409, f"{r.status_code} {r.text[:100]}")
+r = c.get("/api/schedule"); L = J(r); lst = L.get("_liste") if isinstance(L.get("_liste"), list) else []
+check("e4_le_409_fichier_disparu_n_a_rien_cree", r.status_code == 200 and len(lst) == (NPOSTS if JID else 0), len(lst))
 
 c.__exit__(None, None, None)
 print(f"\n=== {ok} passed, {fail} failed, {skip} skipped ===")
