@@ -803,6 +803,61 @@ def _v1_speed(c: dict) -> float:
     return 0.0 if abs(f - 1.0) < 1e-6 else f
 
 
+# D-13 (22/09/2026) — DYNAMIC ZOOM. Champ optionnel `dz` d'un clip V1 :
+# {x0, y0, w0, x1, y1, w1, ease?} en FRACTIONS du cadre (le segment est
+# déjà recadré au ratio du canvas par scale/crop, donc la hauteur de la
+# fenêtre est la MÊME fraction que sa largeur). w ∈ [0.1, 1], x et y ∈
+# [0, 1−w]. Plein cadre aux deux bouts = aucun zoom (None). MESURÉ le
+# 22/09 : `crop=w='…t…'` ÉCHOUE à la configuration (−22) et `scale:eval=
+# frame` fige la taille — seul `zoompan` tient, et il doit venir APRÈS
+# `fps=` (avant, il dupliquerait chaque image d'un flux retimé).
+_DZ_EASES = ("doux", "lin")
+
+
+def _dz_spec(c: dict) -> dict | None:
+    raw = c.get("dz")
+    if not isinstance(raw, dict):
+        return None
+    lbl = c.get("label") or c.get("tr") or "v1"
+    out: dict = {}
+    for k in ("x0", "y0", "w0", "x1", "y1", "w1"):
+        try:
+            f = float(raw.get(k))
+        except (TypeError, ValueError):
+            f = float("nan")
+        if f != f:  # NaN / absent — jamais dans un filtergraph
+            logger.warning(f"montage: dz.{k} invalide ({raw.get(k)!r}), zoom ignoré — {lbl}")
+            return None
+        out[k] = f
+    for i in ("0", "1"):
+        out["w" + i] = max(0.1, min(1.0, out["w" + i]))
+        out["x" + i] = max(0.0, min(1.0 - out["w" + i], out["x" + i]))
+        out["y" + i] = max(0.0, min(1.0 - out["w" + i], out["y" + i]))
+    if all(abs(out[k]) < 1e-6 for k in ("x0", "y0", "x1", "y1")) and out["w0"] >= 1.0 and out["w1"] >= 1.0:
+        return None
+    out["ease"] = raw.get("ease") if raw.get("ease") in _DZ_EASES else "doux"
+    return out
+
+
+def _dz_filter(dz: dict, w: int, h: int, fps: int, dur: float) -> str:
+    """Le zoompan d'un segment : u = clip(it/dur, 0, 1) (smoothstep si `doux`),
+    z = 1/lerp(w0,w1), x/y = iw·lerp(x0,x1) / ih·lerp(y0,y1). d=1 : une image
+    de sortie par image d'entrée, durée et compte d'images préservés (mesure)."""
+    n = sfx_service.fnum
+    d = max(0.04, float(dur))
+    u = f"clip(it/{n(d)},0,1)"
+    if dz.get("ease") == "doux":
+        u = f"({u})*({u})*(3-2*({u}))"
+
+    def lerp(a: float, b: float) -> str:
+        return f"({n(a)}+({n(b - a)})*({u}))"
+
+    return (f"zoompan=z='1/{lerp(dz['w0'], dz['w1'])}'"
+            f":x='iw*{lerp(dz['x0'], dz['x1'])}'"
+            f":y='ih*{lerp(dz['y0'], dz['y1'])}'"
+            f":d=1:s={w}x{h}:fps={fps}")
+
+
 # ------------------------------------------------------------------- save ---
 # A1 : sauvegarde de timeline — UN projet de montage persistant, posé dans le
 # répertoire de DONNÉES de l'app (settings.images_path.parent : le parent
@@ -2092,6 +2147,12 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     et setpts=PTS/speed AVANT fps remet le flux à la durée timeline ; la
     durée du segment (seg_durs) et donc offsets xfade / total / adelay ne
     bougent pas ; AUCUN atempo (l'audio V1 n'entre pas dans le graphe).
+    D-13 : `dz` sur v1 (None = inchangé, sinon dict déjà clampé par _dz_spec :
+    fenêtre {x0,y0,w0}→{x1,y1,w1} en fractions du cadre, ease doux|lin) —
+    UN `zoompan` à d=1 (_dz_filter) posé APRÈS `fps={fps}` (donc après le
+    `setpts=PTS/speed` de C4, sur un débit déjà constant : aucune image
+    dupliquée) et AVANT `format=yuv420p` ; le temps est `it` borné à la durée
+    du segment, tpad/trim/xfade en aval ne voient aucune différence.
     S1 : `subs_ass` = chemin d'un fichier ASS déjà écrit (piste de
     sous-titres). Il devient le DERNIER maillon de la chaîne vidéo, juste
     avant `format=yuv420p` : le texte passe donc au-dessus des overlays V2 et
@@ -2190,13 +2251,19 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             # offsets ne voient aucune différence. Sans speed : préfixe sf
             # historique, chaîne octet pour octet.
             spd = float(s.get("speed") or 0.0)
+            # D-13 : dynamic zoom — zoompan (d=1) inséré APRÈS fps={fps},
+            # donc sur le flux déjà rematérialisé à débit constant, et AVANT
+            # format=yuv420p. Sans `dz` : dzp vide, préfixe historique.
+            dzf = s.get("dz")
+            dzp = f",{_dz_filter(dzf, w, h, fps, seg_durs[k])}" if isinstance(dzf, dict) else ""
             if spd:
                 pre = (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
                        f"crop={w}:{h},setsar=1,"
                        f"setpts=PTS/{sfx_service.fnum(spd)},"
-                       f"fps={fps},format=yuv420p")
+                       f"fps={fps}{dzp},format=yuv420p")
             else:
-                pre = sf
+                pre = sf if not dzp else (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
+                                          f"crop={w}:{h},setsar=1,fps={fps}{dzp},format=yuv420p")
             chain = (f"{pre},tpad=stop_mode=clone:stop_duration={seg_durs[k]},"
                      f"trim=0:{seg_durs[k]},setpts=PTS-STARTPTS")
             reff = s.get("effects")
@@ -2908,6 +2975,7 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                            "transition": c.get("transition"),
                            "transition_s": c.get("transition_s"),
                            "speed": _v1_speed(c),  # C4 — 0.0 = historique
+                           "dz": _dz_spec(c),      # D-13 — None = historique
                            "effects": (c.get("effects")
                                        if isinstance(c.get("effects"), list)
                                        else None)})
