@@ -938,7 +938,7 @@ def _save_record(body) -> dict:
     # inconnue, donc hors du rendu. GET /project les resert à l'éditeur.
     if isinstance(body.get("tracks"), list):
         data["tracks"] = body["tracks"]
-    if body.get("vide") is True:                  # E-1 (cf. _CLIENT_DEFAULT_TRACKS)
+    if body.get("vide") is True:    # E-1 (voir le bloc au-dessus de _CLIENT_DEFAULT_TRACKS)
         data["vide"] = True
     # D-11 : la plage d'entrée/sortie {in, out} en secondes. Assainie ICI —
     # deux nombres finis, 0 <= in < out — et pas seulement à l'écran : le
@@ -1029,6 +1029,10 @@ def _save_record(body) -> dict:
             out_mk.append(m)
         if out_mk:
             data["markers"] = out_mk
+    # Le plafond de VOLUME vit ici, avec la normalisation (revue E-1 du
+    # 22/09/2026 : la branche `vide` de POST /projects écrivait 10 Mo).
+    if len(json.dumps(data, ensure_ascii=False).encode("utf-8")) > _SAVE_MAX_BYTES:
+        raise HTTPException(400, "Sauvegarde refusée — plus de 2 Mo.")
     return data
 
 
@@ -1769,8 +1773,6 @@ async def montage_save(request: Request):
     #    un projet, il n'en CRÉE jamais : sans ce test, supprimer le projet
     #    ouvert le faisait ressusciter à la seconde suivante, par l'autosave
     #    d'une fenêtre qui n'avait rien demandé.
-    if len(json.dumps(data, ensure_ascii=False).encode("utf-8")) > _SAVE_MAX_BYTES:
-        raise HTTPException(400, "Sauvegarde refusée — plus de 2 Mo.")
     # LE TEST D'EXISTENCE ET LES DEUX ÉCRITURES SOUS LE MÊME VERROU. Entre le
     # `_load_project` et le miroir il y a DEUX sauts `asyncio.to_thread` ; un
     # `DELETE` d'une autre fenêtre glissé là faisait revenir le fichier qu'il
@@ -1879,10 +1881,7 @@ async def montage_project_create(request: Request):
                             "tracks": tr if isinstance(tr, list) and tr
                             else _CLIENT_DEFAULT_TRACKS})
     elif isinstance(tl, dict) and isinstance(tl.get("clips"), list):
-        cur = _save_record(tl)          # même normalisation que POST /save
-        if len(json.dumps(cur, ensure_ascii=False).encode("utf-8")) \
-                > _SAVE_MAX_BYTES:
-            raise HTTPException(400, "Sauvegarde refusée — plus de 2 Mo.")
+        cur = _save_record(tl)          # même normalisation (et plafond) que POST /save
     else:
         cur = await asyncio.to_thread(_load_saved)
     if cur is None or (not cur.get("clips") and cur.get("vide") is not True):

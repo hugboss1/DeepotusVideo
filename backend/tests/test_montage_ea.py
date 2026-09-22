@@ -77,7 +77,8 @@ check("e1_get_project_rend_le_vide_sans_le_remplir",
       and d.get("saved") is True and d.get("vide") is True and d.get("clips") == []
       and bool(pid) and d.get("project_id") == pid, str(d)[:300])
 check("e1_les_pistes_et_la_duree_sont_celles_posees",
-      tracks_of(d) == ["t1", "v2", "v1", "a1", "s1"] and float(d.get("duration") or 0) >= 10,
+      tracks_of(d) == ["t1", "v2", "v1", "a1", "s1"]
+      and isinstance(d.get("duration"), (int, float)) and d["duration"] >= 10,
       (d.get("tracks"), d.get("duration")))
 r2 = c.post("/api/montage/projects", json={"name": "neuf2", "vide": True}); d2 = J(r2)
 pid2 = str(d2.get("id") or "")
@@ -89,6 +90,14 @@ check("e1_vide_sans_tracks_prend_les_sept_pistes_par_defaut_du_client",
 r = c.post("/api/montage/projects/%s/open" % pid)
 check("e1_ouvrir_un_projet_vide_200_pas_409", r.status_code == 200,
       f"{r.status_code} {r.text[:120]}")
+# Revue E-1 : la branche `vide` ecrivait SANS plafond (mesure : 10 449 112
+# octets sur le disque avec 10 000 pistes d'1 ko). Le plafond vit dans
+# _save_record, donc ici aussi.
+r = c.post("/api/montage/projects",
+           json={"name": "obese", "vide": True,
+                 "tracks": [{"id": "x", "kind": "video", "pad": "k" * 1000} for _ in range(10_000)]})
+check("e1_vide_de_dix_mo_est_refuse_400_deux_mo", r.status_code == 400 and "2 Mo" in r.text,
+      f"{r.status_code} {r.text[:120]}")
 # `_save_record` ne verifie PAS les sources (mesure : il stocke les clips
 # tels quels) ; c'est GET /project qui ELAGUE un clip dont la source a
 # disparu (`x.mp3` ici). Le drapeau doit survivre a cet elagage.
@@ -99,7 +108,7 @@ check("e1_autosave_garde_vide_quand_le_client_le_renvoie",
       r.status_code == 200 and d.get("saved") is True and d.get("vide") is True, str(d)[:200])
 r = c.post("/api/montage/save", json={"name": "neuf", "clips": CLIP_A1})
 d = J(c.get("/api/montage/project"))
-# MESURE (`:1433`) : le repli Bibliotheque rend {ok, has_assets:<bool>,
+# MESURE (`return` du repli Bibliotheque, `:1455` au 22/09) : il rend {ok, has_assets:<bool>,
 # saved:False, ...} — sur des donnees vierges, has_assets est faux.
 check("e1_sans_vide_et_sans_v1_l_ancien_chemin_reconstruit_depuis_la_bibliotheque",
       r.status_code == 200 and d.get("ok") is True and d.get("saved") is False
