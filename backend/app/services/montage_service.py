@@ -699,7 +699,6 @@ def _ov_transform(c: dict) -> dict | None:
 # t=0,2 ET t=2,5) — donc zoompan, qui ne fait QUE grossir (z clampé 1..10 par
 # le filtre) : l'overlay est posé à sa largeur MINIMALE puis grossi.
 _MP_MAX_POINTS = 8
-_RAMP_STEP = 1.0 / 25.0   # = effects_engine._RAMP_STEP (un pas par image à 25)
 
 
 def _motion_points(c: dict) -> list | None:
@@ -793,28 +792,23 @@ def _mp_lerp_expr(pts: list, var: str = "t") -> str:
     return f"if(lt({var},{n(pts[0][0])}),{n(pts[0][1])},{expr})"
 
 
-def _mp_cmds(pairs: list, target: str, opt: str, fmt, t_min: float,
-             t_max: float) -> str:
-    """D-14 : commandes ``sendcmd`` échantillonnées à _RAMP_STEP de t_min à
-    t_max (inclus) — valeur = interpolation linéaire python des paires
-    (t, v) TRIÉES, constante hors bornes — « t target opt fmt(v) » jointes
-    par « \\; » (le « ; » nu est aussi le séparateur du filtergraph :
-    précédent effects_engine._opacity_cmds). Une commande par image : là où
-    une expression coûterait un calcul par pixel, ou n'existe pas (aa de
-    colorchannelmixer est un double commandable, pas une expression)."""
+def _mp_cmds(pairs: list, target: str, opt: str, fmt) -> str:
+    """D-14 : commandes ``sendcmd`` pour des paires (t, v) TRIÉES — UNE
+    commande ``[expr]`` PAR SEGMENT « t0-t1 [expr] target opt v0+(dv)*TI »
+    (TI ∈ 0..1 dans l'intervalle, évaluée par image), puis une commande plate
+    finale qui cloue la dernière valeur ; jointes par « \\; » (le « ; » nu
+    est aussi le séparateur du filtergraph : précédent
+    effects_engine._opacity_cmds). Écart au plan : l'échantillonnage à
+    _RAMP_STEP (25 commandes/s) faisait 28 824 caractères pour 30 s de clés
+    — au-delà du plafond CreateProcess (32 767) ; ``[expr]`` MESURÉ le
+    22/09/2026 sur ffmpeg 8.1.1 (rc 0, alpha 0,90/0,58/0,20/0,54/0,76 à
+    t=0,2/1,0/1,9/2,5/2,9 pour 1→0,2→0,8) : ≤ 7 segments, ~300 caractères.
+    Piège mesuré : AUCUNE virgule dans l'expression (lerp(a,b,TI) casse le
+    parseur même entre quotes) — d'où v0+(dv)*TI."""
     n = sfx_service.fnum
-
-    def at(t):
-        if t <= pairs[0][0]:
-            return pairs[0][1]
-        for (t0, v0), (t1, v1) in zip(pairs, pairs[1:]):
-            if t < t1:
-                return v0 + (v1 - v0) * (t - t0) / (t1 - t0)
-        return pairs[-1][1]
-    steps = max(1, int(round((t_max - t_min) / _RAMP_STEP)))
-    return "\\;".join(f"{n(round(t_min + i * (t_max - t_min) / steps, 3))} "
-                      f"{target} {opt} {fmt(at(t_min + i * (t_max - t_min) / steps))}"
-                      for i in range(steps + 1))
+    segs = [f"{n(t0)}-{n(t1)} [expr] {target} {opt} {n(v0)}+({n(v1 - v0)})*TI"
+            for (t0, v0), (t1, v1) in zip(pairs, pairs[1:])]
+    return "\\;".join(segs + [f"{n(pairs[-1][0])} {target} {opt} {fmt(pairs[-1][1])}"])
 
 
 # C4 : vitesse par clip V1 — champ optionnel ``speed`` (0.25..4, défaut 1).
@@ -2247,9 +2241,10 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     défauts centre / échelle 1.
     D-14 : les 6-uplets de `mp` portent aussi scale|None et opacity|None —
     des points d'échelle différents → pad rgba + zoompan (z='…it…', toile
-    fixe owmax × 2·owmax, média posé à owmin ; zoompan clampe z à 10, donc
-    smin ≥ smax/10) ; des points d'opacité différents → sendcmd en tête de
-    chaîne sur colorchannelmixer@mpo<j> aa (une commande par image) ; points
+    fixe owmax × min(2·owmax, 3·h), média posé à owmin ; zoompan clampe z à
+    10, donc smin ≥ smax/10 avec warning) ; des points d'opacité différents
+    → sendcmd en tête de chaîne sur colorchannelmixer@mpo<j> aa (une
+    commande [expr] par segment, TI ∈ 0..1, plus une plate finale) ; points
     tous égaux → filtre statique, la valeur des points fait foi sur `tf` /
     `opacity`. Aucun point porteur → chaîne de L2 octet pour octet.
     C4 : `speed` sur v1 (0.0 = inchangé, sinon 0.25..4 déjà clampé par
@@ -2600,11 +2595,20 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                 # (zoompan clampe z à 1..10 : smin remonte à smax/10). Horloge
                 # `it` = celle de sendcmd et de rotate (pts locaux, avant le
                 # setpts). Écart daté : le média est ré-agrandi depuis owmin
-                # (zoompan ne sait que grossir), pas rendu à sa résolution max.
+                # (zoompan ne sait que grossir), pas rendu à sa résolution
+                # max — net jusqu'à ~2× (smax/smin ≤ 2), flou au-delà.
                 smax = max(s for _t, s in sc_pts)
-                smin = max(smax / 10.0, min(s for _t, s in sc_pts))
+                s_lo = min(s for _t, s in sc_pts)
+                smin = max(smax / 10.0, s_lo)
+                if s_lo < smin:
+                    logger.warning(f"montage: échelle minimale {s_lo:.2f} "
+                                   f"relevée à {smin:.2f} (zoompan ×10 max) "
+                                   f"— overlay {j}")
                 fw = max(2, int(round(w * smax / 2.0)) * 2)
-                fh = 2 * fw
+                # Rognage vertical invisible (y clampé −0,5..1,5 : une ligne à
+                # plus de 1,5·h du centre n'est jamais dans le cadre) — avec
+                # rotate + média très haut les coins tournés peuvent manquer.
+                fh = max(2, min(2 * fw, 3 * h) // 2 * 2)
                 owmin = max(2, int(round(w * smin / 2.0)) * 2)
                 och = (f"scale=w={owmin}:h={fh}:force_original_aspect_ratio="
                        f"decrease,setsar=1,fps={fps},format=rgba")
@@ -2616,8 +2620,10 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                 # expression mais une option commandable (« T ») — sendcmd en
                 # tête de chaîne, une commande par image de la première à la
                 # dernière clé, constante hors bornes (aa initial = 1re clé).
-                och = (f"sendcmd=c='{_mp_cmds(op_pts, f'colorchannelmixer@mpo{j}', 'aa', lambda v: '%.3f' % v, op_pts[0][0], op_pts[-1][0])}',"
-                       f"{och},colorchannelmixer@mpo{j}=aa={round(op_pts[0][1], 3)}")
+                cmds = _mp_cmds(op_pts, f"colorchannelmixer@mpo{j}", "aa",
+                                lambda v: "%.3f" % v)
+                och = (f"sendcmd=c='{cmds}',{och},"
+                       f"colorchannelmixer@mpo{j}=aa={round(op_pts[0][1], 3)}")
             elif op is not None and 0.0 <= op < 1.0:
                 och += f",colorchannelmixer=aa={round(op, 3)}"
             if sc_pts:

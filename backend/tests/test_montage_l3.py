@@ -51,6 +51,23 @@ MESURE (grep ":a]") : l'audio d'une entree V1 n'entre jamais dans le graphe,
 l'entree entiere ne desynchronise rien. Etat vide : `A("_v1_stab")` rend
 "ABSENT", `_EXT` sans "stab", `stab_path` absent, `BUILD(stab=…)` ignore.
 Mesure reelle : testsrc2 3 s → .trf > 1 000 o, rendu rc 0 et 75 images.
+[4] D-14 KEYFRAMES D'ECHELLE ET D'OPACITE. Les points `motion_points` d'un
+overlay V2 portent en plus `scale?` (0.05..3) et `opacity?` (0..1) :
+`_motion_points` rend des 6-uplets (t, x, y, rotate|None, scale|None,
+opacity|None). Candidat MESURE le 22/09/2026 sur ffmpeg 8.1.1 (scratchpad
+d14/mesure*.py) : `sendcmd` sur `scale@mps w` rend 0 et scale change bien ses
+images (showinfo 100x50 → 300x150) mais `overlay` garde la taille INITIALE de
+sa 2e entree (100 px a t=0,2 ET t=2,5) → ECARTE ; retenu B : pad rgba + zoompan
+en horloge `it` sur une toile FIXE owmax x min(2·owmax, 3·h) (rognage vertical
+invisible, y clampe −0,5..1,5), media pose a sa largeur MINIMALE puis grossi
+(zoompan clampe z a 1..10 → smin releve a smax/10 avec warning ; net jusqu'a
+~2x). Opacite : `sendcmd` en tete de chaine sur `colorchannelmixer@mpo<j> aa`,
+UNE commande `[expr]` par segment (TI 0..1) + une plate finale — l'echantillon-
+nage a 1/25 du plan depassait le plafond CreateProcess des 30 s. Points tous
+egaux → filtre statique qui fait foi sur tf/opacity ; aucun point porteur →
+chaine de L2 octet pour octet (temoin positif). Etat vide : 4-uplets, `_mp_cmds`
+ABSENT, chaine sans zoompan/sendcmd. Mesure reelle (SKIP sans ffmpeg OU sans
+Pillow) : fond gris + PNG rouge, 75 images, largeur 80 → 240 px, rouge 0,9 → 0,2.
 [6] D-16 ROUTES /stab. `POST /stab` = le contrat de `POST /proxy` ({ok,
 ready, job_id}, provider `montage_stab`, suivi par GET /api/jobs/{id}) ;
 `GET /stab` = {ready} sans jamais fabriquer. Espion /render : un clip V1 avec
@@ -578,17 +595,23 @@ pts3 = _mp({"start": 0, "end": 3, "motion_points": [{"t": 0, "x": .5, "y": .5, "
 check("d14_scale_ou_opacity_invalide_retombe_a_none_sans_tuer_le_point",
       isinstance(pts3, list) and len(pts3) == 1 and len(pts3[0]) == 6 and pts3[0][4] is None and pts3[0][5] is None, pts3)
 _mp_cmds = A("_mp_cmds", lambda *a, **k: "ABSENT")
-cm = _mp_cmds([(0.0, 0.5), (2.0, 1.5)], "colorchannelmixer@mpo0", "aa", lambda v: "%.3f" % v, 0.0, 2.0)
-# Forme MESUREE (22/09, ffmpeg 8.1.1) : sendcmd separe ses commandes par « ; »
-# echappe « \; » dans un -filter_complex (precedent effects_engine._opacity_cmds).
-check("d14_mp_cmds_echantillonne_a_1_25_de_la_premiere_a_la_derniere_cle",
-      isinstance(cm, str) and cm.startswith("0 colorchannelmixer@mpo0 aa 0.500\\;")
-      and "\\;1 colorchannelmixer@mpo0 aa 1.000\\;" in cm and cm.endswith("2 colorchannelmixer@mpo0 aa 1.500")
-      and cm.count("\\;") == 50 and ";" not in cm.replace("\\;", ""), cm[:160])
-cm2 = _mp_cmds([(1.0, 0.2)], "colorchannelmixer@mpo0", "aa", lambda v: "%.3f" % v, 0.0, 1.0)
-check("d14_mp_cmds_une_seule_cle_est_constante_hors_bornes",
-      isinstance(cm2, str) and cm2.startswith("0 colorchannelmixer@mpo0 aa 0.200\\;") and cm2.endswith("1 colorchannelmixer@mpo0 aa 0.200")
-      and cm2.count("\\;") == 25, cm2[:120])
+cm = _mp_cmds([(0.0, 0.5), (2.0, 1.5), (3.0, 1.0)], "colorchannelmixer@mpo0", "aa", lambda v: "%.3f" % v)
+# Forme MESUREE (22/09, ffmpeg 8.1.1, scratchpad d14/mesure3.py) : UNE commande
+# « t0-t1 [expr] cible opt v0+(dv)*TI » par segment (TI 0..1 dans l'intervalle,
+# rc 0, alpha 0,90/0,58/0,20/0,54/0,76 a t=0,2/1,0/1,9/2,5/2,9 pour 1→0,2→0,8)
+# + une commande plate finale ; « ; » echappe « \; » ; JAMAIS de virgule dans
+# l'expression (lerp(a,b,TI) casse le parseur). Remplace l'echantillonnage a
+# 1/25 du plan : 30 s de cles faisaient 28 824 caracteres (CreateProcess 32 767).
+check("d14_mp_cmds_une_commande_expr_par_segment_plus_une_plate_finale",
+      isinstance(cm, str) and cm.count("\\;") == 2 and cm.startswith("0-2 [expr] colorchannelmixer@mpo0 aa 0.5+(1)*TI\\;")
+      and "\\;2-3 [expr] colorchannelmixer@mpo0 aa 1.5+(-0.5)*TI\\;" in cm and cm.endswith("\\;3 colorchannelmixer@mpo0 aa 1.000")
+      and all("," not in s and s.count(" ") in (3, 4) for s in cm.split("\\;")) and ";" not in cm.replace("\\;", ""), cm)
+cm2 = _mp_cmds([(1.0, 0.2)], "colorchannelmixer@mpo0", "aa", lambda v: "%.3f" % v)
+check("d14_mp_cmds_une_seule_cle_est_une_commande_plate_sans_segment",
+      cm2 == "1 colorchannelmixer@mpo0 aa 0.200", cm2)
+cm8 = _mp_cmds([(i * 8.0, 0.1 * i) for i in range(8)], "colorchannelmixer@mpo0", "aa", lambda v: "%.3f" % v)
+check("d14_mp_cmds_8_points_sur_56_s_tiennent_en_moins_de_420_caracteres",
+      isinstance(cm8, str) and cm8.count("\\;") == 7 and cm8.count("[expr]") == 7 and len(cm8) <= 420, len(cm8) if isinstance(cm8, str) else cm8)
 
 OVF = str(pathlib.Path(TMP) / "ov.png")
 pathlib.Path(OVF).write_bytes(b"x")
@@ -630,8 +653,8 @@ check("d14_l_echelle_animee_passe_par_pad_rgba_et_zoompan_en_horloge_it",
       "scale=w=32:h=192:force_original_aspect_ratio=decrease" in _ov and ",pad=w=96:h=192:x=(ow-iw)/2:y=(oh-ih)/2:color=black@0," in _ov
       and _zp.startswith("zoompan=z='if(lt(it,0),1,") and ":d=1:s=96x192:fps=25" in _zp and "(t-" not in _zp[:_zp.find("[ov0]")]
       and _ov.find("fps=25,format=rgba") < _ov.find("zoompan"), _ov[_ov.find("[1:v]"):][:420])
-check("d14_l_opacite_animee_passe_par_colorchannelmixer_at_mpo_et_sendcmd",
-      "[1:v]sendcmd=c='0 colorchannelmixer@mpo0 aa 1.000\\;" in _ov and "\\;2 colorchannelmixer@mpo0 aa 0.200'," in _ov
+check("d14_l_opacite_animee_passe_par_colorchannelmixer_at_mpo_et_sendcmd_expr",
+      "[1:v]sendcmd=c='0-2 [expr] colorchannelmixer@mpo0 aa 1+(-0.8)*TI\\;2 colorchannelmixer@mpo0 aa 0.200',scale=w=32" in _ov
       and "format=rgba,colorchannelmixer@mpo0=aa=1.0,pad=" in _ov, _ov[_ov.find("[1:v]"):][:300])
 _ov0 = OVBUILD(motion_points=[{"t": 0, "x": .5, "y": .5}, {"t": 2, "x": .6, "y": .5}])
 check("d14_sans_scale_ni_opacity_sur_les_points_la_chaine_est_celle_de_l2",
@@ -645,10 +668,25 @@ _ovs = OVBUILD(tf={"x": .5, "y": .5, "scale": 1.0, "rotate": 0.0},
                motion_points=[{"t": 0, "x": .5, "y": .5, "scale": .75}, {"t": 2, "x": .5, "y": .5, "scale": .75}])
 check("d14_des_points_de_meme_echelle_restent_statiques_et_font_foi_sur_tf",
       "[1:v]scale=48:-2,setsar=1,fps=25,format=rgba,setpts=" in _ovs and "zoompan" not in _ovs and ",pad=w=" not in _ovs, _ovs[_ovs.find("[1:v]"):][:200])
-_ovz = OVBUILD(motion_points=[{"t": 0, "x": .5, "y": .5, "scale": .05}, {"t": 2, "x": .5, "y": .5, "scale": 3}])
+class _Journal:
+    """Remplace MS.logger le temps d'un appel : capte les warning."""
+    def __init__(self): self.msgs = []
+    def warning(self, m, *a, **k): self.msgs.append(str(m))
+    def __getattr__(self, k): return lambda *a, **k2: None
+_lg0, _jl = MS.logger, _Journal()
+MS.logger = _jl
+try:
+    _ovz = OVBUILD(motion_points=[{"t": 0, "x": .5, "y": .5, "scale": .05}, {"t": 2, "x": .5, "y": .5, "scale": 3}])
+finally:
+    MS.logger = _lg0
 _zpz = _ovz[_ovz.find("zoompan=z='"):_ovz.find("[ov0]")] if "zoompan=z='" in _ovz else ""
-check("d14_le_zoom_est_borne_a_10_la_largeur_de_base_remonte_a_smax_sur_10",
-      "scale=w=20:h=384:" in _ovz and ":s=192x384:" in _zpz and "10)" in _zpz and "60" not in _zpz, _zpz[:200])
+# smin = 3/10 = 0,3 (relevee de 0,05, warning) ; toile 192 x min(384, 3·64 = 192)
+check("d14_le_zoom_est_borne_a_10_la_largeur_de_base_remonte_a_smax_sur_10_avec_warning",
+      "scale=w=20:h=192:" in _ovz and ":s=192x192:" in _zpz and _zpz.startswith("zoompan=z='if(lt(it,0),1,if(lt(it,2),1+(9)*(it-0)/2,10))'")
+      and any("relevée à 0.30" in m for m in _jl.msgs), (_zpz[:120], _jl.msgs))
+_ovh = OVBUILD(w=1920, h=1080, motion_points=[{"t": 0, "x": .5, "y": .5, "scale": .5}, {"t": 2, "x": .5, "y": .5, "scale": 3}])
+check("d14_la_toile_est_rognee_a_3h_en_hauteur_1080p_smax_3_donne_5760x3240",
+      ",pad=w=5760:h=3240:" in _ovh and ":s=5760x3240:" in _ovh and "scale=w=960:h=3240:" in _ovh, _ovh[_ovh.find("[1:v]"):][:200])
 _ovo = OVBUILD(opacity=0.5, motion_points=[{"t": 0, "x": .5, "y": .5, "opacity": .8}, {"t": 1, "x": .5, "y": .5, "opacity": .8}])
 check("d14_une_opacite_constante_sur_les_points_est_statique_et_fait_foi_sur_le_clip",
       "format=rgba,colorchannelmixer=aa=0.8,setpts=" in _ovo and "sendcmd" not in _ovo and "@mpo" not in _ovo, _ovo[_ovo.find("[1:v]"):][:200])
@@ -656,13 +694,13 @@ check("d14_une_opacite_constante_sur_les_points_est_statique_et_fait_foi_sur_le_
 # --- mesure ffmpeg reelle : fond gris 3 s + PNG rouge 200x100 en overlay dont
 # l'echelle va de 0,25 a 0,75 et l'opacite de 1 a 0,2 → rc 0, 75 images ;
 # largeur du rouge plus grande a t=2,5 qu'a t=0,2, rouge plus pale (Pillow).
-if _FB is None:
-    check("d14_rendu_reel_SKIP_sans_ffmpeg", True)
+try:
+    from PIL import Image as _Im
+except Exception:
+    _Im = None
+if _FB is None or _Im is None:
+    check("d14_rendu_reel_SKIP_sans_ffmpeg_ou_sans_pillow", True)
 else:
-    try:
-        from PIL import Image as _Im
-    except Exception:
-        _Im = None
     _SRCG = str(pathlib.Path(TMP) / "gris.mp4")
     subprocess.run([_FB, "-y", "-loglevel", "error", "-f", "lavfi", "-i",
                     "color=c=gray:s=320x240:r=25:d=3", "-c:v", "libx264", "-pix_fmt",
