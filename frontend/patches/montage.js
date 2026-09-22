@@ -842,6 +842,12 @@ var DzmTrackBtns=function(props){
          (kd==="title"
           ?"revient avec "+dzmCombo("title_add","Maj+T")+
            ", qui repose un carton (même identifiant)."
+          /* D-9 (revue 23/09/2026) : MÊME DÉFAUT QUE T1 — aucun « + vidéo »
+             ne repose j1 (dzmAdd ne fabrique que v…/a…) ; elle revient par
+             Maj+J / « J+ », qui la recrée sous t1 (`adjustTrack`). */
+          :kd==="adjust"
+          ?"revient avec "+dzmCombo("adjust_add","Maj+J")+
+           ", qui repose un clip d'ajustement (même identifiant)."
           :"se rajoute par « + "+(kd==="audio"?"audio":"vidéo")+
            " » (même identifiant)."):"."))}
   return r.jsxs("div",{className:"dzm-hb",draggable:!0,

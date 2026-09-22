@@ -1541,6 +1541,18 @@ check("aj_new_est_borne_par_la_fin_de_la_timeline_et_refuse_le_negatif_et_le_vid
 check("aj_group_range_l_ajustement_avec_les_titres_et_les_incrustations",
       D.get("aj_group") == [0, 0, 0, 2], D.get("aj_group"))
 check("aj_pur", D.get("aj_pur") == [True, True, True], D.get("aj_pur"))
+# CE QUE LA NOTE DE RETRAIT PROMET DOIT EXISTER (revue 23/09/2026) : le corps
+# de `del()` de l'en-tete de piste promet Maj+J pour j1, comme Maj+T pour t1
+# (temoin positif : `title_add` dans le MEME corps). Lu dans la SOURCE.
+_SRCd = globals().get("SRC") or ""   # SRC n'existe pas sans node : rougir, pas mourir
+_iDel = _SRCd.find("  function del(){")
+_iDelF = _SRCd.find("  return r.jsxs(\"div\",{className:\"dzm-hb\",", _iDel) if _iDel >= 0 else -1
+_DEL = _SRCd[_iDel:_iDelF] if 0 <= _iDel < _iDelF else ""
+check("aj_la_note_de_retrait_de_j1_promet_Maj_J_comme_t1_promet_Maj_T",
+      len(_DEL) > 200 and _DEL.count('dzmCombo("title_add","Maj+T")') == 1
+      and _DEL.count('dzmCombo("adjust_add","Maj+J")') == 1
+      and _DEL.count('kd==="adjust"') == 1 and _DEL.count('kd==="title"') == 1,
+      f"corps={len(_DEL)} o title={_DEL.count('title_add')} adjust={_DEL.count('adjust_add')}")
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)
