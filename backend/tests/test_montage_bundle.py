@@ -31,7 +31,17 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 22/09/2026 (lot E-A, tache 3, E-3) : 1652 lignes,
+COMPTE DE REFERENCE, 22/09/2026 (lot E-A, tache 5, E-4) : 1681 lignes,
+soit VINGT-NEUF de plus que les 1652 de E-3 : la section [E-4] en queue
+(neuf pins : le poll qui ne poste plus sur /api/schedule, le repli dzFin,
+les cinq libelles, la monture du bandeau, la couche, la feuille, les sept
+sections apres EA3, l'infobulle E-3 parametree) et les lignes que la
+boucle sur `P.PATCHES` emet seule pour EA4/EA5a..e (sept `_remplace`,
+sept `_ancre_consommee`, sept `couche_ne_cite_pas_l_ancre_de_`, moins
+une : le pin E3 sur la queue de PATCHES est REECRIT par position). Le
+compte est celui que le banc IMPRIME.
+
+COMPTE PRECEDENT, 22/09/2026 (lot E-A, tache 3, E-3) : 1652 lignes,
 soit ONZE de plus que les 1641 de E-1 : la section [E-3] en queue (la
 porte sur V1, les deux boutons, l'ordre des triplets) et les lignes que la
 boucle sur `P.PATCHES` emet seule pour EA1/EA2/EA3. Trois pins sont
@@ -14667,13 +14677,108 @@ check("E3_ouvrir_dans_le_montage_deux_fois_chapitres_avant_scheduler_studio_en_t
 # EA2/EA3 valent 1 dans .bak_montage, 0 dans la source du patcher (règle de
 # la chaîne), et chaque remplacement est RETROUVÉ 1/1 (la boucle générique
 # du haut le mesure aussi — ceci fixe l'ORDRE et les étiquettes).
+# 22/09/2026 E-4 (tache 5) : la ligne mesurait la QUEUE de PATCHES ; E-4 y
+# ajoute sept sections et la faisait rougir sans qu'un cablage E-3 ait
+# bouge. Elle mesure desormais la POSITION de EA1 (apres TT11, suivi de
+# EA2 et EA3) — la queue est a la section [E-4].
 _E3_TAGS = [t for t, _a, _r in P.PATCHES]
-check("E3_le_patcher_porte_EA1_EA2_EA3_en_queue_apres_TT11",
-      _E3_TAGS[-4:-3] == ["TT11-plus-de-t1-pose-un-carton"]
-      and [t.split("-")[0] for t in _E3_TAGS[-3:]] == ["EA1", "EA2", "EA3"]
-      and all(_bak.count(a) == 1 and s.count(r) == 1 for t, a, r in P.PATCHES[-3:])
+_E3_I = _E3_TAGS.index("EA1-porte-bibliotheque-v1") if "EA1-porte-bibliotheque-v1" in _E3_TAGS else -1
+check("E3_le_patcher_porte_EA1_EA2_EA3_apres_TT11",
+      _E3_I > 0 and _E3_TAGS[_E3_I - 1] == "TT11-plus-de-t1-pose-un-carton"
+      and [t.split("-")[0] for t in _E3_TAGS[_E3_I:_E3_I + 3]] == ["EA1", "EA2", "EA3"]
+      and all(_bak.count(a) == 1 and s.count(r) == 1 for t, a, r in P.PATCHES[_E3_I:_E3_I + 3])
       if _bak else False,
-      f"queue={_E3_TAGS[-4:]}")
+      f"pos={_E3_I} voisins={_E3_TAGS[max(0, _E3_I - 1):_E3_I + 3]}")
+
+# ══════════════════════════════════════════════════════════════════════════
+print("\n[E-4] rendre SANS publier, le bandeau de fin, l'envoi a la demande")
+# LE RENDU FINAL NE POSTE PLUS SUR /api/schedule ET NE NAVIGUE PLUS : les
+# deux textes valent 0 dans le bundle livre ET 1 dans .bak_montage (le
+# temoin positif, sans lequel « 0 » serait vrai d'un texte qui n'a jamais
+# existe). Le poll pose `dzFin` (job, nom, project_id) et le dit.
+_E4_FIN = 'setDzFin({job_id:job.id,name:proj.name,project_id:proj.project_id||""});'
+_E4_NOTE = 'fireNote("Rendu final terminé — « Envoyer vers le Scheduler » pour le publier.")}}'
+_E4_OLD_NOTE = 'fireNote("Rendu final terminé — brouillon ajouté au Scheduler.");'
+check("E4_le_rendu_final_ne_poste_plus_sur_schedule_et_ne_navigue_plus",
+      s.count('fetch("/api/schedule"') == 0 and s.count('props.go("scheduler")') == 0
+      and s.count(_E4_FIN) == 1 and s.count(_E4_NOTE) == 1 and s.count(_E4_OLD_NOTE) == 0
+      and (_bak.count('fetch("/api/schedule"') == 1 and _bak.count('props.go("scheduler")') == 1
+           and _bak.count(_E4_FIN) == 0 and _bak.count(_E4_OLD_NOTE) == 1 if _bak else False),
+      f"schedule={s.count('fetch(\"/api/schedule\"')}/{_bak.count('fetch(\"/api/schedule\"') if _bak else '?'} "
+      f"go={s.count('props.go(\"scheduler\")')} fin={s.count(_E4_FIN)} note={s.count(_E4_NOTE)}")
+# L'ETAT `dzFin` EST REPLIE DANS R_M16REF (sa ligne vaut 0 dans .bak_montage,
+# une section a part serait refusee par --check) et declare UNE fois.
+_E4_ST = "var stDzFin=x.useState(null),dzFin=stDzFin[0],setDzFin=stDzFin[1];"
+check("E4_l_etat_dzFin_est_replie_dans_R_M16REF",
+      _E4_ST in P.R_M16REF and s.count(_E4_ST) == 1
+      and (_bak.count(_E4_ST) == 0 and _bak.count("stDzFin") == 0 if _bak else False),
+      f"R_M16REF={_E4_ST in P.R_M16REF} livre={s.count(_E4_ST)} bak={_bak.count('stDzFin') if _bak else '?'}")
+# LES CINQ LIBELLES : chaque neuf = 1, chaque ancien = 0 dans le livre et
+# present dans .bak_montage (« Rendre & publier » y vit TROIS fois : le titre
+# du popover, son bouton d'action, la barre — les trois sont reecrits).
+_E4_NEUFS = ('"Rendre (master 1080)"', '"publication · à la demande, après le rendu"',
+             "un bandeau propose l'envoi vers le Scheduler", '"Rendre →"',
+             'isR?"Rendre":"Lancer l\'aperçu"')
+_E4_VIEUX = (('"Rendre & publier', 3), ('"publication · brouillon Scheduler"', 1),
+             ('puis brouillon dans le Scheduler', 1))
+check("E4_le_popover_et_la_barre_ne_promettent_plus_de_publication",
+      all(s.count(t) == 1 for t in _E4_NEUFS)
+      and all(s.count(t) == 0 for t, _n in _E4_VIEUX)
+      and (all(_bak.count(t) == 0 for t in _E4_NEUFS)
+           and all(_bak.count(t) == n for t, n in _E4_VIEUX) if _bak else False),
+      f"neufs={[s.count(t) for t in _E4_NEUFS]} vieux={[s.count(t) for t, _n in _E4_VIEUX]} "
+      f"bak_vieux={[_bak.count(t) for t, _n in _E4_VIEUX] if _bak else '?'}")
+# LE BANDEAU EST MONTE a cote du popover, UNE fois, et c'est lui qui poste sur
+# /api/montage/publish (le seul appel du bundle) ; les canaux sont memorises
+# (lecture ET ecriture de dz_montage_channels) ; « Fermer » efface l'etat ;
+# aucune navigation forcee (pas de `props.go` dans la monture, seulement le
+# select-post et la Bibliotheque par CustomEvent).
+_E4_MONT = 'r.jsx(DzTracks.FinBandeau,{fin:dzFin,memo:'
+check("E4_le_bandeau_est_monte_a_cote_du_popover_et_poste_sur_publish",
+      s.count(nl(_E4_MONT)) == 1 and s.count(nl("    popover(),\n    dzFin?")) == 1
+      and s.count('fetch("/api/montage/publish"') == 1
+      and s.count('"dz_montage_channels"') == 2 and s.count("setDzFin(null)") == 1
+      and s.count('detail:{view:"library"}') == _bak.count('detail:{view:"library"}') + 1
+      and "props.go" not in P.R_EA5E and "deepotus:select-post" in P.R_EA5E
+      and (_bak.count(_E4_MONT) == 0 and _bak.count("/api/montage/publish") == 0 if _bak else False),
+      f"mont={s.count(nl(_E4_MONT))} publish={s.count('fetch(\"/api/montage/publish\"')} "
+      f"memo={s.count('\"dz_montage_channels\"')} close={s.count('setDzFin(null)')}")
+# LA COUCHE PORTE LE BANDEAU ET LES QUATRE FONCTIONS PURES (exportees) ; elle
+# ne cite JAMAIS /api/schedule (le poll de l'ecran etait le seul emetteur, et
+# il ne l'est plus). Le bouton d'envoi se desarme pendant « … » et apres
+# succes : un double clic ne cree pas deux brouillons.
+check("E4_la_couche_porte_le_bandeau_et_les_defauts_de_publication",
+      src.count("function DzmFinBandeau(o){") == 1
+      and all(src.count(t) == 1 for t in ("channelsNorm:dzmChannelsNorm,", "publishLocal:dzmPublishLocal,",
+                                           "publishIso:dzmPublishIso,", "publishDefaults:dzmPublishDefaults,",
+                                           "FinBandeau:DzmFinBandeau,", "CHANNELS:DZM_CHANNELS,"))
+      and src.count('disabled:st==="…"||st===DZM_FIN_OK') == 1
+      and src.count("/api/schedule") == 0 and src.count("/api/montage/publish") == 0,
+      f"bandeau={src.count('function DzmFinBandeau(o){')} schedule={src.count('/api/schedule')}")
+_E4_CSS = CSS.read_text(encoding="utf-8")
+check("E4_la_feuille_porte_le_bandeau",
+      all(_E4_CSS.count(t) == 1 for t in (".dzsvm .dzm-fin{width:360px}", ".dzsvm .dzm-fin-row{",
+                                          ".dzsvm .dzm-fin-ch{", ".dzsvm .dzm-fin-st{")),
+      f"fin={_E4_CSS.count('.dzsvm .dzm-fin{')}")
+# LE PATCHER PORTE LES SEPT SECTIONS EN QUEUE, APRES EA3 : ancres 1/1 dans
+# .bak_montage, remplacements retrouves 1/1 (la boucle du haut le mesure
+# aussi — ceci fixe l'ORDRE et les etiquettes). Et l'infobulle des deux
+# boutons E-3 est desormais PARAMETREE : Chapitres dit « cet épisode »,
+# Studio « ce rendu » (revue du 22/09) — les deux formes dans le livre, 0
+# dans .bak_montage, et l'ancienne forme unique n'existe plus.
+_E4_TAGS = [t for t, _a, _r in P.PATCHES]
+_E4_I = _E4_TAGS.index("EA3-studio-ouvrir-montage")
+check("E4_le_patcher_porte_les_sept_sections_en_queue_apres_EA3",
+      [t.split("-")[0] for t in _E4_TAGS[_E4_I + 1:]] == ["EA4", "EA5a", "EA5b", "EA5c", "EA5d", "EA5d2", "EA5e"]
+      and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1 and s.count(nl(a)) == 0
+              for _t, a, r in P.PATCHES[_E4_I + 1:])
+      if _bak else False,
+      f"queue={_E4_TAGS[_E4_I + 1:]}")
+check("E4_l_infobulle_E3_dit_cet_episode_aux_chapitres_et_ce_rendu_au_studio",
+      "%s" in P._EA_TIP and s.count("Poser cet épisode sur la piste V1") == 1
+      and s.count("Poser ce rendu sur la piste V1") == 1 and s.count("Poser ce rendu") == 1
+      and (_bak.count("Poser cet épisode") == 0 and _bak.count("Poser ce rendu") == 0 if _bak else False),
+      f"episode={s.count('Poser cet épisode sur la piste V1')} rendu={s.count('Poser ce rendu sur la piste V1')}")
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

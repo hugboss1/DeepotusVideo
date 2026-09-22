@@ -1264,3 +1264,10 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
   .dzsvm .dzm-tt-citation{font-size:5.19cqh}
   .dzsvm .dzm-tt-hashtag{font-size:6.67cqh}
   .dzsvm .dzm-tt-cta{font-size:6.3cqh}}
+/* E-4 (22/09/2026) — le bandeau de fin de rendu : « Envoyer vers le Scheduler »
+   à la demande. Même boîte que le popover (.svm-pop), un peu plus large. */
+.dzsvm .dzm-fin{width:360px}
+.dzsvm .dzm-fin-row{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.dzsvm .dzm-fin-ch{font:11px var(--f-mono)}
+.dzsvm .dzm-fin input[type=text]{flex:1;min-width:120px}
+.dzsvm .dzm-fin-st{font:11px var(--f-mono);color:var(--ink2);margin-top:6px}

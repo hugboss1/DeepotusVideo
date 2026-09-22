@@ -993,6 +993,11 @@ R_M16REF = (A_M16REF + "\n"
             "     premier rendu). Même motif que durRef, juste au-dessus. */\n"
             "  var dzTracksRef=x.useRef(null);"
             "dzTracksRef.current=svmTracksOf(proj);\n"
+            # ── E-4 (22/09/2026) : LE BANDEAU DE FIN DE RENDU ─────────
+            # REPLIÉ ICI, même mesure que E1 : la ligne vaut 0 dans
+            # .bak_montage. Posé par EA4 (rendu final « done »), consommé
+            # par EA5e (le bandeau de la couche), effacé par « Fermer ».
+            "  var stDzFin=x.useState(null),dzFin=stDzFin[0],setDzFin=stDzFin[1];\n"
             # ── « E1 » (D-2) : L'ÉTAT DU MODE D'ÉDITION ──────────────
             # REPLIÉ ICI, et c'est une MESURE : la ligne `dzTracksRef`
             # ci-dessus vaut 0 dans .bak_montage (c'est CE remplacement
@@ -3776,11 +3781,12 @@ assert A_EA1 != R_EA1
 # stocke AUCUNE durée de scène : UN plan, pas un par scène (écart daté).
 _EA_NAV = ('window.dispatchEvent(new CustomEvent("deepotus:navigate",'
            '{detail:{view:"montage"}}))')
-_EA_TIP = ('title:"Poser ce rendu sur la piste V1 du Montage, à la tête de '
+# E-4 : Chapitres pose « cet épisode », Studio « ce rendu » (revue du 22/09).
+_EA_TIP = ('title:"Poser %s sur la piste V1 du Montage, à la tête de '
            'lecture, avec son son",')
 A_EA2 = ('r.jsx(K,{variant:"primary",size:"sm",icon:"calendar",'
          'onClick:sendEpisodeToScheduler,children:"Send to Scheduler"})')
-R_EA2 = ('r.jsx(K,{variant:"outline",size:"sm",icon:"film",' + _EA_TIP +
+R_EA2 = ('r.jsx(K,{variant:"outline",size:"sm",icon:"film",' + _EA_TIP % "cet épisode" +
          'onClick:function(){window.__dzMontageAdd={job_id:epJob,'
          'title:title||"Épisode"};' + _EA_NAV + '},'
          'children:"Ouvrir dans le Montage"}),' + A_EA2)
@@ -3797,11 +3803,78 @@ _EA3_A = ('r.jsx("a",{href:D.jobVideoUrl(n.id),download:!0,'
 A_EA3 = ('r.jsx("div",{style:{marginTop:10,display:"flex",gap:8},children:'
          + _EA3_A + ')})')
 R_EA3 = ('r.jsx("div",{style:{marginTop:10,display:"flex",gap:8},children:['
-         'r.jsx(K,{variant:"outline",size:"sm",icon:"film",' + _EA_TIP +
+         'r.jsx(K,{variant:"outline",size:"sm",icon:"film",' + _EA_TIP % "ce rendu" +
          'onClick:function(){window.__dzMontageAdd={job_id:n.id,'
          'title:n.title||"Rendu Studio"};' + _EA_NAV + '},'
          'children:"Ouvrir dans le Montage"},"mont"),'
          + _EA3_A + ',"dl")]})')
+
+# ── EA4 (E-4, 22/09/2026) : LE RENDU FINAL NE CRÉE PLUS RIEN DANS LE
+# SCHEDULER. L'ancien `else` du poll (rendu « done », kind final) postait un
+# brouillon sur /api/schedule puis NAVIGUAIT (`props.go("scheduler")`) sans
+# rien demander. Il pose désormais l'état `dzFin` (REPLIÉ dans R_M16REF —
+# son texte vaut 0 dans .bak_montage), que le bandeau de la couche consomme
+# (EA5e). L'ancre est le bloc ENTIER, de `var run=` à la queue `})}}` : le
+# remplacement rend les MÊMES accolades que l'ancre consomme (`)` de
+# fireNote, `}` du else, `}` du `if(d.status==="done")`) — `node --check`
+# tranche. `proj.project_id` est posé par R_M7 (`onNamed`) : "" si absent,
+# le bandeau l'omet alors du payload (`||void 0`).
+A_EA4 = ('            var run=new Date();run.setDate(run.getDate()+1);run.setHours(9,0,0,0);\n'
+         '            fetch("/api/schedule",{method:"POST",headers:{"Content-Type":"application/json"},\n'
+         '              body:JSON.stringify({title:proj.name,caption:proj.name+" \U0001F419",channels:["x","telegram"],\n'
+         '                run_at:run.toISOString(),status:"draft",mode:"assisted",job_id:job.id})})\n'
+         '              .then(function(res){return res.json()}).then(function(p2){\n'
+         '                setJob(null);setPop("");setDirty(!1);\n'
+         '                fireNote("Rendu final terminé — brouillon ajouté au Scheduler.");\n'
+         '                if(p2&&p2.id){setTimeout(function(){\n'
+         '                  window.dispatchEvent(new CustomEvent("deepotus:select-post",{detail:{id:p2.id}}))},400)}\n'
+         '                props.go&&setTimeout(function(){props.go("scheduler")},900)})\n'
+         '              .catch(function(){setJob(null);setPop("");\n'
+         '                fireNote("Rendu terminé (Bibliothèque) — création du brouillon Scheduler impossible.")})}}')
+R_EA4 = ('            setJob(null);setPop("");setDirty(!1);\n'
+         '            setDzFin({job_id:job.id,name:proj.name,project_id:proj.project_id||""});\n'
+         '            fireNote("Rendu final terminé — « Envoyer vers le Scheduler » pour le publier.")}}')
+assert A_EA4.count("}") - A_EA4.count("{") == R_EA4.count("}") - R_EA4.count("{") == 2
+
+# ── EA5a..EA5d (E-4) : LE POPOVER ET LA BARRE NE PROMETTENT PLUS DE
+# PUBLICATION. Quatre littéraux, chacun sur une ligne unique (1/1 mesuré) ;
+# le bouton d'action (EA5d-bis) porte aussi « Lancer l'aperçu » : seul le
+# littéral change dans la ligne.
+A_EA5A = '      r.jsx("div",{className:"svm-poptitle",children:isR?"Rendre & publier":"Preview 480p"}),'
+R_EA5A = A_EA5A.replace('"Rendre & publier"', '"Rendre (master 1080)"')
+A_EA5B = ('      isR?r.jsxs("div",{className:"svm-popline",children:[r.jsx("span",{children:"publication · brouillon Scheduler"}),'
+          'r.jsx("span",{className:"svm-cost",children:"gratuit"})]}):null,')
+R_EA5B = A_EA5B.replace('"publication · brouillon Scheduler"', '"publication · à la demande, après le rendu"')
+A_EA5C = '          "Rendu local 1080 (aucun crédit consommé), puis brouillon dans le Scheduler — rien n\'est publié sans ta validation.":'
+R_EA5C = ('          "Rendu local 1080 (aucun crédit consommé). À la fin, un bandeau propose l\'envoi vers le Scheduler '
+          '— rien n\'est publié sans ta validation.":')
+A_EA5D = '        r.jsx("button",{className:"svm-goldbtn",onClick:function(){setPop(pop==="render"?"":"render")},children:"Rendre & publier →"}),'
+R_EA5D = A_EA5D.replace('"Rendre & publier →"', '"Rendre →"')
+A_EA5D2 = '            children:busy?(job.progress+"%"):(isR?"Rendre & publier":"Lancer l\'aperçu")})]})]})}'
+R_EA5D2 = A_EA5D2.replace('"Rendre & publier"', '"Rendre"')
+for _a, _r in ((A_EA5A, R_EA5A), (A_EA5B, R_EA5B), (A_EA5C, R_EA5C),
+               (A_EA5D, R_EA5D), (A_EA5D2, R_EA5D2)):
+    assert _a != _r
+
+# ── EA5e (E-4) : LE BANDEAU DE FIN, monté à côté du popover dans la liste
+# des couches flottantes (ancre = les deux lignes voisines `popover(),` /
+# `fxPicker(),`, 1/1 — le plan la disait à huit espaces, la mesure en donne
+# QUATRE). Les canaux cochés sont mémorisés (dz_montage_channels) AVANT
+# l'envoi ; un refus HTTP remonte son `detail` au bandeau ; le post créé est
+# présélectionné pour la prochaine visite du Scheduler (deepotus:select-post),
+# SANS navigation forcée. Le bandeau et le popover ne sont jamais ouverts
+# ensemble : `setPop("")` précède `setDzFin` (EA4).
+A_EA5E = ('    popover(),\n'
+          '    fxPicker(),')
+R_EA5E = ('    popover(),\n'
+          '    dzFin?r.jsx(DzTracks.FinBandeau,{fin:dzFin,memo:(function(){try{return JSON.parse(localStorage.getItem("dz_montage_channels")||"null")}catch(_e){return null}})(),\n'
+          '      onSend:function(f){try{localStorage.setItem("dz_montage_channels",JSON.stringify(f.channels))}catch(_e){}\n'
+          '        return fetch("/api/montage/publish",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(f)})\n'
+          '          .then(function(res){return res.ok?res.json():res.json().then(function(j){throw (j&&j.detail)||res.status})})\n'
+          '          .then(function(d){var id=d&&d.post&&d.post.id;if(id)window.dispatchEvent(new CustomEvent("deepotus:select-post",{detail:{id:id}}))})},\n'
+          '      onLib:function(){window.dispatchEvent(new CustomEvent("deepotus:navigate",{detail:{view:"library"}}))},\n'
+          '      onClose:function(){setDzFin(null)}}):null,\n'
+          '    fxPicker(),')
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
@@ -3978,7 +4051,15 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            # des ancres du bundle d'origine, 1/1 aussi.
            ("EA1-porte-bibliotheque-v1", A_EA1, R_EA1),
            ("EA2-chapitres-ouvrir-montage", A_EA2, R_EA2),
-           ("EA3-studio-ouvrir-montage", A_EA3, R_EA3)]
+           ("EA3-studio-ouvrir-montage", A_EA3, R_EA3),
+           # E-4 (22/09/2026) : rendre SANS publier ; le bandeau de fin.
+           ("EA4-rendu-final-sans-scheduler", A_EA4, R_EA4),
+           ("EA5a-popover-titre-rendre", A_EA5A, R_EA5A),
+           ("EA5b-popover-ligne-a-la-demande", A_EA5B, R_EA5B),
+           ("EA5c-popover-note-bandeau", A_EA5C, R_EA5C),
+           ("EA5d-barre-rendre", A_EA5D, R_EA5D),
+           ("EA5d2-popover-bouton-rendre", A_EA5D2, R_EA5D2),
+           ("EA5e-bandeau-de-fin", A_EA5E, R_EA5E)]
 
 
 def nl(text, crlf):

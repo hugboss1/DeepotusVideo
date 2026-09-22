@@ -578,6 +578,16 @@ out.pn_snap_mou=[T.instantaneNom("   ",new Date(2026,8,22,14,5)),T.instantaneNom
 /* les pistes du corps sont des COPIES : muter le corps ne touche pas DEFAULTS */
 out.pn_defaults_pur=(function(){var c=T.projetNeuf("x");c.tracks[0].id="zz";c.tracks.push({id:"q"});
   return JSON.stringify(T.DEFAULTS.map(function(t){return t.id}))==='["t1","v2","v1","a1","a2","a3","s1"]'})();
+/* [13] E-4 : publier */
+var NOW=new Date(2026,8,22,14,7,30);
+out.pb_def=T.publishDefaults("Pub été",NOW,null);
+out.pb_def_mem=T.publishDefaults("",NOW,["youtube","zzz","x"]);
+out.pb_norm=[T.channelsNorm(["zzz"]),T.channelsNorm(null),T.channelsNorm(["instagram","x","x"])];
+out.pb_local=T.publishLocal(NOW);
+out.pb_iso=typeof T.publishIso("2026-09-22T16:15")==="string"&&/Z$/.test(T.publishIso("2026-09-22T16:15"))&&T.publishIso("")===""&&T.publishIso("zzz")==="";
+/* l'arrondi monte au QUART D'HEURE SUIVANT meme quand +2 h tombe pile :
+   14:00:00 -> 16:00 (rien a monter) ; 14:00:01 -> 16:15 */
+out.pb_local_pile=[T.publishLocal(new Date(2026,8,22,14,0,0)),T.publishLocal(new Date(2026,8,22,14,0,1))];
 console.log(JSON.stringify(out));
 """
 print("\n[1] dzmInsere sous node")
@@ -1345,6 +1355,15 @@ check("pn_instantane_espaces_seuls_et_date_invalide",
 # DEFAULTS reste intact APRES qu'un corps de projet neuf a ete mute : le
 # corps porte des copies, jamais les objets de la constante.
 check("pn_defaults_pur_apres_mutation_du_corps", D.get("pn_defaults_pur") is True, D.get("pn_defaults_pur"))
+
+print("\n[13] E-4 publier (client)")
+check("pb_defaults_plus_deux_heures_au_quart_d_heure_x_par_defaut_legende_nom",
+      D.get("pb_def") == {"channels": ["x"], "run_at": "2026-09-22T16:15", "caption": "Pub été"}, D.get("pb_def"))
+check("pb_defaults_reprend_les_canaux_memorises_filtres", (D.get("pb_def_mem") or {}).get("channels") == ["youtube", "x"] and (D.get("pb_def_mem") or {}).get("caption") == "Montage", D.get("pb_def_mem"))
+check("pb_norm_liste_blanche_sans_doublon_x_a_defaut", D.get("pb_norm") == [["x"], ["x"], ["instagram", "x"]], D.get("pb_norm"))
+check("pb_local_est_la_forme_datetime_local", D.get("pb_local") == "2026-09-22T16:15", D.get("pb_local"))
+check("pb_local_pile_ne_monte_pas_une_seconde_monte", D.get("pb_local_pile") == ["2026-09-22T16:00", "2026-09-22T16:15"], D.get("pb_local_pile"))
+check("pb_iso_convertit_l_heure_locale_en_utc_z_et_vide_sur_invalide", D.get("pb_iso") is True)
 
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")

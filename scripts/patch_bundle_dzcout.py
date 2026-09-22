@@ -276,7 +276,12 @@ STABLE_PROBES = [
     # est ecrite SANS le jeton, meme lecon que ci-dessus.
     # MESURE : la chaine a refuse, « sonde montage x98 (want 94) », AVANT
     # que ce nombre ne soit ecrit.
-    ("montage", "DzTracks", 98),
+    # 22/09/2026, E-4 (lot E-A, tache 5) : 98 -> 99. UNE de plus, par
+    # EA5e : le bandeau de fin de rendu, monte a cote du popover. EA4
+    # (le rendu final qui ne publie plus), EA5a..d (quatre libelles) et
+    # le repli dzFin (R_M16REF) n'en ajoutent aucune. MESURE : la chaine
+    # a refuse, « sonde montage x99 (want 98) », avant cette ligne.
+    ("montage", "DzTracks", 99),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

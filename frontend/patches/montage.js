@@ -6041,6 +6041,49 @@ function dzmInstantaneNom(nom,now){
   return "(non nommé) "+p(d.getDate())+"/"+p(d.getMonth()+1)+" "+p(d.getHours())+":"+p(d.getMinutes())}
 
 /* ── export contrat ───────────────────────────────────────────────────────── */
+/* ── E-4 (22/09/2026) : PUBLIER, À LA DEMANDE. Le rendu ne crée plus rien
+   dans le Scheduler ; le bandeau de fin propose l'envoi. Défauts partagés
+   avec la Bibliothèque (+2 h, arrondi au quart d'heure suivant, canal « x »),
+   canaux mémorisés (dz_montage_channels), liste blanche = celle du backend
+   (montage_service). `publishIso` convertit l'heure LOCALE du champ
+   datetime-local en UTC « Z » : le backend la ramène en naïf UTC. */
+var DZM_CHANNELS=[["x","X"],["telegram","Telegram"],["youtube","YouTube"],["instagram","Instagram"]];
+function dzmChannelsNorm(list){
+  var ok=DZM_CHANNELS.map(function(c){return c[0]}),out=[];
+  (Array.isArray(list)?list:[]).forEach(function(c){if(ok.indexOf(c)>=0&&out.indexOf(c)<0)out.push(c)});
+  return out.length?out:["x"]}
+function dzmPublishLocal(now){
+  var d=new Date(now.getTime()+2*3600*1000),q=15*60*1000;d=new Date(Math.ceil(d.getTime()/q)*q);
+  var p=function(v){return (v<10?"0":"")+v};
+  return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+"T"+p(d.getHours())+":"+p(d.getMinutes())}
+function dzmPublishIso(local){var d=new Date(String(local||""));return isNaN(d)?"":d.toISOString()}
+function dzmPublishDefaults(nom,now,memo){
+  return {channels:dzmChannelsNorm(memo),run_at:dzmPublishLocal(now),caption:String(nom||"").trim()||"Montage"}}
+/* LE BANDEAU DE FIN DE RENDU. props : {fin:{job_id,name,project_id}, memo,
+   onSend(form)→Promise, onLib(), onClose()}. Un double clic ne crée pas deux
+   brouillons : le bouton se désarme pendant « … » et après succès. */
+var DZM_FIN_OK="Brouillon ajouté au Scheduler";
+function DzmFinBandeau(o){
+  var fin=o&&o.fin;if(!fin)return null;
+  var d0=dzmPublishDefaults(fin.name,new Date(),o.memo);
+  var s1=x.useState(d0.channels),ch=s1[0],setCh=s1[1];
+  var s2=x.useState(d0.run_at),when=s2[0],setWhen=s2[1];
+  var s3=x.useState(d0.caption),cap=s3[0],setCap=s3[1];
+  var s4=x.useState(""),st=s4[0],setSt=s4[1];
+  var tog=function(id){setCh(function(c){return c.indexOf(id)>=0?c.filter(function(k){return k!==id}):c.concat([id])})};
+  return r.jsxs("div",{className:"svm-pop dzm-fin",children:[
+    r.jsx("div",{className:"svm-poptitle",children:"Rendu terminé"}),
+    r.jsx("div",{className:"dzm-fin-row",children:DZM_CHANNELS.map(function(c){return r.jsxs("label",{className:"dzm-fin-ch",children:[
+      r.jsx("input",{type:"checkbox",checked:ch.indexOf(c[0])>=0,onChange:function(){tog(c[0])}})," "+c[1]]},c[0])})}),
+    r.jsxs("div",{className:"dzm-fin-row",children:[r.jsx("input",{type:"datetime-local",value:when,onChange:function(e){setWhen(e.target.value)}}),
+      r.jsx("input",{type:"text",value:cap,placeholder:"légende",onChange:function(e){setCap(e.target.value)}})]}),
+    st?r.jsx("div",{className:"dzm-fin-st",children:st}):null,
+    r.jsxs("div",{className:"dzm-fin-row",children:[
+      r.jsx("button",{className:"svm-goldbtn",disabled:st==="…"||st===DZM_FIN_OK,onClick:function(){setSt("…");
+        Promise.resolve(o.onSend({job_id:fin.job_id,project_id:fin.project_id||void 0,channels:dzmChannelsNorm(ch),run_at:dzmPublishIso(when)||void 0,caption:cap}))
+          .then(function(){setSt(DZM_FIN_OK)}).catch(function(e){setSt("Envoi impossible : "+String(e))})},children:"Envoyer vers le Scheduler"}),
+      r.jsx("button",{className:"svm-secbtn",onClick:function(){o.onLib&&o.onLib()},children:"Voir dans la Bibliothèque"}),
+      r.jsx("button",{className:"svm-secbtn",onClick:function(){o.onClose&&o.onClose()},children:"Fermer"})]})]})}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,
@@ -6120,5 +6163,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   slip:dzmSlip,slide:dzmSlide,roll:dzmRoll,voisins:dzmVoisins,swap:dzmSwap,
   ModeBar:DzmModeBar,MODE_T:DZM_MODE_T,modeLabel:dzmModeLabel,
   projetNeuf:dzmProjetNeuf,instantaneNom:dzmInstantaneNom,
+  channelsNorm:dzmChannelsNorm,publishLocal:dzmPublishLocal,publishIso:dzmPublishIso,
+  publishDefaults:dzmPublishDefaults,FinBandeau:DzmFinBandeau,CHANNELS:DZM_CHANNELS,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;
