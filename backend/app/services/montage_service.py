@@ -858,6 +858,22 @@ def _dz_filter(dz: dict, w: int, h: int, fps: int, dur: float) -> str:
             f":d=1:s={w}x{h}:fps={fps}")
 
 
+# D-15 (22/09/2026) — RETIME. Champ optionnel `retime` d'un clip V1 :
+# "nearest" (historique : fps= duplique ou saute, None) | "blend" (tblend
+# moyenne deux images voisines : flou de mouvement au ralenti, traîne à
+# l'accéléré) | "flow" (minterpolate à compensation de mouvement, LENT).
+# Sans vitesse, aucun sens : ignoré. MESURÉ le 22/09 : les deux passent en
+# aval d'un setpts et CHANGENT le nombre d'images → posés entre
+# `setpts=PTS/spd` et `fps={fps}`, le tpad/trim aval ramenant à seg_durs[k].
+_RETIME = {"blend": "tblend=all_mode=average",
+           "flow": "minterpolate=fps={fps}:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1:scd=none"}
+
+
+def _v1_retime(c: dict) -> str | None:
+    v = c.get("retime")
+    return v if isinstance(v, str) and v in _RETIME else None
+
+
 # ------------------------------------------------------------------- save ---
 # A1 : sauvegarde de timeline — UN projet de montage persistant, posé dans le
 # répertoire de DONNÉES de l'app (settings.images_path.parent : le parent
@@ -2153,6 +2169,11 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     `setpts=PTS/speed` de C4, sur un débit déjà constant : aucune image
     dupliquée) et AVANT `format=yuv420p` ; le temps est `it` borné à la durée
     du segment, tpad/trim/xfade en aval ne voient aucune différence.
+    D-15 : `retime` sur v1 ("blend" | "flow", None = inchangé) — n'a de sens
+    qu'AVEC `speed` : le fragment `_RETIME[retime]` (tblend moyenne, ou
+    minterpolate mci à la cadence du canvas) est posé ENTRE `setpts=PTS/speed`
+    et `fps={fps}` — il change le compte d'images, fps= le rematérialise et
+    tpad/trim ramènent à seg_durs[k]. Sans vitesse : ignoré, chaîne historique.
     S1 : `subs_ass` = chemin d'un fichier ASS déjà écrit (piste de
     sous-titres). Il devient le DERNIER maillon de la chaîne vidéo, juste
     avant `format=yuv420p` : le texte passe donc au-dessus des overlays V2 et
@@ -2257,9 +2278,14 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             dzf = s.get("dz")
             dzp = f",{_dz_filter(dzf, w, h, fps, seg_durs[k])}" if isinstance(dzf, dict) else ""
             if spd:
+                # D-15 : retime blend|flow — fragment posé ENTRE setpts et
+                # fps (il change le compte d'images, fps= le rematérialise).
+                # Sans `retime` connu : rtp vide, préfixe C4 historique.
+                rt = _v1_retime(s)
+                rtp = f",{_RETIME[rt].format(fps=fps)}" if rt else ""
                 pre = (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
                        f"crop={w}:{h},setsar=1,"
-                       f"setpts=PTS/{sfx_service.fnum(spd)},"
+                       f"setpts=PTS/{sfx_service.fnum(spd)}{rtp},"
                        f"fps={fps}{dzp},format=yuv420p")
             else:
                 pre = sf if not dzp else (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
@@ -2976,6 +3002,7 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                            "transition_s": c.get("transition_s"),
                            "speed": _v1_speed(c),  # C4 — 0.0 = historique
                            "dz": _dz_spec(c),      # D-13 — None = historique
+                           "retime": _v1_retime(c),  # D-15 — None = historique
                            "effects": (c.get("effects")
                                        if isinstance(c.get("effects"), list)
                                        else None)})

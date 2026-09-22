@@ -26,10 +26,21 @@ simplement ignore et le zoompan manque → les checks rougissent aussi. Regle
 des assertions negatives : chaque negation (« pas de zoompan sans dz », « pas
 de *t ») est precedee dans la MEME expression du temoin positif qui etablit
 que la mesure a eu lieu (`isinstance(f, str)`, `"zoompan" in _cz`…).
+[2] D-15 RETIME. Un clip V1 porte un champ OPTIONNEL `retime` : "nearest"
+(historique : fps= duplique ou saute), "blend" (tblend moyenne de deux images
+voisines) ou "flow" (minterpolate a compensation de mouvement). `_v1_retime`
+ne rend que "blend" | "flow", None pour tout le reste. Le fragment est pose
+ENTRE `setpts=PTS/spd` et `fps={fps}` (MESURE le 22/09 : les deux passent en
+aval d'un setpts et CHANGENT le compte d'images ; tpad/trim en aval ramenent a
+seg_durs[k]) ; sans vitesse le champ est IGNORE (commande historique). Etat
+vide : `A("_v1_retime")` rend "ABSENT" ; `BUILD(retime=…)` sur une spec qui
+ne connait pas le champ produit la commande historique → rouge. Mesure reelle :
+flow a x0.5 sur 2 s de source → 4 s et 100 images (SKIP sans ffmpeg).
+
 La mesure ffmpeg reelle (fin de section) est en SKIP si ffmpeg est injoignable,
 comme les bancs-miroirs du depot.
 """
-import json, os, sys, tempfile, subprocess, pathlib
+import json, os, sys, tempfile, subprocess, pathlib, shutil
 sys.stdout.reconfigure(encoding="utf-8")
 TMP = tempfile.mkdtemp(prefix="dzl3_")
 os.environ["DEEPOTUS_DATA_DIR"] = TMP
@@ -94,7 +105,7 @@ def BUILD(**kw):
     Les mots-cles de V1SPEC (`dz`, `speed`) vont au clip ; le reste aux
     arguments nommes. Un `TypeError` (mot-cle inconnu : l'ETAT VIDE) rend un
     temoin au lieu de tuer le banc."""
-    clip = {k: kw.pop(k) for k in ("dz", "speed") if k in kw}
+    clip = {k: kw.pop(k) for k in ("dz", "speed", "retime") if k in kw}
     a = {"w": 64, "h": 64, "fps": 25, "mix_db": {}, "ducking": False,
          "duration_master": False, "preview": True,
          "out": os.path.join(TMP, "o.mp4")}
@@ -230,6 +241,139 @@ else:
     check("d13_rendu_reel_d1_preserve_les_50_images",
           _rc == 0 and "zoompan" in FLAT(_cmd or []) and _nb == 50, _nb)
 
+    # --- start_time > 0 : le zoom n'est PAS decale (mesure demandee par la
+    # revue de T1). `it` du zoompan est le timestamp d'ENTREE et le
+    # setpts=PTS-STARTPTS de la chaine vient APRES lui ; mais le CLI ffmpeg
+    # remet lui-meme l'horloge de chaque entree a zero (ts_offset = -start_time
+    # sans -copyts). Preuve : la MEME source encodee avec start_time 1,5 s
+    # (-output_ts_offset, verifie par ffprobe) rend des images IDENTIQUES a
+    # celles de la source a 0 aux instants 0 et fin ; temoin positif : les
+    # images 0 et fin d'un meme rendu different (le zoom a bien eu lieu).
+    _FP = os.path.join(os.path.dirname(_FB), "ffprobe")
+    _SRC15 = str(pathlib.Path(TMP) / "src15.mp4")
+    _g15 = subprocess.run([_FB, "-y", "-loglevel", "error", "-f", "lavfi", "-i",
+                           "testsrc2=s=64x64:r=25:d=2", "-c:v", "libx264", "-pix_fmt",
+                           "yuv420p", "-output_ts_offset", "1.5", _SRC15],
+                          check=False, capture_output=True, timeout=60)
+    _st = subprocess.run([_FP, "-v", "error", "-select_streams", "v:0", "-show_entries",
+                          "stream=start_time", "-of", "csv=p=0", _SRC15],
+                         check=False, capture_output=True, text=True, timeout=30).stdout.strip()
+    _OUT15 = os.path.join(TMP, "dz15.mp4")
+    _rc15 = -1
+    try:
+        _c15, _ = MS._build_montage_command([dict(_spec, path=_SRC15)], [], [], None, w=64,
+                                            h=64, fps=25, mix_db={}, ducking=False,
+                                            duration_master=False, preview=True, out=_OUT15)
+        _rc15 = subprocess.run([_FB] + list(_c15[1:]), check=False, capture_output=True,
+                               timeout=120).returncode
+    except (TypeError, OSError, subprocess.TimeoutExpired) as _e:
+        print("  (rendu start_time 1.5 : %s)" % _e)
+
+    def _img(src, k):
+        """Image k (1-based) d'un rendu, en niveaux de gris — None si absente."""
+        d = src + "_f"
+        os.makedirs(d, exist_ok=True)
+        if not os.listdir(d):
+            subprocess.run([_FB, "-y", "-loglevel", "error", "-i", src,
+                            os.path.join(d, "%03d.png")], check=False, timeout=60)
+        p = os.path.join(d, "%03d.png" % k)
+        if not os.path.isfile(p):
+            return None
+        from PIL import Image
+        return Image.open(p).convert("L")
+
+    def _ecart(a, b):
+        """Part des pixels dont l'ecart depasse 8 niveaux — 1.0 si une image manque."""
+        if a is None or b is None or a.size != b.size:
+            return 1.0
+        from PIL import ImageChops
+        h = ImageChops.difference(a, b).histogram()
+        return sum(h[8:]) / max(1, sum(h))
+
+    _a1, _a50, _b1, _b50 = _img(_OUT, 1), _img(_OUT, 50), _img(_OUT15, 1), _img(_OUT15, 50)
+    check("d13_une_source_a_start_time_1_5_rend_le_meme_zoom_qu_a_0",
+          _g15.returncode == 0 and _st.startswith("1.5") and _rc == 0 and _rc15 == 0
+          and _ecart(_a1, _a50) > 0.5 and _ecart(_a1, _b1) == 0.0 and _ecart(_a50, _b50) == 0.0,
+          (_st, _rc15, _ecart(_a1, _a50), _ecart(_a1, _b1), _ecart(_a50, _b50)))
+
+print("\n[2] D-15 retime : blend / flow s'intercalent entre setpts et fps")
+_v1_retime = A("_v1_retime", lambda c: "ABSENT")
+check("d15_nearest_absent_ou_inconnu_rend_none",
+      _v1_retime({}) is None and _v1_retime({"retime": "nearest"}) is None
+      and _v1_retime({"retime": "zzz"}) is None and _v1_retime({"retime": 3}) is None,
+      [_v1_retime(x) for x in ({}, {"retime": "nearest"}, {"retime": "zzz"}, {"retime": 3})])
+check("d15_blend_et_flow_sont_les_deux_valeurs",
+      _v1_retime({"retime": "blend"}) == "blend" and _v1_retime({"retime": "flow"}) == "flow",
+      (_v1_retime({"retime": "blend"}), _v1_retime({"retime": "flow"})))
+_c0 = BUILD(); _cs = BUILD(speed=2.0)
+check("d15_sans_retime_les_commandes_sont_l_historique",
+      "setpts=PTS/2,fps=25," in _cs and BUILD(retime=None) == _c0 and BUILD(retime=None, speed=2.0) == _cs
+      and "tblend" not in _cs and "minterpolate" not in _cs, _cs[:400])
+_cb = BUILD(speed=2.0, retime="blend")
+check("d15_blend_pose_tblend_average_entre_setpts_et_fps",
+      "setpts=PTS/2,tblend=all_mode=average,fps=25," in _cb, _cb[:400])
+_cf = BUILD(speed=0.5, retime="flow")
+check("d15_flow_pose_minterpolate_mci_a_la_cadence_du_canvas_entre_setpts_et_fps",
+      "setpts=PTS/0.5,minterpolate=fps=25:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1:scd=none,fps=25," in _cf,
+      _cf[:400])
+check("d15_sans_vitesse_retime_ne_change_rien",
+      "fps=25,format=yuv420p" in _c0 and BUILD(retime="flow") == _c0 and BUILD(retime="blend") == _c0)
+check("d15_un_retime_inconnu_avec_vitesse_reste_l_historique",
+      "setpts=PTS/2,fps=25," in _cs and BUILD(speed=2.0, retime="zzz") == _cs
+      and BUILD(speed=2.0, retime="nearest") == _cs)
+_cfz = BUILD(speed=0.5, retime="flow", dz={"x0": 0.0, "y0": 0.0, "w0": 1.0, "x1": 0.2, "y1": 0.2, "w1": 0.6, "ease": "lin"})
+check("d15_avec_dz_l_ordre_est_setpts_retime_fps_zoompan_format",
+      _cfz.find("setpts=PTS/0.5,minterpolate=") > 0 and _cfz.find(":scd=none,fps=25,zoompan=") > 0
+      and _cfz.find(":fps=25,format=yuv420p,tpad=") > 0, _cfz[:500])
+
+# --- mesure ffmpeg reelle : flow a x0.5 sur 2 s de source → 4 s, 100 images.
+# d timeline = min(want, d_src/spd) : end-start=4 et src_dur=2 → d_src=2, d=4 ;
+# minterpolate CHANGE le compte d'images en amont, tpad/trim en aval ramenent
+# a seg_durs[k]. Temoin positif : minterpolate DANS la commande executee.
+if _FB is None:
+    check("d15_rendu_reel_SKIP_sans_ffmpeg", True)
+else:
+    _OUTF = os.path.join(TMP, "flow.mp4")
+    _cmdf, _rcf, _errf = None, -1, "commande absente"
+    try:
+        _cmdf, _ = MS._build_montage_command(
+            [V1SPEC(path=_SRC, src_dur=2.0, src_in=0.0, start=0.0, end=4.0, speed=0.5, retime="flow")],
+            [], [], None, w=64, h=64, fps=25, mix_db={}, ducking=False,
+            duration_master=False, preview=True, out=_OUTF)
+        _cmdf = [_FB] + list(_cmdf[1:])
+        _rf = subprocess.run(_cmdf, check=False, capture_output=True, text=True, timeout=300)
+        _rcf, _errf = _rf.returncode, (_rf.stderr or "")[-400:]
+    except (TypeError, OSError, subprocess.TimeoutExpired) as _e:
+        print("  (rendu flow : %s)" % _e)
+    _nbf, _durf = -1, -1.0
+    try:
+        _pf = subprocess.run([os.path.join(os.path.dirname(_FB), "ffprobe"), "-v", "error",
+                              "-count_frames", "-select_streams", "v:0", "-show_entries",
+                              "stream=nb_read_frames:format=duration", "-of", "csv=p=0", _OUTF],
+                             check=False, capture_output=True, text=True, timeout=60)
+        _lig = [l.strip() for l in (_pf.stdout or "").splitlines() if l.strip()]
+        _nbf = int(_lig[0]) if _lig else -1
+        _durf = float(_lig[1]) if len(_lig) > 1 else -1.0
+    except (ValueError, OSError, subprocess.TimeoutExpired) as _e:
+        print("  (ffprobe flow : %s)" % _e)
+    check("d15_rendu_reel_flow_x0_5_rend_0_avec_minterpolate_dans_la_chaine",
+          _rcf == 0 and "minterpolate=fps=25" in FLAT(_cmdf or []) and os.path.isfile(_OUTF), (_rcf, _errf))
+    check("d15_rendu_reel_flow_x0_5_dure_4_s_et_100_images",
+          _rcf == 0 and "minterpolate=fps=25" in FLAT(_cmdf or []) and _nbf == 100 and abs(_durf - 4.0) < 0.05,
+          (_nbf, _durf))
+
 print(f"\n=== {ok} passed, {fail} failed ===")
 c.__exit__(None, None, None)
+# Nettoyage : le journal loguru et le pool sqlite tiennent encore des handles
+# apres le lifespan (mesure : logs/*.log, t.db-wal/-shm survivaient a un
+# rmtree nu) — on les ferme d'abord, puis on efface sans jamais rougir.
+try:
+    from loguru import logger as _lg
+    _lg.remove()
+    import asyncio as _aio
+    from app.services import storage as _st
+    _aio.run(_st._engine.dispose())
+except Exception as _e:
+    print("  (fermeture des handles : %s)" % _e)
+shutil.rmtree(TMP, ignore_errors=True)
 sys.exit(1 if fail else 0)
