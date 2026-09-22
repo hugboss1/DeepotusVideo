@@ -235,6 +235,21 @@ _LEGACY_TRACKS = [{"id": "v2", "kind": "video"}, {"id": "v1", "kind": "video"},
                   {"id": "a3", "kind": "audio", "bus": "sfx"}]
 _BUSES = ("dialogue", "musique", "sfx")
 
+# E-1 (22/09/2026) — UN MONTAGE NEUF EST VIDE, ET LE RESTE. Drapeau opt-in
+# `vide` : posé par POST /projects {vide:true}, gardé par _save_record quand
+# le client le renvoie, lu par GET /project pour NE PAS reconstruire depuis
+# la Bibliothèque, et par open pour ne pas rendre 409. Sans lui, tout est
+# octet pour octet l'historique (les deux 400 épinglés restent).
+# Les sept pistes d'un montage neuf sans `tracks` : miroir de
+# DZM_DEFAULT_TRACKS (frontend/patches/montage.js:166) réduit à ce que
+# `_tracks_meta` lit, tenu par un banc croisé (tâche 6).
+_CLIENT_DEFAULT_TRACKS = [{"id": "t1", "kind": "title"},
+                          {"id": "v2", "kind": "video"}, {"id": "v1", "kind": "video"},
+                          {"id": "a1", "kind": "audio", "bus": "dialogue"},
+                          {"id": "a2", "kind": "audio", "bus": "musique", "loop": True},
+                          {"id": "a3", "kind": "audio", "bus": "sfx"},
+                          {"id": "s1", "kind": "subs"}]
+
 
 def _tracks_meta(raw) -> dict:
     """{id: {kind, bus, loop, layer}} — la LOI de classement des clips.
@@ -923,6 +938,8 @@ def _save_record(body) -> dict:
     # inconnue, donc hors du rendu. GET /project les resert à l'éditeur.
     if isinstance(body.get("tracks"), list):
         data["tracks"] = body["tracks"]
+    if body.get("vide") is True:                  # E-1 (cf. _CLIENT_DEFAULT_TRACKS)
+        data["vide"] = True
     # D-11 : la plage d'entrée/sortie {in, out} en secondes. Assainie ICI —
     # deux nombres finis, 0 <= in < out — et pas seulement à l'écran : le
     # payload n'est pas de confiance (un autre client, une version plus
@@ -1101,12 +1118,15 @@ def _project_meta(d: dict, fallback_id: str = "") -> dict:
     """Ce que la LISTE rend. Jamais les clips eux-mêmes : une liste de vingt
     projets porterait des milliers de clips que personne ne regarde à cet
     instant — leur NOMBRE suffit à choisir."""
-    return {"id": d.get("id") or fallback_id or None,
+    meta = {"id": d.get("id") or fallback_id or None,
             "name": d.get("name"),
             "updated_at": d.get("saved_at"),
             "clips": len(d.get("clips") or []),
             "ratio": d.get("ratio"),
             "duration": d.get("duration")}
+    if d.get("vide") is True:                     # E-1 — clé absente sinon
+        meta["vide"] = True
+    return meta
 
 
 _NOM_TETE = " ./\\"      # tabulations et sauts de ligne : déjà mangés comme
@@ -1227,7 +1247,7 @@ async def montage_project(limit: int = 4):
                 f"ne sont pas des vidéos — "
                 f"{', '.join(str(x) for x in non_video_dits)}"
                 f" ; le rendu les refusera nommément s'ils ne s'ouvrent pas.")
-        if any(c.get("tr") == "v1" for c in kept):
+        if saved.get("vide") is True or any(c.get("tr") == "v1" for c in kept):
             try:
                 sdur = float(saved.get("duration") or 0)
             except (TypeError, ValueError):
@@ -1265,6 +1285,8 @@ async def montage_project(limit: int = 4):
                 out["range"] = saved["range"]         # D-11 (cf. POST /save)
             if isinstance(saved.get("markers"), list):
                 out["markers"] = saved["markers"]     # D-5 (cf. POST /save)
+            if saved.get("vide") is True:
+                out["vide"] = True                    # E-1 (cf. POST /save)
             if pruned:
                 out["saved_pruned"] = True
                 out["pruned"] = pruned
@@ -1850,14 +1872,20 @@ async def montage_project_create(request: Request):
     clip. Il n'y aurait rien à nommer."""
     body = await _json_body(request)
     tl = body.get("timeline")
-    if isinstance(tl, dict) and isinstance(tl.get("clips"), list):
+    if body.get("vide") is True:        # E-1 : un montage NEUF, sans un clip
+        tr = body.get("tracks")
+        cur = _save_record({"name": body.get("name"), "clips": [], "duration": 30,
+                            "vide": True,
+                            "tracks": tr if isinstance(tr, list) and tr
+                            else _CLIENT_DEFAULT_TRACKS})
+    elif isinstance(tl, dict) and isinstance(tl.get("clips"), list):
         cur = _save_record(tl)          # même normalisation que POST /save
         if len(json.dumps(cur, ensure_ascii=False).encode("utf-8")) \
                 > _SAVE_MAX_BYTES:
             raise HTTPException(400, "Sauvegarde refusée — plus de 2 Mo.")
     else:
         cur = await asyncio.to_thread(_load_saved)
-    if cur is None or not cur.get("clips"):
+    if cur is None or (not cur.get("clips") and cur.get("vide") is not True):
         raise HTTPException(400, "Aucune timeline à enregistrer.")
     pid = f"m_{uuid4().hex[:8]}"
     rec = dict(cur, id=pid, project_id=pid,
@@ -1951,7 +1979,7 @@ async def montage_project_open(pid: str):
         if not cl.get("src") or await _resolve_src(cl.get("src")) is not None:
             ouvrable = True
             break
-    if not ouvrable:
+    if not ouvrable and d.get("vide") is not True:   # E-1 : un vide s'ouvre
         raise HTTPException(
             409, f"« {d.get('name') or pid} » n'a plus un seul plan dont la "
                  f"source existe : il ne peut pas être ouvert, et la timeline "
