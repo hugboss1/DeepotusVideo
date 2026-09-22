@@ -11,6 +11,8 @@
 > ergonomie). Rien de l'existant n'est réécrit : chaque ligne « À faire »
 > s'ajoute par une section neuve du patcher `montage` (ou d'un maillon aval),
 > un champ optionnel ou une route neuve, et un banc autonome.
+>
+> **VALIDÉ le 22/09/2026 par l'utilisateur : lots E-A, E-B, E-C ; ordre E-A → L3 → E-B → E-C ; consigne : ne pas complexifier le code, rester efficient et robuste.**
 
 ## 0. Les quatre exigences, mesurées dans le code (état au 22/09)
 
