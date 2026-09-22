@@ -746,7 +746,7 @@ else:
             w=320, h=240, fps=25, mix_db={}, ducking=False, duration_master=False,
             preview=True, out=_OUT4)
     except Exception as _e:                # faute n°6 : rougir, pas mourir (mutation n°8)
-        _e4 = str(_e)
+        _e4 = "%s: %s" % (type(_e).__name__, _e)
     if isinstance(_cmd4, list) and _cmd4 and _Im is not None:
         _cmd4 = [_FB] + list(_cmd4[1:])
         _r4 = subprocess.run(_cmd4, check=False, capture_output=True, text=True, timeout=180)
@@ -880,8 +880,8 @@ else:
             w=64, h=64, fps=25, mix_db={}, ducking=False, duration_master=False,
             preview=True, out=_OUT9,
             adjust_clips=[{"start": 1.0, "end": 2.0, "effects": [{"type": "vignette", "intensity": 100}]}])
-    except Exception as _e:                # faute n°6 : rougir, pas mourir (mutation n°8)
-        _e9 = str(_e)
+    except Exception as _e:                # faute n°6 : rougir, pas mourir
+        _e9 = "%s: %s" % (type(_e).__name__, _e)
     if isinstance(_cmd9, list) and _cmd9:
         _cmd9 = [_FB] + list(_cmd9[1:])
         _r9 = subprocess.run(_cmd9, check=False, capture_output=True, text=True, timeout=180)

@@ -8,8 +8,11 @@ et run-tests.ps1 ne le liste pas. Il se lance A LA MAIN, depuis backend/ :
     python tests/mutations_montage_l3.py 0 9 16     # celles-la
 
 LU PAR CODE DE SORTIE, jamais par grep : 0 quand TOUTES les mutations sont
-ROUGES sur les lignes nommees, 1 des qu'une survit, meurt ou rougit ailleurs
-(la faute que le harnais E-A avait d'abord oubliee, revue du 22/09/2026).
+ROUGES sur les lignes nommees ET sur le COMPTE declare (`N_ROUGES`, compare
+par main() : verdict `ROUGE(compte)` sinon), 1 des qu'une survit, meurt,
+rougit ailleurs ou rougit plus ou moins que la table ne le dit (la faute
+que le harnais E-A avait d'abord oubliee, revue du 22/09/2026 ; le compte
+non compare, revue finale du 23/09/2026).
 
 CE QU'IL MUTE, ET POURQUOI CES TROIS FICHIERS-LA. Le lot L3 (D-13 zoom
 dynamique, D-15 retime, D-16 stabilisation, D-14 keyframes d'echelle et
@@ -115,7 +118,15 @@ CE QUE CETTE TABLE A MESURE, ET QUI NE SE DEVINAIT PAS :
     parle, pas un doublon.
 
 (Le detail exact des noms de lignes est celui que le script IMPRIME ; la
-colonne « rouges » ci-dessus en donne le COMPTE mesure, pas un resume.)
+colonne « rouges » ci-dessus est `N_ROUGES`, le COMPTE mesure que main()
+compare a chaque execution, pas un resume.)
+
+ECARTS AU PLAN, DATES 23/09/2026 : le plan nommait « `_mp_cmds` a pas 1 s »
+et « effet sans t1 » ; la premiere n'a plus de sens (T7a a remplace
+l'echantillonnage par une commande `[expr]` par segment, d'ou la n°9 :
+la commande PLATE FINALE retiree), la seconde est couverte par la garde
+des bornes locales de la revue 0c34b06 (n°12) -- un effet sans t1 prend
+`a1 - a0` et ne peut pas rendre la chaine nue.
 """
 import hashlib
 import json
@@ -355,6 +366,11 @@ M = [
 # qui disait la garde « indispensable » a ete corrige dans le meme commit.
 
 
+# LE COMPTE MESURE, compare par main() -- une ligne par mutation de M.
+N_ROUGES = (1, 7, 1, 2, 2, 1, 1, 2, 13, 4, 2, 1, 2, 1, 1, 2, 2, 1, 1, 1, 3, 3, 4)
+assert len(N_ROUGES) == len(M), (len(N_ROUGES), len(M))
+
+
 def rouges(banc):
     """Les noms des lignes ROUGES du banc, sa sortie, et un drapeau d'ERREUR.
 
@@ -410,19 +426,21 @@ def main():
             verdict = "SURVIVANT"
         elif manquants:
             verdict = "ROUGE(autres)"
+        elif len(rg) != N_ROUGES[i]:
+            verdict = "ROUGE(compte)"
         else:
             verdict = "ROUGE"
         bilan.append((i, verdict, sorted(rg), manquants))
         print(f"[{i:2d}] {verdict:16s} {banc.split('_')[-1][:-3]:11s} "
               f"{pathlib.Path(rel).name:24s} {paires[0][0].strip()[:40]!r}")
-        print(f"     rouges({len(rg)})={sorted(rg)}")
+        print(f"     rouges({len(rg)}/{N_ROUGES[i]})={sorted(rg)}")
         if manquants:
             print(f"     MANQUANTS={manquants}")
         print(f"     sha {sha_avant[:10]}={sha_apres[:10]}")
         sys.stdout.flush()
     print(json.dumps([b[:2] for b in bilan], ensure_ascii=False))
     # LU PAR CODE DE SORTIE, jamais par grep : 1 des qu'une mutation survit,
-    # meurt ou rougit ailleurs que la ligne nommee.
+    # meurt, rougit ailleurs que la ligne nommee ou plus/moins que N_ROUGES.
     sys.exit(0 if bilan and all(v == "ROUGE" for _, v, _, _ in bilan) else 1)
 
 
