@@ -3448,10 +3448,11 @@ async def montage_publish(request: Request):
     caption?, title?, project_id?}. Canaux filtrés par la liste blanche du
     plan (plan_schema._CHANNELS), ["x"] à défaut ; run_at = maintenant + 2 h
     (naïf UTC, comme le Scheduler le stocke) à défaut ; project_id voyage
-    dans `brief` (colonne Text JSON existante : pas de migration). Même
-    fabrique que le Scheduler (create_scheduled_post — son 400 sur run_at
-    invalide remonte tel quel), importée LAZY comme routes.py importe ce
-    module dans l'autre sens."""
+    dans `brief` (colonne Text JSON existante : pas de migration). `run_at`
+    est parsé ICI (ISO 8601, « Z » admis, un fuseau fourni ramené en UTC
+    naïf — revue E-4) et c'est ICI que le 400 « run_at invalide » est émis,
+    pas par le Scheduler. Même fabrique que lui (create_scheduled_post),
+    importée LAZY comme routes.py importe ce module dans l'autre sens."""
     body = await _json_body(request)
     jid = str(body.get("job_id") or "").strip()
     if not jid:

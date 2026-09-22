@@ -15426,7 +15426,8 @@ function dzmWantsTwin(kind,ts,id){return kind==="video"&&dzmTrackPlein(ts,id)}
    pas sondée (wantsTwin) — et l'ajout ne doit pas se taire pour autant. La
    porte « Envoyer vers → Montage » de la Bibliothèque vise « v2 » EN DUR
    (greffon libsend du bundle, `addAsset({job_id},…,"video",p.dur||0,"v2")`,
-   1 occurrence, mesuré le 06/09/2026) ; sur la sauvegarde de l'utilisateur
+   1 occurrence, mesuré le 06/09/2026 — 22/09/2026 : remplacée en aval par la
+   section EA1 du patcher montage, vidéo → v1, l'image reste v2) ; sur la sauvegarde de l'utilisateur
    v2 EXISTE, habillée « overlay/VFX » : un kapwing_sample envoyé de là
    arrivait sur V2 sans son et sans un mot — sa remontée exacte. Rend la
    phrase que l'ajout concatène à sa note, ou "" quand il n'y a rien à dire :

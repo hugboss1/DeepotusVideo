@@ -33,10 +33,12 @@ Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
 COMPTE DE REFERENCE, 22/09/2026 (lot E-A, tache 5, E-4, revue) : 1685
 lignes, soit QUATRE de plus que les 1681 du premier tour : la section EA6
-(le bandeau se ferme au lancement d'un rendu) emet ses trois lignes
-generiques (`_remplace`, `_ancre_consommee`, `couche_ne_cite_pas_l_ancre_de_`)
-et son pin ; le pin M-1 (refus non JSON) est ajoute, le pin de la monture
-est reecrit sur place (deux `setDzFin(null)` desormais).
+(le bandeau se ferme au lancement d'un rendu) emet DEUX lignes generiques
+(`_remplace` et `couche_ne_cite_pas_l_ancre_de_` -- PAS d'`_ancre_consommee` :
+`R_EA6 = A_EA6 + ...` REPREND son ancre, la boucle ne l'emet pas ; l'en-tete
+disait « trois », la cloture a MESURE deux) et son pin ; le pin M-1 (refus
+non JSON) est ajoute : 2 + 2 = 4. Le pin de la monture est reecrit sur
+place (deux `setDzFin(null)` desormais).
 
 COMPTE PRECEDENT, 22/09/2026 (lot E-A, tache 5, E-4) : 1681 lignes,
 soit VINGT-NEUF de plus que les 1652 de E-3 : la section [E-4] en queue
@@ -858,6 +860,14 @@ except BaseException as _e:          # SystemExit compris : il n'hérite pas d'E
     print("\n=== 0 passed, 1 failed ===")
     sys.exit(1)
 s = BUNDLE.read_bytes().decode("utf-8-sig")
+# .bak_montage (l'ENTREE du patcher montage) LU UNE FOIS, comme le bundle :
+# octets, utf-8-sig, fins de ligne CONSERVEES. Cloture E-A (22/09/2026) : il
+# etait lu a CINQ endroits (M16a, P12 `_bak_txt`, P16, P14, D-2), le dernier
+# par `read_text` qui aplatissait ses 12 367 CRLF en LF (mesure) -- `_nlb`
+# le rattrapait en ne convertissant rien. Les cinq noms restent, en ALIAS :
+# aucun compte n'a bouge (1685/0 avant et apres, mesure).
+_BAK_P = BUNDLE.with_name(BUNDLE.name + ".bak_montage")
+_BAK_S = _BAK_P.read_bytes().decode("utf-8-sig") if _BAK_P.is_file() else ""
 crlf = "\r\n" in s
 def nl(t):
     t = t.replace("\r\n", "\n")
@@ -1843,8 +1853,7 @@ for _nm, _decl in (("pickTrack", "function dzmPickTrack(ts,kind){"),
 # REECRIT par EA1 ("v1", 1) et plus jamais sous sa forme "v2". La
 # correction est bien restee en aval : le .bak n'a pas bouge.
 _M16A_G = 'addAsset({job_id:p.job_id},p.title||p.job_id,"video",p.dur||0,"v%s")'
-_M16A_P = BUNDLE.with_name(BUNDLE.name + ".bak_montage")
-_M16A_B = _M16A_P.read_bytes().decode("utf-8-sig") if _M16A_P.is_file() else ""
+_M16A_B = _BAK_S                      # alias de la lecture unique (l. ~870)
 check("M16a_le_greffon_amont_n_a_pas_ete_touche",
       _M16A_B.count(_M16A_G % 2) == 1 and _M16A_B.count(_M16A_G % 1) == 0
       and s.count(_M16A_G % 1) == 1 and s.count(_M16A_G % 2) == 0
@@ -3007,8 +3016,7 @@ def _libre(nm, txt):
 
 def _bak_txt():
     """Le .bak_montage en texte, ou None s'il n'existe pas."""
-    _b = BUNDLE.with_name(BUNDLE.name + ".bak_montage")
-    return _b.read_bytes().decode("utf-8", "replace") if _b.is_file() else None
+    return _BAK_S or None             # alias de la lecture unique (l. ~870)
 
 
 for _nm in ("dzAuOn", "dzAu", "dzNeuf", "dzTw", "dzDd", "DZM_AUDIO_CACHE"):
@@ -3412,8 +3420,7 @@ for _nm, _decl in (("dzTo", "dzTo=s9[0]"), ("dzTe", "dzTe=s9b[0]"),
 # LES NOMS NEUFS etaient LIBRES dans le bundle d'entree — bornes \b :
 # `dzTo` nu compte 12 en sous-chaine dans .bak_montage (dzTouche…, mesure),
 # une recherche non bornee serait rouge a tort.
-_bak16 = BUNDLE.with_name(BUNDLE.name + ".bak_montage")
-_bak16_s = (_bak16.read_bytes().decode("utf-8-sig") if _bak16.is_file() else "")
+_bak16_s = _BAK_S                     # alias de la lecture unique (l. ~870)
 for _nm in ("dzTo", "dzTe", "dzTrN", "dzTrChars", "dzTraduire", "dz_subs_to",
             "dzmSubsTrBody", "dzmSubsTrApply", "subsTrTitle"):
     _n_bak = len(re.findall(r"\b%s\b" % _nm, _bak16_s))
@@ -3481,8 +3488,7 @@ check("P16_la_route_et_le_service_tiennent_le_contrat",
 # garde legitimement son « v2 » (demo, table historique, greffon libsend),
 # l'ORDRE des ecritures dans liveSync, la garde de signature, le verrou qui
 # suit la piste, les deux faces de chaque identifiant, et les noms libres.
-_bak_p14 = BUNDLE.with_name(BUNDLE.name + ".bak_montage")
-_bak_s = (_bak_p14.read_bytes().decode("utf-8-sig") if _bak_p14.is_file() else "")
+_bak_s = _BAK_S                       # alias de la lecture unique (l. ~870)
 _v2 = [s.count('==="v2"'), s.count('!=="v2"'), s.count("trackStRef.current.v2")]
 _v2_bak = [_bak_s.count('==="v2"'), _bak_s.count('!=="v2"'),
            _bak_s.count("trackStRef.current.v2")]
@@ -9423,9 +9429,7 @@ print("\n[3-ter] D-2 — les modes d'edition, cables : E1, E2, E3")
 # valent ZERO dans .bak_montage (l'entree du patcher) et UN dans le bundle
 # livre. Une section a part serait refusee par `--check`. C'est pourquoi E1,
 # E2 et E3 sont REPLIES dans R_M16REF / R_M15B / R_M22A+R_M22B.
-_BAK = (ROOT / "frontend" / "dist" / "assets"
-        / "index-BEOJX8L5.js.bak_montage")
-_bak = _BAK.read_text(encoding="utf-8") if _BAK.is_file() else ""
+_bak = _BAK_S                         # alias de la lecture unique (l. ~870)
 
 
 def _nlb(t):

@@ -191,7 +191,7 @@ check_jid("e4_run_at_z_inchange_canaux_chaine_x_titre_non_chaine_job_legende_bor
           (P4.get("run_at"), P4.get("channels"), P4.get("title"), len(P4.get("caption") or "")))
 NPOSTS = 4
 r = c.get("/api/schedule"); L = J(r); lst = L.get("_liste") if isinstance(L.get("_liste"), list) else []
-check_jid("e4_deux_brouillons_existent_dans_le_scheduler",
+check_jid("e4_quatre_brouillons_dans_le_scheduler_un_par_200_tous_du_meme_job",
           r.status_code == 200 and len(lst) == NPOSTS and all(p.get("job_id") == JID for p in lst), len(lst))
 # 409 : un job `queued` fabrique en base DANS la boucle de l'app (portal) — le
 # moteur aiosqlite est lie a cette boucle, un asyncio.run() a part ne le verrait pas.
