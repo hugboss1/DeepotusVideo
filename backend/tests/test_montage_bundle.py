@@ -14558,11 +14558,15 @@ _I_DOP = s.find(nl("  function doOpen(p){"))
 _CORPS_SUR = s[_I_SUR:_I_OUV] if 0 <= _I_SUR < _I_OUV else ""
 check("E1_nouveau_a_gauche_d_enregistrer_sous_et_ouvrir_entre_doOpen_et_doDup",
       0 <= _I_PS < _I_NEW < _I_SAVE and _I_SAVE - _I_PS < 1200
-      and s.count(nl('onClick:doNew,children:"nouveau"')) == 1
+      and s.count(nl('onClick:doNew,children:arm==="n"?"nouveau ?":"nouveau"')) == 1
+      # revue : arme comme « ouvrir », la copie RATTACHEE des qu'elle existe,
+      # le motif d'echec dit.
+      and s.count(nl('if(arm!=="n"){setArm("n");return}')) == 1
+      and _CORPS_SUR.count("if(props.onNamed)props.onNamed(d.id,d.name);") == 1
+      and _CORPS_SUR.count('"Copie de sûreté impossible ("') == 1
       and 0 <= _I_DOP < _I_SUR < _I_OUV < _I_DUP
       and "onBefore" not in _CORPS_SUR
       and _CORPS_SUR.count("dzmInstantaneNom(nm,new Date())") == 1
-      and _CORPS_SUR.count("Copie de sûreté impossible — ouverture annulée") == 1
       and s.count(nl('title:"montage vide"')) == 1
       and s.count(nl("  projetNeuf:dzmProjetNeuf,instantaneNom:dzmInstantaneNom,")) == 1
       and all(t in src for t in ("function dzmProjetNeuf(nom){",

@@ -1519,15 +1519,23 @@ var DzmProjects=function(props){
      promettait jusque-là « il n'existe plus », E-1 le fait cesser. Elle
      part AVANT `onBefore` : si elle échoue, l'autosave en vol n'a pas été
      annulé et rien n'a bougé. Rend {nom} (nom vide = rien à sauver), ou
-     null quand la copie a échoué — l'ouverture est alors ANNULÉE. */
+     null quand la copie a échoué — l'ouverture est alors ANNULÉE, et le
+     motif est dit (le 400 « plus de 2 Mo » n'est pas un « impossible »).
+     LA COPIE EST RATTACHÉE À L'ÉCRAN DÈS QU'ELLE EXISTE (`onNamed`) : sans
+     cela, `pid` restait vide après un échec de l'étape suivante (création
+     400, open 409, réseau) et chaque nouvel essai recréait une copie
+     « (non nommé) … ». Ainsi l'autosave relancé par `onFail` miroite dans
+     la copie, et l'ouverture réussie reprend la main par `onNamed(p.id)`. */
   function surete(){
     var tl=(!pid&&props&&props.payload)?props.payload():null;
     if(!(tl&&tl.clips&&tl.clips.length))return Promise.resolve({nom:""});
     var n=dzmInstantaneNom(nm,new Date());
     return send("/api/montage/projects","POST",{name:n,timeline:tl})
-      .then(function(){return {nom:n}},
-        function(){setBusy(0);
-          note("Copie de sûreté impossible — ouverture annulée");return null})}
+      .then(function(d){if(props.onNamed)props.onNamed(d.id,d.name);
+          return {nom:d.name}},
+        function(e){setBusy(0);
+          note("Copie de sûreté impossible ("+((e&&e.message)||"requête impossible")+
+            ") — ouverture annulée");return null})}
 
   /* l'ouverture proprement dite, factorisée : « remplacer ? » et
      « nouveau » y passent tous deux. `sauve` = nom de la copie de sûreté. */
@@ -1582,10 +1590,13 @@ var DzmProjects=function(props){
   /* E-1 : « nouveau » — un projet VIDE (`dzmProjetNeuf`, le nom du champ ou
      « montage neuf ») créé puis ouvert par `ouvrir`, la copie de sûreté du
      montage affiché d'abord. Le nom du champ est consommé comme par
-     « enregistrer sous… ». */
+     « enregistrer sous… ». ARMÉ comme « ouvrir » (« nouveau ? » au second
+     clic) : il REMPLACE le montage affiché, et pour un montage NOMMÉ la
+     sûreté ne fait rien alors qu'`onBefore` avorte l'autosave en vol. */
   function doNew(){
     if(busy)return;
-    setBusy(1);setErr("");
+    if(arm!=="n"){setArm("n");return}
+    setArm("");setBusy(1);setErr("");
     surete().then(function(s){if(!s)return;
       return send("/api/montage/projects","POST",dzmProjetNeuf(nv))
         .then(function(d){setNv("");ouvrir({id:d.id,name:d.name},s.nom)})
@@ -1746,9 +1757,12 @@ var DzmProjects=function(props){
           onChange:function(e){setNv(e.target.value)},
           onKeyDown:function(e){if(e.key==="Enter")saveAs()}},"i"),
         r.jsx("button",{className:"svm-minibtn dzm-projnew",disabled:!!busy,
-          title:"Créer un montage vide et l'ouvrir (le montage affiché est "+
-            "d'abord enregistré s'il n'a pas de nom)",
-          onClick:doNew,children:"nouveau"},"nw"),
+          title:arm==="n"
+            ?"Confirmer : créer un montage vide REMPLACE le montage affiché "+
+             "(enregistré d'abord s'il n'a pas de nom)"
+            :"Créer un montage vide et l'ouvrir (le montage affiché est "+
+             "d'abord enregistré s'il n'a pas de nom ; un second clic confirmera)",
+          onClick:doNew,children:arm==="n"?"nouveau ?":"nouveau"},"nw"),
         r.jsx("button",{className:"svm-tbtn dzm-projbtn",disabled:!!busy,
           title:"Enregistrer le montage AFFICHÉ comme un nouveau projet. "+
             "Rien n'est écrasé : c'est un fichier de plus, et c'est lui qui "+
@@ -6023,7 +6037,7 @@ function dzmProjetNeuf(nom){
 function dzmInstantaneNom(nom,now){
   var n=String(nom||"").trim();
   if(n&&n!=="montage")return n;
-  var d=now instanceof Date?now:new Date(),p=function(v){return (v<10?"0":"")+v};
+  var d=now instanceof Date&&!isNaN(now)?now:new Date(),p=function(v){return (v<10?"0":"")+v};
   return "(non nommé) "+p(d.getDate())+"/"+p(d.getMonth()+1)+" "+p(d.getHours())+":"+p(d.getMinutes())}
 
 /* ── export contrat ───────────────────────────────────────────────────────── */

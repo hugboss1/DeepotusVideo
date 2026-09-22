@@ -3,7 +3,7 @@
 (frontend/patches/montage.js, celui que le patcher injecte), jamais lu.
 Shim par FICHIER, jamais `node -e`.
 Run : & $PY tests\test_montage_edition.py   (depuis backend/)"""
-import json, os, shutil, subprocess, sys, tempfile
+import json, os, re, shutil, subprocess, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8")
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 SRC_PATH = os.path.join(ROOT, "frontend", "patches", "montage.js")
@@ -572,6 +572,9 @@ out.tu_taille_bornee=[T.titleUpdate(TU,"t1u1",{size:5000})[0].title.size,
 out.pn_neuf=T.projetNeuf(" Pub été ");
 out.pn_neuf_vide=T.projetNeuf("");
 out.pn_snap=[T.instantaneNom("",new Date(2026,8,22,14,5)),T.instantaneNom("montage",new Date(2026,8,22,14,5)),T.instantaneNom("Pub",new Date(2026,8,22,14,5))];
+/* espaces seuls = pas de nom ; une date INVALIDE (instanceof Date, mais NaN)
+   retombe sur maintenant, jamais « NaN/NaN » */
+out.pn_snap_mou=[T.instantaneNom("   ",new Date(2026,8,22,14,5)),T.instantaneNom("",new Date(NaN))];
 /* les pistes du corps sont des COPIES : muter le corps ne touche pas DEFAULTS */
 out.pn_defaults_pur=(function(){var c=T.projetNeuf("x");c.tracks[0].id="zz";c.tracks.push({id:"q"});
   return JSON.stringify(T.DEFAULTS.map(function(t){return t.id}))==='["t1","v2","v1","a1","a2","a3","s1"]'})();
@@ -1333,6 +1336,12 @@ check("pn_neuf_sans_nom_s_appelle_montage_neuf",
 # n'est pas un nom, la copie de surete est datee comme le vide.
 check("pn_instantane_nomme_le_non_nomme_et_garde_un_vrai_nom",
       D.get("pn_snap") == ["(non nommé) 22/09 14:05", "(non nommé) 22/09 14:05", "Pub"], D.get("pn_snap"))
+_SNAP = re.compile(r"^\(non nomm\u00e9\) \d\d/\d\d \d\d:\d\d$")
+check("pn_instantane_espaces_seuls_et_date_invalide",
+      isinstance(D.get("pn_snap_mou"), list) and len(D["pn_snap_mou"]) == 2
+      and D["pn_snap_mou"][0] == "(non nomm\u00e9) 22/09 14:05"
+      and isinstance(D["pn_snap_mou"][1], str) and _SNAP.match(D["pn_snap_mou"][1]) is not None
+      and "NaN" not in D["pn_snap_mou"][1], D.get("pn_snap_mou"))
 # DEFAULTS reste intact APRES qu'un corps de projet neuf a ete mute : le
 # corps porte des copies, jamais les objets de la constante.
 check("pn_defaults_pur_apres_mutation_du_corps", D.get("pn_defaults_pur") is True, D.get("pn_defaults_pur"))
