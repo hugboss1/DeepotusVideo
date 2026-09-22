@@ -32,11 +32,12 @@ Quatre familles de mesures :
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
 COMPTE DE REFERENCE, 22/09/2026 (lot L3, tache 9, D-9 client) :
-1772 lignes, soit TRENTE de plus que les 1742 de D-14 (revue) :
-les DOUZE lignes que la boucle sur `P.PATCHES` emet seule pour les QUATRE
-sections AJ2a, AJ2b, AJ6a, AJ6b (quatre `_remplace`, quatre
-`couche_ne_cite_pas_l_ancre_de_`, TROIS `_ancre_consommee` : AJ6a reprend
-son ancre en tete) et la section [D-9] en queue (SEPT replis mesures 0/1,
+1776 lignes, soit TRENTE-QUATRE de plus que les 1742 de D-14 (revue) :
+les QUINZE lignes que la boucle sur `P.PATCHES` emet seule pour les CINQ
+sections AJ2a, AJ2b, AJ6a, AJ6b, AJ7 (cinq `_remplace`, cinq
+`couche_ne_cite_pas_l_ancre_de_`, QUATRE `_ancre_consommee` : AJ6a reprend
+son ancre en tete ; AJ7 = revue 23/09, la pose d'effet atteint le clip
+d'ajustement, un pin) et la section [D-9] en queue (SEPT replis mesures 0/1,
 le geste dzAjAdd -- refus avant instantane --, sept noms libres, la combo
 Maj+J libre, le rack AJ2, la timeline AJ6, la couche). REALIGNES ET NOMMES :
 M16a (5 `;return}`), D2 (deux concat nommes), M25c/TT2/TT10/E1 (le filtre
@@ -15002,7 +15003,7 @@ _DZ_I = _DZ_TAGS.index("EA6-bandeau-ferme-au-lancement")
 check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_en_queue_apres_EA6_et_la_sonde_dit_114",
       [t.split("-")[0] for t in _DZ_TAGS[_DZ_I + 1:]] == ["DZ1", "DZ2", "DZ3", "DZ4",
                                                           "KF1", "KF2", "KF2b", "KF2c", "KF3a", "KF3b", "KF3c", "KF4", "KF5",
-                                                          "AJ2a", "AJ2b", "AJ6a", "AJ6b"]
+                                                          "AJ2a", "AJ2b", "AJ6a", "AJ6b", "AJ7"]
       and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
               and s.count(nl(a)) == (1 if a in r else 0)
               for _t, a, r in P.PATCHES[_DZ_I + 1:])
@@ -15288,6 +15289,22 @@ check("D9_AJ6_le_clip_d_ajustement_porte_data_kind_et_les_hachures_inline",
       and (_bak.count('background:isPh?"repeating-linear-gradient(') == 1
            and _bak.count("data-kind") == 0 if _bak else False),
       f"kind={s.count(nl(chr(34) + 'data-kind' + chr(34) + ':c.kind||void 0,'))} css={'data-kind' in _AJ_CSS}")
+# LA POSE D'UN EFFET ATTEINT LE CLIP D'AJUSTEMENT (revue 23/09/2026, preuve
+# ecran : « Vignette » sur j1u1 laissait `effects []`). Le chemin d'ecriture
+# `vfxAddTo` (V5 de vfxrack, amont) accepte un clip `kind==="adjust"` sans
+# src ; TEMOIN POSITIF : les deux gardes d'avant restent, entieres, pour V1
+# (`!c.src` et `trackKind(c.tr)!=="video"`), et l'ecriture est UNE.
+_iVA = s.find(nl("  function vfxAddTo(id,eff){"))
+_iVAf = s.find(nl("  function vfxDropEffect(eff,trId,laneEl,e){"), _iVA if _iVA >= 0 else 0)
+_VA = s[_iVA:_iVAf] if 0 <= _iVA < _iVAf else ""
+check("D9_AJ7_la_pose_d_un_effet_atteint_le_clip_d_ajustement_et_garde_V1",
+      len(_VA) > 400 and _VA.count(nl(P.R_AJ7)) == 1 and _VA.count(nl(P.A_AJ7)) == 0
+      and _VA.count('c.kind!=="adjust"&&') == 2
+      and _VA.count('if(c.kind!=="adjust"&&!c.src){fireNote(') == 1
+      and _VA.count('if(c.kind!=="adjust"&&trackKind(c.tr)!=="video"){fireNote(') == 1
+      and _VA.count("effects:(k.effects||[]).concat([e2])") == 1
+      and (_bak.count(_nlb(P.A_AJ7)) == 1 and _bak.count('c.kind!=="adjust"') == 0 if _bak else False),
+      f"corps={len(_VA)} neuf={_VA.count(nl(P.R_AJ7))} vieux={_VA.count(nl(P.A_AJ7))} bak={_bak.count(_nlb(P.A_AJ7)) if _bak else '?'}")
 # LA COUCHE : « j » dans dzmKindOf, adjust dans le groupe 0, les deux pures,
 # les trois exports -- et PAS de j1 dans DZM_DEFAULT_TRACKS (l'ordre des sept
 # est pinne plus haut) ni de label dans DZM_BD_RETIRES (neuf controles).

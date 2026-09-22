@@ -4161,6 +4161,21 @@ A_AJ6B = ('background:isPh?"repeating-linear-gradient(-45deg,transparent 0 5px, 
 R_AJ6B = ('background:isPh||c.kind==="adjust"?"repeating-linear-gradient(-45deg,transparent 0 5px, '
           'color-mix(in srgb, var("+tr.c+") 26%, transparent) 5px 6px)":')
 
+# ── AJ7 (D-9, revue 23/09/2026) : LA POSE D'UN EFFET ATTEINT LE CLIP
+# D'AJUSTEMENT. MESURE (preuve ecran Playwright) : « Vignette » sur j1u1
+# laissait `effects []` -- `vfxAddTo` (V5 du patcher vfxrack, amont, 1/1
+# dans .bak_montage) refusait un clip SANS `src` puis une piste qui n'est
+# pas « video ». Les deux gardes restent ENTIERES pour tout autre clip
+# (V1 en temoin) ; l'ajustement passe par son GENRE, comme au rack (AJ2).
+A_AJ7 = ('    if(!c.src){fireNote("Effets par clip : disponibles sur les clips '
+         'réels (Bibliothèque) — la démo reste une maquette.");return !1}\n'
+         '    if(trackKind(c.tr)!=="video"){fireNote("Un effet vidéo se pose '
+         'sur un clip V1 ou V2.");return !1}')
+R_AJ7 = ('    if(c.kind!=="adjust"&&!c.src){fireNote("Effets par clip : disponibles sur les clips '
+         'réels (Bibliothèque) — la démo reste une maquette.");return !1}\n'
+         '    if(c.kind!=="adjust"&&trackKind(c.tr)!=="video"){fireNote("Un effet vidéo se pose '
+         'sur un clip V1 ou V2.");return !1}')
+
 A_KF5 = '      el.style.opacity=k.opacity==null?"":String(k.opacity);'
 R_KF5 = ('      /* D-14 : opacité interpolée sur les points porteurs (statique sinon) */\n'
          '      var kOp=DzTracks.mpLerp2(svmMpOf(k)||[],t-k.start,"opacity",k.opacity==null?1:k.opacity);\n'
@@ -4371,7 +4386,8 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("AJ2a-rack-accepte-l-ajustement", A_AJ2A, R_AJ2A),
            ("AJ2b-rack-referme-le-fragment", A_AJ2B, R_AJ2B),
            ("AJ6a-data-kind-sur-le-clip", A_AJ6A, R_AJ6A),
-           ("AJ6b-hachures-de-l-ajustement", A_AJ6B, R_AJ6B)]
+           ("AJ6b-hachures-de-l-ajustement", A_AJ6B, R_AJ6B),
+           ("AJ7-pose-d-effet-sur-l-ajustement", A_AJ7, R_AJ7)]
 
 
 def nl(text, crlf):

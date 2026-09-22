@@ -4372,8 +4372,8 @@ function DzMontage(props){
     var cs=clipsRef.current,c=null;
     for(var i=0;i<cs.length;i++){if(cs[i].id===id){c=cs[i];break}}
     if(!c)return !1;
-    if(!c.src){fireNote("Effets par clip : disponibles sur les clips réels (Bibliothèque) — la démo reste une maquette.");return !1}
-    if(trackKind(c.tr)!=="video"){fireNote("Un effet vidéo se pose sur un clip V1 ou V2.");return !1}
+    if(c.kind!=="adjust"&&!c.src){fireNote("Effets par clip : disponibles sur les clips réels (Bibliothèque) — la démo reste une maquette.");return !1}
+    if(c.kind!=="adjust"&&trackKind(c.tr)!=="video"){fireNote("Un effet vidéo se pose sur un clip V1 ou V2.");return !1}
     if(trackStRef.current[c.tr]&&trackStRef.current[c.tr].l){
       fireNote("Piste "+c.tr.toUpperCase()+" verrouillée — déverrouillez-la pour poser un effet.");return !1}
     var e2={};
