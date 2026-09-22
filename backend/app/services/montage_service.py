@@ -408,9 +408,9 @@ _AUDIO_EXTS = (".mp3", ".wav", ".m4a", ".ogg", ".flac", ".aac", ".opus",
 # seul.
 _PROXY_PROVIDER = "montage_proxy"
 # D-16 : l'analyse vidstab (`POST /stab`) est le second précalcul PAR SOURCE
-# suivi par un job sans artefact — même statut que le proxy pour tout ce qui
-# filtre par `provider` (ici `/newer` ; `GET /api/jobs` de pipeline.py et
-# `cost_usage` de routes.py ne connaissent encore que `_PROXY_PROVIDER`).
+# suivi par un job sans artefact — même statut que le proxy partout où l'on
+# filtre par `provider` : `/newer` (ici), `pipeline.list_jobs` (GET /api/jobs)
+# et `cost_usage` (routes.py) ; tenu par la section [6] de test_montage_l3.
 _STAB_PROVIDER = "montage_stab"
 
 
@@ -2309,7 +2309,8 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             if not audio_only:
                 # D-16 : un plan stabilisé lit sa source ENTIÈRE (ni -ss ni
                 # -t) — vidstabtransform indexe le .trf par image d'entrée ;
-                # le trim se fait dans la chaîne (voir `stab_pre` plus bas).
+                # le trim se fait dans la chaîne (voir le bloc `k in seg_stab`
+                # plus bas).
                 # MESURÉ (grep ":a]") : l'audio d'une entrée V1 n'est jamais
                 # référencé dans le graphe — aucune désynchronisation.
                 trf = _v1_stab_trf(s)
@@ -2328,6 +2329,7 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
         sf = (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
               f"crop={w}:{h},setsar=1,fps={fps},format=yuv420p")
         from app.services import effects_engine as _fx
+        from app.services.subtitle_service import _ff_escape_path   # D-16
         for k, s in enumerate(segs):
             if s.get("gap"):
                 parts.append(f"[{seg_idx[k]}:v]setsar=1,format=yuv420p,"
@@ -2365,7 +2367,6 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             # zoom) se décident à la résolution de la source. Segment absent
             # de seg_stab : préfixe historique octet pour octet.
             if k in seg_stab:
-                from app.services.subtitle_service import _ff_escape_path
                 trf, d_src = seg_stab[k]
                 st = s["stab"]
                 pre = (f"vidstabtransform=input='{_ff_escape_path(trf)}':"
@@ -3092,6 +3093,8 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                         if jr is not None:
                             jr.current_step = "Analyse de stabilisation"
                             await session.commit()
+                    logger.info(f"montage: analyse de stabilisation (vidstabdetect, "
+                                f"LENT) — {c.get('label') or c.get('src')}")
                     try:
                         trf = await asyncio.to_thread(MM.stab_detect, p)
                     except Exception as e:
@@ -3722,11 +3725,12 @@ async def montage_proxy_build(request: Request,
     ce qui interroge un artefact ne peut confondre un cache avec un plan."""
     from app.services import montage_media as MM
     return await _precalcul_de_fond(
-        request, background_tasks, MM.proxy_path, MM.proxy, _PROXY_PROVIDER,
-        "proxy", "Aperçu 480p", "Aperçu prêt")
+        request, background_tasks, MM.proxy_path, MM.proxy,
+        provider=_PROXY_PROVIDER, prefix="proxy",
+        step="Aperçu 480p", step_done="Aperçu prêt")
 
 
-async def _precalcul_de_fond(request, background_tasks, path_fn, build_fn,
+async def _precalcul_de_fond(request, background_tasks, path_fn, build_fn, *,
                              provider, prefix, step, step_done):
     """Le corps commun de `POST /proxy` et `POST /stab` (D-16) : un précalcul
     PAR SOURCE, en tâche de fond, suivi par un `JobRecord` sans artefact.
@@ -3794,8 +3798,9 @@ async def montage_stab_build(request: Request,
     fait lui-même l'analyse manquante ; cette route sert à l'anticiper."""
     from app.services import montage_media as MM
     return await _precalcul_de_fond(
-        request, background_tasks, MM.stab_path, MM.stab_detect, _STAB_PROVIDER,
-        "stab", "Analyse de stabilisation", "Analyse prête")
+        request, background_tasks, MM.stab_path, MM.stab_detect,
+        provider=_STAB_PROVIDER, prefix="stab",
+        step="Analyse de stabilisation", step_done="Analyse prête")
 
 
 @router.get("/stab")

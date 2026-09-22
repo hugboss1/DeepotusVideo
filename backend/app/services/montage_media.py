@@ -45,6 +45,7 @@ import json
 import os
 import re
 import subprocess
+import threading
 from pathlib import Path
 from uuid import uuid4
 
@@ -395,21 +396,37 @@ def stab_detect(src) -> Path:
     22/09/2026 sur 8.1.1). Le chemin de `result=` est échappé comme un ASS
     (`'C\\:/…'`, `subtitle_service._ff_escape_path`) : MESURÉ, la seule
     forme qui passe sous Windows. Échec (rc ≠ 0, fichier absent ou < 8
-    octets) → `MediaError` (un `RuntimeError`), rien n'est mis en cache."""
+    octets) → `MediaError` (un `RuntimeError`), rien n'est mis en cache.
+
+    VERROU PAR CIBLE (revue) : `POST /stab` en cours puis clic Rendu ferait
+    deux `vidstabdetect` de la source entière — les deux appels passent par
+    `to_thread`, un `threading.Lock` par chemin de cache sérialise, et le
+    second trouve le fichier au réveil. Timeout PROPORTIONNEL à la durée
+    (3 × durée + 60 s, plancher 900 s) : 20 min de 1080p à accuracy=15
+    dépassent un plafond fixe. Le temporaire est retiré dans un `finally`
+    (un timeout laissait un `.tmp.trf` orphelin)."""
     out = stab_path(src)
-    if out.exists():
-        return out
-    from app.services.subtitle_service import _ff_escape_path
-    tmp = _tmp_de(out)
-    r = _run(["ffmpeg", "-y", "-v", "error", "-i", str(src), "-an", "-vf",
-              "vidstabdetect=shakiness=5:accuracy=15:result='%s'"
-              % _ff_escape_path(tmp), "-f", "null", "-"],
-             timeout=900, quoi="l'analyse de stabilisation")
-    if r.returncode != 0 or not tmp.exists() or tmp.stat().st_size < 8:
+    with _STAB_GUARD:
+        lk = _STAB_LOCKS.setdefault(str(out), threading.Lock())
+    with lk:
+        if out.exists():
+            return out
+        from app.services.subtitle_service import _ff_escape_path
+        tmp = _tmp_de(out)
         try:
-            tmp.unlink()
-        except OSError:
-            pass
-        raise MediaError("analyse de stabilisation impossible pour « %s » — %s"
-                         % (Path(src).name, _lignes_utiles(r.stderr)))
-    return _ecrire(tmp, out)
+            r = _run(["ffmpeg", "-y", "-v", "error", "-i", str(src), "-an", "-vf",
+                      "vidstabdetect=shakiness=5:accuracy=15:result='%s'"
+                      % _ff_escape_path(tmp), "-f", "null", "-"],
+                     timeout=max(900, int((_dur(src) or 0) * 3) + 60),
+                     quoi="l'analyse de stabilisation")
+            if r.returncode != 0 or not tmp.exists() or tmp.stat().st_size < 8:
+                raise MediaError("analyse de stabilisation impossible pour « %s » — %s"
+                                 % (Path(src).name, _lignes_utiles(r.stderr)))
+            return _ecrire(tmp, out)
+        finally:
+            if not out.exists():
+                tmp.unlink(missing_ok=True)
+
+
+_STAB_LOCKS: dict = {}            # chemin de cache → Lock (voir stab_detect)
+_STAB_GUARD = threading.Lock()

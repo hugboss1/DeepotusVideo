@@ -463,6 +463,52 @@ check("d16_la_transformation_precede_trim_puis_le_recadrage",
       and 0 < _cs.find("vidstabtransform=") < _cs.find("scale=64:64"), _cs[:400])
 check("d16_le_chemin_trf_est_echappe_comme_un_ass",
       "vidstabtransform=" in _cs and "input='" + _trf.replace("\\", "/").replace(":", r"\:") + "':" in _cs, _cs[:400])
+# Revue (4) : un gap AVANT le clip stabilise — le gap est l'entree [0:v]
+# (lavfi color), le clip stabilise l'entree [1:v] : seg_stab est indexe par
+# SEGMENT (gap compris), pas par clip.
+_cg = FLAT((MS._build_montage_command(
+    [V1SPEC(start=2.0, end=6.0, stab={"smooth": 20, "crop": "keep", "zoom": 0, "trf": _trf})],
+    [], [], None, w=64, h=64, fps=25, mix_db={}, ducking=False, duration_master=False,
+    preview=True, out=os.path.join(TMP, "g.mp4")) or [[]])[0])
+check("d16_un_gap_avant_le_clip_stabilise_garde_les_index_d_entree",
+      "[0:v]setsar=1" in _cg and "[1:v]vidstabtransform=" in _cg and _cg.count("vidstabtransform=") == 1, _cg[:400])
+# Revue (Important 1) : deux threads sur la MEME source → UN seul ffmpeg,
+# deux resultats identiques (verrou par cible ; `_run` compte par
+# monkeypatch, et fabrique un faux .trf de 16 octets a la place de ffmpeg).
+import threading as _thr
+_SRCL = os.path.join(TMP, "lock.mp4"); open(_SRCL, "wb").write(b"lockmp4")
+_vrai_run_mm, _n_ff = MM._run, []
+
+
+class _R:
+    returncode, stderr = 0, b""
+
+
+def _faux_run(cmd, *, timeout, quoi):
+    _n_ff.append(timeout)
+    import time as _t; _t.sleep(0.3)      # laisse le second thread arriver
+    pathlib.Path(str(cmd[-4]).split("result='")[1].rstrip("'").replace("\\:", ":")).write_bytes(b"x" * 16)
+    return _R()
+
+
+_res, _thr_err = [], []
+def _appel():
+    try:
+        _res.append(str(MM.stab_detect(pathlib.Path(_SRCL))))
+    except Exception as _e:
+        _thr_err.append(str(_e))
+MM._run = _faux_run
+try:
+    _ts = [_thr.Thread(target=_appel) for _ in range(2)]
+    [t.start() for t in _ts]; [t.join(10) for t in _ts]
+finally:
+    MM._run = _vrai_run_mm
+check("d16_deux_analyses_concurrentes_ne_lancent_qu_un_ffmpeg_meme_resultat",
+      callable(getattr(MM, "stab_detect", None)) and _thr_err == [] and len(_n_ff) == 1
+      and len(_res) == 2 and _res[0] == _res[1] and _res[0].endswith("_stab.trf")
+      and os.path.isfile(_res[0]) and not list(pathlib.Path(_res[0]).parent.glob("*.tmp*")),
+      (_n_ff, _res, _thr_err))
+check("d16_le_timeout_d_analyse_a_un_plancher_de_900_s", _n_ff == [900], _n_ff)
 check("d16_stab_sans_trf_est_ignore_avec_la_commande_historique",
       "vidstabtransform=" in _cs and BUILD(stab={"smooth": 20, "crop": "keep", "zoom": 0}) == _c0
       and BUILD(stab={"smooth": 20, "crop": "keep", "zoom": 0, "trf": os.path.join(TMP, "absent.trf")}) == _c0)
