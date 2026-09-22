@@ -172,7 +172,111 @@ STABLE_PROBES = [
     ("print3d", "__dzPrint3d", 3),
     ("navrail", "dz_nav_collapsed", 2),
     ("dzdesign", "__dzCatBar", 2),
-    ("montage", "DzTracks", 60),
+    # 21/09/2026 D-0 : 63 apres H1…H5/H7 (l'historique complet cable — trois
+    # references de plus : DzTracks.histSnap dans dzmHistHost, et
+    # DzTracks.histApply dans undo et dans redo). REMESURE le meme jour apres
+    # le correctif « absent est un etat » : toujours 63 — la resynchro du bus
+    # appelle `svmTrackBusSync(s.tracks)` NU, qui retombe deja sur
+    # DZM_DEFAULT_TRACKS quand la cle manquait ; un `||DzTracks.DEFAULTS`
+    # aurait ajoute deux jetons sans rien changer au comportement.
+    # 21/09/2026 D-11 : 63 -> 69, MESURE apres rejeu (la chaine a refuse au
+    # premier passage, « sonde montage x69 (want 63) »). SIX references de
+    # plus, la plage I/O : rangeSet, rangeFrom et rippleCut dans la branche
+    # de dispatch du clavier (R2), RangeBar sur la regle (R3), rangeFrom
+    # dans le payload de sauvegarde (repli R4 dans R_M6) et rangeFrom a la
+    # restauration (repli R5 dans R_M7).
+    # 21/09/2026 D-11, revue de la tache 4 : 69 -> 71, MESURE apres rejeu
+    # (la chaine a refuse, « sonde montage x71 (want 69) »). DEUX references
+    # de plus, et rien d'autre : `DzTracks.cutOpts`, les options de coupe
+    # {loopTracks, locked} sorties dans la couche parce que R_R2 et R_M12 les
+    # rebatissaient a l'identique -- un appel dans chacune. La sortie tot de
+    # R2 et les bornes de la bande n'en ajoutent aucune.
+    # 21/09/2026 D-2, tache 6 (cablage des modes d'edition) : 71 -> 76,
+    # MESURE apres rejeu (la chaine a refuse, « sonde montage x76 (want 71) »).
+    # CINQ references de plus, nommees : DzTracks.ModeBar (la rangee de chips
+    # dans le selecteur, repli « E2 » dans R_M15B), DzTracks.insere (l'appel
+    # de R_M22A) et le `DzTracks.insere` cite par le COMMENTAIRE JS qui le
+    # precede -- la sonde compte des occurrences de texte, commentaires
+    # compris --, DzTracks.modeLabel et DzTracks.secs (la note dit le mode
+    # applique et la vitesse de « remplir »). DzTracks.fitDur ne bouge pas :
+    # l'appel a seulement DEMENAGE de R_M17A vers R_M22A, ou il se mesure sur
+    # `dzIns.clips` au lieu du seul clip pose (1 -> 0 et 0 -> 1, mesure).
+    # 21/09/2026 D-2, tour de correction : 76 -> 75, MESURE apres rejeu (la
+    # chaine a refuse, « sonde montage x75 (want 76) »). UNE reference de
+    # moins, NET, et les trois mouvements sont nommes : `DzTracks.secs` sort
+    # (I-2 : c'est un formateur de DUREE, il arrondissait la vitesse 0,25 en
+    # « x0,3 » -- la note la formate desormais sur place), les DEUX
+    # `DzTracks.insere` cites par des COMMENTAIRES JS deviennent `insere()`
+    # (la sonde compte du texte, commentaires compris), et `DzTracks.fitDur`
+    # gagne un appel (3 -> 4 : `dzAv`, la fin reelle d'AVANT l'insertion, qui
+    # borne la phrase de l'allongement).
+    # 21/09/2026 D-3, tache 7 (roll, slip, slide) : 75 -> 78, MESURE apres
+    # rejeu (la chaine a refuse, « sonde montage x78 (want 75) »). TROIS
+    # references de plus, nommees : DzTracks.slip et DzTracks.slide dans
+    # le `mv` de clipDown (T2), DzTracks.roll dans le `mv` de dzRollDown
+    # (T4). T1, T3, T3b et T5 n'en ajoutent aucune : modificateurs lus,
+    # appels a `dzRollDown` (fonction locale, pas un membre de DzTracks)
+    # et texte d'infobulle.
+    # 21/09/2026 D-5, tache 8 (les marqueurs) : 78 -> 85, MESURE apres
+    # rejeu (la chaine a refuse, « sonde montage x85 (want 78) »). SEPT
+    # references de plus, nommees : DzTracks.markerAdd et
+    # DzTracks.markerNext dans la branche de dispatch du clavier (repli
+    # « K2 » dans R_R2), DzTracks.Markers sur la regle (repli « K4 »
+    # dans R_R3), DzTracks.MarkerIndex, DzTracks.markerRemove et
+    # DzTracks.markerUpdate dans le panneau de l'index (K5b), et
+    # DzTracks.markersFrom a la restauration (repli « K6 » dans R_M7).
+    # K1 (les quatre actions), K3 (l'etat du panneau), K5 (la chip) et
+    # la moitie SAUVEGARDE de K6 (`markers:(proj.markers||[])`, une
+    # lecture nue du projet) n'en ajoutent aucune.
+    # D-4 (21/09/2026, tache 9) : 85 -> 86 -- W2 ajoute UN appel de plus,
+    # `DzTracks.swap(...)`, dans la branche de dispatch swap_left/swap_right
+    # repliee dans R_R2. Mesure sous --check apres l'ajout.
+    # D-20 (21/09/2026, tâche 2) : 86 -> 90 -- la galerie des
+    # transitions. QUATRE références de plus, MESURÉES après rejeu (la
+    # chaîne a refusé, « sonde montage x90 (want 86) ») et nommées :
+    # DzTracks.TransGrid (la grille du popover de jonction, X2),
+    # DzTracks.transList DEUX FOIS (X3, le `known` de l'inspecteur, et
+    # X3b, les options du <select>) et DzTracks.transLabel (X4, le
+    # libellé au niveau module). X1, le chargement du catalogue replié
+    # dans R_M16REF, n'en ajoute aucune : c'est un fetch, pas un appel
+    # à la couche. Un premier jet en comptait 91 -- la référence de trop
+    # était dans un COMMENTAIRE JS de R_X2 (la sonde compte du texte,
+    # commentaires compris) : la prose dit désormais « TransGrid() ».
+    # `montage` : 90 -> 91 le 21/09/2026 (D-12, les fondus simples joues
+    # en direct). UNE reference de plus au contrat, et une seule : le
+    # `veil(` de V3, en tete de `liveSync`. V1 (la ref du voile, repliee
+    # dans R_M16REF) et V2 (le `<i>` du cadre) n'en ajoutent aucune --
+    # l'une est un `useRef`, l'autre un element de rendu. La prose de ces
+    # trois sections est ecrite SANS le jeton (« la couche », « veil() »)
+    # parce que la sonde compte du TEXTE, commentaires compris : c'est la
+    # lecon du premier jet de X2, qui avait compte 91 pour un commentaire.
+    # MESURE : la chaine a refuse, « sonde montage x91 (want 90) », AVANT
+    # que ce nombre ne soit ecrit -- 90 dans le bundle de 1e0b1bc, +1 par
+    # V3, 91 apres rejeu, en octets, `str.count`.
+    # `montage` : 91 -> 94 le 21/09/2026 (D-21, tache 6 : le genre `title`,
+    # la piste t1, poser un titre). TROIS references de plus, et trois
+    # seulement : `titleNew(` et `titleTrack(` dans le geste `dzTtAdd`
+    # (TT4a, replie dans R_M16REF), et `titleTrack(` dans la restauration
+    # (TT3, replie dans R_M7). TT1 (le quatrieme genre de `trackKind`),
+    # TT1b (le refus d'`addAsset`), TT2/TT2b (le payload de rendu) et TT5
+    # (la chip « T+ », qui appelle `dzTtAdd`) n'en ajoutent AUCUNE : elles
+    # ne parlent pas a la couche. La prose de ces sections est ecrite SANS
+    # le jeton (« la couche », « titleTrack() ») parce que la sonde compte
+    # du TEXTE, commentaires compris -- lecon du premier jet de X2.
+    # MESURE : la chaine a refuse, « sonde montage x94 (want 91) », AVANT
+    # que ce nombre ne soit ecrit.
+    # `montage` : 94 -> 98 le 22/09/2026 (D-21, tache 7 : l'inspecteur des
+    # titres et l'apercu vivant). QUATRE references de plus, et quatre
+    # seulement : `TitleInspector` et `titleUpdate(` dans l'inspecteur
+    # monte par TT6 (replie dans R_M12), `titleAt(` et `titleHtml(` dans
+    # l'ecriture de l'apercu par TT8 (replie dans R_V3). TT7 (l'hote),
+    # TT7ref (la ref et le catalogue), TT9/TT9b (les deux inspecteurs qui
+    # se taisent), TT10 (le payload) et TT11 (le « + » de T1) n'en ajoutent
+    # AUCUNE : elles ne parlent pas a la couche. La prose de ces sections
+    # est ecrite SANS le jeton, meme lecon que ci-dessus.
+    # MESURE : la chaine a refuse, « sonde montage x98 (want 94) », AVANT
+    # que ce nombre ne soit ecrit.
+    ("montage", "DzTracks", 98),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

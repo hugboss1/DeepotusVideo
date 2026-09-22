@@ -29,6 +29,15 @@ Câblage « timeline → rendu » du handoff son_vfx_montage :
                               écrit ATOMIQUEMENT (tmp + os.replace) dans
                               montage_saved.json au répertoire de données
                               (settings.images_path.parent, à côté d'audio/).
+  GET  /api/montage/transitions   D-20 — les 58 xfade de l'ffmpeg livré, par
+                              familles, avec le drapeau `live` (jouable en
+                              direct par le lecteur vivant). Catalogue SERVI :
+                              le client n'en a aucune copie.
+  GET  /api/montage/titles    D-21 — les huit gabarits de titre (libellé FR,
+                              fonte, corps, couleur, boîte, animation).
+  GET  /api/montage/title-preview  D-21 — l'aperçu PNG 9:16 d'un titre, gravé
+                              par le MÊME ASS que le rendu ; largeur bornée
+                              96..640, cache d'un jour, 400 sans texte.
   GET  /api/montage/peaks     P7 — l'enveloppe d'onde d'une source, précalculée
                               et mise en cache (JSON rendu par `peaks`, jamais
                               un chemin : voir la route). `bins` écrêté
@@ -139,6 +148,76 @@ _XFADE = {
     "flash": ("fadewhite", None),
 }
 
+# D-20 (21/09/2026) — LES 58 TRANSITIONS DE L'FFMPEG LIVRÉ (8.1.1 essentials,
+# `-h filter=xfade`, indices 0…57), par familles. Chaque nom xfade est SA
+# PROPRE clé : le client stocke des noms nus (svmTransBase garde le premier
+# mot) et cette table est la seule autorité — GET /transitions la sert, le
+# client n'en a pas de copie. Les neuf clés historiques restent au-dessus.
+_XFADE_FAMILIES = {
+    "fondus":      {"label": "fondus",      "noms": ["fade", "fadeblack", "fadewhite", "fadegrays",
+                                                     "fadefast", "fadeslow", "dissolve", "distance"]},
+    "glissements": {"label": "glissements", "noms": ["slideleft", "slideright", "slideup", "slidedown",
+                                                     "coverleft", "coverright", "coverup", "coverdown",
+                                                     "revealleft", "revealright", "revealup", "revealdown"]},
+    "volets":      {"label": "volets",      "noms": ["wipeleft", "wiperight", "wipeup", "wipedown",
+                                                     "wipetl", "wipetr", "wipebl", "wipebr",
+                                                     "smoothleft", "smoothright", "smoothup", "smoothdown",
+                                                     "diagtl", "diagtr", "diagbl", "diagbr"]},
+    "formes":      {"label": "formes",      "noms": ["circlecrop", "rectcrop", "circleopen", "circleclose",
+                                                     "vertopen", "vertclose", "horzopen", "horzclose", "radial"]},
+    "zooms":       {"label": "zooms",       "noms": ["zoomin", "squeezeh", "squeezev"]},
+    # `distance` (famille fondus) n'a ni direction ni forme, juste un mélange
+    # pixel à pixel — plus proche d'un fondu que des cinq autres familles.
+    "pixels":      {"label": "pixels",      "noms": ["pixelize", "hblur", "hlslice", "hrslice", "vuslice",
+                                                     "vdslice", "hlwind", "hrwind", "vuwind", "vdwind"]},
+}
+# `update` plutôt qu'une boucle `for _f/_n` : cette dernière laissait `_f` et
+# `_n` en variables de MODULE (fuite constatée en revue).
+_XFADE.update({n: (n, None) for f in _XFADE_FAMILIES.values() for n in f["noms"]
+               if n not in _XFADE})
+# Ceux que le lecteur VIVANT sait jouer en CSS (D-12) : un voile noir/blanc,
+# ou une baisse d'opacité — tout le reste n'est visible qu'après Preview.
+_XFADE_LIVE = ("fade", "fadeblack", "fadewhite")
+_XFADE_LABELS = {  # libellés français du catalogue ; le nom xfade reste l'id
+    "fade": "fondu", "fadeblack": "fondu noir", "fadewhite": "fondu blanc",
+    "fadegrays": "fondu gris", "fadefast": "fondu rapide", "fadeslow": "fondu lent",
+    "dissolve": "dissolution", "distance": "distance",
+    "slideleft": "glisse à gauche", "slideright": "glisse à droite",
+    "slideup": "glisse en haut", "slidedown": "glisse en bas",
+    "coverleft": "couvre à gauche", "coverright": "couvre à droite",
+    "coverup": "couvre en haut", "coverdown": "couvre en bas",
+    "revealleft": "révèle à gauche", "revealright": "révèle à droite",
+    "revealup": "révèle en haut", "revealdown": "révèle en bas",
+    "wipeleft": "volet gauche", "wiperight": "volet droit",
+    "wipeup": "volet haut", "wipedown": "volet bas",
+    "wipetl": "volet ↖", "wipetr": "volet ↗", "wipebl": "volet ↙", "wipebr": "volet ↘",
+    "smoothleft": "volet doux gauche", "smoothright": "volet doux droit",
+    "smoothup": "volet doux haut", "smoothdown": "volet doux bas",
+    "diagtl": "diagonale ↖", "diagtr": "diagonale ↗",
+    "diagbl": "diagonale ↙", "diagbr": "diagonale ↘",
+    "circlecrop": "cercle (recadre)", "rectcrop": "rectangle (recadre)",
+    "circleopen": "cercle ouvre", "circleclose": "cercle ferme",
+    "vertopen": "rideau vertical ouvre", "vertclose": "rideau vertical ferme",
+    "horzopen": "rideau horizontal ouvre", "horzclose": "rideau horizontal ferme",
+    "radial": "balayage radial",
+    "zoomin": "zoom avant", "squeezeh": "écrase horizontal", "squeezev": "écrase vertical",
+    "pixelize": "pixélisé", "hblur": "flou horizontal",
+    "hlslice": "tranches → droite", "hrslice": "tranches → gauche",
+    "vuslice": "tranches ↑", "vdslice": "tranches ↓",
+    "hlwind": "vent → droite", "hrwind": "vent → gauche",
+    "vuwind": "vent ↑", "vdwind": "vent ↓",
+}
+
+
+def transitions_catalog() -> dict:
+    """Le catalogue que le client affiche : familles ordonnées, items {id, label, live}."""
+    return {"familles": [
+        {"id": k, "label": f["label"],
+         "items": [{"id": n, "label": _XFADE_LABELS.get(n, n), "live": n in _XFADE_LIVE}
+                   for n in f["noms"]]}
+        for k, f in _XFADE_FAMILIES.items()]}
+
+
 # 4:5 était proposé par les menus du bundle et géré par animation_service,
 # mais absent d'ici : un montage en 4:5 retombait silencieusement en 9:16.
 _CANVAS = {"9:16": (1080, 1920), "16:9": (1920, 1080), "1:1": (1080, 1080),
@@ -168,6 +247,15 @@ def _tracks_meta(raw) -> dict:
     `kind` manquant se déduit de l'initiale (a… audio, s… sous-titres,
     sinon vidéo) ; `bus` inconnu retombe sur `sfx` (jamais de bus inventé
     dans le mixage) ; `loop` n'a de sens que sur une piste audio.
+
+    Genres CONNUS du rendu : `video` (V1 et overlays), `audio` (les trois
+    bus), `subs` (S1, gravée en dernier) et, depuis D-21 (21/09/2026),
+    `title` — une piste de cartons, dont les clips n'ont PAS de `src` et
+    sont gravés en ASS avant S1 (cf. `_titles_ass`). Une piste `title` ne
+    gagne ni `layer` (elle n'est pas composée par overlay) ni bus de mixage.
+    Il n'y a toujours AUCUNE liste blanche de genres : un `kind` inconnu
+    reste déclarable, et ses clips restent simplement inertes au rendu — ce
+    comportement est mesuré, et D-21 ne le change pas.
     `layer` ne concerne que les pistes VIDÉO autres que v1 : la dernière
     listée (la plus BASSE à l'écran) prend 0, la première listée le rang le
     plus haut — `_build_montage_command` composant par `layer` croissant,
@@ -774,6 +862,18 @@ def _delete_saved() -> bool:
     return False
 
 
+# D-5 : les SIX couleurs de marqueur, celles de DZM_MARKER_COLORS dans
+# frontend/patches/montage.js. Une couleur inconnue retombe sur « or »,
+# des DEUX côtés — le client ne peut pas être la seule garde.
+_MONTAGE_MARKER_COLORS = ("or", "rouge", "vert", "bleu", "violet", "cyan")
+# Et l'ÉCART MINIMAL entre deux marqueurs, celui de DZM_MARKER_EPS dans la
+# couche. Deux marqueurs plus proches que cela ne sont pas deux marqueurs :
+# le second est injoignable au clavier, et la bascule Maj+M retirerait le
+# premier des deux. L'écart est refusé À PARTIR de cette valeur, bornes
+# comprises (cf. le commentaire du filtre, plus bas).
+_MONTAGE_MARKER_EPS = 0.15
+
+
 def _save_record(body) -> dict:
     """Le modèle de timeline COURANTE, normalisé depuis un corps client — et
     le SEUL endroit où cette normalisation vit. Lève HTTPException(400) sur
@@ -823,6 +923,95 @@ def _save_record(body) -> dict:
     # inconnue, donc hors du rendu. GET /project les resert à l'éditeur.
     if isinstance(body.get("tracks"), list):
         data["tracks"] = body["tracks"]
+    # D-11 : la plage d'entrée/sortie {in, out} en secondes. Assainie ICI —
+    # deux nombres finis, 0 <= in < out — et pas seulement à l'écran : le
+    # payload n'est pas de confiance (un autre client, une version plus
+    # ancienne de la couche). Absente ou invalide : la clé n'est PAS
+    # stockée, et GET /project ne la resert donc pas — rien ne change pour
+    # un montage qui n'a jamais posé de plage.
+    rg = body.get("range")
+    if isinstance(rg, dict):
+        try:
+            a, b = float(rg.get("in")), float(rg.get("out"))
+            # `math.isfinite` plutot que le seul `a == a` du plan : MESURE du
+            # 21/09/2026 — `float("Infinity")` passe `b == b` ET `0 <= a < b`,
+            # et un `inf` stocke ressort en `Infinity` dans le JSON du fichier,
+            # que json.loads relit mais qu aucun JSON.parse de navigateur
+            # n accepte. isfinite couvre NaN et les deux infinis d un coup.
+            if math.isfinite(a) and math.isfinite(b) and 0 <= a < b:
+                data["range"] = {"in": round(a, 3), "out": round(b, 3)}
+        except (TypeError, ValueError):
+            pass
+    # D-5 : les MARQUEURS de la règle, {t, color, title, note}. Assainis ICI
+    # et pas seulement à l'écran, pour la raison qui vaut déjà pour `range` :
+    # le payload n'est pas de confiance (un autre client, une version plus
+    # ancienne de la couche, un fichier édité à la main). Les entrées
+    # illisibles sont JETÉES une à une — pas la liste entière : un seul
+    # marqueur abîmé ne doit pas emporter les quarante autres.
+    # L'IDENTIFIANT N'EST PAS STOCKÉ : le client le régénère (`markersFrom`,
+    # m1..mN). Deux marqueurs d'un vieux fichier pouvaient porter le même, et
+    # « retirer » en aurait retiré deux.
+    # LISTE VIDE : la clé n'est PAS écrite, exactement comme `range` — un
+    # montage dont on vient de retirer le dernier marqueur revient donc sans
+    # marqueur, et rien ne change pour un montage qui n'en a jamais eu.
+    # I-2 (revue du 21/09/2026) : L'INVARIANT D'ESPACEMENT EST TENU ICI
+    # AUSSI. Le client ne peut pas en être la seule garde — une timeline
+    # écrite par un autre client, ou un fichier édité à la main, pouvait
+    # porter 1,00 et 1,12 : le second était INJOIGNABLE par « marqueur
+    # suivant / précédent », qui saute tout ce qui est à moins d'un
+    # `DZM_MARKER_EPS` de la tête. Le TRI PRÉCÈDE le filtre (c'est toujours
+    # le premier de deux voisins qui reste), et les doublons exacts tombent
+    # par la même règle — distance nulle. Le plafond s'applique APRÈS :
+    # 200 marqueurs UTILES, pas 200 entrées dont la moitié serait jetée.
+    # Même ordre, à la constante près, que `dzmMarkersFrom` de la couche.
+    mks = body.get("markers")
+    if isinstance(mks, list):
+        brut = []
+        for m in mks:
+            if not isinstance(m, dict):
+                continue
+            t = m.get("t")
+            # `float("")` LÈVE, et c'est voulu : une chaîne vide n'est pas un
+            # temps. Le client dit la même chose depuis `dzmMarkerT` — avant
+            # lui, `Number("")` valait ZÉRO côté écran et le marqueur
+            # disparaissait au rechargement sans un mot.
+            if isinstance(t, bool) or t is None:
+                continue
+            try:
+                t = float(t)
+            except (TypeError, ValueError):
+                continue
+            if not math.isfinite(t) or t < 0:
+                continue
+            col = m.get("color")
+            brut.append({
+                "t": round(t, 3),
+                "color": col if col in _MONTAGE_MARKER_COLORS else "or",
+                "title": ("" if m.get("title") is None
+                          else str(m.get("title")))[:200],
+                "note": ("" if m.get("note") is None
+                         else str(m.get("note")))[:1000],
+            })
+        out_mk = []
+        for m in sorted(brut, key=lambda e: e["t"]):
+            if len(out_mk) >= 200:
+                break
+            # R-1 (seconde revue du 21/09/2026) : LA BORNE EST LARGE, PAS
+            # STRICTE. `markerNext` saute tout ce qui n'est pas
+            # `t > v + EPS` : un couple à EXACTEMENT 0,150 s passait un
+            # filtre strict et restait injoignable DANS LES DEUX SENS
+            # (mesure : 697 couples au millième entre 0 et 10 s).
+            # `markerAdd` traitait déjà « exactement EPS » comme trop
+            # proche : les trois bornes disent maintenant la même chose.
+            # Le 1e-9 est la même tolérance de flottant que côté client —
+            # 1.15 - 1.0 vaut 0.15000000000000013 en double.
+            if (out_mk
+                    and m["t"] - out_mk[-1]["t"]
+                    <= _MONTAGE_MARKER_EPS + 1e-9):
+                continue
+            out_mk.append(m)
+        if out_mk:
+            data["markers"] = out_mk
     return data
 
 
@@ -1072,6 +1261,10 @@ async def montage_project(limit: int = 4):
             # premier autosave venu cassait le lien.
             if isinstance(saved.get("project_id"), str) and saved["project_id"]:
                 out["project_id"] = saved["project_id"]
+            if isinstance(saved.get("range"), dict):
+                out["range"] = saved["range"]         # D-11 (cf. POST /save)
+            if isinstance(saved.get("markers"), list):
+                out["markers"] = saved["markers"]     # D-5 (cf. POST /save)
             if pruned:
                 out["saved_pruned"] = True
                 out["pruned"] = pruned
@@ -1410,6 +1603,95 @@ async def montage_newer(job_id: str = ""):
         if len(out) >= 5:
             break
     return {"ok": True, "origin": "heuristique", "candidates": out}
+
+
+@router.get("/transitions")
+async def montage_transitions():
+    """D-20 — les 58 transitions xfade par familles, avec le drapeau `live`
+    (jouable en direct dans le lecteur vivant). Le client n'en a pas de copie."""
+    return transitions_catalog()
+
+
+@router.get("/titles")
+async def montage_titles():
+    """D-21 — les huit gabarits de titre, leur libellé français et ce qui les
+    distingue à l'œil (fonte, corps à 1080 p, couleur de charte, couleur de
+    boîte, tags d'animation). Le client n'en a aucune copie : même précédent
+    que `GET /transitions`, `GET /effects` et `GET /media-rules`.
+
+    `fonts` ET `colors` PARTENT AVEC (22/09/2026) : l'inspecteur de titres
+    offre les seize familles embarquées et les cinq couleurs de la charte,
+    et `DzSubs.FONTS` — l'autre source que le client aurait pu lire — ne les
+    porte PAS (mesuré : `SUBS_FONTS_FB` est une liste de douze polices
+    SYSTÈME, « Segoe UI », « Arial », « Impact »… — aucune n'est gravable
+    par libass, qui ne voit que le `fontsdir` embarqué). Les deux tables
+    sont celles que `title_spec` interroge pour accepter ou remplacer ;
+    servir autre chose aurait fait proposer à l'écran des valeurs que le
+    rendu remplace en silence."""
+    from app.services import titles as TI
+    return {"gabarits": [
+        {"id": k, "label": TI.LABELS.get(k, k), "font": t["font"],
+         "size": t["size"], "color": t["color"], "box": t["box"],
+         "anim": t["anim"]}
+        for k, t in TI.TEMPLATES.items()],
+        "fonts": list(TI.S.FONT_FILES), "colors": list(TI.BRAND)}
+
+
+def _prev_w(raw, defaut: int = 270) -> int:
+    """Largeur d'aperçu BORNÉE 96..640 et PAIRE.
+
+    Le paramètre est reçu en CHAÎNE et non en `int` : FastAPI répondrait 422
+    sur `w=abc`, alors qu'un aperçu est un confort — une largeur illisible
+    doit retomber sur le défaut, pas refuser l'image. La borne haute n'est
+    pas cosmétique : chaque largeur inédite grave un `.ass` et un PNG de
+    plus dans le cache, donc une largeur libre serait un cache sans fond.
+
+    `OverflowError` est attrapé au même titre que `ValueError` : `float("inf")`
+    et `float("1e400")` valent tous deux l'infini, et `int(inf)` LÈVE — la
+    route rendait alors un 500 là où sa promesse est le repli (mesuré le
+    21/09/2026, `w=inf`).
+    """
+    try:
+        w = int(float(str(raw)))
+    except (TypeError, ValueError, OverflowError):
+        w = defaut
+    w = max(96, min(640, w))
+    return w - w % 2
+
+
+@router.get("/title-preview")
+async def montage_title_preview(template: str = "", text: str = "", sub: str = "",
+                                color: str = "", font: str = "", size: str = "",
+                                w: str = "270"):
+    """D-21 — l'aperçu PNG d'un titre, gravé par le même ASS que le rendu.
+
+    Cadre VERTICAL 9:16 (hauteur = largeur × 16/9, paire) : l'aperçu montre
+    le titre dans le format du montage court, où le placement des gabarits a
+    été mesuré. Le PNG est rendu dans un THREAD (ffmpeg dure ~0,3 s) et
+    servi avec un `Cache-Control` d'un jour — la clé de cache contient le
+    spec entier et `titles.FORMAT_V`, donc un nouveau réglage donne une
+    nouvelle URL et jamais une image périmée.
+
+    400 quand il n'y a rien à écrire (texte vide : `title_spec` rend None) —
+    la faute est du client. 503 quand ffmpeg n'a rendu aucune image : c'est
+    l'outil qui manque, pas la requête qui est fautive.
+    """
+    from app.services import titles as TI
+    ww = _prev_w(w)
+    hh = ww * 16 // 9
+    hh -= hh % 2
+    spec = TI.title_spec({"title": {"template": template, "text": text, "sub": sub,
+                                    "color": color, "font": font, "size": size},
+                          "start": 0, "end": 3})
+    if not spec:
+        raise HTTPException(400, "Aperçu de titre : il n'y a rien à écrire — "
+                                 "donne un texte.")
+    p = await asyncio.to_thread(TI.render_title_png, spec, ww, hh)
+    if p is None or not Path(p).is_file():
+        raise HTTPException(503, "Aperçu de titre : ffmpeg n'a rendu aucune "
+                                 "image — réessaie, ou lance le rendu.")
+    return FileResponse(str(p), media_type="image/png",
+                        headers={"Cache-Control": "public, max-age=86400"})
 
 
 @router.get("/effects")
@@ -1756,7 +2038,7 @@ async def _resolve_src(src: dict | None) -> Path | None:
 
 def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                            ducking, duration_master, preview, out,
-                           audio_only=False, subs_ass=None):
+                           audio_only=False, subs_ass=None, titles_ass=None):
     """Commande ffmpeg complète (sync, testable). v1/v2/a_clips/music portent
     des chemins déjà résolus + durées sondées.
 
@@ -1788,6 +2070,12 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     avant `format=yuv420p` : le texte passe donc au-dessus des overlays V2 et
     couvre l'extension du maître de durée. None (défaut) : chaîne historique
     intacte, octet pour octet.
+    D-21 : `titles_ass` = liste de chemins ASS (un par clip TITRE, déjà
+    triés par début). Ils sont gravés JUSTE AVANT `subs_ass` — `[tt0]`,
+    `[tt1]`… — pour que S1 reste le dernier maillon vidéo. Liste vide ou
+    None (défaut) : chaîne historique intacte, octet pour octet. Le graphe
+    `audio_only` n'ouvre aucune vidéo et rend AVANT ce bloc : un titre n'y
+    entre jamais.
     Sans ces champs, la commande émise est identique octet pour octet à
     l'historique (non-régression testée).
 
@@ -2219,6 +2507,26 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                "-f", "null", "-"]
         return cmd, total
 
+    # --- T1 : GRAVURE des TITRES (D-21, 21/09/2026) ---------------------
+    # Un `.ass` par clip titre, gravé par le MÊME filtre que S1 — donc avec
+    # le même `fontsdir` embarqué et le même échappement de chemin. Les
+    # titres passent AVANT les sous-titres : S1 reste le dernier maillon
+    # vidéo, un sous-titre ne doit jamais se retrouver sous un carton.
+    # `cur` est repris à chaque maillon, si bien que le
+    # `,format=yuv420p[outv]` d'après se pose sur `[tt{n-1}]` quand il n'y a
+    # pas de S1 (mesuré : `[tt0]format=yuv420p[outv]`) — les deux branches
+    # ci-dessous partent de `cur`, aucune ne suppose un nom de maillon.
+    # Un titre qui DÉPASSE la fin de V1 n'est pas prolongé : la sortie est
+    # coupée par `-t total` comme tout le reste, et l'événement ASS qui
+    # courait encore disparaît avec l'image. Resolve, lui, allonge la
+    # timeline jusqu'au dernier clip de n'importe quelle piste — écart à
+    # dater dans la conception à la tâche 8.
+    if titles_ass or subs_ass:
+        from app.services.subtitle_service import subtitles_filter
+    for j, tpath in enumerate(titles_ass or []):
+        parts.append(f"[{cur}]{subtitles_filter(tpath)}[tt{j}]")
+        cur = f"tt{j}"
+
     # --- S1 : GRAVURE des sous-titres (dernier maillon de la chaîne vidéo) ---
     # `fontsdir` n'est pas une précaution : sans lui libass cherche dans les
     # fontes SYSTÈME, ne trouve pas les fontes embarquées (Anton, Bebas Neue,
@@ -2226,7 +2534,6 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     # sur une autre — le rendu cesserait de ressembler à l'aperçu sans qu'aucune
     # erreur ffmpeg ne le signale. subtitles_filter() le pose toujours.
     if subs_ass:
-        from app.services.subtitle_service import subtitles_filter
         parts.append(f"[{cur}]{subtitles_filter(subs_ass)},"
                      f"format=yuv420p[outv]")
     else:
@@ -2337,6 +2644,54 @@ def _subs_ass(payload, canvas: tuple[int, int], stem: str) -> tuple[Path | None,
             "wordAnim:« couleur » EST le karaoké — karaoké éteint, aucun mot "
             "ne change de couleur")
     return p, info
+
+
+def _titles_ass(clips, meta: dict, canvas: tuple[int, int],
+                stem: str) -> tuple[list[str], dict]:
+    """D-21 — les clips TITRE de la timeline → (chemins des ASS, infos).
+
+    Un clip titre vit sur une piste de genre `title` (cf. `_tracks_meta`) et
+    n'a PAS de `src` : c'est `titles.title_spec` qui décide s'il y a quelque
+    chose à graver (texte vide, `title` qui n'est pas un dict, durée nulle…
+    → None, clip ignoré SANS lever). L'ordre rendu est celui du DÉBUT des
+    clips, pas celui du tableau `clips` : deux titres qui se recouvrent sont
+    alors empilés dans l'ordre où le spectateur les voit apparaître.
+
+    Fonction à part, et non quelques lignes dans `montage_render` : c'est la
+    seule forme sous laquelle la collecte est jouable par un banc sans
+    lancer un rendu complet (le pré-vol P8 exige une source qu'ffmpeg ouvre).
+
+    `infos` = {titres, ignores} — un clip titre ÉCARTÉ est compté et
+    journalisé, jamais avalé en silence : sans ce compte, un carton dont le
+    texte est vide disparaîtrait du rendu sans laisser de trace, et
+    l'utilisateur chercherait dans ffmpeg une faute qui est dans sa timeline
+    (même précédent que `info["unsupported"]` de `_subs_ass`).
+    """
+    from app.services import titles as TI
+    specs, ignores = [], 0
+    for c in clips or []:
+        if not isinstance(c, dict):
+            continue
+        if (meta.get(str(c.get("tr"))) or {}).get("kind") != "title":
+            continue
+        s = TI.title_spec(c)
+        if s:
+            specs.append(s)
+        else:
+            ignores += 1
+    specs.sort(key=lambda s: s.get("start", 0.0))
+    out = []
+    for i, s in enumerate(specs):
+        p = TI.to_ass_title(s, canvas, f"{stem}_t{i}")
+        if p is not None:
+            out.append(str(p))
+        else:
+            ignores += 1
+    if ignores:
+        logger.warning(f"montage {stem}: {ignores} clip(s) titre ignoré(s) — "
+                       f"texte vide, durée nulle ou `title` illisible ; "
+                       f"{len(out)} titre(s) gravé(s).")
+    return out, {"titres": len(out), "ignores": ignores}
 
 
 def _run_ffmpeg(cmd, out: Path) -> Path:
@@ -2632,11 +2987,18 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
             subs_ass, subs_info = await asyncio.to_thread(
                 _subs_ass, body.get("subtitles"), (w, h), f"montage_{short}")
 
+            # D-21 : les clips TITRE (piste de genre `title`, sans `src`) →
+            # un ASS chacun, écrits AVANT la commande comme celui de S1, au
+            # canevas RÉEL du rendu (aperçu 480p compris, pour que les corps
+            # suivent). Aucun clip titre : liste vide, commande historique.
+            titles_ass, titles_info = await asyncio.to_thread(
+                _titles_ass, clips, meta, (w, h), f"montage_{short}")
+
             cmd, total = _build_montage_command(
                 v1, v2, a_clips, music, w=w, h=h, fps=fps,
                 mix_db=mix, ducking=ducking,
                 duration_master=duration_master, preview=preview, out=out,
-                subs_ass=subs_ass)
+                subs_ass=subs_ass, titles_ass=titles_ass)
             fx_n = sum(len(c["effects"] or []) for c in v1)
             logger.info(f"montage {short}: {len(v1)} clips V1 ({fx_n} effets), "
                         f"{len(v2)} overlays V2, {len(a_clips)} audio, "
@@ -2653,6 +3015,11 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                     + (f" — non gravable : "
                        f"{', '.join(subs_info['unsupported'])}"
                        if subs_info["unsupported"] else ""))
+            if titles_ass:
+                logger.info(f"montage {short}: {titles_info['titres']} titre(s) "
+                            f"gravé(s) avant S1 "
+                            f"({titles_info['ignores']} ignoré(s)) — "
+                            f"{', '.join(Path(p).name for p in titles_ass[:4])}")
             await asyncio.to_thread(_run_ffmpeg, cmd, out)
 
             dur = await loop.run_in_executor(None, _probe_duration, out)

@@ -31,7 +31,460 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 06/09/2026 (P16 — traduire les repliques) : 1301
+COMPTE DE REFERENCE, 22/09/2026 (cloture du lot L2, tache 8) : 1636 lignes,
+soit QUATRE-VINGT-SEPT de plus que les 1549 de D-12. Elles ont ete posees
+par les taches 4 a 7 (D-21, les cartons de titre : la section TT1 sur
+`trackKind`, les huit replis TT2..TT10, les pins de l'inspecteur et de
+l'apercu vivant) sans que cette en-tete soit remise a jour -- la tache 8
+la remesure et la redit. RIEN n'est ajoute ici : le compte est celui que
+le banc IMPRIME (`=== 1636 passed, 0 failed ===`), pas une addition.
+
+COMPTE PRECEDENT, 21/09/2026 (D-12, tache 3, TOUR DE REVUE) : 1549 lignes,
+soit DEUX de plus que les 1547 du premier tour. Les deux sont les bancs
+CROISES que la revue exige : les trois cles de `DZM_VEIL` comparees a
+`_XFADE_LIVE` du service (extraites des DEUX fichiers, jamais recopiees), et
+le triplet de bornes (1 / .1 / .4) extrait par la MEME regex de `svmTransS`
+du .bak ET de `dzmVeil` de la couche. Une ligne existante est REECRITE sans
+en gagner (`D12_le_voile_est_ecrit_en_tete...` : la tete BORNEE et la
+signature `_dzVeil`), et une autre PERD un conjoint tautologique (« aucune
+section ne s'appelle V1 » ne mesurait que le choix d'etiquette).
+
+COMPTE PRECEDENT, 21/09/2026 (D-12, tache 3 — les fondus simples joues en
+direct) : 1547 lignes, soit DIX de plus que les 1537 de D-20. DEUX viennent
+de la boucle sur `P.PATCHES`, qui les emet toute seule pour les sections V2
+et V3 (leurs ancres sont REPRISES dans leur remplacement : pas de ligne
+`_ancre_consommee`). QUATRE sont les pins D-12 que la boucle ne voit pas :
+V1 repliee dans R_M16REF (avec la mesure qui l'impose, l'ancre a 0 dans le
+.bak), le voile conditionne par `liveOn` et place dans le bon ordre du DOM,
+l'ecriture en TETE de `liveSync`, et l'opacite de l'hote JAMAIS ecrite
+(l'ecart declare avec le plan). Une CINQUIEME est la feuille : le voile pose
+SANS `z-index`, avec les trois voisins qui le justifient. La SIXIEME est la
+reserve cosmetique de la revue precedente, fermee ici : les quatre poids de
+specificite du survol et du figement, CALCULES par `_spec` au lieu d'etre
+affirmes -- le survol et le figement du bundle pesent (0,5,0), pas 4, et les
+notres (0,6,0), donc la specificite tranche seule et non l'ordre de
+chargement. Les commentaires jumeaux de ce banc ET de montage.css sont
+corriges. Les DEUX dernieres viennent de la seconde boucle generique
+(`couche_ne_cite_pas_l_ancre_de_...`), pour les memes deux sections.
+DECOMPTE MESURE, pas devine : 2 + 6 + 2 = 10.
+
+COMPTE PRECEDENT, 21/09/2026 (D-20, tache 2, TOUR DE CORRECTION) : 1537
+lignes, soit HUIT de plus que les 1529 du premier tour. Les huit : la
+SPECIFICITE calculee regle par regle (avec son temoin de methode : appliquee
+a la forme fautive, la fonction rend bien 6), `dissolve`/`fadeblack` sans
+`data-fam`, la phase de repos par famille, le volet qui LIT sa direction,
+la tuile en colonne, le groupe nomme et l'etat de la tuile, le silence sur
+le direct sans catalogue, et la liste blanche des @keyframes sortie dans
+une ligne propre. DEUX lignes existantes reecrites : celle des deux apercus
+historiques (l'exclusion a quitte la feuille pour la couche) et
+`tb8_aucun_mouvement...`, qui itere desormais par REGLES
+(`([^{}]*)\{([^{}]*)\}` sur la feuille SANS ses commentaires) au lieu de
+`split("}")` -- une `animation:` posee sous un `@media` y passait.
+
+COMPTE PRECEDENT, 21/09/2026 (D-20, tache 2 — la galerie des transitions,
+cote ecran) : 1529 lignes, soit TRENTE-HUIT de plus que les 1491 de D-4.
+Une seule ligne existante a ete REECRITE et c'est une CORRECTION :
+`tb8_aucun_mouvement_de_la_barre_n_est_pilote_en_javascript` exigeait
+« aucune @keyframes DANS montage.css », ce qui melait deux sujets — la
+feuille porte desormais les quatre animations de l'apercu des transitions,
+qui n'ont rien a voir avec la barre. Elle mesure maintenant ce qu'elle
+VOULAIT dire : aucune regle `.dzm-tb*` ne declare `animation:`, et les
+seules @keyframes de la feuille sont les quatre neuves, NOMMEES.
+Les trente-sept neuves : deux extractions gardees (le catalogue du service
+et la table des sept historiques du bundle, toutes deux avec repli et
+ligne dediee), les deux replis X1 dans R_M16REF, le tir unique et
+annulable, X2 (la galerie + la survie du curseur et du bouton), X3/X3b,
+X4, quatre noms libres dans le .bak, huit lignes de RENDU par le stub JSX
+(sept groupes / 62 tuiles, les trois historiques, la tuile choisie, la
+non choisie, le clic, l'infobulle du direct, la galerie SANS catalogue) et
+cinq lignes de FEUILLE (six familles + quatre sens, les trois animations
+empruntees non redeclarees, les deux apercus historiques non ecrases, le
+mouvement reduit deja couvrant, et le banc CROISE entre la copie cliente
+des familles et _XFADE_FAMILIES du service) -- dont la ligne qui repose la
+PAUSE, le SURVOL et le FIGEMENT sur `[data-fam]` : nos six regles de famille
+ecrivent le RACCOURCI `animation:`, qui remet `animation-play-state` a
+`running`, et sans elles les 58 tuiles neuves s'agiteraient en permanence.
+
+COMPTE PRECEDENT, 21/09/2026 (D-4, tache 9 — echanger deux plans voisins) :
+1491 lignes, soit CINQ de plus que les 1486 de D-5. W1 (replie dans R_R1) et
+W2 (replie dans R_R2) ajoutent chacun un pin de forme (D4_W1.../D4_W2...),
+plus les combos, le nom des fleches gauche/droite et l appel unique a
+`DzTracks.swap` : sept lignes neuves, deux existantes reecrites en place
+(tb8_le_T_du_handoff... 41->43, D5_les_marqueurs_etaient_deja... pushHistory
+3->4) sans en gagner de ligne.
+
+COMPTE PRECEDENT, 21/09/2026 (D-5, tache 8, SECOND TOUR) : 1486 lignes, et
+ce banc-ci n en gagne AUCUNE -- les quatre residus se ferment par des
+CONJOINTS sur des lignes existantes et par deux bancs voisins :
+  . R-1 -- les filtres d espacement de `dzmMarkersFrom` et de
+    `_save_record` etaient STRICTS quand `markerNext` exige `t > v + EPS`
+    strict lui aussi : un couple a EXACTEMENT 0,150 s passait le filtre et
+    restait INJOIGNABLE DANS LES DEUX SENS (697 couples au millieme entre 0
+    et 10 s). Les deux bornes passent a `<=` (+1e-9, la tolerance de
+    flottant : 1,15 - 1,00 vaut 0,15000000000000013 en double) et disent
+    donc ce que `markerAdd` disait deja. Bance dans
+    test_montage_edition.py (`mk_un_ecart_d_exactement_un_eps_est_trop_
+    proche` et `..._serait_injoignable`) et dans test_montage_projets.py
+    (`d5_un_ecart_d_exactement_un_eps_est_trop_proche` et son conjoint
+    positif a 0,151) ;
+  . R-2 -- la note de l index VIDE, celle qui APPREND le geste, ecrivait
+    encore « Maj+M » en dur. Elle passe par `dzmMarkerCombo()`, et
+    `D5_I5_les_trois_textes_lisent_la_keymap_vivante` gagne la negation,
+    son conjoint positif (la phrase existe toujours) et le compte des
+    APPELS -- le mot « dzmMarkerCombo() » apparait 3 fois dans la couche,
+    dont une dans sa propre DECLARATION ;
+  . R-3 -- `dzmMarkerT` refuse le TYPE avant la valeur : `Number(true)`
+    vaut 1 et `Number([])` vaut 0, quand `_save_record` les jette deja
+    (`isinstance(t, bool)`, et `float([])` leve) ;
+  . R-4 -- l etiquette « I-6 » du commentaire de `dzmMarkerT` etait FAUSSE
+    (I-6 nommait les `.index()` nus de ce banc) : corrigee sur place.
+MUTATIONS, sur COPIES, restaurees ensuite : le filtre de la couche rendu
+STRICT -> `mk_un_ecart_d_exactement_un_eps_est_trop_proche` rougit SEULE
+(88/1) ; celui du backend rendu STRICT ->
+`d5_un_ecart_d_exactement_un_eps_est_trop_proche` rougit SEULE (158/1) ;
+la note de l index vide rendue a « Maj+M » en dur, chaine rejouee ->
+`D5_I5_les_trois_textes_lisent_la_keymap_vivante` rougit SEULE (1485/1) ;
+le garde-type de `dzmMarkerT` retire ->
+`mk_un_temps_qui_n_est_ni_nombre_ni_chaine_est_refuse` rougit SEULE (88/1).
+
+COMPTE PRECEDENT, 21/09/2026 (D-5, tache 8, TOUR DE CORRECTION) : 1474
+lignes. DOUZE lignes naissent, QUATRE pre-existantes changent, et UNE
+section de cablage s ajoute (K7, Echap) :
+  . C-1 -- `D5_C1_le_losange_avale_son_pointerdown`. Le clic sur un losange
+    n allait NULLE PART : `.svm-ruler` porte `onPointerDown:rulerDown`, qui
+    prend la capture du pointeur et fait `seekTo(phFromEvent(e, el))`. Le
+    `click` du bouton arrivait trop tard. Meme parade que `vpDown` ;
+  . I-1 -- la bascule retirait le PREMIER marqueur de la tolerance, pas le
+    plus proche (A a 1,00, B a 1,10, tete a 1,09 -> A tombait). Deux sens
+    joues dans test_montage_edition.py ;
+  . I-2 -- l invariant d espacement n etait tenu que par `markerAdd` :
+    `markersFrom` ET `_save_record` le tiennent desormais (tri, puis rejet
+    de tout voisin a moins d un EPS, puis plafond). Bances des deux cotes ;
+  . I-3 -- `D5_I3_l_input_remonte_quand_le_titre_amont_change`. React
+    IGNORE `defaultValue` a la mise a jour : apres Ctrl+Z l input gardait
+    le titre neuf. La cle porte desormais la valeur ;
+  . I-4 -- `D5_I4_les_deux_panneaux_s_excluent` et
+    `D5_I4_echap_ferme_l_index_avant_le_repli_des_overlays`. L index et le
+    selecteur d assets sont deux `.svm-pop` a `top:96` et se recouvraient ;
+    K7 greffe Echap sur la branche `Escape` de `onKey` qui existait DEJA ;
+  . I-5 -- `D5_I5_les_trois_textes_lisent_la_keymap_vivante` et
+    `D5_I5_la_combo_du_losange_change_quand_la_keymap_change`. Trois textes
+    ecrivaient « Ctrl+M » / « Maj+M » EN DUR alors que les actions sont
+    remappables. Les deux du composant passent par `svmKeyLabel`, celui de
+    la couche par `svmKeyLabelNow` (niveau MODULE), resolu a l appel ;
+  . I-6 -- deux `.index()` NUS (`_RULER5` et la position de la chip) :
+    `find()` + condition, comme chez les voisines ;
+  . I-7 -- `D5_I7_le_champ_de_titre_a_sa_regle` : le champ heritait du
+    chrome du navigateur dans un panneau sombre.
+QUATRE LIGNES PRE-EXISTANTES REMESUREES :
+  `D2_le_refus_de_verrou_ne_ferme_pas_le_selecteur` (4 -> 5 `setOvPick("")`,
+  le cinquieme etant celui de `dzMkToggle`), `D5_le_cablage_n_ajoute_que_
+  deux_sections` -> `..._trois_sections` (K7), `D5_K2_le_dispatch_ouvre_l_
+  index` (le texte passe par `dzMkToggle()`), et trois DETAILS de `check()`
+  qui n imprimaient rien de vrai (`s.count(nl(chr(34)))` comptait les
+  guillemets du bundle, `src.count("'var dzTc=")` comptait zero).
+MUTATIONS APPLIQUEES, sur COPIES, restaurees ensuite :
+  . la parade C-1 retiree de la couche, chaine rejouee ->
+    `D5_C1_le_losange_avale_son_pointerdown` rougit SEULE (1485/1) ;
+  . le filtre d ecart retire de `_save_record` ->
+    `d5_deux_marqueurs_trop_proches_ne_font_qu_un` et
+    `d5_le_tri_precede_le_filtre_et_les_doublons_fusionnent` rougissent
+    (155/2) ;
+  . la bascule rend au PREMIER de la tolerance ->
+    `mk_la_bascule_retire_le_marqueur_le_plus_proche` rougit SEULE (85/1) ;
+  . la cle de l input redevient `m.id` seul, chaine rejouee ->
+    `D5_I3_l_input_remonte_quand_le_titre_amont_change` rougit SEULE
+    (1485/1).
+
+COMPTE PRECEDENT, 21/09/2026 (D-5, tache 8 - les marqueurs) : 1442 lignes.
+Le lot en ajoute TRENTE-DEUX et en remesure TROIS.
+QUATRE viennent de la boucle sur `P.PATCHES`, qui les emet toute seule pour
+les DEUX sections neuves K5 et K5b (`_remplace` et
+`couche_ne_cite_pas_l_ancre_de_` chacune -- aucune `_ancre_consommee`, les
+deux remplacements REPRENNENT leur ancre). Les VINGT-HUIT autres sont
+nommees `D5_*` : la garde par PREFIXE (`_K_TAGS`, meme forme que `_E_TAGS`
+de D-2), l existence des deux ancres dans le .bak, les HUIT replis nommes un
+a un (K1 les quatre actions, K2 en trois branches, K3 l etat, K4 les
+losanges, K6 des deux cotes -- chacun mesure le texte DANS le bundle, DANS
+le remplacement qui le porte, et ABSENT du .bak), les quatre combos, le nom
+des fleches pris a `svmComboOfEvent`, la feuille, l ordre dans la regle, et
+les douze lignes JOUEES par le stub JSX.
+TROIS LIGNES PRE-EXISTANTES REMESUREES, pas relachees :
+  . `tb7_exigence2_la_chaine_ne_nomme_jamais_setPh_ni_seekTo` interdisait
+    `seekTo` a la CHAINE ENTIERE alors que l exigence du handoff porte sur
+    les neuf boutons de la BARRE. « Aller au marqueur suivant » n a pas
+    d autre sens que de deplacer la tete. Renommee
+    `tb7_exigence2_seul_le_lot_des_marqueurs_bouge_la_tete`, elle mesure
+    desormais que les sections qui nomment `seekTo` sont EXACTEMENT
+    R2/R3/K5b, et que la couche, elle, n en nomme toujours aucun ;
+  . `tb8_le_T_du_handoff_appartient_deja_a_la_narration` : 37 -> 41 actions
+    (K1 en declare quatre). `tb8_aucune_combo_par_defaut_n_est_prise_deux_
+    fois` n a PAS bouge -- c est elle qui mesure que Maj+M, Ctrl+haut,
+    Ctrl+bas et Ctrl+M ne volent rien ;
+  . `tb8_les_trois_chips_degradees_gardent_un_nom_et_une_infobulle` : 4 -> 5
+    chips. La chip des marqueurs est la QUATRIEME, hors du
+    `:nth-child(-n+3)` qui degrade en glyphe seul.
+UNE FAUTE N6 ATTRAPEE PENDANT L ECRITURE : `_RULER` (la tranche de la regle
+du bundle) est REAFFECTE au milieu du fichier a la source de `svmRuler`. La
+premiere ecriture du pin lisait donc 73 octets de `svmPad2` au lieu de la
+regle -- elle a ROUGI au lieu de bénir, et la tranche est desormais
+recalculee sous son propre nom `_RULER5`.
+MUTATIONS APPLIQUEES le 21/09/2026, sur COPIES, restaurees ensuite :
+  . coeur pur -- `dzmMarkerNext` repasse du seuil DZM_MARKER_EPS au `1e-6`
+    qu annoncait le plan -> `mk_suivant_ignore_le_marqueur_sous_la_tete` de
+    test_montage_edition.py rougit SEULE (`[2.004, None, None, None]`),
+    80/1 ; seuil restaure, 81/0 ;
+  . backend -- la troncature a 200 de `_save_record` retiree ->
+    `d5_deux_cent_cinquante_marqueurs_sont_tronques_a_deux_cents` de
+    test_montage_projets.py rougit SEULE (`n=250`), 152/1 ; troncature
+    restauree, 153/0.
+
+COMPTE PRECEDENT, 21/09/2026 (D-3, tache 7, TOUR DE CORRECTION) : 1441
+lignes. Le lot ne touche presque pas ce banc-ci -- il vit dans le coeur
+pur et dans test_montage_edition.py (48 -> 58 / 0) -- mais TROIS lignes
+d'ici changent et UNE naît :
+  . M8 -- `D2_le_cablage_n_ajoute_qu_une_section_celle_du_verrou` ne
+    compte plus `len(P.PATCHES)` EN DUR (un absolu que tout lot suivant
+    faisait rougir sans qu'aucun cablage de D-2 ait bouge) : elle mesure
+    le PREFIXE des tags, `[t for t in PATCHES if t[0].startswith("E")]`
+    == ["E4-verrou-apres-mode"].
+  . M9 -- `D3_ecart_aucun_curseur_contextuel_dans_la_feuille` cherchait
+    les MOTS « slip » / « slide » dans toute la feuille : un
+    `@keyframes slide-in` sans rapport l'aurait fait rougir. Elle ne lit
+    plus que les lignes `cursor:`, avec un conjoint positif (la feuille
+    en porte deja).
+  . `D3_T1_ecart_la_borne_haute_du_slip_est_inconnue_a_l_ecran` NOMME
+    desormais la cause : la couche fait `if("srcDur" in k)delete
+    k.srcDur` sur tout clip pose.
+  . I3 -- ligne NEUVE `D3_T3b_alt_neutralise_aussi_le_clic_qui_ouvre_le
+    _reglage` : `preventDefault()` sur un pointerdown NE SUPPRIME PAS le
+    `click` qui suit, et `openTransPop` s'ouvrait par-dessus le roll
+    qu'on venait de faire. L'ancre de T3b est ETENDUE jusqu'au `onClick`
+    (1/1 dans le .bak, mesure). NON-VACUITE : rendre au `onClick` sa
+    forme d'origine dans R_T3B, chaine rejouee, fait rougir cette ligne
+    et elle seule. 1441 -> 1442 / 0.
+
+COMPTE PRECEDENT, 21/09/2026 (D-3, tache 7 - roll, slip, slide) : 1414
+lignes, dont une rouge au premier passage -- `D2_le_cablage_n_ajoute_qu_une
+_section_celle_du_verrou` comptait 75 triplets EN DUR alors qu'elle ne
+parle que du delta de D-2 ; D-3 en ajoute SIX (T1, T2, T3, T3b, T4, T5)
+et le compte passe a 81. Une section neuve, [3-quater], porte le lot :
+VINGT-SEPT pins de forme -- l'ordre des lectures de T1 (entre `svmEdgeAt`
+et le `h0` de H5), la sortie tot de T2 AVANT la branche de rognage et le
+rejeu depuis `h0` et jamais depuis `clipsRef`, la poignee gauche seule
+changee par T3 (la droite reste un `transSpanDown` nu), le losange
+`.svm-junc` rendu SANS condition la ou `.svm-transspan` est sous `on?`
+(T3b), les dix mesures du corps de `dzRollDown` (pose juste avant
+`transSpanDown`, huit symboles de closure, la piste remontee par
+`closest(".svm-lane")` et jamais par `parentElement`, le verrou, une
+seule entree d'historique), le titre de T5 et la disparition de
+l'ancien, les DEUX ecarts assumes et dates (borne haute du slip
+inconnue faute de `c.srcDur` a l'ecran ; aucun curseur contextuel dans
+la feuille) et les cinq lignes du coeur pur exporte. NON-VACUITE DU
+CABLAGE : `R_T5 = A_T5` dans le patcher, chaine rejouee, fait rougir
+`D3_T5_le_titre_dit_les_trois_gestes_et_l_ancienne_phrase_a_disparu`.
+
+COMPTE PRECEDENT, 21/09/2026 (D-2, tache 6, TOUR DE CORRECTION) : 1398
+lignes, soit DIX-NEUF de plus que les 1379 du premier tour. La DIX-NEUVIEME
+est `js_D2_dessus_remonte_meme_quand_la_piste_visee_est_vide`, et elle a une
+histoire : la note de M-5 disait « la piste visee etait occupee a cet
+instant », ce qui est FAUX — `dzmInsere` en mode « dessus » remonte TOUJOURS
+vers la premiere piste libre du meme genre, sans jamais regarder
+l'occupation de la piste visee (mesure sous node : pistes [v2, v1], AUCUN
+clip, clip vise sur v1 -> {track:"v2", refus:"", note:""}). La note enonce
+desormais le MODE. La ligne neuve joue ce cas-la — une V1 VIDE — et NIE
+l'ancienne phrase mot pour mot ; la remettre fait rougir les DEUX lignes
+« dessus » (mutation jouee et retiree, 1396/2). Ce que ces
+dix-huit tiennent, dans l'ordre de la liste fermee du controleur :
+  · I-1, la course « remplir la plage » / plage effacee, prise aux DEUX
+    bouts : le mode SUIT la plage (R_R2 appelle `setDzMode("ecraser")` sur
+    range_clear ET range_cut — portee mesuree, `setDzMode` et la branche de
+    dispatch sont dans le MEME corps de composant), et si la course a lieu
+    quand meme la note le DIT. `js_D2_remplir_sans_plage_retombe_en_ecraser
+    _sans_rien_dire` est REMPLACEE par `..._ET_LE_DIT`, qui exige la phrase.
+  · I-2, `DzTracks.secs` (un formateur de DUREE, qui arrondissait la vitesse
+    0,25 en « x0,3 ») ne formate plus la vitesse. Conjoint : `secs` existe
+    toujours dans la couche, on a cesse de le detourner.
+  · I-3, `srcDur` passe par `opts` et `dzmPose` le retire de la copie posee.
+    La sonde LIT LES CLES du clip pose : sept, nommees une a une.
+  · I-4, la typographie de la rangee et le contraste de la chip active — le
+    defaut garde est mesure (`--panel2` peint la chip allumee ET le fond du
+    `.svm-pop` : elle y disparaissait).
+  · I-5, le refus de verrou ne ferme plus le selecteur.
+  · conformite 1, pas de rangee en mode « Remplacer la source ».
+  · conformite 5, la phrase de l'allongement est BORNEE (`dzAv`).
+  · conformite 7 / « E4 », le verrou de la piste VISEE ne precede plus le
+    mode : deplace dans `insere()`, ou la piste REELLE est connue. C'est la
+    SEULE section ajoutee au patcher (74 -> 75 triplets, 75 -> 76 ancres) et
+    la seule des quatre « E » dont l'ancre existe dans .bak_montage — elle
+    vient du greffon amont. Deux lignes node : « au-dessus » pose sur V2
+    quand V1 est verrouillee, et « ecraser » refuse toujours, avec la phrase
+    d'origine MOT POUR MOT.
+  · M-1 (la table d'infobulles precede son lecteur), M-3 (la phrase du coeur
+    capitalisee), M-4 (les commentaires JS ne citent plus le namespace — la
+    sonde dzcout compte du TEXTE), M-5 (la piste n'est plus repetee).
+NON-VACUITE, TROIS MUTATIONS JOUEES ET RETIREES : `R_E4 = A_E4` (la garde
+reste a sa place) fait rougir `js_D2_E4_au_dessus_pose_sur_V2_quand_V1_est
+_verrouillee` + deux pins ; retirer un `setDzMode("ecraser")` de R_R2 fait
+rougir `D2_I1_effacer_la_plage_desarme_le_mode_remplir` ; remettre `srcDur`
+sur le clip ET retirer le `delete` de `dzmPose` fait rougir les DEUX lignes
+d'I-3 (`ecraser` rend alors huit cles, `srcDur` comprise).
+UNE FAUTE N°6 ATTRAPEE PENDANT L'ECRITURE : `_CSSM.split(borne)[1]` leve
+IndexError quand la borne disparait — un banc doit ROUGIR, pas MOURIR. La
+parade est `_apres()`, qui rend "" et fait rougir ses lectrices.
+
+COMPTE PRECEDENT, 21/09/2026 (D-2, tache 6, premier tour) : 1379 lignes, soit QUARANTE de plus que les 1339 de D-11. Une
+section neuve, [3-ter], porte le lot : VINGT-SEPT pins statiques (les trois
+ancres du cablage mesurees A ZERO dans .bak_montage — c'est ce qui interdit
+d'en faire des sections et impose le repli dans R_M16REF / R_M15B / R_M22A
++ R_M22B —, l'etat et la ref du mode, la rangee de chips entre le titre et
+la note du selecteur, les six infobulles, la chip « remplir » grisee sans
+plage, le marqueur `data-on` des chips voisines, la feuille, l'ordre
+refus-avant-pushHistory et le jeton jamais affiche) et DOUZE lignes `js_D2_*`
+qui JOUENT les six modes par le vrai `addAsset` sous node. Trois lignes
+existantes ont ete REECRITES plutot que doublees :
+`P12_un_seul_concat_porte_le_plan_et_son_jumeau` devient
+`D2_addAsset_ecrit_par_insere_et_plus_par_concat` (sa negation d'origine est
+CONSERVEE), `P12_le_compteur_est_re_seme_une_fois` nomme les DEUX ecrivains,
+et `P10_aucune_entree_d_historique_de_plus` suit le `pushHistory` de l'ajout
+dans R_M22A. NON-VACUITE PROUVEE PAR DEUX MUTATIONS : `if(!1&&lk[tr])` dans
+`dzmInsere` fait rougir
+`js_D2_dessus_sur_une_piste_verrouillee_ne_pose_RIEN_et_le_dit` (le clip se
+pose sur la piste VERROUILLEE, hist=1) ; retirer `id=dzIns.id||id;` de
+R_M22A fait rougir `D2_la_selection_et_la_note_relisent_le_clip_pose`.
+
+COMPTE PRECEDENT, 21/09/2026 (D-11, revue qualite de la tache 4) : 1339
+lignes, soit SEPT de plus que les 1332 du premier tour D-11. Les ONZE lignes
+nommees `D11_*` tiennent desormais tout le lot :
+  · la persistance — `D11_la_plage_part_avec_la_sauvegarde` et
+    `D11_la_plage_revient_avec_le_projet` (les sections « R4 » et « R5 » du
+    plan sont REPLIEES dans R_M6 et R_M7 : leurs ancres sont des textes que
+    ces remplacements POSENT, compte 0 dans .bak_montage, mesure du
+    21/09/2026 — une section a part aurait abandonne au premier `--check`) ;
+  · la bande sur la regle — `..._est_montee_dans_la_regle_et_la_regle_est_positionnee`,
+    `..._rend_null_sans_plage_valide`, `..._est_bornee_a_la_regle` (la forme),
+    plus les DEUX cas JOUES sous node avec le stub JSX,
+    `D11_une_plage_plus_longue_que_la_duree_tient_dans_la_regle` et
+    `D11_une_entree_hors_champ_ne_rend_pas_une_bande_a_l_envers` ;
+  · la sortie tot de R2 — `D11_une_plage_inchangee_ne_pousse_ni_historique_ni_dirty`
+    et `D11_la_plage_absente_du_projet_de_depart_vaut_null` (le projet de
+    DEPART est `useState({demo:!0,...})`, SANS cle `range` : sans le repli
+    `||null`, X sur une plage vide au demarrage poussait l'historique) ;
+  · les notes de demi-plage — `D11_une_demi_plage_est_dite_par_une_note` ;
+  · le partage des options de coupe — `D11_les_options_de_coupe_ne_sont_ecrites_qu_une_fois`.
+SIX AUTRES lignes viennent de la boucle sur `P.PATCHES`, qui les emet toute
+seule pour les trois sections neuves R1, R2 et R3 (deux chacune : `_remplace`
+et `couche_ne_cite_pas_l_ancre_de_` — aucune `_ancre_consommee`, les trois
+remplacements REPRENNENT leur ancre).
+DEUX LIGNES PRE-EXISTANTES REMESUREES, pas relachees :
+  · `M12_utilise_DzTracks_pas_DzMontage` comptait UN `DzTracks.rippleCut` ;
+    il y en a DEUX depuis R2 (« Maj+X » coupe la plage sur toutes les
+    pistes). Le chiffre passe a 2 et la ligne gagne son detail ;
+  · `tb8_le_T_du_handoff_appartient_deja_a_la_narration` exigeait 33 actions
+    dans SVM_ACTIONS ; R1 en declare quatre (range_in, range_out,
+    range_clear, range_cut) et la table en porte 37. La ligne voisine
+    `tb8_aucune_combo_par_defaut_n_est_prise_deux_fois` n'a PAS bouge : c'est
+    elle qui mesure que I, U, X et Maj+X ne volent rien.
+MUTATION APPLIQUEE le 21/09/2026 (revue) : la garde `0 <= a` de
+`montage_service._save_record` relachee en `a < b` ->
+`d11_une_entree_negative_n_est_pas_stockee` de test_montage_projets.py rougit
+(`range={'in': -1.0, 'out': 2.0}`), 143/1 ; garde restauree, 144/0.
+
+COMPTE PRECEDENT, 21/09/2026 (D-11, premier tour) : 1332 lignes, soit DIX de
+plus que les 1322 du tour D-0 — SIX de la boucle sur `P.PATCHES` (R1, R2, R3)
+et QUATRE nommees. La revue qualite en a ajoute SEPT : les deux cas joues de
+la bande, `D11_la_plage_absente_du_projet_de_depart_vaut_null` (fenetre
+`undefined` REELLE), `D11_une_demi_plage_est_dite_par_une_note`,
+`D11_la_bande_est_bornee_a_la_regle`,
+`D11_les_options_de_coupe_ne_sont_ecrites_qu_une_fois` et
+`D11_une_plage_inchangee_ne_pousse_ni_historique_ni_dirty`.
+MUTATION DE CE TOUR-LA : `.dzsvm .svm-ruler{position:relative}` renomme dans
+montage.css -> `D11_la_bande_est_montee_dans_la_regle...` rougit
+(`css_ruler=0`), 1331/1, et le banc revenait a 1332/0 la feuille restauree.
+
+COMPTE PRECEDENT, 21/09/2026 (D-0, troisieme tour — corrections de banc de
+la revue qualite) : 1322 lignes, soit DEUX de plus que les 1320 du second
+tour — UNE de la tache 3, D-1
+(`D1_la_barre_flotte_AU_DESSUS_du_transport_pas_sur_les_pistes`), et UNE
+d'ici : `tb4_la_borne_D0_de_la_tranche_barre_est_trouvee`.
+TROIS DEFAUTS DE BANC REPARES, tous trois nes du second tour :
+  · LE REPLI SILENCIEUX. La borne de fin de la tranche `_SRC_TB` retombait
+    sur `/* ── export contrat` quand l'en-tete D-0 n'etait pas trouve —
+    c'est-a-dire qu'elle RESTAURAIT toute seule le defaut qu'on venait de
+    corriger (le cœur D-0 avale par la tranche de la barre, jeton `Snap`).
+    Le repli est SUPPRIME : borne introuvable -> -1 -> « BLOC-INTROUVABLE »
+    -> la ligne neuve rougit. MUTATION APPLIQUEE le 21/09/2026 sur une COPIE
+    de montage.js (en-tete D-0 renomme) : elle rougit (`en-tete D-0=-1`), et
+    les quatre lignes conjointes de la barre rougissent avec elle ;
+  · LE COMMENTAIRE DU BOUCHON [3-bis] disait « la MEME expression que dans
+    le bundle » pour `dzmHistHost`, alors que l'affectation
+    `dzProjRef.current=proj` — posee a cote de la DECLARATION dans le
+    bundle, relue a chaque RENDU — est repliee DANS la fonction ici, parce
+    que ce shim n'a pas de rendu. La phrase dit desormais ce qui est ;
+  · LA FENETRE DE 600 ms N'ETAIT PAS MESUREE. La sonde clique maintenant
+    « + » DEUX fois dans le MEME tick, sur un controle reconstruit a la
+    duree qui vient d'etre ecrite : `ct_plus` vaut [18, 20] (pas de 2 s,
+    depart a 16) et `ct_hist` vaut UN. MUTATION APPLIQUEE : en retirant la
+    fenetre du bundle d'une copie (`if(dzN-dzDurHistAt.current>600)`
+    supprime), `ct_hist` passe a 2 et
+    `js_transport_le_reglage_entre_dans_l_historique` rougit, pendant que
+    `ct_plus` reste [18, 20] — l'ecriture est bien le conjoint positif.
+    `js_transport_le_reglage_ecrit_la_duree` suit : [18, 20] et deux
+    armements de l'autosauvegarde.
+COMPTE PRECEDENT, 21/09/2026 (D-0, second tour — « absent est un etat ») :
+1320 lignes, soit UNE de plus que les 1319 du premier tour :
+`D0_une_cle_absente_est_portee_par_l_instantane`. LE DEFAUT QU'ELLE GARDE A
+ETE VU A L'ECRAN, pas devine : sur le projet de demonstration, qui n'a PAS de
+cle `proj.tracks`, ajouter une piste « audio » puis allonger la timeline,
+Ctrl+Z rendait 1:04 mais LAISSAIT A4. `dzmHistSnap` ne copiait une cle que si
+`k in p` ; la cle manquante n'entrait donc pas dans l'instantane et
+`histApply` n'avait rien a remettre. Les cinq cles sont desormais copiees
+SANS condition — `undefined` EST l'etat a restaurer. Le conjoint qui joue les
+deux sens sous node vit dans test_montage_historique.py
+(`hist_snap_porte_une_cle_absente_comme_absente`,
+`hist_apply_restaure_l_absence`, 15/0) ; les deux y rougissent quand on
+remet `if(k in p)` — mutation appliquee et mesuree le 21/09/2026.
+`D0_undo_restaure_tout_l_instantane` y gagne le compte du bus
+(`svmTrackBusSync(s.tracks)` DEUX fois, une par sens). L'APPEL RESTE NU :
+`svmTrackBusSync(undefined)` retombe deja sur DZM_DEFAULT_TRACKS, la table
+meme que `svmTracksOf` rend sans `proj.tracks` (les trois bus joues sous node
+sont identiques) — la sonde `DzTracks` de dzcout reste donc a 63.
+COMPTE PRECEDENT, 21/09/2026 (D-0 — l'historique complet cable) : 1319
+lignes, soit DIX-HUIT de plus que les 1301 de P16, MESUREES sur la sortie du
+banc et decomposees : SEIZE que la boucle sur `P.PATCHES` emet toute seule
+pour les SIX sections H1…H5 et H7 (six `_remplace`, six
+`couche_ne_cite_pas_l_ancre_de_`, et QUATRE `_ancre_consommee` — H1 et H7
+REPRENNENT leur ancre, les quatre autres non), plus DEUX ecrites a la main :
+`D0_undo_restaure_tout_l_instantane` (undo et redo passent par `histApply`,
+les deux piles empilent l'instantane complet, `pushHistory` n'empile plus
+{clips, mixDb}) et `js_transport_le_reglage_entre_dans_l_historique` (le
+repli « H6 » dans R_M17G, joue sous node : un clic sur « + » pousse UNE
+entree et ecrit 18).
+IL N'Y A PAS DE SECTION H6, et c'est une MESURE : son ancre — la ligne
+`onSet` du controle de duree — est POSEE par R_M17G, si bien que `--check`
+la declarait introuvable et que `M17g-transport-duree_remplace` comptait 0.
+Repliee dans R_M17G (meme motif que M10 dans R_M8), les deux redeviennent
+vraies.
+QUATRE LIGNES ONT ETE REECRITES plutot que supprimees, parce qu'elles ont
+fait leur travail en rougissant sur la phrase d'hier : les trois
+`P10_M17*_dit_que_annuler_…` et `P10_le_controle_dit_la_reserve…` — la
+reserve « annuler ne rend pas la duree » n'existe plus, la negation
+`NE raccourcit PAS` reste en conjoint pour qu'une phrase d'avant oubliee
+rougisse. `P10_aucune_entree_d_historique_de_plus` exige desormais
+EXACTEMENT UN `pushHistory();` dans le code de R_M17G, la ou elle en
+exigeait zero.
+DEUX DEFAUTS DE MESURE DEMASQUES PAR CE LOT, tous deux anterieurs :
+  · les trois boucles `nom_…_etait_libre_dans_le_bundle_d_entree`
+    comptaient une SOUS-CHAINE. `dzDial` y valait DIX-HUIT dans
+    .bak_montage — dix-huit `__dzDialogue`, poses par le maillon
+    `dialogue` EN AMONT de montage. Le compte est desormais borne par les
+    mots (`_libre`), et il dit ce qu'il pretendait dire ;
+  · la tranche `_SRC_TB` de la barre d'outils s'arretait a
+    `/* ── export contrat`, si bien que le cœur pur D-0 de la tache 1
+    (`dzmHistSnap`) tombait dedans et faisait rougir
+    `tb7_exigence3_aimanter_n_a_qu_un_lecteur…` sur le jeton `Snap`. La
+    borne s'arrete maintenant a l'en-tete D-0.
+COMPTE PRECEDENT, 06/09/2026 (P16 — traduire les repliques) : 1301
 lignes, soit CINQUANTE-CINQ de plus que les 1246 de P14, MESUREES sur la
 sortie du banc et decomposees : QUATRE que la boucle sur `P.PATCHES` emet
 toute seule pour les DEUX sections M26a/M26b (deux `_remplace`, deux
@@ -409,6 +862,184 @@ for tag, a, r in P.PATCHES:
     if a not in r:
         check(tag + "_ancre_consommee", s.count(nl(a)) == 0,
               f"count={s.count(nl(a))}")
+# ── D-0 (21/09/2026) : L'HISTORIQUE COMPLET, LE FOND ───────────────────────
+# Les six sections H1…H5 et H7 sont deja comptees une a une par la boucle
+# ci-dessus. CETTE ligne mesure ce que la boucle ne voit pas : que undo ET
+# redo passent bien par `histApply` (DEUX occurrences, une par sens), que le
+# bus des pistes est resynchronise dans les DEUX sens, que les deux piles
+# empilent l'instantane COMPLET, et que `pushHistory` ne pose plus
+# {clips, mixDb} en dur. Une section H3 ou H4 reecrite pour ne rendre que le
+# mixage passerait sa propre ligne `_remplace` et rougirait ici.
+# L'APPEL AU BUS EST NU (`s.tracks`, sans repli) ET C'EST MESURE :
+# `svmTrackBusSync(undefined)` retombe sur DZM_DEFAULT_TRACKS, la table meme
+# que `svmTracksOf` rend sans `proj.tracks` — les trois bus sont identiques
+# (joue sous node le 21/09/2026). Un `||DzTracks.DEFAULTS` n'aurait rien
+# ajoute qu'un jeton de plus a la sonde de dzcout.
+check("D0_undo_restaure_tout_l_instantane",
+      s.count(nl("setProj(function(p){return DzTracks.histApply(p,s)});")) == 2
+      and s.count(nl('if("tracks" in s)svmTrackBusSync(s.tracks);')) == 2
+      and s.count(nl("h.r.push(dzmHistHost());")) == 1
+      and s.count(nl("h.u.push(dzmHistHost());")) == 1
+      and s.count(nl("h.u.push(prev||dzmHistHost());")) == 1
+      and s.count(nl("h.u.push(prev||{clips:clipsRef.current,"
+                     "mixDb:mixRef.current});")) == 0,
+      "undo/redo ne passent pas par histApply, le bus ne suit pas les pistes "
+      "restaurees, ou pushHistory empile encore {clips,mixDb}")
+# ABSENT EST UN ETAT : la couche copie les CINQ cles SANS condition `in`.
+# MESURE A L'ECRAN le 21/09/2026 (projet de demonstration, sans
+# `proj.tracks`) : avec la condition, « Annuler » rendait la duree et
+# LAISSAIT la piste ajoutee. Le conjoint positif est la ligne du dessous du
+# banc test_montage_historique.py, qui JOUE les deux sens sous node ; ici on
+# tient la FORME, pour qu'un retour en arriere dans la couche se voie aussi
+# depuis le banc du bundle.
+check("D0_une_cle_absente_est_portee_par_l_instantane",
+      src.count("k=DZM_HIST_CLES[i];s[k]=p[k]}") == 1
+      and src.count("if(k in p)") == 0
+      and src.count("ABSENT EST UN \u00c9TAT") == 1,
+      f'sans_condition={src.count("k=DZM_HIST_CLES[i];s[k]=p[k]}")} '
+      f'reste_de_condition={src.count("if(k in p)")}')
+# ── D-11 (21/09/2026) : LA PLAGE I/O, CE QUE LA BOUCLE NE VOIT PAS ─────────
+# R1, R2 et R3 sont deja comptees une a une par la boucle ci-dessus. « R4 »
+# (la plage part avec la sauvegarde) et « R5 » (elle revient avec le projet)
+# n'existent PAS comme sections : leurs ancres sont des textes que R_M6 et
+# R_M7 POSENT — compte 0 dans .bak_montage, donc `--check` les aurait
+# declarees introuvables et les lignes `M6-save_remplace` /
+# `M7-apply_remplace` seraient tombees a 0. Elles sont REPLIEES, meme
+# technique que H6 dans R_M17G. La boucle les couvre par ricochet (le
+# remplacement entier de M6 et de M7 les contient) ; CES lignes-ci les
+# nomment, pour qu'un repli defait se voie sous son propre nom.
+check("D11_la_plage_part_avec_la_sauvegarde",
+      s.count(nl("      range:DzTracks.rangeFrom(proj.range),")) == 1
+      and "range:DzTracks.rangeFrom(proj.range)," in P.R_M6,
+      f'bundle={s.count(nl("      range:DzTracks.rangeFrom(proj.range),"))} '
+      f'R_M6={"range:DzTracks.rangeFrom(proj.range)," in P.R_M6}')
+check("D11_la_plage_revient_avec_le_projet",
+      s.count(nl("range:DzTracks.rangeFrom(d.range),")) == 1
+      and "range:DzTracks.rangeFrom(d.range)," in P.R_M7,
+      f'bundle={s.count(nl("range:DzTracks.rangeFrom(d.range),"))} '
+      f'R_M7={"range:DzTracks.rangeFrom(d.range)," in P.R_M7}')
+# LA BANDE EST DANS LA REGLE, PAS DANS LES VOIES. `.svm-ruler` n'a AUCUN
+# `position` dans son-vfx-montage.css : sans la regle de montage.css, la
+# bande absolue se serait calee sur `.svm-lanes` (`position:relative`) et
+# aurait barre TOUTES les pistes. Les deux moities sont tenues ici : le
+# composant est monte DANS la regle (juste apres la gouttiere), et la feuille
+# positionne la regle.
+_RULER = re.search(r'className:"svm-ruler".*?className:"svm-tick"',
+                   s.replace("\r\n", "\n"), re.S)
+_RULER = _RULER.group(0) if _RULER else ""
+_CSS_M = (ROOT / "frontend" / "dist" / "shared" / "montage.css").read_text(
+    encoding="utf-8")
+check("D11_la_bande_est_montee_dans_la_regle_et_la_regle_est_positionnee",
+      len(_RULER) > 0
+      and _RULER.count('r.jsx(DzTracks.RangeBar,{range:proj.range,dur:dur}),') == 1
+      and _RULER.index("svm-gutter") < _RULER.index("DzTracks.RangeBar")
+      and _CSS_M.count(".dzsvm .svm-ruler{position:relative}") == 1
+      and _CSS_M.count(".dzsvm .dzm-range{position:absolute;") == 1,
+      f'regle={len(_RULER)} o barre={_RULER.count("DzTracks.RangeBar")} '
+      f'css_ruler={_CSS_M.count(".dzsvm .svm-ruler{position:relative}")}')
+# LE COMPOSANT SE TAIT SANS PLAGE COMPLETE : c'est ce qui rend R3 inoffensive
+# tant que I et U n'ont pas ete frappes. La FORME est tenue ici, le
+# COMPORTEMENT est joue sous node par test_montage_historique.py [2].
+check("D11_la_barre_rend_null_sans_plage_valide",
+      src.count("function DzmRangeBar(o){") == 1
+      and src.count("var rg=dzmRangeFrom(o&&o.range)") == 1
+      and src.count("if(!rg)return null;") == 1,
+      f'DzmRangeBar={src.count("function DzmRangeBar(o){")} '
+      f'garde={src.count("if(!rg)return null;")}')
+# LA BANDE NE DEBORDE PAS LA REGLE. Une plage est PERSISTEE (R4/R5) : elle
+# survit a un raccourcissement de la duree, et `rg.out` peut alors depasser
+# `dur`. Sans les deux Math.min, `left` passait 100 % et `width` debordait a
+# droite -- la bande sortait de la regle. Le composant ne peut pas BORNER par
+# `dzmRangeFrom`, qui ne connait pas la duree : la borne est ici.
+check("D11_la_bande_est_bornee_a_la_regle",
+      src.count("var l=Math.min(100,rg.in/d*100),"
+                "w=Math.min(100-l,(rg.out-rg.in)/d*100);") == 1
+      and nl("var l=Math.min(100,rg.in/d*100),") in s
+      and src.count("var l=rg.in/d*100,") == 0,
+      f'borne={src.count("var l=Math.min(100,rg.in/d*100),")} '
+      f'ancienne={src.count("var l=rg.in/d*100,")}')
+# I-1 (revue du 21/09/2026) : UNE FRAPPE STERILE NE POUSSE RIEN. La branche
+# I / U / X calculait la plage suivante DANS le `setProj` et poussait
+# l'historique AVANT de savoir si quoi que ce soit avait change : X sur une
+# plage deja vide, ou I la tete illisible, empilaient un instantane identique
+# et allumaient « NON ENREGISTRE ». La FORME qui le garantit est un ordre :
+# la comparaison par reference vient AVANT le premier `pushHistory()` de la
+# branche. Mesuree sur le remplacement ET sur le bundle livre -- un pin sur le
+# seul `P.R_R2` benirait une section que la chaine n'aurait pas posee.
+# ROUGIR, PAS MOURIR (faute n6). Les bornes de la tranche sont cherchees par
+# `find()`, pas par `index()` : au niveau module, un `index()` sur un fragment
+# renomme LEVE et emporte les ~1330 autres lignes du banc avant leur premier
+# mot. « Les deux bornes ont ete trouvees » devient donc une CONDITION du
+# check, comme chez les voisines, et la tranche retombe sur la chaine vide.
+_R2A, _R2B = 'if(id==="range_in"', 'if(id==="range_cut"'
+_i0, _i1 = P.R_R2.find(_R2A), P.R_R2.find(_R2B)
+_R2IN = P.R_R2[_i0:_i1] if 0 <= _i0 < _i1 else ""
+_R2SO = ("if(dzNx===dzCur||(dzNx&&dzCur&&dzNx.in===dzCur.in"
+         "&&dzNx.out===dzCur.out))return;")
+_j0, _j1 = _R2IN.find(_R2SO), _R2IN.find("pushHistory()")
+check("D11_une_plage_inchangee_ne_pousse_ni_historique_ni_dirty",
+      0 <= _i0 < _i1 and 0 <= _j0 < _j1
+      and _R2IN.count(_R2SO) == 1 and s.count(nl(_R2SO)) == 1
+      # et la plage n'est PLUS calculee dans le setProj : l'ancienne forme
+      # `rangeSet(p.range,...)` y lisait le projet une seconde fois.
+      and "rangeSet(p.range," not in s,
+      f'bornes={_i0}/{_i1} sortie_tot={_j0} pushHistory={_j1} '
+      f'section={_R2IN.count(_R2SO)} bundle={s.count(nl(_R2SO))} '
+      f'ancienne={s.count("rangeSet(p.range,")}')
+# POINT 1 DE LA REVUE : `undefined` REPLIE SUR `null`, et la fenetre etait
+# REELLE. Le projet de DEPART du bundle est `useState({demo:!0,...})` -- il
+# n'a PAS de cle `range`, et il n'en gagne une que par svmApplyProject (R_M7),
+# c'est-a-dire apres un CHARGEMENT de projet. Sur la demo `proj.range` vaut
+# donc `undefined`, `rangeSet` rend `null`, et `null===undefined` est FAUX :
+# X sur une plage vide AU DEMARRAGE poussait l'historique et allumait
+# « NON ENREGISTRE ». La ligne tient les DEUX faits, le repli et sa raison --
+# le jour ou l'etat de depart gagnerait une cle `range`, elle rougirait et
+# dirait que le repli n'a plus de motif, au lieu de le garder par habitude.
+_DEMO = re.search(r"useState\(\{demo:!0,[^)]{0,240}\}\)", s)
+_DEMO = _DEMO.group(0) if _DEMO else ""
+check("D11_la_plage_absente_du_projet_de_depart_vaut_null",
+      s.count(nl("var dzCur=(dzProjRef.current"
+                 "&&dzProjRef.current.range)||null;")) == 1
+      and "DzTracks.rangeSet(dzCur,dzW,phRef.current," in P.R_R2
+      and "rangeSet(dzProjRef.current&&dzProjRef.current.range," not in s
+      and len(_DEMO) > 0 and "range" not in _DEMO,
+      f'dzCur={s.count(nl("var dzCur=(dzProjRef.current&&dzProjRef.current.range)||null;"))} '
+      f'passe={"DzTracks.rangeSet(dzCur,dzW,phRef.current," in P.R_R2} '
+      f'demo={len(_DEMO)} o, range_dedans={"range" in _DEMO}')
+# M-4 : UNE DEMI-PLAGE SE DIT. Entre I et U la regle est MUETTE -- `DzmRangeBar`
+# rend `null` tant que la plage n'est pas complete (ligne du dessus). Sans
+# note, la premiere frappe n'avait donc aucun retour a l'ecran. Les deux sens
+# sont tenus : I seul, et U seul (qui pose `in` a 0 -- donc jamais `in` nul --
+# SAUF quand `out` est pose sur une plage vide, cas de cette seconde note).
+check("D11_une_demi_plage_est_dite_par_une_note",
+      s.count(nl('if(dzNx&&dzNx.in!=null&&dzNx.out==null)fireNote("Entr\u00e9e \u00e0 "')) == 1
+      and s.count(nl('else if(dzNx&&dzNx.out!=null&&dzNx.in==null)fireNote("Sortie \u00e0 "')) == 1
+      and "U pose la sortie" in _R2IN and "I pose l\'entr\u00e9e" in _R2IN,
+      f'in={s.count(nl("dzNx.in!=null&&dzNx.out==null"))} '
+      f'out={s.count(nl("dzNx.out!=null&&dzNx.in==null"))}')
+# I-2 : LES OPTIONS DE COUPE NE SONT ECRITES QU'UNE FOIS. `{loopTracks,
+# locked}` etait construit a l'identique dans R_M12 (le tiroir Texte) et dans
+# R_R2 (« Maj+X ») : deux copies d'une meme condition divergent a la premiere
+# retouche -- c'est deja la lecon de `dzmTsOr`. Les DEUX faces sont tenues :
+# la fonction pure existe dans la couche, et AUCUN appelant ne rebatit la
+# paire a la main.
+check("D11_les_options_de_coupe_ne_sont_ecrites_qu_une_fois",
+      src.count("function dzmCutOpts(proj,trackSt){") == 1
+      and src.count("cutOpts:dzmCutOpts,") == 1
+      and s.count("DzTracks.cutOpts(") == 2
+      and "DzTracks.cutOpts(proj,trackSt)" in P.R_M12
+      and "DzTracks.cutOpts(dzProjRef.current,trackStRef.current)" in P.R_R2
+      # le SEUL `{loopTracks:...}` litteral du bundle est celui que rend
+      # `dzmCutOpts` lui-meme, DANS la couche : tout autre est un appelant qui
+      # a rebati la paire a la main. Mesure du 21/09/2026 : 1 et 1.
+      # Cette forme GENERALE remplace les trois negations nominatives du
+      # premier jet (`loopTracks:dzLoop`, `locked:dzLk`, `locked:lk}`) : elles
+      # ne nommaient que les deux appelants d'hier, et un TROISIEME les aurait
+      # laissees vertes.
+      and s.count("loopTracks:lt") == src.count("loopTracks:lt") == 1,
+      f'decl={src.count("function dzmCutOpts(proj,trackSt){")} '
+      f'appels={s.count("DzTracks.cutOpts(")} '
+      f'restes={s.count("loopTracks:lt")}/{src.count("loopTracks:lt")}')
 # ── M9c (05/09/2026) : LE « + » N'EST PLUS SOUS LA SURIMPRESSION ────────────
 # Défaut rapporté par l'utilisateur : « sur la piste V1 vidéo, le bouton
 # "ajouter une vidéo" est caché par l'overlay de déplacement lorsque la souris
@@ -495,6 +1126,11 @@ def _regle(css_txt, sel):
 
 
 _R_HB = _regle(CSS.read_text(encoding="utf-8"), ".dzsvm .dzm-hb{")
+_R_TBAR = _regle(CSS.read_text(encoding="utf-8"), ".dzsvm .dzm-tbar{")
+check("D1_la_barre_flotte_AU_DESSUS_du_transport_pas_sur_les_pistes",
+      _R_TBAR is not None and "bottom:calc(100% + 8px)" in _R_TBAR
+      and "top:calc(100% + 8px)" not in _R_TBAR and "top:auto" in _R_TBAR,
+      f"regle .dzm-tbar : {_R_TBAR!r}")
 _R_THEAD = _regle(_HDCSS, ".svm-thead{")
 check("la_surimpression_recouvre_la_PREMIERE_rangee_de_l_en_tete",
       _R_HB is not None and _R_THEAD is not None
@@ -674,10 +1310,16 @@ for _nm in ("stDzTx", "dzTextOn", "setDzTextOn"):
     _dehors = s.count(_nm) - (P.R_M11 + P.R_M12 + P.R_M19).count(_nm)
     check("M11_nom_" + _nm + "_n_ecrase_rien", _dehors == 0,
           f"{_nm} apparait {_dehors}x hors des sections qui l'ecrivent")
+# DEUX appels a `rippleCut` depuis le 21/09/2026 (D-11) : celui de M12 (la
+# lame qui referme) et celui de R2 (« Maj+X », couper la plage sur toutes
+# les pistes). Le chiffre est REMESURE, pas relache : une troisieme porte
+# ajoutee sans y penser rougirait encore.
 check("M12_utilise_DzTracks_pas_DzMontage",
       "DzMontage.TextDrawer" not in s and "DzMontage.rippleCut" not in s
       and s.count("DzTracks.TextDrawer") == 1
-      and s.count("DzTracks.rippleCut") == 1)
+      and s.count("DzTracks.rippleCut") == 2,
+      f'TextDrawer={s.count("DzTracks.TextDrawer")} '
+      f'rippleCut={s.count("DzTracks.rippleCut")}')
 # Le CŒUR de P3 doit etre DANS le bloc livre, pas seulement dans la source du
 # patcher : sans cette ligne, un bloc vide passerait les comptes d'ancres.
 check("bloc_contient_rippleCut", nl("rippleCut:dzmRippleCut,") in s
@@ -741,8 +1383,19 @@ check("M12_pousse_l_historique_avant_de_couper",
       len(re.findall(r"pushHistory\(\);[\s\S]{0,420}DzTracks\.rippleCut\(",
                      s)) == 1,
       str(len(re.findall(r"pushHistory\(\);[\s\S]{0,420}DzTracks\.rippleCut\(", s))))
+# LA MESURE EST SCOPEE AU TIROIR DE TEXTE (22/09/2026) : depuis la tache 7,
+# TT6 — l'inspecteur des titres — est REPLIE dans la meme section et paie son
+# propre instantane. Compter sur R_M12 ENTIER aurait rougi pour une raison
+# qui n'a rien a voir avec la coupe. Le conjoint tient l'autre moitie : TROIS
+# en tout dans la section depuis la re-revue du 22/09/2026 — un pour la
+# coupe, et DEUX pour l'inspecteur, qui separe le geste sec (texte, gabarit,
+# selects) de la rafale de la reglette.
+_R_M12_CUT = P.R_M12[P.R_M12.find("r.jsx(DzTracks.TextDrawer,"):]
 check("M12_un_seul_pushHistory_pour_le_lot",
-      P.R_M12.count("pushHistory()") == 1, str(P.R_M12.count("pushHistory()")))
+      len(_R_M12_CUT) > 800 and _R_M12_CUT.count("pushHistory()") == 1
+      and P.R_M12.count("pushHistory()") == 3,
+      f"coupe={_R_M12_CUT.count('pushHistory()')} "
+      f"section={P.R_M12.count('pushHistory()')} taille={len(_R_M12_CUT)}")
 # I4 — M12 NE TOUCHE PLUS a la duree du projet, et c'est ce qui rend
 # « annuler » COMPLET. `pushHistory` ne memorise que {clips, mixDb} ; pire,
 # la restauration au chargement fait
@@ -1761,7 +2414,11 @@ check("P10_la_duree_a_enfin_des_ecrivains",
       and s.count(nl("dur:Math.max(1,Number(d.duration)||maxEnd)")) == 1,
       f"ecrivains={s.count(nl('Object.assign({},p,{dur:'))} "
       f"chargement={s.count(nl('dur:Math.max(1,Number(d.duration)||maxEnd)'))}")
-for _t, _r in (("M17a_ajout", P.R_M17A), ("M17b_nudge", P.R_M17B),
+# D-2 (21/09/2026) : `M17a_ajout` lit DESORMAIS R_M17A + R_M22A. Le
+# `setProj(dur)` de l'ajout a demenage dans R_M22A, ou l'allongement se
+# mesure sur la timeline RENDUE par `DzTracks.insere` (voir la note « E3 »
+# du patcher) : le lire dans R_M17A seul rendait cette ligne creuse.
+for _t, _r in (("M17a_ajout", P.R_M17A + P.R_M22A), ("M17b_nudge", P.R_M17B),
                ("M17f_relachement", P.R_M17F), ("M17g_transport", P.R_M17G)):
     check("P10_" + _t + "_ecrit_bien_la_duree",
           "Object.assign({},p,{dur:" in _r, _r[:80])
@@ -1770,17 +2427,28 @@ for _t, _r in (("M17a_ajout", P.R_M17A), ("M17b_nudge", P.R_M17B),
 # DEUX durees. Elle est assemblee par M17a (`dzTail`) et emise par M16b, qui
 # la concatene — les deux moitieds sont comptees ensemble, sans quoi retirer
 # `+dzTail` de la note laissait la phrase construite et jamais affichee.
+# D-2 : `dzTail` est DECLARE par R_M22A depuis le 21/09/2026 (il lui faut
+# `dzIns.clips`), `dzCl` restant declare par R_M17A. La ligne compte donc
+# sur les DEUX, et EXIGE que la declaration soit dans R_M22A : une
+# reecriture qui la remettrait dans R_M17A remesurerait l'allongement sur
+# le seul clip pose, et les modes qui poussent la piste mentiraient.
 check("P10_M17a_la_note_dit_l_allongement_et_de_combien",
-      "dzTail" in P.R_M17A and "+dzTail)}" in P.R_M16B
-      and "La timeline a été allongée de " in P.R_M17A
-      and "svmRuler(Math.round(dzGrew))" in P.R_M17A,
+      "var dzTail=dzCl.note+(dzGrew?" in P.R_M22A
+      and "var dzTail=" not in P.R_M17A
+      and "var dzCl=defaultLen(kind,srcDur);" in P.R_M17A
+      and "+dzTail)}" in P.R_M16B
+      and "La timeline a été allongée de " in P.R_M22A
+      and "svmRuler(Math.round(dzGrew))" in P.R_M22A,
       "la note de l'ajout ne dit plus que la timeline a grandi")
 # `DzTracks`, JAMAIS `DzMontage` : le bundle declare deja `function DzMontage`
 # au premier niveau, et redeclarer ce nom est une SyntaxError en semantique
 # MODULE — celle sous laquelle index.html charge le bundle.
 check("P10_utilise_DzTracks_pas_DzMontage",
       "DzMontage.fitDur" not in s and "DzMontage.durCtl" not in s
-      and s.count("DzTracks.fitDur") == 3 and s.count("DzTracks.durCtl") == 1,
+      # D-2, tour de correction (21/09/2026) : QUATRE appels a `fitDur`
+      # — l'ajout en fait DEUX, `dzAv` (la fin reelle d'AVANT l'insertion,
+      # qui borne la phrase de l'allongement) et `dzFit` (celle d'apres).
+      and s.count("DzTracks.fitDur") == 4 and s.count("DzTracks.durCtl") == 1,
       f"fitDur={s.count('DzTracks.fitDur')} durCtl={s.count('DzTracks.durCtl')}")
 # CONTROLE A DEUX FACES pour CHAQUE identifiant du bundle appele par une
 # section P10 : declaration ET appel, recherche BORNEE. Mesure du chantier :
@@ -1843,12 +2511,13 @@ check("P10_le_backend_recalcule_la_duree_du_film",
       and SVC.count('dur = float(body.get("duration") or 0)') == 1,
       f"seg_durs={SVC.count('cur, total = ' + chr(34) + 'n0' + chr(34) + ', seg_durs[0]')} "
       f"save={SVC.count('dur = float(body.get(' + chr(34) + 'duration' + chr(34) + ') or 0)')}")
-# AUCUNE ENTREE D'HISTORIQUE DE PLUS. `pushHistory` ne memorise que
-# {clips, mixDb} : une entree posee pour un geste qui ne change NI l'un NI
-# l'autre donnerait un « annuler » qui ne retourne rien. M17a s'appuie sur le
-# `pushHistory()` deja present dans addAsset (la ligne
+# AUCUNE ENTREE D'HISTORIQUE DE PLUS POUR LES GESTES DE CLIP. M17a s'appuie
+# sur le `pushHistory()` deja present dans addAsset (la ligne
 # `M16a_refuse_avant_de_pousser_l_historique` compte 1 dans ce corps), M17b et
-# M17f reprennent celui d'avant a l'identique, M17g n'en pose aucun.
+# M17f reprennent celui d'avant a l'identique. M17g, LUI, EN POSE UN DEPUIS
+# D-0 (21/09/2026) : le reglage explicite de duree entre dans l'historique
+# (repli « H6 »), une entree par rafale de 600 ms — et c'est EXACTEMENT UN
+# appel, pas deux, sous peine de deux « annuler » pour un clic.
 # LA LIGNE VISE LE CODE, PAS LA PROSE — et elle a mordu : P11 a ajoute a
 # M17a un commentaire qui NOMME `pushHistory` (« on sort ici, avant
 # pushHistory ») pour dire justement qu'il n'en pose pas. La ligne rougissait
@@ -1862,29 +2531,44 @@ def _code(js):
     return re.sub(r"/\*.*?\*/", "", js, flags=re.S)
 
 
+# D-2 (21/09/2026) : R_M17A ne PARLE MEME PLUS de `pushHistory` — son
+# commentaire P11 est parti avec le calcul de l'allongement. L'appel unique
+# de l'ajout est celui de R_M22A, qui le DEPLACE apres le refus de verrou
+# (un `return` apres `pushHistory()` aurait laisse un instantane fantome
+# dans la pile, et le premier « Annuler » n'aurait rien fait). La ligne
+# compte donc UN appel dans le CODE de R_M22A, ZERO dans R_M17A des deux
+# cotes (code et prose), et exige qu'il reste du code a mesurer.
 check("P10_aucune_entree_d_historique_de_plus",
       "pushHistory" not in _code(P.R_M17A)
-      and "pushHistory" in P.R_M17A          # le commentaire, lui, le NOMME
-      and "DzTracks.fitDur" in _code(P.R_M17A)
+      and "pushHistory" in P.R_M17A          # le commentaire P11, lui, le NOMME
+      and len(_code(P.R_M17A)) > 200
+      and _code(P.R_M22A).count("pushHistory();") == 1
+      and "DzTracks.fitDur" in _code(P.R_M22A)
+      and "DzTracks.fitDur" not in P.R_M17A
       and P.R_M17B.count("pushHistory();") == 1
       and P.R_M17F.count("pushHistory(h0)") == 1
-      and "pushHistory" not in _code(P.R_M17G),
+      and _code(P.R_M17G).count("pushHistory();") == 1,
       f"a={'pushHistory' in _code(P.R_M17A)} "
       f"a_code={len(_code(P.R_M17A))}/{len(P.R_M17A)} o "
+      f"a22={_code(P.R_M22A).count('pushHistory();')} "
       f"b={P.R_M17B.count('pushHistory();')} "
       f"f={P.R_M17F.count('pushHistory(h0)')} "
-      f"g={'pushHistory' in _code(P.R_M17G)}")
-# LA RESERVE CENTRALE, DITE PARTOUT : `proj.dur` n'entre pas dans
-# l'historique. Etendre puis annuler rend les clips, PAS la duree. Les trois
-# notes de geste le disent et NOMMENT le retour ; le controle explicite le dit
-# a chacune des siennes par `DZM_DUR_UNDO`, concatene dans `put`.
-for _t, _r in (("M17a_ajout", P.R_M17A), ("M17b_nudge", P.R_M17B),
+      f"g={_code(P.R_M17G).count('pushHistory();')}")
+# LA NOUVELLE VERITE, DITE PARTOUT (D-0, 21/09/2026) : `proj.dur` entre
+# DESORMAIS dans l'historique. Etendre puis annuler rend les clips ET la
+# duree. Les trois notes de geste le disent ; le controle explicite le dit a
+# chacune des siennes par `DZM_DUR_UNDO`, concatene dans `put`. La negation
+# `NE raccourcit PAS` est le conjoint : elle rougirait si une phrase d'avant
+# avait survecu a la reecriture.
+# D-2 : meme demenagement que ci-dessus — la phrase de l'allongement est
+# assemblee par R_M22A depuis le 21/09/2026.
+for _t, _r in (("M17a_ajout", P.R_M17A + P.R_M22A), ("M17b_nudge", P.R_M17B),
                ("M17f_relachement", P.R_M17F)):
-    check("P10_" + _t + "_dit_que_annuler_ne_rend_pas_la_duree",
-          "NE raccourcit PAS" in _r and "réglage de durée" in _r,
-          "la note ne dit pas ce qu'« annuler » ne restaure pas")
+    check("P10_" + _t + "_dit_que_annuler_rend_la_duree",
+          "rend aussi la durée" in _r and "NE raccourcit PAS" not in _r,
+          "la note ne dit pas qu'« annuler » rend aussi la durée")
 check("P10_le_controle_dit_la_reserve_a_chacune_de_ses_notes",
-      "« Annuler » ne rend pas la durée du projet" in src
+      "« Annuler » (Ctrl+Z) rend aussi la durée du projet" in src
       and src.count("msg+DZM_DUR_UNDO") == 1
       and src.count("function put(nv,msg){if(set)set(nv);"
                     "if(note)note(msg+DZM_DUR_UNDO)}") == 1,
@@ -1985,10 +2669,12 @@ _aa0 = s.find(nl("function addAsset(src,label,kind,srcDur,trId,atTime){"))
 _ask = s.find(nl("DzTracks.askDur(src,{done:function(dzV){"),
               _aa0 if _aa0 >= 0 else 0)
 # LE `pushHistory` DE L'AJOUT, pas le premier venu : le court-circuit de
-# remplacement (P6) en pose un AVANT, plus haut dans le meme corps. C'est
-# `setClips(clipsRef.current.concat(` qui identifie l'ajout sans ambiguite.
-_ph = s.find(nl("setClips(clipsRef.current.concat("),
-             _aa0 if _aa0 >= 0 else 0)
+# remplacement (P6) en pose un AVANT, plus haut dans le meme corps. C'etait
+# `setClips(clipsRef.current.concat(` qui identifiait l'ajout ; depuis D-2
+# (21/09/2026) l'unique ecriture de l'ajout est `setClips(dzIns.clips);` —
+# le concat a disparu, et la ligne
+# `D2_addAsset_ecrit_par_insere_et_plus_par_concat` le NIE explicitement.
+_ph = s.find(nl("setClips(dzIns.clips);"), _aa0 if _aa0 >= 0 else 0)
 check("P11_la_mesure_sort_avant_que_l_historique_ne_soit_pousse",
       _aa0 >= 0 and _ask > _aa0 and _ph > _ask,
       f"addAsset={_aa0} askDur={_ask} ajout={_ph}")
@@ -2050,7 +2736,7 @@ _au = s.find(nl("DzTracks.askAudio(src,{done:function(){"), _aa0 if _aa0 >= 0 el
 _ask2 = s.find(nl("DzTracks.askDur(src,{done:function(dzV){"), _aa0 if _aa0 >= 0 else 0)
 _tw = s.find(nl("DzTracks.twinPlan(dzNeuf,dzTs,clipsRef.current||[],dzAu,"),
              _aa0 if _aa0 >= 0 else 0)
-_ph2 = s.find(nl("    pushHistory();\n    setClips(clipsRef.current.concat("),
+_ph2 = s.find(nl("    pushHistory();\n    setClips(dzIns.clips);"),
               _aa0 if _aa0 >= 0 else 0)
 check("P12_la_sonde_audio_sort_avant_la_duree_qui_sort_avant_l_historique",
       _aa0 >= 0 and _au > _aa0 and _ask2 > _au and _tw > _ask2 and _ph2 > _tw,
@@ -2065,14 +2751,32 @@ check("P12_le_rappel_repasse_les_memes_arguments",
       and s.count(nl("srcDur=DzTracks.srcDurOr(kind,srcDur,dzAu);")) == 1,
       f'rappel={s.count(nl("addAsset(src,label,kind,srcDur,trId,st)"))} '
       f'srcDurOr={s.count(nl("srcDur=DzTracks.srcDurOr(kind,srcDur,dzAu);"))}')
-# UN SEUL CONCAT, qui porte les deux clips ; l'ancienne ecriture a disparu.
-check("P12_un_seul_concat_porte_le_plan_et_son_jumeau",
-      s.count(nl("setClips(clipsRef.current.concat(dzTw&&dzTw.clip?"
-                 "[dzNeuf,dzTw.clip]:[dzNeuf]));")) == 1
+# D-2 (21/09/2026) — UNE SEULE ECRITURE, ET C'EST `DzTracks.insere` QUI LA
+# REND. La ligne P12 `un_seul_concat_porte_le_plan_et_son_jumeau` est
+# REMPLACEE, pas supprimee : elle niait deja l'ecriture d'AVANT P12
+# (`concat([{tr:tr2,…}])`), et cette negation-la est CONSERVEE ci-dessous.
+# Ce qui change est la forme retenue : `dzIns.clips` porte le plan, son
+# jumeau, ET les clips fendus / pousses des modes « inserer », « en fin »
+# et « ripple ». Un `concat` ici doublerait le clip.
+# D-21 — LES BORNES D'`addAsset`, pour que la negation reste la sienne.
+_iAA0 = s.find(nl("function addAsset(src,label,kind,srcDur,trId,atTime){"))
+_iAAins = s.find(nl("var dzIns=DzTracks.insere(clipsRef.current||[],"),
+                 _iAA0 if _iAA0 >= 0 else 0)
+check("D2_addAsset_ecrit_par_insere_et_plus_par_concat",
+      s.count(nl("setClips(dzIns.clips);")) == 1
+      and s.count(nl("setClips(clipsRef.current.concat(dzTw&&dzTw.clip?"
+                     "[dzNeuf,dzTw.clip]:[dzNeuf]));")) == 0
       and s.count(nl("setClips(clipsRef.current.concat([{tr:tr2,id:id,")) == 0
-      and s.count(nl("setClips(clipsRef.current.concat(")) == 1,
-      f'neuf={s.count(nl("setClips(clipsRef.current.concat(dzTw&&dzTw.clip?"))} '
-      f'total={s.count(nl("setClips(clipsRef.current.concat("))}')
+      # D-21 (21/09/2026) : LE SEUL `concat` RESTANT EST CELUI DU CARTON DE
+      # TITRE (`dzTtAdd`, TT4a), et il est NOMME. La negation d'origine
+      # portait sur `addAsset` : elle est gardee ENTIERE -- entre la
+      # signature d'`addAsset` et son `dzIns`, il n'y a aucun `concat`.
+      and s.count(nl("setClips(clipsRef.current.concat([t]));setSelId(t.id);")) == 1
+      and s.count(nl("setClips(clipsRef.current.concat(")) == 1
+      and _iAA0 >= 0 and _iAAins > _iAA0
+      and nl("setClips(clipsRef.current.concat(") not in s[_iAA0:_iAAins],
+      f'insere={s.count(nl("setClips(dzIns.clips);"))} '
+      f'concat={s.count(nl("setClips(clipsRef.current.concat("))}')
 # LA PHRASE DU JUMEAU ENTRE DANS LA NOTE DE L'AJOUT par `dzTail`, sans que
 # la fin de note de M16b ne bouge (`+dzTail)}` reste unique — P11 le tient).
 check("P12_la_phrase_du_jumeau_entre_dans_la_note_de_l_ajout",
@@ -2081,10 +2785,13 @@ check("P12_la_phrase_du_jumeau_entre_dans_la_note_de_l_ajout",
       f'tail={s.count(nl("if(dzTw)dzTail+=dzTw.note;"))} '
       f'fin={s.count(nl("+dzTail)}"))}')
 # L'IDENTIFIANT DE L'AJOUT PASSE PAR uniqueId, et l'ancienne forme a disparu.
+# D-2 : le rang n'est plus `ovSeq.current` mais `dzSeq`, un CANDIDAT
+# (`ovSeq.current+1`) que le refus de verrou ne consomme pas.
 check("P12_l_identifiant_de_l_ajout_passe_par_uniqueId",
       s.count(nl('var id=DzTracks.uniqueId(clipsRef.current||[],\n'
-                 '      tr2+"u"+ovSeq.current+"_"+Math.round(st*10));')) == 1
-      and s.count(nl('var id=tr2+"u"+ovSeq.current+"_"+Math.round(st*10);')) == 0,
+                 '      tr2+"u"+dzSeq+"_"+Math.round(st*10));')) == 1
+      and s.count(nl('var id=tr2+"u"+ovSeq.current+"_"+Math.round(st*10);')) == 0
+      and s.count(nl('var dzSeq=ovSeq.current+1;')) == 1,
       f'{s.count(nl("var id=DzTracks.uniqueId(clipsRef.current||[],"))}')
 # svmApplyProject : le dedoublonnage AVANT `setClips(cs)`, et le re-semis du
 # compteur — positions dans le corps.
@@ -2099,9 +2806,22 @@ check("P12_svmApplyProject_dedoublonne_et_re_seme_avant_d_ecrire",
       f"apply={_ap0} dedupe={_dd} seq={_sq} setClips={_sc}")
 # `ovSeq.current=` n'existait NULLE PART dans le bundle (mesure, fait n°3) :
 # il existe maintenant UNE fois, au re-semis.
+# D-2 (21/09/2026) : DEUX ecrivains, nommes. Le re-semis de M22c, et la
+# CONSOMMATION du candidat dans M22a (`ovSeq.current=dzSeq;`), qui n'a lieu
+# qu'une fois l'insertion acceptee — un ajout refuse pour verrou ne troue
+# plus la numerotation. `ovSeq.current++` a disparu avec lui.
 check("P12_le_compteur_est_re_seme_une_fois",
-      s.count("ovSeq.current=Math.max(") == 1 and s.count("ovSeq.current=") == 1,
-      f'{s.count("ovSeq.current=")}')
+      s.count("ovSeq.current=Math.max(") == 1
+      and s.count("ovSeq.current=dzSeq;") == 1
+      and s.count("ovSeq.current=") == 2
+      # `ovSeq.current++` ne survit QUE dans le bloc de narration d'A1
+      # (`var id="a1n"+ovSeq.current+…`), mesure du 21/09/2026 : ce geste-la
+      # n'est pas un ajout d'asset, n'a pas de mode d'edition et ne passe pas
+      # par `addAsset`. La forme d'addAsset, elle, a bien disparu.
+      and s.count("ovSeq.current++") == 1
+      and s.count(nl('ovSeq.current++;\n    var id="a1n"+ovSeq.current+')) == 1,
+      f'{s.count("ovSeq.current=")} dzSeq={s.count("ovSeq.current=dzSeq;")} '
+      f'pp={s.count("ovSeq.current++")}')
 # M22a (tour 2) : quand aucun jumeau ne parle, l'incrustation est DITE — la
 # branche `else` appelle `overlayNote`, declaree ET exportee par la couche.
 check("P12_M22a_l_incrustation_est_dite_quand_le_jumeau_ne_parle_pas",
@@ -2159,12 +2879,37 @@ for _sec, _r, _pairs in (
           ("dzTs", "var dzTs=dzTracksRef.current||svmTracksOf(proj);"),
           ("dzAuOn", "var dzAuOn=DzTracks.wantsTwin(kind,dzTs,tr2);"),
           ("dzAu", "var dzAu=dzAuOn?DzTracks.audioOf(src):null;"),
-          ("dzTail", "var dzTail=dzCl.note+(dzGrew?"))),
+          ("dzTail", "var dzTail=dzCl.note+(dzGrew?"),
+          # D-2 (21/09/2026) — les six libres NEUFS du cablage des modes.
+          # `dzModeRef` et l'etat qui le nourrit viennent du repli « E1 »
+          # dans R_M16REF ; `phRef` porte la tete de lecture pour
+          # « ripple » ; `dzProjRef` porte `range` pour « remplir » ;
+          # `dzCl` et `d` sont les restes de R_M17A que R_M22A lit.
+          ("dzModeRef", "var dzModeRef=x.useRef(dzMode);"),
+          # `dzMode` (l'ETAT) n'apparait PAS ici, et c'est le point d'« E1 » :
+          # `addAsset` peut etre appelee depuis la fermeture du PREMIER rendu,
+          # ou l'etat vaudrait toujours "ecraser". Seule la REF est lue. La
+          # ligne `D2_E1_declare_l_etat_et_la_ref` tient l'autre face.
+          ("phRef", "var rafRef=x.useRef(0),phRef=x.useRef(ph);phRef.current=ph;"),
+          ("dzProjRef", "var dzProjRef=x.useRef(null);dzProjRef.current=proj;"),
+          ("dzCl", "var dzCl=defaultLen(kind,srcDur);"),
+          # D-2, tour de correction : `setOvPick` a QUITTE R_M22A. Le refus
+          # de verrou fermait le selecteur en disant « choisissez un autre
+          # mode d'edition » — il escamotait la rangee qui les porte. La
+          # ligne `D2_le_refus_de_verrou_ne_ferme_pas_le_selecteur` tient
+          # desormais cette absence, avec son conjoint positif.
+          ("fireNote", "fireNote=nt[1]"),
+          ("setProj", "proj=stP[0],setProj=stP[1];"),
+          ("svmRuler", "function svmRuler(s){"),
+          ("dzNeuf", "var dzNeuf={tr:tr2,id:id,label:label,start:st,end:en,"),
+          ("dzTw", "var dzTw=dzAuOn?DzTracks.twinPlan("))),
+        # D-2 : R_M22B N'EST PLUS QU'UNE LIGNE — `setClips(dzIns.clips);`. Les
+        # trois paires qu'elle portait (dzNeuf, dzTw, clipsRef) ont suivi le
+        # code dans M22a, juste au-dessus : les deux faces restent tenues,
+        # elles ont seulement change de section.
         ("M22b", P.R_M22B,
-         (("dzNeuf", "var dzNeuf={tr:tr2,id:id,label:label,start:st,end:en,"),
-          ("dzTw", "var dzTw=dzAuOn?DzTracks.twinPlan("),
-          ("setClips", "setClips=st1[1]"),
-          ("clipsRef", "var clipsRef=x.useRef(clips);clipsRef.current=clips;"))),
+         (("dzIns", "var dzIns=DzTracks.insere(clipsRef.current||[],"),
+          ("setClips", "setClips=st1[1]"))),
         ("M22c", P.R_M22C,
          (("cs", "var cs=(d.clips||[]).map(function(c,i){"),
           ("fireNote", "fireNote=nt[1]"),
@@ -2206,10 +2951,28 @@ check("css_porte_le_bouton_extraire_le_son",
       "montage.css n'habille pas « Extraire le son »")
 # LA COUCHE NE CITE AUCUN identifiant minifie du bundle qu'elle ne declare
 # pas : les noms neufs de P12 sont mesures LIBRES dans le bundle d'entree.
+# LE COMPTE EST BORNE PAR LES MOTS, ET C'EST UNE MESURE : un `count` NU
+# comptait `dzDial` DIX-HUIT fois dans .bak_montage le 21/09/2026 — dix-huit
+# `__dzDialogue`, poses par le maillon `dialogue`, EN AMONT de montage. La
+# sous-chaine disait « nom deja pris » d'un nom qui ne l'etait pas. Les
+# bornes refusent lettre, chiffre, `_` et `$` des deux cotes : c'est ce qui
+# fait la difference entre un identifiant et un morceau d'identifiant.
+def _libre(nm, txt):
+    """Le nombre d'occurrences de `nm` comme IDENTIFIANT ENTIER dans `txt`."""
+    if txt is None:
+        return -1
+    return len(re.findall(r"(?<![A-Za-z0-9_$])%s(?![A-Za-z0-9_$])"
+                          % re.escape(nm), txt))
+
+
+def _bak_txt():
+    """Le .bak_montage en texte, ou None s'il n'existe pas."""
+    _b = BUNDLE.with_name(BUNDLE.name + ".bak_montage")
+    return _b.read_bytes().decode("utf-8", "replace") if _b.is_file() else None
+
+
 for _nm in ("dzAuOn", "dzAu", "dzNeuf", "dzTw", "dzDd", "DZM_AUDIO_CACHE"):
-    _bak = BUNDLE.with_name(BUNDLE.name + ".bak_montage")
-    _dans_bak = (_bak.read_bytes().count(_nm.encode("utf-8"))
-                 if _bak.is_file() else -1)
+    _dans_bak = _libre(_nm, _bak_txt())
     check("P12_nom_" + _nm + "_etait_libre_dans_le_bundle_d_entree",
           _dans_bak == 0, f"{_nm} apparait {_dans_bak}x dans .bak_montage")
 
@@ -2528,9 +3291,7 @@ for _sec, _r, _pairs in (
 # LES NOMS NEUFS etaient LIBRES dans le bundle d'entree.
 for _nm in ("dzSs", "dzSsAll", "srcTracks", "subsSources", "dzDial",
             "dzmSubsSources", "dzmSubsLabel", "dzTd", "dzmUnionLen", "dzmSubsKey"):
-    _bak = BUNDLE.with_name(BUNDLE.name + ".bak_montage")
-    _dans_bak = (_bak.read_bytes().count(_nm.encode("utf-8"))
-                 if _bak.is_file() else -1)
+    _dans_bak = _libre(_nm, _bak_txt())
     check("P13_nom_" + _nm + "_etait_libre_dans_le_bundle_d_entree",
           _dans_bak == 0, f"{_nm} apparait {_dans_bak}x dans .bak_montage")
 # LA ROUTE, DE L'AUTRE COTE DU FIL : elle lit `tracks` par la loi du rendu,
@@ -2797,7 +3558,10 @@ for _sec, _r, _pairs in (
           ("livePoolGet", "function livePoolGet("),
           ("livePoolKey", "function livePoolKey("))),
         ("M25c", P.R_M25C,
-         (("c", "clips.filter(function(c){return c.src}).map(function(c){"),
+         # D-21 (TT2) : les cartons de titre, qui n'ont PAS de `src`, passent
+         # desormais le filtre -- `c` est declare par la forme neuve.
+         (("c", 'clips.filter(function(c){return c.src||c.kind==="title"})'
+               ".map(function(c){"),
           ("dzTracksRef", "var dzTracksRef=x.useRef(null);"))),
         ("M25d", P.R_M25D,
          (("sel", "var sel=clips.find("),
@@ -2847,7 +3611,7 @@ for _sec, _r, _pairs in (
 # aurait ete ecrase en silence (`var` en portee de fonction).
 for _nm in ("dzOrd", "dzOrdSig", "dzReord", "_dzOrdSig", "isOverlayTrack",
             "overlayOrder", "dzmAddDit", "piste-incrust"):
-    _dans_bak = _bak_s.count(_nm) if _bak_s else -1
+    _dans_bak = _libre(_nm, _bak_s) if _bak_s else -1
     check("P14_nom_" + _nm + "_etait_libre_dans_le_bundle_d_entree",
           _dans_bak == 0, f"{_nm} apparait {_dans_bak}x dans .bak_montage")
 # AUCUNE SECTION P14 NE TOMBE DANS LE BLOC QUE LE HARNAIS [3-bis] EXECUTE
@@ -3042,9 +3806,15 @@ else:
 probe = """
 var out={};
 var T=window.DzTracks;
-out.skin_len=(SVM_TRACKS.length===T.DEFAULTS.length);
+/* D-21 (21/09/2026) : la couche porte UNE piste de plus que le bundle --
+   t1, la piste des titres, EN TETE. Les six historiques suivent, dans le
+   meme ordre et au meme habillage : le decalage d'UN rang est ce qu'on
+   compare, et `skin_tete` dit que la piste de trop est bien celle-la. */
+out.skin_len=(SVM_TRACKS.length+1===T.DEFAULTS.length);
+out.skin_tete=[T.DEFAULTS[0].id,T.DEFAULTS[0].kind,T.DEFAULTS[0].name,
+  T.DEFAULTS[0].type,T.DEFAULTS[0].h,T.DEFAULTS[0].c,T.DEFAULTS[0].mix];
 out.skin_diff=SVM_TRACKS.map(function(t,i){
-  var d=T.DEFAULTS[i]||{},bad=[];
+  var d=T.DEFAULTS[i+1]||{},bad=[];
   ["id","name","type","h","c","mix"].forEach(function(k){
     if(t[k]!==d[k])bad.push(k+" "+JSON.stringify(t[k])+" ≠ "+JSON.stringify(d[k]))});
   return bad.join(", ")}).filter(function(z){return z});
@@ -3405,7 +4175,7 @@ out.dc_mou_plus=DCLIC(dF,"p")&&dF.got[0];
    `dc_notes_comptees` empeche ce `every` d'etre vrai sur du vide. */
 out.dc_toutes_les_notes_disent_la_reserve=[dA.msgs,dA3.msgs,dB.msgs]
   .reduce(function(a,b){return a.concat(b)},[])
-  .every(function(m){return m.indexOf("« Annuler » ne rend pas la durée")>=0});
+  .every(function(m){return m.indexOf("rend aussi la durée")>=0});
 out.dc_notes_comptees=dA.msgs.length+dA3.msgs.length+dB.msgs.length;
 /* un « − » nu ne dit pas de combien : les trois elements nomment le pas */
 out.dc_titres_nomment_le_pas=["m","v","p"].every(function(k){
@@ -3623,7 +4393,14 @@ out.p14_ord_loi=P12(function(){var o=T.overlayOrder(["c2","c3","c4"],P14_CL,P14_
 out.p14_ord_pure=P12(function(){var ids=["c4","c2"],a=JSON.stringify([ids,P14_CL,P14_TS3]);
   T.overlayOrder(ids,P14_CL,P14_TS3);return a===JSON.stringify([ids,P14_CL,P14_TS3])});
 /* le choix */
-out.p14_add=P12(function(){return [T.add(T.DEFAULTS,"video")[0],T.add(T.DEFAULTS,"overlay")[0]]
+/* D-21 (21/09/2026) : `T.DEFAULTS[0]` n'est plus la piste NEUVE -- c'est t1,
+   la piste des titres, qui ouvre la table depuis D-21 et sous laquelle les
+   pistes video naissent. Les quatre mesures de P14 prennent donc la piste
+   PAR SON NOM : ce qu'elles voulaient dire depuis le debut. */
+function TRK(ts,id){var i;for(i=0;i<(ts||[]).length;i++)
+  if(ts[i]&&ts[i].id===id)return ts[i];return {}}
+out.p14_add=P12(function(){return [TRK(T.add(T.DEFAULTS,"video"),"v3"),
+  TRK(T.add(T.DEFAULTS,"overlay"),"v3")]
   .map(function(t){return [t.id,t.type,t.h,t.c,t.kind]})});
 out.p14_add_0409=P12(function(){return [T.add(TS_0409,"video")[0],T.add(TS_0409,"overlay")[0]]
   .map(function(t){return [t.id,t.type]})});
@@ -3642,13 +4419,16 @@ out.p14_addDit_v2=P12(function(){var r=T.addDit(TS_0409,"overlay");return [r.id,
 out.p14_addDit_vide=P12(function(){var r=T.addDit([],"video");return [r.id,r.type,r.tracks.length]});
 /* la persistance : le payload porte le type « vidéo » d'une piste autre que
    v1, et RIEN d'autre ; l'aller-retour rend la piste avec son habillage */
-out.p14_payload=P12(function(){return [T.payload({tracks:T.add(T.DEFAULTS,"video")})[0],
-  T.payload({tracks:T.add(T.DEFAULTS,"overlay")})[0],T.payload({tracks:T.DEFAULTS})[1]]});
+out.p14_payload=P12(function(){return [
+  TRK(T.payload({tracks:T.add(T.DEFAULTS,"video")}),"v3"),
+  TRK(T.payload({tracks:T.add(T.DEFAULTS,"overlay")}),"v3"),
+  TRK(T.payload({tracks:T.DEFAULTS}),"v1")]});
 out.p14_roundtrip=P12(function(){
   var f=T.from(T.payload({tracks:T.add(T.DEFAULTS,"video")}));
   var g=T.from(T.payload({tracks:T.add(T.DEFAULTS,"overlay")}));
-  return [[f[0].id,f[0].type,f[0].h,T.trackPlein(f,"v3"),T.wantsTwin("video",f,"v3")],
-          [g[0].id,g[0].type,g[0].h,T.trackPlein(g,"v3"),T.wantsTwin("video",g,"v3")]]});
+  var f3=TRK(f,"v3"),g3=TRK(g,"v3");
+  return [[f3.id,f3.type,f3.h,T.trackPlein(f,"v3"),T.wantsTwin("video",f,"v3")],
+          [g3.id,g3.type,g3.h,T.trackPlein(g,"v3"),T.wantsTwin("video",g,"v3")]]});
 /* le jumeau suit le type (taches 18 et 20) : piste neuve « vidéo » → jumeau ;
    « overlay » → pas de jumeau, et l'incrustation est DITE */
 out.p14_jumeau=P12(function(){var fv=T.add(T.DEFAULTS,"video"),fo=T.add(T.DEFAULTS,"overlay");
@@ -4272,8 +5052,11 @@ function CABTYPES(k, ts) {
 }
 out.tb_c_video_types = TBG(function () { return CABTYPES("piste-video", CAB_TS) });
 out.tb_c_incrust_types = TBG(function () { return CABTYPES("piste-incrust", CAB_TS) });
+/* D-21 : la piste NEUVE est nommee, pas prise au rang 0 -- depuis D-21 le
+   rang 0 de la table est t1, la piste des titres. */
 out.tb_c_incrust_v3_type = TBG(function () {
-  return CABTYPES("piste-incrust", T.DEFAULTS)[0].split(":")[1] });
+  return (CABTYPES("piste-incrust", T.DEFAULTS).filter(function (z) {
+    return z.indexOf("v3:") === 0 })[0] || "").split(":")[1] });
 out.tb_c_lier = TBG(function () {
   var vu = [];
   T.tbCablage({
@@ -5643,6 +6426,380 @@ out.tb8_onglet=TBG(function(){
     T.ToolTab({open:!1}).p.title,
     T.ToolTab({open:!0,tabRef:o}).p.ref===o]});
 
+/* D-11 : LA BANDE DE LA REGLE, JOUEE. Le pin de forme dit que les deux
+   Math.min sont ecrits ; ceci dit ce qu ils CALCULENT. Cas 1 : la plage
+   deborde a droite (out 90 pour une duree de 10) -- l entree tient a 10 %,
+   la largeur est rabotee au reste de la regle. Cas 2 : l entree ELLE-MEME
+   est hors champ (in 20 pour 10) -- gauche collee a 100 %, largeur nulle,
+   jamais une bande a l envers. */
+out.rb_deborde=TBG(function(){
+  var n=T.RangeBar({range:{in:1,out:90},dur:10});
+  return n&&n.p&&n.p.style?[n.p.style.left,n.p.style.width]:"PAS DE STYLE"});
+out.rb_entree_hors_champ=TBG(function(){
+  var n=T.RangeBar({range:{in:20,out:30},dur:10});
+  return n&&n.p&&n.p.style?[n.p.style.left,n.p.style.width]:"PAS DE STYLE"});
+
+
+/* ── D-5 : LES MARQUEURS, RENDUS PAR LE STUB JSX ─────────────────────────
+   `svmTcFF` (le timecode du bloc sonvfx) N EXISTE PAS sous ce shim : seule
+   la table SVM_TRACKS du bundle y est extraite. Il est DECLARE ici par un
+   `var` -- hisse, donc visible de la couche -- et n est AFFECTE qu apres les
+   premieres mesures : la couche doit retomber sur `dzmSecs` avant, et
+   prendre `svmTcFF` apres. Si elle le lisait AU CHARGEMENT, la seconde
+   mesure rendrait encore « 5 s ». C est la preuve que la resolution se fait
+   A L APPEL.
+   `r.jsxs` vaut `null` dans le stub : l index en a besoin. Il est pose ici
+   et REMIS A NULL aussitot apres, pour ne rien changer aux mesures qui
+   suivent. */
+var svmTcFF;
+out.mk_rendu=TBG(function(){
+  var l=T.Markers({markers:[{id:"m1",t:5,color:"rouge",title:"a",note:"n"}],dur:10});
+  return [l.length,l[0].t,l[0].p.className,l[0].k,l[0].p.style.left,
+    l[0].p.style.background,l[0].p["aria-label"]]});
+out.mk_rendu_borne=TBG(function(){
+  var l=T.Markers({markers:[{id:"m1",t:90},{id:"m2",t:-5}],dur:10});
+  return [l[0].p.style.left,l[1].p.style.left]});
+/* C-1 : LE POINTERDOWN EST AVALE. Sans cela, `.svm-ruler` (le parent)
+   prend la capture du pointeur dans `rulerDown` et fait
+   `seekTo(phFromEvent(e, el))` : la tete partait SOUS LE CURSEUR avant que
+   le `click` du bouton n arrive. La sonde compte les deux appels. */
+out.mk_rendu_pointerdown=TBG(function(){
+  var n=0,d=0,l=T.Markers({markers:[{id:"m1",t:3}],dur:10});
+  l[0].p.onPointerDown({stopPropagation:function(){n++},
+    preventDefault:function(){d++}});
+  l[0].p.onPointerDown({});                 /* evenement nu : jamais de levee */
+  return [n,d,typeof l[0].p.onPointerDown]});
+out.mk_rendu_seek=TBG(function(){
+  var vu=[],l=T.Markers({markers:[{id:"m1",t:3}],dur:10,
+    onSeek:function(t){vu.push(t)}});
+  l[0].p.onClick();return vu});
+out.mk_rendu_sans_onseek=TBG(function(){
+  var l=T.Markers({markers:[{id:"m1",t:3}],dur:10});l[0].p.onClick();
+  return "sans_levee"});
+out.mk_rendu_mou=TBG(function(){
+  return [T.Markers({}).length,T.Markers({markers:"x"}).length,
+    T.Markers({markers:[null,{id:"m1",t:1}]}).length]});
+r.jsxs=function(t,p,k){return{t:t,p:p,k:k}};
+out.mk_index_vide=TBG(function(){
+  var n=T.MarkerIndex({markers:[]});
+  return [n.p.className,n.p.children[0].p.children,
+    n.p.children[1].t,n.p.children[1].p.className,
+    n.p.children[1].p.children]});
+out.mk_index_rangees=TBG(function(){
+  var vu=[],n=T.MarkerIndex({markers:[{id:"m1",t:3,color:"bleu",title:"a",note:""}],
+    onSeek:function(t){vu.push(["seek",t])},
+    onRemove:function(i){vu.push(["rm",i])},
+    onChange:function(i,q){vu.push(["ch",i,q])}});
+  var rg=n.p.children[1][0],kids=rg.p.children;
+  kids[0].p.onClick();
+  kids[1].p.onChange({target:{value:"vert"}});
+  kids[3].p.onClick();
+  return [n.p.children[0].p.children,rg.p.className,kids.length,
+    kids[2].p.defaultValue,kids[2].p.value===void 0,vu]});
+/* LE TITRE NE REMONTE QUE S IL A CHANGE : c est ce qui empeche un
+   pushHistory PAR FRAPPE. Le champ est NON CONTROLE (`defaultValue`), donc
+   il ne remonte qu au `blur` ou sur Entree -- et un blur sans changement ne
+   remonte rien du tout. */
+out.mk_index_titre=TBG(function(){
+  var vu=[],n=T.MarkerIndex({markers:[{id:"m1",t:3,color:"or",title:"a",note:""}],
+    onChange:function(i,q){vu.push([i,q])}});
+  var kids=n.p.children[1][0].p.children;
+  kids[2].p.onBlur({target:{value:"a"}});            /* inchange : rien */
+  kids[2].p.onKeyDown({key:"x",target:{value:"zz"}});/* pas Entree : rien */
+  kids[2].p.onBlur({target:{value:"b"}});            /* change : remonte */
+  kids[2].p.onKeyDown({key:"Enter",target:{value:"c"}});
+  return vu});
+/* I-3 : LA CLE DE L INPUT PORTE LE TITRE. React IGNORE `defaultValue` a la
+   mise a jour : apres Ctrl+Z, l hote rendait l ancien titre et l input
+   gardait le neuf. Une cle qui change force le remontage. */
+out.mk_index_cle_input=TBG(function(){
+  function cle(t){return T.MarkerIndex({markers:[{id:"m1",t:3,color:"or",
+    title:t,note:""}]}).p.children[1][0].p.children[2].k}
+  return [cle("a"),cle("b")]});
+/* I-5 : la combo de l infobulle vient de `svmKeyLabelNow`, resolu A L APPEL
+   -- absent sous ce shim, le repli « Maj+M » ; pose, c est lui qui parle. */
+out.mk_combo_repli=TBG(function(){
+  return T.Markers({markers:[{id:"m1",t:3}],dur:10})[0].p.title});
+out.mk_index_sans_rappels=TBG(function(){
+  var kids=T.MarkerIndex({markers:[{id:"m1",t:3,color:"or",title:"",note:""}]})
+    .p.children[1][0].p.children;
+  kids[0].p.onClick();kids[3].p.onClick();
+  kids[1].p.onChange({target:{value:"vert"}});
+  kids[2].p.onBlur({target:{value:"z"}});
+  return "sans_levee"});
+r.jsxs=null;
+svmTcFF=function(t){return "TC"+t};
+var svmKeyLabelNow=function(id){return id==="marker_toggle"?"Ctrl+Alt+K":""};
+out.mk_combo_vivante=TBG(function(){
+  return T.Markers({markers:[{id:"m1",t:3}],dur:10})[0].p.title});
+out.mk_tc_resolu_a_l_appel=TBG(function(){
+  return T.Markers({markers:[{id:"m1",t:5}],dur:10})[0].p["aria-label"]});
+/* -- D-20 : LA GALERIE DES TRANSITIONS, RENDUE PAR LE STUB JSX ------------
+   `r.jsxs` vaut `null` dans le stub ; la grille en a besoin (chaque famille
+   et chaque tuile ont plusieurs enfants). Il est pose ici et REMIS A NULL
+   aussitot apres, comme pour l index des marqueurs plus haut.
+   LE CATALOGUE EST CELUI DU SERVEUR, mot pour mot : les six familles et les
+   58 noms sont ceux de _XFADE_FAMILIES, injectes par le banc Python sous le
+   jeton __DZ_TRANS_CAT__. Une copie a la main derivait au premier ajout. */
+r.jsxs=function(t,p,k){return{t:t,p:p,k:k}};
+var TCAT=__DZ_TRANS_CAT__;
+out.tg_rendu=TBG(function(){
+  var l=T.TransGrid({legacy:SVM_TRANS,cat:TCAT,cur:"wipetl"});
+  var fams=l.map(function(f){return [f.k,f.p.children[1].p.children.length]});
+  var tuiles=0,i;for(i=0;i<l.length;i++)tuiles+=l[i].p.children[1].p.children.length;
+  return [l.length,tuiles,fams]});
+out.tg_tuile=TBG(function(){
+  var l=T.TransGrid({legacy:SVM_TRANS,cat:TCAT,cur:"wipetl"});
+  var g=l.filter(function(f){return f.k==="volets"})[0].p.children[1].p.children;
+  var tu=g.filter(function(b){return b.k==="wipetl"})[0];
+  var pv=tu.p.children[0];
+  return [tu.p.className,tu.p["data-sel"],tu.p.title,
+          pv.p.className,pv.p["data-tt"],pv.p["data-fam"],pv.p["data-dir"],
+          tu.p.children[1].p.children]});
+/* LA TUILE NON CHOISIE N A PAS `data-sel` -- sans cette moitie, la ligne
+   ci-dessus serait vraie d une grille qui pose l attribut partout. */
+out.tg_non_choisie=TBG(function(){
+  var l=T.TransGrid({legacy:SVM_TRANS,cat:TCAT,cur:"wipetl"});
+  var g=l.filter(function(f){return f.k==="volets"})[0].p.children[1].p.children;
+  var tu=g.filter(function(b){return b.k==="wipeleft"})[0];
+  return [tu.p["data-sel"],tu.p.children[0].p["data-dir"]]});
+/* LE CLIC REMONTE L IDENTIFIANT NU, et sans rappel rien ne leve. */
+out.tg_clic=TBG(function(){
+  var vu=[],l=T.TransGrid({legacy:SVM_TRANS,cat:TCAT,cur:"cut",
+    onPick:function(id){vu.push(id)}});
+  l[0].p.children[1].p.children[0].p.onClick();
+  T.TransGrid({legacy:SVM_TRANS,cat:TCAT,cur:"cut"})[0]
+    .p.children[1].p.children[0].p.onClick();
+  return vu});
+/* LES TROIS HISTORIQUES : ceux des sept du bundle que le catalogue n a PAS.
+   `fade`, `dissolve` et `fadeblack` y sont, donc ils n y sont pas. */
+out.tg_historiques=TBG(function(){
+  var l=T.TransGrid({legacy:SVM_TRANS,cat:TCAT,cur:"cut"});
+  var h=l.filter(function(f){return f.k==="historiques"})[0];
+  return h?h.p.children[1].p.children.map(function(b){return b.k}):"PAS DE GROUPE"});
+/* L INFOBULLE DIT CE QUI N EST PAS JOUE EN DIRECT (D-12) : `fade` est live,
+   `wipetl` ne l est pas. */
+out.tg_direct=TBG(function(){
+  var l=T.TransGrid({legacy:SVM_TRANS,cat:TCAT,cur:"cut"});
+  function tt(fam,id){var g=l.filter(function(f){return f.k===fam})[0].p.children[1].p.children;
+    return g.filter(function(b){return b.k===id})[0].p.title}
+  return [tt("fondus","fade").indexOf("Preview")<0,
+          tt("volets","wipetl").indexOf("Preview")>0]});
+/* SANS CATALOGUE, la galerie est EXACTEMENT celle d avant D-20 : une famille
+   « coupe » et les six historiques -- sept tuiles, comme SVM_TRANS. */
+out.tg_sans_catalogue=TBG(function(){
+  var l=T.TransGrid({legacy:SVM_TRANS,cat:null,cur:"cut"});
+  var n=0,i;for(i=0;i<l.length;i++)n+=l[i].p.children[1].p.children.length;
+  return [l.map(function(f){return f.k}),n]});
+/* LES DEUX QUE LE BUNDLE ANIME DEJA : pas de `data-fam` DU TOUT (omis, pas
+   vide -- `[data-fam]` matche un attribut PRESENT, fut-il vide), et `data-tt`
+   toujours la. La tuile garde donc les regles du bundle. */
+out.tg_sans_fam=TBG(function(){
+  var l=T.TransGrid({legacy:SVM_TRANS,cat:TCAT,cur:"cut"});
+  var g=l.filter(function(f){return f.k==="fondus"})[0].p.children[1].p.children;
+  return ["dissolve","fadeblack"].map(function(id){
+    var pv=g.filter(function(b){return b.k===id})[0].p.children[0];
+    return [id,pv.p["data-fam"],pv.p["data-tt"]]})});
+/* LA DIRECTION RENDUE, sur les deux familles qui la CONSOMMENT (volets via
+   --wipe0, glissements via --tx/--ty) et sur une qui ne la consomme pas. */
+out.tg_dir_rendue=TBG(function(){
+  var l=T.TransGrid({legacy:SVM_TRANS,cat:TCAT,cur:"cut"});
+  function pv(fam,id){var g=l.filter(function(f){return f.k===fam})[0].p.children[1].p.children;
+    var b=g.filter(function(q){return q.k===id})[0].p.children[0];
+    return [id,b.p["data-fam"],b.p["data-dir"]]}
+  return [pv("volets","wipeleft"),pv("volets","wiperight"),
+          pv("glissements","slideleft"),pv("zooms","zoomin")]});
+/* L ACCESSIBILITE : la famille est un GROUPE nomme, la tuile dit son etat. */
+out.tg_aria=TBG(function(){
+  var l=T.TransGrid({legacy:SVM_TRANS,cat:TCAT,cur:"wipetl"});
+  var f=l.filter(function(q){return q.k==="volets"})[0];
+  var g=f.p.children[1].p.children;
+  return [[f.p.role,f.p["aria-label"]],
+          g.filter(function(b){return b.k==="wipetl"})[0].p["aria-pressed"],
+          g.filter(function(b){return b.k==="wipeleft"})[0].p["aria-pressed"]]});
+/* SANS CATALOGUE, AUCUNE TUILE NE PARLE DU DIRECT : `live` y est faux pour
+   tout sauf la coupe, et l ecrire serait une affirmation sans appui. Le
+   conjoint : les six historiques sont bien la, donc le zero n est pas creux. */
+out.tg_direct_sans_cat=TBG(function(){
+  var l=T.TransGrid({legacy:SVM_TRANS,cat:null,cur:"cut"}),n=0,h=0,i,j,g;
+  for(i=0;i<l.length;i++){g=l[i].p.children[1].p.children;
+    for(j=0;j<g.length;j++){if(g[j].p.title.indexOf("Preview")>=0)n++}
+    if(l[i].k==="historiques")h=g.length}
+  return [n,h]});
+/* -- R_TT2B : LE PAYLOAD D UN PROJET SANS CARTON NE CHANGE PAS D UN OCTET.
+   La prose de la section l affirmait « mesure au banc » sans banc (dette
+   relevee le 22/09/2026). La voici : `kind` et `title` valent `undefined`
+   sur tous les clips qui ne sont pas des cartons, et `JSON.stringify` OMET
+   une cle dont la valeur est `undefined` -- la cle EXISTE dans l objet
+   (`in` la trouve) et elle est ABSENTE de la chaine envoyee au serveur.
+   Les deux formes de l objet sont ecrites ici cote a cote ; le fait qu elles
+   soient bien celles de la section est tenu, lui, par la ligne
+   `D21_TT2b_le_carton_emporte_son_genre_et_son_titre`, qui epingle le texte
+   du remplacement. */
+out.tt2b_payload_identique=TBG(function(){
+  var c={tr:"v1",src:{a:1},start:0,end:4,srcIn:0,transition:"fade"};
+  var av={tr:c.tr,src:c.src,start:c.start,end:c.end,srcIn:c.srcIn||0,
+    transition:c.transition};
+  var ap={tr:c.tr,src:c.src,start:c.start,end:c.end,srcIn:c.srcIn||0,
+    kind:c.kind,title:c.title,transition:c.transition};
+  return [JSON.stringify(av)===JSON.stringify(ap),
+    "kind" in ap,JSON.stringify(ap).indexOf("kind")<0,
+    Object.keys(JSON.parse(JSON.stringify(ap))).length]});
+/* ET LE CARTON, LUI, LES EMPORTE : sans ce conjoint, la ligne ci-dessus
+   serait verte de deux cles qui ne partent JAMAIS. */
+out.tt2b_le_carton_les_emporte=TBG(function(){
+  var c={tr:"t1",kind:"title",start:0,end:4,srcIn:0,title:{text:"Ab"}};
+  var ap={tr:c.tr,src:c.src,start:c.start,end:c.end,srcIn:c.srcIn||0,
+    kind:c.kind,title:c.title};
+  var j=JSON.parse(JSON.stringify(ap));
+  return [j.kind,j.title.text,"src" in j]});
+/* -- D-21 (tache 7) : L INSPECTEUR DU CARTON, RENDU PAR LE STUB JSX ------
+   `r.jsxs` est encore pose (remis a null juste apres). Le catalogue est
+   celui que sert GET /titles -- huit gabarits, seize polices, cinq
+   couleurs -- EXTRAIT de titles.py et de subtitle_service.py par le banc
+   Python, sous le jeton __DZ_TITLES__. Une copie a la main derivait au
+   premier gabarit ajoute. */
+var TIC=__DZ_TITLES__;
+var TICL={tr:"t1",kind:"title",id:"t1u1",label:"Ab",start:0,end:4,
+  title:{template:"cta",text:"Ab"}};
+function TIN(o){var q={clip:TICL,gabarits:TIC.gabarits,fonts:TIC.fonts,
+  colors:TIC.colors},k;for(k in o)q[k]=o[k];return T.TitleInspector(q)}
+out.ti_cartes=TBG(function(){
+  var n=TIN({}),g=n.p.children[1].p.children;
+  return [n.p.className,g.length,g.map(function(b){return b.k}),
+    g.filter(function(b){return b.p["data-sel"]===""})
+      .map(function(b){return b.k}),
+    g[0].p.children[0].t,g[0].p.children[0].p.loading,
+    g[0].p.children[0].p.src,g[0].p.children[1].p.children,
+    g[0].p["aria-pressed"],
+    g.filter(function(b){return b.k==="cta"})[0].p["aria-pressed"]]});
+/* L URL DE LA VIGNETTE NE PORTE QUE LE GABARIT, LE TEXTE, LE SOUS-TEXTE ET
+   LA LARGEUR : la couleur, la police et le corps en sont VOLONTAIREMENT
+   absents (ils changent l image sans changer le GABARIT, et les y mettre
+   aurait fait regraver HUIT PNG a chaque cran de la reglette).
+   ET SEULE LA CARTE CHOISIE PORTE LE TEXTE REEL : les sept autres montrent
+   le mot « Titre », sans sous-texte -- sans quoi CHAQUE edition de texte
+   gravait huit PNG neufs au lieu d un. */
+out.ti_url_cartes=TBG(function(){
+  var n=TIN({clip:{tr:"t1",kind:"title",id:"t1u1",start:0,end:4,
+    title:{template:"cta",text:"a&b",sub:"s u",color:"cyan",font:"Anton",size:99}}});
+  var g=n.p.children[1].p.children;
+  function u(k){return g.filter(function(b){return b.k===k})[0].p.children[0].p.src}
+  return [u("cta"),u("plein_cadre")]});
+/* SANS TEXTE, LA VIGNETTE MONTRE « Titre » -- une URL a `text=` vide fait
+   un 400 cote serveur (`title_spec` rend None) et une case cassee. */
+out.ti_url_sans_texte=TBG(function(){
+  var n=TIN({clip:{tr:"t1",kind:"title",id:"t1u1",start:0,end:4,
+    title:{template:"cta",text:"  "}}});
+  var g=n.p.children[1].p.children;
+  return g.filter(function(b){return b.k==="cta"})[0].p.children[0].p.src});
+out.ti_non_titre=TBG(function(){
+  return [T.TitleInspector({clip:{tr:"v1",id:"z",src:{a:1}}}),
+    T.TitleInspector({}),T.TitleInspector(null)]});
+/* SANS CATALOGUE : zero vignette, et les deux <select> reduits a la seule
+   option « (du gabarit) ». L inspecteur reste utilisable par son texte. */
+out.ti_sans_catalogue=TBG(function(){
+  var n=T.TitleInspector({clip:TICL});
+  return [n.p.children[1].p.className,n.p.children[1].p.children,
+    n.p.children[4].p.children[1].p.children.length,
+    n.p.children[5].p.children[1].p.children.length,
+    n.p.children[4].p.children[1].p.children[0].p.children]});
+/* LE CHAMP EST NON CONTROLE ET NE REMONTE QU AU BLUR/ENTREE, ET SEULEMENT
+   S IL A CHANGE : QUATRE gestes, DEUX remontees -- meme mesure que
+   `mk_index_titre` pour l index des marqueurs. */
+out.ti_texte=TBG(function(){
+  var vu=[],n=TIN({onChange:function(i,q){vu.push([i,q])}});
+  var e=n.p.children[2].p.children[1];
+  e.p.onBlur({target:{value:"Ab"}});
+  e.p.onKeyDown({key:"x",target:{value:"zz"}});
+  e.p.onBlur({target:{value:"Abo"}});
+  e.p.onKeyDown({key:"Enter",target:{value:"Abon"}});
+  return [e.p.defaultValue,e.p.value===void 0,e.p.maxLength,vu]});
+/* LA CLE DE L INPUT PORTE LA VALEUR : React IGNORE `defaultValue` a la mise
+   a jour, et apres Ctrl+Z l hote rendait l ancien texte pendant que l input
+   gardait le neuf. Les deux champs, pas seulement le premier. */
+out.ti_cle_input=TBG(function(){
+  function cl(t,u){var n=T.TitleInspector({clip:{tr:"t1",kind:"title",
+    id:"t1u1",start:0,end:4,title:{template:"cta",text:t,sub:u}}});
+    return [n.p.children[2].p.children[1].k,n.p.children[3].p.children[1].k]}
+  return [cl("a","x"),cl("b","x"),cl("a","y")]});
+/* LE JETON DE REMONTAGE ENTRE DANS LES DEUX CLES : quand l hote REFUSE un
+   patch (texte vide), le clip ne bouge pas -- sans le jeton, React garderait
+   a l ecran l input VIDE alors que le carton a garde son texte. */
+out.ti_cle_nonce=TBG(function(){
+  function cl(nv){var n=T.TitleInspector({clip:TICL,nonce:nv});
+    return [n.p.children[2].p.children[1].k,n.p.children[3].p.children[1].k]}
+  return [cl(0),cl(1)]});
+/* LE CLIC SUR UNE CARTE REMONTE LE GABARIT ; LA CARTE DEJA CHOISIE NE
+   REMONTE RIEN (sans quoi re-cliquer le gabarit courant empilait un
+   instantane d historique qui ne defait rien). */
+out.ti_carte_clic=TBG(function(){
+  var vu=[],n=TIN({onChange:function(i,q){vu.push([i,q])}});
+  var g=n.p.children[1].p.children;
+  g[0].p.onClick();
+  g.filter(function(b){return b.k==="cta"})[0].p.onClick();
+  return vu});
+out.ti_selects=TBG(function(){
+  var vu=[],n=TIN({onChange:function(i,q){vu.push([i,q])}});
+  var co=n.p.children[4].p.children[1],fo=n.p.children[5].p.children[1];
+  co.p.onChange({target:{value:"cyan"}});
+  fo.p.onChange({target:{value:"Anton"}});
+  co.p.onChange({target:{value:""}});
+  return [co.p.value,fo.p.value,co.p.children.length,fo.p.children.length,
+    co.p.children[0].p.value,vu]});
+/* LA TAILLE PART AU RELACHEMENT ET JAMAIS PENDANT LE GLISSE : React cable
+   `onChange` d un <input type=range> sur l evenement `input`, qui tire a
+   chaque pixel -- cinquante instantanes pour un geste. `onChange` est donc
+   ABSENT, et c est ce que la sonde mesure. */
+out.ti_taille=TBG(function(){
+  var vu=[],n=TIN({onChange:function(i,q){vu.push([i,q])}});
+  var rg=n.p.children[6].p.children[1];
+  rg.p.onPointerUp({target:{value:"68"}});
+  rg.p.onBlur({target:{value:"68"}});
+  rg.p.onKeyUp({target:{value:"90"}});
+  rg.p.onPointerUp({target:{value:"abc"}});
+  return [rg.p.type,rg.p.min,rg.p.max,rg.p.defaultValue,
+    rg.p.onChange===void 0,vu,n.p.children[6].p.children[2].p.children]});
+/* -- LE RAPPEL DE TT6, EXTRAIT DU BUNDLE ET JOUE ICI ---------------------
+   Les pins mesurent le TEXTE de la section ; celle-ci mesure ce qu il FAIT.
+   L horloge est INJECTEE : `Date` est masque par une variable locale, donc
+   `Date.now()` du corps extrait lit `h`. Les quatre collaborateurs de l hote
+   (`pushHistory`, `setClips`, `fireNote`, `setDzTtNonce`) sont des espions.
+   LA FENETRE NE COUVRE QUE LA TAILLE : cinq crans de reglette en 200 ms
+   valent UN instantane, mais un texte puis un gabarit 50 ms plus tard en
+   valent DEUX -- une fenetre posee sur tous les reglages aurait fait
+   defaire les deux gestes d un seul Ctrl+Z. */
+out.tt6_rafale=TBG(function(){
+  var vu=[],h=100000,nonce=0;
+  var Date={now:function(){return h}};
+  var clipsRef={current:[{tr:"t1",kind:"title",id:"t1u1",label:"Ab",
+    start:0,end:4,title:{template:"cta",text:"Ab",size:68}}]};
+  var dzTtHistAt={current:0};
+  function pushHistory(){vu.push("H")}
+  function setClips(cs){clipsRef.current=cs}
+  function setDirty(){}
+  function fireNote(m){vu.push("N")}
+  function setDzTtNonce(f){nonce=f(nonce)}
+  var o={__DZ_TT6_ONCHANGE__};
+  var i;
+  for(i=0;i<5;i++){h+=50;o.onChange("t1u1",{size:70+i})}   /* rafale */
+  var apresReglette=vu.length;
+  h+=50;o.onChange("t1u1",{text:"Neuf"});                  /* autre geste */
+  h+=50;o.onChange("t1u1",{template:"legende"});           /* autre geste */
+  h+=50;o.onChange("t1u1",{text:"  "});                    /* refuse */
+  h+=50;o.onChange("t1u1",{size:90});   /* apres un geste sec : un de plus */
+  var c=clipsRef.current[0];
+  return [apresReglette,vu.join(""),nonce,
+    c.title.text,c.title.template,c.title.size,c.label]});
+out.ti_sans_rappels=TBG(function(){
+  var n=TIN({});
+  n.p.children[1].p.children[0].p.onClick();
+  n.p.children[2].p.children[1].p.onBlur({target:{value:"zz"}});
+  n.p.children[3].p.children[1].p.onKeyDown({key:"Enter",target:{value:"q"}});
+  n.p.children[4].p.children[1].p.onChange({target:{value:"cyan"}});
+  n.p.children[6].p.children[1].p.onPointerUp({target:{value:"99"}});
+  return "sans_levee"});
+r.jsxs=null;
 console.log(JSON.stringify(out));
 """
 # "use strict" en PROLOGUE du shim : concatene, celui de montage.js n'est
@@ -5662,6 +6819,101 @@ JSX = 'var r={jsx:function(t,p,k){return{t:t,p:p,k:k}},jsxs:null};\n'
 # planche/maillage/faux-ami restent justes — et la ligne dediee ci-dessous
 # rougit SEULE. Rougir, pas mourir : le `groupe(1)` d'un `re.search` absent
 # aurait leve, et emporte les 80 assertions de la section [3].
+# LE CATALOGUE DES TRANSITIONS VENU DU SERVICE, jamais recopie a la main :
+# les six familles, les 58 noms, les libelles francais et le drapeau `live`
+# sont EXTRAITS du texte de montage_service.py -- meme technique que
+# `_VIDEO_EXTS` plus haut. Une copie figee dans ce banc divergerait au
+# premier ajout, et la galerie serait benie sur un catalogue mort.
+# LE REPLI EST DIT ET IL N'EST PAS VIDE DE SENS : sans extraction, la sonde
+# recevrait `{familles: []}` et les six lignes de rendu rougiraient toutes
+# sans dire pourquoi. La ligne dediee ci-dessous rougit SEULE. Faute n6.
+_m_fam = re.search(r"_XFADE_FAMILIES = \{(.*?)\n\}", SVC, re.S)
+_TRANS_FAM_SVC = {}
+if _m_fam:
+    for _k7, _lb7, _ns7 in re.findall(
+            r'"(\w+)":\s*\{"label": "([^"]+)",\s*"noms": \[(.*?)\]\}',
+            _m_fam.group(1), re.S):
+        _TRANS_FAM_SVC[_k7] = {"label": _lb7, "noms": re.findall(r'"([^"]+)"', _ns7)}
+_m_lab = re.search(r"_XFADE_LABELS = \{(.*?)\n\}", SVC, re.S)
+_TRANS_LAB_SVC = dict(re.findall(r'"([^"]+)":\s*"([^"]+)"', _m_lab.group(1))) if _m_lab else {}
+_m_liv = re.search(r"_XFADE_LIVE = \(([^)]*)\)", SVC)
+_TRANS_LIVE_SVC = re.findall(r'"([^"]+)"', _m_liv.group(1)) if _m_liv else []
+check("D20_le_catalogue_du_service_est_extractible_pour_le_banc",
+      len(_TRANS_FAM_SVC) == 6
+      and sum(len(_f.get("noms", [])) for _f in _TRANS_FAM_SVC.values()) == 58
+      and len(_TRANS_LAB_SVC) == 58 and _TRANS_LIVE_SVC == ["fade", "fadeblack", "fadewhite"],
+      f"familles={len(_TRANS_FAM_SVC)} "
+      f"noms={sum(len(_f.get('noms', [])) for _f in _TRANS_FAM_SVC.values())} "
+      f"libelles={len(_TRANS_LAB_SVC)} live={_TRANS_LIVE_SVC}")
+_TRANS_CAT_JS = json.dumps({"familles": [
+    {"id": _k, "label": _f.get("label", _k),
+     "items": [{"id": _n, "label": _TRANS_LAB_SVC.get(_n, _n),
+                "live": _n in _TRANS_LIVE_SVC}
+               for _n in _f.get("noms", [])]}
+    for _k, _f in _TRANS_FAM_SVC.items()]}, ensure_ascii=False)
+
+# D-21 (tache 7) — LE CATALOGUE DES TITRES VENU DES SERVICES, jamais recopie :
+# les huit gabarits (identifiant, libelle, fonte, corps, couleur) viennent de
+# `titles.py`, les seize polices de `subtitle_service.FONT_FILES`, les cinq
+# couleurs de `titles.BRAND` — meme technique que `_TRANS_FAM_SVC`. Une copie
+# figee ici divergerait au premier gabarit ajoute, et l'inspecteur serait beni
+# sur un catalogue mort.
+# LE REPLI EST DIT ET N'EST PAS VIDE DE SENS : sans extraction, la sonde
+# recevrait `{gabarits:[]}` et les six lignes de rendu rougiraient toutes sans
+# dire d'ou vient le mal. La ligne dediee ci-dessous rougit SEULE. Faute n6.
+def _lire21(p21):
+    """Lecture tolerante : un fichier ABSENT rend "" et fait rougir la
+    ligne d extraction ci-dessous, jamais mourir le banc (faute n6)."""
+    try:
+        return p21.read_text(encoding="utf-8")
+    except Exception:
+        return ""
+
+
+_TITLESPY = _lire21(ROOT / "backend" / "app" / "services" / "titles.py")
+_SUBSVC = _lire21(ROOT / "backend" / "app" / "services" / "subtitle_service.py")
+_TPL_SVC = re.findall(
+    r'^    "(\w+)":\s*\{"font": "([^"]+)",\s*"size": (\d+),\s*"color": "(\w+)"',
+    _TITLESPY, re.M)
+_m_lab21 = re.search(r"^LABELS = \{(.*?)\n\}", _TITLESPY, re.S | re.M)
+_LAB_SVC = (dict(re.findall(r'"(\w+)": "([^"]*)"', _m_lab21.group(1)))
+            if _m_lab21 else {})
+_m_brand = re.search(r"^BRAND = \{(.*?)\}", _TITLESPY, re.S | re.M)
+_BRAND_SVC = re.findall(r'"(\w+)":', _m_brand.group(1)) if _m_brand else []
+_m_ff21 = re.search(r"^FONT_FILES: dict\[str, str\] = \{(.*?)\n\}",
+                    _SUBSVC, re.S | re.M)
+_FONTS_SVC = re.findall(r'"([^"]+)": "', _m_ff21.group(1)) if _m_ff21 else []
+check("D21_le_catalogue_des_titres_est_extractible_pour_le_banc",
+      len(_TPL_SVC) == 8 and set(_LAB_SVC) == {_t[0] for _t in _TPL_SVC}
+      and len(_BRAND_SVC) == 5 and len(_FONTS_SVC) == 16,
+      f"gabarits={len(_TPL_SVC)} libelles={len(_LAB_SVC)} "
+      f"couleurs={len(_BRAND_SVC)} polices={len(_FONTS_SVC)}")
+_TITLES_JS = json.dumps({
+    "gabarits": [{"id": _g, "label": _LAB_SVC.get(_g, _g), "font": _fo,
+                  "size": int(_sz), "color": _co}
+                 for _g, _fo, _sz, _co in _TPL_SVC],
+    "fonts": _FONTS_SVC, "colors": _BRAND_SVC}, ensure_ascii=False)
+
+# D-21 (re-revue du 22/09/2026) — LE `onChange` DE TT6, EXTRAIT DU BUNDLE ET
+# JOUÉ SOUS NODE. Les pins de TT6 mesurent le TEXTE de la section ; ils ne
+# disent rien du COMPORTEMENT — « cinq crans de réglette valent un
+# instantané » et « un texte puis un gabarit en valent deux » sont des
+# affirmations sur une exécution, pas sur une chaîne. Le corps est donc
+# extrait du bundle LIVRÉ (jamais recopié : une copie à la main aurait
+# certifié un code qui n'est plus celui qui tourne) et exécuté avec une
+# horloge INJECTÉE — `Date` est masqué par une variable locale dans le shim.
+# LE REPLI EST DIT : sans extraction, le jeton devient un objet vide, la
+# sonde rend un témoin et la ligne dédiée ci-dessous rougit SEULE.
+_m_tt6 = re.search(r"onChange:function\(id,p\)\{.*?setClips\(cs\);setDirty\(!0\)\}",
+                   s.replace("\r\n", "\n"), re.S)
+_TT6_JS = _m_tt6.group(0) if _m_tt6 else "onChange:function(){return 'PAS-EXTRAIT'}"
+check("D21_le_rappel_de_l_inspecteur_est_extractible_du_bundle",
+      _m_tt6 is not None
+      and s.count(nl("onChange:function(id,p){")) == 1
+      and "DzTracks.titleUpdate(clipsRef.current,id,p)" in _TT6_JS
+      and "dzTtHistAt.current" in _TT6_JS and len(_TT6_JS) < 1200,
+      f"extrait={_m_tt6 is not None} taille={len(_TT6_JS)}")
+
 _m_exts = re.search(r"_VIDEO_EXTS = \(([^)]*)\)", SVC)
 _exts_svc = re.findall(r'"([^"]+)"', _m_exts.group(1)) if _m_exts else []
 check("backend_la_liste_video_est_extractible_pour_le_banc",
@@ -5683,11 +6935,26 @@ check("bundle_svmRuler_et_svmPad2_extraites",
       s.count(nl(_PAD2)) == 1 and s.count(nl(_RULER)) == 1,
       f"pad2={s.count(nl(_PAD2))} ruler={s.count(nl(_RULER))}")
 RULER_SRC = _PAD2 + "\n" + _RULER + "\n"
+# D-20 : `SVM_TRANS` du BUNDLE, extraite et jouee a cote de la couche --
+# meme technique que svmRuler/svmPad2 ci-dessus. La galerie prend les sept
+# historiques en parametre (`legacy`) : les recopier ici ferait une
+# seconde version qui divergerait de la premiere au premier changement de
+# libelle. Le repli est une table VIDE, et la ligne dediee rougit SEULE :
+# sans elle, les sept lignes de rendu diraient toutes « ReferenceError »
+# sans dire d'ou vient le mal (faute n6, deja payee ici par _VIDEO_EXTS).
+_m_trans = re.search(r"var SVM_TRANS=\[.*?\];", s.replace("\r\n", "\n"), re.S)
+_TRANS_SRC = (_m_trans.group(0) + "\n") if _m_trans else "var SVM_TRANS=[];\n"
+check("D20_la_table_des_sept_historiques_est_extractible_du_bundle",
+      _m_trans is not None and _TRANS_SRC.count('["') == 7,
+      f"paires={_TRANS_SRC.count(chr(91) + chr(34))}")
 shim.write_text('"use strict";\n' + "var window={};var SVM_TRACK_BUS={};\n" + JSX
                 + SVM_SRC.replace("\r\n", "\n") + "\n"
-                + RULER_SRC + src + "\n"
+                + RULER_SRC + _TRANS_SRC + src + "\n"
                 + probe.replace("__DZ_VIDEO_EXTS__",
-                                json.dumps(_exts_svc or [".mp4"])),
+                                json.dumps(_exts_svc or [".mp4"]))
+                       .replace("__DZ_TRANS_CAT__", _TRANS_CAT_JS)
+                       .replace("__DZ_TITLES__", _TITLES_JS)
+                       .replace("__DZ_TT6_ONCHANGE__", _TT6_JS),
                 encoding="utf-8")
 r = NODE(["node", str(shim)])
 if r.returncode != 0:
@@ -5714,7 +6981,11 @@ else:
     check("js_shim_rend_un_objet_json", _mal == "",
           f"{_mal} — {len(_lignes)} ligne(s), dernière={_derniere[:120]!r}")
 
-BASE = ["v2", "v1", "a1", "a2", "a3", "s1"]
+# D-21 (21/09/2026) — LA PISTE DES TITRES OUVRE LA LISTE. Les six
+# historiques n'ont ni change d'ordre ni change d'habillage : t1 s'AJOUTE en
+# tete, et `js_defauts_meme_habillage_que_le_bundle` compare les six une a
+# une avec SVM_TRACKS, decalees d'un rang.
+BASE = ["t1", "v2", "v1", "a1", "a2", "a3", "s1"]
 check("js_defauts_identiques_a_SVM_TRACKS", d.get("base") == BASE, str(d.get("base")))
 # LE point de non-divergence : mêmes six pistes, mêmes noms, mêmes hauteurs,
 # mêmes couleurs que la table du bundle. C'est ce qui garantit que l'écran
@@ -5722,7 +6993,13 @@ check("js_defauts_identiques_a_SVM_TRACKS", d.get("base") == BASE, str(d.get("ba
 check("js_defauts_meme_habillage_que_le_bundle",
       d.get("skin_len") is True and d.get("skin_diff") == [],
       f'len={d.get("skin_len")} diff={d.get("skin_diff")}')
-check("js_move_a3_monte", d.get("move_a3_up") == ["v2", "v1", "a1", "a3", "a2", "s1"],
+# ET LA PISTE DE TROP EST NOMMEE, sinon « une de plus » aurait ete vrai de
+# n'importe quoi. Son habillage est celui de S1 (l'autre piste de texte) a
+# la hauteur pres, celle d'une bande d'incrustation.
+check("js_la_piste_de_trop_est_celle_des_titres",
+      d.get("skin_tete") == ["t1", "title", "T1", "titres", 40,
+                             "--c-text", 11], d.get("skin_tete"))
+check("js_move_a3_monte", d.get("move_a3_up") == ["t1", "v2", "v1", "a1", "a3", "a2", "s1"],
       str(d.get("move_a3_up")))
 check("js_move_v1_refuse", d.get("move_v1_up") == BASE, str(d.get("move_v1_up")))
 check("js_move_v2_descend_refuse", d.get("move_v2_down") == BASE,
@@ -5732,18 +7009,23 @@ check("js_drag_v2_bloque_au_groupe", d.get("drag_v2_to_s1") == BASE,
 # le cas qui RÉUSSIT : sans lui, un moveTo qui ne bougerait jamais rien
 # passerait le banc.
 check("js_drag_a1_sous_a3",
-      d.get("moveto_a1_apres_a3") == ["v2", "v1", "a2", "a3", "a1", "s1"],
+      d.get("moveto_a1_apres_a3") == ["t1", "v2", "v1", "a2", "a3", "a1", "s1"],
       str(d.get("moveto_a1_apres_a3")))
+# D-21 — « TOUT EN HAUT » VEUT DIRE SOUS LES TITRES. Sans la borne posee
+# dans `dzmAdd`, v3 naissait AU-DESSUS de t1, c'est-a-dire hors de son
+# groupe (`dzmGroup` range t1 avec les incrustations) : les ▲ ▼ n'auraient
+# plus pu l'en faire redescendre. Le label ne bouge pas, l'attente si.
 check("js_add_video_en_v3_tout_en_haut",
-      d.get("add_video") == ["v3"] + BASE, str(d.get("add_video")))
+      d.get("add_video") == ["t1", "v3", "v2", "v1", "a1", "a2", "a3", "s1"],
+      str(d.get("add_video")))
 check("js_add_audio_en_a4_avant_s1",
-      d.get("add_audio") == ["v2", "v1", "a1", "a2", "a3", "a4", "s1"],
+      d.get("add_audio") == ["t1", "v2", "v1", "a1", "a2", "a3", "a4", "s1"],
       str(d.get("add_audio")))
 check("js_remove_v1_refuse", d.get("rm_v1") == BASE, str(d.get("rm_v1")))
 # B1 : retirer S1 emportait TOUS les sous-titres (ce sont ses clips), rien
 # ne savait la recréer, et l'autosave figeait la perte au rechargement.
 check("js_remove_s1_refuse", d.get("rm_s1") == BASE, str(d.get("rm_s1")))
-check("js_remove_a2", d.get("rm_a2") == ["v2", "v1", "a1", "a3", "s1"],
+check("js_remove_a2", d.get("rm_a2") == ["t1", "v2", "v1", "a1", "a3", "s1"],
       str(d.get("rm_a2")))
 check("js_bus_defaut_identique_au_bundle",
       d.get("bus_defaut") == {"a1": "dialogue", "a2": "musique", "a3": "sfx"},
@@ -5754,7 +7036,8 @@ check("js_bus_mute_en_place", d.get("bus_meme_objet") is True,
       "svmTrackBusSync a REMPLACÉ l'objet — les neuf lecteurs du bundle "
       "garderaient l'ancien")
 check("js_payload_minimal",
-      d.get("payload") == [{"id": "v2", "kind": "video"},
+      d.get("payload") == [{"id": "t1", "kind": "title"},
+                           {"id": "v2", "kind": "video"},
                            {"id": "v1", "kind": "video"},
                            {"id": "a1", "kind": "audio", "bus": "dialogue"},
                            {"id": "a2", "kind": "audio", "bus": "musique", "loop": True},
@@ -6185,7 +7468,7 @@ check("js_durctl_entrees_illisibles_retombent_sur_le_plancher_et_un_pas_de_1s",
       f'{d.get("dc_mou_valeur")!r} / {d.get("dc_mou_plus")!r}')
 # LA RESERVE CENTRALE DANS CHAQUE NOTE. Le `every` du sondage est vrai sur du
 # vide : le compte des notes est le conjoint qui l'en empeche.
-check("js_durctl_chaque_note_dit_que_annuler_ne_rend_pas_la_duree",
+check("js_durctl_chaque_note_dit_que_annuler_rend_la_duree",
       d.get("dc_notes_comptees") == 3
       and d.get("dc_toutes_les_notes_disent_la_reserve") is True,
       f'notes={d.get("dc_notes_comptees")} '
@@ -7139,9 +8422,12 @@ _SHORT = _ligne("svmShort", 'function svmShort(s){var d=Math.round(s*10),'
                 'svmPad2(Math.floor(r2/10))+"."+(r2%10)}')
 _SPEED = _ligne("svmSpeedOf", 'function svmSpeedOf(c){return c&&typeof '
                 'c.speed==="number"&&c.speed>0?c.speed:1}')
+# D-21 (21/09/2026) : `trackKind` connait un QUATRIEME genre, « title » (la
+# piste t1). Elle est EXTRAITE, jamais recopiee : c'est cette ligne-ci qui
+# rougit si la section TT1 cesse d'etre appliquee.
 _KIND = _ligne("trackKind", 'function trackKind(trId){var k=String(trId||"")'
                '.charAt(0);\n    return k==="a"?"audio":k==="s"?"subs":'
-               '"video"}')
+               'k==="t"?"title":"video"}')
 _KBSEL = _ligne("svmKbSelClip", 'function svmKbSelClip(){var id=selRef.current;'
                 '\n    return clipsRef.current.find(function(k){'
                 'return k.id===id})||null}')
@@ -7201,6 +8487,10 @@ function ECRAN(o){
   var J={proj:[],clips:[],sel:[],dirty:0,notes:[],pick:[],hist:0,snapT:[],
          arm:[],attente:[],dirtyV:[]};
   var proj={dur:Number(o.dur)||16,demo:!1,mixDb:{}};
+  /* D-2 — la plage I/O du projet, quand le cas en pose une (mode
+     « remplir la plage »). Absente par defaut, comme le projet de demo du
+     bundle, qui n'a pas de cle `range` tant que I / U n'ont pas ete frappes. */
+  if(o.range)proj.range=o.range;
   var durRef={current:proj.dur};
   var clipsRef={current:(o.clips||[]).slice()};
   var phRef={current:Number(o.ph)||0};
@@ -7208,6 +8498,33 @@ function ECRAN(o){
   var selRef={current:o.sel||null};
   var ovSeq={current:Number(o.seq)||0};
   var nudgeHistAt={current:0};
+  /* D-0 (21/09/2026) — LES TROIS NOUVEAUX LIBRES DU CABLAGE, bouchonnes
+     comme leurs freres : `dzmHistHost` fait le MEME APPEL a la VRAIE
+     `DzTracks.histSnap` de la couche chargee plus haut — rien n'est
+     recopie. LA REF, ELLE, EST AFFECTEE SUR PLACE : dans le bundle
+     `dzProjRef.current=proj` vit a cote de la declaration, relue a chaque
+     RENDU ; ce shim n'a pas de rendu, l'affectation est donc repliee dans
+     la fonction, ou elle rend la meme valeur. `dzDurHistAt` est l'horloge
+     de rafale du reglage de duree (repli « H6 » dans M17g), `dzStyleHistAt`
+     celle du style S1, que ce shim n'execute pas mais qui coute zero. */
+  /* D-2 (21/09/2026) — `dzProjRef` PORTE LE PROJET DES LE DEPART. Dans le
+     bundle il est reecrit a chaque RENDU (`dzProjRef.current=proj`, a cote
+     de `histRef`) ; ce shim n'a pas de rendu, l'affectation etait donc
+     repliee dans `dzmHistHost` — la seule fonction qui le lisait. `addAsset`
+     le lit DESORMAIS aussi (la plage I/O du mode « remplir la plage »), et
+     un `null` y aurait rendu la plage introuvable quoi qu'on passe. Il est
+     donc pose ici ET rafraichi par `setProj`, exactement comme un rendu. */
+  var dzProjRef={current:proj};
+  var dzDurHistAt={current:0};
+  var dzStyleHistAt={current:0};
+  /* D-2 — LE MODE D'EDITION, la ref que lit `addAsset` (repli « E1 » dans
+     R_M16REF). L'etat `dzMode` et la rangee de chips vivent dans le rendu,
+     que ce shim ne joue pas : ce qui DECIDE est la ref, et c'est elle qui
+     est bouchonnee. Defaut « ecraser », comme `x.useState("ecraser")`. */
+  var dzModeRef={current:o.mode||"ecraser"};
+  function dzmHistHost(){dzProjRef.current=proj;
+    return DzTracks.histSnap({clips:clipsRef.current,mixDb:mixRef.current,
+      proj:dzProjRef.current})}
   var ovKeysOffRef={current:!1};
   var dzReadyRef={current:o.pasPrete?!1:!0};
   var dzTracksRef={current:o.pistes||null};
@@ -7549,7 +8866,16 @@ out.ct_classe=(CT&&CT.p&&CT.p.className)||null;
 out.ct_boutons=((CT&&CT.p&&CT.p.children)||[]).map(function(k){
   return k&&k.k});
 var bp=BTN(CT,"p");if(bp&&bp.p.onClick)bp.p.onClick();
+/* D-0 — LA FENETRE DE 600 ms, JOUEE. Un SECOND clic dans le MEME tick,
+   donc a moins de 600 ms du premier : il ECRIT la duree (16 -> 18 -> 20)
+   mais ne pousse PAS une seconde entree d'historique. Le controle est
+   reconstruit sur la duree qui vient d'etre ecrite, ce que fait le rendu
+   de l'ecran a chaque frappe. Sans la fenetre, `ct_hist` vaudrait 2 et
+   une rafale de trente clics maintenus vaudrait trente « annuler ». */
+var bp2=BTN(E7.durCtl(E7.projet().dur,2,[{end:8}]),"p");
+if(bp2&&bp2.p.onClick)bp2.p.onClick();
 out.ct_plus=E7.J.proj.slice();
+out.ct_hist=E7.J.hist;
 out.ct_dirty=E7.J.dirty;
 out.ct_note=E7.J.notes[0]||"";
 var E8=ECRAN({dur:16});
@@ -7558,6 +8884,111 @@ out.ct_moins=E8.J.proj.slice();
 var E9=ECRAN({dur:16});
 var bf=BTN(E9.durCtl(16,2,[{end:8}]),"f");if(bf&&bf.p.onClick)bf.p.onClick();
 out.ct_ajuste=E9.J.proj.slice();
+/* ── D-2 (21/09/2026) : LES MODES D'EDITION, JOUES PAR addAsset ──────────
+   LES DEUX BOUCHONS SONT REPOSES, ET C'EST UNE MESURE. La ligne
+   `ask_rendue` ci-dessus REND les vraies `askDur` / `askAudio` a la couche
+   (elle mesure justement que ce banc ne la laisse pas bouchonnee). Or les
+   sondes qui suivent passent par `addAsset`, qui DEMANDE le verdict audio
+   des qu'on pose une video sur une piste video PLEIN CADRE : sans bouchon,
+   la vraie part chercher `fetch` chez node (URL relative -> rejet, reponse
+   en micro-tache) et `addAsset` SORT EN SILENCE. Mesure du 21/09/2026 :
+   zero clip, zero note, zero entree d'historique, aucune exception — et les
+   onze lignes ci-dessous auraient ete VERTES sur du vide si elles avaient
+   ete ecrites a l'envers. Elles sont ecrites a l'endroit : chacune EXIGE des
+   bornes.
+   `dzModeRef` est la ref du cablage « E1 » ; ECRAN la bouchonne par
+   `o.mode`. La couche chargee est la VRAIE (`DzTracks.insere`), le cablage
+   est la CHAINE EXACTE du bundle : ce qui suit mesure le FIL, de la chip
+   choisie jusqu'aux bornes ecrites et a la phrase dite. */
+window.DzTracks.askDur=function(sr,op){askVus.push([sr,op])};
+window.DzTracks.askAudio=function(sr,op){auVus.push([sr,op])};
+function MODE(m,o){
+  o=o||{};o.mode=m;
+  var E=ECRAN(o);
+  var nAv=auVus.length;
+  E.addAsset(o.src||{job_id:200},o.label||"neuf.mp4","video",
+    Number(o.srcDur)||3,o.tr||"v1",o.at==null?null:o.at);
+  /* LE VERDICT AUDIO DOIT ETRE RENDU : `wantsTwin` est VRAI sur une piste
+     video plein cadre, et `addAsset` SORT sur la sonde tant qu'elle n'a pas
+     repondu (mesure du 21/09/2026 : sans cette reponse, zero clip, zero
+     note, et les dix lignes ci-dessous etaient vertes sur du vide). On
+     repond « pas de son » : un seul clip, aucun jumeau, le mode seul
+     decide. Le CACHE d'`audioSet` fait que seule la PREMIERE sonde part —
+     toutes ces sondes partagent `{job_id:200}`. */
+  if(auVus.length>nAv)REPOND({has_audio:!1,dur:3,pourquoi:"mesure"});
+  return {bornes:BORNES(E.etat().clips),
+    ids:E.etat().clips.map(function(c){return c.id}),
+    pistes:E.etat().clips.map(function(c){return c.tr}),
+    vitesses:E.etat().clips.map(function(c){return c.speed==null?null:c.speed}),
+    /* I-3 — LES CLES DU CLIP POSE. `srcDur` est une mesure de la SOURCE :
+       si elle survit sur le clip, elle part dans la sauvegarde et dans le
+       payload de rendu. On relit le clip par l'identifiant SELECTIONNE,
+       c'est-a-dire celui qu'`addAsset` vient de poser. */
+    cles:(function(){var q=E.J.sel[E.J.sel.length-1],k=null;
+      E.etat().clips.forEach(function(c){if(c&&c.id===q)k=c});
+      return k?Object.keys(k).sort():null})(),
+    sel:E.J.sel,hist:E.J.hist,note:E.J.notes[0]||"",
+    notes:E.J.notes.length,dur:E.etat().dur,proj:E.J.proj,seq:E.seq()}}
+/* La piste v1 porte DEJA deux plans colles ; la tete est a 2. Aucune sonde
+   audio : `pistes` ne contient pas de piste de dialogue, donc pas de jumeau
+   (wantsTwin est faux) et rien ne bloque la sonde. */
+/* L'INDEX 0 EST LA PISTE LA PLUS HAUTE (dzmOverlayOrder, « compose la piste
+   listee le plus haut AU-DESSUS ») : v2 est donc AU-DESSUS de v1, et c'est
+   ce que le mode « au-dessus » cherche. Mesure du 21/09/2026 : avec v1 en
+   tete, aucune candidate et repli silencieux en « ecraser ». */
+var TS1=[{id:"v2",kind:"video",type:"overlay"},{id:"v1",kind:"video",type:"vidéo"},
+  {id:"s1",kind:"subs"}];
+function DEUX(){return [
+  {tr:"v1",id:"p1",label:"p1",start:0,end:4,src:{job_id:1},srcIn:0},
+  {tr:"v1",id:"p2",label:"p2",start:4,end:8,src:{job_id:2},srcIn:0}]}
+var BASE={dur:16,ph:2,pistes:TS1,clips:DEUX()};
+function AVEC(x){var o={},k;for(k in BASE)o[k]=BASE[k];
+  o.clips=DEUX();for(k in (x||{}))o[k]=x[k];return o}
+out.m_ecraser=MODE("ecraser",AVEC({}));
+out.m_inserer=MODE("inserer",AVEC({}));
+out.m_fin=MODE("fin",AVEC({}));
+out.m_dessus=MODE("dessus",AVEC({}));
+out.m_ripple=MODE("ripple_ecraser",AVEC({}));
+/* « remplir la plage » : la plage [10,13[ du PROJET, lue par addAsset dans
+   `dzProjRef.current.range`. La source dure 6 s pour une plage de 3 s :
+   vitesse ×2, et le clip prend EXACTEMENT les bornes de la plage. */
+out.m_remplir=MODE("remplir",AVEC({range:{in:10,out:13},srcDur:6}));
+/* SANS PLAGE, « remplir » retombe en « ecraser » — la chip est ETEINTE a
+   l'ecran pour cette raison, et c'est ce repli que la sonde epingle. */
+out.m_remplir_sans_plage=MODE("remplir",AVEC({}));
+/* UN MODE INCONNU (un etat corrompu, une vieille cle) vaut « ecraser ». */
+out.m_inconnu=MODE("zz_inexistant",AVEC({}));
+/* LE VERROU PAR « au-dessus » : v1 est LIBRE (addAsset ne refuse donc pas),
+   mais la seule piste video au-dessus, v2, est VERROUILLEE. `dzmInsere` ne
+   filtre les candidates que sur le chevauchement : elle la choisit, puis
+   rend refus:"verrou". RIEN ne doit etre ecrit, et surtout pas d'entree
+   d'historique — c'est le chemin que le plan croyait mort. */
+out.m_dessus_verrou=MODE("dessus",AVEC({verrous:{v2:{l:!0}}}));
+/* PAS DE PISTE LIBRE AU-DESSUS : v2 est occupee sur [2,5[. Repli sur v1,
+   DIT par `dzIns.note`. */
+out.m_dessus_plein=MODE("dessus",AVEC({clips:DEUX().concat(
+  [{tr:"v2",id:"o1",label:"o1",start:0,end:9,src:{job_id:3},srcIn:0}])}));
+/* L'IDENTIFIANT EN COLLISION : la piste porte deja `v1u1_0`, l'id que
+   l'ajout allait forger. `dzmPose` le renomme, et c'est le NOUVEAU que la
+   selection doit porter. */
+out.m_collision=MODE("ecraser",AVEC({at:0,clips:[
+  {tr:"v1",id:"v1u1_0",label:"vieux",start:12,end:14,src:{job_id:4},srcIn:0}]}));
+/* M-5 (second tour) — « AU-DESSUS » SUR UNE V1 VIDE. Le mode remonte
+   TOUJOURS vers la premiere piste libre du meme genre : il ne regarde
+   JAMAIS l'occupation de la piste visee. Une version de la note pretendait
+   le contraire (« la piste visee etait occupee a cet instant ») et mentait
+   donc sur ce cas-ci, mesure sous node : pistes [v2, v1], AUCUN clip, clip
+   vise sur v1 -> {track:"v2", refus:"", note:""}. La note enonce le MODE. */
+out.m_dessus_vide=MODE("dessus",AVEC({clips:[]}));
+/* « E4 » — LE VERROU DE LA PISTE VISEE NE PRECEDE PLUS LE MODE. V1 est
+   VERROUILLEE, V2 est libre : « au-dessus » doit POSER sur V2 (avant, le
+   geste etait refuse alors que rien n'allait sur V1) ; « ecraser », lui,
+   reste refuse — avec la phrase d'origine, mot pour mot. */
+out.m_v1_verrou_dessus=MODE("dessus",AVEC({verrous:{v1:{l:!0}}}));
+out.m_v1_verrou_ecraser=MODE("ecraser",AVEC({verrous:{v1:{l:!0}}}));
+/* et les vraies sont RENDUES, comme apres la section P12. */
+window.DzTracks.askDur=vraiAsk;window.DzTracks.askAudio=vraiAu;
+out.m_rendues=(window.DzTracks.askDur===vraiAsk&&window.DzTracks.askAudio===vraiAu);
 console.log(JSON.stringify(out));
 """
 
@@ -7642,7 +9073,7 @@ check("js_add_la_timeline_s_allonge_pour_l_accueillir",
 check("js_add_l_allongement_est_DIT_et_chiffre",
       "La timeline a été allongée de 0:16 à 0:22" in w.get("add_note", "")
       and "la longueur ENTIÈRE de la source" in w.get("add_note", "")
-      and "NE raccourcit PAS la timeline" in w.get("add_note", ""),
+      and "rend aussi la durée d'avant" in w.get("add_note", ""),
       repr(w.get("add_note"))[:220])
 check("js_add_son_la_note_dit_le_jumeau_la_piste_et_l_annulation",
       "Son du plan extrait sur A1" in w.get("add_note", "")
@@ -7870,7 +9301,7 @@ check("js_nudge_le_decalage_etend_la_timeline",
 check("js_nudge_l_allongement_est_DIT_et_nomme_le_clip",
       w.get("nd_note", "").startswith("Timeline allongée à 0:17")
       and "« plan »" in w.get("nd_note", "")
-      and "NE raccourcit PAS la timeline" in w.get("nd_note", ""),
+      and "rend aussi la durée d'avant" in w.get("nd_note", ""),
       repr(w.get("nd_note"))[:200])
 # LA NOTE NE PARLE QUE QUAND LA DUREE CHANGE VRAIMENT : une touche maintenue
 # vaut trente pas par seconde. Le conjoint est le deplacement REEL du clip.
@@ -7911,18 +9342,475 @@ check("js_glisser_le_bord_droit_n_est_plus_plafonne",
 # MUTATION :1315 (l'`onSet` qui n'ecrit rien) : les trois boutons du controle
 # sont CLIQUES ici, et c'est leur ecriture qu'on lit. « ajuster » paie la
 # dette de P3 (ramener la fin sur le dernier clip : 16 -> 8).
+# DEUX ECRITURES SUR « + » DEPUIS D-0 : la sonde clique DEUX fois dans le
+# meme tick pour mesurer la fenetre de 600 ms (voir la ligne
+# `js_transport_le_reglage_entre_dans_l_historique`). Le pas est 2 s, la
+# duree part de 16 : 18 puis 20, et l'autosauvegarde est armee aux DEUX.
 check("js_transport_le_reglage_ecrit_la_duree",
-      w.get("ct_plus") == [18] and w.get("ct_moins") == [14]
-      and w.get("ct_ajuste") == [8] and w.get("ct_dirty") == 1,
+      w.get("ct_plus") == [18, 20] and w.get("ct_moins") == [14]
+      and w.get("ct_ajuste") == [8] and w.get("ct_dirty") == 2,
       f'+={w.get("ct_plus")} -={w.get("ct_moins")} '
       f'ajuste={w.get("ct_ajuste")} dirty={w.get("ct_dirty")}')
 check("js_transport_le_controle_porte_ses_quatre_boutons",
       w.get("ct_classe") == "dzm-durctl"
       and w.get("ct_boutons") == ["m", "v", "p", "f"]
       and "(+2 s)" in w.get("ct_note", "")
-      and "ne rend pas la durée du projet" in w.get("ct_note", ""),
+      and "rend aussi la durée du projet" in w.get("ct_note", ""),
       f'{w.get("ct_classe")} {w.get("ct_boutons")} '
       f'{repr(w.get("ct_note"))[:140]}')
+# D-0 (21/09/2026) — LE REGLAGE DE DUREE ENTRE DANS L'HISTORIQUE. C'est le
+# repli « H6 » dans R_M17G, joue ICI : un clic sur « + » pousse UNE entree
+# avant d'ecrire. Le conjoint qui empeche cette ligne d'etre verte a vide est
+# `ct_plus` au-dessus — la duree a bel et bien ete ECRITE (18) ; une entree
+# poussee sans ecriture, ou une ecriture sans entree, rougit.
+check("js_transport_le_reglage_entre_dans_l_historique",
+      w.get("ct_hist") == 1 and w.get("ct_plus") == [18, 20],
+      f'hist={w.get("ct_hist")} ecritures={w.get("ct_plus")}')
+
+# ══════════════════════════════════════════════════════════════════════════
+# D-2 (21/09/2026) — LES MODES D'EDITION, CABLES A L'ECRAN (tache 6)
+# Les six chips du selecteur, l'etat qui les porte, et `addAsset` qui ecrit
+# PAR `DzTracks.insere`. Le coeur pur est mesure par test_montage_edition.py
+# (32/0) ; ce qui suit est le CABLAGE : ce que le bundle contient, et ce que
+# le bundle FAIT quand on le joue sous node.
+# ══════════════════════════════════════════════════════════════════════════
+print("\n[3-ter] D-2 — les modes d'edition, cables : E1, E2, E3")
+# LA MESURE QUI COMMANDE TOUTE LA FORME DU CABLAGE : les trois textes vises
+# valent ZERO dans .bak_montage (l'entree du patcher) et UN dans le bundle
+# livre. Une section a part serait refusee par `--check`. C'est pourquoi E1,
+# E2 et E3 sont REPLIES dans R_M16REF / R_M15B / R_M22A+R_M22B.
+_BAK = (ROOT / "frontend" / "dist" / "assets"
+        / "index-BEOJX8L5.js.bak_montage")
+_bak = _BAK.read_text(encoding="utf-8") if _BAK.is_file() else ""
+
+
+def _nlb(t):
+    """`nl()` du .bak : meme parade, autre fichier."""
+    return t.replace("\n", "\r\n") if "\r\n" in _bak else t
+
+
+_E_ANCRES = (
+    ("E1", "var dzTracksRef=x.useRef(null);"
+           "dzTracksRef.current=svmTracksOf(proj);"),
+    ("E2", ':("Ajouter sur la piste "+tr2.toUpperCase())}),'),
+    ("E3", "setClips(clipsRef.current.concat(dzTw&&dzTw.clip?"
+           "[dzNeuf,dzTw.clip]:[dzNeuf]));"),
+)
+check("D2_le_bak_du_patcher_est_lisible", len(_bak) > 100000, f"{len(_bak)} o")
+for _tag, _txt in _E_ANCRES:
+    check("D2_ancre_" + _tag + "_vaut_zero_dans_le_bak",
+          bool(_bak) and _bak.count(_nlb(_txt)) == 0,
+          f"bak={_bak.count(_nlb(_txt))} (texte cree par un remplacement)")
+# LES TROIS PREMIERES existent bien dans le LIVRE (sinon la mesure ci-dessus
+# serait vraie pour une raison creuse : un texte qui n'existe nulle part).
+check("D2_les_deux_ancres_creees_existent_dans_le_livre",
+      s.count(nl(_E_ANCRES[0][1])) == 1 and s.count(nl(_E_ANCRES[1][1])) == 1,
+      f'E1={s.count(nl(_E_ANCRES[0][1]))} E2={s.count(nl(_E_ANCRES[1][1]))}')
+# E3, LUI, A ETE CONSOMME : R_M22B l'a remplace par `setClips(dzIns.clips);`.
+check("D2_l_ancre_E3_a_ete_consommee_par_M22b",
+      s.count(nl(_E_ANCRES[2][1])) == 0
+      and s.count(nl("setClips(dzIns.clips);")) == 1,
+      f'ancienne={s.count(nl(_E_ANCRES[2][1]))}')
+# UNE SEULE SECTION AJOUTEE, ET C'EST LA SEULE QUI POUVAIT L'ETRE : « E4 »,
+# le verrou de piste deplace. Son ancre vient du greffon AMONT
+# (son-vfx-montage.js), donc elle vaut 1 dans .bak_montage — contrairement
+# aux trois autres, que des remplacements POSENT. 74 -> 75 triplets, 75 -> 76
+# ancres (`--check` compte aussi M2, le lien CSS de dist/index.html, qui
+# n'est pas un triplet de PATCHES).
+# 21/09/2026 D-3 (tache 7), revue : ce compte etait ABSOLU (75, puis 81)
+# alors que la ligne ne parle que du DELTA de D-2. Tout lot suivant la
+# faisait rougir sans qu'aucun cablage de D-2 ait bouge. Elle mesure
+# desormais le PREFIXE des tags : D-2 a nomme ses sections « E… », et
+# il n'y en a QU'UNE, le verrou.
+_E_TAGS = [t[0] for t in P.PATCHES if t[0].startswith("E")]
+check("D2_le_cablage_n_ajoute_qu_une_section_celle_du_verrou",
+      _E_TAGS == ["E4-verrou-apres-mode"],
+      f"{_E_TAGS} (sur {len(P.PATCHES)} triplets)")
+check("D2_E4_son_ancre_EXISTE_dans_le_bak_contrairement_aux_trois_autres",
+      bool(_bak) and _bak.count(_nlb(P.A_E4)) == 1
+      and s.count(nl(P.A_E4)) == 0,
+      f'bak={_bak.count(_nlb(P.A_E4)) if _bak else "?"} '
+      f'livre={s.count(nl(P.A_E4))}')
+# LE VERROU HERITE NE PRECEDE PLUS LE MODE. La phrase d'origine, elle, est
+# REPRISE MOT POUR MOT dans le refus de R_M22A : c'est le conjoint positif,
+# sans lequel cette negation serait vraie sur une phrase disparue.
+check("D2_E4_le_verrou_se_juge_apres_le_mode",
+      s.count(nl('if(trackStRef.current[tr2]&&trackStRef.current[tr2].l){')) == 0
+      and s.count(nl('" verrouillée — "+\n'
+                     '          "déverrouillez-la pour ajouter."')) == 1
+      and "dzIns.track===tr2" in P.R_M22A,
+      f'garde={s.count(nl("if(trackStRef.current[tr2]&&trackStRef.current[tr2].l){"))}')
+# « E1 » — L'ETAT *ET* LA REF, dans R_M16REF, et rien de plus.
+check("D2_E1_declare_l_etat_et_la_ref",
+      'var stDzM=x.useState("ecraser"),dzMode=stDzM[0],setDzMode=stDzM[1];'
+      in nl(P.R_M16REF).replace("\r\n", "\n")
+      and "var dzModeRef=x.useRef(dzMode);dzModeRef.current=dzMode;"
+      in P.R_M16REF
+      and s.count(nl("var dzModeRef=x.useRef(dzMode);"
+                     "dzModeRef.current=dzMode;")) == 1
+      # LA NEGATION, et son conjoint : l'etat n'est lu NULLE PART ailleurs
+      # que par la rangee de chips (E2). `addAsset` lit la REF.
+      and "dzMode" in s
+      and s.count("dzMode:") == 0,
+      f'ref={s.count(nl("var dzModeRef=x.useRef(dzMode);"))}')
+# « E2 » — LA RANGEE, ENTRE LE TITRE ET LA NOTE du selecteur. Les positions,
+# `find` jamais `index` (faute n°6) : les trois reperes valent -1 quand ils
+# manquent, et la ligne EXIGE qu'ils aient ete trouves ET ordonnes.
+_pt = s.find(nl(':("Ajouter sur la piste "+tr2.toUpperCase())}),'))
+_pm = s.find(nl("r.jsx(DzTracks.ModeBar,{mode:dzMode,onMode:setDzMode,"))
+_pn = s.find(nl('r.jsx("div",{className:"svm-popnote",style:{marginTop:6},'))
+check("D2_E2_la_rangee_est_entre_le_titre_et_la_note",
+      _pt >= 0 and _pm > _pt and _pn > _pm,
+      f"titre={_pt} rangee={_pm} note={_pn}")
+check("D2_E2_la_rangee_recoit_la_plage_du_projet",
+      s.count(nl("r.jsx(DzTracks.ModeBar,{mode:dzMode,onMode:setDzMode,\n"
+                 "        range:proj.range}),")) == 1,
+      f'{s.count(nl("DzTracks.ModeBar"))}')
+# LA COUCHE : le composant, la table d'infobulles, le libelle — declares ET
+# exportes. Deux faces, comme partout ailleurs dans ce banc.
+for _nm, _decl, _exp in (("ModeBar", "function DzmModeBar(o){", "ModeBar:DzmModeBar"),
+                         ("MODE_T", "var DZM_MODE_T={", "MODE_T:DZM_MODE_T"),
+                         ("modeLabel", "function dzmModeLabel(m){",
+                          "modeLabel:dzmModeLabel")):
+    check("D2_la_couche_declare_et_exporte_" + _nm,
+          src.count(_decl) == 1 and src.count(_exp) == 1,
+          f'decl={src.count(_decl)} export={src.count(_exp)}')
+# LES SIX INFOBULLES, une par mode de DZM_MODES — aucune orpheline, aucune
+# manquante. La table gelee du coeur est la source unique.
+# LA TABLE EST BORNEE PAR ELLE-MEME, pas par le commentaire suivant : elle
+# est desormais posee AVANT `DzmModeBar` (M-1, pour qu'elle soit lisible
+# avant son lecteur), et `find("\n/*")` ramassait tout le composant.
+_mt0 = src.find("var DZM_MODE_T={")
+_mt1 = src.find("};", _mt0 if _mt0 >= 0 else 0)
+_MT = src[_mt0:_mt1 + 2] if _mt0 >= 0 and _mt1 > _mt0 else ""
+check("D2_chaque_mode_a_son_infobulle",
+      bool(_MT) and src.count("var DZM_MODE_T={") == 1
+      # `ripple_ecraser:"` CONTIENT `ecraser:"` — d'ou le saut de ligne ou
+      # l'accolade en tete de cle, mesure du 21/09/2026 (un compte nu sur la
+      # couche entiere rendait 2 pour « ecraser » et la ligne mentait).
+      and all(_MT.count("\n  " + _k + ':"') == 1 or _MT.count("{" + _k + ':"') == 1
+              for _k in ("ecraser", "inserer", "fin", "dessus",
+                         "ripple_ecraser", "remplir"))
+      and _MT.count(':"') == 6,
+      f"table={len(_MT)} o, cles={_MT.count(chr(58) + chr(34))}")
+# LA CHIP « remplir » S'ETEINT SANS PLAGE, et c'est `dzmRangeFrom` qui juge
+# — la MEME garde que `dzmInsereUn`, pas une seconde regle.
+check("D2_la_table_des_infobulles_precede_le_composant_qui_la_lit",
+      0 <= src.find("var DZM_MODE_T={") < src.find("function DzmModeBar(o){"),
+      f'table={src.find("var DZM_MODE_T={")} '
+      f'composant={src.find("function DzmModeBar(o){")}')
+check("D2_la_chip_remplir_s_eteint_sans_plage",
+      'var dis=m[0]==="remplir"&&!dzmRangeFrom(o&&o.range);' in src
+      and "disabled:dis||void 0," in src
+      and 'posez d\'abord une plage (I / U).' in src,
+      "la chip « remplir » ne se grise plus sans plage")
+# LE MARQUEUR D'ETAT EST CELUI DES CHIPS VOISINES (`data-on`), et la classe
+# aussi (`svm-toolchip`) : mesure dans la feuille du bundle, pas une
+# supposition. `.svm-toolchip[data-on]` n'est PAS scopee au bandeau.
+_SVMCSS = (ROOT / "frontend" / "dist" / "shared"
+           / "son-vfx-montage.css").read_text(encoding="utf-8")
+check("D2_les_chips_reprennent_le_marqueur_des_voisines",
+      '"svm-toolchip dzm-modechip"' in src
+      and 'role:"radio"' in src
+      and '"data-on":cur===m[0]?"":void 0' in src
+      and _SVMCSS.count(".svm-toolchip[data-on]{") == 1,
+      "la chip n'emploie plus le marqueur d'etat du bundle")
+check("D2_le_css_porte_la_rangee",
+      CSS.read_text(encoding="utf-8").count(".dzsvm .dzm-modebar{") == 1
+      and "flex-wrap:wrap" in CSS.read_text(encoding="utf-8")
+      and CSS.read_text(encoding="utf-8").count(".dzsvm .dzm-modechip[disabled]{") == 1,
+      "la feuille ne porte pas la rangée des modes")
+# « E3 » — L'ORDRE DANS addAsset : le refus de verrou sort AVANT
+# `pushHistory()`, et le compteur n'est consomme qu'apres lui. Positions,
+# `find` jamais `index`.
+_i0 = s.find(nl("function addAsset(src,label,kind,srcDur,trId,atTime){"))
+_iins = s.find(nl("var dzIns=DzTracks.insere(clipsRef.current||[],"),
+               _i0 if _i0 >= 0 else 0)
+_iref = s.find(nl('if(dzIns.refus==="verrou"){'), _i0 if _i0 >= 0 else 0)
+_iseq = s.find(nl("ovSeq.current=dzSeq;"), _i0 if _i0 >= 0 else 0)
+_iph = s.find(nl("    pushHistory();\n    setClips(dzIns.clips);"),
+              _i0 if _i0 >= 0 else 0)
+check("D2_le_refus_de_verrou_sort_avant_pushHistory",
+      _i0 >= 0 and _iins > _i0 and _iref > _iins and _iseq > _iref
+      and _iph > _iseq,
+      f"addAsset={_i0} insere={_iins} refus={_iref} seq={_iseq} hist={_iph}")
+# I-5 — LE REFUS NE FERME PAS LE SELECTEUR. La negation etablit d'abord que
+# le refus EXISTE (son `fireNote`), sans quoi elle serait vraie sur un refus
+# disparu ; et les trois `setOvPick("")` restants sont comptes, pour qu'un
+# retrait ailleurs ne passe pas pour cette correction-ci.
+_ifin = s.find(nl("ovSeq.current=dzSeq;"), _i0 if _i0 >= 0 else 0)
+check("D2_le_refus_de_verrou_ne_ferme_pas_le_selecteur",
+      _iref >= 0 and _ifin > _iref
+      and "fireNote(dzIns.track===tr2" in s[_iref:_ifin]
+      and 'setOvPick("")' not in s[_iref:_ifin]
+      # 4 -> 5 le 21/09/2026 : D-5 (I-4) en ajoute UN, dans `dzMkToggle`
+      # (repli K3 dans R_M16REF), pour que l'index et le selecteur d'assets
+      # ne se recouvrent plus -- les deux sont des `.svm-pop` a `top:96`.
+      # Le compte reste EXACT : c'est lui qui empeche un retrait ailleurs de
+      # passer pour la correction d'I-5.
+      # D-21 (TT1b) : 5 -> 6. Le sixieme est le refus de la piste des
+      # TITRES, pose en TETE d'`addAsset` -- une piste de titres ne recoit
+      # aucun asset, et le selecteur se ferme sur ce refus-la (contrairement
+      # au refus de VERROU, que cette ligne mesure).
+      and s.count(nl('setOvPick("")')) == 6,
+      f'refus={_iref} fin={_ifin} '
+      f'setOvPick={s.count(nl(chr(115) + "etOvPick" + chr(40) + chr(34) + chr(34) + chr(41)))}')
+# LE JETON N'EST JAMAIS AFFICHE : c'est `dzIns.note`, la phrase francaise,
+# qui entre dans la note. Le conjoint positif empeche la negation d'etre
+# vraie sur un cablage qui n'afficherait rien du tout.
+check("D2_la_note_dit_la_phrase_et_jamais_le_jeton",
+      # M-3 (21/09/2026) : la phrase du coeur suit un point dans la note de
+      # l'ajout, sa premiere lettre est donc CAPITALISEE ici — le coeur, lui,
+      # rend du minuscule (« aucune piste libre au-dessus : … »), et c'est
+      # l'appelant qui met la majuscule, pas la table de jetons.
+      s.count(nl('if(dzIns.note)dzTail+=" "+dzIns.note.charAt(0)'
+                 '.toUpperCase()+')) == 1
+      and s.count(nl("dzIns.note.slice(1)+" + chr(34) + "." + chr(34) + ";")) == 1
+      and s.count("dzTail+=dzIns.refus") == 0
+      # `dzIns.refus` apparait DEUX fois : le test du verrou, et le
+      # commentaire JS qui dit pourquoi le jeton n'est jamais affiche.
+      # C'est le CODE qui est compte ici, pas la prose.
+      and s.count('if(dzIns.refus==="verrou"){') == 1
+      and s.count("dzIns.refus") == 2,
+      f'note={s.count("if(dzIns.note)dzTail")} '
+      f'refus={s.count("dzIns.refus")}')
+# LA SELECTION, LA PISTE ET L'INSTANT SONT RELUS SUR LE CLIP POSE : un
+# identifiant renomme, une piste changee par « au-dessus », des bornes
+# deplacees par « en fin » — la note et la selection doivent dire le REEL.
+check("D2_la_selection_et_la_note_relisent_le_clip_pose",
+      s.count(nl("id=dzIns.id||id;tr2=dzIns.track||tr2;"
+                 "if(dzP)st=Number(dzP.start)||0;")) == 1
+      and s.count(nl("setSelId(id);setDirty(!0);setOvPick(\"\");")) == 1,
+      "l'identifiant définitif ne remonte plus jusqu'à setSelId")
+
+# ── LE TOUR DE CORRECTION DU 21/09/2026 ───────────────────────────────────
+# I-1 — « remplir la plage » ne peut plus mentir en silence. DEUX portes :
+# le mode SUIT la plage (R_R2 le desarme quand elle devient nulle), et si la
+# course a lieu quand meme (glisser-depose, greffon, rappel d'askAudio parti
+# avant l'effacement), la note le DIT.
+check("D2_I1_effacer_la_plage_desarme_le_mode_remplir",
+      P.R_R2.count('if(dzModeRef.current==="remplir")setDzMode("ecraser");') == 1
+      and P.R_R2.count('if(!dzNx&&dzModeRef.current==="remplir")'
+                       'setDzMode("ecraser");') == 1
+      and s.count(nl('dzModeRef.current==="remplir"')) == 3
+      # LES DEUX FACES : `setDzMode` est bien DECLARE, et dans le MEME corps
+      # de composant que la branche de dispatch — positions mesurees.
+      and s.count(nl('var stDzM=x.useState("ecraser"),dzMode=stDzM[0],'
+                     'setDzMode=stDzM[1];')) == 1,
+      f'clear+cut={P.R_R2.count(chr(115) + "etDzMode")} '
+      f'bundle={s.count(nl(chr(100) + "zModeRef.current===" + chr(92) + "x22remplir"))}')
+_c0 = s.find(nl("function DzMontage("))
+_cd = s.find(nl('var stDzM=x.useState("ecraser")'), _c0 if _c0 >= 0 else 0)
+_ck = s.find(nl('if(id==="range_in"||id==="range_out"||id==="range_clear")'),
+             _c0 if _c0 >= 0 else 0)
+_ca = s.find(nl("function addAsset(src,label,kind,srcDur,trId,atTime){"),
+             _c0 if _c0 >= 0 else 0)
+check("D2_I1_setDzMode_et_ses_deux_lecteurs_sont_dans_le_meme_composant",
+      _c0 >= 0 and _cd > _c0 and _ck > _cd and _ca > _cd,
+      f"DzMontage={_c0} setDzMode={_cd} dispatch={_ck} addAsset={_ca}")
+check("D2_I1_le_mode_demande_est_compare_au_mode_effectif",
+      s.count(nl('if(dzModeRef.current==="remplir"&&dzIns.mode!=="remplir")')) == 1
+      and s.count(nl('dzTail+=" Plage effacée : posé en écraser.";')) == 1,
+      "la course « plage effacée » n'est plus dite")
+# I-2 — la vitesse est formatee SUR PLACE, pas par un formateur de DUREE.
+# `DzTracks.secs` arrondit au dixieme : il rendait « ×0,3 » pour 0,25.
+check("D2_I2_la_vitesse_n_est_plus_formatee_par_un_formateur_de_duree",
+      s.count(nl('" Vitesse ×"+String(dzP.speed).replace(".",",")+"."')) == 1
+      and s.count("DzTracks.secs(dzP.speed)") == 0
+      and s.count("DzTracks.secs") == 0
+      # le conjoint : `secs` existe TOUJOURS dans la couche, on ne l'a pas
+      # casse, on a cesse de le detourner.
+      and src.count("secs:dzmSecs") == 1,
+      f'secs dans le bundle={s.count("DzTracks.secs")}')
+# I-3 — `srcDur` passe par les OPTIONS et ne survit pas sur le clip.
+check("D2_I3_srcDur_passe_par_les_options_pas_par_le_clip",
+      s.count(nl("srcDur:Number(srcDur)||0,")) == 1
+      and s.count(nl("Object.assign({},dzNeuf,{srcDur:")) == 0
+      and src.count('if("srcDur" in k)delete k.srcDur;') == 1
+      and src.count("var sd=Number(o.srcDur)||Number(clip.srcDur)||0,") == 1,
+      "srcDur voyage encore sur le clip")
+# I-4 — la feuille : typographie de la rangee et contraste de la chip active.
+# `--panel2` est le fond du `.svm-pop` ET la peinture de `.svm-toolchip
+# [data-on]` : la chip allumee y disparaissait. Les jetons de remplacement
+# EXISTENT dans la feuille livree, c'est mesure ici et pas suppose.
+_CSSM = CSS.read_text(encoding="utf-8")
+
+
+def _apres(txt, borne, n=220):
+    """Les `n` caracteres qui SUIVENT `borne`, ou "" si elle manque.
+
+    FAUTE N°6 : `txt.split(borne)[1]` leve IndexError quand la borne a
+    disparu — un banc doit ROUGIR, pas MOURIR. Le repli vide fait rougir les
+    lignes qui l'emploient, puisque chacune cherche du texte dedans."""
+    i = txt.find(borne)
+    return txt[i + len(borne):i + len(borne) + n] if i >= 0 else ""
+
+
+_MB = _apres(_CSSM, ".dzsvm .dzm-modebar{")
+check("D2_I4_la_rangee_porte_la_typographie_des_chips",
+      "font-family:var(--f-mono)" in _MB and "font-size:10px" in _MB,
+      f"la rangée ne reprend plus la typographie des chips voisines ({len(_MB)} o)")
+check("D2_I4_la_chip_active_se_detache_du_fond_du_panneau",
+      _CSSM.count(".dzsvm .svm-pop .dzm-modechip[data-on]{") == 1
+      and "background:var(--panel3)" in _CSSM
+      and "border-color:var(--accent)" in _CSSM
+      and _SVMCSS.count("--panel3") >= 1 and _SVMCSS.count("--accent") >= 1
+      # LE DEFAUT QU'ELLE GARDE : les deux jetons etaient le MEME.
+      and "var(--panel2)" in _apres(_SVMCSS, ".svm-pop{"),
+      "la chip allumée reprend le fond du panneau")
+# CONFORMITE 1 — pas de rangee en mode « Remplacer la source » : `addAsset`
+# court-circuite AVANT le mode, six chips y seraient un mensonge.
+check("D2_la_rangee_n_existe_pas_en_mode_remplacement",
+      s.count(nl("dzmA?null:r.jsx(DzTracks.ModeBar,{mode:dzMode,"
+                 "onMode:setDzMode,")) == 1
+      and s.count(nl("r.jsx(DzTracks.ModeBar,")) == 1
+      # le conjoint : le court-circuit qui la rend inutile est bien LA, et
+      # AVANT tout le reste du corps.
+      and 0 <= s.find(nl("if(dzmReplaceRef.current){"), _ca) < s.find(
+          nl("var dzIns=DzTracks.insere("), _ca),
+      f'{s.count(nl("DzTracks.ModeBar"))}')
+# CONFORMITE 5 — la phrase de l'allongement est BORNEE.
+check("D2_l_allongement_ne_pretend_plus_que_c_est_CE_clip_qui_deborde",
+      s.count(nl("var dzAv=DzTracks.fitDur(clipsRef.current||[],d,0);")) == 1
+      and s.count(nl('(dzAv>d?" pour tenir tout ce qu\'elle porte."')) == 1
+      and s.count(nl("le clip garde sa longueur entière")) == 1,
+      "la phrase de l'allongement n'est plus bornée")
+
+# ── LES SIX MODES, JOUES SOUS NODE ────────────────────────────────────────
+check("js_D2_les_vraies_sondes_sont_rendues_apres_le_bloc",
+      w.get("m_rendues") is True,
+      f'{w.get("m_rendues")}')
+def _M(k):
+    return w.get("m_" + k) or {}
+
+
+check("js_D2_ecraser_rogne_ce_qui_est_dessous",
+      _M("ecraser").get("bornes") == [[0, 2], [5, 8], [2, 5]]
+      and _M("ecraser").get("ids") == ["p1", "p2", "v1u1_20"]
+      and _M("ecraser").get("hist") == 1,
+      f'{_M("ecraser").get("bornes")} ids={_M("ecraser").get("ids")}')
+check("js_D2_inserer_fend_et_pousse_la_suite",
+      _M("inserer").get("bornes") == [[0, 2], [5, 7], [7, 11], [2, 5]]
+      and _M("inserer").get("dur") == 16
+      and _M("inserer").get("proj") == []
+      and "Mode « insérer »." in _M("inserer").get("note", ""),
+      f'{_M("inserer").get("bornes")} dur={_M("inserer").get("dur")} '
+      f'note={_M("inserer").get("note", "")[-120:]!r}')
+check("js_D2_fin_pose_apres_le_dernier_clip_et_ignore_la_tete",
+      _M("fin").get("bornes") == [[0, 4], [4, 8], [8, 11]]
+      and "Mode « en fin »." in _M("fin").get("note", ""),
+      f'{_M("fin").get("bornes")} note={_M("fin").get("note", "")[-120:]!r}')
+check("js_D2_dessus_pose_sur_la_piste_libre_au_dessus_et_le_dit",
+      _M("dessus").get("pistes") == ["v1", "v1", "v2"]
+      and _M("dessus").get("bornes") == [[0, 4], [4, 8], [2, 5]]
+      # M-5 (21/09/2026, second tour) : la piste n'est PLUS repetee — `tr2`
+      # a ete reaffecte, et la note principale dit deja « ajoute sur V2 a
+      # … ». Ce qui reste est l'ENONCE DU MODE, et rien d'autre.
+      and "Posé sur la piste libre au-dessus (mode « au-dessus »)."
+      in _M("dessus").get("note", "")
+      and "Posé sur V2" not in _M("dessus").get("note", ""),
+      f'{_M("dessus").get("pistes")} note={_M("dessus").get("note", "")[-140:]!r}')
+# M-5 — LE CAS QUI DEMASQUAIT LA PHRASE FAUSSE : la piste visee est VIDE,
+# et « au-dessus » remonte quand meme. La negation nomme l'ancienne phrase,
+# mot pour mot : elle rougirait si on la remettait.
+check("js_D2_dessus_remonte_meme_quand_la_piste_visee_est_vide",
+      _M("dessus_vide").get("pistes") == ["v2"]
+      and _M("dessus_vide").get("bornes") == [[2, 5]]
+      and "Posé sur la piste libre au-dessus (mode « au-dessus »)."
+      in _M("dessus_vide").get("note", "")
+      and "occupée à cet instant" not in _M("dessus_vide").get("note", ""),
+      f'{_M("dessus_vide").get("pistes")} {_M("dessus_vide").get("bornes")} '
+      f'note={_M("dessus_vide").get("note", "")[-160:]!r}')
+check("js_D2_ripple_remplace_le_clip_sous_la_tete_et_recale_la_suite",
+      _M("ripple").get("bornes") == [[3, 7], [0, 3]]
+      and _M("ripple").get("ids") == ["p2", "v1u1_20"],
+      f'{_M("ripple").get("bornes")} ids={_M("ripple").get("ids")}')
+check("js_D2_remplir_prend_les_bornes_de_la_plage_et_calcule_la_vitesse",
+      _M("remplir").get("bornes") == [[0, 4], [4, 8], [10, 13]]
+      and _M("remplir").get("vitesses") == [None, None, 2]
+      and "Vitesse ×2." in _M("remplir").get("note", ""),
+      f'{_M("remplir").get("bornes")} v={_M("remplir").get("vitesses")} '
+      f'note={_M("remplir").get("note", "")[-140:]!r}')
+# I-1a — SANS PLAGE, LE REPLI EST DIT. Il etait SILENCIEUX : le clip
+# s'ecrasait sous la tete pendant que la chip « remplir la plage » restait
+# allumee (et grisee). La ligne exige desormais la phrase, et garde la
+# negation d'origine — aucune vitesse n'a ete appliquee.
+check("js_D2_remplir_sans_plage_retombe_en_ecraser_ET_LE_DIT",
+      "bornes" in _M("remplir_sans_plage")
+      and _M("remplir_sans_plage").get("bornes") == _M("ecraser").get("bornes")
+      and "Plage effacée : posé en écraser."
+      in _M("remplir_sans_plage").get("note", "")
+      and "Vitesse" not in _M("remplir_sans_plage").get("note", ""),
+      f'{_M("remplir_sans_plage").get("bornes")} '
+      f'note={_M("remplir_sans_plage").get("note", "")[-160:]!r}')
+# I-3 — LE CLIP POSE N'EMPORTE PAS `srcDur`. Sept cles, pas huit. La liste
+# est DONNEE, pas comptee : un renommage silencieux ne passerait pas.
+check("js_D2_le_clip_pose_n_emporte_pas_la_mesure_de_la_source",
+      _M("ecraser").get("cles") == ["end", "id", "label", "src", "srcIn",
+                                    "start", "tr"]
+      # et le mode « remplir », qui est le SEUL a lire `srcDur`, pose bien
+      # une vitesse sans garder la mesure qui l'a produite.
+      and _M("remplir").get("cles") == ["end", "id", "label", "speed", "src",
+                                        "srcIn", "start", "tr"],
+      f'ecraser={_M("ecraser").get("cles")} '
+      f'remplir={_M("remplir").get("cles")}')
+# « E4 » — LE VERROU DE LA PISTE VISEE NE PRECEDE PLUS LE MODE.
+check("js_D2_E4_au_dessus_pose_sur_V2_quand_V1_est_verrouillee",
+      _M("v1_verrou_dessus").get("pistes") == ["v1", "v1", "v2"]
+      and _M("v1_verrou_dessus").get("bornes") == [[0, 4], [4, 8], [2, 5]]
+      and _M("v1_verrou_dessus").get("hist") == 1,
+      f'{_M("v1_verrou_dessus").get("pistes")} '
+      f'{_M("v1_verrou_dessus").get("bornes")}')
+# ET LE CONJOINT : sur les autres modes, la piste visee verrouillee refuse
+# toujours, avec la phrase D'ORIGINE — rien n'a change pour l'utilisateur.
+check("js_D2_E4_ecraser_sur_une_piste_visee_verrouillee_refuse_comme_avant",
+      "bornes" in _M("v1_verrou_ecraser")
+      and _M("v1_verrou_ecraser").get("bornes") == [[0, 4], [4, 8]]
+      and _M("v1_verrou_ecraser").get("hist") == 0
+      and _M("v1_verrou_ecraser").get("note", "")
+      == "Piste V1 verrouillée — déverrouillez-la pour ajouter.",
+      f'{_M("v1_verrou_ecraser").get("bornes")} '
+      f'note={_M("v1_verrou_ecraser").get("note", "")!r}')
+check("js_D2_un_mode_inconnu_vaut_ecraser",
+      "bornes" in _M("inconnu")
+      and _M("inconnu").get("bornes") == _M("ecraser").get("bornes")
+      and "Mode «" not in _M("inconnu").get("note", ""),
+      f'{_M("inconnu").get("bornes")}')
+# LE CHEMIN QUE LE PLAN CROYAIT MORT : `refus:"verrou"` par « au-dessus ».
+# RIEN n'est ecrit — ni clip, ni historique, ni compteur — et c'est DIT.
+check("js_D2_dessus_sur_une_piste_verrouillee_ne_pose_RIEN_et_le_dit",
+      "bornes" in _M("dessus_verrou")
+      and _M("dessus_verrou").get("bornes") == [[0, 4], [4, 8]]
+      and _M("dessus_verrou").get("hist") == 0
+      and _M("dessus_verrou").get("seq") == 0
+      and _M("dessus_verrou").get("sel") == []
+      and "Piste V2 verrouillée" in _M("dessus_verrou").get("note", "")
+      and "rien n'a été posé" in _M("dessus_verrou").get("note", ""),
+      f'{_M("dessus_verrou").get("bornes")} hist={_M("dessus_verrou").get("hist")} '
+      f'seq={_M("dessus_verrou").get("seq")} '
+      f'note={_M("dessus_verrou").get("note", "")[:160]!r}')
+check("js_D2_aucune_piste_libre_au_dessus_replie_sur_la_piste_visee_et_le_dit",
+      _M("dessus_plein").get("pistes") == ["v1", "v1", "v2", "v1"]
+      # M-3 : la phrase du coeur suit un point, sa premiere lettre est
+      # capitalisee par le cablage (le coeur, lui, rend du minuscule).
+      and "Aucune piste libre au-dessus : posé sur V1."
+      in _M("dessus_plein").get("note", ""),
+      f'{_M("dessus_plein").get("pistes")} '
+      f'note={_M("dessus_plein").get("note", "")[-160:]!r}')
+# L'IDENTIFIANT EN COLLISION EST RENOMME, ET C'EST LUI QU'ON SELECTIONNE.
+# ECART DECLARE, MESURE PLUTOT QUE TU (21/09/2026) : ce qui renomme ICI est
+# `DzTracks.uniqueId`, appele AVANT `insere` — `dzIns.id` vaut donc deja
+# `id`, et retirer `id=dzIns.id||id;` du bundle NE FAIT PAS rougir cette
+# ligne-ci (mutation jouee : seule `D2_la_selection_et_la_note_relisent_le
+# _clip_pose` rougit). `dzIns.id` est un FILET, pas un chemin, tant
+# qu'`uniqueId` garde la main ; il le redeviendrait le jour ou `dzmPose`
+# renommerait quelque chose qu'`uniqueId` n'a pas vu (un clip ajoute par le
+# mode lui-meme). La ligne mesure ce qu'elle mesure : la chaine complete,
+# de l'id pris jusqu'a la selection.
+check("js_D2_un_identifiant_en_collision_est_renomme_et_c_est_lui_qu_on_selectionne",
+      _M("collision").get("ids") == ["v1u1_0", "v1u1_0_2"]
+      and _M("collision").get("sel") == ["v1u1_0_2"],
+      f'ids={_M("collision").get("ids")} sel={_M("collision").get("sel")}')
 
 # ══════════════════════════════════════════════════════════════════════════
 # [6] LA BARRE D'OUTILS DEPORTABLE — etapes 1, 2 et 3 du §9 du handoff
@@ -9006,7 +10894,7 @@ def _filet_haut(corps_list):
 # ici : si l'onglet montait plus haut (`top:-30px`), si un filet tombait ou
 # si le pied maigrissait, la ligne rougit AVEC les valeurs lues. Le seul
 # nombre pose est la marge de 8 px du handoff (§4.2 : « une marge de 8 px »),
-# celle que la barre emploie deja (`top:calc(100% + 8px)`, `_R_BAR`).
+# celle que la barre emploie deja (`bottom:calc(100% + 8px)`, D-1, `_R_BAR`).
 # Le filet du bandeau est celui des regles `.dzsvm .svm-trans` de montage.css
 # (deux : l'ancrage, puis la geometrie du §5.2 qui le declare) ; celui de
 # `.svm-tl` est lu dans la feuille amont, seule a le declarer (mesure : les
@@ -9035,7 +10923,7 @@ check("tb_l_onglet_ouvert_se_lit_d_une_piece_avec_la_barre",
       f"tab={_R_TAB!r} ouvert={_R_TABO!r}")
 check("tb_la_geometrie_de_la_barre_est_celle_du_2_2",
       _R_BAR is not None and "position:absolute" in _R_BAR
-      and "left:14px" in _R_BAR and "top:calc(100% + 8px)" in _R_BAR
+      and "left:14px" in _R_BAR and "bottom:calc(100% + 8px)" in _R_BAR
       and "display:flex" in _R_BAR and "align-items:stretch" in _R_BAR
       and "border-radius:0" in _R_BAR
       and "background:var(--bar-srf," in _R_BAR
@@ -9056,7 +10944,7 @@ check("tb_la_barre_flotte_par_son_ombre_et_par_rien_d_autre",
 # retire les neuf boutons du parcours de tabulation.
 check("tb_le_repli_anime_l_opacite_et_six_pixels_jamais_la_hauteur",
       _R_BOFF is not None and "opacity:0" in _R_BOFF
-      and "transform:translateY(6px)" in _R_BOFF
+      and "transform:translateY(-6px)" in _R_BOFF
       and "visibility:hidden" in _R_BOFF
       and "pointer-events:none" in _R_BOFF
       and "height" not in _R_BOFF
@@ -9220,7 +11108,23 @@ check("tb_le_dock_est_monte_dans_le_bandeau_de_transport",
 # exigeait absents ; elle a fait exactement son travail — c'est elle qui a
 # impose de la reecrire au lieu de laisser le reste dehors sans surveillance.
 _i_tb4 = src.find("DU \u00a79 : LA BARRE, SON ONGLET, SON D\u00c9PORT, SON")
-_j_tb4 = src.find("/* \u2500\u2500 export contrat", _i_tb4) if _i_tb4 >= 0 else -1
+# LA BORNE DE FIN S'ARRETE AU CŒUR D-0, PAS A L'EXPORT — et c'est une
+# MESURE du 21/09/2026 : la tache 1 a pose `dzmHistSnap` / `dzmHistApply`
+# ENTRE la fin du §9 et `/* ── export contrat`, si bien que la tranche
+# « barre d'outils » avalait le jeton `Snap` et faisait rougir
+# `tb7_exigence3_aimanter_n_a_qu_un_lecteur_et_la_barre_n_en_est_pas_un`
+# pour du code qui n'a rien d'une barre. La borne suit donc le DERNIER
+# jeton du §9.
+# PAS DE REPLI SUR `/* ── export contrat` : un repli aurait RESTAURE EN
+# SILENCE le defaut qu'on vient de corriger le jour ou l'en-tete D-0
+# bougerait de nom. La borne introuvable rend -1, `_SRC_TB` retombe sur
+# « BLOC-INTROUVABLE » et la ligne ci-dessous ROUGIT — c'est elle qui tient
+# la promesse. MESUREE PAR MUTATION le 21/09/2026 : en renommant l'en-tete
+# D-0 dans une COPIE de montage.js, elle rougit.
+_j_tb4 = src.find("/* \u2500\u2500 D-0 (21/09/2026)", _i_tb4) if _i_tb4 >= 0 else -1
+check("tb4_la_borne_D0_de_la_tranche_barre_est_trouvee", _j_tb4 > _i_tb4 >= 0,
+      f"debut du §9={_i_tb4} en-tete D-0={_j_tb4} — la tranche de la barre "
+      f"d'outils n'a plus de fin nommee, elle irait jusqu'a l'export")
 _SRC_TB = src[_i_tb4:_j_tb4] if 0 <= _i_tb4 < _j_tb4 else "BLOC-INTROUVABLE"
 # L'ETAPE 7 EST DEDANS DESORMAIS, et les conjoints positifs le disent : le
 # Dock appelle `dzmTbHote` et `dzmEmojiGo`. La ligne d'avant exigeait
@@ -9812,18 +11716,19 @@ check("tb_d_le_redimensionnement_est_ecoute_sur_la_fenetre_et_rendu",
 
 # ── LA FEUILLE HABILLE LE DEPORT ──────────────────────────────────────────
 # LA TRANSLATION PASSE PAR `translate`, PAS PAR `transform` : `transform` est
-# deja prise par le repli du §4.1 (`translateY(6px)`), et les deux se
-# seraient ecrasees. `translate` est independante et se transitionne a part,
-# donc l'aimantation s'anime sur `--dur-bar-snap` (180 ms) pendant que
+# deja prise par le repli du §4.1 (`translateY(-6px)`, D-1 : la barre flotte
+# desormais AU-DESSUS du bandeau, son repli glisse donc vers le HAUT), et les
+# deux se seraient ecrasees. `translate` est independante et se transitionne
+# a part, donc l'aimantation s'anime sur `--dur-bar-snap` (180 ms) pendant que
 # l'ouverture garde `--dur-bar-open` (220 ms). AUCUN MINUTEUR.
 check("tb_d_le_decalage_passe_par_translate_et_s_anime_sur_dur_bar_snap",
       _R_BAR is not None
       and "translate:var(--tbx, 0px) var(--tby, 0px)" in _R_BAR
       and "translate var(--dur-bar-snap," in _R_BAR
       and "transform var(--dur-bar-open," in _R_BAR
-      and _R_BOFF is not None and "transform:translateY(6px)" in _R_BOFF
+      and _R_BOFF is not None and "transform:translateY(-6px)" in _R_BOFF
       and "translate" not in _R_BOFF.split("transition")[0]
-      .replace("transform:translateY(6px)", ""),
+      .replace("transform:translateY(-6px)", ""),
       f"bar={_R_BAR!r}")
 # PENDANT LE GESTE, AUCUNE TRANSITION : sans cette regle la barre suivrait le
 # pointeur avec 180 ms de retard.
@@ -10007,12 +11912,30 @@ check("tb7_exigence2_les_dix_actions_ne_lisent_ni_n_ecrivent_la_tete",
 #    positifs d'abord : les deux textes existent et sont gros, et le bundle
 #    porte bien les huit `setPh(` qu'on lui connait — sans eux, la negation
 #    serait vraie d'un fichier vide.
-check("tb7_exigence2_la_chaine_ne_nomme_jamais_setPh_ni_seekTo",
+# 21/09/2026 D-5 (tache 8) : CETTE NEGATION ETAIT TROP LARGE, et elle a
+# rougi au premier passage du lot des marqueurs. L'exigence du handoff est
+# « aucune action DE LA BARRE D'OUTILS FLOTTANTE ne deplace la tete » ; la
+# ligne, elle, interdisait `seekTo` a la CHAINE ENTIERE. Or « aller au
+# marqueur suivant » (Ctrl+bas) n'a pas d'autre sens que de deplacer la
+# tete : c'est le geste meme. La ligne mesure donc desormais deux choses
+# distinctes, et aucune n'est relachee :
+#   . la couche pure n'appelle NI `setPh` NI `seekTo` -- elle recoit un
+#     `onSeek` et ne connait pas le nom du setter de l'hote (inchange) ;
+#   . les sections qui nomment `seekTo` sont EXACTEMENT les trois du lot
+#     D-5 (K2 replie dans R_R2, K4 replie dans R_R3, et K5b), NOMMEES ici.
+#     Une quatrieme -- une action de la barre, par exemple -- ferait rougir.
+# `setPh`, lui, reste interdit a TOUTE section : c'est le setter nu, celui
+# qui ne recale pas le <video>, et rien de ce qu'on ajoute n'a a le toucher.
+_SEEK_TAGS = sorted(t for t, _a, r in P.PATCHES if "seekTo" in r)
+check("tb7_exigence2_seul_le_lot_des_marqueurs_bouge_la_tete",
       len(_SECTIONS) > 10000 and len(_code(src)) > 60000
       and s.count(nl("setPh(")) == 8
-      and "setPh" not in _SECTIONS and "seekTo" not in _SECTIONS
-      and "setPh" not in _code(src) and "seekTo" not in _code(src),
+      and "setPh" not in _SECTIONS
+      and "setPh" not in _code(src) and "seekTo" not in _code(src)
+      and _SEEK_TAGS == ["K5b-index-marqueurs", "R2-plage-dispatch",
+                         "R3-plage-regle"],
       f'setPh dans le bundle={s.count(nl("setPh("))} '
+      f'sections_qui_cherchent={_SEEK_TAGS} '
       f'sections={len(_SECTIONS)} o couche={len(_code(src))} o')
 # 3. LE SEUL `setPh` QUI RAMENE A ZERO EST CELUI DE `svmApplyProject`, et
 #    aucun des neuf chemins ne l'atteint : `projets` OUVRE la liste, il
@@ -10608,6 +12531,26 @@ check("tb8_l_onglet_dit_le_raccourci_et_recoit_sa_reference",
           True],
       f'{d.get("tb8_onglet")}')
 
+# ── D-11 : LA BANDE DE LA REGLE, JOUEE ───────────────────────────
+# `D11_la_bande_est_bornee_a_la_regle` dit que les deux Math.min sont ECRITS ;
+# ces deux lignes disent ce qu'ils CALCULENT. Une plage est PERSISTEE : elle
+# survit a un raccourcissement de la duree, et `dzmRangeFrom` -- la seule
+# garde du composant -- ne connait pas la duree. Sans le bornage, `left`
+# passait 100 % et la bande sortait de la regle par la droite.
+# Les 88 px sont la GOUTTIERE, la meme soustraction que `phFromEvent`.
+check("D11_une_plage_plus_longue_que_la_duree_tient_dans_la_regle",
+      d.get("rb_deborde") == ["calc(88px + (100% - 88px) * 0.1)",
+                              "calc((100% - 88px) * 0.9)"],
+      f'{d.get("rb_deborde")}')
+# ET L'ENTREE ELLE-MEME HORS CHAMP : gauche collee au bout, largeur NULLE.
+# C'est `Math.min(100-l, ...)` qui le donne -- un simple `Math.min(100, w)`
+# aurait rendu 100 % de large a partir de 100 % de gauche, soit une bande de
+# deux largeurs de regle.
+check("D11_une_entree_hors_champ_ne_rend_pas_une_bande_a_l_envers",
+      d.get("rb_entree_hors_champ") == ["calc(88px + (100% - 88px) * 1)",
+                                        "calc((100% - 88px) * 0)"],
+      f'{d.get("rb_entree_hors_champ")}')
+
 # ── LE DOCK : CE QUE NODE NE JOUE PAS, LU DANS LA SOURCE ──────────────────
 # C'est le seul morceau a hooks du lot. Meme parade qu'aux etapes 4, 5 et 7 :
 # le cœur est mesure pour lui-meme plus haut, mais RIEN ne dirait qu'il est
@@ -10719,9 +12662,28 @@ for _a, _sec, _c in _COMBOS:
     _BY_COMBO.setdefault(_c, []).append(_a)
 # LE CONFLIT EST MESURE, PAS SUPPOSE : `T` appartient a `narration`, et il ne
 # lui est PAS repris. Conjoint positif : la table est bien celle de l'ecran
-# (elle porte les trente-trois actions, dont la nouvelle).
+# (elle porte les TRENTE-SEPT actions, dont la nouvelle). 33 -> 37 le
+# 21/09/2026 : D-11 (R1) y declare range_in, range_out, range_clear et
+# range_cut. Les quatre combos I, U, X et Maj+X sont libres, et c'est la
+# ligne `tb8_aucune_combo_par_defaut_n_est_prise_deux_fois`, juste en
+# dessous, qui le MESURE — elle n'a pas eu a changer.
+# 37 -> 41 le 21/09/2026 : D-5 (K1, replie dans R_R1) y declare
+# marker_toggle, marker_prev, marker_next et marker_index. Les quatre
+# combos (Maj+M, Ctrl+haut, Ctrl+bas, Ctrl+M) sont libres, et c'est encore
+# `tb8_aucune_combo_par_defaut_n_est_prise_deux_fois` qui le MESURE.
+# 41 -> 43 le 21/09/2026 (D-4, tache 9) : W1 (replie dans R_R1, juste apres
+# K1) y declare swap_left et swap_right. Les deux combos (Ctrl+←, Ctrl+→)
+# sont libres, mesure encore par `tb8_aucune_combo_par_defaut_n_est_prise_
+# deux_fois`, qui n'a pas eu a changer.
+# 43 -> 44 le 21/09/2026 (D-21, tache 6) : TT4 (replie dans R_R1, juste
+# apres W1) y declare `title_add`. La combo « Maj+T » est libre -- ce que
+# `tb8_aucune_combo_par_defaut_n_est_prise_deux_fois` MESURE, sans avoir eu
+# a changer -- et « T » reste a la narration, ce que cette ligne-ci dit
+# toujours : « Maj+T » ne la vole pas, le dispatch cherchant d'abord la
+# combo EXACTE.
 check("tb8_le_T_du_handoff_appartient_deja_a_la_narration",
-      len(_COMBOS) == 33 and _BY_COMBO.get("T") == ["narration"],
+      len(_COMBOS) == 44 and _BY_COMBO.get("T") == ["narration"]
+      and _BY_COMBO.get("Maj+T") == ["title_add"],
       f"actions={len(_COMBOS)} T={_BY_COMBO.get('T')}")
 # UNE COMBO PAR ACTION, ET AUCUNE EN DOUBLE : la nouvelle n'a rien vole.
 # `svmKmMerge` resoudrait une collision en silence (retour au defaut) — c'est
@@ -10791,12 +12753,21 @@ check("tb8_les_trois_chips_degradees_gardent_un_nom_et_une_infobulle",
       _MC.count('[data-bdoff~="coupe"] .svm-toolchips') == 5
       and "font-size:0" in _MC
       and _MC.count(".svm-toolchip:nth-child(-n+3)") == 2
-      # QUATRE CHIPS DANS LE CONTENEUR, TROIS QUI SE DEGRADENT : la
-      # quatrieme est celle des sous-titres, que le §5.3 protege — ses deux
-      # compteurs seraient illisibles reduits a un glyphe, et elle n'a donc
-      # pas besoin d'un nom explicite. C'est `:nth-child(-n+3)` qui trace la
-      # frontiere, des deux cotes.
-      and s.count('className:"svm-toolchip"') == 4
+      # CINQ CHIPS DANS LE CONTENEUR, TROIS QUI SE DEGRADENT. 4 -> 5 le
+      # 21/09/2026 : D-5 (K5) ajoute « losange n », les marqueurs, JUSTE
+      # APRES `ripple` — donc en quatrieme position, HORS du
+      # `:nth-child(-n+3)` qui degrade. Les deux dernieres sont protegees
+      # pour la meme raison : leur compteur (le nombre de marqueurs, les
+      # deux chiffres des sous-titres) serait illisible reduit a un glyphe.
+      # C'est `:nth-child(-n+3)` qui trace la frontiere, des deux cotes, et
+      # la chip neuve porte tout de meme son `aria-label` (mesure ci-dessus).
+      # 5 -> 6 le 21/09/2026 : D-21 (TT5) ajoute « T+ », poser un titre,
+      # JUSTE APRES « losange n » -- donc en cinquieme position, HORS du
+      # `:nth-child(-n+3)` qui degrade, pour la meme raison que les deux
+      # qui la precedent : « T+ » reduit a un glyphe ne dirait plus rien.
+      # Elle porte tout de meme son `aria-label` (« poser un titre »).
+      and s.count('className:"svm-toolchip"') == 6
+      and s.count('"aria-label":"poser un titre",') == 1
       # LE `title` NE BOUGE PAS : il reste la description, et c'est lui que
       # l'infobulle du mode compact affiche (§2.3).
       and s.count(nl('title:"aimanter les bords, la tête et 0 ("')) == 1
@@ -10860,6 +12831,29 @@ check("tb8_l_enfoncement_est_retire_et_le_delai_du_repli_aussi",
 # LE MOUVEMENT DE LA BARRE EST ENTIEREMENT EN CSS — c'est ce qui rend le
 # coupe-circuit suffisant pour les deux premieres exigences. Conjoint positif
 # d'abord : le bloc existe et il est gros.
+# LES REGLES DE LA FEUILLE, PAR PAIRES (selecteur, corps) — et non par
+# `split("}")`, qui etait FAUX : une regle imbriquee dans un `@media`
+# voyait son selecteur colle au `@media ...{`, et une `animation:` posee
+# la serait passee sans un mot. `findall` sur `([^{}]*)\{([^{}]*)\}` ne
+# rend que les blocs de DECLARATIONS (les plus internes), quel que soit
+# leur emboitement.
+# LES COMMENTAIRES SONT RETIRES D'ABORD, et c'est une MESURE : cette
+# feuille documente ses propres pieges, et le texte « :not([data-tt=…]) »
+# d'un commentaire se retrouvait dans le SELECTEUR de la regle suivante --
+# une ligne qui interdit les `:not` rougissait a cause de la phrase qui
+# explique pourquoi on les a retires.
+_MC_NU = re.sub(r"/\*.*?\*/", "", _MC, flags=re.S)
+_REGLES_MC = re.findall(r"([^{}]*)\{([^{}]*)\}", _MC_NU)
+_TB_ANIM = [_s8.strip()[:60] for _s8, _c8 in _REGLES_MC
+            if "dzm-tb" in _s8 and "animation:" in _c8]
+# LA LISTE BLANCHE DES @keyframes DE LA FEUILLE, nommee plutot que
+# enfouie dans un `and` : ce sont les QUATRE animations de l'apercu des
+# transitions (D-20), et rien d'autre. Le jour ou une cinquieme parait,
+# c'est ICI qu'on l'inscrit, en connaissance de cause.
+_KF_D20 = ["dzmtCircle", "dzmtSlideDir", "dzmtWipeDir", "dzmtZoom"]
+_KF_MC = sorted(re.findall(r"@keyframes\s+([A-Za-z0-9_-]+)", _MC))
+check("D20_la_feuille_ne_porte_que_les_quatre_keyframes_de_la_galerie",
+      _KF_MC == _KF_D20, f"{_KF_MC}")
 _CODE_TB8 = _code(_SRC_TB)
 _i_frm = _CODE_TB8.find("function dzmTbFrame(")
 _j_frm = _CODE_TB8.find("\nfunction ", _i_frm + 10) if _i_frm >= 0 else -1
@@ -10876,11 +12870,612 @@ check("tb8_aucun_mouvement_de_la_barre_n_est_pilote_en_javascript",
       and "setTimeout" not in _HORS_FRM
       and "setInterval" not in _CODE_TB8
       and ".animate(" not in _code(src)
-      # ET LA FEUILLE N'ANIME RIEN NON PLUS : aucune `@keyframes`, donc tout
-      # le mouvement de la barre est une TRANSITION — exactement ce que le
-      # coupe-circuit borne.
-      and "@keyframes" not in _MC,
+      # ET LA FEUILLE N'ANIME PAS LA BARRE NON PLUS : tout son mouvement est
+      # une TRANSITION — exactement ce que le coupe-circuit borne.
+      # LA MESURE A ETE RESSERREE LE 21/09/2026 (D-20, tache 2), ET C'EST
+      # UNE CORRECTION : elle disait « aucune @keyframes DANS LA FEUILLE »,
+      # ce qui melait deux sujets. montage.css porte desormais les quatre
+      # animations de l'apercu des transitions (dzmtSlideDir, dzmtWipeDir,
+      # dzmtCircle, dzmtZoom) qui n'ont rien a voir avec la barre. Ce qui
+      # est mesure ici, c'est ce que la ligne VOULAIT dire : aucune regle
+      # de la barre ne declare `animation:`, et les seules @keyframes de la
+      # feuille sont les quatre neuves, NOMMEES.
+      and _TB_ANIM == []
+      and _KF_MC == _KF_D20,
       f"bloc={len(_CODE_TB8)} o hors_frame={len(_HORS_FRM)} o")
+
+# ══════════════════════════════════════════════════════════════════════════
+# [3-quater] D-3 (21/09/2026) — ROLL, SLIP, SLIDE. Le coeur pur est mesure
+# par test_montage_edition.py (section [3], 48/0) ; ce qui suit est le
+# CABLAGE : six sections T1, T2, T3, T3b, T4, T5, et leur FORME dans le
+# bundle livre — l'ordre des branches, la portee de la fonction posee, et ce
+# que les sections NE font PAS.
+# ══════════════════════════════════════════════════════════════════════════
+print("\n[3-quater] D-3 — roll, slip, slide, cables : T1…T5")
+
+_D3_SEC = ("T1-trim-modificateurs", "T2-trim-slip-slide", "T3-trim-roll-poignee",
+           "T3b-trim-roll-losange", "T4-trim-roll-geste", "T5-trim-titre")
+check("D3_les_six_sections_sont_dans_PATCHES",
+      [t[0] for t in P.PATCHES if t[0] in _D3_SEC] == list(_D3_SEC),
+      f"{[t[0] for t in P.PATCHES if t[0].startswith(('T1-', 'T2-', 'T3', 'T4-', 'T5-'))]}")
+
+# T1 — les modificateurs sont lus AU POINTERDOWN, entre le calcul de `edge`
+# (svmEdgeAt) et la capture de l'instantane d'historique (H5). L'ordre est la
+# mesure : lus plus tard, ils changeraient de valeur en cours de geste.
+_i_edge = s.find(nl("var edge=svmEdgeAt(e.clientX,cRect);"))
+_i_mod = s.find(nl('var dzSlip=!!e.altKey&&edge==="m",dzSlide=!!e.shiftKey&&!e.altKey&&edge==="m";'))
+_i_h0 = s.find(nl("var h0=dzmHistHost(),snapAt=null;"))
+check("D3_T1_les_modificateurs_sont_lus_au_pointerdown_entre_edge_et_h0",
+      s.count(nl('var dzSlip=!!e.altKey&&edge==="m",dzSlide=!!e.shiftKey&&!e.altKey&&edge==="m";')) == 1
+      and s.count(nl("var dzSd=Number(c.srcDur)||0;")) == 1
+      and 0 <= _i_edge < _i_mod < _i_h0,
+      f"edge={_i_edge} mod={_i_mod} h0={_i_h0}")
+# ECART ASSUME ET DATE (21/09/2026) : aucun clip ne porte `srcDur` a l'ecran
+# — la borne HAUTE du slip est donc inconnue et `dzSd` vaut 0. La ligne
+# l'ENONCE plutot que de la taire : si un jour un `c.srcDur` apparait, elle
+# rougit et la borne haute devient mesurable.
+# LA CAUSE EST NOMMEE, pas seulement constatee : la couche EFFACE
+# `srcDur` de tout clip pose (`srcDur` est une mesure de la SOURCE,
+# pas une propriete du clip). C'est pour cela qu'aucun clip ne la
+# porte a l'ecran -- et le jour ou cette regle changera, la ligne
+# rougira et la borne haute deviendra mesurable.
+_D3_EFFACE = 'if("srcDur" in k)delete k.srcDur;'
+check("D3_T1_ecart_la_borne_haute_du_slip_est_inconnue_a_l_ecran",
+      s.count(nl("c.srcDur")) == 1 and s.count(nl("srcDur:dzSd")) == 1
+      and src.count(_D3_EFFACE) == 1,
+      f'c.srcDur={s.count(nl("c.srcDur"))} '
+      f'efface_dans_la_couche={src.count(_D3_EFFACE)}')
+
+# T2 — les deux branches sortent TOT, avant `var w=0,delta=0;` (la branche
+# historique du rognage). Placees apres, elles n'auraient jamais la main.
+_i_slip = s.find(nl("if(dzSlip){setClips(DzTracks.slip(h0.clips,c.id,ds,{srcDur:dzSd}));return}"))
+_i_slide = s.find(nl("if(dzSlide){var dzNs=doSnap(s0+ds);setClips(DzTracks.slide(h0.clips,c.id,dzNs-s0));setSnapT(snapAt);return}"))
+_i_w = s.find(nl("      var w=0,delta=0;"))
+check("D3_T2_slip_et_slide_sortent_avant_la_branche_de_rognage",
+      s.count(nl("if(dzSlip){setClips(DzTracks.slip(")) == 1
+      and s.count(nl("if(dzSlide){var dzNs=doSnap(")) == 1
+      and 0 <= _i_slip < _i_slide < _i_w,
+      f"slip={_i_slip} slide={_i_slide} w={_i_w}")
+# LE GESTE REJOUE DEPUIS L'INSTANTANE, JAMAIS DEPUIS L'ETAT COURANT : c'est
+# la difference entre « slip de +1 s » et une derive qui s'accumule frame par
+# frame. La negation nomme l'erreur qu'elle interdit.
+check("D3_T2_les_deux_gestes_rejouent_depuis_h0_et_jamais_depuis_clipsRef",
+      s.count(nl("DzTracks.slip(h0.clips,")) == 1
+      and s.count(nl("DzTracks.slide(h0.clips,")) == 1
+      and s.count(nl("DzTracks.slip(clipsRef")) == 0
+      and s.count(nl("DzTracks.slide(clipsRef")) == 0,
+      f'slip_h0={s.count(nl("DzTracks.slip(h0.clips,"))} '
+      f'slip_ref={s.count(nl("DzTracks.slip(clipsRef"))}')
+
+# T3 — Alt sur la poignee GAUCHE de l'etendue de transition. La poignee
+# DROITE n'a pas bouge : sans ce second conjoint, la ligne serait vraie d'un
+# patch qui aurait reecrit les deux.
+check("D3_T3_alt_sur_la_poignee_gauche_et_la_droite_intacte",
+      s.count(nl("onPointerDown:function(e){if(e.altKey){dzRollDown(e,j2);return}"
+                 "transSpanDown(e,j2.right,-1,j2.t)}}),")) == 1
+      and s.count(nl("onPointerDown:function(e){transSpanDown(e,j2.right,1,j2.t)}}")) == 1
+      and s.count(nl("onPointerDown:function(e){transSpanDown(e,j2.right,-1,j2.t)}}),")) == 0,
+      "la poignee droite doit rester un transSpanDown nu")
+
+# T3b — ECART CONTESTE ET ASSUME. MESURE : `.svm-transspan` (et donc ses deux
+# poignees, l'ancre de T3) n'est rendu que si `on` — une jonction SANS
+# transition, c'est-a-dire une coupe franche, n'a pas de poignee du tout. Le
+# losange `.svm-junc`, lui, est rendu pour CHAQUE jonction sans condition :
+# c'est lui qui rend le roll atteignable la ou Resolve le place.
+_i_span = s.find(nl('on?r.jsxs("div",{className:"svm-transspan"'))
+_i_junc = s.find(nl('r.jsx("button",{className:"svm-junc"'))
+check("D3_T3b_le_losange_est_rendu_sans_condition_l_etendue_non",
+      _i_span >= 0 and _i_junc >= 0
+      and s.count(nl('on?r.jsxs("div",{className:"svm-transspan"')) == 1
+      and s.count(nl('r.jsx("button",{className:"svm-junc"')) == 1
+      # le losange n'est precede d'aucun ternaire : le caractere qui ouvre sa
+      # ligne est une virgule de liste, pas un `?`.
+      and s[_i_junc - 1] != "?",
+      f"span={_i_span} junc={_i_junc} avant_junc={s[_i_junc-1]!r}")
+check("D3_T3b_le_losange_porte_le_roll_sans_perdre_son_stopPropagation",
+      s.count(nl("onPointerDown:function(e){if(e.altKey){dzRollDown(e,j2);return}"
+                 "e.stopPropagation()},")) == 1,
+      "Alt -> roll, sinon le losange continue d'avaler le pointerdown")
+# I3 (revue du 21/09/2026) : `preventDefault()` sur le pointerdown NE
+# SUPPRIME PAS le `click` qui suit. Apres un Alt+glisser sur le losange,
+# `openTransPop` s'ouvrait par-dessus le roll. Le `onClick` sort donc
+# sous Alt -- en gardant son `stopPropagation`, qui protege le scrub de
+# la piste dessous. L'ancienne forme a DISPARU : sinon la section aurait
+# ete posee a cote.
+check("D3_T3b_alt_neutralise_aussi_le_clic_qui_ouvre_le_reglage",
+      s.count(nl("onClick:function(e){e.stopPropagation();if(e.altKey)return;"
+                 "openTransPop(j2.right.id,e)}")) == 1
+      and s.count(nl("onClick:function(e){e.stopPropagation();"
+                     "openTransPop(j2.right.id,e)}})]}")) == 0,
+      "le clic du losange doit sortir sous Alt, sans perdre son stopPropagation")
+
+# T4 — `dzRollDown` est pose JUSTE AVANT `transSpanDown`, donc DANS le corps
+# du composant : c'est la seule facon d'avoir `trackStRef`, `durRef`,
+# `setClips`, `setDirty`, `pushHistory` et `dzmHistHost` en portee. La preuve
+# n'est pas la position seule mais le fait qu'il utilise EXACTEMENT les
+# symboles de closure que `transSpanDown`, juste dessous, utilise deja.
+_i_roll = s.find(nl("function dzRollDown(e,j2){"))
+_i_span_fn = s.find(nl("function transSpanDown(e,jc,edge,t){"))
+_CORPS_ROLL = s[_i_roll:_i_span_fn] if 0 <= _i_roll < _i_span_fn else "ABSENT"
+check("D3_T4_dzRollDown_est_pose_juste_avant_transSpanDown",
+      s.count(nl("function dzRollDown(e,j2){")) == 1
+      and 0 <= _i_roll < _i_span_fn
+      and len(_CORPS_ROLL) < 1600,
+      f"roll={_i_roll} span={_i_span_fn} corps={len(_CORPS_ROLL)} o")
+for _lbl, _sym in (("trackStRef", "trackStRef.current"), ("durRef", "durRef.current"),
+                   ("setClips", "setClips("), ("setDirty", "setDirty(!0)"),
+                   ("pushHistory", "pushHistory(h0)"), ("dzmHistHost", "dzmHistHost()"),
+                   ("transHoverShow", "transHoverShow("), ("transHoverHide", "transHoverHide()")):
+    check("D3_T4_le_geste_de_roll_a_en_portee_" + _lbl,
+          _sym in _CORPS_ROLL and nl(_sym) in s,
+          f"{_sym!r} absent du corps de dzRollDown")
+# LA PISTE EST REMONTEE PAR SA CLASSE, PAS PAR UN NOMBRE DE PARENTS : le
+# losange est fils DIRECT de `.svm-lane`, les poignees en sont a deux crans.
+# Un `parentElement.parentElement` — ce que fait `transSpanDown`, qui ne
+# connait que les poignees — aurait donne la mauvaise largeur au losange, et
+# donc une echelle px/s fausse.
+check("D3_T4_la_piste_est_remontee_par_la_classe_et_pas_par_les_parents",
+      'tgt.closest(".svm-lane")' in _CORPS_ROLL
+      and "parentElement" not in _CORPS_ROLL,
+      f'closest={"oui" if "closest" in _CORPS_ROLL else "non"} '
+      f'parentElement={"present" if "parentElement" in _CORPS_ROLL else "absent"}')
+check("D3_T4_une_piste_verrouillee_ne_roule_pas",
+      "if(trackStRef.current[j2.right.tr]&&trackStRef.current[j2.right.tr].l)return;" in _CORPS_ROLL,
+      "le verrou de piste doit rendre la main avant toute capture")
+check("D3_T4_une_seule_entree_d_historique_et_seulement_si_le_geste_a_bouge",
+      _CORPS_ROLL.count("pushHistory(") == 1
+      and "if(moved){setDirty(!0);pushHistory(h0)}" in _CORPS_ROLL
+      and _CORPS_ROLL.count("setClips(") == 1,
+      f'push={_CORPS_ROLL.count("pushHistory(")} setClips={_CORPS_ROLL.count("setClips(")}')
+
+# T5 — le titre DIT les trois gestes. L'ancienne phrase a DISPARU : sinon la
+# section aurait ete appliquee a cote, ou deux fois.
+check("D3_T5_le_titre_dit_les_trois_gestes_et_l_ancienne_phrase_a_disparu",
+      s.count(nl('Alt+centre : slip · Maj+centre : slide · Alt+losange : roll"')) == 1
+      and s.count(nl('" — bords : rogner / allonger · centre : déplacer"')) == 0,
+      f'{s.count(nl(chr(34) + " — bords : rogner / allonger · centre : déplacer" + chr(34)))}')
+# ECART ASSUME ET DATE (21/09/2026) : « D-3 : curseur contextuel non livre ».
+# Le titre est la SEULE decouverte du geste ; la feuille n'a pas bouge.
+# M9 (revue) : la ligne cherchait les MOTS « slip » et « slide » dans
+# toute la feuille -- un `@keyframes slide-in` sans aucun rapport
+# l'aurait fait rougir. Elle ne mesure plus que ce dont elle parle :
+# les declarations de CURSEUR, et le fait que la feuille en porte
+# deja (conjoint positif, sinon « aucun curseur ajoute » serait vrai
+# d'une feuille vide ou introuvable).
+_MC_CURS = [_l.strip() for _l in _MC.splitlines() if "cursor:" in _l]
+check("D3_ecart_aucun_curseur_contextuel_dans_la_feuille",
+      len(_MC_CURS) > 0
+      and not [_l for _l in _MC_CURS
+               if "col-resize" in _l or "ew-resize" in _l or "slip" in _l],
+      f"ecart assume ; curseurs de la feuille : {_MC_CURS}")
+
+# LE COEUR PUR EST EXPORTE ET C'EST LUI QUE LE BUNDLE APPELLE : la couche
+# injectee (src) porte les quatre fonctions, le bundle les appelle une fois
+# chacune, et le bundle ne REDEFINIT aucune d'elles.
+for _nm, _decl, _exp in (("slip", "function dzmSlip(clips,id,ds,opts){", "slip:dzmSlip"),
+                         ("slide", "function dzmSlide(clips,id,ds){", "slide:dzmSlide"),
+                         ("roll", "function dzmRoll(clips,leftId,rightId,ds){", "roll:dzmRoll"),
+                         ("voisins", "function dzmVoisins(cs,c){", "voisins:dzmVoisins")):
+    check("D3_le_coeur_" + _nm + "_est_declare_une_fois_et_exporte",
+          src.count(_decl) == 1 and src.count(_exp) == 1
+          and s.count(nl(_decl)) == 1,
+          f"decl_src={src.count(_decl)} exp={src.count(_exp)} decl_bundle={s.count(nl(_decl))}")
+check("D3_les_trois_gestes_appellent_la_couche_une_fois_chacun",
+      s.count(nl("DzTracks.slip(")) == 1 and s.count(nl("DzTracks.slide(")) == 1
+      and s.count(nl("DzTracks.roll(")) == 1,
+      f'slip={s.count(nl("DzTracks.slip("))} slide={s.count(nl("DzTracks.slide("))} '
+      f'roll={s.count(nl("DzTracks.roll("))}')
+
+# ══ D-5 (21/09/2026) : LES MARQUEURS ET LEUR INDEX ════════════════════════
+# LA GARDE PAR PREFIXE, comme pour « E » (D-2). Le lot n'ajoute QUE DEUX
+# sections ; les cinq autres visaient des textes que d'autres remplacements
+# POSENT et sont REPLIEES. Un jour ou l'on cablerait une troisieme section
+# « K… » sans se demander si elle pouvait etre repliee, c'est ici que ca se
+# verrait -- et le compte de `PATCHES` n'est PAS lu en dur (un absolu que
+# tout lot suivant ferait rougir).
+_K_TAGS = [t[0] for t in P.PATCHES if t[0].startswith("K")]
+check("D5_le_cablage_n_ajoute_que_trois_sections",
+      _K_TAGS == ["K5-chip-marqueurs", "K5b-index-marqueurs",
+                  "K7-echap-ferme-index"],
+      f"{_K_TAGS} (sur {len(P.PATCHES)} triplets)")
+# LES DEUX ANCRES EXISTENT DANS LE .bak, contrairement aux cinq repliees.
+# L'ancre de K5 est la QUEUE de la ligne de la chip `ripple` et non la ligne
+# entiere : M21, qui passe AVANT, lui ajoute un `aria-label` en tete. La
+# ligne mesure les DEUX faits -- la queue vaut 1 dans le .bak, et M21 la
+# reprend mot pour mot (sinon K5 ne trouverait plus rien a l'application).
+check("D5_les_deux_ancres_existent_dans_le_bak",
+      bool(_bak) and _bak.count(_nlb(P.A_K5)) == 1
+      and _bak.count(_nlb(P.A_K5B)) == 1
+      and P.A_K5 in P.R_M21,
+      f'bak_K5={_bak.count(_nlb(P.A_K5)) if _bak else "?"} '
+      f'bak_K5b={_bak.count(_nlb(P.A_K5B)) if _bak else "?"} '
+      f'dans_M21={P.A_K5 in P.R_M21}')
+# LES CINQ REPLIS, NOMMES UN A UN. La boucle sur `P.PATCHES` les couvre par
+# ricochet (le remplacement entier de R_R1, R_R2, R_M16REF, R_R3, R_M6 et
+# R_M7 les contient) ; CES lignes-ci les nomment, pour qu'un repli defait se
+# voie sous son propre nom et non comme une section qui aurait bouge.
+# CHACUNE TIENT LES DEUX FACES : le texte est DANS le bundle livre (1), et il
+# est DANS le remplacement qui le porte -- un pin sur le seul remplacement
+# benirait une section que la chaine n'aurait pas posee.
+for _lbl5, _txt5, _sec5, _nom5 in (
+        ("K1_les_quatre_actions_sont_declarees",
+         ' {id:"marker_toggle",sec:"Montage",', P.R_R1, "R_R1"),
+        ("K2_le_dispatch_pose_le_marqueur",
+         'if(id==="marker_toggle"){', P.R_R2, "R_R2"),
+        ("K2_le_dispatch_saute_au_marqueur",
+         'if(id==="marker_prev"||id==="marker_next"){', P.R_R2, "R_R2"),
+        ("K2_le_dispatch_ouvre_l_index",
+         'if(id==="marker_index"){dzMkToggle();return}', P.R_R2, "R_R2"),
+        ("K3_la_bascule_exclusive",
+         'function dzMkToggle(v){var n=arguments.length?!!v:'
+         '!dzMkOnRef.current;if(n)setOvPick("");setDzMkOn(n)}',
+         P.R_M16REF, "R_M16REF"),
+        ("K3_l_effet_ferme_l_index_quand_le_selecteur_s_ouvre",
+         "x.useEffect(function(){if(ovPick)setDzMkOn(!1)},[ovPick]);",
+         P.R_M16REF, "R_M16REF"),
+        ("K3_l_etat_du_panneau",
+         "var stDzMk=x.useState(!1),dzMkOn=stDzMk[0],setDzMkOn=stDzMk[1];",
+         P.R_M16REF, "R_M16REF"),
+        ("K4_les_losanges_sur_la_regle",
+         "r.jsx(DzTracks.Markers,{markers:proj.markers,dur:dur,onSeek:seekTo}),",
+         P.R_R3, "R_R3"),
+        ("K6_les_marqueurs_partent_avec_la_sauvegarde",
+         "      markers:(proj.markers||[]),", P.R_M6, "R_M6"),
+        ("K6_les_marqueurs_reviennent_avec_le_projet",
+         "markers:DzTracks.markersFrom(d.markers),", P.R_M7, "R_M7")):
+    check("D5_" + _lbl5,
+          s.count(nl(_txt5)) == 1 and _txt5 in _sec5
+          and (_bak.count(_nlb(_txt5)) == 0 if _bak else False),
+          f'bundle={s.count(nl(_txt5))} dans_{_nom5}={_txt5 in _sec5} '
+          f'bak={_bak.count(_nlb(_txt5)) if _bak else "?"}')
+# LES QUATRE COMBOS SONT LIBRES DANS LE .bak, ET C'EST LA MESURE QUI LE DIT.
+# `tb8_aucune_combo_par_defaut_n_est_prise_deux_fois` mesure deja qu'aucune
+# n'est en double dans la table LIVREE ; celle-ci mesure l'autre moitie --
+# elles n'existaient PAS avant. « M » (muet) etait deja pris, et il l'est
+# reste : c'est la variante « Maj+M » qui est neuve, et le dispatch cherche
+# `m[combo]` EXACT avant de retomber sur la variante sans Maj.
+_MKC = ["Maj+M", "Ctrl+\u2191", "Ctrl+\u2193", "Ctrl+M"]
+check("D5_les_quatre_combos_etaient_libres_et_ne_sont_plus_qu_une_fois",
+      bool(_bak)
+      and all(_bak.count(_nlb('combo:"%s"' % c)) == 0 for c in _MKC)
+      and all(s.count(nl('combo:"%s"' % c)) == 1 for c in _MKC)
+      and _bak.count(_nlb('combo:"M"')) == 1,
+      f'bak={[_bak.count(_nlb("combo:" + chr(34) + c + chr(34))) for c in _MKC] if _bak else "?"} '
+      f'livre={[s.count(nl("combo:" + chr(34) + c + chr(34))) for c in _MKC]}')
+# LE NOM DES FLECHES SOUS CTRL vient de `svmComboOfEvent`, PAS de nous : la
+# table SVM_EV_NAMES mappe ArrowUp / ArrowDown sur les caracteres fleches, et
+# le prefixe « Ctrl+ » est concatene tel quel. Le jour ou cette table
+# changerait, les deux raccourcis deviendraient injoignables EN SILENCE --
+# c'est cette ligne qui le dirait.
+check("D5_le_nom_des_fleches_sous_ctrl_vient_de_la_table_du_bundle",
+      s.count(nl('ArrowUp:"\u2191",ArrowDown:"\u2193"')) == 1
+      and s.count(nl('(e.ctrlKey||e.metaKey?"Ctrl+":"")')) == 1,
+      f'table={s.count(nl(chr(39) + "ArrowUp:" + chr(34)))} '
+      f'prefixe={s.count(nl(chr(39) + "(e.ctrlKey||e.metaKey?" + chr(34)))}')
+
+# \u2550\u2550 D-4 (21/09/2026) : ECHANGER DEUX PLANS VOISINS \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+# LES DEUX REPLIS, NOMMES UN A UN, meme technique que K1/K2 : le texte est
+# DANS le bundle livre (1), il est DANS le remplacement qui le porte, et il
+# vaut 0 dans .bak_montage -- un pin sur le seul remplacement benirait une
+# section que la chaine n'aurait pas posee.
+for _lbl9, _txt9, _sec9, _nom9 in (
+        ("W1_les_deux_actions_sont_declarees",
+         ' {id:"swap_left",sec:"Montage",', P.R_R1, "R_R1"),
+        ("W2_le_dispatch_echange",
+         'if(id==="swap_left"||id==="swap_right"){', P.R_R2, "R_R2")):
+    check("D4_" + _lbl9,
+          s.count(nl(_txt9)) == 1 and _txt9 in _sec9
+          and (_bak.count(_nlb(_txt9)) == 0 if _bak else False),
+          f'bundle={s.count(nl(_txt9))} dans_{_nom9}={_txt9 in _sec9} '
+          f'bak={_bak.count(_nlb(_txt9)) if _bak else "?"}')
+# LES DEUX COMBOS ETAIENT LIBRES DANS LE .bak, ET NE SONT PLUS QU'UNE FOIS
+# DANS LE BUNDLE LIVRE -- meme mesure que D5_les_quatre_combos_etaient_
+# libres_et_ne_sont_plus_qu_une_fois, sur Ctrl+\u2190 et Ctrl+\u2192.
+_SWC = ["Ctrl+\u2190", "Ctrl+\u2192"]
+check("D4_les_deux_combos_etaient_libres_et_ne_sont_plus_qu_une_fois",
+      bool(_bak)
+      and all(_bak.count(_nlb('combo:"%s"' % c)) == 0 for c in _SWC)
+      and all(s.count(nl('combo:"%s"' % c)) == 1 for c in _SWC),
+      f'bak={[_bak.count(_nlb("combo:" + chr(34) + c + chr(34))) for c in _SWC] if _bak else "?"} '
+      f'livre={[s.count(nl("combo:" + chr(34) + c + chr(34))) for c in _SWC]}')
+# LE NOM DES FLECHES GAUCHE/DROITE SOUS CTRL vient de la MEME table que D-5
+# (ArrowLeft/ArrowRight, pas ArrowUp/ArrowDown) -- mesure separee pour ne
+# pas confondre les deux paires si l'une des quatre entrees bougeait seule.
+check("D4_le_nom_des_fleches_gauche_droite_sous_ctrl_vient_de_la_table_du_bundle",
+      s.count(nl('ArrowLeft:"\u2190",ArrowRight:"\u2192"')) == 1,
+      f'table={s.count(nl("ArrowLeft:" + chr(34) + "\u2190" + chr(34) + ",ArrowRight:" + chr(34) + "\u2192" + chr(34)))}')
+# DzTracks.swap EST APPELE UNE SEULE FOIS -- meme forme que D-3 pour
+# slip/slide/roll : la couche fait le calcul, l'ecran ne fait que dispatcher.
+check("D4_l_echange_appelle_la_couche_une_fois",
+      s.count(nl("DzTracks.swap(")) == 1,
+      f'appels={s.count(nl("DzTracks.swap("))}')
+
+# LA COUCHE NE LIT PAS `svmTcFF` AU CHARGEMENT. Le symbole vit dans le bloc
+# sonvfx du bundle (7 occurrences, meme portee module) mais n'existe NI sous
+# node NI ici : une lecture au chargement aurait tue le shim. La forme est
+# tenue des deux cotes -- la resolution est ecrite `typeof …==="function"`, et
+# elle est ECRITE DEUX FOIS, une par composant, jamais hissee dans une
+# variable de module qui serait, elle, evaluee au chargement.
+check("D5_le_timecode_est_resolu_a_l_appel_jamais_au_chargement",
+      src.count('var dzTc=typeof svmTcFF==="function"?svmTcFF:dzmSecs;') == 2
+      # ET IL N'EST JAMAIS APPELE PAR SON NOM dans la couche : `svmTcFF(`
+      # vaut 0, les six appels passent par `dzTc(`. Les cinq occurrences du
+      # mot sont les deux resolutions et trois COMMENTAIRES qui disent
+      # pourquoi -- c'est la forme d'appel qui est interdite, pas le mot.
+      and src.count("svmTcFF(") == 0 and src.count("dzTc(") == 6
+      and s.count(nl("function svmTcFF(s){")) == 1,
+      f'resolutions={src.count(chr(118) + "ar dzTc=typeof")} '
+      f'appels_directs={src.count("svmTcFF(")} dzTc={src.count("dzTc(")} '
+      f'declaration={s.count(nl("function svmTcFF(s){"))}')
+# LA FEUILLE : les losanges vivent DANS la regle, au-dessus de la bande de
+# plage, et la regle est deja positionnee (regle de D-11, PAS dupliquee).
+check("D5_les_losanges_sont_montes_dans_la_regle_positionnee",
+      _CSS_M.count(".dzsvm .svm-ruler{position:relative}") == 1
+      and _CSS_M.count(".dzsvm .dzm-mk{position:absolute;") == 1
+      and "z-index:4" in _CSS_M
+      and _CSS_M.count(".dzsvm .dzm-mkrow input{flex:1 1 auto; min-width:0}") == 1,
+      f'ruler={_CSS_M.count(".dzsvm .svm-ruler{position:relative}")} '
+      f'mk={_CSS_M.count(".dzsvm .dzm-mk{position:absolute;")}')
+# LES LOSANGES SONT APRES LA BANDE DANS L'ORDRE DU DOM, et tous deux DANS la
+# regle. `_RULER` est la tranche `svm-ruler` -> `svm-tick` du bundle livre.
+# `_RULER` a ETE REAFFECTE depuis (a la source de `svmRuler`, pour le shim
+# de la section [3]) : la tranche est RECALCULEE ici sous son propre nom --
+# une faute n6 en puissance, attrapee au premier passage (`regle=73 o`).
+_RULER5 = re.search(r'className:"svm-ruler".*?className:"svm-tick"',
+                    s.replace("\r\n", "\n"), re.S)
+_RULER5 = _RULER5.group(0) if _RULER5 else ""
+# I-6 (revue du 21/09/2026) : `index()` LEVE, et une ligne de banc doit
+# ROUGIR, PAS MOURIR. Au niveau module, une levee ici emporterait les ~30
+# lignes qui suivent avant leur premier mot. `find()` rend -1, et « les deux
+# ont ete trouves » devient une CONDITION -- meme parade que chez les
+# voisines de D-11.
+_iBar5 = _RULER5.find("DzTracks.RangeBar")
+_iMk5 = _RULER5.find("DzTracks.Markers")
+check("D5_les_losanges_viennent_apres_la_bande_dans_la_regle",
+      len(_RULER5) > 0
+      and _RULER5.count("r.jsx(DzTracks.Markers,{markers:proj.markers,") == 1
+      and 0 <= _iBar5 < _iMk5,
+      f'regle={len(_RULER5)} o bande={_iBar5} marqueurs={_iMk5}')
+
+# ── D-5 : CE QUE LE STUB JSX A RENDU ──────────────────────────────────────
+check("D5_un_losange_porte_sa_place_sa_couleur_et_son_nom",
+      d.get("mk_rendu") == [1, "button", "dzm-mk", "m1",
+                            "calc(88px + (100% - 88px) * 0.5)", "#e5484d",
+                            "Marqueur 5 s \u2014 a"],
+      f'{d.get("mk_rendu")}')
+# BORNE A LA REGLE, exactement comme la bande de plage : un marqueur est
+# PERSISTE et survit a un raccourcissement de la duree. Sans le Math.min,
+# `left` passait 100 % ; sans le Math.max, un `t` negatif lu d'un vieux
+# fichier serait parti a gauche de la timeline.
+check("D5_un_losange_hors_champ_tient_dans_la_regle",
+      d.get("mk_rendu_borne") == ["calc(88px + (100% - 88px) * 1)",
+                                  "calc(88px + (100% - 88px) * 0)"],
+      f'{d.get("mk_rendu_borne")}')
+check("D5_le_clic_sur_un_losange_va_a_son_temps",
+      d.get("mk_rendu_seek") == [3], f'{d.get("mk_rendu_seek")}')
+# SANS RAPPEL, RIEN NE LEVE : l'ecran peut monter avant que `seekTo` existe.
+# Negation gardee par le temoin, qui n'est rendu QUE si l'appel est alle au
+# bout (TBG rend "INDEFINI" ou l'erreur sinon).
+check("D5_un_losange_sans_rappel_ne_leve_pas",
+      d.get("mk_rendu_sans_onseek") == "sans_levee",
+      f'{d.get("mk_rendu_sans_onseek")}')
+check("D5_les_entrees_molles_ne_rendent_aucun_losange",
+      "mk_rendu_mou" in d and d.get("mk_rendu_mou") == [0, 0, 1],
+      f'{"mk_rendu_mou" in d} {d.get("mk_rendu_mou")!r}')
+# LA PREUVE QUE `svmTcFF` EST RESOLU A L'APPEL : la MEME sonde, le MEME
+# composant, rendu deux fois -- la premiere sans le symbole (repli `dzmSecs`,
+# « 5 s »), la seconde avec (le stub rend « TC5 »). Une lecture au chargement
+# aurait fige le repli et la seconde mesure dirait encore « 5 s ».
+check("D5_le_timecode_change_quand_le_symbole_apparait",
+      d.get("mk_tc_resolu_a_l_appel") == "Marqueur TC5"
+      and d.get("mk_rendu") != "INDEFINI"
+      and "5 s" in str((d.get("mk_rendu") or [None] * 7)[6]),
+      f'{d.get("mk_tc_resolu_a_l_appel")!r} vs {d.get("mk_rendu")}')
+# R-2 : ET LA NOTE DIT LA COMBO VIVANTE. Le repli (« Maj+M ») est celui que
+# la couche rend quand `svmKeyLabelNow` n'existe pas -- et sous ce shim, a ce
+# moment-la, il n'existe pas encore : c'est la meme preuve de resolution a
+# l'appel que pour l'infobulle du losange, qui est mesuree juste apres.
+check("D5_l_index_vide_dit_le_geste_au_lieu_de_se_taire",
+      d.get("mk_index_vide") == ["svm-pop dzm-mkidx", "Marqueurs \u2014 0",
+                                 "div", "svm-note",
+                                 "Aucun marqueur \u2014 Maj+M en pose un "
+                                 "\u00e0 la t\u00eate de lecture."],
+      f'{d.get("mk_index_vide")}')
+# UNE RANGEE, QUATRE CONTROLES : aller, recolorer, renommer, retirer. Le
+# champ de titre est NON CONTROLE (`defaultValue` pose, `value` ABSENT) --
+# c'est ce qui l'empeche de remonter a chaque frappe.
+check("D5_une_rangee_porte_les_quatre_gestes",
+      d.get("mk_index_rangees") == ["Marqueurs \u2014 1", "dzm-mkrow", 4, "a",
+                                    True,
+                                    [["seek", 3], ["ch", "m1", {"color": "vert"}],
+                                     ["rm", "m1"]]],
+      f'{d.get("mk_index_rangees")}')
+# LE TITRE NE REMONTE QUE S'IL A CHANGE, ET SEULEMENT AU BLUR OU SUR ENTREE.
+# C'est la parade au `pushHistory` PAR FRAPPE, et elle est dans la COUCHE :
+# quatre gestes joues, DEUX remontees. Un blur sans changement ne remonte
+# rien, une touche qui n'est pas Entree non plus.
+check("D5_le_titre_ne_remonte_qu_au_changement_reel",
+      d.get("mk_index_titre") == [["m1", {"title": "b"}],
+                                  ["m1", {"title": "c"}]],
+      f'{d.get("mk_index_titre")}')
+check("D5_l_index_sans_rappels_ne_leve_pas",
+      d.get("mk_index_sans_rappels") == "sans_levee",
+      f'{d.get("mk_index_sans_rappels")}')
+# LE PANNEAU EST POSE PARMI LES POPOVERS, et il est CONDITIONNEL : sans
+# `dzMkOn`, rien n'est monte. Les deux rappels d'ecriture passent par
+# `pushHistory()` AVANT le `setProj` -- sans quoi « Annuler » ne rendrait
+# jamais un marqueur retire par la corbeille.
+check("D5_le_panneau_est_conditionnel_et_entre_dans_l_historique",
+      s.count(nl("dzMkOn?r.jsx(DzTracks.MarkerIndex,"
+                 "{markers:proj.markers,onSeek:seekTo,")) == 1
+      and P.R_K5B.count("pushHistory();setProj(") == 2
+      and s.count(nl("{markers:DzTracks.markerRemove(p.markers,id)})});"
+                     "setDirty(!0)}")) == 1
+      and s.count(nl("{markers:DzTracks.markerUpdate(p.markers,id,patch)})});"
+                     "setDirty(!0)}")) == 1,
+      f'panneau={s.count(nl(chr(100) + "zMkOn?r.jsx(DzTracks.MarkerIndex,"))} '
+      f'pushHistory={P.R_K5B.count("pushHistory();setProj(")}')
+# LA CHIP DIT LE NOMBRE, et elle est la QUATRIEME -- hors du
+# `:nth-child(-n+3)` qui degrade en glyphe seul, parce que son compteur
+# serait illisible reduit a un losange. Elle porte tout de meme son nom
+# accessible, comme ses trois voisines (§4.5).
+_iRip5 = s.find(nl('children:"ripple"}),'))
+_iMkChip5 = s.find(nl('"aria-label":"marqueurs",'))
+check("D5_la_chip_dit_le_nombre_de_marqueurs",
+      s.count(nl('children:"\u25c6 "+((proj.markers||[]).length)}),')) == 1
+      and s.count(nl('"aria-label":"marqueurs",')) == 1
+      and s.count(nl('"data-on":dzMkOn?"":void 0,')) == 1
+      # I-6 : `find()`, jamais `index()` -- et la condition d'abord.
+      and 0 <= _iRip5 < _iMkChip5,
+      f'chip={s.count(nl(chr(39) + "aria-label" + chr(39) + ":" + chr(39)
+                         + "marqueurs" + chr(39) + ","))} '
+      f'ripple={_iRip5} marqueurs={_iMkChip5}')
+# ── C-1 : LE LOSANGE AVALE SON POINTERDOWN ───────────────────────────────
+# MESURE du 21/09/2026 : `.svm-ruler` porte `onPointerDown:rulerDown` (1/1
+# dans le .bak), et `rulerDown` fait `setPointerCapture` puis
+# `seekTo(phFromEvent(e, el))`. Le `click` du bouton arrivait APRES : la
+# tete etait deja partie sous le curseur, et le losange semblait mort a deux
+# pixels pres. Meme parade que `vpDown` du bundle. Les DEUX moities : la
+# cause est toujours la (le parent seeke au pointerdown), et le bouton
+# l'avale.
+check("D5_C1_le_losange_avale_son_pointerdown",
+      d.get("mk_rendu_pointerdown") == [1, 1, "function"]
+      # LE MOT NU COMPTE 2 dans le bundle livre, et le second est le
+      # COMMENTAIRE de la couche qui explique la parade -- la sonde compte
+      # du texte. La mesure porte donc sur l'ATTRIBUT, avec sa classe.
+      and s.count(nl('className:"svm-ruler",onPointerDown:rulerDown,')) == 1
+      and s.count(nl("seekTo(phFromEvent(e,el));")) == 1,
+      f'{d.get("mk_rendu_pointerdown")} '
+      f'regle={s.count(nl(chr(99) + "lassName:" + chr(34) + "svm-ruler"
+                          + chr(34) + ",onPointerDown:rulerDown,"))}')
+# ── I-3 : LA CLE DE L'INPUT PORTE LE TITRE ───────────────────────────────
+# React IGNORE `defaultValue` a la mise a jour : apres Ctrl+Z, l'hote
+# rendait l'ancien titre pendant que l'input gardait le neuf. La cle change
+# avec la valeur, donc l'input remonte et repart de la bonne chaine. La
+# ligne mesure que les deux cles DIFFERENT -- une cle constante (`m.id`)
+# rendrait deux fois la meme.
+check("D5_I3_l_input_remonte_quand_le_titre_amont_change",
+      d.get("mk_index_cle_input") == ["m1|a", "m1|b"]
+      and src.count('m.id+"|"+m.title') == 1,
+      f'{d.get("mk_index_cle_input")} '
+      f'couche={src.count(chr(109) + chr(46) + "id+")}')
+# ── I-4 : L'INDEX ET LE SELECTEUR NE SE RECOUVRENT PLUS ──────────────────
+# Les deux sont des `.svm-pop` a `top:96` -- MESURE : le panneau de l'index
+# porte `style:{top:96}` et `ovPicker` aussi. Rien ne fermait l'un quand
+# l'autre s'ouvrait. LES DEUX SENS sont tenus : la bascule ferme le
+# selecteur, et un effet sur l'ETAT `ovPick` ferme l'index (l'etat, pas
+# `openPicker` : le selecteur s'ouvre depuis plusieurs chemins).
+check("D5_I4_les_deux_panneaux_s_excluent",
+      s.count(nl('function dzMkToggle(v){var n=arguments.length?!!v:'
+                 '!dzMkOnRef.current;if(n)setOvPick("");setDzMkOn(n)}')) == 1
+      and s.count(nl("x.useEffect(function(){if(ovPick)setDzMkOn(!1)},"
+                     "[ovPick]);")) == 1
+      and src.count('className:"svm-pop dzm-mkidx",style:{top:96}') == 1
+      and s.count(nl('className:"svm-pop",style:{top:96')) >= 1
+      # ET PLUS AUCUNE BASCULE NUE : les trois chemins (K2, K5, K7) passent
+      # par `dzMkToggle`. Une quatrieme ecrite a la main oublierait
+      # l'exclusion.
+      and s.count(nl("setDzMkOn(function(v){return !v})")) == 0
+      and s.count(nl("dzMkToggle(")) == 4,
+      f'bascule={s.count(nl(chr(102) + "unction dzMkToggle(v){"))} '
+      f'appels={s.count(nl(chr(100) + "zMkToggle("))} '
+      f'nues={s.count(nl("setDzMkOn(function(v){return !v})"))}')
+# ECHAP FERME L'INDEX, PAR LA VOIE DU BUNDLE. K7 se greffe sur la branche
+# `Escape` de `onKey` qui existait DEJA (1/1 dans le .bak) : rien de neuf
+# n'est ecoute. L'ORDRE compte et il est mesure -- l'index se ferme AVANT le
+# repli `ovEsc` des overlays, sinon Echap aurait rendu les fleches a la tete
+# sans fermer le panneau ouvert.
+_iEsc = s.find(nl("if(dzMkOnRef.current){e.preventDefault();"
+                  "dzMkToggle(!1);return}"))
+_iOvE = s.find(nl("if(kbAudioRef.current&&kbAudioRef.current.ovEsc&&"))
+check("D5_I4_echap_ferme_l_index_avant_le_repli_des_overlays",
+      0 <= _iEsc < _iOvE
+      and bool(_bak) and _bak.count(_nlb(P.A_K7)) == 1
+      and s.count(nl("dzMkToggle(!1)")) == 1,
+      f'index={_iEsc} overlays={_iOvE} '
+      f'bak={_bak.count(_nlb(P.A_K7)) if _bak else "?"}')
+# ── I-5 : LES COMBOS VIENNENT DE LA KEYMAP VIVANTE ───────────────────────
+# Les quatre actions sont REMAPPABLES : un texte en dur MENT des le premier
+# remappage. Trois endroits le disaient -- le `title` de la chip, la note de
+# la pose, et l'infobulle du losange. Les deux premiers passent par
+# `svmKeyLabel` (declaree DANS le composant) ; le troisieme vit dans la
+# couche, qui ne peut pas l'atteindre, et passe par `svmKeyLabelNow` (niveau
+# MODULE, 3 occurrences dans le .bak, deja employee par le tiroir Sons).
+check("D5_I5_les_trois_textes_lisent_la_keymap_vivante",
+      s.count(nl('svmKeyLabel("marker_index")')) == 2
+      and s.count(nl('svmKeyLabel("marker_toggle")')) == 1
+      # DANS LA COUCHE le symbole est resolu A L'APPEL puis APPELE par la
+      # variable locale (`f`), exactement comme `dzTc` pour `svmTcFF` : la
+      # mesure porte sur la resolution et sur l'identifiant d'action.
+      and src.count('typeof svmKeyLabelNow==="function"?svmKeyLabelNow:null') == 1
+      # R-2 (seconde revue du 21/09/2026) : QUATRIEME TEXTE. La note de
+      # l'index VIDE -- celle qui apprend le geste a qui n'a pas encore de
+      # marqueur -- ecrivait « Maj+M » en dur : c'est precisement la phrase
+      # qu'un remappage rendait fausse pour le seul utilisateur qui en a
+      # besoin. Elle passe par le meme `dzmMarkerCombo()` que l'infobulle du
+      # losange, donc par la meme keymap vivante. DEUX appels dans la
+      # couche, un par texte.
+      # D-21 (tache 7) : LA RESOLUTION EST FACTORISEE. Le second texte a
+      # faire parler la keymap (la note de retrait de la piste T1) aurait
+      # demande une SECONDE ligne `typeof svmKeyLabelNow`, que le conjoint
+      # ci-dessus compte a UN. Elle vit desormais dans `dzmCombo(id,repli)`,
+      # que les deux appellent avec LEUR identifiant et LEUR repli -- aucun
+      # defaut cache, une seule resolution.
+      and src.count("function dzmCombo(id,repli){") == 1
+      and src.count("(f&&f(id))||repli") == 1
+      and src.count('dzmCombo("marker_toggle","Maj+M")') == 1
+      and src.count('dzmCombo("title_add","Maj+T")') == 1
+      and src.count('f("marker_toggle")') == 0
+      # LE COMPTE PORTE SUR LES APPELS, pas sur le mot : la DECLARATION
+      # `function dzmMarkerCombo(){` contient elle aussi « dzmMarkerCombo() »
+      # (mesure : 3 occurrences du mot, 1 declaration et 2 appels).
+      and src.count("+dzmMarkerCombo()+") == 2
+      and src.count("function dzmMarkerCombo(){") == 1
+      # et PLUS AUCUNE combo ecrite en dur dans ces trois textes
+      and s.count(nl('index (Ctrl+M)')) == 0
+      and s.count(nl('Maj+M pose/retire')) == 0
+      and s.count(nl('Ctrl+M : l\'index.')) == 0
+      and s.count(nl('Maj+M en pose un')) == 0
+      # …et le conjoint positif : la phrase EXISTE toujours, combo mise
+      # a part. Sans lui, la negation serait vraie d'une note disparue.
+      and s.count(nl('" en pose un \u00e0 la t\u00eate de lecture."')) == 1,
+      f'index={s.count(nl(chr(115) + "vmKeyLabel(" + chr(34) + "marker_index"))} '
+      f'toggle={s.count(nl(chr(115) + "vmKeyLabel(" + chr(34) + "marker_toggle"))} '
+      f'couche={src.count("typeof svmKeyLabelNow==")}')
+# ET ELLE EST RESOLUE A L'APPEL, comme `svmTcFF` : la MEME sonde, le MEME
+# composant, rendu deux fois -- la premiere sans le symbole (repli
+# « Maj+M »), la seconde avec (le stub rend « Ctrl+Alt+K »).
+check("D5_I5_la_combo_du_losange_change_quand_la_keymap_change",
+      isinstance(d.get("mk_combo_repli"), str)
+      and "Maj+M \u00e0 la t\u00eate" in d.get("mk_combo_repli", "")
+      and isinstance(d.get("mk_combo_vivante"), str)
+      and "Ctrl+Alt+K \u00e0 la t\u00eate" in d.get("mk_combo_vivante", ""),
+      f'repli={d.get("mk_combo_repli")!r} vivante={d.get("mk_combo_vivante")!r}')
+# ── I-7 : LE CHAMP DE TITRE EST HABILLE ──────────────────────────────────
+# Sans regle, il heritait du chrome du navigateur -- fond blanc, texte noir,
+# bordure systeme -- dans un panneau sombre. Le bloc reprend celui de
+# `.dzm-projin` (le renommage de projet), jetons compris, et la mise au
+# point a l'accent. Le conjoint positif : le modele est toujours la.
+check("D5_I7_le_champ_de_titre_a_sa_regle",
+      _CSS_M.count(".dzsvm .dzm-mktitre{height:20px;") == 1
+      and _CSS_M.count(".dzsvm .dzm-mktitre:focus{outline:none;") == 1
+      and _CSS_M.count(".dzsvm .dzm-projin{flex:1 1 auto;") == 1
+      and "var(--stroke, #2a2930)" in _CSS_M,
+      f'mktitre={_CSS_M.count(".dzsvm .dzm-mktitre{height:20px;")} '
+      f'focus={_CSS_M.count(".dzsvm .dzm-mktitre:focus{outline:none;")}')
+# LES MARQUEURS ENTRENT DANS L'HISTORIQUE, et la cle y etait DEJA (D-0) : il
+# ne manquait que le `pushHistory()` avant chaque ecriture. Les DEUX faces :
+# la cle est dans la table de l'instantane, et les TROIS ecritures du lot
+# (bascule au clavier, retrait et modification depuis l'index) la poussent.
+# 3 -> 4 le 21/09/2026 (D-4, tache 9) : W2 (replie dans R_R2, juste apres la
+# branche marker_index) pousse une QUATRIEME fois, avant l'echange.
+check("D5_les_marqueurs_etaient_deja_dans_les_cles_de_l_historique",
+      src.count('"markers"') >= 1
+      and 'markers' in src[src.index("DZM_HIST_CLES"):
+                           src.index("DZM_HIST_CLES") + 260]
+      and P.R_R2.count("pushHistory();") == 4,
+      f'cles={src[src.index("DZM_HIST_CLES"):src.index("DZM_HIST_CLES") + 160]!r} '
+      f'pushHistory_R2={P.R_R2.count("pushHistory();")}')
 
 # LA LIGNE QUI DIT QUE LE BANC A ROUGI PLUTOT QUE MEURE : aucun appel garde
 # n'a pose de temoin. Une panne de node — introuvable, ou un shim qui tourne
@@ -10891,6 +13486,1018 @@ check("tb8_aucun_mouvement_de_la_barre_n_est_pilote_en_javascript",
 # AUCUN temoin pose apres elle. Sa promesse — « aucun appel garde n'a leve » —
 # n'etait vraie que de la premiere moitie du banc. Une ligne de queue doit
 # etre EN QUEUE ; les sections s'ajoutent, elle doit rester la derniere.
+
+# ══════════════════════════════════════════════════════════════════════════
+# D-20 (21/09/2026, tâche 2) — LA GALERIE DES TRANSITIONS, CÔTÉ ÉCRAN
+# ══════════════════════════════════════════════════════════════════════════
+# X1 EST UN REPLI, et c'est la mesure qui le dit : son texte vaut 0 dans
+# .bak_montage (aucune section ne pourrait le prendre pour ancre), il est
+# DANS R_M16REF, et il vaut 1 dans le bundle livré. Même forme que E1/K3.
+for _lblx, _txtx, _secx, _nomx in (
+        ("X1_le_catalogue_est_charge_une_fois",
+         "var stDzCat=x.useState(null),dzTransCat=stDzCat[0],", P.R_M16REF, "R_M16REF"),
+        ("X1_le_catalogue_est_aussi_pose_en_global",
+         "window.__dzTransCat=d;setDzTransCat(d)", P.R_M16REF, "R_M16REF")):
+    check("D20_" + _lblx,
+          s.count(nl(_txtx)) == 1 and _txtx in _secx
+          and (_bak.count(_nlb(_txtx)) == 0 if _bak else False),
+          f'bundle={s.count(nl(_txtx))} dans_{_nomx}={_txtx in _secx} '
+          f'bak={_bak.count(_nlb(_txtx)) if _bak else "?"}')
+# ET IL N'EST TIRÉ QU'UNE FOIS : dépendances VIDES, une seule route citée.
+# DEUX ANNULATIONS depuis la tâche 7 (22/09/2026), et non plus une : TT7ref
+# pose un SECOND effet `[]` — celui du catalogue des titres — avec la même
+# parade `al`. Le compte des annulations est donc celui des effets à
+# dépendances vides de ces deux sections, un par route ; le compte des
+# `fetch` par route, lui, reste à UN et c'est lui qui dit « une seule fois ».
+check("D20_X1_le_catalogue_est_tire_une_seule_fois_et_annulable",
+      s.count(nl('fetch("/api/montage/transitions")')) == 1
+      and s.count(nl('fetch("/api/montage/titles")')) == 1
+      and s.count(nl("return function(){al=!1}},[]);")) == 2,
+      f'fetch={s.count(nl(chr(34) + "/api/montage/transitions" + chr(34)))} '
+      f'annulation={s.count(nl("return function(){al=!1}},[]);"))}')
+# X2 : LA GRILLE DE SEPT TUILES N'EXISTE PLUS. Les deux faces — elle valait 1
+# dans .bak_montage, elle vaut 0 dans le livré — et la galerie l'a remplacée.
+# Sans la face .bak, « 0 » serait vrai d'un texte qui n'a jamais existé.
+_VIEILLE = '"svm-transgrid",children:SVM_TRANS.map(function(o){'
+check("D20_X2_la_grille_est_la_galerie",
+      s.count(nl("DzTracks.TransGrid")) == 1
+      and s.count(nl(_VIEILLE)) == 0
+      and (_bak.count(_nlb(_VIEILLE)) == 1 if _bak else False)
+      and s.count(nl("onPick:function(id){svmSetTransType(jc.id,id)}}),")) == 1,
+      f'grille={s.count(nl("DzTracks.TransGrid"))} '
+      f'vieille={s.count(nl(_VIEILLE))} '
+      f'bak={_bak.count(_nlb(_VIEILLE)) if _bak else "?"}')
+# ET LA SUITE DU POPOVER EST INTACTE : le curseur de durée et le bouton
+# « Appliquer à toutes les coupes » sont hors de l'ancre de X2. Une ancre
+# trop longue les aurait emportés sans que rien ne le dise.
+check("D20_X2_le_curseur_de_duree_et_le_bouton_survivent",
+      s.count(nl('"aria-label":"Durée de la transition",')) == 1
+      and s.count(nl('children:"Appliquer à toutes les coupes"')) == 1
+      and s.count(nl("onClick:function(){svmApplyTransAll(base,isCut?0:s2)},")) == 1,
+      f'curseur={s.count(nl(chr(34) + "aria-label" + chr(34) + ":" + chr(34) + "Durée de la transition" + chr(34) + ","))} '
+      f'bouton={s.count(nl("children:" + chr(34) + "Appliquer à toutes les coupes" + chr(34)))}')
+# X3/X3b : « connu » et les options se demandent à la LISTE. Les deux ancres
+# ont DISPARU (le remplacement ne les reprend pas) — la boucle générique le
+# mesure déjà ; ce qui suit est ce qu'elle ne voit pas : DEUX appels à
+# `transList`, un par section, et plus un seul `SVM_TRANS.some` / `.map`.
+check("D20_X3_le_select_liste_le_catalogue",
+      s.count(nl("DzTracks.transList(SVM_TRANS,dzTransCat)")) == 2
+      and s.count(nl("SVM_TRANS.some(")) == 0
+      and s.count(nl("SVM_TRANS.map(")) == 0
+      and (_bak.count(_nlb("SVM_TRANS.some(")) == 1 if _bak else False)
+      and (_bak.count(_nlb("SVM_TRANS.map(")) == 2 if _bak else False)
+      and s.count(nl('children:f.label+" · "+it.label},it.id)')) == 1,
+      f'transList={s.count(nl("DzTracks.transList(SVM_TRANS,dzTransCat)"))} '
+      f'some={s.count(nl("SVM_TRANS.some("))} map={s.count(nl("SVM_TRANS.map("))} '
+      f'bak_some={_bak.count(_nlb("SVM_TRANS.some(")) if _bak else "?"} '
+      f'bak_map={_bak.count(_nlb("SVM_TRANS.map(")) if _bak else "?"}')
+# X4 : le libellé du losange vient de la couche, et le `find` des sept a
+# disparu. `SVM_TRANS` reste DÉCLARÉ (c'est le repli hors-ligne) : la mesure
+# porte sur la LECTURE, pas sur la table.
+check("D20_X4_le_libelle_vient_du_catalogue",
+      s.count(nl("DzTracks.transLabel(b,SVM_TRANS,window.__dzTransCat||null)")) == 1
+      and s.count(nl("SVM_TRANS.find(")) == 0
+      and (_bak.count(_nlb("SVM_TRANS.find(")) == 1 if _bak else False)
+      and s.count(nl("var SVM_TRANS=[")) == 1,
+      f'couche={s.count(nl("DzTracks.transLabel(b,SVM_TRANS,window.__dzTransCat||null)"))} '
+      f'find={s.count(nl("SVM_TRANS.find("))} '
+      f'bak_find={_bak.count(_nlb("SVM_TRANS.find(")) if _bak else "?"} '
+      f'table={s.count(nl("var SVM_TRANS=["))}')
+# LES NOMS NEUFS ÉTAIENT LIBRES dans le bundle d'entrée — bornes \b.
+for _nmx in ("dzTransCat", "setDzTransCat", "stDzCat", "__dzTransCat"):
+    _nb = len(re.findall(r"\b%s\b" % _nmx, _bak)) if _bak else -1
+    _nu = len(re.findall(r"\b%s\b" % _nmx, s))
+    # LE LABEL PORTE LE NOM TEL QUEL : `.strip("_")` donnait le MEME label
+    # a `dzTransCat` et a `__dzTransCat` -- deux lignes indistinguables.
+    check("D20_nom_" + _nmx + "_etait_libre_dans_le_bundle_d_entree",
+          _nb == 0 and _nu >= 1, f"{_nmx} : .bak={_nb} (attendu 0) bundle={_nu}")
+
+# ── CE QUE LE STUB JSX A RENDU ────────────────────────────────────────────
+# HUIT groupes : « coupe », « historiques » et les SIX familles du serveur
+# (1 + 1 + 6). Le libellé disait « sept » et comptait bien 8 : il mentait
+# sur ce qu'il mesurait — corrigé le 21/09/2026 (revue de la tâche 2).
+# 62 tuiles : 1 + 3 historiques (les sept du bundle moins cut, fade,
+# dissolve et fadeblack, qui sont AU catalogue) + 58.
+check("D20_la_galerie_rend_huit_groupes_et_soixante_deux_tuiles",
+      isinstance(d.get("tg_rendu"), list) and len(d.get("tg_rendu") or []) == 3
+      and d["tg_rendu"][0] == 8 and d["tg_rendu"][1] == 62
+      and [f[0] for f in d["tg_rendu"][2]]
+          == ["coupe", "historiques", "fondus", "glissements", "volets",
+              "formes", "zooms", "pixels"]
+      and [f[1] for f in d["tg_rendu"][2]] == [1, 3, 8, 12, 16, 9, 3, 10],
+      f'{d.get("tg_rendu")}')
+check("D20_les_trois_historiques_sont_ceux_qui_ne_sont_pas_au_catalogue",
+      d.get("tg_historiques") == ["glitch", "slide", "flash"],
+      f'{d.get("tg_historiques")}')
+# LA TUILE PORTE TOUT : la classe du bundle, `data-sel` parce qu'elle est
+# choisie, l'infobulle, la micro-scène avec `data-tt` (les règles du bundle),
+# `data-fam` (la nôtre) et `data-dir`.
+check("D20_la_tuile_choisie_porte_sa_classe_sa_scene_sa_famille_et_son_sens",
+      d.get("tg_tuile") == ["svm-transtile", "", "volet ↖ (wipetl) — visible après Preview",
+                            "svm-tprev", "wipetl", "volets", None, "volet ↖"],
+      f'{d.get("tg_tuile")}')
+# ET LA NON CHOISIE N'A PAS `data-sel` — la moitié qui manquait.
+check("D20_une_tuile_non_choisie_n_a_pas_data_sel",
+      d.get("tg_non_choisie") == [None, "left"], f'{d.get("tg_non_choisie")}')
+check("D20_le_clic_remonte_l_identifiant_nu_et_sans_rappel_rien_ne_leve",
+      d.get("tg_clic") == ["cut"], f'{d.get("tg_clic")}')
+check("D20_l_infobulle_dit_ce_qui_n_est_pas_joue_en_direct",
+      d.get("tg_direct") == [True, True], f'{d.get("tg_direct")}')
+# SANS CATALOGUE, L'ÉCRAN D'AVANT D-20 : sept tuiles, deux groupes. C'est la
+# ligne qui dit que l'échec silencieux de X1 ne vide pas la galerie.
+check("D20_sans_catalogue_la_galerie_est_celle_d_avant",
+      d.get("tg_sans_catalogue") == [["coupe", "historiques"], 7],
+      f'{d.get("tg_sans_catalogue")}')
+
+# ── LA FEUILLE ────────────────────────────────────────────────────────────
+# Les six familles animées, les quatre sens, le titre de famille et le
+# défilement du popover. `svmtFull`, `svmtFade`, `svmtGlitch` et `--ease`
+# sont RÉUTILISÉS de son-vfx-montage.css (intouchable), pas redéclarés :
+# les deux faces sont mesurées.
+check("D20_la_feuille_anime_les_six_familles_et_les_quatre_sens",
+      all(('.dzsvm .svm-tprev[data-fam="%s"]' % _f) in _MC
+          for _f in ("fondus", "glissements", "volets", "formes", "zooms", "pixels"))
+      and all(('.dzsvm .svm-tprev[data-dir="%s"]' % _dd) in _MC
+              for _dd in ("left", "right", "up", "down"))
+      and ".dzsvm .dzm-transfam-t{font-family:var(--f-mono);" in _MC
+      and ".dzsvm .dzm-transgrid{grid-template-columns:repeat(3,1fr)}" in _MC
+      and ".dzsvm .svm-transpop{max-height:52vh; overflow:auto}" in _MC,
+      f'familles={[_f for _f in ("fondus", "glissements", "volets", "formes", "zooms", "pixels") if (chr(46) + "dzsvm .svm-tprev[data-fam=" + chr(34) + _f + chr(34) + "]") not in _MC]}')
+# LES TROIS ANIMATIONS EMPRUNTÉES VIVENT DANS L'AUTRE FEUILLE, ET UNE SEULE
+# FOIS : les redéclarer ici ferait deux versions qui divergeraient.
+check("D20_les_animations_empruntees_ne_sont_pas_redeclarees",
+      _SVMCSS.count("@keyframes svmtFull{") == 1
+      and _SVMCSS.count("@keyframes svmtFade{") == 1
+      and _SVMCSS.count("@keyframes svmtGlitch{") == 1
+      and "--ease:" in _SVMCSS
+      and "@keyframes svmtFull" not in _MC
+      and "@keyframes svmtFade" not in _MC
+      and "@keyframes svmtGlitch" not in _MC,
+      f'svmtFull={_SVMCSS.count("@keyframes svmtFull{")} '
+      f'dans_montage={"@keyframes svmtFull" in _MC}')
+# L'EXCLUSION VIT DANS LA COUCHE, PAS DANS LA FEUILLE — et c'est la
+# correction du 21/09/2026 (revue). `dissolve` et `fadeblack` sont AU
+# catalogue (famille « fondus ») et portent DEJA une regle [data-tt] du
+# bundle avec une AUTRE animation. La premiere version les ecartait par deux
+# `:not([data-tt=…])` dans la regle `fondus` : la regle pesait alors (0,6,0)
+# et passait devant la pause au repos. Ils sont desormais ecartes par
+# `DZM_TRANS_TT` dans la couche, qui ne leur pose pas `data-fam`. Les trois
+# faces : la liste existe et elle est GELEE, elle est citee par la grille, et
+# les regles du bundle qu'elle protege sont toujours la.
+check("D20_les_deux_apercus_historiques_du_catalogue_ne_sont_pas_ecrases",
+      src.count('var DZM_TRANS_TT=Object.freeze(["dissolve","fadeblack"]);') == 1
+      and src.count('DZM_TRANS_TT.indexOf(it.id)>=0?"":dzmTransFamily(') == 1
+      and _SVMCSS.count('.svm-tprev[data-tt="dissolve"] .svm-tb{animation:svmtFull 1.6s linear infinite, svmtDiss') == 1
+      # 2 : l'animation ET le delai du bundle citent tous deux
+      # `.svm-tprev[data-tt="fadeblack"] .svm-tb,` en tete de selecteur
+      # multiple (avec `::after`, le voile noir).
+      and _SVMCSS.count('.svm-tprev[data-tt="fadeblack"] .svm-tb,') == 2
+      # ET AUCUN `:not` N'A SURVECU DANS LA FEUILLE : c'est la forme qui a
+      # coute le defaut. Le commentaire qui l'explique n'est pas un selecteur,
+      # donc la mesure porte sur les SELECTEURS, pas sur le texte.
+      and not [_sx for _sx, _cx in _REGLES_MC if ":not(" in _sx and "data-fam" in _sx],
+      f'liste={src.count(chr(39) + "var DZM_TRANS_TT=" + chr(39)) if False else src.count("var DZM_TRANS_TT=")} '
+      f'grille={src.count("DZM_TRANS_TT.indexOf(")} '
+      f'diss={_SVMCSS.count(chr(46) + "svm-tprev[data-tt=" + chr(34) + "dissolve" + chr(34) + "] .svm-tb{")}')
+# LA SPÉCIFICITÉ, CALCULÉE PLUTÔT QUE SUPPOSÉE — c'est LA ligne qui tient
+# tout le reste. La pause au repos ne l'emporte que si CHAQUE règle de
+# famille pèse au plus autant qu'elle ; la première version excluait
+# `dissolve` et `fadeblack` par deux `:not(...)` dans la règle `fondus`, qui
+# pesait alors (0,6,0) contre (0,4,0) : SIX tuiles (fade, fadewhite,
+# fadegrays, fadefast, fadeslow, distance) s'animaient en permanence.
+# L'exclusion est remontée dans la couche (DZM_TRANS_TT). Mesurer l'ORDRE
+# seul, comme le faisait la version d'avant, n'aurait rien vu.
+def _spec(sel):
+    """c = classes + attributs + pseudo-classes, les arguments d'un
+    `:not(...)` comptant comme s'ils étaient écrits à sa place (Selectors 4).
+    Aucun de ces sélecteurs ne porte d'id ni d'élément : b et a sont nuls."""
+    _s = sel.replace(":not(", "").replace(")", "")
+    return (len(re.findall(r"\[[^\]]*\]", _s))
+            + len(re.findall(r"\.[A-Za-z_-]", _s))
+            + len(re.findall(r":[A-Za-z-]", _s)))
+
+
+_SEL_PAUSE = ".dzsvm .svm-tprev[data-fam] .svm-tb"
+_SPEC_PAUSE = _spec(_SEL_PAUSE)
+_SEL_FAM = [_s9.strip() for _s9, _c9 in _REGLES_MC
+            if "[data-fam=" in _s9 and ".svm-tb" in _s9 and "animation:" in _c9]
+_TROP = [(_s9, _spec(_s9)) for _s9 in _SEL_FAM if _spec(_s9) > _SPEC_PAUSE]
+check("D20_aucune_regle_de_famille_ne_pese_plus_que_la_pause_au_repos",
+      len(_SEL_FAM) == 6 and _SPEC_PAUSE == 4 and _TROP == []
+      # ET AUCUNE NE PORTE DE `:not` : c'est la forme qui a coûté le défaut,
+      # et une règle à (0,4,0) écrite AVEC un `:not` serait un hasard.
+      and not [_s9 for _s9 in _SEL_FAM if ":not(" in _s9]
+      # LE TÉMOIN DE LA MÉTHODE : appliquée à la forme FAUTIVE, la fonction
+      # rend bien 6 — sans cette ligne, un `_spec` qui rendrait 4 pour tout
+      # laisserait `_TROP` vide et la mesure serait creuse.
+      and _spec('.dzsvm .svm-tprev[data-fam="fondus"]'
+                ':not([data-tt="dissolve"]):not([data-tt="fadeblack"]) .svm-tb') == 6,
+      f"familles={len(_SEL_FAM)} pause={_SPEC_PAUSE} trop_lourdes={_TROP}")
+# LES DEUX QUE LE BUNDLE ANIME DÉJÀ NE REÇOIVENT PAS `data-fam` — omis, pas
+# vide : `[data-fam]` matche un attribut PRESENT, fût-il vide.
+check("D20_dissolve_et_fadeblack_n_ont_pas_de_data_fam",
+      d.get("tg_sans_fam") == [["dissolve", None, "dissolve"],
+                               ["fadeblack", None, "fadeblack"]],
+      f'{d.get("tg_sans_fam")}')
+# LA PHASE DE REPOS, UNE PAR FAMILLE. Le raccourci `animation:` remet
+# `animation-delay` à 0 : sans ces six lignes, les 52 tuiles de famille
+# étaient figées sur la MÊME image et le popover montrait un damier uni.
+# Six valeurs, DISTINCTES deux à deux, négatives et dans le cycle de 1,6 s.
+_DEL = dict(re.findall(
+    r'\.dzsvm \.svm-tprev\[data-fam="(\w+)"\] \.svm-tb\{animation-delay:(-[\d.]+)s\}', _MC))
+check("D20_chaque_famille_a_sa_phase_de_repos",
+      sorted(_DEL) == ["fondus", "formes", "glissements", "pixels", "volets", "zooms"]
+      and len(set(_DEL.values())) == 6
+      and all(0 < -float(_v) <= 1.6 for _v in _DEL.values())
+      # ET ELLES SONT ÉCRITES APRÈS LES RACCOURCIS : même spécificité (4),
+      # l'ordre tranche — comme les sept délais du bundle.
+      # FAUTE N6 : `.index()` LEVE quand le selecteur a bouge, et une
+      # ligne de banc doit ROUGIR, PAS MOURIR. MESURE le 21/09/2026 :
+      # la mutation qui remet les deux `:not` dans la regle `fondus`
+      # tuait le banc ENTIER ici (aucune ligne de compte) au lieu de
+      # faire rougir les deux lignes qu'elle vise.
+      and _MC.find('.dzsvm .svm-tprev[data-fam="fondus"] .svm-tb{\n  animation:') >= 0
+      and _MC.find('.dzsvm .svm-tprev[data-fam="fondus"] .svm-tb{animation-delay:')
+          > _MC.find('.dzsvm .svm-tprev[data-fam="fondus"] .svm-tb{\n  animation:'),
+      f"{_DEL}")
+# LA DIRECTION EST CONSOMMÉE PAR LE VOLET, PAS SEULEMENT DÉCLARÉE. Sans
+# `--wipe0`, `dzmtWipeDir` partait toujours de la droite : les seize volets
+# rendaient la MÊME image dans les quatre sens.
+check("D20_le_volet_lit_la_direction",
+      all(("--wipe0:inset(%s)" % _w) in _MC for _w in
+          ("0 100% 0 0", "0 0 0 100%", "100% 0 0 0", "0 0 100% 0"))
+      and "@keyframes dzmtWipeDir{0%,20%{clip-path:var(--wipe0,inset(0 0 0 100%))}" in _MC
+      and "@keyframes dzmtSlideDir{0%,20%{transform:translate(var(--tx,100%),var(--ty,0))}" in _MC
+      # ET LE RENDU LES POSE : `wipeleft` (volets, via --wipe0) et `slideleft`
+      # (glissements, via --tx/--ty) sont les deux familles qui la consomment.
+      and d.get("tg_dir_rendue") == [["wipeleft", "volets", "left"],
+                                     ["wiperight", "volets", "right"],
+                                     ["slideleft", "glissements", "left"],
+                                     ["zoomin", "zooms", None]],
+      f'css={"--wipe0" in _MC} rendu={d.get("tg_dir_rendue")}')
+# LA TUILE EST EN COLONNE — mesure : 276 px de popover, 12 de marge, trois
+# colonnes à 6 px de gouttière = 80 px par tuile ; en rangée il restait
+# VINGT-QUATRE pixels au libellé (80 − 16 de padding − 34 d'aperçu − 6).
+check("D20_la_tuile_met_le_libelle_sous_l_apercu",
+      ".dzsvm .dzm-transgrid .svm-transtile{flex-direction:column;" in _MC
+      and ".dzsvm .dzm-transgrid .svm-ttl{flex:none; white-space:normal;" in _MC
+      and "font-size:9.5px; line-height:1.15; max-height:2.3em;" in _MC
+      # ET LA RÈGLE DU BUNDLE, qui met le libellé sur UNE ligne avec ellipse,
+      # est toujours là : la nôtre la couvre par spécificité (3 > 2), elle ne
+      # la remplace pas.
+      and _SVMCSS.count(".svm-transtile .svm-ttl{flex:1; min-width:0; white-space:nowrap;") == 1
+      and _spec(".dzsvm .dzm-transgrid .svm-ttl") == 3
+      and _spec(".svm-transtile .svm-ttl") == 2,
+      f'colonne={".dzsvm .dzm-transgrid .svm-transtile{flex-direction:column;" in _MC}')
+# L'ACCESSIBILITÉ : chaque famille est un groupe NOMMÉ, chaque tuile dit si
+# elle est choisie. `data-sel` est un crochet de STYLE, `aria-pressed` la
+# même information pour un lecteur d'écran — les deux, pas l'un ou l'autre.
+check("D20_chaque_famille_est_un_groupe_nomme_et_la_tuile_dit_son_etat",
+      d.get("tg_aria") == [["group", "Transitions — volets"], True, False],
+      f'{d.get("tg_aria")}')
+# « VISIBLE APRÈS PREVIEW » NE SE DIT QUE SI LE CATALOGUE EST ARRIVÉ : sans
+# lui, `live` est faux pour tout sauf la coupe, et l'écrire sur les six
+# historiques serait une affirmation que rien ne soutient — c'est le SERVEUR
+# qui dit le direct (D-12). Le conjoint : les six historiques sont bien là,
+# donc le zéro n'est pas creux.
+check("D20_sans_catalogue_aucune_tuile_ne_parle_du_direct",
+      d.get("tg_direct_sans_cat") == [0, 6], f'{d.get("tg_direct_sans_cat")}')
+# LES TROIS ÉTATS DE LA MICRO-SCÈNE SONT REPOSÉS SUR [data-fam], ET LES
+# SPÉCIFICITÉS SONT RECOMPTÉES ICI (revue du 21/09/2026 : la version
+# précédente de ce commentaire en donnait deux fausses, et la feuille aussi).
+# Nos six règles de famille écrivent le RACCOURCI `animation:`, qui remet
+# `animation-play-state` à `running`. Sans la PAUSE de montage.css, les 58
+# tuiles neuves s'agiteraient en permanence : celle du bundle pèse (0,3,0) et
+# perd contre nos (0,4,0) ; la nôtre pèse 4 aussi et gagne par l'ORDRE.
+# LE SURVOL ET LE FIGEMENT DU BUNDLE, EUX, PÈSENT (0,5,0) — cinq simples
+# sélecteurs chacun, pas quatre — et passent DÉJÀ devant nos règles de
+# famille : les nôtres, à (0,6,0), ne les corrigent pas, elles les redisent
+# sur `[data-fam]`. Ce n'est donc PAS « égalité 4 = 4 et montage.css chargée
+# APRÈS » : c'est 6 > 5, et la spécificité tranche seule.
+# ET LES QUATRE POIDS SONT CALCULÉS, PAS AFFIRMÉS — c'est la correction
+# elle-même : `_spec` a déjà servi ci-dessus, on la rebraque sur les quatre
+# sélecteurs en jeu. Sans cette ligne, la prose corrigée ci-dessus ne serait
+# qu'une autre prose.
+check("D20_les_poids_du_survol_et_du_figement_sont_cinq_contre_six",
+      _spec(".svm-tprev[data-tt] .svm-tb") == 3
+      and _spec(".svm-transtile:hover .svm-tprev[data-tt] .svm-tb") == 5
+      and _spec(".svm-transtile[data-sel] .svm-tprev[data-tt] .svm-tb") == 5
+      and _spec(".dzsvm .svm-transtile:hover .svm-tprev[data-fam] .svm-tb") == 6
+      and _spec(".dzsvm .svm-transtile[data-sel] .svm-tprev[data-fam] .svm-tb") == 6
+      # ET LES QUATRE SÉLECTEURS EXISTENT VRAIMENT DANS LES DEUX FEUILLES :
+      # calculer le poids d'un sélecteur imaginaire ne mesurerait rien.
+      and ".svm-transtile:hover .svm-tprev[data-tt] .svm-tb," in _SVMCSS
+      and ".svm-transtile[data-sel] .svm-tprev[data-tt] .svm-tb," in _SVMCSS
+      and ".dzsvm .svm-transtile:hover .svm-tprev[data-fam] .svm-tb," in _MC
+      and ".dzsvm .svm-transtile[data-sel] .svm-tprev[data-fam] .svm-tb{" in _MC
+      # ET LE TÉMOIN DE LA PROSE : la formule fausse ne doit plus être écrite
+      # nulle part, ni dans la feuille ni dans ce banc.
+      and "égalité 4 = 4" not in _MC,
+      f'bundle_survol={_spec(".svm-transtile:hover .svm-tprev[data-tt] .svm-tb")} '
+      f'notre_survol={_spec(".dzsvm .svm-transtile:hover .svm-tprev[data-fam] .svm-tb")}')
+check("D20_la_pause_le_survol_et_le_figement_sont_reposes_sur_la_famille",
+      ".dzsvm .svm-tprev[data-fam] .svm-tb{animation-play-state:paused}" in _MC
+      and ".dzsvm .svm-transtile:focus-visible .svm-tprev[data-fam] .svm-tb{" in _MC
+      and ".dzsvm .svm-transtile[data-sel] .svm-tprev[data-fam] .svm-tb{animation:none;" in _MC
+      # ET APRÈS LA DERNIÈRE RÈGLE DE FAMILLE : à spécificité égale (4 = 4,
+      # mesurée ci-dessus), c'est l'ORDRE qui tranche.
+      # MEME PARADE : `find()` partout, et « les six ont ete trouvees »
+      # est une CONDITION, pas une hypothese.
+      and len(_SEL_FAM) == 6 and all(_MC.find(_s9) >= 0 for _s9 in _SEL_FAM)
+      and _MC.find(".dzsvm .svm-tprev[data-fam] .svm-tb{animation-play-state:paused}")
+          > max(_MC.find(_s9) for _s9 in _SEL_FAM)
+      # 4, MESURE : la pause, le survol (hover ET focus-visible) et le
+      # figement du bundle citent chacun `.svm-tprev[data-tt] .svm-tb` dans
+      # leur selecteur multiple.
+      and _SVMCSS.count(".svm-tprev[data-tt] .svm-tb,") == 4
+      and _SVMCSS.count(".svm-transtile[data-sel] .svm-tprev[data-tt] .svm-tb{width:100%;") == 1,
+      f'pause={".dzsvm .svm-tprev[data-fam] .svm-tb{animation-play-state:paused}" in _MC} '
+      f'familles={len(_SEL_FAM)}')
+# LE MOUVEMENT RÉDUIT COUVRE DÉJÀ LES 58 : la règle `!important` de
+# son-vfx-montage.css porte sur `.svm-tprev .svm-tb` SANS `[data-tt]` — elle
+# éteint donc aussi les animations de famille. Rien à ajouter, et c'est
+# mesuré plutôt que supposé.
+check("D20_le_mouvement_reduit_eteint_aussi_les_animations_de_famille",
+      _SVMCSS.count(".dzsvm .svm-tprev .svm-ta,.dzsvm .svm-tprev .svm-tb{animation:none!important;") == 1
+      and "@media (prefers-reduced-motion:reduce){" in _SVMCSS,
+      f'regle={_SVMCSS.count(".dzsvm .svm-tprev .svm-ta,.dzsvm .svm-tprev .svm-tb{animation:none!important;")}')
+# LA COPIE CLIENTE DES FAMILLES EST CELLE DU SERVEUR, NOM POUR NOM. C'est LE
+# banc croisé : la couche porte une table de style, le service porte
+# l'autorité, et rien ne les tenait ensemble.
+_FAM_JS = {}
+for _k6 in ("fondus", "glissements", "volets", "formes", "zooms", "pixels"):
+    _m6 = re.search(r"\n  %s:\[([^\]]*)\]" % _k6, src)
+    _FAM_JS[_k6] = re.findall(r'"([^"]+)"', _m6.group(1)) if _m6 else []
+check("D20_la_copie_cliente_des_familles_est_celle_du_service",
+      bool(_TRANS_FAM_SVC)
+      and all(_FAM_JS.get(_k6) == list(_TRANS_FAM_SVC.get(_k6, {}).get("noms", []))
+              for _k6 in _FAM_JS)
+      and sum(len(_v6) for _v6 in _FAM_JS.values()) == 58,
+      f'client={ {k: len(v) for k, v in _FAM_JS.items()} } '
+      f'service={ {k: len(v.get("noms", [])) for k, v in _TRANS_FAM_SVC.items()} }')
+
+# ══ D-12 (21/09/2026) — LES FONDUS SIMPLES JOUÉS EN DIRECT ═══════════════
+# Les deux sections V2 et V3 sont déjà comptées une à une par la boucle sur
+# `P.PATCHES`. Ce qui suit est ce qu'elle ne voit pas : que V1 est bien
+# REPLIÉE (et non une section de plus), que le voile n'existe QUE dans le
+# lecteur vivant, que l'écriture est en TÊTE de `liveSync`, et que la feuille
+# le pose sans `z-index`.
+# V1 EST UN REPLI, PAS UNE SECTION : la ref naît dans R_M16REF, exactement
+# comme E1, K3 et X1. Les trois faces : elle est dans le remplacement, elle
+# n'est PAS un triplet de PATCHES, et le bundle patché la porte.
+# (Le conjoint « aucune section ne s'appelle V1 » a ete RETIRE a la revue :
+# il ne mesurait que le choix d'etiquette de ce patcher-ci, donc rien.)
+check("D12_la_ref_du_voile_est_repliee_dans_R_M16REF",
+      P.R_M16REF.count("var dzVeilRef=x.useRef(null);") == 1
+      and s.count(nl("var dzVeilRef=x.useRef(null);")) == 1
+      # ET SON ANCRE VAUT BIEN 0 DANS LE .bak : c'est CE qui impose le repli.
+      # Sans ce conjoint, « repliée » ne serait qu'un choix de rédaction.
+      and _bak.count(nl(P.A_M16REF)) == 1
+      and _bak.count(nl("var dzTracksRef=x.useRef(null);")) == 0,
+      f'repli={P.R_M16REF.count("var dzVeilRef=x.useRef(null);")} '
+      f'bundle={s.count(nl("var dzVeilRef=x.useRef(null);"))}')
+# LE VOILE N'EXISTE QUE DANS LE LECTEUR VIVANT. En aperçu 480p c'est un
+# `<video>` qui joue le RENDU, transitions comprises : un voile par-dessus
+# les jouerait deux fois. La garde est `liveOn`, la même que les deux
+# couches du lecteur — et elle est mesurée SUR LA LIGNE, pas ailleurs.
+check("D12_le_voile_est_conditionne_par_le_lecteur_vivant",
+      s.count(nl('liveOn?r.jsx("i",{className:"svm-xfveil",ref:dzVeilRef,'
+                 '"aria-hidden":!0}):null,')) == 1
+      and s.count(nl('className:"svm-xfveil"')) == 1
+      # ET IL EST POSÉ APRÈS LES DEUX COUCHES DU LECTEUR, AVANT LE RESTE :
+      # c'est l'ordre du DOM qui fait tout le travail de l'empilement.
+      and 0 < s.find(nl('className:"svm-live",ref:liveHostRef'))
+              < s.find(nl('className:"svm-liveov",ref:liveOvRef'))
+              < s.find(nl('className:"svm-xfveil"'))
+              < s.find(nl('className:"svm-livegap"'))
+              < s.find(nl('className:"svm-tf",children:')),
+      f'voile={s.count(nl(chr(34) + "svm-xfveil" + chr(34)))}')
+# L'ÉCRITURE EST EN TÊTE DE `liveSync`, ET LA MESURE EST UN ORDRE : la ref du
+# voile est lue AVANT `var host=`. `liveSync` sort tôt quand les hôtes ne sont
+# pas montés — écrire le voile après cette sortie l'aurait laissé plein au
+# passage en aperçu 480p.
+_I_LS = s.find(nl("  function liveSync(){"))
+_I_VE = s.find(nl("var dzVe=dzVeilRef.current;"))
+_I_HO = s.find(nl("var host=liveHostRef.current,ov=liveOvRef.current;"))
+check("D12_le_voile_est_ecrit_en_tete_de_liveSync",
+      _I_LS >= 0 and _I_VE > _I_LS and _I_HO > _I_VE
+      and s.count(nl("var dzVe=dzVeilRef.current;")) == 1
+      and s.count(nl("DzTracks.veil(clipsRef.current,dzVt)")) == 1
+      # LA TÊTE EST BORNÉE COMME CELLE DE L'IMAGE, pas brute : le clip
+      # montré est choisi sur `min(ph, dur-.001)`, et le voile doit parler
+      # de CETTE image-là. Les deux bornes sont mesurées côte à côte — la
+      # ligne du voile et celle du lecteur, mot pour mot la même.
+      and s.count(nl("var dzVt=Math.min(phRef.current,"
+                     "Math.max(0,durRef.current-.001));")) == 1
+      and s.count(nl("var t=Math.min(phRef.current,"
+                     "Math.max(0,durRef.current-.001));")) == 1
+      # ET L'ÉCRITURE EST GARDÉE PAR UNE SIGNATURE : `liveSync` tourne à
+      # chaque frame et le voile est nul presque tout le temps. Même parade
+      # que `_svmTfSig` / `_svmKey`, qui sont toujours là (le conjoint : si
+      # cette technique disparaissait du bundle, la comparaison n'aurait
+      # plus de précédent à citer).
+      and s.count(nl("if(dzVe._dzVeil!==dzVk){dzVe._dzVeil=dzVk;")) == 1
+      and s.count(nl("if(el._svmTfSig!==tsig)")) == 1,
+      f"liveSync={_I_LS} veil={_I_VE} host={_I_HO}")
+# ET L'HÔTE N'EST JAMAIS TOUCHÉ — c'est l'écart déclaré avec le plan, et il
+# se mesure des DEUX côtés : nos sections n'écrivent pas son opacité, et
+# `liveSync` n'en écrit aucune non plus (les cinq `host.` de son corps sont
+# des enfants et une clé de pool). Baisser l'opacité de l'hôte aurait fait
+# apparaître le DAMIER de `.svm-frame`, pas du noir.
+_CORPS_LS = s[_I_LS:s.find(nl("  x.useEffect(function(){liveSync()});"))] if _I_LS >= 0 else ""
+check("D12_l_opacite_de_l_hote_n_est_ecrite_nulle_part",
+      len(_CORPS_LS) > 2000
+      and "liveHostRef.current.style" not in _CORPS_LS
+      and "host.style" not in _CORPS_LS
+      and not [_t for _t, _a, _r in P.PATCHES
+               if _t.startswith("V") and "liveHostRef.current.style" in _r]
+      # ET LE FOND DU LECTEUR EST BIEN NOIR : c'est la mesure qui rend le
+      # voile noir ÉQUIVALENT à la baisse d'opacité que le plan demandait.
+      and ".svm-live{background:#000}" in _SVMCSS
+      and "background:repeating-linear-gradient(45deg,var(--panel2)" in _SVMCSS,
+      f'corps={len(_CORPS_LS)} o')
+# LES TROIS FONDUS JOUABLES EN DIRECT SONT CEUX DU SERVICE, NOM POUR NOM.
+# C'est le banc croisé que la prose de la couche annonce : `DZM_VEIL` dit
+# COMMENT voiler, `_XFADE_LIVE` dit QUELS noms le catalogue marque `live`,
+# et rien ne les tenait ensemble — ajouter `dissolve` au service aurait
+# donné une tuile sans « visible après Preview » qui ne se serait pas jouée.
+# EXTRAIT DES DEUX FICHIERS, jamais recopié (même technique que `_FAM_JS` /
+# `_TRANS_FAM_SVC`). Le repli est DIT : `[]` des deux côtés serait égal et
+# la ligne serait creuse, d'où le conjoint `len(...) == 3`.
+_m_veil = re.search(r"var DZM_VEIL=\{([^}]*)\};", src)
+_VEIL_JS = re.findall(r"(\w+):", _m_veil.group(1)) if _m_veil else []
+check("D12_les_trois_fondus_de_la_couche_sont_ceux_du_service",
+      len(_VEIL_JS) == 3 and len(_TRANS_LIVE_SVC) == 3
+      and sorted(_VEIL_JS) == sorted(_TRANS_LIVE_SVC)
+      # ET LES TROIS SONT BIEN DES NOMS xfade DU CATALOGUE : une clé qui ne
+      # serait dans aucune famille serait un voile qu'aucune tuile ne pose.
+      and all(_n2 in [_x for _f2 in _TRANS_FAM_SVC.values()
+                      for _x in _f2.get("noms", [])] for _n2 in _VEIL_JS),
+      f"couche={sorted(_VEIL_JS)} service={sorted(_TRANS_LIVE_SVC)}")
+# ET LA DURÉE DU VOILE EST BORNÉE COMME CELLE DU BUNDLE. `dzmVeil` ne peut
+# pas appeler `svmTransS` (elle est au niveau module du bundle, la couche est
+# injectée avant) : elle RECOPIE `min(1, max(.1, x || .4))`. Les deux
+# triplets sont extraits par la MÊME regex, sur les deux fichiers, et
+# comparés — changer une borne d'un côté fait rougir cette ligne.
+_RX_BORNE = r"Math\.min\(([\d.]+),Math\.max\(([\d.]+),Number\([^)]*\)\|\|([\d.]+)\)\)"
+_m_b_bun = re.search(r"function svmTransS\(c\)\{return " + _RX_BORNE, _bak)
+_m_b_js = re.search(r"var s=" + _RX_BORNE, src)
+_B_BUN = _m_b_bun.groups() if _m_b_bun else ()
+_B_JS = _m_b_js.groups() if _m_b_js else ()
+check("D12_les_bornes_de_duree_sont_celles_du_bundle",
+      len(_B_BUN) == 3 and _B_BUN == _B_JS and _B_BUN == ("1", ".1", ".4"),
+      f"bundle={_B_BUN} couche={_B_JS}")
+# LA FEUILLE : le voile est posé SANS `z-index`, et les trois voisins qui le
+# justifient sont mesurés. `.svm-live`/`.svm-liveov` n'en portent pas (donc
+# l'ordre du DOM suffit à les couvrir) ; `.svm-tf` porte 3 et `.sub-ov` de
+# subs.css porte 3 aussi (6 en placement) — un `z-index:6` sur le voile
+# serait passé devant les sous-titres, que la gravure ASS pose APRÈS les
+# xfade au rendu.
+_SUBSCSS = _lire(ROOT / "frontend" / "dist" / "shared" / "subs.css")
+_R_VEIL = _regle(_MC, ".dzsvm .svm-xfveil{")
+check("D12_la_feuille_pose_le_voile_sans_z_index",
+      _R_VEIL is not None
+      and "position:absolute" in _R_VEIL and "inset:0" in _R_VEIL
+      and "pointer-events:none" in _R_VEIL
+      and "opacity:0" in _R_VEIL and "background:#000" in _R_VEIL
+      and "z-index" not in _R_VEIL
+      and ".svm-live,.svm-liveov{position:absolute; inset:0; pointer-events:none;"
+          " overflow:hidden}" in _SVMCSS
+      and ".svm-tf{position:absolute; inset:0; pointer-events:none; z-index:3}" in _SVMCSS
+      and ".sub-ov{z-index:3}" in _SUBSCSS,
+      f"regle={_R_VEIL!r}")
+
+# ══════════════════════════════════════════════════════════════════════════
+# D-21 (21/09/2026, tâche 6) — LE GENRE `title`, LA PISTE t1, POSER UN TITRE
+# ══════════════════════════════════════════════════════════════════════════
+# SIX DES HUIT MORCEAUX SONT DES REPLIS, et c'est la mesure qui le dit : leur
+# texte vaut 0 dans .bak_montage (aucune section ne pourrait le prendre pour
+# ancre), il est DANS la section citée, et il vaut 1 dans le bundle livré.
+# Même forme que E1/K1/K2/K3/K5/W1/W2/X1/V1.
+for _lblt, _txtt, _sect, _nomt in (
+        ("TT1b_une_piste_de_titres_ne_recoit_aucun_asset",
+         'if(trackKind(trId||"v2")==="title"){', P.R_M15, "R_M15"),
+        ("TT2_le_carton_passe_le_filtre_du_payload",
+         'clips.filter(function(c){return c.src||c.kind==="title"})',
+         P.R_M5, "R_M5"),
+        ("TT3_la_piste_revient_avec_le_projet",
+         'return _t&&(d.clips||[]).some(function(c){return c&&c.kind==="title"})',
+         P.R_M7, "R_M7"),
+        ("TT4a_le_geste_est_declare_une_fois",
+         "  function dzTtAdd(){", P.R_M16REF, "R_M16REF"),
+        ("TT4_l_action_est_dans_la_table_des_raccourcis",
+         '{id:"title_add",sec:"Montage",lbl:"titre : poser un carton a la tete",'
+         'combo:"Maj+T"},', P.R_R1, "R_R1"),
+        ("TT4_le_dispatch_appelle_le_geste",
+         'if(id==="title_add"){dzTtAdd();return}', P.R_R2, "R_R2"),
+        ("TT5_la_chip_T_plus_appelle_le_meme_geste",
+         'onClick:function(){dzTtAdd()},children:"T+"}),', P.R_K5, "R_K5")):
+    check("D21_" + _lblt,
+          s.count(nl(_txtt)) == 1 and _txtt in _sect
+          and (_bak.count(_nlb(_txtt)) == 0 if _bak else False),
+          f'bundle={s.count(nl(_txtt))} dans_{_nomt}={_txtt in _sect} '
+          f'bak={_bak.count(_nlb(_txtt)) if _bak else "?"}')
+# TT1 ET TT2b SONT DE VRAIES SECTIONS : leurs ancres valent 1/1 dans
+# .bak_montage. Les deux faces à chaque fois — la forme d'AVANT a disparu du
+# bundle livré et elle EXISTAIT dans le .bak. Sans la face .bak, « 0 » serait
+# vrai d'un texte qui n'a jamais existé.
+_TT1_VIEUX = ('  function trackKind(trId){var k=String(trId||"").charAt(0);\n'
+              '    return k==="a"?"audio":k==="s"?"subs":"video"}')
+check("D21_TT1_trackKind_connait_un_quatrieme_genre",
+      s.count(nl(P.R_TT1)) == 1 and s.count(nl(_TT1_VIEUX)) == 0
+      and (_bak.count(_nlb(_TT1_VIEUX)) == 1 if _bak else False)
+      and ("TT1-genre-title", P.A_TT1, P.R_TT1) in P.PATCHES,
+      f'neuf={s.count(nl(P.R_TT1))} vieux={s.count(nl(_TT1_VIEUX))} '
+      f'bak={_bak.count(_nlb(_TT1_VIEUX)) if _bak else "?"}')
+# ET LES SEIZE APPELS NE SONT QUE DES EGALITES : c'est CE qui fait que t1
+# refuse le dépôt d'asset, la pile d'effets et le mixage sans qu'aucun des
+# seize sites soit réécrit. Une comparaison `!==` de plus et un genre inconnu
+# serait devenu acceptable quelque part.
+# MESURE du 21/09/2026 : 16 occurrences dans .bak_montage (1 declaration +
+# 15 appels), 20 dans le bundle livre (la declaration, 18 appels DIRECTEMENT
+# compares, et `var rkd=trackKind(rk.tr)` dont la ligne suivante compare
+# `rkd!==akd`). Aucune n'est un `switch`, aucune n'est une lecture nue : un
+# genre inconnu ne peut donc etre accepte nulle part.
+# 22/09/2026 (tache 7) : 20 -> 27 occurrences, 18 -> 25 comparaisons. SEPT
+# de plus, toutes des EGALITES elles aussi : TT6 (l'inspecteur du carton est
+# monte sur `trackKind(sel.tr)==="title"`), TT9 et TT9b (les deux inspecteurs
+# qui se taisent, deux egalites chacun -- « subs » et « title ») et TT11
+# (l'infobulle et le clic du « + » de T1). Aucune n'est un `switch`, aucune
+# n'est une lecture nue.
+_TKAPP = re.findall(r'trackKind\([^()]*\)\s*([!=]==)', s)
+check("D21_les_seize_appels_de_trackKind_sont_des_egalites",
+      (_bak.count(_nlb("trackKind(")) == 16 if _bak else False)
+      and s.count(nl("trackKind(")) == 27
+      and len(_TKAPP) == 25 and all(k in ("===", "!==") for k in _TKAPP)
+      and s.count(nl("var rkd=trackKind(rk.tr);")) == 1
+      and s.count(nl("if(rkd!==akd){")) == 1,
+      f'bak={_bak.count(_nlb("trackKind(")) if _bak else "?"} '
+      f'livre={s.count(nl("trackKind("))} comparaisons={len(_TKAPP)}')
+_TT2B_VIEUX = ('        var o={tr:c.tr,src:c.src,start:c.start,end:c.end,'
+               'srcIn:c.srcIn||0,')
+check("D21_TT2b_le_carton_emporte_son_genre_et_son_titre",
+      s.count(nl(P.R_TT2B)) == 1
+      and s.count(nl(_TT2B_VIEUX + "transition:")) == 0
+      and (_bak.count(_nlb(_TT2B_VIEUX)) == 1 if _bak else False)
+      and ("TT2b-payload-carton", P.A_TT2B, P.R_TT2B) in P.PATCHES
+      and s.count(nl("kind:c.kind,title:c.title,")) == 1,
+      f'neuf={s.count(nl(P.R_TT2B))} bak={_bak.count(_nlb(_TT2B_VIEUX)) if _bak else "?"}')
+# ET LE PAYLOAD D'UN PROJET SANS CARTON NE CHANGE PAS D'UN OCTET — la mesure
+# que la prose de R_TT2B annonçait sans la fournir (dette relevée le
+# 22/09/2026). `kind` et `title` valent `undefined` sur tous les autres
+# clips ; la clé EXISTE dans l'objet et elle est ABSENTE de la chaîne.
+# LE CONJOINT EST L'AUTRE MOITIÉ : sur un carton, les deux clés partent bien
+# — sans lui, la ligne serait verte de deux clés qui ne partent jamais.
+check("D21_TT2b_un_projet_sans_carton_envoie_le_payload_d_avant",
+      d.get("tt2b_payload_identique") == [True, True, True, 6]
+      and d.get("tt2b_le_carton_les_emporte") == ["title", "Ab", False],
+      f'sans_carton={d.get("tt2b_payload_identique")} '
+      f'carton={d.get("tt2b_le_carton_les_emporte")}')
+# LA FORME D'AVANT DU FILTRE A DISPARU, et elle existait : sans cette ligne,
+# « le carton passe » aurait pu être vrai d'un second filtre ajouté à côté du
+# premier — le clip aurait alors été jeté deux lignes plus loin.
+_TT2_VIEUX = "clips.filter(function(c){return c.src}).map(function(c){"
+check("D21_TT2_l_ancien_filtre_a_disparu_du_bundle",
+      s.count(nl(_TT2_VIEUX)) == 0
+      and (_bak.count(_nlb(_TT2_VIEUX)) == 1 if _bak else False),
+      f'livre={s.count(nl(_TT2_VIEUX))} '
+      f'bak={_bak.count(_nlb(_TT2_VIEUX)) if _bak else "?"}')
+# UN SEUL INSTANTANÉ D'HISTORIQUE PAR TITRE POSÉ. `svmTracksSet` (M4b) en
+# pousse un ; `dzTtAdd` n'en pousse un lui-même que dans l'autre branche.
+# Les DEUX faces : la forme exacte du `if/else`, et le fait que le corps du
+# geste ne porte AUCUN second `pushHistory`.
+_iTT = s.find(nl("  function dzTtAdd(){"))
+_iTTfin = s.find(nl("le gabarit et le texte.\")}"), _iTT if _iTT >= 0 else 0)
+check("D21_poser_un_titre_ne_coute_qu_un_instantane",
+      _iTT >= 0 and _iTTfin > _iTT
+      and s.count(nl("if(ts2!==ts)svmTracksSet(ts2);else pushHistory();")) == 1
+      and s[_iTT:_iTTfin].count(nl("pushHistory()")) == 1
+      and s.count(nl("function svmTracksSet(ts){pushHistory();")) == 1,
+      f'geste={_iTT} fin={_iTTfin} '
+      f'push={s[_iTT:_iTTfin].count(nl("pushHistory()")) if _iTT >= 0 else -1}')
+# LE GESTE A DEUX DÉCLENCHEURS ET UNE SEULE ÉCRITURE : le raccourci (TT4) et
+# la chip (TT5) appellent tous deux `dzTtAdd`. Une troisième écriture du
+# geste serait une seconde source de vérité — c'est ce que la négation dit.
+# 22/09/2026 (tache 7) : TROIS declencheurs, et toujours UNE seule ecriture
+# du geste. Le troisieme est le « + » de l'en-tete de T1 (TT11), qui ouvrait
+# `openPicker("t1")` -- le selecteur d'assets sur la piste qui n'en recoit
+# aucun. 3 -> 4 occurrences : la declaration et les trois appels.
+check("D21_les_deux_declencheurs_passent_par_le_meme_geste",
+      s.count(nl("dzTtAdd()")) == 4
+      and s.count(nl("function dzTtAdd(){")) == 1
+      and s.count(nl("DzTracks.titleNew(")) == 1,
+      f'appels={s.count(nl("dzTtAdd()"))} '
+      f'titleNew={s.count(nl("DzTracks.titleNew("))}')
+# TT3 NE POSE LA PISTE QUE S'IL Y A UN CARTON. La négation porte sur la
+# forme INCONDITIONNELLE que le plan proposait d'abord : un projet sans titre
+# aurait gagné une bande vide à chaque rechargement.
+check("D21_TT3_un_projet_sans_carton_ne_gagne_pas_de_bande_vide",
+      s.count(nl("tracks:DzTracks.titleTrack(svmTracksFrom(d.tracks))")) == 0
+      and s.count(nl("var _t=svmTracksFrom(d.tracks);")) == 1
+      and s.count(nl("?DzTracks.titleTrack(_t):_t})(),")) == 1,
+      f'inconditionnel={s.count(nl("tracks:DzTracks.titleTrack(svmTracksFrom(d.tracks))"))}')
+# LES NOMS NEUFS ÉTAIENT LIBRES dans le bundle d'entrée — bornes \b. Un nom
+# déjà pris aurait été écrasé en silence (`var` en portée de fonction).
+# SEUL `_libre` EST REDEFINI plus haut dans ce banc, et c'est une MESURE du
+# 22/09/2026 qui corrige la version précédente de ce commentaire : elle
+# nommait AUSSI `_bak_txt`, à tort — `_bak_txt` est défini une seule fois
+# (l. 2958) et n'est jamais réécrit ; `_libre`, lui, est repris comme
+# variable locale d'une comparaison de bornes (l. 11288), et l'appeler ici
+# lèverait « not callable ». Dette non corrigée dans ce lot : renommer cette
+# variable-là toucherait des sections qui n'en sont pas. La mesure est donc
+# écrite EN CLAIR, sur `_bak`, la chaîne du .bak_montage déjà chargée pour
+# D-5, avec les mêmes bornes d'identifiant que `_libre`.
+def _libre21(nm, txt):
+    if txt is None:
+        return -1
+    return len(re.findall(r"(?<![A-Za-z0-9_$])%s(?![A-Za-z0-9_$])"
+                          % re.escape(nm), txt))
+
+
+for _nmt in ("dzTtAdd", "title_add", "titleTrack", "titleNew", "titleAt",
+             "titleHtml", "dzmTitresAt", "dzmTtEsc"):
+    _nbt = _libre21(_nmt, _bak if _bak else None)
+    check("D21_nom_" + _nmt + "_etait_libre_dans_le_bundle_d_entree",
+          _nbt == 0, f"{_nmt} apparait {_nbt}x dans .bak_montage")
+# LA COMBO ÉTAIT LIBRE, ET ELLE NE VOLE PAS « T ». Les trois faces : « Maj+T »
+# valait 0 dans le .bak, « T » y valait 1 (la narration, qui la garde), et
+# « Maj+T » n'est dans AUCUNE des deux listes de combos réservées.
+check("D21_la_combo_Maj_T_etait_libre_et_ne_vole_pas_la_narration",
+      bool(_bak) and _bak.count(_nlb('combo:"Maj+T"')) == 0
+      and _bak.count(_nlb('combo:"T"')) == 1
+      and s.count(nl('combo:"Maj+T"')) == 1
+      and s.count(nl('combo:"T"')) == 1
+      and '"Maj+T":1' not in s.split("function svmComboReserved")[0]
+      .split("var SVM_COMBO_RESERVED=")[-1],
+      f'bak_majT={_bak.count(_nlb(chr(99) + "ombo:" + chr(34) + "Maj+T" + chr(34))) if _bak else "?"}')
+# ET LE DISPATCH LA DISTINGUE DE « T » : `onKey` cherche d'abord la combo
+# EXACTE (`m[combo]`), et ne retombe sur la variante sans Maj que lorsque la
+# combo complète est inconnue de la table. Même mesure que « Maj+M ».
+check("D21_le_dispatch_cherche_la_combo_exacte_avant_la_variante_sans_maj",
+      s.count(nl('if(m[combo]!=null)act={id:m[combo],mag:!1};')) == 1
+      and s.count(nl('var mi=combo.indexOf("Maj+");')) == 1,
+      f'exact={s.count(nl(chr(105) + "f(m[combo]!=null)"))}')
+# LE CONTRAT : les quatre fonctions sont exportées, et `group`/`pickTrack`/
+# `remove` ne sont PAS ré-exportées sous un second nom (le plan proposait
+# `removeTrack` : une seconde porte sur la même fonction).
+check("D21_les_quatre_fonctions_sont_au_contrat_et_rien_n_est_duplique",
+      src.count("titleTrack:dzmTitleTrack,titleNew:dzmTitleNew,") == 1
+      and src.count("titleAt:dzmTitleAt,titleHtml:dzmTitleHtml,") == 1
+      and src.count("removeTrack:") == 0
+      and src.count("group:dzmGroup,") == 1
+      and src.count("pickTrack:dzmPickTrack,") == 1
+      and src.count("remove:dzmRemove,") == 1,
+      f'removeTrack={src.count("removeTrack:")} group={src.count("group:dzmGroup,")}')
+# LA COUCHE NE RECOPIE AUCUN DES HUIT GABARITS, et c'est la règle du lot :
+# `titles.TEMPLATES` (backend) décide seul de la police, de la taille, de la
+# couleur et du placement. Les huit noms sont cherchés dans le FICHIER de la
+# couche — aucun ne doit y être écrit, pas même en repli.
+_GAB8 = ("plein_cadre", "legende", "compteur", "chapitre", "citation",
+         "hashtag", "cta")
+# Les noms sont cherches ENTRE GUILLEMETS : un gabarit recopie serait un
+# litteral de chaine. Sans les guillemets, « compteur » et « cta » sont des
+# tranches de la PROSE francaise de la couche (« un compteur », « compacte »)
+# -- mesure du 21/09/2026, la premiere version de cette ligne rougissait sur
+# deux faux positifs.
+check("D21_la_couche_ne_recopie_aucun_gabarit",
+      all(('"%s"' % g) not in src for g in _GAB8)
+      # « tiers_inferieur » est le SEUL nom écrit côté client, et il l'est
+      # dans le PATCHER (le carton neuf que Maj+T pose), jamais dans la
+      # couche : c'est un ARGUMENT, pas une table de défauts.
+      and '"tiers_inferieur"' not in src
+      and s.count(nl('{template:"tiers_inferieur",text:"Titre"}')) == 1,
+      f'trouves={[g for g in _GAB8 if (chr(34) + g + chr(34)) in src]}')
+
+# ══════════════════════════════════════════════════════════════════════════
+# D-21 (22/09/2026, tâche 7) — L'INSPECTEUR DES TITRES ET L'APERÇU VIVANT
+# ══════════════════════════════════════════════════════════════════════════
+# CINQ DES HUIT MORCEAUX SONT DES REPLIS, et c'est la mesure qui le dit :
+# leur texte vaut 0 dans .bak_montage (aucune section ne pourrait le prendre
+# pour ancre), il est DANS la section citée, et il vaut 1 dans le bundle
+# livré. Même forme que E1/K3/X1/V1/TT1b.
+for _lbl7, _txt7, _sec7, _nom7 in (
+        ("TT6_l_inspecteur_est_monte_sur_le_genre_title",
+         'sel&&trackKind(sel.tr)==="title"'
+         '?r.jsx(DzTracks.TitleInspector,{clip:sel,', P.R_M12, "R_M12"),
+        ("TT7ref_l_hote_et_le_catalogue_vivent_dans_le_composant",
+         "var dzTtHostRef=x.useRef(null);", P.R_M16REF, "R_M16REF"),
+        ("TT7_l_hote_de_l_apercu_est_un_enfant_du_cadre",
+         'liveOn?r.jsx("div",{className:"svm-livetitle",ref:dzTtHostRef,'
+         '"aria-hidden":!0}):null,', P.R_V2, "R_V2"),
+        ("TT8_l_apercu_est_ecrit_par_liveSync",
+         "var dzTtH=dzTtHostRef.current;", P.R_V3, "R_V3"),
+        ("TT9b_la_pile_d_effets_se_tait_sur_un_carton",
+         '(sel&&(trackKind(sel.tr)==="subs"||trackKind(sel.tr)==="title")'
+         '?null:vfxStackSection())', P.R_M13, "R_M13")):
+    check("D21_" + _lbl7,
+          s.count(nl(_txt7)) == 1 and _txt7 in _sec7
+          and (_bak.count(_nlb(_txt7)) == 0 if _bak else False),
+          f'bundle={s.count(nl(_txt7))} dans_{_nom7}={_txt7 in _sec7} '
+          f'bak={_bak.count(_nlb(_txt7)) if _bak else "?"}')
+# LES TROIS SECTIONS À PART, elles, ont une ancre RÉELLE : elle vaut 1 dans
+# .bak_montage, elle vaut 0 dans le bundle livré (le remplacement l'a
+# consommée) et le remplacement vaut 1. Sans la face .bak, « 0 » serait vrai
+# d'un texte qui n'a jamais existé.
+for _lbl8, _a8, _r8, _sec8 in (
+        ("TT9_l_inspecteur_in_out_se_tait_sur_un_carton",
+         P.A_TT9, P.R_TT9, "TT9-inout-carton"),
+        ("TT10_le_payload_ne_dereference_plus_un_src_absent",
+         P.A_TT10, P.R_TT10, "TT10-payload-src-mou"),
+        ("TT11_le_plus_de_T1_pose_un_carton_au_lieu_d_ouvrir_le_selecteur",
+         P.A_TT11, P.R_TT11, "TT11-plus-de-t1-pose-un-carton")):
+    check("D21_" + _lbl8,
+          s.count(nl(_r8)) == 1 and s.count(nl(_a8)) == 0
+          and (_bak.count(_nlb(_a8)) == 1 if _bak else False)
+          and (_sec8, _a8, _r8) in P.PATCHES,
+          f'neuf={s.count(nl(_r8))} vieux={s.count(nl(_a8))} '
+          f'bak={_bak.count(_nlb(_a8)) if _bak else "?"}')
+# TT10 EST UNE CORRECTION D'INVARIANT, PAS UN CONFORT, et la mesure le dit :
+# le filtre de R_M5 laisse passer les clips SANS `src` depuis TT2, et cette
+# ligne-là était la SEULE du corps de la boucle du payload à déréférencer
+# `c.src`. Un carton posé sur un projet réel faisait donc lever le payload
+# entier — « Cannot read properties of undefined ».
+_I_PAY = s.find(nl('clips.filter(function(c){return c.src||c.kind==="title"})'))
+_I_PAYF = s.find(nl("return o})"), _I_PAY if _I_PAY >= 0 else 0)
+_CORPS_PAY = s[_I_PAY:_I_PAYF] if 0 <= _I_PAY < _I_PAYF else ""
+_I_PAYB = _bak.find(_nlb("clips.filter(function(c){return c.src})")) if _bak else -1
+_I_PAYBF = _bak.find(_nlb("return o})"), _I_PAYB) if _I_PAYB >= 0 else -1
+_CORPS_PAYB = _bak[_I_PAYB:_I_PAYBF] if 0 <= _I_PAYB < _I_PAYBF else ""
+check("D21_TT10_plus_aucun_dereferencement_nu_de_src_dans_le_payload",
+      len(_CORPS_PAY) > 1500 and len(_CORPS_PAYB) > 1500
+      # LA MESURE EST « LA SEULE OCCURRENCE EST LA GARDEE » et non
+      # « le texte a disparu » : `c.src&&c.src.job_id` CONTIENT
+      # `c.src.job_id` — la premiere redaction de cette ligne rougissait
+      # sur sa propre correction (mesure du 22/09/2026).
+      and _CORPS_PAY.count("c.src.job_id") == 1
+      and _CORPS_PAY.count("c.src&&c.src.job_id") == 1
+      # le conjoint : la forme FAUTIVE existait bien dans le CORPS DU
+      # PAYLOAD du .bak — sans lui, « une seule et elle est gardee »
+      # serait vrai d'une ligne jamais ecrite. La mesure est SCOPEE au
+      # corps : `c.src.job_id` vaut 16 dans le .bak ENTIER (le bundle
+      # minifie a d'autres `c` et d'autres `src`), et un compte sur le
+      # fichier n'aurait rien dit de cette boucle-la.
+      and _CORPS_PAYB.count("c.src.job_id") == 1
+      and _CORPS_PAYB.count("c.src&&c.src.job_id") == 0,
+      f'corps={len(_CORPS_PAY)} o total={_CORPS_PAY.count("c.src.job_id")} '
+      f'gardees={_CORPS_PAY.count("c.src&&c.src.job_id")} '
+      f'bak={len(_CORPS_PAYB)} o / {_CORPS_PAYB.count("c.src.job_id")}')
+# L'ORDRE DU DOM EST LA TRANCHE : l'aperçu du titre est SOUS le voile et
+# au-dessus des deux couches. Au rendu, les titres sont gravés avant S1 mais
+# APRÈS les `xfade` — un fondu passe donc par-dessus le titre et pas par
+# -dessus les sous-titres. L'écran dit la même chose, et sans `z-index`.
+check("D21_TT7_l_apercu_est_sous_le_voile_et_au_dessus_des_deux_couches",
+      s.count(nl('className:"svm-livetitle"')) == 1
+      and 0 < s.find(nl('className:"svm-live",ref:liveHostRef'))
+              < s.find(nl('className:"svm-liveov",ref:liveOvRef'))
+              < s.find(nl('className:"svm-livetitle"'))
+              < s.find(nl('className:"svm-xfveil"'))
+              < s.find(nl('className:"svm-livegap"')),
+      f'hote={s.count(nl(chr(34) + "svm-livetitle" + chr(34)))}')
+# L'ÉCRITURE EST EN TÊTE DE `liveSync`, comme celle du voile, et pour la même
+# raison : la fonction sort tôt quand les hôtes ne sont pas montés, et
+# l'aperçu doit être EFFACÉ même dans ce cas — sinon un titre survivrait au
+# passage en aperçu 480p, où l'image porte déjà le titre GRAVÉ.
+_I_LS7 = s.find(nl("  function liveSync(){"))
+_I_TT8 = s.find(nl("var dzTtH=dzTtHostRef.current;"))
+_I_HO7 = s.find(nl("var host=liveHostRef.current,ov=liveOvRef.current;"))
+check("D21_TT8_l_apercu_est_ecrit_en_tete_de_liveSync_et_borne_comme_l_image",
+      _I_LS7 >= 0 and _I_TT8 > _I_LS7 and _I_HO7 > _I_TT8
+      and s.count(nl("var dzTtT=Math.min(phRef.current,"
+                     "Math.max(0,durRef.current-.001));")) == 1
+      and s.count(nl("DzTracks.titleAt(clipsRef.current,dzTtT)")) == 1
+      and s.count(nl('DzTracks.titleHtml(dzTtC,dzTtT):"";')) == 1
+      # LA SIGNATURE ÉVITE UN `innerHTML` PAR FRAME : sans elle, le
+      # sous-arbre serait détruit et reconstruit soixante fois par seconde,
+      # l'animation CSS d'entrée relancée en boucle, le titre illisible.
+      and s.count(nl("if(dzTtH._dzHtml!==dzTtX){dzTtH._dzHtml=dzTtX;"
+                     "dzTtH.innerHTML=dzTtX}}")) == 1
+      # ET C'EST LA SEULE ÉCRITURE D'`innerHTML` DE NOS SECTIONS : une
+      # seconde serait une seconde autorité sur le même hôte.
+      and sum(_r.count(".innerHTML=") for _t, _a, _r in P.PATCHES) == 1,
+      f"liveSync={_I_LS7} apercu={_I_TT8} host={_I_HO7}")
+# LES NOMS NEUFS ÉTAIENT LIBRES dans le bundle d'entrée — bornes \b.
+for _nm7 in ("dzTtHostRef", "dzTitles", "setDzTitles", "stDzTt", "dzTtH",
+             "dzTtT", "dzTtC", "dzTtX", "_dzHtml", "dzmTitleUpdate",
+             "DzmTitleInspector", "dzmTtTpl", "dzmCombo"):
+    _nb7 = _libre21(_nm7, _bak if _bak else None)
+    check("D21_nom_" + _nm7 + "_etait_libre_dans_le_bundle_d_entree",
+          _nb7 == 0 and _libre21(_nm7, s) >= 1,
+          f"{_nm7} : .bak={_nb7} (attendu 0) bundle={_libre21(_nm7, s)}")
+# ── CE QUE LE STUB JSX A RENDU ────────────────────────────────────────────
+_GAB_ORDRE = [_t[0] for _t in _TPL_SVC]
+check("D21_l_inspecteur_rend_huit_cartes_et_marque_celle_du_carton",
+      isinstance(d.get("ti_cartes"), list) and len(d.get("ti_cartes") or []) == 10
+      and d["ti_cartes"][0] == "dzm-ttinsp"
+      and d["ti_cartes"][1] == 8 and d["ti_cartes"][2] == _GAB_ORDRE
+      # UNE SEULE carte marquée, et c'est celle du gabarit du carton.
+      and d["ti_cartes"][3] == ["cta"]
+      and d["ti_cartes"][4] == "img" and d["ti_cartes"][5] == "lazy"
+      # I-4 (faute n6) : `_GAB_ORDRE[0]` n'est lu qu'APRES avoir etabli
+      # que la liste n'est pas vide — une extraction ratee levait un
+      # IndexError et emportait les trois lignes de cette famille au lieu
+      # de les faire rougir.
+      and bool(_GAB_ORDRE)
+      and d["ti_cartes"][6] == ("/api/montage/title-preview?template="
+                                + _GAB_ORDRE[0] + "&text=Titre&w=180")
+      and d["ti_cartes"][7] == _LAB_SVC.get(_GAB_ORDRE[0])
+      # `data-sel` est un crochet de STYLE, `aria-pressed` la même
+      # information pour un lecteur d'écran — les deux, pas l'un ou l'autre.
+      and d["ti_cartes"][8] is False and d["ti_cartes"][9] is True,
+      f'{d.get("ti_cartes")}')
+# L'URL NE PORTE QUE CE QUI CHANGE LE GABARIT : le texte et le sous-texte
+# sont ENCODÉS, la couleur / la police / le corps sont ABSENTS. Sans la
+# moitié négative, la ligne serait verte d'une URL qui regrave huit PNG à
+# chaque cran de la réglette.
+check("D21_l_url_de_la_vignette_encode_le_texte_et_ignore_les_reglages",
+      bool(_GAB_ORDRE)
+      and d.get("ti_url_cartes")
+      == ["/api/montage/title-preview?template=cta&text=a%26b&sub=s%20u&w=180",
+          "/api/montage/title-preview?template=" + _GAB_ORDRE[0]
+          + "&text=Titre&w=180"],
+      f'{d.get("ti_url_cartes")}')
+# UN CARTON SANS TEXTE MONTRE « Titre » : un `text=` vide fait un 400 côté
+# serveur (`title_spec` rend None) et huit cases cassées.
+check("D21_une_vignette_sans_texte_montre_le_mot_Titre",
+      d.get("ti_url_sans_texte")
+      == "/api/montage/title-preview?template=cta&text=Titre&w=180",
+      f'{d.get("ti_url_sans_texte")}')
+check("D21_l_inspecteur_ne_rend_rien_hors_d_un_carton",
+      d.get("ti_non_titre") == [None, None, None], f'{d.get("ti_non_titre")}')
+# SANS CATALOGUE : zéro vignette, et les deux `<select>` réduits à la seule
+# option « (du gabarit) ». Le carton reste réglable par son texte, et le
+# rendu garde ses défauts — l'échec du `fetch` est silencieux, comme X1.
+check("D21_sans_catalogue_l_inspecteur_n_invente_ni_gabarit_ni_police",
+      d.get("ti_sans_catalogue")
+      == ["svm-note", "Gabarits indisponibles — le texte reste réglable.",
+          1, 1, "(du gabarit)"],
+      f'{d.get("ti_sans_catalogue")}')
+# QUATRE GESTES, DEUX REMONTÉES : le champ est NON CONTRÔLÉ, il ne part
+# qu'au blur et sur Entrée, et un blur sans changement ne remonte rien —
+# même mesure que `mk_index_titre` pour l'index des marqueurs.
+check("D21_le_texte_ne_remonte_qu_au_blur_ou_a_l_entree_et_s_il_a_change",
+      isinstance(d.get("ti_texte"), list) and len(d.get("ti_texte") or []) == 4
+      and d["ti_texte"][0] == "Ab" and d["ti_texte"][1] is True
+      and d["ti_texte"][2] == 120
+      and d["ti_texte"][3] == [["t1u1", {"text": "Abo"}],
+                               ["t1u1", {"text": "Abon"}]],
+      f'{d.get("ti_texte")}')
+# LA CLÉ DES DEUX CHAMPS PORTE LEUR VALEUR : React IGNORE `defaultValue` à la
+# mise à jour, et après Ctrl+Z l'hôte rendait l'ancien texte pendant que
+# l'input gardait le neuf. Les deux clés sont DISTINCTES entre elles (un
+# `id` seul aurait fait deux enfants de même clé dans le même parent).
+check("D21_la_cle_des_deux_champs_porte_leur_valeur",
+      d.get("ti_cle_input") == [["t1u1|0|a", "t1u1|s|0|x"],
+                                ["t1u1|0|b", "t1u1|s|0|x"],
+                                ["t1u1|0|a", "t1u1|s|0|y"]]
+      # ET LE JETON DE REMONTAGE LES CHANGE TOUTES DEUX : c'est lui qui
+      # recolle le champ quand l'hote REFUSE le patch et que le clip, donc
+      # la valeur, n'a pas bouge.
+      and d.get("ti_cle_nonce") == [["t1u1|0|Ab", "t1u1|s|0|"],
+                                    ["t1u1|1|Ab", "t1u1|s|1|"]],
+      f'{d.get("ti_cle_input")} jeton={d.get("ti_cle_nonce")}')
+# LE CLIC REMONTE LE GABARIT NU ; LA CARTE DÉJÀ CHOISIE NE REMONTE RIEN.
+check("D21_le_clic_remonte_le_gabarit_et_la_carte_choisie_se_tait",
+      # I-4bis : l'attendu est CONSTRUIT avant toute comparaison — sans la
+      # garde, un catalogue vide levait un IndexError ICI, c'est-a-dire au
+      # niveau module, et emportait le banc ENTIER au lieu d'une ligne.
+      bool(_GAB_ORDRE)
+      and d.get("ti_carte_clic") == [["t1u1", {"template": _GAB_ORDRE[0]}]],
+      f'{d.get("ti_carte_clic")}')
+# LES DEUX `<select>` : cinq couleurs + « (du gabarit) », seize polices +
+# « (du gabarit) », et la chaîne vide REMONTE quand elle change — c'est elle
+# qui EFFACE le réglage. Ici elle ne change pas (rien n'était posé), donc
+# elle ne remonte pas : deux remontées pour trois gestes.
+check("D21_les_deux_selects_offrent_la_charte_et_les_seize_polices",
+      isinstance(d.get("ti_selects"), list) and len(d.get("ti_selects") or []) == 6
+      and d["ti_selects"][0] == "" and d["ti_selects"][1] == ""
+      and d["ti_selects"][2] == len(_BRAND_SVC) + 1
+      and d["ti_selects"][3] == len(_FONTS_SVC) + 1
+      and d["ti_selects"][4] == ""
+      and d["ti_selects"][5] == [["t1u1", {"color": "cyan"}],
+                                 ["t1u1", {"font": _FONTS_SVC[4]}]],
+      f'{d.get("ti_selects")}')
+# LA TAILLE PART AU RELÂCHEMENT ET JAMAIS PENDANT LE GLISSÉ : `onChange` est
+# ABSENT (React le câblerait sur l'événement `input`, qui tire à chaque
+# pixel). Quatre gestes, UNE remontée : deux valeurs identiques au défaut du
+# gabarit, une valeur neuve, une valeur illisible.
+check("D21_la_taille_part_au_relachement_et_jamais_pendant_le_glisse",
+      isinstance(d.get("ti_taille"), list) and len(d.get("ti_taille") or []) == 7
+      and d["ti_taille"][0] == "range" and d["ti_taille"][1] == 24
+      and d["ti_taille"][2] == 200
+      and d["ti_taille"][3] == str(dict((_t[0], _t[2]) for _t in _TPL_SVC)["cta"])
+      and d["ti_taille"][4] is True
+      and d["ti_taille"][5] == [["t1u1", {"size": 90}]]
+      and d["ti_taille"][6] == "68 px",
+      f'{d.get("ti_taille")}')
+# I-1 (revue du 22/09/2026) : LA RÉGLETTE NE PAIE QU'UN INSTANTANÉ PAR
+# RAFALE. Elle remonte au RELÂCHEMENT, et au clavier chaque flèche est un
+# `keyup` : cinq crans faisaient cinq `pushHistory`, et « annuler » remontait
+# cran par cran. Même fenêtre de 600 ms que `nudgeHistAt` (M17b) et
+# `dzDurHistAt` (H6) — les deux précédents sont mesurés ici aussi, sinon la
+# comparaison n'aurait plus de référent.
+check("D21_TT6_la_reglette_ne_paie_qu_un_instantane_par_rafale",
+      s.count(nl("var dzTtHistAt=x.useRef(0);")) == 1
+      and "var dzTtHistAt=x.useRef(0);" in P.R_M16REF
+      and (_bak.count(_nlb("dzTtHistAt")) == 0 if _bak else False)
+      and s.count(nl("if(dzTtN-dzTtHistAt.current>600)pushHistory();")) == 1
+      # LA FENÊTRE NE COUVRE QUE LA TAILLE (re-revue du 22/09/2026) : posée
+      # sur tous les réglages, elle coalesçait des gestes HÉTÉROGÈNES — un
+      # texte puis un gabarit 50 ms plus tard ne faisaient qu'une entrée.
+      # Les deux précédents cités ne bornent chacun qu'UN réglage.
+      and s.count(nl("if(p.size==null){pushHistory();"
+                     "dzTtHistAt.current=0}")) == 1
+      and s.count(nl("dzTtHistAt.current=dzTtN}")) == 1
+      # ET LA SECTION NE PAIE PLUS D'INSTANTANÉ NU : sans cette moitié, un
+      # `pushHistory()` laissé à côté de la fenêtre l'aurait rendue inutile.
+      and P.R_M12.count("pushHistory()") == 3
+      and P.R_M12.count("if(dzTtN-dzTtHistAt.current>600)pushHistory();") == 1
+      and P.R_M12.count("if(p.size==null){pushHistory();") == 1
+      and s.count(nl("if(now-nudgeHistAt.current>600)pushHistory();")) == 1
+      and s.count(nl("if(dzN-dzDurHistAt.current>600)pushHistory();")) == 1,
+      f'ref={s.count(nl("var dzTtHistAt=x.useRef(0);"))} '
+      f'fenetre={s.count(nl("if(dzTtN-dzTtHistAt.current>600)pushHistory();"))}')
+# …ET CE N'EST PAS QU'UNE CHAÎNE : le rappel EXTRAIT DU BUNDLE est JOUÉ, avec
+# une horloge injectée. Cinq crans de réglette en 200 ms = UN instantané ;
+# un texte puis un gabarit 50 ms plus tard = DEUX de plus, pas un ; un texte
+# vide = aucun, une note et le jeton ; une réglette APRÈS un geste sec = un
+# de plus (l'horloge a été remise à zéro, la rafale suivante repart à elle).
+# Le clip final porte bien les trois réglages et son libellé suit le texte.
+check("D21_TT6_joue_la_fenetre_ne_coalesce_que_la_reglette",
+      isinstance(d.get("tt6_rafale"), list) and len(d.get("tt6_rafale") or []) == 7
+      and d["tt6_rafale"][0] == 1
+      and d["tt6_rafale"][1] == "HHHNH"
+      and d["tt6_rafale"][2] == 1
+      and d["tt6_rafale"][3] == "Neuf" and d["tt6_rafale"][4] == "legende"
+      and d["tt6_rafale"][5] == 90 and d["tt6_rafale"][6] == "Neuf",
+      f'{d.get("tt6_rafale")}')
+# I-2 (revue du 22/09/2026) : VIDER LE CHAMP TEXTE EST REFUSÉ À VOIX HAUTE,
+# ET LE CHAMP SE RECOLLE. Le refus passait par l'identité du tableau : pas de
+# `setClips`, donc pas de re-rendu, donc un input VIDE à l'écran pendant que
+# le carton gardait son texte. La note le dit, et le jeton force le
+# remontage — les deux, parce qu'une note seule aurait laissé le champ mentir.
+check("D21_TT6_un_texte_vide_est_refuse_a_voix_haute_et_le_champ_se_recolle",
+      s.count(nl('if(p&&typeof p.text==="string"&&!p.text.trim()){')) == 1
+      and s.count(nl('fireNote("Un carton sans texte n\'est pas un carton'
+                     ' — le titre précédent est conservé.");')) == 1
+      and s.count(nl("setDzTtNonce(function(dzK){return dzK+1})")) == 1
+      and s.count(nl("var stDzTtN=x.useState(0),dzTtNonce=stDzTtN[0],"
+                     "setDzTtNonce=stDzTtN[1];")) == 1
+      and "var stDzTtN=x.useState(0)" in P.R_M16REF
+      and (_bak.count(_nlb("dzTtNonce")) == 0 if _bak else False)
+      # LE JETON EST PASSÉ EN PROP ET IL ENTRE DANS LES DEUX CLÉS : sans
+      # l'un ou l'autre, l'incrémenter ne remonterait rien.
+      and s.count(nl("nonce:dzTtNonce,")) == 1
+      and src.count('c.id+"|"+nz+"|"+txt)') == 1
+      and src.count('c.id+"|s|"+nz+"|"+sub)') == 1,
+      f'garde={s.count(nl(chr(105) + chr(102) + "(p&&typeof p.text=="))} '
+      f'jeton={s.count(nl("nonce:dzTtNonce,"))}')
+# M-3 : LE COMMENTAIRE DU VOILE DOCUMENTE LE VOILE. La première rédaction
+# posait la ligne de l'hôte de titre SOUS le commentaire « D-12 — LE VOILE
+# DES FONDUS EN DIRECT », qui décrit l'élément suivant : à la lecture du
+# bundle, il semblait documenter une ligne qui n'était plus la sienne.
+check("D21_TT7_chaque_ligne_du_cadre_porte_son_propre_commentaire",
+      0 < s.find(nl("/* D-21 — L'APERÇU VIVANT DU CARTON."))
+          < s.find(nl('className:"svm-livetitle"'))
+          < s.find(nl("/* D-12 — LE VOILE DES FONDUS EN DIRECT."))
+          < s.find(nl('className:"svm-xfveil"'))
+      and s.count(nl("/* D-21 — L'APERÇU VIVANT DU CARTON.")) == 1,
+      f'apercu={s.find(nl("/* D-21 — L\'APERÇU VIVANT DU CARTON."))} '
+      f'voile={s.find(nl("/* D-12 — LE VOILE DES FONDUS EN DIRECT."))}')
+check("D21_l_inspecteur_sans_rappel_ne_leve_jamais",
+      d.get("ti_sans_rappels") == "sans_levee", f'{d.get("ti_sans_rappels")}')
+# LE CONTRAT : les deux clés neuves sont exportées, et rien n'est dupliqué.
+check("D21_l_inspecteur_et_titleUpdate_sont_au_contrat",
+      src.count("titleUpdate:dzmTitleUpdate,"
+                "TitleInspector:DzmTitleInspector,") == 1
+      and src.count("function DzmTitleInspector(") == 1
+      and src.count("function dzmTitleUpdate(") == 1,
+      f'contrat={src.count("titleUpdate:dzmTitleUpdate,")}')
+# LA FEUILLE : la galerie est à deux colonnes et la case porte une hauteur
+# EXPLICITE (`aspect-ratio` + `min-height`). Leçon de la Bibliothèque
+# (28/08) : une case en `overflow:hidden` peut contribuer ~0 à la hauteur
+# intrinsèque de sa rangée — 998 lignes de 2 px, et le DOM ne dit rien.
+_R_CARDS = _regle(_MC, ".dzsvm .dzm-ttcards{")
+_R_IMG = _regle(_MC, ".dzsvm .dzm-ttimg{")
+_R_HOTE = _regle(_MC, ".dzsvm .svm-livetitle{")
+_R_TT = _regle(_MC, ".dzsvm .dzm-tt{")
+check("D21_la_feuille_pose_la_galerie_a_deux_colonnes_et_la_case_a_une_hauteur",
+      _R_CARDS is not None and "grid-template-columns:repeat(2,1fr)" in _R_CARDS
+      and _R_IMG is not None and "aspect-ratio:9/16" in _R_IMG
+      and "min-height:" in _R_IMG,
+      f"cartes={_R_CARDS!r} image={_R_IMG!r}")
+# L'HÔTE ET L'APERÇU : pas de `z-index` (l'ordre du DOM suffit, même mesure
+# que le voile), `pointer-events:none` des deux côtés, et les HUIT gabarits
+# ont chacun leur règle de placement.
+check("D21_la_feuille_pose_l_hote_et_les_huit_gabarits",
+      _R_HOTE is not None and "position:absolute" in _R_HOTE
+      and "inset:0" in _R_HOTE and "pointer-events:none" in _R_HOTE
+      and "z-index" not in _R_HOTE
+      and _R_TT is not None and "pointer-events:none" in _R_TT
+      and "z-index" not in _R_TT
+      and all(_regle(_MC, ".dzsvm .dzm-tt-%s{" % _g) is not None
+              for _g in _GAB_ORDRE),
+      f"hote={_R_HOTE!r} manquants="
+      f"{[_g for _g in _GAB_ORDRE if _regle(_MC, '.dzsvm .dzm-tt-%s{' % _g) is None]}")
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

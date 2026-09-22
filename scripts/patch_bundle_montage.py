@@ -144,6 +144,79 @@ Sections :
       `revertSrc`) ; backend/tests/test_montage_remplacer.py l'exécute sous
       node et mesure la route.
 
+  H1…H7 (D-0, 21/09/2026) L'HISTORIQUE COMPLET. Ctrl+Z ne rendait que
+      {clips, mixDb} ; il rend désormais AUSSI les pistes, la durée, le style
+      des sous-titres, la plage et les marqueurs. Le cœur est PUR et vit dans
+      la couche (`DzTracks.histSnap` / `histApply`) ; SIX sections et un pli
+      le branchent :
+        H1 `dzProjRef` (le projet relu à chaque rendu — `pushHistory`, `undo`
+           et `redo` sont des useCallback à dépendances VIDES, ils ne voient
+           jamais `proj`), `dzmHistHost()` qui en tire l'instantané, et les
+           deux horloges de rafale `dzStyleHistAt` / `dzDurHistAt` ;
+        H2 `pushHistory()` sans argument empile l'instantané COMPLET ;
+        H3 `undo` et H4 `redo` restaurent tout l'instantané — corps entiers en
+           ancre (`setClips(s.clips);` seul apparaît deux fois), clips rendus
+           par `if("clips" in s)` (histApply ne les touche pas : ils vivent
+           dans `clipsRef`, pas dans `proj`), et `svmTrackBusSync` resynchronisé
+           sur les pistes revenues ;
+        H5 le `h0` du glisser de clip capture l'état ENTIER — sans quoi le
+           relâchement de M17f, qui ALLONGE la durée, empilait un h0 sans
+           `dur` et « Annuler » rendait les clips mais pas la timeline ;
+        « H6 » — le réglage explicite de durée — n'est PAS une section : son
+           ancre serait posée par R_M17G, donc invisible de `--check` et
+           absente du compte générique du banc. Le geste est REPLIÉ dans
+           R_M17G (même motif que M10 dans R_M8) ;
+        H7 le style S1 (`subsStyleSet`) entre dans l'historique. Comme le
+           réglage de durée : une entrée par rafale de 600 ms — même fenêtre
+           que `nudgeHistAt` (M17b).
+      Les six phrases de l'écran qui disaient la réserve d'historique sont
+      réécrites en conséquence (montage.js : DZM_DUR_UNDO, DZM_TB_H_CLIPS,
+      DZM_TB_H_PISTE, DZM_TB_H_STYLE ; ici : R_M17A, R_M17B, R_M17F, et le
+      commentaire de R_M17G). Pas de H8 : `svmTracksSet` appelle DÉJÀ
+      `pushHistory()`, les pistes entrent d'elles-mêmes.
+
+  R1/R2/R3 (D-11, 21/09/2026) LA PLAGE D'ENTRÉE / SORTIE. Quatre actions de
+      plus dans SVM_ACTIONS — I, U, X et Maj+X — donc remappables via
+      `dz_svm_keymap` et LISTÉES dans le panneau « ? », comme les autres (R1).
+      La branche de dispatch (R2) calcule la plage suivante AVANT de rien
+      pousser et SORT TÔT si elle n'a pas changé : une frappe stérile n'empile
+      ni historique ni « NON ENREGISTRÉ ». Une demi-plage se dit par une note,
+      la règle restant muette tant que les deux bouts ne sont pas posés.
+      La bande sur la règle (R3) est montée juste après la gouttière.
+      « R4 » (la clé `range` de la sauvegarde) et « R5 » (celle de la
+      restauration) ne sont PAS des sections : elles sont REPLIÉES dans R_M6 et
+      R_M7, dont elles visaient un texte POSÉ — comme `project_id` de M14 l'est
+      déjà. Le cœur est pur et vit dans la couche (`DzTracks.rangeSet` /
+      `rangeFrom` / `rangeLen` / `RangeBar`), avec `cutOpts`, les options de
+      coupe que R2 et le tiroir Texte (M12) partagent désormais.
+
+  « E1 » / « E2 » / « E3 » (D-2, 21/09/2026) LE CÂBLAGE DES MODES D'ÉDITION
+      N'EST PAS FAIT DE SECTIONS, et c'est une MESURE qui l'impose : les trois
+      textes qu'il vise valent **0 dans index-BEOJX8L5.js.bak_montage** (l'ENTRÉE
+      de ce patcher, la seule qui décide) et 1 dans le bundle livré — ils
+      n'existent QUE parce que trois remplacements les créent :
+        · `var dzTracksRef=x.useRef(null);dzTracksRef.current=svmTracksOf(proj);`
+          est écrit par R_M16REF ;
+        · `:("Ajouter sur la piste "+tr2.toUpperCase())}),` par R_M15B ;
+        · `setClips(clipsRef.current.concat(dzTw&&dzTw.clip?…))` par R_M22B.
+      Une section à part serait donc REFUSÉE par `--check` (ancre à 0). Le
+      câblage est REPLIÉ dans les remplacements qui créent l'ancre — la règle
+      de la maison, déjà suivie par H6 (dans R_M17G) et R4/R5 (dans R_M6 /
+      R_M7). LE COMPTE D'ANCRES RESTE 75. L'état du mode vit dans R_M16REF
+      (« E1 » : `dzMode` + `dzModeRef`), la rangée de six chips dans R_M15B
+      (« E2 » : `DzTracks.ModeBar`), et l'écriture du clip passe par
+      `DzTracks.insere` dans R_M22A / R_M22B (« E3 »). R_M17A cède à R_M22A
+      le calcul de l'allongement de la timeline : il doit désormais se mesurer
+      sur les clips RENDUS par l'insertion, puisqu'en `inserer` / `fin` /
+      `ripple_ecraser` la suite de la piste est POUSSÉE au-delà de `en`.
+      « E4 » (tour de correction du 21/09/2026) EST, LUI, UNE VRAIE SECTION :
+      son ancre — la garde de verrou qui testait la piste VISÉE — vient du
+      greffon AMONT son-vfx-montage.js et vaut donc 1 dans .bak_montage
+      (mesuré). Elle est DÉPLACÉE dans `insere()`, qui seul connaît la piste
+      RÉELLE : en « au-dessus » avec V1 verrouillée et V2 libre, le geste
+      était refusé alors que RIEN n'allait sur V1. Le compte d'ancres passe
+      donc de 75 à 76, et `PATCHES` de 74 à 75 triplets.
+
 Mécanique identique à patch_bundle_subs.py : restauration du .bak dédié puis
 ré-application, chaque ancre devant apparaître EXACTEMENT une fois, sinon
 abandon sans rien écrire. Le miroir du résultat est
@@ -234,7 +307,22 @@ R_M5 = ("      /* P1 — l'ORDRE des pistes, du haut vers le bas : c'est lui que
         "         (`layer`) et en bus de mixage. Un backend qui ne connaît pas\n"
         "         encore la clé l'ignore et rend exactement ce qu'il rendait. */\n"
         "      tracks:svmTracksPayload(proj),\n"
-        "      clips:clips.filter(function(c){return c.src}).map(function(c){")
+        # -- « TT2 » (D-21, 21/09/2026) : LES CARTONS DE TITRE PASSENT LE
+        # FILTRE. REPLI, et c'est une MESURE : la ligne
+        # `      clips:clips.filter(function(c){return c.src}).map(...)` vaut
+        # bien 1 dans .bak_montage, mais elle est l'ANCRE A_M5 -- consommee
+        # par CE remplacement, qui la reprend en queue. Une section a part
+        # l'aurait donc cherchee dans un bundle ou M5 l'a deja reecrite :
+        # `--check` (qui ne regarde que le .bak) aurait dit oui, et la chaine
+        # aurait abandonne au rejeu. Meme technique que R4/R5 dans R_M6/R_M7.
+        # UN TITRE EST UN CLIP SANS `src` : sans ce `||c.kind==="title"`, il
+        # ne quittait JAMAIS le client et le backend n'avait rien a graver.
+        # LA GARDE `c.src.job_id` DE LA VITESSE, TROIS LIGNES PLUS BAS, EST
+        # DEJA SURE : elle est precedee de `c.tr==="v1"&&`, et un carton vit
+        # sur t1 -- le court-circuit sort AVANT la lecture (mesure du
+        # 21/09/2026 sur le texte du .bak, que rien ne reecrit ici).
+        '      clips:clips.filter(function(c){return c.src||c.kind==="title"})'
+        ".map(function(c){")
 
 # ── M6 : autosave ───────────────────────────────────────────────────────────
 A_M6 = "      duration_master:durMaster,ducking:ducking,clips:clips,"
@@ -247,7 +335,29 @@ R_M6 = ("      duration_master:durMaster,ducking:ducking,clips:clips,\n"
         "         backend n'écrit dans le projet QUE si cette clé désigne un\n"
         "         fichier existant : sans elle (montage sans nom), rien ne\n"
         "         change, pas un fichier n'est semé. */\n"
-        "      project_id:proj.project_id,")
+        "      project_id:proj.project_id,\n"
+        # D-11 (21/09/2026) — LA PLAGE PART AVEC LA SAUVEGARDE. C'est la
+        # section « R4 » du plan, REPLIEE ici : son ancre
+        # (`      project_id:proj.project_id,`) est un texte que CE
+        # remplacement-ci POSE. MESURE sur .bak_montage (etat pre-patch, le
+        # seul que `--check` regarde) : compte 0, donc une section a part
+        # aurait abandonne au premier `--check` et aurait fait tomber
+        # `M6-save_remplace` a 0 dans le banc du bundle. Meme technique que
+        # H6 dans R_M17G, M10 dans R_M8 et M9c dans R_M9b.
+        # `rangeFrom` ASSAINIT avant l'envoi : une plage a moitie posee (I
+        # sans U) ou inversee part en `null`, et le backend n'a pas a s'en
+        # defendre deux fois.
+        "      range:DzTracks.rangeFrom(proj.range),\n"
+        # D-5 (21/09/2026) -- LES MARQUEURS PARTENT AVEC LA SAUVEGARDE.
+        # « K6 » du plan, REPLIE ici pour la meme raison que R4 : son ancre
+        # est la ligne `range:` que CE remplacement pose (0 dans le .bak).
+        # LA LISTE PART TELLE QUELLE, et une liste VIDE part aussi : le
+        # backend ne stocke alors PAS la cle, donc un montage dont on vient
+        # de retirer le dernier marqueur revient bien SANS marqueur -- la
+        # cle absente et la liste vide disent la meme chose, et c'est voulu.
+        # L'assainissement est fait DEUX FOIS (le backend au POST,
+        # `markersFrom` au GET) : le payload n'est pas de confiance.
+        "      markers:(proj.markers||[]),")
 
 # ── M7 : restauration ───────────────────────────────────────────────────────
 # TROIS clés, et la troisième est de P9. `v1_non_video` est rendu par
@@ -275,9 +385,37 @@ R_M6 = ("      duration_master:durMaster,ducking:ducking,clips:clips,\n"
 # défensif — un backend antérieur à P8, ou une réponse tronquée, n'a pas la
 # clé — mais il ne couvre pas le chemin qu'on lui prêtait.
 A_M7 = 'var np={demo:!1,name:d.name||"montage",version:"v1",ratio:d.ratio||"9:16",'
-R_M7 = ('var np={demo:!1,tracks:svmTracksFrom(d.tracks),'
+# -- « TT3 » (D-21, 21/09/2026) : LA PISTE DES TITRES REVIENT AVEC LE PROJET.
+# REPLI, et c'est une MESURE : `tracks:svmTracksFrom(d.tracks)` vaut 0 dans
+# .bak_montage -- c'est CE remplacement-ci qui l'ecrit. Meme technique que
+# R5 et K6.
+# LA PISTE N'EST POSEE QUE S'IL Y A UN CARTON A PORTER. Une sauvegarde d'un
+# projet SANS titre ne gagne donc pas une bande vide au rechargement ; une
+# sauvegarde d'avant D-21 qui porterait des cartons (impossible aujourd'hui,
+# possible demain si la piste est retiree a la main puis le projet rouvert)
+# la retrouve.
+# `_t` EST TESTE AVANT : `svmTracksFrom` rend `null` quand la liste est
+# illisible ou qu'elle a perdu v1, et « null » veut dire « garde les six
+# defauts » -- qui portent DEJA t1. `titleTrack(null)` aurait rendu une liste
+# d'UNE piste (t1 seule), c'est-a-dire un montage sans V1.
+# LE GENRE, LUI, N'A PAS BESOIN DE REPLI : mesure du 21/09/2026 (banc
+# d'edition, `tt_la_restauration_garde_le_genre_title_et_l_habillage`),
+# `svmTracksFrom` GARDE un `kind:"title"` et lui rend son habillage.
+R_M7 = ('var np={demo:!1,tracks:(function(){var _t=svmTracksFrom(d.tracks);'
+        'return _t&&(d.clips||[]).some(function(c){return c&&c.kind==="title"})'
+        '?DzTracks.titleTrack(_t):_t})(),'
         'project_id:d.project_id,'
         'v1NonVideo:Array.isArray(d.v1_non_video)?d.v1_non_video:null,'
+        # D-11 — ET LA PLAGE REVIENT AVEC LE PROJET. « R5 » du plan,
+        # REPLIEE pour la meme raison que R4 : l'ancre du plan est le
+        # texte `v1NonVideo:…` que CE remplacement pose (compte 0 dans
+        # .bak_montage, mesure du 21/09/2026).
+        'range:DzTracks.rangeFrom(d.range),'
+        # D-5 -- ET LES MARQUEURS REVIENNENT AVEC LE PROJET. « K6 », seconde
+        # moitie, REPLIEE pour la meme raison que R5. `markersFrom` REGENERE
+        # les identifiants (m1..mN) : deux marqueurs d'un vieux fichier
+        # pouvaient porter le meme, et `markerRemove` en aurait retire deux.
+        'markers:DzTracks.markersFrom(d.markers),'
         'name:d.name||"montage",version:"v1",ratio:d.ratio||"9:16",')
 
 # ── M8 : barre de transport ─────────────────────────────────────────────────
@@ -563,6 +701,72 @@ R_M8 = (R_M14 + '\n'
 # est vide après une coupe, à l'utilisateur de la raccourcir s'il veut.
 A_M12 = "        transInspector(),"
 R_M12 = (A_M12 + '\n'
+         # -- « TT6 » (D-21, 22/09/2026) : L'INSPECTEUR DU CARTON ------------
+         # REPLIE dans R_M12 parce que l'ancre naturelle (la ligne du
+         # TextDrawer, derniere de ce remplacement) vaut 0 dans .bak_montage :
+         # c'est CE remplacement qui l'ecrit. Meme mesure que E1/K3/X1/V1.
+         # POSE AVANT le TextDrawer et non apres, et c'est une MESURE contre
+         # la lettre du plan : la colonne d'inspection se lit de haut en bas
+         # et les trois lignes qui PRECEDENT l'ancre (`transInspector()` et
+         # ses voisines) sont les inspecteurs du clip SELECTIONNE. Le tiroir
+         # de texte, lui, est un panneau de PROJET (il liste toute la
+         # narration) et il ferme la colonne. Glisser l'inspecteur du carton
+         # sous lui l'aurait mis a un ecran de son clip.
+         # LA GARDE EST `trackKind(sel.tr)==="title"` ET NON `sel.tr==="t1"` :
+         # le plan ecrivait l'egalite sur l'identifiant. TT1 a fait de `t`
+         # l'INITIALE du genre -- une seconde piste de titres (t2) serait
+         # restee sans inspecteur, et la garde aurait dit autre chose que les
+         # seize autres sites du bundle, qui interrogent tous `trackKind`.
+         # AUCUN INSTANTANE POUR UN PATCH REFUSE, et c'est l'IDENTITE qui le
+         # dit : `titleUpdate` rend le MEME tableau quand rien n'a bouge
+         # (texte vide, gabarit qui ne survit pas a l'assainissement, valeur
+         # identique). Sans ce test, un blur sur un champ non touche aurait
+         # empile une entree d'historique qui ne defait rien et allume « NON
+         # ENREGISTRE ». L'inspecteur filtre DEJA le blur inchange ; les deux
+         # gardes ne couvrent pas le meme cas et ne se remplacent pas.
+         # UN REFUS DE TEXTE VIDE SE DIT, ET REND LE CHAMP A SA VALEUR
+         # (22/09/2026) : sans ces deux lignes, effacer le titre ne faisait
+         # RIEN -- pas de note, pas de setClips, donc pas de re-rendu, donc
+         # un input reste VIDE a l'ecran alors que le carton a garde son
+         # texte. Le jeton `dzTtNonce` entre dans la cle des deux champs :
+         # l'incrementer force le remontage et le champ se recolle. Le
+         # setter FONCTIONNEL, parce que ce rappel peut tenir une fermeture
+         # perimee (l'inspecteur n'est re-rendu qu'au changement de `sel`).
+         # LA FENETRE DE 600 ms EST CELLE DE `nudgeHistAt` (M17b) et de
+         # `dzDurHistAt` (H6), et elle est ici pour le CLAVIER : la reglette
+         # de corps remonte au relachement, et chaque fleche est un `keyup`
+         # -- cinq crans faisaient cinq instantanes, et « annuler » remontait
+         # cran par cran.
+         # ELLE NE COUVRE QUE LA TAILLE, ET C'EST UNE CORRECTION (22/09/2026,
+         # re-revue) : posee sur TOUS les reglages, elle coalescait des
+         # gestes HETEROGENES -- taper un texte puis cliquer un gabarit 50 ms
+         # plus tard ne faisait qu'UNE entree, et « annuler » defaisait les
+         # deux d'un coup. Les deux precedents cites ne bornent chacun qu'UN
+         # reglage (`nudgeHistAt` le deplacement d'un overlay, `dzDurHistAt`
+         # la duree du projet) : la fenetre y est le prix d'une RAFALE sur le
+         # MEME reglage, jamais un melange. Le texte, le gabarit, la couleur
+         # et la police poussent donc SEC, et remettent l'horloge a zero pour
+         # que la rafale suivante recommence par un instantane a elle.
+         # `pushHistory` AVANT `setClips`, comme partout ailleurs dans ce
+         # composant : l'instantane doit porter l'etat D'AVANT.
+         '        sel&&trackKind(sel.tr)==="title"'
+         '?r.jsx(DzTracks.TitleInspector,{clip:sel,\n'
+         '          gabarits:dzTitles&&dzTitles.gabarits,\n'
+         '          fonts:dzTitles&&dzTitles.fonts,'
+         'colors:dzTitles&&dzTitles.colors,nonce:dzTtNonce,\n'
+         '          onChange:function(id,p){\n'
+         '            var cs=DzTracks.titleUpdate(clipsRef.current,id,p);\n'
+         '            if(cs===clipsRef.current){\n'
+         '              if(p&&typeof p.text==="string"&&!p.text.trim()){\n'
+         '                fireNote("Un carton sans texte n\'est pas un '
+         'carton — le titre précédent est conservé.");\n'
+         '                setDzTtNonce(function(dzK){return dzK+1})}\n'
+         '              return}\n'
+         '            var dzTtN=Date.now();\n'
+         '            if(p.size==null){pushHistory();dzTtHistAt.current=0}\n'
+         '            else{if(dzTtN-dzTtHistAt.current>600)pushHistory();\n'
+         '              dzTtHistAt.current=dzTtN}\n'
+         '            setClips(cs);setDirty(!0)}}):null,\n'
          '        /* P3 — les coupes sont appliquées de la FIN vers le DÉBUT :\n'
          '           une coupe tardive ne décale pas les précédentes, donc les\n'
          '           plages restent justes sans être recalculées entre deux. Un\n'
@@ -572,18 +776,14 @@ R_M12 = (A_M12 + '\n'
          '          onCut:function(rg,al){\n'
          '            if(!rg||!rg.length)return;\n'
          '            var rs=rg.slice().sort(function(u,v){return v[0]-u[0]});\n'
-         '            var lk={};Object.keys(trackSt||{}).forEach(function(k){\n'
-         '              if(trackSt[k]&&trackSt[k].l)lk[k]=1});\n'
-         '            var lt=svmTracksOf(proj).filter(function(t){return t.loop})\n'
-         '              .map(function(t){return t.id});\n'
+         '            var dzO=DzTracks.cutOpts(proj,trackSt);\n'
          '            pushHistory();\n'
          '            /* les mots calés du tiroir, recollés sur LEUR clip : sans\n'
          '               eux, fendre un bloc de narration laisserait la phrase\n'
          '               entière sur les deux moitiés. */\n'
          '            var cs=DzTracks.withWords(clipsRef.current||[],al),rm=0;\n'
          '            rs.forEach(function(p){\n'
-         '              var res=DzTracks.rippleCut(cs,p[0],p[1],'
-         '{loopTracks:lt,locked:lk});\n'
+         '              var res=DzTracks.rippleCut(cs,p[0],p[1],dzO);\n'
          '              cs=res.clips;rm+=res.removed});\n'
          '            rm=Math.round(rm*1000)/1000;\n'
          '            /* les mots prêtés ne servaient qu\'à répartir le texte :\n'
@@ -593,7 +793,7 @@ R_M12 = (A_M12 + '\n'
          '              .filter(function(t){return t.kind===\"subs\"})\n'
          '              .map(function(t){return t.id})));\n'
          '            setDirty(!0);\n'
-         '            var vk=Object.keys(lk);\n'
+         '            var vk=Object.keys(dzO.locked);\n'
          '            fireNote(rs.length+" coupe"+(rs.length>1?"s":"")+" — "+\n'
          '              rm.toFixed(2)+\" s retirés. Annuler défait la coupe '
          'entièrement. La durée du projet ne bouge pas : la fin de la timeline '
@@ -626,7 +826,25 @@ R_M12 = (A_M12 + '\n'
 # L'ancre n'est PAS reprise telle quelle dans le remplacement (le `)]` devient
 # `),`) : test_montage_bundle.py exigera donc de la voir DISPARAÎTRE.
 A_M13 = '        (sel&&sel.tr==="s1"?null:vfxStackSection())]})]}),'
-R_M13 = ('        (sel&&sel.tr==="s1"?null:vfxStackSection()),\n'
+R_M13 = (
+         # -- « TT9b » (D-21, 22/09/2026) : LA PILE D'EFFETS SE TAIT AUSSI
+         # SUR UN CARTON. REPLI dans R_M13 parce que l'ancre EST la ligne
+         # que M13 reecrit (elle vaut 1 dans .bak_montage et 0 apres M13) :
+         # une section a part aurait passe `--check` pour abandonner au
+         # rejeu -- meme mesure que TT1b dans R_M15.
+         # POURQUOI : `vfxStackSection()` rend « Effets sur ce clip » avec
+         # son bouton « remplacer le plan », qui appelle `openPicker(sel.tr)`
+         # -- soit `openPicker("t1")` sur un carton, c'est-a-dire le
+         # selecteur d'assets ouvert sur la piste qui n'en recoit aucun.
+         # TT1b arretait le degat DANS `addAsset` (avec une note), mais
+         # l'ecran proposait encore le geste. Un carton n'a pas davantage
+         # d'effets video : il n'a pas de `src`, la chaine `_fx` du payload
+         # ne le voit jamais.
+         # `trackKind(sel.tr)` POUR LES DEUX GENRES, et pas deux egalites
+         # sur des identifiants : c'est la forme des seize autres sites du
+         # bundle, et une piste s2 ou t2 y serait traitee comme sa soeur.
+         '        (sel&&(trackKind(sel.tr)==="subs"'
+         '||trackKind(sel.tr)==="title")?null:vfxStackSection()),\n'
          '        /* P4 — le geste GLOBAL de l\'étalonnage : les quatre valeurs\n'
          '           du plan sélectionné recopiées sur tous les autres plans\n'
          '           réels de SA piste (pas « v1 » en dur : un plan V2 peut\n'
@@ -759,6 +977,188 @@ R_M16REF = (A_M16REF + "\n"
             "     premier rendu). Même motif que durRef, juste au-dessus. */\n"
             "  var dzTracksRef=x.useRef(null);"
             "dzTracksRef.current=svmTracksOf(proj);\n"
+            # ── « E1 » (D-2) : L'ÉTAT DU MODE D'ÉDITION ──────────────
+            # REPLIÉ ICI, et c'est une MESURE : la ligne `dzTracksRef`
+            # ci-dessus vaut 0 dans .bak_montage (c'est CE remplacement
+            # qui l'écrit) et 1 dans le bundle livré — une section qui la
+            # prendrait pour ancre serait refusée par --check. Même motif
+            # que H6 dans R_M17G.
+            # L'ÉTAT *ET* LA REF, les deux : l'état fait se re-rendre la
+            # rangée de chips (E2) ; la ref est ce que lit `addAsset` (E3),
+            # qui peut être appelée depuis la fermeture du PREMIER rendu
+            # (greffon `__dzMontageAdd`, note P9 juste au-dessus) — lire
+            # `dzMode` de là rendrait toujours "ecraser".
+            # LE MODE N'EST PAS PERSISTÉ : il vit le temps de l'onglet,
+            # comme `ripple` et `snap` du bandeau, et repart à « écraser »
+            # au rechargement. C'est le comportement de Resolve, où le mode
+            # est un état d'outil et non une propriété du projet.
+            '  var stDzM=x.useState("ecraser"),dzMode=stDzM[0],'
+            "setDzMode=stDzM[1];\n"
+            # -- « TT4a » (D-21, 21/09/2026) : POSER UN TITRE, LE GESTE --
+            # REPLIE ICI, meme mesure que « E1 », « K3 », « X1 » et « V1 » :
+            # la ligne `dzTracksRef` qui sert d'ancre a ce remplacement vaut
+            # 0 dans .bak_montage.
+            # UNE FONCTION DECLAREE, ET C'EST LE PRECEDENT `dzMkToggle` : le
+            # geste a DEUX declencheurs -- le raccourci (TT4, dans le `onKey`
+            # d'un `useEffect`, d'ou aucune fonction ne sort) et la chip
+            # « T+ » (TT5, dans l'arbre rendu). L'ecrire aux deux endroits
+            # aurait fait deux sources de verite pour un meme bouton.
+            # Declaration HISSEE dans le corps du composant : l'ordre
+            # d'ecriture par rapport a `svmTracksSet` (M4b) et aux refs n'y
+            # change rien, et tout est resolu a l'APPEL.
+            # UN SEUL INSTANTANE D'HISTORIQUE, ET C'EST MESURE :
+            # `svmTracksSet` (M4b) fait deja `pushHistory()` avant d'ecrire
+            # les pistes. Poser un titre est UN geste -- deux instantanes
+            # auraient fait « Annuler » deux fois : la piste sans le carton,
+            # puis le carton sans la piste. Les DEUX branches en paient donc
+            # EXACTEMENT un : `svmTracksSet` quand t1 manque, `pushHistory`
+            # quand `titleTrack` rend le MEME tableau (mesure, banc
+            # d'edition `tt_une_piste_deja_la_rend_le_meme_tableau`) -- et
+            # aucun `setProj` inutile dans ce second cas.
+            # PAS DE GARDE `if(!t)` : le texte est le LITTERAL « Titre » et
+            # `titleNew` ne rend `null` que sur un texte vide -- un bras mort
+            # que rien n'aurait pu faire rougir (meme lecon que le
+            # `dzSw===clipsRef.current` ecarte a la revue du 21/09/2026).
+            "  function dzTtAdd(){"
+            'var t=DzTracks.titleNew({template:"tiers_inferieur",text:"Titre"},'
+            'phRef.current,clipsRef.current,"t1");\n'
+            "    var ts=svmTracksOf(dzProjRef.current),ts2=DzTracks.titleTrack(ts);\n"
+            "    if(ts2!==ts)svmTracksSet(ts2);else pushHistory();\n"
+            "    setClips(clipsRef.current.concat([t]));setSelId(t.id);setDirty(!0);\n"
+            '    fireNote("Titre posé à "+t.start.toFixed(2)+" s sur T1 — "'
+            '+"l\'inspecteur règle le gabarit et le texte.")}\n'
+            # -- « K3 » (D-5) : L'INDEX DES MARQUEURS EST-IL OUVERT ? --
+            # REPLIE ICI, meme mesure que « E1 » juste au-dessus : la
+            # ligne `dzTracksRef` qui sert d'ancre a ce remplacement vaut
+            # 0 dans .bak_montage. L'etat vit le temps de l'onglet, comme
+            # `dzMode`, `ripple` et `snap` : un panneau ouvert n'est pas
+            # une propriete du projet. Pas de ref jumelle, contrairement a
+            # `dzModeRef` : personne ne LIT cet etat depuis une fermeture
+            # perimee -- K2 et K5 ne font que le BASCULER, par le setter
+            # fonctionnel, qui recoit toujours la valeur vivante.
+            "  var stDzMk=x.useState(!1),dzMkOn=stDzMk[0],setDzMkOn=stDzMk[1];\n"
+            # I-4 (revue du 21/09/2026) : L'INDEX ET LE SELECTEUR D'ASSETS
+            # SE RECOUVRAIENT. Les deux sont des `.svm-pop` a `top:96` et
+            # rien ne fermait l'un quand l'autre s'ouvrait : deux panneaux
+            # empiles au meme pixel, et le second illisible. La ref est
+            # NECESSAIRE ici (contrairement a ce que disait la premiere
+            # version de ce commentaire) : `dzMkToggle` doit LIRE l'etat
+            # pour savoir si elle OUVRE -- et elle est appelee depuis
+            # `onKey`, qui peut tenir une fermeture perimee.
+            # LA BASCULE EST LE SEUL CHEMIN : K2 (le raccourci), K5 (la
+            # chip) et K7 (Echap) l'appellent tous, donc l'exclusion ne
+            # peut pas etre oubliee d'un cote.
+            "  var dzMkOnRef=x.useRef(!1);dzMkOnRef.current=dzMkOn;\n"
+            "  function dzMkToggle(v){"
+            "var n=arguments.length?!!v:!dzMkOnRef.current;"
+            'if(n)setOvPick("");setDzMkOn(n)}\n'
+            # ET L'AUTRE SENS, par EFFET plutot que par une seconde retouche
+            # d'`openPicker` : le selecteur s'ouvre depuis PLUSIEURS chemins
+            # (le « + » d'en-tete de piste, le bouton « lier » de la barre,
+            # le greffon « Envoyer vers -> Montage »), qui passent tous par
+            # l'ETAT `ovPick`. Un effet sur cet etat les couvre tous ; une
+            # ligne posee dans `openPicker` n'en aurait couvert qu'un.
+            # MESURE : `var stO=x.useState(""),ovPick=stO[0]` est a l'offset
+            # 784168 du .bak et l'ancre de CE remplacement a 785144 --
+            # `ovPick` est donc DEJA declare, et l'effet lit sa vraie valeur.
+            "  x.useEffect(function(){if(ovPick)setDzMkOn(!1)},[ovPick]);\n"
+            "  var dzModeRef=x.useRef(dzMode);dzModeRef.current=dzMode;\n"
+            # ── « X1 » (D-20) : LE CATALOGUE DES TRANSITIONS ─────────
+            # REPLIÉ ICI, même mesure que « E1 » et « K3 » ci-dessus :
+            # l'ancre de ce remplacement (`dzTracksRef`) vaut 0 dans
+            # .bak_montage. GET /api/montage/transitions rend les six
+            # familles, leurs libellés et le drapeau `live` (tâche 1).
+            # LE CATALOGUE EST POSÉ DEUX FOIS, ET C'EST NÉCESSAIRE :
+            # dans l'ÉTAT (la galerie X2 et le <select> X3b vivent dans
+            # le composant et doivent se re-rendre quand il arrive) et
+            # sur `window.__dzTransCat` (X4 retouche `svmTransLabel`,
+            # qui est au niveau MODULE — hors de tout composant, elle ne
+            # peut lire aucun état ; c'est elle qui titre le losange de
+            # jonction et l'étendue de la timeline).
+            # UNE SEULE FOIS : l'effet a des dépendances VIDES. Le
+            # catalogue est une constante du serveur (la table _XFADE),
+            # pas une donnée de projet.
+            # L'ÉCHEC EST SILENCIEUX ET C'EST ASSUMÉ : sans catalogue,
+            # `dzmTransList` retombe sur les sept transitions
+            # historiques du bundle — l'écran reste exactement celui
+            # d'avant D-20 au lieu de se vider.
+            # `al` annule la pose après démontage (StrictMode rejoue les
+            # effets `[]` en double : sans lui, un setState sur un arbre
+            # démonté, le no-op silencieux de React 18).
+            "  var stDzCat=x.useState(null),dzTransCat=stDzCat[0],"
+            "setDzTransCat=stDzCat[1];\n"
+            "  x.useEffect(function(){var al=!0;\n"
+            "    fetch(\"/api/montage/transitions\")\n"
+            "      .then(function(rp){return rp.ok?rp.json():null})\n"
+            "      .then(function(d){if(al&&d&&Array.isArray(d.familles)){\n"
+            "        window.__dzTransCat=d;setDzTransCat(d)}})\n"
+            "      .catch(function(){});\n"
+            "    return function(){al=!1}},[]);\n"
+            # ── « V1 » (D-12) : LA REF DU VOILE DU LECTEUR ───────────
+            # REPLIÉE ICI, même mesure que « E1 », « K3 » et « X1 »
+            # ci-dessus : l'ancre de ce remplacement (`dzTracksRef`)
+            # vaut 0 dans .bak_montage, donc aucune section ne peut la
+            # prendre pour ancre.
+            # UNE REF ET PAS UN ÉTAT, et c'est la nature du voile qui
+            # l'impose : il change à CHAQUE frame (la boucle `step`
+            # fait `setPh`, donc `liveSync` tourne à chaque frame). Un
+            # état aurait re-rendu l'arbre entier soixante fois par
+            # seconde pour deux propriétés de style. C'est exactement
+            # le parti pris des deux hôtes du lecteur (`liveHostRef`,
+            # `liveOvRef`), remplis impérativement eux aussi.
+            "  var dzVeilRef=x.useRef(null);\n"
+            # ── « TT7ref » (D-21, 22/09/2026) : L'HÔTE DE L'APERÇU DE
+            # TITRE ET LE CATALOGUE DES GABARITS ──────────────────────
+            # REPLIÉS ICI, même mesure que « E1 », « K3 », « X1 » et
+            # « V1 » : l'ancre de ce remplacement (`dzTracksRef`) vaut 0
+            # dans .bak_montage.
+            # L'HÔTE EST UNE REF, PAS UN ÉTAT, et pour la raison du
+            # voile : `liveSync` le remplit IMPÉRATIVEMENT à chaque
+            # frame (TT8). Un état aurait re-rendu l'arbre entier
+            # soixante fois par seconde pour une chaîne de HTML.
+            # LE CATALOGUE EST UN ÉTAT, lui, et c'est la raison inverse :
+            # l'inspecteur (TT6) est du JSX, il doit se re-rendre quand
+            # les huit gabarits arrivent. Il n'est PAS posé sur `window`
+            # — contrairement au catalogue des transitions (X1), qui
+            # devait être lisible depuis `svmTransLabel`, fonction de
+            # niveau MODULE. Ici tout le monde est dans le composant.
+            # UNE SEULE FOIS (dépendances VIDES) : les huit gabarits,
+            # les seize polices et les cinq couleurs sont des constantes
+            # du serveur, pas des données de projet.
+            # L'ÉCHEC EST SILENCIEUX ET ASSUMÉ, comme X1 : sans
+            # catalogue l'inspecteur rend zéro vignette et ses deux
+            # `<select>` sont réduits à « (du gabarit) » — le carton
+            # reste réglable par son texte, et le rendu garde ses
+            # défauts. Une erreur à l'écran pour un panneau de confort
+            # aurait été plus bruyante qu'utile.
+            # `al` annule la pose après démontage (StrictMode rejoue les
+            # effets `[]` en double).
+            # L'HORLOGE DE RAFALE DE L'INSPECTEUR : meme fenetre de 600 ms
+            # que `nudgeHistAt` (M17b), `dzDurHistAt` (H6) et
+            # `dzStyleHistAt`. La reglette de corps remonte a chaque
+            # RELACHEMENT, et au CLAVIER chaque fleche est un `keyup` :
+            # cinq crans faisaient cinq instantanes, et « annuler » remontait
+            # cran par cran. Une REF et pas un etat : elle ne se lit qu'a
+            # l'interieur du rappel, personne ne se re-rend pour elle.
+            # ET LE JETON DE REMONTAGE DU CHAMP TEXTE : incremente quand
+            # l'hote REFUSE un patch (texte vide). Le clip ne bouge pas,
+            # donc la cle porteuse de valeur ne bougerait pas, donc React
+            # garderait a l'ecran l'input VIDE alors que le carton a garde
+            # son texte. Un ETAT ici, et pas une ref : c'est precisement un
+            # re-rendu qu'on veut.
+            "  var dzTtHistAt=x.useRef(0);\n"
+            "  var stDzTtN=x.useState(0),dzTtNonce=stDzTtN[0],"
+            "setDzTtNonce=stDzTtN[1];\n"
+            "  var dzTtHostRef=x.useRef(null);\n"
+            "  var stDzTt=x.useState(null),dzTitles=stDzTt[0],"
+            "setDzTitles=stDzTt[1];\n"
+            "  x.useEffect(function(){var al=!0;\n"
+            '    fetch("/api/montage/titles")\n'
+            "      .then(function(rp){return rp.ok?rp.json():null})\n"
+            "      .then(function(d){if(al&&d&&Array.isArray(d.gabarits))"
+            "setDzTitles(d)})\n"
+            "      .catch(function(){});\n"
+            "    return function(){al=!1}},[]);\n"
             "  /* P9 — « le VRAI projet est-il arrivé ? ». Tant que\n"
             "     `svmApplyProject` n'a pas remplacé la maquette, `proj` est la\n"
             "     démo : sans `tracks`, donc svmTracksOf retombe sur les six\n"
@@ -1098,6 +1498,41 @@ R_M16D = (A_M16D + '\n'
 # ── M15 (P6) : le mode remplacement, en tête d'addAsset ────────────────────
 A_M15 = "  function addAsset(src,label,kind,srcDur,trId,atTime){"
 R_M15 = (A_M15 + "\n"
+         # -- « TT1b » (D-21, 21/09/2026) : UNE PISTE DE TITRES NE RECOIT
+         # AUCUN ASSET. REPLI dans R_M15 parce que l'ancre naturelle
+         # (`    var tr2=trId||"v2",d=durRef.current;`) vaut 1 dans
+         # .bak_montage mais 0 dans le bundle patche -- M15 la reecrit, et
+         # une section a part aurait passe `--check` pour abandonner au
+         # rejeu. Elle est donc posee ICI, en TETE de R_M15.
+         # POURQUOI ELLE EXISTE, ET C'EST UN ECART MESURE CONTRE LE PLAN :
+         # celui-ci annoncait qu'`addAsset` refuserait t1 « comme il refuse
+         # s1 ». MESURE du 21/09/2026 : `addAsset` n'interroge PAS
+         # `trackKind` -- il ne teste que le VERROU de piste. Les seize
+         # egalites de `trackKind` ferment le glisser-depose (`svmDragOk`,
+         # `dropOnTrack`) et la pile d'effets, mais PAS le bouton « + » de
+         # l'en-tete de piste : son `onClick` n'aiguille que sur « subs » et
+         # retombe sinon sur `openPicker`, qui appelle `addAsset`. Sans cette
+         # garde, le « + » de T1 posait un PLAN VIDEO sur la piste des
+         # titres -- un clip que le backend collecte comme carton, que
+         # `title_spec` refuse faute de `title`, et qui disparaissait du
+         # rendu en ne laissant qu'une ligne de journal.
+         # LE COURT-CIRCUIT EST LE PREMIER DE TOUS, avant meme le mode
+         # remplacement : une piste de titres ne recoit pas davantage un
+         # remplacement qu'un ajout, et le mode ne doit pas etre CONSOMME
+         # par un refus.
+         # `svmKeyLabelNow` PLUTOT QUE `svmKeyLabel` : la premiere est
+         # declaree au niveau MODULE (une seule definition, 3 appels dans le
+         # .bak) et lit la keymap vivante de localStorage -- aucune
+         # discussion de portee, et la note ne ment pas apres un remappage.
+         '    if(trackKind(trId||"v2")==="title"){\n'
+         '      fireNote("La piste des titres ne reçoit que des cartons — "'
+         # LA PHRASE NE REPREND PAS CELLE DE L'INDEX DES MARQUEURS (« … en
+         # pose un a la tete de lecture. ») : cette formule-la est comptee a
+         # UN par la ligne `D5_I5_les_trois_textes_lisent_la_keymap_vivante`,
+         # qui verifie qu'elle n'a pas disparu. Deux phrases identiques
+         # auraient fait rougir une ligne qui n'a rien a voir avec D-21.
+         '+svmKeyLabelNow("title_add")+" en pose un.");\n'
+         '      setOvPick("");return}\n'
          "    /* P6 — MODE REMPLACEMENT, en court-circuit AVANT tout le reste :\n"
          "       un remplacement ne choisit pas de piste, il garde celle du\n"
          "       plan. Le mode est CONSOMMÉ dès l'entrée (une seule fois par\n"
@@ -1277,6 +1712,21 @@ R_M15B = (
     '      r.jsx("div",{className:"svm-poptitle",children:dzmA\n'
     '        ?("Remplacer la source de « "+(dzmA.label||"ce plan")+" »")\n'
     '        :("Ajouter sur la piste "+tr2.toUpperCase())}),\n'
+    # ── « E2 » (D-2) : LA RANGÉE DES SIX MODES ────────────────────
+    # REPLIÉE ICI pour la même raison qu'E1 : la ligne du titre ci-dessus
+    # vaut 0 dans .bak_montage (c'est CE remplacement qui l'écrit) et 1
+    # dans le bundle livré. Elle est posée ENTRE le titre et la note : le
+    # titre dit SUR QUELLE PISTE, la rangée dit COMMENT, la note dit OÙ.
+    # `range` vient de `proj` et non d'une ref parce que ce panneau est
+    # RENDU : il voit la plage courante, et la chip « remplir la plage »
+    # s'éteint donc d'elle-même tant qu'I / U n'ont pas été frappés.
+    # LA RANGÉE N'EXISTE PAS EN MODE REMPLACEMENT, et c'est une MESURE :
+    # `addAsset` COURT-CIRCUITE sur `dzmReplaceRef.current` dès son
+    # entrée (P6), AVANT la piste, avant la tête, avant le mode. Six
+    # chips cliquables qui ne décident de rien sont un mensonge ; et le
+    # titre du panneau dit déjà « Remplacer la source de … ».
+    '      dzmA?null:r.jsx(DzTracks.ModeBar,{mode:dzMode,onMode:setDzMode,\n'
+    '        range:proj.range}),\n'
     '      r.jsx("div",{className:"svm-popnote",style:{marginTop:6},\n'
     '        children:dzmA?("Le prochain élément choisi REMPLACERA la '
     'source de ce plan (piste "+dzmA.tr.toUpperCase()+") au lieu d\'être '
@@ -1355,6 +1805,32 @@ R_M15B = (
 # à ce qu'il capture. On l'écrit ici parce que c'est ici que `dzFit` est
 # connu, et que les lignes suivantes (ovSeq, id, pushHistory, setClips)
 # appartiennent au bundle et ne sont pas dans cette ancre.
+
+# ── « E4 » (D-2, 21/09/2026) : LE VERROU SE JUGE APRÈS LE MODE ───────────
+# LE DÉFAUT, MESURÉ : cette garde-ci teste la piste VISÉE, et elle précède le
+# mode d'édition. En « au-dessus » avec V1 verrouillée et V2 libre, le geste
+# était refusé alors que RIEN n'allait sur V1 : c'est V2 qui devait recevoir
+# le clip. La garde n'est pas supprimée, elle est DÉPLACÉE — `dzmInsere`
+# teste déjà `opts.locked[piste finale]` et rend `refus:"verrou"` avec la
+# piste CONCERNÉE dans `track` (R_M22A). La phrase d'origine est reprise MOT
+# POUR MOT quand la piste refusée est bien celle qu'on visait : sur ce
+# chemin-là, rien ne change pour l'utilisateur.
+# L'ANCRE EST UNE VRAIE SECTION, elle : son texte vaut 1 dans .bak_montage
+# (mesuré) parce qu'il vient du greffon amont son-vfx-montage.js, qu'on ne
+# touche PAS. C'est la seule des quatre « E » qui en soit une ; E1, E2 et E3
+# visent des textes que d'autres remplacements POSENT. Le compte d'ancres
+# passe donc de 75 à 76, et `PATCHES` de 74 à 75 triplets.
+# CE QUE ÇA COÛTE, DIT : sur une piste verrouillée, la sonde audio
+# (`askAudio`) part maintenant AVANT le refus — un aller-retour réseau,
+# mis en cache, sans écriture. Aucun clip, aucun historique : les deux
+# gardes qui comptent (`pushHistory`, `setClips`) restent derrière le refus.
+A_E4 = '    if(trackStRef.current[tr2]&&trackStRef.current[tr2].l){\n      fireNote("Piste "+tr2.toUpperCase()+" verrouillée — déverrouillez-la pour ajouter.");return}\n'
+R_E4 = ("    /* « E4 » (D-2) — LE VERROU DE PISTE SE JUGE APRÈS LE MODE, dans\n"
+        "       `insere()` : le mode « au-dessus » CHANGE de piste, et\n"
+        "       refuser ici sur la piste visée refusait un geste qui n'allait\n"
+        "       pas s'y poser. Le refus, sa phrase d'origine comprise, vit\n"
+        "       désormais au seul endroit qui connaît la piste RÉELLE. */\n")
+
 A_M17A = ('    st=Math.min(Math.max(0,st),Math.max(0,d-1));\n'
           '    var en=Math.min(d,st+defaultLen(kind,srcDur));'
           'if(en-st<.5)st=Math.max(0,en-1);\n')
@@ -1390,15 +1866,23 @@ R_M17A = (
     "      DzTracks.askDur(src,{done:function(dzV){\n"
     "        addAsset(src,label,kind,dzV>0?dzV:-1,trId,st)}});return}\n"
     "    var dzCl=defaultLen(kind,srcDur);\n"
-    "    var en=st+dzCl.len;if(en-st<.5)st=Math.max(0,en-1);\n"
-    "    var dzFit=DzTracks.fitDur([{end:en}],d,0),dzGrew=dzFit>d?dzFit:0;\n"
-    "    var dzTail=dzCl.note+(dzGrew?(\" La timeline a été allongée de \"+\n"
-    "      svmRuler(Math.round(d))+\" à \"+svmRuler(Math.round(dzGrew))+\n"
-    "      \" : le clip garde sa longueur entière au lieu d'être rogné sur la \"+\n"
-    "      \"fin du projet. « Annuler » retire le clip mais NE raccourcit PAS \"+\n"
-    "      \"la timeline — le réglage de durée, à côté du zoom, la reprend.\"):\"\");\n"
-    "    if(dzGrew)setProj(function(p){"
-    "return Object.assign({},p,{dur:dzGrew})});\n")
+    "    var en=st+dzCl.len;if(en-st<.5)st=Math.max(0,en-1);\n")
+# « E3 » (D-2, 21/09/2026) — CE QUI A QUITTÉ CETTE SECTION, ET POURQUOI.
+# `dzFit` / `dzGrew` / `dzTail` / le `setProj(dur)` vivaient ICI, où le seul
+# clip connu était celui qu'on s'apprêtait à poser : `fitDur([{end:en}],d,0)`.
+# LES MODES D'ÉDITION RENDENT CETTE MESURE FAUSSE, et c'est mesurable : en
+# `inserer`, `fin` et `ripple_ecraser`, `DzTracks.insere` POUSSE la suite de
+# la piste — la fin réelle du montage dépasse alors `en`, et des clips
+# vivraient au-delà de `proj.dur` (invisibles, non rendus par la règle).
+# Le calcul est donc déplacé dans R_M22A, APRÈS l'insertion, où il se fait
+# sur `dzIns.clips` — la timeline ENTIÈRE. L'ordre des phrases de la note ne
+# change pas d'un mot : `dzCl.note` puis l'allongement puis le jumeau.
+# CE QUI NE CHANGE PAS NON PLUS : `setProj(dur)` reste AVANT `pushHistory()`,
+# et la note « Annuler … rend aussi la durée d'avant » reste VRAIE — mesuré
+# le 21/09/2026 : `dzmHistHost()` lit `dzProjRef.current`, une ref réécrite
+# au RENDU (`dzProjRef.current=proj`, à côté de `histRef`), jamais par
+# `setProj` ; l'instantané pris par `pushHistory()` porte donc encore la
+# durée D'AVANT, que `DzTracks.histApply` rend à « Annuler » depuis D-0.
 
 # ── M17b (P10) : le décalage clavier étend au lieu de buter ─────────────────
 # L'ANCRE PORTE LE CORPS ENTIER DE `nudge`, du plafond jusqu'à `setDirty(!0)`.
@@ -1439,9 +1923,8 @@ R_M17B = (
     "return Object.assign({},p,{dur:dzNd})});\n"
     "        fireNote(\"Timeline allongée à \"+svmRuler(Math.round(dzNd))+\n"
     "          \" : « \"+(c.label||\"le clip\")+\" » dépasse la fin du projet, \"+\n"
-    "          \"et n'a PAS été rogné pour autant. « Annuler » le ramène en \"+\n"
-    "          \"place mais NE raccourcit PAS la timeline — le \"+\n"
-    "          \"réglage de durée, à côté du zoom, la reprend.\")}\n"
+    "          \"et n'a PAS été rogné pour autant. « Annuler » le ramène \"+\n"
+    "          \"en place, et rend aussi la durée d'avant.\")}\n"
     "      setDirty(!0)},\n")
 
 # ── M17c (P10) : `ripMax` disparaît avec le plafond qu'il servait ───────────
@@ -1517,9 +2000,8 @@ R_M17F = (
     '          fireNote("Timeline allongée de "+svmRuler(Math.round(dzU0))+'
     '" à "+\n'
     '            svmRuler(Math.round(dzUd))+" : le geste dépassait la fin du "+\n'
-    '            "projet, et rien n\'a été rogné. « Annuler » rend les clips "+\n'
-    '            "mais NE raccourcit PAS la timeline — le réglage de durée, "+\n'
-    '            "à côté du zoom, la reprend.")}}}\n')
+    '            "projet, et rien n\'a été rogné. « Annuler » rend les "+\n'
+    '            "clips, et rend aussi la durée d\'avant.")}}}\n')
 
 # ── M17g (P10) : le réglage explicite de la durée, dans le transport ───────
 # L'ANCRE est la QUEUE de l'expression du zoom : `" % · "+svmRuler(…)+
@@ -1545,11 +2027,17 @@ R_M17G = ('" %"]}),\n'
           '        /* P10 — la durée du projet CESSE D\'ÊTRE UN AFFICHAGE. Elle\n'
           '           s\'allonge et se raccourcit ici, d\'une graduation de la\n'
           '           règle à la fois ; raccourcir sous la fin du dernier clip\n'
-          '           est REFUSÉ, jamais fait en silence. Le geste n\'entre pas\n'
-          '           dans l\'historique (qui ne porte que {clips, mixDb}) et\n'
-          '           chaque note le dit — le retour, c\'est ce contrôle. */\n'
+          '           est REFUSÉ, jamais fait en silence. Depuis D-0 (le\n'
+          '           21/09/2026, « H6 », replié ICI) le geste ENTRE dans\n'
+          '           l\'historique, une entrée par rafale de 600 ms, et\n'
+          '           chaque note le dit. */\n'
           '        DzTracks.durCtl({dur:dur,step:tickStep,clips:clips,\n'
-          '          onSet:function(v){setProj(function(p){'
+          '          /* D-0 — MÊME FENÊTRE QUE `nudgeHistAt` (M17b) : une\n'
+          '             rafale de clics sur « + » vaut UNE entrée, pas trente. */\n'
+          '          onSet:function(v){var dzN=Date.now();\n'
+          '            if(dzN-dzDurHistAt.current>600)pushHistory();\n'
+          '            dzDurHistAt.current=dzN;\n'
+          '            setProj(function(p){'
           'return Object.assign({},p,{dur:v})});setDirty(!0)},\n'
           '          note:fireNote}),')
 
@@ -1745,24 +2233,155 @@ A_M22A = ('    ovSeq.current++;\n'
           '    var id=tr2+"u"+ovSeq.current+"_"+Math.round(st*10);\n'
           '    pushHistory();')
 R_M22A = (
-    "    ovSeq.current++;\n"
+    # ── « E3 » (D-2, 21/09/2026) : L'ÉCRITURE PASSE PAR LE MODE ─────────
+    # REPLIÉ ICI ET DANS R_M22B, pas en section : `setClips(clipsRef.current
+    # .concat(dzTw&&dzTw.clip?…))` vaut 0 dans .bak_montage (R_M22B l'écrit)
+    # et 1 dans le bundle livré — une section serait refusée par --check.
+    #
+    # L'ORDRE EST LA PARTIE DIFFICILE, et il est mesuré :
+    #  1. `dzSeq` est un CANDIDAT (`ovSeq.current+1`), pas un incrément. Le
+    #     refus « verrou » sort SANS l'avoir consommé : un geste refusé ne
+    #     doit pas trouer la numérotation des identifiants.
+    #  2. `dzIns` est calculé AVANT `pushHistory()`. Un `return` sur refus
+    #     APRÈS aurait laissé un instantané FANTÔME dans la pile, et le
+    #     premier « Annuler » de l'utilisateur n'aurait rien fait.
+    #  3. L'allongement (`dzFit`/`dzGrew`) se mesure sur `dzIns.clips`, la
+    #     timeline ENTIÈRE : voir la note d'E3 au-dessus de R_M17A.
+    #
+    # LE REFUS « verrou » EST LE SEUL, depuis « E4 » (21/09/2026) : la garde
+    # héritée qui testait la piste VISÉE a été déplacée ici, parce que le mode
+    # « au-dessus » CHANGE de piste — refuser sur la piste visée refusait un
+    # geste qui n'allait pas s'y poser. `dzmInsere` ne filtre les candidates
+    # que sur le CHEVAUCHEMENT (`dzmOverlap`), jamais sur le verrou : c'est
+    # donc `refus:"verrou"` + `track` qui décident, et les DEUX cas ont leur
+    # phrase (piste visée : celle d'avant, mot pour mot ; autre piste : elle
+    # la nomme et renvoie au mode, qui reste à l'écran).
+    # `verrou_jumeau`, lui, EST un filet : `twinPlan` refuse déjà une piste de
+    # dialogue verrouillée et rend `dzTw` nul avec sa phrase (banc
+    # `verrou_note`) — le jeton n'a donc pas de chemin ici, et il n'est lu
+    # que par `dzIns.note`, qui le dirait si jamais il en gagnait un.
+    "    /* D-2 — LE MODE D'ÉDITION DÉCIDE DE L'ÉCRITURE. `dzModeRef` est\n"
+    "       l'état de la rangée de chips du sélecteur ; `insere()` rend la\n"
+    "       timeline ENTIÈRE, jumeau compris. Le numéro d'ordre n'est\n"
+    "       CONSOMMÉ qu'une fois l'insertion acceptée, et le refus sort AVANT\n"
+    "       `pushHistory()` : rien d'écrit, rien dans la pile d'annulation. */\n"
+    "    var dzSeq=ovSeq.current+1;\n"
     "    /* P12 — l'identifiant est UNIQUE contre les clips existants (une\n"
     "       sauvegarde rechargée peut en porter d'anciens du même rang), et\n"
     "       le jumeau est décidé AVANT le seul pushHistory du geste : sa\n"
     "       phrase rejoint la note de l'ajout — et une incrustation, exemptée\n"
     "       de sonde, est DITE aussi (overlayNote), jamais tue. */\n"
     '    var id=DzTracks.uniqueId(clipsRef.current||[],\n'
-    '      tr2+"u"+ovSeq.current+"_"+Math.round(st*10));\n'
+    '      tr2+"u"+dzSeq+"_"+Math.round(st*10));\n'
     "    var dzNeuf={tr:tr2,id:id,label:label,start:st,end:en,src:src,srcIn:0};\n"
     "    var dzTw=dzAuOn?DzTracks.twinPlan(dzNeuf,dzTs,clipsRef.current||[],dzAu,\n"
     "      function(t){return !!(trackStRef.current[t]&&trackStRef.current[t].l)}):null;\n"
+    # I-3 — `srcDur` PASSE PAR LES OPTIONS, PAS PAR LE CLIP. C'est une mesure
+    # de la SOURCE : posée sur le clip, elle entrait dans la sauvegarde et
+    # dans le payload de rendu (huit clés au lieu de sept, mesuré le
+    # 21/09/2026). Seul le mode « remplir » la lit, pour calculer la vitesse ;
+    # `dzmPose` retire désormais la clé de la copie posée, ce qui couvre aussi
+    # l'appelant qui la mettrait quand même sur le clip.
+    "    var dzIns=DzTracks.insere(clipsRef.current||[],dzNeuf,dzModeRef.current,\n"
+    "      {tracks:dzTs,twin:dzTw&&dzTw.clip,head:phRef.current,\n"
+    "       srcDur:Number(srcDur)||0,\n"
+    "       range:dzProjRef.current&&dzProjRef.current.range,\n"
+    "       locked:(function(){var o={},k;for(k in trackStRef.current)\n"
+    "         if(trackStRef.current[k]&&trackStRef.current[k].l)o[k]=!0;\n"
+    "         return o})()});\n"
+    # I-5 — LE REFUS NE FERME PAS LE SÉLECTEUR : il disait « choisissez un
+    # autre mode » en escamotant la rangée qui les porte. Les deux refus
+    # frères du même corps (piste absente, source d'un autre genre) laissent
+    # déjà le panneau ouvert ; celui-ci s'aligne.
+    "    if(dzIns.refus===\"verrou\"){\n"
+    "      fireNote(dzIns.track===tr2\n"
+    "        ?(\"Piste \"+String(tr2).toUpperCase()+\" verrouillée — \"+\n"
+    "          \"déverrouillez-la pour ajouter.\")\n"
+    "        :(\"Piste \"+String(dzIns.track).toUpperCase()+\" verrouillée — \"+\n"
+    "          \"rien n'a été posé. Déverrouillez-la, ou choisissez un \"+\n"
+    "          \"autre mode d'édition.\"));return}\n"
+    "    ovSeq.current=dzSeq;\n"
+    "    /* LE CLIP RÉELLEMENT POSÉ : `dzmPose` RENOMME un identifiant déjà\n"
+    "       pris, et « en fin » / « remplir » le posent à d'autres bornes que\n"
+    "       [st,en[. On le relit par `dzIns.id` pour que la note dise la\n"
+    "       position VRAIE et que la sélection porte sur le bon clip. */\n"
+    "    var dzP=null,dzJ;\n"
+    "    for(dzJ=0;dzJ<dzIns.clips.length;dzJ++)\n"
+    "      if(dzIns.clips[dzJ]&&dzIns.clips[dzJ].id===dzIns.id)dzP=dzIns.clips[dzJ];\n"
+    # CONFORMITÉ 5 — LA PHRASE DE L'ALLONGEMENT EST BORNÉE. « Le clip garde sa
+    # longueur entière au lieu d'être rogné sur la fin du projet » est FAUSSE
+    # quand la timeline débordait DÉJÀ (un projet dont `dur` a été raccourci
+    # à la main porte des clips au-delà, et le contrôle de la barre de
+    # transport le permet depuis P10) : ce n'est alors pas CE clip qui a fait
+    # grandir la durée. `dzAv` mesure la fin réelle d'AVANT l'insertion.
+    "    var dzAv=DzTracks.fitDur(clipsRef.current||[],d,0);\n"
+    "    var dzFit=DzTracks.fitDur(dzIns.clips,d,0),dzGrew=dzFit>d?dzFit:0;\n"
+    "    var dzTail=dzCl.note+(dzGrew?(\" La timeline a été allongée de \"+\n"
+    "      svmRuler(Math.round(d))+\" à \"+svmRuler(Math.round(dzGrew))+\n"
+    "      (dzAv>d?\" pour tenir tout ce qu'elle porte.\"\n"
+    "        :\" : le clip garde sa longueur entière au lieu d'être rogné sur \"+\n"
+    "          \"la fin du projet.\")+\n"
+    "      \" « Annuler » retire le clip, et \"+\n"
+    "      \"rend aussi la durée d'avant.\"):\"\");\n"
     "    if(dzTw)dzTail+=dzTw.note;\n"
     "    else dzTail+=DzTracks.overlayNote(kind,dzTs,tr2);\n"
+    # M-5 — LA PISTE N'EST PAS RÉPÉTÉE : `tr2` vient d'être réaffecté à
+    # `dzIns.track`, et la note principale dit déjà « ajouté sur V2 à … ».
+    # Ce qu'il reste à dire est le MODE, et RIEN D'AUTRE. Une version de
+    # cette phrase disait « la piste visée était occupée à cet instant » :
+    # c'était FAUX, et c'est mesuré (21/09/2026, `dzmInsere` joué sous node,
+    # pistes [v2, v1], clips VIDES, clip visé sur v1 en « dessus » →
+    # `{track:"v2", refus:"", note:""}`). Le mode remonte TOUJOURS vers la
+    # première piste libre du même genre au-dessus ; il ne regarde jamais
+    # l'occupation de la piste visée. La note énonce donc le mode appliqué,
+    # exactement comme la branche `else` juste en dessous.
+    # I-2 — LA VITESSE EST FORMATÉE SUR PLACE. `DzTracks.secs` est un
+    # formateur de DURÉE : il arrondit au dixième et rendait « ×0,3 » pour
+    # une vitesse de 0,25 (mesuré le 21/09/2026), en plus de coller un « s »
+    # qu'il fallait retirer après coup. Une virgule décimale suffit.
+    "    /* D-2 — LE MODE APPLIQUÉ EST DIT, COURT. `dzIns.mode` est le mode\n"
+    "       EFFECTIF : « au-dessus » rend toujours \"ecraser\" sur une autre\n"
+    "       piste, c'est donc le changement de PISTE qui le trahit, et le\n"
+    "       repli « aucune piste libre » parle par `dzIns.note`. */\n"
+    "    if(dzIns.track&&dzIns.track!==tr2)dzTail+=\" Posé sur la piste \"+\n"
+    "      \"libre au-dessus (mode « au-dessus »).\";\n"
+    "    else if(dzIns.mode!==\"ecraser\")dzTail+=\" Mode « \"+\n"
+    "      DzTracks.modeLabel(dzIns.mode)+\" ».\"+\n"
+    "      ((dzP&&Number(dzP.speed)>0&&Number(dzP.speed)!==1)?\n"
+    "        \" Vitesse ×\"+String(dzP.speed).replace(\".\",\",\")+\".\":\"\");\n"
+    # I-1a — LE MODE DEMANDÉ N'EST PAS TOUJOURS LE MODE APPLIQUÉ. « remplir la
+    # plage » retombe en « écraser » quand la plage a disparu entre le clic
+    # sur la chip et l'ajout. R_R2 désarme désormais le mode quand la plage
+    # devient nulle (X, Maj+X), mais la course reste possible : un
+    # glisser-déposer, le greffon « Envoyer vers → Montage », un rappel
+    # d'`askAudio` parti avant l'effacement. Le silence était le pire des cas :
+    # le clip s'écrasait sous la tête sans un mot.
+    "    if(dzModeRef.current===\"remplir\"&&dzIns.mode!==\"remplir\")\n"
+    "      dzTail+=\" Plage effacée : posé en écraser.\";\n"
+    # M-3 — la phrase du cœur entre dans une PHRASE : première lettre capitale.
+    "    /* Le JETON `dzIns.refus` n'est jamais affiché : la phrase française\n"
+    "       est `dzIns.note` (écrêtage de vitesse, aucune piste libre…), et\n"
+    "       elle est capitalisée parce qu'elle suit un point. */\n"
+    "    if(dzIns.note)dzTail+=\" \"+dzIns.note.charAt(0).toUpperCase()+\n"
+    "      dzIns.note.slice(1)+\".\";\n"
+    "    if(dzGrew)setProj(function(p){"
+    "return Object.assign({},p,{dur:dzGrew})});\n"
+    "    /* LA NOTE ET LA SÉLECTION DISENT LE RÉEL : `id`, `tr2` et `st` sont\n"
+    "       RELUS sur le clip posé avant que la fin d'`addAsset` (setSelId,\n"
+    "       fireNote) ne les emploie — c'est la même variable, pas une\n"
+    "       seconde source de vérité. La phrase de la piste absente, le choix\n"
+    "       des pistes et `overlayNote` ont déjà lu `tr2` au-dessus : leur\n"
+    "       sens ne change pas. */\n"
+    "    id=dzIns.id||id;tr2=dzIns.track||tr2;if(dzP)st=Number(dzP.start)||0;\n"
     "    pushHistory();")
 A_M22B = ('setClips(clipsRef.current.concat([{tr:tr2,id:id,label:label,'
           'start:st,end:en,src:src,srcIn:0}]));')
-R_M22B = ('setClips(clipsRef.current.concat(dzTw&&dzTw.clip?[dzNeuf,dzTw.clip]'
-          ':[dzNeuf]));')
+# « E3 » (D-2) — L'UNIQUE ÉCRITURE passe désormais par `DzTracks.insere`, qui
+# a déjà posé le clip ET son jumeau dans `dzIns.clips` : un `concat` ici
+# doublerait le clip en « écraser » et perdrait la fente / le décalage des
+# autres modes. Le banc bundle le NIE explicitement
+# (`D2_addAsset_ecrit_par_insere_et_plus_par_concat`).
+R_M22B = 'setClips(dzIns.clips);'
 A_M22C = '    var first=cs.find(function(c){return c.tr==="v1"});'
 R_M22C = (
     "    /* P12 — DES IDENTIFIANTS UNIQUES. `ovSeq` repart de zéro à chaque\n"
@@ -2259,6 +2878,859 @@ R_M26B = (
     "          apres:dzOn.on?DzTracks.subsTrTitle(dzTrN):dzOn.pourquoi,\n"
     '          onClick:dzTraduire,k:"trad"})})(),')
 
+# ══════════════════════════════════════════════════════════════════════════
+# D-0 (21/09/2026) — L'HISTORIQUE COMPLET, CÂBLÉ. Le cœur est PUR et vit dans
+# la couche (`DzTracks.histSnap` / `histApply`, joués sous node par
+# backend/tests/test_montage_historique.py) ; ces sept sections le BRANCHENT.
+# ══════════════════════════════════════════════════════════════════════════
+
+# ── H1 (D-0) : la ref du projet et l'instantané complet, à côté de histRef ─
+# `pushHistory`, `undo` et `redo` sont des useCallback à dépendances vides :
+# ils ne voient JAMAIS `proj` — d'où une ref relue à chaque rendu, même motif
+# que `dzTracksRef` (M16ref). MESURÉ : `proj` est déclaré PLUS HAUT dans le
+# même corps de composant (`var stP=x.useState({demo:!0,…}),proj=…`), donc
+# AVANT cette ligne ; l'affectation à chaque rendu lit bien la valeur du
+# rendu courant et non `undefined`. Pas de chiffre ici : la distance en
+# octets dépend de la borne qu'on choisit et se périme au premier patch
+# amont — c'est l'ORDRE qui compte, et il est stable.
+# `dzmHistHost()` est LE seul lecteur de l'état courant pour l'historique :
+# les gestes qui capturaient h0 à la main passent par lui (H5), les autres
+# gardent leur {clips, mixDb} — histApply s'en accommode (banc L0 [1],
+# « partiel »).
+# L'ANCRE REPREND LE COMMENTAIRE DE FIN DE LIGNE (« piles annuler /
+# rétablir ») : sans lui, le remplacement l'aurait poussé sur la dernière
+# ligne insérée, où il aurait décrit `dzDurHistAt` au lieu de `histRef`.
+A_H1 = "var histRef=x.useRef({u:[],r:[]}); /* piles annuler / rétablir */"
+R_H1 = (A_H1 + "\n"
+        "  var dzProjRef=x.useRef(null);dzProjRef.current=proj;\n"
+        "  function dzmHistHost(){return DzTracks.histSnap({clips:clipsRef.current,"
+        "mixDb:mixRef.current,proj:dzProjRef.current})}\n"
+        "  var dzStyleHistAt=x.useRef(0);\n"
+        "  var dzDurHistAt=x.useRef(0);")
+
+# ── H2 (D-0) : ce que pushHistory empile sans argument ─────────────────────
+A_H2 = "h.u.push(prev||{clips:clipsRef.current,mixDb:mixRef.current});"
+R_H2 = "h.u.push(prev||dzmHistHost());"
+
+# ── H3 / H4 (D-0) : undo et redo restaurent TOUT l'instantané ──────────────
+# Le corps entier est l'ancre : `setClips(s.clips);` seul apparaît deux fois.
+# `histApply` IGNORE DÉLIBÉRÉMENT la clé `clips` (les clips ne vivent pas
+# dans `proj` mais dans `clipsRef`/`setClips`) : c'est le `if("clips" in s)`
+# juste au-dessus qui les rend, et lui seul.
+A_H3 = ("var undo=x.useCallback(function(){\n"
+        "    var h=histRef.current;if(!h.u.length)return;\n"
+        "    var s=h.u.pop();\n"
+        "    h.r.push({clips:clipsRef.current,mixDb:mixRef.current});\n"
+        "    if(h.r.length>60)h.r.shift();\n"
+        "    setClips(s.clips);\n"
+        "    setProj(function(p){return Object.assign({},p,{mixDb:s.mixDb})});\n"
+        "    setDirty(!0);setHistTick(function(t){return t+1})},[]);")
+R_H3 = ("var undo=x.useCallback(function(){\n"
+        "    var h=histRef.current;if(!h.u.length)return;\n"
+        "    var s=h.u.pop();\n"
+        "    h.r.push(dzmHistHost());\n"
+        "    if(h.r.length>60)h.r.shift();\n"
+        "    if(\"clips\" in s)setClips(s.clips);\n"
+        "    /* D-0 — pistes, durée, style S1, plage, marqueurs reviennent avec\n"
+        "       le mixage ; SVM_TRACK_BUS suit les pistes restaurées. `histApply`\n"
+        "       ne touche PAS aux clips : c'est la ligne du dessus qui les rend.\n"
+        "       L'APPEL EST NU EXPRÈS : `s.tracks` vaut `undefined` quand le\n"
+        "       projet d'avant n'avait pas la clé, et `svmTrackBusSync` retombe\n"
+        "       alors sur DZM_DEFAULT_TRACKS — la table même que `svmTracksOf`\n"
+        "       rend sans `proj.tracks` (mesuré sous node le 21/09/2026 : les\n"
+        "       trois bus sont identiques). */\n"
+        "    if(\"tracks\" in s)svmTrackBusSync(s.tracks);\n"
+        "    setProj(function(p){return DzTracks.histApply(p,s)});\n"
+        "    setDirty(!0);setHistTick(function(t){return t+1})},[]);")
+A_H4 = A_H3.replace("var undo=", "var redo=").replace("!h.u.length", "!h.r.length") \
+           .replace("h.u.pop()", "h.r.pop()").replace("h.r.push(", "h.u.push(") \
+           .replace("h.r.length>60)h.r.shift", "h.u.length>60)h.u.shift")
+R_H4 = R_H3.replace("var undo=", "var redo=").replace("!h.u.length", "!h.r.length") \
+           .replace("h.u.pop()", "h.r.pop()").replace("h.r.push(", "h.u.push(") \
+           .replace("h.r.length>60)h.r.shift", "h.u.length>60)h.u.shift")
+
+# ── H5 (D-0) : le h0 du glisser de clip capture l'état ENTIER ──────────────
+# Sans quoi le relâchement de M17f (qui allonge la durée) empilait un h0 sans
+# `dur`, et « Annuler » rendait les clips mais pas la timeline.
+A_H5 = "var h0={clips:clipsRef.current,mixDb:mixRef.current},snapAt=null;"
+R_H5 = "var h0=dzmHistHost(),snapAt=null;"
+
+# ── H6 (D-0) : le réglage de durée entre dans l'historique ─────────────────
+# PAS DE SECTION H6. MESURÉ le 21/09/2026 : son ancre — la ligne `onSet` du
+# contrôle de durée — n'existe pas dans le bundle d'entrée, elle est POSÉE
+# par R_M17G. Une section de plus y aurait cassé DEUX invariants du banc :
+# `--check`, qui compte les ancres sur le seul état PRÉ-patch, déclarait H6
+# introuvable ; et la boucle générique `M17g-transport-duree_remplace`
+# comptait 0, puisque R_M17G n'apparaissait plus verbatim dans le bundle.
+# La modification est donc REPLIÉE dans R_M17G, exactement comme M10 dans
+# R_M8 et M9c dans R_M9b. Le banc la mesure sous node (`ct_hist`).
+
+# ── H7 (D-0) : le style S1 entre dans l'historique (même fenêtre) ──────────
+A_H7 = "function subsStyleSet(patch){"
+R_H7 = ("function subsStyleSet(patch){\n"
+        "    var dzN=Date.now();if(dzN-dzStyleHistAt.current>600)pushHistory();"
+        "dzStyleHistAt.current=dzN;")
+
+# ── D-11 (21/09/2026) : LA PLAGE D'ENTREE / SORTIE ─────────────────────────
+# Trois sections seulement : les deux dernieres du plan (« R4 » la sauvegarde,
+# « R5 » la restauration) sont REPLIEES dans R_M6 et R_M7, dont elles visaient
+# un texte POSE — voir les commentaires la-bas.
+#
+# ── R1 (D-11) : quatre actions dans SVM_ACTIONS (remappables, listees) ─────
+# Lettres MESUREES libres le 21/09/2026 sur la table SVM_ACTIONS du bundle
+# d'entree : I, U, X et Maj+X n'y sont pris par personne (B D F G J K L M N R
+# S T le sont, C sous Alt, Z sous Ctrl et sous Maj).
+A_R1 = ' {id:"ripple",sec:"Montage",lbl:"ripple — refermer les trous",combo:"R"},'
+R_R1 = (A_R1 + "\n"
+        ' {id:"range_in",sec:"Montage",lbl:"plage : point d\'entrée à la tête",combo:"I"},\n'
+        ' {id:"range_out",sec:"Montage",lbl:"plage : point de sortie à la tête",combo:"U"},\n'
+        ' {id:"range_clear",sec:"Montage",lbl:"plage : effacer",combo:"X"},\n'
+        ' {id:"range_cut",sec:"Montage",lbl:"plage : couper (toutes pistes, ripple)",combo:"Maj+X"},'
+        # -- « K1 » (D-5, 21/09/2026) : LES QUATRE ACTIONS DES MARQUEURS ---
+        # REPLIEES ICI, et c'est une MESURE : la ligne `range_cut` ci-dessus
+        # vaut 0 dans .bak_montage (c'est CE remplacement qui l'ecrit) et 1
+        # dans le bundle livre -- une section qui la prendrait pour ancre
+        # serait refusee par `--check`, qui ne regarde que l'etat pre-patch.
+        # Meme technique que R4/R5 dans R_M6/R_M7 et H6 dans R_M17G.
+        # COMBOS MESUREES LIBRES le 21/09/2026 sur la table SVM_ACTIONS du
+        # bundle d'entree : elle porte « M » (muet) mais NI « Maj+M », NI
+        # « Ctrl+M », NI « Ctrl+haut », NI « Ctrl+bas ». Aucune des quatre
+        # n'est dans SVM_COMBO_RESERVED (Ctrl+R/W/T/N, Ctrl+Maj+I/J/C,
+        # Alt+F4).
+        # LE NOM DES FLECHES SOUS CTRL SE LIT DANS `svmComboOfEvent` :
+        # SVM_EV_NAMES mappe ArrowUp / ArrowDown sur les CARACTERES fleches
+        # et le prefixe « Ctrl+ » est concatene tel quel -- donc « Ctrl+ »
+        # suivi de la fleche, jamais « Ctrl+ArrowUp ».
+        # « Maj+M » NE SERA PAS CONFONDUE AVEC « M » (muet) : le dispatch
+        # cherche d'abord `m[combo]` EXACT et ne retombe sur la variante
+        # sans Maj que lorsque la combo complete est inconnue de la table.
+        # Elle y est desormais.
+        '\n {id:"marker_toggle",sec:"Montage",lbl:"marqueur : poser / retirer a la tete",combo:"Maj+M"},\n'
+        ' {id:"marker_prev",sec:"Montage",lbl:"marqueur precedent",combo:"Ctrl+\u2191"},\n'
+        ' {id:"marker_next",sec:"Montage",lbl:"marqueur suivant",combo:"Ctrl+\u2193"},\n'
+        ' {id:"marker_index",sec:"Montage",lbl:"marqueurs : l\'index",combo:"Ctrl+M"},'
+        # -- \u00ab W1 \u00bb (D-4, 21/09/2026) : LES DEUX ACTIONS DE L'ECHANGE --------
+        # REPLIEE ICI, meme technique que K1 : l'ancre du plan (\u00ab apres la
+        # ligne marker_index de K1 \u00bb) n'existe pas dans .bak_montage -- c'est
+        # K1, juste au-dessus, qui la pose. Une section qui la prendrait pour
+        # ancre serait refusee par `--check`, qui ne regarde que le .bak.
+        # COMBOS MESUREES LIBRES le 21/09/2026 sur la table SVM_ACTIONS du
+        # .bak_montage : ni \u00ab Ctrl+\u2190 \u00bb, ni \u00ab Ctrl+\u2192 \u00bb n'y figurent (seuls \u00ab
+        # Ctrl+\u2191 \u00bb et \u00ab Ctrl+\u2193 \u00bb le sont, par K1), et aucune des deux n'est
+        # dans SVM_COMBO_RESERVED. LE NOM DES FLECHES SOUS CTRL vient de
+        # `svmComboOfEvent` : `SVM_EV_NAMES` mappe ArrowLeft/ArrowRight sur
+        # les CARACTERES \u00ab \u2190 \u00bb/\u00ab \u2192 \u00bb, et le prefixe \u00ab Ctrl+ \u00bb est concatene
+        # tel quel -- donc \u00ab Ctrl+\u2190 \u00bb, jamais \u00ab Ctrl+ArrowLeft \u00bb.
+        # CONTEXTE MESURE (M25k, fl\u00e8ches de l'overlay) : `ovArrow` n'est
+        # invoque QUE pour les quatre actions `step_back`/`step_fwd`/
+        # `cut_prev`/`cut_next` (branche dediee dans `onKey`, plus haut dans
+        # le meme composant) ; `swap_left`/`swap_right` ne passent jamais par
+        # cette branche, donc Ctrl+\u2190 / Ctrl+\u2192 ne sont PAS captures par
+        # l'overlay -- pas besoin d'Alt+\u2190/\u2192 de repli.
+        '\n {id:"swap_left",sec:"Montage",lbl:"echanger avec le plan precedent",combo:"Ctrl+\u2190"},\n'
+        ' {id:"swap_right",sec:"Montage",lbl:"echanger avec le plan suivant",combo:"Ctrl+\u2192"},'
+        # -- « TT4 » (D-21, 21/09/2026), premiere moitie : POSER UN TITRE ---
+        # REPLIEE ICI, meme technique que K1 et W1 : l'ancre naturelle (la
+        # ligne `swap_right` ci-dessus) est un texte que CE remplacement
+        # POSE -- 0 dans .bak_montage, 1 dans le bundle livre.
+        # COMBO MESUREE LIBRE le 21/09/2026 sur .bak_montage : `combo:"Maj+T"`
+        # vaut 0 (et `combo:"Alt+T"` aussi, repli non necessaire) ; `combo:"T"`
+        # vaut 1, c'est le panneau Narration. « Maj+T » n'est pas dans
+        # SVM_COMBO_RESERVED (qui ne porte que Ctrl+T et Ctrl+Maj+T).
+        # « Maj+T » NE SERA PAS CONFONDUE AVEC « T » : MESURE du dispatch,
+        # `onKey` cherche d'abord `m[combo]` EXACT et ne retombe sur la
+        # variante sans Maj que si la combo complete est INCONNUE de la
+        # table -- elle y est desormais. Meme raisonnement que « Maj+M ».
+        '\n {id:"title_add",sec:"Montage",lbl:"titre : poser un carton a la tete",combo:"Maj+T"},')
+
+# ── R2 (D-11) : la branche de dispatch ─────────────────────────────────────
+# PORTEE MESUREE dans `onKey` (meme corps de composant, closure) : `phRef`,
+# `clipsRef`, `trackStRef`, `fireNote`, `pushHistory`, `setProj`, `setClips`,
+# `setDirty` y sont declares par le bundle ; `svmTracksOf` est une fonction de
+# la couche injectee dans le MEME scope module ; `dzProjRef` vient de H1, qui
+# passe avant (ordre de PATCHES). `blade()`, juste au-dessus, lit deja
+# `phRef.current`.
+# SORTIE TOT (revue du 21/09/2026). La branche I / U / X calcule D'ABORD la
+# plage suivante, puis la compare a l'ancienne : `dzmRangeSet` rend
+# `range||null` quand rien ne change (tete illisible, `which` inconnu) et
+# `null` sur « clear ». Sans cette sortie tot, chaque frappe sterile empilait
+# un instantane d'historique et allumait « NON ENREGISTRE » pour rien.
+# `dzCur` REPLIE `undefined` SUR `null`, et ce n'est pas une precaution : le
+# projet de DEPART du bundle est `useState({demo:!0,name:"teaser_abyss",...})`
+# -- MESURE du 21/09/2026, il n'a PAS de cle `range`, et il n'en gagne une que
+# par svmApplyProject (R_M7), c'est-a-dire apres un chargement de projet. Sur
+# la demo, `proj.range` vaut donc `undefined` ; `rangeSet` rend `null` ; et
+# `null===undefined` est FAUX. X sur une plage vide au demarrage poussait
+# l'historique et allumait « NON ENREGISTRE » -- exactement le defaut que la
+# sortie tot devait fermer. Compare a `dzCur`, X sort.
+# EGALITE DE VALEURS en second terme : `rangeSet` construit un objet NEUF a
+# chaque "in" / "out", meme quand la tete n'a pas bouge d'un pouce. I puis I
+# au meme playhead rendait deux objets distincts mais IDENTIQUES en valeurs,
+# et l'identite seule ne pouvait pas le voir.
+# UNE DEMI-PLAGE SE DIT (M-4) : apres I seul, ou apres U seul, une note dit
+# quelle touche pose l'autre bout. La bande de la regle, elle, se tait tant
+# que la plage n'est pas COMPLETE (R3) : sans la note, l'utilisateur n'avait
+# AUCUN retour entre la premiere frappe et la seconde.
+# `cutOpts` : la paire {loopTracks, locked} etait construite ICI et dans
+# R_M12, a l'identique. Elle vit maintenant dans la couche, une seule fois.
+# ECART ASSUME CONTRE LE PLAN, MESURE : `dzmRippleCut` rend
+# `{clips, removed}` ou `removed` est la LONGUEUR RETIREE EN SECONDES
+# (`return {clips:out,removed:len}`, montage.js), PAS un nombre de clips. La
+# note du plan disait « N clip(s) retire(s) » et aurait donc menti a chaque
+# coupe. Elle dit maintenant les secondes.
+A_R2 = 'if(id==="ripple"){setRipple(function(v){return !v});return}'
+R_R2 = (A_R2 + "\n"
+        '      if(id==="range_in"||id==="range_out"||id==="range_clear"){'
+        'var dzW=id.slice(6);'
+        'var dzCur=(dzProjRef.current&&dzProjRef.current.range)||null;'
+        'var dzNx=DzTracks.rangeSet(dzCur,dzW,phRef.current,'
+        'dzProjRef.current&&dzProjRef.current.dur);'
+        'if(dzNx===dzCur||(dzNx&&dzCur&&dzNx.in===dzCur.in&&dzNx.out===dzCur.out))return;'
+        'pushHistory();setProj(function(p){return Object.assign({},p,{range:dzNx})});'
+        'setDirty(!0);'
+        # D-2 (21/09/2026) — EFFACER LA PLAGE DÉSARME « remplir la plage ».
+        # Sans cette ligne, X laissait `dzModeRef.current` à "remplir"
+        # pendant que la chip devenait GRISÉE : le prochain ajout tombait
+        # dans le repli silencieux de `dzmInsereUn` (`if(!rg) … ecraser`)
+        # et écrasait sous la tête sans un mot. Le mode suit la plage.
+        'if(!dzNx&&dzModeRef.current==="remplir")setDzMode("ecraser");'
+        'if(dzNx&&dzNx.in!=null&&dzNx.out==null)'
+        'fireNote("Entrée à "+dzNx.in.toFixed(2)+" s — U pose la sortie");'
+        'else if(dzNx&&dzNx.out!=null&&dzNx.in==null)'
+        'fireNote("Sortie à "+dzNx.out.toFixed(2)+" s — I pose l\'entrée");'
+        'return}\n'
+        '      if(id==="range_cut"){var dzRg=DzTracks.rangeFrom(dzProjRef.current&&dzProjRef.current.range);'
+        'if(!dzRg){fireNote("Aucune plage : I pose l\'entrée, U la sortie.");return}'
+        'var dzRc=DzTracks.rippleCut(clipsRef.current,dzRg.in,dzRg.out,'
+        'DzTracks.cutOpts(dzProjRef.current,trackStRef.current));'
+        'pushHistory();setClips(dzRc.clips);'
+        'setProj(function(p){return Object.assign({},p,{range:null})});setDirty(!0);'
+        # D-2 — même désarmement pour Maj+X, qui met `range:null`.
+        'if(dzModeRef.current==="remplir")setDzMode("ecraser");'
+        'fireNote("Plage "+dzRg.in.toFixed(2)+" → "+dzRg.out.toFixed(2)+" s coupée sur toutes les pistes — "+dzRc.removed.toFixed(2)+" s retirés, la suite remonte.");return}'
+        # -- « K2 » (D-5) : LE DISPATCH DES QUATRE MARQUEURS ---------------
+        # REPLIE ICI pour la meme raison que K1 : l'ancre du plan est la
+        # branche `range_cut` que CE remplacement-ci pose (0 dans le .bak).
+        # PORTEE : `phRef`, `fireNote`, `pushHistory`, `setProj`, `setDirty`
+        # et `seekTo` sont declares par le bundle dans le MEME corps de
+        # composant ; `dzProjRef` vient de H1 et `setDzMkOn` de K3, tous deux
+        # AVANT dans l'ordre de PATCHES. `seekTo` est un `x.useCallback`
+        # declare a l'offset 809767 du .bak, la branche de dispatch a
+        # 855826 : il precede, et il prend des SECONDES (`setPh(p)` puis
+        # `v.currentTime = Math.min(p, v.duration||p)`) -- la meme unite que
+        # `markerNext`, qui rend un `t`.
+        # LE PLAFOND SE DIT AU LIEU DE SE TAIRE : `markerAdd` rend une COPIE
+        # inchangee au-dela de 200 marqueurs (et sur une tete illisible).
+        # Sans cette sortie tot, la frappe sterile empilait un instantane
+        # d'historique identique et allumait « NON ENREGISTRE » pour rien --
+        # exactement le defaut que la sortie tot de la plage a ferme.
+        '\n      if(id==="marker_toggle"){'
+        'var dzMkL=(dzProjRef.current&&dzProjRef.current.markers)||[];'
+        'var dzMkT=Number(phRef.current)||0,dzMkN=DzTracks.markerAdd(dzMkL,dzMkT,{});'
+        # LA NOTE NE MENT PLUS SUR LA CAUSE (revue du 21/09/2026) :
+        # elle disait « 200 au maximum » meme quand `markerAdd` avait
+        # refuse pour une tout autre raison. Les deux cas sont
+        # desormais DISTINGUES -- le plafond, et une tete de lecture
+        # illisible (`dzmMarkerT` rend `null` sur NaN, sur l'infini,
+        # sur un negatif, sur une chaine vide).
+        'if(dzMkN.length===dzMkL.length){'
+        'fireNote(dzMkL.length>=200'
+        '?"Plafond atteint \u2014 200 marqueurs au maximum par montage."'
+        ':"T\u00eate de lecture illisible \u2014 marqueur non pos\u00e9.");return}'
+        'pushHistory();'
+        'setProj(function(p){return Object.assign({},p,{markers:dzMkN})});setDirty(!0);'
+        'fireNote(dzMkN.length<dzMkL.length'
+        '?("Marqueur retir\u00e9 \u00e0 "+dzMkT.toFixed(2)+" s.")'
+        # I-5 : LA COMBO VIENT DE LA KEYMAP VIVANTE, jamais du texte.
+        # Les quatre actions sont remappables (panneau « ? ») et une
+        # note qui dit « Ctrl+M » apres un remappage MENT.
+        # `svmKeyLabel` est declaree DANS ce composant
+        # (`return km.byId[id]||…`) : elle lit la keymap fusionnee du
+        # rendu courant, exactement comme la chip « lame ».
+        ':("Marqueur pos\u00e9 \u00e0 "+dzMkT.toFixed(2)+" s \u2014 "'
+        '+svmKeyLabel("marker_index")+" : l\'index."));return}\n'
+        '      if(id==="marker_prev"||id==="marker_next"){'
+        'var dzMkD=id==="marker_next"?1:-1;'
+        'var dzMkG=DzTracks.markerNext(dzProjRef.current&&dzProjRef.current.markers,'
+        'phRef.current,dzMkD);'
+        'if(dzMkG!=null)seekTo(dzMkG);'
+        'else fireNote("Aucun marqueur "+(dzMkD>0?"apr\u00e8s":"avant")+" la t\u00eate.");return}\n'
+        '      if(id==="marker_index"){dzMkToggle();return}\n'
+        # -- « W2 » (D-4) : LE DISPATCH DE L'ECHANGE -------------------------
+        # REPLIE ICI pour la meme raison que K2 : l'ancre du plan (« apres la
+        # branche marker_index ») est le texte que CE remplacement-ci pose --
+        # 0 dans le .bak. PORTEE MESUREE dans le MEME corps de composant que
+        # K2 : `clipsRef`, `selRef` (27 occurrences dans le .bak, `delClip`
+        # le lit deja), `trackStRef`, `fireNote`, `pushHistory`, `setClips`,
+        # `setDirty` y sont tous declares. `DzTracks.swap` rend TOUJOURS un
+        # tableau NEUF (`cs.map(...)` ou `cs.slice()`, jamais `clips`
+        # lui-meme) -- `dzSw===clipsRef.current` serait donc FAUX a chaque
+        # appel, un bras mort ECARTE (revue du 21/09/2026, M3) --
+        # `dzSw.every(function(k,i){return k===clipsRef.current[i]})` suffit
+        # SEUL a voir la sortie tot : identite de reference ELEMENT PAR
+        # ELEMENT, pas d'egalite de valeurs a construire (contrairement a la
+        # plage, R_R2 plus haut).
+        '      if(id==="swap_left"||id==="swap_right"){'
+        'var dzC=(clipsRef.current||[]).filter(function(k){'
+        'return k&&k.id===selRef.current})[0];'
+        'if(!dzC){fireNote("Échanger : sélectionnez d\'abord un plan.");return}'
+        'if(trackStRef.current[dzC.tr]&&trackStRef.current[dzC.tr].l){'
+        'fireNote("Piste "+dzC.tr.toUpperCase()+" verrouillée.");return}'
+        'var dzSw=DzTracks.swap(clipsRef.current,dzC.id,id==="swap_left"?-1:1);'
+        'if(dzSw.every(function(k,i){return k===clipsRef.current[i]})){'
+        'fireNote("Aucun plan voisin de ce côté.");return}'
+        'pushHistory();setClips(dzSw);setDirty(!0);'
+        'fireNote("« "+(dzC.label||dzC.id)+" » échangé avec le plan "'
+        '+(id==="swap_left"?"précédent":"suivant")+".");return}'
+        # -- « TT4 » (D-21), seconde moitie : LE DISPATCH DU TITRE ----------
+        # REPLIE ICI pour la meme raison que K2 et W2 : l'ancre est la
+        # branche `swap_left` que CE remplacement-ci pose (0 dans le .bak).
+        # UN SEUL `pushHistory`, ET C'EST MESURE. `svmTracksSet` (M4b) fait
+        # deja `pushHistory();svmTrackBusSync(ts);setProj(...);setDirty(!0)`.
+        # Poser un titre est UN geste : l'instantane doit donc etre pris UNE
+        # fois, AVANT la piste ET avant le clip -- sinon « Annuler » rendait
+        # la piste sans le carton, puis le carton sans la piste.
+        # LES DEUX BRANCHES PAIENT EXACTEMENT UN INSTANTANE : quand t1
+        # manque, c'est `svmTracksSet` qui le pousse ; quand elle est deja
+        # la, `titleTrack` rend le MEME tableau (mesure, banc d'edition
+        # `tt_une_piste_deja_la_rend_le_meme_tableau`) et on pousse
+        # nous-memes. Aucun `setProj` inutile dans le second cas.
+        # LE GESTE VIT DANS `dzTtAdd` (TT4a, replie dans R_M16REF) ET PAS
+        # ICI : la chip « T+ » (TT5) le declenche aussi, et le dispatch du
+        # clavier est enferme dans le `onKey` d'un `useEffect` -- aucune
+        # fonction n'en sort. Ecrire le geste aux DEUX endroits aurait fait
+        # deux sources de verite pour un meme bouton, exactement ce que le
+        # §5.1 du handoff interdit ; `dzMkToggle` est le precedent (K2, K5
+        # et K7 l'appellent tous les trois).
+        '\n      if(id==="title_add"){dzTtAdd();return}')
+
+# ── R3 (D-11) : la bande sur la regle, apres la gouttiere ──────────────────
+# `DzmRangeBar` rend `null` tant que la plage n'est pas COMPLETE : la regle
+# reste exactement celle d'avant jusqu'a ce que I et U aient ete frappes.
+A_R3 = 'r.jsx("div",{className:"svm-gutter"}),'
+# « K4 » (D-5) : LES LOSANGES DES MARQUEURS, REPLIES ICI. L'ancre du plan
+# (« apres RangeBar ») est le texte que CE remplacement-ci pose : 0 dans
+# .bak_montage. Ils viennent APRES la bande de plage dans l'ordre du DOM et
+# portent un `z-index` superieur (4 contre 3, montage.css) : un marqueur pose
+# dans une plage reste cliquable. `DzmMarkers` rend un TABLEAU (`ms.map`), que
+# React aplatit dans les enfants de la regle -- pas un conteneur de plus, donc
+# rien ne s'interpose entre `.svm-ruler` et les elements absolus qu'elle cale.
+R_R3 = (A_R3 + 'r.jsx(DzTracks.RangeBar,{range:proj.range,dur:dur}),'
+        'r.jsx(DzTracks.Markers,{markers:proj.markers,dur:dur,onSeek:seekTo}),')
+
+# ── D-3 (21/09/2026) : ROLL, SLIP, SLIDE ───────────────────────────────────
+# T1 : les modificateurs sont lus AU POINTERDOWN, une seule fois -- le geste
+# ne change pas de nature en cours de route. `svmEdgeAt` a deja pose `edge`
+# juste avant, et le verrou de piste a deja rendu la main plus haut : une
+# piste verrouillee ne slippe ni ne slide.
+A_T1 = "var x0=e.clientX,s0=c.start,e0=c.end,moved=!1,tgt=e.currentTarget;"
+R_T1 = (A_T1 + "\n"
+        '    var dzSlip=!!e.altKey&&edge==="m",dzSlide=!!e.shiftKey&&!e.altKey&&edge==="m";\n'
+        "    var dzSd=Number(c.srcDur)||0;")
+# MESURE du 21/09/2026 : `c.srcDur` vaut 0 occurrence dans le bundle -- aucun
+# cache de duree de source par clip n'existe cote ecran. `dzSd` vaut donc 0
+# et `dzmSlip` n'applique que la borne BASSE (srcIn >= 0) ; la borne haute
+# reste inconnue a l'ecran et c'est le rendu qui borne au disponible.
+# ECART ASSUME ET DATE : « D-3 : borne haute du slip non bornee a l'ecran ».
+
+# T2 : slip et slide rejouent depuis `h0` (etat du pointerdown), AVANT la
+# branche historique de `mv` -- pas de derive, et `up()` n'a rien a
+# court-circuiter : MESURE du 21/09/2026, `up()` de `clipDown` ne recalcule
+# aucun clip depuis `s0/e0`, il lit `clipsRef.current` pour `fitDur` et
+# pousse `h0` dans l'historique. Les deux gestes lui conviennent tels quels.
+A_T2 = "      snapAt=null;\n      var w=0,delta=0;"
+R_T2 = ("      snapAt=null;\n"
+        "      if(dzSlip){setClips(DzTracks.slip(h0.clips,c.id,ds,{srcDur:dzSd}));return}\n"
+        "      if(dzSlide){var dzNs=doSnap(s0+ds);setClips(DzTracks.slide(h0.clips,c.id,dzNs-s0));setSnapT(snapAt);return}\n"
+        "      var w=0,delta=0;")
+
+# T3 : Alt sur la poignee GAUCHE de l'etendue de transition.
+A_T3 = "onPointerDown:function(e){transSpanDown(e,j2.right,-1,j2.t)}}),"
+R_T3 = "onPointerDown:function(e){if(e.altKey){dzRollDown(e,j2);return}transSpanDown(e,j2.right,-1,j2.t)}}),"
+
+# T3b : ECART CONTESTE ET ASSUME (21/09/2026). Le plan ne prevoyait que T3,
+# mais MESURE : `.svm-transspan` (et donc ses deux poignees) n'est rendu que
+# si `on`, c'est-a-dire si la jonction PORTE une transition -- sur une coupe
+# franche, l'ancre de T3 n'existe pas dans le DOM et le roll serait
+# INATTEIGNABLE, alors que le roll de Resolve vise precisement la coupe. Le
+# losange `.svm-junc`, lui, est rendu SANS condition pour chaque jonction :
+# c'est lui qui rend le geste atteignable partout.
+# I3 (revue du 21/09/2026) : `preventDefault()` sur le pointerdown NE
+# SUPPRIME PAS le `click` qui suit -- apres un Alt+glisser sur le losange,
+# `openTransPop` s'ouvrait par-dessus le roll qu'on venait de faire.
+# L'ancre est ETENDUE jusqu'au `onClick` pour le neutraliser dans la MEME
+# section (elle vaut 1/1 dans le .bak, mesure du 21/09/2026 ; le `onClick`
+# seul vaut 1 lui aussi, mais l'etendre garde les deux mains du meme geste
+# dans le meme remplacement).
+A_T3B = ('                      "aria-label":"Transition entre "+j2.left.label+" et "+j2.right.label,\n'
+         "                      onPointerDown:function(e){e.stopPropagation()},\n"
+         "                      onPointerEnter:function(){transHoverShow(j2.t,transHoverTxt(j2.right,on,s2))},\n"
+         "                      onPointerLeave:transHoverHide,\n"
+         "                      onClick:function(e){e.stopPropagation();openTransPop(j2.right.id,e)}})]}")
+R_T3B = ('                      "aria-label":"Transition entre "+j2.left.label+" et "+j2.right.label,\n'
+         "                      onPointerDown:function(e){if(e.altKey){dzRollDown(e,j2);return}e.stopPropagation()},\n"
+         "                      onPointerEnter:function(){transHoverShow(j2.t,transHoverTxt(j2.right,on,s2))},\n"
+         "                      onPointerLeave:transHoverHide,\n"
+         "                      onClick:function(e){e.stopPropagation();if(e.altKey)return;openTransPop(j2.right.id,e)}})]}")
+
+# T4 : le geste de roll, a cote de `transSpanDown` -- DANS le composant,
+# donc `trackStRef`, `durRef`, `setClips`, `setDirty`, `pushHistory`,
+# `dzmHistHost` et `transHoverShow/Hide` sont tous en portee (mesure : ce
+# sont exactement ceux qu'utilise `transSpanDown`, juste en dessous).
+# La piste est remontee par la CLASSE `.svm-lane` et non par un nombre de
+# parents : le losange en est fils direct, les poignees a deux crans.
+A_T4 = "function transSpanDown(e,jc,edge,t){"
+R_T4 = ("function dzRollDown(e,j2){\n"
+        "    e.stopPropagation();e.preventDefault();\n"
+        "    var tgt=e.currentTarget;\n"
+        '    var lane=tgt.closest?tgt.closest(".svm-lane"):null;\n'
+        "    if(!lane)return;\n"
+        "    if(trackStRef.current[j2.right.tr]&&trackStRef.current[j2.right.tr].l)return;\n"
+        "    try{tgt.setPointerCapture&&tgt.setPointerCapture(e.pointerId)}catch(_c){}\n"
+        "    var pxPerS=Math.max(1,lane.getBoundingClientRect().width)/durRef.current;\n"
+        "    var x0=e.clientX,h0=dzmHistHost(),moved=!1;\n"
+        '    transHoverShow(j2.t,"roll");\n'
+        "    function mv(ev){var ds=(ev.clientX-x0)/pxPerS;\n"
+        "      if(Math.abs(ev.clientX-x0)>3)moved=!0;if(!moved)return;\n"
+        '      transHoverShow(j2.t,"roll "+(ds>=0?"+":"")+ds.toFixed(2)+" s");\n'
+        "      setClips(DzTracks.roll(h0.clips,j2.left.id,j2.right.id,ds))}\n"
+        '    function up(){tgt.removeEventListener("pointermove",mv);tgt.removeEventListener("pointerup",up);\n'
+        "      transHoverHide();if(moved){setDirty(!0);pushHistory(h0)}}\n"
+        '    tgt.addEventListener("pointermove",mv);tgt.addEventListener("pointerup",up)}\n'
+        "  function transSpanDown(e,jc,edge,t){")
+
+# T5 : le titre des clips DIT les trois gestes -- c'est la seule decouverte
+# possible, le curseur contextuel n'etant pas livre (ecart assume et date :
+# « D-3 : curseur contextuel non livre », rien dans montage.css).
+A_T5 = '" — bords : rogner / allonger · centre : déplacer"'
+R_T5 = ('" — bords : rogner / allonger · centre : déplacer · '
+        'Alt+centre : slip · Maj+centre : slide · Alt+losange : roll"')
+
+
+# -- D-5 (21/09/2026) : LA CHIP « losange n » ET LE PANNEAU DE L'INDEX ------
+# Les SEULES deux sections du lot : K1, K2, K3, K4 et K6 visaient des textes
+# que d'autres remplacements POSENT, et sont donc REPLIEES la-bas (voir leurs
+# commentaires). Ces deux ancres-ci, elles, valent 1/1 dans .bak_montage.
+#
+# -- K5 : la chip des marqueurs, dans la rangee d'outils ---------------------
+# L'ANCRE N'EST PAS LA LIGNE ENTIERE, ET C'EST UNE MESURE. La ligne complete
+# de la chip `ripple` est REECRITE par la section M21 (qui lui ajoute un
+# `"aria-label":"ripple",`), laquelle passe AVANT dans l'ordre de PATCHES :
+# une ancre prise sur la ligne entiere du .bak ne se retrouverait plus dans la
+# chaine au moment ou K5 s'applique. La QUEUE de la ligne, elle, est reprise
+# MOT POUR MOT par R_M21 -- comptee 1 dans .bak_montage ET 1 apres M21.
+# La chip neuve prend le meme `aria-label` que ses trois voisines pour la
+# raison que M21 a ecrite : sous largeur reduite elles passent en glyphe seul
+# (`font-size:0` + `::before`), et le losange nu serait leur nom accessible.
+A_K5 = 'onClick:function(){setRipple(!ripple)},children:"ripple"}),'
+R_K5 = (A_K5 + "\n"
+        '          r.jsx("button",{className:"svm-toolchip",'
+        '"data-on":dzMkOn?"":void 0,\n'
+        '            "aria-label":"marqueurs",\n'
+        '            title:"Marqueurs \u2014 index ("+svmKeyLabel("marker_index")'
+        '+") \u00b7 "+svmKeyLabel("marker_toggle")'
+        '+" pose/retire \u00e0 la t\u00eate",'
+        'onClick:function(){dzMkToggle()},'
+        'children:"\u25c6 "+((proj.markers||[]).length)}),'
+        # -- « TT5 » (D-21, 21/09/2026) : LA CHIP « T+ » ---------------------
+        # REPLIEE ICI : l'ancre du plan (« a cote de ◆ n ») est la chip des
+        # marqueurs que CE remplacement-ci pose -- 0 dans .bak_montage.
+        # ELLE NE PORTE PAS D'ETAT (`data-on`) : poser un titre est un GESTE,
+        # pas une bascule, contrairement a « ripple » et a l'index des
+        # marqueurs. Son `aria-label` suit la regle de M21 : sous largeur
+        # reduite les chips passent en glyphe seul, et « T+ » nu serait leur
+        # nom accessible.
+        # LA COMBO VIENT DE LA KEYMAP VIVANTE (`svmKeyLabel`, declaree dans
+        # ce composant) : l'action est remappable par le panneau « ? », et
+        # une infobulle qui dirait « Maj+T » en dur MENTIRAIT apres un
+        # remappage. Meme lecon que I-5.
+        '\n          r.jsx("button",{className:"svm-toolchip",'
+        '"aria-label":"poser un titre",'
+        'title:"Poser un titre à la tête ("+svmKeyLabel("title_add")+")",'
+        'onClick:function(){dzTtAdd()},'
+        'children:"T+"}),')
+
+# -- K5b : le panneau de l'index, parmi les popovers -------------------------
+# POSE JUSTE APRES `ovPicker()`, au milieu des autres panneaux flottants : il
+# herite ainsi de leur contexte d'empilement et se ferme comme eux.
+# L'HISTOIRE N'EST POUSSEE QU'AU CHANGEMENT REEL, et c'est la lecon de la
+# sortie tot de R2 : un `pushHistory()` PAR FRAPPE remplissait la pile lettre
+# a lettre et « Annuler » remontait le titre caractere par caractere. DEUX
+# parades, et elles sont dans la COUCHE, pas ici : le champ de titre est
+# NON CONTROLE (`defaultValue`) et ne remonte qu'au `blur` ou sur Entree, et
+# `DzmMarkerIndex` ne rappelle `onChange` que si la valeur a VRAIMENT change.
+# La couleur, elle, part tout de suite -- un <select> ne se frappe pas en
+# rafale.
+A_K5B = "    ovPicker(),"
+R_K5B = (A_K5B + "\n"
+         "    dzMkOn?r.jsx(DzTracks.MarkerIndex,{markers:proj.markers,"
+         "onSeek:seekTo,\n"
+         "      onClose:function(){setDzMkOn(!1)},\n"
+         "      onRemove:function(id){pushHistory();"
+         "setProj(function(p){return Object.assign({},p,"
+         "{markers:DzTracks.markerRemove(p.markers,id)})});setDirty(!0)},\n"
+         "      onChange:function(id,patch){pushHistory();"
+         "setProj(function(p){return Object.assign({},p,"
+         "{markers:DzTracks.markerUpdate(p.markers,id,patch)})});setDirty(!0)}"
+         "}):null,")
+
+
+# ── K7 (D-5) : ECHAP FERME L'INDEX ────────────────────────────────────────
+# LA VOIE EST CELLE DU BUNDLE, pas une seconde. MESURE du 21/09/2026 : trois
+# panneaux se ferment sur Echap, chacun a sa facon -- `kbPanel` par une
+# branche de `onKey` sous le voile, `transPopover` par un `keydown` de
+# fenetre en capture, et le champ de recherche par son propre `onKeyDown`.
+# La quatrieme voie est la BRANCHE `Escape` DE `onKey`, qui existe deja (1/1
+# dans le .bak) et qui rendait la main quand aucun overlay n'etait
+# selectionne : c'est la que l'index se ferme, AVANT ce repli. Rien de neuf
+# n'est ecoute, et l'ordre est celui qu'on attend -- Echap ferme d'abord le
+# panneau ouvert, et ne retombe sur les fleches de l'overlay qu'ensuite.
+A_K7 = ('if(e.key==="Escape"){\n'
+        "        if(kbAudioRef.current&&kbAudioRef.current.ovEsc&&"
+        "kbAudioRef.current.ovEsc())e.preventDefault();\n"
+        "        return}")
+R_K7 = ('if(e.key==="Escape"){\n'
+        "        if(dzMkOnRef.current){e.preventDefault();dzMkToggle(!1);return}\n"
+        "        if(kbAudioRef.current&&kbAudioRef.current.ovEsc&&"
+        "kbAudioRef.current.ovEsc())e.preventDefault();\n"
+        "        return}")
+
+
+# ══ D-20 (21/09/2026) — LA GALERIE DES TRANSITIONS, CÔTÉ ÉCRAN ═════════
+# Le bundle ne connaissait que SEPT transitions (`SVM_TRANS`, niveau
+# module). L'ffmpeg livré en porte 58, que le backend sert maintenant par
+# familles (GET /api/montage/transitions, tâche 1). Les quatre sections
+# ci-dessous branchent l'écran dessus SANS toucher ni à `SVM_TRANS` (les
+# sept restent le repli hors-ligne et la liste des libellés FR) ni aux
+# sept règles `.svm-tprev[data-tt]` de son-vfx-montage.css (intouchable).
+# X1 est REPLIÉ dans R_M16REF (son ancre vaut 0 dans .bak_montage) ; les
+# quatre ancres ci-dessous valent 1/1 dans .bak_montage — mesuré le
+# 21/09/2026 — et aucune section antérieure n'y touche.
+
+# ── X2 : la grille de sept tuiles devient la galerie par familles ─────
+# L'ANCRE EST LE BLOC ENTIER, de la <div class=svm-transgrid> jusqu'à la
+# dernière tuile incluse : un remplacement de la seule PREMIÈRE ligne
+# aurait laissé derrière lui le corps du `map` — neuf lignes orphelines
+# et un bundle que `node --check` refuse. Ce qui SUIT (le curseur de
+# durée, « Appliquer à toutes les coupes ») n'est pas dans l'ancre.
+A_X2 = ('      r.jsx("div",{className:"svm-transgrid",children:SVM_TRANS.map(function(o){\n'
+        '        return r.jsxs("button",{className:"svm-transtile","data-sel":base===o[0]?"":void 0,\n'
+        '          title:o[1]+" ("+o[0]+")",\n'
+        '          onClick:function(){svmSetTransType(jc.id,o[0])},children:[\n'
+        '          /* micro-scène A/B — aperçu animé du type ; la tuile sélectionnée est\n'
+        "             figée sur l'état final, reduced-motion la rend statique */\n"
+        '          r.jsxs("span",{className:"svm-tprev","data-tt":o[0],"aria-hidden":!0,children:[\n'
+        '            r.jsx("i",{className:"svm-ta"}),r.jsx("i",{className:"svm-tb"})]}),\n'
+        '          r.jsx("span",{className:"svm-ttl",children:o[1]})]},o[0])})}),')
+R_X2 = ('      /* D-20 — LA GALERIE. Les sept tuiles cèdent la place à\n'
+        '         TransGrid() de la couche : « coupe », puis les historiques du\n'
+        '         bundle qui ne sont pas au catalogue, puis les six\n'
+        '         familles servies. La couche garde `.svm-transtile`,\n'
+        '         `.svm-tprev` et `data-tt` — les règles du bundle\n'
+        "         continuent d'animer la moitié gauche, de mettre en\n"
+        '         pause hors survol et de figer la tuile choisie ;\n'
+        "         `data-fam` et `data-dir` n'ajoutent que l'animation de\n"
+        '         la moitié droite, dans montage.css. */\n'
+        '      r.jsx(DzTracks.TransGrid,{legacy:SVM_TRANS,cat:dzTransCat,cur:base,\n'
+        '        onPick:function(id){svmSetTransType(jc.id,id)}}),')
+
+# ── X3 : « ce nom est-il connu ? » se demande à la LISTE COMPLÈTE ──────
+# Sans cette section, un `wipetl` choisi dans la galerie serait revenu
+# dans l'inspecteur étiqueté « wipetl (hérité) » ET en double (une fois
+# comme option d'héritage, une fois dans sa famille) : `known` ne
+# regardait que les sept de SVM_TRANS. L'option « (hérité) » garde tout
+# son sens pour un nom qui n'est NI au catalogue NI dans les sept — un
+# vieux projet, ou un catalogue qui n'est pas arrivé.
+A_X3 = "    var known=SVM_TRANS.some(function(o){return o[0]===base});"
+R_X3 = ('    var known=DzTracks.transList(SVM_TRANS,dzTransCat).some(function(f){\n'
+        '      return f.items.some(function(it){return it.id===base})});')
+
+# ── X3b : le <select> liste tout le catalogue, une option par nom ─────
+# « famille · libellé » plutôt qu'un <optgroup> : le <select> porte la
+# classe `.svm-secbtn` du bundle et un optgroup y serait rendu par le
+# système, hors charte. La forme dit la même chose sans une règle de plus.
+A_X3B = ('            .concat(SVM_TRANS.map(function(o){\n'
+         '              return r.jsx("option",{value:o[0],children:o[1]},o[0])}))}),')
+R_X3B = ('            .concat(DzTracks.transList(SVM_TRANS,dzTransCat)\n'
+         '              .reduce(function(a,f){return a.concat(f.items.map(function(it){\n'
+         '                return r.jsx("option",{value:it.id,\n'
+         '                  children:f.label+" · "+it.label},it.id)}))},[]))}),')
+
+# ── X4 : le libellé du losange et de l'étendue vient du catalogue ──────
+# `svmTransLabel` est au niveau MODULE (elle sert au losange de jonction,
+# à l'infobulle de l'étendue et au titre du clip) : elle ne peut lire
+# aucun état de composant, d'où `window.__dzTransCat`, posé par l'effet de
+# X1 EN MÊME TEMPS que l'état. Sans catalogue (page fraîche, serveur
+# muet), la couche retombe sur les sept libellés de SVM_TRANS puis sur le
+# nom nu — exactement ce que faisait la ligne remplacée.
+A_X4 = "  var f=SVM_TRANS.find(function(o){return o[0]===b});return f?f[1]:b}"
+R_X4 = "  return DzTracks.transLabel(b,SVM_TRANS,window.__dzTransCat||null)}"
+
+
+# ══ D-12 (21/09/2026) — LES FONDUS SIMPLES JOUÉS EN DIRECT ════════════
+# Le lecteur vivant ne montre qu'UN clip à la fois (`svmActiveV1`) : à la
+# jonction, l'image bascule sèchement quelle que soit la transition. Les
+# 58 `xfade` restent invisibles avant Preview, ce que la galerie dit déjà
+# (« visible après Preview ») — mais les trois fondus que le catalogue
+# marque `live` (fade, fadeblack, fadewhite) SE JOUENT, par un voile.
+# V1 est REPLIÉE dans R_M16REF (son ancre vaut 0 dans .bak_montage) ; les
+# deux ancres ci-dessous valent 1/1 dans .bak_montage — mesuré le
+# 21/09/2026 — et aucune section antérieure ne touche au cadre du lecteur
+# ni au corps de `liveSync`.
+
+# ── V2 : le voile est un enfant du cadre, juste après les deux couches ──
+# L'ANCRE EST LA LIGNE DU « trou » : elle suit IMMÉDIATEMENT `.svm-liveov`,
+# et c'est la seule place possible. Le voile doit couvrir le fond ET les
+# overlays (donc après eux dans le DOM) sans couvrir les sous-titres, le
+# cadre de sélection ni les guides (donc avant eux, et SANS `z-index` :
+# mesuré, aucun de ces trois voisins n'en porte, l'ordre du DOM suffit).
+# CONDITIONNÉ PAR `liveOn`, comme les deux couches : en aperçu 480p c'est
+# un `<video>` qui joue le rendu, transitions COMPRISES — y superposer un
+# voile les jouerait DEUX FOIS.
+A_V2 = ('liveOn&&!liveClip?r.jsx("div",{className:"svm-livegap",'
+        'children:"trou"}):null,')
+R_V2 = (
+        # -- « TT7 » (D-21, 22/09/2026) : L'HOTE DE L'APERCU DE TITRE ------
+        # REPLIE ICI, et c'est le plan lui-meme qui le prevoit : l'ancre
+        # (la ligne du « trou ») est CONSOMMEE par V2, posee en tache 3.
+        # EN TETE DU REMPLACEMENT, ET AVEC SON PROPRE COMMENTAIRE : la
+        # premiere redaction posait la ligne SOUS le commentaire « D-12 --
+        # LE VOILE DES FONDUS EN DIRECT », qui decrit le voile et pas
+        # l'hote de titre -- a l'ecran du bundle, le commentaire semblait
+        # documenter la ligne suivante, qui n'etait plus la sienne
+        # (correctif du 22/09/2026).
+        # AVANT LE VOILE DANS LE DOM, et c'est une TRANCHE, pas un detail.
+        # Au rendu, la gravure ASS des titres est chainee AVANT S1 mais
+        # APRES les `xfade` (tache 5, mesure) : un fondu au raccord passe
+        # donc PAR-DESSUS le titre, alors qu'il ne touche pas aux
+        # sous-titres. L'ecran doit dire la meme chose -- le titre est
+        # SOUS le voile, les sous-titres DESSUS. Sans z-index : dans
+        # `.svm-frame` tous les enfants sont absolus et aucun des voisins
+        # qui comptent n'en porte, l'ordre du DOM suffit (meme mesure que
+        # V2).
+        # CONDITIONNE PAR `liveOn` comme le voile et les deux couches : en
+        # apercu 480p c'est un `<video>` qui joue le rendu, titre GRAVE
+        # compris -- y superposer l'apercu HTML l'aurait affiche DEUX fois,
+        # et le faux par-dessus le vrai.
+        # VIDE AU MONTAGE : `liveSync` (TT8) ecrit son `innerHTML` a la
+        # premiere frame. Aucun enfant JSX, donc React ne se bat jamais
+        # avec l'ecriture imperative.
+        "/* D-21 — L'APERÇU VIVANT DU CARTON. Vide, et écrit\n"
+        "             impérativement par `liveSync` à chaque frame. POSÉ\n"
+        "             AVANT LE VOILE : au rendu, les titres sont gravés\n"
+        "             APRÈS les `xfade`, donc un fondu passe par-dessus le\n"
+        "             titre — et pas par-dessus les sous-titres. */\n"
+        '          liveOn?r.jsx("div",{className:"svm-livetitle",'
+        'ref:dzTtHostRef,"aria-hidden":!0}):null,\n'
+        "          /* D-12 — LE VOILE DES FONDUS EN DIRECT. Vide, transparent au\n"
+        "             repos, et écrit impérativement par `liveSync` (couleur +\n"
+        "             opacité) à chaque frame : le lecteur vivant n'a qu'un\n"
+        "             hôte, donc pas de crossfade A/B — un voile dit OÙ tombe\n"
+        "             la transition et COMBIEN elle dure. */\n"
+        '          liveOn?r.jsx("i",{className:"svm-xfveil",ref:dzVeilRef,'
+        '"aria-hidden":!0}):null,\n'
+        '          ') + A_V2
+
+# ── V3 : l'écriture, EN TÊTE de `liveSync` ────────────────────────────
+# EN TÊTE, et pas ailleurs : `liveSync` sort tôt (`if(!host||!ov){…return}`)
+# quand les deux hôtes ne sont pas encore montés, et le voile doit quand
+# même être remis à zéro dans ce cas — sinon un voile plein survivrait à un
+# passage en aperçu 480p. La ref est donc lue AVANT `var host=`.
+#
+# MESURE QUI AUTORISE CETTE FORME (21/09/2026) : `liveSync` ne réécrit
+# JAMAIS `liveHostRef.current.style.*` plus bas dans son corps — les cinq
+# seules occurrences de `host.` y sont `_svmKey`, `firstChild`,
+# `removeChild` et `appendChild`. Le repli prévu par le plan (poser
+# l'opacité sur `liveVideoRef.current`) n'a donc pas lieu d'être.
+#
+# ET POURTANT L'HÔTE N'EST PAS TOUCHÉ, ce qui est un ÉCART ASSUMÉ avec le
+# plan : il demandait, pour « dim » (le fondu simple), `host.style.opacity
+# = 1 - alpha`. DEUX MESURES l'écartent.
+#   1. `.svm-live{background:#000}` et `.svm-frame` porte un DAMIER
+#      (`repeating-linear-gradient` panel2/panel3). Baisser l'opacité de
+#      l'hôte ne fait pas apparaître du noir : elle fait apparaître le
+#      DAMIER. Le résultat voulu — « l'image s'efface sur le noir du
+#      lecteur » — est obtenu EXACTEMENT par un voile noir à alpha :
+#      a·noir + (1−a)·image, soit l'image à (1−a) SUR DU NOIR. Les deux
+#      calculs ne diffèrent que par ce qu'il y a dessous, et c'est là que
+#      la forme du plan se trompait.
+#   2. L'élément média est PARTAGÉ (pool LRU par source) et l'hôte change
+#      d'enfant AU RACCORD, c'est-à-dire au milieu du fondu : une opacité
+#      posée sur l'ancien enfant lui survivrait dans le pool.
+# « dim » reste un verdict DISTINCT dans la couche (le mécanisme, pas la
+# couleur) : le jour où le lecteur aura deux hôtes, c'est lui qui dira
+# qu'il faut croiser plutôt que voiler.
+A_V3 = "  function liveSync(){"
+R_V3 = (A_V3 + "\n"
+        "    /* D-12 — LE VOILE DES TROIS FONDUS JOUABLES EN DIRECT. En TÊTE :\n"
+        "       `liveSync` sort tôt quand les hôtes ne sont pas montés, et le\n"
+        "       voile doit être remis à zéro même dans ce cas.\n"
+        "       LA TÊTE EST BORNÉE COMME CELLE DE L'IMAGE, pas brute : le clip\n"
+        "       montré est choisi sur `min(ph, dur-0.001)` (trois lignes plus\n"
+        "       bas) — voiler sur `ph` aurait fait, à la toute fin de la\n"
+        "       timeline, un voile qui ne correspond plus à l'image affichée.\n"
+        "       « dim » (le fondu simple) est voilé EN NOIR comme `fadeblack`,\n"
+        "       et c'est assumé : avec un hôte unique les deux se voient\n"
+        "       PAREIL à l'écran — seul le rendu ffmpeg les sépare (l'un\n"
+        "       croise deux images, l'autre passe par le noir). La couche\n"
+        "       garde le verdict distinct ; l'écran ne peut pas encore le\n"
+        "       montrer. L'hôte n'est jamais touché : il est noir, et rien\n"
+        "       n'est écrit sur un élément média partagé par le pool.\n"
+        "       LA SIGNATURE `_dzVeil` ÉVITE L'ÉCRITURE INUTILE : `liveSync`\n"
+        "       tourne à CHAQUE frame et le voile est nul presque tout le\n"
+        "       temps — sans elle, deux écritures de style par frame pour\n"
+        "       rien. Même parade que `_svmTfSig` et `_svmKey` plus bas. */\n"
+        "    var dzVe=dzVeilRef.current;\n"
+        "    if(dzVe){\n"
+        "      var dzVt=Math.min(phRef.current,Math.max(0,durRef.current-.001));\n"
+        "      var dzVv=DzTracks.veil(clipsRef.current,dzVt);\n"
+        '      var dzVk=dzVv.color+"|"+dzVv.alpha;\n'
+        "      if(dzVe._dzVeil!==dzVk){dzVe._dzVeil=dzVk;\n"
+        '        dzVe.style.background=(dzVv.color&&dzVv.color!=="dim")?dzVv.color:"#000";\n'
+        "        dzVe.style.opacity=String(dzVv.alpha||0)}}\n"
+        "    /* TT8 (D-21) — L'APERCU VIVANT DU CARTON, au meme endroit et\n"
+        "       pour les memes raisons que le voile : EN TETE, parce que\n"
+        "       `liveSync` sort tot quand les hotes ne sont pas montes et\n"
+        "       que l'apercu doit etre EFFACE meme dans ce cas -- sinon un\n"
+        "       titre survivrait a un passage en apercu 480p, ou l'image\n"
+        "       porte deja le titre GRAVE : on l'aurait vu en double.\n"
+        "       LA TETE EST BORNEE COMME CELLE DU VOILE (`dzVt`), pas brute :\n"
+        "       le clip montre est choisi sur `min(ph, dur-0.001)`, et un\n"
+        "       carton qui finit exactement a la fin de la timeline aurait\n"
+        "       disparu une frame avant l'image qu'il accompagne.\n"
+        "       LA SIGNATURE `_dzHtml` EVITE L'ECRITURE INUTILE : `liveSync`\n"
+        "       tourne a CHAQUE frame et la chaine est la meme pendant toute\n"
+        "       la duree du carton. Sans elle, un `innerHTML` par frame --\n"
+        "       donc un sous-arbre DETRUIT et RECONSTRUIT soixante fois par\n"
+        "       seconde, ce qui aurait relance l'animation CSS d'entree en\n"
+        "       boucle et rendu le titre illisible. Meme parade que\n"
+        "       `_dzVeil` ci-dessus, `_svmTfSig` et `_svmKey` plus bas.\n"
+        "       LA COUCHE ECHAPPE LE TEXTE (`ttEsc`) : il vient de\n"
+        "       l'utilisateur et il part en `innerHTML`. */\n"
+        "    var dzTtH=dzTtHostRef.current;\n"
+        "    if(dzTtH){\n"
+        "      var dzTtT=Math.min(phRef.current,Math.max(0,durRef.current-.001));\n"
+        "      var dzTtC=DzTracks.titleAt(clipsRef.current,dzTtT);\n"
+        '      var dzTtX=dzTtC?DzTracks.titleHtml(dzTtC,dzTtT):"";\n'
+        "      if(dzTtH._dzHtml!==dzTtX){dzTtH._dzHtml=dzTtX;dzTtH.innerHTML=dzTtX}}")
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# D-21 (21/09/2026, tache 6) — LE GENRE `title` ET CE QUE LE CARTON EMPORTE
+# ══════════════════════════════════════════════════════════════════════════
+# Les SIX autres morceaux du lot (TT1b, TT2, TT3, TT4 en deux moities, TT5)
+# visent des textes que d'autres remplacements POSENT, ou une ancre CONSOMMEE
+# (A_M5) : ils sont REPLIES la-bas, chacun avec sa mesure. Ces deux ancres-ci
+# valent 1/1 dans .bak_montage et aucune section anterieure n'y touche.
+#
+# TT1 : LE QUATRIEME GENRE DE PISTE. `trackKind` ne lit que l'INITIALE de
+# l'identifiant, et c'est la recette ecrite au-dessus de lui dans le bundle :
+# « le declarer ici suffit a ce que tout le reste refuse deja ce qu'il faut ».
+# MESURE du 21/09/2026 : les SEIZE appels de `trackKind` dans .bak_montage
+# sont TOUS des EGALITES (`==="video"`, `==="audio"`, `==="subs"`), relevees
+# une a une -- un genre « title » ne trouve donc le sien nulle part, et t1
+# refuse le depot d'asset (`svmDragOk`, `dropOnTrack`), la pile d'effets, le
+# mixage par clip et l'inspecteur audio, exactement comme S1. Le SEUL trou
+# etait le bouton « + » de l'en-tete, qui ne passe pas par `trackKind` :
+# TT1b le ferme dans `addAsset`.
+# ET LA LETTRE ETAIT LIBRE : les 18 occurrences de `id:"t` du .bak sont des
+# ports de noeuds (`id:"text"`, `id:"ticker"`), des gabarits (`id:"tpl_…"`),
+# des sujets, des canaux (`id:"telegram"`) et des voix (`id:"tide"`) -- AUCUN
+# identifiant de PISTE ne commence par « t ». Relevees une a une.
+A_TT1 = ('  function trackKind(trId){var k=String(trId||"").charAt(0);\n'
+         '    return k==="a"?"audio":k==="s"?"subs":"video"}')
+R_TT1 = ('  function trackKind(trId){var k=String(trId||"").charAt(0);\n'
+         '    return k==="a"?"audio":k==="s"?"subs":k==="t"?"title":"video"}')
+
+# TT2b : CE QUE LE CARTON EMPORTE AU RENDU. Le backend reconnait un titre a
+# la PISTE (`_tracks_meta[tr].kind === "title"`, mesure de la tache 5) et lit
+# `c.title` -- sans cette cle, le clip partait NU et `title_spec` rendait
+# `None` : un carton compte « ignore » dans le journal, invisible a l'ecran.
+# `kind` PART AUSSI, et ce n'est pas une redondance : c'est la cle que le
+# filtre de R_M5 (TT2) interroge pour laisser passer un clip sans `src`, et
+# le backend a de quoi journaliser un carton pose sur une piste qui n'est PAS
+# de titres.
+# LE PAYLOAD D'UN PROJET SANS CARTON NE CHANGE PAS D'UN OCTET : les deux
+# valeurs sont `undefined` sur tous les autres clips, et `JSON.stringify`
+# OMET une cle dont la valeur est `undefined` -- la cle EXISTE dans l'objet,
+# elle est ABSENTE de la chaine. MESURE AU BANC, sous node :
+# `D21_TT2b_un_projet_sans_carton_envoie_le_payload_d_avant` de
+# test_montage_bundle.py (ajoutee le 22/09/2026 ; la premiere redaction de
+# cette prose annoncait la mesure sans la fournir).
+A_TT2B = ('        var o={tr:c.tr,src:c.src,start:c.start,end:c.end,'
+          'srcIn:c.srcIn||0,')
+R_TT2B = ('        var o={tr:c.tr,src:c.src,start:c.start,end:c.end,'
+          'srcIn:c.srcIn||0,kind:c.kind,title:c.title,')
+
+# TT9 : L'INSPECTEUR In/Out/Duree SE TAIT SUR UN CARTON. (Sa jumelle TT9b,
+# la pile d'effets, est REPLIEE dans R_M13, dont l'ancre est la ligne meme
+# qu'il fallait reecrire.)
+# POURQUOI : « une fenetre de source, ca ne veut rien dire pour une ligne de
+# texte » -- le commentaire du bundle, ecrit pour S1, vaut MOT POUR MOT pour
+# un carton, qui n'a pas de `src` non plus. La section rendait donc In, Out,
+# Duree et Vitesse sur un clip sans source : quatre reglages qui ne
+# s'appliquent a rien, et un `svmSetV1Speed` qui aurait ecrit une `speed` sur
+# un titre.
+# LA SECTION « Sous-titre » PREND LE RELAIS POUR S1 ; pour un carton, c'est
+# l'inspecteur de titre (TT6) qui le prend, pose quatre lignes plus bas dans
+# la meme colonne.
+A_TT9 = '          return sel&&sel.tr==="s1"?null'
+R_TT9 = ('          return sel&&(trackKind(sel.tr)==="subs"'
+         '||trackKind(sel.tr)==="title")?null')
+
+# TT10 : `c.src.job_id` SUR UN CLIP QUI PEUT NE PAS AVOIR DE `src`.
+# TT2 (tache 6) a fait sauter l'invariant du payload -- `renderPayload`
+# jetait tout clip sans `src` (`clips.filter(function(c){return c.src})`), et
+# c'est justement ce filtre que TT2 a ouvert pour laisser passer les cartons.
+# Toute ligne du corps de la boucle qui DEREFERENCE `c.src` leve desormais un
+# TypeError sur le premier carton : « Cannot read properties of undefined
+# (reading 'job_id') ». Mesure : c'est la SEULE des lignes de la boucle a le
+# faire (les autres lisent `c.effects`, `c.opacity`, `c.gain`… sur `c`).
+# LA CORRECTION GARDE LE SENS : `c.src&&c.src.job_id` dit « un VRAI plan
+# video », ce que la ligne voulait deja dire -- un clip sans source n'en est
+# pas un, et un carton ne defile pas.
+A_TT10 = ('        if(c.tr==="v1"&&c.src.job_id&&typeof c.speed==="number"'
+          '&&c.speed>0&&')
+R_TT10 = ('        if(c.tr==="v1"&&c.src&&c.src.job_id&&'
+          'typeof c.speed==="number"&&c.speed>0&&')
+
+# TT11 : LE « + » DE L'EN-TETE DE T1 DISAIT ET FAISAIT FAUX.
+# L'infobulle promettait « Ajouter une image ou un rendu a la tete de
+# lecture » (quatrieme branche du ternaire, celle qui ramasse tout ce qui
+# n'est ni subs ni audio) et le clic ouvrait `openPicker("t1")` : le
+# selecteur d'assets, sur la piste qui n'en recoit aucun. TT1b rattrapait la
+# chute DANS `addAsset` -- une note, et rien de pose. Le bouton mentait donc
+# deux fois : sur ce qu'il propose et sur ce qu'il fait.
+# IL POSE MAINTENANT UN CARTON, par le MEME `dzTtAdd` que le raccourci (TT4)
+# et la chip « T+ » (TT5) : troisieme declencheur, zero troisieme ecriture du
+# geste. Les deux autres branches sont intactes.
+# L'INFOBULLE NE REPREND PAS LA PHRASE DE TT1b (« La piste des titres ne
+# recoit que des cartons — … en pose un »), et c'est une MESURE : cette
+# phrase-la est comptee a UN par `D5_I5_les_trois_textes_lisent_la_keymap_
+# vivante`, et un bouton qui POSE un carton ne peut pas dire « Maj+T en pose
+# un » -- ce serait renvoyer ailleurs pour ce qu'il fait lui-meme. Elle dit
+# le geste ET la restriction, et elle lit la keymap VIVANTE
+# (`svmKeyLabelNow`, niveau MODULE) comme les quatre autres textes de D-5/
+# D-21.
+A_TT11 = ('                :"Ajouter une image ou un rendu à la tête de '
+          'lecture",\n'
+          '              onClick:function(){\n'
+          '                if(trackKind(tr.id)==="subs"){subsAddHere();'
+          'return}\n'
+          '                openPicker(tr.id)},children:"+"},"add");')
+R_TT11 = ('                :trackKind(tr.id)==="title"\n'
+          '                ?"Poser un carton de titre à la tête de lecture ("'
+          '+svmKeyLabelNow("title_add")+") — la piste des titres ne reçoit '
+          'aucun autre média"\n'
+          '                :"Ajouter une image ou un rendu à la tête de '
+          'lecture",\n'
+          '              onClick:function(){\n'
+          '                if(trackKind(tr.id)==="subs"){subsAddHere();'
+          'return}\n'
+          '                if(trackKind(tr.id)==="title"){dzTtAdd();return}\n'
+          '                openPicker(tr.id)},children:"+"},"add");')
+
+
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
            ("M5-payload", A_M5, R_M5), ("M6-save", A_M6, R_M6),
@@ -2281,6 +3753,7 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M15b-picker-arme", A_M15B, R_M15B),
            ("M16src-inspecteur-source", A_M16, R_M16),
            # P10 — la timeline s'étend au lieu de rogner.
+           ("E4-verrou-apres-mode", A_E4, R_E4),
            ("M17a-ajout-etend", A_M17A, R_M17A),
            ("M17b-nudge-etend", A_M17B, R_M17B),
            ("M17c-ripmax-mort", A_M17C, R_M17C),
@@ -2345,7 +3818,89 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            # la rangée. Aucune de ces ancres n'est touchée par une
            # section antérieure (1/1 dans le bundle patché ET le .bak).
            ("M26a-traduction-etat-et-geste", A_M26A, R_M26A),
-           ("M26b-traduction-rangee", A_M26B, R_M26B)]
+           ("M26b-traduction-rangee", A_M26B, R_M26B),
+           # D-0 (21/09/2026) — l'historique complet : la ref et
+           # l'instantané, la pile, undo/redo, le h0 du glisser, la
+           # durée et le style. Aucune de ces ancres n'est touchée par
+           # une section antérieure (H6 vit DANS le remplacement de
+           # M17g, qui passe avant).
+           ("H1-hist-ref", A_H1, R_H1), ("H2-hist-push", A_H2, R_H2),
+           ("H3-hist-undo", A_H3, R_H3), ("H4-hist-redo", A_H4, R_H4),
+           ("H5-hist-h0-clip", A_H5, R_H5),
+           ("H7-hist-style", A_H7, R_H7),
+           # D-11 (21/09/2026) — la plage I/O. R4 et R5 du plan sont
+           # repliees dans R_M6 et R_M7 (ancres POSEES, compte 0 dans
+           # .bak_montage). Les trois ancres ci-dessous valent 1/1 dans
+           # le bundle d'entree et aucune section anterieure n'y touche.
+           ("R1-plage-actions", A_R1, R_R1),
+           ("R2-plage-dispatch", A_R2, R_R2),
+           ("R3-plage-regle", A_R3, R_R3),
+           # D-3 (21/09/2026) — roll, slip, slide. Les six ancres valent
+           # 1/1 dans le .bak_montage ET dans le bundle patche : aucune
+           # section anterieure ne les touche. T4 pose `dzRollDown` que
+           # T3 et T3b appellent (ordre indifferent : declaration de
+           # fonction, hissee dans le corps du composant).
+           ("T1-trim-modificateurs", A_T1, R_T1),
+           ("T2-trim-slip-slide", A_T2, R_T2),
+           ("T3-trim-roll-poignee", A_T3, R_T3),
+           ("T3b-trim-roll-losange", A_T3B, R_T3B),
+           ("T4-trim-roll-geste", A_T4, R_T4),
+           ("T5-trim-titre", A_T5, R_T5),
+           # D-5 (21/09/2026) - les marqueurs. DEUX sections seulement :
+           # K1, K2, K3, K4 et K6 sont REPLIEES dans R_R1, R_R2, R_M16REF,
+           # R_R3, R_M6 et R_M7, dont elles visaient un texte POSE (ancres
+           # comptees 0 dans .bak_montage). Les deux ancres ci-dessous
+           # valent 1/1 dans le bundle d'entree ; celle de K5 est la QUEUE
+           # de la ligne de la chip `ripple`, que M21 (qui passe avant)
+           # reecrit en tete mais reprend mot pour mot en queue.
+           ("K5-chip-marqueurs", A_K5, R_K5),
+           ("K5b-index-marqueurs", A_K5B, R_K5B),
+           # K7 : Echap. Ancre 1/1 dans .bak_montage, et aucune section
+           # anterieure n'y touche. `dzMkOnRef` et `dzMkToggle` viennent de
+           # K3, replie dans R_M16REF, qui passe AVANT (ordre de PATCHES) --
+           # et `dzMkToggle` est une DECLARATION de fonction, hissee dans le
+           # corps du composant : l'ordre d'ecriture n'y change rien.
+           ("K7-echap-ferme-index", A_K7, R_K7),
+           # D-20 (21/09/2026) - la galerie des transitions. X1 est
+           # REPLIE dans R_M16REF (ancre posee par un remplacement,
+           # comptee 0 dans .bak_montage). Les quatre ancres ci-dessous
+           # valent 1/1 dans .bak_montage ET dans le bundle patche :
+           # aucune section anterieure ne touche ni a SVM_TRANS, ni a
+           # transPopover, ni a transInspector, ni a svmTransLabel.
+           ("X2-galerie-transitions", A_X2, R_X2),
+           ("X3-select-connu", A_X3, R_X3),
+           ("X3b-select-catalogue", A_X3B, R_X3B),
+           ("X4-libelle-catalogue", A_X4, R_X4),
+           # D-12 (21/09/2026) - les fondus simples en direct. V1 est
+           # REPLIEE dans R_M16REF (ancre posee par un remplacement,
+           # comptee 0 dans .bak_montage). Les deux ancres ci-dessous
+           # valent 1/1 dans .bak_montage ET dans le bundle patche :
+           # aucune section anterieure ne touche au cadre du lecteur
+           # ni au corps de `liveSync`. V2 passe AVANT V3, mais
+           # l'ordre n'a aucune importance ici : les deux ancres sont
+           # disjointes et ni l'une ni l'autre n'est creee par un
+           # remplacement.
+           ("V2-voile-cadre", A_V2, R_V2),
+           ("V3-voile-livesync", A_V3, R_V3),
+           # D-21 (21/09/2026) - le genre `title` et la piste t1. TT1b, TT2,
+           # TT3, TT4 (deux moities) et TT5 sont REPLIES dans R_M15, R_M5,
+           # R_M7, R_R1/R_R2 et R_K5 (ancres posees par un remplacement, ou
+           # consommee pour A_M5). Les deux ancres ci-dessous valent 1/1
+           # dans .bak_montage ET dans le bundle patche : aucune section
+           # anterieure ne touche ni a `trackKind` ni a la ligne `var o=`
+           # du payload de rendu (TT2 ne reecrit que le FILTRE, deux lignes
+           # plus haut).
+           ("TT1-genre-title", A_TT1, R_TT1),
+           ("TT2b-payload-carton", A_TT2B, R_TT2B),
+           # D-21 (22/09/2026, tache 7) — les restes de la revue de la
+           # tache 6. TT6 (l'inspecteur), TT7 (l'hote de l'apercu), TT8
+           # (son ecriture) et TT9b (la pile d'effets) sont REPLIES dans
+           # R_M12, R_V2, R_V3 et R_M13 : leurs ancres sont des lignes que
+           # ces remplacements POSENT ou REECRIVENT. Ces trois-ci valent
+           # 1/1 dans .bak_montage.
+           ("TT9-inout-carton", A_TT9, R_TT9),
+           ("TT10-payload-src-mou", A_TT10, R_TT10),
+           ("TT11-plus-de-t1-pose-un-carton", A_TT11, R_TT11)]
 
 
 def nl(text, crlf):
@@ -2447,6 +4002,11 @@ def main():
     if check:
         # Contrôle à sec : on valide les ancres sur l'état PRÉ-patch
         # (le .bak s'il existe, sinon le bundle courant), sans rien écrire.
+        # CE CONTRÔLE NE VOIT QUE L'ÉTAT D'ENTRÉE : une section dont l'ancre
+        # serait POSÉE par une section antérieure y compterait 0. C'est la
+        # raison pour laquelle une telle modification est REPLIÉE dans la
+        # section qui pose son ancre (voir « H6 » dans R_M17G), jamais
+        # ajoutée à PATCHES.
         src = bak if bak.exists() else bundle
         s, _ = read_text(src)
         crlf = "\r\n" in s
