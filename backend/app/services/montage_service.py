@@ -2824,9 +2824,11 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     # blend, PAS enable=), en horloge GLOBALE ici (aucun setpts entre le
     # cadre composé et ce maillon). Un effet qui porte déjà t0/t1 (bornes
     # LOCALES posées par le rack) est ramené dans [start, end]. Sans clip
-    # exploitable : rien n'est émis (commande historique) — la garde
-    # `not effs` est indispensable, build_chain([]) rendrait `[in]null[out]`
-    # et changerait la commande. `_fx` est le même module que celui des
+    # exploitable : rien n'est émis (commande historique) — build_chain([])
+    # rendrait `[in]null[out]` et changerait la commande ; c'est `if not
+    # bounded` (revue du 23/09/2026) qui l'empêche, la garde `not effs` en
+    # amont n'est plus qu'un raccourci (mutation SURVIVANTE mesurée le
+    # 23/09/2026, tests/mutations_montage_l3.py). `_fx` est le même module que celui des
     # segments V1 (lié plus haut, sous le même `if not audio_only:` — le
     # post-pass vient après le return d'audio_only). `total` est la durée
     # APRÈS le maître de durée : un clip qui déborde est coupé à la fin

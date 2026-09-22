@@ -170,7 +170,10 @@ def BUILD(**kw):
     """`_build_montage_command` avec les arguments constants de la section.
     Les mots-cles de V1SPEC (`dz`, `speed`) vont au clip ; le reste aux
     arguments nommes. Un `TypeError` (mot-cle inconnu : l'ETAT VIDE) rend un
-    temoin au lieu de tuer le banc."""
+    temoin au lieu de tuer le banc — et TOUTE autre exception du service
+    aussi : MESURE le 23/09/2026 (mutations_montage_l3.py n°3), un
+    `KeyError` (`_RETIME["nearest"]`) tuait le banc au lieu de le faire
+    rougir ; le temoin nomme le type, la ligne compare et rougit."""
     clip = {k: kw.pop(k) for k in ("dz", "speed", "retime", "stab", "src_in") if k in kw}
     a = {"w": 64, "h": 64, "fps": 25, "mix_db": {}, "ducking": False,
          "duration_master": False, "preview": True,
@@ -178,8 +181,8 @@ def BUILD(**kw):
     a.update(kw)
     try:
         cmd, _ = MS._build_montage_command([V1SPEC(**clip)], [], [], None, **a)
-    except TypeError as e:
-        return "TypeError: %s" % e
+    except Exception as e:                 # faute n°6 : rougir, pas mourir
+        return "%s: %s" % (type(e).__name__, e)
     return FLAT(cmd)
 
 
@@ -654,7 +657,7 @@ def OVBUILD(w=64, h=64, **ov):
         cmd, _ = MS._build_montage_command([V1SPEC()], [o], [], None, w=w, h=h, fps=25, mix_db={},
                                            ducking=False, duration_master=False, preview=True,
                                            out=os.path.join(TMP, "o.mp4"))
-    except (TypeError, ValueError) as e:
+    except Exception as e:                 # mutation n°8 : IndexError sur des 5-uplets
         return "%s: %s" % (type(e).__name__, e)
     return FLAT(cmd)
 
@@ -742,7 +745,7 @@ else:
             [V1SPEC(path=_SRCG, src_dur=3.0, start=0.0, end=3.0)], [_o4], [], None,
             w=320, h=240, fps=25, mix_db={}, ducking=False, duration_master=False,
             preview=True, out=_OUT4)
-    except (TypeError, ValueError) as _e:
+    except Exception as _e:                # faute n°6 : rougir, pas mourir (mutation n°8)
         _e4 = str(_e)
     if isinstance(_cmd4, list) and _cmd4 and _Im is not None:
         _cmd4 = [_FB] + list(_cmd4[1:])
@@ -877,7 +880,7 @@ else:
             w=64, h=64, fps=25, mix_db={}, ducking=False, duration_master=False,
             preview=True, out=_OUT9,
             adjust_clips=[{"start": 1.0, "end": 2.0, "effects": [{"type": "vignette", "intensity": 100}]}])
-    except (TypeError, ValueError) as _e:
+    except Exception as _e:                # faute n°6 : rougir, pas mourir (mutation n°8)
         _e9 = str(_e)
     if isinstance(_cmd9, list) and _cmd9:
         _cmd9 = [_FB] + list(_cmd9[1:])

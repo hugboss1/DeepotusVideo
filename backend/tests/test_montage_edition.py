@@ -840,7 +840,8 @@ try:
                  # D-13 (L3, tache 2) : les DOUZE cles de la section [14].
                  "dz_norm","dz_norm_clamp","dz_norm_vide","dz_at","dz_at_doux",
                  "dz_preset","dz_move","dz_scale","dz_css","dz_of","dz_pur","dz_comp",
-                 # D-15 (L3, tache 4) : les CINQ cles de la section [15].
+                 # D-15 (L3, tache 4) : les SEPT cles de la section [15]
+                 # (cinq de la tache, deux de sa revue -- compte corrige 23/09/2026).
                  "rt_of","rt_rampe","rt_rampe_trans","rt_rampe_refus","rt_rampe_pur",
                  "rt_rampe_fine","rt_rampe_dz",
                  # D-16 (L3, tache 6) : les QUATRE cles de la section [16].
