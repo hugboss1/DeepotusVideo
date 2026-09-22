@@ -12,6 +12,8 @@
 
 ## Conventions valables pour tout le plan
 
+> **Mise a jour du 22/09 soir (avant execution) :** le lot E-A a ete livre sur cette branche entre l'ecriture et l'execution de ce plan. Comptes REELS au depart de L3 : bundle **1685/0**, edition **169/0**, historique 51/0, projets 159/0, l2 78/0, ea 31/0 ; `--check --force-unchained` **107 ancres** ; sonde dzcout `("montage","DzTracks",99)` ; sections EA1..EA6 en queue de `PATCHES` (les sections L3 vont APRES EA6) ; `R_M16REF` porte deja `stDzFin`, `R_M6` porte `vide`. Les chiffres ecrits plus bas (1636, 96, 98) sont ceux du plan d'origine : chaque tache REMESURE.
+
 ```powershell
 $PY = "$env:LOCALAPPDATA\DeepotusVideoGen\runtime\python\python.exe"
 Set-Location backend
