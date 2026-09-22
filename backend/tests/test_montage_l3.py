@@ -560,6 +560,164 @@ else:
           _n3 > 1000 and _rc3 == 0 and "vidstabtransform=" in FLAT(_cmd3 or [])
           and _nb3 == 75, (_rc3, _nb3, _e3))
 
+print("\n[4] D-14 keyframes d'echelle et d'opacite sur les overlays")
+# Etat vide : `_motion_points` historique rend des 4-uplets (scale/opacity
+# ignores), `_mp_cmds` n'existe pas, la chaine overlay ne connait ni zoompan ni
+# sendcmd → chaque check rougit sans tuer le banc.
+_mp = A("_motion_points", lambda c: "ABSENT")
+pts = _mp({"start": 1, "end": 4, "motion_points": [{"t": 0, "x": .5, "y": .5, "scale": .5, "opacity": 1},
+                                                   {"t": 3, "x": .5, "y": .5, "scale": 1.5, "opacity": .2, "rotate": 10}]})
+check("d14_les_points_portent_scale_et_opacity_ou_none",
+      isinstance(pts, list) and len(pts) == 2 and len(pts[0]) == 6 and pts[0][4] == .5 and pts[0][5] == 1.0
+      and pts[1][4] == 1.5 and pts[1][5] == .2 and pts[1][3] == 10.0, pts)
+pts2 = _mp({"start": 0, "end": 3, "motion_points": [{"t": 0, "x": .5, "y": .5}, {"t": 3, "x": .6, "y": .5, "scale": 9, "opacity": -1}]})
+check("d14_scale_clampe_0_05_3_opacity_0_1_absent_none",
+      isinstance(pts2, list) and len(pts2) == 2 and len(pts2[0]) == 6 and pts2[0][4] is None and pts2[0][5] is None
+      and pts2[1][4] == 3.0 and pts2[1][5] == 0.0, pts2)
+pts3 = _mp({"start": 0, "end": 3, "motion_points": [{"t": 0, "x": .5, "y": .5, "scale": "nan", "opacity": "x"}]})
+check("d14_scale_ou_opacity_invalide_retombe_a_none_sans_tuer_le_point",
+      isinstance(pts3, list) and len(pts3) == 1 and len(pts3[0]) == 6 and pts3[0][4] is None and pts3[0][5] is None, pts3)
+_mp_cmds = A("_mp_cmds", lambda *a, **k: "ABSENT")
+cm = _mp_cmds([(0.0, 0.5), (2.0, 1.5)], "colorchannelmixer@mpo0", "aa", lambda v: "%.3f" % v, 0.0, 2.0)
+# Forme MESUREE (22/09, ffmpeg 8.1.1) : sendcmd separe ses commandes par « ; »
+# echappe « \; » dans un -filter_complex (precedent effects_engine._opacity_cmds).
+check("d14_mp_cmds_echantillonne_a_1_25_de_la_premiere_a_la_derniere_cle",
+      isinstance(cm, str) and cm.startswith("0 colorchannelmixer@mpo0 aa 0.500\\;")
+      and "\\;1 colorchannelmixer@mpo0 aa 1.000\\;" in cm and cm.endswith("2 colorchannelmixer@mpo0 aa 1.500")
+      and cm.count("\\;") == 50 and ";" not in cm.replace("\\;", ""), cm[:160])
+cm2 = _mp_cmds([(1.0, 0.2)], "colorchannelmixer@mpo0", "aa", lambda v: "%.3f" % v, 0.0, 1.0)
+check("d14_mp_cmds_une_seule_cle_est_constante_hors_bornes",
+      isinstance(cm2, str) and cm2.startswith("0 colorchannelmixer@mpo0 aa 0.200\\;") and cm2.endswith("1 colorchannelmixer@mpo0 aa 0.200")
+      and cm2.count("\\;") == 25, cm2[:120])
+
+OVF = str(pathlib.Path(TMP) / "ov.png")
+pathlib.Path(OVF).write_bytes(b"x")
+
+
+def OVBUILD(w=64, h=64, **ov):
+    """`_build_montage_command` avec un V1 et UN overlay V2 (forme de la liste
+    `v2` de /render : path, is_image, src_dur, src_in, start, end, opacity, tf,
+    mp, layer — recopiee de tests/test_montage_pistes_rendu.py ov_spec).
+    `motion_points=` passe par MS._motion_points comme /render le fait."""
+    o = {"path": OVF, "is_image": True, "src_dur": 0.0, "src_in": 0.0, "start": 1.0,
+         "end": 3.0, "opacity": None, "tf": None, "mp": None, "layer": 0}
+    mpts = ov.pop("motion_points", None)
+    o.update(ov)
+    if mpts is not None:
+        o["mp"] = MS._motion_points({"start": o["start"], "end": o["end"], "motion_points": mpts})
+    try:
+        cmd, _ = MS._build_montage_command([V1SPEC()], [o], [], None, w=w, h=h, fps=25, mix_db={},
+                                           ducking=False, duration_master=False, preview=True,
+                                           out=os.path.join(TMP, "o.mp4"))
+    except (TypeError, ValueError) as e:
+        return "%s: %s" % (type(e).__name__, e)
+    return FLAT(cmd)
+
+
+# Candidat retenu pour l'echelle (MESURE 22/09/2026, ffmpeg 8.1.1, scratchpad
+# d14/mesure.py) : A (`sendcmd` sur `scale@mps w`) rend 0 et scale CHANGE bien
+# la taille de ses images (showinfo 100x50 → 300x150) mais `overlay` garde la
+# taille INITIALE de sa 2e entree (largeur mesuree 100 px a t=0,2 ET t=2,5) →
+# A echoue ; B (`pad` rgba + `zoompan` sur l'horloge `it`) rend 0, 75 images,
+# largeur 120 → 302 px, alpha conserve (coin gris 128). L'opacite : `sendcmd`
+# sur `colorchannelmixer@mpo aa` (option commandable « T ») : alpha 0,90 a
+# t=0,2 et 0,19 a t=2,5. zoompan ne fait QUE grossir (z clampe 1..10) : l'overlay
+# est pose a sa largeur MINIMALE puis grossi ; la toile est owmax x 2·owmax.
+_ov = OVBUILD(motion_points=[{"t": 0, "x": .5, "y": .5, "scale": .5, "opacity": 1},
+                             {"t": 2, "x": .5, "y": .5, "scale": 1.5, "opacity": .2}])
+_zp = _ov[_ov.find("zoompan=z='"):] if "zoompan=z='" in _ov else ""
+check("d14_l_echelle_animee_passe_par_pad_rgba_et_zoompan_en_horloge_it",
+      "scale=w=32:h=192:force_original_aspect_ratio=decrease" in _ov and ",pad=w=96:h=192:x=(ow-iw)/2:y=(oh-ih)/2:color=black@0," in _ov
+      and _zp.startswith("zoompan=z='if(lt(it,0),1,") and ":d=1:s=96x192:fps=25" in _zp and "(t-" not in _zp[:_zp.find("[ov0]")]
+      and _ov.find("fps=25,format=rgba") < _ov.find("zoompan"), _ov[_ov.find("[1:v]"):][:420])
+check("d14_l_opacite_animee_passe_par_colorchannelmixer_at_mpo_et_sendcmd",
+      "[1:v]sendcmd=c='0 colorchannelmixer@mpo0 aa 1.000\\;" in _ov and "\\;2 colorchannelmixer@mpo0 aa 0.200'," in _ov
+      and "format=rgba,colorchannelmixer@mpo0=aa=1.0,pad=" in _ov, _ov[_ov.find("[1:v]"):][:300])
+_ov0 = OVBUILD(motion_points=[{"t": 0, "x": .5, "y": .5}, {"t": 2, "x": .6, "y": .5}])
+check("d14_sans_scale_ni_opacity_sur_les_points_la_chaine_est_celle_de_l2",
+      "[1:v]scale=64:-2,setsar=1,fps=25,format=rgba,setpts=" in _ov0 and "overlay=x='(" in _ov0 and "-w/2'" in _ov0
+      and "sendcmd" not in _ov0 and "zoompan" not in _ov0 and "@mpo" not in _ov0 and ",pad=w=" not in _ov0, _ov0[_ov0.find("[1:v]"):][:300])
+_ovr = OVBUILD(motion_points=[{"t": 0, "x": .2, "y": .2, "rotate": 0}, {"t": 2, "x": .8, "y": .8, "rotate": 90}])
+check("d14_les_lecteurs_rotate_x_y_gardent_leur_forme_sur_les_6_uplets",
+      ",rotate='if(lt(t,0),0," in _ovr and ":ow='hypot(iw,ih)':oh=ow:c=none" in _ovr
+      and "overlay=x='(if(lt(t,1),12.8," in _ovr and "-w/2':y='(if(lt(t,1),12.8," in _ovr, _ovr[_ovr.find("[1:v]"):][:400])
+_ovs = OVBUILD(tf={"x": .5, "y": .5, "scale": 1.0, "rotate": 0.0},
+               motion_points=[{"t": 0, "x": .5, "y": .5, "scale": .75}, {"t": 2, "x": .5, "y": .5, "scale": .75}])
+check("d14_des_points_de_meme_echelle_restent_statiques_et_font_foi_sur_tf",
+      "[1:v]scale=48:-2,setsar=1,fps=25,format=rgba,setpts=" in _ovs and "zoompan" not in _ovs and ",pad=w=" not in _ovs, _ovs[_ovs.find("[1:v]"):][:200])
+_ovz = OVBUILD(motion_points=[{"t": 0, "x": .5, "y": .5, "scale": .05}, {"t": 2, "x": .5, "y": .5, "scale": 3}])
+_zpz = _ovz[_ovz.find("zoompan=z='"):_ovz.find("[ov0]")] if "zoompan=z='" in _ovz else ""
+check("d14_le_zoom_est_borne_a_10_la_largeur_de_base_remonte_a_smax_sur_10",
+      "scale=w=20:h=384:" in _ovz and ":s=192x384:" in _zpz and "10)" in _zpz and "60" not in _zpz, _zpz[:200])
+_ovo = OVBUILD(opacity=0.5, motion_points=[{"t": 0, "x": .5, "y": .5, "opacity": .8}, {"t": 1, "x": .5, "y": .5, "opacity": .8}])
+check("d14_une_opacite_constante_sur_les_points_est_statique_et_fait_foi_sur_le_clip",
+      "format=rgba,colorchannelmixer=aa=0.8,setpts=" in _ovo and "sendcmd" not in _ovo and "@mpo" not in _ovo, _ovo[_ovo.find("[1:v]"):][:200])
+
+# --- mesure ffmpeg reelle : fond gris 3 s + PNG rouge 200x100 en overlay dont
+# l'echelle va de 0,25 a 0,75 et l'opacite de 1 a 0,2 → rc 0, 75 images ;
+# largeur du rouge plus grande a t=2,5 qu'a t=0,2, rouge plus pale (Pillow).
+if _FB is None:
+    check("d14_rendu_reel_SKIP_sans_ffmpeg", True)
+else:
+    try:
+        from PIL import Image as _Im
+    except Exception:
+        _Im = None
+    _SRCG = str(pathlib.Path(TMP) / "gris.mp4")
+    subprocess.run([_FB, "-y", "-loglevel", "error", "-f", "lavfi", "-i",
+                    "color=c=gray:s=320x240:r=25:d=3", "-c:v", "libx264", "-pix_fmt",
+                    "yuv420p", _SRCG], check=False, capture_output=True, timeout=60)
+    _PNG = str(pathlib.Path(TMP) / "rouge.png")
+    if _Im is not None:
+        _Im.new("RGBA", (200, 100), (255, 0, 0, 255)).save(_PNG)
+    _OUT4 = os.path.join(TMP, "d14.mp4")
+    _o4 = {"path": _PNG, "is_image": True, "src_dur": 0.0, "src_in": 0.0, "start": 0.0,
+           "end": 3.0, "opacity": None, "tf": None, "layer": 0,
+           "mp": MS._motion_points({"start": 0, "end": 3, "motion_points": [
+               {"t": 0, "x": .5, "y": .5, "scale": .25, "opacity": 1},
+               {"t": 2, "x": .5, "y": .5, "scale": .75, "opacity": .2}]})}
+    _cmd4, _rc4, _e4 = None, -1, "commande absente"
+    try:
+        _cmd4, _ = MS._build_montage_command(
+            [V1SPEC(path=_SRCG, src_dur=3.0, start=0.0, end=3.0)], [_o4], [], None,
+            w=320, h=240, fps=25, mix_db={}, ducking=False, duration_master=False,
+            preview=True, out=_OUT4)
+    except (TypeError, ValueError) as _e:
+        _e4 = str(_e)
+    if isinstance(_cmd4, list) and _cmd4 and _Im is not None:
+        _cmd4 = [_FB] + list(_cmd4[1:])
+        _r4 = subprocess.run(_cmd4, check=False, capture_output=True, text=True, timeout=180)
+        _rc4, _e4 = _r4.returncode, (_r4.stderr or "")[-400:]
+    _nb4 = -1
+    try:
+        _p4 = subprocess.run([os.path.join(os.path.dirname(_FB), "ffprobe"), "-v", "error",
+                              "-count_frames", "-select_streams", "v:0", "-show_entries",
+                              "stream=nb_read_frames", "-of", "csv=p=0", _OUT4],
+                             check=False, capture_output=True, text=True, timeout=60)
+        _nb4 = int((_p4.stdout or "").strip() or -1)
+    except (ValueError, OSError):
+        pass
+    check("d14_rendu_reel_zoompan_et_sendcmd_rendent_0_et_75_images",
+          _rc4 == 0 and _nb4 == 75 and "zoompan" in FLAT(_cmd4 or []) and "sendcmd" in FLAT(_cmd4 or []), (_rc4, _nb4, _e4))
+
+    def _mesure(t):
+        """(largeur du rouge, rouge moyen 0..1) sur la ligne mediane a t."""
+        _png = os.path.join(TMP, "d14_%s.png" % t)
+        subprocess.run([_FB, "-y", "-loglevel", "error", "-ss", str(t), "-i", _OUT4,
+                        "-frames:v", "1", _png], check=False, capture_output=True, timeout=60)
+        if _Im is None or not os.path.isfile(_png):
+            return (-1, -1.0)
+        _im = _Im.open(_png).convert("RGB"); _px = _im.load(); _w, _h = _im.size
+        _red = [x for x in range(_w) if _px[x, _h // 2][0] > 150 and _px[x, _h // 2][1] < 110]
+        _cen = [_px[x, _h // 2][0] for x in range(_w // 2 - 10, _w // 2 + 10)]
+        return ((_red[-1] - _red[0] + 1) if _red else 0, round((sum(_cen) / len(_cen) - 128) / 127, 2))
+    _m02, _m25 = _mesure(0.2), _mesure(2.5)
+    # attendus : largeur 320·0,25 = 80 px (+ ~8 a t=0,2) puis 320·0,75 = 240 px ;
+    # rouge ~0,9 puis ~0,2.
+    check("d14_rendu_reel_l_overlay_est_plus_large_et_plus_pale_a_la_fin",
+          _rc4 == 0 and 70 <= _m02[0] <= 110 and 220 <= _m25[0] <= 260
+          and 0.8 <= _m02[1] <= 1.0 and 0.1 <= _m25[1] <= 0.35, (_m02, _m25))
+
 print("\n[6] D-16 routes /stab")
 r = c.post("/api/montage/stab", json={"src": {"job_id": "nope"}}); d = J(r)
 check("d16_post_stab_source_inconnue_400_ou_404", r.status_code in (400, 404), (r.status_code, d))

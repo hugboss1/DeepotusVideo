@@ -690,23 +690,32 @@ def _ov_transform(c: dict) -> dict | None:
 # posé sur le flux composité : son t est celui de enable='between(t,st,en)' —
 # chaque point local devient start + t). La rotation s'anime sur l'horloge
 # LOCALE du flux overlay (le filtre rotate précède le setpts de décalage).
-# L'ÉCHELLE reste STATIQUE — aucune keyframe d'échelle : la largeur scale·W
-# est figée pour toute la durée de l'overlay (l'UI l'affiche tel quel).
+# D-14 (22/09/2026) : l'ÉCHELLE et l'OPACITÉ s'animent aussi, sur la même
+# horloge LOCALE — points `scale` → pad rgba + zoompan (z='…it…'), points
+# `opacity` → sendcmd sur colorchannelmixer@mpo<j> aa. MESURÉ sur ffmpeg
+# 8.1.1 (scratchpad d14/mesure.py) : le candidat `sendcmd` sur `scale@mps w`
+# rend 0 et scale CHANGE la taille de ses images (showinfo 100x50 → 300x150)
+# mais `overlay` garde la taille INITIALE de sa 2e entrée (100 px mesurés à
+# t=0,2 ET t=2,5) — donc zoompan, qui ne fait QUE grossir (z clampé 1..10 par
+# le filtre) : l'overlay est posé à sa largeur MINIMALE puis grossi.
 _MP_MAX_POINTS = 8
+_RAMP_STEP = 1.0 / 25.0   # = effects_engine._RAMP_STEP (un pas par image à 25)
 
 
 def _motion_points(c: dict) -> list | None:
     """Champ optionnel ``motion_points`` d'un overlay V2 : [{t, x, y,
-    rotate?}] → liste TRIÉE de tuples (t, x, y, rotate|None), ou None.
+    rotate?, scale?, opacity?}] → liste TRIÉE de 6-uplets
+    (t, x, y, rotate|None, scale|None, opacity|None), ou None.
 
     t clampé 0..durée du clip (end−start), x/y clampés −0.5..1.5, rotate
-    −180..180 (mêmes bornes que _ov_transform) — rotate absent reste None :
-    le point ne participe pas à l'animation d'angle. Entrées invalides
-    (non-dict, non numériques, NaN) ignorées avec warning ; au-delà de
-    8 points triés le surplus est ignoré (warning) ; doublons de t (< 5 ms)
-    fusionnés, le dernier gagne (une pente y diviserait par ~0). Champ
-    absent, vide ou entièrement invalide → None : la chaîne émise reste
-    STRICTEMENT l'historique (non-régression testée)."""
+    −180..180, scale 0.05..3 (mêmes bornes que _ov_transform), opacity 0..1
+    — un champ optionnel absent ou invalide (non numérique, NaN) reste None
+    avec warning : le point ne participe pas à cette animation-là. Entrées
+    invalides (non-dict, t/x/y non numériques, NaN) ignorées avec warning ;
+    au-delà de 8 points triés le surplus est ignoré (warning) ; doublons de
+    t (< 5 ms) fusionnés, le dernier gagne (une pente y diviserait par ~0).
+    Champ absent, vide ou entièrement invalide → None : la chaîne émise
+    reste STRICTEMENT l'historique (non-régression testée)."""
     raw = c.get("motion_points")
     if not raw:
         return None
@@ -729,22 +738,26 @@ def _motion_points(c: dict) -> list | None:
             logger.warning(f"montage: point de position invalide ({p!r}), "
                            f"ignoré — {lbl}")
             continue
-        rr = p.get("rotate") if isinstance(p, dict) else None
-        if rr is not None:
-            try:
-                rr = float(rr)
-            except (TypeError, ValueError):
-                rr = float("nan")
-            if rr != rr:
-                logger.warning(f"montage: rotate de point invalide, ignoré — "
-                               f"{lbl}")
-                rr = None
-            else:
-                rr = max(-180.0, min(180.0, rr))
+        opt = []
+        for key, lo, hi in (("rotate", -180.0, 180.0), ("scale", 0.05, 3.0),
+                            ("opacity", 0.0, 1.0)):
+            v = p.get(key) if isinstance(p, dict) else None
+            if v is not None:
+                try:
+                    v = float(v)
+                except (TypeError, ValueError):
+                    v = float("nan")
+                if v != v:
+                    logger.warning(f"montage: {key} de point invalide, "
+                                   f"ignoré — {lbl}")
+                    v = None
+                else:
+                    v = max(lo, min(hi, v))
+            opt.append(v)
         t = max(0.0, round(t, 3))
         if dur > 0:
             t = min(t, round(dur, 3))
-        pts.append((t, max(-0.5, min(1.5, xx)), max(-0.5, min(1.5, yy)), rr))
+        pts.append((t, max(-0.5, min(1.5, xx)), max(-0.5, min(1.5, yy)), *opt))
     pts.sort(key=lambda q: q[0])
     if len(pts) > _MP_MAX_POINTS:
         logger.warning(f"montage: {len(pts)} points de position (max "
@@ -753,19 +766,21 @@ def _motion_points(c: dict) -> list | None:
     out: list = []
     for q in pts:
         if out and q[0] - out[-1][0] < 0.005:
-            out[-1] = (out[-1][0], q[1], q[2], q[3])
+            out[-1] = (out[-1][0], *q[1:])
             continue
         out.append(q)
     return out or None
 
 
-def _mp_lerp_expr(pts: list) -> str:
+def _mp_lerp_expr(pts: list, var: str = "t") -> str:
     """Interpolation linéaire par morceaux pour des paires (t, v) TRIÉES —
     même gabarit d'expression que :func:`_vp_expr` (constante avant le
     premier point / après le dernier), sans conversion finale : sert aux
     expressions x/y (pixels, temps global) et a (radians, temps local) des
-    overlays animés. Toujours posée entre quotes simples dans le filtergraph
-    (les virgules de if(…) y sont sans ambiguïté)."""
+    overlays animés, et au z de zoompan (D-14, ``var="it"`` : zoompan ne
+    connaît pas `t`, son horloge est `it`). Toujours posée entre quotes
+    simples dans le filtergraph (les virgules de if(…) y sont sans
+    ambiguïté)."""
     n = sfx_service.fnum
     if len(pts) == 1:
         return n(pts[0][1])
@@ -773,9 +788,33 @@ def _mp_lerp_expr(pts: list) -> str:
     for k in range(len(pts) - 1, 0, -1):
         t0, v0 = pts[k - 1]
         t1, v1 = pts[k]
-        seg = f"{n(v0)}+({n(v1 - v0)})*(t-{n(t0)})/{n(t1 - t0)}"
-        expr = f"if(lt(t,{n(t1)}),{seg},{expr})"
-    return f"if(lt(t,{n(pts[0][0])}),{n(pts[0][1])},{expr})"
+        seg = f"{n(v0)}+({n(v1 - v0)})*({var}-{n(t0)})/{n(t1 - t0)}"
+        expr = f"if(lt({var},{n(t1)}),{seg},{expr})"
+    return f"if(lt({var},{n(pts[0][0])}),{n(pts[0][1])},{expr})"
+
+
+def _mp_cmds(pairs: list, target: str, opt: str, fmt, t_min: float,
+             t_max: float) -> str:
+    """D-14 : commandes ``sendcmd`` échantillonnées à _RAMP_STEP de t_min à
+    t_max (inclus) — valeur = interpolation linéaire python des paires
+    (t, v) TRIÉES, constante hors bornes — « t target opt fmt(v) » jointes
+    par « \\; » (le « ; » nu est aussi le séparateur du filtergraph :
+    précédent effects_engine._opacity_cmds). Une commande par image : là où
+    une expression coûterait un calcul par pixel, ou n'existe pas (aa de
+    colorchannelmixer est un double commandable, pas une expression)."""
+    n = sfx_service.fnum
+
+    def at(t):
+        if t <= pairs[0][0]:
+            return pairs[0][1]
+        for (t0, v0), (t1, v1) in zip(pairs, pairs[1:]):
+            if t < t1:
+                return v0 + (v1 - v0) * (t - t0) / (t1 - t0)
+        return pairs[-1][1]
+    steps = max(1, int(round((t_max - t_min) / _RAMP_STEP)))
+    return "\\;".join(f"{n(round(t_min + i * (t_max - t_min) / steps, 3))} "
+                      f"{target} {opt} {fmt(at(t_min + i * (t_max - t_min) / steps))}"
+                      for i in range(steps + 1))
 
 
 # C4 : vitesse par clip V1 — champ optionnel ``speed`` (0.25..4, défaut 1).
@@ -2204,9 +2243,15 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     _motion_points, None sans keyframes) — x/y du filtre overlay deviennent
     des interpolations linéaires par morceaux du temps GLOBAL (points posés
     à start + t), la rotation s'anime en horloge LOCALE du flux overlay si
-    des points portent rotate (cadre fixe hypot(iw,ih)) ; scale reste la
-    valeur statique de `tf` (aucune keyframe d'échelle) ; `mp` sans `tf` :
+    des points portent rotate (cadre fixe hypot(iw,ih)) ; `mp` sans `tf` :
     défauts centre / échelle 1.
+    D-14 : les 6-uplets de `mp` portent aussi scale|None et opacity|None —
+    des points d'échelle différents → pad rgba + zoompan (z='…it…', toile
+    fixe owmax × 2·owmax, média posé à owmin ; zoompan clampe z à 10, donc
+    smin ≥ smax/10) ; des points d'opacité différents → sendcmd en tête de
+    chaîne sur colorchannelmixer@mpo<j> aa (une commande par image) ; points
+    tous égaux → filtre statique, la valeur des points fait foi sur `tf` /
+    `opacity`. Aucun point porteur → chaîne de L2 octet pour octet.
     C4 : `speed` sur v1 (0.0 = inchangé, sinon 0.25..4 déjà clampé par
     _v1_speed) — l'input lit d·speed s de source (-t, borné au disponible)
     et setpts=PTS/speed AVANT fps remet le flux à la durée timeline ; la
@@ -2536,18 +2581,57 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             # centre posé à (x·W, y·H) via les constantes w/h du filtre
             # overlay. L'opacité existante se compose (aa multiplie l'alpha),
             # l'alpha des PNG est préservé de bout en bout.
-            ow2 = max(2, int(round(w * tf["scale"] / 2.0)) * 2)
-            och = f"scale={ow2}:-2,setsar=1,fps={fps},format=rgba"
-            if op is not None and 0.0 <= op < 1.0:
+            # D-14 : points d'échelle / d'opacité — comme pour la rotation,
+            # les points qui portent le champ FONT FOI sur la valeur statique
+            # (tf["scale"], `opacity` du clip) ; tous égaux → filtre statique.
+            sc_pts = [(q[0], q[4]) for q in mp if q[4] is not None] if mp else []
+            op_pts = [(q[0], q[5]) for q in mp if q[5] is not None] if mp else []
+            scale = tf["scale"]
+            if sc_pts and len({round(s, 3) for _t, s in sc_pts}) == 1:
+                scale, sc_pts = sc_pts[0][1], []
+            if op_pts and len({round(v, 3) for _t, v in op_pts}) == 1:
+                op, op_pts = op_pts[0][1], []
+            if sc_pts:
+                # Échelle animée (mesuré 22/09/2026, voir _MP_MAX_POINTS) :
+                # `overlay` ignore un changement de taille de sa 2e entrée,
+                # donc zoompan sur une toile FIXE owmax × 2·owmax (ratios
+                # jusqu'à 1:2 entiers, au-delà `decrease` réduit) où le média
+                # est posé à sa largeur MINIMALE puis grossi de z = s(t)/smin
+                # (zoompan clampe z à 1..10 : smin remonte à smax/10). Horloge
+                # `it` = celle de sendcmd et de rotate (pts locaux, avant le
+                # setpts). Écart daté : le média est ré-agrandi depuis owmin
+                # (zoompan ne sait que grossir), pas rendu à sa résolution max.
+                smax = max(s for _t, s in sc_pts)
+                smin = max(smax / 10.0, min(s for _t, s in sc_pts))
+                fw = max(2, int(round(w * smax / 2.0)) * 2)
+                fh = 2 * fw
+                owmin = max(2, int(round(w * smin / 2.0)) * 2)
+                och = (f"scale=w={owmin}:h={fh}:force_original_aspect_ratio="
+                       f"decrease,setsar=1,fps={fps},format=rgba")
+            else:
+                ow2 = max(2, int(round(w * scale / 2.0)) * 2)
+                och = f"scale={ow2}:-2,setsar=1,fps={fps},format=rgba"
+            if op_pts:
+                # Opacité animée : aa de colorchannelmixer n'est pas une
+                # expression mais une option commandable (« T ») — sendcmd en
+                # tête de chaîne, une commande par image de la première à la
+                # dernière clé, constante hors bornes (aa initial = 1re clé).
+                och = (f"sendcmd=c='{_mp_cmds(op_pts, f'colorchannelmixer@mpo{j}', 'aa', lambda v: '%.3f' % v, op_pts[0][0], op_pts[-1][0])}',"
+                       f"{och},colorchannelmixer@mpo{j}=aa={round(op_pts[0][1], 3)}")
+            elif op is not None and 0.0 <= op < 1.0:
                 och += f",colorchannelmixer=aa={round(op, 3)}"
+            if sc_pts:
+                zp = [(t, max(smin, s) / smin) for t, s in sc_pts]
+                och += (f",pad=w={fw}:h={fh}:x=(ow-iw)/2:y=(oh-ih)/2:color=black@0,"
+                        f"zoompan=z='{_mp_lerp_expr(zp, 'it')}':x='(iw-iw/zoom)/2'"
+                        f":y='(ih-ih/zoom)/2':d=1:s={fw}x{fh}:fps={fps}")
             # R4b : la rotation s'anime si des points portent rotate — angle
             # interpolé (radians) sur l'horloge LOCALE du flux overlay (le
             # setpts de décalage vient après). Le cadre de sortie devient le
             # carré FIXE hypot(iw,ih) (rotw/roth dépendraient de t, que les
             # expressions ow/oh n'évaluent qu'à l'init) : le média reste
             # centré dedans, la pose x/y « centre − w/2 » ne change pas.
-            rot_pts = ([(t, r) for (t, _x, _y, r) in mp if r is not None]
-                       if mp else [])
+            rot_pts = [(q[0], q[3]) for q in mp if q[3] is not None] if mp else []
             if rot_pts:
                 if max(abs(r) for _t, r in rot_pts) < 0.05:
                     pass  # angles tous ≈ 0 : pas de filtre rotate
@@ -2571,10 +2655,8 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                 # (celui de enable=between) : chaque point local t devient
                 # st + t ; expressions quotées (virgules de if sans
                 # ambiguïté), évaluées par frame (défaut eval de overlay).
-                xpts = [(round(st + t, 3), round(w * x, 2))
-                        for (t, x, _y, _r) in mp]
-                ypts = [(round(st + t, 3), round(h * y, 2))
-                        for (t, _x, y, _r) in mp]
+                xpts = [(round(st + q[0], 3), round(w * q[1], 2)) for q in mp]
+                ypts = [(round(st + q[0], 3), round(h * q[2], 2)) for q in mp]
                 pos = (f"x='({_mp_lerp_expr(xpts)})-w/2'"
                        f":y='({_mp_lerp_expr(ypts)})-h/2':")
             else:
