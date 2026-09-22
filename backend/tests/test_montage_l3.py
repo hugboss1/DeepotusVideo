@@ -68,6 +68,28 @@ egaux → filtre statique qui fait foi sur tf/opacity ; aucun point porteur →
 chaine de L2 octet pour octet (temoin positif). Etat vide : 4-uplets, `_mp_cmds`
 ABSENT, chaine sans zoompan/sendcmd. Mesure reelle (SKIP sans ffmpeg OU sans
 Pillow) : fond gris + PNG rouge, 75 images, largeur 80 → 240 px, rouge 0,9 → 0,2.
+[5] D-9 PISTE D'AJUSTEMENT. `_build_montage_command(…, adjust_clips=)` : une
+liste de {start, end, effects} (clips SANS source, piste de genre `adjust`, id
+`j1` cote client). Chaque clip devient un post-pass `[aj<j>]` sur le cadre
+COMPOSE (apres le dernier overlay `[ob<n>]` et le maitre de duree, AVANT les
+titres `[tt<j>]` et S1), par `_fx.build_chain(…, f"aj{j}", f"ajfx{j}", ctx)`
+en horloge GLOBALE : [start, end] devient t0/t1 de chaque effet (bornage de
+effects_engine._timed : split + sendcmd + blend, PAS enable=), un effet qui
+porte deja t0/t1 (bornes LOCALES du rack) est ramene dans le clip. Pin MESURE
+des bornes (22/09/2026) : l'enveloppe se nomme `<prefixe>e<idx>env` (uid_e =
+f"{uid}e{idx}" dans build_chain), donc `1.000 blend@ajfx0e0env all_opacity 1`
+et `2.500 blend@ajfx0e0env all_opacity 0.0000` (_opacity_cmds : `%.3f`, `1` a
+100 % par la garde vf_blend, `%.4f` ailleurs). PROUVE que le pin rougit sans
+bornage : e2 sans t0/t1 → _timed rend la chaine nue, aucun sendcmd (mesure en
+commentant le bornage, puis remis). Sans clip, clip sans effet, type inconnu,
+bornes illisibles ou hors duree : commande historique octet pour octet. Etat
+vide : `adjust_clips` inconnu de la signature → TypeError (BUILD le rend en
+temoin). Mesure reelle (SKIP sans ffmpeg ou Pillow) : fond GRIS 3 s (statique,
+pas testsrc2 : seul un fond fixe rend le bornage mesurable par un pixel) +
+vignette sur [1, 2] → rc 0, 75 images, coin sombre a t=1,5 seulement. Espion
+/render : piste {id:"j1", kind:"adjust"} + clip sans src → `adjust_clips`
+porte {start:1.0, end:2.0, effects:[…]} ; sans effets, transmis avec
+effects == [] et absent de la commande.
 [6] D-16 ROUTES /stab. `POST /stab` = le contrat de `POST /proxy` ({ok,
 ready, job_id}, provider `montage_stab`, suivi par GET /api/jobs/{id}) ;
 `GET /stab` = {ready} sans jamais fabriquer. Espion /render : un clip V1 avec
@@ -755,6 +777,163 @@ else:
     check("d14_rendu_reel_l_overlay_est_plus_large_et_plus_pale_a_la_fin",
           _rc4 == 0 and 70 <= _m02[0] <= 110 and 220 <= _m25[0] <= 260
           and 0.8 <= _m02[1] <= 1.0 and 0.1 <= _m25[1] <= 0.35, (_m02, _m25))
+
+print("\n[5] D-9 piste d'ajustement : un post-pass borne apres les overlays, avant les titres")
+# Etat vide : `adjust_clips=` est un mot-cle INCONNU de la signature → BUILD
+# rend "TypeError: …", qui n'est ni la commande historique ni une commande.
+_c0 = BUILD()
+check("d9_sans_adjust_clips_la_commande_est_l_historique",
+      _c0.startswith("ffmpeg") and BUILD(adjust_clips=None) == _c0 and BUILD(adjust_clips=[]) == _c0,
+      (_c0[:60], BUILD(adjust_clips=None)[:120]))
+AJ = [{"start": 1.0, "end": 2.5, "effects": [{"type": "vignette", "intensity": 60}]}]
+_ca = BUILD(adjust_clips=AJ, subs_ass=None)
+# `[aj0]` ne peut venir QUE de la signature (V1SPEC ne connait pas
+# adjust_clips) ; `ajfx0` est le prefixe passe a build_chain, dont l'enveloppe
+# de _timed se nomme `<prefixe>e<idx>env` (mesure : uid_e = f"{uid}e{idx}").
+check("d9_un_clip_d_ajustement_pose_build_chain_sur_le_cadre_final",
+      _ca.startswith("ffmpeg") and "[aj0]" in _ca and "ajfx0" in _ca
+      and "[n0]format=yuv420p,split=2[ajfx0e0enva][ajfx0e0envb]" in _ca
+      and "[aj0]format=yuv420p[outv]" in _ca,
+      _ca[:600])
+# Bornes : _opacity_cmds ecrit `%.3f` ; a 100 % il pose `all_opacity 1`
+# (garde vf_blend), a 0 `all_opacity 0.0000`. Sans bornage, _timed rend la
+# chaine nue (aucun sendcmd) — prouve en commentant le bornage (voir
+# docstring).
+_PIN_T0 = "1.000 blend@ajfx0e0env all_opacity 1"
+_PIN_T1 = "2.500 blend@ajfx0e0env all_opacity 0.0000"
+check("d9_les_bornes_du_clip_deviennent_t0_t1_de_chaque_effet",
+      "[aj0]" in _ca and "sendcmd" in _ca and "blend@ajfx0" in _ca
+      and _PIN_T0 in _ca and _PIN_T1 in _ca,
+      [s for s in _ca.split("\\;") if "blend@ajfx0" in s][:6])
+# Apres les overlays : le post-pass lit `[ob0]`, la sortie du dernier overlay.
+_ov = {"path": V1F, "is_image": False, "src_dur": 4.0, "src_in": 0.0, "start": 0.0,
+       "end": 4.0, "opacity": None, "tf": None, "mp": None, "layer": 0}
+try:
+    _cov, _ = MS._build_montage_command([V1SPEC()], [_ov], [], None, w=64, h=64, fps=25,
+                                        mix_db={}, ducking=False, duration_master=False,
+                                        preview=True, out=os.path.join(TMP, "o.mp4"),
+                                        adjust_clips=AJ)
+    _cov = FLAT(_cov)
+except TypeError as _e:
+    _cov = "TypeError: %s" % _e
+check("d9_l_ajustement_lit_la_sortie_du_dernier_overlay",
+      "[ob0]" in _cov and "[aj0]" in _cov and _cov.find("[aj0]") > _cov.find("[ob0]")
+      and "[ob0]format=yuv420p,split=2[ajfx0e0enva]" in _cov, _cov[:600])
+_t0 = os.path.join(TMP, "t0.ass")
+open(_t0, "w", encoding="utf-8").write("[Script Info]\n")
+_cat = BUILD(adjust_clips=AJ, titles_ass=[_t0])
+check("d9_l_ajustement_precede_les_titres_et_s1",
+      "[tt0]" in _cat and "[aj0]" in _cat and _cat.find("[aj0]") < _cat.find("[tt0]")
+      and "[aj0]subtitles=" in _cat, _cat[:600])
+_c2 = BUILD(adjust_clips=[AJ[0], {"start": 3, "end": 4, "effects": [{"type": "vignette", "intensity": 30}]}])
+check("d9_deux_clips_s_enchainent_aj0_puis_aj1",
+      "[aj0]" in _c2 and "[aj1]" in _c2 and _c2.find("[aj0]") < _c2.find("[aj1]")
+      and "[aj0]format=yuv420p,split=2[ajfx1e0enva]" in _c2
+      and "3.000 blend@ajfx1e0env all_opacity 1" in _c2, _c2[:600])
+# Temoin positif : _ca differe de _c0 ; les clips vides, inconnus ou hors
+# duree (V1SPEC dure 4 s, 900 > 4) rendent la commande historique.
+check("d9_un_clip_sans_effet_ou_hors_duree_est_ignore",
+      _ca != _c0 and _c0.startswith("ffmpeg")
+      and BUILD(adjust_clips=[{"start": 1, "end": 2, "effects": []}]) == _c0
+      and BUILD(adjust_clips=[{"start": 1, "end": 2, "effects": [{"type": "inconnu"}]}]) == _c0
+      and BUILD(adjust_clips=[{"start": 900, "end": 950, "effects": AJ[0]["effects"]}]) == _c0
+      and BUILD(adjust_clips=[{"start": "x", "end": 2, "effects": AJ[0]["effects"]}]) == _c0,
+      (BUILD(adjust_clips=[{"start": 1, "end": 2, "effects": []}])[:80],
+       BUILD(adjust_clips=[{"start": 900, "end": 950, "effects": AJ[0]["effects"]}])[:80]))
+_cl = BUILD(adjust_clips=[{"start": 1, "end": 3, "effects": [{"type": "vignette", "intensity": 60, "t0": 0.5, "t1": 9}]}])
+check("d9_un_effet_avec_ses_propres_bornes_locales_est_ramene_dans_le_clip",
+      "blend@ajfx0" in _cl and "1.500 blend@ajfx0e0env all_opacity 1" in _cl
+      and "3.000 blend@ajfx0e0env all_opacity 0.0000" in _cl,
+      [s for s in _cl.split("\\;") if "blend@ajfx0" in s][:6])
+# --- mesure ffmpeg reelle : fond gris 3 s + ajustement vignette sur [1, 2] →
+# rc 0, 75 images ; le coin est plus sombre a t=1,5 qu'a t=0,5 et a t=2,5
+# (source STATIQUE, pas testsrc2 : seul un fond fixe rend le bornage mesurable
+# par un pixel). SKIP sans ffmpeg ou sans Pillow, comme les sections voisines.
+if _FB is None or _Im is None:
+    check("d9_rendu_reel_SKIP_sans_ffmpeg_ou_sans_pillow", True)
+else:
+    _SRCG9 = str(pathlib.Path(TMP) / "gris9.mp4")
+    subprocess.run([_FB, "-y", "-loglevel", "error", "-f", "lavfi", "-i",
+                    "color=c=gray:s=64x64:r=25:d=3", "-c:v", "libx264", "-pix_fmt",
+                    "yuv420p", _SRCG9], check=False, capture_output=True, timeout=60)
+    _OUT9 = os.path.join(TMP, "d9.mp4")
+    _cmd9, _rc9, _e9 = None, -1, "commande absente"
+    try:
+        _cmd9, _ = MS._build_montage_command(
+            [V1SPEC(path=_SRCG9, src_dur=3.0, start=0.0, end=3.0)], [], [], None,
+            w=64, h=64, fps=25, mix_db={}, ducking=False, duration_master=False,
+            preview=True, out=_OUT9,
+            adjust_clips=[{"start": 1.0, "end": 2.0, "effects": [{"type": "vignette", "intensity": 100}]}])
+    except (TypeError, ValueError) as _e:
+        _e9 = str(_e)
+    if isinstance(_cmd9, list) and _cmd9:
+        _cmd9 = [_FB] + list(_cmd9[1:])
+        _r9 = subprocess.run(_cmd9, check=False, capture_output=True, text=True, timeout=180)
+        _rc9, _e9 = _r9.returncode, (_r9.stderr or "")[-400:]
+    _nb9 = -1
+    try:
+        _p9 = subprocess.run([os.path.join(os.path.dirname(_FB), "ffprobe"), "-v", "error",
+                              "-count_frames", "-select_streams", "v:0", "-show_entries",
+                              "stream=nb_read_frames", "-of", "csv=p=0", _OUT9],
+                             check=False, capture_output=True, text=True, timeout=60)
+        _nb9 = int((_p9.stdout or "").strip() or -1)
+    except (ValueError, OSError):
+        pass
+    check("d9_rendu_reel_l_ajustement_rend_0_et_75_images",
+          _rc9 == 0 and _nb9 == 75 and "[aj0]" in FLAT(_cmd9 or []), (_rc9, _nb9, _e9))
+
+    def _coin(t):
+        """Luminance du coin haut-gauche (moyenne 4x4) a t, -1 si illisible."""
+        _png = os.path.join(TMP, "d9_%s.png" % t)
+        subprocess.run([_FB, "-y", "-loglevel", "error", "-ss", str(t), "-i", _OUT9,
+                        "-frames:v", "1", _png], check=False, capture_output=True, timeout=60)
+        if not os.path.isfile(_png):
+            return -1
+        _im = _Im.open(_png).convert("L"); _px = _im.load()
+        return sum(_px[x, y] for x in range(4) for y in range(4)) / 16.0
+    _k05, _k15, _k25 = _coin(0.5), _coin(1.5), _coin(2.5)
+    check("d9_rendu_reel_le_coin_n_est_sombre_qu_entre_les_bornes",
+          _rc9 == 0 and _k05 > 0 and _k15 >= 0 and _k15 < _k05 - 20 and abs(_k25 - _k05) < 6,
+          (_k05, _k15, _k25))
+    # Espion /render : un clip sur une piste de genre `adjust`, SANS src, est
+    # transmis a la commande avec ses bornes ; sans effets il est transmis
+    # aussi (effects == []) mais n'entre pas dans la commande.
+    _cap9 = {}
+    _vb9, _vr9 = MS._build_montage_command, MS._run_ffmpeg
+
+    def _espion9(*a, **k):
+        _cap9["adjust_clips"] = k.get("adjust_clips", "ABSENT")
+        _cmd = _vb9(*a, **k)
+        _cap9["cmd"] = FLAT(_cmd[0] if isinstance(_cmd, tuple) else _cmd)
+        return _cmd
+
+    _tl9 = TL("adj", n=1, src=_SRCG9); _tl9["preview"] = True
+    _tl9["tracks"] = [{"id": "v1", "kind": "video"}, {"id": "j1", "kind": "adjust"},
+                      {"id": "a1", "kind": "audio", "bus": "dialogue"}]
+    _tl9["clips"].append({"tr": "j1", "id": "j1c", "start": 1, "end": 2, "kind": "adjust",
+                          "effects": [{"type": "vignette", "intensity": 60}]})
+    MS._build_montage_command, MS._run_ffmpeg = _espion9, (lambda cmd, out: None)
+    try:
+        _rr9 = c.post("/api/montage/render", json=_tl9)
+    finally:
+        MS._build_montage_command, MS._run_ffmpeg = _vb9, _vr9
+    _aj9 = _cap9.get("adjust_clips")
+    check("d9_le_rendu_transmet_le_clip_d_ajustement_avec_ses_bornes",
+          _rr9.status_code == 200 and isinstance(_aj9, list)
+          and _aj9 == [{"start": 1.0, "end": 2.0, "effects": [{"type": "vignette", "intensity": 60}]}]
+          and "[aj0]" in (_cap9.get("cmd") or "") and "1.000 blend@ajfx0e0env all_opacity 1" in (_cap9.get("cmd") or ""),
+          (_rr9.status_code, _aj9, (_cap9.get("cmd") or "")[:200]))
+    _cap9.clear(); _tl9["clips"][-1].pop("effects")
+    MS._build_montage_command, MS._run_ffmpeg = _espion9, (lambda cmd, out: None)
+    try:
+        _rr9b = c.post("/api/montage/render", json=_tl9)
+    finally:
+        MS._build_montage_command, MS._run_ffmpeg = _vb9, _vr9
+    check("d9_sans_effets_le_clip_est_transmis_vide_et_absent_de_la_commande",
+          isinstance(_aj9, list) and _rr9b.status_code == 200
+          and _cap9.get("adjust_clips") == [{"start": 1.0, "end": 2.0, "effects": []}]
+          and "ffmpeg" in (_cap9.get("cmd") or "") and "[aj0]" not in (_cap9.get("cmd") or "x"),
+          (_rr9b.status_code, _cap9.get("adjust_clips"), (_cap9.get("cmd") or "")[:120]))
 
 print("\n[6] D-16 routes /stab")
 r = c.post("/api/montage/stab", json={"src": {"job_id": "nope"}}); d = J(r)

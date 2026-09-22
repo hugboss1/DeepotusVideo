@@ -2218,7 +2218,8 @@ async def _resolve_src(src: dict | None) -> Path | None:
 
 def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                            ducking, duration_master, preview, out,
-                           audio_only=False, subs_ass=None, titles_ass=None):
+                           audio_only=False, subs_ass=None, titles_ass=None,
+                           adjust_clips=None):
     """Commande ffmpeg complète (sync, testable). v1/v2/a_clips/music portent
     des chemins déjà résolus + durées sondées.
 
@@ -2284,6 +2285,18 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     None (défaut) : chaîne historique intacte, octet pour octet. Le graphe
     `audio_only` n'ouvre aucune vidéo et rend AVANT ce bloc : un titre n'y
     entre jamais.
+    D-9 (22/09/2026) : `adjust_clips` = liste de {start, end, effects} —
+    les clips d'une piste d'AJUSTEMENT (genre `adjust`, sans source). Chaque
+    clip est un post-pass `[aj{j}]` posé par `effects_engine.build_chain`
+    sur le cadre COMPOSÉ (après le dernier overlay et le maître de durée),
+    AVANT les titres et S1 — comme chez Resolve, où un clip d'ajustement
+    agit sur tout ce qui est dessous. L'horloge y est GLOBALE : [start,
+    end] devient t0/t1 de chaque effet (bornage de `_timed`, split +
+    sendcmd + blend, jamais `enable=`) ; un effet qui porte déjà t0/t1
+    (bornes LOCALES posées par le rack) est ramené dans [start, end]. Clip
+    sans effet connu, bornes illisibles ou hors durée : rien n'est émis.
+    None ou liste vide (défaut) : chaîne historique intacte, octet pour
+    octet.
     Sans ces champs, la commande émise est identique octet pour octet à
     l'historique (non-régression testée).
 
@@ -2618,8 +2631,9 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             if op_pts:
                 # Opacité animée : aa de colorchannelmixer n'est pas une
                 # expression mais une option commandable (« T ») — sendcmd en
-                # tête de chaîne, une commande par image de la première à la
-                # dernière clé, constante hors bornes (aa initial = 1re clé).
+                # tête de chaîne, une commande [expr] par segment (TI 0..1)
+                # + une plate finale, constante hors bornes (aa initial =
+                # 1re clé).
                 cmds = _mp_cmds(op_pts, f"colorchannelmixer@mpo{j}", "aa",
                                 lambda v: "%.3f" % v)
                 och = (f"sendcmd=c='{cmds}',{och},"
@@ -2799,6 +2813,50 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                "-map", "[emeas]", "-t", str(round(total, 3)),
                "-f", "null", "-"]
         return cmd, total
+
+    # --- D-9 (22/09/2026) : PISTE D'AJUSTEMENT ---------------------------
+    # Chaque clip est un post-pass BORNÉ sur le cadre composé (V1 + overlays
+    # + maître de durée), avant les titres et S1 — comme les clips
+    # d'ajustement de Resolve, qui agissent sur tout ce qui est dessous. Le
+    # bornage est celui de effects_engine._timed (t0/t1 → split + sendcmd +
+    # blend, PAS enable=), en horloge GLOBALE ici (aucun setpts entre le
+    # cadre composé et ce maillon). Un effet qui porte déjà t0/t1 (bornes
+    # LOCALES posées par le rack) est ramené dans [start, end]. Sans clip
+    # exploitable : rien n'est émis (commande historique) — la garde
+    # `not effs` est indispensable, build_chain([]) rendrait `[in]null[out]`
+    # et changerait la commande. `_fx` est le même module que celui des
+    # segments V1 (import local, portée de la fonction). `total` est la
+    # durée APRÈS le maître de durée : un clip qui déborde est coupé à la
+    # fin réelle de la vidéo, un clip qui commence après elle est ignoré.
+    if adjust_clips:
+        from app.services import effects_engine as _fx
+    for j, aj in enumerate(adjust_clips or []):
+        if not isinstance(aj, dict):
+            continue
+        try:
+            a0 = max(0.0, float(aj.get("start") or 0))
+            a1 = min(float(total), float(aj.get("end") or 0))
+        except (TypeError, ValueError):
+            continue
+        effs = [e for e in (aj.get("effects") or [])
+                if isinstance(e, dict) and e.get("type") in _fx.EFFECTS]
+        if a1 - a0 < 0.05 or not effs:
+            continue
+        bounded = []
+        for e in effs:
+            e2 = dict(e)
+            try:
+                lt0 = max(0.0, float(e.get("t0") or 0))
+                lt1 = (float(e.get("t1")) if e.get("t1") is not None
+                       else (a1 - a0))
+            except (TypeError, ValueError):
+                lt0, lt1 = 0.0, a1 - a0
+            e2["t0"] = round(a0 + lt0, 3)
+            e2["t1"] = round(min(a1, a0 + lt1), 3)
+            bounded.append(e2)
+        parts += _fx.build_chain(bounded, cur, f"aj{j}", f"ajfx{j}",
+                                 {"w": w, "h": h, "dur": total, "fps": fps})
+        cur = f"aj{j}"
 
     # --- T1 : GRAVURE des TITRES (D-21, 21/09/2026) ---------------------
     # Un `.ass` par clip titre, gravé par le MÊME filtre que S1 — donc avec
@@ -3228,6 +3286,16 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                            "tf": _ov_transform(c),
                            "mp": _motion_points(c),
                            "layer": m["layer"]})
+            # D-9 : les clips d'une piste de genre `adjust` (sans `src`) →
+            # post-pass bornés sur le cadre composé. Un clip sans effets est
+            # transmis (effects == []) et la commande l'ignore ; une piste
+            # inconnue de `meta` reste inerte comme avant.
+            adjust = [{"start": float(c.get("start") or 0),
+                       "end": float(c.get("end") or 0),
+                       "effects": (c.get("effects")
+                                   if isinstance(c.get("effects"), list) else [])}
+                      for c in clips
+                      if (meta.get(str(c.get("tr"))) or {}).get("kind") == "adjust"]
             a_clips, music = [], None
             for c in clips:
                 m = meta.get(c.get("tr"))
@@ -3316,7 +3384,7 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                 v1, v2, a_clips, music, w=w, h=h, fps=fps,
                 mix_db=mix, ducking=ducking,
                 duration_master=duration_master, preview=preview, out=out,
-                subs_ass=subs_ass, titles_ass=titles_ass)
+                subs_ass=subs_ass, titles_ass=titles_ass, adjust_clips=adjust)
             fx_n = sum(len(c["effects"] or []) for c in v1)
             logger.info(f"montage {short}: {len(v1)} clips V1 ({fx_n} effets), "
                         f"{len(v2)} overlays V2, {len(a_clips)} audio, "
