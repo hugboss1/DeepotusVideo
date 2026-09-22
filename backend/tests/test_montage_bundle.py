@@ -31,7 +31,14 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 22/09/2026 (lot L3, tache 7, D-14 client) : 1738 lignes,
+COMPTE DE REFERENCE, 22/09/2026 (lot L3, tache 7, D-14 client, revue) :
+1742 lignes, soit QUATRE de plus que les 1738 de D-14 : la section KF2c
+(svmMpRemove : un point restant aligne aussi scale/opacity ; TROIS lignes
+generiques, l'ancre est consommee) et son pin dans [D-14] ; la queue
+pinnee devient DZ1..DZ4 puis KF1, KF2, KF2b, KF2c, KF3a..KF5 ; sonde 112
+inchangee (code nu). --check dit 120 ancres.
+
+COMPTE PRECEDENT, 22/09/2026 (lot L3, tache 7, D-14 client) : 1738 lignes,
 soit VINGT-HUIT de plus que les 1710 de D-16 : les VINGT-DEUX lignes que la
 boucle sur `P.PATCHES` emet seule pour les HUIT sections KF1..KF5 (huit
 `_remplace`, huit `couche_ne_cite_pas_l_ancre_de_`, SIX `_ancre_consommee` :
@@ -14958,7 +14965,7 @@ _DZ_TAGS = [t for t, _a, _r in P.PATCHES]
 _DZ_I = _DZ_TAGS.index("EA6-bandeau-ferme-au-lancement")
 check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_en_queue_apres_EA6_et_la_sonde_dit_112",
       [t.split("-")[0] for t in _DZ_TAGS[_DZ_I + 1:]] == ["DZ1", "DZ2", "DZ3", "DZ4",
-                                                          "KF1", "KF2", "KF2b", "KF3a", "KF3b", "KF3c", "KF4", "KF5"]
+                                                          "KF1", "KF2", "KF2b", "KF2c", "KF3a", "KF3b", "KF3c", "KF4", "KF5"]
       and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
               and s.count(nl(a)) == (1 if a in r else 0)
               for _t, a, r in P.PATCHES[_DZ_I + 1:])
@@ -15107,6 +15114,15 @@ check("KF2_point_unique_aligne_et_point_ecrase_garde_scale_opacite",
       and (_bak.count("one&&one.scale") == 0 and _bak.count("mpKeep") == 0
            and _bak.count("var np={t:bi>=0?pts[bi].t:t,") == 1 if _bak else False),  # le point NEUF, mesure
       f"apply={s.count('scale:one&&one.scale!=null?one.scale:t.scale,')} keep={s.count('DzTracks.mpKeep(')} bak={_bak.count('mpKeep') if _bak else '?'}")
+# REVUE : svmMpRemove, quand il reste UN point, aligne aussi scale/opacity
+# (meme convention que KF2 : opacity 1 -> void 0). Temoin : le .bak ne lit
+# jamais `np[0].scale`.
+check("KF2c_svmMpRemove_un_point_restant_aligne_aussi_echelle_et_opacite",
+      s.count(nl(P.R_KF2C)) == 1 and s.count("if(np[0].scale!=null)nk.scale=np[0].scale;") == 1
+      and s.count("if(np[0].opacity!=null)nk.opacity=np[0].opacity>=1?void 0:np[0].opacity}") == 1
+      and 0 < s.find("  function svmMpRemove(") < s.find("if(np[0].scale!=null)nk.scale=np[0].scale;")
+      and (_bak.count(P.A_KF2C) == 1 and _bak.count("np[0].scale") == 0 and _bak.count("np[0].opacity") == 0 if _bak else False),
+      f"kf2c={s.count(nl(P.R_KF2C))} bak={_bak.count('np[0].scale') if _bak else '?'}")
 # LES CHAMPS ECHELLE ET OPACITE ECRIVENT LE POINT quand une trajectoire
 # existe (svmMpField, comme Rotation), sinon le clip comme avant ; l'infobulle
 # « ne se keyframe pas » a disparu ; vOp lit l'opacite interpolee a la tete

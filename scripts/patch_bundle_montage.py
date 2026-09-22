@@ -4039,6 +4039,11 @@ R_DZ4 = (A_DZ4 + "\n"
 #        premiere ligne `if(c.tr==="v2"){` ; la ligne `q.rotate=` est libre.
 #   KF5  liveSync : l'opacite appliquee a l'overlay vivant est interpolee
 #        (`t` global, `k` le clip — noms mesures) ; hors R_V3 (mesure 0).
+#   KF2c (revue) svmMpRemove : quand il reste UN point, il alignait x/y/rotate
+#        seulement — scale/opacity suivent, meme convention que KF2.
+# ECART DATE (22/09/2026) : quatre commentaires du bundle disent encore que
+# l'echelle ne se keyframe pas (svmOvTfAt, payload, section Trajectoire,
+# svmMpRemove) : perimes, non touches, KF1/KF4 font foi.
 A_KF1 = "          scale:base.scale,"
 R_KF1 = '          scale:DzTracks.mpLerp2(mp,tl,"scale",base.scale),'
 A_KF2 = "        x:one?one.x:t.x,y:one?one.y:t.y,scale:t.scale,"
@@ -4048,6 +4053,10 @@ A_KF2B = "      rotate:Math.min(180,Math.max(-180,Math.round((Number(vals.rotate
 R_KF2B = (A_KF2B + "\n"
           "    /* D-14 : scale/opacity du patch, sinon du point écrasé (bornes du backend) */\n"
           "    DzTracks.mpKeep(np,vals,bi>=0?pts[bi]:null);")
+A_KF2C = "      if(np.length===1){nk.x=np[0].x;nk.y=np[0].y;nk.rotate=np[0].rotate}"
+R_KF2C = ("      if(np.length===1){nk.x=np[0].x;nk.y=np[0].y;nk.rotate=np[0].rotate;"
+          "if(np[0].scale!=null)nk.scale=np[0].scale;"
+          "if(np[0].opacity!=null)nk.opacity=np[0].opacity>=1?void 0:np[0].opacity}")
 A_KF3A = ('          title:"Largeur de l\'overlay en % de celle du canvas (100 = pleine largeur)"+\n'
           '            (mp?" — l\'échelle ne se keyframe pas : valeur unique pour toute la durée":""),\n'
           '          "aria-label":"Échelle (%)",\n'
@@ -4271,6 +4280,7 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("KF1-echelle-interpolee", A_KF1, R_KF1),
            ("KF2-point-unique-aligne", A_KF2, R_KF2),
            ("KF2b-point-garde-echelle-opacite", A_KF2B, R_KF2B),
+           ("KF2c-point-restant-aligne", A_KF2C, R_KF2C),
            ("KF3a-champ-echelle", A_KF3A, R_KF3A),
            ("KF3b-opacite-a-la-tete", A_KF3B, R_KF3B),
            ("KF3c-curseur-opacite", A_KF3C, R_KF3C),

@@ -3105,7 +3105,7 @@ function DzMontage(props){
       else delete nk.motion_points;
       /* invariant : un point restant ne part pas au rendu — les statiques
          s'alignent sur lui (même image au lecteur et au rendu) */
-      if(np.length===1){nk.x=np[0].x;nk.y=np[0].y;nk.rotate=np[0].rotate}
+      if(np.length===1){nk.x=np[0].x;nk.y=np[0].y;nk.rotate=np[0].rotate;if(np[0].scale!=null)nk.scale=np[0].scale;if(np[0].opacity!=null)nk.opacity=np[0].opacity>=1?void 0:np[0].opacity}
       return nk}));
     setDirty(!0);
     if(!np.length)fireNote("Trajectoire retirée — l'overlay reprend sa position statique.")}
