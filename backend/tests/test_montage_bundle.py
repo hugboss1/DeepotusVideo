@@ -31,7 +31,13 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 22/09/2026 (cloture du lot L2, tache 8) : 1636 lignes,
+COMPTE DE REFERENCE, 22/09/2026 (lot E-A, tache 2, E-1 client) : 1641 lignes,
+soit CINQ de plus que les 1636 de la cloture de L2 : la section [E-1] en
+queue (les deux replis `vide` -- R_M6, pas R_M5 comme le plan le disait, la
+mesure a tranche --, leur emplacement, la couche, la feuille). Le compte est
+celui que le banc IMPRIME.
+
+COMPTE PRECEDENT, 22/09/2026 (cloture du lot L2, tache 8) : 1636 lignes,
 soit QUATRE-VINGT-SEPT de plus que les 1549 de D-12. Elles ont ete posees
 par les taches 4 a 7 (D-21, les cartons de titre : la section TT1 sur
 `trackKind`, les huit replis TT2..TT10, les pins de l'inspecteur et de
@@ -14498,6 +14504,83 @@ check("D21_la_feuille_pose_l_hote_et_les_huit_gabarits",
               for _g in _GAB_ORDRE),
       f"hote={_R_HOTE!r} manquants="
       f"{[_g for _g in _GAB_ORDRE if _regle(_MC, '.dzsvm .dzm-tt-%s{' % _g) is None]}")
+
+# ═══════════════════════════════════════════════════════════════════════════
+# [E-1] LOT E-A — UN MONTAGE NEUF : « nouveau », l'instantané, `vide` porté
+# ═══════════════════════════════════════════════════════════════════════════
+print("\n[E-1] lot E-A — montage neuf : nouveau, instantané, vide porté")
+# LES DEUX REPLIS. Le plan situait le premier dans R_M5 ; la MESURE le situe
+# dans R_M6 : `tracks:svmTracksPayload(proj),` vaut 2 dans le bundle (R_M5 =
+# payload de RENDU, R_M6 = svmSavePayload, le seul qui nourrit POST /save).
+# Chaque texte vaut 1 dans le bundle, 0 dans .bak_montage, et il est DANS la
+# section qui le pose — même forme que D11.
+for _lble, _txte, _sece, _nome in (
+        ("E1_le_drapeau_vide_part_avec_la_sauvegarde",
+         "      vide:proj.vide===!0?!0:void 0,\n", P.R_M6, "R_M6"),
+        ("E1_le_drapeau_revient_avec_le_projet",
+         'vide:d.vide===!0,', P.R_M7, "R_M7")):
+    check(_lble,
+          s.count(nl(_txte)) == 1 and _txte in _sece
+          and (_bak.count(_nlb(_txte)) == 0 if _bak else False),
+          f'bundle={s.count(nl(_txte))} dans_{_nome}={_txte in _sece} '
+          f'bak={_bak.count(_nlb(_txte)) if _bak else "?"}')
+# ET ILS SONT AU BON ENDROIT : `vide:proj.vide` entre `function
+# svmSavePayload(){` et son `project_id:proj.project_id,` ; le payload de
+# RENDU (de son `tracks:` à son filtre) n'en porte pas ; `vide:d.vide` entre
+# `var np={` et `setProj(np)` — le seul `np` que l'écran reçoit.
+_I_SP = s.find(nl("function svmSavePayload(){"))
+_I_SPF = s.find(nl("      project_id:proj.project_id,"), _I_SP)
+_CORPS_SP = s[_I_SP:_I_SPF] if 0 <= _I_SP < _I_SPF else ""
+_I_RPF = s.find(nl('clips.filter(function(c){return c.src||c.kind==="title"})'))
+_I_RP = s.rfind(nl("      tracks:svmTracksPayload(proj),"), 0, _I_RPF)
+_CORPS_RP = s[_I_RP:_I_RPF] if 0 <= _I_RP < _I_RPF else ""
+_I_NP = s.find("var np={demo:!1,")
+_I_NPF = s.find("setProj(np);", _I_NP)
+_CORPS_NP = s[_I_NP:_I_NPF] if 0 <= _I_NP < _I_NPF else ""
+check("E1_vide_est_dans_save_pas_dans_le_rendu_et_dans_le_np_applique",
+      _CORPS_SP.count("vide:proj.vide===!0?!0:void 0") == 1
+      and 0 < len(_CORPS_RP) < 600 and "vide" not in _CORPS_RP
+      and _CORPS_NP.count("vide:d.vide===!0,") == 1
+      and s.count("var np={demo:!1,") == 1,
+      f"save={len(_CORPS_SP)} rendu={len(_CORPS_RP)} np={len(_CORPS_NP)}")
+# LA COUCHE : « nouveau » (svm-minibtn, à GAUCHE d'« enregistrer sous… »
+# dans la rangée dzm-projsave), la chip ∅, `surete` AVANT `onBefore`
+# (rien n'a bougé si la copie échoue), `ouvrir` factorisée entre `doOpen`
+# et `doDup` (le banc M14 lit cette tranche), et les deux exports. Zéro
+# dans .bak_montage : c'est bien E-1 qui les pose.
+_I_PS = s.find(nl('r.jsxs("div",{className:"dzm-projsave",children:['))
+_I_NEW = s.find(nl('className:"svm-minibtn dzm-projnew"'), _I_PS)
+_I_SAVE = s.find(nl('children:"enregistrer sous…"'), _I_PS)
+_I_SUR = s.find(nl("  function surete(){"))
+_I_OUV = s.find(nl("  function ouvrir(p,sauve){"), _I_SUR)
+_I_DUP = s.find(nl("  function doDup(p){"), _I_OUV)
+_I_DOP = s.find(nl("  function doOpen(p){"))
+_CORPS_SUR = s[_I_SUR:_I_OUV] if 0 <= _I_SUR < _I_OUV else ""
+check("E1_nouveau_a_gauche_d_enregistrer_sous_et_ouvrir_entre_doOpen_et_doDup",
+      0 <= _I_PS < _I_NEW < _I_SAVE and _I_SAVE - _I_PS < 1200
+      and s.count(nl('onClick:doNew,children:"nouveau"')) == 1
+      and 0 <= _I_DOP < _I_SUR < _I_OUV < _I_DUP
+      and "onBefore" not in _CORPS_SUR
+      and _CORPS_SUR.count("dzmInstantaneNom(nm,new Date())") == 1
+      and _CORPS_SUR.count("Copie de sûreté impossible — ouverture annulée") == 1
+      and s.count(nl('title:"montage vide"')) == 1
+      and s.count(nl("  projetNeuf:dzmProjetNeuf,instantaneNom:dzmInstantaneNom,")) == 1
+      and all(t in src for t in ("function dzmProjetNeuf(nom){",
+                                 "function dzmInstantaneNom(nom,now){",
+                                 "function doNew(){", "dzm-projvide-chip"))
+      and all(_bak.count(t) == 0 for t in ("dzm-projnew", "dzm-projvide-chip",
+                                           "dzmProjetNeuf", "function surete(){"))
+      if _bak else False,
+      f"projsave={_I_PS} new={_I_NEW} save={_I_SAVE} doOpen={_I_DOP} "
+      f"surete={_I_SUR} ouvrir={_I_OUV} doDup={_I_DUP}")
+# LA FEUILLE : les deux règles dans montage.css, jamais son-vfx-montage.css.
+_R_NEW = _regle(_MC, ".dzsvm .dzm-projnew{")
+_R_CHIP = _regle(_MC, ".dzsvm .dzm-projvide-chip{")
+check("E1_la_feuille_pose_nouveau_et_la_chip_vide",
+      _R_NEW is not None and "margin-right:6px" in _R_NEW
+      and _R_CHIP is not None and "var(--f-mono)" in _R_CHIP
+      and "var(--ink2)" in _R_CHIP,
+      f"new={_R_NEW!r} chip={_R_CHIP!r}")
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

@@ -568,6 +568,13 @@ out.tu_cles_inconnues=(function(){
    garde et que seul le rendu aurait ramene a 200, sans le dire. */
 out.tu_taille_bornee=[T.titleUpdate(TU,"t1u1",{size:5000})[0].title.size,
   T.titleUpdate(TU,"t1u1",{size:1})[0].title.size];
+/* [12] E-1 : montage neuf */
+out.pn_neuf=T.projetNeuf(" Pub été ");
+out.pn_neuf_vide=T.projetNeuf("");
+out.pn_snap=[T.instantaneNom("",new Date(2026,8,22,14,5)),T.instantaneNom("montage",new Date(2026,8,22,14,5)),T.instantaneNom("Pub",new Date(2026,8,22,14,5))];
+/* les pistes du corps sont des COPIES : muter le corps ne touche pas DEFAULTS */
+out.pn_defaults_pur=(function(){var c=T.projetNeuf("x");c.tracks[0].id="zz";c.tracks.push({id:"q"});
+  return JSON.stringify(T.DEFAULTS.map(function(t){return t.id}))==='["t1","v2","v1","a1","a2","a3","s1"]'})();
 console.log(JSON.stringify(out));
 """
 print("\n[1] dzmInsere sous node")
@@ -1314,6 +1321,21 @@ check("tu_les_cles_inconnues_sont_ignorees",
 # M-1 : les memes bornes que la reglette et que `title_spec`.
 check("tu_la_taille_est_bornee_vingt_quatre_deux_cents",
       D.get("tu_taille_bornee") == [200, 24], D.get("tu_taille_bornee"))
+
+print("\n[12] E-1 montage neuf (client)")
+check("pn_neuf_porte_nom_vide_et_les_pistes_par_defaut",
+      "pn_neuf" in D and D["pn_neuf"].get("name") == "Pub été" and D["pn_neuf"].get("vide") is True
+      and [t["id"] for t in D["pn_neuf"].get("tracks", []) if isinstance(t, dict) and "id" in t]
+      == ["t1", "v2", "v1", "a1", "a2", "a3", "s1"], D.get("pn_neuf"))
+check("pn_neuf_sans_nom_s_appelle_montage_neuf",
+      (D.get("pn_neuf_vide") or {}).get("name") == "montage neuf", D.get("pn_neuf_vide"))
+# « montage » est le nom par DEFAUT de l'ecran (`nm` de DzmProjects) : il
+# n'est pas un nom, la copie de surete est datee comme le vide.
+check("pn_instantane_nomme_le_non_nomme_et_garde_un_vrai_nom",
+      D.get("pn_snap") == ["(non nommé) 22/09 14:05", "(non nommé) 22/09 14:05", "Pub"], D.get("pn_snap"))
+# DEFAULTS reste intact APRES qu'un corps de projet neuf a ete mute : le
+# corps porte des copies, jamais les objets de la constante.
+check("pn_defaults_pur_apres_mutation_du_corps", D.get("pn_defaults_pur") is True, D.get("pn_defaults_pur"))
 
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")

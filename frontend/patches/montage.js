@@ -1511,6 +1511,27 @@ var DzmProjects=function(props){
     if(busy)return;
     if(arm!=="o"+p.id){setArm("o"+p.id);return}
     setArm("");setBusy(1);setErr("");
+    surete().then(function(s){if(s)ouvrir(p,s.nom)})}
+
+  /* E-1 (22/09/2026) — LA COPIE DE SÛRETÉ. Un montage courant SANS nom
+     (pas de `pid`) qui porte des clips est enregistré sous un nom daté
+     AVANT que « ouvrir » ou « nouveau » ne le remplace : la note d'ouverture
+     promettait jusque-là « il n'existe plus », E-1 le fait cesser. Elle
+     part AVANT `onBefore` : si elle échoue, l'autosave en vol n'a pas été
+     annulé et rien n'a bougé. Rend {nom} (nom vide = rien à sauver), ou
+     null quand la copie a échoué — l'ouverture est alors ANNULÉE. */
+  function surete(){
+    var tl=(!pid&&props&&props.payload)?props.payload():null;
+    if(!(tl&&tl.clips&&tl.clips.length))return Promise.resolve({nom:""});
+    var n=dzmInstantaneNom(nm,new Date());
+    return send("/api/montage/projects","POST",{name:n,timeline:tl})
+      .then(function(){return {nom:n}},
+        function(){setBusy(0);
+          note("Copie de sûreté impossible — ouverture annulée");return null})}
+
+  /* l'ouverture proprement dite, factorisée : « remplacer ? » et
+     « nouveau » y passent tous deux. `sauve` = nom de la copie de sûreté. */
+  function ouvrir(p,sauve){
     if(props.onBefore)props.onBefore();
     send(url(p.id)+"/open","POST")
       .then(function(){return req("/api/montage/project")})
@@ -1523,9 +1544,10 @@ var DzmProjects=function(props){
         if(props.onOpen&&props.onOpen(d)){
           if(props.onNamed)props.onNamed(p.id,p.name);
           setOp(!1);
-          note("« "+p.name+" » ouvert. Le montage précédent a été remplacé : "+
-            "s'il n'était pas enregistré sous un nom, il n'existe plus, et "+
-            "« annuler » ne le rend pas.")}
+          note("« "+p.name+" » ouvert. Le montage précédent a été remplacé"+
+            (sauve?" — il est à l'abri sous « "+sauve+" »"
+              :" : s'il n'était pas enregistré sous un nom, il n'existe plus")+
+            ", et « annuler » ne le rend pas.")}
         else
           /* le serveur refuse déjà d'ouvrir un projet sans plan vivant (409,
              et le courant reste intact) : il ne reste ici qu'une réponse que
@@ -1556,6 +1578,18 @@ var DzmProjects=function(props){
          corruption silencieuse.
          NON MESURE A L'ECRAN — dette navigateur, comme tout ce popover. */
       .catch(function(e){fail(e);if(props.onFail)props.onFail()})}
+
+  /* E-1 : « nouveau » — un projet VIDE (`dzmProjetNeuf`, le nom du champ ou
+     « montage neuf ») créé puis ouvert par `ouvrir`, la copie de sûreté du
+     montage affiché d'abord. Le nom du champ est consommé comme par
+     « enregistrer sous… ». */
+  function doNew(){
+    if(busy)return;
+    setBusy(1);setErr("");
+    surete().then(function(s){if(!s)return;
+      return send("/api/montage/projects","POST",dzmProjetNeuf(nv))
+        .then(function(d){setNv("");ouvrir({id:d.id,name:d.name},s.nom)})
+        .catch(fail)})}
 
   function doDup(p){
     if(busy)return;
@@ -1643,6 +1677,8 @@ var DzmProjects=function(props){
                 if(e.key==="Escape")setRen(null)}},"i")
           :r.jsx("span",{className:"dzm-projnm",title:p.name||"",
               children:(p.name||"sans nom")+(mine?" · ouvert":"")},"n"),
+        p.vide?r.jsx("span",{className:"dzm-projvide-chip",title:"montage vide",
+          children:"\u2205"},"vd"):null,
         r.jsx("span",{className:"dzm-projmeta",title:String(p.updated_at||""),
           children:dzmProjLine(p)},"m")]},"l"),
       r.jsxs("div",{className:"dzm-proja",children:[
@@ -1709,6 +1745,10 @@ var DzmProjects=function(props){
           placeholder:pid?nm:"nom du montage","aria-label":"Nom du projet",
           onChange:function(e){setNv(e.target.value)},
           onKeyDown:function(e){if(e.key==="Enter")saveAs()}},"i"),
+        r.jsx("button",{className:"svm-minibtn dzm-projnew",disabled:!!busy,
+          title:"Créer un montage vide et l'ouvrir (le montage affiché est "+
+            "d'abord enregistré s'il n'a pas de nom)",
+          onClick:doNew,children:"nouveau"},"nw"),
         r.jsx("button",{className:"svm-tbtn dzm-projbtn",disabled:!!busy,
           title:"Enregistrer le montage AFFICHÉ comme un nouveau projet. "+
             "Rien n'est écrasé : c'est un fichier de plus, et c'est lui qui "+
@@ -5970,6 +6010,22 @@ function DzmTitleInspector(o){
       children:"Le placement et l'animation viennent du gabarit. "+
         "L'aperçu du lecteur est approché : Preview 480p fait foi."})]})}
 
+/* ── E-1 (22/09/2026) : UN MONTAGE NEUF. Le corps de POST /projects pour un
+   projet VIDE : nom nettoyé (« montage neuf » à défaut), `vide:true`, et les
+   pistes par défaut du CLIENT écrites explicitement (une seule vérité pour
+   l'écran et le rendu) — des COPIES, la constante ne sort jamais.
+   `dzmInstantaneNom` nomme la copie de sûreté prise AVANT d'ouvrir un autre
+   projet par-dessus un montage non nommé ; « montage » est le nom par défaut
+   de l'écran, pas un nom. */
+function dzmProjetNeuf(nom){
+  var n=String(nom||"").trim()||"montage neuf";
+  return {name:n,vide:!0,tracks:DZM_DEFAULT_TRACKS.map(function(t){return Object.assign({},t)})}}
+function dzmInstantaneNom(nom,now){
+  var n=String(nom||"").trim();
+  if(n&&n!=="montage")return n;
+  var d=now instanceof Date?now:new Date(),p=function(v){return (v<10?"0":"")+v};
+  return "(non nommé) "+p(d.getDate())+"/"+p(d.getMonth()+1)+" "+p(d.getHours())+":"+p(d.getMinutes())}
+
 /* ── export contrat ───────────────────────────────────────────────────────── */
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
@@ -6049,5 +6105,6 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   insere:dzmInsere,MODES:DZM_MODES,REFUS:DZM_REFUS,carve:dzmCarve,
   slip:dzmSlip,slide:dzmSlide,roll:dzmRoll,voisins:dzmVoisins,swap:dzmSwap,
   ModeBar:DzmModeBar,MODE_T:DZM_MODE_T,modeLabel:dzmModeLabel,
+  projetNeuf:dzmProjetNeuf,instantaneNom:dzmInstantaneNom,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;

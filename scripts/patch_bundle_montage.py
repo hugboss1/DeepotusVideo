@@ -331,6 +331,16 @@ R_M6 = ("      duration_master:durMaster,ducking:ducking,clips:clips,\n"
         "         et les clips qu'elle portait retombaient sur une piste inconnue,\n"
         "         donc hors du rendu — silencieusement. */\n"
         "      tracks:svmTracksPayload(proj),\n"
+        # E-1 (22/09/2026) — LE DRAPEAU `vide` PART AVEC LA SAUVEGARDE, et
+        # seulement quand il est vrai : `void 0` est omis par JSON.stringify,
+        # le payload d'avant est rendu octet pour octet. REPLI, ancre
+        # consommée, mesurée 22/09 : la ligne `tracks:svmTracksPayload(proj),`
+        # vaut 0 dans .bak_montage (R_M6 la pose) et 2 dans le bundle (R_M5
+        # la pose aussi, dans le payload de RENDU — le plan la situait là,
+        # la mesure la situe ici, dans svmSavePayload, le seul qui nourrit
+        # POST /save). Le `proj` est celui de la fermeture de l'écran, où
+        # svmApplyProject a posé `vide` (R_M7).
+        "      vide:proj.vide===!0?!0:void 0,\n"
         "      /* P5 — de quel projet NOMMÉ ce brouillon est le brouillon. Le\n"
         "         backend n'écrit dans le projet QUE si cette clé désigne un\n"
         "         fichier existant : sans elle (montage sans nom), rien ne\n"
@@ -416,7 +426,13 @@ R_M7 = ('var np={demo:!1,tracks:(function(){var _t=svmTracksFrom(d.tracks);'
         # les identifiants (m1..mN) : deux marqueurs d'un vieux fichier
         # pouvaient porter le meme, et `markerRemove` en aurait retire deux.
         'markers:DzTracks.markersFrom(d.markers),'
-        'name:d.name||"montage",version:"v1",ratio:d.ratio||"9:16",')
+        'name:d.name||"montage",version:"v1",ratio:d.ratio||"9:16",'
+        # E-1 (22/09/2026) — ET LE DRAPEAU REVIENT AVEC LE PROJET, dans le
+        # `np` que `setProj(np)` reçoit (mesuré : c'est le seul `np` de
+        # svmApplyProject). REPLI, ancre consommée, mesurée 22/09 : `ratio:`
+        # est le texte que CE remplacement pose (0 dans .bak_montage). Faux
+        # sinon, jamais absent : un projet ordinaire ne porte pas la clé.
+        'vide:d.vide===!0,')
 
 # ── M8 : barre de transport ─────────────────────────────────────────────────
 A_M8 = ('r.jsx("button",{className:"svm-tbtn",title:"Raccourcis ("'

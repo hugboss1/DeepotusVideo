@@ -213,6 +213,9 @@
   color:var(--ink4, var(--ink-muted, #55514c));
   font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace)}
 .dzsvm .dzm-projsave{display:flex; gap:5px; align-items:center}
+/* E-1 : « nouveau » et la chip ∅ d'un montage vide */
+.dzsvm .dzm-projnew{margin-right:6px}
+.dzsvm .dzm-projvide-chip{font:10px var(--f-mono); color:var(--ink2); margin-left:4px}
 .dzsvm .dzm-projin{flex:1 1 auto; min-width:0; height:20px; padding:0 6px;
   border-radius:5px; border:1px solid var(--stroke, #2a2930);
   background:var(--panel, var(--bg-panel, #17161a));
