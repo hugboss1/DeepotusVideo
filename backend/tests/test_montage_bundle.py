@@ -31,15 +31,22 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 22/09/2026 (lot E-A, tache 5, E-4) : 1681 lignes,
+COMPTE DE REFERENCE, 22/09/2026 (lot E-A, tache 5, E-4, revue) : 1685
+lignes, soit QUATRE de plus que les 1681 du premier tour : la section EA6
+(le bandeau se ferme au lancement d'un rendu) emet ses trois lignes
+generiques (`_remplace`, `_ancre_consommee`, `couche_ne_cite_pas_l_ancre_de_`)
+et son pin ; le pin M-1 (refus non JSON) est ajoute, le pin de la monture
+est reecrit sur place (deux `setDzFin(null)` desormais).
+
+COMPTE PRECEDENT, 22/09/2026 (lot E-A, tache 5, E-4) : 1681 lignes,
 soit VINGT-NEUF de plus que les 1652 de E-3 : la section [E-4] en queue
-(neuf pins : le poll qui ne poste plus sur /api/schedule, le repli dzFin,
+(HUIT pins : le poll qui ne poste plus sur /api/schedule, le repli dzFin,
 les cinq libelles, la monture du bandeau, la couche, la feuille, les sept
-sections apres EA3, l'infobulle E-3 parametree) et les lignes que la
-boucle sur `P.PATCHES` emet seule pour EA4/EA5a..e (sept `_remplace`,
-sept `_ancre_consommee`, sept `couche_ne_cite_pas_l_ancre_de_`, moins
-une : le pin E3 sur la queue de PATCHES est REECRIT par position). Le
-compte est celui que le banc IMPRIME.
+sections apres EA3, l'infobulle E-3 parametree) et les VINGT ET UNE lignes
+que la boucle sur `P.PATCHES` emet seule pour EA4/EA5a..e (sept
+`_remplace`, sept `_ancre_consommee`, sept `couche_ne_cite_pas_l_ancre_de_`).
+Le pin E3 sur la queue de PATCHES est REECRIT par position, sur place :
+il ne pese rien dans le compte. Le compte est celui que le banc IMPRIME.
 
 COMPTE PRECEDENT, 22/09/2026 (lot E-A, tache 3, E-3) : 1652 lignes,
 soit ONZE de plus que les 1641 de E-1 : la section [E-3] en queue (la
@@ -14737,7 +14744,7 @@ _E4_MONT = 'r.jsx(DzTracks.FinBandeau,{fin:dzFin,memo:'
 check("E4_le_bandeau_est_monte_a_cote_du_popover_et_poste_sur_publish",
       s.count(nl(_E4_MONT)) == 1 and s.count(nl("    popover(),\n    dzFin?")) == 1
       and s.count('fetch("/api/montage/publish"') == 1
-      and s.count('"dz_montage_channels"') == 2 and s.count("setDzFin(null)") == 1
+      and s.count('"dz_montage_channels"') == 2 and s.count("setDzFin(null)}}") == 1
       and s.count('detail:{view:"library"}') == _bak.count('detail:{view:"library"}') + 1
       and "props.go" not in P.R_EA5E and "deepotus:select-post" in P.R_EA5E
       and (_bak.count(_E4_MONT) == 0 and _bak.count("/api/montage/publish") == 0 if _bak else False),
@@ -14760,7 +14767,7 @@ check("E4_la_feuille_porte_le_bandeau",
       all(_E4_CSS.count(t) == 1 for t in (".dzsvm .dzm-fin{width:360px}", ".dzsvm .dzm-fin-row{",
                                           ".dzsvm .dzm-fin-ch{", ".dzsvm .dzm-fin-st{")),
       f"fin={_E4_CSS.count('.dzsvm .dzm-fin{')}")
-# LE PATCHER PORTE LES SEPT SECTIONS EN QUEUE, APRES EA3 : ancres 1/1 dans
+# LE PATCHER PORTE LES HUIT SECTIONS EN QUEUE, APRES EA3 : ancres 1/1 dans
 # .bak_montage, remplacements retrouves 1/1 (la boucle du haut le mesure
 # aussi — ceci fixe l'ORDRE et les etiquettes). Et l'infobulle des deux
 # boutons E-3 est desormais PARAMETREE : Chapitres dit « cet épisode »,
@@ -14768,9 +14775,10 @@ check("E4_la_feuille_porte_le_bandeau",
 # dans .bak_montage, et l'ancienne forme unique n'existe plus.
 _E4_TAGS = [t for t, _a, _r in P.PATCHES]
 _E4_I = _E4_TAGS.index("EA3-studio-ouvrir-montage")
-check("E4_le_patcher_porte_les_sept_sections_en_queue_apres_EA3",
-      [t.split("-")[0] for t in _E4_TAGS[_E4_I + 1:]] == ["EA4", "EA5a", "EA5b", "EA5c", "EA5d", "EA5d2", "EA5e"]
-      and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1 and s.count(nl(a)) == 0
+check("E4_le_patcher_porte_les_huit_sections_en_queue_apres_EA3",
+      [t.split("-")[0] for t in _E4_TAGS[_E4_I + 1:]] == ["EA4", "EA5a", "EA5b", "EA5c", "EA5d", "EA5d2", "EA5e", "EA6"]
+      and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
+              and s.count(nl(a)) == (1 if a in r else 0)  # EA6 REPREND son ancre
               for _t, a, r in P.PATCHES[_E4_I + 1:])
       if _bak else False,
       f"queue={_E4_TAGS[_E4_I + 1:]}")
@@ -14779,6 +14787,23 @@ check("E4_l_infobulle_E3_dit_cet_episode_aux_chapitres_et_ce_rendu_au_studio",
       and s.count("Poser ce rendu sur la piste V1") == 1 and s.count("Poser ce rendu") == 1
       and (_bak.count("Poser cet épisode") == 0 and _bak.count("Poser ce rendu") == 0 if _bak else False),
       f"episode={s.count('Poser cet épisode sur la piste V1')} rendu={s.count('Poser ce rendu sur la piste V1')}")
+# REVUE (I-1) : LE BANDEAU SE FERME AU LANCEMENT D'UN RENDU — `setDzFin(null)`
+# juste apres la garde de `launchRender` (EA6). Sans cela l'instance sans
+# `key` etait reutilisee par le second rendu : etat « Brouillon ajouté »
+# et bouton desarme pour le NOUVEAU job. Temoin : l'ancre nue vaut 1 dans
+# .bak_montage et 0 dans le livre, la forme etendue 0 dans le .bak.
+_E4_G = 'if(proj.demo||(job&&job.status!=="failed"))return;'
+check("E4_le_bandeau_se_ferme_au_lancement_d_un_rendu",
+      s.count(_E4_G + "setDzFin(null);") == 1 and s.count("setDzFin(null)") == 2
+      and (_bak.count(_E4_G) == 1 and _bak.count(_E4_G + "setDzFin(null);") == 0 if _bak else False),
+      f"garde+null={s.count(_E4_G + 'setDzFin(null);')} null={s.count('setDzFin(null)')} "
+      f"bak={_bak.count(_E4_G) if _bak else '?'}")
+# REVUE (M-1) : un refus a corps NON JSON (500 texte) remonte le statut,
+# jamais un SyntaxError — `res.json()` est rattrape avant `throw`.
+check("E4_un_refus_non_json_remonte_le_statut",
+      s.count(nl("res.json().catch(function(){return null}).then(function(j){throw (j&&j.detail)||res.status})")) == 1
+      and s.count("res.json().then(function(j){throw") == 0,
+      f"count={s.count('res.json().catch(function(){return null})')}")
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

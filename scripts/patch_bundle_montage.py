@@ -3870,11 +3870,21 @@ R_EA5E = ('    popover(),\n'
           '    dzFin?r.jsx(DzTracks.FinBandeau,{fin:dzFin,memo:(function(){try{return JSON.parse(localStorage.getItem("dz_montage_channels")||"null")}catch(_e){return null}})(),\n'
           '      onSend:function(f){try{localStorage.setItem("dz_montage_channels",JSON.stringify(f.channels))}catch(_e){}\n'
           '        return fetch("/api/montage/publish",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(f)})\n'
-          '          .then(function(res){return res.ok?res.json():res.json().then(function(j){throw (j&&j.detail)||res.status})})\n'
+          '          .then(function(res){return res.ok?res.json():res.json().catch(function(){return null}).then(function(j){throw (j&&j.detail)||res.status})})\n'
           '          .then(function(d){var id=d&&d.post&&d.post.id;if(id)window.dispatchEvent(new CustomEvent("deepotus:select-post",{detail:{id:id}}))})},\n'
           '      onLib:function(){window.dispatchEvent(new CustomEvent("deepotus:navigate",{detail:{view:"library"}}))},\n'
           '      onClose:function(){setDzFin(null)}}):null,\n'
           '    fxPicker(),')
+
+# ── EA6 (E-4, revue du 22/09/2026) : LE BANDEAU SE FERME AU LANCEMENT D'UN
+# RENDU. Sans cela, un second rendu bandeau ouvert REUTILISAIT l'instance
+# (monture sans `key`) : « Brouillon ajouté » restait affiché et le bouton
+# désarmé pour le NOUVEAU job, heure/légende/cases périmées, et le popover
+# s'ouvrait PAR-DESSUS (même `.svm-pop` absolu). Le passage par null
+# remonte le composant à neuf au prochain `setDzFin` (EA4). Ancre : la
+# garde de `launchRender`, 1/1 dans .bak_montage.
+A_EA6 = 'if(proj.demo||(job&&job.status!=="failed"))return;'
+R_EA6 = A_EA6 + 'setDzFin(null);'
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
@@ -4059,7 +4069,8 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("EA5c-popover-note-bandeau", A_EA5C, R_EA5C),
            ("EA5d-barre-rendre", A_EA5D, R_EA5D),
            ("EA5d2-popover-bouton-rendre", A_EA5D2, R_EA5D2),
-           ("EA5e-bandeau-de-fin", A_EA5E, R_EA5E)]
+           ("EA5e-bandeau-de-fin", A_EA5E, R_EA5E),
+           ("EA6-bandeau-ferme-au-lancement", A_EA6, R_EA6)]
 
 
 def nl(text, crlf):

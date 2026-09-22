@@ -4486,7 +4486,7 @@ function DzMontage(props){
               return q})}}
         return o})}}
   function launchRender(preview){
-    if(proj.demo||(job&&job.status!=="failed"))return;
+    if(proj.demo||(job&&job.status!=="failed"))return;setDzFin(null);
     setJob({id:null,kind:preview?"preview":"final",status:"queued",progress:0,step:"Envoi…",error:null});
     fetch("/api/montage/render",{method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify(renderPayload(preview))})
@@ -5563,7 +5563,7 @@ function DzMontage(props){
     dzFin?r.jsx(DzTracks.FinBandeau,{fin:dzFin,memo:(function(){try{return JSON.parse(localStorage.getItem("dz_montage_channels")||"null")}catch(_e){return null}})(),
       onSend:function(f){try{localStorage.setItem("dz_montage_channels",JSON.stringify(f.channels))}catch(_e){}
         return fetch("/api/montage/publish",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(f)})
-          .then(function(res){return res.ok?res.json():res.json().then(function(j){throw (j&&j.detail)||res.status})})
+          .then(function(res){return res.ok?res.json():res.json().catch(function(){return null}).then(function(j){throw (j&&j.detail)||res.status})})
           .then(function(d){var id=d&&d.post&&d.post.id;if(id)window.dispatchEvent(new CustomEvent("deepotus:select-post",{detail:{id:id}}))})},
       onLib:function(){window.dispatchEvent(new CustomEvent("deepotus:navigate",{detail:{view:"library"}}))},
       onClose:function(){setDzFin(null)}}):null,
