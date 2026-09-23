@@ -503,6 +503,19 @@ R_M11 = ("  /* P3 — panneau « Texte » (monter en LISANT). Son état est À L
          "     M20b, la branche du gestionnaire clavier, qui l'incrémente. */\n"
          "  var stDzTb=x.useState(0),dzTbReq=stDzTb[0],"
          "setDzTbReq=stDzTb[1];\n"
+         # ── E-10 (lot E-C, tache 4, 23/09/2026) : LA BARRE ANCREE dans le
+         # bandeau de transport. Un booleen PERSISTE (dz_svm_tb_dock, try/catch,
+         # le motif de dz_svm_showdur), passe en prop `docked` au Dock (R_M19)
+         # qui pose data-docked ; ☰ › Affichage le bascule (R_EC1). ICI et pas
+         # dans R_M16REF : c'est l'etat de la MEME barre que dzTbReq, et le pin
+         # E-7 compte `localStorage` x1 dans R_M16REF (temoin de « la vue
+         # n'est pas persistee »). Ecart date par rapport au plan.
+         "  /* E-10 (lot E-C, tâche 4, 23/09/2026) : la barre d'outils ANCRÉE dans le\n"
+         "     bandeau — un booléen persisté (clé ci-dessous), passé en prop `docked`\n"
+         "     au Dock ; l'entrée ☰ › Affichage le bascule. */\n"
+         '  var stTbD=x.useState(function(){try{return localStorage.getItem("dz_svm_tb_dock")==="1"}catch(_e){return !1}}),'
+         "dzTbDock=stTbD[0],setDzTbDock=stTbD[1];\n"
+         '  function dzTbDockToggle(){setDzTbDock(function(v){var n=!v;try{localStorage.setItem("dz_svm_tb_dock",n?"1":"0")}catch(_e){}return n})}\n'
          + A_M11)
 
 # ── M20a (étape 8, §4.1) : LE RACCOURCI, INSCRIT DANS LE MÉCANISME EXISTANT
@@ -2308,7 +2321,11 @@ R_M19 = (A_M19 + "\n"
          # par `svmKeyLabel` — la même fonction qui fait suivre la chip
          # « lame » à un remappage. L'onglet la dit dans son `title` : un
          # raccourci qu'on ne peut lire nulle part n'existe qu'à moitié.
-         'toggleReq:dzTbReq,keyLbl:svmKeyLabel("toolbar"),'
+         # E-10 (lot E-C, tache 4, 23/09/2026) : `docked`, l'etat de R_M11 --
+         # le Dock le pose en data-docked sur la barre et l'onglet, la feuille
+         # met la barre en flux (position:static) en TETE de ce bandeau : elle
+         # se place a gauche des boutons de transport, sans autre changement.
+         'docked:dzTbDock,toggleReq:dzTbReq,keyLbl:svmKeyLabel("toolbar"),'
          "onProjets:function(){setDzProjReq(function(n){return n+1})}}),")
 
 # ══ P12 — LE SON D'UN PLAN SUIT SA VIDÉO ═══════════════════════════════════
@@ -4667,7 +4684,9 @@ R_EC1 = (A_EC1 + "\n"
          '      aff.items=aff.items.concat([\n'
          '        {lbl:"Inspecteur",combo:inspOn?"✓":"",run:function(){setInspSt(function(s){var n={on:!s.on,w:s.w};try{localStorage.setItem("dz_svm_insp",JSON.stringify(n))}catch(_e){}return n})}},\n'
          '        {lbl:"Médias",combo:medOn?"✓":"",run:function(){' + _EB_GARDE + 'setMedTr("");setMedOn(!medOn);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)}},\n'
-         '        {lbl:"Durées sur les clips",combo:showDur?"✓":"",run:function(){setShowDur(function(v){var n=!v;try{localStorage.setItem("dz_svm_showdur",n?"1":"0")}catch(_e){}return n})}}]);\n'
+         '        {lbl:"Durées sur les clips",combo:showDur?"✓":"",run:function(){setShowDur(function(v){var n=!v;try{localStorage.setItem("dz_svm_showdur",n?"1":"0")}catch(_e){}return n})}},\n'
+         # E-10 (lot E-C, tache 4) : la bascule d'ancrage de la barre (etat R_M11).
+         '        {lbl:"Ancrer la barre d\'outils",combo:dzTbDock?"✓":"",run:function(){dzTbDockToggle()}}]);\n'
          '      return Object.assign(base,{rubs:rubs})}\n'
          '    if(kind==="clip"){var c=cs.find(function(k){return k.id===id});if(!c)return null;\n'
          '      var v1=c.tr==="v1",sp=svmSpeedOf(c),g=DzTracks.voisins(cs,c).g;\n'

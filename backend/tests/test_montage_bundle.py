@@ -16599,6 +16599,107 @@ check("E7_la_feuille_dessine_la_barre_des_vues_masque_la_timeline_elargit_le_tir
       and _E7_CSS.count("svm-views{") == 1 and _E7_CSS.count("svm-deliver{") == 1 and "E-7" in _E7_CSS,
       f"regles={[_E7_CSS.count(_rg) for _rg in _E7_REGLES]} data-view={_E7_CSS.count('data-view=')}")
 
+print("\n[EC] E-10 : la barre d'outils ancree dans le bandeau de transport (lot E-C, tache 4)")
+# MESURES du 23/09/2026 (T4) : AUCUNE section neuve -- trois replis. L'etat
+# `dzTbDock` (cle dz_svm_tb_dock, try/catch) et sa bascule vivent dans R_M11 a
+# cote de dzTbReq (la demande de bascule de la MEME barre) -- ECART date : le
+# plan les voulait dans R_M16REF, dont le pin E-7 ci-dessus compte
+# `localStorage` x1 (temoin de « la vue n'est pas persistee ») ; R_M19 passe
+# `docked:dzTbDock` au Dock ; R_EC1 ajoute l'entree ☰ › Affichage. La couche
+# pose data-docked sur la barre SEULE. La feuille : la barre flottante mesure
+# ~90 px (zone 17 + en-tete 16 + bouton 13 + icone 18 + 6 + libelle 9,5)
+# contre 46 px de bandeau (`align-items:center`, `overflow:visible`) -> ancree
+# elle est COMPACTE (~39 px) : --lbl:none (§2.3, le SEUL levier de masquage --
+# le pin tb_d_seul_le_libelle_est_masquable interdit tout display:none sur un
+# noeud .dzm-, et §4.2 veut ⌖ toujours visible), en-tetes / paddings reduits,
+# poignee et ⌖ × conserves. DECISION (le plan laissait le choix) : `data-off`
+# GARDE SON SENS ancree -- l'onglet OUTILS replie la barre a zero largeur --
+# plutot qu'un onglet sans effet. Regles SEPAREES : la PREMIERE
+# `.dzsvm .dzm-tbar{` ne bouge pas (pins D-1 et tb_la_geometrie), et aucune ne
+# porte de z-index (pin x2 = {8}). ECART date : la poignee ancree saisit encore
+# (`onGrab:saisir` est pinne) -- un deport enregistre ancre reparait au desancrage.
+for _nme in ("stTbD", "dzTbDock", "setDzTbDock", "dzTbDockToggle"):
+    _nbe = _libre21(_nme, _bak if _bak else None)
+    check("E10_nom_" + _nme + "_etait_libre_dans_le_bundle_d_entree",
+          _nbe == 0 and _libre21(_nme, s) >= 1,
+          f"{_nme} apparait {_nbe}x dans .bak_montage, {_libre21(_nme, s)}x dans le bundle")
+_E10_ST = ('  var stTbD=x.useState(function(){try{return localStorage.getItem("dz_svm_tb_dock")==="1"}catch(_e){return !1}}),'
+           'dzTbDock=stTbD[0],setDzTbDock=stTbD[1];')
+_E10_TG = '  function dzTbDockToggle(){setDzTbDock(function(v){var n=!v;try{localStorage.setItem("dz_svm_tb_dock",n?"1":"0")}catch(_e){}return n})}'
+_iE10Req = s.find(nl("var stDzTb=x.useState(0),dzTbReq=stDzTb[0],")); _iE10St = s.find(nl(_E10_ST)); _iE10M11 = s.find(nl(P.A_M11))
+check("E10_etat_dzTbDock_lu_de_dz_svm_tb_dock_et_sa_bascule_persistante_replies_dans_R_M11_apres_dzTbReq_avant_l_ancre",
+      s.count(nl(_E10_ST)) == 1 and s.count(nl(_E10_TG)) == 1 and _E10_ST in P.R_M11 and _E10_TG in P.R_M11
+      and 0 < _iE10Req < _iE10St < _iE10M11
+      # x2 : la lecture (etat) et l'ecriture (bascule) -- et nulle part ailleurs (ni R_M16REF : E-7 y compte localStorage x1)
+      and s.count("dz_svm_tb_dock") == 2 and P.R_M11.count("dz_svm_tb_dock") == 2 and P.R_M16REF.count("dz_svm_tb_dock") == 0
+      and s.count("dzTbDockToggle(") == 2 and s.count("setDzTbDock(") == 1
+      and (_bak.count("dz_svm_tb_dock") == 0 and _bak.count("dzTbDock") == 0 if _bak else False),
+      f"st={s.count(nl(_E10_ST))} tg={s.count(nl(_E10_TG))} cle={s.count('dz_svm_tb_dock')} ordre={(_iE10Req, _iE10St, _iE10M11)}")
+# R_M19 : la prop `docked` AVANT toggleReq, sur le SEUL appel de DzTracks.ToolDock (tete de .svm-trans, avant .svm-tcmain)
+_iE10Trans = s.find(nl(P.A_M19)); _iE10Dock = s.find("r.jsx(DzTracks.ToolDock,{"); _iE10Tc = s.find('className:"svm-tcmain"')
+check("E10_R_M19_passe_docked_dzTbDock_au_Dock_en_tete_de_svm_trans_avant_svm_tcmain",
+      s.count("docked:dzTbDock,") == 1 and 'docked:dzTbDock,toggleReq:dzTbReq,keyLbl:svmKeyLabel("toolbar"),' in P.R_M19
+      and s.count('docked:dzTbDock,toggleReq:dzTbReq,keyLbl:svmKeyLabel("toolbar"),') == 1
+      and s.count("r.jsx(DzTracks.ToolDock,{") == 1 and 0 < _iE10Trans < _iE10Dock < _iE10Tc < _iE10Dock + 1200
+      and (_bak.count("docked:") == 0 if _bak else False),
+      f"docked={s.count('docked:dzTbDock,')} ordre={(_iE10Trans, _iE10Dock, _iE10Tc)}")
+# R_EC1 : l'entree ☰ › Affichage, QUATRIEME du concat (apres Durees), coche quand ancree, la bascule de l'hote
+_E10_MN = '{lbl:"Ancrer la barre d\'outils",combo:dzTbDock?"✓":"",run:function(){dzTbDockToggle()}}]);'
+_iE10Dur = s.find('{lbl:"Durées sur les clips",combo:showDur?'); _iE10Mn = s.find(_E10_MN)
+check("E10_entree_Ancrer_la_barre_d_outils_dans_Affichage_apres_Durees_cochee_si_ancree_bascule_de_l_hote",
+      s.count(_E10_MN) == 1 and _E10_MN in P.R_EC1 and s.count("Ancrer la barre d'outils") == 1
+      and 0 < _iE10Dur < _iE10Mn < _iE10Dur + 400
+      and P.R_EC1.count('combo:dzTbDock?"✓":""') == 1 and P.R_EC1.count('?"✓":""') == 5
+      and (_bak.count("Ancrer la barre") == 0 if _bak else False),
+      f"entree={s.count(_E10_MN)} ordre={(_iE10Dur, _iE10Mn)} coches={P.R_EC1.count(chr(63) + chr(34) + '✓' + chr(34) + ':' + chr(34) + chr(34))}")
+# LA COUCHE (dans le bundle comme dans le fichier) : data-docked x1 (la barre), strict `===!0`, le Dock passe la prop a la barre
+# seule -- l'onglet ne change pas d'un mot (temoin : son appel d'origine, intact).
+check("E10_la_couche_pose_data_docked_sur_la_barre_seule_strict_true_et_le_dock_le_passe_l_onglet_intact",
+      s.count('"data-docked":o.docked===!0?"":void 0') == 1 and src.count('"data-docked":o.docked===!0?"":void 0') == 1
+      and s.count('"data-docked"') == 1 and src.count('"data-docked"') == 1
+      and s.count("DzmToolTab({open:open,onToggle:bascule,tabRef:onglet,keyLbl:o.keyLbl}),") == 1
+      and s.count("DzmToolBar({open:open,docked:o.docked,anim:anim,off:off,drag:drag,barRef:bar,") == 1
+      and src.count("docked:o.docked") == 1 and s.count("docked:o.docked") == 1
+      and (_bak.count("data-docked") == 0 and _bak.count("DzmToolTab({open:open,onToggle:bascule,tabRef:onglet,keyLbl:o.keyLbl}),") == 0 if _bak else False),
+      f"couche={src.count(chr(34) + 'data-docked' + chr(34))} bundle={s.count(chr(34) + 'data-docked' + chr(34))}")
+# LA FEUILLE : regles SEPAREES, la premiere `.dzsvm .dzm-tbar{` INCHANGEE (flottante au-dessus du bandeau : D-1),
+# [data-docked] = statique, en flux, sans deport ni ombre, compacte SANS display:none (le pin §4.2 le mesure a part) ;
+# [data-docked][data-off] = repliee a zero largeur, la translation de 6 px seule retiree (le reste du repli s'applique) ;
+# aucun z-index neuf, aucune regle sur l'onglet.
+_E10_CSS = _lire(ROOT / "frontend" / "dist" / "shared" / "montage.css")
+_E10_RD = _regle(_E10_CSS, ".dzsvm .dzm-tbar[data-docked]{")
+_E10_RDO = _regle(_E10_CSS, ".dzsvm .dzm-tbar[data-docked][data-off]{")
+_E10_RB = _regle(_E10_CSS, ".dzsvm .dzm-tbar{")
+_E10_RO = _regle(_E10_CSS, ".dzsvm .dzm-tbar[data-off]{")
+_E10_REGLES = (
+    ".dzsvm .dzm-tbar[data-docked]{position:static; bottom:auto; left:auto; transform:none; translate:none; margin-right:8px; flex:none; --lbl:none; box-shadow:none}",
+    ".dzsvm .dzm-tbar[data-docked][data-off]{transform:none; width:0; margin:0; padding:0; border-width:0; overflow:hidden}",
+    ".dzsvm .dzm-tbar[data-docked] .dzm-tbzone{padding:2px}",
+    ".dzsvm .dzm-tbar[data-docked] .dzm-tbgrp{padding:0 3px}",
+    ".dzsvm .dzm-tbar[data-docked] .dzm-tbhead{padding:0 2px 2px; font-size:7px; letter-spacing:.08em}",
+    ".dzsvm .dzm-tbar[data-docked] .dzm-tbb, .dzsvm .dzm-tbar[data-docked] .dzm-tbb.dzm-solo{width:32px; padding:2px 0}")
+_E10_BLOC = _E10_CSS[_E10_CSS.find("E-10 (lot E-C"):_E10_CSS.find("/* a. LA POIGN")] if "E-10 (lot E-C" in _E10_CSS else ""
+_E10_UP = _lire(ROOT / "frontend" / "dist" / "shared" / "son-vfx-montage.css")
+check("E10_feuille_regles_separees_premiere_regle_intacte_docked_statique_compacte_sans_display_none_repli_a_zero_largeur_sans_z_index",
+      all(_E10_CSS.count(_rg) == 1 for _rg in _E10_REGLES) and len(_E10_BLOC) > 800
+      and _E10_RD is not None and all(k in _E10_RD for k in ("position:static", "bottom:auto", "left:auto", "transform:none", "translate:none", "margin-right:8px", "flex:none", "--lbl:none", "box-shadow:none"))
+      and "z-index" not in _E10_BLOC and "display:none" not in _E10_BLOC and "visibility" not in _E10_BLOC and "var(--lbl" not in _E10_BLOC
+      and _E10_RDO is not None and all(k in _E10_RDO for k in ("transform:none", "width:0", "overflow:hidden", "border-width:0"))
+      # temoin : ce que [data-off] fait -- opacite, visibilite, pointeur RESTENT (la regle ancree ne les touche pas), seule la translation part
+      and _E10_RO is not None and all(k in _E10_RO for k in ("opacity:0", "transform:translateY(-6px)", "visibility:hidden", "pointer-events:none"))
+      and "opacity" not in _E10_RDO and "pointer-events" not in _E10_RDO
+      # la PREMIERE regle : celle des pins D-1, mot pour mot ce qu'elles lisent, et rien de « static »
+      and _E10_RB is not None and "position:absolute" in _E10_RB and "bottom:calc(100% + 8px)" in _E10_RB and "top:auto" in _E10_RB
+      and "static" not in _E10_RB and "docked" not in _E10_RB and _E10_CSS.count(".dzsvm .dzm-tbar{") == 1
+      # 7 = 1+1+1+1+1+2 selecteurs ; 8 = + une mention nue dans le commentaire de la feuille ; l'onglet : aucune regle
+      and _E10_CSS.count("[data-docked]") == 7 and _E10_CSS.count("data-docked") == 8 and _E10_CSS.count("dzm-tbtab[data-docked]") == 0
+      # ordre : la regle ancree vient APRES la premiere et APRES [data-off] (specificite plus forte de toute facon : deux attributs)
+      and _E10_CSS.find(".dzsvm .dzm-tbar{") < _E10_CSS.find(".dzsvm .dzm-tbar[data-off]{") < _E10_CSS.find(".dzsvm .dzm-tbar[data-docked]{") < _E10_CSS.find(".dzsvm .dzm-tbar[data-docked][data-off]{")
+      # le bandeau amont est une rangee flex centree a gap 12 (la barre statique se pose a gauche par le flux)
+      and _E10_UP.count(".svm-trans{height:34px; flex:none; display:flex; align-items:center; gap:12px;") == 1
+      and _E10_CSS.count(".dzsvm .svm-trans{position:relative; overflow:visible}") == 1,
+      f"rd={_E10_RD!r} rdo={_E10_RDO!r} rb={_E10_RB!r} n={_E10_CSS.count('[data-docked]')} bloc={len(_E10_BLOC)}")
+
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")
 

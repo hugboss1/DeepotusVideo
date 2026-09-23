@@ -590,6 +590,32 @@
 @media (prefers-reduced-motion:reduce){
   .dzsvm .dzm-tbar[data-off]{transition-delay:0s}
 }
+/* ── E-10 (lot E-C, tâche 4, 23/09/2026) — LA BARRE ANCRÉE ─────────────────
+   L'hôte pose data-docked (☰ › Affichage › « Ancrer la barre d'outils »,
+   clé dz_svm_tb_dock). RÈGLES SÉPARÉES : la première règle `.dzm-tbar`
+   ci-dessus reste mot pour mot celle que les pins D-1 lisent.
+   EN FLUX : `position:static` la rend au flex du bandeau `.svm-trans`
+   (rangée centrée, gap 12 px) ; le Dock la monte en TÊTE de ce bandeau,
+   elle se pose donc À GAUCHE des boutons de transport. Le déport (translate
+   --tbx/--tby) et l'ombre — « seul signal de flottement » — s'éteignent.
+   COMPACTE, et c'est mesuré : flottante, la barre fait ~90 px (zone 17 +
+   en-tête 16 + bouton 13 + icône + 6 + libellé 9,5) pour un bandeau de
+   46 px en `align-items:center` et `overflow:visible` — ancrée telle
+   quelle elle aurait débordé de ~22 px de chaque côté. Les libellés
+   s'éteignent par `--lbl:none`, le mécanisme que le §2.3 prévoit (title et
+   aria-label restent). AUCUN NŒUD N'EST MASQUÉ — §4.2 : ⌖ « ne doit jamais
+   être masqué en mode compact », et la feuille n'a qu'un levier de masquage,
+   `--lbl` ; en-têtes de groupe, poignée et ⌖ / × restent, plus petits.
+   `data-off` GARDE SON SENS : l'onglet OUTILS replie la barre ancrée à zéro
+   largeur (le repli de la première règle — opacité, visibilité, pointeur —
+   s'applique toujours ; seule la translation de 6 px est retirée, la barre
+   étant en flux). ≈ 39 px de haut ancrée (2 + 4 + 9 + 24), mesuré. */
+.dzsvm .dzm-tbar[data-docked]{position:static; bottom:auto; left:auto; transform:none; translate:none; margin-right:8px; flex:none; --lbl:none; box-shadow:none}
+.dzsvm .dzm-tbar[data-docked][data-off]{transform:none; width:0; margin:0; padding:0; border-width:0; overflow:hidden}
+.dzsvm .dzm-tbar[data-docked] .dzm-tbzone{padding:2px}
+.dzsvm .dzm-tbar[data-docked] .dzm-tbgrp{padding:0 3px}
+.dzsvm .dzm-tbar[data-docked] .dzm-tbhead{padding:0 2px 2px; font-size:7px; letter-spacing:.08em}
+.dzsvm .dzm-tbar[data-docked] .dzm-tbb, .dzsvm .dzm-tbar[data-docked] .dzm-tbb.dzm-solo{width:32px; padding:2px 0}
 
 /* a. LA POIGNÉE (§2.2a) — 26px, pleine hauteur, filet droit.
    TOUT CE QUI LA REND VIVANTE — `cursor:grab`, l'état de survol,

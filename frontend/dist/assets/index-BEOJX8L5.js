@@ -1934,6 +1934,11 @@ function DzMontage(props){
      booléen piloté d'ici en aurait fait une seconde source. C'est
      M20b, la branche du gestionnaire clavier, qui l'incrémente. */
   var stDzTb=x.useState(0),dzTbReq=stDzTb[0],setDzTbReq=stDzTb[1];
+  /* E-10 (lot E-C, tâche 4, 23/09/2026) : la barre d'outils ANCRÉE dans le
+     bandeau — un booléen persisté (clé ci-dessous), passé en prop `docked`
+     au Dock ; l'entrée ☰ › Affichage le bascule. */
+  var stTbD=x.useState(function(){try{return localStorage.getItem("dz_svm_tb_dock")==="1"}catch(_e){return !1}}),dzTbDock=stTbD[0],setDzTbDock=stTbD[1];
+  function dzTbDockToggle(){setDzTbDock(function(v){var n=!v;try{localStorage.setItem("dz_svm_tb_dock",n?"1":"0")}catch(_e){}return n})}
   var stSu=x.useState(!1),subsOn=stSu[0],setSubsOn=stSu[1];
   /* mémo du VERDICT — la timeline en demande un par segment à chaque rendu,
      donc on ne refait le calcul que si les clips, le style, la durée ou le
@@ -2148,7 +2153,8 @@ function DzMontage(props){
       aff.items=aff.items.concat([
         {lbl:"Inspecteur",combo:inspOn?"✓":"",run:function(){setInspSt(function(s){var n={on:!s.on,w:s.w};try{localStorage.setItem("dz_svm_insp",JSON.stringify(n))}catch(_e){}return n})}},
         {lbl:"Médias",combo:medOn?"✓":"",run:function(){if(proj.demo){fireNote("Ajout d'assets : disponible sur un projet réel — la démo reste une maquette.");return}setMedTr("");setMedOn(!medOn);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)}},
-        {lbl:"Durées sur les clips",combo:showDur?"✓":"",run:function(){setShowDur(function(v){var n=!v;try{localStorage.setItem("dz_svm_showdur",n?"1":"0")}catch(_e){}return n})}}]);
+        {lbl:"Durées sur les clips",combo:showDur?"✓":"",run:function(){setShowDur(function(v){var n=!v;try{localStorage.setItem("dz_svm_showdur",n?"1":"0")}catch(_e){}return n})}},
+        {lbl:"Ancrer la barre d'outils",combo:dzTbDock?"✓":"",run:function(){dzTbDockToggle()}}]);
       return Object.assign(base,{rubs:rubs})}
     if(kind==="clip"){var c=cs.find(function(k){return k.id===id});if(!c)return null;
       var v1=c.tr==="v1",sp=svmSpeedOf(c),g=DzTracks.voisins(cs,c).g;
@@ -6117,7 +6123,7 @@ function DzMontage(props){
            l'onglet OUTILS et la barre flottante, câblée sur les
            actions de l'écran. Les deux nœuds sont absolus, donc
            hors du flux flex de ce bandeau : rien n'y bouge. */
-        r.jsx(DzTracks.ToolDock,{tracks:svmTracksOf(proj),onTracks:svmTracksSet,onPick:openPicker,wordAnim:(proj.subsStyle||{}).wordAnim||"couleur",onWordAnim:function(v){subsStyleSet({wordAnim:v})},textOn:dzTextOn,onText:function(){setDzTextOn(!dzTextOn)},emojiSegs:subsSegsOf(clips),note:fireNote,onEmojiAdd:dzEmoAdd,toggleReq:dzTbReq,keyLbl:svmKeyLabel("toolbar"),onProjets:function(){setDzProjReq(function(n){return n+1})}}),
+        r.jsx(DzTracks.ToolDock,{tracks:svmTracksOf(proj),onTracks:svmTracksSet,onPick:openPicker,wordAnim:(proj.subsStyle||{}).wordAnim||"couleur",onWordAnim:function(v){subsStyleSet({wordAnim:v})},textOn:dzTextOn,onText:function(){setDzTextOn(!dzTextOn)},emojiSegs:subsSegsOf(clips),note:fireNote,onEmojiAdd:dzEmoAdd,docked:dzTbDock,toggleReq:dzTbReq,keyLbl:svmKeyLabel("toolbar"),onProjets:function(){setDzProjReq(function(n){return n+1})}}),
         r.jsxs("span",{className:"svm-tcmain",title:"position / durée totale — HH:MM:SS:image (30 i/s)",children:[
           svmTcFF(ph),r.jsx("span",{className:"svm-tctotal",children:" / "+svmTcFF(dur)})]}),
         playing&&spd!==1?r.jsx("span",{className:"svm-spdchip",
@@ -17210,6 +17216,11 @@ function DzmToolBar(o){
     style:{"--tbx":off.dx+"px","--tby":off.dy+"px"},
     "data-off":open?void 0:"","data-noanim":o.anim===!0?void 0:"",
     "data-drag":o.drag===!0?"":void 0,
+    /* E-10 (lot E-C, tâche 4, 23/09/2026) : ANCRÉE dans le bandeau de
+       transport. La prop vient de l'hôte (persistée par lui) ; la feuille
+       fait tout le reste (position:static, en flux, compacte). `data-off`
+       garde son sens : l'onglet replie la barre ancrée à zéro largeur. */
+    "data-docked":o.docked===!0?"":void 0,
     children:kids},"tbar")}
 
 /* ── CE QUE LE DOCK AJOUTE AUX PROPRIÉTÉS DE L'ÉCRAN ─────────────────
@@ -17480,7 +17491,7 @@ function DzmToolDock(o){
   function recentrer(){setOff(dzmTbOffSet({dx:0,dy:0}))}
   return r.jsx(r.Fragment,{children:[
     DzmToolTab({open:open,onToggle:bascule,tabRef:onglet,keyLbl:o.keyLbl}),
-    DzmToolBar({open:open,anim:anim,off:off,drag:drag,barRef:bar,
+    DzmToolBar({open:open,docked:o.docked,anim:anim,off:off,drag:drag,barRef:bar,
       items:items,rove:rove,onBarKey:barKey,
       onGrab:saisir,onGripKey:clavier,
       onRecentrer:recentrer,

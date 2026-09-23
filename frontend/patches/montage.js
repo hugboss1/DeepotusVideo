@@ -4235,6 +4235,11 @@ function DzmToolBar(o){
     style:{"--tbx":off.dx+"px","--tby":off.dy+"px"},
     "data-off":open?void 0:"","data-noanim":o.anim===!0?void 0:"",
     "data-drag":o.drag===!0?"":void 0,
+    /* E-10 (lot E-C, tâche 4, 23/09/2026) : ANCRÉE dans le bandeau de
+       transport. La prop vient de l'hôte (persistée par lui) ; la feuille
+       fait tout le reste (position:static, en flux, compacte). `data-off`
+       garde son sens : l'onglet replie la barre ancrée à zéro largeur. */
+    "data-docked":o.docked===!0?"":void 0,
     children:kids},"tbar")}
 
 /* ── CE QUE LE DOCK AJOUTE AUX PROPRIÉTÉS DE L'ÉCRAN ─────────────────
@@ -4505,7 +4510,7 @@ function DzmToolDock(o){
   function recentrer(){setOff(dzmTbOffSet({dx:0,dy:0}))}
   return r.jsx(r.Fragment,{children:[
     DzmToolTab({open:open,onToggle:bascule,tabRef:onglet,keyLbl:o.keyLbl}),
-    DzmToolBar({open:open,anim:anim,off:off,drag:drag,barRef:bar,
+    DzmToolBar({open:open,docked:o.docked,anim:anim,off:off,drag:drag,barRef:bar,
       items:items,rove:rove,onBarKey:barKey,
       onGrab:saisir,onGripKey:clavier,
       onRecentrer:recentrer,

@@ -751,6 +751,15 @@ out.ctx_onclose=(function(){var r0=r,log=[];try{r={jsx:function(t,p){return {t:t
   btns[1].p.onClick();return [btns.length,m.t,m.p.className,log]}catch(e){return "autre:"+e}finally{r=r0}})();
 /* MESURE : `r` est ici l'objet de la section [1] -> le composant leve sur r.jsx a l'appel, props null / vides / items / rubs */
 out.ctx_leve=[null,{},{items:[{lbl:"a",run:function(){}},{sep:!0},{lbl:"b",off:!0}]},{rubs:[{rub:"Projet",items:[{lbl:"b"}]}],x:5,y:5}].map(function(o){try{T.CtxMenu(o);return "rendu"}catch(e){return (e instanceof TypeError||e instanceof ReferenceError)&&String(e).indexOf("r.jsx")>=0?"r.jsx":"autre:"+e}});
+/* [22] E-10 (lot E-C, tache 4, 23/09/2026) : la barre ANCREE -- la prop `docked` pose `data-docked:""` sur .dzm-tbar ;
+   sans la prop, ou avec une valeur non strictement `true` (motif de `open`/`anim`/`drag`), l'attribut vaut undefined (React ne
+   le pose pas). `data-off` reste pose et GARDE SON SENS (l'onglet replie la barre ancree a zero largeur, par la feuille) ;
+   l'onglet, lui, ne recoit rien -- il fait la meme chose ancre ou non. Rendu par le jsx factice {t,p}. */
+out.tbd=(function(){var r0=r;try{r={jsx:function(t,p){return {t:t,p:p}},jsxs:function(t,p){return {t:t,p:p}}};
+  var a=T.ToolBar({open:!0,docked:!0}),b=T.ToolBar({open:!0}),c=T.ToolBar({open:!1,docked:!0}),d=T.ToolBar({open:!0,docked:"1"});
+  var ta=T.ToolTab({open:!0,docked:!0});
+  return [a.p["data-docked"],b.p["data-docked"],c.p["data-docked"],c.p["data-off"],d.p["data-docked"],"data-docked" in ta.p,
+    a.t,a.p.className,a.p.id,b.p["data-off"],ta.p.className,ta.p["aria-expanded"]]}catch(e){return "autre:"+e}finally{r=r0}})();
 /* [21] E-7 (lot E-C, tache 3, 23/09/2026) : le tri des rendus (par TITRE, aucun project_id en base) et la vue Livraison.
    Cinq jobs : deux finals du projet (a, e), un apercu du projet (b), un final d'un AUTRE projet (c), un job non-montage
    au meme titre (d) ; `a` porte une duree (1:05 par svmRuler du bundle, E-9) */
@@ -1022,7 +1031,9 @@ try:
                  "combo","combo_bornes","combo_bundle","menu","menu_vide","menu_inconnu",
                  "menu_bornes","ctx_pure","ctx_leve","ctx_onclose",
                  # E-7 (lot E-C, tache 3) : les NEUF cles de la section [21].
-                 "jt","jt_tous","jt_vide","jt_bornes","jt_pur","del_pure","del_leve","del_rendu","del_vide_liste"]
+                 "jt","jt_tous","jt_vide","jt_bornes","jt_pur","del_pure","del_leve","del_rendu","del_vide_liste",
+                 # E-10 (lot E-C, tache 4) : la cle de la section [22].
+                 "tbd"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -2051,6 +2062,29 @@ check("e7_jobsTri_pur_Deliver_sans_hook_suffixe_unique_egal_a_montage_service_du
       ({n: len(c) for n, c in _E7.items()}, _MSV.count('" (aperçu 480p)"')))
 check("e7_exports_jobsTri_Deliver_dans_DzTracks",
       len(_DT) > 1000 and _DT.count("jobsTri:dzmJobsTri,Deliver:DzmDeliver,") == 1, len(_DT))
+print("\n[22] E-10 la barre d'outils ancree : prop docked -> data-docked (lot E-C, tache 4)")
+# ── E-10 (lot E-C, tache 4, 23/09/2026) : LA BARRE ANCREE ───────────────────
+# Decision 5 du plan : `docked` = une PROP du Dock (l'etat vit dans l'hote, cle
+# dz_svm_tb_dock), posee en `data-docked:""` sur .dzm-tbar ; la feuille fait le
+# reste (position:static, en flux dans .svm-trans). DECISION mesuree 23/09 (le
+# plan laissait le choix) : `data-off` GARDE SON SENS ancree -- l'onglet OUTILS
+# replie la barre ancree a zero largeur (feuille), le pin §4.2 du banc bundle
+# interdisant de masquer un noeud de la barre ; l'onglet ne recoit donc AUCUNE
+# prop neuve (temoin : `docked` passe a l'onglet n'y pose rien).
+check("tbd_docked_true_pose_data_docked_vide_sur_la_barre_sans_la_prop_ou_non_booleen_undefined_data_off_intact_onglet_intouche",
+      D.get("tbd") == ["", None, "", "", None, False, "div", "dzm-tbar", "dzm-toolbar", None, "dzm-tbtab", "true"],
+      D.get("tbd"))
+_E10 = {n: _corps(n) for n in ("DzmToolBar", "DzmToolTab", "DzmToolDock")}
+check("e10_data_docked_ecrit_une_fois_dans_la_barre_strict_true_jamais_dans_l_onglet_et_le_dock_passe_docked_a_la_barre_seule",
+      len(_E10["DzmToolBar"]) > 800 and _E10["DzmToolBar"].count('"data-docked":o.docked===!0?"":void 0') == 1
+      and len(_E10["DzmToolTab"]) > 300 and "docked" not in _E10["DzmToolTab"]
+      and len(_E10["DzmToolDock"]) > 2000 and _E10["DzmToolDock"].count("docked:o.docked") == 1
+      and _E10["DzmToolDock"].count("DzmToolTab({open:open,onToggle:bascule,") == 1
+      and _E10["DzmToolDock"].count("DzmToolBar({open:open,docked:o.docked,") == 1
+      and _SRCb.count('"data-docked"') == 1 and _SRCb.count("docked:o.docked") == 1
+      # temoin : les trois attributs d'etat de la barre restent poses a cote, une fois chacun
+      and _E10["DzmToolBar"].count('"data-off":open?void 0:""') == 1 and _E10["DzmToolBar"].count('"data-drag":o.drag===!0?"":void 0') == 1,
+      ({n: len(c) for n, c in _E10.items()}, _SRCb.count('"data-docked"')))
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)
