@@ -365,7 +365,16 @@ STABLE_PROBES = [
     # Suppr referme le trou). EC11 (le rendu du trou), EC14 (clipDown),
     # R_M16REF (l etat) et R_K7 (Echap) n en ajoutent aucune. MESURE : la
     # chaine a refuse, « sonde montage x132 (want 129) », avant cette ligne.
-    ("montage", "DzTracks", 132),
+    # 23/09/2026, L4 (tache 4, livraison) : 132 -> 135. TROIS de plus :
+    # `DzTracks.DeliverRow` (L4b, la rangee preset / cadence / loudness /
+    # plage sous la ligne cout du popover), `DzTracks.rangeFrom(` (L4b,
+    # hasRange -- la plage I/O du projet) et `DzTracks.deliverPayload(`
+    # (L4c2, la queue de renderPayload hors apercu). L4a (l etat, l api, la
+    # sauvegarde d un preset -- repli R_M16REF), L4d1..d4 (launchRender en
+    # file) et le bouton « Ajouter a la file » (repli R_EA5D2) n en ajoutent
+    # aucune. MESURE : la chaine a refuse, « sonde montage x135 (want 132) »,
+    # avant cette ligne.
+    ("montage", "DzTracks", 135),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

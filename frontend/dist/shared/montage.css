@@ -1455,3 +1455,20 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
    la lane ; pointillés à l'accent, jamais plein : ce n'est pas un clip). */
 .dzsvm .svm-insphead{font-size:11px;opacity:.75;margin-bottom:6px;font-variant-numeric:tabular-nums}
 .dzsvm .svm-gapsel{position:absolute;top:2px;bottom:2px;border:1px dashed var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent);pointer-events:none;border-radius:4px}
+/* L4 (23/09/2026, tâche 4) : les réglages de livraison du popover de rendu
+   (DzTracks.DeliverRow, L4b : grille libellé / contrôle, la case et le bouton
+   sur toute la largeur), la pastille de loudness (gris = pas de cible ou pas
+   de mesure, vert |Δ| ≤ 1 dB, jaune ≤ 3, rouge) et le badge de statut de la
+   vue Livraison (data-st = statut brut du job : queued / generating_video /
+   done / failed). */
+.dzsvm .svm-delopts{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center;margin:8px 0;font-size:12px}
+.dzsvm .svm-delopts select{max-width:100%}
+.dzsvm .svm-delloud{display:flex;align-items:center;min-width:0}
+.dzsvm .svm-delrange{display:flex;align-items:center;gap:6px;cursor:pointer}
+.svm-loudpill{display:inline-block;width:10px;height:10px;border-radius:50%;margin-left:6px;background:var(--stroke);vertical-align:middle;flex:none}
+.svm-loudpill[data-etat="vert"]{background:#3fbf6f}
+.svm-loudpill[data-etat="jaune"]{background:#e0b83a}
+.svm-loudpill[data-etat="rouge"]{background:#e0553a}
+.svm-delbadge[data-st="queued"]{opacity:.7}
+.svm-delbadge[data-st="failed"]{color:#e0553a}
+.svm-delbadge[data-st="generating_video"]{color:var(--accent)}

@@ -2040,9 +2040,11 @@ _i_push = _body.find("pushHistory();")
 # E-7 (23/09/2026) : 5 -> 6, la garde demo de dzSetView(« medias ») (repliee
 # dans R_M16REF, meme phrase que la chip Medias : note et return, jamais
 # d'historique).
+# L4 (23/09/2026, tache 4) : 6 -> 7, le refus du PUT d'un preset maison (dzSavePreset,
+# replie dans R_M16REF : note « Preset refusé » et return, jamais d'historique).
 _n_ret = _P9C.count(";return}")
 check("M16a_refuse_avant_de_pousser_l_historique",
-      bool(_body) and _body.count("pushHistory();") == 1 and _n_ret == 6
+      bool(_body) and _body.count("pushHistory();") == 1 and _n_ret == 7
       and _i_refus >= 0 and _i_push >= 0 and _i_refus < _i_push,
       f"dernier refus={_i_refus} pushHistory();={_i_push} "
       f"returns={_n_ret} corps={len(_body)} o "
@@ -2735,8 +2737,9 @@ check("P10_la_couche_appelle_le_svmRuler_du_bundle",
 # `seg_durs`. Sans cette paire, P10 changerait la duree du FILM sans le dire.
 # `find`, jamais `index` (faute n°6) : les deux reperes valent -1 quand ils
 # manquent, et la ligne EXIGE qu'ils aient ete trouves.
-_rp0 = s.find(nl("  function renderPayload(preview){"))
-_rp1 = s.find(nl("  function launchRender(preview){"), _rp0 if _rp0 >= 0 else 0)
+# L4 (23/09/2026, tache 4) : les deux signatures portent `queue` (L4c1 / L4c2) -- pins realignes, l'ancienne forme x0.
+_rp0 = s.find(nl("  function renderPayload(preview,queue){"))
+_rp1 = s.find(nl("  function launchRender(preview,queue){"), _rp0 if _rp0 >= 0 else 0)
 _RP = s[_rp0:_rp1] if _rp0 >= 0 and _rp1 > _rp0 else ""
 check("P10_le_payload_de_rendu_n_emporte_pas_la_duree",
       bool(_RP) and "duration:" not in _RP and "duration_master:" in _RP,
@@ -15205,11 +15208,14 @@ check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB8b_puis_
                                                           "EC1", "EC2", "EC4", "EC5", "EC7", "EC8", "EC9",
                                                           "EC10", "EC11", "EC12", "EC13", "EC14",
                                                           "EC15a", "EC15b", "EC15c", "EC15d", "EC15e", "EC15f",
-                                                          "EC15g", "EC15h", "EC15i", "EC15j", "EC15k"]
+                                                          "EC15g", "EC15h", "EC15i", "EC15j", "EC15k",
+                                                          # L4 (T4, 23/09/2026) : sept sections en queue, sonde 132 -> 135
+                                                          # (DeliverRow + rangeFrom dans L4b, deliverPayload dans L4c2)
+                                                          "L4b", "L4c1", "L4c2", "L4d1", "L4d2", "L4d3", "L4d4"]
       and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
               and s.count(nl(a)) == (1 if a in r else 0)
               for _t, a, r in P.PATCHES[_DZ_I + 1:])
-      and _sonde.get("montage") == 132 and s.count("DzTracks") == 132
+      and _sonde.get("montage") == 135 and s.count("DzTracks") == 135
       if _bak else False,
       f"queue={_DZ_TAGS[_DZ_I + 1:]} sonde={_sonde.get('montage')} bundle={s.count('DzTracks')}")
 
@@ -16517,10 +16523,11 @@ check("EC_la_feuille_dessine_le_menu_svm_menu_borne_a_dzsvm_menurub_menuitem_men
 # LA SONDE : DzTracks 123 -> 128 (comboToKey, menuModel, CtxMenu, voisins, remove) -> 129 (E-7 : Deliver, EC9)
 # -> 132 (E-13 / E-14, T5 : teteTxt EC12, trou EC10, trouRipple EC13).
 _EC_SONDE = _lire(ROOT / "scripts" / "patch_bundle_dzcout.py")
-check("EC_la_sonde_dzcout_compte_DzTracks_132",
-      _EC_SONDE.count('("montage", "DzTracks", 132),') == 1 and _EC_SONDE.count('("montage", "DzTracks", 129),') == 0
-      and _EC_SONDE.count('("montage", "DzTracks", 128),') == 0
-      and _EC_SONDE.count('("montage", "DzTracks", 123),') == 0 and s.count("DzTracks") == 132,
+# -> 135 (L4, T4 : DeliverRow + rangeFrom dans L4b, deliverPayload dans L4c2).
+check("EC_la_sonde_dzcout_compte_DzTracks_135",
+      _EC_SONDE.count('("montage", "DzTracks", 135),') == 1 and _EC_SONDE.count('("montage", "DzTracks", 132),') == 0
+      and _EC_SONDE.count('("montage", "DzTracks", 129),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 128),') == 0
+      and _EC_SONDE.count('("montage", "DzTracks", 123),') == 0 and s.count("DzTracks") == 135,
       f"sonde={_EC_SONDE.count(chr(40) + chr(34) + 'montage')} bundle={s.count('DzTracks')}")
 
 print("\n[EC] E-7 : les trois vues Medias · Montage · Livraison (lot E-C, tache 3)")
@@ -16566,9 +16573,11 @@ _iE7St = s.find(nl(_E7_ST)); _iE7Last = s.find(nl('  var dzLast=DzTracks.finOf(d
 check("EC6_view_etat_de_session_sans_localStorage_dzJobs_effet_view_et_dzSetView_replies_dans_R_M16REF_apres_dzLast",
       all(s.count(nl(k)) == 1 and k in P.R_M16REF for k in (_E7_ST, _E7_JB, _E7_EF, _E7_SV))
       and 0 < _iE7Last < _iE7St < _iE7Last + 600
-      and len(_E7_FRAG) > 500 and "localStorage" not in _E7_FRAG and P.R_M16REF.count("localStorage") == 1
+      # L4 (23/09/2026, tache 4) : localStorage x1 -> x3 dans R_M16REF (L4a lit ET ecrit dz_montage_deliver, hors du fragment E-7) ;
+      # dzAliveRef.current x6 -> x8 (l'effet [pop] et la sauvegarde d'un preset maison, L4a)
+      and len(_E7_FRAG) > 500 and "localStorage" not in _E7_FRAG and P.R_M16REF.count("localStorage") == 3
       and s.count('x.useState("montage")') == 1 and s.count('view==="livraison"') == 2 and s.count("providers=montage") == 1
-      and s.count("dzAliveRef.current") == 6 and s.count("function dzSetView(v){") == 1 and s.count("dzSetView(") == 2
+      and s.count("dzAliveRef.current") == 8 and s.count("function dzSetView(v){") == 1 and s.count("dzSetView(") == 2
       and s.count(P._EB_GARDE) == 5 and s.count("setMedOn(!0)") == 2
       # ecart mesure a l'ecran (23/09) : « livraison » FERME les quatre tiroirs (le panneau tombait a 150 px a cote d'un tiroir ouvert)
       and s.count('if(v==="livraison"){setMedOn(!1);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)}') == 1
@@ -16601,7 +16610,8 @@ _E7_DEL = ('      view==="livraison"?r.jsx(DzTracks.Deliver,{nom:proj.name,onPre
 _iE7Mid = s.find(nl(P.A_EC9)); _iE7Del = s.find(nl(_E7_DEL))
 check("EC9_le_panneau_Livraison_premier_enfant_de_svm_mid_memes_gestes_que_la_barre_et_le_chemin_du_bandeau_vers_la_Bibliotheque",
       s.count(nl(_E7_DEL)) == 1 and _E7_DEL in P.R_EC9 and P.R_EC9.startswith(P.A_EC9 + "\n")
-      and 0 < _iE7Mid < _iE7Del < _iE7Mid + 400 and s.count("DzTracks.Deliver") == 1
+      # L4 (T4) : `DzTracks.DeliverRow` (L4b) partage le prefixe -> le jeton exact `DzTracks.Deliver,` x1, le prefixe x2
+      and 0 < _iE7Mid < _iE7Del < _iE7Mid + 400 and s.count("DzTracks.Deliver,") == 1 and s.count("DzTracks.Deliver") == 2
       and s.count('new CustomEvent("deepotus:navigate",{detail:{view:"library"}})') == 2
       and s.count('onLib:function(){window.dispatchEvent(new CustomEvent("deepotus:navigate",{detail:{view:"library"}}))}') == 1
       # props.go("library") existe UNE fois dans l'amont (l'ecran Bibliotheque, hors DzMontage) : E-7 n'en ajoute aucun
@@ -16614,7 +16624,9 @@ check("EC9_le_panneau_Livraison_premier_enfant_de_svm_mid_memes_gestes_que_la_ba
 check("E7_la_couche_exporte_jobsTri_Deliver_et_l_hote_ne_les_redefinit_pas",
       src.count("jobsTri:dzmJobsTri,Deliver:DzmDeliver,") == 1 and s.count("jobsTri:dzmJobsTri,Deliver:DzmDeliver,") == 1
       # x3 chacun : l'en-tete de commentaire E-7 de la couche, la declaration, l'export (DzmDeliver) / l'appel dans DzmDeliver (dzmJobsTri)
-      and s.count("function DzmDeliver(") == 1 and s.count("function dzmJobsTri(") == 1 and s.count("DzmDeliver") == 3 and src.count("DzmDeliver") == 3
+      # L4 (T4) : x3 -> x6, DzmDeliverRow partage le prefixe (en-tete de commentaire L4, declaration, export) ; l'exact reste x3
+      and s.count("function DzmDeliver(") == 1 and s.count("function dzmJobsTri(") == 1 and s.count("DzmDeliver") == 6 and src.count("DzmDeliver") == 6
+      and s.count("DzmDeliverRow") == 3 and src.count("DzmDeliverRow") == 3
       and s.count("dzmJobsTri(") == 3 and src.count("dzmJobsTri(") == 3 and s.count("dzmJobsTri(o.jobs,o.nom)") == 1,
       f"exports={s.count('jobsTri:dzmJobsTri,Deliver:DzmDeliver,')}")
 # LA FEUILLE : la barre des vues, l'onglet courant (accent + filet), la timeline masquee en Medias / Livraison,
@@ -16877,6 +16889,120 @@ check("E13_E14_la_couche_exporte_teteTxt_trou_trouRipple_x1_dans_le_bundle_comme
       and s.count("function dzmTeteTxt(ph,sel,fmt){") == 1 and s.count("function dzmTrou(clips,tr,t){") == 1 and s.count("function dzmTrouRipple(clips,tr,a,b){") == 1
       and (_bak.count("dzmTrou") == 0 if _bak else False),
       f"exports={s.count('teteTxt:dzmTeteTxt,trou:dzmTrou,trouRipple:dzmTrouRipple,')}")
+
+print("\n[L4] tache 4 : reglages de livraison dans le popover, payload, file, pastille, presets maison (23/09/2026)")
+# ── L4 (23/09/2026, tache 4) : decisions 5-8 du plan L4. Sept sections sur des ancres
+# LIBRES (1/0/1 dans .bak_montage), l'etat + l'api + la sauvegarde d'un preset maison
+# replies dans R_M16REF (L4a), « Ajouter a la file » replie dans R_EA5D2. Chaque
+# negation porte son temoin (.bak_montage x0 / x1) -- faute n6 : `find`, jamais `index`.
+for _sec, _a, _r in P.L4:
+    _cnt_a = s.count(nl(_a)); _cnt_r = s.count(nl(_r))
+    check("L4_section_" + _sec + "_ancre_libre_1_0_1_et_remplacement_x1",
+          _cnt_r == 1 and (_sec, _a, _r) in P.PATCHES and _a != _r
+          and (_bak.count(_nlb(_a)) == 1 and _bak.count(_nlb(_r)) == 0 if _bak else False)
+          and sum(1 for _t in P.PATCHES if _a in _t[2] and _t[0] != _sec) == 0,
+          f"ancre={_cnt_a} neuf={_cnt_r} bak={_bak.count(_nlb(_a)) if _bak else '?'}")
+check("L4_sept_sections_en_queue_de_PATCHES_apres_EC15k",
+      len(P.L4) == 7 and P.PATCHES[-7:] == P.L4 and P.PATCHES[-8][0].startswith("EC15k"), [p[0] for p in P.PATCHES[-8:]])
+# L4a : l'etat dzDel (localStorage dz_montage_deliver lu x1 en try/catch, ecrit x1 par dzDelSet), la ref posee a chaque
+# rendu, dzApi + l'effet [pop] (GET x1, vivant), dzSavePreset (PUT x1, prompt natif -- ecart date, aucun dialogue maison)
+_L4_ST = '  var stDzDel=x.useState(function(){try{var v=JSON.parse(localStorage.getItem("dz_montage_deliver")||"null");return v&&typeof v==="object"?v:{}}catch(_e){return {}}}),dzDel=stDzDel[0],setDzDel=stDzDel[1];'
+_L4_REF = "  var dzDelRef=x.useRef(null);dzDelRef.current=dzDel;"
+_L4_API = "  var stDzApi=x.useState(null),dzApi=stDzApi[0],setDzApi=stDzApi[1];"
+_L4_EFF = ('  x.useEffect(function(){if(pop!=="render")return;var alive=!0;\n'
+           '    fetch("/api/montage/deliver-presets").then(function(r2){return r2.json()}).then(function(j){if(alive&&dzAliveRef.current&&j&&typeof j==="object")setDzApi(j)}).catch(function(){});\n'
+           '    return function(){alive=!1}},[pop]);')
+_L4_SET = '  function dzDelSet(p){setDzDel(function(d){var n=Object.assign({},d,p);try{localStorage.setItem("dz_montage_deliver",JSON.stringify(n))}catch(_e){}return n})}'
+_iL4Sv = s.find(nl('    if(v==="livraison"){setMedOn(!1);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)}setVw(v)}')); _iL4St = s.find(nl(_L4_ST)); _iL4Eff = s.find(nl(_L4_EFF))
+check("L4a_etat_dzDel_ref_api_effet_pop_et_dzDelSet_replies_dans_R_M16REF_apres_dzSetView_localStorage_x2_GET_x1_PUT_x1",
+      all(s.count(nl(k)) == 1 and k in P.R_M16REF for k in (_L4_ST, _L4_REF, _L4_API, _L4_EFF, _L4_SET))
+      and 0 < _iL4Sv < _iL4St < _iL4Eff < _iL4Sv + 2600
+      and s.count("dz_montage_deliver") == 2 and P.R_M16REF.count("dz_montage_deliver") == 2
+      and s.count('"/api/montage/deliver-presets"') == 2 and s.count('fetch("/api/montage/deliver-presets")') == 1
+      and s.count('fetch("/api/montage/deliver-presets",{method:"PUT"') == 1
+      # window.prompt( : l'amont en porte NEUF (mesure .bak) -- ce lot en ajoute UN (dzSavePreset), dans R_M16REF
+      and s.count("function dzSavePreset(){") == 1 and s.count("window.prompt(") == 10 and P.R_M16REF.count("window.prompt(") == 1
+      # dzDelRef x4 : la declaration, la pose a chaque rendu, la lecture dans renderPayload (L4c2) et son commentaire ; dzDelSet x3 : la definition, onChange, dzSavePreset
+      and _libre21("dzDelRef", s) == 4 and s.count("dzDelRef.current=dzDel;") == 1 and s.count("dzDelRef.current,{range:proj.range") == 1 and _libre21("dzDelSet", s) == 3
+      # aucun id de preset en dur dans l'hote ni dans la couche : sans choix, rien n'est poste (banc croise T5)
+      and s.count("master_1080") == 0 and src.count("master_1080") == 0
+      and (_bak.count("dz_montage_deliver") == 0 and _bak.count("deliver-presets") == 0 and _bak.count("window.prompt(") == 9 and _bak.count("dzDelRef") == 0 if _bak else False),
+      f"st={s.count(nl(_L4_ST))} ordre={(_iL4Sv, _iL4St, _iL4Eff)} ls={s.count('dz_montage_deliver')} api={s.count(chr(34) + '/api/montage/deliver-presets' + chr(34))} m1080={s.count('master_1080')}")
+# dzSavePreset : slug [a-z0-9_] <= 32, base REELLE (un maison donne SA base, aucun choix = le premier builtin servi),
+# la liste courante sans l'id repris + le nouveau, la reponse remplace dzApi.presets et le preset devient le choix
+# (borne de fin = la ligne d'etat « E1 » qui suit dans R_M16REF -- les commentaires Python du patcher ne sont PAS dans la chaine)
+_L4_SV = P.R_M16REF[P.R_M16REF.find("function dzSavePreset(){"):P.R_M16REF.find('  var stDzM=x.useState("ecraser")')] if "function dzSavePreset(){" in P.R_M16REF and '  var stDzM=x.useState("ecraser")' in P.R_M16REF else ""
+check("L4a_dzSavePreset_slug_32_base_reelle_liste_courante_plus_le_nouveau_reponse_reprise_preset_choisi_notes",
+      len(_L4_SV) > 800 and _L4_SV.count('.replace(/[^a-z0-9_]+/g,"_").replace(/^_+|_+$/g,"").slice(0,32)') == 1
+      and _L4_SV.count("if(m)base=m.base;") == 1 and _L4_SV.count("(bi[0]&&bi[0].id)") == 1
+      and _L4_SV.count("cur.concat([{id:id,label:String(lbl),base:base,fps:isFinite(f)&&f>0?f:null,crf:null}])") == 1
+      and _L4_SV.count("p&&p.id!==id") == 1 and _L4_SV.count("dzDelSet({preset:id})") == 1
+      and _L4_SV.count("presets:Array.isArray(o.j.presets)?o.j.presets:[]") == 1
+      and _L4_SV.count("fireNote(") == 3 and _L4_SV.count("dzAliveRef.current") == 1,
+      f"corps={len(_L4_SV)} fireNote={_L4_SV.count('fireNote(')}")
+# L4b : la rangee sous la ligne cout, rendu final seulement ; lufs = l'etat de setLufs(m) ; hasRange par rangeFrom
+_iL4Cost = s.find(nl(P.A_L4B)); _iL4Row = s.find("isR?r.jsx(DzTracks.DeliverRow,{"); _iL4Pub = s.find('"publication · à la demande, après le rendu"')
+check("L4b_DeliverRow_x1_sous_la_ligne_cout_avant_la_ligne_publication_isR_seul_opts_api_lufs_hasRange_onChange_onSavePreset",
+      s.count("DzTracks.DeliverRow") == 1 and 0 < _iL4Cost < _iL4Row < _iL4Pub < _iL4Cost + 700
+      and s.count("isR?r.jsx(DzTracks.DeliverRow,{opts:dzDel,api:dzApi,lufs:lufs,hasRange:!!DzTracks.rangeFrom(proj.range),onChange:dzDelSet,onSavePreset:dzSavePreset}):null,") == 1
+      and s.count("DzTracks.rangeFrom(") == 4 and s.count("var stLu=x.useState(null),lufs=stLu[0],setLufs=stLu[1];") == 1 and s.count("setLufs(m);") == 1
+      and (_bak.count("DzTracks.rangeFrom(") == 0 and _bak.count("DeliverRow") == 0 and _bak.count("setLufs(m);") == 1 if _bak else False),
+      f"row={s.count('DzTracks.DeliverRow')} ordre={(_iL4Cost, _iL4Row, _iL4Pub)} rangeFrom={s.count('DzTracks.rangeFrom(')}")
+# L4c : renderPayload(preview,queue) -- `var _b={` ... `return preview?_b:DzTracks.deliverPayload(_b, dzDelRef + range + queue)` ;
+# l'apercu et /measure (renderPayload(!0)) restent le payload historique ; `return {name:` x0
+_RP4 = s[s.find(nl("  function renderPayload(preview,queue){")):s.find(nl("  function launchRender(preview,queue){"))]
+check("L4c_renderPayload_var_b_return_preview_b_sinon_deliverPayload_dzDelRef_range_queue_x1_return_name_x0_measure_intact",
+      len(_RP4) > 1500 and _RP4.count("var _b={name:proj.name,ratio:proj.ratio,preview:preview,") == 1 and _RP4.count("return {name:") == 0
+      and _RP4.count("return preview?_b:DzTracks.deliverPayload(_b,Object.assign({},dzDelRef.current,{range:proj.range,queue:queue===!0}))}") == 1
+      # renderPayload(preview,queue) x2 : la signature (L4c1) et l'appel de launchRender (L4d2)
+      and s.count("DzTracks.deliverPayload(") == 1 and s.count("renderPayload(!0)") == 1 and s.count("renderPayload(preview,queue)") == 2
+      and s.count("renderPayload(preview)") == 0 and s.count("function renderPayload(preview){") == 0
+      and (_bak.count("return {name:proj.name,ratio:proj.ratio,preview:preview,") == 1 and _bak.count("deliverPayload") == 0 if _bak else False),
+      f"rp={len(_RP4)} varb={_RP4.count('var _b={name:')} dp={s.count('DzTracks.deliverPayload(')}")
+# L4d : launchRender(preview,queue) -- pas de setJob « Envoi… » en file, le payload passe queue, la reponse {queued} note et
+# ferme, la panne reseau est dite ; la garde demo/job (R_EA6) est INCHANGEE
+_LR4 = s[s.find(nl("  function launchRender(preview,queue){")):s.find(nl("  x.useEffect(function(){\n    if(!job||!job.id||job.status===\"done\"||job.status===\"failed\")return;"))]
+check("L4d_launchRender_queue_pas_de_setJob_en_file_payload_queue_reponse_queued_note_et_setPop_panne_dite_garde_intacte",
+      len(_LR4) > 900 and _LR4.count('if(!queue)setJob({id:null,kind:preview?"preview":"final",status:"queued",progress:0,step:"Envoi…",error:null});') == 1
+      and _LR4.count("body:JSON.stringify(renderPayload(preview,queue))") == 1
+      and _LR4.count('if(queue){if(o.ok&&o.d&&o.d.queued){fireNote(o.d.message||"Ajouté à la file");setPop("")}else fireNote("File refusée : "+((o.d&&(o.d.detail||o.d.error))||"échec"));return}') == 1
+      and _LR4.count('.catch(function(e){if(queue){fireNote("File : "+String(e));return}setJob(') == 1
+      and _LR4.count('if(proj.demo||(job&&job.status!=="failed"))return;setDzFin(null);') == 1
+      and s.count("o.d.queued") == 1 and s.count("function launchRender(preview){") == 0
+      and (_bak.count("o.d.queued") == 0 and _bak.count('step:"Envoi…"') == 1 if _bak else False),
+      f"lr={len(_LR4)} queued={s.count('o.d.queued')}")
+# le bouton « Ajouter a la file » : REPLI dans R_EA5D2, rendu TOUJOURS (regle E-12), grise hors final / busy / demo, titre par etat
+_L4_BTN = ('r.jsx("button",{className:"svm-secbtn svm-queuebtn",disabled:!isR||busy||proj.demo,title:proj.demo?' + P._EC15_DEMO
+           + ':!isR?"La file locale ne prend que des rendus finaux":busy?"Un rendu de ce type est déjà en cours":'
+           '"Ajouter ce rendu final à la file locale (rendus en série, l\'écran reste libre)",'
+           'onClick:function(){if(isR&&!busy)launchRender(!1,!0)},children:"Ajouter à la file"})')
+check("L4d_bouton_Ajouter_a_la_file_x1_replie_dans_R_EA5D2_apres_le_bouton_or_rendu_toujours_grise_titre_par_etat",
+      s.count(_L4_BTN) == 1 and _L4_BTN in P.R_EA5D2 and s.count('"Ajouter à la file"') == 1 and s.count("launchRender(!1,!0)") == 1
+      and s.count("svm-queuebtn") == 1 and s.count('isR?"Rendre":"Lancer l\'aperçu"') == 1
+      and 0 < s.find('isR?"Rendre":"Lancer l\'aperçu"') < s.find(_L4_BTN) < s.find('isR?"Rendre":"Lancer l\'aperçu"') + 120
+      and "?r.jsx(\"button\",{className:\"svm-secbtn svm-queuebtn\"" not in s and "?null" not in _L4_BTN
+      and (_bak.count("Ajouter à la file") == 0 if _bak else False),
+      f"btn={s.count(_L4_BTN)} lib={s.count(chr(34) + 'Ajouter à la file' + chr(34))}")
+# la couche : la rangee, les pures, le badge de statut, les exports -- dans le bundle comme dans le fichier
+check("L4_la_couche_DeliverRow_pures_badge_de_statut_exports_x1_dans_le_bundle_comme_dans_le_fichier",
+      all(s.count(k) == 1 and src.count(k) == 1 for k in (
+          "function DzmDeliverRow(o){", "function dzmLoudPastille(i,cible){", "function dzmDeliverOpts(api){", "function dzmDeliverPayload(base,opts){",
+          "function dzmDelStatut(j){", 'className:"svm-delbadge svm-delst","data-st":st.st', 'className:"svm-delopts"', 'className:"svm-loudpill","data-etat":etat',
+          "loudPastille:dzmLoudPastille,deliverOpts:dzmDeliverOpts,deliverPayload:dzmDeliverPayload,delStatut:dzmDelStatut,DeliverRow:DzmDeliverRow,"))
+      and (_bak.count("DzmDeliverRow") == 0 and _bak.count("svm-loudpill") == 0 and _bak.count("svm-delopts") == 0 if _bak else False),
+      f"row={s.count('function DzmDeliverRow(o){')} exports={s.count('DeliverRow:DzmDeliverRow,')}")
+# LA FEUILLE : la grille, la pastille et ses trois etats, le badge et ses trois statuts -- une fois chacun
+_L4_CSS = _lire(ROOT / "frontend" / "dist" / "shared" / "montage.css")
+_L4_RG = _regle(_L4_CSS, ".dzsvm .svm-delopts{"); _L4_RP = _regle(_L4_CSS, ".svm-loudpill{")
+check("L4_feuille_svm_delopts_grille_auto_1fr_loudpill_ronde_trois_etats_delbadge_trois_statuts_x1_chacun",
+      _L4_RG is not None and "display:grid" in _L4_RG and "grid-template-columns:auto 1fr" in _L4_RG
+      and _L4_RP is not None and "border-radius:50%" in _L4_RP and "background:var(--stroke)" in _L4_RP
+      and all(_L4_CSS.count(k) == 1 for k in (
+          '.svm-loudpill[data-etat="vert"]{background:#3fbf6f}', '.svm-loudpill[data-etat="jaune"]{background:#e0b83a}', '.svm-loudpill[data-etat="rouge"]{background:#e0553a}',
+          '.svm-delbadge[data-st="queued"]{opacity:.7}', '.svm-delbadge[data-st="failed"]{color:#e0553a}', '.svm-delbadge[data-st="generating_video"]{color:var(--accent)}',
+          ".dzsvm .svm-delopts select{max-width:100%}"))
+      and _L4_CSS.count(".dzsvm .svm-delopts{") == 1 and _L4_CSS.count(".svm-loudpill{") == 1 and src.count("svm-delopts{") == 0,
+      f"rg={_L4_RG!r} rp={_L4_RP!r}")
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

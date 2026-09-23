@@ -825,6 +825,44 @@ out.del_vide_liste=(function(){var r0=r,log=[];try{r={jsx:function(t,p){return {
   var m=T.Deliver({nom:"zzz",jobs:_jt,publishOn:!0,lastFin:{name:"preuve e3",at:0},onPublish:function(){log.push("publish")}});
   m.p.children[1].p.children[2].p.onClick();
   return [m.p.children[3].p.children.p.className,m.p.children[1].p.children[2].p.disabled,m.p.children[2].p.children,log]}catch(e){return "autre:"+e}finally{r=r0}})();
+/* ── [24] L4 (23/09/2026) : reglages de livraison — pastille, options, payload, statut, composant ── */
+out.lp=[T.loudPastille(-14,-14),T.loudPastille(-15,-14),T.loudPastille(-15.01,-14),T.loudPastille(-17,-14),T.loudPastille(-17.01,-14),
+  T.loudPastille(-13,-14),T.loudPastille(-11,-14),T.loudPastille(-16,null),T.loudPastille(NaN,-14),T.loudPastille(null,-14),T.loudPastille(-16,"x"),T.loudPastille(-16,void 0)];
+var _api={builtins:[{id:"master_1080",label:"Master"},{id:"web_4k",label:"4K"}],fps:[24,25,30,60],
+  presets:[{id:"maison_a",label:"Mon 4K",base:"web_4k"},{id:"web_4k",label:"doublon"},null,"s",{label:"sans id"},{id:"m2"}]},_apiJ=JSON.stringify(_api);
+out.opts=T.deliverOpts(_api).map(function(p){return [p.id,p.label,p.groupe]});
+out.opts_bornes=[T.deliverOpts(null).length,T.deliverOpts("x").length,T.deliverOpts({}).length,
+  T.deliverOpts({builtins:"zz",presets:[{id:"q"}]}).map(function(p){return p.groupe})];
+out.opts_pur=JSON.stringify(_api)===_apiJ;
+var _b={name:"n",preview:!1,clips:[]},_bJ=JSON.stringify(_b);
+out.pl=T.deliverPayload(_b,{preset:"web_4k",fps:60,loudness:-14,rangeOnly:!0,range:{in:2,out:5},queue:!0});
+out.pl_absent=Object.keys(T.deliverPayload(_b,{})).sort();
+out.pl_bornes=[T.deliverPayload(_b,{fps:48}).fps,T.deliverPayload(_b,{fps:"60"}).fps,T.deliverPayload(_b,{loudness:"-14"}).loudness,T.deliverPayload(_b,{loudness:-19}).loudness,
+  T.deliverPayload(_b,{rangeOnly:!0,range:{in:5,out:2}}).range,T.deliverPayload(_b,{rangeOnly:!1,range:{in:2,out:5}}).range,T.deliverPayload(_b,{preset:""}).preset,
+  T.deliverPayload(_b,{queue:!1}).queue,Object.keys(T.deliverPayload(null,null)).length,T.deliverPayload(_b,{fps:null}).fps,T.deliverPayload(_b,{fps:""}).fps];
+out.pl_pur=JSON.stringify(_b)===_bJ&&T.deliverPayload(_b,{preset:"x"})!==_b;
+out.st=[T.delStatut({status:"queued"}),T.delStatut({status:"generating_video",progress:42.4}),T.delStatut({status:"done"}),T.delStatut({status:"failed"}),
+  T.delStatut({status:"zz"}),T.delStatut(null),T.delStatut({status:"generating_video",progress:"x"}),T.delStatut({status:"generating_video",progress:250})];
+out.dr_pure=typeof T.DeliverRow;
+out.dr_leve=[null,{},{opts:{preset:"web_4k"},api:_api,lufs:{i:-16.2},hasRange:!0}].map(function(o){try{T.DeliverRow(o);return "rendu"}catch(e){return (e instanceof TypeError||e instanceof ReferenceError)&&String(e).indexOf("r.jsx")>=0?"r.jsx":"autre:"+e}});
+/* rendu par un jsx factice : la grille, les trois selects (groupes, valeurs, options), la pastille (jaune : |-16,2+14| = 2,2), la case (hasRange), le bouton ; les gestes remontent des PATCHS */
+out.dr_rendu=(function(){var r0=r,log=[];try{r={jsx:function(t,p){return {t:t,p:p}},jsxs:function(t,p){return {t:t,p:p}}};
+  var m=T.DeliverRow({opts:{preset:"maison_a",fps:60,loudness:-14,rangeOnly:!0},api:_api,lufs:{i:-16.2},hasRange:!0,onChange:function(p){log.push(p)},onSavePreset:function(){log.push("save")}});
+  var ch=m.p.children,sel=ch[1],fps=ch[3],ld=ch[5].p.children[0],pill=ch[5].p.children[1],rg=ch[6],btn=ch[7];
+  sel.p.onChange({target:{value:"web_4k"}});fps.p.onChange({target:{value:""}});ld.p.onChange({target:{value:"-23"}});rg.p.children[0].p.onChange({target:{checked:!1}});btn.p.onClick();
+  return [m.t,m.p.className,ch.length,sel.t,sel.p.value,!!sel.p.title,sel.p.children.map(function(g){return g?[g.p.label,g.p.children.map(function(q){return q.p.value})]:null}),
+    fps.p.value,fps.p.children.map(function(q){return q.p.children}),ld.p.value,ld.p.children.map(function(q){return q.p.value}),
+    pill.p.className,pill.p["data-etat"],pill.p.title,rg.t,rg.p.children[0].p.type,rg.p.children[0].p.checked,!!rg.p.children[0].p.title,btn.p.className,btn.p.children,!!btn.p.title,log]}catch(e){return "autre:"+e}finally{r=r0}})();
+/* etat vide : aucun api, aucune mesure, pas de plage -> select preset vide (deux groupes null), pastille grise « mesurez d'abord », pas de case */
+out.dr_vide=(function(){var r0=r;try{r={jsx:function(t,p){return {t:t,p:p}},jsxs:function(t,p){return {t:t,p:p}}};
+  var m=T.DeliverRow({opts:{},api:null,lufs:null,hasRange:!1});var ch=m.p.children,pill=ch[5].p.children[1];
+  return [ch[1].p.value,ch[1].p.children,ch[3].p.value,ch[5].p.children[0].p.value,pill.p["data-etat"],pill.p.title,ch[6],ch[7].p.children]}catch(e){return "autre:"+e}finally{r=r0}})();
+/* le badge de statut de la vue Livraison (DzmDeliver) : cinquieme enfant de la rangee, data-st = statut brut, texte par delStatut */
+out.del_st=(function(){var r0=r;try{r={jsx:function(t,p){return {t:t,p:p}},jsxs:function(t,p){return {t:t,p:p}}};
+  var js=[{provider:"montage",title:"q",job_id:"a",status:"queued"},{provider:"montage",title:"q",job_id:"b",status:"generating_video",progress:40},
+    {provider:"montage",title:"q",job_id:"c",status:"done"},{provider:"montage",title:"q",job_id:"d",status:"failed"},{provider:"montage",title:"q",job_id:"e",status:"zz"}];
+  var m=T.Deliver({nom:"q",jobs:js});
+  return m.p.children[3].p.children.map(function(w){var b=w.p.children[4];return [w.p.children.length,b.p.className,b.p["data-st"],b.p.children]})}catch(e){return "autre:"+e}finally{r=r0}})();
 console.log(JSON.stringify(out));
 """
 # E-9 : svmRuler / svmPad2 sont des fonctions DU BUNDLE (meme portee module que
@@ -1063,7 +1101,10 @@ try:
                  # E-10 (lot E-C, tache 4) : la cle de la section [22].
                  "tbd",
                  # E-13 / E-14 (lot E-C, tache 5) : les SIX cles de la section [23].
-                 "tete","tete_bornes","trou","trou_bornes","rip","rip_bornes","rip_autre"]
+                 "tete","tete_bornes","trou","trou_bornes","rip","rip_bornes","rip_autre",
+                 # L4 (tache 4) : les QUATORZE cles de la section [24].
+                 "lp","opts","opts_bornes","opts_pur","pl","pl_absent","pl_bornes","pl_pur","st",
+                 "dr_pure","dr_leve","dr_rendu","dr_vide","del_st"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -2158,6 +2199,71 @@ check("e13_e14_coeur_pur_formateur_passe_et_non_recopie_intervalle_ferme_ouvert_
       and _E13["dzmTrouRipple"].count("c.tr!==tr") == 1
       and len(_DT) > 1000 and _DT.count("teteTxt:dzmTeteTxt,trou:dzmTrou,trouRipple:dzmTrouRipple,") == 1,
       ({n: len(c) for n, c in _E13.items()}, _DT.count("teteTxt:dzmTeteTxt")))
+print("\n[24] L4 : reglages de livraison — pastille loudness, options, payload, badge de statut, DeliverRow (tache 4)")
+# ── L4 (23/09/2026, tache 4) : decisions 5-8 du plan. La pastille compare la mesure
+# (ebur128, /measure) a la cible choisie : vert |d| <= 1 dB, jaune <= 3, rouge ; gris sans
+# cible ou sans mesure finie. Les options viennent de GET /deliver-presets (builtins puis
+# maison, ids uniques, le premier gagne) ; le payload ne pose QUE les champs valides
+# (fps hors liste, loudness en chaine, plage invalide ou case decochee -> OMIS) ; le
+# statut du badge suit `status` brut de _job_to_dict.
+check("lp_bornes_exactes_1_et_3_dB_vert_jaune_rouge_gris_sans_cible_nan_null_cible_non_numerique",
+      D.get("lp") == ["vert", "vert", "jaune", "jaune", "rouge", "vert", "jaune", "gris", "gris", "gris", "gris", "gris"], D.get("lp"))
+check("opts_builtins_puis_maison_doublon_ignore_non_objets_et_sans_id_ignores_label_absent_prend_l_id",
+      D.get("opts") == [["master_1080", "Master", "Standard"], ["web_4k", "4K", "Standard"], ["maison_a", "Mon 4K", "Maison"], ["m2", "m2", "Maison"]],
+      D.get("opts"))
+check("opts_bornes_api_null_chaine_vide_builtins_non_tableau_ignore_maison_seule",
+      D.get("opts_bornes") == [0, 0, 0, ["Maison"]], D.get("opts_bornes"))
+check("opts_ne_mute_pas_l_api", D.get("opts_pur") is True, D.get("opts_pur"))
+check("pl_tous_les_champs_poses_preset_fps_loudness_range_in_out_queue_true",
+      D.get("pl") == {"name": "n", "preview": False, "clips": [], "preset": "web_4k", "fps": 60, "loudness": -14, "range": [2, 5], "queue": True},
+      D.get("pl"))
+check("pl_champs_absents_non_poses_la_base_seule", D.get("pl_absent") == ["clips", "name", "preview"], D.get("pl_absent"))
+# fps 48 omis ; "60" (valeur d'un <select>) accepte ; loudness "-14" CHAINE omise (le backend refuse les chaines) ; -19 omis ;
+# plage inversee omise ; case decochee -> plage omise ; preset vide omis ; queue false omis ; base null -> {} ; fps null / "" omis
+check("pl_bornes_fps_48_omis_60_chaine_pris_loudness_chaine_omise_hors_liste_omise_plage_inversee_ou_decochee_omise_preset_vide_queue_false_base_null_fps_null_vide",
+      D.get("pl_bornes") == [None, 60, None, None, None, None, None, None, 0, None, None], D.get("pl_bornes"))
+check("pl_copie_la_base_sans_la_muter", D.get("pl_pur") is True, D.get("pl_pur"))
+check("st_queued_en_file_generating_en_cours_n_pour_cent_done_termine_failed_echec_autre_vide_null_vide_progress_borne_0_100",
+      D.get("st") == [{"st": "queued", "txt": "en file"}, {"st": "generating_video", "txt": "en cours 42 %"}, {"st": "done", "txt": "terminé"},
+                      {"st": "failed", "txt": "échec"}, {"st": "zz", "txt": ""}, {"st": "", "txt": ""}, {"st": "generating_video", "txt": "en cours 0 %"},
+                      {"st": "generating_video", "txt": "en cours 100 %"}], D.get("st"))
+check("dr_composant_fonction_qui_touche_r_a_l_appel_props_null_vides_pleines",
+      D.get("dr_pure") == "function" and D.get("dr_leve") == ["r.jsx", "r.jsx", "r.jsx"], (D.get("dr_pure"), D.get("dr_leve")))
+check("dr_rendu_grille_huit_enfants_selects_groupes_valeurs_options_pastille_jaune_titree_case_cochee_bouton_titre_et_les_patchs_remontent",
+      D.get("dr_rendu") == ["div", "svm-delopts", 8, "select", "maison_a", True,
+                            [["Standard", ["master_1080", "web_4k"]], ["Maison", ["maison_a", "m2"]]],
+                            "60", ["projet (30)", "24", "25", "30", "60"], "-14", ["", "-14", "-16", "-23"],
+                            "svm-loudpill", "jaune", "mesure −16,2 LUFS · cible −14", "label", "checkbox", True, True,
+                            "svm-secbtn svm-delsave", "Enregistrer ce réglage…", True,
+                            [{"preset": "web_4k"}, {"fps": None}, {"loudness": -23}, {"rangeOnly": False}, "save"]],
+      D.get("dr_rendu"))
+check("dr_etat_vide_sans_api_ni_mesure_ni_plage_select_vide_groupes_null_pastille_grise_mesurez_d_abord_pas_de_case",
+      D.get("dr_vide") == ["", [None, None], "", "", "gris", "mesurez d'abord (bouton « mesurer » du bandeau Son)", None, "Enregistrer ce réglage…"],
+      D.get("dr_vide"))
+check("del_badge_de_statut_cinquieme_enfant_data_st_brut_texte_par_delStatut_autre_statut_texte_vide",
+      D.get("del_st") == [[5, "svm-delbadge svm-delst", "queued", "en file"], [5, "svm-delbadge svm-delst", "generating_video", "en cours 40 %"],
+                          [5, "svm-delbadge svm-delst", "done", "terminé"], [5, "svm-delbadge svm-delst", "failed", "échec"],
+                          [5, "svm-delbadge svm-delst", "zz", ""]], D.get("del_st"))
+# LE COEUR RESTE PUR (quatre fonctions sans r/x/window/localStorage/fetch) ; le composant SANS hook ni fetch ; la plage
+# passe par dzmRangeFrom EXISTANT (jamais recopie) ; AUCUN id de preset en dur dans la couche (banc croise T5 : temoin
+# master_1080 x0 hors du banc) ; les listes fps/loudness ecrites UNE fois ; sept `title:` dans la rangee (3 selects,
+# pastille, label, case, bouton) ; le badge de statut dans DzmDeliver x1 ; exports x1.
+_L4 = {n: _corps(n) for n in ("dzmLoudPastille", "dzmDeliverOpts", "dzmDeliverPayload", "dzmDelStatut")}
+_DRW4 = _corps("DzmDeliverRow"); _DEL4 = _corps("DzmDeliver")
+check("l4_coeur_pur_x4_composant_sans_hook_ni_fetch_rangeFrom_reutilise_listes_uniques_aucun_id_de_preset_en_dur_sept_titres_badge_x1",
+      all(len(c) > 80 and not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|fetch\(", c) for c in _L4.values())
+      and len(_DRW4) > 1500 and "r.jsx" in _DRW4 and "x.use" not in _DRW4 and "fetch(" not in _DRW4 and "localStorage" not in _DRW4
+      and _L4["dzmDeliverPayload"].count("dzmRangeFrom(") == 1 and _L4["dzmDeliverPayload"].count("function dzmRange") == 0
+      and _SRCb.count("var DZM_DEL_FPS=[24,25,30,60];") == 1 and _SRCb.count("var DZM_DEL_LOUD=[[-14,") == 1
+      and _SRCb.count("master_1080") == 0 and _SRCb.count("web_4k") == 0
+      and _DRW4.count("title:") == 7 and _DRW4.count('className:"svm-secbtn svm-delsave"') == 1 and _DRW4.count('className:"svm-loudpill"') == 1
+      and _DRW4.count("o.hasRange?") == 1 and _DRW4.count("dzmLoudPastille(") == 1 and _DRW4.count("dzmDeliverOpts(") == 1
+      and len(_DEL4) > 800 and _DEL4.count("dzmDelStatut(") == 1 and _DEL4.count('className:"svm-delbadge svm-delst"') == 1
+      and _DEL4.count('className:"svm-delbadge"') == 1,
+      ({n: len(c) for n, c in _L4.items()}, len(_DRW4), _DRW4.count("title:"), _SRCb.count("master_1080")))
+check("l4_exports_loudPastille_deliverOpts_deliverPayload_delStatut_DeliverRow_dans_DzTracks",
+      len(_DT) > 1000 and _DT.count("loudPastille:dzmLoudPastille,deliverOpts:dzmDeliverOpts,deliverPayload:dzmDeliverPayload,delStatut:dzmDelStatut,DeliverRow:DzmDeliverRow,") == 1,
+      len(_DT))
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)
