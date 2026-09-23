@@ -1287,7 +1287,8 @@ class Pipeline:
         E-2 (23/09/2026) : pagination `offset`, filtre `providers` (liste de
         noms ; un `provider` NUL est lu `seedance`, comme partout où le
         client l'affiche), recherche `q` sur le titre (insensible à la
-        casse) et `video_exts` = extensions de la règle `media_rules()` :
+        casse pour l'ASCII seulement : le `lower()` de SQLite laisse
+        « Éclair » intact — écart daté 23/09/2026) et `video_exts` = extensions de la règle `media_rules()` :
         ne garder que les jobs dont l'artefact (`final_video_path` non vide,
         sinon `video_path`) porte une de ces extensions — la MÊME forme
         `coalesce(nullif(final, ''), video)` + `ilike('%<ext>')` que

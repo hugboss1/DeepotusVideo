@@ -249,7 +249,7 @@ check("x6_media_rules_rend_video_exts_egal_a_VIDEO_EXTS_et_rien_d_autre",
       and "video_providers" not in _res, (_res, _ve))
 check("x6_le_client_ne_recopie_pas_la_regle_aucune_liste_d_extensions_video_dans_la_couche",
       len(JS) > 100_000 and isinstance(_ve, tuple) and len(_ve) >= 3
-      and not all(f'"{x}"' in JS for x in _ve)
+      and not any(f'"{x}"' in JS for x in _ve)
       and JS.count("function dzmIsVideoJob(j,exts){") == 1,
       [x for x in _ve if f'"{x}"' in JS] if isinstance(_ve, tuple) else _ve)
 

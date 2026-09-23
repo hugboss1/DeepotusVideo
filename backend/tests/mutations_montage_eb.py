@@ -250,7 +250,7 @@ M = [
     (B_EDIT, JS,
      '    var s=Number(c.start),e=Number(c.end);if(!(e>s)||e<=0||s>=d)return;\n',
      '    var s=Number(c.start),e=Number(c.end);if(!(e>s))return;\n',
-     ["mm_"]),
+     ["mm_deux_pistes_trois_clips_rendent_deux_lignes_et_deux_rects_en_fractions_exactes_le_troisieme_hors_duree_exclu"]),
     # ── le bundle livre (sections du patcher), lu par `bundle` ───────────
     # 14 — EB5a : le voile ne ferme plus le bandeau de fin (`setDzFin(null)`
     #      retire) : cliquer a cote du bandeau ne le ferme pas.
