@@ -6114,7 +6114,9 @@ function DzmFinBandeau(o){
   var s3=x.useState(d0.caption),cap=s3[0],setCap=s3[1];
   var s4=x.useState(""),st=s4[0],setSt=s4[1];
   var tog=function(id){setCh(function(c){return c.indexOf(id)>=0?c.filter(function(k){return k!==id}):c.concat([id])})};
-  return r.jsxs("div",{className:"svm-pop dzm-fin",children:[
+  /* E-11 (23/09/2026) : le voile du bundle (EB5a) ferme au clic ;
+     la racine arrête le clic comme le popover (EB5b) et kbPanel */
+  return r.jsxs("div",{className:"svm-pop dzm-fin",onClick:function(e){e.stopPropagation()},children:[
     r.jsx("div",{className:"svm-poptitle",children:"Rendu terminé"}),
     r.jsx("div",{className:"dzm-fin-row",children:DZM_CHANNELS.map(function(c){return r.jsxs("label",{className:"dzm-fin-ch",children:[
       r.jsx("input",{type:"checkbox",checked:ch.indexOf(c[0])>=0,onChange:function(){tog(c[0])}})," "+c[1]]},c[0])})}),

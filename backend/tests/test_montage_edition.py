@@ -1670,6 +1670,15 @@ check("fin_coeur_pur_ni_r_ni_x_ni_localStorage",
 check("fin_exports_finStore_finOf_dans_DzTracks",
       len(_DT) > 1000 and _DT.count("finStore:dzmFinStore") == 1 and _DT.count("finOf:dzmFinOf") == 1,
       len(_DT))
+# ── E-11 (lot E-B, tache 5, 23/09/2026) : LE BANDEAU ARRETE LE CLIC ─────
+# Le voile (.svm-modescrim, bundle EB5a) se ferme au clic ; la racine du
+# bandeau .svm-pop dzm-fin porte le meme stopPropagation que le popover du
+# bundle (EB5b) et que kbPanel. Temoin : corps > 400 o, UN seul stopPropagation.
+_FBB = _corps("DzmFinBandeau")
+check("fin_bandeau_arrete_le_clic_sur_sa_racine_svm_pop",
+      len(_FBB) > 400 and _FBB.count('className:"svm-pop dzm-fin",onClick:function(e){e.stopPropagation()},children:[') == 1
+      and _FBB.count("stopPropagation") == 1 and _FBB.count("svm-modescrim") == 0,
+      f"corps={len(_FBB)} o stop={_FBB.count('stopPropagation')}")
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

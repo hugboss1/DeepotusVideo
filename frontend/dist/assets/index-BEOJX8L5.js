@@ -1764,6 +1764,7 @@ function DzMontage(props){
         put({status:"running",progress:10});tick(o.d.job_id)})
       .catch(function(e){put({status:"failed",error:String(e)})})}
   var stDzFin=x.useState(null),dzFin=stDzFin[0],setDzFin=stDzFin[1];
+  var dzScrimRef=x.useRef(!1);dzScrimRef.current=!!(pop||dzFin);
   var stDzFS=x.useState(function(){try{return JSON.parse(localStorage.getItem("dz_montage_lastfin")||"{}")||{}}catch(_e){return {}}}),dzFinStore=stDzFS[0],setDzFinStore=stDzFS[1];
   var dzLast=DzTracks.finOf(dzFinStore,proj.project_id||"_");
   var stDzM=x.useState("ecraser"),dzMode=stDzM[0],setDzMode=stDzM[1];
@@ -3279,6 +3280,7 @@ function DzMontage(props){
          à la tête de lecture ; sinon la touche reste sans effet ici */
       if(e.key==="Escape"){
         if(dzMkOnRef.current){e.preventDefault();dzMkToggle(!1);return}
+        if(dzScrimRef.current){e.preventDefault();setPop("");setDzFin(null);return}
         if(kbAudioRef.current&&kbAudioRef.current.ovEsc&&kbAudioRef.current.ovEsc())e.preventDefault();
         return}
       if(!act)return;
@@ -4605,7 +4607,7 @@ function DzMontage(props){
     var isR=pop==="render";
     var busy=job&&job.kind===(isR?"final":"preview")&&job.status!=="failed";
     var failed=job&&job.status==="failed";
-    return r.jsxs("div",{className:"svm-pop",children:[
+    return r.jsxs("div",{className:"svm-pop",onClick:function(e){e.stopPropagation()},children:[
       r.jsx("div",{className:"svm-poptitle",children:isR?"Rendre (master 1080)":"Preview 480p"}),
       r.jsxs("div",{className:"svm-popline",children:[r.jsx("span",{children:isR?"rendu ffmpeg (local) · "+svmRuler(Math.round(dur)):"aperçu ffmpeg 480p (local) · "+svmRuler(Math.round(dur))}),r.jsx("span",{className:"svm-cost",children:"$0.00"})]}),
       isR?r.jsxs("div",{className:"svm-popline",children:[r.jsx("span",{children:"publication · à la demande, après le rendu"}),r.jsx("span",{className:"svm-cost",children:"gratuit"})]}):null,
@@ -5638,6 +5640,7 @@ function DzMontage(props){
       onRemove:function(id){pushHistory();setProj(function(p){return Object.assign({},p,{markers:DzTracks.markerRemove(p.markers,id)})});setDirty(!0)},
       onChange:function(id,patch){pushHistory();setProj(function(p){return Object.assign({},p,{markers:DzTracks.markerUpdate(p.markers,id,patch)})});setDirty(!0)}}):null,
     transPopover(),
+    (pop||dzFin)?r.jsx("div",{className:"svm-modescrim",onClick:function(){setPop("");setDzFin(null)}}):null,
     kbPanel(),
     /* tiroir sons + tiroir narration + lecteur + inspecteur */
     r.jsxs("div",{className:"svm-mid",children:[
@@ -18983,7 +18986,9 @@ function DzmFinBandeau(o){
   var s3=x.useState(d0.caption),cap=s3[0],setCap=s3[1];
   var s4=x.useState(""),st=s4[0],setSt=s4[1];
   var tog=function(id){setCh(function(c){return c.indexOf(id)>=0?c.filter(function(k){return k!==id}):c.concat([id])})};
-  return r.jsxs("div",{className:"svm-pop dzm-fin",children:[
+  /* E-11 (23/09/2026) : le voile du bundle (EB5a) ferme au clic ;
+     la racine arrête le clic comme le popover (EB5b) et kbPanel */
+  return r.jsxs("div",{className:"svm-pop dzm-fin",onClick:function(e){e.stopPropagation()},children:[
     r.jsx("div",{className:"svm-poptitle",children:"Rendu terminé"}),
     r.jsx("div",{className:"dzm-fin-row",children:DZM_CHANNELS.map(function(c){return r.jsxs("label",{className:"dzm-fin-ch",children:[
       r.jsx("input",{type:"checkbox",checked:ch.indexOf(c[0])>=0,onChange:function(){tog(c[0])}})," "+c[1]]},c[0])})}),

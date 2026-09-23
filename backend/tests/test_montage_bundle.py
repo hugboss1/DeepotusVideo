@@ -14851,7 +14851,8 @@ _E4_MONT = 'r.jsx(DzTracks.FinBandeau,{fin:dzFin,memo:'
 check("E4_le_bandeau_est_monte_a_cote_du_popover_et_poste_sur_publish",
       s.count(nl(_E4_MONT)) == 1 and s.count(nl("    popover(),\n    dzFin?")) == 1
       and s.count('fetch("/api/montage/publish"') == 1
-      and s.count('"dz_montage_channels"') == 2 and s.count("setDzFin(null)}}") == 1
+      # E-11 (23/09/2026) : le voile porte aussi `setDzFin(null)}}` -> la forme entiere de « Fermer »
+      and s.count('"dz_montage_channels"') == 2 and s.count("onClose:function(){setDzFin(null)}}") == 1
       and s.count('detail:{view:"library"}') == _bak.count('detail:{view:"library"}') + 1
       and "props.go" not in P.R_EA5E and "deepotus:select-post" in P.R_EA5E
       and (_bak.count(_E4_MONT) == 0 and _bak.count("/api/montage/publish") == 0 if _bak else False),
@@ -14902,7 +14903,8 @@ check("E4_l_infobulle_E3_dit_cet_episode_aux_chapitres_et_ce_rendu_au_studio",
 # .bak_montage et 0 dans le livre, la forme etendue 0 dans le .bak.
 _E4_G = 'if(proj.demo||(job&&job.status!=="failed"))return;'
 check("E4_le_bandeau_se_ferme_au_lancement_d_un_rendu",
-      s.count(_E4_G + "setDzFin(null);") == 1 and s.count("setDzFin(null)") == 2
+      # E-11 (23/09/2026) : 2 -> 4, le voile (EB5a) et Echap (R_K7) ferment aussi le bandeau
+      s.count(_E4_G + "setDzFin(null);") == 1 and s.count("setDzFin(null)") == 4
       and (_bak.count(_E4_G) == 1 and _bak.count(_E4_G + "setDzFin(null);") == 0 if _bak else False),
       f"garde+null={s.count(_E4_G + 'setDzFin(null);')} null={s.count('setDzFin(null)')} "
       f"bak={_bak.count(_E4_G) if _bak else '?'}")
@@ -15027,12 +15029,15 @@ _DZ_I = _DZ_TAGS.index("EA6-bandeau-ferme-au-lancement")
 # 1/0/1) ; « Publier », l'etat du store et sa persistance sont des REPLIS
 # (R_EA5D, R_M16REF, R_EA4 : ancres consommees) ; sonde 117 = 115 + finOf x1
 # (dzLast, R_M16REF) + finStore x1 (la persistance du rendu final, R_EA4).
-check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB4_en_queue_apres_EA6_et_la_sonde_dit_117",
+# E-11 (lot E-B, tache 5) : DEUX sections EB5a (le voile, ancre libre 1/0/1) et
+# EB5b (la racine de popover(), libre 1/0/1) ; Echap et le ref sont des REPLIS
+# (R_K7, R_M16REF) ; aucune reference DzTracks de plus : la sonde RESTE 117.
+check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB5b_en_queue_apres_EA6_et_la_sonde_dit_117",
       [t.split("-")[0] for t in _DZ_TAGS[_DZ_I + 1:]] == ["DZ1", "DZ2", "DZ3", "DZ4",
                                                           "KF1", "KF2", "KF2b", "KF2c", "KF3a", "KF3b", "KF3c", "KF4", "KF5",
                                                           "AJ2a", "AJ2b", "AJ6a", "AJ6b", "AJ7",
                                                           "EB1", "EB2", "EB2b", "EB2c", "EB2d", "EB2e", "EB2f", "EB3",
-                                                          "EB4"]
+                                                          "EB4", "EB5a", "EB5b"]
       and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
               and s.count(nl(a)) == (1 if a in r else 0)
               for _t, a, r in P.PATCHES[_DZ_I + 1:])
@@ -15579,7 +15584,8 @@ check("EB_R_EA4_le_rendu_final_ecrit_le_store_entre_setDzFin_et_fireNote_pas_la_
 # ferme le bandeau au lancement sans toucher au store ; setDzFin(null) vaut
 # toujours DEUX (pin E-4 inchange).
 check("EB_fermer_et_lancer_ne_touchent_pas_le_store",
-      s.count("onClose:function(){setDzFin(null)}}):null,") == 1 and s.count("setDzFin(null)") == 2
+      # E-11 (23/09/2026) : 2 -> 4 (voile EB5a + Echap R_K7), chaque forme pinnee dans [EB] E-11
+      s.count("onClose:function(){setDzFin(null)}}):null,") == 1 and s.count("setDzFin(null)") == 4
       and "finStore" not in P.R_EA5E and "dz_montage_lastfin" not in P.R_EA5E and "setDzFinStore" not in P.R_EA5E
       and P.R_EA6 == P.A_EA6 + "setDzFin(null);" and "finStore" not in P.R_EA6
       and s.count("setDzFinStore(") == 1,
@@ -15597,6 +15603,124 @@ check("EB_la_couche_exporte_finStore_et_finOf",
       src.count("finStore:dzmFinStore,finOf:dzmFinOf,") == 1 and src.count("function dzmFinStore(") == 1
       and src.count("function dzmFinOf(") == 1 and s.count("function dzmFinStore(") == 1,
       f"exports={src.count('finStore:dzmFinStore,finOf:dzmFinOf,')}")
+
+print("\n[EB] E-11 : le voile sous les popovers qui arment un mode (preview/rendu, bandeau de fin)")
+# MESURES du 23/09/2026 (T5) : l'ancre `    transPopover(),\n    kbPanel(),`
+# est LIBRE (1/0/1) -> section EB5a ; la RACINE de popover() (`className:
+# "svm-pop",children:[` a quatre espaces, SANS style) est LIBRE (1/0/1) ->
+# section EB5b, pas de repli dans R_EA5A. ORDRE DOM mesure dans le livre :
+# popover(), bandeau (R_EA5E), fxPicker(), ovPicker(), MarkerIndex,
+# transPopover(), VOILE, kbPanel() -- le voile vient APRES les popovers, donc
+# il les couvrirait : le z-index 19 (sous .svm-pop 20) est OBLIGATOIRE et
+# independant de l'ordre DOM. Le voile ne couvre PAS ovPicker (le glisser vers
+# les bandes, R_M15B, doit vivre) : le predicat est (pop||dzFin), jamais ovPick.
+# ECHAP : le gestionnaire global est `onKey` (window, deps sans `pop` ni
+# `dzFin` -> fermeture perimee -> un ref) et sa branche Escape est CONSOMMEE
+# par K7 (pas par R2 comme le plan le supposait) -> repli dans R_K7 ; le ref
+# `dzScrimRef` vit a cote de stDzFin (repli R_M16REF, `pop` declare avant).
+_EB11_A = "    transPopover(),\n    kbPanel(),"
+_EB11_V = '    (pop||dzFin)?r.jsx("div",{className:"svm-modescrim",onClick:function(){setPop("");setDzFin(null)}}):null,'
+_EB11_R = "    transPopover(),\n" + _EB11_V + "\n    kbPanel(),"
+check("EB5a_le_voile_est_monte_entre_transPopover_et_kbPanel_sur_le_predicat_pop_ou_dzFin",
+      s.count(nl(_EB11_A)) == 0 and s.count(nl(_EB11_R)) == 1 and s.count(nl(_EB11_V)) == 1
+      and s.count("svm-modescrim") == 1 and src.count("svm-modescrim") == 0
+      and P.A_EB5A == _EB11_A and P.R_EB5A == _EB11_R
+      and ("EB5a-voile-sous-les-popovers-de-mode", P.A_EB5A, P.R_EB5A) in P.PATCHES
+      and (_bak.count(_nlb(_EB11_A)) == 1 and _bak.count("svm-modescrim") == 0 if _bak else False),
+      f"ancre={s.count(nl(_EB11_A))} voile={s.count(nl(_EB11_V))} jeton={s.count('svm-modescrim')} "
+      f"bak={_bak.count(_nlb(_EB11_A)) if _bak else '?'}")
+# ORDRE DOM : le voile vient APRES popover(), le bandeau et ovPicker() et AVANT
+# kbPanel() -> la superposition ne peut venir que du z-index (19 < 20).
+_iVo = s.find(nl(_EB11_V)); _iPo = s.find(nl("    popover(),\n    dzFin?")); _iOv = s.find(nl("    ovPicker(),"))
+_iKb = s.find(nl("    kbPanel(),")); _iTp = s.find(nl("    transPopover(),"))
+check("EB5a_le_voile_suit_les_popovers_dans_le_DOM_donc_le_z_index_est_la_seule_parade",
+      0 < _iPo < _iOv < _iTp < _iVo < _iKb and s.count(nl("    ovPicker(),")) == 1 and s.count(nl("    kbPanel(),")) == 1,
+      f"popover={_iPo} ovPicker={_iOv} trans={_iTp} voile={_iVo} kb={_iKb}")
+# LA FEUILLE : classe JUMELLE de .svm-kbscrim, MEMES opacites (lues dans la
+# feuille amont, pas recopiees en dur), z-index 19 sous .svm-pop 20 ; la
+# variante claire porte le selecteur amont `.dzsvm[data-svm-theme="light"]`
+# et `rgba(23,21,18,.22)` (le plan disait rgba(0,0,0,.22) : ecart mesure).
+_EB11_CSS = _lire(ROOT / "frontend" / "dist" / "shared" / "montage.css")
+_EB11_AM = _lire(ROOT / "frontend" / "dist" / "shared" / "son-vfx-montage.css")
+_mKb = re.search(r"\.svm-kbscrim\{[^}]*background:(rgba\([^)]*\))\}", _EB11_AM)
+_mKbL = re.search(r'\.dzsvm\[data-svm-theme="light"\] \.svm-kbscrim\{background:(rgba\([^)]*\))\}', _EB11_AM)
+_opk = _mKb.group(1) if _mKb else ""; _opkl = _mKbL.group(1) if _mKbL else ""
+_EB11_RULE = ".dzsvm .svm-modescrim{position:absolute;inset:0;z-index:19;background:" + _opk + "}"
+_EB11_RULEL = '.dzsvm[data-svm-theme="light"] .svm-modescrim{background:' + _opkl + "}"
+check("EB5a_la_feuille_porte_le_voile_jumeau_de_kbscrim_z19_et_sa_variante_claire_mesuree",
+      _opk == "rgba(0,0,0,.38)" and _opkl == "rgba(23,21,18,.22)"
+      and _EB11_CSS.count(_EB11_RULE) == 1 and _EB11_CSS.count(_EB11_RULEL) == 1
+      and _EB11_CSS.count("svm-modescrim") == 2 and _EB11_CSS.count("z-index:19") == 1
+      and _EB11_AM.count(".svm-pop{position:absolute; top:52px; right:18px; z-index:20;") == 1
+      and _EB11_AM.count("svm-modescrim") == 0 and _EB11_AM.count("z-index:19") == 0,
+      f"kb={_opk!r} kb_clair={_opkl!r} regle={_EB11_CSS.count(_EB11_RULE)} claire={_EB11_CSS.count(_EB11_RULEL)} "
+      f"z19={_EB11_CSS.count('z-index:19')}")
+# EB5b : la racine de popover() arrete le clic (motif kbPanel) ; ovPicker garde
+# sa racine `style:{top:96}` INTACTE et son corps ne cite ni le voile ni
+# stopPropagation (temoin : le corps est long et porte svm-pop + top:96).
+_EB11_B_A = '    return r.jsxs("div",{className:"svm-pop",children:['
+_EB11_B_R = '    return r.jsxs("div",{className:"svm-pop",onClick:function(e){e.stopPropagation()},children:['
+_iOvF = s.find(nl("  function ovPicker(){")); _iOvE = s.find(nl("\n  function "), _iOvF + 1) if _iOvF >= 0 else -1
+_OVP = s[_iOvF:_iOvE] if 0 <= _iOvF < _iOvE else ""
+_iPoF = s.find(nl("  function popover(){")); _iPoE = s.find(nl("\n  function "), _iPoF + 1) if _iPoF >= 0 else -1
+_POP = s[_iPoF:_iPoE] if 0 <= _iPoF < _iPoE else ""
+check("EB5b_la_racine_de_popover_arrete_le_clic_et_ovPicker_reste_sans_voile_ni_stopPropagation",
+      s.count(nl(_EB11_B_A)) == 0 and s.count(nl(_EB11_B_R)) == 1
+      and P.A_EB5B == _EB11_B_A and P.R_EB5B == _EB11_B_R
+      and ("EB5b-popover-arrete-le-clic", P.A_EB5B, P.R_EB5B) in P.PATCHES
+      and len(_POP) > 800 and _POP.count(_EB11_B_R) == 1 and _POP.count("stopPropagation") == 1
+      and s.count(nl("  function ovPicker(){")) == 1 and len(_OVP) > 800
+      and _OVP.count('className:"svm-pop",style:{top:96}') == 1
+      and "svm-modescrim" not in _OVP and "stopPropagation" not in _OVP and "ovPick" not in _EB11_V
+      and (_bak.count(_nlb(_EB11_B_A)) == 1 and _bak.count(_nlb(_EB11_B_R)) == 0
+           and _bak.count('className:"svm-pop",style:{top:96}') == 2 if _bak else False),
+      f"racine={s.count(nl(_EB11_B_R))} popover={len(_POP)} o ovPicker={len(_OVP)} o "
+      f"bak={_bak.count(_nlb(_EB11_B_A)) if _bak else '?'}")
+# LE BANDEAU (couche) : DzmFinBandeau arrete aussi le clic sur sa racine
+# .svm-pop dzm-fin (temoin : corps > 400 o, un seul stopPropagation).
+_iFbF = src.find("function DzmFinBandeau(o){"); _iFbE = src.find("\nfunction ", _iFbF + 1) if _iFbF >= 0 else -1
+_FBB = src[_iFbF:_iFbE] if 0 <= _iFbF < _iFbE else ""
+_EB11_FB = 'className:"svm-pop dzm-fin",onClick:function(e){e.stopPropagation()},children:['
+check("EB5_le_bandeau_de_fin_arrete_le_clic_sur_sa_racine_dans_la_couche_et_le_bundle",
+      len(_FBB) > 400 and _FBB.count(_EB11_FB) == 1 and _FBB.count("stopPropagation") == 1
+      and s.count(_EB11_FB) == 1,
+      f"corps={len(_FBB)} o couche={_FBB.count(_EB11_FB)} bundle={s.count(_EB11_FB)}")
+# LA FERMETURE : quatre `setDzFin(null)` desormais, CHACUN sous sa forme
+# exacte -- « Fermer » (R_EA5E), le lancement (EA6), le clic sur le voile
+# (EB5a) et Echap (R_K7). Les pins d'E-4 et d'E-5 (« == 2 ») sont realignes
+# a 4 dans leurs sections, avec cette justification.
+_EB11_ESC = 'if(dzScrimRef.current){e.preventDefault();setPop("");setDzFin(null);return}'
+_EB11_VOILE = 'onClick:function(){setPop("");setDzFin(null)}}'
+check("EB5_les_quatre_setDzFin_null_ont_chacun_leur_forme",
+      s.count("setDzFin(null)") == 4
+      and s.count("onClose:function(){setDzFin(null)}}):null,") == 1
+      and s.count(P.A_EA6 + "setDzFin(null);") == 1
+      and s.count(_EB11_VOILE) == 1
+      and s.count(_EB11_ESC) == 1
+      and (_bak.count("setDzFin(null)") == 0 if _bak else False),
+      f"null={s.count('setDzFin(null)')} voile={s.count(_EB11_VOILE)} esc={s.count(_EB11_ESC)}")
+# ECHAP : la branche Escape de onKey est CONSOMMEE par K7 -> repli R_K7,
+# APRES l'index des marqueurs (K7) et AVANT le repli ovEsc ; le ref est pose
+# a cote de stDzFin (R_M16REF), apres `pop` (stA) et lu par onKey dont les
+# deps ne portent ni pop ni dzFin (temoin : la liste des deps, x1).
+_EB11_REF = "  var dzScrimRef=x.useRef(!1);dzScrimRef.current=!!(pop||dzFin);"
+_EB11_DEPS = "return function(){window.removeEventListener(\"keydown\",onKey)}},[blade,delClip,undo,redo,jump,seekTo,zoomApply,narrToggle,sfxToggle]);"
+_iRef = s.find(nl(_EB11_REF)); _iFinSt = s.find("var stDzFin=x.useState(null)"); _iStA = s.find('var stA=x.useState(""),pop=stA[0]')
+_iEsc = s.find(_EB11_ESC); _iMk = s.find("if(dzMkOnRef.current){e.preventDefault();dzMkToggle(!1);return}")
+_iOvE2 = s.find("if(kbAudioRef.current&&kbAudioRef.current.ovEsc&&kbAudioRef.current.ovEsc())e.preventDefault();")
+check("EB5_Echap_ferme_le_voile_par_un_repli_dans_R_K7_lu_par_un_ref_pose_dans_R_M16REF",
+      s.count(nl(_EB11_REF)) == 1 and _EB11_REF in P.R_M16REF and _EB11_ESC in P.R_K7
+      and 0 < _iStA < _iFinSt < _iRef < _iFinSt + 400
+      and 0 < _iMk < _iEsc < _iOvE2 < _iMk + 400
+      and s.count(_EB11_DEPS) == 1 and "pop" not in _EB11_DEPS.split("},[")[1] and "dzFin" not in _EB11_DEPS.split("},[")[1]
+      and P.R_K7.count("setDzFin(null)") == 1 and P.R_K7.startswith(P.A_K7.split("\n")[0])
+      and (_bak.count(_nlb(P.A_K7)) == 1 and _bak.count("dzScrimRef") == 0 if _bak else False),
+      f"ref={_iRef} stA={_iStA} fin={_iFinSt} mk={_iMk} esc={_iEsc} ovEsc={_iOvE2} deps={s.count(_EB11_DEPS)}")
+for _nms in ("dzScrimRef",):
+    _nbs = _libre21(_nms, _bak if _bak else None)
+    check("EB_nom_" + _nms + "_etait_libre_dans_le_bundle_d_entree",
+          _nbs == 0 and _libre21(_nms, s) == 3,
+          f"{_nms} apparait {_nbs}x dans .bak_montage, {_libre21(_nms, s)}x dans le bundle (declare, pose, lu)")
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

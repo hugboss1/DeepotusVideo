@@ -1319,3 +1319,11 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
    aucun rendu final mémorisé (aucune règle :disabled pour .svm-secbtn en amont) */
 .dzsvm .svm-secbtn:disabled{opacity:.45;cursor:not-allowed}
 .dzsvm .svm-secbtn:disabled:hover{border-color:var(--stroke)}
+/* E-11 (lot E-B, tache 5, 23/09/2026) : voile sous les popovers qui ARMENT un
+   mode (preview/rendu, bandeau de fin) -- jumeau de .svm-kbscrim
+   (son-vfx-montage.css:708-710), MÊMES opacités mesurées (.38 sombre,
+   rgba(23,21,18,.22) clair), mais z-index 19 : dans le DOM le voile vient
+   APRÈS les popovers (.svm-pop, z 20) et les couvrirait sinon. Pas sous
+   ovPicker : le glisser vers les bandes doit vivre. */
+.dzsvm .svm-modescrim{position:absolute;inset:0;z-index:19;background:rgba(0,0,0,.38)}
+.dzsvm[data-svm-theme="light"] .svm-modescrim{background:rgba(23,21,18,.22)}

@@ -1053,6 +1053,12 @@ R_M16REF = (A_M16REF + "\n"
             # .bak_montage. Posé par EA4 (rendu final « done »), consommé
             # par EA5e (le bandeau de la couche), effacé par « Fermer ».
             "  var stDzFin=x.useState(null),dzFin=stDzFin[0],setDzFin=stDzFin[1];\n"
+            # ── E-11 (lot E-B, tache 5, 23/09/2026) : LE VOILE VU PAR ECHAP.
+            # REPLIÉ ICI (0 dans .bak_montage), à côté de dzFin. `onKey`
+            # (window keydown) a des deps sans `pop` ni `dzFin` : une lecture
+            # directe serait périmée -- même motif que dzMkOnRef. `pop` (stA,
+            # :1716 du livré) est déclaré avant cette ligne.
+            "  var dzScrimRef=x.useRef(!1);dzScrimRef.current=!!(pop||dzFin);\n"
             # ── E-5 (lot E-B, tache 4, 23/09/2026) : LE DERNIER RENDU FINAL
             # PAR PROJET. REPLIÉ ICI comme dzFin (0 dans .bak_montage). Deux
             # états DISTINCTS : dzFin = le bandeau est visible ; ce store =
@@ -3509,6 +3515,12 @@ A_K7 = ('if(e.key==="Escape"){\n'
         "        return}")
 R_K7 = ('if(e.key==="Escape"){\n'
         "        if(dzMkOnRef.current){e.preventDefault();dzMkToggle(!1);return}\n"
+        # E-11 (lot E-B, tache 5, 23/09/2026) : ECHAP FERME LE VOILE ET CE
+        # QU'IL PORTE (popover preview/rendu, bandeau de fin). REPLI : la
+        # branche Escape de onKey est consommee par K7 (le plan supposait
+        # R_R2 : ecart mesure). Apres l'index des marqueurs (ouvert par
+        # dessus, il se ferme d'abord), avant le repli ovEsc de l'overlay.
+        "        if(dzScrimRef.current){e.preventDefault();setPop(\"\");setDzFin(null);return}\n"
         "        if(kbAudioRef.current&&kbAudioRef.current.ovEsc&&"
         "kbAudioRef.current.ovEsc())e.preventDefault();\n"
         "        return}")
@@ -4341,6 +4353,36 @@ R_EB3 = (A_EB3 + '\n'
 A_EB4 = '        r.jsx("button",{className:"svm-secbtn",onClick:function(){setPop(pop==="preview"?"":"preview")},children:"Preview 480p (gratuit)"}),'
 R_EB4 = A_EB4.replace('"Preview 480p (gratuit)"', '"Preview"')
 
+# ── EB5a (E-11, lot E-B tache 5, 23/09/2026) : LE VOILE SOUS LES POPOVERS
+# QUI ARMENT UN MODE. Meme geste que le voile de kbPanel (.svm-kbscrim :
+# clic = fermer, stopPropagation sur le popover), mais SEULEMENT sous
+# popover() (pop = "preview"|"render") et sous le bandeau de fin (dzFin) :
+# ovPicker reste SANS voile, un voile inset:0 couvrirait la timeline et
+# tuerait le glisser vers les bandes que R_M15B assume (ecart date contre
+# la conception). MESURE : l'ancre `transPopover(),` / `kbPanel(),` est
+# libre (1/0/1) ; dans le DOM le voile vient APRES popover(), le bandeau
+# (R_EA5E) et ovPicker() -- sans z-index il les COUVRIRAIT : la feuille
+# le met a 19, sous .svm-pop (20, son-vfx-montage.css:388), parade
+# independante de l'ordre DOM (retenue par le plan). Le clic sur le voile
+# ferme les deux (setPop + setDzFin) : le bandeau et le popover ne sont
+# jamais ouverts ensemble (EA5e), fermer les deux est idempotent.
+A_EB5A = ('    transPopover(),\n'
+          '    kbPanel(),')
+R_EB5A = ('    transPopover(),\n'
+          '    (pop||dzFin)?r.jsx("div",{className:"svm-modescrim",onClick:function(){setPop("");setDzFin(null)}}):null,\n'
+          '    kbPanel(),')
+
+# ── EB5b (E-11) : LA RACINE DE popover() ARRETE LE CLIC (motif kbPanel) ──
+# Le voile est un FRERE du popover (pas son parent comme .svm-kbscrim) : un
+# clic dans le popover ne remonte donc pas au voile par le DOM ; le
+# stopPropagation est celui du motif, garde defensive contre tout ecouteur
+# de clic pose plus haut (mesure : aucun aujourd'hui). MESURE : la racine
+# `className:"svm-pop",children:[` a quatre espaces et SANS style est
+# libre (1/0/1) -- ovPicker porte `style:{top:96}` et n'est pas touche ; le
+# bandeau (couche, DzmFinBandeau) porte le sien dans montage.js.
+A_EB5B = '    return r.jsxs("div",{className:"svm-pop",children:['
+R_EB5B = '    return r.jsxs("div",{className:"svm-pop",onClick:function(e){e.stopPropagation()},children:['
+
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
@@ -4559,7 +4601,10 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("EB2f-editeur-sous-titres-ferme-medias", A_EB2F, R_EB2F),
            ("EB3-tiroir-medias-dans-svm-mid", A_EB3, R_EB3),
            # E-5 (tache 4) : une section ; Publier/store/persistance sont repliés.
-           ("EB4-libelle-preview", A_EB4, R_EB4)]
+           ("EB4-libelle-preview", A_EB4, R_EB4),
+           # E-11 (tache 5) : deux sections ; Echap (R_K7) et le ref (R_M16REF) sont replies.
+           ("EB5a-voile-sous-les-popovers-de-mode", A_EB5A, R_EB5A),
+           ("EB5b-popover-arrete-le-clic", A_EB5B, R_EB5B)]
 
 
 def nl(text, crlf):
