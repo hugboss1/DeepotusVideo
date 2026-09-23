@@ -6513,6 +6513,46 @@ function dzmDurLbl(label,start,end,on){
   if(!on||!(d>0))return l;
   var txt=dzmDurTxt(d);
   return l?l+" · "+txt:txt}
+/* D-7 (lot E-B, tache 8, 23/09/2026) — LA MINI-CARTE DE LA TIMELINE. La
+   conception la voulait « au-dessus de la regle » ; dans .svm-lanes elle
+   suivrait le zoom (width:zoomPct%). L'hote (EB8a) la pose dans .svm-tl
+   AVANT .svm-scroll, HORS zoom (affirmation dementie n°6 du plan), et garde
+   pour lui le « clic = centrer » : il est seul a tenir tlScrollRef. Ici, la
+   GEOMETRIE seule : dzmMinimap rend des lignes (une par piste, dans l'ordre
+   recu, genre par dzmKindOf — la table existante) et des rectangles en
+   FRACTIONS [0,1] de la duree (start/dur, end/dur bornes). Le champ piste d'un
+   clip est `tr` (mesure : 58 `c.tr` dans .bak_montage, aucun `c.track`).
+   Ignores : clips hors [0,dur], a duree <= 0, sans piste connue, null ; une
+   piste dupliquee ne fait qu'une ligne. dur <= 0, non fini, ou entrees qui ne
+   sont pas des tableaux -> {rows:[],rects:[]} : la mini-carte se tait, elle
+   ne devine rien. Rien n'est mute. */
+function dzmMinimap(clips,tracks,dur){
+  var d=typeof dur==="number"?dur:Number(dur),rows=[],rects=[],idx={};
+  if(!Array.isArray(clips)||!Array.isArray(tracks)||!(d>0)||d===Infinity)return{rows:rows,rects:rects};
+  tracks.forEach(function(t){if(!t||t.id==null)return;var id=String(t.id);if(idx[id]!=null)return;
+    idx[id]=rows.length;rows.push({id:id,kind:dzmKindOf(id,t.kind)})});
+  clips.forEach(function(c){if(!c)return;var tr=String(c.tr==null?"":c.tr),row=idx[tr];if(row==null)return;
+    var s=Number(c.start),e=Number(c.end);if(!(e>s)||e<=0||s>=d)return;
+    rects.push({tr:tr,row:row,x0:Math.max(0,s/d),x1:Math.min(1,e/d),kind:rows[row].kind})});
+  return{rows:rows,rects:rects}}
+/* Le composant lit `r` a l'appel (comme DzmFinBandeau). Props : clips, tracks,
+   dur, viewFrac [a,b] (la fenetre visible, calculee par l'hote sur scroll et
+   zoom), onSeek(frac). Une div.svm-mmrow par ligne, hauteur 100/N % des 30 px
+   (feuille montage.css) ; les rectangles en % ; la fenetre .svm-mmview est
+   pointer-events:none par la feuille : le clic tombe toujours sur la carte,
+   borne 0..1 sur sa largeur mesuree. Aucun hook : la carte est un pur rendu. */
+function DzmMinimap(o){
+  o=o||{};
+  var m=dzmMinimap(o.clips,o.tracks,o.dur),n=m.rows.length,vf=Array.isArray(o.viewFrac)?o.viewFrac:[0,1];
+  var a=dzmClamp(vf[0],0,1,0),b=dzmClamp(vf[1],0,1,1);if(b<a)b=a;
+  function clic(e){if(typeof o.onSeek!=="function")return;var rc=e.currentTarget.getBoundingClientRect();
+    if(!(rc.width>0))return;o.onSeek(Math.max(0,Math.min(1,(e.clientX-rc.left)/rc.width)))}
+  return r.jsxs("div",{className:"svm-minimap",title:"Mini-carte — cliquer pour centrer la timeline",onClick:clic,children:[
+    m.rows.map(function(row,i){return r.jsx("div",{className:"svm-mmrow",style:{height:(100/n)+"%"},
+      children:m.rects.filter(function(q){return q.row===i}).map(function(q,k){
+        return r.jsx("div",{className:"svm-mmrect","data-kind":q.kind,
+          style:{left:(q.x0*100)+"%",width:((q.x1-q.x0)*100)+"%"}},k)})},row.id)}),
+    r.jsx("div",{className:"svm-mmview",style:{left:(a*100)+"%",width:((b-a)*100)+"%"}})]})}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,
@@ -6610,5 +6650,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   clamp:dzmClamp,inspW:dzmInspW,
   /* E-9 (lot E-B, tache 7) : la hauteur de la timeline bornee, la duree sur le label */
   tlH:dzmTlH,durLbl:dzmDurLbl,
+  /* D-7 (lot E-B, tache 8) : la mini-carte -- geometrie pure et composant */
+  minimap:dzmMinimap,Minimap:DzmMinimap,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;

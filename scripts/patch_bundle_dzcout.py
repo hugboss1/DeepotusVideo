@@ -340,7 +340,12 @@ STABLE_PROBES = [
     # data-h de .svm-tl) et la chip « durées » (R_EB2, qui ne fait que
     # setShowDur) n en ajoutent aucune. MESURE : la chaine a refuse, « sonde
     # montage x122 (want 119) », avant cette ligne.
-    ("montage", "DzTracks", 122),
+    # 23/09/2026, D-7 (lot E-B, tache 8) : 122 -> 123. UNE de plus, dans EB8a :
+    # `DzTracks.Minimap` (la mini-carte posee dans .svm-tl avant .svm-scroll).
+    # EB8b (mmView/mmCalc, la fenetre visible) et le onSeek de l'hote (qui ne
+    # touche que tlScrollRef) n en ajoutent aucune. MESURE : la chaine a refuse,
+    # « sonde montage x123 (want 122) », avant cette ligne.
+    ("montage", "DzTracks", 123),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

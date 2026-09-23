@@ -698,6 +698,25 @@ out.tlh_bornes=[T.tlH(null,1000),T.tlH(void 0,1000),T.tlH("abc",1000),T.tlH(NaN,
 out.durlbl=(function(){try{return [T.durLbl("a",0,6,true),T.durLbl("a",0,6,false),T.durLbl("a",6,6,true)]}catch(e){return "leve:"+e}})();
 out.durlbl_bornes=(function(){try{return [T.durLbl("a",4,2,true),T.durLbl("a",0,65,true),T.durLbl("a",0,6.4,true),T.durLbl("a",0,125,!0),
   T.durLbl("a","0","6",true),T.durLbl("a",0,NaN,true),T.durLbl("a",null,null,true),T.durLbl("",0,6,true)]}catch(e){return "leve:"+e}})();
+/* D-7 (lot E-B, tache 8, 23/09/2026) : la mini-carte -- rectangles en FRACTIONS de la duree, une ligne par piste
+   dans l'ordre recu, clips hors [0,dur] / a duree nulle / sans piste connue ignores ; le champ piste d'un clip
+   est `tr` (mesure : 58 `c.tr` dans .bak_montage, 0 `c.track`) ; le genre par dzmKindOf (id, kind) */
+out.mm=T.minimap([{id:"c1",tr:"v1",start:2,end:6},{id:"c2",tr:"a1",start:0,end:20},{id:"c3",tr:"v1",start:25,end:30}],
+  [{id:"v1"},{id:"a1",kind:"audio"}],20);
+out.mm_vide=[T.minimap([],[],20),T.minimap([{id:"c",tr:"v1",start:0,end:5}],[{id:"v1"}],0),T.minimap([{id:"c",tr:"v1",start:0,end:5}],[{id:"v1"}],-3),
+  T.minimap([{id:"c",tr:"v1",start:0,end:5}],[{id:"v1"}],NaN),T.minimap([{id:"c",tr:"v1",start:0,end:5}],[{id:"v1"}],Infinity),
+  T.minimap(null,[{id:"v1"}],20),T.minimap([{id:"c",tr:"v1",start:0,end:5}],"v1",20)];
+/* bornes : depasse a droite -> x1 borne a 1 ; commence avant 0 -> x0 borne a 0 ; end <= start ignore ; piste inconnue
+   ignoree ; clip null ignore ; piste dupliquee = une ligne ; genre par la lettre (a1 -> audio) ; entrees NON mutees */
+var _mmC=[{id:"c1",tr:"v1",start:15,end:30},{id:"c2",tr:"v1",start:-5,end:5},{id:"c3",tr:"v1",start:6,end:6},{id:"c4",tr:"zz",start:1,end:2},null,
+  {id:"c5",tr:"a1",start:"4","end":"8"}],_mmT=[{id:"v1"},{id:"a1"},{id:"v1"}],_mmJ=JSON.stringify(_mmC)+JSON.stringify(_mmT);
+var _mmB=T.minimap(_mmC,_mmT,20);
+out.mm_bornes=[_mmB.rows.length,_mmB.rects.map(function(q){return [q.tr,q.row,q.x0,q.x1,q.kind]}),JSON.stringify(_mmC)+JSON.stringify(_mmT)===_mmJ,
+  _mmB.rows.map(function(w){return w.kind})];
+out.mm_comp=typeof T.Minimap;
+/* MESURE 23/09 : `r` est ICI le resultat de la section [1] (`var r=T.insere(...)`, un objet sans jsx) :
+   le composant le lit a l'appel et leve un TypeError sur r.jsx -- pas un ReferenceError comme le tiroir (x) */
+out.mm_comp_leve=[null,{},{clips:[],tracks:[],dur:0}].map(function(o){try{T.Minimap(o);return "rendu"}catch(e){return e instanceof TypeError&&String(e).indexOf("r.jsx")>=0?"r.jsx":"autre:"+e}});
 console.log(JSON.stringify(out));
 """
 # E-9 : svmRuler / svmPad2 sont des fonctions DU BUNDLE (meme portee module que
@@ -913,7 +932,9 @@ try:
                  # E-8 (lot E-B, tache 6) : les DEUX cles de la largeur de l'inspecteur.
                  "insp","clamp",
                  # E-9 (lot E-B, tache 7) : les QUATRE cles de la hauteur de la timeline et du label de duree.
-                 "tlh","tlh_bornes","durlbl","durlbl_bornes"]
+                 "tlh","tlh_bornes","durlbl","durlbl_bornes",
+                 # D-7 (lot E-B, tache 8) : les CINQ cles de la mini-carte.
+                 "mm","mm_vide","mm_bornes","mm_comp","mm_comp_leve"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -1765,6 +1786,45 @@ check("tlh_durlbl_exports_tlH_durLbl_dans_DzTracks",
 check("tlh_le_shim_joue_svmRuler_et_svmPad2_extraits_du_bak_montage",
       _E9_RULER.count("function svmRuler(") == 1 and _E9_RULER.count("function svmPad2(") == 1
       and _E9_RULER in PROBE and "/*E9_RULER*/" not in PROBE, len(_E9_RULER))
+# ── D-7 (lot E-B, tache 8, 23/09/2026) : LA MINI-CARTE DE LA TIMELINE ──
+# dzmMinimap(clips, tracks, dur) est PURE : lignes = pistes dans l'ordre recu
+# (id, genre par dzmKindOf), rectangles en FRACTIONS [0,1] de la duree (start/dur,
+# end/dur bornes) ; le troisieme clip (25..30 sur 20 s) est HORS duree -> exclu.
+# Le clic-centrer vit dans l'hote (seul detenteur de tlScrollRef), pas ici.
+check("mm_deux_pistes_trois_clips_rendent_deux_lignes_et_deux_rects_en_fractions_exactes_le_troisieme_hors_duree_exclu",
+      D.get("mm") == {"rows": [{"id": "v1", "kind": "video"}, {"id": "a1", "kind": "audio"}],
+                      "rects": [{"tr": "v1", "row": 0, "x0": 0.1, "x1": 0.3, "kind": "video"},
+                                {"tr": "a1", "row": 1, "x0": 0.0, "x1": 1.0, "kind": "audio"}]},
+      D.get("mm"))
+# etat vide : listes vides, dur 0 / negatif / NaN / Infinity, clips non-tableau, pistes non-tableau -> {rows:[],rects:[]} x7
+check("mm_etat_vide_dur_nul_negatif_nan_infini_ou_entrees_non_tableaux_rendent_rows_et_rects_vides",
+      isinstance(D.get("mm_vide"), list) and len(D["mm_vide"]) == 7
+      and all(v == {"rows": [], "rects": []} for v in D["mm_vide"]), D.get("mm_vide"))
+# bornes : x1 borne a 1 (15..30 sur 20), x0 borne a 0 (-5..5), end == start ignore, piste inconnue ignoree, clip null
+# ignore, piste dupliquee = UNE ligne (2 lignes pour 3 entrees), chaines lues ("4"/"8" -> .2/.4), genre a1 -> audio, entrees non mutees
+check("mm_bornes_x1_a_1_x0_a_0_duree_nulle_piste_inconnue_clip_null_ignores_piste_dupliquee_une_ligne_chaines_lues_pur",
+      D.get("mm_bornes") == [2, [["v1", 0, 0.75, 1, "video"], ["v1", 0, 0, 0.25, "video"], ["a1", 1, 0.2, 0.4, "audio"]], True, ["video", "audio"]],
+      D.get("mm_bornes"))
+check("mm_composant_est_une_fonction_qui_touche_r_a_l_appel_props_null_vides_ou_pleines",
+      D.get("mm_comp") == "function" and D.get("mm_comp_leve") == ["r.jsx", "r.jsx", "r.jsx"],
+      (D.get("mm_comp"), D.get("mm_comp_leve")))
+# LE COEUR RESTE PUR : ni r.jsx, ni x.use, ni localStorage/window/document dans dzmMinimap (temoin de longueur) ;
+# il lit le genre par dzmKindOf (la table EXISTANTE, une fois) et le champ `tr` ; le composant, lui, porte r.jsx,
+# svm-minimap / svm-mmrow / svm-mmrect / svm-mmview, data-kind, pointer-events par la feuille (pas de onClick sur
+# la fenetre), onSeek borne 0..1 par getBoundingClientRect, et APPELLE dzmMinimap (une seule geometrie).
+_MM = {n: _corps(n) for n in ("dzmMinimap", "DzmMinimap")}
+check("mm_coeur_pur_par_kindOf_et_tr_le_composant_appelle_minimap_et_porte_les_quatre_classes_et_onSeek_borne",
+      all(len(c) > 200 for c in _MM.values())
+      and not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b", _MM["dzmMinimap"])
+      and _MM["dzmMinimap"].count("dzmKindOf(") == 1 and "c.tr" in _MM["dzmMinimap"] and "c.track" not in _MM["dzmMinimap"]
+      and _MM["DzmMinimap"].count("dzmMinimap(") == 1 and "r.jsx" in _MM["DzmMinimap"] and "x.use" not in _MM["DzmMinimap"]
+      and all(_MM["DzmMinimap"].count('className:"' + k + '"') == 1 for k in ("svm-minimap", "svm-mmrow", "svm-mmrect", "svm-mmview"))
+      and _MM["DzmMinimap"].count('"data-kind":') == 1 and _MM["DzmMinimap"].count("getBoundingClientRect()") == 1
+      and _MM["DzmMinimap"].count("Math.max(0,Math.min(1,") >= 1 and "onSeek" in _MM["DzmMinimap"]
+      and _MM["DzmMinimap"].count("Mini-carte") == 1,
+      {n: len(c) for n, c in _MM.items()})
+check("mm_exports_minimap_Minimap_dans_DzTracks",
+      len(_DT) > 1000 and _DT.count("minimap:dzmMinimap,Minimap:DzmMinimap,") == 1, len(_DT))
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

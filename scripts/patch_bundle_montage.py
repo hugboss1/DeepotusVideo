@@ -4513,6 +4513,45 @@ R_EB7B = ('    r.jsx("div",{className:"svm-tlhandle",onPointerDown:tlDown,'
           'title:"Glisser pour régler la hauteur de la timeline (30–70 %)"}),\n'
           '    r.jsxs("div",{className:"svm-tl","data-h":tlH||void 0,style:tlH?{height:tlH}:void 0,children:[')
 
+# ── EB8a (D-7, lot E-B tache 8, 23/09/2026) : LA MINI-CARTE DE LA TIMELINE.
+# La conception la voulait « au-dessus de la regle » ; dans .svm-lanes
+# (width:zoomPct%) elle suivrait le zoom. MESURE (.bak:5338) : l'ouverture de
+# .svm-scroll est libre 1/0/1 (six espaces) ; la carte est inseree AVANT elle,
+# dans .svm-tl, apres .svm-trans, HORS zoom (affirmation dementie n°6 du plan).
+# Noms de portee mesures dans DzMontage : `clips` (st1, .bak:1692),
+# `svmTracksOf(proj)` (les pistes, comme dzTracksRef .bak:1762), `dur`
+# (= proj.dur, .bak:1870). La gouttiere .svm-gutter (88 px, sticky) est DANS
+# .svm-lanes (.bak:5342) donc dans scrollWidth : deduite, comme le zoom deduit
+# deja `W-88` / `mx-88` (.bak:2822-2824). Le « clic = centrer » vit ICI :
+# l'hote est seul a tenir tlScrollRef ; la couche ne rend que des fractions.
+A_EB8A = '      r.jsx("div",{className:"svm-scroll",ref:tlScrollRef,children:'
+R_EB8A = ('      /* D-7 : mini-carte HORS zoom — un rect par clip, la fenêtre visible ; clic = centrer .svm-scroll\n'
+          '         (la gouttière de 88 px est dans .svm-lanes donc dans scrollWidth : déduite, comme le zoom fait W-88) */\n'
+          '      r.jsx(DzTracks.Minimap,{clips:clips,tracks:svmTracksOf(proj),dur:dur,viewFrac:mmView,'
+          'onSeek:function(f){var el=tlScrollRef.current;if(!el)return;var w=el.scrollWidth-88;'
+          'el.scrollLeft=Math.max(0,f*w-(el.clientWidth-88)/2)}}),\n'
+          + A_EB8A)
+
+# ── EB8b (D-7) : LA FENETRE VISIBLE [a,b]. MESURE (.bak:2827-2828) : le
+# useLayoutEffect [zoomPct] qui rejoue le scrollLeft en attente est libre
+# 1/0/1 et CONSERVE ; en queue : l'etat mmView [0,1], mmCalc (useCallback
+# stable, [] — la forme de zoomApply .bak:2816), un effet qui POSE l'ecouteur
+# scroll sur tlScrollRef.current et le RETIRE au demontage (motif de l'effet
+# wheel .bak:2831-2836), et un effet [zoomPct] : apres le layout, .svm-lanes a
+# sa largeur neuve. setMmView garde l'objet quand rien ne change (pas de
+# rendu a chaque evenement scroll identique).
+A_EB8B = '      tlScrollRef.current.scrollLeft=pendScrollRef.current;pendScrollRef.current=null}},[zoomPct]);'
+R_EB8B = (A_EB8B + '\n'
+          '  /* D-7 : la fenêtre visible de la mini-carte — [a,b] en fractions de la largeur défilable (gouttière 88 px déduite),\n'
+          '     recalculée au défilement de .svm-scroll (écouteur posé au montage, retiré au démontage) et à chaque zoom */\n'
+          '  var stMm=x.useState([0,1]),mmView=stMm[0],setMmView=stMm[1];\n'
+          '  var mmCalc=x.useCallback(function(){var el=tlScrollRef.current;if(!el)return;var w=el.scrollWidth-88;\n'
+          '    var a=w>0?Math.max(0,Math.min(1,el.scrollLeft/w)):0,b=w>0?Math.max(a,Math.min(1,(el.scrollLeft+el.clientWidth-88)/w)):1;\n'
+          '    setMmView(function(p){return p[0]===a&&p[1]===b?p:[a,b]})},[]);\n'
+          '  x.useEffect(function(){var el=tlScrollRef.current;if(!el)return;el.addEventListener("scroll",mmCalc);mmCalc();\n'
+          '    return function(){el.removeEventListener("scroll",mmCalc)}},[mmCalc]);\n'
+          '  x.useEffect(function(){mmCalc()},[zoomPct,mmCalc]);')
+
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
@@ -4738,7 +4777,9 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            # E-8 (tache 6) : deux sections ; la fermeture (R_M13) et la chip (R_EB2) sont replies.
            ("EB6a-inspecteur-a-bascule-et-poignee", A_EB6A, R_EB6A),
            ("EB6b-etat-et-poignee-de-l-inspecteur", A_EB6B, R_EB6B),
-           ("EB7b-poignee-de-la-timeline-et-data-h", A_EB7B, R_EB7B)]
+           ("EB7b-poignee-de-la-timeline-et-data-h", A_EB7B, R_EB7B),
+           ("EB8a-mini-carte-avant-svm-scroll", A_EB8A, R_EB8A),
+           ("EB8b-fenetre-visible-de-la-mini-carte", A_EB8B, R_EB8B)]
 
 
 def nl(text, crlf):

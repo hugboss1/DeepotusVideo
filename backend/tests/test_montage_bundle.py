@@ -47,6 +47,13 @@ libres, la feuille ([data-h] leve le plafond, la regle historique
 max-height:48vh CONSERVEE, poignee row-resize), la couche sans second
 formateur). REALIGNES : la queue pinnee (…EB6b puis EB7b ; sonde 122 = 119
 + tlH x2 + durLbl x1), D3_ecart (row-resize exclu nommement avec temoin).
+D-7 (lot E-B, tache 8, 23/09/2026) : mini-carte de la timeline (EB8a avant
+.svm-scroll, hors zoom ; EB8b mmView/mmCalc apres le useLayoutEffect [zoomPct],
+ecouteur scroll pose ET retire ; onSeek centre avec la gouttiere 88 deduite ;
+quatre noms libres ; la feuille (30 px, jetons amont --c-video/--c-audio,
+fenetre pointer-events:none, plancher 356 -> 386) ; la couche exporte
+minimap/Minimap, une seule geometrie). REALIGNES : la queue pinnee (…EB7b puis
+EB8a, EB8b ; sonde 123 = 122 + Minimap x1), _EB9_HIST (386).
 
 COMPTE PRECEDENT, 23/09/2026 (lot E-B, tache 6, E-8 inspecteur) :
 1860 lignes, soit VINGT de plus que les 1840 d'E-11 : les CINQ lignes que
@@ -15091,16 +15098,20 @@ _DZ_I = _DZ_TAGS.index("EA6-bandeau-ferme-au-lancement")
 # REPLIS (R_EB6B, R_M16D, R_EB2 : ancres nees d'un remplacement ou consommees) ;
 # sonde 122 = 119 + tlH x2 (l'effet de montage qui borne la cle lue, la
 # poignee) + durLbl x1 (le label du clip, R_M16D).
-check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB7b_en_queue_apres_EA6_et_la_sonde_dit_122",
+# D-7 (lot E-B, tache 8) : DEUX sections EB8a (la mini-carte avant .svm-scroll,
+# ancre libre 1/0/1 conservee) et EB8b (mmView/mmCalc apres le useLayoutEffect
+# [zoomPct], ancre libre 1/0/1 conservee) ; sonde 123 = 122 + Minimap x1 (l'hote,
+# EB8a) -- mmCalc et onSeek ne parlent pas a la couche.
+check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB8b_en_queue_apres_EA6_et_la_sonde_dit_123",
       [t.split("-")[0] for t in _DZ_TAGS[_DZ_I + 1:]] == ["DZ1", "DZ2", "DZ3", "DZ4",
                                                           "KF1", "KF2", "KF2b", "KF2c", "KF3a", "KF3b", "KF3c", "KF4", "KF5",
                                                           "AJ2a", "AJ2b", "AJ6a", "AJ6b", "AJ7",
                                                           "EB1", "EB2", "EB2b", "EB2c", "EB2d", "EB2e", "EB2f", "EB3",
-                                                          "EB4", "EB5a", "EB5b", "EB6a", "EB6b", "EB7b"]
+                                                          "EB4", "EB5a", "EB5b", "EB6a", "EB6b", "EB7b", "EB8a", "EB8b"]
       and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
               and s.count(nl(a)) == (1 if a in r else 0)
               for _t, a, r in P.PATCHES[_DZ_I + 1:])
-      and _sonde.get("montage") == 122 and s.count("DzTracks") == 122
+      and _sonde.get("montage") == 123 and s.count("DzTracks") == 123
       if _bak else False,
       f"queue={_DZ_TAGS[_DZ_I + 1:]} sonde={_sonde.get('montage')} bundle={s.count('DzTracks')}")
 
@@ -15378,7 +15389,11 @@ check("D9_AJ6_le_clip_d_ajustement_porte_data_kind_et_les_hachures_inline",
       and s.count('background:isPh?"repeating-linear-gradient(') == 0
       # temoin POSITIF sur la feuille (revue 23/09/2026) : un montage.css
       # vide ou tronque laissait la negation verte ; `.svm-clip` y vaut 2.
-      and ".svm-clip" in _AJ_CSS and "data-kind" not in _AJ_CSS
+      # REALIGNE 23/09/2026 (D-7, tache 8) : la feuille connait desormais
+      # `data-kind` -- sur `.svm-mmrect` (la mini-carte), JAMAIS sur `.svm-clip`
+      # (les hachures restent inline) ; la negation se resserre sur le clip.
+      and ".svm-clip" in _AJ_CSS and ".svm-clip[data-kind" not in _AJ_CSS
+      and ".svm-mmrect[data-kind" in _AJ_CSS and _AJ_CSS.count("data-kind") == 1
       and (_bak.count('background:isPh?"repeating-linear-gradient(') == 1
            and _bak.count("data-kind") == 0 if _bak else False),
       f"kind={s.count(nl(chr(34) + 'data-kind' + chr(34) + ':c.kind||void 0,'))} css={'data-kind' in _AJ_CSS}")
@@ -16036,7 +16051,11 @@ for _nm9 in ("tlH", "setTlH", "stTl", "showDur", "setShowDur", "stSd", "tlDown")
 # data-h (temoin : sa regle .svm-tl{ est lue une fois).
 _EB9_CSS = _lire(ROOT / "frontend" / "dist" / "shared" / "montage.css")
 _EB9_AM = _lire(ROOT / "frontend" / "dist" / "shared" / "son-vfx-montage.css")
-_EB9_HIST = ".dzsvm .svm-tl{height:auto; min-height:356px; max-height:48vh}"
+# REALIGNE 23/09/2026 (D-7, tache 8) : le plancher monte de 30 px (356 -> 386),
+# la hauteur de la mini-carte posee dans .svm-tl avant .svm-scroll -- sans cela
+# l'ecran des six pistes historiques perdrait 30 px de pistes. La regle reste
+# UNE ligne, meme forme, meme plafond 48vh ; le pin D-7 verifie que 356 a disparu.
+_EB9_HIST = ".dzsvm .svm-tl{height:auto; min-height:386px; max-height:48vh}"
 _iHist9 = _EB9_CSS.find(_EB9_HIST); _iDh9 = _EB9_CSS.find(".dzsvm .svm-tl[data-h]{max-height:none;min-height:0}")
 check("EB7_la_feuille_leve_le_plafond_sous_data_h_garde_la_regle_historique_et_dessine_la_poignee_row_resize",
       _EB9_CSS.count(_EB9_HIST) == 1 and _EB9_CSS.count(".dzsvm .svm-tl[data-h]{max-height:none;min-height:0}") == 1
@@ -16056,6 +16075,114 @@ check("EB7_la_couche_exporte_tlH_et_durLbl_sans_second_formateur",
       and s.count("function dzmDurTxt(") == 1 and s.count("function svmRuler(") == 1
       and s.count("function dzmTc") == 0 and s.count("function dzmRuler") == 0 and s.count("function dzmMmss") == 0,
       f"exports={s.count('tlH:dzmTlH,durLbl:dzmDurLbl,')} durTxt={s.count('function dzmDurTxt(')}")
+
+# ── D-7 (lot E-B, tache 8, 23/09/2026) : LA MINI-CARTE DE LA TIMELINE ──
+# MESURE : la conception la voulait « au-dessus de la regle » ; dans .svm-lanes
+# (width:zoomPct%) elle suivrait le zoom. Elle est posee dans .svm-tl AVANT
+# .svm-scroll (ancre libre 1/0/1 a six espaces, .bak:5338), APRES .svm-trans,
+# HORS .svm-lanes (affirmation dementie n°6). La gouttiere .svm-gutter (88 px,
+# sticky) est DANS .svm-lanes (.bak:5342) donc dans scrollWidth : deduite, comme
+# le zoom deduit deja `W-88` / `mx-88` (.bak:2822-2824). Noms de portee mesures :
+# `clips` (st1), `svmTracksOf(proj)` (les pistes, dzTracksRef), `dur` (= proj.dur).
+_D7_A = '      r.jsx("div",{className:"svm-scroll",ref:tlScrollRef,children:'
+_D7_R = ('      /* D-7 : mini-carte HORS zoom — un rect par clip, la fenêtre visible ; clic = centrer .svm-scroll\n'
+         '         (la gouttière de 88 px est dans .svm-lanes donc dans scrollWidth : déduite, comme le zoom fait W-88) */\n'
+         '      r.jsx(DzTracks.Minimap,{clips:clips,tracks:svmTracksOf(proj),dur:dur,viewFrac:mmView,'
+         'onSeek:function(f){var el=tlScrollRef.current;if(!el)return;var w=el.scrollWidth-88;'
+         'el.scrollLeft=Math.max(0,f*w-(el.clientWidth-88)/2)}}),\n'
+         + _D7_A)
+_iTl7 = s.find(nl('className:"svm-tl"')); _iTr7 = s.find(nl('r.jsxs("div",{className:"svm-trans",children:['))
+_iMm7 = s.find(nl(_D7_R)); _iSc7 = s.find(nl(_D7_A)); _iLn7 = s.find(nl('className:"svm-lanes"'))
+check("EB8a_la_mini_carte_est_posee_dans_svm_tl_apres_svm_trans_avant_svm_scroll_hors_svm_lanes_ancre_libre_conservee",
+      s.count(nl(_D7_A)) == 1 and s.count(nl(_D7_R)) == 1 and s.count("DzTracks.Minimap") == 1
+      and s.count("r.jsx(DzTracks.Minimap,{clips:clips,tracks:svmTracksOf(proj),dur:dur,viewFrac:mmView,") == 1
+      and 0 < _iTl7 < _iTr7 < _iMm7 < _iSc7 < _iLn7
+      and s.count(nl('r.jsxs("div",{className:"svm-trans",children:[')) == 1 and s.count(nl('className:"svm-lanes"')) == 1
+      and getattr(P, "A_EB8A", None) == _D7_A and getattr(P, "R_EB8A", None) == _D7_R
+      and ("EB8a-mini-carte-avant-svm-scroll", _D7_A, _D7_R) in P.PATCHES
+      and _D7_A.startswith("      r.jsx") and _D7_R.endswith("\n" + _D7_A)
+      and (_bak.count(_nlb(_D7_A)) == 1 and _bak.count("Minimap") == 0 and _bak.count("svm-minimap") == 0 if _bak else False),
+      f"ancre={s.count(nl(_D7_A))} neuf={s.count(nl(_D7_R))} tl={_iTl7} trans={_iTr7} mm={_iMm7} scroll={_iSc7} lanes={_iLn7} "
+      f"bak={_bak.count(_nlb(_D7_A)) if _bak else '?'}")
+# LE CLIC = CENTRER vit dans l'hote (seul detenteur de tlScrollRef) : f*w centre
+# sur la moitie de la largeur visible hors gouttiere, jamais sous 0.
+check("EB8a_onSeek_centre_scrollLeft_sur_la_fraction_gouttiere_deduite_deux_fois_jamais_sous_zero",
+      s.count("el.scrollLeft=Math.max(0,f*w-(el.clientWidth-88)/2)") == 1
+      and s.count("scrollWidth-88") == 2 and s.count("clientWidth-88") == 2
+      and (_bak.count("scrollWidth-88") == 0 and _bak.count("clientWidth-88") == 0 and _bak.count("W-88") >= 1 if _bak else False),
+      f"seek={s.count('el.scrollLeft=Math.max(0,f*w-(el.clientWidth-88)/2)')} sw={s.count('scrollWidth-88')} cw={s.count('clientWidth-88')}")
+# EB8b : LA FENETRE VISIBLE. Ancre = le useLayoutEffect [zoomPct] qui rejoue le
+# scrollLeft en attente (.bak:2827-2828, libre 1/0/1, conservee) ; en queue :
+# l'etat mmView [0,1], mmCalc (useCallback stable), un effet qui POSE l'ecouteur
+# scroll sur tlScrollRef.current et le RETIRE au demontage, un effet [zoomPct].
+_D7_B_A = '      tlScrollRef.current.scrollLeft=pendScrollRef.current;pendScrollRef.current=null}},[zoomPct]);'
+_D7_ST = '  var stMm=x.useState([0,1]),mmView=stMm[0],setMmView=stMm[1];'
+_D7_CALC = ('  var mmCalc=x.useCallback(function(){var el=tlScrollRef.current;if(!el)return;var w=el.scrollWidth-88;\n'
+            '    var a=w>0?Math.max(0,Math.min(1,el.scrollLeft/w)):0,b=w>0?Math.max(a,Math.min(1,(el.scrollLeft+el.clientWidth-88)/w)):1;\n'
+            '    setMmView(function(p){return p[0]===a&&p[1]===b?p:[a,b]})},[]);')
+_D7_EF1 = ('  x.useEffect(function(){var el=tlScrollRef.current;if(!el)return;el.addEventListener("scroll",mmCalc);mmCalc();\n'
+           '    return function(){el.removeEventListener("scroll",mmCalc)}},[mmCalc]);')
+_D7_EF2 = '  x.useEffect(function(){mmCalc()},[zoomPct,mmCalc]);'
+_R8B = getattr(P, "R_EB8B", "")
+_iBA7 = s.find(nl(_D7_B_A)); _iSt7 = s.find(nl(_D7_ST)); _iCa7 = s.find(nl(_D7_CALC)); _iE17 = s.find(nl(_D7_EF1)); _iE27 = s.find(nl(_D7_EF2))
+check("EB8b_mmView_et_mmCalc_naissent_apres_le_useLayoutEffect_zoomPct_conserve_ecouteur_scroll_pose_et_retire_recalcul_au_zoom",
+      s.count(nl(_D7_B_A)) == 1 and s.count(nl(_D7_ST)) == 1 and s.count(nl(_D7_CALC)) == 1
+      and s.count(nl(_D7_EF1)) == 1 and s.count(nl(_D7_EF2)) == 1
+      and 0 < _iBA7 < _iSt7 < _iCa7 < _iE17 < _iE27 < _iMm7
+      and s.count('el.addEventListener("scroll",mmCalc)') == 1 and s.count('el.removeEventListener("scroll",mmCalc)') == 1
+      # MESURE 23/09 : mmView x2 (l'etat, la prop viewFrac) -- le plan ecrivait >= 3 en comptant setMmView,
+      # que str.count (sensible a la casse) ne compte pas ; setMmView x2 (l'etat, le recalcul) ; mmCalc x7
+      and s.count("mmView") == 2 and _libre21("mmView", s) == 2 and _libre21("setMmView", s) == 2 and _libre21("mmCalc", s) == 7
+      and getattr(P, "A_EB8B", None) == _D7_B_A and _R8B.startswith(_D7_B_A + "\n")
+      and all(k in _R8B for k in (_D7_ST, _D7_CALC, _D7_EF1, _D7_EF2))
+      and ("EB8b-fenetre-visible-de-la-mini-carte", _D7_B_A, _R8B) in P.PATCHES
+      and s.count("x.useCallback(") >= 18   # temoin : la forme useCallback est celle du bundle (zoomApply)
+      and (_bak.count(_nlb(_D7_B_A)) == 1 and _bak.count("mmView") == 0 and _bak.count("mmCalc") == 0 if _bak else False),
+      f"ancre={s.count(nl(_D7_B_A))} st={_iSt7} calc={_iCa7} ef1={_iE17} ef2={_iE27} mm={_iMm7} "
+      f"mmView={s.count('mmView')} libre={_libre21('mmView', s)} calc_n={_libre21('mmCalc', s)}")
+for _nm7 in ("mmView", "setMmView", "stMm", "mmCalc"):
+    _nb7 = _libre21(_nm7, _bak if _bak else None)
+    check("EB_nom_" + _nm7 + "_etait_libre_dans_le_bundle_d_entree",
+          _nb7 == 0 and _libre21(_nm7, s) >= 1,
+          f"{_nm7} apparait {_nb7}x dans .bak_montage, {_libre21(_nm7, s)}x dans le bundle")
+# LA FEUILLE : 30 px, flex:none, decalee de la gouttiere (88 px), UN rect par
+# clip (--c-video, --c-audio : les jetons REELS de l'amont, son-vfx-montage.css:30
+# et :44 -- le plan ecrivait --c-v / --c-a / --acc, qui n'existent pas : ECART
+# date), fenetre --accent pointer-events:none ; le plancher historique monte de
+# 30 px (356 -> 386) pour ne pas perdre de pistes. L'amont ne connait pas la carte.
+_D7_CSS = _lire(ROOT / "frontend" / "dist" / "shared" / "montage.css")
+_D7_AM = _lire(ROOT / "frontend" / "dist" / "shared" / "son-vfx-montage.css")
+_D7_HIST = ".dzsvm .svm-tl{height:auto; min-height:386px; max-height:48vh}"
+check("EB8_la_feuille_dessine_la_carte_30px_hors_gouttiere_rects_par_jetons_amont_fenetre_sans_pointeur_et_monte_le_plancher_a_386",
+      _D7_CSS.count(".dzsvm .svm-minimap{height:30px;flex:none;position:relative;margin-left:88px;"
+                    "background:color-mix(in srgb,var(--panel) 80%,transparent);border-bottom:1px solid var(--stroke);cursor:pointer}") == 1
+      and _D7_CSS.count(".dzsvm .svm-mmrow{position:relative}") == 1
+      and _D7_CSS.count(".dzsvm .svm-mmrect{position:absolute;top:1px;bottom:1px;border-radius:2px;background:var(--c-video)}") == 1
+      and _D7_CSS.count('.dzsvm .svm-mmrect[data-kind="audio"]{background:var(--c-audio)}') == 1
+      and _D7_CSS.count(".dzsvm .svm-mmview{position:absolute;top:0;bottom:0;border:1px solid var(--accent);"
+                        "background:color-mix(in srgb,var(--accent) 15%,transparent);pointer-events:none}") == 1
+      and _D7_CSS.count("svm-minimap") == 1 and _D7_CSS.count(".dzsvm .svm-mmview{") == 1 and "D-7" in _D7_CSS
+      and _D7_CSS.count(_D7_HIST) == 1 and _D7_CSS.count("min-height:356px") == 0 and _D7_CSS.count("min-height:") >= 2
+      # MESURE 23/09 : un `var(--acc)` PREEXISTANT (E-2, .svm-medrow:hover) vit ailleurs dans la feuille ;
+      # la negation sur les jetons du plan se mesure sur le BLOC D-7 seul (temoin : il porte les cinq regles)
+      and "386" in _D7_CSS and 0 < _D7_CSS.find("/* D-7 (lot E-B, tâche 8") < _D7_CSS.find(".dzsvm .svm-minimap{")
+      and all(k not in _D7_CSS[_D7_CSS.find(".dzsvm .svm-minimap{"):] for k in ("--c-v)", "--c-a)", "--acc)"))
+      and _D7_CSS[_D7_CSS.find(".dzsvm .svm-minimap{"):].count("\n.dzsvm .svm-mm") == 4
+      and _D7_AM.count("--c-video:") == 2 and _D7_AM.count("--c-audio:") == 2 and _D7_AM.count("--c-v:") == 0 and _D7_AM.count("--c-a:") == 0
+      and _D7_AM.count("svm-minimap") == 0 and _D7_AM.count("svm-mm") == 0,
+      f"carte={_D7_CSS.count('svm-minimap')} hist386={_D7_CSS.count(_D7_HIST)} h356={_D7_CSS.count('min-height:356px')} "
+      f"jetons={_D7_AM.count('--c-video:')}/{_D7_AM.count('--c-audio:')}")
+# LA COUCHE : geometrie pure + composant, exportes ; UNE seule geometrie (le
+# composant appelle dzmMinimap), le bundle ne porte la classe svm-minimap que
+# par la couche (l'hote passe par DzTracks.Minimap).
+check("EB8_la_couche_exporte_minimap_et_Minimap_une_seule_geometrie_et_la_classe_vit_dans_la_couche_seule",
+      src.count("minimap:dzmMinimap,Minimap:DzmMinimap,") == 1 and s.count("minimap:dzmMinimap,Minimap:DzmMinimap,") == 1
+      and s.count("function dzmMinimap(") == 1 and s.count("function DzmMinimap(") == 1
+      and s.count("dzmMinimap(") == 2 and s.count('className:"svm-minimap"') == 1 and src.count('className:"svm-minimap"') == 1
+      # MESURE 23/09 : le commentaire de la couche nomme .svm-mmrow / .svm-mmview -> compter les className
+      and all(s.count('className:"' + k + '"') == 1 and src.count('className:"' + k + '"') == 1
+              for k in ("svm-mmview", "svm-mmrect", "svm-mmrow")),
+      f"exports={s.count('minimap:dzmMinimap,Minimap:DzmMinimap,')} geo={s.count('dzmMinimap(')} classe={s.count('svm-minimap')}")
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")
