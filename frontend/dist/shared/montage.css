@@ -1305,7 +1305,8 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
 .dzsvm .svm-medchips{display:flex;gap:6px;flex-wrap:wrap;flex:none}
 .dzsvm .svm-medlist{display:flex;flex-direction:column;gap:2px;min-height:0}
 .dzsvm .svm-medrow{display:flex;gap:8px;align-items:center;padding:6px;border-radius:8px;cursor:grab}
-.dzsvm .svm-medrow:hover{background:color-mix(in srgb,var(--acc) 12%,transparent)}
+/* revue 23/09/2026 : le jeton amont est `--accent` (son-vfx-montage.css:27), pas `--acc` */
+.dzsvm .svm-medrow:hover{background:color-mix(in srgb,var(--accent) 12%,transparent)}
 .dzsvm .svm-medrow:active{cursor:grabbing}
 .dzsvm .svm-medrow img{width:96px;height:54px;object-fit:cover;border-radius:6px;background:#000;flex:none}
 .dzsvm .svm-medmeta{min-width:0;flex:1;display:flex;flex-direction:column;gap:3px}

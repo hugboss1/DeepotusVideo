@@ -32,7 +32,7 @@ Quatre familles de mesures :
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
 COMPTE DE REFERENCE, 23/09/2026 (lot E-B, tache 3, E-2 bundle) :
-1811 lignes, soit TRENTE-CINQ de plus que les 1776 de D-9 : les VINGT
+1812 lignes (revue 23/09 : + le pin demo ; 1811 =) soit TRENTE-CINQ de plus que les 1776 de D-9 : les VINGT
 lignes que la boucle sur `P.PATCHES` emet seule pour les HUIT sections
 EB1, EB2, EB2b..EB2f, EB3 (huit `_remplace`, huit
 `couche_ne_cite_pas_l_ancre_de_`, QUATRE `_ancre_consommee` : EB1, EB2,
@@ -15371,7 +15371,7 @@ for _nmb in ("medOn", "medTr", "setMedOn", "setMedTr", "stMed", "stMT"):
 _iCh = s.find(nl('className:"svm-themechip svm-medchip"'))
 _iChf = s.find(nl('children:"médias"}),'), _iCh if _iCh >= 0 else 0)
 _CH = s[_iCh:_iChf] if 0 <= _iCh < _iChf else ""
-_EB_CLIC = 'onClick:function(){setMedTr("");setMedOn(!medOn);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)}'
+_EB_CLIC = 'onClick:function(){' + P._EB_GARDE + 'setMedTr("");setMedOn(!medOn);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)}'
 check("EB2_la_chip_medias_est_devant_sons_et_son_clic_ferme_les_trois_autres_tiroirs",
       0 < len(_CH) < 500 and s.count(nl('className:"svm-themechip svm-medchip"')) == 1
       and _CH.count('"data-on":medOn?"":void 0') == 1 and _CH.count('"aria-pressed":medOn') == 1
@@ -15426,7 +15426,7 @@ check("EB3_onAdd_pose_a_la_tete_de_lecture_avec_v1_par_defaut_comme_la_porte_E3"
 # TT11) : ouvre le tiroir en visant la piste, ferme les trois autres ; Maj+clic
 # garde `openPicker` (SEUL appelant dans .bak : sans lui le selecteur Images
 # serait inatteignable) ; les branches subs/adjust/title sont intactes.
-_EB_PL = ('if(trackKind(tr.id)==="video"&&!(e&&e.shiftKey)){setMedTr(tr.id);setMedOn(!0);'
+_EB_PL = ('if(trackKind(tr.id)==="video"&&!(e&&e.shiftKey)){' + P._EB_GARDE + 'setMedTr(tr.id);setMedOn(!0);'
           'setSfxOn(!1);setSubsOn(!1);setNarrOn(!1);return}')
 check("EB_R_TT11_le_plus_d_une_piste_video_ouvre_le_tiroir_et_Maj_clic_garde_le_selecteur",
       s.count(nl(_EB_PL)) == 1 and _EB_PL in P.R_TT11
@@ -15448,6 +15448,20 @@ check("EB_R_TT11_l_infobulle_du_plus_video_dit_le_tiroir_et_le_Maj_clic",
       and (_bak.count('"Ajouter une image ou un rendu à la tête de lecture"') == 1
            and _bak.count("Ouvrir le tiroir Médias") == 0 if _bak else False),
       f"tip={s.count(_EB_TIP)} audio={s.count(chr(34) + 'Ajouter une image ou un rendu à la tête de lecture' + chr(34))}")
+# LA DEMO (revue 23/09/2026) : addAsset n'a pas de garde proj.demo, ses
+# appelants l'ont ; la chip ET le « + » video portent la phrase d'openPicker.
+# MESURE avant : « la démo reste une maquette » x8 dans le bundle -> x10.
+_EB_DEMO = "la démo reste une maquette"
+check("EB_revue_la_chip_et_le_plus_video_refusent_la_demo_comme_openPicker",
+      s.count(_EB_DEMO) == 10 and (_bak.count(_EB_DEMO) == 8 if _bak else False)
+      and P._EB_GARDE in P.R_EB2 and P._EB_GARDE in P.R_TT11
+      and P.R_EB2.count(P._EB_GARDE + 'setMedTr("");setMedOn(!medOn)') == 1
+      and P.R_TT11.count(P._EB_GARDE + 'setMedTr(tr.id);setMedOn(!0)') == 1
+      # la forme EXACTE de la garde est celle d'openPicker : 1 dans .bak, 3 livrees
+      and s.count(P._EB_GARDE) == 3 and (_bak.count(P._EB_GARDE) == 1 if _bak else False)
+      and _EB_DEMO in P._EB_GARDE
+      and s.count(nl("  function addAsset(src,label,kind,srcDur,trId,atTime){")) == 1,
+      f"maquette={s.count(_EB_DEMO)} bak={_bak.count(_EB_DEMO) if _bak else '?'} garde={s.count(P._EB_GARDE)}")
 # LA FEUILLE : le tiroir dans montage.css (jamais son-vfx-montage.css), regle
 # mesuree par tranche `{...}` : largeur 340 + min-width egal (le flex de
 # .svm-mid ne l'ecrase pas), overflow:auto, min-height:0 ; la rangee et sa
@@ -15462,6 +15476,9 @@ check("EB_la_feuille_porte_le_tiroir_medias_et_ses_rangees",
       and all(k in _CS for k in ("width:340px", "min-width:340px", "flex:none", "overflow:auto", "min-height:0"))
       and _EB_CSS.count(".dzsvm .svm-medrow{") == 1 and _EB_CSS.count(".dzsvm .svm-medrow img{") == 1
       and "width:96px;height:54px;object-fit:cover" in _EB_CSS
+      # revue 23/09/2026 : le jeton est `--accent` (`--acc` n'existe pas en amont)
+      and "var(--accent) 12%" in _EB_CSS and "var(--acc)" not in _EB_CSS
+      and _EB_AMONT.count("--accent:") >= 1
       and all(_EB_CSS.count(".dzsvm ." + k + "{") == 1
               for k in ("svm-medhead", "svm-medq", "svm-medchips", "svm-medlist", "svm-medmeta",
                         "svm-medtitle", "svm-medsub", "svm-medst", "svm-medplus"))

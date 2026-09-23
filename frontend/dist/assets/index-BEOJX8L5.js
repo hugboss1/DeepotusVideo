@@ -5605,7 +5605,7 @@ function DzMontage(props){
         r.jsx("button",{className:"svm-themechip svm-medchip","data-on":medOn?"":void 0,
           "aria-pressed":medOn,
           title:"Tiroir Médias — vos rendus vidéo terminés, à glisser ou à cliquer vers une piste vidéo",
-          onClick:function(){setMedTr("");setMedOn(!medOn);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)},children:"médias"}),
+          onClick:function(){if(proj.demo){fireNote("Ajout d'assets : disponible sur un projet réel — la démo reste une maquette.");return}setMedTr("");setMedOn(!medOn);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)},children:"médias"}),
         /* tiroir Sons (DzSfx) — chip jumelle de « narration », les deux tiroirs
            sont exclusifs ; sans la couche DzSfx la chip n'existe pas */
         svmSfx()?r.jsx("button",{className:"svm-themechip svm-sfxchip","data-on":sfxOn?"":void 0,
@@ -6208,7 +6208,7 @@ function DzMontage(props){
                 if(trackKind(tr.id)==="subs"){subsAddHere();return}
                 if(trackKind(tr.id)==="adjust"){dzAjAdd();return}
                 if(trackKind(tr.id)==="title"){dzTtAdd();return}
-                if(trackKind(tr.id)==="video"&&!(e&&e.shiftKey)){setMedTr(tr.id);setMedOn(!0);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1);return}
+                if(trackKind(tr.id)==="video"&&!(e&&e.shiftKey)){if(proj.demo){fireNote("Ajout d'assets : disponible sur un projet réel — la démo reste une maquette.");return}setMedTr(tr.id);setMedOn(!0);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1);return}
                 openPicker(tr.id)},children:"+"},"add");
             var thType=r.jsx("span",{className:"svm-ttype",title:tr.type,children:tr.type},"type");
             var thM=bus?r.jsx("button",{className:"svm-minibtn svm-tkbtn",

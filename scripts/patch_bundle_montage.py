@@ -3840,6 +3840,16 @@ A_TT11 = ('                :"Ajouter une image ou un rendu à la tête de '
 # le dementi 7 pour « lier » une image) INATTEIGNABLE sur V1/V2. Maj+clic
 # garde cette porte, et l'infobulle le dit. L'audio passe toujours par
 # `openPicker` (sons a lier), sans changement.
+# ECARTS DATES (revue 23/09/2026) : (1) le « + » AUDIO ouvre ovPicker SANS
+# fermer le tiroir Medias -- meme comportement que Sons/Narration face au
+# selecteur ; l'exclusivite irait dans openPicker, pas ici. (2) « seul
+# appelant » vaut pour .bak_montage : le bundle PATCHE porte aussi
+# `openPicker(sel.tr)` (inspecteur) et `badSrc(...openPicker(c.tr))`, tous
+# deux lies a un clip EXISTANT -- aucune porte pour lier une image sur une
+# piste vide autre que ce « + ». (3) Piste verrouillee : le refus vient au
+# clic sur une rangee (addAsset, note « verrouillée »), plus tard
+# qu'openPicker qui refusait a l'ouverture. (4) A 1280 px avec inspecteur
+# (300) + tiroir (340) + gouttieres, le lecteur garde ~370 px : accepte.
 R_TT11 = ('                :trackKind(tr.id)==="adjust"\n'
           '                ?"Poser un clip d\'ajustement de 3 s à la tête de '
           'lecture — ses effets s\'appliquent à tout ce qui est dessous"\n'
@@ -3858,6 +3868,8 @@ R_TT11 = ('                :trackKind(tr.id)==="adjust"\n'
           '                if(trackKind(tr.id)==="adjust"){dzAjAdd();return}\n'
           '                if(trackKind(tr.id)==="title"){dzTtAdd();return}\n'
           '                if(trackKind(tr.id)==="video"&&!(e&&e.shiftKey)){'
+          'if(proj.demo){fireNote("Ajout d\'assets : disponible sur un projet '
+          'réel — la démo reste une maquette.");return}'
           'setMedTr(tr.id);setMedOn(!0);setSfxOn(!1);setSubsOn(!1);'
           'setNarrOn(!1);return}\n'
           '                openPicker(tr.id)},children:"+"},"add");')
@@ -4210,6 +4222,14 @@ R_EB1 = ('  var stMed=x.useState(!1),medOn=stMed[0],setMedOn=stMed[1]; '
          + A_EB1)
 
 # ── EB2 (E-2) : LA CHIP « médias » DE LA BARRE DE TITRE, DEVANT « sons » ──
+# REVUE 23/09/2026 : LA DEMO. `openPicker` refusait la demo (« la demo reste
+# une maquette ») et `addAsset` n'a AUCUNE garde `proj.demo` -- l'invariant
+# du bundle (:1828) dit que ses appelants sont tous gardes. La chip et le
+# « + » video (R_TT11) ouvraient le tiroir sans regarder `proj.demo` : un
+# clic sur une rangee aurait pose un clip dans la maquette. Les DEUX
+# handlers portent la MEME garde, MEME phrase qu'openPicker (comptee).
+_EB_GARDE = ('if(proj.demo){fireNote("Ajout d\'assets : disponible sur un projet '
+             'réel — la démo reste une maquette.");return}')
 # Meme famille que « sons » et « narration » (svm-themechip, data-on,
 # aria-pressed). Ouvrir le tiroir Medias FERME les trois autres tiroirs de
 # .svm-mid (sons, sous-titres, narration) : ils sont EXCLUSIFS (mesure
@@ -4231,7 +4251,7 @@ R_EB2 = ('        /* E-2 : tiroir Médias — les rendus vidéo terminés, pagin
          '          "aria-pressed":medOn,\n'
          '          title:"Tiroir Médias — vos rendus vidéo terminés, à glisser '
          'ou à cliquer vers une piste vidéo",\n'
-         '          onClick:function(){setMedTr("");setMedOn(!medOn);setSfxOn(!1);'
+         '          onClick:function(){' + _EB_GARDE + 'setMedTr("");setMedOn(!medOn);setSfxOn(!1);'
          'setSubsOn(!1);setNarrOn(!1)},children:"médias"}),\n'
          + A_EB2)
 
