@@ -42,7 +42,35 @@ audio_mp3 → .mp3, non vides, rc 0.
 [6] ESPION /render : {preset:"web_4k", fps:60} → `preset` recu est un dict
 side 2160, w 2160, fps 60, out .mp4 ; {preset:"audio_wav"} → out .wav ;
 {fps:48} → 400 ; apercu + prores → w 270 (1080/4), fps 30, out _preview.mp4.
-Sections [3] D-24, [4] D-38, [5] D-36 : taches 2 et 3 du plan L4.
+[3] D-24 LOUDNESS NORMEE EN DEUX PASSES. `_LOUD_TARGETS = (-14, -16, -23)` ;
+`_loudnorm_parse(stderr)` pure : DERNIER bloc JSON de loudnorm (input_i,
+input_tp, input_lra, input_thresh, target_offset) → {I, TP, LRA, thresh,
+offset} floats, None sans JSON ; `_loudnorm_pass1_cmd(v1, v2, a_clips, music,
+*, loudness, **kw)` = EXACTEMENT le chemin audio_only=True de
+`_build_montage_command` (memes entrees, meme graphe audio) dont le maillon
+`ebur128…[emeas]` est remplace par `loudnorm=I=T:TP=-1.5:LRA=11:
+print_format=json[emeas]` → `-f null -` ; cmd None sans audio (anullsrc) ;
+`_loudnorm_pass1(…)` l'execute (timeout 180) et parse. `_build_montage_command(
+…, loudness=, loud_measured=)` : loudness ∈ cibles sinon ValueError ; final +
+audio reel → `loud_measured` OBLIGATOIRE (ValueError sinon) et
+`[outa]loudnorm=I=T:TP=-1.5:LRA=11:measured_I=…:measured_TP=…:measured_LRA=…:
+measured_thresh=…:offset=…:linear=true:print_format=summary,aresample=48000
+[outn]` mappe A LA PLACE de [outa] (les deux formes : aresample seul, amix) ;
+anullsrc → aucun loudnorm (temoin anullsrc) ; apercu → commande historique.
+ECART DATE (23/09/2026) : la passe 1 mesure la PLAGE rendue quand `range_out`
+est pose (-ss/-t sur la sortie de mesure aussi) — le gain lineaire est
+calcule sur ce que le fichier contiendra, pas sur tout le montage.
+[4] D-38 RENDU PARTIEL DE LA PLAGE I/O. `range_out=(a, b)` valide (a ≥ 0,
+b > a, a < total) → `-ss a` JUSTE AVANT `-t round(min(b,total)-a, 3)` a la place
+de `-t total`, dans les quatre queues (historique/apercu, preset video, audio
+seul, GIF) et dans la mesure audio_only ; invalide → ValueError « plage » ;
+None → historique.
+[6] (suite) ESPION : {loudness:-14} → `_loudnorm_pass1` espionne appele AVANT
+la commande finale, `loud_measured` transmis ; {range:[2,5]} → range_out ==
+(2.0, 5.0) ; {range:[5,2]} / [4,6] (a ≥ total) → 400 « plage invalide » ;
+{loudness:-19} → 400 « loudness invalide » ; apercu + loudness → passe 1 NON
+appelee ; le titre du job final porte le libelle du preset (pas master).
+Section [5] D-36 : tache 3 du plan L4.
 """
 import json, os, sys, tempfile, subprocess, pathlib, shutil
 sys.stdout.reconfigure(encoding="utf-8")
@@ -125,12 +153,14 @@ def BUILD(**kw):
     mots-cles de SIGNATURE ; `dz`/`speed`/… iraient au clip. Toute exception
     du service rend un temoin nomme (« TypeError: … » = l'ETAT VIDE quand
     `preset` est inconnu de la signature) — rougir, pas mourir."""
-    clip = {k: kw.pop(k) for k in ("dz", "speed", "retime", "stab", "src_in") if k in kw}
+    clip = {k: kw.pop(k) for k in ("dz", "speed", "retime", "stab", "src_in", "end", "src_dur") if k in kw}
     a = {"w": 64, "h": 64, "fps": 30, "mix_db": {}, "ducking": False,
          "duration_master": False, "preview": False,
          "out": os.path.join(TMP, "o.mp4")}
     a.update(kw)
-    ac = [ASPEC()] if a.pop("_audio", False) else []
+    # `_audio` : False/0 → anullsrc ; True/1 → une source (aresample seul) ;
+    # 2 → deux sources (forme amix). Les trois formes du mix final.
+    ac = [ASPEC() for _ in range(int(a.pop("_audio", 0) or 0))]
     try:
         cmd, _ = MS._build_montage_command([V1SPEC(**clip)], [], ac, None, **a)
     except Exception as e:                 # faute n°6 : rougir, pas mourir
@@ -380,6 +410,164 @@ except ValueError as e:
     _pv_bad = "ValueError: %s" % e
 check("maison_valider_refuse_un_booleen_pour_fps",
       isinstance(_pv_bad, str) and _pv_bad.startswith("ValueError") and "fps" in _pv_bad, _pv_bad)
+# T2 : le preset maison CONSERVE son libelle (le titre du job le portera).
+check("maison_resolve_conserve_le_libelle_maison_et_l_integre_garde_le_sien",
+      isinstance(_ra, dict) and _ra.get("label") == "Mon 4K 60"
+      and isinstance(_rf, dict) and _rf.get("label") == (D or {}).get("web_4k", {}).get("label")
+      and _ra.get("label") != _rf.get("label"), (_ra and _ra.get("label"), _rf and _rf.get("label")))
+
+print("\n[3] D-24 loudness normee en deux passes : chaine passe 2, passe 1 obligatoire, parse, apercu, anullsrc")
+_LT = A("_LOUD_TARGETS", None)
+check("d24_les_cibles_sont_14_16_23", tuple(_LT or ()) == (-14, -16, -23), _LT)
+_MEAS = {"I": -20.1, "TP": -3.2, "LRA": 7.5, "thresh": -30.4, "offset": 0.2}
+_CH14 = ("[outa]loudnorm=I=-14:TP=-1.5:LRA=11:measured_I=-20.1:measured_TP=-3.2:measured_LRA=7.5:"
+         "measured_thresh=-30.4:offset=0.2:linear=true:print_format=summary,aresample=48000[outn]")
+_cl1 = BUILD(loudness=-14, loud_measured=_MEAS, _audio=1)
+check("d24_chaine_passe_2_exacte_apres_outa_forme_aresample_seule_et_outn_mappe_a_la_place_de_outa",
+      _CH14 in _cl1 and "aresample=async=1[outa]" in _cl1 and "-map [outn]" in _cl1
+      and "-map [outa]" not in _cl1 and "amix=" not in _cl1 and _cl1.rstrip().endswith("o.mp4"),
+      _t(_cl1, 420))
+_cl2 = BUILD(loudness=-14, loud_measured=_MEAS, _audio=2)
+check("d24_chaine_passe_2_sur_la_forme_amix_aussi",
+      _CH14 in _cl2 and "amix=inputs=2" in _cl2 and "-map [outn]" in _cl2 and "-map [outa]" not in _cl2
+      and _cl2.index("amix=inputs=2") < _cl2.index("[outa]loudnorm="), _t(_cl2, 420))
+check("d24_la_chaine_vient_apres_outa_et_avant_la_video_finale_dans_le_graphe",
+      "[outa]loudnorm=" in _cl1 and "aresample=async=1[outa];[outa]loudnorm=" in _cl1, _t(_cl1, 420))
+_cl16 = BUILD(loudness=-16, loud_measured=_MEAS, _audio=1); _cl23 = BUILD(loudness=-23, loud_measured=_MEAS, _audio=1)
+check("d24_cibles_16_et_23_ecrivent_I_16_et_I_23",
+      "[outa]loudnorm=I=-16:TP=-1.5:LRA=11:measured_I=-20.1" in _cl16 and "I=-14" not in _cl16
+      and "[outa]loudnorm=I=-23:TP=-1.5:LRA=11:measured_I=-20.1" in _cl23 and "I=-14" not in _cl23,
+      (_t(_cl16, 200), _t(_cl23, 200)))
+_clf = BUILD(loudness=-14, loud_measured={"I": -20.13, "TP": -3, "LRA": 7.5, "thresh": -30.4, "offset": 0.0}, _audio=1)
+check("d24_les_valeurs_mesurees_sont_ecrites_en_decimal_court_sans_zeros_ni_notation_scientifique",
+      "measured_I=-20.13:measured_TP=-3:measured_LRA=7.5:measured_thresh=-30.4:offset=0:linear=true" in _clf
+      and "e-" not in _clf.split("loudnorm=")[-1].split("[outn]")[0], _t(_clf, 420))
+_cln = BUILD(loudness=-14, _audio=1)
+check("d24_loudness_sans_passe_1_est_une_faute_nommee",
+      _cln.startswith("ValueError") and "passe 1" in _cln and "loudnorm=" not in _cln, _cln[:160])
+_clm = BUILD(loudness=-14, loud_measured={"I": -20.1, "TP": -3.2}, _audio=1)
+check("d24_une_mesure_incomplete_est_refusee",
+      _clm.startswith("ValueError") and "loudnorm=" not in _clm, _clm[:160])
+_cpv1 = BUILD(preview=True, _audio=1)
+_cpvl = BUILD(loudness=-14, loud_measured=_MEAS, preview=True, _audio=1)
+check("d24_apercu_ignore_la_loudness_commande_historique",
+      _cpvl == _cpv1 and "[outa]" in _cpvl and "-map [outa]" in _cpvl and "loudnorm" not in _cpvl
+      and BUILD(loudness=-14, preview=True, _audio=1) == _cpv1, _t(_cpvl, 200))
+_c19 = BUILD(loudness=-19, loud_measured=_MEAS, _audio=1)
+_cbool = BUILD(loudness=True, loud_measured=_MEAS, _audio=1)
+_cstr = BUILD(loudness="-14", loud_measured=_MEAS, _audio=1)
+check("d24_cible_hors_liste_refusee_19_booleen_chaine",
+      _c19.startswith("ValueError") and "-19" in _c19 and "loudnorm=" not in _c19
+      and _cbool.startswith("ValueError") and _cstr.startswith("ValueError"), (_c19[:120], _cbool[:80], _cstr[:80]))
+_ca0 = BUILD(loudness=-14)
+check("d24_sans_audio_anullsrc_aucun_loudnorm_et_aucune_passe_1_exigee",
+      _ca0.startswith("ffmpeg") and "anullsrc" in _ca0 and "-map 1:a" in _ca0 and "loudnorm" not in _ca0
+      and "[outn]" not in _ca0 and _ca0 == _c0, _t(_ca0, 200))
+_clg = BUILD(loudness=-14, loud_measured=_MEAS, _audio=1, preset="gif_480")
+_cla = BUILD(loudness=-14, loud_measured=_MEAS, _audio=1, preset="audio_mp3")
+check("d24_avec_preset_gif_le_mix_normalise_part_dans_anullsink_et_audio_seul_mappe_outn",
+      _CH14 in _clg and "[outn]anullsink" in _clg and "-map [outn]" not in _clg and "-an" in _clg
+      and _CH14 in _cla and "-map [outn]" in _cla and "-vn" in _cla and _cla.rstrip().endswith(".mp3"),
+      (_t(_clg, 300), _t(_cla, 200)))
+_lp = A("_loudnorm_parse", None)
+_STDERR = ("ffmpeg version 8.1.1\n[Parsed_loudnorm_0 @ 0000] \n{\n\t\"input_i\" : \"-20.10\",\n"
+           "\t\"input_tp\" : \"-3.20\",\n\t\"input_lra\" : \"7.50\",\n\t\"input_thresh\" : \"-30.40\",\n"
+           "\t\"output_i\" : \"-14.02\",\n\t\"output_tp\" : \"-1.50\",\n\t\"output_lra\" : \"6.90\",\n"
+           "\t\"output_thresh\" : \"-24.30\",\n\t\"normalization_type\" : \"dynamic\",\n"
+           "\t\"target_offset\" : \"0.20\"\n}\n")
+_STDERR2 = _STDERR + _STDERR.replace("-20.10", "-25.00").replace("\"0.20\"", "\"0.55\"")
+_p1 = _lp(_STDERR) if callable(_lp) else "ABSENT"
+_p2 = _lp(_STDERR2) if callable(_lp) else "ABSENT"
+_p0 = _lp("ffmpeg version 8.1.1\nrien\n") if callable(_lp) else "ABSENT"
+_pe = _lp("") if callable(_lp) else "ABSENT"
+_pj = _lp("{ \"input_i\" : \"nan\" }") if callable(_lp) else "ABSENT"
+check("d24_parse_extrait_le_bloc_json_de_loudnorm_en_floats",
+      _p1 == {"I": -20.1, "TP": -3.2, "LRA": 7.5, "thresh": -30.4, "offset": 0.2}
+      and all(isinstance(v, float) for v in (_p1 or {}).values()), _p1)
+check("d24_parse_prend_le_dernier_bloc",
+      isinstance(_p2, dict) and _p2.get("I") == -25.0 and _p2.get("offset") == 0.55
+      and isinstance(_p1, dict) and _p1.get("I") == -20.1, _p2)
+check("d24_parse_sans_json_ou_incomplet_rend_none",
+      _p0 is None and _pe is None and _pj is None, (_p0, _pe, _pj))
+_p1c = A("_loudnorm_pass1_cmd", None)
+_ARGS = {"w": 64, "h": 64, "fps": 30, "mix_db": {}, "ducking": False, "duration_master": False}
+try:
+    _pc1 = _p1c([V1SPEC()], [], [ASPEC()], None, loudness=-14, **_ARGS) if callable(_p1c) else ("ABSENT", None)
+except Exception as e:
+    _pc1 = ("%s: %s" % (type(e).__name__, e), None)
+_pc1s = FLAT(_pc1[0]) if isinstance(_pc1, tuple) and isinstance(_pc1[0], list) else str(_pc1)
+try:
+    _mes = MS._build_montage_command([V1SPEC()], [], [ASPEC()], None, preview=False, out=None,
+                                     audio_only=True, **_ARGS)
+    _mess = FLAT(_mes[0])
+except Exception as e:
+    _mess = "%s: %s" % (type(e).__name__, e)
+check("d24_passe_1_est_la_mesure_audio_seule_avec_loudnorm_json_a_la_place_d_ebur128",
+      "loudnorm=I=-14:TP=-1.5:LRA=11:print_format=json[emeas]" in _pc1s and "-map [emeas]" in _pc1s
+      and "-f null -" in _pc1s and "ebur128" not in _pc1s and "-c:v" not in _pc1s and "o.mp4" not in _pc1s
+      and "ebur128=peak=true:framelog=verbose[emeas]" in _mess
+      and _pc1s == _mess.replace("ebur128=peak=true:framelog=verbose", "loudnorm=I=-14:TP=-1.5:LRA=11:print_format=json")
+      and isinstance(_pc1, tuple) and _pc1[1] == _mes[1], (_pc1s[-300:], _mess[-200:]))
+try:
+    _pc0 = _p1c([V1SPEC()], [], [], None, loudness=-14, **_ARGS) if callable(_p1c) else "ABSENT"
+except Exception as e:
+    _pc0 = "%s: %s" % (type(e).__name__, e)
+check("d24_passe_1_sans_audio_ne_construit_rien",
+      isinstance(_pc0, tuple) and _pc0[0] is None and _pc0[1] == 4.0, _pc0)
+try:
+    _pc19 = _p1c([V1SPEC()], [], [ASPEC()], None, loudness=-19, **_ARGS) if callable(_p1c) else "ABSENT"
+except Exception as e:
+    _pc19 = "%s: %s" % (type(e).__name__, e)
+check("d24_passe_1_refuse_une_cible_hors_liste",
+      isinstance(_pc19, str) and _pc19.startswith("ValueError") and "-19" in _pc19, str(_pc19)[:120])
+check("d24_passe_1_executrice_existe", callable(A("_loudnorm_pass1", None)))
+
+print("\n[4] D-38 rendu partiel de la plage I/O : -ss avant -t recalcule, validation, historique")
+_c8 = BUILD(end=8.0, src_dur=8.0)
+_cr = BUILD(end=8.0, src_dur=8.0, range_out=(2.0, 5.0))
+# Le `-t 8.0` d'ENTREE (coupe du clip V1 avant son decodage) reste : seule la
+# coupe de SORTIE (`-map … -t`) change de forme.
+check("d38_range_2_5_ecrit_ss_2_0_juste_avant_t_3_0_a_la_place_de_t_8",
+      "-map 1:a -t 8.0 -c:v" in _c8 and "-ss" not in _c8 and "-map 1:a -ss 2.0 -t 3.0 -c:v" in _cr
+      and "-map 1:a -t 8.0" not in _cr and _cr.count("-ss") == 1
+      and _cr.replace("-map 1:a -ss 2.0 -t 3.0 -c:v", "-map 1:a -t 8.0 -c:v") == _c8,
+      (_t(_c8, 160), _t(_cr, 160)))
+_cr0 = BUILD(end=8.0, src_dur=8.0, range_out=(0, 3))
+check("d38_range_0_3_ecrit_ss_0_0_t_3_0",
+      "-map 1:a -ss 0.0 -t 3.0 -c:v" in _cr0 and "-map 1:a -t 8.0" not in _cr0, _t(_cr0, 160))
+_crc = BUILD(range_out=(2.0, 99.0))
+check("d38_la_fin_est_bornee_au_total",
+      "-t 4.0" in _c0 and "-ss 2.0 -t 2.0" in _crc and "-t 97" not in _crc, _t(_crc, 160))
+_crf = BUILD(range_out=(1.25, 3.75))
+check("d38_les_bornes_decimales_passent_arrondies_a_3",
+      "-ss 1.25 -t 2.5" in _crf, _t(_crf, 160))
+_bad = {"a_negatif": (-1, 3), "vide": (3, 3), "inversee": (5, 2), "hors_total": (9e9, 9e9),
+        "a_egal_total": (4.0, 6.0), "pas_un_couple": (1,), "non_numerique": ("a", "b")}
+_bads = {k: BUILD(range_out=v) for k, v in _bad.items()}
+check("d38_plages_invalides_sont_des_fautes_nommees",
+      all(v.startswith("ValueError") and "plage" in v.lower() for v in _bads.values()) and len(_bads) == 7
+      and all("-ss" not in v for v in _bads.values()), {k: v[:70] for k, v in _bads.items()})
+check("d38_none_est_l_historique", BUILD(range_out=None) == _c0 and "-ss" not in _c0)
+_crp = BUILD(range_out=(1.0, 2.0), preview=True)
+check("d38_l_apercu_rend_aussi_la_plage",
+      "-ss 1.0 -t 1.0" in _crp and "-preset veryfast" in _crp, _t(_crp, 160))
+_crg = BUILD(range_out=(1.0, 3.0), preset="gif_480"); _cra = BUILD(range_out=(1.0, 3.0), preset="audio_wav")
+_crpr = BUILD(range_out=(1.0, 3.0), preset="prores422")
+check("d38_les_queues_gif_audio_seul_et_preset_video_portent_aussi_ss_t",
+      "-an -ss 1.0 -t 2.0 -r 12" in _crg and "-map 1:a -ss 1.0 -t 2.0 -c:a pcm_s16le" in _cra
+      and "-ss 1.0 -t 2.0 -c:v prores_ks" in _crpr, (_t(_crg, 160), _t(_cra, 160), _t(_crpr, 160)))
+try:
+    _mr = MS._build_montage_command([V1SPEC()], [], [ASPEC()], None, preview=False, out=None,
+                                    audio_only=True, range_out=(1.0, 3.0), **_ARGS)
+    _mrs = FLAT(_mr[0])
+except Exception as e:
+    _mrs = "%s: %s" % (type(e).__name__, e)
+check("d38_la_mesure_audio_seule_porte_aussi_la_plage",
+      "-map [emeas] -ss 1.0 -t 2.0 -f null -" in _mrs and "-map [emeas] -t 4.0" not in _mrs
+      and "-map [emeas] -t 4.0 -f null -" in _mess, (_mrs[-160:], _mess[-80:]))
+_crl = BUILD(range_out=(1.0, 3.0), loudness=-14, loud_measured=_MEAS, _audio=1)
+check("d38_plage_et_loudness_se_composent",
+      _CH14 in _crl and "-map [outn] -ss 1.0 -t 2.0" in _crl, _t(_crl, 200))
 
 print("\n[M] mesure ffmpeg reelle : prores422 → .mov, gif_480 → .gif, audio_mp3 → .mp3")
 _FB = None
@@ -424,6 +612,66 @@ else:
         check("d35_rendu_reel_%s_rc_0_et_fichier_%s_non_vide" % (_pid, _ext[1:]),
               _rc == 0 and _size > 0 and isinstance(_cmd, list) and _cmd[-1].endswith(_ext),
               (_rc, _size, _tot, _err))
+    # T2 — D-24 : source 3 s testsrc2 + sine (mesure le 23/09/2026 : -21,8 LUFS
+    # une fois passe par le gain dialogue du mix), cible -14 → passe 1 REELLE
+    # puis rendu final, puis ebur128 sur la sortie : I ∈ [-15, -13]. La source
+    # doit etre a plus de 2 dB de la cible, sinon la mesure ne prouverait rien.
+    _SRC3 = str(pathlib.Path(TMP) / "src3.mp4")
+    _gen3 = subprocess.run([_FB, "-y", "-loglevel", "error", "-f", "lavfi", "-i",
+                            "testsrc2=s=64x64:r=25:d=3", "-f", "lavfi", "-i",
+                            "sine=frequency=440:duration=3", "-c:v", "libx264",
+                            "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", _SRC3],
+                           check=False, capture_output=True, timeout=60)
+    _spec3 = V1SPEC(path=_SRC3, src_dur=3.0, start=0.0, end=3.0)
+    _acl3 = [ASPEC(path=_SRC3, src_dur=3.0, end=3.0)]
+    _p1f = A("_loudnorm_pass1", None)
+    _m1, _m1e = None, ""
+    try:
+        _m1 = _p1f([_spec3], [], _acl3, None, loudness=-14, w=64, h=64, fps=30, mix_db={},
+                   ducking=False, duration_master=False) if callable(_p1f) else None
+    except Exception as e:
+        _m1e = "%s: %s" % (type(e).__name__, e)
+    check("d24_passe_1_reelle_mesure_une_source_a_plus_de_2_db_de_la_cible",
+          _gen3.returncode == 0 and isinstance(_m1, dict) and set(_m1) == {"I", "TP", "LRA", "thresh", "offset"}
+          and -40 < _m1["I"] < 0 and abs(_m1["I"] + 14) > 2 and _m1["TP"] < 0
+          and all(isinstance(v, float) for v in _m1.values()), (_gen3.returncode, _m1, _m1e))
+    _out3 = os.path.join(TMP, "reel_loud.mp4")
+    _rc3, _err3, _I3 = None, "", None
+    try:
+        _cmd3, _tot3 = MS._build_montage_command(
+            [_spec3], [], _acl3, None, w=64, h=64, fps=30, mix_db={}, ducking=False,
+            duration_master=False, preview=False, out=_out3, loudness=-14, loud_measured=_m1)
+        _cmd3[0] = _FB
+        _r3 = subprocess.run(_cmd3, capture_output=True, timeout=120)
+        _rc3, _err3 = _r3.returncode, (_r3.stderr or b"")[-300:]
+        _e3 = subprocess.run([_FB, "-hide_banner", "-nostats", "-i", _out3, "-filter_complex",
+                              "[0:a]ebur128=peak=true:framelog=verbose[e]", "-map", "[e]", "-f", "null", "-"],
+                             capture_output=True, text=True, timeout=60)
+        from app.services import sfx_service as _sfx
+        _I3 = _sfx.parse_ebur128(_e3.stderr).get("lufs_i")
+    except Exception as e:
+        _err3 = "%s: %s" % (type(e).__name__, e)
+    check("d24_rendu_reel_normalise_a_14_lufs_mesure_par_ebur128_sur_la_sortie",
+          _rc3 == 0 and isinstance(_I3, float) and -15.0 <= _I3 <= -13.0
+          and isinstance(_m1, dict) and abs(_m1["I"] + 14) > 2, (_rc3, _I3, _m1, _err3))
+    # D-38 : plage [1, 2] → fichier d'environ 1,0 s (ffprobe).
+    _outr = os.path.join(TMP, "reel_range.mp4")
+    _rcr, _errr, _durr = None, "", None
+    try:
+        _cmdr, _ = MS._build_montage_command(
+            [_spec3], [], _acl3, None, w=64, h=64, fps=30, mix_db={}, ducking=False,
+            duration_master=False, preview=False, out=_outr, range_out=(1.0, 2.0))
+        _cmdr[0] = _FB
+        _rr_ = subprocess.run(_cmdr, capture_output=True, timeout=120)
+        _rcr, _errr = _rr_.returncode, (_rr_.stderr or b"")[-300:]
+        _pr = subprocess.run([str(pathlib.Path(_FB).with_name("ffprobe" + pathlib.Path(_FB).suffix)),
+                              "-v", "error", "-show_entries", "format=duration", "-of",
+                              "default=nw=1:nk=1", _outr], capture_output=True, text=True, timeout=60)
+        _durr = float(_pr.stdout.strip())
+    except Exception as e:
+        _errr = "%s: %s" % (type(e).__name__, e)
+    check("d38_rendu_reel_de_la_plage_1_2_dure_environ_1_s",
+          _rcr == 0 and isinstance(_durr, float) and 0.85 <= _durr <= 1.2, (_rcr, _durr, _errr))
 
 print("\n[6] espion /render : preset, fps, dimensions, extension")
 _cap = {}
@@ -433,18 +681,41 @@ _vrai_build, _vrai_run = MS._build_montage_command, MS._run_ffmpeg
 def _espion(*a, **k):
     _cap["preset"] = k.get("preset"); _cap["w"] = k.get("w"); _cap["h"] = k.get("h")
     _cap["fps"] = k.get("fps"); _cap["out"] = str(k.get("out"))
+    _cap["loudness"] = k.get("loudness"); _cap["loud_measured"] = k.get("loud_measured")
+    _cap["range_out"] = k.get("range_out"); _cap["n_build"] = _cap.get("n_build", 0) + 1
     _cmd = _vrai_build(*a, **k)
     _cap["cmd"] = FLAT(_cmd[0] if isinstance(_cmd, tuple) else _cmd)
     return _cmd
 
 
+_MEAS_SPY = {"I": -21.5, "TP": -4.0, "LRA": 6.0, "thresh": -31.0, "offset": 0.1}
+_vrai_p1 = A("_loudnorm_pass1", None)
+
+
+def _espion_p1(*a, **k):
+    """Passe 1 espionnee : note l'ordre (AVANT la commande finale) et la cible."""
+    _cap["p1_calls"] = _cap.get("p1_calls", 0) + 1
+    _cap["p1_loudness"] = k.get("loudness")
+    _cap["p1_avant_build"] = _cap.get("n_build", 0) == 0
+    return dict(_MEAS_SPY)
+
+
 def _rendu(payload):
     _cap.clear()
     MS._build_montage_command, MS._run_ffmpeg = _espion, (lambda cmd, out: None)
+    if callable(_vrai_p1):
+        MS._loudnorm_pass1 = _espion_p1
     try:
         return c.post("/api/montage/render", json=payload)
     finally:
         MS._build_montage_command, MS._run_ffmpeg = _vrai_build, _vrai_run
+        if callable(_vrai_p1):
+            MS._loudnorm_pass1 = _vrai_p1
+
+
+def _titre(resp):
+    jid = J(resp).get("job_id")
+    return J(c.get("/api/jobs/%s" % jid)).get("title") if jid else None
 
 
 _REAL = str(pathlib.Path(TMP) / "reel.mp4")
@@ -505,6 +776,108 @@ check("d35_render_sans_preset_est_le_master_1080x1920_30_mp4",
       and (_cap.get("w"), _cap.get("h")) == (1080, 1920) and _cap.get("fps") == 30
       and _cap.get("out", "").endswith(".mp4") and _QUEUE_HIST in (_cap.get("cmd") or ""),
       (_rr.status_code, _pc and _pc.get("id"), _cap.get("w"), _cap.get("fps")))
+_t_master = _titre(_rr)
+_tl = TL("rendu", src=_REAL); _tl["preset"] = "web_4k"
+_rr = _rendu(_tl); _t_4k = _titre(_rr)
+check("t2_le_titre_du_job_final_porte_le_libelle_du_preset_sauf_master",
+      _rr.status_code == 200 and _t_4k == "rendu (Web 4K (H.264))" and _t_master == "rendu"
+      and "(" not in (_t_master or "("), (_t_master, _t_4k))
+_tl = TL("rendu", src=_REAL); _tl["preset"] = "maison_r"
+_rr = _rendu(_tl); _t_m = _titre(_rr)
+check("t2_le_titre_porte_le_libelle_du_preset_maison",
+      _rr.status_code == 200 and _t_m == "rendu (R)", _t_m)
+_tl = TL("rendu", src=_REAL); _tl["preview"] = True; _tl["preset"] = "web_4k"
+_rr = _rendu(_tl); _t_p = _titre(_rr)
+check("t2_l_apercu_ne_porte_pas_le_libelle_du_preset",
+      _rr.status_code == 200 and _t_p == "rendu (aperçu 480p)", _t_p)
+# --- D-24 : passe 1 espionnee, appelee AVANT la commande, mesure transmise.
+# Le mix vient des pistes AUDIO (a1…), pas du son du clip V1 : sans clip
+# audio le mix est anullsrc et il n'y a RIEN a normaliser (temoin plus bas).
+def TLA(**kw):
+    t = TL("rendu", src=_REAL)
+    t["clips"].append({"tr": "a1", "id": "a1", "start": 0, "end": 4, "src": {"file_path": _REAL}})
+    t.update(kw)
+    return t
+_tl = TLA(loudness=-14)
+_rr = _rendu(_tl)
+check("d24_render_loudness_14_appelle_la_passe_1_avant_la_commande_et_transmet_la_mesure",
+      _rr.status_code == 200 and _cap.get("p1_calls") == 1 and _cap.get("p1_loudness") == -14
+      and _cap.get("p1_avant_build") is True and _cap.get("loudness") == -14
+      and _cap.get("loud_measured") == _MEAS_SPY
+      and "measured_I=-21.5:measured_TP=-4:measured_LRA=6:measured_thresh=-31:offset=0.1:linear=true" in (_cap.get("cmd") or "")
+      and "-map [outn]" in (_cap.get("cmd") or ""),
+      (_rr.status_code, J(_rr).get("detail"), {k: v for k, v in _cap.items() if k != "cmd"}, (_cap.get("cmd") or "")[-260:]))
+_tl = TL("rendu", src=_REAL); _tl["loudness"] = -14          # AUCUNE piste audio
+_rr = _rendu(_tl)
+check("d24_render_loudness_sans_piste_audio_anullsrc_temoin_aucune_chaine",
+      _rr.status_code == 200 and "anullsrc" in (_cap.get("cmd") or "") and "loudnorm" not in (_cap.get("cmd") or "x")
+      and "-map 1:a" in (_cap.get("cmd") or ""), (_rr.status_code, (_cap.get("cmd") or "")[-200:]))
+_tl = TL("rendu", src=_REAL); _tl["loudness"] = -19
+_rr = _rendu(_tl)
+check("d24_render_loudness_19_rend_400_sans_passe_1_ni_commande",
+      _rr.status_code == 400 and "loudness" in str(J(_rr).get("detail")).lower()
+      and _cap.get("p1_calls") is None and _cap.get("cmd") is None, (_rr.status_code, J(_rr).get("detail")))
+_tl = TL("rendu", src=_REAL); _tl["loudness"] = "-14"
+_rr = _rendu(_tl)
+check("d24_render_loudness_chaine_rend_400",
+      _rr.status_code == 400 and _cap.get("cmd") is None, (_rr.status_code, J(_rr).get("detail")))
+_tl = TL("rendu", src=_REAL); _tl["loudness"] = -14; _tl["preview"] = True
+_rr = _rendu(_tl)
+check("d24_render_apercu_avec_loudness_n_appelle_pas_la_passe_1",
+      _rr.status_code == 200 and _cap.get("p1_calls") is None and _cap.get("cmd") is not None
+      and "loudnorm" not in (_cap.get("cmd") or "x"), (_rr.status_code, _cap.get("p1_calls")))
+_tl = TL("rendu", src=_REAL)
+_rr = _rendu(_tl)
+check("d24_render_sans_loudness_n_appelle_pas_la_passe_1_et_loudness_est_none",
+      _rr.status_code == 200 and _cap.get("p1_calls") is None and _cap.get("loudness") is None
+      and _cap.get("loud_measured") is None and "loudnorm" not in (_cap.get("cmd") or "x"), _cap.get("p1_calls"))
+# Passe 1 qui ECHOUE → job failed avec le message, pas de commande finale.
+def _p1_echec(*a, **k):
+    _cap["p1_calls"] = _cap.get("p1_calls", 0) + 1
+    raise RuntimeError("passe 1 cassee pour le banc")
+_tl = TL("rendu", src=_REAL); _tl["loudness"] = -16
+_cap.clear()
+MS._build_montage_command, MS._run_ffmpeg = _espion, (lambda cmd, out: None)
+if callable(_vrai_p1):
+    MS._loudnorm_pass1 = _p1_echec
+try:
+    _rr = c.post("/api/montage/render", json=_tl)
+finally:
+    MS._build_montage_command, MS._run_ffmpeg = _vrai_build, _vrai_run
+    if callable(_vrai_p1):
+        MS._loudnorm_pass1 = _vrai_p1
+_jf = J(c.get("/api/jobs/%s" % J(_rr).get("job_id")))
+check("d24_render_passe_1_en_echec_met_le_job_en_failed_avec_le_message_sans_commande_finale",
+      _rr.status_code == 200 and _cap.get("p1_calls") == 1 and _cap.get("cmd") is None
+      and _jf.get("status") == "failed" and "passe 1 cassee" in str(_jf.get("error")),
+      (_rr.status_code, _cap.get("p1_calls"), _jf.get("status"), _jf.get("error")))
+# --- D-38 : plage validee contre le total estime (max(end) des clips = 4).
+# La source reelle dure 2 s (la timeline dit 4) : [1,5] passe l'estimation
+# (max(end) = 4) ET la commande (total reel 2) → -ss 1.0 -t 1.0.
+_tl = TL("rendu", src=_REAL); _tl["range"] = [1, 5]
+_rr = _rendu(_tl)
+check("d38_render_range_1_5_transmet_range_out_1_0_5_0_et_la_commande_porte_ss_1_t_1",
+      _rr.status_code == 200 and _cap.get("range_out") == (1.0, 5.0)
+      and isinstance(_cap.get("range_out"), tuple) and "-ss 1.0 -t 1.0 " in (_cap.get("cmd") or ""),
+      (_rr.status_code, J(_rr).get("detail"), _cap.get("range_out"), (_cap.get("cmd") or "")[-160:]))
+_codes_r = {}
+for _k, _v in {"inversee": [5, 2], "a_egal_total": [4, 6], "negatif": [-1, 2], "vide": [1, 1],
+               "pas_un_couple": [1], "non_numerique": ["a", "b"], "objet": {"in": 1, "out": 2}}.items():
+    _tl = TL("rendu", src=_REAL); _tl["range"] = _v
+    _rr = _rendu(_tl)
+    _codes_r[_k] = (_rr.status_code, str(J(_rr).get("detail"))[:40], _cap.get("cmd") is None)
+check("d38_render_plages_invalides_rendent_400_plage_invalide_sans_commande",
+      len(_codes_r) == 7 and all(v[0] == 400 and "plage" in v[1].lower() and v[2] for v in _codes_r.values()),
+      _codes_r)
+_tl = TL("rendu", src=_REAL)
+_rr = _rendu(_tl)
+check("d38_render_sans_range_transmet_none",
+      _rr.status_code == 200 and _cap.get("range_out") is None and "-ss" not in (_cap.get("cmd") or "x"),
+      _cap.get("range_out"))
+_tl = TL("rendu", src=_REAL); _tl["range"] = None
+_rr = _rendu(_tl)
+check("d38_render_range_null_est_l_historique",
+      _rr.status_code == 200 and _cap.get("range_out") is None, (_rr.status_code, _cap.get("range_out")))
 
 print(f"\n=== {ok} passed, {fail} failed ===")
 c.__exit__(None, None, None)
