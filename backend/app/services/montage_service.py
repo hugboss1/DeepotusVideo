@@ -3610,6 +3610,10 @@ def _run_ffmpeg(cmd, out: Path) -> Path:
 # le worker tient : c'est la `position` rendue (1 = prochain/en cours) —
 # écart daté 23/09/2026 avec le `q.qsize()` du plan, qui exclut l'élément
 # déjà pris et rendrait 1 au deuxième POST.
+# Limites datées (revue 23/09/2026) : pas d'annulation au shutdown —
+# `app/main.py` n'annule que news/sched/warm ; un ffmpeg en cours bloque la
+# sortie comme le chemin historique — et pas de reprise des jobs `queued`
+# orphelins après relance (comme les `generating_video` historiques).
 _RENDER_QUEUE: asyncio.Queue | None = None
 _RENDER_WORKER: asyncio.Task | None = None
 _RENDER_PENDING = 0
