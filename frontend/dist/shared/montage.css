@@ -1286,3 +1286,31 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
 .dzsvm .dzm-stab-st[data-st="done"]{color:#3fbf5a}
 .dzsvm .dzm-stab-st[data-st="failed"]{color:#e0453f}
 .dzsvm .dzm-stab input[type=range]{width:90px;vertical-align:middle}
+/* E-2 (23/09/2026) — le tiroir Médias : rendus vidéo paginés, chips de
+   provenance dérivées, recherche. Quatrième tiroir de .svm-mid, à gauche du
+   lecteur comme Sons / Sous-titres / Narration (.svm-narr : 300px, flex:none,
+   border-right) — 340px pour la vignette 96×54 + titre + chip. `overflow:auto`
+   et `min-height:0` : la liste défile dans le tiroir, jamais la page.
+   `min-width` égal à `width` : dans le flex de .svm-mid le lecteur ne peut
+   pas l'écraser (mesure : .svm-mid{flex:1;display:flex;min-height:0}). Les
+   chips reprennent .svm-themechip[data-on] de la feuille amont. */
+.dzsvm .svm-meddrawer{width:340px;min-width:340px;flex:none;border-right:1px solid var(--stroke);
+  background:var(--panel);overflow:auto;min-height:0;padding:10px;
+  display:flex;flex-direction:column;gap:8px}
+.dzsvm .svm-medhead{display:flex;align-items:center;justify-content:space-between;gap:8px;flex:none}
+.dzsvm .svm-medhead .svm-secbtn{padding:3px 9px;font-size:11px}
+.dzsvm .svm-medq{width:100%;box-sizing:border-box;padding:6px 8px;border-radius:7px;
+  border:1px solid var(--stroke);background:var(--panel2, var(--bg-panel-2, #1c1c21));
+  color:var(--ink);font-size:12px;flex:none}
+.dzsvm .svm-medchips{display:flex;gap:6px;flex-wrap:wrap;flex:none}
+.dzsvm .svm-medlist{display:flex;flex-direction:column;gap:2px;min-height:0}
+.dzsvm .svm-medrow{display:flex;gap:8px;align-items:center;padding:6px;border-radius:8px;cursor:grab}
+.dzsvm .svm-medrow:hover{background:color-mix(in srgb,var(--acc) 12%,transparent)}
+.dzsvm .svm-medrow:active{cursor:grabbing}
+.dzsvm .svm-medrow img{width:96px;height:54px;object-fit:cover;border-radius:6px;background:#000;flex:none}
+.dzsvm .svm-medmeta{min-width:0;flex:1;display:flex;flex-direction:column;gap:3px}
+.dzsvm .svm-medtitle{font-size:12px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dzsvm .svm-medsub{display:flex;gap:8px;align-items:center;font-family:var(--f-mono);font-size:10px;color:var(--ink2)}
+.dzsvm .svm-medgrp{cursor:default}
+.dzsvm .svm-medst{font-family:var(--f-mono);font-size:11px;color:var(--ink2);padding:4px 6px;flex:none}
+.dzsvm .svm-medplus{align-self:center;flex:none}

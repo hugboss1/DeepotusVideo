@@ -31,7 +31,23 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 22/09/2026 (lot L3, tache 9, D-9 client) :
+COMPTE DE REFERENCE, 23/09/2026 (lot E-B, tache 3, E-2 bundle) :
+1811 lignes, soit TRENTE-CINQ de plus que les 1776 de D-9 : les VINGT
+lignes que la boucle sur `P.PATCHES` emet seule pour les HUIT sections
+EB1, EB2, EB2b..EB2f, EB3 (huit `_remplace`, huit
+`couche_ne_cite_pas_l_ancre_de_`, QUATRE `_ancre_consommee` : EB1, EB2,
+EB2d et EB3 reprennent leur ancre) et la section [EB] en queue (QUINZE
+pins : l'etat medOn/medTr devant ovPick, six noms libres, la chip
+« médias » devant « sons » et son clic exclusif, les cinq portes qui
+ferment le tiroir (setMedOn(!1) x6), le montage apres narrPanel, onAdd
+de la forme E-3 ("v1", pas de pickTrack), le « + » video replie dans
+R_TT11 avec Maj+clic vers openPicker (seul appelant du .bak),
+l'infobulle, la feuille montage.css, la couche inchangee). REALIGNES :
+trackKind (29 -> 31, 27 -> 29 egalites), la queue pinnee (…AJ7 puis
+EB1..EB3, sonde 115). MUTATION jouee avant commit : "v1" -> "v2"
+dans le bundle = 1808/3 (EB3_remplace, la queue, EB3_onAdd).
+
+COMPTE PRECEDENT, 22/09/2026 (lot L3, tache 9, D-9 client) :
 1776 lignes, soit TRENTE-QUATRE de plus que les 1742 de D-14 (revue) :
 les QUINZE lignes que la boucle sur `P.PATCHES` emet seule pour les CINQ
 sections AJ2a, AJ2b, AJ6a, AJ6b, AJ7 (cinq `_remplace`, cinq
@@ -14160,8 +14176,11 @@ check("D21_les_seize_appels_de_trackKind_sont_des_egalites",
       (_bak.count(_nlb("trackKind(")) == 16 if _bak else False)
       # 22/09/2026 (D-9, tache 9) : 27 -> 29, 25 -> 27. DEUX de plus, des
       # EGALITES : TT11 (l'infobulle et le clic du « + » de J1, `==="adjust"`).
-      and s.count(nl("trackKind(")) == 29
-      and len(_TKAPP) == 27 and all(k in ("===", "!==") for k in _TKAPP)
+      # 23/09/2026 (E-2, lot E-B tache 3) : 29 -> 31, 27 -> 29. DEUX de plus,
+      # des EGALITES : le repli EB3 dans R_TT11 (l'infobulle et le clic du
+      # « + » d'une piste VIDEO, `==="video"`, vers le tiroir Medias).
+      and s.count(nl("trackKind(")) == 31
+      and len(_TKAPP) == 29 and all(k in ("===", "!==") for k in _TKAPP)
       and s.count(nl("var rkd=trackKind(rk.tr);")) == 1
       and s.count(nl("if(rkd!==akd){")) == 1,
       f'bak={_bak.count(_nlb("trackKind(")) if _bak else "?"} '
@@ -15000,14 +15019,19 @@ _DZ_TAGS = [t for t, _a, _r in P.PATCHES]
 _DZ_I = _DZ_TAGS.index("EA6-bandeau-ferme-au-lancement")
 # D-9 (tache 9) : QUATRE sections AJ2a, AJ2b, AJ6a, AJ6b APRES KF5, sonde 114
 # = 112 + adjustNew x1 + adjustTrack x1 (le repli dzAjAdd de R_M16REF).
-check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_en_queue_apres_EA6_et_la_sonde_dit_114",
+# E-2 (lot E-B, tache 3, 23/09/2026) : HUIT sections EB1, EB2, EB2b..EB2f, EB3
+# APRES AJ7 (le plan en annoncait trois : les cinq exclusions ont une ancre
+# LIBRE chacune, mesure 1/0, donc des sections et non des replis), sonde 115
+# = 114 + MediaDrawer x1 (EB3 ; pas de pickTrack : addAsset resout la piste).
+check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB3_en_queue_apres_EA6_et_la_sonde_dit_115",
       [t.split("-")[0] for t in _DZ_TAGS[_DZ_I + 1:]] == ["DZ1", "DZ2", "DZ3", "DZ4",
                                                           "KF1", "KF2", "KF2b", "KF2c", "KF3a", "KF3b", "KF3c", "KF4", "KF5",
-                                                          "AJ2a", "AJ2b", "AJ6a", "AJ6b", "AJ7"]
+                                                          "AJ2a", "AJ2b", "AJ6a", "AJ6b", "AJ7",
+                                                          "EB1", "EB2", "EB2b", "EB2c", "EB2d", "EB2e", "EB2f", "EB3"]
       and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
               and s.count(nl(a)) == (1 if a in r else 0)
               for _t, a, r in P.PATCHES[_DZ_I + 1:])
-      and _sonde.get("montage") == 114 and s.count("DzTracks") == 114
+      and _sonde.get("montage") == 115 and s.count("DzTracks") == 115
       if _bak else False,
       f"queue={_DZ_TAGS[_DZ_I + 1:]} sonde={_sonde.get('montage')} bundle={s.count('DzTracks')}")
 
@@ -15318,6 +15342,140 @@ check("D9_la_couche_porte_kindOf_j_group_adjustTrack_adjustNew_et_les_exports",
       and _AJ_CORPS.count('dzmSkin("j1","adjust")') == 1 and "src:" not in _AJ_CORPS
       and src.count('{id:"j1"') == 0 and src.count('"piste-ajust"') == 0,
       f"kindOf={src.count('kindOf:dzmKindOf,')} corps={len(_AJ_CORPS)}")
+
+print("\n[EB] E-2 : l'onglet Medias, le tiroir dans .svm-mid, le « + » video vers le tiroir")
+# HUIT SECTIONS EN QUEUE (la boucle de [1] mesure chaque couple, le pin DZ
+# fixe l'ORDRE et la sonde). Ici : l'ETAT, la CHIP, les CINQ EXCLUSIONS, le
+# MONTAGE du tiroir, le REPLI du « + » dans R_TT11, la FEUILLE. Chaque
+# negation porte son temoin dans .bak_montage (la forme d'avant existait) ou
+# dans le bundle (la forme voisine est encore la).
+# L'ETAT : medOn et medTr naissent DEVANT stO (ovPick) -- meme ligne, meme
+# portee (DzMontage), et les QUATRE noms etaient libres.
+_iEB1 = s.find(nl("  var stMed=x.useState(!1),medOn=stMed[0],setMedOn=stMed[1];"))
+_iEBo = s.find(nl(P.A_EB1))
+check("EB1_l_etat_medOn_et_la_piste_visee_medTr_naissent_devant_ovPick",
+      s.count(nl("  var stMed=x.useState(!1),medOn=stMed[0],setMedOn=stMed[1];")) == 1
+      and s.count(nl('  var stMT=x.useState(""),medTr=stMT[0],setMedTr=stMT[1];')) == 1
+      and 0 <= _iEB1 < _iEBo and _iEBo - _iEB1 < 400
+      and s.count(nl(P.A_EB1)) == 1 and ("EB1-etat-du-tiroir-medias", P.A_EB1, P.R_EB1) in P.PATCHES
+      and (_bak.count(_nlb(P.A_EB1)) == 1 if _bak else False),
+      f"etat={_iEB1} ovPick={_iEBo} bak={_bak.count(_nlb(P.A_EB1)) if _bak else '?'}")
+for _nmb in ("medOn", "medTr", "setMedOn", "setMedTr", "stMed", "stMT"):
+    _nbb = _libre21(_nmb, _bak if _bak else None)
+    check("EB_nom_" + _nmb + "_etait_libre_dans_le_bundle_d_entree",
+          _nbb == 0 and _libre21(_nmb, s) >= 1,
+          f"{_nmb} apparait {_nbb}x dans .bak_montage, {_libre21(_nmb, s)}x dans le bundle")
+# LA CHIP : famille svm-themechip (data-on + aria-pressed comme « sons »),
+# DEVANT « sons », et son clic ferme les TROIS autres tiroirs et vide medTr
+# (depuis la barre, aucune piste n'est visee : addAsset prendra "v1").
+_iCh = s.find(nl('className:"svm-themechip svm-medchip"'))
+_iChf = s.find(nl('children:"médias"}),'), _iCh if _iCh >= 0 else 0)
+_CH = s[_iCh:_iChf] if 0 <= _iCh < _iChf else ""
+_EB_CLIC = 'onClick:function(){setMedTr("");setMedOn(!medOn);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)}'
+check("EB2_la_chip_medias_est_devant_sons_et_son_clic_ferme_les_trois_autres_tiroirs",
+      0 < len(_CH) < 500 and s.count(nl('className:"svm-themechip svm-medchip"')) == 1
+      and _CH.count('"data-on":medOn?"":void 0') == 1 and _CH.count('"aria-pressed":medOn') == 1
+      and s.count(nl(_EB_CLIC)) == 1 and _CH.count(_EB_CLIC) == 1
+      and _iCh < s.find(nl('className:"svm-themechip svm-sfxchip"'))
+      and s.count(nl('className:"svm-themechip svm-sfxchip"')) == 1
+      and (_bak.count("svm-medchip") == 0 and _bak.count("svm-sfxchip") == 1 if _bak else False),
+      f"chip={len(_CH)} o clic={s.count(nl(_EB_CLIC))} sons={s.find(nl(chr(99) + 'lassName:' + chr(34) + 'svm-themechip svm-sfxchip' + chr(34)))}")
+# LES CINQ EXCLUSIONS : `setMedOn(!1)` vaut SIX dans le bundle (onClose du
+# tiroir + cinq portes), ZERO dans .bak ; chaque section en porte UNE, et
+# elles sont dans les CORPS mesures de sfxToggle et narrToggle.
+_iSf = s.find(nl("  var sfxToggle=x.useCallback(function(){"))
+_iSff = s.find("},[]);", _iSf if _iSf >= 0 else 0)
+_iNa = s.find(nl("  var narrToggle=x.useCallback(function(){"))
+_iNaf = s.find("},[]);", _iNa if _iNa >= 0 else 0)
+_SF = s[_iSf:_iSff] if 0 <= _iSf < _iSff else ""
+_NA = s[_iNa:_iNaf] if 0 <= _iNa < _iNaf else ""
+check("EB2b_f_les_cinq_portes_des_autres_tiroirs_ferment_medias",
+      s.count("setMedOn(!1)") == 6 and (_bak.count("setMedOn") == 0 if _bak else False)
+      and all(r.count("setMedOn(!1)") == 1 and a.count("setMedOn") == 0
+              for a, r in ((P.A_EB2B, P.R_EB2B), (P.A_EB2C, P.R_EB2C), (P.A_EB2D, P.R_EB2D),
+                           (P.A_EB2E, P.R_EB2E), (P.A_EB2F, P.R_EB2F)))
+      and P.R_EB3.count("onClose:function(){setMedOn(!1)}") == 1
+      and 0 < len(_SF) < 200 and _SF.count("setNarrOn(!1);setMedOn(!1)") == 1
+      and 0 < len(_NA) < 400 and _NA.count("setSfxOn(!1);setMedOn(!1)") == 1
+      and s.count(nl(P.R_EB2D)) == 1 and s.count(nl(P.R_EB2E)) == 1 and s.count(nl(P.R_EB2F)) == 1
+      # temoin : `setSubsOn(!0)` n'a que DEUX occurrences, toutes deux reecrites
+      and s.count("setSubsOn(!0)") == 2 and (_bak.count("setSubsOn(!0)") == 2 if _bak else False),
+      f"setMedOn(!1)={s.count('setMedOn(!1)')} sfx={len(_SF)} narr={len(_NA)} subsOn={s.count('setSubsOn(!0)')}")
+# LE MONTAGE : apres narrPanel(), avant le lecteur ; `onAdd` a LA FORME de la
+# porte E-3 (R_EA1) -- job_id, titre ou job_id, "video", duree ou 0, "v1" par
+# defaut, PAS de sixieme argument (tete de lecture) -- et AUCUN pickTrack
+# dans l'hote (le seul du bundle est celui d'addAsset, R_M16A : temoin).
+_EB_MD = 'r.jsx(DzTracks.MediaDrawer,{open:medOn,trId:medTr,exts:null,onClose:function(){setMedOn(!1)},dragPayload:dragPayload,'
+_EB_ON = 'onAdd:function(j){addAsset({job_id:j.job_id},j.title||j.job_id,"video",j.duration_s||0,medTr||"v1")}'
+_iMd = s.find(nl(_EB_MD))
+check("EB3_le_tiroir_est_monte_apres_narration_et_avant_le_lecteur",
+      s.count(nl(_EB_MD)) == 1 and s.count("DzTracks.MediaDrawer") == 1
+      and 0 < s.find(nl("      narrPanel(),")) < _iMd < s.find(nl('r.jsxs("div",{className:"svm-playerzone",'))
+      and _iMd - s.find(nl("      narrPanel(),")) < 300
+      and (_bak.count("MediaDrawer") == 0 and _bak.count(_nlb(P.A_EB3)) == 1 if _bak else False),
+      f"tiroir={_iMd} narr={s.find(nl(chr(32) * 6 + 'narrPanel(),'))} bak={_bak.count('MediaDrawer') if _bak else '?'}")
+check("EB3_onAdd_pose_a_la_tete_de_lecture_avec_v1_par_defaut_comme_la_porte_E3",
+      s.count(nl(_EB_ON)) == 1 and _EB_ON in P.R_EB3
+      and P.R_EA1.count('"video",p.dur||0,"v1")') == 1 and s.count('"video",p.dur||0,"v1")') == 1
+      and "pickTrack" not in P.R_EB3 and s.count("DzTracks.pickTrack(") == 1
+      and P.R_M16A.count("DzTracks.pickTrack(dzTs,dzWant)") == 1
+      and s.count(nl("  function addAsset(src,label,kind,srcDur,trId,atTime){")) == 1
+      and s.count(nl("    var st=atTime==null?phRef.current:atTime;")) == 1,
+      f"onAdd={s.count(nl(_EB_ON))} pickTrack={s.count('DzTracks.pickTrack(')} ea1={s.count(chr(34) + 'video' + chr(34) + ',p.dur||0,' + chr(34) + 'v1' + chr(34) + ')')}")
+# LE « + » D'UNE PISTE VIDEO (repli dans R_TT11, l'ancre est consommee par
+# TT11) : ouvre le tiroir en visant la piste, ferme les trois autres ; Maj+clic
+# garde `openPicker` (SEUL appelant dans .bak : sans lui le selecteur Images
+# serait inatteignable) ; les branches subs/adjust/title sont intactes.
+_EB_PL = ('if(trackKind(tr.id)==="video"&&!(e&&e.shiftKey)){setMedTr(tr.id);setMedOn(!0);'
+          'setSfxOn(!1);setSubsOn(!1);setNarrOn(!1);return}')
+check("EB_R_TT11_le_plus_d_une_piste_video_ouvre_le_tiroir_et_Maj_clic_garde_le_selecteur",
+      s.count(nl(_EB_PL)) == 1 and _EB_PL in P.R_TT11
+      and s.count(nl('                openPicker(tr.id)},children:"+"},"add");')) == 1
+      and s.count("openPicker(tr.id)") == 1
+      and s.count('if(trackKind(tr.id)==="subs"){subsAddHere();return}') == 1
+      and s.count('if(trackKind(tr.id)==="adjust"){dzAjAdd();return}') == 1
+      and s.count('if(trackKind(tr.id)==="title"){dzTtAdd();return}') == 1
+      and s.count(nl("              onClick:function(e){\n                if(trackKind(tr.id)===\"subs\")")) == 1
+      and (_bak.count("openPicker(tr.id)") == 1 and _bak.count("setMedTr") == 0 if _bak else False),
+      f"plus={s.count(nl(_EB_PL))} openPicker={s.count('openPicker(tr.id)')} bak={_bak.count('openPicker(tr.id)') if _bak else '?'}")
+_EB_TIP = ('"Ouvrir le tiroir Médias — un rendu vidéo à la tête de lecture '
+           '(Maj+clic : lier une image par le sélecteur)"')
+check("EB_R_TT11_l_infobulle_du_plus_video_dit_le_tiroir_et_le_Maj_clic",
+      s.count(_EB_TIP) == 1 and _EB_TIP in P.R_TT11
+      and s.count(nl('                :trackKind(tr.id)==="video"\n                ?' + _EB_TIP)) == 1
+      # la phrase d'avant reste, UNE fois : c'est la branche audio (openPicker)
+      and s.count('"Ajouter une image ou un rendu à la tête de lecture"') == 1
+      and (_bak.count('"Ajouter une image ou un rendu à la tête de lecture"') == 1
+           and _bak.count("Ouvrir le tiroir Médias") == 0 if _bak else False),
+      f"tip={s.count(_EB_TIP)} audio={s.count(chr(34) + 'Ajouter une image ou un rendu à la tête de lecture' + chr(34))}")
+# LA FEUILLE : le tiroir dans montage.css (jamais son-vfx-montage.css), regle
+# mesuree par tranche `{...}` : largeur 340 + min-width egal (le flex de
+# .svm-mid ne l'ecrase pas), overflow:auto, min-height:0 ; la rangee et sa
+# vignette 96x54. TEMOIN : le bundle porte les classes (la couche T2).
+_EB_CSS = _lire(ROOT / "frontend" / "dist" / "shared" / "montage.css")
+_EB_AMONT = _lire(ROOT / "frontend" / "dist" / "shared" / "son-vfx-montage.css")
+_iCs = _EB_CSS.find(".dzsvm .svm-meddrawer{")
+_iCsf = _EB_CSS.find("}", _iCs if _iCs >= 0 else 0)
+_CS = _EB_CSS[_iCs:_iCsf] if 0 <= _iCs < _iCsf else ""
+check("EB_la_feuille_porte_le_tiroir_medias_et_ses_rangees",
+      0 < len(_CS) < 400 and _EB_CSS.count(".dzsvm .svm-meddrawer{") == 1
+      and all(k in _CS for k in ("width:340px", "min-width:340px", "flex:none", "overflow:auto", "min-height:0"))
+      and _EB_CSS.count(".dzsvm .svm-medrow{") == 1 and _EB_CSS.count(".dzsvm .svm-medrow img{") == 1
+      and "width:96px;height:54px;object-fit:cover" in _EB_CSS
+      and all(_EB_CSS.count(".dzsvm ." + k + "{") == 1
+              for k in ("svm-medhead", "svm-medq", "svm-medchips", "svm-medlist", "svm-medmeta",
+                        "svm-medtitle", "svm-medsub", "svm-medst", "svm-medplus"))
+      and ".svm-narr{" in _EB_AMONT and "svm-meddrawer" not in _EB_AMONT
+      and s.count('className:"svm-meddrawer"') == 1 and s.count('className:"svm-medrow"') == 1
+      and src.count('className:"svm-meddrawer"') == 1,
+      f"regle={len(_CS)} o rangee={_EB_CSS.count('.dzsvm .svm-medrow{')} amont={'svm-meddrawer' in _EB_AMONT}")
+# LA COUCHE N'A PAS BOUGE DANS CETTE TACHE : les quatre exports de T2 sont la
+# (temoin de ce que l'hote appelle).
+check("EB_la_couche_exporte_toujours_le_tiroir_et_ses_trois_fonctions_pures",
+      src.count("provGroupe:dzmProvGroupe,provChips:dzmProvChips,mediaFiltre:dzmMediaFiltre,MediaDrawer:DzmMediaDrawer,") == 1
+      and src.count("function DzmMediaDrawer(o){") == 1
+      and s.count("function DzmMediaDrawer(o){") == 1,
+      f"exports={src.count('MediaDrawer:DzmMediaDrawer,')}")
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

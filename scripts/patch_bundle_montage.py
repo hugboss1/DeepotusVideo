@@ -3832,6 +3832,14 @@ A_TT11 = ('                :"Ajouter une image ou un rendu à la tête de '
 # AJ4 (D-9, 22/09/2026) : le « + » de l'en-tete de j1 pose un clip
 # d'ajustement (dzAjAdd, replie dans R_M16REF) -- REPLI ici, la ligne est
 # celle que TT11 reecrit.
+# EB3 (E-2, 23/09/2026) : le « + » d'une piste VIDEO ouvre le tiroir Medias
+# (medTr = la piste visee, medOn, les trois autres tiroirs fermes) -- REPLI
+# ici, meme ligne. ECART DATE au plan (23/09/2026) : `openPicker(tr.id)`
+# n'a qu'UN appelant dans .bak_montage (:5365, ce « + ») ; le rediriger
+# sans porte de secours rendrait le selecteur Images (ovPicker, garde par
+# le dementi 7 pour « lier » une image) INATTEIGNABLE sur V1/V2. Maj+clic
+# garde cette porte, et l'infobulle le dit. L'audio passe toujours par
+# `openPicker` (sons a lier), sans changement.
 R_TT11 = ('                :trackKind(tr.id)==="adjust"\n'
           '                ?"Poser un clip d\'ajustement de 3 s à la tête de '
           'lecture — ses effets s\'appliquent à tout ce qui est dessous"\n'
@@ -3839,13 +3847,19 @@ R_TT11 = ('                :trackKind(tr.id)==="adjust"\n'
           '                ?"Poser un carton de titre à la tête de lecture ("'
           '+svmKeyLabelNow("title_add")+") — la piste des titres ne reçoit '
           'aucun autre média"\n'
+          '                :trackKind(tr.id)==="video"\n'
+          '                ?"Ouvrir le tiroir Médias — un rendu vidéo à la tête '
+          'de lecture (Maj+clic : lier une image par le sélecteur)"\n'
           '                :"Ajouter une image ou un rendu à la tête de '
           'lecture",\n'
-          '              onClick:function(){\n'
+          '              onClick:function(e){\n'
           '                if(trackKind(tr.id)==="subs"){subsAddHere();'
           'return}\n'
           '                if(trackKind(tr.id)==="adjust"){dzAjAdd();return}\n'
           '                if(trackKind(tr.id)==="title"){dzTtAdd();return}\n'
+          '                if(trackKind(tr.id)==="video"&&!(e&&e.shiftKey)){'
+          'setMedTr(tr.id);setMedOn(!0);setSfxOn(!1);setSubsOn(!1);'
+          'setNarrOn(!1);return}\n'
           '                openPicker(tr.id)},children:"+"},"add");')
 
 
@@ -4181,6 +4195,94 @@ R_KF5 = ('      /* D-14 : opacité interpolée sur les points porteurs (statique
          '      var kOp=DzTracks.mpLerp2(svmMpOf(k)||[],t-k.start,"opacity",k.opacity==null?1:k.opacity);\n'
          '      el.style.opacity=kOp>=1?"":String(Math.round(kOp*100)/100);')
 
+# ── EB1 (E-2, lot E-B tache 3, 23/09/2026) : L'ETAT DU TIROIR MEDIAS ────────
+# `medOn` (ouvert) et `medTr` ("" = ouvert par la chip de la barre, sinon
+# l'id de la piste video dont le « + » l'a ouvert : le tiroir vise cette
+# piste, `onAdd` la passe a addAsset). Poses DEVANT `stO` (ovPick), qui est
+# l'etat du selecteur historique : les deux se lisent cote a cote. MESURE :
+# `medOn`, `medTr`, `stMed`, `stMT` sont libres dans .bak_montage (0).
+A_EB1 = '  var stO=x.useState(""),ovPick=stO[0],setOvPick=stO[1];'
+R_EB1 = ('  var stMed=x.useState(!1),medOn=stMed[0],setMedOn=stMed[1]; '
+         '/* E-2 : tiroir Médias (rendus vidéo) ouvert */\n'
+         '  var stMT=x.useState(""),medTr=stMT[0],setMedTr=stMT[1]; '
+         '/* "" = ouvert par la chip, sinon la piste vidéo dont le « + » a '
+         'ouvert le tiroir */\n'
+         + A_EB1)
+
+# ── EB2 (E-2) : LA CHIP « médias » DE LA BARRE DE TITRE, DEVANT « sons » ──
+# Meme famille que « sons » et « narration » (svm-themechip, data-on,
+# aria-pressed). Ouvrir le tiroir Medias FERME les trois autres tiroirs de
+# .svm-mid (sons, sous-titres, narration) : ils sont EXCLUSIFS (mesure
+# .bak:5000-5007, un seul emplacement a gauche du lecteur). `setMedTr("")` :
+# depuis la barre, aucune piste n'est visee (addAsset prendra "v1", comme la
+# porte E-3). L'ancre est le commentaire + la premiere ligne de la chip
+# « sons » (1 dans .bak) ; le remplacement la REPREND.
+A_EB2 = ('        /* tiroir Sons (DzSfx) — chip jumelle de « narration », les deux '
+         'tiroirs\n'
+         '           sont exclusifs ; sans la couche DzSfx la chip n\'existe pas */\n'
+         '        svmSfx()?r.jsx("button",{className:"svm-themechip svm-sfxchip",'
+         '"data-on":sfxOn?"":void 0,')
+R_EB2 = ('        /* E-2 : tiroir Médias — les rendus vidéo terminés, paginés, avec '
+         'chips de\n'
+         '           provenance ; quatrième tiroir de .svm-mid, exclusif avec les '
+         'trois autres */\n'
+         '        r.jsx("button",{className:"svm-themechip svm-medchip",'
+         '"data-on":medOn?"":void 0,\n'
+         '          "aria-pressed":medOn,\n'
+         '          title:"Tiroir Médias — vos rendus vidéo terminés, à glisser '
+         'ou à cliquer vers une piste vidéo",\n'
+         '          onClick:function(){setMedTr("");setMedOn(!medOn);setSfxOn(!1);'
+         'setSubsOn(!1);setNarrOn(!1)},children:"médias"}),\n'
+         + A_EB2)
+
+# ── EB2b..EB2f (E-2) : LES CINQ PORTES DES AUTRES TIROIRS FERMENT MEDIAS ──
+# MESURE (.bak_montage) : les exclusions sfx/subs/narr s'ecrivent a CINQ
+# endroits, tous libres dans le patcher (0) et uniques dans .bak (1) :
+#   :1772-1774 sfxToggle   (`setNarrOn(!1)},[]);` -- ferme narration)
+#   :1841-1847 narrToggle  (`setSfxOn(!1)},[]);`  -- ferme sons)
+#   :3576 subsAddHere      (`setSelId(s.id);setSubsOn(!0);setSfxOn(!1);setNarrOn(!1);`)
+#   :3579 subsToggle       (`setSubsOn(function(v){return !v});...`)
+#   :3713 bouton « éditeur » du panneau S1 (`onClick:function(){setSubsOn(!0);...`)
+# Chacune recoit `setMedOn(!1)`. `setSubsOn(!0)` n'a que DEUX occurrences
+# (3576, 3713) ; le raccourci « sounds_drawer » (:2958) et « narration »
+# (:3003) passent par sfxToggle / narrToggle : couverts. `setMedOn` est un
+# setter React (stable) : l'appeler dans un useCallback a deps [] est sur.
+A_EB2B = '    setNarrOn(!1)},[]);'
+R_EB2B = '    setNarrOn(!1);setMedOn(!1)},[]);'
+A_EB2C = '    setSfxOn(!1)},[]);'
+R_EB2C = '    setSfxOn(!1);setMedOn(!1)},[]);'
+A_EB2D = '    setSelId(s.id);setSubsOn(!0);setSfxOn(!1);setNarrOn(!1);'
+R_EB2D = '    setSelId(s.id);setSubsOn(!0);setSfxOn(!1);setNarrOn(!1);setMedOn(!1);'
+A_EB2E = '    setSubsOn(function(v){return !v});setSfxOn(!1);setNarrOn(!1)}'
+R_EB2E = '    setSubsOn(function(v){return !v});setSfxOn(!1);setNarrOn(!1);setMedOn(!1)}'
+A_EB2F = '          onClick:function(){setSubsOn(!0);setSfxOn(!1);setNarrOn(!1)},'
+R_EB2F = '          onClick:function(){setSubsOn(!0);setSfxOn(!1);setNarrOn(!1);setMedOn(!1)},'
+
+# ── EB3 (E-2) : LE TIROIR MONTE DANS .svm-mid, APRES NARRATION ──────────────
+# Le composant vit dans la couche (T2, `MediaDrawer`, hooks toujours
+# appeles) : l'hote le monte EN PERMANENCE et bascule `open`. `onAdd` pose
+# le job a la TETE DE LECTURE avec le jumeau A1, EXACTEMENT comme la porte
+# E-3 (R_EA1, `__dzMontageAdd`) : `addAsset({job_id},titre||job_id,"video",
+# duree||0,"v1")`, SANS sixieme argument (`atTime==null` -> phRef, mesure
+# .bak:3752-3756) ; sur "v1" (plein cadre) `wantsTwin` est vrai et l'audio
+# jumeau est pose (M22a/M22b). Quand le tiroir a ete ouvert par le « + »
+# d'une piste, `medTr` la remplace ("v2" -> incrustation, sans jumeau).
+# ECART DATE au plan (23/09/2026) : pas de `pickTrack(tracks,"video")` ici
+# -- addAsset (R_M16A) resout DEJA une piste absente par pickTrack, et la
+# porte E-3 passe "v1" pour obtenir le jumeau ; un second pickTrack dans
+# l'hote serait une deuxieme ecriture du meme choix. La sonde de dzcout ne
+# monte donc que de UN (le composant). `exts:null` : le serveur juge
+# l'extension (`video=1`, T1), la couche juge le statut (T2).
+A_EB3 = ('      subsPanel(),\n'
+         '      narrPanel(),')
+R_EB3 = (A_EB3 + '\n'
+         '      /* E-2 : tiroir Médias (rendus vidéo) — même emplacement, exclusif */\n'
+         '      r.jsx(DzTracks.MediaDrawer,{open:medOn,trId:medTr,exts:null,'
+         'onClose:function(){setMedOn(!1)},dragPayload:dragPayload,\n'
+         '        onAdd:function(j){addAsset({job_id:j.job_id},j.title||j.job_id,'
+         '"video",j.duration_s||0,medTr||"v1")}}),')
+
+
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
            ("M5-payload", A_M5, R_M5), ("M6-save", A_M6, R_M6),
@@ -4387,7 +4489,16 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("AJ2b-rack-referme-le-fragment", A_AJ2B, R_AJ2B),
            ("AJ6a-data-kind-sur-le-clip", A_AJ6A, R_AJ6A),
            ("AJ6b-hachures-de-l-ajustement", A_AJ6B, R_AJ6B),
-           ("AJ7-pose-d-effet-sur-l-ajustement", A_AJ7, R_AJ7)]
+           ("AJ7-pose-d-effet-sur-l-ajustement", A_AJ7, R_AJ7),
+           # E-B (lot E-B, 23/09/2026) : prefixe EB, en queue.
+           ("EB1-etat-du-tiroir-medias", A_EB1, R_EB1),
+           ("EB2-chip-medias-barre-de-titre", A_EB2, R_EB2),
+           ("EB2b-sons-ferme-medias", A_EB2B, R_EB2B),
+           ("EB2c-narration-ferme-medias", A_EB2C, R_EB2C),
+           ("EB2d-sous-titre-ajoute-ferme-medias", A_EB2D, R_EB2D),
+           ("EB2e-bascule-sous-titres-ferme-medias", A_EB2E, R_EB2E),
+           ("EB2f-editeur-sous-titres-ferme-medias", A_EB2F, R_EB2F),
+           ("EB3-tiroir-medias-dans-svm-mid", A_EB3, R_EB3)]
 
 
 def nl(text, crlf):

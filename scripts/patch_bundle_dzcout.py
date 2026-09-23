@@ -311,7 +311,15 @@ STABLE_PROBES = [
     # `adjustTrack(` (la piste j1 nait avec le premier clip). AJ2a/AJ2b,
     # AJ6a/AJ6b et les replis TT1/M5/TT11/R1/R2/K5 n en ajoutent aucune.
     # MESURE : la chaine a refuse, « sonde montage x114 (want 112) ».
-    ("montage", "DzTracks", 114),
+    # 23/09/2026, E-2 (lot E-B, tache 3) : 114 -> 115. UNE de plus, par
+    # EB3 : le tiroir Medias monte dans .svm-mid (`MediaDrawer`, le
+    # composant de la couche). EB1 (l etat), EB2 (la chip), EB2b..EB2f
+    # (les cinq exclusions) et le repli du « + » video (R_TT11) n en
+    # ajoutent aucune : `onAdd` appelle addAsset avec "v1" comme la porte
+    # E-3, sans pickTrack (addAsset resout deja la piste, R_M16A). MESURE :
+    # la chaine a refuse, « sonde montage x115 (want 114) », avant cette
+    # ligne.
+    ("montage", "DzTracks", 115),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────
