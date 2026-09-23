@@ -1881,6 +1881,18 @@ async def montage_effects():
     return {"effects": effects_engine.catalog()}
 
 
+def media_rules() -> dict:
+    """La règle « vidéo » sous forme de FONCTION PURE — l'unique juge, lu par
+    la route `GET /media-rules` (le client) ET par `GET /api/jobs?video=1`
+    (routes.py, E-2 du 23/09/2026 : le tiroir Médias pagine côté serveur,
+    le serveur doit donc juger avec la MÊME règle que le client). Mesuré le
+    23/09/2026 : la règle est faite d'extensions seulement (`_VIDEO_EXTS`),
+    pas de liste de providers — `video=1` n'en invente pas une. Un espion
+    posé sur ce nom (test_montage_eb.py [2]) prouve que les deux routes y
+    passent et qu'une extension changée ici traverse jusqu'à la requête."""
+    return {"video_exts": list(_VIDEO_EXTS)}
+
+
 @router.get("/media-rules")
 async def montage_media_rules():
     """La RÈGLE d'extensions vidéo, telle que le rendu l'applique — servie au
@@ -1898,8 +1910,11 @@ async def montage_media_rules():
 
     La réponse ne porte QUE ce qui a un lecteur — un champ sans lecteur est
     un mensonge poli. Le client qui n'obtient pas cette route ne filtre PAS
-    et le dit à l'écran ; il ne devine pas une liste de son côté."""
-    return {"video_exts": list(_VIDEO_EXTS)}
+    et le dit à l'écran ; il ne devine pas une liste de son côté.
+
+    E-2 (23/09/2026) : le dict vient de `media_rules()`, jamais reconstruit
+    ici — sinon deux juges."""
+    return media_rules()
 
 
 @router.post("/save")
