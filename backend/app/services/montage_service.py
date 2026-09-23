@@ -377,8 +377,10 @@ def _loudnorm_chain(target: int, measured: dict) -> str:
 def _range_args(range_out, total: float):
     """`(a, b)` en secondes → (`["-ss", a]`, durée de sortie) validés contre
     `total` : a ≥ 0, b > a, a < total, fin bornée au total. None → ([],
-    total) — commande historique. La coupe est une coupe de SORTIE (tout
-    est décodé, sous-titres / titres / marqueurs gardent l'horloge globale).
+    total) — commande historique. La coupe est une coupe de SORTIE : décodé
+    jusqu'à la fin de la plage, rien n'est encodé avant `a` (mesuré le
+    23/09/2026 : plage [1,2] sur 30 s = 0,51 s contre 5,38 s pour le tout) ;
+    sous-titres / titres / marqueurs gardent l'horloge globale.
     Invalide → ValueError « plage »."""
     if range_out is None:
         return [], total
@@ -3254,7 +3256,11 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     if isinstance(preset, str):
         preset = _deliver_resolve(preset, None)
     spec = preset if isinstance(preset, dict) else None
-    if spec and not preview and int(fps) not in _DELIVER_FPS:
+    # Revue T2 (23/09/2026, mesuré par le banc) : le GIF est EXEMPTÉ — /render
+    # lui passe `fps = spec["fps"] = 12`, sa queue écrit `-r 12` elle-même ;
+    # la garde le faisait échouer (« cadence 12 hors de… ») sur tout GIF
+    # rendu par /render, ce qu'aucun espion T1 ne couvrait.
+    if spec and not preview and not spec.get("gif") and int(fps) not in _DELIVER_FPS:
         raise ValueError(f"cadence {fps} hors de {_DELIVER_FPS}")
     cmd = _deliver_tail(spec, preview, fps, total_out, inputs, parts, amap, out,
                         cur, subtitles_filter(subs_ass) if subs_ass else None,
@@ -3307,6 +3313,15 @@ def _loudnorm_pass1(v1, v2, a_clips, music, *, loudness, **kw):
     if vals is None:
         raise RuntimeError("mesure loudness (passe 1) : aucun résumé JSON de "
                            "loudnorm dans la sortie ffmpeg.")
+    # Revue (23/09/2026, mesuré) : un mix RÉEL mais MUET (piste à zéro, clip
+    # muté, pad vide) rend input_i "-inf" / target_offset "inf" avec rc 0 ;
+    # transmis en passe 2, ffmpeg refuse (« out of range [-99 - 0] »). Rien
+    # à normaliser → None (même sort qu'anullsrc). SURTOUT PAS un clamp à
+    # −99 : il amplifierait un bruit de fond de +85 dB.
+    if not math.isfinite(vals["I"]):
+        logger.info("montage loudnorm passe 1 : mix silencieux (I=-inf) — "
+                    "pas de normalisation")
+        return None
     logger.info(f"montage loudnorm passe 1 : I={vals['I']} TP={vals['TP']} "
                 f"LRA={vals['LRA']} thresh={vals['thresh']} "
                 f"offset={vals['offset']} (cible {loudness})")
@@ -3783,6 +3798,7 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                 await session.commit()
 
     async def _run():
+        nonlocal loudness          # remis à None si la passe 1 ne mesure rien
         try:
             loop = asyncio.get_running_loop()
             v1 = []
@@ -3932,7 +3948,14 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
             # final seulement — l'aperçu n'est pas normalisé. Son échec est
             # l'échec du job (message nommé), jamais un rendu « sans ».
             loud_measured = None
-            if loudness is not None and not preview:
+            # M1 (revue 23/09/2026) : le GIF jette le mix dans anullsink —
+            # aucune passe 1 ; l'audio seul la garde. Mix vide OU muet (passe
+            # 1 → None) : même sort qu'anullsrc, la commande part sans loudness.
+            # Écart daté : le délai de la passe 1 est FIXE (180 s, ≈ 80 min de
+            # mix mono-source) ; la plage est validée sur le total ESTIMÉ ici
+            # et sur le total RÉEL dans la commande — un maître de durée plus
+            # court donne un job failed « plage », pas un 400.
+            if loudness is not None and not preview and not spec.get("gif"):
                 async with async_session_factory() as session:
                     jr = await session.get(JobRecord, job_id)
                     jr.progress = 20
@@ -3943,6 +3966,10 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                     w=w, h=h, fps=fps, mix_db=mix, ducking=ducking,
                     duration_master=duration_master, adjust_clips=adjust,
                     range_out=range_out)
+                if loud_measured is None:
+                    loudness = None
+            elif spec.get("gif"):
+                loudness = None
 
             async with async_session_factory() as session:
                 jr = await session.get(JobRecord, job_id)

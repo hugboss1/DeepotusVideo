@@ -654,6 +654,49 @@ else:
     check("d24_rendu_reel_normalise_a_14_lufs_mesure_par_ebur128_sur_la_sortie",
           _rc3 == 0 and isinstance(_I3, float) and -15.0 <= _I3 <= -13.0
           and isinstance(_m1, dict) and abs(_m1["I"] + 14) > 2, (_rc3, _I3, _m1, _err3))
+    # Revue (23/09/2026) — mix REEL mais MUET (anullsrc encode en AAC) : la passe
+    # 1 rend input_i "-inf" / target_offset "inf" (rc 0) ; la passe 1 doit rendre
+    # None (rien a normaliser), la commande finale ne porte pas de loudnorm et
+    # le rendu aboutit — et non un job failed « out of range » de ffmpeg.
+    _SRCS = str(pathlib.Path(TMP) / "srcs.mp4")
+    _gens = subprocess.run([_FB, "-y", "-loglevel", "error", "-f", "lavfi", "-i",
+                            "testsrc2=s=64x64:r=25:d=3", "-f", "lavfi", "-i",
+                            "anullsrc=channel_layout=stereo:sample_rate=44100", "-t", "3",
+                            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", _SRCS],
+                           check=False, capture_output=True, timeout=60)
+    _specs = V1SPEC(path=_SRCS, src_dur=3.0, start=0.0, end=3.0)
+    _acls = [ASPEC(path=_SRCS, src_dur=3.0, end=3.0)]
+    _ms, _mse = "NON_APPELE", ""
+    try:
+        _ms = _p1f([_specs], [], _acls, None, loudness=-14, w=64, h=64, fps=30, mix_db={},
+                   ducking=False, duration_master=False) if callable(_p1f) else "ABSENT"
+    except Exception as e:
+        _mse = "%s: %s" % (type(e).__name__, e)
+    # Temoin : la passe 1 BRUTE de cette source rend bien un JSON en -inf.
+    _rawc, _ = _p1c([_specs], [], _acls, None, loudness=-14, **_ARGS) if callable(_p1c) else (None, None)
+    _rawi = None
+    if isinstance(_rawc, list):
+        _rawc[0] = _FB
+        _rawr = subprocess.run(_rawc, capture_output=True, text=True, timeout=60)
+        _rawi = (_lp(_rawr.stderr) or {}).get("I") if callable(_lp) else None
+    check("d24_passe_1_reelle_sur_un_mix_muet_rend_none_temoin_json_moins_inf",
+          _gens.returncode == 0 and _rawi is not None and _rawi == float("-inf") and _ms is None,
+          (_gens.returncode, _rawi, _ms, _mse))
+    _outs = os.path.join(TMP, "reel_muet.mp4")
+    _rcs, _errs, _cmds = None, "", ""
+    try:
+        _cs, _ = MS._build_montage_command(
+            [_specs], [], _acls, None, w=64, h=64, fps=30, mix_db={}, ducking=False,
+            duration_master=False, preview=False, out=_outs,
+            loudness=(-14 if _ms is not None else None), loud_measured=_ms)
+        _cmds = FLAT(_cs); _cs[0] = _FB
+        _rs = subprocess.run(_cs, capture_output=True, timeout=120)
+        _rcs, _errs = _rs.returncode, (_rs.stderr or b"")[-300:]
+    except Exception as e:
+        _errs = "%s: %s" % (type(e).__name__, e)
+    check("d24_rendu_reel_du_mix_muet_aboutit_sans_loudnorm",
+          _ms is None and _rcs == 0 and "[outa]" in _cmds and "loudnorm" not in _cmds
+          and os.path.isfile(_outs) and os.path.getsize(_outs) > 0, (_ms, _rcs, _errs, _cmds[-200:]))
     # D-38 : plage [1, 2] → fichier d'environ 1,0 s (ffprobe).
     _outr = os.path.join(TMP, "reel_range.mp4")
     _rcr, _errr, _durr = None, "", None
@@ -812,6 +855,49 @@ _rr = _rendu(_tl)
 check("d24_render_loudness_sans_piste_audio_anullsrc_temoin_aucune_chaine",
       _rr.status_code == 200 and "anullsrc" in (_cap.get("cmd") or "") and "loudnorm" not in (_cap.get("cmd") or "x")
       and "-map 1:a" in (_cap.get("cmd") or ""), (_rr.status_code, (_cap.get("cmd") or "")[-200:]))
+# Revue (23/09/2026) : passe 1 qui rend None (mix vide OU muet) → la commande
+# finale part SANS loudness (meme sort qu'anullsrc), pas en ValueError.
+def _p1_none(*a, **k):
+    _cap["p1_calls"] = _cap.get("p1_calls", 0) + 1
+    return None
+_tl = TLA(loudness=-14)
+_cap.clear()
+MS._build_montage_command, MS._run_ffmpeg = _espion, (lambda cmd, out: None)
+if callable(_vrai_p1):
+    MS._loudnorm_pass1 = _p1_none
+try:
+    _rr = c.post("/api/montage/render", json=_tl)
+finally:
+    MS._build_montage_command, MS._run_ffmpeg = _vrai_build, _vrai_run
+    if callable(_vrai_p1):
+        MS._loudnorm_pass1 = _vrai_p1
+_jn = J(c.get("/api/jobs/%s" % J(_rr).get("job_id")))
+check("d24_render_passe_1_none_mix_muet_rend_sans_loudness_et_le_job_aboutit",
+      _rr.status_code == 200 and _cap.get("p1_calls") == 1 and _cap.get("cmd") is not None
+      and "[outa]" in _cap["cmd"] and "loudnorm" not in _cap["cmd"] and "loudness" in _cap
+      and _cap.get("loudness") is None and _jn.get("status") == "done",
+      (_rr.status_code, _cap.get("p1_calls"), _cap.get("loudness"), _jn.get("status"), _jn.get("error")))
+# M1 : le GIF jette le mix (anullsink) → pas de passe 1 ; l'audio seul la garde.
+# Trouve par ce banc (23/09/2026) : /render passait fps = 12 au GIF et la garde
+# de cadence le refusait (« cadence 12 hors de… ») — bug T1, le GIF est exempte.
+_rr = _rendu(TLA(preset="gif_480"))
+_jg = J(c.get("/api/jobs/%s" % J(_rr).get("job_id")))
+check("d35_render_gif_480_aboutit_a_12_i_s_sans_passe_1",
+      _rr.status_code == 200 and _cap.get("cmd") is not None and "paletteuse" in _cap["cmd"]
+      and _cap.get("fps") == 12 and "-r 12" in _cap["cmd"] and _cap.get("out", "").endswith(".gif")
+      and _jg.get("status") == "done" and _cap.get("p1_calls") is None,
+      (_rr.status_code, _cap.get("fps"), _jg.get("status"), _jg.get("error")))
+_rr = _rendu(TLA(loudness=-14, preset="gif_480"))
+_jg = J(c.get("/api/jobs/%s" % J(_rr).get("job_id")))
+check("d24_render_gif_avec_loudness_n_appelle_pas_la_passe_1",
+      _rr.status_code == 200 and _cap.get("cmd") is not None and "paletteuse" in _cap["cmd"]
+      and "[outa]anullsink" in _cap["cmd"] and _cap.get("p1_calls") is None
+      and "loudnorm" not in _cap["cmd"] and _jg.get("status") == "done",
+      (_rr.status_code, _cap.get("p1_calls"), _jg.get("status"), _jg.get("error"), (_cap.get("cmd") or "")[-160:]))
+_rr = _rendu(TLA(loudness=-14, preset="audio_wav"))
+check("d24_render_audio_seul_avec_loudness_garde_la_passe_1",
+      _rr.status_code == 200 and _cap.get("p1_calls") == 1 and "-vn" in (_cap.get("cmd") or "")
+      and "-map [outn]" in (_cap.get("cmd") or ""), (_rr.status_code, _cap.get("p1_calls")))
 _tl = TL("rendu", src=_REAL); _tl["loudness"] = -19
 _rr = _rendu(_tl)
 check("d24_render_loudness_19_rend_400_sans_passe_1_ni_commande",
