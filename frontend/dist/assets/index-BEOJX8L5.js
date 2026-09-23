@@ -1786,6 +1786,7 @@ function DzMontage(props){
   var dzScrimRef=x.useRef(!1);dzScrimRef.current=!!(pop||dzFin||dzMenu);
   var stGap=x.useState(null),gapSel=stGap[0],setGapSel=stGap[1];
   var gapSelRef=x.useRef(null);gapSelRef.current=gapSel;
+  x.useEffect(function(){setGapSel(null)},[clips]);
   var stDzFS=x.useState(function(){try{return JSON.parse(localStorage.getItem("dz_montage_lastfin")||"{}")||{}}catch(_e){return {}}}),dzFinStore=stDzFS[0],setDzFinStore=stDzFS[1];
   var dzLast=DzTracks.finOf(dzFinStore,proj.project_id||"_");
   var stVw=x.useState("montage"),view=stVw[0],setVw=stVw[1];
@@ -19185,7 +19186,11 @@ function DzmDeliver(o){
    dzmTrou(clips, tr, t) — pure : {a,b} = fin du dernier clip de `tr` finissant
    ≤ t (0 si aucun) et début du premier clip commençant > t ; null si t est DANS
    un clip, sans clip suivant (la queue de piste n'est pas un trou — décision 8),
-   ou si le trou fait moins de 0,05 s. Entrées non-objets ignorées.
+   ou si le trou fait moins de 0,05 s (seuil FLOTTANT : 6,05−6 < 0,05 en
+   IEEE, un tel trou est refusé — assumé, daté 23/09). Entrées non-objets
+   ignorées. Les MARQUEURS (D-5) ne suivent pas le ripple du trou (écart
+   daté, comme le jumeau A1). Dans l'hôte, le trou s'efface dès que `clips`
+   change (effet [clips], revue T5) : jamais de bornes périmées.
    dzmTrouRipple(clips, tr, a, b) — pure : nouveau tableau ; les clips de `tr`
    dont start ≥ b (−1e-6) reculent de b−a (start/end seuls, les autres champs
    et l'ordre intacts, les clips immobiles sont LES MÊMES objets) ; les autres

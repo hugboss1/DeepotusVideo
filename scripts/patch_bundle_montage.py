@@ -1101,6 +1101,15 @@ R_M16REF = (A_M16REF + "\n"
             # par Suppr, Echap (R_K7) et le clic sur un clip (EC14).
             "  var stGap=x.useState(null),gapSel=stGap[0],setGapSel=stGap[1];\n"
             "  var gapSelRef=x.useRef(null);gapSelRef.current=gapSel;\n"
+            # REVUE T5 (23/09/2026) : LE TROU S'EFFACE QUAND LES CLIPS CHANGENT.
+            # Mesure : gapSel survivait aux 55 `setClips(` du bundle (undo/redo,
+            # dropOnTrack, blade, range_cut, remplacement...) -- un media depose
+            # dans le trou puis Suppr reculait le clip droit PAR-DESSUS lui, et
+            # le pointille restait dessine sur des bornes qui n'etaient plus un
+            # trou. Un effet sur [clips] couvre TOUS les mutateurs ; sur null,
+            # setGapSel(null) est un bail-out React (cout nul) ; apres Suppr
+            # (qui pose deja null) l'effet re-pose null = no-op.
+            "  x.useEffect(function(){setGapSel(null)},[clips]);\n"
             # ── E-5 (lot E-B, tache 4, 23/09/2026) : LE DERNIER RENDU FINAL
             # PAR PROJET. REPLIÉ ICI comme dzFin (0 dans .bak_montage). Deux
             # états DISTINCTS : dzFin = le bandeau est visible ; ce store =
@@ -4806,6 +4815,11 @@ R_EC12 = ('        r.jsx("div",{className:"svm-insphead",title:"Tête de lecture
 # SECONDE fois (.svm-lane est flex:1 A COTE de .svm-thead 88 px ; les clips
 # sont poses en % de la lane elle-meme) -> le temps est lu sur le rect de la
 # lane, le cadre exact des clips. Pas de stopPropagation : rien n'ecoutait.
+# ECARTS DATES (revue T5, 23/09/2026) : le clip selectionne LE RESTE apres
+# un clic dans le vide (le dernier cliche gagne : trou ET clip peuvent etre
+# selectionnes, Suppr prend le trou d'abord) ; les MARQUEURS (D-5) ne suivent
+# pas le ripple du trou, comme le jumeau A1 ; le seuil de 0,05 s est
+# flottant (6,05-6 < 0,05 en IEEE : un tel trou est refuse -- assume).
 A_EC10 = '                onDrop:function(e){dropOnTrack(e,tr.id,e.currentTarget)},'
 R_EC10 = (A_EC10 + '\n'
           '                onPointerDown:function(e){if(e.button!==0||e.target!==e.currentTarget||proj.demo)return;'
@@ -4834,6 +4848,7 @@ R_EC14 = A_EC14 + '\n    if(gapSelRef.current)setGapSel(null); /* E-14 : un clic
 for _a, _r in ((A_EC10, R_EC10), (A_EC11, R_EC11), (A_EC12, R_EC12), (A_EC13, R_EC13), (A_EC14, R_EC14)):
     assert _a != _r and _r.count(_a) == 1
 assert R_M16REF.count("gapSelRef.current=gapSel;") == 1 and R_K7.count("setGapSel(null)") == 1
+assert R_M16REF.count("},[clips]);") == 1 and R_M16REF.find("},[clips]);") > R_M16REF.find("gapSelRef.current=gapSel;")
 assert R_K7.find("dzMkOnRef") < R_K7.find("setGapSel(null)") < R_K7.find("dzScrimRef")
 
 

@@ -8802,6 +8802,7 @@ function ECRAN(o){
   __APPLY__
   return {addAsset:addAsset,nudge:KB.nudge,clipDown:clipDown,durCtl:DURCTL,
     seq:function(){return ovSeq.current},apply:svmApplyProject,
+    trou:function(){return gapSelRef.current},
     projet:function(){return proj},
     J:J,etat:function(){return {dur:proj.dur,clips:clipsRef.current,
       sel:selRef.current}}}}
@@ -9089,6 +9090,11 @@ out.up_note=G1.notes[0]||"";out.up_hist=G1.hist;
 out.up_ecouteurs=G1.ecouteurs;
 var G2=GLISSE(16,CLIP,250,300);
 out.up2_bornes=G2.bornes;out.up2_dur=G2.dur;out.up2_notes=G2.notes.length;
+/* E-14 (revue T5) : un trou POSE au depart (o.trou), le pointerdown sur un clip l'efface EN TETE (EC14) */
+out.cd_trou=(function(){var E=ECRAN({dur:16,clips:[CLIP],trou:{tr:"v1",a:8,b:10}});
+  var lane=EL(RECT(0,800)),band=EL(RECT(100,300)),avant=E.trou();
+  E.clipDown(EV(250,band),CLIP,lane);band._h.pointerup(EV(250,band));
+  return [avant&&avant.a,E.trou()]})();
 out.up2_proj=G2.proj.length;
 /* LE BORD DROIT, tire au-dela de la fin du projet : plus de plafond. */
 var G3=GLISSE(16,CLIP,395,850);
@@ -9562,6 +9568,8 @@ check("js_glisser_l_allongement_est_DIT_avec_les_deux_durees",
       f'{repr(w.get("up_note"))[:200]} hist={w.get("up_hist")}')
 # UN GLISSER QUI RESTE DANS LE CHAMP N'ALLONGE RIEN ET NE DIT RIEN — conjoint :
 # le clip a bel et bien bouge (2..8 -> 3..9).
+check("js_E14_clipDown_efface_le_trou_pose_au_depart",
+      w.get("cd_trou") == [8, None], w.get("cd_trou"))
 check("js_glisser_qui_reste_dans_le_champ_ne_dit_rien",
       w.get("up2_bornes") == [[3, 9]] and w.get("up2_dur") == 16
       and w.get("up2_notes") == 0 and w.get("up2_proj") == 0,
@@ -16779,6 +16787,15 @@ check("E14_etat_gapSel_et_gapSelRef_replies_dans_R_M16REF_apres_dzScrimRef_ref_p
       and P.R_M16REF.find(_E14_REF) > P.R_M16REF.find(_E14_ST) > P.R_M16REF.find(_EB11_REF) > 0
       and s.count("gapSelRef.current=gapSel;") == 1 and _libre21("gapSelRef", s) >= 3,
       f"st={s.count(nl(_E14_ST))} ref={s.count(nl(_E14_REF))} ordre={(_iE14Scrim, _iE14St, _iE14Ref)} refs={_libre21('gapSelRef', s)}")
+# REVUE T5 : le trou s'efface quand `clips` change (effet [clips], juste APRES le ref) -- un media depose dans le trou,
+# undo/redo, blade, range_cut... ne laissent ni bornes perimees ni pointille orphelin. Temoin : le ref x1 juste avant.
+_E14_EFF = "  x.useEffect(function(){setGapSel(null)},[clips]);"
+_iE14Eff = s.find(nl(_E14_EFF))
+check("E14_revue_le_trou_s_efface_quand_les_clips_changent_effet_clips_x1_juste_apres_le_ref",
+      s.count(nl(_E14_EFF)) == 1 and _E14_EFF in P.R_M16REF and P.R_M16REF.count("},[clips]);") == 1
+      and 0 < _iE14Ref < _iE14Eff < _iE14Ref + 900 and s.count("gapSelRef.current=gapSel;") == 1
+      and _libre21("setGapSel", s) == 6 and (_bak.count("},[clips]);") == 0 if _bak else False),
+      f"eff={s.count(nl(_E14_EFF))} ordre={(_iE14Ref, _iE14Eff)} setGapSel={_libre21('setGapSel', s)}")
 # EC10 : cible = la lane ELLE-MEME (un clip, un enfant, ne selectionne pas de trou), bouton gauche, hors demo ;
 # le temps est lu sur le rect de la lane (ecart date : pas phFromEvent) ; trou -> {tr,a,b}, sinon null
 check("E14_lane_onPointerDown_cible_la_lane_bouton_0_hors_demo_temps_sur_le_rect_de_la_lane_trou_x1",
@@ -16819,7 +16836,7 @@ check("E14_Echap_efface_le_trou_dans_R_K7_apres_l_index_des_marqueurs_avant_le_v
       s.count(nl(_E14_ESC)) == 1 and _E14_ESC in P.R_K7 and 0 < _iE14Mk < _iE14Esc < _iE14Sc < _iE14Mk + 500
       and 0 < P.R_K7.find("dzMkOnRef.current") < P.R_K7.find(_E14_ESC) < P.R_K7.find(_EB11_ESC)
       and P.R_K7.count("setGapSel(null)") == 1 and P.R_K7.count("setDzFin(null)") == 1
-      and s.count(nl(_E14_CD_R)) == 1 and _libre21("setGapSel", s) == 5
+      and s.count(nl(_E14_CD_R)) == 1 and _libre21("setGapSel", s) == 6
       and (_bak.count("setGapSel") == 0 if _bak else False),
       f"esc={s.count(nl(_E14_ESC))} ordre={(_iE14Mk, _iE14Esc, _iE14Sc)} setGapSel={_libre21('setGapSel', s)}")
 # LA FEUILLE : deux regles, une fois chacune, le trou en pointer-events:none (le clic suivant retombe sur la lane)
