@@ -1622,7 +1622,7 @@ check("media_drawer_le_return_null_ferme_vient_apres_les_hooks",
 # le serveur `video=1` ne juge que l'extension ; un job en cours a video_path pose n'entre pas
 check("media_drawer_applique_toujours_le_juge_de_statut_exts_facultatif",
       len(_DRW) > 400 and _DRW.count("dzmIsVideoJob(") == 1
-      and "var vus=jobs.filter(function(j){return dzmIsVideoJob(j,o.exts&&o.exts.length?o.exts:null)});" in _DRW
+      and "var vus=jobs.filter(function(j){return dzmIsVideoJob(j,o.exts)});" in _DRW
       and "o.exts&&o.exts.length?jobs.filter" not in _DRW,
       f"corps={len(_DRW)} o isVideoJob={_DRW.count('dzmIsVideoJob(')}")
 _iDT = _SRCb.find("var DzTracks={")

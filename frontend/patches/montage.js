@@ -6424,17 +6424,18 @@ function DzmMediaDrawer(o){
     var t=setTimeout(function(){charge(0,qServ,!0)},qServ?DZM_MED_REPOS:0);
     return function(){clearTimeout(t)}},[o.open?1:0,qServ]);
   if(!o.open)return null;
-  var vus=jobs.filter(function(j){return dzmIsVideoJob(j,o.exts&&o.exts.length?o.exts:null)});
+  var vus=jobs.filter(function(j){return dzmIsVideoJob(j,o.exts)});
   var chips=dzmProvChips(vus),g=chips.indexOf(groupe)>=0?groupe:"Tout";
   var liste=dzmMediaFiltre(vus,{groupe:g,q:q});
   var row=function(j){var jid=String(j.job_id||""),lbl=j.title||jid;
     var src=encodeURIComponent(JSON.stringify({job_id:jid}));
     return r.jsxs("div",{className:"svm-medrow",draggable:!0,
-      title:"Glisser vers une bande, ou cliquer pour poser sur "+(o.trId||"la piste vidéo"),
+      title:lbl+" — Glisser vers une bande, ou cliquer pour poser sur "+(o.trId||"la piste vidéo"),
       onDragStart:function(e){if(o.dragPayload)o.dragPayload(e,{job_id:jid},lbl,"video",j.duration_s||0)},
       onClick:function(){if(o.onAdd)o.onAdd(j)},
       children:[
-        r.jsx("img",{src:"/api/montage/strip?src="+src+"&n=1&w=96&h=54",loading:"lazy",alt:"",draggable:!1}),
+        r.jsx("img",{src:"/api/montage/strip?src="+src+"&n=1&w=96&h=54",loading:"lazy",alt:"",draggable:!1,
+          onError:function(e){e.target.style.visibility="hidden"}}),
         r.jsxs("div",{className:"svm-medmeta",children:[
           r.jsx("div",{className:"svm-medtitle",children:lbl}),
           r.jsxs("div",{className:"svm-medsub",children:[
@@ -6451,7 +6452,7 @@ function DzmMediaDrawer(o){
         onClick:function(){setGroupe(c)},children:c},c)})}),
     r.jsx("div",{className:"svm-medlist",children:liste.map(row)}),
     st?r.jsx("div",{className:"svm-medst",children:st}):null,
-    !st&&!liste.length?r.jsx("div",{className:"svm-medst",children:jobs.length?"Aucun rendu dans ce groupe.":"Aucun rendu vidéo terminé."}):null,
+    !st&&!liste.length?r.jsx("div",{className:"svm-medst",children:vus.length?"Aucun rendu dans ce groupe.":"Aucun rendu vidéo terminé."}):null,
     !fin?r.jsx("button",{className:"svm-secbtn svm-medplus",disabled:st==="…",
       onClick:function(){charge(offset,qServ,!1)},children:"Plus"}):null]})}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
