@@ -1339,3 +1339,15 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
 .dzsvm .svm-insp{position:relative}
 .dzsvm .svm-insphandle{position:absolute;left:0;top:0;bottom:0;width:6px;cursor:col-resize;touch-action:none;z-index:2}
 .dzsvm .svm-insphandle:hover{background:var(--accent)}
+/* E-9 (lot E-B, tache 7, 23/09/2026) : séparateur lecteur/timeline. Quand une
+   hauteur est CHOISIE (la poignée, frère précédent de .svm-tl,
+   30–70 % de .dzsvm par DzTracks.tlH, mémoire dz_svm_tlh), l'hôte pose
+   `data-h` et `height` inline : ce sélecteur lève alors le plafond 48vh et le
+   plancher 356px de la règle historique (montage.css:18), CONSERVÉE telle
+   quelle — sans choix, c'est elle qui décide (affirmation démentie n°5 du plan :
+   30–70 % et max-height:48vh sont incompatibles, `[data-h]` tranche).
+   La poignée : 6 px, row-resize, --accent au survol (jeton amont), flex:none
+   sous .dzsvm.svm-col, touch-action:none pour le geste pointer. */
+.dzsvm .svm-tl[data-h]{max-height:none;min-height:0}
+.dzsvm .svm-tlhandle{height:6px;flex:none;cursor:row-resize;touch-action:none}
+.dzsvm .svm-tlhandle:hover{background:var(--accent)}

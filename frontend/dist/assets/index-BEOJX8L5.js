@@ -1722,6 +1722,16 @@ function DzMontage(props){
     function up(){w.removeEventListener("pointermove",mv);w.removeEventListener("pointerup",up);w.removeEventListener("pointercancel",up);
       try{localStorage.setItem("dz_svm_insp",JSON.stringify({on:!0,w:last}))}catch(_e){}}
     w.addEventListener("pointermove",mv);w.addEventListener("pointerup",up);w.addEventListener("pointercancel",up)}
+  /* E-9 : la timeline — hauteur choisie (dz_svm_tlh, 30–70 % de .dzsvm) et durées sur les clips (dz_svm_showdur) */
+  var stTl=x.useState(function(){try{var v=Number(localStorage.getItem("dz_svm_tlh"));return v>0?v:null}catch(_e){return null}}),tlH=stTl[0],setTlH=stTl[1];
+  x.useEffect(function(){var el=document.querySelector(".dzsvm");if(el&&tlH!=null)setTlH(DzTracks.tlH(tlH,el.clientHeight))},[]);
+  var stSd=x.useState(function(){try{return localStorage.getItem("dz_svm_showdur")==="1"}catch(_e){return !1}}),showDur=stSd[0],setShowDur=stSd[1];
+  function tlDown(e){if(e.button!==0)return;e.preventDefault();
+    var sy=e.clientY,el=document.querySelector(".dzsvm"),total=el?el.clientHeight:0,tl=e.currentTarget.nextElementSibling,sh=tlH||(tl?tl.offsetHeight:0),w=window,last=tlH;
+    function mv(ev){last=DzTracks.tlH(sh+(sy-ev.clientY),total);setTlH(last)}
+    function up(){w.removeEventListener("pointermove",mv);w.removeEventListener("pointerup",up);w.removeEventListener("pointercancel",up);
+      try{if(last!=null)localStorage.setItem("dz_svm_tlh",String(last))}catch(_e){}}
+    w.addEventListener("pointermove",mv);w.addEventListener("pointerup",up);w.addEventListener("pointercancel",up)}
   var stP=x.useState({demo:!0,name:"teaser_abyss",version:"v4",ratio:"9:16",dur:SVM_DEMO_DUR,mixDb:SVM_DEMO_MIX}),proj=stP[0],setProj=stP[1];
   var stJ=x.useState(null),job=stJ[0],setJob=stJ[1]; /* {id,kind,status,progress,step,error} */
   var stV=x.useState(null),previewUrl=stV[0],setPreviewUrl=stV[1];
@@ -5628,6 +5638,11 @@ function DzMontage(props){
           "aria-pressed":inspOn,
           title:"Inspecteur — replier ou rouvrir la colonne de droite (le lecteur prend la place)",
           onClick:function(){setInspSt(function(s){var n={on:!s.on,w:s.w};try{localStorage.setItem("dz_svm_insp",JSON.stringify(n))}catch(_e){}return n})},children:"inspecteur"}),
+        /* E-9 : durées sur les clips — REPLI dans R_EB2 (même ancre consommée qu'E-8) */
+        r.jsx("button",{className:"svm-themechip svm-durchip","data-on":showDur?"":void 0,
+          "aria-pressed":showDur,
+          title:"Durées — afficher la durée de chaque clip à côté de son nom",
+          onClick:function(){setShowDur(function(v){var n=!v;try{localStorage.setItem("dz_svm_showdur",n?"1":"0")}catch(_e){}return n})},children:"durées"}),
         /* tiroir Sons (DzSfx) — chip jumelle de « narration », les deux tiroirs
            sont exclusifs ; sans la couche DzSfx la chip n'existe pas */
         svmSfx()?r.jsx("button",{className:"svm-themechip svm-sfxchip","data-on":sfxOn?"":void 0,
@@ -6028,7 +6043,8 @@ function DzMontage(props){
            rien ne l'EXERCE (undo est un hook du composant). */
         DzTracks.gradeAllBtn(sel,clips,setClips,pushHistory,setDirty,fireNote)]}):null]}),
     /* timeline */
-    r.jsxs("div",{className:"svm-tl",children:[
+    r.jsx("div",{className:"svm-tlhandle",onPointerDown:tlDown,title:"Glisser pour régler la hauteur de la timeline (30–70 %)"}),
+    r.jsxs("div",{className:"svm-tl","data-h":tlH||void 0,style:tlH?{height:tlH}:void 0,children:[
       r.jsxs("div",{className:"svm-trans",children:[
         /* étapes 4 à 7 du handoff « Barre Outils Flottante » :
            l'onglet OUTILS et la barre flottante, câblée sur les
@@ -6409,7 +6425,7 @@ function DzMontage(props){
                           onPointerDown:function(ev){vpDown(ev,c,pi)},
                           onContextMenu:function(ev){ev.preventDefault();ev.stopPropagation();
                             svmVpRemove(c.id,pi)}},"vp"+pi)}):null,
-                      r.jsx("div",{className:"svm-cliplabel",children:c.label}),
+                      r.jsx("div",{className:"svm-cliplabel",children:DzTracks.durLbl(c.label,c.start,c.end,showDur)}),
                       /* P9 — signalé AVANT le rendu, pas après son
                          400 : ce plan n'est pas une vidéo. */
                       (c.tr==="v1"&&(proj.v1NonVideo||[]).indexOf(c.id)>=0)?
@@ -19376,6 +19392,29 @@ function dzmClamp(v,lo,hi,def){
   if(n!==n||n===Infinity||n===-Infinity)return def;
   return Math.min(hi,Math.max(lo,n))}
 function dzmInspW(raw){return Math.round(dzmClamp(raw,260,480,300))}
+/* E-9 (lot E-B, tache 7, 23/09/2026) — LA HAUTEUR DE LA TIMELINE ET LA DUREE
+   SUR LES CLIPS. L'hote (EB7a, repli R_EB6B) lit la cle dz_svm_tlh au montage
+   puis, dans un effet, la borne sur la hauteur MESUREE de .dzsvm ; la poignee
+   (EB7b, AU-DESSUS de la timeline : tirer vers le haut agrandit) pose
+   startH+(startY-clientY) a chaque pointermove : tout passe ICI. Bornes 30..70 %
+   du total (conception E-9) ; `null` = « aucun choix » : l'hote ne pose ni
+   data-h ni height, et le plafond historique (.dzsvm .svm-tl{max-height:48vh},
+   montage.css:18) reste — la conception (30–70 %) et ce plafond sont
+   incompatibles, le plan tranche par `[data-h]` (affirmation demente n°5).
+   Total inconnu (<= 0, non fini) -> null aussi : au montage, .dzsvm n'est pas
+   encore mesuree. dzmDurLbl : `label · m:ss` par dzmDurTxt (svmRuler du
+   bundle, JAMAIS un second formateur) quand la chip « durées » est allumee ;
+   label seul sinon ou si end <= start ; label vide -> la duree seule. */
+function dzmTlH(raw,total){
+  var t=typeof total==="number"?total:Number(total);
+  if(!(t>0)||t===Infinity)return null;
+  var n=dzmClamp(raw,.3*t,.7*t,NaN);
+  return n!==n?null:Math.round(n)}
+function dzmDurLbl(label,start,end,on){
+  var l=label==null?"":String(label),d=Number(end)-Number(start);
+  if(!on||!(d>0))return l;
+  var txt=dzmDurTxt(d);
+  return l?l+" · "+txt:txt}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,
@@ -19471,6 +19510,8 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   finStore:dzmFinStore,finOf:dzmFinOf,
   /* E-8 (lot E-B, tache 6) : la largeur de l'inspecteur bornee */
   clamp:dzmClamp,inspW:dzmInspW,
+  /* E-9 (lot E-B, tache 7) : la hauteur de la timeline bornee, la duree sur le label */
+  tlH:dzmTlH,durLbl:dzmDurLbl,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;
 

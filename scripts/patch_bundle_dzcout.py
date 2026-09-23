@@ -332,7 +332,15 @@ STABLE_PROBES = [
     # (R_M13, `:null,`) et la chip (R_EB2, qui ne fait que setInspSt) n en
     # ajoutent aucune. MESURE : la chaine a refuse, « sonde montage x119
     # (want 117) », avant cette ligne.
-    ("montage", "DzTracks", 119),
+    # 23/09/2026, E-9 (lot E-B, tache 7) : 119 -> 122. TROIS de plus, TOUS
+    # dans des replis : `tlH(` dans l effet de montage qui borne la cle lue
+    # sur .dzsvm.clientHeight (EB7a, repli R_EB6B), `tlH(` a chaque mouvement
+    # de la poignee tlDown (EB7a, meme repli), et `durLbl(` sur le label du
+    # clip (repli R_M16D, ancre consommee par M16d). EB7b (la poignee et le
+    # data-h de .svm-tl) et la chip « durées » (R_EB2, qui ne fait que
+    # setShowDur) n en ajoutent aucune. MESURE : la chaine a refuse, « sonde
+    # montage x122 (want 119) », avant cette ligne.
+    ("montage", "DzTracks", 122),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

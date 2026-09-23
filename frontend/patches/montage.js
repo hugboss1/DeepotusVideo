@@ -6490,6 +6490,29 @@ function dzmClamp(v,lo,hi,def){
   if(n!==n||n===Infinity||n===-Infinity)return def;
   return Math.min(hi,Math.max(lo,n))}
 function dzmInspW(raw){return Math.round(dzmClamp(raw,260,480,300))}
+/* E-9 (lot E-B, tache 7, 23/09/2026) — LA HAUTEUR DE LA TIMELINE ET LA DUREE
+   SUR LES CLIPS. L'hote (EB7a, repli R_EB6B) lit la cle dz_svm_tlh au montage
+   puis, dans un effet, la borne sur la hauteur MESUREE de .dzsvm ; la poignee
+   (EB7b, AU-DESSUS de la timeline : tirer vers le haut agrandit) pose
+   startH+(startY-clientY) a chaque pointermove : tout passe ICI. Bornes 30..70 %
+   du total (conception E-9) ; `null` = « aucun choix » : l'hote ne pose ni
+   data-h ni height, et le plafond historique (.dzsvm .svm-tl{max-height:48vh},
+   montage.css:18) reste — la conception (30–70 %) et ce plafond sont
+   incompatibles, le plan tranche par `[data-h]` (affirmation demente n°5).
+   Total inconnu (<= 0, non fini) -> null aussi : au montage, .dzsvm n'est pas
+   encore mesuree. dzmDurLbl : `label · m:ss` par dzmDurTxt (svmRuler du
+   bundle, JAMAIS un second formateur) quand la chip « durées » est allumee ;
+   label seul sinon ou si end <= start ; label vide -> la duree seule. */
+function dzmTlH(raw,total){
+  var t=typeof total==="number"?total:Number(total);
+  if(!(t>0)||t===Infinity)return null;
+  var n=dzmClamp(raw,.3*t,.7*t,NaN);
+  return n!==n?null:Math.round(n)}
+function dzmDurLbl(label,start,end,on){
+  var l=label==null?"":String(label),d=Number(end)-Number(start);
+  if(!on||!(d>0))return l;
+  var txt=dzmDurTxt(d);
+  return l?l+" · "+txt:txt}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,
@@ -6585,5 +6608,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   finStore:dzmFinStore,finOf:dzmFinOf,
   /* E-8 (lot E-B, tache 6) : la largeur de l'inspecteur bornee */
   clamp:dzmClamp,inspW:dzmInspW,
+  /* E-9 (lot E-B, tache 7) : la hauteur de la timeline bornee, la duree sur le label */
+  tlH:dzmTlH,durLbl:dzmDurLbl,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;

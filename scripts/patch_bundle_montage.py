@@ -1532,7 +1532,12 @@ R_M16C = (
 # comme cette rangée ; `tr` et `c` sont les variables de la boucle de pistes.
 A_M16D = ('                      r.jsx("div",{className:"svm-cliplabel",'
           'children:c.label}),')
-R_M16D = (A_M16D + '\n'
+# E-9 (lot E-B, tache 7, 23/09/2026) — REPLI : le label du clip passe par
+# DzTracks.durLbl (« label · m:ss » quand la chip « durées » est allumee, le
+# label seul sinon) ; l'ancre A_M16D est CONSOMMEE par M16d (0 dans le livre),
+# le remplacement la reprenait en tete : c'est cette tete qui change.
+R_M16D = (A_M16D.replace('children:c.label}),',
+                         'children:DzTracks.durLbl(c.label,c.start,c.end,showDur)}),') + '\n'
           '                      /* P9 — signalé AVANT le rendu, pas après son\n'
           '                         400 : ce plan n\'est pas une vidéo. */\n'
           '                      (c.tr==="v1"&&'
@@ -4297,6 +4302,17 @@ _EB_GARDE = ('if(proj.demo){fireNote("Ajout d\'assets : disponible sur un projet
 # Elle ne parle pas a la couche : la sonde de dzcout ne bouge pas ici.
 _EB6_CHIP = ('        /* E-8 : l\'inspecteur a bascule — REPLI dans R_EB2 (l\'ancre de « sons » est\n           consommee par EB2) ; la poignee et la memoire vivent dans EB6a/EB6b */\n        r.jsx("button",{className:"svm-themechip svm-inspchip","data-on":inspOn?"":void 0,\n          "aria-pressed":inspOn,\n          title:"Inspecteur — replier ou rouvrir la colonne de droite (le lecteur prend la place)",\n          onClick:function(){setInspSt(function(s){var n={on:!s.on,w:s.w};try{localStorage.setItem("dz_svm_insp",JSON.stringify(n))}catch(_e){}return n})},children:"inspecteur"}),\n')
 
+# ── EB7c (E-9, lot E-B tache 7, 23/09/2026) : LA CHIP « durées » — REPLI
+# dans R_EB2 apres « inspecteur » (meme raison qu'EB6c : l'ancre de « sons »
+# est consommee par EB2). Bascule showDur par setter fonctionnel et persiste
+# "1"/"0" dans dz_svm_showdur (try/catch). Elle ne parle pas a la couche :
+# c'est le repli R_M16D (le label du clip) qui appelle durLbl.
+_EB7_CHIP = ('        /* E-9 : durées sur les clips — REPLI dans R_EB2 (même ancre consommée qu\'E-8) */\n'
+             '        r.jsx("button",{className:"svm-themechip svm-durchip","data-on":showDur?"":void 0,\n'
+             '          "aria-pressed":showDur,\n'
+             '          title:"Durées — afficher la durée de chaque clip à côté de son nom",\n'
+             '          onClick:function(){setShowDur(function(v){var n=!v;try{localStorage.setItem("dz_svm_showdur",n?"1":"0")}catch(_e){}return n})},children:"durées"}),\n')
+
 A_EB2 = ('        /* tiroir Sons (DzSfx) — chip jumelle de « narration », les deux '
          'tiroirs\n'
          '           sont exclusifs ; sans la couche DzSfx la chip n\'existe pas */\n'
@@ -4314,6 +4330,7 @@ R_EB2 = ('        /* E-2 : tiroir Médias — les rendus vidéo terminés, pagin
          '          onClick:function(){' + _EB_GARDE + 'setMedTr("");setMedOn(!medOn);setSfxOn(!1);'
          'setSubsOn(!1);setNarrOn(!1)},children:"médias"}),\n'
          + _EB6_CHIP
+         + _EB7_CHIP
          + A_EB2)
 
 # ── EB2b..EB2f (E-2) : LES CINQ PORTES DES AUTRES TIROIRS FERMENT MEDIAS ──
@@ -4434,6 +4451,38 @@ R_EB6A = ('      inspOn?r.jsxs("aside",{className:"svm-insp",style:{width:inspW}
 # centaines d'ecritures). `last` garde la derniere largeur bornee : un
 # pointercancel sans coordonnees ne vaut pas « geste nul ». MESURE : `stA`
 # est libre (1/0/1, EB1 ayant pris `stO`) ; stDzFin (R_M16REF) vient APRES.
+# ── EB7a (E-9, lot E-B tache 7, 23/09/2026) : LES ETATS tlH ET showDur, ET
+# LA POIGNEE tlDown — REPLI dans R_EB6B (l'ancre `stA` est NEE d'un
+# remplacement : EB6b l'a reprise en tete, une section a part passerait
+# `--check` puis abandonnerait au rejeu, meme mesure que TT9b dans R_M13).
+# `tlH` : la cle dz_svm_tlh lue BRUTE au montage (Number, null si vide, 0 ou
+# NaN) — la hauteur de .dzsvm n'est pas connue avant le premier rendu — puis
+# BORNEE dans un effet de montage ([]) sur .dzsvm.clientHeight par
+# DzTracks.tlH (30..70 %, null sinon) : la forme la plus simple qui borne
+# toujours (une cle corrompue ou une fenetre plus petite qu'hier ne rend pas
+# une timeline hors bornes). `showDur` : "1"/"0". `tlDown` copie le motif
+# WINDOW d'inspDown (trois ecouteurs retires au relachement, bouton gauche
+# seul, persistance au relachement seulement) ; la poignee est le FRERE
+# PRECEDENT de .svm-tl (EB7b) : `e.currentTarget.nextElementSibling` donne
+# la hauteur de depart quand aucun choix n'est pose (tlH null -> la hauteur
+# rendue par le plafond historique) ; tirer vers le HAUT agrandit.
+_EB7_ETAT = ('\n'
+             '  /* E-9 : la timeline — hauteur choisie (dz_svm_tlh, 30–70 % de .dzsvm) et durées sur les clips (dz_svm_showdur) */\n'
+             '  var stTl=x.useState(function(){try{var v=Number(localStorage.getItem("dz_svm_tlh"));return v>0?v:null}catch(_e){return null}}),'
+             'tlH=stTl[0],setTlH=stTl[1];\n'
+             '  x.useEffect(function(){var el=document.querySelector(".dzsvm");if(el&&tlH!=null)setTlH(DzTracks.tlH(tlH,el.clientHeight))},[]);\n'
+             '  var stSd=x.useState(function(){try{return localStorage.getItem("dz_svm_showdur")==="1"}catch(_e){return !1}}),'
+             'showDur=stSd[0],setShowDur=stSd[1];\n'
+             '  function tlDown(e){if(e.button!==0)return;e.preventDefault();\n'
+             '    var sy=e.clientY,el=document.querySelector(".dzsvm"),total=el?el.clientHeight:0,'
+             'tl=e.currentTarget.nextElementSibling,sh=tlH||(tl?tl.offsetHeight:0),w=window,last=tlH;\n'
+             '    function mv(ev){last=DzTracks.tlH(sh+(sy-ev.clientY),total);setTlH(last)}\n'
+             '    function up(){w.removeEventListener("pointermove",mv);w.removeEventListener("pointerup",up);'
+             'w.removeEventListener("pointercancel",up);\n'
+             '      try{if(last!=null)localStorage.setItem("dz_svm_tlh",String(last))}catch(_e){}}\n'
+             '    w.addEventListener("pointermove",mv);w.addEventListener("pointerup",up);'
+             'w.addEventListener("pointercancel",up)}')
+
 A_EB6B = '  var stA=x.useState(""),pop=stA[0],setPop=stA[1];'
 R_EB6B = (A_EB6B + '\n'
           '  /* E-8 : l\'inspecteur — ouvert ? largeur 260–480 (mémoire dz_svm_insp) */\n'
@@ -4447,7 +4496,22 @@ R_EB6B = (A_EB6B + '\n'
           'w.removeEventListener("pointercancel",up);\n'
           '      try{localStorage.setItem("dz_svm_insp",JSON.stringify({on:!0,w:last}))}catch(_e){}}\n'
           '    w.addEventListener("pointermove",mv);w.addEventListener("pointerup",up);'
-          'w.addEventListener("pointercancel",up)}')
+          'w.addEventListener("pointercancel",up)}'
+          + _EB7_ETAT)
+
+# ── EB7b (E-9, lot E-B tache 7, 23/09/2026) : LA POIGNEE AU-DESSUS DE LA
+# TIMELINE, `data-h` ET LA HAUTEUR INLINE. MESURE (.bak:5218) : la racine de
+# .svm-tl a QUATRE espaces (le plan en ecrivait six : ECART date), libre
+# 1/0/1. La poignee est le FRERE PRECEDENT de .svm-tl (soeurs sous
+# .dzsvm.svm-col, apres .svm-mid) : tirer vers le HAUT agrandit la timeline
+# (startH + (startY - clientY)). `data-h` est le temoin mesurable a l'ecran
+# et le selecteur de la feuille (`.dzsvm .svm-tl[data-h]{max-height:none;
+# min-height:0}`) ; sans choix (tlH null) ni data-h ni height : le plafond
+# historique de montage.css:18 reste (affirmation dementie n°5 du plan).
+A_EB7B = '    r.jsxs("div",{className:"svm-tl",children:['
+R_EB7B = ('    r.jsx("div",{className:"svm-tlhandle",onPointerDown:tlDown,'
+          'title:"Glisser pour régler la hauteur de la timeline (30–70 %)"}),\n'
+          '    r.jsxs("div",{className:"svm-tl","data-h":tlH||void 0,style:tlH?{height:tlH}:void 0,children:[')
 
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
@@ -4673,7 +4737,8 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("EB5b-popover-arrete-le-clic", A_EB5B, R_EB5B),
            # E-8 (tache 6) : deux sections ; la fermeture (R_M13) et la chip (R_EB2) sont replies.
            ("EB6a-inspecteur-a-bascule-et-poignee", A_EB6A, R_EB6A),
-           ("EB6b-etat-et-poignee-de-l-inspecteur", A_EB6B, R_EB6B)]
+           ("EB6b-etat-et-poignee-de-l-inspecteur", A_EB6B, R_EB6B),
+           ("EB7b-poignee-de-la-timeline-et-data-h", A_EB7B, R_EB7B)]
 
 
 def nl(text, crlf):

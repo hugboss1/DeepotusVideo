@@ -31,7 +31,24 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 23/09/2026 (lot E-B, tache 6, E-8 inspecteur) :
+COMPTE DE REFERENCE, 23/09/2026 (lot E-B, tache 7, E-9 separateur et durees) :
+1879 lignes, soit DIX-NEUF de plus que les 1860 d'E-8 : les TROIS lignes que
+la boucle sur `P.PATCHES` emet seule pour la section EB7b (`_remplace`,
+`couche_ne_cite_pas_l_ancre_de_`, `_ancre_consommee`) et la section [EB]
+E-9 en queue (SEIZE pins : la poignee FRERE PRECEDENT de .svm-tl avec
+data-h + hauteur inline (ancre a QUATRE espaces, le plan en ecrivait six),
+les etats tlH/showDur et l'effet de montage qui borne la cle lue sur
+.dzsvm.clientHeight en queue de R_EB6B (ancre nee du remplacement EB6b),
+la poignee tlDown (motif window d'inspDown, nextElementSibling, pas de
+setPointerCapture), les cles dz_svm_tlh x2 / dz_svm_showdur x2, le label
+du clip par durLbl (repli R_M16D, ancre consommee par M16d), la chip
+« durées » entre « inspecteur » et « sons » (repli R_EB2), sept noms
+libres, la feuille ([data-h] leve le plafond, la regle historique
+max-height:48vh CONSERVEE, poignee row-resize), la couche sans second
+formateur). REALIGNES : la queue pinnee (…EB6b puis EB7b ; sonde 122 = 119
++ tlH x2 + durLbl x1), D3_ecart (row-resize exclu nommement avec temoin).
+
+COMPTE PRECEDENT, 23/09/2026 (lot E-B, tache 6, E-8 inspecteur) :
 1860 lignes, soit VINGT de plus que les 1840 d'E-11 : les CINQ lignes que
 la boucle sur `P.PATCHES` emet seule pour les DEUX sections EB6a, EB6b
 (deux `_remplace`, deux `couche_ne_cite_pas_l_ancre_de_`, UN
@@ -13209,12 +13226,16 @@ _MC_CURS = [_l.strip() for _l in _MC.splitlines() if "cursor:" in _l]
 # pas le curseur contextuel de CLIP (slip/slide) que l'ecart D-3 date. La
 # ligne l'EXCLUT nommement et exige qu'elle EXISTE (temoin : sans lui,
 # l'exclusion serait creuse et l'ecart D-3 mal mesure).
+# E-9 (lot E-B, tache 7, 23/09/2026) : la POIGNEE DE LA TIMELINE porte
+# `cursor:row-resize` (.svm-tlhandle) -- meme statut, exclue nommement avec
+# temoin d'existence.
 check("D3_ecart_aucun_curseur_contextuel_dans_la_feuille",
       len(_MC_CURS) > 0
       and not [_l for _l in _MC_CURS
-               if ("col-resize" in _l or "ew-resize" in _l or "slip" in _l)
-               and "svm-insphandle" not in _l]
-      and len([_l for _l in _MC_CURS if "svm-insphandle" in _l and "col-resize" in _l]) == 1,
+               if ("col-resize" in _l or "ew-resize" in _l or "row-resize" in _l or "ns-resize" in _l or "slip" in _l)
+               and "svm-insphandle" not in _l and "svm-tlhandle" not in _l]
+      and len([_l for _l in _MC_CURS if "svm-insphandle" in _l and "col-resize" in _l]) == 1
+      and len([_l for _l in _MC_CURS if "svm-tlhandle" in _l and "row-resize" in _l]) == 1,
       f"ecart assume ; curseurs de la feuille : {_MC_CURS}")
 
 # LE COEUR PUR EST EXPORTE ET C'EST LUI QUE LE BUNDLE APPELLE : la couche
@@ -15064,16 +15085,22 @@ _DZ_I = _DZ_TAGS.index("EA6-bandeau-ferme-au-lancement")
 # (ancre de « sons » consommee par EB2) sont des REPLIS (R_M13, R_EB2) ;
 # sonde 119 = 117 + inspW x2 (la lecture de la cle au montage et la poignee,
 # toutes deux dans EB6b ; la chip ne parle pas a la couche).
-check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB6b_en_queue_apres_EA6_et_la_sonde_dit_119",
+# E-9 (lot E-B, tache 7) : UNE section EB7b (la racine de .svm-tl, libre 1/0/1
+# a QUATRE espaces -- le plan en ecrivait six) ; les etats tlH/showDur et la
+# poignee tlDown (EB7a), le label du clip et la chip « durées » sont des
+# REPLIS (R_EB6B, R_M16D, R_EB2 : ancres nees d'un remplacement ou consommees) ;
+# sonde 122 = 119 + tlH x2 (l'effet de montage qui borne la cle lue, la
+# poignee) + durLbl x1 (le label du clip, R_M16D).
+check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB7b_en_queue_apres_EA6_et_la_sonde_dit_122",
       [t.split("-")[0] for t in _DZ_TAGS[_DZ_I + 1:]] == ["DZ1", "DZ2", "DZ3", "DZ4",
                                                           "KF1", "KF2", "KF2b", "KF2c", "KF3a", "KF3b", "KF3c", "KF4", "KF5",
                                                           "AJ2a", "AJ2b", "AJ6a", "AJ6b", "AJ7",
                                                           "EB1", "EB2", "EB2b", "EB2c", "EB2d", "EB2e", "EB2f", "EB3",
-                                                          "EB4", "EB5a", "EB5b", "EB6a", "EB6b"]
+                                                          "EB4", "EB5a", "EB5b", "EB6a", "EB6b", "EB7b"]
       and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
               and s.count(nl(a)) == (1 if a in r else 0)
               for _t, a, r in P.PATCHES[_DZ_I + 1:])
-      and _sonde.get("montage") == 119 and s.count("DzTracks") == 119
+      and _sonde.get("montage") == 122 and s.count("DzTracks") == 122
       if _bak else False,
       f"queue={_DZ_TAGS[_DZ_I + 1:]} sonde={_sonde.get('montage')} bundle={s.count('DzTracks')}")
 
@@ -15899,6 +15926,136 @@ check("EB6_la_couche_exporte_clamp_et_inspW",
       and src.count("function dzmInspW(") == 1 and s.count("function dzmInspW(") == 1
       and s.count("clamp:dzmClamp,inspW:dzmInspW,") == 1,
       f"exports={src.count('clamp:dzmClamp,inspW:dzmInspW,')}")
+
+# ══════════════════════════════════════════════════════════════════════════
+print("\n[EB] E-9 : le separateur lecteur/timeline (poignee 30-70 %, data-h, memoire) et la duree sur les clips")
+# MESURES du 23/09/2026 (T7) : la racine de .svm-tl (`    r.jsxs("div",
+# {className:"svm-tl",children:[`, .bak:5218) est LIBRE (1/0/1) et porte
+# QUATRE espaces -- le plan en ecrivait six : ECART date -> section EB7b, la
+# poignee devient le FRERE PRECEDENT de .svm-tl (tirer vers le haut agrandit).
+# Les etats tlH/showDur et la poignee tlDown vivent sur `stA`, ancre NEE du
+# remplacement EB6b -> REPLI en queue de R_EB6B (EB7a). Le label du clip est
+# consomme par M16d -> REPLI dans R_M16D (durLbl). La chip « durées » : l'ancre
+# de « sons » est consommee par EB2 -> REPLI dans R_EB2 apres « inspecteur ».
+_EB9_A = '    r.jsxs("div",{className:"svm-tl",children:['
+_EB9_R = ('    r.jsx("div",{className:"svm-tlhandle",onPointerDown:tlDown,'
+          'title:"Glisser pour régler la hauteur de la timeline (30–70 %)"}),\n'
+          '    r.jsxs("div",{className:"svm-tl","data-h":tlH||void 0,style:tlH?{height:tlH}:void 0,children:[')
+check("EB7b_la_poignee_precede_svm_tl_qui_porte_data_h_et_sa_hauteur_inline_ancre_a_quatre_espaces",
+      s.count(nl(_EB9_A)) == 0 and s.count(nl(_EB9_R)) == 1 and s.count(nl("    /* timeline */\n" + _EB9_R)) == 1
+      and s.count("svm-tlhandle") == 1 and src.count("svm-tlhandle") == 0
+      and s.count('"data-h":tlH||void 0') == 1 and s.count("style:tlH?{height:tlH}:void 0") == 1
+      and s.count(nl('className:"svm-tl"')) == 1
+      and getattr(P, "A_EB7B", None) == _EB9_A and getattr(P, "R_EB7B", None) == _EB9_R
+      and _EB9_A.startswith("    r.jsxs") and not _EB9_A.startswith("      ")
+      and ("EB7b-poignee-de-la-timeline-et-data-h", _EB9_A, _EB9_R) in P.PATCHES
+      and (_bak.count(_nlb(_EB9_A)) == 1 and _bak.count("svm-tlhandle") == 0 and _bak.count('"data-h"') == 0 if _bak else False),
+      f"ancre={s.count(nl(_EB9_A))} neuf={s.count(nl(_EB9_R))} poignee={s.count('svm-tlhandle')} bak={_bak.count(_nlb(_EB9_A)) if _bak else '?'}")
+# EB7a : LES ETATS, en queue de R_EB6B (apres inspDown, avant stDzFin). tlH est
+# lu BRUT (Number, null si vide/0/NaN), puis BORNE dans un effet de montage
+# sur .dzsvm.clientHeight par DzTracks.tlH -- la hauteur n'est pas connue avant
+# le premier rendu ; showDur est "1"/"0".
+_EB9_ST = ('  var stTl=x.useState(function(){try{var v=Number(localStorage.getItem("dz_svm_tlh"));return v>0?v:null}catch(_e){return null}}),'
+           'tlH=stTl[0],setTlH=stTl[1];')
+_EB9_EF = 'x.useEffect(function(){var el=document.querySelector(".dzsvm");if(el&&tlH!=null)setTlH(DzTracks.tlH(tlH,el.clientHeight))},[]);'
+_EB9_SD = ('  var stSd=x.useState(function(){try{return localStorage.getItem("dz_svm_showdur")==="1"}catch(_e){return !1}}),'
+           'showDur=stSd[0],setShowDur=stSd[1];')
+_EB9_ETAT = getattr(P, "_EB7_ETAT", ""); _R6B9 = getattr(P, "R_EB6B", "")
+_iIn9 = s.find(nl("  function inspDown(e){")); _iTl9 = s.find(nl(_EB9_ST)); _iEf9 = s.find(nl(_EB9_EF))
+_iSd9 = s.find(nl(_EB9_SD)); _iDn9 = s.find(nl("  function tlDown(e){")); _iFin9 = s.find("var stDzFin=x.useState(null)")
+check("EB7a_les_etats_tlH_et_showDur_et_la_poignee_naissent_en_queue_de_R_EB6B_apres_inspDown_avant_stDzFin",
+      s.count(nl(_EB9_ST)) == 1 and s.count(nl(_EB9_EF)) == 1 and s.count(nl(_EB9_SD)) == 1
+      and bool(_EB9_ETAT) and _R6B9.endswith(_EB9_ETAT) and _EB9_ST in _EB9_ETAT and _EB9_EF in _EB9_ETAT and _EB9_SD in _EB9_ETAT
+      and 0 < _iIn9 < _iTl9 < _iEf9 < _iSd9 < _iDn9 < _iFin9
+      and s.count("x.useEffect(") >= 90,   # temoin : la forme `x.useEffect(...,[])` est celle du bundle
+      f"stTl={_iTl9} effet={_iEf9} stSd={_iSd9} tlDown={_iDn9} stDzFin={_iFin9} inspDown={_iIn9}")
+# LA POIGNEE : copie du motif window d'inspDown (bouton gauche, trois ecouteurs
+# retires, borne a chaque mouvement par DzTracks.tlH, persistance au relachement
+# seulement, jamais setPointerCapture) ; le total est .dzsvm.clientHeight, la
+# hauteur de depart celle du frere suivant (.svm-tl) quand aucun choix n'est pose.
+_iDnE9 = min([v for v in (s.find(nl("\n  var "), _iDn9 + 1), s.find(nl("\n  function "), _iDn9 + 1)) if v >= 0] or [-1]) if _iDn9 >= 0 else -1
+_TD = s[_iDn9:_iDnE9] if 0 <= _iDn9 < _iDnE9 else ""
+check("EB7a_tlDown_ecoute_window_retire_ses_trois_ecouteurs_borne_par_tlH_sur_dzsvm_et_persiste_au_relachement",
+      0 < len(_TD) < 1200 and _TD.count("function tlDown(e){if(e.button!==0)return;e.preventDefault();") == 1
+      and _TD.count('w.addEventListener("pointermove",mv)') == 1 and _TD.count('w.removeEventListener("pointermove",mv)') == 1
+      and _TD.count('w.addEventListener("pointerup",up)') == 1 and _TD.count('w.removeEventListener("pointerup",up)') == 1
+      and _TD.count('w.addEventListener("pointercancel",up)') == 1 and _TD.count('w.removeEventListener("pointercancel",up)') == 1
+      and _TD.count('el=document.querySelector(".dzsvm"),total=el?el.clientHeight:0,') == 1
+      and _TD.count("tl=e.currentTarget.nextElementSibling,sh=tlH||(tl?tl.offsetHeight:0),w=window,last=tlH;") == 1
+      and _TD.count("last=DzTracks.tlH(sh+(sy-ev.clientY),total);setTlH(last)") == 1
+      and _TD.count('try{if(last!=null)localStorage.setItem("dz_svm_tlh",String(last))}catch(_e){}') == 1
+      and "setPointerCapture" not in _TD and s.count("setPointerCapture") >= 10
+      and s.count(nl("  function tlDown(e){")) == 1 and "function tlDown(e){" in _EB9_ETAT,
+      f"corps={len(_TD)} o capture={s.count('setPointerCapture')}")
+# LES CLES : dz_svm_tlh x2 (1 lecture, 1 ecriture au relachement), dz_svm_showdur
+# x2 (1 lecture, 1 ecriture par la chip), ZERO dans .bak ; la couche ne les
+# lit pas (elle nomme dz_svm_tlh dans un commentaire : compte AVEC guillemets).
+# tlH x2 + durLbl x1 -> la sonde monte de trois.
+check("EB7_les_cles_dz_svm_tlh_et_dz_svm_showdur_x2_chacune_tlH_x2_durLbl_x1",
+      s.count('"dz_svm_tlh"') == 2 and s.count('localStorage.getItem("dz_svm_tlh")') == 1 and s.count('localStorage.setItem("dz_svm_tlh",') == 1
+      and s.count('"dz_svm_showdur"') == 2 and s.count('localStorage.getItem("dz_svm_showdur")') == 1
+      and s.count('localStorage.setItem("dz_svm_showdur",') == 1
+      and s.count("DzTracks.tlH(") == 2 and s.count("DzTracks.durLbl(") == 1
+      and src.count('"dz_svm_tlh"') == 0 and src.count('"dz_svm_showdur"') == 0 and src.count("dz_svm_tlh") == 1
+      and (_bak.count("dz_svm_tlh") == 0 and _bak.count("dz_svm_showdur") == 0 and _bak.count("dz_svm_insp") == 0 if _bak else False),
+      f"tlh={s.count(chr(34) + 'dz_svm_tlh' + chr(34))} showdur={s.count(chr(34) + 'dz_svm_showdur' + chr(34))} "
+      f"tlH={s.count('DzTracks.tlH(')} durLbl={s.count('DzTracks.durLbl(')}")
+# LE LABEL DU CLIP (repli R_M16D, ancre consommee par M16d : 1 dans .bak, 0
+# dans le livre) : `children:c.label` devient `children:DzTracks.durLbl(...)`.
+_EB9_LBL = 'r.jsx("div",{className:"svm-cliplabel",children:DzTracks.durLbl(c.label,c.start,c.end,showDur)}),'
+check("EB7_le_label_du_clip_passe_par_durLbl_repli_R_M16D_ancre_consommee_par_M16d",
+      s.count(nl(_EB9_LBL)) == 1 and s.count('className:"svm-cliplabel",children:c.label}),') == 0
+      and s.count('className:"svm-cliplabel"') == 1
+      and P.R_M16D.startswith("                      " + _EB9_LBL + "\n") and P.A_M16D.endswith('children:c.label}),')
+      and s.count(nl(P.A_M16D)) == 0 and s.count(nl(P.R_M16D)) == 1
+      and (_bak.count(_nlb(P.A_M16D)) == 1 and _bak.count("durLbl") == 0 if _bak else False),
+      f"label={s.count(nl(_EB9_LBL))} vieux={s.count('children:c.label}),')} bak={_bak.count(_nlb(P.A_M16D)) if _bak else '?'}")
+# LA CHIP (repli R_EB2) : famille svm-themechip, data-on + aria-pressed sur
+# showDur, APRES « inspecteur » et AVANT « sons » ; bascule par setter
+# fonctionnel et persiste "1"/"0" ; elle ne parle pas a la couche.
+_EB9_CHIP = ('r.jsx("button",{className:"svm-themechip svm-durchip","data-on":showDur?"":void 0,\n'
+             '          "aria-pressed":showDur,\n'
+             '          title:"Durées — afficher la durée de chaque clip à côté de son nom",\n'
+             '          onClick:function(){setShowDur(function(v){var n=!v;try{localStorage.setItem("dz_svm_showdur",n?"1":"0")}catch(_e){}return n})},children:"durées"}),')
+_iInsp9 = s.find(nl('children:"inspecteur"}),')); _iChip9 = s.find(nl(_EB9_CHIP)); _iSfx9 = s.find(nl('className:"svm-themechip svm-sfxchip"'))
+check("EB7c_la_chip_durees_est_un_repli_de_R_EB2_entre_inspecteur_et_sons_et_persiste_1_ou_0",
+      s.count(nl(_EB9_CHIP)) == 1 and _EB9_CHIP in P.R_EB2 and s.count("svm-durchip") == 1
+      and 0 < _iInsp9 < _iChip9 < _iSfx9 and "DzTracks" not in _EB9_CHIP
+      and P.R_EB2.endswith(P.A_EB2) and s.count(nl(P.R_EB2)) == 1
+      and (_bak.count("svm-durchip") == 0 and _bak.count("svm-sfxchip") == 1 if _bak else False),
+      f"chip={s.count(nl(_EB9_CHIP))} inspecteur={_iInsp9} chip_i={_iChip9} sons={_iSfx9}")
+for _nm9 in ("tlH", "setTlH", "stTl", "showDur", "setShowDur", "stSd", "tlDown"):
+    _nb9 = _libre21(_nm9, _bak if _bak else None)
+    check("EB_nom_" + _nm9 + "_etait_libre_dans_le_bundle_d_entree",
+          _nb9 == 0 and _libre21(_nm9, s) >= 1,
+          f"{_nm9} apparait {_nb9}x dans .bak_montage, {_libre21(_nm9, s)}x dans le bundle")
+# LA FEUILLE : `[data-h]` leve le plafond 48vh ET le plancher 356 (specificite
+# (0,2,1) > (0,2,0), et la regle vient APRES la ligne 18) ; la regle historique
+# est CONSERVEE telle quelle (sans choix, c'est elle qui decide) ; la poignee
+# 6 px row-resize, --accent au survol ; l'amont ne connait ni la poignee ni
+# data-h (temoin : sa regle .svm-tl{ est lue une fois).
+_EB9_CSS = _lire(ROOT / "frontend" / "dist" / "shared" / "montage.css")
+_EB9_AM = _lire(ROOT / "frontend" / "dist" / "shared" / "son-vfx-montage.css")
+_EB9_HIST = ".dzsvm .svm-tl{height:auto; min-height:356px; max-height:48vh}"
+_iHist9 = _EB9_CSS.find(_EB9_HIST); _iDh9 = _EB9_CSS.find(".dzsvm .svm-tl[data-h]{max-height:none;min-height:0}")
+check("EB7_la_feuille_leve_le_plafond_sous_data_h_garde_la_regle_historique_et_dessine_la_poignee_row_resize",
+      _EB9_CSS.count(_EB9_HIST) == 1 and _EB9_CSS.count(".dzsvm .svm-tl[data-h]{max-height:none;min-height:0}") == 1
+      and 0 < _iHist9 < _iDh9 and _EB9_CSS.count("max-height:none") == 1 and _EB9_CSS.count("max-height:48vh") >= 1
+      and _EB9_CSS.count(".dzsvm .svm-tlhandle{height:6px;flex:none;cursor:row-resize;touch-action:none}") == 1
+      and _EB9_CSS.count(".dzsvm .svm-tlhandle:hover{background:var(--accent)}") == 1
+      and _EB9_CSS.count("svm-tlhandle") == 2 and "E-9" in _EB9_CSS and "row-resize" in _EB9_CSS
+      and _EB9_AM.count("svm-tlhandle") == 0 and _EB9_AM.count("[data-h]") == 0 and _EB9_AM.count(".svm-tl{") == 1
+      and "max-height:48vh" in _EB9_AM,
+      f"hist={_EB9_CSS.count(_EB9_HIST)} data_h={_EB9_CSS.count('[data-h]')} poignee={_EB9_CSS.count('svm-tlhandle')} none={_EB9_CSS.count('max-height:none')}")
+# LA COUCHE : les deux fonctions pures sont exportees et vivent dans le bloc ;
+# AUCUN second formateur de temps (temoin : dzmDurTxt declare UNE fois, svmRuler
+# du bundle declare UNE fois).
+check("EB7_la_couche_exporte_tlH_et_durLbl_sans_second_formateur",
+      src.count("tlH:dzmTlH,durLbl:dzmDurLbl,") == 1 and s.count("tlH:dzmTlH,durLbl:dzmDurLbl,") == 1
+      and s.count("function dzmTlH(") == 1 and s.count("function dzmDurLbl(") == 1
+      and s.count("function dzmDurTxt(") == 1 and s.count("function svmRuler(") == 1
+      and s.count("function dzmTc") == 0 and s.count("function dzmRuler") == 0 and s.count("function dzmMmss") == 0,
+      f"exports={s.count('tlH:dzmTlH,durLbl:dzmDurLbl,')} durTxt={s.count('function dzmDurTxt(')}")
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

@@ -688,8 +688,28 @@ out.finst_bornes=[Object.keys(T.finStore({},"",{job_id:"k",name:"m",at:2})),T.fi
 out.insp=[T.inspW("999"),T.inspW("abc"),T.inspW(261),T.inspW(null),T.inspW(""),T.inspW(void 0),T.inspW(-5),T.inspW(480.4),T.inspW(" 300 ")];
 out.clamp=[T.clamp(5,0,10,7),T.clamp(-1,0,10,7),T.clamp(11,0,10,7),T.clamp(NaN,0,10,7),T.clamp(Infinity,0,10,7),T.clamp(-Infinity,0,10,7),
   T.clamp("3",0,10,7),T.clamp(null,0,10,7),T.clamp({},0,10,7),T.clamp(0,0,10,7),T.clamp(10,0,10,7)];
+/* E-9 (lot E-B, tache 7, 23/09/2026) : la hauteur de la timeline bornee 30..70 % du total, null sans choix
+   (= plafond historique) ; la duree sur le label du clip par le formateur svmRuler DU BUNDLE, que le banc
+   EXTRAIT de .bak_montage (jamais recopie) et joue ici -- sans lui, durLbl(...,true) leve et le temoin le dit */
+/*E9_RULER*/
+out.tlh=[T.tlH("50",1000),T.tlH("900",1000),T.tlH("",1000),T.tlH("500",0),T.tlH(500,1000),T.tlH("650.4",1000)];
+out.tlh_bornes=[T.tlH(null,1000),T.tlH(void 0,1000),T.tlH("abc",1000),T.tlH(NaN,1000),T.tlH(Infinity,1000),T.tlH(!0,1000),
+  T.tlH("500",-1),T.tlH("500",null),T.tlH("500","abc"),T.tlH("500",Infinity),T.tlH(300,1000),T.tlH(700,1000)];
+out.durlbl=(function(){try{return [T.durLbl("a",0,6,true),T.durLbl("a",0,6,false),T.durLbl("a",6,6,true)]}catch(e){return "leve:"+e}})();
+out.durlbl_bornes=(function(){try{return [T.durLbl("a",4,2,true),T.durLbl("a",0,65,true),T.durLbl("a",0,6.4,true),T.durLbl("a",0,125,!0),
+  T.durLbl("a","0","6",true),T.durLbl("a",0,NaN,true),T.durLbl("a",null,null,true),T.durLbl("",0,6,true)]}catch(e){return "leve:"+e}})();
 console.log(JSON.stringify(out));
 """
+# E-9 : svmRuler / svmPad2 sont des fonctions DU BUNDLE (meme portee module que
+# la couche) : le shim les recoit EXTRAITES de .bak_montage, comme le banc du
+# bundle (P10) les lit -- une copie ici divergerait au premier changement.
+_E9_BAK = os.path.join(ROOT, "frontend", "dist", "assets", "index-BEOJX8L5.js.bak_montage")
+_E9_RULER = ""
+if os.path.isfile(_E9_BAK):
+    with open(_E9_BAK, "rb") as _fh: _bk = _fh.read().decode("utf-8", "replace")
+    _mp = re.search(r"function svmPad2\([^)]*\)\{[^}]*\}", _bk); _mr = re.search(r"function svmRuler\([^)]*\)\{[^}]*\}", _bk)
+    if _mp and _mr: _E9_RULER = _mp.group(0) + "\n" + _mr.group(0)
+PROBE = PROBE.replace("/*E9_RULER*/", _E9_RULER)
 print("\n[1] dzmInsere sous node")
 D = {}
 if not NODE or not os.path.isfile(SRC_PATH):
@@ -891,7 +911,9 @@ try:
                  # E-5 (lot E-B, tache 4) : les CINQ cles du store du dernier rendu.
                  "finst","finst_of","finst_rm","finst_none","finst_bornes",
                  # E-8 (lot E-B, tache 6) : les DEUX cles de la largeur de l'inspecteur.
-                 "insp","clamp"]
+                 "insp","clamp",
+                 # E-9 (lot E-B, tache 7) : les QUATRE cles de la hauteur de la timeline et du label de duree.
+                 "tlh","tlh_bornes","durlbl","durlbl_bornes"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -1707,6 +1729,42 @@ check("insp_coeur_pur_et_inspW_passe_par_clamp_avec_260_480_300",
       {n: len(c) for n, c in _INS.items()})
 check("insp_exports_clamp_inspW_dans_DzTracks",
       len(_DT) > 1000 and _DT.count("clamp:dzmClamp,inspW:dzmInspW,") == 1, len(_DT))
+# ── E-9 (lot E-B, tache 7, 23/09/2026) : LA HAUTEUR DE LA TIMELINE ET LA DUREE SUR LES CLIPS ──
+# L'hote (EB7a, repli R_EB6B) lit localStorage["dz_svm_tlh"] au montage et la
+# poignee (EB7b) pose startH+(startY-clientY) : les deux passent par tlH, qui
+# borne 30..70 % du total (.dzsvm.clientHeight) et rend null -- « aucun choix »,
+# le plafond historique max-height:48vh reste -- sur tout ce qui n'est pas un
+# nombre fini ou quand le total est inconnu (<= 0, non fini).
+check("tlh_borne_30_70_pour_cent_du_total_arrondi_null_sans_choix_ou_sans_total",
+      D.get("tlh") == [300, 700, None, None, 500, 650], D.get("tlh"))
+check("tlh_bornes_null_undefined_nan_infini_booleen_total_negatif_null_ou_non_fini_et_les_bornes_elles_memes",
+      D.get("tlh_bornes") == [None, None, None, None, None, None, None, None, None, None, 300, 700], D.get("tlh_bornes"))
+# le label : « a · 0:06 » par svmRuler (format m:ss du bundle, extrait ici), le label seul
+# quand la chip est eteinte ou que la duree est nulle (end <= start)
+check("durlbl_ajoute_la_duree_m_ss_quand_la_chip_est_allumee_label_seul_sinon_ou_sans_duree",
+      D.get("durlbl") == ["a · 0:06", "a", "a"], D.get("durlbl"))
+# end < start -> label ; 65 s -> 1:05 ; 6,4 s -> 0:06 (arrondi du formateur) ; 125 -> 2:05 ; chaines lues ;
+# NaN / null -> label ; label vide -> la duree seule (pas « · 0:06 » orphelin)
+check("durlbl_bornes_end_avant_start_minutes_arrondi_chaines_nan_null_et_label_vide",
+      D.get("durlbl_bornes") == ["a", "a · 1:05", "a · 0:06", "a · 2:05", "a · 0:06", "a", "a", "0:06"], D.get("durlbl_bornes"))
+# LE COEUR RESTE PUR : ni r.jsx, ni x.use, ni localStorage, ni window, ni document dans les deux corps
+# (temoin de longueur) ; tlH APPELLE clamp (une seule ecriture des bornes) et porte .3 / .7 ; durLbl
+# APPELLE dzmDurTxt (le formateur EXISTANT, qui appelle svmRuler du bundle) -- AUCUN second formateur :
+# la source ne declare qu'UN `function dzmDurTxt(` (temoin) et aucun `function dzmTc` / `dzmRuler` / `dzmMmss`.
+_TLH = {n: _corps(n) for n in ("dzmTlH", "dzmDurLbl")}
+check("tlh_durlbl_coeur_pur_tlH_passe_par_clamp_durLbl_par_dzmDurTxt_aucun_second_formateur",
+      all(len(c) > 60 and not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b", c) for c in _TLH.values())
+      and _TLH["dzmTlH"].count("dzmClamp(") == 1 and ".3*" in _TLH["dzmTlH"] and ".7*" in _TLH["dzmTlH"]
+      and _TLH["dzmDurLbl"].count("dzmDurTxt(") == 1 and "svmRuler" not in _TLH["dzmDurLbl"]
+      and _SRCb.count("function dzmDurTxt(") == 1 and _SRCb.count("svmRuler(") >= 1
+      and all(_SRCb.count(k) == 0 for k in ("function dzmTc", "function dzmRuler", "function dzmMmss", "function dzmPad")),
+      {n: len(c) for n, c in _TLH.items()})
+check("tlh_durlbl_exports_tlH_durLbl_dans_DzTracks",
+      len(_DT) > 1000 and _DT.count("tlH:dzmTlH,durLbl:dzmDurLbl,") == 1, len(_DT))
+# le formateur du bundle a bien ete EXTRAIT (sinon durLbl(...,true) aurait leve et le pin d'au-dessus l'aurait dit)
+check("tlh_le_shim_joue_svmRuler_et_svmPad2_extraits_du_bak_montage",
+      _E9_RULER.count("function svmRuler(") == 1 and _E9_RULER.count("function svmPad2(") == 1
+      and _E9_RULER in PROBE and "/*E9_RULER*/" not in PROBE, len(_E9_RULER))
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)
