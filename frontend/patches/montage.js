@@ -6349,6 +6349,104 @@ function DzmDzRects(o){
         r.jsx("span",{className:"dzm-dzlab",children:k?"fin":"début"}),
         r.jsx("i",{className:"dzm-dzh",onPointerDown:down("scale")})]},k)};
   return r.jsxs("div",{className:"dzm-dzwrap",children:[mk(0),mk(1)]})}
+/* ── E-2 (23/09/2026) : LE TIROIR MÉDIAS — provenance, filtre, liste paginée ──
+   Le tiroir sert les RENDUS VIDÉO (exigence n°1 de E-2) ; images et sons
+   restent au popover « lier » (`ovPicker`) : « le sélecteur devient un
+   tiroir » n'est vrai que pour les vidéos, pour ne pas dupliquer trois
+   fetchs ni rouvrir R_M16C (écart daté 23/09/2026).
+
+   PROVENANCE : aucun provider ne s'appelle « Studio » ni « Chapitres » —
+   les providers mesurés sont seedance, heygen, composition, template, news,
+   episode, ugc, montage, animation, asset3d, sprite2d, card3d (+ NULL, lu
+   « seedance » par le backend). Le groupe affiché est DÉRIVÉ du provider
+   par cette table (comme les chips de la Bibliothèque, patch_bundle_libprov)
+   et les chips sont dérivées des jobs REÇUS, jamais une liste figée. Un
+   provider inconnu s'affiche tel quel : on ne cache pas un nom sous
+   « Autres ». */
+var DZM_PROV_LBL={seedance:"Studio",heygen:"Studio",composition:"Studio",animation:"Studio",
+  episode:"Chapitres",news:"News",template:"Templates",ugc:"Importés",montage:"Montages"};
+function dzmProvGroupe(p){var k=(p==null||p==="")?"seedance":String(p);return DZM_PROV_LBL[k]||k}
+/* « Tout » en tête, puis les groupes dans l'ORDRE D'APPARITION, uniques */
+function dzmProvChips(jobs){var out=["Tout"],seen={};(jobs||[]).forEach(function(j){
+  var g=dzmProvGroupe(j&&j.provider);if(!seen[g]){seen[g]=1;out.push(g)}});return out}
+/* filtre LOCAL sur les pages déjà chargées : groupe dérivé + `q` sur le titre
+   (ou le job_id quand le titre manque), insensible à la casse. Un job null
+   est ignoré. L'entrée n'est pas mutée. */
+function dzmMediaFiltre(jobs,f){var g=(f&&f.groupe)||"Tout",q=String((f&&f.q)||"").trim().toLowerCase();
+  return (jobs||[]).filter(function(j){if(!j)return !1;if(g!=="Tout"&&dzmProvGroupe(j.provider)!==g)return !1;
+    return !q||String(j.title||j.job_id||"").toLowerCase().indexOf(q)>=0})}
+/* LE COMPOSANT. props : {open, trId, exts, onAdd(job), onClose(), dragPayload(e,src,label,kind,dur)}.
+   Il lit `r`/`x` À L'APPEL (comme DzmFinBandeau) et ses hooks tournent
+   ferme comme ouvert — l'hôte le monte en permanence et bascule `open`,
+   la règle des hooks interdit un `return null` avant les useState.
+   Une seule vérité : le serveur. `GET /api/jobs?limit=24&offset=&video=1`
+   (juge vidéo côté backend, T1) ; la recherche `q` est locale sur la page
+   chargée ET, dès 2 caractères, re-demandée au serveur (`&q=`, 250 ms de
+   repos, un compteur écarte la réponse d'une frappe dépassée) ; le filtre
+   `groupe` reste LOCAL aux pages chargées (les groupes sont dérivés — « Plus »
+   continue de paginer sans filtre serveur ; choix daté 23/09/2026). `exts`
+   n'est qu'un second tamis facultatif par `dzmIsVideoJob` quand l'hôte a
+   déjà lu /media-rules — le juge reste le serveur. Vignette : la première
+   image de la bande (`/api/montage/strip … n=1`). Durée : `dzmDurTxt`,
+   le formateur déjà partagé avec le transport (pas de second m:ss). */
+var DZM_MED_PAGE=24,DZM_MED_REPOS=250;
+function DzmMediaDrawer(o){
+  o=o||{};
+  var s1=x.useState([]),jobs=s1[0],setJobs=s1[1];
+  var s2=x.useState(0),offset=s2[0],setOffset=s2[1];
+  var s3=x.useState(!1),fin=s3[0],setFin=s3[1];
+  var s4=x.useState("Tout"),groupe=s4[0],setGroupe=s4[1];
+  var s5=x.useState(""),q=s5[0],setQ=s5[1];
+  var s6=x.useState(""),st=s6[0],setSt=s6[1];
+  var seq=x.useRef(0),vivant=x.useRef(!0);
+  x.useEffect(function(){vivant.current=!0;return function(){vivant.current=!1}},[]);
+  var qServ=q.trim().length>=2?q.trim():"";
+  var charge=function(off,qq,remplace){
+    var n=++seq.current;setSt("…");
+    var u="/api/jobs?limit="+DZM_MED_PAGE+"&offset="+off+"&video=1"+(qq?"&q="+encodeURIComponent(qq):"");
+    return fetch(u).then(function(res){if(!res.ok)throw new Error("HTTP "+res.status);return res.json()})
+      .then(function(d){if(!vivant.current||n!==seq.current)return;
+        var page=Array.isArray(d)?d:[];
+        setJobs(function(prev){var base=remplace?[]:prev,vu={};base.forEach(function(j){if(j&&j.job_id)vu[j.job_id]=1});
+          return base.concat(page.filter(function(j){if(!j||!j.job_id||vu[j.job_id])return !1;vu[j.job_id]=1;return !0}))});
+        setOffset(off+page.length);setFin(page.length<DZM_MED_PAGE);setSt("")})
+      .catch(function(e){if(vivant.current&&n===seq.current)setSt("Rendus : chargement impossible ("+String((e&&e.message)||e)+")")})};
+  /* ouverture ou nouvelle recherche serveur : repartir de zéro (250 ms de repos sur la frappe) */
+  x.useEffect(function(){
+    if(!o.open)return;
+    var t=setTimeout(function(){charge(0,qServ,!0)},qServ?DZM_MED_REPOS:0);
+    return function(){clearTimeout(t)}},[o.open?1:0,qServ]);
+  if(!o.open)return null;
+  var vus=o.exts&&o.exts.length?jobs.filter(function(j){return dzmIsVideoJob(j,o.exts)}):jobs;
+  var chips=dzmProvChips(vus),g=chips.indexOf(groupe)>=0?groupe:"Tout";
+  var liste=dzmMediaFiltre(vus,{groupe:g,q:q});
+  var row=function(j){var jid=String(j.job_id||""),lbl=j.title||jid;
+    var src=encodeURIComponent(JSON.stringify({job_id:jid}));
+    return r.jsxs("div",{className:"svm-medrow",draggable:!0,
+      title:"Glisser vers une bande, ou cliquer pour poser sur "+(o.trId||"la piste vidéo"),
+      onDragStart:function(e){if(o.dragPayload)o.dragPayload(e,{job_id:jid},lbl,"video",j.duration_s||0)},
+      onClick:function(){if(o.onAdd)o.onAdd(j)},
+      children:[
+        r.jsx("img",{src:"/api/montage/strip?src="+src+"&n=1&w=96&h=54",loading:"lazy",alt:"",draggable:!1}),
+        r.jsxs("div",{className:"svm-medmeta",children:[
+          r.jsx("div",{className:"svm-medtitle",children:lbl}),
+          r.jsxs("div",{className:"svm-medsub",children:[
+            r.jsx("span",{children:j.duration_s>0?dzmDurTxt(j.duration_s):"—"}),
+            r.jsx("span",{className:"svm-themechip svm-medgrp",children:dzmProvGroupe(j.provider)})]})]})]},jid||lbl)};
+  return r.jsxs("div",{className:"svm-meddrawer",children:[
+    r.jsxs("div",{className:"svm-medhead",children:[
+      r.jsx("div",{className:"svm-poptitle",children:"Médias — rendus vidéo"+(o.trId?" → "+o.trId:"")}),
+      r.jsx("button",{className:"svm-secbtn",onClick:function(){if(o.onClose)o.onClose()},children:"Fermer"})]}),
+    r.jsx("input",{type:"search",className:"svm-medq",value:q,placeholder:"Rechercher un titre…",
+      onChange:function(e){setQ(e.target.value)}}),
+    r.jsx("div",{className:"svm-medchips",children:chips.map(function(c){
+      return r.jsx("button",{className:"svm-themechip","data-on":c===g?"":void 0,
+        onClick:function(){setGroupe(c)},children:c},c)})}),
+    r.jsx("div",{className:"svm-medlist",children:liste.map(row)}),
+    st?r.jsx("div",{className:"svm-medst",children:st}):null,
+    !st&&!liste.length?r.jsx("div",{className:"svm-medst",children:jobs.length?"Aucun rendu dans ce groupe.":"Aucun rendu vidéo terminé."}):null,
+    !fin?r.jsx("button",{className:"svm-secbtn svm-medplus",disabled:st==="…",
+      onClick:function(){charge(offset,qServ,!1)},children:"Plus"}):null]})}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,
@@ -6438,5 +6536,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   retimeOf:dzmRetimeOf,rampe:dzmRampe,
   stabNorm:dzmStabNorm,stabOf:dzmStabOf,stabState:dzmStabState,
   mpLerp2:dzmMpLerp2,mpKeep:dzmMpKeep,
+  /* E-2 (lot E-B, 23/09/2026) : provenance, filtre et tiroir Medias */
+  provGroupe:dzmProvGroupe,provChips:dzmProvChips,mediaFiltre:dzmMediaFiltre,MediaDrawer:DzmMediaDrawer,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;

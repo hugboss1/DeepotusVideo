@@ -654,6 +654,23 @@ out.aj_new=T.adjustNew(2.5,AJC,"j1");
 out.aj_new_dur=[T.adjustNew(9,AJC,"j1").end,T.adjustNew(-1,AJC,"j1"),T.adjustNew(1,[],"j1"),T.adjustNew(0,[{id:"j1u1",tr:"j1",kind:"adjust",start:0,end:3}].concat(AJC),"j1").id];
 out.aj_group=[T.group({id:"j1",kind:"adjust"}),T.group({id:"t1",kind:"title"}),T.group({id:"v2",kind:"video"}),T.group({id:"a1",kind:"audio"})];
 out.aj_pur=[TS0.join()===T.DEFAULTS.map(function(t){return t.id}).join(),TS1.length===T.DEFAULTS.length+1,AJC.length===1&&AJC[0].end===10];
+/* [19] E-2 (lot E-B, tache 2) : provenance des rendus, chips derivees, filtre du tiroir Medias */
+out.prov=[T.provGroupe("seedance"),T.provGroupe("episode"),T.provGroupe("ugc"),T.provGroupe(null),T.provGroupe("zzz")];
+out.chips=T.provChips([{provider:"seedance"},{provider:"heygen"},{provider:"episode"},{provider:null},{provider:"zzz"}]);
+var MJ=[{title:"Alpha",provider:"seedance"},{title:"Beta",provider:"episode"},{title:"alphabet",provider:"news"}];
+out.filtre=T.mediaFiltre(MJ,{groupe:"Studio",q:""}).map(function(j){return j.title});
+out.filtre_q=T.mediaFiltre([{title:"Alpha",provider:"seedance"},{title:"Beta",provider:"episode"}],{groupe:"Tout",q:"ALP"}).map(function(j){return j.title});
+out.filtre_vide=T.mediaFiltre([],{groupe:"Tout",q:""}).length;
+/* bornes : sans filtre -> tout ; q sur le job_id quand le titre manque ; entree non mutee ; chips sans job -> ["Tout"] */
+out.filtre_bornes=[T.mediaFiltre(MJ,null).length,T.mediaFiltre([{job_id:"abc123",provider:"news"}],{q:"BC1"}).length,
+  T.mediaFiltre([null,{title:"x",provider:"news"}],{groupe:"News"}).length,JSON.stringify(MJ)==='[{"title":"Alpha","provider":"seedance"},{"title":"Beta","provider":"episode"},{"title":"alphabet","provider":"news"}]',
+  T.provChips([]),T.provChips(null)];
+/* le composant EXISTE et touche `x` (hooks) des l'appel, ferme comme ouvert : la regle des hooks
+   de React interdit un `return null` AVANT les useState (le tiroir est monte en permanence par
+   l'hote, `open` bascule) -- le shim strict leve donc dans les trois cas, et c'est le temoin
+   que ce n'est PAS une fonction pure */
+out.drawer_pure=typeof T.MediaDrawer;
+out.drawer_touche_x=[!1,null,!0].map(function(o){try{T.MediaDrawer(o===null?null:{open:o});return "rendu"}catch(e){return e instanceof ReferenceError?"leve":"autre:"+e}});
 console.log(JSON.stringify(out));
 """
 print("\n[1] dzmInsere sous node")
@@ -850,7 +867,10 @@ try:
                  "kf_lerp","kf_lerp_hors","kf_lerp_defaut","kf_lerp_desordre",
                  "kf_keep","kf_keep_absent","kf_pur",
                  # D-9 (L3, tache 9) : les SEPT cles de la section [18].
-                 "aj_kind","aj_skin","aj_track","aj_new","aj_new_dur","aj_group","aj_pur"]
+                 "aj_kind","aj_skin","aj_track","aj_new","aj_new_dur","aj_group","aj_pur",
+                 # E-2 (lot E-B, tache 2) : les HUIT cles de la section [19].
+                 "prov","chips","filtre","filtre_q","filtre_vide","filtre_bornes",
+                 "drawer_pure","drawer_touche_x"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -1554,6 +1574,56 @@ check("aj_la_note_de_retrait_de_j1_promet_Maj_J_comme_t1_promet_Maj_T",
       and _DEL.count('dzmCombo("adjust_add","Maj+J")') == 1
       and _DEL.count('kd==="adjust"') == 1 and _DEL.count('kd==="title"') == 1,
       f"corps={len(_DEL)} o title={_DEL.count('title_add')} adjust={_DEL.count('adjust_add')}")
+print("\n[19] E-2 provenance, filtre et tiroir Medias (client)")
+# la table DZM_PROV_LBL : seedance -> Studio, episode -> Chapitres, ugc -> Importes, null (lu seedance) -> Studio,
+# un provider inconnu s'affiche tel quel (pas de « Autres » qui cacherait un nom)
+check("prov_groupe_derive_du_provider_null_vaut_seedance_inconnu_tel_quel",
+      D.get("prov") == ["Studio", "Chapitres", "Importés", "Studio", "zzz"], D.get("prov"))
+# derivees des jobs recus, uniques (seedance+heygen+null = un seul Studio), « Tout » en tete, ordre d'apparition
+check("prov_chips_derivees_uniques_tout_en_tete_ordre_d_apparition",
+      D.get("chips") == ["Tout", "Studio", "Chapitres", "zzz"], D.get("chips"))
+check("media_filtre_par_groupe", D.get("filtre") == ["Alpha"], D.get("filtre"))
+check("media_filtre_q_insensible_a_la_casse", D.get("filtre_q") == ["Alpha"], D.get("filtre_q"))
+check("media_filtre_liste_vide_rend_zero", "filtre_vide" in D and D["filtre_vide"] == 0, D.get("filtre_vide"))
+# sans filtre -> 3 ; q lit le job_id quand le titre manque -> 1 ; un job null est ignore -> 1 ; l'entree n'est pas mutee ; chips sans job -> ["Tout"] x2
+check("media_filtre_bornes_sans_filtre_job_id_null_ignore_pur_et_chips_vides",
+      D.get("filtre_bornes") == [3, 1, 1, True, ["Tout"], ["Tout"]], D.get("filtre_bornes"))
+check("media_drawer_est_une_fonction", D.get("drawer_pure") == "function", D.get("drawer_pure"))
+check("media_drawer_touche_les_hooks_ferme_comme_ouvert_regle_des_hooks",
+      D.get("drawer_touche_x") == ["leve", "leve", "leve"], D.get("drawer_touche_x"))
+# LE COEUR RESTE PUR : le corps des trois fonctions pures ne contient ni `r.jsx` ni `x.use`.
+# Lu dans la SOURCE en octets ; regex gardee par un temoin de longueur (un corps vide verdirait
+# une negation creuse). Le composant, lui, DOIT porter les deux (temoin inverse).
+_SRCb = globals().get("SRC") or ""
+def _corps(nom):
+    i = _SRCb.find("function " + nom + "(")
+    if i < 0: return ""
+    j = _SRCb.find("\nfunction ", i + 1); k = _SRCb.find("\nvar ", i + 1)
+    fin = min([v for v in (j, k) if v >= 0] or [len(_SRCb)])
+    return _SRCb[i:fin]
+_PURS = {n: _corps(n) for n in ("dzmProvGroupe", "dzmProvChips", "dzmMediaFiltre")}
+check("media_coeur_pur_les_trois_fonctions_ne_touchent_ni_r_ni_x",
+      all(len(c) > 100 and not re.search(r"\br\.jsx|\bx\.use", c) for c in _PURS.values()),
+      {n: len(c) for n, c in _PURS.items()})
+_DRW = _corps("DzmMediaDrawer")
+check("media_drawer_porte_hooks_jsx_fetch_jobs_video_strip_drag_et_le_formateur_de_duree_existant",
+      len(_DRW) > 400 and _DRW.count("x.useState(") >= 4 and "r.jsx" in _DRW
+      and '"/api/jobs?limit=' in _DRW and "video=1" in _DRW and "/api/montage/strip?src=" in _DRW
+      and "dzmDurTxt(" in _DRW and "dragPayload(" in _DRW and 'className:"svm-medrow"' in _DRW
+      and "dzmProvChips(" in _DRW and "dzmMediaFiltre(" in _DRW
+      and _DRW.count("function dzmDur") == 0 and _DRW.count("function dzmTc") == 0,
+      f"corps={len(_DRW)} o useState={_DRW.count('x.useState(')}")
+# la regle des hooks : le `return null` du tiroir ferme vient APRES le premier useState
+_iUS = _DRW.find("x.useState("); _iNul = _DRW.find("return null")
+check("media_drawer_le_return_null_ferme_vient_apres_les_hooks",
+      0 <= _iUS < _iNul, (_iUS, _iNul))
+# les quatre exports sont en queue de DzTracks (T3 les lit sous ces noms)
+_iDT = _SRCb.find("var DzTracks={")
+_DT = _SRCb[_iDT:_SRCb.find("window.DzTracks=DzTracks;", _iDT)] if _iDT >= 0 else ""
+check("media_exports_provGroupe_provChips_mediaFiltre_MediaDrawer_dans_DzTracks",
+      len(_DT) > 1000 and all(_DT.count(e) == 1 for e in
+          ("provGroupe:dzmProvGroupe", "provChips:dzmProvChips", "mediaFiltre:dzmMediaFiltre", "MediaDrawer:DzmMediaDrawer")),
+      len(_DT))
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)
