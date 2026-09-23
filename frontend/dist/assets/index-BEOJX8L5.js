@@ -1764,6 +1764,8 @@ function DzMontage(props){
         put({status:"running",progress:10});tick(o.d.job_id)})
       .catch(function(e){put({status:"failed",error:String(e)})})}
   var stDzFin=x.useState(null),dzFin=stDzFin[0],setDzFin=stDzFin[1];
+  var stDzFS=x.useState(function(){try{return JSON.parse(localStorage.getItem("dz_montage_lastfin")||"{}")||{}}catch(_e){return {}}}),dzFinStore=stDzFS[0],setDzFinStore=stDzFS[1];
+  var dzLast=DzTracks.finOf(dzFinStore,proj.project_id||"_");
   var stDzM=x.useState("ecraser"),dzMode=stDzM[0],setDzMode=stDzM[1];
   function dzTtAdd(){var t=DzTracks.titleNew({template:"tiers_inferieur",text:"Titre"},phRef.current,clipsRef.current,"t1");
     var ts=svmTracksOf(dzProjRef.current),ts2=DzTracks.titleTrack(ts);
@@ -4561,6 +4563,7 @@ function DzMontage(props){
           else{
             setJob(null);setPop("");setDirty(!1);
             setDzFin({job_id:job.id,name:proj.name,project_id:proj.project_id||""});
+            setDzFinStore(function(s){var n=DzTracks.finStore(s,proj.project_id||"_",{job_id:job.id,name:proj.name,at:Date.now()});try{localStorage.setItem("dz_montage_lastfin",JSON.stringify(n))}catch(_e){}return n});
             fireNote("Rendu final terminé — « Envoyer vers le Scheduler » pour le publier.")}}
         else if(d.status==="failed"){clearInterval(t);
           setJob(function(j){return Object.assign({},j,{status:"failed",error:d.error||"échec du rendu"})})}
@@ -5598,8 +5601,11 @@ function DzMontage(props){
             setDirty(!0);fireNote("Format : "+v)},
           children:SVM_RATIOS.map(function(rt){
             return r.jsx("option",{value:rt[0],children:rt[1]},rt[0])})}),
-        r.jsx("button",{className:"svm-secbtn",onClick:function(){setPop(pop==="preview"?"":"preview")},children:"Preview 480p (gratuit)"}),
+        r.jsx("button",{className:"svm-secbtn",onClick:function(){setPop(pop==="preview"?"":"preview")},children:"Preview"}),
         r.jsx("button",{className:"svm-goldbtn",onClick:function(){setPop(pop==="render"?"":"render")},children:"Rendre →"}),
+        /* E-5 : « Publier » = le dernier rendu FINAL de ce projet (mémoire par projet), sinon grisé */
+        r.jsx("button",{className:"svm-secbtn svm-pubbtn",disabled:!dzLast,title:dzLast?"Envoyer le dernier rendu final au Scheduler":"Aucun rendu final pour ce projet",
+          onClick:function(){if(dzLast){setPop("");setDzFin(Object.assign({project_id:proj.project_id||""},dzLast))}},children:"Publier"}),
         /* E-2 : tiroir Médias — les rendus vidéo terminés, paginés, avec chips de
            provenance ; quatrième tiroir de .svm-mid, exclusif avec les trois autres */
         r.jsx("button",{className:"svm-themechip svm-medchip","data-on":medOn?"":void 0,
@@ -19318,6 +19324,25 @@ function DzmMediaDrawer(o){
     !st&&!liste.length?r.jsx("div",{className:"svm-medst",children:vus.length?"Aucun rendu dans ce groupe.":"Aucun rendu vidéo terminé."}):null,
     !fin?r.jsx("button",{className:"svm-secbtn svm-medplus",disabled:st==="…",
       onClick:function(){charge(offset,qServ,!1)},children:"Plus"}):null]})}
+/* E-5 (lot E-B, tache 4, 23/09/2026) — LE DERNIER RENDU FINAL PAR PROJET.
+   Aucun JobRecord ne porte de project_id (mesure routes.py:3330, _job_to_dict) :
+   la memoire est COTE CLIENT, un store {project_id:{job_id,name,at}} que l'hote
+   lit au montage et ecrit apres chaque rendu FINAL dans la cle localStorage
+   du dernier rendu (jamais la preview). Ici deux fonctions
+   PURES : finStore rend un objet NEUF (pose, ou retrait quand fin est null) et
+   finOf lit l'entree du projet ou null. Un project_id vide (projet pas encore
+   nomme) se range sous la cle "_". Deux etats distincts dans l'hote : dzFin
+   (le bandeau est visible) et ce store (il y a eu un rendu). */
+function dzmFinKey(pid){var k=String(pid==null?"":pid).trim();return k||"_"}
+function dzmFinStore(store,pid,fin){
+  var out={},k=dzmFinKey(pid),s=(store&&typeof store==="object")?store:{};
+  Object.keys(s).forEach(function(q){out[q]=s[q]});
+  if(fin==null)delete out[k];
+  else out[k]={job_id:String(fin.job_id||""),name:String(fin.name||""),at:Number(fin.at)||0};
+  return out}
+function dzmFinOf(store,pid){
+  var s=(store&&typeof store==="object")?store:{},v=s[dzmFinKey(pid)];
+  return (v&&typeof v==="object"&&v.job_id)?v:null}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,
@@ -19409,6 +19434,8 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   mpLerp2:dzmMpLerp2,mpKeep:dzmMpKeep,
   /* E-2 (lot E-B, 23/09/2026) : provenance, filtre et tiroir Medias */
   provGroupe:dzmProvGroupe,provChips:dzmProvChips,mediaFiltre:dzmMediaFiltre,MediaDrawer:DzmMediaDrawer,
+  /* E-5 (lot E-B, tache 4) : le dernier rendu final par projet */
+  finStore:dzmFinStore,finOf:dzmFinOf,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;
 

@@ -1053,6 +1053,16 @@ R_M16REF = (A_M16REF + "\n"
             # .bak_montage. Posé par EA4 (rendu final « done »), consommé
             # par EA5e (le bandeau de la couche), effacé par « Fermer ».
             "  var stDzFin=x.useState(null),dzFin=stDzFin[0],setDzFin=stDzFin[1];\n"
+            # ── E-5 (lot E-B, tache 4, 23/09/2026) : LE DERNIER RENDU FINAL
+            # PAR PROJET. REPLIÉ ICI comme dzFin (0 dans .bak_montage). Deux
+            # états DISTINCTS : dzFin = le bandeau est visible ; ce store =
+            # il y a eu un rendu final (localStorage dz_montage_lastfin, par
+            # project_id, "_" quand le projet n'est pas nommé). Lu UNE fois
+            # au montage (try/catch), écrit par le poll du rendu final (R_EA4),
+            # jamais par « Fermer » (R_EA5E) ni par le lancement (EA6).
+            # `proj` est déclaré avant (stP, :1717 < :1766 dans le livré).
+            '  var stDzFS=x.useState(function(){try{return JSON.parse(localStorage.getItem("dz_montage_lastfin")||"{}")||{}}catch(_e){return {}}}),dzFinStore=stDzFS[0],setDzFinStore=stDzFS[1];\n'
+            '  var dzLast=DzTracks.finOf(dzFinStore,proj.project_id||"_");\n'
             # ── « E1 » (D-2) : L'ÉTAT DU MODE D'ÉDITION ──────────────
             # REPLIÉ ICI, et c'est une MESURE : la ligne `dzTracksRef`
             # ci-dessus vaut 0 dans .bak_montage (c'est CE remplacement
@@ -3954,8 +3964,14 @@ A_EA4 = ('            var run=new Date();run.setDate(run.getDate()+1);run.setHou
          '                props.go&&setTimeout(function(){props.go("scheduler")},900)})\n'
          '              .catch(function(){setJob(null);setPop("");\n'
          '                fireNote("Rendu terminé (Bibliothèque) — création du brouillon Scheduler impossible.")})}}')
+# E-5 (lot E-B, tache 4, 23/09/2026) : le rendu FINAL écrit aussi le store du
+# dernier rendu (repli, l'ancre est ce bloc) — setter FONCTIONNEL : la fermeture
+# de l'intervalle ne lit pas un store périmé ; l'écriture localStorage est dans
+# le setter, idempotente. La branche preview (setPreviewUrl) reste sans dzFin.
 R_EA4 = ('            setJob(null);setPop("");setDirty(!1);\n'
          '            setDzFin({job_id:job.id,name:proj.name,project_id:proj.project_id||""});\n'
+         '            setDzFinStore(function(s){var n=DzTracks.finStore(s,proj.project_id||"_",{job_id:job.id,name:proj.name,at:Date.now()});'
+         'try{localStorage.setItem("dz_montage_lastfin",JSON.stringify(n))}catch(_e){}return n});\n'
          '            fireNote("Rendu final terminé — « Envoyer vers le Scheduler » pour le publier.")}}')
 assert A_EA4.count("}") - A_EA4.count("{") == R_EA4.count("}") - R_EA4.count("{") == 2
 
@@ -3972,7 +3988,19 @@ A_EA5C = '          "Rendu local 1080 (aucun crédit consommé), puis brouillon 
 R_EA5C = ('          "Rendu local 1080 (aucun crédit consommé). À la fin, un bandeau propose l\'envoi vers le Scheduler '
           '— rien n\'est publié sans ta validation.":')
 A_EA5D = '        r.jsx("button",{className:"svm-goldbtn",onClick:function(){setPop(pop==="render"?"":"render")},children:"Rendre & publier →"}),'
-R_EA5D = A_EA5D.replace('"Rendre & publier →"', '"Rendre →"')
+# E-5 (lot E-B, tache 4, 23/09/2026) : « Publier » SUIT le bouton or. MESURE :
+# la ligne qui suit dans .bak_montage est le commentaire « tiroir Sons »,
+# consommé par A_EB2 -> le bouton est un REPLI ici (le libellé « Rendre → »
+# reste x1, pin E-4). Grisé avec infobulle quand le projet n'a aucun rendu
+# final mémorisé ; sinon rouvre le bandeau sur ce rendu (project_id repris
+# de proj : le store ne le porte pas) après avoir fermé le popover (EA5e :
+# jamais les deux ouverts).
+R_EA5D = (A_EA5D.replace('"Rendre & publier →"', '"Rendre →"') + '\n'
+          '        /* E-5 : « Publier » = le dernier rendu FINAL de ce projet (mémoire par projet), sinon grisé */\n'
+          '        r.jsx("button",{className:"svm-secbtn svm-pubbtn",disabled:!dzLast,'
+          'title:dzLast?"Envoyer le dernier rendu final au Scheduler":"Aucun rendu final pour ce projet",\n'
+          '          onClick:function(){if(dzLast){setPop("");setDzFin(Object.assign({project_id:proj.project_id||""},dzLast))}},'
+          'children:"Publier"}),')
 A_EA5D2 = '            children:busy?(job.progress+"%"):(isR?"Rendre & publier":"Lancer l\'aperçu")})]})]})}'
 R_EA5D2 = A_EA5D2.replace('"Rendre & publier"', '"Rendre"')
 for _a, _r in ((A_EA5A, R_EA5A), (A_EA5B, R_EA5B), (A_EA5C, R_EA5C),
@@ -4302,6 +4330,17 @@ R_EB3 = (A_EB3 + '\n'
          '        onAdd:function(j){addAsset({job_id:j.job_id},j.title||j.job_id,'
          '"video",j.duration_s||0,medTr||"v1")}}),')
 
+# ── EB4 (E-5, lot E-B tache 4, 23/09/2026) : LA BARRE DIT « Preview » ──────
+# Le bouton garde son handler (setPop preview) ; seul le libellé change,
+# « Preview · Rendre · Publier » comme Resolve (E-5). MESURE : la ligne est
+# libre (1 dans .bak, 0 dans le patcher) ; « Preview 480p (gratuit) » survit
+# UNE fois dans le livré, l'infobulle de la chip 480p du lecteur (:5093),
+# qui n'est pas la barre. « Rendre » = EA5d ; « Publier » = repli R_EA5D.
+# MESURE (banc, 23/09) : `children:"Preview"}),` seul vaut DEUX dans le livré
+# (le Studio minifié, graphe Mh, en porte un) -> l'ancre est la LIGNE ENTIÈRE.
+A_EB4 = '        r.jsx("button",{className:"svm-secbtn",onClick:function(){setPop(pop==="preview"?"":"preview")},children:"Preview 480p (gratuit)"}),'
+R_EB4 = A_EB4.replace('"Preview 480p (gratuit)"', '"Preview"')
+
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
@@ -4518,7 +4557,9 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("EB2d-sous-titre-ajoute-ferme-medias", A_EB2D, R_EB2D),
            ("EB2e-bascule-sous-titres-ferme-medias", A_EB2E, R_EB2E),
            ("EB2f-editeur-sous-titres-ferme-medias", A_EB2F, R_EB2F),
-           ("EB3-tiroir-medias-dans-svm-mid", A_EB3, R_EB3)]
+           ("EB3-tiroir-medias-dans-svm-mid", A_EB3, R_EB3),
+           # E-5 (tache 4) : une section ; Publier/store/persistance sont repliés.
+           ("EB4-libelle-preview", A_EB4, R_EB4)]
 
 
 def nl(text, crlf):

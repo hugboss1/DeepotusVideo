@@ -671,6 +671,18 @@ out.filtre_bornes=[T.mediaFiltre(MJ,null).length,T.mediaFiltre([{job_id:"abc123"
    que ce n'est PAS une fonction pure */
 out.drawer_pure=typeof T.MediaDrawer;
 out.drawer_touche_x=[!1,null,!0].map(function(o){try{T.MediaDrawer(o===null?null:{open:o});return "rendu"}catch(e){return e instanceof ReferenceError?"leve":"autre:"+e}});
+/* E-5 (lot E-B, tache 4) : le dernier rendu FINAL par projet -- store pur {pid:{job_id,name,at}}.
+   MESURE 23/09 : `out.fin` est DEJA la cle du mode « fin » de la section [1] (fin_apres_le_dernier) -> prefixe finst */
+out.finst=T.finStore({},"p1",{job_id:"j",name:"n",at:1});
+out.finst_of=T.finOf(out.finst,"p1");
+out.finst_rm=T.finStore(out.finst,"p1",null);
+out.finst_none=T.finOf({},"zz");
+/* bornes : pid vide -> cle "_" ; store non-objet -> {} ; objet NEUF (l'entree n'est pas mutee) ; finOf lit "_" pour pid vide ;
+   store null -> null ; entree sans job_id -> null ; les cles voisines survivent au retrait */
+var FS0={p1:{job_id:"j",name:"n",at:1}};
+out.finst_bornes=[Object.keys(T.finStore({},"",{job_id:"k",name:"m",at:2})),T.finStore("zut",null,{job_id:"k",name:"m",at:2})["_"].job_id,
+  T.finStore(FS0,"p2",{job_id:"z",name:"z",at:3})!==FS0&&Object.keys(FS0).length===1,T.finOf({_:{job_id:"u",name:"",at:0}},""),
+  T.finOf(null,"p1"),T.finOf({p1:{}},"p1"),Object.keys(T.finStore({a:{job_id:"1"},b:{job_id:"2"}},"a",null))];
 console.log(JSON.stringify(out));
 """
 print("\n[1] dzmInsere sous node")
@@ -870,7 +882,9 @@ try:
                  "aj_kind","aj_skin","aj_track","aj_new","aj_new_dur","aj_group","aj_pur",
                  # E-2 (lot E-B, tache 2) : les HUIT cles de la section [19].
                  "prov","chips","filtre","filtre_q","filtre_vide","filtre_bornes",
-                 "drawer_pure","drawer_touche_x"]
+                 "drawer_pure","drawer_touche_x",
+                 # E-5 (lot E-B, tache 4) : les CINQ cles du store du dernier rendu.
+                 "finst","finst_of","finst_rm","finst_none","finst_bornes"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -1631,6 +1645,30 @@ _DT = _SRCb[_iDT:_iFin] if 0 <= _iDT < _iFin else ""
 check("media_exports_provGroupe_provChips_mediaFiltre_MediaDrawer_dans_DzTracks",
       _iFin > _iDT >= 0 and len(_DT) > 1000 and all(_DT.count(e) == 1 for e in
           ("provGroupe:dzmProvGroupe", "provChips:dzmProvChips", "mediaFiltre:dzmMediaFiltre", "MediaDrawer:DzmMediaDrawer")),
+      len(_DT))
+# ── E-5 (lot E-B, tache 4, 23/09/2026) : LE DERNIER RENDU FINAL PAR PROJET ──
+# Aucun JobRecord ne porte de project_id (mesure routes.py:3330) : la memoire
+# est cote client, un store {pid:{job_id,name,at}} que l'hote lit/ecrit dans
+# localStorage["dz_montage_lastfin"]. Ici DEUX fonctions PURES : finStore rend
+# un objet NEUF (pose ou retrait), finOf lit l'entree ou null.
+check("fin_store_pose_l_entree_du_projet",
+      D.get("finst") == {"p1": {"job_id": "j", "name": "n", "at": 1}}, D.get("finst"))
+check("fin_of_rend_l_entree_du_projet",
+      D.get("finst_of") == {"job_id": "j", "name": "n", "at": 1}, D.get("finst_of"))
+check("fin_store_null_retire_la_cle", "finst_rm" in D and D["finst_rm"] == {}, D.get("finst_rm"))
+check("fin_of_rend_null_sans_entree", "finst_none" in D and D["finst_none"] is None, D.get("finst_none"))
+# pid vide -> "_" ; store non-objet -> {} puis pose ; objet neuf sans muter l'entree ; finOf("")
+# lit "_" ; store null -> null ; entree sans job_id -> null ; le retrait garde les voisines
+check("fin_store_bornes_pid_vide_store_non_objet_objet_neuf_et_voisines",
+      D.get("finst_bornes") == [["_"], "k", True, {"job_id": "u", "name": "", "at": 0}, None, None, ["b"]],
+      D.get("finst_bornes"))
+# LE COEUR RESTE PUR : ni r.jsx, ni x.use, ni localStorage dans les deux corps (temoin de longueur).
+_FINS = {n: _corps(n) for n in ("dzmFinStore", "dzmFinOf")}
+check("fin_coeur_pur_ni_r_ni_x_ni_localStorage",
+      all(len(c) > 100 and not re.search(r"\br\.jsx|\bx\.use|localStorage", c) for c in _FINS.values()),
+      {n: len(c) for n, c in _FINS.items()})
+check("fin_exports_finStore_finOf_dans_DzTracks",
+      len(_DT) > 1000 and _DT.count("finStore:dzmFinStore") == 1 and _DT.count("finOf:dzmFinOf") == 1,
       len(_DT))
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")

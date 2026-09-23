@@ -15023,15 +15023,20 @@ _DZ_I = _DZ_TAGS.index("EA6-bandeau-ferme-au-lancement")
 # APRES AJ7 (le plan en annoncait trois : les cinq exclusions ont une ancre
 # LIBRE chacune, mesure 1/0, donc des sections et non des replis), sonde 115
 # = 114 + MediaDrawer x1 (EB3 ; pas de pickTrack : addAsset resout la piste).
-check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB3_en_queue_apres_EA6_et_la_sonde_dit_115",
+# E-5 (lot E-B, tache 4) : UNE section EB4 (le libelle « Preview », ancre libre
+# 1/0/1) ; « Publier », l'etat du store et sa persistance sont des REPLIS
+# (R_EA5D, R_M16REF, R_EA4 : ancres consommees) ; sonde 117 = 115 + finOf x1
+# (dzLast, R_M16REF) + finStore x1 (la persistance du rendu final, R_EA4).
+check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB4_en_queue_apres_EA6_et_la_sonde_dit_117",
       [t.split("-")[0] for t in _DZ_TAGS[_DZ_I + 1:]] == ["DZ1", "DZ2", "DZ3", "DZ4",
                                                           "KF1", "KF2", "KF2b", "KF2c", "KF3a", "KF3b", "KF3c", "KF4", "KF5",
                                                           "AJ2a", "AJ2b", "AJ6a", "AJ6b", "AJ7",
-                                                          "EB1", "EB2", "EB2b", "EB2c", "EB2d", "EB2e", "EB2f", "EB3"]
+                                                          "EB1", "EB2", "EB2b", "EB2c", "EB2d", "EB2e", "EB2f", "EB3",
+                                                          "EB4"]
       and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
               and s.count(nl(a)) == (1 if a in r else 0)
               for _t, a, r in P.PATCHES[_DZ_I + 1:])
-      and _sonde.get("montage") == 115 and s.count("DzTracks") == 115
+      and _sonde.get("montage") == 117 and s.count("DzTracks") == 117
       if _bak else False,
       f"queue={_DZ_TAGS[_DZ_I + 1:]} sonde={_sonde.get('montage')} bundle={s.count('DzTracks')}")
 
@@ -15493,6 +15498,105 @@ check("EB_la_couche_exporte_toujours_le_tiroir_et_ses_trois_fonctions_pures",
       and src.count("function DzmMediaDrawer(o){") == 1
       and s.count("function DzmMediaDrawer(o){") == 1,
       f"exports={src.count('MediaDrawer:DzmMediaDrawer,')}")
+
+# ══════════════════════════════════════════════════════════════════════════
+print("\n[EB] E-5 : la barre Preview · Rendre · Publier, le dernier rendu final memorise par projet")
+# MESURES du 23/09/2026 (T4) : la ligne `children:"Preview 480p (gratuit)"}),`
+# est LIBRE (1/0/1) -> section EB4 ; la ligne qui SUIT le bouton or dans .bak
+# est le commentaire « tiroir Sons », consomme par A_EB2 -> « Publier » est un
+# REPLI dans R_EA5D (l'ancre du bouton or, consommee par EA5d) ; l'etat du
+# store vit a cote de dzFin (R_M16REF, `proj` declare avant :1717 < :1766) ;
+# la persistance est un repli dans R_EA4, ENTRE setDzFin et fireNote (les deux
+# pins d'E-4 restent) ; la sonde compte `DzTracks` SANS point : 115 -> 117.
+# « Preview 480p (gratuit) » survit UNE fois : l'infobulle de la chip 480p du
+# lecteur (:5093, « lancer Preview 480p (gratuit) »), qui n'est pas la barre.
+_EB4_R = 'r.jsx("button",{className:"svm-secbtn",onClick:function(){setPop(pop==="preview"?"":"preview")},children:"Preview"}),'
+check("EB4_le_bouton_Preview_garde_son_handler_et_perd_480p_gratuit",
+      s.count(nl(P.A_EB4)) == 0 and s.count(nl(P.R_EB4)) == 1 and s.count(nl(_EB4_R)) == 1
+      and P.A_EB4 == "        " + _EB4_R.replace('"Preview"', '"Preview 480p (gratuit)"') and P.R_EB4 == "        " + _EB4_R
+      # `children:"Preview"}),` seul vaut DEUX (le Studio minifie, graphe Mh) : l'ancre est la ligne entiere
+      and s.count('children:"Preview"}),') == 2 and (_bak.count('children:"Preview"}),') == 1 if _bak else False)
+      and ("EB4-libelle-preview", P.A_EB4, P.R_EB4) in P.PATCHES
+      and s.count('children:"Preview 480p (gratuit)"') == 0 and s.count("Preview 480p (gratuit)") == 1
+      and s.count('"lancer Preview 480p (gratuit)"') == 1
+      and (_bak.count(_nlb(P.A_EB4)) == 1 and _bak.count("Preview 480p (gratuit)") == 2 if _bak else False),
+      f"neuf={s.count(nl(_EB4_R))} vieux={s.count('Preview 480p (gratuit)')} bak={_bak.count('Preview 480p (gratuit)') if _bak else '?'}")
+# « PUBLIER » : APRES le bouton or (repli R_EA5D), grise avec infobulle sans rendu,
+# rouvre le bandeau sur le dernier rendu final du projet (project_id repris de
+# proj : le store ne le porte pas), et ferme le popover d'abord (EA5e : jamais
+# les deux ouverts). Le bouton or est intact (« Rendre → » x1, pin E-4).
+_EB5_PUB = ('r.jsx("button",{className:"svm-secbtn svm-pubbtn",disabled:!dzLast,'
+            'title:dzLast?"Envoyer le dernier rendu final au Scheduler":"Aucun rendu final pour ce projet",')
+_EB5_CLIC = 'onClick:function(){if(dzLast){setPop("");setDzFin(Object.assign({project_id:proj.project_id||""},dzLast))}},children:"Publier"}),'
+_iOr = s.find('"Rendre →"'); _iPub = s.find(nl(_EB5_PUB))
+check("EB_R_EA5D_Publier_suit_le_bouton_or_grise_sans_rendu_et_rouvre_le_bandeau",
+      s.count(nl(_EB5_PUB)) == 1 and s.count(nl(_EB5_CLIC)) == 1 and s.count('children:"Publier"') == 1
+      and s.count("disabled:!dzLast") == 1 and 0 < _iOr < _iPub < _iOr + 600
+      and _EB5_PUB in P.R_EA5D and _EB5_CLIC in P.R_EA5D and P.R_EA5D.startswith(P.A_EA5D.replace('"Rendre & publier →"', '"Rendre →"'))
+      and s.count('"Rendre →"') == 1 and "Rendre →" not in _EB5_PUB + _EB5_CLIC
+      # l'ancre suivante dans .bak est le commentaire pris par A_EB2 : le repli est impose
+      and (_bak.count(_nlb(P.A_EA5D + "\n" + P.A_EB2.split("\n")[0])) == 1
+           and _bak.count("Publier") == 0 and _bak.count("dzLast") == 0 if _bak else False),
+      f"pub={s.count(nl(_EB5_PUB))} clic={s.count(nl(_EB5_CLIC))} or={_iOr} pos={_iPub} bak={_bak.count('Publier') if _bak else '?'}")
+# L'ETAT DU STORE (repli R_M16REF, a cote de dzFin) : lu de localStorage au
+# montage (try/catch), dzLast derive par finOf ; `proj` est declare AVANT.
+_EB5_ST = ('var stDzFS=x.useState(function(){try{return JSON.parse(localStorage.getItem("dz_montage_lastfin")||"{}")||{}}'
+           'catch(_e){return {}}}),dzFinStore=stDzFS[0],setDzFinStore=stDzFS[1];')
+_EB5_LAST = 'var dzLast=DzTracks.finOf(dzFinStore,proj.project_id||"_");'
+_iFin = s.find("var stDzFin=x.useState(null)"); _iFS = s.find(_EB5_ST); _iLast = s.find(_EB5_LAST)
+check("EB_R_M16REF_le_store_est_lu_de_localStorage_a_cote_de_dzFin_et_dzLast_en_derive",
+      s.count(_EB5_ST) == 1 and s.count(_EB5_LAST) == 1 and _EB5_ST in P.R_M16REF and _EB5_LAST in P.R_M16REF
+      and 0 < _iFin < _iFS < _iLast < _iFin + 700
+      and 0 < s.find("proj=stP[0],setProj=stP[1];") < _iFin
+      and s.count("DzTracks.finOf(") == 1 and s.count('"dz_montage_lastfin"') == 2
+      # le jeton ne vit que dans le CODE (lecture + ecriture), pas dans un commentaire injecte
+      and s.count("dz_montage_lastfin") == 2 and src.count("dz_montage_lastfin") == 0
+      and (_bak.count("dz_montage_lastfin") == 0 and _bak.count("stDzFS") == 0 if _bak else False),
+      f"st={s.count(_EB5_ST)} last={s.count(_EB5_LAST)} fin={_iFin} fs={_iFS} cle={s.count(chr(34) + 'dz_montage_lastfin' + chr(34))}")
+for _nmf in ("dzLast", "stDzFS", "dzFinStore", "setDzFinStore"):
+    _nbf = _libre21(_nmf, _bak if _bak else None)
+    check("EB_nom_" + _nmf + "_etait_libre_dans_le_bundle_d_entree",
+          _nbf == 0 and _libre21(_nmf, s) >= 1,
+          f"{_nmf} apparait {_nbf}x dans .bak_montage, {_libre21(_nmf, s)}x dans le bundle")
+# LA PERSISTANCE (repli R_EA4) : APRES setDzFin et AVANT fireNote, dans la
+# branche FINALE seulement -- la branche preview (setPreviewUrl) ne touche ni
+# dzFin ni le store (temoin : le segment preview mesure > 100 o). Setter
+# fonctionnel : la fermeture de l'intervalle ne lit pas un store perime.
+_EB5_PERS = ('setDzFinStore(function(s){var n=DzTracks.finStore(s,proj.project_id||"_",{job_id:job.id,name:proj.name,at:Date.now()});'
+             'try{localStorage.setItem("dz_montage_lastfin",JSON.stringify(n))}catch(_e){}return n});')
+_iP0 = s.find('if(job.kind==="preview"){'); _iP1 = s.find("else{", _iP0 if _iP0 >= 0 else 0)
+_SEG_PREV = s[_iP0:_iP1] if 0 <= _iP0 < _iP1 else ""
+_iSet = s.find(_E4_FIN); _iPers = s.find(_EB5_PERS); _iNote = s.find(_E4_NOTE)
+check("EB_R_EA4_le_rendu_final_ecrit_le_store_entre_setDzFin_et_fireNote_pas_la_preview",
+      s.count(_EB5_PERS) == 1 and _EB5_PERS in P.R_EA4 and s.count("DzTracks.finStore(") == 1
+      and 0 < _iSet < _iPers < _iNote < _iSet + 700
+      and len(_SEG_PREV) > 100 and "setPreviewUrl(pu)" in _SEG_PREV
+      and "finStore" not in _SEG_PREV and "setDzFin" not in _SEG_PREV and _iP1 < _iSet
+      and P.R_EA4.count("setDzFin(") == 1 and P.R_EA4.count("setDzFinStore(") == 1
+      and (P.A_EA4.count("}") - P.A_EA4.count("{")) == (P.R_EA4.count("}") - P.R_EA4.count("{")) == 2,
+      f"pers={s.count(_EB5_PERS)} set={_iSet} pers_i={_iPers} note={_iNote} prev={len(_SEG_PREV)}")
+# DEUX ETATS DISTINCTS : « Fermer » ne vide QUE dzFin (le store reste), EA6
+# ferme le bandeau au lancement sans toucher au store ; setDzFin(null) vaut
+# toujours DEUX (pin E-4 inchange).
+check("EB_fermer_et_lancer_ne_touchent_pas_le_store",
+      s.count("onClose:function(){setDzFin(null)}}):null,") == 1 and s.count("setDzFin(null)") == 2
+      and "finStore" not in P.R_EA5E and "dz_montage_lastfin" not in P.R_EA5E and "setDzFinStore" not in P.R_EA5E
+      and P.R_EA6 == P.A_EA6 + "setDzFin(null);" and "finStore" not in P.R_EA6
+      and s.count("setDzFinStore(") == 1,
+      f"close={s.count('setDzFin(null)')} store_set={s.count('setDzFinStore(')}")
+# LA FEUILLE : le bouton grise est visible comme tel (aucune regle :disabled
+# pour .svm-secbtn en amont -- temoin).
+_EB5_CSS = _lire(ROOT / "frontend" / "dist" / "shared" / "montage.css")
+_EB5_AMONT = _lire(ROOT / "frontend" / "dist" / "shared" / "son-vfx-montage.css")
+check("EB_la_feuille_grise_le_bouton_Publier_desarme",
+      _EB5_CSS.count(".dzsvm .svm-secbtn:disabled{") == 1 and "cursor:not-allowed" in _EB5_CSS
+      and _EB5_AMONT.count(".svm-secbtn{") == 1 and ":disabled" not in _EB5_AMONT.split(".svm-secbtn{")[1][:400],
+      f"css={_EB5_CSS.count('.dzsvm .svm-secbtn:disabled{')}")
+# LA COUCHE : les deux fonctions pures sont exportees (ce que l'hote appelle).
+check("EB_la_couche_exporte_finStore_et_finOf",
+      src.count("finStore:dzmFinStore,finOf:dzmFinOf,") == 1 and src.count("function dzmFinStore(") == 1
+      and src.count("function dzmFinOf(") == 1 and s.count("function dzmFinStore(") == 1,
+      f"exports={src.count('finStore:dzmFinStore,finOf:dzmFinOf,')}")
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

@@ -6455,6 +6455,25 @@ function DzmMediaDrawer(o){
     !st&&!liste.length?r.jsx("div",{className:"svm-medst",children:vus.length?"Aucun rendu dans ce groupe.":"Aucun rendu vidéo terminé."}):null,
     !fin?r.jsx("button",{className:"svm-secbtn svm-medplus",disabled:st==="…",
       onClick:function(){charge(offset,qServ,!1)},children:"Plus"}):null]})}
+/* E-5 (lot E-B, tache 4, 23/09/2026) — LE DERNIER RENDU FINAL PAR PROJET.
+   Aucun JobRecord ne porte de project_id (mesure routes.py:3330, _job_to_dict) :
+   la memoire est COTE CLIENT, un store {project_id:{job_id,name,at}} que l'hote
+   lit au montage et ecrit apres chaque rendu FINAL dans la cle localStorage
+   du dernier rendu (jamais la preview). Ici deux fonctions
+   PURES : finStore rend un objet NEUF (pose, ou retrait quand fin est null) et
+   finOf lit l'entree du projet ou null. Un project_id vide (projet pas encore
+   nomme) se range sous la cle "_". Deux etats distincts dans l'hote : dzFin
+   (le bandeau est visible) et ce store (il y a eu un rendu). */
+function dzmFinKey(pid){var k=String(pid==null?"":pid).trim();return k||"_"}
+function dzmFinStore(store,pid,fin){
+  var out={},k=dzmFinKey(pid),s=(store&&typeof store==="object")?store:{};
+  Object.keys(s).forEach(function(q){out[q]=s[q]});
+  if(fin==null)delete out[k];
+  else out[k]={job_id:String(fin.job_id||""),name:String(fin.name||""),at:Number(fin.at)||0};
+  return out}
+function dzmFinOf(store,pid){
+  var s=(store&&typeof store==="object")?store:{},v=s[dzmFinKey(pid)];
+  return (v&&typeof v==="object"&&v.job_id)?v:null}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,
@@ -6546,5 +6565,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   mpLerp2:dzmMpLerp2,mpKeep:dzmMpKeep,
   /* E-2 (lot E-B, 23/09/2026) : provenance, filtre et tiroir Medias */
   provGroupe:dzmProvGroupe,provChips:dzmProvChips,mediaFiltre:dzmMediaFiltre,MediaDrawer:DzmMediaDrawer,
+  /* E-5 (lot E-B, tache 4) : le dernier rendu final par projet */
+  finStore:dzmFinStore,finOf:dzmFinOf,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;

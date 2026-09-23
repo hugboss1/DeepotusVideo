@@ -319,7 +319,13 @@ STABLE_PROBES = [
     # E-3, sans pickTrack (addAsset resout deja la piste, R_M16A). MESURE :
     # la chaine a refuse, « sonde montage x115 (want 114) », avant cette
     # ligne.
-    ("montage", "DzTracks", 115),
+    # 23/09/2026, E-5 (lot E-B, tache 4) : 115 -> 117. DEUX de plus, toutes
+    # deux dans des REPLIS : `finOf(` (dzLast, l etat du store a cote de
+    # dzFin, R_M16REF) et `finStore(` (la persistance du rendu FINAL, R_EA4).
+    # EB4 (le libelle « Preview ») et le bouton « Publier » (R_EA5D, qui ne
+    # fait que setDzFin) n en ajoutent aucune. MESURE : la chaine a refuse,
+    # « sonde montage x117 (want 115) », avant cette ligne.
+    ("montage", "DzTracks", 117),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

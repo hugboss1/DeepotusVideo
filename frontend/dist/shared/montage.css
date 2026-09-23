@@ -1315,3 +1315,7 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
 .dzsvm .svm-medgrp{cursor:default}
 .dzsvm .svm-medst{font-family:var(--f-mono);font-size:11px;color:var(--ink2);padding:4px 6px;flex:none}
 .dzsvm .svm-medplus{align-self:center;flex:none}
+/* E-5 (lot E-B, tache 4, 23/09/2026) : « Publier » grisé quand le projet n'a
+   aucun rendu final mémorisé (aucune règle :disabled pour .svm-secbtn en amont) */
+.dzsvm .svm-secbtn:disabled{opacity:.45;cursor:not-allowed}
+.dzsvm .svm-secbtn:disabled:hover{border-color:var(--stroke)}
