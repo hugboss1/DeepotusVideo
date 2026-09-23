@@ -383,7 +383,14 @@ STABLE_PROBES = [
     # couche (aucun « DzTracks » dans son commentaire, a dessein) n en
     # ajoutent aucune. MESURE : la chaine a refuse, « sonde montage x139
     # (want 135) », avant cette ligne.
-    ("montage", "DzTracks", 139),
+    # 24/09/2026, L7 D-6 (tache 2, presse-papiers de clips entre projets) :
+    # 139 -> 142. TROIS de plus, toutes dans la branche L7b2 (repli dans
+    # R_R2) : `DzTracks.clipCopy(` (copy), `DzTracks.clipPaste(` (paste) et
+    # `DzTracks.modeLabel(` (la note du collage dit le mode, comme addAsset).
+    # L7b1 (les deux entrees de SVM_ACTIONS, repli dans R_R1) et le bloc pur
+    # de la couche n en ajoutent aucune. MESURE : la chaine a refuse, « sonde
+    # montage x142 (want 139) », avant cette ligne.
+    ("montage", "DzTracks", 142),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

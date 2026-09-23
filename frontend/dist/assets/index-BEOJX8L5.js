@@ -1551,6 +1551,8 @@ var SVM_ACTIONS=[
  {id:"title_add",sec:"Montage",lbl:"titre : poser un carton a la tete",combo:"Maj+T"},
  {id:"adjust_add",sec:"Montage",lbl:"ajustement : poser un clip a la tete",combo:"Maj+J"},
  {id:"trans_add",sec:"Montage",lbl:"transition : fondu à la coupe du plan sélectionné",combo:"Alt+T"},
+ {id:"copy",sec:"Montage",lbl:"copier le clip sélectionné (presse-papiers, d'un projet à l'autre)",combo:"Ctrl+C"},
+ {id:"paste",sec:"Montage",lbl:"coller le clip du presse-papiers à la tête de lecture",combo:"Ctrl+V"},
  {id:"zoom_in",sec:"Affichage",lbl:"zoom avant (crans)",combo:"Ctrl+="},
  {id:"zoom_out",sec:"Affichage",lbl:"zoom arrière (crans)",combo:"Ctrl+-"},
  {id:"zoom100",sec:"Affichage",lbl:"zoom 100 %",combo:"Maj+Z"},
@@ -3463,6 +3465,8 @@ function DzMontage(props){
       if(id==="title_add"){dzTtAdd();return}
       if(id==="adjust_add"){dzAjAdd();return}
       if(id==="trans_add"){var dzTc=(clipsRef.current||[]).filter(function(k){return k&&k.id===selRef.current&&k.tr==="v1"})[0];if(!dzTc){fireNote("Transition : sélectionnez d'abord un plan de V1.");return}if(trackStRef.current.v1&&trackStRef.current.v1.l){fireNote("Piste V1 verrouillée.");return}if(!DzTracks.voisins(clipsRef.current,dzTc).g){fireNote("Transition : « "+(dzTc.label||dzTc.id)+" » n'a pas de coupe à sa gauche.");return}svmSetTransType(dzTc.id,"fade");fireNote("Fondu de "+svmTransS(dzTc).toFixed(1)+" s posé à la coupe de « "+(dzTc.label||dzTc.id)+" » — le losange en règle la durée.");return}
+      if(id==="copy"){var dzCp=(clipsRef.current||[]).filter(function(k){return k&&k.id===selRef.current})[0];if(!dzCp){fireNote("Copier : sélectionnez d'abord un clip.");return}try{localStorage.setItem("dz_montage_clipboard",JSON.stringify({v:1,at:new Date().toISOString(),clip:DzTracks.clipCopy(dzCp)}))}catch(e){fireNote("Presse-papiers indisponible dans ce navigateur (stockage refusé).");return}fireNote("« "+(dzCp.label||dzCp.id)+" » copié — "+(svmKeyLabelNow("paste")||"Coller")+" le colle à la tête de lecture, dans ce projet ou dans un autre.");return}
+      if(id==="paste"){if(dzProjRef.current&&dzProjRef.current.demo){fireNote("Coller : disponible sur un projet réel — la démo est une maquette.");return}var dzPs=null;try{dzPs=JSON.parse(localStorage.getItem("dz_montage_clipboard")||"null")}catch(e){dzPs=null}var dzPq=ovSeq.current+1,dzPr=DzTracks.clipPaste(clipsRef.current||[],dzPs,{head:phRef.current,tracks:dzTracksRef.current||svmTracksOf(dzProjRef.current),mode:dzModeRef.current,seq:dzPq,range:dzProjRef.current&&dzProjRef.current.range,locked:(function(){var o={},k;for(k in trackStRef.current)if(trackStRef.current[k]&&trackStRef.current[k].l)o[k]=!0;return o})()});if(dzPr.id==null){fireNote(dzPr.note||"Rien n'a été collé.");return}ovSeq.current=dzPq;pushHistory();setClips(dzPr.clips);setSelId(dzPr.id);setDirty(!0);fireNote("« "+(dzPs.clip.label||dzPr.id)+" » collé sur "+String(dzPr.track).toUpperCase()+" à "+svmShort(Number(phRef.current)||0)+(dzPr.mode!=="ecraser"?" (mode « "+DzTracks.modeLabel(dzPr.mode)+" »)":"")+(dzPr.note?" — "+dzPr.note:"")+".");return}
       if(id==="zoom_in"){zoomApply(zoomPctRef.current*1.25);return}
       if(id==="zoom_out"){zoomApply(zoomPctRef.current/1.25);return}
       if(id==="zoom100"){zoomApply(100);return}
@@ -19818,6 +19822,7 @@ var DZM_MENU_RUB={undo:"Édition",redo:"Édition",delete:"Édition",ripple:"Édi
   swap_left:"Édition",swap_right:"Édition",nudge_left:"Édition",nudge_right:"Édition",
   gain_up:"Édition",gain_down:"Édition",fade_in_cycle:"Édition",fade_out_cycle:"Édition",mute:"Édition",solo:"Édition",
   snap:"Édition",/* revue 23/09 : bascule sœur de ripple, même rubrique */
+  copy:"Édition",paste:"Édition",/* L7 D-6 (24/09/2026) : le presse-papiers est une édition, pas une action de timeline */
   marker_toggle:"Marqueurs",marker_prev:"Marqueurs",marker_next:"Marqueurs",marker_index:"Marqueurs",
   zoom_in:"Affichage",zoom_out:"Affichage",zoom100:"Affichage",toolbar:"Affichage",narration:"Affichage",
   sounds_drawer:"Affichage",fullscreen:"Affichage",safezones:"Affichage",
@@ -19907,6 +19912,61 @@ function dzmKmImport(txt,actions,canon,reserved){
   acts.forEach(function(a){if(!a||!a.id||!km0[a.id])return;var c=km0[a.id];
     if(used[c])ign.push({id:a.id,raison:"collision",avec:used[c]});else{km[a.id]=c;used[c]=a.id}});
   return {ok:!0,keymap:km,ignores:ign}}
+/* ── L7 D-6 (24/09/2026) : presse-papiers de clips entre projets (pur) ──
+   UN clip : la sélection est simple (selId, B:1707) — écart daté, pas de
+   multi-copie. L'hôte range {v:1, at, clip:dzmClipCopy(c)} dans le stockage
+   local du navigateur (clé dz_montage_clipboard : survit au changement de
+   projet et d'onglet) et colle par dzmClipPaste à la tête, en mode d'édition
+   courant. (Aucun nom d'API du navigateur dans ce commentaire, à dessein :
+   _corps() du banc lit jusqu'au prochain `var`, et juge la pureté du bloc
+   D-10 qui précède.)
+   La copie est PROFONDE et sans `id` (l'identifiant est tranché au collage),
+   sans `transition`/`transition_s` (une transition appartient à la coupe,
+   pas au clip qu'on emporte), sans `src_history` (le journal de remplacement
+   reste au projet d'origine) ; `srcOut` suit le clip (fenêtre de source).
+   LA PISTE CIBLE : celle du clip si elle existe, sinon la piste du même
+   genre au PLUS PETIT rang (v1, a1, t1…). MESURÉ : les pistes arrivent dans
+   l'ordre de l'ÉCRAN (DZM_DEFAULT_TRACKS : t1, v3, v2, v1, a1…) — « la
+   première du genre » serait V3, une incrustation, pour une vidéo de V9.
+   Le genre d'une piste est `kind` s'il est dit, sinon son initiale
+   (dzmKindOf) ; le genre du clip vient de son `tr`.
+   `srcDur` (durée de la SOURCE) n'est pas connue du presse-papiers —
+   addAsset la tient de /duration — : seul « remplir » la lit (vitesse ×1
+   à défaut, dzmInsereUn), et l'appelant peut la passer dans `opts`. Les
+   refus de dzmInsere (verrou, clips mous) sont RELAYÉS tels quels, la
+   phrase française posée ici quand dzmInsere n'en donne pas. */
+var DZM_CLIP_NOCOPY=["id","transition","transition_s","src_history"];
+function dzmClipCopy(c){
+  if(!c||typeof c!=="object"||Array.isArray(c))return null;
+  var o={};
+  Object.keys(c).forEach(function(k){
+    if(DZM_CLIP_NOCOPY.indexOf(k)>=0||c[k]===void 0)return;
+    try{o[k]=JSON.parse(JSON.stringify(c[k]))}catch(e){}});
+  return o}
+function dzmClipPisteCible(tracks,tr){
+  var ts=Array.isArray(tracks)?tracks:[],genre=dzmKindOf(tr),i,t,best=null,n;
+  for(i=0;i<ts.length;i++){t=ts[i];if(t&&t.id!=null&&String(t.id)===String(tr))return t.id}
+  for(i=0;i<ts.length;i++){t=ts[i];if(!t||t.id==null||dzmKindOf(t.id,t.kind)!==genre)continue;
+    n=parseInt(String(t.id).replace(/^\D+/,""),10);if(!isFinite(n))n=1e9;
+    if(!best||n<best.n)best={id:t.id,n:n}}
+  return best?best.id:null}
+function dzmClipPaste(clips,payload,opts){
+  var o=opts||{},base=Array.isArray(clips)?clips.slice():[];
+  if(!payload||typeof payload!=="object"||!payload.clip||typeof payload.clip!=="object")
+    return {clips:base,track:null,mode:null,refus:"vide",note:"Presse-papiers vide — copiez d'abord un clip",id:null};
+  if(payload.v!==1)return {clips:base,track:null,mode:null,refus:"version",note:"Presse-papiers d'une autre version",id:null};
+  var c=dzmClipCopy(payload.clip),tracks=Array.isArray(o.tracks)?o.tracks:[],genre=dzmKindOf(c.tr);
+  var tr=dzmClipPisteCible(tracks,c.tr);
+  if(tr==null)return {clips:base,track:null,mode:null,refus:"piste",note:"Aucune piste "+genre+" pour coller",id:null};
+  var head=Number(o.head);if(!isFinite(head)||head<0)head=0;head=dzmR3(head);
+  var len=dzmR3((Number(c.end)||0)-(Number(c.start)||0));
+  if(!(len>0))len=dzmR3(Number(DZM_CLIP_DEFAUTS.video)||6);
+  c.tr=tr;c.start=head;c.end=dzmR3(head+len);
+  c.id=dzmUniqueId(clips,String(tr)+"u"+(o.seq|0)+"_"+Math.round(head*10));
+  var r=dzmInsere(clips,c,o.mode||"inserer",{tracks:tracks,head:head,srcDur:o.srcDur,range:o.range,locked:o.locked,twin:o.twin});
+  var note=r.note||"";
+  if(r.id==null&&!note)note=r.refus==="verrou"?"Piste "+String(r.track||tr).toUpperCase()+" verrouillée — rien n'a été collé":"Rien n'a été collé";
+  return {clips:r.clips,track:r.track||tr,mode:r.mode,refus:r.refus||null,note:note||null,id:r.id}}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,
@@ -20013,6 +20073,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   /* L4 (23/09/2026) : reglages de livraison -- pastille, options, payload, statut, rangee */
   loudPastille:dzmLoudPastille,deliverOpts:dzmDeliverOpts,deliverPayload:dzmDeliverPayload,delStatut:dzmDelStatut,DeliverRow:DzmDeliverRow,
   kmPreset:dzmKmPreset,kmExport:dzmKmExport,kmImport:dzmKmImport,
+  clipCopy:dzmClipCopy,clipPaste:dzmClipPaste,
   /* E-13 / E-14 (lot E-C, tache 5) : la tete dans l'inspecteur, le trou selectionne et son ripple */
   teteTxt:dzmTeteTxt,trou:dzmTrou,trouRipple:dzmTrouRipple,
   DEFAULTS:DZM_DEFAULT_TRACKS};

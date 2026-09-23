@@ -2146,10 +2146,13 @@ check("M16ref_la_ref_suit_chaque_rendu",
 # P14 : les neuf portes M25a…M25l qui lisent la regle du rendu passent la
 # meme ref a `DzTracks.isOverlayTrack` (M25a la lit deux fois : la regle et
 # l'ordre d'empilement).
+# L7 D-6 (24/09/2026, tache 2) : la branche paste (L7b2, repli dans R_R2) passe
+# la MEME ref a DzTracks.clipPaste (`tracks:dzTracksRef.current||svmTracksOf(...)`),
+# pour la meme raison que l'ajout.
 _dehors = (s.count("dzTracksRef")
            - (P.R_M16REF + P.R_M16A + P.R_M23 + P.R_M25A + P.R_M25C
               + P.R_M25D + P.R_M25E + P.R_M25H + P.R_M25I + P.R_M25J
-              + P.R_M25K + P.R_M25L).count("dzTracksRef"))
+              + P.R_M25K + P.R_M25L + P.R_R2).count("dzTracksRef"))
 check("M16ref_nom_dzTracksRef_n_ecrase_rien", _dehors == 0,
       f"dzTracksRef apparaît {_dehors}x hors des sections qui l'écrivent")
 # ── la note dit OU le clip a atterri, et nomme la sortie ──────────────────
@@ -3051,17 +3054,21 @@ check("P12_svmApplyProject_dedoublonne_et_re_seme_avant_d_ecrire",
 # CONSOMMATION du candidat dans M22a (`ovSeq.current=dzSeq;`), qui n'a lieu
 # qu'une fois l'insertion acceptee — un ajout refuse pour verrou ne troue
 # plus la numerotation. `ovSeq.current++` a disparu avec lui.
+# L7 D-6 (24/09/2026, tache 2) : TROIS ecrivains -- le collage (L7b2, repli
+# dans R_R2) consomme son candidat `ovSeq.current=dzPq;` de la meme facon,
+# apres que clipPaste a accepte (un refus ne troue pas la numerotation).
 check("P12_le_compteur_est_re_seme_une_fois",
       s.count("ovSeq.current=Math.max(") == 1
       and s.count("ovSeq.current=dzSeq;") == 1
-      and s.count("ovSeq.current=") == 2
+      and s.count("ovSeq.current=dzPq;") == 1 and P.R_R2.count("ovSeq.current=dzPq;") == 1
+      and s.count("ovSeq.current=") == 3
       # `ovSeq.current++` ne survit QUE dans le bloc de narration d'A1
       # (`var id="a1n"+ovSeq.current+…`), mesure du 21/09/2026 : ce geste-la
       # n'est pas un ajout d'asset, n'a pas de mode d'edition et ne passe pas
       # par `addAsset`. La forme d'addAsset, elle, a bien disparu.
       and s.count("ovSeq.current++") == 1
       and s.count(nl('ovSeq.current++;\n    var id="a1n"+ovSeq.current+')) == 1,
-      f'{s.count("ovSeq.current=")} dzSeq={s.count("ovSeq.current=dzSeq;")} '
+      f'{s.count("ovSeq.current=")} dzSeq={s.count("ovSeq.current=dzSeq;")} dzPq={s.count("ovSeq.current=dzPq;")} '
       f'pp={s.count("ovSeq.current++")}')
 # M22a (tour 2) : quand aucun jumeau ne parle, l'incrustation est DITE — la
 # branche `else` appelle `overlayNote`, declaree ET exportee par la couche.
@@ -12954,11 +12961,15 @@ for _a, _sec, _c in _COMBOS:
 # apres AJ5) declare `trans_add` sur « Alt+T » -- libre, et NON reservee :
 # « Ctrl+T » et « Ctrl+Maj+T » (le plan et son repli) sont toutes deux dans
 # SVM_COMBO_RESERVED (mesure [L7]).
+# 46 -> 48 le 24/09/2026 (L7 D-6, tache 2) : L7b1 (replie dans R_R1, apres
+# trans_add) declare `copy` sur « Ctrl+C » et `paste` sur « Ctrl+V » -- libres
+# et NON reservees (seule « Ctrl+Maj+C » l'est, mesure [L7] D-6).
 check("tb8_le_T_du_handoff_appartient_deja_a_la_narration",
-      len(_COMBOS) == 46 and _BY_COMBO.get("T") == ["narration"]
+      len(_COMBOS) == 48 and _BY_COMBO.get("T") == ["narration"]
       and _BY_COMBO.get("Maj+T") == ["title_add"]
       and _BY_COMBO.get("Maj+J") == ["adjust_add"]
-      and _BY_COMBO.get("Alt+T") == ["trans_add"],
+      and _BY_COMBO.get("Alt+T") == ["trans_add"]
+      and _BY_COMBO.get("Ctrl+C") == ["copy"] and _BY_COMBO.get("Ctrl+V") == ["paste"],
       f"actions={len(_COMBOS)} T={_BY_COMBO.get('T')}")
 # UNE COMBO PAR ACTION, ET AUCUNE EN DOUBLE : la nouvelle n'a rien vole.
 # `svmKmMerge` resoudrait une collision en silence (retour au defaut) — c'est
@@ -13763,11 +13774,13 @@ check("D5_I7_le_champ_de_titre_a_sa_regle",
 # (bascule au clavier, retrait et modification depuis l'index) la poussent.
 # 3 -> 4 le 21/09/2026 (D-4, tache 9) : W2 (replie dans R_R2, juste apres la
 # branche marker_index) pousse une QUATRIEME fois, avant l'echange.
+# 4 -> 5 le 24/09/2026 (L7 D-6, tache 2) : la branche paste (L7b2, repliee
+# dans R_R2) pousse une CINQUIEME fois, avant setClips du collage accepte.
 check("D5_les_marqueurs_etaient_deja_dans_les_cles_de_l_historique",
       src.count('"markers"') >= 1
       and 'markers' in src[src.index("DZM_HIST_CLES"):
                            src.index("DZM_HIST_CLES") + 260]
-      and P.R_R2.count("pushHistory();") == 4,
+      and P.R_R2.count("pushHistory();") == 5,
       f'cles={src[src.index("DZM_HIST_CLES"):src.index("DZM_HIST_CLES") + 160]!r} '
       f'pushHistory_R2={P.R_R2.count("pushHistory();")}')
 
@@ -15220,11 +15233,14 @@ check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB8b_puis_
                                                           # L7 D-10 (T1, 24/09/2026) : UNE section en queue (L7a1/L7a2 repliees
                                                           # dans R_R1/R_R2), sonde 135 -> 139 (kmPreset, kmExport, kmImport
                                                           # dans L7a3 ; voisins dans le repli L7a2 de R_R2)
+                                                          # L7 D-6 (T2, 24/09/2026) : AUCUNE section (L7b1/L7b2 repliees
+                                                          # dans R_R1/R_R2), sonde 139 -> 142 (clipCopy, clipPaste, modeLabel
+                                                          # dans le repli L7b2 de R_R2)
                                                           "L7a3"]
       and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
               and s.count(nl(a)) == (1 if a in r else 0)
               for _t, a, r in P.PATCHES[_DZ_I + 1:])
-      and _sonde.get("montage") == 139 and s.count("DzTracks") == 139
+      and _sonde.get("montage") == 142 and s.count("DzTracks") == 142
       if _bak else False,
       f"queue={_DZ_TAGS[_DZ_I + 1:]} sonde={_sonde.get('montage')} bundle={s.count('DzTracks')}")
 
@@ -16399,8 +16415,9 @@ check("EC2_le_bouton_menu_precede_le_titre_Montage_porte_un_title_et_aria_et_ouv
 # « Raccourcis » double (keys_panel vient du modele), pas de « Guide » (ecart).
 _EC1 = P.R_EC1
 _nAct = len(re.findall(r'^ \{id:"', s[s.find("var SVM_ACTIONS=["):s.find("var SVM_ACTION_BY_ID")], re.M))
-check("EC1_main_le_modele_lit_SVM_ACTIONS_complete_46_avec_svmKeyLabel_et_run_rejoue_par_dzFire",
-      s.count("DzTracks.menuModel(SVM_ACTIONS,svmKeyLabel)") == 1 and _nAct == 46
+# 48 le 24/09/2026 : copy + paste (L7 D-6, repli dans R_R1)
+check("EC1_main_le_modele_lit_SVM_ACTIONS_complete_48_avec_svmKeyLabel_et_run_rejoue_par_dzFire",
+      s.count("DzTracks.menuModel(SVM_ACTIONS,svmKeyLabel)") == 1 and _nAct == 48
       and "run:function(){dzFire(a.id)}" in _EC1 and s.count("run:function(){dzFire(a.id)}") == 1
       and s.count("SVM_ACTIONS.concat(") == 0 and s.count("SVM_ACTIONS") >= 3,
       f"model={s.count('DzTracks.menuModel(SVM_ACTIONS,svmKeyLabel)')} actions={_nAct}")
@@ -16535,11 +16552,12 @@ check("EC_la_feuille_dessine_le_menu_svm_menu_borne_a_dzsvm_menurub_menuitem_men
 _EC_SONDE = _lire(ROOT / "scripts" / "patch_bundle_dzcout.py")
 # -> 135 (L4, T4 : DeliverRow + rangeFrom dans L4b, deliverPayload dans L4c2).
 # -> 139 (L7 D-10, T1, 24/09/2026 : kmPreset + kmExport + kmImport dans L7a3, voisins dans le repli L7a2 de R_R2).
-check("EC_la_sonde_dzcout_compte_DzTracks_139",
-      _EC_SONDE.count('("montage", "DzTracks", 139),') == 1 and _EC_SONDE.count('("montage", "DzTracks", 135),') == 0
-      and _EC_SONDE.count('("montage", "DzTracks", 132),') == 0
+# -> 142 (L7 D-6, T2, 24/09/2026 : clipCopy + clipPaste + modeLabel dans le repli L7b2 de R_R2).
+check("EC_la_sonde_dzcout_compte_DzTracks_142",
+      _EC_SONDE.count('("montage", "DzTracks", 142),') == 1 and _EC_SONDE.count('("montage", "DzTracks", 139),') == 0
+      and _EC_SONDE.count('("montage", "DzTracks", 135),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 132),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 129),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 128),') == 0
-      and _EC_SONDE.count('("montage", "DzTracks", 123),') == 0 and s.count("DzTracks") == 139,
+      and _EC_SONDE.count('("montage", "DzTracks", 123),') == 0 and s.count("DzTracks") == 142,
       f"sonde={_EC_SONDE.count(chr(40) + chr(34) + 'montage')} bundle={s.count('DzTracks')}")
 
 print("\n[EC] E-7 : les trois vues Medias · Montage · Livraison (lot E-C, tache 3)")
@@ -17144,6 +17162,78 @@ check("L7_revue_I1_sous_node_contre_le_bundle_Object_keys_keymap_est_ce_que_svmK
       and _L7_RT[3][1] == ["blade", "mute", "solo"] and _L7_RT[3][3] == []
       and _L7_RT[4][1] == ["blade"] and _L7_RT[4][3] == [],
       _L7_RT)
+
+print("\n[L7] D-6 tache 2 : presse-papiers de clips entre projets, actions copy / paste (24/09/2026)")
+# ── L7 D-6 (24/09/2026, tache 2). MESURES : (1) comme en T1, les ancres du plan (adjust_add) sont x0
+# dans .bak_montage -> L7b1 (deux actions) et L7b2 (deux branches) sont REPLIEES dans R_R1 / R_R2 :
+# AUCUNE section neuve, 172 ancres inchangees ; (2) « Ctrl+C » et « Ctrl+V » ne sont PAS reservees
+# (SVM_COMBO_RESERVED ne porte que « Ctrl+Maj+C ») ni le defaut d'aucune action -> le plan tient, pas de
+# repli Ctrl+Maj ; (3) le Ctrl+C natif reste aux champs de saisie : la garde d'onKey (input / textarea /
+# select / contentEditable) precede tout dispatch ; (4) le menu ☰ range copy / paste en « Édition » par
+# DZM_MENU_RUB (couche), le modele lisant SVM_ACTIONS entiere (EC1) : aucune entree a cabler.
+_L7B1 = (' {id:"copy",sec:"Montage",lbl:"copier le clip sélectionné (presse-papiers, d\'un projet à l\'autre)",combo:"Ctrl+C"},',
+         ' {id:"paste",sec:"Montage",lbl:"coller le clip du presse-papiers à la tête de lecture",combo:"Ctrl+V"},')
+_iL7b1 = [s.find(nl(a)) for a in _L7B1]
+check("L7b1_actions_copy_Ctrl_C_et_paste_Ctrl_V_repliees_dans_R_R1_juste_apres_trans_add_libres_et_non_reservees",
+      all(s.count(nl(a)) == 1 and a in P.R_R1 for a in _L7B1) and 0 < _iL7a1 < _iL7b1[0] < _iL7b1[1] < _iL7a1 + 320
+      and s.count('id:"copy"') == 1 and s.count('id:"paste"') == 1 and s.count('combo:"Ctrl+C"') == 1 and s.count('combo:"Ctrl+V"') == 1
+      # temoin positif de la table des reservees : Ctrl+Maj+C y est, Ctrl+C et Ctrl+V n'y sont pas
+      and s.count('"Ctrl+Maj+C":1') == 1 and s.count('"Ctrl+C":1') == 0 and s.count('"Ctrl+V":1') == 0
+      and (_bak.count('id:"copy"') == 0 and _bak.count('id:"paste"') == 0 and _bak.count('combo:"Ctrl+C"') == 0
+           and _bak.count('combo:"Ctrl+V"') == 0 and _bak.count('"Ctrl+Maj+C":1') == 1 if _bak else False),
+      f"act={[s.count(nl(a)) for a in _L7B1]} ordre={(_iL7a1, _iL7b1)} bak={_bak.count(chr(105) + 'd:' + chr(34) + 'copy') if _bak else '?'}")
+_L7B2C = ('      if(id==="copy"){var dzCp=(clipsRef.current||[]).filter(function(k){return k&&k.id===selRef.current})[0];'
+          'if(!dzCp){fireNote("Copier : sélectionnez d\'abord un clip.");return}'
+          'try{localStorage.setItem("dz_montage_clipboard",JSON.stringify({v:1,at:new Date().toISOString(),clip:DzTracks.clipCopy(dzCp)}))}catch(e){fireNote("Presse-papiers indisponible dans ce navigateur (stockage refusé).");return}'
+          'fireNote("« "+(dzCp.label||dzCp.id)+" » copié — "+(svmKeyLabelNow("paste")||"Coller")+" le colle à la tête de lecture, dans ce projet ou dans un autre.");return}')
+_L7B2P = ('      if(id==="paste"){if(dzProjRef.current&&dzProjRef.current.demo){fireNote("Coller : disponible sur un projet réel — la démo est une maquette.");return}'
+          'var dzPs=null;try{dzPs=JSON.parse(localStorage.getItem("dz_montage_clipboard")||"null")}catch(e){dzPs=null}'
+          'var dzPq=ovSeq.current+1,dzPr=DzTracks.clipPaste(clipsRef.current||[],dzPs,{head:phRef.current,tracks:dzTracksRef.current||svmTracksOf(dzProjRef.current),mode:dzModeRef.current,seq:dzPq,'
+          'range:dzProjRef.current&&dzProjRef.current.range,locked:(function(){var o={},k;for(k in trackStRef.current)if(trackStRef.current[k]&&trackStRef.current[k].l)o[k]=!0;return o})()});'
+          'if(dzPr.id==null){fireNote(dzPr.note||"Rien n\'a été collé.");return}'
+          'ovSeq.current=dzPq;pushHistory();setClips(dzPr.clips);setSelId(dzPr.id);setDirty(!0);'
+          'fireNote("« "+(dzPs.clip.label||dzPr.id)+" » collé sur "+String(dzPr.track).toUpperCase()+" à "+svmShort(Number(phRef.current)||0)+(dzPr.mode!=="ecraser"?" (mode « "+DzTracks.modeLabel(dzPr.mode)+" »)":"")+(dzPr.note?" — "+dzPr.note:"")+".");return}')
+_iL7bc = s.find(nl(_L7B2C)); _iL7bp = s.find(nl(_L7B2P)); _iL7ok = s.find("    function onKey(e){")
+_L7_GARDE = 'if(tg==="input"||tg==="textarea"||tg==="select"||(el&&el.isContentEditable))return;'
+_iL7g = s.find(_L7_GARDE, _iL7ok if _iL7ok >= 0 else 0)
+check("L7b2_branches_copy_puis_paste_repliees_dans_R_R2_apres_trans_add_dans_onKey_derriere_la_garde_des_champs_de_saisie",
+      s.count(nl(_L7B2C)) == 1 and s.count(nl(_L7B2P)) == 1 and _L7B2C in P.R_R2 and _L7B2P in P.R_R2
+      and 0 < _iL7ok < _iL7g < _iL7a2 < _iL7bc < _iL7bp < _iL7a2 + 2600
+      and s.count("    function onKey(e){") == 1 and s.count(_L7_GARDE) == 1
+      and s.count('if(id==="copy"){') == 1 and s.count('if(id==="paste"){') == 1
+      and (_bak.count(_L7_GARDE) == 1 and _bak.count('if(id==="copy"){') == 0 and _bak.count('if(id==="paste"){') == 0 if _bak else False),
+      f"copy={s.count(nl(_L7B2C))} paste={s.count(nl(_L7B2P))} ordre={(_iL7ok, _iL7g, _iL7a2, _iL7bc, _iL7bp)}")
+# le presse-papiers : ecrit x1 (copy, try/catch) et lu x1 (paste, try/catch) sous la cle dz_montage_clipboard ; la cle
+# vaut 3 dans le bundle (la 3e est le commentaire du bloc pur de la couche) et 0 dans le .bak ; la copie passe par
+# clipCopy (x1), le collage par clipPaste (x1) avec les refs REELLES d'addAsset (phRef, dzTracksRef||svmTracksOf,
+# dzModeRef, dzProjRef.range, locked sur trackStRef) ; un refus (id null) sort AVANT pushHistory ; un collage accepte
+# consomme ovSeq PUIS pushHistory PUIS setClips PUIS setSelId(id reel) PUIS setDirty ; la demo refuse
+_iL7ref = _L7B2P.find("if(dzPr.id==null){fireNote("); _iL7seq = _L7B2P.find("ovSeq.current=dzPq;"); _iL7ph = _L7B2P.find("pushHistory();")
+_iL7sc = _L7B2P.find("setClips(dzPr.clips);"); _iL7ss = _L7B2P.find("setSelId(dzPr.id);"); _iL7sd = _L7B2P.find("setDirty(!0);")
+check("L7b2_presse_papiers_ecrit_x1_lu_x1_try_catch_refus_avant_pushHistory_ordre_ovSeq_pushHistory_setClips_setSelId_setDirty",
+      s.count('localStorage.setItem("dz_montage_clipboard",') == 1 and s.count('localStorage.getItem("dz_montage_clipboard")') == 1
+      and s.count("dz_montage_clipboard") == 3 and src.count("dz_montage_clipboard") == 1
+      and _L7B2C.count("try{localStorage.setItem(") == 1 and _L7B2C.count("}catch(e){") == 1
+      and _L7B2P.count("try{dzPs=JSON.parse(localStorage.getItem(") == 1 and _L7B2P.count("}catch(e){dzPs=null}") == 1
+      and s.count("DzTracks.clipCopy(") == 1 and s.count("DzTracks.clipPaste(") == 1 and s.count("DzTracks.modeLabel(") == 2
+      and _L7B2P.count("head:phRef.current,") == 1 and _L7B2P.count("tracks:dzTracksRef.current||svmTracksOf(dzProjRef.current),") == 1
+      and _L7B2P.count("mode:dzModeRef.current,") == 1 and _L7B2P.count("range:dzProjRef.current&&dzProjRef.current.range,") == 1
+      and _L7B2P.count("trackStRef.current[k].l)o[k]=!0") == 1 and _L7B2P.count("srcDur") == 0
+      and 0 < _iL7ref < _iL7seq < _iL7ph < _iL7sc < _iL7ss < _iL7sd and _L7B2P.count("pushHistory();") == 1
+      and _L7B2P.count("dzProjRef.current.demo") == 1 and s.count("dzProjRef.current.demo") == 1
+      and s.count("var dzTracksRef=x.useRef(null);dzTracksRef.current=svmTracksOf(proj);") == 1 and s.count("var dzModeRef=x.useRef(dzMode);dzModeRef.current=dzMode;") == 1
+      and (_bak.count("dz_montage_clipboard") == 0 and _bak.count("DzTracks.modeLabel(") == 0 and _bak.count("dzProjRef.current.demo") == 0 if _bak else False),
+      f"set={s.count(chr(108) + 'ocalStorage.setItem(' + chr(34) + 'dz_montage_clipboard')} cle={s.count('dz_montage_clipboard')} ordre={(_iL7ref, _iL7seq, _iL7ph, _iL7sc, _iL7ss, _iL7sd)}")
+# la couche : les trois pures, la liste des cles non copiees, les exports, la rubrique Édition -- dans le bundle comme dans
+# le fichier ; AUCUNE section neuve (L7A reste une section, en queue), 172 ancres
+check("L7b_la_couche_clipCopy_pisteCible_clipPaste_nocopy_exports_rubrique_Edition_x1_bundle_et_fichier_aucune_section_neuve",
+      all(s.count(k) == 1 and src.count(k) == 1 for k in (
+          "function dzmClipCopy(c){", "function dzmClipPisteCible(tracks,tr){", "function dzmClipPaste(clips,payload,opts){",
+          'var DZM_CLIP_NOCOPY=["id","transition","transition_s","src_history"];',
+          "clipCopy:dzmClipCopy,clipPaste:dzmClipPaste,", 'copy:"Édition",paste:"Édition",'))
+      and len(P.L7A) == 1 and P.PATCHES[-1:] == P.L7A and sum(1 for _t in P.PATCHES if _t[0].startswith("L7b")) == 0
+      and (_bak.count("dzmClipCopy") == 0 and _bak.count("dzmClipPaste") == 0 and _bak.count("DZM_CLIP_NOCOPY") == 0 if _bak else False),
+      f"pures={[s.count(k) for k in ('function dzmClipCopy(c){', 'function dzmClipPaste(clips,payload,opts){')]} sections={[p[0] for p in P.PATCHES[-2:]]}")
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

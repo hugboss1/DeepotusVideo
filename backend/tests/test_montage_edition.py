@@ -888,6 +888,34 @@ var _kT=[{id:"blade",combo:"Alt+C"},{id:"undo",combo:"Ctrl+Z"},{id:"redo",combo:
 out.ki_vol=T.kmImport('{"version":1,"keymap":{"range_out":"O","undo":"Alt+Q","redo":"Alt+Q","blade":"Ctrl+B"}}',_kT,_kC,_kR);
 out.ki_vol_preset=T.kmImport(T.kmExport(T.kmPreset("resolve")),_kT,_kC,_kR);
 out.ki_vol_echange=T.kmImport('{"version":1,"keymap":{"mute":"Alt+M","solo":"M"}}',_kT,_kC,_kR);
+/* ── [26] L7 D-6 (24/09/2026) : presse-papiers de clips entre projets ── */
+var _cc0={id:"v1c4",tr:"v1",label:"x",start:2,end:5,srcIn:1,srcOut:4,src:{job_id:"j"},transition:"fade",transition_s:.4,src_history:[1],gain:-3,effects:[{n:"a"}],hidden:void 0};
+out.cc=T.clipCopy(_cc0);
+out.cc_pur=(function(){var a=T.clipCopy(_cc0);a.src.job_id="Z";a.effects[0].n="Z";return [_cc0.src.job_id,_cc0.effects[0].n,_cc0.id,_cc0.transition]})();
+out.cc_bornes=[T.clipCopy(null),T.clipCopy(void 0),T.clipCopy("x"),T.clipCopy(7),T.clipCopy([1])];
+/* les pistes du banc sont dans l'ORDRE DE L'ECRAN (v3 en haut, a1 en bas), comme DZM_DEFAULT_TRACKS */
+var _cp=function(cs,pl,o){var r=T.clipPaste(cs,pl,o);return {id:r.id,track:r.track,mode:r.mode,refus:r.refus,note:r.note,v1:sv(r,"v1"),n:(r.clips||[]).length,
+  pose:(r.clips||[]).filter(function(k){return k&&r.id!=null&&k.id===r.id})[0]||null}};
+out.cp_meme_piste=_cp(C,{v:1,clip:out.cc},{head:10,tracks:TS,mode:"inserer",seq:7});
+out.cp_inserer_fend=_cp(C,{v:1,clip:out.cc},{head:2,tracks:TS,mode:"inserer",seq:8});
+out.cp_ecraser=_cp(C,{v:1,clip:out.cc},{head:2,tracks:TS,mode:"ecraser",seq:9});
+out.cp_piste_absente=_cp(C,{v:1,clip:Object.assign({},out.cc,{tr:"v9"})},{head:10,tracks:TS,mode:"inserer",seq:7});
+out.cp_kind_prime=_cp(C,{v:1,clip:Object.assign({},out.cc,{tr:"a1"})},{head:10,tracks:[{id:"x9",kind:"audio"},{id:"v1",kind:"video"}],mode:"inserer",seq:7});
+out.cp_genre_absent=_cp(C,{v:1,clip:Object.assign({},out.cc,{tr:"a1"})},{head:10,tracks:[{id:"v2",kind:"video"},{id:"v1",kind:"video"}],mode:"inserer",seq:7});
+out.cp_vide=[_cp(C,null,{}),_cp(C,void 0,{}),_cp(C,{v:1},{}),_cp(C,{v:1,clip:null},{}),_cp(C,{v:1,clip:"x"},{}),_cp(C,"x",{})].map(function(r){return [r.refus,r.id,r.n,r.track]});
+out.cp_v0=[_cp(C,{v:2,clip:out.cc},{}),_cp(C,{clip:out.cc},{}),_cp(C,{v:"1",clip:out.cc},{})].map(function(r){return [r.refus,r.id,r.n]});
+out.cp_verrou=_cp(C,{v:1,clip:out.cc},{head:10,tracks:TS,mode:"inserer",seq:7,locked:{v1:!0}});
+out.cp_mou=_cp(null,{v:1,clip:out.cc},{head:10,tracks:TS,mode:"inserer",seq:7});
+out.cp_sans_pistes=_cp(C,{v:1,clip:out.cc},{head:10});
+out.cp_head=[_cp(C,{v:1,clip:out.cc},{head:-3,tracks:TS,mode:"inserer",seq:1}),_cp(C,{v:1,clip:out.cc},{head:"zz",tracks:TS,mode:"inserer",seq:1}),
+  _cp(C,{v:1,clip:out.cc},{head:10.12345,tracks:TS,mode:"inserer",seq:1})].map(function(r){return [r.id,r.v1.filter(function(k){return k[0]===r.id})[0]||null]});
+out.cp_len0=_cp(C,{v:1,clip:Object.assign({},out.cc,{start:5,end:5})},{head:10,tracks:TS,mode:"inserer",seq:2});
+out.cp_id_pris=_cp(C.concat([{tr:"v1",id:"v1u7_100",start:20,end:21,src:{a:1}}]),{v:1,clip:out.cc},{head:10,tracks:TS,mode:"inserer",seq:7});
+out.cp_remplir=_cp(C,{v:1,clip:out.cc},{head:10,tracks:TS,mode:"remplir",seq:3,range:{in:2,out:5}});
+out.cp_remplir_srcdur=_cp(C,{v:1,clip:out.cc},{head:10,tracks:TS,mode:"remplir",seq:3,range:{in:2,out:5},srcDur:6});
+out.cp_pur=[C.length,C.map(function(c){return c.id}).join(","),out.cc.tr,out.cc.start,out.cc.id];
+out.cp_menu=T.menuModel([{id:"copy",sec:"Montage",lbl:"c",combo:"Ctrl+C"},{id:"paste",sec:"Montage",lbl:"p",combo:"Ctrl+V"},{id:"blade",sec:"Montage",lbl:"b",combo:"Alt+C"}],null)
+  .map(function(g){return [g.rub,g.items.map(function(i){return i.id}).join(",")]});
 console.log(JSON.stringify(out));
 """
 # E-9 : svmRuler / svmPad2 sont des fonctions DU BUNDLE (meme portee module que
@@ -1132,7 +1160,11 @@ try:
                  "dr_pure","dr_leve","dr_rendu","dr_vide","dr_absent","del_st",
                  # L7 D-10 (tache 1) : les QUATORZE cles de la section [25].
                  "kp_resolve","kp_inconnu","kp_pur","kx","kx_bornes","ki_ok","ki_combo","ki_casse","ki_v2","ki_vide","ki_aller_retour",
-                 "ki_vol","ki_vol_preset","ki_vol_echange"]
+                 "ki_vol","ki_vol_preset","ki_vol_echange",
+                 # L7 D-6 (tache 2) : les VINGT-ET-UNE cles de la section [26].
+                 "cc","cc_pur","cc_bornes","cp_meme_piste","cp_inserer_fend","cp_ecraser","cp_piste_absente","cp_kind_prime",
+                 "cp_genre_absent","cp_vide","cp_v0","cp_verrou","cp_mou","cp_sans_pistes","cp_head","cp_len0","cp_id_pris",
+                 "cp_remplir","cp_remplir_srcdur","cp_pur","cp_menu"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -2358,6 +2390,91 @@ check("l7a_coeur_pur_x3_preset_ecrit_une_fois_hasOwnProperty_ni_Ctrl_T_ni_Backsp
       ({n: len(c) for n, c in _L7A.items()}, _SRCb.count("DZM_KM_PRESETS")))
 check("l7a_exports_kmPreset_kmExport_kmImport_dans_DzTracks",
       len(_DT) > 1000 and _DT.count("kmPreset:dzmKmPreset,kmExport:dzmKmExport,kmImport:dzmKmImport,") == 1, len(_DT))
+
+print("\n[26] L7 D-6 : presse-papiers de clips entre projets (tache 2, 24/09/2026)")
+# ── L7 D-6 (24/09/2026, tache 2). UN clip (la selection est simple : selId, B:1707 -- ecart date, pas de
+# multi-copie). clipCopy = copie PROFONDE sans id / transition / transition_s / src_history (srcOut garde :
+# la fenetre de source suit le clip), clipPaste = choix de la piste + id + dzmInsere en mode courant.
+# MESURES qui precisent le plan : (1) les pistes arrivent dans l'ORDRE DE L'ECRAN (DZM_DEFAULT_TRACKS :
+# t1, v3, v2, v1, a1...) -> « la premiere piste du genre » serait V3 pour une video ; la cible est la piste
+# du genre au PLUS PETIT rang (v1, a1) -- ce que le plan attendait (« -> piste v1 ») ; (2) dzmInsere rend
+# refus:"" et note:"" quand tout va bien -> normalises a null ; (3) srcDur n'est lu que par « remplir »
+# (dzmInsereUn) et le presse-papiers ne connait pas la duree de la source (addAsset la tient de /duration,
+# B:4395 srcDurOr / askDur) -> colle sans srcDur, vitesse x1 en « remplir » sauf si l'appelant la passe.
+check("cc_copie_sans_id_transition_transition_s_src_history_avec_srcOut_et_gain_undefined_ignore",
+      D.get("cc") == {"tr": "v1", "label": "x", "start": 2, "end": 5, "srcIn": 1, "srcOut": 4, "src": {"job_id": "j"},
+                      "gain": -3, "effects": [{"n": "a"}]}, D.get("cc"))
+check("cc_copie_profonde_muter_la_copie_ne_touche_pas_l_original", D.get("cc_pur") == ["j", "a", "v1c4", "fade"], D.get("cc_pur"))
+check("cc_bornes_null_undefined_chaine_nombre_tableau_rendent_null", D.get("cc_bornes") == [None] * 5, D.get("cc_bornes"))
+_cpm = D.get("cp_meme_piste") or {}
+check("cp_meme_piste_v1_existe_id_v1u7_100_inserer_clip_de_3_s_a_10_13_srcIn_garde_refus_et_note_null",
+      _cpm.get("id") == "v1u7_100" and _cpm.get("track") == "v1" and _cpm.get("mode") == "inserer"
+      and _cpm.get("refus") is None and _cpm.get("note") is None and _cpm.get("n") == 5
+      and _cpm.get("v1") == [["p1", 0, 4, None], ["p2", 4, 8, None], ["v1u7_100", 10, 13, 1]]
+      and isinstance(_cpm.get("pose"), dict) and _cpm["pose"].get("srcOut") == 4 and "srcDur" not in _cpm["pose"]
+      and "transition" not in _cpm["pose"] and "src_history" not in _cpm["pose"], _cpm)
+check("cp_inserer_a_2_fend_p1_et_decale_le_reste_de_3_s_le_collage_passe_par_dzmInsere",
+      (D.get("cp_inserer_fend") or {}).get("v1") == [["p1", 0, 2, None], ["v1u8_20", 2, 5, 1], ["p1_r", 5, 7, 2], ["p2", 7, 11, None]]
+      and (D.get("cp_inserer_fend") or {}).get("n") == 6, D.get("cp_inserer_fend"))
+check("cp_ecraser_a_2_rogne_p1_et_p2_mode_rendu_ecraser",
+      (D.get("cp_ecraser") or {}).get("v1") == [["p1", 0, 2, None], ["v1u9_20", 2, 5, 1], ["p2", 5, 8, 1]]
+      and (D.get("cp_ecraser") or {}).get("mode") == "ecraser", D.get("cp_ecraser"))
+_cpa = D.get("cp_piste_absente") or {}
+check("cp_piste_absente_v9_va_sur_v1_le_plus_petit_rang_du_genre_pas_v3_la_premiere_de_la_liste",
+      _cpa.get("track") == "v1" and _cpa.get("id") == "v1u7_100" and _cpa.get("refus") is None
+      and _cpa.get("v1") == [["p1", 0, 4, None], ["p2", 4, 8, None], ["v1u7_100", 10, 13, 1]], _cpa)
+_cpk = D.get("cp_kind_prime") or {}
+check("cp_kind_de_la_piste_prime_sur_son_initiale_a1_absente_va_sur_x9_kind_audio",
+      _cpk.get("track") == "x9" and _cpk.get("id") == "x9u7_100" and _cpk.get("refus") is None and _cpk.get("n") == 5
+      and _cpk.get("v1") == [["p1", 0, 4, None], ["p2", 4, 8, None]] and (_cpk.get("pose") or {}).get("tr") == "x9", _cpk)
+_cpg = D.get("cp_genre_absent") or {}
+check("cp_genre_absent_refus_piste_note_dite_rien_pose_track_null",
+      _cpg.get("refus") == "piste" and _cpg.get("note") == "Aucune piste audio pour coller" and _cpg.get("id") is None
+      and _cpg.get("track") is None and _cpg.get("n") == 4 and _cpg.get("pose") is None, _cpg)
+check("cp_vide_null_undefined_sans_clip_clip_null_clip_chaine_payload_chaine_refus_vide_rien_pose",
+      D.get("cp_vide") == [["vide", None, 4, None]] * 6, D.get("cp_vide"))
+check("cp_v0_version_2_absente_ou_chaine_refus_version_rien_pose", D.get("cp_v0") == [["version", None, 4]] * 3, D.get("cp_v0"))
+_cpv = D.get("cp_verrou") or {}
+check("cp_verrou_de_dzmInsere_relaye_tel_quel_note_dite_rien_pose",
+      _cpv.get("refus") == "verrou" and _cpv.get("id") is None and _cpv.get("n") == 4 and _cpv.get("track") == "v1"
+      and _cpv.get("note") == "Piste V1 verrouillée — rien n'a été collé", _cpv)
+_cpo = D.get("cp_mou") or {}
+check("cp_clips_mous_refus_clips_de_dzmInsere_relaye_note_generique",
+      _cpo.get("refus") == "clips" and _cpo.get("id") is None and _cpo.get("n") == 0 and _cpo.get("note") == "Rien n'a été collé", _cpo)
+check("cp_sans_pistes_refus_piste_video", (D.get("cp_sans_pistes") or {}).get("refus") == "piste"
+      and (D.get("cp_sans_pistes") or {}).get("note") == "Aucune piste video pour coller", D.get("cp_sans_pistes"))
+check("cp_head_negatif_ou_illisible_vaut_0_et_la_tete_est_arrondie_au_millieme_id_au_dixieme",
+      D.get("cp_head") == [["v1u1_0", ["v1u1_0", 0, 3, 1]], ["v1u1_0", ["v1u1_0", 0, 3, 1]], ["v1u1_101", ["v1u1_101", 10.123, 13.123, 1]]], D.get("cp_head"))
+check("cp_clip_sans_duree_prend_la_duree_video_par_defaut_6_s",
+      (D.get("cp_len0") or {}).get("id") == "v1u2_100" and ((D.get("cp_len0") or {}).get("pose") or {}).get("end") == 16
+      and ((D.get("cp_len0") or {}).get("pose") or {}).get("start") == 10, D.get("cp_len0"))
+_cpi = D.get("cp_id_pris") or {}
+check("cp_id_deja_pris_renomme_v1u7_100_2_l_ancien_est_decale_par_l_insertion",
+      _cpi.get("id") == "v1u7_100_2" and _cpi.get("v1") == [["p1", 0, 4, None], ["p2", 4, 8, None], ["v1u7_100_2", 10, 13, 1], ["v1u7_100", 23, 24, None]], _cpi)
+_cpr = D.get("cp_remplir") or {}; _cprs = D.get("cp_remplir_srcdur") or {}
+check("cp_remplir_sans_srcDur_vitesse_x1_pose_sur_la_plage_avec_srcDur_6_vitesse_x2_srcOut_garde",
+      _cpr.get("mode") == "remplir" and _cpr.get("refus") is None and _cpr.get("note") is None
+      and _cpr.get("v1") == [["p1", 0, 2, None], ["v1u3_100", 2, 5, 0], ["p2", 5, 8, 1]]
+      and (_cpr.get("pose") or {}).get("speed") == 1 and "srcDur" not in (_cpr.get("pose") or {"srcDur": 1})
+      and (_cprs.get("pose") or {}).get("speed") == 2 and (_cprs.get("pose") or {}).get("srcOut") == 4 and _cprs.get("id") == "v1u3_100",
+      (_cpr, _cprs))
+check("cp_pur_ni_les_clips_ni_le_presse_papiers_ne_sont_mutes", D.get("cp_pur") == [4, "p1,p2,o1,n1", "v1", 2, None], D.get("cp_pur"))
+_cpmenu = dict(D.get("cp_menu") or []) if isinstance(D.get("cp_menu"), list) and all(isinstance(g, list) and len(g) == 2 for g in D.get("cp_menu")) else {}
+check("cp_menu_copy_et_paste_ranges_en_Edition_par_DZM_MENU_RUB_blade_reste_Timeline_temoin",
+      _cpmenu.get("Édition") == "copy,paste" and _cpmenu.get("Timeline") == "blade" and len(_cpmenu) == 2, D.get("cp_menu"))
+# LE COEUR RESTE PUR (trois fonctions sans r/x/window/localStorage/fetch) ; la liste des cles non copiees est ecrite
+# UNE fois ; clipPaste passe par dzmInsere (x1) et dzmUniqueId (x1) -- jamais recopies ; exports x1 dans DzTracks.
+_L7B = {n: _corps(n) for n in ("dzmClipCopy", "dzmClipPisteCible", "dzmClipPaste")}
+check("l7b_coeur_pur_x3_nocopy_ecrit_une_fois_paste_par_dzmInsere_et_dzmUniqueId_x1",
+      all(len(c) > 60 and not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|fetch\(", c) for c in _L7B.values())
+      and _SRCb.count('var DZM_CLIP_NOCOPY=["id","transition","transition_s","src_history"];') == 1 and _SRCb.count("DZM_CLIP_NOCOPY") == 2
+      and _L7B["dzmClipPaste"].count("dzmInsere(") == 1 and _L7B["dzmClipPaste"].count("dzmUniqueId(") == 1
+      and _L7B["dzmClipPaste"].count("dzmClipPisteCible(") == 1 and _L7B["dzmClipPaste"].count("dzmClipCopy(") == 1
+      and _L7B["dzmClipPaste"].count('refus:"vide"') == 1 and _L7B["dzmClipPaste"].count('refus:"version"') == 1 and _L7B["dzmClipPaste"].count('refus:"piste"') == 1
+      and _L7B["dzmClipPisteCible"].count("dzmKindOf(") == 2 and _SRCb.count('copy:"Édition",paste:"Édition"') == 1,
+      ({n: len(c) for n, c in _L7B.items()}, _SRCb.count("DZM_CLIP_NOCOPY")))
+check("l7b_exports_clipCopy_clipPaste_dans_DzTracks",
+      len(_DT) > 1000 and _DT.count("clipCopy:dzmClipCopy,clipPaste:dzmClipPaste,") == 1, len(_DT))
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

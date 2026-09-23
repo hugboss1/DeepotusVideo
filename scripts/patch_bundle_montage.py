@@ -3300,7 +3300,18 @@ R_R1 = (A_R1 + "\n"
         # onglet rouvert). « Alt+T » est libre (x0 dans .bak_montage) et non
         # reservee ; « T » reste a la narration, le dispatch cherchant d'abord
         # la combo EXACTE (meme raisonnement que « Maj+T »).
-        '\n {id:"trans_add",sec:"Montage",lbl:"transition : fondu à la coupe du plan sélectionné",combo:"Alt+T"},')
+        '\n {id:"trans_add",sec:"Montage",lbl:"transition : fondu à la coupe du plan sélectionné",combo:"Alt+T"},'
+        # -- « L7b1 » (L7 D-6, 24/09/2026) : LE PRESSE-PAPIERS DE CLIPS, REPLIE
+        # ICI (meme raison que L7a1 : l'entree adjust_add est x0 dans
+        # .bak_montage). COMBOS MESUREES (B:1641) : « Ctrl+C » et « Ctrl+V » ne
+        # sont PAS dans SVM_COMBO_RESERVED (seule « Ctrl+Maj+C » l'est) et ne
+        # sont le defaut d'aucune action (x0 dans .bak_montage) -- le plan
+        # tient, pas de repli Ctrl+Maj. Le Ctrl+C natif reste aux champs de
+        # saisie : onKey sort avant tout dispatch sur input/textarea/select/
+        # contentEditable (B:3376). Rubrique du menu ☰ : « Édition », par
+        # DZM_MENU_RUB de la couche (copy/paste y sont ranges).
+        '\n {id:"copy",sec:"Montage",lbl:"copier le clip sélectionné (presse-papiers, d\'un projet à l\'autre)",combo:"Ctrl+C"},'
+        '\n {id:"paste",sec:"Montage",lbl:"coller le clip du presse-papiers à la tête de lecture",combo:"Ctrl+V"},')
 
 # ── R2 (D-11) : la branche de dispatch ─────────────────────────────────────
 # PORTEE MESUREE dans `onKey` (meme corps de composant, closure) : `phRef`,
@@ -3478,7 +3489,33 @@ R_R2 = (A_R2 + "\n"
         'if(!dzTc){fireNote("Transition : sélectionnez d\'abord un plan de V1.");return}'
         'if(trackStRef.current.v1&&trackStRef.current.v1.l){fireNote("Piste V1 verrouillée.");return}'
         'if(!DzTracks.voisins(clipsRef.current,dzTc).g){fireNote("Transition : « "+(dzTc.label||dzTc.id)+" » n\'a pas de coupe à sa gauche.");return}'
-        'svmSetTransType(dzTc.id,"fade");fireNote("Fondu de "+svmTransS(dzTc).toFixed(1)+" s posé à la coupe de « "+(dzTc.label||dzTc.id)+" » — le losange en règle la durée.");return}')
+        'svmSetTransType(dzTc.id,"fade");fireNote("Fondu de "+svmTransS(dzTc).toFixed(1)+" s posé à la coupe de « "+(dzTc.label||dzTc.id)+" » — le losange en règle la durée.");return}'
+        # -- « L7b2 » (L7 D-6, 24/09/2026) : COPIER / COLLER, REPLIES ICI (meme
+        # raison que L7a2). PORTEE MESUREE, celle d'addAsset (B:4406-4431) :
+        # clipsRef / selRef / trackStRef / fireNote (branches voisines),
+        # phRef (la tete, B:1755), dzTracksRef.current||svmTracksOf(proj)
+        # (les pistes, B:4355), dzModeRef (le mode d'edition, B:1835),
+        # dzProjRef.current.range (la plage), ovSeq (le numero d'ordre,
+        # CONSOMME seulement quand le collage est accepte -- comme addAsset),
+        # locked = le meme objet {tr:!0} bati sur trackStRef. Le stockage est
+        # localStorage["dz_montage_clipboard"] = {v:1,at,clip}, lu et ecrit en
+        # try/catch (navigation privee, quota) ; la version et la piste sont
+        # jugees par DzTracks.clipPaste (pur, bance [26]) ; un collage accepte
+        # fait UN pushHistory AVANT setClips (modele delClipById B:2123), puis
+        # setSelId(id reel) + setDirty. Refus : `id` null -> la note de la
+        # couche, rien d'ecrit, rien dans la pile. La demo est une maquette
+        # (proj.demo, comme sfxInsert B:4497) : on n'y colle pas.
+        '\n      if(id==="copy"){var dzCp=(clipsRef.current||[]).filter(function(k){return k&&k.id===selRef.current})[0];'
+        'if(!dzCp){fireNote("Copier : sélectionnez d\'abord un clip.");return}'
+        'try{localStorage.setItem("dz_montage_clipboard",JSON.stringify({v:1,at:new Date().toISOString(),clip:DzTracks.clipCopy(dzCp)}))}catch(e){fireNote("Presse-papiers indisponible dans ce navigateur (stockage refusé).");return}'
+        'fireNote("« "+(dzCp.label||dzCp.id)+" » copié — "+(svmKeyLabelNow("paste")||"Coller")+" le colle à la tête de lecture, dans ce projet ou dans un autre.");return}'
+        '\n      if(id==="paste"){if(dzProjRef.current&&dzProjRef.current.demo){fireNote("Coller : disponible sur un projet réel — la démo est une maquette.");return}'
+        'var dzPs=null;try{dzPs=JSON.parse(localStorage.getItem("dz_montage_clipboard")||"null")}catch(e){dzPs=null}'
+        'var dzPq=ovSeq.current+1,dzPr=DzTracks.clipPaste(clipsRef.current||[],dzPs,{head:phRef.current,tracks:dzTracksRef.current||svmTracksOf(dzProjRef.current),mode:dzModeRef.current,seq:dzPq,'
+        'range:dzProjRef.current&&dzProjRef.current.range,locked:(function(){var o={},k;for(k in trackStRef.current)if(trackStRef.current[k]&&trackStRef.current[k].l)o[k]=!0;return o})()});'
+        'if(dzPr.id==null){fireNote(dzPr.note||"Rien n\'a été collé.");return}'
+        'ovSeq.current=dzPq;pushHistory();setClips(dzPr.clips);setSelId(dzPr.id);setDirty(!0);'
+        'fireNote("« "+(dzPs.clip.label||dzPr.id)+" » collé sur "+String(dzPr.track).toUpperCase()+" à "+svmShort(Number(phRef.current)||0)+(dzPr.mode!=="ecraser"?" (mode « "+DzTracks.modeLabel(dzPr.mode)+" »)":"")+(dzPr.note?" — "+dzPr.note:"")+".");return}')
 
 # ── R3 (D-11) : la bande sur la regle, apres la gouttiere ──────────────────
 # `DzmRangeBar` rend `null` tant que la plage n'est pas COMPLETE : la regle
@@ -5116,6 +5153,13 @@ assert R_L7A3.endswith(A_L7A3) and R_L7A3.count("svm-kbio") == 3 and R_L7A3.coun
 assert R_L7A3.count("setKmOv(") == 2 and R_L7A3.count("svmKmSave(") == 2 and R_L7A3.count("fireNote(") == 7
 assert R_L7A3.count('subsDownload("deepotus-raccourcis.json",') == 1 and R_L7A3.count("SVM_ACTIONS,svmComboCanon,svmComboReserved") == 1
 assert R_R1.count('id:"trans_add"') == 1 and R_R2.count('svmSetTransType(dzTc.id,"fade")') == 1 and R_R2.count("DzTracks.voisins(") == 1
+# L7 D-6 (24/09/2026, tache 2) : deux actions (L7b1, repli R_R1) et deux branches (L7b2, repli R_R2) -- aucune
+# section neuve (les ancres du plan sont consommees) ; le presse-papiers est lu x1 / ecrit x1, en try/catch
+assert R_R1.count('id:"copy"') == 1 and R_R1.count('id:"paste"') == 1 and R_R1.count('combo:"Ctrl+C"') == 1 and R_R1.count('combo:"Ctrl+V"') == 1
+assert R_R2.count('if(id==="copy"){') == 1 and R_R2.count('if(id==="paste"){') == 1 and R_R2.count("DzTracks.clipCopy(") == 1 and R_R2.count("DzTracks.clipPaste(") == 1
+assert R_R2.count('localStorage.setItem("dz_montage_clipboard",') == 1 and R_R2.count('localStorage.getItem("dz_montage_clipboard")') == 1 and R_R2.count("dz_montage_clipboard") == 2
+assert R_R2.find('if(id==="trans_add"){') < R_R2.find('if(id==="copy"){') < R_R2.find('if(id==="paste"){')
+assert R_R2.find("ovSeq.current=dzPq;pushHistory();setClips(dzPr.clips);setSelId(dzPr.id);setDirty(!0);") > 0
 assert R_L4C2.count("DzTracks.deliverPayload(") == 1 and R_L4B.count("DzTracks.DeliverRow") == 1 and R_L4B.count("DzTracks.rangeFrom(") == 1
 assert R_L4D3.count("o.d.queued") == 1 and R_L4D1.startswith("    if(!queue)setJob(") and R_L4C2.count("queue:queue===!0") == 1
 assert R_M16REF.count("dz_montage_deliver") == 2 and R_M16REF.count("/api/montage/deliver-presets") == 2 and R_M16REF.count("window.prompt(") == 1
