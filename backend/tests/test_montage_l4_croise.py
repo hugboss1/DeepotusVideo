@@ -134,8 +134,8 @@ check("x1_la_route_rend_builtins_id_label_dans_l_ordre_de_la_table_fps_et_preset
       and all(b.get("label") == DEL[b["id"]]["label"] for b in ROUTE["builtins"]) and ROUTE.get("presets") == [],
       ROUTE if not isinstance(ROUTE, dict) or "erreur" in ROUTE else [b.get("id") for b in ROUTE.get("builtins", [])])
 # AUCUN id dans le client : la couche lit `api.builtins` / `api.presets`, le
-# bundle porte la couche (dzmDeliverOpts x2 : la definition et l'appel de
-# DzmDeliverRow). `hevc` est un mot court : compte par mot entier.
+# bundle porte la couche (dzmDeliverOpts x3 : le docstring de la couche, la
+# definition et l'appel de DzmDeliverRow). `hevc` est un mot court : compte par mot entier.
 _ids_js = {i: len(re.findall(r'\b' + i + r'\b', JS)) for i in IDS_SRC}
 _ids_bun = {i: len(re.findall(r'\b' + i + r'\b', BUN)) for i in IDS_SRC}
 check("x1_aucun_des_dix_ids_dans_la_couche_temoins_api_builtins_x1_api_presets_x1",
@@ -191,24 +191,26 @@ if mL:
     except ValueError:
         LOUD_JS = None
 LOUD_SRC = [int(x) for x in mLs.group(1).replace(" ", "").split(",")] if mLs else []
+# Garde de forme reutilisee par les checks aval (faute n°6 : une paire mutee
+# `[[-14], ...]` doit ROUGIR, pas mourir d'un IndexError dans un `all(...)`).
+_paires_ok = isinstance(LOUD_JS, list) and all(isinstance(p, list) and len(p) == 2 and isinstance(p[0], int) and isinstance(p[1], str) for p in LOUD_JS)
 check("x3_les_deux_literaux_sont_lus_une_fois_chacun_et_la_couche_est_un_JSON_de_paires_valeur_libelle",
-      nL == 1 and nLs == 1 and isinstance(LOUD_JS, list) and len(LOUD_JS) == 3
-      and all(isinstance(p, list) and len(p) == 2 and isinstance(p[0], int) and isinstance(p[1], str) for p in LOUD_JS), (nL, nLs, LOUD_JS))
+      nL == 1 and nLs == 1 and _paires_ok and len(LOUD_JS) == 3, (nL, nLs, LOUD_JS))
 check("x3_couche_source_et_import_portent_14_16_23_dans_cet_ordre",
       isinstance(LOUD_JS, list) and [p[0] for p in LOUD_JS] == LOUD_SRC == list(LOUD) == [-14, -16, -23], (LOUD_JS, LOUD_SRC, list(LOUD)))
 check("x3_la_couche_rend_ses_options_depuis_DZM_DEL_LOUD_x1_map_x1_some_et_chaque_libelle_porte_sa_valeur_en_moins_typographique",
       nL == 1 and JS.count("DZM_DEL_LOUD.map(") == 1 and JS.count("DZM_DEL_LOUD.some(") == 1 and JS.count("DZM_DEL_LOUD") == 5
-      and isinstance(LOUD_JS, list) and all(p[1].startswith("−" + str(-p[0]) + " ") for p in LOUD_JS),
+      and _paires_ok and all(p[1].startswith("−" + str(-p[0]) + " ") for p in LOUD_JS),
       (JS.count("DZM_DEL_LOUD.map("), JS.count("DZM_DEL_LOUD.some("), LOUD_JS))
 _lt = {}
 if ms is not None:
-    for v in (LOUD_JS or []) and [p[0] for p in LOUD_JS] + [-19, "-14", True]:
+    for v in (_paires_ok and [p[0] for p in LOUD_JS] or []) + [-19, "-14", True]:
         try:
             _lt[repr(v)] = ms._loud_target(v)
         except ValueError:
             _lt[repr(v)] = "refuse"
 check("x3_comportement_loud_target_accepte_chaque_cible_de_la_couche_et_refuse_19_la_chaine_et_le_booleen",
-      isinstance(LOUD_JS, list) and len(LOUD_JS) == 3 and all(_lt.get(repr(p[0])) == p[0] for p in LOUD_JS)
+      _paires_ok and len(LOUD_JS) == 3 and all(_lt.get(repr(p[0])) == p[0] for p in LOUD_JS)
       and _lt.get("-19") == "refuse" and _lt.get("'-14'") == "refuse" and _lt.get("True") == "refuse", _lt)
 
 # -- [4] D-35 : les extensions vs le juge des medias -----------------------
