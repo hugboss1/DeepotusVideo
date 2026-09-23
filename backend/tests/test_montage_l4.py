@@ -828,9 +828,14 @@ check("d24_render_apercu_avec_loudness_n_appelle_pas_la_passe_1",
       and "loudnorm" not in (_cap.get("cmd") or "x"), (_rr.status_code, _cap.get("p1_calls")))
 _tl = TL("rendu", src=_REAL)
 _rr = _rendu(_tl)
+# Revue (23/09/2026) : les negations exigent le TEMOIN de capture — `cmd` pose
+# et cle `loudness` presente — sinon un `_run` jamais lance passerait a vide.
 check("d24_render_sans_loudness_n_appelle_pas_la_passe_1_et_loudness_est_none",
-      _rr.status_code == 200 and _cap.get("p1_calls") is None and _cap.get("loudness") is None
-      and _cap.get("loud_measured") is None and "loudnorm" not in (_cap.get("cmd") or "x"), _cap.get("p1_calls"))
+      _rr.status_code == 200 and _cap.get("cmd") is not None and "ffmpeg" in _cap["cmd"]
+      and "loudness" in _cap and "loud_measured" in _cap
+      and _cap.get("p1_calls") is None and _cap.get("loudness") is None
+      and _cap.get("loud_measured") is None and "loudnorm" not in _cap["cmd"],
+      (_cap.get("p1_calls"), sorted(_cap)))
 # Passe 1 qui ECHOUE → job failed avec le message, pas de commande finale.
 def _p1_echec(*a, **k):
     _cap["p1_calls"] = _cap.get("p1_calls", 0) + 1
@@ -871,9 +876,13 @@ check("d38_render_plages_invalides_rendent_400_plage_invalide_sans_commande",
       _codes_r)
 _tl = TL("rendu", src=_REAL)
 _rr = _rendu(_tl)
+# Observation datee (23/09/2026) : /render accepte range:["1","5"] (float()
+# des bornes) mais refuse loudness:"-14" (nombre exige) — asymetrie tolerée,
+# pas une exigence.
 check("d38_render_sans_range_transmet_none",
-      _rr.status_code == 200 and _cap.get("range_out") is None and "-ss" not in (_cap.get("cmd") or "x"),
-      _cap.get("range_out"))
+      _rr.status_code == 200 and _cap.get("cmd") is not None and "ffmpeg" in _cap["cmd"]
+      and "range_out" in _cap and _cap.get("range_out") is None and "-ss" not in _cap["cmd"],
+      (_cap.get("range_out"), sorted(_cap)))
 _tl = TL("rendu", src=_REAL); _tl["range"] = None
 _rr = _rendu(_tl)
 check("d38_render_range_null_est_l_historique",
