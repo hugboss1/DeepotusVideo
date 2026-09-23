@@ -3,7 +3,7 @@
 (frontend/patches/montage.js, celui que le patcher injecte), jamais lu.
 Shim par FICHIER, jamais `node -e`.
 Run : & $PY tests\test_montage_edition.py   (depuis backend/)"""
-import json, os, shutil, subprocess, sys, tempfile
+import json, os, re, shutil, subprocess, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8")
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 SRC_PATH = os.path.join(ROOT, "frontend", "patches", "montage.js")
@@ -568,6 +568,92 @@ out.tu_cles_inconnues=(function(){
    garde et que seul le rendu aurait ramene a 200, sans le dire. */
 out.tu_taille_bornee=[T.titleUpdate(TU,"t1u1",{size:5000})[0].title.size,
   T.titleUpdate(TU,"t1u1",{size:1})[0].title.size];
+/* [12] E-1 : montage neuf */
+out.pn_neuf=T.projetNeuf(" Pub été ");
+out.pn_neuf_vide=T.projetNeuf("");
+out.pn_snap=[T.instantaneNom("",new Date(2026,8,22,14,5)),T.instantaneNom("montage",new Date(2026,8,22,14,5)),T.instantaneNom("Pub",new Date(2026,8,22,14,5))];
+/* espaces seuls = pas de nom ; une date INVALIDE (instanceof Date, mais NaN)
+   retombe sur maintenant, jamais « NaN/NaN » */
+out.pn_snap_mou=[T.instantaneNom("   ",new Date(2026,8,22,14,5)),T.instantaneNom("",new Date(NaN))];
+/* les pistes du corps sont des COPIES : muter le corps ne touche pas DEFAULTS */
+out.pn_defaults_pur=(function(){var c=T.projetNeuf("x");c.tracks[0].id="zz";c.tracks.push({id:"q"});
+  return JSON.stringify(T.DEFAULTS.map(function(t){return t.id}))==='["t1","v2","v1","a1","a2","a3","s1"]'})();
+/* [13] E-4 : publier */
+var NOW=new Date(2026,8,22,14,7,30);
+out.pb_def=T.publishDefaults("Pub été",NOW,null);
+out.pb_def_mem=T.publishDefaults("",NOW,["youtube","zzz","x"]);
+out.pb_norm=[T.channelsNorm(["zzz"]),T.channelsNorm(null),T.channelsNorm(["instagram","x","x"])];
+out.pb_local=T.publishLocal(NOW);
+out.pb_iso=typeof T.publishIso("2026-09-22T16:15")==="string"&&/Z$/.test(T.publishIso("2026-09-22T16:15"))&&T.publishIso("")===""&&T.publishIso("zzz")==="";
+/* l'arrondi monte au QUART D'HEURE SUIVANT meme quand +2 h tombe pile :
+   14:00:00 -> 16:00 (rien a monter) ; 14:00:01 -> 16:15 */
+out.pb_local_pile=[T.publishLocal(new Date(2026,8,22,14,0,0)),T.publishLocal(new Date(2026,8,22,14,0,1))];
+/* [14] D-13 : le zoom dynamique, cote client */
+var DZ1={x0:0,y0:0,w0:1,x1:.2,y1:.2,w1:.6};
+out.dz_norm=T.dzNorm(DZ1);
+out.dz_norm_clamp=T.dzNorm({x0:.9,y0:-1,w0:.02,x1:5,y1:5,w1:3});
+out.dz_norm_vide=[T.dzNorm(null),T.dzNorm({x0:0,y0:0,w0:1,x1:0,y1:0,w1:1}),T.dzNorm({x0:"a"})];
+out.dz_at=[T.dzAt(DZ1,0),T.dzAt(DZ1,1),T.dzAt(Object.assign({ease:"lin"},DZ1),.5)];
+out.dz_at_doux=T.dzAt(DZ1,.5);
+out.dz_preset=[T.dzPreset("in"),T.dzPreset("out"),T.dzPreset("zzz")];
+out.dz_move=[T.dzMove(DZ1,1,.5,.5),T.dzMove(DZ1,0,.1,.1)];
+out.dz_scale=[T.dzScale(DZ1,1,.3),T.dzScale(DZ1,1,-.9)];
+out.dz_css=[T.dzCss(DZ1,0),T.dzCss(DZ1,1),T.dzCss(null,.5)];
+out.dz_of=[T.dzOf({dz:DZ1}),T.dzOf({dz:{x0:0,y0:0,w0:1,x1:0,y1:0,w1:1}}),T.dzOf({})];
+out.dz_pur=JSON.stringify(DZ1)==='{"x0":0,"y0":0,"w0":1,"x1":0.2,"y1":0.2,"w1":0.6}';
+/* les deux composants EXISTENT et rendent null sans clip / sans zoom (r n'est
+   pas lu) ; PlanProps avec un clip touche `r` -> le shim strict leve */
+out.dz_comp=[typeof T.PlanProps,typeof T.DzRects,T.PlanProps({clip:null}),T.DzRects({dz:null}),
+  (function(){try{T.PlanProps({clip:{id:"c",tr:"v1"}});return "rendu"}catch(e){return "leve"}})()];
+/* [15] D-15 : interpolation et rampe de vitesse (client) */
+out.rt_of=[T.retimeOf({retime:"flow"}),T.retimeOf({retime:"blend"}),T.retimeOf({retime:"nearest"}),T.retimeOf({}),T.retimeOf({retime:9})];
+var RC=[{id:"p1",tr:"v1",start:0,end:4,srcIn:1,speed:2,src:{job_id:"j"},transition:"fade",transition_s:.5},{id:"p2",tr:"v1",start:4,end:6,src:{job_id:"j"}}];
+var RR=T.rampe(RC,"p1",2,1,4);
+out.rt_rampe=RR&&RR.clips.map(function(c){return [c.id===RR.left?"L":c.id===RR.right?"R":c.id,c.start,c.end,c.srcIn,c.speed||1]});
+/* la partie droite ne reprend PAS la transition d'entree (elle est au milieu du plan) ; la gauche la garde */
+out.rt_rampe_trans=RR&&RR.clips.map(function(c){return c.transition||null});
+/* ECART MESURE CONTRE LE PLAN : le plan sondait p2 a t=5, qui est DANS p2 [4,6[ (aucun refus) -- t=7 est hors */
+out.rt_rampe_refus=[T.rampe(RC,"p1",0.1,1,2).refus,T.rampe(RC,"p1",3.9,1,2).refus,T.rampe(RC,"zz",2,1,2).refus,T.rampe(RC,"p2",7,1,2).refus];
+out.rt_rampe_pur=JSON.stringify(RC[0])==='{"id":"p1","tr":"v1","start":0,"end":4,"srcIn":1,"speed":2,"src":{"job_id":"j"},"transition":"fade","transition_s":0.5}';
+/* revue : la vitesse n'est PAS arrondie (« remplir » pose 1,333) -- la gauche garde 1.333, R.srcIn = 1 + 2*1.333 */
+var RF=T.rampe([{id:"f1",tr:"v1",start:0,end:4,srcIn:1,speed:1.333,src:{job_id:"j"}}],"f1",2,1.333,2);
+out.rt_rampe_fine=RF&&[RF.clips[0].speed,RF.clips[1].srcIn];
+/* revue : continuite du zoom au raccord -- la fenetre a t ferme la gauche et ouvre la droite ; sans dz, aucune cle dz */
+var RZ=T.rampe([{id:"z1",tr:"v1",start:0,end:4,srcIn:0,dz:{x0:0,y0:0,w0:1,x1:.2,y1:.2,w1:.6,ease:"lin"},src:{job_id:"j"}}],"z1",2,1,2);
+out.rt_rampe_dz=RZ&&[RZ.clips[0].dz.w1===RZ.clips[1].dz.w0&&RZ.clips[0].dz.x1===RZ.clips[1].dz.x0,RZ.clips[0].dz.w1,RZ.clips[1].dz.w1,RZ.clips[0].dz.w0,"dz" in RR.clips[0]||"dz" in RR.clips[1]];
+/* [16] D-16 : stabilisation, cote client (memes bornes que _v1_stab) */
+out.sb_norm=[T.stabNorm({on:true}),T.stabNorm({on:true,smooth:999,crop:"black",zoom:-80}),T.stabNorm({on:false}),T.stabNorm(null),T.stabNorm({on:true,smooth:"x",crop:1,zoom:"7"})];
+out.sb_of=[T.stabOf({stab:{on:true,smooth:30}}),T.stabOf({}),T.stabOf({stab:{on:false,smooth:30}})];
+out.sb_state=[T.stabState(null),T.stabState({status:"running",progress:40}),T.stabState({status:"done"}),T.stabState({status:"failed",error:"x"}),T.stabState({status:"failed"}),T.stabState({status:"running",progress:"zz"})];
+/* purete : l'entree n'est pas mutee ; un entier est rendu (12.6 -> 13) */
+var SBI={on:true,smooth:12.6,crop:"black",zoom:3.4};var SBN=T.stabNorm(SBI);
+out.sb_pur=[JSON.stringify(SBI)==='{"on":true,"smooth":12.6,"crop":"black","zoom":3.4}',SBN&&SBN.smooth,SBN&&SBN.zoom];
+/* [17] D-14 : keyframes d'echelle et d'opacite (client) -- mpLerp2 : lerp sur le SOUS-ENSEMBLE porteur, constante hors bornes, defaut sans porteur */
+var KP=[{t:0,x:.5,y:.5,scale:.5},{t:1,x:.6,y:.5},{t:2,x:.7,y:.5,scale:1.5,opacity:.2}];
+out.kf_lerp=[T.mpLerp2(KP,1,"scale",1),T.mpLerp2(KP,.5,"scale",1),Math.round(T.mpLerp2(KP,1.5,"x",0)*1000)/1000];
+out.kf_lerp_hors=[T.mpLerp2(KP,-3,"scale",1),T.mpLerp2(KP,9,"scale",1),T.mpLerp2(KP,0,"opacity",1),T.mpLerp2(KP,5,"opacity",1)];
+out.kf_lerp_defaut=[T.mpLerp2(KP,1,"zz",7),T.mpLerp2([],1,"scale",.3),T.mpLerp2(null,1,"scale",null),T.mpLerp2([{t:0,x:0,y:0,scale:"abc"}],0,"scale",2)];
+/* points NON tries et t manquant (0) : meme resultat que tries */
+out.kf_lerp_desordre=[T.mpLerp2([{t:2,scale:1.5},{t:0,scale:.5}],1,"scale",1),T.mpLerp2([{scale:.5},{t:2,scale:1.5}],.5,"scale",1)];
+/* mpKeep : le patch gagne, sinon le point ecrase, bornes .05..3 / 0..1, arrondi 0,001 / 0,01 ; sans source, aucune cle */
+var NP={t:1,x:.5,y:.5,rotate:0},VP={t:1,x:.5,y:.5,rotate:0,scale:9,opacity:.123456},PV={t:1,x:.1,y:.1,scale:.7,opacity:.4};
+var K1=T.mpKeep(NP,VP,PV);
+out.kf_keep=[K1===NP,K1.scale,K1.opacity,T.mpKeep({t:1},{t:1,x:0},PV).scale,T.mpKeep({t:1},{t:1,x:0},PV).opacity,T.mpKeep({t:1},{scale:-4,opacity:-1},null).scale,T.mpKeep({t:1},{scale:-4,opacity:-1},null).opacity];
+var K2=T.mpKeep({t:1,x:.5,y:.5,rotate:0},{t:1,x:.5,y:.5,rotate:0},null),K3=T.mpKeep({t:1},{scale:"zz",opacity:null},{opacity:"x"});
+out.kf_keep_absent=["scale" in K2,"opacity" in K2,"scale" in K3,"opacity" in K3,Object.keys(K2).length];
+out.kf_pur=[JSON.stringify(KP)==='[{"t":0,"x":0.5,"y":0.5,"scale":0.5},{"t":1,"x":0.6,"y":0.5},{"t":2,"x":0.7,"y":0.5,"scale":1.5,"opacity":0.2}]',JSON.stringify(VP)==='{"t":1,"x":0.5,"y":0.5,"rotate":0,"scale":9,"opacity":0.123456}',JSON.stringify(PV)==='{"t":1,"x":0.1,"y":0.1,"scale":0.7,"opacity":0.4}'];
+/* [18] D-9 : la piste d'ajustement (client) -- « j » = cinquieme genre ; `group` prend un OBJET (mesure : dzmGroup(t) lit t.kind/t.id, le plan ecrivait group("j1","adjust") a tort) */
+out.aj_kind=[T.kindOf("j1"),T.kindOf("j2","adjust"),T.kindOf("a1"),T.kindOf("t1"),T.kindOf("v1")];
+var AJS=T.skin("j1","adjust");
+out.aj_skin=[AJS.kind,AJS.type,AJS.id,typeof AJS.h];
+var TS0=T.DEFAULTS.map(function(t){return t.id});
+var TS1=T.adjustTrack(T.DEFAULTS);
+out.aj_track=[TS1.map(function(t){return t.id}),T.adjustTrack(TS1)===TS1,T.adjustTrack([]).map(function(t){return t.id}),T.adjustTrack([{id:"j1"}]).length];
+var AJC=[{id:"p",tr:"v1",start:0,end:10}];
+out.aj_new=T.adjustNew(2.5,AJC,"j1");
+out.aj_new_dur=[T.adjustNew(9,AJC,"j1").end,T.adjustNew(-1,AJC,"j1"),T.adjustNew(1,[],"j1"),T.adjustNew(0,[{id:"j1u1",tr:"j1",kind:"adjust",start:0,end:3}].concat(AJC),"j1").id];
+out.aj_group=[T.group({id:"j1",kind:"adjust"}),T.group({id:"t1",kind:"title"}),T.group({id:"v2",kind:"video"}),T.group({id:"a1",kind:"audio"})];
+out.aj_pur=[TS0.join()===T.DEFAULTS.map(function(t){return t.id}).join(),TS1.length===T.DEFAULTS.length+1,AJC.length===1&&AJC[0].end===10];
 console.log(JSON.stringify(out));
 """
 print("\n[1] dzmInsere sous node")
@@ -750,7 +836,21 @@ try:
                  "tu_texte","tu_inchange","tu_tronque","tu_label",
                  "tu_gabarit","tu_vide","tu_taille","tu_pur","tu_mou",
                  "tu_sub_tronque","tu_label_suit","tu_cles_inconnues",
-                 "tu_taille_bornee"]
+                 "tu_taille_bornee",
+                 # D-13 (L3, tache 2) : les DOUZE cles de la section [14].
+                 "dz_norm","dz_norm_clamp","dz_norm_vide","dz_at","dz_at_doux",
+                 "dz_preset","dz_move","dz_scale","dz_css","dz_of","dz_pur","dz_comp",
+                 # D-15 (L3, tache 4) : les SEPT cles de la section [15]
+                 # (cinq de la tache, deux de sa revue -- compte corrige 23/09/2026).
+                 "rt_of","rt_rampe","rt_rampe_trans","rt_rampe_refus","rt_rampe_pur",
+                 "rt_rampe_fine","rt_rampe_dz",
+                 # D-16 (L3, tache 6) : les QUATRE cles de la section [16].
+                 "sb_norm","sb_of","sb_state","sb_pur",
+                 # D-14 (L3, tache 7) : les SEPT cles de la section [17].
+                 "kf_lerp","kf_lerp_hors","kf_lerp_defaut","kf_lerp_desordre",
+                 "kf_keep","kf_keep_absent","kf_pur",
+                 # D-9 (L3, tache 9) : les SEPT cles de la section [18].
+                 "aj_kind","aj_skin","aj_track","aj_new","aj_new_dur","aj_group","aj_pur"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -1315,6 +1415,145 @@ check("tu_les_cles_inconnues_sont_ignorees",
 check("tu_la_taille_est_bornee_vingt_quatre_deux_cents",
       D.get("tu_taille_bornee") == [200, 24], D.get("tu_taille_bornee"))
 
+print("\n[12] E-1 montage neuf (client)")
+check("pn_neuf_porte_nom_vide_et_les_pistes_par_defaut",
+      "pn_neuf" in D and D["pn_neuf"].get("name") == "Pub été" and D["pn_neuf"].get("vide") is True
+      and [t["id"] for t in D["pn_neuf"].get("tracks", []) if isinstance(t, dict) and "id" in t]
+      == ["t1", "v2", "v1", "a1", "a2", "a3", "s1"], D.get("pn_neuf"))
+check("pn_neuf_sans_nom_s_appelle_montage_neuf",
+      (D.get("pn_neuf_vide") or {}).get("name") == "montage neuf", D.get("pn_neuf_vide"))
+# « montage » est le nom par DEFAUT de l'ecran (`nm` de DzmProjects) : il
+# n'est pas un nom, la copie de surete est datee comme le vide.
+check("pn_instantane_nomme_le_non_nomme_et_garde_un_vrai_nom",
+      D.get("pn_snap") == ["(non nommé) 22/09 14:05", "(non nommé) 22/09 14:05", "Pub"], D.get("pn_snap"))
+_SNAP = re.compile(r"^\(non nomm\u00e9\) \d\d/\d\d \d\d:\d\d$")
+check("pn_instantane_espaces_seuls_et_date_invalide",
+      isinstance(D.get("pn_snap_mou"), list) and len(D["pn_snap_mou"]) == 2
+      and D["pn_snap_mou"][0] == "(non nomm\u00e9) 22/09 14:05"
+      and isinstance(D["pn_snap_mou"][1], str) and _SNAP.match(D["pn_snap_mou"][1]) is not None
+      and "NaN" not in D["pn_snap_mou"][1], D.get("pn_snap_mou"))
+# DEFAULTS reste intact APRES qu'un corps de projet neuf a ete mute : le
+# corps porte des copies, jamais les objets de la constante.
+check("pn_defaults_pur_apres_mutation_du_corps", D.get("pn_defaults_pur") is True, D.get("pn_defaults_pur"))
+
+print("\n[13] E-4 publier (client)")
+check("pb_defaults_plus_deux_heures_au_quart_d_heure_x_par_defaut_legende_nom",
+      D.get("pb_def") == {"channels": ["x"], "run_at": "2026-09-22T16:15", "caption": "Pub été"}, D.get("pb_def"))
+check("pb_defaults_reprend_les_canaux_memorises_filtres", (D.get("pb_def_mem") or {}).get("channels") == ["youtube", "x"] and (D.get("pb_def_mem") or {}).get("caption") == "Montage", D.get("pb_def_mem"))
+check("pb_norm_liste_blanche_sans_doublon_x_a_defaut", D.get("pb_norm") == [["x"], ["x"], ["instagram", "x"]], D.get("pb_norm"))
+check("pb_local_est_la_forme_datetime_local", D.get("pb_local") == "2026-09-22T16:15", D.get("pb_local"))
+check("pb_local_pile_ne_monte_pas_une_seconde_monte", D.get("pb_local_pile") == ["2026-09-22T16:00", "2026-09-22T16:15"], D.get("pb_local_pile"))
+check("pb_iso_convertit_l_heure_locale_en_utc_z_et_vide_sur_invalide", D.get("pb_iso") is True)
+
+print("\n[14] D-13 zoom dynamique (client)")
+check("dz_norm_clampe_et_pose_ease_doux",
+      D.get("dz_norm") == {"x0": 0, "y0": 0, "w0": 1, "x1": 0.2, "y1": 0.2, "w1": 0.6, "ease": "doux"}, D.get("dz_norm"))
+check("dz_norm_tient_les_memes_bornes_que_le_backend",
+      D.get("dz_norm_clamp") == {"x0": 0.9, "y0": 0, "w0": 0.1, "x1": 0, "y1": 0, "w1": 1, "ease": "doux"}, D.get("dz_norm_clamp"))
+check("dz_norm_rend_null_pour_vide_plein_cadre_et_invalide",
+      "dz_norm_vide" in D and D["dz_norm_vide"] == [None, None, None], D.get("dz_norm_vide"))
+check("dz_at_rend_le_rectangle_debut_fin_et_le_milieu_lineaire",
+      D.get("dz_at") == [{"x": 0, "y": 0, "w": 1}, {"x": 0.2, "y": 0.2, "w": 0.6}, {"x": 0.1, "y": 0.1, "w": 0.8}], D.get("dz_at"))
+check("dz_at_doux_est_la_smoothstep_a_mi_course_egale_au_lineaire",
+      D.get("dz_at_doux") == {"x": 0.1, "y": 0.1, "w": 0.8}, D.get("dz_at_doux"))
+check("dz_preset_in_zoome_au_centre_out_l_inverse_inconnu_null",
+      D.get("dz_preset") == [{"x0": 0, "y0": 0, "w0": 1, "x1": 0.2, "y1": 0.2, "w1": 0.6, "ease": "doux"},
+                             {"x0": 0.2, "y0": 0.2, "w0": 0.6, "x1": 0, "y1": 0, "w1": 1, "ease": "doux"}, None], D.get("dz_preset"))
+check("dz_move_deplace_un_rectangle_en_restant_dans_le_cadre",
+      D.get("dz_move") == [dict(D["dz_norm"], x1=0.4, y1=0.4), D["dz_norm"]] if isinstance(D.get("dz_norm"), dict) else False, D.get("dz_move"))
+# faute n6 : `at` ne descend que des listes -- un dict au bout se lit avec un repli
+_dzs = lambda i, k: (at("dz_scale", i) if isinstance(at("dz_scale", i), dict) else {}).get(k, -1)
+check("dz_scale_change_la_largeur_autour_du_centre_borne_0_1",
+      "dz_scale" in D and _dzs(0, "w1") == 0.9 and abs(_dzs(0, "x1") - 0.05) < 1e-9
+      and _dzs(1, "w1") == 0.1 and abs(_dzs(1, "x1") - 0.45) < 1e-9, D.get("dz_scale"))
+# ECART MESURE (22/09/2026) : le plan attendait `-33.3333%` ET `scale(1.66667)`
+# avec UN arrondi a 1e5 -- incoherent (-33.33333 a 1e5). Un seul arrondi, 1e4.
+check("dz_css_est_une_translation_puis_une_echelle_origine_0_0",
+      D.get("dz_css") == ["translate(0%, 0%) scale(1)", "translate(-33.3333%, -33.3333%) scale(1.6667)", ""], D.get("dz_css"))
+check("dz_of_lit_le_clip_et_rend_null_hors_zoom",
+      "dz_of" in D and at("dz_of", 0) == D.get("dz_norm") and at("dz_of", 1) is None and at("dz_of", 2) is None, D.get("dz_of"))
+check("dz_pur", D.get("dz_pur") is True)
+check("dz_composants_existent_et_rendent_null_sans_clip_ni_zoom",
+      D.get("dz_comp") == ["function", "function", None, None, "leve"], D.get("dz_comp"))
+print("\n[15] D-15 interpolation et rampe (client)")
+check("rt_of_ne_rend_que_blend_ou_flow_sinon_null",
+      D.get("rt_of") == ["flow", "blend", None, None, None], D.get("rt_of"))
+# srcIn de la partie droite = srcIn + (t - start) * ancienne vitesse = 1 + 2*2 = 5 :
+# la REGLE DE dzmCarve (`si+(b-s)*sp`), mesuree identique a celle du plan.
+check("rt_rampe_fend_a_t_et_pose_les_deux_vitesses_srcin_propage_a_l_ancienne_vitesse",
+      D.get("rt_rampe") == [["L", 0, 2, 1, 1], ["R", 2, 4, 5, 4], ["p2", 4, 6, None, 1]], D.get("rt_rampe"))
+check("rt_rampe_la_droite_perd_la_transition_la_gauche_la_garde",
+      D.get("rt_rampe_trans") == ["fade", None, None], D.get("rt_rampe_trans"))
+check("rt_rampe_refuse_les_bords_a_moins_de_0_3_s_l_inconnu_et_le_hors_clip",
+      "rt_rampe_refus" in D and D["rt_rampe_refus"] == ["bord", "bord", "clip", "hors"], D.get("rt_rampe_refus"))
+check("rt_rampe_pur", D.get("rt_rampe_pur") is True)
+# revue : SANS arrondi au centieme -- 1.333 reste 1.333 et srcIn = dzmR3(1 + 2*1.333) = 3.666
+check("rt_rampe_ne_rond_pas_la_vitesse_et_srcin_suit_la_vitesse_fine",
+      D.get("rt_rampe_fine") == [1.333, 3.666], D.get("rt_rampe_fine"))
+# revue : la fenetre a t (lin, u=.5 -> w=.8) ferme la gauche et ouvre la droite ; sans dz, aucune cle dz
+check("rt_rampe_garde_le_zoom_continu_au_raccord_et_sans_dz_n_en_pose_pas",
+      D.get("rt_rampe_dz") == [True, 0.8, 0.6, 1, False], D.get("rt_rampe_dz"))
+
+print("\n[16] D-16 stabilisation (client)")
+check("sb_norm_tient_les_bornes_du_backend_et_rend_null_hors_on",
+      D.get("sb_norm") == [{"on": True, "smooth": 15, "crop": "keep", "zoom": 0},
+                           {"on": True, "smooth": 100, "crop": "black", "zoom": -30},
+                           None, None, {"on": True, "smooth": 15, "crop": "keep", "zoom": 7}], D.get("sb_norm"))
+check("sb_of_lit_le_clip",
+      "sb_of" in D and D["sb_of"] == [{"on": True, "smooth": 30, "crop": "keep", "zoom": 0}, None, None], D.get("sb_of"))
+# un echec sans message dit « ? » ; un progres non numerique dit 0 %
+check("sb_state_phrase_les_quatre_etats",
+      D.get("sb_state") == ["à analyser", "analyse 40 %", "analysée", "échec : x", "échec : ?", "analyse 0 %"], D.get("sb_state"))
+check("sb_norm_pur_et_entier", D.get("sb_pur") == [True, 13, 3], D.get("sb_pur"))
+
+print("\n[17] D-14 keyframes d'echelle et d'opacite (client)")
+# le sous-ensemble porteur seul : a t=1 le point sans scale ne pese pas (0.5 -> 1.5 sur [0,2] = 1 a t=1, .75 a t=.5) ; x se lit sur les trois (arrondi : .6+.1*.5 = .6499999 en flottant, comme svmMpLerp)
+check("kf_lerp2_interpole_sur_le_sous_ensemble_porteur",
+      D.get("kf_lerp") == [1, 0.75, 0.65], D.get("kf_lerp"))
+check("kf_lerp2_constante_hors_bornes_du_sous_ensemble",
+      D.get("kf_lerp_hors") == [0.5, 1.5, 0.2, 0.2], D.get("kf_lerp_hors"))
+check("kf_lerp2_rend_le_defaut_sans_point_porteur_mous_compris",
+      "kf_lerp_defaut" in D and D["kf_lerp_defaut"] == [7, 0.3, None, 2], D.get("kf_lerp_defaut"))
+check("kf_lerp2_ne_suppose_pas_les_points_tries",
+      D.get("kf_lerp_desordre") == [1, 0.75], D.get("kf_lerp_desordre"))
+# mpKeep : 9 -> 3 (borne), .123456 -> .12 ; sans patch le point ecrase donne .7/.4 ; -4 -> .05, -1 -> 0
+check("kf_keep_reporte_le_patch_sinon_le_point_ecrase_avec_les_bornes_du_backend",
+      D.get("kf_keep") == [True, 3, 0.12, 0.7, 0.4, 0.05, 0], D.get("kf_keep"))
+check("kf_keep_ne_pose_aucune_cle_sans_source_finie",
+      D.get("kf_keep_absent") == [False, False, False, False, 4], D.get("kf_keep_absent"))
+check("kf_pur", D.get("kf_pur") == [True, True, True], D.get("kf_pur"))
+
+print("\n[18] D-9 piste d'ajustement (client)")
+check("aj_kind_j_est_le_cinquieme_genre",
+      D.get("aj_kind") == ["adjust", "adjust", "audio", "title", "video"], D.get("aj_kind"))
+check("aj_skin_habille_la_piste",
+      "aj_skin" in D and D["aj_skin"] == ["adjust", "ajustement", "j1", "number"], D.get("aj_skin"))
+# j1 sous t1 (le haut du groupe des incrustations, dzmTitresAt), idempotent, ["j1"] sur liste vide,
+# et une liste restauree qui ne porte que l'id (kindOf lit la lettre) ne recoit pas une seconde j1
+check("aj_track_pose_j1_sous_t1_au_dessus_de_v2_idempotent",
+      "aj_track" in D and D["aj_track"] == [["t1", "j1", "v2", "v1", "a1", "a2", "a3", "s1"], True, ["j1"], 1], D.get("aj_track"))
+check("aj_new_est_un_clip_sans_src_de_3_s_a_la_tete",
+      "aj_new" in D and isinstance(D["aj_new"], dict) and D["aj_new"]["tr"] == "j1" and D["aj_new"]["start"] == 2.5
+      and D["aj_new"]["end"] == 5.5 and "src" not in D["aj_new"] and D["aj_new"]["kind"] == "adjust"
+      and D["aj_new"]["effects"] == [] and D["aj_new"]["label"] == "Ajustement" and D["aj_new"]["id"] == "j1u1", D.get("aj_new"))
+# borne par max(end) des clips ; null si t<0 ; null sur une liste vide ; le second clip se nomme j1u2
+check("aj_new_est_borne_par_la_fin_de_la_timeline_et_refuse_le_negatif_et_le_vide",
+      "aj_new_dur" in D and D["aj_new_dur"] == [10, None, None, "j1u2"], D.get("aj_new_dur"))
+check("aj_group_range_l_ajustement_avec_les_titres_et_les_incrustations",
+      D.get("aj_group") == [0, 0, 0, 2], D.get("aj_group"))
+check("aj_pur", D.get("aj_pur") == [True, True, True], D.get("aj_pur"))
+# CE QUE LA NOTE DE RETRAIT PROMET DOIT EXISTER (revue 23/09/2026) : le corps
+# de `del()` de l'en-tete de piste promet Maj+J pour j1, comme Maj+T pour t1
+# (temoin positif : `title_add` dans le MEME corps). Lu dans la SOURCE.
+_SRCd = globals().get("SRC") or ""   # SRC n'existe pas sans node : rougir, pas mourir
+_iDel = _SRCd.find("  function del(){")
+_iDelF = _SRCd.find("  return r.jsxs(\"div\",{className:\"dzm-hb\",", _iDel) if _iDel >= 0 else -1
+_DEL = _SRCd[_iDel:_iDelF] if 0 <= _iDel < _iDelF else ""
+check("aj_la_note_de_retrait_de_j1_promet_Maj_J_comme_t1_promet_Maj_T",
+      len(_DEL) > 200 and _DEL.count('dzmCombo("title_add","Maj+T")') == 1
+      and _DEL.count('dzmCombo("adjust_add","Maj+J")') == 1
+      and _DEL.count('kd==="adjust"') == 1 and _DEL.count('kd==="title"') == 1,
+      f"corps={len(_DEL)} o title={_DEL.count('title_add')} adjust={_DEL.count('adjust_add')}")
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

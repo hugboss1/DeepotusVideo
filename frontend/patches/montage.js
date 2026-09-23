@@ -211,6 +211,12 @@ function dzmSkin(id,kind,type){
      0 px de nom, portant pourtant ses cartons. */
   if(kind==="title")return {id:id,name:String(id).toUpperCase(),type:"titres",
     h:40,c:"--c-text",mix:11,kind:"title"};
+  /* D-9 — la piste d'AJUSTEMENT (j1) : ses clips n'ont pas de source, ils
+     portent des effets qui s'appliquent à tout ce qui est dessous au rendu.
+     Habillage d'incrustation (teinte --c-3d) : c'est le groupe qu'elle
+     rejoint (dzmGroup). */
+  if(kind==="adjust")return {id:id,name:String(id).toUpperCase(),type:"ajustement",
+    h:40,c:"--c-3d",mix:13,kind:"adjust"};
   if(type==="vidéo")return {id:id,name:String(id).toUpperCase(),type:"vidéo",
     h:54,c:"--c-video",mix:13,kind:"video"};
   return {id:id,name:String(id).toUpperCase(),type:"overlay",h:40,c:"--c-3d",
@@ -226,7 +232,10 @@ function dzmSkin(id,kind,type){
 function dzmKindOf(id,kind){
   if(kind)return kind;
   var k=String(id||"").charAt(0);
-  return k==="a"?"audio":k==="s"?"subs":k==="t"?"title":"video"}
+  return k==="a"?"audio":k==="s"?"subs":k==="t"?"title":k==="j"?"adjust":"video"}
+/* D-9 — « j » EST LE CINQUIÈME GENRE (même table que TT1/AJ1 du patcher).
+   MESURE du 22/09/2026 : `id:"j` vaut 8 dans .bak_montage, tous des
+   `job_…`/`jog_…` — aucun identifiant de PISTE. La lettre était libre. */
 
 /* LE REPLI DES PISTES, ÉCRIT UNE FOIS. « Une liste vide vaut les six pistes
    de base » était écrit à deux endroits ; l'étape 4 de la barre en voulait un
@@ -298,7 +307,7 @@ function svmTrackBusSync(ts){
    à sa naissance. */
 function dzmGroup(t){
   var k=t&&t.kind;
-  return k==="title"?0:k==="video"?(t.id==="v1"?1:0):k==="audio"?2:3}
+  return k==="title"||k==="adjust"?0:k==="video"?(t.id==="v1"?1:0):k==="audio"?2:3}
 function dzmIndex(ts,id){
   for(var i=0;i<ts.length;i++)if(ts[i].id===id)return i;
   return -1}
@@ -833,6 +842,12 @@ var DzmTrackBtns=function(props){
          (kd==="title"
           ?"revient avec "+dzmCombo("title_add","Maj+T")+
            ", qui repose un carton (même identifiant)."
+          /* D-9 (revue 23/09/2026) : MÊME DÉFAUT QUE T1 — aucun « + vidéo »
+             ne repose j1 (dzmAdd ne fabrique que v…/a…) ; elle revient par
+             Maj+J / « J+ », qui la recrée sous t1 (`adjustTrack`). */
+          :kd==="adjust"
+          ?"revient avec "+dzmCombo("adjust_add","Maj+J")+
+           ", qui repose un clip d'ajustement (même identifiant)."
           :"se rajoute par « + "+(kd==="audio"?"audio":"vidéo")+
            " » (même identifiant)."):"."))}
   return r.jsxs("div",{className:"dzm-hb",draggable:!0,
@@ -1511,6 +1526,35 @@ var DzmProjects=function(props){
     if(busy)return;
     if(arm!=="o"+p.id){setArm("o"+p.id);return}
     setArm("");setBusy(1);setErr("");
+    surete().then(function(s){if(s)ouvrir(p,s.nom)})}
+
+  /* E-1 (22/09/2026) — LA COPIE DE SÛRETÉ. Un montage courant SANS nom
+     (pas de `pid`) qui porte des clips est enregistré sous un nom daté
+     AVANT que « ouvrir » ou « nouveau » ne le remplace : la note d'ouverture
+     promettait jusque-là « il n'existe plus », E-1 le fait cesser. Elle
+     part AVANT `onBefore` : si elle échoue, l'autosave en vol n'a pas été
+     annulé et rien n'a bougé. Rend {nom} (nom vide = rien à sauver), ou
+     null quand la copie a échoué — l'ouverture est alors ANNULÉE, et le
+     motif est dit (le 400 « plus de 2 Mo » n'est pas un « impossible »).
+     LA COPIE EST RATTACHÉE À L'ÉCRAN DÈS QU'ELLE EXISTE (`onNamed`) : sans
+     cela, `pid` restait vide après un échec de l'étape suivante (création
+     400, open 409, réseau) et chaque nouvel essai recréait une copie
+     « (non nommé) … ». Ainsi l'autosave relancé par `onFail` miroite dans
+     la copie, et l'ouverture réussie reprend la main par `onNamed(p.id)`. */
+  function surete(){
+    var tl=(!pid&&props&&props.payload)?props.payload():null;
+    if(!(tl&&tl.clips&&tl.clips.length))return Promise.resolve({nom:""});
+    var n=dzmInstantaneNom(nm,new Date());
+    return send("/api/montage/projects","POST",{name:n,timeline:tl})
+      .then(function(d){if(props.onNamed)props.onNamed(d.id,d.name);
+          return {nom:d.name}},
+        function(e){setBusy(0);
+          note("Copie de sûreté impossible ("+((e&&e.message)||"requête impossible")+
+            ") — ouverture annulée");return null})}
+
+  /* l'ouverture proprement dite, factorisée : « remplacer ? » et
+     « nouveau » y passent tous deux. `sauve` = nom de la copie de sûreté. */
+  function ouvrir(p,sauve){
     if(props.onBefore)props.onBefore();
     send(url(p.id)+"/open","POST")
       .then(function(){return req("/api/montage/project")})
@@ -1523,9 +1567,10 @@ var DzmProjects=function(props){
         if(props.onOpen&&props.onOpen(d)){
           if(props.onNamed)props.onNamed(p.id,p.name);
           setOp(!1);
-          note("« "+p.name+" » ouvert. Le montage précédent a été remplacé : "+
-            "s'il n'était pas enregistré sous un nom, il n'existe plus, et "+
-            "« annuler » ne le rend pas.")}
+          note("« "+p.name+" » ouvert. Le montage précédent a été remplacé"+
+            (sauve?" — il est à l'abri sous « "+sauve+" »"
+              :" : s'il n'était pas enregistré sous un nom, il n'existe plus")+
+            ", et « annuler » ne le rend pas.")}
         else
           /* le serveur refuse déjà d'ouvrir un projet sans plan vivant (409,
              et le courant reste intact) : il ne reste ici qu'une réponse que
@@ -1556,6 +1601,21 @@ var DzmProjects=function(props){
          corruption silencieuse.
          NON MESURE A L'ECRAN — dette navigateur, comme tout ce popover. */
       .catch(function(e){fail(e);if(props.onFail)props.onFail()})}
+
+  /* E-1 : « nouveau » — un projet VIDE (`dzmProjetNeuf`, le nom du champ ou
+     « montage neuf ») créé puis ouvert par `ouvrir`, la copie de sûreté du
+     montage affiché d'abord. Le nom du champ est consommé comme par
+     « enregistrer sous… ». ARMÉ comme « ouvrir » (« nouveau ? » au second
+     clic) : il REMPLACE le montage affiché, et pour un montage NOMMÉ la
+     sûreté ne fait rien alors qu'`onBefore` avorte l'autosave en vol. */
+  function doNew(){
+    if(busy)return;
+    if(arm!=="n"){setArm("n");return}
+    setArm("");setBusy(1);setErr("");
+    surete().then(function(s){if(!s)return;
+      return send("/api/montage/projects","POST",dzmProjetNeuf(nv))
+        .then(function(d){setNv("");ouvrir({id:d.id,name:d.name},s.nom)})
+        .catch(fail)})}
 
   function doDup(p){
     if(busy)return;
@@ -1643,6 +1703,8 @@ var DzmProjects=function(props){
                 if(e.key==="Escape")setRen(null)}},"i")
           :r.jsx("span",{className:"dzm-projnm",title:p.name||"",
               children:(p.name||"sans nom")+(mine?" · ouvert":"")},"n"),
+        p.vide?r.jsx("span",{className:"dzm-projvide-chip",title:"montage vide",
+          children:"\u2205"},"vd"):null,
         r.jsx("span",{className:"dzm-projmeta",title:String(p.updated_at||""),
           children:dzmProjLine(p)},"m")]},"l"),
       r.jsxs("div",{className:"dzm-proja",children:[
@@ -1709,6 +1771,13 @@ var DzmProjects=function(props){
           placeholder:pid?nm:"nom du montage","aria-label":"Nom du projet",
           onChange:function(e){setNv(e.target.value)},
           onKeyDown:function(e){if(e.key==="Enter")saveAs()}},"i"),
+        r.jsx("button",{className:"svm-minibtn dzm-projnew",disabled:!!busy,
+          title:arm==="n"
+            ?"Confirmer : créer un montage vide REMPLACE le montage affiché "+
+             "(enregistré d'abord s'il n'a pas de nom)"
+            :"Créer un montage vide et l'ouvrir (le montage affiché est "+
+             "d'abord enregistré s'il n'a pas de nom ; un second clic confirmera)",
+          onClick:doNew,children:arm==="n"?"nouveau ?":"nouveau"},"nw"),
         r.jsx("button",{className:"svm-tbtn dzm-projbtn",disabled:!!busy,
           title:"Enregistrer le montage AFFICHÉ comme un nouveau projet. "+
             "Rien n'est écrasé : c'est un fichier de plus, et c'est lui qui "+
@@ -2591,7 +2660,8 @@ function dzmWantsTwin(kind,ts,id){return kind==="video"&&dzmTrackPlein(ts,id)}
    pas sondée (wantsTwin) — et l'ajout ne doit pas se taire pour autant. La
    porte « Envoyer vers → Montage » de la Bibliothèque vise « v2 » EN DUR
    (greffon libsend du bundle, `addAsset({job_id},…,"video",p.dur||0,"v2")`,
-   1 occurrence, mesuré le 06/09/2026) ; sur la sauvegarde de l'utilisateur
+   1 occurrence, mesuré le 06/09/2026 — 22/09/2026 : remplacée en aval par la
+   section EA1 du patcher montage, vidéo → v1, l'image reste v2) ; sur la sauvegarde de l'utilisateur
    v2 EXISTE, habillée « overlay/VFX » : un kapwing_sample envoyé de là
    arrivait sur V2 sans son et sans un mot — sa remontée exacte. Rend la
    phrase que l'ajout concatène à sa note, ou "" quand il n'y a rien à dire :
@@ -5697,6 +5767,33 @@ function dzmTitleNew(title,t,clips,tr){
   return {tr:piste,kind:"title",id:dzmUniqueId(clips,piste+"u"+n),
     label:txt.slice(0,24),start:t0,end:dzmR3(t0+len),title:ti}}
 
+/* D-9 — LA PISTE D'AJUSTEMENT, POSÉE UNE FOIS. Même contrat que
+   `dzmTitleTrack` (le MÊME tableau si une piste `adjust` existe déjà, le
+   genre DÉDUIT quand la piste ne le porte pas), mais insérée SOUS les
+   titres (`dzmTitresAt`) : la gravure ASS passe après tout au rendu, et
+   l'ajustement doit rester au-dessus des incrustations qu'il traite. Sur
+   une liste vide : `["j1"]`. PURE. */
+function dzmAdjustTrack(ts){
+  var list=(ts&&ts.length)?ts:[],i,t;
+  for(i=0;i<list.length;i++){t=list[i];
+    if(t&&t.id&&dzmKindOf(t.id,t.kind)==="adjust")return ts}
+  var out=list.slice();out.splice(dzmTitresAt(list),0,dzmSkin("j1","adjust"));return out}
+
+/* LE CLIP D'AJUSTEMENT NEUF, ou `null`. PURE. SANS clé `src` (le payload le
+   laisse passer par son genre, comme un carton), `effects:[]` — c'est le
+   rack VFX qui les lui donne. TROIS SECONDES bornées par la fin de la
+   timeline (`max(end)` des clips) ; `null` sous une tête négative ou sur un
+   projet vide : rien à ajuster, aucun instantané d'historique pour rien. */
+function dzmAdjustNew(t,clips,tr){
+  var cs=Array.isArray(clips)?clips:[],v=Number(t);
+  if(!cs.length||!isFinite(v)||v<0)return null;
+  var piste=String(tr||"j1"),fin=0,n=1;
+  cs.forEach(function(c){if(c){if(c.end>fin)fin=c.end;if(c.kind==="adjust")n++}});
+  var t0=dzmR3(v),t1=dzmR3(Math.min(t0+3,fin));
+  if(t1<=t0)return null;
+  return {tr:piste,kind:"adjust",id:dzmUniqueId(cs,piste+"u"+n),
+    label:"Ajustement",start:t0,end:t1,effects:[]}}
+
 /* LE CARTON SOUS LA TÊTE, ou `null`. FIN EXCLUE et DERNIER DÉPART GAGNANT :
    les deux règles de `svmActiveV1` du bundle, reprises telles quelles — un
    carton qui finit à 4 s a cédé la place à 4 s exactement, et deux cartons
@@ -5970,7 +6067,288 @@ function DzmTitleInspector(o){
       children:"Le placement et l'animation viennent du gabarit. "+
         "L'aperçu du lecteur est approché : Preview 480p fait foi."})]})}
 
+/* ── E-1 (22/09/2026) : UN MONTAGE NEUF. Le corps de POST /projects pour un
+   projet VIDE : nom nettoyé (« montage neuf » à défaut), `vide:true`, et les
+   pistes par défaut du CLIENT écrites explicitement (une seule vérité pour
+   l'écran et le rendu) — des COPIES, la constante ne sort jamais.
+   `dzmInstantaneNom` nomme la copie de sûreté prise AVANT d'ouvrir un autre
+   projet par-dessus un montage non nommé ; « montage » est le nom par défaut
+   de l'écran, pas un nom. */
+function dzmProjetNeuf(nom){
+  var n=String(nom||"").trim()||"montage neuf";
+  return {name:n,vide:!0,tracks:DZM_DEFAULT_TRACKS.map(function(t){return Object.assign({},t)})}}
+function dzmInstantaneNom(nom,now){
+  var n=String(nom||"").trim();
+  if(n&&n!=="montage")return n;
+  var d=now instanceof Date&&!isNaN(now)?now:new Date(),p=function(v){return (v<10?"0":"")+v};
+  return "(non nommé) "+p(d.getDate())+"/"+p(d.getMonth()+1)+" "+p(d.getHours())+":"+p(d.getMinutes())}
+
 /* ── export contrat ───────────────────────────────────────────────────────── */
+/* ── E-4 (22/09/2026) : PUBLIER, À LA DEMANDE. Le rendu ne crée plus rien
+   dans le Scheduler ; le bandeau de fin propose l'envoi. Défauts partagés
+   avec la Bibliothèque (+2 h, arrondi au quart d'heure suivant, canal « x »),
+   canaux mémorisés (dz_montage_channels), liste blanche = celle du backend
+   (montage_service). `publishIso` convertit l'heure LOCALE du champ
+   datetime-local en UTC « Z » : le backend la ramène en naïf UTC. */
+var DZM_CHANNELS=[["x","X"],["telegram","Telegram"],["youtube","YouTube"],["instagram","Instagram"]];
+function dzmChannelsNorm(list){
+  var ok=DZM_CHANNELS.map(function(c){return c[0]}),out=[];
+  (Array.isArray(list)?list:[]).forEach(function(c){if(ok.indexOf(c)>=0&&out.indexOf(c)<0)out.push(c)});
+  return out.length?out:["x"]}
+function dzmPublishLocal(now){
+  var d=new Date(now.getTime()+2*3600*1000),q=15*60*1000;d=new Date(Math.ceil(d.getTime()/q)*q);
+  var p=function(v){return (v<10?"0":"")+v};
+  return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+"T"+p(d.getHours())+":"+p(d.getMinutes())}
+function dzmPublishIso(local){var d=new Date(String(local||""));return isNaN(d)?"":d.toISOString()}
+function dzmPublishDefaults(nom,now,memo){
+  return {channels:dzmChannelsNorm(memo),run_at:dzmPublishLocal(now),caption:String(nom||"").trim()||"Montage"}}
+/* LE BANDEAU DE FIN DE RENDU. props : {fin:{job_id,name,project_id}, memo,
+   onSend(form)→Promise, onLib(), onClose()}. Un double clic ne crée pas deux
+   brouillons : le bouton se désarme pendant « … » et après succès. */
+var DZM_FIN_OK="Brouillon ajouté au Scheduler";
+function DzmFinBandeau(o){
+  var fin=o&&o.fin;if(!fin)return null;
+  var d0=dzmPublishDefaults(fin.name,new Date(),o.memo);
+  var s1=x.useState(d0.channels),ch=s1[0],setCh=s1[1];
+  var s2=x.useState(d0.run_at),when=s2[0],setWhen=s2[1];
+  var s3=x.useState(d0.caption),cap=s3[0],setCap=s3[1];
+  var s4=x.useState(""),st=s4[0],setSt=s4[1];
+  var tog=function(id){setCh(function(c){return c.indexOf(id)>=0?c.filter(function(k){return k!==id}):c.concat([id])})};
+  return r.jsxs("div",{className:"svm-pop dzm-fin",children:[
+    r.jsx("div",{className:"svm-poptitle",children:"Rendu terminé"}),
+    r.jsx("div",{className:"dzm-fin-row",children:DZM_CHANNELS.map(function(c){return r.jsxs("label",{className:"dzm-fin-ch",children:[
+      r.jsx("input",{type:"checkbox",checked:ch.indexOf(c[0])>=0,onChange:function(){tog(c[0])}})," "+c[1]]},c[0])})}),
+    r.jsxs("div",{className:"dzm-fin-row",children:[r.jsx("input",{type:"datetime-local",value:when,onChange:function(e){setWhen(e.target.value)}}),
+      r.jsx("input",{type:"text",value:cap,placeholder:"légende",onChange:function(e){setCap(e.target.value)}})]}),
+    st?r.jsx("div",{className:"dzm-fin-st",children:st}):null,
+    r.jsxs("div",{className:"dzm-fin-row",children:[
+      r.jsx("button",{className:"svm-goldbtn",disabled:st==="…"||st===DZM_FIN_OK,onClick:function(){setSt("…");
+        Promise.resolve(o.onSend({job_id:fin.job_id,project_id:fin.project_id||void 0,channels:dzmChannelsNorm(ch),run_at:dzmPublishIso(when)||void 0,caption:cap}))
+          .then(function(){setSt(DZM_FIN_OK)}).catch(function(e){setSt("Envoi impossible : "+String(e))})},children:"Envoyer vers le Scheduler"}),
+      r.jsx("button",{className:"svm-secbtn",onClick:function(){o.onLib&&o.onLib()},children:"Voir dans la Bibliothèque"}),
+      r.jsx("button",{className:"svm-secbtn",onClick:function(){o.onClose&&o.onClose()},children:"Fermer"})]})]})}
+/* ── D-13 (22/09/2026) : LE ZOOM DYNAMIQUE ───────────────────────────────
+   `dz` = {x0,y0,w0,x1,y1,w1,ease} en FRACTIONS du cadre — MÊMES bornes que
+   `montage_service._dz_spec` (w ∈ [0.1,1], x/y ∈ [0,1−w], plein cadre aux
+   deux bouts = null). Le rendu est un zoompan (backend) ; en direct, le
+   lecteur applique `dzmDzCss` à la <video> active (translate puis scale,
+   origine 0 0) — même géométrie, pas le même moteur. */
+function dzmDzR(v){return Math.round(v*1e6)/1e6}
+function dzmDzNorm(raw){
+  if(!raw||typeof raw!=="object")return null;
+  var ks=["x0","y0","w0","x1","y1","w1"],o={},i,v;
+  for(i=0;i<ks.length;i++){v=Number(raw[ks[i]]);if(!isFinite(v))return null;o[ks[i]]=v}
+  ["0","1"].forEach(function(s){
+    o["w"+s]=Math.max(.1,Math.min(1,o["w"+s]));
+    o["x"+s]=dzmDzR(Math.max(0,Math.min(1-o["w"+s],o["x"+s])));
+    o["y"+s]=dzmDzR(Math.max(0,Math.min(1-o["w"+s],o["y"+s])));
+    o["w"+s]=dzmDzR(o["w"+s])});
+  if(o.x0===0&&o.y0===0&&o.x1===0&&o.y1===0&&o.w0>=1&&o.w1>=1)return null;
+  o.ease=raw.ease==="lin"?"lin":"doux";
+  return o}
+function dzmDzOf(c){return c&&c.dz?dzmDzNorm(c.dz):null}
+/* interpolation sur un `d` DEJA normalise (partagee par dzmDzAt et dzmDzCss) */
+function dzmDzAtN(d,u){
+  u=Math.max(0,Math.min(1,Number(u)||0));
+  if(d.ease!=="lin")u=u*u*(3-2*u);
+  return {x:dzmDzR(d.x0+(d.x1-d.x0)*u),y:dzmDzR(d.y0+(d.y1-d.y0)*u),w:dzmDzR(d.w0+(d.w1-d.w0)*u)}}
+function dzmDzAt(dz,u){var d=dzmDzNorm(dz);return d?dzmDzAtN(d,u):{x:0,y:0,w:1}}
+function dzmDzPreset(name){
+  if(name==="in")return dzmDzNorm({x0:0,y0:0,w0:1,x1:.2,y1:.2,w1:.6});
+  if(name==="out")return dzmDzNorm({x0:.2,y0:.2,w0:.6,x1:0,y1:0,w1:1});
+  return null}
+/* k = 0 (début) | 1 (fin) ; dx/dy en fraction du cadre — le rectangle reste
+   dans le cadre, la largeur ne bouge pas */
+function dzmDzMove(dz,k,dx,dy){
+  var d=dzmDzNorm(dz);if(!d)return null;var s=k?"1":"0",o=Object.assign({},d);
+  o["x"+s]=o["x"+s]+(Number(dx)||0);o["y"+s]=o["y"+s]+(Number(dy)||0);
+  return dzmDzNorm(o)||d}
+/* dw en fraction : la largeur change AUTOUR DU CENTRE du rectangle, bornée
+   [0.1, 1] et ramenée dans le cadre par la normalisation */
+function dzmDzScale(dz,k,dw){
+  var d=dzmDzNorm(dz);if(!d)return null;var s=k?"1":"0",o=Object.assign({},d);
+  var w0=o["w"+s],w1=Math.max(.1,Math.min(1,w0+(Number(dw)||0))),cx=o["x"+s]+w0/2,cy=o["y"+s]+w0/2;
+  o["w"+s]=w1;o["x"+s]=cx-w1/2;o["y"+s]=cy-w1/2;
+  return dzmDzNorm(o)||d}
+/* la transformation CSS de la <video> pour la fenêtre à u : scale = 1/w,
+   puis translation de −x·s / −y·s (en % de la boîte de l'élément), origine
+   0 0 — posée par la FEUILLE (`.svm-live>.svm-livemedia{transform-origin:0 0}`),
+   pas par l'appelant. "" quand il n'y a pas de zoom (dz absent ou invalide).
+   UN SEUL arrondi (1e4) pour les trois nombres. */
+function dzmDzCss(dz,u){
+  var d=dzmDzNorm(dz);if(!d)return "";
+  var r=dzmDzAtN(d,u),s=1/r.w,f=function(v){return String(Math.round(v*1e4)/1e4)};
+  return "translate("+f(-r.x*s*100)+"%, "+f(-r.y*s*100)+"%) scale("+f(s)+")"}
+/* ── D-15 (22/09/2026) : INTERPOLATION ET RAMPE ───────────────────────────
+   `retime` = "blend" | "flow" (nearest = absent, l'historique) ; le backend
+   ne le lit qu'avec une vitesse ≠ 1. La RAMPE de Resolve devient « diviser
+   à t puis deux vitesses » : MÊME règle que dzmCarve pour la partie droite
+   (srcIn + (t − start) · ancienne vitesse, identifiant libre par dzmFreeId),
+   la droite perd sa transition d'entrée (elle est au milieu du plan). Bornes
+   0,3 s aux deux bords. Rend {clips, left, right, refus:""|"clip"|"hors"|"bord"}. */
+function dzmRetimeOf(c){var v=c&&c.retime;return v==="blend"||v==="flow"?v:null}
+function dzmRampe(clips,id,t,spdL,spdR){
+  var cs=Array.isArray(clips)?clips:[],c=cs.filter(function(k){return k&&k.id===id})[0],ko=function(m){return {clips:cs,left:null,right:null,refus:m}};
+  if(!c)return ko("clip");
+  t=Number(t);var s=Number(c.start)||0,e=Number(c.end)||0;
+  if(!(t>s&&t<e))return ko("hors");
+  if(t-s<.3||e-t<.3)return ko("bord");
+  /* SANS arrondi : « remplir » pose des vitesses à trois décimales (1,333) ;
+     une gauche réécrite à 1,33 consommerait moins de source que R.srcIn ne
+     le suppose (trou ≈ t·0,003 s au raccord). Le select fournit déjà deux décimales. */
+  var cl=function(v){v=Number(v);return v>0?Math.max(.25,Math.min(4,v)):1},sp=dzmSpeedNum(c);
+  var L=Object.assign({},c,{end:dzmR3(t)}),R=Object.assign({},c,{id:dzmFreeId(dzmTaken(cs),c.id),start:dzmR3(t)});
+  if(c.srcIn!=null||c.src)R.srcIn=dzmR3((Number(c.srcIn)||0)+(t-s)*sp);
+  /* continuité du zoom au raccord : la fenêtre à t devient la fin de la gauche
+     et le début de la droite — la LAME du bundle, elle, hérite `dz` tel quel
+     (reste daté pour la clôture) */
+  var d=dzmDzOf(c);if(d){var m=dzmDzAtN(d,(t-s)/(e-s));L.dz=Object.assign({},d,{x1:m.x,y1:m.y,w1:m.w});R.dz=Object.assign({},d,{x0:m.x,y0:m.y,w0:m.w})}
+  if(cl(spdL)===1)delete L.speed;else L.speed=cl(spdL);
+  if(cl(spdR)===1)delete R.speed;else R.speed=cl(spdR);
+  delete R.transition;delete R.transition_s;
+  var out=[];cs.forEach(function(k){out.push(k===c?L:k);if(k===c)out.push(R)});
+  return {clips:out,left:L.id,right:R.id,refus:""}}
+/* ── D-16 (22/09/2026) : STABILISATION ───────────────────────────────────
+   `stab` = {on, smooth 1..100, crop keep|black, zoom −30..30} — mêmes bornes
+   que `_v1_stab` du backend (null hors `on` : la clé est alors retirée du
+   clip). L'analyse (.trf) vit chez le backend, PAR SOURCE : le client la
+   DEMANDE (POST /api/montage/stab, contrat de /proxy) et la suit par
+   GET /api/jobs/{id} — premier consommateur client d'un job « par source ».
+   stabState phrase l'état d'un job {status,progress,error}|null. */
+function dzmStabNorm(raw){
+  if(!raw||typeof raw!=="object"||!raw.on)return null;
+  var n=function(v,lo,hi,dv){v=Number(v);return isFinite(v)?Math.round(Math.max(lo,Math.min(hi,v))):dv};
+  return {on:!0,smooth:n(raw.smooth,1,100,15),crop:raw.crop==="black"?"black":"keep",zoom:n(raw.zoom,-30,30,0)}}
+function dzmStabOf(c){return c&&c.stab?dzmStabNorm(c.stab):null}
+function dzmStabState(job){
+  if(!job)return "à analyser";
+  if(job.status==="done")return "analysée";
+  if(job.status==="failed")return "échec : "+String(job.error||"?");
+  return "analyse "+Math.round(Number(job.progress)||0)+" %"}
+/* ── D-14 (22/09/2026) : KEYFRAMES D'ÉCHELLE ET D'OPACITÉ SUR LES OVERLAYS ──
+   Contrat du rendu (T7a) : un point sans `scale` (ou `opacity`) ne participe
+   pas à CETTE animation ; sans point porteur, la statique du clip reste.
+   dzmMpLerp2 = svmMpLerp du bundle (lerp sur le SOUS-ENSEMBLE porteur,
+   constante hors bornes) avec un défaut `dv`, et sans supposer les points
+   triés. dzmMpKeep : mesuré, svmMpPlace construit un point NEUF
+   {t,x,y,rotate} — il perdait scale/opacity du patch ET du point écrasé ;
+   ceci les reporte (le patch `vals` gagne, sinon le point `prev`), bornées
+   comme le backend (.05..3 au millième, 0..1 au centième), jamais de clé
+   sans valeur finie. */
+function dzmMpLerp2(pts,tl,key,dv){
+  var ps=[],i,v;
+  for(i=0;i<(pts||[]).length;i++){v=Number(pts[i]&&pts[i][key]);
+    if(pts[i]&&pts[i][key]!=null&&isFinite(v))ps.push({t:Number(pts[i].t)||0,v:v})}
+  if(!ps.length)return dv;
+  ps.sort(function(a,b){return a.t-b.t});tl=Number(tl)||0;
+  if(tl<=ps[0].t)return ps[0].v;
+  var last=ps[ps.length-1];
+  if(tl>=last.t)return last.v;
+  for(i=1;i<ps.length;i++){var p0=ps[i-1],p1=ps[i];
+    if(tl<p1.t)return p0.v+(p1.v-p0.v)*(tl-p0.t)/Math.max(.001,p1.t-p0.t)}
+  return last.v}
+var DZM_MP_EXTRA={scale:[.05,3,1000],opacity:[0,1,100]};
+function dzmMpKeep(np,vals,prev){
+  Object.keys(DZM_MP_EXTRA).forEach(function(k){
+    var b=DZM_MP_EXTRA[k],v=Number(vals&&vals[k]!=null?vals[k]:prev?prev[k]:null);
+    if((vals&&vals[k]!=null)||(prev&&prev[k]!=null))
+      if(isFinite(v))np[k]=Math.min(b[1],Math.max(b[0],Math.round(v*b[2])/b[2]))});
+  return np}
+/* L'HÔTE DES PROPRIÉTÉS DE PLAN (D-13, puis D-15 et D-16) : UNE section de
+   l'inspecteur, montée UNE fois (DZ1) sur un clip V1 réel. props : {clip,
+   u (avancement 0..1 de la tête dans le clip), speed (vitesse du clip),
+   head (tête de lecture, s), onChange(patch, heavy), onRampe(t, spdL, spdR)}
+   — `onChange` reçoit un patch de clip ({dz:…} ou {dz:void 0}) et l'appelant
+   écrit l'historique. `r` n'est lu qu'à l'appel, comme DzmTitleInspector.
+   Le useState de la rampe vient APRÈS la garde `!c` : l'hôte n'est monté
+   qu'avec un clip (DZ1), l'ordre des hooks est donc stable — et sans clip
+   le composant rend null sans toucher `x` (banc). */
+function DzmPlanProps(o){
+  var c=o&&o.clip,on=typeof (o&&o.onChange)==="function"?o.onChange:function(){};
+  if(!c)return null;
+  var st=x.useState(2),rampSpd=st[0],setRampSpd=st[1];
+  var dz=dzmDzOf(c),spd=Number(o.speed)||1,rt=dzmRetimeOf(c),head=Number(o.head);
+  var inClip=isFinite(head)&&head-c.start>=.3&&c.end-head>=.3;
+  var row=function(label,kids,key){return r.jsxs("div",{className:"svm-prop dzm-plan-row",children:[
+    r.jsx("div",{className:"svm-propk",children:label}),r.jsx("div",{className:"svm-propv",children:kids})]},key)};
+  var sel=function(cur,opts,cb,title){return r.jsx("select",{className:"svm-vitsel",value:cur,title:title,
+    onChange:function(e){cb(e.target.value)},children:opts.map(function(p){return r.jsx("option",{value:p[0],children:p[1]},p[0])})})};
+  var kids=[row("Zoom dyn.",sel(dz?(dz.w1<dz.w0?"in":dz.w1>dz.w0?"out":"custom"):"off",
+    [["off","aucun"],["in","zoom avant"],["out","zoom arrière"],["custom","personnalisé"]],
+    function(v){if(v==="custom"&&dz)return;on({dz:v==="off"?void 0:v==="custom"?(dz||dzmDzPreset("in")):dzmDzPreset(v)},!0)},
+    "Zoom dynamique : deux fenêtres, début (vert) et fin (rouge) du plan — glisser les rectangles dans le lecteur, le rendu interpole"),"dz")];
+  if(dz){
+    kids.push(row("Courbe",sel(dz.ease,[["doux","douce"],["lin","linéaire"]],function(v){on({dz:Object.assign({},dz,{ease:v})},!0)},"Interpolation du zoom"),"dz-ease"));
+    kids.push(row("Fenêtres",r.jsx("span",{className:"dzm-plan-hint",
+      children:"début "+Math.round(dz.w0*100)+" % · fin "+Math.round(dz.w1*100)+" %"}),"dz-w"))}
+  /* D-15 : l'interpolation du retime (sans effet à 100 %, le backend ne la lit qu'avec une vitesse) */
+  kids.push(row("Interpolation",sel(rt||"nearest",[["nearest","image voisine"],["blend","fondu d'images"],["flow","flux optique (lent)"]],
+    function(v){on({retime:v==="nearest"?void 0:v},!0)},
+    spd===1?"Sans effet à 100 % — change d'abord la vitesse":"Qualité du retime (D-15) : fondu = flou de mouvement, flux optique = images intermédiaires calculées"),"rt"));
+  /* D-15 : la rampe = diviser à la tête, la partie droite à la vitesse choisie */
+  kids.push(row("Rampe",r.jsxs("span",{className:"dzm-plan-hint",children:[
+    r.jsx("button",{className:"svm-minibtn",disabled:!inClip,
+      title:inClip?"Diviser le plan à la tête : la partie gauche garde sa vitesse, la droite passe à la vitesse choisie":"Placer la tête à 0,3 s au moins des deux bords du plan",
+      onClick:function(){if(typeof o.onRampe==="function")o.onRampe(head,spd,rampSpd)},children:"Diviser à la tête →"}),
+    sel(String(rampSpd),[["0.5","50 %"],["0.75","75 %"],["1","100 %"],["1.5","150 %"],["2","200 %"],["3","300 %"]],
+      function(v){setRampSpd(Number(v))},"Vitesse de la partie droite")]}),"rampe"));
+  /* D-16 : la stabilisation — case (lourd), « Analyser » (désactivé pendant
+     l'analyse), chip d'état ; puis, si active, deux curseurs (léger : le
+     range tire onChange à chaque cran, la rafale de 600 ms fait UNE entrée)
+     et le sort des bords (lourd). props : stabJob = état du job de CETTE
+     source ({status,progress,error}|null), onStab() = demander l'analyse. */
+  /* revue : « Analyser » n'est réarmé que sur un échec — après « analysée »
+     un second clic ne ferait qu'un POST inoffensif (le cache n'est jamais purgé) */
+  var sb=dzmStabOf(c),sj=o.stabJob||null,sjBloque=!!sj&&sj.status!=="failed";
+  kids.push(row("Stabilis.",r.jsxs("span",{className:"dzm-plan-hint dzm-stab",children:[
+    r.jsx("input",{type:"checkbox",checked:!!sb,title:"Stabiliser le plan (vidstab, deux passes au rendu)",
+      onChange:function(e){on({stab:e.target.checked?dzmStabNorm({on:!0}):void 0},!0)}}),
+    r.jsx("button",{className:"svm-minibtn",disabled:!sb||sjBloque,
+      title:"Analyser la source maintenant (sinon le rendu le fera, plus long)",
+      onClick:function(){if(typeof o.onStab==="function")o.onStab()},children:"Analyser"}),
+    r.jsx("span",{className:"dzm-stab-st","data-st":sj?sj.status:"",children:sb?dzmStabState(sj):""})]}),"stab"));
+  if(sb){
+    var rng=function(key,lo,hi,label,title){return row(label,r.jsxs("span",{className:"dzm-plan-hint dzm-stab",children:[
+      r.jsx("input",{type:"range",min:lo,max:hi,value:sb[key],title:title,
+        onChange:function(e){var p={};p[key]=Number(e.target.value);on({stab:dzmStabNorm(Object.assign({},sb,p))},!1)}}),
+      " "+sb[key]]}),"stab-"+key)};
+    kids.push(rng("smooth",1,100,"Lissage","Fenêtre de lissage (images) — 15 par défaut"));
+    kids.push(rng("zoom",-30,30,"Zoom","Zoom fixe en % pour cacher les bords (0 = optzoom)"));
+    kids.push(row("Bords",sel(sb.crop,[["keep","garder"],["black","noir"]],
+      function(v){on({stab:dzmStabNorm(Object.assign({},sb,{crop:v}))},!0)},"Que faire des bords découverts"),"stab-crop"))}
+  return r.jsxs("div",{className:"dzm-plan",children:[r.jsx("div",{className:"dzm-plan-t",children:"Propriétés du plan"}),
+    r.jsx("div",{className:"svm-props",children:kids})]})}
+/* LES DEUX RECTANGLES (vert = début, rouge = fin) dans le cadre du lecteur,
+   en % du cadre — glisser le corps = déplacer, glisser le coin = échelle.
+   props : {dz, onChange(dz)} ; le cadre est MESURÉ au pointerdown (la boîte
+   du wrap = le cadre, hors vzoom) ; le geste écoute la FENÊTRE (la forme de
+   la maison, comme la barre d'outils §4.2 — jamais de capture sur l'élément),
+   filtre son pointerId, coalesce par rAF (un setClips par image, pas par
+   événement) et rejoue l'état du pointerdown par les pures. */
+function DzmDzRects(o){
+  var dz=dzmDzNorm(o&&o.dz),on=typeof (o&&o.onChange)==="function"?o.onChange:function(){};
+  if(!dz)return null;
+  var mk=function(k){
+    var s=k?"1":"0",x=dz["x"+s],y=dz["y"+s],w=dz["w"+s];
+    var down=function(mode){return function(e){
+      if(e.button)return;
+      var wrap=e.currentTarget.closest(".dzm-dzwrap"),bx=wrap?wrap.getBoundingClientRect():null;
+      if(!bx||bx.width<2)return;
+      var w=window,sx=e.clientX,sy=e.clientY,base=dz,pid=e.pointerId,last=null,raf=0;
+      e.preventDefault();e.stopPropagation();
+      var mv=function(e2){if(e2.pointerId!==pid)return;last=e2;
+        if(!raf)raf=requestAnimationFrame(function(){raf=0;var dx=(last.clientX-sx)/bx.width,dy=(last.clientY-sy)/bx.height;
+          on(mode==="move"?dzmDzMove(base,k,dx,dy):dzmDzScale(base,k,dx))})};
+      var up=function(e2){if(e2.pointerId!==pid)return;if(raf)cancelAnimationFrame(raf);raf=0;
+        w.removeEventListener("pointermove",mv);w.removeEventListener("pointerup",up);w.removeEventListener("pointercancel",up)};
+      w.addEventListener("pointermove",mv);w.addEventListener("pointerup",up);w.addEventListener("pointercancel",up)}};
+    return r.jsxs("div",{className:"dzm-dzrect","data-k":k?"fin":"debut",
+      style:{left:(x*100)+"%",top:(y*100)+"%",width:(w*100)+"%",height:(w*100)+"%"},
+      title:(k?"Fin":"Début")+" du zoom — glisser : déplacer · coin : échelle",
+      onPointerDown:down("move"),children:[
+        r.jsx("span",{className:"dzm-dzlab",children:k?"fin":"début"}),
+        r.jsx("i",{className:"dzm-dzh",onPointerDown:down("scale")})]},k)};
+  return r.jsxs("div",{className:"dzm-dzwrap",children:[mk(0),mk(1)]})}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,
@@ -6041,6 +6419,9 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
      rien n'est ré-exporté sous un second nom, une clé de plus aurait été une
      seconde porte sur la même fonction. */
   titleTrack:dzmTitleTrack,titleNew:dzmTitleNew,
+  /* D-9 — `kindOf` entre au contrat : c'est la table des genres elle-même
+     (aucune autre porte n'y menait, le banc [18] la lit). */
+  kindOf:dzmKindOf,adjustTrack:dzmAdjustTrack,adjustNew:dzmAdjustNew,
   titleAt:dzmTitleAt,titleHtml:dzmTitleHtml,ttEsc:dzmTtEsc,
   titleUpdate:dzmTitleUpdate,TitleInspector:DzmTitleInspector,
   transList:dzmTransList,transLabel:dzmTransLabel,transFamily:dzmTransFamily,
@@ -6049,5 +6430,13 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   insere:dzmInsere,MODES:DZM_MODES,REFUS:DZM_REFUS,carve:dzmCarve,
   slip:dzmSlip,slide:dzmSlide,roll:dzmRoll,voisins:dzmVoisins,swap:dzmSwap,
   ModeBar:DzmModeBar,MODE_T:DZM_MODE_T,modeLabel:dzmModeLabel,
+  projetNeuf:dzmProjetNeuf,instantaneNom:dzmInstantaneNom,
+  channelsNorm:dzmChannelsNorm,publishLocal:dzmPublishLocal,publishIso:dzmPublishIso,
+  publishDefaults:dzmPublishDefaults,FinBandeau:DzmFinBandeau,CHANNELS:DZM_CHANNELS,
+  dzNorm:dzmDzNorm,dzOf:dzmDzOf,dzAt:dzmDzAt,dzPreset:dzmDzPreset,dzMove:dzmDzMove,
+  dzScale:dzmDzScale,dzCss:dzmDzCss,PlanProps:DzmPlanProps,DzRects:DzmDzRects,
+  retimeOf:dzmRetimeOf,rampe:dzmRampe,
+  stabNorm:dzmStabNorm,stabOf:dzmStabOf,stabState:dzmStabState,
+  mpLerp2:dzmMpLerp2,mpKeep:dzmMpKeep,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;

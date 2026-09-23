@@ -321,7 +321,11 @@ R_M5 = ("      /* P1 — l'ORDRE des pistes, du haut vers le bas : c'est lui que
         # DEJA SURE : elle est precedee de `c.tr==="v1"&&`, et un carton vit
         # sur t1 -- le court-circuit sort AVANT la lecture (mesure du
         # 21/09/2026 sur le texte du .bak, que rien ne reecrit ici).
-        '      clips:clips.filter(function(c){return c.src||c.kind==="title"})'
+        # AJ3 (D-9, 22/09/2026) : le clip d'AJUSTEMENT passe aussi -- sans
+        # `src`, comme un carton ; `kind` est joint pour TOUT clip par TT2b
+        # et `effects` est dans le litteral `o` du .bak (mesure) : le backend
+        # le collecte dans adjust_clips par le genre de sa piste (`j1`).
+        '      clips:clips.filter(function(c){return c.src||c.kind==="title"||c.kind==="adjust"})'
         ".map(function(c){")
 
 # ── M6 : autosave ───────────────────────────────────────────────────────────
@@ -331,6 +335,16 @@ R_M6 = ("      duration_master:durMaster,ducking:ducking,clips:clips,\n"
         "         et les clips qu'elle portait retombaient sur une piste inconnue,\n"
         "         donc hors du rendu — silencieusement. */\n"
         "      tracks:svmTracksPayload(proj),\n"
+        # E-1 (22/09/2026) — LE DRAPEAU `vide` PART AVEC LA SAUVEGARDE, et
+        # seulement quand il est vrai : `void 0` est omis par JSON.stringify,
+        # le payload d'avant est rendu octet pour octet. REPLI, ancre
+        # consommée, mesurée 22/09 : la ligne `tracks:svmTracksPayload(proj),`
+        # vaut 0 dans .bak_montage (R_M6 la pose) et 2 dans le bundle (R_M5
+        # la pose aussi, dans le payload de RENDU — le plan la situait là,
+        # la mesure la situe ici, dans svmSavePayload, le seul qui nourrit
+        # POST /save). Le `proj` est celui de la fermeture de l'écran, où
+        # svmApplyProject a posé `vide` (R_M7).
+        "      vide:proj.vide===!0?!0:void 0,\n"
         "      /* P5 — de quel projet NOMMÉ ce brouillon est le brouillon. Le\n"
         "         backend n'écrit dans le projet QUE si cette clé désigne un\n"
         "         fichier existant : sans elle (montage sans nom), rien ne\n"
@@ -416,7 +430,13 @@ R_M7 = ('var np={demo:!1,tracks:(function(){var _t=svmTracksFrom(d.tracks);'
         # les identifiants (m1..mN) : deux marqueurs d'un vieux fichier
         # pouvaient porter le meme, et `markerRemove` en aurait retire deux.
         'markers:DzTracks.markersFrom(d.markers),'
-        'name:d.name||"montage",version:"v1",ratio:d.ratio||"9:16",')
+        'name:d.name||"montage",version:"v1",ratio:d.ratio||"9:16",'
+        # E-1 (22/09/2026) — ET LE DRAPEAU REVIENT AVEC LE PROJET, dans le
+        # `np` que `setProj(np)` reçoit (mesuré : c'est le seul `np` de
+        # svmApplyProject). REPLI, ancre consommée, mesurée 22/09 : `ratio:`
+        # est le texte que CE remplacement pose (0 dans .bak_montage). Faux
+        # sinon, jamais absent : un projet ordinaire ne porte pas la clé.
+        'vide:d.vide===!0,')
 
 # ── M8 : barre de transport ─────────────────────────────────────────────────
 A_M8 = ('r.jsx("button",{className:"svm-tbtn",title:"Raccourcis ("'
@@ -977,6 +997,62 @@ R_M16REF = (A_M16REF + "\n"
             "     premier rendu). Même motif que durRef, juste au-dessus. */\n"
             "  var dzTracksRef=x.useRef(null);"
             "dzTracksRef.current=svmTracksOf(proj);\n"
+            # ── D-13 (22/09/2026, L3 tache 2) : LE GESTE DES PROPRIETES DE PLAN
+            # REPLIE ICI, meme mesure que E1/TT4a : la ligne `dzTracksRef` vaut
+            # 0 dans .bak_montage. UNE fonction pour l'hote (DZ1) ET les
+            # rectangles (DZ2) : un patch de clip, les cles `undefined`
+            # retirees, UNE entree d'historique par rafale de 600 ms (un
+            # glisser = un « Annuler »), `heavy` force l'entree (un select).
+            # La date de la rafale est une REF : un `var` du corps serait
+            # recree a chaque rendu et chaque `setClips` re-rend. La piste
+            # VERROUILLEE refuse (forme de `ovHandleDown` ; l'hote et les
+            # rectangles ne se montent que sur v1).
+            "  var dzPlanHist=x.useRef(0);\n"
+            "  function dzPlanSet(patch,heavy){var tl=trackStRef.current.v1;if(tl&&tl.l)return;\n"
+            "    var id=selRef.current,now=Date.now();\n"
+            "    if(heavy||now-dzPlanHist.current>600)pushHistory();dzPlanHist.current=now;\n"
+            "    setClips(clipsRef.current.map(function(k){if(k.id!==id)return k;var nk=Object.assign({},k,patch);\n"
+            "      Object.keys(patch).forEach(function(q){if(patch[q]===void 0)delete nk[q]});return nk}));setDirty(!0)}\n"
+            # ── D-16 (22/09/2026, L3 tache 6) : L'ANALYSE DE STABILISATION
+            # REPLIEE ICI (meme mesure : l'ancre est posee par ce remplacement).
+            # Un etat PAR SOURCE (cle = JSON de `src`, comme le cache backend
+            # est par source) : {status,progress,error}. POST /api/montage/stab
+            # rend {ok,ready,job_id} (contrat de /proxy) : `ready` = analyse
+            # deja en cache -> done sans job ; sinon suivi par GET /api/jobs/
+            # {id} toutes les 1,5 s (la cadence de launchRender), `status`
+            # MESURE en minuscules (`JobStatus.DONE.value`, launchRender
+            # compare `d.status==="done"` nu). L'etat passe a « running » AVANT
+            # le POST : le bouton est desactive des le clic (pas de double
+            # demande). Toute erreur -- refus HTTP ({detail}), reseau, job
+            # introuvable -- finit en « failed » AVEC message : le plan
+            # avalait l'erreur du polling (`.catch(function(){})`), ce qui
+            # laissait la chip a « analyse n % » et le bouton mort pour de bon.
+            # Le polling s'ETEINT au demontage : `put` ne pose rien et la
+            # replanification s'arrete si `dzAliveRef` (P9, plus bas dans ce
+            # meme corps -- resolue a l'appel) est tombee. Les sorties
+            # precoces sont des `return put(...)` : le pin P9 compte les
+            # `;return}` du corps (quatre) et la garde `if(!dzAliveRef...` (une)
+            # -- ce repli n'en ajoute aucun.
+            "  var stDzStab=x.useState({}),dzStabJobs=stDzStab[0],setDzStabJobs=stDzStab[1];\n"
+            "  function dzStabStart(src){var key=DzTracks.srcKey(src);\n"
+            "    var put=function(v){if(dzAliveRef.current)setDzStabJobs(function(m){var n=Object.assign({},m);n[key]=v;return n})};\n"
+            '    var tick=function(id){fetch("/api/jobs/"+id).then(function(r3){return r3.json()}).then(function(j){\n'
+            '      var st=j&&j.status;if(!st)return put({status:"failed",error:(j&&j.detail)||"job introuvable"});\n'
+            '      var fin=st==="done"||st==="failed";put({status:fin?st:"running",progress:Number(j.progress)||0,error:j.error||null});\n'
+            "      if(!fin&&dzAliveRef.current)setTimeout(function(){tick(id)},1500)})\n"
+            '      .catch(function(e){put({status:"failed",error:String(e)})})};\n'
+            '    put({status:"running",progress:0});\n'
+            '    fetch("/api/montage/stab",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({src:src})})\n'
+            "      .then(function(r2){return r2.json().then(function(d){return {ok:r2.ok,d:d}})}).then(function(o){\n"
+            '        if(o.ok&&o.d&&o.d.ready)return put({status:"done"});\n'
+            '        if(!o.ok||!o.d||!o.d.job_id)return put({status:"failed",error:(o.d&&(o.d.detail||o.d.error))||"refus"});\n'
+            '        put({status:"running",progress:10});tick(o.d.job_id)})\n'
+            '      .catch(function(e){put({status:"failed",error:String(e)})})}\n'
+            # ── E-4 (22/09/2026) : LE BANDEAU DE FIN DE RENDU ─────────
+            # REPLIÉ ICI, même mesure que E1 : la ligne vaut 0 dans
+            # .bak_montage. Posé par EA4 (rendu final « done »), consommé
+            # par EA5e (le bandeau de la couche), effacé par « Fermer ».
+            "  var stDzFin=x.useState(null),dzFin=stDzFin[0],setDzFin=stDzFin[1];\n"
             # ── « E1 » (D-2) : L'ÉTAT DU MODE D'ÉDITION ──────────────
             # REPLIÉ ICI, et c'est une MESURE : la ligne `dzTracksRef`
             # ci-dessus vaut 0 dans .bak_montage (c'est CE remplacement
@@ -1027,6 +1103,21 @@ R_M16REF = (A_M16REF + "\n"
             "    setClips(clipsRef.current.concat([t]));setSelId(t.id);setDirty(!0);\n"
             '    fireNote("Titre posé à "+t.start.toFixed(2)+" s sur T1 — "'
             '+"l\'inspecteur règle le gabarit et le texte.")}\n'
+            # -- « AJ4 » (D-9, 22/09/2026) : POSER UN CLIP D'AJUSTEMENT -----
+            # Modele EXACT de dzTtAdd : la piste j1 nait ici si elle manque
+            # (`adjustTrack`, sous t1 ; svmTracksSet pousse DEJA l'historique,
+            # sinon on pousse nous-memes), puis le clip de 3 s a la tete.
+            # `adjustNew` rend null sur un projet vide ou une tete negative :
+            # rien n'est pose, rien n'est pousse, la note le dit. Trois
+            # portes appellent CE geste : le « + » de j1 (TT11), la chip
+            # « J+ » (K5) et Maj+J (R1/R2) -- une seule source de verite.
+            "  function dzAjAdd(){"
+            'var c=DzTracks.adjustNew(phRef.current,clipsRef.current,"j1");\n'
+            '    if(!c){fireNote("Rien à ajuster ici — pose d\'abord un plan");return}\n'
+            "    var ts=svmTracksOf(dzProjRef.current),ts2=DzTracks.adjustTrack(ts);\n"
+            "    if(ts2!==ts)svmTracksSet(ts2);else pushHistory();\n"
+            "    setClips(clipsRef.current.concat([c]));setSelId(c.id);setDirty(!0);\n"
+            '    fireNote("Clip d\'ajustement posé sur J1 — ouvre le rack VFX pour lui donner des effets")}\n'
             # -- « K3 » (D-5) : L'INDEX DES MARQUEURS EST-IL OUVERT ? --
             # REPLIE ICI, meme mesure que « E1 » juste au-dessus : la
             # ligne `dzTracksRef` qui sert d'ancre a ce remplacement vaut
@@ -3041,7 +3132,17 @@ R_R1 = (A_R1 + "\n"
         # `onKey` cherche d'abord `m[combo]` EXACT et ne retombe sur la
         # variante sans Maj que si la combo complete est INCONNUE de la
         # table -- elle y est desormais. Meme raisonnement que « Maj+M ».
-        '\n {id:"title_add",sec:"Montage",lbl:"titre : poser un carton a la tete",combo:"Maj+T"},')
+        '\n {id:"title_add",sec:"Montage",lbl:"titre : poser un carton a la tete",combo:"Maj+T"},'
+        # -- « AJ5 » (D-9, 22/09/2026) : POSER UN CLIP D'AJUSTEMENT ----------
+        # Meme porte que les titres (Maj+T / T+), PAS un bouton de la barre
+        # flottante : le plan de la barre est confronte au design.md (§2.4,
+        # §3 onze traces pinnes six fois, §6) et au cablage (dix boutons,
+        # TB7, _ATTENDU_B7) -- un 4e bouton PISTES aurait coute une douzaine
+        # de pins et une ligne de handoff pour un geste que dzAjAdd fait
+        # deja (la piste nait avec le premier clip, comme t1). COMBO MESUREE
+        # LIBRE le 22/09/2026 : `combo:"Maj+J"` vaut 0 dans .bak_montage ;
+        # `combo:"J"` y vaut 1 et le dispatch cherche la combo EXACTE d'abord.
+        '\n {id:"adjust_add",sec:"Montage",lbl:"ajustement : poser un clip a la tete",combo:"Maj+J"},')
 
 # ── R2 (D-11) : la branche de dispatch ─────────────────────────────────────
 # PORTEE MESUREE dans `onKey` (meme corps de composant, closure) : `phRef`,
@@ -3202,7 +3303,8 @@ R_R2 = (A_R2 + "\n"
         # deux sources de verite pour un meme bouton, exactement ce que le
         # §5.1 du handoff interdit ; `dzMkToggle` est le precedent (K2, K5
         # et K7 l'appellent tous les trois).
-        '\n      if(id==="title_add"){dzTtAdd();return}')
+        '\n      if(id==="title_add"){dzTtAdd();return}'
+        '\n      if(id==="adjust_add"){dzAjAdd();return}')
 
 # ── R3 (D-11) : la bande sur la regle, apres la gouttiere ──────────────────
 # `DzmRangeBar` rend `null` tant que la plage n'est pas COMPLETE : la regle
@@ -3348,7 +3450,13 @@ R_K5 = (A_K5 + "\n"
         '"aria-label":"poser un titre",'
         'title:"Poser un titre à la tête ("+svmKeyLabel("title_add")+")",'
         'onClick:function(){dzTtAdd()},'
-        'children:"T+"}),')
+        'children:"T+"}),'
+        # -- « AJ5 » (D-9, 22/09/2026) : LA CHIP « J+ », modele exact de T+.
+        '\n          r.jsx("button",{className:"svm-toolchip",'
+        '"aria-label":"poser un clip d\'ajustement",'
+        'title:"Poser un clip d\'ajustement à la tête ("+svmKeyLabel("adjust_add")+")",'
+        'onClick:function(){dzAjAdd()},'
+        'children:"J+"}),')
 
 # -- K5b : le panneau de l'index, parmi les popovers -------------------------
 # POSE JUSTE APRES `ovPicker()`, au milieu des autres panneaux flottants : il
@@ -3639,8 +3747,11 @@ R_V3 = (A_V3 + "\n"
 # identifiant de PISTE ne commence par « t ». Relevees une a une.
 A_TT1 = ('  function trackKind(trId){var k=String(trId||"").charAt(0);\n'
          '    return k==="a"?"audio":k==="s"?"subs":"video"}')
+# AJ1 (D-9, 22/09/2026) : « j » = adjust, REPLI ici (la ligne est celle que
+# TT1 reecrit). MESURE : `id:"j` vaut 8 dans .bak_montage, tous des `job_…`/
+# `jog_…` -- aucun identifiant de PISTE. Meme table que dzmKindOf (couche).
 R_TT1 = ('  function trackKind(trId){var k=String(trId||"").charAt(0);\n'
-         '    return k==="a"?"audio":k==="s"?"subs":k==="t"?"title":"video"}')
+         '    return k==="a"?"audio":k==="s"?"subs":k==="t"?"title":k==="j"?"adjust":"video"}')
 
 # TT2b : CE QUE LE CARTON EMPORTE AU RENDU. Le backend reconnait un titre a
 # la PISTE (`_tracks_meta[tr].kind === "title"`, mesure de la tache 5) et lit
@@ -3718,7 +3829,13 @@ A_TT11 = ('                :"Ajouter une image ou un rendu à la tête de '
           '                if(trackKind(tr.id)==="subs"){subsAddHere();'
           'return}\n'
           '                openPicker(tr.id)},children:"+"},"add");')
-R_TT11 = ('                :trackKind(tr.id)==="title"\n'
+# AJ4 (D-9, 22/09/2026) : le « + » de l'en-tete de j1 pose un clip
+# d'ajustement (dzAjAdd, replie dans R_M16REF) -- REPLI ici, la ligne est
+# celle que TT11 reecrit.
+R_TT11 = ('                :trackKind(tr.id)==="adjust"\n'
+          '                ?"Poser un clip d\'ajustement de 3 s à la tête de '
+          'lecture — ses effets s\'appliquent à tout ce qui est dessous"\n'
+          '                :trackKind(tr.id)==="title"\n'
           '                ?"Poser un carton de titre à la tête de lecture ("'
           '+svmKeyLabelNow("title_add")+") — la piste des titres ne reçoit '
           'aucun autre média"\n'
@@ -3727,9 +3844,342 @@ R_TT11 = ('                :trackKind(tr.id)==="title"\n'
           '              onClick:function(){\n'
           '                if(trackKind(tr.id)==="subs"){subsAddHere();'
           'return}\n'
+          '                if(trackKind(tr.id)==="adjust"){dzAjAdd();return}\n'
           '                if(trackKind(tr.id)==="title"){dzTtAdd();return}\n'
           '                openPicker(tr.id)},children:"+"},"add");')
 
+
+# ── EA1 (E-3, 22/09/2026) : LA PORTE « ENVOYER VERS… » DE LA BIBLIOTHÈQUE
+# VISE V1. La greffe S4 de libsend (AMONT, intouchable) est REMPLACÉE ici, à
+# l'identique sauf le 5e argument de la branche vidéo : "v1" — addAsset
+# (M16a) prend v1 si elle existe, sinon pickTrack ; sur une piste PLEIN
+# CADRE, wantsTwin est vrai et le jumeau A1 est posé (M22a/M22b). Sur "v2"
+# la vidéo arrivait MUETTE (incrustation, jamais sondée) et, sans piste v2,
+# INVISIBLE (sauvegarde du 04/09). L'IMAGE reste une incrustation "v2".
+# La couche porte la vieille phrase dans une prose datée du 06/09 (« vise
+# "v2" EN DUR ») : le banc compte donc la forme CODE, queue `}catch` incluse.
+A_EA1 = ('  x.useEffect(function(){var p=null;try{p=window.__dzMontageAdd;'
+         'delete window.__dzMontageAdd}catch(_e){}'
+         'if(!p)return;setTimeout(function(){try{if(p.image)'
+         'addAsset({image:p.image},p.image,"image",0,"v2");'
+         'else if(p.job_id)addAsset({job_id:p.job_id},p.title||p.job_id,'
+         '"video",p.dur||0,"v2")}catch(_e2){}},450)},[]);'
+         'function defaultLen(kind,srcDur){')
+R_EA1 = A_EA1.replace('"video",p.dur||0,"v2")', '"video",p.dur||0,"v1")')
+assert A_EA1 != R_EA1
+
+# ── EA2 (E-3) : CHAPITRES — « Ouvrir dans le Montage » AVANT « Send to
+# Scheduler ». Même boîte aux lettres que la Bibliothèque
+# (`window.__dzMontageAdd`, consommée par EA1 au montage de l'écran), même
+# navigation que le bouton voisin (CustomEvent deepotus:navigate — le seul
+# mécanisme portable : `__dzSendNav` est enfermé dans le bloc libsend).
+# `K` étale ses props (`...l`) : `title` passe. `epJob` et `title` sont les
+# locales du composant (le bouton voisin les lit déjà). Le job `episode` ne
+# stocke AUCUNE durée de scène : UN plan, pas un par scène (écart daté).
+_EA_NAV = ('window.dispatchEvent(new CustomEvent("deepotus:navigate",'
+           '{detail:{view:"montage"}}))')
+# E-4 : Chapitres pose « cet épisode », Studio « ce rendu » (revue du 22/09).
+_EA_TIP = ('title:"Poser %s sur la piste V1 du Montage, à la tête de '
+           'lecture, avec son son",')
+A_EA2 = ('r.jsx(K,{variant:"primary",size:"sm",icon:"calendar",'
+         'onClick:sendEpisodeToScheduler,children:"Send to Scheduler"})')
+R_EA2 = ('r.jsx(K,{variant:"outline",size:"sm",icon:"film",' + _EA_TIP % "cet épisode" +
+         'onClick:function(){window.__dzMontageAdd={job_id:epJob,'
+         'title:title||"Épisode"};' + _EA_NAV + '},'
+         'children:"Ouvrir dans le Montage"}),' + A_EA2)
+
+# ── EA3 (E-3) : STUDIO — même bouton dans la rangée du résultat (déjà
+# flex/gap:8). `children:` y est un ÉLÉMENT unique : l'ancre court jusqu'à
+# la FIN de l'expression (mesurée 1/1) et la rangée passe en tableau clé
+# ("mont", "dl") ; l'<a> « Download » est repris tel quel. `n.title` n'est
+# pas lu ailleurs dans ce bloc : repli « Rendu Studio ».
+_EA3_A = ('r.jsx("a",{href:D.jobVideoUrl(n.id),download:!0,'
+          'style:{flex:1,textDecoration:"none"},children:r.jsx(K,{'
+          'variant:"outline",size:"sm",icon:"download",style:{width:"100%"},'
+          'children:"Download"})}')
+A_EA3 = ('r.jsx("div",{style:{marginTop:10,display:"flex",gap:8},children:'
+         + _EA3_A + ')})')
+R_EA3 = ('r.jsx("div",{style:{marginTop:10,display:"flex",gap:8},children:['
+         'r.jsx(K,{variant:"outline",size:"sm",icon:"film",' + _EA_TIP % "ce rendu" +
+         'onClick:function(){window.__dzMontageAdd={job_id:n.id,'
+         'title:n.title||"Rendu Studio"};' + _EA_NAV + '},'
+         'children:"Ouvrir dans le Montage"},"mont"),'
+         + _EA3_A + ',"dl")]})')
+
+# ── EA4 (E-4, 22/09/2026) : LE RENDU FINAL NE CRÉE PLUS RIEN DANS LE
+# SCHEDULER. L'ancien `else` du poll (rendu « done », kind final) postait un
+# brouillon sur /api/schedule puis NAVIGUAIT (`props.go("scheduler")`) sans
+# rien demander. Il pose désormais l'état `dzFin` (REPLIÉ dans R_M16REF —
+# son texte vaut 0 dans .bak_montage), que le bandeau de la couche consomme
+# (EA5e). L'ancre est le bloc ENTIER, de `var run=` à la queue `})}}` : le
+# remplacement rend les MÊMES accolades que l'ancre consomme (`)` de
+# fireNote, `}` du else, `}` du `if(d.status==="done")`) — `node --check`
+# tranche. `proj.project_id` est posé par R_M7 (`onNamed`) : "" si absent,
+# le bandeau l'omet alors du payload (`||void 0`).
+A_EA4 = ('            var run=new Date();run.setDate(run.getDate()+1);run.setHours(9,0,0,0);\n'
+         '            fetch("/api/schedule",{method:"POST",headers:{"Content-Type":"application/json"},\n'
+         '              body:JSON.stringify({title:proj.name,caption:proj.name+" \U0001F419",channels:["x","telegram"],\n'
+         '                run_at:run.toISOString(),status:"draft",mode:"assisted",job_id:job.id})})\n'
+         '              .then(function(res){return res.json()}).then(function(p2){\n'
+         '                setJob(null);setPop("");setDirty(!1);\n'
+         '                fireNote("Rendu final terminé — brouillon ajouté au Scheduler.");\n'
+         '                if(p2&&p2.id){setTimeout(function(){\n'
+         '                  window.dispatchEvent(new CustomEvent("deepotus:select-post",{detail:{id:p2.id}}))},400)}\n'
+         '                props.go&&setTimeout(function(){props.go("scheduler")},900)})\n'
+         '              .catch(function(){setJob(null);setPop("");\n'
+         '                fireNote("Rendu terminé (Bibliothèque) — création du brouillon Scheduler impossible.")})}}')
+R_EA4 = ('            setJob(null);setPop("");setDirty(!1);\n'
+         '            setDzFin({job_id:job.id,name:proj.name,project_id:proj.project_id||""});\n'
+         '            fireNote("Rendu final terminé — « Envoyer vers le Scheduler » pour le publier.")}}')
+assert A_EA4.count("}") - A_EA4.count("{") == R_EA4.count("}") - R_EA4.count("{") == 2
+
+# ── EA5a..EA5d (E-4) : LE POPOVER ET LA BARRE NE PROMETTENT PLUS DE
+# PUBLICATION. Quatre littéraux, chacun sur une ligne unique (1/1 mesuré) ;
+# le bouton d'action (EA5d-bis) porte aussi « Lancer l'aperçu » : seul le
+# littéral change dans la ligne.
+A_EA5A = '      r.jsx("div",{className:"svm-poptitle",children:isR?"Rendre & publier":"Preview 480p"}),'
+R_EA5A = A_EA5A.replace('"Rendre & publier"', '"Rendre (master 1080)"')
+A_EA5B = ('      isR?r.jsxs("div",{className:"svm-popline",children:[r.jsx("span",{children:"publication · brouillon Scheduler"}),'
+          'r.jsx("span",{className:"svm-cost",children:"gratuit"})]}):null,')
+R_EA5B = A_EA5B.replace('"publication · brouillon Scheduler"', '"publication · à la demande, après le rendu"')
+A_EA5C = '          "Rendu local 1080 (aucun crédit consommé), puis brouillon dans le Scheduler — rien n\'est publié sans ta validation.":'
+R_EA5C = ('          "Rendu local 1080 (aucun crédit consommé). À la fin, un bandeau propose l\'envoi vers le Scheduler '
+          '— rien n\'est publié sans ta validation.":')
+A_EA5D = '        r.jsx("button",{className:"svm-goldbtn",onClick:function(){setPop(pop==="render"?"":"render")},children:"Rendre & publier →"}),'
+R_EA5D = A_EA5D.replace('"Rendre & publier →"', '"Rendre →"')
+A_EA5D2 = '            children:busy?(job.progress+"%"):(isR?"Rendre & publier":"Lancer l\'aperçu")})]})]})}'
+R_EA5D2 = A_EA5D2.replace('"Rendre & publier"', '"Rendre"')
+for _a, _r in ((A_EA5A, R_EA5A), (A_EA5B, R_EA5B), (A_EA5C, R_EA5C),
+               (A_EA5D, R_EA5D), (A_EA5D2, R_EA5D2)):
+    assert _a != _r
+
+# ── EA5e (E-4) : LE BANDEAU DE FIN, monté à côté du popover dans la liste
+# des couches flottantes (ancre = les deux lignes voisines `popover(),` /
+# `fxPicker(),`, 1/1 — le plan la disait à huit espaces, la mesure en donne
+# QUATRE). Les canaux cochés sont mémorisés (dz_montage_channels) AVANT
+# l'envoi ; un refus HTTP remonte son `detail` au bandeau ; le post créé est
+# présélectionné pour la prochaine visite du Scheduler (deepotus:select-post),
+# SANS navigation forcée. Le bandeau et le popover ne sont jamais ouverts
+# ensemble : `setPop("")` précède `setDzFin` (EA4).
+A_EA5E = ('    popover(),\n'
+          '    fxPicker(),')
+R_EA5E = ('    popover(),\n'
+          '    dzFin?r.jsx(DzTracks.FinBandeau,{fin:dzFin,memo:(function(){try{return JSON.parse(localStorage.getItem("dz_montage_channels")||"null")}catch(_e){return null}})(),\n'
+          '      onSend:function(f){try{localStorage.setItem("dz_montage_channels",JSON.stringify(f.channels))}catch(_e){}\n'
+          '        return fetch("/api/montage/publish",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(f)})\n'
+          '          .then(function(res){return res.ok?res.json():res.json().catch(function(){return null}).then(function(j){throw (j&&j.detail)||res.status})})\n'
+          '          .then(function(d){var id=d&&d.post&&d.post.id;if(id)window.dispatchEvent(new CustomEvent("deepotus:select-post",{detail:{id:id}}))})},\n'
+          '      onLib:function(){window.dispatchEvent(new CustomEvent("deepotus:navigate",{detail:{view:"library"}}))},\n'
+          '      onClose:function(){setDzFin(null)}}):null,\n'
+          '    fxPicker(),')
+
+# ── EA6 (E-4, revue du 22/09/2026) : LE BANDEAU SE FERME AU LANCEMENT D'UN
+# RENDU. Sans cela, un second rendu bandeau ouvert REUTILISAIT l'instance
+# (monture sans `key`) : « Brouillon ajouté » restait affiché et le bouton
+# désarmé pour le NOUVEAU job, heure/légende/cases périmées, et le popover
+# s'ouvrait PAR-DESSUS (même `.svm-pop` absolu). Le passage par null
+# remonte le composant à neuf au prochain `setDzFin` (EA4). Ancre : la
+# garde de `launchRender`, 1/1 dans .bak_montage.
+A_EA6 = 'if(proj.demo||(job&&job.status!=="failed"))return;'
+R_EA6 = A_EA6 + 'setDzFin(null);'
+
+# ══════════════════════════════════════════════════════════════════════════
+# D-13 (22/09/2026, lot L3, tache 2) — LE ZOOM DYNAMIQUE COTE ECRAN
+# ══════════════════════════════════════════════════════════════════════════
+# Quatre ancres du bundle d'origine, toutes 1/1 dans .bak_montage et 0 dans
+# ce patcher (mesurees le 22/09) : l'appel `ovInspector()` de l'aside, la
+# derniere ligne du cadre `.svm-tf`, la ligne `lv._svmClip=c.id;` de
+# liveSync, la ligne d'arrondi de la vitesse du payload. Le geste commun
+# (`dzPlanSet`) et sa rafale d'historique sont REPLIES dans R_M16REF, a cote
+# de `dzTracksRef` (ligne posee par ce remplacement, 0 dans .bak_montage).
+#
+# ECARTS MESURES AVEC LE PLAN :
+#   - la tete de lecture de l'aside s'appelle `ph` (l'etat `st3`), pas `phc` ;
+#   - `var dzPlanHist={t:0}` dans le corps du composant aurait ete RECREE a
+#     chaque rendu (chaque `setClips` re-rend) : la rafale de 600 ms n'aurait
+#     jamais tenu. C'est une ref (`x.useRef(0)`), comme `durRef` juste au-dessus ;
+#   - le zoom en direct n'est PAS replie dans R_V3 : en tete de liveSync ni
+#     le clip actif ni la <video> ne sont connus (ils sont calcules plus bas).
+#     L'ancre `lv._svmClip=c.id;` est 1/1, et la, `lv`, `c` et `t` sont
+#     exactement ceux du lecteur -- section propre DZ3 ;
+#   - les rectangles vont DANS `.svm-tf` (position:absolute;inset:0 du cadre,
+#     z-index:3, hors vzoom -- mesure de la feuille du bundle) et non apres :
+#     pose apres, `.dzm-dzwrap` aurait ete recouvert par les hotes `.svm-live`
+#     (transform => contexte d'empilement) et les % auraient ete ceux du cadre
+#     de toute facon ; le cadre est mesure au pointerdown depuis le wrap.
+A_DZ1 = "        ovInspector(),"
+R_DZ1 = ('        /* D-13 : les proprietes de plan (clip V1 reel seulement) */\n'
+         '        sel&&sel.tr==="v1"&&sel.src&&sel.src.job_id?r.jsx(DzTracks.PlanProps,{clip:sel,\n'
+         '          u:sel.end>sel.start?Math.max(0,Math.min(1,(ph-sel.start)/(sel.end-sel.start))):0,\n'
+         # D-15 (L3 tache 4) : la vitesse et la tete pour l'interpolation et la
+         # rampe -- PAS de nouvelle ancre, tout tient dans ce remplacement. La
+         # rampe fend a la tete (DzTracks.rampe, meme regle que dzmCarve),
+         # refuse la piste verrouillee comme svmSetV1Speed, UNE entree
+         # d'historique, et selectionne la partie droite (setSelId, la forme
+         # d'addAsset). Noms MESURES dans le .bak : fireNote (svmUseNote),
+         # pushHistory(), setSelId, clipsRef/selRef.current, setDirty(!0).
+         '          speed:svmSpeedOf(sel),head:ph,\n'
+         '          onRampe:function(t,sL,sR){var tl=trackStRef.current.v1;if(tl&&tl.l){fireNote("Piste V1 verrouillée — division bloquée.");return}\n'
+         '            var res=DzTracks.rampe(clipsRef.current,selRef.current,t,sL,sR);\n'
+         '            if(res.refus){fireNote(res.refus==="bord"?"Trop près d\'un bord (0,3 s)":"Impossible de diviser ici");return}\n'
+         '            pushHistory();setClips(res.clips);setSelId(res.right);setDirty(!0)},\n'
+         # D-16 (L3 tache 6) : l'etat du job d'analyse de CETTE source (par
+         # cle JSON de `src`, comme le cache backend est par source) et le
+         # declencheur -- PAS d'ancre neuve, l'etat et le geste sont replies
+         # dans R_M16REF (dzStabJobs / dzStabStart).
+         # revue : la cle est CANONIQUE (`srcKey`, cles triees -- la regle
+         # tranchee pour dzmTwinClip), jamais un JSON.stringify a l ordre pres.
+         '          stabJob:dzStabJobs[DzTracks.srcKey(sel.src)]||null,onStab:function(){dzStabStart(sel.src)},\n'
+         '          onChange:dzPlanSet}):null,\n'
+         + A_DZ1)
+A_DZ2 = '            r.jsx("div",{className:"svm-tfbadge",ref:tfBadgeRef})]}):null,'
+R_DZ2 = ('            r.jsx("div",{className:"svm-tfbadge",ref:tfBadgeRef}),\n'
+         '            /* D-13 : les deux fenetres du zoom dynamique du clip V1 selectionne */\n'
+         '            sel&&sel.tr==="v1"&&sel.dz?r.jsx(DzTracks.DzRects,{dz:sel.dz,\n'
+         '              onChange:function(nd){dzPlanSet({dz:nd})}}):null]}):null,')
+A_DZ3 = "      lv._svmClip=c.id;"
+R_DZ3 = (A_DZ3 + "\n"
+         "      /* D-13 : le zoom dynamique EN DIRECT -- meme geometrie que le zoompan\n"
+         "         du rendu, sur la <video> active ; ecrit seulement s'il change --\n"
+         "         l'origine 0 0 est posee par la feuille (.svm-live>.svm-livemedia) */\n"
+         '      var dzT=DzTracks.dzCss(c.dz,(t-c.start)/Math.max(.04,c.end-c.start));\n'
+         '      if(lv.style.transform!==dzT)lv.style.transform=dzT;')
+A_DZ4 = "           Math.abs(c.speed-1)>1e-6)o.speed=Math.round(c.speed*100)/100;"
+R_DZ4 = (A_DZ4 + "\n"
+         "        /* D-13 : le zoom dynamique -- joint seulement s'il existe (payload d'avant sinon) */\n"
+         '        var dzD=c.tr==="v1"&&DzTracks.dzOf(c);if(dzD)o.dz=dzD;\n'
+         # D-15 (L3 tache 4) : l'interpolation ne vaut qu'AVEC une vitesse
+         # (`o.speed` n'est pose que sur un V1 reel a vitesse != 1, ligne
+         # d'ancre) -- payload d'avant octet pour octet sinon.
+         "        /* D-15 : l'interpolation du retime -- jointe seulement avec une vitesse */\n"
+         '        var rtD=o.speed&&DzTracks.retimeOf(c);if(rtD)o.retime=rtD;\n'
+         # D-16 (L3 tache 6) : la stabilisation, jointe seulement si elle
+         # existe (normalisee par la couche, UNE occurrence de `stabOf(` via
+         # `sbD` -- la sonde compte chaque jeton) ; payload d'avant sinon.
+         "        /* D-16 : la stabilisation -- jointe seulement si elle existe */\n"
+         '        var sbD=c.tr==="v1"&&DzTracks.stabOf(c);if(sbD)o.stab=sbD;')
+
+# ══ D-14 (L3 tache 7, 22/09/2026) — KEYFRAMES D'ECHELLE ET D'OPACITE ═══════
+# Le contrat du rendu (T7a) : `motion_points[{t,x,y,rotate?,scale?,opacity?}]`,
+# un point sans la cle ne participe pas a cette animation, sans porteur la
+# statique reste. MESURE dans le .bak (toutes 1/1, 0 dans ce patcher) :
+#   KF1  svmOvTfAt fige `scale:base.scale` — devient la lerp sur les porteurs
+#        (defaut : la statique). Le lecteur vivant, le cadre de selection et
+#        l'inspecteur lisent svmOvTfAt : l'echelle en direct vient de la.
+#   KF2  svmMpApply aligne les statiques x/y/rotate sur un point UNIQUE
+#        (invariant d'honnetete : il ne part pas au rendu) — scale/opacity
+#        suivent la meme regle, sinon lecteur (lerp) et rendu (statique)
+#        divergeraient a un point. LE PLAN visait ici « garder scale/opacity
+#        des points » : `res.pts` recopie deja les points non touches
+#        (pts.slice()) — ce qui les PERDAIT est svmMpPlace (KF2b).
+#   KF2b svmMpPlace construit un point NEUF {t,x,y,rotate} : le patch
+#        {scale:v} de svmMpField et les cles du point ecrase tombaient.
+#        DzTracks.mpKeep les reporte (patch, sinon point ecrase, bornes).
+#   KF3a le champ Echelle : avec une trajectoire, il ecrit le point le plus
+#        proche de la tete (svmMpField, comme Rotation) ; l'infobulle « ne se
+#        keyframe pas » devient celle des autres champs (kfTT).
+#   KF3b vOp lit l'opacite interpolee a la tete quand une trajectoire existe.
+#   KF3c le curseur Opacite ecrit le point (svmMpField porte son historique).
+#   KF4  le payload joint q.scale (0,001) / q.opacity (0,01) quand presents.
+#        Le plan disait ce bloc CONSOMME par M25c : M25c ne consomme que sa
+#        premiere ligne `if(c.tr==="v2"){` ; la ligne `q.rotate=` est libre.
+#   KF5  liveSync : l'opacite appliquee a l'overlay vivant est interpolee
+#        (`t` global, `k` le clip — noms mesures) ; hors R_V3 (mesure 0).
+#   KF2c (revue) svmMpRemove : quand il reste UN point, il alignait x/y/rotate
+#        seulement — scale/opacity suivent, meme convention que KF2.
+# ECART DATE (22/09/2026) : quatre commentaires du bundle disent encore que
+# l'echelle ne se keyframe pas (svmOvTfAt, payload, section Trajectoire,
+# svmMpRemove) : perimes, non touches, KF1/KF4 font foi.
+A_KF1 = "          scale:base.scale,"
+R_KF1 = '          scale:DzTracks.mpLerp2(mp,tl,"scale",base.scale),'
+A_KF2 = "        x:one?one.x:t.x,y:one?one.y:t.y,scale:t.scale,"
+R_KF2 = ("        x:one?one.x:t.x,y:one?one.y:t.y,scale:one&&one.scale!=null?one.scale:t.scale,\n"
+         "        opacity:one&&one.opacity!=null?(one.opacity>=1?void 0:one.opacity):k.opacity,")
+A_KF2B = "      rotate:Math.min(180,Math.max(-180,Math.round((Number(vals.rotate)||0)*10)/10))};"
+R_KF2B = (A_KF2B + "\n"
+          "    /* D-14 : scale/opacity du patch, sinon du point écrasé (bornes du backend) */\n"
+          "    DzTracks.mpKeep(np,vals,bi>=0?pts[bi]:null);")
+A_KF2C = "      if(np.length===1){nk.x=np[0].x;nk.y=np[0].y;nk.rotate=np[0].rotate}"
+R_KF2C = ("      if(np.length===1){nk.x=np[0].x;nk.y=np[0].y;nk.rotate=np[0].rotate;"
+          "if(np[0].scale!=null)nk.scale=np[0].scale;"
+          "if(np[0].opacity!=null)nk.opacity=np[0].opacity>=1?void 0:np[0].opacity}")
+A_KF3A = ('          title:"Largeur de l\'overlay en % de celle du canvas (100 = pleine largeur)"+\n'
+          '            (mp?" — l\'échelle ne se keyframe pas : valeur unique pour toute la durée":""),\n'
+          '          "aria-label":"Échelle (%)",\n'
+          '          onChange:function(e){var v=Number(e.target.value);\n'
+          '            if(isFinite(v)&&v>0)svmOvTfField({scale:Math.min(3,Math.max(.05,v/100))})}}),')
+R_KF3A = ('          title:"Largeur de l\'overlay en % de celle du canvas (100 = pleine largeur)"+kfTT,\n'
+          '          "aria-label":"Échelle (%)",\n'
+          '          onChange:function(e){var v=Number(e.target.value);\n'
+          '            if(!isFinite(v)||v<=0)return;v=Math.min(3,Math.max(.05,v/100));\n'
+          '            if(mp)svmMpField(sel,{scale:v});else svmOvTfField({scale:v})}}),')
+A_KF3B = "    var vOp=Math.round((sel.opacity==null?1:sel.opacity)*100);"
+R_KF3B = ('    var vOp=Math.round((mp?DzTracks.mpLerp2(mp,phc-sel.start,"opacity",sel.opacity==null?1:sel.opacity)'
+          ':(sel.opacity==null?1:sel.opacity))*100);')
+A_KF3C = ('          title:"Opacité de l\'overlay ("+vOp+" %)","aria-label":"Opacité de l\'overlay",\n'
+          '          onChange:function(e){var nv=Number(e.target.value)/100;var id=selRef.current;')
+R_KF3C = ('          title:"Opacité de l\'overlay ("+vOp+" %)"+kfTT,"aria-label":"Opacité de l\'overlay",\n'
+          '          onChange:function(e){var nv=Number(e.target.value)/100;var id=selRef.current;\n'
+          '            if(mp){svmMpField(sel,{opacity:nv});return}')
+A_KF4 = "                q.rotate=Math.round(Number(p.rotate)*10)/10;"
+R_KF4 = (A_KF4 + "\n"
+         "              /* D-14 : échelle / opacité par point — jointes seulement si présentes */\n"
+         "              if(p.scale!=null&&isFinite(Number(p.scale)))q.scale=Math.round(Number(p.scale)*1000)/1000;\n"
+         "              if(p.opacity!=null&&isFinite(Number(p.opacity)))q.opacity=Math.round(Number(p.opacity)*100)/100;")
+# ── AJ2 (D-9, 22/09/2026) : LE RACK VFX SUR UN CLIP SANS SOURCE ───────────
+# La garde du rack exigeait `sel.src` ET une piste video : un clip
+# d'ajustement n'a pas de source, il est accepte par son GENRE. Le lecteur
+# vivant ne joue pas ses effets (aucun clip sans `src` n'y entre : mesure,
+# svmActiveV1 et liveSync exigent `c.src`) -- le rack le DIT, par un
+# SvmLabel au-dessus de la pile (le Stack n'a pas de zone de note : mesure).
+# AJ2a ouvre le Fragment, AJ2b le referme sur la ligne qui rend la section
+# historique (1/1 dans .bak_montage, patcher 0 -- PAS `vfxStackSection`,
+# bak 2 / patcher 3).
+A_AJ2A = ('    if(d&&d.Stack&&sel&&sel.src&&trackKind(sel.tr)==="video")\n'
+          '      return r.jsx(d.Stack,{effects:sel.effects||[],clip:sel,')
+R_AJ2A = ('    if(d&&d.Stack&&sel&&((sel.src&&trackKind(sel.tr)==="video")||sel.kind==="adjust"))\n'
+          '      return r.jsxs(r.Fragment,{children:[sel.kind==="adjust"?r.jsx(SvmLabel,'
+          '{style:{margin:"20px 0 10px"},children:"Ajustement — ses effets s\'appliquent '
+          'à tout ce qui est dessous, visibles après Preview"}):null,\n'
+          '      r.jsx(d.Stack,{effects:sel.effects||[],clip:sel,')
+A_AJ2B = ('          setDirty(!0)}});\n'
+          '    return vfxLegacySection()}')
+R_AJ2B = ('          setDirty(!0)}})]});\n'
+          '    return vfxLegacySection()}')
+
+# ── AJ6 (D-9) : LE CLIP D'AJUSTEMENT SE LIT SUR LA TIMELINE ────────────────
+# `data-kind` sur chaque clip (undefined = attribut absent, comme data-narr),
+# et les HACHURES : celles du fantome de narration, dans le `style` inline
+# (un style inline gagne sur la feuille ; poser le meme gradient en CSS
+# aurait exige `!important` -- mesure : `background:` est inline). Aucune
+# ligne de montage.css.
+A_AJ6A = '                    "data-media":media&&tr.id==="v1"?"":void 0,'
+R_AJ6A = (A_AJ6A + '\n'
+          '                    "data-kind":c.kind||void 0,')
+A_AJ6B = ('background:isPh?"repeating-linear-gradient(-45deg,transparent 0 5px, '
+          'color-mix(in srgb, var("+tr.c+") 26%, transparent) 5px 6px)":')
+R_AJ6B = ('background:isPh||c.kind==="adjust"?"repeating-linear-gradient(-45deg,transparent 0 5px, '
+          'color-mix(in srgb, var("+tr.c+") 26%, transparent) 5px 6px)":')
+
+# ── AJ7 (D-9, revue 23/09/2026) : LA POSE D'UN EFFET ATTEINT LE CLIP
+# D'AJUSTEMENT. MESURE (preuve ecran Playwright) : « Vignette » sur j1u1
+# laissait `effects []` -- `vfxAddTo` (V5 du patcher vfxrack, amont, 1/1
+# dans .bak_montage) refusait un clip SANS `src` puis une piste qui n'est
+# pas « video ». Les deux gardes restent ENTIERES pour tout autre clip
+# (V1 en temoin) ; l'ajustement passe par son GENRE, comme au rack (AJ2).
+A_AJ7 = ('    if(!c.src){fireNote("Effets par clip : disponibles sur les clips '
+         'réels (Bibliothèque) — la démo reste une maquette.");return !1}\n'
+         '    if(trackKind(c.tr)!=="video"){fireNote("Un effet vidéo se pose '
+         'sur un clip V1 ou V2.");return !1}')
+R_AJ7 = ('    if(c.kind!=="adjust"&&!c.src){fireNote("Effets par clip : disponibles sur les clips '
+         'réels (Bibliothèque) — la démo reste une maquette.");return !1}\n'
+         '    if(c.kind!=="adjust"&&trackKind(c.tr)!=="video"){fireNote("Un effet vidéo se pose '
+         'sur un clip V1 ou V2.");return !1}')
+
+A_KF5 = '      el.style.opacity=k.opacity==null?"":String(k.opacity);'
+R_KF5 = ('      /* D-14 : opacité interpolée sur les points porteurs (statique sinon) */\n'
+         '      var kOp=DzTracks.mpLerp2(svmMpOf(k)||[],t-k.start,"opacity",k.opacity==null?1:k.opacity);\n'
+         '      el.style.opacity=kOp>=1?"":String(Math.round(kOp*100)/100);')
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
@@ -3900,7 +4350,44 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            # 1/1 dans .bak_montage.
            ("TT9-inout-carton", A_TT9, R_TT9),
            ("TT10-payload-src-mou", A_TT10, R_TT10),
-           ("TT11-plus-de-t1-pose-un-carton", A_TT11, R_TT11)]
+           ("TT11-plus-de-t1-pose-un-carton", A_TT11, R_TT11),
+           # E-3 (22/09/2026) : la porte sur V1, les deux boutons. EA1 REPREND
+           # la greffe S4 de libsend (1/1 dans .bak_montage) ; EA2/EA3 sont
+           # des ancres du bundle d'origine, 1/1 aussi.
+           ("EA1-porte-bibliotheque-v1", A_EA1, R_EA1),
+           ("EA2-chapitres-ouvrir-montage", A_EA2, R_EA2),
+           ("EA3-studio-ouvrir-montage", A_EA3, R_EA3),
+           # E-4 (22/09/2026) : rendre SANS publier ; le bandeau de fin.
+           ("EA4-rendu-final-sans-scheduler", A_EA4, R_EA4),
+           ("EA5a-popover-titre-rendre", A_EA5A, R_EA5A),
+           ("EA5b-popover-ligne-a-la-demande", A_EA5B, R_EA5B),
+           ("EA5c-popover-note-bandeau", A_EA5C, R_EA5C),
+           ("EA5d-barre-rendre", A_EA5D, R_EA5D),
+           ("EA5d2-popover-bouton-rendre", A_EA5D2, R_EA5D2),
+           ("EA5e-bandeau-de-fin", A_EA5E, R_EA5E),
+           ("EA6-bandeau-ferme-au-lancement", A_EA6, R_EA6),
+           # D-13 (22/09/2026, L3 tache 2) : quatre ancres du bundle d'origine,
+           # 1/1 dans .bak_montage ; dzPlanSet est replie dans R_M16REF.
+           ("DZ1-proprietes-de-plan", A_DZ1, R_DZ1),
+           ("DZ2-rectangles-du-lecteur", A_DZ2, R_DZ2),
+           ("DZ3-zoom-en-direct", A_DZ3, R_DZ3),
+           ("DZ4-payload-dz", A_DZ4, R_DZ4),
+           # D-14 (L3 tache 7) — keyframes d'echelle et d'opacite, en queue.
+           ("KF1-echelle-interpolee", A_KF1, R_KF1),
+           ("KF2-point-unique-aligne", A_KF2, R_KF2),
+           ("KF2b-point-garde-echelle-opacite", A_KF2B, R_KF2B),
+           ("KF2c-point-restant-aligne", A_KF2C, R_KF2C),
+           ("KF3a-champ-echelle", A_KF3A, R_KF3A),
+           ("KF3b-opacite-a-la-tete", A_KF3B, R_KF3B),
+           ("KF3c-curseur-opacite", A_KF3C, R_KF3C),
+           ("KF4-payload-scale-opacity", A_KF4, R_KF4),
+           ("KF5-opacite-en-direct", A_KF5, R_KF5),
+           # D-9 (L3 tache 9) — le rack sur un clip sans source, les hachures.
+           ("AJ2a-rack-accepte-l-ajustement", A_AJ2A, R_AJ2A),
+           ("AJ2b-rack-referme-le-fragment", A_AJ2B, R_AJ2B),
+           ("AJ6a-data-kind-sur-le-clip", A_AJ6A, R_AJ6A),
+           ("AJ6b-hachures-de-l-ajustement", A_AJ6B, R_AJ6B),
+           ("AJ7-pose-d-effet-sur-l-ajustement", A_AJ7, R_AJ7)]
 
 
 def nl(text, crlf):

@@ -4168,6 +4168,7 @@ async def cost_estimate(body: dict, request: Request):
 _JOBS_SANS_DEPENSE = {
     "montage":       "Montage (assemblage ffmpeg local)",
     "montage_proxy": "Proxy de montage (transcodage ffmpeg local)",
+    "montage_stab":  "Analyse de stabilisation (vidstabdetect ffmpeg local)",
     "animation":     "Animation (ffmpeg + PIL locaux)",
     "news":          "News reel (ffmpeg local)",
     "ugc":           "Fichier téléversé par l'utilisateur",
@@ -4329,7 +4330,9 @@ async def cost_usage():
     approximations déclarées dans la docstring de `_job_to_cost`.
     """
     from app.services import pricing as _pricing
-    from app.services.montage_service import _PROXY_PROVIDER
+    # D-16 : `montage_stab` (analyse vidstab, POST /api/montage/stab) est
+    # écarté au même titre — un précalcul par source, pas une opération.
+    from app.services.montage_service import _PROXY_PROVIDER, _STAB_PROVIDER
     p = _pricing.load()
     per = {}
     total = 0.0
@@ -4337,7 +4340,8 @@ async def cost_usage():
         res = await session.execute(
             _select(JobRecord).where(
                 JobRecord.status == "done",
-                _func.coalesce(JobRecord.provider, "") != _PROXY_PROVIDER))
+                _func.coalesce(JobRecord.provider, "")
+                .notin_((_PROXY_PROVIDER, _STAB_PROVIDER))))
         for job in res.scalars().all():
             e = _job_to_cost(job, p)
             total += e["total_usd"]

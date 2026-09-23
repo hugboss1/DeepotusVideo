@@ -31,7 +31,103 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 22/09/2026 (cloture du lot L2, tache 8) : 1636 lignes,
+COMPTE DE REFERENCE, 22/09/2026 (lot L3, tache 9, D-9 client) :
+1776 lignes, soit TRENTE-QUATRE de plus que les 1742 de D-14 (revue) :
+les QUINZE lignes que la boucle sur `P.PATCHES` emet seule pour les CINQ
+sections AJ2a, AJ2b, AJ6a, AJ6b, AJ7 (cinq `_remplace`, cinq
+`couche_ne_cite_pas_l_ancre_de_`, QUATRE `_ancre_consommee` : AJ6a reprend
+son ancre en tete ; AJ7 = revue 23/09, la pose d'effet atteint le clip
+d'ajustement, un pin) et la section [D-9] en queue (SEPT replis mesures 0/1,
+le geste dzAjAdd -- refus avant instantane --, sept noms libres, la combo
+Maj+J libre, le rack AJ2, la timeline AJ6, la couche). REALIGNES ET NOMMES :
+M16a (5 `;return}`), D2 (deux concat nommes), M25c/TT2/TT10/E1 (le filtre
+porte `adjust`), trackKind extrait (cinq genres), tb8 (45 actions, 7 chips),
+seize appels (29/27), un instantane (la forme if/else vaut 2), la queue
+(AJ2a..AJ6b, sonde 114). AJ5 n'est PAS un bouton de la barre flottante :
+le plan de la barre est confronte au design.md (§2.4, §3 x6, §6) et au
+cablage (dix boutons, TB7, _ATTENDU_B7) -- une douzaine de pins et une ligne
+de handoff pour un geste que dzAjAdd fait deja ; la porte est celle des
+titres (chip J+, Maj+J, « + » de J1). Aucune ligne de montage.css.
+
+COMPTE PRECEDENT, 22/09/2026 (lot L3, tache 7, D-14 client, revue) :
+1742 lignes, soit QUATRE de plus que les 1738 de D-14 : la section KF2c
+(svmMpRemove : un point restant aligne aussi scale/opacity ; TROIS lignes
+generiques, l'ancre est consommee) et son pin dans [D-14] ; la queue
+pinnee devient DZ1..DZ4 puis KF1, KF2, KF2b, KF2c, KF3a..KF5 ; sonde 112
+inchangee (code nu). --check dit 120 ancres.
+
+COMPTE PRECEDENT, 22/09/2026 (lot L3, tache 7, D-14 client) : 1738 lignes,
+soit VINGT-HUIT de plus que les 1710 de D-16 : les VINGT-DEUX lignes que la
+boucle sur `P.PATCHES` emet seule pour les HUIT sections KF1..KF5 (huit
+`_remplace`, huit `couche_ne_cite_pas_l_ancre_de_`, SIX `_ancre_consommee` :
+KF2b et KF4 reprennent leur ancre en tete) et la section [D-14] en queue
+(SIX pins : l'echelle interpolee dans svmOvTfAt, le point unique aligne +
+le point ecrase qui garde ses cles (mpKeep dans svmMpPlace), les champs
+Echelle/Opacite qui ecrivent le point, le payload q.scale/q.opacity,
+l'opacite en direct hors R_V3, la couche). Le pin DZ de la queue est
+reecrit (DZ1..DZ4 puis KF1..KF5, sonde 112) ; la garde « K… » de D-5
+exclut le prefixe KF.
+
+COMPTE PRECEDENT, 22/09/2026 (lot L3, tache 6, D-16) : 1710 lignes,
+soit CINQ de plus que les 1705 de D-15 : la section [D-16] en queue (CINQ
+pins : l'hote recoit stabJob/onStab dans DZ1, le repli de l'etat et du suivi
+du job dans R_M16REF (garde dzAliveRef, erreurs nommees), le payload `stab`
+apres `retime`, la couche, la feuille) -- AUCUNE ligne generique de la boucle :
+D-16 etend R_DZ1, R_M16REF et R_DZ4 sans section ni ancre neuve ; la sonde
+passe a 106 (stabOf dans DZ4) puis 108 a la revue (la cle de source est
+`srcKey(`, canonique, dans DZ1 et dans le repli) ; le pin DZ de la queue est
+reecrit. Le compte de lignes ne bouge pas (conditions ajoutees aux pins).
+
+COMPTE PRECEDENT, 22/09/2026 (lot L3, tache 4, D-15) : 1705 lignes,
+soit TROIS de plus que les 1702 de D-13 : la section [D-15] en queue (TROIS
+pins : l'hote recoit vitesse et tete + la rampe sur les refs, le payload
+`retime` seulement avec une vitesse, la couche) -- AUCUNE ligne generique
+de la boucle : D-15 etend R_DZ1 et R_DZ4 sans section ni ancre neuve ; la
+sonde passe a 105 (rampe + retimeOf) et le pin DZ de la queue est reecrit.
+
+COMPTE PRECEDENT, 22/09/2026 (lot L3, tache 2, D-13) : 1702 lignes,
+soit DIX-SEPT de plus que les 1685 de E-A : la section [D-13] en queue
+(HUIT pins : le repli dzPlanSet, l'hote et la tete `ph`, les rectangles dans
+.svm-tf, le direct hors R_V3, le payload, la couche, la feuille, la queue +
+la sonde 103 apres la revue) et les NEUF lignes que la boucle sur `P.PATCHES` emet seule
+pour DZ1..DZ4 (quatre `_remplace`, quatre `couche_ne_cite_pas_l_ancre_de_`,
+UN `_ancre_consommee` : seule DZ2 ne reprend pas son ancre). Le pin E4 sur
+la queue de PATCHES est REECRIT par position, sur place.
+
+COMPTE PRECEDENT, 22/09/2026 (lot E-A, tache 5, E-4, revue) : 1685
+lignes, soit QUATRE de plus que les 1681 du premier tour : la section EA6
+(le bandeau se ferme au lancement d'un rendu) emet DEUX lignes generiques
+(`_remplace` et `couche_ne_cite_pas_l_ancre_de_` -- PAS d'`_ancre_consommee` :
+`R_EA6 = A_EA6 + ...` REPREND son ancre, la boucle ne l'emet pas ; l'en-tete
+disait « trois », la cloture a MESURE deux) et son pin ; le pin M-1 (refus
+non JSON) est ajoute : 2 + 2 = 4. Le pin de la monture est reecrit sur
+place (deux `setDzFin(null)` desormais).
+
+COMPTE PRECEDENT, 22/09/2026 (lot E-A, tache 5, E-4) : 1681 lignes,
+soit VINGT-NEUF de plus que les 1652 de E-3 : la section [E-4] en queue
+(HUIT pins : le poll qui ne poste plus sur /api/schedule, le repli dzFin,
+les cinq libelles, la monture du bandeau, la couche, la feuille, les sept
+sections apres EA3, l'infobulle E-3 parametree) et les VINGT ET UNE lignes
+que la boucle sur `P.PATCHES` emet seule pour EA4/EA5a..e (sept
+`_remplace`, sept `_ancre_consommee`, sept `couche_ne_cite_pas_l_ancre_de_`).
+Le pin E3 sur la queue de PATCHES est REECRIT par position, sur place :
+il ne pese rien dans le compte. Le compte est celui que le banc IMPRIME.
+
+COMPTE PRECEDENT, 22/09/2026 (lot E-A, tache 3, E-3) : 1652 lignes,
+soit ONZE de plus que les 1641 de E-1 : la section [E-3] en queue (la
+porte sur V1, les deux boutons, l'ordre des triplets) et les lignes que la
+boucle sur `P.PATCHES` emet seule pour EA1/EA2/EA3. Trois pins sont
+REECRITS sans en gagner : M16a et P14 mesuraient le greffon libsend « v2 »
+dans le bundle LIVRE (il y est desormais « v1 », reecrit en aval ; ils le
+lisent dans .bak_montage), D2 prenait « EA » pour un prefixe de D-2.
+
+COMPTE PRECEDENT, 22/09/2026 (lot E-A, tache 2, E-1 client) : 1641 lignes,
+soit CINQ de plus que les 1636 de la cloture de L2 : la section [E-1] en
+queue (les deux replis `vide` -- R_M6, pas R_M5 comme le plan le disait, la
+mesure a tranche --, leur emplacement, la couche, la feuille). Le compte est
+celui que le banc IMPRIME.
+
+COMPTE PRECEDENT, 22/09/2026 (cloture du lot L2, tache 8) : 1636 lignes,
 soit QUATRE-VINGT-SEPT de plus que les 1549 de D-12. Elles ont ete posees
 par les taches 4 a 7 (D-21, les cartons de titre : la section TT1 sur
 `trackKind`, les huit replis TT2..TT10, les pins de l'inspecteur et de
@@ -827,6 +923,14 @@ except BaseException as _e:          # SystemExit compris : il n'hérite pas d'E
     print("\n=== 0 passed, 1 failed ===")
     sys.exit(1)
 s = BUNDLE.read_bytes().decode("utf-8-sig")
+# .bak_montage (l'ENTREE du patcher montage) LU UNE FOIS, comme le bundle :
+# octets, utf-8-sig, fins de ligne CONSERVEES. Cloture E-A (22/09/2026) : il
+# etait lu a CINQ endroits (M16a, P12 `_bak_txt`, P16, P14, D-2), le dernier
+# par `read_text` qui aplatissait ses 12 367 CRLF en LF (mesure) -- `_nlb`
+# le rattrapait en ne convertissant rien. Les cinq noms restent, en ALIAS :
+# aucun compte n'a bouge (1685/0 avant et apres, mesure).
+_BAK_P = BUNDLE.with_name(BUNDLE.name + ".bak_montage")
+_BAK_S = _BAK_P.read_bytes().decode("utf-8-sig") if _BAK_P.is_file() else ""
 crlf = "\r\n" in s
 def nl(t):
     t = t.replace("\r\n", "\n")
@@ -1807,11 +1911,19 @@ for _nm, _decl in (("pickTrack", "function dzmPickTrack(ts,kind){"),
 # LE GREFFON AMONT EST INTACT, et c'est le point : la correction se porte en
 # AVAL. Si cette ligne rougit, quelqu'un a edite patch_bundle_libsend.py — le
 # maillon dont le rejeu solitaire efface tout ce qui suit.
+# 22/09/2026 E-3 : le greffon est mesure dans .bak_montage (l'etat AVANT
+# montage, ou libsend l'a pose : "v2", 1) ; le bundle LIVRE le porte
+# REECRIT par EA1 ("v1", 1) et plus jamais sous sa forme "v2". La
+# correction est bien restee en aval : le .bak n'a pas bouge.
+_M16A_G = 'addAsset({job_id:p.job_id},p.title||p.job_id,"video",p.dur||0,"v%s")'
+_M16A_B = _BAK_S                      # alias de la lecture unique (l. ~870)
 check("M16a_le_greffon_amont_n_a_pas_ete_touche",
-      s.count(nl('addAsset({job_id:p.job_id},p.title||p.job_id,'
-                 '"video",p.dur||0,"v2")')) == 1
+      _M16A_B.count(_M16A_G % 2) == 1 and _M16A_B.count(_M16A_G % 1) == 0
+      and s.count(_M16A_G % 1) == 1 and s.count(_M16A_G % 2) == 0
       and s.count("window.__dzMontageAdd") >= 1,
-      "le greffon libsend a bougé — la correction devait rester en aval")
+      f"bak(v2,v1)=({_M16A_B.count(_M16A_G % 2)},{_M16A_B.count(_M16A_G % 1)}) "
+      f"bundle(v1,v2)=({s.count(_M16A_G % 1)},{s.count(_M16A_G % 2)}) — "
+      "le greffon libsend a bougé, ou EA1 ne l'a pas réécrit")
 # LES TROIS REFUS SORTENT AVANT `pushHistory()` : un clip refusé ne doit pas
 # laisser derrière lui une entrée d'historique qui ne défait rien.
 _a0 = s.find(nl(P.R_M16A))
@@ -1844,9 +1956,11 @@ _i_push = _body.find("pushHistory();")
 # Compté sur LE COUPLE : deux des quatre `;return}` (le relais vers addAsset
 # et le refus du plafond) ont suivi `dzAddWhenReady` dans R_M16REF. Le total
 # du greffon P9 est inchangé — c'est lui qui compte, pas sa répartition.
+# D-9 (22/09/2026) : 4 -> 5, le refus de `dzAjAdd` (« Rien à ajuster ici »,
+# replie dans R_M16REF, AVANT tout pushHistory -- mesure dans [D-9]).
 _n_ret = _P9C.count(";return}")
 check("M16a_refuse_avant_de_pousser_l_historique",
-      bool(_body) and _body.count("pushHistory();") == 1 and _n_ret == 4
+      bool(_body) and _body.count("pushHistory();") == 1 and _n_ret == 5
       and _i_refus >= 0 and _i_push >= 0 and _i_refus < _i_push,
       f"dernier refus={_i_refus} pushHistory();={_i_push} "
       f"returns={_n_ret} corps={len(_body)} o "
@@ -2772,7 +2886,10 @@ check("D2_addAsset_ecrit_par_insere_et_plus_par_concat",
       # portait sur `addAsset` : elle est gardee ENTIERE -- entre la
       # signature d'`addAsset` et son `dzIns`, il n'y a aucun `concat`.
       and s.count(nl("setClips(clipsRef.current.concat([t]));setSelId(t.id);")) == 1
-      and s.count(nl("setClips(clipsRef.current.concat(")) == 1
+      # D-9 (22/09/2026) : 1 -> 2, le clip d'ajustement (`dzAjAdd`), NOMME
+      # lui aussi ; addAsset n'en porte toujours aucun (conjoint suivant).
+      and s.count(nl("setClips(clipsRef.current.concat([c]));setSelId(c.id);")) == 1
+      and s.count(nl("setClips(clipsRef.current.concat(")) == 2
       and _iAA0 >= 0 and _iAAins > _iAA0
       and nl("setClips(clipsRef.current.concat(") not in s[_iAA0:_iAAins],
       f'insere={s.count(nl("setClips(dzIns.clips);"))} '
@@ -2967,8 +3084,7 @@ def _libre(nm, txt):
 
 def _bak_txt():
     """Le .bak_montage en texte, ou None s'il n'existe pas."""
-    _b = BUNDLE.with_name(BUNDLE.name + ".bak_montage")
-    return _b.read_bytes().decode("utf-8", "replace") if _b.is_file() else None
+    return _BAK_S or None             # alias de la lecture unique (l. ~870)
 
 
 for _nm in ("dzAuOn", "dzAu", "dzNeuf", "dzTw", "dzDd", "DZM_AUDIO_CACHE"):
@@ -3372,8 +3488,7 @@ for _nm, _decl in (("dzTo", "dzTo=s9[0]"), ("dzTe", "dzTe=s9b[0]"),
 # LES NOMS NEUFS etaient LIBRES dans le bundle d'entree — bornes \b :
 # `dzTo` nu compte 12 en sous-chaine dans .bak_montage (dzTouche…, mesure),
 # une recherche non bornee serait rouge a tort.
-_bak16 = BUNDLE.with_name(BUNDLE.name + ".bak_montage")
-_bak16_s = (_bak16.read_bytes().decode("utf-8-sig") if _bak16.is_file() else "")
+_bak16_s = _BAK_S                     # alias de la lecture unique (l. ~870)
 for _nm in ("dzTo", "dzTe", "dzTrN", "dzTrChars", "dzTraduire", "dz_subs_to",
             "dzmSubsTrBody", "dzmSubsTrApply", "subsTrTitle"):
     _n_bak = len(re.findall(r"\b%s\b" % _nm, _bak16_s))
@@ -3441,8 +3556,7 @@ check("P16_la_route_et_le_service_tiennent_le_contrat",
 # garde legitimement son « v2 » (demo, table historique, greffon libsend),
 # l'ORDRE des ecritures dans liveSync, la garde de signature, le verrou qui
 # suit la piste, les deux faces de chaque identifiant, et les noms libres.
-_bak_p14 = BUNDLE.with_name(BUNDLE.name + ".bak_montage")
-_bak_s = (_bak_p14.read_bytes().decode("utf-8-sig") if _bak_p14.is_file() else "")
+_bak_s = _BAK_S                       # alias de la lecture unique (l. ~870)
 _v2 = [s.count('==="v2"'), s.count('!=="v2"'), s.count("trackStRef.current.v2")]
 _v2_bak = [_bak_s.count('==="v2"'), _bak_s.count('!=="v2"'),
            _bak_s.count("trackStRef.current.v2")]
@@ -3453,12 +3567,16 @@ check("P14_plus_aucune_porte_v2_en_dur_dans_le_code_de_l_ecran",
 # LA DEMO, LA TABLE HISTORIQUE ET LE GREFFON GARDENT LE LEUR : ce n'est pas
 # une chasse au mot, c'est une regle ecrite une fois. `SVM_TRACKS` et
 # `DZM_DEFAULT_TRACKS` portent la meme ligne v2 (2), la demo ses trois clips
-# (le premier suffit), et le greffon amont reste INTACT (M16a le tient aussi).
+# (le premier suffit), et le greffon amont reste INTACT dans .bak_montage
+# (M16a le tient aussi) — 22/09/2026 E-3 : le bundle LIVRE, lui, le porte
+# reecrit sur "v1" par EA1 ; c'est la seule porte v2 que E-3 ferme.
 check("P14_la_demo_la_table_et_le_greffon_gardent_leur_v2",
       s.count(nl('{tr:"v2",id:"v2c1"')) == 1
       and s.count(nl('{id:"v2",name:"V2",type:"overlay/VFX"')) == 2
+      and _bak_s.count('addAsset({job_id:p.job_id},p.title||p.job_id,"video",'
+                       'p.dur||0,"v2")') == 1
       and s.count('addAsset({job_id:p.job_id},p.title||p.job_id,"video",'
-                  'p.dur||0,"v2")') == 1,
+                  'p.dur||0,"v1")') == 1,
       f'demo={s.count(nl(chr(123) + "tr:" + chr(34) + "v2" + chr(34) + ",id:" + chr(34) + "v2c1" + chr(34)))} '
       f'table={s.count(nl(chr(123) + "id:" + chr(34) + "v2" + chr(34) + ",name:" + chr(34) + "V2" + chr(34)))}')
 # NEUF PORTES LISENT LA REGLE, une fois chacune ; l'apercu lit l'ordre. Le
@@ -3560,8 +3678,8 @@ for _sec, _r, _pairs in (
         ("M25c", P.R_M25C,
          # D-21 (TT2) : les cartons de titre, qui n'ont PAS de `src`, passent
          # desormais le filtre -- `c` est declare par la forme neuve.
-         (("c", 'clips.filter(function(c){return c.src||c.kind==="title"})'
-               ".map(function(c){"),
+         (("c", 'clips.filter(function(c){return c.src||c.kind==="title"'
+               '||c.kind==="adjust"}).map(function(c){'),
           ("dzTracksRef", "var dzTracksRef=x.useRef(null);"))),
         ("M25d", P.R_M25D,
          (("sel", "var sel=clips.find("),
@@ -8425,9 +8543,10 @@ _SPEED = _ligne("svmSpeedOf", 'function svmSpeedOf(c){return c&&typeof '
 # D-21 (21/09/2026) : `trackKind` connait un QUATRIEME genre, « title » (la
 # piste t1). Elle est EXTRAITE, jamais recopiee : c'est cette ligne-ci qui
 # rougit si la section TT1 cesse d'etre appliquee.
+# D-9 (22/09/2026) : un CINQUIEME genre, « adjust » (j1) -- AJ1, repli TT1.
 _KIND = _ligne("trackKind", 'function trackKind(trId){var k=String(trId||"")'
                '.charAt(0);\n    return k==="a"?"audio":k==="s"?"subs":'
-               'k==="t"?"title":"video"}')
+               'k==="t"?"title":k==="j"?"adjust":"video"}')
 _KBSEL = _ligne("svmKbSelClip", 'function svmKbSelClip(){var id=selRef.current;'
                 '\n    return clipsRef.current.find(function(k){'
                 'return k.id===id})||null}')
@@ -9379,9 +9498,7 @@ print("\n[3-ter] D-2 — les modes d'edition, cables : E1, E2, E3")
 # valent ZERO dans .bak_montage (l'entree du patcher) et UN dans le bundle
 # livre. Une section a part serait refusee par `--check`. C'est pourquoi E1,
 # E2 et E3 sont REPLIES dans R_M16REF / R_M15B / R_M22A+R_M22B.
-_BAK = (ROOT / "frontend" / "dist" / "assets"
-        / "index-BEOJX8L5.js.bak_montage")
-_bak = _BAK.read_text(encoding="utf-8") if _BAK.is_file() else ""
+_bak = _BAK_S                         # alias de la lecture unique (l. ~870)
 
 
 def _nlb(t):
@@ -9422,7 +9539,9 @@ check("D2_l_ancre_E3_a_ete_consommee_par_M22b",
 # faisait rougir sans qu'aucun cablage de D-2 ait bouge. Elle mesure
 # desormais le PREFIXE des tags : D-2 a nomme ses sections « E… », et
 # il n'y en a QU'UNE, le verrou.
-_E_TAGS = [t[0] for t in P.PATCHES if t[0].startswith("E")]
+# 22/09/2026 E-3 : le lot E-A nomme les siennes « EA<n> » ; le prefixe de
+# D-2 est « E<chiffre> » (E1..E4), mesure par regex, pas par lettre.
+_E_TAGS = [t[0] for t in P.PATCHES if re.match(r"E\d", t[0])]
 check("D2_le_cablage_n_ajoute_qu_une_section_celle_du_verrou",
       _E_TAGS == ["E4-verrou-apres-mode"],
       f"{_E_TAGS} (sur {len(P.PATCHES)} triplets)")
@@ -12681,9 +12800,12 @@ for _a, _sec, _c in _COMBOS:
 # a changer -- et « T » reste a la narration, ce que cette ligne-ci dit
 # toujours : « Maj+T » ne la vole pas, le dispatch cherchant d'abord la
 # combo EXACTE.
+# 44 -> 45 le 22/09/2026 (D-9, tache 9) : AJ5 (replie dans R_R1) declare
+# `adjust_add` sur « Maj+J » -- libre (mesure dans [D-9]).
 check("tb8_le_T_du_handoff_appartient_deja_a_la_narration",
-      len(_COMBOS) == 44 and _BY_COMBO.get("T") == ["narration"]
-      and _BY_COMBO.get("Maj+T") == ["title_add"],
+      len(_COMBOS) == 45 and _BY_COMBO.get("T") == ["narration"]
+      and _BY_COMBO.get("Maj+T") == ["title_add"]
+      and _BY_COMBO.get("Maj+J") == ["adjust_add"],
       f"actions={len(_COMBOS)} T={_BY_COMBO.get('T')}")
 # UNE COMBO PAR ACTION, ET AUCUNE EN DOUBLE : la nouvelle n'a rien vole.
 # `svmKmMerge` resoudrait une collision en silence (retour au defaut) — c'est
@@ -12766,8 +12888,12 @@ check("tb8_les_trois_chips_degradees_gardent_un_nom_et_une_infobulle",
       # `:nth-child(-n+3)` qui degrade, pour la meme raison que les deux
       # qui la precedent : « T+ » reduit a un glyphe ne dirait plus rien.
       # Elle porte tout de meme son `aria-label` (« poser un titre »).
-      and s.count('className:"svm-toolchip"') == 6
+      # 6 -> 7 le 22/09/2026 : D-9 (AJ5) ajoute « J+ », poser un clip
+      # d'ajustement, JUSTE APRES « T+ » -- sixieme position, HORS du
+      # `:nth-child(-n+3)`, meme raison ; son `aria-label` est mesure.
+      and s.count('className:"svm-toolchip"') == 7
       and s.count('"aria-label":"poser un titre",') == 1
+      and s.count('"aria-label":"poser un clip d\'ajustement",') == 1
       # LE `title` NE BOUGE PAS : il reste la description, et c'est lui que
       # l'infobulle du mode compact affiche (§2.3).
       and s.count(nl('title:"aimanter les bords, la tête et 0 ("')) == 1
@@ -13073,7 +13199,11 @@ check("D3_les_trois_gestes_appellent_la_couche_une_fois_chacun",
 # « K… » sans se demander si elle pouvait etre repliee, c'est ici que ca se
 # verrait -- et le compte de `PATCHES` n'est PAS lu en dur (un absolu que
 # tout lot suivant ferait rougir).
-_K_TAGS = [t[0] for t in P.PATCHES if t[0].startswith("K")]
+# D-14 (22/09/2026, L3 tache 7) : les huit sections `KF…` (keyframes
+# d'echelle/opacite, huit ancres LIBRES 1/1 dans le .bak, mesurees) portent
+# le prefixe du plan ; elles ne sont pas des « K » de marqueurs -- exclues ici,
+# et comptees par le pin de la queue (DZ1..DZ4 puis KF1..KF5).
+_K_TAGS = [t[0] for t in P.PATCHES if t[0].startswith("K") and not t[0].startswith("KF")]
 check("D5_le_cablage_n_ajoute_que_trois_sections",
       _K_TAGS == ["K5-chip-marqueurs", "K5b-index-marqueurs",
                   "K7-echap-ferme-index"],
@@ -13978,7 +14108,8 @@ for _lblt, _txtt, _sect, _nomt in (
         ("TT1b_une_piste_de_titres_ne_recoit_aucun_asset",
          'if(trackKind(trId||"v2")==="title"){', P.R_M15, "R_M15"),
         ("TT2_le_carton_passe_le_filtre_du_payload",
-         'clips.filter(function(c){return c.src||c.kind==="title"})',
+         # D-9 (AJ3, 22/09/2026) : le meme filtre laisse passer l'ajustement.
+         'clips.filter(function(c){return c.src||c.kind==="title"||c.kind==="adjust"})',
          P.R_M5, "R_M5"),
         ("TT3_la_piste_revient_avec_le_projet",
          'return _t&&(d.clips||[]).some(function(c){return c&&c.kind==="title"})',
@@ -14027,8 +14158,10 @@ check("D21_TT1_trackKind_connait_un_quatrieme_genre",
 _TKAPP = re.findall(r'trackKind\([^()]*\)\s*([!=]==)', s)
 check("D21_les_seize_appels_de_trackKind_sont_des_egalites",
       (_bak.count(_nlb("trackKind(")) == 16 if _bak else False)
-      and s.count(nl("trackKind(")) == 27
-      and len(_TKAPP) == 25 and all(k in ("===", "!==") for k in _TKAPP)
+      # 22/09/2026 (D-9, tache 9) : 27 -> 29, 25 -> 27. DEUX de plus, des
+      # EGALITES : TT11 (l'infobulle et le clic du « + » de J1, `==="adjust"`).
+      and s.count(nl("trackKind(")) == 29
+      and len(_TKAPP) == 27 and all(k in ("===", "!==") for k in _TKAPP)
       and s.count(nl("var rkd=trackKind(rk.tr);")) == 1
       and s.count(nl("if(rkd!==akd){")) == 1,
       f'bak={_bak.count(_nlb("trackKind(")) if _bak else "?"} '
@@ -14070,7 +14203,8 @@ _iTT = s.find(nl("  function dzTtAdd(){"))
 _iTTfin = s.find(nl("le gabarit et le texte.\")}"), _iTT if _iTT >= 0 else 0)
 check("D21_poser_un_titre_ne_coute_qu_un_instantane",
       _iTT >= 0 and _iTTfin > _iTT
-      and s.count(nl("if(ts2!==ts)svmTracksSet(ts2);else pushHistory();")) == 1
+      # D-9 (22/09/2026) : 1 -> 2, `dzAjAdd` reprend la forme (mesure [D-9]).
+      and s.count(nl("if(ts2!==ts)svmTracksSet(ts2);else pushHistory();")) == 2
       and s[_iTT:_iTTfin].count(nl("pushHistory()")) == 1
       and s.count(nl("function svmTracksSet(ts){pushHistory();")) == 1,
       f'geste={_iTT} fin={_iTTfin} '
@@ -14216,7 +14350,7 @@ for _lbl8, _a8, _r8, _sec8 in (
 # ligne-là était la SEULE du corps de la boucle du payload à déréférencer
 # `c.src`. Un carton posé sur un projet réel faisait donc lever le payload
 # entier — « Cannot read properties of undefined ».
-_I_PAY = s.find(nl('clips.filter(function(c){return c.src||c.kind==="title"})'))
+_I_PAY = s.find(nl('clips.filter(function(c){return c.src||c.kind==="title"||c.kind==="adjust"})'))
 _I_PAYF = s.find(nl("return o})"), _I_PAY if _I_PAY >= 0 else 0)
 _CORPS_PAY = s[_I_PAY:_I_PAYF] if 0 <= _I_PAY < _I_PAYF else ""
 _I_PAYB = _bak.find(_nlb("clips.filter(function(c){return c.src})")) if _bak else -1
@@ -14498,6 +14632,692 @@ check("D21_la_feuille_pose_l_hote_et_les_huit_gabarits",
               for _g in _GAB_ORDRE),
       f"hote={_R_HOTE!r} manquants="
       f"{[_g for _g in _GAB_ORDRE if _regle(_MC, '.dzsvm .dzm-tt-%s{' % _g) is None]}")
+
+# ═══════════════════════════════════════════════════════════════════════════
+# [E-1] LOT E-A — UN MONTAGE NEUF : « nouveau », l'instantané, `vide` porté
+# ═══════════════════════════════════════════════════════════════════════════
+print("\n[E-1] lot E-A — montage neuf : nouveau, instantané, vide porté")
+# LES DEUX REPLIS. Le plan situait le premier dans R_M5 ; la MESURE le situe
+# dans R_M6 : `tracks:svmTracksPayload(proj),` vaut 2 dans le bundle (R_M5 =
+# payload de RENDU, R_M6 = svmSavePayload, le seul qui nourrit POST /save).
+# Chaque texte vaut 1 dans le bundle, 0 dans .bak_montage, et il est DANS la
+# section qui le pose — même forme que D11.
+for _lble, _txte, _sece, _nome in (
+        ("E1_le_drapeau_vide_part_avec_la_sauvegarde",
+         "      vide:proj.vide===!0?!0:void 0,\n", P.R_M6, "R_M6"),
+        ("E1_le_drapeau_revient_avec_le_projet",
+         'vide:d.vide===!0,', P.R_M7, "R_M7")):
+    check(_lble,
+          s.count(nl(_txte)) == 1 and _txte in _sece
+          and (_bak.count(_nlb(_txte)) == 0 if _bak else False),
+          f'bundle={s.count(nl(_txte))} dans_{_nome}={_txte in _sece} '
+          f'bak={_bak.count(_nlb(_txte)) if _bak else "?"}')
+# ET ILS SONT AU BON ENDROIT : `vide:proj.vide` entre `function
+# svmSavePayload(){` et son `project_id:proj.project_id,` ; le payload de
+# RENDU (de son `tracks:` à son filtre) n'en porte pas ; `vide:d.vide` entre
+# `var np={` et `setProj(np)` — le seul `np` que l'écran reçoit.
+_I_SP = s.find(nl("function svmSavePayload(){"))
+_I_SPF = s.find(nl("      project_id:proj.project_id,"), _I_SP)
+_CORPS_SP = s[_I_SP:_I_SPF] if 0 <= _I_SP < _I_SPF else ""
+_I_RPF = s.find(nl('clips.filter(function(c){return c.src||c.kind==="title"||c.kind==="adjust"})'))
+_I_RP = s.rfind(nl("      tracks:svmTracksPayload(proj),"), 0, _I_RPF)
+_CORPS_RP = s[_I_RP:_I_RPF] if 0 <= _I_RP < _I_RPF else ""
+_I_NP = s.find("var np={demo:!1,")
+_I_NPF = s.find("setProj(np);", _I_NP)
+_CORPS_NP = s[_I_NP:_I_NPF] if 0 <= _I_NP < _I_NPF else ""
+check("E1_vide_est_dans_save_pas_dans_le_rendu_et_dans_le_np_applique",
+      _CORPS_SP.count("vide:proj.vide===!0?!0:void 0") == 1
+      and 0 < len(_CORPS_RP) < 600 and "vide" not in _CORPS_RP
+      and _CORPS_NP.count("vide:d.vide===!0,") == 1
+      and s.count("var np={demo:!1,") == 1,
+      f"save={len(_CORPS_SP)} rendu={len(_CORPS_RP)} np={len(_CORPS_NP)}")
+# LA COUCHE : « nouveau » (svm-minibtn, à GAUCHE d'« enregistrer sous… »
+# dans la rangée dzm-projsave), la chip ∅, `surete` AVANT `onBefore`
+# (rien n'a bougé si la copie échoue), `ouvrir` factorisée entre `doOpen`
+# et `doDup` (le banc M14 lit cette tranche), et les deux exports. Zéro
+# dans .bak_montage : c'est bien E-1 qui les pose.
+_I_PS = s.find(nl('r.jsxs("div",{className:"dzm-projsave",children:['))
+_I_NEW = s.find(nl('className:"svm-minibtn dzm-projnew"'), _I_PS)
+_I_SAVE = s.find(nl('children:"enregistrer sous…"'), _I_PS)
+_I_SUR = s.find(nl("  function surete(){"))
+_I_OUV = s.find(nl("  function ouvrir(p,sauve){"), _I_SUR)
+_I_DUP = s.find(nl("  function doDup(p){"), _I_OUV)
+_I_DOP = s.find(nl("  function doOpen(p){"))
+_CORPS_SUR = s[_I_SUR:_I_OUV] if 0 <= _I_SUR < _I_OUV else ""
+check("E1_nouveau_a_gauche_d_enregistrer_sous_et_ouvrir_entre_doOpen_et_doDup",
+      0 <= _I_PS < _I_NEW < _I_SAVE and _I_SAVE - _I_PS < 1200
+      and s.count(nl('onClick:doNew,children:arm==="n"?"nouveau ?":"nouveau"')) == 1
+      # revue : arme comme « ouvrir », la copie RATTACHEE des qu'elle existe,
+      # le motif d'echec dit.
+      and s.count(nl('if(arm!=="n"){setArm("n");return}')) == 1
+      and _CORPS_SUR.count("if(props.onNamed)props.onNamed(d.id,d.name);") == 1
+      and _CORPS_SUR.count('"Copie de sûreté impossible ("') == 1
+      and 0 <= _I_DOP < _I_SUR < _I_OUV < _I_DUP
+      and "onBefore" not in _CORPS_SUR
+      and _CORPS_SUR.count("dzmInstantaneNom(nm,new Date())") == 1
+      and s.count(nl('title:"montage vide"')) == 1
+      and s.count(nl("  projetNeuf:dzmProjetNeuf,instantaneNom:dzmInstantaneNom,")) == 1
+      and all(t in src for t in ("function dzmProjetNeuf(nom){",
+                                 "function dzmInstantaneNom(nom,now){",
+                                 "function doNew(){", "dzm-projvide-chip"))
+      and all(_bak.count(t) == 0 for t in ("dzm-projnew", "dzm-projvide-chip",
+                                           "dzmProjetNeuf", "function surete(){"))
+      if _bak else False,
+      f"projsave={_I_PS} new={_I_NEW} save={_I_SAVE} doOpen={_I_DOP} "
+      f"surete={_I_SUR} ouvrir={_I_OUV} doDup={_I_DUP}")
+# LA FEUILLE : les deux règles dans montage.css, jamais son-vfx-montage.css.
+_R_NEW = _regle(_MC, ".dzsvm .dzm-projnew{")
+_R_CHIP = _regle(_MC, ".dzsvm .dzm-projvide-chip{")
+check("E1_la_feuille_pose_nouveau_et_la_chip_vide",
+      _R_NEW is not None and "margin-right:6px" in _R_NEW
+      and _R_CHIP is not None and "var(--f-mono)" in _R_CHIP
+      and "var(--ink2)" in _R_CHIP,
+      f"new={_R_NEW!r} chip={_R_CHIP!r}")
+
+# ═══════════════════════════════════════════════════════════════════════════
+# [E-3] LOT E-A — « OUVRIR DANS LE MONTAGE » (Chapitres, Studio) ET LA PORTE
+# DE LA BIBLIOTHÈQUE SUR V1
+# ═══════════════════════════════════════════════════════════════════════════
+print("\n[E-3] lot E-A — Ouvrir dans le Montage, porte Bibliothèque sur V1")
+# LA PORTE (EA1) : la greffe S4 de libsend (AMONT) posait la VIDÉO sur "v2"
+# — une incrustation, donc MUETTE (wantsTwin exige une piste plein cadre) et,
+# sans piste v2, invisible. Elle vise maintenant "v1" ; l'IMAGE reste une
+# incrustation "v2" — c'est le témoin que le bundle est lu au bon endroit.
+# Dans .bak_montage, "v2" vaut 1 pour la vidéo et "v1" 0 : c'est bien EA1.
+_E3_V1 = '"video",p.dur||0,"v1")}catch(_e2){}},450)},[]);function defaultLen(kind,srcDur){'
+# (la forme CODE, avec sa queue `}catch(_e2)` : la couche porte la même
+# phrase dans une PROSE datée du 06/09 -- « vise "v2" EN DUR » -- que le
+# plan n'avait pas vue ; un `count("v2)") == 0` nu serait rouge à jamais.)
+_E3_V2 = '"video",p.dur||0,"v2")}catch(_e2)'
+_E3_IMG = '{image:p.image},p.image,"image",0,"v2")'
+check("E3_la_porte_de_la_bibliotheque_pose_la_video_sur_v1_et_l_image_sur_v2",
+      s.count(_E3_V1) == 1 and s.count(_E3_V2) == 0 and s.count(_E3_IMG) == 1
+      and (_bak.count(_E3_V1) == 0 and _bak.count(_E3_V2) == 1
+           and _bak.count(_E3_IMG) == 1 if _bak else False),
+      f"v1={s.count(_E3_V1)} v2={s.count(_E3_V2)} img={s.count(_E3_IMG)} "
+      f"bak(v1,v2)={(_bak.count(_E3_V1), _bak.count(_E3_V2)) if _bak else '?'}")
+# LES DEUX BOUTONS (EA2 Chapitres, EA3 Studio) : même libellé, même
+# navigation que « Send to Scheduler » (CustomEvent deepotus:navigate, le
+# seul mécanisme portable — `__dzSendNav` est enfermé dans le bloc libsend),
+# même boîte aux lettres que la Bibliothèque (`window.__dzMontageAdd` :
+# DEUX expéditeurs libsend dans .bak_montage, QUATRE après).
+# Chapitres : le bouton PRÉCÈDE « Send to Scheduler » dans le même tableau,
+# avec `epJob` et `title`. Studio : la rangée passe d'un enfant unique à un
+# tableau clé ("mont", "dl") — « Download » est CONSERVÉ tel quel.
+_E3_LBL = 'children:"Ouvrir dans le Montage"'
+_E3_NAV = 'window.dispatchEvent(new CustomEvent("deepotus:navigate",{detail:{view:"montage"}}))'
+_E3_CH = ('onClick:function(){window.__dzMontageAdd={job_id:epJob,title:title||"Épisode"};'
+          + _E3_NAV + '},' + _E3_LBL + '}),'
+          'r.jsx(K,{variant:"primary",size:"sm",icon:"calendar",onClick:sendEpisodeToScheduler,'
+          'children:"Send to Scheduler"})')
+_E3_ST = ('r.jsx("div",{style:{marginTop:10,display:"flex",gap:8},children:[r.jsx(K,{variant:"outline",'
+          'size:"sm",icon:"film",title:')
+_E3_ST2 = ('onClick:function(){window.__dzMontageAdd={job_id:n.id,title:n.title||"Rendu Studio"};'
+           + _E3_NAV + '},' + _E3_LBL + '},"mont"),r.jsx("a",{href:D.jobVideoUrl(n.id),download:!0,'
+           'style:{flex:1,textDecoration:"none"},children:r.jsx(K,{variant:"outline",size:"sm",'
+           'icon:"download",style:{width:"100%"},children:"Download"})},"dl")]})')
+check("E3_ouvrir_dans_le_montage_deux_fois_chapitres_avant_scheduler_studio_en_tableau",
+      s.count(_E3_LBL) == 2 and s.count(_E3_NAV) == 2
+      and s.count(_E3_CH) == 1 and s.count(_E3_ST) == 1 and s.count(_E3_ST2) == 1
+      and s.count("window.__dzMontageAdd={") == 4
+      and s.count('detail:{view:"scheduler"}') == 1
+      and s.count('icon:"film"') == _bak.count('icon:"film"') + 2
+      and (_bak.count(_E3_LBL) == 0 and _bak.count(_E3_NAV) == 0
+           and _bak.count("window.__dzMontageAdd={") == 2
+           and _bak.count('detail:{view:"scheduler"}') == 1 if _bak else False),
+      f"lbl={s.count(_E3_LBL)} nav={s.count(_E3_NAV)} ch={s.count(_E3_CH)} "
+      f"st={s.count(_E3_ST)}/{s.count(_E3_ST2)} add={s.count('window.__dzMontageAdd={')} "
+      f"film={s.count('icon:\"film\"')} bak_film={_bak.count('icon:\"film\"') if _bak else '?'}")
+# ET LE PATCHER LES PORTE, en queue de PATCHES, après TT11 : les ancres EA1/
+# EA2/EA3 valent 1 dans .bak_montage, 0 dans la source du patcher (règle de
+# la chaîne), et chaque remplacement est RETROUVÉ 1/1 (la boucle générique
+# du haut le mesure aussi — ceci fixe l'ORDRE et les étiquettes).
+# 22/09/2026 E-4 (tache 5) : la ligne mesurait la QUEUE de PATCHES ; E-4 y
+# ajoute sept sections et la faisait rougir sans qu'un cablage E-3 ait
+# bouge. Elle mesure desormais la POSITION de EA1 (apres TT11, suivi de
+# EA2 et EA3) — la queue est a la section [E-4].
+_E3_TAGS = [t for t, _a, _r in P.PATCHES]
+_E3_I = _E3_TAGS.index("EA1-porte-bibliotheque-v1") if "EA1-porte-bibliotheque-v1" in _E3_TAGS else -1
+check("E3_le_patcher_porte_EA1_EA2_EA3_apres_TT11",
+      _E3_I > 0 and _E3_TAGS[_E3_I - 1] == "TT11-plus-de-t1-pose-un-carton"
+      and [t.split("-")[0] for t in _E3_TAGS[_E3_I:_E3_I + 3]] == ["EA1", "EA2", "EA3"]
+      and all(_bak.count(a) == 1 and s.count(r) == 1 for t, a, r in P.PATCHES[_E3_I:_E3_I + 3])
+      if _bak else False,
+      f"pos={_E3_I} voisins={_E3_TAGS[max(0, _E3_I - 1):_E3_I + 3]}")
+
+# ══════════════════════════════════════════════════════════════════════════
+print("\n[E-4] rendre SANS publier, le bandeau de fin, l'envoi a la demande")
+# LE RENDU FINAL NE POSTE PLUS SUR /api/schedule ET NE NAVIGUE PLUS : les
+# deux textes valent 0 dans le bundle livre ET 1 dans .bak_montage (le
+# temoin positif, sans lequel « 0 » serait vrai d'un texte qui n'a jamais
+# existe). Le poll pose `dzFin` (job, nom, project_id) et le dit.
+_E4_FIN = 'setDzFin({job_id:job.id,name:proj.name,project_id:proj.project_id||""});'
+_E4_NOTE = 'fireNote("Rendu final terminé — « Envoyer vers le Scheduler » pour le publier.")}}'
+_E4_OLD_NOTE = 'fireNote("Rendu final terminé — brouillon ajouté au Scheduler.");'
+check("E4_le_rendu_final_ne_poste_plus_sur_schedule_et_ne_navigue_plus",
+      s.count('fetch("/api/schedule"') == 0 and s.count('props.go("scheduler")') == 0
+      and s.count(_E4_FIN) == 1 and s.count(_E4_NOTE) == 1 and s.count(_E4_OLD_NOTE) == 0
+      and (_bak.count('fetch("/api/schedule"') == 1 and _bak.count('props.go("scheduler")') == 1
+           and _bak.count(_E4_FIN) == 0 and _bak.count(_E4_OLD_NOTE) == 1 if _bak else False),
+      f"schedule={s.count('fetch(\"/api/schedule\"')}/{_bak.count('fetch(\"/api/schedule\"') if _bak else '?'} "
+      f"go={s.count('props.go(\"scheduler\")')} fin={s.count(_E4_FIN)} note={s.count(_E4_NOTE)}")
+# L'ETAT `dzFin` EST REPLIE DANS R_M16REF (sa ligne vaut 0 dans .bak_montage,
+# une section a part serait refusee par --check) et declare UNE fois.
+_E4_ST = "var stDzFin=x.useState(null),dzFin=stDzFin[0],setDzFin=stDzFin[1];"
+check("E4_l_etat_dzFin_est_replie_dans_R_M16REF",
+      _E4_ST in P.R_M16REF and s.count(_E4_ST) == 1
+      and (_bak.count(_E4_ST) == 0 and _bak.count("stDzFin") == 0 if _bak else False),
+      f"R_M16REF={_E4_ST in P.R_M16REF} livre={s.count(_E4_ST)} bak={_bak.count('stDzFin') if _bak else '?'}")
+# LES CINQ LIBELLES : chaque neuf = 1, chaque ancien = 0 dans le livre et
+# present dans .bak_montage (« Rendre & publier » y vit TROIS fois : le titre
+# du popover, son bouton d'action, la barre — les trois sont reecrits).
+_E4_NEUFS = ('"Rendre (master 1080)"', '"publication · à la demande, après le rendu"',
+             "un bandeau propose l'envoi vers le Scheduler", '"Rendre →"',
+             'isR?"Rendre":"Lancer l\'aperçu"')
+_E4_VIEUX = (('"Rendre & publier', 3), ('"publication · brouillon Scheduler"', 1),
+             ('puis brouillon dans le Scheduler', 1))
+check("E4_le_popover_et_la_barre_ne_promettent_plus_de_publication",
+      all(s.count(t) == 1 for t in _E4_NEUFS)
+      and all(s.count(t) == 0 for t, _n in _E4_VIEUX)
+      and (all(_bak.count(t) == 0 for t in _E4_NEUFS)
+           and all(_bak.count(t) == n for t, n in _E4_VIEUX) if _bak else False),
+      f"neufs={[s.count(t) for t in _E4_NEUFS]} vieux={[s.count(t) for t, _n in _E4_VIEUX]} "
+      f"bak_vieux={[_bak.count(t) for t, _n in _E4_VIEUX] if _bak else '?'}")
+# LE BANDEAU EST MONTE a cote du popover, UNE fois, et c'est lui qui poste sur
+# /api/montage/publish (le seul appel du bundle) ; les canaux sont memorises
+# (lecture ET ecriture de dz_montage_channels) ; « Fermer » efface l'etat ;
+# aucune navigation forcee (pas de `props.go` dans la monture, seulement le
+# select-post et la Bibliotheque par CustomEvent).
+_E4_MONT = 'r.jsx(DzTracks.FinBandeau,{fin:dzFin,memo:'
+check("E4_le_bandeau_est_monte_a_cote_du_popover_et_poste_sur_publish",
+      s.count(nl(_E4_MONT)) == 1 and s.count(nl("    popover(),\n    dzFin?")) == 1
+      and s.count('fetch("/api/montage/publish"') == 1
+      and s.count('"dz_montage_channels"') == 2 and s.count("setDzFin(null)}}") == 1
+      and s.count('detail:{view:"library"}') == _bak.count('detail:{view:"library"}') + 1
+      and "props.go" not in P.R_EA5E and "deepotus:select-post" in P.R_EA5E
+      and (_bak.count(_E4_MONT) == 0 and _bak.count("/api/montage/publish") == 0 if _bak else False),
+      f"mont={s.count(nl(_E4_MONT))} publish={s.count('fetch(\"/api/montage/publish\"')} "
+      f"memo={s.count('\"dz_montage_channels\"')} close={s.count('setDzFin(null)')}")
+# LA COUCHE PORTE LE BANDEAU ET LES QUATRE FONCTIONS PURES (exportees) ; elle
+# ne cite JAMAIS /api/schedule (le poll de l'ecran etait le seul emetteur, et
+# il ne l'est plus). Le bouton d'envoi se desarme pendant « … » et apres
+# succes : un double clic ne cree pas deux brouillons.
+check("E4_la_couche_porte_le_bandeau_et_les_defauts_de_publication",
+      src.count("function DzmFinBandeau(o){") == 1
+      and all(src.count(t) == 1 for t in ("channelsNorm:dzmChannelsNorm,", "publishLocal:dzmPublishLocal,",
+                                           "publishIso:dzmPublishIso,", "publishDefaults:dzmPublishDefaults,",
+                                           "FinBandeau:DzmFinBandeau,", "CHANNELS:DZM_CHANNELS,"))
+      and src.count('disabled:st==="…"||st===DZM_FIN_OK') == 1
+      and src.count("/api/schedule") == 0 and src.count("/api/montage/publish") == 0,
+      f"bandeau={src.count('function DzmFinBandeau(o){')} schedule={src.count('/api/schedule')}")
+_E4_CSS = CSS.read_text(encoding="utf-8")
+check("E4_la_feuille_porte_le_bandeau",
+      all(_E4_CSS.count(t) == 1 for t in (".dzsvm .dzm-fin{width:360px}", ".dzsvm .dzm-fin-row{",
+                                          ".dzsvm .dzm-fin-ch{", ".dzsvm .dzm-fin-st{")),
+      f"fin={_E4_CSS.count('.dzsvm .dzm-fin{')}")
+# LE PATCHER PORTE LES HUIT SECTIONS EN QUEUE, APRES EA3 : ancres 1/1 dans
+# .bak_montage, remplacements retrouves 1/1 (la boucle du haut le mesure
+# aussi — ceci fixe l'ORDRE et les etiquettes). Et l'infobulle des deux
+# boutons E-3 est desormais PARAMETREE : Chapitres dit « cet épisode »,
+# Studio « ce rendu » (revue du 22/09) — les deux formes dans le livre, 0
+# dans .bak_montage, et l'ancienne forme unique n'existe plus.
+_E4_TAGS = [t for t, _a, _r in P.PATCHES]
+_E4_I = _E4_TAGS.index("EA3-studio-ouvrir-montage")
+check("E4_le_patcher_porte_les_huit_sections_en_queue_apres_EA3",
+      # (reecrit PAR POSITION le 22/09, L3 : les sections DZ suivent EA6)
+      [t.split("-")[0] for t in _E4_TAGS[_E4_I + 1:_E4_I + 9]] == ["EA4", "EA5a", "EA5b", "EA5c", "EA5d", "EA5d2", "EA5e", "EA6"]
+      and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
+              and s.count(nl(a)) == (1 if a in r else 0)  # EA6 REPREND son ancre
+              for _t, a, r in P.PATCHES[_E4_I + 1:_E4_I + 9])
+      if _bak else False,
+      f"queue={_E4_TAGS[_E4_I + 1:_E4_I + 9]}")
+check("E4_l_infobulle_E3_dit_cet_episode_aux_chapitres_et_ce_rendu_au_studio",
+      "%s" in P._EA_TIP and s.count("Poser cet épisode sur la piste V1") == 1
+      and s.count("Poser ce rendu sur la piste V1") == 1 and s.count("Poser ce rendu") == 1
+      and (_bak.count("Poser cet épisode") == 0 and _bak.count("Poser ce rendu") == 0 if _bak else False),
+      f"episode={s.count('Poser cet épisode sur la piste V1')} rendu={s.count('Poser ce rendu sur la piste V1')}")
+# REVUE (I-1) : LE BANDEAU SE FERME AU LANCEMENT D'UN RENDU — `setDzFin(null)`
+# juste apres la garde de `launchRender` (EA6). Sans cela l'instance sans
+# `key` etait reutilisee par le second rendu : etat « Brouillon ajouté »
+# et bouton desarme pour le NOUVEAU job. Temoin : l'ancre nue vaut 1 dans
+# .bak_montage et 0 dans le livre, la forme etendue 0 dans le .bak.
+_E4_G = 'if(proj.demo||(job&&job.status!=="failed"))return;'
+check("E4_le_bandeau_se_ferme_au_lancement_d_un_rendu",
+      s.count(_E4_G + "setDzFin(null);") == 1 and s.count("setDzFin(null)") == 2
+      and (_bak.count(_E4_G) == 1 and _bak.count(_E4_G + "setDzFin(null);") == 0 if _bak else False),
+      f"garde+null={s.count(_E4_G + 'setDzFin(null);')} null={s.count('setDzFin(null)')} "
+      f"bak={_bak.count(_E4_G) if _bak else '?'}")
+# REVUE (M-1) : un refus a corps NON JSON (500 texte) remonte le statut,
+# jamais un SyntaxError — `res.json()` est rattrape avant `throw`.
+check("E4_un_refus_non_json_remonte_le_statut",
+      s.count(nl("res.json().catch(function(){return null}).then(function(j){throw (j&&j.detail)||res.status})")) == 1
+      and s.count("res.json().then(function(j){throw") == 0,
+      f"count={s.count('res.json().catch(function(){return null})')}")
+
+# ══════════════════════════════════════════════════════════════════════════
+print("\n[D-13] le zoom dynamique : l'hote des proprietes de plan, les rectangles, le direct, le payload")
+# LE GESTE COMMUN EST REPLIE DANS R_M16REF (sa ligne d'ancre vaut 0 dans
+# .bak_montage) : UNE fonction pour l'hote ET les rectangles, une REF pour la
+# rafale d'historique (un `var` du corps serait recree a chaque rendu —
+# mesure : chaque `setClips` re-rend le composant). Temoin : 0 dans le .bak.
+_DZ_SET = "function dzPlanSet(patch,heavy){var tl=trackStRef.current.v1;if(tl&&tl.l)return;"
+_DZ_REF = "var dzPlanHist=x.useRef(0);"
+check("DZ_le_geste_dzPlanSet_et_sa_ref_sont_replies_dans_R_M16REF",
+      _DZ_SET in P.R_M16REF and _DZ_REF in P.R_M16REF
+      and s.count(_DZ_SET) == 1 and s.count(_DZ_REF) == 1
+      and s.count("if(heavy||now-dzPlanHist.current>600)pushHistory();dzPlanHist.current=now;") == 1
+      and s.count("function dzPlanSet(patch,heavy){var tl=trackStRef.current.v1;if(tl&&tl.l)return;") == 1
+      and _bak.count("trackStRef.current.v2&&trackStRef.current.v2.l)return;") >= 1  # la forme de ovHandleDown
+      and s.count("var dzPlanHist={") == 0
+      and (_bak.count("dzPlanSet") == 0 and _bak.count("dzPlanHist") == 0 if _bak else False),
+      f"set={s.count(_DZ_SET)} ref={s.count(_DZ_REF)} bak={_bak.count('dzPlanHist') if _bak else '?'}")
+# L'HOTE LIT LA TETE `ph` (l'etat st3 — le plan disait `phc`, qui n'existe
+# pas : 0 dans le .bak ET dans le livre) et ne se monte que sur un clip V1
+# REEL (src.job_id), juste avant `ovInspector()`.
+_DZ_HOTE = 'sel&&sel.tr==="v1"&&sel.src&&sel.src.job_id?r.jsx(DzTracks.PlanProps,{clip:sel,'
+check("DZ1_l_hote_lit_la_tete_ph_et_ne_monte_que_sur_un_v1_reel",
+      s.count(nl(_DZ_HOTE)) == 1 and s.count("(ph-sel.start)/(sel.end-sel.start)") == 1
+      and s.count(nl("          onChange:dzPlanSet}):null,\n        ovInspector(),")) == 1
+      and s.count("(phc-") == 0  # le jeton nu compte 15 (`graphc`...) : la forme exacte, pas le mot
+      and (_bak.count("DzTracks.PlanProps") == 0 and _bak.count("(phc-") == 0 if _bak else False),
+      f"hote={s.count(nl(_DZ_HOTE))} ph={s.count('(ph-sel.start)/(sel.end-sel.start)')} phc={s.count('(phc-')}")
+# LES RECTANGLES VIVENT DANS `.svm-tf` (et non apres, comme le plan le
+# proposait) : la feuille du bundle dit `.svm-tf{position:absolute; inset:0;
+# pointer-events:none; z-index:3}` — le cadre entier, hors vzoom, au-dessus
+# des hotes. `box` lit `frameRef` (le cadre, meme boite). Temoins : le
+# .bak ne connait ni DzRects ni la classe.
+_DZ_RECT = 'sel&&sel.tr==="v1"&&sel.dz?r.jsx(DzTracks.DzRects,{dz:sel.dz,'
+_DZ_TF = ".svm-tf{position:absolute; inset:0; pointer-events:none; z-index:3}"
+_dz_hdcss = _HDCSS if isinstance(_HDCSS, str) else ""   # deja le TEXTE de la feuille (l. ~1161), ou un temoin
+check("DZ2_les_rectangles_vivent_dans_svm_tf_et_lisent_le_cadre",
+      s.count(nl(_DZ_RECT)) == 1
+      and s.count(nl('              onChange:function(nd){dzPlanSet({dz:nd})}}):null]}):null,')) == 1
+      and "box:" not in P.R_DZ2 and s.count("frameRef.current;return h?") == 0
+      and src.count('closest(".dzm-dzwrap")') == 1 and src.count("wrap.getBoundingClientRect()") == 1
+      and _dz_hdcss.count(_DZ_TF) == 1
+      and (_bak.count("DzTracks.DzRects") == 0 and _bak.count("dzm-dzrect") == 0 if _bak else False),
+      f"rect={s.count(nl(_DZ_RECT))} tf={_dz_hdcss.count(_DZ_TF)} bak={_bak.count('DzTracks.DzRects') if _bak else '?'}")
+# LE ZOOM EN DIRECT EST UNE SECTION PROPRE (DZ3) SUR `lv._svmClip=c.id;`
+# (1/1 dans le .bak), PAS un repli dans R_V3 : en tete de liveSync ni la
+# <video> ni le clip actif ne sont connus. La transformation n'est ecrite
+# que si elle change ; l'origine est 0 0.
+_DZ_LIVE = 'var dzT=DzTracks.dzCss(c.dz,(t-c.start)/Math.max(.04,c.end-c.start));'
+check("DZ3_le_zoom_en_direct_ecrit_la_video_active_hors_R_V3",
+      s.count(_DZ_LIVE) == 1 and s.count("DzTracks.dzCss(") == 1
+      and s.count("if(lv.style.transform!==dzT)lv.style.transform=dzT;") == 1
+      and s.count("transformOrigin") == _bak.count("transformOrigin")  # l'origine vient de la feuille
+      and "dzCss" not in P.R_V3 and "dzOf" not in P.R_V3
+      and (_bak.count("      lv._svmClip=c.id;") == 1 and _bak.count("DzTracks.dzCss(") == 0 if _bak else False),
+      f"live={s.count(_DZ_LIVE)} css={s.count('DzTracks.dzCss(')} v3={'dzCss' in P.R_V3}")
+# LE PAYLOAD JOINT `dz` SEULEMENT S'IL EXISTE : la ligne d'arrondi de la
+# vitesse (1/1 dans le .bak, 0 dans le patcher avant DZ4) est l'ancre ;
+# `o.dz=` n'existe qu'une fois et nulle part dans le .bak (payload d'avant
+# octet pour octet sans zoom).
+check("DZ4_le_payload_joint_dz_seulement_s_il_existe",
+      s.count(nl(P.A_DZ4 + "\n")) == 1
+      and s.count('var dzD=c.tr==="v1"&&DzTracks.dzOf(c);if(dzD)o.dz=dzD;') == 1
+      and s.count("o.dz=") == 1
+      and (_bak.count(P.A_DZ4) == 1 and _bak.count("o.dz=") == 0 if _bak else False),
+      f"dz={s.count('o.dz=')} bak_ancre={_bak.count(P.A_DZ4) if _bak else '?'}")
+# LA COUCHE PORTE LES SEPT PURES, LES DEUX COMPOSANTS ET LES NEUF EXPORTS ;
+# le geste des rectangles ecoute la FENETRE (la forme de la maison — le pin
+# tb_d de la barre exige deja `.setPointerCapture(` = 0 sur toute la couche).
+_DZ_RECTS = src[src.find("function DzmDzRects(o){"):src.find("var DzTracks={")]
+_DZ_EXP = ("dzNorm:dzmDzNorm,", "dzOf:dzmDzOf,", "dzAt:dzmDzAt,", "dzPreset:dzmDzPreset,",
+           "dzMove:dzmDzMove,", "dzScale:dzmDzScale,", "dzCss:dzmDzCss,",
+           "PlanProps:DzmPlanProps,", "DzRects:DzmDzRects,")
+check("DZ_la_couche_porte_les_pures_les_composants_et_les_exports",
+      all(src.count(t) == 1 for t in _DZ_EXP)
+      and all(src.count(t) == 1 for t in ("function dzmDzNorm(raw){", "function dzmDzAt(dz,u){",
+                                           "function dzmDzCss(dz,u){", "function DzmPlanProps(o){",
+                                           "function DzmDzRects(o){"))
+      and src.count("var w=window,sx=e.clientX,sy=e.clientY,base=dz,pid=e.pointerId,last=null,raf=0;") == 1
+      and _DZ_RECTS.count('w.addEventListener("pointercancel",up)') == 1  # (la barre en a un aussi : compte dans le corps)
+      and _DZ_RECTS.count("requestAnimationFrame(") == 1 and _DZ_RECTS.count("cancelAnimationFrame(raf)") == 1
+      and _DZ_RECTS.count("if(e.button)return;") == 1 and _DZ_RECTS.count("if(e2.pointerId!==pid)return;") == 2
+      and _DZ_RECTS.count("if(!bx||bx.width<2)return;") == 1
+      and src.count('if(v==="custom"&&dz)return;') == 1
+      and src.count("function dzmDzAtN(d,u){") == 1 and src.count("dzmDzAtN(d,u)") == 3
+      and src.count("if(o.x0===0&&o.y0===0&&o.x1===0&&o.y1===0&&o.w0>=1&&o.w1>=1)return null;") == 1,
+      f"exports={[src.count(t) for t in _DZ_EXP]} fenetre={src.count('var w=window,sx=e.clientX')}")
+_DZ_CSS = CSS.read_text(encoding="utf-8")
+check("DZ_la_feuille_porte_les_rectangles_et_l_hote",
+      all(_DZ_CSS.count(t) == 1 for t in (".dzsvm .dzm-plan{", ".dzsvm .dzm-plan-t{", ".dzsvm .dzm-plan-hint{",
+                                          ".dzsvm .dzm-dzwrap{position:absolute;inset:0;pointer-events:none}",
+                                          ".dzsvm .svm-live>.svm-livemedia{transform-origin:0 0}",
+                                          '.dzsvm .dzm-dzrect[data-k="fin"]{border-color:#e0453f}',
+                                          ".dzsvm .dzm-dzlab{", ".dzsvm .dzm-dzh{"))
+      and _DZ_CSS.count("pointer-events:auto;cursor:move;touch-action:none}") == 1,
+      f"wrap={_DZ_CSS.count('.dzsvm .dzm-dzwrap{')} rect={_DZ_CSS.count('.dzsvm .dzm-dzrect{')}")
+# LE PATCHER PORTE LES QUATRE SECTIONS EN QUEUE, APRES EA6, ancres 1/1 dans
+# le .bak (la boucle du haut mesure aussi ; ceci fixe l'ORDRE), et la sonde
+# de dzcout dit 105 (99 + PlanProps + DzRects + dzCss + dzOf ; revue :
+# DZ3 appelle dzCss directement, plus de dzOf la ; D-15 : + rampe dans DZ1
+# + retimeOf dans DZ4 ; D-16 : + stabOf dans DZ4 -- AUCUNE section neuve, la
+# queue reste DZ1..DZ4 ; D-14 (tache 7) : HUIT sections KF1..KF5 APRES DZ4,
+# sonde 112 = 108 + mpLerp2 x3 (KF1, KF3b, KF5) + mpKeep x1 (KF2b)).
+_DZ_TAGS = [t for t, _a, _r in P.PATCHES]
+_DZ_I = _DZ_TAGS.index("EA6-bandeau-ferme-au-lancement")
+# D-9 (tache 9) : QUATRE sections AJ2a, AJ2b, AJ6a, AJ6b APRES KF5, sonde 114
+# = 112 + adjustNew x1 + adjustTrack x1 (le repli dzAjAdd de R_M16REF).
+check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_en_queue_apres_EA6_et_la_sonde_dit_114",
+      [t.split("-")[0] for t in _DZ_TAGS[_DZ_I + 1:]] == ["DZ1", "DZ2", "DZ3", "DZ4",
+                                                          "KF1", "KF2", "KF2b", "KF2c", "KF3a", "KF3b", "KF3c", "KF4", "KF5",
+                                                          "AJ2a", "AJ2b", "AJ6a", "AJ6b", "AJ7"]
+      and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
+              and s.count(nl(a)) == (1 if a in r else 0)
+              for _t, a, r in P.PATCHES[_DZ_I + 1:])
+      and _sonde.get("montage") == 114 and s.count("DzTracks") == 114
+      if _bak else False,
+      f"queue={_DZ_TAGS[_DZ_I + 1:]} sonde={_sonde.get('montage')} bundle={s.count('DzTracks')}")
+
+# ══════════════════════════════════════════════════════════════════════════
+print("\n[D-15] l'interpolation dans l'hote et la rampe par division")
+# L'HOTE RECOIT LA VITESSE ET LA TETE (R_DZ1 etendu, PAS d'ancre neuve) ; la
+# rampe fend a la tete par DzTracks.rampe sur les refs, refuse la piste
+# verrouillee (forme de svmSetV1Speed), UNE entree d'historique, selectionne
+# la partie droite par setSelId (la forme d'addAsset : `setSelId(id);setDirty(!0)`).
+# Temoins : le .bak ne connait ni onRampe, ni rampe(, ni la note de division.
+_RT_RAMPE = "var res=DzTracks.rampe(clipsRef.current,selRef.current,t,sL,sR);"
+check("RT1_l_hote_recoit_vitesse_et_tete_et_la_rampe_fend_sur_les_refs",
+      s.count("speed:svmSpeedOf(sel),head:ph,") == 1 and s.count("onRampe:function(t,sL,sR){") == 1
+      and s.count(_RT_RAMPE) == 1 and s.count("DzTracks.rampe(") == 1
+      and s.count('if(res.refus){fireNote(res.refus==="bord"?"Trop près d\'un bord (0,3 s)":"Impossible de diviser ici");return}') == 1
+      and s.count("pushHistory();setClips(res.clips);setSelId(res.right);setDirty(!0)") == 1
+      and s.count('fireNote("Piste V1 verrouillée — division bloquée.")') == 1
+      and _bak.count("setSelId(id);setDirty(!0)") >= 1  # la forme de la selection
+      and s.count(nl("          onChange:dzPlanSet}):null,\n        ovInspector(),")) == 1  # DZ1 finit comme avant
+      and (_bak.count("onRampe") == 0 and _bak.count("DzTracks.rampe(") == 0
+           and _bak.count("division bloquée") == 0 and _bak.count("speed:svmSpeedOf(sel)") == 0 if _bak else False),
+      f"speed={s.count('speed:svmSpeedOf(sel),head:ph,')} rampe={s.count('DzTracks.rampe(')} bak={_bak.count('onRampe') if _bak else '?'}")
+# LE PAYLOAD JOINT `retime` SEULEMENT AVEC UNE VITESSE (R_DZ4 etendu) :
+# `o.speed` n'est pose que sur un V1 reel a vitesse != 1 (ligne d'ancre) ;
+# UNE occurrence de `retimeOf(` (via rtD) -- la sonde compte chaque jeton.
+check("RT2_le_payload_joint_retime_seulement_avec_une_vitesse",
+      s.count("var rtD=o.speed&&DzTracks.retimeOf(c);if(rtD)o.retime=rtD;") == 1
+      and s.count("o.retime=") == 1 and s.count("DzTracks.retimeOf(") == 1
+      # `if(c.tr==="v2"){` est CONSOMMEE par M25c (isOverlayTrack) : l'ordre se mesure sur le mixage audio qui suit
+      and 0 < s.find("if(dzD)o.dz=dzD;") < s.find("var rtD=o.speed&&") < s.find('        if(trackKind(c.tr)==="audio"){')
+      and (_bak.count("o.retime=") == 0 and _bak.count("retimeOf") == 0 if _bak else False),
+      f"retime={s.count('o.retime=')} retimeOf={s.count('DzTracks.retimeOf(')} bak={_bak.count('retimeOf') if _bak else '?'}")
+# LA COUCHE PORTE LES DEUX PURES, LES DEUX EXPORTS ET LES DEUX RANGEES ; le
+# useState de la rampe vient APRES la garde `!c` (sans clip, `x` n'est pas lu).
+_RT_HOTE = src[src.find("function DzmPlanProps(o){"):src.find("function DzmDzRects(o){")]
+_RT_CORPS = src[src.find("function dzmRampe(clips,id,t,spdL,spdR){"):src.find("function DzmPlanProps(o){")]
+check("RT_la_couche_porte_retimeOf_rampe_les_exports_et_les_deux_rangees",
+      src.count("function dzmRetimeOf(c){") == 1 and src.count("function dzmRampe(clips,id,t,spdL,spdR){") == 1
+      and src.count("retimeOf:dzmRetimeOf,") == 1 and src.count("rampe:dzmRampe,") == 1
+      and _RT_HOTE.count('row("Interpolation",') == 1 and _RT_HOTE.count('row("Rampe",') == 1
+      and _RT_HOTE.count('children:"Diviser à la tête →"') == 1
+      and _RT_HOTE.count("o.onRampe(head,spd,rampSpd)") == 1
+      and _RT_HOTE.count('"Sans effet à 100 % — change d\'abord la vitesse"') == 1
+      and _RT_HOTE.find("if(!c)return null;") < _RT_HOTE.find("x.useState(2)") and _RT_HOTE.count("x.useState(") == 1
+      and src.count("R.srcIn=dzmR3((Number(c.srcIn)||0)+(t-s)*sp);") == 1  # la regle de dzmCarve
+      and src.count("delete R.transition;delete R.transition_s;") == 1
+      # revue : vitesse SANS arrondi (remplir pose 1,333) et continuite du zoom au raccord
+      and _RT_CORPS.count("return v>0?Math.max(.25,Math.min(4,v)):1}") == 1 and _RT_CORPS.count("Math.round(v*100)") == 0
+      and _RT_CORPS.count("var d=dzmDzOf(c);if(d){var m=dzmDzAtN(d,(t-s)/(e-s));") == 1
+      and _RT_CORPS.count("L.dz=Object.assign({},d,{x1:m.x,y1:m.y,w1:m.w});R.dz=Object.assign({},d,{x0:m.x,y0:m.y,w0:m.w})}") == 1
+      and _RT_CORPS.count("Date.now().toString(36)") == 0,  # l'identifiant vient de dzmFreeId, pas de l'horloge (corps de dzmRampe seul)
+      f"pures={src.count('function dzmRampe(')} rangees={_RT_HOTE.count('row(\"Interpolation\",')}/{_RT_HOTE.count('row(\"Rampe\",')}")
+
+# ══════════════════════════════════════════════════════════════════════════
+print("\n[D-16] la section Stabilisation, l'analyse suivie par le job")
+# L'HOTE RECOIT L'ETAT DU JOB DE SA SOURCE ET LE DECLENCHEUR (R_DZ1 etendu,
+# PAS d'ancre neuve, DZ1 finit comme avant). Temoins : le .bak ne connait ni
+# stabJob, ni dzStabStart.
+check("SB1_l_hote_recoit_stabJob_par_source_et_onStab",
+      s.count("stabJob:dzStabJobs[DzTracks.srcKey(sel.src)]||null,onStab:function(){dzStabStart(sel.src)},") == 1
+      and s.count("dzStabJobs[JSON.stringify(") == 0  # revue : cle canonique, jamais a l'ordre des cles pres
+      and s.count(nl("          onChange:dzPlanSet}):null,\n        ovInspector(),")) == 1
+      and (_bak.count("stabJob") == 0 and _bak.count("dzStabStart") == 0 if _bak else False),
+      f"hote={s.count('onStab:function(){dzStabStart(sel.src)}')} bak={_bak.count('stabJob') if _bak else '?'}")
+# L'ETAT ET LE SUIVI SONT REPLIES DANS R_M16REF, entre dzPlanSet et dzAliveRef
+# (le meme corps : la garde est resolue a l'appel) : running AVANT le POST,
+# `ready` -> done sans job, refus/reseau/job introuvable -> failed AVEC message,
+# polling a 1,5 s (la cadence de launchRender) qui s'eteint au demontage.
+_SB_FN = s[s.find("function dzStabStart(src){"):s.find("function dzStabStart(src){") + 1600]
+check("SB_le_repli_suit_le_job_par_source_et_s_eteint_au_demontage",
+      s.count("var stDzStab=x.useState({}),dzStabJobs=stDzStab[0],setDzStabJobs=stDzStab[1];") == 1
+      and s.count("function dzStabStart(src){") == 1
+      and 0 < s.find("function dzPlanSet(") < s.find("function dzStabStart(") < s.find("var dzAliveRef=x.useRef(!0)")
+      and _SB_FN.count("if(dzAliveRef.current)setDzStabJobs(") == 1
+      and _SB_FN.count("var key=DzTracks.srcKey(src);") == 1 and _SB_FN.count("srcKey(") == 1
+      and _SB_FN.count("JSON.stringify(src)") == 0  # revue : la cle est canonique (srcKey, cles triees)
+      and _SB_FN.count("if(!fin&&dzAliveRef.current)setTimeout(function(){tick(id)},1500)") == 1
+      and _SB_FN.count(";return}") == 0 and _SB_FN.count("if(!dzAliveRef.current)return;") == 0  # les comptes P9 restent a 4 et 1
+      and _SB_FN.count('fetch("/api/montage/stab",{method:"POST"') == 1 and _SB_FN.count('fetch("/api/jobs/"+id)') == 1
+      and _SB_FN.count('put({status:"running",progress:0});') == 1 and _SB_FN.count('if(o.ok&&o.d&&o.d.ready)return put({status:"done"});') == 1
+      and _SB_FN.count('return put({status:"failed",error:(o.d&&(o.d.detail||o.d.error))||"refus"});') == 1
+      and _SB_FN.count('return put({status:"failed",error:(j&&j.detail)||"job introuvable"});') == 1
+      and _SB_FN.count('put({status:"failed",error:String(e)})') == 2  # POST et polling : aucun catch muet
+      and _SB_FN.count("catch(function(){})") == 0
+      and _SB_FN.count('st==="done"||st==="failed"') == 1 and _SB_FN.count("toLowerCase") == 0  # status mesure en minuscules
+      and (_bak.count("dzStabJobs") == 0 and _bak.count("montage/stab") == 0 if _bak else False),
+      f"fn={s.count('function dzStabStart(src){')} catch_muet={_SB_FN.count('catch(function(){})')} bak={_bak.count('montage/stab') if _bak else '?'}")
+# LE PAYLOAD JOINT `stab` SEULEMENT S'IL EXISTE (R_DZ4 etendu), apres `retime`
+# et avant le mixage audio ; UNE occurrence de `stabOf(` (via sbD).
+check("SB4_le_payload_joint_stab_seulement_s_il_existe",
+      s.count('var sbD=c.tr==="v1"&&DzTracks.stabOf(c);if(sbD)o.stab=sbD;') == 1
+      and s.count("o.stab=") == 1 and s.count("DzTracks.stabOf(") == 1
+      and 0 < s.find("var rtD=o.speed&&") < s.find("var sbD=") < s.find('        if(trackKind(c.tr)==="audio"){')
+      and (_bak.count("o.stab=") == 0 and _bak.count("stabOf") == 0 if _bak else False),
+      f"stab={s.count('o.stab=')} stabOf={s.count('DzTracks.stabOf(')} bak={_bak.count('stabOf') if _bak else '?'}")
+# LA COUCHE PORTE LES TROIS PURES, LES TROIS EXPORTS ET LES RANGEES : la case
+# (lourd), « Analyser » desactive pendant l'analyse, la chip d'etat, les deux
+# curseurs (LEGER : rafale) et les bords (lourd) ; toujours UN useState.
+_SB_HOTE = src[src.find("function DzmPlanProps(o){"):src.find("function DzmDzRects(o){")]
+check("SB_la_couche_porte_les_pures_les_exports_et_la_section",
+      all(src.count(t) == 1 for t in ("function dzmStabNorm(raw){", "function dzmStabOf(c){", "function dzmStabState(job){",
+                                       "stabNorm:dzmStabNorm,stabOf:dzmStabOf,stabState:dzmStabState,"))
+      and src.count("return {on:!0,smooth:n(raw.smooth,1,100,15),crop:raw.crop===\"black\"?\"black\":\"keep\",zoom:n(raw.zoom,-30,30,0)}}") == 1
+      and _SB_HOTE.count('row("Stabilis.",') == 1 and _SB_HOTE.count('row("Bords",') == 1
+      and _SB_HOTE.count('rng("smooth",1,100,"Lissage",') == 1 and _SB_HOTE.count('rng("zoom",-30,30,"Zoom",') == 1
+      and _SB_HOTE.count("on({stab:e.target.checked?dzmStabNorm({on:!0}):void 0},!0)") == 1
+      and _SB_HOTE.count("on({stab:dzmStabNorm(Object.assign({},sb,p))},!1)") == 1
+      and _SB_HOTE.count("on({stab:dzmStabNorm(Object.assign({},sb,{crop:v}))},!0)") == 1
+      # revue : « Analyser » n'est rearme que sur un echec (done = cache present, jamais purge)
+      and _SB_HOTE.count('sjBloque=!!sj&&sj.status!=="failed"') == 1 and _SB_HOTE.count("sjEnCours") == 0
+      and _SB_HOTE.count("disabled:!sb||sjBloque,") == 1 and _SB_HOTE.count('children:"Analyser"') == 1
+      and _SB_HOTE.count('"data-st":sj?sj.status:""') == 1
+      and _SB_HOTE.count("x.useState(") == 1,
+      f"rangees={_SB_HOTE.count('row(\"Stabilis.\",')}/{_SB_HOTE.count('row(\"Bords\",')} useState={_SB_HOTE.count('x.useState(')}")
+_SB_CSS = CSS.read_text(encoding="utf-8")
+check("SB_la_feuille_porte_la_chip_et_les_curseurs",
+      all(_SB_CSS.count(t) == 1 for t in ('.dzsvm .dzm-stab-st[data-st="done"]{color:#3fbf5a}',
+                                          '.dzsvm .dzm-stab-st[data-st="failed"]{color:#e0453f}',
+                                          ".dzsvm .dzm-stab input[type=range]{width:90px;vertical-align:middle}")),
+      f"done={_SB_CSS.count('.dzsvm .dzm-stab-st[data-st=')}")
+
+# ══════════════════════════════════════════════════════════════════════════
+print("\n[D-14] keyframes d'echelle et d'opacite sur les overlays (client)")
+# L'ECHELLE EN DIRECT : svmOvTfAt (source unique du lecteur, du cadre et de
+# l'inspecteur) lit la lerp sur les porteurs, defaut la statique ; la ligne
+# figee `scale:base.scale,` a disparu. Temoin : le .bak ne connait pas mpLerp2.
+check("KF1_svmOvTfAt_interpole_l_echelle_sur_les_points_porteurs",
+      s.count(nl(P.R_KF1)) == 1 and s.count("          scale:base.scale,") == 0
+      and s.count('mr=svmMpLerp(mp,tl,"rotate");') == 1  # le reste de svmOvTfAt est intact
+      and (_bak.count(P.A_KF1) == 1 and _bak.count("mpLerp2") == 0 if _bak else False),
+      f"kf1={s.count(nl(P.R_KF1))} fige={s.count('          scale:base.scale,')} bak={_bak.count('mpLerp2') if _bak else '?'}")
+# UN POINT UNIQUE ALIGNE AUSSI scale/opacity (il ne part pas au rendu) ; le
+# point ecrase par svmMpPlace GARDE ses cles (mpKeep AVANT `var out=`).
+# CONTRE LE PLAN : `res.pts` recopie deja les points non touches, ce qui les
+# perdait est le point NEUF de svmMpPlace — le pin mesure la, pas dans svmMpApply.
+_KF_PLACE = s[s.find("  function svmMpPlace(c,vals){"):s.find("  function svmMpPlace(c,vals){") + 1400]
+check("KF2_point_unique_aligne_et_point_ecrase_garde_scale_opacite",
+      s.count("scale:one&&one.scale!=null?one.scale:t.scale,") == 1
+      and s.count("opacity:one&&one.opacity!=null?(one.opacity>=1?void 0:one.opacity):k.opacity,") == 1
+      and _KF_PLACE.count("DzTracks.mpKeep(np,vals,bi>=0?pts[bi]:null);") == 1 and s.count("DzTracks.mpKeep(") == 1
+      and 0 < _KF_PLACE.find("DzTracks.mpKeep(") < _KF_PLACE.find("var out=pts.slice();")
+      and (_bak.count("one&&one.scale") == 0 and _bak.count("mpKeep") == 0
+           and _bak.count("var np={t:bi>=0?pts[bi].t:t,") == 1 if _bak else False),  # le point NEUF, mesure
+      f"apply={s.count('scale:one&&one.scale!=null?one.scale:t.scale,')} keep={s.count('DzTracks.mpKeep(')} bak={_bak.count('mpKeep') if _bak else '?'}")
+# REVUE : svmMpRemove, quand il reste UN point, aligne aussi scale/opacity
+# (meme convention que KF2 : opacity 1 -> void 0). Temoin : le .bak ne lit
+# jamais `np[0].scale`.
+check("KF2c_svmMpRemove_un_point_restant_aligne_aussi_echelle_et_opacite",
+      s.count(nl(P.R_KF2C)) == 1 and s.count("if(np[0].scale!=null)nk.scale=np[0].scale;") == 1
+      and s.count("if(np[0].opacity!=null)nk.opacity=np[0].opacity>=1?void 0:np[0].opacity}") == 1
+      and 0 < s.find("  function svmMpRemove(") < s.find("if(np[0].scale!=null)nk.scale=np[0].scale;")
+      and (_bak.count(P.A_KF2C) == 1 and _bak.count("np[0].scale") == 0 and _bak.count("np[0].opacity") == 0 if _bak else False),
+      f"kf2c={s.count(nl(P.R_KF2C))} bak={_bak.count('np[0].scale') if _bak else '?'}")
+# LES CHAMPS ECHELLE ET OPACITE ECRIVENT LE POINT quand une trajectoire
+# existe (svmMpField, comme Rotation), sinon le clip comme avant ; l'infobulle
+# « ne se keyframe pas » a disparu ; vOp lit l'opacite interpolee a la tete
+# (phc est pose AVANT, la ligne `var t=` de l'inspecteur le lit deja).
+check("KF3_echelle_et_opacite_ecrivent_le_point_le_plus_proche_de_la_tete",
+      s.count("if(mp)svmMpField(sel,{scale:v});else svmOvTfField({scale:v})") == 1
+      and s.count("if(mp){svmMpField(sel,{opacity:nv});return}") == 1
+      and s.count("Object.assign({},k,{opacity:nv>=1?void 0:nv}):k}));") == 1  # la voie statique reste
+      and s.count("l'échelle ne se keyframe pas : valeur unique") == 0
+      and s.count('(100 = pleine largeur)"+kfTT,') == 1 and s.count('("+vOp+" %)"+kfTT,') == 1
+      and s.count('var vOp=Math.round((mp?DzTracks.mpLerp2(mp,phc-sel.start,"opacity",') == 1
+      and 0 < s.find("var t=(mp?svmOvTfAt(sel,phc):tf)") < s.find("var vOp=Math.round((mp?DzTracks.mpLerp2(")
+      and (_bak.count("l'échelle ne se keyframe pas : valeur unique") == 1
+           and _bak.count("svmMpField(sel,{scale:") == 0 and _bak.count("svmMpField(sel,{opacity:") == 0 if _bak else False),
+      f"scale={s.count('if(mp)svmMpField(sel,{scale:v})')} op={s.count('if(mp){svmMpField(sel,{opacity:nv});return}')} bak={_bak.count('svmMpField(sel,{scale:') if _bak else '?'}")
+# LE PAYLOAD JOINT q.scale / q.opacity PAR POINT, seulement s'ils existent,
+# entre q.rotate et `return q` ; le .bak n'en joint aucun. CONTRE LE PLAN :
+# M25c ne consomme que `if(c.tr==="v2"){`, la ligne q.rotate est libre (1/1).
+check("KF4_le_payload_joint_scale_et_opacity_par_point_seulement_s_ils_existent",
+      s.count("q.scale=") == 1 and s.count("q.opacity=") == 1
+      and s.count("if(p.scale!=null&&isFinite(Number(p.scale)))q.scale=Math.round(Number(p.scale)*1000)/1000;") == 1
+      and s.count("if(p.opacity!=null&&isFinite(Number(p.opacity)))q.opacity=Math.round(Number(p.opacity)*100)/100;") == 1
+      and 0 < s.find(nl(P.A_KF4)) < s.find("q.scale=") < s.find("q.opacity=") < s.find("              return q})}}")
+      and (_bak.count("q.scale=") == 0 and _bak.count("q.opacity=") == 0 and _bak.count(P.A_KF4) == 1 if _bak else False),
+      f"scale={s.count('q.scale=')} opacity={s.count('q.opacity=')} bak={_bak.count('q.scale=') if _bak else '?'}")
+# L'OPACITE EN DIRECT : liveSync applique la lerp (t global, k le clip),
+# UNE ecriture `el.style.opacity=` comme avant, hors R_V3 (mesure : la ligne
+# n'y est pas), AVANT la transformation (ktf).
+check("KF5_liveSync_applique_l_opacite_interpolee_hors_R_V3",
+      s.count('var kOp=DzTracks.mpLerp2(svmMpOf(k)||[],t-k.start,"opacity",k.opacity==null?1:k.opacity);') == 1
+      and s.count("el.style.opacity=") == 1 and s.count('el.style.opacity=kOp>=1?"":String(Math.round(kOp*100)/100);') == 1
+      and "el.style.opacity" not in P.R_V3 and "kOp" not in P.R_V3
+      and 0 < s.find("var kOp=DzTracks.mpLerp2(") < s.find("var ktf=dragTfRef.current&&dragTfRef.current.id===id?dragTfRef.current:svmOvTfAt(k,t);")
+      # temoin `var kOp=` et non `kOp` : le .bak porte `duckOpen` (mesure : 8 sous-chaines)
+      and (_bak.count("el.style.opacity=") == 1 and _bak.count("var kOp=") == 0 if _bak else False),
+      f"kop={s.count('var kOp=DzTracks.mpLerp2(')} style={s.count('el.style.opacity=')} bak={_bak.count('el.style.opacity=') if _bak else '?'}")
+# LA COUCHE PORTE LES DEUX PURES ET LES DEUX EXPORTS ; le corps ne lit ni
+# `r` ni `x` (pur), trie SA copie (jamais l'entree), defaut sans porteur.
+_KF_CORPS = src[src.find("function dzmMpLerp2(pts,tl,key,dv){"):src.find("/* L'HÔTE DES PROPRIÉTÉS DE PLAN")]
+check("KF_la_couche_porte_mpLerp2_mpKeep_et_les_exports",
+      src.count("function dzmMpLerp2(pts,tl,key,dv){") == 1 and src.count("function dzmMpKeep(np,vals,prev){") == 1
+      and src.count("mpLerp2:dzmMpLerp2,mpKeep:dzmMpKeep,") == 1
+      and len(_KF_CORPS) > 200 and "r.jsx" not in _KF_CORPS and "x.use" not in _KF_CORPS
+      and _KF_CORPS.count("if(!ps.length)return dv;") == 1 and _KF_CORPS.count("ps.sort(function(a,b){return a.t-b.t});") == 1
+      and _KF_CORPS.count("var DZM_MP_EXTRA={scale:[.05,3,1000],opacity:[0,1,100]};") == 1,
+      f"pures={src.count('function dzmMpLerp2(')}/{src.count('function dzmMpKeep(')} corps={len(_KF_CORPS)}")
+
+# ══════════════════════════════════════════════════════════════════════════
+print("\n[D-9] la piste d'ajustement j1, le clip sans source, le rack VFX")
+# SIX REPLIS, et c'est la mesure qui le dit (0 dans .bak, DANS la section
+# citee, 1 dans le bundle livre) -- meme forme que D21 : la table des genres
+# (TT1), le filtre du payload (M5), le « + » de J1 (TT11 x2), le geste
+# (M16REF), la keymap (R1), le dispatch (R2), la chip (K5).
+for _lbla, _txta, _seca, _noma in (
+        # la forme a QUATRE espaces : celle de trackKind (le bundle porte
+        # aussi dzmKindOf de la couche, a deux espaces -- mesure : 2 sinon)
+        ("AJ1_trackKind_connait_un_cinquieme_genre",
+         '    return k==="a"?"audio":k==="s"?"subs":k==="t"?"title":k==="j"?"adjust":"video"}',
+         P.R_TT1, "R_TT1"),
+        ("AJ4_le_plus_de_J1_pose_un_clip_d_ajustement",
+         'if(trackKind(tr.id)==="adjust"){dzAjAdd();return}', P.R_TT11, "R_TT11"),
+        ("AJ4_l_infobulle_du_plus_de_J1_dit_le_geste",
+         'ses effets s\'appliquent à tout ce qui est dessous"', P.R_TT11, "R_TT11"),
+        ("AJ4a_le_geste_est_declare_une_fois",
+         "  function dzAjAdd(){", P.R_M16REF, "R_M16REF"),
+        ("AJ5_l_action_est_dans_la_table_des_raccourcis",
+         '{id:"adjust_add",sec:"Montage",lbl:"ajustement : poser un clip a la tete",combo:"Maj+J"},',
+         P.R_R1, "R_R1"),
+        ("AJ5_le_dispatch_appelle_le_geste",
+         'if(id==="adjust_add"){dzAjAdd();return}', P.R_R2, "R_R2"),
+        ("AJ5_la_chip_J_plus_appelle_le_meme_geste",
+         'onClick:function(){dzAjAdd()},children:"J+"}),', P.R_K5, "R_K5")):
+    check("D9_" + _lbla,
+          s.count(nl(_txta)) == 1 and _txta in _seca
+          and (_bak.count(_nlb(_txta)) == 0 if _bak else False),
+          f'bundle={s.count(nl(_txta))} dans_{_noma}={_txta in _seca} '
+          f'bak={_bak.count(_nlb(_txta)) if _bak else "?"}')
+# LE GESTE : le refus (`adjustNew` null) sort AVANT tout instantane ; la
+# piste nait par `adjustTrack` (svmTracksSet pousse) sinon UN pushHistory ;
+# le clip est concatene et selectionne par setSelId ; UNE seule ecriture des
+# pistes. Bornes de signature : de `dzAjAdd(){` a la note finale.
+_iAJ = s.find(nl("  function dzAjAdd(){"))
+_iAJf = s.find(nl("pour lui donner des effets\")}"), _iAJ if _iAJ >= 0 else 0)
+_AJG = s[_iAJ:_iAJf] if 0 <= _iAJ < _iAJf else ""
+check("D9_poser_un_ajustement_refuse_avant_tout_instantane_et_n_en_coute_qu_un",
+      len(_AJG) > 200 and len(_AJG) < 700
+      and _AJG.count('DzTracks.adjustNew(phRef.current,clipsRef.current,"j1")') == 1
+      and _AJG.count("DzTracks.adjustTrack(ts)") == 1
+      and 0 < _AJG.find("if(!c){fireNote(") < _AJG.find("pushHistory()")
+      and _AJG.count("pushHistory()") == 1 and _AJG.count("svmTracksSet(") == 1
+      and _AJG.count("setSelId(c.id);setDirty(!0);") == 1,
+      f"corps={len(_AJG)} o refus={_AJG.find('if(!c){fireNote(')} push={_AJG.find('pushHistory()')}")
+# LES NOMS ETAIENT LIBRES, LA COMBO AUSSI (et « J » reste a qui l'avait).
+for _nma in ("dzAjAdd", "adjust_add", "adjustTrack", "adjustNew",
+             "dzmAdjustTrack", "dzmAdjustNew", "kindOf"):
+    _nba = _libre21(_nma, _bak if _bak else None)
+    check("D9_nom_" + _nma + "_etait_libre_dans_le_bundle_d_entree",
+          _nba == 0, f"{_nma} apparait {_nba}x dans .bak_montage")
+check("D9_la_combo_Maj_J_etait_libre_et_ne_vole_pas_J",
+      bool(_bak) and _bak.count(_nlb('combo:"Maj+J"')) == 0
+      and _bak.count(_nlb('combo:"J"')) == 1
+      and s.count(nl('combo:"Maj+J"')) == 1 and s.count(nl('combo:"J"')) == 1,
+      f'bak={_bak.count(_nlb(chr(99) + "ombo:" + chr(34) + "Maj+J" + chr(34))) if _bak else "?"}')
+# LE RACK SUR UN CLIP SANS SOURCE : la garde d'AVANT a disparu, la neuve est
+# UNE, le Fragment est ouvert (AJ2a) ET referme (AJ2b) -- l'un sans l'autre
+# ne passerait pas `node --check`, mais on le mesure quand meme -- et la
+# phrase « visibles après Preview » est dans le rack, une fois.
+check("D9_AJ2_le_rack_VFX_accepte_un_clip_d_ajustement_et_dit_l_apercu",
+      s.count(nl(P.A_AJ2A)) == 0 and s.count(nl(P.R_AJ2A)) == 1
+      and s.count(nl(P.A_AJ2B)) == 0 and s.count(nl(P.R_AJ2B)) == 1
+      and s.count("visibles après Preview") == 1
+      and (_bak.count(_nlb(P.A_AJ2A)) == 1 and _bak.count(_nlb(P.A_AJ2B)) == 1
+           and _bak.count("visibles après Preview") == 0 if _bak else False),
+      f"garde={s.count(nl(P.R_AJ2A))} fin={s.count(nl(P.R_AJ2B))} phrase={s.count('visibles après Preview')}")
+# LA TIMELINE : `data-kind` sur le clip, les hachures du fantome reprises
+# INLINE (un style inline gagne : aucune ligne de CSS n'a ete ecrite, et le
+# banc l'exige -- montage.css ne connait pas `data-kind`).
+_AJ_CSS = _lire(ROOT / "frontend" / "dist" / "shared" / "montage.css")
+check("D9_AJ6_le_clip_d_ajustement_porte_data_kind_et_les_hachures_inline",
+      s.count(nl('"data-kind":c.kind||void 0,')) == 1
+      and s.count('background:isPh||c.kind==="adjust"?"repeating-linear-gradient(') == 1
+      and s.count('background:isPh?"repeating-linear-gradient(') == 0
+      # temoin POSITIF sur la feuille (revue 23/09/2026) : un montage.css
+      # vide ou tronque laissait la negation verte ; `.svm-clip` y vaut 2.
+      and ".svm-clip" in _AJ_CSS and "data-kind" not in _AJ_CSS
+      and (_bak.count('background:isPh?"repeating-linear-gradient(') == 1
+           and _bak.count("data-kind") == 0 if _bak else False),
+      f"kind={s.count(nl(chr(34) + 'data-kind' + chr(34) + ':c.kind||void 0,'))} css={'data-kind' in _AJ_CSS}")
+# LA POSE D'UN EFFET ATTEINT LE CLIP D'AJUSTEMENT (revue 23/09/2026, preuve
+# ecran : « Vignette » sur j1u1 laissait `effects []`). Le chemin d'ecriture
+# `vfxAddTo` (V5 de vfxrack, amont) accepte un clip `kind==="adjust"` sans
+# src ; TEMOIN POSITIF : les deux gardes d'avant restent, entieres, pour V1
+# (`!c.src` et `trackKind(c.tr)!=="video"`), et l'ecriture est UNE.
+_iVA = s.find(nl("  function vfxAddTo(id,eff){"))
+_iVAf = s.find(nl("  function vfxDropEffect(eff,trId,laneEl,e){"), _iVA if _iVA >= 0 else 0)
+_VA = s[_iVA:_iVAf] if 0 <= _iVA < _iVAf else ""
+check("D9_AJ7_la_pose_d_un_effet_atteint_le_clip_d_ajustement_et_garde_V1",
+      len(_VA) > 400 and _VA.count(nl(P.R_AJ7)) == 1 and _VA.count(nl(P.A_AJ7)) == 0
+      and _VA.count('c.kind!=="adjust"&&') == 2
+      and _VA.count('if(c.kind!=="adjust"&&!c.src){fireNote(') == 1
+      and _VA.count('if(c.kind!=="adjust"&&trackKind(c.tr)!=="video"){fireNote(') == 1
+      and _VA.count("effects:(k.effects||[]).concat([e2])") == 1
+      and (_bak.count(_nlb(P.A_AJ7)) == 1 and _bak.count('c.kind!=="adjust"') == 0 if _bak else False),
+      f"corps={len(_VA)} neuf={_VA.count(nl(P.R_AJ7))} vieux={_VA.count(nl(P.A_AJ7))} bak={_bak.count(_nlb(P.A_AJ7)) if _bak else '?'}")
+# LA COUCHE : « j » dans dzmKindOf, adjust dans le groupe 0, les deux pures,
+# les trois exports -- et PAS de j1 dans DZM_DEFAULT_TRACKS (l'ordre des sept
+# est pinne plus haut) ni de label dans DZM_BD_RETIRES (neuf controles).
+_AJ_CORPS = src[src.find("function dzmAdjustTrack(ts){"):src.find("/* LE CARTON SOUS LA TÊTE")]
+check("D9_la_couche_porte_kindOf_j_group_adjustTrack_adjustNew_et_les_exports",
+      src.count('k==="t"?"title":k==="j"?"adjust":"video"}') == 1
+      and src.count('return k==="title"||k==="adjust"?0:') == 1
+      and src.count("function dzmAdjustTrack(ts){") == 1 and src.count("function dzmAdjustNew(t,clips,tr){") == 1
+      and src.count("kindOf:dzmKindOf,adjustTrack:dzmAdjustTrack,adjustNew:dzmAdjustNew,") == 1
+      and len(_AJ_CORPS) > 300 and "r.jsx" not in _AJ_CORPS and "x.use" not in _AJ_CORPS
+      and _AJ_CORPS.count('dzmSkin("j1","adjust")') == 1 and "src:" not in _AJ_CORPS
+      and src.count('{id:"j1"') == 0 and src.count('"piste-ajust"') == 0,
+      f"kindOf={src.count('kindOf:dzmKindOf,')} corps={len(_AJ_CORPS)}")
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

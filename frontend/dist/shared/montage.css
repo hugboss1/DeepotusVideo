@@ -213,6 +213,9 @@
   color:var(--ink4, var(--ink-muted, #55514c));
   font-family:var(--f-mono, "JetBrains Mono", Consolas, monospace)}
 .dzsvm .dzm-projsave{display:flex; gap:5px; align-items:center}
+/* E-1 : « nouveau » et la chip ∅ d'un montage vide */
+.dzsvm .dzm-projnew{margin-right:6px}
+.dzsvm .dzm-projvide-chip{font:10px var(--f-mono); color:var(--ink2); margin-left:4px}
 .dzsvm .dzm-projin{flex:1 1 auto; min-width:0; height:20px; padding:0 6px;
   border-radius:5px; border:1px solid var(--stroke, #2a2930);
   background:var(--panel, var(--bg-panel, #17161a));
@@ -1261,3 +1264,25 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
   .dzsvm .dzm-tt-citation{font-size:5.19cqh}
   .dzsvm .dzm-tt-hashtag{font-size:6.67cqh}
   .dzsvm .dzm-tt-cta{font-size:6.3cqh}}
+/* E-4 (22/09/2026) — le bandeau de fin de rendu : « Envoyer vers le Scheduler »
+   à la demande. Même boîte que le popover (.svm-pop), un peu plus large. */
+.dzsvm .dzm-fin{width:360px}
+.dzsvm .dzm-fin-row{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.dzsvm .dzm-fin-ch{font:11px var(--f-mono)}
+.dzsvm .dzm-fin input[type=text]{flex:1;min-width:120px}
+.dzsvm .dzm-fin-st{font:11px var(--f-mono);color:var(--ink2);margin-top:6px}
+/* D-13 (22/09/2026) — propriétés de plan et rectangles du zoom dynamique.
+   Les rectangles vivent DANS .svm-tf (inset:0 du cadre, hors vzoom, z-index 3). */
+.dzsvm .dzm-plan{margin-top:10px}
+.dzsvm .dzm-plan-t{font-family:var(--f-mono);font-size:10px;color:var(--ink2);text-transform:uppercase;letter-spacing:.06em;margin:6px 0 2px}
+.dzsvm .dzm-plan-hint{font-family:var(--f-mono);font-size:10px;color:var(--ink2)}
+.dzsvm .dzm-dzwrap{position:absolute;inset:0;pointer-events:none}
+.dzsvm .svm-live>.svm-livemedia{transform-origin:0 0}
+.dzsvm .dzm-dzrect{position:absolute;box-sizing:border-box;border:2px solid #3fbf5a;pointer-events:auto;cursor:move;touch-action:none}
+.dzsvm .dzm-dzrect[data-k="fin"]{border-color:#e0453f}
+.dzsvm .dzm-dzlab{position:absolute;left:0;top:0;font:10px var(--f-mono);color:#fff;background:rgba(0,0,0,.6);padding:0 4px;pointer-events:none}
+.dzsvm .dzm-dzh{position:absolute;right:-5px;bottom:-5px;width:10px;height:10px;background:#fff;border:1px solid #000;cursor:nwse-resize}
+/* D-16 (22/09/2026) — stabilisation : chip d'état et curseurs de l'hôte. */
+.dzsvm .dzm-stab-st[data-st="done"]{color:#3fbf5a}
+.dzsvm .dzm-stab-st[data-st="failed"]{color:#e0453f}
+.dzsvm .dzm-stab input[type=range]{width:90px;vertical-align:middle}

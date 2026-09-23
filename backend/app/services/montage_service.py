@@ -117,7 +117,7 @@ import json
 import math
 import re
 import subprocess
-from datetime import datetime as _dt
+from datetime import datetime as _dt, timedelta as _td, timezone as _tz
 from pathlib import Path
 from uuid import uuid4
 
@@ -234,6 +234,21 @@ _LEGACY_TRACKS = [{"id": "v2", "kind": "video"}, {"id": "v1", "kind": "video"},
                   {"id": "a2", "kind": "audio", "bus": "musique", "loop": True},
                   {"id": "a3", "kind": "audio", "bus": "sfx"}]
 _BUSES = ("dialogue", "musique", "sfx")
+
+# E-1 (22/09/2026) — UN MONTAGE NEUF EST VIDE, ET LE RESTE. Drapeau opt-in
+# `vide` : posé par POST /projects {vide:true}, gardé par _save_record quand
+# le client le renvoie, lu par GET /project pour NE PAS reconstruire depuis
+# la Bibliothèque, et par open pour ne pas rendre 409. Sans lui, tout est
+# octet pour octet l'historique (les deux 400 épinglés restent).
+# Les sept pistes d'un montage neuf sans `tracks` : miroir de
+# DZM_DEFAULT_TRACKS (frontend/patches/montage.js:166) réduit à ce que
+# `_tracks_meta` lit, tenu par un banc croisé (tâche 6).
+_CLIENT_DEFAULT_TRACKS = [{"id": "t1", "kind": "title"},
+                          {"id": "v2", "kind": "video"}, {"id": "v1", "kind": "video"},
+                          {"id": "a1", "kind": "audio", "bus": "dialogue"},
+                          {"id": "a2", "kind": "audio", "bus": "musique", "loop": True},
+                          {"id": "a3", "kind": "audio", "bus": "sfx"},
+                          {"id": "s1", "kind": "subs"}]
 
 
 def _tracks_meta(raw) -> dict:
@@ -392,6 +407,11 @@ _AUDIO_EXTS = (".mp3", ".wav", ".m4a", ".ogg", ".flac", ".aac", ".opus",
 # Un second test Python serait ici du code que rien ne peut faire rougir
 # seul.
 _PROXY_PROVIDER = "montage_proxy"
+# D-16 : l'analyse vidstab (`POST /stab`) est le second précalcul PAR SOURCE
+# suivi par un job sans artefact — même statut que le proxy partout où l'on
+# filtre par `provider` : `/newer` (ici), `pipeline.list_jobs` (GET /api/jobs)
+# et `cost_usage` (routes.py) ; tenu par la section [6] de test_montage_l3.
+_STAB_PROVIDER = "montage_stab"
 
 
 def _is_video_artifact(p: Path) -> bool:
@@ -670,23 +690,31 @@ def _ov_transform(c: dict) -> dict | None:
 # posé sur le flux composité : son t est celui de enable='between(t,st,en)' —
 # chaque point local devient start + t). La rotation s'anime sur l'horloge
 # LOCALE du flux overlay (le filtre rotate précède le setpts de décalage).
-# L'ÉCHELLE reste STATIQUE — aucune keyframe d'échelle : la largeur scale·W
-# est figée pour toute la durée de l'overlay (l'UI l'affiche tel quel).
+# D-14 (22/09/2026) : l'ÉCHELLE et l'OPACITÉ s'animent aussi, sur la même
+# horloge LOCALE — points `scale` → pad rgba + zoompan (z='…it…'), points
+# `opacity` → sendcmd sur colorchannelmixer@mpo<j> aa. MESURÉ sur ffmpeg
+# 8.1.1 (scratchpad d14/mesure.py) : le candidat `sendcmd` sur `scale@mps w`
+# rend 0 et scale CHANGE la taille de ses images (showinfo 100x50 → 300x150)
+# mais `overlay` garde la taille INITIALE de sa 2e entrée (100 px mesurés à
+# t=0,2 ET t=2,5) — donc zoompan, qui ne fait QUE grossir (z clampé 1..10 par
+# le filtre) : l'overlay est posé à sa largeur MINIMALE puis grossi.
 _MP_MAX_POINTS = 8
 
 
 def _motion_points(c: dict) -> list | None:
     """Champ optionnel ``motion_points`` d'un overlay V2 : [{t, x, y,
-    rotate?}] → liste TRIÉE de tuples (t, x, y, rotate|None), ou None.
+    rotate?, scale?, opacity?}] → liste TRIÉE de 6-uplets
+    (t, x, y, rotate|None, scale|None, opacity|None), ou None.
 
     t clampé 0..durée du clip (end−start), x/y clampés −0.5..1.5, rotate
-    −180..180 (mêmes bornes que _ov_transform) — rotate absent reste None :
-    le point ne participe pas à l'animation d'angle. Entrées invalides
-    (non-dict, non numériques, NaN) ignorées avec warning ; au-delà de
-    8 points triés le surplus est ignoré (warning) ; doublons de t (< 5 ms)
-    fusionnés, le dernier gagne (une pente y diviserait par ~0). Champ
-    absent, vide ou entièrement invalide → None : la chaîne émise reste
-    STRICTEMENT l'historique (non-régression testée)."""
+    −180..180, scale 0.05..3 (mêmes bornes que _ov_transform), opacity 0..1
+    — un champ optionnel absent ou invalide (non numérique, NaN) reste None
+    avec warning : le point ne participe pas à cette animation-là. Entrées
+    invalides (non-dict, t/x/y non numériques, NaN) ignorées avec warning ;
+    au-delà de 8 points triés le surplus est ignoré (warning) ; doublons de
+    t (< 5 ms) fusionnés, le dernier gagne (une pente y diviserait par ~0).
+    Champ absent, vide ou entièrement invalide → None : la chaîne émise
+    reste STRICTEMENT l'historique (non-régression testée)."""
     raw = c.get("motion_points")
     if not raw:
         return None
@@ -709,22 +737,26 @@ def _motion_points(c: dict) -> list | None:
             logger.warning(f"montage: point de position invalide ({p!r}), "
                            f"ignoré — {lbl}")
             continue
-        rr = p.get("rotate") if isinstance(p, dict) else None
-        if rr is not None:
-            try:
-                rr = float(rr)
-            except (TypeError, ValueError):
-                rr = float("nan")
-            if rr != rr:
-                logger.warning(f"montage: rotate de point invalide, ignoré — "
-                               f"{lbl}")
-                rr = None
-            else:
-                rr = max(-180.0, min(180.0, rr))
+        opt = []
+        for key, lo, hi in (("rotate", -180.0, 180.0), ("scale", 0.05, 3.0),
+                            ("opacity", 0.0, 1.0)):
+            v = p.get(key) if isinstance(p, dict) else None
+            if v is not None:
+                try:
+                    v = float(v)
+                except (TypeError, ValueError):
+                    v = float("nan")
+                if v != v:
+                    logger.warning(f"montage: {key} de point invalide, "
+                                   f"ignoré — {lbl}")
+                    v = None
+                else:
+                    v = max(lo, min(hi, v))
+            opt.append(v)
         t = max(0.0, round(t, 3))
         if dur > 0:
             t = min(t, round(dur, 3))
-        pts.append((t, max(-0.5, min(1.5, xx)), max(-0.5, min(1.5, yy)), rr))
+        pts.append((t, max(-0.5, min(1.5, xx)), max(-0.5, min(1.5, yy)), *opt))
     pts.sort(key=lambda q: q[0])
     if len(pts) > _MP_MAX_POINTS:
         logger.warning(f"montage: {len(pts)} points de position (max "
@@ -733,19 +765,21 @@ def _motion_points(c: dict) -> list | None:
     out: list = []
     for q in pts:
         if out and q[0] - out[-1][0] < 0.005:
-            out[-1] = (out[-1][0], q[1], q[2], q[3])
+            out[-1] = (out[-1][0], *q[1:])
             continue
         out.append(q)
     return out or None
 
 
-def _mp_lerp_expr(pts: list) -> str:
+def _mp_lerp_expr(pts: list, var: str = "t") -> str:
     """Interpolation linéaire par morceaux pour des paires (t, v) TRIÉES —
     même gabarit d'expression que :func:`_vp_expr` (constante avant le
     premier point / après le dernier), sans conversion finale : sert aux
     expressions x/y (pixels, temps global) et a (radians, temps local) des
-    overlays animés. Toujours posée entre quotes simples dans le filtergraph
-    (les virgules de if(…) y sont sans ambiguïté)."""
+    overlays animés, et au z de zoompan (D-14, ``var="it"`` : zoompan ne
+    connaît pas `t`, son horloge est `it`). Toujours posée entre quotes
+    simples dans le filtergraph (les virgules de if(…) y sont sans
+    ambiguïté)."""
     n = sfx_service.fnum
     if len(pts) == 1:
         return n(pts[0][1])
@@ -753,9 +787,28 @@ def _mp_lerp_expr(pts: list) -> str:
     for k in range(len(pts) - 1, 0, -1):
         t0, v0 = pts[k - 1]
         t1, v1 = pts[k]
-        seg = f"{n(v0)}+({n(v1 - v0)})*(t-{n(t0)})/{n(t1 - t0)}"
-        expr = f"if(lt(t,{n(t1)}),{seg},{expr})"
-    return f"if(lt(t,{n(pts[0][0])}),{n(pts[0][1])},{expr})"
+        seg = f"{n(v0)}+({n(v1 - v0)})*({var}-{n(t0)})/{n(t1 - t0)}"
+        expr = f"if(lt({var},{n(t1)}),{seg},{expr})"
+    return f"if(lt({var},{n(pts[0][0])}),{n(pts[0][1])},{expr})"
+
+
+def _mp_cmds(pairs: list, target: str, opt: str, fmt) -> str:
+    """D-14 : commandes ``sendcmd`` pour des paires (t, v) TRIÉES — UNE
+    commande ``[expr]`` PAR SEGMENT « t0-t1 [expr] target opt v0+(dv)*TI »
+    (TI ∈ 0..1 dans l'intervalle, évaluée par image), puis une commande plate
+    finale qui cloue la dernière valeur ; jointes par « \\; » (le « ; » nu
+    est aussi le séparateur du filtergraph : précédent
+    effects_engine._opacity_cmds). Écart au plan : l'échantillonnage à
+    _RAMP_STEP (25 commandes/s) faisait 28 824 caractères pour 30 s de clés
+    — au-delà du plafond CreateProcess (32 767) ; ``[expr]`` MESURÉ le
+    22/09/2026 sur ffmpeg 8.1.1 (rc 0, alpha 0,90/0,58/0,20/0,54/0,76 à
+    t=0,2/1,0/1,9/2,5/2,9 pour 1→0,2→0,8) : ≤ 7 segments, ~300 caractères.
+    Piège mesuré : AUCUNE virgule dans l'expression (lerp(a,b,TI) casse le
+    parseur même entre quotes) — d'où v0+(dv)*TI."""
+    n = sfx_service.fnum
+    segs = [f"{n(t0)}-{n(t1)} [expr] {target} {opt} {n(v0)}+({n(v1 - v0)})*TI"
+            for (t0, v0), (t1, v1) in zip(pairs, pairs[1:])]
+    return "\\;".join(segs + [f"{n(pairs[-1][0])} {target} {opt} {fmt(pairs[-1][1])}"])
 
 
 # C4 : vitesse par clip V1 — champ optionnel ``speed`` (0.25..4, défaut 1).
@@ -786,6 +839,121 @@ def _v1_speed(c: dict) -> float:
         return 0.0
     f = max(0.25, min(4.0, f))
     return 0.0 if abs(f - 1.0) < 1e-6 else f
+
+
+# D-13 (22/09/2026) — DYNAMIC ZOOM. Champ optionnel `dz` d'un clip V1 :
+# {x0, y0, w0, x1, y1, w1, ease?} en FRACTIONS du cadre (le segment est
+# déjà recadré au ratio du canvas par scale/crop, donc la hauteur de la
+# fenêtre est la MÊME fraction que sa largeur). w ∈ [0.1, 1], x et y ∈
+# [0, 1−w]. Plein cadre aux deux bouts = aucun zoom (None). MESURÉ le
+# 22/09 : `crop=w='…t…'` ÉCHOUE à la configuration (−22) et `scale:eval=
+# frame` fige la taille — seul `zoompan` tient, et il doit venir APRÈS
+# `fps=` (avant, il dupliquerait chaque image d'un flux retimé).
+_DZ_EASES = ("doux", "lin")
+
+
+def _dz_spec(c: dict) -> dict | None:
+    raw = c.get("dz")
+    if not isinstance(raw, dict):
+        return None
+    lbl = c.get("label") or c.get("tr") or "v1"
+    out: dict = {}
+    for k in ("x0", "y0", "w0", "x1", "y1", "w1"):
+        try:
+            f = float(raw.get(k))
+        except (TypeError, ValueError):
+            f = float("nan")
+        if f != f:  # NaN / absent — jamais dans un filtergraph
+            logger.warning(f"montage: dz.{k} invalide ({raw.get(k)!r}), zoom ignoré — {lbl}")
+            return None
+        out[k] = f
+    for i in ("0", "1"):
+        out["w" + i] = max(0.1, min(1.0, out["w" + i]))
+        out["x" + i] = max(0.0, min(1.0 - out["w" + i], out["x" + i]))
+        out["y" + i] = max(0.0, min(1.0 - out["w" + i], out["y" + i]))
+    if all(abs(out[k]) < 1e-6 for k in ("x0", "y0", "x1", "y1")) and out["w0"] >= 1.0 and out["w1"] >= 1.0:
+        return None
+    out["ease"] = raw.get("ease") if raw.get("ease") in _DZ_EASES else "doux"
+    return out
+
+
+def _dz_filter(dz: dict, w: int, h: int, fps: int, dur: float) -> str:
+    """Le zoompan d'un segment : u = clip(it/dur, 0, 1) (smoothstep si `doux`),
+    z = 1/lerp(w0,w1), x/y = iw·lerp(x0,x1) / ih·lerp(y0,y1). d=1 : une image
+    de sortie par image d'entrée, durée et compte d'images préservés (mesure)."""
+    n = sfx_service.fnum
+    d = max(0.04, float(dur))
+    u = f"clip(it/{n(d)},0,1)"
+    if dz.get("ease") == "doux":
+        u = f"({u})*({u})*(3-2*({u}))"
+
+    def lerp(a: float, b: float) -> str:
+        return f"({n(a)}+({n(b - a)})*({u}))"
+
+    return (f"zoompan=z='1/{lerp(dz['w0'], dz['w1'])}'"
+            f":x='iw*{lerp(dz['x0'], dz['x1'])}'"
+            f":y='ih*{lerp(dz['y0'], dz['y1'])}'"
+            f":d=1:s={w}x{h}:fps={fps}")
+
+
+# D-15 (22/09/2026) — RETIME. Champ optionnel `retime` d'un clip V1 :
+# "nearest" (historique : fps= duplique ou saute, None) | "blend" (tblend
+# moyenne deux images voisines : flou de mouvement au ralenti, traîne à
+# l'accéléré) | "flow" (minterpolate à compensation de mouvement, LENT).
+# Sans vitesse, aucun sens : ignoré. MESURÉ le 22/09 (revue) : `flow` va
+# AVANT `fps=` (minterpolate fabrique ses images à la cadence demandée) ;
+# `blend` va APRÈS `fps=` — posé avant, à ×0,5, tblend donne (A+B)/2,(A+B)/2,
+# (B+C)/2… (tout flou, aucune intermédiaire) ; après : A,(A+B)/2,B,(B+C)/2…
+# = le Frame Blend de Resolve. tblend CONSOMME la première image (sortie à
+# partir de pts 1/fps : 49 images sur 50, mesuré) et le trim aval coupait
+# le segment d'une image (99 / 3,960 s) → setpts=PTS-STARTPTS juste après
+# rebase à 0, le tpad aval clone la dernière (100 / 4,000 s mesurés). scd au
+# défaut ffmpeg (fdiff) : scd=none interpolerait à travers une coupe interne.
+_RETIME = {"blend": "tblend=all_mode=average,setpts=PTS-STARTPTS",
+           "flow": "minterpolate=fps={fps}:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1"}
+
+
+def _v1_retime(c: dict) -> str | None:
+    v = c.get("retime")
+    return v if isinstance(v, str) and v in _RETIME else None
+
+
+# D-16 (22/09/2026) — STABILISATION. Champ optionnel `stab` d'un clip V1 :
+# {on, smooth 1..100 (défaut 15), crop "keep"|"black", zoom −30..30}. Le
+# fichier .trf est résolu PAR SOURCE au rendu (`montage_media.stab_detect`,
+# cache chemin+mtime) — jamais envoyé par le client. Dans la chaîne, la
+# transformation lit la source ENTIÈRE puis `trim` fait le travail de
+# -ss/-t (mesuré : les transformations sont indexées par image d'entrée).
+def _v1_stab(c: dict) -> dict | None:
+    raw = c.get("stab")
+    if not isinstance(raw, dict) or not raw.get("on"):
+        return None
+
+    def num(k, lo, hi, dv):
+        try:
+            f = float(raw.get(k, dv))
+        except (TypeError, ValueError):
+            f = float("nan")
+        return int(round(max(lo, min(hi, f)))) if f == f else int(dv)
+    return {"smooth": num("smooth", 1, 100, 15),
+            "crop": "black" if raw.get("crop") == "black" else "keep",
+            "zoom": num("zoom", -30, 30, 0)}
+
+
+def _v1_stab_trf(s: dict) -> Path | None:
+    """Le `.trf` d'un segment V1 stabilisé, ou None (segment historique).
+    `stab` sans `trf`, ou `trf` disparu (cache purgé entre l'analyse et le
+    rendu) : on prévient et on rend le plan NON stabilisé plutôt qu'un rendu
+    qui échoue — la commande reste alors celle de l'historique."""
+    st = s.get("stab")
+    if not isinstance(st, dict):
+        return None
+    trf = st.get("trf")
+    if trf and Path(trf).is_file():
+        return Path(trf)
+    logger.warning(f"montage: stabilisation sans analyse (.trf absent), plan "
+                   f"rendu tel quel — {Path(str(s.get('path') or '')).name}")
+    return None
 
 
 # ------------------------------------------------------------------- save ---
@@ -923,6 +1091,8 @@ def _save_record(body) -> dict:
     # inconnue, donc hors du rendu. GET /project les resert à l'éditeur.
     if isinstance(body.get("tracks"), list):
         data["tracks"] = body["tracks"]
+    if body.get("vide") is True:    # E-1 (voir le bloc au-dessus de _CLIENT_DEFAULT_TRACKS)
+        data["vide"] = True
     # D-11 : la plage d'entrée/sortie {in, out} en secondes. Assainie ICI —
     # deux nombres finis, 0 <= in < out — et pas seulement à l'écran : le
     # payload n'est pas de confiance (un autre client, une version plus
@@ -1012,6 +1182,10 @@ def _save_record(body) -> dict:
             out_mk.append(m)
         if out_mk:
             data["markers"] = out_mk
+    # Le plafond de VOLUME vit ici, avec la normalisation (revue E-1 du
+    # 22/09/2026 : la branche `vide` de POST /projects écrivait 10 Mo).
+    if len(json.dumps(data, ensure_ascii=False).encode("utf-8")) > _SAVE_MAX_BYTES:
+        raise HTTPException(400, "Sauvegarde refusée — plus de 2 Mo.")
     return data
 
 
@@ -1101,12 +1275,15 @@ def _project_meta(d: dict, fallback_id: str = "") -> dict:
     """Ce que la LISTE rend. Jamais les clips eux-mêmes : une liste de vingt
     projets porterait des milliers de clips que personne ne regarde à cet
     instant — leur NOMBRE suffit à choisir."""
-    return {"id": d.get("id") or fallback_id or None,
+    meta = {"id": d.get("id") or fallback_id or None,
             "name": d.get("name"),
             "updated_at": d.get("saved_at"),
             "clips": len(d.get("clips") or []),
             "ratio": d.get("ratio"),
             "duration": d.get("duration")}
+    if d.get("vide") is True:                     # E-1 — clé absente sinon
+        meta["vide"] = True
+    return meta
 
 
 _NOM_TETE = " ./\\"      # tabulations et sauts de ligne : déjà mangés comme
@@ -1227,7 +1404,7 @@ async def montage_project(limit: int = 4):
                 f"ne sont pas des vidéos — "
                 f"{', '.join(str(x) for x in non_video_dits)}"
                 f" ; le rendu les refusera nommément s'ils ne s'ouvrent pas.")
-        if any(c.get("tr") == "v1" for c in kept):
+        if saved.get("vide") is True or any(c.get("tr") == "v1" for c in kept):
             try:
                 sdur = float(saved.get("duration") or 0)
             except (TypeError, ValueError):
@@ -1265,6 +1442,8 @@ async def montage_project(limit: int = 4):
                 out["range"] = saved["range"]         # D-11 (cf. POST /save)
             if isinstance(saved.get("markers"), list):
                 out["markers"] = saved["markers"]     # D-5 (cf. POST /save)
+            if saved.get("vide") is True:
+                out["vide"] = True                    # E-1 (cf. POST /save)
             if pruned:
                 out["saved_pruned"] = True
                 out["pruned"] = pruned
@@ -1563,7 +1742,7 @@ async def montage_newer(job_id: str = ""):
             # le cache. `notin_` sur le même `coalesce`, pour la raison de la
             # décision 4 ci-dessus : un `provider` NUL ne doit pas tomber.
             .where(func.coalesce(JobRecord.provider, "")
-                   .notin_(("montage", _PROXY_PROVIDER)))
+                   .notin_(("montage", _PROXY_PROVIDER, _STAB_PROVIDER)))
             # PAS de `id != job_id` — le plan l'écrivait, la mesure le rend
             # INUTILE : la comparaison de date est STRICTE, et la référence
             # n'est pas plus récente qu'elle-même. Mutation jouée le
@@ -1747,8 +1926,6 @@ async def montage_save(request: Request):
     #    un projet, il n'en CRÉE jamais : sans ce test, supprimer le projet
     #    ouvert le faisait ressusciter à la seconde suivante, par l'autosave
     #    d'une fenêtre qui n'avait rien demandé.
-    if len(json.dumps(data, ensure_ascii=False).encode("utf-8")) > _SAVE_MAX_BYTES:
-        raise HTTPException(400, "Sauvegarde refusée — plus de 2 Mo.")
     # LE TEST D'EXISTENCE ET LES DEUX ÉCRITURES SOUS LE MÊME VERROU. Entre le
     # `_load_project` et le miroir il y a DEUX sauts `asyncio.to_thread` ; un
     # `DELETE` d'une autre fenêtre glissé là faisait revenir le fichier qu'il
@@ -1850,14 +2027,17 @@ async def montage_project_create(request: Request):
     clip. Il n'y aurait rien à nommer."""
     body = await _json_body(request)
     tl = body.get("timeline")
-    if isinstance(tl, dict) and isinstance(tl.get("clips"), list):
-        cur = _save_record(tl)          # même normalisation que POST /save
-        if len(json.dumps(cur, ensure_ascii=False).encode("utf-8")) \
-                > _SAVE_MAX_BYTES:
-            raise HTTPException(400, "Sauvegarde refusée — plus de 2 Mo.")
+    if body.get("vide") is True:        # E-1 : un montage NEUF, sans un clip
+        tr = body.get("tracks")
+        cur = _save_record({"name": body.get("name"), "clips": [], "duration": 30,
+                            "vide": True,
+                            "tracks": tr if isinstance(tr, list) and tr
+                            else _CLIENT_DEFAULT_TRACKS})
+    elif isinstance(tl, dict) and isinstance(tl.get("clips"), list):
+        cur = _save_record(tl)          # même normalisation (et plafond) que POST /save
     else:
         cur = await asyncio.to_thread(_load_saved)
-    if cur is None or not cur.get("clips"):
+    if cur is None or (not cur.get("clips") and cur.get("vide") is not True):
         raise HTTPException(400, "Aucune timeline à enregistrer.")
     pid = f"m_{uuid4().hex[:8]}"
     rec = dict(cur, id=pid, project_id=pid,
@@ -1951,7 +2131,7 @@ async def montage_project_open(pid: str):
         if not cl.get("src") or await _resolve_src(cl.get("src")) is not None:
             ouvrable = True
             break
-    if not ouvrable:
+    if not ouvrable and d.get("vide") is not True:   # E-1 : un vide s'ouvre
         raise HTTPException(
             409, f"« {d.get('name') or pid} » n'a plus un seul plan dont la "
                  f"source existe : il ne peut pas être ouvert, et la timeline "
@@ -2038,7 +2218,8 @@ async def _resolve_src(src: dict | None) -> Path | None:
 
 def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                            ducking, duration_master, preview, out,
-                           audio_only=False, subs_ass=None, titles_ass=None):
+                           audio_only=False, subs_ass=None, titles_ass=None,
+                           adjust_clips=None):
     """Commande ffmpeg complète (sync, testable). v1/v2/a_clips/music portent
     des chemins déjà résolus + durées sondées.
 
@@ -2057,14 +2238,42 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     _motion_points, None sans keyframes) — x/y du filtre overlay deviennent
     des interpolations linéaires par morceaux du temps GLOBAL (points posés
     à start + t), la rotation s'anime en horloge LOCALE du flux overlay si
-    des points portent rotate (cadre fixe hypot(iw,ih)) ; scale reste la
-    valeur statique de `tf` (aucune keyframe d'échelle) ; `mp` sans `tf` :
+    des points portent rotate (cadre fixe hypot(iw,ih)) ; `mp` sans `tf` :
     défauts centre / échelle 1.
+    D-14 : les 6-uplets de `mp` portent aussi scale|None et opacity|None —
+    des points d'échelle différents → pad rgba + zoompan (z='…it…', toile
+    fixe owmax × min(2·owmax, 3·h), média posé à owmin ; zoompan clampe z à
+    10, donc smin ≥ smax/10 avec warning) ; des points d'opacité différents
+    → sendcmd en tête de chaîne sur colorchannelmixer@mpo<j> aa (une
+    commande [expr] par segment, TI ∈ 0..1, plus une plate finale) ; points
+    tous égaux → filtre statique, la valeur des points fait foi sur `tf` /
+    `opacity`. Aucun point porteur → chaîne de L2 octet pour octet.
     C4 : `speed` sur v1 (0.0 = inchangé, sinon 0.25..4 déjà clampé par
     _v1_speed) — l'input lit d·speed s de source (-t, borné au disponible)
     et setpts=PTS/speed AVANT fps remet le flux à la durée timeline ; la
     durée du segment (seg_durs) et donc offsets xfade / total / adelay ne
     bougent pas ; AUCUN atempo (l'audio V1 n'entre pas dans le graphe).
+    D-13 : `dz` sur v1 (None = inchangé, sinon dict déjà clampé par _dz_spec :
+    fenêtre {x0,y0,w0}→{x1,y1,w1} en fractions du cadre, ease doux|lin) —
+    UN `zoompan` à d=1 (_dz_filter) posé APRÈS `fps={fps}` (donc après le
+    `setpts=PTS/speed` de C4, sur un débit déjà constant : aucune image
+    dupliquée) et AVANT `format=yuv420p` ; le temps est `it` borné à la durée
+    du segment, tpad/trim/xfade en aval ne voient aucune différence.
+    D-15 : `retime` sur v1 ("blend" | "flow", None = inchangé) — n'a de sens
+    qu'AVEC `speed`. Ordre : setpts → [minterpolate] → fps → [tblend] →
+    [zoompan] → format. `flow` (minterpolate mci à la cadence du canvas) va
+    AVANT `fps=` ; `blend` (tblend moyenne) va APRÈS `fps=`, sur le flux déjà
+    rematérialisé (A,(A+B)/2,B,… = Frame Blend) ; tpad/trim ramènent à
+    seg_durs[k]. Sans vitesse : ignoré, chaîne historique.
+    D-16 : `stab` sur v1 (None = inchangé, sinon {smooth, crop, zoom, trf}
+    — clampé par _v1_stab, `trf` posé par /render après stab_detect). Avec
+    un `trf` existant, l'entrée n'est plus tronquée par -ss/-t (le .trf est
+    indexé par image d'ENTRÉE) et la chaîne commence par
+    `vidstabtransform=input='…':smoothing:crop:zoom:optzoom=1:interpol=
+    bilinear,trim=start=src_in:duration=d_src,setpts=PTS-STARTPTS,` avant
+    `scale=`. `stab` sans `trf` (ou `trf` disparu) : warning, plan historique.
+    L'audio d'une entrée V1 n'entre jamais dans le graphe (MESURÉ) : l'entrée
+    entière ne désynchronise rien.
     S1 : `subs_ass` = chemin d'un fichier ASS déjà écrit (piste de
     sous-titres). Il devient le DERNIER maillon de la chaîne vidéo, juste
     avant `format=yuv420p` : le texte passe donc au-dessus des overlays V2 et
@@ -2076,6 +2285,20 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     None (défaut) : chaîne historique intacte, octet pour octet. Le graphe
     `audio_only` n'ouvre aucune vidéo et rend AVANT ce bloc : un titre n'y
     entre jamais.
+    D-9 (22/09/2026) : `adjust_clips` = liste de {start, end, effects} —
+    les clips d'une piste d'AJUSTEMENT (genre `adjust`, sans source). Chaque
+    clip est un post-pass `[aj{j}]` posé par `effects_engine.build_chain`
+    sur le cadre COMPOSÉ (après le dernier overlay et le maître de durée),
+    AVANT les titres et S1 — comme chez Resolve, où un clip d'ajustement
+    agit sur tout ce qui est dessous. L'horloge y est GLOBALE : [start,
+    end] devient t0/t1 de chaque effet (bornage de `_timed`, split +
+    sendcmd + blend, jamais `enable=`) ; un effet qui porte déjà t0/t1
+    (bornes LOCALES posées par le rack) est ramené dans [start, end] ; hors
+    du clip ou < 0,05 s : l'effet est ignoré, jamais plein cadre (revue
+    23/09/2026). Clip sans effet connu, bornes illisibles ou hors durée :
+    rien n'est émis.
+    None ou liste vide (défaut) : chaîne historique intacte, octet pour
+    octet.
     Sans ces champs, la commande émise est identique octet pour octet à
     l'historique (non-régression testée).
 
@@ -2117,7 +2340,7 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
         segs.append(c)
         prev_end = c["end"]
 
-    seg_durs, seg_idx = [], []
+    seg_durs, seg_idx, seg_stab = [], [], {}   # seg_stab : k → (trf, d_src)
     for s in segs:
         if s.get("gap"):
             if not audio_only:
@@ -2139,9 +2362,20 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             else:
                 d_src = d = round(min(want, avail), 3)
             if not audio_only:
-                if s["src_in"] > 0:
-                    inputs.extend(["-ss", str(s["src_in"])])
-                inputs.extend(["-t", str(d_src), "-i", str(s["path"])])
+                # D-16 : un plan stabilisé lit sa source ENTIÈRE (ni -ss ni
+                # -t) — vidstabtransform indexe le .trf par image d'entrée ;
+                # le trim se fait dans la chaîne (voir le bloc `k in seg_stab`
+                # plus bas).
+                # MESURÉ (grep ":a]") : l'audio d'une entrée V1 n'est jamais
+                # référencé dans le graphe — aucune désynchronisation.
+                trf = _v1_stab_trf(s)
+                if trf is None:
+                    if s["src_in"] > 0:
+                        inputs.extend(["-ss", str(s["src_in"])])
+                    inputs.extend(["-t", str(d_src), "-i", str(s["path"])])
+                else:
+                    inputs.extend(["-i", str(s["path"])])
+                    seg_stab[len(seg_durs)] = (trf, d_src)
             seg_durs.append(d)
         if not audio_only:
             seg_idx.append(idx)
@@ -2150,6 +2384,7 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
         sf = (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
               f"crop={w}:{h},setsar=1,fps={fps},format=yuv420p")
         from app.services import effects_engine as _fx
+        from app.services.subtitle_service import _ff_escape_path   # D-16
         for k, s in enumerate(segs):
             if s.get("gap"):
                 parts.append(f"[{seg_idx[k]}:v]setsar=1,format=yuv420p,"
@@ -2163,13 +2398,38 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             # offsets ne voient aucune différence. Sans speed : préfixe sf
             # historique, chaîne octet pour octet.
             spd = float(s.get("speed") or 0.0)
+            # D-13 : dynamic zoom — zoompan (d=1) inséré APRÈS fps={fps},
+            # donc sur le flux déjà rematérialisé à débit constant, et AVANT
+            # format=yuv420p. Sans `dz` : dzp vide, préfixe historique.
+            dzf = s.get("dz")
+            dzp = f",{_dz_filter(dzf, w, h, fps, seg_durs[k])}" if isinstance(dzf, dict) else ""
             if spd:
+                # D-15 : retime — `flow` (minterpolate) AVANT fps=, `blend`
+                # (tblend) APRÈS fps= et avant le zoompan (voir _RETIME).
+                # Sans `retime` connu : rtp vide, préfixe C4 historique.
+                rt = _v1_retime(s)
+                rtp = f",{_RETIME[rt].format(fps=fps)}" if rt else ""
                 pre = (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
                        f"crop={w}:{h},setsar=1,"
-                       f"setpts=PTS/{sfx_service.fnum(spd)},"
-                       f"fps={fps},format=yuv420p")
+                       f"setpts=PTS/{sfx_service.fnum(spd)}{rtp if rt == 'flow' else ''},"
+                       f"fps={fps}{rtp if rt == 'blend' else ''}{dzp},format=yuv420p")
             else:
-                pre = sf
+                pre = sf if not dzp else (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
+                                          f"crop={w}:{h},setsar=1,fps={fps}{dzp},format=yuv420p")
+            # D-16 : stabilisation — vidstabtransform sur la source entière
+            # PUIS trim=start=src_in:duration=d_src (ce que -ss/-t faisaient),
+            # AVANT le recadrage : les bords découverts (crop=keep|black,
+            # zoom) se décident à la résolution de la source. Segment absent
+            # de seg_stab : préfixe historique octet pour octet.
+            if k in seg_stab:
+                trf, d_src = seg_stab[k]
+                st = s["stab"]
+                pre = (f"vidstabtransform=input='{_ff_escape_path(trf)}':"
+                       f"smoothing={st['smooth']}:crop={st['crop']}:zoom={st['zoom']}:"
+                       f"optzoom=1:interpol=bilinear,"
+                       f"trim=start={sfx_service.fnum(s['src_in'])}:"
+                       f"duration={sfx_service.fnum(d_src)},"
+                       f"setpts=PTS-STARTPTS,{pre}")
             chain = (f"{pre},tpad=stop_mode=clone:stop_duration={seg_durs[k]},"
                      f"trim=0:{seg_durs[k]},setpts=PTS-STARTPTS")
             reff = s.get("effects")
@@ -2331,18 +2591,69 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             # centre posé à (x·W, y·H) via les constantes w/h du filtre
             # overlay. L'opacité existante se compose (aa multiplie l'alpha),
             # l'alpha des PNG est préservé de bout en bout.
-            ow2 = max(2, int(round(w * tf["scale"] / 2.0)) * 2)
-            och = f"scale={ow2}:-2,setsar=1,fps={fps},format=rgba"
-            if op is not None and 0.0 <= op < 1.0:
+            # D-14 : points d'échelle / d'opacité — comme pour la rotation,
+            # les points qui portent le champ FONT FOI sur la valeur statique
+            # (tf["scale"], `opacity` du clip) ; tous égaux → filtre statique.
+            sc_pts = [(q[0], q[4]) for q in mp if q[4] is not None] if mp else []
+            op_pts = [(q[0], q[5]) for q in mp if q[5] is not None] if mp else []
+            scale = tf["scale"]
+            if sc_pts and len({round(s, 3) for _t, s in sc_pts}) == 1:
+                scale, sc_pts = sc_pts[0][1], []
+            if op_pts and len({round(v, 3) for _t, v in op_pts}) == 1:
+                op, op_pts = op_pts[0][1], []
+            if sc_pts:
+                # Échelle animée (mesuré 22/09/2026, voir _MP_MAX_POINTS) :
+                # `overlay` ignore un changement de taille de sa 2e entrée,
+                # donc zoompan sur une toile FIXE owmax × 2·owmax (ratios
+                # jusqu'à 1:2 entiers, au-delà `decrease` réduit) où le média
+                # est posé à sa largeur MINIMALE puis grossi de z = s(t)/smin
+                # (zoompan clampe z à 1..10 : smin remonte à smax/10). Horloge
+                # `it` = celle de sendcmd et de rotate (pts locaux, avant le
+                # setpts). Écart daté : le média est ré-agrandi depuis owmin
+                # (zoompan ne sait que grossir), pas rendu à sa résolution
+                # max — net jusqu'à ~2× (smax/smin ≤ 2), flou au-delà.
+                smax = max(s for _t, s in sc_pts)
+                s_lo = min(s for _t, s in sc_pts)
+                smin = max(smax / 10.0, s_lo)
+                if s_lo < smin:
+                    logger.warning(f"montage: échelle minimale {s_lo:.2f} "
+                                   f"relevée à {smin:.2f} (zoompan ×10 max) "
+                                   f"— overlay {j}")
+                fw = max(2, int(round(w * smax / 2.0)) * 2)
+                # Rognage vertical invisible (y clampé −0,5..1,5 : une ligne à
+                # plus de 1,5·h du centre n'est jamais dans le cadre) — avec
+                # rotate + média très haut les coins tournés peuvent manquer.
+                fh = max(2, min(2 * fw, 3 * h) // 2 * 2)
+                owmin = max(2, int(round(w * smin / 2.0)) * 2)
+                och = (f"scale=w={owmin}:h={fh}:force_original_aspect_ratio="
+                       f"decrease,setsar=1,fps={fps},format=rgba")
+            else:
+                ow2 = max(2, int(round(w * scale / 2.0)) * 2)
+                och = f"scale={ow2}:-2,setsar=1,fps={fps},format=rgba"
+            if op_pts:
+                # Opacité animée : aa de colorchannelmixer n'est pas une
+                # expression mais une option commandable (« T ») — sendcmd en
+                # tête de chaîne, une commande [expr] par segment (TI 0..1)
+                # + une plate finale, constante hors bornes (aa initial =
+                # 1re clé).
+                cmds = _mp_cmds(op_pts, f"colorchannelmixer@mpo{j}", "aa",
+                                lambda v: "%.3f" % v)
+                och = (f"sendcmd=c='{cmds}',{och},"
+                       f"colorchannelmixer@mpo{j}=aa={round(op_pts[0][1], 3)}")
+            elif op is not None and 0.0 <= op < 1.0:
                 och += f",colorchannelmixer=aa={round(op, 3)}"
+            if sc_pts:
+                zp = [(t, max(smin, s) / smin) for t, s in sc_pts]
+                och += (f",pad=w={fw}:h={fh}:x=(ow-iw)/2:y=(oh-ih)/2:color=black@0,"
+                        f"zoompan=z='{_mp_lerp_expr(zp, 'it')}':x='(iw-iw/zoom)/2'"
+                        f":y='(ih-ih/zoom)/2':d=1:s={fw}x{fh}:fps={fps}")
             # R4b : la rotation s'anime si des points portent rotate — angle
             # interpolé (radians) sur l'horloge LOCALE du flux overlay (le
             # setpts de décalage vient après). Le cadre de sortie devient le
             # carré FIXE hypot(iw,ih) (rotw/roth dépendraient de t, que les
             # expressions ow/oh n'évaluent qu'à l'init) : le média reste
             # centré dedans, la pose x/y « centre − w/2 » ne change pas.
-            rot_pts = ([(t, r) for (t, _x, _y, r) in mp if r is not None]
-                       if mp else [])
+            rot_pts = [(q[0], q[3]) for q in mp if q[3] is not None] if mp else []
             if rot_pts:
                 if max(abs(r) for _t, r in rot_pts) < 0.05:
                     pass  # angles tous ≈ 0 : pas de filtre rotate
@@ -2366,10 +2677,8 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                 # (celui de enable=between) : chaque point local t devient
                 # st + t ; expressions quotées (virgules de if sans
                 # ambiguïté), évaluées par frame (défaut eval de overlay).
-                xpts = [(round(st + t, 3), round(w * x, 2))
-                        for (t, x, _y, _r) in mp]
-                ypts = [(round(st + t, 3), round(h * y, 2))
-                        for (t, _x, y, _r) in mp]
+                xpts = [(round(st + q[0], 3), round(w * q[1], 2)) for q in mp]
+                ypts = [(round(st + q[0], 3), round(h * q[2], 2)) for q in mp]
                 pos = (f"x='({_mp_lerp_expr(xpts)})-w/2'"
                        f":y='({_mp_lerp_expr(ypts)})-h/2':")
             else:
@@ -2506,6 +2815,58 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                "-map", "[emeas]", "-t", str(round(total, 3)),
                "-f", "null", "-"]
         return cmd, total
+
+    # --- D-9 (22/09/2026) : PISTE D'AJUSTEMENT ---------------------------
+    # Chaque clip est un post-pass BORNÉ sur le cadre composé (V1 + overlays
+    # + maître de durée), avant les titres et S1 — comme les clips
+    # d'ajustement de Resolve, qui agissent sur tout ce qui est dessous. Le
+    # bornage est celui de effects_engine._timed (t0/t1 → split + sendcmd +
+    # blend, PAS enable=), en horloge GLOBALE ici (aucun setpts entre le
+    # cadre composé et ce maillon). Un effet qui porte déjà t0/t1 (bornes
+    # LOCALES posées par le rack) est ramené dans [start, end]. Sans clip
+    # exploitable : rien n'est émis (commande historique) — build_chain([])
+    # rendrait `[in]null[out]` et changerait la commande ; c'est `if not
+    # bounded` (revue du 23/09/2026) qui l'empêche, la garde `not effs` en
+    # amont n'est plus qu'un raccourci (mutation SURVIVANTE mesurée le
+    # 23/09/2026, tests/mutations_montage_l3.py). `_fx` est le même module que celui des
+    # segments V1 (lié plus haut, sous le même `if not audio_only:` — le
+    # post-pass vient après le return d'audio_only). `total` est la durée
+    # APRÈS le maître de durée : un clip qui déborde est coupé à la fin
+    # réelle de la vidéo, un clip qui commence après elle est ignoré.
+    for j, aj in enumerate(adjust_clips or []):
+        if not isinstance(aj, dict):
+            continue
+        try:
+            a0 = max(0.0, float(aj.get("start") or 0))
+            a1 = min(float(total), float(aj.get("end") or 0))
+        except (TypeError, ValueError):
+            continue
+        effs = [e for e in (aj.get("effects") or [])
+                if isinstance(e, dict) and e.get("type") in _fx.EFFECTS]
+        if a1 - a0 < 0.05 or not effs:
+            continue
+        bounded = []
+        for e in effs:
+            e2 = dict(e)
+            try:
+                lt0 = max(0.0, float(e.get("t0") or 0))
+                lt1 = (float(e.get("t1")) if e.get("t1") is not None
+                       else (a1 - a0))
+            except (TypeError, ValueError):
+                lt0, lt1 = 0.0, a1 - a0
+            e2["t0"] = round(a0 + lt0, 3)
+            e2["t1"] = round(min(a1, a0 + lt1), 3)
+            # Revue (23/09/2026) : bornes locales HORS du clip ou < 0,05 s
+            # → _timed rendrait la chaîne NUE (effet plein cadre, 0..total,
+            # mesuré : `[n0]vignette=angle=0.600[aj0]` sans sendcmd). Rien.
+            if e2["t1"] - e2["t0"] < 0.05:
+                continue
+            bounded.append(e2)
+        if not bounded:
+            continue
+        parts += _fx.build_chain(bounded, cur, f"aj{j}", f"ajfx{j}",
+                                 {"w": w, "h": h, "dur": total, "fps": fps})
+        cur = f"aj{j}"
 
     # --- T1 : GRAVURE des TITRES (D-21, 21/09/2026) ---------------------
     # Un `.ass` par clip titre, gravé par le MÊME filtre que S1 — donc avec
@@ -2874,6 +3235,28 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                                 f"{c.get('label') or c.get('src')}")
                     return
                 sdur = await loop.run_in_executor(None, _probe_duration, p)
+                if _v1_retime(c) == "flow":
+                    logger.info(f"montage: retime flow (minterpolate mci, LENT) — "
+                                f"{c.get('label') or c.get('src')}")
+                st = _v1_stab(c)
+                if st:
+                    # D-16 : l'analyse manquante se fait ICI, dans le job de
+                    # rendu (déjà en tâche de fond) — le cache par source
+                    # rend l'appel immédiat si POST /stab l'a déjà faite.
+                    from app.services import montage_media as MM
+                    async with async_session_factory() as session:
+                        jr = await session.get(JobRecord, job_id)
+                        if jr is not None:
+                            jr.current_step = "Analyse de stabilisation"
+                            await session.commit()
+                    logger.info(f"montage: analyse de stabilisation (vidstabdetect, "
+                                f"LENT) — {c.get('label') or c.get('src')}")
+                    try:
+                        trf = await asyncio.to_thread(MM.stab_detect, p)
+                    except Exception as e:
+                        await _fail(f"Stabilisation impossible : {e}")
+                        return
+                    st["trf"] = str(trf)
                 v1.append({"path": p, "src_dur": sdur or 9999.0,
                            "src_in": max(0.0, float(c.get("srcIn") or 0)),
                            "start": float(c.get("start") or 0),
@@ -2881,6 +3264,9 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                            "transition": c.get("transition"),
                            "transition_s": c.get("transition_s"),
                            "speed": _v1_speed(c),  # C4 — 0.0 = historique
+                           "dz": _dz_spec(c),      # D-13 — None = historique
+                           "retime": _v1_retime(c),  # D-15 — None = historique
+                           "stab": st,             # D-16 — None = historique
                            "effects": (c.get("effects")
                                        if isinstance(c.get("effects"), list)
                                        else None)})
@@ -2910,6 +3296,16 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                            "tf": _ov_transform(c),
                            "mp": _motion_points(c),
                            "layer": m["layer"]})
+            # D-9 : les clips d'une piste de genre `adjust` (sans `src`) →
+            # post-pass bornés sur le cadre composé. Un clip sans effets est
+            # transmis (effects == []) et la commande l'ignore ; une piste
+            # inconnue de `meta` reste inerte comme avant.
+            adjust = [{"start": float(c.get("start") or 0),
+                       "end": float(c.get("end") or 0),
+                       "effects": (c.get("effects")
+                                   if isinstance(c.get("effects"), list) else [])}
+                      for c in clips
+                      if (meta.get(str(c.get("tr"))) or {}).get("kind") == "adjust"]
             a_clips, music = [], None
             for c in clips:
                 m = meta.get(c.get("tr"))
@@ -2998,7 +3394,7 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                 v1, v2, a_clips, music, w=w, h=h, fps=fps,
                 mix_db=mix, ducking=ducking,
                 duration_master=duration_master, preview=preview, out=out,
-                subs_ass=subs_ass, titles_ass=titles_ass)
+                subs_ass=subs_ass, titles_ass=titles_ass, adjust_clips=adjust)
             fx_n = sum(len(c["effects"] or []) for c in v1)
             logger.info(f"montage {short}: {len(v1)} clips V1 ({fx_n} effets), "
                         f"{len(v2)} overlays V2, {len(a_clips)} audio, "
@@ -3414,6 +3810,58 @@ async def montage_peaks(request: Request, src: str = "", bins: int = 300):
         raise _media_http(e)
 
 
+@router.post("/publish")
+async def montage_publish(request: Request):
+    """E-4 (22/09/2026) — le brouillon Scheduler est créé ICI, à la demande,
+    jamais en effet de bord d'un rendu. Body : {job_id, channels?, run_at?,
+    caption?, title?, project_id?}. Canaux filtrés par la liste blanche du
+    plan (plan_schema._CHANNELS), ["x"] à défaut ; run_at = maintenant + 2 h
+    (naïf UTC, comme le Scheduler le stocke) à défaut ; project_id voyage
+    dans `brief` (colonne Text JSON existante : pas de migration). `run_at`
+    est parsé ICI (ISO 8601, « Z » admis, un fuseau fourni ramené en UTC
+    naïf — revue E-4) et c'est ICI que le 400 « run_at invalide » est émis,
+    pas par le Scheduler. Même fabrique que lui (create_scheduled_post),
+    importée LAZY comme routes.py importe ce module dans l'autre sens."""
+    body = await _json_body(request)
+    jid = str(body.get("job_id") or "").strip()
+    if not jid:
+        raise HTTPException(400, "job_id manquant.")
+    async with async_session_factory() as session:
+        job = await session.get(JobRecord, jid)
+    if job is None:
+        raise HTTPException(404, "Rendu introuvable.")
+    fp = job.final_video_path or job.video_path
+    # Revue E-4 : `_is_video_artifact` ne juge que le suffixe — un rendu dont
+    # le fichier a disparu n'est pas publiable.
+    if (str(job.status) != JobStatus.DONE.value or not fp
+            or not _is_video_artifact(Path(fp)) or not Path(fp).is_file()):
+        raise HTTPException(409, "Ce rendu n'est pas terminé (ou n'est pas une vidéo).")
+    from app.services.plan_schema import _CHANNELS
+    chs = body.get("channels") if isinstance(body.get("channels"), list) else []
+    ch = [c for c in chs if isinstance(c, str) and c in _CHANNELS] or ["x"]
+    # Revue E-4 : le Scheduler stocke run_at NAÏF et jette un fuseau fourni
+    # (« +02:00 » devenait 09:00 UTC, 2 h en retard) — ramené en UTC ici.
+    if body.get("run_at") in (None, ""):
+        run_at = (_dt.utcnow() + _td(hours=2)).replace(microsecond=0)
+    else:
+        try:
+            run_at = _dt.fromisoformat(str(body["run_at"]).strip().replace("Z", ""))
+        except ValueError:
+            raise HTTPException(400, "run_at invalide.")
+        if run_at.tzinfo is not None:
+            run_at = run_at.astimezone(_tz.utc).replace(tzinfo=None)
+    titre = (body["title"] if isinstance(body.get("title"), str) and body["title"].strip()
+             else (job.title or "Montage"))[:200]
+    post = {"title": titre,
+            "caption": (body["caption"] if isinstance(body.get("caption"), str) else titre)[:4000],
+            "channels": ch, "run_at": run_at.isoformat(), "status": "draft", "mode": "assisted", "job_id": jid}
+    pid = body.get("project_id")
+    if isinstance(pid, str) and pid:
+        post["brief"] = {"project_id": pid}
+    from app.api.routes import create_scheduled_post
+    return {"ok": True, "post": await create_scheduled_post(post)}
+
+
 @router.get("/strip")
 async def montage_strip(request: Request, src: str = "", n: int = 12,
                         w: int = 78, h: int = 44):
@@ -3442,10 +3890,22 @@ async def montage_proxy_build(request: Request,
     l'écran n'a donc jamais besoin de lire ce chemin sur le job, et rien de
     ce qui interroge un artefact ne peut confondre un cache avec un plan."""
     from app.services import montage_media as MM
+    return await _precalcul_de_fond(
+        request, background_tasks, MM.proxy_path, MM.proxy,
+        provider=_PROXY_PROVIDER, prefix="proxy",
+        step="Aperçu 480p", step_done="Aperçu prêt")
+
+
+async def _precalcul_de_fond(request, background_tasks, path_fn, build_fn, *,
+                             provider, prefix, step, step_done):
+    """Le corps commun de `POST /proxy` et `POST /stab` (D-16) : un précalcul
+    PAR SOURCE, en tâche de fond, suivi par un `JobRecord` sans artefact.
+    `path_fn(p)` rend le chemin de cache sans rien fabriquer, `build_fn(p)`
+    fabrique (bloquant, passé à `to_thread`). Réponse `{ok, ready, job_id}`."""
     body = await _json_body(request)
     p = await _media_source(request, body.get("src"), video=True)
     try:
-        out = await asyncio.to_thread(MM.proxy_path, p)
+        out = await asyncio.to_thread(path_fn, p)
     except Exception as e:
         raise _media_http(e)
     if out.exists():
@@ -3455,25 +3915,25 @@ async def montage_proxy_build(request: Request,
     async with async_session_factory() as session:
         session.add(JobRecord(
             id=job_id, status=JobStatus.GENERATING_VIDEO.value, progress=10,
-            title=f"proxy — {p.name}"[:60],
-            provider=_PROXY_PROVIDER,
+            title=f"{prefix} — {p.name}"[:60],
+            provider=provider,
             # `image_filename` est NON NUL en base (storage.py l. 24) : il
             # faut donc y écrire quelque chose. On suit la forme déjà en
             # usage pour les jobs qui n'ont pas d'image — `asset3d_<…>`,
             # `sprite_<court>` (routes.py) — c'est-à-dire un libellé SANS
             # EXTENSION : aucun filtre par extension ne peut le prendre pour
             # un média, et il dit ce qu'il est.
-            image_filename=f"montage_proxy_{job_id[:8]}",
+            image_filename=f"{provider}_{job_id[:8]}",
             # final_video_path / video_path : DÉLIBÉRÉMENT absents. Un cache
             # n'est pas un artefact — voir `_PROXY_PROVIDER` en tête.
-            current_step="Aperçu 480p"))
+            current_step=step))
         await session.commit()
 
     async def _run():
         try:
-            await asyncio.to_thread(MM.proxy, p)
+            await asyncio.to_thread(build_fn, p)
         except Exception as e:
-            logger.warning(f"montage: apercu 480p echoue — {e}")
+            logger.warning(f"montage: {step.lower()} echoue — {e}")
             async with async_session_factory() as session:
                 jr = await session.get(JobRecord, job_id)
                 if jr is not None:
@@ -3487,12 +3947,39 @@ async def montage_proxy_build(request: Request,
             if jr is not None:
                 jr.status = JobStatus.DONE.value
                 jr.progress = 100
-                jr.current_step = "Aperçu prêt"
+                jr.current_step = step_done
                 jr.completed_at = _dt.utcnow()
                 await session.commit()
 
     background_tasks.add_task(_run)
     return {"ok": True, "ready": False, "job_id": job_id}
+
+
+@router.post("/stab")
+async def montage_stab_build(request: Request,
+                             background_tasks: BackgroundTasks):
+    """D-16 — lance (ou confirme) l'analyse vidstab d'une source ; même
+    contrat que `POST /proxy` : `{ok, ready, job_id}`, suivi par
+    `GET /api/jobs/{id}` (provider `montage_stab`, sans artefact). Le rendu
+    fait lui-même l'analyse manquante ; cette route sert à l'anticiper."""
+    from app.services import montage_media as MM
+    return await _precalcul_de_fond(
+        request, background_tasks, MM.stab_path, MM.stab_detect,
+        provider=_STAB_PROVIDER, prefix="stab",
+        step="Analyse de stabilisation", step_done="Analyse prête")
+
+
+@router.get("/stab")
+async def montage_stab_state(request: Request, src: str = ""):
+    """`{ready}` — l'analyse vidstab de `src` est-elle en cache ? Ne fabrique
+    jamais (même règle que `GET /proxy`) ; le `.trf` n'est jamais servi."""
+    from app.services import montage_media as MM
+    p = await _media_source(request, src, video=True)
+    try:
+        out = await asyncio.to_thread(MM.stab_path, p)
+    except Exception as e:
+        raise _media_http(e)
+    return {"ready": out.exists()}
 
 
 @router.get("/proxy")

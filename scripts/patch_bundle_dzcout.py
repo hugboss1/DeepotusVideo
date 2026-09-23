@@ -276,7 +276,42 @@ STABLE_PROBES = [
     # est ecrite SANS le jeton, meme lecon que ci-dessus.
     # MESURE : la chaine a refuse, « sonde montage x98 (want 94) », AVANT
     # que ce nombre ne soit ecrit.
-    ("montage", "DzTracks", 98),
+    # 22/09/2026, E-4 (lot E-A, tache 5) : 98 -> 99. UNE de plus, par
+    # EA5e : le bandeau de fin de rendu, monte a cote du popover. EA4
+    # (le rendu final qui ne publie plus), EA5a..d (quatre libelles) et
+    # le repli dzFin (R_M16REF) n'en ajoutent aucune. MESURE : la chaine
+    # a refuse, « sonde montage x99 (want 98) », avant cette ligne.
+    # 22/09/2026, D-13 (lot L3, tache 2) : 99 -> 104. CINQ de plus : l hote
+    # des proprietes de plan (DZ1, `PlanProps`), les rectangles du lecteur
+    # (DZ2, `DzRects`), le zoom en direct (DZ3, `dzOf(` + `dzCss(`) et le
+    # payload (DZ4, `dzOf(`). Le repli `dzPlanSet` (R_M16REF) n en ajoute
+    # aucune. MESURE : la chaine a refuse, « sonde montage x104 (want 99) »,
+    # avant cette ligne.
+    # 22/09/2026, revue de D-13 : 104 -> 103. DZ3 appelle `dzCss(c.dz,u)`
+    # directement (rend "" sur absent/invalide) : plus de `dzOf(` la.
+    # 22/09/2026, D-15 (lot L3, tache 4) : 103 -> 105. DEUX de plus, sans
+    # section neuve : la rampe dans DZ1 (`rampe(`) et l interpolation dans le
+    # payload DZ4 (`retimeOf(`, UNE occurrence via `rtD`). MESURE : la chaine
+    # a refuse, « sonde montage x105 (want 103) », avant cette ligne.
+    # 22/09/2026, D-16 (lot L3, tache 6) : 105 -> 106. UNE de plus, sans
+    # section neuve : la stabilisation dans le payload DZ4 (`stabOf(`, UNE
+    # occurrence via `sbD`). L hote (DZ1, stabJob/onStab) et le repli du
+    # suivi de job (R_M16REF) n en ajoutent aucune. MESURE : la chaine a
+    # refuse, « sonde montage x106 (want 105) », avant cette ligne.
+    # 22/09/2026, revue de D-16 : 106 -> 108. DEUX de plus : la cle de
+    # source canonique `srcKey(` dans DZ1 (stabJob) et dans le repli
+    # dzStabStart (R_M16REF), a la place d un JSON.stringify a l ordre pres.
+    # 22/09/2026, D-14 (lot L3, tache 7) : 108 -> 112. QUATRE de plus, en
+    # huit sections KF1..KF5 : `mpLerp2(` dans svmOvTfAt (KF1, l echelle
+    # interpolee), dans vOp de l inspecteur (KF3b) et dans liveSync (KF5,
+    # l opacite en direct) ; `mpKeep(` dans svmMpPlace (KF2b). KF2, KF3a,
+    # KF3c et KF4 n en ajoutent aucune (svmMpField, code nu).
+    # 22/09/2026, D-9 (lot L3, tache 9) : 112 -> 114. DEUX de plus, dans le
+    # repli dzAjAdd (R_M16REF) : `adjustNew(` (le clip de 3 s) et
+    # `adjustTrack(` (la piste j1 nait avec le premier clip). AJ2a/AJ2b,
+    # AJ6a/AJ6b et les replis TT1/M5/TT11/R1/R2/K5 n en ajoutent aucune.
+    # MESURE : la chaine a refuse, « sonde montage x114 (want 112) ».
+    ("montage", "DzTracks", 114),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────
