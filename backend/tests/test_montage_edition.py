@@ -881,6 +881,13 @@ out.ki_v2=[T.kmImport('{"version":2,"keymap":{}}',_kA,_kC,_kR),T.kmImport('{"key
   T.kmImport('{"version":1,"keymap":[1]}',_kA,_kC,_kR),T.kmImport('null',_kA,_kC,_kR),T.kmImport('"s"',_kA,_kC,_kR)];
 out.ki_vide=T.kmImport('{"version":1,"keymap":{}}',null,_kC,_kR);
 out.ki_aller_retour=T.kmImport(T.kmExport({blade:"Ctrl+B"}),_kA,_kC,_kR);
+/* revue I1 : les collisions -- vol du defaut d'une action NON remappee (range_out:"O" vole toolbar), deux lignes
+   sur une meme touche (redo perd contre undo, ordre de TABLE comme svmKmMerge), temoins : blade Ctrl+B libre passe,
+   et le preset Resolve (toolbar remappee explicitement) passe sans collision */
+var _kT=[{id:"blade",combo:"Alt+C"},{id:"undo",combo:"Ctrl+Z"},{id:"redo",combo:"Ctrl+Y"},{id:"range_out",combo:"U"},{id:"toolbar",combo:"O"},{id:"mute",combo:"M"},{id:"solo",combo:"S"}];
+out.ki_vol=T.kmImport('{"version":1,"keymap":{"range_out":"O","undo":"Alt+Q","redo":"Alt+Q","blade":"Ctrl+B"}}',_kT,_kC,_kR);
+out.ki_vol_preset=T.kmImport(T.kmExport(T.kmPreset("resolve")),_kT,_kC,_kR);
+out.ki_vol_echange=T.kmImport('{"version":1,"keymap":{"mute":"Alt+M","solo":"M"}}',_kT,_kC,_kR);
 console.log(JSON.stringify(out));
 """
 # E-9 : svmRuler / svmPad2 sont des fonctions DU BUNDLE (meme portee module que
@@ -1123,8 +1130,9 @@ try:
                  # L4 (tache 4) : les QUINZE cles de la section [24].
                  "lp","opts","opts_bornes","opts_pur","pl","pl_absent","pl_bornes","pl_pur","st",
                  "dr_pure","dr_leve","dr_rendu","dr_vide","dr_absent","del_st",
-                 # L7 D-10 (tache 1) : les ONZE cles de la section [25].
-                 "kp_resolve","kp_inconnu","kp_pur","kx","kx_bornes","ki_ok","ki_combo","ki_casse","ki_v2","ki_vide","ki_aller_retour"]
+                 # L7 D-10 (tache 1) : les QUATORZE cles de la section [25].
+                 "kp_resolve","kp_inconnu","kp_pur","kx","kx_bornes","ki_ok","ki_combo","ki_casse","ki_v2","ki_vide","ki_aller_retour",
+                 "ki_vol","ki_vol_preset","ki_vol_echange"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -2324,6 +2332,17 @@ check("ki_v2_version_2_absente_keymap_absent_tableau_null_chaine_refus_version",
 check("ki_actions_null_keymap_vide_ok_sans_rien", D.get("ki_vide") == {"ok": True, "keymap": {}, "ignores": []}, D.get("ki_vide"))
 check("ki_aller_retour_export_puis_import_rend_le_meme_mappage",
       D.get("ki_aller_retour") == {"ok": True, "keymap": {"blade": "Ctrl+B"}, "ignores": []}, D.get("ki_aller_retour"))
+# revue I1 : les collisions sont DITES, jugees comme svmKmMerge (defauts des actions sans override, puis overrides en
+# ordre de table) -- range_out:"O" vole toolbar (non remappee) ; redo perd Alt+Q contre undo (avant dans la table) ;
+# temoin positif : blade Ctrl+B passe. Le preset (toolbar remappee) passe entier ; l'echange mute/solo passe (M liberee).
+check("ki_vol_vol_du_defaut_et_doublon_dits_collision_avec_l_id_qui_garde_la_touche_temoin_blade_passe",
+      D.get("ki_vol") == {"ok": True, "keymap": {"blade": "Ctrl+B", "undo": "Alt+Q"},
+                          "ignores": [{"id": "redo", "raison": "collision", "avec": "undo"}, {"id": "range_out", "raison": "collision", "avec": "toolbar"}]},
+      D.get("ki_vol"))
+check("ki_vol_le_preset_resolve_passe_sans_collision_toolbar_deplacee",
+      D.get("ki_vol_preset") == {"ok": True, "keymap": {"blade": "Ctrl+B", "range_out": "O", "toolbar": "Alt+O"}, "ignores": []}, D.get("ki_vol_preset"))
+check("ki_vol_l_echange_mute_solo_passe_la_touche_liberee_n_est_pas_une_collision",
+      D.get("ki_vol_echange") == {"ok": True, "keymap": {"mute": "Alt+M", "solo": "M"}, "ignores": []}, D.get("ki_vol_echange"))
 # LE COEUR RESTE PUR (trois fonctions sans r/x/window/localStorage/fetch) ; le preset n'est ecrit qu'UNE fois
 # (DZM_KM_PRESETS) ; kmPreset lit par hasOwnProperty (« constructor » ne rend pas Object.prototype.constructor) ;
 # aucun « Ctrl+T » ni « Backspace » dans la couche (les deux ecarts mesures) ; exports x1 dans DzTracks.
@@ -2334,6 +2353,7 @@ check("l7a_coeur_pur_x3_preset_ecrit_une_fois_hasOwnProperty_ni_Ctrl_T_ni_Backsp
       and _L7A["dzmKmPreset"].count("hasOwnProperty") == 1 and _L7A["dzmKmImport"].count('raison:"inconnu"') == 1
       and _L7A["dzmKmImport"].count('raison:"combo"') == 1 and _L7A["dzmKmImport"].count('raison:"reservee"') == 1
       and _L7A["dzmKmImport"].count('raison:"json"') == 1 and _L7A["dzmKmImport"].count('raison:"version"') == 1
+      and _L7A["dzmKmImport"].count('raison:"collision",avec:used[c]') == 1
       and _SRCb.count('"Ctrl+T"') == 0 and _SRCb.count("Backspace") == 0 and _SRCb.count("DZM_KM_PRESETS") == 3,
       ({n: len(c) for n, c in _L7A.items()}, _SRCb.count("DZM_KM_PRESETS")))
 check("l7a_exports_kmPreset_kmExport_kmImport_dans_DzTracks",

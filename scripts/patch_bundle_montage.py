@@ -5092,12 +5092,13 @@ for _n, _a, _r in L4:
 # n'a plus de sens apres un changement d'etat entier.
 A_L7A3 = "          /* « Réinitialiser tout » — visible dès qu'un override existe,"
 R_L7A3 = (
-    '          r.jsx("button",{className:"svm-secbtn svm-kbio",title:"Preset Resolve : O pose la sortie, Ctrl+B la lame, Alt+O la barre d\'outils — JKL, I et Alt+T sont déjà en place",\n'
+    '          r.jsx("button",{className:"svm-secbtn svm-kbio",title:"Preset Resolve : pose O (sortie), Ctrl+B (lame), Alt+O (barre d\'outils) — Ctrl+T reste au navigateur, la transition est sur Alt+T",\n'
     '            onClick:function(){var pr=DzTracks.kmPreset("resolve");if(!pr){fireNote("Preset introuvable");return}setKmOv(pr);svmKmSave(pr);setKbEdit("");setKbMsg(null);\n'
     '              fireNote("Preset Resolve appliqué : O = sortie, Ctrl+B = lame, Alt+O = barre d\'outils — JKL, I et Alt+T étaient déjà là")},\n'
     '            children:"Preset Resolve"}),\n'
     '          r.jsx("button",{className:"svm-secbtn svm-kbio",title:"Exporter les raccourcis personnalisés (deepotus-raccourcis.json)",\n'
-    '            onClick:function(){if(subsDownload("deepotus-raccourcis.json",DzTracks.kmExport(kmOv),"application/json"))fireNote(nOv+" raccourci"+(nOv>1?"s":"")+" personnalisé"+(nOv>1?"s":"")+" exporté"+(nOv>1?"s":""));else fireNote("Export impossible dans ce navigateur")},\n'
+    '            onClick:function(){if(!subsDownload("deepotus-raccourcis.json",DzTracks.kmExport(kmOv),"application/json")){fireNote("Export impossible dans ce navigateur");return}\n'
+    '              fireNote(nOv?nOv+" raccourci"+(nOv>1?"s":"")+" personnalisé"+(nOv>1?"s":"")+" exporté"+(nOv>1?"s":""):"Aucun raccourci personnalisé — fichier vide exporté")},\n'
     '            children:"Exporter…"}),\n'
     '          r.jsx("button",{className:"svm-secbtn svm-kbio",title:"Importer un fichier de raccourcis JSON — les actions inconnues et les touches réservées sont ignorées",\n'
     '            onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".json,application/json";\n'

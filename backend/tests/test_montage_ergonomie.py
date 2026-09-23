@@ -191,7 +191,7 @@ _TITRES = [
     'title:"Aperçu 480p — gratuit, local, aucun crédit",onClick:function(){setPop(pop==="preview"?"":"preview")},children:"Preview"',
     'title:"Rendu final (master 1080, local) — ouvre le panneau de rendu",onClick:function(){setPop(pop==="render"?"":"render")},children:"Rendre →"',
     # L7 D-10 (24/09/2026, tache 1) : les trois boutons du panneau « ? »
-    'title:"Preset Resolve : O pose la sortie, Ctrl+B la lame, Alt+O la barre d\'outils — JKL, I et Alt+T sont déjà en place",',
+    'title:"Preset Resolve : pose O (sortie), Ctrl+B (lame), Alt+O (barre d\'outils) — Ctrl+T reste au navigateur, la transition est sur Alt+T",',
     'title:"Exporter les raccourcis personnalisés (deepotus-raccourcis.json)",',
     'title:"Importer un fichier de raccourcis JSON — les actions inconnues et les touches réservées sont ignorées",',
 ]

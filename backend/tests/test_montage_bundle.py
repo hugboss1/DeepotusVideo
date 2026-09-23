@@ -17069,7 +17069,7 @@ check("L7a3_section_unique_en_queue_de_PATCHES_ancre_libre_1_0_1_remplacement_x1
       and (_bak.count(_nlb(_L7A3[0][1])) == 1 and _bak.count(_nlb(_L7A3[0][2])) == 0 if _bak else False)
       and sum(1 for _t in P.PATCHES if _L7A3[0][1] in _t[2] and _t[0] != _L7A3[0][0]) == 0,
       f"n={len(P.L7A)} queue={[p[0] for p in P.PATCHES[-3:]]} bak={_bak.count(_nlb(_L7A3[0][1])) if _bak and _L7A3 else '?'}")
-_L7_BTN = ('r.jsx("button",{className:"svm-secbtn svm-kbio",title:"Preset Resolve : O pose la sortie, Ctrl+B la lame, Alt+O la barre d\'outils — JKL, I et Alt+T sont déjà en place",',
+_L7_BTN = ('r.jsx("button",{className:"svm-secbtn svm-kbio",title:"Preset Resolve : pose O (sortie), Ctrl+B (lame), Alt+O (barre d\'outils) — Ctrl+T reste au navigateur, la transition est sur Alt+T",',
            'r.jsx("button",{className:"svm-secbtn svm-kbio",title:"Exporter les raccourcis personnalisés (deepotus-raccourcis.json)",',
            'r.jsx("button",{className:"svm-secbtn svm-kbio",title:"Importer un fichier de raccourcis JSON — les actions inconnues et les touches réservées sont ignorées",')
 # svm-kbcount x2 dans le bundle (le selecteur d'effets, B:4892, reprend la rangee de recherche) : le compteur cherche est
@@ -17107,6 +17107,43 @@ check("L7_la_couche_kmPreset_kmExport_kmImport_exports_x1_bundle_et_fichier_feui
       and _L7_CSS.count(".dzsvm .svm-kbio{") == 1 and src.count("svm-kbio") == 0 and _L7_CSS.count(".dzsvm .svm-kbio{padding:5px 10px;font-size:11px;flex:none}") == 1
       and (_bak.count("dzmKmPreset") == 0 and _bak.count("DZM_KM_PRESETS") == 0 if _bak else False),
       f"pures={[s.count(k) for k in ('function dzmKmPreset(nom){', 'function dzmKmImport(txt,actions,canon,reserved){')]} css={_L7_CSS.count('.dzsvm .svm-kbio{')}")
+# revue D-10 (M1) : « Exporter… » sans override le dit -- le fichier part quand meme
+check("L7a3_revue_export_sans_override_note_fichier_vide_exporte_x1",
+      s.count('"Aucun raccourci personnalisé — fichier vide exporté"') == 1 and s.count('fireNote(nOv?nOv+" raccourci"') == 1
+      and (_bak.count("fichier vide exporté") == 0 if _bak else False), s.count("fichier vide exporté"))
+# revue D-10 (I1) : CONTROLE SOUS NODE contre le bundle -- SVM_ACTIONS, svmComboCanon, svmComboReserved et svmKmMerge sont
+# EXTRAITS du bundle livre (B:394 svmNorm, B:1522..1675 la table et les juges, B:1676..1694 la fusion), dzmKmImport de la
+# couche (le bloc injecte) ; pour cinq fichiers (vol du defaut d'une action non remappee, deux lignes sur une meme touche,
+# preset Resolve, aller-retour, combo libre), Object.keys(keymap) == {id : merge.byId[id] === keymap[id]} ; temoin :
+# chaque fichier « voleur » a au moins un ignore « collision » et le preset n'en a aucun
+_iN1 = s.find("function svmNorm(s){"); _iN1f = s.find("\n", s.find("  return s}", _iN1)) if _iN1 >= 0 else -1
+_iN2 = s.find("var SVM_ACTIONS=["); _iN2f = s.find("function svmKmSave(ov){") if _iN2 >= 0 else -1
+_iN3 = s.find("function svmKmMerge(ov){"); _iN3f = s.find("var SVM_KMNOW_CACHE=") if _iN3 >= 0 else -1
+_iN4 = s.find("function dzmKmImport(txt,actions,canon,reserved){"); _iN4f = s.find("\nvar DzTracks={", _iN4) if _iN4 >= 0 else -1
+_L7_RT = None
+if all(0 <= a < b for a, b in ((_iN1, _iN1f), (_iN2, _iN2f), (_iN3, _iN3f), (_iN4, _iN4f))):
+    _L7_FILES = [{"version": 1, "keymap": {"range_out": "O"}}, {"version": 1, "keymap": {"undo": "Alt+Q", "redo": "Alt+Q"}},
+                 {"version": 1, "keymap": {"range_out": "O", "toolbar": "Alt+O", "blade": "Ctrl+B"}},
+                 {"version": 1, "keymap": {"blade": "Ctrl+B", "mute": "Alt+M", "solo": "M"}}, {"version": 1, "keymap": {"blade": "Alt+B"}}]
+    _L7_SHIM = ("var window={};var localStorage={getItem:function(){return null}};\n" + s[_iN1:_iN1f] + "\n" + s[_iN2:_iN2f] + "\n" + s[_iN3:_iN3f] + "\n"
+                + s[_iN4:_iN4f] + "\nvar F=" + json.dumps(_L7_FILES, ensure_ascii=False) + ",out=[];\n"
+                + "F.forEach(function(f){var r=dzmKmImport(JSON.stringify(f),SVM_ACTIONS,svmComboCanon,svmComboReserved);var m=svmKmMerge(r.keymap).byId;\n"
+                + "  var kept=Object.keys(r.keymap).filter(function(id){return m[id]===r.keymap[id]}).sort();\n"
+                + "  out.push([r.ok,Object.keys(r.keymap).sort(),kept,r.ignores.filter(function(g){return g.raison===\"collision\"}).map(function(g){return g.id+\"<\"+g.avec}),\n"
+                + "    Object.keys(r.keymap).every(function(id){return SVM_ACTIONS.filter(function(a){return m[a.id]===r.keymap[id]}).length===1})])});\n"
+                + "console.log(JSON.stringify(out));\n").replace("\r\n", "\n")
+    _pL7 = pathlib.Path(TMP) / "l7_km.js"; _pL7.write_text(_L7_SHIM, encoding="utf-8")
+    _rL7 = NODE(["node", str(_pL7)], timeout=60)
+    try: _L7_RT = json.loads(_rL7.stdout) if _rL7.returncode == 0 else ("rc=" + str(_rL7.returncode) + " " + (_rL7.stderr or "")[-300:])
+    except Exception as _e: _L7_RT = temoin(_e)
+check("L7_revue_I1_sous_node_contre_le_bundle_Object_keys_keymap_est_ce_que_svmKmMerge_retient_collisions_dites_preset_sans_collision",
+      isinstance(_L7_RT, list) and len(_L7_RT) == 5 and all(x[0] is True and x[1] == x[2] and x[4] is True for x in _L7_RT)
+      and _L7_RT[0][1] == [] and _L7_RT[0][3] == ["range_out<toolbar"]
+      and _L7_RT[1][1] == ["undo"] and _L7_RT[1][3] == ["redo<undo"]
+      and _L7_RT[2][1] == ["blade", "range_out", "toolbar"] and _L7_RT[2][3] == []
+      and _L7_RT[3][1] == ["blade", "mute", "solo"] and _L7_RT[3][3] == []
+      and _L7_RT[4][1] == ["blade"] and _L7_RT[4][3] == [],
+      _L7_RT)
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

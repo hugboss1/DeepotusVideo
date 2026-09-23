@@ -6849,14 +6849,23 @@ function dzmKmExport(ov){
 function dzmKmImport(txt,actions,canon,reserved){
   var d;try{d=JSON.parse(String(txt))}catch(e){return {ok:!1,raison:"json"}}
   if(!d||typeof d!=="object"||d.version!==1||!d.keymap||typeof d.keymap!=="object"||Array.isArray(d.keymap))return {ok:!1,raison:"version"};
-  var ids={};(Array.isArray(actions)?actions:[]).forEach(function(a){if(a&&a.id)ids[a.id]=a.combo});
-  var km={},ign=[];
+  var acts=Array.isArray(actions)?actions:[],ids={};acts.forEach(function(a){if(a&&a.id)ids[a.id]=a.combo});
+  var km0={},ign=[];
   Object.keys(d.keymap).forEach(function(id){
     var v=d.keymap[id],c=typeof v==="string"?canon(v):"";
     if(!Object.prototype.hasOwnProperty.call(ids,id))ign.push({id:id,raison:"inconnu"});
     else if(!c)ign.push({id:id,raison:"combo"});
     else if(reserved(c))ign.push({id:id,raison:"reservee"});
-    else if(c!==ids[id])km[id]=c});
+    else if(c!==ids[id])km0[id]=c});
+  /* revue D-10 : les COLLISIONS, jugées comme svmKmMerge le fera (même ordre : les défauts des
+     actions sans override occupent leur touche, puis les overrides en ordre de TABLE) — une ligne
+     du fichier qui vole la touche d'une action non remappée, ou la touche d'une ligne déjà
+     retenue, est dite {raison:"collision", avec:<id qui garde la touche>} au lieu de retomber
+     au défaut en silence. Object.keys(keymap) est exactement ce que la fusion retiendra. */
+  var used={},km={};
+  acts.forEach(function(a){if(a&&a.id&&!km0[a.id]&&!used[a.combo])used[a.combo]=a.id});
+  acts.forEach(function(a){if(!a||!a.id||!km0[a.id])return;var c=km0[a.id];
+    if(used[c])ign.push({id:a.id,raison:"collision",avec:used[c]});else{km[a.id]=c;used[c]=a.id}});
   return {ok:!0,keymap:km,ignores:ign}}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,

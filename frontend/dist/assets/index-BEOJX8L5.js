@@ -5164,12 +5164,13 @@ function DzMontage(props){
           r.jsx("span",{className:"svm-kbcount",
             title:shown+" ligne"+(shown>1?"s":"")+" affichée"+(shown>1?"s":"")+" sur "+total,
             children:shown+"/"+total}),
-          r.jsx("button",{className:"svm-secbtn svm-kbio",title:"Preset Resolve : O pose la sortie, Ctrl+B la lame, Alt+O la barre d'outils — JKL, I et Alt+T sont déjà en place",
+          r.jsx("button",{className:"svm-secbtn svm-kbio",title:"Preset Resolve : pose O (sortie), Ctrl+B (lame), Alt+O (barre d'outils) — Ctrl+T reste au navigateur, la transition est sur Alt+T",
             onClick:function(){var pr=DzTracks.kmPreset("resolve");if(!pr){fireNote("Preset introuvable");return}setKmOv(pr);svmKmSave(pr);setKbEdit("");setKbMsg(null);
               fireNote("Preset Resolve appliqué : O = sortie, Ctrl+B = lame, Alt+O = barre d'outils — JKL, I et Alt+T étaient déjà là")},
             children:"Preset Resolve"}),
           r.jsx("button",{className:"svm-secbtn svm-kbio",title:"Exporter les raccourcis personnalisés (deepotus-raccourcis.json)",
-            onClick:function(){if(subsDownload("deepotus-raccourcis.json",DzTracks.kmExport(kmOv),"application/json"))fireNote(nOv+" raccourci"+(nOv>1?"s":"")+" personnalisé"+(nOv>1?"s":"")+" exporté"+(nOv>1?"s":""));else fireNote("Export impossible dans ce navigateur")},
+            onClick:function(){if(!subsDownload("deepotus-raccourcis.json",DzTracks.kmExport(kmOv),"application/json")){fireNote("Export impossible dans ce navigateur");return}
+              fireNote(nOv?nOv+" raccourci"+(nOv>1?"s":"")+" personnalisé"+(nOv>1?"s":"")+" exporté"+(nOv>1?"s":""):"Aucun raccourci personnalisé — fichier vide exporté")},
             children:"Exporter…"}),
           r.jsx("button",{className:"svm-secbtn svm-kbio",title:"Importer un fichier de raccourcis JSON — les actions inconnues et les touches réservées sont ignorées",
             onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".json,application/json";
@@ -19888,14 +19889,23 @@ function dzmKmExport(ov){
 function dzmKmImport(txt,actions,canon,reserved){
   var d;try{d=JSON.parse(String(txt))}catch(e){return {ok:!1,raison:"json"}}
   if(!d||typeof d!=="object"||d.version!==1||!d.keymap||typeof d.keymap!=="object"||Array.isArray(d.keymap))return {ok:!1,raison:"version"};
-  var ids={};(Array.isArray(actions)?actions:[]).forEach(function(a){if(a&&a.id)ids[a.id]=a.combo});
-  var km={},ign=[];
+  var acts=Array.isArray(actions)?actions:[],ids={};acts.forEach(function(a){if(a&&a.id)ids[a.id]=a.combo});
+  var km0={},ign=[];
   Object.keys(d.keymap).forEach(function(id){
     var v=d.keymap[id],c=typeof v==="string"?canon(v):"";
     if(!Object.prototype.hasOwnProperty.call(ids,id))ign.push({id:id,raison:"inconnu"});
     else if(!c)ign.push({id:id,raison:"combo"});
     else if(reserved(c))ign.push({id:id,raison:"reservee"});
-    else if(c!==ids[id])km[id]=c});
+    else if(c!==ids[id])km0[id]=c});
+  /* revue D-10 : les COLLISIONS, jugées comme svmKmMerge le fera (même ordre : les défauts des
+     actions sans override occupent leur touche, puis les overrides en ordre de TABLE) — une ligne
+     du fichier qui vole la touche d'une action non remappée, ou la touche d'une ligne déjà
+     retenue, est dite {raison:"collision", avec:<id qui garde la touche>} au lieu de retomber
+     au défaut en silence. Object.keys(keymap) est exactement ce que la fusion retiendra. */
+  var used={},km={};
+  acts.forEach(function(a){if(a&&a.id&&!km0[a.id]&&!used[a.combo])used[a.combo]=a.id});
+  acts.forEach(function(a){if(!a||!a.id||!km0[a.id])return;var c=km0[a.id];
+    if(used[c])ign.push({id:a.id,raison:"collision",avec:used[c]});else{km[a.id]=c;used[c]=a.id}});
   return {ok:!0,keymap:km,ignores:ign}}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
