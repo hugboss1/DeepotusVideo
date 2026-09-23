@@ -6553,6 +6553,83 @@ function DzmMinimap(o){
         return r.jsx("div",{className:"svm-mmrect","data-kind":q.kind,
           style:{left:(q.x0*100)+"%",width:((q.x1-q.x0)*100)+"%"}},k)})},row.id)}),
     r.jsx("div",{className:"svm-mmview",style:{left:(a*100)+"%",width:((b-a)*100)+"%"}})]})}
+/* ── E-6 (lot E-C, tâche 1, 23/09/2026) : LE MENU — combo → touche, modèle, composant ──
+   Décision 1 du plan : PAS de dispatch(id) dans l'hôte — une entrée de menu à
+   raccourci REJOUE sa combo par window.dispatchEvent(new KeyboardEvent("keydown",
+   dzmComboToKey(combo))) ; onKey reste l'unique dispatch. Jetons MESURÉS dans la
+   table SVM_ACTIONS du bundle patché (45 combos) : Ctrl, Maj, Alt, Suppr, Espace,
+   Home, End, ?, =, -, lettres, ← → ↑ ↓ ; Échap / Entrée / Cmd acceptés par avance.
+   Clé finale : lettre → minuscule (KeyboardEvent.key sans Maj), jeton nommé par
+   la table, autre jeton tel quel. Vide, non-chaîne, modificateur seul → null. */
+var DZM_KEY_TOK={"suppr":"Delete","échap":"Escape","echap":"Escape","espace":" ","entrée":"Enter","entree":"Enter",
+  "←":"ArrowLeft","→":"ArrowRight","↑":"ArrowUp","↓":"ArrowDown","home":"Home","end":"End","tab":"Tab"};
+function dzmComboToKey(combo){
+  if(typeof combo!=="string")return null;
+  var parts=combo.split("+").map(function(s){return s.trim()}).filter(function(s){return s!==""});
+  if(!parts.length)return null;
+  var k={key:"",ctrlKey:!1,shiftKey:!1,altKey:!1,metaKey:!1},i,t,l;
+  for(i=0;i<parts.length;i++){t=parts[i];l=t.toLowerCase();
+    if(l==="ctrl")k.ctrlKey=!0;
+    else if(l==="maj"||l==="shift")k.shiftKey=!0;
+    else if(l==="alt")k.altKey=!0;
+    else if(l==="cmd"||l==="meta")k.metaKey=!0;
+    else if(i===parts.length-1)k.key=DZM_KEY_TOK[l]||(t.length===1?t.toLowerCase():t);
+    else return null}
+  return k.key?k:null}
+/* Décision 2 : six rubriques ≠ les quatre `sec` de SVM_KEY_SECTIONS. Table id →
+   rubrique pour les ids connus (tous mesurés dans SVM_ACTIONS du bundle patché,
+   banc croisé [20]) ; repli par `sec` : Audio → Édition, Affichage → Affichage,
+   Lecture / Montage / inconnu → Timeline. « Projet » n'a aucune action à
+   raccourci : l'hôte (T2) y pose ses entrées sans combo. keys_panel (« ? »)
+   va dans Aide pour que T2 n'y double pas « Raccourcis ». */
+var DZM_MENU_ORDRE=["Projet","Édition","Timeline","Marqueurs","Affichage","Aide"];
+var DZM_MENU_RUB={undo:"Édition",redo:"Édition",delete:"Édition",ripple:"Édition",
+  range_in:"Édition",range_out:"Édition",range_clear:"Édition",range_cut:"Édition",
+  swap_left:"Édition",swap_right:"Édition",nudge_left:"Édition",nudge_right:"Édition",
+  gain_up:"Édition",gain_down:"Édition",fade_in_cycle:"Édition",fade_out_cycle:"Édition",mute:"Édition",solo:"Édition",
+  marker_toggle:"Marqueurs",marker_prev:"Marqueurs",marker_next:"Marqueurs",marker_index:"Marqueurs",
+  zoom_in:"Affichage",zoom_out:"Affichage",zoom100:"Affichage",toolbar:"Affichage",narration:"Affichage",
+  sounds_drawer:"Affichage",fullscreen:"Affichage",safezones:"Affichage",
+  keys_panel:"Aide"};
+function dzmMenuRub(a){
+  var s=a&&DZM_MENU_RUB[a.id];if(s)return s;
+  return a.sec==="Audio"?"Édition":a.sec==="Affichage"?"Affichage":"Timeline"}
+/* dzmMenuModel(actions, keyLabel) → [{rub, items:[{id,lbl,combo}]}] dans l'ordre
+   fixe, rubriques vides omises ; la combo affichée vient de keyLabel(id) (la
+   keymap VIVANTE — svmKeyLabel du bundle rend "" sans surcharge) sinon de la
+   table ; entrées non-objets ignorées ; l'entrée n'est pas mutée. */
+function dzmMenuModel(actions,keyLabel){
+  var par={},i,a,rub,cb;
+  if(!Array.isArray(actions))return [];
+  for(i=0;i<actions.length;i++){a=actions[i];if(!a||typeof a!=="object")continue;
+    rub=dzmMenuRub(a);cb=(typeof keyLabel==="function"&&keyLabel(a.id))||a.combo||"";
+    (par[rub]=par[rub]||[]).push({id:a.id,lbl:a.lbl==null?"":String(a.lbl),combo:String(cb)})}
+  return DZM_MENU_ORDRE.filter(function(n){return par[n]&&par[n].length})
+    .map(function(n){return {rub:n,items:par[n]}})}
+/* Décision 3 : UN composant sert ☰ (ancré sous le bouton : o.rubs) et les deux
+   menus contextuels (au pointeur : o.items à plat). Item {lbl, combo?, run,
+   off?, sep?}. AUCUN hook — l'hôte tient l'état {kind,x,y,id}. La fenêtre est
+   lue À L'APPEL (gardée par typeof : le shim du banc n'a qu'un objet vide → repli),
+   position bornée : left ≤ innerWidth−270 (largeur 260 + marge), top ≤
+   innerHeight−40·n. La racine arrête le clic comme le popover (EB5b) et le
+   bandeau E-11 : le voile du bundle ferme au clic dehors, Échap dans R_K7. */
+function DzmCtxMenu(o){
+  o=o||{};
+  var rubs=Array.isArray(o.rubs)?o.rubs:[{rub:"",items:Array.isArray(o.items)?o.items:[]}];
+  var n=rubs.reduce(function(s,g){return s+((g&&Array.isArray(g.items))?g.items.length:0)},0);
+  var W=(typeof window!=="undefined"&&window.innerWidth)||1e9,H=(typeof window!=="undefined"&&window.innerHeight)||1e9;
+  var px=Number(o.x)||0,py=Number(o.y)||0;
+  function row(it,k){
+    if(!it||typeof it!=="object")return null;
+    if(it.sep)return r.jsx("div",{className:"svm-menusep"},"s"+k);
+    return r.jsxs("button",{className:"svm-menuitem",role:"menuitem",disabled:!!it.off,title:it.lbl,
+      onClick:function(){it.run&&it.run();o.onClose&&o.onClose()},
+      children:[r.jsx("span",{children:it.lbl}),r.jsx("span",{className:"svm-menukey",children:it.combo||""})]},k)}
+  return r.jsx("div",{className:"svm-pop svm-menu",role:"menu",onClick:function(e){e.stopPropagation()},
+    style:{left:Math.max(0,Math.min(px,W-270)),top:Math.max(0,Math.min(py,H-40*n))},
+    children:rubs.map(function(g,gi){var its=(g&&Array.isArray(g.items))?g.items:[];
+      return r.jsxs("div",{className:"svm-menugrp",children:[
+        g&&g.rub?r.jsx("div",{className:"svm-menurub",children:g.rub}):null,its.map(row)]},gi)})})}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,
@@ -6652,5 +6729,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   tlH:dzmTlH,durLbl:dzmDurLbl,
   /* D-7 (lot E-B, tache 8) : la mini-carte -- geometrie pure et composant */
   minimap:dzmMinimap,Minimap:DzmMinimap,
+  /* E-6 (lot E-C, tache 1) : combo -> touche, modele de menu, composant de menu */
+  comboToKey:dzmComboToKey,menuModel:dzmMenuModel,CtxMenu:DzmCtxMenu,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;

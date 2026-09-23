@@ -717,6 +717,30 @@ out.mm_comp=typeof T.Minimap;
 /* MESURE 23/09 : `r` est ICI le resultat de la section [1] (`var r=T.insere(...)`, un objet sans jsx) :
    le composant le lit a l'appel et leve un TypeError sur r.jsx -- pas un ReferenceError comme le tiroir (x) */
 out.mm_comp_leve=[null,{},{clips:[],tracks:[],dur:0}].map(function(o){try{T.Minimap(o);return "rendu"}catch(e){return e instanceof TypeError&&String(e).indexOf("r.jsx")>=0?"r.jsx":"autre:"+e}});
+/* [20] E-6 (lot E-C, tache 1, 23/09/2026) : combo -> touche, modele de menu, DzmCtxMenu */
+out.combo=[T.comboToKey("Alt+C"),T.comboToKey("Ctrl+Maj+X"),T.comboToKey("Suppr"),T.comboToKey("Maj+M"),T.comboToKey(""),T.comboToKey("Ctrl+←")];
+/* bornes : null / nombre -> null ; Echap, Espace, Entree, Home, End, ? ; Cmd -> meta ; « Ctrl+ » sans touche finale -> null ; espaces toleres ; = tel quel */
+out.combo_bornes=[T.comboToKey(null),T.comboToKey(42),T.comboToKey("Échap"),T.comboToKey("Espace"),T.comboToKey("Entrée"),T.comboToKey("Home"),T.comboToKey("End"),
+  T.comboToKey("?"),T.comboToKey("Cmd+K"),T.comboToKey("Ctrl+"),T.comboToKey(" Maj + Z "),T.comboToKey("Ctrl+=")].map(function(k){return k===null?null:[k.key,k.ctrlKey,k.shiftKey,k.altKey,k.metaKey]});
+/* TOUTES les combos de la table SVM_ACTIONS du bundle PATCHE, extraites par regex GARDEE (jamais recopiees) : aucune ne rend null,
+   chaque resultat porte exactement les cinq cles d'un KeyboardEventInit */
+var _ecL=/*EC_COMBOS*/;
+out.combo_bundle=[_ecL.length,_ecL.filter(function(c){return T.comboToKey(c)===null}),
+  _ecL.filter(function(c){var k=T.comboToKey(c);return !k||Object.keys(k).sort().join()!=="altKey,ctrlKey,key,metaKey,shiftKey"}).length];
+out.menu=T.menuModel([{id:"blade",sec:"Montage",lbl:"lame",combo:"Alt+C"},{id:"undo",sec:"Montage",lbl:"annuler",combo:"Ctrl+Z"},{id:"marker_toggle",sec:"Montage",lbl:"marqueur",combo:"Maj+M"},
+  {id:"zoom_in",sec:"Affichage",lbl:"zoom",combo:"Ctrl+="},{id:"gain_up",sec:"Audio",lbl:"gain",combo:"Alt+↑"}],
+  function(id){return id==="blade"?"Alt+C*":null}).map(function(g){return [g.rub,g.items.map(function(i){return i.id+":"+(i.combo||"")})]});
+out.menu_vide=T.menuModel([],null).length;
+/* sec inconnue -> Timeline ; entrees non-objets ignorees ; keyLabel qui rend "" (svmKeyLabel du bundle) -> combo de la table ;
+   keys_panel -> Aide, fullscreen -> Affichage par la table ; sans lbl ni combo -> chaines vides */
+out.menu_inconnu=T.menuModel([{id:"zzz",sec:"Zzz",lbl:"z",combo:"Q"},null,"x",7,{id:"keys_panel",sec:"Affichage",lbl:"k",combo:"?"},{id:"mute",sec:"Audio",lbl:"m",combo:"M"},
+  {id:"fullscreen",sec:"Lecture",lbl:"f",combo:"F"},{id:"nolbl",sec:"Montage"}],function(){return ""}).map(function(g){return [g.rub,g.items.map(function(i){return i.id+":"+i.lbl+":"+i.combo})]});
+/* actions null / non-tableau -> [] ; sans keyLabel -> combo de la table ; le modele ne MUTE pas l'entree */
+var _ecA=[{id:"undo",sec:"Montage",lbl:"a",combo:"Ctrl+Z"}],_ecJ=JSON.stringify(_ecA);
+out.menu_bornes=[T.menuModel(null,null).length,T.menuModel("x").length,T.menuModel(_ecA).map(function(g){return g.rub+"/"+g.items[0].combo}),JSON.stringify(_ecA)===_ecJ];
+out.ctx_pure=typeof T.CtxMenu;
+/* MESURE : `r` est ici l'objet de la section [1] -> le composant leve sur r.jsx a l'appel, props null / vides / items / rubs */
+out.ctx_leve=[null,{},{items:[{lbl:"a",run:function(){}},{sep:!0},{lbl:"b",off:!0}]},{rubs:[{rub:"Projet",items:[{lbl:"b"}]}],x:5,y:5}].map(function(o){try{T.CtxMenu(o);return "rendu"}catch(e){return (e instanceof TypeError||e instanceof ReferenceError)&&String(e).indexOf("r.jsx")>=0?"r.jsx":"autre:"+e}});
 console.log(JSON.stringify(out));
 """
 # E-9 : svmRuler / svmPad2 sont des fonctions DU BUNDLE (meme portee module que
@@ -729,6 +753,18 @@ if os.path.isfile(_E9_BAK):
     _mp = re.search(r"function svmPad2\([^)]*\)\{[^}]*\}", _bk); _mr = re.search(r"function svmRuler\([^)]*\)\{[^}]*\}", _bk)
     if _mp and _mr: _E9_RULER = _mp.group(0) + "\n" + _mr.group(0)
 PROBE = PROBE.replace("/*E9_RULER*/", _E9_RULER)
+# E-6 (lot E-C, tache 1) : les combos de SVM_ACTIONS sont lues dans le bundle PATCHE
+# (R_R1 y ajoute 11 actions absentes du .bak : 34 -> 45 combos mesurees le 23/09/2026),
+# entre `var SVM_ACTIONS=[` et son `];` -- jamais recopiees. Regex gardee par le temoin de compte.
+_EC_BUNDLE = os.path.join(ROOT, "frontend", "dist", "assets", "index-BEOJX8L5.js")
+_EC_COMBOS, _EC_IDS = [], []
+if os.path.isfile(_EC_BUNDLE):
+    with open(_EC_BUNDLE, "rb") as _fh: _bd = _fh.read().decode("utf-8", "replace")
+    _i0 = _bd.find("var SVM_ACTIONS=["); _i1 = _bd.find("];", _i0) if _i0 >= 0 else -1
+    if 0 <= _i0 < _i1:
+        _EC_COMBOS = re.findall(r'combo:"([^"]*)"', _bd[_i0:_i1])
+        _EC_IDS = re.findall(r'\{id:"([a-z0-9_]+)",sec:"', _bd[_i0:_i1])
+PROBE = PROBE.replace("/*EC_COMBOS*/", json.dumps(_EC_COMBOS, ensure_ascii=False))
 print("\n[1] dzmInsere sous node")
 D = {}
 if not NODE or not os.path.isfile(SRC_PATH):
@@ -934,7 +970,10 @@ try:
                  # E-9 (lot E-B, tache 7) : les QUATRE cles de la hauteur de la timeline et du label de duree.
                  "tlh","tlh_bornes","durlbl","durlbl_bornes",
                  # D-7 (lot E-B, tache 8) : les CINQ cles de la mini-carte.
-                 "mm","mm_vide","mm_bornes","mm_comp","mm_comp_leve"]
+                 "mm","mm_vide","mm_bornes","mm_comp","mm_comp_leve",
+                 # E-6 (lot E-C, tache 1) : les NEUF cles de la section [20].
+                 "combo","combo_bornes","combo_bundle","menu","menu_vide","menu_inconnu",
+                 "menu_bornes","ctx_pure","ctx_leve"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -1825,6 +1864,94 @@ check("mm_coeur_pur_par_kindOf_et_tr_le_composant_appelle_minimap_et_porte_les_q
       {n: len(c) for n, c in _MM.items()})
 check("mm_exports_minimap_Minimap_dans_DzTracks",
       len(_DT) > 1000 and _DT.count("minimap:dzmMinimap,Minimap:DzmMinimap,") == 1, len(_DT))
+print("\n[20] E-6 combo -> touche, modele de menu, DzmCtxMenu (lot E-C, tache 1)")
+# ── E-6 (lot E-C, tache 1, 23/09/2026) : LE MENU ─────────────────────────
+# Decision 1 du plan : pas de dispatch(id) -- l'hote REJOUE la combo d'une
+# action par un KeyboardEvent synthetique ; dzmComboToKey traduit la combo de
+# SVM_ACTIONS en KeyboardEventInit {key,ctrlKey,shiftKey,altKey,metaKey} :
+# lettre -> minuscule, Maj -> shiftKey, Suppr -> "Delete", fleche -> "Arrow*",
+# vide -> null (une entree sans raccourci ne rejoue rien).
+_F, _T = False, True
+check("combo_six_cas_lettre_minuscule_maj_shift_suppr_delete_vide_null_fleche_arrow",
+      D.get("combo") == [{"key": "c", "ctrlKey": _F, "shiftKey": _F, "altKey": _T, "metaKey": _F},
+                         {"key": "x", "ctrlKey": _T, "shiftKey": _T, "altKey": _F, "metaKey": _F},
+                         {"key": "Delete", "ctrlKey": _F, "shiftKey": _F, "altKey": _F, "metaKey": _F},
+                         {"key": "m", "ctrlKey": _F, "shiftKey": _T, "altKey": _F, "metaKey": _F},
+                         None,
+                         {"key": "ArrowLeft", "ctrlKey": _T, "shiftKey": _F, "altKey": _F, "metaKey": _F}],
+      D.get("combo"))
+# null / nombre -> null ; Echap / Espace / Entree / Home / End / ? ; Cmd -> meta ; « Ctrl+ » sans touche -> null ; espaces ; =
+check("combo_bornes_null_nombre_echap_espace_entree_home_end_point_d_interrogation_cmd_meta_modificateur_seul_null_espaces_egal",
+      D.get("combo_bornes") == [None, None, ["Escape", _F, _F, _F, _F], [" ", _F, _F, _F, _F], ["Enter", _F, _F, _F, _F],
+                                ["Home", _F, _F, _F, _F], ["End", _F, _F, _F, _F], ["?", _F, _F, _F, _F],
+                                ["k", _F, _F, _F, _T], None, ["z", _F, _T, _F, _F], ["=", _T, _F, _F, _F]],
+      D.get("combo_bornes"))
+# TOUTES les combos reelles du bundle patche sont parsables : liste extraite (temoin >= 20, placeholder consomme,
+# 47 mesurees le 23/09), aucune ne rend null, chaque resultat porte les cinq cles
+_cb = D.get("combo_bundle")
+check("combo_toutes_les_combos_du_bundle_patche_sont_parsables_temoin_au_moins_20_extraites_par_regex_gardee",
+      len(_EC_COMBOS) >= 20 and all(c for c in _EC_COMBOS) and "/*EC_COMBOS*/" not in PROBE
+      and json.dumps(_EC_COMBOS, ensure_ascii=False) in PROBE
+      and isinstance(_cb, list) and len(_cb) == 3 and _cb[0] == len(_EC_COMBOS) and _cb[1] == [] and _cb[2] == 0,
+      (len(_EC_COMBOS), _cb))
+# Decision 2 : six rubriques (Projet, Edition, Timeline, Marqueurs, Affichage, Aide) != les quatre `sec` :
+# table DZM_MENU_RUB pour les ids connus, repli sur sec (Audio -> Edition, Affichage -> Affichage, sinon Timeline),
+# ordre fixe, vides omises ; le libelle de combo vient de keyLabel(id) quand il rend non vide, sinon de la table
+check("menu_cinq_actions_quatre_rubriques_dans_l_ordre_fixe_vides_omises_keyLabel_prioritaire",
+      D.get("menu") == [["Édition", ["undo:Ctrl+Z", "gain_up:Alt+↑"]], ["Timeline", ["blade:Alt+C*"]],
+                        ["Marqueurs", ["marker_toggle:Maj+M"]], ["Affichage", ["zoom_in:Ctrl+="]]],
+      D.get("menu"))
+check("menu_vide_rend_zero_rubrique", "menu_vide" in D and D["menu_vide"] == 0, D.get("menu_vide"))
+check("menu_sec_inconnue_timeline_non_objets_ignores_keyLabel_vide_repli_table_keys_panel_aide_fullscreen_affichage",
+      D.get("menu_inconnu") == [["Édition", ["mute:m:M"]], ["Timeline", ["zzz:z:Q", "nolbl::"]],
+                                ["Affichage", ["fullscreen:f:F"]], ["Aide", ["keys_panel:k:?"]]],
+      D.get("menu_inconnu"))
+check("menu_bornes_null_et_non_tableau_rendent_vide_sans_keyLabel_la_table_entree_non_mutee",
+      D.get("menu_bornes") == [0, 0, ["Édition/Ctrl+Z"], True], D.get("menu_bornes"))
+# Decision 3 : UN composant DzmCtxMenu sert le menu principal et les deux menus contextuels ;
+# il lit r a l'appel (TypeError r.jsx dans ce shim, comme la mini-carte) sur props null / vides / items / rubs
+check("ctx_composant_est_une_fonction_qui_touche_r_a_l_appel_props_null_vides_items_ou_rubs",
+      D.get("ctx_pure") == "function" and D.get("ctx_leve") == ["r.jsx", "r.jsx", "r.jsx", "r.jsx"],
+      (D.get("ctx_pure"), D.get("ctx_leve")))
+# LE COEUR RESTE PUR : ni r.jsx, ni x.use, ni window/document/localStorage dans les trois corps purs (temoin de longueur) ;
+# comboToKey ne lit la table des jetons qu'une fois et connait Delete/Escape/Arrow* ; menuModel lit DZM_MENU_ORDRE et
+# dzmMenuRub (une seule ecriture du repli) ; la table porte les quatre marqueurs, keys_panel -> Aide, undo -> Edition
+_EC = {n: _corps(n) for n in ("dzmComboToKey", "dzmMenuRub", "dzmMenuModel")}
+_iRub = _SRCb.find("var DZM_MENU_RUB={"); _iRubF = _SRCb.find("};", _iRub) if _iRub >= 0 else -1
+_RUB = _SRCb[_iRub:_iRubF] if 0 <= _iRub < _iRubF else ""
+_RUB_IDS = re.findall(r"(\w+):\"", _RUB)
+check("ec_coeur_pur_les_trois_fonctions_ne_touchent_ni_r_ni_x_ni_window_et_la_table_est_ecrite_une_fois",
+      all(len(c) > 80 and not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b", c) for c in _EC.values())
+      and _EC["dzmComboToKey"].count("DZM_KEY_TOK[") == 1 and all('"' + k + '"' in _SRCb[_SRCb.find("var DZM_KEY_TOK="):_iRub]
+          for k in ("Delete", "Escape", "Enter", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"))
+      and _EC["dzmMenuModel"].count("dzmMenuRub(") == 1 and _EC["dzmMenuModel"].count("DZM_MENU_ORDRE") == 1
+      and _EC["dzmMenuRub"].count("DZM_MENU_RUB[") == 1 and _EC["dzmMenuRub"].count('"Timeline"') == 1
+      and _SRCb.count('var DZM_MENU_ORDRE=["Projet","Édition","Timeline","Marqueurs","Affichage","Aide"];') == 1
+      and len(_RUB_IDS) >= 20 and all(_RUB.count(k + ':"Marqueurs"') == 1 for k in ("marker_toggle", "marker_prev", "marker_next", "marker_index"))
+      and _RUB.count('keys_panel:"Aide"') == 1 and _RUB.count('undo:"Édition"') == 1 and _RUB.count('zoom_in:"Affichage"') == 1
+      and _RUB.count('"Projet"') == 0,
+      ({n: len(c) for n, c in _EC.items()}, len(_RUB_IDS)))
+# banc croise : chaque id de DZM_MENU_RUB EXISTE dans la table SVM_ACTIONS du bundle patche (temoin >= 20 ids lus)
+check("ec_chaque_id_de_la_table_des_rubriques_existe_dans_SVM_ACTIONS_du_bundle_patche",
+      len(_EC_IDS) >= 20 and len(_RUB_IDS) >= 20 and all(i in _EC_IDS for i in _RUB_IDS),
+      (len(_EC_IDS), [i for i in _RUB_IDS if i not in _EC_IDS]))
+# le composant : div.svm-pop.svm-menu role menu, racine stopPropagation (UN seul), en-tete svm-menurub, separateur
+# svm-menusep, button.svm-menuitem role menuitem disabled:!!it.off title:it.lbl, span svm-menukey, clic -> run puis onClose,
+# position bornee a la fenetre LUE A L'APPEL (typeof window, repli) : aucun hook, aucun useState
+_CTX = _corps("DzmCtxMenu")
+check("ctx_porte_svm_pop_svm_menu_role_menu_stop_unique_rub_sep_item_disabled_title_key_run_puis_onClose_fenetre_a_l_appel_sans_hook",
+      len(_CTX) > 500 and "r.jsx" in _CTX and "x.use" not in _CTX
+      and _CTX.count('className:"svm-pop svm-menu",role:"menu",onClick:function(e){e.stopPropagation()}') == 1
+      and _CTX.count("stopPropagation") == 1
+      and all(_CTX.count('className:"' + k + '"') == 1 for k in ("svm-menurub", "svm-menusep", "svm-menuitem", "svm-menukey"))
+      and _CTX.count('role:"menuitem",disabled:!!it.off,title:it.lbl') == 1
+      and _CTX.count("onClick:function(){it.run&&it.run();o.onClose&&o.onClose()}") == 1
+      and _CTX.count("typeof window") == 2 and _CTX.count("innerWidth") == 1 and _CTX.count("innerHeight") == 1
+      and _CTX.count("-270") == 1 and _CTX.count("40*n") == 1 and "Math.max(0,Math.min(" in _CTX
+      and "o.rubs" in _CTX and "o.items" in _CTX,
+      f"corps={len(_CTX)} o stop={_CTX.count('stopPropagation')}")
+check("ec_exports_comboToKey_menuModel_CtxMenu_dans_DzTracks",
+      len(_DT) > 1000 and _DT.count("comboToKey:dzmComboToKey,menuModel:dzmMenuModel,CtxMenu:DzmCtxMenu,") == 1, len(_DT))
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)
