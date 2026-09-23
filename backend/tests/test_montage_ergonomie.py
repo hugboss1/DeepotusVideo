@@ -74,10 +74,17 @@ Z2_FIN = "window.DzTracks=DzTracks;"
 
 CLASSES = re.compile(r"svm-tbtn|dzm-tbb|svm-secbtn|svm-goldbtn|svm-minibtn|svm-viewbtn|svm-menuitem|svm-menubtn")
 OUTIL = re.compile(r"svm-tbtn|svm-secbtn|svm-goldbtn")
-RX_BTN = re.compile(r'r\.jsx\("button",\{className:"([^"]*)"')
+# REVUE (23/09/2026) : `r.jsx` ET `r.jsxs` (le seul svm-menuitem est un jsxs,
+# couche :6737) ; `type:"button",` peut PRECEDER className (dzm-tbtab,
+# dzm-tbgrip, dzm-tbwb x2 : quatre boutons de la barre d'outils, hors classes
+# auditees mais vus par le scanner desormais).
+_PROPS = r'\{(?:[^}\n]{0,60}?,)?className:"([^"]*)"'
+RX_BTN = re.compile(r'r\.jsxs?\("button",' + _PROPS)
 # un bouton conditionnel : `?r.jsx("button"`, `&&r.jsx("button"` (espaces et
 # sauts de ligne admis) ou `?null:r.jsx("button"`
-RX_COND = re.compile(r'(\?null:|\?|&&)\s*r\.jsx\("button",\{className:"([^"]*)"')
+RX_COND = re.compile(r'(\?null:|\?|&&)\s*r\.jsxs?\("button",' + _PROPS)
+# ECART DATE (23/09/2026) : le « Oui » de la narration et de la generation SFX
+# (`svm-nbgold`, .bak x3) est HORS classes auditees — sans title, non corrige.
 
 
 def zones(t, avec_couche):
@@ -143,8 +150,11 @@ n_l, manq_l = scan_titres(lay, [(0, len(lay))])
 n_k, manq_k = scan_titres(bak, ZB)
 check("R1_bundle_tout_bouton_audite_porte_title_temoin_40_boutons",
       manq_b == [] and n_b >= 40, f"scannes={n_b} manquants={manq_b}")
-check("R1_couche_tout_bouton_audite_porte_title_temoin_20_boutons",
-      manq_l == [] and n_l >= 20, f"scannes={n_l} manquants={manq_l}")
+check("R1_couche_tout_bouton_audite_porte_title_temoin_20_boutons_et_le_menuitem_jsxs",
+      manq_l == [] and n_l >= 21 and lay.count('r.jsxs("button",{className:"svm-menuitem"') == 1
+      and RX_BTN.search('r.jsxs("button",{className:"svm-menuitem",') is not None
+      and RX_BTN.search('r.jsx("button",{type:"button",className:"dzm-tbtab",') is not None,
+      f"scannes={n_l} manquants={manq_l}")
 # ETAT VIDE : le scanner VOIT — l'entree du patcher a des boutons sans titre
 # (Fermer x4, Reessayer, le bouton or busy, retirer, oui/non x2, Non : 13 le
 # 23/09/2026) que ce lot a titres. Un scanner aveugle donnerait 0 ici aussi.
