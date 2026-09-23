@@ -6558,10 +6558,12 @@ function DzmMinimap(o){
    raccourci REJOUE sa combo par window.dispatchEvent(new KeyboardEvent("keydown",
    dzmComboToKey(combo))) ; onKey reste l'unique dispatch. Jetons MESURÉS dans la
    table SVM_ACTIONS du bundle patché (45 combos) : Ctrl, Maj, Alt, Suppr, Espace,
-   Home, End, ?, =, -, lettres, ← → ↑ ↓ ; Échap / Entrée / Cmd acceptés par avance.
+   Home, End, ?, =, -, lettres, ← → ↑ ↓ ; Échap / Entrée acceptés par avance (revue
+   23/09 : pas de jeton Cmd — svmComboCanon sérialise metaKey en « Ctrl+ » ; les
+   graphies sans accent sont mortes, la keymap est canonisée par svmComboCanon).
    Clé finale : lettre → minuscule (KeyboardEvent.key sans Maj), jeton nommé par
    la table, autre jeton tel quel. Vide, non-chaîne, modificateur seul → null. */
-var DZM_KEY_TOK={"suppr":"Delete","échap":"Escape","echap":"Escape","espace":" ","entrée":"Enter","entree":"Enter",
+var DZM_KEY_TOK={"suppr":"Delete","échap":"Escape","espace":" ","entrée":"Enter",
   "←":"ArrowLeft","→":"ArrowRight","↑":"ArrowUp","↓":"ArrowDown","home":"Home","end":"End","tab":"Tab"};
 function dzmComboToKey(combo){
   if(typeof combo!=="string")return null;
@@ -6572,7 +6574,6 @@ function dzmComboToKey(combo){
     if(l==="ctrl")k.ctrlKey=!0;
     else if(l==="maj"||l==="shift")k.shiftKey=!0;
     else if(l==="alt")k.altKey=!0;
-    else if(l==="cmd"||l==="meta")k.metaKey=!0;
     else if(i===parts.length-1)k.key=DZM_KEY_TOK[l]||(t.length===1?t.toLowerCase():t);
     else return null}
   return k.key?k:null}
@@ -6618,7 +6619,11 @@ function dzmMenuModel(actions,keyLabel){
    `.svm-menugrp` enveloppe chaque rubrique (en-tête + rangées) : T2 le style
    dans montage.css avec svm-menurub / svm-menusep / svm-menuitem / svm-menukey.
    La racine arrête le clic comme le popover (EB5b) et le bandeau E-11 : le
-   voile du bundle ferme au clic dehors, Échap dans R_K7. */
+   voile du bundle ferme au clic dehors, Échap dans R_K7. Le clic ferme TOUJOURS
+   (finally) : un run qui lève ne laisse pas le menu bloqué sous le voile.
+   Écarts datés 23/09 : un menu plus haut que la fenêtre déborde (CSS T2 :
+   max-height + overflow) ; pas de navigation clavier dans le menu (souris,
+   Échap) ; « Projet » reste vide tant que T2 n'y pose pas ses entrées. */
 function DzmCtxMenu(o){
   o=o||{};
   var rubs=Array.isArray(o.rubs)?o.rubs:[{rub:"",items:Array.isArray(o.items)?o.items:[]}];
@@ -6629,7 +6634,7 @@ function DzmCtxMenu(o){
     if(!it||typeof it!=="object")return null;
     if(it.sep)return r.jsx("div",{className:"svm-menusep"},"s"+k);
     return r.jsxs("button",{className:"svm-menuitem",role:"menuitem",disabled:!!it.off,title:it.lbl,
-      onClick:function(){it.run&&it.run();o.onClose&&o.onClose()},
+      onClick:function(){try{it.run&&it.run()}finally{o.onClose&&o.onClose()}},
       children:[r.jsx("span",{children:it.lbl}),r.jsx("span",{className:"svm-menukey",children:it.combo||""})]},k)}
   return r.jsx("div",{className:"svm-pop svm-menu",role:"menu",onClick:function(e){e.stopPropagation()},
     style:{left:Math.max(0,Math.min(px,W-270)),top:Math.max(0,Math.min(py,H-40*n))},

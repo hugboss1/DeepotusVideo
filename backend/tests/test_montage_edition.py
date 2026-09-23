@@ -719,7 +719,8 @@ out.mm_comp=typeof T.Minimap;
 out.mm_comp_leve=[null,{},{clips:[],tracks:[],dur:0}].map(function(o){try{T.Minimap(o);return "rendu"}catch(e){return e instanceof TypeError&&String(e).indexOf("r.jsx")>=0?"r.jsx":"autre:"+e}});
 /* [20] E-6 (lot E-C, tache 1, 23/09/2026) : combo -> touche, modele de menu, DzmCtxMenu */
 out.combo=[T.comboToKey("Alt+C"),T.comboToKey("Ctrl+Maj+X"),T.comboToKey("Suppr"),T.comboToKey("Maj+M"),T.comboToKey(""),T.comboToKey("Ctrl+←")];
-/* bornes : null / nombre -> null ; Echap, Espace, Entree, Home, End, ? ; Cmd -> meta ; « Ctrl+ » sans touche finale -> null ; espaces toleres ; = tel quel */
+/* bornes : null / nombre -> null ; Echap, Espace, Entree, Home, End, ? ; Cmd inconnu -> null (revue 23/09 : svmComboCanon ne le
+   serialise jamais) ; « Ctrl+ » sans touche finale -> null ; espaces toleres ; = tel quel */
 out.combo_bornes=[T.comboToKey(null),T.comboToKey(42),T.comboToKey("Échap"),T.comboToKey("Espace"),T.comboToKey("Entrée"),T.comboToKey("Home"),T.comboToKey("End"),
   T.comboToKey("?"),T.comboToKey("Cmd+K"),T.comboToKey("Ctrl+"),T.comboToKey(" Maj + Z "),T.comboToKey("Ctrl+=")].map(function(k){return k===null?null:[k.key,k.ctrlKey,k.shiftKey,k.altKey,k.metaKey]});
 /* TOUTES les combos de la table SVM_ACTIONS du bundle PATCHE, extraites par regex GARDEE (jamais recopiees) : aucune ne rend null,
@@ -741,6 +742,13 @@ out.menu_inconnu=T.menuModel([{id:"zzz",sec:"Zzz",lbl:"z",combo:"Q"},null,"x",7,
 var _ecA=[{id:"undo",sec:"Montage",lbl:"a",combo:"Ctrl+Z"}],_ecJ=JSON.stringify(_ecA);
 out.menu_bornes=[T.menuModel(null,null).length,T.menuModel("x").length,T.menuModel(_ecA).map(function(g){return g.rub+"/"+g.items[0].combo}),JSON.stringify(_ecA)===_ecJ];
 out.ctx_pure=typeof T.CtxMenu;
+/* revue 23/09 : le clic ferme TOUJOURS -- `r` (objet de la section [1]) est remplace le temps de l'appel par un jsx factice qui
+   rend {t,p} ; le bouton dont run leve appelle quand meme onClose (et releve), le bouton sain appelle run puis onClose */
+out.ctx_onclose=(function(){var r0=r,log=[];try{r={jsx:function(t,p){return {t:t,p:p}},jsxs:function(t,p){return {t:t,p:p}}};
+  var m=T.CtxMenu({items:[{lbl:"boom",run:function(){throw new Error("boom")}},{lbl:"ok",run:function(){log.push("run")}}],onClose:function(){log.push("close")}});
+  var btns=m.p.children[0].p.children[1].filter(function(b){return b&&b.t==="button"});
+  try{btns[0].p.onClick()}catch(e){log.push("leve:"+e.message)}
+  btns[1].p.onClick();return [btns.length,m.t,m.p.className,log]}catch(e){return "autre:"+e}finally{r=r0}})();
 /* MESURE : `r` est ici l'objet de la section [1] -> le composant leve sur r.jsx a l'appel, props null / vides / items / rubs */
 out.ctx_leve=[null,{},{items:[{lbl:"a",run:function(){}},{sep:!0},{lbl:"b",off:!0}]},{rubs:[{rub:"Projet",items:[{lbl:"b"}]}],x:5,y:5}].map(function(o){try{T.CtxMenu(o);return "rendu"}catch(e){return (e instanceof TypeError||e instanceof ReferenceError)&&String(e).indexOf("r.jsx")>=0?"r.jsx":"autre:"+e}});
 console.log(JSON.stringify(out));
@@ -973,9 +981,9 @@ try:
                  "tlh","tlh_bornes","durlbl","durlbl_bornes",
                  # D-7 (lot E-B, tache 8) : les CINQ cles de la mini-carte.
                  "mm","mm_vide","mm_bornes","mm_comp","mm_comp_leve",
-                 # E-6 (lot E-C, tache 1) : les NEUF cles de la section [20].
+                 # E-6 (lot E-C, tache 1) : les DIX cles de la section [20].
                  "combo","combo_bornes","combo_bundle","menu","menu_vide","menu_inconnu",
-                 "menu_bornes","ctx_pure","ctx_leve"]
+                 "menu_bornes","ctx_pure","ctx_leve","ctx_onclose"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -1883,10 +1891,10 @@ check("combo_six_cas_lettre_minuscule_maj_shift_suppr_delete_vide_null_fleche_ar
                          {"key": "ArrowLeft", "ctrlKey": _T, "shiftKey": _F, "altKey": _F, "metaKey": _F}],
       D.get("combo"))
 # null / nombre -> null ; Echap / Espace / Entree / Home / End / ? ; Cmd -> meta ; « Ctrl+ » sans touche -> null ; espaces ; =
-check("combo_bornes_null_nombre_echap_espace_entree_home_end_point_d_interrogation_cmd_meta_modificateur_seul_null_espaces_egal",
+check("combo_bornes_null_nombre_echap_espace_entree_home_end_point_d_interrogation_cmd_inconnu_null_modificateur_seul_null_espaces_egal",
       D.get("combo_bornes") == [None, None, ["Escape", _F, _F, _F, _F], [" ", _F, _F, _F, _F], ["Enter", _F, _F, _F, _F],
                                 ["Home", _F, _F, _F, _F], ["End", _F, _F, _F, _F], ["?", _F, _F, _F, _F],
-                                ["k", _F, _F, _F, _T], None, ["z", _F, _T, _F, _F], ["=", _T, _F, _F, _F]],
+                                None, None, ["z", _F, _T, _F, _F], ["=", _T, _F, _F, _F]],
       D.get("combo_bornes"))
 # TOUTES les combos reelles du bundle patche sont parsables : liste extraite (temoin >= 20, placeholder consomme,
 # 47 mesurees le 23/09), aucune ne rend null, chaque resultat porte les cinq cles
@@ -1916,6 +1924,9 @@ check("menu_bornes_null_et_non_tableau_rendent_vide_sans_keyLabel_la_table_entre
 check("ctx_composant_est_une_fonction_qui_touche_r_a_l_appel_props_null_vides_items_ou_rubs",
       D.get("ctx_pure") == "function" and D.get("ctx_leve") == ["r.jsx", "r.jsx", "r.jsx", "r.jsx"],
       (D.get("ctx_pure"), D.get("ctx_leve")))
+# revue 23/09 : run qui leve -> onClose appele quand meme (finally) puis l'erreur remonte ; run sain -> run puis onClose
+check("ctx_le_clic_appelle_onClose_meme_quand_run_leve_puis_relance_l_erreur",
+      D.get("ctx_onclose") == [2, "div", "svm-pop svm-menu", ["close", "leve:boom", "run", "close"]], D.get("ctx_onclose"))
 # LE COEUR RESTE PUR : ni r.jsx, ni x.use, ni window/document/localStorage dans les trois corps purs (temoin de longueur) ;
 # comboToKey ne lit la table des jetons qu'une fois et connait Delete/Escape/Arrow* ; menuModel lit DZM_MENU_ORDRE et
 # dzmMenuRub (une seule ecriture du repli) ; la table porte les quatre marqueurs, keys_panel -> Aide, undo -> Edition
@@ -1948,7 +1959,7 @@ check("ctx_porte_svm_pop_svm_menu_role_menu_stop_unique_rub_sep_item_disabled_ti
       and _CTX.count("stopPropagation") == 1
       and all(_CTX.count('className:"' + k + '"') == 1 for k in ("svm-menurub", "svm-menusep", "svm-menuitem", "svm-menukey"))
       and _CTX.count('role:"menuitem",disabled:!!it.off,title:it.lbl') == 1
-      and _CTX.count("onClick:function(){it.run&&it.run();o.onClose&&o.onClose()}") == 1
+      and _CTX.count("onClick:function(){try{it.run&&it.run()}finally{o.onClose&&o.onClose()}}") == 1
       and _CTX.count("typeof window") == 2 and _CTX.count("innerWidth") == 1 and _CTX.count("innerHeight") == 1
       and _CTX.count("-270") == 1 and _CTX.count("40*n") == 1 and "Math.max(0,Math.min(" in _CTX
       and "o.rubs" in _CTX and "o.items" in _CTX,
