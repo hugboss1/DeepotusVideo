@@ -31,7 +31,23 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 23/09/2026 (lot E-B, tache 7, E-9 separateur et durees) :
+COMPTE DE REFERENCE, 23/09/2026 (lot E-B, tache 8, D-7 mini-carte) :
+1892 lignes, soit TREIZE de plus que les 1879 d'E-9 : les QUATRE lignes que
+la boucle sur `P.PATCHES` emet pour les sections EB8a et EB8b (`_remplace` et
+`couche_ne_cite_pas_l_ancre_de_` x2 chacune -- pas de `_ancre_consommee` :
+les deux ancres sont CONSERVEES) et la section [EB] D-7 en queue (NEUF pins :
+la mini-carte posee dans .svm-tl apres .svm-trans et avant .svm-scroll, hors
+.svm-lanes donc hors zoom ; onSeek qui centre scrollLeft avec la gouttiere 88
+deduite x2 ; mmView/mmCalc apres le useLayoutEffect [zoomPct] conserve,
+ecouteur scroll pose ET retire, recalcul au zoom ; quatre noms libres
+(mmView, setMmView, stMm, mmCalc) ; la feuille (30 px, jetons amont
+--c-video/--c-audio/--accent -- le plan ecrivait --c-v/--c-a/--acc, inexistants ;
+fenetre pointer-events:none ; plancher 356 -> 386) ; la couche exporte
+minimap/Minimap, une seule geometrie). REALIGNES : la queue pinnee (…EB7b puis
+EB8a, EB8b ; sonde 123 = 122 + Minimap x1), _EB9_HIST (386), D9_AJ6
+(data-kind connu de la feuille par .svm-mmrect, jamais par .svm-clip).
+
+COMPTE PRECEDENT, 23/09/2026 (lot E-B, tache 7, E-9 separateur et durees) :
 1879 lignes, soit DIX-NEUF de plus que les 1860 d'E-8 : les TROIS lignes que
 la boucle sur `P.PATCHES` emet seule pour la section EB7b (`_remplace`,
 `couche_ne_cite_pas_l_ancre_de_`, `_ancre_consommee`) et la section [EB]
@@ -47,13 +63,6 @@ libres, la feuille ([data-h] leve le plafond, la regle historique
 max-height:48vh CONSERVEE, poignee row-resize), la couche sans second
 formateur). REALIGNES : la queue pinnee (…EB6b puis EB7b ; sonde 122 = 119
 + tlH x2 + durLbl x1), D3_ecart (row-resize exclu nommement avec temoin).
-D-7 (lot E-B, tache 8, 23/09/2026) : mini-carte de la timeline (EB8a avant
-.svm-scroll, hors zoom ; EB8b mmView/mmCalc apres le useLayoutEffect [zoomPct],
-ecouteur scroll pose ET retire ; onSeek centre avec la gouttiere 88 deduite ;
-quatre noms libres ; la feuille (30 px, jetons amont --c-video/--c-audio,
-fenetre pointer-events:none, plancher 356 -> 386) ; la couche exporte
-minimap/Minimap, une seule geometrie). REALIGNES : la queue pinnee (…EB7b puis
-EB8a, EB8b ; sonde 123 = 122 + Minimap x1), _EB9_HIST (386).
 
 COMPTE PRECEDENT, 23/09/2026 (lot E-B, tache 6, E-8 inspecteur) :
 1860 lignes, soit VINGT de plus que les 1840 d'E-11 : les CINQ lignes que
