@@ -70,9 +70,17 @@ la commande finale, `loud_measured` transmis ; {range:[2,5]} → range_out ==
 (2.0, 5.0) ; {range:[5,2]} / [4,6] (a ≥ total) → 400 « plage invalide » ;
 {loudness:-19} → 400 « loudness invalide » ; apercu + loudness → passe 1 NON
 appelee ; le titre du job final porte le libelle du preset (pas master).
-Section [5] D-36 : tache 3 du plan L4.
+[5] D-36 FILE LOCALE EN SERIE. `queue:true` → le job nait `queued`/0/
+« En file » (statut EXISTANT de `JobStatus`, aucun schema touche), la reponse
+porte {queued:true, position:n} (n = rang dans la file EN COMPTANT le job
+en cours : 1 = prochain/en cours — ECART DATE 23/09/2026 : `q.qsize()` du
+plan exclut l'element deja pris par le worker et rendrait 1 au deuxieme
+POST), un worker asyncio unique execute `_run` en serie (start[k+1] >=
+end[k]) ; sans `queue` → immediat, chevauchement autorise (temoin) ; un
+job en file qui leve → failed, la file continue ; `queue` + `preview` →
+400 ; `GET /api/jobs?providers=montage` liste les `queued`.
 """
-import json, os, sys, tempfile, subprocess, pathlib, shutil
+import json, os, sys, tempfile, subprocess, pathlib, shutil, time
 sys.stdout.reconfigure(encoding="utf-8")
 TMP = tempfile.mkdtemp(prefix="dzl4_")
 os.environ["DEEPOTUS_DATA_DIR"] = TMP
@@ -973,6 +981,161 @@ _tl = TL("rendu", src=_REAL); _tl["range"] = None
 _rr = _rendu(_tl)
 check("d38_render_range_null_est_l_historique",
       _rr.status_code == 200 and _cap.get("range_out") is None, (_rr.status_code, _cap.get("range_out")))
+
+print("\n[6] (suite) espion /render : queue:true → reponse {queued, position}, sans → non")
+def _rendu_q(payload, attente=3.0):
+    """POST /render avec `_run_ffmpeg` REMPLACE pour toute la vie du job (un
+    job en file s'execute APRES la reponse : `_rendu` qui restaure dans son
+    `finally` laisserait le vrai ffmpeg tourner). Attend la fin du job."""
+    _cap.clear()
+    MS._build_montage_command, MS._run_ffmpeg = _espion, (lambda cmd, out: None)
+    try:
+        r = c.post("/api/montage/render", json=payload)
+        _cap["queued"] = J(r).get("queued"); _cap["position"] = J(r).get("position")
+        jid = J(r).get("job_id"); _cap["st0"] = None
+        if jid:
+            _cap["st0"] = J(c.get("/api/jobs/%s" % jid)).get("status")
+            t0 = time.time()
+            while time.time() - t0 < attente:
+                st = J(c.get("/api/jobs/%s" % jid)).get("status")
+                if st in ("done", "failed"):
+                    break
+                time.sleep(0.05)
+        return r
+    finally:
+        MS._build_montage_command, MS._run_ffmpeg = _vrai_build, _vrai_run
+
+
+_tl = TL("rendu", src=_REAL); _tl["queue"] = True
+_rr = _rendu_q(_tl)
+_jq = J(c.get("/api/jobs/%s" % J(_rr).get("job_id")))
+check("d36_espion_queue_true_la_reponse_porte_queued_et_position_et_le_job_aboutit",
+      _rr.status_code == 200 and "queued" in _cap and _cap.get("queued") is True
+      and isinstance(_cap.get("position"), int) and _cap.get("position") >= 1
+      and _cap.get("cmd") is not None and _jq.get("status") == "done",
+      (_rr.status_code, J(_rr).get("detail"), _cap.get("queued"), _cap.get("position"), _jq.get("status"), _jq.get("error")))
+_tl = TL("rendu", src=_REAL)
+_rr = _rendu_q(_tl)
+check("d36_espion_sans_queue_la_reponse_ne_porte_ni_queued_ni_position_temoin_job_id",
+      _rr.status_code == 200 and J(_rr).get("job_id") and "queued" in _cap and _cap.get("queued") is None
+      and _cap.get("position") is None and _cap.get("st0") in ("generating_video", "done"),
+      (_rr.status_code, sorted(J(_rr)), _cap.get("st0")))
+
+print("\n[5] D-36 file locale de rendus executee en serie (un worker asyncio)")
+# Espion `_run_ffmpeg` : dort 0,3 s dans le thread (asyncio.to_thread), ecrit
+# le fichier, note (debut, fin) par nom de sortie ; `_q_boom` fait LEVER le
+# prochain appel (job en echec dans la file). ETAT VIDE : sans implementation
+# `queue:true` est ignore → trois rendus en parallele → chevauchement des
+# instants → rouge ; l'apercu en file rend 200 au lieu de 400 → rouge.
+_q_times = {}
+_q_boom = {"on": False}
+
+
+def _espion_dort(cmd, out):
+    t0 = time.time()
+    time.sleep(0.3)
+    if _q_boom["on"]:
+        _q_boom["on"] = False
+        _q_times[pathlib.Path(str(out)).name] = (t0, time.time())
+        raise RuntimeError("ffmpeg casse pour la file")
+    pathlib.Path(str(out)).write_bytes(b"x")
+    _q_times[pathlib.Path(str(out)).name] = (t0, time.time())
+    return out
+
+
+def _attend(jids, attente=3.0):
+    """Poll GET /api/jobs/{id} jusqu'a done/failed pour tous ; rend {id: job}."""
+    t0 = time.time()
+    res = {}
+    while time.time() - t0 < attente:
+        res = {j: J(c.get("/api/jobs/%s" % j)) for j in jids}
+        if all(v.get("status") in ("done", "failed") for v in res.values()):
+            break
+        time.sleep(0.05)
+    return res
+
+
+def _fen(j):
+    """(debut, fin) de l'espion pour un job, via son nom de fichier."""
+    return _q_times.get(str(j.get("image_filename") or ""), (None, None))
+
+
+MS._run_ffmpeg = _espion_dort
+try:
+    _rq = []
+    for _i in range(3):
+        _tl = TL("file%d" % _i, src=_REAL); _tl["queue"] = True
+        _rq.append(c.post("/api/montage/render", json=_tl))
+    _tli = TL("immediat", src=_REAL)
+    _ri = c.post("/api/montage/render", json=_tli)
+    _ids = [J(r).get("job_id") for r in _rq]
+    _j2_0 = J(c.get("/api/jobs/%s" % _ids[2]))
+    _liste0 = J(c.get("/api/jobs?providers=montage")).get("_liste") or []
+    _tlp = TL("apercu", src=_REAL); _tlp["queue"] = True; _tlp["preview"] = True
+    _rp = c.post("/api/montage/render", json=_tlp)
+    _jobs = _attend(_ids + [J(_ri).get("job_id")])
+finally:
+    MS._run_ffmpeg = _vrai_run
+
+check("d36_trois_post_queue_true_rendent_trois_job_id_distincts_et_position_1_2_3",
+      all(r.status_code == 200 for r in _rq) and len(set(_ids)) == 3 and all(_ids)
+      and [J(r).get("position") for r in _rq] == [1, 2, 3]
+      and all(J(r).get("queued") is True for r in _rq),
+      ([r.status_code for r in _rq], [J(r).get("position") for r in _rq], [str(J(r).get("detail"))[:60] for r in _rq]))
+check("d36_le_troisieme_job_nait_queued_progress_0_en_file_lu_par_get_jobs_id",
+      _j2_0.get("status") == "queued" and _j2_0.get("progress") == 0
+      and "file" in str(_j2_0.get("current_step") or "").lower(),
+      (_j2_0.get("status"), _j2_0.get("progress"), _j2_0.get("current_step")))
+check("d36_get_api_jobs_providers_montage_montre_au_moins_un_queued_pendant_l_attente",
+      len(_liste0) >= 4 and any(j.get("status") == "queued" for j in _liste0)
+      and any(j.get("job_id") == _ids[2] for j in _liste0),
+      (len(_liste0), [j.get("status") for j in _liste0][:8]))
+_jq3 = [_jobs.get(j, {}) for j in _ids]
+_fq = [_fen(j) for j in _jq3]
+check("d36_les_trois_jobs_en_file_sont_done_avec_un_fichier_et_une_fenetre_mesuree",
+      all(j.get("status") == "done" for j in _jq3) and all(f[0] is not None for f in _fq)
+      and all(j.get("final_video_path") and os.path.isfile(j["final_video_path"]) for j in _jq3),
+      ([j.get("status") for j in _jq3], [j.get("error") for j in _jq3], _fq))
+check("d36_les_trois_jobs_en_file_s_executent_en_serie_start_k1_superieur_ou_egal_a_end_k",
+      all(f[0] is not None for f in _fq) and _fq[1][0] >= _fq[0][1] and _fq[2][0] >= _fq[1][1]
+      and _fq[0][1] - _fq[0][0] >= 0.25,
+      _fq)
+_ji = _jobs.get(J(_ri).get("job_id"), {})
+_fi = _fen(_ji)
+check("d36_un_post_sans_queue_pendant_la_file_demarre_immediatement_temoin_chevauchement",
+      _ri.status_code == 200 and "queued" not in J(_ri) and _ji.get("status") == "done"
+      and _fi[0] is not None and _fq[0][1] is not None and _fi[0] < _fq[0][1]
+      and _fi[0] < _fq[2][0],
+      (_ri.status_code, _ji.get("status"), _fi, _fq[0], _fq[2]))
+check("d36_queue_true_et_preview_true_rend_400_la_file_est_reservee_aux_rendus_finaux",
+      _rp.status_code == 400 and "file" in str(J(_rp).get("detail")).lower()
+      and J(_rp).get("job_id") is None,
+      (_rp.status_code, str(J(_rp).get("detail"))[:100]))
+
+# Un job en file dont `_run_ffmpeg` LEVE → failed avec le message, et le
+# suivant s'execute quand meme (la file continue, apres lui).
+MS._run_ffmpeg = _espion_dort
+try:
+    _q_boom["on"] = True
+    _tl = TL("casse", src=_REAL); _tl["queue"] = True
+    _rf = c.post("/api/montage/render", json=_tl)
+    _tl = TL("apres", src=_REAL); _tl["queue"] = True
+    _rs = c.post("/api/montage/render", json=_tl)
+    _jobs2 = _attend([J(_rf).get("job_id"), J(_rs).get("job_id")])
+finally:
+    MS._run_ffmpeg = _vrai_run
+    _q_boom["on"] = False
+_jf2 = _jobs2.get(J(_rf).get("job_id"), {}); _js2 = _jobs2.get(J(_rs).get("job_id"), {})
+_ff, _fs = _fen(_jf2), _fen(_js2)
+check("d36_un_job_en_file_qui_leve_passe_failed_avec_le_message_et_le_suivant_s_execute_apres_lui",
+      _rf.status_code == 200 and _rs.status_code == 200
+      and _jf2.get("status") == "failed" and "ffmpeg casse" in str(_jf2.get("error"))
+      and _js2.get("status") == "done" and _ff[1] is not None and _fs[0] is not None
+      and _fs[0] >= _ff[1],
+      (_jf2.get("status"), str(_jf2.get("error"))[:80], _js2.get("status"), _ff, _fs))
+check("d36_les_positions_repartent_a_1_quand_la_file_est_vide",
+      J(_rf).get("position") == 1 and J(_rs).get("position") == 2,
+      (J(_rf).get("position"), J(_rs).get("position")))
 
 print(f"\n=== {ok} passed, {fail} failed ===")
 c.__exit__(None, None, None)

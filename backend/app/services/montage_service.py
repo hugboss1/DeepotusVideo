@@ -3599,6 +3599,51 @@ def _run_ffmpeg(cmd, out: Path) -> Path:
     return out
 
 
+# D-36 (23/09/2026) — FILE LOCALE DE RENDUS EN SÉRIE. Mesuré avant : deux
+# `POST /render` = deux ffmpeg en parallèle (ni verrou ni file, `_run` part en
+# `background_tasks`). Avec `queue:true` le job naît `queued` (statut EXISTANT
+# de `JobStatus`, `progress` 0, `current_step` « En file ») et `_run` est
+# poussé dans `_RENDER_QUEUE`, servie par UN worker asyncio créé au premier
+# usage ; sans `queue`, comportement historique (immédiat, chevauchement
+# autorisé). Pas de priorité ni d'annulation : une file, un worker, l'ordre
+# d'arrivée. `_RENDER_PENDING` compte les jobs en file EN COMPTANT celui que
+# le worker tient : c'est la `position` rendue (1 = prochain/en cours) —
+# écart daté 23/09/2026 avec le `q.qsize()` du plan, qui exclut l'élément
+# déjà pris et rendrait 1 au deuxième POST.
+_RENDER_QUEUE: asyncio.Queue | None = None
+_RENDER_WORKER: asyncio.Task | None = None
+_RENDER_PENDING = 0
+
+
+async def _render_worker():
+    global _RENDER_PENDING
+    q = _RENDER_QUEUE
+    while True:
+        fn = await q.get()
+        try:
+            await fn()
+        except Exception as e:                      # _run attrape déjà tout
+            logger.exception(f"montage: job en file échoué hors _run : {e}")
+        finally:
+            _RENDER_PENDING = max(0, _RENDER_PENDING - 1)
+            q.task_done()
+
+
+async def _ensure_worker() -> asyncio.Queue:
+    """La file et son worker, créés sur la boucle COURANTE ; recréés si le
+    task est mort/annulé ou appartient à une autre boucle (TestClient qui
+    rouvre, relance)."""
+    global _RENDER_QUEUE, _RENDER_WORKER, _RENDER_PENDING
+    loop = asyncio.get_running_loop()
+    vivant = (_RENDER_WORKER is not None and not _RENDER_WORKER.done()
+              and _RENDER_WORKER.get_loop() is loop)
+    if not vivant or _RENDER_QUEUE is None:
+        _RENDER_QUEUE = asyncio.Queue()
+        _RENDER_PENDING = 0
+        _RENDER_WORKER = loop.create_task(_render_worker())
+    return _RENDER_QUEUE
+
+
 @router.post("/render")
 async def montage_render(request: Request, background_tasks: BackgroundTasks):
     """Body: {name?, ratio?, preview?, duration_master?, ducking?,
@@ -3670,6 +3715,10 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                                  "un rendu ou un upload en piste V1.")
 
     preview = bool(body.get("preview"))
+    queue = bool(body.get("queue"))            # D-36
+    if queue and preview:
+        raise HTTPException(400, "la file est réservée aux rendus finaux — "
+                                 "un aperçu se rend tout de suite.")
     ratio = str(body.get("ratio") or "9:16")
     w, h = _CANVAS.get(ratio, _CANVAS["9:16"])
     # D-35 : `fps` du payload (24|25|30|60, sinon 400) et `preset` → dict
@@ -3782,10 +3831,13 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
 
     async with async_session_factory() as session:
         session.add(JobRecord(
-            id=job_id, status=JobStatus.GENERATING_VIDEO.value, progress=10,
+            id=job_id,
+            status=(JobStatus.QUEUED.value if queue
+                    else JobStatus.GENERATING_VIDEO.value),
+            progress=0 if queue else 10,
             title=title, image_filename=out_name, aspect_ratio=ratio,
             provider="montage",
-            current_step="Préparation des sources"))
+            current_step="En file" if queue else "Préparation des sources"))
         await session.commit()
 
     async def _fail(msg: str):
@@ -3801,6 +3853,15 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
         nonlocal loudness          # remis à None si la passe 1 ne mesure rien
         try:
             loop = asyncio.get_running_loop()
+            if queue:
+                # D-36 : c'est ICI que « queued » devient « en cours ».
+                async with async_session_factory() as session:
+                    jr = await session.get(JobRecord, job_id)
+                    if jr is not None:
+                        jr.status = JobStatus.GENERATING_VIDEO.value
+                        jr.progress = 10
+                        jr.current_step = "Préparation des sources"
+                        await session.commit()
             v1 = []
             for c in v1_in:
                 p = await _resolve_src(c.get("src"))
@@ -4036,6 +4097,16 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
             logger.exception(f"montage job {job_id} failed: {e}")
             await _fail(str(e))
 
+    if queue:
+        global _RENDER_PENDING
+        q = await _ensure_worker()
+        _RENDER_PENDING += 1
+        position = _RENDER_PENDING
+        q.put_nowait(_run)
+        return {"ok": True, "job_id": job_id, "preview": False,
+                "queued": True, "position": position,
+                "message": f"Ajouté à la file — {position} en attente ; "
+                           f"suivi GET /api/jobs."}
     background_tasks.add_task(_run)
     return {"ok": True, "job_id": job_id, "preview": preview,
             "message": f"Rendu {'aperçu' if preview else 'final'} lancé — "
