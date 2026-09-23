@@ -1154,6 +1154,54 @@ R_M16REF = (A_M16REF + "\n"
             '    return function(){alive=!1}}},[view,proj.name]);\n'
             '  function dzSetView(v){if(v==="medias"){' + _EB_GARDE + 'setMedTr("");setMedOn(!0);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)}\n'
             '    if(v==="livraison"){setMedOn(!1);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)}setVw(v)}\n'
+            # ── L4 (23/09/2026, tache 4) : LES REGLAGES DE LIVRAISON -- REPLIES ICI
+            # (0 dans .bak_montage), APRES dzSetView. dzDel = {preset?, fps?, loudness?,
+            # rangeOnly?} lu UNE fois de localStorage dz_montage_deliver (try/catch,
+            # objet ou {} -- AUCUN id de preset en dur : sans `preset`, rien n'est poste
+            # et le backend retombe sur master), ecrit par dzDelSet (UNE ecriture) ;
+            # dzDelRef pose a CHAQUE rendu : renderPayload est appele depuis
+            # launchRender / doMeasure, une lecture directe de l'etat y serait perimee
+            # (motif durRef). dzApi = la reponse de GET /api/montage/deliver-presets
+            # ({builtins, fps, presets}), relue a CHAQUE ouverture du popover de rendu
+            # (effet [pop], vivant par drapeau local + dzAliveRef resolue a l'appel).
+            # dzSavePreset : le nom par window.prompt -- ECART DATE 23/09/2026 : le
+            # Montage n'a AUCUN dialogue maison (DzTracks.dialogue / dzmDialogue /
+            # svmDialog x0 ; VL.dialogue est celui du Vectorlab) ; slug [a-z0-9_] <= 32 ;
+            # base = la base REELLE (un preset maison choisi donne SA base, aucun
+            # choix = le premier builtin SERVI) ; PUT de la liste courante + le nouveau
+            # (un id deja pris est remplace) ; la reponse {presets} remplace
+            # dzApi.presets et le nouveau preset devient le choix courant.
+            # REVUE T4 (23/09/2026) : la case « Rendre la plage I/O seulement » N'EST PAS
+            # persistee -- cochee sur le projet A, elle restait cochee sur le projet B
+            # (rendu partiel a l'insu de l'utilisateur). L'etat React la garde pour la
+            # session ; l'ecriture la retire (rangeOnly:void 0, que JSON.stringify
+            # omet) et la lecture initiale l'efface aussi (temoin : une cle rangeOnly
+            # ecrite a la main dans localStorage ne revient jamais).
+            # ECARTS DATES (revue T4, 23/09/2026) : un preset maison dont l'id est
+            # deja pris est REMPLACE en silence par « Enregistrer » (le PUT remplace
+            # la liste) ; GET /deliver-presets en panne -> select vide (deux groupes
+            # null) -> rien de poste -> master ; la pastille compare la mesure de
+            # SESSION (lufs, setLufs) : elle n'est pas remise a null au changement de
+            # projet ; « Ajouter a la file » est grise sur `busy` (rendu du meme type)
+            # alors que la garde R_EA6 refuse TOUT job non echoue (heritee du bouton or).
+            '  var stDzDel=x.useState(function(){try{var v=JSON.parse(localStorage.getItem("dz_montage_deliver")||"null");if(!v||typeof v!=="object")return {};delete v.rangeOnly;return v}catch(_e){return {}}}),dzDel=stDzDel[0],setDzDel=stDzDel[1];\n'
+            '  var dzDelRef=x.useRef(null);dzDelRef.current=dzDel;\n'
+            '  var stDzApi=x.useState(null),dzApi=stDzApi[0],setDzApi=stDzApi[1];\n'
+            '  x.useEffect(function(){if(pop!=="render")return;var alive=!0;\n'
+            '    fetch("/api/montage/deliver-presets").then(function(r2){return r2.json()}).then(function(j){if(alive&&dzAliveRef.current&&j&&typeof j==="object")setDzApi(j)}).catch(function(){});\n'
+            '    return function(){alive=!1}},[pop]);\n'
+            '  function dzDelSet(p){setDzDel(function(d){var n=Object.assign({},d,p);try{localStorage.setItem("dz_montage_deliver",JSON.stringify(Object.assign({},n,{rangeOnly:void 0})))}catch(_e){}return n})}\n'
+            '  function dzSavePreset(){var lbl=window.prompt("Nom du preset maison (preset + cadence actuels)");if(!lbl)return;\n'
+            '    var id=String(lbl).toLowerCase().replace(/[^a-z0-9_]+/g,"_").replace(/^_+|_+$/g,"").slice(0,32)||"maison";\n'
+            '    var tous=dzApi&&Array.isArray(dzApi.presets)?dzApi.presets:[],bi=dzApi&&Array.isArray(dzApi.builtins)?dzApi.builtins:[];\n'
+            '    var base=dzDel.preset||(bi[0]&&bi[0].id)||null,m=tous.filter(function(p){return p&&p.id===base})[0];if(m)base=m.base;\n'
+            '    var f=Number(dzDel.fps),cur=tous.filter(function(p){return p&&p.id!==id});\n'
+            '    fetch("/api/montage/deliver-presets",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({presets:cur.concat([{id:id,label:String(lbl),base:base,fps:isFinite(f)&&f>0?f:null,crf:null}])})})\n'
+            '      .then(function(r2){return r2.json().catch(function(){return null}).then(function(j){return {ok:r2.ok,j:j}})})\n'
+            '      .then(function(o){if(!o.ok||!o.j){fireNote("Preset refusé : "+((o.j&&(o.j.detail||o.j.error))||"échec"));return}\n'
+            '        if(dzAliveRef.current){setDzApi(function(a){return Object.assign({},a||{},{presets:Array.isArray(o.j.presets)?o.j.presets:[]})});dzDelSet({preset:id})}\n'
+            '        fireNote("Preset maison « "+lbl+" » enregistré ("+id+").")})\n'
+            '      .catch(function(e){fireNote("Preset non enregistré : "+String(e&&e.message||e))})}\n'
             # ── « E1 » (D-2) : L'ÉTAT DU MODE D'ÉDITION ──────────────
             # REPLIÉ ICI, et c'est une MESURE : la ligne `dzTracksRef`
             # ci-dessus vaut 0 dans .bak_montage (c'est CE remplacement
@@ -4082,6 +4130,7 @@ assert A_EA4.count("}") - A_EA4.count("{") == R_EA4.count("}") - R_EA4.count("{"
 # PUBLICATION. Quatre littéraux, chacun sur une ligne unique (1/1 mesuré) ;
 # le bouton d'action (EA5d-bis) porte aussi « Lancer l'aperçu » : seul le
 # littéral change dans la ligne.
+_EC15_DEMO = '"Rendu indisponible sur la démo — ouvre un projet réel"'
 A_EA5A = '      r.jsx("div",{className:"svm-poptitle",children:isR?"Rendre & publier":"Preview 480p"}),'
 R_EA5A = A_EA5A.replace('"Rendre & publier"', '"Rendre (master 1080)"')
 A_EA5B = ('      isR?r.jsxs("div",{className:"svm-popline",children:[r.jsx("span",{children:"publication · brouillon Scheduler"}),'
@@ -4108,7 +4157,18 @@ R_EA5D = (A_EA5D.replace('"Rendre & publier →"', '"Rendre →"').replace('svm-
           '          onClick:function(){if(dzLast){setPop("");setDzFin(Object.assign({project_id:proj.project_id||""},dzLast))}},'
           'children:"Publier"}),')
 A_EA5D2 = '            children:busy?(job.progress+"%"):(isR?"Rendre & publier":"Lancer l\'aperçu")})]})]})}'
-R_EA5D2 = A_EA5D2.replace('"Rendre & publier"', '"Rendre"')
+# L4 (23/09/2026, tache 4) : « Ajouter a la file » (D-36), REPLI ICI -- la rangee de
+# boutons est l'hote consomme par EA5d2 (sa ligne est REECRITE). Le bouton est
+# RENDU TOUJOURS (regle E-12 : un bouton d'outil se grise, ne disparait pas) :
+# grise hors rendu final (la file ne prend que des finals -- le backend rend 400
+# avec un apercu), pendant un rendu du meme type (busy) et sur la demo, chaque
+# etat dit dans l'infobulle. launchRender(!1,!0) : final, en file (L4c/L4d).
+R_EA5D2 = (A_EA5D2.replace('"Rendre & publier"', '"Rendre"').replace(')})]})]})}', ')}),\n'
+           '          r.jsx("button",{className:"svm-secbtn svm-queuebtn",disabled:!isR||busy||proj.demo,'
+           'title:proj.demo?' + _EC15_DEMO + ':!isR?"La file locale ne prend que des rendus finaux":busy?"Un rendu de ce type est déjà en cours":'
+           '"Ajouter ce rendu final à la file locale (rendus en série, l\'écran reste libre)",'
+           'onClick:function(){if(isR&&!busy)launchRender(!1,!0)},children:"Ajouter à la file"})]})]})}'))
+assert R_EA5D2.count('"Ajouter à la file"') == 1 and R_EA5D2.count('la file"})]})]})}') == 1 and R_EA5D2.count(')})]})]})}') == 0 and R_EA5D2.count("title:") == 1
 for _a, _r in ((A_EA5A, R_EA5A), (A_EA5B, R_EA5B), (A_EA5C, R_EA5C),
                (A_EA5D, R_EA5D), (A_EA5D2, R_EA5D2)):
     assert _a != _r
@@ -4879,7 +4939,7 @@ assert R_K7.find("dzMkOnRef") < R_K7.find("setGapSel(null)") < R_K7.find("dzScri
 # VRAIMENT (R_K7 : dzScrimRef -> setPop("") ; kbPanel : setKbOn(!1)) ; les
 # selecteurs d'effets et d'overlay n'ecoutent pas Echap (mesure) : pas de
 # promesse.
-_EC15_DEMO = '"Rendu indisponible sur la démo — ouvre un projet réel"'
+# (_EC15_DEMO est defini avec EA5, plus haut : R_EA5D2 le reprend pour « Ajouter a la file »)
 A_EC15A = '        r.jsx("button",{className:"svm-secbtn",onClick:function(){setPop("");if(failed)setJob(null)},children:"Fermer"}),'
 R_EC15A = A_EC15A.replace('svm-secbtn",onClick:', 'svm-secbtn",title:"Fermer ce panneau (Échap)",onClick:')
 A_EC15B = ('        proj.demo?null:\n'
@@ -4926,6 +4986,68 @@ R_EC15K = ('      libArm?\n'
            '        r.jsx("button",{className:"svm-secbtn svm-libbtn",disabled:proj.demo,\n'
            '          title:proj.demo?"Réinitialisation indisponible sur la démo":"Réinitialiser depuis la Bibliothèque — écrase la sauvegarde",\n'
            '          onClick:function(){setLibArm(!0)},children:"bibliothèque"}),')
+# ══ L4 (23/09/2026, tache 4) — LES REGLAGES DE LIVRAISON DANS LE POPOVER DE
+# RENDU, LE PAYLOAD, LA FILE ═══════════════════════════════════════════════
+# Decisions 5-8 du plan L4. MESURES (23/09/2026, .bak_montage) : les six
+# ancres ci-dessous valent 1 dans .bak_montage, 0 dans le patcher avant ce lot
+# (la ligne cout `"$0.00"})]}),` ; `function renderPayload(preview){` + sa
+# premiere ligne ; `return o})}}` + `function launchRender(preview){` ; le
+# setJob « Envoi… » ; `body:JSON.stringify(renderPayload(preview))})` ; le
+# `.then(function(o){` de launchRender + sa ligne d'echec ; son `.catch`).
+# L4b : la rangee DzTracks.DeliverRow (couche) sous la ligne cout, rendu final
+# seulement (isR) ; lufs = l'etat pose par setLufs(m) (doMeasure, .bak:4494,
+# declare :1779 -- popover() est appelee au rendu, l'etat est en portee).
+# L4c : renderPayload(preview, queue) -- `return {` devient `var _b={` et la
+# fermeture de l'objet est suivie de `return preview?_b:DzTracks.
+# deliverPayload(_b, dzDelRef.current + {range:proj.range, queue})` : l'apercu
+# ET /measure (renderPayload(!0)) restent EXACTEMENT le payload historique.
+# L4d : launchRender(preview, queue) -- en file, AUCUN `job` suivi (decision
+# 7 : pas de setJob, pas de poll ; le badge de la vue Livraison suit GET
+# /api/jobs) : la reponse {queued:true, position, message} donne la note et
+# ferme le popover ; un refus ({detail}) ou une panne reseau sont DITS.
+# La garde `if(proj.demo||(job&&job.status!=="failed"))return;` (R_EA6) est
+# INCHANGEE : un rendu direct en cours refuse aussi la file (le bouton est
+# grise `busy` dans R_EA5D2).
+A_L4B = 'r.jsx("span",{className:"svm-cost",children:"$0.00"})]}),'
+R_L4B = (A_L4B + '\n'
+         '      /* L4 (D-35/D-24/D-38) : preset, cadence, loudness + pastille, plage I/O, preset maison -- rendu final seulement */\n'
+         '      isR?r.jsx(DzTracks.DeliverRow,{opts:dzDel,api:dzApi,lufs:lufs,hasRange:!!DzTracks.rangeFrom(proj.range),onChange:dzDelSet,onSavePreset:dzSavePreset}):null,')
+A_L4C1 = ('  function renderPayload(preview){\n'
+          '    return {name:proj.name,ratio:proj.ratio,preview:preview,')
+R_L4C1 = ('  function renderPayload(preview,queue){\n'
+          '    var _b={name:proj.name,ratio:proj.ratio,preview:preview,')
+A_L4C2 = ('        return o})}}\n'
+          '  function launchRender(preview){')
+R_L4C2 = ('        return o})};\n'
+          '    /* L4 : hors apercu, les reglages de livraison (dzDelRef, frais) et la plage du projet entrent par la couche ; `queue` (D-36) vient de launchRender */\n'
+          '    return preview?_b:DzTracks.deliverPayload(_b,Object.assign({},dzDelRef.current,{range:proj.range,queue:queue===!0}))}\n'
+          '  function launchRender(preview,queue){')
+A_L4D1 = '    setJob({id:null,kind:preview?"preview":"final",status:"queued",progress:0,step:"Envoi…",error:null});'
+R_L4D1 = '    if(!queue)' + A_L4D1.lstrip()
+A_L4D2 = '      body:JSON.stringify(renderPayload(preview))})'
+R_L4D2 = '      body:JSON.stringify(renderPayload(preview,queue))})'
+A_L4D3 = ('      .then(function(o){\n'
+          '        if(!o.ok||!o.d.job_id){setJob({id:null,kind:preview?"preview":"final",status:"failed",progress:0,step:"",')
+R_L4D3 = ('      .then(function(o){\n'
+          '        /* L4 (D-36) : en file, aucun `job` suivi (le badge de la vue Livraison suit GET /api/jobs) : note + fermeture, ou refus dit */\n'
+          '        if(queue){if(o.ok&&o.d&&o.d.queued){fireNote(o.d.message||"Ajouté à la file");setPop("")}else fireNote("File refusée : "+((o.d&&(o.d.detail||o.d.error))||"échec"));return}\n'
+          '        if(!o.ok||!o.d.job_id){setJob({id:null,kind:preview?"preview":"final",status:"failed",progress:0,step:"",')
+A_L4D4 = '      .catch(function(e){setJob({id:null,kind:preview?"preview":"final",status:"failed",progress:0,step:"",error:String(e)})})}'
+R_L4D4 = '      .catch(function(e){if(queue){fireNote("File : "+String(e));return}setJob({id:null,kind:preview?"preview":"final",status:"failed",progress:0,step:"",error:String(e)})})}'
+L4 = [("L4b-rangee-de-livraison-sous-la-ligne-cout", A_L4B, R_L4B),
+      ("L4c1-renderPayload-preview-queue-var-b", A_L4C1, R_L4C1),
+      ("L4c2-renderPayload-deliverPayload-et-launchRender-queue", A_L4C2, R_L4C2),
+      ("L4d1-pas-de-job-suivi-en-file", A_L4D1, R_L4D1),
+      ("L4d2-payload-avec-queue", A_L4D2, R_L4D2),
+      ("L4d3-reponse-en-file-note-et-fermeture", A_L4D3, R_L4D3),
+      ("L4d4-panne-reseau-en-file-dite", A_L4D4, R_L4D4)]
+for _n, _a, _r in L4:
+    assert _a != _r and _a.strip()[:10] in _r, _n   # 10 : la tete de l'ancre (L4c2 reecrit `return o})}}` des le `}}`, L4d1 prefixe l'indentation)
+assert R_L4C2.count("DzTracks.deliverPayload(") == 1 and R_L4B.count("DzTracks.DeliverRow") == 1 and R_L4B.count("DzTracks.rangeFrom(") == 1
+assert R_L4D3.count("o.d.queued") == 1 and R_L4D1.startswith("    if(!queue)setJob(") and R_L4C2.count("queue:queue===!0") == 1
+assert R_M16REF.count("dz_montage_deliver") == 2 and R_M16REF.count("/api/montage/deliver-presets") == 2 and R_M16REF.count("window.prompt(") == 1
+assert R_M16REF.count("rangeOnly:void 0") == 1 and R_M16REF.count("delete v.rangeOnly;") == 1
+
 EC15 = [("EC15a-title-fermer-popover-de-rendu", A_EC15A, R_EC15A),
         ("EC15b-bouton-or-reessayer-grise-sur-la-demo", A_EC15B, R_EC15B),
         ("EC15c-bouton-or-rendre-grise-sur-la-demo", A_EC15C, R_EC15C),
@@ -5190,7 +5312,9 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("EC11-rendu-du-trou-selectionne", A_EC11, R_EC11),
            ("EC12-tete-de-lecture-dans-l-inspecteur", A_EC12, R_EC12),
            ("EC13-suppr-referme-le-trou", A_EC13, R_EC13),
-           ("EC14-clic-sur-un-clip-efface-le-trou", A_EC14, R_EC14)] + EC15
+           ("EC14-clic-sur-un-clip-efface-le-trou", A_EC14, R_EC14)] + EC15 + L4
+           # L4 (23/09/2026, tache 4) : sept sections sur des ancres libres ; l'etat
+           # (R_M16REF) et « Ajouter a la file » (R_EA5D2) sont replies.
            # E-12 (tache 6) : onze sections EC15a..k sur des ancres libres ;
            # « Preview » (R_EB4) et « Rendre → » (R_EA5D) sont replies.
 

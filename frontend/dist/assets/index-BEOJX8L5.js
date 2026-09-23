@@ -1797,6 +1797,24 @@ function DzMontage(props){
     return function(){alive=!1}}},[view,proj.name]);
   function dzSetView(v){if(v==="medias"){if(proj.demo){fireNote("Ajout d'assets : disponible sur un projet réel — la démo reste une maquette.");return}setMedTr("");setMedOn(!0);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)}
     if(v==="livraison"){setMedOn(!1);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)}setVw(v)}
+  var stDzDel=x.useState(function(){try{var v=JSON.parse(localStorage.getItem("dz_montage_deliver")||"null");if(!v||typeof v!=="object")return {};delete v.rangeOnly;return v}catch(_e){return {}}}),dzDel=stDzDel[0],setDzDel=stDzDel[1];
+  var dzDelRef=x.useRef(null);dzDelRef.current=dzDel;
+  var stDzApi=x.useState(null),dzApi=stDzApi[0],setDzApi=stDzApi[1];
+  x.useEffect(function(){if(pop!=="render")return;var alive=!0;
+    fetch("/api/montage/deliver-presets").then(function(r2){return r2.json()}).then(function(j){if(alive&&dzAliveRef.current&&j&&typeof j==="object")setDzApi(j)}).catch(function(){});
+    return function(){alive=!1}},[pop]);
+  function dzDelSet(p){setDzDel(function(d){var n=Object.assign({},d,p);try{localStorage.setItem("dz_montage_deliver",JSON.stringify(Object.assign({},n,{rangeOnly:void 0})))}catch(_e){}return n})}
+  function dzSavePreset(){var lbl=window.prompt("Nom du preset maison (preset + cadence actuels)");if(!lbl)return;
+    var id=String(lbl).toLowerCase().replace(/[^a-z0-9_]+/g,"_").replace(/^_+|_+$/g,"").slice(0,32)||"maison";
+    var tous=dzApi&&Array.isArray(dzApi.presets)?dzApi.presets:[],bi=dzApi&&Array.isArray(dzApi.builtins)?dzApi.builtins:[];
+    var base=dzDel.preset||(bi[0]&&bi[0].id)||null,m=tous.filter(function(p){return p&&p.id===base})[0];if(m)base=m.base;
+    var f=Number(dzDel.fps),cur=tous.filter(function(p){return p&&p.id!==id});
+    fetch("/api/montage/deliver-presets",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({presets:cur.concat([{id:id,label:String(lbl),base:base,fps:isFinite(f)&&f>0?f:null,crf:null}])})})
+      .then(function(r2){return r2.json().catch(function(){return null}).then(function(j){return {ok:r2.ok,j:j}})})
+      .then(function(o){if(!o.ok||!o.j){fireNote("Preset refusé : "+((o.j&&(o.j.detail||o.j.error))||"échec"));return}
+        if(dzAliveRef.current){setDzApi(function(a){return Object.assign({},a||{},{presets:Array.isArray(o.j.presets)?o.j.presets:[]})});dzDelSet({preset:id})}
+        fireNote("Preset maison « "+lbl+" » enregistré ("+id+").")})
+      .catch(function(e){fireNote("Preset non enregistré : "+String(e&&e.message||e))})}
   var stDzM=x.useState("ecraser"),dzMode=stDzM[0],setDzMode=stDzM[1];
   function dzTtAdd(){var t=DzTracks.titleNew({template:"tiers_inferieur",text:"Titre"},phRef.current,clipsRef.current,"t1");
     var ts=svmTracksOf(dzProjRef.current),ts2=DzTracks.titleTrack(ts);
@@ -4559,8 +4577,8 @@ function DzMontage(props){
   }
 
   /* ── rendu réel : POST /api/montage/render + poll /api/jobs/{id} ── */
-  function renderPayload(preview){
-    return {name:proj.name,ratio:proj.ratio,preview:preview,
+  function renderPayload(preview,queue){
+    var _b={name:proj.name,ratio:proj.ratio,preview:preview,
       /* piste S1 — HORS du tableau `clips` (ce ne sont pas des médias) :
          {style, segments:[{start,end,text,words?}]}. Absente quand la piste
          est vide ; un backend qui ne connaît pas encore la clé l'ignore et
@@ -4646,18 +4664,22 @@ function DzMontage(props){
               if(p.scale!=null&&isFinite(Number(p.scale)))q.scale=Math.round(Number(p.scale)*1000)/1000;
               if(p.opacity!=null&&isFinite(Number(p.opacity)))q.opacity=Math.round(Number(p.opacity)*100)/100;
               return q})}}
-        return o})}}
-  function launchRender(preview){
+        return o})};
+    /* L4 : hors apercu, les reglages de livraison (dzDelRef, frais) et la plage du projet entrent par la couche ; `queue` (D-36) vient de launchRender */
+    return preview?_b:DzTracks.deliverPayload(_b,Object.assign({},dzDelRef.current,{range:proj.range,queue:queue===!0}))}
+  function launchRender(preview,queue){
     if(proj.demo||(job&&job.status!=="failed"))return;setDzFin(null);
-    setJob({id:null,kind:preview?"preview":"final",status:"queued",progress:0,step:"Envoi…",error:null});
+    if(!queue)setJob({id:null,kind:preview?"preview":"final",status:"queued",progress:0,step:"Envoi…",error:null});
     fetch("/api/montage/render",{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify(renderPayload(preview))})
+      body:JSON.stringify(renderPayload(preview,queue))})
       .then(function(res){return res.json().then(function(d){return {ok:res.ok,d:d}})})
       .then(function(o){
+        /* L4 (D-36) : en file, aucun `job` suivi (le badge de la vue Livraison suit GET /api/jobs) : note + fermeture, ou refus dit */
+        if(queue){if(o.ok&&o.d&&o.d.queued){fireNote(o.d.message||"Ajouté à la file");setPop("")}else fireNote("File refusée : "+((o.d&&(o.d.detail||o.d.error))||"échec"));return}
         if(!o.ok||!o.d.job_id){setJob({id:null,kind:preview?"preview":"final",status:"failed",progress:0,step:"",
           error:(o.d&&(o.d.detail||o.d.error))||"échec du lancement"});return}
         setJob({id:o.d.job_id,kind:preview?"preview":"final",status:"running",progress:10,step:"En file",error:null})})
-      .catch(function(e){setJob({id:null,kind:preview?"preview":"final",status:"failed",progress:0,step:"",error:String(e)})})}
+      .catch(function(e){if(queue){fireNote("File : "+String(e));return}setJob({id:null,kind:preview?"preview":"final",status:"failed",progress:0,step:"",error:String(e)})})}
   x.useEffect(function(){
     if(!job||!job.id||job.status==="done"||job.status==="failed")return;
     var t=setInterval(function(){
@@ -4718,6 +4740,8 @@ function DzMontage(props){
     return r.jsxs("div",{className:"svm-pop",onClick:function(e){e.stopPropagation()},children:[
       r.jsx("div",{className:"svm-poptitle",children:isR?"Rendre (master 1080)":"Preview 480p"}),
       r.jsxs("div",{className:"svm-popline",children:[r.jsx("span",{children:isR?"rendu ffmpeg (local) · "+svmRuler(Math.round(dur)):"aperçu ffmpeg 480p (local) · "+svmRuler(Math.round(dur))}),r.jsx("span",{className:"svm-cost",children:"$0.00"})]}),
+      /* L4 (D-35/D-24/D-38) : preset, cadence, loudness + pastille, plage I/O, preset maison -- rendu final seulement */
+      isR?r.jsx(DzTracks.DeliverRow,{opts:dzDel,api:dzApi,lufs:lufs,hasRange:!!DzTracks.rangeFrom(proj.range),onChange:dzDelSet,onSavePreset:dzSavePreset}):null,
       isR?r.jsxs("div",{className:"svm-popline",children:[r.jsx("span",{children:"publication · à la demande, après le rendu"}),r.jsx("span",{className:"svm-cost",children:"gratuit"})]}):null,
       proj.demo?
         r.jsx("div",{className:"svm-popnote",children:"Timeline de démonstration — aucune source réelle à rendre. Génère ou importe d'abord une vidéo (Studio, Quick, Épisodes ou upload) : la timeline se remplira depuis la Bibliothèque."}):
@@ -4731,7 +4755,8 @@ function DzMontage(props){
           failed?r.jsx("button",{className:"svm-goldbtn",disabled:proj.demo,title:proj.demo?"Rendu indisponible sur la démo — ouvre un projet réel":"Relancer le rendu qui a échoué",onClick:function(){launchRender(!isR)},children:"Réessayer"}):
           r.jsx("button",{className:"svm-goldbtn",disabled:busy||proj.demo,style:(busy||proj.demo)?{opacity:.55,cursor:"default"}:null,title:proj.demo?"Rendu indisponible sur la démo — ouvre un projet réel":(isR?"Lancer le rendu final (master 1080, local)":"Lancer l'aperçu 480p (gratuit, local)"),
             onClick:function(){if(!busy)launchRender(!isR)},
-            children:busy?(job.progress+"%"):(isR?"Rendre":"Lancer l'aperçu")})]})]})}
+            children:busy?(job.progress+"%"):(isR?"Rendre":"Lancer l'aperçu")}),
+          r.jsx("button",{className:"svm-secbtn svm-queuebtn",disabled:!isR||busy||proj.demo,title:proj.demo?"Rendu indisponible sur la démo — ouvre un projet réel":!isR?"La file locale ne prend que des rendus finaux":busy?"Un rendu de ce type est déjà en cours":"Ajouter ce rendu final à la file locale (rendus en série, l'écran reste libre)",onClick:function(){if(isR&&!busy)launchRender(!1,!0)},children:"Ajouter à la file"})]})]})}
 
   /* couche rack VFX (frontend/patches/vfxrack.js) — feature-detect : absente,
      tout retombe sur le sélecteur historique, rien ne casse */
@@ -19169,7 +19194,9 @@ function DzmDeliver(o){
     r.jsx("span",{className:"svm-deltitle",children:String(j.title||j.job_id||"")}),
     r.jsx("span",{className:"svm-deldate",children:dzmDelDate(j.created_at)}),
     r.jsx("span",{className:"svm-deldur",children:j.duration_s>0?dzmDurTxt(Number(j.duration_s)):""}),
-    r.jsx("span",{className:"svm-delbadge",children:kind==="preview"?"aperçu":"final"})]},String(j.job_id||"")+kind)};
+    r.jsx("span",{className:"svm-delbadge",children:kind==="preview"?"aperçu":"final"}),
+    /* L4 (D-36) : le statut brut du job (queued / generating_video / done / failed) en badge, texte par dzmDelStatut */
+    (function(){var st=dzmDelStatut(j);return r.jsx("span",{className:"svm-delbadge svm-delst","data-st":st.st,children:st.txt})})()]},String(j.job_id||"")+kind)};
   return r.jsxs("div",{className:"svm-deliver",children:[
     r.jsx("h2",{className:"svm-delh",children:"Livraison"}),
     r.jsxs("div",{className:"svm-delbtns",children:[
@@ -19224,6 +19251,92 @@ function dzmTrouRipple(clips,tr,a,b){
   return clips.map(function(c){
     if(!c||typeof c!=="object"||c.tr!==tr||!(Number(c.start)>=Number(b)-1e-6))return c;
     return Object.assign({},c,{start:c.start-d,end:c.end-d})})}
+/* ── L4 (23/09/2026) : LES RÉGLAGES DE LIVRAISON (D-35, D-24, D-36, D-38) ──
+   Décisions 5-8 du plan L4. Le client n'a AUCUNE liste de presets en dur :
+   builtins ET presets maison viennent de GET /api/montage/deliver-presets
+   ({builtins:[{id,label}], fps:[…], presets:[{id,label,base,fps,crf}]}) ;
+   sans réglage, aucun `preset` n'est posté et le backend retombe sur master.
+   Les cadences (DZM_DEL_FPS) et les cibles de loudness (DZM_DEL_LOUD) sont
+   les listes du backend (_DELIVER_FPS, _LOUD_TARGETS — banc croisé T5).
+   dzmLoudPastille(i, cible) — pure : "gris" (cible absente ou mesure non
+   finie), "vert" |Δ| ≤ 1 dB, "jaune" ≤ 3, "rouge" au-delà.
+   dzmDeliverOpts(api) — pure : [{id,label,groupe:"Standard"|"Maison"}],
+   builtins puis maison, ids uniques (le premier gagne), entrées non-objets
+   ou sans id ignorées, api null → [].
+   dzmDeliverPayload(base, opts) — pure : copie de `base` + `preset` (chaîne
+   non vide), `fps` (∈ DZM_DEL_FPS, sinon OMIS), `loudness` (NOMBRE ∈
+   DZM_DEL_LOUD — "-14" chaîne omise, le backend refuse les chaînes),
+   `range:[in,out]` seulement si `opts.rangeOnly` ET `dzmRangeFrom(opts.range)`
+   valide, `queue:true` si `opts.queue`. Aucun champ absent n'est posé.
+   dzmDelStatut(j) — pure : {st, txt} du badge de statut d'un job de la vue
+   Livraison ("queued" → « en file », "generating_video" → « en cours n % »,
+   "done" → « terminé », "failed" → « échec », autre → txt "").
+   DzmDeliverRow(o) — {opts, api, onChange(patch), lufs, hasRange, onSavePreset}
+   → div.svm-delopts (grille libellé/contrôle) : select preset (optgroup
+   Standard / Maison), select cadence (« projet (30) » = rien de posté), select
+   loudness (« aucune » / −14 / −16 / −23) + pastille span.svm-loudpill
+   [data-etat] titrée (« mesure −16,2 LUFS · cible −14 » / « mesurez
+   d'abord »), case « Rendre la plage I/O seulement » SEULEMENT si hasRange,
+   bouton « Enregistrer ce réglage… » → onSavePreset(). AUCUN hook : l'état
+   et le fetch vivent dans l'hôte (L4a). Le nom du preset maison est demandé
+   par l'hôte (prompt natif — écart daté : le Montage n'a pas de dialogue
+   maison, VL.dialogue est celui du Vectorlab). */
+var DZM_DEL_FPS=[24,25,30,60];
+var DZM_DEL_LOUD=[[-14,"−14 YouTube · TikTok"],[-16,"−16 podcast"],[-23,"−23 EBU"]];
+function dzmLoudTxt(v){return String(Math.round(Number(v)*10)/10).replace("-","−").replace(".",",")}
+function dzmLoudPastille(i,cible){
+  var c=Number(cible),m=Number(i);
+  if(cible==null||!isFinite(c)||i==null||!isFinite(m))return "gris";
+  var d=Math.abs(m-c);
+  return d<=1?"vert":d<=3?"jaune":"rouge"}
+function dzmDeliverOpts(api){
+  var out=[],vus={};
+  if(!api||typeof api!=="object")return out;
+  var pousse=function(lst,grp){(Array.isArray(lst)?lst:[]).forEach(function(p){
+    if(!p||typeof p!=="object")return;
+    var id=String(p.id==null?"":p.id);if(!id||vus[id])return;vus[id]=1;
+    out.push({id:id,label:String(p.label==null||p.label===""?id:p.label),groupe:grp})})};
+  pousse(api.builtins,"Standard");pousse(api.presets,"Maison");
+  return out}
+function dzmDeliverPayload(base,opts){
+  var out=Object.assign({},base||{}),o=opts&&typeof opts==="object"?opts:{};
+  if(typeof o.preset==="string"&&o.preset)out.preset=o.preset;
+  var f=Number(o.fps);if(DZM_DEL_FPS.indexOf(f)>=0)out.fps=f;
+  if(typeof o.loudness==="number"&&DZM_DEL_LOUD.some(function(l){return l[0]===o.loudness}))out.loudness=o.loudness;
+  var rg=o.rangeOnly?dzmRangeFrom(o.range):null;if(rg)out.range=[rg.in,rg.out];
+  if(o.queue)out.queue=!0;
+  return out}
+function dzmDelStatut(j){
+  var st=String(j&&j.status||""),p=Math.max(0,Math.min(100,Math.round(Number(j&&j.progress)||0)));
+  var txt=st==="queued"?"en file":st==="generating_video"?"en cours "+p+" %":st==="done"?"terminé":st==="failed"?"échec":"";
+  return {st:st,txt:txt}}
+function DzmDeliverRow(o){
+  o=o||{};var opts=o.opts&&typeof o.opts==="object"?o.opts:{},lst=dzmDeliverOpts(o.api);
+  var ch=function(p){if(o.onChange)o.onChange(p)};
+  var grp=function(g){var it=lst.filter(function(p){return p.groupe===g});
+    return it.length?r.jsx("optgroup",{label:g,children:it.map(function(p){return r.jsx("option",{value:p.id,children:p.label},p.id)})},g):null};
+  var pv=typeof opts.preset==="string"&&opts.preset?opts.preset:(lst[0]?lst[0].id:"");
+  /* revue T4 : un preset persiste qui n'est plus servi (maison supprime, api en panne) est DIT, jamais remplace en silence */
+  var absent=pv&&!lst.some(function(p){return p.id===pv})?r.jsx("option",{value:pv,children:pv+" (absent)"},pv):null;
+  var lz=opts.loudness,li=o.lufs&&isFinite(Number(o.lufs.i))?Number(o.lufs.i):null;
+  var etat=dzmLoudPastille(li,lz);
+  var ptitre=li==null?"mesurez d'abord (bouton « mesurer » du bandeau Son)":"mesure "+dzmLoudTxt(li)+" LUFS · cible "+(lz==null?"aucune":dzmLoudTxt(lz));
+  var plein={gridColumn:"1 / -1"};
+  return r.jsxs("div",{className:"svm-delopts",children:[
+    r.jsx("span",{children:"preset"}),
+    r.jsxs("select",{title:"Preset de sortie (codec, taille, conteneur) — les presets maison suivent les standards",value:pv,onChange:function(e){ch({preset:e.target.value})},children:[absent,grp("Standard"),grp("Maison")]}),
+    r.jsx("span",{children:"cadence"}),
+    r.jsx("select",{title:"Cadence d'images du rendu final — « projet » laisse celle du preset",value:opts.fps==null||opts.fps===""?"":String(opts.fps),onChange:function(e){var v=e.target.value;ch({fps:v?Number(v):null})},
+      children:[r.jsx("option",{value:"",children:"projet (30)"},"")].concat(DZM_DEL_FPS.map(function(f){return r.jsx("option",{value:String(f),children:String(f)},String(f))}))}),
+    r.jsx("span",{children:"loudness"}),
+    r.jsxs("span",{className:"svm-delloud",children:[
+      r.jsx("select",{title:"Normalisation de loudness en deux passes (ffmpeg loudnorm) — « aucune » laisse le mix tel quel",value:lz==null?"":String(lz),onChange:function(e){var v=e.target.value;ch({loudness:v?Number(v):null})},
+        children:[r.jsx("option",{value:"",children:"aucune"},"")].concat(DZM_DEL_LOUD.map(function(l){return r.jsx("option",{value:String(l[0]),children:l[1]},String(l[0]))}))}),
+      r.jsx("span",{className:"svm-loudpill","data-etat":etat,title:ptitre})]}),
+    o.hasRange?r.jsxs("label",{className:"svm-delrange",style:plein,title:"Ne rendre que la plage I/O de la timeline (coupe de sortie — sous-titres et titres gardent l'horloge globale)",children:[
+      r.jsx("input",{type:"checkbox",checked:!!opts.rangeOnly,title:"Rendre la plage I/O seulement",onChange:function(e){ch({rangeOnly:!!e.target.checked})}}),
+      " Rendre la plage I/O seulement"]}):null,
+    r.jsx("button",{className:"svm-secbtn svm-delsave",style:plein,title:"Enregistrer preset + cadence comme preset maison (un nom est demandé)",onClick:function(){if(o.onSavePreset)o.onSavePreset()},children:"Enregistrer ce réglage…"})]})}
 /* ── D-13 (22/09/2026) : LE ZOOM DYNAMIQUE ───────────────────────────────
    `dz` = {x0,y0,w0,x1,y1,w1,ease} en FRACTIONS du cadre — MÊMES bornes que
    `montage_service._dz_spec` (w ∈ [0.1,1], x/y ∈ [0,1−w], plein cadre aux
@@ -19840,6 +19953,8 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   comboToKey:dzmComboToKey,menuModel:dzmMenuModel,CtxMenu:DzmCtxMenu,
   /* E-7 (lot E-C, tache 3) : le tri des rendus par titre et la vue Livraison */
   jobsTri:dzmJobsTri,Deliver:DzmDeliver,
+  /* L4 (23/09/2026) : reglages de livraison -- pastille, options, payload, statut, rangee */
+  loudPastille:dzmLoudPastille,deliverOpts:dzmDeliverOpts,deliverPayload:dzmDeliverPayload,delStatut:dzmDelStatut,DeliverRow:DzmDeliverRow,
   /* E-13 / E-14 (lot E-C, tache 5) : la tete dans l'inspecteur, le trou selectionne et son ripple */
   teteTxt:dzmTeteTxt,trou:dzmTrou,trouRipple:dzmTrouRipple,
   DEFAULTS:DZM_DEFAULT_TRACKS};
