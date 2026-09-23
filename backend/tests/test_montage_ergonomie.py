@@ -7,7 +7,7 @@ frontend/vectorlab/qa/ergonomie.test.mjs, est l'autre precedent) :
   REGLE 1 — INFOBULLE OBLIGATOIRE. Tout `r.jsx("button",{className:"…"` dont
   les classes portent svm-tbtn | dzm-tbb | svm-secbtn | svm-goldbtn |
   svm-minibtn | svm-viewbtn | svm-menuitem | svm-menubtn porte `title:` dans
-  les 400 caracteres qui suivent (avant le prochain `r.jsx(`). La fabrique
+  les 400 caracteres qui suivent (avant le prochain `r.jsx` / `r.jsxs`). La fabrique
   `.dzm-tbb` (DzmToolBtn, couche) est reconnue : le `title:o.title||lbl` est
   dans la fabrique, aucun `className:"dzm-tbb` litteral n'existe.
 
@@ -111,7 +111,11 @@ def scan_titres(t, zs):
                 continue
             n += 1
             fen = z[m.end():m.end() + 400]
-            k = fen.find("r.jsx(")
+            # REVUE (23/09/2026) : `r.jsx` sans parenthese — couvre jsx ET jsxs ;
+            # avec `r.jsx(`, un frere `r.jsxs(` titre juste apres masquait un
+            # manquant (mutation B : title retire + leurre r.jsxs("span",{title:…})
+            # -> faux vert).
+            k = fen.find("r.jsx")
             if k >= 0:
                 fen = fen[:k]
             if "title:" not in fen:
@@ -190,6 +194,8 @@ _TITRES = [
 for t in _TITRES:
     check("R1_titre_pose_x1_" + re.sub(r"\W+", "_", t[6:40]).strip("_"),
           s.count(t) == 1 and bak.count(t) == 0, f"bundle={s.count(t)} bak={bak.count(t)}")
+# ECART DATE (23/09/2026) : le titre du bandeau de fin fait 76 caracteres —
+# a raccourcir au prochain passage sur la couche.
 _TITRES_COUCHE = [
     'title:"Fermer l\'index des marqueurs",onClick:o&&o.onClose,',
     'title:"Envoyer ce rendu au Scheduler (brouillon, rien n\'est publié sans validation)",',
@@ -207,7 +213,8 @@ for t in _TITRES_COUCHE:
 # Le bouton or du popover de rendu et « bibliothèque » : RENDUS TOUJOURS,
 # grises sur la demo (handlers deja gardes : launchRender `if(proj.demo||…)return`,
 # setLibArm inatteignable sous disabled). Temoin : les deux `proj.demo?null:`
-# du .bak, zero dans le livre.
+# du .bak, zero dans le livre. ECART DATE (23/09/2026) : `.svm-libbtn:hover`
+# s'applique encore au bouton grise (aucune regle :disabled:hover pour lui).
 _z1 = s[ZS[0][0]:ZS[0][1]]
 _zk = bak[ZB[0][0]:ZB[0][1]]
 check("R2_proj_demo_null_devant_un_bouton_0_dans_le_livre_2_dans_le_bak",
