@@ -731,10 +731,12 @@ out.menu=T.menuModel([{id:"blade",sec:"Montage",lbl:"lame",combo:"Alt+C"},{id:"u
   {id:"zoom_in",sec:"Affichage",lbl:"zoom",combo:"Ctrl+="},{id:"gain_up",sec:"Audio",lbl:"gain",combo:"Alt+↑"}],
   function(id){return id==="blade"?"Alt+C*":null}).map(function(g){return [g.rub,g.items.map(function(i){return i.id+":"+(i.combo||"")})]});
 out.menu_vide=T.menuModel([],null).length;
-/* sec inconnue -> Timeline ; entrees non-objets ignorees ; keyLabel qui rend "" (svmKeyLabel du bundle) -> combo de la table ;
+/* sec inconnue -> Timeline ; ids INCONNUS de la table : sec Audio -> Edition, sec Affichage -> Affichage (les replis de dzmMenuRub,
+   revue 23/09) ; entrees non-objets ignorees ; keyLabel qui rend "" (svmKeyLabel du bundle) -> combo de la table ;
    keys_panel -> Aide, fullscreen -> Affichage par la table ; sans lbl ni combo -> chaines vides */
 out.menu_inconnu=T.menuModel([{id:"zzz",sec:"Zzz",lbl:"z",combo:"Q"},null,"x",7,{id:"keys_panel",sec:"Affichage",lbl:"k",combo:"?"},{id:"mute",sec:"Audio",lbl:"m",combo:"M"},
-  {id:"fullscreen",sec:"Lecture",lbl:"f",combo:"F"},{id:"nolbl",sec:"Montage"}],function(){return ""}).map(function(g){return [g.rub,g.items.map(function(i){return i.id+":"+i.lbl+":"+i.combo})]});
+  {id:"fullscreen",sec:"Lecture",lbl:"f",combo:"F"},{id:"nolbl",sec:"Montage"},{id:"zza",sec:"Audio",lbl:"za",combo:"1"},
+  {id:"zzf",sec:"Affichage",lbl:"zf",combo:"2"}],function(){return ""}).map(function(g){return [g.rub,g.items.map(function(i){return i.id+":"+i.lbl+":"+i.combo})]});
 /* actions null / non-tableau -> [] ; sans keyLabel -> combo de la table ; le modele ne MUTE pas l'entree */
 var _ecA=[{id:"undo",sec:"Montage",lbl:"a",combo:"Ctrl+Z"}],_ecJ=JSON.stringify(_ecA);
 out.menu_bornes=[T.menuModel(null,null).length,T.menuModel("x").length,T.menuModel(_ecA).map(function(g){return g.rub+"/"+g.items[0].combo}),JSON.stringify(_ecA)===_ecJ];
@@ -1902,9 +1904,10 @@ check("menu_cinq_actions_quatre_rubriques_dans_l_ordre_fixe_vides_omises_keyLabe
                         ["Marqueurs", ["marker_toggle:Maj+M"]], ["Affichage", ["zoom_in:Ctrl+="]]],
       D.get("menu"))
 check("menu_vide_rend_zero_rubrique", "menu_vide" in D and D["menu_vide"] == 0, D.get("menu_vide"))
-check("menu_sec_inconnue_timeline_non_objets_ignores_keyLabel_vide_repli_table_keys_panel_aide_fullscreen_affichage",
-      D.get("menu_inconnu") == [["Édition", ["mute:m:M"]], ["Timeline", ["zzz:z:Q", "nolbl::"]],
-                                ["Affichage", ["fullscreen:f:F"]], ["Aide", ["keys_panel:k:?"]]],
+# revue 23/09 : zza / zzf sont ABSENTS de la table -> seuls les replis Audio -> Edition et Affichage -> Affichage les placent
+check("menu_sec_inconnue_timeline_ids_inconnus_audio_edition_affichage_affichage_non_objets_ignores_keyLabel_vide_repli_table",
+      D.get("menu_inconnu") == [["Édition", ["mute:m:M", "zza:za:1"]], ["Timeline", ["zzz:z:Q", "nolbl::"]],
+                                ["Affichage", ["fullscreen:f:F", "zzf:zf:2"]], ["Aide", ["keys_panel:k:?"]]],
       D.get("menu_inconnu"))
 check("menu_bornes_null_et_non_tableau_rendent_vide_sans_keyLabel_la_table_entree_non_mutee",
       D.get("menu_bornes") == [0, 0, ["Édition/Ctrl+Z"], True], D.get("menu_bornes"))

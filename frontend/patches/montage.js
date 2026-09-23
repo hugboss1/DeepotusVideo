@@ -6587,6 +6587,7 @@ var DZM_MENU_RUB={undo:"Édition",redo:"Édition",delete:"Édition",ripple:"Édi
   range_in:"Édition",range_out:"Édition",range_clear:"Édition",range_cut:"Édition",
   swap_left:"Édition",swap_right:"Édition",nudge_left:"Édition",nudge_right:"Édition",
   gain_up:"Édition",gain_down:"Édition",fade_in_cycle:"Édition",fade_out_cycle:"Édition",mute:"Édition",solo:"Édition",
+  snap:"Édition",/* revue 23/09 : bascule sœur de ripple, même rubrique */
   marker_toggle:"Marqueurs",marker_prev:"Marqueurs",marker_next:"Marqueurs",marker_index:"Marqueurs",
   zoom_in:"Affichage",zoom_out:"Affichage",zoom100:"Affichage",toolbar:"Affichage",narration:"Affichage",
   sounds_drawer:"Affichage",fullscreen:"Affichage",safezones:"Affichage",
@@ -6610,9 +6611,14 @@ function dzmMenuModel(actions,keyLabel){
    menus contextuels (au pointeur : o.items à plat). Item {lbl, combo?, run,
    off?, sep?}. AUCUN hook — l'hôte tient l'état {kind,x,y,id}. La fenêtre est
    lue À L'APPEL (gardée par typeof : le shim du banc n'a qu'un objet vide → repli),
-   position bornée : left ≤ innerWidth−270 (largeur 260 + marge), top ≤
-   innerHeight−40·n. La racine arrête le clic comme le popover (EB5b) et le
-   bandeau E-11 : le voile du bundle ferme au clic dehors, Échap dans R_K7. */
+   position bornée : left ≤ innerWidth−270 (ÉCART daté 23/09 : le plan disait
+   260 = la largeur CSS seule ; 270 garde 10 px de marge droite), top ≤
+   innerHeight−40·n. Pas de `o.anchor` (écart 23/09) : T2 calcule x,y depuis
+   getBoundingClientRect() du bouton ☰ (left, bottom+4) — une seule entrée.
+   `.svm-menugrp` enveloppe chaque rubrique (en-tête + rangées) : T2 le style
+   dans montage.css avec svm-menurub / svm-menusep / svm-menuitem / svm-menukey.
+   La racine arrête le clic comme le popover (EB5b) et le bandeau E-11 : le
+   voile du bundle ferme au clic dehors, Échap dans R_K7. */
 function DzmCtxMenu(o){
   o=o||{};
   var rubs=Array.isArray(o.rubs)?o.rubs:[{rub:"",items:Array.isArray(o.items)?o.items:[]}];
