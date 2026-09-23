@@ -3613,7 +3613,10 @@ def _run_ffmpeg(cmd, out: Path) -> Path:
 # Limites datées (revue 23/09/2026) : pas d'annulation au shutdown —
 # `app/main.py` n'annule que news/sched/warm ; un ffmpeg en cours bloque la
 # sortie comme le chemin historique — et pas de reprise des jobs `queued`
-# orphelins après relance (comme les `generating_video` historiques).
+# orphelins après relance (comme les `generating_video` historiques). Pas de
+# plafond sur la file ; les jobs `queued` d'une boucle précédente (worker
+# recréé par `_ensure_worker`, async sans await — laissé tel quel, daté) ne
+# sont jamais repris.
 _RENDER_QUEUE: asyncio.Queue | None = None
 _RENDER_WORKER: asyncio.Task | None = None
 _RENDER_PENDING = 0
@@ -3707,6 +3710,7 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
     ouvrir », pas « vidéo ». Une source DISPARUE n'est pas concernée : ce
     chemin reste inchangé.
     → {job_id} ; poll /api/jobs/{id}."""
+    global _RENDER_PENDING                      # D-36
     try:
         body = await request.json()
     except Exception:
@@ -4102,15 +4106,14 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
             await _fail(str(e))
 
     if queue:
-        global _RENDER_PENDING
         q = await _ensure_worker()
         _RENDER_PENDING += 1
         position = _RENDER_PENDING
         q.put_nowait(_run)
         return {"ok": True, "job_id": job_id, "preview": False,
                 "queued": True, "position": position,
-                "message": f"Ajouté à la file — {position} en attente ; "
-                           f"suivi GET /api/jobs."}
+                "message": f"Ajouté à la file — position {position} ; "
+                           f"suivi dans la vue Livraison."}
     background_tasks.add_task(_run)
     return {"ok": True, "job_id": job_id, "preview": preview,
             "message": f"Rendu {'aperçu' if preview else 'final'} lancé — "
