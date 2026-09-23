@@ -3265,6 +3265,22 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     cmd = _deliver_tail(spec, preview, fps, total_out, inputs, parts, amap, out,
                         cur, subtitles_filter(subs_ass) if subs_ass else None,
                         ss=ss)
+    # Revue T2 (23/09/2026, MESURÉ sur « preuve e3 », ffmpeg 8.1.1 essentials) :
+    # un clip à la fois STABILISÉ (vidstabtransform, D-16) et RETIMÉ EN FLUX
+    # (minterpolate, D-15) plante ffmpeg par violation d'accès (0xC0000005,
+    # rc 3221225477, frame=0 puis crash) de façon ALÉATOIRE — 3/4 et 2/3
+    # sur la même commande, à 720 comme à 1080, avec OU sans loudnorm, à 25
+    # comme à 30 i/s ; sans vidstab 0/3, sans minterpolate 0/3, et avec
+    # `-filter_complex_threads 1` 0/6. C'est une course entre threads du
+    # graphe de filtres, pas un format non négocié : le graphe est alors
+    # exécuté sur un seul thread (minterpolate domine de toute façon le
+    # temps, +2 s sur 34 mesurés). Les graphes sans cette paire gardent
+    # leurs threads (commande historique octet pour octet).
+    if not audio_only:
+        graphe = ";".join(parts)
+        if "vidstabtransform=" in graphe and "minterpolate=" in graphe:
+            k = cmd.index("-filter_complex")
+            cmd[k:k] = ["-filter_complex_threads", "1"]
     return cmd, total
 
 

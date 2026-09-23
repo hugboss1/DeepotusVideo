@@ -577,6 +577,36 @@ _crl = BUILD(range_out=(1.0, 3.0), loudness=-14, loud_measured=_MEAS, _audio=1)
 check("d38_plage_et_loudness_se_composent",
       _CH14 in _crl and "-map [outn] -ss 1.0 -t 2.0" in _crl, _t(_crl, 200))
 
+print("\n[7] revue T2 : stab + flow → graphe sur un seul thread (course ffmpeg mesuree)")
+# MESURE (23/09/2026, « preuve e3 », ffmpeg 8.1.1 essentials) : un clip a la fois
+# stabilise (vidstabtransform) ET retime en flux (minterpolate) plante ffmpeg
+# (0xC0000005, rc 3221225477) ALEATOIREMENT — 3/4 et 2/3 sur la MEME commande,
+# a 720 comme a 1080, avec ou sans loudnorm, a 25 comme a 30 i/s ; sans l'un
+# des deux filtres 0/3 ; avec -filter_complex_threads 1 : 0/6. Le plantage
+# n'est pas reproductible de facon deterministe : ce qui est pinne ici est la
+# FORME (le drapeau present exactement quand la paire est la), et [M] rend un
+# graphe reel stab + flow + amix + sous-titres + loudness en 720.
+_TRF = pathlib.Path(TMP) / "fake.trf"; _TRF.write_bytes(b"VID.STAB 1\n" + b"0" * 64)
+_STB = {"smooth": 20, "crop": "keep", "zoom": 0, "trf": str(_TRF)}
+_c_st = BUILD(stab=_STB)
+_c_fl = BUILD(speed=2.0, retime="flow")
+_c_sf = BUILD(stab=_STB, speed=2.0, retime="flow")
+check("t2_stab_et_flow_ensemble_posent_filter_complex_threads_1_juste_avant_le_graphe",
+      "vidstabtransform=" in _c_sf and "minterpolate=" in _c_sf
+      and " -filter_complex_threads 1 -filter_complex " in _c_sf and _c_sf.count("-filter_complex_threads") == 1,
+      _c_sf[:200])
+check("t2_stab_seul_ou_flow_seul_gardent_les_threads_historiques",
+      "vidstabtransform=" in _c_st and "-filter_complex_threads" not in _c_st
+      and "minterpolate=" in _c_fl and "-filter_complex_threads" not in _c_fl
+      and "-filter_complex_threads" not in _c0 and _c_st != _c0 and _c_fl != _c0,
+      (_c_st[:120], _c_fl[:120]))
+check("t2_le_drapeau_ne_change_rien_d_autre_a_la_commande",
+      _c_sf.replace(" -filter_complex_threads 1", "") == BUILD(stab=_STB, speed=2.0, retime="flow").replace(" -filter_complex_threads 1", "")
+      and "-filter_complex_threads 1" in BUILD(stab=_STB, speed=2.0, retime="flow", preset="social_720")
+      and "-filter_complex_threads 1" in BUILD(stab=_STB, speed=2.0, retime="flow", preview=True)
+      and "-filter_complex_threads 1" in BUILD(stab=_STB, speed=2.0, retime="flow", preset="gif_480"),
+      _t(BUILD(stab=_STB, speed=2.0, retime="flow", preset="social_720"), 120))
+
 print("\n[M] mesure ffmpeg reelle : prores422 → .mov, gif_480 → .gif, audio_mp3 → .mp3")
 _FB = None
 try:
@@ -723,6 +753,39 @@ else:
         _errr = "%s: %s" % (type(e).__name__, e)
     check("d38_rendu_reel_de_la_plage_1_2_dure_environ_1_s",
           _rcr == 0 and isinstance(_durr, float) and 0.85 <= _durr <= 1.2, (_rcr, _durr, _errr))
+    # [7] graphe REEL du cas « preuve e3 » : stab (vidstabdetect reel) + flow +
+    # amix (deux sources) + sous-titres + loudness mesuree + social_720 en 720.
+    _rcz, _errz, _cmdz, _sizz = None, "", "", -1
+    try:
+        from app.services import montage_media as _MM
+        _trfz = _MM.stab_detect(pathlib.Path(_SRC3))
+        _ASSZ = pathlib.Path(TMP) / "z.ass"
+        _ASSZ.write_text("[Script Info]\nScriptType: v4.00+\n\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, "
+                         "PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, "
+                         "StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, "
+                         "MarginL, MarginR, MarginV, Encoding\nStyle: D,Arial,40,&H00FFFFFF,&H000000FF,&H00000000,"
+                         "&H00000000,0,0,0,0,100,100,0,0,1,2,0,2,10,10,10,1\n\n[Events]\nFormat: Layer, Start, End, "
+                         "Style, Name, MarginL, MarginR, MarginV, Effect, Text\nDialogue: 0,0:00:00.00,0:00:01.00,D,,0,0,0,,preuve\n",
+                         encoding="utf-8")
+        _specz = V1SPEC(path=_SRC3, src_dur=3.0, start=0.0, end=1.5, speed=2.0, retime="flow",
+                        stab={"smooth": 20, "crop": "keep", "zoom": 0, "trf": str(_trfz)})
+        _aclz = [ASPEC(path=_SRC3, src_dur=3.0, end=1.5), ASPEC(tr="a3", path=_SRC3, src_dur=3.0, end=1.5, gain=0.5)]
+        _outz = os.path.join(TMP, "reel_stabflow.mp4")
+        _cz, _ = MS._build_montage_command(
+            [_specz], [], _aclz, None, w=720, h=1280, fps=30, mix_db={}, ducking=False,
+            duration_master=False, preview=False, out=_outz, subs_ass=str(_ASSZ),
+            preset="social_720", loudness=-14, loud_measured=_m1)
+        _cmdz = FLAT(_cz); _cz[0] = _FB
+        _rz = subprocess.run(_cz, capture_output=True, timeout=300)
+        _rcz, _errz = _rz.returncode, (_rz.stderr or b"")[-300:]
+        _sizz = os.path.getsize(_outz) if os.path.isfile(_outz) else -1
+    except Exception as e:
+        _errz = "%s: %s" % (type(e).__name__, e)
+    check("t2_rendu_reel_stab_flow_amix_sous_titres_loudness_720_aboutit_sur_un_seul_thread",
+          _rcz == 0 and _sizz > 0 and "vidstabtransform=" in _cmdz and "minterpolate=" in _cmdz
+          and "amix=inputs=2" in _cmdz and "subtitles=" in _cmdz and "[outa]loudnorm=" in _cmdz
+          and " -filter_complex_threads 1 -filter_complex " in _cmdz and "-crf 23" in _cmdz,
+          (_rcz, _sizz, _errz, _cmdz[:160]))
 
 print("\n[6] espion /render : preset, fps, dimensions, extension")
 _cap = {}
