@@ -1618,10 +1618,18 @@ _iUS = _DRW.find("x.useState("); _iNul = _DRW.find("return null")
 check("media_drawer_le_return_null_ferme_vient_apres_les_hooks",
       0 <= _iUS < _iNul, (_iUS, _iNul))
 # les quatre exports sont en queue de DzTracks (T3 les lit sous ces noms)
+# revue 23/09 : la couche juge TOUJOURS le statut (dzmIsVideoJob hors de toute condition sur o.exts) --
+# le serveur `video=1` ne juge que l'extension ; un job en cours a video_path pose n'entre pas
+check("media_drawer_applique_toujours_le_juge_de_statut_exts_facultatif",
+      len(_DRW) > 400 and _DRW.count("dzmIsVideoJob(") == 1
+      and "var vus=jobs.filter(function(j){return dzmIsVideoJob(j,o.exts&&o.exts.length?o.exts:null)});" in _DRW
+      and "o.exts&&o.exts.length?jobs.filter" not in _DRW,
+      f"corps={len(_DRW)} o isVideoJob={_DRW.count('dzmIsVideoJob(')}")
 _iDT = _SRCb.find("var DzTracks={")
-_DT = _SRCb[_iDT:_SRCb.find("window.DzTracks=DzTracks;", _iDT)] if _iDT >= 0 else ""
+_iFin = _SRCb.find("window.DzTracks=DzTracks;", _iDT) if _iDT >= 0 else -1
+_DT = _SRCb[_iDT:_iFin] if 0 <= _iDT < _iFin else ""
 check("media_exports_provGroupe_provChips_mediaFiltre_MediaDrawer_dans_DzTracks",
-      len(_DT) > 1000 and all(_DT.count(e) == 1 for e in
+      _iFin > _iDT >= 0 and len(_DT) > 1000 and all(_DT.count(e) == 1 for e in
           ("provGroupe:dzmProvGroupe", "provChips:dzmProvChips", "mediaFiltre:dzmMediaFiltre", "MediaDrawer:DzmMediaDrawer")),
       len(_DT))
 shutil.rmtree(TMP, ignore_errors=True)

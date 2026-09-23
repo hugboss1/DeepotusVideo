@@ -6384,9 +6384,16 @@ function dzmMediaFiltre(jobs,f){var g=(f&&f.groupe)||"Tout",q=String((f&&f.q)||"
    chargée ET, dès 2 caractères, re-demandée au serveur (`&q=`, 250 ms de
    repos, un compteur écarte la réponse d'une frappe dépassée) ; le filtre
    `groupe` reste LOCAL aux pages chargées (les groupes sont dérivés — « Plus »
-   continue de paginer sans filtre serveur ; choix daté 23/09/2026). `exts`
-   n'est qu'un second tamis facultatif par `dzmIsVideoJob` quand l'hôte a
-   déjà lu /media-rules — le juge reste le serveur. Vignette : la première
+   continue de paginer sans filtre serveur ; choix daté 23/09/2026).
+   DEUX JUGES COMPLÉMENTAIRES (revue 23/09/2026) : le serveur juge
+   l'EXTENSION (`video=1`), la couche juge le STATUT — `dzmIsVideoJob` est
+   appliqué TOUJOURS (status done, pas d'aperçu `_preview`, chemin posé),
+   `exts` restant facultatif (null = pas de second tamis par extension,
+   mesuré : la garde `!exts` de dzmIsVideoJob vient après celle du statut).
+   Sans lui, un job en cours ou en erreur dont `video_path` est déjà posé
+   entrerait dans le tiroir. Après une erreur HTTP, « Plus » reste actif
+   et rejoue depuis le même offset : accepté, daté 23/09/2026 (la page
+   manquée n'a pas été comptée, l'offset n'a pas avancé). Vignette : la première
    image de la bande (`/api/montage/strip … n=1`). Durée : `dzmDurTxt`,
    le formateur déjà partagé avec le transport (pas de second m:ss). */
 var DZM_MED_PAGE=24,DZM_MED_REPOS=250;
@@ -6417,7 +6424,7 @@ function DzmMediaDrawer(o){
     var t=setTimeout(function(){charge(0,qServ,!0)},qServ?DZM_MED_REPOS:0);
     return function(){clearTimeout(t)}},[o.open?1:0,qServ]);
   if(!o.open)return null;
-  var vus=o.exts&&o.exts.length?jobs.filter(function(j){return dzmIsVideoJob(j,o.exts)}):jobs;
+  var vus=jobs.filter(function(j){return dzmIsVideoJob(j,o.exts&&o.exts.length?o.exts:null)});
   var chips=dzmProvChips(vus),g=chips.indexOf(groupe)>=0?groupe:"Tout";
   var liste=dzmMediaFiltre(vus,{groupe:g,q:q});
   var row=function(j){var jid=String(j.job_id||""),lbl=j.title||jid;
