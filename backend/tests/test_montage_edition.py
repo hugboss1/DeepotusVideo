@@ -654,8 +654,81 @@ out.aj_new=T.adjustNew(2.5,AJC,"j1");
 out.aj_new_dur=[T.adjustNew(9,AJC,"j1").end,T.adjustNew(-1,AJC,"j1"),T.adjustNew(1,[],"j1"),T.adjustNew(0,[{id:"j1u1",tr:"j1",kind:"adjust",start:0,end:3}].concat(AJC),"j1").id];
 out.aj_group=[T.group({id:"j1",kind:"adjust"}),T.group({id:"t1",kind:"title"}),T.group({id:"v2",kind:"video"}),T.group({id:"a1",kind:"audio"})];
 out.aj_pur=[TS0.join()===T.DEFAULTS.map(function(t){return t.id}).join(),TS1.length===T.DEFAULTS.length+1,AJC.length===1&&AJC[0].end===10];
+/* [19] E-2 (lot E-B, tache 2) : provenance des rendus, chips derivees, filtre du tiroir Medias */
+out.prov=[T.provGroupe("seedance"),T.provGroupe("episode"),T.provGroupe("ugc"),T.provGroupe(null),T.provGroupe("zzz")];
+out.chips=T.provChips([{provider:"seedance"},{provider:"heygen"},{provider:"episode"},{provider:null},{provider:"zzz"}]);
+var MJ=[{title:"Alpha",provider:"seedance"},{title:"Beta",provider:"episode"},{title:"alphabet",provider:"news"}];
+out.filtre=T.mediaFiltre(MJ,{groupe:"Studio",q:""}).map(function(j){return j.title});
+out.filtre_q=T.mediaFiltre([{title:"Alpha",provider:"seedance"},{title:"Beta",provider:"episode"}],{groupe:"Tout",q:"ALP"}).map(function(j){return j.title});
+out.filtre_vide=T.mediaFiltre([],{groupe:"Tout",q:""}).length;
+/* bornes : sans filtre -> tout ; q sur le job_id quand le titre manque ; entree non mutee ; chips sans job -> ["Tout"] */
+out.filtre_bornes=[T.mediaFiltre(MJ,null).length,T.mediaFiltre([{job_id:"abc123",provider:"news"}],{q:"BC1"}).length,
+  T.mediaFiltre([null,{title:"x",provider:"news"}],{groupe:"News"}).length,JSON.stringify(MJ)==='[{"title":"Alpha","provider":"seedance"},{"title":"Beta","provider":"episode"},{"title":"alphabet","provider":"news"}]',
+  T.provChips([]),T.provChips(null)];
+/* le composant EXISTE et touche `x` (hooks) des l'appel, ferme comme ouvert : la regle des hooks
+   de React interdit un `return null` AVANT les useState (le tiroir est monte en permanence par
+   l'hote, `open` bascule) -- le shim strict leve donc dans les trois cas, et c'est le temoin
+   que ce n'est PAS une fonction pure */
+out.drawer_pure=typeof T.MediaDrawer;
+out.drawer_touche_x=[!1,null,!0].map(function(o){try{T.MediaDrawer(o===null?null:{open:o});return "rendu"}catch(e){return e instanceof ReferenceError?"leve":"autre:"+e}});
+/* E-5 (lot E-B, tache 4) : le dernier rendu FINAL par projet -- store pur {pid:{job_id,name,at}}.
+   MESURE 23/09 : `out.fin` est DEJA la cle du mode « fin » de la section [1] (fin_apres_le_dernier) -> prefixe finst */
+out.finst=T.finStore({},"p1",{job_id:"j",name:"n",at:1});
+out.finst_of=T.finOf(out.finst,"p1");
+out.finst_rm=T.finStore(out.finst,"p1",null);
+out.finst_none=T.finOf({},"zz");
+/* bornes : pid vide -> cle "_" ; store non-objet -> {} ; objet NEUF (l'entree n'est pas mutee) ; finOf lit "_" pour pid vide ;
+   store null -> null ; entree sans job_id -> null ; les cles voisines survivent au retrait */
+var FS0={p1:{job_id:"j",name:"n",at:1}};
+out.finst_bornes=[Object.keys(T.finStore({},"",{job_id:"k",name:"m",at:2})),T.finStore("zut",null,{job_id:"k",name:"m",at:2})["_"].job_id,
+  T.finStore(FS0,"p2",{job_id:"z",name:"z",at:3})!==FS0&&Object.keys(FS0).length===1,T.finOf({_:{job_id:"u",name:"",at:0}},""),
+  T.finOf(null,"p1"),T.finOf({p1:{}},"p1"),Object.keys(T.finStore({a:{job_id:"1"},b:{job_id:"2"}},"a",null))];
+/* E-8 (lot E-B, tache 6) : la largeur de l'inspecteur, bornee 260..480, defaut 300 ; le clamp pur dessous.
+   null / "" / undefined / non numerique -> defaut (pas 0 puis borne basse) ; hors bornes -> la borne ; 261 reste 261 */
+out.insp=[T.inspW("999"),T.inspW("abc"),T.inspW(261),T.inspW(null),T.inspW(""),T.inspW(void 0),T.inspW(-5),T.inspW(480.4),T.inspW(" 300 ")];
+out.clamp=[T.clamp(5,0,10,7),T.clamp(-1,0,10,7),T.clamp(11,0,10,7),T.clamp(NaN,0,10,7),T.clamp(Infinity,0,10,7),T.clamp(-Infinity,0,10,7),
+  T.clamp("3",0,10,7),T.clamp(null,0,10,7),T.clamp({},0,10,7),T.clamp(0,0,10,7),T.clamp(10,0,10,7)];
+/* E-9 (lot E-B, tache 7, 23/09/2026) : la hauteur de la timeline bornee 30..70 % du total, null sans choix
+   (= plafond historique) ; la duree sur le label du clip par le formateur svmRuler DU BUNDLE, que le banc
+   EXTRAIT de .bak_montage (jamais recopie) et joue ici -- sans lui, durLbl(...,true) leve et le temoin le dit */
+/*E9_RULER*/
+out.tlh=[T.tlH("50",1000),T.tlH("900",1000),T.tlH("",1000),T.tlH("500",0),T.tlH(500,1000),T.tlH("650.4",1000)];
+out.tlh_bornes=[T.tlH(null,1000),T.tlH(void 0,1000),T.tlH("abc",1000),T.tlH(NaN,1000),T.tlH(Infinity,1000),T.tlH(!0,1000),
+  T.tlH("500",-1),T.tlH("500",null),T.tlH("500","abc"),T.tlH("500",Infinity),T.tlH(300,1000),T.tlH(700,1000)];
+out.durlbl=(function(){try{return [T.durLbl("a",0,6,true),T.durLbl("a",0,6,false),T.durLbl("a",6,6,true)]}catch(e){return "leve:"+e}})();
+out.durlbl_bornes=(function(){try{return [T.durLbl("a",4,2,true),T.durLbl("a",0,65,true),T.durLbl("a",0,6.4,true),T.durLbl("a",0,125,!0),
+  T.durLbl("a","0","6",true),T.durLbl("a",0,NaN,true),T.durLbl("a",null,null,true),T.durLbl("",0,6,true)]}catch(e){return "leve:"+e}})();
+/* D-7 (lot E-B, tache 8, 23/09/2026) : la mini-carte -- rectangles en FRACTIONS de la duree, une ligne par piste
+   dans l'ordre recu, clips hors [0,dur] / a duree nulle / sans piste connue ignores ; le champ piste d'un clip
+   est `tr` (mesure : 58 `c.tr` dans .bak_montage, 0 `c.track`) ; le genre par dzmKindOf (id, kind) */
+out.mm=T.minimap([{id:"c1",tr:"v1",start:2,end:6},{id:"c2",tr:"a1",start:0,end:20},{id:"c3",tr:"v1",start:25,end:30}],
+  [{id:"v1"},{id:"a1",kind:"audio"}],20);
+out.mm_vide=[T.minimap([],[],20),T.minimap([{id:"c",tr:"v1",start:0,end:5}],[{id:"v1"}],0),T.minimap([{id:"c",tr:"v1",start:0,end:5}],[{id:"v1"}],-3),
+  T.minimap([{id:"c",tr:"v1",start:0,end:5}],[{id:"v1"}],NaN),T.minimap([{id:"c",tr:"v1",start:0,end:5}],[{id:"v1"}],Infinity),
+  T.minimap(null,[{id:"v1"}],20),T.minimap([{id:"c",tr:"v1",start:0,end:5}],"v1",20)];
+/* bornes : depasse a droite -> x1 borne a 1 ; commence avant 0 -> x0 borne a 0 ; end <= start ignore ; piste inconnue
+   ignoree ; clip null ignore ; piste dupliquee = une ligne ; genre par la lettre (a1 -> audio) ; entrees NON mutees */
+var _mmC=[{id:"c1",tr:"v1",start:15,end:30},{id:"c2",tr:"v1",start:-5,end:5},{id:"c3",tr:"v1",start:6,end:6},{id:"c4",tr:"zz",start:1,end:2},null,
+  {id:"c5",tr:"a1",start:"4","end":"8"}],_mmT=[{id:"v1"},{id:"a1"},{id:"v1"}],_mmJ=JSON.stringify(_mmC)+JSON.stringify(_mmT);
+var _mmB=T.minimap(_mmC,_mmT,20);
+out.mm_bornes=[_mmB.rows.length,_mmB.rects.map(function(q){return [q.tr,q.row,q.x0,q.x1,q.kind]}),JSON.stringify(_mmC)+JSON.stringify(_mmT)===_mmJ,
+  _mmB.rows.map(function(w){return w.kind})];
+out.mm_comp=typeof T.Minimap;
+/* MESURE 23/09 : `r` est ICI le resultat de la section [1] (`var r=T.insere(...)`, un objet sans jsx) :
+   le composant le lit a l'appel et leve un TypeError sur r.jsx -- pas un ReferenceError comme le tiroir (x) */
+out.mm_comp_leve=[null,{},{clips:[],tracks:[],dur:0}].map(function(o){try{T.Minimap(o);return "rendu"}catch(e){return e instanceof TypeError&&String(e).indexOf("r.jsx")>=0?"r.jsx":"autre:"+e}});
 console.log(JSON.stringify(out));
 """
+# E-9 : svmRuler / svmPad2 sont des fonctions DU BUNDLE (meme portee module que
+# la couche) : le shim les recoit EXTRAITES de .bak_montage, comme le banc du
+# bundle (P10) les lit -- une copie ici divergerait au premier changement.
+_E9_BAK = os.path.join(ROOT, "frontend", "dist", "assets", "index-BEOJX8L5.js.bak_montage")
+_E9_RULER = ""
+if os.path.isfile(_E9_BAK):
+    with open(_E9_BAK, "rb") as _fh: _bk = _fh.read().decode("utf-8", "replace")
+    _mp = re.search(r"function svmPad2\([^)]*\)\{[^}]*\}", _bk); _mr = re.search(r"function svmRuler\([^)]*\)\{[^}]*\}", _bk)
+    if _mp and _mr: _E9_RULER = _mp.group(0) + "\n" + _mr.group(0)
+PROBE = PROBE.replace("/*E9_RULER*/", _E9_RULER)
 print("\n[1] dzmInsere sous node")
 D = {}
 if not NODE or not os.path.isfile(SRC_PATH):
@@ -850,7 +923,18 @@ try:
                  "kf_lerp","kf_lerp_hors","kf_lerp_defaut","kf_lerp_desordre",
                  "kf_keep","kf_keep_absent","kf_pur",
                  # D-9 (L3, tache 9) : les SEPT cles de la section [18].
-                 "aj_kind","aj_skin","aj_track","aj_new","aj_new_dur","aj_group","aj_pur"]
+                 "aj_kind","aj_skin","aj_track","aj_new","aj_new_dur","aj_group","aj_pur",
+                 # E-2 (lot E-B, tache 2) : les HUIT cles de la section [19].
+                 "prov","chips","filtre","filtre_q","filtre_vide","filtre_bornes",
+                 "drawer_pure","drawer_touche_x",
+                 # E-5 (lot E-B, tache 4) : les CINQ cles du store du dernier rendu.
+                 "finst","finst_of","finst_rm","finst_none","finst_bornes",
+                 # E-8 (lot E-B, tache 6) : les DEUX cles de la largeur de l'inspecteur.
+                 "insp","clamp",
+                 # E-9 (lot E-B, tache 7) : les QUATRE cles de la hauteur de la timeline et du label de duree.
+                 "tlh","tlh_bornes","durlbl","durlbl_bornes",
+                 # D-7 (lot E-B, tache 8) : les CINQ cles de la mini-carte.
+                 "mm","mm_vide","mm_bornes","mm_comp","mm_comp_leve"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -1554,6 +1638,193 @@ check("aj_la_note_de_retrait_de_j1_promet_Maj_J_comme_t1_promet_Maj_T",
       and _DEL.count('dzmCombo("adjust_add","Maj+J")') == 1
       and _DEL.count('kd==="adjust"') == 1 and _DEL.count('kd==="title"') == 1,
       f"corps={len(_DEL)} o title={_DEL.count('title_add')} adjust={_DEL.count('adjust_add')}")
+print("\n[19] E-2 provenance, filtre et tiroir Medias (client)")
+# la table DZM_PROV_LBL : seedance -> Studio, episode -> Chapitres, ugc -> Importes, null (lu seedance) -> Studio,
+# un provider inconnu s'affiche tel quel (pas de « Autres » qui cacherait un nom)
+check("prov_groupe_derive_du_provider_null_vaut_seedance_inconnu_tel_quel",
+      D.get("prov") == ["Studio", "Chapitres", "Importés", "Studio", "zzz"], D.get("prov"))
+# derivees des jobs recus, uniques (seedance+heygen+null = un seul Studio), « Tout » en tete, ordre d'apparition
+check("prov_chips_derivees_uniques_tout_en_tete_ordre_d_apparition",
+      D.get("chips") == ["Tout", "Studio", "Chapitres", "zzz"], D.get("chips"))
+check("media_filtre_par_groupe", D.get("filtre") == ["Alpha"], D.get("filtre"))
+check("media_filtre_q_insensible_a_la_casse", D.get("filtre_q") == ["Alpha"], D.get("filtre_q"))
+check("media_filtre_liste_vide_rend_zero", "filtre_vide" in D and D["filtre_vide"] == 0, D.get("filtre_vide"))
+# sans filtre -> 3 ; q lit le job_id quand le titre manque -> 1 ; un job null est ignore -> 1 ; l'entree n'est pas mutee ; chips sans job -> ["Tout"] x2
+check("media_filtre_bornes_sans_filtre_job_id_null_ignore_pur_et_chips_vides",
+      D.get("filtre_bornes") == [3, 1, 1, True, ["Tout"], ["Tout"]], D.get("filtre_bornes"))
+check("media_drawer_est_une_fonction", D.get("drawer_pure") == "function", D.get("drawer_pure"))
+check("media_drawer_touche_les_hooks_ferme_comme_ouvert_regle_des_hooks",
+      D.get("drawer_touche_x") == ["leve", "leve", "leve"], D.get("drawer_touche_x"))
+# LE COEUR RESTE PUR : le corps des trois fonctions pures ne contient ni `r.jsx` ni `x.use`.
+# Lu dans la SOURCE en octets ; regex gardee par un temoin de longueur (un corps vide verdirait
+# une negation creuse). Le composant, lui, DOIT porter les deux (temoin inverse).
+_SRCb = globals().get("SRC") or ""
+def _corps(nom):
+    i = _SRCb.find("function " + nom + "(")
+    if i < 0: return ""
+    j = _SRCb.find("\nfunction ", i + 1); k = _SRCb.find("\nvar ", i + 1)
+    fin = min([v for v in (j, k) if v >= 0] or [len(_SRCb)])
+    return _SRCb[i:fin]
+_PURS = {n: _corps(n) for n in ("dzmProvGroupe", "dzmProvChips", "dzmMediaFiltre")}
+check("media_coeur_pur_les_trois_fonctions_ne_touchent_ni_r_ni_x",
+      all(len(c) > 100 and not re.search(r"\br\.jsx|\bx\.use", c) for c in _PURS.values()),
+      {n: len(c) for n, c in _PURS.items()})
+_DRW = _corps("DzmMediaDrawer")
+check("media_drawer_porte_hooks_jsx_fetch_jobs_video_strip_drag_et_le_formateur_de_duree_existant",
+      len(_DRW) > 400 and _DRW.count("x.useState(") >= 4 and "r.jsx" in _DRW
+      and '"/api/jobs?limit=' in _DRW and "video=1" in _DRW and "/api/montage/strip?src=" in _DRW
+      and "dzmDurTxt(" in _DRW and "dragPayload(" in _DRW and 'className:"svm-medrow"' in _DRW
+      and "dzmProvChips(" in _DRW and "dzmMediaFiltre(" in _DRW
+      and _DRW.count("function dzmDur") == 0 and _DRW.count("function dzmTc") == 0,
+      f"corps={len(_DRW)} o useState={_DRW.count('x.useState(')}")
+# la regle des hooks : le `return null` du tiroir ferme vient APRES le premier useState
+_iUS = _DRW.find("x.useState("); _iNul = _DRW.find("return null")
+check("media_drawer_le_return_null_ferme_vient_apres_les_hooks",
+      0 <= _iUS < _iNul, (_iUS, _iNul))
+# les quatre exports sont en queue de DzTracks (T3 les lit sous ces noms)
+# revue 23/09 : la couche juge TOUJOURS le statut (dzmIsVideoJob hors de toute condition sur o.exts) --
+# le serveur `video=1` ne juge que l'extension ; un job en cours a video_path pose n'entre pas
+check("media_drawer_applique_toujours_le_juge_de_statut_exts_facultatif",
+      len(_DRW) > 400 and _DRW.count("dzmIsVideoJob(") == 1
+      and "var vus=jobs.filter(function(j){return dzmIsVideoJob(j,o.exts)});" in _DRW
+      and "o.exts&&o.exts.length?jobs.filter" not in _DRW,
+      f"corps={len(_DRW)} o isVideoJob={_DRW.count('dzmIsVideoJob(')}")
+_iDT = _SRCb.find("var DzTracks={")
+_iFin = _SRCb.find("window.DzTracks=DzTracks;", _iDT) if _iDT >= 0 else -1
+_DT = _SRCb[_iDT:_iFin] if 0 <= _iDT < _iFin else ""
+check("media_exports_provGroupe_provChips_mediaFiltre_MediaDrawer_dans_DzTracks",
+      _iFin > _iDT >= 0 and len(_DT) > 1000 and all(_DT.count(e) == 1 for e in
+          ("provGroupe:dzmProvGroupe", "provChips:dzmProvChips", "mediaFiltre:dzmMediaFiltre", "MediaDrawer:DzmMediaDrawer")),
+      len(_DT))
+# ── E-5 (lot E-B, tache 4, 23/09/2026) : LE DERNIER RENDU FINAL PAR PROJET ──
+# Aucun JobRecord ne porte de project_id (mesure routes.py:3330) : la memoire
+# est cote client, un store {pid:{job_id,name,at}} que l'hote lit/ecrit dans
+# localStorage["dz_montage_lastfin"]. Ici DEUX fonctions PURES : finStore rend
+# un objet NEUF (pose ou retrait), finOf lit l'entree ou null.
+check("fin_store_pose_l_entree_du_projet",
+      D.get("finst") == {"p1": {"job_id": "j", "name": "n", "at": 1}}, D.get("finst"))
+check("fin_of_rend_l_entree_du_projet",
+      D.get("finst_of") == {"job_id": "j", "name": "n", "at": 1}, D.get("finst_of"))
+check("fin_store_null_retire_la_cle", "finst_rm" in D and D["finst_rm"] == {}, D.get("finst_rm"))
+check("fin_of_rend_null_sans_entree", "finst_none" in D and D["finst_none"] is None, D.get("finst_none"))
+# pid vide -> "_" ; store non-objet -> {} puis pose ; objet neuf sans muter l'entree ; finOf("")
+# lit "_" ; store null -> null ; entree sans job_id -> null ; le retrait garde les voisines
+check("fin_store_bornes_pid_vide_store_non_objet_objet_neuf_et_voisines",
+      D.get("finst_bornes") == [["_"], "k", True, {"job_id": "u", "name": "", "at": 0}, None, None, ["b"]],
+      D.get("finst_bornes"))
+# LE COEUR RESTE PUR : ni r.jsx, ni x.use, ni localStorage dans les deux corps (temoin de longueur).
+_FINS = {n: _corps(n) for n in ("dzmFinStore", "dzmFinOf")}
+check("fin_coeur_pur_ni_r_ni_x_ni_localStorage",
+      all(len(c) > 100 and not re.search(r"\br\.jsx|\bx\.use|localStorage", c) for c in _FINS.values()),
+      {n: len(c) for n, c in _FINS.items()})
+check("fin_exports_finStore_finOf_dans_DzTracks",
+      len(_DT) > 1000 and _DT.count("finStore:dzmFinStore") == 1 and _DT.count("finOf:dzmFinOf") == 1,
+      len(_DT))
+# ── E-11 (lot E-B, tache 5, 23/09/2026) : LE BANDEAU ARRETE LE CLIC ─────
+# Le voile (.svm-modescrim, bundle EB5a) se ferme au clic ; la racine du
+# bandeau .svm-pop dzm-fin porte le meme stopPropagation que le popover du
+# bundle (EB5b) et que kbPanel. Temoin : corps > 400 o, UN seul stopPropagation.
+_FBB = _corps("DzmFinBandeau")
+check("fin_bandeau_arrete_le_clic_sur_sa_racine_svm_pop",
+      len(_FBB) > 400 and _FBB.count('className:"svm-pop dzm-fin",onClick:function(e){e.stopPropagation()},children:[') == 1
+      and _FBB.count("stopPropagation") == 1 and _FBB.count("svm-modescrim") == 0,
+      f"corps={len(_FBB)} o stop={_FBB.count('stopPropagation')}")
+# ── E-8 (lot E-B, tache 6, 23/09/2026) : LA LARGEUR DE L'INSPECTEUR ──────
+# L'hote (EB6b) lit localStorage["dz_svm_insp"].w et la poignee (EB6a) pose
+# startW+(startX-clientX) : les deux passent par inspW, qui borne 260..480 et
+# rend 300 sur tout ce qui n'est pas un nombre fini (JSON corrompu, cle
+# absente). Le clamp est la fonction generale (NaN / non fini / vide -> def).
+check("insp_w_borne_260_480_defaut_300_sur_null_vide_et_non_numerique",
+      D.get("insp") == [480, 300, 261, 300, 300, 300, 260, 480, 300], D.get("insp"))
+# le clamp : dans les bornes tel quel, hors bornes la borne, NaN / ±Infinity / vide / objet -> def,
+# une chaine numerique est lue, les bornes elles-memes sont dedans
+check("clamp_bornes_nan_infini_vide_objet_rendent_le_defaut",
+      D.get("clamp") == [5, 0, 10, 7, 7, 7, 3, 7, 7, 0, 10], D.get("clamp"))
+# LE COEUR RESTE PUR : ni r.jsx, ni x.use, ni localStorage, ni window dans les deux corps (temoin de longueur) ;
+# inspW APPELLE clamp (une seule ecriture des bornes) et porte les trois nombres 260 / 480 / 300.
+_INS = {n: _corps(n) for n in ("dzmClamp", "dzmInspW")}
+check("insp_coeur_pur_et_inspW_passe_par_clamp_avec_260_480_300",
+      all(len(c) > 60 and not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b", c) for c in _INS.values())
+      and _INS["dzmInspW"].count("dzmClamp(") == 1 and all(k in _INS["dzmInspW"] for k in ("260", "480", "300"))
+      and _INS["dzmClamp"].count("dzmClamp(") == 1,  # sa declaration seule : pas de recursion
+      {n: len(c) for n, c in _INS.items()})
+check("insp_exports_clamp_inspW_dans_DzTracks",
+      len(_DT) > 1000 and _DT.count("clamp:dzmClamp,inspW:dzmInspW,") == 1, len(_DT))
+# ── E-9 (lot E-B, tache 7, 23/09/2026) : LA HAUTEUR DE LA TIMELINE ET LA DUREE SUR LES CLIPS ──
+# L'hote (EB7a, repli R_EB6B) lit localStorage["dz_svm_tlh"] au montage et la
+# poignee (EB7b) pose startH+(startY-clientY) : les deux passent par tlH, qui
+# borne 30..70 % du total (.dzsvm.clientHeight) et rend null -- « aucun choix »,
+# le plafond historique max-height:48vh reste -- sur tout ce qui n'est pas un
+# nombre fini ou quand le total est inconnu (<= 0, non fini).
+check("tlh_borne_30_70_pour_cent_du_total_arrondi_null_sans_choix_ou_sans_total",
+      D.get("tlh") == [300, 700, None, None, 500, 650], D.get("tlh"))
+check("tlh_bornes_null_undefined_nan_infini_booleen_total_negatif_null_ou_non_fini_et_les_bornes_elles_memes",
+      D.get("tlh_bornes") == [None, None, None, None, None, None, None, None, None, None, 300, 700], D.get("tlh_bornes"))
+# le label : « a · 0:06 » par svmRuler (format m:ss du bundle, extrait ici), le label seul
+# quand la chip est eteinte ou que la duree est nulle (end <= start)
+check("durlbl_ajoute_la_duree_m_ss_quand_la_chip_est_allumee_label_seul_sinon_ou_sans_duree",
+      D.get("durlbl") == ["a · 0:06", "a", "a"], D.get("durlbl"))
+# end < start -> label ; 65 s -> 1:05 ; 6,4 s -> 0:06 (arrondi du formateur) ; 125 -> 2:05 ; chaines lues ;
+# NaN / null -> label ; label vide -> la duree seule (pas « · 0:06 » orphelin)
+check("durlbl_bornes_end_avant_start_minutes_arrondi_chaines_nan_null_et_label_vide",
+      D.get("durlbl_bornes") == ["a", "a · 1:05", "a · 0:06", "a · 2:05", "a · 0:06", "a", "a", "0:06"], D.get("durlbl_bornes"))
+# LE COEUR RESTE PUR : ni r.jsx, ni x.use, ni localStorage, ni window, ni document dans les deux corps
+# (temoin de longueur) ; tlH APPELLE clamp (une seule ecriture des bornes) et porte .3 / .7 ; durLbl
+# APPELLE dzmDurTxt (le formateur EXISTANT, qui appelle svmRuler du bundle) -- AUCUN second formateur :
+# la source ne declare qu'UN `function dzmDurTxt(` (temoin) et aucun `function dzmTc` / `dzmRuler` / `dzmMmss`.
+_TLH = {n: _corps(n) for n in ("dzmTlH", "dzmDurLbl")}
+check("tlh_durlbl_coeur_pur_tlH_passe_par_clamp_durLbl_par_dzmDurTxt_aucun_second_formateur",
+      all(len(c) > 60 and not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b", c) for c in _TLH.values())
+      and _TLH["dzmTlH"].count("dzmClamp(") == 1 and ".3*" in _TLH["dzmTlH"] and ".7*" in _TLH["dzmTlH"]
+      and _TLH["dzmDurLbl"].count("dzmDurTxt(") == 1 and "svmRuler" not in _TLH["dzmDurLbl"]
+      and _SRCb.count("function dzmDurTxt(") == 1 and _SRCb.count("svmRuler(") >= 1
+      and all(_SRCb.count(k) == 0 for k in ("function dzmTc", "function dzmRuler", "function dzmMmss", "function dzmPad")),
+      {n: len(c) for n, c in _TLH.items()})
+check("tlh_durlbl_exports_tlH_durLbl_dans_DzTracks",
+      len(_DT) > 1000 and _DT.count("tlH:dzmTlH,durLbl:dzmDurLbl,") == 1, len(_DT))
+# le formateur du bundle a bien ete EXTRAIT (sinon durLbl(...,true) aurait leve et le pin d'au-dessus l'aurait dit)
+check("tlh_le_shim_joue_svmRuler_et_svmPad2_extraits_du_bak_montage",
+      _E9_RULER.count("function svmRuler(") == 1 and _E9_RULER.count("function svmPad2(") == 1
+      and _E9_RULER in PROBE and "/*E9_RULER*/" not in PROBE, len(_E9_RULER))
+# ── D-7 (lot E-B, tache 8, 23/09/2026) : LA MINI-CARTE DE LA TIMELINE ──
+# dzmMinimap(clips, tracks, dur) est PURE : lignes = pistes dans l'ordre recu
+# (id, genre par dzmKindOf), rectangles en FRACTIONS [0,1] de la duree (start/dur,
+# end/dur bornes) ; le troisieme clip (25..30 sur 20 s) est HORS duree -> exclu.
+# Le clic-centrer vit dans l'hote (seul detenteur de tlScrollRef), pas ici.
+check("mm_deux_pistes_trois_clips_rendent_deux_lignes_et_deux_rects_en_fractions_exactes_le_troisieme_hors_duree_exclu",
+      D.get("mm") == {"rows": [{"id": "v1", "kind": "video"}, {"id": "a1", "kind": "audio"}],
+                      "rects": [{"tr": "v1", "row": 0, "x0": 0.1, "x1": 0.3, "kind": "video"},
+                                {"tr": "a1", "row": 1, "x0": 0.0, "x1": 1.0, "kind": "audio"}]},
+      D.get("mm"))
+# etat vide : listes vides, dur 0 / negatif / NaN / Infinity, clips non-tableau, pistes non-tableau -> {rows:[],rects:[]} x7
+check("mm_etat_vide_dur_nul_negatif_nan_infini_ou_entrees_non_tableaux_rendent_rows_et_rects_vides",
+      isinstance(D.get("mm_vide"), list) and len(D["mm_vide"]) == 7
+      and all(v == {"rows": [], "rects": []} for v in D["mm_vide"]), D.get("mm_vide"))
+# bornes : x1 borne a 1 (15..30 sur 20), x0 borne a 0 (-5..5), end == start ignore, piste inconnue ignoree, clip null
+# ignore, piste dupliquee = UNE ligne (2 lignes pour 3 entrees), chaines lues ("4"/"8" -> .2/.4), genre a1 -> audio, entrees non mutees
+check("mm_bornes_x1_a_1_x0_a_0_duree_nulle_piste_inconnue_clip_null_ignores_piste_dupliquee_une_ligne_chaines_lues_pur",
+      D.get("mm_bornes") == [2, [["v1", 0, 0.75, 1, "video"], ["v1", 0, 0, 0.25, "video"], ["a1", 1, 0.2, 0.4, "audio"]], True, ["video", "audio"]],
+      D.get("mm_bornes"))
+check("mm_composant_est_une_fonction_qui_touche_r_a_l_appel_props_null_vides_ou_pleines",
+      D.get("mm_comp") == "function" and D.get("mm_comp_leve") == ["r.jsx", "r.jsx", "r.jsx"],
+      (D.get("mm_comp"), D.get("mm_comp_leve")))
+# LE COEUR RESTE PUR : ni r.jsx, ni x.use, ni localStorage/window/document dans dzmMinimap (temoin de longueur) ;
+# il lit le genre par dzmKindOf (la table EXISTANTE, une fois) et le champ `tr` ; le composant, lui, porte r.jsx,
+# svm-minimap / svm-mmrow / svm-mmrect / svm-mmview, data-kind, pointer-events par la feuille (pas de onClick sur
+# la fenetre), onSeek borne 0..1 par getBoundingClientRect, et APPELLE dzmMinimap (une seule geometrie).
+_MM = {n: _corps(n) for n in ("dzmMinimap", "DzmMinimap")}
+check("mm_coeur_pur_par_kindOf_et_tr_le_composant_appelle_minimap_et_porte_les_quatre_classes_et_onSeek_borne",
+      all(len(c) > 200 for c in _MM.values())
+      and not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b", _MM["dzmMinimap"])
+      and _MM["dzmMinimap"].count("dzmKindOf(") == 1 and "c.tr" in _MM["dzmMinimap"] and "c.track" not in _MM["dzmMinimap"]
+      and _MM["DzmMinimap"].count("dzmMinimap(") == 1 and "r.jsx" in _MM["DzmMinimap"] and "x.use" not in _MM["DzmMinimap"]
+      and all(_MM["DzmMinimap"].count('className:"' + k + '"') == 1 for k in ("svm-minimap", "svm-mmrow", "svm-mmrect", "svm-mmview"))
+      and _MM["DzmMinimap"].count('"data-kind":') == 1 and _MM["DzmMinimap"].count("getBoundingClientRect()") == 1
+      and _MM["DzmMinimap"].count("Math.max(0,Math.min(1,") >= 1 and "onSeek" in _MM["DzmMinimap"]
+      and _MM["DzmMinimap"].count("Mini-carte") == 1,
+      {n: len(c) for n, c in _MM.items()})
+check("mm_exports_minimap_Minimap_dans_DzTracks",
+      len(_DT) > 1000 and _DT.count("minimap:dzmMinimap,Minimap:DzmMinimap,") == 1, len(_DT))
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

@@ -311,7 +311,41 @@ STABLE_PROBES = [
     # `adjustTrack(` (la piste j1 nait avec le premier clip). AJ2a/AJ2b,
     # AJ6a/AJ6b et les replis TT1/M5/TT11/R1/R2/K5 n en ajoutent aucune.
     # MESURE : la chaine a refuse, « sonde montage x114 (want 112) ».
-    ("montage", "DzTracks", 114),
+    # 23/09/2026, E-2 (lot E-B, tache 3) : 114 -> 115. UNE de plus, par
+    # EB3 : le tiroir Medias monte dans .svm-mid (`MediaDrawer`, le
+    # composant de la couche). EB1 (l etat), EB2 (la chip), EB2b..EB2f
+    # (les cinq exclusions) et le repli du « + » video (R_TT11) n en
+    # ajoutent aucune : `onAdd` appelle addAsset avec "v1" comme la porte
+    # E-3, sans pickTrack (addAsset resout deja la piste, R_M16A). MESURE :
+    # la chaine a refuse, « sonde montage x115 (want 114) », avant cette
+    # ligne.
+    # 23/09/2026, E-5 (lot E-B, tache 4) : 115 -> 117. DEUX de plus, toutes
+    # deux dans des REPLIS : `finOf(` (dzLast, l etat du store a cote de
+    # dzFin, R_M16REF) et `finStore(` (la persistance du rendu FINAL, R_EA4).
+    # EB4 (le libelle « Preview ») et le bouton « Publier » (R_EA5D, qui ne
+    # fait que setDzFin) n en ajoutent aucune. MESURE : la chaine a refuse,
+    # « sonde montage x117 (want 115) », avant cette ligne.
+    # 23/09/2026, E-8 (lot E-B, tache 6) : 117 -> 119. DEUX de plus, toutes
+    # deux dans EB6b : `inspW(` a la lecture de la cle au montage (l etat
+    # stIn) et `inspW(` a chaque mouvement de la poignee (inspDown). EB6a
+    # (l aside a bascule, sa largeur, la poignee), le repli de la fermeture
+    # (R_M13, `:null,`) et la chip (R_EB2, qui ne fait que setInspSt) n en
+    # ajoutent aucune. MESURE : la chaine a refuse, « sonde montage x119
+    # (want 117) », avant cette ligne.
+    # 23/09/2026, E-9 (lot E-B, tache 7) : 119 -> 122. TROIS de plus, TOUS
+    # dans des replis : `tlH(` dans l effet de montage qui borne la cle lue
+    # sur .dzsvm.clientHeight (EB7a, repli R_EB6B), `tlH(` a chaque mouvement
+    # de la poignee tlDown (EB7a, meme repli), et `durLbl(` sur le label du
+    # clip (repli R_M16D, ancre consommee par M16d). EB7b (la poignee et le
+    # data-h de .svm-tl) et la chip « durées » (R_EB2, qui ne fait que
+    # setShowDur) n en ajoutent aucune. MESURE : la chaine a refuse, « sonde
+    # montage x122 (want 119) », avant cette ligne.
+    # 23/09/2026, D-7 (lot E-B, tache 8) : 122 -> 123. UNE de plus, dans EB8a :
+    # `DzTracks.Minimap` (la mini-carte posee dans .svm-tl avant .svm-scroll).
+    # EB8b (mmView/mmCalc, la fenetre visible) et le onSeek de l'hote (qui ne
+    # touche que tlScrollRef) n en ajoutent aucune. MESURE : la chaine a refuse,
+    # « sonde montage x123 (want 122) », avant cette ligne.
+    ("montage", "DzTracks", 123),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

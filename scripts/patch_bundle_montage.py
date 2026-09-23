@@ -872,8 +872,18 @@ R_M13 = (
          '           pour le lot ; « annuler » rend à chaque plan son\n'
          '           étalonnage d\'avant — déduit de trois faits mesurés, mais\n'
          '           rien ne l\'EXERCE (undo est un hook du composant). */\n'
+         # -- « EB6a-fermeture » (E-8, lot E-B tache 6, 23/09/2026) : LA
+         # FERMETURE DE L'ASIDE REND null QUAND L'INSPECTEUR EST REPLIE.
+         # REPLI dans R_M13 parce que l'ancre de la fermeture EST la ligne
+         # que M13 reecrit (1 dans .bak_montage, 1 dans le patcher, 0 dans
+         # le livre -- le plan l'annoncait 1/0/1 : ECART mesure). L'ouverture
+         # `inspOn?r.jsxs("aside",...` est la section EB6a ; ce `:null` en
+         # est la seconde moitie, TT9b et P4 restent tels quels. MESURE
+         # (node --check a refuse `]})]}):null,` au premier jet) : le PREMIER
+         # `]})` ferme l'aside, le SECOND ferme .svm-mid (l'aside en est le
+         # dernier enfant, `/* timeline */` suit) -> `]}):null]}),`.
          '        DzTracks.gradeAllBtn(sel,clips,setClips,pushHistory,setDirty,'
-         'fireNote)]})]}),')
+         'fireNote)]}):null]}),')
 
 # ── M9a / M9b / M9c : en-tête de piste ───────────────────────────────────────
 # Le groupe est un FRÈRE des rangées, pas un membre : il est positionné en
@@ -1053,6 +1063,22 @@ R_M16REF = (A_M16REF + "\n"
             # .bak_montage. Posé par EA4 (rendu final « done »), consommé
             # par EA5e (le bandeau de la couche), effacé par « Fermer ».
             "  var stDzFin=x.useState(null),dzFin=stDzFin[0],setDzFin=stDzFin[1];\n"
+            # ── E-11 (lot E-B, tache 5, 23/09/2026) : LE VOILE VU PAR ECHAP.
+            # REPLIÉ ICI (0 dans .bak_montage), à côté de dzFin. `onKey`
+            # (window keydown) a des deps sans `pop` ni `dzFin` : une lecture
+            # directe serait périmée -- même motif que dzMkOnRef. `pop` (stA,
+            # :1716 du livré) est déclaré avant cette ligne.
+            "  var dzScrimRef=x.useRef(!1);dzScrimRef.current=!!(pop||dzFin);\n"
+            # ── E-5 (lot E-B, tache 4, 23/09/2026) : LE DERNIER RENDU FINAL
+            # PAR PROJET. REPLIÉ ICI comme dzFin (0 dans .bak_montage). Deux
+            # états DISTINCTS : dzFin = le bandeau est visible ; ce store =
+            # il y a eu un rendu final (localStorage dz_montage_lastfin, par
+            # project_id, "_" quand le projet n'est pas nommé). Lu UNE fois
+            # au montage (try/catch), écrit par le poll du rendu final (R_EA4),
+            # jamais par « Fermer » (R_EA5E) ni par le lancement (EA6).
+            # `proj` est déclaré avant (stP, :1717 < :1766 dans le livré).
+            '  var stDzFS=x.useState(function(){try{return JSON.parse(localStorage.getItem("dz_montage_lastfin")||"{}")||{}}catch(_e){return {}}}),dzFinStore=stDzFS[0],setDzFinStore=stDzFS[1];\n'
+            '  var dzLast=DzTracks.finOf(dzFinStore,proj.project_id||"_");\n'
             # ── « E1 » (D-2) : L'ÉTAT DU MODE D'ÉDITION ──────────────
             # REPLIÉ ICI, et c'est une MESURE : la ligne `dzTracksRef`
             # ci-dessus vaut 0 dans .bak_montage (c'est CE remplacement
@@ -1506,7 +1532,12 @@ R_M16C = (
 # comme cette rangée ; `tr` et `c` sont les variables de la boucle de pistes.
 A_M16D = ('                      r.jsx("div",{className:"svm-cliplabel",'
           'children:c.label}),')
-R_M16D = (A_M16D + '\n'
+# E-9 (lot E-B, tache 7, 23/09/2026) — REPLI : le label du clip passe par
+# DzTracks.durLbl (« label · m:ss » quand la chip « durées » est allumee, le
+# label seul sinon) ; l'ancre A_M16D est CONSOMMEE par M16d (0 dans le livre),
+# le remplacement la reprenait en tete : c'est cette tete qui change.
+R_M16D = (A_M16D.replace('children:c.label}),',
+                         'children:DzTracks.durLbl(c.label,c.start,c.end,showDur)}),') + '\n'
           '                      /* P9 — signalé AVANT le rendu, pas après son\n'
           '                         400 : ce plan n\'est pas une vidéo. */\n'
           '                      (c.tr==="v1"&&'
@@ -3499,6 +3530,12 @@ A_K7 = ('if(e.key==="Escape"){\n'
         "        return}")
 R_K7 = ('if(e.key==="Escape"){\n'
         "        if(dzMkOnRef.current){e.preventDefault();dzMkToggle(!1);return}\n"
+        # E-11 (lot E-B, tache 5, 23/09/2026) : ECHAP FERME LE VOILE ET CE
+        # QU'IL PORTE (popover preview/rendu, bandeau de fin). REPLI : la
+        # branche Escape de onKey est consommee par K7 (le plan supposait
+        # R_R2 : ecart mesure). Apres l'index des marqueurs (ouvert par
+        # dessus, il se ferme d'abord), avant le repli ovEsc de l'overlay.
+        "        if(dzScrimRef.current){e.preventDefault();setPop(\"\");setDzFin(null);return}\n"
         "        if(kbAudioRef.current&&kbAudioRef.current.ovEsc&&"
         "kbAudioRef.current.ovEsc())e.preventDefault();\n"
         "        return}")
@@ -3832,6 +3869,24 @@ A_TT11 = ('                :"Ajouter une image ou un rendu à la tête de '
 # AJ4 (D-9, 22/09/2026) : le « + » de l'en-tete de j1 pose un clip
 # d'ajustement (dzAjAdd, replie dans R_M16REF) -- REPLI ici, la ligne est
 # celle que TT11 reecrit.
+# EB3 (E-2, 23/09/2026) : le « + » d'une piste VIDEO ouvre le tiroir Medias
+# (medTr = la piste visee, medOn, les trois autres tiroirs fermes) -- REPLI
+# ici, meme ligne. ECART DATE au plan (23/09/2026) : `openPicker(tr.id)`
+# n'a qu'UN appelant dans .bak_montage (:5365, ce « + ») ; le rediriger
+# sans porte de secours rendrait le selecteur Images (ovPicker, garde par
+# le dementi 7 pour « lier » une image) INATTEIGNABLE sur V1/V2. Maj+clic
+# garde cette porte, et l'infobulle le dit. L'audio passe toujours par
+# `openPicker` (sons a lier), sans changement.
+# ECARTS DATES (revue 23/09/2026) : (1) le « + » AUDIO ouvre ovPicker SANS
+# fermer le tiroir Medias -- meme comportement que Sons/Narration face au
+# selecteur ; l'exclusivite irait dans openPicker, pas ici. (2) « seul
+# appelant » vaut pour .bak_montage : le bundle PATCHE porte aussi
+# `openPicker(sel.tr)` (inspecteur) et `badSrc(...openPicker(c.tr))`, tous
+# deux lies a un clip EXISTANT -- aucune porte pour lier une image sur une
+# piste vide autre que ce « + ». (3) Piste verrouillee : le refus vient au
+# clic sur une rangee (addAsset, note « verrouillée »), plus tard
+# qu'openPicker qui refusait a l'ouverture. (4) A 1280 px avec inspecteur
+# (300) + tiroir (340) + gouttieres, le lecteur garde ~370 px : accepte.
 R_TT11 = ('                :trackKind(tr.id)==="adjust"\n'
           '                ?"Poser un clip d\'ajustement de 3 s à la tête de '
           'lecture — ses effets s\'appliquent à tout ce qui est dessous"\n'
@@ -3839,13 +3894,21 @@ R_TT11 = ('                :trackKind(tr.id)==="adjust"\n'
           '                ?"Poser un carton de titre à la tête de lecture ("'
           '+svmKeyLabelNow("title_add")+") — la piste des titres ne reçoit '
           'aucun autre média"\n'
+          '                :trackKind(tr.id)==="video"\n'
+          '                ?"Ouvrir le tiroir Médias — un rendu vidéo à la tête '
+          'de lecture (Maj+clic : lier une image par le sélecteur)"\n'
           '                :"Ajouter une image ou un rendu à la tête de '
           'lecture",\n'
-          '              onClick:function(){\n'
+          '              onClick:function(e){\n'
           '                if(trackKind(tr.id)==="subs"){subsAddHere();'
           'return}\n'
           '                if(trackKind(tr.id)==="adjust"){dzAjAdd();return}\n'
           '                if(trackKind(tr.id)==="title"){dzTtAdd();return}\n'
+          '                if(trackKind(tr.id)==="video"&&!(e&&e.shiftKey)){'
+          'if(proj.demo){fireNote("Ajout d\'assets : disponible sur un projet '
+          'réel — la démo reste une maquette.");return}'
+          'setMedTr(tr.id);setMedOn(!0);setSfxOn(!1);setSubsOn(!1);'
+          'setNarrOn(!1);return}\n'
           '                openPicker(tr.id)},children:"+"},"add");')
 
 
@@ -3928,8 +3991,14 @@ A_EA4 = ('            var run=new Date();run.setDate(run.getDate()+1);run.setHou
          '                props.go&&setTimeout(function(){props.go("scheduler")},900)})\n'
          '              .catch(function(){setJob(null);setPop("");\n'
          '                fireNote("Rendu terminé (Bibliothèque) — création du brouillon Scheduler impossible.")})}}')
+# E-5 (lot E-B, tache 4, 23/09/2026) : le rendu FINAL écrit aussi le store du
+# dernier rendu (repli, l'ancre est ce bloc) — setter FONCTIONNEL : la fermeture
+# de l'intervalle ne lit pas un store périmé ; l'écriture localStorage est dans
+# le setter, idempotente. La branche preview (setPreviewUrl) reste sans dzFin.
 R_EA4 = ('            setJob(null);setPop("");setDirty(!1);\n'
          '            setDzFin({job_id:job.id,name:proj.name,project_id:proj.project_id||""});\n'
+         '            setDzFinStore(function(s){var n=DzTracks.finStore(s,proj.project_id||"_",{job_id:job.id,name:proj.name,at:Date.now()});'
+         'try{localStorage.setItem("dz_montage_lastfin",JSON.stringify(n))}catch(_e){}return n});\n'
          '            fireNote("Rendu final terminé — « Envoyer vers le Scheduler » pour le publier.")}}')
 assert A_EA4.count("}") - A_EA4.count("{") == R_EA4.count("}") - R_EA4.count("{") == 2
 
@@ -3946,7 +4015,19 @@ A_EA5C = '          "Rendu local 1080 (aucun crédit consommé), puis brouillon 
 R_EA5C = ('          "Rendu local 1080 (aucun crédit consommé). À la fin, un bandeau propose l\'envoi vers le Scheduler '
           '— rien n\'est publié sans ta validation.":')
 A_EA5D = '        r.jsx("button",{className:"svm-goldbtn",onClick:function(){setPop(pop==="render"?"":"render")},children:"Rendre & publier →"}),'
-R_EA5D = A_EA5D.replace('"Rendre & publier →"', '"Rendre →"')
+# E-5 (lot E-B, tache 4, 23/09/2026) : « Publier » SUIT le bouton or. MESURE :
+# la ligne qui suit dans .bak_montage est le commentaire « tiroir Sons »,
+# consommé par A_EB2 -> le bouton est un REPLI ici (le libellé « Rendre → »
+# reste x1, pin E-4). Grisé avec infobulle quand le projet n'a aucun rendu
+# final mémorisé ; sinon rouvre le bandeau sur ce rendu (project_id repris
+# de proj : le store ne le porte pas) après avoir fermé le popover (EA5e :
+# jamais les deux ouverts).
+R_EA5D = (A_EA5D.replace('"Rendre & publier →"', '"Rendre →"') + '\n'
+          '        /* E-5 : « Publier » = le dernier rendu FINAL de ce projet (mémoire par projet), sinon grisé */\n'
+          '        r.jsx("button",{className:"svm-secbtn svm-pubbtn",disabled:!dzLast,'
+          'title:dzLast?"Envoyer le dernier rendu final au Scheduler":"Aucun rendu final pour ce projet",\n'
+          '          onClick:function(){if(dzLast){setPop("");setDzFin(Object.assign({project_id:proj.project_id||""},dzLast))}},'
+          'children:"Publier"}),')
 A_EA5D2 = '            children:busy?(job.progress+"%"):(isR?"Rendre & publier":"Lancer l\'aperçu")})]})]})}'
 R_EA5D2 = A_EA5D2.replace('"Rendre & publier"', '"Rendre"')
 for _a, _r in ((A_EA5A, R_EA5A), (A_EA5B, R_EA5B), (A_EA5C, R_EA5C),
@@ -4181,6 +4262,297 @@ R_KF5 = ('      /* D-14 : opacité interpolée sur les points porteurs (statique
          '      var kOp=DzTracks.mpLerp2(svmMpOf(k)||[],t-k.start,"opacity",k.opacity==null?1:k.opacity);\n'
          '      el.style.opacity=kOp>=1?"":String(Math.round(kOp*100)/100);')
 
+# ── EB1 (E-2, lot E-B tache 3, 23/09/2026) : L'ETAT DU TIROIR MEDIAS ────────
+# `medOn` (ouvert) et `medTr` ("" = ouvert par la chip de la barre, sinon
+# l'id de la piste video dont le « + » l'a ouvert : le tiroir vise cette
+# piste, `onAdd` la passe a addAsset). Poses DEVANT `stO` (ovPick), qui est
+# l'etat du selecteur historique : les deux se lisent cote a cote. MESURE :
+# `medOn`, `medTr`, `stMed`, `stMT` sont libres dans .bak_montage (0).
+A_EB1 = '  var stO=x.useState(""),ovPick=stO[0],setOvPick=stO[1];'
+R_EB1 = ('  var stMed=x.useState(!1),medOn=stMed[0],setMedOn=stMed[1]; '
+         '/* E-2 : tiroir Médias (rendus vidéo) ouvert */\n'
+         '  var stMT=x.useState(""),medTr=stMT[0],setMedTr=stMT[1]; '
+         '/* "" = ouvert par la chip, sinon la piste vidéo dont le « + » a '
+         'ouvert le tiroir */\n'
+         + A_EB1)
+
+# ── EB2 (E-2) : LA CHIP « médias » DE LA BARRE DE TITRE, DEVANT « sons » ──
+# REVUE 23/09/2026 : LA DEMO. `openPicker` refusait la demo (« la demo reste
+# une maquette ») et `addAsset` n'a AUCUNE garde `proj.demo` -- l'invariant
+# du bundle (:1828) dit que ses appelants sont tous gardes. La chip et le
+# « + » video (R_TT11) ouvraient le tiroir sans regarder `proj.demo` : un
+# clic sur une rangee aurait pose un clip dans la maquette. Les DEUX
+# handlers portent la MEME garde, MEME phrase qu'openPicker (comptee).
+_EB_GARDE = ('if(proj.demo){fireNote("Ajout d\'assets : disponible sur un projet '
+             'réel — la démo reste une maquette.");return}')
+# Meme famille que « sons » et « narration » (svm-themechip, data-on,
+# aria-pressed). Ouvrir le tiroir Medias FERME les trois autres tiroirs de
+# .svm-mid (sons, sous-titres, narration) : ils sont EXCLUSIFS (mesure
+# .bak:5000-5007, un seul emplacement a gauche du lecteur). `setMedTr("")` :
+# depuis la barre, aucune piste n'est visee (addAsset prendra "v1", comme la
+# porte E-3). L'ancre est le commentaire + la premiere ligne de la chip
+# « sons » (1 dans .bak) ; le remplacement la REPREND.
+# ── EB6c (E-8, lot E-B tache 6, 23/09/2026) : LA CHIP « inspecteur » ─────
+# REPLI dans R_EB2 : l'ancre naturelle (le chip « sons ») est CONSOMMEE par
+# EB2 (elle vaut 0 apres EB2, une section a part passerait `--check` puis
+# abandonnerait au rejeu -- meme mesure que TT9b dans R_M13). Meme famille
+# que « médias » (svm-themechip, data-on, aria-pressed). Le clic bascule
+# `on` et GARDE `w` (setter fonctionnel : la fermeture ne lit pas un etat
+# perime), puis persiste dans try/catch (cle dz_svm_insp, prefixe dz_).
+# Elle ne parle pas a la couche : la sonde de dzcout ne bouge pas ici.
+_EB6_CHIP = ('        /* E-8 : l\'inspecteur a bascule — REPLI dans R_EB2 (l\'ancre de « sons » est\n           consommee par EB2) ; la poignee et la memoire vivent dans EB6a/EB6b */\n        r.jsx("button",{className:"svm-themechip svm-inspchip","data-on":inspOn?"":void 0,\n          "aria-pressed":inspOn,\n          title:"Inspecteur — replier ou rouvrir la colonne de droite (le lecteur prend la place)",\n          onClick:function(){setInspSt(function(s){var n={on:!s.on,w:s.w};try{localStorage.setItem("dz_svm_insp",JSON.stringify(n))}catch(_e){}return n})},children:"inspecteur"}),\n')
+
+# ── EB7c (E-9, lot E-B tache 7, 23/09/2026) : LA CHIP « durées » — REPLI
+# dans R_EB2 apres « inspecteur » (meme raison qu'EB6c : l'ancre de « sons »
+# est consommee par EB2). Bascule showDur par setter fonctionnel et persiste
+# "1"/"0" dans dz_svm_showdur (try/catch). Elle ne parle pas a la couche :
+# c'est le repli R_M16D (le label du clip) qui appelle durLbl.
+_EB7_CHIP = ('        /* E-9 : durées sur les clips — REPLI dans R_EB2 (même ancre consommée qu\'E-8) */\n'
+             '        r.jsx("button",{className:"svm-themechip svm-durchip","data-on":showDur?"":void 0,\n'
+             '          "aria-pressed":showDur,\n'
+             '          title:"Durées — afficher la durée de chaque clip à côté de son nom",\n'
+             '          onClick:function(){setShowDur(function(v){var n=!v;try{localStorage.setItem("dz_svm_showdur",n?"1":"0")}catch(_e){}return n})},children:"durées"}),\n')
+
+A_EB2 = ('        /* tiroir Sons (DzSfx) — chip jumelle de « narration », les deux '
+         'tiroirs\n'
+         '           sont exclusifs ; sans la couche DzSfx la chip n\'existe pas */\n'
+         '        svmSfx()?r.jsx("button",{className:"svm-themechip svm-sfxchip",'
+         '"data-on":sfxOn?"":void 0,')
+R_EB2 = ('        /* E-2 : tiroir Médias — les rendus vidéo terminés, paginés, avec '
+         'chips de\n'
+         '           provenance ; quatrième tiroir de .svm-mid, exclusif avec les '
+         'trois autres */\n'
+         '        r.jsx("button",{className:"svm-themechip svm-medchip",'
+         '"data-on":medOn?"":void 0,\n'
+         '          "aria-pressed":medOn,\n'
+         '          title:"Tiroir Médias — vos rendus vidéo terminés, à glisser '
+         'ou à cliquer vers une piste vidéo",\n'
+         '          onClick:function(){' + _EB_GARDE + 'setMedTr("");setMedOn(!medOn);setSfxOn(!1);'
+         'setSubsOn(!1);setNarrOn(!1)},children:"médias"}),\n'
+         + _EB6_CHIP
+         + _EB7_CHIP
+         + A_EB2)
+
+# ── EB2b..EB2f (E-2) : LES CINQ PORTES DES AUTRES TIROIRS FERMENT MEDIAS ──
+# MESURE (.bak_montage) : les exclusions sfx/subs/narr s'ecrivent a CINQ
+# endroits, tous libres dans le patcher (0) et uniques dans .bak (1) :
+#   :1772-1774 sfxToggle   (`setNarrOn(!1)},[]);` -- ferme narration)
+#   :1841-1847 narrToggle  (`setSfxOn(!1)},[]);`  -- ferme sons)
+#   :3576 subsAddHere      (`setSelId(s.id);setSubsOn(!0);setSfxOn(!1);setNarrOn(!1);`)
+#   :3579 subsToggle       (`setSubsOn(function(v){return !v});...`)
+#   :3713 bouton « éditeur » du panneau S1 (`onClick:function(){setSubsOn(!0);...`)
+# Chacune recoit `setMedOn(!1)`. `setSubsOn(!0)` n'a que DEUX occurrences
+# (3576, 3713) ; le raccourci « sounds_drawer » (:2958) et « narration »
+# (:3003) passent par sfxToggle / narrToggle : couverts. `setMedOn` est un
+# setter React (stable) : l'appeler dans un useCallback a deps [] est sur.
+A_EB2B = '    setNarrOn(!1)},[]);'
+R_EB2B = '    setNarrOn(!1);setMedOn(!1)},[]);'
+A_EB2C = '    setSfxOn(!1)},[]);'
+R_EB2C = '    setSfxOn(!1);setMedOn(!1)},[]);'
+A_EB2D = '    setSelId(s.id);setSubsOn(!0);setSfxOn(!1);setNarrOn(!1);'
+R_EB2D = '    setSelId(s.id);setSubsOn(!0);setSfxOn(!1);setNarrOn(!1);setMedOn(!1);'
+A_EB2E = '    setSubsOn(function(v){return !v});setSfxOn(!1);setNarrOn(!1)}'
+R_EB2E = '    setSubsOn(function(v){return !v});setSfxOn(!1);setNarrOn(!1);setMedOn(!1)}'
+A_EB2F = '          onClick:function(){setSubsOn(!0);setSfxOn(!1);setNarrOn(!1)},'
+R_EB2F = '          onClick:function(){setSubsOn(!0);setSfxOn(!1);setNarrOn(!1);setMedOn(!1)},'
+
+# ── EB3 (E-2) : LE TIROIR MONTE DANS .svm-mid, APRES NARRATION ──────────────
+# Le composant vit dans la couche (T2, `MediaDrawer`, hooks toujours
+# appeles) : l'hote le monte EN PERMANENCE et bascule `open`. `onAdd` pose
+# le job a la TETE DE LECTURE avec le jumeau A1, EXACTEMENT comme la porte
+# E-3 (R_EA1, `__dzMontageAdd`) : `addAsset({job_id},titre||job_id,"video",
+# duree||0,"v1")`, SANS sixieme argument (`atTime==null` -> phRef, mesure
+# .bak:3752-3756) ; sur "v1" (plein cadre) `wantsTwin` est vrai et l'audio
+# jumeau est pose (M22a/M22b). Quand le tiroir a ete ouvert par le « + »
+# d'une piste, `medTr` la remplace ("v2" -> incrustation, sans jumeau).
+# ECART DATE au plan (23/09/2026) : pas de `pickTrack(tracks,"video")` ici
+# -- addAsset (R_M16A) resout DEJA une piste absente par pickTrack, et la
+# porte E-3 passe "v1" pour obtenir le jumeau ; un second pickTrack dans
+# l'hote serait une deuxieme ecriture du meme choix. La sonde de dzcout ne
+# monte donc que de UN (le composant). `exts:null` : le serveur juge
+# l'extension (`video=1`, T1), la couche juge le statut (T2).
+A_EB3 = ('      subsPanel(),\n'
+         '      narrPanel(),')
+R_EB3 = (A_EB3 + '\n'
+         '      /* E-2 : tiroir Médias (rendus vidéo) — même emplacement, exclusif */\n'
+         '      r.jsx(DzTracks.MediaDrawer,{open:medOn,trId:medTr,exts:null,'
+         'onClose:function(){setMedOn(!1)},dragPayload:dragPayload,\n'
+         '        onAdd:function(j){addAsset({job_id:j.job_id},j.title||j.job_id,'
+         '"video",j.duration_s||0,medTr||"v1")}}),')
+
+# ── EB4 (E-5, lot E-B tache 4, 23/09/2026) : LA BARRE DIT « Preview » ──────
+# Le bouton garde son handler (setPop preview) ; seul le libellé change,
+# « Preview · Rendre · Publier » comme Resolve (E-5). MESURE : la ligne est
+# libre (1 dans .bak, 0 dans le patcher) ; « Preview 480p (gratuit) » survit
+# UNE fois dans le livré, l'infobulle de la chip 480p du lecteur (:5093),
+# qui n'est pas la barre. « Rendre » = EA5d ; « Publier » = repli R_EA5D.
+# MESURE (banc, 23/09) : `children:"Preview"}),` seul vaut DEUX dans le livré
+# (le Studio minifié, graphe Mh, en porte un) -> l'ancre est la LIGNE ENTIÈRE.
+A_EB4 = '        r.jsx("button",{className:"svm-secbtn",onClick:function(){setPop(pop==="preview"?"":"preview")},children:"Preview 480p (gratuit)"}),'
+R_EB4 = A_EB4.replace('"Preview 480p (gratuit)"', '"Preview"')
+
+# ── EB5a (E-11, lot E-B tache 5, 23/09/2026) : LE VOILE SOUS LES POPOVERS
+# QUI ARMENT UN MODE. Meme geste que le voile de kbPanel (.svm-kbscrim :
+# clic = fermer, stopPropagation sur le popover), mais SEULEMENT sous
+# popover() (pop = "preview"|"render") et sous le bandeau de fin (dzFin) :
+# ovPicker reste SANS voile, un voile inset:0 couvrirait la timeline et
+# tuerait le glisser vers les bandes que R_M15B assume (ecart date contre
+# la conception). MESURE : l'ancre `transPopover(),` / `kbPanel(),` est
+# libre (1/0/1) ; dans le DOM le voile vient APRES popover(), le bandeau
+# (R_EA5E) et ovPicker() -- sans z-index il les COUVRIRAIT : la feuille
+# le met a 19, sous .svm-pop (20, son-vfx-montage.css:388), parade
+# independante de l'ordre DOM (retenue par le plan). Le clic sur le voile
+# ferme les deux (setPop + setDzFin) : le bandeau et le popover ne sont
+# jamais ouverts ensemble (EA5e), fermer les deux est idempotent.
+A_EB5A = ('    transPopover(),\n'
+          '    kbPanel(),')
+R_EB5A = ('    transPopover(),\n'
+          '    (pop||dzFin)?r.jsx("div",{className:"svm-modescrim",onClick:function(){setPop("");setDzFin(null)}}):null,\n'
+          '    kbPanel(),')
+
+# ── EB5b (E-11) : LA RACINE DE popover() ARRETE LE CLIC (motif kbPanel) ──
+# Le voile est un FRERE du popover (pas son parent comme .svm-kbscrim) : un
+# clic dans le popover ne remonte donc pas au voile par le DOM ; le
+# stopPropagation est celui du motif, garde defensive contre tout ecouteur
+# de clic pose plus haut (mesure : aucun aujourd'hui). MESURE : la racine
+# `className:"svm-pop",children:[` a quatre espaces et SANS style est
+# libre (1/0/1) -- ovPicker porte `style:{top:96}` et n'est pas touche ; le
+# bandeau (couche, DzmFinBandeau) porte le sien dans montage.js.
+A_EB5B = '    return r.jsxs("div",{className:"svm-pop",children:['
+R_EB5B = '    return r.jsxs("div",{className:"svm-pop",onClick:function(e){e.stopPropagation()},children:['
+
+# ── EB6a (E-8, lot E-B tache 6, 23/09/2026) : L'ASIDE A BASCULE, LARGEUR
+# ET POIGNEE. `inspOn?` conditionne l'aside entier (replie = absent du DOM,
+# le lecteur prend la place : .svm-mid est un flex et .svm-playerzone y est
+# flex:1) ; `style:{width:inspW}` remplace les 300px de la feuille amont
+# (.svm-insp{width:300px;flex:none}, son-vfx-montage.css:233) ; `data-w`
+# est le TEMOIN mesurable a l'ecran (getAttribute). La poignee est le
+# PREMIER enfant de l'aside, absolue a gauche (montage.css), 6 px.
+# « La timeline reprend la largeur » (conception E-8) : DEJA VRAI, .svm-tl
+# est SOEUR de .svm-mid sous .dzsvm.svm-col -- rien a ecrire (mesure
+# 23/09/2026). MESURE : l'ouverture est libre (1/0/1) ; la fermeture est
+# l'ancre de M13 (1/1/0) -> son `:null` est REPLIE dans R_M13, AVANT le
+# `]})` qui ferme .svm-mid (l'aside en est le dernier enfant).
+A_EB6A = '      r.jsxs("aside",{className:"svm-insp",children:['
+R_EB6A = ('      inspOn?r.jsxs("aside",{className:"svm-insp",style:{width:inspW},"data-w":inspW,children:['
+          'r.jsx("div",{className:"svm-insphandle",onPointerDown:inspDown,'
+          'title:"Glisser pour redimensionner l\'inspecteur (260–480 px)"}),')
+
+# ── EB6b (E-8) : L'ETAT ET LA POIGNEE, SUR `stA` (pop) ─────────────────────
+# L'etat nait de la cle dz_svm_insp (JSON {on,w}) : `on` vaut vrai sauf
+# `false` explicite, `w` passe par DzTracks.inspW (260..480, 300 sur tout ce
+# qui n'est pas un nombre fini -- une cle corrompue ne rend pas un inspecteur
+# de 260 sans un mot). `inspDown` copie le motif WINDOW de la couche
+# (dzmTbSaisie : pointermove / pointerup / pointercancel sur window, retires
+# au relachement) et PAS ovGesture (setPointerCapture sur le cadre du
+# lecteur, un element qui survit au geste ; ici l'aside peut disparaitre a
+# la chip). Bouton gauche seul ; la largeur est bornee a CHAQUE mouvement ;
+# la persistance n'a lieu qu'au relachement (jamais dans pointermove : des
+# centaines d'ecritures). `last` garde la derniere largeur bornee : un
+# pointercancel sans coordonnees ne vaut pas « geste nul ». MESURE : `stA`
+# est libre (1/0/1, EB1 ayant pris `stO`) ; stDzFin (R_M16REF) vient APRES.
+# ── EB7a (E-9, lot E-B tache 7, 23/09/2026) : LES ETATS tlH ET showDur, ET
+# LA POIGNEE tlDown — REPLI dans R_EB6B (l'ancre `stA` est NEE d'un
+# remplacement : EB6b l'a reprise en tete, une section a part passerait
+# `--check` puis abandonnerait au rejeu, meme mesure que TT9b dans R_M13).
+# `tlH` : la cle dz_svm_tlh lue BRUTE au montage (Number, null si vide, 0 ou
+# NaN) — la hauteur de .dzsvm n'est pas connue avant le premier rendu — puis
+# BORNEE dans un effet de montage ([]) sur .dzsvm.clientHeight par
+# DzTracks.tlH (30..70 %, null sinon) : la forme la plus simple qui borne
+# toujours (une cle corrompue ou une fenetre plus petite qu'hier ne rend pas
+# une timeline hors bornes). `showDur` : "1"/"0". `tlDown` copie le motif
+# WINDOW d'inspDown (trois ecouteurs retires au relachement, bouton gauche
+# seul, persistance au relachement seulement) ; la poignee est le FRERE
+# PRECEDENT de .svm-tl (EB7b) : `e.currentTarget.nextElementSibling` donne
+# la hauteur de depart quand aucun choix n'est pose (tlH null -> la hauteur
+# rendue par le plafond historique) ; tirer vers le HAUT agrandit.
+_EB7_ETAT = ('\n'
+             '  /* E-9 : la timeline — hauteur choisie (dz_svm_tlh, 30–70 % de .dzsvm) et durées sur les clips (dz_svm_showdur) */\n'
+             '  var stTl=x.useState(function(){try{var v=Number(localStorage.getItem("dz_svm_tlh"));return v>0?v:null}catch(_e){return null}}),'
+             'tlH=stTl[0],setTlH=stTl[1];\n'
+             '  x.useEffect(function(){var el=document.querySelector(".dzsvm");if(el&&tlH!=null)setTlH(DzTracks.tlH(tlH,el.clientHeight))},[]);\n'
+             '  var stSd=x.useState(function(){try{return localStorage.getItem("dz_svm_showdur")==="1"}catch(_e){return !1}}),'
+             'showDur=stSd[0],setShowDur=stSd[1];\n'
+             '  function tlDown(e){if(e.button!==0)return;e.preventDefault();\n'
+             '    var sy=e.clientY,el=document.querySelector(".dzsvm"),total=el?el.clientHeight:0,'
+             'tl=e.currentTarget.nextElementSibling,sh=tlH||(tl?tl.offsetHeight:0),w=window,last=tlH;\n'
+             '    function mv(ev){last=DzTracks.tlH(sh+(sy-ev.clientY),total);setTlH(last)}\n'
+             '    function up(){w.removeEventListener("pointermove",mv);w.removeEventListener("pointerup",up);'
+             'w.removeEventListener("pointercancel",up);\n'
+             '      try{if(last!=null)localStorage.setItem("dz_svm_tlh",String(last))}catch(_e){}}\n'
+             '    w.addEventListener("pointermove",mv);w.addEventListener("pointerup",up);'
+             'w.addEventListener("pointercancel",up)}')
+
+A_EB6B = '  var stA=x.useState(""),pop=stA[0],setPop=stA[1];'
+R_EB6B = (A_EB6B + '\n'
+          '  /* E-8 : l\'inspecteur — ouvert ? largeur 260–480 (mémoire dz_svm_insp) */\n'
+          '  var stIn=x.useState(function(){try{var s=JSON.parse(localStorage.getItem("dz_svm_insp")||"{}")||{};'
+          'return{on:s.on!==!1,w:DzTracks.inspW(s.w)}}catch(_e){return{on:!0,w:300}}}),'
+          'inspSt=stIn[0],setInspSt=stIn[1],inspOn=inspSt.on,inspW=inspSt.w;\n'
+          '  function inspDown(e){if(e.button!==0)return;e.preventDefault();\n'
+          '    var sx=e.clientX,sw=inspW,w=window,last=sw;\n'
+          '    function mv(ev){last=DzTracks.inspW(sw+(sx-ev.clientX));setInspSt({on:!0,w:last})}\n'
+          '    function up(){w.removeEventListener("pointermove",mv);w.removeEventListener("pointerup",up);'
+          'w.removeEventListener("pointercancel",up);\n'
+          '      try{localStorage.setItem("dz_svm_insp",JSON.stringify({on:!0,w:last}))}catch(_e){}}\n'
+          '    w.addEventListener("pointermove",mv);w.addEventListener("pointerup",up);'
+          'w.addEventListener("pointercancel",up)}'
+          + _EB7_ETAT)
+
+# ── EB7b (E-9, lot E-B tache 7, 23/09/2026) : LA POIGNEE AU-DESSUS DE LA
+# TIMELINE, `data-h` ET LA HAUTEUR INLINE. MESURE (.bak:5218) : la racine de
+# .svm-tl a QUATRE espaces (le plan en ecrivait six : ECART date), libre
+# 1/0/1. La poignee est le FRERE PRECEDENT de .svm-tl (soeurs sous
+# .dzsvm.svm-col, apres .svm-mid) : tirer vers le HAUT agrandit la timeline
+# (startH + (startY - clientY)). `data-h` est le temoin mesurable a l'ecran
+# et le selecteur de la feuille (`.dzsvm .svm-tl[data-h]{max-height:none;
+# min-height:0}`) ; sans choix (tlH null) ni data-h ni height : le plafond
+# historique de montage.css:18 reste (affirmation dementie n°5 du plan).
+A_EB7B = '    r.jsxs("div",{className:"svm-tl",children:['
+R_EB7B = ('    r.jsx("div",{className:"svm-tlhandle",onPointerDown:tlDown,'
+          'title:"Glisser pour régler la hauteur de la timeline (30–70 %)"}),\n'
+          '    r.jsxs("div",{className:"svm-tl","data-h":tlH||void 0,style:tlH?{height:tlH}:void 0,children:[')
+
+# ── EB8a (D-7, lot E-B tache 8, 23/09/2026) : LA MINI-CARTE DE LA TIMELINE.
+# La conception la voulait « au-dessus de la regle » ; dans .svm-lanes
+# (width:zoomPct%) elle suivrait le zoom. MESURE (.bak:5338) : l'ouverture de
+# .svm-scroll est libre 1/0/1 (six espaces) ; la carte est inseree AVANT elle,
+# dans .svm-tl, apres .svm-trans, HORS zoom (affirmation dementie n°6 du plan).
+# Noms de portee mesures dans DzMontage : `clips` (st1, .bak:1692),
+# `svmTracksOf(proj)` (les pistes, comme dzTracksRef .bak:1762), `dur`
+# (= proj.dur, .bak:1870). La gouttiere .svm-gutter (88 px, sticky) est DANS
+# .svm-lanes (.bak:5342) donc dans scrollWidth : deduite, comme le zoom deduit
+# deja `W-88` / `mx-88` (.bak:2822-2824). Le « clic = centrer » vit ICI :
+# l'hote est seul a tenir tlScrollRef ; la couche ne rend que des fractions.
+A_EB8A = '      r.jsx("div",{className:"svm-scroll",ref:tlScrollRef,children:'
+R_EB8A = ('      /* D-7 : mini-carte HORS zoom — un rect par clip, la fenêtre visible ; clic = centrer .svm-scroll\n'
+          '         (la gouttière de 88 px est dans .svm-lanes donc dans scrollWidth : déduite, comme le zoom fait W-88) */\n'
+          '      r.jsx(DzTracks.Minimap,{clips:clips,tracks:svmTracksOf(proj),dur:dur,viewFrac:mmView,'
+          'onSeek:function(f){var el=tlScrollRef.current;if(!el)return;var w=el.scrollWidth-88;'
+          'el.scrollLeft=Math.max(0,f*w-(el.clientWidth-88)/2)}}),\n'
+          + A_EB8A)
+
+# ── EB8b (D-7) : LA FENETRE VISIBLE [a,b]. MESURE (.bak:2827-2828) : le
+# useLayoutEffect [zoomPct] qui rejoue le scrollLeft en attente est libre
+# 1/0/1 et CONSERVE ; en queue : l'etat mmView [0,1], mmCalc (useCallback
+# stable, [] — la forme de zoomApply .bak:2816), un effet qui POSE l'ecouteur
+# scroll sur tlScrollRef.current et le RETIRE au demontage (motif de l'effet
+# wheel .bak:2831-2836), et un effet [zoomPct] : apres le layout, .svm-lanes a
+# sa largeur neuve. setMmView garde l'objet quand rien ne change (pas de
+# rendu a chaque evenement scroll identique).
+A_EB8B = '      tlScrollRef.current.scrollLeft=pendScrollRef.current;pendScrollRef.current=null}},[zoomPct]);'
+R_EB8B = (A_EB8B + '\n'
+          '  /* D-7 : la fenêtre visible de la mini-carte — [a,b] en fractions de la largeur défilable (gouttière 88 px déduite),\n'
+          '     recalculée au défilement de .svm-scroll (écouteur posé au montage, retiré au démontage) et à chaque zoom */\n'
+          '  var stMm=x.useState([0,1]),mmView=stMm[0],setMmView=stMm[1];\n'
+          '  var mmCalc=x.useCallback(function(){var el=tlScrollRef.current;if(!el)return;var w=el.scrollWidth-88;\n'
+          '    var a=w>0?Math.max(0,Math.min(1,el.scrollLeft/w)):0,b=w>0?Math.max(a,Math.min(1,(el.scrollLeft+el.clientWidth-88)/w)):1;\n'
+          '    setMmView(function(p){return p[0]===a&&p[1]===b?p:[a,b]})},[]);\n'
+          '  x.useEffect(function(){var el=tlScrollRef.current;if(!el)return;el.addEventListener("scroll",mmCalc);mmCalc();\n'
+          '    return function(){el.removeEventListener("scroll",mmCalc)}},[mmCalc]);\n'
+          '  x.useEffect(function(){mmCalc()},[zoomPct,mmCalc]);')
+
+
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
            ("M5-payload", A_M5, R_M5), ("M6-save", A_M6, R_M6),
@@ -4387,7 +4759,27 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("AJ2b-rack-referme-le-fragment", A_AJ2B, R_AJ2B),
            ("AJ6a-data-kind-sur-le-clip", A_AJ6A, R_AJ6A),
            ("AJ6b-hachures-de-l-ajustement", A_AJ6B, R_AJ6B),
-           ("AJ7-pose-d-effet-sur-l-ajustement", A_AJ7, R_AJ7)]
+           ("AJ7-pose-d-effet-sur-l-ajustement", A_AJ7, R_AJ7),
+           # E-B (lot E-B, 23/09/2026) : prefixe EB, en queue.
+           ("EB1-etat-du-tiroir-medias", A_EB1, R_EB1),
+           ("EB2-chip-medias-barre-de-titre", A_EB2, R_EB2),
+           ("EB2b-sons-ferme-medias", A_EB2B, R_EB2B),
+           ("EB2c-narration-ferme-medias", A_EB2C, R_EB2C),
+           ("EB2d-sous-titre-ajoute-ferme-medias", A_EB2D, R_EB2D),
+           ("EB2e-bascule-sous-titres-ferme-medias", A_EB2E, R_EB2E),
+           ("EB2f-editeur-sous-titres-ferme-medias", A_EB2F, R_EB2F),
+           ("EB3-tiroir-medias-dans-svm-mid", A_EB3, R_EB3),
+           # E-5 (tache 4) : une section ; Publier/store/persistance sont repliés.
+           ("EB4-libelle-preview", A_EB4, R_EB4),
+           # E-11 (tache 5) : deux sections ; Echap (R_K7) et le ref (R_M16REF) sont replies.
+           ("EB5a-voile-sous-les-popovers-de-mode", A_EB5A, R_EB5A),
+           ("EB5b-popover-arrete-le-clic", A_EB5B, R_EB5B),
+           # E-8 (tache 6) : deux sections ; la fermeture (R_M13) et la chip (R_EB2) sont replies.
+           ("EB6a-inspecteur-a-bascule-et-poignee", A_EB6A, R_EB6A),
+           ("EB6b-etat-et-poignee-de-l-inspecteur", A_EB6B, R_EB6B),
+           ("EB7b-poignee-de-la-timeline-et-data-h", A_EB7B, R_EB7B),
+           ("EB8a-mini-carte-avant-svm-scroll", A_EB8A, R_EB8A),
+           ("EB8b-fenetre-visible-de-la-mini-carte", A_EB8B, R_EB8B)]
 
 
 def nl(text, crlf):

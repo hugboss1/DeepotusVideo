@@ -3366,8 +3366,20 @@ def _job_to_dict(j) -> dict:
 
 
 @router.get("/jobs")
-async def list_jobs(limit: int = 50):
-    jobs = await Pipeline.list_jobs(limit=limit)
+async def list_jobs(limit: int = 50, offset: int = 0, providers: str | None = None,
+                    q: str | None = None, video: int = 0):
+    """E-2 (23/09/2026) : `offset` pagine, `providers` est une liste séparée
+    par des virgules, `q` cherche dans le titre, `video=1` ne garde que les
+    artefacts vidéo selon `montage_service.media_rules()` — le MÊME juge que
+    `GET /api/montage/media-rules` lit (import tardif, comme les autres
+    emprunts à montage_service dans ce fichier). Bornes ramenées dans
+    `Pipeline.list_jobs`."""
+    provs = [p.strip() for p in providers.split(",") if p.strip()] if providers else None
+    exts = None
+    if video:
+        from app.services import montage_service as _ms
+        exts = tuple(_ms.media_rules().get("video_exts") or ())
+    jobs = await Pipeline.list_jobs(limit=limit, offset=offset, providers=provs, q=q, video_exts=exts)
     return [_job_to_dict(j) for j in jobs]
 
 

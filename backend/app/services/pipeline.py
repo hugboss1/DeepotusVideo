@@ -9,7 +9,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from loguru import logger
-from sqlalchemy import select, delete, func
+from sqlalchemy import select, delete, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -1280,8 +1280,23 @@ class Pipeline:
             return job
 
     @staticmethod
-    async def list_jobs(limit: int = 50) -> list[JobRecord]:
+    async def list_jobs(limit: int = 50, offset: int = 0, providers=None,
+                        q: str | None = None, video_exts=None) -> list[JobRecord]:
         """La fenêtre des jobs récents servie par `GET /api/jobs`.
+
+        E-2 (23/09/2026) : pagination `offset`, filtre `providers` (liste de
+        noms ; un `provider` NUL est lu `seedance`, comme partout où le
+        client l'affiche), recherche `q` sur le titre (insensible à la
+        casse pour l'ASCII seulement : le `lower()` de SQLite laisse
+        « Éclair » intact — écart daté 23/09/2026) et `video_exts` = extensions de la règle `media_rules()` :
+        ne garder que les jobs dont l'artefact (`final_video_path` non vide,
+        sinon `video_path`) porte une de ces extensions — la MÊME forme
+        `coalesce(nullif(final, ''), video)` + `ilike('%<ext>')` que
+        `montage_service` (P8). Chaque filtre est un `where` AVANT le
+        `limit`, pour la raison de P8-bis ci-dessous : ce qui traverse la
+        requête mange la fenêtre. Bornes : limit 1..200, offset >= 0 ;
+        hors bornes est RAMENÉ, jamais refusé (le client n'a pas de 422 à
+        gérer sur un défilement). Les proxys et analyses restent exclus.
 
         LE `where` ÉCARTE LES TRAVAUX DE PRÉCALCUL DU MONTAGE — l'aperçu
         480p du balayage (`montage_proxy`, P7). Ce n'est pas un doublon du
@@ -1310,12 +1325,30 @@ class Pipeline:
         # statut, même fenêtre à protéger. Import TARDIF, comme avant : pas
         # de cycle (montage_service n'importe pas pipeline).
         from app.services.montage_service import _PROXY_PROVIDER, _STAB_PROVIDER
+        limit = max(1, min(200, int(limit)))
+        offset = max(0, int(offset or 0))
+        stmt = (select(JobRecord)
+                .where(func.coalesce(JobRecord.provider, "")
+                       .notin_((_PROXY_PROVIDER, _STAB_PROVIDER))))
+        provs = [str(x).strip() for x in (providers or []) if str(x).strip()]
+        if provs:
+            stmt = stmt.where(func.coalesce(JobRecord.provider, "seedance").in_(provs))
+        # Revue E-2 (23/09/2026) : `%` et `_` sont des JOKERS LIKE — mesuré
+        # sur la base réelle, 22 titres sur 118 en portent (`100% reussi`) ;
+        # sans échappement `q=100%` rendait aussi « 100 pour cent ».
+        q = ((q or "").strip().lower().replace("\\", "\\\\")
+             .replace("%", "\\%").replace("_", "\\_"))
+        if q:
+            stmt = stmt.where(func.lower(func.coalesce(JobRecord.title, ""))
+                              .like("%" + q + "%", escape="\\"))
+        exts = [str(e) for e in (video_exts or []) if str(e)]
+        if exts:
+            _fp = func.coalesce(func.nullif(JobRecord.final_video_path, ""),
+                                JobRecord.video_path)
+            stmt = stmt.where(or_(*[_fp.ilike(f"%{e}") for e in exts]))
         async with async_session_factory() as session:
             res = await session.execute(
-                select(JobRecord)
-                .where(func.coalesce(JobRecord.provider, "")
-                       .notin_((_PROXY_PROVIDER, _STAB_PROVIDER)))
-                .order_by(JobRecord.created_at.desc()).limit(limit)
+                stmt.order_by(JobRecord.created_at.desc()).offset(offset).limit(limit)
             )
             return list(res.scalars().all())
 

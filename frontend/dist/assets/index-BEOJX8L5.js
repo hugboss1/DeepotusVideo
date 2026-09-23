@@ -1714,6 +1714,24 @@ function DzMontage(props){
   var st9=x.useState(!0),durMaster=st9[0],setDurMaster=st9[1];
   var stDk=x.useState(!0),ducking=stDk[0],setDucking=stDk[1];
   var stA=x.useState(""),pop=stA[0],setPop=stA[1];
+  /* E-8 : l'inspecteur — ouvert ? largeur 260–480 (mémoire dz_svm_insp) */
+  var stIn=x.useState(function(){try{var s=JSON.parse(localStorage.getItem("dz_svm_insp")||"{}")||{};return{on:s.on!==!1,w:DzTracks.inspW(s.w)}}catch(_e){return{on:!0,w:300}}}),inspSt=stIn[0],setInspSt=stIn[1],inspOn=inspSt.on,inspW=inspSt.w;
+  function inspDown(e){if(e.button!==0)return;e.preventDefault();
+    var sx=e.clientX,sw=inspW,w=window,last=sw;
+    function mv(ev){last=DzTracks.inspW(sw+(sx-ev.clientX));setInspSt({on:!0,w:last})}
+    function up(){w.removeEventListener("pointermove",mv);w.removeEventListener("pointerup",up);w.removeEventListener("pointercancel",up);
+      try{localStorage.setItem("dz_svm_insp",JSON.stringify({on:!0,w:last}))}catch(_e){}}
+    w.addEventListener("pointermove",mv);w.addEventListener("pointerup",up);w.addEventListener("pointercancel",up)}
+  /* E-9 : la timeline — hauteur choisie (dz_svm_tlh, 30–70 % de .dzsvm) et durées sur les clips (dz_svm_showdur) */
+  var stTl=x.useState(function(){try{var v=Number(localStorage.getItem("dz_svm_tlh"));return v>0?v:null}catch(_e){return null}}),tlH=stTl[0],setTlH=stTl[1];
+  x.useEffect(function(){var el=document.querySelector(".dzsvm");if(el&&tlH!=null)setTlH(DzTracks.tlH(tlH,el.clientHeight))},[]);
+  var stSd=x.useState(function(){try{return localStorage.getItem("dz_svm_showdur")==="1"}catch(_e){return !1}}),showDur=stSd[0],setShowDur=stSd[1];
+  function tlDown(e){if(e.button!==0)return;e.preventDefault();
+    var sy=e.clientY,el=document.querySelector(".dzsvm"),total=el?el.clientHeight:0,tl=e.currentTarget.nextElementSibling,sh=tlH||(tl?tl.offsetHeight:0),w=window,last=tlH;
+    function mv(ev){last=DzTracks.tlH(sh+(sy-ev.clientY),total);setTlH(last)}
+    function up(){w.removeEventListener("pointermove",mv);w.removeEventListener("pointerup",up);w.removeEventListener("pointercancel",up);
+      try{if(last!=null)localStorage.setItem("dz_svm_tlh",String(last))}catch(_e){}}
+    w.addEventListener("pointermove",mv);w.addEventListener("pointerup",up);w.addEventListener("pointercancel",up)}
   var stP=x.useState({demo:!0,name:"teaser_abyss",version:"v4",ratio:"9:16",dur:SVM_DEMO_DUR,mixDb:SVM_DEMO_MIX}),proj=stP[0],setProj=stP[1];
   var stJ=x.useState(null),job=stJ[0],setJob=stJ[1]; /* {id,kind,status,progress,step,error} */
   var stV=x.useState(null),previewUrl=stV[0],setPreviewUrl=stV[1];
@@ -1721,6 +1739,8 @@ function DzMontage(props){
   var stF=x.useState(null),fxCat=stF[0],setFxCat=stF[1]; /* catalogue Effects/Mask */
   var stFP=x.useState(!1),fxPick=stFP[0],setFxPick=stFP[1];
   var stFE=x.useState(null),fxEdit=stFE[0],setFxEdit=stFE[1]; /* {id,i} chip en édition */
+  var stMed=x.useState(!1),medOn=stMed[0],setMedOn=stMed[1]; /* E-2 : tiroir Médias (rendus vidéo) ouvert */
+  var stMT=x.useState(""),medTr=stMT[0],setMedTr=stMT[1]; /* "" = ouvert par la chip, sinon la piste vidéo dont le « + » a ouvert le tiroir */
   var stO=x.useState(""),ovPick=stO[0],setOvPick=stO[1]; /* "" = fermé, sinon l'id de la piste visée */
   var stS=x.useState(null),sources=stS[0],setSources=stS[1]; /* {images,videos} pour overlays */
   var stVZ=x.useState(1),vzoom=stVZ[0],setVzoom=stVZ[1]; /* zoom molette du viewport (≠ zoom timeline) */
@@ -1762,6 +1782,9 @@ function DzMontage(props){
         put({status:"running",progress:10});tick(o.d.job_id)})
       .catch(function(e){put({status:"failed",error:String(e)})})}
   var stDzFin=x.useState(null),dzFin=stDzFin[0],setDzFin=stDzFin[1];
+  var dzScrimRef=x.useRef(!1);dzScrimRef.current=!!(pop||dzFin);
+  var stDzFS=x.useState(function(){try{return JSON.parse(localStorage.getItem("dz_montage_lastfin")||"{}")||{}}catch(_e){return {}}}),dzFinStore=stDzFS[0],setDzFinStore=stDzFS[1];
+  var dzLast=DzTracks.finOf(dzFinStore,proj.project_id||"_");
   var stDzM=x.useState("ecraser"),dzMode=stDzM[0],setDzMode=stDzM[1];
   function dzTtAdd(){var t=DzTracks.titleNew({template:"tiers_inferieur",text:"Titre"},phRef.current,clipsRef.current,"t1");
     var ts=svmTracksOf(dzProjRef.current),ts2=DzTracks.titleTrack(ts);
@@ -1918,7 +1941,7 @@ function DzMontage(props){
     return d.onVerdict(function(){setSubsVt(function(t){return t+1})})},[]);
   var sfxToggle=x.useCallback(function(){
     setSfxOn(function(v){return !v});
-    setNarrOn(!1)},[]);
+    setNarrOn(!1);setMedOn(!1)},[]);
   /* ── métering — niveaux partagés (boucle vu-mètre → DzSfx.Meter) + dernière
      mesure LUFS (/api/montage/measure) ; lufsM = LUFS momentané K-weighted
      (fenêtre 400 ms, R2/I7), null hors lecture ── */
@@ -1991,7 +2014,7 @@ function DzMontage(props){
       return nv});
     /* tiroirs gauche exclusifs : ouvrir Narration ferme Sons (l'inverse vit
        dans sfxToggle) — fermer l'un ne rouvre jamais l'autre */
-    setSfxOn(!1)},[]);
+    setSfxOn(!1);setMedOn(!1)},[]);
   /* auto-grow des zones de texte — callback STABLE (un ref inline se
      ré-attacherait à chaque frame de lecture) + réappliqué à la frappe */
   var narrTaGrow=x.useCallback(function(el){
@@ -3151,6 +3174,15 @@ function DzMontage(props){
   x.useLayoutEffect(function(){
     if(pendScrollRef.current!=null&&tlScrollRef.current){
       tlScrollRef.current.scrollLeft=pendScrollRef.current;pendScrollRef.current=null}},[zoomPct]);
+  /* D-7 : la fenêtre visible de la mini-carte — [a,b] en fractions de la largeur défilable (gouttière 88 px déduite),
+     recalculée au défilement de .svm-scroll (écouteur posé au montage, retiré au démontage) et à chaque zoom */
+  var stMm=x.useState([0,1]),mmView=stMm[0],setMmView=stMm[1];
+  var mmCalc=x.useCallback(function(){var el=tlScrollRef.current;if(!el)return;var w=el.scrollWidth-88;
+    var a=w>0?Math.max(0,Math.min(1,el.scrollLeft/w)):0,b=w>0?Math.max(a,Math.min(1,(el.scrollLeft+el.clientWidth-88)/w)):1;
+    setMmView(function(p){return p[0]===a&&p[1]===b?p:[a,b]})},[]);
+  x.useEffect(function(){var el=tlScrollRef.current;if(!el)return;el.addEventListener("scroll",mmCalc);mmCalc();
+    return function(){el.removeEventListener("scroll",mmCalc)}},[mmCalc]);
+  x.useEffect(function(){mmCalc()},[zoomPct,mmCalc]);
   /* Ctrl+molette sur la timeline. Listener natif non passif : l'onWheel React
      est passif et ne bloquerait pas le zoom pleine page du navigateur. */
   x.useEffect(function(){var el=tlScrollRef.current;if(!el)return;
@@ -3275,6 +3307,7 @@ function DzMontage(props){
          à la tête de lecture ; sinon la touche reste sans effet ici */
       if(e.key==="Escape"){
         if(dzMkOnRef.current){e.preventDefault();dzMkToggle(!1);return}
+        if(dzScrimRef.current){e.preventDefault();setPop("");setDzFin(null);return}
         if(kbAudioRef.current&&kbAudioRef.current.ovEsc&&kbAudioRef.current.ovEsc())e.preventDefault();
         return}
       if(!act)return;
@@ -3955,10 +3988,10 @@ function DzMontage(props){
     var sl=d.freeSlot(segs,phRef.current,durRef.current);
     var s=d.make(sl.start,sl.end,"");
     subsCommit(segs.concat([s]),!0);
-    setSelId(s.id);setSubsOn(!0);setSfxOn(!1);setNarrOn(!1);
+    setSelId(s.id);setSubsOn(!0);setSfxOn(!1);setNarrOn(!1);setMedOn(!1);
     fireNote("Sous-titre ajouté à "+d.tc(sl.start)+" — le texte s'écrit dans le tiroir.")}
   function subsToggle(){
-    setSubsOn(function(v){return !v});setSfxOn(!1);setNarrOn(!1)}
+    setSubsOn(function(v){return !v});setSfxOn(!1);setNarrOn(!1);setMedOn(!1)}
   /* ── LE VERDICT, lu au même endroit que le tiroir ──────────────────────────
      Sévérité par réplique et comptes affichés viennent d'UNE seule fonction
      (DzSubs.verdict). La timeline, la chip de la barre d'outils et
@@ -4101,7 +4134,7 @@ function DzMontage(props){
           children:d.tc(sel.start)+" → "+d.tc(sel.end)},"t"),
         r.jsx("button",{className:"sub-minibtn",
           title:"Ouvrir l'éditeur de sous-titres (liste, découpe, style, export)",
-          onClick:function(){setSubsOn(!0);setSfxOn(!1);setNarrOn(!1)},
+          onClick:function(){setSubsOn(!0);setSfxOn(!1);setNarrOn(!1);setMedOn(!1)},
           children:"éditeur"},"ed")]}),
       ws.length?r.jsx("div",{className:"sub-warns",style:{marginTop:8},
         children:ws.map(function(w,k){
@@ -4559,6 +4592,7 @@ function DzMontage(props){
           else{
             setJob(null);setPop("");setDirty(!1);
             setDzFin({job_id:job.id,name:proj.name,project_id:proj.project_id||""});
+            setDzFinStore(function(s){var n=DzTracks.finStore(s,proj.project_id||"_",{job_id:job.id,name:proj.name,at:Date.now()});try{localStorage.setItem("dz_montage_lastfin",JSON.stringify(n))}catch(_e){}return n});
             fireNote("Rendu final terminé — « Envoyer vers le Scheduler » pour le publier.")}}
         else if(d.status==="failed"){clearInterval(t);
           setJob(function(j){return Object.assign({},j,{status:"failed",error:d.error||"échec du rendu"})})}
@@ -4600,7 +4634,7 @@ function DzMontage(props){
     var isR=pop==="render";
     var busy=job&&job.kind===(isR?"final":"preview")&&job.status!=="failed";
     var failed=job&&job.status==="failed";
-    return r.jsxs("div",{className:"svm-pop",children:[
+    return r.jsxs("div",{className:"svm-pop",onClick:function(e){e.stopPropagation()},children:[
       r.jsx("div",{className:"svm-poptitle",children:isR?"Rendre (master 1080)":"Preview 480p"}),
       r.jsxs("div",{className:"svm-popline",children:[r.jsx("span",{children:isR?"rendu ffmpeg (local) · "+svmRuler(Math.round(dur)):"aperçu ffmpeg 480p (local) · "+svmRuler(Math.round(dur))}),r.jsx("span",{className:"svm-cost",children:"$0.00"})]}),
       isR?r.jsxs("div",{className:"svm-popline",children:[r.jsx("span",{children:"publication · à la demande, après le rendu"}),r.jsx("span",{className:"svm-cost",children:"gratuit"})]}):null,
@@ -5596,8 +5630,28 @@ function DzMontage(props){
             setDirty(!0);fireNote("Format : "+v)},
           children:SVM_RATIOS.map(function(rt){
             return r.jsx("option",{value:rt[0],children:rt[1]},rt[0])})}),
-        r.jsx("button",{className:"svm-secbtn",onClick:function(){setPop(pop==="preview"?"":"preview")},children:"Preview 480p (gratuit)"}),
+        r.jsx("button",{className:"svm-secbtn",onClick:function(){setPop(pop==="preview"?"":"preview")},children:"Preview"}),
         r.jsx("button",{className:"svm-goldbtn",onClick:function(){setPop(pop==="render"?"":"render")},children:"Rendre →"}),
+        /* E-5 : « Publier » = le dernier rendu FINAL de ce projet (mémoire par projet), sinon grisé */
+        r.jsx("button",{className:"svm-secbtn svm-pubbtn",disabled:!dzLast,title:dzLast?"Envoyer le dernier rendu final au Scheduler":"Aucun rendu final pour ce projet",
+          onClick:function(){if(dzLast){setPop("");setDzFin(Object.assign({project_id:proj.project_id||""},dzLast))}},children:"Publier"}),
+        /* E-2 : tiroir Médias — les rendus vidéo terminés, paginés, avec chips de
+           provenance ; quatrième tiroir de .svm-mid, exclusif avec les trois autres */
+        r.jsx("button",{className:"svm-themechip svm-medchip","data-on":medOn?"":void 0,
+          "aria-pressed":medOn,
+          title:"Tiroir Médias — vos rendus vidéo terminés, à glisser ou à cliquer vers une piste vidéo",
+          onClick:function(){if(proj.demo){fireNote("Ajout d'assets : disponible sur un projet réel — la démo reste une maquette.");return}setMedTr("");setMedOn(!medOn);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)},children:"médias"}),
+        /* E-8 : l'inspecteur a bascule — REPLI dans R_EB2 (l'ancre de « sons » est
+           consommee par EB2) ; la poignee et la memoire vivent dans EB6a/EB6b */
+        r.jsx("button",{className:"svm-themechip svm-inspchip","data-on":inspOn?"":void 0,
+          "aria-pressed":inspOn,
+          title:"Inspecteur — replier ou rouvrir la colonne de droite (le lecteur prend la place)",
+          onClick:function(){setInspSt(function(s){var n={on:!s.on,w:s.w};try{localStorage.setItem("dz_svm_insp",JSON.stringify(n))}catch(_e){}return n})},children:"inspecteur"}),
+        /* E-9 : durées sur les clips — REPLI dans R_EB2 (même ancre consommée qu'E-8) */
+        r.jsx("button",{className:"svm-themechip svm-durchip","data-on":showDur?"":void 0,
+          "aria-pressed":showDur,
+          title:"Durées — afficher la durée de chaque clip à côté de son nom",
+          onClick:function(){setShowDur(function(v){var n=!v;try{localStorage.setItem("dz_svm_showdur",n?"1":"0")}catch(_e){}return n})},children:"durées"}),
         /* tiroir Sons (DzSfx) — chip jumelle de « narration », les deux tiroirs
            sont exclusifs ; sans la couche DzSfx la chip n'existe pas */
         svmSfx()?r.jsx("button",{className:"svm-themechip svm-sfxchip","data-on":sfxOn?"":void 0,
@@ -5624,6 +5678,7 @@ function DzMontage(props){
       onRemove:function(id){pushHistory();setProj(function(p){return Object.assign({},p,{markers:DzTracks.markerRemove(p.markers,id)})});setDirty(!0)},
       onChange:function(id,patch){pushHistory();setProj(function(p){return Object.assign({},p,{markers:DzTracks.markerUpdate(p.markers,id,patch)})});setDirty(!0)}}):null,
     transPopover(),
+    (pop||dzFin)?r.jsx("div",{className:"svm-modescrim",onClick:function(){setPop("");setDzFin(null)}}):null,
     kbPanel(),
     /* tiroir sons + tiroir narration + lecteur + inspecteur */
     r.jsxs("div",{className:"svm-mid",children:[
@@ -5637,6 +5692,9 @@ function DzMontage(props){
          Narration, les trois exclusifs */
       subsPanel(),
       narrPanel(),
+      /* E-2 : tiroir Médias (rendus vidéo) — même emplacement, exclusif */
+      r.jsx(DzTracks.MediaDrawer,{open:medOn,trId:medTr,exts:null,onClose:function(){setMedOn(!1)},dragPayload:dragPayload,
+        onAdd:function(j){addAsset({job_id:j.job_id},j.title||j.job_id,"video",j.duration_s||0,medTr||"v1")}}),
       r.jsxs("div",{className:"svm-playerzone",
         /* formats portrait : la barre du lecteur passe dans la zone latérale
            morte (colonne à droite), le cadre garde toute la hauteur */
@@ -5751,7 +5809,7 @@ function DzMontage(props){
             onClick:function(){setSafeOn(!safeOn)},children:"zones sûres ("+svmKeyLabel("safezones")+")"}),
           r.jsx("button",{className:"svm-pchip",title:"plein écran du cadre (Échap pour sortir)",
             onClick:svmFullscreen,children:"plein écran ("+svmKeyLabel("fullscreen")+")"})]})]}),
-      r.jsxs("aside",{className:"svm-insp",children:[
+      inspOn?r.jsxs("aside",{className:"svm-insp",style:{width:inspW},"data-w":inspW,children:[r.jsx("div",{className:"svm-insphandle",onPointerDown:inspDown,title:"Glisser pour redimensionner l'inspecteur (260–480 px)"}),
         r.jsx(SvmLabel,{children:"Clip sélectionné"}),
         r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:8,marginTop:9},children:[
           r.jsx("div",{className:"svm-clipname",style:{marginTop:0,flex:"1 1 auto",minWidth:0,
@@ -5992,9 +6050,10 @@ function DzMontage(props){
            pour le lot ; « annuler » rend à chaque plan son
            étalonnage d'avant — déduit de trois faits mesurés, mais
            rien ne l'EXERCE (undo est un hook du composant). */
-        DzTracks.gradeAllBtn(sel,clips,setClips,pushHistory,setDirty,fireNote)]})]}),
+        DzTracks.gradeAllBtn(sel,clips,setClips,pushHistory,setDirty,fireNote)]}):null]}),
     /* timeline */
-    r.jsxs("div",{className:"svm-tl",children:[
+    r.jsx("div",{className:"svm-tlhandle",onPointerDown:tlDown,title:"Glisser pour régler la hauteur de la timeline (30–70 %)"}),
+    r.jsxs("div",{className:"svm-tl","data-h":tlH||void 0,style:tlH?{height:tlH}:void 0,children:[
       r.jsxs("div",{className:"svm-trans",children:[
         /* étapes 4 à 7 du handoff « Barre Outils Flottante » :
            l'onglet OUTILS et la barre flottante, câblée sur les
@@ -6162,6 +6221,9 @@ function DzMontage(props){
         r.jsx("button",{className:"svm-tbtn",title:"Raccourcis ("+svmKeyLabel("keys_panel")+") — personnalisables",
           "aria-label":"Raccourcis clavier","aria-haspopup":"dialog","aria-expanded":kbOn,
           onClick:function(){setKbOn(!kbOn)},children:"?"})]}),
+      /* D-7 : mini-carte HORS zoom — un rect par clip, la fenêtre visible ; clic = centrer .svm-scroll
+         (la gouttière de 88 px est dans .svm-lanes donc dans scrollWidth : déduite, comme le zoom fait W-88) */
+      r.jsx(DzTracks.Minimap,{clips:clips,tracks:svmTracksOf(proj),dur:dur,viewFrac:mmView,onSeek:function(f){var el=tlScrollRef.current;if(!el)return;var w=el.scrollWidth-88;el.scrollLeft=Math.max(0,f*w-(el.clientWidth-88)/2)}}),
       r.jsx("div",{className:"svm-scroll",ref:tlScrollRef,children:
         r.jsxs("div",{className:"svm-lanes",style:{width:zoomPct+"%"},children:[
           r.jsxs("div",{className:"svm-ruler",onPointerDown:rulerDown,
@@ -6190,11 +6252,14 @@ function DzMontage(props){
                 ?"Poser un clip d'ajustement de 3 s à la tête de lecture — ses effets s'appliquent à tout ce qui est dessous"
                 :trackKind(tr.id)==="title"
                 ?"Poser un carton de titre à la tête de lecture ("+svmKeyLabelNow("title_add")+") — la piste des titres ne reçoit aucun autre média"
+                :trackKind(tr.id)==="video"
+                ?"Ouvrir le tiroir Médias — un rendu vidéo à la tête de lecture (Maj+clic : lier une image par le sélecteur)"
                 :"Ajouter une image ou un rendu à la tête de lecture",
-              onClick:function(){
+              onClick:function(e){
                 if(trackKind(tr.id)==="subs"){subsAddHere();return}
                 if(trackKind(tr.id)==="adjust"){dzAjAdd();return}
                 if(trackKind(tr.id)==="title"){dzTtAdd();return}
+                if(trackKind(tr.id)==="video"&&!(e&&e.shiftKey)){if(proj.demo){fireNote("Ajout d'assets : disponible sur un projet réel — la démo reste une maquette.");return}setMedTr(tr.id);setMedOn(!0);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1);return}
                 openPicker(tr.id)},children:"+"},"add");
             var thType=r.jsx("span",{className:"svm-ttype",title:tr.type,children:tr.type},"type");
             var thM=bus?r.jsx("button",{className:"svm-minibtn svm-tkbtn",
@@ -6372,7 +6437,7 @@ function DzMontage(props){
                           onPointerDown:function(ev){vpDown(ev,c,pi)},
                           onContextMenu:function(ev){ev.preventDefault();ev.stopPropagation();
                             svmVpRemove(c.id,pi)}},"vp"+pi)}):null,
-                      r.jsx("div",{className:"svm-cliplabel",children:c.label}),
+                      r.jsx("div",{className:"svm-cliplabel",children:DzTracks.durLbl(c.label,c.start,c.end,showDur)}),
                       /* P9 — signalé AVANT le rendu, pas après son
                          400 : ce plan n'est pas une vidéo. */
                       (c.tr==="v1"&&(proj.v1NonVideo||[]).indexOf(c.id)>=0)?
@@ -18963,7 +19028,9 @@ function DzmFinBandeau(o){
   var s3=x.useState(d0.caption),cap=s3[0],setCap=s3[1];
   var s4=x.useState(""),st=s4[0],setSt=s4[1];
   var tog=function(id){setCh(function(c){return c.indexOf(id)>=0?c.filter(function(k){return k!==id}):c.concat([id])})};
-  return r.jsxs("div",{className:"svm-pop dzm-fin",children:[
+  /* E-11 (23/09/2026) : le voile du bundle (EB5a) ferme au clic ;
+     la racine arrête le clic comme le popover (EB5b) et kbPanel */
+  return r.jsxs("div",{className:"svm-pop dzm-fin",onClick:function(e){e.stopPropagation()},children:[
     r.jsx("div",{className:"svm-poptitle",children:"Rendu terminé"}),
     r.jsx("div",{className:"dzm-fin-row",children:DZM_CHANNELS.map(function(c){return r.jsxs("label",{className:"dzm-fin-ch",children:[
       r.jsx("input",{type:"checkbox",checked:ch.indexOf(c[0])>=0,onChange:function(){tog(c[0])}})," "+c[1]]},c[0])})}),
@@ -19198,6 +19265,208 @@ function DzmDzRects(o){
         r.jsx("span",{className:"dzm-dzlab",children:k?"fin":"début"}),
         r.jsx("i",{className:"dzm-dzh",onPointerDown:down("scale")})]},k)};
   return r.jsxs("div",{className:"dzm-dzwrap",children:[mk(0),mk(1)]})}
+/* ── E-2 (23/09/2026) : LE TIROIR MÉDIAS — provenance, filtre, liste paginée ──
+   Le tiroir sert les RENDUS VIDÉO (exigence n°1 de E-2) ; images et sons
+   restent au popover « lier » (`ovPicker`) : « le sélecteur devient un
+   tiroir » n'est vrai que pour les vidéos, pour ne pas dupliquer trois
+   fetchs ni rouvrir R_M16C (écart daté 23/09/2026).
+
+   PROVENANCE : aucun provider ne s'appelle « Studio » ni « Chapitres » —
+   les providers mesurés sont seedance, heygen, composition, template, news,
+   episode, ugc, montage, animation, asset3d, sprite2d, card3d (+ NULL, lu
+   « seedance » par le backend). Le groupe affiché est DÉRIVÉ du provider
+   par cette table (comme les chips de la Bibliothèque, patch_bundle_libprov)
+   et les chips sont dérivées des jobs REÇUS, jamais une liste figée. Un
+   provider inconnu s'affiche tel quel : on ne cache pas un nom sous
+   « Autres ». */
+var DZM_PROV_LBL={seedance:"Studio",heygen:"Studio",composition:"Studio",animation:"Studio",
+  episode:"Chapitres",news:"News",template:"Templates",ugc:"Importés",montage:"Montages"};
+function dzmProvGroupe(p){var k=(p==null||p==="")?"seedance":String(p);return DZM_PROV_LBL[k]||k}
+/* « Tout » en tête, puis les groupes dans l'ORDRE D'APPARITION, uniques */
+function dzmProvChips(jobs){var out=["Tout"],seen={};(jobs||[]).forEach(function(j){
+  var g=dzmProvGroupe(j&&j.provider);if(!seen[g]){seen[g]=1;out.push(g)}});return out}
+/* filtre LOCAL sur les pages déjà chargées : groupe dérivé + `q` sur le titre
+   (ou le job_id quand le titre manque), insensible à la casse. Un job null
+   est ignoré. L'entrée n'est pas mutée. */
+function dzmMediaFiltre(jobs,f){var g=(f&&f.groupe)||"Tout",q=String((f&&f.q)||"").trim().toLowerCase();
+  return (jobs||[]).filter(function(j){if(!j)return !1;if(g!=="Tout"&&dzmProvGroupe(j.provider)!==g)return !1;
+    return !q||String(j.title||j.job_id||"").toLowerCase().indexOf(q)>=0})}
+/* LE COMPOSANT. props : {open, trId, exts, onAdd(job), onClose(), dragPayload(e,src,label,kind,dur)}.
+   Il lit `r`/`x` À L'APPEL (comme DzmFinBandeau) et ses hooks tournent
+   ferme comme ouvert — l'hôte le monte en permanence et bascule `open`,
+   la règle des hooks interdit un `return null` avant les useState.
+   Une seule vérité : le serveur. `GET /api/jobs?limit=24&offset=&video=1`
+   (juge vidéo côté backend, T1) ; la recherche `q` est locale sur la page
+   chargée ET, dès 2 caractères, re-demandée au serveur (`&q=`, 250 ms de
+   repos, un compteur écarte la réponse d'une frappe dépassée) ; le filtre
+   `groupe` reste LOCAL aux pages chargées (les groupes sont dérivés — « Plus »
+   continue de paginer sans filtre serveur ; choix daté 23/09/2026).
+   DEUX JUGES COMPLÉMENTAIRES (revue 23/09/2026) : le serveur juge
+   l'EXTENSION (`video=1`), la couche juge le STATUT — `dzmIsVideoJob` est
+   appliqué TOUJOURS (status done, pas d'aperçu `_preview`, chemin posé),
+   `exts` restant facultatif (null = pas de second tamis par extension,
+   mesuré : la garde `!exts` de dzmIsVideoJob vient après celle du statut).
+   Sans lui, un job en cours ou en erreur dont `video_path` est déjà posé
+   entrerait dans le tiroir. Après une erreur HTTP, « Plus » reste actif
+   et rejoue depuis le même offset : accepté, daté 23/09/2026 (la page
+   manquée n'a pas été comptée, l'offset n'a pas avancé). Vignette : la première
+   image de la bande (`/api/montage/strip … n=1`). Durée : `dzmDurTxt`,
+   le formateur déjà partagé avec le transport (pas de second m:ss). */
+var DZM_MED_PAGE=24,DZM_MED_REPOS=250;
+function DzmMediaDrawer(o){
+  o=o||{};
+  var s1=x.useState([]),jobs=s1[0],setJobs=s1[1];
+  var s2=x.useState(0),offset=s2[0],setOffset=s2[1];
+  var s3=x.useState(!1),fin=s3[0],setFin=s3[1];
+  var s4=x.useState("Tout"),groupe=s4[0],setGroupe=s4[1];
+  var s5=x.useState(""),q=s5[0],setQ=s5[1];
+  var s6=x.useState(""),st=s6[0],setSt=s6[1];
+  var seq=x.useRef(0),vivant=x.useRef(!0);
+  x.useEffect(function(){vivant.current=!0;return function(){vivant.current=!1}},[]);
+  var qServ=q.trim().length>=2?q.trim():"";
+  var charge=function(off,qq,remplace){
+    var n=++seq.current;setSt("…");
+    var u="/api/jobs?limit="+DZM_MED_PAGE+"&offset="+off+"&video=1"+(qq?"&q="+encodeURIComponent(qq):"");
+    return fetch(u).then(function(res){if(!res.ok)throw new Error("HTTP "+res.status);return res.json()})
+      .then(function(d){if(!vivant.current||n!==seq.current)return;
+        var page=Array.isArray(d)?d:[];
+        setJobs(function(prev){var base=remplace?[]:prev,vu={};base.forEach(function(j){if(j&&j.job_id)vu[j.job_id]=1});
+          return base.concat(page.filter(function(j){if(!j||!j.job_id||vu[j.job_id])return !1;vu[j.job_id]=1;return !0}))});
+        setOffset(off+page.length);setFin(page.length<DZM_MED_PAGE);setSt("")})
+      .catch(function(e){if(vivant.current&&n===seq.current)setSt("Rendus : chargement impossible ("+String((e&&e.message)||e)+")")})};
+  /* ouverture ou nouvelle recherche serveur : repartir de zéro (250 ms de repos sur la frappe) */
+  x.useEffect(function(){
+    if(!o.open)return;
+    var t=setTimeout(function(){charge(0,qServ,!0)},qServ?DZM_MED_REPOS:0);
+    return function(){clearTimeout(t)}},[o.open?1:0,qServ]);
+  if(!o.open)return null;
+  var vus=jobs.filter(function(j){return dzmIsVideoJob(j,o.exts)});
+  var chips=dzmProvChips(vus),g=chips.indexOf(groupe)>=0?groupe:"Tout";
+  var liste=dzmMediaFiltre(vus,{groupe:g,q:q});
+  var row=function(j){var jid=String(j.job_id||""),lbl=j.title||jid;
+    var src=encodeURIComponent(JSON.stringify({job_id:jid}));
+    return r.jsxs("div",{className:"svm-medrow",draggable:!0,
+      title:lbl+" — Glisser vers une bande, ou cliquer pour poser sur "+(o.trId||"la piste vidéo"),
+      onDragStart:function(e){if(o.dragPayload)o.dragPayload(e,{job_id:jid},lbl,"video",j.duration_s||0)},
+      onClick:function(){if(o.onAdd)o.onAdd(j)},
+      children:[
+        r.jsx("img",{src:"/api/montage/strip?src="+src+"&n=1&w=96&h=54",loading:"lazy",alt:"",draggable:!1,
+          onError:function(e){e.target.style.visibility="hidden"}}),
+        r.jsxs("div",{className:"svm-medmeta",children:[
+          r.jsx("div",{className:"svm-medtitle",children:lbl}),
+          r.jsxs("div",{className:"svm-medsub",children:[
+            r.jsx("span",{children:j.duration_s>0?dzmDurTxt(j.duration_s):"—"}),
+            r.jsx("span",{className:"svm-themechip svm-medgrp",children:dzmProvGroupe(j.provider)})]})]})]},jid||lbl)};
+  return r.jsxs("div",{className:"svm-meddrawer",children:[
+    r.jsxs("div",{className:"svm-medhead",children:[
+      r.jsx("div",{className:"svm-poptitle",children:"Médias — rendus vidéo"+(o.trId?" → "+o.trId:"")}),
+      r.jsx("button",{className:"svm-secbtn",onClick:function(){if(o.onClose)o.onClose()},children:"Fermer"})]}),
+    r.jsx("input",{type:"search",className:"svm-medq",value:q,placeholder:"Rechercher un titre…",
+      onChange:function(e){setQ(e.target.value)}}),
+    r.jsx("div",{className:"svm-medchips",children:chips.map(function(c){
+      return r.jsx("button",{className:"svm-themechip","data-on":c===g?"":void 0,
+        onClick:function(){setGroupe(c)},children:c},c)})}),
+    r.jsx("div",{className:"svm-medlist",children:liste.map(row)}),
+    st?r.jsx("div",{className:"svm-medst",children:st}):null,
+    !st&&!liste.length?r.jsx("div",{className:"svm-medst",children:vus.length?"Aucun rendu dans ce groupe.":"Aucun rendu vidéo terminé."}):null,
+    !fin?r.jsx("button",{className:"svm-secbtn svm-medplus",disabled:st==="…",
+      onClick:function(){charge(offset,qServ,!1)},children:"Plus"}):null]})}
+/* E-5 (lot E-B, tache 4, 23/09/2026) — LE DERNIER RENDU FINAL PAR PROJET.
+   Aucun JobRecord ne porte de project_id (mesure routes.py:3330, _job_to_dict) :
+   la memoire est COTE CLIENT, un store {project_id:{job_id,name,at}} que l'hote
+   lit au montage et ecrit apres chaque rendu FINAL dans la cle localStorage
+   du dernier rendu (jamais la preview). Ici deux fonctions
+   PURES : finStore rend un objet NEUF (pose, ou retrait quand fin est null) et
+   finOf lit l'entree du projet ou null. Un project_id vide (projet pas encore
+   nomme) se range sous la cle "_". Deux etats distincts dans l'hote : dzFin
+   (le bandeau est visible) et ce store (il y a eu un rendu). */
+function dzmFinKey(pid){var k=String(pid==null?"":pid).trim();return k||"_"}
+function dzmFinStore(store,pid,fin){
+  var out={},k=dzmFinKey(pid),s=(store&&typeof store==="object")?store:{};
+  Object.keys(s).forEach(function(q){out[q]=s[q]});
+  if(fin==null)delete out[k];
+  else out[k]={job_id:String(fin.job_id||""),name:String(fin.name||""),at:Number(fin.at)||0};
+  return out}
+function dzmFinOf(store,pid){
+  var s=(store&&typeof store==="object")?store:{},v=s[dzmFinKey(pid)];
+  return (v&&typeof v==="object"&&v.job_id)?v:null}
+/* E-8 (lot E-B, tache 6, 23/09/2026) — LA LARGEUR DE L'INSPECTEUR. L'hote
+   (EB6b) lit la cle dz_svm_insp du stockage local au montage et la poignee (EB6a) pose
+   startW+(startX-clientX) a chaque pointermove : les deux passent ICI, une
+   seule ecriture des bornes 260..480 et du defaut 300 (.svm-insp{width:300px},
+   son-vfx-montage.css:233). dzmClamp est la forme generale : null / "" /
+   undefined / booleen / NaN / ±Infinity / objet -> def, jamais 0 puis la
+   borne basse (une cle JSON corrompue rendrait l'inspecteur a 260 sans un
+   mot) ; une chaine numerique est lue (le stockage local rend des chaines). */
+function dzmClamp(v,lo,hi,def){
+  if(v==null||v===""||typeof v==="boolean")return def;
+  var n=typeof v==="number"?v:Number(typeof v==="string"?v.trim():NaN);
+  if(n!==n||n===Infinity||n===-Infinity)return def;
+  return Math.min(hi,Math.max(lo,n))}
+function dzmInspW(raw){return Math.round(dzmClamp(raw,260,480,300))}
+/* E-9 (lot E-B, tache 7, 23/09/2026) — LA HAUTEUR DE LA TIMELINE ET LA DUREE
+   SUR LES CLIPS. L'hote (EB7a, repli R_EB6B) lit la cle dz_svm_tlh au montage
+   puis, dans un effet, la borne sur la hauteur MESUREE de .dzsvm ; la poignee
+   (EB7b, AU-DESSUS de la timeline : tirer vers le haut agrandit) pose
+   startH+(startY-clientY) a chaque pointermove : tout passe ICI. Bornes 30..70 %
+   du total (conception E-9) ; `null` = « aucun choix » : l'hote ne pose ni
+   data-h ni height, et le plafond historique (.dzsvm .svm-tl{max-height:48vh},
+   montage.css:18) reste — la conception (30–70 %) et ce plafond sont
+   incompatibles, le plan tranche par `[data-h]` (affirmation demente n°5).
+   Total inconnu (<= 0, non fini) -> null aussi : au montage, .dzsvm n'est pas
+   encore mesuree. dzmDurLbl : `label · m:ss` par dzmDurTxt (svmRuler du
+   bundle, JAMAIS un second formateur) quand la chip « durées » est allumee ;
+   label seul sinon ou si end <= start ; label vide -> la duree seule. */
+function dzmTlH(raw,total){
+  var t=typeof total==="number"?total:Number(total);
+  if(!(t>0)||t===Infinity)return null;
+  var n=dzmClamp(raw,.3*t,.7*t,NaN);
+  return n!==n?null:Math.round(n)}
+function dzmDurLbl(label,start,end,on){
+  var l=label==null?"":String(label),d=Number(end)-Number(start);
+  if(!on||!(d>0))return l;
+  var txt=dzmDurTxt(d);
+  return l?l+" · "+txt:txt}
+/* D-7 (lot E-B, tache 8, 23/09/2026) — LA MINI-CARTE DE LA TIMELINE. La
+   conception la voulait « au-dessus de la regle » ; dans .svm-lanes elle
+   suivrait le zoom (width:zoomPct%). L'hote (EB8a) la pose dans .svm-tl
+   AVANT .svm-scroll, HORS zoom (affirmation dementie n°6 du plan), et garde
+   pour lui le « clic = centrer » : il est seul a tenir tlScrollRef. Ici, la
+   GEOMETRIE seule : dzmMinimap rend des lignes (une par piste, dans l'ordre
+   recu, genre par dzmKindOf — la table existante) et des rectangles en
+   FRACTIONS [0,1] de la duree (start/dur, end/dur bornes). Le champ piste d'un
+   clip est `tr` (mesure : 58 `c.tr` dans .bak_montage, aucun `c.track`).
+   Ignores : clips hors [0,dur], a duree <= 0, sans piste connue, null ; une
+   piste dupliquee ne fait qu'une ligne. dur <= 0, non fini, ou entrees qui ne
+   sont pas des tableaux -> {rows:[],rects:[]} : la mini-carte se tait, elle
+   ne devine rien. Rien n'est mute. */
+function dzmMinimap(clips,tracks,dur){
+  var d=typeof dur==="number"?dur:Number(dur),rows=[],rects=[],idx={};
+  if(!Array.isArray(clips)||!Array.isArray(tracks)||!(d>0)||d===Infinity)return{rows:rows,rects:rects};
+  tracks.forEach(function(t){if(!t||t.id==null)return;var id=String(t.id);if(idx[id]!=null)return;
+    idx[id]=rows.length;rows.push({id:id,kind:dzmKindOf(id,t.kind)})});
+  clips.forEach(function(c){if(!c)return;var tr=String(c.tr==null?"":c.tr),row=idx[tr];if(row==null)return;
+    var s=Number(c.start),e=Number(c.end);if(!(e>s)||e<=0||s>=d)return;
+    rects.push({tr:tr,row:row,x0:Math.max(0,s/d),x1:Math.min(1,e/d),kind:rows[row].kind})});
+  return{rows:rows,rects:rects}}
+/* Le composant lit `r` a l'appel (comme DzmFinBandeau). Props : clips, tracks,
+   dur, viewFrac [a,b] (la fenetre visible, calculee par l'hote sur scroll et
+   zoom), onSeek(frac). Une div.svm-mmrow par ligne, hauteur 100/N % des 30 px
+   (feuille montage.css) ; les rectangles en % ; la fenetre .svm-mmview est
+   pointer-events:none par la feuille : le clic tombe toujours sur la carte,
+   borne 0..1 sur sa largeur mesuree. Aucun hook : la carte est un pur rendu. */
+function DzmMinimap(o){
+  o=o||{};
+  var m=dzmMinimap(o.clips,o.tracks,o.dur),n=m.rows.length,vf=Array.isArray(o.viewFrac)?o.viewFrac:[0,1];
+  var a=dzmClamp(vf[0],0,1,0),b=dzmClamp(vf[1],0,1,1);if(b<a)b=a;
+  function clic(e){if(typeof o.onSeek!=="function")return;var rc=e.currentTarget.getBoundingClientRect();
+    if(!(rc.width>0))return;o.onSeek(Math.max(0,Math.min(1,(e.clientX-rc.left)/rc.width)))}
+  return r.jsxs("div",{className:"svm-minimap",title:"Mini-carte — cliquer pour centrer la timeline",onClick:clic,children:[
+    m.rows.map(function(row,i){return r.jsx("div",{className:"svm-mmrow",style:{height:(100/n)+"%"},
+      children:m.rects.filter(function(q){return q.row===i}).map(function(q,k){
+        return r.jsx("div",{className:"svm-mmrect","data-kind":q.kind,
+          style:{left:(q.x0*100)+"%",width:((q.x1-q.x0)*100)+"%"}},k)})},row.id)}),
+    r.jsx("div",{className:"svm-mmview",style:{left:(a*100)+"%",width:((b-a)*100)+"%"}})]})}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,
@@ -19287,6 +19556,16 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   retimeOf:dzmRetimeOf,rampe:dzmRampe,
   stabNorm:dzmStabNorm,stabOf:dzmStabOf,stabState:dzmStabState,
   mpLerp2:dzmMpLerp2,mpKeep:dzmMpKeep,
+  /* E-2 (lot E-B, 23/09/2026) : provenance, filtre et tiroir Medias */
+  provGroupe:dzmProvGroupe,provChips:dzmProvChips,mediaFiltre:dzmMediaFiltre,MediaDrawer:DzmMediaDrawer,
+  /* E-5 (lot E-B, tache 4) : le dernier rendu final par projet */
+  finStore:dzmFinStore,finOf:dzmFinOf,
+  /* E-8 (lot E-B, tache 6) : la largeur de l'inspecteur bornee */
+  clamp:dzmClamp,inspW:dzmInspW,
+  /* E-9 (lot E-B, tache 7) : la hauteur de la timeline bornee, la duree sur le label */
+  tlH:dzmTlH,durLbl:dzmDurLbl,
+  /* D-7 (lot E-B, tache 8) : la mini-carte -- geometrie pure et composant */
+  minimap:dzmMinimap,Minimap:DzmMinimap,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;
 

@@ -14,8 +14,11 @@
    la ligne de flottaison. On rend la main à `height:auto` (son-vfx-montage.css)
    en gardant 356px comme PLANCHER — l'écran des six pistes historiques est
    identique au pixel — et 48vh comme plafond, au-delà duquel .svm-scroll
-   (déjà overflow:auto) défile. */
-.dzsvm .svm-tl{height:auto; min-height:356px; max-height:48vh}
+   (déjà overflow:auto) défile.
+   D-7 (lot E-B, tâche 8, 23/09/2026) : le plancher monte de 30 px (356 → 386),
+   la hauteur de la mini-carte posée dans .svm-tl avant .svm-scroll — sans
+   cela, l'écran des six pistes historiques perdrait 30 px de pistes. */
+.dzsvm .svm-tl{height:auto; min-height:386px; max-height:48vh}
 /* le plancher fixe offrait 18px de mou à six pistes ; height:auto n'en offre
    plus dès la septième, où le conteneur colle au contenu. On pose 8px — la
    hauteur exacte de l'ascenseur (::-webkit-scrollbar{height:8px}) — EN
@@ -1286,3 +1289,81 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
 .dzsvm .dzm-stab-st[data-st="done"]{color:#3fbf5a}
 .dzsvm .dzm-stab-st[data-st="failed"]{color:#e0453f}
 .dzsvm .dzm-stab input[type=range]{width:90px;vertical-align:middle}
+/* E-2 (23/09/2026) — le tiroir Médias : rendus vidéo paginés, chips de
+   provenance dérivées, recherche. Quatrième tiroir de .svm-mid, à gauche du
+   lecteur comme Sons / Sous-titres / Narration (.svm-narr : 300px, flex:none,
+   border-right) — 340px pour la vignette 96×54 + titre + chip. `overflow:auto`
+   et `min-height:0` : la liste défile dans le tiroir, jamais la page.
+   `min-width` égal à `width` : dans le flex de .svm-mid le lecteur ne peut
+   pas l'écraser (mesure : .svm-mid{flex:1;display:flex;min-height:0}). Les
+   chips reprennent .svm-themechip[data-on] de la feuille amont. */
+.dzsvm .svm-meddrawer{width:340px;min-width:340px;flex:none;border-right:1px solid var(--stroke);
+  background:var(--panel);overflow:auto;min-height:0;padding:10px;
+  display:flex;flex-direction:column;gap:8px}
+.dzsvm .svm-medhead{display:flex;align-items:center;justify-content:space-between;gap:8px;flex:none}
+.dzsvm .svm-medhead .svm-secbtn{padding:3px 9px;font-size:11px}
+.dzsvm .svm-medq{width:100%;box-sizing:border-box;padding:6px 8px;border-radius:7px;
+  border:1px solid var(--stroke);background:var(--panel2, var(--bg-panel-2, #1c1c21));
+  color:var(--ink);font-size:12px;flex:none}
+.dzsvm .svm-medchips{display:flex;gap:6px;flex-wrap:wrap;flex:none}
+.dzsvm .svm-medlist{display:flex;flex-direction:column;gap:2px;min-height:0}
+.dzsvm .svm-medrow{display:flex;gap:8px;align-items:center;padding:6px;border-radius:8px;cursor:grab}
+/* revue 23/09/2026 : le jeton amont est `--accent` (son-vfx-montage.css:27), pas `--acc` */
+.dzsvm .svm-medrow:hover{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.dzsvm .svm-medrow:active{cursor:grabbing}
+.dzsvm .svm-medrow img{width:96px;height:54px;object-fit:cover;border-radius:6px;background:#000;flex:none}
+.dzsvm .svm-medmeta{min-width:0;flex:1;display:flex;flex-direction:column;gap:3px}
+.dzsvm .svm-medtitle{font-size:12px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dzsvm .svm-medsub{display:flex;gap:8px;align-items:center;font-family:var(--f-mono);font-size:10px;color:var(--ink2)}
+.dzsvm .svm-medgrp{cursor:default}
+.dzsvm .svm-medst{font-family:var(--f-mono);font-size:11px;color:var(--ink2);padding:4px 6px;flex:none}
+.dzsvm .svm-medplus{align-self:center;flex:none}
+/* E-5 (lot E-B, tache 4, 23/09/2026) : « Publier » grisé quand le projet n'a
+   aucun rendu final mémorisé (aucune règle :disabled pour .svm-secbtn en amont) */
+.dzsvm .svm-secbtn:disabled{opacity:.45;cursor:not-allowed}
+.dzsvm .svm-secbtn:disabled:hover{border-color:var(--stroke)}
+/* E-11 (lot E-B, tache 5, 23/09/2026) : voile sous les popovers qui ARMENT un
+   mode (preview/rendu, bandeau de fin) -- jumeau de .svm-kbscrim
+   (son-vfx-montage.css:708-710), MÊMES opacités mesurées (.38 sombre,
+   rgba(23,21,18,.22) clair), mais z-index 19 : dans le DOM le voile vient
+   APRÈS les popovers (.svm-pop, z 20) et les couvrirait sinon. Pas sous
+   ovPicker : le glisser vers les bandes doit vivre. */
+.dzsvm .svm-modescrim{position:absolute;inset:0;z-index:19;background:rgba(0,0,0,.38)}
+.dzsvm[data-svm-theme="light"] .svm-modescrim{background:rgba(23,21,18,.22)}
+/* E-8 (lot E-B, tache 6, 23/09/2026) : inspecteur repliable et redimensionnable.
+   L'aside devient le référent de sa poignée (position:relative ; l'amont ne le
+   positionne pas, son-vfx-montage.css:233) ; la poignée est absolue à gauche,
+   6 px, col-resize, --accent au survol (jeton amont, pas --acc). La largeur
+   vit en style inline (EB6a, 260–480 par DzTracks.inspW), jamais ici.
+   L'aside amont est overflow:auto : la poignée couvre sa première hauteur
+   visible et défile avec le contenu — assumé (padding 16px, rien dessous).
+   « La timeline reprend la largeur » : DÉJÀ VRAI, .svm-tl est sœur de
+   .svm-mid (mesure 23/09/2026) — aucune règle sur .svm-tl ici. */
+.dzsvm .svm-insp{position:relative}
+.dzsvm .svm-insphandle{position:absolute;left:0;top:0;bottom:0;width:6px;cursor:col-resize;touch-action:none;z-index:2}
+.dzsvm .svm-insphandle:hover{background:var(--accent)}
+/* E-9 (lot E-B, tache 7, 23/09/2026) : séparateur lecteur/timeline. Quand une
+   hauteur est CHOISIE (la poignée, frère précédent de .svm-tl,
+   30–70 % de .dzsvm par DzTracks.tlH, mémoire dz_svm_tlh), l'hôte pose
+   `data-h` et `height` inline : ce sélecteur lève alors le plafond 48vh et le
+   plancher 356px de la règle historique (montage.css:18), CONSERVÉE telle
+   quelle — sans choix, c'est elle qui décide (affirmation démentie n°5 du plan :
+   30–70 % et max-height:48vh sont incompatibles, `[data-h]` tranche).
+   La poignée : 6 px, row-resize, --accent au survol (jeton amont), flex:none
+   sous .dzsvm.svm-col, touch-action:none pour le geste pointer. */
+.dzsvm .svm-tl[data-h]{max-height:none;min-height:0}
+.dzsvm .svm-tlhandle{height:6px;flex:none;cursor:row-resize;touch-action:none}
+.dzsvm .svm-tlhandle:hover{background:var(--accent)}
+/* D-7 (lot E-B, tâche 8, 23/09/2026) : mini-carte de la timeline. Posée dans
+   .svm-tl AVANT .svm-scroll (hors .svm-lanes, donc hors zoom), 30 px, flex:none,
+   décalée de la gouttière (88 px) pour s'aligner sur les bandes. Une ligne par
+   piste (hauteur inline 100/N %), un rect par clip en % de la durée : jetons
+   RÉELS de l'amont --c-video / --c-audio (son-vfx-montage.css:30 et :44 ; le
+   plan écrivait --c-v / --c-a / --acc, qui n'existent pas : écart daté).
+   La fenêtre visible .svm-mmview (--accent) est pointer-events:none : le clic
+   tombe toujours sur la carte, l'hôte centre .svm-scroll dessus. */
+.dzsvm .svm-minimap{height:30px;flex:none;position:relative;margin-left:88px;background:color-mix(in srgb,var(--panel) 80%,transparent);border-bottom:1px solid var(--stroke);cursor:pointer}
+.dzsvm .svm-mmrow{position:relative}
+.dzsvm .svm-mmrect{position:absolute;top:1px;bottom:1px;border-radius:2px;background:var(--c-video)}
+.dzsvm .svm-mmrect[data-kind="audio"]{background:var(--c-audio)}
+.dzsvm .svm-mmview{position:absolute;top:0;bottom:0;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 15%,transparent);pointer-events:none}
