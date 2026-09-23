@@ -16443,17 +16443,19 @@ check("EC_la_couche_exporte_comboToKey_menuModel_CtxMenu_et_l_hote_ne_les_redefi
 # combo monospace, separateur ; l'amont n'en connait rien.
 _EC_CSS = _lire(ROOT / "frontend" / "dist" / "shared" / "montage.css")
 _EC_AM = _lire(ROOT / "frontend" / "dist" / "shared" / "son-vfx-montage.css")
-check("EC_la_feuille_dessine_le_menu_svm_menu_menugrp_menurub_menuitem_menukey_menusep",
-      _EC_CSS.count(".dzsvm .svm-menu{width:260px;right:auto;padding:6px;z-index:20;max-height:calc(100vh - 16px);overflow-y:auto}") == 1
-      and _EC_CSS.count(".dzsvm .svm-menugrp{display:contents}") == 1
+check("EC_la_feuille_dessine_le_menu_svm_menu_borne_a_dzsvm_menurub_menuitem_menukey_menusep",
+      # revue 23/09 : hauteur bornee au BLOC CONTENEUR (.dzsvm), jamais a la fenetre ; pas de regle .svm-menugrp
+      _EC_CSS.count(".dzsvm .svm-menu{width:260px;right:auto;padding:6px;z-index:20;max-height:calc(100% - 16px);overflow-y:auto}") == 1
+      and _EC_CSS.count(".dzsvm .svm-menu{") == 1 and "100vh" not in _EC_CSS[_EC_CSS.find(".dzsvm .svm-menu{"):_EC_CSS.find("\n", _EC_CSS.find(".dzsvm .svm-menu{"))]
+      and _EC_CSS.count(".svm-menugrp{") == 0 and _EC_CSS.count(".svm-menugrp") == 1
       and _EC_CSS.count(".dzsvm .svm-menurub{font-size:10px;font-weight:600;letter-spacing:.06em;opacity:.6;padding:6px 8px 2px;text-transform:uppercase}") == 1
       and _EC_CSS.count(".dzsvm .svm-menuitem{display:flex;width:100%;justify-content:space-between;gap:12px;padding:6px 8px;border:0;background:transparent;color:inherit;border-radius:6px;cursor:pointer;text-align:left;font:inherit}") == 1
       and _EC_CSS.count(".dzsvm .svm-menuitem:hover{background:color-mix(in srgb,var(--accent) 12%,transparent)}") == 1
       and _EC_CSS.count(".dzsvm .svm-menuitem:disabled{opacity:.45;cursor:not-allowed}") == 1
       and _EC_CSS.count(".dzsvm .svm-menukey{opacity:.6;font-family:ui-monospace,monospace;font-size:11px}") == 1
       and _EC_CSS.count(".dzsvm .svm-menusep{height:1px;background:var(--stroke);margin:4px 0}") == 1
-      # x9 : huit regles + la mention de .svm-menugrp dans le commentaire du bloc
-      and _EC_CSS.count("svm-menu") == 9 and _EC_CSS.count("\n.dzsvm .svm-menu") == 8 and "E-6" in _EC_CSS
+      # x8 : sept regles + la mention de .svm-menugrp dans le commentaire du bloc (revue 23/09 : la regle est retiree)
+      and _EC_CSS.count("svm-menu") == 8 and _EC_CSS.count("\n.dzsvm .svm-menu") == 7 and "E-6" in _EC_CSS
       and _EC_AM.count(".svm-pop{position:absolute; top:52px; right:18px; z-index:20;") == 1 and _EC_AM.count("svm-menu") == 0,
       f"regles={_EC_CSS.count('svm-menu')} amont={_EC_AM.count('svm-menu')}")
 # LA SONDE : DzTracks 123 -> 128 (comboToKey, menuModel, CtxMenu, voisins, remove).

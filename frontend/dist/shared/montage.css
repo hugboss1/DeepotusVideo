@@ -1370,12 +1370,17 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
 /* E-6 (lot E-C, tâche 2, 23/09/2026) : le menu ☰ et les menus contextuels
    (DzTracks.CtxMenu, un .svm-pop) : 260 px, right:auto contre le right:18px
    de .svm-pop amont (son-vfx-montage.css:388 — l'hôte pose left/top), z 20
-   comme les popovers (au-dessus du voile 19), borné à la fenêtre et
-   défilable. Chaque rubrique est un .svm-menugrp en display:contents
-   (en-tête + rangées dans le flux du menu) ; rangée = bouton pleine
-   largeur, libellé à gauche, combo monospace à droite ; :disabled = off. */
-.dzsvm .svm-menu{width:260px;right:auto;padding:6px;z-index:20;max-height:calc(100vh - 16px);overflow-y:auto}
-.dzsvm .svm-menugrp{display:contents}
+   comme les popovers (au-dessus du voile 19), borné à son BLOC CONTENEUR
+   (revue 23/09 : `100%` = .dzsvm, absolute inset:0 overflow:hidden — un
+   `100vh` se mesurait sur la fenêtre et coupait les dernières rangées quand
+   .dzsvm ne commence pas à y=0) et défilable. Chaque rubrique est un div
+   .svm-menugrp SANS règle (revue 23/09 : display:contents était superflue,
+   un div enveloppant en flux bloc donne le même rendu) ; rangée = bouton
+   pleine largeur, libellé à gauche, combo monospace à droite ; :disabled =
+   off. Écarts datés 23/09 : le ☰ liste TOUTES les actions à raccourci, jog /
+   step / play compris (pas de masque, la table est celle du panneau « ? ») ;
+   « Supprimer la piste » n'arme pas (annulable en un Ctrl+Z). */
+.dzsvm .svm-menu{width:260px;right:auto;padding:6px;z-index:20;max-height:calc(100% - 16px);overflow-y:auto}
 .dzsvm .svm-menurub{font-size:10px;font-weight:600;letter-spacing:.06em;opacity:.6;padding:6px 8px 2px;text-transform:uppercase}
 .dzsvm .svm-menuitem{display:flex;width:100%;justify-content:space-between;gap:12px;padding:6px 8px;border:0;background:transparent;color:inherit;border-radius:6px;cursor:pointer;text-align:left;font:inherit}
 .dzsvm .svm-menuitem:hover{background:color-mix(in srgb,var(--accent) 12%,transparent)}
