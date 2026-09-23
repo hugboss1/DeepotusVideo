@@ -760,6 +760,31 @@ out.tbd=(function(){var r0=r;try{r={jsx:function(t,p){return {t:t,p:p}},jsxs:fun
   var ta=T.ToolTab({open:!0,docked:!0});
   return [a.p["data-docked"],b.p["data-docked"],c.p["data-docked"],c.p["data-off"],d.p["data-docked"],"data-docked" in ta.p,
     a.t,a.p.className,a.p.id,b.p["data-off"],ta.p.className,ta.p["aria-expanded"]]}catch(e){return "autre:"+e}finally{r=r0}})();
+/* [23] E-13 / E-14 (lot E-C, tache 5, 23/09/2026) : la tete dans l'inspecteur (teteTxt) et le trou selectionne (trou,
+   trouRipple). Le formateur est PASSE (l'hote donne svmTcFF) : ici `F` prefixe la valeur brute, la sonde lit le texte.
+   Cinq clips : v1 a [0,4[ · c [8,10[ · b [6,8[ (c AVANT b : l'ordre d'entree n'est pas trie), a1 n [0,10[, v2 o [5,9[ */
+var _F=function(v){return "F"+v};
+var _g=[{tr:"v1",id:"a",start:0,end:4,src:{k:1}},{tr:"v1",id:"c",start:8,end:10,src:{k:3}},{tr:"v1",id:"b",start:6,end:8,src:{k:2}},
+  {tr:"a1",id:"n",start:0,end:10,src:{k:4}},{tr:"v2",id:"o",start:5,end:9,src:{k:5}}],_gJ=JSON.stringify(_g);
+/* dans le plan (+2), hors (5 > end), a la borne end (4 : hors, l'intervalle est ferme-ouvert), sans sel, au debut (+0) */
+out.tete=[T.teteTxt(2,{start:0,end:4},_F),T.teteTxt(5,{start:0,end:4},_F),T.teteTxt(4,{start:0,end:4},_F),T.teteTxt(5,null,_F),T.teteTxt(0,{start:0,end:4},_F)];
+/* bornes : ph NaN / undefined / chaine / Infinity -> "" ; fmt absent -> nombre arrondi au centieme ; sel sans bornes numeriques -> comme sans sel */
+out.tete_bornes=[T.teteTxt(NaN,null,_F),T.teteTxt(void 0,{start:0,end:4},_F),T.teteTxt("x",null,_F),T.teteTxt(2.456,null),T.teteTxt(2,{start:"a",end:4},_F),T.teteTxt(Infinity,null,_F)];
+/* entre a et b (5) ; a la borne end de a (4 : a est ferme-ouvert, 4 est DANS le trou) ; en tete de piste (a=0) ; dans a (2) ;
+   en queue (11 : pas de suivant -> null) ; v2 : le trou [0,5[ ignore les clips de v1 ; a1 : dans n ; trou de 0,03 s -> null ; 5.99 */
+out.trou=[T.trou(_g,"v1",5),T.trou(_g,"v1",4),T.trou([{tr:"v1",id:"b",start:6,end:8}],"v1",2),T.trou(_g,"v1",2),T.trou(_g,"v1",11),
+  T.trou(_g,"v2",2),T.trou(_g,"a1",5),T.trou([{tr:"v1",start:0,end:4},{tr:"v1",start:4.03,end:6}],"v1",4.01),T.trou(_g,"v1",5.99)];
+/* bornes : clips null / chaine, t NaN, piste null / inconnue -> null ; entrees non-objets ignorees (le trou reste trouve) */
+out.trou_bornes=[T.trou(null,"v1",1),T.trou("x","v1",1),T.trou(_g,"v1",NaN),T.trou(_g,null,5),T.trou(_g,"v9",5),
+  T.trou([null,7,{tr:"v1",start:0,end:4},{tr:"v1",start:6,end:8}],"v1",5)];
+/* ripple du trou [4,6[ sur v1 : b et c reculent de 2, a reste, n (a1) et o (v2) intacts ; ordre d'entree conserve */
+var _rp=T.trouRipple(_g,"v1",4,6);
+out.rip=_rp.map(function(c){return [c.id,c.tr,c.start,c.end]});
+/* nouveau tableau, entree non mutee, `src` du clip decale conserve par reference (les autres champs sont intacts), le clip
+   non decale est LE MEME objet ; bornes b<a, a NaN, b==a -> copie identique (nouvelle reference) ; clips null -> [] */
+out.rip_bornes=[_rp!==_g,JSON.stringify(_g)===_gJ,_rp[2].src===_g[2].src&&_rp[2].id==="b",_rp[0]===_g[0],
+  JSON.stringify(T.trouRipple(_g,"v1",6,4))===_gJ&&T.trouRipple(_g,"v1",6,4)!==_g,JSON.stringify(T.trouRipple(_g,"v1",NaN,6))===_gJ,
+  JSON.stringify(T.trouRipple(_g,"v1",4,4))===_gJ,T.trouRipple(null,"v1",4,6).length];
 /* [21] E-7 (lot E-C, tache 3, 23/09/2026) : le tri des rendus (par TITRE, aucun project_id en base) et la vue Livraison.
    Cinq jobs : deux finals du projet (a, e), un apercu du projet (b), un final d'un AUTRE projet (c), un job non-montage
    au meme titre (d) ; `a` porte une duree (1:05 par svmRuler du bundle, E-9) */
@@ -1033,7 +1058,9 @@ try:
                  # E-7 (lot E-C, tache 3) : les NEUF cles de la section [21].
                  "jt","jt_tous","jt_vide","jt_bornes","jt_pur","del_pure","del_leve","del_rendu","del_vide_liste",
                  # E-10 (lot E-C, tache 4) : la cle de la section [22].
-                 "tbd"]
+                 "tbd",
+                 # E-13 / E-14 (lot E-C, tache 5) : les SIX cles de la section [23].
+                 "tete","tete_bornes","trou","trou_bornes","rip","rip_bornes"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -2090,6 +2117,40 @@ check("e10_data_docked_ecrit_une_fois_dans_la_barre_strict_true_jamais_dans_l_on
       # temoin : les trois attributs d'etat de la barre restent poses a cote, une fois chacun
       and _E10["DzmToolBar"].count('"data-off":open?void 0:""') == 1 and _E10["DzmToolBar"].count('"data-drag":o.drag===!0?"":void 0') == 1,
       ({n: len(c) for n, c in _E10.items()}, _SRCb.count('"data-docked"')))
+
+print("\n[23] E-13 la tete dans l'inspecteur et E-14 le trou selectionne (lot E-C, tache 5)")
+# ── E-13 / E-14 (lot E-C, tache 5, 23/09/2026) ─────────────────────────────
+# Decisions 7 et 8 du plan : teteTxt REUTILISE le formateur de l'hote (svmTcFF,
+# HH:MM:SS:FF a 30 i/s -- pas de « ·ii ») ; l'intervalle du plan est FERME-OUVERT
+# (ph == end : « hors du plan ») ; la queue de piste N'EST PAS un trou (aucun
+# clip suivant -> null), un trou < 0,05 s non plus ; le ripple ne touche QUE la
+# piste du trou (ecart date : le jumeau A1 ne suit pas, comme D-4).
+check("tete_dans_le_plan_hors_a_la_borne_end_sans_sel_au_debut",
+      D.get("tete") == ["tête à F2 · +F2 dans le plan", "tête à F5 · hors du plan", "tête à F4 · hors du plan",
+                        "tête à F5", "tête à F0 · +F0 dans le plan"], D.get("tete"))
+check("tete_bornes_ph_non_fini_vide_fmt_absent_arrondi_centieme_sel_non_numerique_ignore",
+      D.get("tete_bornes") == ["", "", "", "tête à 2.46", "tête à F2", ""], D.get("tete_bornes"))
+check("trou_entre_deux_clips_a_la_borne_en_tete_dans_un_clip_en_queue_autre_piste_ignoree_moins_de_5_centiemes",
+      D.get("trou") == [{"a": 4, "b": 6}, {"a": 4, "b": 6}, {"a": 0, "b": 6}, None, None, {"a": 0, "b": 5}, None, None, {"a": 4, "b": 6}],
+      D.get("trou"))
+check("trou_bornes_clips_null_chaine_t_nan_piste_null_inconnue_null_entrees_non_objets_ignorees",
+      D.get("trou_bornes") == [None, None, None, None, None, {"a": 4, "b": 6}], D.get("trou_bornes"))
+check("ripple_decale_les_clips_de_la_piste_apres_le_trou_seulement_ordre_conserve_autres_pistes_intactes",
+      D.get("rip") == [["a", "v1", 0, 4], ["c", "v1", 6, 8], ["b", "v1", 4, 6], ["n", "a1", 0, 10], ["o", "v2", 5, 9]],
+      D.get("rip"))
+check("ripple_nouveau_tableau_entree_non_mutee_src_conserve_clip_immobile_identique_bornes_copie_identique_null_vide",
+      D.get("rip_bornes") == [True, True, True, True, True, True, True, 0], D.get("rip_bornes"))
+# LE COEUR RESTE PUR : ni r.jsx, ni x.use, ni window/document/localStorage ; le formateur n'est JAMAIS recopie
+# (aucun « 30 » ni « svmTcFF » dans teteTxt : il vient de l'hote) ; exports x1 chacun dans DzTracks.
+_E13 = {n: _corps(n) for n in ("dzmTeteTxt", "dzmTrou", "dzmTrouRipple")}
+check("e13_e14_coeur_pur_formateur_passe_et_non_recopie_intervalle_ferme_ouvert_seuil_5_centiemes_exports_x1",
+      all(len(c) > 120 and not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b", c) for c in _E13.values())
+      and "svmTcFF" not in _E13["dzmTeteTxt"] and "30" not in _E13["dzmTeteTxt"]
+      and _E13["dzmTeteTxt"].count(" dans le plan") == 1 and _E13["dzmTeteTxt"].count(" · hors du plan") == 1
+      and _E13["dzmTrou"].count("if(s0<=p&&p<e0)return null;") == 1 and _E13["dzmTrou"].count("b-a<.05") == 1
+      and _E13["dzmTrouRipple"].count("c.tr!==tr") == 1
+      and len(_DT) > 1000 and _DT.count("teteTxt:dzmTeteTxt,trou:dzmTrou,trouRipple:dzmTrouRipple,") == 1,
+      ({n: len(c) for n, c in _E13.items()}, _DT.count("teteTxt:dzmTeteTxt")))
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

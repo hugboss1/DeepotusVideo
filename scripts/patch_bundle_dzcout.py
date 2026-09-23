@@ -359,7 +359,13 @@ STABLE_PROBES = [
     # EC6 (l etat, l effet fetch, dzSetView -- repli R_M16REF), EC7 (data-view
     # sur la racine) et EC8 (la barre des vues) n en ajoutent aucune. MESURE :
     # la chaine a refuse, « sonde montage x129 (want 128) », avant cette ligne.
-    ("montage", "DzTracks", 129),
+    # 23/09/2026, E-13 / E-14 (lot E-C, tache 5) : 129 -> 132. TROIS de plus :
+    # `DzTracks.teteTxt(` (EC12, l en-tete de l inspecteur), `DzTracks.trou(`
+    # (EC10, le clic dans le vide d une lane) et `DzTracks.trouRipple(` (EC13,
+    # Suppr referme le trou). EC11 (le rendu du trou), EC14 (clipDown),
+    # R_M16REF (l etat) et R_K7 (Echap) n en ajoutent aucune. MESURE : la
+    # chaine a refuse, « sonde montage x132 (want 129) », avant cette ligne.
+    ("montage", "DzTracks", 132),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

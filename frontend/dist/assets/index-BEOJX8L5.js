@@ -1784,6 +1784,8 @@ function DzMontage(props){
   var stDzFin=x.useState(null),dzFin=stDzFin[0],setDzFin=stDzFin[1];
   var stMn=x.useState(null),dzMenu=stMn[0],setDzMenu=stMn[1];
   var dzScrimRef=x.useRef(!1);dzScrimRef.current=!!(pop||dzFin||dzMenu);
+  var stGap=x.useState(null),gapSel=stGap[0],setGapSel=stGap[1];
+  var gapSelRef=x.useRef(null);gapSelRef.current=gapSel;
   var stDzFS=x.useState(function(){try{return JSON.parse(localStorage.getItem("dz_montage_lastfin")||"{}")||{}}catch(_e){return {}}}),dzFinStore=stDzFS[0],setDzFinStore=stDzFS[1];
   var dzLast=DzTracks.finOf(dzFinStore,proj.project_id||"_");
   var stVw=x.useState("montage"),view=stVw[0],setVw=stVw[1];
@@ -3380,6 +3382,7 @@ function DzMontage(props){
          à la tête de lecture ; sinon la touche reste sans effet ici */
       if(e.key==="Escape"){
         if(dzMkOnRef.current){e.preventDefault();dzMkToggle(!1);return}
+        if(gapSelRef.current){e.preventDefault();setGapSel(null);return}
         if(dzScrimRef.current){e.preventDefault();setPop("");setDzFin(null);setDzMenu(null);return}
         if(kbAudioRef.current&&kbAudioRef.current.ovEsc&&kbAudioRef.current.ovEsc())e.preventDefault();
         return}
@@ -3420,6 +3423,9 @@ function DzMontage(props){
       if(id==="fullscreen"){svmFullscreen();return}
       if(id==="safezones"){setSafeOn(function(v){return !v});return}
       if(id==="delete"){
+        /* E-14 : un trou sélectionné passe avant le losange et le clip */
+        if(gapSelRef.current){var gs=gapSelRef.current;if(trackStRef.current[gs.tr]&&trackStRef.current[gs.tr].l){fireNote("Piste "+gs.tr.toUpperCase()+" verrouillée — déverrouillez-la pour refermer le trou.");return}
+          pushHistory();setClips(DzTracks.trouRipple(clipsRef.current,gs.tr,gs.a,gs.b));setDirty(!0);setGapSel(null);fireNote("Trou de "+svmShort(gs.b-gs.a)+" refermé sur "+gs.tr.toUpperCase());return}
         /* mode automation : Suppr retire le losange sélectionné, pas le clip */
         if(kbAudioRef.current&&kbAudioRef.current.vpDel&&kbAudioRef.current.vpDel())return;
         delClip();return}
@@ -3492,6 +3498,7 @@ function DzMontage(props){
     return clientX-cRect.left<g?"l":cRect.right-clientX<g?"r":"m";
   }
   function clipDown(e,c,laneEl){
+    if(gapSelRef.current)setGapSel(null); /* E-14 : un clic sur un clip efface le trou sélectionné */
     e.stopPropagation();setSelId(c.id);
     ovKeysOffRef.current=!1; /* resélection : les flèches reviennent à l'overlay (R4b) */
     /* piste verrouillée : la sélection reste possible, tout geste est bloqué */
@@ -5888,6 +5895,7 @@ function DzMontage(props){
           r.jsx("button",{className:"svm-pchip",title:"plein écran du cadre (Échap pour sortir)",
             onClick:svmFullscreen,children:"plein écran ("+svmKeyLabel("fullscreen")+")"})]})]}),
       inspOn?r.jsxs("aside",{className:"svm-insp",style:{width:inspW},"data-w":inspW,children:[r.jsx("div",{className:"svm-insphandle",onPointerDown:inspDown,title:"Glisser pour redimensionner l'inspecteur (260–480 px)"}),
+        r.jsx("div",{className:"svm-insphead",title:"Tête de lecture (HH:MM:SS:image à 30 i/s)",children:DzTracks.teteTxt(ph,sel,svmTcFF)}),
         r.jsx(SvmLabel,{children:"Clip sélectionné"}),
         r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:8,marginTop:9},children:[
           r.jsx("div",{className:"svm-clipname",style:{marginTop:0,flex:"1 1 auto",minWidth:0,
@@ -6375,8 +6383,10 @@ function DzMontage(props){
               r.jsxs("div",{className:"svm-lane",
                 onDragOver:function(e){if(svmDragOk(e,tr.id)){e.preventDefault();e.dataTransfer.dropEffect="copy"}},
                 onDrop:function(e){dropOnTrack(e,tr.id,e.currentTarget)},
+                onPointerDown:function(e){if(e.button!==0||e.target!==e.currentTarget||proj.demo)return;var rc=e.currentTarget.getBoundingClientRect();var t=(e.clientX-rc.left)/rc.width*durRef.current;var g=DzTracks.trou(clipsRef.current,tr.id,t);setGapSel(g?{tr:tr.id,a:g.a,b:g.b}:null)},
                 children:[
                 tr.id==="v1"?svmV1Gaps(clips,dur):null,
+                gapSel&&gapSel.tr===tr.id?r.jsx("div",{className:"svm-gapsel",style:{left:(gapSel.a/dur*100)+"%",width:((gapSel.b-gapSel.a)/dur*100)+"%"},title:"Trou sélectionné — Suppr le referme (ripple sur cette piste)"}):null,
                 clips.filter(function(c){return c.tr===tr.id}).map(function(c){
                   var isSel=c.id===selId;
                   /* fond média : waveform (pistes audio), filmstrip / image (V1) —
@@ -13017,7 +13027,8 @@ window.DzSubs={ready:!0,Drawer:SubsDrawer,Overlay:SubsOverlay,Style:SubsStyle,
                          tbTraces, tbIcons, tbParse, tbSerial,
                          TbIcon, ToolBtn, TB_GROUPES, TB_PX, TB_PX_GRIP,
                          move, moveTo, add, remove, group,
-                         jobsTri, Deliver, DEFAULTS}
+                         jobsTri, Deliver,
+                         teteTxt, trou, trouRipple, DEFAULTS}
 
    - bdRetire() / bdPlan(dispo, blocs) — étape 6 du handoff « Barre Outils
      Flottante » (§5). La première RECALCULE ce que le retrait des neuf
@@ -19163,6 +19174,47 @@ function DzmDeliver(o){
     r.jsx("div",{className:"svm-dellast",children:lf?"Dernier rendu final : "+String(lf.name||"")+" · "+dzmDelDate(lf.at):"Dernier rendu final : aucun"}),
     r.jsx("div",{className:"svm-dellist",children:n?tri.finals.map(function(j){return row(j,"final")}).concat(tri.previews.map(function(j){return row(j,"preview")})):r.jsx("div",{className:"svm-delempty",children:"Aucun rendu pour ce projet."})}),
     r.jsx("button",{className:"svm-secbtn",title:"Ouvrir la Bibliothèque sur les rendus vidéo",onClick:function(){o.onOpenLib&&o.onOpenLib()},children:"Voir dans la Bibliothèque"})]})}
+/* ── E-13 / E-14 (lot E-C, tâche 5, 23/09/2026) : LA TÊTE DANS L'INSPECTEUR,
+   LE TROU SÉLECTIONNÉ ──────────────────────────────────────────────────────
+   dzmTeteTxt(ph, sel, fmt) — pure : « tête à <fmt(ph)> », puis « · +<fmt(ph−start)>
+   dans le plan » quand un clip est sélectionné et start ≤ ph < end (intervalle
+   FERMÉ-OUVERT : à ph == end la tête est « hors du plan »), sinon « · hors du
+   plan » ; sans sel, rien de plus. Le formateur est PASSÉ par l'hôte (svmTcFF,
+   HH:MM:SS:FF à 30 i/s, celui de .svm-tcmain — décision 7 : pas de « ·ii »,
+   rien de recopié) ; absent, le nombre est arrondi au centième. ph non fini → "".
+   dzmTrou(clips, tr, t) — pure : {a,b} = fin du dernier clip de `tr` finissant
+   ≤ t (0 si aucun) et début du premier clip commençant > t ; null si t est DANS
+   un clip, sans clip suivant (la queue de piste n'est pas un trou — décision 8),
+   ou si le trou fait moins de 0,05 s. Entrées non-objets ignorées.
+   dzmTrouRipple(clips, tr, a, b) — pure : nouveau tableau ; les clips de `tr`
+   dont start ≥ b (−1e-6) reculent de b−a (start/end seuls, les autres champs
+   et l'ordre intacts, les clips immobiles sont LES MÊMES objets) ; les autres
+   pistes ne bougent pas (écart daté : le jumeau A1 ne suit pas, comme D-4).
+   Bornes invalides (b ≤ a, NaN) → copie identique ; clips non-tableau → []. */
+function dzmTeteTxt(ph,sel,fmt){
+  var p=Number(ph);if(!isFinite(p))return "";
+  var f=typeof fmt==="function"?fmt:function(v){return String(Math.round(v*100)/100)};
+  var s="tête à "+f(p);
+  if(sel&&typeof sel==="object"&&isFinite(Number(sel.start))&&isFinite(Number(sel.end)))
+    s+=(Number(sel.start)<=p&&p<Number(sel.end))?" · +"+f(p-Number(sel.start))+" dans le plan":" · hors du plan";
+  return s}
+function dzmTrou(clips,tr,t){
+  var p=Number(t);if(!Array.isArray(clips)||!isFinite(p))return null;
+  var a=0,b=null,i,c,s0,e0;
+  for(i=0;i<clips.length;i++){c=clips[i];if(!c||typeof c!=="object"||c.tr!==tr)continue;
+    s0=Number(c.start);e0=Number(c.end);if(!isFinite(s0)||!isFinite(e0))continue;
+    if(s0<=p&&p<e0)return null;
+    if(e0<=p&&e0>a)a=e0;
+    if(s0>p&&(b===null||s0<b))b=s0}
+  if(b===null||b-a<.05)return null;
+  return {a:a,b:b}}
+function dzmTrouRipple(clips,tr,a,b){
+  if(!Array.isArray(clips))return [];
+  var d=Number(b)-Number(a);
+  if(!isFinite(d)||d<=0)return clips.slice();
+  return clips.map(function(c){
+    if(!c||typeof c!=="object"||c.tr!==tr||!(Number(c.start)>=Number(b)-1e-6))return c;
+    return Object.assign({},c,{start:c.start-d,end:c.end-d})})}
 /* ── D-13 (22/09/2026) : LE ZOOM DYNAMIQUE ───────────────────────────────
    `dz` = {x0,y0,w0,x1,y1,w1,ease} en FRACTIONS du cadre — MÊMES bornes que
    `montage_service._dz_spec` (w ∈ [0.1,1], x/y ∈ [0,1−w], plein cadre aux
@@ -19778,6 +19830,8 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   comboToKey:dzmComboToKey,menuModel:dzmMenuModel,CtxMenu:DzmCtxMenu,
   /* E-7 (lot E-C, tache 3) : le tri des rendus par titre et la vue Livraison */
   jobsTri:dzmJobsTri,Deliver:DzmDeliver,
+  /* E-13 / E-14 (lot E-C, tache 5) : la tete dans l'inspecteur, le trou selectionne et son ripple */
+  teteTxt:dzmTeteTxt,trou:dzmTrou,trouRipple:dzmTrouRipple,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;
 

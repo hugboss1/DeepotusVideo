@@ -1093,6 +1093,14 @@ R_M16REF = (A_M16REF + "\n"
             # L'OUVERTURE par dzMenuProps (EC1), jamais a chaque rendu.
             "  var stMn=x.useState(null),dzMenu=stMn[0],setDzMenu=stMn[1];\n"
             "  var dzScrimRef=x.useRef(!1);dzScrimRef.current=!!(pop||dzFin||dzMenu);\n"
+            # ── E-14 (lot E-C, tache 5, 23/09/2026) : LE TROU SELECTIONNE -- REPLIE
+            # ICI (0 dans .bak_montage), a cote de dzScrimRef et sur le MEME motif :
+            # onKey (window keydown) a des deps sans gapSel, le ref est pose a
+            # chaque rendu. Forme {tr,a,b} ou null ; pose par le clic dans le vide
+            # d'une lane (EC10), lu par le rendu (EC11) et par Suppr (EC13), efface
+            # par Suppr, Echap (R_K7) et le clic sur un clip (EC14).
+            "  var stGap=x.useState(null),gapSel=stGap[0],setGapSel=stGap[1];\n"
+            "  var gapSelRef=x.useRef(null);gapSelRef.current=gapSel;\n"
             # ── E-5 (lot E-B, tache 4, 23/09/2026) : LE DERNIER RENDU FINAL
             # PAR PROJET. REPLIÉ ICI comme dzFin (0 dans .bak_montage). Deux
             # états DISTINCTS : dzFin = le bandeau est visible ; ce store =
@@ -3588,6 +3596,10 @@ R_K7 = ('if(e.key==="Escape"){\n'
         # branche Escape de onKey est consommee par K7 (le plan supposait
         # R_R2 : ecart mesure). Apres l'index des marqueurs (ouvert par
         # dessus, il se ferme d'abord), avant le repli ovEsc de l'overlay.
+        # E-14 (lot E-C, tache 5, 23/09/2026) : LE TROU SELECTIONNE S'EFFACE
+        # AVANT le voile (un trou sous un popover : Echap efface d'abord le
+        # trou, le popover au second Echap) -- meme repli, meme branche.
+        "        if(gapSelRef.current){e.preventDefault();setGapSel(null);return}\n"
         # E-6 (lot E-C, tache 2, 23/09/2026) : ... et le menu ☰ / contextuel
         # (dzMenu, porte par le meme ref) -- meme repli, meme branche.
         "        if(dzScrimRef.current){e.preventDefault();setPop(\"\");setDzFin(null);setDzMenu(null);return}\n"
@@ -4766,6 +4778,64 @@ assert R_EC7.count('"data-view":view,') == 1 and A_EC8.endswith("]})]})}") and R
 assert R_EC8.count("]})") == A_EC8.count("]})") == 3 and R_EC9.count("DzTracks.Deliver") == 1
 assert R_M16REF.count('x.useState("montage")') == 1 and R_M16REF.count("function dzSetView(v){") == 1 and _EB_GARDE in R_M16REF
 
+# ══ E-13 / E-14 (lot E-C, tache 5, 23/09/2026) — LA TETE DANS L'INSPECTEUR,
+# LE TROU SELECTIONNE ═══════════════════════════════════════════════════════
+# E-13 : « tête à HH:MM:SS:FF · +HH:MM:SS:FF dans le plan » (ou « hors du
+# plan ») en tete de l'inspecteur, par DzTracks.teteTxt (couche, pure) et le
+# formateur svmTcFF de .svm-tcmain (30 i/s, decision 7 : pas de « ·ii »).
+# ECART MESURE (23/09/2026) : le plan voulait un REPLI dans R_EB6A (apres la
+# poignee) ; ce remplacement est pinne OCTET POUR OCTET par le banc bundle
+# ([EB] E-8 : `getattr(P,"R_EB6A")==_EB8_R`). L'ancre du PREMIER enfant
+# d'origine de l'aside, « Clip sélectionné », est libre (1/0/1) et SUIT la
+# poignee : section EC12, meme place a l'ecran (poignee, en-tete, label).
+A_EC12 = '        r.jsx(SvmLabel,{children:"Clip sélectionné"}),'
+R_EC12 = ('        r.jsx("div",{className:"svm-insphead",title:"Tête de lecture (HH:MM:SS:image à 30 i/s)",children:DzTracks.teteTxt(ph,sel,svmTcFF)}),\n'
+          + A_EC12)
+# E-14 : selectionner un trou, Suppr = ripple SUR LA PISTE (decision 8 :
+# DzTracks.trouRipple ne decale que les clips de cette piste apres le trou --
+# ecart date : le jumeau A1 ne suit pas, comme D-4 ; DzTracks.rippleCut,
+# lui, agit sur TOUTES les pistes et sert range_cut). La queue de piste n'est
+# pas un trou (DzTracks.trou rend null sans clip suivant), ni un vide < 0,05 s.
+# EC10 : le clic dans le VIDE d'une lane. MESURE : .svm-lane n'avait ni
+# onPointerDown ni onClick (onDragOver/onDrop seuls) ; la tete ne se pose que
+# par la regle (rulerDown). Cible = la lane ELLE-MEME (e.target===
+# e.currentTarget : un clip est un enfant, il garde clipDown ; .svm-gap de V1
+# est pointer-events:none et .svm-gapsel aussi -- le clic y retombe sur la
+# lane), bouton gauche, hors demo (proj.demo : la maquette ne s'edite pas).
+# ECART MESURE : `phFromEvent(e,lane)` deduirait la gouttiere de 88 px une
+# SECONDE fois (.svm-lane est flex:1 A COTE de .svm-thead 88 px ; les clips
+# sont poses en % de la lane elle-meme) -> le temps est lu sur le rect de la
+# lane, le cadre exact des clips. Pas de stopPropagation : rien n'ecoutait.
+A_EC10 = '                onDrop:function(e){dropOnTrack(e,tr.id,e.currentTarget)},'
+R_EC10 = (A_EC10 + '\n'
+          '                onPointerDown:function(e){if(e.button!==0||e.target!==e.currentTarget||proj.demo)return;'
+          'var rc=e.currentTarget.getBoundingClientRect();var t=(e.clientX-rc.left)/rc.width*durRef.current;'
+          'var g=DzTracks.trou(clipsRef.current,tr.id,t);setGapSel(g?{tr:tr.id,a:g.a,b:g.b}:null)},')
+# EC11 : le rendu du trou, dans la lane de SA piste, en % de dur comme les
+# clips et svmV1Gaps (ancre libre : la ligne des trous noirs de V1).
+A_EC11 = '                tr.id==="v1"?svmV1Gaps(clips,dur):null,'
+R_EC11 = (A_EC11 + '\n'
+          '                gapSel&&gapSel.tr===tr.id?r.jsx("div",{className:"svm-gapsel",style:{left:(gapSel.a/dur*100)+"%",width:((gapSel.b-gapSel.a)/dur*100)+"%"},'
+          'title:"Trou sélectionné — Suppr le referme (ripple sur cette piste)"}):null,')
+# EC13 : Suppr. La branche `if(id==="delete"){` est libre (1/0/1) ; le trou
+# passe AVANT le losange d'automation (vpDel) et le clip (delClip). La
+# sequence est CELLE de delClipById : verrou de piste (meme phrase, meme
+# ref), pushHistory() (empile clipsRef.current), setClips, setDirty(!0),
+# note. gapSelRef (pas gapSel) : onKey est un ecouteur window aux deps figees.
+A_EC13 = '      if(id==="delete"){'
+R_EC13 = (A_EC13 + '\n'
+          '        /* E-14 : un trou sélectionné passe avant le losange et le clip */\n'
+          '        if(gapSelRef.current){var gs=gapSelRef.current;if(trackStRef.current[gs.tr]&&trackStRef.current[gs.tr].l){fireNote("Piste "+gs.tr.toUpperCase()+" verrouillée — déverrouillez-la pour refermer le trou.");return}\n'
+          '          pushHistory();setClips(DzTracks.trouRipple(clipsRef.current,gs.tr,gs.a,gs.b));setDirty(!0);setGapSel(null);'
+          'fireNote("Trou de "+svmShort(gs.b-gs.a)+" refermé sur "+gs.tr.toUpperCase());return}')
+# EC14 : un clic sur un clip efface le trou (ancre libre : la tete de clipDown).
+A_EC14 = '  function clipDown(e,c,laneEl){'
+R_EC14 = A_EC14 + '\n    if(gapSelRef.current)setGapSel(null); /* E-14 : un clic sur un clip efface le trou sélectionné */'
+for _a, _r in ((A_EC10, R_EC10), (A_EC11, R_EC11), (A_EC12, R_EC12), (A_EC13, R_EC13), (A_EC14, R_EC14)):
+    assert _a != _r and _r.count(_a) == 1
+assert R_M16REF.count("gapSelRef.current=gapSel;") == 1 and R_K7.count("setGapSel(null)") == 1
+assert R_K7.find("dzMkOnRef") < R_K7.find("setGapSel(null)") < R_K7.find("dzScrimRef")
+
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
@@ -5005,7 +5075,14 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            # replies dans R_M16REF.
            ("EC7-data-view-sur-la-racine", A_EC7, R_EC7),
            ("EC8-barre-des-vues-en-bas-de-dzsvm", A_EC8, R_EC8),
-           ("EC9-panneau-livraison-dans-svm-mid", A_EC9, R_EC9)]
+           ("EC9-panneau-livraison-dans-svm-mid", A_EC9, R_EC9),
+           # E-13 / E-14 (tache 5) : cinq sections sur des ancres libres ; l'etat
+           # gapSel + gapSelRef (R_M16REF) et Echap (R_K7) sont replies.
+           ("EC10-clic-dans-le-vide-d-une-lane", A_EC10, R_EC10),
+           ("EC11-rendu-du-trou-selectionne", A_EC11, R_EC11),
+           ("EC12-tete-de-lecture-dans-l-inspecteur", A_EC12, R_EC12),
+           ("EC13-suppr-referme-le-trou", A_EC13, R_EC13),
+           ("EC14-clic-sur-un-clip-efface-le-trou", A_EC14, R_EC14)]
 
 
 def nl(text, crlf):

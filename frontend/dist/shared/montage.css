@@ -1447,3 +1447,11 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
 .dzsvm .svm-deldate,.dzsvm .svm-deldur{font-size:11px;opacity:.7;font-variant-numeric:tabular-nums}
 .dzsvm .svm-delbadge{font-size:10px;padding:1px 6px;border-radius:9px;border:1px solid var(--stroke);opacity:.8}
 .dzsvm .svm-delempty{font-size:12px;opacity:.7;padding:8px 0}
+/* E-13 / E-14 (lot E-C, tâche 5, 23/09/2026) : l'en-tête « tête à … » de
+   l'inspecteur (EC12 : entre la poignée et « Clip sélectionné », chiffres
+   tabulaires — le timecode ne saute pas à chaque image) et le trou
+   sélectionné (EC11 : dans la lane de sa piste, posé en % comme les clips ;
+   pointer-events:none — le clic suivant retombe sur la lane, e.target reste
+   la lane ; pointillés à l'accent, jamais plein : ce n'est pas un clip). */
+.dzsvm .svm-insphead{font-size:11px;opacity:.75;margin-bottom:6px;font-variant-numeric:tabular-nums}
+.dzsvm .svm-gapsel{position:absolute;top:2px;bottom:2px;border:1px dashed var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent);pointer-events:none;border-radius:4px}

@@ -8756,6 +8756,12 @@ function ECRAN(o){
     return DzTracks.histSnap({clips:clipsRef.current,mixDb:mixRef.current,
       proj:dzProjRef.current})}
   var ovKeysOffRef={current:!1};
+  /* E-14 (lot E-C, tache 5, 23/09/2026) — LE TROU SELECTIONNE, la ref que
+     clipDown lit EN TETE (EC14 : un clic sur un clip efface le trou). La ref
+     est affectee sur place par le setter (pas de rendu ici) ; `o.trou` pose
+     un trou au depart, absent par defaut comme x.useState(null). */
+  var gapSelRef={current:o.trou||null};
+  function setGapSel(v){gapSelRef.current=v}
   var dzReadyRef={current:o.pasPrete?!1:!0};
   var dzTracksRef={current:o.pistes||null};
   var trackStRef={current:o.verrous||{}};
@@ -15169,17 +15175,19 @@ _DZ_I = _DZ_TAGS.index("EA6-bandeau-ferme-au-lancement")
 # EB8a) -- mmCalc et onSeek ne parlent pas a la couche.
 # E-6 (T2, 23/09/2026) : quatre sections EC en queue apres EB8b, sonde 123 -> 128
 # E-7 (T3, 23/09/2026) : trois sections EC7/EC8/EC9 apres EC5, sonde 128 -> 129 (Deliver, EC9)
-check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB8b_puis_EC_en_queue_apres_EA6_et_la_sonde_dit_129",
+# E-13 / E-14 (T5, 23/09/2026) : cinq sections EC10..EC14 apres EC9, sonde 129 -> 132 (teteTxt EC12, trou EC10, trouRipple EC13)
+check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB8b_puis_EC_en_queue_apres_EA6_et_la_sonde_dit_132",
       [t.split("-")[0] for t in _DZ_TAGS[_DZ_I + 1:]] == ["DZ1", "DZ2", "DZ3", "DZ4",
                                                           "KF1", "KF2", "KF2b", "KF2c", "KF3a", "KF3b", "KF3c", "KF4", "KF5",
                                                           "AJ2a", "AJ2b", "AJ6a", "AJ6b", "AJ7",
                                                           "EB1", "EB2", "EB2b", "EB2c", "EB2d", "EB2e", "EB2f", "EB3",
                                                           "EB4", "EB5a", "EB5b", "EB6a", "EB6b", "EB7b", "EB8a", "EB8b",
-                                                          "EC1", "EC2", "EC4", "EC5", "EC7", "EC8", "EC9"]
+                                                          "EC1", "EC2", "EC4", "EC5", "EC7", "EC8", "EC9",
+                                                          "EC10", "EC11", "EC12", "EC13", "EC14"]
       and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
               and s.count(nl(a)) == (1 if a in r else 0)
               for _t, a, r in P.PATCHES[_DZ_I + 1:])
-      and _sonde.get("montage") == 129 and s.count("DzTracks") == 129
+      and _sonde.get("montage") == 132 and s.count("DzTracks") == 132
       if _bak else False,
       f"queue={_DZ_TAGS[_DZ_I + 1:]} sonde={_sonde.get('montage')} bundle={s.count('DzTracks')}")
 
@@ -16478,11 +16486,13 @@ check("EC_la_feuille_dessine_le_menu_svm_menu_borne_a_dzsvm_menurub_menuitem_men
       and _EC_CSS.count("svm-menu") == 8 and _EC_CSS.count("\n.dzsvm .svm-menu") == 7 and "E-6" in _EC_CSS
       and _EC_AM.count(".svm-pop{position:absolute; top:52px; right:18px; z-index:20;") == 1 and _EC_AM.count("svm-menu") == 0,
       f"regles={_EC_CSS.count('svm-menu')} amont={_EC_AM.count('svm-menu')}")
-# LA SONDE : DzTracks 123 -> 128 (comboToKey, menuModel, CtxMenu, voisins, remove) -> 129 (E-7 : Deliver, EC9).
+# LA SONDE : DzTracks 123 -> 128 (comboToKey, menuModel, CtxMenu, voisins, remove) -> 129 (E-7 : Deliver, EC9)
+# -> 132 (E-13 / E-14, T5 : teteTxt EC12, trou EC10, trouRipple EC13).
 _EC_SONDE = _lire(ROOT / "scripts" / "patch_bundle_dzcout.py")
-check("EC_la_sonde_dzcout_compte_DzTracks_129",
-      _EC_SONDE.count('("montage", "DzTracks", 129),') == 1 and _EC_SONDE.count('("montage", "DzTracks", 128),') == 0
-      and _EC_SONDE.count('("montage", "DzTracks", 123),') == 0 and s.count("DzTracks") == 129,
+check("EC_la_sonde_dzcout_compte_DzTracks_132",
+      _EC_SONDE.count('("montage", "DzTracks", 132),') == 1 and _EC_SONDE.count('("montage", "DzTracks", 129),') == 0
+      and _EC_SONDE.count('("montage", "DzTracks", 128),') == 0
+      and _EC_SONDE.count('("montage", "DzTracks", 123),') == 0 and s.count("DzTracks") == 132,
       f"sonde={_EC_SONDE.count(chr(40) + chr(34) + 'montage')} bundle={s.count('DzTracks')}")
 
 print("\n[EC] E-7 : les trois vues Medias · Montage · Livraison (lot E-C, tache 3)")
@@ -16699,6 +16709,137 @@ check("E10_feuille_regles_separees_premiere_regle_intacte_docked_statique_compac
       and _E10_UP.count(".svm-trans{height:34px; flex:none; display:flex; align-items:center; gap:12px;") == 1
       and _E10_CSS.count(".dzsvm .svm-trans{position:relative; overflow:visible}") == 1,
       f"rd={_E10_RD!r} rdo={_E10_RDO!r} rb={_E10_RB!r} n={_E10_CSS.count('[data-docked]')} bloc={len(_E10_BLOC)}")
+
+print("\n[EC] E-13 : la tete dans l'inspecteur ; E-14 : le trou selectionne, Suppr = ripple sur la piste (lot E-C, tache 5)")
+# MESURES du 23/09/2026 (T5) : CINQ sections neuves sur des ancres LIBRES
+# (1/0/1) -- EC10 (onDrop de la lane), EC11 (svmV1Gaps), EC12 (« Clip
+# sélectionné »), EC13 (if(id==="delete"){), EC14 (function clipDown) -- et
+# deux replis : l'etat gapSel + gapSelRef dans R_M16REF (a cote de dzScrimRef,
+# meme motif : onKey a des deps sans gapSel), Echap dans R_K7 AVANT le voile.
+# ECART date : le plan voulait E-13 en repli dans R_EB6A ; ce remplacement est
+# pinne OCTET POUR OCTET par [EB] E-8 (`getattr(P,"R_EB6A")==_EB8_R`) -> section
+# EC12 sur l'ancre libre qui SUIT la poignee (meme place a l'ecran : poignee,
+# en-tete, label). ECART date : `phFromEvent(e,lane)` deduirait la gouttiere de
+# 88 px une SECONDE fois (.svm-lane est flex:1 A COTE de .svm-thead 88 px, les
+# clips sont poses en % de la lane elle-meme) -> le temps est lu sur le rect de
+# la lane. `.svm-gap` (V1) est pointer-events:none : e.target reste la lane.
+for _nme in ("stGap", "gapSel", "setGapSel", "gapSelRef"):
+    _nbe = _libre21(_nme, _bak if _bak else None)
+    check("E13_nom_" + _nme + "_etait_libre_dans_le_bundle_d_entree",
+          _nbe == 0 and _libre21(_nme, s) >= 1,
+          f"{_nme} apparait {_nbe}x dans .bak_montage, {_libre21(_nme, s)}x dans le bundle")
+_E13_A = '        r.jsx(SvmLabel,{children:"Clip sélectionné"}),'
+_E13_R = ('        r.jsx("div",{className:"svm-insphead",title:"Tête de lecture (HH:MM:SS:image à 30 i/s)",children:DzTracks.teteTxt(ph,sel,svmTcFF)}),\n'
+          + _E13_A)
+_E14_LANE_A = '                onDrop:function(e){dropOnTrack(e,tr.id,e.currentTarget)},'
+_E14_LANE_R = (_E14_LANE_A + '\n'
+               '                onPointerDown:function(e){if(e.button!==0||e.target!==e.currentTarget||proj.demo)return;'
+               'var rc=e.currentTarget.getBoundingClientRect();var t=(e.clientX-rc.left)/rc.width*durRef.current;'
+               'var g=DzTracks.trou(clipsRef.current,tr.id,t);setGapSel(g?{tr:tr.id,a:g.a,b:g.b}:null)},')
+_E14_GAP_A = '                tr.id==="v1"?svmV1Gaps(clips,dur):null,'
+_E14_GAP_R = (_E14_GAP_A + '\n'
+              '                gapSel&&gapSel.tr===tr.id?r.jsx("div",{className:"svm-gapsel",style:{left:(gapSel.a/dur*100)+"%",width:((gapSel.b-gapSel.a)/dur*100)+"%"},'
+              'title:"Trou sélectionné — Suppr le referme (ripple sur cette piste)"}):null,')
+_E14_DEL_A = '      if(id==="delete"){'
+_E14_DEL_R = (_E14_DEL_A + '\n'
+              '        /* E-14 : un trou sélectionné passe avant le losange et le clip */\n'
+              '        if(gapSelRef.current){var gs=gapSelRef.current;if(trackStRef.current[gs.tr]&&trackStRef.current[gs.tr].l){fireNote("Piste "+gs.tr.toUpperCase()+" verrouillée — déverrouillez-la pour refermer le trou.");return}\n'
+              '          pushHistory();setClips(DzTracks.trouRipple(clipsRef.current,gs.tr,gs.a,gs.b));setDirty(!0);setGapSel(null);'
+              'fireNote("Trou de "+svmShort(gs.b-gs.a)+" refermé sur "+gs.tr.toUpperCase());return}')
+_E14_CD_A = '  function clipDown(e,c,laneEl){'
+_E14_CD_R = _E14_CD_A + '\n    if(gapSelRef.current)setGapSel(null); /* E-14 : un clic sur un clip efface le trou sélectionné */'
+for _sec, _a, _r in (("EC10-clic-dans-le-vide-d-une-lane", _E14_LANE_A, _E14_LANE_R),
+                     ("EC11-rendu-du-trou-selectionne", _E14_GAP_A, _E14_GAP_R),
+                     ("EC12-tete-de-lecture-dans-l-inspecteur", _E13_A, _E13_R),
+                     ("EC13-suppr-referme-le-trou", _E14_DEL_A, _E14_DEL_R),
+                     ("EC14-clic-sur-un-clip-efface-le-trou", _E14_CD_A, _E14_CD_R)):
+    _cnt_a = s.count(nl(_a)); _cnt_r = s.count(nl(_r))
+    check("E13_section_" + _sec + "_ancre_libre_1_0_1_et_remplacement_x1",
+          _cnt_r == 1 and (_sec, _a, _r) in P.PATCHES and _a != _r and _a in _r
+          and (_bak.count(_nlb(_a)) == 1 and _bak.count(_nlb(_r)) == 0 if _bak else False)
+          and sum(1 for _t in P.PATCHES if _a in _t[2] and _t[0] != _sec) == 0,
+          f"ancre={_cnt_a} neuf={_cnt_r} bak={_bak.count(_nlb(_a)) if _bak else '?'}")
+# E-13 : l'en-tete vient APRES la poignee (EB6a) et AVANT le label, dans l'aside ; le formateur est CELUI de .svm-tcmain
+_iE13H = s.find(nl(P.R_EB6A)); _iE13T = s.find('className:"svm-insphead"'); _iE13L = s.find(nl(_E13_A))
+check("E13_svm_insphead_x1_entre_la_poignee_et_Clip_selectionne_teteTxt_x1_avec_ph_sel_svmTcFF_titre_30_i_s",
+      s.count("svm-insphead") == 1 and s.count("DzTracks.teteTxt(") == 1 and s.count("DzTracks.teteTxt(ph,sel,svmTcFF)") == 1
+      and 0 < _iE13H < _iE13T < _iE13L < _iE13H + 400
+      and s.count('title:"Tête de lecture (HH:MM:SS:image à 30 i/s)"') == 1
+      # temoin : svmTcFF est le formateur de .svm-tcmain (x1 avant, x2 apres : celui-ci)
+      and s.count("svmTcFF(") >= 2 and s.count("function svmTcFF(s)") == 1
+      and (_bak.count("svm-insphead") == 0 and _bak.count("teteTxt") == 0 and _bak.count("function svmTcFF(s)") == 1 if _bak else False),
+      f"head={s.count('svm-insphead')} tete={s.count('DzTracks.teteTxt(')} ordre={(_iE13H, _iE13T, _iE13L)}")
+# E-14 : l'etat et le ref, replies dans R_M16REF juste APRES dzScrimRef (meme motif) ; le ref est pose a chaque rendu
+_E14_ST = "  var stGap=x.useState(null),gapSel=stGap[0],setGapSel=stGap[1];"
+_E14_REF = "  var gapSelRef=x.useRef(null);gapSelRef.current=gapSel;"
+_iE14Scrim = s.find(nl(_EB11_REF)); _iE14St = s.find(nl(_E14_ST)); _iE14Ref = s.find(nl(_E14_REF))
+check("E14_etat_gapSel_et_gapSelRef_replies_dans_R_M16REF_apres_dzScrimRef_ref_pose_a_chaque_rendu",
+      s.count(nl(_E14_ST)) == 1 and s.count(nl(_E14_REF)) == 1 and _E14_ST in P.R_M16REF and _E14_REF in P.R_M16REF
+      and 0 < _iE14Scrim < _iE14St < _iE14Ref < _iE14Scrim + 1200
+      and P.R_M16REF.find(_E14_REF) > P.R_M16REF.find(_E14_ST) > P.R_M16REF.find(_EB11_REF) > 0
+      and s.count("gapSelRef.current=gapSel;") == 1 and _libre21("gapSelRef", s) >= 3,
+      f"st={s.count(nl(_E14_ST))} ref={s.count(nl(_E14_REF))} ordre={(_iE14Scrim, _iE14St, _iE14Ref)} refs={_libre21('gapSelRef', s)}")
+# EC10 : cible = la lane ELLE-MEME (un clip, un enfant, ne selectionne pas de trou), bouton gauche, hors demo ;
+# le temps est lu sur le rect de la lane (ecart date : pas phFromEvent) ; trou -> {tr,a,b}, sinon null
+check("E14_lane_onPointerDown_cible_la_lane_bouton_0_hors_demo_temps_sur_le_rect_de_la_lane_trou_x1",
+      s.count("e.target!==e.currentTarget") == 1 and s.count("DzTracks.trou(") == 1 and s.count("DzTracks.trou(clipsRef.current,tr.id,t)") == 1
+      and _E14_LANE_R.count("proj.demo") == 1 and _E14_LANE_R.count("e.button!==0") == 1
+      and "phFromEvent" not in _E14_LANE_R and _E14_LANE_R.count("getBoundingClientRect()") == 1 and _E14_LANE_R.count("durRef.current") == 1
+      and s.count("setGapSel(g?{tr:tr.id,a:g.a,b:g.b}:null)") == 1
+      # temoin : la lane n'avait NI onPointerDown NI onClick (onDragOver/onDrop seuls) -- la lane est flex:1 a cote du thead 88 px
+      and (_bak.count("e.target!==e.currentTarget") == 0 and _bak.count('className:"svm-lane"') == 1 if _bak else False)
+      and _lire(ROOT / "frontend" / "dist" / "shared" / "son-vfx-montage.css").count(".svm-lane{flex:1; position:relative;") == 1
+      and _lire(ROOT / "frontend" / "dist" / "shared" / "son-vfx-montage.css").count(".svm-thead{width:88px; flex:none;") == 1
+      and re.search(r"\.svm-gap\{[^}]*pointer-events:none", _lire(ROOT / "frontend" / "dist" / "shared" / "son-vfx-montage.css")) is not None,
+      f"cible={s.count('e.target!==e.currentTarget')} trou={s.count('DzTracks.trou(')}")
+# EC11 : le rendu du trou, dans la lane de SA piste, en % de dur comme les clips et svmV1Gaps
+check("E14_svm_gapsel_x1_dans_la_lane_de_sa_piste_en_pour_cent_de_dur_juste_apres_svmV1Gaps",
+      s.count("svm-gapsel") == 1 and s.count('gapSel&&gapSel.tr===tr.id?r.jsx("div",{className:"svm-gapsel"') == 1
+      and _E14_GAP_R.count("/dur*100") == 2 and s.count('title:"Trou sélectionné — Suppr le referme (ripple sur cette piste)"') == 1
+      and (_bak.count("svm-gapsel") == 0 and _bak.count(_nlb(_E14_GAP_A)) == 1 if _bak else False),
+      f"gapsel={s.count('svm-gapsel')}")
+# EC13 : Suppr referme le trou AVANT le losange (vpDel) et le clip (delClip) ; historique, dirty, note, verrou de piste
+_iE14Del = s.find(nl(_E14_DEL_R)); _iE14Vp = s.find("kbAudioRef.current.vpDel&&kbAudioRef.current.vpDel()"); _iE14Dc = s.find(nl("        delClip();return}"))
+check("E14_Suppr_referme_le_trou_avant_vpDel_et_delClip_pushHistory_trouRipple_x1_setDirty_note_verrou_de_piste",
+      s.count(nl(_E14_DEL_R)) == 1 and 0 < _iE14Del < _iE14Vp < _iE14Dc < _iE14Del + 900
+      and s.count("DzTracks.trouRipple(") == 1 and s.count("DzTracks.trouRipple(clipsRef.current,gs.tr,gs.a,gs.b)") == 1
+      and _E14_DEL_R.count("pushHistory();") == 1 and _E14_DEL_R.count("setDirty(!0);") == 1 and _E14_DEL_R.count("setGapSel(null);") == 1
+      and _E14_DEL_R.count("trackStRef.current[gs.tr].l") == 1 and _E14_DEL_R.count("svmShort(gs.b-gs.a)") == 1
+      and s.count('" refermé sur "') == 1 and s.count("déverrouillez-la pour refermer le trou.") == 1
+      # temoin : la branche d'origine (losange puis delClip) est INTACTE, x1 chacune ; le meme verrou que delClipById
+      and s.count("kbAudioRef.current.vpDel&&kbAudioRef.current.vpDel()") == 1 and s.count(nl("        delClip();return}")) == 1
+      and s.count("verrouillée — déverrouillez-la pour supprimer.") == 1
+      and (_bak.count("trouRipple") == 0 and _bak.count(nl("        delClip();return}").replace("\n", "")) == 1 if _bak else False),
+      f"del={s.count(nl(_E14_DEL_R))} ordre={(_iE14Del, _iE14Vp, _iE14Dc)} ripple={s.count('DzTracks.trouRipple(')}")
+# Echap (R_K7) : le trou s'efface AVANT le voile (un trou selectionne sous un popover : Echap efface le trou d'abord --
+# ordre pinne dans R_K7 ET dans le bundle) ; clipDown (EC14) efface en tete
+_E14_ESC = "        if(gapSelRef.current){e.preventDefault();setGapSel(null);return}"
+_iE14Mk = s.find("if(dzMkOnRef.current){e.preventDefault();dzMkToggle(!1);return}"); _iE14Esc = s.find(nl(_E14_ESC)); _iE14Sc = s.find(_EB11_ESC)
+check("E14_Echap_efface_le_trou_dans_R_K7_apres_l_index_des_marqueurs_avant_le_voile_et_clipDown_efface_en_tete",
+      s.count(nl(_E14_ESC)) == 1 and _E14_ESC in P.R_K7 and 0 < _iE14Mk < _iE14Esc < _iE14Sc < _iE14Mk + 500
+      and 0 < P.R_K7.find("dzMkOnRef.current") < P.R_K7.find(_E14_ESC) < P.R_K7.find(_EB11_ESC)
+      and P.R_K7.count("setGapSel(null)") == 1 and P.R_K7.count("setDzFin(null)") == 1
+      and s.count(nl(_E14_CD_R)) == 1 and _libre21("setGapSel", s) == 5
+      and (_bak.count("setGapSel") == 0 if _bak else False),
+      f"esc={s.count(nl(_E14_ESC))} ordre={(_iE14Mk, _iE14Esc, _iE14Sc)} setGapSel={_libre21('setGapSel', s)}")
+# LA FEUILLE : deux regles, une fois chacune, le trou en pointer-events:none (le clic suivant retombe sur la lane)
+_E13_CSS = _lire(ROOT / "frontend" / "dist" / "shared" / "montage.css")
+_E13_RH = _regle(_E13_CSS, ".dzsvm .svm-insphead{")
+_E13_RG = _regle(_E13_CSS, ".dzsvm .svm-gapsel{")
+check("E13_feuille_svm_insphead_et_svm_gapsel_x1_chacune_trou_absolu_en_pointilles_accent_sans_pointeur",
+      _E13_CSS.count(".dzsvm .svm-insphead{font-size:11px;opacity:.75;margin-bottom:6px;font-variant-numeric:tabular-nums}") == 1
+      and _E13_CSS.count(".dzsvm .svm-gapsel{position:absolute;top:2px;bottom:2px;border:1px dashed var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent);pointer-events:none;border-radius:4px}") == 1
+      and _E13_RH is not None and _E13_RG is not None and "pointer-events:none" in _E13_RG and "position:absolute" in _E13_RG
+      # x1 chacune : la regle seule (le commentaire du bloc nomme les sections EC11/EC12, pas les classes)
+      and _E13_CSS.count("svm-insphead") == 1 and _E13_CSS.count("svm-gapsel") == 1 and "E-13 / E-14 (lot E-C" in _E13_CSS
+      and src.count("svm-insphead") == 0 and src.count("svm-gapsel") == 0,
+      f"head={_E13_CSS.count('svm-insphead')} gap={_E13_CSS.count('svm-gapsel')} rg={_E13_RG!r}")
+# la couche (dans le bundle comme dans le fichier) : les trois exports, x1
+check("E13_E14_la_couche_exporte_teteTxt_trou_trouRipple_x1_dans_le_bundle_comme_dans_le_fichier",
+      s.count("teteTxt:dzmTeteTxt,trou:dzmTrou,trouRipple:dzmTrouRipple,") == 1 and src.count("teteTxt:dzmTeteTxt,trou:dzmTrou,trouRipple:dzmTrouRipple,") == 1
+      and s.count("function dzmTeteTxt(ph,sel,fmt){") == 1 and s.count("function dzmTrou(clips,tr,t){") == 1 and s.count("function dzmTrouRipple(clips,tr,a,b){") == 1
+      and (_bak.count("dzmTrou") == 0 if _bak else False),
+      f"exports={s.count('teteTxt:dzmTeteTxt,trou:dzmTrou,trouRipple:dzmTrouRipple,')}")
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")
