@@ -1550,6 +1550,7 @@ var SVM_ACTIONS=[
  {id:"swap_right",sec:"Montage",lbl:"echanger avec le plan suivant",combo:"Ctrl+→"},
  {id:"title_add",sec:"Montage",lbl:"titre : poser un carton a la tete",combo:"Maj+T"},
  {id:"adjust_add",sec:"Montage",lbl:"ajustement : poser un clip a la tete",combo:"Maj+J"},
+ {id:"trans_add",sec:"Montage",lbl:"transition : fondu à la coupe du plan sélectionné",combo:"Alt+T"},
  {id:"zoom_in",sec:"Affichage",lbl:"zoom avant (crans)",combo:"Ctrl+="},
  {id:"zoom_out",sec:"Affichage",lbl:"zoom arrière (crans)",combo:"Ctrl+-"},
  {id:"zoom100",sec:"Affichage",lbl:"zoom 100 %",combo:"Maj+Z"},
@@ -3461,6 +3462,7 @@ function DzMontage(props){
       if(id==="swap_left"||id==="swap_right"){var dzC=(clipsRef.current||[]).filter(function(k){return k&&k.id===selRef.current})[0];if(!dzC){fireNote("Échanger : sélectionnez d'abord un plan.");return}if(trackStRef.current[dzC.tr]&&trackStRef.current[dzC.tr].l){fireNote("Piste "+dzC.tr.toUpperCase()+" verrouillée.");return}var dzSw=DzTracks.swap(clipsRef.current,dzC.id,id==="swap_left"?-1:1);if(dzSw.every(function(k,i){return k===clipsRef.current[i]})){fireNote("Aucun plan voisin de ce côté.");return}pushHistory();setClips(dzSw);setDirty(!0);fireNote("« "+(dzC.label||dzC.id)+" » échangé avec le plan "+(id==="swap_left"?"précédent":"suivant")+".");return}
       if(id==="title_add"){dzTtAdd();return}
       if(id==="adjust_add"){dzAjAdd();return}
+      if(id==="trans_add"){var dzTc=(clipsRef.current||[]).filter(function(k){return k&&k.id===selRef.current&&k.tr==="v1"})[0];if(!dzTc){fireNote("Transition : sélectionnez d'abord un plan de V1.");return}if(trackStRef.current.v1&&trackStRef.current.v1.l){fireNote("Piste V1 verrouillée.");return}if(!DzTracks.voisins(clipsRef.current,dzTc).g){fireNote("Transition : « "+(dzTc.label||dzTc.id)+" » n'a pas de coupe à sa gauche.");return}svmSetTransType(dzTc.id,"fade");fireNote("Fondu de "+svmTransS(dzTc).toFixed(1)+" s posé à la coupe de « "+(dzTc.label||dzTc.id)+" » — le losange en règle la durée.");return}
       if(id==="zoom_in"){zoomApply(zoomPctRef.current*1.25);return}
       if(id==="zoom_out"){zoomApply(zoomPctRef.current/1.25);return}
       if(id==="zoom100"){zoomApply(100);return}
@@ -5162,6 +5164,23 @@ function DzMontage(props){
           r.jsx("span",{className:"svm-kbcount",
             title:shown+" ligne"+(shown>1?"s":"")+" affichée"+(shown>1?"s":"")+" sur "+total,
             children:shown+"/"+total}),
+          r.jsx("button",{className:"svm-secbtn svm-kbio",title:"Preset Resolve : O pose la sortie, Ctrl+B la lame, Alt+O la barre d'outils — JKL, I et Alt+T sont déjà en place",
+            onClick:function(){var pr=DzTracks.kmPreset("resolve");if(!pr){fireNote("Preset introuvable");return}setKmOv(pr);svmKmSave(pr);setKbEdit("");setKbMsg(null);
+              fireNote("Preset Resolve appliqué : O = sortie, Ctrl+B = lame, Alt+O = barre d'outils — JKL, I et Alt+T étaient déjà là")},
+            children:"Preset Resolve"}),
+          r.jsx("button",{className:"svm-secbtn svm-kbio",title:"Exporter les raccourcis personnalisés (deepotus-raccourcis.json)",
+            onClick:function(){if(subsDownload("deepotus-raccourcis.json",DzTracks.kmExport(kmOv),"application/json"))fireNote(nOv+" raccourci"+(nOv>1?"s":"")+" personnalisé"+(nOv>1?"s":"")+" exporté"+(nOv>1?"s":""));else fireNote("Export impossible dans ce navigateur")},
+            children:"Exporter…"}),
+          r.jsx("button",{className:"svm-secbtn svm-kbio",title:"Importer un fichier de raccourcis JSON — les actions inconnues et les touches réservées sont ignorées",
+            onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".json,application/json";
+              inp.onchange=function(){var f=inp.files&&inp.files[0];if(!f)return;var rd=new FileReader();
+                rd.onload=function(){var rs=DzTracks.kmImport(String(rd.result||""),SVM_ACTIONS,svmComboCanon,svmComboReserved);
+                  if(!rs.ok){fireNote(rs.raison==="json"?"Fichier illisible — ce n'est pas du JSON":"Version de fichier inconnue (attendu : version 1)");return}
+                  setKmOv(rs.keymap);svmKmSave(rs.keymap);setKbEdit("");setKbMsg(null);var nk=Object.keys(rs.keymap).length,ni=rs.ignores.length;
+                  fireNote(nk+" raccourci"+(nk>1?"s":"")+" importé"+(nk>1?"s":"")+(ni?" — "+ni+" ignoré"+(ni>1?"s":"")+" (action inconnue, touche réservée ou illisible)":""))};
+                rd.onerror=function(){fireNote("Fichier illisible")};rd.readAsText(f)};
+              inp.click()},
+            children:"Importer…"}),
           /* « Réinitialiser tout » — visible dès qu'un override existe,
              confirmation INLINE (le panneau ne s'empile pas de modales) */
           nOv?(kbConfirm?
@@ -19850,6 +19869,34 @@ function DzmCtxMenu(o){
     children:rubs.map(function(g,gi){var its=(g&&Array.isArray(g.items))?g.items:[];
       return r.jsxs("div",{className:"svm-menugrp",children:[
         g&&g.rub?r.jsx("div",{className:"svm-menurub",children:g.rub}):null,its.map(row)]},gi)})})}
+/* ── L7 D-10 (24/09/2026) : preset clavier Resolve, export / import du mappage (pur) ──
+   Le preset est un dictionnaire d'OVERRIDES {actionId: combo} que l'hôte applique par
+   setKmOv (le chemin du panneau « ? »). MESURÉ sur le bundle : « Ctrl+T » et « Ctrl+Maj+T »
+   sont réservées au navigateur (SVM_COMBO_RESERVED) — l'action neuve trans_add a pour défaut
+   « Alt+T », qui n'a donc rien à faire ici ; Retour arrière est déjà « Suppr » (SVM_EV_NAMES) ;
+   « O » est le défaut de toolbar et svmKmMerge ignore un override qui vole la touche d'une
+   action NON remappée — le preset déplace donc toolbar sur « Alt+O ». JKL, I : déjà les défauts.
+   Le fichier d'échange est {version:1, keymap:{id:combo}} ; l'import est validé ici, avec les
+   juges du bundle passés en paramètres (canon, reserved) : jamais recopiés. */
+var DZM_KM_PRESETS={resolve:{range_out:"O",toolbar:"Alt+O",blade:"Ctrl+B"}};
+function dzmKmPreset(nom){
+  if(typeof nom!=="string"||!Object.prototype.hasOwnProperty.call(DZM_KM_PRESETS,nom))return null;
+  return Object.assign({},DZM_KM_PRESETS[nom])}
+function dzmKmExport(ov){
+  var km={};if(ov&&typeof ov==="object"&&!Array.isArray(ov))Object.keys(ov).forEach(function(k){km[k]=ov[k]});
+  return JSON.stringify({version:1,keymap:km})}
+function dzmKmImport(txt,actions,canon,reserved){
+  var d;try{d=JSON.parse(String(txt))}catch(e){return {ok:!1,raison:"json"}}
+  if(!d||typeof d!=="object"||d.version!==1||!d.keymap||typeof d.keymap!=="object"||Array.isArray(d.keymap))return {ok:!1,raison:"version"};
+  var ids={};(Array.isArray(actions)?actions:[]).forEach(function(a){if(a&&a.id)ids[a.id]=a.combo});
+  var km={},ign=[];
+  Object.keys(d.keymap).forEach(function(id){
+    var v=d.keymap[id],c=typeof v==="string"?canon(v):"";
+    if(!Object.prototype.hasOwnProperty.call(ids,id))ign.push({id:id,raison:"inconnu"});
+    else if(!c)ign.push({id:id,raison:"combo"});
+    else if(reserved(c))ign.push({id:id,raison:"reservee"});
+    else if(c!==ids[id])km[id]=c});
+  return {ok:!0,keymap:km,ignores:ign}}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,
@@ -19955,6 +20002,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   jobsTri:dzmJobsTri,Deliver:DzmDeliver,
   /* L4 (23/09/2026) : reglages de livraison -- pastille, options, payload, statut, rangee */
   loudPastille:dzmLoudPastille,deliverOpts:dzmDeliverOpts,deliverPayload:dzmDeliverPayload,delStatut:dzmDelStatut,DeliverRow:DzmDeliverRow,
+  kmPreset:dzmKmPreset,kmExport:dzmKmExport,kmImport:dzmKmImport,
   /* E-13 / E-14 (lot E-C, tache 5) : la tete dans l'inspecteur, le trou selectionne et son ripple */
   teteTxt:dzmTeteTxt,trou:dzmTrou,trouRipple:dzmTrouRipple,
   DEFAULTS:DZM_DEFAULT_TRACKS};

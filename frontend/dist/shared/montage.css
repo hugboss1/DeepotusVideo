@@ -1472,3 +1472,5 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
 .svm-delbadge[data-st="queued"]{opacity:.7}
 .svm-delbadge[data-st="failed"]{color:#e0553a}
 .svm-delbadge[data-st="generating_video"]{color:var(--accent)}
+/* L7 D-10 (24/09/2026) : preset Resolve, export, import — dans la rangée de recherche du panneau « ? », même gabarit que kbresetall */
+.dzsvm .svm-kbio{padding:5px 10px;font-size:11px;flex:none}

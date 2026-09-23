@@ -867,6 +867,20 @@ out.del_st=(function(){var r0=r;try{r={jsx:function(t,p){return {t:t,p:p}},jsxs:
     {provider:"montage",title:"q",job_id:"c",status:"done"},{provider:"montage",title:"q",job_id:"d",status:"failed"},{provider:"montage",title:"q",job_id:"e",status:"zz"}];
   var m=T.Deliver({nom:"q",jobs:js});
   return m.p.children[3].p.children.map(function(w){var b=w.p.children[4];return [w.p.children.length,b.p.className,b.p["data-st"],b.p.children]})}catch(e){return "autre:"+e}finally{r=r0}})();
+/* ── [25] L7 D-10 (24/09/2026) : preset Resolve, export/import du mappage ── */
+out.kp_resolve=T.kmPreset("resolve");
+out.kp_inconnu=[T.kmPreset("avid"),T.kmPreset(null),T.kmPreset(""),T.kmPreset("constructor")];
+out.kp_pur=(function(){var a=T.kmPreset("resolve");a.blade="Q";return T.kmPreset("resolve").blade})();
+out.kx=T.kmExport({blade:"Ctrl+B"});
+out.kx_bornes=[T.kmExport(null),T.kmExport(void 0),T.kmExport("x"),T.kmExport([1])];
+var _kA=[{id:"blade",combo:"Alt+C"},{id:"undo",combo:"Ctrl+Z"},{id:"redo",combo:"Ctrl+Y"}],_kC=function(s){return s==="Q"?"":s},_kR=function(s){return s==="Espace"?"raccourci":""};
+out.ki_ok=T.kmImport('{"version":1,"keymap":{"blade":"Ctrl+B","zzz":"Q","undo":"Espace","redo":"Ctrl+Y"}}',_kA,_kC,_kR);
+out.ki_combo=T.kmImport('{"version":1,"keymap":{"blade":"Q","undo":7}}',_kA,_kC,_kR);
+out.ki_casse=T.kmImport("{pas du json",_kA,_kC,_kR);
+out.ki_v2=[T.kmImport('{"version":2,"keymap":{}}',_kA,_kC,_kR),T.kmImport('{"keymap":{}}',_kA,_kC,_kR),T.kmImport('{"version":1}',_kA,_kC,_kR),
+  T.kmImport('{"version":1,"keymap":[1]}',_kA,_kC,_kR),T.kmImport('null',_kA,_kC,_kR),T.kmImport('"s"',_kA,_kC,_kR)];
+out.ki_vide=T.kmImport('{"version":1,"keymap":{}}',null,_kC,_kR);
+out.ki_aller_retour=T.kmImport(T.kmExport({blade:"Ctrl+B"}),_kA,_kC,_kR);
 console.log(JSON.stringify(out));
 """
 # E-9 : svmRuler / svmPad2 sont des fonctions DU BUNDLE (meme portee module que
@@ -1108,7 +1122,9 @@ try:
                  "tete","tete_bornes","trou","trou_bornes","rip","rip_bornes","rip_autre",
                  # L4 (tache 4) : les QUINZE cles de la section [24].
                  "lp","opts","opts_bornes","opts_pur","pl","pl_absent","pl_bornes","pl_pur","st",
-                 "dr_pure","dr_leve","dr_rendu","dr_vide","dr_absent","del_st"]
+                 "dr_pure","dr_leve","dr_rendu","dr_vide","dr_absent","del_st",
+                 # L7 D-10 (tache 1) : les ONZE cles de la section [25].
+                 "kp_resolve","kp_inconnu","kp_pur","kx","kx_bornes","ki_ok","ki_combo","ki_casse","ki_v2","ki_vide","ki_aller_retour"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -2273,6 +2289,55 @@ check("l4_coeur_pur_x4_composant_sans_hook_ni_fetch_rangeFrom_reutilise_listes_u
 check("l4_exports_loudPastille_deliverOpts_deliverPayload_delStatut_DeliverRow_dans_DzTracks",
       len(_DT) > 1000 and _DT.count("loudPastille:dzmLoudPastille,deliverOpts:dzmDeliverOpts,deliverPayload:dzmDeliverPayload,delStatut:dzmDelStatut,DeliverRow:DzmDeliverRow,") == 1,
       len(_DT))
+
+print("\n[25] L7 D-10 : preset clavier Resolve, export / import du mappage (tache 1, 24/09/2026)")
+# ── L7 D-10 (24/09/2026, tache 1). Le preset est un dictionnaire d'OVERRIDES applique par
+# setKmOv (meme chemin que le panneau). MESURES sur le bundle (.bak_montage) qui CONTREDISENT
+# le plan : « Ctrl+T » ET « Ctrl+Maj+T » sont dans SVM_COMBO_RESERVED (B:1641) -> l'action
+# neuve trans_add a pour defaut « Alt+T » (libre, non reservee) et n'a rien a faire dans le
+# preset ; « Backspace » n'est pas canonisable (SVM_COMBO_WORDS) et la touche est DEJA
+# « Suppr » (SVM_EV_NAMES) -> delete retire du preset ; « O » est le defaut de toolbar, et
+# svmKmMerge ignore un override qui vole la touche d'une action non remappee -> le preset
+# deplace toolbar sur « Alt+O » (libre). JKL et I sont deja les defauts. TROIS cles, exactes.
+check("kp_resolve_exactement_range_out_O_toolbar_Alt_O_blade_Ctrl_B",
+      D.get("kp_resolve") == {"range_out": "O", "toolbar": "Alt+O", "blade": "Ctrl+B"}, D.get("kp_resolve"))
+check("kp_inconnu_avid_null_vide_et_constructor_rendent_null", D.get("kp_inconnu") == [None, None, None, None], D.get("kp_inconnu"))
+check("kp_rend_une_copie_neuve_a_chaque_appel", D.get("kp_pur") == "Ctrl+B", D.get("kp_pur"))
+_kx = D.get("kx")
+try: _kxj = json.loads(_kx) if isinstance(_kx, str) else None
+except Exception as _e: _kxj = temoin(_e)
+check("kx_chaine_json_version_1_keymap_copie", isinstance(_kx, str) and _kxj == {"version": 1, "keymap": {"blade": "Ctrl+B"}}, (_kx, _kxj))
+_kxb = D.get("kx_bornes")
+try: _kxbj = [json.loads(v) for v in _kxb] if isinstance(_kxb, list) and all(isinstance(v, str) for v in _kxb) else None
+except Exception as _e: _kxbj = temoin(_e)
+check("kx_bornes_null_undefined_chaine_tableau_donnent_un_keymap_objet_vide",
+      _kxbj == [{"version": 1, "keymap": {}}] * 4, (_kxb, _kxbj))
+# l'ordre des ignores suit l'ordre du fichier ; redo == defaut -> ni garde ni ignore
+check("ki_ok_garde_blade_ignore_zzz_inconnu_et_undo_reservee_dans_l_ordre_du_fichier_defaut_tu",
+      D.get("ki_ok") == {"ok": True, "keymap": {"blade": "Ctrl+B"}, "ignores": [{"id": "zzz", "raison": "inconnu"}, {"id": "undo", "raison": "reservee"}]},
+      D.get("ki_ok"))
+check("ki_combo_non_canonisable_et_valeur_non_chaine_ignorees_raison_combo",
+      D.get("ki_combo") == {"ok": True, "keymap": {}, "ignores": [{"id": "blade", "raison": "combo"}, {"id": "undo", "raison": "combo"}]}, D.get("ki_combo"))
+check("ki_casse_json_illisible", D.get("ki_casse") == {"ok": False, "raison": "json"}, D.get("ki_casse"))
+check("ki_v2_version_2_absente_keymap_absent_tableau_null_chaine_refus_version",
+      D.get("ki_v2") == [{"ok": False, "raison": "version"}] * 6, D.get("ki_v2"))
+check("ki_actions_null_keymap_vide_ok_sans_rien", D.get("ki_vide") == {"ok": True, "keymap": {}, "ignores": []}, D.get("ki_vide"))
+check("ki_aller_retour_export_puis_import_rend_le_meme_mappage",
+      D.get("ki_aller_retour") == {"ok": True, "keymap": {"blade": "Ctrl+B"}, "ignores": []}, D.get("ki_aller_retour"))
+# LE COEUR RESTE PUR (trois fonctions sans r/x/window/localStorage/fetch) ; le preset n'est ecrit qu'UNE fois
+# (DZM_KM_PRESETS) ; kmPreset lit par hasOwnProperty (« constructor » ne rend pas Object.prototype.constructor) ;
+# aucun « Ctrl+T » ni « Backspace » dans la couche (les deux ecarts mesures) ; exports x1 dans DzTracks.
+_L7A = {n: _corps(n) for n in ("dzmKmPreset", "dzmKmExport", "dzmKmImport")}
+check("l7a_coeur_pur_x3_preset_ecrit_une_fois_hasOwnProperty_ni_Ctrl_T_ni_Backspace_dans_la_couche",
+      all(len(c) > 60 and not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|fetch\(", c) for c in _L7A.values())
+      and _SRCb.count('var DZM_KM_PRESETS={resolve:{range_out:"O",toolbar:"Alt+O",blade:"Ctrl+B"}};') == 1
+      and _L7A["dzmKmPreset"].count("hasOwnProperty") == 1 and _L7A["dzmKmImport"].count('raison:"inconnu"') == 1
+      and _L7A["dzmKmImport"].count('raison:"combo"') == 1 and _L7A["dzmKmImport"].count('raison:"reservee"') == 1
+      and _L7A["dzmKmImport"].count('raison:"json"') == 1 and _L7A["dzmKmImport"].count('raison:"version"') == 1
+      and _SRCb.count('"Ctrl+T"') == 0 and _SRCb.count("Backspace") == 0 and _SRCb.count("DZM_KM_PRESETS") == 3,
+      ({n: len(c) for n, c in _L7A.items()}, _SRCb.count("DZM_KM_PRESETS")))
+check("l7a_exports_kmPreset_kmExport_kmImport_dans_DzTracks",
+      len(_DT) > 1000 and _DT.count("kmPreset:dzmKmPreset,kmExport:dzmKmExport,kmImport:dzmKmImport,") == 1, len(_DT))
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

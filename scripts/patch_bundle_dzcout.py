@@ -374,7 +374,16 @@ STABLE_PROBES = [
     # file) et le bouton « Ajouter a la file » (repli R_EA5D2) n en ajoutent
     # aucune. MESURE : la chaine a refuse, « sonde montage x135 (want 132) »,
     # avant cette ligne.
-    ("montage", "DzTracks", 135),
+    # 24/09/2026, L7 D-10 (tache 1, preset Resolve / export / import du
+    # mappage, action trans_add) : 135 -> 139. QUATRE de plus :
+    # `DzTracks.kmPreset(`, `DzTracks.kmExport(`, `DzTracks.kmImport(` (L7a3,
+    # les trois boutons du panneau « ? ») et `DzTracks.voisins(` (L7a2, repli
+    # dans R_R2 : la branche trans_add refuse un plan sans coupe a gauche).
+    # L7a1 (l entree de SVM_ACTIONS, repli dans R_R1) et le bloc pur de la
+    # couche (aucun « DzTracks » dans son commentaire, a dessein) n en
+    # ajoutent aucune. MESURE : la chaine a refuse, « sonde montage x139
+    # (want 135) », avant cette ligne.
+    ("montage", "DzTracks", 139),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

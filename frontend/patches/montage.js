@@ -6830,6 +6830,34 @@ function DzmCtxMenu(o){
     children:rubs.map(function(g,gi){var its=(g&&Array.isArray(g.items))?g.items:[];
       return r.jsxs("div",{className:"svm-menugrp",children:[
         g&&g.rub?r.jsx("div",{className:"svm-menurub",children:g.rub}):null,its.map(row)]},gi)})})}
+/* ── L7 D-10 (24/09/2026) : preset clavier Resolve, export / import du mappage (pur) ──
+   Le preset est un dictionnaire d'OVERRIDES {actionId: combo} que l'hôte applique par
+   setKmOv (le chemin du panneau « ? »). MESURÉ sur le bundle : « Ctrl+T » et « Ctrl+Maj+T »
+   sont réservées au navigateur (SVM_COMBO_RESERVED) — l'action neuve trans_add a pour défaut
+   « Alt+T », qui n'a donc rien à faire ici ; Retour arrière est déjà « Suppr » (SVM_EV_NAMES) ;
+   « O » est le défaut de toolbar et svmKmMerge ignore un override qui vole la touche d'une
+   action NON remappée — le preset déplace donc toolbar sur « Alt+O ». JKL, I : déjà les défauts.
+   Le fichier d'échange est {version:1, keymap:{id:combo}} ; l'import est validé ici, avec les
+   juges du bundle passés en paramètres (canon, reserved) : jamais recopiés. */
+var DZM_KM_PRESETS={resolve:{range_out:"O",toolbar:"Alt+O",blade:"Ctrl+B"}};
+function dzmKmPreset(nom){
+  if(typeof nom!=="string"||!Object.prototype.hasOwnProperty.call(DZM_KM_PRESETS,nom))return null;
+  return Object.assign({},DZM_KM_PRESETS[nom])}
+function dzmKmExport(ov){
+  var km={};if(ov&&typeof ov==="object"&&!Array.isArray(ov))Object.keys(ov).forEach(function(k){km[k]=ov[k]});
+  return JSON.stringify({version:1,keymap:km})}
+function dzmKmImport(txt,actions,canon,reserved){
+  var d;try{d=JSON.parse(String(txt))}catch(e){return {ok:!1,raison:"json"}}
+  if(!d||typeof d!=="object"||d.version!==1||!d.keymap||typeof d.keymap!=="object"||Array.isArray(d.keymap))return {ok:!1,raison:"version"};
+  var ids={};(Array.isArray(actions)?actions:[]).forEach(function(a){if(a&&a.id)ids[a.id]=a.combo});
+  var km={},ign=[];
+  Object.keys(d.keymap).forEach(function(id){
+    var v=d.keymap[id],c=typeof v==="string"?canon(v):"";
+    if(!Object.prototype.hasOwnProperty.call(ids,id))ign.push({id:id,raison:"inconnu"});
+    else if(!c)ign.push({id:id,raison:"combo"});
+    else if(reserved(c))ign.push({id:id,raison:"reservee"});
+    else if(c!==ids[id])km[id]=c});
+  return {ok:!0,keymap:km,ignores:ign}}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,
@@ -6935,6 +6963,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   jobsTri:dzmJobsTri,Deliver:DzmDeliver,
   /* L4 (23/09/2026) : reglages de livraison -- pastille, options, payload, statut, rangee */
   loudPastille:dzmLoudPastille,deliverOpts:dzmDeliverOpts,deliverPayload:dzmDeliverPayload,delStatut:dzmDelStatut,DeliverRow:DzmDeliverRow,
+  kmPreset:dzmKmPreset,kmExport:dzmKmExport,kmImport:dzmKmImport,
   /* E-13 / E-14 (lot E-C, tache 5) : la tete dans l'inspecteur, le trou selectionne et son ripple */
   teteTxt:dzmTeteTxt,trou:dzmTrou,trouRipple:dzmTrouRipple,
   DEFAULTS:DZM_DEFAULT_TRACKS};

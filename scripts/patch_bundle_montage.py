@@ -3291,7 +3291,16 @@ R_R1 = (A_R1 + "\n"
         # deja (la piste nait avec le premier clip, comme t1). COMBO MESUREE
         # LIBRE le 22/09/2026 : `combo:"Maj+J"` vaut 0 dans .bak_montage ;
         # `combo:"J"` y vaut 1 et le dispatch cherche la combo EXACTE d'abord.
-        '\n {id:"adjust_add",sec:"Montage",lbl:"ajustement : poser un clip a la tete",combo:"Maj+J"},')
+        '\n {id:"adjust_add",sec:"Montage",lbl:"ajustement : poser un clip a la tete",combo:"Maj+J"},'
+        # -- « L7a1 » (L7 D-10, 24/09/2026) : LA TRANSITION PAR DEFAUT A LA COUPE
+        # REPLIEE ICI : l'entree adjust_add (l'ancre du plan) est x0 dans
+        # .bak_montage -- c'est CE remplacement qui la pose. COMBO : le plan
+        # disait « Ctrl+T » (Resolve) et « Ctrl+Maj+T » en repli ; MESURE
+        # (B:1641) : les DEUX sont dans SVM_COMBO_RESERVED (nouvel onglet,
+        # onglet rouvert). « Alt+T » est libre (x0 dans .bak_montage) et non
+        # reservee ; « T » reste a la narration, le dispatch cherchant d'abord
+        # la combo EXACTE (meme raisonnement que « Maj+T »).
+        '\n {id:"trans_add",sec:"Montage",lbl:"transition : fondu à la coupe du plan sélectionné",combo:"Alt+T"},')
 
 # ── R2 (D-11) : la branche de dispatch ─────────────────────────────────────
 # PORTEE MESUREE dans `onKey` (meme corps de composant, closure) : `phRef`,
@@ -3453,7 +3462,23 @@ R_R2 = (A_R2 + "\n"
         # §5.1 du handoff interdit ; `dzMkToggle` est le precedent (K2, K5
         # et K7 l'appellent tous les trois).
         '\n      if(id==="title_add"){dzTtAdd();return}'
-        '\n      if(id==="adjust_add"){dzAjAdd();return}')
+        '\n      if(id==="adjust_add"){dzAjAdd();return}'
+        # -- « L7a2 » (L7 D-10, 24/09/2026) : LE DISPATCH DE trans_add, REPLIE ICI
+        # (l'ancre du plan, la branche adjust_add, est x0 dans .bak_montage).
+        # PORTEE MESUREE : clipsRef / selRef / trackStRef / fireNote sont
+        # ceux des branches voisines (swap_left) ; `svmSetTransType(id,t)`
+        # (B:3931) et `svmTransS(c)` (B:1226) sont des declarations de
+        # fonction hissees, dans DzMontage et au module. Le geste est CELUI
+        # du losange (openTransPop -> svmSetTransType) : un pushHistory, la
+        # duree par svmTransS (0.4 s par defaut, le losange la regle).
+        # REFUS dits : pas de plan V1 selectionne ; V1 verrouillee ; pas de
+        # coupe a GAUCHE (le backend force « cut » sur le premier clip,
+        # montage_service.py:1888 -- une transition y serait muette).
+        '\n      if(id==="trans_add"){var dzTc=(clipsRef.current||[]).filter(function(k){return k&&k.id===selRef.current&&k.tr==="v1"})[0];'
+        'if(!dzTc){fireNote("Transition : sélectionnez d\'abord un plan de V1.");return}'
+        'if(trackStRef.current.v1&&trackStRef.current.v1.l){fireNote("Piste V1 verrouillée.");return}'
+        'if(!DzTracks.voisins(clipsRef.current,dzTc).g){fireNote("Transition : « "+(dzTc.label||dzTc.id)+" » n\'a pas de coupe à sa gauche.");return}'
+        'svmSetTransType(dzTc.id,"fade");fireNote("Fondu de "+svmTransS(dzTc).toFixed(1)+" s posé à la coupe de « "+(dzTc.label||dzTc.id)+" » — le losange en règle la durée.");return}')
 
 # ── R3 (D-11) : la bande sur la regle, apres la gouttiere ──────────────────
 # `DzmRangeBar` rend `null` tant que la plage n'est pas COMPLETE : la regle
@@ -5043,6 +5068,53 @@ L4 = [("L4b-rangee-de-livraison-sous-la-ligne-cout", A_L4B, R_L4B),
       ("L4d4-panne-reseau-en-file-dite", A_L4D4, R_L4D4)]
 for _n, _a, _r in L4:
     assert _a != _r and _a.strip()[:10] in _r, _n   # 10 : la tete de l'ancre (L4c2 reecrit `return o})}}` des le `}}`, L4d1 prefixe l'indentation)
+
+# ══ L7 D-10 (24/09/2026, tache 1) — PRESET RESOLVE, EXPORT / IMPORT DU MAPPAGE ═══
+# Le plan prevoyait trois sections ; MESURE sur .bak_montage : l'entree adjust_add
+# de SVM_ACTIONS et sa branche de dispatch sont x0 (posees par R_R1 / R_R2) ->
+# L7a1 et L7a2 sont REPLIEES dans ces deux remplacements (voir « L7a1 », « L7a2 »
+# plus haut). Reste L7a3, ancre LIBRE (1/0/1) : le commentaire « Réinitialiser
+# tout » du panneau « ? ». TROIS boutons `svm-secbtn svm-kbio` inseres AVANT le
+# conditionnel nOv?(...), rendus TOUJOURS (regle E-12), chacun avec title :
+#  - « Preset Resolve » : DzTracks.kmPreset("resolve") -> setKmOv + svmKmSave (le
+#    chemin exact de « Réinitialiser tout » et du remappage d'une ligne) ; le
+#    preset REMPLACE les overrides (un preset est un etat entier, pas un delta) ;
+#  - « Exporter… » : DzTracks.kmExport(kmOv) -> subsDownload(name,text,mime), le
+#    helper de telechargement du bloc subs (module, .bak x1, blob revoque a 400 ms)
+#    -- jamais recopie ;
+#  - « Importer… » : <input type=file accept=.json> cree a la volee, FileReader,
+#    DzTracks.kmImport(txt, SVM_ACTIONS, svmComboCanon, svmComboReserved) -- les
+#    trois juges du bundle, passes en parametres ; ok -> setKmOv + svmKmSave +
+#    note « n importes, m ignores » ; sinon « Fichier illisible » / « Version ».
+# Les retours passent par fireNote : kbMsg est {id,msg} PAR LIGNE (B:2004), il
+# n'y a pas de message global dans le panneau. setKbEdit("") + setKbMsg(null)
+# comme « Réinitialiser tout » : une capture en cours ou un refus inline
+# n'a plus de sens apres un changement d'etat entier.
+A_L7A3 = "          /* « Réinitialiser tout » — visible dès qu'un override existe,"
+R_L7A3 = (
+    '          r.jsx("button",{className:"svm-secbtn svm-kbio",title:"Preset Resolve : O pose la sortie, Ctrl+B la lame, Alt+O la barre d\'outils — JKL, I et Alt+T sont déjà en place",\n'
+    '            onClick:function(){var pr=DzTracks.kmPreset("resolve");if(!pr){fireNote("Preset introuvable");return}setKmOv(pr);svmKmSave(pr);setKbEdit("");setKbMsg(null);\n'
+    '              fireNote("Preset Resolve appliqué : O = sortie, Ctrl+B = lame, Alt+O = barre d\'outils — JKL, I et Alt+T étaient déjà là")},\n'
+    '            children:"Preset Resolve"}),\n'
+    '          r.jsx("button",{className:"svm-secbtn svm-kbio",title:"Exporter les raccourcis personnalisés (deepotus-raccourcis.json)",\n'
+    '            onClick:function(){if(subsDownload("deepotus-raccourcis.json",DzTracks.kmExport(kmOv),"application/json"))fireNote(nOv+" raccourci"+(nOv>1?"s":"")+" personnalisé"+(nOv>1?"s":"")+" exporté"+(nOv>1?"s":""));else fireNote("Export impossible dans ce navigateur")},\n'
+    '            children:"Exporter…"}),\n'
+    '          r.jsx("button",{className:"svm-secbtn svm-kbio",title:"Importer un fichier de raccourcis JSON — les actions inconnues et les touches réservées sont ignorées",\n'
+    '            onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".json,application/json";\n'
+    '              inp.onchange=function(){var f=inp.files&&inp.files[0];if(!f)return;var rd=new FileReader();\n'
+    '                rd.onload=function(){var rs=DzTracks.kmImport(String(rd.result||""),SVM_ACTIONS,svmComboCanon,svmComboReserved);\n'
+    '                  if(!rs.ok){fireNote(rs.raison==="json"?"Fichier illisible — ce n\'est pas du JSON":"Version de fichier inconnue (attendu : version 1)");return}\n'
+    '                  setKmOv(rs.keymap);svmKmSave(rs.keymap);setKbEdit("");setKbMsg(null);var nk=Object.keys(rs.keymap).length,ni=rs.ignores.length;\n'
+    '                  fireNote(nk+" raccourci"+(nk>1?"s":"")+" importé"+(nk>1?"s":"")+(ni?" — "+ni+" ignoré"+(ni>1?"s":"")+" (action inconnue, touche réservée ou illisible)":""))};\n'
+    '                rd.onerror=function(){fireNote("Fichier illisible")};rd.readAsText(f)};\n'
+    '              inp.click()},\n'
+    '            children:"Importer…"}),\n'
+    + A_L7A3)
+L7A = [("L7a3-preset-resolve-export-import-du-mappage", A_L7A3, R_L7A3)]
+assert R_L7A3.endswith(A_L7A3) and R_L7A3.count("svm-kbio") == 3 and R_L7A3.count("title:") == 3
+assert R_L7A3.count("setKmOv(") == 2 and R_L7A3.count("svmKmSave(") == 2 and R_L7A3.count("fireNote(") == 7
+assert R_L7A3.count('subsDownload("deepotus-raccourcis.json",') == 1 and R_L7A3.count("SVM_ACTIONS,svmComboCanon,svmComboReserved") == 1
+assert R_R1.count('id:"trans_add"') == 1 and R_R2.count('svmSetTransType(dzTc.id,"fade")') == 1 and R_R2.count("DzTracks.voisins(") == 1
 assert R_L4C2.count("DzTracks.deliverPayload(") == 1 and R_L4B.count("DzTracks.DeliverRow") == 1 and R_L4B.count("DzTracks.rangeFrom(") == 1
 assert R_L4D3.count("o.d.queued") == 1 and R_L4D1.startswith("    if(!queue)setJob(") and R_L4C2.count("queue:queue===!0") == 1
 assert R_M16REF.count("dz_montage_deliver") == 2 and R_M16REF.count("/api/montage/deliver-presets") == 2 and R_M16REF.count("window.prompt(") == 1
@@ -5312,7 +5384,7 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("EC11-rendu-du-trou-selectionne", A_EC11, R_EC11),
            ("EC12-tete-de-lecture-dans-l-inspecteur", A_EC12, R_EC12),
            ("EC13-suppr-referme-le-trou", A_EC13, R_EC13),
-           ("EC14-clic-sur-un-clip-efface-le-trou", A_EC14, R_EC14)] + EC15 + L4
+           ("EC14-clic-sur-un-clip-efface-le-trou", A_EC14, R_EC14)] + EC15 + L4 + L7A
            # L4 (23/09/2026, tache 4) : sept sections sur des ancres libres ; l'etat
            # (R_M16REF) et « Ajouter a la file » (R_EA5D2) sont replies.
            # E-12 (tache 6) : onze sections EC15a..k sur des ancres libres ;

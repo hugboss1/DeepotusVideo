@@ -12950,10 +12950,15 @@ for _a, _sec, _c in _COMBOS:
 # combo EXACTE.
 # 44 -> 45 le 22/09/2026 (D-9, tache 9) : AJ5 (replie dans R_R1) declare
 # `adjust_add` sur « Maj+J » -- libre (mesure dans [D-9]).
+# 45 -> 46 le 24/09/2026 (L7 D-10, tache 1) : L7a1 (replie dans R_R1, juste
+# apres AJ5) declare `trans_add` sur « Alt+T » -- libre, et NON reservee :
+# « Ctrl+T » et « Ctrl+Maj+T » (le plan et son repli) sont toutes deux dans
+# SVM_COMBO_RESERVED (mesure [L7]).
 check("tb8_le_T_du_handoff_appartient_deja_a_la_narration",
-      len(_COMBOS) == 45 and _BY_COMBO.get("T") == ["narration"]
+      len(_COMBOS) == 46 and _BY_COMBO.get("T") == ["narration"]
       and _BY_COMBO.get("Maj+T") == ["title_add"]
-      and _BY_COMBO.get("Maj+J") == ["adjust_add"],
+      and _BY_COMBO.get("Maj+J") == ["adjust_add"]
+      and _BY_COMBO.get("Alt+T") == ["trans_add"],
       f"actions={len(_COMBOS)} T={_BY_COMBO.get('T')}")
 # UNE COMBO PAR ACTION, ET AUCUNE EN DOUBLE : la nouvelle n'a rien vole.
 # `svmKmMerge` resoudrait une collision en silence (retour au defaut) — c'est
@@ -15211,11 +15216,15 @@ check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB8b_puis_
                                                           "EC15g", "EC15h", "EC15i", "EC15j", "EC15k",
                                                           # L4 (T4, 23/09/2026) : sept sections en queue, sonde 132 -> 135
                                                           # (DeliverRow + rangeFrom dans L4b, deliverPayload dans L4c2)
-                                                          "L4b", "L4c1", "L4c2", "L4d1", "L4d2", "L4d3", "L4d4"]
+                                                          "L4b", "L4c1", "L4c2", "L4d1", "L4d2", "L4d3", "L4d4",
+                                                          # L7 D-10 (T1, 24/09/2026) : UNE section en queue (L7a1/L7a2 repliees
+                                                          # dans R_R1/R_R2), sonde 135 -> 139 (kmPreset, kmExport, kmImport
+                                                          # dans L7a3 ; voisins dans le repli L7a2 de R_R2)
+                                                          "L7a3"]
       and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
               and s.count(nl(a)) == (1 if a in r else 0)
               for _t, a, r in P.PATCHES[_DZ_I + 1:])
-      and _sonde.get("montage") == 135 and s.count("DzTracks") == 135
+      and _sonde.get("montage") == 139 and s.count("DzTracks") == 139
       if _bak else False,
       f"queue={_DZ_TAGS[_DZ_I + 1:]} sonde={_sonde.get('montage')} bundle={s.count('DzTracks')}")
 
@@ -16381,7 +16390,8 @@ check("EC2_le_bouton_menu_precede_le_titre_Montage_porte_un_title_et_aria_et_ouv
       # aria-haspopup nu vaut 1 dans le .bak (l'amont, hors Montage) : la forme complete est le temoin
       and (_bak.count("svm-menubtn") == 0 and _bak.count('"aria-haspopup":"menu"') == 0 if _bak else False),
       f"btn={s.count(nl(_EC_BTN))} titre={_iEcT} btn_i={_iEcB} classe={s.count('svm-menubtn')}")
-# LE MENU PRINCIPAL : le modele lit SVM_ACTIONS (table complete, 45 apres R_R1)
+# LE MENU PRINCIPAL : le modele lit SVM_ACTIONS (table complete, 45 apres R_R1 ;
+# 46 le 24/09/2026 : trans_add, L7 D-10, repli dans R_R1)
 # avec svmKeyLabel (keymap vivante) ; run = dzFire ; rubrique Projet en tete
 # (4 entrees sans raccourci, memes handlers que les boutons : setDzProjReq,
 # setPop preview/render, Publier = R_EA5D) ; Affichage concatene Inspecteur /
@@ -16389,8 +16399,8 @@ check("EC2_le_bouton_menu_precede_le_titre_Montage_porte_un_title_et_aria_et_ouv
 # « Raccourcis » double (keys_panel vient du modele), pas de « Guide » (ecart).
 _EC1 = P.R_EC1
 _nAct = len(re.findall(r'^ \{id:"', s[s.find("var SVM_ACTIONS=["):s.find("var SVM_ACTION_BY_ID")], re.M))
-check("EC1_main_le_modele_lit_SVM_ACTIONS_complete_45_avec_svmKeyLabel_et_run_rejoue_par_dzFire",
-      s.count("DzTracks.menuModel(SVM_ACTIONS,svmKeyLabel)") == 1 and _nAct == 45
+check("EC1_main_le_modele_lit_SVM_ACTIONS_complete_46_avec_svmKeyLabel_et_run_rejoue_par_dzFire",
+      s.count("DzTracks.menuModel(SVM_ACTIONS,svmKeyLabel)") == 1 and _nAct == 46
       and "run:function(){dzFire(a.id)}" in _EC1 and s.count("run:function(){dzFire(a.id)}") == 1
       and s.count("SVM_ACTIONS.concat(") == 0 and s.count("SVM_ACTIONS") >= 3,
       f"model={s.count('DzTracks.menuModel(SVM_ACTIONS,svmKeyLabel)')} actions={_nAct}")
@@ -16524,10 +16534,12 @@ check("EC_la_feuille_dessine_le_menu_svm_menu_borne_a_dzsvm_menurub_menuitem_men
 # -> 132 (E-13 / E-14, T5 : teteTxt EC12, trou EC10, trouRipple EC13).
 _EC_SONDE = _lire(ROOT / "scripts" / "patch_bundle_dzcout.py")
 # -> 135 (L4, T4 : DeliverRow + rangeFrom dans L4b, deliverPayload dans L4c2).
-check("EC_la_sonde_dzcout_compte_DzTracks_135",
-      _EC_SONDE.count('("montage", "DzTracks", 135),') == 1 and _EC_SONDE.count('("montage", "DzTracks", 132),') == 0
+# -> 139 (L7 D-10, T1, 24/09/2026 : kmPreset + kmExport + kmImport dans L7a3, voisins dans le repli L7a2 de R_R2).
+check("EC_la_sonde_dzcout_compte_DzTracks_139",
+      _EC_SONDE.count('("montage", "DzTracks", 139),') == 1 and _EC_SONDE.count('("montage", "DzTracks", 135),') == 0
+      and _EC_SONDE.count('("montage", "DzTracks", 132),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 129),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 128),') == 0
-      and _EC_SONDE.count('("montage", "DzTracks", 123),') == 0 and s.count("DzTracks") == 135,
+      and _EC_SONDE.count('("montage", "DzTracks", 123),') == 0 and s.count("DzTracks") == 139,
       f"sonde={_EC_SONDE.count(chr(40) + chr(34) + 'montage')} bundle={s.count('DzTracks')}")
 
 print("\n[EC] E-7 : les trois vues Medias · Montage · Livraison (lot E-C, tache 3)")
@@ -16902,8 +16914,12 @@ for _sec, _a, _r in P.L4:
           and (_bak.count(_nlb(_a)) == 1 and _bak.count(_nlb(_r)) == 0 if _bak else False)
           and sum(1 for _t in P.PATCHES if _a in _t[2] and _t[0] != _sec) == 0,
           f"ancre={_cnt_a} neuf={_cnt_r} bak={_bak.count(_nlb(_a)) if _bak else '?'}")
-check("L4_sept_sections_en_queue_de_PATCHES_apres_EC15k",
-      len(P.L4) == 7 and P.PATCHES[-7:] == P.L4 and P.PATCHES[-8][0].startswith("EC15k"), [p[0] for p in P.PATCHES[-8:]])
+# 24/09/2026 (L7 D-10, tache 1) : L7A (une section, L7a3) vient APRES L4 -- la queue est
+# lue a partir de la POSITION de L4a, plus depuis la fin
+_iL4q = P.PATCHES.index(P.L4[0]) if P.L4 and P.L4[0] in P.PATCHES else -1
+check("L4_sept_sections_consecutives_apres_EC15k_puis_L7A",
+      len(P.L4) == 7 and _iL4q > 0 and P.PATCHES[_iL4q:_iL4q + 7] == P.L4 and P.PATCHES[_iL4q - 1][0].startswith("EC15k")
+      and P.PATCHES[_iL4q + 7:] == P.L7A, [p[0] for p in P.PATCHES[-9:]])
 # L4a : l'etat dzDel (localStorage dz_montage_deliver lu x1 en try/catch, ecrit x1 par dzDelSet), la ref posee a chaque
 # rendu, dzApi + l'effet [pop] (GET x1, vivant), dzSavePreset (PUT x1, prompt natif -- ecart date, aucun dialogue maison)
 _L4_ST = '  var stDzDel=x.useState(function(){try{var v=JSON.parse(localStorage.getItem("dz_montage_deliver")||"null");if(!v||typeof v!=="object")return {};delete v.rangeOnly;return v}catch(_e){return {}}}),dzDel=stDzDel[0],setDzDel=stDzDel[1];'
@@ -17012,6 +17028,85 @@ check("L4_feuille_svm_delopts_grille_auto_1fr_loudpill_ronde_trois_etats_delbadg
           ".dzsvm .svm-delopts select{max-width:100%}"))
       and _L4_CSS.count(".dzsvm .svm-delopts{") == 1 and _L4_CSS.count(".svm-loudpill{") == 1 and src.count("svm-delopts{") == 0,
       f"rg={_L4_RG!r} rp={_L4_RP!r}")
+
+print("\n[L7] D-10 tache 1 : preset Resolve, export / import du mappage, action trans_add (24/09/2026)")
+# ── L7 D-10 (24/09/2026, tache 1). MESURES qui contredisent le plan : (1) l'entree adjust_add
+# de SVM_ACTIONS et sa branche de dispatch sont x0 dans .bak_montage (posees par R_R1 / R_R2)
+# -> ancres CONSOMMEES, L7a1 et L7a2 sont REPLIEES dans R_R1 et R_R2 (pas de section) ;
+# seule L7a3 (les trois boutons du panneau « ? ») a une ancre libre 1/0/1 ; (2) « Ctrl+T » ET
+# « Ctrl+Maj+T » sont dans SVM_COMBO_RESERVED -> trans_add a pour defaut « Alt+T » (x0 dans
+# .bak, non reservee) ; (3) le premier clip de V1 n'a pas de coupe a sa gauche (le backend y
+# force « cut », MS:1888) -> la branche refuse sans voisin gauche (DzTracks.voisins).
+_L7A1 = ' {id:"trans_add",sec:"Montage",lbl:"transition : fondu à la coupe du plan sélectionné",combo:"Alt+T"},'
+_L7A2 = ('      if(id==="trans_add"){var dzTc=(clipsRef.current||[]).filter(function(k){return k&&k.id===selRef.current&&k.tr==="v1"})[0];'
+         'if(!dzTc){fireNote("Transition : sélectionnez d\'abord un plan de V1.");return}'
+         'if(trackStRef.current.v1&&trackStRef.current.v1.l){fireNote("Piste V1 verrouillée.");return}'
+         'if(!DzTracks.voisins(clipsRef.current,dzTc).g){fireNote("Transition : « "+(dzTc.label||dzTc.id)+" » n\'a pas de coupe à sa gauche.");return}'
+         'svmSetTransType(dzTc.id,"fade");fireNote("Fondu de "+svmTransS(dzTc).toFixed(1)+" s posé à la coupe de « "+(dzTc.label||dzTc.id)+" » — le losange en règle la durée.");return}')
+_iL7a1 = s.find(nl(_L7A1)); _iL7adj = s.find(nl(' {id:"adjust_add",sec:"Montage",lbl:"ajustement : poser un clip a la tete",combo:"Maj+J"},'))
+check("L7a1_action_trans_add_repliee_dans_R_R1_juste_apres_adjust_add_combo_Alt_T_libre_x1_Ctrl_T_reservee",
+      s.count(nl(_L7A1)) == 1 and _L7A1 in P.R_R1 and 0 < _iL7adj < _iL7a1 < _iL7adj + 120
+      and s.count('id:"trans_add"') == 1 and s.count('combo:"Alt+T"') == 1
+      and s.count('"Ctrl+T":1,"Ctrl+Maj+T":1,') == 1 and s.find('"Ctrl+T":1,"Ctrl+Maj+T":1,') < s.find("function svmComboReserved(c){")
+      and (_bak.count("trans_add") == 0 and _bak.count('combo:"Alt+T"') == 0 and _bak.count('"Ctrl+T":1,"Ctrl+Maj+T":1,') == 1 if _bak else False),
+      f"act={s.count(nl(_L7A1))} dansR1={_L7A1 in P.R_R1} ordre={(_iL7adj, _iL7a1)} bak={_bak.count('trans_add') if _bak else '?'}")
+_iL7a2 = s.find(nl(_L7A2)); _iL7dis = s.find(nl('      if(id==="adjust_add"){dzAjAdd();return}'))
+check("L7a2_dispatch_trans_add_replie_dans_R_R2_apres_adjust_add_sel_V1_verrou_voisin_gauche_puis_svmSetTransType_fade",
+      s.count(nl(_L7A2)) == 1 and _L7A2 in P.R_R2 and 0 < _iL7dis < _iL7a2 < _iL7dis + 120
+      and s.count('svmSetTransType(dzTc.id,"fade")') == 1 and s.count("function svmSetTransType(id,t){") == 1
+      # DzTracks.voisins( x2 : E-6 (le menu contextuel, B:2182) l'appelait deja -- cette branche est la seconde
+      and s.count("DzTracks.voisins(") == 2 and _L7A2.count("DzTracks.voisins(") == 1 and s.count("function svmTransS(c)") == 1
+      and _L7A2.find('fireNote("Transition : sélectionnez') < _L7A2.find("Piste V1 verrouillée") < _L7A2.find("DzTracks.voisins(") < _L7A2.find('svmSetTransType(dzTc.id,"fade")')
+      and (_bak.count("DzTracks.voisins(") == 0 and _bak.count('svmSetTransType(dzTc.id') == 0 and _bak.count("function svmSetTransType(id,t){") == 1 if _bak else False),
+      f"dis={s.count(nl(_L7A2))} dansR2={_L7A2 in P.R_R2} ordre={(_iL7dis, _iL7a2)} voisins={s.count('DzTracks.voisins(')}")
+# L7a3 : la section, ancre LIBRE (le commentaire « Réinitialiser tout » du panneau, 1/0/1), trois boutons AVANT le
+# conditionnel nOv?(...) -- rendus TOUJOURS (regle E-12 : jamais `?r.jsx("button"`), chacun avec title
+_L7A3 = [t for t in P.L7A if t[0].startswith("L7a3")]
+check("L7a3_section_unique_en_queue_de_PATCHES_ancre_libre_1_0_1_remplacement_x1",
+      len(P.L7A) == 1 and len(_L7A3) == 1 and P.PATCHES[-1:] == P.L7A and P.PATCHES[-2] == P.L4[-1]
+      # l'ancre (le commentaire) est CONSERVEE en queue du remplacement : x1 dans le livre
+      and s.count(nl(_L7A3[0][1])) == 1 and s.count(nl(_L7A3[0][2])) == 1 and _L7A3[0][2].endswith(_L7A3[0][1])
+      and (_bak.count(_nlb(_L7A3[0][1])) == 1 and _bak.count(_nlb(_L7A3[0][2])) == 0 if _bak else False)
+      and sum(1 for _t in P.PATCHES if _L7A3[0][1] in _t[2] and _t[0] != _L7A3[0][0]) == 0,
+      f"n={len(P.L7A)} queue={[p[0] for p in P.PATCHES[-3:]]} bak={_bak.count(_nlb(_L7A3[0][1])) if _bak and _L7A3 else '?'}")
+_L7_BTN = ('r.jsx("button",{className:"svm-secbtn svm-kbio",title:"Preset Resolve : O pose la sortie, Ctrl+B la lame, Alt+O la barre d\'outils — JKL, I et Alt+T sont déjà en place",',
+           'r.jsx("button",{className:"svm-secbtn svm-kbio",title:"Exporter les raccourcis personnalisés (deepotus-raccourcis.json)",',
+           'r.jsx("button",{className:"svm-secbtn svm-kbio",title:"Importer un fichier de raccourcis JSON — les actions inconnues et les touches réservées sont ignorées",')
+# svm-kbcount x2 dans le bundle (le selecteur d'effets, B:4892, reprend la rangee de recherche) : le compteur cherche est
+# celui du panneau « ? », APRES `function kbPanel(){` (x1)
+_iL7kb = s.find("  function kbPanel(){")
+_iL7cnt = s.find('r.jsx("span",{className:"svm-kbcount",', _iL7kb if _iL7kb >= 0 else 0); _iL7b = [s.find(b) for b in _L7_BTN]; _iL7res = s.find(nl("          /* « Réinitialiser tout » — visible dès qu'un override existe,"))
+check("L7a3_trois_boutons_svm_kbio_titres_entre_le_compteur_et_Reinitialiser_tout_jamais_conditionnels_x1_chacun",
+      all(s.count(b) == 1 for b in _L7_BTN) and s.count("  function kbPanel(){") == 1 and s.count('r.jsx("span",{className:"svm-kbcount",') == 2
+      and 0 < _iL7kb < _iL7cnt < _iL7b[0] < _iL7b[1] < _iL7b[2] < _iL7res < _iL7cnt + 3200
+      and s.count("svm-kbio") == 3 and s.count('?r.jsx("button",{className:"svm-secbtn svm-kbio"') == 0 and s.count('&&r.jsx("button",{className:"svm-secbtn svm-kbio"') == 0
+      and s.count('children:"Preset Resolve"') == 1 and s.count('children:"Exporter…"') == 1 and s.count('children:"Importer…"') == 1
+      and (_bak.count("svm-kbio") == 0 and _bak.count('children:"Exporter…"') == 0 if _bak else False),
+      f"btn={[s.count(b) for b in _L7_BTN]} ordre={(_iL7cnt, _iL7b, _iL7res)}")
+# le preset passe par setKmOv + svmKmSave (le chemin du panneau), l'export par subsDownload (helper du bloc subs, .bak x1,
+# module : jamais recopie), l'import par un <input type=file> et FileReader, juge par kmImport(SVM_ACTIONS, svmComboCanon,
+# svmComboReserved) -- les trois juges du bundle, x1 chacun dans le gestionnaire ; capture en cours et refus inline effaces
+_L7_PANEL = s[_iL7cnt:_iL7res] if 0 < _iL7cnt < _iL7res else ""
+check("L7a3_gestionnaires_preset_setKmOv_svmKmSave_export_subsDownload_import_input_file_FileReader_kmImport_avec_les_juges_du_bundle",
+      len(_L7_PANEL) > 1200 and _L7_PANEL.count('DzTracks.kmPreset("resolve")') == 1 and _L7_PANEL.count("DzTracks.kmExport(kmOv)") == 1
+      and _L7_PANEL.count("DzTracks.kmImport(String(rd.result||\"\"),SVM_ACTIONS,svmComboCanon,svmComboReserved)") == 1
+      and _L7_PANEL.count("setKmOv(") == 2 and _L7_PANEL.count("svmKmSave(") == 2 and _L7_PANEL.count('setKbEdit("");setKbMsg(null)') == 2
+      and _L7_PANEL.count('subsDownload("deepotus-raccourcis.json",') == 1 and _L7_PANEL.count('inp.type="file"') == 1 and _L7_PANEL.count("new FileReader()") == 1
+      and _L7_PANEL.count("rd.readAsText(f)") == 1 and _L7_PANEL.count('rs.raison==="json"?') == 1 and _L7_PANEL.count("fireNote(") == 7
+      and s.count("function subsDownload(name,text,mime){") == 1 and s.count("DzTracks.kmPreset(") == 1 and s.count("DzTracks.kmExport(") == 1 and s.count("DzTracks.kmImport(") == 1
+      # FileReader x1 dans l'amont (mesure 24/09/2026, hors Montage) : le temoin est la forme exacte du lecteur (rd.readAsText)
+      and (_bak.count("function subsDownload(name,text,mime){") == 1 and _bak.count("kmImport") == 0 and _bak.count("FileReader") == 1 and _bak.count("rd.readAsText(f)") == 0 if _bak else False),
+      f"panel={len(_L7_PANEL)} setKmOv={_L7_PANEL.count('setKmOv(')} fireNote={_L7_PANEL.count('fireNote(')}")
+# la couche : les trois pures, le preset ecrit une fois, les exports -- dans le bundle comme dans le fichier ; la feuille : .svm-kbio x1
+_L7_CSS = _lire(ROOT / "frontend" / "dist" / "shared" / "montage.css")
+check("L7_la_couche_kmPreset_kmExport_kmImport_exports_x1_bundle_et_fichier_feuille_svm_kbio_x1",
+      all(s.count(k) == 1 and src.count(k) == 1 for k in (
+          "function dzmKmPreset(nom){", "function dzmKmExport(ov){", "function dzmKmImport(txt,actions,canon,reserved){",
+          'var DZM_KM_PRESETS={resolve:{range_out:"O",toolbar:"Alt+O",blade:"Ctrl+B"}};',
+          "kmPreset:dzmKmPreset,kmExport:dzmKmExport,kmImport:dzmKmImport,"))
+      and _L7_CSS.count(".dzsvm .svm-kbio{") == 1 and src.count("svm-kbio") == 0 and _L7_CSS.count(".dzsvm .svm-kbio{padding:5px 10px;font-size:11px;flex:none}") == 1
+      and (_bak.count("dzmKmPreset") == 0 and _bak.count("DZM_KM_PRESETS") == 0 if _bak else False),
+      f"pures={[s.count(k) for k in ('function dzmKmPreset(nom){', 'function dzmKmImport(txt,actions,canon,reserved){')]} css={_L7_CSS.count('.dzsvm .svm-kbio{')}")
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

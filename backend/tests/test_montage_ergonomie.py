@@ -190,6 +190,10 @@ _TITRES = [
     'title:proj.demo?"Réinitialisation indisponible sur la démo":"Réinitialiser depuis la Bibliothèque — écrase la sauvegarde"',
     'title:"Aperçu 480p — gratuit, local, aucun crédit",onClick:function(){setPop(pop==="preview"?"":"preview")},children:"Preview"',
     'title:"Rendu final (master 1080, local) — ouvre le panneau de rendu",onClick:function(){setPop(pop==="render"?"":"render")},children:"Rendre →"',
+    # L7 D-10 (24/09/2026, tache 1) : les trois boutons du panneau « ? »
+    'title:"Preset Resolve : O pose la sortie, Ctrl+B la lame, Alt+O la barre d\'outils — JKL, I et Alt+T sont déjà en place",',
+    'title:"Exporter les raccourcis personnalisés (deepotus-raccourcis.json)",',
+    'title:"Importer un fichier de raccourcis JSON — les actions inconnues et les touches réservées sont ignorées",',
 ]
 for t in _TITRES:
     check("R1_titre_pose_x1_" + re.sub(r"\W+", "_", t[6:40]).strip("_"),
