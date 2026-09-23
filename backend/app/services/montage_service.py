@@ -224,6 +224,211 @@ _CANVAS = {"9:16": (1080, 1920), "16:9": (1920, 1080), "1:1": (1080, 1080),
            "4:5": (1080, 1350)}
 _MUSIC_HINT = ("theme", "music", "bgm", "track", "musique", "instrumental")
 
+# --- D-35 (23/09/2026) : PRESETS DE SORTIE ---------------------------------
+# Un preset ne fixe PAS le ratio (il reste celui du projet) mais la CLASSE
+# de taille `side`, l'encodeur, le pix_fmt, l'audio, l'extension et les
+# drapeaux de conteneur. `master_1080` reproduit OCTET POUR OCTET la queue
+# historique de `_build_montage_command` (banc l4 [1] : `BUILD()` ==
+# `BUILD(preset="master_1080")`). ÉCART DATÉ (23/09/2026) avec le plan L4,
+# qui écrit « side = grand côté » : ses propres checks (`dims("16:9", 720)
+# == (1280, 720)`, `dims("9:16", 2160) == (2160, 3840)`, `dims("4:5", 1080)
+# == (1080, 1350)`) imposent le PETIT côté — c'est la classe usuelle 720p /
+# 1080p / 2160p, c'est elle qui est implémentée. `hevc` porte deux
+# candidats (`vcodec_alt`) : le premier dont l'encodeur RÉPOND à un
+# encodage réel (`_encoder_ok`) l'emporte — mesuré le 23/09/2026 :
+# hevc_amf et hevc_qsv sont LISTÉS par `ffmpeg -encoders` mais ÉCHOUENT,
+# la liste ne prouve rien. Les presets audio seuls décodent tout de même
+# la vidéo (le graphe est celui du rendu, la vidéo part dans `nullsink`) :
+# `side` 480 borne ce travail inutile — reste daté, pas un graphe audio
+# séparé. GIF : 12 i/s, côté 480, palette par palettegen/paletteuse, pas
+# d'audio (`-an`, le mix part dans `anullsink`).
+_DELIVER_FPS = (24, 25, 30, 60)
+_DELIVER = {
+    "master_1080": {
+        "label": "Master 1080 (H.264)", "side": 1080, "fps": 30,
+        "vcodec": ["-c:v", "libx264", "-profile:v", "high", "-level", "4.0",
+                   "-preset", "medium", "-crf", "20"],
+        "pix_fmt": "yuv420p", "acodec": ["-c:a", "aac", "-b:a", "192k"],
+        "ext": ".mp4", "flags": ["-movflags", "+faststart"]},
+    "web_4k": {
+        "label": "Web 4K (H.264)", "side": 2160, "fps": 30,
+        "vcodec": ["-c:v", "libx264", "-profile:v", "high", "-level", "5.1",
+                   "-preset", "medium", "-crf", "18"],
+        "pix_fmt": "yuv420p", "acodec": ["-c:a", "aac", "-b:a", "256k"],
+        "ext": ".mp4", "flags": ["-movflags", "+faststart"]},
+    "social_720": {
+        "label": "Réseaux 720 (H.264 léger)", "side": 720, "fps": 30,
+        "vcodec": ["-c:v", "libx264", "-profile:v", "high", "-level", "4.0",
+                   "-preset", "medium", "-crf", "23"],
+        "pix_fmt": "yuv420p", "acodec": ["-c:a", "aac", "-b:a", "128k"],
+        "ext": ".mp4", "flags": ["-movflags", "+faststart"]},
+    "prores422": {
+        "label": "ProRes 422 (montage)", "side": 1080, "fps": 30,
+        "vcodec": ["-c:v", "prores_ks", "-profile:v", "2"],
+        "pix_fmt": "yuv422p10le", "acodec": ["-c:a", "pcm_s16le"],
+        "ext": ".mov", "flags": []},
+    "hevc": {
+        "label": "HEVC 1080 (H.265)", "side": 1080, "fps": 30,
+        "vcodec_alt": [["-c:v", "hevc_nvenc", "-preset", "p5", "-cq", "24"],
+                       ["-c:v", "libx265", "-preset", "medium", "-crf", "24"]],
+        "pix_fmt": "yuv420p", "acodec": ["-c:a", "aac", "-b:a", "192k"],
+        "ext": ".mp4", "flags": ["-tag:v", "hvc1", "-movflags", "+faststart"]},
+    "webm_vp9": {
+        "label": "WebM VP9", "side": 1080, "fps": 30,
+        "vcodec": ["-c:v", "libvpx-vp9", "-crf", "32", "-b:v", "0",
+                   "-row-mt", "1"],
+        "pix_fmt": "yuv420p", "acodec": ["-c:a", "libopus", "-b:a", "128k"],
+        "ext": ".webm", "flags": []},
+    "audio_aac": {
+        "label": "Audio seul AAC (.m4a)", "side": 480, "fps": 30,
+        "audio_only": True, "acodec": ["-c:a", "aac", "-b:a", "192k"],
+        "ext": ".m4a", "flags": ["-movflags", "+faststart"]},
+    "audio_mp3": {
+        "label": "Audio seul MP3", "side": 480, "fps": 30,
+        "audio_only": True, "acodec": ["-c:a", "libmp3lame", "-q:a", "2"],
+        "ext": ".mp3", "flags": []},
+    "audio_wav": {
+        "label": "Audio seul WAV", "side": 480, "fps": 30,
+        "audio_only": True, "acodec": ["-c:a", "pcm_s16le"],
+        "ext": ".wav", "flags": []},
+    "gif_480": {
+        "label": "GIF animé 480", "side": 480, "fps": 12,
+        "gif": True, "ext": ".gif", "flags": []},
+}
+_DELIVER_DEFAUT = "master_1080"
+_ENCODER_CACHE: dict[str, bool] = {}
+
+
+def _deliver_dims(ratio: str, side: int) -> tuple[int, int]:
+    """`_CANVAS[ratio]` mis à l'échelle pour que son PETIT côté vaille
+    `side`, arrondi pair (yuv420p exige des dimensions paires). Ratio
+    inconnu → 9:16, comme `/render`."""
+    w0, h0 = _CANVAS.get(ratio, _CANVAS["9:16"])
+    k = float(side) / float(min(w0, h0))
+    w, h = int(round(w0 * k)), int(round(h0 * k))
+    return w - w % 2, h - h % 2
+
+
+def _encoder_ok(name: str) -> bool:
+    """L'encodeur RÉPOND-il ? Sonde par un encodage réel d'UNE image
+    (`-f lavfi color … -frames:v 1 -f null -`), mise en cache par
+    processus. Un nom inconnu, un binaire absent ou un délai dépassé
+    valent False — jamais une exception."""
+    name = str(name or "")
+    if name in _ENCODER_CACHE:
+        return _ENCODER_CACHE[name]
+    ok = False
+    if re.fullmatch(r"[a-z0-9_]+", name):
+        try:
+            r = subprocess.run(
+                ["ffmpeg", "-v", "error", "-f", "lavfi", "-i",
+                 "color=c=black:s=64x64:d=0.1", "-frames:v", "1",
+                 "-c:v", name, "-f", "null", "-"],
+                capture_output=True, timeout=20)
+            ok = r.returncode == 0
+        except (OSError, subprocess.SubprocessError):
+            ok = False
+    _ENCODER_CACHE[name] = ok
+    return ok
+
+
+def _deliver_resolve(pid, fps=None, maison=None) -> dict:
+    """`preset_id` → dict EFFECTIF (copie), pure. Inconnu / None → master ;
+    un preset maison (`{id, label, base, fps?, crf?}` dans `maison`) = son
+    `base` + surcharges ; `fps` du payload (24|25|30|60) l'emporte sur le
+    preset, sauf pour le GIF (cadence fixée par le preset). `crf` maison
+    remplace la valeur qui suit `-crf` (ou `-cq`) de chaque candidat."""
+    pid = str(pid) if pid is not None else ""
+    base_id, fps_m, crf_m = pid, None, None
+    for m in (maison or []):
+        if isinstance(m, dict) and m.get("id") == pid and m.get("base") in _DELIVER:
+            base_id = m["base"]
+            fps_m, crf_m = m.get("fps"), m.get("crf")
+            break
+    src = _DELIVER.get(base_id) or _DELIVER[_DELIVER_DEFAUT]
+    spec = json.loads(json.dumps(src))
+    spec["id"] = base_id if base_id in _DELIVER else _DELIVER_DEFAUT
+    if not spec.get("gif"):
+        for cand in (fps, fps_m):
+            try:
+                if cand is not None and int(cand) in _DELIVER_FPS:
+                    spec["fps"] = int(cand)
+                    break
+            except (TypeError, ValueError):
+                continue
+    if crf_m is not None:
+        try:
+            crf_v = str(max(0, min(51, int(crf_m))))
+        except (TypeError, ValueError):
+            crf_v = None
+        if crf_v is not None:
+            for args in [spec.get("vcodec")] + list(spec.get("vcodec_alt") or []):
+                if not args:
+                    continue
+                for flag in ("-crf", "-cq"):
+                    if flag in args:
+                        args[args.index(flag) + 1] = crf_v
+    return spec
+
+
+def _deliver_tail(spec: dict | None, preview: bool, fps, total, inputs, parts,
+                  amap, out, cur, subs_filter=None):
+    """La QUEUE de `_build_montage_command` : dernier maillon vidéo + options
+    d'encodage + fichier. `spec` None ou aperçu → queue historique (x264
+    veryfast/crf 30 en aperçu, master 1080 sinon), octet pour octet."""
+    if preview or not spec:
+        gravure = f"{subs_filter}," if subs_filter else ""
+        parts.append(f"[{cur}]{gravure}format=yuv420p[outv]")
+        preset, crf, abr = (("veryfast", "30", "128k") if preview
+                            else ("medium", "20", "192k"))
+        return ["ffmpeg", "-y", *inputs,
+                "-filter_complex", ";".join(parts),
+                "-map", "[outv]", "-map", amap,
+                "-t", str(round(total, 3)),
+                "-c:v", "libx264", "-profile:v", "high", "-level", "4.0",
+                "-preset", preset, "-crf", crf, "-pix_fmt", "yuv420p",
+                "-r", str(fps), "-c:a", "aac", "-b:a", abr,
+                "-movflags", "+faststart", str(out)]
+    out = Path(out)
+    ext = str(spec.get("ext") or ".mp4")
+    if out.suffix.lower() != ext:
+        out = out.with_suffix(ext)
+    gravure = f"{subs_filter}," if subs_filter else ""
+    if spec.get("audio_only"):
+        # La vidéo composée est JETÉE (nullsink) : un graphe dont une
+        # sortie étiquetée n'est pas mappée fait échouer ffmpeg.
+        parts.append(f"[{cur}]{gravure}nullsink")
+        return ["ffmpeg", "-y", *inputs,
+                "-filter_complex", ";".join(parts),
+                "-vn", "-map", amap, "-t", str(round(total, 3)),
+                *spec.get("acodec", []), *spec.get("flags", []), str(out)]
+    if spec.get("gif"):
+        gfps = int(spec.get("fps") or 12)
+        parts.append(f"[{cur}]{gravure}fps={gfps},split[g0][g1];"
+                     f"[g0]palettegen[pal];[g1][pal]paletteuse[outv]")
+        if amap.startswith("["):
+            parts.append(f"{amap}anullsink")
+        return ["ffmpeg", "-y", *inputs,
+                "-filter_complex", ";".join(parts),
+                "-map", "[outv]", "-an", "-t", str(round(total, 3)),
+                "-r", str(gfps), *spec.get("flags", []), str(out)]
+    pix = str(spec.get("pix_fmt") or "yuv420p")
+    parts.append(f"[{cur}]{gravure}format={pix}[outv]")
+    vcodec = spec.get("vcodec")
+    if not vcodec:
+        alts = list(spec.get("vcodec_alt") or [])
+        vcodec = alts[-1] if alts else _DELIVER[_DELIVER_DEFAUT]["vcodec"]
+        for cand in alts:
+            if _encoder_ok(cand[1]):
+                vcodec = cand
+                break
+    return ["ffmpeg", "-y", *inputs,
+            "-filter_complex", ";".join(parts),
+            "-map", "[outv]", "-map", amap,
+            "-t", str(round(total, 3)),
+            *vcodec, "-pix_fmt", pix, "-r", str(fps),
+            *spec.get("acodec", []), *spec.get("flags", []), str(out)]
+
 # P1 : pistes dynamiques. `tracks` du payload, du HAUT vers le BAS de la
 # timeline (l'ordre de SVM_TRACKS). Absent → table historique, commande
 # octet pour octet identique. `layer` = rang de composition des pistes vidéo
@@ -2234,7 +2439,7 @@ async def _resolve_src(src: dict | None) -> Path | None:
 def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                            ducking, duration_master, preview, out,
                            audio_only=False, subs_ass=None, titles_ass=None,
-                           adjust_clips=None):
+                           adjust_clips=None, preset=None):
     """Commande ffmpeg complète (sync, testable). v1/v2/a_clips/music portent
     des chemins déjà résolus + durées sondées.
 
@@ -2909,21 +3114,22 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     # Archivo Black… ne sont pas des fontes Windows) et retombe SILENCIEUSEMENT
     # sur une autre — le rendu cesserait de ressembler à l'aperçu sans qu'aucune
     # erreur ffmpeg ne le signale. subtitles_filter() le pose toujours.
-    if subs_ass:
-        parts.append(f"[{cur}]{subtitles_filter(subs_ass)},"
-                     f"format=yuv420p[outv]")
-    else:
-        parts.append(f"[{cur}]format=yuv420p[outv]")
-    preset, crf, abr = (("veryfast", "30", "128k") if preview
-                        else ("medium", "20", "192k"))
-    cmd = ["ffmpeg", "-y", *inputs,
-           "-filter_complex", ";".join(parts),
-           "-map", "[outv]", "-map", amap,
-           "-t", str(round(total, 3)),
-           "-c:v", "libx264", "-profile:v", "high", "-level", "4.0",
-           "-preset", preset, "-crf", crf, "-pix_fmt", "yuv420p",
-           "-r", str(fps), "-c:a", "aac", "-b:a", abr,
-           "-movflags", "+faststart", str(out)]
+    # D-35 (23/09/2026) : le dernier maillon vidéo et la queue d'encodage
+    # sont PARAMÉTRÉS par le preset de sortie (`_deliver_tail`). `preset`
+    # est un dict RÉSOLU (`/render` passe par `_deliver_resolve`) ; une
+    # chaîne est résolue ici sur les seuls presets intégrés (un id maison
+    # n'est PAS connu de cette fonction — inconnu → master) ; l'aperçu
+    # ignore le preset (queue historique 480p / x264 veryfast). Un `fps`
+    # hors de `_DELIVER_FPS` avec un preset est une faute (ValueError) —
+    # sans preset, la cadence historique de l'appelant est acceptée telle
+    # quelle (les bancs l2/l3 rendent à 25).
+    if isinstance(preset, str):
+        preset = _deliver_resolve(preset, None)
+    spec = preset if isinstance(preset, dict) else None
+    if spec and not preview and int(fps) not in _DELIVER_FPS:
+        raise ValueError(f"cadence {fps} hors de {_DELIVER_FPS}")
+    cmd = _deliver_tail(spec, preview, fps, total, inputs, parts, amap, out,
+                        cur, subtitles_filter(subs_ass) if subs_ass else None)
     return cmd, total
 
 
@@ -3070,6 +3276,111 @@ def _titles_ass(clips, meta: dict, canvas: tuple[int, int],
     return out, {"titres": len(out), "ignores": ignores}
 
 
+# ------------------------------------------------ D-35 presets maison ------
+# `deliver_presets.json` à côté de `montage_saved.json` (même data dir, même
+# écriture atomique, même verrou `_ecrit`). Un preset maison n'est qu'un
+# base + surcharges : {id, label, base, fps?, crf?} — aucun codec libre.
+_PRESET_ID_RE = re.compile(r"^[a-z0-9_]{1,32}$")
+_PRESETS_MAX = 50
+
+
+def _deliver_presets_path() -> Path:
+    return settings.images_path.parent / "deliver_presets.json"
+
+
+def _load_deliver_presets() -> list:
+    """Liste des presets maison, [] si absent / illisible / de forme
+    inattendue — jamais une exception (le rendu ne doit pas échouer sur
+    un fichier de presets corrompu)."""
+    path = _deliver_presets_path()
+    try:
+        if not path.is_file():
+            return []
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        logger.warning("montage: deliver_presets.json illisible — ignoré")
+        return []
+    lst = data.get("presets") if isinstance(data, dict) else data
+    if not isinstance(lst, list):
+        return []
+    try:
+        return _valider_presets(lst)
+    except ValueError as e:
+        logger.warning(f"montage: deliver_presets.json invalide ({e}) — ignoré")
+        return []
+
+
+def _valider_presets(lst) -> list:
+    """Forme canonique ou ValueError nommée : `id` slug `^[a-z0-9_]{1,32}$`
+    (ni un id intégré, ni doublon), `label` 1..60, `base` ∈ _DELIVER,
+    `fps` ∈ _DELIVER_FPS | None, `crf` 0..51 | None, ≤ 50 entrées."""
+    if not isinstance(lst, list):
+        raise ValueError("liste attendue")
+    if len(lst) > _PRESETS_MAX:
+        raise ValueError(f"au plus {_PRESETS_MAX} presets maison")
+    out, vus = [], set()
+    for i, p in enumerate(lst):
+        if not isinstance(p, dict):
+            raise ValueError(f"preset n°{i + 1} : objet attendu")
+        pid = p.get("id")
+        if not isinstance(pid, str) or not _PRESET_ID_RE.match(pid):
+            raise ValueError(f"preset n°{i + 1} : id invalide {pid!r} "
+                             f"(a-z, 0-9, _ ; 1 à 32 caractères)")
+        if pid in _DELIVER or pid in vus:
+            raise ValueError(f"preset n°{i + 1} : id {pid!r} déjà pris")
+        label = str(p.get("label") or "").strip()[:60]
+        if not label:
+            raise ValueError(f"preset {pid!r} : libellé vide")
+        base = p.get("base")
+        if base not in _DELIVER:
+            raise ValueError(f"preset {pid!r} : base inconnue {base!r}")
+        fps = p.get("fps")
+        if fps is not None:
+            if isinstance(fps, bool) or not isinstance(fps, int) or fps not in _DELIVER_FPS:
+                raise ValueError(f"preset {pid!r} : fps {fps!r} hors de "
+                                 f"{_DELIVER_FPS}")
+        crf = p.get("crf")
+        if crf is not None:
+            if isinstance(crf, bool) or not isinstance(crf, int) or not 0 <= crf <= 51:
+                raise ValueError(f"preset {pid!r} : crf {crf!r} hors de 0..51")
+        vus.add(pid)
+        out.append({"id": pid, "label": label, "base": base, "fps": fps,
+                    "crf": crf})
+    return out
+
+
+@router.get("/deliver-presets")
+async def montage_deliver_presets():
+    """{builtins:[{id,label}], fps:[…], presets:[…maison]} — le client n'a
+    AUCUNE liste en dur : les presets intégrés ET la liste des cadences
+    viennent d'ici."""
+    presets = await asyncio.to_thread(_load_deliver_presets)
+    return {"builtins": [{"id": k, "label": v["label"]} for k, v in _DELIVER.items()],
+            "fps": list(_DELIVER_FPS), "presets": presets}
+
+
+@router.put("/deliver-presets")
+async def montage_deliver_presets_put(request: Request):
+    """Body : {presets:[{id,label,base,fps?,crf?}]} (ou la liste nue) →
+    REMPLACE la liste entière, validée, écrite atomiquement sous verrou."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = None
+    lst = body.get("presets") if isinstance(body, dict) else body
+    try:
+        presets = _valider_presets(lst)
+    except ValueError as e:
+        raise HTTPException(400, f"Presets refusés : {e}")
+    async with _ecrit:
+        try:
+            await asyncio.to_thread(_write_json_atomic, _deliver_presets_path(),
+                                    {"presets": presets})
+        except OSError as e:
+            raise HTTPException(500, f"sauvegarde impossible : {e}")
+    return {"ok": True, "presets": presets}
+
+
 def _run_ffmpeg(cmd, out: Path) -> Path:
     try:
         r = subprocess.run(cmd, capture_output=True, text=True,
@@ -3166,10 +3477,27 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
     preview = bool(body.get("preview"))
     ratio = str(body.get("ratio") or "9:16")
     w, h = _CANVAS.get(ratio, _CANVAS["9:16"])
+    # D-35 : `fps` du payload (24|25|30|60, sinon 400) et `preset` → dict
+    # résolu (intégré ou maison, inconnu → master). L'aperçu reste 480p /
+    # 30 i/s / x264 quel que soit le preset ; le final prend la classe de
+    # taille du preset sur le ratio du PROJET et l'extension du preset.
+    fps_in = body.get("fps")
+    if fps_in is not None:
+        try:
+            fps_ok = int(fps_in) in _DELIVER_FPS and not isinstance(fps_in, bool)
+        except (TypeError, ValueError):
+            fps_ok = False
+        if not fps_ok:
+            raise HTTPException(400, f"Cadence {fps_in!r} refusée — "
+                                     f"{', '.join(map(str, _DELIVER_FPS))}.")
+    spec = _deliver_resolve(body.get("preset"), fps_in, _load_deliver_presets())
     if preview:
         w, h = w // 4, h // 4
         w, h = w - w % 2, h - h % 2
-    fps = 30
+        fps = 30
+    else:
+        w, h = _deliver_dims(ratio, int(spec["side"]))
+        fps = int(spec["fps"])
     mix = body.get("mix") or {}
     g_voice = _db_to_gain(mix.get("dialogue", -6))
     g_music = _db_to_gain(mix.get("musique", -18))
@@ -3217,7 +3545,8 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
 
     job_id = str(uuid4())
     short = job_id[:8]
-    out_name = f"montage_{short}{'_preview' if preview else ''}.mp4"
+    out_name = (f"montage_{short}_preview.mp4" if preview
+                else f"montage_{short}{spec['ext']}")
     out = settings.outputs_path / "videos" / out_name
     title = (str(body.get("name") or "montage")[:60]
              + (" (aperçu 480p)" if preview else ""))
@@ -3409,7 +3738,8 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                 v1, v2, a_clips, music, w=w, h=h, fps=fps,
                 mix_db=mix, ducking=ducking,
                 duration_master=duration_master, preview=preview, out=out,
-                subs_ass=subs_ass, titles_ass=titles_ass, adjust_clips=adjust)
+                subs_ass=subs_ass, titles_ass=titles_ass, adjust_clips=adjust,
+                preset=spec)
             fx_n = sum(len(c["effects"] or []) for c in v1)
             logger.info(f"montage {short}: {len(v1)} clips V1 ({fx_n} effets), "
                         f"{len(v2)} overlays V2, {len(a_clips)} audio, "
