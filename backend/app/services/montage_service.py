@@ -3271,16 +3271,24 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     # rc 3221225477, frame=0 puis crash) de façon ALÉATOIRE — 3/4 et 2/3
     # sur la même commande, à 720 comme à 1080, avec OU sans loudnorm, à 25
     # comme à 30 i/s ; sans vidstab 0/3, sans minterpolate 0/3, et avec
-    # `-filter_complex_threads 1` 0/6. C'est une course entre threads du
-    # graphe de filtres, pas un format non négocié : le graphe est alors
-    # exécuté sur un seul thread (minterpolate domine de toute façon le
-    # temps, +2 s sur 34 mesurés). Les graphes sans cette paire gardent
-    # leurs threads (commande historique octet pour octet).
+    # `-filter_complex_threads 1` 0/6 — mais 3/6 dès que DEUX ffmpeg tournent
+    # en même temps (preuve L4 du 23/09 au soir : 3 rendus sur 3 plantés
+    # sous le serveur pendant que Chrome tournait). Sous la même charge :
+    # `-threads 1` sur les DÉCODEURS 0/6, les deux drapeaux 0/8, sans l'un
+    # des deux filtres 0/6. C'est une course entre les threads de décodage
+    # h264 et la paire vidstab + minterpolate, pas un format non négocié :
+    # les décodeurs ET le graphe passent alors sur un seul thread (minterpolate
+    # domine de toute façon le temps, +2 s sur 34 mesurés ; l'encodeur garde
+    # ses threads, `-threads` avant les entrées ne le touche pas). Les graphes
+    # sans cette paire gardent leurs threads (commande historique octet pour
+    # octet).
     if not audio_only:
         graphe = ";".join(parts)
         if "vidstabtransform=" in graphe and "minterpolate=" in graphe:
             k = cmd.index("-filter_complex")
             cmd[k:k] = ["-filter_complex_threads", "1"]
+            k = cmd.index("-i")
+            cmd[k:k] = ["-threads", "1"]
     return cmd, total
 
 

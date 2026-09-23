@@ -582,10 +582,14 @@ print("\n[7] revue T2 : stab + flow → graphe sur un seul thread (course ffmpeg
 # stabilise (vidstabtransform) ET retime en flux (minterpolate) plante ffmpeg
 # (0xC0000005, rc 3221225477) ALEATOIREMENT — 3/4 et 2/3 sur la MEME commande,
 # a 720 comme a 1080, avec ou sans loudnorm, a 25 comme a 30 i/s ; sans l'un
-# des deux filtres 0/3 ; avec -filter_complex_threads 1 : 0/6. Le plantage
-# n'est pas reproductible de facon deterministe : ce qui est pinne ici est la
-# FORME (le drapeau present exactement quand la paire est la), et [M] rend un
-# graphe reel stab + flow + amix + sous-titres + loudness en 720.
+# des deux filtres 0/3 ; avec -filter_complex_threads 1 : 0/6 seul, mais 3/6
+# des que deux ffmpeg tournent en meme temps (preuve L4 du 23/09 au soir) ;
+# `-threads 1` sur les decodeurs sous la meme charge : 0/6, les deux : 0/8.
+# Le plantage n'est pas reproductible de facon deterministe : ce qui est pinne
+# ici est la FORME (les deux drapeaux presents exactement quand la paire est
+# la : `-threads 1` avant la premiere entree, `-filter_complex_threads 1`
+# juste avant le graphe), et [M] rend un graphe reel stab + flow + amix +
+# sous-titres + loudness en 720.
 _TRF = pathlib.Path(TMP) / "fake.trf"; _TRF.write_bytes(b"VID.STAB 1\n" + b"0" * 64)
 _STB = {"smooth": 20, "crop": "keep", "zoom": 0, "trf": str(_TRF)}
 _c_st = BUILD(stab=_STB)
@@ -593,18 +597,22 @@ _c_fl = BUILD(speed=2.0, retime="flow")
 _c_sf = BUILD(stab=_STB, speed=2.0, retime="flow")
 check("t2_stab_et_flow_ensemble_posent_filter_complex_threads_1_juste_avant_le_graphe",
       "vidstabtransform=" in _c_sf and "minterpolate=" in _c_sf
-      and " -filter_complex_threads 1 -filter_complex " in _c_sf and _c_sf.count("-filter_complex_threads") == 1,
+      and " -filter_complex_threads 1 -filter_complex " in _c_sf and _c_sf.count("-filter_complex_threads") == 1
+      and _c_sf.count(" -threads 1 ") == 1 and _c_sf.split(" -i ")[0].endswith(" -threads 1"),
       _c_sf[:200])
 check("t2_stab_seul_ou_flow_seul_gardent_les_threads_historiques",
-      "vidstabtransform=" in _c_st and "-filter_complex_threads" not in _c_st
-      and "minterpolate=" in _c_fl and "-filter_complex_threads" not in _c_fl
-      and "-filter_complex_threads" not in _c0 and _c_st != _c0 and _c_fl != _c0,
+      "vidstabtransform=" in _c_st and "-filter_complex_threads" not in _c_st and " -threads 1 " not in _c_st
+      and "minterpolate=" in _c_fl and "-filter_complex_threads" not in _c_fl and " -threads 1 " not in _c_fl
+      and "-filter_complex_threads" not in _c0 and " -threads 1 " not in _c0 and _c_st != _c0 and _c_fl != _c0,
       (_c_st[:120], _c_fl[:120]))
 check("t2_le_drapeau_ne_change_rien_d_autre_a_la_commande",
-      _c_sf.replace(" -filter_complex_threads 1", "") == BUILD(stab=_STB, speed=2.0, retime="flow").replace(" -filter_complex_threads 1", "")
-      and "-filter_complex_threads 1" in BUILD(stab=_STB, speed=2.0, retime="flow", preset="social_720")
-      and "-filter_complex_threads 1" in BUILD(stab=_STB, speed=2.0, retime="flow", preview=True)
-      and "-filter_complex_threads 1" in BUILD(stab=_STB, speed=2.0, retime="flow", preset="gif_480"),
+      _c_sf.replace(" -filter_complex_threads 1", "").replace(" -threads 1", "") == BUILD(stab=_STB, speed=2.0, retime="flow").replace(" -filter_complex_threads 1", "").replace(" -threads 1", "")
+      and _c_sf.replace(" -filter_complex_threads 1", "").replace(" -threads 1", "") != _c_sf
+      and all("-filter_complex_threads 1" in _b and " -threads 1 -" in _b for _b in (
+          BUILD(stab=_STB, speed=2.0, retime="flow", preset="social_720"),
+          BUILD(stab=_STB, speed=2.0, retime="flow", preview=True),
+          BUILD(stab=_STB, speed=2.0, retime="flow", preset="gif_480"),
+          BUILD(stab=_STB, speed=2.0, retime="flow", preset="audio_wav"))),
       _t(BUILD(stab=_STB, speed=2.0, retime="flow", preset="social_720"), 120))
 
 print("\n[M] mesure ffmpeg reelle : prores422 → .mov, gif_480 → .gif, audio_mp3 → .mp3")
