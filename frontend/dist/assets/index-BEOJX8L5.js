@@ -4727,10 +4727,9 @@ function DzMontage(props){
           "Rendu local 1080 (aucun crédit consommé). À la fin, un bandeau propose l'envoi vers le Scheduler — rien n'est publié sans ta validation.":
           "L'aperçu basse résolution est gratuit et local — il ne consomme jamais de crédits. Le résultat se branche dans le lecteur."}),
       r.jsxs("div",{className:"svm-poprow",children:[
-        r.jsx("button",{className:"svm-secbtn",onClick:function(){setPop("");if(failed)setJob(null)},children:"Fermer"}),
-        proj.demo?null:
-          failed?r.jsx("button",{className:"svm-goldbtn",onClick:function(){launchRender(!isR)},children:"Réessayer"}):
-          r.jsx("button",{className:"svm-goldbtn",disabled:busy,style:busy?{opacity:.55,cursor:"default"}:null,
+        r.jsx("button",{className:"svm-secbtn",title:"Fermer ce panneau (Échap)",onClick:function(){setPop("");if(failed)setJob(null)},children:"Fermer"}),
+          failed?r.jsx("button",{className:"svm-goldbtn",disabled:proj.demo,title:proj.demo?"Rendu indisponible sur la démo — ouvre un projet réel":"Relancer le rendu qui a échoué",onClick:function(){launchRender(!isR)},children:"Réessayer"}):
+          r.jsx("button",{className:"svm-goldbtn",disabled:busy||proj.demo,style:(busy||proj.demo)?{opacity:.55,cursor:"default"}:null,title:proj.demo?"Rendu indisponible sur la démo — ouvre un projet réel":(isR?"Lancer le rendu final (master 1080, local)":"Lancer l'aperçu 480p (gratuit, local)"),
             onClick:function(){if(!busy)launchRender(!isR)},
             children:busy?(job.progress+"%"):(isR?"Rendre":"Lancer l'aperçu")})]})]})}
 
@@ -4768,7 +4767,7 @@ function DzMontage(props){
               fireNote("Effet « "+((fxCat[t3]&&fxCat[t3].label)||t3)+" » ajouté — appliqué au rendu du clip.")},
             children:(fxCat[t3]&&fxCat[t3].label)||t3},t3)})}),
       r.jsx("div",{className:"svm-poprow",children:
-        r.jsx("button",{className:"svm-secbtn",onClick:function(){setFxPick(!1)},children:"Fermer"})})]})}
+        r.jsx("button",{className:"svm-secbtn",title:"Fermer le sélecteur d'effets",onClick:function(){setFxPick(!1)},children:"Fermer"})})]})}
 
   /* inspecteur — « Overlay » (clip V2 sélectionné) : position / échelle /
      rotation / opacité. Même source de vérité que la manipulation directe
@@ -4993,7 +4992,7 @@ function DzMontage(props){
           setDirty(!0)}}):
         r.jsx("span",{className:"svm-note",style:{flex:1,marginTop:0},children:"sans réglage d'intensité"}),
       hasInt?r.jsx("span",{className:"svm-rangeval",children:Math.round(f.intensity!=null?f.intensity:60)}):null,
-      r.jsx("button",{className:"svm-minibtn",onClick:function(){
+      r.jsx("button",{className:"svm-minibtn",title:"Retirer cet effet du plan",onClick:function(){
         var id=selRef.current,i2=fxEdit.i;
         pushHistory();
         setClips(clipsRef.current.map(function(k){
@@ -5054,7 +5053,7 @@ function DzMontage(props){
             children:[a3.name,a3.kb?" · "+a3.kb+" ko":""]},a3.name)})}):
         r.jsx("div",{className:"svm-note",children:"aucun son — importez-en un depuis la Bibliothèque"})):null,
       r.jsx("div",{className:"svm-poprow",children:
-        r.jsx("button",{className:"svm-secbtn",onClick:function(){setOvPick("")},children:"Fermer"})})]})}
+        r.jsx("button",{className:"svm-secbtn",title:"Fermer le sélecteur d'overlay",onClick:function(){setOvPick("")},children:"Fermer"})})]})}
 
   /* panneau « Raccourcis clavier » — modal centré (motif .svm-pop, z 20),
      voile léger, fermé par Échap, clic extérieur ou le bouton ; ouvert par ?
@@ -5144,10 +5143,12 @@ function DzMontage(props){
             r.jsxs("span",{className:"svm-kbconfirm",children:[
               r.jsx("span",{children:"revenir aux "+nOv+" défaut"+(nOv>1?"s":"")+" ?"}),
               r.jsx("button",{className:"svm-minibtn",
+                title:"Confirmer : tous les raccourcis reviennent au défaut",
                 onClick:function(){setKmOv({});svmKmSave({});
                   setKbConfirm(!1);setKbEdit("");setKbMsg(null)},
                 children:"oui"}),
               r.jsx("button",{className:"svm-minibtn svm-kbno",
+                title:"Garder les raccourcis personnalisés",
                 onClick:function(){setKbConfirm(!1)},children:"non"})]}):
             r.jsx("button",{className:"svm-secbtn svm-kbresetall",
               title:nOv+" raccourci"+(nOv>1?"s":"")+" personnalisé"+(nOv>1?"s":"")+" — revenir aux défauts",
@@ -5161,7 +5162,7 @@ function DzMontage(props){
         r.jsx("div",{className:"svm-transnone",style:{marginTop:14},
           children:"aucun raccourci ne correspond — Échap efface le filtre"}),
         r.jsx("div",{className:"svm-poprow",children:
-          r.jsx("button",{className:"svm-secbtn",onClick:function(){setKbOn(!1)},children:"Fermer"})})]})})}
+          r.jsx("button",{className:"svm-secbtn",title:"Fermer le panneau des raccourcis (Échap)",onClick:function(){setKbOn(!1)},children:"Fermer"})})]})})}
 
   /* mini-popover de jonction — règle la transition du clip de DROITE */
   function transPopover(){
@@ -5608,6 +5609,7 @@ function DzMontage(props){
           onClick:function(e){e.stopPropagation();narrConfirmRef.current=1;setNarrArm("");narrDo(c.id)},
           children:"Oui"}),
         r.jsx("button",{className:"svm-minibtn",
+          title:"Annuler — aucune voix générée, aucun crédit consommé",
           onClick:function(e){e.stopPropagation();setNarrArm("")},children:"Non"})]}):
       r.jsxs("div",{className:"svm-nbrow",children:[
         r.jsx("button",{className:"svm-nbgold","data-off":off?"":void 0,title:tt,
@@ -5679,14 +5681,15 @@ function DzMontage(props){
       r.jsx("span",{className:"svm-projmeta",children:proj.name+" · "+proj.version+" · "+svmRuler(Math.round(dur))}),
       /* réinitialisation depuis la Bibliothèque (A) — confirmation INLINE :
          la sauvegarde est écrasée, jamais silencieusement */
-      proj.demo?null:libArm?
+      libArm?
         r.jsxs("span",{className:"svm-libconfirm",children:[
           r.jsx("span",{children:"écraser la sauvegarde ?"}),
-          r.jsx("button",{className:"svm-minibtn",onClick:svmLibReset,children:"oui"}),
+          r.jsx("button",{className:"svm-minibtn",title:"Confirmer : la sauvegarde est écrasée par la Bibliothèque",onClick:svmLibReset,children:"oui"}),
           r.jsx("button",{className:"svm-minibtn svm-kbno",
+            title:"Garder la sauvegarde",
             onClick:function(){setLibArm(!1)},children:"non"})]}):
-        r.jsx("button",{className:"svm-secbtn svm-libbtn",
-          title:"Réinitialiser depuis la Bibliothèque — écrase la sauvegarde",
+        r.jsx("button",{className:"svm-secbtn svm-libbtn",disabled:proj.demo,
+          title:proj.demo?"Réinitialisation indisponible sur la démo":"Réinitialiser depuis la Bibliothèque — écrase la sauvegarde",
           onClick:function(){setLibArm(!0)},children:"bibliothèque"}),
       /* badge d'état de sauvegarde (A) — démo : l'historique « NON
          ENREGISTRÉ » permanent ; projet réel : édition en attente →
@@ -5712,8 +5715,8 @@ function DzMontage(props){
             setDirty(!0);fireNote("Format : "+v)},
           children:SVM_RATIOS.map(function(rt){
             return r.jsx("option",{value:rt[0],children:rt[1]},rt[0])})}),
-        r.jsx("button",{className:"svm-secbtn",onClick:function(){setPop(pop==="preview"?"":"preview")},children:"Preview"}),
-        r.jsx("button",{className:"svm-goldbtn",onClick:function(){setPop(pop==="render"?"":"render")},children:"Rendre →"}),
+        r.jsx("button",{className:"svm-secbtn",title:"Aperçu 480p — gratuit, local, aucun crédit",onClick:function(){setPop(pop==="preview"?"":"preview")},children:"Preview"}),
+        r.jsx("button",{className:"svm-goldbtn",title:"Rendu final (master 1080, local) — ouvre le panneau de rendu",onClick:function(){setPop(pop==="render"?"":"render")},children:"Rendre →"}),
         /* E-5 : « Publier » = le dernier rendu FINAL de ce projet (mémoire par projet), sinon grisé */
         r.jsx("button",{className:"svm-secbtn svm-pubbtn",disabled:!dzLast,title:dzLast?"Envoyer le dernier rendu final au Scheduler":"Aucun rendu final pour ce projet",
           onClick:function(){if(dzLast){setPop("");setDzFin(Object.assign({project_id:proj.project_id||""},dzLast))}},children:"Publier"}),
@@ -18427,7 +18430,7 @@ function DzmMarkerIndex(o){
         children:"Aucun marqueur — "+dzmMarkerCombo()+
           " en pose un à la tête de lecture."}),
     r.jsx("div",{className:"svm-poprow",children:
-      r.jsx("button",{className:"svm-secbtn",onClick:o&&o.onClose,
+      r.jsx("button",{className:"svm-secbtn",title:"Fermer l'index des marqueurs",onClick:o&&o.onClose,
         children:"Fermer"})})]})}
 
 /* ── D-4 : ÉCHANGER un plan avec son voisin de gauche (dir −1) ou de droite ─
@@ -19128,11 +19131,12 @@ function DzmFinBandeau(o){
       r.jsx("input",{type:"text",value:cap,placeholder:"légende",onChange:function(e){setCap(e.target.value)}})]}),
     st?r.jsx("div",{className:"dzm-fin-st",children:st}):null,
     r.jsxs("div",{className:"dzm-fin-row",children:[
-      r.jsx("button",{className:"svm-goldbtn",disabled:st==="…"||st===DZM_FIN_OK,onClick:function(){setSt("…");
+      r.jsx("button",{className:"svm-goldbtn",disabled:st==="…"||st===DZM_FIN_OK,
+        title:"Envoyer ce rendu au Scheduler (brouillon, rien n'est publié sans validation)",onClick:function(){setSt("…");
         Promise.resolve(o.onSend({job_id:fin.job_id,project_id:fin.project_id||void 0,channels:dzmChannelsNorm(ch),run_at:dzmPublishIso(when)||void 0,caption:cap}))
           .then(function(){setSt(DZM_FIN_OK)}).catch(function(e){setSt("Envoi impossible : "+String(e))})},children:"Envoyer vers le Scheduler"}),
-      r.jsx("button",{className:"svm-secbtn",onClick:function(){o.onLib&&o.onLib()},children:"Voir dans la Bibliothèque"}),
-      r.jsx("button",{className:"svm-secbtn",onClick:function(){o.onClose&&o.onClose()},children:"Fermer"})]})]})}
+      r.jsx("button",{className:"svm-secbtn",title:"Ouvrir la Bibliothèque sur ce rendu",onClick:function(){o.onLib&&o.onLib()},children:"Voir dans la Bibliothèque"}),
+      r.jsx("button",{className:"svm-secbtn",title:"Fermer le bandeau (Échap)",onClick:function(){o.onClose&&o.onClose()},children:"Fermer"})]})]})}
 /* ── E-7 (lot E-C, tâche 3, 23/09/2026) : LA VUE « LIVRAISON » ─────────────
    dzmJobsTri(jobs, nom) — pure : les jobs `provider==="montage"` dont le
    titre COMMENCE par `nom` (nom vide : tous), séparés en {finals, previews}
@@ -19537,7 +19541,7 @@ function DzmMediaDrawer(o){
   return r.jsxs("div",{className:"svm-meddrawer",children:[
     r.jsxs("div",{className:"svm-medhead",children:[
       r.jsx("div",{className:"svm-poptitle",children:"Médias — rendus vidéo"+(o.trId?" → "+o.trId:"")}),
-      r.jsx("button",{className:"svm-secbtn",onClick:function(){if(o.onClose)o.onClose()},children:"Fermer"})]}),
+      r.jsx("button",{className:"svm-secbtn",title:"Fermer le tiroir Médias",onClick:function(){if(o.onClose)o.onClose()},children:"Fermer"})]}),
     r.jsx("input",{type:"search",className:"svm-medq",value:q,placeholder:"Rechercher un titre…",
       onChange:function(e){setQ(e.target.value)}}),
     r.jsx("div",{className:"svm-medchips",children:chips.map(function(c){
@@ -19547,6 +19551,7 @@ function DzmMediaDrawer(o){
     st?r.jsx("div",{className:"svm-medst",children:st}):null,
     !st&&!liste.length?r.jsx("div",{className:"svm-medst",children:vus.length?"Aucun rendu dans ce groupe.":"Aucun rendu vidéo terminé."}):null,
     !fin?r.jsx("button",{className:"svm-secbtn svm-medplus",disabled:st==="…",
+      title:"Charger les rendus suivants",
       onClick:function(){charge(offset,qServ,!1)},children:"Plus"}):null]})}
 /* E-5 (lot E-B, tache 4, 23/09/2026) — LE DERNIER RENDU FINAL PAR PROJET.
    Aucun JobRecord ne porte de project_id (mesure routes.py:3330, _job_to_dict) :

@@ -1,0 +1,277 @@
+"""E-12 (lot E-C, tache 6, 23/09/2026) — AUDIT BANCABLE DES BOUTONS DU MONTAGE.
+
+Deux regles, verrouillees par SCAN DES SOURCES (precedent :
+test_subs_regle_des_gestes.py ; l'audit DOM du Vectorlab,
+frontend/vectorlab/qa/ergonomie.test.mjs, est l'autre precedent) :
+
+  REGLE 1 — INFOBULLE OBLIGATOIRE. Tout `r.jsx("button",{className:"…"` dont
+  les classes portent svm-tbtn | dzm-tbb | svm-secbtn | svm-goldbtn |
+  svm-minibtn | svm-viewbtn | svm-menuitem | svm-menubtn porte `title:` dans
+  les 400 caracteres qui suivent (avant le prochain `r.jsx(`). La fabrique
+  `.dzm-tbb` (DzmToolBtn, couche) est reconnue : le `title:o.title||lbl` est
+  dans la fabrique, aucun `className:"dzm-tbb` litteral n'existe.
+
+  REGLE 2 — UN BOUTON D'OUTIL SE GRISE, IL NE DISPARAIT PAS. Aucun bouton
+  svm-tbtn / svm-secbtn / svm-goldbtn n'est rendu selon l'etat par
+  `x?null:r.jsx("button"…` ou `x?r.jsx("button"…):null` ou `x&&r.jsx("button"`.
+  Les BASCULES (les deux branches rendent un bouton : ok/renommer, Reessayer/
+  Rendre) et les CONTROLES CONTEXTUELS TOLERES (chips, M/S de piste sans bus,
+  minibtn de l'overlay et de l'inspecteur, kbreset, projets, medplus,
+  composants de la couche rendant null) sont PINNES par leur forme exacte et
+  DATES : si l'un bouge (ajoute, retire, reecrit), le banc rougit et on redate.
+
+ZONES SCANNEES (bornes mesurees 1/1 chacune) : DzMontage (`function
+DzMontage(` -> en-tete de la couche SFX Studio) et la couche montage (`/* ──
+Montage, couche window.DzTracks` -> `window.DzTracks=DzTracks;`). ENTRE les
+deux vivent les couches SFX Studio (sfxstudio.js), rack VFX et sous-titres
+d'autres chantiers, avec leurs propres patchers : HORS AUDIT, ecart date
+(23/09/2026) — leurs boutons `svm-secbtn` sans titre (Reessayer, Effacer la
+recherche, Importer un son, Generer un SFX, svx-measure conditionnel) restent
+a ces chantiers.
+
+ETAT VIDE (regle des assertions negatives) : le meme scanner, passe sur
+`.bak_montage` (l'entree du patcher, zone DzMontage seule : la couche n'y est
+pas), DOIT trouver des manquants et les deux `proj.demo?null:` — sinon
+« manquants == [] » ne prouverait rien. Faute n°6 : aucune lecture nue avant un
+check ; un fichier absent est un FAIL compte, pas une trace.
+
+Un processus, `check`, `=== N passed, M failed ===`, code de sortie.
+"""
+import pathlib, re, sys
+sys.stdout.reconfigure(encoding="utf-8")
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+BUNDLE = ROOT / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js"
+BAK = BUNDLE.with_name(BUNDLE.name + ".bak_montage")
+LAYER = ROOT / "frontend" / "patches" / "montage.js"
+
+ok = fail = 0
+
+
+def check(label, cond, detail=""):
+    global ok, fail
+    if cond:
+        ok += 1; print(f"  PASS  {label}")
+    else:
+        fail += 1; print(f"  FAIL  {label} {detail}")
+
+
+for p in (BUNDLE, BAK, LAYER):
+    if not p.is_file():
+        print(f"  FAIL  fichier_absent {p}")
+        print("\n=== 0 passed, 1 failed ===")
+        sys.exit(1)
+
+# OCTETS, utf-8-sig, fins de ligne CONSERVEES (le bundle mele LF et CRLF).
+s = BUNDLE.read_bytes().decode("utf-8-sig")
+bak = BAK.read_bytes().decode("utf-8-sig")
+lay = LAYER.read_bytes().decode("utf-8-sig")
+
+Z1_DEB = "function DzMontage("
+Z1_FIN = "/* ── SFX Studio — couche window.DzSfx"
+Z2_DEB = "/* ── Montage, couche window.DzTracks"
+Z2_FIN = "window.DzTracks=DzTracks;"
+
+CLASSES = re.compile(r"svm-tbtn|dzm-tbb|svm-secbtn|svm-goldbtn|svm-minibtn|svm-viewbtn|svm-menuitem|svm-menubtn")
+OUTIL = re.compile(r"svm-tbtn|svm-secbtn|svm-goldbtn")
+RX_BTN = re.compile(r'r\.jsx\("button",\{className:"([^"]*)"')
+# un bouton conditionnel : `?r.jsx("button"`, `&&r.jsx("button"` (espaces et
+# sauts de ligne admis) ou `?null:r.jsx("button"`
+RX_COND = re.compile(r'(\?null:|\?|&&)\s*r\.jsx\("button",\{className:"([^"]*)"')
+
+
+def zones(t, avec_couche):
+    """Bornes des zones — mesurees (1/1), None si un marqueur manque ou double."""
+    out = []
+    for d, f in ((Z1_DEB, Z1_FIN),) + (((Z2_DEB, Z2_FIN),) if avec_couche else ()):
+        if t.count(d) != 1 or t.count(f) != 1 or t.index(d) >= t.index(f):
+            return None
+        out.append((t.index(d), t.index(f)))
+    return out
+
+
+def ligne(t, i):
+    return t[:i].count("\n") + 1
+
+
+def scan_titres(t, zs):
+    """(nb de boutons des classes auditees, [(ligne, classes, extrait) sans title])."""
+    n, manq = 0, []
+    for a, b in zs:
+        z = t[a:b]
+        for m in RX_BTN.finditer(z):
+            if not CLASSES.search(m.group(1)):
+                continue
+            n += 1
+            fen = z[m.end():m.end() + 400]
+            k = fen.find("r.jsx(")
+            if k >= 0:
+                fen = fen[:k]
+            if "title:" not in fen:
+                manq.append((ligne(t, a + m.start()), m.group(1), z[m.start():m.start() + 130].replace("\r", "").replace("\n", "⏎")))
+    return n, manq
+
+
+def scan_cond(t, zs):
+    """Tous les boutons conditionnels des zones : (ligne, forme, classes, contexte
+    de 80 caracteres avant, blancs replies)."""
+    out = []
+    for a, b in zs:
+        z = t[a:b]
+        for m in RX_COND.finditer(z):
+            ctx = re.sub(r"\s+", " ", z[max(0, m.start() - 80):m.end()].replace("\r", ""))
+            out.append((ligne(t, a + m.start()), m.group(1), m.group(2), ctx))
+    return out
+
+
+ZS = zones(s, True)
+ZB = zones(bak, False)
+check("zones_du_bundle_mesurees_1_1_DzMontage_puis_couche",
+      ZS is not None and len(ZS) == 2 and ZS[0][1] < ZS[1][0]
+      and s.count(Z1_DEB) == 1 and s.count(Z1_FIN) == 1 and s.count(Z2_DEB) == 1 and s.count(Z2_FIN) == 1,
+      f"{[s.count(k) for k in (Z1_DEB, Z1_FIN, Z2_DEB, Z2_FIN)]}")
+check("zone_DzMontage_du_bak_mesuree_et_la_couche_ABSENTE_du_bak",
+      ZB is not None and len(ZB) == 1 and bak.count(Z1_DEB) == 1 and bak.count(Z2_DEB) == 0 and bak.count(Z2_FIN) == 0,
+      f"{[bak.count(k) for k in (Z1_DEB, Z1_FIN, Z2_DEB, Z2_FIN)]}")
+if ZS is None or ZB is None:
+    print(f"\n=== {ok} passed, {fail} failed ===")
+    sys.exit(1)
+
+# ── REGLE 1 ─────────────────────────────────────────────────────────────────
+n_b, manq_b = scan_titres(s, ZS)
+n_l, manq_l = scan_titres(lay, [(0, len(lay))])
+n_k, manq_k = scan_titres(bak, ZB)
+check("R1_bundle_tout_bouton_audite_porte_title_temoin_40_boutons",
+      manq_b == [] and n_b >= 40, f"scannes={n_b} manquants={manq_b}")
+check("R1_couche_tout_bouton_audite_porte_title_temoin_20_boutons",
+      manq_l == [] and n_l >= 20, f"scannes={n_l} manquants={manq_l}")
+# ETAT VIDE : le scanner VOIT — l'entree du patcher a des boutons sans titre
+# (Fermer x4, Reessayer, le bouton or busy, retirer, oui/non x2, Non : 13 le
+# 23/09/2026) que ce lot a titres. Un scanner aveugle donnerait 0 ici aussi.
+check("R1_etat_vide_le_scanner_trouve_les_manquants_du_bak_temoin",
+      n_k >= 30 and len(manq_k) >= 10
+      and any("Fermer" in m[2] for m in manq_k) and any("Réessayer" in m[2] for m in manq_k),
+      f"bak scannes={n_k} manquants={len(manq_k)}")
+# la fabrique .dzm-tbb : UN site, `title:o.title||lbl` a moins de 600 caracteres,
+# aucun className litteral dzm-tbb (bundle et couche)
+_i = lay.find('var cls="dzm-tbb";')
+check("R1_fabrique_dzm_tbb_unique_porte_title_o_title_ou_lbl",
+      lay.count('var cls="dzm-tbb";') == 1 and _i > 0 and 'title:o.title||lbl,' in lay[_i:_i + 600]
+      and lay.count('title:o.title||lbl,') == 1 and s.count('title:o.title||lbl,') == 1
+      and lay.count('className:"dzm-tbb') == 0 and s.count('className:"dzm-tbb') == 0)
+# titres POSES par ce lot (bundle) — le libelle dit ce que fait le bouton
+_TITRES = [
+    'title:proj.demo?"Rendu indisponible sur la démo — ouvre un projet réel":"Relancer le rendu qui a échoué"',
+    'title:proj.demo?"Rendu indisponible sur la démo — ouvre un projet réel":(isR?"Lancer le rendu final (master 1080, local)":"Lancer l\'aperçu 480p (gratuit, local)")',
+    'title:"Fermer ce panneau (Échap)",onClick:function(){setPop("");if(failed)setJob(null)},children:"Fermer"',
+    'title:"Fermer le sélecteur d\'effets",onClick:function(){setFxPick(!1)},children:"Fermer"',
+    'title:"Fermer le sélecteur d\'overlay",onClick:function(){setOvPick("")},children:"Fermer"',
+    'title:"Fermer le panneau des raccourcis (Échap)",onClick:function(){setKbOn(!1)},children:"Fermer"',
+    'title:"Retirer cet effet du plan",onClick:function(){',
+    'title:"Confirmer : tous les raccourcis reviennent au défaut",',
+    'title:"Garder les raccourcis personnalisés",',
+    'title:"Annuler — aucune voix générée, aucun crédit consommé",',
+    'title:"Confirmer : la sauvegarde est écrasée par la Bibliothèque",onClick:svmLibReset,children:"oui"',
+    'title:"Garder la sauvegarde",',
+    'title:proj.demo?"Réinitialisation indisponible sur la démo":"Réinitialiser depuis la Bibliothèque — écrase la sauvegarde"',
+    'title:"Aperçu 480p — gratuit, local, aucun crédit",onClick:function(){setPop(pop==="preview"?"":"preview")},children:"Preview"',
+    'title:"Rendu final (master 1080, local) — ouvre le panneau de rendu",onClick:function(){setPop(pop==="render"?"":"render")},children:"Rendre →"',
+]
+for t in _TITRES:
+    check("R1_titre_pose_x1_" + re.sub(r"\W+", "_", t[6:40]).strip("_"),
+          s.count(t) == 1 and bak.count(t) == 0, f"bundle={s.count(t)} bak={bak.count(t)}")
+_TITRES_COUCHE = [
+    'title:"Fermer l\'index des marqueurs",onClick:o&&o.onClose,',
+    'title:"Envoyer ce rendu au Scheduler (brouillon, rien n\'est publié sans validation)",',
+    'title:"Ouvrir la Bibliothèque sur ce rendu",onClick:function(){o.onLib&&o.onLib()},children:"Voir dans la Bibliothèque"',
+    'title:"Fermer le bandeau (Échap)",onClick:function(){o.onClose&&o.onClose()},children:"Fermer"',
+    'title:"Fermer le tiroir Médias",onClick:function(){if(o.onClose)o.onClose()},children:"Fermer"',
+    'title:"Charger les rendus suivants",',
+]
+for t in _TITRES_COUCHE:
+    check("R1_titre_couche_x1_" + re.sub(r"\W+", "_", t[6:40]).strip("_"),
+          lay.count(t) == 1 and s.count(t) == 1 and bak.count(t) == 0,
+          f"couche={lay.count(t)} bundle={s.count(t)} bak={bak.count(t)}")
+
+# ── REGLE 2 ─────────────────────────────────────────────────────────────────
+# Le bouton or du popover de rendu et « bibliothèque » : RENDUS TOUJOURS,
+# grises sur la demo (handlers deja gardes : launchRender `if(proj.demo||…)return`,
+# setLibArm inatteignable sous disabled). Temoin : les deux `proj.demo?null:`
+# du .bak, zero dans le livre.
+_z1 = s[ZS[0][0]:ZS[0][1]]
+_zk = bak[ZB[0][0]:ZB[0][1]]
+check("R2_proj_demo_null_devant_un_bouton_0_dans_le_livre_2_dans_le_bak",
+      _z1.count("proj.demo?null:") == 0 and _zk.count("proj.demo?null:") == 2
+      and re.search(r"proj\.demo\?null:\s*failed\?r\.jsx\(\"button\"", _zk) is not None
+      and re.search(r"proj\.demo\?null:libArm\?", _zk) is not None,
+      f"livre={_z1.count('proj.demo?null:')} bak={_zk.count('proj.demo?null:')}")
+check("R2_bouton_or_du_popover_disabled_busy_ou_demo_et_libbtn_disabled_demo",
+      s.count('r.jsx("button",{className:"svm-goldbtn",disabled:busy||proj.demo,style:(busy||proj.demo)?{opacity:.55,cursor:"default"}:null,') == 1
+      and s.count('r.jsx("button",{className:"svm-goldbtn",disabled:proj.demo,') == 1
+      and s.count('r.jsx("button",{className:"svm-secbtn svm-libbtn",disabled:proj.demo,') == 1
+      and _z1.count("libArm?") == 1 and _z1.count("failed?r.jsx(\"button\"") == 1
+      and bak.count("disabled:busy||proj.demo") == 0 and bak.count("svm-libbtn\",disabled:proj.demo") == 0
+      and s.count("if(proj.demo||(job&&job.status!==\"failed\"))return;") == 1)
+
+# TOUS les boutons conditionnels des deux zones, pinnes par leur forme —
+# BASCULES (les deux branches sont un bouton) et TOLERES (contextuels), DATES
+# 23/09/2026. Chaque site doit trouver SA forme, et chaque forme son compte.
+BASCULES = [
+    ("failed?r.jsx(\"button\",{className:\"svm-goldbtn\"", "Réessayer / Rendre : le popover de rendu (echoue ou non)", 1),
+    ("edit ?r.jsx(\"button\",{className:\"svm-tbtn dzm-projbtn\"", "ok / renommer : la ligne d'un projet en edition", 1),
+]
+TOLERES = [  # dates 23/09/2026 — contextuels : ils n'ont de sens que dans l'etat qui les montre
+    ("tf||mp?r.jsx(\"button\",{className:\"svm-minibtn\"", "overlay : « revenir au plein cadre » n'existe que s'il y a un cadrage", 1),
+    ("isOv&&!editing?r.jsx(\"button\",{className:\"svm-minibtn svm-kbreset\"", "raccourcis : « revenir au defaut » d'une ligne surchargee", 1),
+    ("svmSfx()?r.jsx(\"button\",{className:\"svm-themechip svm-sfxchip\"", "chip Sons : absente sans la couche DzSfx (feature-detect)", 1),
+    ("sel?r.jsx(\"button\",{className:\"svm-minibtn\"", "inspecteur : la corbeille du clip selectionne", 1),
+    ("proj.ducking?r.jsx(\"button\",{className:\"svm-minibtn svm-duckbtn\"", "ducking : « revenir aux reglages » d'un ducking personnalise", 1),
+    ("var thM=bus?r.jsx(\"button\",{className:\"svm-minibtn svm-tkbtn\"", "M de piste : seulement sur un bus", 1),
+    ("var thS=bus?r.jsx(\"button\",{className:\"svm-minibtn svm-tkbtn svm-tksolo\"", "S de piste : seulement sur un bus", 1),
+    ("nu?null:r.jsx(\"button\",{className:\"svm-tbtn dzm-projb\"", "projets : le bouton n'existe pas tant que le montage n'est pas nomme", 1),
+    ("!fin?r.jsx(\"button\",{className:\"svm-secbtn svm-medplus\"", "tiroir Medias : « Plus » disparait a la derniere page", 1),
+]
+conds = scan_cond(s, ZS)
+_attendu = {f: (d, n) for f, d, n in BASCULES + TOLERES}
+_vus = {f: 0 for f in _attendu}
+_orphelins = []
+for c in conds:
+    hit = [f for f in _attendu if f in c[3]]
+    if len(hit) == 1:
+        _vus[hit[0]] += 1
+    else:
+        _orphelins.append(c)
+check("R2_chaque_bouton_conditionnel_a_sa_forme_datee_et_chaque_forme_son_compte",
+      _orphelins == [] and all(_vus[f] == n for f, (d, n) in _attendu.items())
+      and len(conds) == sum(n for _, (_, n) in _attendu.items()) == 11,
+      f"orphelins={_orphelins} vus={_vus} total={len(conds)}")
+# regle 2 stricte sur les classes d'outil : parmi les conditionnels, seules les
+# deux BASCULES et les deux TOLERES DATES (projb, medplus) portent svm-tbtn /
+# svm-secbtn / svm-goldbtn — temoin : un `svm-secbtn` non conditionnel existe
+_outils_cond = [c for c in conds if OUTIL.search(c[2])]
+check("R2_aucun_bouton_d_outil_ne_disparait_hors_bascules_et_toleres_dates_temoin",
+      len(_outils_cond) == 4 and all(any(f in c[3] for f, _, _ in BASCULES + TOLERES[7:9]) for c in _outils_cond)
+      and s.count('r.jsx("button",{className:"svm-secbtn"') >= 5,
+      f"{_outils_cond}")
+# le scanner des conditionnels VOIT (etat vide) : le .bak porte proj.demo?null:
+# devant le bouton or, que le livre ne porte plus
+_ck = scan_cond(bak, ZB)
+check("R2_etat_vide_le_bak_porte_le_conditionnel_demo_du_bouton_or",
+      any("proj.demo?null:" in c[3] and "svm-goldbtn" in c[2] for c in _ck)
+      and not any("proj.demo?null:" in c[3] and "svm-goldbtn" in c[2] for c in conds)
+      and len(_ck) >= 7, f"bak={len(_ck)} livre={len(conds)}")
+# composants de la couche qui RENDENT null (contextuels, dates 23/09/2026) :
+# replaceBtn, revertBtn, gradeAllBtn, extractBtn — chacun UNE fois, garde en tete
+_NULLS = [
+    ("function dzmReplaceBtn(sel,onArm){", "if(!sel||!sel.src)return null;"),
+    ("function dzmRevertBtn(", "if(!h)return null;"),
+    ("function dzmGradeAllBtn(", "if(!dzmGradeOf(sel))return null;"),
+    ("function dzmExtractBtn(sel,o){", 'if(!sel||!sel.src||sel.src.image||dzmKindOf(sel.tr)!=="video")return null;'),
+]
+for f, g in _NULLS:
+    i = lay.find(f)
+    check("R2_tolere_composant_null_" + f[len("function "):].split("(")[0],
+          lay.count(f) == 1 and i >= 0 and g in lay[i:i + 400] and s.count(f) == 1)
+
+print(f"\n=== {ok} passed, {fail} failed ===")
+sys.exit(1 if fail else 0)

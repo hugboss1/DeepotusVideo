@@ -15184,6 +15184,8 @@ _DZ_I = _DZ_TAGS.index("EA6-bandeau-ferme-au-lancement")
 # E-6 (T2, 23/09/2026) : quatre sections EC en queue apres EB8b, sonde 123 -> 128
 # E-7 (T3, 23/09/2026) : trois sections EC7/EC8/EC9 apres EC5, sonde 128 -> 129 (Deliver, EC9)
 # E-13 / E-14 (T5, 23/09/2026) : cinq sections EC10..EC14 apres EC9, sonde 129 -> 132 (teteTxt EC12, trou EC10, trouRipple EC13)
+# E-12 (T6, 23/09/2026) : onze sections EC15a..EC15k apres EC14 (title x9, bouton or et « bibliothèque » grises sur la demo) ;
+# « Preview » (R_EB4) et « Rendre → » (R_EA5D) sont des replis ; aucune reference a la couche : la sonde RESTE 132
 check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB8b_puis_EC_en_queue_apres_EA6_et_la_sonde_dit_132",
       [t.split("-")[0] for t in _DZ_TAGS[_DZ_I + 1:]] == ["DZ1", "DZ2", "DZ3", "DZ4",
                                                           "KF1", "KF2", "KF2b", "KF2c", "KF3a", "KF3b", "KF3c", "KF4", "KF5",
@@ -15191,7 +15193,9 @@ check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB8b_puis_
                                                           "EB1", "EB2", "EB2b", "EB2c", "EB2d", "EB2e", "EB2f", "EB3",
                                                           "EB4", "EB5a", "EB5b", "EB6a", "EB6b", "EB7b", "EB8a", "EB8b",
                                                           "EC1", "EC2", "EC4", "EC5", "EC7", "EC8", "EC9",
-                                                          "EC10", "EC11", "EC12", "EC13", "EC14"]
+                                                          "EC10", "EC11", "EC12", "EC13", "EC14",
+                                                          "EC15a", "EC15b", "EC15c", "EC15d", "EC15e", "EC15f",
+                                                          "EC15g", "EC15h", "EC15i", "EC15j", "EC15k"]
       and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
               and s.count(nl(a)) == (1 if a in r else 0)
               for _t, a, r in P.PATCHES[_DZ_I + 1:])
@@ -15676,10 +15680,13 @@ print("\n[EB] E-5 : la barre Preview · Rendre · Publier, le dernier rendu fina
 # pins d'E-4 restent) ; la sonde compte `DzTracks` SANS point : 115 -> 117.
 # « Preview 480p (gratuit) » survit UNE fois : l'infobulle de la chip 480p du
 # lecteur (:5093, « lancer Preview 480p (gratuit) »), qui n'est pas la barre.
-_EB4_R = 'r.jsx("button",{className:"svm-secbtn",onClick:function(){setPop(pop==="preview"?"":"preview")},children:"Preview"}),'
+# E-12 (T6, 23/09/2026) : l'infobulle est un REPLI dans R_EB4 (ancre consommee) — l'ancre, elle, n'en porte pas
+_EB4_A = 'r.jsx("button",{className:"svm-secbtn",onClick:function(){setPop(pop==="preview"?"":"preview")},children:"Preview"}),'
+_EB4_R = _EB4_A.replace('svm-secbtn",onClick:', 'svm-secbtn",title:"Aperçu 480p — gratuit, local, aucun crédit",onClick:')
 check("EB4_le_bouton_Preview_garde_son_handler_et_perd_480p_gratuit",
-      s.count(nl(P.A_EB4)) == 0 and s.count(nl(P.R_EB4)) == 1 and s.count(nl(_EB4_R)) == 1
-      and P.A_EB4 == "        " + _EB4_R.replace('"Preview"', '"Preview 480p (gratuit)"') and P.R_EB4 == "        " + _EB4_R
+      s.count(nl(P.A_EB4)) == 0 and s.count(nl(P.R_EB4)) == 1 and s.count(nl(_EB4_R)) == 1 and s.count(nl(_EB4_A)) == 0
+      and P.A_EB4 == "        " + _EB4_A.replace('"Preview"', '"Preview 480p (gratuit)"') and P.R_EB4 == "        " + _EB4_R
+      and _EB4_R.count("title:") == 1 and _EB4_A.count("title:") == 0
       # `children:"Preview"}),` seul vaut DEUX (le Studio minifie, graphe Mh) : l'ancre est la ligne entiere
       and s.count('children:"Preview"}),') == 2 and (_bak.count('children:"Preview"}),') == 1 if _bak else False)
       and ("EB4-libelle-preview", P.A_EB4, P.R_EB4) in P.PATCHES
@@ -15698,7 +15705,10 @@ _iOr = s.find('"Rendre →"'); _iPub = s.find(nl(_EB5_PUB))
 check("EB_R_EA5D_Publier_suit_le_bouton_or_grise_sans_rendu_et_rouvre_le_bandeau",
       s.count(nl(_EB5_PUB)) == 1 and s.count(nl(_EB5_CLIC)) == 1 and s.count('children:"Publier"') == 1
       and s.count("disabled:!dzLast") == 1 and 0 < _iOr < _iPub < _iOr + 600
-      and _EB5_PUB in P.R_EA5D and _EB5_CLIC in P.R_EA5D and P.R_EA5D.startswith(P.A_EA5D.replace('"Rendre & publier →"', '"Rendre →"'))
+      # E-12 (T6) : le bouton or porte son infobulle en REPLI (ancre consommee) — il ouvre le panneau, il ne lance rien
+      and _EB5_PUB in P.R_EA5D and _EB5_CLIC in P.R_EA5D
+      and P.R_EA5D.startswith(P.A_EA5D.replace('"Rendre & publier →"', '"Rendre →"').replace('svm-goldbtn",onClick:', P._EC15_OR))
+      and P._EC15_OR.count("title:") == 1 and P.A_EA5D.count("title:") == 0 and s.count(nl(P._EC15_OR + 'function(){setPop(pop==="render"?"":"render")},children:"Rendre →"}),')) == 1
       and s.count('"Rendre →"') == 1 and "Rendre →" not in _EB5_PUB + _EB5_CLIC
       # l'ancre suivante dans .bak est le commentaire pris par A_EB2 : le repli est impose
       and (_bak.count(_nlb(P.A_EA5D + "\n" + P.A_EB2.split("\n")[0])) == 1

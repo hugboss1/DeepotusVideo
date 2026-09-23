@@ -4098,7 +4098,10 @@ A_EA5D = '        r.jsx("button",{className:"svm-goldbtn",onClick:function(){set
 # final mémorisé ; sinon rouvre le bandeau sur ce rendu (project_id repris
 # de proj : le store ne le porte pas) après avoir fermé le popover (EA5e :
 # jamais les deux ouverts).
-R_EA5D = (A_EA5D.replace('"Rendre & publier →"', '"Rendre →"') + '\n'
+# E-12 (lot E-C, tache 6, 23/09/2026) : l'infobulle du bouton or, REPLI ici
+# (ancre consommee par EA5d) — il OUVRE le panneau, il ne lance rien.
+_EC15_OR = 'svm-goldbtn",title:"Rendu final (master 1080, local) — ouvre le panneau de rendu",onClick:'
+R_EA5D = (A_EA5D.replace('"Rendre & publier →"', '"Rendre →"').replace('svm-goldbtn",onClick:', _EC15_OR) + '\n'
           '        /* E-5 : « Publier » = le dernier rendu FINAL de ce projet (mémoire par projet), sinon grisé */\n'
           '        r.jsx("button",{className:"svm-secbtn svm-pubbtn",disabled:!dzLast,'
           'title:dzLast?"Envoyer le dernier rendu final au Scheduler":"Aucun rendu final pour ce projet",\n'
@@ -4466,6 +4469,9 @@ R_EB3 = (A_EB3 + '\n'
 # (le Studio minifié, graphe Mh, en porte un) -> l'ancre est la LIGNE ENTIÈRE.
 A_EB4 = '        r.jsx("button",{className:"svm-secbtn",onClick:function(){setPop(pop==="preview"?"":"preview")},children:"Preview 480p (gratuit)"}),'
 R_EB4 = A_EB4.replace('"Preview 480p (gratuit)"', '"Preview"')
+# E-12 (lot E-C, tache 6, 23/09/2026) : l'infobulle, REPLI ici (l'ancre est
+# consommee par EB4) — l'aperçu est gratuit et local, la barre le dit.
+R_EB4 = R_EB4.replace('svm-secbtn",onClick:', 'svm-secbtn",title:"Aperçu 480p — gratuit, local, aucun crédit",onClick:')
 
 # ── EB5a (E-11, lot E-B tache 5, 23/09/2026) : LE VOILE SOUS LES POPOVERS
 # QUI ARMENT UN MODE. Meme geste que le voile de kbPanel (.svm-kbscrim :
@@ -4851,6 +4857,93 @@ assert R_M16REF.count("gapSelRef.current=gapSel;") == 1 and R_K7.count("setGapSe
 assert R_M16REF.count("},[clips]);") == 1 and R_M16REF.find("},[clips]);") > R_M16REF.find("gapSelRef.current=gapSel;")
 assert R_K7.find("dzMkOnRef") < R_K7.find("setGapSel(null)") < R_K7.find("dzScrimRef")
 
+# ══ E-12 (lot E-C, tache 6, 23/09/2026) — UN BOUTON SE GRISE, NE DISPARAIT
+# PAS ; INFOBULLE OBLIGATOIRE ═══════════════════════════════════════════════
+# Banc de SOURCES : backend/tests/test_montage_ergonomie.py (regle 1 : tout
+# bouton svm-tbtn/dzm-tbb/svm-secbtn/svm-goldbtn/svm-minibtn/svm-viewbtn/
+# svm-menuitem/svm-menubtn porte `title:` ; regle 2 : aucun bouton d'outil
+# rendu selon l'etat, les contextuels toleres pinnes et dates).
+# MESURES (23/09/2026, livre cc34c2c) : douze sites du bundle sans `title`
+# dans DzMontage, dont ONZE sur des ancres LIBRES (1 dans .bak_montage, 0 dans
+# le patcher) -> sections EC15a..EC15k ; les deux autres (« Preview » = R_EB4,
+# « Rendre → » = R_EA5D) sont des hotes deja consommes -> repli dans le
+# remplacement (title ajoute, banc [EB] realigne). Deux boutons DISPARAISSAIENT
+# sur la demo (`proj.demo?null:` x2 dans .bak) : le bouton or du popover de
+# rendu (Reessayer / Rendre / Lancer l'apercu) et « bibliotheque » -> rendus
+# TOUJOURS, `disabled:proj.demo` + infobulle qui le dit. Handlers mesures :
+# launchRender porte `if(proj.demo||(job&&job.status!=="failed"))return;`
+# (.bak) ; setLibArm(!0) est inatteignable sous `disabled`. Le grise du
+# bouton or reprend le style inline du busy (aucune regle :disabled pour
+# .svm-goldbtn en amont, mesure) ; « bibliotheque » a `.svm-secbtn:disabled`
+# (montage.css:1355, E-5). « (Echap) » n'est ecrit que la ou Echap ferme
+# VRAIMENT (R_K7 : dzScrimRef -> setPop("") ; kbPanel : setKbOn(!1)) ; les
+# selecteurs d'effets et d'overlay n'ecoutent pas Echap (mesure) : pas de
+# promesse.
+_EC15_DEMO = '"Rendu indisponible sur la démo — ouvre un projet réel"'
+A_EC15A = '        r.jsx("button",{className:"svm-secbtn",onClick:function(){setPop("");if(failed)setJob(null)},children:"Fermer"}),'
+R_EC15A = A_EC15A.replace('svm-secbtn",onClick:', 'svm-secbtn",title:"Fermer ce panneau (Échap)",onClick:')
+A_EC15B = ('        proj.demo?null:\n'
+           '          failed?r.jsx("button",{className:"svm-goldbtn",onClick:function(){launchRender(!isR)},children:"Réessayer"}):')
+R_EC15B = ('          failed?r.jsx("button",{className:"svm-goldbtn",disabled:proj.demo,title:proj.demo?' + _EC15_DEMO
+           + ':"Relancer le rendu qui a échoué",onClick:function(){launchRender(!isR)},children:"Réessayer"}):')
+A_EC15C = '          r.jsx("button",{className:"svm-goldbtn",disabled:busy,style:busy?{opacity:.55,cursor:"default"}:null,'
+R_EC15C = ('          r.jsx("button",{className:"svm-goldbtn",disabled:busy||proj.demo,style:(busy||proj.demo)?{opacity:.55,cursor:"default"}:null,'
+           'title:proj.demo?' + _EC15_DEMO + ':(isR?"Lancer le rendu final (master 1080, local)":"Lancer l\'aperçu 480p (gratuit, local)"),')
+A_EC15D = 'r.jsx("button",{className:"svm-secbtn",onClick:function(){setFxPick(!1)},children:"Fermer"})'
+R_EC15D = A_EC15D.replace('svm-secbtn",onClick:', 'svm-secbtn",title:"Fermer le sélecteur d\'effets",onClick:')
+A_EC15E = 'r.jsx("button",{className:"svm-secbtn",onClick:function(){setOvPick("")},children:"Fermer"})'
+R_EC15E = A_EC15E.replace('svm-secbtn",onClick:', 'svm-secbtn",title:"Fermer le sélecteur d\'overlay",onClick:')
+A_EC15F = 'r.jsx("button",{className:"svm-secbtn",onClick:function(){setKbOn(!1)},children:"Fermer"})'
+R_EC15F = A_EC15F.replace('svm-secbtn",onClick:', 'svm-secbtn",title:"Fermer le panneau des raccourcis (Échap)",onClick:')
+A_EC15G = ('      r.jsx("button",{className:"svm-minibtn",onClick:function(){\n'
+           '        var id=selRef.current,i2=fxEdit.i;')
+R_EC15G = A_EC15G.replace('svm-minibtn",onClick:', 'svm-minibtn",title:"Retirer cet effet du plan",onClick:')
+A_EC15H = ('              r.jsx("button",{className:"svm-minibtn",\n'
+           '                onClick:function(){setKmOv({});svmKmSave({});')
+R_EC15H = A_EC15H.replace('svm-minibtn",\n', 'svm-minibtn",\n                title:"Confirmer : tous les raccourcis reviennent au défaut",\n')
+A_EC15I = ('              r.jsx("button",{className:"svm-minibtn svm-kbno",\n'
+           '                onClick:function(){setKbConfirm(!1)},children:"non"})')
+R_EC15I = A_EC15I.replace('svm-kbno",\n', 'svm-kbno",\n                title:"Garder les raccourcis personnalisés",\n')
+A_EC15J = ('        r.jsx("button",{className:"svm-minibtn",\n'
+           '          onClick:function(e){e.stopPropagation();setNarrArm("")},children:"Non"})')
+R_EC15J = A_EC15J.replace('svm-minibtn",\n', 'svm-minibtn",\n          title:"Annuler — aucune voix générée, aucun crédit consommé",\n')
+A_EC15K = ('      proj.demo?null:libArm?\n'
+           '        r.jsxs("span",{className:"svm-libconfirm",children:[\n'
+           '          r.jsx("span",{children:"écraser la sauvegarde ?"}),\n'
+           '          r.jsx("button",{className:"svm-minibtn",onClick:svmLibReset,children:"oui"}),\n'
+           '          r.jsx("button",{className:"svm-minibtn svm-kbno",\n'
+           '            onClick:function(){setLibArm(!1)},children:"non"})]}):\n'
+           '        r.jsx("button",{className:"svm-secbtn svm-libbtn",\n'
+           '          title:"Réinitialiser depuis la Bibliothèque — écrase la sauvegarde",\n'
+           '          onClick:function(){setLibArm(!0)},children:"bibliothèque"}),')
+R_EC15K = ('      libArm?\n'
+           '        r.jsxs("span",{className:"svm-libconfirm",children:[\n'
+           '          r.jsx("span",{children:"écraser la sauvegarde ?"}),\n'
+           '          r.jsx("button",{className:"svm-minibtn",title:"Confirmer : la sauvegarde est écrasée par la Bibliothèque",onClick:svmLibReset,children:"oui"}),\n'
+           '          r.jsx("button",{className:"svm-minibtn svm-kbno",\n'
+           '            title:"Garder la sauvegarde",\n'
+           '            onClick:function(){setLibArm(!1)},children:"non"})]}):\n'
+           '        r.jsx("button",{className:"svm-secbtn svm-libbtn",disabled:proj.demo,\n'
+           '          title:proj.demo?"Réinitialisation indisponible sur la démo":"Réinitialiser depuis la Bibliothèque — écrase la sauvegarde",\n'
+           '          onClick:function(){setLibArm(!0)},children:"bibliothèque"}),')
+EC15 = [("EC15a-title-fermer-popover-de-rendu", A_EC15A, R_EC15A),
+        ("EC15b-bouton-or-reessayer-grise-sur-la-demo", A_EC15B, R_EC15B),
+        ("EC15c-bouton-or-rendre-grise-sur-la-demo", A_EC15C, R_EC15C),
+        ("EC15d-title-fermer-selecteur-effets", A_EC15D, R_EC15D),
+        ("EC15e-title-fermer-selecteur-overlay", A_EC15E, R_EC15E),
+        ("EC15f-title-fermer-raccourcis", A_EC15F, R_EC15F),
+        ("EC15g-title-retirer-effet", A_EC15G, R_EC15G),
+        ("EC15h-title-raccourcis-oui", A_EC15H, R_EC15H),
+        ("EC15i-title-raccourcis-non", A_EC15I, R_EC15I),
+        ("EC15j-title-narration-non", A_EC15J, R_EC15J),
+        ("EC15k-bibliotheque-grisee-sur-la-demo", A_EC15K, R_EC15K)]
+for _n, _a, _r in EC15:
+    assert _a != _r and _r.count("title:") == _a.count("title:") + (2 if _n.startswith("EC15k") else 1), _n
+assert R_EC15B.count("proj.demo?null:") == 0 and R_EC15K.count("proj.demo?null:") == 0
+assert R_EC15B.count("disabled:proj.demo,") == 1 and R_EC15K.count('svm-libbtn",disabled:proj.demo,') == 1
+assert R_EC15C.count("disabled:busy||proj.demo,") == 1 and R_EC15C.count("(busy||proj.demo)?") == 1
+assert R_EB4.count("title:") == 1 and R_EA5D.count('"Rendre →"') == 1 and R_EA5D.count("title:") == 2
+
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("M4b-setter", A_M4b, R_M4b),
@@ -5097,7 +5190,9 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("EC11-rendu-du-trou-selectionne", A_EC11, R_EC11),
            ("EC12-tete-de-lecture-dans-l-inspecteur", A_EC12, R_EC12),
            ("EC13-suppr-referme-le-trou", A_EC13, R_EC13),
-           ("EC14-clic-sur-un-clip-efface-le-trou", A_EC14, R_EC14)]
+           ("EC14-clic-sur-un-clip-efface-le-trou", A_EC14, R_EC14)] + EC15
+           # E-12 (tache 6) : onze sections EC15a..k sur des ancres libres ;
+           # « Preview » (R_EB4) et « Rendre → » (R_EA5D) sont replies.
 
 
 def nl(text, crlf):

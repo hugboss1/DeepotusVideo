@@ -5435,7 +5435,7 @@ function DzmMarkerIndex(o){
         children:"Aucun marqueur — "+dzmMarkerCombo()+
           " en pose un à la tête de lecture."}),
     r.jsx("div",{className:"svm-poprow",children:
-      r.jsx("button",{className:"svm-secbtn",onClick:o&&o.onClose,
+      r.jsx("button",{className:"svm-secbtn",title:"Fermer l'index des marqueurs",onClick:o&&o.onClose,
         children:"Fermer"})})]})}
 
 /* ── D-4 : ÉCHANGER un plan avec son voisin de gauche (dir −1) ou de droite ─
@@ -6136,11 +6136,12 @@ function DzmFinBandeau(o){
       r.jsx("input",{type:"text",value:cap,placeholder:"légende",onChange:function(e){setCap(e.target.value)}})]}),
     st?r.jsx("div",{className:"dzm-fin-st",children:st}):null,
     r.jsxs("div",{className:"dzm-fin-row",children:[
-      r.jsx("button",{className:"svm-goldbtn",disabled:st==="…"||st===DZM_FIN_OK,onClick:function(){setSt("…");
+      r.jsx("button",{className:"svm-goldbtn",disabled:st==="…"||st===DZM_FIN_OK,
+        title:"Envoyer ce rendu au Scheduler (brouillon, rien n'est publié sans validation)",onClick:function(){setSt("…");
         Promise.resolve(o.onSend({job_id:fin.job_id,project_id:fin.project_id||void 0,channels:dzmChannelsNorm(ch),run_at:dzmPublishIso(when)||void 0,caption:cap}))
           .then(function(){setSt(DZM_FIN_OK)}).catch(function(e){setSt("Envoi impossible : "+String(e))})},children:"Envoyer vers le Scheduler"}),
-      r.jsx("button",{className:"svm-secbtn",onClick:function(){o.onLib&&o.onLib()},children:"Voir dans la Bibliothèque"}),
-      r.jsx("button",{className:"svm-secbtn",onClick:function(){o.onClose&&o.onClose()},children:"Fermer"})]})]})}
+      r.jsx("button",{className:"svm-secbtn",title:"Ouvrir la Bibliothèque sur ce rendu",onClick:function(){o.onLib&&o.onLib()},children:"Voir dans la Bibliothèque"}),
+      r.jsx("button",{className:"svm-secbtn",title:"Fermer le bandeau (Échap)",onClick:function(){o.onClose&&o.onClose()},children:"Fermer"})]})]})}
 /* ── E-7 (lot E-C, tâche 3, 23/09/2026) : LA VUE « LIVRAISON » ─────────────
    dzmJobsTri(jobs, nom) — pure : les jobs `provider==="montage"` dont le
    titre COMMENCE par `nom` (nom vide : tous), séparés en {finals, previews}
@@ -6545,7 +6546,7 @@ function DzmMediaDrawer(o){
   return r.jsxs("div",{className:"svm-meddrawer",children:[
     r.jsxs("div",{className:"svm-medhead",children:[
       r.jsx("div",{className:"svm-poptitle",children:"Médias — rendus vidéo"+(o.trId?" → "+o.trId:"")}),
-      r.jsx("button",{className:"svm-secbtn",onClick:function(){if(o.onClose)o.onClose()},children:"Fermer"})]}),
+      r.jsx("button",{className:"svm-secbtn",title:"Fermer le tiroir Médias",onClick:function(){if(o.onClose)o.onClose()},children:"Fermer"})]}),
     r.jsx("input",{type:"search",className:"svm-medq",value:q,placeholder:"Rechercher un titre…",
       onChange:function(e){setQ(e.target.value)}}),
     r.jsx("div",{className:"svm-medchips",children:chips.map(function(c){
@@ -6555,6 +6556,7 @@ function DzmMediaDrawer(o){
     st?r.jsx("div",{className:"svm-medst",children:st}):null,
     !st&&!liste.length?r.jsx("div",{className:"svm-medst",children:vus.length?"Aucun rendu dans ce groupe.":"Aucun rendu vidéo terminé."}):null,
     !fin?r.jsx("button",{className:"svm-secbtn svm-medplus",disabled:st==="…",
+      title:"Charger les rendus suivants",
       onClick:function(){charge(offset,qServ,!1)},children:"Plus"}):null]})}
 /* E-5 (lot E-B, tache 4, 23/09/2026) — LE DERNIER RENDU FINAL PAR PROJET.
    Aucun JobRecord ne porte de project_id (mesure routes.py:3330, _job_to_dict) :
