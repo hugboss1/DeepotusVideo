@@ -683,6 +683,11 @@ var FS0={p1:{job_id:"j",name:"n",at:1}};
 out.finst_bornes=[Object.keys(T.finStore({},"",{job_id:"k",name:"m",at:2})),T.finStore("zut",null,{job_id:"k",name:"m",at:2})["_"].job_id,
   T.finStore(FS0,"p2",{job_id:"z",name:"z",at:3})!==FS0&&Object.keys(FS0).length===1,T.finOf({_:{job_id:"u",name:"",at:0}},""),
   T.finOf(null,"p1"),T.finOf({p1:{}},"p1"),Object.keys(T.finStore({a:{job_id:"1"},b:{job_id:"2"}},"a",null))];
+/* E-8 (lot E-B, tache 6) : la largeur de l'inspecteur, bornee 260..480, defaut 300 ; le clamp pur dessous.
+   null / "" / undefined / non numerique -> defaut (pas 0 puis borne basse) ; hors bornes -> la borne ; 261 reste 261 */
+out.insp=[T.inspW("999"),T.inspW("abc"),T.inspW(261),T.inspW(null),T.inspW(""),T.inspW(void 0),T.inspW(-5),T.inspW(480.4),T.inspW(" 300 ")];
+out.clamp=[T.clamp(5,0,10,7),T.clamp(-1,0,10,7),T.clamp(11,0,10,7),T.clamp(NaN,0,10,7),T.clamp(Infinity,0,10,7),T.clamp(-Infinity,0,10,7),
+  T.clamp("3",0,10,7),T.clamp(null,0,10,7),T.clamp({},0,10,7),T.clamp(0,0,10,7),T.clamp(10,0,10,7)];
 console.log(JSON.stringify(out));
 """
 print("\n[1] dzmInsere sous node")
@@ -884,7 +889,9 @@ try:
                  "prov","chips","filtre","filtre_q","filtre_vide","filtre_bornes",
                  "drawer_pure","drawer_touche_x",
                  # E-5 (lot E-B, tache 4) : les CINQ cles du store du dernier rendu.
-                 "finst","finst_of","finst_rm","finst_none","finst_bornes"]
+                 "finst","finst_of","finst_rm","finst_none","finst_bornes",
+                 # E-8 (lot E-B, tache 6) : les DEUX cles de la largeur de l'inspecteur.
+                 "insp","clamp"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -1679,6 +1686,27 @@ check("fin_bandeau_arrete_le_clic_sur_sa_racine_svm_pop",
       len(_FBB) > 400 and _FBB.count('className:"svm-pop dzm-fin",onClick:function(e){e.stopPropagation()},children:[') == 1
       and _FBB.count("stopPropagation") == 1 and _FBB.count("svm-modescrim") == 0,
       f"corps={len(_FBB)} o stop={_FBB.count('stopPropagation')}")
+# ── E-8 (lot E-B, tache 6, 23/09/2026) : LA LARGEUR DE L'INSPECTEUR ──────
+# L'hote (EB6b) lit localStorage["dz_svm_insp"].w et la poignee (EB6a) pose
+# startW+(startX-clientX) : les deux passent par inspW, qui borne 260..480 et
+# rend 300 sur tout ce qui n'est pas un nombre fini (JSON corrompu, cle
+# absente). Le clamp est la fonction generale (NaN / non fini / vide -> def).
+check("insp_w_borne_260_480_defaut_300_sur_null_vide_et_non_numerique",
+      D.get("insp") == [480, 300, 261, 300, 300, 300, 260, 480, 300], D.get("insp"))
+# le clamp : dans les bornes tel quel, hors bornes la borne, NaN / ±Infinity / vide / objet -> def,
+# une chaine numerique est lue, les bornes elles-memes sont dedans
+check("clamp_bornes_nan_infini_vide_objet_rendent_le_defaut",
+      D.get("clamp") == [5, 0, 10, 7, 7, 7, 3, 7, 7, 0, 10], D.get("clamp"))
+# LE COEUR RESTE PUR : ni r.jsx, ni x.use, ni localStorage, ni window dans les deux corps (temoin de longueur) ;
+# inspW APPELLE clamp (une seule ecriture des bornes) et porte les trois nombres 260 / 480 / 300.
+_INS = {n: _corps(n) for n in ("dzmClamp", "dzmInspW")}
+check("insp_coeur_pur_et_inspW_passe_par_clamp_avec_260_480_300",
+      all(len(c) > 60 and not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b", c) for c in _INS.values())
+      and _INS["dzmInspW"].count("dzmClamp(") == 1 and all(k in _INS["dzmInspW"] for k in ("260", "480", "300"))
+      and _INS["dzmClamp"].count("dzmClamp(") == 1,  # sa declaration seule : pas de recursion
+      {n: len(c) for n, c in _INS.items()})
+check("insp_exports_clamp_inspW_dans_DzTracks",
+      len(_DT) > 1000 and _DT.count("clamp:dzmClamp,inspW:dzmInspW,") == 1, len(_DT))
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

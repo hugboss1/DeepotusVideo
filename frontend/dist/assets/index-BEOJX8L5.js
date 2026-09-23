@@ -1714,6 +1714,14 @@ function DzMontage(props){
   var st9=x.useState(!0),durMaster=st9[0],setDurMaster=st9[1];
   var stDk=x.useState(!0),ducking=stDk[0],setDucking=stDk[1];
   var stA=x.useState(""),pop=stA[0],setPop=stA[1];
+  /* E-8 : l'inspecteur — ouvert ? largeur 260–480 (mémoire dz_svm_insp) */
+  var stIn=x.useState(function(){try{var s=JSON.parse(localStorage.getItem("dz_svm_insp")||"{}")||{};return{on:s.on!==!1,w:DzTracks.inspW(s.w)}}catch(_e){return{on:!0,w:300}}}),inspSt=stIn[0],setInspSt=stIn[1],inspOn=inspSt.on,inspW=inspSt.w;
+  function inspDown(e){if(e.button!==0)return;e.preventDefault();
+    var sx=e.clientX,sw=inspW,w=window,last=sw;
+    function mv(ev){last=DzTracks.inspW(sw+(sx-ev.clientX));setInspSt({on:!0,w:last})}
+    function up(){w.removeEventListener("pointermove",mv);w.removeEventListener("pointerup",up);w.removeEventListener("pointercancel",up);
+      try{localStorage.setItem("dz_svm_insp",JSON.stringify({on:!0,w:last}))}catch(_e){}}
+    w.addEventListener("pointermove",mv);w.addEventListener("pointerup",up);w.addEventListener("pointercancel",up)}
   var stP=x.useState({demo:!0,name:"teaser_abyss",version:"v4",ratio:"9:16",dur:SVM_DEMO_DUR,mixDb:SVM_DEMO_MIX}),proj=stP[0],setProj=stP[1];
   var stJ=x.useState(null),job=stJ[0],setJob=stJ[1]; /* {id,kind,status,progress,step,error} */
   var stV=x.useState(null),previewUrl=stV[0],setPreviewUrl=stV[1];
@@ -5614,6 +5622,12 @@ function DzMontage(props){
           "aria-pressed":medOn,
           title:"Tiroir Médias — vos rendus vidéo terminés, à glisser ou à cliquer vers une piste vidéo",
           onClick:function(){if(proj.demo){fireNote("Ajout d'assets : disponible sur un projet réel — la démo reste une maquette.");return}setMedTr("");setMedOn(!medOn);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)},children:"médias"}),
+        /* E-8 : l'inspecteur a bascule — REPLI dans R_EB2 (l'ancre de « sons » est
+           consommee par EB2) ; la poignee et la memoire vivent dans EB6a/EB6b */
+        r.jsx("button",{className:"svm-themechip svm-inspchip","data-on":inspOn?"":void 0,
+          "aria-pressed":inspOn,
+          title:"Inspecteur — replier ou rouvrir la colonne de droite (le lecteur prend la place)",
+          onClick:function(){setInspSt(function(s){var n={on:!s.on,w:s.w};try{localStorage.setItem("dz_svm_insp",JSON.stringify(n))}catch(_e){}return n})},children:"inspecteur"}),
         /* tiroir Sons (DzSfx) — chip jumelle de « narration », les deux tiroirs
            sont exclusifs ; sans la couche DzSfx la chip n'existe pas */
         svmSfx()?r.jsx("button",{className:"svm-themechip svm-sfxchip","data-on":sfxOn?"":void 0,
@@ -5771,7 +5785,7 @@ function DzMontage(props){
             onClick:function(){setSafeOn(!safeOn)},children:"zones sûres ("+svmKeyLabel("safezones")+")"}),
           r.jsx("button",{className:"svm-pchip",title:"plein écran du cadre (Échap pour sortir)",
             onClick:svmFullscreen,children:"plein écran ("+svmKeyLabel("fullscreen")+")"})]})]}),
-      r.jsxs("aside",{className:"svm-insp",children:[
+      inspOn?r.jsxs("aside",{className:"svm-insp",style:{width:inspW},"data-w":inspW,children:[r.jsx("div",{className:"svm-insphandle",onPointerDown:inspDown,title:"Glisser pour redimensionner l'inspecteur (260–480 px)"}),
         r.jsx(SvmLabel,{children:"Clip sélectionné"}),
         r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:8,marginTop:9},children:[
           r.jsx("div",{className:"svm-clipname",style:{marginTop:0,flex:"1 1 auto",minWidth:0,
@@ -6012,7 +6026,7 @@ function DzMontage(props){
            pour le lot ; « annuler » rend à chaque plan son
            étalonnage d'avant — déduit de trois faits mesurés, mais
            rien ne l'EXERCE (undo est un hook du composant). */
-        DzTracks.gradeAllBtn(sel,clips,setClips,pushHistory,setDirty,fireNote)]})]}),
+        DzTracks.gradeAllBtn(sel,clips,setClips,pushHistory,setDirty,fireNote)]}):null]}),
     /* timeline */
     r.jsxs("div",{className:"svm-tl",children:[
       r.jsxs("div",{className:"svm-trans",children:[
@@ -19348,6 +19362,20 @@ function dzmFinStore(store,pid,fin){
 function dzmFinOf(store,pid){
   var s=(store&&typeof store==="object")?store:{},v=s[dzmFinKey(pid)];
   return (v&&typeof v==="object"&&v.job_id)?v:null}
+/* E-8 (lot E-B, tache 6, 23/09/2026) — LA LARGEUR DE L'INSPECTEUR. L'hote
+   (EB6b) lit la cle dz_svm_insp du stockage local au montage et la poignee (EB6a) pose
+   startW+(startX-clientX) a chaque pointermove : les deux passent ICI, une
+   seule ecriture des bornes 260..480 et du defaut 300 (.svm-insp{width:300px},
+   son-vfx-montage.css:233). dzmClamp est la forme generale : null / "" /
+   undefined / booleen / NaN / ±Infinity / objet -> def, jamais 0 puis la
+   borne basse (une cle JSON corrompue rendrait l'inspecteur a 260 sans un
+   mot) ; une chaine numerique est lue (le stockage local rend des chaines). */
+function dzmClamp(v,lo,hi,def){
+  if(v==null||v===""||typeof v==="boolean")return def;
+  var n=typeof v==="number"?v:Number(typeof v==="string"?v.trim():NaN);
+  if(n!==n||n===Infinity||n===-Infinity)return def;
+  return Math.min(hi,Math.max(lo,n))}
+function dzmInspW(raw){return Math.round(dzmClamp(raw,260,480,300))}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,
@@ -19441,6 +19469,8 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   provGroupe:dzmProvGroupe,provChips:dzmProvChips,mediaFiltre:dzmMediaFiltre,MediaDrawer:DzmMediaDrawer,
   /* E-5 (lot E-B, tache 4) : le dernier rendu final par projet */
   finStore:dzmFinStore,finOf:dzmFinOf,
+  /* E-8 (lot E-B, tache 6) : la largeur de l'inspecteur bornee */
+  clamp:dzmClamp,inspW:dzmInspW,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;
 

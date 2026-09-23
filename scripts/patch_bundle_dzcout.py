@@ -325,7 +325,14 @@ STABLE_PROBES = [
     # EB4 (le libelle « Preview ») et le bouton « Publier » (R_EA5D, qui ne
     # fait que setDzFin) n en ajoutent aucune. MESURE : la chaine a refuse,
     # « sonde montage x117 (want 115) », avant cette ligne.
-    ("montage", "DzTracks", 117),
+    # 23/09/2026, E-8 (lot E-B, tache 6) : 117 -> 119. DEUX de plus, toutes
+    # deux dans EB6b : `inspW(` a la lecture de la cle au montage (l etat
+    # stIn) et `inspW(` a chaque mouvement de la poignee (inspDown). EB6a
+    # (l aside a bascule, sa largeur, la poignee), le repli de la fermeture
+    # (R_M13, `:null,`) et la chip (R_EB2, qui ne fait que setInspSt) n en
+    # ajoutent aucune. MESURE : la chaine a refuse, « sonde montage x119
+    # (want 117) », avant cette ligne.
+    ("montage", "DzTracks", 119),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

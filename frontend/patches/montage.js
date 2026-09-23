@@ -6476,6 +6476,20 @@ function dzmFinStore(store,pid,fin){
 function dzmFinOf(store,pid){
   var s=(store&&typeof store==="object")?store:{},v=s[dzmFinKey(pid)];
   return (v&&typeof v==="object"&&v.job_id)?v:null}
+/* E-8 (lot E-B, tache 6, 23/09/2026) — LA LARGEUR DE L'INSPECTEUR. L'hote
+   (EB6b) lit la cle dz_svm_insp du stockage local au montage et la poignee (EB6a) pose
+   startW+(startX-clientX) a chaque pointermove : les deux passent ICI, une
+   seule ecriture des bornes 260..480 et du defaut 300 (.svm-insp{width:300px},
+   son-vfx-montage.css:233). dzmClamp est la forme generale : null / "" /
+   undefined / booleen / NaN / ±Infinity / objet -> def, jamais 0 puis la
+   borne basse (une cle JSON corrompue rendrait l'inspecteur a 260 sans un
+   mot) ; une chaine numerique est lue (le stockage local rend des chaines). */
+function dzmClamp(v,lo,hi,def){
+  if(v==null||v===""||typeof v==="boolean")return def;
+  var n=typeof v==="number"?v:Number(typeof v==="string"?v.trim():NaN);
+  if(n!==n||n===Infinity||n===-Infinity)return def;
+  return Math.min(hi,Math.max(lo,n))}
+function dzmInspW(raw){return Math.round(dzmClamp(raw,260,480,300))}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,
@@ -6569,5 +6583,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   provGroupe:dzmProvGroupe,provChips:dzmProvChips,mediaFiltre:dzmMediaFiltre,MediaDrawer:DzmMediaDrawer,
   /* E-5 (lot E-B, tache 4) : le dernier rendu final par projet */
   finStore:dzmFinStore,finOf:dzmFinOf,
+  /* E-8 (lot E-B, tache 6) : la largeur de l'inspecteur bornee */
+  clamp:dzmClamp,inspW:dzmInspW,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;

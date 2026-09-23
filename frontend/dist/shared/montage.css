@@ -1327,3 +1327,15 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
    ovPicker : le glisser vers les bandes doit vivre. */
 .dzsvm .svm-modescrim{position:absolute;inset:0;z-index:19;background:rgba(0,0,0,.38)}
 .dzsvm[data-svm-theme="light"] .svm-modescrim{background:rgba(23,21,18,.22)}
+/* E-8 (lot E-B, tache 6, 23/09/2026) : inspecteur repliable et redimensionnable.
+   L'aside devient le référent de sa poignée (position:relative ; l'amont ne le
+   positionne pas, son-vfx-montage.css:233) ; la poignée est absolue à gauche,
+   6 px, col-resize, --accent au survol (jeton amont, pas --acc). La largeur
+   vit en style inline (EB6a, 260–480 par DzTracks.inspW), jamais ici.
+   L'aside amont est overflow:auto : la poignée couvre sa première hauteur
+   visible et défile avec le contenu — assumé (padding 16px, rien dessous).
+   « La timeline reprend la largeur » : DÉJÀ VRAI, .svm-tl est sœur de
+   .svm-mid (mesure 23/09/2026) — aucune règle sur .svm-tl ici. */
+.dzsvm .svm-insp{position:relative}
+.dzsvm .svm-insphandle{position:absolute;left:0;top:0;bottom:0;width:6px;cursor:col-resize;touch-action:none;z-index:2}
+.dzsvm .svm-insphandle:hover{background:var(--accent)}

@@ -872,8 +872,18 @@ R_M13 = (
          '           pour le lot ; « annuler » rend à chaque plan son\n'
          '           étalonnage d\'avant — déduit de trois faits mesurés, mais\n'
          '           rien ne l\'EXERCE (undo est un hook du composant). */\n'
+         # -- « EB6a-fermeture » (E-8, lot E-B tache 6, 23/09/2026) : LA
+         # FERMETURE DE L'ASIDE REND null QUAND L'INSPECTEUR EST REPLIE.
+         # REPLI dans R_M13 parce que l'ancre de la fermeture EST la ligne
+         # que M13 reecrit (1 dans .bak_montage, 1 dans le patcher, 0 dans
+         # le livre -- le plan l'annoncait 1/0/1 : ECART mesure). L'ouverture
+         # `inspOn?r.jsxs("aside",...` est la section EB6a ; ce `:null` en
+         # est la seconde moitie, TT9b et P4 restent tels quels. MESURE
+         # (node --check a refuse `]})]}):null,` au premier jet) : le PREMIER
+         # `]})` ferme l'aside, le SECOND ferme .svm-mid (l'aside en est le
+         # dernier enfant, `/* timeline */` suit) -> `]}):null]}),`.
          '        DzTracks.gradeAllBtn(sel,clips,setClips,pushHistory,setDirty,'
-         'fireNote)]})]}),')
+         'fireNote)]}):null]}),')
 
 # ── M9a / M9b / M9c : en-tête de piste ───────────────────────────────────────
 # Le groupe est un FRÈRE des rangées, pas un membre : il est positionné en
@@ -4277,6 +4287,16 @@ _EB_GARDE = ('if(proj.demo){fireNote("Ajout d\'assets : disponible sur un projet
 # depuis la barre, aucune piste n'est visee (addAsset prendra "v1", comme la
 # porte E-3). L'ancre est le commentaire + la premiere ligne de la chip
 # « sons » (1 dans .bak) ; le remplacement la REPREND.
+# ── EB6c (E-8, lot E-B tache 6, 23/09/2026) : LA CHIP « inspecteur » ─────
+# REPLI dans R_EB2 : l'ancre naturelle (le chip « sons ») est CONSOMMEE par
+# EB2 (elle vaut 0 apres EB2, une section a part passerait `--check` puis
+# abandonnerait au rejeu -- meme mesure que TT9b dans R_M13). Meme famille
+# que « médias » (svm-themechip, data-on, aria-pressed). Le clic bascule
+# `on` et GARDE `w` (setter fonctionnel : la fermeture ne lit pas un etat
+# perime), puis persiste dans try/catch (cle dz_svm_insp, prefixe dz_).
+# Elle ne parle pas a la couche : la sonde de dzcout ne bouge pas ici.
+_EB6_CHIP = ('        /* E-8 : l\'inspecteur a bascule — REPLI dans R_EB2 (l\'ancre de « sons » est\n           consommee par EB2) ; la poignee et la memoire vivent dans EB6a/EB6b */\n        r.jsx("button",{className:"svm-themechip svm-inspchip","data-on":inspOn?"":void 0,\n          "aria-pressed":inspOn,\n          title:"Inspecteur — replier ou rouvrir la colonne de droite (le lecteur prend la place)",\n          onClick:function(){setInspSt(function(s){var n={on:!s.on,w:s.w};try{localStorage.setItem("dz_svm_insp",JSON.stringify(n))}catch(_e){}return n})},children:"inspecteur"}),\n')
+
 A_EB2 = ('        /* tiroir Sons (DzSfx) — chip jumelle de « narration », les deux '
          'tiroirs\n'
          '           sont exclusifs ; sans la couche DzSfx la chip n\'existe pas */\n'
@@ -4293,6 +4313,7 @@ R_EB2 = ('        /* E-2 : tiroir Médias — les rendus vidéo terminés, pagin
          'ou à cliquer vers une piste vidéo",\n'
          '          onClick:function(){' + _EB_GARDE + 'setMedTr("");setMedOn(!medOn);setSfxOn(!1);'
          'setSubsOn(!1);setNarrOn(!1)},children:"médias"}),\n'
+         + _EB6_CHIP
          + A_EB2)
 
 # ── EB2b..EB2f (E-2) : LES CINQ PORTES DES AUTRES TIROIRS FERMENT MEDIAS ──
@@ -4382,6 +4403,51 @@ R_EB5A = ('    transPopover(),\n'
 # bandeau (couche, DzmFinBandeau) porte le sien dans montage.js.
 A_EB5B = '    return r.jsxs("div",{className:"svm-pop",children:['
 R_EB5B = '    return r.jsxs("div",{className:"svm-pop",onClick:function(e){e.stopPropagation()},children:['
+
+# ── EB6a (E-8, lot E-B tache 6, 23/09/2026) : L'ASIDE A BASCULE, LARGEUR
+# ET POIGNEE. `inspOn?` conditionne l'aside entier (replie = absent du DOM,
+# le lecteur prend la place : .svm-mid est un flex et .svm-playerzone y est
+# flex:1) ; `style:{width:inspW}` remplace les 300px de la feuille amont
+# (.svm-insp{width:300px;flex:none}, son-vfx-montage.css:233) ; `data-w`
+# est le TEMOIN mesurable a l'ecran (getAttribute). La poignee est le
+# PREMIER enfant de l'aside, absolue a gauche (montage.css), 6 px.
+# « La timeline reprend la largeur » (conception E-8) : DEJA VRAI, .svm-tl
+# est SOEUR de .svm-mid sous .dzsvm.svm-col -- rien a ecrire (mesure
+# 23/09/2026). MESURE : l'ouverture est libre (1/0/1) ; la fermeture est
+# l'ancre de M13 (1/1/0) -> son `:null` est REPLIE dans R_M13, AVANT le
+# `]})` qui ferme .svm-mid (l'aside en est le dernier enfant).
+A_EB6A = '      r.jsxs("aside",{className:"svm-insp",children:['
+R_EB6A = ('      inspOn?r.jsxs("aside",{className:"svm-insp",style:{width:inspW},"data-w":inspW,children:['
+          'r.jsx("div",{className:"svm-insphandle",onPointerDown:inspDown,'
+          'title:"Glisser pour redimensionner l\'inspecteur (260–480 px)"}),')
+
+# ── EB6b (E-8) : L'ETAT ET LA POIGNEE, SUR `stA` (pop) ─────────────────────
+# L'etat nait de la cle dz_svm_insp (JSON {on,w}) : `on` vaut vrai sauf
+# `false` explicite, `w` passe par DzTracks.inspW (260..480, 300 sur tout ce
+# qui n'est pas un nombre fini -- une cle corrompue ne rend pas un inspecteur
+# de 260 sans un mot). `inspDown` copie le motif WINDOW de la couche
+# (dzmTbSaisie : pointermove / pointerup / pointercancel sur window, retires
+# au relachement) et PAS ovGesture (setPointerCapture sur le cadre du
+# lecteur, un element qui survit au geste ; ici l'aside peut disparaitre a
+# la chip). Bouton gauche seul ; la largeur est bornee a CHAQUE mouvement ;
+# la persistance n'a lieu qu'au relachement (jamais dans pointermove : des
+# centaines d'ecritures). `last` garde la derniere largeur bornee : un
+# pointercancel sans coordonnees ne vaut pas « geste nul ». MESURE : `stA`
+# est libre (1/0/1, EB1 ayant pris `stO`) ; stDzFin (R_M16REF) vient APRES.
+A_EB6B = '  var stA=x.useState(""),pop=stA[0],setPop=stA[1];'
+R_EB6B = (A_EB6B + '\n'
+          '  /* E-8 : l\'inspecteur — ouvert ? largeur 260–480 (mémoire dz_svm_insp) */\n'
+          '  var stIn=x.useState(function(){try{var s=JSON.parse(localStorage.getItem("dz_svm_insp")||"{}")||{};'
+          'return{on:s.on!==!1,w:DzTracks.inspW(s.w)}}catch(_e){return{on:!0,w:300}}}),'
+          'inspSt=stIn[0],setInspSt=stIn[1],inspOn=inspSt.on,inspW=inspSt.w;\n'
+          '  function inspDown(e){if(e.button!==0)return;e.preventDefault();\n'
+          '    var sx=e.clientX,sw=inspW,w=window,last=sw;\n'
+          '    function mv(ev){last=DzTracks.inspW(sw+(sx-ev.clientX));setInspSt({on:!0,w:last})}\n'
+          '    function up(){w.removeEventListener("pointermove",mv);w.removeEventListener("pointerup",up);'
+          'w.removeEventListener("pointercancel",up);\n'
+          '      try{localStorage.setItem("dz_svm_insp",JSON.stringify({on:!0,w:last}))}catch(_e){}}\n'
+          '    w.addEventListener("pointermove",mv);w.addEventListener("pointerup",up);'
+          'w.addEventListener("pointercancel",up)}')
 
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
@@ -4604,7 +4670,10 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("EB4-libelle-preview", A_EB4, R_EB4),
            # E-11 (tache 5) : deux sections ; Echap (R_K7) et le ref (R_M16REF) sont replies.
            ("EB5a-voile-sous-les-popovers-de-mode", A_EB5A, R_EB5A),
-           ("EB5b-popover-arrete-le-clic", A_EB5B, R_EB5B)]
+           ("EB5b-popover-arrete-le-clic", A_EB5B, R_EB5B),
+           # E-8 (tache 6) : deux sections ; la fermeture (R_M13) et la chip (R_EB2) sont replies.
+           ("EB6a-inspecteur-a-bascule-et-poignee", A_EB6A, R_EB6A),
+           ("EB6b-etat-et-poignee-de-l-inspecteur", A_EB6B, R_EB6B)]
 
 
 def nl(text, crlf):

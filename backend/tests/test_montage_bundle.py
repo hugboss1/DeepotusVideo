@@ -31,7 +31,26 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 23/09/2026 (lot E-B, tache 3, E-2 bundle) :
+COMPTE DE REFERENCE, 23/09/2026 (lot E-B, tache 6, E-8 inspecteur) :
+1860 lignes, soit VINGT de plus que les 1840 d'E-11 : les CINQ lignes que
+la boucle sur `P.PATCHES` emet seule pour les DEUX sections EB6a, EB6b
+(deux `_remplace`, deux `couche_ne_cite_pas_l_ancre_de_`, UN
+`_ancre_consommee` : EB6a ne reprend pas son ancre, EB6b la reprend en
+tete) et la section [EB] E-8 en queue (QUINZE pins : l'aside a bascule
+(inspOn?, largeur inline, data-w, poignee en tete), sa fermeture
+`]}):null]}),` repliee dans R_M13 (ancre consommee par M13 : 1/1/0, le plan
+disait 1/0/1 -- et `]}):null,` seul vaut 24 dans le livre : la forme
+complete + `/* timeline */` decide), l'etat stIn apres pop et avant
+stDzFin, la poignee (window, trois ecouteurs retires, inspW a chaque
+mouvement, persistance au relachement, pas de setPointerCapture), la cle
+dz_svm_insp x3 (1 lecture, 2 ecritures), la chip « inspecteur » repliee
+dans R_EB2 entre « médias » et « sons », six noms libres, l'ordre DOM
+(aside dans .svm-mid, .svm-tl soeur : « la timeline reprend la largeur »
+etait deja vrai), la feuille, la couche). REALIGNES : la queue pinnee
+(…EB5b puis EB6a, EB6b ; sonde 119 = 117 + inspW x2), D3_ecart (la
+poignee porte col-resize : exclue nommement, avec temoin d'existence).
+
+COMPTE PRECEDENT, 23/09/2026 (lot E-B, tache 3, E-2 bundle) :
 1812 lignes (revue 23/09 : + le pin demo ; 1811 =) soit TRENTE-CINQ de plus que les 1776 de D-9 : les VINGT
 lignes que la boucle sur `P.PATCHES` emet seule pour les HUIT sections
 EB1, EB2, EB2b..EB2f, EB3 (huit `_remplace`, huit
@@ -13185,10 +13204,17 @@ check("D3_T5_le_titre_dit_les_trois_gestes_et_l_ancienne_phrase_a_disparu",
 # deja (conjoint positif, sinon « aucun curseur ajoute » serait vrai
 # d'une feuille vide ou introuvable).
 _MC_CURS = [_l.strip() for _l in _MC.splitlines() if "cursor:" in _l]
+# E-8 (lot E-B, tache 6, 23/09/2026) : la POIGNEE DE L'INSPECTEUR porte
+# `cursor:col-resize` (.svm-insphandle) -- c'est le curseur d'un separateur,
+# pas le curseur contextuel de CLIP (slip/slide) que l'ecart D-3 date. La
+# ligne l'EXCLUT nommement et exige qu'elle EXISTE (temoin : sans lui,
+# l'exclusion serait creuse et l'ecart D-3 mal mesure).
 check("D3_ecart_aucun_curseur_contextuel_dans_la_feuille",
       len(_MC_CURS) > 0
       and not [_l for _l in _MC_CURS
-               if "col-resize" in _l or "ew-resize" in _l or "slip" in _l],
+               if ("col-resize" in _l or "ew-resize" in _l or "slip" in _l)
+               and "svm-insphandle" not in _l]
+      and len([_l for _l in _MC_CURS if "svm-insphandle" in _l and "col-resize" in _l]) == 1,
       f"ecart assume ; curseurs de la feuille : {_MC_CURS}")
 
 # LE COEUR PUR EST EXPORTE ET C'EST LUI QUE LE BUNDLE APPELLE : la couche
@@ -15032,16 +15058,22 @@ _DZ_I = _DZ_TAGS.index("EA6-bandeau-ferme-au-lancement")
 # E-11 (lot E-B, tache 5) : DEUX sections EB5a (le voile, ancre libre 1/0/1) et
 # EB5b (la racine de popover(), libre 1/0/1) ; Echap et le ref sont des REPLIS
 # (R_K7, R_M16REF) ; aucune reference DzTracks de plus : la sonde RESTE 117.
-check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB5b_en_queue_apres_EA6_et_la_sonde_dit_117",
+# E-8 (lot E-B, tache 6) : DEUX sections EB6a (l'ouverture de l'aside, libre
+# 1/0/1) et EB6b (l'etat + la poignee sur `stA`, libre 1/0/1) ; la fermeture
+# de l'aside (consommee par M13 : 1/1/0, le plan disait 1/0/1) et la chip
+# (ancre de « sons » consommee par EB2) sont des REPLIS (R_M13, R_EB2) ;
+# sonde 119 = 117 + inspW x2 (la lecture de la cle au montage et la poignee,
+# toutes deux dans EB6b ; la chip ne parle pas a la couche).
+check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB6b_en_queue_apres_EA6_et_la_sonde_dit_119",
       [t.split("-")[0] for t in _DZ_TAGS[_DZ_I + 1:]] == ["DZ1", "DZ2", "DZ3", "DZ4",
                                                           "KF1", "KF2", "KF2b", "KF2c", "KF3a", "KF3b", "KF3c", "KF4", "KF5",
                                                           "AJ2a", "AJ2b", "AJ6a", "AJ6b", "AJ7",
                                                           "EB1", "EB2", "EB2b", "EB2c", "EB2d", "EB2e", "EB2f", "EB3",
-                                                          "EB4", "EB5a", "EB5b"]
+                                                          "EB4", "EB5a", "EB5b", "EB6a", "EB6b"]
       and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
               and s.count(nl(a)) == (1 if a in r else 0)
               for _t, a, r in P.PATCHES[_DZ_I + 1:])
-      and _sonde.get("montage") == 117 and s.count("DzTracks") == 117
+      and _sonde.get("montage") == 119 and s.count("DzTracks") == 119
       if _bak else False,
       f"queue={_DZ_TAGS[_DZ_I + 1:]} sonde={_sonde.get('montage')} bundle={s.count('DzTracks')}")
 
@@ -15721,6 +15753,152 @@ for _nms in ("dzScrimRef",):
     check("EB_nom_" + _nms + "_etait_libre_dans_le_bundle_d_entree",
           _nbs == 0 and _libre21(_nms, s) == 3,
           f"{_nms} apparait {_nbs}x dans .bak_montage, {_libre21(_nms, s)}x dans le bundle (declare, pose, lu)")
+
+print("\n[EB] E-8 : l'inspecteur repliable et redimensionnable (poignee 260-480, chip, memoire)")
+# MESURES du 23/09/2026 (T6) : l'OUVERTURE de l'aside (`      r.jsxs("aside",
+# {className:"svm-insp",children:[`) est LIBRE (1/0/1) -> section EB6a. Sa
+# FERMETURE (`        (sel&&sel.tr==="s1"?null:vfxStackSection())]})]}),`) est
+# l'ancre de M13 : 1 dans .bak, 1 dans le patcher (A_M13), 0 dans le livre --
+# le plan l'annoncait 1/0/1 : ECART, le `]}):null,` est un REPLI dans R_M13.
+# `stA` (pop) est LIBRE (1/0/1) -> section EB6b : l'etat (lu de la cle
+# dz_svm_insp par DzTracks.inspW) et la poignee `inspDown`, qui copie le motif
+# window de dzmTbSaisie (couche : pointermove / pointerup / pointercancel sur
+# window, retires au relachement, PAS de setPointerCapture -- ovGesture le
+# pose sur le CADRE du lecteur, un element qui survit au geste ; ici l'aside
+# peut disparaitre). La chip « inspecteur » : l'ancre du chip « sons » est
+# consommee par EB2 -> REPLI dans R_EB2, entre « médias » et « sons ».
+# « La timeline reprend la largeur » : .svm-tl est FRERE de .svm-mid (l'aside
+# vit dans .svm-mid) -> deja vrai, rien a ecrire, date dans la feuille.
+_EB8_A = '      r.jsxs("aside",{className:"svm-insp",children:['
+_EB8_R = ('      inspOn?r.jsxs("aside",{className:"svm-insp",style:{width:inspW},"data-w":inspW,children:['
+          'r.jsx("div",{className:"svm-insphandle",onPointerDown:inspDown,'
+          'title:"Glisser pour redimensionner l\'inspecteur (260–480 px)"}),')
+# le PREMIER `]})` ferme l'aside, le SECOND .svm-mid (l'aside en est le dernier enfant) :
+# `:null` se glisse ENTRE les deux (node --check a refuse `]})]}):null,` au premier jet, 23/09)
+_EB8_CLOSE = 'DzTracks.gradeAllBtn(sel,clips,setClips,pushHistory,setDirty,fireNote)]}):null]}),'
+_iAo = s.find(nl(_EB8_R)); _iAc = s.find(nl(_EB8_CLOSE))
+_ASIDE = s[_iAo:_iAc] if 0 <= _iAo < _iAc else ""
+check("EB6a_l_aside_est_conditionne_par_inspOn_porte_sa_largeur_data_w_et_sa_poignee_en_tete",
+      # `inspOn?` vaut 2 (mesure) : l'aside et le `data-on` de la chip -- chaque forme est nommee
+      s.count(nl(_EB8_A)) == 0 and s.count(nl(_EB8_R)) == 1 and s.count("inspOn?") == 2
+      and s.count('inspOn?r.jsxs("aside"') == 1 and s.count('"data-on":inspOn?"":void 0') == 1
+      and s.count("svm-insphandle") == 1 and src.count("svm-insphandle") == 0
+      and getattr(P, "A_EB6A", None) == _EB8_A and getattr(P, "R_EB6A", None) == _EB8_R
+      and ("EB6a-inspecteur-a-bascule-et-poignee", _EB8_A, _EB8_R) in P.PATCHES
+      and (_bak.count(_nlb(_EB8_A)) == 1 and _bak.count("inspOn") == 0 and _bak.count("svm-insphandle") == 0 if _bak else False),
+      f"ancre={s.count(nl(_EB8_A))} neuf={s.count(nl(_EB8_R))} inspOn?={s.count('inspOn?')} "
+      f"bak={_bak.count(_nlb(_EB8_A)) if _bak else '?'}")
+# LA FERMETURE : `]}):null,` UNE fois dans le livre, ZERO dans .bak (temoin :
+# l'ancienne fermeture `]})]}),` de M13 y vaut 1) ; en QUEUE de R_M13 ; entre
+# l'ouverture et elle, le corps de l'aside est long et porte le nom du clip ;
+# `/* timeline */` suit IMMEDIATEMENT (temoin que le second `]})` est .svm-mid).
+check("EB6a_la_fermeture_de_l_aside_rend_null_par_un_repli_dans_R_M13_ancre_consommee_par_M13",
+      # `]}):null,` seul vaut 24 dans le livre (mesure du banc rouge, 23/09) : la forme complete decide
+      s.count(nl(_EB8_CLOSE)) == 1 and s.count("fireNote)]})]}),") == 0 and P.R_M13.endswith(_EB8_CLOSE)
+      and P.A_M13.endswith("vfxStackSection())]})]}),") and s.count(nl(P.A_M13)) == 0
+      and len(_ASIDE) > 3000 and _ASIDE.count('className:"svm-clipname"') >= 1 and _ASIDE.count('r.jsxs("aside"') == 1
+      and s.count(nl(_EB8_CLOSE + "\n    /* timeline */")) == 1
+      and (_bak.count(_nlb(P.A_M13)) == 1 and _bak.count("gradeAllBtn") == 0
+           and _bak.count(_nlb(P.A_M13 + "\n    /* timeline */")) == 1 if _bak else False),
+      f"close={s.count(nl(_EB8_CLOSE))} vieux={s.count('fireNote)]})]}),')} aside={len(_ASIDE)} o "
+      f"bak_A_M13={_bak.count(_nlb(P.A_M13)) if _bak else '?'}")
+# EB6b : L'ETAT, sur `stA` (reprise en tete) ; la lecture de la cle passe par
+# DzTracks.inspW (JSON corrompu ou cle absente -> 300) ; `on` vaut vrai sauf
+# `false` explicite. Il nait APRES `pop` et AVANT stDzFin (ordre d'E-11).
+_EB8_ST = ('  var stIn=x.useState(function(){try{var s=JSON.parse(localStorage.getItem("dz_svm_insp")||"{}")||{};'
+           'return{on:s.on!==!1,w:DzTracks.inspW(s.w)}}catch(_e){return{on:!0,w:300}}}),'
+           'inspSt=stIn[0],setInspSt=stIn[1],inspOn=inspSt.on,inspW=inspSt.w;')
+# faute n6 : les attributs du patcher sont lus par getattr HORS check (le banc rouge plantait ici)
+_A6B = getattr(P, "A_EB6B", ""); _R6B = getattr(P, "R_EB6B", "")
+_iSt8 = s.find(nl(_EB8_ST)); _iStA8 = s.find(nl(_A6B)) if _A6B else -1; _iFin8 = s.find("var stDzFin=x.useState(null)")
+check("EB6b_l_etat_inspSt_nait_apres_pop_et_avant_stDzFin_lu_par_inspW",
+      s.count(nl(_EB8_ST)) == 1 and bool(_A6B) and _R6B.startswith(_A6B + "\n") and _EB8_ST in _R6B
+      and _A6B == '  var stA=x.useState(""),pop=stA[0],setPop=stA[1];'
+      and ("EB6b-etat-et-poignee-de-l-inspecteur", _A6B, _R6B) in P.PATCHES
+      and 0 < _iStA8 < _iSt8 < _iFin8 and s.count(nl(_A6B)) == 1
+      # `stIn` nu est un sous-mot de lastIndexOf : compte par mot entier
+      and (_bak.count(_nlb(_A6B)) == 1 and _libre21("stIn", _bak) == 0 if _bak else False),
+      f"etat={_iSt8} stA={_iStA8} stDzFin={_iFin8} bak={_bak.count(_nlb(_A6B)) if _bak and _A6B else '?'}")
+# LA POIGNEE : bouton gauche seul ; ecoute window (pointermove / pointerup /
+# pointercancel), les TROIS retires au relachement ; la largeur passe par
+# inspW a chaque mouvement ; la persistance au relachement, dans try/catch ;
+# JAMAIS setPointerCapture (temoin : le bundle en porte ailleurs).
+_iDn = s.find(nl("  function inspDown(e){"))
+_iDnE = min([v for v in (s.find(nl("\n  var "), _iDn + 1), s.find(nl("\n  function "), _iDn + 1)) if v >= 0] or [-1]) if _iDn >= 0 else -1
+_DN = s[_iDn:_iDnE] if 0 <= _iDn < _iDnE else ""
+check("EB6b_la_poignee_ecoute_window_retire_ses_trois_ecouteurs_borne_par_inspW_et_persiste_au_relachement",
+      0 < len(_DN) < 1200 and _DN.count("function inspDown(e){if(e.button!==0)return;e.preventDefault();") == 1
+      and _DN.count('w.addEventListener("pointermove",mv)') == 1 and _DN.count('w.removeEventListener("pointermove",mv)') == 1
+      and _DN.count('w.addEventListener("pointerup",up)') == 1 and _DN.count('w.removeEventListener("pointerup",up)') == 1
+      and _DN.count('w.addEventListener("pointercancel",up)') == 1 and _DN.count('w.removeEventListener("pointercancel",up)') == 1
+      and _DN.count("var sx=e.clientX,sw=inspW,w=window,last=sw;") == 1
+      and _DN.count("last=DzTracks.inspW(sw+(sx-ev.clientX));setInspSt({on:!0,w:last})") == 1
+      and _DN.count('try{localStorage.setItem("dz_svm_insp",JSON.stringify({on:!0,w:last}))}catch(_e){}') == 1
+      and "setPointerCapture" not in _DN and s.count("setPointerCapture") >= 10
+      and _DN.count("function inspDown(e){") == 1 and s.count(nl("  function inspDown(e){")) == 1
+      and "function inspDown(e){" in _R6B,
+      f"corps={len(_DN)} o capture={s.count('setPointerCapture')}")
+# LA CLE : TROIS occurrences (une lecture au montage, deux ecritures :
+# poignee et chip), ZERO dans .bak ; inspW x2 -> la sonde monte de deux.
+check("EB6_la_cle_dz_svm_insp_est_lue_une_fois_et_ecrite_deux_fois_inspW_x2",
+      s.count('"dz_svm_insp"') == 3 and s.count('localStorage.getItem("dz_svm_insp")') == 1
+      and s.count('localStorage.setItem("dz_svm_insp",') == 2 and s.count("DzTracks.inspW(") == 2
+      and src.count("dz_svm_insp") == 1 and (_bak.count("dz_svm_insp") == 0 if _bak else False),
+      f"cle={s.count(chr(34) + 'dz_svm_insp' + chr(34))} get={s.count('localStorage.getItem(' + chr(34) + 'dz_svm_insp' + chr(34) + ')')} "
+      f"inspW={s.count('DzTracks.inspW(')} couche={src.count('dz_svm_insp')}")
+# LA CHIP (repli R_EB2) : famille svm-themechip, data-on + aria-pressed sur
+# inspOn, ENTRE « médias » et « sons » ; le clic bascule `on`, garde `w`, et
+# persiste dans try/catch ; elle ne parle pas a la couche.
+_EB8_CHIP = ('r.jsx("button",{className:"svm-themechip svm-inspchip","data-on":inspOn?"":void 0,\n'
+             '          "aria-pressed":inspOn,\n'
+             '          title:"Inspecteur — replier ou rouvrir la colonne de droite (le lecteur prend la place)",\n'
+             '          onClick:function(){setInspSt(function(s){var n={on:!s.on,w:s.w};'
+             'try{localStorage.setItem("dz_svm_insp",JSON.stringify(n))}catch(_e){}return n})},children:"inspecteur"}),')
+_iMed8 = s.find(nl('children:"médias"}),')); _iChip8 = s.find(nl(_EB8_CHIP)); _iSfx8 = s.find(nl('className:"svm-themechip svm-sfxchip"'))
+check("EB6c_la_chip_inspecteur_est_un_repli_de_R_EB2_entre_medias_et_sons_et_bascule_on_en_gardant_w",
+      s.count(nl(_EB8_CHIP)) == 1 and _EB8_CHIP in P.R_EB2 and s.count("svm-inspchip") == 1
+      and 0 < _iMed8 < _iChip8 < _iSfx8 and "DzTracks" not in _EB8_CHIP
+      and P.R_EB2.endswith(P.A_EB2) and s.count(nl(P.R_EB2)) == 1
+      and (_bak.count("svm-inspchip") == 0 and _bak.count("svm-sfxchip") == 1 if _bak else False),
+      f"chip={s.count(nl(_EB8_CHIP))} medias={_iMed8} chip_i={_iChip8} sons={_iSfx8}")
+for _nmi in ("inspOn", "inspW", "inspSt", "setInspSt", "stIn", "inspDown"):
+    _nbi = _libre21(_nmi, _bak if _bak else None)
+    check("EB_nom_" + _nmi + "_etait_libre_dans_le_bundle_d_entree",
+          _nbi == 0 and _libre21(_nmi, s) >= 1,
+          f"{_nmi} apparait {_nbi}x dans .bak_montage, {_libre21(_nmi, s)}x dans le bundle")
+# L'ORDRE DOM : l'aside vit DANS .svm-mid, et .svm-tl vient APRES : la
+# timeline est SOEUR de .svm-mid, sa largeur ne depend pas de l'aside (rien
+# a ecrire pour « la timeline reprend la largeur »). Temoin : les trois
+# jetons existent, une fois chacun pour mid et tl.
+_iMid8 = s.find(nl('className:"svm-mid"')); _iTl8 = s.find(nl('className:"svm-tl"'))
+check("EB6_l_aside_vit_dans_svm_mid_et_svm_tl_est_sa_soeur_la_timeline_reprend_deja_la_largeur",
+      0 < _iMid8 < _iAo < _iAc < _iTl8 and s.count(nl('className:"svm-mid"')) == 1 and s.count(nl('className:"svm-tl"')) == 1,
+      f"mid={_iMid8} aside={_iAo} close={_iAc} tl={_iTl8}")
+# LA FEUILLE : l'aside devient le referent (position:relative), la poignee
+# absolue a gauche (6 px, col-resize, --accent au survol) ; l'amont ne
+# positionne pas .svm-insp (temoin : sa regle est lue) et ne connait pas la
+# poignee ; AUCUNE regle sur .svm-tl n'est ajoutee par E-8 (date dans le
+# commentaire de la feuille : « déjà vrai »).
+_EB8_CSS = _lire(ROOT / "frontend" / "dist" / "shared" / "montage.css")
+_EB8_AM = _lire(ROOT / "frontend" / "dist" / "shared" / "son-vfx-montage.css")
+_iAmI = _EB8_AM.find(".svm-insp{"); _iAmE = _EB8_AM.find("}", _iAmI) if _iAmI >= 0 else -1
+_AMI = _EB8_AM[_iAmI:_iAmE] if 0 <= _iAmI < _iAmE else ""
+check("EB6_la_feuille_positionne_l_aside_et_dessine_la_poignee_l_amont_ne_les_connait_pas",
+      _EB8_CSS.count(".dzsvm .svm-insp{position:relative}") == 1
+      and _EB8_CSS.count(".dzsvm .svm-insphandle{position:absolute;left:0;top:0;bottom:0;width:6px;cursor:col-resize;touch-action:none;z-index:2}") == 1
+      and _EB8_CSS.count(".dzsvm .svm-insphandle:hover{background:var(--accent)}") == 1
+      and _EB8_CSS.count("svm-insphandle") == 2
+      and "E-8" in _EB8_CSS and "DÉJÀ VRAI" in _EB8_CSS
+      and len(_AMI) > 40 and "width:300px" in _AMI and "position" not in _AMI
+      and _EB8_AM.count("svm-insphandle") == 0 and _EB8_AM.count(".svm-tl{") == 1,
+      f"relative={_EB8_CSS.count('.dzsvm .svm-insp{position:relative}')} poignee={_EB8_CSS.count('svm-insphandle')} amont={len(_AMI)}")
+# LA COUCHE : les deux fonctions pures sont exportees (ce que l'hote appelle)
+# et vivent dans le bloc du bundle.
+check("EB6_la_couche_exporte_clamp_et_inspW",
+      src.count("clamp:dzmClamp,inspW:dzmInspW,") == 1 and src.count("function dzmClamp(") == 1
+      and src.count("function dzmInspW(") == 1 and s.count("function dzmInspW(") == 1
+      and s.count("clamp:dzmClamp,inspW:dzmInspW,") == 1,
+      f"exports={src.count('clamp:dzmClamp,inspW:dzmInspW,')}")
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")
