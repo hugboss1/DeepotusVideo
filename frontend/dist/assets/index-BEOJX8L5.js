@@ -1791,7 +1791,7 @@ function DzMontage(props){
   x.useEffect(function(){if(view==="livraison"){var alive=!0;
     fetch("/api/jobs?providers=montage&limit=24&q="+encodeURIComponent(proj.name||"")).then(function(r2){return r2.json()})
       .then(function(j){if(alive&&dzAliveRef.current)setDzJobs(Array.isArray(j)?j:[])}).catch(function(){});
-    return function(){alive=!1}}},[view]);
+    return function(){alive=!1}}},[view,proj.name]);
   function dzSetView(v){if(v==="medias"){if(proj.demo){fireNote("Ajout d'assets : disponible sur un projet réel — la démo reste une maquette.");return}setMedTr("");setMedOn(!0);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)}
     if(v==="livraison"){setMedOn(!1);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)}setVw(v)}
   var stDzM=x.useState("ecraser"),dzMode=stDzM[0],setDzMode=stDzM[1];

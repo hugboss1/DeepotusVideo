@@ -16518,7 +16518,8 @@ _E7_JB = "  var stDzJ=x.useState([]),dzJobs=stDzJ[0],setDzJobs=stDzJ[1];"
 _E7_EF = ('  x.useEffect(function(){if(view==="livraison"){var alive=!0;\n'
           '    fetch("/api/jobs?providers=montage&limit=24&q="+encodeURIComponent(proj.name||"")).then(function(r2){return r2.json()})\n'
           '      .then(function(j){if(alive&&dzAliveRef.current)setDzJobs(Array.isArray(j)?j:[])}).catch(function(){});\n'
-          '    return function(){alive=!1}}},[view]);')
+          # revue T3 (23/09) : [view, proj.name] -- le nom change sans remonter DzMontage (setProj en place)
+          '    return function(){alive=!1}}},[view,proj.name]);')
 _E7_SV = ('  function dzSetView(v){if(v==="medias"){' + P._EB_GARDE
           + 'setMedTr("");setMedOn(!0);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)}\n'
           '    if(v==="livraison"){setMedOn(!1);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)}setVw(v)}')

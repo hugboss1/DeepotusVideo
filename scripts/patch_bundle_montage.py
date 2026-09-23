@@ -1114,7 +1114,14 @@ R_M16REF = (A_M16REF + "\n"
             '  x.useEffect(function(){if(view==="livraison"){var alive=!0;\n'
             '    fetch("/api/jobs?providers=montage&limit=24&q="+encodeURIComponent(proj.name||"")).then(function(r2){return r2.json()})\n'
             '      .then(function(j){if(alive&&dzAliveRef.current)setDzJobs(Array.isArray(j)?j:[])}).catch(function(){});\n'
-            '    return function(){alive=!1}}},[view]);\n'
+            # REVUE T3 (23/09/2026) : dependance [view, proj.name] -- proj.name change
+            # SANS remonter DzMontage (ouvrir / renommer en place via
+            # DzTracks.Projects -> setProj) : avec [view] seule, la vue Livraison
+            # gardait la liste de l'ancien titre. ECARTS dates (revue) : la vue
+            # Livraison ferme le tiroir Narration comme toute bascule croisee (le
+            # choix dz_narr_open n'est pas reecrit, il revient au prochain montage) ;
+            # `dzAliveRef.current` dans ce `then` est redondant avec `alive` (laisse).
+            '    return function(){alive=!1}}},[view,proj.name]);\n'
             '  function dzSetView(v){if(v==="medias"){' + _EB_GARDE + 'setMedTr("");setMedOn(!0);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)}\n'
             '    if(v==="livraison"){setMedOn(!1);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)}setVw(v)}\n'
             # ── « E1 » (D-2) : L'ÉTAT DU MODE D'ÉDITION ──────────────
