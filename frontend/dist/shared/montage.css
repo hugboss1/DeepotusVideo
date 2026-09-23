@@ -590,6 +590,38 @@
 @media (prefers-reduced-motion:reduce){
   .dzsvm .dzm-tbar[data-off]{transition-delay:0s}
 }
+/* ── E-10 (lot E-C, tâche 4, 23/09/2026) — LA BARRE ANCRÉE ─────────────────
+   L'hôte pose data-docked (☰ › Affichage › « Ancrer la barre d'outils »,
+   clé dz_svm_tb_dock). RÈGLES SÉPARÉES : la première règle `.dzm-tbar`
+   ci-dessus reste mot pour mot celle que les pins D-1 lisent.
+   EN FLUX : `position:static` la rend au flex du bandeau `.svm-trans`
+   (rangée centrée, gap 12 px) ; le Dock la monte en TÊTE de ce bandeau,
+   elle se pose donc À GAUCHE des boutons de transport. Le déport (translate
+   --tbx/--tby) et l'ombre — « seul signal de flottement » — s'éteignent.
+   ÉCARTS DATÉS (revue 23/09/2026) : `bottom:auto;left:auto;transform:none`
+   sont sans effet sous `position:static` — laissés, ils disent l'intention
+   et sont pinnés ; `margin-right:8px` s'ajoute au gap 12 px du bandeau (20 px
+   avant le premier bloc, hors de l'arithmétique du §5.2 qui ne connaît pas
+   ce nœud) ; ancrée-repliée, la barre à largeur 0 laisse encore le gap de
+   12 px avant `.svm-tcmain` (un décalage, pas un trou).
+   COMPACTE, et c'est mesuré : flottante, la barre fait ≥ 80 px (zone 17 +
+   en-tête 16 + bouton 13 + icône + 6 + libellé 9,5) pour un bandeau de
+   46 px en `align-items:center` et `overflow:visible` — ancrée telle
+   quelle elle aurait débordé de ~22 px de chaque côté. Les libellés
+   s'éteignent par `--lbl:none`, le mécanisme que le §2.3 prévoit (title et
+   aria-label restent). AUCUN NŒUD N'EST MASQUÉ — §4.2 : ⌖ « ne doit jamais
+   être masqué en mode compact », et la feuille n'a qu'un levier de masquage,
+   `--lbl` ; en-têtes de groupe, poignée et ⌖ / × restent, plus petits.
+   `data-off` GARDE SON SENS : l'onglet OUTILS replie la barre ancrée à zéro
+   largeur (le repli de la première règle — opacité, visibilité, pointeur —
+   s'applique toujours ; seule la translation de 6 px est retirée, la barre
+   étant en flux). ≈ 39 px de haut ancrée (2 + 4 + 9 + 24), mesuré. */
+.dzsvm .dzm-tbar[data-docked]{position:static; bottom:auto; left:auto; transform:none; translate:none; margin-right:8px; flex:none; --lbl:none; box-shadow:none}
+.dzsvm .dzm-tbar[data-docked][data-off]{transform:none; width:0; margin:0; padding:0; border-width:0; overflow:hidden}
+.dzsvm .dzm-tbar[data-docked] .dzm-tbzone{padding:2px}
+.dzsvm .dzm-tbar[data-docked] .dzm-tbgrp{padding:0 3px}
+.dzsvm .dzm-tbar[data-docked] .dzm-tbhead{padding:0 2px 2px; font-size:7px; letter-spacing:.08em}
+.dzsvm .dzm-tbar[data-docked] .dzm-tbb, .dzsvm .dzm-tbar[data-docked] .dzm-tbb.dzm-solo{width:32px; padding:2px 0}
 
 /* a. LA POIGNÉE (§2.2a) — 26px, pleine hauteur, filet droit.
    TOUT CE QUI LA REND VIVANTE — `cursor:grab`, l'état de survol,
@@ -1367,3 +1399,59 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
 .dzsvm .svm-mmrect{position:absolute;top:1px;bottom:1px;border-radius:2px;background:var(--c-video)}
 .dzsvm .svm-mmrect[data-kind="audio"]{background:var(--c-audio)}
 .dzsvm .svm-mmview{position:absolute;top:0;bottom:0;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 15%,transparent);pointer-events:none}
+/* E-6 (lot E-C, tâche 2, 23/09/2026) : le menu ☰ et les menus contextuels
+   (DzTracks.CtxMenu, un .svm-pop) : 260 px, right:auto contre le right:18px
+   de .svm-pop amont (son-vfx-montage.css:388 — l'hôte pose left/top), z 20
+   comme les popovers (au-dessus du voile 19), borné à son BLOC CONTENEUR
+   (revue 23/09 : `100%` = .dzsvm, absolute inset:0 overflow:hidden — un
+   `100vh` se mesurait sur la fenêtre et coupait les dernières rangées quand
+   .dzsvm ne commence pas à y=0) et défilable. Chaque rubrique est un div
+   .svm-menugrp SANS règle (revue 23/09 : display:contents était superflue,
+   un div enveloppant en flux bloc donne le même rendu) ; rangée = bouton
+   pleine largeur, libellé à gauche, combo monospace à droite ; :disabled =
+   off. Écarts datés 23/09 : le ☰ liste TOUTES les actions à raccourci, jog /
+   step / play compris (pas de masque, la table est celle du panneau « ? ») ;
+   « Supprimer la piste » n'arme pas (annulable en un Ctrl+Z). */
+.dzsvm .svm-menu{width:260px;right:auto;padding:6px;z-index:20;max-height:calc(100% - 16px);overflow-y:auto}
+.dzsvm .svm-menurub{font-size:10px;font-weight:600;letter-spacing:.06em;opacity:.6;padding:6px 8px 2px;text-transform:uppercase}
+.dzsvm .svm-menuitem{display:flex;width:100%;justify-content:space-between;gap:12px;padding:6px 8px;border:0;background:transparent;color:inherit;border-radius:6px;cursor:pointer;text-align:left;font:inherit}
+.dzsvm .svm-menuitem:hover{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.dzsvm .svm-menuitem:disabled{opacity:.45;cursor:not-allowed}
+.dzsvm .svm-menukey{opacity:.6;font-family:ui-monospace,monospace;font-size:11px}
+.dzsvm .svm-menusep{height:1px;background:var(--stroke);margin:4px 0}
+/* E-7 (lot E-C, tâche 3, 23/09/2026) : les trois vues Médias · Montage ·
+   Livraison. La barre des vues (.svm-views, tablist) est le DERNIER enfant de
+   .dzsvm (EC8) ; l'onglet courant porte data-on (accent + filet bas). La racine
+   porte data-view (EC7) : en « medias » et « livraison », la timeline et sa
+   poignée sont masquées (spécificité .dzsvm[data-view] .svm-tl (0,3,0) >
+   .dzsvm .svm-tl (0,2,0) ; la hauteur inline de E-9 ne pèse pas sur display) ;
+   en « medias » le tiroir Médias s'élargit à 520 px (plus spécifique que ses
+   340 px, min-width égal comme lui). Le panneau Livraison (DzTracks.Deliver)
+   est le premier enfant de .svm-mid, à côté du lecteur : flex:1 + min-width
+   320 px (écart mesuré 23/09 : à 0, le panneau tombait à 150 px à côté d'un
+   tiroir resté ouvert — la vue Livraison ferme aussi les quatre tiroirs) ; rangées .svm-delrow (titre · date locale ·
+   durée · badge final/aperçu). Écart daté : la vue est un état de session
+   (F5 → « Montage »), presets de livraison = D-35. */
+.dzsvm .svm-views{display:flex;gap:4px;justify-content:center;padding:4px;border-top:1px solid var(--stroke);flex:none}
+.dzsvm .svm-viewbtn{background:transparent;border:0;color:inherit;font:inherit;padding:4px 14px;border-radius:6px;cursor:pointer;opacity:.7}
+.dzsvm .svm-viewbtn[data-on]{opacity:1;color:var(--accent);box-shadow:inset 0 -2px 0 var(--accent)}
+.dzsvm[data-view="medias"] .svm-tlhandle,.dzsvm[data-view="medias"] .svm-tl,.dzsvm[data-view="livraison"] .svm-tlhandle,.dzsvm[data-view="livraison"] .svm-tl{display:none}
+.dzsvm[data-view="medias"] .svm-meddrawer{width:520px;min-width:520px}
+.dzsvm .svm-deliver{flex:1;padding:16px;overflow:auto;min-width:320px}
+.dzsvm .svm-delh{font-size:15px;margin:0 0 10px}
+.dzsvm .svm-delbtns{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.dzsvm .svm-dellast{font-size:12px;opacity:.8;margin-bottom:10px}
+.dzsvm .svm-dellist{margin-bottom:12px}
+.dzsvm .svm-delrow{display:flex;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--stroke)}
+.dzsvm .svm-deltitle{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dzsvm .svm-deldate,.dzsvm .svm-deldur{font-size:11px;opacity:.7;font-variant-numeric:tabular-nums}
+.dzsvm .svm-delbadge{font-size:10px;padding:1px 6px;border-radius:9px;border:1px solid var(--stroke);opacity:.8}
+.dzsvm .svm-delempty{font-size:12px;opacity:.7;padding:8px 0}
+/* E-13 / E-14 (lot E-C, tâche 5, 23/09/2026) : l'en-tête « tête à … » de
+   l'inspecteur (EC12 : entre la poignée et « Clip sélectionné », chiffres
+   tabulaires — le timecode ne saute pas à chaque image) et le trou
+   sélectionné (EC11 : dans la lane de sa piste, posé en % comme les clips ;
+   pointer-events:none — le clic suivant retombe sur la lane, e.target reste
+   la lane ; pointillés à l'accent, jamais plein : ce n'est pas un clip). */
+.dzsvm .svm-insphead{font-size:11px;opacity:.75;margin-bottom:6px;font-variant-numeric:tabular-nums}
+.dzsvm .svm-gapsel{position:absolute;top:2px;bottom:2px;border:1px dashed var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent);pointer-events:none;border-radius:4px}

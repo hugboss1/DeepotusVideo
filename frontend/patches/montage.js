@@ -35,7 +35,9 @@
                          isOverlayTrack, overlayOrder, addDit,
                          tbTraces, tbIcons, tbParse, tbSerial,
                          TbIcon, ToolBtn, TB_GROUPES, TB_PX, TB_PX_GRIP,
-                         move, moveTo, add, remove, group, DEFAULTS}
+                         move, moveTo, add, remove, group,
+                         jobsTri, Deliver,
+                         teteTxt, trou, trouRipple, DEFAULTS}
 
    - bdRetire() / bdPlan(dispo, blocs) — étape 6 du handoff « Barre Outils
      Flottante » (§5). La première RECALCULE ce que le retrait des neuf
@@ -4234,6 +4236,11 @@ function DzmToolBar(o){
     style:{"--tbx":off.dx+"px","--tby":off.dy+"px"},
     "data-off":open?void 0:"","data-noanim":o.anim===!0?void 0:"",
     "data-drag":o.drag===!0?"":void 0,
+    /* E-10 (lot E-C, tâche 4, 23/09/2026) : ANCRÉE dans le bandeau de
+       transport. La prop vient de l'hôte (persistée par lui) ; la feuille
+       fait tout le reste (position:static, en flux, compacte). `data-off`
+       garde son sens : l'onglet replie la barre ancrée à zéro largeur. */
+    "data-docked":o.docked===!0?"":void 0,
     children:kids},"tbar")}
 
 /* ── CE QUE LE DOCK AJOUTE AUX PROPRIÉTÉS DE L'ÉCRAN ─────────────────
@@ -4472,6 +4479,10 @@ function DzmToolDock(o){
      défilement tactile. Bouton gauche seulement : un clic droit ouvre un
      menu contextuel, il ne saisit pas. */
   function saisir(e){
+    /* E-10 (revue 23/09/2026) : ANCRÉE, LA POIGNÉE EST INERTE — la barre est
+       en flux (`translate:none`), un déport saisi ici ne se verrait pas mais
+       serait persisté et reparaîtrait au désancrage. Même garde au clavier. */
+    if(o.docked===!0)return;
     if(e&&e.button!=null&&e.button!==0)return;
     var w=(typeof window!=="undefined")?window:null;
     var doc=(typeof document!=="undefined")?document:null;
@@ -4489,6 +4500,7 @@ function DzmToolDock(o){
      le conteneur racine, donc sous `window` : arrêter la propagation là
      empêche bien l'événement natif d'y monter. */
   function clavier(e){
+    if(o.docked===!0)return;
     var p=dzmTbTouche(e&&e.key,e&&e.shiftKey===!0);
     if(!p)return;
     if(typeof e.preventDefault==="function")e.preventDefault();
@@ -4504,7 +4516,7 @@ function DzmToolDock(o){
   function recentrer(){setOff(dzmTbOffSet({dx:0,dy:0}))}
   return r.jsx(r.Fragment,{children:[
     DzmToolTab({open:open,onToggle:bascule,tabRef:onglet,keyLbl:o.keyLbl}),
-    DzmToolBar({open:open,anim:anim,off:off,drag:drag,barRef:bar,
+    DzmToolBar({open:open,docked:o.docked,anim:anim,off:off,drag:drag,barRef:bar,
       items:items,rove:rove,onBarKey:barKey,
       onGrab:saisir,onGripKey:clavier,
       onRecentrer:recentrer,
@@ -5423,7 +5435,7 @@ function DzmMarkerIndex(o){
         children:"Aucun marqueur — "+dzmMarkerCombo()+
           " en pose un à la tête de lecture."}),
     r.jsx("div",{className:"svm-poprow",children:
-      r.jsx("button",{className:"svm-secbtn",onClick:o&&o.onClose,
+      r.jsx("button",{className:"svm-secbtn",title:"Fermer l'index des marqueurs",onClick:o&&o.onClose,
         children:"Fermer"})})]})}
 
 /* ── D-4 : ÉCHANGER un plan avec son voisin de gauche (dir −1) ou de droite ─
@@ -6124,11 +6136,99 @@ function DzmFinBandeau(o){
       r.jsx("input",{type:"text",value:cap,placeholder:"légende",onChange:function(e){setCap(e.target.value)}})]}),
     st?r.jsx("div",{className:"dzm-fin-st",children:st}):null,
     r.jsxs("div",{className:"dzm-fin-row",children:[
-      r.jsx("button",{className:"svm-goldbtn",disabled:st==="…"||st===DZM_FIN_OK,onClick:function(){setSt("…");
+      r.jsx("button",{className:"svm-goldbtn",disabled:st==="…"||st===DZM_FIN_OK,
+        title:"Envoyer ce rendu au Scheduler (brouillon, rien n'est publié sans validation)",onClick:function(){setSt("…");
         Promise.resolve(o.onSend({job_id:fin.job_id,project_id:fin.project_id||void 0,channels:dzmChannelsNorm(ch),run_at:dzmPublishIso(when)||void 0,caption:cap}))
           .then(function(){setSt(DZM_FIN_OK)}).catch(function(e){setSt("Envoi impossible : "+String(e))})},children:"Envoyer vers le Scheduler"}),
-      r.jsx("button",{className:"svm-secbtn",onClick:function(){o.onLib&&o.onLib()},children:"Voir dans la Bibliothèque"}),
-      r.jsx("button",{className:"svm-secbtn",onClick:function(){o.onClose&&o.onClose()},children:"Fermer"})]})]})}
+      r.jsx("button",{className:"svm-secbtn",title:"Ouvrir la Bibliothèque sur ce rendu",onClick:function(){o.onLib&&o.onLib()},children:"Voir dans la Bibliothèque"}),
+      r.jsx("button",{className:"svm-secbtn",title:"Fermer le bandeau (Échap)",onClick:function(){o.onClose&&o.onClose()},children:"Fermer"})]})]})}
+/* ── E-7 (lot E-C, tâche 3, 23/09/2026) : LA VUE « LIVRAISON » ─────────────
+   dzmJobsTri(jobs, nom) — pure : les jobs `provider==="montage"` dont le
+   titre COMMENCE par `nom` (nom vide : tous), séparés en {finals, previews}
+   par le suffixe « (aperçu 480p) » que montage_service pose sur le titre
+   d'un aperçu (`name[:60]` + suffixe, montage_service.py:3222) — aucun
+   project_id en base : l'historique d'un projet est PAR TITRE (écart daté).
+   Ordre reçu conservé (GET /api/jobs rend le plus récent d'abord) ; entrées
+   non-objets ignorées ; `jobs` non-tableau → deux listes vides.
+   DzmDeliver(o) — {nom, onPreview, onRender, onPublish, publishOn, lastFin,
+   jobs, onOpenLib} → div.svm-deliver. AUCUN hook : le fetch est dans l'hôte
+   (EC6, effet [view]). Les trois boutons reprennent les handlers de la barre
+   de titre (setPop preview/render, Publier = R_EA5D, grisé sans rendu final
+   ET gardé dans le clic ; libellés « Rendre… » / « Publier ce rendu » : les
+   jetons « Rendre → » et « Publier » nu sont ceux de la BARRE, pinnés ×1) ; « Voir dans la Bibliothèque » = le chemin EXACT
+   du bandeau de fin (deepotus:navigate → library, passé par l'hôte). La
+   durée passe par dzmDurTxt (svmRuler du bundle, E-9), jamais recopiée. */
+var DZM_DEL_APERCU="(aperçu 480p)";
+function dzmJobsTri(jobs,nom){
+  var n=String(nom==null?"":nom),fin=[],prev=[];
+  (Array.isArray(jobs)?jobs:[]).forEach(function(j){
+    if(!j||typeof j!=="object"||j.provider!=="montage")return;
+    var t=String(j.title==null?"":j.title);
+    if(n&&t.indexOf(n)!==0)return;
+    (t.indexOf(DZM_DEL_APERCU)>=0?prev:fin).push(j)});
+  return {finals:fin,previews:prev}}
+function dzmDelDate(v){if(!v)return "";var d=new Date(v);return isNaN(d)?"":d.toLocaleString()}
+function DzmDeliver(o){
+  o=o||{};var tri=dzmJobsTri(o.jobs,o.nom),lf=o.lastFin,n=tri.finals.length+tri.previews.length;
+  var row=function(j,kind){return r.jsxs("div",{className:"svm-delrow","data-kind":kind,children:[
+    r.jsx("span",{className:"svm-deltitle",children:String(j.title||j.job_id||"")}),
+    r.jsx("span",{className:"svm-deldate",children:dzmDelDate(j.created_at)}),
+    r.jsx("span",{className:"svm-deldur",children:j.duration_s>0?dzmDurTxt(Number(j.duration_s)):""}),
+    r.jsx("span",{className:"svm-delbadge",children:kind==="preview"?"aperçu":"final"})]},String(j.job_id||"")+kind)};
+  return r.jsxs("div",{className:"svm-deliver",children:[
+    r.jsx("h2",{className:"svm-delh",children:"Livraison"}),
+    r.jsxs("div",{className:"svm-delbtns",children:[
+      r.jsx("button",{className:"svm-secbtn",title:"Aperçu 480p — rapide, pour vérifier le montage",onClick:function(){o.onPreview&&o.onPreview()},children:"Preview 480p"}),
+      r.jsx("button",{className:"svm-goldbtn",title:"Rendu final (master 1080), aucun crédit consommé",onClick:function(){o.onRender&&o.onRender()},children:"Rendre…"}),
+      r.jsx("button",{className:"svm-secbtn",disabled:!o.publishOn,title:o.publishOn?"Envoyer le dernier rendu final au Scheduler":"Aucun rendu final pour ce projet",onClick:function(){if(o.publishOn&&o.onPublish)o.onPublish()},children:"Publier ce rendu"})]}),
+    r.jsx("div",{className:"svm-dellast",children:lf?"Dernier rendu final : "+String(lf.name||"")+" · "+dzmDelDate(lf.at):"Dernier rendu final : aucun"}),
+    r.jsx("div",{className:"svm-dellist",children:n?tri.finals.map(function(j){return row(j,"final")}).concat(tri.previews.map(function(j){return row(j,"preview")})):r.jsx("div",{className:"svm-delempty",children:"Aucun rendu pour ce projet."})}),
+    r.jsx("button",{className:"svm-secbtn",title:"Ouvrir la Bibliothèque sur les rendus vidéo",onClick:function(){o.onOpenLib&&o.onOpenLib()},children:"Voir dans la Bibliothèque"})]})}
+/* ── E-13 / E-14 (lot E-C, tâche 5, 23/09/2026) : LA TÊTE DANS L'INSPECTEUR,
+   LE TROU SÉLECTIONNÉ ──────────────────────────────────────────────────────
+   dzmTeteTxt(ph, sel, fmt) — pure : « tête à <fmt(ph)> », puis « · +<fmt(ph−start)>
+   dans le plan » quand un clip est sélectionné et start ≤ ph < end (intervalle
+   FERMÉ-OUVERT : à ph == end la tête est « hors du plan »), sinon « · hors du
+   plan » ; sans sel, rien de plus. Le formateur est PASSÉ par l'hôte (svmTcFF,
+   HH:MM:SS:FF à 30 i/s, celui de .svm-tcmain — décision 7 : pas de « ·ii »,
+   rien de recopié) ; absent, le nombre est arrondi au centième. ph non fini → "".
+   dzmTrou(clips, tr, t) — pure : {a,b} = fin du dernier clip de `tr` finissant
+   ≤ t (0 si aucun) et début du premier clip commençant > t ; null si t est DANS
+   un clip, sans clip suivant (la queue de piste n'est pas un trou — décision 8),
+   ou si le trou fait moins de 0,05 s (seuil FLOTTANT : 6,05−6 < 0,05 en
+   IEEE, un tel trou est refusé — assumé, daté 23/09). Entrées non-objets
+   ignorées. Les MARQUEURS (D-5) ne suivent pas le ripple du trou (écart
+   daté, comme le jumeau A1). Dans l'hôte, le trou s'efface dès que `clips`
+   change (effet [clips], revue T5) : jamais de bornes périmées.
+   dzmTrouRipple(clips, tr, a, b) — pure : nouveau tableau ; les clips de `tr`
+   dont start ≥ b (−1e-6) reculent de b−a (start/end seuls, les autres champs
+   et l'ordre intacts, les clips immobiles sont LES MÊMES objets) ; les autres
+   pistes ne bougent pas (écart daté : le jumeau A1 ne suit pas, comme D-4).
+   Bornes invalides (b ≤ a, NaN) → copie identique ; clips non-tableau → []. */
+function dzmTeteTxt(ph,sel,fmt){
+  var p=Number(ph);if(!isFinite(p))return "";
+  var f=typeof fmt==="function"?fmt:function(v){return String(Math.round(v*100)/100)};
+  var s="tête à "+f(p);
+  if(sel&&typeof sel==="object"&&isFinite(Number(sel.start))&&isFinite(Number(sel.end)))
+    s+=(Number(sel.start)<=p&&p<Number(sel.end))?" · +"+f(p-Number(sel.start))+" dans le plan":" · hors du plan";
+  return s}
+function dzmTrou(clips,tr,t){
+  var p=Number(t);if(!Array.isArray(clips)||!isFinite(p))return null;
+  var a=0,b=null,i,c,s0,e0;
+  for(i=0;i<clips.length;i++){c=clips[i];if(!c||typeof c!=="object"||c.tr!==tr)continue;
+    s0=Number(c.start);e0=Number(c.end);if(!isFinite(s0)||!isFinite(e0))continue;
+    if(s0<=p&&p<e0)return null;
+    if(e0<=p&&e0>a)a=e0;
+    if(s0>p&&(b===null||s0<b))b=s0}
+  if(b===null||b-a<.05)return null;
+  return {a:a,b:b}}
+function dzmTrouRipple(clips,tr,a,b){
+  if(!Array.isArray(clips))return [];
+  var d=Number(b)-Number(a);
+  if(!isFinite(d)||d<=0)return clips.slice();
+  return clips.map(function(c){
+    if(!c||typeof c!=="object"||c.tr!==tr||!(Number(c.start)>=Number(b)-1e-6))return c;
+    return Object.assign({},c,{start:c.start-d,end:c.end-d})})}
 /* ── D-13 (22/09/2026) : LE ZOOM DYNAMIQUE ───────────────────────────────
    `dz` = {x0,y0,w0,x1,y1,w1,ease} en FRACTIONS du cadre — MÊMES bornes que
    `montage_service._dz_spec` (w ∈ [0.1,1], x/y ∈ [0,1−w], plein cadre aux
@@ -6446,7 +6546,7 @@ function DzmMediaDrawer(o){
   return r.jsxs("div",{className:"svm-meddrawer",children:[
     r.jsxs("div",{className:"svm-medhead",children:[
       r.jsx("div",{className:"svm-poptitle",children:"Médias — rendus vidéo"+(o.trId?" → "+o.trId:"")}),
-      r.jsx("button",{className:"svm-secbtn",onClick:function(){if(o.onClose)o.onClose()},children:"Fermer"})]}),
+      r.jsx("button",{className:"svm-secbtn",title:"Fermer le tiroir Médias",onClick:function(){if(o.onClose)o.onClose()},children:"Fermer"})]}),
     r.jsx("input",{type:"search",className:"svm-medq",value:q,placeholder:"Rechercher un titre…",
       onChange:function(e){setQ(e.target.value)}}),
     r.jsx("div",{className:"svm-medchips",children:chips.map(function(c){
@@ -6456,6 +6556,7 @@ function DzmMediaDrawer(o){
     st?r.jsx("div",{className:"svm-medst",children:st}):null,
     !st&&!liste.length?r.jsx("div",{className:"svm-medst",children:vus.length?"Aucun rendu dans ce groupe.":"Aucun rendu vidéo terminé."}):null,
     !fin?r.jsx("button",{className:"svm-secbtn svm-medplus",disabled:st==="…",
+      title:"Charger les rendus suivants",
       onClick:function(){charge(offset,qServ,!1)},children:"Plus"}):null]})}
 /* E-5 (lot E-B, tache 4, 23/09/2026) — LE DERNIER RENDU FINAL PAR PROJET.
    Aucun JobRecord ne porte de project_id (mesure routes.py:3330, _job_to_dict) :
@@ -6553,6 +6654,94 @@ function DzmMinimap(o){
         return r.jsx("div",{className:"svm-mmrect","data-kind":q.kind,
           style:{left:(q.x0*100)+"%",width:((q.x1-q.x0)*100)+"%"}},k)})},row.id)}),
     r.jsx("div",{className:"svm-mmview",style:{left:(a*100)+"%",width:((b-a)*100)+"%"}})]})}
+/* ── E-6 (lot E-C, tâche 1, 23/09/2026) : LE MENU — combo → touche, modèle, composant ──
+   Décision 1 du plan : PAS de dispatch(id) dans l'hôte — une entrée de menu à
+   raccourci REJOUE sa combo par window.dispatchEvent(new KeyboardEvent("keydown",
+   dzmComboToKey(combo))) ; onKey reste l'unique dispatch. Jetons MESURÉS dans la
+   table SVM_ACTIONS du bundle patché (45 combos) : Ctrl, Maj, Alt, Suppr, Espace,
+   Home, End, ?, =, -, lettres, ← → ↑ ↓ ; Échap / Entrée acceptés par avance (revue
+   23/09 : pas de jeton Cmd — svmComboCanon sérialise metaKey en « Ctrl+ » ; les
+   graphies sans accent sont mortes, la keymap est canonisée par svmComboCanon).
+   Clé finale : lettre → minuscule (KeyboardEvent.key sans Maj), jeton nommé par
+   la table, autre jeton tel quel. Vide, non-chaîne, modificateur seul → null. */
+var DZM_KEY_TOK={"suppr":"Delete","échap":"Escape","espace":" ","entrée":"Enter",
+  "←":"ArrowLeft","→":"ArrowRight","↑":"ArrowUp","↓":"ArrowDown","home":"Home","end":"End","tab":"Tab"};
+function dzmComboToKey(combo){
+  if(typeof combo!=="string")return null;
+  var parts=combo.split("+").map(function(s){return s.trim()}).filter(function(s){return s!==""});
+  if(!parts.length)return null;
+  var k={key:"",ctrlKey:!1,shiftKey:!1,altKey:!1,metaKey:!1},i,t,l;
+  for(i=0;i<parts.length;i++){t=parts[i];l=t.toLowerCase();
+    if(l==="ctrl")k.ctrlKey=!0;
+    else if(l==="maj"||l==="shift")k.shiftKey=!0;
+    else if(l==="alt")k.altKey=!0;
+    else if(i===parts.length-1)k.key=DZM_KEY_TOK[l]||(t.length===1?t.toLowerCase():t);
+    else return null}
+  return k.key?k:null}
+/* Décision 2 : six rubriques ≠ les quatre `sec` de SVM_KEY_SECTIONS. Table id →
+   rubrique pour les ids connus (tous mesurés dans SVM_ACTIONS du bundle patché,
+   banc croisé [20]) ; repli par `sec` : Audio → Édition, Affichage → Affichage,
+   Lecture / Montage / inconnu → Timeline. « Projet » n'a aucune action à
+   raccourci : l'hôte (T2) y pose ses entrées sans combo. keys_panel (« ? »)
+   va dans Aide pour que T2 n'y double pas « Raccourcis ». */
+var DZM_MENU_ORDRE=["Projet","Édition","Timeline","Marqueurs","Affichage","Aide"];
+var DZM_MENU_RUB={undo:"Édition",redo:"Édition",delete:"Édition",ripple:"Édition",
+  range_in:"Édition",range_out:"Édition",range_clear:"Édition",range_cut:"Édition",
+  swap_left:"Édition",swap_right:"Édition",nudge_left:"Édition",nudge_right:"Édition",
+  gain_up:"Édition",gain_down:"Édition",fade_in_cycle:"Édition",fade_out_cycle:"Édition",mute:"Édition",solo:"Édition",
+  snap:"Édition",/* revue 23/09 : bascule sœur de ripple, même rubrique */
+  marker_toggle:"Marqueurs",marker_prev:"Marqueurs",marker_next:"Marqueurs",marker_index:"Marqueurs",
+  zoom_in:"Affichage",zoom_out:"Affichage",zoom100:"Affichage",toolbar:"Affichage",narration:"Affichage",
+  sounds_drawer:"Affichage",fullscreen:"Affichage",safezones:"Affichage",
+  keys_panel:"Aide"};
+function dzmMenuRub(a){
+  var s=a&&DZM_MENU_RUB[a.id];if(s)return s;
+  return a.sec==="Audio"?"Édition":a.sec==="Affichage"?"Affichage":"Timeline"}
+/* dzmMenuModel(actions, keyLabel) → [{rub, items:[{id,lbl,combo}]}] dans l'ordre
+   fixe, rubriques vides omises ; la combo affichée vient de keyLabel(id) (la
+   keymap VIVANTE — svmKeyLabel du bundle rend "" sans surcharge) sinon de la
+   table ; entrées non-objets ignorées ; l'entrée n'est pas mutée. */
+function dzmMenuModel(actions,keyLabel){
+  var par={},i,a,rub,cb;
+  if(!Array.isArray(actions))return [];
+  for(i=0;i<actions.length;i++){a=actions[i];if(!a||typeof a!=="object")continue;
+    rub=dzmMenuRub(a);cb=(typeof keyLabel==="function"&&keyLabel(a.id))||a.combo||"";
+    (par[rub]=par[rub]||[]).push({id:a.id,lbl:a.lbl==null?"":String(a.lbl),combo:String(cb)})}
+  return DZM_MENU_ORDRE.filter(function(n){return par[n]&&par[n].length})
+    .map(function(n){return {rub:n,items:par[n]}})}
+/* Décision 3 : UN composant sert ☰ (ancré sous le bouton : o.rubs) et les deux
+   menus contextuels (au pointeur : o.items à plat). Item {lbl, combo?, run,
+   off?, sep?}. AUCUN hook — l'hôte tient l'état {kind,x,y,id}. La fenêtre est
+   lue À L'APPEL (gardée par typeof : le shim du banc n'a qu'un objet vide → repli),
+   position bornée : left ≤ innerWidth−270 (ÉCART daté 23/09 : le plan disait
+   260 = la largeur CSS seule ; 270 garde 10 px de marge droite), top ≤
+   innerHeight−40·n. Pas de `o.anchor` (écart 23/09) : T2 calcule x,y depuis
+   getBoundingClientRect() du bouton ☰ (left, bottom+4) — une seule entrée.
+   `.svm-menugrp` enveloppe chaque rubrique (en-tête + rangées) : T2 le style
+   dans montage.css avec svm-menurub / svm-menusep / svm-menuitem / svm-menukey.
+   La racine arrête le clic comme le popover (EB5b) et le bandeau E-11 : le
+   voile du bundle ferme au clic dehors, Échap dans R_K7. Le clic ferme TOUJOURS
+   (finally) : un run qui lève ne laisse pas le menu bloqué sous le voile.
+   Écarts datés 23/09 : un menu plus haut que la fenêtre déborde (CSS T2 :
+   max-height + overflow) ; pas de navigation clavier dans le menu (souris,
+   Échap) ; « Projet » reste vide tant que T2 n'y pose pas ses entrées. */
+function DzmCtxMenu(o){
+  o=o||{};
+  var rubs=Array.isArray(o.rubs)?o.rubs:[{rub:"",items:Array.isArray(o.items)?o.items:[]}];
+  var n=rubs.reduce(function(s,g){return s+((g&&Array.isArray(g.items))?g.items.length:0)},0);
+  var W=(typeof window!=="undefined"&&window.innerWidth)||1e9,H=(typeof window!=="undefined"&&window.innerHeight)||1e9;
+  var px=Number(o.x)||0,py=Number(o.y)||0;
+  function row(it,k){
+    if(!it||typeof it!=="object")return null;
+    if(it.sep)return r.jsx("div",{className:"svm-menusep"},"s"+k);
+    return r.jsxs("button",{className:"svm-menuitem",role:"menuitem",disabled:!!it.off,title:it.lbl,
+      onClick:function(){try{it.run&&it.run()}finally{o.onClose&&o.onClose()}},
+      children:[r.jsx("span",{children:it.lbl}),r.jsx("span",{className:"svm-menukey",children:it.combo||""})]},k)}
+  return r.jsx("div",{className:"svm-pop svm-menu",role:"menu",onClick:function(e){e.stopPropagation()},
+    style:{left:Math.max(0,Math.min(px,W-270)),top:Math.max(0,Math.min(py,H-40*n))},
+    children:rubs.map(function(g,gi){var its=(g&&Array.isArray(g.items))?g.items:[];
+      return r.jsxs("div",{className:"svm-menugrp",children:[
+        g&&g.rub?r.jsx("div",{className:"svm-menurub",children:g.rub}):null,its.map(row)]},gi)})})}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,
@@ -6652,5 +6841,11 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   tlH:dzmTlH,durLbl:dzmDurLbl,
   /* D-7 (lot E-B, tache 8) : la mini-carte -- geometrie pure et composant */
   minimap:dzmMinimap,Minimap:DzmMinimap,
+  /* E-6 (lot E-C, tache 1) : combo -> touche, modele de menu, composant de menu */
+  comboToKey:dzmComboToKey,menuModel:dzmMenuModel,CtxMenu:DzmCtxMenu,
+  /* E-7 (lot E-C, tache 3) : le tri des rendus par titre et la vue Livraison */
+  jobsTri:dzmJobsTri,Deliver:DzmDeliver,
+  /* E-13 / E-14 (lot E-C, tache 5) : la tete dans l'inspecteur, le trou selectionne et son ripple */
+  teteTxt:dzmTeteTxt,trou:dzmTrou,trouRipple:dzmTrouRipple,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;

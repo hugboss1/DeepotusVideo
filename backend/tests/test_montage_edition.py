@@ -717,6 +717,114 @@ out.mm_comp=typeof T.Minimap;
 /* MESURE 23/09 : `r` est ICI le resultat de la section [1] (`var r=T.insere(...)`, un objet sans jsx) :
    le composant le lit a l'appel et leve un TypeError sur r.jsx -- pas un ReferenceError comme le tiroir (x) */
 out.mm_comp_leve=[null,{},{clips:[],tracks:[],dur:0}].map(function(o){try{T.Minimap(o);return "rendu"}catch(e){return e instanceof TypeError&&String(e).indexOf("r.jsx")>=0?"r.jsx":"autre:"+e}});
+/* [20] E-6 (lot E-C, tache 1, 23/09/2026) : combo -> touche, modele de menu, DzmCtxMenu */
+out.combo=[T.comboToKey("Alt+C"),T.comboToKey("Ctrl+Maj+X"),T.comboToKey("Suppr"),T.comboToKey("Maj+M"),T.comboToKey(""),T.comboToKey("Ctrl+←")];
+/* bornes : null / nombre -> null ; Echap, Espace, Entree, Home, End, ? ; Cmd inconnu -> null (revue 23/09 : svmComboCanon ne le
+   serialise jamais) ; « Ctrl+ » sans touche finale -> null ; espaces toleres ; = tel quel */
+out.combo_bornes=[T.comboToKey(null),T.comboToKey(42),T.comboToKey("Échap"),T.comboToKey("Espace"),T.comboToKey("Entrée"),T.comboToKey("Home"),T.comboToKey("End"),
+  T.comboToKey("?"),T.comboToKey("Cmd+K"),T.comboToKey("Ctrl+"),T.comboToKey(" Maj + Z "),T.comboToKey("Ctrl+=")].map(function(k){return k===null?null:[k.key,k.ctrlKey,k.shiftKey,k.altKey,k.metaKey]});
+/* TOUTES les combos de la table SVM_ACTIONS du bundle PATCHE, extraites par regex GARDEE (jamais recopiees) : aucune ne rend null,
+   chaque resultat porte exactement les cinq cles d'un KeyboardEventInit */
+var _ecL=/*EC_COMBOS*/;
+out.combo_bundle=[_ecL.length,_ecL.filter(function(c){return T.comboToKey(c)===null}),
+  _ecL.filter(function(c){var k=T.comboToKey(c);return !k||Object.keys(k).sort().join()!=="altKey,ctrlKey,key,metaKey,shiftKey"}).length];
+out.menu=T.menuModel([{id:"blade",sec:"Montage",lbl:"lame",combo:"Alt+C"},{id:"undo",sec:"Montage",lbl:"annuler",combo:"Ctrl+Z"},{id:"marker_toggle",sec:"Montage",lbl:"marqueur",combo:"Maj+M"},
+  {id:"zoom_in",sec:"Affichage",lbl:"zoom",combo:"Ctrl+="},{id:"gain_up",sec:"Audio",lbl:"gain",combo:"Alt+↑"}],
+  function(id){return id==="blade"?"Alt+C*":null}).map(function(g){return [g.rub,g.items.map(function(i){return i.id+":"+(i.combo||"")})]});
+out.menu_vide=T.menuModel([],null).length;
+/* sec inconnue -> Timeline ; ids INCONNUS de la table : sec Audio -> Edition, sec Affichage -> Affichage (les replis de dzmMenuRub,
+   revue 23/09) ; entrees non-objets ignorees ; keyLabel qui rend "" (svmKeyLabel du bundle) -> combo de la table ;
+   keys_panel -> Aide, fullscreen -> Affichage par la table ; sans lbl ni combo -> chaines vides */
+out.menu_inconnu=T.menuModel([{id:"zzz",sec:"Zzz",lbl:"z",combo:"Q"},null,"x",7,{id:"keys_panel",sec:"Affichage",lbl:"k",combo:"?"},{id:"mute",sec:"Audio",lbl:"m",combo:"M"},
+  {id:"fullscreen",sec:"Lecture",lbl:"f",combo:"F"},{id:"nolbl",sec:"Montage"},{id:"zza",sec:"Audio",lbl:"za",combo:"1"},
+  {id:"zzf",sec:"Affichage",lbl:"zf",combo:"2"}],function(){return ""}).map(function(g){return [g.rub,g.items.map(function(i){return i.id+":"+i.lbl+":"+i.combo})]});
+/* actions null / non-tableau -> [] ; sans keyLabel -> combo de la table ; le modele ne MUTE pas l'entree */
+var _ecA=[{id:"undo",sec:"Montage",lbl:"a",combo:"Ctrl+Z"}],_ecJ=JSON.stringify(_ecA);
+out.menu_bornes=[T.menuModel(null,null).length,T.menuModel("x").length,T.menuModel(_ecA).map(function(g){return g.rub+"/"+g.items[0].combo}),JSON.stringify(_ecA)===_ecJ];
+out.ctx_pure=typeof T.CtxMenu;
+/* revue 23/09 : le clic ferme TOUJOURS -- `r` (objet de la section [1]) est remplace le temps de l'appel par un jsx factice qui
+   rend {t,p} ; le bouton dont run leve appelle quand meme onClose (et releve), le bouton sain appelle run puis onClose */
+out.ctx_onclose=(function(){var r0=r,log=[];try{r={jsx:function(t,p){return {t:t,p:p}},jsxs:function(t,p){return {t:t,p:p}}};
+  var m=T.CtxMenu({items:[{lbl:"boom",run:function(){throw new Error("boom")}},{lbl:"ok",run:function(){log.push("run")}}],onClose:function(){log.push("close")}});
+  var btns=m.p.children[0].p.children[1].filter(function(b){return b&&b.t==="button"});
+  try{btns[0].p.onClick()}catch(e){log.push("leve:"+e.message)}
+  btns[1].p.onClick();return [btns.length,m.t,m.p.className,log]}catch(e){return "autre:"+e}finally{r=r0}})();
+/* MESURE : `r` est ici l'objet de la section [1] -> le composant leve sur r.jsx a l'appel, props null / vides / items / rubs */
+out.ctx_leve=[null,{},{items:[{lbl:"a",run:function(){}},{sep:!0},{lbl:"b",off:!0}]},{rubs:[{rub:"Projet",items:[{lbl:"b"}]}],x:5,y:5}].map(function(o){try{T.CtxMenu(o);return "rendu"}catch(e){return (e instanceof TypeError||e instanceof ReferenceError)&&String(e).indexOf("r.jsx")>=0?"r.jsx":"autre:"+e}});
+/* [22] E-10 (lot E-C, tache 4, 23/09/2026) : la barre ANCREE -- la prop `docked` pose `data-docked:""` sur .dzm-tbar ;
+   sans la prop, ou avec une valeur non strictement `true` (motif de `open`/`anim`/`drag`), l'attribut vaut undefined (React ne
+   le pose pas). `data-off` reste pose et GARDE SON SENS (l'onglet replie la barre ancree a zero largeur, par la feuille) ;
+   l'onglet, lui, ne recoit rien -- il fait la meme chose ancre ou non. Rendu par le jsx factice {t,p}. */
+out.tbd=(function(){var r0=r;try{r={jsx:function(t,p){return {t:t,p:p}},jsxs:function(t,p){return {t:t,p:p}}};
+  var a=T.ToolBar({open:!0,docked:!0}),b=T.ToolBar({open:!0}),c=T.ToolBar({open:!1,docked:!0}),d=T.ToolBar({open:!0,docked:"1"});
+  var ta=T.ToolTab({open:!0,docked:!0});
+  return [a.p["data-docked"],b.p["data-docked"],c.p["data-docked"],c.p["data-off"],d.p["data-docked"],"data-docked" in ta.p,
+    a.t,a.p.className,a.p.id,b.p["data-off"],ta.p.className,ta.p["aria-expanded"]]}catch(e){return "autre:"+e}finally{r=r0}})();
+/* [23] E-13 / E-14 (lot E-C, tache 5, 23/09/2026) : la tete dans l'inspecteur (teteTxt) et le trou selectionne (trou,
+   trouRipple). Le formateur est PASSE (l'hote donne svmTcFF) : ici `F` prefixe la valeur brute, la sonde lit le texte.
+   Cinq clips : v1 a [0,4[ · c [8,10[ · b [6,8[ (c AVANT b : l'ordre d'entree n'est pas trie), a1 n [0,10[, v2 o [5,9[ */
+var _F=function(v){return "F"+v};
+var _g=[{tr:"v1",id:"a",start:0,end:4,src:{k:1}},{tr:"v1",id:"c",start:8,end:10,src:{k:3}},{tr:"v1",id:"b",start:6,end:8,src:{k:2}},
+  {tr:"a1",id:"n",start:0,end:10,src:{k:4}},{tr:"v2",id:"o",start:5,end:9,src:{k:5}}],_gJ=JSON.stringify(_g);
+/* dans le plan (+2), hors (5 > end), a la borne end (4 : hors, l'intervalle est ferme-ouvert), sans sel, au debut (+0) */
+out.tete=[T.teteTxt(2,{start:0,end:4},_F),T.teteTxt(5,{start:0,end:4},_F),T.teteTxt(4,{start:0,end:4},_F),T.teteTxt(5,null,_F),T.teteTxt(0,{start:0,end:4},_F)];
+/* bornes : ph NaN / undefined / chaine / Infinity -> "" ; fmt absent -> nombre arrondi au centieme ; sel sans bornes numeriques -> comme sans sel */
+out.tete_bornes=[T.teteTxt(NaN,null,_F),T.teteTxt(void 0,{start:0,end:4},_F),T.teteTxt("x",null,_F),T.teteTxt(2.456,null),T.teteTxt(2,{start:"a",end:4},_F),T.teteTxt(Infinity,null,_F)];
+/* entre a et b (5) ; a la borne end de a (4 : a est ferme-ouvert, 4 est DANS le trou) ; en tete de piste (a=0) ; dans a (2) ;
+   en queue (11 : pas de suivant -> null) ; v2 : le trou [0,5[ ignore les clips de v1 ; a1 : dans n ; trou de 0,03 s -> null ; 5.99 */
+out.trou=[T.trou(_g,"v1",5),T.trou(_g,"v1",4),T.trou([{tr:"v1",id:"b",start:6,end:8}],"v1",2),T.trou(_g,"v1",2),T.trou(_g,"v1",11),
+  T.trou(_g,"v2",2),T.trou(_g,"a1",5),T.trou([{tr:"v1",start:0,end:4},{tr:"v1",start:4.03,end:6}],"v1",4.01),T.trou(_g,"v1",5.99)];
+/* bornes : clips null / chaine, t NaN, piste null / inconnue -> null ; entrees non-objets ignorees (le trou reste trouve) */
+out.trou_bornes=[T.trou(null,"v1",1),T.trou("x","v1",1),T.trou(_g,"v1",NaN),T.trou(_g,null,5),T.trou(_g,"v9",5),
+  T.trou([null,7,{tr:"v1",start:0,end:4},{tr:"v1",start:6,end:8}],"v1",5)];
+/* ripple du trou [4,6[ sur v1 : b et c reculent de 2, a reste, n (a1) et o (v2) intacts ; ordre d'entree conserve */
+var _rp=T.trouRipple(_g,"v1",4,6);
+out.rip=_rp.map(function(c){return [c.id,c.tr,c.start,c.end]});
+/* nouveau tableau, entree non mutee, `src` du clip decale conserve par reference (les autres champs sont intacts), le clip
+   non decale est LE MEME objet ; bornes b<a, a NaN, b==a -> copie identique (nouvelle reference) ; clips null -> [] */
+out.rip_bornes=[_rp!==_g,JSON.stringify(_g)===_gJ,_rp[2].src===_g[2].src&&_rp[2].id==="b",_rp[0]===_g[0],
+  JSON.stringify(T.trouRipple(_g,"v1",6,4))===_gJ&&T.trouRipple(_g,"v1",6,4)!==_g,JSON.stringify(T.trouRipple(_g,"v1",NaN,6))===_gJ,
+  JSON.stringify(T.trouRipple(_g,"v1",4,4))===_gJ,T.trouRipple(null,"v1",4,6).length];
+/* revue T7 (cloture, 23/09/2026) : une AUTRE piste dont un clip commence APRES le trou ne bouge pas (v2 [7,9[ reste) -- dans _g,
+   les clips des autres pistes commencent tous AVANT b=6 : une mutation qui retire `c.tr!==tr` du ripple SURVIVAIT sur le comportement */
+out.rip_autre=T.trouRipple([{tr:"v1",id:"a",start:0,end:4},{tr:"v2",id:"z",start:7,end:9}],"v1",4,6).map(function(c){return [c.id,c.tr,c.start,c.end]});
+/* [21] E-7 (lot E-C, tache 3, 23/09/2026) : le tri des rendus (par TITRE, aucun project_id en base) et la vue Livraison.
+   Cinq jobs : deux finals du projet (a, e), un apercu du projet (b), un final d'un AUTRE projet (c), un job non-montage
+   au meme titre (d) ; `a` porte une duree (1:05 par svmRuler du bundle, E-9) */
+var _jt=[{provider:"montage",title:"preuve e3",job_id:"a",created_at:"2026-09-23T10:00:00",duration_s:65},
+  {provider:"montage",title:"preuve e3 (aperçu 480p)",job_id:"b"},
+  {provider:"montage",title:"autre projet",job_id:"c"},
+  {provider:"seedance",title:"preuve e3",job_id:"d"},
+  {provider:"montage",title:"preuve e3",job_id:"e"}];
+var _jtJ=JSON.stringify(_jt);
+var _t1=T.jobsTri(_jt,"preuve e3");
+out.jt=[_t1.finals.map(function(j){return j.job_id}),_t1.previews.map(function(j){return j.job_id})];
+var _t2=T.jobsTri(_jt,"");
+out.jt_tous=[_t2.finals.map(function(j){return j.job_id}),_t2.previews.map(function(j){return j.job_id})];
+out.jt_vide=[T.jobsTri([],"x").finals.length,T.jobsTri([],"x").previews.length];
+/* bornes : null / chaine -> vides ; entrees non-objets ignorees (un seul objet montage garde) ; nom null -> tous (3 finals) ;
+   le prefixe : « preuve » prend les deux « preuve e3 » (un nom plus court attrape les titres qui le prolongent -- ecart date 23/09,
+   l'historique est par titre) et « preuve e3x » ne prend rien */
+out.jt_bornes=[T.jobsTri(null,"x").finals.length,T.jobsTri("zz","x").previews.length,
+  T.jobsTri([null,"s",7,{provider:"montage",title:"x1"}],"x").finals.length,T.jobsTri(_jt,null).finals.length,
+  T.jobsTri(_jt,"preuve").finals.length,T.jobsTri(_jt,"preuve e3x").finals.length];
+out.jt_pur=JSON.stringify(_jt)===_jtJ;
+out.del_pure=typeof T.Deliver;
+/* le composant lit `r` a l'appel (l'objet de la section [1] : TypeError r.jsx), props null / vides / pleines */
+out.del_leve=[null,{},{nom:"preuve e3",jobs:_jt,lastFin:{name:"preuve e3",at:1}}].map(function(o){try{T.Deliver(o);return "rendu"}catch(e){return (e instanceof TypeError||e instanceof ReferenceError)&&String(e).indexOf("r.jsx")>=0?"r.jsx":"autre:"+e}});
+/* rendu par un jsx factice {t,p} : racine, titre, trois boutons (classe, title present, disabled), ligne « dernier rendu »,
+   rangees (finals PUIS apercus, badge, duree du bundle), bouton Bibliotheque ; les clics : Publier grise NE PUBLIE PAS */
+out.del_rendu=(function(){var r0=r,log=[];try{r={jsx:function(t,p){return {t:t,p:p}},jsxs:function(t,p){return {t:t,p:p}}};
+  var m=T.Deliver({nom:"preuve e3",jobs:_jt,publishOn:!1,lastFin:null,onPreview:function(){log.push("preview")},onRender:function(){log.push("render")},onPublish:function(){log.push("publish")},onOpenLib:function(){log.push("lib")}});
+  var ch=m.p.children,btns=ch[1].p.children,rows=ch[3].p.children;
+  btns[0].p.onClick();btns[1].p.onClick();btns[2].p.onClick();ch[4].p.onClick();
+  return [m.t,m.p.className,ch[0].p.children,btns.map(function(b){return [b.p.className,!!b.p.title,!!b.p.disabled]}),ch[2].p.children,
+    rows.map(function(w){return [w.p.className,w.p["data-kind"],w.p.children[3].p.children,w.p.children[2].p.children]}),ch[4].p.children,log]}catch(e){return "autre:"+e}finally{r=r0}})();
+/* liste vide (aucun job de ce nom) -> svm-delempty ; publishOn -> Publier actif et le clic publie ; dernier rendu nomme (at 0 : sans date) */
+out.del_vide_liste=(function(){var r0=r,log=[];try{r={jsx:function(t,p){return {t:t,p:p}},jsxs:function(t,p){return {t:t,p:p}}};
+  var m=T.Deliver({nom:"zzz",jobs:_jt,publishOn:!0,lastFin:{name:"preuve e3",at:0},onPublish:function(){log.push("publish")}});
+  m.p.children[1].p.children[2].p.onClick();
+  return [m.p.children[3].p.children.p.className,m.p.children[1].p.children[2].p.disabled,m.p.children[2].p.children,log]}catch(e){return "autre:"+e}finally{r=r0}})();
 console.log(JSON.stringify(out));
 """
 # E-9 : svmRuler / svmPad2 sont des fonctions DU BUNDLE (meme portee module que
@@ -729,6 +837,18 @@ if os.path.isfile(_E9_BAK):
     _mp = re.search(r"function svmPad2\([^)]*\)\{[^}]*\}", _bk); _mr = re.search(r"function svmRuler\([^)]*\)\{[^}]*\}", _bk)
     if _mp and _mr: _E9_RULER = _mp.group(0) + "\n" + _mr.group(0)
 PROBE = PROBE.replace("/*E9_RULER*/", _E9_RULER)
+# E-6 (lot E-C, tache 1) : les combos de SVM_ACTIONS sont lues dans le bundle PATCHE
+# (R_R1 y ajoute 11 actions absentes du .bak : 34 -> 45 combos mesurees le 23/09/2026),
+# entre `var SVM_ACTIONS=[` et son `];` -- jamais recopiees. Regex gardee par le temoin de compte.
+_EC_BUNDLE = os.path.join(ROOT, "frontend", "dist", "assets", "index-BEOJX8L5.js")
+_EC_COMBOS, _EC_IDS = [], []
+if os.path.isfile(_EC_BUNDLE):
+    with open(_EC_BUNDLE, "rb") as _fh: _bd = _fh.read().decode("utf-8", "replace")
+    _i0 = _bd.find("var SVM_ACTIONS=["); _i1 = _bd.find("];", _i0) if _i0 >= 0 else -1
+    if 0 <= _i0 < _i1:
+        _EC_COMBOS = re.findall(r'combo:"([^"]*)"', _bd[_i0:_i1])
+        _EC_IDS = re.findall(r'\{id:"([a-z0-9_]+)",sec:"', _bd[_i0:_i1])
+PROBE = PROBE.replace("/*EC_COMBOS*/", json.dumps(_EC_COMBOS, ensure_ascii=False))
 print("\n[1] dzmInsere sous node")
 D = {}
 if not NODE or not os.path.isfile(SRC_PATH):
@@ -934,7 +1054,16 @@ try:
                  # E-9 (lot E-B, tache 7) : les QUATRE cles de la hauteur de la timeline et du label de duree.
                  "tlh","tlh_bornes","durlbl","durlbl_bornes",
                  # D-7 (lot E-B, tache 8) : les CINQ cles de la mini-carte.
-                 "mm","mm_vide","mm_bornes","mm_comp","mm_comp_leve"]
+                 "mm","mm_vide","mm_bornes","mm_comp","mm_comp_leve",
+                 # E-6 (lot E-C, tache 1) : les DIX cles de la section [20].
+                 "combo","combo_bornes","combo_bundle","menu","menu_vide","menu_inconnu",
+                 "menu_bornes","ctx_pure","ctx_leve","ctx_onclose",
+                 # E-7 (lot E-C, tache 3) : les NEUF cles de la section [21].
+                 "jt","jt_tous","jt_vide","jt_bornes","jt_pur","del_pure","del_leve","del_rendu","del_vide_liste",
+                 # E-10 (lot E-C, tache 4) : la cle de la section [22].
+                 "tbd",
+                 # E-13 / E-14 (lot E-C, tache 5) : les SIX cles de la section [23].
+                 "tete","tete_bornes","trou","trou_bornes","rip","rip_bornes","rip_autre"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -1825,6 +1954,210 @@ check("mm_coeur_pur_par_kindOf_et_tr_le_composant_appelle_minimap_et_porte_les_q
       {n: len(c) for n, c in _MM.items()})
 check("mm_exports_minimap_Minimap_dans_DzTracks",
       len(_DT) > 1000 and _DT.count("minimap:dzmMinimap,Minimap:DzmMinimap,") == 1, len(_DT))
+print("\n[20] E-6 combo -> touche, modele de menu, DzmCtxMenu (lot E-C, tache 1)")
+# ── E-6 (lot E-C, tache 1, 23/09/2026) : LE MENU ─────────────────────────
+# Decision 1 du plan : pas de dispatch(id) -- l'hote REJOUE la combo d'une
+# action par un KeyboardEvent synthetique ; dzmComboToKey traduit la combo de
+# SVM_ACTIONS en KeyboardEventInit {key,ctrlKey,shiftKey,altKey,metaKey} :
+# lettre -> minuscule, Maj -> shiftKey, Suppr -> "Delete", fleche -> "Arrow*",
+# vide -> null (une entree sans raccourci ne rejoue rien).
+_F, _T = False, True
+check("combo_six_cas_lettre_minuscule_maj_shift_suppr_delete_vide_null_fleche_arrow",
+      D.get("combo") == [{"key": "c", "ctrlKey": _F, "shiftKey": _F, "altKey": _T, "metaKey": _F},
+                         {"key": "x", "ctrlKey": _T, "shiftKey": _T, "altKey": _F, "metaKey": _F},
+                         {"key": "Delete", "ctrlKey": _F, "shiftKey": _F, "altKey": _F, "metaKey": _F},
+                         {"key": "m", "ctrlKey": _F, "shiftKey": _T, "altKey": _F, "metaKey": _F},
+                         None,
+                         {"key": "ArrowLeft", "ctrlKey": _T, "shiftKey": _F, "altKey": _F, "metaKey": _F}],
+      D.get("combo"))
+# null / nombre -> null ; Echap / Espace / Entree / Home / End / ? ; Cmd -> meta ; « Ctrl+ » sans touche -> null ; espaces ; =
+check("combo_bornes_null_nombre_echap_espace_entree_home_end_point_d_interrogation_cmd_inconnu_null_modificateur_seul_null_espaces_egal",
+      D.get("combo_bornes") == [None, None, ["Escape", _F, _F, _F, _F], [" ", _F, _F, _F, _F], ["Enter", _F, _F, _F, _F],
+                                ["Home", _F, _F, _F, _F], ["End", _F, _F, _F, _F], ["?", _F, _F, _F, _F],
+                                None, None, ["z", _F, _T, _F, _F], ["=", _T, _F, _F, _F]],
+      D.get("combo_bornes"))
+# TOUTES les combos reelles du bundle patche sont parsables : liste extraite (temoin >= 20, placeholder consomme,
+# 47 mesurees le 23/09), aucune ne rend null, chaque resultat porte les cinq cles
+_cb = D.get("combo_bundle")
+check("combo_toutes_les_combos_du_bundle_patche_sont_parsables_temoin_au_moins_20_extraites_par_regex_gardee",
+      len(_EC_COMBOS) >= 20 and all(c for c in _EC_COMBOS) and "/*EC_COMBOS*/" not in PROBE
+      and json.dumps(_EC_COMBOS, ensure_ascii=False) in PROBE
+      and isinstance(_cb, list) and len(_cb) == 3 and _cb[0] == len(_EC_COMBOS) and _cb[1] == [] and _cb[2] == 0,
+      (len(_EC_COMBOS), _cb))
+# Decision 2 : six rubriques (Projet, Edition, Timeline, Marqueurs, Affichage, Aide) != les quatre `sec` :
+# table DZM_MENU_RUB pour les ids connus, repli sur sec (Audio -> Edition, Affichage -> Affichage, sinon Timeline),
+# ordre fixe, vides omises ; le libelle de combo vient de keyLabel(id) quand il rend non vide, sinon de la table
+check("menu_cinq_actions_quatre_rubriques_dans_l_ordre_fixe_vides_omises_keyLabel_prioritaire",
+      D.get("menu") == [["Édition", ["undo:Ctrl+Z", "gain_up:Alt+↑"]], ["Timeline", ["blade:Alt+C*"]],
+                        ["Marqueurs", ["marker_toggle:Maj+M"]], ["Affichage", ["zoom_in:Ctrl+="]]],
+      D.get("menu"))
+check("menu_vide_rend_zero_rubrique", "menu_vide" in D and D["menu_vide"] == 0, D.get("menu_vide"))
+# revue 23/09 : zza / zzf sont ABSENTS de la table -> seuls les replis Audio -> Edition et Affichage -> Affichage les placent
+check("menu_sec_inconnue_timeline_ids_inconnus_audio_edition_affichage_affichage_non_objets_ignores_keyLabel_vide_repli_table",
+      D.get("menu_inconnu") == [["Édition", ["mute:m:M", "zza:za:1"]], ["Timeline", ["zzz:z:Q", "nolbl::"]],
+                                ["Affichage", ["fullscreen:f:F", "zzf:zf:2"]], ["Aide", ["keys_panel:k:?"]]],
+      D.get("menu_inconnu"))
+check("menu_bornes_null_et_non_tableau_rendent_vide_sans_keyLabel_la_table_entree_non_mutee",
+      D.get("menu_bornes") == [0, 0, ["Édition/Ctrl+Z"], True], D.get("menu_bornes"))
+# Decision 3 : UN composant DzmCtxMenu sert le menu principal et les deux menus contextuels ;
+# il lit r a l'appel (TypeError r.jsx dans ce shim, comme la mini-carte) sur props null / vides / items / rubs
+check("ctx_composant_est_une_fonction_qui_touche_r_a_l_appel_props_null_vides_items_ou_rubs",
+      D.get("ctx_pure") == "function" and D.get("ctx_leve") == ["r.jsx", "r.jsx", "r.jsx", "r.jsx"],
+      (D.get("ctx_pure"), D.get("ctx_leve")))
+# revue 23/09 : run qui leve -> onClose appele quand meme (finally) puis l'erreur remonte ; run sain -> run puis onClose
+check("ctx_le_clic_appelle_onClose_meme_quand_run_leve_puis_relance_l_erreur",
+      D.get("ctx_onclose") == [2, "div", "svm-pop svm-menu", ["close", "leve:boom", "run", "close"]], D.get("ctx_onclose"))
+# LE COEUR RESTE PUR : ni r.jsx, ni x.use, ni window/document/localStorage dans les trois corps purs (temoin de longueur) ;
+# comboToKey ne lit la table des jetons qu'une fois et connait Delete/Escape/Arrow* ; menuModel lit DZM_MENU_ORDRE et
+# dzmMenuRub (une seule ecriture du repli) ; la table porte les quatre marqueurs, keys_panel -> Aide, undo -> Edition
+_EC = {n: _corps(n) for n in ("dzmComboToKey", "dzmMenuRub", "dzmMenuModel")}
+_iRub = _SRCb.find("var DZM_MENU_RUB={"); _iRubF = _SRCb.find("};", _iRub) if _iRub >= 0 else -1
+_RUB = _SRCb[_iRub:_iRubF] if 0 <= _iRub < _iRubF else ""
+_RUB_IDS = re.findall(r"(\w+):\"", _RUB)
+check("ec_coeur_pur_les_trois_fonctions_ne_touchent_ni_r_ni_x_ni_window_et_la_table_est_ecrite_une_fois",
+      all(len(c) > 80 and not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b", c) for c in _EC.values())
+      and _EC["dzmComboToKey"].count("DZM_KEY_TOK[") == 1 and all('"' + k + '"' in _SRCb[_SRCb.find("var DZM_KEY_TOK="):_iRub]
+          for k in ("Delete", "Escape", "Enter", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"))
+      and _EC["dzmMenuModel"].count("dzmMenuRub(") == 1 and _EC["dzmMenuModel"].count("DZM_MENU_ORDRE") == 1
+      and _EC["dzmMenuRub"].count("DZM_MENU_RUB[") == 1 and _EC["dzmMenuRub"].count('"Timeline"') == 1
+      and _SRCb.count('var DZM_MENU_ORDRE=["Projet","Édition","Timeline","Marqueurs","Affichage","Aide"];') == 1
+      and len(_RUB_IDS) >= 20 and all(_RUB.count(k + ':"Marqueurs"') == 1 for k in ("marker_toggle", "marker_prev", "marker_next", "marker_index"))
+      and _RUB.count('keys_panel:"Aide"') == 1 and _RUB.count('undo:"Édition"') == 1 and _RUB.count('zoom_in:"Affichage"') == 1
+      and _RUB.count('"Projet"') == 0,
+      ({n: len(c) for n, c in _EC.items()}, len(_RUB_IDS)))
+# banc croise : chaque id de DZM_MENU_RUB EXISTE dans la table SVM_ACTIONS du bundle patche (temoin >= 20 ids lus)
+check("ec_chaque_id_de_la_table_des_rubriques_existe_dans_SVM_ACTIONS_du_bundle_patche",
+      len(_EC_IDS) >= 20 and len(_RUB_IDS) >= 20 and all(i in _EC_IDS for i in _RUB_IDS),
+      (len(_EC_IDS), [i for i in _RUB_IDS if i not in _EC_IDS]))
+# le composant : div.svm-pop.svm-menu role menu, racine stopPropagation (UN seul), en-tete svm-menurub, separateur
+# svm-menusep, button.svm-menuitem role menuitem disabled:!!it.off title:it.lbl, span svm-menukey, clic -> run puis onClose,
+# position bornee a la fenetre LUE A L'APPEL (typeof window, repli) : aucun hook, aucun useState
+_CTX = _corps("DzmCtxMenu")
+check("ctx_porte_svm_pop_svm_menu_role_menu_stop_unique_rub_sep_item_disabled_title_key_run_puis_onClose_fenetre_a_l_appel_sans_hook",
+      len(_CTX) > 500 and "r.jsx" in _CTX and "x.use" not in _CTX
+      and _CTX.count('className:"svm-pop svm-menu",role:"menu",onClick:function(e){e.stopPropagation()}') == 1
+      and _CTX.count("stopPropagation") == 1
+      and all(_CTX.count('className:"' + k + '"') == 1 for k in ("svm-menurub", "svm-menusep", "svm-menuitem", "svm-menukey"))
+      and _CTX.count('role:"menuitem",disabled:!!it.off,title:it.lbl') == 1
+      and _CTX.count("onClick:function(){try{it.run&&it.run()}finally{o.onClose&&o.onClose()}}") == 1
+      and _CTX.count("typeof window") == 2 and _CTX.count("innerWidth") == 1 and _CTX.count("innerHeight") == 1
+      and _CTX.count("-270") == 1 and _CTX.count("40*n") == 1 and "Math.max(0,Math.min(" in _CTX
+      and "o.rubs" in _CTX and "o.items" in _CTX,
+      f"corps={len(_CTX)} o stop={_CTX.count('stopPropagation')}")
+check("ec_exports_comboToKey_menuModel_CtxMenu_dans_DzTracks",
+      len(_DT) > 1000 and _DT.count("comboToKey:dzmComboToKey,menuModel:dzmMenuModel,CtxMenu:DzmCtxMenu,") == 1, len(_DT))
+print("\n[21] E-7 tri des rendus par titre et vue Livraison (lot E-C, tache 3)")
+# ── E-7 (lot E-C, tache 3, 23/09/2026) : LA VUE LIVRAISON ─────────────────
+# Decision 4 du plan : l'historique d'un projet est lu de GET /api/jobs?providers=montage&q=<nom>
+# et trie PAR TITRE (aucun project_id en base) : finals / apercus separes par le suffixe
+# « (aperçu 480p) » que montage_service pose ; ordre recu conserve.
+check("jt_deux_finals_un_apercu_l_autre_projet_et_le_job_non_montage_exclus_ordre_recu",
+      D.get("jt") == [["a", "e"], ["b"]], D.get("jt"))
+check("jt_nom_vide_prend_tous_les_jobs_montage_finals_puis_apercus",
+      D.get("jt_tous") == [["a", "c", "e"], ["b"]], D.get("jt_tous"))
+check("jt_etat_vide_deux_listes_vides", D.get("jt_vide") == [0, 0], D.get("jt_vide"))
+check("jt_bornes_null_chaine_non_objets_ignores_nom_null_tous_prefixe_court_prolonge_prefixe_faux_rien",
+      D.get("jt_bornes") == [0, 0, 1, 3, 2, 0], D.get("jt_bornes"))
+check("jt_ne_mute_pas_l_entree", D.get("jt_pur") is True, D.get("jt_pur"))
+check("del_composant_fonction_qui_touche_r_a_l_appel_props_null_vides_pleines",
+      D.get("del_pure") == "function" and D.get("del_leve") == ["r.jsx", "r.jsx", "r.jsx"],
+      (D.get("del_pure"), D.get("del_leve")))
+# rendu factice : finals PUIS apercus, badge final/apercu, duree 1:05 par svmRuler du bundle, Publier grise ne publie pas
+check("del_rendu_racine_titre_trois_boutons_titres_dernier_aucun_rangees_finals_puis_apercus_badge_duree_bibliotheque_clics",
+      D.get("del_rendu") == ["div", "svm-deliver", "Livraison",
+                             [["svm-secbtn", True, False], ["svm-goldbtn", True, False], ["svm-secbtn", True, True]],
+                             "Dernier rendu final : aucun",
+                             [["svm-delrow", "final", "final", "1:05"], ["svm-delrow", "final", "final", ""],
+                              ["svm-delrow", "preview", "aperçu", ""]],
+                             "Voir dans la Bibliothèque", ["preview", "render", "lib"]],
+      D.get("del_rendu"))
+check("del_liste_vide_svm_delempty_publier_actif_publie_dernier_rendu_nomme",
+      D.get("del_vide_liste") == ["svm-delempty", False, "Dernier rendu final : preuve e3 · ", ["publish"]],
+      D.get("del_vide_liste"))
+# LE COEUR RESTE PUR (jobsTri sans r/x/window), le composant SANS hook (pas de x.use : le fetch est dans l'hote),
+# une seule ecriture du suffixe, IDENTIQUE a celui de montage_service (jamais recopie a la main), duree par dzmDurTxt
+_E7 = {n: _corps(n) for n in ("dzmJobsTri", "DzmDeliver")}
+_MSV = ""
+try:
+    with open(os.path.join(ROOT, "backend", "app", "services", "montage_service.py"), "rb") as _fh: _MSV = _fh.read().decode("utf-8", "replace")
+except OSError: pass
+check("e7_jobsTri_pur_Deliver_sans_hook_suffixe_unique_egal_a_montage_service_duree_par_dzmDurTxt",
+      len(_E7["dzmJobsTri"]) > 150 and not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b", _E7["dzmJobsTri"])
+      and _E7["dzmJobsTri"].count("DZM_DEL_APERCU") == 1 and _E7["dzmJobsTri"].count('j.provider!=="montage"') == 1
+      and len(_E7["DzmDeliver"]) > 800 and "r.jsx" in _E7["DzmDeliver"] and "x.use" not in _E7["DzmDeliver"] and "fetch(" not in _E7["DzmDeliver"]
+      and all(_E7["DzmDeliver"].count('className:"' + k + '"') == 1 for k in ("svm-deliver", "svm-delrow", "svm-delbadge", "svm-dellast", "svm-delempty"))
+      and _E7["DzmDeliver"].count("dzmDurTxt(") == 1 and _E7["DzmDeliver"].count('className:"svm-goldbtn"') == 1 and _E7["DzmDeliver"].count('className:"svm-secbtn"') == 3
+      and _E7["DzmDeliver"].count("title:") == 4 and _E7["DzmDeliver"].count("if(o.publishOn&&o.onPublish)o.onPublish()") == 1
+      and _SRCb.count('var DZM_DEL_APERCU="(aperçu 480p)";') == 1 and len(_MSV) > 1000 and _MSV.count('" (aperçu 480p)"') == 1,
+      ({n: len(c) for n, c in _E7.items()}, _MSV.count('" (aperçu 480p)"')))
+check("e7_exports_jobsTri_Deliver_dans_DzTracks",
+      len(_DT) > 1000 and _DT.count("jobsTri:dzmJobsTri,Deliver:DzmDeliver,") == 1, len(_DT))
+print("\n[22] E-10 la barre d'outils ancree : prop docked -> data-docked (lot E-C, tache 4)")
+# ── E-10 (lot E-C, tache 4, 23/09/2026) : LA BARRE ANCREE ───────────────────
+# Decision 5 du plan : `docked` = une PROP du Dock (l'etat vit dans l'hote, cle
+# dz_svm_tb_dock), posee en `data-docked:""` sur .dzm-tbar ; la feuille fait le
+# reste (position:static, en flux dans .svm-trans). DECISION mesuree 23/09 (le
+# plan laissait le choix) : `data-off` GARDE SON SENS ancree -- l'onglet OUTILS
+# replie la barre ancree a zero largeur (feuille), le pin §4.2 du banc bundle
+# interdisant de masquer un noeud de la barre ; l'onglet ne recoit donc AUCUNE
+# prop neuve (temoin : `docked` passe a l'onglet n'y pose rien).
+check("tbd_docked_true_pose_data_docked_vide_sur_la_barre_sans_la_prop_ou_non_booleen_undefined_data_off_intact_onglet_intouche",
+      D.get("tbd") == ["", None, "", "", None, False, "div", "dzm-tbar", "dzm-toolbar", None, "dzm-tbtab", "true"],
+      D.get("tbd"))
+_E10 = {n: _corps(n) for n in ("DzmToolBar", "DzmToolTab", "DzmToolDock")}
+check("e10_data_docked_ecrit_une_fois_dans_la_barre_strict_true_jamais_dans_l_onglet_et_le_dock_passe_docked_a_la_barre_seule",
+      len(_E10["DzmToolBar"]) > 800 and _E10["DzmToolBar"].count('"data-docked":o.docked===!0?"":void 0') == 1
+      and len(_E10["DzmToolTab"]) > 300 and "docked" not in _E10["DzmToolTab"]
+      and len(_E10["DzmToolDock"]) > 2000 and _E10["DzmToolDock"].count("docked:o.docked") == 1
+      and _E10["DzmToolDock"].count("DzmToolTab({open:open,onToggle:bascule,") == 1
+      and _E10["DzmToolDock"].count("DzmToolBar({open:open,docked:o.docked,") == 1
+      and _SRCb.count('"data-docked"') == 1 and _SRCb.count("docked:o.docked") == 1
+      # revue 23/09 : ANCREE, la poignee est inerte -- saisir (pointeur) ET clavier (fleches) sortent en tete ; x2 dans le Dock
+      and _E10["DzmToolDock"].count("if(o.docked===!0)return;") == 2 and _SRCb.count("if(o.docked===!0)return;") == 2
+      and re.search(r"function saisir\(e\)\{[^}]{0,400}if\(o\.docked===!0\)return;", _E10["DzmToolDock"], re.S) is not None
+      and re.search(r"function clavier\(e\)\{\r?\n\s*if\(o\.docked===!0\)return;", _E10["DzmToolDock"]) is not None  # la couche est en CRLF
+      and _E10["DzmToolDock"].count("onGrab:saisir") == 1 and _E10["DzmToolDock"].count("onGripKey:clavier") == 1
+      # temoin : les trois attributs d'etat de la barre restent poses a cote, une fois chacun
+      and _E10["DzmToolBar"].count('"data-off":open?void 0:""') == 1 and _E10["DzmToolBar"].count('"data-drag":o.drag===!0?"":void 0') == 1,
+      ({n: len(c) for n, c in _E10.items()}, _SRCb.count('"data-docked"')))
+
+print("\n[23] E-13 la tete dans l'inspecteur et E-14 le trou selectionne (lot E-C, tache 5)")
+# ── E-13 / E-14 (lot E-C, tache 5, 23/09/2026) ─────────────────────────────
+# Decisions 7 et 8 du plan : teteTxt REUTILISE le formateur de l'hote (svmTcFF,
+# HH:MM:SS:FF a 30 i/s -- pas de « ·ii ») ; l'intervalle du plan est FERME-OUVERT
+# (ph == end : « hors du plan ») ; la queue de piste N'EST PAS un trou (aucun
+# clip suivant -> null), un trou < 0,05 s non plus ; le ripple ne touche QUE la
+# piste du trou (ecart date : le jumeau A1 ne suit pas, comme D-4).
+check("tete_dans_le_plan_hors_a_la_borne_end_sans_sel_au_debut",
+      D.get("tete") == ["tête à F2 · +F2 dans le plan", "tête à F5 · hors du plan", "tête à F4 · hors du plan",
+                        "tête à F5", "tête à F0 · +F0 dans le plan"], D.get("tete"))
+check("tete_bornes_ph_non_fini_vide_fmt_absent_arrondi_centieme_sel_non_numerique_ignore",
+      D.get("tete_bornes") == ["", "", "", "tête à 2.46", "tête à F2", ""], D.get("tete_bornes"))
+check("trou_entre_deux_clips_a_la_borne_en_tete_dans_un_clip_en_queue_autre_piste_ignoree_moins_de_5_centiemes",
+      D.get("trou") == [{"a": 4, "b": 6}, {"a": 4, "b": 6}, {"a": 0, "b": 6}, None, None, {"a": 0, "b": 5}, None, None, {"a": 4, "b": 6}],
+      D.get("trou"))
+check("trou_bornes_clips_null_chaine_t_nan_piste_null_inconnue_null_entrees_non_objets_ignorees",
+      D.get("trou_bornes") == [None, None, None, None, None, {"a": 4, "b": 6}], D.get("trou_bornes"))
+check("ripple_decale_les_clips_de_la_piste_apres_le_trou_seulement_ordre_conserve_autres_pistes_intactes",
+      D.get("rip") == [["a", "v1", 0, 4], ["c", "v1", 6, 8], ["b", "v1", 4, 6], ["n", "a1", 0, 10], ["o", "v2", 5, 9]],
+      D.get("rip"))
+check("ripple_nouveau_tableau_entree_non_mutee_src_conserve_clip_immobile_identique_bornes_copie_identique_null_vide",
+      D.get("rip_bornes") == [True, True, True, True, True, True, True, 0], D.get("rip_bornes"))
+# revue T7 (cloture) : le clip d'une AUTRE piste qui commence apres le trou reste en place -- le seul cas qui distingue
+# « la piste du trou seule » de « toutes les pistes » (dans _g, aucun clip d'une autre piste ne commence apres b)
+check("ripple_revue_t7_une_autre_piste_dont_le_clip_commence_apres_le_trou_ne_bouge_pas",
+      D.get("rip_autre") == [["a", "v1", 0, 4], ["z", "v2", 7, 9]], D.get("rip_autre"))
+# LE COEUR RESTE PUR : ni r.jsx, ni x.use, ni window/document/localStorage ; le formateur n'est JAMAIS recopie
+# (aucun « 30 » ni « svmTcFF » dans teteTxt : il vient de l'hote) ; exports x1 chacun dans DzTracks.
+_E13 = {n: _corps(n) for n in ("dzmTeteTxt", "dzmTrou", "dzmTrouRipple")}
+check("e13_e14_coeur_pur_formateur_passe_et_non_recopie_intervalle_ferme_ouvert_seuil_5_centiemes_exports_x1",
+      all(len(c) > 120 and not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b", c) for c in _E13.values())
+      and "svmTcFF" not in _E13["dzmTeteTxt"] and "30" not in _E13["dzmTeteTxt"]
+      and _E13["dzmTeteTxt"].count(" dans le plan") == 1 and _E13["dzmTeteTxt"].count(" · hors du plan") == 1
+      and _E13["dzmTrou"].count("if(s0<=p&&p<e0)return null;") == 1 and _E13["dzmTrou"].count("b-a<.05") == 1
+      and _E13["dzmTrouRipple"].count("c.tr!==tr") == 1
+      and len(_DT) > 1000 and _DT.count("teteTxt:dzmTeteTxt,trou:dzmTrou,trouRipple:dzmTrouRipple,") == 1,
+      ({n: len(c) for n, c in _E13.items()}, _DT.count("teteTxt:dzmTeteTxt")))
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

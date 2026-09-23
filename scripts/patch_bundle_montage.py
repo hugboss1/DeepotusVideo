@@ -503,6 +503,19 @@ R_M11 = ("  /* P3 — panneau « Texte » (monter en LISANT). Son état est À L
          "     M20b, la branche du gestionnaire clavier, qui l'incrémente. */\n"
          "  var stDzTb=x.useState(0),dzTbReq=stDzTb[0],"
          "setDzTbReq=stDzTb[1];\n"
+         # ── E-10 (lot E-C, tache 4, 23/09/2026) : LA BARRE ANCREE dans le
+         # bandeau de transport. Un booleen PERSISTE (dz_svm_tb_dock, try/catch,
+         # le motif de dz_svm_showdur), passe en prop `docked` au Dock (R_M19)
+         # qui pose data-docked ; ☰ › Affichage le bascule (R_EC1). ICI et pas
+         # dans R_M16REF : c'est l'etat de la MEME barre que dzTbReq, et le pin
+         # E-7 compte `localStorage` x1 dans R_M16REF (temoin de « la vue
+         # n'est pas persistee »). Ecart date par rapport au plan.
+         "  /* E-10 (lot E-C, tâche 4, 23/09/2026) : la barre d'outils ANCRÉE dans le\n"
+         "     bandeau — un booléen persisté (clé ci-dessous), passé en prop `docked`\n"
+         "     au Dock ; l'entrée ☰ › Affichage le bascule. */\n"
+         '  var stTbD=x.useState(function(){try{return localStorage.getItem("dz_svm_tb_dock")==="1"}catch(_e){return !1}}),'
+         "dzTbDock=stTbD[0],setDzTbDock=stTbD[1];\n"
+         '  function dzTbDockToggle(){setDzTbDock(function(v){var n=!v;try{localStorage.setItem("dz_svm_tb_dock",n?"1":"0")}catch(_e){}return n})}\n'
          + A_M11)
 
 # ── M20a (étape 8, §4.1) : LE RACCOURCI, INSCRIT DANS LE MÉCANISME EXISTANT
@@ -999,6 +1012,10 @@ R_M9c = 'children:tr.name})]},"nr"),'
 # motivée. Une ref mise à jour à CHAQUE rendu est le motif déjà employé neuf
 # fois dans ce composant (durRef, clipsRef, phRef, trackStRef…) ; on le
 # reprend plutôt que d'en inventer un autre.
+# La garde demo des tiroirs (E-2, documentee a R_EB2) -- definie ICI parce que
+# R_M16REF (E-7, dzSetView) et R_EB2 / R_EC1 la reprennent ; une seule ecriture.
+_EB_GARDE = ('if(proj.demo){fireNote("Ajout d\'assets : disponible sur un projet '
+             'réel — la démo reste une maquette.");return}')
 A_M16REF = "  var durRef=x.useRef(proj.dur);durRef.current=proj.dur;"
 R_M16REF = (A_M16REF + "\n"
             "  /* P9 — les PISTES du projet, relues à chaque rendu, pour que\n"
@@ -1068,7 +1085,31 @@ R_M16REF = (A_M16REF + "\n"
             # (window keydown) a des deps sans `pop` ni `dzFin` : une lecture
             # directe serait périmée -- même motif que dzMkOnRef. `pop` (stA,
             # :1716 du livré) est déclaré avant cette ligne.
-            "  var dzScrimRef=x.useRef(!1);dzScrimRef.current=!!(pop||dzFin);\n"
+            # ── E-6 (lot E-C, tache 2, 23/09/2026) : LE MENU OUVERT -- REPLIE ICI,
+            # AVANT dzScrimRef qui le lit une ligne plus bas (une ancre libre plus
+            # loin -- delClip, EC1 -- laisserait le ref en retard d'un rendu : le
+            # `var` hoiste vaudrait undefined au moment de l'ecriture). Forme :
+            # {kind:"main"|"clip"|"track", id, x, y, rubs|items} construite A
+            # L'OUVERTURE par dzMenuProps (EC1), jamais a chaque rendu.
+            "  var stMn=x.useState(null),dzMenu=stMn[0],setDzMenu=stMn[1];\n"
+            "  var dzScrimRef=x.useRef(!1);dzScrimRef.current=!!(pop||dzFin||dzMenu);\n"
+            # ── E-14 (lot E-C, tache 5, 23/09/2026) : LE TROU SELECTIONNE -- REPLIE
+            # ICI (0 dans .bak_montage), a cote de dzScrimRef et sur le MEME motif :
+            # onKey (window keydown) a des deps sans gapSel, le ref est pose a
+            # chaque rendu. Forme {tr,a,b} ou null ; pose par le clic dans le vide
+            # d'une lane (EC10), lu par le rendu (EC11) et par Suppr (EC13), efface
+            # par Suppr, Echap (R_K7) et le clic sur un clip (EC14).
+            "  var stGap=x.useState(null),gapSel=stGap[0],setGapSel=stGap[1];\n"
+            "  var gapSelRef=x.useRef(null);gapSelRef.current=gapSel;\n"
+            # REVUE T5 (23/09/2026) : LE TROU S'EFFACE QUAND LES CLIPS CHANGENT.
+            # Mesure : gapSel survivait aux 55 `setClips(` du bundle (undo/redo,
+            # dropOnTrack, blade, range_cut, remplacement...) -- un media depose
+            # dans le trou puis Suppr reculait le clip droit PAR-DESSUS lui, et
+            # le pointille restait dessine sur des bornes qui n'etaient plus un
+            # trou. Un effet sur [clips] couvre TOUS les mutateurs ; sur null,
+            # setGapSel(null) est un bail-out React (cout nul) ; apres Suppr
+            # (qui pose deja null) l'effet re-pose null = no-op.
+            "  x.useEffect(function(){setGapSel(null)},[clips]);\n"
             # ── E-5 (lot E-B, tache 4, 23/09/2026) : LE DERNIER RENDU FINAL
             # PAR PROJET. REPLIÉ ICI comme dzFin (0 dans .bak_montage). Deux
             # états DISTINCTS : dzFin = le bandeau est visible ; ce store =
@@ -1079,6 +1120,40 @@ R_M16REF = (A_M16REF + "\n"
             # `proj` est déclaré avant (stP, :1717 < :1766 dans le livré).
             '  var stDzFS=x.useState(function(){try{return JSON.parse(localStorage.getItem("dz_montage_lastfin")||"{}")||{}}catch(_e){return {}}}),dzFinStore=stDzFS[0],setDzFinStore=stDzFS[1];\n'
             '  var dzLast=DzTracks.finOf(dzFinStore,proj.project_id||"_");\n'
+            # ── E-7 (lot E-C, tache 3, 23/09/2026) : LES TROIS VUES (Medias · Montage ·
+            # Livraison). REPLIE ICI (0 dans .bak_montage), APRES dzLast que le panneau
+            # lit (EC9). `view` est un etat de SESSION -- decision 4 : aucun
+            # localStorage, chaque ouverture repart sur l'ecran complet ("montage").
+            # (kbPanel declare son propre `var view` LOCAL -- une ombre interne a cette
+            # fonction, sans effet sur l'hote ; « setView » vaut 8 dans l'amont : le
+            # setter s'appelle setVw.) dzJobs = l'historique GET /api/jobs?providers=
+            # montage&q=<nom>&limit=24 (E-B ; PAR TITRE, aucun project_id en base --
+            # ecart date), recharge a chaque entree en « livraison » ; vivant/demonte
+            # par le drapeau local de l'effet (motif du tiroir sous-titres, couche
+            # :1053) ET dzAliveRef (P9, plus bas dans ce corps, resolue a l'appel).
+            # dzSetView(« medias ») = LA garde demo de la chip (meme phrase, comptee :
+            # sur la maquette, note et la vue ne change PAS), puis les memes setters
+            # que la chip : tiroir Medias ouvert, les trois autres fermes.
+            # ECART MESURE A L'ECRAN (23/09/2026) : en « livraison », le panneau ne
+            # faisait que 150 px a cote d'un tiroir Medias reste ouvert (340) et de
+            # l'inspecteur (300) dans un .svm-mid de 928 px -> la vue Livraison FERME
+            # les quatre tiroirs (memes setters, setMedOn(!1) x6 -> x7) et la feuille
+            # donne au panneau min-width:320px (le plan ecrivait 0).
+            '  var stVw=x.useState("montage"),view=stVw[0],setVw=stVw[1];\n'
+            "  var stDzJ=x.useState([]),dzJobs=stDzJ[0],setDzJobs=stDzJ[1];\n"
+            '  x.useEffect(function(){if(view==="livraison"){var alive=!0;\n'
+            '    fetch("/api/jobs?providers=montage&limit=24&q="+encodeURIComponent(proj.name||"")).then(function(r2){return r2.json()})\n'
+            '      .then(function(j){if(alive&&dzAliveRef.current)setDzJobs(Array.isArray(j)?j:[])}).catch(function(){});\n'
+            # REVUE T3 (23/09/2026) : dependance [view, proj.name] -- proj.name change
+            # SANS remonter DzMontage (ouvrir / renommer en place via
+            # DzTracks.Projects -> setProj) : avec [view] seule, la vue Livraison
+            # gardait la liste de l'ancien titre. ECARTS dates (revue) : la vue
+            # Livraison ferme le tiroir Narration comme toute bascule croisee (le
+            # choix dz_narr_open n'est pas reecrit, il revient au prochain montage) ;
+            # `dzAliveRef.current` dans ce `then` est redondant avec `alive` (laisse).
+            '    return function(){alive=!1}}},[view,proj.name]);\n'
+            '  function dzSetView(v){if(v==="medias"){' + _EB_GARDE + 'setMedTr("");setMedOn(!0);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)}\n'
+            '    if(v==="livraison"){setMedOn(!1);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)}setVw(v)}\n'
             # ── « E1 » (D-2) : L'ÉTAT DU MODE D'ÉDITION ──────────────
             # REPLIÉ ICI, et c'est une MESURE : la ligne `dzTracksRef`
             # ci-dessus vaut 0 dans .bak_montage (c'est CE remplacement
@@ -1725,21 +1800,11 @@ R_M16 = (A_M16 + "\n"
          "           « In / Out » qu'il recale et l'inspecteur de transition\n"
          "           qu'il conserve : les garanties du geste encadrent son\n"
          "           bouton. Voir le commentaire d'ancre dans le patcher. */\n"
-         "        DzTracks.replaceBtn(sel,function(){\n"
-         "          if(trackStRef.current[sel.tr]&&trackStRef.current[sel.tr].l){\n"
-         "            fireNote(\"Piste \"+sel.tr.toUpperCase()+\" verrouillée — \"+\n"
-         "              \"déverrouillez-la pour remplacer la source de ce \"+\n"
-         "              \"plan.\");return}\n"
-         "          dzmReplaceRef.current={id:sel.id,tr:sel.tr,\n"
-         "            label:sel.label};\n"
-         "          setDzmArm({tr:sel.tr,label:sel.label});\n"
-         "          /* déjà ouvert sur cette piste : rouvrir le REFERMERAIT\n"
-         "             (le sélecteur bascule), et le mode resterait armé sur\n"
-         "             un panneau fermé. C'est `setDzmArm` — et non\n"
-         "             `openPicker` — qui re-rend dans ce cas-là, sans quoi\n"
-         "             le panneau resterait intitulé « Ajouter sur la piste\n"
-         "             V1 » pendant qu'il remplace. */\n"
-         "          if(ovPick!==sel.tr)openPicker(sel.tr)}),\n"
+         # E-6 (lot E-C, tache 2, 23/09/2026) : le geste d'armement du bouton
+         # (verrou de piste, ref + miroir, ouverture du selecteur) est EXTRAIT
+         # en dzReplaceArm(sel) -- EC1, fonction de l'hote -- pour que le menu
+         # contextuel du clip et ce bouton fassent EXACTEMENT la meme chose.
+         "        DzTracks.replaceBtn(sel,function(){dzReplaceArm(sel)}),\n"
          "        DzTracks.revertBtn(sel,function(){\n"
          "          /* LE MÊME VERROU QUE M15 : ce geste réécrit `src`,\n"
          "             `label`, `srcIn` ET `end` — donc le bord droit du\n"
@@ -2273,7 +2338,12 @@ R_M19 = (A_M19 + "\n"
          # par `svmKeyLabel` — la même fonction qui fait suivre la chip
          # « lame » à un remappage. L'onglet la dit dans son `title` : un
          # raccourci qu'on ne peut lire nulle part n'existe qu'à moitié.
-         'toggleReq:dzTbReq,keyLbl:svmKeyLabel("toolbar"),'
+         # E-10 (lot E-C, tache 4, 23/09/2026) : `docked`, l'etat de R_M11 --
+         # le Dock le pose en data-docked sur la barre SEULE (l'onglet garde
+         # son sens : il replie la barre ancree a zero largeur), la feuille
+         # met la barre en flux (position:static) en TETE de ce bandeau : elle
+         # se place a gauche des boutons de transport, sans autre changement.
+         'docked:dzTbDock,toggleReq:dzTbReq,keyLbl:svmKeyLabel("toolbar"),'
          "onProjets:function(){setDzProjReq(function(n){return n+1})}}),")
 
 # ══ P12 — LE SON D'UN PLAN SUIT SA VIDÉO ═══════════════════════════════════
@@ -3535,7 +3605,13 @@ R_K7 = ('if(e.key==="Escape"){\n'
         # branche Escape de onKey est consommee par K7 (le plan supposait
         # R_R2 : ecart mesure). Apres l'index des marqueurs (ouvert par
         # dessus, il se ferme d'abord), avant le repli ovEsc de l'overlay.
-        "        if(dzScrimRef.current){e.preventDefault();setPop(\"\");setDzFin(null);return}\n"
+        # E-14 (lot E-C, tache 5, 23/09/2026) : LE TROU SELECTIONNE S'EFFACE
+        # AVANT le voile (un trou sous un popover : Echap efface d'abord le
+        # trou, le popover au second Echap) -- meme repli, meme branche.
+        "        if(gapSelRef.current){e.preventDefault();setGapSel(null);return}\n"
+        # E-6 (lot E-C, tache 2, 23/09/2026) : ... et le menu ☰ / contextuel
+        # (dzMenu, porte par le meme ref) -- meme repli, meme branche.
+        "        if(dzScrimRef.current){e.preventDefault();setPop(\"\");setDzFin(null);setDzMenu(null);return}\n"
         "        if(kbAudioRef.current&&kbAudioRef.current.ovEsc&&"
         "kbAudioRef.current.ovEsc())e.preventDefault();\n"
         "        return}")
@@ -4022,7 +4098,10 @@ A_EA5D = '        r.jsx("button",{className:"svm-goldbtn",onClick:function(){set
 # final mémorisé ; sinon rouvre le bandeau sur ce rendu (project_id repris
 # de proj : le store ne le porte pas) après avoir fermé le popover (EA5e :
 # jamais les deux ouverts).
-R_EA5D = (A_EA5D.replace('"Rendre & publier →"', '"Rendre →"') + '\n'
+# E-12 (lot E-C, tache 6, 23/09/2026) : l'infobulle du bouton or, REPLI ici
+# (ancre consommee par EA5d) — il OUVRE le panneau, il ne lance rien.
+_EC15_OR = 'svm-goldbtn",title:"Rendu final (master 1080, local) — ouvre le panneau de rendu",onClick:'
+R_EA5D = (A_EA5D.replace('"Rendre & publier →"', '"Rendre →"').replace('svm-goldbtn",onClick:', _EC15_OR) + '\n'
           '        /* E-5 : « Publier » = le dernier rendu FINAL de ce projet (mémoire par projet), sinon grisé */\n'
           '        r.jsx("button",{className:"svm-secbtn svm-pubbtn",disabled:!dzLast,'
           'title:dzLast?"Envoyer le dernier rendu final au Scheduler":"Aucun rendu final pour ce projet",\n'
@@ -4283,8 +4362,8 @@ R_EB1 = ('  var stMed=x.useState(!1),medOn=stMed[0],setMedOn=stMed[1]; '
 # « + » video (R_TT11) ouvraient le tiroir sans regarder `proj.demo` : un
 # clic sur une rangee aurait pose un clip dans la maquette. Les DEUX
 # handlers portent la MEME garde, MEME phrase qu'openPicker (comptee).
-_EB_GARDE = ('if(proj.demo){fireNote("Ajout d\'assets : disponible sur un projet '
-             'réel — la démo reste une maquette.");return}')
+# (E-7, 23/09/2026) `_EB_GARDE` est definie PLUS HAUT, avant A_M16REF : R_M16REF la
+# reprend pour dzSetView(« medias ») -- la meme phrase, comptee par le banc.
 # Meme famille que « sons » et « narration » (svm-themechip, data-on,
 # aria-pressed). Ouvrir le tiroir Medias FERME les trois autres tiroirs de
 # .svm-mid (sons, sous-titres, narration) : ils sont EXCLUSIFS (mesure
@@ -4390,6 +4469,9 @@ R_EB3 = (A_EB3 + '\n'
 # (le Studio minifié, graphe Mh, en porte un) -> l'ancre est la LIGNE ENTIÈRE.
 A_EB4 = '        r.jsx("button",{className:"svm-secbtn",onClick:function(){setPop(pop==="preview"?"":"preview")},children:"Preview 480p (gratuit)"}),'
 R_EB4 = A_EB4.replace('"Preview 480p (gratuit)"', '"Preview"')
+# E-12 (lot E-C, tache 6, 23/09/2026) : l'infobulle, REPLI ici (l'ancre est
+# consommee par EB4) — l'aperçu est gratuit et local, la barre le dit.
+R_EB4 = R_EB4.replace('svm-secbtn",onClick:', 'svm-secbtn",title:"Aperçu 480p — gratuit, local, aucun crédit",onClick:')
 
 # ── EB5a (E-11, lot E-B tache 5, 23/09/2026) : LE VOILE SOUS LES POPOVERS
 # QUI ARMENT UN MODE. Meme geste que le voile de kbPanel (.svm-kbscrim :
@@ -4404,10 +4486,19 @@ R_EB4 = A_EB4.replace('"Preview 480p (gratuit)"', '"Preview"')
 # independante de l'ordre DOM (retenue par le plan). Le clic sur le voile
 # ferme les deux (setPop + setDzFin) : le bandeau et le popover ne sont
 # jamais ouverts ensemble (EA5e), fermer les deux est idempotent.
+# ── EC3 (E-6, lot E-C tache 2, 23/09/2026) : LE VOILE PORTE AUSSI LE MENU
+# (pop||dzFin||dzMenu) et son clic ferme les trois ; le menu ☰ / contextuel
+# (DzTracks.CtxMenu, la couche T1) est rendu JUSTE APRES le voile et AVANT
+# kbPanel -- REPLI ici : l'ancre `transPopover(),\n kbPanel(),` est CONSOMMEE
+# par EB5a (mesure : 0 dans le livre). Le menu est un .svm-pop (z 20) : il
+# passe au-dessus du voile (19) comme les popovers. L'etat dzMenu vit dans
+# R_M16REF (a cote de dzScrimRef, qui le lit), Echap dans R_K7.
+EC3_MENU = '    dzMenu?r.jsx(DzTracks.CtxMenu,Object.assign({onClose:function(){setDzMenu(null)}},dzMenu)):null,'
 A_EB5A = ('    transPopover(),\n'
           '    kbPanel(),')
 R_EB5A = ('    transPopover(),\n'
-          '    (pop||dzFin)?r.jsx("div",{className:"svm-modescrim",onClick:function(){setPop("");setDzFin(null)}}):null,\n'
+          '    (pop||dzFin||dzMenu)?r.jsx("div",{className:"svm-modescrim",onClick:function(){setPop("");setDzFin(null);setDzMenu(null)}}):null,\n'
+          + EC3_MENU + '\n'
           '    kbPanel(),')
 
 # ── EB5b (E-11) : LA RACINE DE popover() ARRETE LE CLIC (motif kbPanel) ──
@@ -4551,6 +4642,307 @@ R_EB8B = (A_EB8B + '\n'
           '  x.useEffect(function(){var el=tlScrollRef.current;if(!el)return;el.addEventListener("scroll",mmCalc);mmCalc();\n'
           '    return function(){el.removeEventListener("scroll",mmCalc)}},[mmCalc]);\n'
           '  x.useEffect(function(){mmCalc()},[zoomPct,mmCalc]);')
+
+# ══ E-6 (lot E-C, tache 2, 23/09/2026) — LE MENU ☰ ET LES MENUS CONTEXTUELS ═
+# Decisions 1..3 du plan : PAS de dispatch(id) -- une entree a raccourci
+# REJOUE sa combo par un KeyboardEvent synthetique sur window (onKey reste
+# l'unique dispatch ; MESURE : onKey ne filtre que e.target input / textarea /
+# select / contentEditable, window passe -- T1 l'a verifie 45/45 aller-retour) ;
+# six rubriques par le modele de la couche (DzTracks.menuModel) ; UN composant
+# (DzTracks.CtxMenu) pour ☰ et les deux menus contextuels. Les entrees SANS
+# raccourci appellent les fonctions de l'hote, mesurees une a une (voir EC1).
+# MESURES 23/09/2026 : SVM_ACTIONS est la table COMPLETE (45 entrees : R_R1
+# insere dans le litteral, SVM_ACTION_BY_ID la reprend) ; aucun lien « Guide »
+# dans le rail du Montage (les seuls `guide` du bundle sont les guides
+# d'alignement tfGuide) -> l'entree Aide › Guide est OMISE (ecart date) ;
+# keys_panel (« ? ») est dans Aide PAR LE MODELE -> pas de « Raccourcis »
+# double ; svmKeyLabel(id) rend "" sans surcharge -> le modele retombe sur la
+# combo de la table ; la couche n'a PAS de o.anchor -> x,y calcules ici depuis
+# getBoundingClientRect() du bouton (left, bottom+4). .dzsvm est
+# position:absolute;inset:0 : les coordonnees client sont RAMENEES a son
+# repere (le motif d'openTransPopAt) et bornees a sa largeur-270 (la couche
+# borne encore a la fenetre : sans effet quand le rail est a gauche).
+# QUATRE ancres LIBRES (1/0/1 mesurees) : delClip (EC1), svm-title (EC2), le
+# onPointerDown du clip (EC4), le svm-thead (EC5). Replis : l'etat dans
+# R_M16REF, le voile + le rendu dans R_EB5A, Echap dans R_K7, le bouton
+# « remplacer » dans R_M16 (dzReplaceArm).
+# ECARTS dates : « Remplacer la source… » est grise SANS src seulement (le plan
+# disait « ou pas V1 » ; le geste R_M16 accepte les pistes audio, dzmReplaceBtn
+# n'exige que src) ; « Couper a la tete » reprend la tolerance de blade
+# (.05 s de chaque bord) ; les bascules (Inspecteur, Medias, Durees, vitesse
+# courante) montrent « ✓ » dans la colonne de la combo ; la note de
+# « Supprimer la piste » est plus courte que celle de del() (pas le rappel du
+# bouton qui la recree), la sequence d'etat est la meme.
+A_EC1 = "  var delClip=x.useCallback(function(){delClipById(selRef.current)},[delClipById]);"
+R_EC1 = (A_EC1 + "\n"
+         '  /* ── E-6 (lot E-C, tâche 2, 23/09/2026) : LE MENU ☰ ET LES MENUS CONTEXTUELS ──\n'
+         '     dzFire(id) rejoue la combo VIVANTE d\'une action (svmKeyLabel, repli table) par un\n'
+         '     KeyboardEvent synthétique sur window : onKey reste l\'unique dispatch (il ne filtre\n'
+         '     que les champs de saisie). dzReplaceArm = le geste du bouton « remplacer » (R_M16),\n'
+         '     extrait : le bouton ET le menu du clip l\'appellent. dzMenuProps(kind,o) construit les\n'
+         '     entrées À L\'OUVERTURE (mémorisées dans dzMenu, jamais reconstruites au rendu) ; x,y\n'
+         '     ramenés au repère de .dzsvm (position:absolute;inset:0 — motif d\'openTransPopAt). */\n'
+         '  function dzFire(id){var a=SVM_ACTION_BY_ID[id],k=DzTracks.comboToKey(svmKeyLabel(id)||(a&&a.combo)||"");\n'
+         '    if(k)window.dispatchEvent(new KeyboardEvent("keydown",Object.assign({bubbles:!0,cancelable:!0},k)))}\n'
+         '  function dzReplaceArm(sel){\n'
+         '    if(trackStRef.current[sel.tr]&&trackStRef.current[sel.tr].l){\n'
+         '      fireNote("Piste "+sel.tr.toUpperCase()+" verrouillée — "+\n'
+         '        "déverrouillez-la pour remplacer la source de ce "+\n'
+         '        "plan.");return}\n'
+         '    dzmReplaceRef.current={id:sel.id,tr:sel.tr,\n'
+         '      label:sel.label};\n'
+         '    setDzmArm({tr:sel.tr,label:sel.label});\n'
+         '    /* déjà ouvert sur cette piste : rouvrir le REFERMERAIT (le sélecteur bascule), et le\n'
+         '       mode resterait armé sur un panneau fermé. C\'est `setDzmArm` — et non `openPicker` —\n'
+         '       qui re-rend dans ce cas-là, sans quoi le panneau resterait intitulé « Ajouter sur la\n'
+         '       piste V1 » pendant qu\'il remplace. */\n'
+         '    if(ovPick!==sel.tr)openPicker(sel.tr)}\n'
+         '  function dzMenuProps(kind,o){\n'
+         '    var id=o.id,ph=phRef.current,cs=clipsRef.current,rr=rootRef.current?rootRef.current.getBoundingClientRect():{left:0,top:0,width:window.innerWidth};\n'
+         '    var base={kind:kind,id:id,x:Math.max(0,Math.min(o.x-rr.left,rr.width-270)),y:Math.max(0,o.y-rr.top)};\n'
+         '    if(kind==="main"){\n'
+         '      var rubs=DzTracks.menuModel(SVM_ACTIONS,svmKeyLabel).map(function(g){return {rub:g.rub,items:g.items.map(function(a){return {lbl:a.lbl,combo:a.combo,run:function(){dzFire(a.id)}}})}});\n'
+         '      rubs.unshift({rub:"Projet",items:[\n'
+         '        {lbl:"Projets…",run:function(){setDzProjReq(function(n){return n+1})}},\n'
+         '        {lbl:"Preview 480p",run:function(){setPop("preview")}},\n'
+         '        {lbl:"Rendre…",run:function(){setPop("render")}},\n'
+         '        {lbl:"Publier",off:!dzLast,run:function(){if(dzLast){setPop("");setDzFin(Object.assign({project_id:proj.project_id||""},dzLast))}}}]});\n'
+         '      var aff=rubs.filter(function(g){return g.rub==="Affichage"})[0];\n'
+         '      if(!aff){aff={rub:"Affichage",items:[]};rubs.splice(rubs.length-1,0,aff)}\n'
+         '      aff.items=aff.items.concat([\n'
+         '        {lbl:"Inspecteur",combo:inspOn?"✓":"",run:function(){setInspSt(function(s){var n={on:!s.on,w:s.w};try{localStorage.setItem("dz_svm_insp",JSON.stringify(n))}catch(_e){}return n})}},\n'
+         '        {lbl:"Médias",combo:medOn?"✓":"",run:function(){' + _EB_GARDE + 'setMedTr("");setMedOn(!medOn);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)}},\n'
+         '        {lbl:"Durées sur les clips",combo:showDur?"✓":"",run:function(){setShowDur(function(v){var n=!v;try{localStorage.setItem("dz_svm_showdur",n?"1":"0")}catch(_e){}return n})}},\n'
+         # E-10 (lot E-C, tache 4) : la bascule d'ancrage de la barre (etat R_M11).
+         '        {lbl:"Ancrer la barre d\'outils",combo:dzTbDock?"✓":"",run:function(){dzTbDockToggle()}}]);\n'
+         '      return Object.assign(base,{rubs:rubs})}\n'
+         '    if(kind==="clip"){var c=cs.find(function(k){return k.id===id});if(!c)return null;\n'
+         '      var v1=c.tr==="v1",sp=svmSpeedOf(c),g=DzTracks.voisins(cs,c).g;\n'
+         '      return Object.assign(base,{items:[\n'
+         '        {lbl:"Couper à la tête",combo:svmKeyLabel("blade"),off:!(ph>c.start+.05&&ph<c.end-.05),run:function(){dzFire("blade")}},\n'
+         '        {lbl:"Supprimer",combo:svmKeyLabel("delete"),run:function(){delClipById(id)}},\n'
+         '        {lbl:"Remplacer la source…",off:!c.src,run:function(){dzReplaceArm(c)}},\n'
+         '        {lbl:"Effets…",off:trackKind(c.tr)==="audio",run:function(){setFxPick(!0)}},{sep:!0}]\n'
+         '        .concat([.25,.5,.75,1,1.5,2].map(function(v){return {lbl:"Vitesse "+Math.round(v*100)+" %",combo:Math.abs(sp-v)<1e-6?"✓":"",off:!v1||!c.src||!c.src.job_id,run:function(){svmSetV1Speed(id,v)}}}))\n'
+         '        .concat([{sep:!0},{lbl:"Transition…",off:!g,run:function(){openTransPopAt(id,o.x)}}])})}\n'
+         '    if(kind==="track"){var ts=svmTracksOf(proj),t=ts.find(function(k){return k.id===id});if(!t)return null;\n'
+         '      var bus=SVM_TRACK_BUS[id],lk=!!(trackSt[id]&&trackSt[id].l),bs=id==="v1"||id==="s1",n=cs.filter(function(k){return k.tr===id}).length;\n'
+         '      return Object.assign(base,{items:[\n'
+         '        {lbl:lk?"Déverrouiller":"Verrouiller",run:function(){svmTrackLock(id)}},\n'
+         '        {lbl:"Muet",off:!bus,run:function(){svmTrackMute(id)}},\n'
+         '        {lbl:"Solo",off:!bus,run:function(){svmTrackSolo(id,!1)}},{sep:!0},\n'
+         '        {lbl:"Supprimer la piste",off:bs,run:function(){svmTracksSet(DzTracks.remove(ts,id));\n'
+         '          if(n)setClips(function(cs2){return (cs2||[]).filter(function(k){return k.tr!==id})});\n'
+         '          fireNote("Piste "+(t.name||id)+" retirée"+(n?" avec "+n+" clip"+(n>1?"s":"")+" — annuler ramène les clips":"")+".")}}]})}\n'
+         '    return null}')
+assert R_EC1.count("{sep:!0}") == 3 and R_EC1.count("dzmReplaceRef.current={") == 1
+assert EC3_MENU in R_EB5A
+# EC2 : le bouton ☰ AVANT le titre « Montage » (ancre libre 1/0/1) ; le clic
+# sur le bouton pendant que le menu est ouvert tombe en fait sur le voile
+# (inset:0, au-dessus de la barre) qui ferme : la branche « refermer » du
+# bouton est une ceinture, aria-expanded le temoin.
+A_EC2 = '      r.jsx("span",{className:"svm-title",children:"Montage"}),'
+R_EC2 = ('      r.jsx("button",{className:"svm-secbtn svm-menubtn",title:"Menu — actions et raccourcis","aria-haspopup":"menu",'
+         '"aria-expanded":!!(dzMenu&&dzMenu.kind==="main"),onClick:function(e){if(dzMenu&&dzMenu.kind==="main"){setDzMenu(null);return}'
+         'var b=e.currentTarget.getBoundingClientRect();setDzMenu(dzMenuProps("main",{x:b.left,y:b.bottom+4}))},children:"☰"}),\n'
+         + A_EC2)
+# EC4 : clic droit sur un clip -> selection + menu au pointeur (preventDefault :
+# pas de menu natif ; stopPropagation : le .svm-vph du lecteur a son propre
+# onContextMenu, seul autre site -- 1 -> 3 avec EC5).
+A_EC4 = '                    onPointerDown:function(e){clipDown(e,c,e.currentTarget.parentElement)},'
+R_EC4 = (A_EC4 + '\n'
+         '                    onContextMenu:function(e){e.preventDefault();e.stopPropagation();setSelId(c.id);setDzMenu(dzMenuProps("clip",{x:e.clientX,y:e.clientY,id:c.id}))},')
+# EC5 : clic droit sur l'en-tete d'une piste (les deux formes, bus ou non,
+# partagent cette racine).
+A_EC5 = '              r.jsxs("div",{className:"svm-thead"+(bus?" svm-thead-a":""),children:'
+R_EC5 = A_EC5.replace("children:",
+                      'onContextMenu:function(e){e.preventDefault();setDzMenu(dzMenuProps("track",{x:e.clientX,y:e.clientY,id:tr.id}))},children:')
+for _a, _r in ((A_EC1, R_EC1), (A_EC2, R_EC2), (A_EC4, R_EC4)):
+    assert _a != _r and _a in _r
+assert A_EC5 != R_EC5 and R_EC5.startswith(A_EC5[:-9]) and R_EC5.endswith("children:")
+# ── E-7 (lot E-C, tache 3, 23/09/2026) : LES TROIS VUES ─────────────────────
+# MESURES (1/0/1) : la racine .dzsvm (EC7), la fin de .dzsvm (EC8 -- le DERNIER
+# `]})` de la ligne ferme .dzsvm : `]})` svm-scroll, `})` la fermeture-appel,
+# `]})` .svm-tl, `]})` .dzsvm, `}` DzMontage ; node --check tranche) et l'ouverture
+# de .svm-mid (EC9). L'etat (view, dzJobs, l'effet, dzSetView) est un REPLI dans
+# R_M16REF. ECARTS dates : « Voir dans la Bibliotheque » = le chemin EXACT du
+# bandeau E-4 (CustomEvent deepotus:navigate -> library ; le plan ecrivait
+# props.go("library"), qui n'existe pas dans ce composant) ; presets = D-35 ;
+# le panneau est le PREMIER enfant de .svm-mid, a cote du lecteur (la timeline
+# et sa poignee sont masquees par la feuille en Medias / Livraison).
+A_EC7 = '  return r.jsxs("div",{className:"dzsvm svm-col",ref:rootRef,"data-svm-theme":theme==="light"?"light":void 0,children:['
+R_EC7 = A_EC7.replace('ref:rootRef,', 'ref:rootRef,"data-view":view,')
+A_EC8 = '          r.jsx("div",{className:"svm-translabel",ref:transLabelRef})]})})]})]})}'
+EC8_VIEWS = ('    r.jsx("div",{className:"svm-views",role:"tablist",children:[["medias","Médias"],["montage","Montage"],["livraison","Livraison"]].map(function(v){'
+             'return r.jsx("button",{className:"svm-viewbtn",role:"tab","aria-selected":view===v[0],"data-on":view===v[0]?"":void 0,title:"Vue "+v[1],'
+             'onClick:function(){dzSetView(v[0])},children:v[1]},v[0])})})]})}')
+R_EC8 = (A_EC8[:-4] + ',\n'
+         '    /* E-7 : la barre des vues, dernier enfant de .dzsvm (tablist ; data-on = la vue courante) */\n'
+         + EC8_VIEWS)
+A_EC9 = '    r.jsxs("div",{className:"svm-mid",children:['
+R_EC9 = (A_EC9 + '\n'
+         '      /* E-7 : le panneau Livraison (le composant Deliver de la couche) -- memes gestes que la barre de titre (Preview / Rendre / Publier = R_EA5D),\n'
+         '         historique dzJobs (EC6), « Voir dans la Bibliothèque » = le chemin du bandeau de fin */\n'
+         '      view==="livraison"?r.jsx(DzTracks.Deliver,{nom:proj.name,onPreview:function(){setPop("preview")},onRender:function(){setPop("render")},'
+         'onPublish:function(){if(dzLast){setPop("");setDzFin(Object.assign({project_id:proj.project_id||""},dzLast))}},publishOn:!!dzLast,lastFin:dzLast,jobs:dzJobs,'
+         'onOpenLib:function(){window.dispatchEvent(new CustomEvent("deepotus:navigate",{detail:{view:"library"}}))}}):null,')
+for _a, _r in ((A_EC7, R_EC7), (A_EC8, R_EC8), (A_EC9, R_EC9)):
+    assert _a != _r and _r.count(_a[:40]) == 1
+assert R_EC7.count('"data-view":view,') == 1 and A_EC8.endswith("]})]})}") and R_EC8.endswith("]})}")
+# la barre REPRENDS la fermeture retiree : autant de `]})` qu'avant, un `}` final
+assert R_EC8.count("]})") == A_EC8.count("]})") == 3 and R_EC9.count("DzTracks.Deliver") == 1
+assert R_M16REF.count('x.useState("montage")') == 1 and R_M16REF.count("function dzSetView(v){") == 1 and _EB_GARDE in R_M16REF
+
+# ══ E-13 / E-14 (lot E-C, tache 5, 23/09/2026) — LA TETE DANS L'INSPECTEUR,
+# LE TROU SELECTIONNE ═══════════════════════════════════════════════════════
+# E-13 : « tête à HH:MM:SS:FF · +HH:MM:SS:FF dans le plan » (ou « hors du
+# plan ») en tete de l'inspecteur, par DzTracks.teteTxt (couche, pure) et le
+# formateur svmTcFF de .svm-tcmain (30 i/s, decision 7 : pas de « ·ii »).
+# ECART MESURE (23/09/2026) : le plan voulait un REPLI dans R_EB6A (apres la
+# poignee) ; ce remplacement est pinne OCTET POUR OCTET par le banc bundle
+# ([EB] E-8 : `getattr(P,"R_EB6A")==_EB8_R`). L'ancre du PREMIER enfant
+# d'origine de l'aside, « Clip sélectionné », est libre (1/0/1) et SUIT la
+# poignee : section EC12, meme place a l'ecran (poignee, en-tete, label).
+A_EC12 = '        r.jsx(SvmLabel,{children:"Clip sélectionné"}),'
+R_EC12 = ('        r.jsx("div",{className:"svm-insphead",title:"Tête de lecture (HH:MM:SS:image à 30 i/s)",children:DzTracks.teteTxt(ph,sel,svmTcFF)}),\n'
+          + A_EC12)
+# E-14 : selectionner un trou, Suppr = ripple SUR LA PISTE (decision 8 :
+# DzTracks.trouRipple ne decale que les clips de cette piste apres le trou --
+# ecart date : le jumeau A1 ne suit pas, comme D-4 ; DzTracks.rippleCut,
+# lui, agit sur TOUTES les pistes et sert range_cut). La queue de piste n'est
+# pas un trou (DzTracks.trou rend null sans clip suivant), ni un vide < 0,05 s.
+# EC10 : le clic dans le VIDE d'une lane. MESURE : .svm-lane n'avait ni
+# onPointerDown ni onClick (onDragOver/onDrop seuls) ; la tete ne se pose que
+# par la regle (rulerDown). Cible = la lane ELLE-MEME (e.target===
+# e.currentTarget : un clip est un enfant, il garde clipDown ; .svm-gap de V1
+# est pointer-events:none et .svm-gapsel aussi -- le clic y retombe sur la
+# lane), bouton gauche, hors demo (proj.demo : la maquette ne s'edite pas).
+# ECART MESURE : `phFromEvent(e,lane)` deduirait la gouttiere de 88 px une
+# SECONDE fois (.svm-lane est flex:1 A COTE de .svm-thead 88 px ; les clips
+# sont poses en % de la lane elle-meme) -> le temps est lu sur le rect de la
+# lane, le cadre exact des clips. Pas de stopPropagation : rien n'ecoutait.
+# ECARTS DATES (revue T5, 23/09/2026) : le clip selectionne LE RESTE apres
+# un clic dans le vide (le dernier cliche gagne : trou ET clip peuvent etre
+# selectionnes, Suppr prend le trou d'abord) ; les MARQUEURS (D-5) ne suivent
+# pas le ripple du trou, comme le jumeau A1 ; le seuil de 0,05 s est
+# flottant (6,05-6 < 0,05 en IEEE : un tel trou est refuse -- assume).
+A_EC10 = '                onDrop:function(e){dropOnTrack(e,tr.id,e.currentTarget)},'
+R_EC10 = (A_EC10 + '\n'
+          '                onPointerDown:function(e){if(e.button!==0||e.target!==e.currentTarget||proj.demo)return;'
+          'var rc=e.currentTarget.getBoundingClientRect();var t=(e.clientX-rc.left)/rc.width*durRef.current;'
+          'var g=DzTracks.trou(clipsRef.current,tr.id,t);setGapSel(g?{tr:tr.id,a:g.a,b:g.b}:null)},')
+# EC11 : le rendu du trou, dans la lane de SA piste, en % de dur comme les
+# clips et svmV1Gaps (ancre libre : la ligne des trous noirs de V1).
+A_EC11 = '                tr.id==="v1"?svmV1Gaps(clips,dur):null,'
+R_EC11 = (A_EC11 + '\n'
+          '                gapSel&&gapSel.tr===tr.id?r.jsx("div",{className:"svm-gapsel",style:{left:(gapSel.a/dur*100)+"%",width:((gapSel.b-gapSel.a)/dur*100)+"%"},'
+          'title:"Trou sélectionné — Suppr le referme (ripple sur cette piste)"}):null,')
+# EC13 : Suppr. La branche `if(id==="delete"){` est libre (1/0/1) ; le trou
+# passe AVANT le losange d'automation (vpDel) et le clip (delClip). La
+# sequence est CELLE de delClipById : verrou de piste (meme phrase, meme
+# ref), pushHistory() (empile clipsRef.current), setClips, setDirty(!0),
+# note. gapSelRef (pas gapSel) : onKey est un ecouteur window aux deps figees.
+A_EC13 = '      if(id==="delete"){'
+R_EC13 = (A_EC13 + '\n'
+          '        /* E-14 : un trou sélectionné passe avant le losange et le clip */\n'
+          '        if(gapSelRef.current){var gs=gapSelRef.current;if(trackStRef.current[gs.tr]&&trackStRef.current[gs.tr].l){fireNote("Piste "+gs.tr.toUpperCase()+" verrouillée — déverrouillez-la pour refermer le trou.");return}\n'
+          '          pushHistory();setClips(DzTracks.trouRipple(clipsRef.current,gs.tr,gs.a,gs.b));setDirty(!0);setGapSel(null);'
+          'fireNote("Trou de "+svmShort(gs.b-gs.a)+" refermé sur "+gs.tr.toUpperCase());return}')
+# EC14 : un clic sur un clip efface le trou (ancre libre : la tete de clipDown).
+A_EC14 = '  function clipDown(e,c,laneEl){'
+R_EC14 = A_EC14 + '\n    if(gapSelRef.current)setGapSel(null); /* E-14 : un clic sur un clip efface le trou sélectionné */'
+for _a, _r in ((A_EC10, R_EC10), (A_EC11, R_EC11), (A_EC12, R_EC12), (A_EC13, R_EC13), (A_EC14, R_EC14)):
+    assert _a != _r and _r.count(_a) == 1
+assert R_M16REF.count("gapSelRef.current=gapSel;") == 1 and R_K7.count("setGapSel(null)") == 1
+assert R_M16REF.count("},[clips]);") == 1 and R_M16REF.find("},[clips]);") > R_M16REF.find("gapSelRef.current=gapSel;")
+assert R_K7.find("dzMkOnRef") < R_K7.find("setGapSel(null)") < R_K7.find("dzScrimRef")
+
+# ══ E-12 (lot E-C, tache 6, 23/09/2026) — UN BOUTON SE GRISE, NE DISPARAIT
+# PAS ; INFOBULLE OBLIGATOIRE ═══════════════════════════════════════════════
+# Banc de SOURCES : backend/tests/test_montage_ergonomie.py (regle 1 : tout
+# bouton svm-tbtn/dzm-tbb/svm-secbtn/svm-goldbtn/svm-minibtn/svm-viewbtn/
+# svm-menuitem/svm-menubtn porte `title:` ; regle 2 : aucun bouton d'outil
+# rendu selon l'etat, les contextuels toleres pinnes et dates).
+# MESURES (23/09/2026, livre cc34c2c) : douze sites du bundle sans `title`
+# dans DzMontage, dont ONZE sur des ancres LIBRES (1 dans .bak_montage, 0 dans
+# le patcher) -> sections EC15a..EC15k ; les deux autres (« Preview » = R_EB4,
+# « Rendre → » = R_EA5D) sont des hotes deja consommes -> repli dans le
+# remplacement (title ajoute, banc [EB] realigne). Deux boutons DISPARAISSAIENT
+# sur la demo (`proj.demo?null:` x2 dans .bak) : le bouton or du popover de
+# rendu (Reessayer / Rendre / Lancer l'apercu) et « bibliotheque » -> rendus
+# TOUJOURS, `disabled:proj.demo` + infobulle qui le dit. Handlers mesures :
+# launchRender porte `if(proj.demo||(job&&job.status!=="failed"))return;`
+# (.bak) ; setLibArm(!0) est inatteignable sous `disabled`. Le grise du
+# bouton or reprend le style inline du busy (aucune regle :disabled pour
+# .svm-goldbtn en amont, mesure) ; « bibliotheque » a `.svm-secbtn:disabled`
+# (montage.css:1355, E-5). « (Echap) » n'est ecrit que la ou Echap ferme
+# VRAIMENT (R_K7 : dzScrimRef -> setPop("") ; kbPanel : setKbOn(!1)) ; les
+# selecteurs d'effets et d'overlay n'ecoutent pas Echap (mesure) : pas de
+# promesse.
+_EC15_DEMO = '"Rendu indisponible sur la démo — ouvre un projet réel"'
+A_EC15A = '        r.jsx("button",{className:"svm-secbtn",onClick:function(){setPop("");if(failed)setJob(null)},children:"Fermer"}),'
+R_EC15A = A_EC15A.replace('svm-secbtn",onClick:', 'svm-secbtn",title:"Fermer ce panneau (Échap)",onClick:')
+A_EC15B = ('        proj.demo?null:\n'
+           '          failed?r.jsx("button",{className:"svm-goldbtn",onClick:function(){launchRender(!isR)},children:"Réessayer"}):')
+R_EC15B = ('          failed?r.jsx("button",{className:"svm-goldbtn",disabled:proj.demo,title:proj.demo?' + _EC15_DEMO
+           + ':"Relancer le rendu qui a échoué",onClick:function(){launchRender(!isR)},children:"Réessayer"}):')
+A_EC15C = '          r.jsx("button",{className:"svm-goldbtn",disabled:busy,style:busy?{opacity:.55,cursor:"default"}:null,'
+R_EC15C = ('          r.jsx("button",{className:"svm-goldbtn",disabled:busy||proj.demo,style:(busy||proj.demo)?{opacity:.55,cursor:"default"}:null,'
+           'title:proj.demo?' + _EC15_DEMO + ':(isR?"Lancer le rendu final (master 1080, local)":"Lancer l\'aperçu 480p (gratuit, local)"),')
+A_EC15D = 'r.jsx("button",{className:"svm-secbtn",onClick:function(){setFxPick(!1)},children:"Fermer"})'
+R_EC15D = A_EC15D.replace('svm-secbtn",onClick:', 'svm-secbtn",title:"Fermer le sélecteur d\'effets",onClick:')
+A_EC15E = 'r.jsx("button",{className:"svm-secbtn",onClick:function(){setOvPick("")},children:"Fermer"})'
+R_EC15E = A_EC15E.replace('svm-secbtn",onClick:', 'svm-secbtn",title:"Fermer le sélecteur d\'overlay",onClick:')
+A_EC15F = 'r.jsx("button",{className:"svm-secbtn",onClick:function(){setKbOn(!1)},children:"Fermer"})'
+R_EC15F = A_EC15F.replace('svm-secbtn",onClick:', 'svm-secbtn",title:"Fermer le panneau des raccourcis (Échap)",onClick:')
+A_EC15G = ('      r.jsx("button",{className:"svm-minibtn",onClick:function(){\n'
+           '        var id=selRef.current,i2=fxEdit.i;')
+R_EC15G = A_EC15G.replace('svm-minibtn",onClick:', 'svm-minibtn",title:"Retirer cet effet du plan",onClick:')
+A_EC15H = ('              r.jsx("button",{className:"svm-minibtn",\n'
+           '                onClick:function(){setKmOv({});svmKmSave({});')
+R_EC15H = A_EC15H.replace('svm-minibtn",\n', 'svm-minibtn",\n                title:"Confirmer : tous les raccourcis reviennent au défaut",\n')
+A_EC15I = ('              r.jsx("button",{className:"svm-minibtn svm-kbno",\n'
+           '                onClick:function(){setKbConfirm(!1)},children:"non"})')
+R_EC15I = A_EC15I.replace('svm-kbno",\n', 'svm-kbno",\n                title:"Garder les raccourcis personnalisés",\n')
+A_EC15J = ('        r.jsx("button",{className:"svm-minibtn",\n'
+           '          onClick:function(e){e.stopPropagation();setNarrArm("")},children:"Non"})')
+R_EC15J = A_EC15J.replace('svm-minibtn",\n', 'svm-minibtn",\n          title:"Annuler — aucune voix générée, aucun crédit consommé",\n')
+A_EC15K = ('      proj.demo?null:libArm?\n'
+           '        r.jsxs("span",{className:"svm-libconfirm",children:[\n'
+           '          r.jsx("span",{children:"écraser la sauvegarde ?"}),\n'
+           '          r.jsx("button",{className:"svm-minibtn",onClick:svmLibReset,children:"oui"}),\n'
+           '          r.jsx("button",{className:"svm-minibtn svm-kbno",\n'
+           '            onClick:function(){setLibArm(!1)},children:"non"})]}):\n'
+           '        r.jsx("button",{className:"svm-secbtn svm-libbtn",\n'
+           '          title:"Réinitialiser depuis la Bibliothèque — écrase la sauvegarde",\n'
+           '          onClick:function(){setLibArm(!0)},children:"bibliothèque"}),')
+R_EC15K = ('      libArm?\n'
+           '        r.jsxs("span",{className:"svm-libconfirm",children:[\n'
+           '          r.jsx("span",{children:"écraser la sauvegarde ?"}),\n'
+           '          r.jsx("button",{className:"svm-minibtn",title:"Confirmer : la sauvegarde est écrasée par la Bibliothèque",onClick:svmLibReset,children:"oui"}),\n'
+           '          r.jsx("button",{className:"svm-minibtn svm-kbno",\n'
+           '            title:"Garder la sauvegarde",\n'
+           '            onClick:function(){setLibArm(!1)},children:"non"})]}):\n'
+           '        r.jsx("button",{className:"svm-secbtn svm-libbtn",disabled:proj.demo,\n'
+           '          title:proj.demo?"Réinitialisation indisponible sur la démo":"Réinitialiser depuis la Bibliothèque — écrase la sauvegarde",\n'
+           '          onClick:function(){setLibArm(!0)},children:"bibliothèque"}),')
+EC15 = [("EC15a-title-fermer-popover-de-rendu", A_EC15A, R_EC15A),
+        ("EC15b-bouton-or-reessayer-grise-sur-la-demo", A_EC15B, R_EC15B),
+        ("EC15c-bouton-or-rendre-grise-sur-la-demo", A_EC15C, R_EC15C),
+        ("EC15d-title-fermer-selecteur-effets", A_EC15D, R_EC15D),
+        ("EC15e-title-fermer-selecteur-overlay", A_EC15E, R_EC15E),
+        ("EC15f-title-fermer-raccourcis", A_EC15F, R_EC15F),
+        ("EC15g-title-retirer-effet", A_EC15G, R_EC15G),
+        ("EC15h-title-raccourcis-oui", A_EC15H, R_EC15H),
+        ("EC15i-title-raccourcis-non", A_EC15I, R_EC15I),
+        ("EC15j-title-narration-non", A_EC15J, R_EC15J),
+        ("EC15k-bibliotheque-grisee-sur-la-demo", A_EC15K, R_EC15K)]
+for _n, _a, _r in EC15:
+    assert _a != _r and _r.count("title:") == _a.count("title:") + (2 if _n.startswith("EC15k") else 1), _n
+assert R_EC15B.count("proj.demo?null:") == 0 and R_EC15K.count("proj.demo?null:") == 0
+assert R_EC15B.count("disabled:proj.demo,") == 1 and R_EC15K.count('svm-libbtn",disabled:proj.demo,') == 1
+assert R_EC15C.count("disabled:busy||proj.demo,") == 1 and R_EC15C.count("(busy||proj.demo)?") == 1
+assert R_EB4.count("title:") == 1 and R_EA5D.count('"Rendre →"') == 1 and R_EA5D.count("title:") == 2
 
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
@@ -4779,7 +5171,28 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("EB6b-etat-et-poignee-de-l-inspecteur", A_EB6B, R_EB6B),
            ("EB7b-poignee-de-la-timeline-et-data-h", A_EB7B, R_EB7B),
            ("EB8a-mini-carte-avant-svm-scroll", A_EB8A, R_EB8A),
-           ("EB8b-fenetre-visible-de-la-mini-carte", A_EB8B, R_EB8B)]
+           ("EB8b-fenetre-visible-de-la-mini-carte", A_EB8B, R_EB8B),
+           # ── LOT E-C (23/09/2026) ── E-6 (tache 2) : quatre sections ; l'etat
+           # (R_M16REF), le voile + le rendu (R_EB5A), Echap (R_K7) et le bouton
+           # « remplacer » (R_M16, dzReplaceArm) sont replies.
+           ("EC1-menu-fonctions-de-l-hote", A_EC1, R_EC1),
+           ("EC2-bouton-menu-dans-la-barre-de-titre", A_EC2, R_EC2),
+           ("EC4-clic-droit-sur-un-clip", A_EC4, R_EC4),
+           ("EC5-clic-droit-sur-une-piste", A_EC5, R_EC5),
+           # E-7 (tache 3) : trois sections ; l'etat, l'effet et dzSetView sont
+           # replies dans R_M16REF.
+           ("EC7-data-view-sur-la-racine", A_EC7, R_EC7),
+           ("EC8-barre-des-vues-en-bas-de-dzsvm", A_EC8, R_EC8),
+           ("EC9-panneau-livraison-dans-svm-mid", A_EC9, R_EC9),
+           # E-13 / E-14 (tache 5) : cinq sections sur des ancres libres ; l'etat
+           # gapSel + gapSelRef (R_M16REF) et Echap (R_K7) sont replies.
+           ("EC10-clic-dans-le-vide-d-une-lane", A_EC10, R_EC10),
+           ("EC11-rendu-du-trou-selectionne", A_EC11, R_EC11),
+           ("EC12-tete-de-lecture-dans-l-inspecteur", A_EC12, R_EC12),
+           ("EC13-suppr-referme-le-trou", A_EC13, R_EC13),
+           ("EC14-clic-sur-un-clip-efface-le-trou", A_EC14, R_EC14)] + EC15
+           # E-12 (tache 6) : onze sections EC15a..k sur des ancres libres ;
+           # « Preview » (R_EB4) et « Rendre → » (R_EA5D) sont replies.
 
 
 def nl(text, crlf):

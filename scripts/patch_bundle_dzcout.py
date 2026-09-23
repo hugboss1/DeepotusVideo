@@ -345,7 +345,27 @@ STABLE_PROBES = [
     # EB8b (mmView/mmCalc, la fenetre visible) et le onSeek de l'hote (qui ne
     # touche que tlScrollRef) n en ajoutent aucune. MESURE : la chaine a refuse,
     # « sonde montage x123 (want 122) », avant cette ligne.
-    ("montage", "DzTracks", 123),
+    # 23/09/2026, E-6 (lot E-C, tache 2) : 123 -> 128. CINQ de plus, dans
+    # EC1 (dzFire, dzMenuProps) et le repli R_EB5A : `DzTracks.comboToKey(`
+    # (la combo rejouee), `DzTracks.menuModel(` (les six rubriques),
+    # `DzTracks.CtxMenu` (le composant rendu apres le voile),
+    # `DzTracks.voisins(` (Transition… grisee sans voisin gauche) et
+    # `DzTracks.remove(` (Supprimer la piste, la sequence de del()). EC2
+    # (le bouton ☰), EC4/EC5 (les clics droits), R_M16REF (l etat), R_K7
+    # (Echap) et R_M16 (dzReplaceArm) n en ajoutent aucune. MESURE : la
+    # chaine a refuse, « sonde montage x128 (want 123) », avant cette ligne.
+    # 23/09/2026, E-7 (lot E-C, tache 3) : 128 -> 129. UNE de plus, dans EC9 :
+    # `DzTracks.Deliver` (le panneau Livraison, premier enfant de .svm-mid).
+    # EC6 (l etat, l effet fetch, dzSetView -- repli R_M16REF), EC7 (data-view
+    # sur la racine) et EC8 (la barre des vues) n en ajoutent aucune. MESURE :
+    # la chaine a refuse, « sonde montage x129 (want 128) », avant cette ligne.
+    # 23/09/2026, E-13 / E-14 (lot E-C, tache 5) : 129 -> 132. TROIS de plus :
+    # `DzTracks.teteTxt(` (EC12, l en-tete de l inspecteur), `DzTracks.trou(`
+    # (EC10, le clic dans le vide d une lane) et `DzTracks.trouRipple(` (EC13,
+    # Suppr referme le trou). EC11 (le rendu du trou), EC14 (clipDown),
+    # R_M16REF (l etat) et R_K7 (Echap) n en ajoutent aucune. MESURE : la
+    # chaine a refuse, « sonde montage x132 (want 129) », avant cette ligne.
+    ("montage", "DzTracks", 132),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────
