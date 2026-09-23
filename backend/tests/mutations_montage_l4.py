@@ -107,8 +107,10 @@ CE QUE CETTE TABLE A MESURE, ET QUI NE SE DEVINAIT PAS :
     qui ne repartent plus a 1 (`_RENDER_PENDING` jamais decremente) et
     l'ordre apres un echec ;
   . la n°11 (`-threads 1`) rougit aussi le rendu reel stab + flow de [7] :
-    le pin compte les deux drapeaux, et le rendu sous charge n'a pas plante
-    cette fois (course ALEATOIRE, 3/6 mesures) -- c'est le pin qui parle ;
+    le pin compte `-threads 1` devant CHAQUE `-i` (revue finale du 23/09 :
+    option PAR FICHIER), et le rendu sous charge n'a pas plante cette fois
+    (course ALEATOIRE, 3/6 mesures) -- c'est le pin qui parle, jamais le
+    plantage ;
   . la n°13 rougit aussi `l4_coeur_pur_…_listes_uniques` : elle compte
     `DZM_DEL_FPS` x5 dans la couche (4 apres la mutation) ;
   . les mutations du bundle rougissent 4 et 7 lignes : la ligne nommee, la
@@ -231,8 +233,8 @@ M = [
     # 11 -- `-threads 1` retire sous la paire stab + flow : la course des
     #       decodeurs h264 (3/6 sous charge) revient.
     (B_L4, SVC,
-     '            k = cmd.index("-i")\n'
-     '            cmd[k:k] = ["-threads", "1"]\n',
+     '            for k in [i for i, t in enumerate(cmd) if t == "-i"][::-1]:\n'
+     '                cmd[k:k] = ["-threads", "1"]\n',
      '',
      ["t2_stab_et_flow_ensemble_posent_filter_complex_threads_1_juste_avant_le_graphe"]),
     # -- la couche (montage.js), jouee sous node par `edition` ---------------

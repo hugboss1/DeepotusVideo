@@ -587,8 +587,9 @@ print("\n[7] revue T2 : stab + flow → graphe sur un seul thread (course ffmpeg
 # `-threads 1` sur les decodeurs sous la meme charge : 0/6, les deux : 0/8.
 # Le plantage n'est pas reproductible de facon deterministe : ce qui est pinne
 # ici est la FORME (les deux drapeaux presents exactement quand la paire est
-# la : `-threads 1` avant la premiere entree, `-filter_complex_threads 1`
-# juste avant le graphe), et [M] rend un graphe reel stab + flow + amix +
+# la : `-threads 1` devant CHAQUE entree -- revue finale : c'est une option
+# PAR FICHIER, le clip stab + flow n'est pas forcement la premiere entree --,
+# `-filter_complex_threads 1` juste avant le graphe), et [M] rend un graphe reel stab + flow + amix +
 # sous-titres + loudness en 720.
 _TRF = pathlib.Path(TMP) / "fake.trf"; _TRF.write_bytes(b"VID.STAB 1\n" + b"0" * 64)
 _STB = {"smooth": 20, "crop": "keep", "zoom": 0, "trf": str(_TRF)}
@@ -598,7 +599,8 @@ _c_sf = BUILD(stab=_STB, speed=2.0, retime="flow")
 check("t2_stab_et_flow_ensemble_posent_filter_complex_threads_1_juste_avant_le_graphe",
       "vidstabtransform=" in _c_sf and "minterpolate=" in _c_sf
       and " -filter_complex_threads 1 -filter_complex " in _c_sf and _c_sf.count("-filter_complex_threads") == 1
-      and _c_sf.count(" -threads 1 ") == 1 and _c_sf.split(" -i ")[0].endswith(" -threads 1"),
+      and _c_sf.count(" -i ") >= 2 and _c_sf.count(" -threads 1 -i ") == _c_sf.count(" -i ")
+      and _c_sf.count(" -threads 1 ") == _c_sf.count(" -i "),
       _c_sf[:200])
 check("t2_stab_seul_ou_flow_seul_gardent_les_threads_historiques",
       "vidstabtransform=" in _c_st and "-filter_complex_threads" not in _c_st and " -threads 1 " not in _c_st
@@ -792,7 +794,8 @@ else:
     check("t2_rendu_reel_stab_flow_amix_sous_titres_loudness_720_aboutit_sur_un_seul_thread",
           _rcz == 0 and _sizz > 0 and "vidstabtransform=" in _cmdz and "minterpolate=" in _cmdz
           and "amix=inputs=2" in _cmdz and "subtitles=" in _cmdz and "[outa]loudnorm=" in _cmdz
-          and " -filter_complex_threads 1 -filter_complex " in _cmdz and "-crf 23" in _cmdz,
+          and " -filter_complex_threads 1 -filter_complex " in _cmdz and "-crf 23" in _cmdz
+          and _cmdz.count(" -threads 1 -i ") == _cmdz.count(" -i ") >= 2,
           (_rcz, _sizz, _errz, _cmdz[:160]))
 
 print("\n[6] espion /render : preset, fps, dimensions, extension")

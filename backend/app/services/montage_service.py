@@ -3279,7 +3279,12 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     # h264 et la paire vidstab + minterpolate, pas un format non négocié :
     # les décodeurs ET le graphe passent alors sur un seul thread (minterpolate
     # domine de toute façon le temps, +2 s sur 34 mesurés ; l'encodeur garde
-    # ses threads, `-threads` avant les entrées ne le touche pas). Les graphes
+    # ses threads, `-threads` avant les entrées ne le touche pas). Revue
+    # finale du lot (23/09) : `-threads` est une option PAR FICHIER (AVOption
+    # codec, `ED.VA` dans `ffmpeg -h full`) — posée devant UNE entrée elle
+    # ne couvre que celle-là, et le clip stab + flow n'est pas forcément la
+    # première de V1 (tri par `start`) : elle est donc posée devant CHAQUE
+    # `-i` du graphe, celui de la lavfi comprise. Les graphes
     # sans cette paire gardent leurs threads (commande historique octet pour
     # octet).
     if not audio_only:
@@ -3287,8 +3292,8 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
         if "vidstabtransform=" in graphe and "minterpolate=" in graphe:
             k = cmd.index("-filter_complex")
             cmd[k:k] = ["-filter_complex_threads", "1"]
-            k = cmd.index("-i")
-            cmd[k:k] = ["-threads", "1"]
+            for k in [i for i, t in enumerate(cmd) if t == "-i"][::-1]:
+                cmd[k:k] = ["-threads", "1"]
     return cmd, total
 
 
