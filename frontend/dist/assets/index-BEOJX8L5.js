@@ -17459,6 +17459,10 @@ function DzmToolDock(o){
      défilement tactile. Bouton gauche seulement : un clic droit ouvre un
      menu contextuel, il ne saisit pas. */
   function saisir(e){
+    /* E-10 (revue 23/09/2026) : ANCRÉE, LA POIGNÉE EST INERTE — la barre est
+       en flux (`translate:none`), un déport saisi ici ne se verrait pas mais
+       serait persisté et reparaîtrait au désancrage. Même garde au clavier. */
+    if(o.docked===!0)return;
     if(e&&e.button!=null&&e.button!==0)return;
     var w=(typeof window!=="undefined")?window:null;
     var doc=(typeof document!=="undefined")?document:null;
@@ -17476,6 +17480,7 @@ function DzmToolDock(o){
      le conteneur racine, donc sous `window` : arrêter la propagation là
      empêche bien l'événement natif d'y monter. */
   function clavier(e){
+    if(o.docked===!0)return;
     var p=dzmTbTouche(e&&e.key,e&&e.shiftKey===!0);
     if(!p)return;
     if(typeof e.preventDefault==="function")e.preventDefault();

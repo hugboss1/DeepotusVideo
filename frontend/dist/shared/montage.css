@@ -598,7 +598,13 @@
    (rangée centrée, gap 12 px) ; le Dock la monte en TÊTE de ce bandeau,
    elle se pose donc À GAUCHE des boutons de transport. Le déport (translate
    --tbx/--tby) et l'ombre — « seul signal de flottement » — s'éteignent.
-   COMPACTE, et c'est mesuré : flottante, la barre fait ~90 px (zone 17 +
+   ÉCARTS DATÉS (revue 23/09/2026) : `bottom:auto;left:auto;transform:none`
+   sont sans effet sous `position:static` — laissés, ils disent l'intention
+   et sont pinnés ; `margin-right:8px` s'ajoute au gap 12 px du bandeau (20 px
+   avant le premier bloc, hors de l'arithmétique du §5.2 qui ne connaît pas
+   ce nœud) ; ancrée-repliée, la barre à largeur 0 laisse encore le gap de
+   12 px avant `.svm-tcmain` (un décalage, pas un trou).
+   COMPACTE, et c'est mesuré : flottante, la barre fait ≥ 80 px (zone 17 +
    en-tête 16 + bouton 13 + icône + 6 + libellé 9,5) pour un bandeau de
    46 px en `align-items:center` et `overflow:visible` — ancrée telle
    quelle elle aurait débordé de ~22 px de chaque côté. Les libellés

@@ -2082,6 +2082,11 @@ check("e10_data_docked_ecrit_une_fois_dans_la_barre_strict_true_jamais_dans_l_on
       and _E10["DzmToolDock"].count("DzmToolTab({open:open,onToggle:bascule,") == 1
       and _E10["DzmToolDock"].count("DzmToolBar({open:open,docked:o.docked,") == 1
       and _SRCb.count('"data-docked"') == 1 and _SRCb.count("docked:o.docked") == 1
+      # revue 23/09 : ANCREE, la poignee est inerte -- saisir (pointeur) ET clavier (fleches) sortent en tete ; x2 dans le Dock
+      and _E10["DzmToolDock"].count("if(o.docked===!0)return;") == 2 and _SRCb.count("if(o.docked===!0)return;") == 2
+      and re.search(r"function saisir\(e\)\{[^}]{0,400}if\(o\.docked===!0\)return;", _E10["DzmToolDock"], re.S) is not None
+      and re.search(r"function clavier\(e\)\{\r?\n\s*if\(o\.docked===!0\)return;", _E10["DzmToolDock"]) is not None  # la couche est en CRLF
+      and _E10["DzmToolDock"].count("onGrab:saisir") == 1 and _E10["DzmToolDock"].count("onGripKey:clavier") == 1
       # temoin : les trois attributs d'etat de la barre restent poses a cote, une fois chacun
       and _E10["DzmToolBar"].count('"data-off":open?void 0:""') == 1 and _E10["DzmToolBar"].count('"data-drag":o.drag===!0?"":void 0') == 1,
       ({n: len(c) for n, c in _E10.items()}, _SRCb.count('"data-docked"')))

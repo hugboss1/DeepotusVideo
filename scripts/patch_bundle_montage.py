@@ -2322,7 +2322,8 @@ R_M19 = (A_M19 + "\n"
          # « lame » à un remappage. L'onglet la dit dans son `title` : un
          # raccourci qu'on ne peut lire nulle part n'existe qu'à moitié.
          # E-10 (lot E-C, tache 4, 23/09/2026) : `docked`, l'etat de R_M11 --
-         # le Dock le pose en data-docked sur la barre et l'onglet, la feuille
+         # le Dock le pose en data-docked sur la barre SEULE (l'onglet garde
+         # son sens : il replie la barre ancree a zero largeur), la feuille
          # met la barre en flux (position:static) en TETE de ce bandeau : elle
          # se place a gauche des boutons de transport, sans autre changement.
          'docked:dzTbDock,toggleReq:dzTbReq,keyLbl:svmKeyLabel("toolbar"),'
