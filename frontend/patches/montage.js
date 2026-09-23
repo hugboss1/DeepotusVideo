@@ -6901,7 +6901,10 @@ function dzmClipCopy(c){
   return o}
 function dzmClipPisteCible(tracks,tr){
   var ts=Array.isArray(tracks)?tracks:[],genre=dzmKindOf(tr),i,t,best=null,n;
-  for(i=0;i<ts.length;i++){t=ts[i];if(t&&t.id!=null&&String(t.id)===String(tr))return t.id}
+  /* revue M-2 : la piste homonyme n'est prise que si elle est DU GENRE du
+     clip (un « v1 » déclaré kind:"audio" par un projet exotique ne reçoit
+     pas une vidéo) — sinon la piste du genre au plus petit rang */
+  for(i=0;i<ts.length;i++){t=ts[i];if(t&&t.id!=null&&String(t.id)===String(tr)&&dzmKindOf(t.id,t.kind)===genre)return t.id}
   for(i=0;i<ts.length;i++){t=ts[i];if(!t||t.id==null||dzmKindOf(t.id,t.kind)!==genre)continue;
     n=parseInt(String(t.id).replace(/^\D+/,""),10);if(!isFinite(n))n=1e9;
     if(!best||n<best.n)best={id:t.id,n:n}}
@@ -6909,11 +6912,19 @@ function dzmClipPisteCible(tracks,tr){
 function dzmClipPaste(clips,payload,opts){
   var o=opts||{},base=Array.isArray(clips)?clips.slice():[];
   if(!payload||typeof payload!=="object"||!payload.clip||typeof payload.clip!=="object")
-    return {clips:base,track:null,mode:null,refus:"vide",note:"Presse-papiers vide — copiez d'abord un clip",id:null};
-  if(payload.v!==1)return {clips:base,track:null,mode:null,refus:"version",note:"Presse-papiers d'une autre version",id:null};
+    return {clips:base,track:null,mode:null,refus:"vide",note:"Presse-papiers vide — copiez d'abord un clip",id:null,start:null};
+  if(payload.v!==1)return {clips:base,track:null,mode:null,refus:"version",note:"Presse-papiers d'une autre version",id:null,start:null};
+  /* revue M-3 : la RECOPIE est voulue — le payload (lu du stockage, ou
+     tenu par l'appelant) n'est jamais muté : tr/start/end/id sont écrits
+     sur la copie, et le presse-papiers reste collable une seconde fois */
   var c=dzmClipCopy(payload.clip),tracks=Array.isArray(o.tracks)?o.tracks:[],genre=dzmKindOf(c.tr);
+  /* revue I-2 : un clip SANS source (copié depuis la démo, dont les clips
+     n'ont pas de src) ne serait jamais rendu — renderPayload filtre
+     `c.src || kind title/adjust` ; on le refuse ici, pas au rendu */
+  if(!c.src&&c.kind!=="title"&&c.kind!=="adjust")
+    return {clips:base,track:null,mode:null,refus:"source",note:"Ce clip n'a pas de source (copié depuis la démo ?) — rien n'a été collé",id:null,start:null};
   var tr=dzmClipPisteCible(tracks,c.tr);
-  if(tr==null)return {clips:base,track:null,mode:null,refus:"piste",note:"Aucune piste "+genre+" pour coller",id:null};
+  if(tr==null)return {clips:base,track:null,mode:null,refus:"piste",note:"Aucune piste "+genre+" pour coller",id:null,start:null};
   var head=Number(o.head);if(!isFinite(head)||head<0)head=0;head=dzmR3(head);
   var len=dzmR3((Number(c.end)||0)-(Number(c.start)||0));
   if(!(len>0))len=dzmR3(Number(DZM_CLIP_DEFAUTS.video)||6);
@@ -6922,7 +6933,10 @@ function dzmClipPaste(clips,payload,opts){
   var r=dzmInsere(clips,c,o.mode||"inserer",{tracks:tracks,head:head,srcDur:o.srcDur,range:o.range,locked:o.locked,twin:o.twin});
   var note=r.note||"";
   if(r.id==null&&!note)note=r.refus==="verrou"?"Piste "+String(r.track||tr).toUpperCase()+" verrouillée — rien n'a été collé":"Rien n'a été collé";
-  return {clips:r.clips,track:r.track||tr,mode:r.mode,refus:r.refus||null,note:note||null,id:r.id}}
+  /* revue M-1 : `start` est la position RÉELLE du clip posé (« en fin »,
+     « ripple », « remplir » le posent ailleurs qu'à la tête) — l'hôte la dit */
+  var pose=null;if(r.id!=null)for(var q=0;q<r.clips.length;q++)if(r.clips[q]&&r.clips[q].id===r.id){pose=r.clips[q];break}
+  return {clips:r.clips,track:r.track||tr,mode:r.mode,refus:r.refus||null,note:note||null,id:r.id,start:pose?Number(pose.start):null}}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,

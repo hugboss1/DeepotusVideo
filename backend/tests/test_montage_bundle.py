@@ -15236,7 +15236,9 @@ check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB8b_puis_
                                                           # L7 D-6 (T2, 24/09/2026) : AUCUNE section (L7b1/L7b2 repliees
                                                           # dans R_R1/R_R2), sonde 139 -> 142 (clipCopy, clipPaste, modeLabel
                                                           # dans le repli L7b2 de R_R2)
-                                                          "L7a3"]
+                                                          "L7a3",
+                                                          # L7 D-6 revue I-1 (T2) : la garde du texte selectionne, aucun DzTracks
+                                                          "L7b3"]
       and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
               and s.count(nl(a)) == (1 if a in r else 0)
               for _t, a, r in P.PATCHES[_DZ_I + 1:])
@@ -17081,7 +17083,8 @@ check("L7a2_dispatch_trans_add_replie_dans_R_R2_apres_adjust_add_sel_V1_verrou_v
 # conditionnel nOv?(...) -- rendus TOUJOURS (regle E-12 : jamais `?r.jsx("button"`), chacun avec title
 _L7A3 = [t for t in P.L7A if t[0].startswith("L7a3")]
 check("L7a3_section_unique_en_queue_de_PATCHES_ancre_libre_1_0_1_remplacement_x1",
-      len(P.L7A) == 1 and len(_L7A3) == 1 and P.PATCHES[-1:] == P.L7A and P.PATCHES[-2] == P.L4[-1]
+      # 24/09/2026 (L7 D-6 revue I-1) : L7b3 rejoint L7A en queue -- L7a3 est la premiere des deux
+      len(P.L7A) == 2 and len(_L7A3) == 1 and P.PATCHES[-2:] == P.L7A and P.PATCHES[-3] == P.L4[-1]
       # l'ancre (le commentaire) est CONSERVEE en queue du remplacement : x1 dans le livre
       and s.count(nl(_L7A3[0][1])) == 1 and s.count(nl(_L7A3[0][2])) == 1 and _L7A3[0][2].endswith(_L7A3[0][1])
       and (_bak.count(_nlb(_L7A3[0][1])) == 1 and _bak.count(_nlb(_L7A3[0][2])) == 0 if _bak else False)
@@ -17171,7 +17174,7 @@ print("\n[L7] D-6 tache 2 : presse-papiers de clips entre projets, actions copy 
 # repli Ctrl+Maj ; (3) le Ctrl+C natif reste aux champs de saisie : la garde d'onKey (input / textarea /
 # select / contentEditable) precede tout dispatch ; (4) le menu ☰ range copy / paste en « Édition » par
 # DZM_MENU_RUB (couche), le modele lisant SVM_ACTIONS entiere (EC1) : aucune entree a cabler.
-_L7B1 = (' {id:"copy",sec:"Montage",lbl:"copier le clip sélectionné (presse-papiers, d\'un projet à l\'autre)",combo:"Ctrl+C"},',
+_L7B1 = (' {id:"copy",sec:"Montage",lbl:"copier le clip (entre projets)",combo:"Ctrl+C"},',
          ' {id:"paste",sec:"Montage",lbl:"coller le clip du presse-papiers à la tête de lecture",combo:"Ctrl+V"},')
 _iL7b1 = [s.find(nl(a)) for a in _L7B1]
 check("L7b1_actions_copy_Ctrl_C_et_paste_Ctrl_V_repliees_dans_R_R1_juste_apres_trans_add_libres_et_non_reservees",
@@ -17192,7 +17195,7 @@ _L7B2P = ('      if(id==="paste"){if(dzProjRef.current&&dzProjRef.current.demo){
           'range:dzProjRef.current&&dzProjRef.current.range,locked:(function(){var o={},k;for(k in trackStRef.current)if(trackStRef.current[k]&&trackStRef.current[k].l)o[k]=!0;return o})()});'
           'if(dzPr.id==null){fireNote(dzPr.note||"Rien n\'a été collé.");return}'
           'ovSeq.current=dzPq;pushHistory();setClips(dzPr.clips);setSelId(dzPr.id);setDirty(!0);'
-          'fireNote("« "+(dzPs.clip.label||dzPr.id)+" » collé sur "+String(dzPr.track).toUpperCase()+" à "+svmShort(Number(phRef.current)||0)+(dzPr.mode!=="ecraser"?" (mode « "+DzTracks.modeLabel(dzPr.mode)+" »)":"")+(dzPr.note?" — "+dzPr.note:"")+".");return}')
+          'fireNote("« "+(dzPs.clip.label||dzPr.id)+" » collé sur "+String(dzPr.track).toUpperCase()+" à "+svmShort(Number(dzPr.start)||0)+(dzPr.mode!=="ecraser"?" (mode « "+DzTracks.modeLabel(dzPr.mode)+" »)":"")+(dzPr.note?" — "+dzPr.note:"")+".");return}')
 _iL7bc = s.find(nl(_L7B2C)); _iL7bp = s.find(nl(_L7B2P)); _iL7ok = s.find("    function onKey(e){")
 _L7_GARDE = 'if(tg==="input"||tg==="textarea"||tg==="select"||(el&&el.isContentEditable))return;'
 _iL7g = s.find(_L7_GARDE, _iL7ok if _iL7ok >= 0 else 0)
@@ -17216,7 +17219,7 @@ check("L7b2_presse_papiers_ecrit_x1_lu_x1_try_catch_refus_avant_pushHistory_ordr
       and _L7B2C.count("try{localStorage.setItem(") == 1 and _L7B2C.count("}catch(e){") == 1
       and _L7B2P.count("try{dzPs=JSON.parse(localStorage.getItem(") == 1 and _L7B2P.count("}catch(e){dzPs=null}") == 1
       and s.count("DzTracks.clipCopy(") == 1 and s.count("DzTracks.clipPaste(") == 1 and s.count("DzTracks.modeLabel(") == 2
-      and _L7B2P.count("head:phRef.current,") == 1 and _L7B2P.count("tracks:dzTracksRef.current||svmTracksOf(dzProjRef.current),") == 1
+      and _L7B2P.count("head:phRef.current,") == 1 and _L7B2P.count("svmShort(Number(dzPr.start)||0)") == 1 and _L7B2P.count("tracks:dzTracksRef.current||svmTracksOf(dzProjRef.current),") == 1
       and _L7B2P.count("mode:dzModeRef.current,") == 1 and _L7B2P.count("range:dzProjRef.current&&dzProjRef.current.range,") == 1
       and _L7B2P.count("trackStRef.current[k].l)o[k]=!0") == 1 and _L7B2P.count("srcDur") == 0
       and 0 < _iL7ref < _iL7seq < _iL7ph < _iL7sc < _iL7ss < _iL7sd and _L7B2P.count("pushHistory();") == 1
@@ -17226,12 +17229,23 @@ check("L7b2_presse_papiers_ecrit_x1_lu_x1_try_catch_refus_avant_pushHistory_ordr
       f"set={s.count(chr(108) + 'ocalStorage.setItem(' + chr(34) + 'dz_montage_clipboard')} cle={s.count('dz_montage_clipboard')} ordre={(_iL7ref, _iL7seq, _iL7ph, _iL7sc, _iL7ss, _iL7sd)}")
 # la couche : les trois pures, la liste des cles non copiees, les exports, la rubrique Édition -- dans le bundle comme dans
 # le fichier ; AUCUNE section neuve (L7A reste une section, en queue), 172 ancres
+# L7b3 (revue I-1, 24/09/2026) : ancre LIBRE 1/0/1 a trois lignes autour du preventDefault d'onKey ; la garde sort
+# AVANT lui quand l'action est copy et qu'un texte est selectionne (getSelection) -- le navigateur garde son Ctrl+C
+_L7B3 = [t for t in P.L7A if t[0].startswith("L7b3")]
+_L7_GS = '      if(id==="copy"&&window.getSelection&&String(window.getSelection())!=="")return;'
+_iL7gs = s.find(nl(_L7_GS)); _iL7pd = s.find(nl('      e.preventDefault();\n      if(id==="keys_panel"){setKbOn(function(v){return !v});return}'))
+check("L7b3_garde_getSelection_x1_avant_le_preventDefault_d_onKey_ancre_libre_1_0_1_bak_x0_temoin",
+      len(_L7B3) == 1 and s.count(nl(_L7B3[0][2])) == 1 and s.count(nl(_L7B3[0][1])) == 0 and s.count(nl(_L7_GS)) == 1
+      and 0 < _iL7ok < _iL7gs < _iL7pd < _iL7bc and _iL7pd - _iL7gs < 200 and s.count("window.getSelection") == 2
+      and sum(1 for _t in P.PATCHES if _L7B3[0][1] in _t[2] and _t[0] != _L7B3[0][0]) == 0
+      and (_bak.count(_nlb(_L7B3[0][1])) == 1 and _bak.count(_nlb(_L7B3[0][2])) == 0 and _bak.count("window.getSelection") == 0 if _bak else False),
+      f"garde={s.count(nl(_L7_GS))} ordre={(_iL7ok, _iL7gs, _iL7pd, _iL7bc)} bak={_bak.count('window.getSelection') if _bak else '?'}")
 check("L7b_la_couche_clipCopy_pisteCible_clipPaste_nocopy_exports_rubrique_Edition_x1_bundle_et_fichier_aucune_section_neuve",
       all(s.count(k) == 1 and src.count(k) == 1 for k in (
           "function dzmClipCopy(c){", "function dzmClipPisteCible(tracks,tr){", "function dzmClipPaste(clips,payload,opts){",
           'var DZM_CLIP_NOCOPY=["id","transition","transition_s","src_history"];',
           "clipCopy:dzmClipCopy,clipPaste:dzmClipPaste,", 'copy:"Édition",paste:"Édition",'))
-      and len(P.L7A) == 1 and P.PATCHES[-1:] == P.L7A and sum(1 for _t in P.PATCHES if _t[0].startswith("L7b")) == 0
+      and len(P.L7A) == 2 and P.PATCHES[-2:] == P.L7A and sum(1 for _t in P.PATCHES if _t[0].startswith("L7b")) == 1
       and (_bak.count("dzmClipCopy") == 0 and _bak.count("dzmClipPaste") == 0 and _bak.count("DZM_CLIP_NOCOPY") == 0 if _bak else False),
       f"pures={[s.count(k) for k in ('function dzmClipCopy(c){', 'function dzmClipPaste(clips,payload,opts){')]} sections={[p[0] for p in P.PATCHES[-2:]]}")
 

@@ -894,7 +894,7 @@ out.cc=T.clipCopy(_cc0);
 out.cc_pur=(function(){var a=T.clipCopy(_cc0);a.src.job_id="Z";a.effects[0].n="Z";return [_cc0.src.job_id,_cc0.effects[0].n,_cc0.id,_cc0.transition]})();
 out.cc_bornes=[T.clipCopy(null),T.clipCopy(void 0),T.clipCopy("x"),T.clipCopy(7),T.clipCopy([1])];
 /* les pistes du banc sont dans l'ORDRE DE L'ECRAN (v3 en haut, a1 en bas), comme DZM_DEFAULT_TRACKS */
-var _cp=function(cs,pl,o){var r=T.clipPaste(cs,pl,o);return {id:r.id,track:r.track,mode:r.mode,refus:r.refus,note:r.note,v1:sv(r,"v1"),n:(r.clips||[]).length,
+var _cp=function(cs,pl,o){var r=T.clipPaste(cs,pl,o);return {id:r.id,track:r.track,mode:r.mode,refus:r.refus,note:r.note,start:r.start,v1:sv(r,"v1"),n:(r.clips||[]).length,
   pose:(r.clips||[]).filter(function(k){return k&&r.id!=null&&k.id===r.id})[0]||null}};
 out.cp_meme_piste=_cp(C,{v:1,clip:out.cc},{head:10,tracks:TS,mode:"inserer",seq:7});
 out.cp_inserer_fend=_cp(C,{v:1,clip:out.cc},{head:2,tracks:TS,mode:"inserer",seq:8});
@@ -913,6 +913,18 @@ out.cp_len0=_cp(C,{v:1,clip:Object.assign({},out.cc,{start:5,end:5})},{head:10,t
 out.cp_id_pris=_cp(C.concat([{tr:"v1",id:"v1u7_100",start:20,end:21,src:{a:1}}]),{v:1,clip:out.cc},{head:10,tracks:TS,mode:"inserer",seq:7});
 out.cp_remplir=_cp(C,{v:1,clip:out.cc},{head:10,tracks:TS,mode:"remplir",seq:3,range:{in:2,out:5}});
 out.cp_remplir_srcdur=_cp(C,{v:1,clip:out.cc},{head:10,tracks:TS,mode:"remplir",seq:3,range:{in:2,out:5},srcDur:6});
+/* revue : I-2 clip sans source refuse (temoin : un carton title sans src passe), M-2 piste homonyme d'un autre genre
+   ignoree (temoin : v2 video la prend), M-1 start = position REELLE (fin -> 8, ripple -> 4, remplir -> 2, inserer -> 10) */
+out.cp_sans_source=[_cp(C,{v:1,clip:{tr:"v1",label:"d",start:0,end:3}},{head:10,tracks:TS,mode:"inserer",seq:1}),
+  _cp(C,{v:1,clip:{tr:"t1",kind:"title",text:"Bonjour",start:0,end:3}},{head:10,tracks:TS.concat([{id:"t1",kind:"title"}]),mode:"inserer",seq:1}),
+  _cp(C,{v:1,clip:{tr:"j1",kind:"adjust",start:0,end:3}},{head:10,tracks:TS.concat([{id:"j1",kind:"adjust"}]),mode:"inserer",seq:1})]
+  .map(function(r){return [r.refus,r.id,r.track,r.n,r.note]});
+out.cp_homonyme=[_cp(C,{v:1,clip:out.cc},{head:10,tracks:[{id:"v1",kind:"audio"},{id:"v2",kind:"video"}],mode:"inserer",seq:1}),
+  _cp(C,{v:1,clip:out.cc},{head:10,tracks:[{id:"v1",kind:"audio"}],mode:"inserer",seq:1})].map(function(r){return [r.refus,r.track,r.id]});
+out.cp_start=[_cp(C,{v:1,clip:out.cc},{head:10,tracks:TS,mode:"fin",seq:1}),_cp(C,{v:1,clip:out.cc},{head:5,tracks:TS,mode:"ripple_ecraser",seq:1}),
+  _cp(C,{v:1,clip:out.cc},{head:10,tracks:TS,mode:"remplir",seq:1,range:{in:2,out:5}}),_cp(C,{v:1,clip:out.cc},{head:10,tracks:TS,mode:"inserer",seq:1})]
+  .map(function(r){return [r.mode,r.start,r.id]});
+out.cp_start_refus=[_cp(C,null,{}),_cp(C,{v:1,clip:out.cc},{head:10,tracks:TS,mode:"inserer",seq:7,locked:{v1:!0}})].map(function(r){return r.start});
 out.cp_pur=[C.length,C.map(function(c){return c.id}).join(","),out.cc.tr,out.cc.start,out.cc.id];
 out.cp_menu=T.menuModel([{id:"copy",sec:"Montage",lbl:"c",combo:"Ctrl+C"},{id:"paste",sec:"Montage",lbl:"p",combo:"Ctrl+V"},{id:"blade",sec:"Montage",lbl:"b",combo:"Alt+C"}],null)
   .map(function(g){return [g.rub,g.items.map(function(i){return i.id}).join(",")]});
@@ -1164,7 +1176,9 @@ try:
                  # L7 D-6 (tache 2) : les VINGT-ET-UNE cles de la section [26].
                  "cc","cc_pur","cc_bornes","cp_meme_piste","cp_inserer_fend","cp_ecraser","cp_piste_absente","cp_kind_prime",
                  "cp_genre_absent","cp_vide","cp_v0","cp_verrou","cp_mou","cp_sans_pistes","cp_head","cp_len0","cp_id_pris",
-                 "cp_remplir","cp_remplir_srcdur","cp_pur","cp_menu"]
+                 "cp_remplir","cp_remplir_srcdur","cp_pur","cp_menu",
+                 # revue 24/09 : I-2, M-2, M-1
+                 "cp_sans_source","cp_homonyme","cp_start","cp_start_refus"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -2458,6 +2472,14 @@ check("cp_remplir_sans_srcDur_vitesse_x1_pose_sur_la_plage_avec_srcDur_6_vitesse
       and (_cpr.get("pose") or {}).get("speed") == 1 and "srcDur" not in (_cpr.get("pose") or {"srcDur": 1})
       and (_cprs.get("pose") or {}).get("speed") == 2 and (_cprs.get("pose") or {}).get("srcOut") == 4 and _cprs.get("id") == "v1u3_100",
       (_cpr, _cprs))
+check("cp_revue_I2_clip_sans_source_refus_source_note_dite_temoins_title_et_adjust_sans_src_passent",
+      D.get("cp_sans_source") == [["source", None, None, 4, "Ce clip n'a pas de source (copié depuis la démo ?) — rien n'a été collé"],
+                                  [None, "t1u1_100", "t1", 5, None], [None, "j1u1_100", "j1", 5, None]], D.get("cp_sans_source"))
+check("cp_revue_M2_piste_homonyme_d_un_autre_genre_ignoree_v2_video_la_prend_sinon_refus_piste",
+      D.get("cp_homonyme") == [[None, "v2", "v2u1_100"], ["piste", None, None]], D.get("cp_homonyme"))
+check("cp_revue_M1_start_est_la_position_reelle_fin_8_ripple_4_remplir_2_inserer_10_null_sur_refus",
+      D.get("cp_start") == [["fin", 8, "v1u1_100"], ["ripple_ecraser", 4, "v1u1_50"], ["remplir", 2, "v1u1_100"], ["inserer", 10, "v1u1_100"]]
+      and D.get("cp_start_refus") == [None, None], (D.get("cp_start"), D.get("cp_start_refus")))
 check("cp_pur_ni_les_clips_ni_le_presse_papiers_ne_sont_mutes", D.get("cp_pur") == [4, "p1,p2,o1,n1", "v1", 2, None], D.get("cp_pur"))
 _cpmenu = dict(D.get("cp_menu") or []) if isinstance(D.get("cp_menu"), list) and all(isinstance(g, list) and len(g) == 2 for g in D.get("cp_menu")) else {}
 check("cp_menu_copy_et_paste_ranges_en_Edition_par_DZM_MENU_RUB_blade_reste_Timeline_temoin",
@@ -2471,7 +2493,8 @@ check("l7b_coeur_pur_x3_nocopy_ecrit_une_fois_paste_par_dzmInsere_et_dzmUniqueId
       and _L7B["dzmClipPaste"].count("dzmInsere(") == 1 and _L7B["dzmClipPaste"].count("dzmUniqueId(") == 1
       and _L7B["dzmClipPaste"].count("dzmClipPisteCible(") == 1 and _L7B["dzmClipPaste"].count("dzmClipCopy(") == 1
       and _L7B["dzmClipPaste"].count('refus:"vide"') == 1 and _L7B["dzmClipPaste"].count('refus:"version"') == 1 and _L7B["dzmClipPaste"].count('refus:"piste"') == 1
-      and _L7B["dzmClipPisteCible"].count("dzmKindOf(") == 2 and _SRCb.count('copy:"Édition",paste:"Édition"') == 1,
+      and _L7B["dzmClipPaste"].count('refus:"source"') == 1 and _L7B["dzmClipPaste"].count("start:null") == 4 and _L7B["dzmClipPaste"].count("start:pose?Number(pose.start):null") == 1
+      and _L7B["dzmClipPisteCible"].count("dzmKindOf(") == 3 and _SRCb.count('copy:"Édition",paste:"Édition"') == 1,
       ({n: len(c) for n, c in _L7B.items()}, _SRCb.count("DZM_CLIP_NOCOPY")))
 check("l7b_exports_clipCopy_clipPaste_dans_DzTracks",
       len(_DT) > 1000 and _DT.count("clipCopy:dzmClipCopy,clipPaste:dzmClipPaste,") == 1, len(_DT))

@@ -3310,7 +3310,7 @@ R_R1 = (A_R1 + "\n"
         # saisie : onKey sort avant tout dispatch sur input/textarea/select/
         # contentEditable (B:3376). Rubrique du menu ☰ : « Édition », par
         # DZM_MENU_RUB de la couche (copy/paste y sont ranges).
-        '\n {id:"copy",sec:"Montage",lbl:"copier le clip sélectionné (presse-papiers, d\'un projet à l\'autre)",combo:"Ctrl+C"},'
+        '\n {id:"copy",sec:"Montage",lbl:"copier le clip (entre projets)",combo:"Ctrl+C"},'
         '\n {id:"paste",sec:"Montage",lbl:"coller le clip du presse-papiers à la tête de lecture",combo:"Ctrl+V"},')
 
 # ── R2 (D-11) : la branche de dispatch ─────────────────────────────────────
@@ -3515,7 +3515,7 @@ R_R2 = (A_R2 + "\n"
         'range:dzProjRef.current&&dzProjRef.current.range,locked:(function(){var o={},k;for(k in trackStRef.current)if(trackStRef.current[k]&&trackStRef.current[k].l)o[k]=!0;return o})()});'
         'if(dzPr.id==null){fireNote(dzPr.note||"Rien n\'a été collé.");return}'
         'ovSeq.current=dzPq;pushHistory();setClips(dzPr.clips);setSelId(dzPr.id);setDirty(!0);'
-        'fireNote("« "+(dzPs.clip.label||dzPr.id)+" » collé sur "+String(dzPr.track).toUpperCase()+" à "+svmShort(Number(phRef.current)||0)+(dzPr.mode!=="ecraser"?" (mode « "+DzTracks.modeLabel(dzPr.mode)+" »)":"")+(dzPr.note?" — "+dzPr.note:"")+".");return}')
+        'fireNote("« "+(dzPs.clip.label||dzPr.id)+" » collé sur "+String(dzPr.track).toUpperCase()+" à "+svmShort(Number(dzPr.start)||0)+(dzPr.mode!=="ecraser"?" (mode « "+DzTracks.modeLabel(dzPr.mode)+" »)":"")+(dzPr.note?" — "+dzPr.note:"")+".");return}')
 
 # ── R3 (D-11) : la bande sur la regle, apres la gouttiere ──────────────────
 # `DzmRangeBar` rend `null` tant que la plage n'est pas COMPLETE : la regle
@@ -5148,7 +5148,24 @@ R_L7A3 = (
     '              inp.click()},\n'
     '            children:"Importer…"}),\n'
     + A_L7A3)
-L7A = [("L7a3-preset-resolve-export-import-du-mappage", A_L7A3, R_L7A3)]
+# ══ L7 D-6 (24/09/2026, tache 2, revue I-1) — LE TEXTE SELECTIONNE GARDE SON Ctrl+C ═
+# onKey ecoute window : hors champ de saisie, `e.preventDefault()` (B:3416)
+# precede toutes les branches et AVALAIT la copie native d'un texte
+# selectionne a la souris (une note, un libelle de clip, une entree de la
+# Bibliotheque). Ancre LIBRE 1/0/1 (trois lignes : sounds_drawer, le
+# preventDefault, keys_panel) : quand l'action est `copy` et qu'une selection
+# de texte est vivante, on SORT avant le preventDefault -- le navigateur copie
+# le texte, le clip n'est pas touche. Aucun DzTracks : la sonde ne bouge pas.
+A_L7B3 = ('      if(id==="sounds_drawer"){if(svmSfx()){e.preventDefault();sfxToggle()}return}\n'
+          '      e.preventDefault();\n'
+          '      if(id==="keys_panel"){setKbOn(function(v){return !v});return}')
+R_L7B3 = ('      if(id==="sounds_drawer"){if(svmSfx()){e.preventDefault();sfxToggle()}return}\n'
+          '      if(id==="copy"&&window.getSelection&&String(window.getSelection())!=="")return;\n'
+          '      e.preventDefault();\n'
+          '      if(id==="keys_panel"){setKbOn(function(v){return !v});return}')
+L7A = [("L7a3-preset-resolve-export-import-du-mappage", A_L7A3, R_L7A3),
+       ("L7b3-le-texte-selectionne-garde-son-Ctrl-C", A_L7B3, R_L7B3)]
+assert R_L7B3.count("window.getSelection") == 2 and R_L7B3.startswith(A_L7B3.split("\n")[0]) and R_L7B3.endswith(A_L7B3.split("\n")[2])
 assert R_L7A3.endswith(A_L7A3) and R_L7A3.count("svm-kbio") == 3 and R_L7A3.count("title:") == 3
 assert R_L7A3.count("setKmOv(") == 2 and R_L7A3.count("svmKmSave(") == 2 and R_L7A3.count("fireNote(") == 7
 assert R_L7A3.count('subsDownload("deepotus-raccourcis.json",') == 1 and R_L7A3.count("SVM_ACTIONS,svmComboCanon,svmComboReserved") == 1
