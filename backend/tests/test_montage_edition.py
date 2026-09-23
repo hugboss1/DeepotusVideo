@@ -857,6 +857,10 @@ out.dr_rendu=(function(){var r0=r,log=[];try{r={jsx:function(t,p){return {t:t,p:
 out.dr_vide=(function(){var r0=r;try{r={jsx:function(t,p){return {t:t,p:p}},jsxs:function(t,p){return {t:t,p:p}}};
   var m=T.DeliverRow({opts:{},api:null,lufs:null,hasRange:!1});var ch=m.p.children,pill=ch[5].p.children[1];
   return [ch[1].p.value,ch[1].p.children,ch[3].p.value,ch[5].p.children[0].p.value,pill.p["data-etat"],pill.p.title,ch[6],ch[7].p.children]}catch(e){return "autre:"+e}finally{r=r0}})();
+/* revue T4 : un preset persiste absent des options (maison supprime / api en panne) -> option « (absent) » en tete, valeur gardee */
+out.dr_absent=(function(){var r0=r;try{r={jsx:function(t,p){return {t:t,p:p}},jsxs:function(t,p){return {t:t,p:p}}};
+  var m=T.DeliverRow({opts:{preset:"zz_parti"},api:_api}),s2=m.p.children[1];var m2=T.DeliverRow({opts:{preset:"zz_parti"},api:null}).p.children[1];
+  return [s2.p.value,s2.p.children[0].t,s2.p.children[0].p.value,s2.p.children[0].p.children,s2.p.children.length,m2.p.value,m2.p.children[0].p.children,m2.p.children[1]]}catch(e){return "autre:"+e}finally{r=r0}})();
 /* le badge de statut de la vue Livraison (DzmDeliver) : cinquieme enfant de la rangee, data-st = statut brut, texte par delStatut */
 out.del_st=(function(){var r0=r;try{r={jsx:function(t,p){return {t:t,p:p}},jsxs:function(t,p){return {t:t,p:p}}};
   var js=[{provider:"montage",title:"q",job_id:"a",status:"queued"},{provider:"montage",title:"q",job_id:"b",status:"generating_video",progress:40},
@@ -1102,9 +1106,9 @@ try:
                  "tbd",
                  # E-13 / E-14 (lot E-C, tache 5) : les SIX cles de la section [23].
                  "tete","tete_bornes","trou","trou_bornes","rip","rip_bornes","rip_autre",
-                 # L4 (tache 4) : les QUATORZE cles de la section [24].
+                 # L4 (tache 4) : les QUINZE cles de la section [24].
                  "lp","opts","opts_bornes","opts_pur","pl","pl_absent","pl_bornes","pl_pur","st",
-                 "dr_pure","dr_leve","dr_rendu","dr_vide","del_st"]
+                 "dr_pure","dr_leve","dr_rendu","dr_vide","dr_absent","del_st"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -2231,15 +2235,17 @@ check("dr_composant_fonction_qui_touche_r_a_l_appel_props_null_vides_pleines",
       D.get("dr_pure") == "function" and D.get("dr_leve") == ["r.jsx", "r.jsx", "r.jsx"], (D.get("dr_pure"), D.get("dr_leve")))
 check("dr_rendu_grille_huit_enfants_selects_groupes_valeurs_options_pastille_jaune_titree_case_cochee_bouton_titre_et_les_patchs_remontent",
       D.get("dr_rendu") == ["div", "svm-delopts", 8, "select", "maison_a", True,
-                            [["Standard", ["master_1080", "web_4k"]], ["Maison", ["maison_a", "m2"]]],
+                            [None, ["Standard", ["master_1080", "web_4k"]], ["Maison", ["maison_a", "m2"]]],
                             "60", ["projet (30)", "24", "25", "30", "60"], "-14", ["", "-14", "-16", "-23"],
                             "svm-loudpill", "jaune", "mesure −16,2 LUFS · cible −14", "label", "checkbox", True, True,
                             "svm-secbtn svm-delsave", "Enregistrer ce réglage…", True,
                             [{"preset": "web_4k"}, {"fps": None}, {"loudness": -23}, {"rangeOnly": False}, "save"]],
       D.get("dr_rendu"))
 check("dr_etat_vide_sans_api_ni_mesure_ni_plage_select_vide_groupes_null_pastille_grise_mesurez_d_abord_pas_de_case",
-      D.get("dr_vide") == ["", [None, None], "", "", "gris", "mesurez d'abord (bouton « mesurer » du bandeau Son)", None, "Enregistrer ce réglage…"],
+      D.get("dr_vide") == ["", [None, None, None], "", "", "gris", "mesurez d'abord (bouton « mesurer » du bandeau Son)", None, "Enregistrer ce réglage…"],
       D.get("dr_vide"))
+check("dr_revue_preset_persiste_absent_option_absent_en_tete_valeur_gardee_meme_sans_api",
+      D.get("dr_absent") == ["zz_parti", "option", "zz_parti", "zz_parti (absent)", 3, "zz_parti", "zz_parti (absent)", None], D.get("dr_absent"))
 check("del_badge_de_statut_cinquieme_enfant_data_st_brut_texte_par_delStatut_autre_statut_texte_vide",
       D.get("del_st") == [[5, "svm-delbadge svm-delst", "queued", "en file"], [5, "svm-delbadge svm-delst", "generating_video", "en cours 40 %"],
                           [5, "svm-delbadge svm-delst", "done", "terminé"], [5, "svm-delbadge svm-delst", "failed", "échec"],
@@ -2254,6 +2260,9 @@ check("l4_coeur_pur_x4_composant_sans_hook_ni_fetch_rangeFrom_reutilise_listes_u
       all(len(c) > 80 and not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|fetch\(", c) for c in _L4.values())
       and len(_DRW4) > 1500 and "r.jsx" in _DRW4 and "x.use" not in _DRW4 and "fetch(" not in _DRW4 and "localStorage" not in _DRW4
       and _L4["dzmDeliverPayload"].count("dzmRangeFrom(") == 1 and _L4["dzmDeliverPayload"].count("function dzmRange") == 0
+      # revue T4 : la condition morte `o.fps!=null&&o.fps!==""` est retiree (Number(null|"") = 0, hors liste)
+      and _L4["dzmDeliverPayload"].count("var f=Number(o.fps);if(DZM_DEL_FPS.indexOf(f)>=0)out.fps=f;") == 1 and "o.fps!=null" not in _L4["dzmDeliverPayload"]
+      and _DRW4.count('pv+" (absent)"') == 1 and _DRW4.count("children:[absent,grp(") == 1
       and _SRCb.count("var DZM_DEL_FPS=[24,25,30,60];") == 1 and _SRCb.count("var DZM_DEL_LOUD=[[-14,") == 1
       and _SRCb.count("master_1080") == 0 and _SRCb.count("web_4k") == 0
       and _DRW4.count("title:") == 7 and _DRW4.count('className:"svm-secbtn svm-delsave"') == 1 and _DRW4.count('className:"svm-loudpill"') == 1

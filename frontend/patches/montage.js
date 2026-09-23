@@ -6281,7 +6281,7 @@ function dzmDeliverOpts(api){
 function dzmDeliverPayload(base,opts){
   var out=Object.assign({},base||{}),o=opts&&typeof opts==="object"?opts:{};
   if(typeof o.preset==="string"&&o.preset)out.preset=o.preset;
-  var f=Number(o.fps);if(o.fps!=null&&o.fps!==""&&DZM_DEL_FPS.indexOf(f)>=0)out.fps=f;
+  var f=Number(o.fps);if(DZM_DEL_FPS.indexOf(f)>=0)out.fps=f;
   if(typeof o.loudness==="number"&&DZM_DEL_LOUD.some(function(l){return l[0]===o.loudness}))out.loudness=o.loudness;
   var rg=o.rangeOnly?dzmRangeFrom(o.range):null;if(rg)out.range=[rg.in,rg.out];
   if(o.queue)out.queue=!0;
@@ -6296,13 +6296,15 @@ function DzmDeliverRow(o){
   var grp=function(g){var it=lst.filter(function(p){return p.groupe===g});
     return it.length?r.jsx("optgroup",{label:g,children:it.map(function(p){return r.jsx("option",{value:p.id,children:p.label},p.id)})},g):null};
   var pv=typeof opts.preset==="string"&&opts.preset?opts.preset:(lst[0]?lst[0].id:"");
+  /* revue T4 : un preset persiste qui n'est plus servi (maison supprime, api en panne) est DIT, jamais remplace en silence */
+  var absent=pv&&!lst.some(function(p){return p.id===pv})?r.jsx("option",{value:pv,children:pv+" (absent)"},pv):null;
   var lz=opts.loudness,li=o.lufs&&isFinite(Number(o.lufs.i))?Number(o.lufs.i):null;
   var etat=dzmLoudPastille(li,lz);
   var ptitre=li==null?"mesurez d'abord (bouton « mesurer » du bandeau Son)":"mesure "+dzmLoudTxt(li)+" LUFS · cible "+(lz==null?"aucune":dzmLoudTxt(lz));
   var plein={gridColumn:"1 / -1"};
   return r.jsxs("div",{className:"svm-delopts",children:[
     r.jsx("span",{children:"preset"}),
-    r.jsxs("select",{title:"Preset de sortie (codec, taille, conteneur) — les presets maison suivent les standards",value:pv,onChange:function(e){ch({preset:e.target.value})},children:[grp("Standard"),grp("Maison")]}),
+    r.jsxs("select",{title:"Preset de sortie (codec, taille, conteneur) — les presets maison suivent les standards",value:pv,onChange:function(e){ch({preset:e.target.value})},children:[absent,grp("Standard"),grp("Maison")]}),
     r.jsx("span",{children:"cadence"}),
     r.jsx("select",{title:"Cadence d'images du rendu final — « projet » laisse celle du preset",value:opts.fps==null||opts.fps===""?"":String(opts.fps),onChange:function(e){var v=e.target.value;ch({fps:v?Number(v):null})},
       children:[r.jsx("option",{value:"",children:"projet (30)"},"")].concat(DZM_DEL_FPS.map(function(f){return r.jsx("option",{value:String(f),children:String(f)},String(f))}))}),

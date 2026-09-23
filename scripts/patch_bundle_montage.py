@@ -1171,13 +1171,26 @@ R_M16REF = (A_M16REF + "\n"
             # choix = le premier builtin SERVI) ; PUT de la liste courante + le nouveau
             # (un id deja pris est remplace) ; la reponse {presets} remplace
             # dzApi.presets et le nouveau preset devient le choix courant.
-            '  var stDzDel=x.useState(function(){try{var v=JSON.parse(localStorage.getItem("dz_montage_deliver")||"null");return v&&typeof v==="object"?v:{}}catch(_e){return {}}}),dzDel=stDzDel[0],setDzDel=stDzDel[1];\n'
+            # REVUE T4 (23/09/2026) : la case « Rendre la plage I/O seulement » N'EST PAS
+            # persistee -- cochee sur le projet A, elle restait cochee sur le projet B
+            # (rendu partiel a l'insu de l'utilisateur). L'etat React la garde pour la
+            # session ; l'ecriture la retire (rangeOnly:void 0, que JSON.stringify
+            # omet) et la lecture initiale l'efface aussi (temoin : une cle rangeOnly
+            # ecrite a la main dans localStorage ne revient jamais).
+            # ECARTS DATES (revue T4, 23/09/2026) : un preset maison dont l'id est
+            # deja pris est REMPLACE en silence par « Enregistrer » (le PUT remplace
+            # la liste) ; GET /deliver-presets en panne -> select vide (deux groupes
+            # null) -> rien de poste -> master ; la pastille compare la mesure de
+            # SESSION (lufs, setLufs) : elle n'est pas remise a null au changement de
+            # projet ; « Ajouter a la file » est grise sur `busy` (rendu du meme type)
+            # alors que la garde R_EA6 refuse TOUT job non echoue (heritee du bouton or).
+            '  var stDzDel=x.useState(function(){try{var v=JSON.parse(localStorage.getItem("dz_montage_deliver")||"null");if(!v||typeof v!=="object")return {};delete v.rangeOnly;return v}catch(_e){return {}}}),dzDel=stDzDel[0],setDzDel=stDzDel[1];\n'
             '  var dzDelRef=x.useRef(null);dzDelRef.current=dzDel;\n'
             '  var stDzApi=x.useState(null),dzApi=stDzApi[0],setDzApi=stDzApi[1];\n'
             '  x.useEffect(function(){if(pop!=="render")return;var alive=!0;\n'
             '    fetch("/api/montage/deliver-presets").then(function(r2){return r2.json()}).then(function(j){if(alive&&dzAliveRef.current&&j&&typeof j==="object")setDzApi(j)}).catch(function(){});\n'
             '    return function(){alive=!1}},[pop]);\n'
-            '  function dzDelSet(p){setDzDel(function(d){var n=Object.assign({},d,p);try{localStorage.setItem("dz_montage_deliver",JSON.stringify(n))}catch(_e){}return n})}\n'
+            '  function dzDelSet(p){setDzDel(function(d){var n=Object.assign({},d,p);try{localStorage.setItem("dz_montage_deliver",JSON.stringify(Object.assign({},n,{rangeOnly:void 0})))}catch(_e){}return n})}\n'
             '  function dzSavePreset(){var lbl=window.prompt("Nom du preset maison (preset + cadence actuels)");if(!lbl)return;\n'
             '    var id=String(lbl).toLowerCase().replace(/[^a-z0-9_]+/g,"_").replace(/^_+|_+$/g,"").slice(0,32)||"maison";\n'
             '    var tous=dzApi&&Array.isArray(dzApi.presets)?dzApi.presets:[],bi=dzApi&&Array.isArray(dzApi.builtins)?dzApi.builtins:[];\n'
@@ -5033,6 +5046,7 @@ for _n, _a, _r in L4:
 assert R_L4C2.count("DzTracks.deliverPayload(") == 1 and R_L4B.count("DzTracks.DeliverRow") == 1 and R_L4B.count("DzTracks.rangeFrom(") == 1
 assert R_L4D3.count("o.d.queued") == 1 and R_L4D1.startswith("    if(!queue)setJob(") and R_L4C2.count("queue:queue===!0") == 1
 assert R_M16REF.count("dz_montage_deliver") == 2 and R_M16REF.count("/api/montage/deliver-presets") == 2 and R_M16REF.count("window.prompt(") == 1
+assert R_M16REF.count("rangeOnly:void 0") == 1 and R_M16REF.count("delete v.rangeOnly;") == 1
 
 EC15 = [("EC15a-title-fermer-popover-de-rendu", A_EC15A, R_EC15A),
         ("EC15b-bouton-or-reessayer-grise-sur-la-demo", A_EC15B, R_EC15B),

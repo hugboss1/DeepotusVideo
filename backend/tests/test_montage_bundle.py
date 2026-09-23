@@ -16906,13 +16906,13 @@ check("L4_sept_sections_en_queue_de_PATCHES_apres_EC15k",
       len(P.L4) == 7 and P.PATCHES[-7:] == P.L4 and P.PATCHES[-8][0].startswith("EC15k"), [p[0] for p in P.PATCHES[-8:]])
 # L4a : l'etat dzDel (localStorage dz_montage_deliver lu x1 en try/catch, ecrit x1 par dzDelSet), la ref posee a chaque
 # rendu, dzApi + l'effet [pop] (GET x1, vivant), dzSavePreset (PUT x1, prompt natif -- ecart date, aucun dialogue maison)
-_L4_ST = '  var stDzDel=x.useState(function(){try{var v=JSON.parse(localStorage.getItem("dz_montage_deliver")||"null");return v&&typeof v==="object"?v:{}}catch(_e){return {}}}),dzDel=stDzDel[0],setDzDel=stDzDel[1];'
+_L4_ST = '  var stDzDel=x.useState(function(){try{var v=JSON.parse(localStorage.getItem("dz_montage_deliver")||"null");if(!v||typeof v!=="object")return {};delete v.rangeOnly;return v}catch(_e){return {}}}),dzDel=stDzDel[0],setDzDel=stDzDel[1];'
 _L4_REF = "  var dzDelRef=x.useRef(null);dzDelRef.current=dzDel;"
 _L4_API = "  var stDzApi=x.useState(null),dzApi=stDzApi[0],setDzApi=stDzApi[1];"
 _L4_EFF = ('  x.useEffect(function(){if(pop!=="render")return;var alive=!0;\n'
            '    fetch("/api/montage/deliver-presets").then(function(r2){return r2.json()}).then(function(j){if(alive&&dzAliveRef.current&&j&&typeof j==="object")setDzApi(j)}).catch(function(){});\n'
            '    return function(){alive=!1}},[pop]);')
-_L4_SET = '  function dzDelSet(p){setDzDel(function(d){var n=Object.assign({},d,p);try{localStorage.setItem("dz_montage_deliver",JSON.stringify(n))}catch(_e){}return n})}'
+_L4_SET = '  function dzDelSet(p){setDzDel(function(d){var n=Object.assign({},d,p);try{localStorage.setItem("dz_montage_deliver",JSON.stringify(Object.assign({},n,{rangeOnly:void 0})))}catch(_e){}return n})}'
 _iL4Sv = s.find(nl('    if(v==="livraison"){setMedOn(!1);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)}setVw(v)}')); _iL4St = s.find(nl(_L4_ST)); _iL4Eff = s.find(nl(_L4_EFF))
 check("L4a_etat_dzDel_ref_api_effet_pop_et_dzDelSet_replies_dans_R_M16REF_apres_dzSetView_localStorage_x2_GET_x1_PUT_x1",
       all(s.count(nl(k)) == 1 and k in P.R_M16REF for k in (_L4_ST, _L4_REF, _L4_API, _L4_EFF, _L4_SET))
@@ -16932,6 +16932,15 @@ check("L4a_etat_dzDel_ref_api_effet_pop_et_dzDelSet_replies_dans_R_M16REF_apres_
 # la liste courante sans l'id repris + le nouveau, la reponse remplace dzApi.presets et le preset devient le choix
 # (borne de fin = la ligne d'etat « E1 » qui suit dans R_M16REF -- les commentaires Python du patcher ne sont PAS dans la chaine)
 _L4_SV = P.R_M16REF[P.R_M16REF.find("function dzSavePreset(){"):P.R_M16REF.find('  var stDzM=x.useState("ecraser")')] if "function dzSavePreset(){" in P.R_M16REF and '  var stDzM=x.useState("ecraser")' in P.R_M16REF else ""
+# REVUE T4 (23/09/2026) : la case plage n'est PAS persistee -- l'ecriture retire rangeOnly (void 0, omis par
+# JSON.stringify) et la lecture initiale l'efface ; temoin : la ligne de lecture ne porte rangeOnly que dans le delete
+check("L4a_revue_rangeOnly_retire_a_l_ecriture_et_efface_a_la_lecture_jamais_persiste",
+      s.count("rangeOnly:void 0") == 1 and P.R_M16REF.count("rangeOnly:void 0") == 1 and P.R_M16REF.count("delete v.rangeOnly;") == 1
+      and _L4_ST.count("rangeOnly") == 1 and _L4_ST.count("delete v.rangeOnly;") == 1 and _L4_SET.count("rangeOnly:void 0") == 1
+      # temoin exact : l'ecriture de dz_montage_deliver ne serialise JAMAIS `n` nu (`JSON.stringify(n))` vaut 3 dans l'amont, mesure)
+      and s.count(nl(_L4_ST)) == 1 and s.count(nl(_L4_SET)) == 1 and s.count('"dz_montage_deliver",JSON.stringify(n))') == 0 and s.count('"dz_montage_deliver",JSON.stringify(Object.assign({},n,{rangeOnly:void 0}))') == 1
+      and (_bak.count("rangeOnly") == 0 if _bak else False),
+      f"void={s.count('rangeOnly:void 0')} del={P.R_M16REF.count('delete v.rangeOnly;')}")
 check("L4a_dzSavePreset_slug_32_base_reelle_liste_courante_plus_le_nouveau_reponse_reprise_preset_choisi_notes",
       len(_L4_SV) > 800 and _L4_SV.count('.replace(/[^a-z0-9_]+/g,"_").replace(/^_+|_+$/g,"").slice(0,32)') == 1
       and _L4_SV.count("if(m)base=m.base;") == 1 and _L4_SV.count("(bi[0]&&bi[0].id)") == 1
