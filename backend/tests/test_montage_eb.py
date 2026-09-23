@@ -86,6 +86,11 @@ JOBS.append(("im1", "done", "sprite2d", "Planche", "/out/im1.png", None))
 JOBS.append(("px1", "done", "montage_proxy", "proxy", "/out/px1.mp4", None))
 JOBS.append(("nu1", "done", None, "provider nul", "/out/nu1.mp4", None))
 JOBS.append(("np1", "done", "heygen", "sans artefact", None, None))
+# revue E-2 : jokers LIKE dans q (mesure : 22 titres sur 118 de la base reelle portent % ou _)
+JOBS.append(("pc1", "done", "seedance", "100% reussi", "/out/pc1.mp4", None))
+JOBS.append(("pc2", "done", "seedance", "100 pour cent", "/out/pc2.mp4", None))
+JOBS.append(("sn1", "done", "seedance", "snake_case", "/out/sn1.mp4", None))
+JOBS.append(("sn2", "done", "seedance", "snakeXcase", "/out/sn2.mp4", None))
 with sqlite3.connect(DB) as _cx:
     for k, (jid, st, prov, title, vp, fvp) in enumerate(JOBS):
         _cx.execute("INSERT INTO jobs (id, status, progress, title, image_filename, provider, "
@@ -121,7 +126,7 @@ check("eb_jobs_limit_50_rend_tous_les_jobs_sauf_le_proxy",
       r_tous.status_code == 200 and j_tous is not None and len(j_tous) == NB_ATTENDU
       and "px1" not in ids_tous and "sd0" in ids_tous, (r_tous.status_code, ids_tous))
 check("eb_jobs_tri_created_at_desc",
-      j_tous is not None and len(ids_tous) == NB_ATTENDU and ids_tous[0] == "np1" and ids_tous[-1] == "sd0", ids_tous)
+      j_tous is not None and len(ids_tous) == NB_ATTENDU and ids_tous[0] == "sn2" and ids_tous[-1] == "sd0", ids_tous)
 # etat vide : l ancien /jobs ignore offset (rend la meme premiere page)
 r0 = c.get("/api/jobs", params={"limit": 3}); j0 = L(r0) or []
 r1 = c.get("/api/jobs", params={"limit": 3, "offset": 3}); j1 = L(r1) or []
@@ -139,8 +144,8 @@ check("eb_jobs_providers_ne_rend_que_ces_providers",
       and all(j.get("provider") in ("episode", "news") for j in jp), jp and [j.get("provider") for j in jp][:8])
 rps = c.get("/api/jobs", params={"limit": 50, "providers": " seedance , ,"}); jps = L(rps)
 check("eb_jobs_providers_espaces_et_vides_tolere_et_provider_nul_lu_seedance",
-      rps.status_code == 200 and jps is not None and len(jps) == 6
-      and {j.get("job_id") for j in jps} == {"sd0", "sd1", "sd2", "sd3", "sd4", "nu1"},
+      rps.status_code == 200 and jps is not None and len(jps) == 10
+      and {j.get("job_id") for j in jps} == {"sd0", "sd1", "sd2", "sd3", "sd4", "nu1", "pc1", "pc2", "sn1", "sn2"},
       jps and [j.get("job_id") for j in jps])
 rq = c.get("/api/jobs", params={"limit": 50, "q": "preuve-eb"}); jq = L(rq)
 check("eb_jobs_q_filtre_par_titre_insensible_a_la_casse",
@@ -150,6 +155,23 @@ check("eb_jobs_q_filtre_par_titre_insensible_a_la_casse",
 rq0 = c.get("/api/jobs", params={"limit": 50, "q": "RIEN-NE-PORTE-CE-TITRE"}); jq0 = L(rq0)
 check("eb_jobs_q_sans_correspondance_rend_une_liste_vide_pas_une_erreur",
       rq0.status_code == 200 and jq0 == [] and jq is not None and len(jq) == 1, (rq0.status_code, jq0))
+def _ids(params):
+    """(statut, ids tries) — None si le corps n'est pas une liste."""
+    r = c.get("/api/jobs", params=params); l = L(r)
+    return (r.status_code, sorted(j.get("job_id") for j in l) if l is not None else None)
+# revue E-2 : `%` et `_` sont des jokers LIKE ; le temoin SANS joker rend les deux titres,
+# la requete AVEC joker n'en rend qu'un (etat vide mesure : les deux etaient rendus).
+check("eb_jobs_q_echappe_le_pour_cent_temoin_sans_joker_en_rend_deux",
+      _ids({"limit": 50, "q": "100"}) == (200, ["pc1", "pc2"])
+      and _ids({"limit": 50, "q": "100%"}) == (200, ["pc1"]),
+      (_ids({"limit": 50, "q": "100"}), _ids({"limit": 50, "q": "100%"})))
+check("eb_jobs_q_echappe_le_souligne_temoin_sans_joker_en_rend_deux",
+      _ids({"limit": 50, "q": "snake"}) == (200, ["sn1", "sn2"])
+      and _ids({"limit": 50, "q": "e_case"}) == (200, ["sn1"]),
+      (_ids({"limit": 50, "q": "snake"}), _ids({"limit": 50, "q": "e_case"})))
+check("eb_jobs_q_antislash_litteral_ne_rend_rien_ni_n_erreur",
+      _ids({"limit": 50, "q": "snake\\"}) == (200, []) and _ids({"limit": 50, "q": "snake"})[1] == ["sn1", "sn2"],
+      _ids({"limit": 50, "q": "snake\\"}))
 rv = c.get("/api/jobs", params={"limit": 50, "video": 1}); jv = L(rv)
 non_videos_dans_tous = [j.get("job_id") for j in (j_tous or []) if not _est_video(j)]
 check("eb_jobs_video_1_ne_rend_que_des_jobs_video_selon_media_rules",

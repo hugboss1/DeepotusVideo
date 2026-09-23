@@ -1324,7 +1324,7 @@ class Pipeline:
         # statut, même fenêtre à protéger. Import TARDIF, comme avant : pas
         # de cycle (montage_service n'importe pas pipeline).
         from app.services.montage_service import _PROXY_PROVIDER, _STAB_PROVIDER
-        limit = max(1, min(200, int(limit if limit is not None else 50)))
+        limit = max(1, min(200, int(limit)))
         offset = max(0, int(offset or 0))
         stmt = (select(JobRecord)
                 .where(func.coalesce(JobRecord.provider, "")
@@ -1332,10 +1332,14 @@ class Pipeline:
         provs = [str(x).strip() for x in (providers or []) if str(x).strip()]
         if provs:
             stmt = stmt.where(func.coalesce(JobRecord.provider, "seedance").in_(provs))
-        q = (q or "").strip()
+        # Revue E-2 (23/09/2026) : `%` et `_` sont des JOKERS LIKE — mesuré
+        # sur la base réelle, 22 titres sur 118 en portent (`100% reussi`) ;
+        # sans échappement `q=100%` rendait aussi « 100 pour cent ».
+        q = ((q or "").strip().lower().replace("\\", "\\\\")
+             .replace("%", "\\%").replace("_", "\\_"))
         if q:
             stmt = stmt.where(func.lower(func.coalesce(JobRecord.title, ""))
-                              .like("%" + q.lower() + "%"))
+                              .like("%" + q + "%", escape="\\"))
         exts = [str(e) for e in (video_exts or []) if str(e)]
         if exts:
             _fp = func.coalesce(func.nullif(JobRecord.final_video_path, ""),
