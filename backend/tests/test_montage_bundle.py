@@ -2027,9 +2027,12 @@ _i_push = _body.find("pushHistory();")
 # du greffon P9 est inchangé — c'est lui qui compte, pas sa répartition.
 # D-9 (22/09/2026) : 4 -> 5, le refus de `dzAjAdd` (« Rien à ajuster ici »,
 # replie dans R_M16REF, AVANT tout pushHistory -- mesure dans [D-9]).
+# E-7 (23/09/2026) : 5 -> 6, la garde demo de dzSetView(« medias ») (repliee
+# dans R_M16REF, meme phrase que la chip Medias : note et return, jamais
+# d'historique).
 _n_ret = _P9C.count(";return}")
 check("M16a_refuse_avant_de_pousser_l_historique",
-      bool(_body) and _body.count("pushHistory();") == 1 and _n_ret == 5
+      bool(_body) and _body.count("pushHistory();") == 1 and _n_ret == 6
       and _i_refus >= 0 and _i_push >= 0 and _i_refus < _i_push,
       f"dernier refus={_i_refus} pushHistory();={_i_push} "
       f"returns={_n_ret} corps={len(_body)} o "
@@ -10975,8 +10978,11 @@ _TL = (_corps_de(_HDCSS, ".svm-tl") + _corps_de(_MC, ".svm-tl")
                    ".svm-tl"))
 _TRANS = _corps_de(_MC, ".svm-trans") + _corps_de(_HDCSS, ".svm-trans")
 _RACINE = _corps_de(_HDCSS, ".dzsvm")
+# E-7 (lot E-C, tache 3, 23/09/2026) : 3 -> 4, la regle qui MASQUE .svm-tl sous
+# [data-view="medias"|"livraison"] (display:none, jamais d'overflow).
 check("tb_aucun_parent_de_l_onglet_ne_le_rogne",
-      len(_TL) == 3 and not any("overflow" in b for b in _TL)
+      len(_TL) == 4 and not any("overflow" in b for b in _TL)
+      and len([b for b in _TL if b.strip() == "display:none"]) == 1
       and len(_RACINE) >= 1
       and any("overflow:hidden" in b and "position:absolute" in b
               for b in _RACINE),
@@ -12013,16 +12019,23 @@ _R_LBL = _regle(_MC, ".dzsvm .dzm-tbl{")
 # dire depuis le debut : AUCUN noeud de la barre ne se masque. Les regles qui
 # masquent sont comptees et leur selecteur doit porter `[data-bdoff` — un
 # `display:none` pose ailleurs, ou visant un `.dzm-`, rougit.
+# E-7 (lot E-C, tache 3, 23/09/2026) : UNE regle de plus, la timeline masquee
+# dans les vues Medias et Livraison -- son selecteur porte `[data-view=` et
+# ne vise que .svm-tl / .svm-tlhandle (jamais un noeud de la barre, jamais un
+# `.dzm-`) ; les trois masques du bandeau restent `[data-bdoff`.
 _MASQUES = list(re.finditer(r"([^{}]*)\{([^{}]*display:none[^{}]*)\}",
                             _sansc(_MC)))
+_MASQ_VUE = [_m for _m in _MASQUES if "[data-view=" in _m.group(1)]
 check("tb_d_seul_le_libelle_est_masquable_jamais_le_recentrage",
       _R_LBL is not None and "display:var(--lbl, block)" in _R_LBL
       and _sansc(_MC).count("var(--lbl") == 1
       and _R_WIN is not None and "display:flex" in _R_WIN
       and _R_WB is not None and "display:flex" in _R_WB
       and "--lbl" not in _R_WIN and "--lbl" not in _R_WB
-      and len(_MASQUES) == 3
-      and all("[data-bdoff" in _m.group(1) for _m in _MASQUES)
+      and len(_MASQUES) == 4 and len(_MASQ_VUE) == 1
+      and all("[data-bdoff" in _m.group(1) for _m in _MASQUES if _m not in _MASQ_VUE)
+      and _MASQ_VUE[0].group(1).count(".dzsvm[data-view=") == 4
+      and set(re.findall(r"\.(svm-[a-z]+)\s*(?:,|$)", _MASQ_VUE[0].group(1).strip())) == {"svm-tl", "svm-tlhandle"}
       and not any(".dzm-" in _m.group(1) for _m in _MASQUES),
       f'lbl={_R_LBL!r} lectures={_sansc(_MC).count("var(--lbl")} '
       f'masques={[_m.group(1).strip()[:60] for _m in _MASQUES]}')
@@ -14958,7 +14971,8 @@ check("E4_le_bandeau_est_monte_a_cote_du_popover_et_poste_sur_publish",
       and s.count('fetch("/api/montage/publish"') == 1
       # E-11 (23/09/2026) : le voile porte aussi `setDzFin(null)}}` -> la forme entiere de « Fermer »
       and s.count('"dz_montage_channels"') == 2 and s.count("onClose:function(){setDzFin(null)}}") == 1
-      and s.count('detail:{view:"library"}') == _bak.count('detail:{view:"library"}') + 1
+      # E-7 (T3, 23/09/2026) : +1 -> +2, le panneau Livraison reprend le MEME chemin (onOpenLib, EC9)
+      and s.count('detail:{view:"library"}') == _bak.count('detail:{view:"library"}') + 2
       and "props.go" not in P.R_EA5E and "deepotus:select-post" in P.R_EA5E
       and (_bak.count(_E4_MONT) == 0 and _bak.count("/api/montage/publish") == 0 if _bak else False),
       f"mont={s.count(nl(_E4_MONT))} publish={s.count('fetch(\"/api/montage/publish\"')} "
@@ -15154,17 +15168,18 @@ _DZ_I = _DZ_TAGS.index("EA6-bandeau-ferme-au-lancement")
 # [zoomPct], ancre libre 1/0/1 conservee) ; sonde 123 = 122 + Minimap x1 (l'hote,
 # EB8a) -- mmCalc et onSeek ne parlent pas a la couche.
 # E-6 (T2, 23/09/2026) : quatre sections EC en queue apres EB8b, sonde 123 -> 128
-check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB8b_puis_EC_en_queue_apres_EA6_et_la_sonde_dit_128",
+# E-7 (T3, 23/09/2026) : trois sections EC7/EC8/EC9 apres EC5, sonde 128 -> 129 (Deliver, EC9)
+check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB8b_puis_EC_en_queue_apres_EA6_et_la_sonde_dit_129",
       [t.split("-")[0] for t in _DZ_TAGS[_DZ_I + 1:]] == ["DZ1", "DZ2", "DZ3", "DZ4",
                                                           "KF1", "KF2", "KF2b", "KF2c", "KF3a", "KF3b", "KF3c", "KF4", "KF5",
                                                           "AJ2a", "AJ2b", "AJ6a", "AJ6b", "AJ7",
                                                           "EB1", "EB2", "EB2b", "EB2c", "EB2d", "EB2e", "EB2f", "EB3",
                                                           "EB4", "EB5a", "EB5b", "EB6a", "EB6b", "EB7b", "EB8a", "EB8b",
-                                                          "EC1", "EC2", "EC4", "EC5"]
+                                                          "EC1", "EC2", "EC4", "EC5", "EC7", "EC8", "EC9"]
       and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
               and s.count(nl(a)) == (1 if a in r else 0)
               for _t, a, r in P.PATCHES[_DZ_I + 1:])
-      and _sonde.get("montage") == 128 and s.count("DzTracks") == 128
+      and _sonde.get("montage") == 129 and s.count("DzTracks") == 129
       if _bak else False,
       f"queue={_DZ_TAGS[_DZ_I + 1:]} sonde={_sonde.get('montage')} bundle={s.count('DzTracks')}")
 
@@ -15527,7 +15542,8 @@ _iNaf = s.find("},[]);", _iNa if _iNa >= 0 else 0)
 _SF = s[_iSf:_iSff] if 0 <= _iSf < _iSff else ""
 _NA = s[_iNa:_iNaf] if 0 <= _iNa < _iNaf else ""
 check("EB2b_f_les_cinq_portes_des_autres_tiroirs_ferment_medias",
-      s.count("setMedOn(!1)") == 6 and (_bak.count("setMedOn") == 0 if _bak else False)
+      # E-7 (T3, 23/09/2026) : 6 -> 7, la vue « livraison » ferme le tiroir Medias (dzSetView, R_M16REF)
+      s.count("setMedOn(!1)") == 7 and (_bak.count("setMedOn") == 0 if _bak else False)
       and all(r.count("setMedOn(!1)") == 1 and a.count("setMedOn") == 0
               for a, r in ((P.A_EB2B, P.R_EB2B), (P.A_EB2C, P.R_EB2C), (P.A_EB2D, P.R_EB2D),
                            (P.A_EB2E, P.R_EB2E), (P.A_EB2F, P.R_EB2F)))
@@ -15591,12 +15607,13 @@ check("EB_R_TT11_l_infobulle_du_plus_video_dit_le_tiroir_et_le_Maj_clic",
 _EB_DEMO = "la démo reste une maquette"
 check("EB_revue_la_chip_et_le_plus_video_refusent_la_demo_comme_openPicker",
       # E-6 (T2, 23/09/2026) : 10 -> 11, 3 -> 4 : l'entree « Médias » du menu ☰ (R_EC1) porte la meme garde
-      s.count(_EB_DEMO) == 11 and (_bak.count(_EB_DEMO) == 8 if _bak else False)
+      # E-7 (T3, 23/09/2026) : 11 -> 12, 4 -> 5 : dzSetView(« medias ») (R_M16REF) porte la meme garde
+      s.count(_EB_DEMO) == 12 and (_bak.count(_EB_DEMO) == 8 if _bak else False)
       and P._EB_GARDE in P.R_EB2 and P._EB_GARDE in P.R_TT11
       and P.R_EB2.count(P._EB_GARDE + 'setMedTr("");setMedOn(!medOn)') == 1
       and P.R_TT11.count(P._EB_GARDE + 'setMedTr(tr.id);setMedOn(!0)') == 1
       # la forme EXACTE de la garde est celle d'openPicker : 1 dans .bak, 3 livrees
-      and s.count(P._EB_GARDE) == 4 and P._EB_GARDE in P.R_EC1 and (_bak.count(P._EB_GARDE) == 1 if _bak else False)
+      and s.count(P._EB_GARDE) == 5 and P._EB_GARDE in P.R_EC1 and P._EB_GARDE in P.R_M16REF and (_bak.count(P._EB_GARDE) == 1 if _bak else False)
       and _EB_DEMO in P._EB_GARDE
       and s.count(nl("  function addAsset(src,label,kind,srcDur,trId,atTime){")) == 1,
       f"maquette={s.count(_EB_DEMO)} bak={_bak.count(_EB_DEMO) if _bak else '?'} garde={s.count(P._EB_GARDE)}")
@@ -16124,7 +16141,9 @@ check("EB7_la_feuille_leve_le_plafond_sous_data_h_garde_la_regle_historique_et_d
       and 0 < _iHist9 < _iDh9 and _EB9_CSS.count("max-height:none") == 1 and _EB9_CSS.count("max-height:48vh") >= 1
       and _EB9_CSS.count(".dzsvm .svm-tlhandle{height:6px;flex:none;cursor:row-resize;touch-action:none}") == 1
       and _EB9_CSS.count(".dzsvm .svm-tlhandle:hover{background:var(--accent)}") == 1
-      and _EB9_CSS.count("svm-tlhandle") == 2 and "E-9" in _EB9_CSS and "row-resize" in _EB9_CSS
+      # E-7 (T3, 23/09/2026) : 2 -> 4, la poignee est masquee sous [data-view="medias"] et [data-view="livraison"]
+      and _EB9_CSS.count("svm-tlhandle") == 4 and _EB9_CSS.count('[data-view="medias"] .svm-tlhandle') == 1
+      and _EB9_CSS.count('[data-view="livraison"] .svm-tlhandle') == 1 and "E-9" in _EB9_CSS and "row-resize" in _EB9_CSS
       and _EB9_AM.count("svm-tlhandle") == 0 and _EB9_AM.count("[data-h]") == 0 and _EB9_AM.count(".svm-tl{") == 1
       and "max-height:48vh" in _EB9_AM,
       f"hist={_EB9_CSS.count(_EB9_HIST)} data_h={_EB9_CSS.count('[data-h]')} poignee={_EB9_CSS.count('svm-tlhandle')} none={_EB9_CSS.count('max-height:none')}")
@@ -16339,7 +16358,8 @@ check("EC1_main_rubrique_Projet_en_tete_Projets_Preview_Rendre_Publier_memes_han
       and _EC1.count('{lbl:"Preview 480p",run:function(){setPop("preview")}}') == 1
       and _EC1.count('{lbl:"Rendre…",run:function(){setPop("render")}}') == 1
       and _EC1.count('{lbl:"Publier",off:!dzLast,run:function(){if(dzLast){setPop("");setDzFin(Object.assign({project_id:proj.project_id||""},dzLast))}}}') == 1
-      and s.count("setDzProjReq(function(n){return n+1})") == 2 and s.count('setDzFin(Object.assign({project_id:proj.project_id||""},dzLast))') == 2
+      # x3 depuis E-7 (T3) : la barre (R_EA5D), le menu ☰ (EC1) et le panneau Livraison (EC9) partagent le geste
+      and s.count("setDzProjReq(function(n){return n+1})") == 2 and s.count('setDzFin(Object.assign({project_id:proj.project_id||""},dzLast))') == 3
       and s.count('setPop("preview")') >= 1 and s.count('setPop("render")') >= 1,
       f"projet={_EC1.count('rubs.unshift(')} projreq={s.count('setDzProjReq(function(n){return n+1})')}")
 _EC_INSP = 'run:function(){setInspSt(function(s){var n={on:!s.on,w:s.w};try{localStorage.setItem("dz_svm_insp",JSON.stringify(n))}catch(_e){}return n})}'
@@ -16458,12 +16478,125 @@ check("EC_la_feuille_dessine_le_menu_svm_menu_borne_a_dzsvm_menurub_menuitem_men
       and _EC_CSS.count("svm-menu") == 8 and _EC_CSS.count("\n.dzsvm .svm-menu") == 7 and "E-6" in _EC_CSS
       and _EC_AM.count(".svm-pop{position:absolute; top:52px; right:18px; z-index:20;") == 1 and _EC_AM.count("svm-menu") == 0,
       f"regles={_EC_CSS.count('svm-menu')} amont={_EC_AM.count('svm-menu')}")
-# LA SONDE : DzTracks 123 -> 128 (comboToKey, menuModel, CtxMenu, voisins, remove).
+# LA SONDE : DzTracks 123 -> 128 (comboToKey, menuModel, CtxMenu, voisins, remove) -> 129 (E-7 : Deliver, EC9).
 _EC_SONDE = _lire(ROOT / "scripts" / "patch_bundle_dzcout.py")
-check("EC_la_sonde_dzcout_compte_DzTracks_128",
-      _EC_SONDE.count('("montage", "DzTracks", 128),') == 1 and _EC_SONDE.count('("montage", "DzTracks", 123),') == 0
-      and s.count("DzTracks") == 128,
+check("EC_la_sonde_dzcout_compte_DzTracks_129",
+      _EC_SONDE.count('("montage", "DzTracks", 129),') == 1 and _EC_SONDE.count('("montage", "DzTracks", 128),') == 0
+      and _EC_SONDE.count('("montage", "DzTracks", 123),') == 0 and s.count("DzTracks") == 129,
       f"sonde={_EC_SONDE.count(chr(40) + chr(34) + 'montage')} bundle={s.count('DzTracks')}")
+
+print("\n[EC] E-7 : les trois vues Medias · Montage · Livraison (lot E-C, tache 3)")
+# MESURES du 23/09/2026 (T3) : trois ancres LIBRES (1/0/1) -> EC7 (la racine
+# .dzsvm), EC8 (la fin de .dzsvm : le DERNIER `]})` la ferme, node --check
+# tranche), EC9 (.svm-mid) ; l'etat `view`, `dzJobs`, l'effet [view] et
+# dzSetView sont un REPLI dans R_M16REF apres dzLast (que le panneau lit).
+# ECARTS dates : « Voir dans la Bibliotheque » suit le chemin EXACT du bandeau
+# E-4 (CustomEvent deepotus:navigate -> library ; le plan ecrivait
+# props.go("library"), qui n'existe pas dans ce composant) ; la vue est un etat
+# de SESSION (aucun localStorage, decision 4) ; l'historique est PAR TITRE
+# (aucun project_id en base), 24 derniers, apercus separes par le suffixe.
+# (« setView » vaut 8 dans l'amont, hors Montage -- le setter s'appelle setVw ; kbPanel a son `var view` LOCAL, mesure)
+for _nme in ("stVw", "setVw", "dzSetView", "stDzJ", "dzJobs", "setDzJobs", "svm-views", "svm-viewbtn", "svm-deliver"):
+    _nbe = _libre21(_nme, _bak if _bak else None)
+    check("E7_nom_" + _nme + "_etait_libre_dans_le_bundle_d_entree",
+          _nbe == 0 and _libre21(_nme, s) >= 1,
+          f"{_nme} apparait {_nbe}x dans .bak_montage, {_libre21(_nme, s)}x dans le bundle")
+for _sec, _a, _r in (("EC7-data-view-sur-la-racine", P.A_EC7, P.R_EC7),
+                     ("EC8-barre-des-vues-en-bas-de-dzsvm", P.A_EC8, P.R_EC8),
+                     ("EC9-panneau-livraison-dans-svm-mid", P.A_EC9, P.R_EC9)):
+    _cnt_a = s.count(nl(_a)); _cnt_r = s.count(nl(_r))
+    check("E7_section_" + _sec + "_ancre_libre_1_0_1_et_remplacement_x1",
+          _cnt_r == 1 and (_sec, _a, _r) in P.PATCHES and _a != _r
+          and (_bak.count(_nlb(_a)) == 1 and _bak.count(_nlb(_r)) == 0 if _bak else False)
+          and sum(1 for _t in P.PATCHES if _a in _t[2] and _t[0] != _sec) == 0,
+          f"ancre={_cnt_a} neuf={_cnt_r} bak={_bak.count(_nlb(_a)) if _bak else '?'}")
+# EC6 (repli R_M16REF) : `view` = etat de session ("montage" au montage, AUCUN localStorage dans le fragment --
+# temoin : R_M16REF en porte ailleurs), dzJobs, l'effet [view] qui charge l'historique en « livraison » (vivant :
+# drapeau local + dzAliveRef), dzSetView « medias » = garde demo + les setters de la chip Medias (tiroir ouvert, trois fermes).
+_E7_ST = '  var stVw=x.useState("montage"),view=stVw[0],setVw=stVw[1];'
+_E7_JB = "  var stDzJ=x.useState([]),dzJobs=stDzJ[0],setDzJobs=stDzJ[1];"
+_E7_EF = ('  x.useEffect(function(){if(view==="livraison"){var alive=!0;\n'
+          '    fetch("/api/jobs?providers=montage&limit=24&q="+encodeURIComponent(proj.name||"")).then(function(r2){return r2.json()})\n'
+          '      .then(function(j){if(alive&&dzAliveRef.current)setDzJobs(Array.isArray(j)?j:[])}).catch(function(){});\n'
+          '    return function(){alive=!1}}},[view]);')
+_E7_SV = ('  function dzSetView(v){if(v==="medias"){' + P._EB_GARDE
+          + 'setMedTr("");setMedOn(!0);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)}\n'
+          '    if(v==="livraison"){setMedOn(!1);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)}setVw(v)}')
+_E7_FRAG = P.R_M16REF[P.R_M16REF.find(_E7_ST):P.R_M16REF.find(_E7_SV) + len(_E7_SV)] if _E7_ST in P.R_M16REF and _E7_SV in P.R_M16REF else ""
+_iE7St = s.find(nl(_E7_ST)); _iE7Last = s.find(nl('  var dzLast=DzTracks.finOf(dzFinStore,proj.project_id||"_");'))
+check("EC6_view_etat_de_session_sans_localStorage_dzJobs_effet_view_et_dzSetView_replies_dans_R_M16REF_apres_dzLast",
+      all(s.count(nl(k)) == 1 and k in P.R_M16REF for k in (_E7_ST, _E7_JB, _E7_EF, _E7_SV))
+      and 0 < _iE7Last < _iE7St < _iE7Last + 600
+      and len(_E7_FRAG) > 500 and "localStorage" not in _E7_FRAG and P.R_M16REF.count("localStorage") == 1
+      and s.count('x.useState("montage")') == 1 and s.count('view==="livraison"') == 2 and s.count("providers=montage") == 1
+      and s.count("dzAliveRef.current") == 6 and s.count("function dzSetView(v){") == 1 and s.count("dzSetView(") == 2
+      and s.count(P._EB_GARDE) == 5 and s.count("setMedOn(!0)") == 2
+      # ecart mesure a l'ecran (23/09) : « livraison » FERME les quatre tiroirs (le panneau tombait a 150 px a cote d'un tiroir ouvert)
+      and s.count('if(v==="livraison"){setMedOn(!1);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)}') == 1
+      # x5 MESURES : la chip Medias (R_EB2), le « + » video (R_TT11), l'entree ☰ (R_EC1), dzSetView medias + livraison
+      and s.count("setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)") == 5
+      and (_bak.count("providers=montage") == 0 and _bak.count('useState("montage")') == 0 if _bak else False),
+      f"st={s.count(nl(_E7_ST))} ef={s.count(nl(_E7_EF))} sv={s.count(nl(_E7_SV))} frag={len(_E7_FRAG)} garde={s.count(P._EB_GARDE)}")
+# EC7 : la racine porte "data-view":view (une seule ecriture), a cote de data-svm-theme.
+check("EC7_la_racine_dzsvm_porte_data_view_view_a_cote_de_data_svm_theme",
+      s.count('"data-view":view,') == 1 and s.count('"data-view":') == 1 and P.R_EC7.count('"data-view":view,') == 1
+      and s.count(nl('  return r.jsxs("div",{className:"dzsvm svm-col",ref:rootRef,"data-view":view,"data-svm-theme":theme==="light"?"light":void 0,children:[')) == 1
+      and (_bak.count("data-view") == 0 if _bak else False),
+      f"racine={s.count(chr(34) + 'data-view' + chr(34) + ':view,')}")
+# EC8 : la barre basse .svm-views (tablist) AVANT le dernier `]})` de .dzsvm ; trois onglets titres, data-on / aria-selected
+# sur la vue courante, clic -> dzSetView.
+_E7_VIEWS = ('    r.jsx("div",{className:"svm-views",role:"tablist",children:[["medias","Médias"],["montage","Montage"],["livraison","Livraison"]].map(function(v){'
+             'return r.jsx("button",{className:"svm-viewbtn",role:"tab","aria-selected":view===v[0],"data-on":view===v[0]?"":void 0,title:"Vue "+v[1],'
+             'onClick:function(){dzSetView(v[0])},children:v[1]},v[0])})})]})}')
+check("EC8_la_barre_des_vues_ferme_dzsvm_trois_onglets_titres_data_on_aria_selected_clic_dzSetView",
+      s.count(nl(_E7_VIEWS)) == 1 and P.R_EC8.endswith(_E7_VIEWS) and P.R_EC8.startswith(P.A_EC8[:-4] + ",\n")
+      and s.count("svm-views") == 1 and s.count("svm-viewbtn") == 1 and s.count('role:"tablist"') == 4
+      and s.count(nl('          r.jsx("div",{className:"svm-translabel",ref:transLabelRef})]})})]}),')) == 1
+      and s.count('title:"Vue "+v[1]') == 1 and s.count('"aria-selected":view===v[0]') == 1,
+      f"views={s.count(nl(_E7_VIEWS))} translabel={s.count('svm-translabel')}")
+# EC9 : le panneau Livraison PREMIER enfant de .svm-mid en « livraison » ; les trois gestes sont CEUX de la barre
+# (setPop preview/render, Publier = R_EA5D), onOpenLib = le chemin du bandeau (deepotus:navigate -> library, x2).
+_E7_DEL = ('      view==="livraison"?r.jsx(DzTracks.Deliver,{nom:proj.name,onPreview:function(){setPop("preview")},onRender:function(){setPop("render")},'
+           'onPublish:function(){if(dzLast){setPop("");setDzFin(Object.assign({project_id:proj.project_id||""},dzLast))}},publishOn:!!dzLast,lastFin:dzLast,jobs:dzJobs,'
+           'onOpenLib:function(){window.dispatchEvent(new CustomEvent("deepotus:navigate",{detail:{view:"library"}}))}}):null,')
+_iE7Mid = s.find(nl(P.A_EC9)); _iE7Del = s.find(nl(_E7_DEL))
+check("EC9_le_panneau_Livraison_premier_enfant_de_svm_mid_memes_gestes_que_la_barre_et_le_chemin_du_bandeau_vers_la_Bibliotheque",
+      s.count(nl(_E7_DEL)) == 1 and _E7_DEL in P.R_EC9 and P.R_EC9.startswith(P.A_EC9 + "\n")
+      and 0 < _iE7Mid < _iE7Del < _iE7Mid + 400 and s.count("DzTracks.Deliver") == 1
+      and s.count('new CustomEvent("deepotus:navigate",{detail:{view:"library"}})') == 2
+      and s.count('onLib:function(){window.dispatchEvent(new CustomEvent("deepotus:navigate",{detail:{view:"library"}}))}') == 1
+      # props.go("library") existe UNE fois dans l'amont (l'ecran Bibliotheque, hors DzMontage) : E-7 n'en ajoute aucun
+      and s.count('props.go("library")') == (_bak.count('props.go("library")') if _bak else -1) == 1
+      and s.find('props.go("library")') < s.find("function DzMontage(props){") and s.count("props.go&&props.go(") >= 1
+      and (_bak.count("DzTracks.Deliver") == 0 and _bak.count('new CustomEvent("deepotus:navigate",{detail:{view:"library"}})') == 0
+           and _bak.count("deepotus:navigate") == 9 if _bak else False),
+      f"del={s.count(nl(_E7_DEL))} mid={_iE7Mid} del_i={_iE7Del} nav={s.count('deepotus:navigate')}")
+# LA COUCHE exporte les deux ; l'hote ne les redefinit pas.
+check("E7_la_couche_exporte_jobsTri_Deliver_et_l_hote_ne_les_redefinit_pas",
+      src.count("jobsTri:dzmJobsTri,Deliver:DzmDeliver,") == 1 and s.count("jobsTri:dzmJobsTri,Deliver:DzmDeliver,") == 1
+      # x3 chacun : l'en-tete de commentaire E-7 de la couche, la declaration, l'export (DzmDeliver) / l'appel dans DzmDeliver (dzmJobsTri)
+      and s.count("function DzmDeliver(") == 1 and s.count("function dzmJobsTri(") == 1 and s.count("DzmDeliver") == 3 and src.count("DzmDeliver") == 3
+      and s.count("dzmJobsTri(") == 3 and src.count("dzmJobsTri(") == 3 and s.count("dzmJobsTri(o.jobs,o.nom)") == 1,
+      f"exports={s.count('jobsTri:dzmJobsTri,Deliver:DzmDeliver,')}")
+# LA FEUILLE : la barre des vues, l'onglet courant (accent + filet), la timeline masquee en Medias / Livraison,
+# le tiroir Medias elargi a 520 px en Medias (plus specifique que ses 340 px), le panneau et ses rangees / badges.
+_E7_CSS = _lire(ROOT / "frontend" / "dist" / "shared" / "montage.css")
+_E7_REGLES = (
+    ".dzsvm .svm-views{display:flex;gap:4px;justify-content:center;padding:4px;border-top:1px solid var(--stroke);flex:none}",
+    ".dzsvm .svm-viewbtn{background:transparent;border:0;color:inherit;font:inherit;padding:4px 14px;border-radius:6px;cursor:pointer;opacity:.7}",
+    ".dzsvm .svm-viewbtn[data-on]{opacity:1;color:var(--accent);box-shadow:inset 0 -2px 0 var(--accent)}",
+    '.dzsvm[data-view="medias"] .svm-tlhandle,.dzsvm[data-view="medias"] .svm-tl,.dzsvm[data-view="livraison"] .svm-tlhandle,.dzsvm[data-view="livraison"] .svm-tl{display:none}',
+    '.dzsvm[data-view="medias"] .svm-meddrawer{width:520px;min-width:520px}',
+    # min-width 320 (le plan ecrivait 0 : mesure a l'ecran, le panneau tombait a 150 px)
+    ".dzsvm .svm-deliver{flex:1;padding:16px;overflow:auto;min-width:320px}",
+    ".dzsvm .svm-delrow{display:flex;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--stroke)}",
+    ".dzsvm .svm-delbadge{font-size:10px;padding:1px 6px;border-radius:9px;border:1px solid var(--stroke);opacity:.8}")
+check("E7_la_feuille_dessine_la_barre_des_vues_masque_la_timeline_elargit_le_tiroir_et_habille_le_panneau",
+      all(_E7_CSS.count(_rg) == 1 for _rg in _E7_REGLES)
+      and _E7_CSS.count("data-view=") == 5 and _E7_CSS.count("\n.dzsvm[data-view=") == 2
+      and _E7_CSS.count(".dzsvm .svm-meddrawer{width:340px;min-width:340px;") == 1
+      and _E7_CSS.count("svm-views{") == 1 and _E7_CSS.count("svm-deliver{") == 1 and "E-7" in _E7_CSS,
+      f"regles={[_E7_CSS.count(_rg) for _rg in _E7_REGLES]} data-view={_E7_CSS.count('data-view=')}")
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

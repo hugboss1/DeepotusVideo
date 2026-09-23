@@ -1387,3 +1387,31 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
 .dzsvm .svm-menuitem:disabled{opacity:.45;cursor:not-allowed}
 .dzsvm .svm-menukey{opacity:.6;font-family:ui-monospace,monospace;font-size:11px}
 .dzsvm .svm-menusep{height:1px;background:var(--stroke);margin:4px 0}
+/* E-7 (lot E-C, tâche 3, 23/09/2026) : les trois vues Médias · Montage ·
+   Livraison. La barre des vues (.svm-views, tablist) est le DERNIER enfant de
+   .dzsvm (EC8) ; l'onglet courant porte data-on (accent + filet bas). La racine
+   porte data-view (EC7) : en « medias » et « livraison », la timeline et sa
+   poignée sont masquées (spécificité .dzsvm[data-view] .svm-tl (0,3,0) >
+   .dzsvm .svm-tl (0,2,0) ; la hauteur inline de E-9 ne pèse pas sur display) ;
+   en « medias » le tiroir Médias s'élargit à 520 px (plus spécifique que ses
+   340 px, min-width égal comme lui). Le panneau Livraison (DzTracks.Deliver)
+   est le premier enfant de .svm-mid, à côté du lecteur : flex:1 + min-width
+   320 px (écart mesuré 23/09 : à 0, le panneau tombait à 150 px à côté d'un
+   tiroir resté ouvert — la vue Livraison ferme aussi les quatre tiroirs) ; rangées .svm-delrow (titre · date locale ·
+   durée · badge final/aperçu). Écart daté : la vue est un état de session
+   (F5 → « Montage »), presets de livraison = D-35. */
+.dzsvm .svm-views{display:flex;gap:4px;justify-content:center;padding:4px;border-top:1px solid var(--stroke);flex:none}
+.dzsvm .svm-viewbtn{background:transparent;border:0;color:inherit;font:inherit;padding:4px 14px;border-radius:6px;cursor:pointer;opacity:.7}
+.dzsvm .svm-viewbtn[data-on]{opacity:1;color:var(--accent);box-shadow:inset 0 -2px 0 var(--accent)}
+.dzsvm[data-view="medias"] .svm-tlhandle,.dzsvm[data-view="medias"] .svm-tl,.dzsvm[data-view="livraison"] .svm-tlhandle,.dzsvm[data-view="livraison"] .svm-tl{display:none}
+.dzsvm[data-view="medias"] .svm-meddrawer{width:520px;min-width:520px}
+.dzsvm .svm-deliver{flex:1;padding:16px;overflow:auto;min-width:320px}
+.dzsvm .svm-delh{font-size:15px;margin:0 0 10px}
+.dzsvm .svm-delbtns{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.dzsvm .svm-dellast{font-size:12px;opacity:.8;margin-bottom:10px}
+.dzsvm .svm-dellist{margin-bottom:12px}
+.dzsvm .svm-delrow{display:flex;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--stroke)}
+.dzsvm .svm-deltitle{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dzsvm .svm-deldate,.dzsvm .svm-deldur{font-size:11px;opacity:.7;font-variant-numeric:tabular-nums}
+.dzsvm .svm-delbadge{font-size:10px;padding:1px 6px;border-radius:9px;border:1px solid var(--stroke);opacity:.8}
+.dzsvm .svm-delempty{font-size:12px;opacity:.7;padding:8px 0}

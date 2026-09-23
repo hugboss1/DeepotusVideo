@@ -751,6 +751,43 @@ out.ctx_onclose=(function(){var r0=r,log=[];try{r={jsx:function(t,p){return {t:t
   btns[1].p.onClick();return [btns.length,m.t,m.p.className,log]}catch(e){return "autre:"+e}finally{r=r0}})();
 /* MESURE : `r` est ici l'objet de la section [1] -> le composant leve sur r.jsx a l'appel, props null / vides / items / rubs */
 out.ctx_leve=[null,{},{items:[{lbl:"a",run:function(){}},{sep:!0},{lbl:"b",off:!0}]},{rubs:[{rub:"Projet",items:[{lbl:"b"}]}],x:5,y:5}].map(function(o){try{T.CtxMenu(o);return "rendu"}catch(e){return (e instanceof TypeError||e instanceof ReferenceError)&&String(e).indexOf("r.jsx")>=0?"r.jsx":"autre:"+e}});
+/* [21] E-7 (lot E-C, tache 3, 23/09/2026) : le tri des rendus (par TITRE, aucun project_id en base) et la vue Livraison.
+   Cinq jobs : deux finals du projet (a, e), un apercu du projet (b), un final d'un AUTRE projet (c), un job non-montage
+   au meme titre (d) ; `a` porte une duree (1:05 par svmRuler du bundle, E-9) */
+var _jt=[{provider:"montage",title:"preuve e3",job_id:"a",created_at:"2026-09-23T10:00:00",duration_s:65},
+  {provider:"montage",title:"preuve e3 (aperçu 480p)",job_id:"b"},
+  {provider:"montage",title:"autre projet",job_id:"c"},
+  {provider:"seedance",title:"preuve e3",job_id:"d"},
+  {provider:"montage",title:"preuve e3",job_id:"e"}];
+var _jtJ=JSON.stringify(_jt);
+var _t1=T.jobsTri(_jt,"preuve e3");
+out.jt=[_t1.finals.map(function(j){return j.job_id}),_t1.previews.map(function(j){return j.job_id})];
+var _t2=T.jobsTri(_jt,"");
+out.jt_tous=[_t2.finals.map(function(j){return j.job_id}),_t2.previews.map(function(j){return j.job_id})];
+out.jt_vide=[T.jobsTri([],"x").finals.length,T.jobsTri([],"x").previews.length];
+/* bornes : null / chaine -> vides ; entrees non-objets ignorees (un seul objet montage garde) ; nom null -> tous (3 finals) ;
+   le prefixe : « preuve » prend les deux « preuve e3 » (un nom plus court attrape les titres qui le prolongent -- ecart date 23/09,
+   l'historique est par titre) et « preuve e3x » ne prend rien */
+out.jt_bornes=[T.jobsTri(null,"x").finals.length,T.jobsTri("zz","x").previews.length,
+  T.jobsTri([null,"s",7,{provider:"montage",title:"x1"}],"x").finals.length,T.jobsTri(_jt,null).finals.length,
+  T.jobsTri(_jt,"preuve").finals.length,T.jobsTri(_jt,"preuve e3x").finals.length];
+out.jt_pur=JSON.stringify(_jt)===_jtJ;
+out.del_pure=typeof T.Deliver;
+/* le composant lit `r` a l'appel (l'objet de la section [1] : TypeError r.jsx), props null / vides / pleines */
+out.del_leve=[null,{},{nom:"preuve e3",jobs:_jt,lastFin:{name:"preuve e3",at:1}}].map(function(o){try{T.Deliver(o);return "rendu"}catch(e){return (e instanceof TypeError||e instanceof ReferenceError)&&String(e).indexOf("r.jsx")>=0?"r.jsx":"autre:"+e}});
+/* rendu par un jsx factice {t,p} : racine, titre, trois boutons (classe, title present, disabled), ligne « dernier rendu »,
+   rangees (finals PUIS apercus, badge, duree du bundle), bouton Bibliotheque ; les clics : Publier grise NE PUBLIE PAS */
+out.del_rendu=(function(){var r0=r,log=[];try{r={jsx:function(t,p){return {t:t,p:p}},jsxs:function(t,p){return {t:t,p:p}}};
+  var m=T.Deliver({nom:"preuve e3",jobs:_jt,publishOn:!1,lastFin:null,onPreview:function(){log.push("preview")},onRender:function(){log.push("render")},onPublish:function(){log.push("publish")},onOpenLib:function(){log.push("lib")}});
+  var ch=m.p.children,btns=ch[1].p.children,rows=ch[3].p.children;
+  btns[0].p.onClick();btns[1].p.onClick();btns[2].p.onClick();ch[4].p.onClick();
+  return [m.t,m.p.className,ch[0].p.children,btns.map(function(b){return [b.p.className,!!b.p.title,!!b.p.disabled]}),ch[2].p.children,
+    rows.map(function(w){return [w.p.className,w.p["data-kind"],w.p.children[3].p.children,w.p.children[2].p.children]}),ch[4].p.children,log]}catch(e){return "autre:"+e}finally{r=r0}})();
+/* liste vide (aucun job de ce nom) -> svm-delempty ; publishOn -> Publier actif et le clic publie ; dernier rendu nomme (at 0 : sans date) */
+out.del_vide_liste=(function(){var r0=r,log=[];try{r={jsx:function(t,p){return {t:t,p:p}},jsxs:function(t,p){return {t:t,p:p}}};
+  var m=T.Deliver({nom:"zzz",jobs:_jt,publishOn:!0,lastFin:{name:"preuve e3",at:0},onPublish:function(){log.push("publish")}});
+  m.p.children[1].p.children[2].p.onClick();
+  return [m.p.children[3].p.children.p.className,m.p.children[1].p.children[2].p.disabled,m.p.children[2].p.children,log]}catch(e){return "autre:"+e}finally{r=r0}})();
 console.log(JSON.stringify(out));
 """
 # E-9 : svmRuler / svmPad2 sont des fonctions DU BUNDLE (meme portee module que
@@ -983,7 +1020,9 @@ try:
                  "mm","mm_vide","mm_bornes","mm_comp","mm_comp_leve",
                  # E-6 (lot E-C, tache 1) : les DIX cles de la section [20].
                  "combo","combo_bornes","combo_bundle","menu","menu_vide","menu_inconnu",
-                 "menu_bornes","ctx_pure","ctx_leve","ctx_onclose"]
+                 "menu_bornes","ctx_pure","ctx_leve","ctx_onclose",
+                 # E-7 (lot E-C, tache 3) : les NEUF cles de la section [21].
+                 "jt","jt_tous","jt_vide","jt_bornes","jt_pur","del_pure","del_leve","del_rendu","del_vide_liste"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -1966,6 +2005,52 @@ check("ctx_porte_svm_pop_svm_menu_role_menu_stop_unique_rub_sep_item_disabled_ti
       f"corps={len(_CTX)} o stop={_CTX.count('stopPropagation')}")
 check("ec_exports_comboToKey_menuModel_CtxMenu_dans_DzTracks",
       len(_DT) > 1000 and _DT.count("comboToKey:dzmComboToKey,menuModel:dzmMenuModel,CtxMenu:DzmCtxMenu,") == 1, len(_DT))
+print("\n[21] E-7 tri des rendus par titre et vue Livraison (lot E-C, tache 3)")
+# ── E-7 (lot E-C, tache 3, 23/09/2026) : LA VUE LIVRAISON ─────────────────
+# Decision 4 du plan : l'historique d'un projet est lu de GET /api/jobs?providers=montage&q=<nom>
+# et trie PAR TITRE (aucun project_id en base) : finals / apercus separes par le suffixe
+# « (aperçu 480p) » que montage_service pose ; ordre recu conserve.
+check("jt_deux_finals_un_apercu_l_autre_projet_et_le_job_non_montage_exclus_ordre_recu",
+      D.get("jt") == [["a", "e"], ["b"]], D.get("jt"))
+check("jt_nom_vide_prend_tous_les_jobs_montage_finals_puis_apercus",
+      D.get("jt_tous") == [["a", "c", "e"], ["b"]], D.get("jt_tous"))
+check("jt_etat_vide_deux_listes_vides", D.get("jt_vide") == [0, 0], D.get("jt_vide"))
+check("jt_bornes_null_chaine_non_objets_ignores_nom_null_tous_prefixe_court_prolonge_prefixe_faux_rien",
+      D.get("jt_bornes") == [0, 0, 1, 3, 2, 0], D.get("jt_bornes"))
+check("jt_ne_mute_pas_l_entree", D.get("jt_pur") is True, D.get("jt_pur"))
+check("del_composant_fonction_qui_touche_r_a_l_appel_props_null_vides_pleines",
+      D.get("del_pure") == "function" and D.get("del_leve") == ["r.jsx", "r.jsx", "r.jsx"],
+      (D.get("del_pure"), D.get("del_leve")))
+# rendu factice : finals PUIS apercus, badge final/apercu, duree 1:05 par svmRuler du bundle, Publier grise ne publie pas
+check("del_rendu_racine_titre_trois_boutons_titres_dernier_aucun_rangees_finals_puis_apercus_badge_duree_bibliotheque_clics",
+      D.get("del_rendu") == ["div", "svm-deliver", "Livraison",
+                             [["svm-secbtn", True, False], ["svm-goldbtn", True, False], ["svm-secbtn", True, True]],
+                             "Dernier rendu final : aucun",
+                             [["svm-delrow", "final", "final", "1:05"], ["svm-delrow", "final", "final", ""],
+                              ["svm-delrow", "preview", "aperçu", ""]],
+                             "Voir dans la Bibliothèque", ["preview", "render", "lib"]],
+      D.get("del_rendu"))
+check("del_liste_vide_svm_delempty_publier_actif_publie_dernier_rendu_nomme",
+      D.get("del_vide_liste") == ["svm-delempty", False, "Dernier rendu final : preuve e3 · ", ["publish"]],
+      D.get("del_vide_liste"))
+# LE COEUR RESTE PUR (jobsTri sans r/x/window), le composant SANS hook (pas de x.use : le fetch est dans l'hote),
+# une seule ecriture du suffixe, IDENTIQUE a celui de montage_service (jamais recopie a la main), duree par dzmDurTxt
+_E7 = {n: _corps(n) for n in ("dzmJobsTri", "DzmDeliver")}
+_MSV = ""
+try:
+    with open(os.path.join(ROOT, "backend", "app", "services", "montage_service.py"), "rb") as _fh: _MSV = _fh.read().decode("utf-8", "replace")
+except OSError: pass
+check("e7_jobsTri_pur_Deliver_sans_hook_suffixe_unique_egal_a_montage_service_duree_par_dzmDurTxt",
+      len(_E7["dzmJobsTri"]) > 150 and not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b", _E7["dzmJobsTri"])
+      and _E7["dzmJobsTri"].count("DZM_DEL_APERCU") == 1 and _E7["dzmJobsTri"].count('j.provider!=="montage"') == 1
+      and len(_E7["DzmDeliver"]) > 800 and "r.jsx" in _E7["DzmDeliver"] and "x.use" not in _E7["DzmDeliver"] and "fetch(" not in _E7["DzmDeliver"]
+      and all(_E7["DzmDeliver"].count('className:"' + k + '"') == 1 for k in ("svm-deliver", "svm-delrow", "svm-delbadge", "svm-dellast", "svm-delempty"))
+      and _E7["DzmDeliver"].count("dzmDurTxt(") == 1 and _E7["DzmDeliver"].count('className:"svm-goldbtn"') == 1 and _E7["DzmDeliver"].count('className:"svm-secbtn"') == 3
+      and _E7["DzmDeliver"].count("title:") == 4 and _E7["DzmDeliver"].count("if(o.publishOn&&o.onPublish)o.onPublish()") == 1
+      and _SRCb.count('var DZM_DEL_APERCU="(aperçu 480p)";') == 1 and len(_MSV) > 1000 and _MSV.count('" (aperçu 480p)"') == 1,
+      ({n: len(c) for n, c in _E7.items()}, _MSV.count('" (aperçu 480p)"')))
+check("e7_exports_jobsTri_Deliver_dans_DzTracks",
+      len(_DT) > 1000 and _DT.count("jobsTri:dzmJobsTri,Deliver:DzmDeliver,") == 1, len(_DT))
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

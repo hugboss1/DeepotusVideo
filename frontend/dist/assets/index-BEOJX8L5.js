@@ -1786,6 +1786,14 @@ function DzMontage(props){
   var dzScrimRef=x.useRef(!1);dzScrimRef.current=!!(pop||dzFin||dzMenu);
   var stDzFS=x.useState(function(){try{return JSON.parse(localStorage.getItem("dz_montage_lastfin")||"{}")||{}}catch(_e){return {}}}),dzFinStore=stDzFS[0],setDzFinStore=stDzFS[1];
   var dzLast=DzTracks.finOf(dzFinStore,proj.project_id||"_");
+  var stVw=x.useState("montage"),view=stVw[0],setVw=stVw[1];
+  var stDzJ=x.useState([]),dzJobs=stDzJ[0],setDzJobs=stDzJ[1];
+  x.useEffect(function(){if(view==="livraison"){var alive=!0;
+    fetch("/api/jobs?providers=montage&limit=24&q="+encodeURIComponent(proj.name||"")).then(function(r2){return r2.json()})
+      .then(function(j){if(alive&&dzAliveRef.current)setDzJobs(Array.isArray(j)?j:[])}).catch(function(){});
+    return function(){alive=!1}}},[view]);
+  function dzSetView(v){if(v==="medias"){if(proj.demo){fireNote("Ajout d'assets : disponible sur un projet réel — la démo reste une maquette.");return}setMedTr("");setMedOn(!0);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)}
+    if(v==="livraison"){setMedOn(!1);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)}setVw(v)}
   var stDzM=x.useState("ecraser"),dzMode=stDzM[0],setDzMode=stDzM[1];
   function dzTtAdd(){var t=DzTracks.titleNew({template:"tiers_inferieur",text:"Titre"},phRef.current,clipsRef.current,"t1");
     var ts=svmTracksOf(dzProjRef.current),ts2=DzTracks.titleTrack(ts);
@@ -5649,7 +5657,7 @@ function DzMontage(props){
       r.jsx("div",{className:"svm-note",style:{marginTop:8},
         children:"le texte reste local — seul « Narrer » envoie le bloc à ElevenLabs"})]})}
 
-  return r.jsxs("div",{className:"dzsvm svm-col",ref:rootRef,"data-svm-theme":theme==="light"?"light":void 0,children:[
+  return r.jsxs("div",{className:"dzsvm svm-col",ref:rootRef,"data-view":view,"data-svm-theme":theme==="light"?"light":void 0,children:[
     /* barre de titre */
     r.jsxs("div",{className:"svm-titlebar",children:[
       r.jsx("button",{className:"svm-secbtn svm-menubtn",title:"Menu — actions et raccourcis","aria-haspopup":"menu","aria-expanded":!!(dzMenu&&dzMenu.kind==="main"),onClick:function(e){if(dzMenu&&dzMenu.kind==="main"){setDzMenu(null);return}var b=e.currentTarget.getBoundingClientRect();setDzMenu(dzMenuProps("main",{x:b.left,y:b.bottom+4}))},children:"☰"}),
@@ -5743,6 +5751,9 @@ function DzMontage(props){
     kbPanel(),
     /* tiroir sons + tiroir narration + lecteur + inspecteur */
     r.jsxs("div",{className:"svm-mid",children:[
+      /* E-7 : le panneau Livraison (le composant Deliver de la couche) -- memes gestes que la barre de titre (Preview / Rendre / Publier = R_EA5D),
+         historique dzJobs (EC6), « Voir dans la Bibliothèque » = le chemin du bandeau de fin */
+      view==="livraison"?r.jsx(DzTracks.Deliver,{nom:proj.name,onPreview:function(){setPop("preview")},onRender:function(){setPop("render")},onPublish:function(){if(dzLast){setPop("");setDzFin(Object.assign({project_id:proj.project_id||""},dzLast))}},publishOn:!!dzLast,lastFin:dzLast,jobs:dzJobs,onOpenLib:function(){window.dispatchEvent(new CustomEvent("deepotus:navigate",{detail:{view:"library"}}))}}):null,
       /* tiroir Sons (DzSfx.Drawer) — même emplacement que Narration, les deux
          exclusifs ; l'insertion passe par addAsset (playhead / piste du type) */
       (function(){var d2=svmSfx();
@@ -6557,7 +6568,9 @@ function DzMontage(props){
           r.jsx("div",{className:"svm-phline",style:{left:"calc(88px + (100% - 88px) * "+phFrac+")"}}),
           r.jsx("div",{className:"svm-phtri",style:{left:"calc(88px + (100% - 88px) * "+phFrac+")"}}),
           r.jsx("div",{className:"svm-hovertc",ref:hoverTcRef}),
-          r.jsx("div",{className:"svm-translabel",ref:transLabelRef})]})})]})]})}
+          r.jsx("div",{className:"svm-translabel",ref:transLabelRef})]})})]}),
+    /* E-7 : la barre des vues, dernier enfant de .dzsvm (tablist ; data-on = la vue courante) */
+    r.jsx("div",{className:"svm-views",role:"tablist",children:[["medias","Médias"],["montage","Montage"],["livraison","Livraison"]].map(function(v){return r.jsx("button",{className:"svm-viewbtn",role:"tab","aria-selected":view===v[0],"data-on":view===v[0]?"":void 0,title:"Vue "+v[1],onClick:function(){dzSetView(v[0])},children:v[1]},v[0])})})]})}
 
 /*__DZ_SONVFX_END__*/
 /*__DZ_SFXSTUDIO_BEGIN__*/
@@ -12997,7 +13010,8 @@ window.DzSubs={ready:!0,Drawer:SubsDrawer,Overlay:SubsOverlay,Style:SubsStyle,
                          isOverlayTrack, overlayOrder, addDit,
                          tbTraces, tbIcons, tbParse, tbSerial,
                          TbIcon, ToolBtn, TB_GROUPES, TB_PX, TB_PX_GRIP,
-                         move, moveTo, add, remove, group, DEFAULTS}
+                         move, moveTo, add, remove, group,
+                         jobsTri, Deliver, DEFAULTS}
 
    - bdRetire() / bdPlan(dispo, blocs) — étape 6 du handoff « Barre Outils
      Flottante » (§5). La première RECALCULE ce que le retrait des neuf
@@ -19091,6 +19105,48 @@ function DzmFinBandeau(o){
           .then(function(){setSt(DZM_FIN_OK)}).catch(function(e){setSt("Envoi impossible : "+String(e))})},children:"Envoyer vers le Scheduler"}),
       r.jsx("button",{className:"svm-secbtn",onClick:function(){o.onLib&&o.onLib()},children:"Voir dans la Bibliothèque"}),
       r.jsx("button",{className:"svm-secbtn",onClick:function(){o.onClose&&o.onClose()},children:"Fermer"})]})]})}
+/* ── E-7 (lot E-C, tâche 3, 23/09/2026) : LA VUE « LIVRAISON » ─────────────
+   dzmJobsTri(jobs, nom) — pure : les jobs `provider==="montage"` dont le
+   titre COMMENCE par `nom` (nom vide : tous), séparés en {finals, previews}
+   par le suffixe « (aperçu 480p) » que montage_service pose sur le titre
+   d'un aperçu (`name[:60]` + suffixe, montage_service.py:3222) — aucun
+   project_id en base : l'historique d'un projet est PAR TITRE (écart daté).
+   Ordre reçu conservé (GET /api/jobs rend le plus récent d'abord) ; entrées
+   non-objets ignorées ; `jobs` non-tableau → deux listes vides.
+   DzmDeliver(o) — {nom, onPreview, onRender, onPublish, publishOn, lastFin,
+   jobs, onOpenLib} → div.svm-deliver. AUCUN hook : le fetch est dans l'hôte
+   (EC6, effet [view]). Les trois boutons reprennent les handlers de la barre
+   de titre (setPop preview/render, Publier = R_EA5D, grisé sans rendu final
+   ET gardé dans le clic ; libellés « Rendre… » / « Publier ce rendu » : les
+   jetons « Rendre → » et « Publier » nu sont ceux de la BARRE, pinnés ×1) ; « Voir dans la Bibliothèque » = le chemin EXACT
+   du bandeau de fin (deepotus:navigate → library, passé par l'hôte). La
+   durée passe par dzmDurTxt (svmRuler du bundle, E-9), jamais recopiée. */
+var DZM_DEL_APERCU="(aperçu 480p)";
+function dzmJobsTri(jobs,nom){
+  var n=String(nom==null?"":nom),fin=[],prev=[];
+  (Array.isArray(jobs)?jobs:[]).forEach(function(j){
+    if(!j||typeof j!=="object"||j.provider!=="montage")return;
+    var t=String(j.title==null?"":j.title);
+    if(n&&t.indexOf(n)!==0)return;
+    (t.indexOf(DZM_DEL_APERCU)>=0?prev:fin).push(j)});
+  return {finals:fin,previews:prev}}
+function dzmDelDate(v){if(!v)return "";var d=new Date(v);return isNaN(d)?"":d.toLocaleString()}
+function DzmDeliver(o){
+  o=o||{};var tri=dzmJobsTri(o.jobs,o.nom),lf=o.lastFin,n=tri.finals.length+tri.previews.length;
+  var row=function(j,kind){return r.jsxs("div",{className:"svm-delrow","data-kind":kind,children:[
+    r.jsx("span",{className:"svm-deltitle",children:String(j.title||j.job_id||"")}),
+    r.jsx("span",{className:"svm-deldate",children:dzmDelDate(j.created_at)}),
+    r.jsx("span",{className:"svm-deldur",children:j.duration_s>0?dzmDurTxt(Number(j.duration_s)):""}),
+    r.jsx("span",{className:"svm-delbadge",children:kind==="preview"?"aperçu":"final"})]},String(j.job_id||"")+kind)};
+  return r.jsxs("div",{className:"svm-deliver",children:[
+    r.jsx("h2",{className:"svm-delh",children:"Livraison"}),
+    r.jsxs("div",{className:"svm-delbtns",children:[
+      r.jsx("button",{className:"svm-secbtn",title:"Aperçu 480p — rapide, pour vérifier le montage",onClick:function(){o.onPreview&&o.onPreview()},children:"Preview 480p"}),
+      r.jsx("button",{className:"svm-goldbtn",title:"Rendu final (master 1080), aucun crédit consommé",onClick:function(){o.onRender&&o.onRender()},children:"Rendre…"}),
+      r.jsx("button",{className:"svm-secbtn",disabled:!o.publishOn,title:o.publishOn?"Envoyer le dernier rendu final au Scheduler":"Aucun rendu final pour ce projet",onClick:function(){if(o.publishOn&&o.onPublish)o.onPublish()},children:"Publier ce rendu"})]}),
+    r.jsx("div",{className:"svm-dellast",children:lf?"Dernier rendu final : "+String(lf.name||"")+" · "+dzmDelDate(lf.at):"Dernier rendu final : aucun"}),
+    r.jsx("div",{className:"svm-dellist",children:n?tri.finals.map(function(j){return row(j,"final")}).concat(tri.previews.map(function(j){return row(j,"preview")})):r.jsx("div",{className:"svm-delempty",children:"Aucun rendu pour ce projet."})}),
+    r.jsx("button",{className:"svm-secbtn",title:"Ouvrir la Bibliothèque sur les rendus vidéo",onClick:function(){o.onOpenLib&&o.onOpenLib()},children:"Voir dans la Bibliothèque"})]})}
 /* ── D-13 (22/09/2026) : LE ZOOM DYNAMIQUE ───────────────────────────────
    `dz` = {x0,y0,w0,x1,y1,w1,ease} en FRACTIONS du cadre — MÊMES bornes que
    `montage_service._dz_spec` (w ∈ [0.1,1], x/y ∈ [0,1−w], plein cadre aux
@@ -19704,6 +19760,8 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   minimap:dzmMinimap,Minimap:DzmMinimap,
   /* E-6 (lot E-C, tache 1) : combo -> touche, modele de menu, composant de menu */
   comboToKey:dzmComboToKey,menuModel:dzmMenuModel,CtxMenu:DzmCtxMenu,
+  /* E-7 (lot E-C, tache 3) : le tri des rendus par titre et la vue Livraison */
+  jobsTri:dzmJobsTri,Deliver:DzmDeliver,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;
 

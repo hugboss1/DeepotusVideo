@@ -354,7 +354,12 @@ STABLE_PROBES = [
     # (le bouton ☰), EC4/EC5 (les clics droits), R_M16REF (l etat), R_K7
     # (Echap) et R_M16 (dzReplaceArm) n en ajoutent aucune. MESURE : la
     # chaine a refuse, « sonde montage x128 (want 123) », avant cette ligne.
-    ("montage", "DzTracks", 128),
+    # 23/09/2026, E-7 (lot E-C, tache 3) : 128 -> 129. UNE de plus, dans EC9 :
+    # `DzTracks.Deliver` (le panneau Livraison, premier enfant de .svm-mid).
+    # EC6 (l etat, l effet fetch, dzSetView -- repli R_M16REF), EC7 (data-view
+    # sur la racine) et EC8 (la barre des vues) n en ajoutent aucune. MESURE :
+    # la chaine a refuse, « sonde montage x129 (want 128) », avant cette ligne.
+    ("montage", "DzTracks", 129),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

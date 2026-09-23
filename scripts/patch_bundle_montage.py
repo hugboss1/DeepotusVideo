@@ -999,6 +999,10 @@ R_M9c = 'children:tr.name})]},"nr"),'
 # motivée. Une ref mise à jour à CHAQUE rendu est le motif déjà employé neuf
 # fois dans ce composant (durRef, clipsRef, phRef, trackStRef…) ; on le
 # reprend plutôt que d'en inventer un autre.
+# La garde demo des tiroirs (E-2, documentee a R_EB2) -- definie ICI parce que
+# R_M16REF (E-7, dzSetView) et R_EB2 / R_EC1 la reprennent ; une seule ecriture.
+_EB_GARDE = ('if(proj.demo){fireNote("Ajout d\'assets : disponible sur un projet '
+             'réel — la démo reste une maquette.");return}')
 A_M16REF = "  var durRef=x.useRef(proj.dur);durRef.current=proj.dur;"
 R_M16REF = (A_M16REF + "\n"
             "  /* P9 — les PISTES du projet, relues à chaque rendu, pour que\n"
@@ -1086,6 +1090,33 @@ R_M16REF = (A_M16REF + "\n"
             # `proj` est déclaré avant (stP, :1717 < :1766 dans le livré).
             '  var stDzFS=x.useState(function(){try{return JSON.parse(localStorage.getItem("dz_montage_lastfin")||"{}")||{}}catch(_e){return {}}}),dzFinStore=stDzFS[0],setDzFinStore=stDzFS[1];\n'
             '  var dzLast=DzTracks.finOf(dzFinStore,proj.project_id||"_");\n'
+            # ── E-7 (lot E-C, tache 3, 23/09/2026) : LES TROIS VUES (Medias · Montage ·
+            # Livraison). REPLIE ICI (0 dans .bak_montage), APRES dzLast que le panneau
+            # lit (EC9). `view` est un etat de SESSION -- decision 4 : aucun
+            # localStorage, chaque ouverture repart sur l'ecran complet ("montage").
+            # (kbPanel declare son propre `var view` LOCAL -- une ombre interne a cette
+            # fonction, sans effet sur l'hote ; « setView » vaut 8 dans l'amont : le
+            # setter s'appelle setVw.) dzJobs = l'historique GET /api/jobs?providers=
+            # montage&q=<nom>&limit=24 (E-B ; PAR TITRE, aucun project_id en base --
+            # ecart date), recharge a chaque entree en « livraison » ; vivant/demonte
+            # par le drapeau local de l'effet (motif du tiroir sous-titres, couche
+            # :1053) ET dzAliveRef (P9, plus bas dans ce corps, resolue a l'appel).
+            # dzSetView(« medias ») = LA garde demo de la chip (meme phrase, comptee :
+            # sur la maquette, note et la vue ne change PAS), puis les memes setters
+            # que la chip : tiroir Medias ouvert, les trois autres fermes.
+            # ECART MESURE A L'ECRAN (23/09/2026) : en « livraison », le panneau ne
+            # faisait que 150 px a cote d'un tiroir Medias reste ouvert (340) et de
+            # l'inspecteur (300) dans un .svm-mid de 928 px -> la vue Livraison FERME
+            # les quatre tiroirs (memes setters, setMedOn(!1) x6 -> x7) et la feuille
+            # donne au panneau min-width:320px (le plan ecrivait 0).
+            '  var stVw=x.useState("montage"),view=stVw[0],setVw=stVw[1];\n'
+            "  var stDzJ=x.useState([]),dzJobs=stDzJ[0],setDzJobs=stDzJ[1];\n"
+            '  x.useEffect(function(){if(view==="livraison"){var alive=!0;\n'
+            '    fetch("/api/jobs?providers=montage&limit=24&q="+encodeURIComponent(proj.name||"")).then(function(r2){return r2.json()})\n'
+            '      .then(function(j){if(alive&&dzAliveRef.current)setDzJobs(Array.isArray(j)?j:[])}).catch(function(){});\n'
+            '    return function(){alive=!1}}},[view]);\n'
+            '  function dzSetView(v){if(v==="medias"){' + _EB_GARDE + 'setMedTr("");setMedOn(!0);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)}\n'
+            '    if(v==="livraison"){setMedOn(!1);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)}setVw(v)}\n'
             # ── « E1 » (D-2) : L'ÉTAT DU MODE D'ÉDITION ──────────────
             # REPLIÉ ICI, et c'est une MESURE : la ligne `dzTracksRef`
             # ci-dessus vaut 0 dans .bak_montage (c'est CE remplacement
@@ -4282,8 +4313,8 @@ R_EB1 = ('  var stMed=x.useState(!1),medOn=stMed[0],setMedOn=stMed[1]; '
 # « + » video (R_TT11) ouvraient le tiroir sans regarder `proj.demo` : un
 # clic sur une rangee aurait pose un clip dans la maquette. Les DEUX
 # handlers portent la MEME garde, MEME phrase qu'openPicker (comptee).
-_EB_GARDE = ('if(proj.demo){fireNote("Ajout d\'assets : disponible sur un projet '
-             'réel — la démo reste une maquette.");return}')
+# (E-7, 23/09/2026) `_EB_GARDE` est definie PLUS HAUT, avant A_M16REF : R_M16REF la
+# reprend pour dzSetView(« medias ») -- la meme phrase, comptee par le banc.
 # Meme famille que « sons » et « narration » (svm-themechip, data-on,
 # aria-pressed). Ouvrir le tiroir Medias FERME les trois autres tiroirs de
 # .svm-mid (sons, sous-titres, narration) : ils sont EXCLUSIFS (mesure
@@ -4675,6 +4706,38 @@ R_EC5 = A_EC5.replace("children:",
 for _a, _r in ((A_EC1, R_EC1), (A_EC2, R_EC2), (A_EC4, R_EC4)):
     assert _a != _r and _a in _r
 assert A_EC5 != R_EC5 and R_EC5.startswith(A_EC5[:-9]) and R_EC5.endswith("children:")
+# ── E-7 (lot E-C, tache 3, 23/09/2026) : LES TROIS VUES ─────────────────────
+# MESURES (1/0/1) : la racine .dzsvm (EC7), la fin de .dzsvm (EC8 -- le DERNIER
+# `]})` de la ligne ferme .dzsvm : `]})` svm-scroll, `})` la fermeture-appel,
+# `]})` .svm-tl, `]})` .dzsvm, `}` DzMontage ; node --check tranche) et l'ouverture
+# de .svm-mid (EC9). L'etat (view, dzJobs, l'effet, dzSetView) est un REPLI dans
+# R_M16REF. ECARTS dates : « Voir dans la Bibliotheque » = le chemin EXACT du
+# bandeau E-4 (CustomEvent deepotus:navigate -> library ; le plan ecrivait
+# props.go("library"), qui n'existe pas dans ce composant) ; presets = D-35 ;
+# le panneau est le PREMIER enfant de .svm-mid, a cote du lecteur (la timeline
+# et sa poignee sont masquees par la feuille en Medias / Livraison).
+A_EC7 = '  return r.jsxs("div",{className:"dzsvm svm-col",ref:rootRef,"data-svm-theme":theme==="light"?"light":void 0,children:['
+R_EC7 = A_EC7.replace('ref:rootRef,', 'ref:rootRef,"data-view":view,')
+A_EC8 = '          r.jsx("div",{className:"svm-translabel",ref:transLabelRef})]})})]})]})}'
+EC8_VIEWS = ('    r.jsx("div",{className:"svm-views",role:"tablist",children:[["medias","Médias"],["montage","Montage"],["livraison","Livraison"]].map(function(v){'
+             'return r.jsx("button",{className:"svm-viewbtn",role:"tab","aria-selected":view===v[0],"data-on":view===v[0]?"":void 0,title:"Vue "+v[1],'
+             'onClick:function(){dzSetView(v[0])},children:v[1]},v[0])})})]})}')
+R_EC8 = (A_EC8[:-4] + ',\n'
+         '    /* E-7 : la barre des vues, dernier enfant de .dzsvm (tablist ; data-on = la vue courante) */\n'
+         + EC8_VIEWS)
+A_EC9 = '    r.jsxs("div",{className:"svm-mid",children:['
+R_EC9 = (A_EC9 + '\n'
+         '      /* E-7 : le panneau Livraison (le composant Deliver de la couche) -- memes gestes que la barre de titre (Preview / Rendre / Publier = R_EA5D),\n'
+         '         historique dzJobs (EC6), « Voir dans la Bibliothèque » = le chemin du bandeau de fin */\n'
+         '      view==="livraison"?r.jsx(DzTracks.Deliver,{nom:proj.name,onPreview:function(){setPop("preview")},onRender:function(){setPop("render")},'
+         'onPublish:function(){if(dzLast){setPop("");setDzFin(Object.assign({project_id:proj.project_id||""},dzLast))}},publishOn:!!dzLast,lastFin:dzLast,jobs:dzJobs,'
+         'onOpenLib:function(){window.dispatchEvent(new CustomEvent("deepotus:navigate",{detail:{view:"library"}}))}}):null,')
+for _a, _r in ((A_EC7, R_EC7), (A_EC8, R_EC8), (A_EC9, R_EC9)):
+    assert _a != _r and _r.count(_a[:40]) == 1
+assert R_EC7.count('"data-view":view,') == 1 and A_EC8.endswith("]})]})}") and R_EC8.endswith("]})}")
+# la barre REPRENDS la fermeture retiree : autant de `]})` qu'avant, un `}` final
+assert R_EC8.count("]})") == A_EC8.count("]})") == 3 and R_EC9.count("DzTracks.Deliver") == 1
+assert R_M16REF.count('x.useState("montage")') == 1 and R_M16REF.count("function dzSetView(v){") == 1 and _EB_GARDE in R_M16REF
 
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
@@ -4910,7 +4973,12 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("EC1-menu-fonctions-de-l-hote", A_EC1, R_EC1),
            ("EC2-bouton-menu-dans-la-barre-de-titre", A_EC2, R_EC2),
            ("EC4-clic-droit-sur-un-clip", A_EC4, R_EC4),
-           ("EC5-clic-droit-sur-une-piste", A_EC5, R_EC5)]
+           ("EC5-clic-droit-sur-une-piste", A_EC5, R_EC5),
+           # E-7 (tache 3) : trois sections ; l'etat, l'effet et dzSetView sont
+           # replies dans R_M16REF.
+           ("EC7-data-view-sur-la-racine", A_EC7, R_EC7),
+           ("EC8-barre-des-vues-en-bas-de-dzsvm", A_EC8, R_EC8),
+           ("EC9-panneau-livraison-dans-svm-mid", A_EC9, R_EC9)]
 
 
 def nl(text, crlf):
