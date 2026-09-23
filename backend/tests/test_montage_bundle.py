@@ -31,7 +31,17 @@ Quatre familles de mesures :
 
 Run : & $PY tests/test_montage_bundle.py   (depuis backend/)
 
-COMPTE DE REFERENCE, 23/09/2026 (lot E-B, tache 8, D-7 mini-carte) :
+COMPTE DE REFERENCE, 23/09/2026 (lot E-C, tache 7, cloture) : 2055 lignes,
+soit CENT SOIXANTE-TROIS de plus que les 1892 d'E-B : les lignes que la
+boucle sur `P.PATCHES` emet pour les 23 sections neuves (EC1, EC2, EC4,
+EC5, EC7, EC8, EC9, EC10..EC14, EC15a..k -- `_remplace`,
+`couche_ne_cite_pas_l_ancre_de_`, et `_ancre_consommee` pour celles qui ne
+reprennent pas leur ancre) et les sections [EC] E-6, E-7, E-10, E-13/E-14 en
+queue ; realignes : M16src (dzReplaceArm), M16a (returns 5 -> 6), [EB] E-5 /
+E-11 (R_EA5D et R_EB5A reecrits), la queue pinnee (…EB8b puis EC…, sonde 132).
+La cloture n'ajoute AUCUNE ligne ici (mutations 21/21, croise 26/0 a part).
+
+COMPTE PRECEDENT, 23/09/2026 (lot E-B, tache 8, D-7 mini-carte) :
 1892 lignes, soit TREIZE de plus que les 1879 d'E-9 : les QUATRE lignes que
 la boucle sur `P.PATCHES` emet pour les sections EB8a et EB8b (`_remplace` et
 `couche_ne_cite_pas_l_ancre_de_` x2 chacune -- pas de `_ancre_consommee` :

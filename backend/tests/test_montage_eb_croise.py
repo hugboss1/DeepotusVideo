@@ -25,7 +25,11 @@ lecture nue, une regex qui ne trouve rien fait ROUGIR le banc, pas mourir.
   [4] E-2 : `DZM_MED_PAGE=24` vs l'URL du tiroir (`limit="+DZM_MED_PAGE`,
       aucun literal `limit=`) et la borne `min(200, …)` de `list_jobs` ;
   [5] E-5/E-8/E-9 : les quatre cles localStorage, chacune LUE (getItem) et
-      ECRITE (setItem) dans le bundle livre, comptes pinnes ;
+      ECRITE (setItem) dans le bundle livre, comptes pinnes -- REALIGNES le
+      23/09/2026 par la cloture du lot E-C : le menu ☰ (T2) ecrit
+      `dz_svm_insp` et `dz_svm_showdur` une fois de plus (memes setters que
+      les chips), et E-10 (T4) ajoute la cle `dz_svm_tb_dock` -- ce banc
+      rougissait 32/3 AU REPOS, personne ne l'avait rejoue apres T2/T4 ;
   [6] E-2 : `media_rules()` = la source UNIQUE : une definition dans
       backend/app, deux appels (la route `/media-rules` et `GET /jobs?video=1`),
       et son resultat est `_VIDEO_EXTS` (comportement, pas seulement le texte).
@@ -212,19 +216,22 @@ check("x4_le_repos_de_la_frappe_est_250_ms", num(mPg, 2) == 250, mPg and mPg.gro
 
 # ── [5] les quatre cles localStorage, lues ET ecrites dans le bundle ─────
 print("\n[5] E-5/E-8/E-9 : les cles localStorage, lecture et ecriture")
-CLES = {"dz_montage_lastfin": (1, 1), "dz_svm_insp": (1, 2), "dz_svm_tlh": (1, 1), "dz_svm_showdur": (1, 1)}
+# REALIGNE 23/09/2026 (cloture E-C) : insp ecrite x3 (chip, poignee, entree ☰), showdur x2 (chip, entree ☰)
+CLES = {"dz_montage_lastfin": (1, 1), "dz_svm_insp": (1, 3), "dz_svm_tlh": (1, 1), "dz_svm_showdur": (1, 2)}
 for k, (ng, ns) in CLES.items():
     g = BUN.count(f'localStorage.getItem("{k}")')
     s = BUN.count(f'localStorage.setItem("{k}"')
     check(f"x5_{k}_est_lue_x{ng}_et_ecrite_x{ns}_dans_le_bundle",
           g == ng and s == ns and g >= 1 and s >= 1, (g, s))
 # les cles `dz_svm_*` / `dz_montage_last*` du bundle sont EXACTEMENT ces
-# quatre plus les deux des lots anterieurs (`dz_svm_keymap`, `dz_svm_theme`),
-# mesure du 23/09/2026 : une cle neuve doit passer par ici
-_ANTERIEURES = {"dz_svm_keymap", "dz_svm_theme"}
+# quatre plus les deux des lots anterieurs (`dz_svm_keymap`, `dz_svm_theme`)
+# et celle du lot E-C (`dz_svm_tb_dock`, E-10 -- x1/x1, pinnee par
+# test_montage_ec_croise.py), mesure du 23/09/2026 : une cle neuve doit
+# passer par ici
+_ANTERIEURES = {"dz_svm_keymap", "dz_svm_theme", "dz_svm_tb_dock"}
 _lues = set(re.findall(r'localStorage\.(?:get|set)Item\("(dz_svm_\w+|dz_montage_last\w*)"', BUN))
-check("x5_les_cles_dz_svm_et_dz_montage_last_du_bundle_sont_les_quatre_plus_keymap_et_theme",
-      sum(BUN.count(f'"{k}"') for k in CLES) >= 8 and len(_lues) == 6
+check("x5_les_cles_dz_svm_et_dz_montage_last_du_bundle_sont_les_quatre_plus_keymap_theme_et_tb_dock",
+      sum(BUN.count(f'"{k}"') for k in CLES) >= 8 and len(_lues) == 7
       and _lues == set(CLES) | _ANTERIEURES, sorted(_lues))
 # la couche, elle, ne touche pas localStorage : les fonctions sont pures
 _coeur = JS[JS.find("function dzmFinKey(pid){"):JS.find("var DzTracks={")]

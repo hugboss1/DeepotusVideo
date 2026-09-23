@@ -785,6 +785,9 @@ out.rip=_rp.map(function(c){return [c.id,c.tr,c.start,c.end]});
 out.rip_bornes=[_rp!==_g,JSON.stringify(_g)===_gJ,_rp[2].src===_g[2].src&&_rp[2].id==="b",_rp[0]===_g[0],
   JSON.stringify(T.trouRipple(_g,"v1",6,4))===_gJ&&T.trouRipple(_g,"v1",6,4)!==_g,JSON.stringify(T.trouRipple(_g,"v1",NaN,6))===_gJ,
   JSON.stringify(T.trouRipple(_g,"v1",4,4))===_gJ,T.trouRipple(null,"v1",4,6).length];
+/* revue T7 (cloture, 23/09/2026) : une AUTRE piste dont un clip commence APRES le trou ne bouge pas (v2 [7,9[ reste) -- dans _g,
+   les clips des autres pistes commencent tous AVANT b=6 : une mutation qui retire `c.tr!==tr` du ripple SURVIVAIT sur le comportement */
+out.rip_autre=T.trouRipple([{tr:"v1",id:"a",start:0,end:4},{tr:"v2",id:"z",start:7,end:9}],"v1",4,6).map(function(c){return [c.id,c.tr,c.start,c.end]});
 /* [21] E-7 (lot E-C, tache 3, 23/09/2026) : le tri des rendus (par TITRE, aucun project_id en base) et la vue Livraison.
    Cinq jobs : deux finals du projet (a, e), un apercu du projet (b), un final d'un AUTRE projet (c), un job non-montage
    au meme titre (d) ; `a` porte une duree (1:05 par svmRuler du bundle, E-9) */
@@ -1060,7 +1063,7 @@ try:
                  # E-10 (lot E-C, tache 4) : la cle de la section [22].
                  "tbd",
                  # E-13 / E-14 (lot E-C, tache 5) : les SIX cles de la section [23].
-                 "tete","tete_bornes","trou","trou_bornes","rip","rip_bornes"]
+                 "tete","tete_bornes","trou","trou_bornes","rip","rip_bornes","rip_autre"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -2140,6 +2143,10 @@ check("ripple_decale_les_clips_de_la_piste_apres_le_trou_seulement_ordre_conserv
       D.get("rip"))
 check("ripple_nouveau_tableau_entree_non_mutee_src_conserve_clip_immobile_identique_bornes_copie_identique_null_vide",
       D.get("rip_bornes") == [True, True, True, True, True, True, True, 0], D.get("rip_bornes"))
+# revue T7 (cloture) : le clip d'une AUTRE piste qui commence apres le trou reste en place -- le seul cas qui distingue
+# « la piste du trou seule » de « toutes les pistes » (dans _g, aucun clip d'une autre piste ne commence apres b)
+check("ripple_revue_t7_une_autre_piste_dont_le_clip_commence_apres_le_trou_ne_bouge_pas",
+      D.get("rip_autre") == [["a", "v1", 0, 4], ["z", "v2", 7, 9]], D.get("rip_autre"))
 # LE COEUR RESTE PUR : ni r.jsx, ni x.use, ni window/document/localStorage ; le formateur n'est JAMAIS recopie
 # (aucun « 30 » ni « svmTcFF » dans teteTxt : il vient de l'hote) ; exports x1 chacun dans DzTracks.
 _E13 = {n: _corps(n) for n in ("dzmTeteTxt", "dzmTrou", "dzmTrouRipple")}
