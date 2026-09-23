@@ -1782,7 +1782,8 @@ function DzMontage(props){
         put({status:"running",progress:10});tick(o.d.job_id)})
       .catch(function(e){put({status:"failed",error:String(e)})})}
   var stDzFin=x.useState(null),dzFin=stDzFin[0],setDzFin=stDzFin[1];
-  var dzScrimRef=x.useRef(!1);dzScrimRef.current=!!(pop||dzFin);
+  var stMn=x.useState(null),dzMenu=stMn[0],setDzMenu=stMn[1];
+  var dzScrimRef=x.useRef(!1);dzScrimRef.current=!!(pop||dzFin||dzMenu);
   var stDzFS=x.useState(function(){try{return JSON.parse(localStorage.getItem("dz_montage_lastfin")||"{}")||{}}catch(_e){return {}}}),dzFinStore=stDzFS[0],setDzFinStore=stDzFS[1];
   var dzLast=DzTracks.finOf(dzFinStore,proj.project_id||"_");
   var stDzM=x.useState("ecraser"),dzMode=stDzM[0],setDzMode=stDzM[1];
@@ -2102,6 +2103,64 @@ function DzMontage(props){
     setClips(next);setSelId("");setDirty(!0);
     fireNote("« "+c.label+" » supprimé"+(rippleRef.current?" — trou refermé (ripple)":""))},[fireNote,pushHistory]);
   var delClip=x.useCallback(function(){delClipById(selRef.current)},[delClipById]);
+  /* ── E-6 (lot E-C, tâche 2, 23/09/2026) : LE MENU ☰ ET LES MENUS CONTEXTUELS ──
+     dzFire(id) rejoue la combo VIVANTE d'une action (svmKeyLabel, repli table) par un
+     KeyboardEvent synthétique sur window : onKey reste l'unique dispatch (il ne filtre
+     que les champs de saisie). dzReplaceArm = le geste du bouton « remplacer » (R_M16),
+     extrait : le bouton ET le menu du clip l'appellent. dzMenuProps(kind,o) construit les
+     entrées À L'OUVERTURE (mémorisées dans dzMenu, jamais reconstruites au rendu) ; x,y
+     ramenés au repère de .dzsvm (position:absolute;inset:0 — motif d'openTransPopAt). */
+  function dzFire(id){var a=SVM_ACTION_BY_ID[id],k=DzTracks.comboToKey(svmKeyLabel(id)||(a&&a.combo)||"");
+    if(k)window.dispatchEvent(new KeyboardEvent("keydown",Object.assign({bubbles:!0,cancelable:!0},k)))}
+  function dzReplaceArm(sel){
+    if(trackStRef.current[sel.tr]&&trackStRef.current[sel.tr].l){
+      fireNote("Piste "+sel.tr.toUpperCase()+" verrouillée — "+
+        "déverrouillez-la pour remplacer la source de ce "+
+        "plan.");return}
+    dzmReplaceRef.current={id:sel.id,tr:sel.tr,
+      label:sel.label};
+    setDzmArm({tr:sel.tr,label:sel.label});
+    /* déjà ouvert sur cette piste : rouvrir le REFERMERAIT (le sélecteur bascule), et le
+       mode resterait armé sur un panneau fermé. C'est `setDzmArm` — et non `openPicker` —
+       qui re-rend dans ce cas-là, sans quoi le panneau resterait intitulé « Ajouter sur la
+       piste V1 » pendant qu'il remplace. */
+    if(ovPick!==sel.tr)openPicker(sel.tr)}
+  function dzMenuProps(kind,o){
+    var id=o.id,ph=phRef.current,cs=clipsRef.current,rr=rootRef.current?rootRef.current.getBoundingClientRect():{left:0,top:0,width:window.innerWidth};
+    var base={kind:kind,id:id,x:Math.max(0,Math.min(o.x-rr.left,rr.width-270)),y:Math.max(0,o.y-rr.top)};
+    if(kind==="main"){
+      var rubs=DzTracks.menuModel(SVM_ACTIONS,svmKeyLabel).map(function(g){return {rub:g.rub,items:g.items.map(function(a){return {lbl:a.lbl,combo:a.combo,run:function(){dzFire(a.id)}}})}});
+      rubs.unshift({rub:"Projet",items:[
+        {lbl:"Projets…",run:function(){setDzProjReq(function(n){return n+1})}},
+        {lbl:"Preview 480p",run:function(){setPop("preview")}},
+        {lbl:"Rendre…",run:function(){setPop("render")}},
+        {lbl:"Publier",off:!dzLast,run:function(){if(dzLast){setPop("");setDzFin(Object.assign({project_id:proj.project_id||""},dzLast))}}}]});
+      var aff=rubs.filter(function(g){return g.rub==="Affichage"})[0];
+      if(!aff){aff={rub:"Affichage",items:[]};rubs.splice(rubs.length-1,0,aff)}
+      aff.items=aff.items.concat([
+        {lbl:"Inspecteur",combo:inspOn?"✓":"",run:function(){setInspSt(function(s){var n={on:!s.on,w:s.w};try{localStorage.setItem("dz_svm_insp",JSON.stringify(n))}catch(_e){}return n})}},
+        {lbl:"Médias",combo:medOn?"✓":"",run:function(){if(proj.demo){fireNote("Ajout d'assets : disponible sur un projet réel — la démo reste une maquette.");return}setMedTr("");setMedOn(!medOn);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)}},
+        {lbl:"Durées sur les clips",combo:showDur?"✓":"",run:function(){setShowDur(function(v){var n=!v;try{localStorage.setItem("dz_svm_showdur",n?"1":"0")}catch(_e){}return n})}}]);
+      return Object.assign(base,{rubs:rubs})}
+    if(kind==="clip"){var c=cs.find(function(k){return k.id===id});if(!c)return null;
+      var v1=c.tr==="v1",sp=svmSpeedOf(c),g=DzTracks.voisins(cs,c).g;
+      return Object.assign(base,{items:[
+        {lbl:"Couper à la tête",combo:svmKeyLabel("blade"),off:!(ph>c.start+.05&&ph<c.end-.05),run:function(){dzFire("blade")}},
+        {lbl:"Supprimer",combo:svmKeyLabel("delete"),run:function(){delClipById(id)}},
+        {lbl:"Remplacer la source…",off:!c.src,run:function(){dzReplaceArm(c)}},
+        {lbl:"Effets…",off:trackKind(c.tr)==="audio",run:function(){setFxPick(!0)}},{sep:!0}]
+        .concat([.25,.5,.75,1,1.5,2].map(function(v){return {lbl:"Vitesse "+Math.round(v*100)+" %",combo:Math.abs(sp-v)<1e-6?"✓":"",off:!v1||!c.src||!c.src.job_id,run:function(){svmSetV1Speed(id,v)}}}))
+        .concat([{sep:!0},{lbl:"Transition…",off:!g,run:function(){openTransPopAt(id,o.x)}}])})}
+    if(kind==="track"){var ts=svmTracksOf(proj),t=ts.find(function(k){return k.id===id});if(!t)return null;
+      var bus=SVM_TRACK_BUS[id],lk=!!(trackSt[id]&&trackSt[id].l),bs=id==="v1"||id==="s1",n=cs.filter(function(k){return k.tr===id}).length;
+      return Object.assign(base,{items:[
+        {lbl:lk?"Déverrouiller":"Verrouiller",run:function(){svmTrackLock(id)}},
+        {lbl:"Muet",off:!bus,run:function(){svmTrackMute(id)}},
+        {lbl:"Solo",off:!bus,run:function(){svmTrackSolo(id,!1)}},{sep:!0},
+        {lbl:"Supprimer la piste",off:bs,run:function(){svmTracksSet(DzTracks.remove(ts,id));
+          if(n)setClips(function(cs2){return (cs2||[]).filter(function(k){return k.tr!==id})});
+          fireNote("Piste "+(t.name||id)+" retirée"+(n?" avec "+n+" clip"+(n>1?"s":"")+" — annuler ramène les clips":"")+".")}}]})}
+    return null}
 
   /* ── applique une réponse /api/montage/project — Bibliothèque OU
      sauvegarde (A). La sauvegarde porte le modèle CLIENT complet : chaque
@@ -3307,7 +3366,7 @@ function DzMontage(props){
          à la tête de lecture ; sinon la touche reste sans effet ici */
       if(e.key==="Escape"){
         if(dzMkOnRef.current){e.preventDefault();dzMkToggle(!1);return}
-        if(dzScrimRef.current){e.preventDefault();setPop("");setDzFin(null);return}
+        if(dzScrimRef.current){e.preventDefault();setPop("");setDzFin(null);setDzMenu(null);return}
         if(kbAudioRef.current&&kbAudioRef.current.ovEsc&&kbAudioRef.current.ovEsc())e.preventDefault();
         return}
       if(!act)return;
@@ -5593,6 +5652,7 @@ function DzMontage(props){
   return r.jsxs("div",{className:"dzsvm svm-col",ref:rootRef,"data-svm-theme":theme==="light"?"light":void 0,children:[
     /* barre de titre */
     r.jsxs("div",{className:"svm-titlebar",children:[
+      r.jsx("button",{className:"svm-secbtn svm-menubtn",title:"Menu — actions et raccourcis","aria-haspopup":"menu","aria-expanded":!!(dzMenu&&dzMenu.kind==="main"),onClick:function(e){if(dzMenu&&dzMenu.kind==="main"){setDzMenu(null);return}var b=e.currentTarget.getBoundingClientRect();setDzMenu(dzMenuProps("main",{x:b.left,y:b.bottom+4}))},children:"☰"}),
       r.jsx("span",{className:"svm-title",children:"Montage"}),
       r.jsx("span",{className:"svm-projmeta",children:proj.name+" · "+proj.version+" · "+svmRuler(Math.round(dur))}),
       /* réinitialisation depuis la Bibliothèque (A) — confirmation INLINE :
@@ -5678,7 +5738,8 @@ function DzMontage(props){
       onRemove:function(id){pushHistory();setProj(function(p){return Object.assign({},p,{markers:DzTracks.markerRemove(p.markers,id)})});setDirty(!0)},
       onChange:function(id,patch){pushHistory();setProj(function(p){return Object.assign({},p,{markers:DzTracks.markerUpdate(p.markers,id,patch)})});setDirty(!0)}}):null,
     transPopover(),
-    (pop||dzFin)?r.jsx("div",{className:"svm-modescrim",onClick:function(){setPop("");setDzFin(null)}}):null,
+    (pop||dzFin||dzMenu)?r.jsx("div",{className:"svm-modescrim",onClick:function(){setPop("");setDzFin(null);setDzMenu(null)}}):null,
+    dzMenu?r.jsx(DzTracks.CtxMenu,Object.assign({onClose:function(){setDzMenu(null)}},dzMenu)):null,
     kbPanel(),
     /* tiroir sons + tiroir narration + lecteur + inspecteur */
     r.jsxs("div",{className:"svm-mid",children:[
@@ -5857,21 +5918,7 @@ function DzMontage(props){
            « In / Out » qu'il recale et l'inspecteur de transition
            qu'il conserve : les garanties du geste encadrent son
            bouton. Voir le commentaire d'ancre dans le patcher. */
-        DzTracks.replaceBtn(sel,function(){
-          if(trackStRef.current[sel.tr]&&trackStRef.current[sel.tr].l){
-            fireNote("Piste "+sel.tr.toUpperCase()+" verrouillée — "+
-              "déverrouillez-la pour remplacer la source de ce "+
-              "plan.");return}
-          dzmReplaceRef.current={id:sel.id,tr:sel.tr,
-            label:sel.label};
-          setDzmArm({tr:sel.tr,label:sel.label});
-          /* déjà ouvert sur cette piste : rouvrir le REFERMERAIT
-             (le sélecteur bascule), et le mode resterait armé sur
-             un panneau fermé. C'est `setDzmArm` — et non
-             `openPicker` — qui re-rend dans ce cas-là, sans quoi
-             le panneau resterait intitulé « Ajouter sur la piste
-             V1 » pendant qu'il remplace. */
-          if(ovPick!==sel.tr)openPicker(sel.tr)}),
+        DzTracks.replaceBtn(sel,function(){dzReplaceArm(sel)}),
         DzTracks.revertBtn(sel,function(){
           /* LE MÊME VERROU QUE M15 : ce geste réécrit `src`,
              `label`, `srcIn` ET `end` — donc le bord droit du
@@ -6293,7 +6340,7 @@ function DzMontage(props){
                 children:r.jsx("div",{className:"svm-thmixfill",
                   style:{width:svmMixW(busDb)+"%",background:"var("+SVM_MIX_COLORS[bus]+")"}})})},"fd"):null;
             return r.jsxs("div",{className:"svm-track","data-sub":tr.id==="s1"?"":void 0,"data-soloexcl":soloExcl?"":void 0,style:{height:tr.h},children:[
-              r.jsxs("div",{className:"svm-thead"+(bus?" svm-thead-a":""),children:
+              r.jsxs("div",{className:"svm-thead"+(bus?" svm-thead-a":""),onContextMenu:function(e){e.preventDefault();setDzMenu(dzMenuProps("track",{x:e.clientX,y:e.clientY,id:tr.id}))},children:
                 bus?[
                   r.jsxs("div",{className:"svm-tnamerow",children:[
                     r.jsx("span",{className:"svm-sq6",style:{background:"var("+tr.c+")"}}),
@@ -6382,6 +6429,7 @@ function DzMontage(props){
                     "data-nosub":tr.id==="v1"?(subsCovOf(c.id)==="sans"?""
                       :subsCovOf(c.id)==="ignore"?"off":void 0):void 0,
                     onPointerDown:function(e){clipDown(e,c,e.currentTarget.parentElement)},
+                    onContextMenu:function(e){e.preventDefault();e.stopPropagation();setSelId(c.id);setDzMenu(dzMenuProps("clip",{x:e.clientX,y:e.clientY,id:c.id}))},
                     onDoubleClick:vpMode?function(e){vpDblClick(e,c)}:void 0,
                     /* curseur explicite : sans lui, rien n'indique que les
                        bords rognent au lieu de déplacer */
@@ -19467,6 +19515,94 @@ function DzmMinimap(o){
         return r.jsx("div",{className:"svm-mmrect","data-kind":q.kind,
           style:{left:(q.x0*100)+"%",width:((q.x1-q.x0)*100)+"%"}},k)})},row.id)}),
     r.jsx("div",{className:"svm-mmview",style:{left:(a*100)+"%",width:((b-a)*100)+"%"}})]})}
+/* ── E-6 (lot E-C, tâche 1, 23/09/2026) : LE MENU — combo → touche, modèle, composant ──
+   Décision 1 du plan : PAS de dispatch(id) dans l'hôte — une entrée de menu à
+   raccourci REJOUE sa combo par window.dispatchEvent(new KeyboardEvent("keydown",
+   dzmComboToKey(combo))) ; onKey reste l'unique dispatch. Jetons MESURÉS dans la
+   table SVM_ACTIONS du bundle patché (45 combos) : Ctrl, Maj, Alt, Suppr, Espace,
+   Home, End, ?, =, -, lettres, ← → ↑ ↓ ; Échap / Entrée acceptés par avance (revue
+   23/09 : pas de jeton Cmd — svmComboCanon sérialise metaKey en « Ctrl+ » ; les
+   graphies sans accent sont mortes, la keymap est canonisée par svmComboCanon).
+   Clé finale : lettre → minuscule (KeyboardEvent.key sans Maj), jeton nommé par
+   la table, autre jeton tel quel. Vide, non-chaîne, modificateur seul → null. */
+var DZM_KEY_TOK={"suppr":"Delete","échap":"Escape","espace":" ","entrée":"Enter",
+  "←":"ArrowLeft","→":"ArrowRight","↑":"ArrowUp","↓":"ArrowDown","home":"Home","end":"End","tab":"Tab"};
+function dzmComboToKey(combo){
+  if(typeof combo!=="string")return null;
+  var parts=combo.split("+").map(function(s){return s.trim()}).filter(function(s){return s!==""});
+  if(!parts.length)return null;
+  var k={key:"",ctrlKey:!1,shiftKey:!1,altKey:!1,metaKey:!1},i,t,l;
+  for(i=0;i<parts.length;i++){t=parts[i];l=t.toLowerCase();
+    if(l==="ctrl")k.ctrlKey=!0;
+    else if(l==="maj"||l==="shift")k.shiftKey=!0;
+    else if(l==="alt")k.altKey=!0;
+    else if(i===parts.length-1)k.key=DZM_KEY_TOK[l]||(t.length===1?t.toLowerCase():t);
+    else return null}
+  return k.key?k:null}
+/* Décision 2 : six rubriques ≠ les quatre `sec` de SVM_KEY_SECTIONS. Table id →
+   rubrique pour les ids connus (tous mesurés dans SVM_ACTIONS du bundle patché,
+   banc croisé [20]) ; repli par `sec` : Audio → Édition, Affichage → Affichage,
+   Lecture / Montage / inconnu → Timeline. « Projet » n'a aucune action à
+   raccourci : l'hôte (T2) y pose ses entrées sans combo. keys_panel (« ? »)
+   va dans Aide pour que T2 n'y double pas « Raccourcis ». */
+var DZM_MENU_ORDRE=["Projet","Édition","Timeline","Marqueurs","Affichage","Aide"];
+var DZM_MENU_RUB={undo:"Édition",redo:"Édition",delete:"Édition",ripple:"Édition",
+  range_in:"Édition",range_out:"Édition",range_clear:"Édition",range_cut:"Édition",
+  swap_left:"Édition",swap_right:"Édition",nudge_left:"Édition",nudge_right:"Édition",
+  gain_up:"Édition",gain_down:"Édition",fade_in_cycle:"Édition",fade_out_cycle:"Édition",mute:"Édition",solo:"Édition",
+  snap:"Édition",/* revue 23/09 : bascule sœur de ripple, même rubrique */
+  marker_toggle:"Marqueurs",marker_prev:"Marqueurs",marker_next:"Marqueurs",marker_index:"Marqueurs",
+  zoom_in:"Affichage",zoom_out:"Affichage",zoom100:"Affichage",toolbar:"Affichage",narration:"Affichage",
+  sounds_drawer:"Affichage",fullscreen:"Affichage",safezones:"Affichage",
+  keys_panel:"Aide"};
+function dzmMenuRub(a){
+  var s=a&&DZM_MENU_RUB[a.id];if(s)return s;
+  return a.sec==="Audio"?"Édition":a.sec==="Affichage"?"Affichage":"Timeline"}
+/* dzmMenuModel(actions, keyLabel) → [{rub, items:[{id,lbl,combo}]}] dans l'ordre
+   fixe, rubriques vides omises ; la combo affichée vient de keyLabel(id) (la
+   keymap VIVANTE — svmKeyLabel du bundle rend "" sans surcharge) sinon de la
+   table ; entrées non-objets ignorées ; l'entrée n'est pas mutée. */
+function dzmMenuModel(actions,keyLabel){
+  var par={},i,a,rub,cb;
+  if(!Array.isArray(actions))return [];
+  for(i=0;i<actions.length;i++){a=actions[i];if(!a||typeof a!=="object")continue;
+    rub=dzmMenuRub(a);cb=(typeof keyLabel==="function"&&keyLabel(a.id))||a.combo||"";
+    (par[rub]=par[rub]||[]).push({id:a.id,lbl:a.lbl==null?"":String(a.lbl),combo:String(cb)})}
+  return DZM_MENU_ORDRE.filter(function(n){return par[n]&&par[n].length})
+    .map(function(n){return {rub:n,items:par[n]}})}
+/* Décision 3 : UN composant sert ☰ (ancré sous le bouton : o.rubs) et les deux
+   menus contextuels (au pointeur : o.items à plat). Item {lbl, combo?, run,
+   off?, sep?}. AUCUN hook — l'hôte tient l'état {kind,x,y,id}. La fenêtre est
+   lue À L'APPEL (gardée par typeof : le shim du banc n'a qu'un objet vide → repli),
+   position bornée : left ≤ innerWidth−270 (ÉCART daté 23/09 : le plan disait
+   260 = la largeur CSS seule ; 270 garde 10 px de marge droite), top ≤
+   innerHeight−40·n. Pas de `o.anchor` (écart 23/09) : T2 calcule x,y depuis
+   getBoundingClientRect() du bouton ☰ (left, bottom+4) — une seule entrée.
+   `.svm-menugrp` enveloppe chaque rubrique (en-tête + rangées) : T2 le style
+   dans montage.css avec svm-menurub / svm-menusep / svm-menuitem / svm-menukey.
+   La racine arrête le clic comme le popover (EB5b) et le bandeau E-11 : le
+   voile du bundle ferme au clic dehors, Échap dans R_K7. Le clic ferme TOUJOURS
+   (finally) : un run qui lève ne laisse pas le menu bloqué sous le voile.
+   Écarts datés 23/09 : un menu plus haut que la fenêtre déborde (CSS T2 :
+   max-height + overflow) ; pas de navigation clavier dans le menu (souris,
+   Échap) ; « Projet » reste vide tant que T2 n'y pose pas ses entrées. */
+function DzmCtxMenu(o){
+  o=o||{};
+  var rubs=Array.isArray(o.rubs)?o.rubs:[{rub:"",items:Array.isArray(o.items)?o.items:[]}];
+  var n=rubs.reduce(function(s,g){return s+((g&&Array.isArray(g.items))?g.items.length:0)},0);
+  var W=(typeof window!=="undefined"&&window.innerWidth)||1e9,H=(typeof window!=="undefined"&&window.innerHeight)||1e9;
+  var px=Number(o.x)||0,py=Number(o.y)||0;
+  function row(it,k){
+    if(!it||typeof it!=="object")return null;
+    if(it.sep)return r.jsx("div",{className:"svm-menusep"},"s"+k);
+    return r.jsxs("button",{className:"svm-menuitem",role:"menuitem",disabled:!!it.off,title:it.lbl,
+      onClick:function(){try{it.run&&it.run()}finally{o.onClose&&o.onClose()}},
+      children:[r.jsx("span",{children:it.lbl}),r.jsx("span",{className:"svm-menukey",children:it.combo||""})]},k)}
+  return r.jsx("div",{className:"svm-pop svm-menu",role:"menu",onClick:function(e){e.stopPropagation()},
+    style:{left:Math.max(0,Math.min(px,W-270)),top:Math.max(0,Math.min(py,H-40*n))},
+    children:rubs.map(function(g,gi){var its=(g&&Array.isArray(g.items))?g.items:[];
+      return r.jsxs("div",{className:"svm-menugrp",children:[
+        g&&g.rub?r.jsx("div",{className:"svm-menurub",children:g.rub}):null,its.map(row)]},gi)})})}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,
@@ -19566,6 +19702,8 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   tlH:dzmTlH,durLbl:dzmDurLbl,
   /* D-7 (lot E-B, tache 8) : la mini-carte -- geometrie pure et composant */
   minimap:dzmMinimap,Minimap:DzmMinimap,
+  /* E-6 (lot E-C, tache 1) : combo -> touche, modele de menu, composant de menu */
+  comboToKey:dzmComboToKey,menuModel:dzmMenuModel,CtxMenu:DzmCtxMenu,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;
 

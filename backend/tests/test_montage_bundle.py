@@ -1935,8 +1935,9 @@ check("M16lib_openPicker_a_exactement_trois_appelants",
 # ... et le troisieme est bien CELUI-LA. Sans cette ligne, le compte
 # ci-dessus resterait vert si l'appel de P6 disparaissait et qu'un autre
 # apparaissait ailleurs — un compte n'est pas une identite.
+# E-6 (T2, 23/09/2026) : l'appel vit dans dzReplaceArm (R_EC1), que le bouton de R_M16 appelle
 check("M16src_le_troisieme_appelant_est_le_bouton_de_remplacement",
-      "openPicker(sel.tr)" in P.R_M16 and s.count(nl("openPicker(sel.tr)")) == 1,
+      "openPicker(sel.tr)" in P.R_EC1 and "dzReplaceArm(sel)" in P.R_M16 and s.count(nl("openPicker(sel.tr)")) == 1,
       f'count={s.count(nl("openPicker(sel.tr)"))}')
 # ── les libelles qui mentaient ────────────────────────────────────────────
 check("M16_les_boutons_de_piste_disent_qu_ils_ajoutent_une_piste",
@@ -2323,10 +2324,11 @@ for _tag, _R, _noms in (
           ("trackKind", 'function trackKind(trId){var k=String(trId||"")'
                         '.charAt(0);'),
           ("setDzmArm", "setDzmArm=stDZA[1];"))),
+        # E-6 (T2, 23/09/2026) : ovPick et openPicker sont appeles par dzReplaceArm
+        # (R_EC1, le geste du bouton EXTRAIT) -- deplaces dans l'entree EC1 ci-dessous.
         ("M16src", "R_M16",
          (("sel", "var sel=clips.find("),
-          ("ovPick", "ovPick=stO[0]"),
-          ("openPicker", "function openPicker(trId){"),
+          ("dzReplaceArm", "function dzReplaceArm(sel){"),
           ("clipsRef", "var clipsRef=x.useRef(clips);clipsRef.current=clips;"),
           ("trackStRef", "trackStRef.current[c.tr]"),
           ("setClips", "setClips=st1[1]"),
@@ -2336,6 +2338,41 @@ for _tag, _R, _noms in (
           ("setDzmArm", "setDzmArm=stDZA[1];"),
           ("addAsset",
            "function addAsset(src,label,kind,srcDur,trId,atTime){"))),
+        # E-6 (lot E-C, tache 2, 23/09/2026) : les fonctions de l'hote du menu
+        # (dzFire, dzReplaceArm, dzMenuProps) -- chaque referent est DECLARE.
+        ("EC1", "R_EC1",
+         (("ovPick", "ovPick=stO[0]"),
+          ("openPicker", "function openPicker(trId){"),
+          ("trackStRef", "trackStRef.current[c.tr]"),
+          ("fireNote", "fireNote=nt[1]"),
+          ("setDzmArm", "setDzmArm=stDZA[1];"),
+          ("dzmReplaceRef", "var dzmReplaceRef=x.useRef(null);"),
+          ("delClipById", "var delClipById=x.useCallback(function(id){"),
+          ("svmSetV1Speed", "function svmSetV1Speed(id,v){"),
+          ("svmSpeedOf", "function svmSpeedOf(c){"),
+          ("openTransPopAt", "function openTransPopAt(id,cx0){"),
+          ("svmTrackLock", "function svmTrackLock(trId){"),
+          ("svmTrackMute", "function svmTrackMute(trId){"),
+          ("svmTrackSolo", "function svmTrackSolo(trId,additive){"),
+          ("svmTracksSet", "function svmTracksSet(ts){pushHistory();"),
+          ("svmTracksOf", "function svmTracksOf(proj){"),
+          ("setDzProjReq", "setDzProjReq=stDzPj[1];"),
+          ("setInspSt", "setInspSt=stIn[1]"),
+          ("setShowDur", "setShowDur=stSd[1]"),
+          ("setMedOn", "setMedOn=stMed[1]"),
+          ("dzLast", "var dzLast=DzTracks.finOf("),
+          ("rootRef", "var rootRef=x.useRef(null)"),
+          ("phRef", "phRef=x.useRef(ph);"),
+          ("clipsRef", "var clipsRef=x.useRef(clips);clipsRef.current=clips;"),
+          ("trackSt", "var stTS=x.useState({}),trackSt=stTS[0],"),
+          ("setFxPick", "setFxPick=stFP[1]"),
+          ("trackKind", 'function trackKind(trId){var k=String(trId||"")'),
+          ("setPop", "setPop=stA[1]"),
+          ("setDzFin", "setDzFin=stDzFin[1]"),
+          ("setClips", "setClips=st1[1]"),
+          ("svmKeyLabel", "function svmKeyLabel(id){"),
+          ("SVM_ACTION_BY_ID", "var SVM_ACTION_BY_ID={};"),
+          ("SVM_TRACK_BUS", "var SVM_TRACK_BUS={"))),
         # M15b vit DANS `ovPicker`, dont le corps appartient au greffon amont
         # (son-vfx-montage.js, fichier qu'on ne touche pas) : ses référents
         # sont donc ceux d'ovPicker, plus le miroir posé par M4b.
@@ -2387,8 +2424,10 @@ check("M4b_declare_le_miroir_d_affichage_du_mode",
 # les deux moities ensemble, dans le patcher ET dans le livre : elles ne
 # peuvent plus se desolidariser en silence. Un `in` ne l'aurait pas vu — il
 # etait deja vert sur la version asymetrique.
-_arm_ref = P.R_M16.count("dzmReplaceRef.current={")
-_arm_mir = P.R_M16.count("setDzmArm({")
+# E-6 (T2, 23/09/2026) : l'armement du BOUTON est extrait en dzReplaceArm (R_EC1), appele par
+# le bouton (R_M16) et le menu contextuel ; les deux sites se comptent sur R_M16 + R_EC1
+_arm_ref = (P.R_M16 + P.R_EC1).count("dzmReplaceRef.current={")
+_arm_mir = (P.R_M16 + P.R_EC1).count("setDzmArm({")
 check("les_deux_sites_arment_la_ref_ET_le_miroir",
       _arm_ref == 2 and _arm_mir == 2
       and s.count(nl("dzmReplaceRef.current={")) == 2
@@ -2473,7 +2512,7 @@ check("M15_refuse_sur_une_piste_verrouillee",
       "trackStRef.current[rk.tr]&&trackStRef.current[rk.tr].l" in P.R_M15,
       "le remplacement ignore le verrou de piste")
 check("M16src_n_arme_pas_sur_une_piste_verrouillee",
-      "trackStRef.current[sel.tr]&&trackStRef.current[sel.tr].l" in P.R_M16,
+      "trackStRef.current[sel.tr]&&trackStRef.current[sel.tr].l" in P.R_EC1,   # E-6 (T2) : dzReplaceArm
       "le bouton arme le mode alors que le sélecteur refusera d'ouvrir")
 # « REVENIR À LA VERSION PRÉCÉDENTE » IGNORAIT LE VERROU. Ce geste réécrit
 # `src`, `label`, `srcIn` ET `end` — donc le bord droit du clip sur la
@@ -2483,7 +2522,8 @@ check("M16src_n_arme_pas_sur_une_piste_verrouillee",
 # `pushHistory`), et le compte ci-dessous vaut 2 dans le remplacement — une
 # fois pour armer, une fois pour revenir. Compter, pas seulement chercher :
 # un `in` restait vert sur la version qui n'en avait qu'une.
-_m16_verrous = P.R_M16.count(
+# E-6 (T2, 23/09/2026) : la garde « armer » vit dans dzReplaceArm (R_EC1), « revenir » reste dans R_M16
+_m16_verrous = (P.R_M16 + P.R_EC1).count(
     "trackStRef.current[sel.tr]&&trackStRef.current[sel.tr].l")
 check("M16src_le_retour_arriere_refuse_sur_une_piste_verrouillee",
       _m16_verrous == 2
@@ -14242,8 +14282,10 @@ check("D21_les_seize_appels_de_trackKind_sont_des_egalites",
       # 23/09/2026 (E-2, lot E-B tache 3) : 29 -> 31, 27 -> 29. DEUX de plus,
       # des EGALITES : le repli EB3 dans R_TT11 (l'infobulle et le clic du
       # « + » d'une piste VIDEO, `==="video"`, vers le tiroir Medias).
-      and s.count(nl("trackKind(")) == 31
-      and len(_TKAPP) == 29 and all(k in ("===", "!==") for k in _TKAPP)
+      # 23/09/2026 (E-6, lot E-C tache 2) : 31 -> 32, 29 -> 30. UNE de plus, une
+      # EGALITE : « Effets… » du menu du clip est grise sur l'audio (`==="audio"`, R_EC1).
+      and s.count(nl("trackKind(")) == 32
+      and len(_TKAPP) == 30 and all(k in ("===", "!==") for k in _TKAPP)
       and s.count(nl("var rkd=trackKind(rk.tr);")) == 1
       and s.count(nl("if(rkd!==akd){")) == 1,
       f'bak={_bak.count(_nlb("trackKind(")) if _bak else "?"} '
@@ -15111,16 +15153,18 @@ _DZ_I = _DZ_TAGS.index("EA6-bandeau-ferme-au-lancement")
 # ancre libre 1/0/1 conservee) et EB8b (mmView/mmCalc apres le useLayoutEffect
 # [zoomPct], ancre libre 1/0/1 conservee) ; sonde 123 = 122 + Minimap x1 (l'hote,
 # EB8a) -- mmCalc et onSeek ne parlent pas a la couche.
-check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB8b_en_queue_apres_EA6_et_la_sonde_dit_123",
+# E-6 (T2, 23/09/2026) : quatre sections EC en queue apres EB8b, sonde 123 -> 128
+check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB8b_puis_EC_en_queue_apres_EA6_et_la_sonde_dit_128",
       [t.split("-")[0] for t in _DZ_TAGS[_DZ_I + 1:]] == ["DZ1", "DZ2", "DZ3", "DZ4",
                                                           "KF1", "KF2", "KF2b", "KF2c", "KF3a", "KF3b", "KF3c", "KF4", "KF5",
                                                           "AJ2a", "AJ2b", "AJ6a", "AJ6b", "AJ7",
                                                           "EB1", "EB2", "EB2b", "EB2c", "EB2d", "EB2e", "EB2f", "EB3",
-                                                          "EB4", "EB5a", "EB5b", "EB6a", "EB6b", "EB7b", "EB8a", "EB8b"]
+                                                          "EB4", "EB5a", "EB5b", "EB6a", "EB6b", "EB7b", "EB8a", "EB8b",
+                                                          "EC1", "EC2", "EC4", "EC5"]
       and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
               and s.count(nl(a)) == (1 if a in r else 0)
               for _t, a, r in P.PATCHES[_DZ_I + 1:])
-      and _sonde.get("montage") == 123 and s.count("DzTracks") == 123
+      and _sonde.get("montage") == 128 and s.count("DzTracks") == 128
       if _bak else False,
       f"queue={_DZ_TAGS[_DZ_I + 1:]} sonde={_sonde.get('montage')} bundle={s.count('DzTracks')}")
 
@@ -15546,12 +15590,13 @@ check("EB_R_TT11_l_infobulle_du_plus_video_dit_le_tiroir_et_le_Maj_clic",
 # MESURE avant : « la démo reste une maquette » x8 dans le bundle -> x10.
 _EB_DEMO = "la démo reste une maquette"
 check("EB_revue_la_chip_et_le_plus_video_refusent_la_demo_comme_openPicker",
-      s.count(_EB_DEMO) == 10 and (_bak.count(_EB_DEMO) == 8 if _bak else False)
+      # E-6 (T2, 23/09/2026) : 10 -> 11, 3 -> 4 : l'entree « Médias » du menu ☰ (R_EC1) porte la meme garde
+      s.count(_EB_DEMO) == 11 and (_bak.count(_EB_DEMO) == 8 if _bak else False)
       and P._EB_GARDE in P.R_EB2 and P._EB_GARDE in P.R_TT11
       and P.R_EB2.count(P._EB_GARDE + 'setMedTr("");setMedOn(!medOn)') == 1
       and P.R_TT11.count(P._EB_GARDE + 'setMedTr(tr.id);setMedOn(!0)') == 1
       # la forme EXACTE de la garde est celle d'openPicker : 1 dans .bak, 3 livrees
-      and s.count(P._EB_GARDE) == 3 and (_bak.count(P._EB_GARDE) == 1 if _bak else False)
+      and s.count(P._EB_GARDE) == 4 and P._EB_GARDE in P.R_EC1 and (_bak.count(P._EB_GARDE) == 1 if _bak else False)
       and _EB_DEMO in P._EB_GARDE
       and s.count(nl("  function addAsset(src,label,kind,srcDur,trId,atTime){")) == 1,
       f"maquette={s.count(_EB_DEMO)} bak={_bak.count(_EB_DEMO) if _bak else '?'} garde={s.count(P._EB_GARDE)}")
@@ -15702,8 +15747,10 @@ print("\n[EB] E-11 : le voile sous les popovers qui arment un mode (preview/rend
 # par K7 (pas par R2 comme le plan le supposait) -> repli dans R_K7 ; le ref
 # `dzScrimRef` vit a cote de stDzFin (repli R_M16REF, `pop` declare avant).
 _EB11_A = "    transPopover(),\n    kbPanel(),"
-_EB11_V = '    (pop||dzFin)?r.jsx("div",{className:"svm-modescrim",onClick:function(){setPop("");setDzFin(null)}}):null,'
-_EB11_R = "    transPopover(),\n" + _EB11_V + "\n    kbPanel(),"
+# E-6 (T2, 23/09/2026) : le voile porte aussi le menu ☰ / contextuel (dzMenu), son clic ferme les trois,
+# et le menu est rendu JUSTE APRES le voile, avant kbPanel (P.EC3_MENU) -- pins realignes
+_EB11_V = '    (pop||dzFin||dzMenu)?r.jsx("div",{className:"svm-modescrim",onClick:function(){setPop("");setDzFin(null);setDzMenu(null)}}):null,'
+_EB11_R = "    transPopover(),\n" + _EB11_V + "\n" + P.EC3_MENU + "\n    kbPanel(),"
 check("EB5a_le_voile_est_monte_entre_transPopover_et_kbPanel_sur_le_predicat_pop_ou_dzFin",
       s.count(nl(_EB11_A)) == 0 and s.count(nl(_EB11_R)) == 1 and s.count(nl(_EB11_V)) == 1
       and s.count("svm-modescrim") == 1 and src.count("svm-modescrim") == 0
@@ -15772,8 +15819,9 @@ check("EB5_le_bandeau_de_fin_arrete_le_clic_sur_sa_racine_dans_la_couche_et_le_b
 # exacte -- « Fermer » (R_EA5E), le lancement (EA6), le clic sur le voile
 # (EB5a) et Echap (R_K7). Les pins d'E-4 et d'E-5 (« == 2 ») sont realignes
 # a 4 dans leurs sections, avec cette justification.
-_EB11_ESC = 'if(dzScrimRef.current){e.preventDefault();setPop("");setDzFin(null);return}'
-_EB11_VOILE = 'onClick:function(){setPop("");setDzFin(null)}}'
+# E-6 (T2, 23/09/2026) : Echap et le voile ferment AUSSI le menu (setDzMenu(null)) -- pins realignes
+_EB11_ESC = 'if(dzScrimRef.current){e.preventDefault();setPop("");setDzFin(null);setDzMenu(null);return}'
+_EB11_VOILE = 'onClick:function(){setPop("");setDzFin(null);setDzMenu(null)}}'
 check("EB5_les_quatre_setDzFin_null_ont_chacun_leur_forme",
       s.count("setDzFin(null)") == 4
       and s.count("onClose:function(){setDzFin(null)}}):null,") == 1
@@ -15786,7 +15834,8 @@ check("EB5_les_quatre_setDzFin_null_ont_chacun_leur_forme",
 # APRES l'index des marqueurs (K7) et AVANT le repli ovEsc ; le ref est pose
 # a cote de stDzFin (R_M16REF), apres `pop` (stA) et lu par onKey dont les
 # deps ne portent ni pop ni dzFin (temoin : la liste des deps, x1).
-_EB11_REF = "  var dzScrimRef=x.useRef(!1);dzScrimRef.current=!!(pop||dzFin);"
+# E-6 (T2, 23/09/2026) : le ref lit aussi le menu -- pin realigne
+_EB11_REF = "  var dzScrimRef=x.useRef(!1);dzScrimRef.current=!!(pop||dzFin||dzMenu);"
 _EB11_DEPS = "return function(){window.removeEventListener(\"keydown\",onKey)}},[blade,delClip,undo,redo,jump,seekTo,zoomApply,narrToggle,sfxToggle]);"
 _iRef = s.find(nl(_EB11_REF)); _iFinSt = s.find("var stDzFin=x.useState(null)"); _iStA = s.find('var stA=x.useState(""),pop=stA[0]')
 _iEsc = s.find(_EB11_ESC); _iMk = s.find("if(dzMkOnRef.current){e.preventDefault();dzMkToggle(!1);return}")
@@ -15831,7 +15880,9 @@ _iAo = s.find(nl(_EB8_R)); _iAc = s.find(nl(_EB8_CLOSE))
 _ASIDE = s[_iAo:_iAc] if 0 <= _iAo < _iAc else ""
 check("EB6a_l_aside_est_conditionne_par_inspOn_porte_sa_largeur_data_w_et_sa_poignee_en_tete",
       # `inspOn?` vaut 2 (mesure) : l'aside et le `data-on` de la chip -- chaque forme est nommee
-      s.count(nl(_EB8_A)) == 0 and s.count(nl(_EB8_R)) == 1 and s.count("inspOn?") == 2
+      # E-6 (T2, 23/09/2026) : 2 -> 3, la coche de l'entree « Inspecteur » du menu ☰ (R_EC1)
+      s.count(nl(_EB8_A)) == 0 and s.count(nl(_EB8_R)) == 1 and s.count("inspOn?") == 3
+      and s.count('combo:inspOn?"✓":""') == 1
       and s.count('inspOn?r.jsxs("aside"') == 1 and s.count('"data-on":inspOn?"":void 0') == 1
       and s.count("svm-insphandle") == 1 and src.count("svm-insphandle") == 0
       and getattr(P, "A_EB6A", None) == _EB8_A and getattr(P, "R_EB6A", None) == _EB8_R
@@ -15892,8 +15943,9 @@ check("EB6b_la_poignee_ecoute_window_retire_ses_trois_ecouteurs_borne_par_inspW_
 # LA CLE : TROIS occurrences (une lecture au montage, deux ecritures :
 # poignee et chip), ZERO dans .bak ; inspW x2 -> la sonde monte de deux.
 check("EB6_la_cle_dz_svm_insp_est_lue_une_fois_et_ecrite_deux_fois_inspW_x2",
-      s.count('"dz_svm_insp"') == 3 and s.count('localStorage.getItem("dz_svm_insp")') == 1
-      and s.count('localStorage.setItem("dz_svm_insp",') == 2 and s.count("DzTracks.inspW(") == 2
+      # E-6 (T2, 23/09/2026) : 3 -> 4 et 2 -> 3 : l'entree « Inspecteur » du menu ☰ (R_EC1) ecrit la cle comme la chip
+      s.count('"dz_svm_insp"') == 4 and s.count('localStorage.getItem("dz_svm_insp")') == 1
+      and s.count('localStorage.setItem("dz_svm_insp",') == 3 and s.count("DzTracks.inspW(") == 2
       and src.count("dz_svm_insp") == 1 and (_bak.count("dz_svm_insp") == 0 if _bak else False),
       f"cle={s.count(chr(34) + 'dz_svm_insp' + chr(34))} get={s.count('localStorage.getItem(' + chr(34) + 'dz_svm_insp' + chr(34) + ')')} "
       f"inspW={s.count('DzTracks.inspW(')} couche={src.count('dz_svm_insp')}")
@@ -16017,8 +16069,9 @@ check("EB7a_tlDown_ecoute_window_retire_ses_trois_ecouteurs_borne_par_tlH_sur_dz
 # tlH x2 + durLbl x1 -> la sonde monte de trois.
 check("EB7_les_cles_dz_svm_tlh_et_dz_svm_showdur_x2_chacune_tlH_x2_durLbl_x1",
       s.count('"dz_svm_tlh"') == 2 and s.count('localStorage.getItem("dz_svm_tlh")') == 1 and s.count('localStorage.setItem("dz_svm_tlh",') == 1
-      and s.count('"dz_svm_showdur"') == 2 and s.count('localStorage.getItem("dz_svm_showdur")') == 1
-      and s.count('localStorage.setItem("dz_svm_showdur",') == 1
+      # E-6 (T2, 23/09/2026) : 2 -> 3 et 1 -> 2 : l'entree « Durées sur les clips » du menu ☰ (R_EC1)
+      and s.count('"dz_svm_showdur"') == 3 and s.count('localStorage.getItem("dz_svm_showdur")') == 1
+      and s.count('localStorage.setItem("dz_svm_showdur",') == 2
       and s.count("DzTracks.tlH(") == 2 and s.count("DzTracks.durLbl(") == 1
       and src.count('"dz_svm_tlh"') == 0 and src.count('"dz_svm_showdur"') == 0 and src.count("dz_svm_tlh") == 1
       and (_bak.count("dz_svm_tlh") == 0 and _bak.count("dz_svm_showdur") == 0 and _bak.count("dz_svm_insp") == 0 if _bak else False),
@@ -16192,6 +16245,223 @@ check("EB8_la_couche_exporte_minimap_et_Minimap_une_seule_geometrie_et_la_classe
       and all(s.count('className:"' + k + '"') == 1 and src.count('className:"' + k + '"') == 1
               for k in ("svm-mmview", "svm-mmrect", "svm-mmrow")),
       f"exports={s.count('minimap:dzmMinimap,Minimap:DzmMinimap,')} geo={s.count('dzmMinimap(')} classe={s.count('svm-minimap')}")
+
+print("\n[EC] E-6 : le bouton ☰, le menu principal (six rubriques), les menus contextuels clip et piste")
+# MESURES du 23/09/2026 (T2) : quatre ancres LIBRES (1/0/1) -> sections EC1
+# (delClip), EC2 (svm-title), EC4 (onPointerDown du clip), EC5 (svm-thead) ;
+# l'etat dzMenu est un REPLI dans R_M16REF (dzScrimRef le lit une ligne plus
+# bas : declare avant), le voile et le rendu du menu sont des replis dans
+# R_EB5A, Echap dans R_K7, le bouton « remplacer » de R_M16 appelle
+# dzReplaceArm (extrait). onContextMenu 1 -> 3 (.svm-vph seul avant).
+# SVM_ACTIONS est LA table complete apres R_R1 (45 entrees, R_R1 insere dans le
+# litteral) : le modele la lit directement. Aucun lien « Guide » dans le rail
+# du Montage (les seuls `guide` du bundle sont les guides d'alignement
+# tfGuide) : l'entree est OMISE (ecart date). keys_panel (« ? ») vient du
+# modele (rubrique Aide) : « Raccourcis » n'est pas double.
+_EC_S = s  # alias local
+for _nme in ("dzMenu", "setDzMenu", "stMn", "dzFire", "dzMenuProps", "dzReplaceArm"):
+    _nbe = _libre21(_nme, _bak if _bak else None)
+    check("EC_nom_" + _nme + "_etait_libre_dans_le_bundle_d_entree",
+          _nbe == 0 and _libre21(_nme, s) >= 1,
+          f"{_nme} apparait {_nbe}x dans .bak_montage, {_libre21(_nme, s)}x dans le bundle")
+for _sec, _a, _r in (("EC1-menu-fonctions-de-l-hote", P.A_EC1, P.R_EC1),
+                     ("EC2-bouton-menu-dans-la-barre-de-titre", P.A_EC2, P.R_EC2),
+                     ("EC4-clic-droit-sur-un-clip", P.A_EC4, P.R_EC4),
+                     ("EC5-clic-droit-sur-une-piste", P.A_EC5, P.R_EC5)):
+    _cnt_a = s.count(nl(_a)); _cnt_r = s.count(nl(_r))
+    check("EC_section_" + _sec + "_ancre_libre_1_0_1_et_remplacement_x1",
+          _cnt_r == 1 and (_sec, _a, _r) in P.PATCHES and _a != _r
+          and (_bak.count(_nlb(_a)) == 1 and _bak.count(_nlb(_r)) == 0 if _bak else False)
+          and sum(1 for _t in P.PATCHES if _a in _t[2] and _t[0] != _sec) == 0,
+          f"ancre={_cnt_a} neuf={_cnt_r} bak={_bak.count(_nlb(_a)) if _bak else '?'}")
+# EC1 : dzFire rejoue la combo VIVANTE (svmKeyLabel, repli table) par un
+# KeyboardEvent synthetique sur window ; onKey ne filtre que e.target
+# input/textarea/select/contentEditable (temoin : la garde mesuree), window passe.
+_EC_FIRE = ('  function dzFire(id){var a=SVM_ACTION_BY_ID[id],k=DzTracks.comboToKey(svmKeyLabel(id)||(a&&a.combo)||"");\n'
+            '    if(k)window.dispatchEvent(new KeyboardEvent("keydown",Object.assign({bubbles:!0,cancelable:!0},k)))}')
+check("EC1_dzFire_rejoue_la_combo_vivante_par_un_KeyboardEvent_synthetique_sur_window_onKey_filtre_e_target_seulement",
+      s.count(nl(_EC_FIRE)) == 1 and _EC_FIRE in P.R_EC1 and s.count("DzTracks.comboToKey(") == 1
+      # x2 : le CODE (R_EC1) + le commentaire d'en-tete de la couche T1 (src x1, code hote x1)
+      and s.count('new KeyboardEvent("keydown"') == 2 and src.count('new KeyboardEvent("keydown"') == 1
+      and s.count("window.dispatchEvent(new KeyboardEvent(") == 2 and src.count("window.dispatchEvent(new KeyboardEvent(") == 1
+      and s.count('if(tg==="input"||tg==="textarea"||tg==="select"||(el&&el.isContentEditable))return;') == 1
+      and s.count("function dzFire(") == 1 and s.count("dzFire(") >= 3
+      and (_bak.count("KeyboardEvent(") == 0 and _bak.count("comboToKey") == 0 if _bak else False),
+      f"fire={s.count(nl(_EC_FIRE))} kbd={s.count(chr(34) + 'keydown' + chr(34))} appels={s.count('dzFire(')}")
+# L'ETAT (repli R_M16REF) : declare ENTRE stDzFin et dzScrimRef, qui le lit.
+_EC_ST = "  var stMn=x.useState(null),dzMenu=stMn[0],setDzMenu=stMn[1];"
+_iEcSt = s.find(nl(_EC_ST)); _iEcRef = s.find(nl(_EB11_REF)); _iEcFin = s.find("var stDzFin=x.useState(null)")
+check("EC_l_etat_dzMenu_nait_dans_R_M16REF_entre_stDzFin_et_dzScrimRef_qui_le_lit",
+      s.count(nl(_EC_ST)) == 1 and _EC_ST in P.R_M16REF and 0 < _iEcFin < _iEcSt < _iEcRef < _iEcSt + 400
+      and s.count("pop||dzFin||dzMenu") == 2 and s.count("pop||dzFin)") == 0
+      and s.count(nl(_EB11_REF)) == 1,
+      f"st={s.count(nl(_EC_ST))} fin={_iEcFin} st_i={_iEcSt} ref={_iEcRef} pred={s.count('pop||dzFin||dzMenu')}")
+# EC3 : le menu est rendu par DzTracks.CtxMenu JUSTE APRES le voile, AVANT
+# kbPanel ; onClose et le voile et Echap ferment (setDzMenu(null) x4 : bouton
+# ☰ replie, voile, onClose, Echap).
+_iEcV = s.find(nl(_EB11_V)); _iEcM = s.find(nl(P.EC3_MENU)); _iEcK = s.find(nl("    kbPanel(),"))
+check("EC3_le_menu_est_rendu_apres_le_voile_avant_kbPanel_et_se_ferme_par_onClose_voile_Echap",
+      s.count(nl(P.EC3_MENU)) == 1 and s.count("DzTracks.CtxMenu") == 1 and P.EC3_MENU in P.R_EB5A
+      and 0 < _iEcV < _iEcM < _iEcK < _iEcV + 600
+      and s.count("setDzMenu(null)") == 4 and s.count(_EB11_ESC) == 1 and _EB11_ESC in P.R_K7
+      and s.count("onClose:function(){setDzMenu(null)}") == 1
+      and (_bak.count("CtxMenu") == 0 if _bak else False),
+      f"menu={s.count(nl(P.EC3_MENU))} voile={_iEcV} menu_i={_iEcM} kb={_iEcK} null={s.count('setDzMenu(null)')}")
+# EC2 : le bouton ☰ AVANT le titre « Montage », titre + aria, ouvre « main »
+# sous le bouton (rect : left, bottom+4 -- pas de o.anchor dans la couche).
+_EC_BTN = ('      r.jsx("button",{className:"svm-secbtn svm-menubtn",title:"Menu — actions et raccourcis","aria-haspopup":"menu",'
+           '"aria-expanded":!!(dzMenu&&dzMenu.kind==="main"),onClick:function(e){if(dzMenu&&dzMenu.kind==="main"){setDzMenu(null);return}'
+           'var b=e.currentTarget.getBoundingClientRect();setDzMenu(dzMenuProps("main",{x:b.left,y:b.bottom+4}))},children:"☰"}),')
+_iEcB = s.find(nl(_EC_BTN)); _iEcT = s.find(nl(P.A_EC2))
+check("EC2_le_bouton_menu_precede_le_titre_Montage_porte_un_title_et_aria_et_ouvre_main_sous_lui",
+      s.count(nl(_EC_BTN)) == 1 and P.R_EC2 == _EC_BTN + "\n" + P.A_EC2 and s.count("svm-menubtn") == 1
+      and 0 < _iEcB < _iEcT < _iEcB + 400 and s.count('"aria-haspopup":"menu"') == 1
+      and s.count('dzMenuProps("main",') == 1 and s.count(nl(P.A_EC2)) == 1
+      # aria-haspopup nu vaut 1 dans le .bak (l'amont, hors Montage) : la forme complete est le temoin
+      and (_bak.count("svm-menubtn") == 0 and _bak.count('"aria-haspopup":"menu"') == 0 if _bak else False),
+      f"btn={s.count(nl(_EC_BTN))} titre={_iEcT} btn_i={_iEcB} classe={s.count('svm-menubtn')}")
+# LE MENU PRINCIPAL : le modele lit SVM_ACTIONS (table complete, 45 apres R_R1)
+# avec svmKeyLabel (keymap vivante) ; run = dzFire ; rubrique Projet en tete
+# (4 entrees sans raccourci, memes handlers que les boutons : setDzProjReq,
+# setPop preview/render, Publier = R_EA5D) ; Affichage concatene Inspecteur /
+# Medias (garde demo) / Durees (memes setters que les chips) ; pas de
+# « Raccourcis » double (keys_panel vient du modele), pas de « Guide » (ecart).
+_EC1 = P.R_EC1
+_nAct = len(re.findall(r'^ \{id:"', s[s.find("var SVM_ACTIONS=["):s.find("var SVM_ACTION_BY_ID")], re.M))
+check("EC1_main_le_modele_lit_SVM_ACTIONS_complete_45_avec_svmKeyLabel_et_run_rejoue_par_dzFire",
+      s.count("DzTracks.menuModel(SVM_ACTIONS,svmKeyLabel)") == 1 and _nAct == 45
+      and "run:function(){dzFire(a.id)}" in _EC1 and s.count("run:function(){dzFire(a.id)}") == 1
+      and s.count("SVM_ACTIONS.concat(") == 0 and s.count("SVM_ACTIONS") >= 3,
+      f"model={s.count('DzTracks.menuModel(SVM_ACTIONS,svmKeyLabel)')} actions={_nAct}")
+check("EC1_main_rubrique_Projet_en_tete_Projets_Preview_Rendre_Publier_memes_handlers_que_les_boutons",
+      _EC1.count('rubs.unshift({rub:"Projet",items:[') == 1
+      and _EC1.count('{lbl:"Projets…",run:function(){setDzProjReq(function(n){return n+1})}}') == 1
+      and _EC1.count('{lbl:"Preview 480p",run:function(){setPop("preview")}}') == 1
+      and _EC1.count('{lbl:"Rendre…",run:function(){setPop("render")}}') == 1
+      and _EC1.count('{lbl:"Publier",off:!dzLast,run:function(){if(dzLast){setPop("");setDzFin(Object.assign({project_id:proj.project_id||""},dzLast))}}}') == 1
+      and s.count("setDzProjReq(function(n){return n+1})") == 2 and s.count('setDzFin(Object.assign({project_id:proj.project_id||""},dzLast))') == 2
+      and s.count('setPop("preview")') >= 1 and s.count('setPop("render")') >= 1,
+      f"projet={_EC1.count('rubs.unshift(')} projreq={s.count('setDzProjReq(function(n){return n+1})')}")
+_EC_INSP = 'run:function(){setInspSt(function(s){var n={on:!s.on,w:s.w};try{localStorage.setItem("dz_svm_insp",JSON.stringify(n))}catch(_e){}return n})}'
+_EC_MED = 'run:function(){' + P._EB_GARDE + 'setMedTr("");setMedOn(!medOn);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)}'
+_EC_DUR = 'run:function(){setShowDur(function(v){var n=!v;try{localStorage.setItem("dz_svm_showdur",n?"1":"0")}catch(_e){}return n})}'
+check("EC1_main_Affichage_concatene_Inspecteur_Medias_Durees_avec_les_setters_des_chips_et_la_garde_demo",
+      _EC1.count('var aff=rubs.filter(function(g){return g.rub==="Affichage"})[0];') == 1
+      and _EC1.count("aff.items=aff.items.concat([") == 1
+      and all(_EC1.count(k) == 1 and s.count(k) == 1 for k in (_EC_INSP, _EC_MED, _EC_DUR))
+      and _EC1.count('{lbl:"Inspecteur",combo:inspOn?"✓":"",') == 1 and _EC1.count('{lbl:"Médias",combo:medOn?"✓":"",') == 1
+      and _EC1.count('{lbl:"Durées sur les clips",combo:showDur?"✓":"",') == 1
+      # la chip garde le SIEN (meme corps, cle identique) : les deux sites ecrivent la meme cle
+      and s.count('try{localStorage.setItem("dz_svm_insp",JSON.stringify(n))}catch(_e){}return n})') == 2
+      and s.count('try{localStorage.setItem("dz_svm_showdur",n?"1":"0")}catch(_e){}return n})') == 2
+      and s.count(P._EB_GARDE + 'setMedTr("");setMedOn(!medOn)') == 2,
+      f"aff={_EC1.count('aff.items=aff.items.concat([')} insp={s.count(_EC_INSP)} med={s.count(_EC_MED)} dur={s.count(_EC_DUR)}")
+check("EC1_main_ni_Raccourcis_double_ni_Guide_keys_panel_vient_du_modele_ecart_date",
+      _EC1.count("Raccourcis") == 0 and _EC1.count("Guide") == 0 and _EC1.count("keys_panel") == 0
+      and src.count('keys_panel:"Aide"') == 1 and s.count('{id:"keys_panel",sec:"Affichage"') == 1
+      # « "Guide" » vaut 1 dans le .bak (l'amont, hors Montage) : aucune entree de plus
+      and s.count("svm-guide") == 0 and s.count('"Guide"') == (_bak.count('"Guide"') if _bak else -1) == 1
+      and s.count("tfGuideVRef") >= 2,
+      f"raccourcis={_EC1.count('Raccourcis')} guide={_EC1.count('Guide')} modele={src.count(chr(39) + 'keys_panel')}")
+# LE MENU DU CLIP : items mesures un a un ; Couper = dzFire("blade") (la meme
+# tolerance que blade : .05), off hors du clip ; Supprimer = delClipById ;
+# Remplacer = dzReplaceArm (off sans src -- ECART date : le geste R_M16 accepte
+# les pistes audio, le plan disait « ou pas V1 ») ; Effets off sur l'audio ;
+# six vitesses (svmSetV1Speed, off hors V1/sans source) avec ✓ sur la courante ;
+# Transition = openTransPopAt(id, clientX), off sans voisin gauche (DzTracks.voisins).
+check("EC1_clip_les_items_Couper_Supprimer_Remplacer_Effets_six_vitesses_Transition_avec_leurs_gardes",
+      _EC1.count('{lbl:"Couper à la tête",combo:svmKeyLabel("blade"),off:!(ph>c.start+.05&&ph<c.end-.05),run:function(){dzFire("blade")}}') == 1
+      and _EC1.count('{lbl:"Supprimer",combo:svmKeyLabel("delete"),run:function(){delClipById(id)}}') == 1
+      and _EC1.count('{lbl:"Remplacer la source…",off:!c.src,run:function(){dzReplaceArm(c)}}') == 1
+      and _EC1.count('{lbl:"Effets…",off:trackKind(c.tr)==="audio",run:function(){setFxPick(!0)}}') == 1
+      and _EC1.count('[.25,.5,.75,1,1.5,2].map(function(v){return {lbl:"Vitesse "+Math.round(v*100)+" %",combo:Math.abs(sp-v)<1e-6?"✓":"",off:!v1||!c.src||!c.src.job_id,run:function(){svmSetV1Speed(id,v)}}})') == 1
+      and _EC1.count('{lbl:"Transition…",off:!g,run:function(){openTransPopAt(id,o.x)}}') == 1
+      and _EC1.count("{sep:!0}") == 3 and s.count("DzTracks.voisins(cs,c).g") == 1
+      and s.count("p<=c.start+.05||p>=c.end-.05") == 1   # temoin : la tolerance de blade
+      and s.count("function svmSetV1Speed(id,v){") == 1 and s.count("function openTransPopAt(id,cx0){") == 1
+      and s.count("function trackKind(trId){") == 1 and s.count("dzReplaceArm(") == 3 and s.count("function dzReplaceArm(sel){") == 1,
+      f"vitesses={_EC1.count('Vitesse ')} sep={_EC1.count('{sep:!0}')} arm={s.count('dzReplaceArm(')}")
+# LE MENU DE LA PISTE : Verrouiller/Deverrouiller (svmTrackLock), Muet/Solo off
+# sans bus (SVM_TRACK_BUS), Supprimer = la sequence de del() de DzmTrackBtns
+# apres armement (svmTracksSet(remove) -- qui pousse l'historique --, filtrage
+# des clips, note), off sur v1/s1 comme del() refuse.
+check("EC1_track_Verrouiller_Muet_Solo_et_Supprimer_la_piste_copie_la_sequence_de_del_off_sur_v1_s1",
+      _EC1.count('{lbl:lk?"Déverrouiller":"Verrouiller",run:function(){svmTrackLock(id)}}') == 1
+      and _EC1.count('{lbl:"Muet",off:!bus,run:function(){svmTrackMute(id)}}') == 1
+      and _EC1.count('{lbl:"Solo",off:!bus,run:function(){svmTrackSolo(id,!1)}}') == 1
+      and _EC1.count('var bus=SVM_TRACK_BUS[id],lk=!!(trackSt[id]&&trackSt[id].l),bs=id==="v1"||id==="s1",') == 1
+      and _EC1.count('{lbl:"Supprimer la piste",off:bs,run:function(){svmTracksSet(DzTracks.remove(ts,id));') == 1
+      and _EC1.count('if(n)setClips(function(cs2){return (cs2||[]).filter(function(k){return k.tr!==id})});') == 1
+      and s.count("DzTracks.remove(ts,id)") == 1
+      and src.count("set(dzmRemove(ts,tr.id));") == 1 and src.count('var base=tr.id==="v1"||tr.id==="s1";') == 1
+      and s.count("function svmTracksSet(ts){pushHistory();") == 1,
+      f"lock={_EC1.count('svmTrackLock(id)')} del={_EC1.count('DzTracks.remove(ts,id)')}")
+# dzMenuProps construit A L'OUVERTURE, ramene x,y au repere de .dzsvm (motif
+# openTransPopAt), borne, et ne porte AUCUN hook (fonctions de l'hote).
+_EC_PROPS = "  function dzMenuProps(kind,o){"
+_EC_BODY = _EC1[_EC1.find(_EC_PROPS):]
+check("EC1_dzMenuProps_construit_a_l_ouverture_repere_dzsvm_borne_sans_hook",
+      # la partie NEUVE seule : l'ancre reprise (delClip) est elle-meme un useCallback -- temoin positif
+      s.count(nl(_EC_PROPS)) == 1 and "x.use" not in _EC1[len(P.A_EC1):] and "r.jsx" not in _EC1[len(P.A_EC1):]
+      and "x.useCallback(" in P.A_EC1 and _EC1.startswith(P.A_EC1 + "\n")
+      and "rootRef.current.getBoundingClientRect()" in _EC_BODY and "Math.min(o.x-rr.left,rr.width-270)" in _EC_BODY
+      and _EC_BODY.count("return Object.assign(base,{") == 3 and _EC_BODY.count('if(kind==="') == 3
+      # x5 : la declaration, les trois ouvertures, et l'en-tete de commentaire d'EC1
+      and s.count("dzMenuProps(") == 5 and s.count("function dzMenuProps(") == 1 and s.count("setDzMenu(dzMenuProps(") == 3,
+      f"props={s.count('dzMenuProps(')} set={s.count('setDzMenu(dzMenuProps(')}")
+# EC4 / EC5 : clic droit clip (preventDefault + stopPropagation + selection +
+# menu au pointeur) et piste (preventDefault + menu) ; onContextMenu 1 -> 3.
+_EC_CTX_C = '                    onContextMenu:function(e){e.preventDefault();e.stopPropagation();setSelId(c.id);setDzMenu(dzMenuProps("clip",{x:e.clientX,y:e.clientY,id:c.id}))},'
+_EC_CTX_T = 'onContextMenu:function(e){e.preventDefault();setDzMenu(dzMenuProps("track",{x:e.clientX,y:e.clientY,id:tr.id}))},children:'
+check("EC4_EC5_clic_droit_clip_et_piste_onContextMenu_1_vers_3",
+      s.count(nl(_EC_CTX_C)) == 1 and P.R_EC4 == P.A_EC4 + "\n" + _EC_CTX_C
+      and s.count(_EC_CTX_T) == 1 and P.R_EC5 == P.A_EC5.replace("children:", _EC_CTX_T) and P.R_EC5.endswith("children:")
+      # le seul clic droit d'avant (le lecteur, .svm-vph) ecrit `ev` : il reste x1
+      and s.count("onContextMenu") == 3 and s.count("onContextMenu:function(ev){ev.preventDefault();ev.stopPropagation();") == 1
+      and (_bak.count("onContextMenu") == 1 if _bak else False),
+      f"clip={s.count(nl(_EC_CTX_C))} piste={s.count(_EC_CTX_T)} ctx={s.count('onContextMenu')}")
+# R_M16 : le bouton de l'inspecteur appelle dzReplaceArm(sel) ; les deux
+# armements (dzReplaceArm + onPick) restent x2 dans le livre.
+check("EC_R_M16_le_bouton_remplacer_appelle_dzReplaceArm_et_les_deux_armements_restent_x2",
+      s.count("DzTracks.replaceBtn(sel,function(){dzReplaceArm(sel)}),") == 1
+      and P.R_M16.count("DzTracks.replaceBtn(sel,function(){dzReplaceArm(sel)}),") == 1
+      and P.R_M16.count("dzmReplaceRef.current={") == 1 and P.R_EC1.count("dzmReplaceRef.current={") == 1
+      and s.count(nl("dzmReplaceRef.current={")) == 2 and s.count(nl("setDzmArm({")) == 2
+      and s.count("déverrouillez-la pour remplacer la source de ce ") == 2,
+      f"btn={s.count('DzTracks.replaceBtn(sel,function(){dzReplaceArm(sel)}),')} ref={s.count(nl('dzmReplaceRef.current={'))}")
+# LA COUCHE exporte les trois ; l'hote ne redefinit rien.
+check("EC_la_couche_exporte_comboToKey_menuModel_CtxMenu_et_l_hote_ne_les_redefinit_pas",
+      src.count("comboToKey:dzmComboToKey,menuModel:dzmMenuModel,CtxMenu:DzmCtxMenu") == 1
+      and s.count("comboToKey:dzmComboToKey,menuModel:dzmMenuModel,CtxMenu:DzmCtxMenu") == 1
+      and s.count("function DzmCtxMenu(") == 1 and s.count("function dzmMenuModel(") == 1
+      # dzmComboToKey( x2 : la declaration et le commentaire d'en-tete de la couche (src x2)
+      and s.count("function dzmComboToKey(") == 1 and s.count("dzmComboToKey(") == 2 and src.count("dzmComboToKey(") == 2
+      and s.count("DzmCtxMenu") == 2,
+      f"exports={s.count('comboToKey:dzmComboToKey,menuModel:dzmMenuModel,CtxMenu:DzmCtxMenu')}")
+# LA FEUILLE : .svm-menu (260 px, z 20 = .svm-pop, borne a la fenetre, right:auto
+# contre le right:18px de .svm-pop amont), rubriques display:contents, rangees,
+# combo monospace, separateur ; l'amont n'en connait rien.
+_EC_CSS = _lire(ROOT / "frontend" / "dist" / "shared" / "montage.css")
+_EC_AM = _lire(ROOT / "frontend" / "dist" / "shared" / "son-vfx-montage.css")
+check("EC_la_feuille_dessine_le_menu_svm_menu_menugrp_menurub_menuitem_menukey_menusep",
+      _EC_CSS.count(".dzsvm .svm-menu{width:260px;right:auto;padding:6px;z-index:20;max-height:calc(100vh - 16px);overflow-y:auto}") == 1
+      and _EC_CSS.count(".dzsvm .svm-menugrp{display:contents}") == 1
+      and _EC_CSS.count(".dzsvm .svm-menurub{font-size:10px;font-weight:600;letter-spacing:.06em;opacity:.6;padding:6px 8px 2px;text-transform:uppercase}") == 1
+      and _EC_CSS.count(".dzsvm .svm-menuitem{display:flex;width:100%;justify-content:space-between;gap:12px;padding:6px 8px;border:0;background:transparent;color:inherit;border-radius:6px;cursor:pointer;text-align:left;font:inherit}") == 1
+      and _EC_CSS.count(".dzsvm .svm-menuitem:hover{background:color-mix(in srgb,var(--accent) 12%,transparent)}") == 1
+      and _EC_CSS.count(".dzsvm .svm-menuitem:disabled{opacity:.45;cursor:not-allowed}") == 1
+      and _EC_CSS.count(".dzsvm .svm-menukey{opacity:.6;font-family:ui-monospace,monospace;font-size:11px}") == 1
+      and _EC_CSS.count(".dzsvm .svm-menusep{height:1px;background:var(--stroke);margin:4px 0}") == 1
+      # x9 : huit regles + la mention de .svm-menugrp dans le commentaire du bloc
+      and _EC_CSS.count("svm-menu") == 9 and _EC_CSS.count("\n.dzsvm .svm-menu") == 8 and "E-6" in _EC_CSS
+      and _EC_AM.count(".svm-pop{position:absolute; top:52px; right:18px; z-index:20;") == 1 and _EC_AM.count("svm-menu") == 0,
+      f"regles={_EC_CSS.count('svm-menu')} amont={_EC_AM.count('svm-menu')}")
+# LA SONDE : DzTracks 123 -> 128 (comboToKey, menuModel, CtxMenu, voisins, remove).
+_EC_SONDE = _lire(ROOT / "scripts" / "patch_bundle_dzcout.py")
+check("EC_la_sonde_dzcout_compte_DzTracks_128",
+      _EC_SONDE.count('("montage", "DzTracks", 128),') == 1 and _EC_SONDE.count('("montage", "DzTracks", 123),') == 0
+      and s.count("DzTracks") == 128,
+      f"sonde={_EC_SONDE.count(chr(40) + chr(34) + 'montage')} bundle={s.count('DzTracks')}")
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

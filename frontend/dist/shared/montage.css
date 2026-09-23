@@ -1367,3 +1367,18 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
 .dzsvm .svm-mmrect{position:absolute;top:1px;bottom:1px;border-radius:2px;background:var(--c-video)}
 .dzsvm .svm-mmrect[data-kind="audio"]{background:var(--c-audio)}
 .dzsvm .svm-mmview{position:absolute;top:0;bottom:0;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 15%,transparent);pointer-events:none}
+/* E-6 (lot E-C, tâche 2, 23/09/2026) : le menu ☰ et les menus contextuels
+   (DzTracks.CtxMenu, un .svm-pop) : 260 px, right:auto contre le right:18px
+   de .svm-pop amont (son-vfx-montage.css:388 — l'hôte pose left/top), z 20
+   comme les popovers (au-dessus du voile 19), borné à la fenêtre et
+   défilable. Chaque rubrique est un .svm-menugrp en display:contents
+   (en-tête + rangées dans le flux du menu) ; rangée = bouton pleine
+   largeur, libellé à gauche, combo monospace à droite ; :disabled = off. */
+.dzsvm .svm-menu{width:260px;right:auto;padding:6px;z-index:20;max-height:calc(100vh - 16px);overflow-y:auto}
+.dzsvm .svm-menugrp{display:contents}
+.dzsvm .svm-menurub{font-size:10px;font-weight:600;letter-spacing:.06em;opacity:.6;padding:6px 8px 2px;text-transform:uppercase}
+.dzsvm .svm-menuitem{display:flex;width:100%;justify-content:space-between;gap:12px;padding:6px 8px;border:0;background:transparent;color:inherit;border-radius:6px;cursor:pointer;text-align:left;font:inherit}
+.dzsvm .svm-menuitem:hover{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.dzsvm .svm-menuitem:disabled{opacity:.45;cursor:not-allowed}
+.dzsvm .svm-menukey{opacity:.6;font-family:ui-monospace,monospace;font-size:11px}
+.dzsvm .svm-menusep{height:1px;background:var(--stroke);margin:4px 0}
