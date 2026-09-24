@@ -21029,7 +21029,10 @@ var DZM_COLOR_TYPES=Object.freeze(["grade","lut","grade_basic","wheels","curves"
    exact tant qu'aucun canal n'est saturé (Σ proj_c = 0 et Σ cos² = Σ sin² = 3/2 sur trois angles à 120°).
 
    COURBES (D-29) : dzmCurveClean est la règle MÊME de curves_clean (effects_engine.py, T1) — banc croisé
-   en T7. « x/y x/y … » : un jeton illisible rend TOUTE l'entrée invalide ; x et y bornés à [0, 1] puis
+   en T7 et RÈGLE UNIQUE rejouée sur tests/l5_courbes_vecteurs.json (revue T4). Séparateurs : blancs ASCII
+   (espace, tab, CR, LF) ou virgules ; 256 jetons lus au plus (invalides compris) ; un jeton valide est EXACTEMENT
+   DZM_CURVE_TOK (chiffres ASCII, ni « _ », ni inf/nan, un seul « / ») ; un jeton invalide ou qui déborde à
+   l'infini est SAUTÉ, les autres gardés ; x et y bornés à [0, 1] puis
    arrondis au millième comme round(v, 3) de Python (valeur exacte du flottant, demi au pair) ; x dupliqués
    APRÈS l'arrondi fusionnés, le dernier gagne ; tri ; extrémités x = 0 et x = 1 ajoutées à la valeur du
    point le plus proche ; au-delà de 16 points, sous-échantillonnage régulier index round(k·(n−1)/15)
@@ -21038,14 +21041,17 @@ var DZM_COLOR_TYPES=Object.freeze(["grade","lut","grade_basic","wheels","curves"
    (moyenne harmonique pondérée, extrémités à trois points bornées), celui d'interp=pchip du rendu.
 
    MASQUE (D-30) : dzmMaskOf est la règle de mask_of (mask_region.py, T2) : x, y bornés à [0, 1] ; w, h
-   illisibles ou < 0,01 -> null, puis bornés à 1 − x | 1 − y et de nouveau < 0,01 -> null ; soft borné à
-   [0, 0,5] (absent ou illisible : 0) ; inv vrai seulement pour le booléen vrai ; arrondi 1e-4.
+   illisibles (booléen compris) -> null, bornés à 1 − x | 1 − y (x, y NON arrondis) puis < 0,01 -> null ; soft
+   borné à [0, 0,5] (absent ou illisible : 0) ; inv vrai seulement pour le booléen vrai ; arrondi 1e-4 À LA FIN,
+   comme Python (banc croisé de 30 masques, revue T4).
 
-   GRADE (D-32) : les effets des types de la liste ci-dessus, recopiés SANS les bornes de temps de
+   GRADE (D-32) : les effets ALLUMÉS des types de la liste ci-dessus (un `off` vrai n'est ni emporté ni posé),
+   recopiés SANS les bornes de temps de
    DZM_GRADE_TIMING (règle [a] de dzmGradeCopy) ni `off`, et le masque. Coller REMPLACE les effets couleur
    de la cible à la place du premier d'entre eux (sinon en queue) et garde les autres dans leur ordre. */
 var DZM_WHEEL_ANG=[90,210,330],DZM_WHEEL_K={lift:.25,gamma:.5,gain:.5},DZM_WHEEL_B={lift:[-.5,.5,0],gamma:[.25,4,1],gain:[0,2,1]};
-var DZM_CURVE_MAX=16,DZM_CURVE_ID="0/0 1/1",DZM_MASK_SHAPES=["rect","ellipse"];
+var DZM_CURVE_MAX=16,DZM_CURVE_ID="0/0 1/1",DZM_MASK_SHAPES=["rect","ellipse"],DZM_CURVE_NTOK=256,DZM_CURVE_SEP=/[ \t\r\n,]+/,
+  DZM_CURVE_TOK=/^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?\/[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/;
 /* l'arrondi à n décimales de round(v, n) de Python : valeur exacte du flottant, demi exact au pair
    (généralise dzmRfR3 : une égalité exacte k/(2·10^n) n'existe que si 5^n divise k) */
 function dzmCoR(v,n){var p=Math.pow(10,n),f=Math.floor(v*p),k=2*f+1;
@@ -21076,19 +21082,21 @@ function dzmWheelsSet(eff,kind,x,y,m){
   var o=Object.assign({},eff&&eff.type==="wheels"?eff:{type:"wheels"}),v=dzmWheelToRgb(kind,x,y,m);
   if(v){o[kind+"_r"]=v.r;o[kind+"_g"]=v.g;o[kind+"_b"]=v.b}
   return o}
-function dzmCurveNum(s){
-  return /^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(s)?Number(s):null}
+/* un jeton « x/y » -> [x, y] ; null s'il n'est pas EXACTEMENT NOMBRE/NOMBRE (DZM_CURVE_TOK) ou si un nombre
+   déborde à l'infini (1e999) */
+function dzmCurveTok(t){
+  if(typeof t!=="string"||!DZM_CURVE_TOK.test(t))return null;
+  var i=t.indexOf("/"),x=Number(t.slice(0,i)),y=Number(t.slice(i+1));
+  return isFinite(x)&&isFinite(y)?[x,y]:null}
 function dzmCurveClean(s){
   if(typeof s!=="string")return DZM_CURVE_ID;
-  var tk=s.trim().split(/\s+/),by=Object.create(null),xs=[],i;
-  if(!tk[0])return DZM_CURVE_ID;
-  for(i=0;i<tk.length;i++){var p=tk[i].split("/"),x,y;
-    if(p.length!==2)return DZM_CURVE_ID;
-    x=dzmCurveNum(p[0]);y=dzmCurveNum(p[1]);
-    if(x===null||y===null||!isFinite(x)||!isFinite(y))return DZM_CURVE_ID;
-    x=dzmCoR(Math.max(0,Math.min(1,x)),3);y=dzmCoR(Math.max(0,Math.min(1,y)),3);
+  var tk=s.split(DZM_CURVE_SEP).filter(function(t){return t!==""}).slice(0,DZM_CURVE_NTOK),by=Object.create(null),xs=[],i;
+  for(i=0;i<tk.length;i++){var q=dzmCurveTok(tk[i]),x,y;
+    if(!q)continue;
+    x=dzmCoR(Math.max(0,Math.min(1,q[0])),3);y=dzmCoR(Math.max(0,Math.min(1,q[1])),3);
     if(!(String(x) in by))xs.push(x);
     by[String(x)]=y}
+  if(!xs.length)return DZM_CURVE_ID;
   xs.sort(function(a,b){return a-b});
   var pts=xs.map(function(x){return [x,by[String(x)]]});
   if(pts[0][0]!==0)pts.unshift([0,pts[0][1]]);
@@ -21099,7 +21107,7 @@ function dzmCurveClean(s){
 /* la chaîne canonique -> [[x, y], …] (toujours au moins les deux extrémités) */
 function dzmCurveParse(s){
   return dzmCurveClean(s).split(" ").map(function(t){var p=t.split("/");return [Number(p[0]),Number(p[1])]})}
-/* [[x, y], …] -> chaîne canonique ; un point illisible rend l'entrée invalide (identité), comme un jeton */
+/* [[x, y], …] -> chaîne canonique ; un point illisible est sauté, comme un jeton invalide */
 function dzmCurveStr(pts){
   if(!Array.isArray(pts))return DZM_CURVE_ID;
   return dzmCurveClean(pts.map(function(q){return Array.isArray(q)&&q.length===2?q[0]+"/"+q[1]:"?"}).join(" "))}
@@ -21125,11 +21133,12 @@ function dzmCurveEval(pts,x){
 function dzmMaskOf(m){
   if(!m||typeof m!=="object"||Array.isArray(m)||DZM_MASK_SHAPES.indexOf(m.shape)<0)return null;
   var x=dzmRfNum(m.x),y=dzmRfNum(m.y),w=dzmRfNum(m.w),h=dzmRfNum(m.h),s=dzmRfNum(m.soft);
-  if(x===null||y===null||w===null||h===null||w<.01||h<.01)return null;
-  x=dzmCoR(Math.max(0,Math.min(1,x)),4);y=dzmCoR(Math.max(0,Math.min(1,y)),4);
-  w=dzmCoR(Math.min(w,1-x),4);h=dzmCoR(Math.min(h,1-y),4);
+  if(x===null||y===null||w===null||h===null)return null;
+  x=Math.max(0,Math.min(1,x));y=Math.max(0,Math.min(1,y));
+  w=Math.min(w,1-x);h=Math.min(h,1-y);
   if(w<.01||h<.01)return null;
-  return {shape:m.shape,x:x,y:y,w:w,h:h,soft:s===null?0:dzmCoR(Math.max(0,Math.min(.5,s)),4),inv:m.inv===!0}}
+  return {shape:m.shape,x:dzmCoR(x,4),y:dzmCoR(y,4),w:dzmCoR(w,4),h:dzmCoR(h,4),
+    soft:s===null?0:dzmCoR(Math.max(0,Math.min(.5,s)),4),inv:m.inv===!0}}
 /* copie d'un effet sans bornes de temps (DZM_GRADE_TIMING, lue à l'APPEL : aucune dépendance au chargement,
    le banc bundle exécute sous node le code compris entre dzmKmImport et l'objet du contrat) ni `off` ;
    « est-ce un effet couleur » */
@@ -21137,16 +21146,19 @@ function dzmGradeEffCopy(e){var o={};
   Object.keys(e).forEach(function(k){if(k!=="off"&&DZM_GRADE_TIMING.indexOf(k)<0)o[k]=e[k]});
   return o}
 function dzmIsColorEff(e){return !!e&&typeof e==="object"&&DZM_COLOR_TYPES.indexOf(e.type)>=0}
-/* {effects, mask} du clip, ou null s'il n'y a rien à prendre (aucun effet couleur, aucun masque lisible) */
+/* un effet du GRADE : couleur ET allumé (un `off` vrai n'en fait pas partie — revue T4) */
+function dzmIsGradeEff(e){return dzmIsColorEff(e)&&!e.off}
+/* {effects, mask} du clip, ou null s'il n'y a rien à prendre (aucun effet couleur allumé, aucun masque lisible) */
 function dzmGradeTake(clip){
   if(!clip||typeof clip!=="object")return null;
-  var es=(Array.isArray(clip.effects)?clip.effects:[]).filter(dzmIsColorEff).map(dzmGradeEffCopy),mk=dzmMaskOf(clip.mask);
+  var es=(Array.isArray(clip.effects)?clip.effects:[]).filter(dzmIsGradeEff).map(dzmGradeEffCopy),mk=dzmMaskOf(clip.mask);
   if(!es.length&&!mk)return null;
   return {effects:es,mask:mk}}
-/* un NOUVEAU clip ; grade illisible -> le clip tel quel ; masque du grade posé, sinon retiré */
+/* un NOUVEAU clip ; grade illisible -> le clip tel quel ; masque du grade posé, sinon retiré ; un effet éteint d'un
+   grade stocké est filtré à la pose (jamais réactivé) */
 function dzmGradePaste(clip,g){
   if(!clip||typeof clip!=="object"||!g||typeof g!=="object"||!Array.isArray(g.effects))return clip;
-  var nv=g.effects.filter(dzmIsColorEff).map(dzmGradeEffCopy),st=[],at=-1;
+  var nv=g.effects.filter(dzmIsGradeEff).map(dzmGradeEffCopy),st=[],at=-1;
   (Array.isArray(clip.effects)?clip.effects:[]).forEach(function(e){
     if(dzmIsColorEff(e)){if(at<0)at=st.length}else st.push(e)});
   if(at<0)at=st.length;

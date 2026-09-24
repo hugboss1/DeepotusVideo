@@ -1279,7 +1279,7 @@ var GK={tr:"v1",id:"k",effects:[{type:"grain",amount:3},{type:"grade_basic",expo
   {type:"wheels",gain_r:1.2,ease_out:.3},{type:"vignette"}],mask:{shape:"rect",x:0,y:0,w:.5,h:.5}},GKj=JSON.stringify(GK),GT=T.gradeTake(GK);
 out.co_take=[GT,T.gradeTake(null),T.gradeTake({effects:[{type:"grain"}]}),T.gradeTake({mask:{shape:"ellipse",x:0,y:0,w:.5,h:.5}}),
   T.gradeTake({effects:[{type:"lut",lut:"a"}],mask:{shape:"zz"}}),T.gradeTake({effects:"x"}),
-  JSON.stringify(GK)===GKj,GT.effects[1]!==GK.effects[2]];
+  JSON.stringify(GK)===GKj,GT.effects[0]!==GK.effects[2]];
 var PT={tr:"v1",id:"t",effects:[{type:"grain",amount:1},{type:"grade_basic",exposure:-5},{type:"blur"},{type:"lut",lut:"x"}],mask:{shape:"ellipse",x:0,y:0,w:.3,h:.3}},PTj=JSON.stringify(PT);
 var PG={effects:[{type:"wheels",gain_r:1.2,t0:3},{type:"grain"}],mask:null},PR=T.gradePaste(PT,PG);
 var PR2=T.gradePaste({id:"u",effects:[{type:"grain"}]},{effects:[{type:"curves",pts_m:"0/0 1/1"}],mask:{shape:"ellipse",x:.1,y:.1,w:.2,h:.2}});
@@ -1293,6 +1293,18 @@ var SK={start:2,end:6,srcIn:1,speed:2};
 out.co_src=[T.srcTimeAt(SK,3),T.srcTimeAt(SK,2),T.srcTimeAt(SK,7),T.srcTimeAt(SK,1),T.srcTimeAt(SK,6),T.srcTimeAt(SK,NaN),
   T.srcTimeAt({start:2,end:6,srcIn:1},4),T.srcTimeAt({start:0,end:4},1),T.srcTimeAt(null,1),T.srcTimeAt({start:2,end:6,srcIn:1,speed:10},3),
   T.srcTimeAt({start:0,end:3,srcIn:.5},1/3)];
+/* revue T4 (24/09) : un effet couleur ÉTEINT (off vrai) ne fait pas partie du grade — ni emporté, ni réactivé à la pose ;
+   témoins : un effet actif (off absent ou faux) passe, `off` retiré de la copie */
+out.co_paste_off=[T.gradePaste(PT,{effects:[{type:"lut",lut:"z",off:!0},{type:"wheels",gain_r:1.1}],mask:null}).effects,
+  T.gradePaste(PT,{effects:[{type:"lut",lut:"z"}]}).effects,T.gradeTake({effects:[{type:"wheels",gain_r:2,off:!0}]}),
+  T.gradeTake({effects:[{type:"wheels",gain_r:1,off:!1},{type:"curves",off:1}]})];
+/* revue T4 (24/09) : la règle UNIQUE des courbes rejouée sur les vecteurs partagés (tests/l5_courbes_vecteurs.json,
+   lus par le banc et posés ici — la couche ne lit aucun fichier) ; [index, entrée, attendu, obtenu] par divergence */
+out.co_vec=(function(){var V=/*L5_VEC*/,dv=[];
+  V.forEach(function(v,i){var js=T.curveClean(v["in"]);if(js!==v.out)dv.push([i,v["in"],v.out,js])});
+  return [V.length,dv]})();
+/* revue T4 (24/09) : 30 masques rejoués contre mask_region.mask_of (appelé par le banc) */
+out.co_maskx=(/*L5_MASKS*/).map(function(m){return T.maskOf(m)});
 /* ── [37] L5 D-27 D-29 D-30 D-28 (24/09/2026, tâche 5) : le panneau Étalonnage — aides pures, puis le composant sous shim ── */
 /* la pile : le premier effet d'un type ; poser à la place du PREMIER de son type (les suivants gardés), sinon en queue */
 out.gp_fx=[T.fxOf([{type:"grain"},{type:"wheels",a:1},{type:"wheels",a:2}],"wheels"),T.fxOf(null,"wheels"),T.fxOf([{type:"grain"}],"curves"),
@@ -1416,6 +1428,52 @@ if os.path.isfile(_EC_BUNDLE):
         _EC_COMBOS = re.findall(r'combo:"([^"]*)"', _bd[_i0:_i1])
         _EC_IDS = re.findall(r'\{id:"([a-z0-9_]+)",sec:"', _bd[_i0:_i1])
 PROBE = PROBE.replace("/*EC_COMBOS*/", json.dumps(_EC_COMBOS, ensure_ascii=False))
+# revue T4 (24/09) : les vecteurs PARTAGES des courbes (produits par le script de reference Python, font foi) et
+# trente masques rejoues contre mask_region.mask_of. JSON ASCII (\u001c, NaN et Infinity sont du JS valide).
+_L5_VEC_PATH = os.path.join(ROOT, "backend", "tests", "l5_courbes_vecteurs.json")
+_L5_VEC = []
+if os.path.isfile(_L5_VEC_PATH):
+    with open(_L5_VEC_PATH, "rb") as _fh: _L5_VEC = json.loads(_fh.read().decode("utf-8"))
+PROBE = PROBE.replace("/*L5_VEC*/", json.dumps(_L5_VEC))
+_L5_MASKS = [
+    {"shape": "rect", "x": 0.1, "y": 0.2, "w": 0.3, "h": 0.4},
+    {"shape": "ellipse", "x": 0.25, "y": 0.25, "w": 0.5, "h": 0.5, "soft": 0.2, "inv": True},
+    {"shape": "rect", "x": False, "y": 0, "w": 0.5, "h": 0.5},
+    {"shape": "rect", "x": 0, "y": 0, "w": True, "h": 0.5},
+    {"shape": "rect", "x": 0, "y": 0, "w": 0.5, "h": 0.5, "soft": True},
+    {"shape": "rect", "x": 0, "y": 0, "w": 0.5, "h": 0.5, "inv": 1},
+    {"shape": "rect", "x": -0.5, "y": 0, "w": 0.5, "h": 0.5},
+    {"shape": "rect", "x": 1.2, "y": 0, "w": 0.5, "h": 0.5},
+    {"shape": "rect", "x": 0.99004, "y": 0, "w": 0.5, "h": 0.5},
+    {"shape": "rect", "x": 0.12345, "y": 0.00005, "w": 1, "h": 1},
+    {"shape": "rect", "x": 0, "y": " 0.5 ", "w": 0.5, "h": 0.25},
+    {"shape": "rect", "x": "abc", "y": 0, "w": 0.5, "h": 0.5},
+    {"shape": "rect", "x": None, "y": 0, "w": 0.5, "h": 0.5},
+    {"shape": "rect", "x": 0, "y": 0, "w": 0.5},
+    {"shape": "star", "x": 0, "y": 0, "w": 0.5, "h": 0.5},
+    [1, 2],
+    "rect",
+    None,
+    {"shape": "rect", "x": 0, "y": 0, "w": 0.009, "h": 0.5},
+    {"shape": "rect", "x": 0, "y": 0, "w": 0.01, "h": 0.01},
+    {"shape": "ellipse", "x": 0.1, "y": 0.1, "w": 0.2, "h": 0.2, "soft": 0.9},
+    {"shape": "ellipse", "x": 0.1, "y": 0.1, "w": 0.2, "h": 0.2, "soft": -1},
+    {"shape": "ellipse", "x": 0.1, "y": 0.1, "w": 0.2, "h": 0.2, "soft": "abc"},
+    {"shape": "rect", "x": float("inf"), "y": 0, "w": 0.5, "h": 0.5},
+    {"shape": "rect", "x": float("nan"), "y": 0, "w": 0.5, "h": 0.5},
+    {"shape": "rect", "x": 0.5, "y": 0.5, "w": "1e3", "h": 0.2},
+    {"shape": "rect", "x": 0, "y": 0, "w": 0.5, "h": "0x1"},
+    {"shape": "rect", "x": 0.33333333, "y": 0.66666666, "w": 0.33333334, "h": 0.33333334, "soft": 0.123456},
+    {"shape": "rect", "x": 0.00005, "y": 0.99, "w": 0.5, "h": 0.5},
+    {"shape": "ellipse", "x": 0.5, "y": 0.5, "w": 0.5, "h": 0.5, "soft": 0.25, "inv": "true"},
+]
+PROBE = PROBE.replace("/*L5_MASKS*/", json.dumps(_L5_MASKS))
+try:
+    sys.path.insert(0, os.path.join(ROOT, "backend"))
+    from app.services.mask_region import mask_of as _py_mask_of
+    _py_mask_err = ""
+except Exception as _e:
+    _py_mask_of, _py_mask_err = None, temoin(_e)
 print("\n[1] dzmInsere sous node")
 D = {}
 if not NODE or not os.path.isfile(SRC_PATH):
@@ -1671,6 +1729,8 @@ try:
                  # L5 D-27 D-29 D-30 D-32 (tache 4, 24/09) : les SEIZE cles de la section [36].
                  "co_types","co_neutre","co_val","co_rt","co_from","co_set","co_clean","co_c20","co_parse","co_str",
                  "co_eval","co_mask","co_take","co_paste","co_cm","co_src",
+                 # revue T4 (24/09) : grade sans effet eteint, vecteurs partages des courbes, masques croises
+                 "co_paste_off","co_vec","co_maskx",
                  # L5 D-27 D-29 D-30 D-28 (tache 5, 24/09) : les DIX-HUIT cles de la section [37].
                  "gp_fx","gp_hit","gp_move","gp_add","gp_del","gp_mid","gp_prev","gp_match","gp_frame","gp_sig",
                  "gp_pure","gp_null","gp_box","gp_rendu","gp_verrou","gp_vide","gp_geste","gp_grade"]
@@ -3587,10 +3647,10 @@ check("co_set_effet_neuf_cree_ou_complete_autres_cles_gardees_grade_basic_intact
                           {"type": "wheels", "lift_r": 0.1, "t0": 1, "gamma_r": 2, "gamma_g": 2, "gamma_b": 2},
                           {"type": "wheels", "lift_r": 0, "lift_g": 0, "lift_b": 0},
                           {"type": "wheels", "lift_r": 0.1, "t0": 1}, True, True], D.get("co_set"))
-check("co_clean_regles_de_curves_clean_extremites_prolongees_tri_dernier_gagne_bornes_arrondi_python_invalide_identite",
+check("co_clean_regles_de_curves_clean_extremites_prolongees_tri_dernier_gagne_bornes_arrondi_python_jeton_invalide_saute",
       D.get("co_clean") == ["0/0.6 0.5/0.6 1/0.6", "0/0 0.5/0.7 1/1", "0/0 0.5/0.7 1/1", "0/0 0.5/0.7 1/1", "0/0 1/1", "0/0 1/1",
                             "0/0 0.5/1 1/1", "0/0 1/1", "0/0 1/1", "0/0.3 0.2/0.3 0.8/0.9 1/0.9", "0/0.5 0.123/0.5 1/0.5",
-                            "0/0 1/1", "0/0.2 1/0.8", "0/0 1/1", "0/0 1/1", f"0/0.2 {round(0.0005, 3):g}/0.2 1/1"],
+                            "0/0.2 0.1/0.2 1/0.2", "0/0.2 1/0.8", "0/0 1/1", "0/0 1/1", f"0/0.2 {round(0.0005, 3):g}/0.2 1/1"],
       D.get("co_clean"))
 # 20 points i/19 -> 16 sous-echantillonnes (index round(k*19/15) : le second est l'index 1 = 1/19 arrondi), extremites gardees, idempotent
 check("co_c20_seize_points_extremites_gardees_idempotent",
@@ -3614,8 +3674,8 @@ check("co_mask_bornes_de_mask_of_forme_inconnue_non_objet_trop_petit_null_arrond
                            None, {"shape": "ellipse", "x": 0, "y": 0, "w": 1, "h": 1, "soft": 0, "inv": False}, True],
       D.get("co_mask"))
 _MK = {"shape": "rect", "x": 0, "y": 0, "w": 0.5, "h": 0.5, "soft": 0, "inv": False}
-check("co_take_sans_t0_ni_off_ni_grain_wheels_emporte_masque_normalise_rien_a_prendre_null_entree_intacte",
-      D.get("co_take") == [{"effects": [{"type": "grade_basic", "exposure": 10}, {"type": "wheels", "gain_r": 1.2}], "mask": _MK},
+check("co_take_sans_t0_ni_off_ni_grain_ni_effet_eteint_wheels_actif_emporte_masque_normalise_rien_a_prendre_null_entree_intacte",
+      D.get("co_take") == [{"effects": [{"type": "wheels", "gain_r": 1.2}], "mask": _MK},
                            None, None, {"effects": [], "mask": dict(_MK, shape="ellipse")},
                            {"effects": [{"type": "lut", "lut": "a"}], "mask": None}, None, True, True], D.get("co_take"))
 check("co_paste_grain_a_sa_place_grade_basic_remplace_par_wheels_masque_pose_ou_retire_entree_intacte_copies",
@@ -3623,14 +3683,32 @@ check("co_paste_grain_a_sa_place_grade_basic_remplace_par_wheels_masque_pose_ou_
                             [{"type": "grain"}, {"type": "curves", "pts_m": "0/0 1/1"}],
                             {"shape": "ellipse", "x": 0.1, "y": 0.1, "w": 0.2, "h": 0.2, "soft": 0, "inv": False},
                             True, [{"type": "grain", "amount": 1}, {"type": "blur"}],
-                            ["grain", "grade_basic", "wheels", "blur"], True, True, True], D.get("co_paste"))
+                            ["grain", "wheels", "blur"], True, True, True], D.get("co_paste"))
 check("co_cm_un_seul_colormatch_a_la_place_du_premier_sinon_en_queue",
       D.get("co_cm") == [[{"type": "grain"}, {"type": "colormatch", "y_gain": 1.5}, {"type": "blur"}],
                          [{"type": "grain"}, {"type": "colormatch", "y_gain": 1.5}], [{"type": "colormatch", "y_gain": 2}],
                          1, 4, True], D.get("co_cm"))
 check("co_src_srcin_plus_ecart_fois_vitesse_hors_plan_milieu_vitesse_bornee",
       D.get("co_src") == [3, 1, 5, 5, 5, 5, 3, 1, 0, 5, 0.833], D.get("co_src"))
-_L5CO = {n: _corps(n) for n in ("dzmCoR", "dzmWheelToRgb", "dzmWheelFromRgb", "dzmWheelsSet", "dzmCurveNum", "dzmCurveClean",
+# ── revue T4 (24/09/2026). (1) un effet couleur eteint n'est ni emporte ni reactive ; temoins : actif emporte, `off` retire.
+check("co_paste_off_effet_eteint_ni_emporte_ni_reactive_a_la_pose_effet_actif_garde_off_retire",
+      D.get("co_paste_off") == [[{"type": "grain", "amount": 1}, {"type": "wheels", "gain_r": 1.1}, {"type": "blur"}],
+                                [{"type": "grain", "amount": 1}, {"type": "lut", "lut": "z"}, {"type": "blur"}], None,
+                                {"effects": [{"type": "wheels", "gain_r": 1}], "mask": None}], D.get("co_paste_off"))
+# (2) la regle UNIQUE des courbes : les 60 vecteurs partages rejoues sous node, 0 divergence (detail calcule AVANT).
+_cv = D.get("co_vec") if isinstance(D.get("co_vec"), list) and len(D.get("co_vec")) == 2 else [0, ["co_vec absent"]]
+_cv_dv = _cv[1] if isinstance(_cv[1], list) else ["co_vec illisible"]
+check("co_vec_regle_unique_des_courbes_les_60_vecteurs_partages_rejoues_zero_divergence",
+      len(_L5_VEC) == 60 and _cv[0] == 60 and _cv_dv == [], (len(_L5_VEC), _cv[0], _cv_dv))
+# (3) trente masques croises avec mask_region.mask_of ; temoins : au moins dix valides ET dix refuses cote Python.
+_mx_js = D.get("co_maskx") if isinstance(D.get("co_maskx"), list) else []
+_mx_py = [_py_mask_of(m) for m in _L5_MASKS] if _py_mask_of else []
+_mx_dv = [(i, m, p, j) for i, (m, p, j) in enumerate(zip(_L5_MASKS, _mx_py, _mx_js)) if p != j]
+check("co_maskx_trente_masques_croises_avec_mask_of_python_zero_divergence_valides_et_refuses",
+      _py_mask_of is not None and len(_L5_MASKS) == 30 and len(_mx_py) == 30 and len(_mx_js) == 30 and _mx_dv == []
+      and sum(p is not None for p in _mx_py) >= 10 and sum(p is None for p in _mx_py) >= 10,
+      (_py_mask_err, len(_mx_js), _mx_dv))
+_L5CO = {n: _corps(n) for n in ("dzmCoR", "dzmWheelToRgb", "dzmWheelFromRgb", "dzmWheelsSet", "dzmCurveTok", "dzmCurveClean",
                                  "dzmCurveParse", "dzmCurveStr", "dzmCurveEval", "dzmMaskOf", "dzmGradeEffCopy", "dzmIsColorEff",
                                  "dzmGradeTake", "dzmGradePaste", "dzmColorMatchPut", "dzmSrcTimeAt")}
 _CO_EXP = ("colorTypes:DZM_COLOR_TYPES,wheelToRgb:dzmWheelToRgb,wheelFromRgb:dzmWheelFromRgb,wheelsSet:dzmWheelsSet,"
