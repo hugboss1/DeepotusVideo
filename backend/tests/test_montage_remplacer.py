@@ -479,6 +479,7 @@ import asyncio
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 import tempfile
@@ -1430,9 +1431,20 @@ _src = LAYER.read_bytes().decode("utf-8-sig")
 # La liste d'extensions vit dans montage_service.py et NULLE PART ailleurs
 # (P9 l'avait deja arrete pour `isVideoJob`) : cette ligne le tient pour la
 # couche entiere, P6 comprise.
+# 24/09/2026 (L7 D-19, revue) : en JETON, pas en sous-chaine -- `.mov` tombait
+# sur `out.moved` (rubrique « deplaces » du diff D-39, e7bed94) et cette ligne
+# rougissait sans qu'aucune extension ne soit recopiee. Une extension citee est
+# suivie d'un guillemet, d'une parenthese ou d'une virgule, jamais d'une
+# lettre. Temoin dans l'expression : le jeton attrape bien `"a.mov"` et
+# laisse `out.moved`, sinon la negation serait creuse.
+_ext_re = [re.compile(re.escape(e) + r"(?![A-Za-z_])")
+           for e in (".mp4", ".mov", ".webm", ".mkv", ".m4v")]
+_ext_copiees = [r.pattern for r in _ext_re if r.search(_src)]
 check("la_couche_ne_recopie_aucune_extension_video",
-      not any(e in _src for e in (".mp4", ".mov", ".webm", ".mkv", ".m4v")),
-      "montage.js ecrit une extension video en dur")
+      _ext_copiees == []
+      and _ext_re[1].search('"a.mov"') is not None
+      and _ext_re[1].search("out.moved") is None,
+      f"montage.js cite {_ext_copiees} (jeton) — ou le temoin du jeton a lache")
 # L'ARIA-LABEL EST LA LIGNE, pas un second libelle. `DzmNewerHint` a des
 # hooks : node ne peut pas l'executer, et c'est la SOURCE qui doit dire que
 # le discriminant atteint aussi les lecteurs d'ecran. Sans cette ligne, cinq

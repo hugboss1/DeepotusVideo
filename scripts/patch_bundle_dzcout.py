@@ -374,7 +374,56 @@ STABLE_PROBES = [
     # file) et le bouton « Ajouter a la file » (repli R_EA5D2) n en ajoutent
     # aucune. MESURE : la chaine a refuse, « sonde montage x135 (want 132) »,
     # avant cette ligne.
-    ("montage", "DzTracks", 135),
+    # 24/09/2026, L7 D-10 (tache 1, preset Resolve / export / import du
+    # mappage, action trans_add) : 135 -> 139. QUATRE de plus :
+    # `DzTracks.kmPreset(`, `DzTracks.kmExport(`, `DzTracks.kmImport(` (L7a3,
+    # les trois boutons du panneau « ? ») et `DzTracks.voisins(` (L7a2, repli
+    # dans R_R2 : la branche trans_add refuse un plan sans coupe a gauche).
+    # L7a1 (l entree de SVM_ACTIONS, repli dans R_R1) et le bloc pur de la
+    # couche (aucun « DzTracks » dans son commentaire, a dessein) n en
+    # ajoutent aucune. MESURE : la chaine a refuse, « sonde montage x139
+    # (want 135) », avant cette ligne.
+    # 24/09/2026, L7 D-6 (tache 2, presse-papiers de clips entre projets) :
+    # 139 -> 142. TROIS de plus, toutes dans la branche L7b2 (repli dans
+    # R_R2) : `DzTracks.clipCopy(` (copy), `DzTracks.clipPaste(` (paste) et
+    # `DzTracks.modeLabel(` (la note du collage dit le mode, comme addAsset).
+    # L7b1 (les deux entrees de SVM_ACTIONS, repli dans R_R1) et le bloc pur
+    # de la couche n en ajoutent aucune. MESURE : la chaine a refuse, « sonde
+    # montage x142 (want 139) », avant cette ligne.
+    # 24/09/2026, L7 D-8 (tache 3, boring detector) : 142 -> 144. DEUX de
+    # plus, toutes deux dans le repli L7c1 de R_EB6B (_EB7_ETAT) :
+    # `DzTracks.boringDef` (le defaut de l'etat, UNE reference) et
+    # `DzTracks.boring(` (la carte memoisee). L7c2 (l'entree du menu, repli
+    # R_EC1), L7c3 (le popover, section neuve) et le bloc pur de la couche
+    # n en ajoutent aucune.
+    # 24/09/2026, L7 D-39 (tache 4, comparaison de deux projets) : 144 -> 146.
+    # DEUX de plus, toutes deux dans des REPLIS (aucune section neuve) :
+    # `DzTracks.diff(` dans onDiff (repli L7d1 de R_M14, la ligne Projets)
+    # et `DzTracks.DiffView` dans la garde de popover() (repli de R_L7C3).
+    # Le bloc pur de la couche (dzmDiff, DzmDiffView, « ⇄ » de DzmProjects)
+    # n en ajoute aucune -- son commentaire le tait a dessein.
+    # 24/09/2026, L7 D-3b (tache 4-bis, vignettes A/B et roll d'une image a
+    # la jonction) : 146 -> 149. TROIS de plus, toutes dans la section neuve
+    # L7g1 (portee de DzMontage, apres l'effet de fermeture du popover de
+    # jonction) : `DzTracks.voisins(` (le voisin gauche, meme mesure que le
+    # roll), `DzTracks.abSecs(` (les deux secondes de source) et
+    # `DzTracks.roll(` (abRoll). L7g2 (la rangee, dans transPopover), le
+    # repli abSt de _EB7_ETAT et le bloc pur de la couche (dzmAbSecs) n en
+    # ajoutent aucune -- la cle des vignettes passe par svmSrcKey du bundle,
+    # et les commentaires de l'hote taisent le nom a dessein.
+    # 24/09/2026, revue de D-3b : 149 -> 150. UNE de plus, dans L7g1 :
+    # `DzTracks.abRollDit(` (abRoll dit le roll borne, k images seulement).
+    # 24/09/2026, L7 D-19 (tache 5, moitie client : coins arrondis et ombre
+    # portee d'un overlay) : 150 -> 151. UNE de plus, dans la section L7e2a
+    # (svmOvTfOf, niveau module du bundle) : `DzTracks.ovExtra(c)` -- la
+    # couche borne radius/shadow UNE fois pour l'inspecteur, l'apercu et le
+    # payload. Les dix autres sections L7e (inspecteur, renderPayload,
+    # svmApplyTf, svmOvTfAt, signatures, geste, reset) et le bloc pur de la
+    # couche (dzmOvExtra) n'en ajoutent aucune.
+    # L7 D-22 (24/09/2026, tache 6) : 151 -> 158 -- sept sites de CODE, aucun commentaire : menu de piste x3
+    # (subsBurnId, subsBurn, subsNew), subsPayload x1 (subsBurnId), hote du tiroir x2 (subsNew, subsCopy),
+    # rangee de piste x1 (subsBurnId pour data-burn). Revue T6 : 158 -> 159, subsOverlay x1 (subsBurnId).
+    ("montage", "DzTracks", 159),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

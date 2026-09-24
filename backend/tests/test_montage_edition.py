@@ -867,6 +867,217 @@ out.del_st=(function(){var r0=r;try{r={jsx:function(t,p){return {t:t,p:p}},jsxs:
     {provider:"montage",title:"q",job_id:"c",status:"done"},{provider:"montage",title:"q",job_id:"d",status:"failed"},{provider:"montage",title:"q",job_id:"e",status:"zz"}];
   var m=T.Deliver({nom:"q",jobs:js});
   return m.p.children[3].p.children.map(function(w){var b=w.p.children[4];return [w.p.children.length,b.p.className,b.p["data-st"],b.p.children]})}catch(e){return "autre:"+e}finally{r=r0}})();
+/* ── [25] L7 D-10 (24/09/2026) : preset Resolve, export/import du mappage ── */
+out.kp_resolve=T.kmPreset("resolve");
+out.kp_inconnu=[T.kmPreset("avid"),T.kmPreset(null),T.kmPreset(""),T.kmPreset("constructor")];
+out.kp_pur=(function(){var a=T.kmPreset("resolve");a.blade="Q";return T.kmPreset("resolve").blade})();
+out.kx=T.kmExport({blade:"Ctrl+B"});
+out.kx_bornes=[T.kmExport(null),T.kmExport(void 0),T.kmExport("x"),T.kmExport([1])];
+var _kA=[{id:"blade",combo:"Alt+C"},{id:"undo",combo:"Ctrl+Z"},{id:"redo",combo:"Ctrl+Y"}],_kC=function(s){return s==="Q"?"":s},_kR=function(s){return s==="Espace"?"raccourci":""};
+out.ki_ok=T.kmImport('{"version":1,"keymap":{"blade":"Ctrl+B","zzz":"Q","undo":"Espace","redo":"Ctrl+Y"}}',_kA,_kC,_kR);
+out.ki_combo=T.kmImport('{"version":1,"keymap":{"blade":"Q","undo":7}}',_kA,_kC,_kR);
+out.ki_casse=T.kmImport("{pas du json",_kA,_kC,_kR);
+out.ki_v2=[T.kmImport('{"version":2,"keymap":{}}',_kA,_kC,_kR),T.kmImport('{"keymap":{}}',_kA,_kC,_kR),T.kmImport('{"version":1}',_kA,_kC,_kR),
+  T.kmImport('{"version":1,"keymap":[1]}',_kA,_kC,_kR),T.kmImport('null',_kA,_kC,_kR),T.kmImport('"s"',_kA,_kC,_kR)];
+out.ki_vide=T.kmImport('{"version":1,"keymap":{}}',null,_kC,_kR);
+out.ki_aller_retour=T.kmImport(T.kmExport({blade:"Ctrl+B"}),_kA,_kC,_kR);
+/* revue I1 : les collisions -- vol du defaut d'une action NON remappee (range_out:"O" vole toolbar), deux lignes
+   sur une meme touche (redo perd contre undo, ordre de TABLE comme svmKmMerge), temoins : blade Ctrl+B libre passe,
+   et le preset Resolve (toolbar remappee explicitement) passe sans collision */
+var _kT=[{id:"blade",combo:"Alt+C"},{id:"undo",combo:"Ctrl+Z"},{id:"redo",combo:"Ctrl+Y"},{id:"range_out",combo:"U"},{id:"toolbar",combo:"O"},{id:"mute",combo:"M"},{id:"solo",combo:"S"}];
+out.ki_vol=T.kmImport('{"version":1,"keymap":{"range_out":"O","undo":"Alt+Q","redo":"Alt+Q","blade":"Ctrl+B"}}',_kT,_kC,_kR);
+out.ki_vol_preset=T.kmImport(T.kmExport(T.kmPreset("resolve")),_kT,_kC,_kR);
+out.ki_vol_echange=T.kmImport('{"version":1,"keymap":{"mute":"Alt+M","solo":"M"}}',_kT,_kC,_kR);
+/* ── [26] L7 D-6 (24/09/2026) : presse-papiers de clips entre projets ── */
+var _cc0={id:"v1c4",tr:"v1",label:"x",start:2,end:5,srcIn:1,srcOut:4,src:{job_id:"j"},transition:"fade",transition_s:.4,src_history:[1],gain:-3,effects:[{n:"a"}],hidden:void 0};
+out.cc=T.clipCopy(_cc0);
+out.cc_pur=(function(){var a=T.clipCopy(_cc0);a.src.job_id="Z";a.effects[0].n="Z";return [_cc0.src.job_id,_cc0.effects[0].n,_cc0.id,_cc0.transition]})();
+out.cc_bornes=[T.clipCopy(null),T.clipCopy(void 0),T.clipCopy("x"),T.clipCopy(7),T.clipCopy([1])];
+/* les pistes du banc sont dans l'ORDRE DE L'ECRAN (v3 en haut, a1 en bas), comme DZM_DEFAULT_TRACKS */
+var _cp=function(cs,pl,o){var r=T.clipPaste(cs,pl,o);return {id:r.id,track:r.track,mode:r.mode,refus:r.refus,note:r.note,start:r.start,v1:sv(r,"v1"),n:(r.clips||[]).length,
+  pose:(r.clips||[]).filter(function(k){return k&&r.id!=null&&k.id===r.id})[0]||null}};
+out.cp_meme_piste=_cp(C,{v:1,clip:out.cc},{head:10,tracks:TS,mode:"inserer",seq:7});
+out.cp_inserer_fend=_cp(C,{v:1,clip:out.cc},{head:2,tracks:TS,mode:"inserer",seq:8});
+out.cp_ecraser=_cp(C,{v:1,clip:out.cc},{head:2,tracks:TS,mode:"ecraser",seq:9});
+out.cp_piste_absente=_cp(C,{v:1,clip:Object.assign({},out.cc,{tr:"v9"})},{head:10,tracks:TS,mode:"inserer",seq:7});
+out.cp_kind_prime=_cp(C,{v:1,clip:Object.assign({},out.cc,{tr:"a1"})},{head:10,tracks:[{id:"x9",kind:"audio"},{id:"v1",kind:"video"}],mode:"inserer",seq:7});
+out.cp_genre_absent=_cp(C,{v:1,clip:Object.assign({},out.cc,{tr:"a1"})},{head:10,tracks:[{id:"v2",kind:"video"},{id:"v1",kind:"video"}],mode:"inserer",seq:7});
+out.cp_vide=[_cp(C,null,{}),_cp(C,void 0,{}),_cp(C,{v:1},{}),_cp(C,{v:1,clip:null},{}),_cp(C,{v:1,clip:"x"},{}),_cp(C,"x",{})].map(function(r){return [r.refus,r.id,r.n,r.track]});
+out.cp_v0=[_cp(C,{v:2,clip:out.cc},{}),_cp(C,{clip:out.cc},{}),_cp(C,{v:"1",clip:out.cc},{})].map(function(r){return [r.refus,r.id,r.n]});
+out.cp_verrou=_cp(C,{v:1,clip:out.cc},{head:10,tracks:TS,mode:"inserer",seq:7,locked:{v1:!0}});
+out.cp_mou=_cp(null,{v:1,clip:out.cc},{head:10,tracks:TS,mode:"inserer",seq:7});
+out.cp_sans_pistes=_cp(C,{v:1,clip:out.cc},{head:10});
+out.cp_head=[_cp(C,{v:1,clip:out.cc},{head:-3,tracks:TS,mode:"inserer",seq:1}),_cp(C,{v:1,clip:out.cc},{head:"zz",tracks:TS,mode:"inserer",seq:1}),
+  _cp(C,{v:1,clip:out.cc},{head:10.12345,tracks:TS,mode:"inserer",seq:1})].map(function(r){return [r.id,r.v1.filter(function(k){return k[0]===r.id})[0]||null]});
+out.cp_len0=_cp(C,{v:1,clip:Object.assign({},out.cc,{start:5,end:5})},{head:10,tracks:TS,mode:"inserer",seq:2});
+out.cp_id_pris=_cp(C.concat([{tr:"v1",id:"v1u7_100",start:20,end:21,src:{a:1}}]),{v:1,clip:out.cc},{head:10,tracks:TS,mode:"inserer",seq:7});
+out.cp_remplir=_cp(C,{v:1,clip:out.cc},{head:10,tracks:TS,mode:"remplir",seq:3,range:{in:2,out:5}});
+out.cp_remplir_srcdur=_cp(C,{v:1,clip:out.cc},{head:10,tracks:TS,mode:"remplir",seq:3,range:{in:2,out:5},srcDur:6});
+/* revue : I-2 clip sans source refuse (temoin : un carton title sans src passe), M-2 piste homonyme d'un autre genre
+   ignoree (temoin : v2 video la prend), M-1 start = position REELLE (fin -> 8, ripple -> 4, remplir -> 2, inserer -> 10) */
+out.cp_sans_source=[_cp(C,{v:1,clip:{tr:"v1",label:"d",start:0,end:3}},{head:10,tracks:TS,mode:"inserer",seq:1}),
+  _cp(C,{v:1,clip:{tr:"t1",kind:"title",text:"Bonjour",start:0,end:3}},{head:10,tracks:TS.concat([{id:"t1",kind:"title"}]),mode:"inserer",seq:1}),
+  _cp(C,{v:1,clip:{tr:"j1",kind:"adjust",start:0,end:3}},{head:10,tracks:TS.concat([{id:"j1",kind:"adjust"}]),mode:"inserer",seq:1})]
+  .map(function(r){return [r.refus,r.id,r.track,r.n,r.note]});
+out.cp_homonyme=[_cp(C,{v:1,clip:out.cc},{head:10,tracks:[{id:"v1",kind:"audio"},{id:"v2",kind:"video"}],mode:"inserer",seq:1}),
+  _cp(C,{v:1,clip:out.cc},{head:10,tracks:[{id:"v1",kind:"audio"}],mode:"inserer",seq:1})].map(function(r){return [r.refus,r.track,r.id]});
+out.cp_start=[_cp(C,{v:1,clip:out.cc},{head:10,tracks:TS,mode:"fin",seq:1}),_cp(C,{v:1,clip:out.cc},{head:5,tracks:TS,mode:"ripple_ecraser",seq:1}),
+  _cp(C,{v:1,clip:out.cc},{head:10,tracks:TS,mode:"remplir",seq:1,range:{in:2,out:5}}),_cp(C,{v:1,clip:out.cc},{head:10,tracks:TS,mode:"inserer",seq:1})]
+  .map(function(r){return [r.mode,r.start,r.id]});
+out.cp_start_refus=[_cp(C,null,{}),_cp(C,{v:1,clip:out.cc},{head:10,tracks:TS,mode:"inserer",seq:7,locked:{v1:!0}})].map(function(r){return r.start});
+out.cp_pur=[C.length,C.map(function(c){return c.id}).join(","),out.cc.tr,out.cc.start,out.cc.id];
+out.cp_menu=T.menuModel([{id:"copy",sec:"Montage",lbl:"c",combo:"Ctrl+C"},{id:"paste",sec:"Montage",lbl:"p",combo:"Ctrl+V"},{id:"blade",sec:"Montage",lbl:"b",combo:"Alt+C"}],null)
+  .map(function(g){return [g.rub,g.items.map(function(i){return i.id}).join(",")]});
+/* ── [27] L7 D-8 (24/09/2026) : boring detector — plans trop longs et jump cuts sur V1 ── */
+var CLB=[{id:"a",tr:"v1",start:0,end:10,srcIn:0,src:{job_id:"j1"}},{id:"b",tr:"v1",start:10,end:12,srcIn:10.2,src:{job_id:"j1"}},
+  {id:"c",tr:"v1",start:12,end:15,srcIn:0,src:{job_id:"j2"}},{id:"d",tr:"a1",start:0,end:30,src:{audio:"x"}}];
+var _clb0=JSON.stringify(CLB);
+var _bj=function(a,b){return [{id:"a",tr:"v1",start:0,end:2,srcIn:0,src:{job_id:"j"}},Object.assign({id:"b",tr:"v1",start:2,end:4,srcIn:2,src:{job_id:"j"}},a,b||{})]};
+out.bo=T.boring(CLB,{maxS:8,minFrames:12,fps:30});
+out.bo_defaut=T.boring(CLB);
+out.bo_def=T.boringDef;
+out.bo_def_pur=(function(){var d=T.boringDef,m=Object.assign({},d);m.maxS=1;var r=T.boring(CLB,m);return [r.a||null,r.b||null,r.c||null,d.maxS,T.boring(CLB).c||null]})();
+out.bo_loin=T.boring(CLB,{maxS:8,minFrames:3});
+out.bo_vide=[T.boring([]),T.boring(null),T.boring(void 0),T.boring("x"),T.boring([null,7,"x"]),T.boring([{tr:"v1",start:0,end:99}])];
+out.bo_long_et_jump=T.boring([{id:"a",tr:"v1",start:0,end:10,srcIn:0,src:{job_id:"j1"}},{id:"b",tr:"v1",start:10,end:20,srcIn:10,src:{job_id:"j1"}}]);
+out.bo_egal=T.boring([{id:"a",tr:"v1",start:0,end:8,src:{job_id:"j1"}},{id:"b",tr:"v1",start:8,end:16.001,src:{job_id:"j2"}}]);
+/* seuil : 12 images à 30 i/s = 0,4 s — 2.4 est AU seuil (pas un jump, flottant compris), 2.3 est dessous */
+out.bo_seuil=[T.boring(_bj({srcIn:2.4})),T.boring(_bj({srcIn:2.3})),T.boring(_bj({srcIn:1.7})),T.boring(_bj({srcIn:1.6}))];
+/* contact : la tolérance de dzmVoisins (0,1 s) — 2.1 touche, 2.5 non ; un chevauchement n'est pas un contact */
+out.bo_contact=[T.boring(_bj({start:2.1})),T.boring(_bj({start:2.5})),T.boring(_bj({start:1.5,srcIn:1.5}))];
+/* sources : deux images identiques en contact = jump (une image n'a pas de position de source), deux images
+   différentes non, sans source rien, job et image homonymes ne se confondent pas, audio hors V1 */
+out.bo_sources=[T.boring(_bj({src:{image:"i"},srcIn:0},{})).b||null,
+  T.boring([{id:"a",tr:"v1",start:0,end:2,src:{image:"i"}},{id:"b",tr:"v1",start:2,end:4,src:{image:"i"}}]),
+  T.boring([{id:"a",tr:"v1",start:0,end:2,src:{image:"i"}},{id:"b",tr:"v1",start:2,end:4,src:{image:"k"}}]),
+  T.boring([{id:"a",tr:"v1",start:0,end:2},{id:"b",tr:"v1",start:2,end:4}]),
+  T.boring([{id:"a",tr:"v1",start:0,end:2,src:{job_id:"j"}},{id:"b",tr:"v1",start:2,end:4,srcIn:2,src:{image:"j"}}]),
+  T.boring([{id:"a",tr:"v1",start:0,end:2,src:{}},{id:"b",tr:"v1",start:2,end:4,src:{}}])];
+out.bo_v2=[T.boring([{id:"a",tr:"v2",start:0,end:20,srcIn:0,src:{job_id:"j"}},{id:"b",tr:"v2",start:20,end:22,srcIn:20,src:{job_id:"j"}}]),
+  T.boring([{id:"a",tr:"v1",start:0,end:2,srcIn:0,src:{job_id:"j"}},{id:"b",tr:"v2",start:2,end:4,srcIn:2,src:{job_id:"j"}}])];
+/* vitesse : à ×2, 5 s de timeline consomment 10 s de source — le plan suivant repris à 10 est un jump ; à ×1 non */
+out.bo_vitesse=[T.boring([{id:"a",tr:"v1",start:0,end:5,srcIn:0,speed:2,src:{job_id:"j"}},{id:"b",tr:"v1",start:5,end:7,srcIn:10,src:{job_id:"j"}}]),
+  T.boring([{id:"a",tr:"v1",start:0,end:5,srcIn:0,src:{job_id:"j"}},{id:"b",tr:"v1",start:5,end:7,srcIn:10,src:{job_id:"j"}}]),
+  T.boring([{id:"a",tr:"v1",start:0,end:5,srcIn:0,speed:"zz",src:{job_id:"j"}},{id:"b",tr:"v1",start:5,end:7,srcIn:5,src:{job_id:"j"}}])];
+out.bo_desordre=T.boring(CLB.slice().reverse());
+out.bo_pur=[JSON.stringify(CLB)===_clb0,CLB.map(function(c){return c.id}).join(",")];
+/* options : illisibles, nulles ou négatives → défaut ; maxS 20 ne laisse que le jump ; fps 60 resserre le seuil (12/60 = 0,2 : 10.2 est AU seuil) */
+out.bo_opts=[T.boring(CLB,{maxS:"zz"}),T.boring(CLB,{maxS:0}),T.boring(CLB,{maxS:-3,minFrames:null}),T.boring(CLB,{maxS:20}),
+  T.boring(CLB,{fps:0}),T.boring(CLB,{minFrames:-1}),T.boring(CLB,{fps:60}),T.boring(CLB,"zz"),T.boring(CLB,7)];
+/* ── [28] L7 D-39 (24/09/2026) : comparaison de deux projets — dzmDiff pur + DzmDiffView ── */
+var DA=[{id:"1",tr:"v1",start:0,end:5,srcIn:0},{id:"2",tr:"v1",start:5,end:8,srcIn:0,gain:0},{id:"3",tr:"a1",start:0,end:8}];
+var DB=[{id:"1",tr:"v1",start:2,end:7,srcIn:0},{id:"2",tr:"v1",start:5,end:9,srcIn:0,gain:-3},{id:"4",tr:"v1",start:9,end:12}];
+var _da0=JSON.stringify(DA),_db0=JSON.stringify(DB);
+out.df=T.diff(DA,DB);
+out.df_id=T.diff(DA,DA);
+out.df_vide=[T.diff([],[]),T.diff(null,void 0),T.diff("x",7),T.diff([null,3,{tr:"v1",start:0,end:1}],[{id:"z",tr:"v1",start:0,end:1}])];
+/* un slip (srcIn seul) est un rognage de la fenêtre de source, pas un déplacement ; un même clip décalé d'une piste
+   à l'autre à durée égale est déplacé ET modifié (tr) ; un clip déplacé sur sa piste n'est pas « modifié » */
+out.df_slip=T.diff([{id:"1",tr:"v1",start:0,end:5,srcIn:0}],[{id:"1",tr:"v1",start:0,end:5,srcIn:2}]);
+out.df_piste=T.diff([{id:"1",tr:"v1",start:0,end:5}],[{id:"1",tr:"v2",start:3,end:8}]);
+out.df_rogne_et_bouge=T.diff([{id:"1",tr:"v1",start:0,end:5,srcIn:0}],[{id:"1",tr:"v1",start:3,end:5,srcIn:3}]);
+/* noms : le libellé de B prime, sinon celui de A ; un clip sans libellé n'a pas d'entrée */
+out.df_noms=T.diff([{id:"1",tr:"v1",start:0,end:5,label:"Ancien"},{id:"2",tr:"v1",start:5,end:6},{id:"5",tr:"v1",start:6,end:7,label:"Parti"}],
+  [{id:"1",tr:"v1",start:0,end:5,label:"Neuf"},{id:"3",tr:"v1",start:5,end:6,label:"Tiers"}]);
+/* clés : absent, null et undefined se valent ; 0 n'est pas absent ; effects/dz comparés en profondeur ; une clé hors liste (kind) ne compte pas */
+out.df_cles=[T.diff([{id:"1",tr:"v1",start:0,end:5}],[{id:"1",tr:"v1",start:0,end:5,gain:null,effects:void 0}]).changed,
+  T.diff([{id:"1",tr:"v1",start:0,end:5}],[{id:"1",tr:"v1",start:0,end:5,gain:0}]).changed,
+  T.diff([{id:"1",tr:"v1",start:0,end:5,effects:[{k:"a"}],dz:{p:1}}],[{id:"1",tr:"v1",start:0,end:5,effects:[{k:"b"}],dz:{p:1}}]).changed,
+  T.diff([{id:"1",tr:"v1",start:0,end:5,kind:"a"}],[{id:"1",tr:"v1",start:0,end:5,kind:"b"}]).changed,
+  T.diff([{id:"1",tr:"v1",start:0,end:5,text:"a",transition:"fade",transition_s:.4,opacity:1}],[{id:"1",tr:"v1",start:0,end:5,text:"b",transition:"wipe",transition_s:.5,opacity:.5}]).changed];
+/* revue 24/09 : start/srcIn à la tolérance 1e-6 — un ripple flottant n'est ni déplacé ni rogné ; 1 ms l'est (témoin) */
+out.df_tolerance=[T.diff([{id:"1",tr:"v1",start:5,end:8,srcIn:1}],[{id:"1",tr:"v1",start:5+1e-9,end:8+1e-9,srcIn:1+1e-9}]),
+  T.diff([{id:"1",tr:"v1",start:5,end:8,srcIn:1}],[{id:"1",tr:"v1",start:5.001,end:8.001,srcIn:1}]),
+  T.diff([{id:"1",tr:"v1",start:5,end:8,srcIn:1}],[{id:"1",tr:"v1",start:5,end:8,srcIn:1.001}])];
+out.df_pur=[JSON.stringify(DA)===_da0,JSON.stringify(DB)===_db0,DA.length,DB.length];
+out.df_temps=[T.diffTemps(0),T.diffTemps(65),T.diffTemps(5.3),T.diffTemps(59.96),T.diffTemps("x"),T.diffTemps(-2)];
+/* rendu par un jsx factice {t,p} : racine svm-pop dzm-diff, titre, résumé, cinq rubriques (data-rub, tête, lignes), « Fermer » titré ; le clic ferme */
+out.df_vue=(function(){var r0=r,log=[];try{r={jsx:function(t,p){return {t:t,p:p}},jsxs:function(t,p){return {t:t,p:p}}};
+  var m=T.DiffView({diff:out.df,nomA:"a",nomB:"b",onClose:function(){log.push("close")}});
+  var ch=m.p.children,rubs=ch.slice(2,7),btn=ch[7].p.children;btn.p.onClick();
+  return [m.t,m.p.className,ch[0].p.children,ch[1].p.children,
+    rubs.map(function(w){return [w.t,w.p["data-rub"],w.p.children[0].p.children,w.p.children[1].p.children.map(function(li){return li.p.children})]}),
+    [btn.t,btn.p.className,btn.p.title,btn.p.children],log,typeof m.p.onClick]}catch(e){return "autre:"+e}finally{r=r0}})();
+/* noms et pluriels : deux ajoutés portent leur libellé, les rubriques vides montrent « — » ; sans props, rien ne lève */
+out.df_vue_noms=(function(){var r0=r;try{r={jsx:function(t,p){return {t:t,p:p}},jsxs:function(t,p){return {t:t,p:p}}};
+  var m=T.DiffView({diff:T.diff([],[{id:"1",tr:"v1",start:0,end:5,label:"Un"},{id:"2",tr:"v1",start:5,end:6}]),nomA:"",nomB:""}),ch=m.p.children;
+  var m0=T.DiffView(),ch0=m0.p.children;
+  return [ch[1].p.children,ch[2].p.children[1].p.children.map(function(li){return li.p.children}),ch[3].p.children[1].p.children.map(function(li){return li.p.children}),
+    ch[0].p.children,m0.p.className,ch0[1].p.children,ch0.length]}catch(e){return "autre:"+e}finally{r=r0}})();
+/* ── [29] L7 D-3b (24/09/2026) : les deux secondes de source A/B d'une jonction — dzmAbSecs pur ── */
+var AG={id:"g",tr:"v1",start:0,end:3,srcIn:2,src:{job_id:"j1"}},AD={id:"d",tr:"v1",start:3,end:5,srcIn:1,src:{job_id:"j2"}};
+var _ag0=JSON.stringify(AG),_ad0=JSON.stringify(AD);
+out.ab=T.abSecs(AG,AD);
+/* la vitesse du plan GAUCHE étire sa fenêtre de source (2 + 3×2 − 1/30) ; une vitesse illisible ou nulle vaut 1 ; celle du plan droit ne compte pas */
+out.ab_vitesse=[T.abSecs(Object.assign({},AG,{speed:2}),AD),T.abSecs(Object.assign({},AG,{speed:"zz"}),AD),T.abSecs(Object.assign({},AG,{speed:0}),AD),
+  T.abSecs(AG,Object.assign({},AD,{speed:2}))];
+/* sans srcIn : A = durée − 1/30, B = 0 ; un srcIn en chaîne est lu */
+out.ab_sans_srcin=[T.abSecs({id:"g",tr:"v1",start:0,end:3,src:{job_id:"j1"}},{id:"d",tr:"v1",start:3,end:5,src:{job_id:"j2"}}),
+  T.abSecs(Object.assign({},AG,{srcIn:"2"}),Object.assign({},AD,{srcIn:"1"}))];
+/* refus (null) : un des deux absent, image ou audio à gauche ou à droite, sans source, pistes différentes, pas en contact, plan gauche sans durée */
+out.ab_refus=[T.abSecs(null,AD),T.abSecs(AG,void 0),T.abSecs(Object.assign({},AG,{src:{image:"x.png"}}),AD),T.abSecs(AG,Object.assign({},AD,{src:{audio:"y.mp3"}})),
+  T.abSecs(Object.assign({},AG,{src:null}),AD),T.abSecs(AG,Object.assign({},AD,{tr:"v2"})),T.abSecs(AG,Object.assign({},AD,{start:3.5,end:5})),
+  T.abSecs(Object.assign({},AG,{end:0}),AD),T.abSecs("g","d")];
+/* contact à la tolérance du roll (0,1 s) : 3.1 passe, 3.11 refuse (témoin) ; un plan droit AVANT le gauche n'est pas une jonction */
+out.ab_contact=[T.abSecs(AG,Object.assign({},AD,{start:3.1})),T.abSecs(AG,Object.assign({},AD,{start:3.11})),T.abSecs(AD,AG)];
+/* bornes : A ne descend pas sous 0 (plan de 0,02 s), B non plus (srcIn négatif) ; les deux sont arrondies à l'image (1/30) puis au millième */
+out.ab_zero=[T.abSecs({id:"g",tr:"v1",start:0,end:.02,srcIn:0,src:{job_id:"j"}},{id:"d",tr:"v1",start:.02,end:2,srcIn:-1,src:{job_id:"j"}}),
+  T.abSecs(Object.assign({},AG,{srcIn:2.0104}),Object.assign({},AD,{srcIn:1.0499}))];
+out.ab_pur=[JSON.stringify(AG)===_ag0,JSON.stringify(AD)===_ad0];
+/* revue 24/09 : ce que le roll a fait — total (k = n), partiel (k < n, dit), nul (refus), signé, entrées molles, 0,5 ms = rien */
+out.abd=[T.abRollDit(3,3+10/30,10),T.abRollDit(3,3+4/30,10),T.abRollDit(3,3,10),T.abRollDit(3,3-1/30,-1),T.abRollDit(3,3-1/30,-10),
+  T.abRollDit("x",null,3),T.abRollDit(3,3.0005,1),T.abRollDit(3.001,3.334,10)];
+/* ── [30] L7 D-19 (24/09/2026) : coins arrondis et ombre d'un overlay — dzmOvExtra pur ── */
+var OVX={id:"o",tr:"v2",radius:40,shadow:1,x:.5},_ovx0=JSON.stringify(OVX);
+out.ox=T.ovExtra(OVX);
+/* bornes : 999 → 200, −1 → 0, 12.6 → 13 (entier), "abc" → 0, chaîne "40" lue, absent → 0 */
+out.ox_rayon=[T.ovExtra({radius:999}).radius,T.ovExtra({radius:-1}).radius,T.ovExtra({radius:12.6}).radius,
+  T.ovExtra({radius:"abc"}).radius,T.ovExtra({radius:"40"}).radius,T.ovExtra({}).radius];
+/* ombre : true / "1" / 2 / .5 → 1 ; 0 / null / .49 / "x" / absent → 0 (la règle du backend : numérique ≥ 0,5) */
+out.ox_ombre=[T.ovExtra({shadow:!0}).shadow,T.ovExtra({shadow:"1"}).shadow,T.ovExtra({shadow:2}).shadow,T.ovExtra({shadow:.5}).shadow,
+  T.ovExtra({shadow:0}).shadow,T.ovExtra({shadow:null}).shadow,T.ovExtra({shadow:.49}).shadow,T.ovExtra({shadow:"x"}).shadow,T.ovExtra({}).shadow];
+/* entrées molles : null, chaîne, nombre → {0,0} ; toujours les deux clés et rien d'autre */
+out.ox_mou=[T.ovExtra(null),T.ovExtra("a"),T.ovExtra(7),Object.keys(T.ovExtra(OVX))];
+out.ox_pur=JSON.stringify(OVX)===_ovx0;
+/* ── [31] L7 D-22 (24/09/2026) : pistes de sous-titres par langue, une seule gravée — subsTracks/subsNew/subsBurn/subsBurnId/subsCopy purs ── */
+var TRS=[{id:"v1",kind:"video"},{id:"s1",kind:"subs"},{id:"a1",kind:"audio"}],_trs0=JSON.stringify(TRS);
+var CLS=[{id:"v1u1",tr:"v1",start:0,end:5},{id:"s1c1",tr:"s1",start:0,end:1,text:"Salut",label:"Salut"},
+  {id:"s1c2",tr:"s1",start:1,end:2.5,text:"Bonjour à tous",label:"Bonjour à tous",hidden:!0,words:[{t:1}]}],_cls0=JSON.stringify(CLS);
+out.sst=T.subsTracks(TRS);
+/* genre déduit de l'initiale sans kind, kind explicite gagne (x1 subs, s1 vidéo exclue) ; entrées molles */
+out.sst_bornes=[T.subsTracks([{id:"s9"},{id:"x1",kind:"subs"},{id:"v1"}]),T.subsTracks(null),T.subsTracks([null,{},{id:"s1",kind:"video"}])];
+out.sn=T.subsNew(TRS,"en");
+out.sn2=T.subsNew(out.sn.tracks,"de").id;
+/* la piste neuve suit la DERNIÈRE piste subs ; sans subs → s1 en fin ; trou d'identifiant : max+1 (s5 → s6) ;
+   langue blanche → ni lang ni suffixe ; liste molle → s1 seule */
+out.sn_place=[T.subsNew([{id:"v1"},{id:"s1"},{id:"a1"}],"en").tracks.map(function(t){return t.id}),T.subsNew([{id:"v1"}],"en").id,
+  T.subsNew([{id:"v1"},{id:"s5",kind:"subs"}],"en").id,T.subsNew(TRS," ").tracks[2],T.subsNew(null,"en").tracks.map(function(t){return t.id})];
+out.sb=T.subsBurn(out.sn.tracks,"s2");
+/* s1 par défaut : id absent, inconnu, ou d'une piste qui n'est pas de sous-titres */
+out.sb_defaut=[T.subsBurn(TRS,null),T.subsBurn(out.sn.tracks,"zz"),T.subsBurn(out.sn.tracks,"v1")].map(function(ts){return ts.map(function(t){return t.id+":"+(t.burn===void 0?"-":t.burn)})});
+/* tableau NEUF, pistes hors subs = les MÊMES objets, pistes subs = objets neufs ; la bascule retour ne laisse qu'une gravée */
+out.sb_neuf=(function(){var r2=T.subsBurn(out.sn.tracks,"s2");return [r2!==out.sn.tracks,r2[0]===out.sn.tracks[0],r2[1]!==out.sn.tracks[1],r2[3]===out.sn.tracks[3]]})();
+out.sb_bascule=T.subsBurn(out.sb,"s1").map(function(t){return t.id+":"+(t.burn===void 0?"-":t.burn)});
+/* la piste qui part au rendu : la marquée, sinon s1 (même sans marque, même sans aucune piste subs, même liste molle), sinon la première subs */
+out.bid=[T.subsBurnId(out.sb),T.subsBurnId(TRS),T.subsBurnId(out.sn.tracks),T.subsBurnId([{id:"v1"}]),T.subsBurnId(null),
+  T.subsBurnId([{id:"v1"},{id:"s3",kind:"subs"}]),T.subsBurnId([{id:"s1",burn:!0},{id:"s2",burn:!0}])];
+out.sc=T.subsCopy(CLS,"s1","s2",[{start:0,end:1,text:"Hi"},{start:1,end:2.5,text:"Hello everyone",hidden:!0}]);
+/* sans segments : copie des clips de s1 (hidden et words gardés, label gardé), ids s2c1/s2c2 ; les autres clips sont les MÊMES objets */
+out.sc_clips=T.subsCopy(CLS,"s1","s2");
+out.sc_memes=[out.sc[0]===CLS[0],out.sc[1]===CLS[1],out.sc[2]===CLS[2],out.sc_clips[0]===CLS[0]];
+/* ids uniques contre les clips déjà présents (s2c1 pris → s2c1_2) */
+out.sc_ids=T.subsCopy(CLS.concat([{id:"s2c1",tr:"s2",start:0,end:1,text:"x"}]),"s1","s2",[{start:0,end:1,text:"Hi"}]).map(function(c){return c.id});
+/* bornes : start illisible → ignoré, end ≤ start → start+0,1, null → ignoré, texte absent → "" et label « (vide) », label long tronqué (46) ;
+   clips mous → seulement les neufs ; piste cible vide → rien de neuf ; segments [] → rien de neuf ; deTr absente → rien de neuf */
+out.sc_bornes=[T.subsCopy(CLS,"s1","s2",[{start:"a",end:1,text:"x"},{start:2,end:1.5,text:"y"},null,{start:3,end:4},
+    {start:5,end:6,text:"aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeee"}]).slice(3),
+  T.subsCopy(null,"s1","s2",[{start:0,end:1,text:"z"}]),T.subsCopy(CLS,"s1","",[{start:0,end:1,text:"z"}]).length,
+  T.subsCopy(CLS,"s1","s2",[]).length,T.subsCopy(CLS,"s7","s2").length];
+out.sc_pur=[JSON.stringify(TRS)===_trs0,JSON.stringify(CLS)===_cls0,JSON.stringify(out.sn.tracks.slice(0,2).concat([out.sn.tracks[3]]))===_trs0];
+/* retrait : s2 se retire, s1 jamais (même liste rendue) ; le payload porte lang, burn et le nom d'une piste de langue, pas burn:false */
+out.rm=T.remove(out.sn.tracks,"s2").map(function(t){return t.id});
+out.rm_s1=T.remove(TRS,"s1")===TRS;
+out.tp=T.payload({tracks:out.sb});
 console.log(JSON.stringify(out));
 """
 # E-9 : svmRuler / svmPad2 sont des fonctions DU BUNDLE (meme portee module que
@@ -1108,7 +1319,29 @@ try:
                  "tete","tete_bornes","trou","trou_bornes","rip","rip_bornes","rip_autre",
                  # L4 (tache 4) : les QUINZE cles de la section [24].
                  "lp","opts","opts_bornes","opts_pur","pl","pl_absent","pl_bornes","pl_pur","st",
-                 "dr_pure","dr_leve","dr_rendu","dr_vide","dr_absent","del_st"]
+                 "dr_pure","dr_leve","dr_rendu","dr_vide","dr_absent","del_st",
+                 # L7 D-10 (tache 1) : les QUATORZE cles de la section [25].
+                 "kp_resolve","kp_inconnu","kp_pur","kx","kx_bornes","ki_ok","ki_combo","ki_casse","ki_v2","ki_vide","ki_aller_retour",
+                 "ki_vol","ki_vol_preset","ki_vol_echange",
+                 # L7 D-6 (tache 2) : les VINGT-ET-UNE cles de la section [26].
+                 "cc","cc_pur","cc_bornes","cp_meme_piste","cp_inserer_fend","cp_ecraser","cp_piste_absente","cp_kind_prime",
+                 "cp_genre_absent","cp_vide","cp_v0","cp_verrou","cp_mou","cp_sans_pistes","cp_head","cp_len0","cp_id_pris",
+                 "cp_remplir","cp_remplir_srcdur","cp_pur","cp_menu",
+                 # revue 24/09 : I-2, M-2, M-1
+                 "cp_sans_source","cp_homonyme","cp_start","cp_start_refus",
+                 # L7 D-8 (tache 3) : les SEIZE cles de la section [27].
+                 "bo","bo_defaut","bo_def","bo_def_pur","bo_loin","bo_vide","bo_long_et_jump","bo_egal","bo_seuil",
+                 "bo_contact","bo_sources","bo_v2","bo_vitesse","bo_desordre","bo_pur","bo_opts",
+                 # L7 D-39 (tache 4) : les DOUZE cles de la section [28].
+                 "df","df_id","df_vide","df_slip","df_piste","df_rogne_et_bouge","df_noms","df_cles","df_pur","df_temps",
+                 "df_vue","df_vue_noms","df_tolerance",
+                 # L7 D-3b (tache 4-bis) : les SEPT cles de la section [29].
+                 "ab","ab_vitesse","ab_sans_srcin","ab_refus","ab_contact","ab_zero","ab_pur","abd",
+                 # L7 D-19 (tache 5, client) : les CINQ cles de la section [30].
+                 "ox","ox_rayon","ox_ombre","ox_mou","ox_pur",
+                 # L7 D-22 (tache 6) : les DIX-NEUF cles de la section [31].
+                 "sst","sst_bornes","sn","sn2","sn_place","sb","sb_defaut","sb_neuf","sb_bascule","bid",
+                 "sc","sc_clips","sc_memes","sc_ids","sc_bornes","sc_pur","rm","rm_s1","tp"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -2273,6 +2506,419 @@ check("l4_coeur_pur_x4_composant_sans_hook_ni_fetch_rangeFrom_reutilise_listes_u
 check("l4_exports_loudPastille_deliverOpts_deliverPayload_delStatut_DeliverRow_dans_DzTracks",
       len(_DT) > 1000 and _DT.count("loudPastille:dzmLoudPastille,deliverOpts:dzmDeliverOpts,deliverPayload:dzmDeliverPayload,delStatut:dzmDelStatut,DeliverRow:DzmDeliverRow,") == 1,
       len(_DT))
+
+print("\n[25] L7 D-10 : preset clavier Resolve, export / import du mappage (tache 1, 24/09/2026)")
+# ── L7 D-10 (24/09/2026, tache 1). Le preset est un dictionnaire d'OVERRIDES applique par
+# setKmOv (meme chemin que le panneau). MESURES sur le bundle (.bak_montage) qui CONTREDISENT
+# le plan : « Ctrl+T » ET « Ctrl+Maj+T » sont dans SVM_COMBO_RESERVED (B:1641) -> l'action
+# neuve trans_add a pour defaut « Alt+T » (libre, non reservee) et n'a rien a faire dans le
+# preset ; « Backspace » n'est pas canonisable (SVM_COMBO_WORDS) et la touche est DEJA
+# « Suppr » (SVM_EV_NAMES) -> delete retire du preset ; « O » est le defaut de toolbar, et
+# svmKmMerge ignore un override qui vole la touche d'une action non remappee -> le preset
+# deplace toolbar sur « Alt+O » (libre). JKL et I sont deja les defauts. TROIS cles, exactes.
+check("kp_resolve_exactement_range_out_O_toolbar_Alt_O_blade_Ctrl_B",
+      D.get("kp_resolve") == {"range_out": "O", "toolbar": "Alt+O", "blade": "Ctrl+B"}, D.get("kp_resolve"))
+check("kp_inconnu_avid_null_vide_et_constructor_rendent_null", D.get("kp_inconnu") == [None, None, None, None], D.get("kp_inconnu"))
+check("kp_rend_une_copie_neuve_a_chaque_appel", D.get("kp_pur") == "Ctrl+B", D.get("kp_pur"))
+_kx = D.get("kx")
+try: _kxj = json.loads(_kx) if isinstance(_kx, str) else None
+except Exception as _e: _kxj = temoin(_e)
+check("kx_chaine_json_version_1_keymap_copie", isinstance(_kx, str) and _kxj == {"version": 1, "keymap": {"blade": "Ctrl+B"}}, (_kx, _kxj))
+_kxb = D.get("kx_bornes")
+try: _kxbj = [json.loads(v) for v in _kxb] if isinstance(_kxb, list) and all(isinstance(v, str) for v in _kxb) else None
+except Exception as _e: _kxbj = temoin(_e)
+check("kx_bornes_null_undefined_chaine_tableau_donnent_un_keymap_objet_vide",
+      _kxbj == [{"version": 1, "keymap": {}}] * 4, (_kxb, _kxbj))
+# l'ordre des ignores suit l'ordre du fichier ; redo == defaut -> ni garde ni ignore
+check("ki_ok_garde_blade_ignore_zzz_inconnu_et_undo_reservee_dans_l_ordre_du_fichier_defaut_tu",
+      D.get("ki_ok") == {"ok": True, "keymap": {"blade": "Ctrl+B"}, "ignores": [{"id": "zzz", "raison": "inconnu"}, {"id": "undo", "raison": "reservee"}]},
+      D.get("ki_ok"))
+check("ki_combo_non_canonisable_et_valeur_non_chaine_ignorees_raison_combo",
+      D.get("ki_combo") == {"ok": True, "keymap": {}, "ignores": [{"id": "blade", "raison": "combo"}, {"id": "undo", "raison": "combo"}]}, D.get("ki_combo"))
+check("ki_casse_json_illisible", D.get("ki_casse") == {"ok": False, "raison": "json"}, D.get("ki_casse"))
+check("ki_v2_version_2_absente_keymap_absent_tableau_null_chaine_refus_version",
+      D.get("ki_v2") == [{"ok": False, "raison": "version"}] * 6, D.get("ki_v2"))
+check("ki_actions_null_keymap_vide_ok_sans_rien", D.get("ki_vide") == {"ok": True, "keymap": {}, "ignores": []}, D.get("ki_vide"))
+check("ki_aller_retour_export_puis_import_rend_le_meme_mappage",
+      D.get("ki_aller_retour") == {"ok": True, "keymap": {"blade": "Ctrl+B"}, "ignores": []}, D.get("ki_aller_retour"))
+# revue I1 : les collisions sont DITES, jugees comme svmKmMerge (defauts des actions sans override, puis overrides en
+# ordre de table) -- range_out:"O" vole toolbar (non remappee) ; redo perd Alt+Q contre undo (avant dans la table) ;
+# temoin positif : blade Ctrl+B passe. Le preset (toolbar remappee) passe entier ; l'echange mute/solo passe (M liberee).
+check("ki_vol_vol_du_defaut_et_doublon_dits_collision_avec_l_id_qui_garde_la_touche_temoin_blade_passe",
+      D.get("ki_vol") == {"ok": True, "keymap": {"blade": "Ctrl+B", "undo": "Alt+Q"},
+                          "ignores": [{"id": "redo", "raison": "collision", "avec": "undo"}, {"id": "range_out", "raison": "collision", "avec": "toolbar"}]},
+      D.get("ki_vol"))
+check("ki_vol_le_preset_resolve_passe_sans_collision_toolbar_deplacee",
+      D.get("ki_vol_preset") == {"ok": True, "keymap": {"blade": "Ctrl+B", "range_out": "O", "toolbar": "Alt+O"}, "ignores": []}, D.get("ki_vol_preset"))
+check("ki_vol_l_echange_mute_solo_passe_la_touche_liberee_n_est_pas_une_collision",
+      D.get("ki_vol_echange") == {"ok": True, "keymap": {"mute": "Alt+M", "solo": "M"}, "ignores": []}, D.get("ki_vol_echange"))
+# LE COEUR RESTE PUR (trois fonctions sans r/x/window/localStorage/fetch) ; le preset n'est ecrit qu'UNE fois
+# (DZM_KM_PRESETS) ; kmPreset lit par hasOwnProperty (« constructor » ne rend pas Object.prototype.constructor) ;
+# aucun « Ctrl+T » ni « Backspace » dans la couche (les deux ecarts mesures) ; exports x1 dans DzTracks.
+_L7A = {n: _corps(n) for n in ("dzmKmPreset", "dzmKmExport", "dzmKmImport")}
+check("l7a_coeur_pur_x3_preset_ecrit_une_fois_hasOwnProperty_ni_Ctrl_T_ni_Backspace_dans_la_couche",
+      all(len(c) > 60 and not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|fetch\(", c) for c in _L7A.values())
+      and _SRCb.count('var DZM_KM_PRESETS={resolve:{range_out:"O",toolbar:"Alt+O",blade:"Ctrl+B"}};') == 1
+      and _L7A["dzmKmPreset"].count("hasOwnProperty") == 1 and _L7A["dzmKmImport"].count('raison:"inconnu"') == 1
+      and _L7A["dzmKmImport"].count('raison:"combo"') == 1 and _L7A["dzmKmImport"].count('raison:"reservee"') == 1
+      and _L7A["dzmKmImport"].count('raison:"json"') == 1 and _L7A["dzmKmImport"].count('raison:"version"') == 1
+      and _L7A["dzmKmImport"].count('raison:"collision",avec:used[c]') == 1
+      and _SRCb.count('"Ctrl+T"') == 0 and _SRCb.count("Backspace") == 0 and _SRCb.count("DZM_KM_PRESETS") == 3,
+      ({n: len(c) for n, c in _L7A.items()}, _SRCb.count("DZM_KM_PRESETS")))
+check("l7a_exports_kmPreset_kmExport_kmImport_dans_DzTracks",
+      len(_DT) > 1000 and _DT.count("kmPreset:dzmKmPreset,kmExport:dzmKmExport,kmImport:dzmKmImport,") == 1, len(_DT))
+
+print("\n[26] L7 D-6 : presse-papiers de clips entre projets (tache 2, 24/09/2026)")
+# ── L7 D-6 (24/09/2026, tache 2). UN clip (la selection est simple : selId, B:1707 -- ecart date, pas de
+# multi-copie). clipCopy = copie PROFONDE sans id / transition / transition_s / src_history (srcOut garde :
+# la fenetre de source suit le clip), clipPaste = choix de la piste + id + dzmInsere en mode courant.
+# MESURES qui precisent le plan : (1) les pistes arrivent dans l'ORDRE DE L'ECRAN (DZM_DEFAULT_TRACKS :
+# t1, v3, v2, v1, a1...) -> « la premiere piste du genre » serait V3 pour une video ; la cible est la piste
+# du genre au PLUS PETIT rang (v1, a1) -- ce que le plan attendait (« -> piste v1 ») ; (2) dzmInsere rend
+# refus:"" et note:"" quand tout va bien -> normalises a null ; (3) srcDur n'est lu que par « remplir »
+# (dzmInsereUn) et le presse-papiers ne connait pas la duree de la source (addAsset la tient de /duration,
+# B:4395 srcDurOr / askDur) -> colle sans srcDur, vitesse x1 en « remplir » sauf si l'appelant la passe.
+check("cc_copie_sans_id_transition_transition_s_src_history_avec_srcOut_et_gain_undefined_ignore",
+      D.get("cc") == {"tr": "v1", "label": "x", "start": 2, "end": 5, "srcIn": 1, "srcOut": 4, "src": {"job_id": "j"},
+                      "gain": -3, "effects": [{"n": "a"}]}, D.get("cc"))
+check("cc_copie_profonde_muter_la_copie_ne_touche_pas_l_original", D.get("cc_pur") == ["j", "a", "v1c4", "fade"], D.get("cc_pur"))
+check("cc_bornes_null_undefined_chaine_nombre_tableau_rendent_null", D.get("cc_bornes") == [None] * 5, D.get("cc_bornes"))
+_cpm = D.get("cp_meme_piste") or {}
+check("cp_meme_piste_v1_existe_id_v1u7_100_inserer_clip_de_3_s_a_10_13_srcIn_garde_refus_et_note_null",
+      _cpm.get("id") == "v1u7_100" and _cpm.get("track") == "v1" and _cpm.get("mode") == "inserer"
+      and _cpm.get("refus") is None and _cpm.get("note") is None and _cpm.get("n") == 5
+      and _cpm.get("v1") == [["p1", 0, 4, None], ["p2", 4, 8, None], ["v1u7_100", 10, 13, 1]]
+      and isinstance(_cpm.get("pose"), dict) and _cpm["pose"].get("srcOut") == 4 and "srcDur" not in _cpm["pose"]
+      and "transition" not in _cpm["pose"] and "src_history" not in _cpm["pose"], _cpm)
+check("cp_inserer_a_2_fend_p1_et_decale_le_reste_de_3_s_le_collage_passe_par_dzmInsere",
+      (D.get("cp_inserer_fend") or {}).get("v1") == [["p1", 0, 2, None], ["v1u8_20", 2, 5, 1], ["p1_r", 5, 7, 2], ["p2", 7, 11, None]]
+      and (D.get("cp_inserer_fend") or {}).get("n") == 6, D.get("cp_inserer_fend"))
+check("cp_ecraser_a_2_rogne_p1_et_p2_mode_rendu_ecraser",
+      (D.get("cp_ecraser") or {}).get("v1") == [["p1", 0, 2, None], ["v1u9_20", 2, 5, 1], ["p2", 5, 8, 1]]
+      and (D.get("cp_ecraser") or {}).get("mode") == "ecraser", D.get("cp_ecraser"))
+_cpa = D.get("cp_piste_absente") or {}
+check("cp_piste_absente_v9_va_sur_v1_le_plus_petit_rang_du_genre_pas_v3_la_premiere_de_la_liste",
+      _cpa.get("track") == "v1" and _cpa.get("id") == "v1u7_100" and _cpa.get("refus") is None
+      and _cpa.get("v1") == [["p1", 0, 4, None], ["p2", 4, 8, None], ["v1u7_100", 10, 13, 1]], _cpa)
+_cpk = D.get("cp_kind_prime") or {}
+check("cp_kind_de_la_piste_prime_sur_son_initiale_a1_absente_va_sur_x9_kind_audio",
+      _cpk.get("track") == "x9" and _cpk.get("id") == "x9u7_100" and _cpk.get("refus") is None and _cpk.get("n") == 5
+      and _cpk.get("v1") == [["p1", 0, 4, None], ["p2", 4, 8, None]] and (_cpk.get("pose") or {}).get("tr") == "x9", _cpk)
+_cpg = D.get("cp_genre_absent") or {}
+check("cp_genre_absent_refus_piste_note_dite_rien_pose_track_null",
+      _cpg.get("refus") == "piste" and _cpg.get("note") == "Aucune piste audio pour coller" and _cpg.get("id") is None
+      and _cpg.get("track") is None and _cpg.get("n") == 4 and _cpg.get("pose") is None, _cpg)
+check("cp_vide_null_undefined_sans_clip_clip_null_clip_chaine_payload_chaine_refus_vide_rien_pose",
+      D.get("cp_vide") == [["vide", None, 4, None]] * 6, D.get("cp_vide"))
+check("cp_v0_version_2_absente_ou_chaine_refus_version_rien_pose", D.get("cp_v0") == [["version", None, 4]] * 3, D.get("cp_v0"))
+_cpv = D.get("cp_verrou") or {}
+check("cp_verrou_de_dzmInsere_relaye_tel_quel_note_dite_rien_pose",
+      _cpv.get("refus") == "verrou" and _cpv.get("id") is None and _cpv.get("n") == 4 and _cpv.get("track") == "v1"
+      and _cpv.get("note") == "Piste V1 verrouillée — rien n'a été collé", _cpv)
+_cpo = D.get("cp_mou") or {}
+check("cp_clips_mous_refus_clips_de_dzmInsere_relaye_note_generique",
+      _cpo.get("refus") == "clips" and _cpo.get("id") is None and _cpo.get("n") == 0 and _cpo.get("note") == "Rien n'a été collé", _cpo)
+check("cp_sans_pistes_refus_piste_video", (D.get("cp_sans_pistes") or {}).get("refus") == "piste"
+      and (D.get("cp_sans_pistes") or {}).get("note") == "Aucune piste video pour coller", D.get("cp_sans_pistes"))
+check("cp_head_negatif_ou_illisible_vaut_0_et_la_tete_est_arrondie_au_millieme_id_au_dixieme",
+      D.get("cp_head") == [["v1u1_0", ["v1u1_0", 0, 3, 1]], ["v1u1_0", ["v1u1_0", 0, 3, 1]], ["v1u1_101", ["v1u1_101", 10.123, 13.123, 1]]], D.get("cp_head"))
+check("cp_clip_sans_duree_prend_la_duree_video_par_defaut_6_s",
+      (D.get("cp_len0") or {}).get("id") == "v1u2_100" and ((D.get("cp_len0") or {}).get("pose") or {}).get("end") == 16
+      and ((D.get("cp_len0") or {}).get("pose") or {}).get("start") == 10, D.get("cp_len0"))
+_cpi = D.get("cp_id_pris") or {}
+check("cp_id_deja_pris_renomme_v1u7_100_2_l_ancien_est_decale_par_l_insertion",
+      _cpi.get("id") == "v1u7_100_2" and _cpi.get("v1") == [["p1", 0, 4, None], ["p2", 4, 8, None], ["v1u7_100_2", 10, 13, 1], ["v1u7_100", 23, 24, None]], _cpi)
+_cpr = D.get("cp_remplir") or {}; _cprs = D.get("cp_remplir_srcdur") or {}
+check("cp_remplir_sans_srcDur_vitesse_x1_pose_sur_la_plage_avec_srcDur_6_vitesse_x2_srcOut_garde",
+      _cpr.get("mode") == "remplir" and _cpr.get("refus") is None and _cpr.get("note") is None
+      and _cpr.get("v1") == [["p1", 0, 2, None], ["v1u3_100", 2, 5, 0], ["p2", 5, 8, 1]]
+      and (_cpr.get("pose") or {}).get("speed") == 1 and "srcDur" not in (_cpr.get("pose") or {"srcDur": 1})
+      and (_cprs.get("pose") or {}).get("speed") == 2 and (_cprs.get("pose") or {}).get("srcOut") == 4 and _cprs.get("id") == "v1u3_100",
+      (_cpr, _cprs))
+check("cp_revue_I2_clip_sans_source_refus_source_note_dite_temoins_title_et_adjust_sans_src_passent",
+      D.get("cp_sans_source") == [["source", None, None, 4, "Ce clip n'a pas de source (copié depuis la démo ?) — rien n'a été collé"],
+                                  [None, "t1u1_100", "t1", 5, None], [None, "j1u1_100", "j1", 5, None]], D.get("cp_sans_source"))
+check("cp_revue_M2_piste_homonyme_d_un_autre_genre_ignoree_v2_video_la_prend_sinon_refus_piste",
+      D.get("cp_homonyme") == [[None, "v2", "v2u1_100"], ["piste", None, None]], D.get("cp_homonyme"))
+check("cp_revue_M1_start_est_la_position_reelle_fin_8_ripple_4_remplir_2_inserer_10_null_sur_refus",
+      D.get("cp_start") == [["fin", 8, "v1u1_100"], ["ripple_ecraser", 4, "v1u1_50"], ["remplir", 2, "v1u1_100"], ["inserer", 10, "v1u1_100"]]
+      and D.get("cp_start_refus") == [None, None], (D.get("cp_start"), D.get("cp_start_refus")))
+check("cp_pur_ni_les_clips_ni_le_presse_papiers_ne_sont_mutes", D.get("cp_pur") == [4, "p1,p2,o1,n1", "v1", 2, None], D.get("cp_pur"))
+_cpmenu = dict(D.get("cp_menu") or []) if isinstance(D.get("cp_menu"), list) and all(isinstance(g, list) and len(g) == 2 for g in D.get("cp_menu")) else {}
+check("cp_menu_copy_et_paste_ranges_en_Edition_par_DZM_MENU_RUB_blade_reste_Timeline_temoin",
+      _cpmenu.get("Édition") == "copy,paste" and _cpmenu.get("Timeline") == "blade" and len(_cpmenu) == 2, D.get("cp_menu"))
+# LE COEUR RESTE PUR (trois fonctions sans r/x/window/localStorage/fetch) ; la liste des cles non copiees est ecrite
+# UNE fois ; clipPaste passe par dzmInsere (x1) et dzmUniqueId (x1) -- jamais recopies ; exports x1 dans DzTracks.
+_L7B = {n: _corps(n) for n in ("dzmClipCopy", "dzmClipPisteCible", "dzmClipPaste")}
+check("l7b_coeur_pur_x3_nocopy_ecrit_une_fois_paste_par_dzmInsere_et_dzmUniqueId_x1",
+      all(len(c) > 60 and not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|fetch\(", c) for c in _L7B.values())
+      and _SRCb.count('var DZM_CLIP_NOCOPY=["id","transition","transition_s","src_history"];') == 1 and _SRCb.count("DZM_CLIP_NOCOPY") == 2
+      and _L7B["dzmClipPaste"].count("dzmInsere(") == 1 and _L7B["dzmClipPaste"].count("dzmUniqueId(") == 1
+      and _L7B["dzmClipPaste"].count("dzmClipPisteCible(") == 1 and _L7B["dzmClipPaste"].count("dzmClipCopy(") == 1
+      and _L7B["dzmClipPaste"].count('refus:"vide"') == 1 and _L7B["dzmClipPaste"].count('refus:"version"') == 1 and _L7B["dzmClipPaste"].count('refus:"piste"') == 1
+      and _L7B["dzmClipPaste"].count('refus:"source"') == 1 and _L7B["dzmClipPaste"].count("start:null") == 4 and _L7B["dzmClipPaste"].count("start:pose?Number(pose.start):null") == 1
+      and _L7B["dzmClipPisteCible"].count("dzmKindOf(") == 3 and _SRCb.count('copy:"Édition",paste:"Édition"') == 1,
+      ({n: len(c) for n, c in _L7B.items()}, _SRCb.count("DZM_CLIP_NOCOPY")))
+check("l7b_exports_clipCopy_clipPaste_dans_DzTracks",
+      len(_DT) > 1000 and _DT.count("clipCopy:dzmClipCopy,clipPaste:dzmClipPaste,") == 1, len(_DT))
+
+print("\n[27] L7 D-8 : boring detector, plans trop longs et jump cuts sur V1 (tache 3, 24/09/2026)")
+# ── L7 D-8 (24/09/2026, tache 3). dzmBoring(clips, opts) pur -> {id: "long"|"jump"} sur V1 SEULEMENT :
+# `long` = duree > maxS (strict : 8 s n'est pas long) ; `jump` = deux clips V1 en CONTACT (la tolerance de
+# dzmVoisins, 0,1 s, REUTILISEE : pas de seconde regle de contact), meme source, et la reprise de source
+# a moins de minFrames images : |srcIn_droit - (srcIn_gauche + len_gauche x vitesse)| x fps < minFrames.
+# Le jump PRIME sur le long (un seul attribut par clip, le defaut visible d'abord). MESURES qui precisent le
+# plan : (1) la comparaison se fait EN IMAGES avec un epsilon (2.4 - 2 vaut 0.3999... en flottant : au seuil,
+# pas un jump) ; (2) la vitesse du plan gauche compte (a x2, 5 s consomment 10 s de source) ; (3) une IMAGE
+# n'a pas de position de source : deux images identiques en contact sont un jump quel que soit srcIn ;
+# (4) les options illisibles, nulles ou negatives retombent sur le defaut, et DZM_BORING_DEF n'est jamais
+# mute (copie) ; (5) l'ordre d'arrivee des clips est indifferent, et ils ne sont pas mutes.
+_BO_AB = {"a": "long", "b": "jump"}
+check("bo_a_long_10_s_b_jump_meme_source_reprise_a_0_2_s_c_change_de_source_d_hors_V1",
+      D.get("bo") == _BO_AB and D.get("bo_defaut") == _BO_AB, (D.get("bo"), D.get("bo_defaut")))
+check("bo_def_exporte_maxS_8_minFrames_12_fps_30_et_jamais_mute_par_les_options",
+      D.get("bo_def") == {"maxS": 8, "minFrames": 12, "fps": 30} and D.get("bo_def_pur") == ["long", "jump", "long", 8, None],
+      (D.get("bo_def"), D.get("bo_def_pur")))
+check("bo_loin_3_images_0_1_s_l_ecart_de_0_2_s_n_est_plus_un_jump_a_reste_long", D.get("bo_loin") == {"a": "long"}, D.get("bo_loin"))
+check("bo_vide_tableau_vide_null_undefined_chaine_entrees_mortes_et_clip_sans_id_rendent_un_objet_vide",
+      D.get("bo_vide") == [{}] * 6, D.get("bo_vide"))
+check("bo_long_et_jump_le_jump_prime_sur_le_long", D.get("bo_long_et_jump") == _BO_AB, D.get("bo_long_et_jump"))
+check("bo_egal_8_s_exactement_n_est_pas_long_8_001_l_est", D.get("bo_egal") == {"b": "long"}, D.get("bo_egal"))
+check("bo_seuil_12_images_a_30_i_s_2_4_au_seuil_non_2_3_oui_symetrique_1_7_oui_1_6_non",
+      D.get("bo_seuil") == [{}, {"b": "jump"}, {"b": "jump"}, {}], D.get("bo_seuil"))
+check("bo_contact_tolerance_de_dzmVoisins_2_1_touche_2_5_non_un_chevauchement_n_est_pas_un_contact",
+      D.get("bo_contact") == [{"b": "jump"}, {}, {}], D.get("bo_contact"))
+check("bo_sources_job_vs_image_differents_deux_images_identiques_jump_differentes_non_sans_source_rien_src_vide_rien",
+      D.get("bo_sources") == [None, {"b": "jump"}, {}, {}, {}, {}], D.get("bo_sources"))
+check("bo_v2_les_pistes_autres_que_V1_ne_sont_jamais_jugees_ni_entre_elles_ni_contre_V1", D.get("bo_v2") == [{}, {}], D.get("bo_v2"))
+check("bo_vitesse_x2_consomme_le_double_de_source_reprise_a_10_est_un_jump_x1_non_vitesse_illisible_vaut_1",
+      D.get("bo_vitesse") == [{"b": "jump"}, {}, {"b": "jump"}], D.get("bo_vitesse"))
+check("bo_desordre_l_ordre_d_arrivee_est_indifferent_et_les_clips_ne_sont_pas_mutes",
+      D.get("bo_desordre") == _BO_AB and D.get("bo_pur") == [True, "a,b,c,d"], (D.get("bo_desordre"), D.get("bo_pur")))
+check("bo_opts_illisibles_nulles_negatives_defaut_maxS_20_ne_laisse_que_le_jump_fps_60_resserre_le_seuil",
+      D.get("bo_opts") == [_BO_AB, _BO_AB, _BO_AB, {"b": "jump"}, _BO_AB, _BO_AB, {"a": "long"}, _BO_AB, _BO_AB], D.get("bo_opts"))
+# LE COEUR RESTE PUR : quatre fonctions sans r/x/stockage/fenetre/document/fetch ; le defaut est ecrit UNE fois ;
+# le contact vient de dzmVoisins (x1, jamais recopie) ; "long" x1, "jump" x2 (image, puis seuil) ; exports x1.
+# MESURE contre le plan : `dzmSrcKey` EXISTAIT (couche :2886, la cle JSON canonique de `src`, exportee `srcKey`,
+# le juge du jumeau) -- pas de seconde definition (node --check refusait le doublon) : dzmBoringKey l'appelle x1.
+_L7C = {n: _corps(n) for n in ("dzmBoringOpts", "dzmBoringKey", "dzmBoring")}
+check("l7c_coeur_pur_x3_defaut_ecrit_une_fois_contact_par_dzmVoisins_x1_source_par_dzmSrcKey_x1_long_x1_jump_x2_seuil_en_images_avec_epsilon",
+      all(len(c) > 60 and not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|fetch\(", c) for c in _L7C.values())
+      # x5 : la definition, deux lectures dans dzmBoringOpts (copie, puis les cles), l'export, le commentaire du bloc
+      and _SRCb.count("var DZM_BORING_DEF={maxS:8,minFrames:12,fps:30};") == 1 and _SRCb.count("DZM_BORING_DEF") == 5
+      and _SRCb.count("function dzmSrcKey(") == 1 and _SRCb.count("srcKey:dzmSrcKey,") == 1
+      and _L7C["dzmBoring"].count("dzmVoisins(") == 1 and _L7C["dzmBoring"].count("dzmBoringKey(") == 2 and _L7C["dzmBoring"].count("dzmBoringOpts(") == 1
+      and _L7C["dzmBoring"].count('"long"') == 1 and _L7C["dzmBoring"].count('"jump"') == 2 and _L7C["dzmBoring"].count('c.tr==="v1"') == 1
+      and _L7C["dzmBoring"].count(">o.maxS)") == 1 and _L7C["dzmBoring"].count("*o.fps<o.minFrames-1e-6)") == 1
+      and _L7C["dzmBoring"].count("c.src.image&&!c.src.job_id") == 1
+      and _L7C["dzmBoringOpts"].count("isFinite(v)&&v>0") == 1 and _L7C["dzmBoringKey"].count("dzmSrcKey(") == 1 and _L7C["dzmBoringKey"].count("Object.keys(") == 1,
+      ({n: len(c) for n, c in _L7C.items()}, _SRCb.count("DZM_BORING_DEF")))
+check("l7c_exports_boring_boringDef_dans_DzTracks",
+      len(_DT) > 1000 and _DT.count("boring:dzmBoring,boringDef:DZM_BORING_DEF,") == 1, len(_DT))
+
+print("\n[28] L7 D-39 : comparaison de deux projets (tache 4, 24/09/2026)")
+# ── L7 D-39 (24/09/2026, tache 4). dzmDiff(a, b) pur sur deux tableaux de clips -> {added, removed, moved, trimmed,
+# changed, noms} ; identite = `id` (les ids sont des chaines). `moved` = meme duree ET meme srcIn, start different ;
+# `trimmed` = duree OU srcIn differents (un slip est un rognage de la fenetre de source : `src:[inA,inB]` s'ajoute
+# quand srcIn a bouge — MESURE contre le plan, dont la lettre laissait le slip sans rubrique) ; `changed` = cles de
+# DZM_DIFF_CLES differentes par JSON.stringify (absent, null et undefined se valent ; 0 n'est pas absent), un clip
+# peut etre rogne ET modifie, un clip deplace d'une piste est deplace ET modifie (tr), moved exclut trimmed.
+# `noms` = {id: label} (B prime, sinon A, jamais d'entree sans libelle) : la vue n'a pas les clips sous la main —
+# ECART mesure : le plan ne prevoyait que cinq rubriques, la sixieme cle porte les libelles.
+_DF_VIDE = {"added": [], "removed": [], "moved": [], "trimmed": [], "changed": [], "noms": {}}
+check("df_ajoute_4_supprime_3_deplace_1_rogne_2_modifie_2_gain_un_clip_rogne_et_modifie",
+      D.get("df") == {"added": ["4"], "removed": ["3"], "moved": [{"id": "1", "de": 0, "en": 2}],
+                      "trimmed": [{"id": "2", "de": [5, 8], "en": [5, 9]}], "changed": [{"id": "2", "cles": ["gain"]}], "noms": {}},
+      D.get("df"))
+check("df_id_un_projet_contre_lui_meme_rend_les_six_cles_vides", D.get("df_id") == _DF_VIDE, D.get("df_id"))
+check("df_vide_tableaux_vides_null_chaines_entrees_mortes_et_clip_sans_id_ignores",
+      D.get("df_vide") == [_DF_VIDE, _DF_VIDE, _DF_VIDE, dict(_DF_VIDE, added=["z"])], D.get("df_vide"))
+check("df_slip_srcIn_seul_est_un_rognage_de_source_pas_un_deplacement",
+      D.get("df_slip") == dict(_DF_VIDE, trimmed=[{"id": "1", "de": [0, 5], "en": [0, 5], "src": [0, 2]}]), D.get("df_slip"))
+check("df_piste_meme_duree_autre_piste_et_autre_start_deplace_et_modifie_tr",
+      D.get("df_piste") == dict(_DF_VIDE, moved=[{"id": "1", "de": 0, "en": 3}], changed=[{"id": "1", "cles": ["tr"]}]), D.get("df_piste"))
+check("df_rogne_et_bouge_tete_coupee_duree_et_srcIn_changes_rogne_seulement_jamais_deplace",
+      D.get("df_rogne_et_bouge") == dict(_DF_VIDE, trimmed=[{"id": "1", "de": [0, 5], "en": [3, 5], "src": [0, 3]}]), D.get("df_rogne_et_bouge"))
+check("df_noms_B_prime_sinon_A_jamais_d_entree_sans_libelle_supprimes_dans_l_ordre_de_A",
+      # `label` est dans DZM_DIFF_CLES : Ancien -> Neuf est aussi un `changed`
+      D.get("df_noms") == dict(_DF_VIDE, added=["3"], removed=["2", "5"], changed=[{"id": "1", "cles": ["label"]}],
+                               noms={"1": "Neuf", "3": "Tiers", "5": "Parti"}), D.get("df_noms"))
+check("df_cles_absent_null_undefined_se_valent_0_compte_effects_en_profondeur_kind_hors_liste_ordre_de_la_liste",
+      D.get("df_cles") == [[], [{"id": "1", "cles": ["gain"]}], [{"id": "1", "cles": ["effects"]}], [],
+                           [{"id": "1", "cles": ["opacity", "text", "transition", "transition_s"]}]], D.get("df_cles"))
+check("df_tolerance_1e_9_n_est_ni_deplace_ni_rogne_1_ms_deplace_1_ms_de_srcIn_rogne_temoin",
+      D.get("df_tolerance") == [_DF_VIDE, dict(_DF_VIDE, moved=[{"id": "1", "de": 5, "en": 5.001}]),
+                                dict(_DF_VIDE, trimmed=[{"id": "1", "de": [5, 8], "en": [5, 8], "src": [1, 1.001]}])], D.get("df_tolerance"))
+check("df_pur_les_deux_tableaux_ne_sont_pas_mutes", D.get("df_pur") == [True, True, 3, 3], D.get("df_pur"))
+check("df_temps_m_ss_du_bundle_dixieme_a_la_virgule_arrondi_qui_porte_illisible_et_negatif_a_zero",
+      D.get("df_temps") == ["0:00", "1:05", "0:05,3", "1:00", "0:00", "0:00"], D.get("df_temps"))
+check("df_vue_racine_svm_pop_dzm_diff_titre_resume_cinq_rubriques_lignes_temps_Fermer_titre_clic_ferme_clic_racine_arrete",
+      D.get("df_vue") == ["div", "svm-pop dzm-diff", "Comparer : « a » → « b »", "1 ajouté · 1 supprimé · 1 déplacé · 1 rogné · 1 modifié",
+                          [["div", "added", "Ajoutés (1)", ["4"]], ["div", "removed", "Supprimés (1)", ["3"]],
+                           ["div", "moved", "Déplacés (1)", ["1 : 0:00 → 0:02"]],
+                           ["div", "trimmed", "Rognés (1)", ["2 : 0:05–0:08 → 0:05–0:09"]],
+                           ["div", "changed", "Modifiés (1)", ["2 : gain"]]],
+                          ["button", "svm-secbtn", "Fermer la comparaison (Échap)", "Fermer"], ["close"], "function"],
+      D.get("df_vue"))
+check("df_vue_noms_pluriel_libelle_ou_id_rubrique_vide_tiret_noms_par_defaut_sans_props_rien_ne_leve",
+      D.get("df_vue_noms") == ["2 ajoutés · 0 supprimé · 0 déplacé · 0 rogné · 0 modifié", ["Un", "2"], ["—"],
+                               "Comparer : « montage courant » → « autre projet »", "svm-pop dzm-diff",
+                               "0 ajouté · 0 supprimé · 0 déplacé · 0 rogné · 0 modifié", 8],
+      D.get("df_vue_noms"))
+# LE COEUR RESTE PUR : la liste des cles ecrite UNE fois ; dzmDiffIndex, dzmDiff et dzmDiffTemps sans r/x/stockage/
+# fenetre/document/fetch ; la vue lit `r` a l'appel (dans son corps, jamais au chargement) ; exports x1.
+_L7D = {n: _corps(n) for n in ("dzmDiffIndex", "dzmDiff", "dzmDiffTemps")}
+_L7DV = _corps("DzmDiffView")
+check("l7d_coeur_pur_x3_cles_ecrites_une_fois_index_par_id_stringify_x2_vue_lit_r_a_l_appel_et_reutilise_svmRuler",
+      all(len(c) > 60 and not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|fetch\(", c) for c in _L7D.values())
+      and _SRCb.count('var DZM_DIFF_CLES=["gain","opacity","x","y","scale","rotate","effects","dz","speed","retime","stab","text",'
+                      '"transition","transition_s","fade_in","fade_out","label","tr"];') == 1
+      # x3 : la definition, le filtre de dzmDiff, le commentaire du bloc
+      and _SRCb.count("DZM_DIFF_CLES") == 3 and _L7D["dzmDiff"].count("dzmDiffIndex(") == 2 and _L7D["dzmDiff"].count("JSON.stringify(") == 1
+      and _L7D["dzmDiff"].count("out.moved.push(") == 1 and _L7D["dzmDiff"].count("out.trimmed.push(") == 1
+      and _L7D["dzmDiffTemps"].count("svmRuler(") == 1 and _SRCb.count("function svmRuler(") == 0
+      and len(_L7DV) > 400 and _L7DV.count("r.jsx") >= 6 and _L7DV.count("x.use") == 0 and _L7DV.count("dzmDiffTemps(") >= 2
+      and _L7DV.count('className:"svm-pop dzm-diff"') == 1 and _L7DV.count("title:") == 1 and _L7DV.count("localStorage") == 0,
+      ({n: len(c) for n, c in _L7D.items()}, len(_L7DV), _SRCb.count("DZM_DIFF_CLES")))
+check("l7d_exports_diff_DiffView_diffTemps_dans_DzTracks",
+      len(_DT) > 1000 and _DT.count("diff:dzmDiff,DiffView:DzmDiffView,diffTemps:dzmDiffTemps,") == 1, len(_DT))
+# la ligne d'un projet : « ⇄ » TOUJOURS rendu (grise sur le courant, comme « ouvrir » : la regle E-12 des boutons
+# conditionnels), appelle props.onDiff(p) x1 ; le bouton n'existe pas dans le .bak (couche seule)
+_L7DP = _SRCb[_SRCb.find("  function row(p){"):_SRCb.find("  var rows=list||[];")]
+check("l7d_projets_bouton_compare_toujours_rendu_disabled_mine_title_onDiff_x1_entre_dupliquer_et_ouvrir",
+      0 < len(_L7DP) < 6000 and _L7DP.count('className:"svm-tbtn dzm-projbtn dzm-projdiff",disabled:mine||off,"aria-disabled":mine||off,') == 1
+      and _L7DP.count("onClick:function(){if(props&&props.onDiff)props.onDiff(p)},children:\"⇄\"},\"df\")") == 1
+      # x2 : la garde et l'appel, sur la meme ligne
+      and _SRCb.count("props.onDiff") == 2 and _SRCb.count("dzm-projdiff") == 1
+      and _L7DP.find('children:"dupliquer"},"dp")') < _L7DP.find("dzm-projdiff") < _L7DP.find('children:oArm?"remplacer ?":"ouvrir"},"op")')
+      and re.search(r'(\?null:|\?|&&)\s*r\.jsxs?\("button",\{className:"svm-tbtn dzm-projbtn dzm-projdiff"', _L7DP) is None,
+      (len(_L7DP), _SRCb.count("props.onDiff"), _SRCb.count("dzm-projdiff")))
+
+print("\n[29] L7 D-3b : les deux secondes de source A/B d'une jonction (tache 4-bis, 24/09/2026)")
+# ── L7 D-3b (24/09/2026, tache 4-bis). dzmAbSecs(g, d) pur -> {a, b} ou null : A = derniere image du plan GAUCHE
+# (srcIn + duree x vitesse − 1/30 : la vitesse etire la fenetre de source, meme mesure que dzmBoring et que le srcIn
+# du roll), B = premiere image du plan DROIT (son srcIn, la vitesse n'y change rien). Les deux plans doivent etre
+# des VIDEOS (src.job_id) sur la meme piste, en contact a la tolerance du roll (0,1 s), le gauche AVANT le droit
+# et d'une duree > 0 ; sinon null (l'hote grise la rangee, il ne la retire pas — E-12). Les secondes sont bornees
+# a 0 et arrondies a l'image (1/30) puis au millieme : la cle « source@seconde » des vignettes ne bouge que
+# lorsque l'image change.
+check("ab_A_derniere_image_du_gauche_srcIn_plus_duree_moins_une_image_B_srcIn_du_droit",
+      D.get("ab") == {"a": 4.967, "b": 1}, D.get("ab"))
+check("ab_vitesse_du_gauche_etire_la_fenetre_x2_illisible_ou_nulle_vaut_1_celle_du_droit_ne_compte_pas",
+      D.get("ab_vitesse") == [{"a": 7.967, "b": 1}, {"a": 4.967, "b": 1}, {"a": 4.967, "b": 1}, {"a": 4.967, "b": 1}], D.get("ab_vitesse"))
+check("ab_sans_srcIn_A_duree_moins_une_image_B_zero_srcIn_en_chaine_lu",
+      D.get("ab_sans_srcin") == [{"a": 2.967, "b": 0}, {"a": 4.967, "b": 1}], D.get("ab_sans_srcin"))
+check("ab_refus_null_x9_absent_image_audio_sans_source_autre_piste_trou_duree_nulle_chaines",
+      isinstance(D.get("ab_refus"), list) and len(D.get("ab_refus")) == 9 and all(v is None for v in D.get("ab_refus")), D.get("ab_refus"))
+check("ab_contact_tolerance_du_roll_3_1_passe_3_11_refuse_temoin_droit_avant_gauche_refuse",
+      D.get("ab_contact") == [{"a": 4.967, "b": 1}, None, None], D.get("ab_contact"))
+check("ab_zero_bornes_a_0_et_arrondi_a_l_image_puis_au_millieme",
+      D.get("ab_zero") == [{"a": 0, "b": 0}, {"a": 4.967, "b": 1.033}], D.get("ab_zero"))
+check("ab_pur_les_deux_clips_ne_sont_pas_mutes", D.get("ab_pur") == [True, True], D.get("ab_pur"))
+# revue 24/09 : dzmAbRollDit(avant, apres, n) -> {k, partiel} -- total (k = n, rien a dire), partiel (dzmRoll a borne : k
+# images seulement, a DIRE apres l'ecriture), nul (refus, rien a ecrire) ; signe ; tolerance 1 ms (un start arrondi au
+# millieme par dzmR3 reste « total » : 3.001 -> 3.334 pour dix images, temoin)
+check("abd_total_partiel_nul_signe_entrees_molles_demi_ms_rien_millieme_arrondi_total",
+      D.get("abd") == [{"k": 10, "partiel": False}, {"k": 4, "partiel": True}, {"k": 0, "partiel": False}, {"k": -1, "partiel": False},
+                       {"k": -1, "partiel": True}, {"k": 0, "partiel": False}, {"k": 0, "partiel": False}, {"k": 10, "partiel": False}], D.get("abd"))
+_L7G = _corps("dzmAbSecs"); _L7GD = _corps("dzmAbRollDit")
+check("l7g_coeur_pur_x2_reutilise_dzmSpeedNum_et_dzmR3_constante_DZM_AB_IMG_x4_exports_abSecs_abRollDit_x1",
+      len(_L7G) > 120 and len(_L7GD) > 80
+      and all(not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|fetch\(", c) for c in (_L7G, _L7GD))
+      and _L7G.count("dzmSpeedNum(") == 1 and _L7G.count("dzmR3(") == 2 and _L7G.count("DZM_AB_IMG") == 1 and _L7GD.count("DZM_AB_IMG") == 2
+      # x4 : la definition, abSecs, abRollDit x2 -- 1/30 n'est ecrit qu'UNE fois dans le bloc
+      and _SRCb.count("var DZM_AB_IMG=1/30;") == 1 and _SRCb.count("DZM_AB_IMG") == 4 and _L7GD.count("1e-3") == 2
+      and len(_DT) > 1000 and _DT.count("abSecs:dzmAbSecs,abRollDit:dzmAbRollDit,") == 1,
+      (len(_L7G), len(_L7GD), _SRCb.count("DZM_AB_IMG"), _DT.count("abSecs:dzmAbSecs,")))
+
+print("\n[30] L7 D-19 : coins arrondis et ombre d'un overlay — dzmOvExtra pur (tache 5, client, 24/09/2026)")
+# ── L7 D-19 (24/09/2026, tache 5, moitie client). dzmOvExtra(c) pur -> {radius, shadow} : le rayon des coins en px
+# du canvas (entier 0..200, arrondi) et l'ombre portee (0|1 : numerique >= 0,5, la regle meme de _ov_transform cote
+# backend), TOUJOURS les deux cles, defauts 0 ; entree molle -> {0,0}. Une seule mesure pour svmOvTfOf, donc pour
+# l'apercu, l'inspecteur et le payload (L7e2) ; jamais dans les keyframes (D-14 : statiques, date).
+check("ox_rayon_et_ombre_lus_sur_le_clip", D.get("ox") == {"radius": 40, "shadow": 1}, D.get("ox"))
+check("ox_rayon_borne_0_200_entier_chaine_lue_illisible_ou_absent_0",
+      D.get("ox_rayon") == [200, 0, 13, 0, 40, 0], D.get("ox_rayon"))
+check("ox_ombre_vrai_1_2_et_demi_valent_1_zero_nul_049_x_absent_valent_0",
+      D.get("ox_ombre") == [1, 1, 1, 1, 0, 0, 0, 0, 0], D.get("ox_ombre"))
+check("ox_entrees_molles_0_0_x3_et_deux_cles_seulement",
+      D.get("ox_mou") == [{"radius": 0, "shadow": 0}] * 3 + [["radius", "shadow"]], D.get("ox_mou"))
+check("ox_pur_le_clip_n_est_pas_mute", D.get("ox_pur") is True, D.get("ox_pur"))
+_L7E = _corps("dzmOvExtra")
+check("l7e_coeur_pur_constante_DZM_OV_RADIUS_MAX_x2_export_ovExtra_x1",
+      len(_L7E) > 80
+      and not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|fetch\(", _L7E)
+      # x2 : la definition et la borne du corps -- 200 n'est ecrit qu'UNE fois dans le bloc
+      and _L7E.count("DZM_OV_RADIUS_MAX") == 1 and _SRCb.count("var DZM_OV_RADIUS_MAX=200;") == 1
+      and _SRCb.count("DZM_OV_RADIUS_MAX") == 2 and _L7E.count("200") == 0
+      and len(_DT) > 1000 and _DT.count("ovExtra:dzmOvExtra,") == 1 and _SRCb.count("ovExtra:") == 1,
+      (len(_L7E), _SRCb.count("DZM_OV_RADIUS_MAX"), _DT.count("ovExtra:dzmOvExtra,")))
+
+print("\n[31] L7 D-22 : pistes de sous-titres par langue, une seule gravee — subsTracks/subsNew/subsBurn/subsBurnId/subsCopy purs (tache 6, 24/09/2026)")
+# ── L7 D-22 (24/09/2026, tache 6). Perimetre MINIMAL et date (decision n°7) : une piste S2… est une copie (traduite ou
+# vide) de S1 ; l'editeur reste sur S1 ; la piste subs marquee `burn:true` (UNE seule ; s1 sans marque par defaut) est
+# celle que subsPayload() envoie (subsBurnId). Le genre est lu par dzmKindOf (initiale ou kind explicite), jamais par
+# une egalite avec "s1". Toutes les fonctions rendent des tableaux NEUFS et ne mutent rien.
+_S2 = {"id": "s2", "name": "S2 en", "type": "sous-titres", "h": 44, "c": "--c-text", "mix": 11, "kind": "subs", "lang": "en"}
+check("sst_pistes_de_sous_titres_s1_seule", D.get("sst") == ["s1"], D.get("sst"))
+check("sst_bornes_initiale_ou_kind_explicite_s1_declaree_video_exclue_entrees_molles_vides",
+      D.get("sst_bornes") == [["s9", "x1"], [], []], D.get("sst_bornes"))
+check("sn_s2_habillee_par_dzmSkin_nommee_S2_en_avec_lang_id_rendu",
+      isinstance(D.get("sn"), dict) and D["sn"].get("id") == "s2" and isinstance(D["sn"].get("tracks"), list)
+      and len(D["sn"]["tracks"]) == 4 and D["sn"]["tracks"][2] == _S2, D.get("sn"))
+check("sn2_puis_s3", D.get("sn2") == "s3", D.get("sn2"))
+check("sn_place_apres_la_derniere_subs_s1_sans_subs_s6_apres_s5_langue_blanche_sans_lang_liste_molle_s1",
+      D.get("sn_place") == [["v1", "s1", "s2", "a1"], "s1", "s6",
+                            {"id": "s2", "name": "S2", "type": "sous-titres", "h": 44, "c": "--c-text", "mix": 11, "kind": "subs"}, ["s1"]],
+      D.get("sn_place"))
+check("sb_s2_gravee_s1_burn_false_les_autres_sans_cle",
+      isinstance(D.get("sb"), list) and [(t.get("id"), t.get("burn", "-")) for t in D["sb"]] == [("v1", "-"), ("s1", False), ("s2", True), ("a1", "-")],
+      D.get("sb"))
+check("sb_defaut_s1_gravee_pour_id_absent_inconnu_ou_hors_genre",
+      D.get("sb_defaut") == [["v1:-", "s1:true", "a1:-"], ["v1:-", "s1:true", "s2:false", "a1:-"], ["v1:-", "s1:true", "s2:false", "a1:-"]],
+      D.get("sb_defaut"))
+check("sb_neuf_tableau_neuf_pistes_hors_subs_memes_objets_pistes_subs_objets_neufs",
+      D.get("sb_neuf") == [True, True, True, True], D.get("sb_neuf"))
+check("sb_bascule_retour_une_seule_gravee", D.get("sb_bascule") == ["v1:-", "s1:true", "s2:false", "a1:-"], D.get("sb_bascule"))
+check("bid_la_marquee_sinon_s1_meme_sans_marque_sans_subs_ou_liste_molle_sinon_la_premiere_subs_deux_marquees_la_premiere",
+      D.get("bid") == ["s2", "s1", "s1", "s1", "s1", "s3", "s1"], D.get("bid"))
+check("sc_segments_donnes_deux_clips_neufs_s2c1_s2c2_label_egal_texte_hidden_garde",
+      isinstance(D.get("sc"), list) and len(D["sc"]) == 5
+      and D["sc"][3] == {"id": "s2c1", "tr": "s2", "start": 0, "end": 1, "text": "Hi", "label": "Hi"}
+      and D["sc"][4] == {"id": "s2c2", "tr": "s2", "start": 1, "end": 2.5, "text": "Hello everyone", "label": "Hello everyone", "hidden": True},
+      D.get("sc"))
+check("sc_clips_sans_segments_copie_des_clips_de_s1_hidden_words_label_gardes",
+      isinstance(D.get("sc_clips"), list) and len(D["sc_clips"]) == 5
+      and D["sc_clips"][3] == {"id": "s2c1", "tr": "s2", "start": 0, "end": 1, "text": "Salut", "label": "Salut"}
+      and D["sc_clips"][4] == {"id": "s2c2", "tr": "s2", "start": 1, "end": 2.5, "text": "Bonjour à tous", "label": "Bonjour à tous", "hidden": True, "words": [{"t": 1}]},
+      D.get("sc_clips"))
+check("sc_memes_les_autres_clips_sont_les_memes_objets", D.get("sc_memes") == [True] * 4, D.get("sc_memes"))
+check("sc_ids_uniques_contre_les_clips_presents_s2c1_pris_s2c1_2",
+      D.get("sc_ids") == ["v1u1", "s1c1", "s1c2", "s2c1", "s2c1_2"], D.get("sc_ids"))
+check("sc_bornes_start_illisible_ignore_end_borne_null_ignore_texte_absent_vide_label_tronque_clips_mous_cible_vide_segments_vides_deTr_absente",
+      D.get("sc_bornes") == [[{"id": "s2c1", "tr": "s2", "start": 2, "end": 2.1, "text": "y", "label": "y"},
+                             {"id": "s2c2", "tr": "s2", "start": 3, "end": 4, "text": "", "label": "(vide)"},
+                             {"id": "s2c3", "tr": "s2", "start": 5, "end": 6, "text": "aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeee",
+                              "label": "aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeee…"}],
+                            [{"id": "s2c1", "tr": "s2", "start": 0, "end": 1, "text": "z", "label": "z"}], 3, 3, 3],
+      D.get("sc_bornes"))
+check("sc_pur_ni_pistes_ni_clips_mutes_et_les_pistes_d_avant_intactes_dans_le_neuf", D.get("sc_pur") == [True, True, True], D.get("sc_pur"))
+check("rm_s2_se_retire_s1_jamais", D.get("rm") == ["v1", "s1", "a1"] and D.get("rm_s1") is True, (D.get("rm"), D.get("rm_s1")))
+check("tp_payload_porte_lang_burn_et_nom_de_la_piste_de_langue_jamais_burn_false",
+      D.get("tp") == [{"id": "v1", "kind": "video"}, {"id": "s1", "kind": "subs"},
+                      {"id": "s2", "kind": "subs", "lang": "en", "burn": True, "name": "S2 en"}, {"id": "a1", "kind": "audio"}],
+      D.get("tp"))
+_L7F = {n: _corps(n) for n in ("dzmSubsTracks", "dzmSubsNew", "dzmSubsBurn", "dzmSubsBurnId", "dzmSubsCopy")}
+check("l7f_coeur_pur_cinq_fonctions_genre_par_dzmKindOf_x0_egalite_s1_exports_x1_dzmRemove_intact",
+      all(len(c) > 80 and not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|fetch\(", c) for c in _L7F.values())
+      and all("dzmKindOf(" in _L7F[n] for n in ("dzmSubsTracks", "dzmSubsNew", "dzmSubsBurn", "dzmSubsBurnId"))
+      # aucune egalite avec "s1" dans les cinq corps : le repli de subsBurnId est la SEULE mention, en litteral de retour
+      and sum(c.count('"s1"') for c in _L7F.values()) == 1 and _L7F["dzmSubsBurnId"].count('"s1"') == 1
+      and _L7F["dzmSubsCopy"].count("dzmUniqueId(") == 1 and _L7F["dzmSubsNew"].count("dzmSkin(") == 1
+      and len(_DT) > 1000 and _DT.count("subsTracks:dzmSubsTracks,subsNew:dzmSubsNew,subsBurn:dzmSubsBurn,subsBurnId:dzmSubsBurnId,subsCopy:dzmSubsCopy,") == 1
+      and _SRCb.count("subsBurn:") == 1 and _SRCb.count('return (id==="v1"||id==="s1")?ts:ts.filter(function(t){return t.id!==id})}') == 1
+      and _SRCb.count('if(t.kind==="subs"){if(t.lang)o.lang=String(t.lang);if(t.burn)o.burn=!0;if(t.lang&&t.name)o.name=String(t.name)}') == 1,
+      ({n: len(c) for n, c in _L7F.items()}, _DT.count("subsBurn:dzmSubsBurn,"), sum(c.count('"s1"') for c in _L7F.values())))
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

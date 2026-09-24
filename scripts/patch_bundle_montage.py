@@ -688,6 +688,17 @@ R_M14 = ('r.jsx(DzTracks.Projects,{name:proj.name,projectId:proj.project_id,'
          'saveSeqRef.current++;setSaveInfo(null)},\n'
          '          onFail:function(){if(dirty)svmDoSave(++saveSeqRef.current)},\n'
          '          onOpen:function(d){return svmApplyProject(d)},\n'
+         # L7 D-39 (24/09/2026, tache 4) : L7d1 REPLIE ici (l'ancre `r.jsx(DzTracks.Projects,{` du plan est nee
+         # de CE remplacement, x0 dans .bak_montage). « ⇄ » d'une ligne : GET du projet (MESURE : la route rend
+         # le record DIRECT, `d.clips`), diff pur de la couche contre la timeline courante (clipsRef), le nom
+         # courant par dzProjRef, puis le popover `diff` ; un projet illisible (404, panne) est DIT, rien ne change.
+         '          /* L7 D-39 (24/09/2026, tâche 4) : « ⇄ » d\'une ligne — lit l\'autre projet, le compare à la timeline\n'
+         '             courante (le diff pur de la couche) et ouvre le popover « diff » ; rien n\'est modifié */\n'
+         '          onDiff:function(p){fetch("/api/montage/projects/"+encodeURIComponent(p.id))'
+         '.then(function(rp){if(!rp.ok)throw new Error("HTTP "+rp.status);return rp.json()})'
+         '.then(function(d){setDiffSt({diff:DzTracks.diff(clipsRef.current,(d&&d.clips)||[]),'
+         'nomA:(dzProjRef.current&&dzProjRef.current.name)||"",nomB:p.name||""});setPop("diff")})'
+         '.catch(function(){fireNote("Projet illisible — comparaison impossible")})},\n'
          '          onNamed:function(pid,nm){setProj(function(p){'
          'return Object.assign({},p,{project_id:pid,name:nm})})}}),')
 
@@ -2802,7 +2813,17 @@ A_M24H = "onPlanFlag:subsPlanFlag})}"
 R_M24H = ("onPlanFlag:subsPlanFlag,\n"
           "      /* P13 — les pistes du projet, pour que le tiroir et la route\n"
           "         visent la même piste de dialogue. */\n"
-          "      srcTracks:svmTracksOf(proj)})}")
+          "      srcTracks:svmTracksOf(proj),\n"
+          # L7 D-22 (24/09/2026, tache 6) : REPLIE ici (cette queue de props est nee de CE remplacement) --
+          # la traduction « dans une nouvelle piste » : la piste S<n> nait (subsNew ; svmTracksSet = historique
+          # D-0, bus, projet, NON ENREGISTRE), ses repliques sont des clips neufs tr:"s<n>" (subsCopy), S1 intacte.
+          # Revue T6 : les pistes sont lues sur dzProjRef.current (tenu a jour a chaque rendu, .bak:1932, le
+          # meme que dzmHistHost) et non sur le `proj` capture par le rendu qui a monte le tiroir -- une piste
+          # ajoutee PENDANT la requete de traduction est vue.
+          "      /* L7 D-22 (24/09/2026) : la traduction « dans une nouvelle piste » — S<n> naît, ses répliques sont des clips neufs, S1 intacte */\n"
+          '      onNewTrack:function(lang,segs){var r2=DzTracks.subsNew(svmTracksOf(dzProjRef.current),lang);svmTracksSet(r2.tracks);\n'
+          '        setClips(function(cs){return DzTracks.subsCopy(cs,"s1",r2.id,segs)});setDirty(!0);\n'
+          '        fireNote("Piste "+r2.id.toUpperCase()+" ("+lang+") créée avec "+(segs||[]).length+" répliques — S1 intacte ; clic droit sur la tête de "+r2.id.toUpperCase()+" pour la graver au rendu.")}})}')
 # M24i — l'HÔTE envoie `srcIn` : sans lui, la route ne peut retrancher que
 # `start` et un clip ROGNÉ à gauche verrait ses répliques décalées de
 # `srcIn` (mesuré : `subsSrcClips` n'écrivait que id/tr/src/name/start/end).
@@ -3042,6 +3063,12 @@ R_M26A = (
     '    try{var dzV=localStorage.getItem("dz_subs_to");if(dzV)return dzV}catch(_e){}\n'
     "    return DzTracks.subsTrDefaut(lang)}),dzTo=s9[0],setDzTo=s9[1];\n"
     '  var s9b=x.useState({st:"?"}),dzTe=s9b[0],setDzTe=s9b[1];\n'
+    # L7 D-22 (24/09/2026, tache 6) : REPLIE ici (l'etat de traduction est ne de CE remplacement) -- la cible
+    # « dans une nouvelle piste » : cochee, le resultat part a l'hote par props.onNewTrack(cible, repliques)
+    # au lieu de props.onChange (S1 reecrite). Le tiroir n'a ni setClips ni setProj (bloc subs, mesure) :
+    # c'est un rappel par les props, pose par R_M24H. Un useState de plus (544 -> 545).
+    "  /* L7 D-22 (24/09/2026) : traduire DANS UNE NOUVELLE PISTE S<n> — S1 reste intacte (hôte : onNewTrack) */\n"
+    "  var s9c=x.useState(!1),dzNewTr=s9c[0],setDzNewTr=s9c[1];\n"
     "  var dzTrN=segs.length,\n"
     '      dzTrChars=segs.reduce(function(a,sg){return a+String(sg.text||"").length},0);\n'
     "  x.useEffect(function(){\n"
@@ -3078,7 +3105,8 @@ R_M26A = (
     "        var dzNext=DzTracks.subsTrApply(segs,(o.d&&o.d.segments)||[],subsLabelOf);\n"
     '        if(!dzNext){note2("Réponse illisible : le compte des répliques "+\n'
     "          \"ne correspond pas — rien n'a été écrit.\");return}\n"
-    "        if(props.onChange)props.onChange(dzNext,!0);\n"
+    "        if(dzNewTr&&props.onNewTrack)props.onNewTrack(dzTo,dzNext);\n"
+    "        else if(props.onChange)props.onChange(dzNext,!0);\n"
     "        note2(DzTracks.subsTrNote(dzNext.length,dzTo,SUBS_LANGS))},\n"
     "      function(){setTrJob(null);\n"
     '        note2("Traduction indisponible : POST /api/subtitles/translate "+\n'
@@ -3107,6 +3135,12 @@ R_M26B = (
     '          children:SUBS_LANGS.filter(function(o){return o[0]!=="auto"})\n'
     "            .map(function(o){\n"
     '              return r.jsx("option",{value:o[0],children:o[1]},o[0])})},"s")]},"tg"),\n'
+    # L7 D-22 (24/09/2026, tache 6) : la case « nouvelle piste » (title, E-12) apres la cible ; l'infobulle du
+    # bouton dit alors ce qui nait (S<n>) et ce que « Annuler » retire, a la place de subsTrTitle (S1 reecrite).
+    "      /* L7 D-22 (24/09/2026) : traduire dans une nouvelle piste S<n> (S1 intacte) au lieu de réécrire S1 */\n"
+    '      r.jsxs("label",{className:"sub-trlang sub-trnew",title:"Coché : la traduction naît dans une nouvelle piste de sous-titres S2, S3… (S1 reste intacte ; la piste gravée au rendu se choisit par clic droit sur sa tête). Décoché : S1 est réécrite.",children:[\n'
+    '        r.jsx("input",{type:"checkbox",checked:dzNewTr,"aria-label":"Traduire dans une nouvelle piste",onChange:function(e){setDzNewTr(e.target.checked)}},"c"),\n'
+    '        r.jsx("span",{className:"sub-trlangl",children:"nouvelle piste"},"l")]},"nt"),\n'
     "      (function(){\n"
     "        var dzOn=DzTracks.subsTrEnabled(dzTrN,dzTe,!!(trJob&&trJob.busy));\n"
     '        return subsActBtn({fam:"fix",\n'
@@ -3115,7 +3149,7 @@ R_M26B = (
     '          cost:trJob&&trJob.busy?"en cours…":dzTe.ok\n'
     '            ?subsLangLab(dzTo)+" · "+(dzTe.provider||"LLM")+" · "+subsUsd(dzTe.usd)\n'
     '            :(dzTe.st==="vide"?"aucune réplique":"coût indisponible"),\n'
-    "          apres:dzOn.on?DzTracks.subsTrTitle(dzTrN):dzOn.pourquoi,\n"
+    '          apres:dzOn.on?(dzNewTr?"Les "+dzTrN+" répliques traduites naissent dans une nouvelle piste S2, S3… — S1 reste intacte ; « Annuler » retire la piste et ses répliques.":DzTracks.subsTrTitle(dzTrN)):dzOn.pourquoi,\n'
     '          onClick:dzTraduire,k:"trad"})})(),')
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -3291,7 +3325,27 @@ R_R1 = (A_R1 + "\n"
         # deja (la piste nait avec le premier clip, comme t1). COMBO MESUREE
         # LIBRE le 22/09/2026 : `combo:"Maj+J"` vaut 0 dans .bak_montage ;
         # `combo:"J"` y vaut 1 et le dispatch cherche la combo EXACTE d'abord.
-        '\n {id:"adjust_add",sec:"Montage",lbl:"ajustement : poser un clip a la tete",combo:"Maj+J"},')
+        '\n {id:"adjust_add",sec:"Montage",lbl:"ajustement : poser un clip a la tete",combo:"Maj+J"},'
+        # -- « L7a1 » (L7 D-10, 24/09/2026) : LA TRANSITION PAR DEFAUT A LA COUPE
+        # REPLIEE ICI : l'entree adjust_add (l'ancre du plan) est x0 dans
+        # .bak_montage -- c'est CE remplacement qui la pose. COMBO : le plan
+        # disait « Ctrl+T » (Resolve) et « Ctrl+Maj+T » en repli ; MESURE
+        # (B:1641) : les DEUX sont dans SVM_COMBO_RESERVED (nouvel onglet,
+        # onglet rouvert). « Alt+T » est libre (x0 dans .bak_montage) et non
+        # reservee ; « T » reste a la narration, le dispatch cherchant d'abord
+        # la combo EXACTE (meme raisonnement que « Maj+T »).
+        '\n {id:"trans_add",sec:"Montage",lbl:"transition : fondu à la coupe du plan sélectionné",combo:"Alt+T"},'
+        # -- « L7b1 » (L7 D-6, 24/09/2026) : LE PRESSE-PAPIERS DE CLIPS, REPLIE
+        # ICI (meme raison que L7a1 : l'entree adjust_add est x0 dans
+        # .bak_montage). COMBOS MESUREES (B:1641) : « Ctrl+C » et « Ctrl+V » ne
+        # sont PAS dans SVM_COMBO_RESERVED (seule « Ctrl+Maj+C » l'est) et ne
+        # sont le defaut d'aucune action (x0 dans .bak_montage) -- le plan
+        # tient, pas de repli Ctrl+Maj. Le Ctrl+C natif reste aux champs de
+        # saisie : onKey sort avant tout dispatch sur input/textarea/select/
+        # contentEditable (B:3376). Rubrique du menu ☰ : « Édition », par
+        # DZM_MENU_RUB de la couche (copy/paste y sont ranges).
+        '\n {id:"copy",sec:"Montage",lbl:"copier le clip (entre projets)",combo:"Ctrl+C"},'
+        '\n {id:"paste",sec:"Montage",lbl:"coller le clip du presse-papiers à la tête de lecture",combo:"Ctrl+V"},')
 
 # ── R2 (D-11) : la branche de dispatch ─────────────────────────────────────
 # PORTEE MESUREE dans `onKey` (meme corps de composant, closure) : `phRef`,
@@ -3453,7 +3507,49 @@ R_R2 = (A_R2 + "\n"
         # §5.1 du handoff interdit ; `dzMkToggle` est le precedent (K2, K5
         # et K7 l'appellent tous les trois).
         '\n      if(id==="title_add"){dzTtAdd();return}'
-        '\n      if(id==="adjust_add"){dzAjAdd();return}')
+        '\n      if(id==="adjust_add"){dzAjAdd();return}'
+        # -- « L7a2 » (L7 D-10, 24/09/2026) : LE DISPATCH DE trans_add, REPLIE ICI
+        # (l'ancre du plan, la branche adjust_add, est x0 dans .bak_montage).
+        # PORTEE MESUREE : clipsRef / selRef / trackStRef / fireNote sont
+        # ceux des branches voisines (swap_left) ; `svmSetTransType(id,t)`
+        # (B:3931) et `svmTransS(c)` (B:1226) sont des declarations de
+        # fonction hissees, dans DzMontage et au module. Le geste est CELUI
+        # du losange (openTransPop -> svmSetTransType) : un pushHistory, la
+        # duree par svmTransS (0.4 s par defaut, le losange la regle).
+        # REFUS dits : pas de plan V1 selectionne ; V1 verrouillee ; pas de
+        # coupe a GAUCHE (le backend force « cut » sur le premier clip,
+        # montage_service.py:1888 -- une transition y serait muette).
+        '\n      if(id==="trans_add"){var dzTc=(clipsRef.current||[]).filter(function(k){return k&&k.id===selRef.current&&k.tr==="v1"})[0];'
+        'if(!dzTc){fireNote("Transition : sélectionnez d\'abord un plan de V1.");return}'
+        'if(trackStRef.current.v1&&trackStRef.current.v1.l){fireNote("Piste V1 verrouillée.");return}'
+        'if(!DzTracks.voisins(clipsRef.current,dzTc).g){fireNote("Transition : « "+(dzTc.label||dzTc.id)+" » n\'a pas de coupe à sa gauche.");return}'
+        'svmSetTransType(dzTc.id,"fade");fireNote("Fondu de "+svmTransS(dzTc).toFixed(1)+" s posé à la coupe de « "+(dzTc.label||dzTc.id)+" » — le losange en règle la durée.");return}'
+        # -- « L7b2 » (L7 D-6, 24/09/2026) : COPIER / COLLER, REPLIES ICI (meme
+        # raison que L7a2). PORTEE MESUREE, celle d'addAsset (B:4406-4431) :
+        # clipsRef / selRef / trackStRef / fireNote (branches voisines),
+        # phRef (la tete, B:1755), dzTracksRef.current||svmTracksOf(proj)
+        # (les pistes, B:4355), dzModeRef (le mode d'edition, B:1835),
+        # dzProjRef.current.range (la plage), ovSeq (le numero d'ordre,
+        # CONSOMME seulement quand le collage est accepte -- comme addAsset),
+        # locked = le meme objet {tr:!0} bati sur trackStRef. Le stockage est
+        # localStorage["dz_montage_clipboard"] = {v:1,at,clip}, lu et ecrit en
+        # try/catch (navigation privee, quota) ; la version et la piste sont
+        # jugees par DzTracks.clipPaste (pur, bance [26]) ; un collage accepte
+        # fait UN pushHistory AVANT setClips (modele delClipById B:2123), puis
+        # setSelId(id reel) + setDirty. Refus : `id` null -> la note de la
+        # couche, rien d'ecrit, rien dans la pile. La demo est une maquette
+        # (proj.demo, comme sfxInsert B:4497) : on n'y colle pas.
+        '\n      if(id==="copy"){var dzCp=(clipsRef.current||[]).filter(function(k){return k&&k.id===selRef.current})[0];'
+        'if(!dzCp){fireNote("Copier : sélectionnez d\'abord un clip.");return}'
+        'try{localStorage.setItem("dz_montage_clipboard",JSON.stringify({v:1,at:new Date().toISOString(),clip:DzTracks.clipCopy(dzCp)}))}catch(e){fireNote("Presse-papiers indisponible dans ce navigateur (stockage refusé).");return}'
+        'fireNote("« "+(dzCp.label||dzCp.id)+" » copié — "+(svmKeyLabelNow("paste")||"Coller")+" le colle à la tête de lecture, dans ce projet ou dans un autre.");return}'
+        '\n      if(id==="paste"){if(dzProjRef.current&&dzProjRef.current.demo){fireNote("Coller : disponible sur un projet réel — la démo est une maquette.");return}'
+        'var dzPs=null;try{dzPs=JSON.parse(localStorage.getItem("dz_montage_clipboard")||"null")}catch(e){dzPs=null}'
+        'var dzPq=ovSeq.current+1,dzPr=DzTracks.clipPaste(clipsRef.current||[],dzPs,{head:phRef.current,tracks:dzTracksRef.current||svmTracksOf(dzProjRef.current),mode:dzModeRef.current,seq:dzPq,'
+        'range:dzProjRef.current&&dzProjRef.current.range,locked:(function(){var o={},k;for(k in trackStRef.current)if(trackStRef.current[k]&&trackStRef.current[k].l)o[k]=!0;return o})()});'
+        'if(dzPr.id==null){fireNote(dzPr.note||"Rien n\'a été collé.");return}'
+        'ovSeq.current=dzPq;pushHistory();setClips(dzPr.clips);setSelId(dzPr.id);setDirty(!0);'
+        'fireNote("« "+(dzPs.clip.label||dzPr.id)+" » collé sur "+String(dzPr.track).toUpperCase()+" à "+svmShort(Number(dzPr.start)||0)+(dzPr.mode!=="ecraser"?" (mode « "+DzTracks.modeLabel(dzPr.mode)+" »)":"")+(dzPr.note?" — "+dzPr.note:"")+".");return}')
 
 # ── R3 (D-11) : la bande sur la regle, apres la gouttiere ──────────────────
 # `DzmRangeBar` rend `null` tant que la plage n'est pas COMPLETE : la regle
@@ -4375,7 +4471,11 @@ R_AJ2B = ('          setDirty(!0)}})]});\n'
 # ligne de montage.css.
 A_AJ6A = '                    "data-media":media&&tr.id==="v1"?"":void 0,'
 R_AJ6A = (A_AJ6A + '\n'
-          '                    "data-kind":c.kind||void 0,')
+          '                    "data-kind":c.kind||void 0,\n'
+          # L7 D-8 (24/09/2026, tache 3) : L7c1 REPLIE ici (l'ancre `"data-kind"` du plan est nee de CE
+          # remplacement, x0 dans .bak_montage). La carte boMap n'a d'entrees que pour V1 : undefined =
+          # attribut absent ailleurs, comme data-kind ; montage.css dessine le lisere.
+          '                    "data-boring":boMap[c.id]||void 0,')
 A_AJ6B = ('background:isPh?"repeating-linear-gradient(-45deg,transparent 0 5px, '
           'color-mix(in srgb, var("+tr.c+") 26%, transparent) 5px 6px)":')
 R_AJ6B = ('background:isPh||c.kind==="adjust"?"repeating-linear-gradient(-45deg,transparent 0 5px, '
@@ -4632,7 +4732,27 @@ _EB7_ETAT = ('\n'
              'w.removeEventListener("pointercancel",up);\n'
              '      try{if(last!=null)localStorage.setItem("dz_svm_tlh",String(last))}catch(_e){}}\n'
              '    w.addEventListener("pointermove",mv);w.addEventListener("pointerup",up);'
-             'w.addEventListener("pointercancel",up)}')
+             'w.addEventListener("pointercancel",up)}\n'
+             # L7 D-8 (24/09/2026, tache 3) : L7c1 REPLIE ici (l'etat vit avec ses freres E-9 ; `clips`
+             # nait B:1708, AVANT : la memo lit un etat declare). Le defaut vient de la couche (boringDef,
+             # UNE reference), la memoire dz_svm_boring est lue en try/catch ; la carte id -> "long"|"jump"
+             # est memoisee sur [clips,bo] et VIDE quand la detection est eteinte (aucun calcul, aucun attribut).
+             '  /* L7 D-8 (24/09/2026, tâche 3) : le boring detector — réglages {on,maxS,minFrames} (mémoire dz_svm_boring,\n'
+             '     défaut boringDef de la couche, éteint) et la carte id → "long"|"jump" de V1, mémoïsée sur [clips,bo], vide si éteint */\n'
+             '  var stBo=x.useState(function(){var d=Object.assign({on:!1},DzTracks.boringDef);'
+             'try{return Object.assign(d,JSON.parse(localStorage.getItem("dz_svm_boring")||"{}")||{})}catch(_e){return d}}),bo=stBo[0],setBo=stBo[1];\n'
+             '  var boMap=x.useMemo(function(){return bo.on?DzTracks.boring(clips,bo):{}},[clips,bo]);\n'
+             # L7 D-39 (24/09/2026, tache 4) : l'etat du popover « diff » vit avec ses freres (aucune ancre libre
+             # pour lui : `bo` est ne de ce repli). {diff,nomA,nomB} pose par onDiff (R_M14), lu par la garde de
+             # popover() (R_L7C3) ; null tant qu'aucune comparaison n'a ete demandee.
+             '  /* L7 D-39 (24/09/2026, tâche 4) : la dernière comparaison {diff,nomA,nomB} — posée par « ⇄ » (Projets), montrée par pop==="diff" */\n'
+             '  var stDf=x.useState(null),diffSt=stDf[0],setDiffSt=stDf[1];\n'
+             # L7 D-3b (24/09/2026, tache 4-bis) : l'etat des vignettes A/B de la jonction en edition vit avec ses
+             # freres (aucune ancre libre pour lui, meme raison que diffSt). {a,b : dataURL ou null, k : la cle
+             # « source@seconde|source@seconde » qui date les deux images} ; rempli par l'effet de L7g1, lu par la
+             # rangee de L7g2 ; k vide tant qu'aucune jonction video/video n'est en edition.
+             '  /* L7 D-3b (24/09/2026, tâche 4-bis) : les vignettes A/B de la jonction en édition — {a,b : image ou null, k : clé « source@seconde|source@seconde »} */\n'
+             '  var stAb=x.useState({a:null,b:null,k:""}),abSt=stAb[0],setAbSt=stAb[1];')
 
 A_EB6B = '  var stA=x.useState(""),pop=stA[0],setPop=stA[1];'
 R_EB6B = (A_EB6B + '\n'
@@ -4773,6 +4893,11 @@ R_EC1 = (A_EC1 + "\n"
          '        {lbl:"Inspecteur",combo:inspOn?"✓":"",run:function(){setInspSt(function(s){var n={on:!s.on,w:s.w};try{localStorage.setItem("dz_svm_insp",JSON.stringify(n))}catch(_e){}return n})}},\n'
          '        {lbl:"Médias",combo:medOn?"✓":"",run:function(){' + _EB_GARDE + 'setMedTr("");setMedOn(!medOn);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)}},\n'
          '        {lbl:"Durées sur les clips",combo:showDur?"✓":"",run:function(){setShowDur(function(v){var n=!v;try{localStorage.setItem("dz_svm_showdur",n?"1":"0")}catch(_e){}return n})}},\n'
+         # L7 D-8 (24/09/2026, tache 3) : L7c2 REPLIE ici (l'entree « Durées sur les clips » du plan est nee
+         # de CE remplacement, x0 dans .bak_montage) -- l'entree OUVRE le popover (setPop("boring")), la
+         # bascule est dans le popover ; « actif » dans la colonne des combos quand la detection est allumee
+         # (pas « ✓ » : ce n'est pas la bascule elle-meme, et le banc E-10 pinne les cinq coches).
+         '        {lbl:"Plans trop longs / jump cuts…",combo:bo.on?"actif":"",run:function(){setPop("boring")}},\n'
          # E-10 (lot E-C, tache 4) : la bascule d'ancrage de la barre (etat R_M11).
          '        {lbl:"Ancrer la barre d\'outils",combo:dzTbDock?"✓":"",run:function(){dzTbDockToggle()}}]);\n'
          '      return Object.assign(base,{rubs:rubs})}\n'
@@ -4790,12 +4915,35 @@ R_EC1 = (A_EC1 + "\n"
          '      return Object.assign(base,{items:[\n'
          '        {lbl:lk?"Déverrouiller":"Verrouiller",run:function(){svmTrackLock(id)}},\n'
          '        {lbl:"Muet",off:!bus,run:function(){svmTrackMute(id)}},\n'
-         '        {lbl:"Solo",off:!bus,run:function(){svmTrackSolo(id,!1)}},{sep:!0},\n'
+         '        {lbl:"Solo",off:!bus,run:function(){svmTrackSolo(id,!1)}},{sep:!0}]\n'
+         # L7 D-22 (24/09/2026, tache 6) : REPLIE ici (le menu de piste est ne de CE remplacement, x0 dans
+         # .bak_montage) -- pour une piste de sous-titres (trackKind, pas une egalite avec s1) : « Graver cette
+         # piste au rendu » (svmTracksSet : historique D-0, bus, projet, NON ENREGISTRE ; « gravee » dans la
+         # colonne des combos quand c'est deja elle -- pas « ✓ », le banc E-10 pinne les cinq coches), l'export
+         # .srt/.vtt/.txt de SES clips par les fonctions locales du bloc subs (subsToSrt/Vtt/Txt + subsDownload,
+         # meme scope module -- T1 l'a mesure pour subsDownload ; nom <projet>-s<n>.<fmt>, memes types MIME que
+         # doExport du tiroir), « Nouvelle piste de langue… » (window.prompt NATIF -- ecart date : pas de
+         # dialogue maison dans le Montage ; la piste nait VIDE, « Traduire vers » + case « nouvelle piste »
+         # la remplit). Un separateur de plus : {sep:!0} 3 -> 4.
+         '        /* L7 D-22 (24/09/2026, tâche 6) : une piste de sous-titres — graver, exporter ses clips, nouvelle piste de langue */\n'
+         '        .concat(trackKind(id)==="subs"?(function(){var bid=DzTracks.subsBurnId(ts),segs=cs.filter(function(k){return k.tr===id});\n'
+         '          function dzSubsExp(fmt){var txt=fmt==="srt"?subsToSrt(segs,subsStyleNow()):fmt==="vtt"?subsToVtt(segs,subsStyleNow()):subsToTxt(segs);\n'
+         '            if(!txt.trim()){fireNote("Rien à exporter — la piste "+(t.name||id)+" est vide.");return}\n'
+         '            var base=String(proj.name||"sous-titres").replace(/[^\\w\\-. ]+/g,"_")+"-"+id;\n'
+         '            fireNote(subsDownload(base+"."+fmt,txt,fmt==="vtt"?"text/vtt":fmt==="srt"?"application/x-subrip":"text/plain")?"Fichier "+base+"."+fmt+" écrit — local, sans compte.":"Téléchargement refusé par le navigateur.")}\n'
+         '          return [{lbl:bid===id?"Gravée au rendu":"Graver cette piste au rendu",combo:bid===id?"gravée":"",off:bid===id,run:function(){svmTracksSet(DzTracks.subsBurn(ts,id));\n'
+         '              fireNote("Piste "+(t.name||id)+" gravée au rendu — les autres pistes de sous-titres restent à l\'écran seulement.")}},\n'
+         '            {lbl:"Exporter .srt",off:!n,run:function(){dzSubsExp("srt")}},{lbl:"Exporter .vtt",off:!n,run:function(){dzSubsExp("vtt")}},{lbl:"Exporter .txt",off:!n,run:function(){dzSubsExp("txt")}},\n'
+         '            {lbl:"Nouvelle piste de langue…",run:function(){var lg=window.prompt("Langue de la nouvelle piste de sous-titres (en, de, es…)","en");if(lg==null)return;\n'
+         '              var r2=DzTracks.subsNew(ts,lg);svmTracksSet(r2.tracks);\n'
+         '              fireNote("Piste "+r2.id.toUpperCase()+(String(lg).trim()?" ("+String(lg).trim()+")":"")+" ajoutée, vide — « Traduire vers » dans le tiroir Sous-titres, case « nouvelle piste », la remplit.")}},{sep:!0}]})():[])\n'
+         '        .concat([\n'
          '        {lbl:"Supprimer la piste",off:bs,run:function(){svmTracksSet(DzTracks.remove(ts,id));\n'
          '          if(n)setClips(function(cs2){return (cs2||[]).filter(function(k){return k.tr!==id})});\n'
-         '          fireNote("Piste "+(t.name||id)+" retirée"+(n?" avec "+n+" clip"+(n>1?"s":"")+" — annuler ramène les clips":"")+".")}}]})}\n'
+         '          fireNote("Piste "+(t.name||id)+" retirée"+(n?" avec "+n+" clip"+(n>1?"s":"")+" — annuler ramène les clips":"")+".")}}])})}\n'
          '    return null}')
-assert R_EC1.count("{sep:!0}") == 3 and R_EC1.count("dzmReplaceRef.current={") == 1
+# L7 D-22 (24/09/2026) : un quatrieme separateur, entre les entrees de sous-titres et « Supprimer la piste »
+assert R_EC1.count("{sep:!0}") == 4 and R_EC1.count("dzmReplaceRef.current={") == 1
 assert EC3_MENU in R_EB5A
 # EC2 : le bouton ☰ AVANT le titre « Montage » (ancre libre 1/0/1) ; le clic
 # sur le bouton pendant que le menu est ouvert tombe en fait sur le voile
@@ -5043,6 +5191,360 @@ L4 = [("L4b-rangee-de-livraison-sous-la-ligne-cout", A_L4B, R_L4B),
       ("L4d4-panne-reseau-en-file-dite", A_L4D4, R_L4D4)]
 for _n, _a, _r in L4:
     assert _a != _r and _a.strip()[:10] in _r, _n   # 10 : la tete de l'ancre (L4c2 reecrit `return o})}}` des le `}}`, L4d1 prefixe l'indentation)
+
+# ══ L7 D-10 (24/09/2026, tache 1) — PRESET RESOLVE, EXPORT / IMPORT DU MAPPAGE ═══
+# Le plan prevoyait trois sections ; MESURE sur .bak_montage : l'entree adjust_add
+# de SVM_ACTIONS et sa branche de dispatch sont x0 (posees par R_R1 / R_R2) ->
+# L7a1 et L7a2 sont REPLIEES dans ces deux remplacements (voir « L7a1 », « L7a2 »
+# plus haut). Reste L7a3, ancre LIBRE (1/0/1) : le commentaire « Réinitialiser
+# tout » du panneau « ? ». TROIS boutons `svm-secbtn svm-kbio` inseres AVANT le
+# conditionnel nOv?(...), rendus TOUJOURS (regle E-12), chacun avec title :
+#  - « Preset Resolve » : DzTracks.kmPreset("resolve") -> setKmOv + svmKmSave (le
+#    chemin exact de « Réinitialiser tout » et du remappage d'une ligne) ; le
+#    preset REMPLACE les overrides (un preset est un etat entier, pas un delta) ;
+#  - « Exporter… » : DzTracks.kmExport(kmOv) -> subsDownload(name,text,mime), le
+#    helper de telechargement du bloc subs (module, .bak x1, blob revoque a 400 ms)
+#    -- jamais recopie ;
+#  - « Importer… » : <input type=file accept=.json> cree a la volee, FileReader,
+#    DzTracks.kmImport(txt, SVM_ACTIONS, svmComboCanon, svmComboReserved) -- les
+#    trois juges du bundle, passes en parametres ; ok -> setKmOv + svmKmSave +
+#    note « n importes, m ignores » ; sinon « Fichier illisible » / « Version ».
+# Les retours passent par fireNote : kbMsg est {id,msg} PAR LIGNE (B:2004), il
+# n'y a pas de message global dans le panneau. setKbEdit("") + setKbMsg(null)
+# comme « Réinitialiser tout » : une capture en cours ou un refus inline
+# n'a plus de sens apres un changement d'etat entier.
+A_L7A3 = "          /* « Réinitialiser tout » — visible dès qu'un override existe,"
+R_L7A3 = (
+    '          r.jsx("button",{className:"svm-secbtn svm-kbio",title:"Preset Resolve : pose O (sortie), Ctrl+B (lame), Alt+O (barre d\'outils) — Ctrl+T reste au navigateur, la transition est sur Alt+T",\n'
+    '            onClick:function(){var pr=DzTracks.kmPreset("resolve");if(!pr){fireNote("Preset introuvable");return}setKmOv(pr);svmKmSave(pr);setKbEdit("");setKbMsg(null);\n'
+    '              fireNote("Preset Resolve appliqué : O = sortie, Ctrl+B = lame, Alt+O = barre d\'outils — JKL, I et Alt+T étaient déjà là")},\n'
+    '            children:"Preset Resolve"}),\n'
+    '          r.jsx("button",{className:"svm-secbtn svm-kbio",title:"Exporter les raccourcis personnalisés (deepotus-raccourcis.json)",\n'
+    '            onClick:function(){if(!subsDownload("deepotus-raccourcis.json",DzTracks.kmExport(kmOv),"application/json")){fireNote("Export impossible dans ce navigateur");return}\n'
+    '              fireNote(nOv?nOv+" raccourci"+(nOv>1?"s":"")+" personnalisé"+(nOv>1?"s":"")+" exporté"+(nOv>1?"s":""):"Aucun raccourci personnalisé — fichier vide exporté")},\n'
+    '            children:"Exporter…"}),\n'
+    '          r.jsx("button",{className:"svm-secbtn svm-kbio",title:"Importer un fichier de raccourcis JSON — les actions inconnues et les touches réservées sont ignorées",\n'
+    '            onClick:function(){var inp=document.createElement("input");inp.type="file";inp.accept=".json,application/json";\n'
+    '              inp.onchange=function(){var f=inp.files&&inp.files[0];if(!f)return;var rd=new FileReader();\n'
+    '                rd.onload=function(){var rs=DzTracks.kmImport(String(rd.result||""),SVM_ACTIONS,svmComboCanon,svmComboReserved);\n'
+    '                  if(!rs.ok){fireNote(rs.raison==="json"?"Fichier illisible — ce n\'est pas du JSON":"Version de fichier inconnue (attendu : version 1)");return}\n'
+    '                  setKmOv(rs.keymap);svmKmSave(rs.keymap);setKbEdit("");setKbMsg(null);var nk=Object.keys(rs.keymap).length,ni=rs.ignores.length;\n'
+    '                  fireNote(nk+" raccourci"+(nk>1?"s":"")+" importé"+(nk>1?"s":"")+(ni?" — "+ni+" ignoré"+(ni>1?"s":"")+" (action inconnue, touche réservée ou illisible)":""))};\n'
+    '                rd.onerror=function(){fireNote("Fichier illisible")};rd.readAsText(f)};\n'
+    '              inp.click()},\n'
+    '            children:"Importer…"}),\n'
+    + A_L7A3)
+# ══ L7 D-6 (24/09/2026, tache 2, revue I-1) — LE TEXTE SELECTIONNE GARDE SON Ctrl+C ═
+# onKey ecoute window : hors champ de saisie, `e.preventDefault()` (B:3416)
+# precede toutes les branches et AVALAIT la copie native d'un texte
+# selectionne a la souris (une note, un libelle de clip, une entree de la
+# Bibliotheque). Ancre LIBRE 1/0/1 (trois lignes : sounds_drawer, le
+# preventDefault, keys_panel) : quand l'action est `copy` et qu'une selection
+# de texte est vivante, on SORT avant le preventDefault -- le navigateur copie
+# le texte, le clip n'est pas touche. Aucun DzTracks : la sonde ne bouge pas.
+A_L7B3 = ('      if(id==="sounds_drawer"){if(svmSfx()){e.preventDefault();sfxToggle()}return}\n'
+          '      e.preventDefault();\n'
+          '      if(id==="keys_panel"){setKbOn(function(v){return !v});return}')
+R_L7B3 = ('      if(id==="sounds_drawer"){if(svmSfx()){e.preventDefault();sfxToggle()}return}\n'
+          '      if(id==="copy"&&window.getSelection&&String(window.getSelection())!=="")return;\n'
+          '      e.preventDefault();\n'
+          '      if(id==="keys_panel"){setKbOn(function(v){return !v});return}')
+# ══ L7 D-8 (24/09/2026, tache 3) — BORING DETECTOR : PLANS TROP LONGS ET JUMP CUTS ═
+# Le plan prevoyait trois sections ; MESURE sur .bak_montage : les trois ancres
+# du plan (`"data-kind"`, l'etat showDur, l'entree « Durées sur les clips ») sont
+# x0 -- nees des remplacements R_AJ6A, R_EB6B (_EB7_ETAT) et R_EC1 -> L7c1 et
+# L7c2 sont REPLIEES dans ces trois remplacements. Reste L7c3, ancre LIBRE
+# (1/0/1, trois lignes) : le commentaire de popover(), sa tete et sa garde
+# `if(!pop)return null;`. MESURE : popover() rend pour TOUT `pop` non vide
+# (`isR=pop==="render"`, sinon la forme Preview) -- un `pop==="boring"` y
+# tomberait dans l'aperçu 480p ; la garde du popover de rendu DELEGUE donc a
+# boringPopover() avant de lire isR. Le rendu reste `popover(),` (R_EA5E),
+# sous le voile (pop||...) et Echap (dzScrimRef) : rien d'autre a cabler.
+# Le popover : case « Activer », deux champs numeriques bornes (2..60 s,
+# 1..60 images -- la forme de fieldNum, closure d'ovInspector hors de portee :
+# `svm-transdur` + type number, meme classe), un compte des plans marques, un
+# « Fermer » titre (E-12) ; chaque changement est persiste (dz_svm_boring,
+# try/catch) et l'etat repart de bo -- la carte suit par la memo.
+A_L7C3 = ('  /* popover de confirmation — coût affiché avant tout déclenchement (règle produit) */\n'
+          '  function popover(){\n'
+          '    if(!pop)return null;')
+R_L7C3 = ('  /* L7 D-8 (24/09/2026, tâche 3) : le popover « Plans trop longs / jump cuts » (☰ › Affichage) — la case\n'
+          '     allume la carte, les deux champs bornent le juge, chaque changement est persisté (dz_svm_boring) */\n'
+          '  function boringPopover(){\n'
+          '    function boSet(p){setBo(function(b){var n=Object.assign({},b,p);try{localStorage.setItem("dz_svm_boring",JSON.stringify({on:!!n.on,maxS:n.maxS,minFrames:n.minFrames}))}catch(_e){}return n})}\n'
+          '    function boNum(k,lo,hi,raw){var v=Math.round(Number(raw));if(!isFinite(v))return;var p={};p[k]=Math.min(hi,Math.max(lo,v));boSet(p)}\n'
+          '    var nb=Object.keys(boMap).length,nj=Object.keys(boMap).filter(function(k){return boMap[k]==="jump"}).length;\n'
+          '    return r.jsxs("div",{className:"svm-pop svm-boringpop",onClick:function(e){e.stopPropagation()},children:[\n'
+          '      r.jsx("div",{className:"svm-poptitle",children:"Plans trop longs / jump cuts"}),\n'
+          '      r.jsx("div",{className:"svm-popnote",children:"Sur V1 : liseré gris pointillé = plan plus long que le seuil ; liseré rouge = jump cut (même source reprise presque au même point, à la coupe)."}),\n'
+          '      r.jsxs("label",{className:"svm-delrange svm-boringon",title:"Marquer sur la timeline les plans trop longs et les jump cuts de V1",children:[\n'
+          '        r.jsx("input",{type:"checkbox",checked:!!bo.on,onChange:function(e){boSet({on:!!e.target.checked})}})," Activer"]}),\n'
+          '      r.jsxs("div",{className:"svm-fadegain svm-boringrow",children:[\n'
+          '        r.jsx("span",{className:"svm-fxeditname",children:"Plus long que (s)"}),\n'
+          '        r.jsx("input",{className:"svm-transdur",type:"number",min:2,max:60,step:1,value:bo.maxS,title:"Un plan de V1 plus long que ce seuil (2 à 60 s) est marqué « long »",onChange:function(e){boNum("maxS",2,60,e.target.value)}})]}),\n'
+          '      r.jsxs("div",{className:"svm-fadegain svm-boringrow",children:[\n'
+          '        r.jsx("span",{className:"svm-fxeditname",children:"Jump cut si écart < (images)"}),\n'
+          '        r.jsx("input",{className:"svm-transdur",type:"number",min:1,max:60,step:1,value:bo.minFrames,title:"Deux plans V1 de la même source, en contact, dont la reprise est à moins de n images (1 à 60, à 30 i/s) : jump cut",onChange:function(e){boNum("minFrames",1,60,e.target.value)}})]}),\n'
+          '      r.jsx("div",{className:"svm-popnote",children:bo.on?(nb?nb+" plan"+(nb>1?"s":"")+" marqué"+(nb>1?"s":"")+" sur V1 ("+nj+" jump cut"+(nj>1?"s":"")+")":"Aucun plan à signaler sur V1"):"Détection éteinte"}),\n'
+          '      r.jsx("div",{className:"svm-poprow",children:\n'
+          '        r.jsx("button",{className:"svm-secbtn",title:"Fermer ce panneau (Échap)",onClick:function(){setPop("")},children:"Fermer"})})]})}\n'
+          + A_L7C3 + '\n'
+          # L7 D-39 (24/09/2026, tache 4) : L7d1 REPLIE ici -- la garde delegue le popover « diff » a la vue de
+          # la couche (DzTracks.DiffView, qui lit `r` a l'appel) AVANT la branche boring et AVANT isR ; sans etat
+          # (diffSt null) la garde passe. La section reste UNE (ancre 1/0/1 conservee, queue `boring` intacte).
+          # revue 24/09 : un `diff` SANS etat rend null -- jamais le popover generique (isR/Preview) sur ce pop
+          '    if(pop==="diff")return diffSt?r.jsx(DzTracks.DiffView,Object.assign({onClose:function(){setPop("")}},diffSt)):null;\n'
+          '    if(pop==="boring")return boringPopover();')
+# ══ L7 D-3b (24/09/2026, tache 4-bis) — VIGNETTES A/B ET ROLL D'UNE IMAGE A LA JONCTION ═
+# MESURES contre le plan : (1) le popover de jonction n'est PAS `pop==="trans"`
+# mais l'etat `transPop` {id: clip de DROITE, x} (B:1757), ferme par son propre
+# effet [transPop] (clic exterieur, Echap) -- la DERNIERE ligne de cet effet est
+# une ancre LIBRE 1/0/1 : L7g1 y pose, en portee de DzMontage, le calcul de la
+# jonction (clip droit, voisin gauche par la couche -- meme mesure que le roll
+# --, les deux secondes de source par la couche, la cle « source@seconde|
+# source@seconde »), l'effet garde par la cle qui demande les deux vignettes a
+# svmThumb (l'OBJET src, comme SvmFilmstrip ; le rappel relit le cache a
+# l'arrivee) et abRoll. (2) la rangee « Durée » de transPopover() est une ancre
+# LIBRE 1/0/1 (trois lignes) : L7g2 pose la rangee A/B AVANT elle. (3) l'etat
+# abSt est REPLIE en queue de _EB7_ETAT (R_EB6B), avec diffSt. (4) dzmRoll
+# refuse en rendant un tableau NEUF de contenu identique : le refus se lit sur
+# le start du clip droit, et il est DIT. (5) svmLeftNeighbor (la garde de
+# transPopover) et dzmVoisins s'accordent sur V1 (meme tolerance 0,1 s) : la
+# couche est la seule mesure de la jonction, comme pour le roll a la souris.
+# Rangee TOUJOURS rendue, boutons grises quand la jonction n'est pas deux
+# videos en contact (E-12) ; Maj = dix images ; vignette sans image = fond
+# (aucun src : pas d'icone cassee). 174 -> 176 ancres ; sonde 146 -> 149.
+A_L7G1 = '      window.removeEventListener("keydown",onEsc,!0)}},[transPop]);'
+R_L7G1 = (A_L7G1 + '\n'
+          '  /* L7 D-3b (24/09/2026, tâche 4-bis) : la jonction en édition — le clip de droite, son voisin de gauche (même mesure\n'
+          '     que le roll), les deux secondes de source (dernière image de A, première de B) et la clé qui date les vignettes */\n'
+          '  var dzAbJ=transPop?clips.filter(function(k){return k&&k.id===transPop.id})[0]||null:null,'
+          'dzAbG=dzAbJ?DzTracks.voisins(clips,dzAbJ).g:null,\n'
+          '      dzAbS=DzTracks.abSecs(dzAbG,dzAbJ),'
+          'dzAbK=dzAbS?svmSrcKey(dzAbG.src)+"@"+dzAbS.a+"|"+svmSrcKey(dzAbJ.src)+"@"+dzAbS.b:"",\n'
+          '      abOk=!!dzAbK,abA=abSt.k===dzAbK?abSt.a:null,abB=abSt.k===dzAbK?abSt.b:null;\n'
+          '  /* les deps sont la clé seule : elle encode source ET seconde des deux côtés, un roll ou un autre losange la changent */\n'
+          '  x.useEffect(function(){\n'
+          '    if(!dzAbK){setAbSt(function(s){return s.k?{a:null,b:null,k:""}:s});return}\n'
+          '    var alive=!0;\n'
+          '    /* revue 24/09 : le rappel n\'est inscrit qu\'au premier passage (reg) — relu depuis le cache à chaque arrivée, jamais empilé en double */\n'
+          '    function lire(reg){if(!alive)return;var cb=reg?lire:null,a=svmThumb(dzAbG.src,dzAbS.a,cb),b=svmThumb(dzAbJ.src,dzAbS.b,cb);setAbSt({a:a,b:b,k:dzAbK})}\n'
+          '    lire(!0);return function(){alive=!1}},[dzAbK]);\n'
+          '  /* le roll de n images (signé) à la jonction en édition : verrou dit, borne dite, historique avant l\'écriture ;\n'
+          '     n/30 : 30 i/s en dur, la cadence du rendu et du juge des jump cuts (revue 24/09 : le roll borné est DIT, k images seulement) */\n'
+          '  function abRoll(n){\n'
+          '    if(!dzAbJ||!dzAbG)return;\n'
+          '    if(trackStRef.current[dzAbJ.tr]&&trackStRef.current[dzAbJ.tr].l){fireNote("Piste "+String(dzAbJ.tr).toUpperCase()+" verrouillée.");return}\n'
+          '    var cs=clipsRef.current,r2=DzTracks.roll(cs,dzAbG.id,dzAbJ.id,n/30),q=r2.filter(function(k){return k&&k.id===dzAbJ.id})[0];\n'
+          '    var dit=DzTracks.abRollDit(dzAbJ.start,q?q.start:dzAbJ.start,n);\n'
+          '    if(!dit.k){fireNote("Jonction à sa borne — chaque plan garde au moins 0,3 s et B ne remonte pas avant le début de sa source.");return}\n'
+          '    pushHistory();setClips(r2);setDirty(!0);\n'
+          '    if(dit.partiel)fireNote("Borne atteinte : "+Math.abs(dit.k)+" image"+(Math.abs(dit.k)>1?"s":"")+" seulement")}')
+A_L7G2 = ('      r.jsxs("div",{className:"svm-fxedit",style:{marginTop:10},children:[\n'
+          '        r.jsx("span",{className:"svm-fxeditname",children:"Durée"}),\n'
+          '        r.jsx("span",{className:"svm-transbound","aria-hidden":!0,children:"0.1 s"}),')
+R_L7G2 = ('      /* L7 D-3b (24/09/2026, tâche 4-bis) : A/B à la jonction — la dernière image du plan gauche, la première du plan\n'
+          '         droit (vignettes du navigateur, au 1/30 s près) et le roll d\'une image (Maj : dix) ; rangée TOUJOURS rendue,\n'
+          '         grisée quand les deux plans ne sont pas des vidéos en contact */\n'
+          '      r.jsxs("div",{className:"svm-abrow",children:[\n'
+          '        r.jsx("img",{className:"svm-abthumb",src:abA||void 0,alt:"","data-ab":"a",draggable:!1,title:"A — dernière image du plan de gauche"}),\n'
+          '        r.jsx("button",{className:"svm-secbtn svm-abbtn",disabled:!abOk,"aria-disabled":!abOk,'
+          'title:"Reculer la jonction d\'une image (Maj : dix) — A raccourcit, B s\'allonge",onClick:function(e){abRoll(e.shiftKey?-10:-1)},children:"◀ −1"}),\n'
+          '        r.jsx("button",{className:"svm-secbtn svm-abbtn",disabled:!abOk,"aria-disabled":!abOk,'
+          'title:"Avancer la jonction d\'une image (Maj : dix) — A s\'allonge, B raccourcit",onClick:function(e){abRoll(e.shiftKey?10:1)},children:"+1 ▶"}),\n'
+          '        r.jsx("img",{className:"svm-abthumb",src:abB||void 0,alt:"","data-ab":"b",draggable:!1,title:"B — première image du plan de droite"})]}),\n'
+          + A_L7G2)
+# ══ L7 D-19 (24/09/2026, tache 5, moitie CLIENT) — COINS ARRONDIS ET OMBRE PORTEE D'UN OVERLAY ═
+# Le backend (37b8d57) lit `radius` (entier 0..200) et `shadow` (0|1) au meme
+# niveau que x/y/scale/rotate dans _ov_transform ; poses seuls ils rendent tf
+# non-None (chaine transformee plein cadre). Le client fait de MEME : la couche
+# rend {radius, shadow} bornes (dzmOvExtra, pur), lus UNE fois dans svmOvTfOf
+# (L7e2a/b) -- donc l'inspecteur, l'apercu et le payload voient la meme mesure.
+# MESURES contre le plan (qui prevoyait quatre sections L7e1..L7e4) : ONZE
+# ancres, toutes LIBRES 1/0/1, parce que (1) svmOvTfAt (.bak:1503) REBATIT un
+# objet {x,y,scale,rotate} quand des keyframes existent : sans L7e5, coins et
+# ombre disparaissaient de l'apercu des qu'un point etait pose ; (2) liveSync
+# (.bak:2751) et le geste (.bak:3003) gardent une SIGNATURE x|y|scale|rotate
+# avant d'appeler svmApplyTf : sans L7e6/L7e7b un rayon change n'etait jamais
+# re-applique ; (3) le geste (.bak:2984) construit `cur` sans les deux cles :
+# les coins sautaient pendant le glisser (L7e7a) ; (4) svmOvTfReset
+# (.bak:3119) ne retirait que quatre cles : « plein cadre » gardait un rayon
+# que le rendu portait alors en chaine transformee (L7e8). Le rayon de
+# l'apercu est ramene a l'echelle affichee par la largeur du cadre (.svm-liveov
+# = inset:0 du cadre au ratio du projet ; 1920 de large si paysage, 1080 sinon
+# -- la regle de _CANVAS et du canvasW des sous-titres, .bak:4250) ; cadre non
+# mesurable : rayon brut, apercu approximatif (date). renderPayload n'emet
+# x/y/rotate que hors defaut : un rayon seul part avec o.scale=1 (tf non nul)
+# et o.radius -- MESURE par le banc bundle. Les deux champs passent par
+# svmOvTfField : historique par rafale de 600 ms (ovHistAt), comme l'opacite.
+# Keyframes D-14 : radius/shadow restent STATIQUES (pas dans svmMpField), date.
+# 176 -> 187 ancres ; sonde 150 -> 151 (DzTracks.ovExtra dans svmOvTfOf).
+A_L7E1 = '        r.jsx("span",{className:"svm-rangeval",children:vOp+" %"})]}),'
+R_L7E1 = (A_L7E1 + '\n'
+          '      /* L7 D-19 (24/09/2026, tâche 5) : coins arrondis (px du canvas, 0..200) et ombre portée — statiques même avec des\n'
+          '         keyframes (D-14) ; écrits par svmOvTfField (historique par rafale de 600 ms, comme l\'opacité) */\n'
+          '      r.jsxs("div",{className:"svm-fadegain",children:[\n'
+          '        r.jsx("span",{className:"svm-fxeditname",style:{width:50},children:"Coins"}),\n'
+          '        fieldNum({min:0,max:200,step:5,value:t.radius||0,\n'
+          '          title:"Rayon des coins de l\'overlay en px du canvas (0 = coins droits, 200 au plus) — statique, les keyframes ne l\'animent pas",\n'
+          '          "aria-label":"Coins (px)",\n'
+          '          onChange:function(e){var v=Number(e.target.value);\n'
+          '            if(!isFinite(v))return;svmOvTfField({radius:Math.max(0,Math.min(200,Math.round(v)))})}}),\n'
+          '        r.jsx("span",{className:"svm-rangeval",style:{width:"auto"},children:"px"})]}),\n'
+          '      r.jsxs("div",{className:"svm-fadegain",children:[\n'
+          '        r.jsx("span",{className:"svm-fxeditname",style:{width:50},children:"Ombre"}),\n'
+          '        r.jsxs("label",{className:"svm-delrange svm-ovshadow",'
+          'title:"Ombre portée sous l\'overlay (noir à 55 %, décalée de 6 px au rendu) — statique, retirée par « plein cadre »",children:[\n'
+          '          r.jsx("input",{type:"checkbox",checked:!!t.shadow,"aria-label":"Ombre portée",'
+          'onChange:function(e){svmOvTfField({shadow:e.target.checked?1:0})}})," portée"]})]}),')
+A_L7E2A = '  if(!c||(c.x==null&&c.y==null&&c.scale==null&&c.rotate==null))return null;'
+R_L7E2A = ('  /* L7 D-19 (24/09/2026) : un rayon > 0 ou une ombre matérialisent aussi l\'état « transformé » — le rendu fait de même\n'
+           '     (plein cadre par défaut) ; la couche borne les deux (entier 0..200, 0|1) */\n'
+           '  var ex=DzTracks.ovExtra(c);\n'
+           '  if(!c||(c.x==null&&c.y==null&&c.scale==null&&c.rotate==null&&!ex.radius&&!ex.shadow))return null;')
+A_L7E2B = '          rotate:Math.min(180,Math.max(-180,n(c.rotate,0)))}}'
+R_L7E2B = ('          rotate:Math.min(180,Math.max(-180,n(c.rotate,0))),\n'
+           '          radius:ex.radius,shadow:ex.shadow}}')
+A_L7E3 = '            if(Math.abs(tf.rotate)>=.05)o.rotate=tf.rotate}'
+R_L7E3 = ('            if(Math.abs(tf.rotate)>=.05)o.rotate=tf.rotate;\n'
+          '            /* L7 D-19 : coins et ombre, joints seulement hors défaut (tf est non nul dès que l\'un des deux est posé) */\n'
+          '            if(tf.radius>0)o.radius=tf.radius;if(tf.shadow)o.shadow=1}')
+A_L7E4A = '    el.style.transform="translate(-50%,-50%) rotate("+tf.rotate+"deg)"}'
+R_L7E4A = ('    el.style.transform="translate(-50%,-50%) rotate("+tf.rotate+"deg)";\n'
+           '    /* L7 D-19 : coins et ombre de l\'aperçu — le rayon (px d\'un canvas de 1920 de large en paysage, 1080 sinon) est ramené\n'
+           '       à l\'échelle affichée par la largeur du cadre ; cadre non mesurable (volet caché) : rayon brut, aperçu approximatif */\n'
+           '    var rad=tf.radius||0,pe=el.parentElement,pw=pe?pe.clientWidth:0,pk=pw>0?pw/(pw>pe.clientHeight?1920:1080):1;\n'
+           '    el.style.borderRadius=rad>0?Math.round(rad*pk*100)/100+"px":"";\n'
+           '    el.style.boxShadow=tf.shadow?"6px 6px 12px rgba(0,0,0,.55)":""}')
+A_L7E4B = '    el.style.left="";el.style.top="";el.style.width="";el.style.transform=""}}'
+R_L7E4B = ('    el.style.left="";el.style.top="";el.style.width="";el.style.transform="";\n'
+           '    el.style.borderRadius="";el.style.boxShadow=""}}')
+A_L7E5 = '          rotate:mr==null?base.rotate:Math.min(180,Math.max(-180,mr))}}'
+R_L7E5 = ('          rotate:mr==null?base.rotate:Math.min(180,Math.max(-180,mr)),\n'
+          '          /* L7 D-19 : coins et ombre restent la statique — jamais keyframés */\n'
+          '          radius:base.radius||0,shadow:base.shadow||0}}')
+A_L7E6 = '      var tsig=ktf?ktf.x+"|"+ktf.y+"|"+ktf.scale+"|"+ktf.rotate:"";'
+R_L7E6 = ('      /* L7 D-19 : coins et ombre entrent dans la signature — un rayon changé est ré-appliqué */\n'
+          '      var tsig=ktf?ktf.x+"|"+ktf.y+"|"+ktf.scale+"|"+ktf.rotate+"|"+(ktf.radius||0)+"|"+(ktf.shadow||0):"";')
+A_L7E7A = '    var cur={id:k.id,x:t0.x,y:t0.y,scale:t0.scale,rotate:t0.rotate};'
+R_L7E7A = ('    /* L7 D-19 : le geste garde coins et ombre à l\'aperçu (jamais écrits par lui : p ne porte que x/y/scale/rotate) */\n'
+           '    var cur={id:k.id,x:t0.x,y:t0.y,scale:t0.scale,rotate:t0.rotate,radius:t0.radius||0,shadow:t0.shadow||0};')
+A_L7E7B = '      if(el2){var tsig=cur.x+"|"+cur.y+"|"+cur.scale+"|"+cur.rotate;'
+R_L7E7B = '      if(el2){var tsig=cur.x+"|"+cur.y+"|"+cur.scale+"|"+cur.rotate+"|"+(cur.radius||0)+"|"+(cur.shadow||0);'
+A_L7E8 = '      delete nk.x;delete nk.y;delete nk.scale;delete nk.rotate;'
+R_L7E8 = (A_L7E8 + '\n'
+          '      delete nk.radius;delete nk.shadow; /* L7 D-19 : plein cadre = sans coins ni ombre (la chaîne cover du rendu les ignorerait) */')
+L7A = [("L7a3-preset-resolve-export-import-du-mappage", A_L7A3, R_L7A3),
+       ("L7b3-le-texte-selectionne-garde-son-Ctrl-C", A_L7B3, R_L7B3),
+       ("L7c3-popover-plans-trop-longs-jump-cuts", A_L7C3, R_L7C3),
+       ("L7g1-jonction-en-edition-vignettes-A-B-et-abRoll", A_L7G1, R_L7G1),
+       ("L7g2-rangee-A-B-du-popover-de-jonction", A_L7G2, R_L7G2),
+       ("L7e1-inspecteur-coins-et-ombre", A_L7E1, R_L7E1),
+       ("L7e2a-svmOvTfOf-garde-radius-shadow", A_L7E2A, R_L7E2A),
+       ("L7e2b-svmOvTfOf-porte-radius-shadow", A_L7E2B, R_L7E2B),
+       ("L7e3-renderPayload-emet-radius-shadow", A_L7E3, R_L7E3),
+       ("L7e4a-svmApplyTf-apercu-coins-et-ombre", A_L7E4A, R_L7E4A),
+       ("L7e4b-svmApplyTf-retour-au-cover", A_L7E4B, R_L7E4B),
+       ("L7e5-svmOvTfAt-garde-la-statique", A_L7E5, R_L7E5),
+       ("L7e6-liveSync-signature", A_L7E6, R_L7E6),
+       ("L7e7a-geste-cur-porte-radius-shadow", A_L7E7A, R_L7E7A),
+       ("L7e7b-geste-signature", A_L7E7B, R_L7E7B),
+       ("L7e8-reset-retire-radius-shadow", A_L7E8, R_L7E8)]
+_L7E = [t for t in L7A if t[0].startswith("L7e")]
+# deux remplacements CONTIENNENT leur ancre (e1, e8 : ajout apres) ; les neuf autres la REECRIVENT (meme tete de ligne)
+assert len(_L7E) == 11 and sum(t[1] in t[2] for t in _L7E) == 2 and R_L7E1.startswith(A_L7E1) and R_L7E8.startswith(A_L7E8)
+# les neuf autres gardent la TETE de leur ancre (apres un eventuel commentaire de tete) : la ligne n'est pas remplacee par autre chose
+assert all(t[1].lstrip()[:20] in t[2] for t in _L7E)
+assert R_L7E1.count("fieldNum(") == 1 and R_L7E1.count('type:"checkbox"') == 1 and R_L7E1.count("title:") == 2 and R_L7E1.count("svmOvTfField(") == 2
+assert R_L7E1.count("svmOvTfField({radius:") == 1 and R_L7E1.count("svmOvTfField({shadow:e.target.checked?1:0})") == 1 and R_L7E1.count("svmMpField(") == 0 and R_L7E1.count("DzTracks") == 0
+assert R_L7E2A.count("DzTracks.ovExtra(c)") == 1 and R_L7E2A.count("&&!ex.radius&&!ex.shadow))return null;") == 1 and R_L7E2B.count("radius:ex.radius,shadow:ex.shadow}}") == 1
+assert R_L7E3.count("if(tf.radius>0)o.radius=tf.radius;if(tf.shadow)o.shadow=1}") == 1 and R_L7E3.count("o.radius=") == 1 and R_L7E3.count("o.shadow=1") == 1
+assert R_L7E4A.count("el.style.borderRadius=") == 1 and R_L7E4A.count('el.style.boxShadow=tf.shadow?"6px 6px 12px rgba(0,0,0,.55)":""') == 1 and R_L7E4A.count("?1920:1080") == 1
+assert R_L7E4B.count('el.style.borderRadius="";el.style.boxShadow=""') == 1 and R_L7E5.count("radius:base.radius||0,shadow:base.shadow||0}}") == 1
+assert R_L7E6.count('+"|"+(ktf.radius||0)+"|"+(ktf.shadow||0)') == 1 and R_L7E7B.count('+"|"+(cur.radius||0)+"|"+(cur.shadow||0)') == 1
+assert R_L7E7A.count("radius:t0.radius||0,shadow:t0.shadow||0}") == 1 and R_L7E8.count("delete nk.radius;delete nk.shadow;") == 1
+assert sum(t[2].count("DzTracks") for t in _L7E) == 1
+# ══ L7 D-22 (24/09/2026, tache 6) — PISTES DE SOUS-TITRES PAR LANGUE, UNE SEULE GRAVEE ═
+# Perimetre MINIMAL et date (decision n°7) : une piste S2… est une copie de S1 (traduite par le tiroir, case
+# « nouvelle piste » -- replis R_M26A/R_M26B/R_M24H ; ou vide -- menu de piste, repli R_EC1) ; ses repliques sont
+# des clips tr:"s2" ; l'EDITEUR reste sur S1. MESURE : subsSegsOf (.bak:3540) a NEUF appelants (verdict,
+# couverture, emojis, tiroir, overlay, chip…) -- on ne change que subsPayload (L7f1) : la piste GRAVEE est
+# DzTracks.subsBurnId(pistes) (la marquee burn:true, sinon "s1" -- le comportement d'avant a l'octet pres).
+# L7f2 : data-sub par GENRE (trackKind, comme le plan) + data-burn CALCULE par subsBurnId et non lu sur tr.burn
+# (ecart au plan, date : sans marque, s1 est gravee et doit le montrer -- tr.burn est absent par defaut).
+# Les deux ancres sont LIBRES 1/0/1 dans .bak_montage ; les trois autres sites sont des replis (ancres nees de
+# remplacements). Backend : _tracks_meta accepte tout kind et ignore lang/burn/name (mesure, rien ne change).
+A_L7F1 = '    var segs=d.sort(subsSegsOf(clipsRef.current)).filter(function(s){'
+R_L7F1 = ('    /* L7 D-22 (24/09/2026, tâche 6) : seule la piste de sous-titres marquée « gravée » part au rendu (s1 sans marque —\n'
+          "       subsBurnId de la couche) ; l'éditeur, le verdict, la couverture et les emojis restent sur s1 (subsSegsOf, inchangé) */\n"
+          '    var bid=DzTracks.subsBurnId(svmTracksOf(proj));\n'
+          '    var segs=d.sort((clipsRef.current||[]).filter(function(c){return c.tr===bid})).filter(function(s){')
+A_L7F2 = '            return r.jsxs("div",{className:"svm-track","data-sub":tr.id==="s1"?"":void 0,'
+R_L7F2 = ('            /* L7 D-22 (24/09/2026) : data-sub par genre (S2… aussi), data-burn sur la piste que le rendu grave (s1 sans marque) */\n'
+          '            return r.jsxs("div",{className:"svm-track","data-sub":trackKind(tr.id)==="subs"?"":void 0,'
+          '"data-burn":trackKind(tr.id)==="subs"&&DzTracks.subsBurnId(svmTracksOf(proj))===tr.id?"":void 0,')
+# Revue T6 (24/09/2026) : (1) l'APERCU VIVANT (subsOverlay) lisait subsSegsOf(clips) = s1 alors que Preview et
+# Rendu gravent la piste marquee -- il filtre par subsBurnId lui aussi (L7f5 ; ancre sur QUATRE lignes : la ligne
+# `var segs=subsSegsOf(clips);` existe deux fois dans le .bak, subsOverlay et le lecteur karaoke) ; l'editeur, le
+# verdict, la couverture et les emojis restent sur s1 (date : subsSegsOf( x7 ailleurs). (2) `data-hidden` ne se
+# posait que sur s1 : un clip s2 masque se dessinait normal et ne partait pas au rendu sans signe -- par genre
+# (L7f6, comme data-sub). Ancres libres 1/0/1.
+A_L7F5 = ('  function subsOverlay(){\n'
+          '    var d=subsLayer();\n'
+          '    if(!d||!d.Overlay)return null;\n'
+          '    var segs=subsSegsOf(clips);')
+R_L7F5 = ('  function subsOverlay(){\n'
+          '    var d=subsLayer();\n'
+          '    if(!d||!d.Overlay)return null;\n'
+          "    /* L7 D-22 (revue T6, 24/09/2026) : l'aperçu montre la piste que le rendu grave (subsBurnId) — l'éditeur reste sur s1 */\n"
+          '    var dzBid=DzTracks.subsBurnId(svmTracksOf(proj));\n'
+          '    var segs=(clips||[]).filter(function(c){return c.tr===dzBid});')
+A_L7F6 = '                    "data-hidden":tr.id==="s1"&&c.hidden?"":void 0,'
+R_L7F6 = '                    "data-hidden":trackKind(tr.id)==="subs"&&c.hidden?"":void 0, /* L7 D-22 (revue T6) : masqué se voit sur toute piste subs */'
+L7A += [("L7f1-subsPayload-grave-la-piste-marquee", A_L7F1, R_L7F1),
+        ("L7f2-data-sub-par-genre-et-data-burn", A_L7F2, R_L7F2),
+        ("L7f5-subsOverlay-montre-la-piste-gravee", A_L7F5, R_L7F5),
+        ("L7f6-data-hidden-sur-toute-piste-subs", A_L7F6, R_L7F6)]
+assert R_L7F5.startswith(A_L7F5[:A_L7F5.rfind("\n")]) and R_L7F5.count("subsSegsOf(") == 0 and R_L7F5.count("DzTracks.subsBurnId(svmTracksOf(proj))") == 1 and R_L7F5.count("c.tr===dzBid") == 1
+assert R_L7F6.count('trackKind(tr.id)==="subs"&&c.hidden') == 1 and R_L7F6.count('tr.id==="s1"') == 0
+assert R_L7F1.count("DzTracks.subsBurnId(svmTracksOf(proj))") == 1 and R_L7F1.count("subsSegsOf(") == 0 and R_L7F1.count("subsSegsOf") == 1 and R_L7F1.count("c.tr===bid") == 1 and A_L7F1 not in R_L7F1
+assert R_L7F2.count('"data-burn":') == 1 and R_L7F2.count('trackKind(tr.id)==="subs"') == 2 and R_L7F2.count('tr.id==="s1"') == 0 and R_L7F2.count("DzTracks.subsBurnId(") == 1
+assert R_EC1.count("DzTracks.subsBurnId(ts)") == 1 and R_EC1.count("DzTracks.subsBurn(ts,id)") == 1 and R_EC1.count("DzTracks.subsNew(ts,lg)") == 1 and R_EC1.count("window.prompt(") == 1
+assert R_EC1.count('lbl:"Exporter .srt"') == 1 and R_EC1.count('lbl:"Exporter .vtt"') == 1 and R_EC1.count('lbl:"Exporter .txt"') == 1 and R_EC1.count('"Nouvelle piste de langue…"') == 1
+assert R_EC1.count('combo:bid===id?"gravée":""') == 1 and R_EC1.count("subsToSrt(") == 1 and R_EC1.count("subsToVtt(") == 1 and R_EC1.count("subsToTxt(") == 1 and R_EC1.count("subsDownload(") == 1
+assert R_M26A.count("x.useState(!1),dzNewTr=s9c[0],setDzNewTr=s9c[1];") == 1 and R_M26A.count("props.onNewTrack(dzTo,dzNext)") == 1 and R_M26A.count("if(props.onChange)props.onChange(dzNext,!0);") == 1
+assert R_M26B.count('"aria-label":"Traduire dans une nouvelle piste"') == 1 and R_M26B.count("sub-trnew") == 1 and R_M26B.count("dzNewTr?") == 1 and R_M26B.count("title:") == 2
+assert R_M24H.count("onNewTrack:function(lang,segs){") == 1 and R_M24H.count("DzTracks.subsNew(svmTracksOf(dzProjRef.current),lang)") == 1 and R_M24H.count("svmTracksOf(proj)") == 1 and R_M24H.count('DzTracks.subsCopy(cs,"s1",r2.id,segs)') == 1
+assert R_L7G1.startswith(A_L7G1) and R_L7G1.count("svmThumb(") == 2 and R_L7G1.count("DzTracks.voisins(") == 1 and R_L7G1.count("DzTracks.abSecs(") == 1
+# revue 24/09 : abRollDit (quatrieme reference), trois fireNote (verrou, borne, partiel), rappel inscrit UNE fois (reg)
+assert R_L7G1.count("DzTracks.roll(") == 1 and R_L7G1.count("DzTracks.abRollDit(") == 1 and R_L7G1.count("DzTracks") == 4 and R_L7G1.count("fireNote(") == 3 and R_L7G1.count("},[dzAbK]);") == 1
+assert R_L7G1.find("pushHistory();") < R_L7G1.find("setClips(r2)") < R_L7G1.find("setDirty(!0);") < R_L7G1.find("if(dit.partiel)fireNote(") and R_L7G1.count("pushHistory(") == 1
+assert R_L7G1.count("cb=reg?lire:null") == 1 and R_L7G1.count(",cb)") == 2 and R_L7G1.count("lire(!0);") == 1 and R_L7G1.count(",lire)") == 0
+assert R_L7G2.endswith(A_L7G2) and R_L7G2.count("title:") == 4 and R_L7G2.count('className:"svm-abthumb"') == 2 and R_L7G2.count("DzTracks") == 0
+assert R_L7G2.count('disabled:!abOk,"aria-disabled":!abOk,') == 2 and R_L7G2.count("abRoll(e.shiftKey?") == 2 and R_L7G2.count("svm-abrow") == 1
+assert _EB7_ETAT.endswith('  var stAb=x.useState({a:null,b:null,k:""}),abSt=stAb[0],setAbSt=stAb[1];') and _EB7_ETAT.count("abSt") == 1
+assert A_L7C3 in R_L7C3 and R_L7C3.endswith('    if(pop==="boring")return boringPopover();') and R_L7C3.count("function boringPopover(){") == 1
+# L7 D-39 (24/09/2026, tache 4) : la garde `diff` (UNE reference DzTracks.DiffView) precede la garde boring
+assert R_L7C3.count("title:") == 4 and R_L7C3.count('localStorage.setItem("dz_svm_boring",') == 1 and R_L7C3.count("DzTracks") == 1
+assert R_L7C3.count('    if(pop==="diff")return diffSt?r.jsx(DzTracks.DiffView,Object.assign({onClose:function(){setPop("")}},diffSt)):null;\n    if(pop==="boring")return boringPopover();') == 1
+assert R_M14.count("onDiff:function(p){") == 1 and R_M14.count("DzTracks.diff(") == 1 and R_M14.count('fetch("/api/montage/projects/"+') == 1 and R_M14.count("setDiffSt(") == 1 and R_M14.count('setPop("diff")') == 1
+# MESURE : quatre DzTracks dans _EB7_ETAT (tlH x2 de E-9, boringDef + boring de L7c1) -- l'etat diffSt n'en ajoute aucun
+assert _EB7_ETAT.count("var stDf=x.useState(null),diffSt=stDf[0],setDiffSt=stDf[1];") == 1 and _EB7_ETAT.count("DzTracks") == 4
+assert R_L7C3.count('className:"svm-transdur",type:"number"') == 2 and R_L7C3.count("boSet(") == 3 and R_L7C3.count("e.stopPropagation()") == 1
+assert _EB7_ETAT.count("DzTracks.boringDef") == 1 and _EB7_ETAT.count("DzTracks.boring(") == 1 and _EB7_ETAT.count('localStorage.getItem("dz_svm_boring")') == 1
+assert R_AJ6A.count('"data-boring":boMap[c.id]||void 0,') == 1 and R_EC1.count('run:function(){setPop("boring")}') == 1 and R_EC1.count('?"✓":""') == 5
+assert R_L7B3.count("window.getSelection") == 2 and R_L7B3.startswith(A_L7B3.split("\n")[0]) and R_L7B3.endswith(A_L7B3.split("\n")[2])
+assert R_L7A3.endswith(A_L7A3) and R_L7A3.count("svm-kbio") == 3 and R_L7A3.count("title:") == 3
+assert R_L7A3.count("setKmOv(") == 2 and R_L7A3.count("svmKmSave(") == 2 and R_L7A3.count("fireNote(") == 7
+assert R_L7A3.count('subsDownload("deepotus-raccourcis.json",') == 1 and R_L7A3.count("SVM_ACTIONS,svmComboCanon,svmComboReserved") == 1
+assert R_R1.count('id:"trans_add"') == 1 and R_R2.count('svmSetTransType(dzTc.id,"fade")') == 1 and R_R2.count("DzTracks.voisins(") == 1
+# L7 D-6 (24/09/2026, tache 2) : deux actions (L7b1, repli R_R1) et deux branches (L7b2, repli R_R2) -- aucune
+# section neuve (les ancres du plan sont consommees) ; le presse-papiers est lu x1 / ecrit x1, en try/catch
+assert R_R1.count('id:"copy"') == 1 and R_R1.count('id:"paste"') == 1 and R_R1.count('combo:"Ctrl+C"') == 1 and R_R1.count('combo:"Ctrl+V"') == 1
+assert R_R2.count('if(id==="copy"){') == 1 and R_R2.count('if(id==="paste"){') == 1 and R_R2.count("DzTracks.clipCopy(") == 1 and R_R2.count("DzTracks.clipPaste(") == 1
+assert R_R2.count('localStorage.setItem("dz_montage_clipboard",') == 1 and R_R2.count('localStorage.getItem("dz_montage_clipboard")') == 1 and R_R2.count("dz_montage_clipboard") == 2
+assert R_R2.find('if(id==="trans_add"){') < R_R2.find('if(id==="copy"){') < R_R2.find('if(id==="paste"){')
+assert R_R2.find("ovSeq.current=dzPq;pushHistory();setClips(dzPr.clips);setSelId(dzPr.id);setDirty(!0);") > 0
 assert R_L4C2.count("DzTracks.deliverPayload(") == 1 and R_L4B.count("DzTracks.DeliverRow") == 1 and R_L4B.count("DzTracks.rangeFrom(") == 1
 assert R_L4D3.count("o.d.queued") == 1 and R_L4D1.startswith("    if(!queue)setJob(") and R_L4C2.count("queue:queue===!0") == 1
 assert R_M16REF.count("dz_montage_deliver") == 2 and R_M16REF.count("/api/montage/deliver-presets") == 2 and R_M16REF.count("window.prompt(") == 1
@@ -5312,7 +5814,7 @@ PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),
            ("EC11-rendu-du-trou-selectionne", A_EC11, R_EC11),
            ("EC12-tete-de-lecture-dans-l-inspecteur", A_EC12, R_EC12),
            ("EC13-suppr-referme-le-trou", A_EC13, R_EC13),
-           ("EC14-clic-sur-un-clip-efface-le-trou", A_EC14, R_EC14)] + EC15 + L4
+           ("EC14-clic-sur-un-clip-efface-le-trou", A_EC14, R_EC14)] + EC15 + L4 + L7A
            # L4 (23/09/2026, tache 4) : sept sections sur des ancres libres ; l'etat
            # (R_M16REF) et « Ajouter a la file » (R_EA5D2) sont replies.
            # E-12 (tache 6) : onze sections EC15a..k sur des ancres libres ;

@@ -1472,3 +1472,43 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
 .svm-delbadge[data-st="queued"]{opacity:.7}
 .svm-delbadge[data-st="failed"]{color:#e0553a}
 .svm-delbadge[data-st="generating_video"]{color:var(--accent)}
+/* L7 D-10 (24/09/2026) : preset Resolve, export, import — dans la rangée de recherche du panneau « ? », même gabarit que kbresetall */
+.dzsvm .svm-kbio{padding:5px 10px;font-size:11px;flex:none}
+/* L7 D-8 (24/09/2026, tâche 3) : le boring detector — data-boring sur .svm-clip (V1 seulement, posé par
+   l'hôte depuis DzTracks.boring) : plan trop long = liseré gris pointillé, jump cut = liseré rouge. Un
+   OUTLINE, pas une bordure : la sélection est le border-color inline du clip (B:6493), le verrou et la
+   narration sont des bordures (son-vfx-montage.css:620/791) — rien ne se dispute. MESURÉ : aucune règle
+   `outline` sur .svm-clip dans les deux feuilles (le seul :focus-visible est générique et le clip n'est pas
+   focusable). Le popover : la case et les deux rangées numériques reprennent svm-delrange / svm-fadegain. */
+.dzsvm .svm-clip[data-boring="long"]{outline:1px dashed #9a9a9a;outline-offset:-1px}
+.dzsvm .svm-clip[data-boring="jump"]{outline:2px solid #e0443e;outline-offset:-2px}
+.dzsvm .svm-boringon{margin-top:10px;font-size:12px}
+.dzsvm .svm-boringrow .svm-fxeditname{width:auto;min-width:150px}
+/* L7 D-39 (24/09/2026, tâche 4) : le popover « diff » de deux projets (DzmDiffView de la couche, monté par
+   la garde de popover() de l'hôte, sous le voile et Échap comme les autres svm-pop). Cinq rubriques data-rub ;
+   une liste sans puces, une rubrique vide montre « — » ; le bouton « ⇄ » de la ligne Projets reprend dzm-projbtn. */
+.dzsvm .dzm-diff{width:360px;max-height:70vh;overflow:auto}
+.dzsvm .dzm-diffres{margin-top:6px;font-weight:600;color:var(--ink)}
+.dzsvm .dzm-diffrub{margin-top:10px}
+.dzsvm .dzm-diffh{font-size:11px;font-weight:600;color:var(--ink2, var(--ink));text-transform:uppercase;letter-spacing:.04em}
+.dzsvm .dzm-difflist{list-style:none;margin:4px 0 0;padding:0;font-size:11.5px;line-height:1.5}
+.dzsvm .dzm-difflist li{padding:1px 0;border-bottom:1px dotted color-mix(in srgb, var(--ink3) 35%, transparent)}
+.dzsvm .dzm-difflist li.dzm-diffnone{color:var(--ink3);border-bottom:0}
+.dzsvm .dzm-diffrub[data-rub="added"] .dzm-diffh{color:var(--green, #4caf50)}
+.dzsvm .dzm-diffrub[data-rub="removed"] .dzm-diffh{color:var(--red, #e35d4a)}
+.dzsvm .dzm-projdiff{font-size:12px;line-height:1}
+/* L7 D-3b (24/09/2026, tâche 4-bis) : la rangée A/B du popover de jonction — deux vignettes au gabarit des vignettes
+   du bundle (SVM_THUMB_W/H = 78×44) et deux boutons de roll d'une image entre elles ; une vignette sans image montre
+   son fond (l'hôte n'écrit pas de src : aucune icône cassée). Le popover fait 276 px (son-vfx-montage.css:449, 12 px
+   de marge) : 78 + 78 + 2 × 6 de gouttière laissent 84 px aux deux boutons, d'où le gabarit serré. */
+.dzsvm .svm-abrow{display:flex;gap:6px;align-items:center;margin-top:10px}
+.dzsvm .svm-abthumb{width:78px;height:44px;object-fit:cover;background:#111;border-radius:3px;flex:none}
+.dzsvm .svm-abbtn{padding:5px 4px;font-size:11px;flex:1 1 auto;min-width:0;white-space:nowrap}
+/* L7 D-22 (24/09/2026, tâche 6) : la piste de sous-titres GRAVÉE au rendu — data-burn sur .svm-track (posé par L7f2,
+   calculé par subsBurnId de la couche : s1 sans marque). Un liseré accent à gauche de la tête et « ◉ » après le nom ;
+   les autres pistes de sous-titres (à l'écran seulement, jamais gravées) ont leur nom atténué. Discret : rien ne bouge
+   en hauteur ni en largeur. Le :not() ne pèse que sur l'opacité du NOM — aucune règle du bundle n'écrit d'opacité sur
+   .svm-tname (mesuré, son-vfx-montage.css). */
+.dzsvm .svm-track[data-burn] .svm-thead{box-shadow:inset 3px 0 0 var(--accent)}
+.dzsvm .svm-track[data-burn] .svm-tname::after{content:" ◉";color:var(--accent);font-size:10px;vertical-align:1px}
+.dzsvm .svm-track[data-sub]:not([data-burn]) .svm-tname{opacity:.72}

@@ -281,7 +281,14 @@ function svmTracksFrom(raw){
    et `_tracks_meta` ignore la clé — mesuré. */
 function svmTracksPayload(proj){return svmTracksOf(proj).map(function(t){
   var o={id:t.id,kind:t.kind};if(t.bus)o.bus=t.bus;if(t.loop)o.loop=!0;
-  if(t.kind==="video"&&t.id!=="v1"&&t.type==="vidéo")o.type="vidéo";return o})}
+  if(t.kind==="video"&&t.id!=="v1"&&t.type==="vidéo")o.type="vidéo";
+  /* L7 D-22 (24/09/2026) — une piste de sous-titres emporte sa langue, sa marque
+     de gravure (jamais burn:false : l'absence vaut faux, comme loop) et, quand
+     elle porte une langue, son NOM — le seul de ces trois que l'habillage ne
+     sait pas reconstruire (« S2 en » redevenait « S2 » au rechargement). Le
+     backend range `tracks` tel quel et _tracks_meta ignore ces clés — mesuré. */
+  if(t.kind==="subs"){if(t.lang)o.lang=String(t.lang);if(t.burn)o.burn=!0;if(t.lang&&t.name)o.name=String(t.name)}
+  return o})}
 
 /* SVM_TRACK_BUS est un objet module-level du bloc sonvfx, LU à neuf endroits
    (mesuré : svmTrackMute, svmTrackSolo, quatre gardes de raccourci, le dépôt
@@ -1724,6 +1731,15 @@ var DzmProjects=function(props){
           title:"Dupliquer « "+(p.name||"")+" » — une copie indépendante, "+
             "sous un nom suffixé « (copie) ». Rien d'autre ne bouge.",
           onClick:function(){doDup(p)},children:"dupliquer"},"dp"),
+        /* L7 D-39 (24/09/2026) : « ⇄ » compare CE projet à la timeline courante
+           — TOUJOURS rendu, grisé sur le courant (comme « ouvrir » : un bouton
+           conditionnel est une forme de plus à dater dans l'audit E-12). Rien
+           n'est modifié : l'hôte lit le projet, calcule et montre. */
+        r.jsx("button",{className:"svm-tbtn dzm-projbtn dzm-projdiff",disabled:mine||off,"aria-disabled":mine||off,
+          title:mine
+            ?"« "+(p.name||"")+" » est le montage ouvert — rien à comparer"
+            :"Comparer « "+(p.name||"")+" » à la timeline courante (rien n'est modifié)",
+          onClick:function(){if(props&&props.onDiff)props.onDiff(p)},children:"⇄"},"df"),
         r.jsx("button",{className:"svm-tbtn dzm-projbtn dzm-projop",
           "data-arm":oArm?"":void 0,disabled:mine||off,"aria-disabled":mine||off,
           title:mine
@@ -6778,6 +6794,7 @@ var DZM_MENU_RUB={undo:"Édition",redo:"Édition",delete:"Édition",ripple:"Édi
   swap_left:"Édition",swap_right:"Édition",nudge_left:"Édition",nudge_right:"Édition",
   gain_up:"Édition",gain_down:"Édition",fade_in_cycle:"Édition",fade_out_cycle:"Édition",mute:"Édition",solo:"Édition",
   snap:"Édition",/* revue 23/09 : bascule sœur de ripple, même rubrique */
+  copy:"Édition",paste:"Édition",/* L7 D-6 (24/09/2026) : le presse-papiers est une édition, pas une action de timeline */
   marker_toggle:"Marqueurs",marker_prev:"Marqueurs",marker_next:"Marqueurs",marker_index:"Marqueurs",
   zoom_in:"Affichage",zoom_out:"Affichage",zoom100:"Affichage",toolbar:"Affichage",narration:"Affichage",
   sounds_drawer:"Affichage",fullscreen:"Affichage",safezones:"Affichage",
@@ -6830,6 +6847,356 @@ function DzmCtxMenu(o){
     children:rubs.map(function(g,gi){var its=(g&&Array.isArray(g.items))?g.items:[];
       return r.jsxs("div",{className:"svm-menugrp",children:[
         g&&g.rub?r.jsx("div",{className:"svm-menurub",children:g.rub}):null,its.map(row)]},gi)})})}
+/* ── L7 D-10 (24/09/2026) : preset clavier Resolve, export / import du mappage (pur) ──
+   Le preset est un dictionnaire d'OVERRIDES {actionId: combo} que l'hôte applique par
+   setKmOv (le chemin du panneau « ? »). MESURÉ sur le bundle : « Ctrl+T » et « Ctrl+Maj+T »
+   sont réservées au navigateur (SVM_COMBO_RESERVED) — l'action neuve trans_add a pour défaut
+   « Alt+T », qui n'a donc rien à faire ici ; Retour arrière est déjà « Suppr » (SVM_EV_NAMES) ;
+   « O » est le défaut de toolbar et svmKmMerge ignore un override qui vole la touche d'une
+   action NON remappée — le preset déplace donc toolbar sur « Alt+O ». JKL, I : déjà les défauts.
+   Le fichier d'échange est {version:1, keymap:{id:combo}} ; l'import est validé ici, avec les
+   juges du bundle passés en paramètres (canon, reserved) : jamais recopiés. */
+var DZM_KM_PRESETS={resolve:{range_out:"O",toolbar:"Alt+O",blade:"Ctrl+B"}};
+function dzmKmPreset(nom){
+  if(typeof nom!=="string"||!Object.prototype.hasOwnProperty.call(DZM_KM_PRESETS,nom))return null;
+  return Object.assign({},DZM_KM_PRESETS[nom])}
+function dzmKmExport(ov){
+  var km={};if(ov&&typeof ov==="object"&&!Array.isArray(ov))Object.keys(ov).forEach(function(k){km[k]=ov[k]});
+  return JSON.stringify({version:1,keymap:km})}
+function dzmKmImport(txt,actions,canon,reserved){
+  var d;try{d=JSON.parse(String(txt))}catch(e){return {ok:!1,raison:"json"}}
+  if(!d||typeof d!=="object"||d.version!==1||!d.keymap||typeof d.keymap!=="object"||Array.isArray(d.keymap))return {ok:!1,raison:"version"};
+  var acts=Array.isArray(actions)?actions:[],ids={};acts.forEach(function(a){if(a&&a.id)ids[a.id]=a.combo});
+  var km0={},ign=[];
+  Object.keys(d.keymap).forEach(function(id){
+    var v=d.keymap[id],c=typeof v==="string"?canon(v):"";
+    if(!Object.prototype.hasOwnProperty.call(ids,id))ign.push({id:id,raison:"inconnu"});
+    else if(!c)ign.push({id:id,raison:"combo"});
+    else if(reserved(c))ign.push({id:id,raison:"reservee"});
+    else if(c!==ids[id])km0[id]=c});
+  /* revue D-10 : les COLLISIONS, jugées comme svmKmMerge le fera (même ordre : les défauts des
+     actions sans override occupent leur touche, puis les overrides en ordre de TABLE) — une ligne
+     du fichier qui vole la touche d'une action non remappée, ou la touche d'une ligne déjà
+     retenue, est dite {raison:"collision", avec:<id qui garde la touche>} au lieu de retomber
+     au défaut en silence. Object.keys(keymap) est exactement ce que la fusion retiendra. */
+  var used={},km={};
+  acts.forEach(function(a){if(a&&a.id&&!km0[a.id]&&!used[a.combo])used[a.combo]=a.id});
+  acts.forEach(function(a){if(!a||!a.id||!km0[a.id])return;var c=km0[a.id];
+    if(used[c])ign.push({id:a.id,raison:"collision",avec:used[c]});else{km[a.id]=c;used[c]=a.id}});
+  return {ok:!0,keymap:km,ignores:ign}}
+/* ── L7 D-6 (24/09/2026) : presse-papiers de clips entre projets (pur) ──
+   UN clip : la sélection est simple (selId, B:1707) — écart daté, pas de
+   multi-copie. L'hôte range {v:1, at, clip:dzmClipCopy(c)} dans le stockage
+   local du navigateur (clé dz_montage_clipboard : survit au changement de
+   projet et d'onglet) et colle par dzmClipPaste à la tête, en mode d'édition
+   courant. (Aucun nom d'API du navigateur dans ce commentaire, à dessein :
+   _corps() du banc lit jusqu'au prochain `var`, et juge la pureté du bloc
+   D-10 qui précède.)
+   La copie est PROFONDE et sans `id` (l'identifiant est tranché au collage),
+   sans `transition`/`transition_s` (une transition appartient à la coupe,
+   pas au clip qu'on emporte), sans `src_history` (le journal de remplacement
+   reste au projet d'origine) ; `srcOut` suit le clip (fenêtre de source).
+   LA PISTE CIBLE : celle du clip si elle existe, sinon la piste du même
+   genre au PLUS PETIT rang (v1, a1, t1…). MESURÉ : les pistes arrivent dans
+   l'ordre de l'ÉCRAN (DZM_DEFAULT_TRACKS : t1, v3, v2, v1, a1…) — « la
+   première du genre » serait V3, une incrustation, pour une vidéo de V9.
+   Le genre d'une piste est `kind` s'il est dit, sinon son initiale
+   (dzmKindOf) ; le genre du clip vient de son `tr`.
+   `srcDur` (durée de la SOURCE) n'est pas connue du presse-papiers —
+   addAsset la tient de /duration — : seul « remplir » la lit (vitesse ×1
+   à défaut, dzmInsereUn), et l'appelant peut la passer dans `opts`. Les
+   refus de dzmInsere (verrou, clips mous) sont RELAYÉS tels quels, la
+   phrase française posée ici quand dzmInsere n'en donne pas. */
+var DZM_CLIP_NOCOPY=["id","transition","transition_s","src_history"];
+function dzmClipCopy(c){
+  if(!c||typeof c!=="object"||Array.isArray(c))return null;
+  var o={};
+  Object.keys(c).forEach(function(k){
+    if(DZM_CLIP_NOCOPY.indexOf(k)>=0||c[k]===void 0)return;
+    try{o[k]=JSON.parse(JSON.stringify(c[k]))}catch(e){}});
+  return o}
+function dzmClipPisteCible(tracks,tr){
+  var ts=Array.isArray(tracks)?tracks:[],genre=dzmKindOf(tr),i,t,best=null,n;
+  /* revue M-2 : la piste homonyme n'est prise que si elle est DU GENRE du
+     clip (un « v1 » déclaré kind:"audio" par un projet exotique ne reçoit
+     pas une vidéo) — sinon la piste du genre au plus petit rang */
+  for(i=0;i<ts.length;i++){t=ts[i];if(t&&t.id!=null&&String(t.id)===String(tr)&&dzmKindOf(t.id,t.kind)===genre)return t.id}
+  for(i=0;i<ts.length;i++){t=ts[i];if(!t||t.id==null||dzmKindOf(t.id,t.kind)!==genre)continue;
+    n=parseInt(String(t.id).replace(/^\D+/,""),10);if(!isFinite(n))n=1e9;
+    if(!best||n<best.n)best={id:t.id,n:n}}
+  return best?best.id:null}
+function dzmClipPaste(clips,payload,opts){
+  var o=opts||{},base=Array.isArray(clips)?clips.slice():[];
+  if(!payload||typeof payload!=="object"||!payload.clip||typeof payload.clip!=="object")
+    return {clips:base,track:null,mode:null,refus:"vide",note:"Presse-papiers vide — copiez d'abord un clip",id:null,start:null};
+  if(payload.v!==1)return {clips:base,track:null,mode:null,refus:"version",note:"Presse-papiers d'une autre version",id:null,start:null};
+  /* revue M-3 : la RECOPIE est voulue — le payload (lu du stockage, ou
+     tenu par l'appelant) n'est jamais muté : tr/start/end/id sont écrits
+     sur la copie, et le presse-papiers reste collable une seconde fois */
+  var c=dzmClipCopy(payload.clip),tracks=Array.isArray(o.tracks)?o.tracks:[],genre=dzmKindOf(c.tr);
+  /* revue I-2 : un clip SANS source (copié depuis la démo, dont les clips
+     n'ont pas de src) ne serait jamais rendu — renderPayload filtre
+     `c.src || kind title/adjust` ; on le refuse ici, pas au rendu */
+  if(!c.src&&c.kind!=="title"&&c.kind!=="adjust")
+    return {clips:base,track:null,mode:null,refus:"source",note:"Ce clip n'a pas de source (copié depuis la démo ?) — rien n'a été collé",id:null,start:null};
+  var tr=dzmClipPisteCible(tracks,c.tr);
+  if(tr==null)return {clips:base,track:null,mode:null,refus:"piste",note:"Aucune piste "+genre+" pour coller",id:null,start:null};
+  var head=Number(o.head);if(!isFinite(head)||head<0)head=0;head=dzmR3(head);
+  var len=dzmR3((Number(c.end)||0)-(Number(c.start)||0));
+  if(!(len>0))len=dzmR3(Number(DZM_CLIP_DEFAUTS.video)||6);
+  c.tr=tr;c.start=head;c.end=dzmR3(head+len);
+  c.id=dzmUniqueId(clips,String(tr)+"u"+(o.seq|0)+"_"+Math.round(head*10));
+  var r=dzmInsere(clips,c,o.mode||"inserer",{tracks:tracks,head:head,srcDur:o.srcDur,range:o.range,locked:o.locked,twin:o.twin});
+  var note=r.note||"";
+  if(r.id==null&&!note)note=r.refus==="verrou"?"Piste "+String(r.track||tr).toUpperCase()+" verrouillée — rien n'a été collé":"Rien n'a été collé";
+  /* revue M-1 : `start` est la position RÉELLE du clip posé (« en fin »,
+     « ripple », « remplir » le posent ailleurs qu'à la tête) — l'hôte la dit */
+  var pose=null;if(r.id!=null)for(var q=0;q<r.clips.length;q++)if(r.clips[q]&&r.clips[q].id===r.id){pose=r.clips[q];break}
+  return {clips:r.clips,track:r.track||tr,mode:r.mode,refus:r.refus||null,note:note||null,id:r.id,start:pose?Number(pose.start):null}}
+/* ── L7 D-8 (24/09/2026) : boring detector (pur) — plans trop longs et jump
+   cuts sur V1 ──
+   dzmBoring(clips, opts) → { id : "long" | "jump" } sur les clips de V1
+   SEULEMENT (les incrustations et l'audio ne sont pas des « plans »).
+   `long` : durée > maxS (strict). `jump` : le plan est en CONTACT avec son
+   voisin de gauche (la tolérance de dzmVoisins, 0,1 s — réutilisée, pas
+   une seconde règle), de la MÊME source, et reprend cette source à moins
+   de minFrames images de là où le voisin l'a laissée :
+     | srcIn_droit − (srcIn_gauche + len_gauche × vitesse_gauche) | × fps
+       < minFrames
+   — le même plan repris presque au même point : la coupe « saute ». Le
+   jump PRIME sur le long (un seul attribut par clip, le défaut visible
+   d'abord). Précisions mesurées : la comparaison se fait EN IMAGES avec un
+   epsilon (2.4 − 2 vaut 0.3999… en flottant : AU seuil, ce n'est pas un
+   jump) ; la vitesse du plan gauche compte (à ×2, 5 s de timeline
+   consomment 10 s de source) ; une IMAGE n'a pas de position de source :
+   deux images identiques en contact sont un jump quel que soit srcIn ;
+   les options illisibles, nulles ou négatives retombent sur le défaut, et
+   DZM_BORING_DEF n'est jamais muté (copie) ; l'ordre d'arrivée des clips
+   est indifférent, les clips ne sont pas mutés. L'hôte tient les réglages
+   {on, maxS, minFrames} dans le stockage local du navigateur (clé
+   dz_svm_boring) et pose data-boring sur .svm-clip ; montage.css dessine
+   le liseré (gris pointillé / rouge). (Aucun nom d'API du navigateur dans
+   ce commentaire, à dessein : _corps() du banc lit jusqu'au prochain
+   `var` et juge la pureté du bloc D-6 qui précède.) */
+var DZM_BORING_DEF={maxS:8,minFrames:12,fps:30};
+function dzmBoringOpts(opts){
+  var o=Object.assign({},DZM_BORING_DEF),k,v;
+  if(opts&&typeof opts==="object")for(k in DZM_BORING_DEF){v=Number(opts[k]);if(isFinite(v)&&v>0)o[k]=v}
+  return o}
+/* la « même source » est celle du jumeau (dzmSrcKey, la clé JSON canonique
+   de `src`, déjà exportée `srcKey`) — le plan la redéfinissait, MESURÉ :
+   elle existait ; une source vide ({} ou absente) n'a pas de clé */
+function dzmBoringKey(c){
+  var s=c&&c.src;
+  return (s&&typeof s==="object"&&Object.keys(s).length)?dzmSrcKey(s):""}
+function dzmBoring(clips,opts){
+  var o=dzmBoringOpts(opts),out={};
+  if(!Array.isArray(clips))return out;
+  var v=clips.filter(function(c){return c&&typeof c==="object"&&c.tr==="v1"&&c.id!=null})
+    .sort(function(a,b){return (Number(a.start)||0)-(Number(b.start)||0)});
+  v.forEach(function(c){
+    var len=(Number(c.end)||0)-(Number(c.start)||0);
+    if(len>o.maxS)out[c.id]="long";
+    var g=dzmVoisins(v,c).g,k=dzmBoringKey(c);
+    if(!g||!k||k!==dzmBoringKey(g))return;
+    if(c.src.image&&!c.src.job_id){out[c.id]="jump";return}
+    var sp=Number(g.speed);if(!(sp>0))sp=1;
+    var fin=(Number(g.srcIn)||0)+((Number(g.end)||0)-(Number(g.start)||0))*sp;
+    var ecart=Math.abs((Number(c.srcIn)||0)-fin);
+    if(ecart*o.fps<o.minFrames-1e-6)out[c.id]="jump"});
+  return out}
+/* ── L7 D-39 (24/09/2026) : comparaison de deux projets (pur) ──
+   dzmDiff(a, b) sur deux tableaux de clips → {added, removed, moved,
+   trimmed, changed, noms}. Identité par `id` (des chaînes). `moved` :
+   même durée ET même srcIn, start différent. `trimmed` : durée OU srcIn
+   différents — un slip (srcIn seul) est un rognage de la FENÊTRE de
+   source, pas un déplacement (la lettre du plan le laissait sans
+   rubrique) ; `src:[inA,inB]` s'ajoute quand srcIn a bougé. `changed` :
+   les clés de DZM_DIFF_CLES qui diffèrent par leur forme JSON (absent,
+   null et undefined se valent ; 0 n'est pas absent) — un clip peut être
+   rogné ET modifié, déplacé d'une piste = déplacé ET modifié (tr),
+   moved exclut trimmed. `noms` = {id: libellé} (B prime, sinon A, rien
+   sans libellé) : la vue n'a pas les clips sous la main — sixième clé,
+   écart mesuré au plan (cinq rubriques). Rien n'est muté. Les temps de
+   la vue : le m:ss du bundle (svmRuler, réutilisé) + un dixième à la
+   virgule quand il y en a un. L'hôte lit l'autre projet, appelle diff
+   sur la timeline courante et monte DiffView dans son popover. */
+var DZM_DIFF_CLES=["gain","opacity","x","y","scale","rotate","effects","dz","speed","retime","stab","text","transition","transition_s","fade_in","fade_out","label","tr"];
+function dzmDiffIndex(clips){
+  var m={},ord=[];
+  (Array.isArray(clips)?clips:[]).forEach(function(c){
+    if(c&&typeof c==="object"&&c.id!=null){var k=String(c.id);if(!(k in m))ord.push(k);m[k]=c}});
+  return {m:m,ord:ord}}
+function dzmDiff(a,b){
+  var ia=dzmDiffIndex(a),ib=dzmDiffIndex(b),out={added:[],removed:[],moved:[],trimmed:[],changed:[],noms:{}};
+  function json(v){return JSON.stringify(v===void 0?null:v)}
+  ib.ord.forEach(function(id){var c=ib.m[id];if(c.label)out.noms[id]=String(c.label);if(!(id in ia.m))out.added.push(id)});
+  ia.ord.forEach(function(id){
+    var ca=ia.m[id],cb=ib.m[id];
+    if(ca.label&&!out.noms[id])out.noms[id]=String(ca.label);
+    if(!cb){out.removed.push(id);return}
+    var sa=Number(ca.start)||0,ea=Number(ca.end)||0,sb=Number(cb.start)||0,eb=Number(cb.end)||0;
+    var na=Number(ca.srcIn)||0,nb=Number(cb.srcIn)||0,la=ea-sa,lb=eb-sb;
+    /* revue 24/09 : start et srcIn sur la MEME tolerance que la duree (un ripple flottant 5.000000001 n'est pas un deplacement) */
+    var slip=Math.abs(na-nb)>1e-6;
+    if(Math.abs(la-lb)>1e-6||slip){
+      var t={id:id,de:[sa,ea],en:[sb,eb]};if(slip)t.src=[na,nb];out.trimmed.push(t)}
+    else if(Math.abs(sa-sb)>1e-6)out.moved.push({id:id,de:sa,en:sb});
+    var cles=DZM_DIFF_CLES.filter(function(k){return json(ca[k])!==json(cb[k])});
+    if(cles.length)out.changed.push({id:id,cles:cles})});
+  return out}
+function dzmDiffTemps(v){
+  v=Number(v);if(!(v>0))v=0;
+  var s=Math.floor(v),d=Math.round((v-s)*10);if(d>=10){s+=1;d=0}
+  return svmRuler(s)+(d?","+d:"")}
+var DZM_DIFF_RUB=[["added","Ajouté","Ajoutés"],["removed","Supprimé","Supprimés"],["moved","Déplacé","Déplacés"],
+  ["trimmed","Rogné","Rognés"],["changed","Modifié","Modifiés"]];
+/* la vue : un svm-pop (le voile et Échap sont ceux de l'hôte), un résumé, cinq rubriques data-rub, « Fermer » */
+function DzmDiffView(o){
+  o=o||{};var d=o.diff||{},noms=d.noms||{};
+  function nom(id){return noms[id]||String(id)}
+  function n(k){return Array.isArray(d[k])?d[k].length:0}
+  function ligne(k,e){
+    if(k==="moved")return nom(e.id)+" : "+dzmDiffTemps(e.de)+" → "+dzmDiffTemps(e.en);
+    if(k==="trimmed")return nom(e.id)+" : "+dzmDiffTemps(e.de[0])+"–"+dzmDiffTemps(e.de[1])+" → "+dzmDiffTemps(e.en[0])+"–"+dzmDiffTemps(e.en[1])+(e.src?" (source "+dzmDiffTemps(e.src[0])+" → "+dzmDiffTemps(e.src[1])+")":"");
+    if(k==="changed")return nom(e.id)+" : "+(e.cles||[]).join(", ");
+    return nom(e)}
+  var res=DZM_DIFF_RUB.map(function(rb){var c=n(rb[0]);return c+" "+(c>1?rb[2]:rb[1]).toLowerCase()}).join(" · ");
+  return r.jsxs("div",{className:"svm-pop dzm-diff",onClick:function(e){e.stopPropagation()},children:[
+    r.jsx("div",{className:"svm-poptitle",children:"Comparer : « "+(o.nomA||"montage courant")+" » → « "+(o.nomB||"autre projet")+" »"}),
+    r.jsx("div",{className:"svm-popnote dzm-diffres",children:res})].concat(DZM_DIFF_RUB.map(function(rb){
+      var k=rb[0],items=Array.isArray(d[k])?d[k]:[];
+      return r.jsxs("div",{className:"dzm-diffrub","data-rub":k,children:[
+        r.jsx("div",{className:"dzm-diffh",children:rb[2]+" ("+items.length+")"}),
+        r.jsx("ul",{className:"dzm-difflist",children:items.length
+          ?items.map(function(e,i){return r.jsx("li",{children:ligne(k,e)},k+i)})
+          :[r.jsx("li",{className:"dzm-diffnone",children:"—"},"none")]})]},k)}),[
+    r.jsx("div",{className:"svm-poprow",children:
+      r.jsx("button",{className:"svm-secbtn",title:"Fermer la comparaison (Échap)",onClick:function(){if(o.onClose)o.onClose()},children:"Fermer"})},"fin")])})}
+
+/* ── L7 D-3b (24/09/2026) : les deux secondes de source d'une jonction (pur) ──
+   A = la DERNIÈRE image du plan gauche (srcIn + durée × vitesse − une image :
+   la vitesse étire la fenêtre de source, même mesure que le juge des jump cuts
+   et que le srcIn du roll), B = la PREMIÈRE image du plan droit (son srcIn ;
+   sa vitesse n'y change rien). Les deux plans doivent être des VIDÉOS
+   (src.job_id) sur la même piste, en contact à la tolérance du roll (0,1 s),
+   le gauche AVANT le droit et d'une durée > 0 — sinon null : l'hôte grise la
+   rangée, il ne la retire pas. Bornées à 0, arrondies à l'image puis au
+   millième : la clé « source@seconde » des vignettes ne bouge que quand
+   l'image change. */
+var DZM_AB_IMG=1/30;
+function dzmAbSecs(g,d){
+  if(!g||!d||typeof g!=="object"||typeof d!=="object")return null;
+  if(!g.src||!d.src||!g.src.job_id||!d.src.job_id)return null;
+  if(g.tr!==d.tr||Math.abs((Number(d.start)||0)-(Number(g.end)||0))>.1+1e-9)return null;
+  var len=(Number(g.end)||0)-(Number(g.start)||0);if(!(len>0))return null;
+  var a=(Number(g.srcIn)||0)+len*dzmSpeedNum(g)-DZM_AB_IMG,b=Number(d.srcIn)||0;
+  return {a:dzmR3(Math.round(Math.max(0,a)*30)/30),b:dzmR3(Math.round(Math.max(0,b)*30)/30)}}
+/* revue 24/09 : ce que le roll d'une jonction a VRAIMENT fait, en images — dzmRoll
+   borne `d` sans un mot (chaque plan garde 0,3 s, B ne remonte pas avant sa
+   source) : avec dix images demandées près de la borne, quatre peuvent passer.
+   {k : images faites (signé), partiel : k ≠ 0 et k ≠ n}. Tolérance 1 ms : un
+   start qui n'a pas bougé rend k = 0 (refus à dire, rien à écrire). */
+function dzmAbRollDit(avant,apres,n){
+  var d=(Number(apres)||0)-(Number(avant)||0),k0=Number(n)||0;
+  if(Math.abs(d)<1e-3)return {k:0,partiel:!1};
+  if(Math.abs(d-k0*DZM_AB_IMG)<1e-3)return {k:k0,partiel:!1};
+  return {k:Math.round(d/DZM_AB_IMG),partiel:!0}}
+/* ── L7 D-19 (24/09/2026) : coins arrondis et ombre portée d'un overlay (pur) ──
+   {radius : rayon des coins en px du canvas, entier 0..200 (arrondi, borné) ;
+   shadow : 0|1, numérique ≥ 0,5 ou true → 1} — la règle même de _ov_transform
+   côté rendu, lue UNE fois (svmOvTfOf) pour l'aperçu, l'inspecteur et le
+   payload. Toujours les deux clés, défauts 0 ; entrée molle → {0,0}. Jamais
+   dans les keyframes (D-14) : les deux restent statiques, daté. */
+var DZM_OV_RADIUS_MAX=200;
+function dzmOvExtra(c){
+  var o=c&&typeof c==="object"?c:{},r=Number(o.radius),s=Number(o.shadow);
+  r=isFinite(r)?Math.round(r):0;
+  return {radius:Math.max(0,Math.min(DZM_OV_RADIUS_MAX,r)),shadow:isFinite(s)&&s>=.5?1:0}}
+/* ── L7 D-22 (24/09/2026) : pistes de sous-titres par langue, une seule gravée (pur) ──
+   Périmètre MINIMAL et daté (décision n°7 du plan L7-A) : une piste S2… est une
+   COPIE de S1 — traduite (le tiroir, case « dans une nouvelle piste ») ou vide
+   (menu de piste « Nouvelle piste de langue… ») ; ses répliques sont des clips
+   tr:"s2" ; l'ÉDITEUR reste sur S1 (S2 s'édite par retraduction, pas dans le
+   tiroir — écart daté). La piste subs marquée `burn:true` (UNE seule) est celle
+   que subsPayload() envoie ; sans marque, s1 — le comportement d'avant, à
+   l'octet près. Le genre se lit par dzmKindOf (initiale ou kind explicite),
+   jamais par une égalité avec "s1" : une piste s9 sans kind est une piste de
+   sous-titres, une « s1 » déclarée vidéo n'en est pas une.
+   · subsTracks(ts) — les identifiants des pistes subs, dans l'ordre.
+   · subsNew(ts, lang) → {tracks, id} : id "s<max+1>", nom "S<n> <lang>",
+     habillage dzmSkin, `lang` seulement si donnée ; posée APRÈS la dernière
+     piste subs (le groupe du bas), en fin de liste s'il n'y en a aucune.
+   · subsBurn(ts, id) — tableau NEUF, une seule `burn:true` ; les autres subs
+     portent `burn:false` (objets neufs), les pistes hors subs sont les MÊMES
+     objets ; id absent, inconnu ou hors genre → s1, sinon la première subs.
+   · subsBurnId(ts) — ce que le rendu grave : la marquée, sinon "s1" (même
+     sans aucune piste subs : la liste des clips filtre alors comme avant),
+     sinon la première subs quand s1 manque.
+   · subsCopy(clips, deTr, versTr, segments?) — segments donnés → clips neufs
+     {id "s<n>c<k>" unique par dzmUniqueId, tr:versTr, start, end, text,
+     label:text (46 car., « (vide) »), hidden si vrai} — les `words` (karaoké
+     mot à mot) ne suivent PAS : une traduction change les mots, dzmSubsTrApply
+     les met déjà à null, et une piste de langue naît sans karaoké (daté) ;
+     sans segments → copie des clips de deTr (mêmes clés, words compris, id et
+     tr neufs). Les autres clips sont les MÊMES objets ; rien n'est retiré de
+     la piste cible. */
+var DZM_SUBS_LABEL_MAX=46;
+function dzmSubsTracks(ts){
+  var out=[];(Array.isArray(ts)?ts:[]).forEach(function(t){
+    if(t&&t.id!=null&&dzmKindOf(t.id,t.kind)==="subs")out.push(String(t.id))});
+  return out}
+function dzmSubsNew(ts,lang){
+  var list=Array.isArray(ts)?ts.slice():[],n=1,at=list.length,lg=String(lang==null?"":lang).trim(),i,m;
+  for(i=0;i<list.length;i++){var t=list[i];
+    if(!t||t.id==null)continue;
+    m=/^s(\d+)$/.exec(String(t.id));
+    if(m&&+m[1]>=n)n=+m[1]+1;
+    if(dzmKindOf(t.id,t.kind)==="subs")at=i+1}
+  var id="s"+n,neuf=Object.assign(dzmSkin(id,"subs"),{name:"S"+n+(lg?" "+lg:""),kind:"subs"});
+  if(lg)neuf.lang=lg;
+  list.splice(at,0,neuf);
+  return {tracks:list,id:id}}
+function dzmSubsBurnId(ts){
+  var list=Array.isArray(ts)?ts:[],ids=dzmSubsTracks(list),i,t;
+  for(i=0;i<list.length;i++){t=list[i];
+    if(t&&t.burn&&t.id!=null&&dzmKindOf(t.id,t.kind)==="subs")return String(t.id)}
+  var d="s1";return (!ids.length||ids.indexOf(d)>=0)?d:ids[0]}
+function dzmSubsBurn(ts,id){
+  var list=Array.isArray(ts)?ts:[],ids=dzmSubsTracks(list);
+  var want=(id!=null&&ids.indexOf(String(id))>=0)?String(id):dzmSubsBurnId(list.map(function(t){
+    return t&&typeof t==="object"?Object.assign({},t,{burn:!1}):t}));
+  return list.map(function(t){
+    if(!t||t.id==null||dzmKindOf(t.id,t.kind)!=="subs")return t;
+    return Object.assign({},t,{burn:String(t.id)===want})})}
+/* = subsLabelOf du bloc subs (subs.js:104-107), tenu à l'identique : blancs
+   repliés, « (vide) », 46 caractères puis « … ». Le bloc est hors de portée de
+   la couche au chargement (inliné avant elle) ; le banc [31] pinne la règle. */
+function dzmSubsLabelOf(txt){
+  var t=String(txt==null?"":txt).replace(/\s+/g," ").trim();
+  if(!t)return "(vide)";
+  return t.length>DZM_SUBS_LABEL_MAX?t.slice(0,DZM_SUBS_LABEL_MAX-1)+"…":t}
+function dzmSubsCopy(clips,deTr,versTr,segments){
+  var cs=Array.isArray(clips)?clips.filter(function(c){return c&&typeof c==="object"}):[];
+  var vers=String(versTr==null?"":versTr),de=String(deTr==null?"":deTr);
+  if(!vers)return cs;
+  var depuisClips=!Array.isArray(segments);
+  var src=depuisClips?cs.filter(function(c){return c.tr===de}):segments;
+  var pool=cs.slice(),out=cs.slice(),k=0;
+  src.forEach(function(s){
+    if(!s||typeof s!=="object")return;
+    var st=Number(s.start),en=Number(s.end);
+    if(!isFinite(st))return;
+    st=Math.max(0,st);
+    en=isFinite(en)&&en>st?en:st+.1;
+    st=Math.round(st*1e3)/1e3;en=Math.round(en*1e3)/1e3;
+    var id=dzmUniqueId(pool,vers+"c"+(++k)),c;
+    if(depuisClips){c=Object.assign({},s,{id:id,tr:vers,start:st,end:en})}
+    else{var txt=String(s.text==null?"":s.text);
+      c={id:id,tr:vers,start:st,end:en,text:txt,label:dzmSubsLabelOf(txt)};
+      if(s.hidden)c.hidden=!0}
+    pool.push(c);out.push(c)});
+  return out}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,
@@ -6935,6 +7302,14 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   jobsTri:dzmJobsTri,Deliver:DzmDeliver,
   /* L4 (23/09/2026) : reglages de livraison -- pastille, options, payload, statut, rangee */
   loudPastille:dzmLoudPastille,deliverOpts:dzmDeliverOpts,deliverPayload:dzmDeliverPayload,delStatut:dzmDelStatut,DeliverRow:DzmDeliverRow,
+  kmPreset:dzmKmPreset,kmExport:dzmKmExport,kmImport:dzmKmImport,
+  clipCopy:dzmClipCopy,clipPaste:dzmClipPaste,
+  boring:dzmBoring,boringDef:DZM_BORING_DEF,
+  diff:dzmDiff,DiffView:DzmDiffView,diffTemps:dzmDiffTemps,
+  abSecs:dzmAbSecs,abRollDit:dzmAbRollDit,
+  ovExtra:dzmOvExtra,
+  /* L7 D-22 (24/09/2026, tache 6) : pistes de sous-titres par langue, une seule gravee */
+  subsTracks:dzmSubsTracks,subsNew:dzmSubsNew,subsBurn:dzmSubsBurn,subsBurnId:dzmSubsBurnId,subsCopy:dzmSubsCopy,
   /* E-13 / E-14 (lot E-C, tache 5) : la tete dans l'inspecteur, le trou selectionne et son ripple */
   teteTxt:dzmTeteTxt,trou:dzmTrou,trouRipple:dzmTrouRipple,
   DEFAULTS:DZM_DEFAULT_TRACKS};

@@ -190,6 +190,26 @@ _TITRES = [
     'title:proj.demo?"Réinitialisation indisponible sur la démo":"Réinitialiser depuis la Bibliothèque — écrase la sauvegarde"',
     'title:"Aperçu 480p — gratuit, local, aucun crédit",onClick:function(){setPop(pop==="preview"?"":"preview")},children:"Preview"',
     'title:"Rendu final (master 1080, local) — ouvre le panneau de rendu",onClick:function(){setPop(pop==="render"?"":"render")},children:"Rendre →"',
+    # L7 D-10 (24/09/2026, tache 1) : les trois boutons du panneau « ? »
+    'title:"Preset Resolve : pose O (sortie), Ctrl+B (lame), Alt+O (barre d\'outils) — Ctrl+T reste au navigateur, la transition est sur Alt+T",',
+    'title:"Exporter les raccourcis personnalisés (deepotus-raccourcis.json)",',
+    'title:"Importer un fichier de raccourcis JSON — les actions inconnues et les touches réservées sont ignorées",',
+    # L7 D-8 (24/09/2026, tache 3) : le popover « Plans trop longs / jump cuts » -- la case, les deux champs, « Fermer »
+    'title:"Marquer sur la timeline les plans trop longs et les jump cuts de V1",',
+    'title:"Un plan de V1 plus long que ce seuil (2 à 60 s) est marqué « long »",',
+    'title:"Deux plans V1 de la même source, en contact, dont la reprise est à moins de n images (1 à 60, à 30 i/s) : jump cut",',
+    'title:"Fermer ce panneau (Échap)",onClick:function(){setPop("")},children:"Fermer"',
+    # L7 D-3b (24/09/2026, tache 4-bis) : la rangee A/B du popover de jonction -- deux vignettes, deux boutons de roll
+    'title:"A — dernière image du plan de gauche"',
+    'title:"Reculer la jonction d\'une image (Maj : dix) — A raccourcit, B s\'allonge",',
+    'title:"Avancer la jonction d\'une image (Maj : dix) — A s\'allonge, B raccourcit",',
+    'title:"B — première image du plan de droite"',
+    # L7 D-19 (24/09/2026, tache 5, client) : le champ « Coins » et la case « Ombre portée » de l'inspecteur d'overlay
+    'title:"Rayon des coins de l\'overlay en px du canvas (0 = coins droits, 200 au plus) — statique, les keyframes ne l\'animent pas",',
+    'title:"Ombre portée sous l\'overlay (noir à 55 %, décalée de 6 px au rendu) — statique, retirée par « plein cadre »",',
+    # L7 D-22 (24/09/2026, tache 6) : la case « nouvelle piste » du tiroir de traduction (les cinq entrees du menu de
+    # piste portent title:it.lbl par DzmCtxMenu, deja audite)
+    'title:"Coché : la traduction naît dans une nouvelle piste de sous-titres S2, S3… (S1 reste intacte ; la piste gravée au rendu se choisit par clic droit sur sa tête). Décoché : S1 est réécrite.",',
 ]
 for t in _TITRES:
     check("R1_titre_pose_x1_" + re.sub(r"\W+", "_", t[6:40]).strip("_"),
@@ -203,6 +223,10 @@ _TITRES_COUCHE = [
     'title:"Fermer le bandeau (Échap)",onClick:function(){o.onClose&&o.onClose()},children:"Fermer"',
     'title:"Fermer le tiroir Médias",onClick:function(){if(o.onClose)o.onClose()},children:"Fermer"',
     'title:"Charger les rendus suivants",',
+    # L7 D-39 (24/09/2026, tache 4) : « ⇄ » de la ligne Projets (branche « comparer » du titre, une ligne) et le
+    # « Fermer » de la vue diff -- dans la COUCHE, donc ici et non dans _TITRES (ecart au plan, qui disait _TITRES +2)
+    ':"Comparer « "+(p.name||"")+" » à la timeline courante (rien n\'est modifié)",',
+    'title:"Fermer la comparaison (Échap)",onClick:function(){if(o.onClose)o.onClose()},children:"Fermer"',
 ]
 for t in _TITRES_COUCHE:
     check("R1_titre_couche_x1_" + re.sub(r"\W+", "_", t[6:40]).strip("_"),

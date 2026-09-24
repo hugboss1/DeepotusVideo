@@ -17,7 +17,7 @@ assertion a part entiere, avant toute lecture du groupe -- faute n°6 : aucune
 lecture nue, une regex qui ne trouve rien fait ROUGIR le banc, pas mourir.
 
   [1] E-6 : chaque id de `DZM_MENU_RUB` (couche) EXISTE dans `SVM_ACTIONS`
-      du bundle patche (45 entrees apres R_R1) ; les ids de SVM_ACTIONS qui
+      du bundle patche (45 entrees apres R_R1, 46 depuis L7 D-10, 48 depuis L7 D-6) ; les ids de SVM_ACTIONS qui
       n'y sont PAS sont exactement les treize gestes de tete (Lecture sans
       fullscreen/safezones, blade, title_add, adjust_add) que le repli
       `dzmMenuRub` envoie en Timeline -- liste pinnee, mesuree le 23/09/2026 ;
@@ -100,8 +100,8 @@ mR, nR = un(r'var DZM_MENU_RUB=\{(.*?)\};\nfunction dzmMenuRub\(a\)\{', JS, re.S
 check("x1_DZM_MENU_RUB_est_lue_une_fois_dans_la_couche_jusqu_a_dzmMenuRub", nR == 1 and mR is not None, nR)
 _corpsR = re.sub(r"/\*.*?\*/", "", mR.group(1), flags=re.S) if mR else ""
 RUB = dict(re.findall(r'(\w+):"([^"]+)"', _corpsR))
-check("x1_la_table_porte_trente_deux_ids_et_six_rubriques_moins_Projet_et_Timeline",
-      len(RUB) == 32 and set(RUB.values()) == {"Édition", "Marqueurs", "Affichage", "Aide"}, (len(RUB), sorted(set(RUB.values()))))
+check("x1_la_table_porte_trente_quatre_ids_et_six_rubriques_moins_Projet_et_Timeline",
+      len(RUB) == 34 and set(RUB.values()) == {"Édition", "Marqueurs", "Affichage", "Aide"}, (len(RUB), sorted(set(RUB.values()))))
 _i0 = BUN.find("var SVM_ACTIONS=[")
 _i1 = BUN.find("];", _i0) if _i0 >= 0 else -1
 _TAB = BUN[_i0:_i1] if 0 <= _i0 < _i1 else ""
@@ -111,24 +111,31 @@ ACT = re.findall(r'^ \{id:"([a-z0-9_]+)",sec:"([^"]+)",lbl:"[^"]*",combo:"([^"]*
 IDS = [a[0] for a in ACT]
 SEC = {a[0]: a[1] for a in ACT}
 COMBOS = [a[2] for a in ACT]
-check("x1_le_bundle_patche_porte_quarante_cinq_actions_ids_uniques_quatre_sections",
-      len(ACT) == 45 and len(set(IDS)) == 45 and set(SEC.values()) == {"Lecture", "Montage", "Affichage", "Audio"},
+# 45 -> 46 le 24/09/2026 (L7 D-10, tache 1) : `trans_add` (sec Montage, « Alt+T »
+# -- « Ctrl+T » et « Ctrl+Maj+T » sont reservees au navigateur, mesure), repli
+# dans R_R1 ; hors DZM_MENU_RUB comme title_add / adjust_add -> Timeline.
+# 46 -> 48 le 24/09/2026 (L7 D-6, tache 2) : `copy` (« Ctrl+C ») et `paste`
+# (« Ctrl+V »), sec Montage, repli dans R_R1 ; ranges en Édition par DZM_MENU_RUB
+# (32 -> 34 ids dans la table des rubriques).
+NACT = 48
+check("x1_le_bundle_patche_porte_quarante_huit_actions_ids_uniques_quatre_sections",
+      len(ACT) == NACT and len(set(IDS)) == NACT and set(SEC.values()) == {"Lecture", "Montage", "Affichage", "Audio"},
       (len(ACT), sorted(set(SEC.values()))))
 check("x1_chaque_id_de_la_table_des_rubriques_existe_dans_SVM_ACTIONS",
-      len(RUB) == 32 and len(IDS) == 45 and set(RUB) <= set(IDS), sorted(set(RUB) - set(IDS)))
+      len(RUB) == 34 and len(IDS) == NACT and set(RUB) <= set(IDS), sorted(set(RUB) - set(IDS)))
 # les ids SANS rubrique tombent par `sec` : Lecture / Montage -> Timeline -- ce
-# sont les TREIZE gestes de tete (pinnes) ; aucun id Audio / Affichage n'est
+# sont les QUATORZE gestes de tete (pinnes) ; aucun id Audio / Affichage n'est
 # hors table (sinon le repli Audio -> Edition / Affichage parlerait a sa place)
 HORS = set(IDS) - set(RUB)
 TETE = {"play", "jog_back", "jog_pause", "jog_fwd", "step_back", "step_fwd", "cut_prev", "cut_next",
-        "home", "end", "blade", "title_add", "adjust_add"}
-check("x1_les_treize_ids_hors_table_sont_les_gestes_de_tete_Lecture_ou_Montage_vers_Timeline",
-      len(RUB) == 32 and len(IDS) == 45 and HORS == TETE and all(SEC[i] in ("Lecture", "Montage") for i in HORS),
+        "home", "end", "blade", "title_add", "adjust_add", "trans_add"}
+check("x1_les_quatorze_ids_hors_table_sont_les_gestes_de_tete_Lecture_ou_Montage_vers_Timeline",
+      len(RUB) == 34 and len(IDS) == NACT and HORS == TETE and all(SEC[i] in ("Lecture", "Montage") for i in HORS),
       sorted(HORS ^ TETE))
 mRub, nRub = un(r'function dzmMenuRub\(a\)\{\n  var s=a&&DZM_MENU_RUB\[a\.id\];if\(s\)return s;\n  return a\.sec==="Audio"\?"Édition":a\.sec==="Affichage"\?"Affichage":"Timeline"\}', JS)
 check("x1_le_repli_de_rubrique_est_ecrit_une_fois_Audio_Edition_Affichage_Affichage_sinon_Timeline", nRub == 1 and mRub is not None, nRub)
 check("x1_les_quatre_marqueurs_vont_en_Marqueurs_keys_panel_en_Aide_undo_en_Edition",
-      len(RUB) == 32 and all(RUB.get(k) == "Marqueurs" for k in ("marker_toggle", "marker_prev", "marker_next", "marker_index"))
+      len(RUB) == 34 and all(RUB.get(k) == "Marqueurs" for k in ("marker_toggle", "marker_prev", "marker_next", "marker_index"))
       and RUB.get("keys_panel") == "Aide" and RUB.get("undo") == "Édition" and RUB.get("snap") == "Édition", RUB)
 
 # ── [2] E-6 : chaque combo parsable et aller-retour sous node ──────────
@@ -142,7 +149,7 @@ check("x2_les_cinq_morceaux_sont_extraits_une_fois_chacun_couche_x2_bundle_x3",
       (nTok, nFn, nEv, nEvs, nCoe) == (1, 1, 1, 1, 1) and None not in (mTok, mFn, mEv, mEvs, mCoe),
       (nTok, nFn, nEv, nEvs, nCoe))
 check("x2_aucune_combo_ne_porte_Cmd_et_tous_les_jetons_sont_connus",
-      len(COMBOS) == 45 and all(c for c in COMBOS) and not any("Cmd" in c for c in COMBOS)
+      len(COMBOS) == NACT and all(c for c in COMBOS) and not any("Cmd" in c for c in COMBOS)
       and all(all(t in ("Ctrl", "Maj", "Alt", "Suppr", "Espace", "Home", "End", "←", "→", "↑", "↓") or len(t) == 1
                   for t in c.split("+")) for c in COMBOS),
       [c for c in COMBOS if "Cmd" in c or not all(t in ("Ctrl", "Maj", "Alt", "Suppr", "Espace", "Home", "End", "←", "→", "↑", "↓") or len(t) == 1 for t in c.split("+"))])
@@ -167,14 +174,14 @@ console.log(JSON.stringify(out));""" % json.dumps(COMBOS, ensure_ascii=False)])
     finally:
         shutil.rmtree(_d, ignore_errors=True)
 check("x2_le_shim_node_a_tourne_et_rend_une_ligne_par_combo",
-      NODE is not None and isinstance(RT, list) and len(RT) == len(COMBOS) == 45, (NODE, None if RT is None else len(RT)))
+      NODE is not None and isinstance(RT, list) and len(RT) == len(COMBOS) == NACT, (NODE, None if RT is None else len(RT)))
 _nuls = [x[0] for x in (RT or []) if x[1] is None]
 _mauv = [x for x in (RT or []) if x[1] is not None and x[2] != x[0]]
 check("x2_chaque_combo_est_parsable_par_dzmComboToKey_et_porte_les_cinq_cles_d_un_KeyboardEventInit",
-      isinstance(RT, list) and len(RT) == 45 and _nuls == []
+      isinstance(RT, list) and len(RT) == NACT and _nuls == []
       and all(x[1] == "altKey,ctrlKey,key,metaKey,shiftKey" for x in RT), (_nuls, [x for x in (RT or []) if x[1] != "altKey,ctrlKey,key,metaKey,shiftKey"][:3]))
-check("x2_aller_retour_svmComboOfEvent_rend_la_combo_de_depart_pour_les_45",
-      isinstance(RT, list) and len(RT) == 45 and _mauv == [] and sum(1 for x in RT if x[2] == x[0]) == 45, _mauv)
+check("x2_aller_retour_svmComboOfEvent_rend_la_combo_de_depart_pour_les_48",
+      isinstance(RT, list) and len(RT) == NACT and _mauv == [] and sum(1 for x in RT if x[2] == x[0]) == NACT, _mauv)
 # svmKeyLabel rend "" sans surcharge (le modele retombe alors sur a.combo) ; le
 # repli est ecrit UNE fois dans le bundle ET dans le modele de la couche
 mKL, nKL = un(r'  function svmKeyLabel\(id\)\{\n    return km\.byId\[id\]\|\|\(SVM_ACTION_BY_ID\[id\]\?SVM_ACTION_BY_ID\[id\]\.combo:""\)\}', BUN)
