@@ -57,6 +57,11 @@ Câblage « timeline → rendu » du handoff son_vfx_montage :
                               pièce jointe texte ; calcul PUR dans
                               `edl_export`, sources résolues et sondées ici.
                               400 : format inconnu, aucune timeline.
+  POST /api/montage/scenes    D-42 — {src, srcIn, dur, threshold?} → {ok,
+                              times} : les changements de plan (scdet) de
+                              l'extrait, en secondes relatives à srcIn ;
+                              `scenes.detect`, cache dans montage_cache/.
+                              400 paramètres, 404 source, 415 non vidéo.
   DELETE /api/montage/save    Efface la sauvegarde ; GET /project reconstruit
                               alors depuis la Bibliothèque.
                               GET /project sert d'abord la sauvegarde si elle
@@ -134,6 +139,7 @@ from sqlalchemy import func, or_, select
 from app.config import settings
 from app.models.schemas import JobStatus
 from app.services import edl_export as _edl
+from app.services import scenes as _scenes
 from app.services import sfx_service
 from app.services.composition_service import FFMPEG_TIMEOUT_S
 from app.services.storage import JobRecord, async_session_factory
@@ -2602,6 +2608,40 @@ async def montage_export(format: str = ""):
     nom = re.sub(r"[^A-Za-z0-9._-]+", "_", str(rec.get("name") or "")).strip("._") or "montage"
     return Response(content=texte.encode("utf-8"), media_type=mime,
                     headers={"Content-Disposition": f'attachment; filename="{nom[:60]}{ext}"'})
+
+
+# D-42 (L7-B, 24/09/2026) — LES CHANGEMENTS DE PLAN d'un extrait de source,
+# pour « Découper aux changements de plan » (menu contextuel d'un clip
+# vidéo). Paramètres jugés AVANT toute résolution (400) ; la source passe par
+# `_media_source` (boucle locale, 404 introuvable, 415 non vidéo — la même
+# garde que les précalculs) ; le calcul est `scenes.detect` (cache disque,
+# MediaError → 415 nommé par `_media_http`). `times` en secondes RELATIVES au
+# `srcIn` demandé ; l'écran les convertit en temps de timeline (`dzmCutAt`).
+_SCENES_DUR_MAX = 4 * 3600.0
+
+
+def _scenes_num(v, nom: str, *, mini: float, maxi: float, strict: bool) -> float:
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        raise HTTPException(400, f"{nom} illisible.")
+    if not math.isfinite(f) or f > maxi or (f <= mini if strict else f < mini):
+        raise HTTPException(400, f"{nom} hors bornes.")
+    return f
+
+
+@router.post("/scenes")
+async def montage_scenes(request: Request):
+    body = await _json_body(request)
+    src_in = _scenes_num(body.get("srcIn", 0), "srcIn", mini=0.0, maxi=_SCENES_DUR_MAX * 6, strict=False)
+    dur = _scenes_num(body.get("dur"), "dur", mini=0.0, maxi=_SCENES_DUR_MAX, strict=True)
+    th = _scenes_num(body.get("threshold", 10.0), "threshold", mini=0.0, maxi=100.0, strict=True)
+    p = await _media_source(request, body.get("src"), video=True)
+    try:
+        times = await asyncio.to_thread(_scenes.detect, p, src_in, dur, threshold=th)
+    except Exception as e:
+        raise _media_http(e)
+    return {"ok": True, "times": times}
 
 
 def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,

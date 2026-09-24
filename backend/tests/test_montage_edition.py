@@ -1078,6 +1078,33 @@ out.sc_pur=[JSON.stringify(TRS)===_trs0,JSON.stringify(CLS)===_cls0,JSON.stringi
 out.rm=T.remove(out.sn.tracks,"s2").map(function(t){return t.id});
 out.rm_s1=T.remove(TRS,"s1")===TRS;
 out.tp=T.payload({tracks:out.sb});
+/* ── [32] L7-B D-42 (24/09/2026) : découper un clip aux changements de plan — dzmCutAt pur ── */
+var CA=[{tr:"v1",id:"p",start:2,end:12,srcIn:1,src:{job_id:"j"},transition:"fade",transition_s:.5,label:"P"},
+  {tr:"a1",id:"n",start:0,end:12,src:{a:1}}],_ca0=JSON.stringify(CA);
+function ca(res){return (res&&res.clips||[]).map(function(c){return [c.id,c.tr,c.start,c.end,c.srcIn==null?null:c.srcIn,c.transition,c.transition_s]})}
+var ca3=T.cutAt(CA,"p",[3,6,8],{});
+out.ca=[ca(ca3),ca3.n,ca3.refus,ca3.note];
+/* vitesse ×2 : t (secondes de SOURCE depuis srcIn) → timeline start + t/2 ; srcIn = srcIn + t */
+var ca2=T.cutAt([Object.assign({},CA[0],{speed:2})],"p",[4,8],{});
+out.ca_vitesse=[ca(ca2),ca2.n];
+/* deux coupes à moins de 0,1 s : même base d'identifiant (p_b50), ids uniques quand même */
+out.ca_ids=ca(T.cutAt(CA,"p",[3,3.04],{})).map(function(q){return q[0]});
+out.ca_ids_pris=ca(T.cutAt(CA.concat([{tr:"v2",id:"p_b50",start:0,end:1}]),"p",[3],{})).map(function(q){return q[0]});
+/* bords : à moins de 0,05 s du début ou de la fin → ignorées ; doublon, négatif, illisible, au-delà → ignorés ; non trié → trié */
+var cab=T.cutAt(CA,"p",[.02,9.97,5,5,-1,"x",null,20,1],{});
+out.ca_bords=[ca(cab).map(function(q){return [q[0],q[2],q[3]]}),cab.n];
+/* refus : clip absent, piste verrouillée (celle du clip ; une autre piste verrouillée ne gêne pas), aucune coupe utilisable, times illisible */
+var r1=T.cutAt(CA,"zz",[3],{}),r2=T.cutAt(CA,"p",[3],{locked:{v1:!0}}),r3=T.cutAt(CA,"p",[3],{locked:{a1:!0}}),
+  r4=T.cutAt(CA,"p",[.01,9.99],{}),r5=T.cutAt(CA,"p",null,null),r6=T.cutAt(null,"p",[3],{});
+out.ca_refus=[[r1.refus,r1.n,ca(r1).length,r1.note],[r2.refus,r2.n,ca(r2).length,r2.note],[r3.refus,r3.n,ca(r3).length],
+  [r4.refus,r4.n,r4.note],[r5.refus,r5.n],[r6.refus,r6.n,ca(r6).length]];
+/* une seule coupe : « 1 coupe » (singulier) ; le clip sans srcIn (mais avec src) démarre à 0 ; un clip SANS src ne gagne pas de srcIn */
+var c1=T.cutAt([{tr:"v1",id:"q",start:0,end:4,src:{job_id:"k"}}],"q",[2],{});
+out.ca_un=[ca(c1),c1.note];
+out.ca_sans_src=ca(T.cutAt([{tr:"v1",id:"q",start:0,end:4}],"q",[2],{}));
+/* la moitié droite garde les autres champs du clip (label, src, fx) — comme la lame */
+out.ca_champs=(function(){var o=T.cutAt([Object.assign({},CA[0],{fx:["x"]})],"p",[3],{}).clips[1];return [o.label,o.src,o.fx]})();
+out.ca_pur=[JSON.stringify(CA)===_ca0,T.cutAt(CA,"p",[3],{}).clips!==CA,T.cutAt(CA,"p",[3],{}).clips[2]===CA[1]];
 console.log(JSON.stringify(out));
 """
 # E-9 : svmRuler / svmPad2 sont des fonctions DU BUNDLE (meme portee module que
@@ -1341,7 +1368,9 @@ try:
                  "ox","ox_rayon","ox_ombre","ox_mou","ox_pur",
                  # L7 D-22 (tache 6) : les DIX-NEUF cles de la section [31].
                  "sst","sst_bornes","sn","sn2","sn_place","sb","sb_defaut","sb_neuf","sb_bascule","bid",
-                 "sc","sc_clips","sc_memes","sc_ids","sc_bornes","sc_pur","rm","rm_s1","tp"]
+                 "sc","sc_clips","sc_memes","sc_ids","sc_bornes","sc_pur","rm","rm_s1","tp",
+                 # L7-B D-42 (tache 2) : les DIX cles de la section [32].
+                 "ca","ca_vitesse","ca_ids","ca_ids_pris","ca_bords","ca_refus","ca_un","ca_sans_src","ca_champs","ca_pur"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -2919,6 +2948,51 @@ check("l7f_coeur_pur_cinq_fonctions_genre_par_dzmKindOf_x0_egalite_s1_exports_x1
       and _SRCb.count("subsBurn:") == 1 and _SRCb.count('return (id==="v1"||id==="s1")?ts:ts.filter(function(t){return t.id!==id})}') == 1
       and _SRCb.count('if(t.kind==="subs"){if(t.lang)o.lang=String(t.lang);if(t.burn)o.burn=!0;if(t.lang&&t.name)o.name=String(t.name)}') == 1,
       ({n: len(c) for n, c in _L7F.items()}, _DT.count("subsBurn:dzmSubsBurn,"), sum(c.count('"s1"') for c in _L7F.values())))
+
+print("\n[32] L7-B D-42 : decouper un clip aux changements de plan — dzmCutAt pur (tache 2, 24/09/2026)")
+# ── L7-B D-42 (24/09/2026, tache 2, decision n°2 du plan). dzmCutAt(clips, id, times, opts) PUR -> {clips, n, refus, note} :
+# `times` = secondes de SOURCE depuis le srcIn du clip (ce que rend POST /api/montage/scenes), converties en timeline
+# `start + t/speed` ; coupes a moins de 0,05 s d'un bord ignorees (la tolerance de la lame) ; piste verrouillee -> refus ;
+# moities droites `transition:"cut", transition_s:0` et `srcIn` recale (srcIn + (p - start) x speed) ; ids par
+# dzmUniqueId sur la base de la lame (id + "_b" + round(p x 10)) -- uniques meme a < 0,1 s d'ecart (la lame, elle, ne
+# l'est pas : fait mesure du plan). Le clip est remplace EN PLACE par ses morceaux (la lame, elle, ajoute en queue).
+_CA_N = ["n", "a1", 0, 12, None, None, None]
+check("ca_trois_coupes_quatre_morceaux_en_place_srcIn_recales_moities_droites_en_cut_note_n_coupes",
+      D.get("ca") == [[["p", "v1", 2, 5, 1, "fade", 0.5], ["p_b50", "v1", 5, 8, 4, "cut", 0], ["p_b80", "v1", 8, 10, 7, "cut", 0],
+                       ["p_b100", "v1", 10, 12, 9, "cut", 0], _CA_N], 3, "", "3 coupes aux changements de plan"],
+      D.get("ca"))
+check("ca_vitesse_x2_timeline_start_plus_t_sur_2_srcIn_plus_t",
+      D.get("ca_vitesse") == [[["p", "v1", 2, 4, 1, "fade", 0.5], ["p_b40", "v1", 4, 6, 5, "cut", 0], ["p_b60", "v1", 6, 12, 9, "cut", 0]], 2],
+      D.get("ca_vitesse"))
+check("ca_ids_uniques_a_moins_de_0_1_s_meme_base_p_b50_et_contre_un_id_deja_pris",
+      D.get("ca_ids") == ["p", "p_b50", "p_b50_2", "n"] and D.get("ca_ids_pris") == ["p", "p_b50_2", "n", "p_b50"],
+      (D.get("ca_ids"), D.get("ca_ids_pris")))
+check("ca_bords_0_05_ignores_doublon_negatif_illisible_nul_au_dela_ignores_tri",
+      D.get("ca_bords") == [[["p", 2, 3], ["p_b30", 3, 7], ["p_b70", 7, 12], ["n", 0, 12]], 2], D.get("ca_bords"))
+check("ca_refus_clip_absent_verrou_de_sa_piste_aucune_coupe_times_ou_clips_illisibles_autre_piste_verrouillee_passe",
+      D.get("ca_refus") == [["clip", 0, 2, "Clip introuvable — rien à découper."],
+                            ["verrou", 0, 2, "Piste V1 verrouillée — déverrouillez-la pour découper ce plan."],
+                            ["", 1, 3],
+                            ["aucune_coupe", 0, "Aucun changement de plan à découper dans ce clip."],
+                            ["aucune_coupe", 0], ["clip", 0, 0]],
+      D.get("ca_refus"))
+check("ca_une_coupe_au_singulier_clip_sans_srcIn_part_de_0",
+      D.get("ca_un") == [[["q", "v1", 0, 2, None, None, None], ["q_b20", "v1", 2, 4, 2, "cut", 0]], "1 coupe aux changements de plan"],
+      D.get("ca_un"))
+check("ca_clip_sans_source_ne_gagne_pas_de_srcIn",
+      # temoin : la meme coupe AVEC source pose srcIn 2 (ligne precedente)
+      D.get("ca_sans_src") == [["q", "v1", 0, 2, None, None, None], ["q_b20", "v1", 2, 4, None, "cut", 0]]
+      and isinstance(D.get("ca_un"), list) and D["ca_un"][:1] and D["ca_un"][0][1][4] == 2, D.get("ca_sans_src"))
+check("ca_moitie_droite_garde_label_src_fx_comme_la_lame", D.get("ca_champs") == ["P", {"job_id": "j"}, ["x"]], D.get("ca_champs"))
+check("ca_pur_entree_intacte_tableau_neuf_autres_clips_memes_objets", D.get("ca_pur") == [True, True, True], D.get("ca_pur"))
+_L7BC = _corps("dzmCutAt")
+check("l7b_ca_coeur_pur_dzmUniqueId_x1_bord_par_constante_export_cutAt_x1",
+      len(_L7BC) > 300
+      and not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|fetch\(|setClips|pushHistory", _L7BC)
+      and _L7BC.count("dzmUniqueId(") == 1 and _L7BC.count("DZM_CUT_BORD") == 2 and _L7BC.count(".05") == 0
+      and _SRCb.count("var DZM_CUT_BORD=.05;") == 1
+      and len(_DT) > 1000 and _DT.count("cutAt:dzmCutAt,") == 1 and _SRCb.count("cutAt:") == 1,
+      (len(_L7BC), _L7BC.count("dzmUniqueId("), _L7BC.count("DZM_CUT_BORD"), _DT.count("cutAt:dzmCutAt,")))
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

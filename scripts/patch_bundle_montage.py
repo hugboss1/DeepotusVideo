@@ -4895,6 +4895,27 @@ R_EC1 = (A_EC1 + "\n"
          '        var mm=/filename="([^"]+)"/.exec(res.headers.get("Content-Disposition")||"");return {nom:mm?mm[1]:"montage"+ext,t:t}})})\n'
          '      .then(function(o){if(subsDownload(o.nom,o.t,fmt==="edl"?"text/plain":"application/xml"))fireNote(lib+" exporté : "+o.nom+" — à importer dans Resolve ou Final Cut Pro");else fireNote("Export impossible dans ce navigateur")})\n'
          '      .catch(function(e){fireNote("Export "+lib+" refusé : "+((e&&e.message)||"erreur réseau"))})}\n'
+         # -- « L7Bb » (L7-B D-42, 24/09/2026) : LE GESTE « Decouper aux changements de
+         # plan », replie ici avec son entree (le menu de clip est ne de CE remplacement,
+         # x0 dans .bak_montage). Garde du clip (video rendue : src.job_id) et du verrou
+         # AVANT l'appel ; POST /scenes avec srcIn et la duree de SOURCE consommee
+         # ((end-start) x vitesse, la loi de la lame) ; la reponse est appliquee au clip
+         # tel qu'il est A LA REPONSE (clipsRef, jamais la copie du clic : l'analyse
+         # prend du temps) par DzTracks.cutAt, avec le verrou de DzTracks.cutOpts ;
+         # pushHistory() PUIS setClips (annuler ramene le clip entier), setDirty ; la
+         # note dit « n coupes » ou le refus (detail du 4xx, reseau).
+         '  function dzSceneCut(id){var c=clipsRef.current.find(function(k){return k.id===id});\n'
+         '    if(!c||!c.src||!c.src.job_id){fireNote("Découpe aux changements de plan : réservée aux clips vidéo rendus.");return}\n'
+         '    if(trackStRef.current[c.tr]&&trackStRef.current[c.tr].l){fireNote("Piste "+c.tr.toUpperCase()+" verrouillée — déverrouillez-la pour découper ce plan.");return}\n'
+         '    var sp=typeof c.speed==="number"&&c.speed>0?c.speed:1,du=Math.round(Math.max(0,(c.end-c.start)*sp)*1e3)/1e3;\n'
+         '    fireNote("Analyse des changements de plan…");\n'
+         '    fetch("/api/montage/scenes",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({src:c.src,srcIn:Number(c.srcIn)||0,dur:du})})\n'
+         '      .then(function(res){return res.json().catch(function(){return {}}).then(function(j){\n'
+         '        if(!res.ok)throw new Error((j&&typeof j.detail==="string"&&j.detail)||("HTTP "+res.status));return j})})\n'
+         '      .then(function(j){var r2=DzTracks.cutAt(clipsRef.current,id,j&&j.times,DzTracks.cutOpts(proj,trackStRef.current));\n'
+         '        if(r2.refus){fireNote(r2.note);return}\n'
+         '        pushHistory();setClips(r2.clips);setDirty(!0);fireNote(r2.note)})\n'
+         '      .catch(function(e){fireNote("Découpe aux changements de plan refusée : "+((e&&e.message)||"erreur réseau"))})}\n'
          '  function dzMenuProps(kind,o){\n'
          '    var id=o.id,ph=phRef.current,cs=clipsRef.current,rr=rootRef.current?rootRef.current.getBoundingClientRect():{left:0,top:0,width:window.innerWidth};\n'
          '    var base={kind:kind,id:id,x:Math.max(0,Math.min(o.x-rr.left,rr.width-270)),y:Math.max(0,o.y-rr.top)};\n'
@@ -4931,6 +4952,10 @@ R_EC1 = (A_EC1 + "\n"
          '      var v1=c.tr==="v1",sp=svmSpeedOf(c),g=DzTracks.voisins(cs,c).g;\n'
          '      return Object.assign(base,{items:[\n'
          '        {lbl:"Couper à la tête",combo:svmKeyLabel("blade"),off:!(ph>c.start+.05&&ph<c.end-.05),run:function(){dzFire("blade")}},\n'
+         # -- « L7Bb » (L7-B D-42) : TOUJOURS rendue, grisee hors d'un clip video rendu
+         # (src.job_id sur une piste video : le jumeau audio d'un plan porte aussi le
+         # job_id, il est exclu par le genre de piste) ; title = libelle (DzmCtxMenu).
+         '        {lbl:"Découper aux changements de plan",off:!(c.src&&c.src.job_id)||trackKind(c.tr)!=="video",run:function(){dzSceneCut(id)}},\n'
          '        {lbl:"Supprimer",combo:svmKeyLabel("delete"),run:function(){delClipById(id)}},\n'
          '        {lbl:"Remplacer la source…",off:!c.src,run:function(){dzReplaceArm(c)}},\n'
          '        {lbl:"Effets…",off:trackKind(c.tr)==="audio",run:function(){setFxPick(!0)}},{sep:!0}]\n'
@@ -5542,6 +5567,10 @@ assert R_EC1.count('combo:bid===id?"gravée":""') == 1 and R_EC1.count("subsToSr
 # le geste d'export : sauvegarde PUIS export, deux entrees de la rubrique Projet, un seul appel chacune
 assert R_EC1.count("function dzExportTl(fmt){") == 1 and R_EC1.count('run:function(){dzExportTl("edl")}') == 1 and R_EC1.count('run:function(){dzExportTl("fcpxml")}') == 1
 assert R_EC1.count('fetch("/api/montage/export?format="+fmt)') == 1 and R_EC1.count("JSON.stringify(svmSavePayload())") == 1 and R_EC1.find("function dzExportTl(fmt){") < R_EC1.find("  function dzMenuProps(kind,o){")
+# L7-B D-42 (24/09/2026) : le geste « Decouper aux changements de plan » et son entree du menu de clip, repliés dans R_EC1
+assert R_EC1.count("  function dzSceneCut(id){") == 1 and R_EC1.count("run:function(){dzSceneCut(id)}") == 1 and R_EC1.count('fetch("/api/montage/scenes",') == 1
+assert R_EC1.count("DzTracks.cutAt(clipsRef.current,id,") == 1 and R_EC1.count("DzTracks.cutOpts(proj,trackStRef.current)") == 1 and R_EC1.count("pushHistory();setClips(r2.clips);setDirty(!0);") == 1
+assert R_EC1.find("  function dzSceneCut(id){") < R_EC1.find("  function dzMenuProps(kind,o){") < R_EC1.find('lbl:"Couper à la tête"') < R_EC1.find('lbl:"Découper aux changements de plan"') < R_EC1.find('lbl:"Supprimer",combo:')
 assert R_M26A.count("x.useState(!1),dzNewTr=s9c[0],setDzNewTr=s9c[1];") == 1 and R_M26A.count("props.onNewTrack(dzTo,dzNext)") == 1 and R_M26A.count("if(props.onChange)props.onChange(dzNext,!0);") == 1
 assert R_M26B.count('"aria-label":"Traduire dans une nouvelle piste"') == 1 and R_M26B.count("sub-trnew") == 1 and R_M26B.count("dzNewTr?") == 1 and R_M26B.count("title:") == 2
 assert R_M24H.count("onNewTrack:function(lang,segs){") == 1 and R_M24H.count("DzTracks.subsNew(svmTracksOf(dzProjRef.current),lang)") == 1 and R_M24H.count("svmTracksOf(proj)") == 1 and R_M24H.count('DzTracks.subsCopy(cs,"s1",r2.id,segs)') == 1

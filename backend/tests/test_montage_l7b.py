@@ -349,6 +349,198 @@ check("d37_route_400_sans_timeline_timeline_vide_et_format_inconnu_avant_toute_l
       and _n0 == 4, (_n_st, _n_det, _v_st, _v_det, _u_st, _u_det, _espion))
 MS._load_saved = _ls0
 
+# ══ [2] D-42 DECOUPER AUX CHANGEMENTS DE PLAN ═══════════════════════════════
+# Service PUR `app.services.scenes` : `parse(texte)`, `detect(path, src_in,
+# dur, threshold=10.0)`, `timeout_de(dur)` ; route `POST /api/montage/scenes`.
+# CE QUE ffmpeg 8.1.1 IMPRIME REELLEMENT (mesure du 24/09/2026, scdet +
+# metadata=mode=print:key=lavfi.scd.time:file=-) : UNE paire de lignes par
+# image COUPEE et rien d'autre —
+#   frame:60   pts:30720   pts_time:2
+#   lavfi.scd.time=2
+# (sans `key=`, chaque image sort avec lavfi.scd.mafd / lavfi.scd.score, et
+# lavfi.scd.time n'apparait que sur la coupe). Source de test : testsrc2 2 s
+# puis testsrc 2 s concatenes (coupe a 2,0 s, score 31,05) ; une source grise
+# uniforme de 3 s (score 0 partout).
+print("\n[2] D-42 decouper aux changements de plan (scdet)")
+try:
+    from app.services import scenes as SC                  # noqa: E402
+except Exception as _e:                                    # faute n°6 : rougir, pas mourir
+    print("  (scenes introuvable : %s)" % _e)
+    SC = None
+
+
+def Y(nom):
+    f = getattr(SC, nom, None) if SC is not None else None
+    if f is None:
+        return lambda *a, **k: "ABSENT: %s" % nom
+    def g(*a, **k):
+        try:
+            return f(*a, **k)
+        except Exception as e:
+            return "%s: %s" % (type(e).__name__, e)
+    return g
+
+
+CC = str(pathlib.Path(TMP) / "deux_plans.mp4")
+UNI = str(pathlib.Path(TMP) / "uniforme.mp4")
+if _FB is not None:
+    subprocess.run([_FB, "-y", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc2=s=64x64:r=30:d=2",
+                    "-f", "lavfi", "-i", "testsrc=s=64x64:r=30:d=2", "-filter_complex",
+                    "[0][1]concat=n=2:v=1:a=0", "-c:v", "libx264", "-pix_fmt", "yuv420p", CC],
+                   check=False, capture_output=True, timeout=60)
+    subprocess.run([_FB, "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=gray:s=64x64:r=30:d=3",
+                    "-c:v", "libx264", "-pix_fmt", "yuv420p", UNI], check=False, capture_output=True, timeout=60)
+_gen_ok = os.path.isfile(CC) and os.path.getsize(CC) > 1000 and os.path.isfile(UNI) and os.path.getsize(UNI) > 100
+check("d42_sources_de_test_generees_deux_plans_et_uniforme", _gen_ok, (_FB, os.path.isfile(CC), os.path.isfile(UNI)))
+check("d42_le_service_scenes_existe_avec_parse_detect_timeout_de",
+      SC is not None and all(callable(getattr(SC, n, None)) for n in ("parse", "detect", "timeout_de")), "SC=%r" % (SC,))
+
+# parse : la sortie MESUREE, telle quelle (espaces compris) ; tri, dedoublonnage a 1/30 s, plafond 200
+_OUT_MESURE = "frame:60   pts:30720   pts_time:2\nlavfi.scd.time=2\n"
+_OUT_DEUX = ("frame:45   pts:23040   pts_time:1.5\r\nlavfi.scd.time=1.5\r\n"
+             "frame:22   pts:11264   pts_time:0.733333\r\nlavfi.scd.time=0.733333\r\n"
+             "frame:23   pts:11776   pts_time:0.766667\r\nlavfi.scd.time=0.766667\r\n")
+_OUT_BAVARD = ("frame:0    pts:0       pts_time:0\nlavfi.scd.mafd=0.000\nlavfi.scd.score=0.000\n"
+               "frame:45   pts:23040   pts_time:1.5\nlavfi.scd.mafd=32.220\nlavfi.scd.score=31.050\nlavfi.scd.time=1.5\n"
+               "frame:46   pts:23552   pts_time:1.533333\nlavfi.scd.mafd=0.126\nlavfi.scd.score=0.126\n")
+_OUT_300 = "".join("frame:%d pts:0 pts_time:%s\nlavfi.scd.time=%s\n" % (i, i * 0.5, i * 0.5) for i in range(300))
+check("d42_parse_la_sortie_mesuree_rend_2",
+      Y("parse")(_OUT_MESURE) == [2.0], Y("parse")(_OUT_MESURE))
+check("d42_parse_trie_dedoublonne_a_une_image_crlf_tolere",
+      # 0.733333 et 0.766667 sont a 1/30 s l'un de l'autre : UNE coupe (la premiere)
+      Y("parse")(_OUT_DEUX) == [0.733, 1.5], Y("parse")(_OUT_DEUX))
+check("d42_parse_la_sortie_bavarde_sans_key_ne_prend_que_lavfi_scd_time",
+      Y("parse")(_OUT_BAVARD) == [1.5]
+      # temoin : la sortie vide rend une liste vide, pas une erreur
+      and Y("parse")("") == [], (Y("parse")(_OUT_BAVARD), Y("parse")("")))
+_p300 = Y("parse")(_OUT_300)
+check("d42_parse_plafonne_a_200_coupes_et_ignore_t_nul",
+      isinstance(_p300, list) and len(_p300) == 200 and _p300[0] == 0.5 and _p300[-1] == 100.0,
+      (type(_p300), len(_p300) if isinstance(_p300, list) else _p300))
+check("d42_timeout_proportionnel_plancher_120_deux_fois_la_duree_plus_60",
+      [Y("timeout_de")(v) for v in (0, 3, 30, 3600, "x")] == [120, 120, 120, 7260, 120],
+      [Y("timeout_de")(v) for v in (0, 3, 30, 3600, "x")])
+
+# detect : ESPION sur le lanceur ffmpeg du service (compte les appels, garde la commande)
+_sp = {"n": 0, "cmd": None, "timeout": None}
+_lanceur0 = getattr(SC, "_ffmpeg", None) if SC is not None else None
+if _lanceur0 is not None:
+    def _espion_ff(cmd, timeout):
+        _sp["n"] += 1; _sp["cmd"] = list(cmd); _sp["timeout"] = timeout
+        return _lanceur0(cmd, timeout)
+    SC._ffmpeg = _espion_ff
+_d0 = Y("detect")(CC, 0.0, 4.0)
+_n_apres_1 = _sp["n"]
+check("d42_detect_deux_plans_coupe_a_2_a_une_image_pres",
+      isinstance(_d0, list) and len(_d0) == 1 and abs(_d0[0] - 2.0) <= 1 / 30 + 1e-9 and _n_apres_1 == 1,
+      (_d0, _sp["n"]))
+_cmd = _sp["cmd"] or []
+_vf = _cmd[_cmd.index("-vf") + 1] if "-vf" in _cmd else ""
+check("d42_detect_commande_ss_t_avant_i_scdet_seuil_et_impression_par_cle",
+      _cmd[:1] == ["ffmpeg"] and "-ss" in _cmd and "-t" in _cmd and "-i" in _cmd
+      and _cmd.index("-ss") < _cmd.index("-i") and _cmd.index("-t") < _cmd.index("-i")
+      and _vf == "setpts=PTS-STARTPTS,scdet=threshold=10,metadata=mode=print:key=lavfi.scd.time:file=-"
+      and "-an" in _cmd and _sp["timeout"] == 120, (_cmd, _sp["timeout"]))
+_d05 = Y("detect")(CC, 0.5, 3.0)
+check("d42_detect_srcIn_0_5_rend_une_coupe_relative_a_1_5",
+      isinstance(_d05, list) and len(_d05) == 1 and abs(_d05[0] - 1.5) <= 1 / 30 + 1e-9 and _sp["n"] == 2,
+      (_d05, _sp["n"]))
+_dcourt = Y("detect")(CC, 0.0, 1.5)
+check("d42_detect_une_fenetre_avant_la_coupe_rend_vide_apres_avoir_lance_ffmpeg",
+      _dcourt == [] and _sp["n"] == 3, (_dcourt, _sp["n"]))
+_duni = Y("detect")(UNI, 0.0, 3.0)
+check("d42_detect_source_uniforme_rend_vide_apres_avoir_lance_ffmpeg",
+      _duni == [] and _sp["n"] == 4, (_duni, _sp["n"]))
+_d40 = Y("detect")(CC, 0.0, 4.0, threshold=40)
+check("d42_detect_seuil_40_au_dessus_du_score_31_rend_vide_et_c_est_une_autre_cle_de_cache",
+      _d40 == [] and _sp["n"] == 5, (_d40, _sp["n"]))
+# le cache : meme (chemin, mtime, srcIn, dur, T) -> ffmpeg n'est PAS relance, meme reponse
+_d0b = Y("detect")(CC, 0.0, 4.0)
+_d05b = Y("detect")(CC, 0.5, 3.0)
+_cache_dir = pathlib.Path(TMP) / "outputs" / "montage_cache"
+_caches = sorted(p.name for p in _cache_dir.glob("*_scenes.json")) if _cache_dir.is_dir() else []
+check("d42_cache_deuxieme_appel_sans_ffmpeg_meme_reponse_fichiers_json_dans_montage_cache",
+      _d0b == _d0 and _d05b == _d05 and _sp["n"] == 5 and len(_caches) == 5
+      and not any(".tmp" in n for n in _caches), (_d0b, _d05b, _sp["n"], _caches))
+# une source MODIFIEE (mtime) invalide la cle
+try:
+    _st = os.stat(CC); os.utime(CC, ns=(_st.st_atime_ns, _st.st_mtime_ns + 10_000_000_000))
+except Exception as _e:
+    print("  (utime : %s)" % _e)
+_d0c = Y("detect")(CC, 0.0, 4.0)
+check("d42_cache_une_source_modifiee_relance_ffmpeg", _d0c == _d0 and _sp["n"] == 6, (_d0c, _sp["n"]))
+_dabs = Y("detect")(str(pathlib.Path(TMP) / "absent.mp4"), 0.0, 3.0)
+_n_abs = _sp["n"]
+_dwav = Y("detect")(VX, 0.0, 2.0)
+check("d42_detect_source_absente_leve_MediaError_nommee_sans_ffmpeg",
+      isinstance(_dabs, str) and _dabs.startswith("MediaError") and "absent.mp4" in _dabs and _n_abs == 6,
+      (_dabs, _n_abs))
+check("d42_detect_ffmpeg_en_echec_leve_MediaError_et_rien_n_est_mis_en_cache",
+      # un .wav n'a pas de flux video : ffmpeg sort en erreur (rc != 0) -> MediaError ; temoin : ffmpeg a tourne
+      isinstance(_dwav, str) and _dwav.startswith("MediaError") and _sp["n"] == 7
+      and len(list(_cache_dir.glob("*_scenes.json"))) == 6, (_dwav, _sp["n"]))
+if _lanceur0 is not None:
+    SC._ffmpeg = _lanceur0
+
+
+# la route : une vraie Request starlette (client 127.0.0.1), sans serveur
+def REQ(body):
+    from starlette.requests import Request as _R
+    import json as _j
+    raw = _j.dumps(body).encode("utf-8")
+    async def rcv():
+        return {"type": "http.request", "body": raw, "more_body": False}
+    return _R({"type": "http", "method": "POST", "path": "/api/montage/scenes", "query_string": b"",
+               "headers": [(b"content-type", b"application/json")], "client": ("127.0.0.1", 5000)}, rcv)
+
+
+def SCN(body):
+    f = A("montage_scenes", None)
+    if f is None:
+        return ("ABSENT", None)
+    try:
+        return (200, asyncio.run(f(REQ(body))))
+    except Exception as e:
+        return (getattr(e, "status_code", type(e).__name__), getattr(e, "detail", str(e)))
+
+
+_sp2 = {"n": 0, "args": None}
+_det0 = getattr(SC, "detect", None) if SC is not None else None
+if _det0 is not None:
+    def _espion_det(*a, **k):
+        _sp2["n"] += 1; _sp2["args"] = (a, k)
+        return _det0(*a, **k)
+    SC.detect = _espion_det
+_r_ok = SCN({"src": {"file_path": CC}, "srcIn": 0.5, "dur": 3.0})
+check("d42_route_200_ok_times_relatifs_au_srcIn",
+      _r_ok[0] == 200 and isinstance(_r_ok[1], dict) and _r_ok[1].get("ok") is True
+      and isinstance(_r_ok[1].get("times"), list) and len(_r_ok[1]["times"]) == 1
+      and abs(_r_ok[1]["times"][0] - 1.5) <= 1 / 30 + 1e-9 and _sp2["n"] == 1
+      and _sp2["args"] is not None and _sp2["args"][1].get("threshold") == 10.0, (_r_ok, _sp2))
+_r_t = SCN({"src": {"file_path": CC}, "srcIn": 0, "dur": 4, "threshold": 40})
+check("d42_route_seuil_transmis",
+      _r_t[0] == 200 and isinstance(_r_t[1], dict) and _r_t[1].get("times") == [] and _sp2["n"] == 2
+      and _sp2["args"][1].get("threshold") == 40.0, (_r_t, _sp2))
+_r_404 = SCN({"src": {"file_path": str(pathlib.Path(TMP) / "absent.mp4")}, "srcIn": 0, "dur": 2})
+_r_415 = SCN({"src": {"file_path": VX}, "srcIn": 0, "dur": 2})
+check("d42_route_404_source_inconnue_415_source_non_video_sans_analyse",
+      _r_404[0] == 404 and _r_415[0] == 415 and _sp2["n"] == 2, (_r_404, _r_415, _sp2["n"]))
+_bad = [SCN({"src": {"file_path": CC}, "srcIn": 0}),
+        SCN({"src": {"file_path": CC}, "srcIn": 0, "dur": 0}),
+        SCN({"src": {"file_path": CC}, "srcIn": -1, "dur": 2}),
+        SCN({"src": {"file_path": CC}, "srcIn": "abc", "dur": 2}),
+        SCN({"src": {"file_path": CC}, "srcIn": 0, "dur": "nan"}),
+        SCN({"src": {"file_path": CC}, "srcIn": 0, "dur": 2, "threshold": 0}),
+        SCN({"src": {"file_path": CC}, "srcIn": 0, "dur": 2, "threshold": 101}),
+        SCN({"src": {"file_path": CC}, "srcIn": 0, "dur": 100000})]
+check("d42_route_400_parametres_illisibles_ou_hors_bornes_avant_toute_analyse",
+      [b[0] for b in _bad] == [400] * 8 and _sp2["n"] == 2
+      # temoin : la meme requete aux bornes permises passe (seuil 100, dur 4 h)
+      and SCN({"src": {"file_path": CC}, "srcIn": 0, "dur": 14400, "threshold": 100})[0] == 200 and _sp2["n"] == 3,
+      ([b for b in _bad], _sp2["n"]))
+if _det0 is not None:
+    SC.detect = _det0
+
 print(f"\n=== {ok} passed, {fail} failed ===")
 shutil.rmtree(TMP, ignore_errors=True)
 sys.exit(1 if fail else 0)

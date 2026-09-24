@@ -423,7 +423,10 @@ STABLE_PROBES = [
     # L7 D-22 (24/09/2026, tache 6) : 151 -> 158 -- sept sites de CODE, aucun commentaire : menu de piste x3
     # (subsBurnId, subsBurn, subsNew), subsPayload x1 (subsBurnId), hote du tiroir x2 (subsNew, subsCopy),
     # rangee de piste x1 (subsBurnId pour data-burn). Revue T6 : 158 -> 159, subsOverlay x1 (subsBurnId).
-    ("montage", "DzTracks", 159),
+    # L7-B D-42 (24/09/2026, tache 2) : 159 -> 161 -- deux sites de CODE, tous deux dans le geste dzSceneCut
+    # replie dans R_EC1 (aucune section neuve) : `DzTracks.cutAt(` (la decoupe pure) et `DzTracks.cutOpts(`
+    # (le verrou de piste, la forme de la coupe ripple). L'entree du menu de clip n'en ajoute aucune.
+    ("montage", "DzTracks", 161),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

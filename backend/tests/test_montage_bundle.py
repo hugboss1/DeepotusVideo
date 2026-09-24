@@ -1208,9 +1208,11 @@ check("D11_une_demi_plage_est_dite_par_une_note",
 check("D11_les_options_de_coupe_ne_sont_ecrites_qu_une_fois",
       src.count("function dzmCutOpts(proj,trackSt){") == 1
       and src.count("cutOpts:dzmCutOpts,") == 1
-      and s.count("DzTracks.cutOpts(") == 2
+      # L7-B D-42 (24/09/2026) : 2 -> 3, le geste dzSceneCut (R_EC1) lit le verrou par cutOpts
+      and s.count("DzTracks.cutOpts(") == 3
       and "DzTracks.cutOpts(proj,trackSt)" in P.R_M12
       and "DzTracks.cutOpts(dzProjRef.current,trackStRef.current)" in P.R_R2
+      and "DzTracks.cutOpts(proj,trackStRef.current)" in P.R_EC1
       # le SEUL `{loopTracks:...}` litteral du bundle est celui que rend
       # `dzmCutOpts` lui-meme, DANS la couche : tout autre est un appelant qui
       # a rebati la paire a la main. Mesure du 21/09/2026 : 1 et 1.
@@ -3774,8 +3776,9 @@ _lk = s.count("trackStRef.current[k.tr]&&trackStRef.current[k.tr].l")
 _lc = s.count("trackStRef.current[c.tr]&&trackStRef.current[c.tr].l")
 _lc_bak = _bak_s.count("trackStRef.current[c.tr]&&trackStRef.current[c.tr].l")
 check("P14_le_verrou_suit_la_piste_du_clip",
-      _lk == 3 and _lc == _lc_bak + 1 and _v2[2] == 0 and _v2_bak[2] == 8,
-      f"[k.tr]={_lk} (veut 3) [c.tr]={_lc} (veut bak {_lc_bak} + 1) "
+      # L7-B D-42 (24/09/2026) : + 1 -> + 2, la garde de verrou du geste dzSceneCut (R_EC1) lit `c.tr`
+      _lk == 3 and _lc == _lc_bak + 2 and _v2[2] == 0 and _v2_bak[2] == 8,
+      f"[k.tr]={_lk} (veut 3) [c.tr]={_lc} (veut bak {_lc_bak} + 2) "
       f"verrou v2 bundle={_v2[2]} bak={_v2_bak[2]}")
 # DEUX FACES pour chaque identifiant de la couche que les sections appellent
 # (un appel dans le bundle, un export et une declaration dans la couche).
@@ -14353,8 +14356,10 @@ check("D21_les_seize_appels_de_trackKind_sont_des_egalites",
       # 24/09/2026 (L7 D-22, T6) : 32 -> 35, 30 -> 33. TROIS de plus, des EGALITES `==="subs"` :
       # data-sub et data-burn de la rangee (L7f2, x2), les entrees de sous-titres du menu de piste (R_EC1, x1).
       # revue T6 : 35 -> 36, 33 -> 34 -- data-hidden par genre (L7f6, `==="subs"`).
-      and s.count(nl("trackKind(")) == 36
-      and len(_TKAPP) == 34 and all(k in ("===", "!==") for k in _TKAPP)
+      # L7-B D-42 (24/09/2026) : 36 -> 37, 34 -> 35 -- « Découper aux changements de plan » est grisée
+      # hors d'une piste vidéo (`!=="video"`, R_EC1) : une comparaison, pas une lecture nue.
+      and s.count(nl("trackKind(")) == 37
+      and len(_TKAPP) == 35 and all(k in ("===", "!==") for k in _TKAPP)
       and s.count(nl("var rkd=trackKind(rk.tr);")) == 1
       and s.count(nl("if(rkd!==akd){")) == 1,
       f'bak={_bak.count(_nlb("trackKind(")) if _bak else "?"} '
@@ -15269,10 +15274,12 @@ check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB8b_puis_
                                                           "L7f1", "L7f2",
                                                           # revue T6 : subsOverlay (sonde 158 -> 159) et data-hidden par genre
                                                           "L7f5", "L7f6"]
+      # L7-B D-37 et D-42 (24/09/2026) : AUCUNE section de plus (replis dans R_EC1) ; D-42 : sonde 159 -> 161
+      # (cutAt + cutOpts dans le geste dzSceneCut)
       and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
               and s.count(nl(a)) == (1 if a in r else 0)
               for _t, a, r in P.PATCHES[_DZ_I + 1:])
-      and _sonde.get("montage") == 159 and s.count("DzTracks") == 159
+      and _sonde.get("montage") == 161 and s.count("DzTracks") == 161
       if _bak else False,
       f"queue={_DZ_TAGS[_DZ_I + 1:]} sonde={_sonde.get('montage')} bundle={s.count('DzTracks')}")
 
@@ -16590,11 +16597,13 @@ _EC_SONDE = _lire(ROOT / "scripts" / "patch_bundle_dzcout.py")
 # -> 146 (L7 D-39, T4, 24/09/2026 : diff dans le repli L7d1 de R_M14, DiffView dans le repli de R_L7C3).
 # -> 149 (L7 D-3b, T4-bis, 24/09/2026 : voisins + abSecs + roll dans la section neuve L7g1).
 # -> 150 (revue D-3b, 24/09/2026 : abRollDit dans abRoll, L7g1).
-check("EC_la_sonde_dzcout_compte_DzTracks_159",
+check("EC_la_sonde_dzcout_compte_DzTracks_161",
       # 24/09/2026 (L7 D-19 client, T5) : 150 -> 151, ovExtra dans svmOvTfOf (L7e2a)
       # 24/09/2026 (L7 D-22, T6) : 151 -> 158, sept sites de code (subsBurnId x3, subsBurn, subsNew x2, subsCopy)
       # revue T6 : 158 -> 159 (subsOverlay lit subsBurnId)
-      _EC_SONDE.count('("montage", "DzTracks", 159),') == 1 and _EC_SONDE.count('("montage", "DzTracks", 158),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 151),') == 0
+      # 24/09/2026 (L7-B D-42, T2) : 159 -> 161, cutAt + cutOpts dans le geste dzSceneCut (repli R_EC1)
+      _EC_SONDE.count('("montage", "DzTracks", 161),') == 1 and _EC_SONDE.count('("montage", "DzTracks", 159),') == 0
+      and _EC_SONDE.count('("montage", "DzTracks", 158),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 151),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 150),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 149),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 146),') == 0
@@ -16602,7 +16611,7 @@ check("EC_la_sonde_dzcout_compte_DzTracks_159",
       and _EC_SONDE.count('("montage", "DzTracks", 142),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 139),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 135),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 132),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 129),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 128),') == 0
-      and _EC_SONDE.count('("montage", "DzTracks", 123),') == 0 and s.count("DzTracks") == 159,
+      and _EC_SONDE.count('("montage", "DzTracks", 123),') == 0 and s.count("DzTracks") == 161,
       f"sonde={_EC_SONDE.count(chr(40) + chr(34) + 'montage')} bundle={s.count('DzTracks')}")
 
 print("\n[EC] E-7 : les trois vues Medias · Montage · Livraison (lot E-C, tache 3)")
@@ -17800,7 +17809,9 @@ check("L7Ba_deux_entrees_Exporter_EDL_FCPXML_repliees_dans_R_EC1_apres_Publier_a
            and _bak.count("function dzMenuProps(") == 0 if _bak else False)
       and not any(t[0].startswith("L7B") for t in P.PATCHES),
       f"ordre={(_iB_pub, _iB_e1, _iB_e2, _iB_aff)} bak={_bak.count('dzExportTl') if _bak else '?'}")
-_iB_f = s.find("  function dzExportTl(fmt){"); _iB_m = s.find("  function dzMenuProps(kind,o){")
+# L7-B D-42 (24/09/2026, tache 2) : le geste dzSceneCut s'intercale entre dzExportTl et dzMenuProps -- l'extrait
+# s'arrete desormais a lui (la fonction SUIVANTE), et le compte DzTracks du bundle passe a 161 (cutAt + cutOpts)
+_iB_f = s.find("  function dzExportTl(fmt){"); _iB_m = s.find("  function dzSceneCut(id){")
 _L7B_F = s[_iB_f:_iB_m] if 0 < _iB_f < _iB_m else ""
 check("L7Ba_le_geste_sauvegarde_PUIS_export_nom_du_serveur_subsDownload_refus_par_fireNote_sans_DzTracks",
       s.count("  function dzExportTl(fmt){") == 1 and 200 < len(_L7B_F) < 1800 and _iB_m - _iB_f == len(_L7B_F)
@@ -17809,7 +17820,7 @@ check("L7Ba_le_geste_sauvegarde_PUIS_export_nom_du_serveur_subsDownload_refus_pa
       and _L7B_F.find("if(proj.demo)") < _L7B_F.find('fetch("/api/montage/save"') < _L7B_F.find('fetch("/api/montage/export')
       and _L7B_F.count("subsDownload(o.nom,o.t,") == 1 and _L7B_F.count('res.headers.get("Content-Disposition")') == 1
       and _L7B_F.count("fireNote(") == 5 and _L7B_F.count(".catch(") == 1
-      and _L7B_F.count("DzTracks") == 0 and s.count("DzTracks") == 159 and _sonde.get("montage") == 159
+      and _L7B_F.count("DzTracks") == 0 and s.count("DzTracks") == 161 and _sonde.get("montage") == 161
       and s.count("function subsDownload(name,text,mime){") == 1 and s.count("function svmSavePayload(){") == 1,
       f"f={len(_L7B_F)} fireNote={_L7B_F.count('fireNote(')} dz={s.count('DzTracks')} sonde={_sonde.get('montage')}")
 # le client appelle la route que le backend declare, avec les deux formats qu'il accepte
@@ -17856,6 +17867,104 @@ check("L7Ba_sous_node_refus_400_dit_avec_le_detail_sauvegarde_refusee_sans_expor
       and (_B.get("demo") or {}).get("calls") == [] and (_B.get("demo") or {}).get("dl") == []
       and (_B.get("demo") or {}).get("notes") == ["Export EDL : disponible sur un projet réel — la démo n'est pas sauvegardée."],
       _L7B_RT)
+
+print("\n[L7B] D-42 tache 2 : decouper un clip aux changements de plan depuis son menu contextuel (24/09/2026)")
+# ── L7-B D-42 (24/09/2026, tache 2). MESURE : le menu de clip (`if(kind==="clip")`) et `dzMenuProps`
+# sont x0 dans .bak_montage -- nes de R_EC1 (E-6) -- donc AUCUNE section L7B : le geste dzSceneCut et
+# son entree sont REPLIES dans R_EC1 (191 ancres, inchange). SONDE dzcout 159 -> 161 : cutAt + cutOpts.
+_L7BB_E = '        {lbl:"Découper aux changements de plan",off:!(c.src&&c.src.job_id)||trackKind(c.tr)!=="video",run:function(){dzSceneCut(id)}},'
+_iBB_cut = s.find('{lbl:"Couper à la tête",combo:svmKeyLabel("blade")'); _iBB_e = s.find(nl(_L7BB_E))
+_iBB_sup = s.find('{lbl:"Supprimer",combo:svmKeyLabel("delete")')
+check("L7Bb_entree_Decouper_aux_changements_de_plan_repliee_dans_R_EC1_apres_Couper_a_la_tete_grisee_hors_clip_video_rendu_bak_x0",
+      s.count(nl(_L7BB_E)) == 1 and _L7BB_E in P.R_EC1 and 0 < _iBB_cut < _iBB_e < _iBB_sup < _iBB_cut + 600
+      and s.count("run:function(){dzSceneCut(id)}") == 1 and s.count("dzSceneCut(") == 2
+      and s.count("Découper aux changements de plan") == 1
+      and (_bak.count("dzSceneCut") == 0 and _bak.count("Découper aux changements") == 0
+           and _bak.count('if(kind==="clip")') == 0 if _bak else False)
+      and not any(t[0].startswith("L7B") for t in P.PATCHES),
+      f"ordre={(_iBB_cut, _iBB_e, _iBB_sup)} n={s.count(nl(_L7BB_E))}")
+_iBB_f = s.find("  function dzSceneCut(id){"); _iBB_m = s.find("  function dzMenuProps(kind,o){")
+_L7BB_F = s[_iBB_f:_iBB_m] if 0 < _iBB_f < _iBB_m else ""
+check("L7Bb_le_geste_garde_video_et_verrou_AVANT_l_appel_decoupe_par_la_couche_historique_PUIS_setClips",
+      s.count("  function dzSceneCut(id){") == 1 and 300 < len(_L7BB_F) < 2000
+      and _L7BB_F.find("!c.src.job_id") < _L7BB_F.find("trackStRef.current[c.tr]&&trackStRef.current[c.tr].l")
+      < _L7BB_F.find('fetch("/api/montage/scenes",') < _L7BB_F.find("DzTracks.cutAt(clipsRef.current,id,")
+      < _L7BB_F.find("pushHistory();setClips(r2.clips);setDirty(!0);fireNote(r2.note)")
+      and _L7BB_F.count('fetch("/api/montage/scenes",{method:"POST"') == 1
+      and _L7BB_F.count("JSON.stringify({src:c.src,srcIn:Number(c.srcIn)||0,dur:du})") == 1
+      and _L7BB_F.count("DzTracks.cutOpts(proj,trackStRef.current)") == 1 and _L7BB_F.count("DzTracks") == 2
+      and _L7BB_F.count("pushHistory()") == 1 and _L7BB_F.count("setClips(") == 1 and _L7BB_F.count(".catch(") == 2
+      and s.count("DzTracks") == 161 and _sonde.get("montage") == 161,
+      f"f={len(_L7BB_F)} dz={_L7BB_F.count('DzTracks')} bundle={s.count('DzTracks')} sonde={_sonde.get('montage')}")
+check("L7Bb_la_route_POST_scenes_existe_cote_backend_et_le_client_l_appelle_une_fois",
+      _L7B_MS.count('@router.post("/scenes")') == 1 and _L7B_MS.count("_scenes.detect, p, src_in, dur, threshold=th") == 1
+      and s.count('"/api/montage/scenes"') == 1, _L7B_MS.count('@router.post("/scenes")'))
+# SOUS NODE : la VRAIE couche (montage.js, DzTracks.cutAt / cutOpts) + le geste extrait tel quel ; fetch, pushHistory,
+# setClips, setDirty, fireNote factices. Coups : ok, vitesse x2 (dur de SOURCE), 415 dit, aucune coupe, verrou avant
+# l'appel (aucun fetch), clip non video (aucun fetch), verrou pose PENDANT l'analyse, clip supprime pendant l'analyse, reseau.
+_L7BB_RT = None
+if _L7BB_F and src:
+    _L7BB_SHIM = ('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + src + "\n"
+                  "var notes=[],calls=[],hist=0,set=null,dirty=!1,MODE='ok',proj={demo:!1},PEND=null;\n"
+                  "var clipsRef={current:[]},trackStRef={current:{}};\n"
+                  "function fireNote(m){notes.push(m)}function pushHistory(){hist++}function setClips(v){set=v}function setDirty(v){dirty=v}\n"
+                  "function fetch(u,o){calls.push([u,JSON.parse(o.body)]);if(MODE==='net')return Promise.reject(new Error('panne'));\n"
+                  "  if(MODE==='415')return Promise.resolve({ok:!1,status:415,json:function(){return Promise.resolve({detail:'« x.png » n\\'est pas une vidéo'})}});\n"
+                  "  var t=MODE==='vide'?[]:[1,3];if(PEND)PEND();\n"
+                  "  return Promise.resolve({ok:!0,status:200,json:function(){return Promise.resolve({ok:!0,times:t})}})}\n"
+                  + _L7BB_F +
+                  "function pause(){return new Promise(function(r){setTimeout(r,30)})}\n"
+                  "var P={tr:'v1',id:'p',start:0,end:5,srcIn:2,src:{job_id:'j'}};\n"
+                  "(async function(){var R={};function coup(k,m,cs,ts,pend){notes=[];calls=[];hist=0;set=null;dirty=!1;MODE=m;\n"
+                  "  clipsRef.current=cs;trackStRef.current=ts||{};PEND=pend||null;dzSceneCut('p');\n"
+                  "  return pause().then(function(){R[k]={calls:calls,hist:hist,dirty:dirty,notes:notes,\n"
+                  "    set:set&&set.map(function(c){return [c.id,c.start,c.end,c.srcIn,c.transition||null]})}})}\n"
+                  "  await coup('ok','ok',[P]);await coup('x2','ok',[Object.assign({},P,{speed:2})]);await coup('ko','415',[P]);\n"
+                  "  await coup('vide','vide',[P]);await coup('verrou','ok',[P],{v1:{l:!0}});\n"
+                  "  await coup('image','ok',[Object.assign({},P,{src:{image:'x.png'}})]);\n"
+                  "  await coup('verrou_pendant','ok',[P],{},function(){trackStRef.current={v1:{l:!0}}});\n"
+                  "  await coup('supprime','ok',[P],{},function(){clipsRef.current=[]});await coup('net','net',[P]);\n"
+                  "  console.log(JSON.stringify(R))})();\n").replace("\r\n", "\n")
+    _pBB = pathlib.Path(TMP) / "l7b_scenes.js"; _pBB.write_text(_L7BB_SHIM, encoding="utf-8")
+    _rBB = NODE(["node", str(_pBB)], timeout=60)
+    try: _L7BB_RT = json.loads(_rBB.stdout.strip().splitlines()[-1]) if _rBB.returncode == 0 else ("rc=" + str(_rBB.returncode) + " " + (_rBB.stderr or "")[-400:])
+    except Exception as _e: _L7BB_RT = temoin(_e)
+_BB = _L7BB_RT if isinstance(_L7BB_RT, dict) else {}
+_BB_Q = {"job_id": "j"}
+check("L7Bb_sous_node_ok_appel_src_srcIn_dur_puis_deux_coupes_historique_setClips_dirty_note",
+      (_BB.get("ok") or {}).get("calls") == [["/api/montage/scenes", {"src": _BB_Q, "srcIn": 2, "dur": 5}]]
+      and (_BB.get("ok") or {}).get("set") == [["p", 0, 1, 2, None], ["p_b10", 1, 3, 3, "cut"], ["p_b30", 3, 5, 5, "cut"]]
+      and (_BB.get("ok") or {}).get("hist") == 1 and (_BB.get("ok") or {}).get("dirty") is True
+      and (_BB.get("ok") or {}).get("notes") == ["Analyse des changements de plan…", "2 coupes aux changements de plan"],
+      _L7BB_RT)
+check("L7Bb_sous_node_vitesse_x2_demande_la_duree_de_SOURCE_10_s_et_coupe_a_t_sur_2",
+      (_BB.get("x2") or {}).get("calls") == [["/api/montage/scenes", {"src": _BB_Q, "srcIn": 2, "dur": 10}]]
+      and (_BB.get("x2") or {}).get("set") == [["p", 0, 0.5, 2, None], ["p_b5", 0.5, 1.5, 3, "cut"], ["p_b15", 1.5, 5, 5, "cut"]],
+      (_BB.get("x2")))
+check("L7Bb_sous_node_refus_415_dit_aucune_coupe_dite_ni_historique_ni_setClips",
+      # temoin : le coup « ok » a pousse l'historique et pose les clips
+      (_BB.get("ok") or {}).get("hist") == 1
+      and (_BB.get("ko") or {}).get("hist") == 0 and (_BB.get("ko") or {}).get("set") is None and len((_BB.get("ko") or {}).get("calls") or []) == 1
+      and (_BB.get("ko") or {}).get("notes") == ["Analyse des changements de plan…", "Découpe aux changements de plan refusée : « x.png » n'est pas une vidéo"]
+      and (_BB.get("vide") or {}).get("hist") == 0 and (_BB.get("vide") or {}).get("set") is None
+      and (_BB.get("vide") or {}).get("notes") == ["Analyse des changements de plan…", "Aucun changement de plan à découper dans ce clip."]
+      and (_BB.get("net") or {}).get("hist") == 0
+      and (_BB.get("net") or {}).get("notes") == ["Analyse des changements de plan…", "Découpe aux changements de plan refusée : panne"],
+      (_BB.get("ko"), _BB.get("vide"), _BB.get("net")))
+check("L7Bb_sous_node_verrou_ou_clip_non_video_refuses_AVANT_tout_appel",
+      (_BB.get("verrou") or {}).get("calls") == [] and (_BB.get("verrou") or {}).get("hist") == 0
+      and (_BB.get("verrou") or {}).get("notes") == ["Piste V1 verrouillée — déverrouillez-la pour découper ce plan."]
+      and (_BB.get("image") or {}).get("calls") == [] and (_BB.get("image") or {}).get("hist") == 0
+      and (_BB.get("image") or {}).get("notes") == ["Découpe aux changements de plan : réservée aux clips vidéo rendus."],
+      (_BB.get("verrou"), _BB.get("image")))
+check("L7Bb_sous_node_verrou_pose_ou_clip_supprime_PENDANT_l_analyse_rien_n_est_coupe",
+      # temoin : l'appel a eu lieu (le refus vient de la couche, a la reponse)
+      len((_BB.get("verrou_pendant") or {}).get("calls") or []) == 1 and (_BB.get("verrou_pendant") or {}).get("hist") == 0
+      and (_BB.get("verrou_pendant") or {}).get("set") is None
+      and (_BB.get("verrou_pendant") or {}).get("notes") == ["Analyse des changements de plan…", "Piste V1 verrouillée — déverrouillez-la pour découper ce plan."]
+      and len((_BB.get("supprime") or {}).get("calls") or []) == 1 and (_BB.get("supprime") or {}).get("hist") == 0
+      and (_BB.get("supprime") or {}).get("notes") == ["Analyse des changements de plan…", "Clip introuvable — rien à découper."],
+      (_BB.get("verrou_pendant"), _BB.get("supprime")))
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

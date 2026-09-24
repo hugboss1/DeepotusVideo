@@ -326,5 +326,16 @@ check("R1_menu_Projet_Exporter_EDL_FCPXML_x1_sans_off_title_par_it_lbl_bak_x0",
       and bak.count("Exporter EDL") == 0 and bak.count("Exporter FCPXML") == 0,
       f"edl={s.count('Exporter EDL…')} fcpxml={s.count('Exporter FCPXML…')} bak={bak.count('Exporter EDL')}")
 
+# L7-B D-42 (24/09/2026, tache 2) : « Découper aux changements de plan » du menu contextuel de clip -- TOUJOURS
+# rendue (jamais conditionnelle), GRISEE (off) hors d'un clip video rendu, jamais cachee ; son title est son libelle
+# (DzmCtxMenu pose title:it.lbl) ; le refus d'un clic sur une entree grisee n'existe pas (disabled), celui d'une
+# analyse est DIT par une note (le geste) ; absente du .bak
+check("R1_menu_clip_Decouper_aux_changements_de_plan_x1_grisee_hors_video_rendu_title_par_it_lbl_bak_x0",
+      s.count('{lbl:"Découper aux changements de plan",off:!(c.src&&c.src.job_id)||trackKind(c.tr)!=="video",run:function(){dzSceneCut(id)}}') == 1
+      and s.count("Découper aux changements de plan") == 1
+      and lay.count('role:"menuitem",disabled:!!it.off,title:it.lbl') == 1
+      and bak.count("Découper aux changements") == 0,
+      f"n={s.count('Découper aux changements de plan')} bak={bak.count('Découper aux changements')}")
+
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)
