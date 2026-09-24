@@ -3884,14 +3884,18 @@ check("gp_rendu_racine_titre_six_rangees",
       _GR[:4] == ["div", "dzm-plan dzm-gp", "Étalonnage", ["Roues", "Courbes", "Masque", "Accord", "Grade", "Aperçu"]], _GR[:4])
 check("gp_rendu_treize_boutons_tous_titres_dans_l_ordre_seul_coller_grise_sans_grade_copie",
       _GR[4] == [[b, True, b == "Coller le grade"] for b in _GB], _GR[4])
-check("gp_rendu_quatre_canvas_trois_roues_96_une_courbe_200_geste_et_dessin_titres",
-      _GR[5] == [[k, 96, 96, "function", "function", True] for k in ("lift", "gamma", "gain")] + [["curve", 200, 200, "function", "function", True]],
+# revue T5 (24/09, I-3) : le ref d'un canvas est un OBJET stable (x.useRef) -- une fonction recreee a chaque rendu
+# faisait redessiner les quatre canvas par React a chaque image ; le dessin vit dans des effets (pin realigne)
+check("gp_rendu_quatre_canvas_trois_roues_96_une_courbe_200_geste_et_ref_objet_stable_titres",
+      _GR[5] == [[k, 96, 96, "function", "object", True] for k in ("lift", "gamma", "gain")] + [["curve", 200, 200, "function", "object", True]],
       _GR[5])
 check("gp_rendu_huit_curseurs_trois_maitres_cinq_du_masque_valeurs_lues_une_case_inverser",
       _GR[6] == [[0, False, True], [0, False, True], [0, False, True], [25, False, True], [25, False, True], [50, False, True],
                  [50, False, True], [0, False, True]] and _GR[7] == [[False, False, True]], (_GR[6], _GR[7]))
-check("gp_rendu_quatre_useState_deux_useEffect_montage_et_signature_onglet_M_et_ellipse_presses",
-      _GR[8:12] == [4, [0, 1], True, True], _GR[8:12])
+# revue T5 (24/09) : 4 -> 5 useState (le compteur de relecture du grade, evenement storage) ; 2 -> 4 useEffect
+# (montage, apercu [sig, id], roues [6 primitives], courbe [chaine, onglet]) -- pin realigne
+check("gp_rendu_cinq_useState_quatre_useEffect_a_dependances_primitives_onglet_M_et_ellipse_presses",
+      _GR[8:12] == [5, [0, 2, 6, 2], True, True], _GR[8:12])
 _GV = D.get("gp_verrou") if isinstance(D.get("gp_verrou"), list) and len(D.get("gp_verrou")) == 14 else [None] * 14
 check("gp_verrou_toute_ecriture_grisee_et_dite_onglets_et_copier_restent_tous_les_champs_grises",
       _GV == [[b, b not in ("M", "R", "G", "B", "Copier le grade"), b not in ("M", "R", "G", "B", "Copier le grade")] for b in _GB] + [True],
@@ -3943,7 +3947,15 @@ check("l5_gp_aides_pures_ni_r_ni_x_ni_reseau_ni_dom_ni_stockage",
 _GPC = _SRCb[_SRCb.find("function DzmGradePanel(o){"):_SRCb.find("function DzmMaskBox(o){")]
 check("l5_gp_composant_garde_avant_hooks_gestes_fenetre_sans_capture_stockage_protege_routes_x1_blob_revoque_400ms",
       len(_GPC) > 3000 and 0 <= _GPC.find("if(!c)return null;") < _GPC.find("x.useState(")
-      and _GPC.count("x.useState(") == 4 and _GPC.count("x.useEffect(") == 2
+      # revue T5 (24/09) : 4 -> 5 useState, 2 -> 4 useEffect (pins realignes : rien par image, dessin dans des effets) ;
+      # le geste passe par UNE aide qui garde le retrait (dzmGpDrag x2 : roue et courbe l'appellent par elle) ; le
+      # dessin n'est plus dans un ref-fonction ; la lecture n'est plus dans le rendu (grade copie lu au cache)
+      and _GPC.count("x.useState(") == 5 and _GPC.count("x.useEffect(") == 4
+      and _GPC.count("ref:function") == 0 and _GPC.count("retrait.current=dzmGpDrag(e,") == 1 and _GPC.count("dzmGpDrag(") == 1
+      and _GPC.count("jouant?null:dzmFrameBody(") == 1 and _GPC.count("if(!sig)return;") == 1
+      and _GPC.count("dzmGpRead()") == 1 and _GPC.count("gsR.current.v!==DZM_GP_VER.n") == 1
+      and _corps("dzmGpWrite").count("DZM_GP_VER.n++") == 1 and _corps("dzmGpDrawCurve").count("dzmCurveFn(pts)") == 1
+      and _corps("dzmGpDrawCurve").count("dzmCurveEval(") == 0 and _corps("dzmGpDrag").count("return stop}") == 1
       and _GPC.count("setPointerCapture") == 0 and _SRCb.count("setPointerCapture") == 1
       # tache 6 (24/09/2026) : grade-frame 1 -> 2, la lightbox (DzmLightbox) appelle la meme route -- ecart date, pin realigne
       and _SRCb.count('dzmGpFetch("/api/montage/grade-frame",') == 2 and _SRCb.count('dzmGpFetch("/api/montage/color-match",') == 1
@@ -4029,7 +4041,9 @@ check("l5_sc_exports_au_contrat_route_scopes_x1_grade_frame_x2_panneau_et_lightb
 # ── LES GARDES EN EXECUTION : un second shim (asynchrone), un mini-React ─────────────────────────────────────────────
 PROBE_L5X = r"""
 var T=window.DzTracks,out={},G=globalThis,r=null; /* `r` : le runtime jsx que la couche lit a l'appel (pose par mini) */
-function mini(Comp){var H={s:[],f:[],e:[],p:null,out:null,dirty:!1};
+/* revue T5 (24/09) : `att(n)` facultatif = le montage des refs OBJETS (comme React, AVANT les effets) : chaque noeud dont
+   p.ref est un objet encore vide reçoit att(n) -- le panneau dessine ses canvas depuis des effets, via des refs stables */
+function mini(Comp,att){var H={s:[],f:[],e:[],p:null,out:null,dirty:!1};
   function render(p){if(p!==void 0)H.p=p;var r0=r,hx=Object.prototype.hasOwnProperty.call(G,"x"),x0=G.x,i=0,j=0,k=0,run=[];
     r={jsx:function(t,q){return {t:t,p:q}},jsxs:function(t,q){return {t:t,p:q}}};
     G.x={useState:function(v){var a=i++;if(!(a in H.s))H.s[a]=typeof v==="function"?v():v;
@@ -4038,6 +4052,7 @@ function mini(Comp){var H={s:[],f:[],e:[],p:null,out:null,dirty:!1};
       useEffect:function(fn,d){var a=k++,o=H.e[a];
         if(!o||!d||!o.d||d.length!==o.d.length||d.some(function(v,q){return v!==o.d[q]}))run.push([a,fn,d])}};
     try{H.out=Comp(H.p)}finally{r=r0;if(hx)G.x=x0;else delete G.x}
+    if(att)tous(H.out).forEach(function(n){if(n.p.ref&&typeof n.p.ref==="object"&&!n.p.ref.current)n.p.ref.current=att(n)});
     run.forEach(function(q){var o=H.e[q[0]];if(o&&typeof o.c==="function")o.c();H.e[q[0]]={d:q[2],c:q[1]()}});
     return H.out}
   function flush(){var g=0;while(H.dirty&&g++<20){H.dirty=!1;render()}return H.out}
@@ -4102,6 +4117,107 @@ var M=mini(T.Scopes),R={};
   R.lb_err=[FQ.length,tous(L.H.out).filter(function(n){return /dzm-lbph/.test(n.p.className||"")}).map(txt)];
   L.unmount();rep(2,"tard");await settle();
   R.lb_ferme=[FQ.slice(2).map(function(q){return !!(q.sig&&q.sig.aborted)}),UR.rev.slice(),UR.made.slice(),FQ.length];
+  /* ── revue T5 (24/09/2026) : LE PANNEAU ÉTALONNAGE EN EXÉCUTION. Fenêtre factice qui COMPTE ses écouteurs, faux
+     rAF / cAF, canvas factices montés sur les refs objets (mini, att), magasin et JSON.stringify comptés, timeline
+     en Proxy qui compte ses lectures. Chaque garde de course ou de fuite a son cas ; une mutation qui la retire rougit. */
+  FQ=[];UR.made=[];UR.rev=[];TM=[];
+  var LS={},WL={add:[],rem:[]},NOREM=!1;
+  window.addEventListener=function(t,f){WL.add.push(t);(LS[t]=LS[t]||[]).push(f)};
+  window.removeEventListener=function(t,f){WL.rem.push(t);if(NOREM&&t!=="storage")return;LS[t]=(LS[t]||[]).filter(function(g){return g!==f})};
+  function fire(t,e){(LS[t]||[]).slice().forEach(function(f){f(e)})}
+  var RQ=[],RID=0,CAF=0;G.requestAnimationFrame=function(f){var id=++RID;RQ.push({id:id,f:f});return id};
+  G.cancelAnimationFrame=function(id){CAF++;RQ=RQ.filter(function(q){return q.id!==id})};
+  function frame(){var l=RQ;RQ=[];l.forEach(function(q){q.f()});return l.length}
+  var DRW={},CTX={};["clearRect","beginPath","arc","fill","stroke","moveTo","lineTo","fillRect"].forEach(function(k){CTX[k]=function(){}});
+  function fcv(n){var k=n.p["data-kind"];return {width:n.p.width,height:n.p.height,getContext:function(){DRW[k]=(DRW[k]||0)+1;return CTX}}}
+  function drw(){return JSON.parse(JSON.stringify(DRW))}
+  var GI=0,g0=window.localStorage.getItem;window.localStorage.getItem=function(k){GI++;return g0(k)};
+  var JS0=JSON.stringify,NS=0;
+  var GPa={tr:"v1",id:"a",start:0,end:4,src:{job_id:"A"}},
+    GPg={tr:"v1",id:"g",start:4,end:8,srcIn:0,src:{job_id:"G"},effects:[{type:"wheels",gain_r:1.5,gain_g:.75,gain_b:.75},{type:"curves",pts_m:"0/0 0.5/0.7 1/1"}],
+      mask:{shape:"ellipse",x:.25,y:.25,w:.5,h:.5}},
+    GPh={tr:"v1",id:"h",start:8,end:12,srcIn:0,src:{job_id:"H"},effects:[{type:"wheels",gain_r:1.2}]};
+  var CG=0,CLp=new Proxy([GPa,GPg,GPh],{get:function(t,k,rc){CG++;return Reflect.get(t,k,rc)}});
+  var ON=[],NT=[],onC=function(p,h){ON.push([JSON.parse(JS0(p)),h])},onN=function(t){NT.push(t)};
+  function gpP(o){return Object.assign({clips:CLp,head:5,playing:!1,onChange:onC,onNote:onN,clip:GPg},o)}
+  function cvs(m,k){return tous(m).filter(function(n){return n.t==="canvas"&&n.p["data-kind"]===k})[0]}
+  function bx(w){return {getBoundingClientRect:function(){return {left:0,top:0,width:w,height:w}}}}
+  function pdn(id,cx,cy,w){return {button:0,pointerId:id,clientX:cx,clientY:cy,currentTarget:bx(w),preventDefault:function(){}}}
+  function pmsg(m){return tous(m).filter(function(n){return /dzm-gp-pmsg/.test(n.p.className||"")}).map(txt)}
+  var P=mini(T.GradePanel,fcv);
+  /* 1 : le montage -- les trois roues et la courbe dessinées UNE fois, l'écouteur « storage », UN minuteur de 400 ms */
+  P.render(gpP());R.gp_mount=[drw(),WL.add.slice(),TM.map(function(t){return t.ms}),FQ.length];
+  /* 2 (I-3) : 60 re-rendus EN LECTURE, la tête bouge à chaque image -- 0 dessin, 0 lecture du magasin, 0 JSON.stringify,
+     0 lecture de la timeline (plan précédent mis en cache sur l'identité), plus aucun minuteur (M-f), aucune requête */
+  var d0=JS0(DRW),gi0=GI,cg0=CG;JSON.stringify=function(){NS++;return JS0.apply(JSON,arguments)};
+  for(var fi=0;fi<60;fi++)P.render(gpP({head:5+fi*.033,playing:!0}));
+  JSON.stringify=JS0;
+  R.gp_lecture=[JS0(DRW)===d0,GI-gi0,NS,CG-cg0,TM.length,FQ.length,pmsg(P.H.out)];
+  /* témoin : 60 re-rendus à l'arrêt SANS changement de valeur -- 0 dessin non plus */
+  P.render(gpP());var d1=JS0(DRW);for(fi=0;fi<60;fi++)P.render(gpP());R.gp_arret=[JS0(DRW)===d1,TM.length];
+  /* 3 (numéro de requête, M-b) : la tête bouge -- la 1re requête ABANDONNÉE ; elle répond APRÈS la 2e : JETÉE */
+  tick();P.render(gpP({head:5.5}));R.gp_ab=[FQ.length,!!(FQ[0]&&FQ[0].sig&&FQ[0].sig.aborted)];tick();
+  rep(1,"P1");await settle();P.flush();rep(0,"P0");await settle();P.flush();
+  R.gp_perimee=[imgs(P.H.out),UR.made.slice(),pmsg(P.H.out)];
+  /* 4 (M-a) : un AUTRE plan -- l'image du précédent n'est plus montrée ; son refus ne se dit que sur lui ; retour : l'image de g */
+  P.render(gpP({clip:GPh}));var mh=[imgs(P.H.out),pmsg(P.H.out)];tick();
+  FQ[2].d.a({ok:!1,status:500,json:function(){return Promise.resolve({detail:"ffmpeg a refusé"})}});await settle();P.flush();
+  mh.push(pmsg(P.H.out));P.render(gpP());R.gp_plan=mh.concat([imgs(P.H.out),pmsg(P.H.out)]);
+  /* 5 (dzmGpDrag, exporté) : pointerId filtré, rAF coalescé, dernier point rejoué au relâcher, pointercancel, retrait idempotent */
+  var DG=[],dcb=function(a,b){DG.push([a,b])},a0=WL.add.length,r0=WL.rem.length,c0=CAF;
+  var st1=T.gpDrag({pointerId:1},dcb);fire("pointermove",{pointerId:2,clientX:1,clientY:1});frame();
+  fire("pointermove",{pointerId:1,clientX:10,clientY:20});var avant=DG.length;frame();
+  fire("pointermove",{pointerId:1,clientX:30,clientY:40});fire("pointerup",{pointerId:1});var rel=DG.slice();frame();
+  var st2=T.gpDrag({pointerId:5},dcb);fire("pointercancel",{pointerId:5});fire("pointermove",{pointerId:5,clientX:7,clientY:7});frame();
+  var st3=T.gpDrag({pointerId:7},dcb);fire("pointermove",{pointerId:7,clientX:8,clientY:8});var r3=WL.rem.length;st3();var r3b=WL.rem.length;st3();frame();
+  R.gp_drag=[WL.add.slice(a0,a0+3),avant,rel,DG,WL.rem.length-r0,CAF-c0,typeof st1,r3b-r3,WL.rem.length-r3b,RQ.length,(LS.pointermove||[]).length];
+  /* 6 (I-2) : un geste écrit dans le plan SAISI -- la sélection change pendant le geste : plus rien n'est écrit ;
+     témoin : sur le même plan, le déplacement écrit */
+  ON=[];P.render(gpP());var wl=cvs(P.H.out,"lift");wl.p.onPointerDown(pdn(3,48,20,96));
+  fire("pointermove",{pointerId:3,clientX:60,clientY:20});frame();var nsame=ON.length;
+  P.render(gpP({clip:GPh}));fire("pointermove",{pointerId:3,clientX:70,clientY:30});frame();fire("pointerup",{pointerId:3});
+  R.gp_saisi=[nsame,ON.length,(LS.pointermove||[]).length];
+  /* 7 (I-1, accord) : empreinte -- le plan a changé (srcIn) pendant le calcul : refus dit, 0 écriture ; « busy » : deux clics
+     SANS re-rendu = une requête ; succès : l'effet posé (lourd) ; démontage pendant le calcul : rien n'est écrit ni dit */
+  ON=[];NT=[];P.render(gpP());var fq0=FQ.length;btn(P.H.out,"Accorder sur le plan précédent").p.onClick();
+  P.render(gpP({clip:Object.assign({},GPg,{srcIn:2})}));
+  FQ[fq0].d.a({ok:!0,status:200,json:function(){return Promise.resolve({effect:{type:"colormatch",y_gain:1.2}})}});await settle();P.flush();
+  R.gp_acc_sig=[FQ[fq0].u,FQ[fq0].body,ON.length,NT.slice(-1)];
+  P.render(gpP());var fq1=FQ.length,bA=btn(P.H.out,"Auto");bA.p.onClick();bA.p.onClick();var nreq=FQ.length-fq1;
+  FQ[fq1].d.a({ok:!0,status:200,json:function(){return Promise.resolve({effect:{type:"colormatch",y_gain:1.1}})}});await settle();P.flush();
+  R.gp_acc=[nreq,ON.slice(),NT.slice(-1),!!btn(P.H.out,"Auto").p.disabled];
+  ON=[];NT=[];var fq2=FQ.length;btn(P.H.out,"Auto").p.onClick();var nr0=UR.rev.length,wr0=WL.rem.slice();
+  /* 8 : démontage -- requête d'aperçu en vol abandonnée, sa réponse tardive ne crée rien ; URL révoquée ; écouteurs ôtés */
+  P.render(gpP({head:6}));tick();var fqp=FQ.length-1;var nm=UR.made.length;P.unmount();
+  FQ[fq2].d.a({ok:!0,status:200,json:function(){return Promise.resolve({effect:{type:"colormatch",y_gain:1.3}})}});rep(fqp,"TARD");await settle();
+  R.gp_demonte=[ON.length,NT.length,FQ[fqp].u,!!(FQ[fqp].sig&&FQ[fqp].sig.aborted),UR.made.length-nm,UR.rev.length-nr0,
+    WL.rem.slice(wr0.length),TM.length,(LS.storage||[]).length];
+  /* 9 (I-2, défense) : une fenêtre qui NE retire PAS les écouteurs du geste -- après démontage, rien n'est écrit (vivant) ;
+     et le démontage en plein geste retire les trois écouteurs et annule le rAF (fenêtre normale) */
+  ON=[];var P2=mini(T.GradePanel,fcv);P2.render(gpP());cvs(P2.H.out,"gain").p.onPointerDown(pdn(9,48,48,96));
+  fire("pointermove",{pointerId:9,clientX:60,clientY:40});var c9=CAF,rm9=WL.rem.length;P2.unmount();frame();
+  var dem=[ON.length,CAF-c9,WL.rem.slice(rm9),(LS.pointermove||[]).length];
+  NOREM=!0;ON=[];var P3=mini(T.GradePanel,fcv);P3.render(gpP());cvs(P3.H.out,"gamma").p.onPointerDown(pdn(11,48,48,96));var n11=ON.length;
+  P3.unmount();fire("pointermove",{pointerId:11,clientX:70,clientY:20});frame();NOREM=!1;LS.pointermove=[];LS.pointerup=[];LS.pointercancel=[];
+  R.gp_vivant=dem.concat([n11,ON.length]);
+  /* 10 (M-c) : X et Y du masque bornés à 1 − w | 1 − h, la largeur GARDÉE ; (M-d) double-clic dans le vide de la courbe :
+     le point créé par son premier clic reste (une écriture AVEC effet, pas « ajouter puis retirer ») ; témoin : un
+     double-clic volontaire plus tard retire le point */
+  ON=[];var P4=mini(T.GradePanel,fcv),GI0=Object.assign({},GPg,{effects:[{type:"curves",pts_m:"0/0 1/1"}]});P4.render(gpP({clip:GI0}));
+  var rgs=tous(P4.H.out).filter(function(n){return n.t==="input"&&n.p.type==="range"});
+  rgs[3].p.onChange({target:{value:"70"}});rgs[4].p.onChange({target:{value:"90"}});var mc=ON.slice();ON=[];
+  var cc=cvs(P4.H.out,"curve");cc.p.onPointerDown(pdn(21,60,40,200));fire("pointerup",{pointerId:21});
+  var GI1=Object.assign({},GI0,{effects:ON[0]&&ON[0][0].effects});P4.render(gpP({clip:GI1}));cc=cvs(P4.H.out,"curve");
+  cc.p.onPointerDown(pdn(22,60,40,200));fire("pointerup",{pointerId:22});cc.p.onDoubleClick(pdn(0,60,40,200));var md=ON.map(function(q){return q[0].effects[0].pts_m});
+  cc.p.onPointerDown(pdn(23,60,40,200));fire("pointerup",{pointerId:23});cc.p.onPointerDown(pdn(24,60,40,200));fire("pointerup",{pointerId:24});
+  cc.p.onDoubleClick(pdn(0,60,40,200));R.gp_mask_curve=[mc,md,ON.length,ON.length>1?ON[ON.length-1][0].effects[0].pts_m:null];P4.unmount();
+  /* 11 : le grade copié n'est relu que quand il a changé -- « Copier » de CE panneau (DZM_GP_VER) rallume « Coller » ;
+     l'événement « storage » d'un autre onglet (grade effacé) l'éteint ; chaque fois UNE lecture, aucune entre deux */
+  delete S.dz_montage_grade;var P5=mini(T.GradePanel,fcv);P5.render(gpP());var cz=!!btn(P5.H.out,"Coller le grade").p.disabled,gi5=GI;
+  for(fi=0;fi<5;fi++)P5.render(gpP());var gi6=GI;
+  btn(P5.H.out,"Copier le grade").p.onClick();P5.flush();var cp=[!!btn(P5.H.out,"Coller le grade").p.disabled,GI-gi6],gi7=GI;
+  delete S.dz_montage_grade;fire("storage",{key:"dz_montage_grade"});P5.flush();
+  R.gp_storage=[cz,gi6-gi5].concat(cp,[!!btn(P5.H.out,"Coller le grade").p.disabled,GI-gi7]);P5.unmount();
   out.R=R;
 })().catch(function(e){out.err=String(e&&e.stack||e)}).then(function(){console.log(JSON.stringify(out))});
 """
@@ -4151,6 +4267,46 @@ check("l5x_lightbox_un_refus_libere_aussi_une_place_et_se_dit_sur_la_tuile_sans_
       _RX.get("lb_err") == [5, ["image indisponible", "sans source", "calcul…", "calcul…", "calcul…", "calcul…"]], _RX.get("lb_err"))
 check("l5x_lightbox_fermer_abandonne_les_trois_en_vol_revoque_les_urls_rien_ne_part_ni_ne_se_cree_apres",
       _RX.get("lb_ferme") == [[True, True, True], ["blob:L0"], ["blob:L0"], 5], _RX.get("lb_ferme"))
+# ── revue T5 (24/09/2026) : le panneau Etalonnage EN EXECUTION (mini-React, fenetre factice qui compte, faux rAF, canvas
+# factices). Les neuf gardes de la revue (I-1) ont chacune un cas qui rougit sans elle (mutations rejouees) ; I-2 : un
+# geste n'ecrit que dans le plan saisi ; I-3 : rien par image pendant la lecture (MESURE : 0 dessin, 0 lecture du magasin,
+# 0 JSON.stringify, 0 lecture de la timeline sur 60 re-rendus) ; M-a M-b M-c M-d M-f.
+_GPW = {"type": "wheels", "gain_r": 1.5, "gain_g": 0.75, "gain_b": 0.75}
+_GPCU = {"type": "curves", "pts_m": "0/0 0.5/0.7 1/1"}
+check("l5x_gp_montage_trois_roues_et_la_courbe_dessinees_une_fois_ecouteur_storage_un_minuteur_400",
+      _RX.get("gp_mount") == [{"lift": 1, "gamma": 1, "gain": 1, "curve": 1}, ["storage"], [400], 0], _RX.get("gp_mount"))
+check("l5x_gp_I3_soixante_re_rendus_en_lecture_zero_dessin_zero_magasin_zero_stringify_zero_timeline_zero_minuteur_lecture_dite",
+      _RX.get("gp_lecture") == [True, 0, 0, 0, 0, 0, ["Lecture : l'aperçu se rafraîchit à l'arrêt"]], _RX.get("gp_lecture"))
+check("l5x_gp_I3_temoin_soixante_re_rendus_a_l_arret_sans_changement_zero_dessin_un_minuteur",
+      _RX.get("gp_arret") == [True, 1], _RX.get("gp_arret"))
+check("l5x_gp_Mb_requete_remplacee_abandonnee_I1_reponse_perimee_jetee",
+      _RX.get("gp_ab") == [1, True] and _RX.get("gp_perimee") == [["blob:P1"], ["blob:P1"], [""]],
+      [_RX.get("gp_ab"), _RX.get("gp_perimee")])
+check("l5x_gp_Ma_autre_plan_image_du_precedent_cachee_son_refus_dit_sur_lui_seul_retour_image_rendue",
+      _RX.get("gp_plan") == [[], ["calcul de l'aperçu…"], ["Aperçu étalonné indisponible : ffmpeg a refusé"], ["blob:P1"], [""]],
+      _RX.get("gp_plan"))
+check("l5x_gp_drag_pointerId_filtre_raf_coalesce_dernier_point_rejoue_pointercancel_retrait_idempotent",
+      _RX.get("gp_drag") == [["pointermove", "pointerup", "pointercancel"], 0, [[10, 20], [30, 40]], [[10, 20], [30, 40]],
+                             9, 2, "function", 3, 0, 0, 0], _RX.get("gp_drag"))
+check("l5x_gp_I2_geste_ecrit_dans_le_plan_saisi_selection_changee_plus_rien_temoin_meme_plan_ecrit",
+      _RX.get("gp_saisi") == [2, 2, 0], _RX.get("gp_saisi"))
+_GPB = {"target": {"src": {"job_id": "G"}, "t": 1}, "ref": {"src": {"job_id": "A"}, "t": 2}}
+check("l5x_gp_I1_accord_plan_change_pendant_le_calcul_refus_dit_zero_ecriture",
+      _RX.get("gp_acc_sig") == ["/api/montage/color-match", _GPB, 0, ["Accord refusé : le plan a changé pendant le calcul — relancez."]],
+      _RX.get("gp_acc_sig"))
+check("l5x_gp_I1_accord_deux_clics_sans_re_rendu_une_requete_succes_pose_l_effet_lourd",
+      _RX.get("gp_acc") == [1, [[{"effects": [_GPW, _GPCU, {"type": "colormatch", "y_gain": 1.1}]}, True]],
+                            ["Accord automatique posé (effet « Accord couleur »)."], False], _RX.get("gp_acc"))
+check("l5x_gp_I1_demontage_accord_ni_ecrit_ni_dit_apercu_abandonne_reponse_tardive_ne_cree_rien_url_revoquee_ecouteur_ote",
+      _RX.get("gp_demonte") == [0, 1, "/api/montage/grade-frame", True, 0, 1, ["storage"], 0, 0], _RX.get("gp_demonte"))
+check("l5x_gp_I2_demontage_en_plein_geste_retire_les_ecouteurs_annule_le_raf_defense_vivant_si_un_ecouteur_survit",
+      _RX.get("gp_vivant") == [1, 1, ["storage", "pointermove", "pointerup", "pointercancel"], 0, 1, 1], _RX.get("gp_vivant"))
+_GPMK = {"shape": "ellipse", "x": 0.25, "y": 0.25, "w": 0.5, "h": 0.5, "soft": 0, "inv": False}
+check("l5x_gp_Mc_x_et_y_du_masque_bornes_largeur_gardee_Md_double_clic_dans_le_vide_garde_le_point_temoin_retrait_volontaire",
+      _RX.get("gp_mask_curve") == [[[{"mask": dict(_GPMK, x=0.5)}, False], [{"mask": dict(_GPMK, y=0.5)}, False]],
+                                   ["0/0 0.3/0.8 1/1"], 2, "0/0 1/1"], _RX.get("gp_mask_curve"))
+check("l5x_gp_grade_copie_relu_une_fois_par_changement_copier_rallume_coller_storage_d_un_autre_onglet_l_eteint",
+      _RX.get("gp_storage") == [True, 0, False, 1, True, 1], _RX.get("gp_storage"))
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

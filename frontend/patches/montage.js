@@ -7943,7 +7943,7 @@ function dzmSrcTimeAt(clip,head){
   if(s===null||e===null||!(e>s))return dzmCoR(a,3);
   if(t===null||t<s||t>=e)t=(s+e)/2;
   return dzmCoR(a+(t-s)*sp,3)}
-var DZM_GP_CLE="dz_montage_grade",DZM_GP_W=320,DZM_GP_HIT=.04,DZM_GP_RR=44/48;
+var DZM_GP_CLE="dz_montage_grade",DZM_GP_W=320,DZM_GP_HIT=.04,DZM_GP_RR=44/48,DZM_GP_VER={n:0};
 /* ── L5 (24/09/2026, tâche 5) : le panneau « Étalonnage » — d'abord ses aides PURES (valeurs en entrée, valeurs
    neuves en sortie, l'entrée n'est jamais modifiée), puis le composant et le contour du masque au lecteur.
    PILE : dzmFxOf = le premier effet d'un type ; dzmFxPut = l'effet posé à la place du PREMIER de son type (les
@@ -8038,10 +8038,14 @@ var DZM_GP_TABS=[["m","M","Courbe maître : les trois canaux ensemble"],["r","R"
    dzmGpRead / dzmGpWrite : le grade du presse-papiers, clé « dz_montage_grade » du magasin de dzmTbStore (le même
    accès protégé que la barre d'outils ; un magasin factice en argument pour le banc), en try/catch (stockage
    refusé, plein ou JSON illisible -> null / false). Le cœur E-5..D-7 ne nomme pas le stockage : ceci non plus.
+   DZM_GP_VER.n : le numéro de version du grade stocké, avancé par dzmGpWrite (et par l'événement « storage » d'un
+   autre onglet, dans le panneau) — le panneau ne relit le stockage que quand il a changé (revue T5 : rien par image).
    dzmGpDrag : le geste sur la FENÊTRE (la forme de DzmDzRects : jamais de capture de pointeur sur l'élément),
-   filtré par pointerId, coalescé par rAF, le dernier point en attente rejoué au relâcher.
+   filtré par pointerId, coalescé par rAF, le dernier point en attente rejoué au relâcher (pointerup ou
+   pointercancel) ; REND la fonction de retrait (écouteurs ôtés, rAF annulé, idempotente) que le panneau garde dans
+   un ref et appelle au démontage (revue T5, I-2).
    dzmGpDrawWheel / dzmGpDrawCurve : le dessin des canvas (anneau de teinte R 90°, G 210°, B 330° comme la roue du
-   cœur ; grille, diagonale, courbe pchip échantillonnée, points). */
+   cœur ; grille, diagonale, courbe pchip échantillonnée sur UNE fabrique dzmCurveFn, points). */
 function dzmGpFetch(url,body,blob,sig){
   var op={method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)};
   if(sig)op.signal=sig;
@@ -8056,15 +8060,16 @@ function dzmGpRead(st){
   catch(e){return null}}
 function dzmGpWrite(g,st){
   var s=st||dzmTbStore();
-  try{if(!s)return !1;s.setItem(DZM_GP_CLE,JSON.stringify(g));return !0}catch(e){return !1}}
+  try{if(!s)return !1;s.setItem(DZM_GP_CLE,JSON.stringify(g));DZM_GP_VER.n++;return !0}catch(e){return !1}}
 function dzmGpDrag(e,cb){
-  var w=window,pid=e.pointerId,last=null,raf=0;
+  var w=window,pid=e.pointerId,last=null,raf=0,fini=!1;
   var mv=function(e2){if(e2.pointerId!==pid)return;last=e2;
     if(!raf)raf=requestAnimationFrame(function(){raf=0;if(last)cb(last.clientX,last.clientY)})};
-  var up=function(e2){if(e2.pointerId!==pid)return;
-    if(raf){cancelAnimationFrame(raf);raf=0;if(last)cb(last.clientX,last.clientY)}
+  var stop=function(){if(fini)return;fini=!0;if(raf){cancelAnimationFrame(raf);raf=0}
     w.removeEventListener("pointermove",mv);w.removeEventListener("pointerup",up);w.removeEventListener("pointercancel",up)};
-  w.addEventListener("pointermove",mv);w.addEventListener("pointerup",up);w.addEventListener("pointercancel",up)}
+  var up=function(e2){if(e2.pointerId!==pid)return;var l=raf?last:null;stop();if(l)cb(l.clientX,l.clientY)};
+  w.addEventListener("pointermove",mv);w.addEventListener("pointerup",up);w.addEventListener("pointercancel",up);
+  return stop}
 function dzmGpDrawWheel(cv,pt){
   var g=cv&&cv.getContext?cv.getContext("2d"):null;if(!g)return;
   var W=cv.width,c=W/2,R=c*DZM_GP_RR,k,a0,a1;
@@ -8080,21 +8085,22 @@ function dzmGpDrawWheel(cv,pt){
   g.beginPath();g.arc(px,py,5,0,2*Math.PI);g.fillStyle="#fff";g.fill();g.strokeStyle="#000";g.stroke()}
 function dzmGpDrawCurve(cv,pts,tab){
   var g=cv&&cv.getContext?cv.getContext("2d"):null;if(!g)return;
-  var W=cv.width,H=cv.height,col={m:"#e8e8ee",r:"#e0453f",g:"#3fbf5a",b:"#4a7fe0"}[tab]||"#e8e8ee",i,xx;
+  var W=cv.width,H=cv.height,col={m:"#e8e8ee",r:"#e0453f",g:"#3fbf5a",b:"#4a7fe0"}[tab]||"#e8e8ee",i,xx,f=dzmCurveFn(pts);
   g.clearRect(0,0,W,H);g.fillStyle="#141418";g.fillRect(0,0,W,H);
   g.lineWidth=1;g.strokeStyle="#2c2c33";g.beginPath();
   for(i=1;i<4;i++){g.moveTo(i*W/4,0);g.lineTo(i*W/4,H);g.moveTo(0,i*H/4);g.lineTo(W,i*H/4)}
   g.stroke();
   g.strokeStyle="#44444c";g.beginPath();g.moveTo(0,H);g.lineTo(W,0);g.stroke();
   g.lineWidth=2;g.strokeStyle=col;g.beginPath();
-  for(i=0;i<=100;i++){xx=i/100;var yy=dzmCurveEval(pts,xx);if(i)g.lineTo(xx*W,(1-yy)*H);else g.moveTo(xx*W,(1-yy)*H)}
+  for(i=0;i<=100;i++){xx=i/100;var yy=f(xx);if(i)g.lineTo(xx*W,(1-yy)*H);else g.moveTo(xx*W,(1-yy)*H)}
   g.stroke();
   g.fillStyle=col;(Array.isArray(pts)?pts:[]).forEach(function(p){g.fillRect(p[0]*W-3,(1-p[1])*H-3,6,6)})}
 /* LE PANNEAU « ÉTALONNAGE » (D-27 roues, D-29 courbes, D-30 masque, D-28 accord, aperçu étalonné, copier / coller
    le grade). Monté UNE fois par l'hôte (repli R_DZ1), juste après l'inspecteur, avec la MÊME garde que les
    propriétés de plan (clip V1 rendu) : jamais monté sans clip, les hooks viennent APRÈS la garde (ordre stable,
    comme DzmPlanProps) — et sans clip il rend null sans toucher `x` (banc [37]). `r` et `x` lus à l'appel.
-   props : {clip, clips (la timeline, pour le plan précédent), head (tête, s), locked (V1 verrouillée : tout ce qui
+   props : {clip, clips (la timeline, pour le plan précédent), head (tête, s), playing (lecture en cours : aperçu
+   figé, revue T5), locked (V1 verrouillée : tout ce qui
    écrit est GRISÉ et le dit ; les onglets et « Copier » restent), onChange(patch, heavy) = le geste commun des
    propriétés de plan (rafale d'historique de 600 ms), onNote(texte)}.
    ÉCRITURES : les gestes continus (roues, courbe, curseurs, double-clic) sont LÉGERS — la rafale de 600 ms fait
@@ -8103,52 +8109,81 @@ function dzmGpDrawCurve(cv,pts,tab){
    prend son instantané AVANT d'écrire, un `heavy` final aurait poussé une seconde entrée égale à l'état courant
    (un « Annuler » sans effet visible).
    APERÇU (décision 9 : aucun aperçu par filtre CSS, il mentirait sur roues et courbes) : l'image étalonnée de la
-   tête par POST /api/montage/grade-frame, anti-rebond de 400 ms sur l'empreinte du corps, numéro de requête (une
-   réponse périmée est jetée), blob -> URL révoquée au remplacement et au démontage ; un refus s'affiche DANS
+   tête par POST /api/montage/grade-frame, anti-rebond de 400 ms sur l'empreinte du corps ET l'identifiant du plan
+   (dépendances primitives), numéro de requête (une réponse périmée est jetée — le nettoyage de l'effet l'avance, au
+   démontage aussi) + contrôleur d'abandon par requête, blob -> URL révoquée au remplacement et au démontage ; image
+   et refus sont MARQUÉS du plan qui les a demandés (un autre plan ne les montre jamais) ; un refus s'affiche DANS
    l'aperçu (une note toutes les 400 ms pendant un glisser serait du bruit).
+   RIEN PAR IMAGE (revue T5, I-3) : pendant la lecture (prop `playing`) l'hôte re-rend à chaque image — le corps n'est
+   ni construit ni sérialisé, aucun minuteur ; les canvas ont des refs OBJETS (stables) et se dessinent dans des effets
+   à dépendances primitives (les roues sur leurs six coordonnées, la courbe sur sa chaîne canonique et l'onglet) ; le
+   plan précédent est gardé en cache sur l'identité (timeline, plan) ; le grade copié n'est relu que quand
+   DZM_GP_VER a bougé (copie de ce panneau, du clavier, du menu, ou « storage » d'un autre onglet).
+   GESTE (revue T5, I-2) : le geste écrit dans le plan SAISI au pointerdown — si la sélection change en cours de
+   geste, plus rien n'est écrit ; le retrait rendu par dzmGpDrag est gardé dans un ref et appelé au démontage.
+   Un double-clic dans le VIDE de la courbe (premier clic : un point créé, second : sur lui) GARDE ce point : un
+   « ajouter puis retirer » laissait une entrée d'historique sans effet (revue T5, M-d).
    ACCORD : POST /api/montage/color-match, effet posé par dzmColorMatchPut, écrit seulement si le plan affiché est
-   TOUJOURS celui envoyé à la même empreinte (dzmGpSig) — sinon refus dit ; un refus du serveur est dit par note. */
+   TOUJOURS celui envoyé à la même empreinte (dzmGpSig) — sinon refus dit ; un refus du serveur est dit par note ; un
+   ref « en vol » refuse un second clic avant même le re-rendu qui grise les boutons. */
 function DzmGradePanel(o){
   var c=o&&o.clip,on=typeof (o&&o.onChange)==="function"?o.onChange:function(){};
   var note=typeof (o&&o.onNote)==="function"?o.onNote:function(){};
   if(!c)return null;
   var s1=x.useState("m"),tab=s1[0],setTab=s1[1];
   var s2=x.useState(null),img=s2[0],setImg=s2[1];
-  var s3=x.useState(""),imgMsg=s3[0],setImgMsg=s3[1];
+  var s3=x.useState(null),imgErr=s3[0],setImgErr=s3[1];
   var s4=x.useState(!1),busy=s4[0],setBusy=s4[1];
-  var cur=x.useRef(null),urlR=x.useRef(null),seq=x.useRef(0),vivant=x.useRef(!0);
+  var s5=x.useState(0),setGv=s5[1];
+  var cur=x.useRef(null),urlR=x.useRef(null),seq=x.useRef(0),vivant=x.useRef(!0),enVol=x.useRef(!1),retrait=x.useRef(null),
+    gsR=x.useRef(null),pvR=x.useRef(null),ajR=x.useRef(null),wR=[x.useRef(null),x.useRef(null),x.useRef(null)],cR=x.useRef(null);
   cur.current=c;
   var fx=Array.isArray(c.effects)?c.effects:[],lock=!!o.locked,lockT="Piste V1 verrouillée — déverrouillez-la pour étalonner ce plan";
-  var body=dzmFrameBody(c,o.head,DZM_GP_W),sig=JSON.stringify(body);
-  x.useEffect(function(){vivant.current=!0;return function(){vivant.current=!1;seq.current++;
-    if(urlR.current){URL.revokeObjectURL(urlR.current);urlR.current=null}}},[]);
-  x.useEffect(function(){var q=++seq.current,h=setTimeout(function(){
-      dzmGpFetch("/api/montage/grade-frame",body,!0).then(function(b){if(!vivant.current||q!==seq.current)return;
-        var u=URL.createObjectURL(b);if(urlR.current)URL.revokeObjectURL(urlR.current);urlR.current=u;setImg(u);setImgMsg("")},
-      function(e){if(vivant.current&&q===seq.current)setImgMsg("Aperçu étalonné indisponible : "+((e&&e.message)||"erreur réseau"))})},400);
-    return function(){clearTimeout(h)}},[sig]);
+  var jouant=!!o.playing,body=jouant?null:dzmFrameBody(c,o.head,DZM_GP_W),sig=body?JSON.stringify(body):"";
+  /* D-27 : les trois points des roues, lus sur l'effet `wheels` du plan (le premier) ; D-29 : la courbe de l'onglet */
+  var we=dzmFxOf(fx,"wheels"),wp=DZM_GP_ROUES.map(function(w){var k=w[0];
+    return dzmWheelFromRgb(k,we?{r:we[k+"_r"],g:we[k+"_g"],b:we[k+"_b"]}:{})});
+  var cu=dzmFxOf(fx,"curves"),ck="pts_"+tab,cpts=dzmCurveParse(cu&&cu[ck]),cStr=dzmCurveStr(cpts),cId=cStr===DZM_CURVE_ID;
+  x.useEffect(function(){vivant.current=!0;
+    var w=typeof window==="object"&&window&&typeof window.addEventListener==="function"?window:null,
+      st=function(e){if(!e||e.key==null||e.key===DZM_GP_CLE){DZM_GP_VER.n++;if(vivant.current)setGv(function(n){return n+1})}};
+    if(w)w.addEventListener("storage",st);
+    return function(){vivant.current=!1;if(w)w.removeEventListener("storage",st);
+      if(retrait.current){retrait.current();retrait.current=null}
+      if(urlR.current){URL.revokeObjectURL(urlR.current);urlR.current=null}}},[]);
+  x.useEffect(function(){
+    if(!sig)return;
+    var q=++seq.current,id=c.id,b=JSON.parse(sig),ac=typeof AbortController==="function"?new AbortController():null;
+    var h=setTimeout(function(){
+      dzmGpFetch("/api/montage/grade-frame",b,!0,ac?ac.signal:null).then(function(bl){if(q!==seq.current)return;
+        var u=URL.createObjectURL(bl);if(urlR.current)URL.revokeObjectURL(urlR.current);urlR.current=u;setImg({u:u,id:id,t:b.t});setImgErr(null)},
+      function(e){if(q===seq.current)setImgErr({id:id,msg:"Aperçu étalonné indisponible : "+((e&&e.message)||"erreur réseau")})})},400);
+    return function(){seq.current++;clearTimeout(h);if(ac)ac.abort()}},[sig,c.id]);
+  x.useEffect(function(){wR.forEach(function(rf,i){dzmGpDrawWheel(rf.current,wp[i])})},[wp[0].x,wp[0].y,wp[1].x,wp[1].y,wp[2].x,wp[2].y]);
+  x.useEffect(function(){dzmGpDrawCurve(cR.current,cpts,tab)},[cStr,tab]);
+  /* le geste lié au plan SAISI (I-2) : rien n'est écrit si le panneau est démonté ou si un autre plan est sélectionné */
+  var geste=function(e,ecrire){var id=c.id;if(retrait.current)retrait.current();
+    retrait.current=dzmGpDrag(e,function(cx,cy){if(!vivant.current||cur.current.id!==id)return;ecrire(cx,cy)})};
   var row=function(label,kids,key){return r.jsxs("div",{className:"svm-prop dzm-plan-row dzm-gp-row",children:[
     r.jsx("div",{className:"svm-propk",children:label}),r.jsx("div",{className:"svm-propv",children:kids})]},key)};
-  /* D-27 : trois roues (canvas) + un maître chacune ; la roue est lue sur l'effet `wheels` du plan (le premier) */
-  var we=dzmFxOf(fx,"wheels");
-  var roue=function(w){var k=w[0],pt=dzmWheelFromRgb(k,we?{r:we[k+"_r"],g:we[k+"_g"],b:we[k+"_b"]}:{});
+  /* D-27 : trois roues (canvas) + un maître chacune */
+  var roue=function(w,wi){var k=w[0],pt=wp[wi];
     var poser=function(eff){on({effects:dzmFxPut(fx,eff)},!1)};
     var down=function(e){if(lock||e.button)return;var bx=e.currentTarget.getBoundingClientRect();if(!(bx.width>2))return;
       e.preventDefault();
       var base=fx,bw=we,m0=pt.m,R=bx.width/2*DZM_GP_RR,ecrit=function(cx,cy){
         on({effects:dzmFxPut(base,dzmWheelsSet(bw,k,(cx-bx.left-bx.width/2)/R,-(cy-bx.top-bx.height/2)/R,m0))},!1)};
-      ecrit(e.clientX,e.clientY);dzmGpDrag(e,ecrit)};
+      ecrit(e.clientX,e.clientY);geste(e,ecrit)};
     return r.jsxs("div",{className:"dzm-gp-wheel",children:[
       r.jsx("canvas",{className:"dzm-gp-wcv","data-kind":k,width:96,height:96,"aria-label":"Roue "+w[1],
         title:lock?lockT:w[2]+" : glisser le point vers une teinte — double-clic : remise à zéro",
-        ref:function(cv){dzmGpDrawWheel(cv,pt)},onPointerDown:down,
+        ref:wR[wi],onPointerDown:down,
         onDoubleClick:function(){if(!lock)poser(dzmWheelsSet(we,k,0,0,0))}}),
       r.jsx("div",{className:"dzm-gp-wl",children:w[1]}),
       r.jsx("input",{type:"range",min:Math.round(w[3]*100),max:Math.round(w[4]*100),step:1,value:Math.round(pt.m*100),disabled:lock,
         title:lock?lockT:"Maître "+w[1]+" : les trois canaux ensemble","aria-label":"Maître "+w[1],
         onChange:function(e){var v=Number(e.target.value);if(isFinite(v))poser(dzmWheelsSet(we,k,pt.x,pt.y,v/100))}})]},k)};
   /* D-29 : la courbe du canal de l'onglet (effet `curves`, paramètres cachés pts_m|r|g|b) */
-  var cu=dzmFxOf(fx,"curves"),ck="pts_"+tab,cpts=dzmCurveParse(cu&&cu[ck]),cId=dzmCurveStr(cpts)===DZM_CURVE_ID;
   var mid=dzmCurveMid(cpts),plein=cpts.length>=DZM_CURVE_MAX;
   var poseC=function(base,bc,p,heavy){var n=Object.assign({},bc||{type:"curves"});n[ck]=dzmCurveStr(p);on({effects:dzmFxPut(base,n)},heavy)};
   var cdown=function(e){if(lock||e.button)return;var bx=e.currentTarget.getBoundingClientRect();if(!(bx.width>2))return;
@@ -8156,11 +8191,15 @@ function DzmGradePanel(o){
     e.preventDefault();
     if(i<0){var a=dzmCurveAdd(p,px,py);
       if(!a){if(p.length>=DZM_CURVE_MAX)note("Courbe : 16 points au plus — double-cliquez un point pour le retirer.");return}
-      p=a.pts;i=a.i;poseC(base,bc,p,!1)}
-    dzmGpDrag(e,function(cx,cy){poseC(base,bc,dzmCurveMove(p,i,(cx-bx.left)/bx.width,1-(cy-bx.top)/bx.height),!1)})};
+      p=a.pts;i=a.i;poseC(base,bc,p,!1);ajR.current={id:c.id,tab:tab,x:p[i][0],y:p[i][1],n:0}}
+    else if(ajR.current)ajR.current.n++;
+    geste(e,function(cx,cy){poseC(base,bc,dzmCurveMove(p,i,(cx-bx.left)/bx.width,1-(cy-bx.top)/bx.height),!1)})};
   var cdbl=function(e){if(lock)return;var bx=e.currentTarget.getBoundingClientRect();if(!(bx.width>2))return;
-    var i=dzmCurveHit(cpts,(e.clientX-bx.left)/bx.width,1-(e.clientY-bx.top)/bx.height,DZM_GP_HIT);
-    if(i>0&&i<cpts.length-1)poseC(fx,cu,dzmCurveDel(cpts,i),!1)};
+    var i=dzmCurveHit(cpts,(e.clientX-bx.left)/bx.width,1-(e.clientY-bx.top)/bx.height,DZM_GP_HIT),aj=ajR.current;ajR.current=null;
+    if(!(i>0&&i<cpts.length-1))return;
+    /* M-d : le point que le PREMIER clic de ce double-clic vient de créer reste (un clic de plus au plus depuis) */
+    if(aj&&aj.n<=1&&aj.id===c.id&&aj.tab===tab&&cpts[i][0]===aj.x&&cpts[i][1]===aj.y)return;
+    poseC(fx,cu,dzmCurveDel(cpts,i),!1)};
   /* D-30 : le masque — GRISÉ sans effet actif (il ne limiterait rien), « Aucun » grisé sans masque */
   var fxOn=fx.some(function(f){return !!f&&typeof f==="object"&&!f.off}),mk=dzmMaskOf(c.mask),mf=mk?mk.shape:"none";
   var mT="Le masque limite les effets du plan : ajoutez-en un";
@@ -8172,24 +8211,29 @@ function DzmGradePanel(o){
   var mRng=function(k,lbl,max,title){var v=Math.round((mk?mk[k]:DZM_GP_MASK0[k])*100);
     return r.jsxs("label",{className:"dzm-gp-mr",children:[lbl,
       r.jsx("input",{type:"range",min:0,max:max,step:1,value:v,disabled:mDis,title:mDit||title,"aria-label":title,
-        onChange:function(e){var n=Number(e.target.value);if(!isFinite(n)||!mk)return;var q={};q[k]=n/100;
+        onChange:function(e){var n=Number(e.target.value);if(!isFinite(n)||!mk)return;var q={},v=n/100;
+          /* M-c : X et Y s'arrêtent à 1 − L | 1 − H — la forme GLISSE contre le bord, sa taille est gardée */
+          q[k]=k==="x"?Math.min(v,1-mk.w):k==="y"?Math.min(v,1-mk.h):v;
           var m2=dzmMaskOf(Object.assign({},mk,q));if(m2)on({mask:m2},!1)}}),
       r.jsx("span",{className:"dzm-gp-mv",children:v+" %"})]},"mr-"+k)};
   /* D-28 : l'accord de couleur (plan précédent de V1, ou automatique) */
-  var pv=dzmGradePrev(o.clips,c),bT="Accord en cours…";
-  var accorder=function(auto){if(lock||busy)return;var b=dzmMatchBody(c,o.head,pv,auto);if(!b)return;
-    var id=c.id,sg=dzmGpSig(c),fin=function(){if(vivant.current)setBusy(!1)};
-    setBusy(!0);note(auto?"Accord automatique…":"Accord sur le plan précédent…");
+  if(!pvR.current||pvR.current.a!==o.clips||pvR.current.c!==c)pvR.current={a:o.clips,c:c,v:dzmGradePrev(o.clips,c)};
+  var pv=pvR.current.v,bT="Accord en cours…";
+  var accorder=function(auto){if(lock||enVol.current)return;var b=dzmMatchBody(c,o.head,pv,auto);if(!b)return;
+    var id=c.id,sg=dzmGpSig(c),fin=function(){enVol.current=!1;if(vivant.current)setBusy(!1)};
+    enVol.current=!0;setBusy(!0);note(auto?"Accord automatique…":"Accord sur le plan précédent…");
     dzmGpFetch("/api/montage/color-match",b,!1).then(function(j){if(!vivant.current)return;
       var k=cur.current;
-      if(!k||k.id!==id||dzmGpSig(k)!==sg){note("Accord refusé : le plan a changé pendant le calcul — relancez.");return}
+      if(k.id!==id||dzmGpSig(k)!==sg){note("Accord refusé : le plan a changé pendant le calcul — relancez.");return}
       if(!j||!j.effect||typeof j.effect!=="object"){note("Accord refusé : réponse illisible du serveur.");return}
       on({effects:dzmColorMatchPut(k.effects,j.effect)},!0);
       note(auto?"Accord automatique posé (effet « Accord couleur »).":"Plan accordé sur le précédent (effet « Accord couleur »).")},
     function(e){if(vivant.current)note("Accord refusé : "+((e&&e.message)||"erreur réseau"))}).then(fin,fin)};
   /* D-32 : copier / coller le grade — les MÊMES gestes que le clavier et les menus (tâche 6) : dzmGradeCopyDo /
      dzmGradePasteDo, un seul stockage (dzmGpRead / dzmGpWrite), une seule phrase par issue */
-  var gt=dzmGradeTake(c),gs=dzmGpRead();
+  if(!gsR.current||gsR.current.v!==DZM_GP_VER.n)gsR.current={v:DZM_GP_VER.n,g:dzmGpRead()};
+  var gt=dzmGradeTake(c),gs=gsR.current.g;
+  var voit=!!(img&&img.id===c.id),pMsg=imgErr&&imgErr.id===c.id?imgErr.msg:voit?"":jouant?"Lecture : l'aperçu se rafraîchit à l'arrêt":"calcul de l'aperçu…";
   var kids=[
     row("Roues",r.jsx("div",{className:"dzm-gp-wheels",children:DZM_GP_ROUES.map(roue)}),"roues"),
     row("Courbes",r.jsxs("div",{className:"dzm-gp-curve",children:[
@@ -8198,7 +8242,7 @@ function DzmGradePanel(o){
           onClick:function(){setTab(t[0])},children:t[1]},t[0])})}),
       r.jsx("canvas",{className:"dzm-gp-ccv","data-kind":"curve",width:200,height:200,"aria-label":"Courbe",
         title:lock?lockT:"Cliquer : ajouter un point · glisser : déplacer · double-clic : retirer (extrémités fixes en x)",
-        ref:function(cv){dzmGpDrawCurve(cv,cpts,tab)},onPointerDown:cdown,onDoubleClick:cdbl}),
+        ref:cR,onPointerDown:cdown,onDoubleClick:cdbl}),
       r.jsxs("span",{className:"dzm-gp-cbtns",children:[
         r.jsx("button",{className:"svm-minibtn",disabled:lock||plein,
           title:lock?lockT:plein?"16 points au plus : double-cliquer un point pour le retirer":"Ajouter un point au milieu du plus grand écart (16 au plus) — ou cliquer dans la courbe",
@@ -8229,15 +8273,15 @@ function DzmGradePanel(o){
     row("Grade",r.jsxs("span",{className:"dzm-plan-hint dzm-gp-grade",children:[
       r.jsx("button",{className:"svm-minibtn",disabled:!gt,
         title:gt?"Copier le grade de ce plan : effets couleur et masque":"Rien à copier : ni effet couleur ni masque sur ce plan",
-        onClick:function(){if(gt)note(dzmGradeCopyDo(c).note)},
+        onClick:function(){if(gt){note(dzmGradeCopyDo(c).note);setGv(function(n){return n+1})}},
         children:"Copier le grade"}),
       r.jsx("button",{className:"svm-minibtn",disabled:lock||!gs,
         title:lock?lockT:gs?"Coller le grade copié : remplace les effets couleur de ce plan, les autres restent":"Aucun grade copié (Copier le grade d'abord)",
         onClick:function(){if(lock)return;var q=dzmGradePasteDo(cur.current);
           if(q.clip)on({effects:q.clip.effects,mask:q.clip.mask},!0);note(q.note)},children:"Coller le grade"})]}),"grade"),
     row("Aperçu",r.jsxs("div",{className:"dzm-gp-prev",children:[
-      img?r.jsx("img",{src:img,alt:"Image étalonnée du plan",title:"Image étalonnée (la pile d'effets du plan rendue par ffmpeg) à "+(body?body.t:0)+" s de source"}):null,
-      r.jsx("span",{className:"dzm-gp-pmsg",children:imgMsg||(img?"":"calcul de l'aperçu…")})]}),"prev")];
+      voit?r.jsx("img",{src:img.u,alt:"Image étalonnée du plan",title:"Image étalonnée (la pile d'effets du plan rendue par ffmpeg) à "+img.t+" s de source"}):null,
+      r.jsx("span",{className:"dzm-gp-pmsg",children:pMsg})]}),"prev")];
   return r.jsxs("div",{className:"dzm-plan dzm-gp",children:[r.jsx("div",{className:"dzm-plan-t",children:"Étalonnage"}),
     r.jsx("div",{className:"svm-props",children:kids})]})}
 /* LE CONTOUR DU MASQUE au lecteur (repli R_DZ2, dans le cadre `.svm-tf`, en % du cadre = les fractions du masque) :
@@ -8512,5 +8556,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   scopesAt:dzmScopesAt,scopesBody:dzmScopesBody,scopesGet:dzmScopesGet,scopesSet:dzmScopesSet,SC_CLE:DZM_SC_CLE,lbPlans:dzmLbPlans,lbNext:dzmLbNext,LB_MAX:DZM_LB_MAX,gradeCopyDo:dzmGradeCopyDo,gradePasteDo:dzmGradePasteDo,gradeRead:dzmGpRead,Scopes:DzmScopes,Lightbox:DzmLightbox,
   /* L5 revue T4 (24/09/2026) : la fabrique pchip (le dessin échantillonne sans relire la chaîne) */
   curveFn:dzmCurveFn,
+  /* L5 revue T5 (24/09/2026) : le geste du panneau (banc en exécution : retrait, pointerId, pointercancel) */
+  gpDrag:dzmGpDrag,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;

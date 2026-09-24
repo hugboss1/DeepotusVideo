@@ -4442,7 +4442,9 @@ R_DZ1 = ('        /* D-13 : les proprietes de plan (clip V1 reel seulement) */\n
          # fireNote. Le reseau (grade-frame, color-match) est dans la COUCHE : l'hote ne porte aucune route.
          '        /* L5 : le panneau Etalonnage (clip V1 reel seulement, meme garde que les proprietes de plan) */\n'
          '        sel&&sel.tr==="v1"&&sel.src&&sel.src.job_id?r.jsx(DzTracks.GradePanel,{clip:sel,\n'
-         '          clips:clips,head:ph,locked:!!(trackStRef.current.v1&&trackStRef.current.v1.l),onNote:fireNote,onChange:dzPlanSet}):null,')
+         # revue T5 (24/09/2026, I-3) : `playing` (l'etat de lecture de DzMontage, celui que recoivent les scopes) --
+         # pendant la lecture le panneau ne construit ni ne serialise le corps de l'apercu, aucun minuteur
+         '          clips:clips,head:ph,playing:playing,locked:!!(trackStRef.current.v1&&trackStRef.current.v1.l),onNote:fireNote,onChange:dzPlanSet}):null,')
 A_DZ2 = '            r.jsx("div",{className:"svm-tfbadge",ref:tfBadgeRef})]}):null,'
 R_DZ2 = ('            r.jsx("div",{className:"svm-tfbadge",ref:tfBadgeRef}),\n'
          # L5 D-30 (24/09/2026, tache 5) : LE CONTOUR DU MASQUE du clip V1 selectionne -- repli ici (le plan proposait
