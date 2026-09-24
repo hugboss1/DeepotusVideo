@@ -17478,7 +17478,8 @@ _L7D_BTN = '        r.jsx("button",{className:"svm-tbtn dzm-projbtn dzm-projdiff
 _iDfDup = s.find('onClick:function(){doDup(p)},children:"dupliquer"},"dp"),'); _iDfBtn = s.find(nl(_L7D_BTN)); _iDfOp = s.find('r.jsx("button",{className:"svm-tbtn dzm-projbtn dzm-projop",')
 check("L7d_la_couche_DZM_DIFF_CLES_diffIndex_diff_diffTemps_DiffView_bouton_compare_entre_dupliquer_et_ouvrir_exports_x1",
       all(s.count(k) == 1 and src.count(k) == 1 for k in (
-          'var DZM_DIFF_CLES=["gain","opacity","x","y","scale","rotate","effects","dz","speed","retime","stab","text","transition","transition_s","fade_in","fade_out","label","tr"];',
+          # cloture L7-B (T8, 24/09/2026) : `reframe` rejoint la liste en queue
+          'var DZM_DIFF_CLES=["gain","opacity","x","y","scale","rotate","effects","dz","speed","retime","stab","text","transition","transition_s","fade_in","fade_out","label","tr","reframe"];',
           "function dzmDiffIndex(clips){", "function dzmDiff(a,b){", "function dzmDiffTemps(v){", "function DzmDiffView(o){",
           'className:"svm-pop dzm-diff"', "diff:dzmDiff,DiffView:DzmDiffView,diffTemps:dzmDiffTemps,", "dzm-projdiff"))
       and s.count(nl(_L7D_BTN)) == 1 and 0 < _iDfDup < _iDfBtn < _iDfOp < _iDfBtn + 900

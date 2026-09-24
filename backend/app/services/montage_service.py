@@ -137,7 +137,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 from loguru import logger
 from sqlalchemy import func, or_, select
 
@@ -2897,6 +2897,20 @@ _AUTOCLIPS_SEGS_MAX = 2000
 # faille client mesurée le 24/09/2026 (case cochée pour 0,05 $ restée cochée
 # sous une nouvelle estimation à 0,40 $).
 _AUTOCLIPS_USD_TOL = 0.0005
+# Clôture L7-B (T8, 24/09/2026) — L'ARGENT, TROIS RESTES DES REVUES :
+#  . VERROU par clé de cache de transcription (source, taille, mtime,
+#    fournisseur, langue — la clé même de `_autoclips_stt_cle`) : une
+#    transcription payante déjà EN COURS sur la même clé rend 409 « déjà en
+#    cours » sans appeler `transcribe` (deux « Lancer » payants en parallèle,
+#    deux onglets, payaient deux fois : le cache n'est écrit qu'au retour).
+#    Test-et-pose SANS `await` entre les deux (la boucle est mono-fil), le
+#    verrou est libéré en `finally` (échec compris). Ensemble du module,
+#    borné par nature (une entrée par transcription en vol).
+#  . Le 409 « coût dépassé » rend la NOUVELLE estimation dans son corps
+#    (`estimate`, à côté de `detail`) : le client l'affiche NON cochée.
+#  . `confirm:true` SANS `max_usd` n'est refusé (400) que sur le CHEMIN
+#    PAYANT ; texte connu, chapitre ou transcription en cache : accepté.
+_AUTOCLIPS_STT_EN_COURS: set[str] = set()
 
 
 def _autoclips_stt_cle(p: Path, pid, lang) -> Path | None:
@@ -2978,10 +2992,6 @@ async def montage_autoclips(request: Request):
         raise HTTPException(400, "llm illisible — true ou false.")
     confirm = body.get("confirm") is True
     max_usd = body.get("max_usd")
-    if confirm and (isinstance(max_usd, bool) or not isinstance(max_usd, (int, float))
-                    or not math.isfinite(max_usd) or max_usd < 0):
-        raise HTTPException(400, "confirm:true exige max_usd : le coût annoncé que vous "
-                                 "avez accepté (nombre ≥ 0) — rien n'est lancé.")
     p = await _media_source(request, src, video=True)
     transcript = "align"
     if not text and chapter_id:
@@ -3020,17 +3030,32 @@ async def montage_autoclips(request: Request):
                         "reason": est.get("reason") or "Transcription payante : "
                                   "confirmez le coût annoncé (confirm:true), ou "
                                   "donnez le texte connu (gratuit)."}
+            if (isinstance(max_usd, bool) or not isinstance(max_usd, (int, float))
+                    or not math.isfinite(max_usd) or max_usd < 0):
+                raise HTTPException(400, "confirm:true exige max_usd : le coût annoncé que vous "
+                                         "avez accepté (nombre ≥ 0) — rien n'est lancé.")
             usd = float(est.get("usd") or 0.0)
             if usd > float(max_usd) + _AUTOCLIPS_USD_TOL:
-                raise HTTPException(409, f"Coût estimé {usd:.4f} $ supérieur au plafond "
-                                         f"confirmé {float(max_usd):.4f} $ — rien n'est lancé, "
-                                         f"réestimez puis confirmez le nouveau coût.")
+                return JSONResponse(status_code=409, content={
+                    "detail": f"Coût estimé {usd:.4f} $ supérieur au plafond confirmé "
+                              f"{float(max_usd):.4f} $ — rien n'est lancé, cochez puis "
+                              f"confirmez le nouveau coût.",
+                    "estimate": est})
+            verrou = str(cle) if cle is not None else "src:%s|%s|%s" % (p.resolve(), est.get("provider"), lang_stt)
+            if verrou in _AUTOCLIPS_STT_EN_COURS:
+                raise HTTPException(409, "Transcription de cette source déjà en cours — rien "
+                                         "n'est relancé ; relancez à son retour (elle sera "
+                                         "rendue par le cache, sans repayer).")
+            _AUTOCLIPS_STT_EN_COURS.add(verrou)
             try:
-                res = await asyncio.to_thread(T.transcribe, p, provider=provider,
-                                              language=lang_stt)
-            except Exception as e:
-                raise HTTPException(502, f"Transcription impossible : {e}")
-            await asyncio.to_thread(_autoclips_stt_ecrire, cle, res)
+                try:
+                    res = await asyncio.to_thread(T.transcribe, p, provider=provider,
+                                                  language=lang_stt)
+                except Exception as e:
+                    raise HTTPException(502, f"Transcription impossible : {e}")
+                await asyncio.to_thread(_autoclips_stt_ecrire, cle, res)
+            finally:
+                _AUTOCLIPS_STT_EN_COURS.discard(verrou)
             transcript = "stt:%s" % (res.get("source") or "?")
     words = res.get("words") or []
     # Revue L7-B : windows() mesurée à 1,3 s pour 18 000 mots — elle passe

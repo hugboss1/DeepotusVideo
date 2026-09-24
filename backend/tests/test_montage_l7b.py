@@ -1459,7 +1459,15 @@ async def _appel(nom, path, body):
     if f is None:
         return ("ABSENT", None)
     try:
-        return (200, await f(RQA(path, body)))
+        v = await f(RQA(path, body))
+        # cloture T8 (24/09/2026) : une route peut rendre une REPONSE (409 avec l'estimation dans le corps) -> son
+        # code et son corps JSON, lus comme ceux d'une HTTPException
+        if hasattr(v, "status_code") and hasattr(v, "body"):
+            try:
+                return (v.status_code, _json4.loads(bytes(v.body).decode("utf-8")))
+            except ValueError:
+                return (v.status_code, None)
+        return (200, v)
     except Exception as e:
         return (getattr(e, "status_code", type(e).__name__), getattr(e, "detail", str(e)))
 
@@ -1602,9 +1610,11 @@ _mx_bad = [ACR({"src": {"file_path": AV}, "n": 1, "lang": "it", "confirm": True}
            ACR({"src": {"file_path": AV}, "n": 1, "lang": "it", "confirm": True, "max_usd": "0.02"}),
            ACR({"src": {"file_path": AV}, "n": 1, "lang": "it", "confirm": True, "max_usd": True}),
            ACR({"src": {"file_path": AV}, "n": 1, "lang": "it", "confirm": True, "max_usd": -0.01})]
-check("d41_revue_T6_confirm_sans_plafond_lisible_400_avant_resolution_rien_n_est_paye",
+# cloture T8 (24/09/2026, reste d) : le 400 ne tombe plus AVANT la resolution mais sur le CHEMIN PAYANT seulement
+# (texte connu ou cache : confirm sans max_usd est accepte, bance en [9]) -- la source est donc resolue quatre fois
+check("d41_revue_T6_confirm_sans_plafond_lisible_400_sur_le_chemin_payant_rien_n_est_paye",
       [r[0] for r in _mx_bad] == [400, 400, 400, 400] and "max_usd" in str(_mx_bad[0][1])
-      and _sp4["transcribe"] == _tr_av and _sp4["resolve"] == _res_av, ([r[0] for r in _mx_bad], _sp4))
+      and _sp4["transcribe"] == _tr_av and _sp4["resolve"] == _res_av + 4, ([r[0] for r in _mx_bad], _sp4, _res_av))
 _est_rend[0] = dict(_EST, usd=0.40)
 _mx_haut = ACR({"src": {"file_path": AV}, "n": 1, "lang": "it", "confirm": True, "max_usd": 0.05})
 _mx_tol = ACR({"src": {"file_path": AV}, "n": 1, "lang": "it", "confirm": True, "max_usd": 0.3994})
@@ -1811,6 +1821,78 @@ check("l7b_restes_autoclips_windows_hors_du_thread_de_la_boucle",
 _edoc = (EX.__doc__ or "") if EX is not None else ""
 check("l7b_restes_edl_export_docstring_route_sonde_pour_les_deux_formats",
       "HANDLES" in _edoc and "que pour le FCPXML" not in _edoc and "140c3d5" in _edoc, len(_edoc))
+
+print("\n[9] L7-B cloture (T8, 24/09/2026) : verrou de transcription, estimation dans le 409, confirm gratuit")
+# (a) L'ARGENT : une transcription payante deja EN COURS sur la meme cle de cache (source, taille, mtime, fournisseur,
+# langue) -> 409 « deja en cours », `transcribe` n'est PAS rappele. Deux appels CONCURRENTS dans la meme boucle : le
+# premier est bloque DANS transcribe (espion qui attend un evenement, dans le thread de to_thread) ; le second part
+# quand l'espion a compte 1, et libere le premier a son retour. Espion a 1 a la fin.
+_ev9 = _th8.Event()
+_n9 = {"t": 0}
+def _tr_lent(*a, **k):
+    _n9["t"] += 1
+    _ev9.wait(20)
+    return {"ok": True, "source": "fake", "words": _copy.deepcopy(_words), "audio_duration_s": 120.0}
+async def _concurrents():
+    async def premier():
+        return await _appel("montage_autoclips", "/api/montage/autoclips",
+                            {"src": {"file_path": AV}, "n": 1, "lang": "nl", "max_usd": 0.0134, "confirm": True})
+    async def second():
+        for _ in range(400):                       # jusqu'a 20 s : le premier est DANS transcribe
+            if _n9["t"] >= 1:
+                break
+            await asyncio.sleep(0.05)
+        try:
+            return await _appel("montage_autoclips", "/api/montage/autoclips",
+                                {"src": {"file_path": AV}, "n": 1, "lang": "nl", "max_usd": 0.0134, "confirm": True})
+        finally:
+            _ev9.set()
+    return await asyncio.gather(premier(), second())
+_tr9 = TS.transcribe
+TS.transcribe = _tr_lent
+try:
+    _c9 = asyncio.run(_concurrents())
+except Exception as _e:
+    _c9 = (("ERR", str(_e)), ("ERR", None))
+finally:
+    _ev9.set()
+    TS.transcribe = _tr9
+check("l7b_cloture_verrou_deux_transcriptions_concurrentes_meme_cle_une_seule_payee_409_deja_en_cours",
+      _c9[0][0] == 200 and D(_c9[0][1]).get("ok") is True and D(_c9[0][1]).get("transcript") == "stt:fake"
+      and _c9[1][0] == 409 and "déjà en cours" in str(_c9[1][1]) and _n9["t"] == 1, (_c9, _n9))
+# le verrou est LIBERE en finally : apres un echec (502), la meme cle se paie de nouveau (temoin : pas 409)
+_n9b = {"t": 0}
+def _tr_casse(*a, **k):
+    _n9b["t"] += 1
+    raise RuntimeError("HTTP 503")
+TS.transcribe = _tr_casse
+try:
+    _r9a = ACR({"src": {"file_path": AV}, "n": 1, "lang": "sv", "max_usd": 0.0134, "confirm": True})
+    _r9b = ACR({"src": {"file_path": AV}, "n": 1, "lang": "sv", "max_usd": 0.0134, "confirm": True})
+finally:
+    TS.transcribe = _tr9
+check("l7b_cloture_verrou_libere_en_finally_apres_un_echec_la_meme_cle_se_relance",
+      _r9a[0] == 502 and _r9b[0] == 502 and _n9b["t"] == 2, (_r9a, _r9b, _n9b))
+_verrous = getattr(MS, "_AUTOCLIPS_STT_EN_COURS", None)
+check("l7b_cloture_verrou_vide_apres_les_appels_ensemble_du_module",
+      isinstance(_verrous, set) and len(_verrous) == 0, _verrous)
+# (b) le 409 « cout depasse » rend la NOUVELLE estimation dans son corps (le client l'affiche NON cochee)
+_est_rend[0] = dict(_EST, usd=0.40)
+_r9c = ACR({"src": {"file_path": AV}, "n": 1, "lang": "da", "confirm": True, "max_usd": 0.05})
+_est_rend[0] = dict(_EST)
+check("l7b_cloture_409_cout_depasse_rend_la_nouvelle_estimation_dans_le_corps_et_la_phrase",
+      _r9c[0] == 409 and isinstance(_r9c[1], dict) and _r9c[1].get("estimate") == dict(_EST, usd=0.40)
+      and "0.4000" in str(_r9c[1].get("detail")) and "0.0500" in str(_r9c[1].get("detail")), _r9c)
+# (d) confirm:true SANS max_usd sur un chemin GRATUIT : texte connu -> accepte (align) ; cache deja paye -> accepte ;
+# temoin : le chemin payant sans max_usd reste 400 et rien n'est paye
+_t9 = _sp4["transcribe"]
+_r9d = ACR({"src": {"file_path": AV}, "text": TXT, "n": 1, "llm": False, "confirm": True})
+_r9e = ACR({"src": {"file_path": AV}, "n": 1, "lang": "auto", "llm": False, "confirm": True})
+_r9f = ACR({"src": {"file_path": AV}, "n": 1, "lang": "fi", "confirm": True})
+check("l7b_cloture_confirm_sans_max_usd_accepte_sur_texte_connu_et_cache_400_sur_le_chemin_payant",
+      _r9d[0] == 200 and D(_r9d[1]).get("transcript") == "align" and D(_r9d[1]).get("ok") is True
+      and _r9e[0] == 200 and D(_r9e[1]).get("transcript") == "stt:fake:cache"
+      and _r9f[0] == 400 and "max_usd" in str(_r9f[1]) and _sp4["transcribe"] == _t9, (_r9d[0], _r9e, _r9f, _sp4["transcribe"], _t9))
 
 
 for _k, _v in _T0.items():

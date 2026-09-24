@@ -6831,21 +6831,24 @@ function DzmMediaDrawer(o){
      tout rendu dont la file est celle qu'on a attendue — les absents de la
      nouvelle page compris ; un présent relira sa note fraîche au prochain clic.
      Une file partie PENDANT l'attente n'est pas touchée. « Plus » n'attend pas.
-     L'attente est bornée à DZM_MED_ATT (15 s, revue T6) : au-delà la recharge part. */
+     L'attente est bornée à DZM_MED_ATT (15 s, revue T6) : au-delà la recharge part.
+     Clôture T8 (24/09/2026) : chaque file attendue marque sa FIN (`fini`) ; un
+     rendu dont le PUT est ENCORE en cours après le plafond garde ses trois
+     mémoires (son retour arrière éventuel reste juste). */
   var charge=function(off,qq,remplace){
     var n=++seq.current;setSt("…");if(remplace)vague.current++;
     var u="/api/jobs?limit="+DZM_MED_PAGE+"&offset="+off+"&video=1"+(qq?"&q="+encodeURIComponent(qq):"")
       +(minNote>0?"&min_rating="+minNote:"");
-    var att=remplace?Object.assign({},noteFile.current):null;
+    var att=remplace?Object.assign({},noteFile.current):null,fini={};
     var enVol=att?new Promise(function(z){var h=setTimeout(z,DZM_MED_ATT);
-      Promise.all(Object.keys(att).map(function(k2){return att[k2]})).then(function(){clearTimeout(h);z()})}):Promise.resolve();
+      Promise.all(Object.keys(att).map(function(k2){return att[k2].then(function(){fini[k2]=1})})).then(function(){clearTimeout(h);z()})}):Promise.resolve();
     var passe={};
     return enVol.then(function(){if(!vivant.current||n!==seq.current)return passe;
         return fetch(u).then(function(res){if(!res.ok)throw new Error("HTTP "+res.status);return res.json()})})
       .then(function(d){if(d===passe||!vivant.current||n!==seq.current)return;
         var page=Array.isArray(d)?d:[];
         if(att)Object.keys(Object.assign({},noteSeq.current,noteConf.current,noteFile.current)).forEach(function(k2){
-          if(noteFile.current[k2]!==att[k2])return;
+          if(noteFile.current[k2]!==att[k2]||(att[k2]&&!fini[k2]))return;
           delete noteSeq.current[k2];delete noteConf.current[k2];delete noteFile.current[k2]});
         setJobs(function(prev){var base=remplace?[]:prev,vu={};base.forEach(function(j){if(j&&j.job_id)vu[j.job_id]=1});
           return base.concat(page.filter(function(j){if(!j||!j.job_id||vu[j.job_id])return !1;vu[j.job_id]=1;return !0}))});
@@ -7002,6 +7005,11 @@ function dzmAcPayload(e){e=e||{};var src=e.src;
   if(!t&&v&&typeof v==="object"&&e.payer===v&&v.ok===!0&&v.pour===dzmAcCle(src)
     &&typeof v.usd==="number"&&isFinite(v.usd)&&v.usd>=0){b.confirm=!0;b.max_usd=v.usd}
   return b}
+/* clôture T8 (24/09/2026) : le 409 « coût dépassé » porte la NOUVELLE estimation dans son corps ; elle devient la
+   vue marquée `pour` la source (objet neuf, jamais l'objet du corps), null sans estimation lisible. Elle passe par
+   poseVu : la coche retombe, la règle « la coche vise l'objet de l'estimation affichée » reste entière. */
+function dzmAcEstRefus(d,pour){var e=d&&typeof d==="object"?d.estimate:null;
+  if(!e||typeof e!=="object"||Array.isArray(e))return null;return Object.assign({},e,{pour:pour})}
 function dzmAcDec(v){return typeof v==="number"&&isFinite(v)?(Math.round(v*10)/10).toFixed(1).replace(".",","):"?"}
 function dzmAcUsd(u){if(typeof u!=="number"||!isFinite(u)||u<0)return "? $";
   return u>0&&u<.01?"< 0,01 $":u.toFixed(2).replace(".",",")+" $"}
@@ -7047,7 +7055,7 @@ function DzmAutoclips(o){
   /* toute estimation reçue (ou oubliée) fait retomber la coche : elle ne couvrait que l'ancienne */
   var poseVu=function(v){setVu(v);setPayer(null)};
   var lire=function(rp){return rp.json().catch(function(){return {}}).then(function(d){
-    if(!rp.ok)throw new Error((d&&typeof d.detail==="string"&&d.detail)||("HTTP "+rp.status));return d})};
+    if(!rp.ok){var er=new Error((d&&typeof d.detail==="string"&&d.detail)||("HTTP "+rp.status));er.corps=d;throw er}return d})};
   var lancer=function(){if(busy)return;
     var b=dzmAcPayload({src:o.src,text:text,n:n,persona:persona,llm:llm,lang:lang,payer:payer,vu:vu});
     if(!b){setMsg("Source illisible — rien n'est lancé.");return}
@@ -7068,6 +7076,7 @@ function DzmAutoclips(o){
         setRes(null);poseVu(Object.assign({},est,{pour:k0}));
         setMsg(String((d&&d.reason)||"Transcription payante non confirmée — rien n'a été lancé."))})
       .catch(function(e){libere();if(!frais(q,k0))return;setBusy(0);
+        var ne=dzmAcEstRefus(e&&e.corps,k0);if(ne)poseVu(ne);
         setMsg("Auto-clips refusés : "+String((e&&e.message)||"erreur réseau"))})};
   var creer=function(c,i){if(busy)return;
     if(arm!==i){setArm(i);return}
@@ -7494,7 +7503,7 @@ function dzmBoring(clips,opts){
    la vue : le m:ss du bundle (svmRuler, réutilisé) + un dixième à la
    virgule quand il y en a un. L'hôte lit l'autre projet, appelle diff
    sur la timeline courante et monte DiffView dans son popover. */
-var DZM_DIFF_CLES=["gain","opacity","x","y","scale","rotate","effects","dz","speed","retime","stab","text","transition","transition_s","fade_in","fade_out","label","tr"];
+var DZM_DIFF_CLES=["gain","opacity","x","y","scale","rotate","effects","dz","speed","retime","stab","text","transition","transition_s","fade_in","fade_out","label","tr","reframe"];
 function dzmDiffIndex(clips){
   var m={},ord=[];
   (Array.isArray(clips)?clips:[]).forEach(function(c){
@@ -7855,6 +7864,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   reframeOf:dzmReframeOf,reframeAt:dzmReframeAt,reframeK:dzmReframeK,reframePos:dzmReframePos,reframeCss:dzmReframeCss,
   /* L7-B D-41 (24/09/2026, tache 6) : les auto-clips d'un rendu (tiroir Medias) -- coeur pur et popover */
   acCle:dzmAcCle,acNum:dzmAcNum,acPayload:dzmAcPayload,acUsd:dzmAcUsd,acEstTxt:dzmAcEstTxt,acTrTxt:dzmAcTrTxt,acClipTxt:dzmAcClipTxt,Autoclips:DzmAutoclips,
+  acEstRefus:dzmAcEstRefus,
   /* E-13 / E-14 (lot E-C, tache 5) : la tete dans l'inspecteur, le trou selectionne et son ripple */
   teteTxt:dzmTeteTxt,trou:dzmTrou,trouRipple:dzmTrouRipple,
   DEFAULTS:DZM_DEFAULT_TRACKS};

@@ -1200,6 +1200,16 @@ out.ac_est=[T.acEstTxt(EOK),T.acEstTxt({ok:!0,usd:.4,eta_s:300,provider:"openai"
 out.ac_tr=[T.acTrTxt("align"),T.acTrTxt("chapitre"),T.acTrTxt("stt:elevenlabs:cache"),T.acTrTxt("stt:openai"),T.acTrTxt(null),
   T.acTrTxt("toString"),T.acTrTxt("zz")];
 out.ac_clip=[T.acClipTxt({start:12,end:44.46,origine:"llm"}),T.acClipTxt({start:0,end:15,origine:"heuristique"}),T.acClipTxt({}),T.acClipTxt(null)];
+/* clôture T8 (24/09/2026) : le 409 « coût dépassé » porte la NOUVELLE estimation ; acEstRefus la marque pour la
+   source (objet neuf) ou rend null ; la coche de l'ANCIENNE ne la couvre pas (règle de la coche intacte), témoin :
+   cocher la nouvelle couvre la nouvelle */
+var E409={detail:"Coût estimé 0.4000 $",estimate:{ok:!0,usd:.4,provider:"elevenlabs"}},N409=T.acEstRefus(E409,AK);
+out.ac_409=[N409,N409!==E409.estimate,T.acEstRefus({detail:"x"},AK),T.acEstRefus(null,AK),T.acEstRefus({estimate:"x"},AK),
+  T.acEstRefus({estimate:[1]},AK),acf({payer:EOK,vu:N409}),acf({payer:N409,vu:N409}),T.acPayload({src:AS,payer:N409,vu:N409}).max_usd];
+/* clôture T8 : D-39 compare aussi le cadrage — un A/B qui ne diffère que par `reframe` n'est plus « identique » ; témoin : même cadrage */
+out.df_reframe=[T.diff([{id:"1",tr:"v1",start:0,end:5}],[{id:"1",tr:"v1",start:0,end:5,reframe:{mode:"manuel",x:.3}}]).changed,
+  T.diff([{id:"1",tr:"v1",start:0,end:5,reframe:{mode:"manuel",x:.3}}],[{id:"1",tr:"v1",start:0,end:5,reframe:{mode:"manuel",x:.3}}]).changed,
+  T.diff([{id:"1",tr:"v1",start:0,end:5,reframe:{mode:"manuel",x:.3}}],[{id:"1",tr:"v1",start:0,end:5,reframe:{mode:"manuel",x:.7}}]).changed];
 console.log(JSON.stringify(out));
 """
 # E-9 : svmRuler / svmPad2 sont des fonctions DU BUNDLE (meme portee module que
@@ -1473,7 +1483,9 @@ try:
                  # L7-B D-41 (tache 6) : les TREIZE cles de la section [35].
                  "ac_cle","ac_n","ac_base","ac_llm","ac_text","ac_persona","ac_confirm","ac_src","ac_pur","ac_usd","ac_est","ac_tr","ac_clip",
                  # revue T6 (24/09) : le plafond et la langue
-                 "ac_max","ac_lang"]
+                 "ac_max","ac_lang",
+                 # cloture T8 (24/09) : l'estimation du 409 et le cadrage compare par D-39
+                 "ac_409","df_reframe"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -2878,6 +2890,8 @@ check("df_noms_B_prime_sinon_A_jamais_d_entree_sans_libelle_supprimes_dans_l_ord
 check("df_cles_absent_null_undefined_se_valent_0_compte_effects_en_profondeur_kind_hors_liste_ordre_de_la_liste",
       D.get("df_cles") == [[], [{"id": "1", "cles": ["gain"]}], [{"id": "1", "cles": ["effects"]}], [],
                            [{"id": "1", "cles": ["opacity", "text", "transition", "transition_s"]}]], D.get("df_cles"))
+check("df_reframe_cloture_T8_un_cadrage_different_est_modifie_reframe_temoin_meme_cadrage_rien",
+      D.get("df_reframe") == [[{"id": "1", "cles": ["reframe"]}], [], [{"id": "1", "cles": ["reframe"]}]], D.get("df_reframe"))
 check("df_tolerance_1e_9_n_est_ni_deplace_ni_rogne_1_ms_deplace_1_ms_de_srcIn_rogne_temoin",
       D.get("df_tolerance") == [_DF_VIDE, dict(_DF_VIDE, moved=[{"id": "1", "de": 5, "en": 5.001}]),
                                 dict(_DF_VIDE, trimmed=[{"id": "1", "de": [5, 8], "en": [5, 8], "src": [1, 1.001]}])], D.get("df_tolerance"))
@@ -2903,8 +2917,9 @@ _L7D = {n: _corps(n) for n in ("dzmDiffIndex", "dzmDiff", "dzmDiffTemps")}
 _L7DV = _corps("DzmDiffView")
 check("l7d_coeur_pur_x3_cles_ecrites_une_fois_index_par_id_stringify_x2_vue_lit_r_a_l_appel_et_reutilise_svmRuler",
       all(len(c) > 60 and not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|fetch\(", c) for c in _L7D.values())
+      # cloture T8 (24/09/2026) : `reframe` (D-40) rejoint la liste en queue -- dix-neuf cles
       and _SRCb.count('var DZM_DIFF_CLES=["gain","opacity","x","y","scale","rotate","effects","dz","speed","retime","stab","text",'
-                      '"transition","transition_s","fade_in","fade_out","label","tr"];') == 1
+                      '"transition","transition_s","fade_in","fade_out","label","tr","reframe"];') == 1
       # x3 : la definition, le filtre de dzmDiff, le commentaire du bloc
       and _SRCb.count("DZM_DIFF_CLES") == 3 and _L7D["dzmDiff"].count("dzmDiffIndex(") == 2 and _L7D["dzmDiff"].count("JSON.stringify(") == 1
       and _L7D["dzmDiff"].count("out.moved.push(") == 1 and _L7D["dzmDiff"].count("out.trimmed.push(") == 1
@@ -3176,13 +3191,15 @@ check("l7b_tiroir_offset_suit_le_seuil_au_succes_et_la_vague_de_chargement",
 # restes de T7 (fermes en T6, 24/09/2026) : la recharge depuis la page 0 attend TOUTES les files de PUT avant son GET,
 # et vide ensuite les trois memoires des rendus dont la file est celle qu'on a attendue ; « Plus » n'attend pas
 check("l7b_tiroir_recharge_page0_attend_les_notes_en_vol_puis_vide_les_memoires",
-      len(_DRW) > 400 and _DRW.count("var att=remplace?Object.assign({},noteFile.current):null;") == 1
+      len(_DRW) > 400 and _DRW.count("var att=remplace?Object.assign({},noteFile.current):null,fini={};") == 1
       # revue T6 : l'attente est bornee (DZM_MED_ATT = 15 s), le minuteur est retire des que les PUT sont retombes
       and _DRW.count("var enVol=att?new Promise(function(z){var h=setTimeout(z,DZM_MED_ATT);") == 1
-      and _DRW.count("Promise.all(Object.keys(att).map(function(k2){return att[k2]})).then(function(){clearTimeout(h);z()})}):Promise.resolve();") == 1
+      # cloture T8 (24/09/2026, reste c) : chaque file attendue marque sa FIN (`fini`) ; apres le plafond de 15 s, un
+      # rendu dont le PUT est ENCORE en cours garde ses trois memoires (temoin : un rendu sans file est vide)
+      and _DRW.count("Promise.all(Object.keys(att).map(function(k2){return att[k2].then(function(){fini[k2]=1})})).then(function(){clearTimeout(h);z()})}):Promise.resolve();") == 1
       and _SRCb.count("var DZM_MED_ATT=15000;") == 1
       and _DRW.find("var enVol=") < _DRW.find("return enVol.then(function(){") < _DRW.find("return fetch(u).then(")
-      and _DRW.count("if(noteFile.current[k2]!==att[k2])return;") == 1
+      and _DRW.count("if(noteFile.current[k2]!==att[k2]||(att[k2]&&!fini[k2]))return;") == 1
       and _DRW.count("delete noteSeq.current[k2];delete noteConf.current[k2];delete noteFile.current[k2]") == 1
       and _DRW.count("fetch(u)") == 1,
       f"corps={len(_DRW)}")
@@ -3282,7 +3299,12 @@ check("ac_tr_cache_dit_deja_payee_reutilisee_chapitre_non_appele_dit_par_son_nom
 check("ac_clip_bornes_duree_origine",
       D.get("ac_clip") == ["12,0 → 44,5 s · 32,5 s · IA", "0,0 → 15,0 s · 15,0 s · heuristique",
                            "? → ? s · ? s · heuristique", "? → ? s · ? s · heuristique"], D.get("ac_clip"))
-_L7AC = {n: _corps(n) for n in ("dzmAcCle", "dzmAcNum", "dzmAcPayload", "dzmAcDec", "dzmAcUsd", "dzmAcEstTxt", "dzmAcTrTxt", "dzmAcClipTxt")}
+# cloture T8 (24/09/2026, reste b) : l'estimation du 409 « cout depasse » -> vue NON cochee, pour la source ; la
+# coche de l'ancienne ne couvre pas la nouvelle (0) ; cocher la nouvelle la couvre (temoin : True, max_usd 0,4)
+check("ac_409_estimation_du_corps_marquee_pour_la_source_objet_neuf_null_sinon_coche_ancienne_ne_couvre_pas",
+      D.get("ac_409") == [{"ok": True, "usd": 0.4, "provider": "elevenlabs", "pour": '{"job_id":"j1"}'}, True,
+                          None, None, None, None, 0, True, 0.4], D.get("ac_409"))
+_L7AC = {n: _corps(n) for n in ("dzmAcCle", "dzmAcNum", "dzmAcPayload", "dzmAcDec", "dzmAcUsd", "dzmAcEstTxt", "dzmAcTrTxt", "dzmAcClipTxt", "dzmAcEstRefus")}
 check("l7b_ac_coeur_pur_ni_r_ni_x_ni_reseau_ni_dom_exports_x1",
       all(len(c) > 60 for c in _L7AC.values())
       and not any(re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|fetch\(|setClips|pushHistory", c) for c in _L7AC.values())
@@ -3290,7 +3312,8 @@ check("l7b_ac_coeur_pur_ni_r_ni_x_ni_reseau_ni_dom_exports_x1",
       and _L7AC["dzmAcPayload"].count("e.payer===v") == 1 and _L7AC["dzmAcPayload"].count("e.payer===!0") == 0
       and len(_DT) > 1000
       and _DT.count("acCle:dzmAcCle,acNum:dzmAcNum,acPayload:dzmAcPayload,acUsd:dzmAcUsd,acEstTxt:dzmAcEstTxt,acTrTxt:dzmAcTrTxt,acClipTxt:dzmAcClipTxt,Autoclips:DzmAutoclips,") == 1
-      and _SRCb.count("acPayload:") == 1 and _SRCb.count("Autoclips:") == 1,
+      and _SRCb.count("acPayload:") == 1 and _SRCb.count("Autoclips:") == 1
+      and _DT.count("acEstRefus:dzmAcEstRefus,") == 1 and _SRCb.count("acEstRefus:") == 1,
       ({n: len(c) for n, c in _L7AC.items()}, _DT.count("acPayload:dzmAcPayload")))
 # LE POPOVER : ses dix useState sans garde avant (aucun `return null`), le corps passe TOUJOURS par le coeur (aucun
 # `confirm` litteral), la case « payer » se decoche des l'envoi confirme, quatre gardes d'obsolescence (numero de
@@ -3305,7 +3328,10 @@ check("l7b_ac_popover_hooks_coeur_obsolescence_armement_aucune_ecriture_de_timel
       # revue T6 : la coche retombe a CHAQUE estimation (poseVu, seul chemin vers setVu hors remise a zero), au texte, au
       # nombre, a la langue ; la case lit `payer===est` ; un second envoi confirme en vol ne part pas (useRef)
       and _AC.count("var poseVu=function(v){setVu(v);setPayer(null)};") == 1 and _AC.count("setVu(") == 2
-      and _AC.count("poseVu(") == 2 and _AC.count(";setPayer(null)}") == 4
+      # cloture T8 (24/09/2026) : poseVu x3 -- l'estimation du 409 passe AUSSI par poseVu (donc decochee)
+      and _AC.count("poseVu(") == 3 and _AC.count(";setPayer(null)}") == 4
+      and _AC.count("var ne=dzmAcEstRefus(e&&e.corps,k0);if(ne)poseVu(ne);") == 1
+      and _AC.count("var er=new Error(") == 1 and _AC.count("er.corps=d;throw er") == 1
       and _AC.count("onChange:function(e){setPayer(e.target.checked?est:null)}") == 1 and _AC.count("coche=!!est&&payer===est") == 1
       and _AC.count("if(paye){if(enVolPaye.current)return;enVolPaye.current=!0}") == 1 and _AC.count("libere();if(!frais(q,k0))return;") == 2
       and _AC.count("var frais=function(q,k0){return vivant.current&&q===seq.current&&cle.current===k0};") == 1
