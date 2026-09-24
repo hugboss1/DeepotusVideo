@@ -396,7 +396,13 @@ STABLE_PROBES = [
     # `DzTracks.boring(` (la carte memoisee). L7c2 (l'entree du menu, repli
     # R_EC1), L7c3 (le popover, section neuve) et le bloc pur de la couche
     # n en ajoutent aucune.
-    ("montage", "DzTracks", 144),
+    # 24/09/2026, L7 D-39 (tache 4, comparaison de deux projets) : 144 -> 146.
+    # DEUX de plus, toutes deux dans des REPLIS (aucune section neuve) :
+    # `DzTracks.diff(` dans onDiff (repli L7d1 de R_M14, la ligne Projets)
+    # et `DzTracks.DiffView` dans la garde de popover() (repli de R_L7C3).
+    # Le bloc pur de la couche (dzmDiff, DzmDiffView, « ⇄ » de DzmProjects)
+    # n en ajoute aucune -- son commentaire le tait a dessein.
+    ("montage", "DzTracks", 146),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

@@ -964,6 +964,42 @@ out.bo_pur=[JSON.stringify(CLB)===_clb0,CLB.map(function(c){return c.id}).join("
 /* options : illisibles, nulles ou négatives → défaut ; maxS 20 ne laisse que le jump ; fps 60 resserre le seuil (12/60 = 0,2 : 10.2 est AU seuil) */
 out.bo_opts=[T.boring(CLB,{maxS:"zz"}),T.boring(CLB,{maxS:0}),T.boring(CLB,{maxS:-3,minFrames:null}),T.boring(CLB,{maxS:20}),
   T.boring(CLB,{fps:0}),T.boring(CLB,{minFrames:-1}),T.boring(CLB,{fps:60}),T.boring(CLB,"zz"),T.boring(CLB,7)];
+/* ── [28] L7 D-39 (24/09/2026) : comparaison de deux projets — dzmDiff pur + DzmDiffView ── */
+var DA=[{id:"1",tr:"v1",start:0,end:5,srcIn:0},{id:"2",tr:"v1",start:5,end:8,srcIn:0,gain:0},{id:"3",tr:"a1",start:0,end:8}];
+var DB=[{id:"1",tr:"v1",start:2,end:7,srcIn:0},{id:"2",tr:"v1",start:5,end:9,srcIn:0,gain:-3},{id:"4",tr:"v1",start:9,end:12}];
+var _da0=JSON.stringify(DA),_db0=JSON.stringify(DB);
+out.df=T.diff(DA,DB);
+out.df_id=T.diff(DA,DA);
+out.df_vide=[T.diff([],[]),T.diff(null,void 0),T.diff("x",7),T.diff([null,3,{tr:"v1",start:0,end:1}],[{id:"z",tr:"v1",start:0,end:1}])];
+/* un slip (srcIn seul) est un rognage de la fenêtre de source, pas un déplacement ; un même clip décalé d'une piste
+   à l'autre à durée égale est déplacé ET modifié (tr) ; un clip déplacé sur sa piste n'est pas « modifié » */
+out.df_slip=T.diff([{id:"1",tr:"v1",start:0,end:5,srcIn:0}],[{id:"1",tr:"v1",start:0,end:5,srcIn:2}]);
+out.df_piste=T.diff([{id:"1",tr:"v1",start:0,end:5}],[{id:"1",tr:"v2",start:3,end:8}]);
+out.df_rogne_et_bouge=T.diff([{id:"1",tr:"v1",start:0,end:5,srcIn:0}],[{id:"1",tr:"v1",start:3,end:5,srcIn:3}]);
+/* noms : le libellé de B prime, sinon celui de A ; un clip sans libellé n'a pas d'entrée */
+out.df_noms=T.diff([{id:"1",tr:"v1",start:0,end:5,label:"Ancien"},{id:"2",tr:"v1",start:5,end:6},{id:"5",tr:"v1",start:6,end:7,label:"Parti"}],
+  [{id:"1",tr:"v1",start:0,end:5,label:"Neuf"},{id:"3",tr:"v1",start:5,end:6,label:"Tiers"}]);
+/* clés : absent, null et undefined se valent ; 0 n'est pas absent ; effects/dz comparés en profondeur ; une clé hors liste (kind) ne compte pas */
+out.df_cles=[T.diff([{id:"1",tr:"v1",start:0,end:5}],[{id:"1",tr:"v1",start:0,end:5,gain:null,effects:void 0}]).changed,
+  T.diff([{id:"1",tr:"v1",start:0,end:5}],[{id:"1",tr:"v1",start:0,end:5,gain:0}]).changed,
+  T.diff([{id:"1",tr:"v1",start:0,end:5,effects:[{k:"a"}],dz:{p:1}}],[{id:"1",tr:"v1",start:0,end:5,effects:[{k:"b"}],dz:{p:1}}]).changed,
+  T.diff([{id:"1",tr:"v1",start:0,end:5,kind:"a"}],[{id:"1",tr:"v1",start:0,end:5,kind:"b"}]).changed,
+  T.diff([{id:"1",tr:"v1",start:0,end:5,text:"a",transition:"fade",transition_s:.4,opacity:1}],[{id:"1",tr:"v1",start:0,end:5,text:"b",transition:"wipe",transition_s:.5,opacity:.5}]).changed];
+out.df_pur=[JSON.stringify(DA)===_da0,JSON.stringify(DB)===_db0,DA.length,DB.length];
+out.df_temps=[T.diffTemps(0),T.diffTemps(65),T.diffTemps(5.3),T.diffTemps(59.96),T.diffTemps("x"),T.diffTemps(-2)];
+/* rendu par un jsx factice {t,p} : racine svm-pop dzm-diff, titre, résumé, cinq rubriques (data-rub, tête, lignes), « Fermer » titré ; le clic ferme */
+out.df_vue=(function(){var r0=r,log=[];try{r={jsx:function(t,p){return {t:t,p:p}},jsxs:function(t,p){return {t:t,p:p}}};
+  var m=T.DiffView({diff:out.df,nomA:"a",nomB:"b",onClose:function(){log.push("close")}});
+  var ch=m.p.children,rubs=ch.slice(2,7),btn=ch[7].p.children;btn.p.onClick();
+  return [m.t,m.p.className,ch[0].p.children,ch[1].p.children,
+    rubs.map(function(w){return [w.t,w.p["data-rub"],w.p.children[0].p.children,w.p.children[1].p.children.map(function(li){return li.p.children})]}),
+    [btn.t,btn.p.className,btn.p.title,btn.p.children],log,typeof m.p.onClick]}catch(e){return "autre:"+e}finally{r=r0}})();
+/* noms et pluriels : deux ajoutés portent leur libellé, les rubriques vides montrent « — » ; sans props, rien ne lève */
+out.df_vue_noms=(function(){var r0=r;try{r={jsx:function(t,p){return {t:t,p:p}},jsxs:function(t,p){return {t:t,p:p}}};
+  var m=T.DiffView({diff:T.diff([],[{id:"1",tr:"v1",start:0,end:5,label:"Un"},{id:"2",tr:"v1",start:5,end:6}]),nomA:"",nomB:""}),ch=m.p.children;
+  var m0=T.DiffView(),ch0=m0.p.children;
+  return [ch[1].p.children,ch[2].p.children[1].p.children.map(function(li){return li.p.children}),ch[3].p.children[1].p.children.map(function(li){return li.p.children}),
+    ch[0].p.children,m0.p.className,ch0[1].p.children,ch0.length]}catch(e){return "autre:"+e}finally{r=r0}})();
 console.log(JSON.stringify(out));
 """
 # E-9 : svmRuler / svmPad2 sont des fonctions DU BUNDLE (meme portee module que
@@ -1217,7 +1253,10 @@ try:
                  "cp_sans_source","cp_homonyme","cp_start","cp_start_refus",
                  # L7 D-8 (tache 3) : les SEIZE cles de la section [27].
                  "bo","bo_defaut","bo_def","bo_def_pur","bo_loin","bo_vide","bo_long_et_jump","bo_egal","bo_seuil",
-                 "bo_contact","bo_sources","bo_v2","bo_vitesse","bo_desordre","bo_pur","bo_opts"]
+                 "bo_contact","bo_sources","bo_v2","bo_vitesse","bo_desordre","bo_pur","bo_opts",
+                 # L7 D-39 (tache 4) : les DOUZE cles de la section [28].
+                 "df","df_id","df_vide","df_slip","df_piste","df_rogne_et_bouge","df_noms","df_cles","df_pur","df_temps",
+                 "df_vue","df_vue_noms"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -2591,6 +2630,81 @@ check("l7c_coeur_pur_x3_defaut_ecrit_une_fois_contact_par_dzmVoisins_x1_source_p
       ({n: len(c) for n, c in _L7C.items()}, _SRCb.count("DZM_BORING_DEF")))
 check("l7c_exports_boring_boringDef_dans_DzTracks",
       len(_DT) > 1000 and _DT.count("boring:dzmBoring,boringDef:DZM_BORING_DEF,") == 1, len(_DT))
+
+print("\n[28] L7 D-39 : comparaison de deux projets (tache 4, 24/09/2026)")
+# ── L7 D-39 (24/09/2026, tache 4). dzmDiff(a, b) pur sur deux tableaux de clips -> {added, removed, moved, trimmed,
+# changed, noms} ; identite = `id` (les ids sont des chaines). `moved` = meme duree ET meme srcIn, start different ;
+# `trimmed` = duree OU srcIn differents (un slip est un rognage de la fenetre de source : `src:[inA,inB]` s'ajoute
+# quand srcIn a bouge — MESURE contre le plan, dont la lettre laissait le slip sans rubrique) ; `changed` = cles de
+# DZM_DIFF_CLES differentes par JSON.stringify (absent, null et undefined se valent ; 0 n'est pas absent), un clip
+# peut etre rogne ET modifie, un clip deplace d'une piste est deplace ET modifie (tr), moved exclut trimmed.
+# `noms` = {id: label} (B prime, sinon A, jamais d'entree sans libelle) : la vue n'a pas les clips sous la main —
+# ECART mesure : le plan ne prevoyait que cinq rubriques, la sixieme cle porte les libelles.
+_DF_VIDE = {"added": [], "removed": [], "moved": [], "trimmed": [], "changed": [], "noms": {}}
+check("df_ajoute_4_supprime_3_deplace_1_rogne_2_modifie_2_gain_un_clip_rogne_et_modifie",
+      D.get("df") == {"added": ["4"], "removed": ["3"], "moved": [{"id": "1", "de": 0, "en": 2}],
+                      "trimmed": [{"id": "2", "de": [5, 8], "en": [5, 9]}], "changed": [{"id": "2", "cles": ["gain"]}], "noms": {}},
+      D.get("df"))
+check("df_id_un_projet_contre_lui_meme_rend_les_six_cles_vides", D.get("df_id") == _DF_VIDE, D.get("df_id"))
+check("df_vide_tableaux_vides_null_chaines_entrees_mortes_et_clip_sans_id_ignores",
+      D.get("df_vide") == [_DF_VIDE, _DF_VIDE, _DF_VIDE, dict(_DF_VIDE, added=["z"])], D.get("df_vide"))
+check("df_slip_srcIn_seul_est_un_rognage_de_source_pas_un_deplacement",
+      D.get("df_slip") == dict(_DF_VIDE, trimmed=[{"id": "1", "de": [0, 5], "en": [0, 5], "src": [0, 2]}]), D.get("df_slip"))
+check("df_piste_meme_duree_autre_piste_et_autre_start_deplace_et_modifie_tr",
+      D.get("df_piste") == dict(_DF_VIDE, moved=[{"id": "1", "de": 0, "en": 3}], changed=[{"id": "1", "cles": ["tr"]}]), D.get("df_piste"))
+check("df_rogne_et_bouge_tete_coupee_duree_et_srcIn_changes_rogne_seulement_jamais_deplace",
+      D.get("df_rogne_et_bouge") == dict(_DF_VIDE, trimmed=[{"id": "1", "de": [0, 5], "en": [3, 5], "src": [0, 3]}]), D.get("df_rogne_et_bouge"))
+check("df_noms_B_prime_sinon_A_jamais_d_entree_sans_libelle_supprimes_dans_l_ordre_de_A",
+      # `label` est dans DZM_DIFF_CLES : Ancien -> Neuf est aussi un `changed`
+      D.get("df_noms") == dict(_DF_VIDE, added=["3"], removed=["2", "5"], changed=[{"id": "1", "cles": ["label"]}],
+                               noms={"1": "Neuf", "3": "Tiers", "5": "Parti"}), D.get("df_noms"))
+check("df_cles_absent_null_undefined_se_valent_0_compte_effects_en_profondeur_kind_hors_liste_ordre_de_la_liste",
+      D.get("df_cles") == [[], [{"id": "1", "cles": ["gain"]}], [{"id": "1", "cles": ["effects"]}], [],
+                           [{"id": "1", "cles": ["opacity", "text", "transition", "transition_s"]}]], D.get("df_cles"))
+check("df_pur_les_deux_tableaux_ne_sont_pas_mutes", D.get("df_pur") == [True, True, 3, 3], D.get("df_pur"))
+check("df_temps_m_ss_du_bundle_dixieme_a_la_virgule_arrondi_qui_porte_illisible_et_negatif_a_zero",
+      D.get("df_temps") == ["0:00", "1:05", "0:05,3", "1:00", "0:00", "0:00"], D.get("df_temps"))
+check("df_vue_racine_svm_pop_dzm_diff_titre_resume_cinq_rubriques_lignes_temps_Fermer_titre_clic_ferme_clic_racine_arrete",
+      D.get("df_vue") == ["div", "svm-pop dzm-diff", "Comparer : « a » → « b »", "1 ajouté · 1 supprimé · 1 déplacé · 1 rogné · 1 modifié",
+                          [["div", "added", "Ajoutés (1)", ["4"]], ["div", "removed", "Supprimés (1)", ["3"]],
+                           ["div", "moved", "Déplacés (1)", ["1 : 0:00 → 0:02"]],
+                           ["div", "trimmed", "Rognés (1)", ["2 : 0:05–0:08 → 0:05–0:09"]],
+                           ["div", "changed", "Modifiés (1)", ["2 : gain"]]],
+                          ["button", "svm-secbtn", "Fermer la comparaison (Échap)", "Fermer"], ["close"], "function"],
+      D.get("df_vue"))
+check("df_vue_noms_pluriel_libelle_ou_id_rubrique_vide_tiret_noms_par_defaut_sans_props_rien_ne_leve",
+      D.get("df_vue_noms") == ["2 ajoutés · 0 supprimé · 0 déplacé · 0 rogné · 0 modifié", ["Un", "2"], ["—"],
+                               "Comparer : « montage courant » → « autre projet »", "svm-pop dzm-diff",
+                               "0 ajouté · 0 supprimé · 0 déplacé · 0 rogné · 0 modifié", 8],
+      D.get("df_vue_noms"))
+# LE COEUR RESTE PUR : la liste des cles ecrite UNE fois ; dzmDiffIndex, dzmDiff et dzmDiffTemps sans r/x/stockage/
+# fenetre/document/fetch ; la vue lit `r` a l'appel (dans son corps, jamais au chargement) ; exports x1.
+_L7D = {n: _corps(n) for n in ("dzmDiffIndex", "dzmDiff", "dzmDiffTemps")}
+_L7DV = _corps("DzmDiffView")
+check("l7d_coeur_pur_x3_cles_ecrites_une_fois_index_par_id_stringify_x2_vue_lit_r_a_l_appel_et_reutilise_svmRuler",
+      all(len(c) > 60 and not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|fetch\(", c) for c in _L7D.values())
+      and _SRCb.count('var DZM_DIFF_CLES=["gain","opacity","x","y","scale","rotate","effects","dz","speed","retime","stab","text",'
+                      '"transition","transition_s","fade_in","fade_out","label","tr"];') == 1
+      # x3 : la definition, le filtre de dzmDiff, le commentaire du bloc
+      and _SRCb.count("DZM_DIFF_CLES") == 3 and _L7D["dzmDiff"].count("dzmDiffIndex(") == 2 and _L7D["dzmDiff"].count("JSON.stringify(") == 1
+      and _L7D["dzmDiff"].count("out.moved.push(") == 1 and _L7D["dzmDiff"].count("out.trimmed.push(") == 1
+      and _L7D["dzmDiffTemps"].count("svmRuler(") == 1 and _SRCb.count("function svmRuler(") == 0
+      and len(_L7DV) > 400 and _L7DV.count("r.jsx") >= 6 and _L7DV.count("x.use") == 0 and _L7DV.count("dzmDiffTemps(") >= 2
+      and _L7DV.count('className:"svm-pop dzm-diff"') == 1 and _L7DV.count("title:") == 1 and _L7DV.count("localStorage") == 0,
+      ({n: len(c) for n, c in _L7D.items()}, len(_L7DV), _SRCb.count("DZM_DIFF_CLES")))
+check("l7d_exports_diff_DiffView_diffTemps_dans_DzTracks",
+      len(_DT) > 1000 and _DT.count("diff:dzmDiff,DiffView:DzmDiffView,diffTemps:dzmDiffTemps,") == 1, len(_DT))
+# la ligne d'un projet : « ⇄ » TOUJOURS rendu (grise sur le courant, comme « ouvrir » : la regle E-12 des boutons
+# conditionnels), appelle props.onDiff(p) x1 ; le bouton n'existe pas dans le .bak (couche seule)
+_L7DP = _SRCb[_SRCb.find("  function row(p){"):_SRCb.find("  var rows=list||[];")]
+check("l7d_projets_bouton_compare_toujours_rendu_disabled_mine_title_onDiff_x1_entre_dupliquer_et_ouvrir",
+      0 < len(_L7DP) < 6000 and _L7DP.count('className:"svm-tbtn dzm-projbtn dzm-projdiff",disabled:mine||off,"aria-disabled":mine||off,') == 1
+      and _L7DP.count("onClick:function(){if(props&&props.onDiff)props.onDiff(p)},children:\"⇄\"},\"df\")") == 1
+      # x2 : la garde et l'appel, sur la meme ligne
+      and _SRCb.count("props.onDiff") == 2 and _SRCb.count("dzm-projdiff") == 1
+      and _L7DP.find('children:"dupliquer"},"dp")') < _L7DP.find("dzm-projdiff") < _L7DP.find('children:oArm?"remplacer ?":"ouvrir"},"op")')
+      and re.search(r'(\?null:|\?|&&)\s*r\.jsxs?\("button",\{className:"svm-tbtn dzm-projbtn dzm-projdiff"', _L7DP) is None,
+      (len(_L7DP), _SRCb.count("props.onDiff"), _SRCb.count("dzm-projdiff")))
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

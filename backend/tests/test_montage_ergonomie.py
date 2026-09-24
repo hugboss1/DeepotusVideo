@@ -212,6 +212,10 @@ _TITRES_COUCHE = [
     'title:"Fermer le bandeau (Échap)",onClick:function(){o.onClose&&o.onClose()},children:"Fermer"',
     'title:"Fermer le tiroir Médias",onClick:function(){if(o.onClose)o.onClose()},children:"Fermer"',
     'title:"Charger les rendus suivants",',
+    # L7 D-39 (24/09/2026, tache 4) : « ⇄ » de la ligne Projets (branche « comparer » du titre, une ligne) et le
+    # « Fermer » de la vue diff -- dans la COUCHE, donc ici et non dans _TITRES (ecart au plan, qui disait _TITRES +2)
+    ':"Comparer « "+(p.name||"")+" » à la timeline courante (rien n\'est modifié)",',
+    'title:"Fermer la comparaison (Échap)",onClick:function(){if(o.onClose)o.onClose()},children:"Fermer"',
 ]
 for t in _TITRES_COUCHE:
     check("R1_titre_couche_x1_" + re.sub(r"\W+", "_", t[6:40]).strip("_"),

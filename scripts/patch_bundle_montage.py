@@ -688,6 +688,17 @@ R_M14 = ('r.jsx(DzTracks.Projects,{name:proj.name,projectId:proj.project_id,'
          'saveSeqRef.current++;setSaveInfo(null)},\n'
          '          onFail:function(){if(dirty)svmDoSave(++saveSeqRef.current)},\n'
          '          onOpen:function(d){return svmApplyProject(d)},\n'
+         # L7 D-39 (24/09/2026, tache 4) : L7d1 REPLIE ici (l'ancre `r.jsx(DzTracks.Projects,{` du plan est nee
+         # de CE remplacement, x0 dans .bak_montage). « ⇄ » d'une ligne : GET du projet (MESURE : la route rend
+         # le record DIRECT, `d.clips`), diff pur de la couche contre la timeline courante (clipsRef), le nom
+         # courant par dzProjRef, puis le popover `diff` ; un projet illisible (404, panne) est DIT, rien ne change.
+         '          /* L7 D-39 (24/09/2026, tâche 4) : « ⇄ » d\'une ligne — lit l\'autre projet, le compare à la timeline\n'
+         '             courante (le diff pur de la couche) et ouvre le popover « diff » ; rien n\'est modifié */\n'
+         '          onDiff:function(p){fetch("/api/montage/projects/"+encodeURIComponent(p.id))'
+         '.then(function(rp){if(!rp.ok)throw new Error("HTTP "+rp.status);return rp.json()})'
+         '.then(function(d){setDiffSt({diff:DzTracks.diff(clipsRef.current,(d&&d.clips)||[]),'
+         'nomA:(dzProjRef.current&&dzProjRef.current.name)||"",nomB:p.name||""});setPop("diff")})'
+         '.catch(function(){fireNote("Projet illisible — comparaison impossible")})},\n'
          '          onNamed:function(pid,nm){setProj(function(p){'
          'return Object.assign({},p,{project_id:pid,name:nm})})}}),')
 
@@ -4707,7 +4718,12 @@ _EB7_ETAT = ('\n'
              '     défaut boringDef de la couche, éteint) et la carte id → "long"|"jump" de V1, mémoïsée sur [clips,bo], vide si éteint */\n'
              '  var stBo=x.useState(function(){var d=Object.assign({on:!1},DzTracks.boringDef);'
              'try{return Object.assign(d,JSON.parse(localStorage.getItem("dz_svm_boring")||"{}")||{})}catch(_e){return d}}),bo=stBo[0],setBo=stBo[1];\n'
-             '  var boMap=x.useMemo(function(){return bo.on?DzTracks.boring(clips,bo):{}},[clips,bo]);')
+             '  var boMap=x.useMemo(function(){return bo.on?DzTracks.boring(clips,bo):{}},[clips,bo]);\n'
+             # L7 D-39 (24/09/2026, tache 4) : l'etat du popover « diff » vit avec ses freres (aucune ancre libre
+             # pour lui : `bo` est ne de ce repli). {diff,nomA,nomB} pose par onDiff (R_M14), lu par la garde de
+             # popover() (R_L7C3) ; null tant qu'aucune comparaison n'a ete demandee.
+             '  /* L7 D-39 (24/09/2026, tâche 4) : la dernière comparaison {diff,nomA,nomB} — posée par « ⇄ » (Projets), montrée par pop==="diff" */\n'
+             '  var stDf=x.useState(null),diffSt=stDf[0],setDiffSt=stDf[1];')
 
 A_EB6B = '  var stA=x.useState(""),pop=stA[0],setPop=stA[1];'
 R_EB6B = (A_EB6B + '\n'
@@ -5221,12 +5237,21 @@ R_L7C3 = ('  /* L7 D-8 (24/09/2026, tâche 3) : le popover « Plans trop longs /
           '      r.jsx("div",{className:"svm-poprow",children:\n'
           '        r.jsx("button",{className:"svm-secbtn",title:"Fermer ce panneau (Échap)",onClick:function(){setPop("")},children:"Fermer"})})]})}\n'
           + A_L7C3 + '\n'
+          # L7 D-39 (24/09/2026, tache 4) : L7d1 REPLIE ici -- la garde delegue le popover « diff » a la vue de
+          # la couche (DzTracks.DiffView, qui lit `r` a l'appel) AVANT la branche boring et AVANT isR ; sans etat
+          # (diffSt null) la garde passe. La section reste UNE (ancre 1/0/1 conservee, queue `boring` intacte).
+          '    if(pop==="diff"&&diffSt)return r.jsx(DzTracks.DiffView,Object.assign({onClose:function(){setPop("")}},diffSt));\n'
           '    if(pop==="boring")return boringPopover();')
 L7A = [("L7a3-preset-resolve-export-import-du-mappage", A_L7A3, R_L7A3),
        ("L7b3-le-texte-selectionne-garde-son-Ctrl-C", A_L7B3, R_L7B3),
        ("L7c3-popover-plans-trop-longs-jump-cuts", A_L7C3, R_L7C3)]
 assert A_L7C3 in R_L7C3 and R_L7C3.endswith('    if(pop==="boring")return boringPopover();') and R_L7C3.count("function boringPopover(){") == 1
-assert R_L7C3.count("title:") == 4 and R_L7C3.count('localStorage.setItem("dz_svm_boring",') == 1 and R_L7C3.count("DzTracks") == 0
+# L7 D-39 (24/09/2026, tache 4) : la garde `diff` (UNE reference DzTracks.DiffView) precede la garde boring
+assert R_L7C3.count("title:") == 4 and R_L7C3.count('localStorage.setItem("dz_svm_boring",') == 1 and R_L7C3.count("DzTracks") == 1
+assert R_L7C3.count('    if(pop==="diff"&&diffSt)return r.jsx(DzTracks.DiffView,Object.assign({onClose:function(){setPop("")}},diffSt));\n    if(pop==="boring")return boringPopover();') == 1
+assert R_M14.count("onDiff:function(p){") == 1 and R_M14.count("DzTracks.diff(") == 1 and R_M14.count('fetch("/api/montage/projects/"+') == 1 and R_M14.count("setDiffSt(") == 1 and R_M14.count('setPop("diff")') == 1
+# MESURE : quatre DzTracks dans _EB7_ETAT (tlH x2 de E-9, boringDef + boring de L7c1) -- l'etat diffSt n'en ajoute aucun
+assert _EB7_ETAT.count("var stDf=x.useState(null),diffSt=stDf[0],setDiffSt=stDf[1];") == 1 and _EB7_ETAT.count("DzTracks") == 4
 assert R_L7C3.count('className:"svm-transdur",type:"number"') == 2 and R_L7C3.count("boSet(") == 3 and R_L7C3.count("e.stopPropagation()") == 1
 assert _EB7_ETAT.count("DzTracks.boringDef") == 1 and _EB7_ETAT.count("DzTracks.boring(") == 1 and _EB7_ETAT.count('localStorage.getItem("dz_svm_boring")') == 1
 assert R_AJ6A.count('"data-boring":boMap[c.id]||void 0,') == 1 and R_EC1.count('run:function(){setPop("boring")}') == 1 and R_EC1.count('?"✓":""') == 5

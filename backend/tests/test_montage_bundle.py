@@ -1843,10 +1843,12 @@ check("M14_enregistrer_sous_envoie_la_timeline_affichee",
 # deja tous sur `if(busy)return`, mais aucun ne portait `disabled` : ils
 # restaient cliquables et INERTES, sans le moindre retour. `load()` partant a
 # chaque ouverture du popover, les premiers clics d'une ouverture tombaient
-# precisement la. Quatre boutons simples + « ouvrir », qui cumule avec `mine`.
+# precisement la. Quatre boutons simples + « ouvrir », qui cumule avec `mine`
+# -- et depuis L7 D-39 (24/09/2026, T4) « ⇄ », qui cumule de la meme facon :
+# la forme `mine||off` est x2.
 check("M14_les_boutons_de_ligne_s_eteignent_pendant_une_requete",
       s.count(nl("disabled:off,")) == 4
-      and s.count(nl('disabled:mine||off,"aria-disabled":mine||off,')) == 1
+      and s.count(nl('disabled:mine||off,"aria-disabled":mine||off,')) == 2
       and s.count(nl("var off=!!busy;")) == 1,
       f"disabled:off={s.count(nl('disabled:off,'))}")
 check("M14_la_feuille_habille_deja_le_bouton_eteint",
@@ -2219,8 +2221,12 @@ check("M16c_l_ancien_critere_a_disparu",
 # LA REGLE N'EST PAS RECOPIEE. Une seconde liste d'extensions en JavaScript
 # divergerait de `_VIDEO_EXTS` au premier format ajouté : la couche ne doit en
 # citer AUCUNE. Mesure sur le fichier de la couche, pas sur le patcher.
+# 24/09/2026 (L7 D-39, T4) : en JETON, pas en sous-chaine -- `.mov` tombait sur
+# `out.moved` (la rubrique « deplaces » du diff). Une extension recopiee est
+# toujours suivie d'un guillemet, d'une parenthese ou d'une virgule, jamais
+# d'une lettre.
 _copiees = [e for e in (".mp4", ".mov", ".webm", ".mkv", ".m4v", ".avi")
-            if e in src]
+            if re.search(re.escape(e) + r"(?![A-Za-z_])", src)]
 check("M16c_la_couche_ne_recopie_aucune_extension", _copiees == [],
       f"la couche cite {_copiees} — c'est la seconde copie qu'on refuse")
 check("M16c_dit_a_l_ecran_qu_il_ne_filtre_pas",
@@ -15242,11 +15248,13 @@ check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB8b_puis_
                                                           # L7 D-8 (T3, 24/09/2026) : UNE section en queue (L7c1/L7c2 repliees dans
                                                           # R_EB6B/R_AJ6A/R_EC1), sonde 142 -> 144 (boringDef + boring dans le repli
                                                           # L7c1 de _EB7_ETAT) ; le popover L7c3 n'en porte aucune
+                                                          # L7 D-39 (T4, 24/09/2026) : AUCUNE section neuve (tout replie dans R_M14,
+                                                          # _EB7_ETAT et R_L7C3), sonde 144 -> 146 (diff dans R_M14, DiffView dans R_L7C3)
                                                           "L7c3"]
       and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
               and s.count(nl(a)) == (1 if a in r else 0)
               for _t, a, r in P.PATCHES[_DZ_I + 1:])
-      and _sonde.get("montage") == 144 and s.count("DzTracks") == 144
+      and _sonde.get("montage") == 146 and s.count("DzTracks") == 146
       if _bak else False,
       f"queue={_DZ_TAGS[_DZ_I + 1:]} sonde={_sonde.get('montage')} bundle={s.count('DzTracks')}")
 
@@ -16560,12 +16568,13 @@ _EC_SONDE = _lire(ROOT / "scripts" / "patch_bundle_dzcout.py")
 # -> 139 (L7 D-10, T1, 24/09/2026 : kmPreset + kmExport + kmImport dans L7a3, voisins dans le repli L7a2 de R_R2).
 # -> 142 (L7 D-6, T2, 24/09/2026 : clipCopy + clipPaste + modeLabel dans le repli L7b2 de R_R2).
 # -> 144 (L7 D-8, T3, 24/09/2026 : boringDef + boring dans le repli L7c1 de _EB7_ETAT / R_EB6B).
-check("EC_la_sonde_dzcout_compte_DzTracks_144",
-      _EC_SONDE.count('("montage", "DzTracks", 144),') == 1 and _EC_SONDE.count('("montage", "DzTracks", 142),') == 0
-      and _EC_SONDE.count('("montage", "DzTracks", 139),') == 0
+# -> 146 (L7 D-39, T4, 24/09/2026 : diff dans le repli L7d1 de R_M14, DiffView dans le repli de R_L7C3).
+check("EC_la_sonde_dzcout_compte_DzTracks_146",
+      _EC_SONDE.count('("montage", "DzTracks", 146),') == 1 and _EC_SONDE.count('("montage", "DzTracks", 144),') == 0
+      and _EC_SONDE.count('("montage", "DzTracks", 142),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 139),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 135),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 132),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 129),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 128),') == 0
-      and _EC_SONDE.count('("montage", "DzTracks", 123),') == 0 and s.count("DzTracks") == 144,
+      and _EC_SONDE.count('("montage", "DzTracks", 123),') == 0 and s.count("DzTracks") == 146,
       f"sonde={_EC_SONDE.count(chr(40) + chr(34) + 'montage')} bundle={s.count('DzTracks')}")
 
 print("\n[EC] E-7 : les trois vues Medias · Montage · Livraison (lot E-C, tache 3)")
@@ -17352,6 +17361,78 @@ check("L7c_la_couche_boringDef_boringOpts_boringKey_boring_exports_x1_bundle_et_
       and s.count("dzmVoisins(v,c).g") == 1 and src.count("dzmVoisins(v,c).g") == 1
       and (_bak.count("dzmBoring") == 0 and _bak.count("DZM_BORING_DEF") == 0 if _bak else False),
       f"pures={[s.count(k) for k in ('function dzmBoringOpts(opts){', 'function dzmBoring(clips,opts){')]}")
+
+print("\n[L7] D-39 tache 4 : comparaison de deux projets (24/09/2026)")
+# ── L7 D-39 (24/09/2026, tache 4). MESURES : (1) l'ancre `r.jsx(DzTracks.Projects,{` du plan est x0 dans
+# .bak_montage (nee de R_M14, prefixe de R_M8) -> `onDiff` est REPLIE dans R_M14 ; (2) aucune ancre libre pour
+# l'etat : `diffSt` rejoint `bo` en queue de _EB7_ETAT (repli R_EB6B) ; (3) la garde de popover() (R_L7C3)
+# delegue `pop==="diff"` a la vue de la couche AVANT la branche boring et avant isR -- la section L7c3 reste UNE,
+# son ancre 1/0/1 conservee : AUCUNE section neuve, 174 ancres, sonde 144 -> 146 (DzTracks.diff dans R_M14,
+# DzTracks.DiffView dans R_L7C3 ; le commentaire de l'hote ne nomme PAS DzTracks, la sonde compte les octets) ;
+# (4) la route GET /projects/{pid} rend le RECORD direct (`return d`, pas d'enveloppe {ok,project}) : `d.clips` ;
+# (5) `clipsRef` (B:1762) et `dzProjRef` (B:1916) sont declares avant le montage de Projets (B:~6360).
+_L7D_ON = ('          onDiff:function(p){fetch("/api/montage/projects/"+encodeURIComponent(p.id))'
+           '.then(function(rp){if(!rp.ok)throw new Error("HTTP "+rp.status);return rp.json()})'
+           '.then(function(d){setDiffSt({diff:DzTracks.diff(clipsRef.current,(d&&d.clips)||[]),'
+           'nomA:(dzProjRef.current&&dzProjRef.current.name)||"",nomB:p.name||""});setPop("diff")})'
+           '.catch(function(){fireNote("Projet illisible — comparaison impossible")})},')
+_iDfOn = s.find(nl(_L7D_ON)); _iDfOpen = s.find("          onOpen:function(d){return svmApplyProject(d)},"); _iDfNamed = s.find("          onNamed:function(pid,nm){setProj(")
+_iDfClips = s.find("var clipsRef=x.useRef(clips);clipsRef.current=clips;"); _iDfProj = s.find("var dzProjRef=x.useRef(null);dzProjRef.current=proj;")
+_L7D_MS = _lire(ROOT / "backend" / "app" / "services" / "montage_service.py")
+_iDfRoute = _L7D_MS.find('@router.get("/projects/{pid}")')
+check("L7d1_onDiff_replie_dans_R_M14_entre_onOpen_et_onNamed_GET_record_direct_diff_pur_clipsRef_dzProjRef_declares_avant_refus_dit",
+      s.count(nl(_L7D_ON)) == 1 and _L7D_ON in P.R_M14 and P.R_M8.startswith(P.R_M14)
+      and 0 < _iDfClips < _iDfProj < _iDfOpen < _iDfOn < _iDfNamed < _iDfOn + 700
+      and s.count("onDiff:function(p){") == 1 and s.count("DzTracks.diff(") == 1 and s.count('fetch("/api/montage/projects/"+') == 1
+      and s.count("setDiffSt(") == 1 and s.count('setPop("diff")') == 1 and s.count('fireNote("Projet illisible') == 1
+      # la route rend le record (return d) -- aucune enveloppe {ok, project} dans ce gestionnaire
+      and _iDfRoute > 0 and _L7D_MS[_iDfRoute:_iDfRoute + 330].count("    return d\n") == 1 and _L7D_MS[_iDfRoute:_iDfRoute + 330].count('"ok"') == 0
+      # temoin : d'autres gestionnaires du meme fichier enveloppent bien en "ok"
+      and _L7D_MS.count('@router.get("/projects/{pid}")') == 1 and _L7D_MS.count('"ok"') >= 1
+      and (_bak.count("onDiff") == 0 and _bak.count("DzTracks.diff(") == 0 and _bak.count('fetch("/api/montage/projects/"+') == 0 if _bak else False),
+      f"onDiff={s.count(nl(_L7D_ON))} ordre={(_iDfClips, _iDfProj, _iDfOpen, _iDfOn, _iDfNamed)} route={_iDfRoute}")
+_L7D_ST = '  var stDf=x.useState(null),diffSt=stDf[0],setDiffSt=stDf[1];'
+_iDfSt = s.find(nl(_L7D_ST)); _iDfBo = s.find(nl(_L7C1M)); _iDfFin = s.find("var stDzFin=x.useState(null)")
+check("L7d1_etat_diffSt_replie_en_queue_de_EB7_ETAT_apres_boMap_avant_stDzFin_un_useState_de_plus_mesure_543",
+      s.count(nl(_L7D_ST)) == 1 and _L7D_ST in P._EB7_ETAT and P.R_EB6B.endswith(P._EB7_ETAT) and 0 < _iDfBo < _iDfSt < _iDfFin
+      # x3 : la declaration, la garde (deux lectures) -- `setDiffSt` porte une majuscule, il ne compte pas
+      and s.count("diffSt") == 3 and src.count("diffSt") == 0
+      # MESURE 24/09 : 543 useState dans le livre, 482 dans le .bak -- +61 par la chaine, dont celui-ci
+      and s.count("x.useState(") == 543 and (_bak.count("x.useState(") == 482 and _bak.count("diffSt") == 0 if _bak else False),
+      f"etat={s.count(nl(_L7D_ST))} ordre={(_iDfBo, _iDfSt, _iDfFin)} diffSt={s.count('diffSt')} useState={s.count('x.useState(')}")
+_L7D_G = '    if(pop==="diff"&&diffSt)return r.jsx(DzTracks.DiffView,Object.assign({onClose:function(){setPop("")}},diffSt));'
+_iDfG = s.find(nl(_L7D_G))
+check("L7d1_garde_diff_repliee_dans_R_L7C3_entre_la_garde_pop_et_la_branche_boring_avant_isR_section_L7c3_toujours_une_boringPopover_sans_DzTracks",
+      s.count(nl(_L7D_G)) == 1 and _L7D_G in P.R_L7C3 and 0 < _iBoG < _iDfG < _iBoD < _iBoR
+      and len(_L7C3) == 1 and P.PATCHES[-1] == _L7C3[0] and len(P.L7A) == 3
+      and _L7C3[0][2].endswith('    if(pop==="boring")return boringPopover();') and s.count("DzTracks.DiffView") == 1
+      and _BOP.count("DzTracks") == 0 and P.R_L7C3.count("DzTracks") == 1
+      and (_bak.count('pop==="diff"') == 0 and _bak.count("DiffView") == 0 if _bak else False),
+      f"garde={s.count(nl(_L7D_G))} ordre={(_iBoG, _iDfG, _iBoD, _iBoR)} sections={len(P.L7A)}")
+# la couche : la liste des cles, les trois pures, la vue, le bouton « ⇄ » TOUJOURS rendu (grise sur le courant :
+# aucun conditionnel de plus pour l'audit E-12), les exports -- x1 dans le livre et dans le fichier, x0 dans le .bak
+_L7D_BTN = '        r.jsx("button",{className:"svm-tbtn dzm-projbtn dzm-projdiff",disabled:mine||off,"aria-disabled":mine||off,'
+_iDfDup = s.find('onClick:function(){doDup(p)},children:"dupliquer"},"dp"),'); _iDfBtn = s.find(nl(_L7D_BTN)); _iDfOp = s.find('r.jsx("button",{className:"svm-tbtn dzm-projbtn dzm-projop",')
+check("L7d_la_couche_DZM_DIFF_CLES_diffIndex_diff_diffTemps_DiffView_bouton_compare_entre_dupliquer_et_ouvrir_exports_x1",
+      all(s.count(k) == 1 and src.count(k) == 1 for k in (
+          'var DZM_DIFF_CLES=["gain","opacity","x","y","scale","rotate","effects","dz","speed","retime","stab","text","transition","transition_s","fade_in","fade_out","label","tr"];',
+          "function dzmDiffIndex(clips){", "function dzmDiff(a,b){", "function dzmDiffTemps(v){", "function DzmDiffView(o){",
+          'className:"svm-pop dzm-diff"', "diff:dzmDiff,DiffView:DzmDiffView,diffTemps:dzmDiffTemps,", "dzm-projdiff"))
+      and s.count(nl(_L7D_BTN)) == 1 and 0 < _iDfDup < _iDfBtn < _iDfOp < _iDfBtn + 900
+      and s.count("props.onDiff") == 2 and src.count("props.onDiff") == 2
+      and re.search(r'(\?null:|\?|&&)\s*r\.jsxs?\("button",\{className:"svm-tbtn dzm-projbtn dzm-projdiff"', s) is None
+      and (_bak.count("dzmDiff") == 0 and _bak.count("DZM_DIFF_CLES") == 0 and _bak.count("dzm-projdiff") == 0 and _bak.count("dzm-diff") == 0 if _bak else False),
+      f"pures={[s.count(k) for k in ('function dzmDiff(a,b){', 'function DzmDiffView(o){')]} ordre={(_iDfDup, _iDfBtn, _iDfOp)}")
+# la feuille : .dzm-diff (largeur, hauteur bornee, defilement) et les rubriques dans montage.css seulement --
+# x0 dans la couche et dans son-vfx-montage.css (lue en TEMOIN : ses .svm-pop y sont, aucun dzm-diff)
+_L7D_CSS = ('.dzsvm .dzm-diff{width:360px;max-height:70vh;overflow:auto}',
+            '.dzsvm .dzm-diffrub[data-rub="added"] .dzm-diffh{', '.dzsvm .dzm-diffrub[data-rub="removed"] .dzm-diffh{',
+            '.dzsvm .dzm-difflist li.dzm-diffnone{', '.dzsvm .dzm-projdiff{')
+check("L7d_css_dzm_diff_rubriques_et_projdiff_x1_dans_montage_css_x0_couche_x0_son_vfx_temoin_svm_pop",
+      all(_css.count(k) == 1 and src.count(k) == 0 and _L7_SV.count(k) == 0 for k in _L7D_CSS)
+      and _css.count(".dzm-diff") >= 8 and _L7_SV.count("dzm-diff") == 0 and _L7_SV.count(".svm-pop") == 9
+      and src.count('"data-rub":k') == 1 and _css.count("[data-rub=") == 2,
+      f"css={[_css.count(k) for k in _L7D_CSS]} sv={_L7_SV.count('dzm-diff')} svpop={_L7_SV.count('.svm-pop')}")
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

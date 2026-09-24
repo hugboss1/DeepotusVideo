@@ -1739,6 +1739,8 @@ function DzMontage(props){
      défaut boringDef de la couche, éteint) et la carte id → "long"|"jump" de V1, mémoïsée sur [clips,bo], vide si éteint */
   var stBo=x.useState(function(){var d=Object.assign({on:!1},DzTracks.boringDef);try{return Object.assign(d,JSON.parse(localStorage.getItem("dz_svm_boring")||"{}")||{})}catch(_e){return d}}),bo=stBo[0],setBo=stBo[1];
   var boMap=x.useMemo(function(){return bo.on?DzTracks.boring(clips,bo):{}},[clips,bo]);
+  /* L7 D-39 (24/09/2026, tâche 4) : la dernière comparaison {diff,nomA,nomB} — posée par « ⇄ » (Projets), montrée par pop==="diff" */
+  var stDf=x.useState(null),diffSt=stDf[0],setDiffSt=stDf[1];
   var stP=x.useState({demo:!0,name:"teaser_abyss",version:"v4",ratio:"9:16",dur:SVM_DEMO_DUR,mixDb:SVM_DEMO_MIX}),proj=stP[0],setProj=stP[1];
   var stJ=x.useState(null),job=stJ[0],setJob=stJ[1]; /* {id,kind,status,progress,step,error} */
   var stV=x.useState(null),previewUrl=stV[0],setPreviewUrl=stV[1];
@@ -4766,6 +4768,7 @@ function DzMontage(props){
   /* popover de confirmation — coût affiché avant tout déclenchement (règle produit) */
   function popover(){
     if(!pop)return null;
+    if(pop==="diff"&&diffSt)return r.jsx(DzTracks.DiffView,Object.assign({onClose:function(){setPop("")}},diffSt));
     if(pop==="boring")return boringPopover();
     var isR=pop==="render";
     var busy=job&&job.kind===(isR?"final":"preview")&&job.status!=="failed";
@@ -6368,6 +6371,9 @@ function DzMontage(props){
           onBefore:function(){if(saveAbortRef.current){try{saveAbortRef.current.abort()}catch(_e){}}saveSeqRef.current++;setSaveInfo(null)},
           onFail:function(){if(dirty)svmDoSave(++saveSeqRef.current)},
           onOpen:function(d){return svmApplyProject(d)},
+          /* L7 D-39 (24/09/2026, tâche 4) : « ⇄ » d'une ligne — lit l'autre projet, le compare à la timeline
+             courante (le diff pur de la couche) et ouvre le popover « diff » ; rien n'est modifié */
+          onDiff:function(p){fetch("/api/montage/projects/"+encodeURIComponent(p.id)).then(function(rp){if(!rp.ok)throw new Error("HTTP "+rp.status);return rp.json()}).then(function(d){setDiffSt({diff:DzTracks.diff(clipsRef.current,(d&&d.clips)||[]),nomA:(dzProjRef.current&&dzProjRef.current.name)||"",nomB:p.name||""});setPop("diff")}).catch(function(){fireNote("Projet illisible — comparaison impossible")})},
           onNamed:function(pid,nm){setProj(function(p){return Object.assign({},p,{project_id:pid,name:nm})})}}),
         /* bouton discret du panneau raccourcis — fin de transport */
         r.jsx("button",{className:"svm-tbtn",title:"Raccourcis ("+svmKeyLabel("keys_panel")+") — personnalisables",
@@ -14796,6 +14802,15 @@ var DzmProjects=function(props){
           title:"Dupliquer « "+(p.name||"")+" » — une copie indépendante, "+
             "sous un nom suffixé « (copie) ». Rien d'autre ne bouge.",
           onClick:function(){doDup(p)},children:"dupliquer"},"dp"),
+        /* L7 D-39 (24/09/2026) : « ⇄ » compare CE projet à la timeline courante
+           — TOUJOURS rendu, grisé sur le courant (comme « ouvrir » : un bouton
+           conditionnel est une forme de plus à dater dans l'audit E-12). Rien
+           n'est modifié : l'hôte lit le projet, calcule et montre. */
+        r.jsx("button",{className:"svm-tbtn dzm-projbtn dzm-projdiff",disabled:mine||off,"aria-disabled":mine||off,
+          title:mine
+            ?"« "+(p.name||"")+" » est le montage ouvert — rien à comparer"
+            :"Comparer « "+(p.name||"")+" » à la timeline courante (rien n'est modifié)",
+          onClick:function(){if(props&&props.onDiff)props.onDiff(p)},children:"⇄"},"df"),
         r.jsx("button",{className:"svm-tbtn dzm-projbtn dzm-projop",
           "data-arm":oArm?"":void 0,disabled:mine||off,"aria-disabled":mine||off,
           title:mine
@@ -20061,6 +20076,72 @@ function dzmBoring(clips,opts){
     var ecart=Math.abs((Number(c.srcIn)||0)-fin);
     if(ecart*o.fps<o.minFrames-1e-6)out[c.id]="jump"});
   return out}
+/* ── L7 D-39 (24/09/2026) : comparaison de deux projets (pur) ──
+   dzmDiff(a, b) sur deux tableaux de clips → {added, removed, moved,
+   trimmed, changed, noms}. Identité par `id` (des chaînes). `moved` :
+   même durée ET même srcIn, start différent. `trimmed` : durée OU srcIn
+   différents — un slip (srcIn seul) est un rognage de la FENÊTRE de
+   source, pas un déplacement (la lettre du plan le laissait sans
+   rubrique) ; `src:[inA,inB]` s'ajoute quand srcIn a bougé. `changed` :
+   les clés de DZM_DIFF_CLES qui diffèrent par leur forme JSON (absent,
+   null et undefined se valent ; 0 n'est pas absent) — un clip peut être
+   rogné ET modifié, déplacé d'une piste = déplacé ET modifié (tr),
+   moved exclut trimmed. `noms` = {id: libellé} (B prime, sinon A, rien
+   sans libellé) : la vue n'a pas les clips sous la main — sixième clé,
+   écart mesuré au plan (cinq rubriques). Rien n'est muté. Les temps de
+   la vue : le m:ss du bundle (svmRuler, réutilisé) + un dixième à la
+   virgule quand il y en a un. L'hôte lit l'autre projet, appelle diff
+   sur la timeline courante et monte DiffView dans son popover. */
+var DZM_DIFF_CLES=["gain","opacity","x","y","scale","rotate","effects","dz","speed","retime","stab","text","transition","transition_s","fade_in","fade_out","label","tr"];
+function dzmDiffIndex(clips){
+  var m={},ord=[];
+  (Array.isArray(clips)?clips:[]).forEach(function(c){
+    if(c&&typeof c==="object"&&c.id!=null){var k=String(c.id);if(!(k in m))ord.push(k);m[k]=c}});
+  return {m:m,ord:ord}}
+function dzmDiff(a,b){
+  var ia=dzmDiffIndex(a),ib=dzmDiffIndex(b),out={added:[],removed:[],moved:[],trimmed:[],changed:[],noms:{}};
+  function json(v){return JSON.stringify(v===void 0?null:v)}
+  ib.ord.forEach(function(id){var c=ib.m[id];if(c.label)out.noms[id]=String(c.label);if(!(id in ia.m))out.added.push(id)});
+  ia.ord.forEach(function(id){
+    var ca=ia.m[id],cb=ib.m[id];
+    if(ca.label&&!out.noms[id])out.noms[id]=String(ca.label);
+    if(!cb){out.removed.push(id);return}
+    var sa=Number(ca.start)||0,ea=Number(ca.end)||0,sb=Number(cb.start)||0,eb=Number(cb.end)||0;
+    var na=Number(ca.srcIn)||0,nb=Number(cb.srcIn)||0,la=ea-sa,lb=eb-sb;
+    if(Math.abs(la-lb)>1e-6||na!==nb){
+      var t={id:id,de:[sa,ea],en:[sb,eb]};if(na!==nb)t.src=[na,nb];out.trimmed.push(t)}
+    else if(sa!==sb)out.moved.push({id:id,de:sa,en:sb});
+    var cles=DZM_DIFF_CLES.filter(function(k){return json(ca[k])!==json(cb[k])});
+    if(cles.length)out.changed.push({id:id,cles:cles})});
+  return out}
+function dzmDiffTemps(v){
+  v=Number(v);if(!(v>0))v=0;
+  var s=Math.floor(v),d=Math.round((v-s)*10);if(d>=10){s+=1;d=0}
+  return svmRuler(s)+(d?","+d:"")}
+var DZM_DIFF_RUB=[["added","Ajouté","Ajoutés"],["removed","Supprimé","Supprimés"],["moved","Déplacé","Déplacés"],
+  ["trimmed","Rogné","Rognés"],["changed","Modifié","Modifiés"]];
+/* la vue : un svm-pop (le voile et Échap sont ceux de l'hôte), un résumé, cinq rubriques data-rub, « Fermer » */
+function DzmDiffView(o){
+  o=o||{};var d=o.diff||{},noms=d.noms||{};
+  function nom(id){return noms[id]||String(id)}
+  function n(k){return Array.isArray(d[k])?d[k].length:0}
+  function ligne(k,e){
+    if(k==="moved")return nom(e.id)+" : "+dzmDiffTemps(e.de)+" → "+dzmDiffTemps(e.en);
+    if(k==="trimmed")return nom(e.id)+" : "+dzmDiffTemps(e.de[0])+"–"+dzmDiffTemps(e.de[1])+" → "+dzmDiffTemps(e.en[0])+"–"+dzmDiffTemps(e.en[1])+(e.src?" (source "+dzmDiffTemps(e.src[0])+" → "+dzmDiffTemps(e.src[1])+")":"");
+    if(k==="changed")return nom(e.id)+" : "+(e.cles||[]).join(", ");
+    return nom(e)}
+  var res=DZM_DIFF_RUB.map(function(rb){var c=n(rb[0]);return c+" "+(c>1?rb[2]:rb[1]).toLowerCase()}).join(" · ");
+  return r.jsxs("div",{className:"svm-pop dzm-diff",onClick:function(e){e.stopPropagation()},children:[
+    r.jsx("div",{className:"svm-poptitle",children:"Comparer : « "+(o.nomA||"montage courant")+" » → « "+(o.nomB||"autre projet")+" »"}),
+    r.jsx("div",{className:"svm-popnote dzm-diffres",children:res})].concat(DZM_DIFF_RUB.map(function(rb){
+      var k=rb[0],items=Array.isArray(d[k])?d[k]:[];
+      return r.jsxs("div",{className:"dzm-diffrub","data-rub":k,children:[
+        r.jsx("div",{className:"dzm-diffh",children:rb[2]+" ("+items.length+")"}),
+        r.jsx("ul",{className:"dzm-difflist",children:items.length
+          ?items.map(function(e,i){return r.jsx("li",{children:ligne(k,e)},k+i)})
+          :[r.jsx("li",{className:"dzm-diffnone",children:"—"},"none")]})]},k)}),[
+    r.jsx("div",{className:"svm-poprow",children:
+      r.jsx("button",{className:"svm-secbtn",title:"Fermer la comparaison (Échap)",onClick:function(){if(o.onClose)o.onClose()},children:"Fermer"})},"fin")])})}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,
@@ -20169,6 +20250,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   kmPreset:dzmKmPreset,kmExport:dzmKmExport,kmImport:dzmKmImport,
   clipCopy:dzmClipCopy,clipPaste:dzmClipPaste,
   boring:dzmBoring,boringDef:DZM_BORING_DEF,
+  diff:dzmDiff,DiffView:DzmDiffView,diffTemps:dzmDiffTemps,
   /* E-13 / E-14 (lot E-C, tache 5) : la tete dans l'inspecteur, le trou selectionne et son ripple */
   teteTxt:dzmTeteTxt,trou:dzmTrou,trouRipple:dzmTrouRipple,
   DEFAULTS:DZM_DEFAULT_TRACKS};

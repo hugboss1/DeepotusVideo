@@ -1484,3 +1484,16 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
 .dzsvm .svm-clip[data-boring="jump"]{outline:2px solid #e0443e;outline-offset:-2px}
 .dzsvm .svm-boringon{margin-top:10px;font-size:12px}
 .dzsvm .svm-boringrow .svm-fxeditname{width:auto;min-width:150px}
+/* L7 D-39 (24/09/2026, tâche 4) : le popover « diff » de deux projets (DzmDiffView de la couche, monté par
+   la garde de popover() de l'hôte, sous le voile et Échap comme les autres svm-pop). Cinq rubriques data-rub ;
+   une liste sans puces, une rubrique vide montre « — » ; le bouton « ⇄ » de la ligne Projets reprend dzm-projbtn. */
+.dzsvm .dzm-diff{width:360px;max-height:70vh;overflow:auto}
+.dzsvm .dzm-diffres{margin-top:6px;font-weight:600;color:var(--ink)}
+.dzsvm .dzm-diffrub{margin-top:10px}
+.dzsvm .dzm-diffh{font-size:11px;font-weight:600;color:var(--ink2, var(--ink));text-transform:uppercase;letter-spacing:.04em}
+.dzsvm .dzm-difflist{list-style:none;margin:4px 0 0;padding:0;font-size:11.5px;line-height:1.5}
+.dzsvm .dzm-difflist li{padding:1px 0;border-bottom:1px dotted color-mix(in srgb, var(--ink3) 35%, transparent)}
+.dzsvm .dzm-difflist li.dzm-diffnone{color:var(--ink3);border-bottom:0}
+.dzsvm .dzm-diffrub[data-rub="added"] .dzm-diffh{color:var(--green, #4caf50)}
+.dzsvm .dzm-diffrub[data-rub="removed"] .dzm-diffh{color:var(--red, #e35d4a)}
+.dzsvm .dzm-projdiff{font-size:12px;line-height:1}
