@@ -145,6 +145,7 @@ from app.config import settings
 from app.models.schemas import JobStatus
 from app.services import autoclips as _autoclips
 from app.services import edl_export as _edl
+from app.services import mask_region as _mr
 from app.services import reframe as _reframe
 from app.services import scenes as _scenes
 from app.services import sfx_service
@@ -3196,6 +3197,30 @@ def _f_or(v, d: float = 0.0) -> float:
     return f if math.isfinite(f) else d
 
 
+def _rescale(a: int, b: int, c: int) -> int:
+    """av_rescale de ffmpeg (arrondi au plus proche, moitié vers le haut)."""
+    return (a * b + c // 2) // c if c > 0 else a
+
+
+def _ov_fx_dims(dims, ow: int, oh: int, mode: str) -> tuple:
+    """L5 — taille RÉELLE d'un overlay V2 après sa mise à l'échelle, pour le
+    contexte des effets (pad, scale, hstack… s'appuient sur ctx w/h : une
+    taille fausse ferait échouer le graphe). `dims` = (largeur, hauteur)
+    sondées par /render, None → (ow, oh) tels quels.
+    mode "-2" : `scale={ow}:-2` → h = av_rescale(ow, ih, iw·2)·2 ;
+    mode "dec" : `scale=w={ow}:h={oh}:force_original_aspect_ratio=decrease`
+    → (min(ow, av_rescale(oh, iw, ih)), min(oh, av_rescale(ow, ih, iw)))."""
+    try:
+        iw, ih = int(dims[0]), int(dims[1])
+    except (TypeError, ValueError, IndexError):
+        return ow, oh
+    if iw <= 0 or ih <= 0:
+        return ow, oh
+    if mode == "-2":
+        return ow, max(2, _rescale(ow, ih, iw * 2) * 2)
+    return min(ow, _rescale(oh, iw, ih)), min(oh, _rescale(ow, ih, iw))
+
+
 def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                            ducking, duration_master, preview, out,
                            audio_only=False, subs_ass=None, titles_ass=None,
@@ -3436,7 +3461,25 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             chain = (f"{pre},tpad=stop_mode=clone:stop_duration={seg_durs[k]},"
                      f"trim=0:{seg_durs[k]},setpts=PTS-STARTPTS")
             reff = s.get("effects")
-            if reff:
+            # D-30 : masque statique — limite la pile d'effets du clip ; sans
+            # effet (ou masque invalide) il est ignoré, chaîne historique.
+            rmk = _mr.mask_of(s.get("mask")) if reff else None
+            if reff and rmk:
+                # split → effets → alphamerge du masque (calculé UNE fois,
+                # bouclé) → overlay sur l'original. `shortest=1` : MESURÉ
+                # 24/09/2026 (9.0.1 = 8.1.1), sans lui le graphe ne finit
+                # jamais (masque infini) ; avec : 60 images pour 2 s à 30 i/s.
+                parts.append(f"[{seg_idx[k]}:v]{chain}[n{k}pre]")
+                parts.append(f"[n{k}pre]split[mo{k}][me{k}]")
+                parts += _fx.build_chain(reff, f"me{k}", f"mf{k}",
+                                         f"cfx{k}",
+                                         {"w": w, "h": h, "dur": seg_durs[k], "fps": fps})
+                parts.append(f"[mf{k}]format=yuva420p[mfa{k}]")
+                parts.append(_mr.mask_graph(rmk, w, h, fps, f"mk{k}"))
+                parts.append(f"[mfa{k}][mk{k}]alphamerge[mm{k}]")
+                parts.append(f"[mo{k}][mm{k}]overlay=0:0:shortest=1,"
+                             f"format=yuv420p[n{k}]")
+            elif reff:
                 # Effets par clip — même moteur que le node Effects / Mask.
                 parts.append(f"[{seg_idx[k]}:v]{chain}[n{k}pre]")
                 # dur : setpts=PTS-STARTPTS s'exécute AVANT les effets sur les
@@ -3584,6 +3627,7 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             # quand aucun champ de transformation n'est posé.
             och = (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
                    f"crop={w}:{h},setsar=1,fps={fps}")
+            cut, fxw, fxh = len(och), w, h      # L5 : fin de la mise à l'échelle
             if op is not None and 0.0 <= op < 1.0:
                 och += f",format=yuva420p,colorchannelmixer=aa={round(op, 3)}"
             och += f",setpts=PTS-STARTPTS+{st}/TB"
@@ -3637,9 +3681,12 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                 owmin = max(2, int(round(w * smin / 2.0)) * 2)
                 och = (f"scale=w={owmin}:h={fh}:force_original_aspect_ratio="
                        f"decrease,setsar=1,fps={fps},format=rgba")
+                fxw, fxh = _ov_fx_dims(o.get("dims"), owmin, fh, "dec")
             else:
                 ow2 = max(2, int(round(w * scale / 2.0)) * 2)
                 och = f"scale={ow2}:-2,setsar=1,fps={fps},format=rgba"
+                fxw, fxh = _ov_fx_dims(o.get("dims"), ow2, h, "-2")
+            cut = len(och)                      # L5 : fin de la mise à l'échelle
             if op_pts:
                 # Opacité animée : aa de colorchannelmixer n'est pas une
                 # expression mais une option commandable (« T ») — sendcmd en
@@ -3648,6 +3695,7 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                 # 1re clé).
                 cmds = _mp_cmds(op_pts, f"colorchannelmixer@mpo{j}", "aa",
                                 lambda v: "%.3f" % v)
+                cut += len(f"sendcmd=c='{cmds}',")  # L5 : sendcmd reste en tête
                 och = (f"sendcmd=c='{cmds}',{och},"
                        f"colorchannelmixer@mpo{j}=aa={round(op_pts[0][1], 3)}")
             elif op is not None and 0.0 <= op < 1.0:
@@ -3727,6 +3775,33 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                 cx = round(w * tf["x"], 2)
                 cy = round(h * tf["y"], 2)
                 pos = f"x={cx}-w/2:y={cy}-h/2:"
+        # L5 (décision 5 du plan) : pile d'effets du clip V2 — rendue juste
+        # APRÈS la mise à l'échelle (`cut`) et AVANT opacité / coins /
+        # rotation / décalage, puis `format=rgba` pour garder l'alpha (PNG,
+        # chromakey). Masque D-30 : maskedmerge gbrap à QUATRE plans (alpha
+        # compris — mesuré 24/09/2026 : alphamerge + overlay rendait OPAQUE
+        # la partie transparente d'un PNG dans le masque) ; le masque est
+        # calculé à la taille du rendu puis porté à celle de l'overlay par
+        # scale2ref. Sans effet : osrc/och historiques, octet pour octet.
+        osrc = f"[{idx}:v]"
+        oeff = o.get("effects")
+        if oeff:
+            from app.services import effects_engine as _fx2
+            fctx = {"w": fxw, "h": fxh, "dur": d, "fps": fps}
+            parts.append(f"[{idx}:v]{och[:cut]}[ofi{j}]")
+            omk = _mr.mask_of(o.get("mask"))
+            if omk:
+                parts.append(f"[ofi{j}]split[omo{j}][ome{j}]")
+                parts += _fx2.build_chain(oeff, f"ome{j}", f"omf{j}", f"ofe{j}", fctx)
+                parts.append(f"[omo{j}]format=gbrap[omb{j}]")
+                parts.append(f"[omf{j}]format=gbrap[omg{j}]")
+                parts.append(_mr.mask_graph(omk, w, h, fps, f"omk{j}m",
+                                            planes="gbrap", loop=False))
+                parts.append(f"[omk{j}m][omg{j}]scale2ref[omk{j}][omr{j}]")
+                parts.append(f"[omb{j}][omr{j}][omk{j}]maskedmerge[ofx{j}]")
+            else:
+                parts += _fx2.build_chain(oeff, f"ofi{j}", f"ofx{j}", f"ofe{j}", fctx)
+            osrc, och = f"[ofx{j}]", "format=rgba" + och[cut:]
         if shadow:
             # D-19 : ombre portée — le flux (setpts compris : les deux côtés
             # du split héritent du même PTS) est doublé : l'image paddée de
@@ -3743,7 +3818,7 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             # marge droite 2u ≥ u+1),
             # l'image reste centrée sur sa pose « centre − w/2 ».
             u = max(1, int(round(6 * k)))
-            parts.append(f"[{idx}:v]{och}[oa{j}]")
+            parts.append(f"{osrc}{och}[oa{j}]")
             parts.append(f"[oa{j}]split[oo{j}][os{j}]")
             parts.append(f"[oo{j}]pad=iw+{6 * u}:ih+{6 * u}:{3 * u}:{3 * u}:"
                          f"color=black@0[op{j}]")
@@ -3752,7 +3827,7 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                          f"boxblur={u}[osp{j}]")
             parts.append(f"[osp{j}][op{j}]overlay=0:0:format=auto[ov{j}]")
         else:
-            parts.append(f"[{idx}:v]{och}[ov{j}]")
+            parts.append(f"{osrc}{och}[ov{j}]")
         parts.append(f"[{cur}][ov{j}]overlay={pos}eof_action=pass:"
                      f"enable='between(t,{st},{en})'[ob{j}]")
         cur = f"ob{j}"
@@ -4733,6 +4808,9 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                            "effects": (c.get("effects")
                                        if isinstance(c.get("effects"), list)
                                        else None)})
+                rmk = _mr.mask_of(c.get("mask"))   # D-30 — absent = historique
+                if rmk:
+                    v1[-1]["mask"] = rmk
             v2 = []
             for c in clips:
                 # P1 : TOUTE piste vidéo autre que v1 est un overlay — son
@@ -4759,6 +4837,20 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                            "tf": _ov_transform(c),
                            "mp": _motion_points(c),
                            "layer": m["layer"]})
+                # L5 : pile d'effets et masque D-30 des overlays — clés
+                # ABSENTES sans pile / masque valides (dict historique). La
+                # taille de la source est sondée pour le contexte des effets
+                # (voir _ov_fx_dims) seulement quand une pile est posée.
+                oeff = ([e for e in c["effects"] if isinstance(e, dict)]
+                        if isinstance(c.get("effects"), list) else [])
+                omk = _mr.mask_of(c.get("mask"))
+                if omk:
+                    v2[-1]["mask"] = omk
+                if oeff:
+                    v2[-1]["effects"] = oeff
+                    dims = await loop.run_in_executor(None, _probe_dims, p)
+                    if dims:
+                        v2[-1]["dims"] = tuple(dims)
             # D-9 : les clips d'une piste de genre `adjust` (sans `src`) →
             # post-pass bornés sur le cadre composé. Un clip sans effets est
             # transmis (effects == []) et la commande l'ignore ; une piste
