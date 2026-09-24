@@ -13,7 +13,7 @@
 ## Liste de contrôle du lot (cochée par le contrôleur à chaque tâche close = revue conforme + revue qualité + bancs verts)
 
 - [x] T1 — D-37 export EDL + FCPXML (`5d5eadc`, revue `562a048`, `140c3d5` ; FCPXML 1.9, FROM CLIP NAME = fichier, poignées dites)
-- [ ] T2 — D-42 découper aux changements de plan
+- [x] T2 — D-42 découper aux changements de plan (`4c48d45`, revue `8517a25` ; réponse obsolète refusée, écart minimal entre coupes)
 - [ ] T3 — D-40 recadrage : backend (tracker PIL, crop à x animé)
 - [ ] T4 — D-40 recadrage : client (inspecteur « Cadrage »)
 - [ ] T5 — D-41 auto-clips : backend
