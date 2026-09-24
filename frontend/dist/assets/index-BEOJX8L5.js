@@ -1735,6 +1735,10 @@ function DzMontage(props){
     function up(){w.removeEventListener("pointermove",mv);w.removeEventListener("pointerup",up);w.removeEventListener("pointercancel",up);
       try{if(last!=null)localStorage.setItem("dz_svm_tlh",String(last))}catch(_e){}}
     w.addEventListener("pointermove",mv);w.addEventListener("pointerup",up);w.addEventListener("pointercancel",up)}
+  /* L7 D-8 (24/09/2026, tâche 3) : le boring detector — réglages {on,maxS,minFrames} (mémoire dz_svm_boring,
+     défaut boringDef de la couche, éteint) et la carte id → "long"|"jump" de V1, mémoïsée sur [clips,bo], vide si éteint */
+  var stBo=x.useState(function(){var d=Object.assign({on:!1},DzTracks.boringDef);try{return Object.assign(d,JSON.parse(localStorage.getItem("dz_svm_boring")||"{}")||{})}catch(_e){return d}}),bo=stBo[0],setBo=stBo[1];
+  var boMap=x.useMemo(function(){return bo.on?DzTracks.boring(clips,bo):{}},[clips,bo]);
   var stP=x.useState({demo:!0,name:"teaser_abyss",version:"v4",ratio:"9:16",dur:SVM_DEMO_DUR,mixDb:SVM_DEMO_MIX}),proj=stP[0],setProj=stP[1];
   var stJ=x.useState(null),job=stJ[0],setJob=stJ[1]; /* {id,kind,status,progress,step,error} */
   var stV=x.useState(null),previewUrl=stV[0],setPreviewUrl=stV[1];
@@ -2178,6 +2182,7 @@ function DzMontage(props){
         {lbl:"Inspecteur",combo:inspOn?"✓":"",run:function(){setInspSt(function(s){var n={on:!s.on,w:s.w};try{localStorage.setItem("dz_svm_insp",JSON.stringify(n))}catch(_e){}return n})}},
         {lbl:"Médias",combo:medOn?"✓":"",run:function(){if(proj.demo){fireNote("Ajout d'assets : disponible sur un projet réel — la démo reste une maquette.");return}setMedTr("");setMedOn(!medOn);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)}},
         {lbl:"Durées sur les clips",combo:showDur?"✓":"",run:function(){setShowDur(function(v){var n=!v;try{localStorage.setItem("dz_svm_showdur",n?"1":"0")}catch(_e){}return n})}},
+        {lbl:"Plans trop longs / jump cuts…",combo:bo.on?"actif":"",run:function(){setPop("boring")}},
         {lbl:"Ancrer la barre d'outils",combo:dzTbDock?"✓":"",run:function(){dzTbDockToggle()}}]);
       return Object.assign(base,{rubs:rubs})}
     if(kind==="clip"){var c=cs.find(function(k){return k.id===id});if(!c)return null;
@@ -4738,9 +4743,30 @@ function DzMontage(props){
   var tickStep=[2,3,5,6,10,15,20,30,60].find(function(s){return dur/s<=11})||60;
   var ticks=[];for(var t2=0;t2<=Math.floor(dur/tickStep)*tickStep&&ticks.length<40;t2+=tickStep)ticks.push(t2);
 
+  /* L7 D-8 (24/09/2026, tâche 3) : le popover « Plans trop longs / jump cuts » (☰ › Affichage) — la case
+     allume la carte, les deux champs bornent le juge, chaque changement est persisté (dz_svm_boring) */
+  function boringPopover(){
+    function boSet(p){setBo(function(b){var n=Object.assign({},b,p);try{localStorage.setItem("dz_svm_boring",JSON.stringify({on:!!n.on,maxS:n.maxS,minFrames:n.minFrames}))}catch(_e){}return n})}
+    function boNum(k,lo,hi,raw){var v=Math.round(Number(raw));if(!isFinite(v))return;var p={};p[k]=Math.min(hi,Math.max(lo,v));boSet(p)}
+    var nb=Object.keys(boMap).length,nj=Object.keys(boMap).filter(function(k){return boMap[k]==="jump"}).length;
+    return r.jsxs("div",{className:"svm-pop svm-boringpop",onClick:function(e){e.stopPropagation()},children:[
+      r.jsx("div",{className:"svm-poptitle",children:"Plans trop longs / jump cuts"}),
+      r.jsx("div",{className:"svm-popnote",children:"Sur V1 : liseré gris pointillé = plan plus long que le seuil ; liseré rouge = jump cut (même source reprise presque au même point, à la coupe)."}),
+      r.jsxs("label",{className:"svm-delrange svm-boringon",title:"Marquer sur la timeline les plans trop longs et les jump cuts de V1",children:[
+        r.jsx("input",{type:"checkbox",checked:!!bo.on,onChange:function(e){boSet({on:!!e.target.checked})}})," Activer"]}),
+      r.jsxs("div",{className:"svm-fadegain svm-boringrow",children:[
+        r.jsx("span",{className:"svm-fxeditname",children:"Plus long que (s)"}),
+        r.jsx("input",{className:"svm-transdur",type:"number",min:2,max:60,step:1,value:bo.maxS,title:"Un plan de V1 plus long que ce seuil (2 à 60 s) est marqué « long »",onChange:function(e){boNum("maxS",2,60,e.target.value)}})]}),
+      r.jsxs("div",{className:"svm-fadegain svm-boringrow",children:[
+        r.jsx("span",{className:"svm-fxeditname",children:"Jump cut si écart < (images)"}),
+        r.jsx("input",{className:"svm-transdur",type:"number",min:1,max:60,step:1,value:bo.minFrames,title:"Deux plans V1 de la même source, en contact, dont la reprise est à moins de n images (1 à 60, à 30 i/s) : jump cut",onChange:function(e){boNum("minFrames",1,60,e.target.value)}})]}),
+      r.jsx("div",{className:"svm-popnote",children:bo.on?(nb?nb+" plan"+(nb>1?"s":"")+" marqué"+(nb>1?"s":"")+" sur V1 ("+nj+" jump cut"+(nj>1?"s":"")+")":"Aucun plan à signaler sur V1"):"Détection éteinte"}),
+      r.jsx("div",{className:"svm-poprow",children:
+        r.jsx("button",{className:"svm-secbtn",title:"Fermer ce panneau (Échap)",onClick:function(){setPop("")},children:"Fermer"})})]})}
   /* popover de confirmation — coût affiché avant tout déclenchement (règle produit) */
   function popover(){
     if(!pop)return null;
+    if(pop==="boring")return boringPopover();
     var isR=pop==="render";
     var busy=job&&job.kind===(isR?"final":"preview")&&job.status!=="failed";
     var failed=job&&job.status==="failed";
@@ -6490,6 +6516,7 @@ function DzMontage(props){
                     "data-narr":isPh?"":void 0,
                     "data-media":media&&tr.id==="v1"?"":void 0,
                     "data-kind":c.kind||void 0,
+                    "data-boring":boMap[c.id]||void 0,
                     style:{left:c.start/dur*100+"%",width:(c.end-c.start)/dur*100+"%",
                       borderColor:isSel?"var(--accent)":isPh?"var(--stroke2)":"color-mix(in srgb, var("+tr.c+") 53%, transparent)",
                       background:isPh||c.kind==="adjust"?"repeating-linear-gradient(-45deg,transparent 0 5px, color-mix(in srgb, var("+tr.c+") 26%, transparent) 5px 6px)":isSel?"color-mix(in srgb, var(--accent) 20%, transparent)":"color-mix(in srgb, var("+tr.c+") "+tr.mix+"%, transparent)"},
@@ -19982,6 +20009,58 @@ function dzmClipPaste(clips,payload,opts){
      « ripple », « remplir » le posent ailleurs qu'à la tête) — l'hôte la dit */
   var pose=null;if(r.id!=null)for(var q=0;q<r.clips.length;q++)if(r.clips[q]&&r.clips[q].id===r.id){pose=r.clips[q];break}
   return {clips:r.clips,track:r.track||tr,mode:r.mode,refus:r.refus||null,note:note||null,id:r.id,start:pose?Number(pose.start):null}}
+/* ── L7 D-8 (24/09/2026) : boring detector (pur) — plans trop longs et jump
+   cuts sur V1 ──
+   dzmBoring(clips, opts) → { id : "long" | "jump" } sur les clips de V1
+   SEULEMENT (les incrustations et l'audio ne sont pas des « plans »).
+   `long` : durée > maxS (strict). `jump` : le plan est en CONTACT avec son
+   voisin de gauche (la tolérance de dzmVoisins, 0,1 s — réutilisée, pas
+   une seconde règle), de la MÊME source, et reprend cette source à moins
+   de minFrames images de là où le voisin l'a laissée :
+     | srcIn_droit − (srcIn_gauche + len_gauche × vitesse_gauche) | × fps
+       < minFrames
+   — le même plan repris presque au même point : la coupe « saute ». Le
+   jump PRIME sur le long (un seul attribut par clip, le défaut visible
+   d'abord). Précisions mesurées : la comparaison se fait EN IMAGES avec un
+   epsilon (2.4 − 2 vaut 0.3999… en flottant : AU seuil, ce n'est pas un
+   jump) ; la vitesse du plan gauche compte (à ×2, 5 s de timeline
+   consomment 10 s de source) ; une IMAGE n'a pas de position de source :
+   deux images identiques en contact sont un jump quel que soit srcIn ;
+   les options illisibles, nulles ou négatives retombent sur le défaut, et
+   DZM_BORING_DEF n'est jamais muté (copie) ; l'ordre d'arrivée des clips
+   est indifférent, les clips ne sont pas mutés. L'hôte tient les réglages
+   {on, maxS, minFrames} dans le stockage local du navigateur (clé
+   dz_svm_boring) et pose data-boring sur .svm-clip ; montage.css dessine
+   le liseré (gris pointillé / rouge). (Aucun nom d'API du navigateur dans
+   ce commentaire, à dessein : _corps() du banc lit jusqu'au prochain
+   `var` et juge la pureté du bloc D-6 qui précède.) */
+var DZM_BORING_DEF={maxS:8,minFrames:12,fps:30};
+function dzmBoringOpts(opts){
+  var o=Object.assign({},DZM_BORING_DEF),k,v;
+  if(opts&&typeof opts==="object")for(k in DZM_BORING_DEF){v=Number(opts[k]);if(isFinite(v)&&v>0)o[k]=v}
+  return o}
+/* la « même source » est celle du jumeau (dzmSrcKey, la clé JSON canonique
+   de `src`, déjà exportée `srcKey`) — le plan la redéfinissait, MESURÉ :
+   elle existait ; une source vide ({} ou absente) n'a pas de clé */
+function dzmBoringKey(c){
+  var s=c&&c.src;
+  return (s&&typeof s==="object"&&Object.keys(s).length)?dzmSrcKey(s):""}
+function dzmBoring(clips,opts){
+  var o=dzmBoringOpts(opts),out={};
+  if(!Array.isArray(clips))return out;
+  var v=clips.filter(function(c){return c&&typeof c==="object"&&c.tr==="v1"&&c.id!=null})
+    .sort(function(a,b){return (Number(a.start)||0)-(Number(b.start)||0)});
+  v.forEach(function(c){
+    var len=(Number(c.end)||0)-(Number(c.start)||0);
+    if(len>o.maxS)out[c.id]="long";
+    var g=dzmVoisins(v,c).g,k=dzmBoringKey(c);
+    if(!g||!k||k!==dzmBoringKey(g))return;
+    if(c.src.image&&!c.src.job_id){out[c.id]="jump";return}
+    var sp=Number(g.speed);if(!(sp>0))sp=1;
+    var fin=(Number(g.srcIn)||0)+((Number(g.end)||0)-(Number(g.start)||0))*sp;
+    var ecart=Math.abs((Number(c.srcIn)||0)-fin);
+    if(ecart*o.fps<o.minFrames-1e-6)out[c.id]="jump"});
+  return out}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,
@@ -20089,6 +20168,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   loudPastille:dzmLoudPastille,deliverOpts:dzmDeliverOpts,deliverPayload:dzmDeliverPayload,delStatut:dzmDelStatut,DeliverRow:DzmDeliverRow,
   kmPreset:dzmKmPreset,kmExport:dzmKmExport,kmImport:dzmKmImport,
   clipCopy:dzmClipCopy,clipPaste:dzmClipPaste,
+  boring:dzmBoring,boringDef:DZM_BORING_DEF,
   /* E-13 / E-14 (lot E-C, tache 5) : la tete dans l'inspecteur, le trou selectionne et son ripple */
   teteTxt:dzmTeteTxt,trou:dzmTrou,trouRipple:dzmTrouRipple,
   DEFAULTS:DZM_DEFAULT_TRACKS};

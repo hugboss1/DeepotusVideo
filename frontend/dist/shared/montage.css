@@ -1474,3 +1474,13 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
 .svm-delbadge[data-st="generating_video"]{color:var(--accent)}
 /* L7 D-10 (24/09/2026) : preset Resolve, export, import — dans la rangée de recherche du panneau « ? », même gabarit que kbresetall */
 .dzsvm .svm-kbio{padding:5px 10px;font-size:11px;flex:none}
+/* L7 D-8 (24/09/2026, tâche 3) : le boring detector — data-boring sur .svm-clip (V1 seulement, posé par
+   l'hôte depuis DzTracks.boring) : plan trop long = liseré gris pointillé, jump cut = liseré rouge. Un
+   OUTLINE, pas une bordure : la sélection est le border-color inline du clip (B:6493), le verrou et la
+   narration sont des bordures (son-vfx-montage.css:620/791) — rien ne se dispute. MESURÉ : aucune règle
+   `outline` sur .svm-clip dans les deux feuilles (le seul :focus-visible est générique et le clip n'est pas
+   focusable). Le popover : la case et les deux rangées numériques reprennent svm-delrange / svm-fadegain. */
+.dzsvm .svm-clip[data-boring="long"]{outline:1px dashed #9a9a9a;outline-offset:-1px}
+.dzsvm .svm-clip[data-boring="jump"]{outline:2px solid #e0443e;outline-offset:-2px}
+.dzsvm .svm-boringon{margin-top:10px;font-size:12px}
+.dzsvm .svm-boringrow .svm-fxeditname{width:auto;min-width:150px}

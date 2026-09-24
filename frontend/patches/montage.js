@@ -6937,6 +6937,58 @@ function dzmClipPaste(clips,payload,opts){
      « ripple », « remplir » le posent ailleurs qu'à la tête) — l'hôte la dit */
   var pose=null;if(r.id!=null)for(var q=0;q<r.clips.length;q++)if(r.clips[q]&&r.clips[q].id===r.id){pose=r.clips[q];break}
   return {clips:r.clips,track:r.track||tr,mode:r.mode,refus:r.refus||null,note:note||null,id:r.id,start:pose?Number(pose.start):null}}
+/* ── L7 D-8 (24/09/2026) : boring detector (pur) — plans trop longs et jump
+   cuts sur V1 ──
+   dzmBoring(clips, opts) → { id : "long" | "jump" } sur les clips de V1
+   SEULEMENT (les incrustations et l'audio ne sont pas des « plans »).
+   `long` : durée > maxS (strict). `jump` : le plan est en CONTACT avec son
+   voisin de gauche (la tolérance de dzmVoisins, 0,1 s — réutilisée, pas
+   une seconde règle), de la MÊME source, et reprend cette source à moins
+   de minFrames images de là où le voisin l'a laissée :
+     | srcIn_droit − (srcIn_gauche + len_gauche × vitesse_gauche) | × fps
+       < minFrames
+   — le même plan repris presque au même point : la coupe « saute ». Le
+   jump PRIME sur le long (un seul attribut par clip, le défaut visible
+   d'abord). Précisions mesurées : la comparaison se fait EN IMAGES avec un
+   epsilon (2.4 − 2 vaut 0.3999… en flottant : AU seuil, ce n'est pas un
+   jump) ; la vitesse du plan gauche compte (à ×2, 5 s de timeline
+   consomment 10 s de source) ; une IMAGE n'a pas de position de source :
+   deux images identiques en contact sont un jump quel que soit srcIn ;
+   les options illisibles, nulles ou négatives retombent sur le défaut, et
+   DZM_BORING_DEF n'est jamais muté (copie) ; l'ordre d'arrivée des clips
+   est indifférent, les clips ne sont pas mutés. L'hôte tient les réglages
+   {on, maxS, minFrames} dans le stockage local du navigateur (clé
+   dz_svm_boring) et pose data-boring sur .svm-clip ; montage.css dessine
+   le liseré (gris pointillé / rouge). (Aucun nom d'API du navigateur dans
+   ce commentaire, à dessein : _corps() du banc lit jusqu'au prochain
+   `var` et juge la pureté du bloc D-6 qui précède.) */
+var DZM_BORING_DEF={maxS:8,minFrames:12,fps:30};
+function dzmBoringOpts(opts){
+  var o=Object.assign({},DZM_BORING_DEF),k,v;
+  if(opts&&typeof opts==="object")for(k in DZM_BORING_DEF){v=Number(opts[k]);if(isFinite(v)&&v>0)o[k]=v}
+  return o}
+/* la « même source » est celle du jumeau (dzmSrcKey, la clé JSON canonique
+   de `src`, déjà exportée `srcKey`) — le plan la redéfinissait, MESURÉ :
+   elle existait ; une source vide ({} ou absente) n'a pas de clé */
+function dzmBoringKey(c){
+  var s=c&&c.src;
+  return (s&&typeof s==="object"&&Object.keys(s).length)?dzmSrcKey(s):""}
+function dzmBoring(clips,opts){
+  var o=dzmBoringOpts(opts),out={};
+  if(!Array.isArray(clips))return out;
+  var v=clips.filter(function(c){return c&&typeof c==="object"&&c.tr==="v1"&&c.id!=null})
+    .sort(function(a,b){return (Number(a.start)||0)-(Number(b.start)||0)});
+  v.forEach(function(c){
+    var len=(Number(c.end)||0)-(Number(c.start)||0);
+    if(len>o.maxS)out[c.id]="long";
+    var g=dzmVoisins(v,c).g,k=dzmBoringKey(c);
+    if(!g||!k||k!==dzmBoringKey(g))return;
+    if(c.src.image&&!c.src.job_id){out[c.id]="jump";return}
+    var sp=Number(g.speed);if(!(sp>0))sp=1;
+    var fin=(Number(g.srcIn)||0)+((Number(g.end)||0)-(Number(g.start)||0))*sp;
+    var ecart=Math.abs((Number(c.srcIn)||0)-fin);
+    if(ecart*o.fps<o.minFrames-1e-6)out[c.id]="jump"});
+  return out}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,
@@ -7044,6 +7096,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   loudPastille:dzmLoudPastille,deliverOpts:dzmDeliverOpts,deliverPayload:dzmDeliverPayload,delStatut:dzmDelStatut,DeliverRow:DzmDeliverRow,
   kmPreset:dzmKmPreset,kmExport:dzmKmExport,kmImport:dzmKmImport,
   clipCopy:dzmClipCopy,clipPaste:dzmClipPaste,
+  boring:dzmBoring,boringDef:DZM_BORING_DEF,
   /* E-13 / E-14 (lot E-C, tache 5) : la tete dans l'inspecteur, le trou selectionne et son ripple */
   teteTxt:dzmTeteTxt,trou:dzmTrou,trouRipple:dzmTrouRipple,
   DEFAULTS:DZM_DEFAULT_TRACKS};

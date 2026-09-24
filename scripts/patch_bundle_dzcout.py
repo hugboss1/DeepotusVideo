@@ -390,7 +390,13 @@ STABLE_PROBES = [
     # L7b1 (les deux entrees de SVM_ACTIONS, repli dans R_R1) et le bloc pur
     # de la couche n en ajoutent aucune. MESURE : la chaine a refuse, « sonde
     # montage x142 (want 139) », avant cette ligne.
-    ("montage", "DzTracks", 142),
+    # 24/09/2026, L7 D-8 (tache 3, boring detector) : 142 -> 144. DEUX de
+    # plus, toutes deux dans le repli L7c1 de R_EB6B (_EB7_ETAT) :
+    # `DzTracks.boringDef` (le defaut de l'etat, UNE reference) et
+    # `DzTracks.boring(` (la carte memoisee). L7c2 (l'entree du menu, repli
+    # R_EC1), L7c3 (le popover, section neuve) et le bloc pur de la couche
+    # n en ajoutent aucune.
+    ("montage", "DzTracks", 144),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

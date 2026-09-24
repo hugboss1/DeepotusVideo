@@ -15238,11 +15238,15 @@ check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB8b_puis_
                                                           # dans le repli L7b2 de R_R2)
                                                           "L7a3",
                                                           # L7 D-6 revue I-1 (T2) : la garde du texte selectionne, aucun DzTracks
-                                                          "L7b3"]
+                                                          "L7b3",
+                                                          # L7 D-8 (T3, 24/09/2026) : UNE section en queue (L7c1/L7c2 repliees dans
+                                                          # R_EB6B/R_AJ6A/R_EC1), sonde 142 -> 144 (boringDef + boring dans le repli
+                                                          # L7c1 de _EB7_ETAT) ; le popover L7c3 n'en porte aucune
+                                                          "L7c3"]
       and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
               and s.count(nl(a)) == (1 if a in r else 0)
               for _t, a, r in P.PATCHES[_DZ_I + 1:])
-      and _sonde.get("montage") == 142 and s.count("DzTracks") == 142
+      and _sonde.get("montage") == 144 and s.count("DzTracks") == 144
       if _bak else False,
       f"queue={_DZ_TAGS[_DZ_I + 1:]} sonde={_sonde.get('montage')} bundle={s.count('DzTracks')}")
 
@@ -16555,11 +16559,13 @@ _EC_SONDE = _lire(ROOT / "scripts" / "patch_bundle_dzcout.py")
 # -> 135 (L4, T4 : DeliverRow + rangeFrom dans L4b, deliverPayload dans L4c2).
 # -> 139 (L7 D-10, T1, 24/09/2026 : kmPreset + kmExport + kmImport dans L7a3, voisins dans le repli L7a2 de R_R2).
 # -> 142 (L7 D-6, T2, 24/09/2026 : clipCopy + clipPaste + modeLabel dans le repli L7b2 de R_R2).
-check("EC_la_sonde_dzcout_compte_DzTracks_142",
-      _EC_SONDE.count('("montage", "DzTracks", 142),') == 1 and _EC_SONDE.count('("montage", "DzTracks", 139),') == 0
+# -> 144 (L7 D-8, T3, 24/09/2026 : boringDef + boring dans le repli L7c1 de _EB7_ETAT / R_EB6B).
+check("EC_la_sonde_dzcout_compte_DzTracks_144",
+      _EC_SONDE.count('("montage", "DzTracks", 144),') == 1 and _EC_SONDE.count('("montage", "DzTracks", 142),') == 0
+      and _EC_SONDE.count('("montage", "DzTracks", 139),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 135),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 132),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 129),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 128),') == 0
-      and _EC_SONDE.count('("montage", "DzTracks", 123),') == 0 and s.count("DzTracks") == 142,
+      and _EC_SONDE.count('("montage", "DzTracks", 123),') == 0 and s.count("DzTracks") == 144,
       f"sonde={_EC_SONDE.count(chr(40) + chr(34) + 'montage')} bundle={s.count('DzTracks')}")
 
 print("\n[EC] E-7 : les trois vues Medias · Montage · Livraison (lot E-C, tache 3)")
@@ -17084,7 +17090,8 @@ check("L7a2_dispatch_trans_add_replie_dans_R_R2_apres_adjust_add_sel_V1_verrou_v
 _L7A3 = [t for t in P.L7A if t[0].startswith("L7a3")]
 check("L7a3_section_unique_en_queue_de_PATCHES_ancre_libre_1_0_1_remplacement_x1",
       # 24/09/2026 (L7 D-6 revue I-1) : L7b3 rejoint L7A en queue -- L7a3 est la premiere des deux
-      len(P.L7A) == 2 and len(_L7A3) == 1 and P.PATCHES[-2:] == P.L7A and P.PATCHES[-3] == P.L4[-1]
+      # 24/09/2026 (L7 D-8, T3) : L7c3 rejoint L7A en queue -- trois sections, L7a3 toujours la premiere
+      len(P.L7A) == 3 and len(_L7A3) == 1 and P.PATCHES[-3:] == P.L7A and P.PATCHES[-4] == P.L4[-1]
       # l'ancre (le commentaire) est CONSERVEE en queue du remplacement : x1 dans le livre
       and s.count(nl(_L7A3[0][1])) == 1 and s.count(nl(_L7A3[0][2])) == 1 and _L7A3[0][2].endswith(_L7A3[0][1])
       and (_bak.count(_nlb(_L7A3[0][1])) == 1 and _bak.count(_nlb(_L7A3[0][2])) == 0 if _bak else False)
@@ -17245,9 +17252,106 @@ check("L7b_la_couche_clipCopy_pisteCible_clipPaste_nocopy_exports_rubrique_Editi
           "function dzmClipCopy(c){", "function dzmClipPisteCible(tracks,tr){", "function dzmClipPaste(clips,payload,opts){",
           'var DZM_CLIP_NOCOPY=["id","transition","transition_s","src_history"];',
           "clipCopy:dzmClipCopy,clipPaste:dzmClipPaste,", 'copy:"Édition",paste:"Édition",'))
-      and len(P.L7A) == 2 and P.PATCHES[-2:] == P.L7A and sum(1 for _t in P.PATCHES if _t[0].startswith("L7b")) == 1
+      # 24/09/2026 (L7 D-8, T3) : L7c3 en queue -- trois sections dans L7A, toujours une seule L7b
+      and len(P.L7A) == 3 and P.PATCHES[-3:] == P.L7A and sum(1 for _t in P.PATCHES if _t[0].startswith("L7b")) == 1
       and (_bak.count("dzmClipCopy") == 0 and _bak.count("dzmClipPaste") == 0 and _bak.count("DZM_CLIP_NOCOPY") == 0 if _bak else False),
       f"pures={[s.count(k) for k in ('function dzmClipCopy(c){', 'function dzmClipPaste(clips,payload,opts){')]} sections={[p[0] for p in P.PATCHES[-2:]]}")
+
+print("\n[L7] D-8 tache 3 : boring detector, plans trop longs et jump cuts sur V1 (24/09/2026)")
+# ── L7 D-8 (24/09/2026, tache 3). MESURES : (1) les trois ancres du plan (`"data-kind"`, l'etat showDur,
+# l'entree « Durées sur les clips ») sont x0 dans .bak_montage -- nees des remplacements R_AJ6A, R_EB6B
+# (_EB7_ETAT) et R_EC1 -> L7c1 (etat + attribut) et L7c2 (menu) sont REPLIEES, UNE section neuve L7c3 (le
+# popover, ancre libre 1/0/1 : le commentaire de popover(), sa tete, sa garde), 173 -> 174 ancres ; (2) `clips`
+# nait B:1708, AVANT l'etat E-9 : la memo lit un etat declare ; (3) popover() rend pour TOUT pop non vide
+# (isR sinon Preview) : la garde delegue a boringPopover() AVANT isR ; le rendu, le voile et Echap sont ceux
+# de pop (R_EA5E, R_EB5A, dzScrimRef) -- rien d'autre a cabler ; (4) fieldNum est une closure d'ovInspector,
+# hors de portee : les deux champs reprennent sa forme (svm-transdur + type number) ; (5) dzmSrcKey EXISTAIT
+# dans la couche (le juge du jumeau) : reutilisee, pas redefinie.
+_L7C1S = ('  var stBo=x.useState(function(){var d=Object.assign({on:!1},DzTracks.boringDef);'
+          'try{return Object.assign(d,JSON.parse(localStorage.getItem("dz_svm_boring")||"{}")||{})}catch(_e){return d}}),bo=stBo[0],setBo=stBo[1];')
+_L7C1M = '  var boMap=x.useMemo(function(){return bo.on?DzTracks.boring(clips,bo):{}},[clips,bo]);'
+_L7C1A = '                    "data-boring":boMap[c.id]||void 0,'
+_L7C2 = '        {lbl:"Plans trop longs / jump cuts…",combo:bo.on?"actif":"",run:function(){setPop("boring")}},'
+_iBoS = s.find(nl(_L7C1S)); _iBoM = s.find(nl(_L7C1M)); _iBoClips = s.find("var st1=x.useState(svmDemoClips),clips=st1[0]")
+_iBoTd = s.find(nl("  function tlDown(e){")); _iBoFin = s.find("var stDzFin=x.useState(null)")
+check("L7c1_etat_bo_et_memo_boMap_replies_en_queue_de_EB7_ETAT_apres_tlDown_avant_stDzFin_clips_declare_avant_une_reference_boringDef",
+      s.count(nl(_L7C1S)) == 1 and s.count(nl(_L7C1M)) == 1 and _L7C1S in P._EB7_ETAT and _L7C1M in P._EB7_ETAT
+      and P.R_EB6B.endswith(P._EB7_ETAT) and 0 < _iBoClips < _iBoTd < _iBoS < _iBoM < _iBoFin
+      and s.count("DzTracks.boringDef") == 1 and s.count("DzTracks.boring(") == 1
+      and s.count('localStorage.getItem("dz_svm_boring")') == 1 and _L7C1S.count("try{") == 1 and _L7C1S.count("}catch(_e){return d}") == 1
+      # UNE memo de plus que le .bak (mesure : 16 -> 17)
+      and (_bak.count("dz_svm_boring") == 0 and _bak.count("boMap") == 0 and s.count("x.useMemo(") == _bak.count("x.useMemo(") + 1 == 17 if _bak else False),
+      f"etat={s.count(nl(_L7C1S))} memo={s.count(nl(_L7C1M))} ordre={(_iBoClips, _iBoTd, _iBoS, _iBoM, _iBoFin)} useMemo={s.count('x.useMemo(')}")
+_iBoA = s.find(nl(_L7C1A)); _iBoK = s.find(nl('                    "data-kind":c.kind||void 0,'))
+check("L7c1_data_boring_x1_sur_svm_clip_juste_apres_data_kind_replie_dans_R_AJ6A_undefined_ailleurs_que_V1",
+      s.count(nl(_L7C1A)) == 1 and _L7C1A in P.R_AJ6A and 0 < _iBoK < _iBoA < _iBoK + 80
+      # x2 dans le livre : l'attribut et le commentaire du bloc pur de la couche (x1 dans le fichier)
+      and s.count("data-boring") == 2 and src.count("data-boring") == 1 and s.count("boMap[c.id]") == 1
+      and (_bak.count("data-boring") == 0 and _bak.count('"data-kind":c.kind||void 0,') == 0 if _bak else False),
+      f"attr={s.count(nl(_L7C1A))} ordre={(_iBoK, _iBoA)} token={s.count('data-boring')}")
+_iBo2 = s.find(nl(_L7C2)); _iBoDur = s.find('{lbl:"Durées sur les clips",combo:showDur?'); _iBoAnc = s.find('{lbl:"Ancrer la barre d\'outils",combo:dzTbDock?')
+check("L7c2_entree_Affichage_Plans_trop_longs_jump_cuts_replie_dans_R_EC1_entre_Durees_et_Ancrer_ouvre_le_popover_pas_de_coche",
+      s.count(nl(_L7C2)) == 1 and _L7C2 in P.R_EC1 and 0 < _iBoDur < _iBo2 < _iBoAnc and _iBoAnc - _iBoDur < 600
+      and s.count('setPop("boring")') == 1 and s.count('combo:bo.on?"actif":""') == 1 and P.R_EC1.count('?"✓":""') == 5
+      and (_bak.count("jump cuts") == 0 and _bak.count('setPop("boring")') == 0 if _bak else False),
+      f"entree={s.count(nl(_L7C2))} ordre={(_iBoDur, _iBo2, _iBoAnc)}")
+_L7C3 = [t for t in P.L7A if t[0].startswith("L7c3")]
+_iBoG = s.find(nl("  function popover(){\n    if(!pop)return null;")); _iBoD = s.find(nl('    if(pop==="boring")return boringPopover();'))
+_iBoR = s.find('    var isR=pop==="render";'); _iBoF = s.find("  function boringPopover(){")
+_iBoFe = min([v for v in (s.find(nl("\n  var "), _iBoF + 1), s.find(nl("\n  function "), _iBoF + 1), s.find(nl("\n  /* "), _iBoF + 1)) if v >= 0] or [-1]) if _iBoF >= 0 else -1
+_BOP = s[_iBoF:_iBoFe] if 0 <= _iBoF < _iBoFe else ""
+check("L7c3_section_en_queue_ancre_libre_1_0_1_conservee_boringPopover_defini_avant_popover_et_delegue_par_sa_garde_avant_isR",
+      len(_L7C3) == 1 and P.PATCHES[-1] == _L7C3[0] and s.count(nl(_L7C3[0][1])) == 1 and s.count(nl(_L7C3[0][2])) == 1
+      and _L7C3[0][2].endswith('    if(pop==="boring")return boringPopover();') and _L7C3[0][1] in _L7C3[0][2]
+      and 0 < _iBoF < _iBoG < _iBoD < _iBoR < _iBoD + 120 and s.count("function boringPopover(){") == 1 and s.count("boringPopover()") == 2
+      and sum(1 for _t in P.PATCHES if _L7C3[0][1] in _t[2] and _t[0] != _L7C3[0][0]) == 0
+      # le rendu, le voile et Echap sont ceux de pop : inchanges
+      and s.count(nl("    popover(),")) == 1 and s.count('(pop||dzFin||dzMenu)?r.jsx("div",{className:"svm-modescrim"') == 1
+      and s.count('if(dzScrimRef.current){e.preventDefault();setPop("");setDzFin(null);setDzMenu(null);return}') == 1
+      and (_bak.count(_nlb(_L7C3[0][1])) == 1 and _bak.count(_nlb(_L7C3[0][2])) == 0 and _bak.count("boringPopover") == 0 if _bak else False),
+      f"n={len(_L7C3)} ordre={(_iBoF, _iBoG, _iBoD, _iBoR)} def={s.count('function boringPopover(){')} bak={_bak.count('boringPopover') if _bak else '?'}")
+# le corps du popover : svm-pop, racine qui arrete le clic (EB5b), case « Activer », deux champs numeriques
+# bornes (2..60 s, 1..60 images) de la forme de fieldNum, compte des plans, « Fermer » titre ; l'ecriture
+# dz_svm_boring x1 (try/catch, les trois cles seulement) ; aucun DzTracks (la carte vient de boMap)
+check("L7c3_popover_svm_pop_arrete_le_clic_case_Activer_deux_champs_bornes_compte_Fermer_titre_ecrit_dz_svm_boring_x1_try_catch",
+      0 < len(_BOP) < 3200 and _BOP.count('className:"svm-pop svm-boringpop",onClick:function(e){e.stopPropagation()}') == 1
+      and _BOP.count('r.jsx("div",{className:"svm-poptitle",children:"Plans trop longs / jump cuts"})') == 1
+      and _BOP.count('r.jsx("input",{type:"checkbox",checked:!!bo.on,onChange:function(e){boSet({on:!!e.target.checked})}})') == 1
+      and _BOP.count('r.jsx("input",{className:"svm-transdur",type:"number",min:2,max:60,step:1,value:bo.maxS,') == 1
+      and _BOP.count('r.jsx("input",{className:"svm-transdur",type:"number",min:1,max:60,step:1,value:bo.minFrames,') == 1
+      and _BOP.count('onChange:function(e){boNum("maxS",2,60,e.target.value)}') == 1 and _BOP.count('onChange:function(e){boNum("minFrames",1,60,e.target.value)}') == 1
+      and _BOP.count("function boNum(k,lo,hi,raw){var v=Math.round(Number(raw));if(!isFinite(v))return;var p={};p[k]=Math.min(hi,Math.max(lo,v));boSet(p)}") == 1
+      and _BOP.count('try{localStorage.setItem("dz_svm_boring",JSON.stringify({on:!!n.on,maxS:n.maxS,minFrames:n.minFrames}))}catch(_e){}') == 1
+      and _BOP.count('r.jsx("button",{className:"svm-secbtn",title:"Fermer ce panneau (Échap)",onClick:function(){setPop("")},children:"Fermer"})') == 1
+      and _BOP.count("title:") == 4 and _BOP.count("DzTracks") == 0 and _BOP.count("boMap") == 3
+      and s.count('localStorage.setItem("dz_svm_boring",') == 1 and s.count("dz_svm_boring") == 5 and src.count("dz_svm_boring") == 1
+      # fieldNum reste la closure d'ovInspector (x1), jamais recopiee ni hissee
+      and s.count("function fieldNum(props){") == 1 and _BOP.count("fieldNum") == 0,
+      f"corps={len(_BOP)} titles={_BOP.count('title:')} set={s.count(chr(108) + 'ocalStorage.setItem(' + chr(34) + 'dz_svm_boring')} cle={s.count('dz_svm_boring')}")
+# la feuille : les deux liseres dans montage.css (x1 chacun, x0 dans la couche et x0 dans son-vfx-montage.css,
+# lue en TEMOIN : .svm-clip y existe et n'y porte aucun outline -- rien ne se dispute avec la selection, qui
+# est un border-color inline) ; un OUTLINE negatif, jamais une bordure
+_L7_CSS = ('.dzsvm .svm-clip[data-boring="long"]{outline:1px dashed #9a9a9a;outline-offset:-1px}',
+           '.dzsvm .svm-clip[data-boring="jump"]{outline:2px solid #e0443e;outline-offset:-2px}')
+_L7_SV = _lire(ROOT / "frontend" / "dist" / "shared" / "son-vfx-montage.css")
+check("L7c_css_liseres_long_et_jump_x1_dans_montage_css_x0_couche_x0_son_vfx_temoin_svm_clip_sans_outline_ni_data_sel",
+      all(_css.count(k) == 1 and src.count(k) == 0 and _L7_SV.count(k) == 0 for k in _L7_CSS)
+      and _css.count("[data-boring=") == 2 and _L7_SV.count("[data-boring=") == 0 and _L7_SV.count(".svm-clip{") == 1
+      and re.search(r"\.svm-clip[^{\n]*\{[^}]*outline", _L7_SV) is None and _L7_SV.count("outline") >= 2
+      # la selection du clip est le border-color inline, pas un attribut data-sel (mesure autour de l'attribut :
+      # `data-sel` vit ailleurs dans le bundle, x14, jamais sur .svm-clip)
+      and s.count('borderColor:isSel?"var(--accent)"') == 1 and _iBoA > 0 and s[_iBoA - 1500:_iBoA + 1500].count("data-sel") == 0 and s.count("data-sel") > 0
+      and _css.count(".dzsvm .svm-boringon{") == 1 and _css.count(".dzsvm .svm-boringrow .svm-fxeditname{") == 1,
+      f"css={[_css.count(k) for k in _L7_CSS]} sv={_L7_SV.count('[data-boring=')} outlines_sv={_L7_SV.count('outline')}")
+# la couche : le defaut, les trois pures, les exports, dzmSrcKey reutilisee (x1 defini, x1 exporte) -- dans le bundle
+# comme dans le fichier ; le bloc pur ne touche ni r ni x
+check("L7c_la_couche_boringDef_boringOpts_boringKey_boring_exports_x1_bundle_et_fichier_dzmSrcKey_reutilisee",
+      all(s.count(k) == 1 and src.count(k) == 1 for k in (
+          "var DZM_BORING_DEF={maxS:8,minFrames:12,fps:30};", "function dzmBoringOpts(opts){", "function dzmBoringKey(c){",
+          "function dzmBoring(clips,opts){", "boring:dzmBoring,boringDef:DZM_BORING_DEF,", "function dzmSrcKey(src){", "srcKey:dzmSrcKey,"))
+      and s.count("dzmVoisins(v,c).g") == 1 and src.count("dzmVoisins(v,c).g") == 1
+      and (_bak.count("dzmBoring") == 0 and _bak.count("DZM_BORING_DEF") == 0 if _bak else False),
+      f"pures={[s.count(k) for k in ('function dzmBoringOpts(opts){', 'function dzmBoring(clips,opts){')]}")
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

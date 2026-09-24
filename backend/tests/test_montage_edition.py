@@ -928,6 +928,42 @@ out.cp_start_refus=[_cp(C,null,{}),_cp(C,{v:1,clip:out.cc},{head:10,tracks:TS,mo
 out.cp_pur=[C.length,C.map(function(c){return c.id}).join(","),out.cc.tr,out.cc.start,out.cc.id];
 out.cp_menu=T.menuModel([{id:"copy",sec:"Montage",lbl:"c",combo:"Ctrl+C"},{id:"paste",sec:"Montage",lbl:"p",combo:"Ctrl+V"},{id:"blade",sec:"Montage",lbl:"b",combo:"Alt+C"}],null)
   .map(function(g){return [g.rub,g.items.map(function(i){return i.id}).join(",")]});
+/* ── [27] L7 D-8 (24/09/2026) : boring detector — plans trop longs et jump cuts sur V1 ── */
+var CLB=[{id:"a",tr:"v1",start:0,end:10,srcIn:0,src:{job_id:"j1"}},{id:"b",tr:"v1",start:10,end:12,srcIn:10.2,src:{job_id:"j1"}},
+  {id:"c",tr:"v1",start:12,end:15,srcIn:0,src:{job_id:"j2"}},{id:"d",tr:"a1",start:0,end:30,src:{audio:"x"}}];
+var _clb0=JSON.stringify(CLB);
+var _bj=function(a,b){return [{id:"a",tr:"v1",start:0,end:2,srcIn:0,src:{job_id:"j"}},Object.assign({id:"b",tr:"v1",start:2,end:4,srcIn:2,src:{job_id:"j"}},a,b||{})]};
+out.bo=T.boring(CLB,{maxS:8,minFrames:12,fps:30});
+out.bo_defaut=T.boring(CLB);
+out.bo_def=T.boringDef;
+out.bo_def_pur=(function(){var d=T.boringDef,m=Object.assign({},d);m.maxS=1;var r=T.boring(CLB,m);return [r.a||null,r.b||null,r.c||null,d.maxS,T.boring(CLB).c||null]})();
+out.bo_loin=T.boring(CLB,{maxS:8,minFrames:3});
+out.bo_vide=[T.boring([]),T.boring(null),T.boring(void 0),T.boring("x"),T.boring([null,7,"x"]),T.boring([{tr:"v1",start:0,end:99}])];
+out.bo_long_et_jump=T.boring([{id:"a",tr:"v1",start:0,end:10,srcIn:0,src:{job_id:"j1"}},{id:"b",tr:"v1",start:10,end:20,srcIn:10,src:{job_id:"j1"}}]);
+out.bo_egal=T.boring([{id:"a",tr:"v1",start:0,end:8,src:{job_id:"j1"}},{id:"b",tr:"v1",start:8,end:16.001,src:{job_id:"j2"}}]);
+/* seuil : 12 images à 30 i/s = 0,4 s — 2.4 est AU seuil (pas un jump, flottant compris), 2.3 est dessous */
+out.bo_seuil=[T.boring(_bj({srcIn:2.4})),T.boring(_bj({srcIn:2.3})),T.boring(_bj({srcIn:1.7})),T.boring(_bj({srcIn:1.6}))];
+/* contact : la tolérance de dzmVoisins (0,1 s) — 2.1 touche, 2.5 non ; un chevauchement n'est pas un contact */
+out.bo_contact=[T.boring(_bj({start:2.1})),T.boring(_bj({start:2.5})),T.boring(_bj({start:1.5,srcIn:1.5}))];
+/* sources : deux images identiques en contact = jump (une image n'a pas de position de source), deux images
+   différentes non, sans source rien, job et image homonymes ne se confondent pas, audio hors V1 */
+out.bo_sources=[T.boring(_bj({src:{image:"i"},srcIn:0},{})).b||null,
+  T.boring([{id:"a",tr:"v1",start:0,end:2,src:{image:"i"}},{id:"b",tr:"v1",start:2,end:4,src:{image:"i"}}]),
+  T.boring([{id:"a",tr:"v1",start:0,end:2,src:{image:"i"}},{id:"b",tr:"v1",start:2,end:4,src:{image:"k"}}]),
+  T.boring([{id:"a",tr:"v1",start:0,end:2},{id:"b",tr:"v1",start:2,end:4}]),
+  T.boring([{id:"a",tr:"v1",start:0,end:2,src:{job_id:"j"}},{id:"b",tr:"v1",start:2,end:4,srcIn:2,src:{image:"j"}}]),
+  T.boring([{id:"a",tr:"v1",start:0,end:2,src:{}},{id:"b",tr:"v1",start:2,end:4,src:{}}])];
+out.bo_v2=[T.boring([{id:"a",tr:"v2",start:0,end:20,srcIn:0,src:{job_id:"j"}},{id:"b",tr:"v2",start:20,end:22,srcIn:20,src:{job_id:"j"}}]),
+  T.boring([{id:"a",tr:"v1",start:0,end:2,srcIn:0,src:{job_id:"j"}},{id:"b",tr:"v2",start:2,end:4,srcIn:2,src:{job_id:"j"}}])];
+/* vitesse : à ×2, 5 s de timeline consomment 10 s de source — le plan suivant repris à 10 est un jump ; à ×1 non */
+out.bo_vitesse=[T.boring([{id:"a",tr:"v1",start:0,end:5,srcIn:0,speed:2,src:{job_id:"j"}},{id:"b",tr:"v1",start:5,end:7,srcIn:10,src:{job_id:"j"}}]),
+  T.boring([{id:"a",tr:"v1",start:0,end:5,srcIn:0,src:{job_id:"j"}},{id:"b",tr:"v1",start:5,end:7,srcIn:10,src:{job_id:"j"}}]),
+  T.boring([{id:"a",tr:"v1",start:0,end:5,srcIn:0,speed:"zz",src:{job_id:"j"}},{id:"b",tr:"v1",start:5,end:7,srcIn:5,src:{job_id:"j"}}])];
+out.bo_desordre=T.boring(CLB.slice().reverse());
+out.bo_pur=[JSON.stringify(CLB)===_clb0,CLB.map(function(c){return c.id}).join(",")];
+/* options : illisibles, nulles ou négatives → défaut ; maxS 20 ne laisse que le jump ; fps 60 resserre le seuil (12/60 = 0,2 : 10.2 est AU seuil) */
+out.bo_opts=[T.boring(CLB,{maxS:"zz"}),T.boring(CLB,{maxS:0}),T.boring(CLB,{maxS:-3,minFrames:null}),T.boring(CLB,{maxS:20}),
+  T.boring(CLB,{fps:0}),T.boring(CLB,{minFrames:-1}),T.boring(CLB,{fps:60}),T.boring(CLB,"zz"),T.boring(CLB,7)];
 console.log(JSON.stringify(out));
 """
 # E-9 : svmRuler / svmPad2 sont des fonctions DU BUNDLE (meme portee module que
@@ -1178,7 +1214,10 @@ try:
                  "cp_genre_absent","cp_vide","cp_v0","cp_verrou","cp_mou","cp_sans_pistes","cp_head","cp_len0","cp_id_pris",
                  "cp_remplir","cp_remplir_srcdur","cp_pur","cp_menu",
                  # revue 24/09 : I-2, M-2, M-1
-                 "cp_sans_source","cp_homonyme","cp_start","cp_start_refus"]
+                 "cp_sans_source","cp_homonyme","cp_start","cp_start_refus",
+                 # L7 D-8 (tache 3) : les SEIZE cles de la section [27].
+                 "bo","bo_defaut","bo_def","bo_def_pur","bo_loin","bo_vide","bo_long_et_jump","bo_egal","bo_seuil",
+                 "bo_contact","bo_sources","bo_v2","bo_vitesse","bo_desordre","bo_pur","bo_opts"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -2498,6 +2537,60 @@ check("l7b_coeur_pur_x3_nocopy_ecrit_une_fois_paste_par_dzmInsere_et_dzmUniqueId
       ({n: len(c) for n, c in _L7B.items()}, _SRCb.count("DZM_CLIP_NOCOPY")))
 check("l7b_exports_clipCopy_clipPaste_dans_DzTracks",
       len(_DT) > 1000 and _DT.count("clipCopy:dzmClipCopy,clipPaste:dzmClipPaste,") == 1, len(_DT))
+
+print("\n[27] L7 D-8 : boring detector, plans trop longs et jump cuts sur V1 (tache 3, 24/09/2026)")
+# ── L7 D-8 (24/09/2026, tache 3). dzmBoring(clips, opts) pur -> {id: "long"|"jump"} sur V1 SEULEMENT :
+# `long` = duree > maxS (strict : 8 s n'est pas long) ; `jump` = deux clips V1 en CONTACT (la tolerance de
+# dzmVoisins, 0,1 s, REUTILISEE : pas de seconde regle de contact), meme source, et la reprise de source
+# a moins de minFrames images : |srcIn_droit - (srcIn_gauche + len_gauche x vitesse)| x fps < minFrames.
+# Le jump PRIME sur le long (un seul attribut par clip, le defaut visible d'abord). MESURES qui precisent le
+# plan : (1) la comparaison se fait EN IMAGES avec un epsilon (2.4 - 2 vaut 0.3999... en flottant : au seuil,
+# pas un jump) ; (2) la vitesse du plan gauche compte (a x2, 5 s consomment 10 s de source) ; (3) une IMAGE
+# n'a pas de position de source : deux images identiques en contact sont un jump quel que soit srcIn ;
+# (4) les options illisibles, nulles ou negatives retombent sur le defaut, et DZM_BORING_DEF n'est jamais
+# mute (copie) ; (5) l'ordre d'arrivee des clips est indifferent, et ils ne sont pas mutes.
+_BO_AB = {"a": "long", "b": "jump"}
+check("bo_a_long_10_s_b_jump_meme_source_reprise_a_0_2_s_c_change_de_source_d_hors_V1",
+      D.get("bo") == _BO_AB and D.get("bo_defaut") == _BO_AB, (D.get("bo"), D.get("bo_defaut")))
+check("bo_def_exporte_maxS_8_minFrames_12_fps_30_et_jamais_mute_par_les_options",
+      D.get("bo_def") == {"maxS": 8, "minFrames": 12, "fps": 30} and D.get("bo_def_pur") == ["long", "jump", "long", 8, None],
+      (D.get("bo_def"), D.get("bo_def_pur")))
+check("bo_loin_3_images_0_1_s_l_ecart_de_0_2_s_n_est_plus_un_jump_a_reste_long", D.get("bo_loin") == {"a": "long"}, D.get("bo_loin"))
+check("bo_vide_tableau_vide_null_undefined_chaine_entrees_mortes_et_clip_sans_id_rendent_un_objet_vide",
+      D.get("bo_vide") == [{}] * 6, D.get("bo_vide"))
+check("bo_long_et_jump_le_jump_prime_sur_le_long", D.get("bo_long_et_jump") == _BO_AB, D.get("bo_long_et_jump"))
+check("bo_egal_8_s_exactement_n_est_pas_long_8_001_l_est", D.get("bo_egal") == {"b": "long"}, D.get("bo_egal"))
+check("bo_seuil_12_images_a_30_i_s_2_4_au_seuil_non_2_3_oui_symetrique_1_7_oui_1_6_non",
+      D.get("bo_seuil") == [{}, {"b": "jump"}, {"b": "jump"}, {}], D.get("bo_seuil"))
+check("bo_contact_tolerance_de_dzmVoisins_2_1_touche_2_5_non_un_chevauchement_n_est_pas_un_contact",
+      D.get("bo_contact") == [{"b": "jump"}, {}, {}], D.get("bo_contact"))
+check("bo_sources_job_vs_image_differents_deux_images_identiques_jump_differentes_non_sans_source_rien_src_vide_rien",
+      D.get("bo_sources") == [None, {"b": "jump"}, {}, {}, {}, {}], D.get("bo_sources"))
+check("bo_v2_les_pistes_autres_que_V1_ne_sont_jamais_jugees_ni_entre_elles_ni_contre_V1", D.get("bo_v2") == [{}, {}], D.get("bo_v2"))
+check("bo_vitesse_x2_consomme_le_double_de_source_reprise_a_10_est_un_jump_x1_non_vitesse_illisible_vaut_1",
+      D.get("bo_vitesse") == [{"b": "jump"}, {}, {"b": "jump"}], D.get("bo_vitesse"))
+check("bo_desordre_l_ordre_d_arrivee_est_indifferent_et_les_clips_ne_sont_pas_mutes",
+      D.get("bo_desordre") == _BO_AB and D.get("bo_pur") == [True, "a,b,c,d"], (D.get("bo_desordre"), D.get("bo_pur")))
+check("bo_opts_illisibles_nulles_negatives_defaut_maxS_20_ne_laisse_que_le_jump_fps_60_resserre_le_seuil",
+      D.get("bo_opts") == [_BO_AB, _BO_AB, _BO_AB, {"b": "jump"}, _BO_AB, _BO_AB, {"a": "long"}, _BO_AB, _BO_AB], D.get("bo_opts"))
+# LE COEUR RESTE PUR : quatre fonctions sans r/x/stockage/fenetre/document/fetch ; le defaut est ecrit UNE fois ;
+# le contact vient de dzmVoisins (x1, jamais recopie) ; "long" x1, "jump" x2 (image, puis seuil) ; exports x1.
+# MESURE contre le plan : `dzmSrcKey` EXISTAIT (couche :2886, la cle JSON canonique de `src`, exportee `srcKey`,
+# le juge du jumeau) -- pas de seconde definition (node --check refusait le doublon) : dzmBoringKey l'appelle x1.
+_L7C = {n: _corps(n) for n in ("dzmBoringOpts", "dzmBoringKey", "dzmBoring")}
+check("l7c_coeur_pur_x3_defaut_ecrit_une_fois_contact_par_dzmVoisins_x1_source_par_dzmSrcKey_x1_long_x1_jump_x2_seuil_en_images_avec_epsilon",
+      all(len(c) > 60 and not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|fetch\(", c) for c in _L7C.values())
+      # x5 : la definition, deux lectures dans dzmBoringOpts (copie, puis les cles), l'export, le commentaire du bloc
+      and _SRCb.count("var DZM_BORING_DEF={maxS:8,minFrames:12,fps:30};") == 1 and _SRCb.count("DZM_BORING_DEF") == 5
+      and _SRCb.count("function dzmSrcKey(") == 1 and _SRCb.count("srcKey:dzmSrcKey,") == 1
+      and _L7C["dzmBoring"].count("dzmVoisins(") == 1 and _L7C["dzmBoring"].count("dzmBoringKey(") == 2 and _L7C["dzmBoring"].count("dzmBoringOpts(") == 1
+      and _L7C["dzmBoring"].count('"long"') == 1 and _L7C["dzmBoring"].count('"jump"') == 2 and _L7C["dzmBoring"].count('c.tr==="v1"') == 1
+      and _L7C["dzmBoring"].count(">o.maxS)") == 1 and _L7C["dzmBoring"].count("*o.fps<o.minFrames-1e-6)") == 1
+      and _L7C["dzmBoring"].count("c.src.image&&!c.src.job_id") == 1
+      and _L7C["dzmBoringOpts"].count("isFinite(v)&&v>0") == 1 and _L7C["dzmBoringKey"].count("dzmSrcKey(") == 1 and _L7C["dzmBoringKey"].count("Object.keys(") == 1,
+      ({n: len(c) for n, c in _L7C.items()}, _SRCb.count("DZM_BORING_DEF")))
+check("l7c_exports_boring_boringDef_dans_DzTracks",
+      len(_DT) > 1000 and _DT.count("boring:dzmBoring,boringDef:DZM_BORING_DEF,") == 1, len(_DT))
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

@@ -4437,7 +4437,11 @@ R_AJ2B = ('          setDirty(!0)}})]});\n'
 # ligne de montage.css.
 A_AJ6A = '                    "data-media":media&&tr.id==="v1"?"":void 0,'
 R_AJ6A = (A_AJ6A + '\n'
-          '                    "data-kind":c.kind||void 0,')
+          '                    "data-kind":c.kind||void 0,\n'
+          # L7 D-8 (24/09/2026, tache 3) : L7c1 REPLIE ici (l'ancre `"data-kind"` du plan est nee de CE
+          # remplacement, x0 dans .bak_montage). La carte boMap n'a d'entrees que pour V1 : undefined =
+          # attribut absent ailleurs, comme data-kind ; montage.css dessine le lisere.
+          '                    "data-boring":boMap[c.id]||void 0,')
 A_AJ6B = ('background:isPh?"repeating-linear-gradient(-45deg,transparent 0 5px, '
           'color-mix(in srgb, var("+tr.c+") 26%, transparent) 5px 6px)":')
 R_AJ6B = ('background:isPh||c.kind==="adjust"?"repeating-linear-gradient(-45deg,transparent 0 5px, '
@@ -4694,7 +4698,16 @@ _EB7_ETAT = ('\n'
              'w.removeEventListener("pointercancel",up);\n'
              '      try{if(last!=null)localStorage.setItem("dz_svm_tlh",String(last))}catch(_e){}}\n'
              '    w.addEventListener("pointermove",mv);w.addEventListener("pointerup",up);'
-             'w.addEventListener("pointercancel",up)}')
+             'w.addEventListener("pointercancel",up)}\n'
+             # L7 D-8 (24/09/2026, tache 3) : L7c1 REPLIE ici (l'etat vit avec ses freres E-9 ; `clips`
+             # nait B:1708, AVANT : la memo lit un etat declare). Le defaut vient de la couche (boringDef,
+             # UNE reference), la memoire dz_svm_boring est lue en try/catch ; la carte id -> "long"|"jump"
+             # est memoisee sur [clips,bo] et VIDE quand la detection est eteinte (aucun calcul, aucun attribut).
+             '  /* L7 D-8 (24/09/2026, tâche 3) : le boring detector — réglages {on,maxS,minFrames} (mémoire dz_svm_boring,\n'
+             '     défaut boringDef de la couche, éteint) et la carte id → "long"|"jump" de V1, mémoïsée sur [clips,bo], vide si éteint */\n'
+             '  var stBo=x.useState(function(){var d=Object.assign({on:!1},DzTracks.boringDef);'
+             'try{return Object.assign(d,JSON.parse(localStorage.getItem("dz_svm_boring")||"{}")||{})}catch(_e){return d}}),bo=stBo[0],setBo=stBo[1];\n'
+             '  var boMap=x.useMemo(function(){return bo.on?DzTracks.boring(clips,bo):{}},[clips,bo]);')
 
 A_EB6B = '  var stA=x.useState(""),pop=stA[0],setPop=stA[1];'
 R_EB6B = (A_EB6B + '\n'
@@ -4835,6 +4848,11 @@ R_EC1 = (A_EC1 + "\n"
          '        {lbl:"Inspecteur",combo:inspOn?"✓":"",run:function(){setInspSt(function(s){var n={on:!s.on,w:s.w};try{localStorage.setItem("dz_svm_insp",JSON.stringify(n))}catch(_e){}return n})}},\n'
          '        {lbl:"Médias",combo:medOn?"✓":"",run:function(){' + _EB_GARDE + 'setMedTr("");setMedOn(!medOn);setSfxOn(!1);setSubsOn(!1);setNarrOn(!1)}},\n'
          '        {lbl:"Durées sur les clips",combo:showDur?"✓":"",run:function(){setShowDur(function(v){var n=!v;try{localStorage.setItem("dz_svm_showdur",n?"1":"0")}catch(_e){}return n})}},\n'
+         # L7 D-8 (24/09/2026, tache 3) : L7c2 REPLIE ici (l'entree « Durées sur les clips » du plan est nee
+         # de CE remplacement, x0 dans .bak_montage) -- l'entree OUVRE le popover (setPop("boring")), la
+         # bascule est dans le popover ; « actif » dans la colonne des combos quand la detection est allumee
+         # (pas « ✓ » : ce n'est pas la bascule elle-meme, et le banc E-10 pinne les cinq coches).
+         '        {lbl:"Plans trop longs / jump cuts…",combo:bo.on?"actif":"",run:function(){setPop("boring")}},\n'
          # E-10 (lot E-C, tache 4) : la bascule d'ancrage de la barre (etat R_M11).
          '        {lbl:"Ancrer la barre d\'outils",combo:dzTbDock?"✓":"",run:function(){dzTbDockToggle()}}]);\n'
          '      return Object.assign(base,{rubs:rubs})}\n'
@@ -5163,8 +5181,55 @@ R_L7B3 = ('      if(id==="sounds_drawer"){if(svmSfx()){e.preventDefault();sfxTog
           '      if(id==="copy"&&window.getSelection&&String(window.getSelection())!=="")return;\n'
           '      e.preventDefault();\n'
           '      if(id==="keys_panel"){setKbOn(function(v){return !v});return}')
+# ══ L7 D-8 (24/09/2026, tache 3) — BORING DETECTOR : PLANS TROP LONGS ET JUMP CUTS ═
+# Le plan prevoyait trois sections ; MESURE sur .bak_montage : les trois ancres
+# du plan (`"data-kind"`, l'etat showDur, l'entree « Durées sur les clips ») sont
+# x0 -- nees des remplacements R_AJ6A, R_EB6B (_EB7_ETAT) et R_EC1 -> L7c1 et
+# L7c2 sont REPLIEES dans ces trois remplacements. Reste L7c3, ancre LIBRE
+# (1/0/1, trois lignes) : le commentaire de popover(), sa tete et sa garde
+# `if(!pop)return null;`. MESURE : popover() rend pour TOUT `pop` non vide
+# (`isR=pop==="render"`, sinon la forme Preview) -- un `pop==="boring"` y
+# tomberait dans l'aperçu 480p ; la garde du popover de rendu DELEGUE donc a
+# boringPopover() avant de lire isR. Le rendu reste `popover(),` (R_EA5E),
+# sous le voile (pop||...) et Echap (dzScrimRef) : rien d'autre a cabler.
+# Le popover : case « Activer », deux champs numeriques bornes (2..60 s,
+# 1..60 images -- la forme de fieldNum, closure d'ovInspector hors de portee :
+# `svm-transdur` + type number, meme classe), un compte des plans marques, un
+# « Fermer » titre (E-12) ; chaque changement est persiste (dz_svm_boring,
+# try/catch) et l'etat repart de bo -- la carte suit par la memo.
+A_L7C3 = ('  /* popover de confirmation — coût affiché avant tout déclenchement (règle produit) */\n'
+          '  function popover(){\n'
+          '    if(!pop)return null;')
+R_L7C3 = ('  /* L7 D-8 (24/09/2026, tâche 3) : le popover « Plans trop longs / jump cuts » (☰ › Affichage) — la case\n'
+          '     allume la carte, les deux champs bornent le juge, chaque changement est persisté (dz_svm_boring) */\n'
+          '  function boringPopover(){\n'
+          '    function boSet(p){setBo(function(b){var n=Object.assign({},b,p);try{localStorage.setItem("dz_svm_boring",JSON.stringify({on:!!n.on,maxS:n.maxS,minFrames:n.minFrames}))}catch(_e){}return n})}\n'
+          '    function boNum(k,lo,hi,raw){var v=Math.round(Number(raw));if(!isFinite(v))return;var p={};p[k]=Math.min(hi,Math.max(lo,v));boSet(p)}\n'
+          '    var nb=Object.keys(boMap).length,nj=Object.keys(boMap).filter(function(k){return boMap[k]==="jump"}).length;\n'
+          '    return r.jsxs("div",{className:"svm-pop svm-boringpop",onClick:function(e){e.stopPropagation()},children:[\n'
+          '      r.jsx("div",{className:"svm-poptitle",children:"Plans trop longs / jump cuts"}),\n'
+          '      r.jsx("div",{className:"svm-popnote",children:"Sur V1 : liseré gris pointillé = plan plus long que le seuil ; liseré rouge = jump cut (même source reprise presque au même point, à la coupe)."}),\n'
+          '      r.jsxs("label",{className:"svm-delrange svm-boringon",title:"Marquer sur la timeline les plans trop longs et les jump cuts de V1",children:[\n'
+          '        r.jsx("input",{type:"checkbox",checked:!!bo.on,onChange:function(e){boSet({on:!!e.target.checked})}})," Activer"]}),\n'
+          '      r.jsxs("div",{className:"svm-fadegain svm-boringrow",children:[\n'
+          '        r.jsx("span",{className:"svm-fxeditname",children:"Plus long que (s)"}),\n'
+          '        r.jsx("input",{className:"svm-transdur",type:"number",min:2,max:60,step:1,value:bo.maxS,title:"Un plan de V1 plus long que ce seuil (2 à 60 s) est marqué « long »",onChange:function(e){boNum("maxS",2,60,e.target.value)}})]}),\n'
+          '      r.jsxs("div",{className:"svm-fadegain svm-boringrow",children:[\n'
+          '        r.jsx("span",{className:"svm-fxeditname",children:"Jump cut si écart < (images)"}),\n'
+          '        r.jsx("input",{className:"svm-transdur",type:"number",min:1,max:60,step:1,value:bo.minFrames,title:"Deux plans V1 de la même source, en contact, dont la reprise est à moins de n images (1 à 60, à 30 i/s) : jump cut",onChange:function(e){boNum("minFrames",1,60,e.target.value)}})]}),\n'
+          '      r.jsx("div",{className:"svm-popnote",children:bo.on?(nb?nb+" plan"+(nb>1?"s":"")+" marqué"+(nb>1?"s":"")+" sur V1 ("+nj+" jump cut"+(nj>1?"s":"")+")":"Aucun plan à signaler sur V1"):"Détection éteinte"}),\n'
+          '      r.jsx("div",{className:"svm-poprow",children:\n'
+          '        r.jsx("button",{className:"svm-secbtn",title:"Fermer ce panneau (Échap)",onClick:function(){setPop("")},children:"Fermer"})})]})}\n'
+          + A_L7C3 + '\n'
+          '    if(pop==="boring")return boringPopover();')
 L7A = [("L7a3-preset-resolve-export-import-du-mappage", A_L7A3, R_L7A3),
-       ("L7b3-le-texte-selectionne-garde-son-Ctrl-C", A_L7B3, R_L7B3)]
+       ("L7b3-le-texte-selectionne-garde-son-Ctrl-C", A_L7B3, R_L7B3),
+       ("L7c3-popover-plans-trop-longs-jump-cuts", A_L7C3, R_L7C3)]
+assert A_L7C3 in R_L7C3 and R_L7C3.endswith('    if(pop==="boring")return boringPopover();') and R_L7C3.count("function boringPopover(){") == 1
+assert R_L7C3.count("title:") == 4 and R_L7C3.count('localStorage.setItem("dz_svm_boring",') == 1 and R_L7C3.count("DzTracks") == 0
+assert R_L7C3.count('className:"svm-transdur",type:"number"') == 2 and R_L7C3.count("boSet(") == 3 and R_L7C3.count("e.stopPropagation()") == 1
+assert _EB7_ETAT.count("DzTracks.boringDef") == 1 and _EB7_ETAT.count("DzTracks.boring(") == 1 and _EB7_ETAT.count('localStorage.getItem("dz_svm_boring")') == 1
+assert R_AJ6A.count('"data-boring":boMap[c.id]||void 0,') == 1 and R_EC1.count('run:function(){setPop("boring")}') == 1 and R_EC1.count('?"✓":""') == 5
 assert R_L7B3.count("window.getSelection") == 2 and R_L7B3.startswith(A_L7B3.split("\n")[0]) and R_L7B3.endswith(A_L7B3.split("\n")[2])
 assert R_L7A3.endswith(A_L7A3) and R_L7A3.count("svm-kbio") == 3 and R_L7A3.count("title:") == 3
 assert R_L7A3.count("setKmOv(") == 2 and R_L7A3.count("svmKmSave(") == 2 and R_L7A3.count("fireNote(") == 7

@@ -194,6 +194,11 @@ _TITRES = [
     'title:"Preset Resolve : pose O (sortie), Ctrl+B (lame), Alt+O (barre d\'outils) — Ctrl+T reste au navigateur, la transition est sur Alt+T",',
     'title:"Exporter les raccourcis personnalisés (deepotus-raccourcis.json)",',
     'title:"Importer un fichier de raccourcis JSON — les actions inconnues et les touches réservées sont ignorées",',
+    # L7 D-8 (24/09/2026, tache 3) : le popover « Plans trop longs / jump cuts » -- la case, les deux champs, « Fermer »
+    'title:"Marquer sur la timeline les plans trop longs et les jump cuts de V1",',
+    'title:"Un plan de V1 plus long que ce seuil (2 à 60 s) est marqué « long »",',
+    'title:"Deux plans V1 de la même source, en contact, dont la reprise est à moins de n images (1 à 60, à 30 i/s) : jump cut",',
+    'title:"Fermer ce panneau (Échap)",onClick:function(){setPop("")},children:"Fermer"',
 ]
 for t in _TITRES:
     check("R1_titre_pose_x1_" + re.sub(r"\W+", "_", t[6:40]).strip("_"),
