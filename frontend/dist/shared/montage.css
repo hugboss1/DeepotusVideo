@@ -1519,3 +1519,10 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
 .dzsvm .svm-track[data-burn] .svm-thead{box-shadow:inset 3px 0 0 var(--accent)}
 .dzsvm .svm-track[data-burn] .svm-tname::after{content:" ◉";color:var(--accent);font-size:10px;vertical-align:1px}
 .dzsvm .svm-track[data-sub]:not([data-burn]) .svm-tname{opacity:.72}
+/* L7-B D-40 (24/09/2026, tâche 4) : la section « Cadrage » des propriétés de plan — le mode actif est marqué (data-on,
+   aria-pressed), un mode grisé (source pas plus large que le cadre) garde son infobulle ; la chip d'analyse. */
+.dzsvm .dzm-rf{display:inline-flex;flex-wrap:wrap;align-items:center;gap:4px}
+.dzsvm .dzm-rf-mode[data-on="1"]{border-color:var(--accent);color:var(--ink-strong,#fff);box-shadow:inset 0 0 0 1px var(--accent)}
+.dzsvm .dzm-rf input[type=range]{width:110px;vertical-align:middle}
+.dzsvm .dzm-rf-st[data-st="busy"]{color:var(--amber,#e0a53f)}
+.dzsvm .dzm-rf-st[data-st="suivi"]{color:#3fbf5a}

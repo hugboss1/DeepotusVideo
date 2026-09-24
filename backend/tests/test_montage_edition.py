@@ -1119,6 +1119,46 @@ out.rx_bornes=[T.ratingNext(3,0),T.ratingNext(3,6),T.ratingNext(3,"2"),T.ratingN
 out.rx_suite=(function(){var v=0,s=[];[3,3,5,2,2].forEach(function(c){v=T.ratingNext(v,c);s.push(v)});return s})();
 /* les chips du tiroir : deux seuils, 3 puis 5, chacune avec un titre */
 out.rchips=typeof DZM_NOTE_CHIPS==="undefined"?null:DZM_NOTE_CHIPS.map(function(n){return [n[0],n[1],typeof n[2]==="string"&&n[2].length>10]});
+/* ── [34] L7-B D-40 (24/09/2026) : le cadrage d'un clip V1 — dzmReframeOf / At / K / Pos / Css purs ── */
+var RB={tr:"v1",id:"r",start:2,end:6,srcIn:1};
+function rof(rf,extra){return T.reframeOf(Object.assign({},RB,extra||{},{reframe:rf}))}
+function rfR6(v){return typeof v==="number"?Math.round(v*1e6)/1e6:v}
+/* centre, inconnu, illisible -> null ; manuel borné, chaîne numérique lue, booléen / vide / base 16 / absent -> null */
+out.rf_modes=[rof({mode:"centre"}),rof({mode:"zzz"}),rof(null),rof("suivi"),rof([1,2]),rof({mode:"manuel",x:.3}),
+  rof({mode:"manuel",x:1.7}),rof({mode:"manuel",x:-2}),rof({mode:"manuel",x:" 0.25 "}),rof({mode:"manuel",x:!0}),
+  rof({mode:"manuel"}),rof({mode:"manuel",x:"0x1"}),rof({mode:"manuel",x:""}),rof({mode:"manuel",x:NaN}),
+  T.reframeOf({tr:"v1"}),T.reframeOf(null)];
+/* suivi : t borné à [0, (end−start)×vitesse = 4], x à [0,1], illisibles ignorés, tri stable, doublons à 5 ms (le dernier gagne) */
+out.rf_suivi=rof({mode:"suivi",points:[{t:5,x:.9},{t:-1,x:.2},[2,1.5],{t:"x",x:.5},{t:1,x:null},{t:1.0001,x:.4},
+  {t:1.003,x:.45},[1,2,3],{t:9,x:.7},"z",null]});
+/* vitesse (la lecture de _v1_speed, e09552b) : ×2 -> dur 8 ; 10 -> bornée 4 (dur 16) ; 0 -> ×1 (dur 4) ; "2" lue ; sans start -> t borné à 0 seulement ;
+   0,1 -> 0,25 (dur 1) ; "inf" et Infinity -> 4 ; vrai -> 1 ; "nan", base 16, négatif -> 1 */
+out.rf_vitesse=[{speed:2},{speed:10},{speed:0},{speed:"2"},{start:null},{speed:.1},{speed:"inf"},{speed:Infinity},{speed:!0},{speed:"nan"},{speed:"0x2"},{speed:-3}].map(function(e){
+  var q=rof({mode:"suivi",points:[{t:7,x:.5}]},e);return q&&q.points[0].t});
+/* au plus 240 points, sous-échantillonnés régulièrement (500 -> 240 : premier, dernier, index 2 au second) */
+out.rf_cap=(function(){var m=[],i;for(i=0;i<500;i++)m.push({t:i/100,x:(i%10)/10});
+  var q=T.reframeOf({tr:"v1",start:0,end:10,reframe:{mode:"suivi",points:m}});return [q.points.length,q.points[0].t,q.points[239].t,q.points[1].t]})();
+/* l'arrondi du millième est celui de round(t, 3) du backend : valeur exacte du flottant, demi exact au pair */
+out.rf_r3=[.0045,.0625,.1875,.0055,1.0005,2.0625,.3125].map(function(v){return rof({mode:"suivi",points:[{t:v,x:.5}]}).points[0].t});
+out.rf_vide=[rof({mode:"suivi",points:[]}),rof({mode:"suivi",points:[{t:"a",x:1}]}),rof({mode:"suivi"}),rof({mode:"suivi",points:{t:1,x:.5}})];
+/* x à l'instant t (secondes de source) : constante avant/après, lerp entre ; manuel ; sans cadrage 0,5 */
+var RA={mode:"suivi",points:[{t:1,x:.2},{t:3,x:.6}]};
+out.rf_at=[0,1,2,2.5,3,9].map(function(t){return rfR6(T.reframeAt(RA,t))}).concat([T.reframeAt({mode:"manuel",x:.7},5),
+  T.reframeAt(null,2),rfR6(T.reframeAt(RA,NaN)),T.reframeAt({mode:"suivi",points:[]},1)]);
+/* largeur relative de la source : 16:9 dans 9:16, 9:16 dans 16:9, même ratio, mesures manquantes */
+out.rf_k=[T.reframeK(1920,1080,9/16),T.reframeK(1080,1920,16/9),T.reframeK(1920,1080,16/9),T.reframeK(0,1080,1),
+  T.reframeK(1920,1080,0),T.reframeK(null,1,1)].map(function(v){return v===null?null:Math.round(v*1e4)/1e4});
+/* position de l'aperçu : (k·x − ½)/(k − 1) bornée ; k ≤ 1,001 (un pixel sur 1080, _reframe_utile) ou inconnu -> null ; 1,005 agit déjà */
+out.rf_pos=[[.5,3],[0,3],[1,3],[.3,3],[.5,1],[.5,1.0005],[.5,null],[.9,2],["x",3],[.9,1.005]].map(function(a){return rfR6(T.reframePos(a[0],a[1]))});
+/* la chaîne de l'aperçu vivant : manuel 0,3 sur 16:9 -> 9:16 ; sans cadrage, portrait sur paysage, cadre ou source non mesurés -> "" */
+var RCM=Object.assign({},RB,{reframe:{mode:"manuel",x:.3}});
+out.rf_css=[T.reframeCss(RCM,1,1920,1080,540,960),T.reframeCss(RB,1,1920,1080,540,960),T.reframeCss(RCM,1,1080,1920,960,540),
+  T.reframeCss(RCM,1,1920,1080,0,0),T.reframeCss(RCM,1,0,0,540,960),
+  T.reframeCss(Object.assign({},RB,{reframe:{mode:"suivi",points:[{t:0,x:0},{t:4,x:1}]}}),2,1920,1080,540,960),
+  T.reframeCss(Object.assign({},RB,{reframe:{mode:"centre",points:[{t:0,x:0}]}}),2,1920,1080,540,960)];
+/* pur : l'entrée n'est pas touchée, les points rendus sont des objets neufs */
+out.rf_pur=(function(){var P0={mode:"suivi",points:[{t:5,x:.9},{t:1,x:2}]},C0=Object.assign({},RB,{reframe:P0}),j=JSON.stringify(C0);
+  var q=T.reframeOf(C0);return [JSON.stringify(C0)===j,q.points!==P0.points,q.points[0]!==P0.points[1],q.points[1].t]})();
 console.log(JSON.stringify(out));
 """
 # E-9 : svmRuler / svmPad2 sont des fonctions DU BUNDLE (meme portee module que
@@ -1386,7 +1426,9 @@ try:
                  # L7-B D-42 (tache 2) : les ONZE cles de la section [32] (ca_ecart : revue du 24/09).
                  "ca","ca_vitesse","ca_ids","ca_ids_pris","ca_bords","ca_refus","ca_un","ca_sans_src","ca_champs","ca_pur","ca_ecart",
                  # L7-B D-34 (tache 7) : les CINQ cles de la section [33].
-                 "rn","rx","rx_bornes","rx_suite","rchips"]
+                 "rn","rx","rx_bornes","rx_suite","rchips",
+                 # L7-B D-40 (tache 4) : les ONZE cles de la section [34].
+                 "rf_modes","rf_suivi","rf_vitesse","rf_cap","rf_r3","rf_vide","rf_at","rf_k","rf_pos","rf_css","rf_pur"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -3067,6 +3109,59 @@ _iN7 = _DRW.find("x.useState(0),minNote="); _iN8 = _DRW.find('x.useState(""),not
 _iNr = _DRW.find("noteSeq=x.useRef({})"); _iNul2 = _DRW.find("return null")
 check("l7b_tiroir_hooks_de_la_note_avant_le_return_null",
       0 <= _iN7 < _iNul2 and 0 <= _iN8 < _iNul2 and 0 <= _iNr < _iNul2, (_iN7, _iN8, _iNr, _iNul2))
+
+print("\n[34] L7-B D-40 : le cadrage d'un clip V1 — dzmReframeOf / At / K / Pos / Css purs (tache 4, 24/09/2026)")
+# ── L7-B D-40 (24/09/2026, tache 4, decision n°3 du plan). dzmReframeOf est la regle MEME de _reframe_of du backend
+# (d70989c) : centre / illisible -> null (rien ne part), manuel x borne, suivi t borne a (end-start) x vitesse (vitesse
+# bornee 0,25..4), x borne, tri stable, doublons a 5 ms (le dernier gagne), <= 240. t en secondes de SOURCE depuis srcIn.
+_M = {"mode": "manuel"}
+check("rf_modes_centre_inconnu_illisible_null_manuel_borne_chaine_lue_bool_vide_base16_nan_null",
+      D.get("rf_modes") == [None, None, None, None, None, dict(_M, x=0.3), dict(_M, x=1), dict(_M, x=0), dict(_M, x=0.25),
+                            None, None, None, None, None, None, None], D.get("rf_modes"))
+check("rf_suivi_bornes_0_dur_x_0_1_illisibles_ignores_tri_stable_doublon_5ms_le_dernier_gagne",
+      D.get("rf_suivi") == {"mode": "suivi", "points": [{"t": 0, "x": 0.2}, {"t": 1.003, "x": 0.45}, {"t": 2, "x": 1}, {"t": 4, "x": 0.7}]},
+      D.get("rf_suivi"))
+check("rf_vitesse_duree_de_source_x2_bornee_4_nulle_1_chaine_sans_start_non_borne_0_1_vaut_0_25",
+      D.get("rf_vitesse") == [7, 7, 4, 7, 7, 1, 7, 7, 4, 4, 4, 4], D.get("rf_vitesse"))
+check("rf_cap_240_points_sous_echantillonnes_premier_dernier_second",
+      D.get("rf_cap") == [240, 0, 4.99, 0.02], D.get("rf_cap"))
+check("rf_r3_arrondi_du_millieme_comme_round_python_valeur_exacte_demi_au_pair",
+      D.get("rf_r3") == [0.004, 0.062, 0.188, 0.005, 1, 2.062, 0.312], D.get("rf_r3"))
+check("rf_vide_suivi_sans_point_valable_null", D.get("rf_vide") == [None, None, None, None], D.get("rf_vide"))
+check("rf_at_constante_avant_apres_lerp_entre_manuel_x_sans_cadrage_0_5",
+      D.get("rf_at") == [0.2, 0.2, 0.4, 0.5, 0.6, 0.6, 0.7, 0.5, 0.2, 0.5], D.get("rf_at"))
+check("rf_k_largeur_relative_paysage_dans_portrait_portrait_dans_paysage_meme_ratio_manquants_null",
+      D.get("rf_k") == [3.1605, 0.3164, 1, None, None, None], D.get("rf_k"))
+check("rf_pos_formule_du_crop_bornee_k_inutile_ou_inconnu_null",
+      D.get("rf_pos") == [0.5, 0, 1, 0.2, None, None, None, 1, 0.5, 1], D.get("rf_pos"))
+check("rf_css_apercu_manuel_et_suivi_vide_sans_cadrage_portrait_cadre_ou_source_non_mesures_centre_garde",
+      D.get("rf_css") == ["20.74% 50%", "", "", "", "", "50% 50%", ""], D.get("rf_css"))
+check("rf_pur_entree_intacte_points_neufs", D.get("rf_pur") == [True, True, True, 4], D.get("rf_pur"))
+_L7RF = {n: _corps(n) for n in ("dzmRfNum", "dzmRfR3", "dzmRfSpeed", "dzmReframeOf", "dzmReframeAt", "dzmReframeK", "dzmReframePos", "dzmReframeCss")}
+check("l7b_rf_coeur_pur_ni_r_ni_x_ni_reseau_ni_dom_constantes_uniques_exports_x1",
+      all(len(c) > 80 for c in _L7RF.values())
+      and not any(re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|fetch\(|setClips|style\.", c) for c in _L7RF.values())
+      and _SRCb.count("var DZM_RF_MAX=240,DZM_RF_UTILE=1.001;") == 1
+      and _L7RF["dzmReframeOf"].count("DZM_RF_MAX") == 3 and _L7RF["dzmReframeOf"].count("240") == 0
+      and _L7RF["dzmReframeOf"].count("dzmRfR3(t)") == 1 and _L7RF["dzmReframeOf"].count("dzmR3(") == 0 and _L7RF["dzmReframeOf"].count("<.005") == 1
+      and len(_DT) > 1000
+      and _DT.count("reframeOf:dzmReframeOf,reframeAt:dzmReframeAt,reframeK:dzmReframeK,reframePos:dzmReframePos,reframeCss:dzmReframeCss,") == 1
+      and all(_SRCb.count(k + ":dzmReframe") == 1 for k in ("reframeOf", "reframeAt", "reframeK", "reframePos", "reframeCss")),
+      ({n: len(c) for n, c in _L7RF.items()}, _DT.count("reframeOf:dzmReframeOf")))
+# LA SECTION « Cadrage » de l'inspecteur de plan (DzmPlanProps, couche) : trois modes, curseur du manuel (leger, rafale),
+# « Analyser le mouvement » (o.onReframe), grise-jamais-masque (E-12), le second useState APRES la garde.
+_PP = _SRCb[_SRCb.find("function DzmPlanProps(o){"):_SRCb.find("function DzmDzRects(o){")]
+check("l7b_rf_section_cadrage_trois_modes_curseur_leger_analyse_grisee_hooks_apres_garde",
+      len(_PP) > 3000 and _PP.count('row("Cadrage",') == 1 and _PP.count('row("Position",') == 1 and _PP.count('row("Mouvement",') == 1
+      and _PP.count('rfBtn("centre","Centré",') == 1 and _PP.count('rfBtn("suivi","Suivre",') == 1 and _PP.count('rfBtn("manuel","Manuel",') == 1
+      and _PP.count('children:"Analyser le mouvement"') == 1 and _PP.count("disabled:rfSans||rfBusy,") == 1
+      and _PP.count("rfSans||rfBusy,function(){if(rfPts)") == 1 and _PP.count("rfNon") >= 5
+      and _PP.count("x:Math.max(0,Math.min(100,v))/100})},!1)") == 1  # le curseur : leger (rafale 600 ms)
+      and _PP.count('on({reframe:rfPts?{mode:"centre",points:rfPts}:void 0},!0)') == 1
+      and _PP.count("Promise.resolve(o.onReframe()).then(fin,fin)") == 1
+      and 0 <= _PP.find("if(!c)return null;") < _PP.find("x.useState(2)") < _PP.find("x.useState(null)") < _PP.find('row("Cadrage",')
+      and _PP.count("x.useState(") == 2 and _PP.count("DzTracks") == 0,
+      f"hote={len(_PP)} useState={_PP.count('x.useState(')}")
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

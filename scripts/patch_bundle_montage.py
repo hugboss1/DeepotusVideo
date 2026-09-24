@@ -4346,6 +4346,41 @@ R_DZ1 = ('        /* D-13 : les proprietes de plan (clip V1 reel seulement) */\n
          # revue : la cle est CANONIQUE (`srcKey`, cles triees -- la regle
          # tranchee pour dzmTwinClip), jamais un JSON.stringify a l ordre pres.
          '          stabJob:dzStabJobs[DzTracks.srcKey(sel.src)]||null,onStab:function(){dzStabStart(sel.src)},\n'
+         # L7-B D-40 (24/09/2026, tache 4) : LE CADRAGE -- repli ici, AUCUNE ancre
+         # neuve (DZ1 finit comme avant). `srcWH` = dimensions de la source lues sur
+         # l'element du lecteur vivant de CETTE source, SANS le creer (Map.get du pool,
+         # role "b" -- la forme de svmOvMediaHW) : [0,0] si le pool ne l'a pas ou si
+         # les metadonnees ne sont pas lues (la couche dit alors « pas encore lues »,
+         # rien n'est grise). `ratio` = svmRatioW(proj.ratio), le ratio du cadre.
+         # `onReframe` : POST /api/montage/reframe {src, srcIn, dur = (end-start) x
+         # vitesse, duree de SOURCE}, note PENDANT l'analyse ; a la reponse, la garde
+         # d'obsolescence de dzSceneCut (8517a25) : l'empreinte (srcIn, vitesse,
+         # start, end) du plan ENVOYE doit etre celle du plan A LA REPONSE, sinon
+         # refus dit sans ecriture ; plan supprime ou V1 verrouillee -> refus dit.
+         # L'ecriture vise le clip `id` (jamais selRef : la selection a pu changer),
+         # pushHistory() PUIS setClips ; un resultat `centre` du tracker retire le
+         # champ et le dit (« Peu de mouvement : centré. »). Rend la promesse (la
+         # couche desactive le bouton jusqu'a sa fin). AUCUN DzTracks ici.
+         '          ratio:svmRatioW(proj.ratio),srcWH:(function(){var pl=livePoolRef.current,it=pl&&pl.get(livePoolKey(sel.src,"b"));\n'
+         '            return it&&it.video?[it.el.videoWidth||0,it.el.videoHeight||0]:[0,0]})(),\n'
+         '          onReframe:function(){var id=sel.id,c=clipsRef.current.find(function(k){return k.id===id});\n'
+         '            if(!c||!c.src||!c.src.job_id){fireNote("Analyse du mouvement : réservée aux clips vidéo rendus.");return Promise.resolve()}\n'
+         '            function dzRfSg(k){return [Number(k.srcIn)||0,svmSpeedOf(k),Number(k.start)||0,Number(k.end)||0].join("|")}\n'
+         '            var sg=dzRfSg(c),du=Math.round(Math.max(0,(c.end-c.start)*svmSpeedOf(c))*1e3)/1e3;\n'
+         '            if(!(du>0)){fireNote("Analyse du mouvement refusée : plan de durée nulle.");return Promise.resolve()}\n'
+         '            fireNote("Analyse du mouvement…");\n'
+         '            return fetch("/api/montage/reframe",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({src:c.src,srcIn:Number(c.srcIn)||0,dur:du})})\n'
+         '              .then(function(res){return res.json().catch(function(){return {}}).then(function(j){\n'
+         '                if(!res.ok)throw new Error((j&&typeof j.detail==="string"&&j.detail)||("HTTP "+res.status));return j})})\n'
+         '              .then(function(j){var k2=clipsRef.current.find(function(k){return k.id===id});\n'
+         '                if(!k2){fireNote("Analyse du mouvement : le plan a disparu — rien n\'est écrit.");return}\n'
+         '                if(dzRfSg(k2)!==sg){fireNote("Analyse du mouvement refusée : le plan a changé pendant l\'analyse — relancez.");return}\n'
+         '                var tl=trackStRef.current.v1;if(tl&&tl.l){fireNote("Piste V1 verrouillée — cadrage non écrit.");return}\n'
+         '                var pts=j&&j.mode==="suivi"&&Array.isArray(j.points)?j.points:[];\n'
+         '                pushHistory();setClips(clipsRef.current.map(function(k){if(k.id!==id)return k;var nk=Object.assign({},k);\n'
+         '                  if(pts.length)nk.reframe={mode:"suivi",points:pts};else delete nk.reframe;return nk}));setDirty(!0);\n'
+         '                fireNote(pts.length?"Mouvement suivi : "+pts.length+" points.":"Peu de mouvement : centré.")})\n'
+         '              .catch(function(e){fireNote("Analyse du mouvement refusée : "+((e&&e.message)||"erreur réseau"))})},\n'
          '          onChange:dzPlanSet}):null,\n'
          + A_DZ1)
 A_DZ2 = '            r.jsx("div",{className:"svm-tfbadge",ref:tfBadgeRef})]}):null,'
@@ -4359,7 +4394,17 @@ R_DZ3 = (A_DZ3 + "\n"
          "         du rendu, sur la <video> active ; ecrit seulement s'il change --\n"
          "         l'origine 0 0 est posee par la feuille (.svm-live>.svm-livemedia) */\n"
          '      var dzT=DzTracks.dzCss(c.dz,(t-c.start)/Math.max(.04,c.end-c.start));\n'
-         '      if(lv.style.transform!==dzT)lv.style.transform=dzT;')
+         '      if(lv.style.transform!==dzT)lv.style.transform=dzT;\n'
+         # L7-B D-40 (24/09/2026, tache 4) : LE CADRAGE EN DIRECT -- repli ici (meme
+         # site : `lv`, `c`, `t` du lecteur). La tete devient un temps de SOURCE
+         # ((t - start) x vitesse, l'unite des points du backend) ; la couche rend la
+         # position (« p% 50% ») qui montre la fenetre du crop du rendu, ou "" (pas de
+         # cadrage, source pas plus large, cadre non mesurable : volet cache). Ecrite
+         # seulement si elle change ; "" rend la position par defaut (centree) --
+         # l'element du pool est reutilise par les autres plans de la meme source.
+         "      /* L7-B D-40 : le cadrage EN DIRECT -- la fenetre du crop du rendu, a la tete en temps de source */\n"
+         '      var rfP=DzTracks.reframeCss(c,(t-c.start)*svmSpeedOf(c),lv.videoWidth,lv.videoHeight,lv.clientWidth,lv.clientHeight);\n'
+         '      if(lv.style.objectPosition!==rfP)lv.style.objectPosition=rfP;')
 A_DZ4 = "           Math.abs(c.speed-1)>1e-6)o.speed=Math.round(c.speed*100)/100;"
 R_DZ4 = (A_DZ4 + "\n"
          "        /* D-13 : le zoom dynamique -- joint seulement s'il existe (payload d'avant sinon) */\n"
@@ -4373,7 +4418,12 @@ R_DZ4 = (A_DZ4 + "\n"
          # existe (normalisee par la couche, UNE occurrence de `stabOf(` via
          # `sbD` -- la sonde compte chaque jeton) ; payload d'avant sinon.
          "        /* D-16 : la stabilisation -- jointe seulement si elle existe */\n"
-         '        var sbD=c.tr==="v1"&&DzTracks.stabOf(c);if(sbD)o.stab=sbD;')
+         '        var sbD=c.tr==="v1"&&DzTracks.stabOf(c);if(sbD)o.stab=sbD;\n'
+         # L7-B D-40 (24/09/2026, tache 4) : le cadrage, joint seulement HORS centre
+         # (la couche rend null pour centre / illisible : payload d'avant sinon ; les
+         # points gardes en mode centre ou manuel ne partent pas).
+         "        /* L7-B D-40 : le cadrage -- joint seulement hors centre */\n"
+         '        var rfD=c.tr==="v1"&&DzTracks.reframeOf(c);if(rfD)o.reframe=rfD;')
 
 # ══ D-14 (L3 tache 7, 22/09/2026) — KEYFRAMES D'ECHELLE ET D'OPACITE ═══════
 # Le contrat du rendu (T7a) : `motion_points[{t,x,y,rotate?,scale?,opacity?}]`,
@@ -5577,6 +5627,12 @@ assert R_EC1.count("function dzExportTl(fmt){") == 1 and R_EC1.count('run:functi
 assert R_EC1.count('fetch("/api/montage/export?format="+fmt)') == 1 and R_EC1.count("JSON.stringify(svmSavePayload())") == 1 and R_EC1.find("function dzExportTl(fmt){") < R_EC1.find("  function dzMenuProps(kind,o){")
 # L7-B D-42 (24/09/2026) : le geste « Decouper aux changements de plan » et son entree du menu de clip, repliés dans R_EC1
 assert R_EC1.count("  function dzSceneCut(id){") == 1 and R_EC1.count("run:function(){dzSceneCut(id)}") == 1 and R_EC1.count('fetch("/api/montage/scenes",') == 1
+# L7-B D-40 (24/09/2026, tache 4) : le cadrage replie dans R_DZ1 (hote), R_DZ3 (apercu vivant), R_DZ4 (payload) -- aucune section neuve
+assert R_DZ1.count("onReframe:function(){var id=sel.id,") == 1 and R_DZ1.count('fetch("/api/montage/reframe",') == 1 and R_DZ1.count("var sg=dzRfSg(c),") == 1
+assert R_DZ1.find("var sg=dzRfSg(c),") < R_DZ1.find('fetch("/api/montage/reframe",') < R_DZ1.find("if(dzRfSg(k2)!==sg){") < R_DZ1.find("pushHistory();setClips(clipsRef.current.map(")
+assert R_DZ1.count("DzTracks.") == 3 and R_DZ1.endswith("          onChange:dzPlanSet}):null,\n" + A_DZ1) and R_DZ1.count("pl.get(livePoolKey(sel.src,\"b\"))") == 1
+assert R_DZ3.count("DzTracks.reframeCss(c,(t-c.start)*svmSpeedOf(c),") == 1 and R_DZ3.count("if(lv.style.objectPosition!==rfP)lv.style.objectPosition=rfP;") == 1
+assert R_DZ4.count('var rfD=c.tr==="v1"&&DzTracks.reframeOf(c);if(rfD)o.reframe=rfD;') == 1 and R_DZ4.find("var sbD=") < R_DZ4.find("var rfD=")
 assert R_EC1.count("var sg=dzSg(c);") == 1 and R_EC1.count("if(k2&&dzSg(k2)!==sg){") == 1 and R_EC1.find("if(k2&&dzSg(k2)!==sg){") < R_EC1.find("DzTracks.cutAt(clipsRef.current,id,")
 assert R_EC1.count("DzTracks.cutAt(clipsRef.current,id,") == 1 and R_EC1.count("DzTracks.cutOpts(proj,trackStRef.current)") == 1 and R_EC1.count("pushHistory();setClips(r2.clips);setDirty(!0);") == 1
 assert R_EC1.find("  function dzSceneCut(id){") < R_EC1.find("  function dzMenuProps(kind,o){") < R_EC1.find('lbl:"Couper à la tête"') < R_EC1.find('lbl:"Découper aux changements de plan"') < R_EC1.find('lbl:"Supprimer",combo:')

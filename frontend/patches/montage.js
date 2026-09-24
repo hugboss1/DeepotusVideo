@@ -6460,6 +6460,99 @@ function dzmMpKeep(np,vals,prev){
     if((vals&&vals[k]!=null)||(prev&&prev[k]!=null))
       if(isFinite(v))np[k]=Math.min(b[1],Math.max(b[0],Math.round(v*b[2])/b[2]))});
   return np}
+/* ── L7-B D-40 (24/09/2026, tâche 4) : LE CADRAGE D'UN CLIP V1 ─────────────
+   Champ `reframe` = {mode:"centre"|"suivi"|"manuel", x?, points?:[{t,x}]}.
+   dzmReframeOf(c) est la règle MÊME de _reframe_of du backend (d70989c) :
+   centre, mode inconnu ou champ illisible -> null (cadrage historique, rien
+   ne part au rendu) ; manuel -> {mode, x borné 0..1} (x illisible -> null) ;
+   suivi -> {mode, points} : t borné à [0, (end − start) × vitesse] (vitesse
+   lue comme _v1_speed depuis la revue e09552b : bornée 0,25..4, « inf » -> 4,
+   illisible, NaN ou ≤ 0 -> 1 — dzmRfSpeed ; sans start/end lisibles t n'est
+   borné qu'à 0), arrondi au millième COMME round(t, 3) (dzmRfR3 : valeur
+   exacte du flottant, demi exact au pair — 0,0045 -> 0,004, 0,0625 -> 0,062),
+   x borné 0..1, triés (tri stable),
+   dédoublonnés à 5 ms (le dernier gagne), au plus 240 (sous-échantillonnés
+   régulièrement, index arrondi : jamais de demi exact, 239 est premier) ;
+   un point illisible est ignoré, aucun point valable -> null. Un nombre est
+   un nombre fini ou une chaîne numérique non vide (un booléen ne l'est pas,
+   comme float() côté serveur) ; ÉCART DATÉ : une chaîne en base 16/8/2 est
+   refusée des deux côtés, mais « 1_0 » (lu 10 par le serveur) est refusé ici.
+   UNITÉ : t en secondes de SOURCE depuis srcIn (le crop précède le
+   changement de vitesse au rendu) — la tête de lecture se convertit par
+   (tête − start) × vitesse. Les points restent ceux de l'analyse ; le rendu
+   les simplifie (écart ≤ 0,004 de largeur), l'aperçu les lit bruts.
+   dzmReframeAt(rf, t) : x à l'instant t (secondes de source) d'un cadrage
+   NORMALISÉ (sortie de dzmReframeOf) — 0,5 sans cadrage, x du manuel, lerp
+   entre points, constante avant le premier et après le dernier (la forme de
+   _mp_lerp_expr). dzmReframeK(w, h, ratio) : la largeur RELATIVE de la
+   source (w/h rapporté au ratio largeur/hauteur du cadre), null si l'une des
+   mesures manque ; au-dessous de DZM_RF_UTILE la fenêtre horizontale ne
+   peut pas bouger (source portrait sur projet paysage, ou déjà au ratio) —
+   1,001 : un pixel sur un cadre de 1080, la marge de _reframe_utile du
+   backend (iw·k > w + 1).
+   dzmReframePos(x, k) : la position horizontale de l'aperçu (fraction 0..1
+   du débord, la forme d'une position d'objet couvrant) qui montre la même
+   fenêtre que le crop du rendu, centre iw·x borné au cadre :
+   (k·x − ½)/(k − 1) borné 0..1 ; null si k est inconnu ou inutile.
+   dzmReframeCss(c, t, w, h, fw, fh) : la chaîne de position de l'aperçu
+   vivant (« p% 50% ») ou "" (rien à écrire : pas de cadrage, source pas
+   plus large, cadre non mesurable). */
+var DZM_RF_MAX=240,DZM_RF_UTILE=1.001;
+function dzmRfNum(v){
+  if(typeof v==="number")return isFinite(v)?v:null;
+  if(typeof v!=="string"||!v.trim()||/[xob_]/i.test(v))return null;
+  var f=Number(v);return isFinite(f)?f:null}
+function dzmRfR3(t){var f=Math.floor(t*1000),k=2*f+1;
+  if(k%125===0&&k/2000===t)return (f%2?f+1:f)/1000;
+  return Number(t.toFixed(3))}
+function dzmRfSpeed(v){
+  if(typeof v==="boolean")v=v?1:0;
+  if(typeof v==="string"){var s=v.trim().toLowerCase();
+    v=/^\+?inf(inity)?$/.test(s)?4:!s||/[xob_]/.test(s)?NaN:Number(s)}
+  if(typeof v!=="number"||v!==v||v<=0)return 1;
+  return Math.max(.25,Math.min(4,v))}
+function dzmReframeOf(c){
+  var raw=c&&c.reframe;
+  if(!raw||typeof raw!=="object"||Array.isArray(raw))return null;
+  if(raw.mode==="manuel"){var mx=dzmRfNum(raw.x);return mx===null?null:{mode:"manuel",x:Math.max(0,Math.min(1,mx))}}
+  if(raw.mode!=="suivi"||!Array.isArray(raw.points))return null;
+  var sp=dzmRfSpeed(c.speed);
+  var s0=dzmRfNum(c.start),s1=dzmRfNum(c.end),dur=s0!==null&&s1!==null?(s1-s0)*sp:0;
+  var pts=[],out=[];
+  raw.points.forEach(function(q){var t=null,x=null;
+    if(Array.isArray(q)){if(q.length===2){t=dzmRfNum(q[0]);x=dzmRfNum(q[1])}}
+    else if(q&&typeof q==="object"){t=dzmRfNum(q.t);x=dzmRfNum(q.x)}
+    if(t===null||x===null)return;
+    t=Math.max(0,t);if(dur>0)t=Math.min(t,dur);
+    pts.push({t:dzmRfR3(t),x:Math.max(0,Math.min(1,x))})});
+  pts.sort(function(a,b){return a.t-b.t});
+  pts.forEach(function(q){if(out.length&&q.t-out[out.length-1].t<.005)out[out.length-1]=q;else out.push(q)});
+  if(!out.length)return null;
+  if(out.length>DZM_RF_MAX){var n=out.length,all=out;out=[];
+    for(var k=0;k<DZM_RF_MAX;k++)out.push(all[Math.round(k*(n-1)/(DZM_RF_MAX-1))])}
+  return {mode:"suivi",points:out}}
+function dzmReframeAt(rf,t){
+  if(!rf)return .5;
+  if(rf.mode==="manuel")return typeof rf.x==="number"?rf.x:.5;
+  var p=Array.isArray(rf.points)?rf.points:[];
+  if(!p.length)return .5;
+  t=Number(t);if(!isFinite(t))t=0;
+  if(t<p[0].t)return p[0].x;
+  for(var i=1;i<p.length;i++){
+    if(t<p[i].t)return p[i-1].x+(p[i].x-p[i-1].x)*(t-p[i-1].t)/(p[i].t-p[i-1].t)}
+  return p[p.length-1].x}
+function dzmReframeK(w,h,ratio){
+  w=Number(w);h=Number(h);ratio=Number(ratio);
+  return w>0&&h>0&&ratio>0&&isFinite(w/h/ratio)?w/h/ratio:null}
+function dzmReframePos(x,k){
+  if(!(typeof k==="number"&&k>DZM_RF_UTILE&&isFinite(k)))return null;
+  x=Number(x);if(!isFinite(x))x=.5;
+  return Math.max(0,Math.min(1,(k*x-.5)/(k-1)))}
+function dzmReframeCss(c,t,w,h,fw,fh){
+  var rf=dzmReframeOf(c);if(!rf)return "";
+  fw=Number(fw);fh=Number(fh);
+  var p=dzmReframePos(dzmReframeAt(rf,t),fh>0?dzmReframeK(w,h,fw/fh):null);
+  return p===null?"":Math.round(p*1e4)/100+"% 50%"}
 /* L'HÔTE DES PROPRIÉTÉS DE PLAN (D-13, puis D-15 et D-16) : UNE section de
    l'inspecteur, montée UNE fois (DZ1) sur un clip V1 réel. props : {clip,
    u (avancement 0..1 de la tête dans le clip), speed (vitesse du clip),
@@ -6473,6 +6566,8 @@ function DzmPlanProps(o){
   var c=o&&o.clip,on=typeof (o&&o.onChange)==="function"?o.onChange:function(){};
   if(!c)return null;
   var st=x.useState(2),rampSpd=st[0],setRampSpd=st[1];
+  /* L7-B D-40 : l'analyse du mouvement EN COURS (id du clip) — second useState, toujours après la garde */
+  var sb2=x.useState(null),rfBusy=sb2[0]===c.id,setRfBusy=sb2[1];
   var dz=dzmDzOf(c),spd=Number(o.speed)||1,rt=dzmRetimeOf(c),head=Number(o.head);
   var inClip=isFinite(head)&&head-c.start>=.3&&c.end-head>=.3;
   var row=function(label,kids,key){return r.jsxs("div",{className:"svm-prop dzm-plan-row",children:[
@@ -6522,6 +6617,52 @@ function DzmPlanProps(o){
     kids.push(rng("zoom",-30,30,"Zoom","Zoom fixe en % pour cacher les bords (0 = optzoom)"));
     kids.push(row("Bords",sel(sb.crop,[["keep","garder"],["black","noir"]],
       function(v){on({stab:dzmStabNorm(Object.assign({},sb,{crop:v}))},!0)},"Que faire des bords découverts"),"stab-crop"))}
+  /* L7-B D-40 (24/09/2026, tâche 4) : le CADRAGE — trois modes (boutons,
+     lourds), la position du mode manuel (curseur 0..100 %, léger : la
+     rafale de 600 ms fait UNE entrée), « Analyser le mouvement »
+     (o.onReframe, qui rend une promesse ; désactivé pendant l'analyse DE CE
+     clip, le second useState — après la garde, comme la rampe). props :
+     srcWH = [largeur, hauteur] de la source lues sur l'élément du lecteur
+     vivant ([0,0] si inconnues), ratio = largeur/hauteur du cadre. Source pas
+     plus large que le cadre : le crop horizontal ne bouge rien -> Suivre,
+     Manuel, le curseur et l'analyse sont GRISÉS avec une infobulle (E-12 :
+     jamais masqués) ; « Centré » reste actif. Les points de l'analyse restent
+     sur le clip en mode centré ou manuel : revenir à « Suivre » ne relance
+     rien (le payload ne les porte qu'en mode suivi, dzmReframeOf). */
+  var rf=c.reframe&&typeof c.reframe==="object"&&!Array.isArray(c.reframe)?c.reframe:null,rfN=dzmReframeOf(c);
+  var rfMode=rfN?rfN.mode:"centre",wh=Array.isArray(o.srcWH)?o.srcWH:[0,0];
+  var rfK=dzmReframeK(wh[0],wh[1],o.ratio),rfSans=rfK!==null&&!(rfK>DZM_RF_UTILE);
+  var rfPts=rf&&Array.isArray(rf.points)&&rf.points.length?rf.points:null;
+  var rfT0=isFinite(head)?Math.max(0,(head-c.start)*spd):0;
+  /* le manuel part de la position que le suivi montrerait à la tête (points gardés compris), sinon du cadrage courant */
+  var rfSuivi=rfPts?dzmReframeOf({start:c.start,end:c.end,speed:c.speed,reframe:{mode:"suivi",points:rfPts}}):null;
+  var rfNon="Sans effet sur ce plan : la source n'est pas plus large que le cadre du projet — le recadrage horizontal ne déplace rien";
+  var rfInc=rfK===null?" (dimensions de la source pas encore lues : placez la tête sur le plan)":"";
+  var rfAnalyse=function(){if(typeof o.onReframe!=="function"||rfBusy)return;var id=c.id;setRfBusy(id);
+    var fin=function(){setRfBusy(function(b){return b===id?null:b})};
+    Promise.resolve(o.onReframe()).then(fin,fin)};
+  var rfBtn=function(m,lbl,title,dis,cb){return r.jsx("button",{className:"svm-minibtn dzm-rf-mode","data-on":rfMode===m?"1":"",
+    "aria-pressed":rfMode===m,disabled:dis,title:title,onClick:cb,children:lbl},"rf-"+m)};
+  kids.push(row("Cadrage",r.jsxs("span",{className:"dzm-plan-hint dzm-rf",children:[
+    rfBtn("centre","Centré","Cadrage centré (historique) — les points d'une analyse restent gardés pour « Suivre »",!1,
+      function(){on({reframe:rfPts?{mode:"centre",points:rfPts}:void 0},!0)}),
+    rfBtn("suivi","Suivre",rfSans?rfNon:(rfPts?"Suivre le mouvement analysé ("+rfPts.length+" points)":"Suivre le mouvement : analyse la source puis fait glisser la fenêtre")+rfInc,
+      rfSans||rfBusy,function(){if(rfPts)on({reframe:{mode:"suivi",points:rfPts}},!0);else rfAnalyse()}),
+    rfBtn("manuel","Manuel",rfSans?rfNon:"Position fixe de la fenêtre, réglée au curseur"+rfInc,rfSans,
+      function(){var m={mode:"manuel",x:Math.round(dzmReframeAt(rfSuivi||rfN,rfT0)*1000)/1000};if(rfPts)m.points=rfPts;on({reframe:m},!0)})]}),"rf"));
+  if(rfMode==="manuel"){var rfV=Math.round(rfN.x*100);
+    kids.push(row("Position",r.jsxs("span",{className:"dzm-plan-hint dzm-rf",children:[
+      r.jsx("input",{type:"range",min:0,max:100,step:1,value:rfV,disabled:rfSans,"aria-label":"Position horizontale du cadrage",
+        title:rfSans?rfNon:"Position horizontale de la fenêtre dans la source : 0 % à gauche, 100 % à droite",
+        onChange:function(e){var v=Number(e.target.value);if(!isFinite(v))return;
+          on({reframe:Object.assign({},rf,{mode:"manuel",x:Math.max(0,Math.min(100,v))/100})},!1)}}),
+      r.jsx("span",{className:"dzm-rf-val",children:rfV+" %"})]}),"rf-x"))}
+  kids.push(row("Mouvement",r.jsxs("span",{className:"dzm-plan-hint dzm-rf",children:[
+    r.jsx("button",{className:"svm-minibtn",disabled:rfSans||rfBusy,
+      title:rfSans?rfNon:rfBusy?"Analyse en cours…":"Analyser le mouvement de l'extrait (srcIn, durée de source) et passer en « Suivre »"+rfInc,
+      onClick:rfAnalyse,children:"Analyser le mouvement"}),
+    r.jsx("span",{className:"dzm-rf-st","data-st":rfBusy?"busy":rfMode==="suivi"?"suivi":"",
+      children:rfBusy?"analyse…":rfMode==="suivi"?rfN.points.length+" points":""})]}),"rf-an"));
   return r.jsxs("div",{className:"dzm-plan",children:[r.jsx("div",{className:"dzm-plan-t",children:"Propriétés du plan"}),
     r.jsx("div",{className:"svm-props",children:kids})]})}
 /* LES DEUX RECTANGLES (vert = début, rouge = fin) dans le cadre du lecteur,
@@ -7427,6 +7568,8 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   cutAt:dzmCutAt,
   /* L7-B D-34 (24/09/2026, tache 7) : la note etoile d'un rendu (tiroir Medias) */
   ratingNorm:dzmRatingNorm,ratingNext:dzmRatingNext,
+  /* L7-B D-40 (24/09/2026, tache 4) : le cadrage d'un clip V1 (regle du backend, apercu vivant) */
+  reframeOf:dzmReframeOf,reframeAt:dzmReframeAt,reframeK:dzmReframeK,reframePos:dzmReframePos,reframeCss:dzmReframeCss,
   /* E-13 / E-14 (lot E-C, tache 5) : la tete dans l'inspecteur, le trou selectionne et son ripple */
   teteTxt:dzmTeteTxt,trou:dzmTrou,trouRipple:dzmTrouRipple,
   DEFAULTS:DZM_DEFAULT_TRACKS};

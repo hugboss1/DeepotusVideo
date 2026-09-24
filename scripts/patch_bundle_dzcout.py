@@ -426,7 +426,12 @@ STABLE_PROBES = [
     # L7-B D-42 (24/09/2026, tache 2) : 159 -> 161 -- deux sites de CODE, tous deux dans le geste dzSceneCut
     # replie dans R_EC1 (aucune section neuve) : `DzTracks.cutAt(` (la decoupe pure) et `DzTracks.cutOpts(`
     # (le verrou de piste, la forme de la coupe ripple). L'entree du menu de clip n'en ajoute aucune.
-    ("montage", "DzTracks", 161),
+    # L7-B D-40 (24/09/2026, tache 4, cadrage client) : 161 -> 163 -- deux sites de CODE, tous deux dans des
+    # REPLIS (aucune section neuve) : `DzTracks.reframeCss(` (apercu vivant, repli de R_DZ3) et
+    # `DzTracks.reframeOf(` (payload, repli de R_DZ4). Le repli de R_DZ1 (srcWH, ratio, onReframe) et la
+    # section « Cadrage » de la couche n'en ajoutent aucune. MESURE : la chaine a refuse, « sonde montage
+    # x163 (want 161) », avant cette ligne.
+    ("montage", "DzTracks", 163),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────
