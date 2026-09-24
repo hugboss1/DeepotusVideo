@@ -5240,7 +5240,8 @@ R_L7C3 = ('  /* L7 D-8 (24/09/2026, tâche 3) : le popover « Plans trop longs /
           # L7 D-39 (24/09/2026, tache 4) : L7d1 REPLIE ici -- la garde delegue le popover « diff » a la vue de
           # la couche (DzTracks.DiffView, qui lit `r` a l'appel) AVANT la branche boring et AVANT isR ; sans etat
           # (diffSt null) la garde passe. La section reste UNE (ancre 1/0/1 conservee, queue `boring` intacte).
-          '    if(pop==="diff"&&diffSt)return r.jsx(DzTracks.DiffView,Object.assign({onClose:function(){setPop("")}},diffSt));\n'
+          # revue 24/09 : un `diff` SANS etat rend null -- jamais le popover generique (isR/Preview) sur ce pop
+          '    if(pop==="diff")return diffSt?r.jsx(DzTracks.DiffView,Object.assign({onClose:function(){setPop("")}},diffSt)):null;\n'
           '    if(pop==="boring")return boringPopover();')
 L7A = [("L7a3-preset-resolve-export-import-du-mappage", A_L7A3, R_L7A3),
        ("L7b3-le-texte-selectionne-garde-son-Ctrl-C", A_L7B3, R_L7B3),
@@ -5248,7 +5249,7 @@ L7A = [("L7a3-preset-resolve-export-import-du-mappage", A_L7A3, R_L7A3),
 assert A_L7C3 in R_L7C3 and R_L7C3.endswith('    if(pop==="boring")return boringPopover();') and R_L7C3.count("function boringPopover(){") == 1
 # L7 D-39 (24/09/2026, tache 4) : la garde `diff` (UNE reference DzTracks.DiffView) precede la garde boring
 assert R_L7C3.count("title:") == 4 and R_L7C3.count('localStorage.setItem("dz_svm_boring",') == 1 and R_L7C3.count("DzTracks") == 1
-assert R_L7C3.count('    if(pop==="diff"&&diffSt)return r.jsx(DzTracks.DiffView,Object.assign({onClose:function(){setPop("")}},diffSt));\n    if(pop==="boring")return boringPopover();') == 1
+assert R_L7C3.count('    if(pop==="diff")return diffSt?r.jsx(DzTracks.DiffView,Object.assign({onClose:function(){setPop("")}},diffSt)):null;\n    if(pop==="boring")return boringPopover();') == 1
 assert R_M14.count("onDiff:function(p){") == 1 and R_M14.count("DzTracks.diff(") == 1 and R_M14.count('fetch("/api/montage/projects/"+') == 1 and R_M14.count("setDiffSt(") == 1 and R_M14.count('setPop("diff")') == 1
 # MESURE : quatre DzTracks dans _EB7_ETAT (tlH x2 de E-9, boringDef + boring de L7c1) -- l'etat diffSt n'en ajoute aucun
 assert _EB7_ETAT.count("var stDf=x.useState(null),diffSt=stDf[0],setDiffSt=stDf[1];") == 1 and _EB7_ETAT.count("DzTracks") == 4

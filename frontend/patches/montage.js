@@ -7030,9 +7030,11 @@ function dzmDiff(a,b){
     if(!cb){out.removed.push(id);return}
     var sa=Number(ca.start)||0,ea=Number(ca.end)||0,sb=Number(cb.start)||0,eb=Number(cb.end)||0;
     var na=Number(ca.srcIn)||0,nb=Number(cb.srcIn)||0,la=ea-sa,lb=eb-sb;
-    if(Math.abs(la-lb)>1e-6||na!==nb){
-      var t={id:id,de:[sa,ea],en:[sb,eb]};if(na!==nb)t.src=[na,nb];out.trimmed.push(t)}
-    else if(sa!==sb)out.moved.push({id:id,de:sa,en:sb});
+    /* revue 24/09 : start et srcIn sur la MEME tolerance que la duree (un ripple flottant 5.000000001 n'est pas un deplacement) */
+    var slip=Math.abs(na-nb)>1e-6;
+    if(Math.abs(la-lb)>1e-6||slip){
+      var t={id:id,de:[sa,ea],en:[sb,eb]};if(slip)t.src=[na,nb];out.trimmed.push(t)}
+    else if(Math.abs(sa-sb)>1e-6)out.moved.push({id:id,de:sa,en:sb});
     var cles=DZM_DIFF_CLES.filter(function(k){return json(ca[k])!==json(cb[k])});
     if(cles.length)out.changed.push({id:id,cles:cles})});
   return out}

@@ -17400,7 +17400,8 @@ check("L7d1_etat_diffSt_replie_en_queue_de_EB7_ETAT_apres_boMap_avant_stDzFin_un
       # MESURE 24/09 : 543 useState dans le livre, 482 dans le .bak -- +61 par la chaine, dont celui-ci
       and s.count("x.useState(") == 543 and (_bak.count("x.useState(") == 482 and _bak.count("diffSt") == 0 if _bak else False),
       f"etat={s.count(nl(_L7D_ST))} ordre={(_iDfBo, _iDfSt, _iDfFin)} diffSt={s.count('diffSt')} useState={s.count('x.useState(')}")
-_L7D_G = '    if(pop==="diff"&&diffSt)return r.jsx(DzTracks.DiffView,Object.assign({onClose:function(){setPop("")}},diffSt));'
+# revue 24/09 : un `diff` sans etat rend null -- jamais le popover generique
+_L7D_G = '    if(pop==="diff")return diffSt?r.jsx(DzTracks.DiffView,Object.assign({onClose:function(){setPop("")}},diffSt)):null;'
 _iDfG = s.find(nl(_L7D_G))
 check("L7d1_garde_diff_repliee_dans_R_L7C3_entre_la_garde_pop_et_la_branche_boring_avant_isR_section_L7c3_toujours_une_boringPopover_sans_DzTracks",
       s.count(nl(_L7D_G)) == 1 and _L7D_G in P.R_L7C3 and 0 < _iBoG < _iDfG < _iBoD < _iBoR

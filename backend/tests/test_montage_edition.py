@@ -985,6 +985,10 @@ out.df_cles=[T.diff([{id:"1",tr:"v1",start:0,end:5}],[{id:"1",tr:"v1",start:0,en
   T.diff([{id:"1",tr:"v1",start:0,end:5,effects:[{k:"a"}],dz:{p:1}}],[{id:"1",tr:"v1",start:0,end:5,effects:[{k:"b"}],dz:{p:1}}]).changed,
   T.diff([{id:"1",tr:"v1",start:0,end:5,kind:"a"}],[{id:"1",tr:"v1",start:0,end:5,kind:"b"}]).changed,
   T.diff([{id:"1",tr:"v1",start:0,end:5,text:"a",transition:"fade",transition_s:.4,opacity:1}],[{id:"1",tr:"v1",start:0,end:5,text:"b",transition:"wipe",transition_s:.5,opacity:.5}]).changed];
+/* revue 24/09 : start/srcIn à la tolérance 1e-6 — un ripple flottant n'est ni déplacé ni rogné ; 1 ms l'est (témoin) */
+out.df_tolerance=[T.diff([{id:"1",tr:"v1",start:5,end:8,srcIn:1}],[{id:"1",tr:"v1",start:5+1e-9,end:8+1e-9,srcIn:1+1e-9}]),
+  T.diff([{id:"1",tr:"v1",start:5,end:8,srcIn:1}],[{id:"1",tr:"v1",start:5.001,end:8.001,srcIn:1}]),
+  T.diff([{id:"1",tr:"v1",start:5,end:8,srcIn:1}],[{id:"1",tr:"v1",start:5,end:8,srcIn:1.001}])];
 out.df_pur=[JSON.stringify(DA)===_da0,JSON.stringify(DB)===_db0,DA.length,DB.length];
 out.df_temps=[T.diffTemps(0),T.diffTemps(65),T.diffTemps(5.3),T.diffTemps(59.96),T.diffTemps("x"),T.diffTemps(-2)];
 /* rendu par un jsx factice {t,p} : racine svm-pop dzm-diff, titre, résumé, cinq rubriques (data-rub, tête, lignes), « Fermer » titré ; le clic ferme */
@@ -1256,7 +1260,7 @@ try:
                  "bo_contact","bo_sources","bo_v2","bo_vitesse","bo_desordre","bo_pur","bo_opts",
                  # L7 D-39 (tache 4) : les DOUZE cles de la section [28].
                  "df","df_id","df_vide","df_slip","df_piste","df_rogne_et_bouge","df_noms","df_cles","df_pur","df_temps",
-                 "df_vue","df_vue_noms"]
+                 "df_vue","df_vue_noms","df_tolerance"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -2661,6 +2665,9 @@ check("df_noms_B_prime_sinon_A_jamais_d_entree_sans_libelle_supprimes_dans_l_ord
 check("df_cles_absent_null_undefined_se_valent_0_compte_effects_en_profondeur_kind_hors_liste_ordre_de_la_liste",
       D.get("df_cles") == [[], [{"id": "1", "cles": ["gain"]}], [{"id": "1", "cles": ["effects"]}], [],
                            [{"id": "1", "cles": ["opacity", "text", "transition", "transition_s"]}]], D.get("df_cles"))
+check("df_tolerance_1e_9_n_est_ni_deplace_ni_rogne_1_ms_deplace_1_ms_de_srcIn_rogne_temoin",
+      D.get("df_tolerance") == [_DF_VIDE, dict(_DF_VIDE, moved=[{"id": "1", "de": 5, "en": 5.001}]),
+                                dict(_DF_VIDE, trimmed=[{"id": "1", "de": [5, 8], "en": [5, 8], "src": [1, 1.001]}])], D.get("df_tolerance"))
 check("df_pur_les_deux_tableaux_ne_sont_pas_mutes", D.get("df_pur") == [True, True, 3, 3], D.get("df_pur"))
 check("df_temps_m_ss_du_bundle_dixieme_a_la_virgule_arrondi_qui_porte_illisible_et_negatif_a_zero",
       D.get("df_temps") == ["0:00", "1:05", "0:05,3", "1:00", "0:00", "0:00"], D.get("df_temps"))
