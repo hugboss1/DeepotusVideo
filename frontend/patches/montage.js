@@ -8352,7 +8352,11 @@ function dzmGradePasteDo(clip,st){
    requête en vol). À l'arrêt : anti-rebond de 300 ms sur l'empreinte (une chaîne : dépendance PRIMITIVE), numéro de
    requête (une réponse périmée est jetée) + contrôleur d'abandon ; l'image ne s'affiche que pour SON empreinte (un autre
    plan ou un autre instant ne montre jamais l'image d'avant) ; URL de blob révoquée au remplacement, à l'extinction et
-   au démontage ; le refus d'une requête abandonnée se tait, un refus courant se dit. */
+   au démontage ; le refus d'une requête abandonnée se tait (son numéro est périmé : le nettoyage de l'effet avance
+   `seq` AVANT d'abandonner — revue T6, M3 : la garde « signal abandonné » était redondante, retirée), un refus courant se
+   dit. UNE IMAGE EN RÉSERVE, PAR EMPREINTE (revue T6, M2) : la dernière reçue reste gardée (une seule URL vivante) mais
+   ne s'affiche que pour son empreinte. Un succès EFFACE le refus gardé, et l'image est testée AVANT le refus : un refus
+   périmé ne se montre jamais à côté d'une image fraîche (revue T6, M1). La ligne d'état est aria-live (M4). */
 function DzmScopes(o){
   if(!o)return null;
   var s1=x.useState(function(){return dzmScopesGet()}),on=s1[0],setOn=s1[1];
@@ -8369,21 +8373,21 @@ function DzmScopes(o){
     var h=setTimeout(function(){
       dzmGpFetch("/api/montage/scopes",b,!0,ac?ac.signal:null).then(function(bl){
         if(!vivant.current||q!==seq.current)return;
-        var u=URL.createObjectURL(bl);libere();urlR.current=u;setImg({u:u,sig:sig})},
-      function(e){if(vivant.current&&q===seq.current&&!(ac&&ac.signal.aborted))
+        var u=URL.createObjectURL(bl);libere();urlR.current=u;setImg({u:u,sig:sig});setErr(null)},
+      function(e){if(vivant.current&&q===seq.current)
         setErr({sig:sig,msg:"Scopes indisponibles : "+((e&&e.message)||"erreur réseau")})})},DZM_SC_MS);
     return function(){seq.current++;clearTimeout(h);if(ac)ac.abort()}},[sig]);
   var bascule=function(){var n=dzmScopesSet(!on);setOn(n);if(!n){seq.current++;libere();setImg(null);setErr(null)}};
   var voit=!!(sig&&img&&img.sig===sig);
   var msg=!on?"":jouant?"Lecture : les scopes se rafraîchissent à l'arrêt":!c?"Aucun plan sous la tête":
-    !c.src?"Plan sans source : rien à mesurer":err&&err.sig===sig?err.msg:voit?"":"Mesure en cours…";
+    !c.src?"Plan sans source : rien à mesurer":voit?"":err&&err.sig===sig?err.msg:"Mesure en cours…";
   return r.jsxs("div",{className:"dzm-scopes","data-on":on?"1":"",children:[
     r.jsx("button",{className:"svm-pchip dzm-scbtn","data-on":on?"":void 0,"aria-pressed":on,
       title:on?"Masquer les scopes":"Afficher les scopes du plan V1 sous la tête (forme d'onde, vecteurscope, histogramme de l'image étalonnée) — rafraîchis à l'arrêt, jamais pendant la lecture",
       onClick:bascule,children:"Scopes"}),
     voit?r.jsx("img",{className:"dzm-scimg",src:img.u,alt:"Scopes du plan sous la tête",
       title:"Forme d'onde (haut), vecteurscope et histogramme (bas) de l'image étalonnée à "+body.t+" s de source"}):null,
-    msg?r.jsx("span",{className:"dzm-scmsg",children:msg}):null]})}
+    msg?r.jsx("span",{className:"dzm-scmsg","aria-live":"polite",children:msg}):null]})}
 /* LA LIGHTBOX DES PLANS (ouverte par ☰ › Affichage, montée par l'hôte dans le repli R_EB5A) : props {clips, onPick(plan),
    onClose()}. Voile (z-index du voile E-11 : 19, sous les popovers) + grille des plans de V1 dans l'ordre, pris UNE fois à
    l'ouverture (instantané : la lightbox est modale). Chaque vignette = POST /api/montage/grade-frame, 240 px, au milieu du
@@ -8397,6 +8401,12 @@ function DzmLightbox(o){
   var s1=x.useState(function(){return dzmLbPlans(o.clips)}),pl=s1[0];
   var s2=x.useState({}),imgs=s2[0],setImgs=s2[1];
   var fin=typeof o.onClose==="function"?o.onClose:function(){},pick=typeof o.onPick==="function"?o.onPick:function(){};
+  var fermeR=x.useRef(null);
+  /* revue T6 (M4) : dialogue MODAL -- à l'ouverture le focus va sur « Fermer », à la fermeture il revient là où il était
+     (l'hôte garde le clavier : sa garde modale de onKey ne laisse passer qu'Échap) */
+  x.useEffect(function(){var d=typeof document==="object"&&document?document:null,avant=d?d.activeElement:null;
+    if(fermeR.current&&typeof fermeR.current.focus==="function")fermeR.current.focus();
+    return function(){if(avant&&typeof avant.focus==="function")avant.focus()}},[]);
   x.useEffect(function(){
     var vivant=!0,st={},urls=[],acs={},ids=[],corps={};
     pl.forEach(function(c){var b=c.src?dzmFrameBody(c,null,DZM_LB_W):null;if(b){ids.push(c.id);corps[c.id]=b}});
@@ -8419,10 +8429,10 @@ function DzmLightbox(o){
           :r.jsx("span",{className:"dzm-lbph",children:!c.src?"sans source":u===""?"image indisponible":"calcul…"}),
         r.jsx("span",{className:"dzm-lbcap",children:(i+1)+". "+lbl})]},c.id)});
   return r.jsx("div",{className:"dzm-lbscrim",onClick:function(e){if(e&&e.target===e.currentTarget)fin()},children:
-    r.jsxs("div",{className:"dzm-lb",role:"dialog","aria-label":"Lightbox des plans",children:[
+    r.jsxs("div",{className:"dzm-lb",role:"dialog","aria-modal":"true","aria-label":"Lightbox des plans",children:[
       r.jsxs("div",{className:"dzm-lbhead",children:[
         r.jsx("span",{className:"dzm-lbt",children:"Lightbox des plans · V1 ("+pl.length+")"}),
-        r.jsx("button",{className:"svm-minibtn",title:"Fermer la lightbox (Échap, ou clic hors de la grille)",onClick:fin,children:"Fermer"})]}),
+        r.jsx("button",{className:"svm-minibtn",ref:fermeR,title:"Fermer la lightbox (Échap, ou clic hors de la grille)",onClick:fin,children:"Fermer"})]}),
       pl.length?r.jsx("div",{className:"dzm-lbgrid",children:tuiles}):r.jsx("div",{className:"dzm-lbmsg",children:"Aucun plan sur V1"})]})})}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,

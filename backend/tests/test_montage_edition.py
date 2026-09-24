@@ -4218,6 +4218,22 @@ var M=mini(T.Scopes),R={};
   btn(P5.H.out,"Copier le grade").p.onClick();P5.flush();var cp=[!!btn(P5.H.out,"Coller le grade").p.disabled,GI-gi6],gi7=GI;
   delete S.dz_montage_grade;fire("storage",{key:"dz_montage_grade"});P5.flush();
   R.gp_storage=[cz,gi6-gi5].concat(cp,[!!btn(P5.H.out,"Coller le grade").p.disabled,GI-gi7]);P5.unmount();
+  /* ── revue T6 (24/09/2026). M1 : une erreur PÉRIMÉE ne s'affiche plus -- refus à l'empreinte S (t=1), succès à S'
+     (t=2), retour à S : « Mesure en cours… » puis l'image fraîche SANS l'ancien refus ; la ligne d'état est aria-live */
+  FQ=[];UR.made=[];UR.rev=[];TM=[];S.dz_montage_scopes="1";
+  var M6=mini(T.Scopes);M6.render({clips:SC,head:1,playing:!1});tick();
+  FQ[0].d.a({ok:!1,status:500,json:function(){return Promise.resolve({detail:"backend en relance"})}});await settle();M6.flush();
+  var e1=[msg(M6.H.out),tous(M6.H.out).filter(function(n){return /dzm-scmsg/.test(n.p.className||"")}).map(function(n){return n.p["aria-live"]})];
+  M6.render({clips:SC,head:2,playing:!1});tick();rep(1,"X");await settle();M6.flush();
+  M6.render({clips:SC,head:1,playing:!1});var pend=[msg(M6.H.out),imgs(M6.H.out)];tick();rep(2,"OK");await settle();M6.flush();
+  R.t6_err=[e1,pend,[msg(M6.H.out),imgs(M6.H.out)]];M6.unmount();
+  /* M4 : la lightbox est un dialogue MODAL (aria-modal) ; à l'ouverture le focus va sur « Fermer », à la fermeture il
+     revient là où il était (document factice : activeElement) */
+  FQ=[];var FOC=[],AV={focus:function(){FOC.push("avant")}};G.document={activeElement:AV};
+  var L6=mini(T.Lightbox,function(n){return {focus:function(){FOC.push("focus:"+txt(n))}}});
+  L6.render({clips:[{tr:"v1",id:"q",start:0,end:2,src:{job_id:"Q"}}],onPick:function(){},onClose:function(){}});
+  var f0=FOC.slice(),dlg=tous(L6.H.out).filter(function(n){return n.p.role==="dialog"})[0];L6.unmount();
+  R.t6_lb=[f0,FOC.slice(),dlg&&dlg.p["aria-modal"]];delete G.document;
   out.R=R;
 })().catch(function(e){out.err=String(e&&e.stack||e)}).then(function(){console.log(JSON.stringify(out))});
 """
@@ -4307,6 +4323,13 @@ check("l5x_gp_Mc_x_et_y_du_masque_bornes_largeur_gardee_Md_double_clic_dans_le_v
                                    ["0/0 0.3/0.8 1/1"], 2, "0/0 1/1"], _RX.get("gp_mask_curve"))
 check("l5x_gp_grade_copie_relu_une_fois_par_changement_copier_rallume_coller_storage_d_un_autre_onglet_l_eteint",
       _RX.get("gp_storage") == [True, 0, False, 1, True, 1], _RX.get("gp_storage"))
+# ── revue T6 (24/09/2026). M1 : erreur perimee effacee au succes (et l'image testee AVANT l'erreur) ; M4 : aria-live sur
+# la ligne d'etat des scopes, lightbox aria-modal, focus sur « Fermer » a l'ouverture, rendu au point de depart a la fermeture.
+check("l5x_t6_M1_refus_dit_puis_succes_ailleurs_retour_mesure_en_cours_puis_image_fraiche_sans_l_ancien_refus_aria_live",
+      _RX.get("t6_err") == [[["Scopes indisponibles : backend en relance"], ["polite"]], [["Mesure en cours…"], []], [[], ["blob:OK"]]],
+      _RX.get("t6_err"))
+check("l5x_t6_M4_lightbox_modale_focus_sur_fermer_a_l_ouverture_rendu_au_depart_a_la_fermeture",
+      _RX.get("t6_lb") == [["focus:Fermer"], ["focus:Fermer", "avant"], "true"], _RX.get("t6_lb"))
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

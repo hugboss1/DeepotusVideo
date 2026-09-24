@@ -3777,10 +3777,12 @@ A_K7 = ('if(e.key==="Escape"){\n'
         "        if(kbAudioRef.current&&kbAudioRef.current.ovEsc&&"
         "kbAudioRef.current.ovEsc())e.preventDefault();\n"
         "        return}")
-R_K7 = ('if(e.key==="Escape"){\n'
-        # L5 D-32 (24/09/2026, tache 6) : LA LIGHTBOX se ferme D'ABORD (modale, au-dessus de tout le reste) -- meme
-        # repli, meme branche ; son ref est pose dans R_M16REF (la ligne epinglee de dzScrimRef ne bouge pas).
-        "        if(dzLbRef.current){e.preventDefault();setDzLb(!1);return}\n"
+# L5 D-32 (24/09/2026, tache 6 ; revue T6, I1) : LA LIGHTBOX EST MODALE AU CLAVIER -- la garde vient AVANT la branche
+# Echap (meme forme que celle de `kbRef` juste au-dessus dans onKey) : sous le voile, Espace lançait la lecture et
+# Suppr / Ctrl+Z modifiaient la timeline, un popover ouvert par raccourci passait au-dessus (z 20 > 19). Seul Echap
+# agit : il la ferme. Son ref est pose dans R_M16REF (la ligne epinglee de dzScrimRef ne bouge pas).
+R_K7 = ('if(dzLbRef.current){if(e.key==="Escape"){e.preventDefault();setDzLb(!1)}return}\n'
+        '      if(e.key==="Escape"){\n'
         "        if(dzMkOnRef.current){e.preventDefault();dzMkToggle(!1);return}\n"
         # E-11 (lot E-B, tache 5, 23/09/2026) : ECHAP FERME LE VOILE ET CE
         # QU'IL PORTE (popover preview/rendu, bandeau de fin). REPLI : la
@@ -5844,7 +5846,7 @@ assert R_R1.count('combo:"Ctrl+Alt+C"') == 1 and R_R1.count('combo:"Ctrl+Alt+V"'
 assert R_R2.count('if(id==="grade_copy"){dzGradeCopy(selRef.current);return}') == 1 and R_R2.count('if(id==="grade_paste"){dzGradePaste(selRef.current);return}') == 1
 assert R_EC1.count("function dzGradeCopy(id){") == 1 and R_EC1.count("function dzGradePaste(id){") == 1 and R_EC1.count("pushHistory();setClips(clipsRef.current.map(function(k){return k.id===c.id?q.clip:k}))") == 1
 assert R_EC1.count("run:function(){dzGradeCopy(id)}") == 1 and R_EC1.count("run:function(){dzGradePaste(id)}") == 1 and R_EC1.count('{lbl:"Lightbox des plans",run:function(){setDzLb(!0)}}') == 1
-assert R_EB5A.count("r.jsx(DzTracks.Lightbox,") == 1 and R_K7.count("if(dzLbRef.current){e.preventDefault();setDzLb(!1);return}") == 1
+assert R_EB5A.count("r.jsx(DzTracks.Lightbox,") == 1 and R_K7.count('if(dzLbRef.current){if(e.key==="Escape"){e.preventDefault();setDzLb(!1)}return}') == 1 and R_K7.startswith("if(dzLbRef.current){")
 
 
 PATCHES = [("M3-tracks", A_M3, R_M3), ("M4-bus", A_M4, R_M4),

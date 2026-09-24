@@ -16003,7 +16003,8 @@ check("EB5_Echap_ferme_le_voile_par_un_repli_dans_R_K7_lu_par_un_ref_pose_dans_R
       and 0 < _iStA < _iFinSt < _iRef < _iFinSt + 400
       and 0 < _iMk < _iEsc < _iOvE2 < _iMk + 400
       and s.count(_EB11_DEPS) == 1 and "pop" not in _EB11_DEPS.split("},[")[1] and "dzFin" not in _EB11_DEPS.split("},[")[1]
-      and P.R_K7.count("setDzFin(null)") == 1 and P.R_K7.startswith(P.A_K7.split("\n")[0])
+      # revue T6 (24/09, I1) : R_K7 commence par la garde MODALE de la lightbox, la branche Echap est sa 2e ligne (pin realigne)
+      and P.R_K7.count("setDzFin(null)") == 1 and P.R_K7.split("\n")[1].strip() == P.A_K7.split("\n")[0]
       and (_bak.count(_nlb(P.A_K7)) == 1 and _bak.count("dzScrimRef") == 0 if _bak else False),
       f"ref={_iRef} stA={_iStA} fin={_iFinSt} mk={_iMk} esc={_iEsc} ovEsc={_iOvE2} deps={s.count(_EB11_DEPS)}")
 for _nms in ("dzScrimRef",):
@@ -18898,10 +18899,42 @@ _iK7 = P.R_K7
 check("L5_lightbox_etat_dans_R_M16REF_rendue_apres_le_menu_echap_la_ferme_en_premier",
       P.R_M16REF.count("  var stLb=x.useState(!1),dzLb=stLb[0],setDzLb=stLb[1];\n  var dzLbRef=x.useRef(!1);dzLbRef.current=dzLb;\n") == 1
       and "x.use" not in P.R_EC1[len(P.A_EC1):] and s.count("dzLbRef") == 3
-      and 0 < _iK7.find("if(dzLbRef.current){e.preventDefault();setDzLb(!1);return}") < _iK7.find("dzMkOnRef") < _iK7.find("dzScrimRef")
+      # revue T6 (24/09, I1) : la garde est MODALE et vient AVANT la branche Echap (pin realigne, voir le cas sous node)
+      and 0 == _iK7.find('if(dzLbRef.current){if(e.key==="Escape"){e.preventDefault();setDzLb(!1)}return}')
+      < _iK7.find('if(e.key==="Escape"){\n') < _iK7.find("dzMkOnRef") < _iK7.find("dzScrimRef")
       and 0 < s.find(nl(P.EC3_MENU)) < s.find("r.jsx(DzTracks.Lightbox,") < s.find(nl("    kbPanel(),"))
       and s.count("r.jsx(DzTracks.Lightbox,{clips:clips,onPick:function(c){dzLbPick(c.id)},onClose:function(){setDzLb(!1)}})") == 1,
       [s.count("dzLbRef"), _iK7.find("dzLbRef")])
+# revue T6 (24/09/2026, I1) : LA LIGHTBOX EST MODALE AU CLAVIER -- sous elle, Espace lançait la lecture et Suppr / Ctrl+Z
+# modifiaient la timeline. Le DEBUT REEL d'onKey (du bundle, jusqu'a `if(!act)return;`) joue sous node avec des refs
+# factices ; une sonde en queue note l'action qui SERAIT dispatchee. Lightbox ouverte : rien ne passe, Echap la ferme ;
+# temoins : lightbox fermee, Suppr et Espace passent.
+_iOK = s.find("    function onKey(e){"); _iOKf = s.find("      if(!act)return;", _iOK) if _iOK >= 0 else -1
+_OK_PRE = s[_iOK:_iOKf] if 0 <= _iOK < _iOKf else ""
+_LBK_RT = "non joue"
+if _OK_PRE and _OK_PRE.count("dzLbRef.current") == 1:
+    _LBK_SHIM = ('"use strict";\nvar R=[],lb=null,kb=null;function svmComboOfEvent(e){return e.combo||null}var SVM_SHIFT_VARIANTS={};\n'
+                 'var kmRef={current:{toAct:{"Suppr":"delete","Espace":"play","Ctrl+Z":"undo"}}};\n'
+                 'var kbEditRef={current:!1},kbRef={current:!1},dzLbRef={current:!1},dzMkOnRef={current:!1},gapSelRef={current:null},'
+                 'dzScrimRef={current:!1},kbAudioRef={current:null};\n'
+                 'function setDzLb(v){lb=v}function setKbOn(v){kb=v}function dzMkToggle(){}function setGapSel(){}function setPop(){}'
+                 'function setDzFin(){}function setDzMenu(){}\n'
+                 + _OK_PRE + '      R.push(["fin",act&&act.id])}\n'
+                 'function ev(k,c){var o={key:k,combo:c,target:{tagName:"DIV"},pd:0,preventDefault:function(){o.pd++}};return o}\n'
+                 'function coup(n,e){R=[];lb=null;onKey(e);return [n,R,lb,e.pd]}\n'
+                 'var out=[];dzLbRef.current=!0;\n'
+                 'out.push(coup("suppr",ev("Delete","Suppr")),coup("espace",ev(" ","Espace")),coup("annuler",ev("z","Ctrl+Z")),coup("echap",ev("Escape","Échap")));\n'
+                 'dzLbRef.current=!1;out.push(coup("suppr_ferme",ev("Delete","Suppr")),coup("espace_ferme",ev(" ","Espace")));\n'
+                 'console.log(JSON.stringify(out));\n').replace("\r\n", "\n")
+    _pLBK = pathlib.Path(TMP) / "l5_lb_clavier.js"; _pLBK.write_text(_LBK_SHIM, encoding="utf-8")
+    _rLBK = NODE(["node", str(_pLBK)], timeout=60)
+    try: _LBK_RT = json.loads(_rLBK.stdout.strip().splitlines()[-1]) if _rLBK.returncode == 0 else ("rc=" + str(_rLBK.returncode) + " " + (_rLBK.stderr or "")[-400:])
+    except Exception as _e: _LBK_RT = "illisible " + repr(_e)
+check("L5_T6_I1_lightbox_modale_au_clavier_suppr_espace_annuler_sans_effet_echap_ferme_temoins_lightbox_fermee",
+      _LBK_RT == [["suppr", [], None, 0], ["espace", [], None, 0], ["annuler", [], None, 0], ["echap", [], False, 1],
+                  ["suppr_ferme", [["fin", "delete"]], None, 0], ["espace_ferme", [["fin", "play"]], None, 0]]
+      and s.count('if(dzLbRef.current){if(e.key==="Escape"){e.preventDefault();setDzLb(!1)}return}') == 1,
+      _LBK_RT)
 # LES GESTES DE L'HOTE JOUES SOUS NODE : la couche (vrai DzTracks, magasin factice), trackKind extrait du .bak,
 # refs et setters factices. Coups : copier sans plan, copier, coller demo, coller audio, coller verrouille, coller sans
 # grade, coller V2 (UN pushHistory, clip remplace, dirty, note), dzLbPick (plan present / absent).
