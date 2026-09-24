@@ -19947,6 +19947,19 @@ function dzmProvChips(jobs){var out=["Tout"],seen={};(jobs||[]).forEach(function
 function dzmMediaFiltre(jobs,f){var g=(f&&f.groupe)||"Tout",q=String((f&&f.q)||"").trim().toLowerCase();
   return (jobs||[]).filter(function(j){if(!j)return !1;if(g!=="Tout"&&dzmProvGroupe(j.provider)!==g)return !1;
     return !q||String(j.title||j.job_id||"").toLowerCase().indexOf(q)>=0})}
+/* ── L7-B D-34 (24/09/2026) : LA NOTE ÉTOILE D'UN RENDU — deux fonctions PURES ──
+   La note vit EN BASE (colonne jobs.rating, `PUT /api/jobs/{id}/rating`,
+   0 = sans note ; `GET /api/jobs?min_rating=` filtre avant le limit).
+   ratingNorm : ce que le serveur rend (0..5 entier) ou 0 pour tout le reste
+   (null, "3", 3.5, true, hors bornes) — même juge que la route, qui refuse
+   ces valeurs. ratingNext : l'étoile cliquée devient la note, sauf l'étoile
+   COURANTE qui la retire (0) ; un clic illisible rend la note courante.
+   Les chips de filtre du tiroir : DZM_NOTE_CHIPS (seuil, libellé, titre). */
+function dzmRatingNorm(v){return typeof v==="number"&&v%1===0&&v>=0&&v<=5?v:0}
+function dzmRatingNext(cur,clic){var c=dzmRatingNorm(cur),k=dzmRatingNorm(clic);
+  if(!k)return c;return k===c?0:k}
+var DZM_NOTE_CHIPS=[[3,"★ 3+","Ne montrer que les rendus notés 3 ★ ou plus (filtré par le serveur)"],
+  [5,"★ 5","Ne montrer que les Good Take (5 ★, filtré par le serveur)"]];
 /* LE COMPOSANT. props : {open, trId, exts, onAdd(job), onClose(), dragPayload(e,src,label,kind,dur)}.
    Il lit `r`/`x` À L'APPEL (comme DzmFinBandeau) et ses hooks tournent
    ferme comme ouvert — l'hôte le monte en permanence et bascule `open`,
@@ -19968,19 +19981,6 @@ function dzmMediaFiltre(jobs,f){var g=(f&&f.groupe)||"Tout",q=String((f&&f.q)||"
    manquée n'a pas été comptée, l'offset n'a pas avancé). Vignette : la première
    image de la bande (`/api/montage/strip … n=1`). Durée : `dzmDurTxt`,
    le formateur déjà partagé avec le transport (pas de second m:ss). */
-/* ── L7-B D-34 (24/09/2026) : LA NOTE ÉTOILE D'UN RENDU — deux fonctions PURES ──
-   La note vit EN BASE (colonne jobs.rating, `PUT /api/jobs/{id}/rating`,
-   0 = sans note ; `GET /api/jobs?min_rating=` filtre avant le limit).
-   ratingNorm : ce que le serveur rend (0..5 entier) ou 0 pour tout le reste
-   (null, "3", 3.5, true, hors bornes) — même juge que la route, qui refuse
-   ces valeurs. ratingNext : l'étoile cliquée devient la note, sauf l'étoile
-   COURANTE qui la retire (0) ; un clic illisible rend la note courante.
-   Les chips de filtre du tiroir : DZM_NOTE_CHIPS (seuil, libellé, titre). */
-function dzmRatingNorm(v){return typeof v==="number"&&v%1===0&&v>=0&&v<=5?v:0}
-function dzmRatingNext(cur,clic){var c=dzmRatingNorm(cur),k=dzmRatingNorm(clic);
-  if(!k)return c;return k===c?0:k}
-var DZM_NOTE_CHIPS=[[3,"★ 3+","Ne montrer que les rendus notés 3 ★ ou plus (filtré par le serveur)"],
-  [5,"★ 5","Ne montrer que les Good Take (5 ★, filtré par le serveur)"]];
 var DZM_MED_PAGE=24,DZM_MED_REPOS=250;
 function DzmMediaDrawer(o){
   o=o||{};
@@ -19993,11 +19993,13 @@ function DzmMediaDrawer(o){
   /* L7-B D-34 : seuil de note (0 = tous) passé au serveur, et la phrase d'un refus de note */
   var s7=x.useState(0),minNote=s7[0],setMinNote=s7[1];
   var s8=x.useState(""),noteMsg=s8[0],setNoteMsg=s8[1];
-  var seq=x.useRef(0),vivant=x.useRef(!0),noteSeq=x.useRef({});
+  /* noteSeq : compteur de clics par job ; noteConf : dernière note confirmée par le serveur ;
+     noteFile : la file des PUT par job ; vague : +1 à chaque rechargement depuis la page 0 */
+  var seq=x.useRef(0),vivant=x.useRef(!0),noteSeq=x.useRef({}),noteConf=x.useRef({}),noteFile=x.useRef({}),vague=x.useRef(0);
   x.useEffect(function(){vivant.current=!0;return function(){vivant.current=!1}},[]);
   var qServ=q.trim().length>=2?q.trim():"";
   var charge=function(off,qq,remplace){
-    var n=++seq.current;setSt("…");
+    var n=++seq.current;setSt("…");if(remplace)vague.current++;
     var u="/api/jobs?limit="+DZM_MED_PAGE+"&offset="+off+"&video=1"+(qq?"&q="+encodeURIComponent(qq):"")
       +(minNote>0?"&min_rating="+minNote:"");
     return fetch(u).then(function(res){if(!res.ok)throw new Error("HTTP "+res.status);return res.json()})
@@ -20013,21 +20015,37 @@ function DzmMediaDrawer(o){
     var t=setTimeout(function(){charge(0,qServ,!0)},qServ?DZM_MED_REPOS:0);
     return function(){clearTimeout(t)}},[o.open?1:0,qServ,minNote]);
   /* L7-B D-34 : noter un rendu. Mise à jour LOCALE d'abord (optimiste), puis
-     PUT ; un refus remet la note d'avant — seulement si aucune note plus
-     récente n'a été posée sur ce rendu entre-temps (compteur par job) — et
-     le dit. Ni pose sur la piste ni glisser : la ligne n'en voit rien. */
+     PUT. Les PUT d'un même rendu partent EN FILE (chaîne par job) : deux
+     clics rapides arrivent au serveur dans l'ordre, la dernière note gagne.
+     Un refus remet la dernière note CONFIRMÉE par le serveur — seulement si
+     aucune note plus récente n'a été posée entre-temps (compteur par job) —
+     et le dit. Ni pose sur la piste ni glisser : la ligne n'en voit rien.
+     OFFSET SOUS FILTRE (revue 24/09/2026, mesuré : ★ 5, limit 2, page 1
+     [j8, j5], j8 remis à 0, « Plus » demandait offset 2 et rendait [] — j2
+     n'apparaissait jamais) : la ligne RESTE affichée (on peut la re-noter
+     aussitôt), mais au SUCCÈS l'offset local suit ce que le serveur compte
+     désormais sous le filtre : −1 quand la note confirmée passe sous le seuil,
+     +1 quand elle le repasse. Rien sur un refus (le serveur n'a pas bougé),
+     rien si la liste a été rechargée entre-temps (vague de chargement). */
   var noter=function(j,clic){var jid=String(j.job_id||"");if(!jid)return;
     var avant=dzmRatingNorm(j.rating),apres=dzmRatingNext(avant,clic);if(apres===avant)return;
     var k=(noteSeq.current[jid]||0)+1;noteSeq.current[jid]=k;
+    if(!(jid in noteConf.current))noteConf.current[jid]=avant;
+    var seuil=minNote,v0=vague.current;
     var pose=function(v){setJobs(function(prev){return prev.map(function(q2){
       return q2&&q2.job_id===jid?Object.assign({},q2,{rating:v}):q2})})};
     pose(apres);setNoteMsg("");
-    fetch("/api/jobs/"+encodeURIComponent(jid)+"/rating",{method:"PUT",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({rating:apres})})
+    var envoi=(noteFile.current[jid]||Promise.resolve()).then(function(){
+      return fetch("/api/jobs/"+encodeURIComponent(jid)+"/rating",{method:"PUT",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({rating:apres})})})
       .then(function(res){if(!res.ok)return res.json().catch(function(){return {}}).then(function(d){
-        throw new Error((d&&typeof d.detail==="string"&&d.detail)||("HTTP "+res.status))})})
-      .catch(function(e){if(!vivant.current||noteSeq.current[jid]!==k)return;pose(avant);
-        setNoteMsg("Note refusée : "+String((e&&e.message)||"erreur réseau")+" — note d'avant remise.")})};
+        throw new Error((d&&typeof d.detail==="string"&&d.detail)||("HTTP "+res.status))})
+        var c0=noteConf.current[jid];noteConf.current[jid]=apres;
+        if(vivant.current&&seuil>0&&vague.current===v0){var dl=(apres>=seuil?1:0)-(c0>=seuil?1:0);
+          if(dl)setOffset(function(o2){return Math.max(0,o2+dl)})}})
+      .catch(function(e){if(!vivant.current||noteSeq.current[jid]!==k)return;pose(noteConf.current[jid]);
+        setNoteMsg("Note refusée : "+String((e&&e.message)||"erreur réseau")+" — note d'avant remise.")});
+    noteFile.current[jid]=envoi};
   if(!o.open)return null;
   var vus=jobs.filter(function(j){return dzmIsVideoJob(j,o.exts)});
   var chips=dzmProvChips(vus),g=chips.indexOf(groupe)>=0?groupe:"Tout";
@@ -20052,9 +20070,11 @@ function DzmMediaDrawer(o){
           r.jsx("span",{className:"svm-medstars",draggable:!0,
             onDragStart:function(e){e.preventDefault();e.stopPropagation()},
             children:[1,2,3,4,5].map(function(i){var cur=dzmRatingNorm(j.rating);
+              /* une étoile n'est pas une bascule (l'étoile 2 d'une note 4 est allumée
+                 mais cliquer la baisse) : on dit l'ACTION, même phrase que l'infobulle */
+              var ti=i===cur?"Retirer la note ("+i+" ★)":"Noter "+i+" ★"+(i===5?" — Good Take":"");
               return r.jsx("button",{type:"button",className:"svm-medstar","data-on":i<=cur?"":void 0,
-                "aria-pressed":i<=cur,
-                title:i===cur?"Retirer la note ("+i+" ★)":"Noter "+i+" ★"+(i===5?" — Good Take":""),
+                title:ti,"aria-label":ti,
                 onClick:function(e){e.stopPropagation();e.preventDefault();noter(j,i)},children:"★"},i)})})]})]},jid||lbl)};
   return r.jsxs("div",{className:"svm-meddrawer",children:[
     r.jsxs("div",{className:"svm-medhead",children:[

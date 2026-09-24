@@ -229,7 +229,9 @@ _TITRES_COUCHE = [
     'title:"Fermer la comparaison (Échap)",onClick:function(){if(o.onClose)o.onClose()},children:"Fermer"',
     # L7-B D-34 (24/09/2026, tache 7) : les cinq etoiles d'une ligne du tiroir Medias (l'etoile courante dit « retirer »)
     # et les deux chips de note (la chip active dit « retirer le filtre ») -- classes hors audit R1, titrees quand meme
-    'title:i===cur?"Retirer la note ("+i+" ★)":"Noter "+i+" ★"+(i===5?" — Good Take":""),',
+    # revue 24/09 : l'infobulle est calculee une fois (ti) et sert aussi d'aria-label
+    'var ti=i===cur?"Retirer la note ("+i+" ★)":"Noter "+i+" ★"+(i===5?" — Good Take":"");',
+    'title:ti,"aria-label":ti,',
     'title:minNote===n[0]?"Retirer le filtre de note — tous les rendus":n[2],',
 ]
 for t in _TITRES_COUCHE:

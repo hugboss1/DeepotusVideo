@@ -3088,13 +3088,17 @@ check("l7b_tiroir_etoiles_clic_arrete_a_l_etoile_et_glisser_annule_sur_les_etoil
       and _DRW.count("onDragStart:function(e){e.preventDefault();e.stopPropagation()}") == 1
       and _DRW.count("onClick:function(e){e.stopPropagation();e.preventDefault();noter(j,i)}") == 1
       and _DRW.count("[1,2,3,4,5].map(") == 1 and _DRW.count('className:"svm-medstar",') == 1
-      and _DRW.count('title:i===cur?"Retirer la note ("+i+" ★)":"Noter "+i+" ★"') == 1,
+      and _DRW.count('var ti=i===cur?"Retirer la note ("+i+" ★)":"Noter "+i+" ★"') == 1
+      # revue 24/09 : une etoile n'est pas une bascule -- aria-label = l'infobulle, plus d'aria-pressed
+      and _DRW.count('title:ti,"aria-label":ti,') == 1 and _DRW.count('"aria-pressed":i<=cur') == 0,
       f"corps={len(_DRW)}")
 check("l7b_tiroir_note_optimiste_put_puis_retour_arriere_garde_par_compteur",
       len(_DRW) > 400 and _DRW.count('fetch("/api/jobs/"+encodeURIComponent(jid)+"/rating",{method:"PUT",') == 1
       and _DRW.count("apres=dzmRatingNext(avant,clic)") == 1 and _DRW.count("avant=dzmRatingNorm(j.rating)") == 1
       and _DRW.find("pose(apres);") < _DRW.find('fetch("/api/jobs/"+encodeURIComponent(jid)')
-      and _DRW.count("noteSeq.current[jid]!==k)return;pose(avant);") == 1
+      # revue 24/09 : le refus remet la derniere note CONFIRMEE par le serveur (et non la note d'avant le clic)
+      and _DRW.count("noteSeq.current[jid]!==k)return;pose(noteConf.current[jid]);") == 1
+      and _DRW.count("pose(avant)") == 0
       and _DRW.count('setNoteMsg("Note refusée : "') == 1,
       (_DRW.find("pose(apres);"), _DRW.find('fetch("/api/jobs/"+encodeURIComponent(jid)')))
 check("l7b_tiroir_chips_passent_min_rating_au_serveur_et_rechargent_page_0",
@@ -3106,9 +3110,23 @@ check("l7b_tiroir_chips_passent_min_rating_au_serveur_et_rechargent_page_0",
       f"corps={len(_DRW)}")
 # regle des hooks : les deux useState neufs et le useRef du compteur viennent AVANT le `return null` du tiroir ferme
 _iN7 = _DRW.find("x.useState(0),minNote="); _iN8 = _DRW.find('x.useState(""),noteMsg=');
-_iNr = _DRW.find("noteSeq=x.useRef({})"); _iNul2 = _DRW.find("return null")
+_iNr = _DRW.find("noteSeq=x.useRef({}),noteConf=x.useRef({}),noteFile=x.useRef({}),vague=x.useRef(0);"); _iNul2 = _DRW.find("return null")
 check("l7b_tiroir_hooks_de_la_note_avant_le_return_null",
       0 <= _iN7 < _iNul2 and 0 <= _iN8 < _iNul2 and 0 <= _iNr < _iNul2, (_iN7, _iN8, _iNr, _iNul2))
+# revue 24/09 (2) : les PUT d'un meme rendu partent EN FILE -- chaque envoi s'enchaine a la promesse du precedent
+check("l7b_tiroir_put_en_file_par_rendu",
+      len(_DRW) > 400 and _DRW.count("var envoi=(noteFile.current[jid]||Promise.resolve()).then(function(){") == 1
+      and _DRW.count("noteFile.current[jid]=envoi}") == 1
+      and _DRW.find("var envoi=(noteFile.current[jid]") < _DRW.find('fetch("/api/jobs/"+encodeURIComponent(jid)') < _DRW.find("noteFile.current[jid]=envoi}"),
+      f"corps={len(_DRW)}")
+# revue 24/09 (1) : sous filtre, l'offset suit la note CONFIRMEE (seuil franchi -> -1 / +1), jamais sur un refus ni apres rechargement
+check("l7b_tiroir_offset_suit_le_seuil_au_succes_et_la_vague_de_chargement",
+      len(_DRW) > 400 and _DRW.count("var dl=(apres>=seuil?1:0)-(c0>=seuil?1:0);") == 1
+      and _DRW.count("if(dl)setOffset(function(o2){return Math.max(0,o2+dl)})") == 1
+      and _DRW.count("if(vivant.current&&seuil>0&&vague.current===v0)") == 1
+      and _DRW.count("if(remplace)vague.current++;") == 1 and _DRW.count("var seuil=minNote,v0=vague.current;") == 1
+      and _DRW.find("var dl=") < _DRW.find(".catch(function(e){if(!vivant.current||noteSeq"),
+      f"corps={len(_DRW)}")
 
 print("\n[34] L7-B D-40 : le cadrage d'un clip V1 — dzmReframeOf / At / K / Pos / Css purs (tache 4, 24/09/2026)")
 # ── L7-B D-40 (24/09/2026, tache 4, decision n°3 du plan). dzmReframeOf est la regle MEME de _reframe_of du backend

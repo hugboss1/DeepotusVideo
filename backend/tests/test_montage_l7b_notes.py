@@ -282,6 +282,42 @@ _n5 = sql1(str(RAC_C / _tr.NOM_BASE), "select rating from jobs where id='j05'")
 check("n5_la_note_voyage_quand_les_deux_bases_ont_la_colonne",
       (rc_.get("ajoutees") or {}).get("jobs") == N_JOBS + 1 and _n5 is not None and _n5[0] == 5, (rc_, _n5))
 
+print("\n[6] revue 24/09 : la requete REELLE du tiroir (video=1 + min_rating) et init_db rejoue (idempotence)")
+# un rendu NON video note 5, le plus recent de tous : video=1 doit l'ecarter MEME sous min_rating
+with sqlite3.connect(DB) as _cx:
+    _cx.execute("INSERT INTO jobs (id, status, progress, title, image_filename, provider, video_path, created_at, rating) "
+                "VALUES ('im9','done',100,'Planche','x.png','sprite2d','/out/im9.png','2026-09-25 09:00:00',5)") \
+        if "rating" in cols_de(DB) else None
+    _cx.commit()
+r_v = c.get("/api/jobs", params={"limit": 24, "offset": 0, "video": 1, "min_rating": 5}); l_v = L(r_v)
+r_nv = c.get("/api/jobs", params={"limit": 24, "offset": 0, "min_rating": 5}); l_nv = L(r_nv)
+check("n6_video_1_et_min_rating_5_la_requete_du_tiroir_ecarte_l_image_notee",
+      r_v.status_code == 200 and [j.get("job_id") for j in (l_v or [])] == ["j05"]
+      # temoin : sans video=1, l'image notee 5 est bien la
+      and [j.get("job_id") for j in (l_nv or [])] == ["im9", "j05"],
+      (l_v and [j.get("job_id") for j in l_v], l_nv and [j.get("job_id") for j in l_nv]))
+r_v3 = c.get("/api/jobs", params={"limit": 2, "offset": 2, "video": 1, "min_rating": 3}); l_v3 = L(r_v3)
+check("n6_video_1_et_min_rating_3_page_2_juste",
+      r_v3.status_code == 200 and [j.get("job_id") for j in (l_v3 or [])] == ["j03"], l_v3 and [j.get("job_id") for j in l_v3])
+from app.services.storage import init_db                 # noqa: E402
+with sqlite3.connect(DB) as _cx:
+    _avant_re = _cx.execute("select id, title, video_path, created_at from jobs order by id").fetchall()
+_notes_avant = sql1(DB, "select group_concat(id || ':' || coalesce(rating, 'n'), ',') from jobs where rating is not null")
+try:
+    asyncio.run(init_db()); _re = "ok"
+except Exception as e:
+    _re = repr(e)
+_cols_re = cols_de(DB)
+with sqlite3.connect(DB) as _cx:
+    _apres_re = _cx.execute("select id, title, video_path, created_at from jobs order by id").fetchall()
+check("n6_init_db_rejoue_sans_erreur_une_seule_colonne_rating",
+      _re == "ok" and _cols_re.count("rating") == 1 and len(_cols_re) == len(APRES), (_re, _cols_re.count("rating"), len(_cols_re)))
+check("n6_init_db_rejoue_lignes_et_notes_intactes",
+      len(_avant_re) == N_JOBS + 2 and _apres_re == _avant_re
+      and _notes_avant is not None and _notes_avant[0] and "j05:5" in _notes_avant[0]
+      and sql1(DB, "select group_concat(id || ':' || coalesce(rating, 'n'), ',') from jobs where rating is not null") == _notes_avant,
+      (len(_avant_re), _notes_avant))
+
 c.__exit__(None, None, None)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

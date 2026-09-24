@@ -18091,6 +18091,79 @@ check("L7Bn_sous_node_chips_3_puis_5_titrees_eteintes_au_depart",
 check("L7Bn_sous_node_chip_3_redemande_la_page_0_avec_min_rating_3_puis_la_retirer_redemande_sans",
       _BN.get("f3") == [[_BN_GET + "&min_rating=3"], ""] and _BN.get("f0") == [_BN_GET],
       (_BN.get("f3"), _BN.get("f0")))
+# ── REVUE D-34 (24/09/2026) : la page suivante ne saute plus un rendu sous filtre, et les PUT d'un rendu partent en file.
+# MESURE du reviewer : filtre ★ 5, limit 2, page 1 [j8, j5], j8 remis a 0, « Plus » demandait offset 2 -> [] et j2
+# n'apparaissait JAMAIS. Second shim, MEME tiroir extrait du bundle, avec un SERVEUR bouchonne qui filtre et pagine
+# vraiment (min_rating, offset, limit) et applique chaque PUT A SA REPONSE (delai propre a chaque appel).
+_L7BN2_RT = "non joue"
+if len(_L7BN_LAYER) > 100000:
+    _L7BN2_SHIM = ('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + _L7BN_LAYER + "\n" +
+        "DZM_MED_PAGE=2;\n"
+        "var HS,HI,EFF,SRV,CALLS,MODE,DELAIS,T;\n"
+        "function deps(a,b){if(!a||!b||a.length!==b.length)return !0;for(var i=0;i<a.length;i++)if(a[i]!==b[i])return !0;return !1}\n"
+        "var x={useState:function(v){var i=HI++;if(!(i in HS))HS[i]=v;return [HS[i],function(n){HS[i]=typeof n==='function'?n(HS[i]):n}]},\n"
+        "  useRef:function(v){var i=HI++;if(!(i in HS))HS[i]={current:v};return HS[i]},\n"
+        "  useEffect:function(f,d){var i=HI++;if(!(i in HS)||deps(HS[i],d)){HS[i]=d;EFF.push(f)}}};\n"
+        "var r={jsx:function(t,p){return {t:t,p:p||{}}},jsxs:function(t,p){return {t:t,p:p||{}}}};\n"
+        "function neuf(notes){HS=[];HI=0;EFF=[];CALLS=[];MODE='ok';DELAIS=[];\n"
+        "  SRV=Object.keys(notes).map(function(k){return {job_id:k,status:'done',video_path:'/o/'+k+'.mp4',title:k,rating:notes[k],provider:'seedance'}})}\n"
+        "function rep(ok,st,d){return {ok:ok,status:st,json:function(){return Promise.resolve(d)}}}\n"
+        "function arg(u,k){var m=new RegExp('[?&]'+k+'=([^&]*)').exec(u);return m?m[1]:null}\n"
+        "function fetch(u,o){CALLS.push([u,o&&o.method||'GET',o&&o.body?JSON.parse(o.body):null]);\n"
+        "  if(!o||!o.method){var mr=+(arg(u,'min_rating')||0),off=+arg(u,'offset'),lim=+arg(u,'limit');\n"
+        "    return Promise.resolve(rep(!0,200,JSON.parse(JSON.stringify(SRV.filter(function(j){return (j.rating||0)>=mr}).slice(off,off+lim)))))}\n"
+        "  var b=JSON.parse(o.body),jid=u.split('/')[3],d=DELAIS.length?DELAIS.shift():0,mo=MODE;\n"
+        "  return new Promise(function(z){setTimeout(function(){if(mo!=='ok'){z(rep(!1,400,{detail:'refus'}));return}\n"
+        "    SRV.forEach(function(j){if(j.job_id===jid)j.rating=b.rating});z(rep(!0,200,{}))},d)})}\n"
+        "function pause(ms){return new Promise(function(z){setTimeout(z,ms||20)})}\n"
+        "var O={open:!0,trId:'v1',exts:null,onAdd:function(){},onClose:function(){}};\n"
+        "function rend(){HI=0;T=DzmMediaDrawer(O);var e=EFF;EFF=[];e.forEach(function(f){f()});return T}\n"
+        "function tous(n,out){out=out||[];if(!n||typeof n!=='object')return out;if(Array.isArray(n)){n.forEach(function(k){tous(k,out)});return out}\n"
+        "  if(n.t){out.push(n);tous(n.p&&n.p.children,out)}return out}\n"
+        "function lignes(){return tous(T).filter(function(n){return n.p.className==='svm-medrow'})}\n"
+        "function ids(){return lignes().map(function(rw){return tous(rw.p.children).filter(function(n){return n.p.className==='svm-medtitle'})[0].p.children})}\n"
+        "function clic(jid,i){var rw=lignes()[ids().indexOf(jid)];tous(rw.p.children).filter(function(n){return n.p.className==='svm-medstar'})[i-1]\n"
+        "  .p.onClick({stopPropagation:function(){},preventDefault:function(){}})}\n"
+        "function chip(l){tous(T).filter(function(n){return n.p.children===l})[0].p.onClick()}\n"
+        "function plus(){tous(T).filter(function(n){return n.p.className==='svm-secbtn svm-medplus'})[0].p.onClick()}\n"
+        "async function ouvre(notes,l){neuf(notes);rend();await pause();rend();chip(l);rend();await pause();rend();CALLS=[]}\n"
+        "async function plusUrl(){rend();plus();rend();await pause();rend();var g=CALLS.filter(function(c){return c[1]==='GET'});CALLS=[];return g.map(function(c){return arg(c[0],'offset')})}\n"
+        "(async function(){var R={};var N={j8:5,j7:0,j5:5,j2:5};\n"
+        "  await ouvre(N,'★ 5');R.a_page1=ids();clic('j8',5);rend();await pause();rend();\n"
+        "  R.a_plus=await plusUrl();R.a_fin=ids();R.a_srv=SRV.map(function(j){return j.job_id+':'+j.rating});\n"
+        "  await ouvre({j8:5,j7:0,j5:5,j2:5,j1:3},'★ 3+');R.b_page1=ids();clic('j8',4);rend();await pause();rend();\n"
+        "  R.b_plus=await plusUrl();R.b_fin=ids();\n"
+        "  await ouvre(N,'★ 5');MODE='ko';clic('j8',5);rend();await pause();rend();MODE='ok';R.c_plus=await plusUrl();\n"
+        "  await ouvre(N,'★ 5');clic('j8',5);rend();await pause();rend();clic('j8',5);rend();await pause();rend();R.d_plus=await plusUrl();\n"
+        "  await ouvre({j8:5,j7:0,j5:5},'★ 5');DELAIS=[40,5];clic('j8',2);rend();clic('j8',4);rend();await pause(90);rend();\n"
+        "  R.e=[SRV[0].rating,CALLS.filter(function(c){return c[1]==='PUT'}).map(function(c){return c[2].rating})];\n"
+        "  await ouvre(N,'★ 5');DELAIS=[40];clic('j8',5);rend();chip('★ 5');rend();await pause(90);rend();\n"
+        "  R.f_recharge=CALLS.filter(function(c){return c[1]==='GET'}).map(function(c){return c[0]});CALLS=[];R.f_plus=await plusUrl();\n"
+        "  console.log(JSON.stringify(R))})();\n")
+    _pBN2 = pathlib.Path(TMP) / "l7b_notes_offset.js"; _pBN2.write_text(_L7BN2_SHIM, encoding="utf-8")
+    _rBN2 = NODE(["node", str(_pBN2)], timeout=60)
+    try: _L7BN2_RT = json.loads(_rBN2.stdout.strip().splitlines()[-1]) if _rBN2.returncode == 0 else ("rc=" + str(_rBN2.returncode) + " " + (_rBN2.stderr or "")[-400:])
+    except Exception as _e: _L7BN2_RT = temoin(_e)
+_BN2 = _L7BN2_RT if isinstance(_L7BN2_RT, dict) else {}
+check("L7Bn_revue_filtre_5_remettre_j8_a_0_Plus_demande_offset_1_et_j2_apparait",
+      _BN2.get("a_page1") == ["j8", "j5"] and _BN2.get("a_plus") == ["1"]
+      and _BN2.get("a_fin") == ["j8", "j5", "j2"] and "j8:0" in (_BN2.get("a_srv") or []),
+      _L7BN2_RT)
+check("L7Bn_revue_temoin_filtre_3_baisse_5_vers_4_reste_au_dessus_offset_inchange",
+      _BN2.get("b_page1") == ["j8", "j5"] and _BN2.get("b_plus") == ["2"] and _BN2.get("b_fin") == ["j8", "j5", "j2", "j1"],
+      (_BN2.get("b_page1"), _BN2.get("b_plus"), _BN2.get("b_fin")))
+check("L7Bn_revue_refus_du_PUT_offset_inchange",
+      # temoin : le meme clic accepte (scenario a) ramene l'offset a 1
+      _BN2.get("c_plus") == ["2"] and _BN2.get("a_plus") == ["1"], (_BN2.get("c_plus"), _BN2.get("a_plus")))
+check("L7Bn_revue_retirer_puis_remettre_5_l_offset_revient_a_2",
+      _BN2.get("d_plus") == ["2"], _BN2.get("d_plus"))
+check("L7Bn_revue_rechargement_pendant_le_PUT_l_offset_du_rechargement_n_est_pas_touche",
+      # le filtre est retire pendant un PUT lent qui fait passer j8 sous 5 : la liste rechargee (2 lignes) garde offset 2
+      _BN2.get("f_recharge") == ["/api/jobs?limit=2&offset=0&video=1"] and _BN2.get("f_plus") == ["2"],
+      (_BN2.get("f_recharge"), _BN2.get("f_plus")))
+check("L7Bn_revue_deux_PUT_rapides_le_serveur_garde_la_derniere_note_cliquee",
+      # le premier PUT repond en 40 ms, le second en 5 : sans file, le serveur finirait sur 2
+      _BN2.get("e") == [4, [2, 4]], _BN2.get("e"))
 
 print("\n[L7B] D-40 tache 4 : le cadrage dans l'inspecteur de plan, l'apercu vivant et le payload (24/09/2026)")
 # ── L7-B D-40 (24/09/2026, tache 4, decision n°3). AUCUNE section neuve : trois REPLIS dans les hotes de D-13 --
