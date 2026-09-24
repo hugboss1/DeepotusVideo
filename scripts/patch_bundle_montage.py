@@ -4908,11 +4908,19 @@ R_EC1 = (A_EC1 + "\n"
          '    if(!c||!c.src||!c.src.job_id){fireNote("Découpe aux changements de plan : réservée aux clips vidéo rendus.");return}\n'
          '    if(trackStRef.current[c.tr]&&trackStRef.current[c.tr].l){fireNote("Piste "+c.tr.toUpperCase()+" verrouillée — déverrouillez-la pour découper ce plan.");return}\n'
          '    var sp=typeof c.speed==="number"&&c.speed>0?c.speed:1,du=Math.round(Math.max(0,(c.end-c.start)*sp)*1e3)/1e3;\n'
+         # revue D-42 (24/09/2026) : REPONSE OBSOLETE -- l'empreinte (srcIn, vitesse, start, end) du plan
+         # ENVOYE est gardee ; a la reponse, un plan dont l'un d'eux a change (trim, slip, vitesse) est
+         # refuse, DIT, sans ecriture : les instants rendus ne valent que pour la fenetre analysee. Un plan
+         # supprime passe a la couche (refus « Clip introuvable »).
+         '    function dzSg(k){return [Number(k.srcIn)||0,typeof k.speed==="number"&&k.speed>0?k.speed:1,Number(k.start)||0,Number(k.end)||0].join("|")}\n'
+         '    var sg=dzSg(c);\n'
          '    fireNote("Analyse des changements de plan…");\n'
          '    fetch("/api/montage/scenes",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({src:c.src,srcIn:Number(c.srcIn)||0,dur:du})})\n'
          '      .then(function(res){return res.json().catch(function(){return {}}).then(function(j){\n'
          '        if(!res.ok)throw new Error((j&&typeof j.detail==="string"&&j.detail)||("HTTP "+res.status));return j})})\n'
-         '      .then(function(j){var r2=DzTracks.cutAt(clipsRef.current,id,j&&j.times,DzTracks.cutOpts(proj,trackStRef.current));\n'
+         '      .then(function(j){var k2=clipsRef.current.find(function(k){return k.id===id});\n'
+         '        if(k2&&dzSg(k2)!==sg){fireNote("Découpe aux changements de plan refusée : le plan a changé pendant l\'analyse — relancez.");return}\n'
+         '        var r2=DzTracks.cutAt(clipsRef.current,id,j&&j.times,DzTracks.cutOpts(proj,trackStRef.current));\n'
          '        if(r2.refus){fireNote(r2.note);return}\n'
          '        pushHistory();setClips(r2.clips);setDirty(!0);fireNote(r2.note)})\n'
          '      .catch(function(e){fireNote("Découpe aux changements de plan refusée : "+((e&&e.message)||"erreur réseau"))})}\n'
@@ -5569,6 +5577,7 @@ assert R_EC1.count("function dzExportTl(fmt){") == 1 and R_EC1.count('run:functi
 assert R_EC1.count('fetch("/api/montage/export?format="+fmt)') == 1 and R_EC1.count("JSON.stringify(svmSavePayload())") == 1 and R_EC1.find("function dzExportTl(fmt){") < R_EC1.find("  function dzMenuProps(kind,o){")
 # L7-B D-42 (24/09/2026) : le geste « Decouper aux changements de plan » et son entree du menu de clip, repliés dans R_EC1
 assert R_EC1.count("  function dzSceneCut(id){") == 1 and R_EC1.count("run:function(){dzSceneCut(id)}") == 1 and R_EC1.count('fetch("/api/montage/scenes",') == 1
+assert R_EC1.count("var sg=dzSg(c);") == 1 and R_EC1.count("if(k2&&dzSg(k2)!==sg){") == 1 and R_EC1.find("if(k2&&dzSg(k2)!==sg){") < R_EC1.find("DzTracks.cutAt(clipsRef.current,id,")
 assert R_EC1.count("DzTracks.cutAt(clipsRef.current,id,") == 1 and R_EC1.count("DzTracks.cutOpts(proj,trackStRef.current)") == 1 and R_EC1.count("pushHistory();setClips(r2.clips);setDirty(!0);") == 1
 assert R_EC1.find("  function dzSceneCut(id){") < R_EC1.find("  function dzMenuProps(kind,o){") < R_EC1.find('lbl:"Couper à la tête"') < R_EC1.find('lbl:"Découper aux changements de plan"') < R_EC1.find('lbl:"Supprimer",combo:')
 assert R_M26A.count("x.useState(!1),dzNewTr=s9c[0],setDzNewTr=s9c[1];") == 1 and R_M26A.count("props.onNewTrack(dzTo,dzNext)") == 1 and R_M26A.count("if(props.onChange)props.onChange(dzNext,!0);") == 1

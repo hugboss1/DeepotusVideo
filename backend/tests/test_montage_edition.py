@@ -1087,8 +1087,11 @@ out.ca=[ca(ca3),ca3.n,ca3.refus,ca3.note];
 /* vitesse ×2 : t (secondes de SOURCE depuis srcIn) → timeline start + t/2 ; srcIn = srcIn + t */
 var ca2=T.cutAt([Object.assign({},CA[0],{speed:2})],"p",[4,8],{});
 out.ca_vitesse=[ca(ca2),ca2.n];
-/* deux coupes à moins de 0,1 s : même base d'identifiant (p_b50), ids uniques quand même */
-out.ca_ids=ca(T.cutAt(CA,"p",[3,3.04],{})).map(function(q){return q[0]});
+/* deux coupes à moins de 0,1 s (4,96 et 5,04 : écart 0,08 ≥ 0,05) : même base d'identifiant (p_b50), ids uniques quand même */
+out.ca_ids=ca(T.cutAt(CA,"p",[2.96,3.04],{})).map(function(q){return q[0]});
+/* revue 24/09 : écart minimal 0,05 s entre candidates successives (chaîne) — 7 ; 7,001 ; 7,04 ; 7,06 → UNE coupe ; témoin 7 ; 7,1 → deux */
+out.ca_ecart=[T.cutAt(CA,"p",[5,5.001,5.04,5.06],{}).n,ca(T.cutAt(CA,"p",[5.06,5,5.04,5.001],{})).map(function(q){return q[3]}),
+  T.cutAt(CA,"p",[5,5.1],{}).n,ca(T.cutAt(CA,"p",[5,5.1],{})).map(function(q){return q[3]})];
 out.ca_ids_pris=ca(T.cutAt(CA.concat([{tr:"v2",id:"p_b50",start:0,end:1}]),"p",[3],{})).map(function(q){return q[0]});
 /* bords : à moins de 0,05 s du début ou de la fin → ignorées ; doublon, négatif, illisible, au-delà → ignorés ; non trié → trié */
 var cab=T.cutAt(CA,"p",[.02,9.97,5,5,-1,"x",null,20,1],{});
@@ -1380,8 +1383,8 @@ try:
                  # L7 D-22 (tache 6) : les DIX-NEUF cles de la section [31].
                  "sst","sst_bornes","sn","sn2","sn_place","sb","sb_defaut","sb_neuf","sb_bascule","bid",
                  "sc","sc_clips","sc_memes","sc_ids","sc_bornes","sc_pur","rm","rm_s1","tp",
-                 # L7-B D-42 (tache 2) : les DIX cles de la section [32].
-                 "ca","ca_vitesse","ca_ids","ca_ids_pris","ca_bords","ca_refus","ca_un","ca_sans_src","ca_champs","ca_pur",
+                 # L7-B D-42 (tache 2) : les ONZE cles de la section [32] (ca_ecart : revue du 24/09).
+                 "ca","ca_vitesse","ca_ids","ca_ids_pris","ca_bords","ca_refus","ca_un","ca_sans_src","ca_champs","ca_pur","ca_ecart",
                  # L7-B D-34 (tache 7) : les CINQ cles de la section [33].
                  "rn","rx","rx_bornes","rx_suite","rchips"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
@@ -2995,14 +2998,21 @@ check("ca_une_coupe_au_singulier_clip_sans_srcIn_part_de_0",
 check("ca_clip_sans_source_ne_gagne_pas_de_srcIn",
       # temoin : la meme coupe AVEC source pose srcIn 2 (ligne precedente)
       D.get("ca_sans_src") == [["q", "v1", 0, 2, None, None, None], ["q_b20", "v1", 2, 4, None, "cut", 0]]
-      and isinstance(D.get("ca_un"), list) and D["ca_un"][:1] and D["ca_un"][0][1][4] == 2, D.get("ca_sans_src"))
+      # faute n°6 (revue 24/09) : chaque niveau garde sa longueur avant l'index
+      and isinstance(D.get("ca_un"), list) and len(D["ca_un"]) > 0 and isinstance(D["ca_un"][0], list)
+      and len(D["ca_un"][0]) > 1 and isinstance(D["ca_un"][0][1], list) and len(D["ca_un"][0][1]) > 4
+      and D["ca_un"][0][1][4] == 2, D.get("ca_sans_src"))
+# revue 24/09 : ECART MINIMAL entre coupes (chaine de candidates, DZM_CUT_BORD) -- la rafale 7 ; 7,001 ; 7,04 ; 7,06
+# (dans le desordre aussi) garde la seule premiere ; temoin : 7 ; 7,1 en garde deux
+check("ca_ecart_minimal_0_05_entre_candidates_une_rafale_fait_une_coupe_temoin_deux_coupes_a_0_1",
+      D.get("ca_ecart") == [1, [7, 12, 12], 2, [7, 7.1, 12, 12]], D.get("ca_ecart"))
 check("ca_moitie_droite_garde_label_src_fx_comme_la_lame", D.get("ca_champs") == ["P", {"job_id": "j"}, ["x"]], D.get("ca_champs"))
 check("ca_pur_entree_intacte_tableau_neuf_autres_clips_memes_objets", D.get("ca_pur") == [True, True, True], D.get("ca_pur"))
 _L7BC = _corps("dzmCutAt")
 check("l7b_ca_coeur_pur_dzmUniqueId_x1_bord_par_constante_export_cutAt_x1",
       len(_L7BC) > 300
       and not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|fetch\(|setClips|pushHistory", _L7BC)
-      and _L7BC.count("dzmUniqueId(") == 1 and _L7BC.count("DZM_CUT_BORD") == 2 and _L7BC.count(".05") == 0
+      and _L7BC.count("dzmUniqueId(") == 1 and _L7BC.count("DZM_CUT_BORD") == 3 and _L7BC.count(".05") == 0
       and _SRCb.count("var DZM_CUT_BORD=.05;") == 1
       and len(_DT) > 1000 and _DT.count("cutAt:dzmCutAt,") == 1 and _SRCb.count("cutAt:") == 1,
       (len(_L7BC), _L7BC.count("dzmUniqueId("), _L7BC.count("DZM_CUT_BORD"), _DT.count("cutAt:dzmCutAt,")))

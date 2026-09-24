@@ -7254,7 +7254,12 @@ var DZM_CUT_BORD=.05;
    start + t / vitesse (vitesse ×s : s secondes de source par seconde de
    timeline, la loi de la lame) ; les positions à moins de DZM_CUT_BORD
    (0,05 s, la tolérance de la lame) d'un bord du clip sont ignorées, comme
-   les doublons et les valeurs illisibles. Le clip est remplacé EN PLACE par
+   les valeurs illisibles. ÉCART MINIMAL (revue du 24/09/2026) : triées, les
+   positions candidates forment une CHAÎNE ; une position à moins de
+   DZM_CUT_BORD de la candidate PRÉCÉDENTE (retenue ou non) est ignorée —
+   une rafale de coupes (flash, fondu détecté image par image) ne garde que
+   sa première : 5 ; 5,001 ; 5,04 ; 5,06 font UNE coupe, 5 ; 5,1 en font
+   deux. Les doublons exacts tombent par la même règle. Le clip est remplacé EN PLACE par
    ses morceaux : le premier garde son id et sa transition d'entrée, chaque
    suivant démarre sur une jonction « cut » (transition_s 0), son srcIn
    avance de (p − start) × vitesse — seulement si le clip a une source ou un
@@ -7262,7 +7267,15 @@ var DZM_CUT_BORD=.05;
    dzmUniqueId sur la base de la lame (id + "_b" + dixièmes de p) : deux
    coupes à moins de 0,1 s donnent p_b50 et p_b50_2, là où la lame
    donnerait deux fois le même. Les autres champs du clip (label, src, fx…)
-   sont repris tels quels, comme par la lame. opts.locked = {piste: vrai}
+   sont repris tels quels, comme par la lame. ÉCART DATÉ (24/09/2026,
+   commun avec la lame, non recalé) : les champs exprimés en temps LOCAL du
+   clip — motion_points, dz, effets animés (effects), volume_points, words,
+   reframe — sont COPIÉS tels quels sur chaque morceau ; un point posé à 3 s
+   dans le clip d'origine reste à 3 s dans chaque morceau. Côté serveur,
+   écarts datés eux aussi : le cache de l'analyse n'est pas borné en nombre
+   et sa clé ne porte pas l'empreinte du filtre (changer la chaîne scdet
+   exige de vider montage_cache) ; deux analyses simultanées ne sont pas
+   limitées (aucune file, aucun verrou par source). opts.locked = {piste: vrai}
    (la forme de dzmCutOpts) : la piste du clip verrouillée -> refus
    "verrou". Refus "clip" (introuvable), "aucune_coupe" (rien d'utilisable)
    : les clips reviennent intacts (tableau neuf), n = 0, la note le dit. */
@@ -7275,13 +7288,14 @@ function dzmCutAt(clips,id,times,opts){
     note:"Piste "+String(c.tr).toUpperCase()+" verrouillée — déverrouillez-la pour découper ce plan."};
   var c0=Number(c.start)||0,c1=Number(c.end)||0;
   var sp=(typeof c.speed==="number"&&c.speed>0)?c.speed:1,si=Number(c.srcIn)||0;
-  var ps=[];
+  var cand=[],ps=[],prev=null;
   (Array.isArray(times)?times:[]).forEach(function(t){
     if(t==null||t==="")return;
     var v=Number(t);if(!isFinite(v))return;
     var p=dzmR3(c0+v/sp);
-    if(p>c0+DZM_CUT_BORD&&p<c1-DZM_CUT_BORD&&ps.indexOf(p)<0)ps.push(p)});
-  ps.sort(function(a,b){return a-b});
+    if(p>c0+DZM_CUT_BORD&&p<c1-DZM_CUT_BORD)cand.push(p)});
+  cand.sort(function(a,b){return a-b});
+  cand.forEach(function(p){if(prev===null||p-prev>=DZM_CUT_BORD-1e-9)ps.push(p);prev=p});
   if(!ps.length)return {clips:cs.slice(),n:0,refus:"aucune_coupe",
     note:"Aucun changement de plan à découper dans ce clip."};
   var pool=cs.slice(),bornes=[c0].concat(ps,[c1]),morceaux=[];

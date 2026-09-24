@@ -17925,6 +17925,12 @@ if _L7BB_F and src:
                   "  await coup('image','ok',[Object.assign({},P,{src:{image:'x.png'}})]);\n"
                   "  await coup('verrou_pendant','ok',[P],{},function(){trackStRef.current={v1:{l:!0}}});\n"
                   "  await coup('supprime','ok',[P],{},function(){clipsRef.current=[]});await coup('net','net',[P]);\n"
+                  # revue 24/09 : le plan change PENDANT l'analyse (fin rognee, vitesse, srcIn) -> refus dit ; temoin :
+                  # une COPIE identique (autre objet, memes champs) coupe normalement
+                  "  await coup('change_fin','ok',[P],{},function(){clipsRef.current=[Object.assign({},P,{end:4})]});\n"
+                  "  await coup('change_vitesse','ok',[P],{},function(){clipsRef.current=[Object.assign({},P,{speed:2})]});\n"
+                  "  await coup('change_srcin','ok',[P],{},function(){clipsRef.current=[Object.assign({},P,{srcIn:2.5})]});\n"
+                  "  await coup('copie','ok',[P],{},function(){clipsRef.current=[Object.assign({},P)]});\n"
                   "  console.log(JSON.stringify(R))})();\n").replace("\r\n", "\n")
     _pBB = pathlib.Path(TMP) / "l7b_scenes.js"; _pBB.write_text(_L7BB_SHIM, encoding="utf-8")
     _rBB = NODE(["node", str(_pBB)], timeout=60)
@@ -17966,6 +17972,16 @@ check("L7Bb_sous_node_verrou_pose_ou_clip_supprime_PENDANT_l_analyse_rien_n_est_
       and len((_BB.get("supprime") or {}).get("calls") or []) == 1 and (_BB.get("supprime") or {}).get("hist") == 0
       and (_BB.get("supprime") or {}).get("notes") == ["Analyse des changements de plan…", "Clip introuvable — rien à découper."],
       (_BB.get("verrou_pendant"), _BB.get("supprime")))
+_BB_OBS = ["Analyse des changements de plan…", "Découpe aux changements de plan refusée : le plan a changé pendant l'analyse — relancez."]
+check("L7Bb_sous_node_reponse_obsolete_fin_vitesse_ou_srcIn_changes_pendant_l_analyse_refus_dit_sans_ecriture_temoin_copie_identique_coupe",
+      all(len((_BB.get(k) or {}).get("calls") or []) == 1 and (_BB.get(k) or {}).get("hist") == 0
+          and (_BB.get(k) or {}).get("set") is None and (_BB.get(k) or {}).get("notes") == _BB_OBS
+          for k in ("change_fin", "change_vitesse", "change_srcin"))
+      # temoin : un AUTRE objet aux memes champs n'est pas obsolete -- il est coupe
+      and (_BB.get("copie") or {}).get("hist") == 1
+      and (_BB.get("copie") or {}).get("set") == [["p", 0, 1, 2, None], ["p_b10", 1, 3, 3, "cut"], ["p_b30", 3, 5, 5, "cut"]]
+      and _L7BB_F.count("var sg=dzSg(c);") == 1 and _L7BB_F.find("if(k2&&dzSg(k2)!==sg){") < _L7BB_F.find("DzTracks.cutAt("),
+      {k: _BB.get(k) for k in ("change_fin", "change_vitesse", "change_srcin", "copie")})
 
 print("\n[L7B] D-34 tache 7 : note etoile des rendus et chips de note du tiroir Medias (24/09/2026)")
 # ── L7-B D-34 (24/09/2026, tache 7). Tout le client vit dans la COUCHE (DzmMediaDrawer, dzmRatingNorm,
