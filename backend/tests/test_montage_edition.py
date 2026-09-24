@@ -1139,7 +1139,27 @@ out.rf_vitesse=[{speed:2},{speed:10},{speed:0},{speed:"2"},{start:null},{speed:.
 out.rf_cap=(function(){var m=[],i;for(i=0;i<500;i++)m.push({t:i/100,x:(i%10)/10});
   var q=T.reframeOf({tr:"v1",start:0,end:10,reframe:{mode:"suivi",points:m}});return [q.points.length,q.points[0].t,q.points[239].t,q.points[1].t]})();
 /* l'arrondi du millième est celui de round(t, 3) du backend : valeur exacte du flottant, demi exact au pair */
-out.rf_r3=[.0045,.0625,.1875,.0055,1.0005,2.0625,.3125].map(function(v){return rof({mode:"suivi",points:[{t:v,x:.5}]}).points[0].t});
+out.rf_r3=[.0045,.0625,.1875,.0055,1.0005,2.0625,.3125].map(function(v){return rof({mode:"suivi",points:[{t:v,x:.5}]},{srcIn:0}).points[0].t});
+/* revue finale du lot (24/09/2026) : points ABSOLUS de source, srcIn COURANT soustrait — les QUATRE gestes qui
+   avancent srcIn en copiant le champ gardent le bon cadrage sur le morceau droit. Plan [0,10] srcIn 0 suivi
+   0,2 -> 0,8 ; la découpe aux plans (cutAt, couche) et la coupe ripple (rippleCut, couche) EXÉCUTÉES ; la
+   lame et le rognage de tête vivent dans le bundle (banc bundle, sous node). */
+var RG={tr:"v1",id:"g",start:0,end:10,srcIn:0,src:{job_id:"j"},reframe:{mode:"suivi",points:[{t:0,x:.2},{t:10,x:.8}]}};
+function rfPts(c){var q=T.reframeOf(c);return q&&q.points.map(function(z){return [z.t,rfR6(z.x)]})}
+out.rf_gestes=(function(){var ca=T.cutAt([RG],"g",[5],{}),rc=T.rippleCut([RG],2,3,{});
+  var d1=ca.clips.filter(function(k){return k.start===5})[0],d2=rc.clips.filter(function(k){return k.start===2})[0];
+  return [ca.n,rfPts(ca.clips[0]),d1&&d1.srcIn,d1&&rfPts(d1),d2&&d2.srcIn,d2&&rfPts(d2)]})();
+/* la fenêtre : points de BORD interpolés, tout avant / tout après, sans fin lisible (bornée à gauche seulement) */
+out.rf_fenetre=[rfPts({start:0,end:2,srcIn:5,reframe:{mode:"suivi",points:[{t:4,x:.2},{t:6,x:.4},{t:8,x:.8}]}}),
+  rfPts({start:0,end:2,srcIn:5,reframe:{mode:"suivi",points:[{t:5,x:.2},{t:7,x:.8}]}}),
+  rfPts({start:0,end:2,srcIn:5,reframe:{mode:"suivi",points:[{t:1,x:.2},{t:2,x:.9}]}}),
+  rfPts({start:0,end:2,srcIn:5,reframe:{mode:"suivi",points:[{t:10,x:.2},{t:12,x:.9}]}}),
+  rfPts({start:0,srcIn:5,reframe:{mode:"suivi",points:[{t:4,x:.2},{t:9,x:.7}]}})];
+/* le payload : points ABSOLUS lisibles du champ en suivi, {mode, x} en manuel, rien au centre */
+out.rf_payload=[T.reframePayload({start:0,end:2,srcIn:5,reframe:{mode:"suivi",points:[{t:4,x:1.4},"z",[6,.4]]}}),
+  T.reframePayload({start:0,end:2,reframe:{mode:"manuel",x:.3,points:[{t:0,x:.1}]}}),
+  T.reframePayload({start:0,end:2,reframe:{mode:"centre",points:[{t:0,x:.1}]}}),
+  T.reframePayload({start:0,end:2,reframe:{mode:"suivi",points:["z"]}})];
 out.rf_vide=[rof({mode:"suivi",points:[]}),rof({mode:"suivi",points:[{t:"a",x:1}]}),rof({mode:"suivi"}),rof({mode:"suivi",points:{t:1,x:.5}})];
 /* x à l'instant t (secondes de source) : constante avant/après, lerp entre ; manuel ; sans cadrage 0,5 */
 var RA={mode:"suivi",points:[{t:1,x:.2},{t:3,x:.6}]};
@@ -1478,8 +1498,8 @@ try:
                  "ca","ca_vitesse","ca_ids","ca_ids_pris","ca_bords","ca_refus","ca_un","ca_sans_src","ca_champs","ca_pur","ca_ecart",
                  # L7-B D-34 (tache 7) : les CINQ cles de la section [33].
                  "rn","rx","rx_bornes","rx_suite","rchips",
-                 # L7-B D-40 (tache 4) : les DOUZE cles de la section [34] (rf_remplace : revue du 24/09).
-                 "rf_modes","rf_suivi","rf_vitesse","rf_cap","rf_r3","rf_vide","rf_remplace","rf_at","rf_k","rf_pos","rf_css","rf_pur",
+                 # L7-B D-40 (tache 4) : les QUINZE cles de la section [34] (rf_remplace : revue du 24/09 ; rf_gestes, rf_fenetre, rf_payload : revue finale).
+                 "rf_modes","rf_suivi","rf_vitesse","rf_cap","rf_r3","rf_vide","rf_remplace","rf_gestes","rf_fenetre","rf_payload","rf_at","rf_k","rf_pos","rf_css","rf_pur",
                  # L7-B D-41 (tache 6) : les TREIZE cles de la section [35].
                  "ac_cle","ac_n","ac_base","ac_llm","ac_text","ac_persona","ac_confirm","ac_src","ac_pur","ac_usd","ac_est","ac_tr","ac_clip",
                  # revue T6 (24/09) : le plafond et la langue
@@ -3212,11 +3232,24 @@ _M = {"mode": "manuel"}
 check("rf_modes_centre_inconnu_illisible_null_manuel_borne_chaine_lue_bool_vide_base16_nan_null",
       D.get("rf_modes") == [None, None, None, None, None, dict(_M, x=0.3), dict(_M, x=1), dict(_M, x=0), dict(_M, x=0.25),
                             None, None, None, None, None, None, None], D.get("rf_modes"))
-check("rf_suivi_bornes_0_dur_x_0_1_illisibles_ignores_tri_stable_doublon_5ms_le_dernier_gagne",
-      D.get("rf_suivi") == {"mode": "suivi", "points": [{"t": 0, "x": 0.2}, {"t": 1.003, "x": 0.45}, {"t": 2, "x": 1}, {"t": 4, "x": 0.7}]},
+# revue finale (24/09/2026) : RB lit la source depuis srcIn 1 -> fenetre [1, 5] en temps ABSOLU. Le point de bord
+# gauche (t 0) est remplace par 1,0001 -> 0 puis 1,003 -> 0,003 (doublons a 5 ms, le dernier gagne) ; 9 -> 0,7 tombe
+# a droite, 5 -> 0,9 est PILE sur le bord (aucun point de bord ajoute)
+check("rf_suivi_fenetre_srcIn_duree_x_0_1_illisibles_ignores_tri_stable_doublon_5ms_le_dernier_gagne",
+      D.get("rf_suivi") == {"mode": "suivi", "points": [{"t": 0.003, "x": 0.45}, {"t": 1, "x": 1}, {"t": 4, "x": 0.9}]},
       D.get("rf_suivi"))
+# un point a t 7 absolu, srcIn 1 -> t 6 relatif ; vitesse 0 (x1) : fenetre [1,5], le point tombe, bord droit a 4 ;
+# 0,1 -> 0,25 : fenetre [1, 2], bord a 1 ; sans start : pas de borne droite
 check("rf_vitesse_duree_de_source_x2_bornee_4_nulle_1_chaine_sans_start_non_borne_0_1_vaut_0_25",
-      D.get("rf_vitesse") == [7, 7, 4, 7, 7, 1, 7, 7, 4, 4, 4, 4], D.get("rf_vitesse"))
+      D.get("rf_vitesse") == [6, 6, 4, 6, 6, 1, 6, 6, 4, 4, 4, 4], D.get("rf_vitesse"))
+check("rf_gestes_decoupe_et_coupe_ripple_le_morceau_droit_cadre_0_5_0_8_le_gauche_0_2_0_5",
+      D.get("rf_gestes") == [1, [[0, 0.2], [5, 0.5]], 5, [[0, 0.5], [5, 0.8]], 3, [[0, 0.38], [7, 0.8]]], D.get("rf_gestes"))
+check("rf_fenetre_bords_interpoles_pile_sur_les_bords_tout_avant_tout_apres_sans_fin",
+      D.get("rf_fenetre") == [[[0, 0.3], [1, 0.4], [2, 0.6]], [[0, 0.2], [2, 0.8]], [[0, 0.9]], [[2, 0.2]],
+                              [[0, 0.3], [4, 0.7]]], D.get("rf_fenetre"))
+check("rf_payload_points_absolus_lisibles_en_suivi_x_en_manuel_rien_au_centre_ni_sans_point",
+      D.get("rf_payload") == [{"mode": "suivi", "points": [{"t": 4, "x": 1}, {"t": 6, "x": 0.4}]}, {"mode": "manuel", "x": 0.3},
+                              None, None], D.get("rf_payload"))
 check("rf_cap_240_points_sous_echantillonnes_premier_dernier_second",
       D.get("rf_cap") == [240, 0, 4.99, 0.02], D.get("rf_cap"))
 check("rf_r3_arrondi_du_millieme_comme_round_python_valeur_exacte_demi_au_pair",
@@ -3229,21 +3262,23 @@ check("rf_k_largeur_relative_paysage_dans_portrait_portrait_dans_paysage_meme_ra
 check("rf_pos_formule_du_crop_bornee_k_inutile_ou_inconnu_null",
       D.get("rf_pos") == [0.5, 0, 1, 0.2, None, None, None, 1, 0.5, 1], D.get("rf_pos"))
 check("rf_css_apercu_manuel_et_suivi_vide_sans_cadrage_portrait_cadre_ou_source_non_mesures_centre_garde",
-      D.get("rf_css") == ["20.74% 50%", "", "", "", "", "50% 50%", ""], D.get("rf_css"))
+      # revue finale : le suivi (0,0) -> (4,1) ABSOLU lu depuis srcIn 1 -> bord gauche (0 ; 0,25), (3 ; 1) : a t 2, x 0,75
+      D.get("rf_css") == ["20.74% 50%", "", "", "", "", "86.57% 50%", ""], D.get("rf_css"))
 check("rf_remplace_la_source_retire_les_points_garde_centre_manuel_suivi_devient_centre_note_dite_temoin_sans_points",
       D.get("rf_remplace") == [[None, True, True], [{"mode": "manuel", "x": 0.3}, True, False], [None, True, False],
                                [{"mode": "manuel", "x": 0.3}, False, False], [None, False, False]], D.get("rf_remplace"))
 check("rf_pur_entree_intacte_points_neufs", D.get("rf_pur") == [True, True, True, 4], D.get("rf_pur"))
-_L7RF = {n: _corps(n) for n in ("dzmRfNum", "dzmRfR3", "dzmRfSpeed", "dzmReframeOf", "dzmReframeAt", "dzmReframeK", "dzmReframePos", "dzmReframeCss")}
+_L7RF = {n: _corps(n) for n in ("dzmRfNum", "dzmRfR3", "dzmRfSpeed", "dzmRfLerp", "dzmRfPoints", "dzmReframeOf", "dzmReframeAt",
+                                 "dzmReframePayload", "dzmReframeK", "dzmReframePos", "dzmReframeCss")}
 check("l7b_rf_coeur_pur_ni_r_ni_x_ni_reseau_ni_dom_constantes_uniques_exports_x1",
       all(len(c) > 80 for c in _L7RF.values())
       and not any(re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|fetch\(|setClips|style\.", c) for c in _L7RF.values())
       and _SRCb.count("var DZM_RF_MAX=240,DZM_RF_UTILE=1.001;") == 1
       and _L7RF["dzmReframeOf"].count("DZM_RF_MAX") == 3 and _L7RF["dzmReframeOf"].count("240") == 0
-      and _L7RF["dzmReframeOf"].count("dzmRfR3(t)") == 1 and _L7RF["dzmReframeOf"].count("dzmR3(") == 0 and _L7RF["dzmReframeOf"].count("<.005") == 1
+      and _L7RF["dzmReframeOf"].count("dzmRfR3(q.t-a)") == 1 and _L7RF["dzmReframeOf"].count("dzmRfLerp(pts,") == 2 and _L7RF["dzmReframeOf"].count("dzmR3(") == 0 and _L7RF["dzmReframeOf"].count("<.005") == 1
       and len(_DT) > 1000
-      and _DT.count("reframeOf:dzmReframeOf,reframeAt:dzmReframeAt,reframeK:dzmReframeK,reframePos:dzmReframePos,reframeCss:dzmReframeCss,") == 1
-      and all(_SRCb.count(k + ":dzmReframe") == 1 for k in ("reframeOf", "reframeAt", "reframeK", "reframePos", "reframeCss")),
+      and _DT.count("reframeOf:dzmReframeOf,reframePayload:dzmReframePayload,reframeAt:dzmReframeAt,reframeK:dzmReframeK,reframePos:dzmReframePos,reframeCss:dzmReframeCss,") == 1
+      and all(_SRCb.count(k + ":dzmReframe") == 1 for k in ("reframeOf", "reframePayload", "reframeAt", "reframeK", "reframePos", "reframeCss")),
       ({n: len(c) for n, c in _L7RF.items()}, _DT.count("reframeOf:dzmReframeOf")))
 # LA SECTION « Cadrage » de l'inspecteur de plan (DzmPlanProps, couche) : trois modes, curseur du manuel (leger, rafale),
 # « Analyser le mouvement » (o.onReframe), grise-jamais-masque (E-12), le second useState APRES la garde.

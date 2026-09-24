@@ -4397,7 +4397,10 @@ R_DZ1 = ('        /* D-13 : les proprietes de plan (clip V1 reel seulement) */\n
          '                if(!k2){fireNote("Analyse du mouvement : le plan a disparu — rien n\'est écrit.");return}\n'
          '                if(dzRfSg(k2)!==sg){fireNote("Analyse du mouvement refusée : le plan a changé pendant l\'analyse — relancez.");return}\n'
          '                var tl=trackStRef.current.v1;if(tl&&tl.l){fireNote("Piste V1 verrouillée — cadrage non écrit.");return}\n'
-         '                var pts=j&&j.mode==="suivi"&&Array.isArray(j.points)?j.points:[];\n'
+         # revue finale du lot (24/09/2026) : les points du CHAMP sont en temps ABSOLU de source -- la reponse
+         # (relative au srcIn ENVOYE, qui est aussi celui du plan : l'empreinte l'a verifie) est decalee ici.
+         '                var si=Number(c.srcIn)||0,pts=(j&&j.mode==="suivi"&&Array.isArray(j.points)?j.points:[])\n'
+         '                  .map(function(q){return {t:Math.round((si+Number(q.t))*1e3)/1e3,x:q.x}});\n'
          '                pushHistory();setClips(clipsRef.current.map(function(k){if(k.id!==id)return k;var nk=Object.assign({},k);\n'
          '                  if(pts.length)nk.reframe={mode:"suivi",points:pts};else delete nk.reframe;return nk}));setDirty(!0);\n'
          '                fireNote(pts.length?"Mouvement suivi : "+pts.length+" points.":"Peu de mouvement : centré.")})\n'
@@ -4434,7 +4437,9 @@ R_DZ4 = (A_DZ4 + "\n"
          # (la couche rend null pour centre / illisible : payload d'avant sinon ; les
          # points gardes en mode centre ou manuel ne partent pas).
          "        /* L7-B D-40 : le cadrage -- joint seulement hors centre */\n"
-         '        var rfD=c.tr==="v1"&&DzTracks.reframeOf(c);if(rfD)o.reframe=rfD;')
+         # revue finale : le payload porte les points ABSOLUS (reframePayload) -- le serveur applique la meme
+         # regle que la couche (srcIn courant soustrait, fenetre, points de bord).
+         '        var rfD=c.tr==="v1"&&DzTracks.reframePayload(c);if(rfD)o.reframe=rfD;')
 
 # ══ D-14 (L3 tache 7, 22/09/2026) — KEYFRAMES D'ECHELLE ET D'OPACITE ═══════
 # Le contrat du rendu (T7a) : `motion_points[{t,x,y,rotate?,scale?,opacity?}]`,
@@ -5668,7 +5673,7 @@ assert R_DZ3.count("reframe") == 0 and R_DZ3.endswith("if(lv.style.transform!==d
 assert R_DZ1.count("svmSrcKey(k.src)") == 1 and R_EC1.count(",svmSrcKey(k.src)].join(\"|\")}") == 1
 assert R_L7BRF1.startswith(A_L7BRF1) is False and R_L7BRF1.endswith(A_L7BRF1) and R_L7BRF1.count("DzTracks.reframeCss(c,(t-c.start)*svmSpeedOf(c),") == 1
 assert R_L7BRF1.count('if(rfEl.style.objectPosition!==rfP)rfEl.style.objectPosition=rfP}') == 1 and R_L7BRF1.count("DzTracks") == 1
-assert R_DZ4.count('var rfD=c.tr==="v1"&&DzTracks.reframeOf(c);if(rfD)o.reframe=rfD;') == 1 and R_DZ4.find("var sbD=") < R_DZ4.find("var rfD=")
+assert R_DZ4.count('var rfD=c.tr==="v1"&&DzTracks.reframePayload(c);if(rfD)o.reframe=rfD;') == 1 and R_DZ1.count("var si=Number(c.srcIn)||0,pts=") == 1 and R_DZ4.find("var sbD=") < R_DZ4.find("var rfD=")
 assert R_EC1.count("var sg=dzSg(c);") == 1 and R_EC1.count("if(k2&&dzSg(k2)!==sg){") == 1 and R_EC1.find("if(k2&&dzSg(k2)!==sg){") < R_EC1.find("DzTracks.cutAt(clipsRef.current,id,")
 assert R_EC1.count("DzTracks.cutAt(clipsRef.current,id,") == 1 and R_EC1.count("DzTracks.cutOpts(proj,trackStRef.current)") == 1 and R_EC1.count("pushHistory();setClips(r2.clips);setDirty(!0);") == 1
 assert R_EC1.find("  function dzSceneCut(id){") < R_EC1.find("  function dzMenuProps(kind,o){") < R_EC1.find('lbl:"Couper à la tête"') < R_EC1.find('lbl:"Découper aux changements de plan"') < R_EC1.find('lbl:"Supprimer",combo:')

@@ -51,6 +51,10 @@ EDL (CMX 3600, 30 i/s NON-DROP, CRLF)
   durée d'enregistrement sans savoir pourquoi ; c'est la ligne standard CMX
   de l'effet de vitesse. L'import réel dans DaVinci Resolve reste à faire
   par l'UTILISATEUR (hors session).
+  Cadrage D-40 (revue finale du lot, 24/09/2026) : un plan V1 au cadrage non
+  centré (le verdict de `montage_service._reframe_of`, importé à l'appel) porte
+  `* REFRAME: <suivi|manuel> (non exporté)` sous son événement ; en FCPXML, un
+  commentaire neutralisé `REFRAME: … (non exporté en FCPXML)` suit l'asset-clip.
   Vitesse AUDIO (atempo) : `* SPEED: <x> (audio, non exportée)`, source =
   durée timeline. Piste audio en boucle (musique) : `* LOOP: non exportée`.
   Sans source (titres, sous-titres, ajustement), overlays (EDL mono-piste
@@ -137,6 +141,17 @@ def _fmt_speed(s: float) -> str:
 
 def _trans(c) -> str:
     return (str(c.get("transition") or "cut").split() or ["cut"])[0].lower()
+
+
+def _cadrage(c) -> str:
+    """Le mode d'un cadrage NON centré (« suivi » | « manuel ») ou "" — le
+    verdict même du rendu (`montage_service._reframe_of`, importé à l'appel :
+    montage_service importe ce module)."""
+    if not isinstance(c.get("reframe"), dict):
+        return ""
+    from app.services.montage_service import _reframe_of
+    rf = _reframe_of(c)
+    return rf["mode"] if rf else ""
 
 
 def _libelle(c, defaut="") -> str:
@@ -296,6 +311,9 @@ def to_edl(rec, resolve, fps=30, meta=None) -> str:
                 bloc.append("* TRANSITION: %s (non exportée)" % tn)
         if sp != 1.0:
             bloc.append("* SPEED: " + _fmt_speed(sp))
+        rfm = _cadrage(c)
+        if rfm:
+            bloc.append("* REFRAME: %s (non exporté)" % rfm)
         bloc.append("* SOURCE FILE: " + str(info["path"]))
         out += bloc + [""]
         prev = (c, so, fin, info, sp)
@@ -430,6 +448,9 @@ def to_fcpxml(rec, resolve, fps=30, size=(1080, 1920), meta=None) -> str:
             ET.SubElement(tm, "timept", {"time": "0s", "value": "0s", "interp": "linear"})
             ET.SubElement(tm, "timept", {"time": _t(int(round(adur[k] / sp)), fps),
                                          "value": _t(adur[k], fps), "interp": "linear"})
+        rfm = _cadrage(c)
+        if rfm:
+            spine.append(_commentaire("REFRAME: %s (non exporté en FCPXML)" % rfm))
         elems.append((ri, ro - ri, el, st, sp))
         cur = ro
     fin_a = max([_fr(_num(a[4].get("end")), fps) for a in aud] or [0])

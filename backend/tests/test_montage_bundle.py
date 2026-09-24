@@ -18470,7 +18470,9 @@ _RF_P = ['ratio:svmRatioW(proj.ratio),srcWH:(function(){var pl=livePoolRef.curre
          'if(dzRfSg(k2)!==sg){fireNote("Analyse du mouvement refusée : le plan a changé pendant l\'analyse — relancez.");return}',
          'if(rfEl){var rfP=DzTracks.reframeCss(c,(t-c.start)*svmSpeedOf(c),rfEl.videoWidth||rfEl.naturalWidth,',
          'if(rfEl.style.objectPosition!==rfP)rfEl.style.objectPosition=rfP}',
-         'var rfD=c.tr==="v1"&&DzTracks.reframeOf(c);if(rfD)o.reframe=rfD;']
+         # revue finale : le payload porte les points ABSOLUS (reframePayload) ; la reponse est decalee au srcIn envoye
+         'var rfD=c.tr==="v1"&&DzTracks.reframePayload(c);if(rfD)o.reframe=rfD;',
+         '.map(function(q){return {t:Math.round((si+Number(q.t))*1e3)/1e3,x:q.x}});']
 check("L7Brf_replis_x1_dans_R_DZ1_R_DZ3_R_DZ4_bundle_x1_bak_x0_une_section_L7Brf1_191_triplets_sonde_163",
       all(s.count(t) == 1 for t in _RF_P)
       and all(t in P.R_DZ1 for t in _RF_P[:4]) and all(t in P.R_L7BRF1 for t in _RF_P[4:6]) and _RF_P[6] in P.R_DZ4
@@ -18486,7 +18488,8 @@ check("L7Brf_replis_x1_dans_R_DZ1_R_DZ3_R_DZ4_bundle_x1_bak_x0_une_section_L7Brf
       # DZ1 finit comme avant, le payload joint reframe APRES stab et avant le mixage audio
       and s.count(nl("          onChange:dzPlanSet}):null,\n        ovInspector(),")) == 1
       and 0 < s.find("var sbD=") < s.find("var rfD=") < s.find('        if(trackKind(c.tr)==="audio"){')
-      and s.count("o.reframe=") == 1 and s.count("DzTracks.reframeOf(") == 1 and s.count("DzTracks.reframeCss(") == 1
+      and s.count("o.reframe=") == 1 and s.count("DzTracks.reframePayload(") == 1 and s.count("DzTracks.reframeOf(") == 0
+      and s.count("DzTracks.reframeCss(") == 1 and _RF_P[7] in P.R_DZ1
       and s.count('"/api/montage/reframe"') == 1
       and s.count("DzTracks") == 163 and _sonde.get("montage") == 163,
       {t[:40]: s.count(t) for t in _RF_P})
@@ -18548,7 +18551,8 @@ if _RF_F and _SVM_SK:
     try: _L7RF_RT = json.loads(_rRF.stdout.strip().splitlines()[-1]) if _rRF.returncode == 0 else ("rc=" + str(_rRF.returncode) + " " + (_rRF.stderr or "")[-400:])
     except Exception as _e: _L7RF_RT = temoin(_e)
 _RF = _L7RF_RT if isinstance(_L7RF_RT, dict) else {}
-_RF_SUIVI = {"mode": "suivi", "points": [{"t": 0, "x": 0.3}, {"t": 1, "x": 0.6}]}
+# revue finale : la reponse (relative au srcIn 2 ENVOYE) est ecrite en temps ABSOLU de source -- 0 -> 2, 1 -> 3
+_RF_SUIVI = {"mode": "suivi", "points": [{"t": 2, "x": 0.3}, {"t": 3, "x": 0.6}]}
 _RF_AN = "Analyse du mouvement…"
 check("L7Brf_sous_node_ok_POST_srcIn_duree_de_source_une_entree_d_historique_le_clip_vise_seul_passe_en_suivi_note",
       _RF.get("ok") == {"calls": [["/api/montage/reframe", {"src": {"job_id": "j"}, "srcIn": 2, "dur": 5}]], "hist": 1, "dirty": True,
@@ -18595,7 +18599,8 @@ check("L7Brf_sous_node_revue_source_remplacee_ou_mode_change_pendant_l_analyse_r
 check("L7Brf_sous_node_la_selection_change_pendant_l_analyse_l_ecriture_vise_le_clip_ENVOYE",
       (_RF.get("selection_changee") or {}).get("set") == [["p", _RF_SUIVI], ["q", None]], _RF.get("selection_changee"))
 # LE PAYLOAD ET L'APERCU, lignes EXTRAITES du bundle livre, jouees sur la VRAIE couche (du bundle livre).
-_RF_LIGNE_PL = _RF_P[6]; _RF_LIGNE_AP = P.R_L7BRF1[:-len(P.A_L7BRF1)]
+_RF_LIGNE_PL = _RF_P[6]
+_RF_LIGNE_AP = P.R_L7BRF1[:-len(P.A_L7BRF1)]
 _L7RFP_RT = "non joue"
 if len(_L7BN_LAYER) > 100000 and s.count(_RF_LIGNE_PL) == 1 and s.count(nl(P.R_L7BRF1)) == 1 and len(_RF_LIGNE_AP) > 200:
     _L7RFP_SHIM = ('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + _L7BN_LAYER + "\n" +
@@ -18608,7 +18613,8 @@ if len(_L7BN_LAYER) > 100000 and s.count(_RF_LIGNE_PL) == 1 and s.count(nl(P.R_L
         "R.pl=[pl(B),pl(Object.assign({},B,{reframe:{mode:'centre',points:[{t:0,x:0}]}})),pl(Object.assign({},B,{reframe:{mode:'manuel',x:.3,points:[{t:0,x:0}]}})),\n"
         "  pl(Object.assign({},B,{reframe:{mode:'suivi',points:[{t:9,x:.2}]}})),pl(Object.assign({},B,{tr:'v2',reframe:{mode:'manuel',x:.3}})),\n"
         "  pl(Object.assign({},B,{reframe:{mode:'zzz'}}))];\n"
-        "var S=Object.assign({},B,{reframe:{mode:'suivi',points:[{t:0,x:0},{t:4,x:1}]}}),S2=Object.assign({},S,{speed:2});\n"
+        # revue finale : points ABSOLUS -- B lit la source depuis srcIn 1, le suivi 1 -> 5 y vaut 0 -> 4 relatif
+        "var S=Object.assign({},B,{reframe:{mode:'suivi',points:[{t:1,x:0},{t:5,x:1}]}}),S2=Object.assign({},S,{speed:2});\n"
         "R.ap=[ap(S,2),ECR,ap(S,2),ECR,ap(S,4),ap(S,5),ap(S2,3),ap(B,3),ECR];\n"
         "lv.videoWidth=1080;lv.videoHeight=1920;lv.clientWidth=960;lv.clientHeight=540;R.portrait=ap(S,5);\n"
         "lv.videoWidth=1920;lv.videoHeight=1080;lv.clientWidth=0;lv.clientHeight=0;R.cache=ap(S,5);\n"
@@ -18623,7 +18629,9 @@ if len(_L7BN_LAYER) > 100000 and s.count(_RF_LIGNE_PL) == 1 and s.count(nl(P.R_L
     except Exception as _e: _L7RFP_RT = temoin(_e)
 _RFP = _L7RFP_RT if isinstance(_L7RFP_RT, dict) else {}
 check("L7Brf_sous_node_payload_reframe_seulement_hors_centre_manuel_sans_points_suivi_borne_v2_et_illisible_rien",
-      _RFP.get("pl") == [None, None, {"mode": "manuel", "x": 0.3}, {"mode": "suivi", "points": [{"t": 4, "x": 0.2}]}, None, None],
+      # revue finale : en suivi, les points ABSOLUS lisibles du champ (le serveur fenetre lui-meme) ; les points gardes
+      # d'un manuel ne partent pas
+      _RFP.get("pl") == [None, None, {"mode": "manuel", "x": 0.3}, {"mode": "suivi", "points": [{"t": 9, "x": 0.2}]}, None, None],
       _L7RFP_RT if not _RFP else _RFP.get("pl"))
 # apercu : S glisse de x 0 (t source 0) a x 1 (t source 4) ; tete 2 -> t source 0 -> x 0 -> 0 % ; tete 4 -> 2 -> x .5 -> 50 % ;
 # tete 5 -> 3 -> x .75 -> (k.75 - .5)/(k - 1) = 86,57 % (k = 256/81) ; a x2, tete 3 -> t source 2 -> x .5. Une ecriture seulement si la valeur change (ECR).
@@ -18661,7 +18669,7 @@ if len(_L7BN_LAYER) > 100000:
         "T=rend(C,[1920,1080],9/16);var pB=!!btn(T,'Analyser le mouvement').p.disabled;T=rend(C2,[1920,1080],9/16);R.deux=[AN,pB,!!btn(T,'Analyser le mouvement').p.disabled];\n"
         "FINS[0]();setTimeout(function(){T=rend(C,[1920,1080],9/16);R.apres=!!btn(T,'Analyser le mouvement').p.disabled;\n"
         "  T=rend(C2,[1920,1080],9/16);R.q_encore=!!btn(T,'Analyser le mouvement').p.disabled;FINS[1]();\n"
-        "  var P2=Object.assign({},C,{reframe:{mode:'centre',points:[{t:0,x:.2},{t:4,x:.6}]}});CH=[];\n"
+        "  var P2=Object.assign({},C,{reframe:{mode:'centre',points:[{t:1,x:.2},{t:5,x:.6}]}});CH=[];\n"
         "  T=rend(P2,[1920,1080],9/16);btn(T,'Suivre').p.onClick();btn(T,'Manuel').p.onClick();btn(T,'Centré').p.onClick();R.gestes=CH;\n"
         "  var M=Object.assign({},C,{reframe:{mode:'manuel',x:.3,points:[{t:0,x:.2}]}});CH=[];T=rend(M,[1920,1080],9/16);\n"
         "  var rg=T.filter(function(n){return n.t==='input'&&n.p.type==='range'})[0];R.curseur=[rg.p.value,rg.p.min,rg.p.max,btn(T,'Manuel').p['data-on']];\n"
@@ -18689,15 +18697,55 @@ check("L7Brf_sous_node_suivre_sans_points_lance_l_analyse_bouton_desactive_penda
       and _RFI.get("q_libre") is False and _RFI.get("deux") == [2, True, True] and _RFI.get("q_encore") is True,
       (_RFI.get("suivre_sans_points"), _RFI.get("pendant"), _RFI.get("apres")))
 check("L7Brf_sous_node_gestes_suivre_reprend_les_points_manuel_x_a_la_tete_centre_les_garde_tous_lourds",
-      _RFI.get("gestes") == [[{"reframe": {"mode": "suivi", "points": [{"t": 0, "x": 0.2}, {"t": 4, "x": 0.6}]}}, True],
-                             [{"reframe": {"mode": "manuel", "x": 0.4, "points": [{"t": 0, "x": 0.2}, {"t": 4, "x": 0.6}]}}, True],
-                             [{"reframe": {"mode": "centre", "points": [{"t": 0, "x": 0.2}, {"t": 4, "x": 0.6}]}}, True]],
+      # revue finale : C lit la source depuis srcIn 1 -- le suivi ABSOLU 1 -> 5 vaut 0,4 a la tete (t source 2 relatif)
+      _RFI.get("gestes") == [[{"reframe": {"mode": "suivi", "points": [{"t": 1, "x": 0.2}, {"t": 5, "x": 0.6}]}}, True],
+                             [{"reframe": {"mode": "manuel", "x": 0.4, "points": [{"t": 1, "x": 0.2}, {"t": 5, "x": 0.6}]}}, True],
+                             [{"reframe": {"mode": "centre", "points": [{"t": 1, "x": 0.2}, {"t": 5, "x": 0.6}]}}, True]],
       _RFI.get("gestes"))
 check("L7Brf_sous_node_curseur_manuel_0_100_valeur_30_geste_LEGER_rafale_grise_si_sans_effet",
       _RFI.get("curseur") == [30, 0, 100, "1"]
       and _RFI.get("curseur_geste") == [[{"reframe": {"mode": "manuel", "x": 0.75, "points": [{"t": 0, "x": 0.2}]}}, False]]
       and _RFI.get("curseur_etroit") == [True, True],
       (_RFI.get("curseur"), _RFI.get("curseur_geste"), _RFI.get("curseur_etroit")))
+
+# ── revue finale du lot (24/09/2026) : la LAME et le ROGNAGE DE TETE (bundle) avancent srcIn et COPIENT le champ
+# reframe ; en temps ABSOLU le morceau droit garde son cadrage. Les deux expressions sont EXTRAITES du bundle livre
+# (la moitie droite de la lame, l'objet `upd` du rognage gauche) et jouees sur la couche du bundle livre : plan
+# [0,10] srcIn 0 suivi 0,2 -> 0,8 ; lame a 5 -> [0 ; 0,5] [5 ; 0,8] ; rognage de 2 s -> [0 ; 0,32] [8 ; 0,8].
+_iLa = s.find(".concat([Object.assign({},c,{id:c.id+\"_b\"+Math.round(p*10),start:p,")
+_iLb = s.find(nl("]));\n    setDirty(!0);fireNote(\"Clip coupé à \""), _iLa)
+_LAME = s[_iLa + len(".concat(["):_iLb].replace("\r\n", "\n") if 0 < _iLa < _iLb else ""
+_iRa = s.find("var upd={start:v};")
+_iRb = s.find("return Object.assign({},k,upd)}", _iRa)
+_ROGNE = s[_iRa:_iRb].replace("\r\n", "\n") if 0 < _iRa < _iRb else ""
+check("L7Brf_revue_finale_lame_et_rognage_de_tete_avancent_srcIn_et_copient_le_champ_extraits_du_bundle",
+      100 < len(_LAME) < 700 and "srcIn:(c.srcIn||0)+(p-c.start)*" in _LAME and _LAME.startswith("Object.assign({},c,{")
+      and 100 < len(_ROGNE) < 800 and "if(k.src)upd.srcIn=Math.max(0,(c.srcIn||0)+(v-s0)*svmSpeedOf(c));" in _ROGNE,
+      (len(_LAME), len(_ROGNE)))
+_L7RFG_RT = "non joue"
+if len(_L7BN_LAYER) > 100000 and _LAME and _ROGNE:
+    _L7RFG_SHIM = ('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + _L7BN_LAYER + "\n" +
+        "function svmSpeedOf(c){return c&&typeof c.speed==='number'&&c.speed>0?c.speed:1}\n"
+        "function lame(c,p){return " + _LAME + "}\n"
+        "function rogne(k,c,v,s0){" + _ROGNE + "\nreturn Object.assign({},k,upd)}\n"
+        "function pts(c){var q=DzTracks.reframeOf(c);return q&&q.points.map(function(z){return [z.t,Math.round(z.x*1e6)/1e6]})}\n"
+        "var P={tr:'v1',id:'p',start:0,end:10,srcIn:0,src:{job_id:'j'},reframe:{mode:'suivi',points:[{t:0,x:.2},{t:10,x:.8}]}},R={};\n"
+        "var d=lame(P,5),g=Object.assign({},P,{end:5});R.lame=[d.srcIn,d.start,d.reframe===P.reframe,pts(g),pts(d)];\n"
+        "var d2=lame(Object.assign({},P,{speed:2,end:5}),2.5);R.lame_x2=[d2.srcIn,pts(d2)];\n"
+        "var t=rogne(P,P,2,0);R.rogne=[t.srcIn,t.start,pts(t)];\n"
+        "console.log(JSON.stringify(R));\n")
+    _pRFG = pathlib.Path(TMP) / "l7b_reframe_gestes.js"; _pRFG.write_text(_L7RFG_SHIM, encoding="utf-8")
+    _rRFG = NODE(["node", str(_pRFG)], timeout=60)
+    try: _L7RFG_RT = json.loads(_rRFG.stdout.strip().splitlines()[-1]) if _rRFG.returncode == 0 else ("rc=" + str(_rRFG.returncode) + " " + (_rRFG.stderr or "")[-400:])
+    except Exception as _e: _L7RFG_RT = temoin(_e)
+_RFG = _L7RFG_RT if isinstance(_L7RFG_RT, dict) else {}
+check("L7Brf_revue_finale_sous_node_lame_a_5_le_morceau_droit_cadre_0_5_0_8_le_gauche_0_2_0_5",
+      _RFG.get("lame") == [5, 5, True, [[0, 0.2], [5, 0.5]], [[0, 0.5], [5, 0.8]]], _L7RFG_RT if not _RFG else _RFG.get("lame"))
+check("L7Brf_revue_finale_sous_node_lame_a_vitesse_2_le_morceau_droit_lit_la_source_5_10",
+      # plan [0,5] a x2 (source 0..10) coupe a 2,5 : srcIn 5, fenetre [5, 10] -> 0,5 -> 0,8
+      _RFG.get("lame_x2") == [5, [[0, 0.5], [5, 0.8]]], _RFG.get("lame_x2"))
+check("L7Brf_revue_finale_sous_node_rognage_de_tete_de_2_s_cadre_0_32_0_8",
+      _RFG.get("rogne") == [2, 2, [[0, 0.32], [8, 0.8]]], _RFG.get("rogne"))
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

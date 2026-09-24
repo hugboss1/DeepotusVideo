@@ -4728,7 +4728,7 @@ function DzMontage(props){
         /* D-16 : la stabilisation -- jointe seulement si elle existe */
         var sbD=c.tr==="v1"&&DzTracks.stabOf(c);if(sbD)o.stab=sbD;
         /* L7-B D-40 : le cadrage -- joint seulement hors centre */
-        var rfD=c.tr==="v1"&&DzTracks.reframeOf(c);if(rfD)o.reframe=rfD;
+        var rfD=c.tr==="v1"&&DzTracks.reframePayload(c);if(rfD)o.reframe=rfD;
         /* mixage par clip (pistes audio) — joint seulement si non nul :
            un projet sans réglage envoie exactement le payload d'avant */
         if(trackKind(c.tr)==="audio"){
@@ -6276,7 +6276,8 @@ function DzMontage(props){
                 if(!k2){fireNote("Analyse du mouvement : le plan a disparu — rien n'est écrit.");return}
                 if(dzRfSg(k2)!==sg){fireNote("Analyse du mouvement refusée : le plan a changé pendant l'analyse — relancez.");return}
                 var tl=trackStRef.current.v1;if(tl&&tl.l){fireNote("Piste V1 verrouillée — cadrage non écrit.");return}
-                var pts=j&&j.mode==="suivi"&&Array.isArray(j.points)?j.points:[];
+                var si=Number(c.srcIn)||0,pts=(j&&j.mode==="suivi"&&Array.isArray(j.points)?j.points:[])
+                  .map(function(q){return {t:Math.round((si+Number(q.t))*1e3)/1e3,x:q.x}});
                 pushHistory();setClips(clipsRef.current.map(function(k){if(k.id!==id)return k;var nk=Object.assign({},k);
                   if(pts.length)nk.reframe={mode:"suivi",points:pts};else delete nk.reframe;return nk}));setDirty(!0);
                 fireNote(pts.length?"Mouvement suivi : "+pts.length+" points.":"Peu de mouvement : centré.")})
@@ -19728,22 +19729,33 @@ function dzmMpKeep(np,vals,prev){
    dzmReframeOf(c) est la règle MÊME de _reframe_of du backend (d70989c) :
    centre, mode inconnu ou champ illisible -> null (cadrage historique, rien
    ne part au rendu) ; manuel -> {mode, x borné 0..1} (x illisible -> null) ;
-   suivi -> {mode, points} : t borné à [0, (end − start) × vitesse] (vitesse
-   lue comme _v1_speed depuis la revue e09552b : bornée 0,25..4, « inf » -> 4,
-   illisible, NaN ou ≤ 0 -> 1 — dzmRfSpeed ; sans start/end lisibles t n'est
-   borné qu'à 0), arrondi au millième COMME round(t, 3) (dzmRfR3 : valeur
-   exacte du flottant, demi exact au pair — 0,0045 -> 0,004, 0,0625 -> 0,062),
-   x borné 0..1, triés (tri stable),
-   dédoublonnés à 5 ms (le dernier gagne), au plus 240 (sous-échantillonnés
+   suivi -> {mode, points RELATIFS au srcIn courant}. FORMAT DU CHAMP (revue
+   finale du lot, 24/09/2026) : les t du champ sont en secondes ABSOLUES de
+   la source (posés srcIn de l'analyse + t rendu par /reframe) — la lame, la
+   découpe aux plans, la coupe ripple et le rognage de tête avancent srcIn
+   et COPIENT le champ : en absolu chaque morceau lit sa propre fenêtre (en
+   relatif, le morceau droit rejouait le début du suivi). Aucun marqueur de
+   format (projets de la branche jamais livrés ; un relatif posé à srcIn 0
+   se lit pareil). La règle, celle de _reframe_of : a = srcIn borné à 0,
+   fenêtre [a, a + (end − start) × vitesse] (vitesse lue comme _v1_speed —
+   bornée 0,25..4, « inf » -> 4, illisible, NaN ou ≤ 0 -> 1, dzmRfSpeed ; sans
+   durée lisible, bornée à gauche seulement) ; x borné 0..1 ; points triés
+   (tri stable), ceux hors fenêtre tombent et un point de BORD interpolé
+   (dzmRfLerp, constante au-delà) est posé en a ou en a + durée s'il en est
+   tombé de ce côté ; t − a arrondi au millième COMME round(t, 3) (dzmRfR3 :
+   valeur exacte du flottant, demi exact au pair — 0,0045 -> 0,004, 0,0625 ->
+   0,062), dédoublonnés à 5 ms (le dernier gagne), au plus 240 (sous-échantillonnés
    régulièrement, index arrondi : jamais de demi exact, 239 est premier) ;
    un point illisible est ignoré, aucun point valable -> null. Un nombre est
    un nombre fini ou une chaîne numérique non vide (un booléen ne l'est pas,
    comme float() côté serveur) ; ÉCART DATÉ : une chaîne en base 16/8/2 est
    refusée des deux côtés, mais « 1_0 » (lu 10 par le serveur) est refusé ici.
-   UNITÉ : t en secondes de SOURCE depuis srcIn (le crop précède le
+   UNITÉ RENDUE : t en secondes de SOURCE depuis srcIn (le crop précède le
    changement de vitesse au rendu) — la tête de lecture se convertit par
-   (tête − start) × vitesse. Les points restent ceux de l'analyse ; le rendu
-   les simplifie (écart ≤ 0,004 de largeur), l'aperçu les lit bruts.
+   (tête − start) × vitesse. Le rendu simplifie les points (écart ≤ 0,004 de
+   largeur), l'aperçu les lit bruts. dzmReframePayload(c) : ce que
+   renderPayload envoie — null hors cadrage, {mode, x} en manuel, et en suivi
+   les points ABSOLUS lisibles du champ (le serveur applique la même règle).
    dzmReframeAt(rf, t) : x à l'instant t (secondes de source) d'un cadrage
    NORMALISÉ (sortie de dzmReframeOf) — 0,5 sans cadrage, x du manuel, lerp
    entre points, constante avant le premier et après le dernier (la forme de
@@ -19782,6 +19794,19 @@ function dzmRfSpeed(v){
     v=/^\+?inf(inity)?$/.test(s)?4:!s||/[xob_]/.test(s)?NaN:Number(s)}
   if(typeof v!=="number"||v!==v||v<=0)return 1;
   return Math.max(.25,Math.min(4,v))}
+function dzmRfLerp(p,t){
+  if(t<p[0].t)return p[0].x;
+  for(var i=1;i<p.length;i++){
+    if(t<p[i].t)return p[i-1].x+(p[i].x-p[i-1].x)*(t-p[i-1].t)/(p[i].t-p[i-1].t)}
+  return p[p.length-1].x}
+function dzmRfPoints(raw){
+  var pts=[];
+  raw.forEach(function(q){var t=null,x=null;
+    if(Array.isArray(q)){if(q.length===2){t=dzmRfNum(q[0]);x=dzmRfNum(q[1])}}
+    else if(q&&typeof q==="object"){t=dzmRfNum(q.t);x=dzmRfNum(q.x)}
+    if(t===null||x===null)return;
+    pts.push({t:t,x:Math.max(0,Math.min(1,x))})});
+  return pts}
 function dzmReframeOf(c){
   var raw=c&&c.reframe;
   if(!raw||typeof raw!=="object"||Array.isArray(raw))return null;
@@ -19789,15 +19814,15 @@ function dzmReframeOf(c){
   if(raw.mode!=="suivi"||!Array.isArray(raw.points))return null;
   var sp=dzmRfSpeed(c.speed);
   var s0=dzmRfNum(c.start),s1=dzmRfNum(c.end),dur=s0!==null&&s1!==null?(s1-s0)*sp:0;
-  var pts=[],out=[];
-  raw.points.forEach(function(q){var t=null,x=null;
-    if(Array.isArray(q)){if(q.length===2){t=dzmRfNum(q[0]);x=dzmRfNum(q[1])}}
-    else if(q&&typeof q==="object"){t=dzmRfNum(q.t);x=dzmRfNum(q.x)}
-    if(t===null||x===null)return;
-    t=Math.max(0,t);if(dur>0)t=Math.min(t,dur);
-    pts.push({t:dzmRfR3(t),x:Math.max(0,Math.min(1,x))})});
-  pts.sort(function(a,b){return a.t-b.t});
-  pts.forEach(function(q){if(out.length&&q.t-out[out.length-1].t<.005)out[out.length-1]=q;else out.push(q)});
+  var a=dzmRfNum(c.srcIn);a=a!==null?Math.max(0,a):0;
+  var b=dur>0?a+dur:null,pts=dzmRfPoints(raw.points),win=[],out=[];
+  pts.sort(function(p,q){return p.t-q.t});
+  if(pts.length){
+    win=pts.filter(function(q){return q.t>=a&&(b===null||q.t<=b)});
+    if(pts[0].t<a&&!(win.length&&win[0].t===a))win.unshift({t:a,x:dzmRfLerp(pts,a)});
+    if(b!==null&&pts[pts.length-1].t>b&&!(win.length&&win[win.length-1].t===b))win.push({t:b,x:dzmRfLerp(pts,b)})}
+  win.forEach(function(q){q={t:dzmRfR3(q.t-a),x:q.x};
+    if(out.length&&q.t-out[out.length-1].t<.005)out[out.length-1]=q;else out.push(q)});
   if(!out.length)return null;
   if(out.length>DZM_RF_MAX){var n=out.length,all=out;out=[];
     for(var k=0;k<DZM_RF_MAX;k++)out.push(all[Math.round(k*(n-1)/(DZM_RF_MAX-1))])}
@@ -19808,10 +19833,11 @@ function dzmReframeAt(rf,t){
   var p=Array.isArray(rf.points)?rf.points:[];
   if(!p.length)return .5;
   t=Number(t);if(!isFinite(t))t=0;
-  if(t<p[0].t)return p[0].x;
-  for(var i=1;i<p.length;i++){
-    if(t<p[i].t)return p[i-1].x+(p[i].x-p[i-1].x)*(t-p[i-1].t)/(p[i].t-p[i-1].t)}
-  return p[p.length-1].x}
+  return dzmRfLerp(p,t)}
+function dzmReframePayload(c){
+  var rf=dzmReframeOf(c);
+  if(!rf||rf.mode!=="suivi")return rf;
+  return {mode:"suivi",points:dzmRfPoints(c.reframe.points)}}
 function dzmReframeK(w,h,ratio){
   w=Number(w);h=Number(h);ratio=Number(ratio);
   return w>0&&h>0&&ratio>0&&isFinite(w/h/ratio)?w/h/ratio:null}
@@ -19911,7 +19937,7 @@ function DzmPlanProps(o){
   var rfPts=rf&&Array.isArray(rf.points)&&rf.points.length?rf.points:null;
   var rfT0=isFinite(head)?Math.max(0,(head-c.start)*spd):0;
   /* le manuel part de la position que le suivi montrerait à la tête (points gardés compris), sinon du cadrage courant */
-  var rfSuivi=rfPts?dzmReframeOf({start:c.start,end:c.end,speed:c.speed,reframe:{mode:"suivi",points:rfPts}}):null;
+  var rfSuivi=rfPts?dzmReframeOf({start:c.start,end:c.end,speed:c.speed,srcIn:c.srcIn,reframe:{mode:"suivi",points:rfPts}}):null;
   var rfNon="Sans effet sur ce plan : la source n'est pas plus large que le cadre du projet — le recadrage horizontal ne déplace rien";
   var rfInc=rfK===null?" (dimensions de la source pas encore lues : placez la tête sur le plan)":"";
   var rfGel="Analyse du mouvement en cours sur ce plan — les modes reviennent à la fin";
@@ -21098,7 +21124,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   /* L7-B D-34 (24/09/2026, tache 7) : la note etoile d'un rendu (tiroir Medias) */
   ratingNorm:dzmRatingNorm,ratingNext:dzmRatingNext,
   /* L7-B D-40 (24/09/2026, tache 4) : le cadrage d'un clip V1 (regle du backend, apercu vivant) */
-  reframeOf:dzmReframeOf,reframeAt:dzmReframeAt,reframeK:dzmReframeK,reframePos:dzmReframePos,reframeCss:dzmReframeCss,
+  reframeOf:dzmReframeOf,reframePayload:dzmReframePayload,reframeAt:dzmReframeAt,reframeK:dzmReframeK,reframePos:dzmReframePos,reframeCss:dzmReframeCss,
   /* L7-B D-41 (24/09/2026, tache 6) : les auto-clips d'un rendu (tiroir Medias) -- coeur pur et popover */
   acCle:dzmAcCle,acNum:dzmAcNum,acPayload:dzmAcPayload,acUsd:dzmAcUsd,acEstTxt:dzmAcEstTxt,acTrTxt:dzmAcTrTxt,acClipTxt:dzmAcClipTxt,Autoclips:DzmAutoclips,
   acEstRefus:dzmAcEstRefus,

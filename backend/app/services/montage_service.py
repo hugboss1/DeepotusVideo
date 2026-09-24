@@ -1241,9 +1241,18 @@ def _dz_filter(dz: dict, w: int, h: int, fps: int, dur: float) -> str:
 # V1 : {mode: "centre"|"suivi"|"manuel", x?, points?}. Le cover historique
 # centre la fenêtre (`crop={w}:{h}`) ; `manuel` la pose à `x` (fraction de la
 # largeur de la source, centre de la fenêtre), `suivi` la fait glisser le long
-# de `points` [{t, x}] — t en secondes de SOURCE depuis srcIn (le temps LOCAL
-# du flux au point du crop, qui précède setpts=PTS/speed : MESURÉ, voir
-# reframe.py), borné à (end − start) × vitesse. `centre` = None (chaîne
+# de `points` [{t, x}]. FORMAT DU CHAMP (revue finale du lot, 24/09/2026) : t
+# en secondes ABSOLUES de la source (le client pose srcIn_analyse + t_relatif
+# à la réception de /reframe). Pourquoi : la lame, la découpe aux plans, la
+# coupe ripple et le rognage de tête AVANCENT srcIn et COPIENT le champ — en
+# temps relatif, le morceau droit d'un plan [0,10] suivi 0,2→0,8 coupé à 5 s
+# cadrait 0,2→0,5 au lieu de 0,5→0,8. En absolu, le champ reste attaché à la
+# source et chaque morceau lit sa fenêtre. `_reframe_of` rend, lui, des t
+# RELATIFS au srcIn COURANT (le temps LOCAL du flux au point du crop, qui
+# précède setpts=PTS/speed : MESURÉ, voir reframe.py), bornés à
+# (end − start) × vitesse. Aucun marqueur de format : les projets de la
+# branche n'ont jamais été livrés, et un champ relatif posé à srcIn 0 se lit
+# pareil. `centre` = None (chaîne
 # historique octet pour octet). MESURÉ le 24/09 : un `x` animé de crop passe
 # dans ffmpeg 8.1.1 (seuls w/h sont figés à la configuration, −22 de D-13).
 _RF_MODES = ("centre", "suivi", "manuel")
@@ -1261,14 +1270,33 @@ def _rf_num(v) -> float | None:
     return f if math.isfinite(f) else None
 
 
+def _rf_lerp_val(pts: list, t: float) -> float:
+    """x(t) sur des paires (t, x) TRIÉES : constante avant le premier point et
+    après le dernier, linéaire entre — la règle de _mp_lerp_expr et de
+    dzmReframeAt côté client (mêmes opérations, dans le même ordre)."""
+    if t < pts[0][0]:
+        return pts[0][1]
+    for i in range(1, len(pts)):
+        if t < pts[i][0]:
+            t0, x0 = pts[i - 1]
+            t1, x1 = pts[i]
+            return x0 + (x1 - x0) * (t - t0) / (t1 - t0)
+    return pts[-1][1]
+
+
 def _reframe_of(c: dict) -> dict | None:
     """clips V1 [].reframe → None (centré, historique) | {"mode": "manuel",
-    "x"} | {"mode": "suivi", "points": [(t, x)…]} — x borné à [0, 1], t à
-    [0, (end − start) × vitesse], points triés, dédoublonnés à 5 ms (le
-    dernier gagne), au plus 240 (sous-échantillonnés régulièrement). Champ,
-    mode ou x illisible, ou aucun point valable : warning et None — jamais
-    dans un filtergraph. Un point illisible parmi d'autres est ignoré
-    (warning)."""
+    "x"} | {"mode": "suivi", "points": [(t, x)…]} — les points du CHAMP sont
+    en secondes ABSOLUES de source ; ceux RENDUS sont relatifs au srcIn
+    courant (a = srcIn borné à 0) : fenêtre [a, a + (end − start) × vitesse]
+    (sans durée lisible, bornée à gauche seulement) ; x borné à [0, 1] ; les
+    points hors fenêtre tombent, et un point de BORD interpolé (constante
+    au-delà du dernier) est posé en a ou en a + durée s'il en est tombé de ce
+    côté ; puis t − a arrondi au millième, dédoublonnés à 5 ms (le dernier
+    gagne), au plus 240 (sous-échantillonnés régulièrement). Même règle que
+    dzmReframeOf (client). Champ, mode ou x illisible, ou aucun point
+    valable : warning et None — jamais dans un filtergraph. Un point
+    illisible parmi d'autres est ignoré (warning)."""
     raw = c.get("reframe")
     if raw is None:
         return None
@@ -1294,6 +1322,9 @@ def _reframe_of(c: dict) -> dict | None:
     spd = _v1_speed(c) or 1.0
     s0, s1 = _rf_num(c.get("start")), _rf_num(c.get("end"))
     dur = (s1 - s0) * spd if s0 is not None and s1 is not None else 0.0
+    a = _rf_num(c.get("srcIn"))
+    a = max(0.0, a) if a is not None else 0.0
+    b_ = a + dur if dur > 0 else None
     pts, bad = [], 0
     for q in pts_in:
         if isinstance(q, dict):
@@ -1305,16 +1336,20 @@ def _reframe_of(c: dict) -> dict | None:
         if t is None or x is None:
             bad += 1
             continue
-        t = max(0.0, t)
-        if dur > 0:
-            t = min(t, dur)
-        pts.append((round(t, 3), max(0.0, min(1.0, x))))
+        pts.append((t, max(0.0, min(1.0, x))))
     if bad:
         logger.warning(f"montage: reframe — {bad} point(s) illisible(s) "
                        f"ignoré(s) — {lbl}")
     pts.sort(key=lambda q: q[0])
+    win: list = []
+    if pts:
+        win = [q for q in pts if q[0] >= a and (b_ is None or q[0] <= b_)]
+        if pts[0][0] < a and not (win and win[0][0] == a):
+            win.insert(0, (a, _rf_lerp_val(pts, a)))
+        if b_ is not None and pts[-1][0] > b_ and not (win and win[-1][0] == b_):
+            win.append((b_, _rf_lerp_val(pts, b_)))
     out: list = []
-    for q in pts:
+    for q in [(round(t - a, 3), x) for t, x in win]:
         if out and q[0] - out[-1][0] < 0.005:
             out[-1] = q
             continue
@@ -2779,11 +2814,15 @@ _EXPORT_FORMATS = {"edl": (".edl", "text/plain; charset=utf-8"),
 
 
 @router.get("/export")
-async def montage_export(format: str = ""):
+async def montage_export(request: Request, format: str = ""):
+    # revue finale du lot (24/09/2026) : la route livre des CHEMINS du disque
+    # (SOURCE FILE, media-rep) — boucle locale seulement, comme les précalculs ;
+    # la sauvegarde est lue hors de la boucle d'événements.
+    _require_local(request)
     fmt = str(format or "").strip().lower()
     if fmt not in _EXPORT_FORMATS:
         raise HTTPException(400, "Format d'export inconnu — edl ou fcpxml.")
-    rec = _load_saved()
+    rec = await asyncio.to_thread(_load_saved)
     clips = [c for c in (rec or {}).get("clips") or [] if isinstance(c, dict)]
     if not clips:
         raise HTTPException(400, "Aucune timeline sauvegardée à exporter.")

@@ -61,6 +61,14 @@ chacune sur les lignes declarees et au compte declare ; code de sortie 0 ;
 sha256 des fichiers identiques avant / apres chaque mutation.
 Comptes des bancs au repos : l7b 158/0, l7b_notes 48/0, edition 459/0,
 bundle 2271/0.
+REVUE FINALE DU LOT (24/09/2026, sommet c25f0f4 + le correctif « points de
+cadrage en temps ABSOLU de source ») : la n°6 (t non borne) visait un code
+qui n'existe plus -- elle mute desormais la FENETRE (points de bord retires,
+5 rouges) ; la n°19 est NEUVE (« srcIn non soustrait », le defaut trouve en
+revue finale : 3 rouges, dont le RENDU REEL de la decoupe). Campagne ENTIERE
+rejouee deux fois (mesure puis preuve) : LES VINGT SONT ROUGES, aucun
+survivant, aucun mort, comptes declares, sha256 identiques. Bancs au repos :
+l7b 163/0, l7b_notes 48/0, edition 462/0, bundle 2275/0.
 
     #   fonction visee                                    banc       rouges
     0   EDL sans M2 (coupe franche)                       l7b        1
@@ -69,7 +77,7 @@ bundle 2271/0.
     3   commentaire XML non neutralise                    l7b        2
     4   scdet sans setpts=PTS-STARTPTS                    l7b        1
     5   dzmCutAt sans ecart minimal                       edition    3
-    6   _reframe_of t non borne                           l7b        3
+    6   _reframe_of sans points de bord (fenetre)         l7b        5
     7   crop place apres setpts=PTS/vitesse               l7b        2
     8   _rf_lerp_expr en chaine                           l7b        2
     9   windows replafonnee a 400                         l7b        2
@@ -82,6 +90,7 @@ bundle 2271/0.
    16   offset du tiroir fige                             edition    1
    17   memoires videes malgre un PUT encore en vol       edition    1
    18   bundle : garde d'obsolescence sans la source      bundle     4
+   19   _reframe_of : srcIn courant non soustrait         l7b        3
 
 CE QUE CETTE TABLE A MESURE, ET QUI NE SE DEVINAIT PAS :
   . la n°0 etait SURVIVANTE a la premiere passe : la fixture de [1]
@@ -175,14 +184,18 @@ M = [
      'cand.forEach(function(p){ps.push(p);prev=p});',
      ['ca_ecart_minimal_0_05_entre_candidates_une_rafale_fait_une_coupe']),
     # -- D-40 : montage_service.py, joue par `l7b` [3] -------------------------
-    # 6 -- `_reframe_of` : t non borne a la duree de SOURCE du plan.
+    # 6 -- (revue finale : la borne en t est devenue la FENETRE) `_reframe_of`
+    #      sans les points de BORD interpoles : les points hors fenetre tombent
+    #      sans laisser la valeur du cadrage au bord du plan.
     (B_L7B, SVC,
-     '        t = max(0.0, t)\n'
-     '        if dur > 0:\n'
-     '            t = min(t, dur)\n',
-     '        t = max(0.0, t)\n',
-     ['d40_reframe_of_suivi_a_vitesse_2_borne_t_a_la_duree_de_SOURCE_consommee',
-      'd40_reframe_of_suivi_trie_t_borne_0_duree_du_clip_x_borne']),
+     '        if pts[0][0] < a and not (win and win[0][0] == a):\n'
+     '            win.insert(0, (a, _rf_lerp_val(pts, a)))\n'
+     '        if b_ is not None and pts[-1][0] > b_ and not (win and win[-1][0] == b_):\n'
+     '            win.append((b_, _rf_lerp_val(pts, b_)))\n',
+     '        pass\n',
+     ['d40_reframe_of_suivi_a_vitesse_2_fenetre_de_la_duree_de_SOURCE_consommee_bord_interpole',
+      'd40_reframe_of_suivi_trie_fenetre_0_duree_bords_interpoles',
+      'd40_revue_finale_reframe_of_soustrait_le_srcIn_courant_fenetre_et_points_de_bord']),
     # 7 -- le crop place APRES setpts=PTS/vitesse (chaine a vitesse) : `t`
     #      de l'expression n'est plus le temps de SOURCE depuis srcIn.
     (B_L7B, SVC,
@@ -286,10 +299,20 @@ M = [
      'Number(k.start)||0,Number(k.end)||0].join("|")}\n'
      '    var sg=dzSg(c);\n',
      ['L7Bb_sous_node_revue_D40_source_remplacee_pendant_l_analyse']),
+    # -- D-40 revue finale (24/09/2026) : montage_service.py, joue par `l7b` ----
+    # 19 -- `_reframe_of` SANS soustraire le srcIn COURANT : les points
+    #       ABSOLUS lus comme relatifs -- le morceau droit d'une coupe rejoue
+    #       le debut du suivi (le defaut que la revue finale a trouve).
+    (B_L7B, SVC,
+     '    a = max(0.0, a) if a is not None else 0.0\n',
+     '    a = 0.0\n',
+     ['d40_revue_finale_reframe_of_soustrait_le_srcIn_courant',
+      'd40_revue_finale_morceau_droit_d_une_coupe',
+      'd40_revue_finale_rendu_reel_decoupe_le_morceau_droit_garde_le_carre']),
 ]
 
 # LE COMPTE MESURE, compare par main() -- une ligne par mutation de M.
-N_ROUGES = (1, 1, 1, 2, 1, 3, 3, 2, 2, 2, 1, 3, 4, 1, 6, 3, 1, 1, 4)
+N_ROUGES = (1, 1, 1, 2, 1, 3, 5, 2, 2, 2, 1, 3, 4, 1, 6, 3, 1, 1, 4, 3)
 assert len(N_ROUGES) == len(M), (len(N_ROUGES), len(M))
 
 

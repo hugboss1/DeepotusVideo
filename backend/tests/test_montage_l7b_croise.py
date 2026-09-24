@@ -240,6 +240,32 @@ CAS += [
     {"start": 0, "end": 10, "reframe": {"mode": "suivi", "points": [{"t": round(i * 0.01, 3), "x": round((i % 17) / 16, 4)} for i in range(300)]}},
     {"start": 0, "end": 10, "speed": 0.5, "reframe": {"mode": "suivi", "points": [{"t": round(i * 0.013, 3), "x": 0.5} for i in range(241)]}},
 ]
+N_CAS_169 = len(CAS)
+# revue finale du lot (24/09/2026) : points du CHAMP en temps ABSOLU de source, srcIn COURANT soustrait des deux
+# cotes -- les 169 cas rejoues tels quels (srcIn absent = 0), puis 80 copies des cas tires avec un srcIn tire
+# (nombres, chaines, negatifs, illisibles) et des cas LIMITES de fenetre ecrits a la main.
+random.seed(25092026)
+for _c in CAS[:80]:
+    _k = json.loads(json.dumps(_c))
+    _u = random.random()
+    _k["srcIn"] = (random.choice([None, "abc", True, -3, "4.5", "", 1e9]) if _u < 0.12
+                   else round(random.uniform(0, 15), random.choice([0, 1, 2, 3, 4])))
+    CAS.append(_k)
+CAS += [
+    # bords pile sur des points (aucun point de bord ajoute), points de part et d'autre, tout avant, tout apres
+    {"start": 0, "end": 2, "srcIn": 5, "reframe": {"mode": "suivi", "points": [{"t": 5, "x": 0.2}, {"t": 7, "x": 0.8}]}},
+    {"start": 0, "end": 2, "srcIn": 5, "reframe": {"mode": "suivi", "points": [{"t": 4, "x": 0.2}, {"t": 6, "x": 0.4}, {"t": 8, "x": 0.8}]}},
+    {"start": 0, "end": 2, "srcIn": 5, "reframe": {"mode": "suivi", "points": [{"t": 1, "x": 0.2}, {"t": 2, "x": 0.9}]}},
+    {"start": 0, "end": 2, "srcIn": 5, "reframe": {"mode": "suivi", "points": [{"t": 10, "x": 0.2}, {"t": 12, "x": 0.9}]}},
+    {"start": 0, "end": 2, "srcIn": 5, "reframe": {"mode": "suivi", "points": [{"t": 4, "x": 0.2}, {"t": 9, "x": 0.9}]}},
+    # vitesse x2 : fenetre de 4 s de source ; srcIn en chaine ; srcIn negatif (borne a 0) ; sans fin lisible
+    {"start": 1, "end": 3, "speed": 2, "srcIn": "3.25", "reframe": {"mode": "suivi", "points": [{"t": 3, "x": 0.1}, {"t": 8, "x": 0.9}]}},
+    {"start": 1, "end": 3, "srcIn": -2, "reframe": {"mode": "suivi", "points": [{"t": -1, "x": 0.1}, {"t": 3, "x": 0.9}]}},
+    {"start": 1, "end": "zz", "srcIn": 2, "reframe": {"mode": "suivi", "points": [{"t": 1, "x": 0.1}, {"t": 9, "x": 0.9}]}},
+    # un point a 1 ms du bord (doublon a 5 ms avec le point de bord : le dernier gagne), la decoupe [0,10] -> [5,10]
+    {"start": 0, "end": 2, "srcIn": 5, "reframe": {"mode": "suivi", "points": [{"t": 4, "x": 0.2}, {"t": 5.001, "x": 0.3}, {"t": 7, "x": 0.8}]}},
+    {"start": 5, "end": 10, "srcIn": 5, "reframe": {"mode": "suivi", "points": [{"t": 0, "x": 0.2}, {"t": 10, "x": 0.8}]}},
+]
 AC_E = {"src": {"job_id": "j1"}, "text": "  un texte  ", "n": "3", "persona": " gamer ", "llm": False, "lang": "de"}
 _PROBE = r"""
 var T=DzTracks,out={};
@@ -354,6 +380,7 @@ def _norm(v):
 
 
 PYRF = [_norm(_py_rf(c)) for c in CAS] if ms is not None else []
+_RFO_TXT = inspect.getsource(ms._reframe_of) if ms is not None else ""
 JSRF = [_norm(v) for v in D.get("rf", [])] if isinstance(D.get("rf"), list) else []
 DIFF = [(i, CAS[i], PYRF[i], JSRF[i]) for i in range(min(len(PYRF), len(JSRF))) if PYRF[i] != JSRF[i]]
 _n_suivi = sum(1 for v in PYRF if isinstance(v, dict) and v.get("mode") == "suivi")
@@ -363,6 +390,12 @@ _n_240 = sum(1 for v in PYRF if isinstance(v, dict) and len(v.get("points") or [
 check("x2_le_jeu_tire_couvre_suivi_manuel_centre_et_le_plafond_240_des_deux_cotes",
       len(PYRF) == len(CAS) == len(JSRF) and _n_suivi >= 20 and _n_manuel >= 10 and _n_none >= 20 and _n_240 >= 2,
       (len(PYRF), len(JSRF), _n_suivi, _n_manuel, _n_none, _n_240))
+_n_src = sum(1 for i, c in enumerate(CAS) if c.get("srcIn") not in (None, 0) and i < len(PYRF)
+             and isinstance(PYRF[i], dict) and PYRF[i].get("mode") == "suivi")
+check("x2_revue_finale_169_cas_d_origine_puis_des_cas_srcIn_non_nul_suivis_des_deux_cotes",
+      N_CAS_169 == 169 and len(CAS) == 169 + 80 + 10 and _n_src >= 30
+      and JS.count("win.forEach(function(q){q={t:dzmRfR3(q.t-a),x:q.x};") == 1
+      and _RFO_TXT.count("for q in [(round(t - a, 3), x) for t, x in win]:") == 1, (N_CAS_169, len(CAS), _n_src))
 check("x2_les_deux_cotes_rendent_le_meme_cadrage_sur_tous_les_cas_aucune_divergence",
       len(PYRF) == len(CAS) == len(JSRF) and DIFF == [], DIFF[:3])
 _RFO = inspect.getsource(ms._reframe_of) if ms is not None else ""
@@ -503,7 +536,8 @@ _fmts = sorted(set(re.findall(r'dzExportTl\("([a-z]+)"\)', BUN)))
 check("x5_formats_demandes_par_le_menu_egaux_aux_formats_de_la_route_et_la_route_rend_400_sinon",
       _fmts == ["edl", "fcpxml"] and ms is not None and sorted(ms._EXPORT_FORMATS) == _fmts
       and BUN.count('fetch("/api/montage/export?format="+fmt)') == 1, (_fmts, ms and sorted(ms._EXPORT_FORMATS)))
-_bad = asyncio.run(appel(ms.montage_export, "mp4")) if ms is not None else ("?", None)
+# revue finale (M2) : la route prend la requete (boucle locale seulement)
+_bad = asyncio.run(appel(ms.montage_export, REQ("/api/montage/export", {}), "mp4")) if ms is not None else ("?", None)
 check("x5_temoin_la_route_refuse_un_format_que_le_menu_n_offre_pas",
       _bad[0] == 400 and "edl" in str(_bad[1]), _bad)
 _dz = entre(BUN, "  function dzSceneCut(id){", "  function dzMenuProps(")

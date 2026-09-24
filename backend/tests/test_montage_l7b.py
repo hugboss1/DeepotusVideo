@@ -353,6 +353,34 @@ _sp5 = [(e.get("name"), e.get("offset"), e.get("start"), e.get("duration"))
 check("d37_revue_chevauchement_V1_start_avance_avec_le_debut_36_30s",
       _sp5 == [("A", "0s", "0s", "30/30s"), ("B", "30/30s", "36/30s", "30/30s")], _sp5)
 
+# revue finale du lot (M1, 24/09/2026) : un cadrage NON centre est DIT sous l'evenement (EDL) et par un commentaire
+# neutralise apres l'asset-clip (FCPXML) ; le verdict est celui du rendu (_reframe_of). Temoins : le plan centre
+# (et un « suivi » sans point lisible, que le rendu centre) n'en porte aucun.
+_r6 = {"name": "rf", "tracks": [{"id": "v1", "kind": "video"}], "clips": [
+    {"tr": "v1", "id": "a", "label": "A", "src": {"file_path": S1}, "srcIn": 0, "start": 0, "end": 1,
+     "reframe": {"mode": "suivi", "points": [{"t": 0, "x": 0.2}, {"t": 1, "x": 0.8}]}},
+    {"tr": "v1", "id": "b", "label": "B", "src": {"file_path": S2}, "srcIn": 0, "start": 1, "end": 2,
+     "reframe": {"mode": "manuel", "x": 0.3}},
+    {"tr": "v1", "id": "c", "label": "C", "src": {"file_path": S1}, "srcIn": 1, "start": 2, "end": 2.5,
+     "reframe": {"mode": "centre", "points": [{"t": 0, "x": 0.1}]}},
+    {"tr": "v1", "id": "d", "label": "D", "src": {"file_path": S2}, "srcIn": 1, "start": 2.5, "end": 3,
+     "reframe": {"mode": "suivi", "points": [{"t": "x", "x": 0.1}]}}]}
+_e6 = X("to_edl")(_r6, RES(), fps=30, meta=META(_r6)); _e6 = _e6 if isinstance(_e6, str) else ""
+_b6 = [bl for bl in _e6.split("\r\n\r\n") if " AX " in bl]
+_f6 = X("to_fcpxml")(_r6, RES(), fps=30, size=(1080, 1920), meta=META(_r6)); _f6 = _f6 if isinstance(_f6, str) else ""
+try:
+    _root6 = ET.fromstring(_f6.encode("utf-8"))
+except Exception as _e:
+    _root6 = ET.Element("illisible")
+check("d37_revue_finale_cadrage_non_centre_dit_REFRAME_sous_l_evenement_EDL_et_en_commentaire_FCPXML_temoins_centres",
+      len(_b6) == 4 and "* REFRAME: suivi (non exporté)" in _b6[0] and "* REFRAME: manuel (non exporté)" in _b6[1]
+      and "REFRAME" not in _b6[2] and "REFRAME" not in _b6[3] and _e6.count("* REFRAME:") == 2
+      and _b6[0].index("* REFRAME:") < _b6[0].index("* SOURCE FILE:")
+      and _root6.tag == "fcpxml" and _f6.count("<!-- REFRAME: suivi (non exporté en FCPXML) -->") == 1
+      and _f6.count("<!-- REFRAME: manuel (non exporté en FCPXML) -->") == 1 and _f6.count("REFRAME") == 2
+      and _f6.index('name="A"') < _f6.index("REFRAME: suivi") < _f6.index('name="B"') < _f6.index("REFRAME: manuel"),
+      (_b6, _f6[-900:]))
+
 # ── la route
 _espion = {"n": 0, "rend": None}
 _ls0 = A("_load_saved", None)
@@ -362,12 +390,18 @@ def _faux_load():
 MS._load_saved = _faux_load
 
 
-def ROUTE(fmt):
+def _req_get(hote="127.0.0.1"):
+    from starlette.requests import Request as _R
+    return _R({"type": "http", "method": "GET", "path": "/api/montage/export", "query_string": b"",
+               "headers": [], "client": (hote, 5000)})
+
+
+def ROUTE(fmt, hote="127.0.0.1"):
     f = A("montage_export", None)
     if f is None:
         return ("ABSENT", None, None)
     try:
-        r = asyncio.run(f(format=fmt))
+        r = asyncio.run(f(_req_get(hote), format=fmt))
         return (r.status_code, r.body, dict(r.headers))
     except Exception as e:
         return (getattr(e, "status_code", type(e).__name__), getattr(e, "detail", str(e)), None)
@@ -412,6 +446,18 @@ check("d37_route_400_sans_timeline_timeline_vide_et_format_inconnu_avant_toute_l
       and "format" in str(_u_det).lower() and _espion["n"] == _n0
       # temoin : les deux premiers ont bien lu la sauvegarde
       and _n0 == 4, (_n_st, _n_det, _v_st, _v_det, _u_st, _u_det, _espion))
+# revue finale (M2) : la route livre des chemins du disque -- boucle locale seulement, AVANT toute lecture ;
+# temoin : le meme appel en local lit la sauvegarde
+_espion["rend"] = REC()
+_nl0 = _espion["n"]
+_x_st, _x_det, _ = ROUTE("edl", hote="10.1.2.3")
+_nl1 = _espion["n"]
+_y_st, _y_det, _ = ROUTE("edl")
+check("d37_revue_finale_route_export_non_locale_403_avant_toute_lecture_temoin_locale_200",
+      _x_st == 403 and _nl1 == _nl0 and _y_st == 200 and _espion["n"] == _nl0 + 1
+      and "await asyncio.to_thread(_load_saved)" in __import__('inspect').getsource(MS.montage_export)
+      and "_require_local(request)" in __import__('inspect').getsource(MS.montage_export),
+      (_x_st, _x_det, _y_st, _espion))
 _espion["rend"] = dict(REC(), name='a"b\r\nc/../d')
 _h_st, _h_body, _h_h = ROUTE("edl")
 _h_cd = (_h_h or {}).get("content-disposition") or ""
@@ -885,19 +931,50 @@ check("d40_reframe_of_manuel_x_borne_0_1",
       (RFO(CL({"mode": "manuel", "x": 1.7})), RFO(CL({"mode": "manuel", "x": -2}))))
 _su = RFO(CL({"mode": "suivi", "points": [{"t": 1.5, "x": 0.8}, {"t": -1, "x": 0.1}, {"t": 9, "x": 2},
                                            {"t": 0.5, "x": "bad"}, {"t": 1.0, "x": 0.5}]}))
-check("d40_reframe_of_suivi_trie_t_borne_0_duree_du_clip_x_borne_point_invalide_ignore_avec_warning",
-      _su[0] == {"mode": "suivi", "points": [(0.0, 0.1), (1.0, 0.5), (1.5, 0.8), (2.0, 1.0)]}
+# revue finale du lot (24/09/2026) : points du CHAMP en temps ABSOLU de source ; fenetre [srcIn, srcIn + duree],
+# les points hors fenetre tombent et un point de BORD interpole est pose de chaque cote ou il en est tombe.
+def _pts_ok(r, attendu, tol=1e-9):
+    return (isinstance(r, dict) and r.get("mode") == "suivi" and len(r["points"]) == len(attendu)
+            and all(a[0] == e[0] and abs(a[1] - e[1]) <= tol for a, e in zip(r["points"], attendu)))
+check("d40_reframe_of_suivi_trie_fenetre_0_duree_bords_interpoles_x_borne_point_invalide_ignore_avec_warning",
+      # -1 -> 0,1 et 1,0 -> 0,5 : bord gauche 0,3 ; 1,5 -> 0,8 et 9 -> 1,0 (x borne) : bord droit 0,8 + 0,2 x 0,5/7,5
+      _pts_ok(_su[0], [(0.0, 0.3), (1.0, 0.5), (1.5, 0.8), (2.0, 0.8 + 0.2 * 0.5 / 7.5)])
       and len(_su[1]) == 1, _su)
 _su2 = RFO(CL({"mode": "suivi", "points": [{"t": 3.5, "x": 0.4}, {"t": 9, "x": 0.6}]}, speed=2))
-check("d40_reframe_of_suivi_a_vitesse_2_borne_t_a_la_duree_de_SOURCE_consommee",
-      _su2[0] == {"mode": "suivi", "points": [(3.5, 0.4), (4.0, 0.6)]} and _su2[1] == [], _su2)
+check("d40_reframe_of_suivi_a_vitesse_2_fenetre_de_la_duree_de_SOURCE_consommee_bord_interpole",
+      _pts_ok(_su2[0], [(3.5, 0.4), (4.0, 0.4 + 0.2 * 0.5 / 5.5)]) and _su2[1] == [], _su2)
 # revue : la vitesse est lue par _v1_speed (x10 -> borne 4 ; illisible -> x1 avec SON warning)
 _su10 = RFO(CL({"mode": "suivi", "points": [{"t": 7.5, "x": 0.4}, {"t": 99, "x": 0.6}]}, speed=10))
 _suab = RFO(CL({"mode": "suivi", "points": [{"t": 1.5, "x": 0.4}, {"t": 99, "x": 0.6}]}, speed="abc"))
 check("d40_revue_reframe_of_vitesse_par_v1_speed_bornee_a_4_illisible_x1",
-      _su10[0] == {"mode": "suivi", "points": [(7.5, 0.4), (8.0, 0.6)]} and _su10[1] == []
-      and _suab[0] == {"mode": "suivi", "points": [(1.5, 0.4), (2.0, 0.6)]}
+      _pts_ok(_su10[0], [(7.5, 0.4), (8.0, 0.4 + 0.2 * 0.5 / 91.5)]) and _su10[1] == []
+      and _pts_ok(_suab[0], [(1.5, 0.4), (2.0, 0.4 + 0.2 * 0.5 / 97.5)])
       and len(_suab[1]) == 1 and "speed" in _suab[1][0], (_su10, _suab))
+# revue finale : srcIn COURANT soustrait -- la fenetre d'un plan qui lit la source a partir de 5 s
+_sa = RFO(CL({"mode": "suivi", "points": [{"t": 4, "x": 0.2}, {"t": 6, "x": 0.4}, {"t": 8, "x": 0.8}]}, srcIn=5))
+_sa_in = RFO(CL({"mode": "suivi", "points": [{"t": 5, "x": 0.2}, {"t": 6, "x": 0.4}, {"t": 7, "x": 0.8}]}, srcIn=5))
+_sa_g = RFO(CL({"mode": "suivi", "points": [{"t": 1, "x": 0.2}, {"t": 2, "x": 0.9}]}, srcIn=5))
+_sa_d = RFO(CL({"mode": "suivi", "points": [{"t": 10, "x": 0.2}, {"t": 12, "x": 0.9}]}, srcIn=5))
+_sa_sd = RFO(CL({"mode": "suivi", "points": [{"t": 4, "x": 0.2}, {"t": 9, "x": 0.7}]}, srcIn=5, end=None))
+check("d40_revue_finale_reframe_of_soustrait_le_srcIn_courant_fenetre_et_points_de_bord",
+      # 4 -> 0,2 ; 6 -> 0,4 ; 8 -> 0,8 ; fenetre [5, 7] : bords 0,3 et 0,6, puis t relatifs
+      _pts_ok(_sa[0], [(0.0, 0.3), (1.0, 0.4), (2.0, 0.6)])
+      # temoin : points DEJA aux bords -> aucun point de bord ajoute
+      and _pts_ok(_sa_in[0], [(0.0, 0.2), (1.0, 0.4), (2.0, 0.8)])
+      # tous avant la fenetre : un point, la constante du dernier ; tous apres : la constante du premier
+      and _pts_ok(_sa_g[0], [(0.0, 0.9)]) and _pts_ok(_sa_d[0], [(2.0, 0.2)])
+      # sans duree lisible : bornee a gauche seulement
+      and _pts_ok(_sa_sd[0], [(0.0, 0.2 + 0.5 * 1 / 5), (4.0, 0.7)]),
+      (_sa, _sa_in, _sa_g, _sa_d, _sa_sd))
+# les QUATRE gestes qui avancent srcIn en copiant le champ (lame, decoupe aux plans, coupe ripple, rognage de
+# tete) : un plan [0,10] srcIn 0 suivi 0,2 -> 0,8 coupe a 5 s -- le morceau droit (srcIn 5, [5,10]) cadre 0,5 -> 0,8
+_P10 = {"mode": "suivi", "points": [{"t": 0, "x": 0.2}, {"t": 10, "x": 0.8}]}
+_mg = RFO({"tr": "v1", "label": "g", "start": 0, "end": 5, "srcIn": 0, "reframe": _P10})
+_md = RFO({"tr": "v1", "label": "d", "start": 5, "end": 10, "srcIn": 5, "reframe": _P10})
+_mt = RFO({"tr": "v1", "label": "t", "start": 2, "end": 10, "srcIn": 2, "reframe": _P10})
+check("d40_revue_finale_morceau_droit_d_une_coupe_cadre_0_5_0_8_le_gauche_0_2_0_5_rognage_de_tete_0_32",
+      _pts_ok(_md[0], [(0.0, 0.5), (5.0, 0.8)], 1e-12) and _pts_ok(_mg[0], [(0.0, 0.2), (5.0, 0.5)], 1e-12)
+      and _pts_ok(_mt[0], [(0.0, 0.32), (8.0, 0.8)], 1e-12), (_mg, _md, _mt))
 _su300 = RFO(CL({"mode": "suivi", "points": [{"t": i * 0.001 * 6, "x": 0.5} for i in range(300)]}, end=4.0))
 check("d40_reframe_of_suivi_plafonne_a_240_points_avec_warning",
       isinstance(_su300[0], dict) and len(_su300[0]["points"]) == 240 and len(_su300[1]) == 1
@@ -1080,6 +1157,34 @@ else:
     check("d40_revue_rendu_reel_vitesse_2_crop_deplace_apres_setpts_perd_le_carre_la_mesure_discrimine",
           _rc_vm == 0 and any("setpts=PTS/2," + _crp_v in a for a in _c_vm) and min(_blanc_vm) < 20,
           (_rc_vm, _er_vm, _blanc_vm))
+
+    # revue finale du lot (24/09/2026) : la DECOUPE. Le suivi analyse sur la source ENTIERE (srcIn 0, points
+    # absolus = relatifs) est COPIE sur le morceau droit d'une coupe a 2 s (srcIn 2, [0,2] en sortie) : en
+    # temps ABSOLU le morceau lit la fenetre source 2..4 et garde le carre ; le temoin est l'ANCIEN comportement
+    # (srcIn non soustrait = les points 0..2 rejoues sur la source 2..4), qui le perd.
+    def _rendu_m(rf, nom):
+        out = os.path.join(TMP, nom)
+        kw = {} if rf is ... else {"reframe": rf}
+        try:
+            c, _ = MS._build_montage_command([V1D(path=MOV, src_in=2.0, end=2.0, **kw)], [], [], None, w=152,
+                                             h=270, fps=30, mix_db={}, ducking=False, duration_master=False,
+                                             preview=True, out=out)
+            c = [_FB] + list(c[1:])
+            r = subprocess.run(c, check=False, capture_output=True, text=True, timeout=180)
+            return r.returncode, (r.stderr or "")[-300:], out
+        except Exception as e:
+            return -1, "%s: %s" % (type(e).__name__, e), out
+    _rf_m = MS._reframe_of({"start": 0, "end": 2, "srcIn": 2, "reframe": _trk}) if _rfo is not None else None
+    _rf_mo = MS._reframe_of({"start": 0, "end": 2, "reframe": _trk}) if _rfo is not None else None
+    _rc_m, _er_m, _o_m = _rendu_m(_rf_m, "d40_decoupe_droite.mp4")
+    _rc_mo, _er_mo, _o_mo = _rendu_m(_rf_mo, "d40_decoupe_ancien.mp4")
+    _blanc_m = [sum(1 for v in (_ligne(_o_m, t) or []) if v > 128) for t in (0.4, 1.0, 1.6)]
+    _blanc_mo = [sum(1 for v in (_ligne(_o_mo, t) or []) if v > 128) for t in (0.4, 1.0, 1.6)]
+    print("  (decoupe, morceau droit srcIn 2 : absolu %s, ancien relatif %s)" % (_blanc_m, _blanc_mo))
+    check("d40_revue_finale_rendu_reel_decoupe_le_morceau_droit_garde_le_carre_temoin_srcIn_non_soustrait_le_perd",
+          _rc_m == 0 and isinstance(_rf_m, dict) and all(n >= 50 for n in _blanc_m)
+          and _rc_mo == 0 and isinstance(_rf_mo, dict) and min(_blanc_mo) < 20
+          and _rf_m != _rf_mo, (_rc_m, _er_m, _blanc_m, _rc_mo, _blanc_mo))
 
     # revue : COMMANDE LONGUE — quatre clips V1 de 2 s, 240 points brutes (zigzag : la simplification
     # les garde) -> ligne de commande > 30 000 ; `_run_ffmpeg` passe le graphe par `-/filter_complex <f>`.
