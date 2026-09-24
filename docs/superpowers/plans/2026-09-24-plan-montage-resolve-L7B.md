@@ -15,10 +15,10 @@
 - [x] T1 — D-37 export EDL + FCPXML (`5d5eadc`, revue `562a048`, `140c3d5` ; FCPXML 1.9, FROM CLIP NAME = fichier, poignées dites)
 - [x] T2 — D-42 découper aux changements de plan (`4c48d45`, revue `8517a25` ; réponse obsolète refusée, écart minimal entre coupes)
 - [x] T3 — D-40 recadrage : backend (tracker PIL, crop à x animé) (`d70989c`, revue `e09552b` ; `-/filter_complex <fichier>` au-delà de 30 000 car., arbre `_rf_lerp_expr` car la chaîne échoue au-delà de 93 points ; restes mineurs pour T8)
-- [ ] T4 — D-40 recadrage : client (inspecteur « Cadrage »)
+- [x] T4 — D-40 recadrage : client (inspecteur « Cadrage ») (`871d5de`, revue `637bf41` ; source et mode dans l'empreinte d'obsolescence, aussi pour D-42 ; modes gelés pendant l'analyse ; plans image)
 - [x] T5 — D-41 auto-clips : backend (`9c55f40`, revue `031dd6a` ; toute la source examinée, 60 candidats par tranches, mots transcrits en cache, clips disjoints, `llm:false` ; reste : `windows` hors `to_thread`, pour T8)
 - [ ] T6 — D-41 auto-clips : client
-- [ ] T7 — D-34 note ★ des rendus (base + tiroir Médias)
+- [x] T7 — D-34 note ★ des rendus (base + tiroir Médias) (`0285290`, `2c66209`, revue `84814da` ; offset qui suit le compte serveur, PUT en file ; restes pour T8 : recharge sous filtre qui devance un PUT, mémoires `noteConf/noteFile/noteSeq` jamais vidées)
 - [ ] T8 — clôture (mutations, banc croisé, conception datée, revue finale, PR)
 
 Règle de non-blocage : une tâche n'attend jamais la preuve écran d'une autre ; le contrôleur joue les preuves écran par paquets sur 8799 pendant que la tâche suivante avance, et une retouche issue d'une preuve devient un commit de revue de la tâche concernée.
