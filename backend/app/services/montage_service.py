@@ -967,9 +967,17 @@ def _ov_transform(c: dict) -> dict | None:
 
     AUCUN champ valide présent → None : la chaîne cover historique reste
     strictement inchangée (rétro-compat bit à bit). Valeur invalide (non
-    numérique, NaN) : ignorée avec warning, le champ retombe à son défaut."""
+    numérique, NaN) : ignorée avec warning, le champ retombe à son défaut.
+
+    D-19 (24/09/2026) : `radius` = rayon des coins en px (entier 0..200,
+    `int(round())`) et `shadow` = ombre portée (0|1 : numérique ≥ 0,5 ou
+    True → 1). Posé seul (> 0), l'un ou l'autre rend `tf` non-None avec les
+    défauts x/y/scale/rotate — la chaîne AVEC transformation est nécessaire
+    pour porter `geq` et le split d'ombre (écart daté : un overlay « cover »
+    qui ne reçoit qu'un rayon passe en chaîne transformée plein cadre)."""
     spec = {"x": (-0.5, 1.5, 0.5), "y": (-0.5, 1.5, 0.5),
-            "scale": (0.05, 3.0, 1.0), "rotate": (-180.0, 180.0, 0.0)}
+            "scale": (0.05, 3.0, 1.0), "rotate": (-180.0, 180.0, 0.0),
+            "radius": (0, 200, 0), "shadow": (0, 1, 0)}
     out, seen = {}, False
     for key, (lo, hi, dv) in spec.items():
         v = c.get(key)
@@ -985,8 +993,14 @@ def _ov_transform(c: dict) -> dict | None:
                            f"{c.get('label') or c.get('tr')}")
             out[key] = dv
             continue
-        out[key] = max(lo, min(hi, f))
-        seen = True
+        if key == "shadow":
+            out[key] = 1 if f >= 0.5 else 0
+        elif key == "radius":
+            out[key] = int(max(lo, min(hi, int(round(f)))))
+        else:
+            out[key] = max(lo, min(hi, f))
+        # radius/shadow à 0 ne font pas naître une transformation
+        seen = seen or key not in ("radius", "shadow") or out[key] > 0
     return out if seen else None
 
 
@@ -2920,6 +2934,13 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                 och += f",format=yuva420p,colorchannelmixer=aa={round(op, 3)}"
             och += f",setpts=PTS-STARTPTS+{st}/TB"
             pos = ""
+            shadow = False
+            if o.get("radius") or o.get("shadow"):
+                # D-19 : jamais depuis /render (_ov_transform les porte dans
+                # tf) — un appelant direct qui les pose à côté d'un tf None
+                # est prévenu, la chaîne cover reste bit à bit.
+                logger.warning(f"montage: overlay radius/shadow ignorés sur la "
+                               f"chaîne cover (sans transformation) — overlay {j}")
         else:
             # Overlay transformé : largeur = scale·W (paire, hauteur suit le
             # ratio source), rotation sur fond transparent (rgba + c=none),
@@ -2977,6 +2998,29 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                        f"colorchannelmixer@mpo{j}=aa={round(op_pts[0][1], 3)}")
             elif op is not None and 0.0 <= op < 1.0:
                 och += f",colorchannelmixer=aa={round(op, 3)}"
+            # D-19 : coins arrondis — masque d'alpha par geq APRÈS l'opacité
+            # (aa multiplie l'alpha, le masque ensuite) et AVANT la rotation
+            # (les coins tournent avec l'image). Le rayon est borné DANS
+            # l'expression sur la taille réelle (la hauteur n'est connue
+            # qu'après `scale=-2`) — `min` de ffmpeg n'accepte que DEUX
+            # arguments (mesuré 24/09/2026, 8.1.1 : la forme à trois rend
+            # « Error initializing filters »), d'où l'imbrication. Pas sur
+            # l'échelle animée (D-14) : zoompan re-échantillonne la toile.
+            rrad = int(tf.get("radius") or 0)
+            shadow = bool(tf.get("shadow"))
+            if sc_pts and (rrad > 0 or shadow):
+                if rrad > 0:
+                    logger.warning(f"montage: overlay radius ignoré (échelle "
+                                   f"animée) — overlay {j}")
+                if shadow:
+                    logger.warning(f"montage: overlay shadow ignoré (échelle "
+                                   f"animée) — overlay {j}")
+                rrad, shadow = 0, False
+            if rrad > 0:
+                rm = f"min({rrad},min(W/2,H/2))"
+                och += (f",geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':"
+                        f"a='alpha(X,Y)*(1-gt(hypot(max(abs(X-W/2)-(W/2-{rm}),0),"
+                        f"max(abs(Y-H/2)-(H/2-{rm}),0)),{rm}))'")
             if sc_pts:
                 zp = [(t, max(smin, s) / smin) for t, s in sc_pts]
                 och += (f",pad=w={fw}:h={fh}:x=(ow-iw)/2:y=(oh-ih)/2:color=black@0,"
@@ -3020,7 +3064,22 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                 cx = round(w * tf["x"], 2)
                 cy = round(h * tf["y"], 2)
                 pos = f"x={cx}-w/2:y={cy}-h/2:"
-        parts.append(f"[{idx}:v]{och}[ov{j}]")
+        if shadow:
+            # D-19 : ombre portée — le flux (setpts compris : les deux côtés
+            # du split héritent du même PTS) est doublé : l'image paddée de
+            # 8 px, l'ombre (noir à 55 %, floutée 6) paddée décalée de 6 px,
+            # l'ombre SOUS l'image par overlay=0:0 ; le label [ov{j}] et le
+            # maillon de composition restent ceux de la chaîne nue. Écart
+            # daté : w/h du maillon de pose = taille paddée, l'image déborde
+            # de 8 px autour de sa pose « centre − w/2 ».
+            parts.append(f"[{idx}:v]{och}[oa{j}]")
+            parts.append(f"[oa{j}]split[oo{j}][os{j}]")
+            parts.append(f"[oo{j}]pad=iw+16:ih+16:8:8:color=black@0[op{j}]")
+            parts.append(f"[os{j}]colorchannelmixer=rr=0:gg=0:bb=0:aa=0.55,"
+                         f"boxblur=6,pad=iw+16:ih+16:14:14:color=black@0[osp{j}]")
+            parts.append(f"[osp{j}][op{j}]overlay=0:0[ov{j}]")
+        else:
+            parts.append(f"[{idx}:v]{och}[ov{j}]")
         parts.append(f"[{cur}][ov{j}]overlay={pos}eof_action=pass:"
                      f"enable='between(t,{st},{en})'[ob{j}]")
         cur = f"ob{j}"
