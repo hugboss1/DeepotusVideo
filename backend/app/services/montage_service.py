@@ -4898,9 +4898,13 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                     v2[-1]["mask"] = omk
                 if oeff:
                     v2[-1]["effects"] = oeff
-                    dims = await loop.run_in_executor(None, _probe_dims, p)
-                    if dims:
-                        v2[-1]["dims"] = tuple(dims)
+                    # Restes L5 (24/09/2026, re-revue T2) : la chaîne COVER
+                    # (ni transformation ni points de mouvement) a la taille
+                    # w × h sans les dims — seule la chaîne transformée sonde.
+                    if v2[-1]["tf"] is not None or v2[-1]["mp"]:
+                        dims = await loop.run_in_executor(None, _probe_dims, p)
+                        if dims:
+                            v2[-1]["dims"] = tuple(dims)
             # D-9 : les clips d'une piste de genre `adjust` (sans `src`) →
             # post-pass bornés sur le cadre composé. Un clip sans effets est
             # transmis (effects == []) et la commande l'ignore ; une piste
@@ -5544,12 +5548,11 @@ def _grade_effects(v) -> list:
 
 
 def _grade_w(v) -> int:
-    """Largeur de l'image étalonnée : bornée 96..640 et PAIRE (illisible → 400)."""
-    if v is None:
-        return _GRADE_W_DEFAUT
-    f = _scenes_num(v, "w", mini=0.0, maxi=1e6, strict=True)
-    w = max(_GRADE_W_MIN, min(_GRADE_W_MAX, int(f)))
-    return w - w % 2
+    """Largeur de l'image étalonnée : MÊME règle que `_prev_w` — illisible
+    (absent, texte, NaN, infini) → défaut 240, bornée 96..640, PAIRE.
+    Restes L5 (24/09/2026) : `w=0`/négatif rendait 400 alors que `w=1` était
+    ramené à 96 — une largeur est un confort, jamais un refus."""
+    return _prev_w(v, _GRADE_W_DEFAUT)
 
 
 @router.post("/color-match")
@@ -5570,15 +5573,36 @@ async def montage_color_match(request: Request):
     p_tgt = await _media_source(request, tgt.get("src"), video=True)
     p_ref = await _media_source(request, ref.get("src"), video=True) if ref is not None else None
     try:
-        s_tgt = await asyncio.to_thread(CM.frame_stats, p_tgt, t_tgt)
         if p_ref is not None:
-            s_ref = await asyncio.to_thread(CM.frame_stats, p_ref, t_ref)
+            # Restes L5 (24/09/2026) : les deux ffmpeg partent ENSEMBLE — la
+            # première exception remonte (gather sans return_exceptions).
+            s_tgt, s_ref = await asyncio.gather(
+                asyncio.to_thread(CM.frame_stats, p_tgt, t_tgt),
+                asyncio.to_thread(CM.frame_stats, p_ref, t_ref))
             eff = CM.match_effect(s_ref, s_tgt)
         else:
+            s_tgt = await asyncio.to_thread(CM.frame_stats, p_tgt, t_tgt)
             s_ref, eff = None, CM.auto_effect(s_tgt)
     except Exception as e:
         raise _media_http(e)
     return {"ok": True, "effect": eff, "ref": s_ref, "target": s_tgt}
+
+
+# Restes L5 (24/09/2026) : au plus DEUX calculs de scopes (ffmpeg) à la fois —
+# le client les redemande à chaque arrêt de la tête de lecture. Sémaphore créé
+# PARESSEUSEMENT sur la boucle courante et recréé si la boucle change (même
+# piège que `_ensure_worker` : un objet asyncio lié à une autre boucle casse
+# sous TestClient / après relance).
+_SCOPES_MAX = 2
+_SCOPES_SEM: tuple | None = None       # (boucle, asyncio.Semaphore)
+
+
+def _scopes_sem() -> asyncio.Semaphore:
+    global _SCOPES_SEM
+    loop = asyncio.get_running_loop()
+    if _SCOPES_SEM is None or _SCOPES_SEM[0] is not loop:
+        _SCOPES_SEM = (loop, asyncio.Semaphore(_SCOPES_MAX))
+    return _SCOPES_SEM[1]
 
 
 @router.post("/scopes")
@@ -5593,7 +5617,8 @@ async def montage_scopes(request: Request):
     effs = _grade_effects(body.get("effects"))
     p = await _media_source(request, body.get("src"), video=True)
     try:
-        out = await asyncio.to_thread(GR.scopes_png, p, t, effs, body.get("mask"))
+        async with _scopes_sem():
+            out = await asyncio.to_thread(GR.scopes_png, p, t, effs, body.get("mask"))
     except Exception as e:
         raise _media_http(e)
     return FileResponse(out, media_type="image/png", headers={"Cache-Control": "no-store"})

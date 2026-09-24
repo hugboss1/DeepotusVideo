@@ -28,7 +28,10 @@ def _inten(eff, default=60):
 
 
 def _c(hexstr, default="ffffff"):
-    s = str(hexstr or "").lstrip("#").strip() or default
+    # Restes L5 (24/09/2026) : blancs tolérés AUTOUR (« #00ff00 » précédé d'une
+    # espace rendait le défaut) et après le dièse ; le contrôle hexa strict
+    # ci-dessous garde l'injection fermée.
+    s = str(hexstr or "").strip().lstrip("#").strip() or default
     if len(s) == 3:
         s = "".join(ch * 2 for ch in s)
     # L5 (24/09/2026) : la longueur seule ne suffisait pas — « ;[x]ab »

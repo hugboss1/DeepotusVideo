@@ -1132,6 +1132,200 @@ except Exception as _e:                                  # noqa: BLE001
     _hst = repr(_e)
 check("t4_routes_montees_http", _hst == (200, "image/jpeg", 200, 200, True), str(_hst))
 
+# =============================================================================
+print("\n[7] restes backend dates (T7) — largeur, gather, semaphore, sonde, _c")
+# =============================================================================
+import threading, time                                   # noqa: E402
+
+# --- R1 : largeur de /grade-frame = regle de _prev_w (illisible -> defaut) ----
+_rw = {k: ROUTE("montage_grade_frame", {"src": {"file_path": TS}, "t": 1.0, "w": v})
+       for k, v in (("zero", 0), ("neg", -50), ("abc", "abc"), ("inf", "inf"), ("un", 1), ("n241", 241))}
+_rs = {k: (v[0], (SZ(v[1]) or (None,))[0]) for k, v in _rw.items()}
+check("r1_grade_frame_w_zero_negatif_96_illisible_240_temoins_1_et_241",
+      _rs == {"zero": (200, 96), "neg": (200, 96), "abc": (200, 240), "inf": (200, 240),
+              "un": (200, 96), "n241": (200, 240)}, str(_rs))
+_gw = getattr(MS, "_grade_w", None)
+try:
+    _gwv = [_gw(v) for v in (None, 0, -1, "abc", float("nan"), True, 9999, 97)]
+except Exception as _e:                                  # noqa: BLE001
+    _gwv = repr(_e)
+check("r1_grade_w_meme_regle_que_prev_w_defaut_240",
+      _gwv == [240, 96, 96, 240, 240, 240, 640, 96]
+      and _gwv == [MS._prev_w(v, 240) for v in (None, 0, -1, "abc", float("nan"), True, 9999, 97)],
+      str(_gwv))
+
+# --- R2 : /color-match lance les deux frame_stats EN PARALLELE ----------------
+_vrai_fs = getattr(CM, "frame_stats", None)
+_jfs, _lk = [], threading.Lock()
+
+
+def _fs_lent(p, t=1.0):
+    with _lk:
+        _jfs.append(("d", str(p), time.perf_counter()))
+    try:
+        time.sleep(0.4)
+        return _vrai_fs(p, t)
+    finally:
+        with _lk:
+            _jfs.append(("f", str(p), time.perf_counter()))
+
+
+def _fs_bilan():
+    d = [x[2] for x in _jfs if x[0] == "d"]
+    f = [x[2] for x in _jfs if x[0] == "f"]
+    return len(d), (max(d) < min(f)) if d and f else None
+
+
+_t0 = time.perf_counter()
+_jfs.clear()
+if CM is not None:
+    CM.frame_stats = _fs_lent
+try:
+    _cmp = ROUTE("montage_color_match", {"target": FP(TS), "ref": FP(ORG)})
+    _cm_dt = time.perf_counter() - _t0
+    _cm_b = _fs_bilan()
+    _jfs.clear()
+    _cma = ROUTE("montage_color_match", {"target": FP(TEINTE), "auto": True})
+    _cma_b = _fs_bilan()
+finally:
+    if CM is not None:
+        CM.frame_stats = _vrai_fs
+_cm_seq = CALL(CM, "match_effect", S_ORG, S_TS)
+check("r2_color_match_deux_frame_stats_se_chevauchent_resultat_identique",
+      _cmp[0] == 200 and _cm_b == (2, True) and isinstance(_cmp[1], dict)
+      and _cmp[1].get("ref") == S_ORG and _cmp[1].get("target") == S_TS
+      and _cmp[1].get("effect") == _cm_seq and _cm_dt < 0.8 + 3.0,
+      str((_cmp[0], _cm_b, round(_cm_dt, 2), (_cmp[1] or {}).get("effect") if isinstance(_cmp[1], dict) else _cmp[1], _cm_seq)))
+# Temoin : la mesure SAIT dire « pas de chevauchement » (un appel seul -> un
+# seul debut ; deux appels en sequence -> False).
+_jfs.clear()
+try:
+    _fs_lent(TS, 1.0); _fs_lent(ORG, 1.0)
+except Exception:                                        # noqa: BLE001
+    pass
+check("r2_temoin_auto_un_appel_et_sequence_sans_chevauchement",
+      _cma[0] == 200 and _cma_b[0] == 1 and _fs_bilan() == (2, False), str((_cma[0], _cma_b, _fs_bilan())))
+
+# --- R3 : /scopes — au plus DEUX calculs simultanes, sur toute boucle ---------
+_vrai_sc = getattr(GR, "scopes_png", None)
+_sc = {"n": 0, "max": 0}
+
+
+def _sc_lent(*a, **k):
+    with _lk:
+        _sc["n"] += 1
+        _sc["max"] = max(_sc["max"], _sc["n"])
+    try:
+        time.sleep(0.25)
+        return _PNG
+    finally:
+        with _lk:
+            _sc["n"] -= 1
+
+
+async def _sc_rafale(k=5):
+    f = getattr(MS, "montage_scopes")
+    rs = await asyncio.gather(*[f(RQ({"src": {"file_path": TS}, "t": 1.0})) for _ in range(k)],
+                              return_exceptions=True)
+    return [getattr(r, "status_code", type(r).__name__) for r in rs]
+
+
+def _sc_boucle():
+    _sc["max"] = 0
+    try:
+        return asyncio.run(_sc_rafale()), _sc["max"]
+    except Exception as e:                               # noqa: BLE001
+        return repr(e), _sc["max"]
+
+
+if GR is not None:
+    GR.scopes_png = _sc_lent
+try:
+    _scA = _sc_boucle()          # boucle A
+    _scB = _sc_boucle()          # boucle B : un semaphore lie a A casserait ici
+finally:
+    if GR is not None:
+        GR.scopes_png = _vrai_sc
+
+
+async def _sc_nu(k=5):
+    await asyncio.gather(*[asyncio.to_thread(_sc_lent) for _ in range(k)])
+
+_sc["max"] = 0
+asyncio.run(_sc_nu())
+_sc_temoin = _sc["max"]
+check("r3_scopes_semaphore_deux_au_plus_sur_deux_boucles_temoin_nu_cinq",
+      _scA == ([200] * 5, 2) and _scB == ([200] * 5, 2) and _sc_temoin == 5,
+      str((_scA, _scB, _sc_temoin)))
+
+# --- R4 : /render — la chaine COVER d'un overlay V2 ne sonde pas ses dims -----
+_vrai_build, _vrai_run, _vrai_dims = MS._build_montage_command, MS._run_ffmpeg, MS._probe_dims
+_cap, _sondes = {}, []
+
+
+def _espion_build(*a, **k):
+    _cap["v2"] = a[1] if len(a) > 1 else None
+    return _vrai_build(*a, **k)
+
+
+def _dims_espion(p):
+    _sondes.append(str(p))
+    return _vrai_dims(p)
+
+
+_PNGO = str(FX3 / "ovr_r4.png")
+try:
+    _PI.new("RGBA", (64, 64), (255, 0, 0, 255)).save(_PNGO)
+except Exception:                                        # noqa: BLE001
+    pass
+
+
+def RENDU_R4(v2extra):
+    _cap.clear(); _sondes.clear()
+    tl = {"name": "r4", "ratio": "9:16", "duration": 2, "mix": {}, "preview": True,
+          "clips": [{"tr": "v1", "id": "v0", "start": 0, "end": 2, "src": {"file_path": TS}},
+                    dict({"tr": "v2", "id": "o", "src": {"file_path": _PNGO}, "start": 0, "end": 2}, **v2extra)]}
+    MS._build_montage_command, MS._run_ffmpeg, MS._probe_dims = _espion_build, (lambda cmd, out: None), _dims_espion
+    try:
+        r = c.post("/api/montage/render", json=tl)
+        st = r.status_code
+    except Exception as e:                               # noqa: BLE001
+        st = repr(e)
+    finally:
+        MS._build_montage_command, MS._run_ffmpeg, MS._probe_dims = _vrai_build, _vrai_run, _vrai_dims
+    v2 = _cap.get("v2")
+    v2 = v2[0] if isinstance(v2, list) and v2 else {}
+    return st, len([p for p in _sondes if p.endswith("ovr_r4.png")]), v2
+
+
+_r4c = RENDU_R4({"effects": [{"type": "invert"}], "mask": {"shape": "ellipse", "x": 0.25, "y": 0.25,
+                                                        "w": 0.5, "h": 0.5}})
+_r4t = RENDU_R4({"effects": [{"type": "invert"}], "scale": 0.5})
+_r4m = RENDU_R4({"effects": [{"type": "invert"}],
+                 "motion_points": [{"t": 0, "x": 0.3, "y": 0.5}, {"t": 1, "x": 0.7, "y": 0.5}]})
+check("r4_render_cover_avec_pile_zero_sonde_dims_pile_gardee",
+      _r4c[0] == 200 and _r4c[1] == 0 and "dims" not in _r4c[2]
+      and (_r4c[2].get("effects") or [{}])[0].get("type") == "invert", str((_r4c[0], _r4c[1], sorted(_r4c[2]))))
+check("r4_temoins_transforme_et_points_de_mouvement_sondes_une_fois",
+      _r4t[0] == 200 and _r4t[1] == 1 and tuple(_r4t[2].get("dims") or ()) == (64, 64)
+      and _r4m[0] == 200 and _r4m[1] == 1 and tuple(_r4m[2].get("dims") or ()) == (64, 64)
+      and _r4m[2].get("mp"),
+      str((_r4t[0], _r4t[1], _r4t[2].get("dims"), _r4m[0], _r4m[1], _r4m[2].get("dims"), _r4m[2].get("mp"))))
+
+# --- R5 : effects_engine._c tolere les blancs, l'injection reste fermee -------
+_c5 = getattr(FX, "_c", None)
+try:
+    _c5v = [_c5(v) for v in (" #00ff00", "#00ff00 ", "\t00FF00\n", " #0f0 ", ";[x]ab", " ;[x]ab ",
+                               "# 00ff00", "", None, "#A855F7")]
+except Exception as _e:                                  # noqa: BLE001
+    _c5v = repr(_e)
+check("r5_couleur_blancs_toleres_injection_refusee",
+      _c5v == ["0x00ff00", "0x00ff00", "0x00ff00", "0x00ff00", "0xffffff", "0xffffff",
+               "0x00ff00", "0xffffff", "0xffffff", "0xa855f7"], str(_c5v))
+_ck5 = ONE({"type": "chromakey", "key": " #0000ff"})
+check("r5_chromakey_cle_avec_blanc_rendue_temoin_injection",
+      "0x0000ff" in _ck5 and ";[x]" not in ONE({"type": "chromakey", "key": ";[x]ab"}), _ck5)
+
 print(f"\n=== {ok} passed, {fail} failed ===")
 c.__exit__(None, None, None)
 # Nettoyage : le journal loguru et le pool sqlite tiennent encore des handles
