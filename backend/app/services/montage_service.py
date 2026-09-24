@@ -3006,7 +3006,16 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             # arguments (mesuré 24/09/2026, 8.1.1 : la forme à trois rend
             # « Error initializing filters »), d'où l'imbrication. Pas sur
             # l'échelle animée (D-14) : zoompan re-échantillonne la toile.
+            # Revue 24/09/2026 : le rayon du client est en px du canvas
+            # natif (1080 de petit côté / 1920 en paysage — `pk` du client)
+            # alors que w/h sont ceux du rendu (aperçu = canvas/4, preset
+            # 2160) → mis à l'échelle par k = w / (1080|1920), ≥ 1 px. Coût
+            # mesuré (revue 24/09/2026, 1080p) : geq ≈ 0,105 s/image, ×29
+            # la chaîne nue — un masque statique (`alphamerge` d'un masque
+            # calculé une fois) est noté pour L7-B, pas fait.
+            k = w / (1080.0 if w <= h else 1920.0)
             rrad = int(tf.get("radius") or 0)
+            rrad = max(1, int(round(rrad * k))) if rrad > 0 else 0
             shadow = bool(tf.get("shadow"))
             if sc_pts and (rrad > 0 or shadow):
                 if rrad > 0:
@@ -3067,17 +3076,24 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
         if shadow:
             # D-19 : ombre portée — le flux (setpts compris : les deux côtés
             # du split héritent du même PTS) est doublé : l'image paddée de
-            # 8 px, l'ombre (noir à 55 %, floutée 6) paddée décalée de 6 px,
-            # l'ombre SOUS l'image par overlay=0:0 ; le label [ov{j}] et le
-            # maillon de composition restent ceux de la chaîne nue. Écart
-            # daté : w/h du maillon de pose = taille paddée, l'image déborde
-            # de 8 px autour de sa pose « centre − w/2 ».
+            # 2u, l'ombre (noir à 55 %) paddée décalée de u PUIS floutée u
+            # (revue 24/09/2026 : boxblur AVANT pad floutait un alpha
+            # constant dans son propre cadre — bord net, alpha 0 → 140 sur
+            # 1 px ; après pad le dégradé existe), u = 6 px à l'échelle k
+            # (≥ 1) ; l'ombre SOUS l'image par overlay=0:0:format=auto (rgba
+            # conservé) ; le label [ov{j}] et le maillon de composition
+            # restent ceux de la chaîne nue. Écart daté : w/h du maillon de
+            # pose = taille paddée — le canvas transparent s'étend de 2u,
+            # l'image reste centrée sur sa pose « centre − w/2 ».
+            u = max(1, int(round(6 * k)))
             parts.append(f"[{idx}:v]{och}[oa{j}]")
             parts.append(f"[oa{j}]split[oo{j}][os{j}]")
-            parts.append(f"[oo{j}]pad=iw+16:ih+16:8:8:color=black@0[op{j}]")
+            parts.append(f"[oo{j}]pad=iw+{4 * u}:ih+{4 * u}:{2 * u}:{2 * u}:"
+                         f"color=black@0[op{j}]")
             parts.append(f"[os{j}]colorchannelmixer=rr=0:gg=0:bb=0:aa=0.55,"
-                         f"boxblur=6,pad=iw+16:ih+16:14:14:color=black@0[osp{j}]")
-            parts.append(f"[osp{j}][op{j}]overlay=0:0[ov{j}]")
+                         f"pad=iw+{4 * u}:ih+{4 * u}:{3 * u}:{3 * u}:color=black@0,"
+                         f"boxblur={u}[osp{j}]")
+            parts.append(f"[osp{j}][op{j}]overlay=0:0:format=auto[ov{j}]")
         else:
             parts.append(f"[{idx}:v]{och}[ov{j}]")
         parts.append(f"[{cur}][ov{j}]overlay={pos}eof_action=pass:"

@@ -19,23 +19,38 @@ en chaine transformee plein cadre, c'est le prix). Absents → tf None
 borne DANS l'expression par `min(R,min(W/2,H/2))` (ECART DATE 24/09/2026 :
 le plan ecrit `min(R,W/2,H/2)` — MESURE ffmpeg 8.1.1 : `min` n'accepte que
 DEUX arguments, « Error initializing filters » ; la forme imbriquee passe).
-`shadow` → le maillon `[idx:v]{och}[ov{j}]` devient cinq : `[oa{j}]`,
-`split[oo{j}][os{j}]`, `pad=iw+16:ih+16:8:8` (l'image), `colorchannelmixer
-rr=0:gg=0:bb=0:aa=0.55,boxblur=6,pad=…:14:14` (l'ombre, decalee de 6 px),
-`[osp{j}][op{j}]overlay=0:0[ov{j}]` — le label final `[ov{j}]` et le maillon
-de composition sont INCHANGES. `setpts` est dans `och` : le split herite du
+REVUE 24/09/2026 (B-1) : le rayon du client est en px du canvas natif
+(petit cote 1080, ou 1920 en paysage) et w/h sont ceux du RENDU (apercu =
+canvas/4, preset 2160) → `rrad = max(1, round(radius·k))`, k = w/1080 si
+w ≤ h sinon w/1920 (`ratio` n'est PAS connu de `_build_montage_command` :
+mesure, la signature ne le porte pas) : radius 40 → 40 en 1080x1920, 10 en
+270x480, 2 en 64x64. COUT DATE (B-3, revue 24/09/2026, 1080p) : geq ≈
+0,105 s/image, ×29 la chaine nue ; masque statique par `alphamerge` note
+pour L7-B, pas fait. `shadow` → le maillon `[idx:v]{och}[ov{j}]` devient
+cinq : `[oa{j}]`, `split[oo{j}][os{j}]`, `pad=iw+4u:ih+4u:2u:2u` (l'image),
+`colorchannelmixer rr=0:gg=0:bb=0:aa=0.55,pad=…:3u:3u,boxblur=u` (l'ombre,
+decalee de u PUIS floutee — B-2 : boxblur AVANT pad floutait un alpha
+constant dans son propre cadre, mesure alpha 0 → 140 sur 1 px ; apres pad
+le degrade existe : colonne mediane d'une ombre 240x140 u=2, alpha
+140,140,134,123,106,84,62,50 de y=140 a 147), u = max(1, round(6·k)) ;
+`[osp{j}][op{j}]overlay=0:0:format=auto[ov{j}]` (B-4, rgba conserve) — le
+label final `[ov{j}]` et le maillon de composition sont INCHANGES. `setpts` est dans `och` : le split herite du
 meme PTS des deux cotes (mesure [M]). Sans les deux champs → chaine octet
 pour octet identique (temoin). Chaine « cover » (tf None, `radius` pose
 sur le dict overlay mais pas dans tf) et echelle animee (`zp`, D-14) →
 ignores avec warning.
 [M] MESURE ffmpeg REELLE (SKIP si absent) : 2 s, fond `color=c=blue`
-480x270, overlay PNG rouge 240x140 en `radius=60, shadow=1` (scale 0,5 →
-ow2 240, image posee en (120,65), pad 256x156 en (112,57)) → rc 0, fichier
+480x270 (k = 0,25 : rayon 60 → 15 px, u = 2), overlay PNG rouge 240x140 en
+`radius=60, shadow=1` (scale 0,5 → ow2 240, image posee en (120,65), pad
+248x148 en (116,61), ombre dure de (122,67) a (361,206)) → rc 0, fichier
 > 0 ; DEUX pixels lus par `ffmpeg -ss 1 … -vf crop=1:1:X:Y -f rawvideo
 -pix_fmt rgb24 -` (format=rgb24 AVANT crop : en yuv420p un crop 1x1 a une
 chroma de 0 px et ffmpeg refuse) : le coin de l'image (121,66) est BLEU (fond), le milieu
-du bord haut (240,66) est ROUGE (overlay) ; un troisieme, 3 px sous le
-bord bas (240,208), est un bleu ASSOMBRI (l'ombre, alpha 0,55 floutee).
+du bord haut (240,66) est ROUGE (overlay) ; un troisieme, 1 px sous le
+bord bas (240,205), est un bleu ASSOMBRI (l'ombre dure, alpha 0,55) ; un
+quatrieme HORS de l'emprise (240,225) ≈ fond ; un cinquieme dans le degrade
+(240,207) est STRICTEMENT entre l'ombre dure et le fond (B-2 : sans le
+flou apres pad, ce pixel serait le fond).
 Regle des assertions negatives : chaque « pas de X » est precede dans la
 MEME expression du temoin positif qui prouve que la mesure a eu lieu.
 """
@@ -181,36 +196,64 @@ check("d19_temoin_l3_la_chaine_transformee_sans_les_champs",
 check("d19_radius_0_et_shadow_0_dans_tf_laissent_la_chaine_octet_pour_octet",
       _c0.startswith("ffmpeg") and OVBUILD(tf=dict(TF0, radius=0, shadow=0)) == _c0
       and OVBUILD(raw={"x": .5, "y": .5, "scale": 1, "rotate": 0}) == _c0, _seg(OVBUILD(tf=dict(TF0, radius=0, shadow=0))))
-GEQ40 = ("geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*(1-gt(hypot("
-         "max(abs(X-W/2)-(W/2-min(40,min(W/2,H/2))),0),"
-         "max(abs(Y-H/2)-(H/2-min(40,min(W/2,H/2))),0)),min(40,min(W/2,H/2))))'")
-_cr = OVBUILD(tf=dict(TF0, radius=40))
+def GEQ(r):
+    return ("geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*(1-gt(hypot("
+            "max(abs(X-W/2)-(W/2-min(%d,min(W/2,H/2))),0),"
+            "max(abs(Y-H/2)-(H/2-min(%d,min(W/2,H/2))),0)),min(%d,min(W/2,H/2))))'" % (r, r, r))
+GEQ40 = GEQ(40)
+# Canvas natif 1080x1920 (k = 1) : le rayon du client passe tel quel.
+_cr = OVBUILD(w=1080, h=1920, tf=dict(TF0, radius=40))
 _sr = _seg(_cr)
 check("d19_radius_40_pose_geq_une_fois_avec_min_imbrique_apres_format_rgba_et_avant_setpts",
       _sr.count("geq=") == 1 and GEQ40 in _sr and "min(40,W/2,H/2)" not in _sr
       and _sr.find("format=rgba,") < _sr.find("geq=") < _sr.find(",setpts=")
       and _sr.endswith("[ov0]") and "split" not in _sr and "boxblur" not in _sr, _sr)
-_cro = OVBUILD(tf=dict(TF0, radius=40, rotate=30.0), opacity=0.5)
+# B-1 : le rayon suit l'echelle du rendu — apercu 270x480 (k = 0,25) → 10,
+# 64x64 (k = 64/1080) → 2, paysage 1920x1080 (k = 1) → 40, 960x540 → 20.
+check("d19_le_rayon_est_mis_a_l_echelle_du_rendu_10_en_270x480_et_2_en_64x64_temoin_40_en_1080",
+      GEQ(10) in _seg(OVBUILD(w=270, h=480, tf=dict(TF0, radius=40)))
+      and GEQ(2) in _seg(OVBUILD(w=64, h=64, tf=dict(TF0, radius=40)))
+      and GEQ(40) in _seg(OVBUILD(w=1920, h=1080, tf=dict(TF0, radius=40)))
+      and GEQ(20) in _seg(OVBUILD(w=960, h=540, tf=dict(TF0, radius=40)))
+      and GEQ(40) in _sr and GEQ(10) not in _sr,
+      (_seg(OVBUILD(w=270, h=480, tf=dict(TF0, radius=40)))[-160:], _seg(OVBUILD(w=64, h=64, tf=dict(TF0, radius=40)))[-160:]))
+check("d19_un_rayon_minuscule_a_l_echelle_reste_1_px_jamais_0",
+      GEQ(1) in _seg(OVBUILD(w=64, h=64, tf=dict(TF0, radius=1)))
+      and "geq" not in _seg(OVBUILD(w=64, h=64, tf=dict(TF0, radius=0))), _seg(OVBUILD(w=64, h=64, tf=dict(TF0, radius=1)))[-120:])
+_cro = OVBUILD(w=1080, h=1920, tf=dict(TF0, radius=40, rotate=30.0), opacity=0.5)
 _sro = _seg(_cro)
 check("d19_geq_vient_apres_colorchannelmixer_et_avant_rotate",
       _sro.count("geq=") == 1 and "colorchannelmixer=aa=0.5" in _sro and ",rotate=" in _sro
       and _sro.find("colorchannelmixer=aa=0.5,") < _sro.find("geq=") < _sro.find(",rotate="), _sro)
 check("d19_le_rayon_est_le_literal_de_tf_temoin_40_vs_12",
-      "min(12,min(W/2,H/2))" in _seg(OVBUILD(tf=dict(TF0, radius=12)))
-      and "min(12," not in _sr and "min(40," in _sr, _seg(OVBUILD(tf=dict(TF0, radius=12))))
-_cs = OVBUILD(tf=dict(TF0, shadow=1))
+      "min(12,min(W/2,H/2))" in _seg(OVBUILD(w=1080, h=1920, tf=dict(TF0, radius=12)))
+      and "min(12," not in _sr and "min(40," in _sr, _seg(OVBUILD(w=1080, h=1920, tf=dict(TF0, radius=12))))
+def OMBRE_U(u):
+    return ("[oa0]split[oo0][os0];[oo0]pad=iw+%d:ih+%d:%d:%d:color=black@0[op0];"
+            "[os0]colorchannelmixer=rr=0:gg=0:bb=0:aa=0.55,pad=iw+%d:ih+%d:%d:%d:color=black@0,boxblur=%d[osp0];"
+            "[osp0][op0]overlay=0:0:format=auto[ov0]" % (4 * u, 4 * u, 2 * u, 2 * u, 4 * u, 4 * u, 3 * u, 3 * u, u))
+OMBRE = OMBRE_U(6)
+_cs = OVBUILD(w=1080, h=1920, tf=dict(TF0, shadow=1))
 _ss = _seg(_cs)
-OMBRE = ("[oa0]split[oo0][os0];[oo0]pad=iw+16:ih+16:8:8:color=black@0[op0];"
-         "[os0]colorchannelmixer=rr=0:gg=0:bb=0:aa=0.55,boxblur=6,pad=iw+16:ih+16:14:14:color=black@0[osp0];"
-         "[osp0][op0]overlay=0:0[ov0]")
 check("d19_shadow_1_split_en_cinq_maillons_et_le_label_ov0_reste_final",
-      _ss.startswith("[1:v]scale=64:-2,setsar=1,fps=25,format=rgba,setpts=PTS-STARTPTS+1.0/TB[oa0];")
+      _ss.startswith("[1:v]scale=1080:-2,setsar=1,fps=25,format=rgba,setpts=PTS-STARTPTS+1.0/TB[oa0];")
       and _ss.endswith(OMBRE) and "geq" not in _ss and _cs.count("[ov0]") == 2
-      and "[ov0]overlay=x=32.0-w/2:y=32.0-h/2:eof_action=pass:enable='between(t,1.0,3.0)'[ob0]" in _cs, _ss)
+      and "[ov0]overlay=x=540.0-w/2:y=960.0-h/2:eof_action=pass:enable='between(t,1.0,3.0)'[ob0]" in _cs, _ss)
+# B-2 : le flou vient APRES le pad de l'ombre (sinon il floute un alpha
+# constant dans son propre cadre) ; B-4 : format=auto sur l'overlay interne.
+check("d19_l_ombre_est_paddee_PUIS_floutee_et_l_overlay_interne_garde_rgba",
+      "aa=0.55,pad=" in _ss and ",boxblur=6[osp0]" in _ss and _ss.find(":color=black@0,boxblur=6") > _ss.find("aa=0.55,pad=")
+      and "boxblur=6,pad=" not in _ss and "overlay=0:0:format=auto[ov0]" in _ss, _ss[-260:])
+check("d19_l_unite_d_ombre_suit_l_echelle_2_en_480x270_et_1_au_plancher_64x64",
+      _seg(OVBUILD(w=480, h=270, tf=dict(TF0, shadow=1))).endswith(OMBRE_U(2))
+      and _seg(OVBUILD(w=64, h=64, tf=dict(TF0, shadow=1))).endswith(OMBRE_U(1))
+      and _seg(OVBUILD(w=270, h=480, tf=dict(TF0, shadow=1))).endswith(OMBRE_U(2)),
+      _seg(OVBUILD(w=480, h=270, tf=dict(TF0, shadow=1)))[-200:])
+_c0k = OVBUILD(w=1080, h=1920, tf=dict(TF0))
 check("d19_l_ombre_ne_change_pas_le_maillon_de_composition_temoin_l3",
-      _c0[_c0.find("[ov0]overlay="):_c0.find("[ob0]")] == _cs[_cs.find("[ov0]overlay="):_cs.find("[ob0]")]
-      and "[ob0]" in _c0 and "[ob0]" in _cs, (_c0[_c0.find("[ov0]overlay="):_c0.find("[ob0]")], _cs[_cs.find("[ov0]overlay="):_cs.find("[ob0]")]))
-_cb = OVBUILD(tf=dict(TF0, radius=40, shadow=1))
+      _c0k[_c0k.find("[ov0]overlay="):_c0k.find("[ob0]")] == _cs[_cs.find("[ov0]overlay="):_cs.find("[ob0]")]
+      and "[ob0]" in _c0k and "[ob0]" in _cs, (_c0k[_c0k.find("[ov0]overlay="):_c0k.find("[ob0]")], _cs[_cs.find("[ov0]overlay="):_cs.find("[ob0]")]))
+_cb = OVBUILD(w=1080, h=1920, tf=dict(TF0, radius=40, shadow=1))
 _sb = _seg(_cb)
 check("d19_radius_et_shadow_ensemble_geq_precede_le_split",
       _sb.count("geq=") == 1 and _sb.endswith(OMBRE) and _sb.find("geq=") < _sb.find("[oa0];")
@@ -220,15 +263,15 @@ _o2 = {"path": OVF, "is_image": True, "src_dur": 0.0, "src_in": 0.0, "start": 0.
        "opacity": None, "tf": dict(TF0, shadow=1), "mp": None, "layer": 0}
 _o3 = dict(_o2, start=2.0, end=4.0, tf=dict(TF0, shadow=1, radius=10))
 try:
-    _c2, _ = MS._build_montage_command([V1SPEC()], [_o2, _o3], [], None, w=64, h=64, fps=25, mix_db={},
+    _c2, _ = MS._build_montage_command([V1SPEC()], [_o2, _o3], [], None, w=1080, h=1920, fps=25, mix_db={},
                                        ducking=False, duration_master=False, preview=True,
                                        out=os.path.join(TMP, "o.mp4"))
     _c2 = FLAT(_c2)
 except Exception as e:
     _c2 = "%s: %s" % (type(e).__name__, e)
 check("d19_deux_overlays_ombres_portent_des_labels_indices_distincts",
-      _c2.count("split[oo") == 2 and "[oa1]split[oo1][os1]" in _c2 and "[osp1][op1]overlay=0:0[ov1]" in _c2
-      and "[osp0][op0]overlay=0:0[ov0]" in _c2 and _c2.count("geq=") == 1 and "[ob1]" in _c2, _c2[_c2.find("[2:v]"):][:400])
+      _c2.count("split[oo") == 2 and "[oa1]split[oo1][os1]" in _c2 and "[osp1][op1]overlay=0:0:format=auto[ov1]" in _c2
+      and "[osp0][op0]overlay=0:0:format=auto[ov0]" in _c2 and _c2.count("geq=") == 1 and "[ob1]" in _c2, _c2[_c2.find("[2:v]"):][:400])
 # Chaine cover : `radius` pose sur le dict overlay (comme un client qui
 # l'enverrait sans tf) est ignore avec warning — tf None reste cover.
 _cc, _wc = _avec_journal(lambda: OVBUILD(tf=None, radius=40, shadow=1))
@@ -245,7 +288,7 @@ _cz, _wz = _avec_journal(lambda: OVBUILD(tf=dict(TF0, radius=40, shadow=1),
 check("d19_echelle_animee_ignore_radius_et_shadow_avec_warning_temoin_zoompan",
       "zoompan" in _cz and "geq" not in _cz and "split" not in _cz and "boxblur" not in _cz
       and any("radius" in m and "anim" in m for m in _wz) and any("shadow" in m and "anim" in m for m in _wz), (_seg(_cz)[:200], _wz))
-_czp, _wzp = _avec_journal(lambda: OVBUILD(tf=dict(TF0, radius=40, shadow=1),
+_czp, _wzp = _avec_journal(lambda: OVBUILD(w=1080, h=1920, tf=dict(TF0, radius=40, shadow=1),
                                            motion_points=[{"t": 0, "x": .2, "y": .5}, {"t": 2, "x": .8, "y": .5}]))
 check("d19_position_animee_sans_echelle_garde_geq_et_ombre",
       "zoompan" not in _czp and "overlay=x='(" in _czp and _seg(_czp).count("geq=") == 1 and _seg(_czp).endswith(OMBRE)
@@ -291,7 +334,7 @@ else:
         _rc, _err = _r.returncode, (_r.stderr or "")[-400:]
     _size = pathlib.Path(_OUT).stat().st_size if os.path.isfile(_OUT) else -1
     check("d19_rendu_reel_rc_0_fichier_non_vide_geq_et_ombre_dans_la_commande",
-          _rc == 0 and _size > 0 and "geq=" in FLAT(_cmd or []) and "boxblur=6" in FLAT(_cmd or []), (_rc, _size, _err))
+          _rc == 0 and _size > 0 and "min(15,min(W/2,H/2))" in FLAT(_cmd or []) and ":6:6:color=black@0,boxblur=2[osp0]" in FLAT(_cmd or []), (_rc, _size, _err))
 
     def _px(x, y, t="1"):
         """Le pixel (x, y) de l'image a t s (1 par defaut), lu par ffmpeg en rgb24 brut."""
@@ -302,14 +345,21 @@ else:
             return tuple(r.stdout[:3]) if len(r.stdout) >= 3 else None
         except Exception:
             return None
-    _coin, _bord, _ombre, _fond = _px(121, 66), _px(240, 66), _px(240, 208), _px(10, 10)
+    _coin, _bord, _ombre, _fond = _px(121, 66), _px(240, 66), _px(240, 205), _px(10, 10)
+    _hors, _degr = _px(240, 225), _px(240, 207)
     def _bleu(p): return p is not None and p[0] < 60 and p[1] < 60 and p[2] > 180
     def _rouge(p): return p is not None and p[0] > 180 and p[1] < 60 and p[2] < 60
     check("d19_rendu_reel_le_coin_de_l_overlay_est_le_bleu_du_fond_et_le_bord_est_rouge",
           _rc == 0 and _bleu(_fond) and _bleu(_coin) and _rouge(_bord), (_fond, _coin, _bord))
-    check("d19_rendu_reel_l_ombre_assombrit_le_fond_sous_le_bord_bas",
+    check("d19_rendu_reel_l_ombre_dure_assombrit_le_fond_sous_le_bord_bas",
           _rc == 0 and _ombre is not None and _fond is not None and _ombre[0] < 60 and _ombre[1] < 60
           and 40 < _ombre[2] < _fond[2] - 40, (_ombre, _fond))
+    # B-2 : hors emprise ≈ fond (± 12) ; dans le degrade, STRICTEMENT entre
+    # l'ombre dure et le fond (mesure 24/09/2026, colonne x=240 : image 0..8 jusqu'a
+    # y=204, ombre dure 161 en 205, degrade 185/187 en 206/207, fond 251/254 des 208).
+    check("d19_rendu_reel_hors_emprise_le_fond_et_dans_le_degrade_un_bleu_intermediaire",
+          _rc == 0 and _hors is not None and _degr is not None and _ombre is not None and _fond is not None
+          and abs(_hors[2] - _fond[2]) <= 12 and _ombre[2] + 15 < _degr[2] < _fond[2] - 15, (_ombre, _degr, _hors, _fond))
     # Le setpts est DANS och : le split herite du PTS des deux cotes ; l'overlay
     # intermediaire ne decale rien → 50 images pour 2 s a 25 i/s (temoin).
     _nb = -1
