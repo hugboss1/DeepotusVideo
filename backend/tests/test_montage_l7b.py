@@ -418,6 +418,29 @@ _h_cd = (_h_h or {}).get("content-disposition") or ""
 check("d37_revue_nom_hostile_guillemet_crlf_chemin_neutralise_dans_Content_Disposition",
       _h_st == 200 and _h_cd == 'attachment; filename="a_b_c_.._d.edl"'
       and _h_cd.count('"') == 2 and "\r" not in _h_cd and "\n" not in _h_cd and "/" not in _h_cd, (_h_st, _h_cd))
+# revue du 24/09/2026 : la ROUTE sonde la duree des sources aussi pour l'EDL -> la poignee
+# insuffisante sort dans un export REEL. plan1.mp4 dure 3 s (90 images) : A lu de 60 a 87 laisse
+# 3 images ; le fondu de B est borne a 6 images -> « insuffisantes (3 images) ». Temoin : A lu de
+# 0 a 27 laisse 63 images -> le meme fondu D 006, aucune mention.
+def _r_h(src_in_a):
+    return {"name": "poignees", "ratio": "9:16", "tracks": [{"id": "v1", "kind": "video"}], "clips": [
+        {"tr": "v1", "id": "a", "label": "A", "src": {"file_path": S1}, "srcIn": src_in_a, "start": 0, "end": 0.9},
+        {"tr": "v1", "id": "b", "label": "B", "src": {"file_path": S2}, "srcIn": 0, "start": 0.9, "end": 1.2,
+         "transition": "fade", "transition_s": 0.4}]}
+if _FB is None:
+    print("  (ffmpeg absent : la poignee sondee par la route EDL n'est PAS verifiee)")
+    check("d37_revue_route_edl_poignee_sondee_SKIP_sans_ffmpeg", True)
+else:
+    _espion["rend"] = _r_h(2.0)
+    _p_st, _p_body, _ = ROUTE("edl")
+    _p_txt = _p_body.decode("utf-8") if isinstance(_p_body, bytes) else ""
+    _espion["rend"] = _r_h(0.0)
+    _q_st, _q_body, _ = ROUTE("edl")
+    _q_txt = _q_body.decode("utf-8") if isinstance(_q_body, bytes) else ""
+    check("d37_revue_route_edl_sonde_la_duree_poignee_insuffisante_dite_temoin_sans_mention",
+          _p_st == 200 and "D    006" in _p_txt and "* HANDLES: insuffisantes (3 images)\r\n" in _p_txt
+          and _q_st == 200 and "D    006" in _q_txt and "HANDLES" not in _q_txt,
+          (_p_st, _p_txt[-400:], _q_st))
 MS._load_saved = _ls0
 
 # ══ [2] D-42 DECOUPER AUX CHANGEMENTS DE PLAN ═══════════════════════════════

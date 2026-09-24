@@ -2569,8 +2569,9 @@ async def _resolve_src(src: dict | None) -> Path | None:
 # Le client pousse d'abord sa sauvegarde (POST /save) puis appelle cette
 # route : c'est le disque qui fait foi, comme pour GET /project. Le format
 # est jugé AVANT toute lecture ; les sources sont résolues UNE fois chacune
-# par `_resolve_src` (la même loi que le rendu), sondées (durée, son) pour le
-# seul FCPXML — l'EDL n'en a pas besoin. Le calcul est PUR (`edl_export`).
+# par `_resolve_src` (la même loi que le rendu), sondées (durée, son) pour les
+# DEUX formats — revue du 24/09/2026 : sans la durée, l'EDL ne pouvait pas dire
+# `* HANDLES: insuffisantes`. Le calcul est PUR (`edl_export`).
 _EXPORT_FORMATS = {"edl": (".edl", "text/plain; charset=utf-8"),
                    "fcpxml": (".fcpxml", "application/xml; charset=utf-8")}
 
@@ -2595,7 +2596,7 @@ async def montage_export(format: str = ""):
         if p is None:
             continue
         info = {"path": str(p), "video": p.suffix.lower() not in _AUDIO_EXTS}
-        if fmt == "fcpxml" and p.suffix.lower() not in _IMAGE_EXTS:
+        if p.suffix.lower() not in _IMAGE_EXTS:
             info["dur"] = await loop.run_in_executor(None, _probe_duration, p)
             info["audio"] = await loop.run_in_executor(None, _has_audio_stream, p)
         resolve[k] = info
