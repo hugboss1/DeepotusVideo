@@ -1291,8 +1291,7 @@ def _reframe_of(c: dict) -> dict | None:
     if not isinstance(pts_in, list):
         logger.warning(f"montage: reframe suivi sans points, cadrage centré — {lbl}")
         return None
-    spd = _rf_num(c.get("speed"))
-    spd = max(0.25, min(4.0, spd)) if spd is not None and spd > 0 else 1.0
+    spd = _v1_speed(c) or 1.0
     s0, s1 = _rf_num(c.get("start")), _rf_num(c.get("end"))
     dur = (s1 - s0) * spd if s0 is not None and s1 is not None else 0.0
     pts, bad = [], 0
@@ -1333,11 +1332,38 @@ def _reframe_of(c: dict) -> dict | None:
     return {"mode": "suivi", "points": out}
 
 
+def _rf_lerp_expr(pts: list, var: str = "t") -> str:
+    """La MÊME interpolation linéaire par morceaux que :func:`_mp_lerp_expr`
+    (constante avant le premier point et après le dernier), mais en ARBRE
+    ÉQUILIBRÉ de if(lt(…)) : profondeur ~log2(n) au lieu de n. MESURÉ en revue
+    le 24/09/2026 (ffmpeg 8.1.1, crop x) : l'expression en CHAÎNE de
+    `_mp_lerp_expr` échoue à la configuration (−22, « Invalid argument ») au-
+    delà de 93 points dans `clip(iw*(…)-w/2,0,iw-w)` (96 nue) — l'analyseur
+    d'expressions borne sa récursion. `_mp_lerp_expr` reste juste pour ses
+    usages (8 et 12 points au plus) ; le recadrage peut en porter 240."""
+    n = sfx_service.fnum
+    if len(pts) == 1:
+        return n(pts[0][1])
+
+    def seg(k: int) -> str:
+        (t0, v0), (t1, v1) = pts[k], pts[k + 1]
+        return f"{n(v0)}+({n(v1 - v0)})*({var}-{n(t0)})/{n(t1 - t0)}"
+
+    def arbre(a: int, b: int) -> str:          # segments a .. b-1
+        if b - a == 1:
+            return seg(a)
+        m = (a + b) // 2
+        return f"if(lt({var},{n(pts[m][0])}),{arbre(a, m)},{arbre(m, b)})"
+
+    return (f"if(lt({var},{n(pts[0][0])}),{n(pts[0][1])},"
+            f"if(lt({var},{n(pts[-1][0])}),{arbre(0, len(pts) - 1)},{n(pts[-1][1])}))")
+
+
 def _reframe_crop(rf: dict | None, w: int, h: int) -> str:
     """Le `crop` de la chaîne cover V1 : `crop={w}:{h}` sans recadrage
     (historique), sinon la fenêtre centrée sur iw·x, bornée au cadre :
     `crop={w}:{h}:x='clip(iw*X-{w/2},0,iw-{w})':y=(ih-{h})/2` — X constant
-    (manuel) ou `_mp_lerp_expr` des points simplifiés (RDP, tolérance
+    (manuel) ou `_rf_lerp_expr` (arbre équilibré) des points simplifiés (RDP, tolérance
     _RF_TOL : 240 points bruts feraient ~13 000 caractères par clip, plafond
     CreateProcess 32 767) en `t` LOCAL du flux (mesuré, voir reframe.py).
     Une source plus haute que le cadre (iw == w) : x reste 0, rien ne bouge."""
@@ -1348,10 +1374,36 @@ def _reframe_crop(rf: dict | None, w: int, h: int) -> str:
     if rf.get("mode") == "manuel":
         xe = n(rf["x"])
     elif rf.get("mode") == "suivi" and rf.get("points"):
-        xe = f"({_mp_lerp_expr(_reframe.simplifier(list(rf['points']), _RF_TOL))})"
+        xe = f"({_rf_lerp_expr(_reframe.simplifier(list(rf['points']), _RF_TOL))})"
     else:
         return base
     return f"{base}:x='clip(iw*{xe}-{n(w / 2)},0,iw-{w})':y=(ih-{h})/2"
+
+
+def _probe_dims(path: Path) -> tuple | None:
+    """(largeur, hauteur) du premier flux vidéo par ffprobe, ou None."""
+    try:
+        out = subprocess.run(
+            ["ffprobe", "-v", "error", "-select_streams", "v:0",
+             "-show_entries", "stream=width,height", "-of", "csv=p=0:s=x",
+             str(path)],
+            check=False, capture_output=True, text=True, timeout=30).stdout.strip()
+        a, b = out.splitlines()[0].split("x")[:2]
+        return int(a), int(b)
+    except (ValueError, IndexError, FileNotFoundError, OSError,
+            subprocess.TimeoutExpired):
+        return None
+
+
+def _reframe_utile(iw: int, ih: int, w: int, h: int) -> bool:
+    """Vrai si le cover laisse de la largeur à balayer : la source mise à
+    l'échelle par force_original_aspect_ratio=increase est plus LARGE que le
+    cadre. Une source plus haute (ou de même ratio) : iw == w après scale,
+    x reste 0 — le recadrage n'a aucun effet horizontal."""
+    if iw <= 0 or ih <= 0 or w <= 0 or h <= 0:
+        return True
+    k = max(w / iw, h / ih)
+    return iw * k > w + 1
 
 
 # D-15 (22/09/2026) — RETIME. Champ optionnel `retime` d'un clip V1 :
@@ -3834,7 +3886,7 @@ def _loudnorm_pass1(v1, v2, a_clips, music, *, loudness, **kw):
     if cmd is None:
         return None
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+        r = _ff_run(cmd, capture_output=True, text=True, timeout=180)
     except subprocess.TimeoutExpired:
         raise RuntimeError("mesure loudness (passe 1) interrompue — ffmpeg a "
                            "dépassé 3 min.")
@@ -4110,10 +4162,44 @@ async def montage_deliver_presets_put(request: Request):
     return {"ok": True, "presets": presets}
 
 
+# Revue D-40 (24/09/2026) — COMMANDE LONGUE. CreateProcess refuse une ligne
+# de plus de 32 767 caractères (WinError 206) : MESURÉ en revue, quatre clips
+# V1 en mode suivi à points bruités font 38 013 caractères. Au-delà de
+# _CMD_MAX (mesuré par subprocess.list2cmdline, la forme que Windows reçoit),
+# le graphe part dans un fichier UTF-8 temporaire et `-filter_complex <g>`
+# devient `-/filter_complex <fichier>` — la forme MESURÉE le 24/09 sur ffmpeg
+# 8.1.1 (rc 0 ; `-filter_complex_script` passe encore mais s'annonce
+# « deprecated, use -/filter_complex … instead »). Le fichier est lu par le
+# même analyseur que l'argument : contenu identique, quotes comprises. Sous
+# le seuil, ou sans -filter_complex : commande inchangée octet pour octet.
+# Rendu (_run_ffmpeg), passe 1 loudnorm et /measure passent tous par ici.
+_CMD_MAX = 30000
+
+
+def _ff_run(cmd, **kw):
+    """`subprocess.run(cmd, **kw)`, graphe long écrit dans un fichier (voir
+    plus haut) et supprimé après l'exécution, succès ou échec."""
+    fichier = None
+    if "-filter_complex" in cmd and len(subprocess.list2cmdline(
+            [str(a) for a in cmd])) > _CMD_MAX:
+        import tempfile
+        i = cmd.index("-filter_complex")
+        fd, nom = tempfile.mkstemp(prefix="dzgraphe_", suffix=".txt")
+        with open(fd, "w", encoding="utf-8", newline="") as f:
+            f.write(cmd[i + 1])
+        fichier = Path(nom)
+        cmd = list(cmd[:i]) + ["-/filter_complex", nom] + list(cmd[i + 2:])
+    try:
+        return subprocess.run(cmd, **kw)
+    finally:
+        if fichier is not None:
+            fichier.unlink(missing_ok=True)
+
+
 def _run_ffmpeg(cmd, out: Path) -> Path:
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True,
-                           timeout=FFMPEG_TIMEOUT_S)
+        r = _ff_run(cmd, capture_output=True, text=True,
+                    timeout=FFMPEG_TIMEOUT_S)
     except subprocess.TimeoutExpired:
         raise RuntimeError(
             f"ffmpeg a dépassé {FFMPEG_TIMEOUT_S // 60} min — rendu interrompu.")
@@ -4434,6 +4520,14 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                         await _fail(f"Stabilisation impossible : {e}")
                         return
                     st["trf"] = str(trf)
+                rf = _reframe_of(c)     # D-40 — None = historique
+                if rf is not None:
+                    dims = await loop.run_in_executor(None, _probe_dims, p)
+                    if dims and not _reframe_utile(dims[0], dims[1], w, h):
+                        logger.info(f"montage: recadrage sans effet horizontal "
+                                    f"(source {dims[0]}×{dims[1]} au moins aussi "
+                                    f"haute que le cadre {w}×{h}) — "
+                                    f"{c.get('label') or c.get('src')}")
                 v1.append({"path": p, "src_dur": sdur or 9999.0,
                            "src_in": max(0.0, float(c.get("srcIn") or 0)),
                            "start": float(c.get("start") or 0),
@@ -4442,7 +4536,7 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                            "transition_s": c.get("transition_s"),
                            "speed": _v1_speed(c),  # C4 — 0.0 = historique
                            "dz": _dz_spec(c),      # D-13 — None = historique
-                           "reframe": _reframe_of(c),  # D-40 — None = historique
+                           "reframe": rf,          # D-40 — None = historique
                            "retime": _v1_retime(c),  # D-15 — None = historique
                            "stab": st,             # D-16 — None = historique
                            "effects": (c.get("effects")
@@ -4760,8 +4854,7 @@ async def montage_measure(request: Request):
         out=None, audio_only=True)
 
     def _measure():
-        return subprocess.run(cmd, capture_output=True, text=True,
-                              timeout=180)
+        return _ff_run(cmd, capture_output=True, text=True, timeout=180)
     try:
         r = await asyncio.to_thread(_measure)
     except subprocess.TimeoutExpired:

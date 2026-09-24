@@ -12,7 +12,8 @@ et rend `{mode, points, fps, x?, motion}` :
 * `mode == "centre"` : trop peu de mouvement (plus de 20 % des paires
   d'images sans colonne au-dessus du bruit, ou moins de deux images) —
   `points = []`, `x = 0.5`.
-* `motion` : la part des paires d'images où un mouvement a été vu (0..1).
+* `motion` : la part des paires d'images où un mouvement a été vu (0..1) ;
+  `images` : le nombre d'images lues (moins de deux → `MediaError`).
 
 Méthode (numpy, cv2 et scipy sont ABSENTS du python embarqué — mesuré le
 24/09) : ffmpeg écrit l'extrait en PNG gris `fps=4,scale=96:-2` dans un
@@ -20,7 +21,9 @@ dossier temporaire ; pour chaque paire d'images voisines,
 `PIL.ImageChops.difference` puis `resize((w, 1), BOX)` = l'énergie de
 mouvement MOYENNE de chaque colonne ; le barycentre des colonnes au-dessus
 de `noise` (poids `v − noise`) est la position du mouvement, datée au milieu
-de la paire ((i + ½)/fps) ; lissage EMA 0,5.
+de la paire ((i + ½)/fps) ; lissage EMA 0,5. Lecture au fil de l'eau
+(revue du 24/09/2026) : chaque PNG est chargé, comparé à l'image précédente
+SEULE puis supprimé — mémoire constante quelle que soit la durée.
 
 MESURE DE L'ÉTAPE 1 — ffmpeg 8.1.1 essentials, Windows 11, 24/09/2026
 (source 480×270 à 30 i/s, carré blanc de 60 px dont le centre vaut
@@ -46,6 +49,12 @@ MESURE DE L'ÉTAPE 1 — ffmpeg 8.1.1 essentials, Windows 11, 24/09/2026
 * Une expression par morceaux `if(lt(t,…),…)` à virgules, entre quotes
   simples, passe telle quelle dans `-filter_complex` (colonne 95,5 attendue
   ≈ 96). Aucun repli `sendcmd` n'a été nécessaire.
+* REVUE (24/09/2026) : l'expression en CHAÎNE (`_mp_lerp_expr`) échoue à
+  la configuration (−22) au-delà de 93 points dans le crop — l'analyseur
+  d'expressions borne sa récursion ; le rendu utilise donc un ARBRE
+  équilibré (`montage_service._rf_lerp_expr`, profondeur ~log2 n). Et une
+  ligne de commande de plus de 30 000 caractères passe son graphe par
+  `-/filter_complex <fichier>` (`montage_service._ff_run`).
 
 Cache : `outputs/montage_cache/<sha(chemin résolu, mtime_ns, srcIn, dur,
 fps, largeur, bruit)>_reframe.json` — le dossier et l'écriture atomique de
@@ -105,16 +114,23 @@ def barycentre(a, b, noise: float):
 
 def suivre(images, fps: float, noise: float = 12) -> dict:
     """Le cœur PUR du tracker sur une suite d'images PIL (dans l'ordre, à
-    `fps` images par seconde) — voir l'en-tête."""
-    paires = max(0, len(images) - 1)
-    vus = []
-    for i in range(paires):
-        x = barycentre(images[i], images[i + 1], noise)
-        if x is not None:
-            vus.append(((i + 0.5) / fps, x))
+    `fps` images par seconde) — voir l'en-tête. `images` est un ITÉRABLE lu
+    une seule fois, au fil de l'eau : seule l'image précédente est gardée
+    (mémoire constante, revue du 24/09/2026). Le résultat porte `images`, le
+    nombre d'images lues."""
+    vus, prev, n_img = [], None, 0
+    for im in images:
+        n_img += 1
+        if prev is not None:
+            x = barycentre(prev, im, noise)
+            if x is not None:
+                vus.append(((n_img - 1.5) / fps, x))
+        prev = im
+    paires = max(0, n_img - 1)
     motion = (len(vus) / paires) if paires else 0.0
     if paires == 0 or (paires - len(vus)) > SANS_MOUVEMENT_MAX * paires:
-        return {"mode": "centre", "x": 0.5, "points": [], "fps": fps, "motion": round(motion, 3)}
+        return {"mode": "centre", "x": 0.5, "points": [], "fps": fps,
+                "motion": round(motion, 3), "images": n_img}
     pts, s = [], None
     for t, x in vus:
         s = x if s is None else EMA * x + (1 - EMA) * s
@@ -122,13 +138,25 @@ def suivre(images, fps: float, noise: float = 12) -> dict:
     if len(pts) > MAX_POINTS:
         n = len(pts)
         pts = [pts[round(k * (n - 1) / (MAX_POINTS - 1))] for k in range(MAX_POINTS)]
-    return {"mode": "suivi", "points": pts, "fps": fps, "motion": round(motion, 3)}
+    return {"mode": "suivi", "points": pts, "fps": fps, "motion": round(motion, 3),
+            "images": n_img}
+
+
+def _lire(dossier: Path):
+    """Les PNG de `dossier` dans l'ordre, chacun chargé puis SUPPRIMÉ aussitôt
+    (le disque se vide au fil de la lecture). Point que le banc espionne."""
+    from PIL import Image
+    for f in sorted(dossier.glob("f_*.png")):
+        with Image.open(f) as im:
+            g = im.convert("L")
+        f.unlink(missing_ok=True)
+        yield g
 
 
 def motion_track(path, src_in, dur, fps: float = 4, width: int = 96, noise: float = 12) -> dict:
     """Le suivi du mouvement de [src_in, src_in + dur[ de `path` (voir
-    l'en-tête). Cache disque ; `MediaError` sur tout échec."""
-    from PIL import Image
+    l'en-tête). Cache disque ; `MediaError` sur tout échec, moins de deux
+    images lues compris."""
     p = Path(path)
     si, du = max(0.0, float(src_in)), float(dur)
     fp = min(30.0, max(0.5, float(fps)))
@@ -152,11 +180,12 @@ def motion_track(path, src_in, dur, fps: float = 4, width: int = 96, noise: floa
         if r.returncode != 0:
             raise _MM.MediaError("analyse du mouvement impossible pour « %s » — %s"
                                  % (p.name, _MM._lignes_utiles(r.stderr)))
-        images = []
-        for f in sorted(Path(tmpd).glob("f_*.png")):
-            with Image.open(f) as im:
-                images.append(im.convert("L"))
-    res = suivre(images, fp, nz)
+        res = suivre(_lire(Path(tmpd)), fp, nz)
+    if res.get("images", 0) < 2:
+        # un extrait trop court (ou sans image décodable) ne se suit pas ;
+        # un résultat vide n'est jamais mis en cache.
+        raise _MM.MediaError("analyse du mouvement impossible pour « %s » — %d image(s) "
+                             "lue(s), il en faut deux" % (p.name, res.get("images", 0)))
     tmp = _MM._tmp_de(out)
     try:
         tmp.write_text(json.dumps(res), encoding="utf-8")

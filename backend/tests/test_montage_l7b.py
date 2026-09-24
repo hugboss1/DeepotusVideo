@@ -750,6 +750,27 @@ check("d40_source_absente_MediaError_nommee_sans_ffmpeg",
 check("d40_ffmpeg_en_echec_MediaError_et_rien_n_est_mis_en_cache",
       isinstance(_rwav, str) and _rwav.startswith("MediaError") and _sr["n"] == 6
       and len(list(_cache_dir.glob("*_reframe.json"))) == 5, (_rwav, _sr["n"]))
+# revue du 24/09/2026 : moins de deux images lues -> MediaError, rien en cache (0,2 s a 4 i/s = 1 image)
+_rcourt = Z("motion_track")(MOV, 0.0, 0.2)
+check("d40_revue_moins_de_deux_images_MediaError_apres_ffmpeg_rien_en_cache",
+      isinstance(_rcourt, str) and _rcourt.startswith("MediaError") and "1 image" in _rcourt and _sr["n"] == 7
+      and len(list(_cache_dir.glob("*_reframe.json"))) == 5, (_rcourt, _sr["n"]))
+# revue : lecture au fil de l'eau — chaque PNG est supprime des qu'il est lu (espion de _lire)
+_lu = {"restes": []}
+_lire0 = getattr(RF, "_lire", None) if RF is not None else None
+if _lire0 is not None:
+    def _espion_lire(dossier):
+        for im in _lire0(dossier):
+            _lu["restes"].append(len(list(pathlib.Path(dossier).glob("f_*.png"))))
+            yield im
+    RF._lire = _espion_lire
+_rfr = Z("motion_track")(MOV, 0.5, 2.0)
+_rs = _lu["restes"]
+check("d40_revue_tracker_en_flux_les_png_sont_supprimes_au_fil_de_la_lecture",
+      isinstance(_rfr, dict) and _rfr.get("mode") == "suivi" and _rfr.get("images") == len(_rs) == 8
+      and _rs == list(range(len(_rs) - 1, -1, -1)) and _sr["n"] == 8, (_rs, _rfr if not isinstance(_rfr, dict) else _rfr.get("images")))
+if _lire0 is not None:
+    RF._lire = _lire0
 if _rl0 is not None:
     RF._ffmpeg = _rl0
 
@@ -801,6 +822,17 @@ _simp = Z("simplifier")([(0, 0.1), (1, 0.2), (2, 0.3), (3, 0.9), (4, 0.9)], 0.00
 check("d40_simplifier_garde_les_extremites_et_les_ruptures_retire_les_points_alignes",
       _simp == [(0, 0.1), (2, 0.3), (3, 0.9), (4, 0.9)]
       and Z("simplifier")([(0, 0.5)], 0.004) == [(0, 0.5)], _simp)
+
+_gen1 = Z("suivre")(iter(_mob[:20]), 4, 12)
+check("d40_revue_suivre_lit_un_iterable_une_seule_fois_meme_resultat_qu_une_liste",
+      isinstance(_gen1, dict) and _gen1 == Z("suivre")(_mob[:20], 4, 12) and _gen1.get("images") == 20
+      and len(_gen1.get("points") or []) == 19, _gen1)
+_ru = A("_reframe_utile", None)
+check("d40_revue_reframe_utile_source_plus_large_que_le_cadre_seulement",
+      _ru is not None and _ru(480, 270, 152, 270) is True and _ru(1920, 1080, 1080, 1920) is True
+      and _ru(270, 480, 152, 270) is False and _ru(1080, 1920, 1080, 1920) is False
+      and _ru(1080, 1080, 1920, 1080) is False,
+      _ru and [_ru(*a) for a in ((480, 270, 152, 270), (270, 480, 152, 270), (1080, 1080, 1920, 1080))])
 
 # _reframe_of : bornes, modes, warning
 _rfo = A("_reframe_of", None)
@@ -859,6 +891,13 @@ check("d40_reframe_of_suivi_trie_t_borne_0_duree_du_clip_x_borne_point_invalide_
 _su2 = RFO(CL({"mode": "suivi", "points": [{"t": 3.5, "x": 0.4}, {"t": 9, "x": 0.6}]}, speed=2))
 check("d40_reframe_of_suivi_a_vitesse_2_borne_t_a_la_duree_de_SOURCE_consommee",
       _su2[0] == {"mode": "suivi", "points": [(3.5, 0.4), (4.0, 0.6)]} and _su2[1] == [], _su2)
+# revue : la vitesse est lue par _v1_speed (x10 -> borne 4 ; illisible -> x1 avec SON warning)
+_su10 = RFO(CL({"mode": "suivi", "points": [{"t": 7.5, "x": 0.4}, {"t": 99, "x": 0.6}]}, speed=10))
+_suab = RFO(CL({"mode": "suivi", "points": [{"t": 1.5, "x": 0.4}, {"t": 99, "x": 0.6}]}, speed="abc"))
+check("d40_revue_reframe_of_vitesse_par_v1_speed_bornee_a_4_illisible_x1",
+      _su10[0] == {"mode": "suivi", "points": [(7.5, 0.4), (8.0, 0.6)]} and _su10[1] == []
+      and _suab[0] == {"mode": "suivi", "points": [(1.5, 0.4), (2.0, 0.6)]}
+      and len(_suab[1]) == 1 and "speed" in _suab[1][0], (_su10, _suab))
 _su300 = RFO(CL({"mode": "suivi", "points": [{"t": i * 0.001 * 6, "x": 0.5} for i in range(300)]}, end=4.0))
 check("d40_reframe_of_suivi_plafonne_a_240_points_avec_warning",
       isinstance(_su300[0], dict) and len(_su300[0]["points"]) == 240 and len(_su300[1]) == 1
@@ -903,12 +942,48 @@ check("d40_commande_manuel_x_constant_seule_la_fenetre_du_crop_change_les_4_vari
       and all(m != r for m, r in zip(_man, _ref)), [m[:300] for m in _man])
 _PTS = [(0.5, 0.2), (1.5, 0.6), (2.5, 0.8)]   # non alignes : la simplification les garde tous
 _sui = CMD([V1D(reframe={"mode": "suivi", "points": _PTS})], [dict(_OV)])
-_EX = MS._mp_lerp_expr(_PTS) if hasattr(MS, "_mp_lerp_expr") else "?"
+_EX = MS._rf_lerp_expr(_PTS) if hasattr(MS, "_rf_lerp_expr") else "?"
 _CS = "crop=152:270:x='clip(iw*(%s)-76,0,iw-152)':y=(ih-270)/2,setsar=1" % _EX
 check("d40_commande_suivi_expression_interpolee_en_t_local_seule_la_fenetre_change",
       _CS in _sui and _sui.replace(_CS, "crop=152:270,setsar=1") == _ref[0] and "if(lt(t,0.5),0.2," in _sui,
       _sui[:400])
 _sui1 = CMD([V1D(reframe={"mode": "suivi", "points": [(0.0, 0.7)]})])
+
+
+# revue : l'arbre EQUILIBRE de _rf_lerp_expr — memes valeurs que l'interpolation lineaire (evaluee
+# en python : if/lt/clip traduits), profondeur ~log2(n) ; la CHAINE de _mp_lerp_expr echoue a -22
+# au-dela de 93 points dans le crop (mesure ffmpeg 8.1.1 du 24/09/2026).
+def _eval_ff(expr, t):
+    return eval(expr.replace("if(", "if_("), {"__builtins__": {}},
+                {"if_": lambda c, a, b: a if c else b, "lt": lambda a, b: a < b, "t": t})
+
+
+def _lerp_py(pts, t):
+    if t < pts[0][0]:
+        return pts[0][1]
+    for (t0, v0), (t1, v1) in zip(pts, pts[1:]):
+        if t < t1:
+            return v0 + (v1 - v0) * (t - t0) / (t1 - t0)
+    return pts[-1][1]
+
+
+def _prof(expr):
+    d = m = 0
+    for ch in expr:
+        d += ch == "("; d -= ch == ")"; m = max(m, d)
+    return m
+
+
+_Z240 = [(round(i * 0.008, 3), 0.3 if i % 2 else 0.7) for i in range(240)]
+_rle = getattr(MS, "_rf_lerp_expr", None)
+_e240 = _rle(_Z240) if _rle else ""
+_ts = [-1, 0, 0.004, 0.5, 0.9999, 1.0, 1.2345, 1.911, 1.912, 5]
+check("d40_revue_rf_lerp_expr_arbre_equilibre_memes_valeurs_que_le_lineaire_profondeur_bornee",
+      _rle is not None and all(abs(_eval_ff(_e240, t) - _lerp_py(_Z240, t)) < 2e-3 for t in _ts)
+      and all(abs(_eval_ff(_rle(_PTS), t) - _lerp_py(_PTS, t)) < 1e-9 for t in (0, 0.7, 1.5, 2.2, 3))
+      and _prof(_e240) <= 30 and _prof(MS._mp_lerp_expr(_Z240)) > 240
+      and _rle([(0.0, 0.7)]) == "0.7" and _rle([(0.5, 0.2), (2.5, 0.8)]) == MS._mp_lerp_expr([(0.5, 0.2), (2.5, 0.8)]),
+      (_prof(_e240), [(t, _eval_ff(_e240, t) if _e240 else None, _lerp_py(_Z240, t)) for t in _ts[:4]]))
 check("d40_commande_suivi_un_seul_point_x_constant",
       "crop=152:270:x='clip(iw*(0.7)-76,0,iw-152)':y=(ih-270)/2,setsar=1" in _sui1, _sui1[:300])
 _long = [(i * 0.25, 0.5 + 0.3 * ((-1) ** i) * (i % 7) / 7) for i in range(240)]
@@ -962,6 +1037,105 @@ else:
           and all(n >= 50 for n in _blanc_s), (_rc_s, _er_s, _blanc_s))
     check("d40_rendu_reel_temoin_centre_le_carre_sort_du_cadre_a_au_moins_un_instant",
           _rc_c == 0 and min(_blanc_c) < 20 and max(_blanc_c) >= 50, (_rc_c, _er_c, _blanc_c))
+
+    # revue : VITESSE x2 — le plan 0..2 s lit la source 0..4 s ; a la sortie t, la source vaut 2t.
+    # Le crop precede setpts=PTS/2 : il voit le temps de SOURCE, celui des points du tracker.
+    def _rendu_v(rf, nom, graphe=None):
+        out = os.path.join(TMP, nom)
+        kw = {} if rf is ... else {"reframe": rf}
+        try:
+            c, _ = MS._build_montage_command([V1D(path=MOV, end=2.0, speed=2.0, **kw)], [], [], None, w=152,
+                                             h=270, fps=30, mix_db={}, ducking=False, duration_master=False,
+                                             preview=True, out=out)
+            c = [_FB] + list(c[1:])
+            if graphe is not None:
+                i = c.index("-filter_complex")
+                c[i + 1] = graphe(c[i + 1])
+            r = subprocess.run(c, check=False, capture_output=True, text=True, timeout=180)
+            return r.returncode, (r.stderr or "")[-300:], out, c
+        except Exception as e:
+            return -1, "%s: %s" % (type(e).__name__, e), out, []
+    _rf_v = MS._reframe_of({"start": 0, "end": 2, "speed": 2, "reframe": _trk}) if _rfo is not None else None
+    _rc_v, _er_v, _o_v, _c_v = _rendu_v(_rf_v, "d40_v2_suivi.mp4")
+    _rc_vc, _er_vc, _o_vc, _ = _rendu_v(..., "d40_v2_centre.mp4")
+    _T_V = (0.4, 1.0, 1.6)
+    _blanc_v = [sum(1 for v in (_ligne(_o_v, t) or []) if v > 128) for t in _T_V]
+    _blanc_vc = [sum(1 for v in (_ligne(_o_vc, t) or []) if v > 128) for t in _T_V]
+    # MUTATION temoin : le meme graphe, crop deplace APRES setpts=PTS/2 -> t = temps de SORTIE
+    _crp_v = MS._reframe_crop(_rf_v, 152, 270) if hasattr(MS, "_reframe_crop") and _rf_v else "?"
+    def _crop_apres(g):
+        return g.replace("," + _crp_v + ",setsar=1,setpts=PTS/2,", ",setsar=1,setpts=PTS/2," + _crp_v + ",", 1)
+    _rc_vm, _er_vm, _o_vm, _c_vm = _rendu_v(_rf_v, "d40_v2_mutant.mp4", _crop_apres)
+    _blanc_vm = [sum(1 for v in (_ligne(_o_vm, t) or []) if v > 128) for t in _T_V]
+    print("  (vitesse x2 : suivi %s, centre %s, crop apres setpts %s)" % (_blanc_v, _blanc_vc, _blanc_vm))
+    check("d40_revue_rendu_reel_vitesse_2_le_carre_reste_dans_le_cadre_temoin_centre_en_sort",
+          _rc_v == 0 and isinstance(_rf_v, dict) and all(n >= 50 for n in _blanc_v)
+          and _rc_vc == 0 and min(_blanc_vc) < 20, (_rc_v, _er_v, _blanc_v, _rc_vc, _blanc_vc))
+    check("d40_revue_rendu_reel_vitesse_2_crop_deplace_apres_setpts_perd_le_carre_la_mesure_discrimine",
+          _rc_vm == 0 and any("setpts=PTS/2," + _crp_v in a for a in _c_vm) and min(_blanc_vm) < 20,
+          (_rc_vm, _er_vm, _blanc_vm))
+
+    # revue : COMMANDE LONGUE — quatre clips V1 de 2 s, 240 points brutes (zigzag : la simplification
+    # les garde) -> ligne de commande > 30 000 ; `_run_ffmpeg` passe le graphe par `-/filter_complex <f>`.
+    _zig = [{"t": round(i * 0.008, 3), "x": (0.3 if i % 2 else 0.7)} for i in range(240)]
+    _v1l = []
+    for _k in range(4):
+        _d = V1D(path=MOV, src_dur=4.0, start=2.0 * _k, end=2.0 * _k + 2.0)
+        _d["reframe"] = MS._reframe_of({"start": 0, "end": 2, "reframe": {"mode": "suivi", "points": _zig}})
+        _v1l.append(_d)
+    _OL = os.path.join(TMP, "d40_long.mp4")
+    _cl4, _ = MS._build_montage_command(_v1l, [], [], None, w=36, h=64, fps=30, mix_db={}, ducking=False,
+                                        duration_master=False, preview=True, out=_OL)
+    _cl4 = [_FB] + list(_cl4[1:])
+    _len4 = len(subprocess.list2cmdline(_cl4))
+    _vu = {"argv": [], "fichier_present": [], "contenu": []}
+    _run0 = MS.subprocess.run
+    def _espion_run(cmd, *a, **k):
+        _vu["argv"].append(list(cmd))
+        if "-/filter_complex" in cmd:
+            _f = cmd[cmd.index("-/filter_complex") + 1]
+            _vu["fichier_present"].append(os.path.isfile(_f))
+            try:
+                _vu["contenu"].append(pathlib.Path(_f).read_text(encoding="utf-8"))
+            except Exception:
+                _vu["contenu"].append(None)
+        return _run0(cmd, *a, **k)
+    MS.subprocess.run = _espion_run
+    try:
+        try:
+            _rl = MS._run_ffmpeg(_cl4, pathlib.Path(_OL))
+        except Exception as _e:
+            _rl = "%s: %s" % (type(_e).__name__, str(_e)[-300:])
+        _court = list(_c_v)
+        try:
+            _rcourt = MS._run_ffmpeg(_court, pathlib.Path(_o_v))
+        except Exception as _e:
+            _rcourt = "%s: %s" % (type(_e).__name__, str(_e)[-300:])
+    finally:
+        MS.subprocess.run = _run0
+    _a0 = _vu["argv"][0] if _vu["argv"] else []
+    _g0 = _cl4[_cl4.index("-filter_complex") + 1]
+    _fich = _a0[_a0.index("-/filter_complex") + 1] if "-/filter_complex" in _a0 else ""
+    print("  (commande longue : %d caracteres -> %d par fichier)" % (_len4, len(subprocess.list2cmdline(_a0))))
+    check("d40_revue_commande_longue_graphe_par_fichier_rendu_reel_ok_fichier_supprime",
+          _len4 > 32767 and isinstance(_rl, pathlib.Path) and os.path.getsize(_OL) > 0
+          and "-filter_complex" not in _a0 and _fich != "" and _vu["fichier_present"] == [True]
+          and _vu["contenu"] == [_g0] and not os.path.exists(_fich)
+          and len(subprocess.list2cmdline(_a0)) < 30000, (_len4, _rl, _a0[:12], _vu["fichier_present"]))
+    check("d40_revue_commande_courte_inchangee_octet_pour_octet_temoin",
+          len(_vu["argv"]) == 2 and _vu["argv"][1] == _court and "-filter_complex" in _court
+          and isinstance(_rcourt, pathlib.Path), (len(_vu["argv"]), _rcourt))
+_src_pass1 = _insp_src = ""
+try:
+    import inspect as _insp0
+    _src_pass1 = _insp0.getsource(MS._loudnorm_pass1)
+    _insp_src = _insp0.getsource(MS.montage_measure)
+except Exception as _e:
+    print("  (getsource : %s)" % _e)
+check("d40_revue_passe_1_loudnorm_et_measure_passent_par_le_meme_lanceur",
+      "_ff_run(cmd" in _src_pass1 and "_ff_run(cmd" in _insp_src
+      and "subprocess.run(cmd" not in _src_pass1 and "subprocess.run(cmd" not in _insp_src,
+      (len(_src_pass1), len(_insp_src)))
 
 # la route : espion de motion_track
 def RQR(body):
@@ -1019,9 +1193,12 @@ try:
 except Exception as _e:
     _src_render = ""
 check("d40_render_transmet_reframe_nettoye_dans_la_normalisation_v1_comme_dz",
-      '"dz": _dz_spec(c)' in _src_render and '"reframe": _reframe_of(c)' in _src_render
-      and _src_render.index('"dz": _dz_spec(c)') < _src_render.index('"reframe": _reframe_of(c)')
-      < _src_render.index("v2 = []"), len(_src_render))
+      '"dz": _dz_spec(c)' in _src_render and 'rf = _reframe_of(c)' in _src_render and '"reframe": rf,' in _src_render
+      and _src_render.index('rf = _reframe_of(c)') < _src_render.index('"dz": _dz_spec(c)') < _src_render.index('"reframe": rf,')
+      < _src_render.index("v2 = []")
+      # revue : journal quand le crop n a aucun effet horizontal (source sondee, iw == w)
+      and "_probe_dims, p)" in _src_render and "not _reframe_utile(dims[0], dims[1], w, h)" in _src_render,
+      len(_src_render))
 
 # ══ [4] D-41 AUTO-CLIPS (backend) ═══════════════════════════════════════════
 # Service PUR `app.services.autoclips` : `windows(words, min_s, max_s,
