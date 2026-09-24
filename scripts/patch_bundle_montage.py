@@ -4723,7 +4723,13 @@ _EB7_ETAT = ('\n'
              # pour lui : `bo` est ne de ce repli). {diff,nomA,nomB} pose par onDiff (R_M14), lu par la garde de
              # popover() (R_L7C3) ; null tant qu'aucune comparaison n'a ete demandee.
              '  /* L7 D-39 (24/09/2026, tâche 4) : la dernière comparaison {diff,nomA,nomB} — posée par « ⇄ » (Projets), montrée par pop==="diff" */\n'
-             '  var stDf=x.useState(null),diffSt=stDf[0],setDiffSt=stDf[1];')
+             '  var stDf=x.useState(null),diffSt=stDf[0],setDiffSt=stDf[1];\n'
+             # L7 D-3b (24/09/2026, tache 4-bis) : l'etat des vignettes A/B de la jonction en edition vit avec ses
+             # freres (aucune ancre libre pour lui, meme raison que diffSt). {a,b : dataURL ou null, k : la cle
+             # « source@seconde|source@seconde » qui date les deux images} ; rempli par l'effet de L7g1, lu par la
+             # rangee de L7g2 ; k vide tant qu'aucune jonction video/video n'est en edition.
+             '  /* L7 D-3b (24/09/2026, tâche 4-bis) : les vignettes A/B de la jonction en édition — {a,b : image ou null, k : clé « source@seconde|source@seconde »} */\n'
+             '  var stAb=x.useState({a:null,b:null,k:""}),abSt=stAb[0],setAbSt=stAb[1];')
 
 A_EB6B = '  var stA=x.useState(""),pop=stA[0],setPop=stA[1];'
 R_EB6B = (A_EB6B + '\n'
@@ -5243,9 +5249,71 @@ R_L7C3 = ('  /* L7 D-8 (24/09/2026, tâche 3) : le popover « Plans trop longs /
           # revue 24/09 : un `diff` SANS etat rend null -- jamais le popover generique (isR/Preview) sur ce pop
           '    if(pop==="diff")return diffSt?r.jsx(DzTracks.DiffView,Object.assign({onClose:function(){setPop("")}},diffSt)):null;\n'
           '    if(pop==="boring")return boringPopover();')
+# ══ L7 D-3b (24/09/2026, tache 4-bis) — VIGNETTES A/B ET ROLL D'UNE IMAGE A LA JONCTION ═
+# MESURES contre le plan : (1) le popover de jonction n'est PAS `pop==="trans"`
+# mais l'etat `transPop` {id: clip de DROITE, x} (B:1757), ferme par son propre
+# effet [transPop] (clic exterieur, Echap) -- la DERNIERE ligne de cet effet est
+# une ancre LIBRE 1/0/1 : L7g1 y pose, en portee de DzMontage, le calcul de la
+# jonction (clip droit, voisin gauche par la couche -- meme mesure que le roll
+# --, les deux secondes de source par la couche, la cle « source@seconde|
+# source@seconde »), l'effet garde par la cle qui demande les deux vignettes a
+# svmThumb (l'OBJET src, comme SvmFilmstrip ; le rappel relit le cache a
+# l'arrivee) et abRoll. (2) la rangee « Durée » de transPopover() est une ancre
+# LIBRE 1/0/1 (trois lignes) : L7g2 pose la rangee A/B AVANT elle. (3) l'etat
+# abSt est REPLIE en queue de _EB7_ETAT (R_EB6B), avec diffSt. (4) dzmRoll
+# refuse en rendant un tableau NEUF de contenu identique : le refus se lit sur
+# le start du clip droit, et il est DIT. (5) svmLeftNeighbor (la garde de
+# transPopover) et dzmVoisins s'accordent sur V1 (meme tolerance 0,1 s) : la
+# couche est la seule mesure de la jonction, comme pour le roll a la souris.
+# Rangee TOUJOURS rendue, boutons grises quand la jonction n'est pas deux
+# videos en contact (E-12) ; Maj = dix images ; vignette sans image = fond
+# (aucun src : pas d'icone cassee). 174 -> 176 ancres ; sonde 146 -> 149.
+A_L7G1 = '      window.removeEventListener("keydown",onEsc,!0)}},[transPop]);'
+R_L7G1 = (A_L7G1 + '\n'
+          '  /* L7 D-3b (24/09/2026, tâche 4-bis) : la jonction en édition — le clip de droite, son voisin de gauche (même mesure\n'
+          '     que le roll), les deux secondes de source (dernière image de A, première de B) et la clé qui date les vignettes */\n'
+          '  var dzAbJ=transPop?clips.filter(function(k){return k&&k.id===transPop.id})[0]||null:null,'
+          'dzAbG=dzAbJ?DzTracks.voisins(clips,dzAbJ).g:null,\n'
+          '      dzAbS=DzTracks.abSecs(dzAbG,dzAbJ),'
+          'dzAbK=dzAbS?svmSrcKey(dzAbG.src)+"@"+dzAbS.a+"|"+svmSrcKey(dzAbJ.src)+"@"+dzAbS.b:"",\n'
+          '      abOk=!!dzAbK,abA=abSt.k===dzAbK?abSt.a:null,abB=abSt.k===dzAbK?abSt.b:null;\n'
+          '  x.useEffect(function(){\n'
+          '    if(!dzAbK){setAbSt(function(s){return s.k?{a:null,b:null,k:""}:s});return}\n'
+          '    var alive=!0;\n'
+          '    function lire(){if(!alive)return;var a=svmThumb(dzAbG.src,dzAbS.a,lire),b=svmThumb(dzAbJ.src,dzAbS.b,lire);setAbSt({a:a,b:b,k:dzAbK})}\n'
+          '    lire();return function(){alive=!1}},[dzAbK]);\n'
+          '  /* le roll d\'une image (n images, signé) à la jonction en édition : verrou dit, borne dite, historique avant l\'écriture */\n'
+          '  function abRoll(n){\n'
+          '    if(!dzAbJ||!dzAbG)return;\n'
+          '    if(trackStRef.current[dzAbJ.tr]&&trackStRef.current[dzAbJ.tr].l){fireNote("Piste "+String(dzAbJ.tr).toUpperCase()+" verrouillée.");return}\n'
+          '    var cs=clipsRef.current,r2=DzTracks.roll(cs,dzAbG.id,dzAbJ.id,n/30),q=r2.filter(function(k){return k&&k.id===dzAbJ.id})[0];\n'
+          '    if(!q||Math.abs(Number(q.start)-Number(dzAbJ.start))<1e-9){fireNote("Jonction à sa borne — chaque plan garde au moins 0,3 s et B ne remonte pas avant le début de sa source.");return}\n'
+          '    pushHistory();setClips(r2);setDirty(!0)}')
+A_L7G2 = ('      r.jsxs("div",{className:"svm-fxedit",style:{marginTop:10},children:[\n'
+          '        r.jsx("span",{className:"svm-fxeditname",children:"Durée"}),\n'
+          '        r.jsx("span",{className:"svm-transbound","aria-hidden":!0,children:"0.1 s"}),')
+R_L7G2 = ('      /* L7 D-3b (24/09/2026, tâche 4-bis) : A/B à la jonction — la dernière image du plan gauche, la première du plan\n'
+          '         droit (vignettes du navigateur, au 1/30 s près) et le roll d\'une image (Maj : dix) ; rangée TOUJOURS rendue,\n'
+          '         grisée quand les deux plans ne sont pas des vidéos en contact */\n'
+          '      r.jsxs("div",{className:"svm-abrow",children:[\n'
+          '        r.jsx("img",{className:"svm-abthumb",src:abA||void 0,alt:"","data-ab":"a",draggable:!1,title:"A — dernière image du plan de gauche"}),\n'
+          '        r.jsx("button",{className:"svm-secbtn svm-abbtn",disabled:!abOk,"aria-disabled":!abOk,'
+          'title:"Reculer la jonction d\'une image (Maj : dix) — A raccourcit, B s\'allonge",onClick:function(e){abRoll(e.shiftKey?-10:-1)},children:"◀ −1"}),\n'
+          '        r.jsx("button",{className:"svm-secbtn svm-abbtn",disabled:!abOk,"aria-disabled":!abOk,'
+          'title:"Avancer la jonction d\'une image (Maj : dix) — A s\'allonge, B raccourcit",onClick:function(e){abRoll(e.shiftKey?10:1)},children:"+1 ▶"}),\n'
+          '        r.jsx("img",{className:"svm-abthumb",src:abB||void 0,alt:"","data-ab":"b",draggable:!1,title:"B — première image du plan de droite"})]}),\n'
+          + A_L7G2)
 L7A = [("L7a3-preset-resolve-export-import-du-mappage", A_L7A3, R_L7A3),
        ("L7b3-le-texte-selectionne-garde-son-Ctrl-C", A_L7B3, R_L7B3),
-       ("L7c3-popover-plans-trop-longs-jump-cuts", A_L7C3, R_L7C3)]
+       ("L7c3-popover-plans-trop-longs-jump-cuts", A_L7C3, R_L7C3),
+       ("L7g1-jonction-en-edition-vignettes-A-B-et-abRoll", A_L7G1, R_L7G1),
+       ("L7g2-rangee-A-B-du-popover-de-jonction", A_L7G2, R_L7G2)]
+assert R_L7G1.startswith(A_L7G1) and R_L7G1.count("svmThumb(") == 2 and R_L7G1.count("DzTracks.voisins(") == 1 and R_L7G1.count("DzTracks.abSecs(") == 1
+assert R_L7G1.count("DzTracks.roll(") == 1 and R_L7G1.count("DzTracks") == 3 and R_L7G1.count("fireNote(") == 2 and R_L7G1.count("},[dzAbK]);") == 1
+assert R_L7G1.find("pushHistory();") < R_L7G1.find("setClips(r2)") < R_L7G1.find("setDirty(!0)}") and R_L7G1.count("pushHistory(") == 1
+assert R_L7G2.endswith(A_L7G2) and R_L7G2.count("title:") == 4 and R_L7G2.count('className:"svm-abthumb"') == 2 and R_L7G2.count("DzTracks") == 0
+assert R_L7G2.count('disabled:!abOk,"aria-disabled":!abOk,') == 2 and R_L7G2.count("abRoll(e.shiftKey?") == 2 and R_L7G2.count("svm-abrow") == 1
+assert _EB7_ETAT.endswith('  var stAb=x.useState({a:null,b:null,k:""}),abSt=stAb[0],setAbSt=stAb[1];') and _EB7_ETAT.count("abSt") == 1
 assert A_L7C3 in R_L7C3 and R_L7C3.endswith('    if(pop==="boring")return boringPopover();') and R_L7C3.count("function boringPopover(){") == 1
 # L7 D-39 (24/09/2026, tache 4) : la garde `diff` (UNE reference DzTracks.DiffView) precede la garde boring
 assert R_L7C3.count("title:") == 4 and R_L7C3.count('localStorage.setItem("dz_svm_boring",') == 1 and R_L7C3.count("DzTracks") == 1

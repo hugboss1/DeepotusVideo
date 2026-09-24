@@ -199,6 +199,11 @@ _TITRES = [
     'title:"Un plan de V1 plus long que ce seuil (2 à 60 s) est marqué « long »",',
     'title:"Deux plans V1 de la même source, en contact, dont la reprise est à moins de n images (1 à 60, à 30 i/s) : jump cut",',
     'title:"Fermer ce panneau (Échap)",onClick:function(){setPop("")},children:"Fermer"',
+    # L7 D-3b (24/09/2026, tache 4-bis) : la rangee A/B du popover de jonction -- deux vignettes, deux boutons de roll
+    'title:"A — dernière image du plan de gauche"',
+    'title:"Reculer la jonction d\'une image (Maj : dix) — A raccourcit, B s\'allonge",',
+    'title:"Avancer la jonction d\'une image (Maj : dix) — A s\'allonge, B raccourcit",',
+    'title:"B — première image du plan de droite"',
 ]
 for t in _TITRES:
     check("R1_titre_pose_x1_" + re.sub(r"\W+", "_", t[6:40]).strip("_"),

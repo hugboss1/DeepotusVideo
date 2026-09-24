@@ -402,7 +402,16 @@ STABLE_PROBES = [
     # et `DzTracks.DiffView` dans la garde de popover() (repli de R_L7C3).
     # Le bloc pur de la couche (dzmDiff, DzmDiffView, « ⇄ » de DzmProjects)
     # n en ajoute aucune -- son commentaire le tait a dessein.
-    ("montage", "DzTracks", 146),
+    # 24/09/2026, L7 D-3b (tache 4-bis, vignettes A/B et roll d'une image a
+    # la jonction) : 146 -> 149. TROIS de plus, toutes dans la section neuve
+    # L7g1 (portee de DzMontage, apres l'effet de fermeture du popover de
+    # jonction) : `DzTracks.voisins(` (le voisin gauche, meme mesure que le
+    # roll), `DzTracks.abSecs(` (les deux secondes de source) et
+    # `DzTracks.roll(` (abRoll). L7g2 (la rangee, dans transPopover), le
+    # repli abSt de _EB7_ETAT et le bloc pur de la couche (dzmAbSecs) n en
+    # ajoutent aucune -- la cle des vignettes passe par svmSrcKey du bundle,
+    # et les commentaires de l'hote taisent le nom a dessein.
+    ("montage", "DzTracks", 149),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

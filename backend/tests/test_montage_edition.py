@@ -1004,6 +1004,26 @@ out.df_vue_noms=(function(){var r0=r;try{r={jsx:function(t,p){return {t:t,p:p}},
   var m0=T.DiffView(),ch0=m0.p.children;
   return [ch[1].p.children,ch[2].p.children[1].p.children.map(function(li){return li.p.children}),ch[3].p.children[1].p.children.map(function(li){return li.p.children}),
     ch[0].p.children,m0.p.className,ch0[1].p.children,ch0.length]}catch(e){return "autre:"+e}finally{r=r0}})();
+/* ── [29] L7 D-3b (24/09/2026) : les deux secondes de source A/B d'une jonction — dzmAbSecs pur ── */
+var AG={id:"g",tr:"v1",start:0,end:3,srcIn:2,src:{job_id:"j1"}},AD={id:"d",tr:"v1",start:3,end:5,srcIn:1,src:{job_id:"j2"}};
+var _ag0=JSON.stringify(AG),_ad0=JSON.stringify(AD);
+out.ab=T.abSecs(AG,AD);
+/* la vitesse du plan GAUCHE étire sa fenêtre de source (2 + 3×2 − 1/30) ; une vitesse illisible ou nulle vaut 1 ; celle du plan droit ne compte pas */
+out.ab_vitesse=[T.abSecs(Object.assign({},AG,{speed:2}),AD),T.abSecs(Object.assign({},AG,{speed:"zz"}),AD),T.abSecs(Object.assign({},AG,{speed:0}),AD),
+  T.abSecs(AG,Object.assign({},AD,{speed:2}))];
+/* sans srcIn : A = durée − 1/30, B = 0 ; un srcIn en chaîne est lu */
+out.ab_sans_srcin=[T.abSecs({id:"g",tr:"v1",start:0,end:3,src:{job_id:"j1"}},{id:"d",tr:"v1",start:3,end:5,src:{job_id:"j2"}}),
+  T.abSecs(Object.assign({},AG,{srcIn:"2"}),Object.assign({},AD,{srcIn:"1"}))];
+/* refus (null) : un des deux absent, image ou audio à gauche ou à droite, sans source, pistes différentes, pas en contact, plan gauche sans durée */
+out.ab_refus=[T.abSecs(null,AD),T.abSecs(AG,void 0),T.abSecs(Object.assign({},AG,{src:{image:"x.png"}}),AD),T.abSecs(AG,Object.assign({},AD,{src:{audio:"y.mp3"}})),
+  T.abSecs(Object.assign({},AG,{src:null}),AD),T.abSecs(AG,Object.assign({},AD,{tr:"v2"})),T.abSecs(AG,Object.assign({},AD,{start:3.5,end:5})),
+  T.abSecs(Object.assign({},AG,{end:0}),AD),T.abSecs("g","d")];
+/* contact à la tolérance du roll (0,1 s) : 3.1 passe, 3.11 refuse (témoin) ; un plan droit AVANT le gauche n'est pas une jonction */
+out.ab_contact=[T.abSecs(AG,Object.assign({},AD,{start:3.1})),T.abSecs(AG,Object.assign({},AD,{start:3.11})),T.abSecs(AD,AG)];
+/* bornes : A ne descend pas sous 0 (plan de 0,02 s), B non plus (srcIn négatif) ; les deux sont arrondies à l'image (1/30) puis au millième */
+out.ab_zero=[T.abSecs({id:"g",tr:"v1",start:0,end:.02,srcIn:0,src:{job_id:"j"}},{id:"d",tr:"v1",start:.02,end:2,srcIn:-1,src:{job_id:"j"}}),
+  T.abSecs(Object.assign({},AG,{srcIn:2.0104}),Object.assign({},AD,{srcIn:1.0499}))];
+out.ab_pur=[JSON.stringify(AG)===_ag0,JSON.stringify(AD)===_ad0];
 console.log(JSON.stringify(out));
 """
 # E-9 : svmRuler / svmPad2 sont des fonctions DU BUNDLE (meme portee module que
@@ -1260,7 +1280,9 @@ try:
                  "bo_contact","bo_sources","bo_v2","bo_vitesse","bo_desordre","bo_pur","bo_opts",
                  # L7 D-39 (tache 4) : les DOUZE cles de la section [28].
                  "df","df_id","df_vide","df_slip","df_piste","df_rogne_et_bouge","df_noms","df_cles","df_pur","df_temps",
-                 "df_vue","df_vue_noms","df_tolerance"]
+                 "df_vue","df_vue_noms","df_tolerance",
+                 # L7 D-3b (tache 4-bis) : les SEPT cles de la section [29].
+                 "ab","ab_vitesse","ab_sans_srcin","ab_refus","ab_contact","ab_zero","ab_pur"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -2712,6 +2734,36 @@ check("l7d_projets_bouton_compare_toujours_rendu_disabled_mine_title_onDiff_x1_e
       and _L7DP.find('children:"dupliquer"},"dp")') < _L7DP.find("dzm-projdiff") < _L7DP.find('children:oArm?"remplacer ?":"ouvrir"},"op")')
       and re.search(r'(\?null:|\?|&&)\s*r\.jsxs?\("button",\{className:"svm-tbtn dzm-projbtn dzm-projdiff"', _L7DP) is None,
       (len(_L7DP), _SRCb.count("props.onDiff"), _SRCb.count("dzm-projdiff")))
+
+print("\n[29] L7 D-3b : les deux secondes de source A/B d'une jonction (tache 4-bis, 24/09/2026)")
+# ── L7 D-3b (24/09/2026, tache 4-bis). dzmAbSecs(g, d) pur -> {a, b} ou null : A = derniere image du plan GAUCHE
+# (srcIn + duree x vitesse − 1/30 : la vitesse etire la fenetre de source, meme mesure que dzmBoring et que le srcIn
+# du roll), B = premiere image du plan DROIT (son srcIn, la vitesse n'y change rien). Les deux plans doivent etre
+# des VIDEOS (src.job_id) sur la meme piste, en contact a la tolerance du roll (0,1 s), le gauche AVANT le droit
+# et d'une duree > 0 ; sinon null (l'hote grise la rangee, il ne la retire pas — E-12). Les secondes sont bornees
+# a 0 et arrondies a l'image (1/30) puis au millieme : la cle « source@seconde » des vignettes ne bouge que
+# lorsque l'image change.
+check("ab_A_derniere_image_du_gauche_srcIn_plus_duree_moins_une_image_B_srcIn_du_droit",
+      D.get("ab") == {"a": 4.967, "b": 1}, D.get("ab"))
+check("ab_vitesse_du_gauche_etire_la_fenetre_x2_illisible_ou_nulle_vaut_1_celle_du_droit_ne_compte_pas",
+      D.get("ab_vitesse") == [{"a": 7.967, "b": 1}, {"a": 4.967, "b": 1}, {"a": 4.967, "b": 1}, {"a": 4.967, "b": 1}], D.get("ab_vitesse"))
+check("ab_sans_srcIn_A_duree_moins_une_image_B_zero_srcIn_en_chaine_lu",
+      D.get("ab_sans_srcin") == [{"a": 2.967, "b": 0}, {"a": 4.967, "b": 1}], D.get("ab_sans_srcin"))
+check("ab_refus_null_x9_absent_image_audio_sans_source_autre_piste_trou_duree_nulle_chaines",
+      isinstance(D.get("ab_refus"), list) and len(D.get("ab_refus")) == 9 and all(v is None for v in D.get("ab_refus")), D.get("ab_refus"))
+check("ab_contact_tolerance_du_roll_3_1_passe_3_11_refuse_temoin_droit_avant_gauche_refuse",
+      D.get("ab_contact") == [{"a": 4.967, "b": 1}, None, None], D.get("ab_contact"))
+check("ab_zero_bornes_a_0_et_arrondi_a_l_image_puis_au_millieme",
+      D.get("ab_zero") == [{"a": 0, "b": 0}, {"a": 4.967, "b": 1.033}], D.get("ab_zero"))
+check("ab_pur_les_deux_clips_ne_sont_pas_mutes", D.get("ab_pur") == [True, True], D.get("ab_pur"))
+_L7G = _corps("dzmAbSecs")
+check("l7g_coeur_pur_reutilise_dzmSpeedNum_et_dzmR3_constante_DZM_AB_IMG_x2_export_abSecs_x1",
+      len(_L7G) > 120 and not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|fetch\(", _L7G)
+      and _L7G.count("dzmSpeedNum(") == 1 and _L7G.count("dzmR3(") == 2 and _L7G.count("DZM_AB_IMG") == 1
+      # x2 : la definition et l'usage -- 1/30 n'est ecrit qu'UNE fois dans le bloc
+      and _SRCb.count("var DZM_AB_IMG=1/30;") == 1 and _SRCb.count("DZM_AB_IMG") == 2
+      and len(_DT) > 1000 and _DT.count("abSecs:dzmAbSecs,") == 1,
+      (len(_L7G), _SRCb.count("DZM_AB_IMG"), _DT.count("abSecs:dzmAbSecs,")))
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

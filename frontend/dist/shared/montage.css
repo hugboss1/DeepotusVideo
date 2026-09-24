@@ -1497,3 +1497,10 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
 .dzsvm .dzm-diffrub[data-rub="added"] .dzm-diffh{color:var(--green, #4caf50)}
 .dzsvm .dzm-diffrub[data-rub="removed"] .dzm-diffh{color:var(--red, #e35d4a)}
 .dzsvm .dzm-projdiff{font-size:12px;line-height:1}
+/* L7 D-3b (24/09/2026, tâche 4-bis) : la rangée A/B du popover de jonction — deux vignettes au gabarit des vignettes
+   du bundle (SVM_THUMB_W/H = 78×44) et deux boutons de roll d'une image entre elles ; une vignette sans image montre
+   son fond (l'hôte n'écrit pas de src : aucune icône cassée). Le popover fait 276 px (son-vfx-montage.css:449, 12 px
+   de marge) : 78 + 78 + 2 × 6 de gouttière laissent 84 px aux deux boutons, d'où le gabarit serré. */
+.dzsvm .svm-abrow{display:flex;gap:6px;align-items:center;margin-top:10px}
+.dzsvm .svm-abthumb{width:78px;height:44px;object-fit:cover;background:#111;border-radius:3px;flex:none}
+.dzsvm .svm-abbtn{padding:5px 4px;font-size:11px;flex:1 1 auto;min-width:0;white-space:nowrap}

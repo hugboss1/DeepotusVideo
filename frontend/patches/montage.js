@@ -7066,6 +7066,25 @@ function DzmDiffView(o){
           :[r.jsx("li",{className:"dzm-diffnone",children:"—"},"none")]})]},k)}),[
     r.jsx("div",{className:"svm-poprow",children:
       r.jsx("button",{className:"svm-secbtn",title:"Fermer la comparaison (Échap)",onClick:function(){if(o.onClose)o.onClose()},children:"Fermer"})},"fin")])})}
+
+/* ── L7 D-3b (24/09/2026) : les deux secondes de source d'une jonction (pur) ──
+   A = la DERNIÈRE image du plan gauche (srcIn + durée × vitesse − une image :
+   la vitesse étire la fenêtre de source, même mesure que le juge des jump cuts
+   et que le srcIn du roll), B = la PREMIÈRE image du plan droit (son srcIn ;
+   sa vitesse n'y change rien). Les deux plans doivent être des VIDÉOS
+   (src.job_id) sur la même piste, en contact à la tolérance du roll (0,1 s),
+   le gauche AVANT le droit et d'une durée > 0 — sinon null : l'hôte grise la
+   rangée, il ne la retire pas. Bornées à 0, arrondies à l'image puis au
+   millième : la clé « source@seconde » des vignettes ne bouge que quand
+   l'image change. */
+var DZM_AB_IMG=1/30;
+function dzmAbSecs(g,d){
+  if(!g||!d||typeof g!=="object"||typeof d!=="object")return null;
+  if(!g.src||!d.src||!g.src.job_id||!d.src.job_id)return null;
+  if(g.tr!==d.tr||Math.abs((Number(d.start)||0)-(Number(g.end)||0))>.1+1e-9)return null;
+  var len=(Number(g.end)||0)-(Number(g.start)||0);if(!(len>0))return null;
+  var a=(Number(g.srcIn)||0)+len*dzmSpeedNum(g)-DZM_AB_IMG,b=Number(d.srcIn)||0;
+  return {a:dzmR3(Math.round(Math.max(0,a)*30)/30),b:dzmR3(Math.round(Math.max(0,b)*30)/30)}}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,
@@ -7175,6 +7194,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   clipCopy:dzmClipCopy,clipPaste:dzmClipPaste,
   boring:dzmBoring,boringDef:DZM_BORING_DEF,
   diff:dzmDiff,DiffView:DzmDiffView,diffTemps:dzmDiffTemps,
+  abSecs:dzmAbSecs,
   /* E-13 / E-14 (lot E-C, tache 5) : la tete dans l'inspecteur, le trou selectionne et son ripple */
   teteTxt:dzmTeteTxt,trou:dzmTrou,trouRipple:dzmTrouRipple,
   DEFAULTS:DZM_DEFAULT_TRACKS};

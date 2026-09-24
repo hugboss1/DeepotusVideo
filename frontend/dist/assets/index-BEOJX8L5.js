@@ -1741,6 +1741,8 @@ function DzMontage(props){
   var boMap=x.useMemo(function(){return bo.on?DzTracks.boring(clips,bo):{}},[clips,bo]);
   /* L7 D-39 (24/09/2026, tâche 4) : la dernière comparaison {diff,nomA,nomB} — posée par « ⇄ » (Projets), montrée par pop==="diff" */
   var stDf=x.useState(null),diffSt=stDf[0],setDiffSt=stDf[1];
+  /* L7 D-3b (24/09/2026, tâche 4-bis) : les vignettes A/B de la jonction en édition — {a,b : image ou null, k : clé « source@seconde|source@seconde »} */
+  var stAb=x.useState({a:null,b:null,k:""}),abSt=stAb[0],setAbSt=stAb[1];
   var stP=x.useState({demo:!0,name:"teaser_abyss",version:"v4",ratio:"9:16",dur:SVM_DEMO_DUR,mixDb:SVM_DEMO_MIX}),proj=stP[0],setProj=stP[1];
   var stJ=x.useState(null),job=stJ[0],setJob=stJ[1]; /* {id,kind,status,progress,step,error} */
   var stV=x.useState(null),previewUrl=stV[0],setPreviewUrl=stV[1];
@@ -4047,6 +4049,23 @@ function DzMontage(props){
     window.addEventListener("keydown",onEsc,!0);
     return function(){window.removeEventListener("pointerdown",onDown,!0);
       window.removeEventListener("keydown",onEsc,!0)}},[transPop]);
+  /* L7 D-3b (24/09/2026, tâche 4-bis) : la jonction en édition — le clip de droite, son voisin de gauche (même mesure
+     que le roll), les deux secondes de source (dernière image de A, première de B) et la clé qui date les vignettes */
+  var dzAbJ=transPop?clips.filter(function(k){return k&&k.id===transPop.id})[0]||null:null,dzAbG=dzAbJ?DzTracks.voisins(clips,dzAbJ).g:null,
+      dzAbS=DzTracks.abSecs(dzAbG,dzAbJ),dzAbK=dzAbS?svmSrcKey(dzAbG.src)+"@"+dzAbS.a+"|"+svmSrcKey(dzAbJ.src)+"@"+dzAbS.b:"",
+      abOk=!!dzAbK,abA=abSt.k===dzAbK?abSt.a:null,abB=abSt.k===dzAbK?abSt.b:null;
+  x.useEffect(function(){
+    if(!dzAbK){setAbSt(function(s){return s.k?{a:null,b:null,k:""}:s});return}
+    var alive=!0;
+    function lire(){if(!alive)return;var a=svmThumb(dzAbG.src,dzAbS.a,lire),b=svmThumb(dzAbJ.src,dzAbS.b,lire);setAbSt({a:a,b:b,k:dzAbK})}
+    lire();return function(){alive=!1}},[dzAbK]);
+  /* le roll d'une image (n images, signé) à la jonction en édition : verrou dit, borne dite, historique avant l'écriture */
+  function abRoll(n){
+    if(!dzAbJ||!dzAbG)return;
+    if(trackStRef.current[dzAbJ.tr]&&trackStRef.current[dzAbJ.tr].l){fireNote("Piste "+String(dzAbJ.tr).toUpperCase()+" verrouillée.");return}
+    var cs=clipsRef.current,r2=DzTracks.roll(cs,dzAbG.id,dzAbJ.id,n/30),q=r2.filter(function(k){return k&&k.id===dzAbJ.id})[0];
+    if(!q||Math.abs(Number(q.start)-Number(dzAbJ.start))<1e-9){fireNote("Jonction à sa borne — chaque plan garde au moins 0,3 s et B ne remonte pas avant le début de sa source.");return}
+    pushHistory();setClips(r2);setDirty(!0)}
 
   /* ── ajout d'assets depuis la Bibliothèque, sur n'importe quelle piste ──
      ovPick vaut "" (fermé) ou l'identifiant de la piste visée. Les sources
@@ -5262,6 +5281,14 @@ function DzMontage(props){
          la moitié droite, dans montage.css. */
       r.jsx(DzTracks.TransGrid,{legacy:SVM_TRANS,cat:dzTransCat,cur:base,
         onPick:function(id){svmSetTransType(jc.id,id)}}),
+      /* L7 D-3b (24/09/2026, tâche 4-bis) : A/B à la jonction — la dernière image du plan gauche, la première du plan
+         droit (vignettes du navigateur, au 1/30 s près) et le roll d'une image (Maj : dix) ; rangée TOUJOURS rendue,
+         grisée quand les deux plans ne sont pas des vidéos en contact */
+      r.jsxs("div",{className:"svm-abrow",children:[
+        r.jsx("img",{className:"svm-abthumb",src:abA||void 0,alt:"","data-ab":"a",draggable:!1,title:"A — dernière image du plan de gauche"}),
+        r.jsx("button",{className:"svm-secbtn svm-abbtn",disabled:!abOk,"aria-disabled":!abOk,title:"Reculer la jonction d'une image (Maj : dix) — A raccourcit, B s'allonge",onClick:function(e){abRoll(e.shiftKey?-10:-1)},children:"◀ −1"}),
+        r.jsx("button",{className:"svm-secbtn svm-abbtn",disabled:!abOk,"aria-disabled":!abOk,title:"Avancer la jonction d'une image (Maj : dix) — A s'allonge, B raccourcit",onClick:function(e){abRoll(e.shiftKey?10:1)},children:"+1 ▶"}),
+        r.jsx("img",{className:"svm-abthumb",src:abB||void 0,alt:"","data-ab":"b",draggable:!1,title:"B — première image du plan de droite"})]}),
       r.jsxs("div",{className:"svm-fxedit",style:{marginTop:10},children:[
         r.jsx("span",{className:"svm-fxeditname",children:"Durée"}),
         r.jsx("span",{className:"svm-transbound","aria-hidden":!0,children:"0.1 s"}),
@@ -20144,6 +20171,25 @@ function DzmDiffView(o){
           :[r.jsx("li",{className:"dzm-diffnone",children:"—"},"none")]})]},k)}),[
     r.jsx("div",{className:"svm-poprow",children:
       r.jsx("button",{className:"svm-secbtn",title:"Fermer la comparaison (Échap)",onClick:function(){if(o.onClose)o.onClose()},children:"Fermer"})},"fin")])})}
+
+/* ── L7 D-3b (24/09/2026) : les deux secondes de source d'une jonction (pur) ──
+   A = la DERNIÈRE image du plan gauche (srcIn + durée × vitesse − une image :
+   la vitesse étire la fenêtre de source, même mesure que le juge des jump cuts
+   et que le srcIn du roll), B = la PREMIÈRE image du plan droit (son srcIn ;
+   sa vitesse n'y change rien). Les deux plans doivent être des VIDÉOS
+   (src.job_id) sur la même piste, en contact à la tolérance du roll (0,1 s),
+   le gauche AVANT le droit et d'une durée > 0 — sinon null : l'hôte grise la
+   rangée, il ne la retire pas. Bornées à 0, arrondies à l'image puis au
+   millième : la clé « source@seconde » des vignettes ne bouge que quand
+   l'image change. */
+var DZM_AB_IMG=1/30;
+function dzmAbSecs(g,d){
+  if(!g||!d||typeof g!=="object"||typeof d!=="object")return null;
+  if(!g.src||!d.src||!g.src.job_id||!d.src.job_id)return null;
+  if(g.tr!==d.tr||Math.abs((Number(d.start)||0)-(Number(g.end)||0))>.1+1e-9)return null;
+  var len=(Number(g.end)||0)-(Number(g.start)||0);if(!(len>0))return null;
+  var a=(Number(g.srcIn)||0)+len*dzmSpeedNum(g)-DZM_AB_IMG,b=Number(d.srcIn)||0;
+  return {a:dzmR3(Math.round(Math.max(0,a)*30)/30),b:dzmR3(Math.round(Math.max(0,b)*30)/30)}}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,
@@ -20253,6 +20299,7 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   clipCopy:dzmClipCopy,clipPaste:dzmClipPaste,
   boring:dzmBoring,boringDef:DZM_BORING_DEF,
   diff:dzmDiff,DiffView:DzmDiffView,diffTemps:dzmDiffTemps,
+  abSecs:dzmAbSecs,
   /* E-13 / E-14 (lot E-C, tache 5) : la tete dans l'inspecteur, le trou selectionne et son ripple */
   teteTxt:dzmTeteTxt,trou:dzmTrou,trouRipple:dzmTrouRipple,
   DEFAULTS:DZM_DEFAULT_TRACKS};
