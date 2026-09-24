@@ -1157,6 +1157,12 @@ out.rf_css=[T.reframeCss(RCM,1,1920,1080,540,960),T.reframeCss(RB,1,1920,1080,54
   T.reframeCss(Object.assign({},RB,{reframe:{mode:"suivi",points:[{t:0,x:0},{t:4,x:1}]}}),2,1920,1080,540,960),
   T.reframeCss(Object.assign({},RB,{reframe:{mode:"centre",points:[{t:0,x:0}]}}),2,1920,1080,540,960)];
 /* pur : l'entrée n'est pas touchée, les points rendus sont des objets neufs */
+/* revue 24/09 : « Remplacer la source » retire les points du suivi (ils décrivent l'ANCIENNE source), garde
+   centré / manuel (x), un suivi redevient centré ; la note le dit — témoin : sans points, clip et note inchangés */
+out.rf_remplace=(function(){var S={job_id:"n"},base={tr:"v1",id:"r",start:0,end:4,srcIn:0,src:{job_id:"o"},label:"A"},P2=[{t:0,x:.2},{t:4,x:.6}];
+  function go(rf){var q=T.replaceSrc(Object.assign({},base,rf===void 0?{}:{reframe:rf}),S,"B",20,1);
+    return [q.clip.reframe===void 0?null:q.clip.reframe,q.note.indexOf("suivi du mouvement de l'ancienne source est retiré")>0,q.note.indexOf("(cadrage centré)")>0]}
+  return [go({mode:"suivi",points:P2}),go({mode:"manuel",x:.3,points:P2}),go({mode:"centre",points:P2}),go({mode:"manuel",x:.3}),go(void 0)]})();
 out.rf_pur=(function(){var P0={mode:"suivi",points:[{t:5,x:.9},{t:1,x:2}]},C0=Object.assign({},RB,{reframe:P0}),j=JSON.stringify(C0);
   var q=T.reframeOf(C0);return [JSON.stringify(C0)===j,q.points!==P0.points,q.points[0]!==P0.points[1],q.points[1].t]})();
 console.log(JSON.stringify(out));
@@ -1427,8 +1433,8 @@ try:
                  "ca","ca_vitesse","ca_ids","ca_ids_pris","ca_bords","ca_refus","ca_un","ca_sans_src","ca_champs","ca_pur","ca_ecart",
                  # L7-B D-34 (tache 7) : les CINQ cles de la section [33].
                  "rn","rx","rx_bornes","rx_suite","rchips",
-                 # L7-B D-40 (tache 4) : les ONZE cles de la section [34].
-                 "rf_modes","rf_suivi","rf_vitesse","rf_cap","rf_r3","rf_vide","rf_at","rf_k","rf_pos","rf_css","rf_pur"]
+                 # L7-B D-40 (tache 4) : les DOUZE cles de la section [34] (rf_remplace : revue du 24/09).
+                 "rf_modes","rf_suivi","rf_vitesse","rf_cap","rf_r3","rf_vide","rf_remplace","rf_at","rf_k","rf_pos","rf_css","rf_pur"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -3154,6 +3160,9 @@ check("rf_pos_formule_du_crop_bornee_k_inutile_ou_inconnu_null",
       D.get("rf_pos") == [0.5, 0, 1, 0.2, None, None, None, 1, 0.5, 1], D.get("rf_pos"))
 check("rf_css_apercu_manuel_et_suivi_vide_sans_cadrage_portrait_cadre_ou_source_non_mesures_centre_garde",
       D.get("rf_css") == ["20.74% 50%", "", "", "", "", "50% 50%", ""], D.get("rf_css"))
+check("rf_remplace_la_source_retire_les_points_garde_centre_manuel_suivi_devient_centre_note_dite_temoin_sans_points",
+      D.get("rf_remplace") == [[None, True, True], [{"mode": "manuel", "x": 0.3}, True, False], [None, True, False],
+                               [{"mode": "manuel", "x": 0.3}, False, False], [None, False, False]], D.get("rf_remplace"))
 check("rf_pur_entree_intacte_points_neufs", D.get("rf_pur") == [True, True, True, 4], D.get("rf_pur"))
 _L7RF = {n: _corps(n) for n in ("dzmRfNum", "dzmRfR3", "dzmRfSpeed", "dzmReframeOf", "dzmReframeAt", "dzmReframeK", "dzmReframePos", "dzmReframeCss")}
 check("l7b_rf_coeur_pur_ni_r_ni_x_ni_reseau_ni_dom_constantes_uniques_exports_x1",
@@ -3172,12 +3181,13 @@ _PP = _SRCb[_SRCb.find("function DzmPlanProps(o){"):_SRCb.find("function DzmDzRe
 check("l7b_rf_section_cadrage_trois_modes_curseur_leger_analyse_grisee_hooks_apres_garde",
       len(_PP) > 3000 and _PP.count('row("Cadrage",') == 1 and _PP.count('row("Position",') == 1 and _PP.count('row("Mouvement",') == 1
       and _PP.count('rfBtn("centre","Centré",') == 1 and _PP.count('rfBtn("suivi","Suivre",') == 1 and _PP.count('rfBtn("manuel","Manuel",') == 1
-      and _PP.count('children:"Analyser le mouvement"') == 1 and _PP.count("disabled:rfSans||rfBusy,") == 1
+      and _PP.count('children:"Analyser le mouvement"') == 1 and _PP.count("disabled:rfSans||rfBusy,") == 2  # l analyse et (revue 24/09) le curseur gele
+      and _PP.count("rfBusy?rfGel:") == 5
       and _PP.count("rfSans||rfBusy,function(){if(rfPts)") == 1 and _PP.count("rfNon") >= 5
       and _PP.count("x:Math.max(0,Math.min(100,v))/100})},!1)") == 1  # le curseur : leger (rafale 600 ms)
       and _PP.count('on({reframe:rfPts?{mode:"centre",points:rfPts}:void 0},!0)') == 1
       and _PP.count("Promise.resolve(o.onReframe()).then(fin,fin)") == 1
-      and 0 <= _PP.find("if(!c)return null;") < _PP.find("x.useState(2)") < _PP.find("x.useState(null)") < _PP.find('row("Cadrage",')
+      and 0 <= _PP.find("if(!c)return null;") < _PP.find("x.useState(2)") < _PP.find("x.useState({})") < _PP.find('row("Cadrage",')
       and _PP.count("x.useState(") == 2 and _PP.count("DzTracks") == 0,
       f"hote={len(_PP)} useState={_PP.count('x.useState(')}")
 shutil.rmtree(TMP, ignore_errors=True)

@@ -351,16 +351,18 @@ check("R1_menu_clip_Decouper_aux_changements_de_plan_x1_grisee_hors_video_rendu_
 # r.jsx("button" pour trois boutons) ; absent du .bak.
 _PPE = lay[lay.find("function DzmPlanProps(o){"):lay.find("function DzmDzRects(o){")]
 _RFB = 'var rfBtn=function(m,lbl,title,dis,cb){return r.jsx("button",{className:"svm-minibtn dzm-rf-mode","data-on":rfMode===m?"1":"",'
-check("R1_R2_cadrage_quatre_boutons_toujours_rendus_titres_grises_sans_effet_centre_jamais_grise_bak_x0",
+check("R1_R2_cadrage_quatre_boutons_toujours_rendus_titres_grises_sans_effet_centre_grise_seulement_pendant_l_analyse_bak_x0",
       len(_PPE) > 3000 and _PPE.count(_RFB) == 1 and _PPE.count('"aria-pressed":rfMode===m,disabled:dis,title:title,onClick:cb') == 1
-      and _PPE.count('rfBtn("centre","Centré","Cadrage centré') == 1 and _PPE.count("rfSans?rfNon:") == 4
+      and _PPE.count('rfBtn("centre","Centré",rfBusy?rfGel:"Cadrage centré') == 1 and _PPE.count("rfSans?rfNon:") == 4
       and _PPE.count('rfBtn("') == 3 and _PPE.count("?null:rfBtn(") == 0 and _PPE.count("&&rfBtn(") == 0
       and _PPE.count("pas plus large que le cadre du projet") == 1
       # « Centré » : dis = !1 ; Suivre : rfSans||rfBusy ; Manuel : rfSans ; Analyser : disabled:rfSans||rfBusy
-      and _PPE.count('les points d\'une analyse restent gardés pour « Suivre »",!1,') == 1
+      # revue 24/09 : « Centré » n est grise QUE pendant l analyse de ce plan (modes geles), titre « en cours »
+      and _PPE.count('les points d\'une analyse restent gardés pour « Suivre »",rfBusy,') == 1
+      and _PPE.count("rfBusy?rfGel:") == 5 and _PPE.count('disabled:rfSans||rfBusy,"aria-label"') == 1
       and _PPE.count('r.jsx("button",{className:"svm-minibtn",disabled:rfSans||rfBusy,') == 1
       and _PPE.count('children:"Analyser le mouvement"') == 1
-      and _PPE.count('r.jsx("input",{type:"range",min:0,max:100,step:1,value:rfV,disabled:rfSans,') == 1
+      and _PPE.count('r.jsx("input",{type:"range",min:0,max:100,step:1,value:rfV,disabled:rfSans||rfBusy,') == 1
       and s.count('children:"Analyser le mouvement"') == 1 and bak.count("Analyser le mouvement") == 0,
       f"hote={len(_PPE)} rfBtn={_PPE.count('rfBtn(')} non={_PPE.count('rfSans?rfNon:')}")
 
