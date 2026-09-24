@@ -25,7 +25,9 @@ ombre, opacite, points) ; avec effets : pile rendue apres la mise a l'echelle,
 avant opacite/coins/rotation, `format=rgba` ensuite ; avec masque :
 maskedmerge gbrap + scale2ref.
 [5] Rendus reels V2 : effet `invert` visible sur l'overlay, ALPHA du PNG
-conserve jusqu'a l'overlay, masque V2 (cover et transforme), 50 images.
+conserve jusqu'a l'overlay, masque V2 (cover et transforme), 50 images ;
+revue T2 : alpha restaure apres une pile qui le perd (vignette, invert borne
+t0/t1 via `_timed`) ou le cree (chromakey), avec et sans masque.
 [6] Espion /render : `mask` (V1, V2) et `effects` (V2) lus et assainis ;
 masque invalide / pile vide -> cle ABSENTE (dict historique).
 
@@ -354,14 +356,14 @@ else:
           _s[0] == 0 and _s[2] and _base and ECART(_s[2][0], _base[0]) >= 20 and ECART(_s[2][1], _base[1]) >= 20,
           (_s[:3], _base, _s[3]))
     check("v1_ellipse_centre_assombri_coins_intacts_50_images",
-          _e[0] == 0 and _e[1] == 50 and _e[2] and ECART(_e[2][0], _base[0]) >= 20
+          _e[0] == 0 and _e[1] == 50 and _e[2] and _base and ECART(_e[2][0], _base[0]) >= 20
           and ECART(_e[2][1], _base[1]) <= 2 and ECART(_e[2][2], _base[2]) <= 2 and "alphamerge" in _e[4],
           (_e[:3], _base, _e[3]))
     check("v1_inv_centre_intact_coins_assombris_50_images",
-          _i[0] == 0 and _i[1] == 50 and _i[2] and ECART(_i[2][0], _base[0]) <= 2
+          _i[0] == 0 and _i[1] == 50 and _i[2] and _base and ECART(_i[2][0], _base[0]) <= 2
           and ECART(_i[2][1], _base[1]) >= 20 and ECART(_i[2][2], _base[2]) >= 20, (_i[:3], _base, _i[3]))
     check("v1_rectangle_net_centre_assombri_coin_intact",
-          _r[0] == 0 and _r[1] == 50 and _r[2] and ECART(_r[2][0], _base[0]) >= 20
+          _r[0] == 0 and _r[1] == 50 and _r[2] and _base and ECART(_r[2][0], _base[0]) >= 20
           and ECART(_r[2][1], _base[1]) <= 2, (_r[:3], _base, _r[3]))
 
 print("\n[4] chaine V2 : sans effet 81bfde3, effets apres l'echelle, masque maskedmerge")
@@ -381,8 +383,19 @@ INV = [{"type": "invert"}]
 _fc = FC(OVBUILD(effects=INV))
 check("v2_cover_effets_apres_fps_puis_format_rgba_puis_setpts",
       "[1:v]scale=64:64:force_original_aspect_ratio=increase,crop=64:64,setsar=1,fps=25[ofi0]" in _fc
-      and "[ofi0]negate[ofx0]" in _fc and "[ofx0]format=rgba,setpts=PTS-STARTPTS+1.0/TB[ov0]" in _fc
+      and "[ofs0]negate[ofq0]" in _fc and "[ofx0]format=rgba,setpts=PTS-STARTPTS+1.0/TB[ov0]" in _fc
       and "negate" not in FC(_eg["cover"][0]), _fc[-400:])
+# Revue T2 (24/09/2026, ffmpeg 9.0.1) : 14 effets du catalogue et toute
+# enveloppe `_timed` (format=yuv420p) PERDAIENT l'alpha du PNG -> cadre noir
+# opaque. Alpha final = alpha d'ORIGINE x alpha de sortie de la pile : les
+# deux branches en gbrap, blend c3 multiply (c0..c2 : normal, opacite 1 = la
+# pile telle quelle) — pas de gris intermediaire (piege 235 de la plage).
+# `format=rgba` AVANT le split : les sorties d'un split partagent UN format,
+# un effet sans alpha (vignette) tirait sinon l'original en yuv420p (mesure).
+check("v2_alpha_restaure_split_origine_blend_c3_multiply_gbrap",
+      "[ofi0]format=rgba,split[ofo0][ofs0]" in _fc and "[ofq0]format=gbrap[ofg0]" in _fc
+      and "[ofo0]format=gbrap[ofb0]" in _fc and "[ofg0][ofb0]blend=c3_mode=multiply[ofx0]" in _fc
+      and "blend=c3_mode" not in FC(_eg["cover"][0]), _fc[-600:])
 _fco = FC(OVBUILD(effects=INV, opacity=0.5, tf=dict(TFS, rotate=12.0, radius=20)))
 _ip, _io, _ig, _ir = (_fco.find("negate"), _fco.find("colorchannelmixer=aa=0.5"), _fco.find("geq=r="),
                       _fco.find("rotate="))
@@ -395,9 +408,11 @@ check("v2_points_sendcmd_reste_en_tete_effet_avant_opacite_animee",
       < _fcp.find("colorchannelmixer@mpo0=aa=") and "[ofx0]format=rgba,colorchannelmixer@mpo0" in _fcp, _fcp[-500:])
 _fcm = FC(OVBUILD(effects=INV, mask=ELL))
 check("v2_masque_maskedmerge_gbrap_scale2ref_image_unique",
-      "[ofi0]split[omo0][ome0]" in _fcm and "[ome0]negate[omf0]" in _fcm and "[omo0]format=gbrap[omb0]" in _fcm
-      and "[omf0]format=gbrap[omg0]" in _fcm and "format=gbrap,geq=r='" in _fcm and ",trim=end_frame=1[omk0m]" in _fcm
-      and "[omk0m][omg0]scale2ref[omk0][omr0]" in _fcm and "[omb0][omr0][omk0]maskedmerge[ofx0]" in _fcm
+      "[ofi0]format=rgba,split[omo0][ome0]" in _fcm and "[ome0]negate[omf0]" in _fcm
+      and "[omo0]format=gbrap,split[omb0][omq0]" in _fcm and "[omf0]format=gbrap[omg0]" in _fcm
+      and "[omg0][omq0]blend=c3_mode=multiply[omh0]" in _fcm
+      and "format=gbrap,geq=r='" in _fcm and ",trim=end_frame=1[omk0m]" in _fcm
+      and "[omk0m][omh0]scale2ref[omk0][omr0]" in _fcm and "[omb0][omr0][omk0]maskedmerge[ofx0]" in _fcm
       and "loop=loop" not in _fcm and "maskedmerge" not in _fc, _fcm[-700:])
 _fcd = FC(OVBUILD(effects=[{"type": "kaleido"}], tf=dict(TFS), dims=(200, 100)))
 check("v2_contexte_des_effets_taille_reelle_de_l_overlay_mise_a_l_echelle",
@@ -439,6 +454,55 @@ else:
           _m[0] == 0 and _m[1] == 50 and _m[2] and CYAN(_m[2][2]) and ROUGE(_m[2][3]) and BLEU(_m[2][1]), _m)
     check("v2_masque_transforme_scale2ref_a_la_taille_de_l_overlay",
           _t[0] == 0 and _t[1] == 50 and _t[2] and CYAN(_t[2][2]) and ROUGE(_t[2][4]) and BLEU(_t[2][3]), _t)
+
+    # Revue T2 (24/09/2026, 9.0.1) : une pile qui PERD l'alpha (vignette, et
+    # toute enveloppe `_timed` bornee t0/t1, passee par yuv420p) rendait le
+    # cadre NOIR OPAQUE sur tout le clip ; chromakey doit au contraire CREER
+    # de la transparence. Points : gauche rouge, droite dans l'ellipse ELL,
+    # droite hors ellipse, centre, bord gauche hors ellipse.
+    _P3 = [(80, 90), (200, 90), (300, 90), (160, 90), (20, 90)]
+    _GV = GEN("vert.mp4", "color=c=0x00FF00:s=320x180:r=25")
+    VIG = [{"type": "vignette"}]
+    TINV = [{"type": "invert", "t0": 0.5, "t1": 1.0}]
+    CK = [{"type": "chromakey"}]
+    _VID = {"path": _GV, "is_image": False, "src_dur": 2.0}
+    _ra = {}
+    for _k, _ov in (("vig", OV(effects=VIG)), ("tinv", OV(effects=TINV)),
+                    ("ck", OV(effects=CK, **_VID)), ("ck_masque", OV(effects=CK, mask=ELL, **_VID)),
+                    ("vig_masque", OV(effects=VIG, mask=ELL))):
+        _o = os.path.join(TMP, "v2a_%s.mp4" % _k)
+        _rc, _er, _nb, _cm = RENDER([_v1b], [_ov], _o)
+        _ra[_k] = (_rc, _nb, {_t: PX(_o, _t, _P3) for _t in (0.2, 0.7, 1.5)} if _rc == 0 else None, _er)
+
+    def PA(k, t, i):
+        """Pixel i du rendu k a t, ou None (jamais d'indexation nue)."""
+        try:
+            return _ra[k][2][t][i]
+        except (TypeError, KeyError, IndexError):
+            return None
+
+    def EST(f, p): return p is not None and f(p)
+    def VERT(p): return p[0] <= 70 and p[1] >= 180 and p[2] <= 70
+    def ROUGEATRE(p): return p[0] >= 90 and p[1] <= 70 and p[2] <= 70
+    def OK50(k): return _ra[k][0] == 0 and _ra[k][1] == 50
+
+    def DET(k): return (_ra[k][0], _ra[k][1], _ra[k][2], (_ra[k][3] or "")[-200:])
+    check("v2_vignette_non_bornee_alpha_du_png_conserve_v1_bleu_visible",
+          OK50("vig") and EST(BLEU, PA("vig", 0.7, 1)) and EST(BLEU, PA("vig", 0.7, 2))
+          and EST(ROUGEATRE, PA("vig", 0.7, 0)), DET("vig"))
+    check("v2_invert_borne_bleu_avant_et_apres_la_fenetre_effet_dedans",
+          OK50("tinv") and all(EST(BLEU, PA("tinv", _t, 1)) and EST(BLEU, PA("tinv", _t, 2))
+                               for _t in (0.2, 0.7, 1.5))
+          and EST(ROUGE, PA("tinv", 0.2, 0)) and EST(CYAN, PA("tinv", 0.7, 0)) and EST(ROUGE, PA("tinv", 1.5, 0)),
+          DET("tinv"))
+    check("v2_chromakey_source_verte_opaque_v1_visible_partout",
+          OK50("ck") and all(EST(BLEU, PA("ck", 0.7, _i)) for _i in range(5)), DET("ck"))
+    check("v2_chromakey_masque_v1_dans_l_ellipse_vert_dehors",
+          OK50("ck_masque") and EST(BLEU, PA("ck_masque", 0.7, 3)) and EST(BLEU, PA("ck_masque", 0.7, 1))
+          and EST(VERT, PA("ck_masque", 0.7, 4)) and EST(VERT, PA("ck_masque", 0.7, 2)), DET("ck_masque"))
+    check("v2_vignette_masque_alpha_conserve_dedans_et_dehors",
+          OK50("vig_masque") and EST(BLEU, PA("vig_masque", 0.7, 1)) and EST(BLEU, PA("vig_masque", 0.7, 2))
+          and EST(ROUGE, PA("vig_masque", 0.7, 4)), DET("vig_masque"))
 
 print("\n[6] espion /render : mask V1/V2 et effects V2 lus et assainis")
 _SRCR = GEN("src_r.mp4", "testsrc2=s=64x64:r=25", d=4) if _FB else V1F

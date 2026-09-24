@@ -3789,18 +3789,31 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             from app.services import effects_engine as _fx2
             fctx = {"w": fxw, "h": fxh, "dur": d, "fps": fps}
             parts.append(f"[{idx}:v]{och[:cut]}[ofi{j}]")
+            # Revue T2 (mesuré 24/09/2026, ffmpeg 9.0.1) : 14 effets du
+            # catalogue (vignette, bloom, vhs…) et toute enveloppe `_timed`
+            # (passée par yuv420p) PERDENT l'alpha — le cadre transparent
+            # d'un PNG devenait noir opaque sur tout le clip. Alpha final =
+            # alpha d'ORIGINE × alpha de sortie de la pile (255 si elle n'en
+            # a pas ; chromakey en CRÉE) : les deux branches en gbrap, puis
+            # blend c3_mode=multiply (c0..c2 : normal à opacité 1 = la pile
+            # telle quelle). Pas de gris intermédiaire (piège de plage 235).
             omk = _mr.mask_of(o.get("mask"))
             if omk:
-                parts.append(f"[ofi{j}]split[omo{j}][ome{j}]")
+                parts.append(f"[ofi{j}]format=rgba,split[omo{j}][ome{j}]")
                 parts += _fx2.build_chain(oeff, f"ome{j}", f"omf{j}", f"ofe{j}", fctx)
-                parts.append(f"[omo{j}]format=gbrap[omb{j}]")
+                parts.append(f"[omo{j}]format=gbrap,split[omb{j}][omq{j}]")
                 parts.append(f"[omf{j}]format=gbrap[omg{j}]")
+                parts.append(f"[omg{j}][omq{j}]blend=c3_mode=multiply[omh{j}]")
                 parts.append(_mr.mask_graph(omk, w, h, fps, f"omk{j}m",
                                             planes="gbrap", loop=False))
-                parts.append(f"[omk{j}m][omg{j}]scale2ref[omk{j}][omr{j}]")
+                parts.append(f"[omk{j}m][omh{j}]scale2ref[omk{j}][omr{j}]")
                 parts.append(f"[omb{j}][omr{j}][omk{j}]maskedmerge[ofx{j}]")
             else:
-                parts += _fx2.build_chain(oeff, f"ofi{j}", f"ofx{j}", f"ofe{j}", fctx)
+                parts.append(f"[ofi{j}]format=rgba,split[ofo{j}][ofs{j}]")
+                parts += _fx2.build_chain(oeff, f"ofs{j}", f"ofq{j}", f"ofe{j}", fctx)
+                parts.append(f"[ofq{j}]format=gbrap[ofg{j}]")
+                parts.append(f"[ofo{j}]format=gbrap[ofb{j}]")
+                parts.append(f"[ofg{j}][ofb{j}]blend=c3_mode=multiply[ofx{j}]")
             osrc, och = f"[ofx{j}]", "format=rgba" + och[cut:]
         if shadow:
             # D-19 : ombre portée — le flux (setpts compris : les deux côtés
