@@ -2564,17 +2564,27 @@ async def montage_project_create(request: Request):
         cur = await asyncio.to_thread(_load_saved)
     if cur is None or (not cur.get("clips") and cur.get("vide") is not True):
         raise HTTPException(400, "Aucune timeline à enregistrer.")
+    rec = await _nouveau_projet(cur, body.get("name"), cur.get("name"), courant=True)
+    return {"ok": True, **_project_meta(rec)}
+
+
+async def _nouveau_projet(cur: dict, name, fallback, *, courant: bool) -> dict:
+    """Un projet NEUF depuis une timeline normalisée (`_save_record`) : un
+    identifiant `m_…`, le nom nettoyé, l'écriture atomique sous `_ecrit`.
+    `courant=True` (POST /projects) en fait aussi la timeline courante ;
+    `False` (POST /autoclips/create) laisse le courant intouché. Partagée
+    depuis la revue D-41 du 24/09/2026 (M7)."""
     pid = f"m_{uuid4().hex[:8]}"
-    rec = dict(cur, id=pid, project_id=pid,
-               name=_project_name(body.get("name"), cur.get("name")))
+    rec = dict(cur, id=pid, project_id=pid, name=_project_name(name, fallback))
     async with _ecrit:
         try:
             await asyncio.to_thread(_write_json_atomic,
                                     _project_path(pid, create=True), rec)
-            await asyncio.to_thread(_write_saved, rec)
+            if courant:
+                await asyncio.to_thread(_write_saved, rec)
         except OSError as e:
             raise HTTPException(500, f"Écriture du projet impossible : {e}")
-    return {"ok": True, **_project_meta(rec)}
+    return rec
 
 
 @router.get("/projects/{pid}")
@@ -2852,8 +2862,61 @@ async def montage_reframe(request: Request):
 # `confirm` n'est pas `true` — puis `transcribe` (payant, synchrone : l'écran
 # attend la réponse, comme /reframe). Un `confirm` sans clé configurée rend
 # le même `{ok:false, estimate}` (estimate.ok false, `reason` lisible).
+# REVUE du 24/09/2026 : la route reste SYNCHRONE (décision du contrôleur,
+# datée) et les mots transcrits sont MIS EN CACHE (I1) sous
+# `outputs/montage_cache/<sha(chemin résolu, taille, mtime_ns, fournisseur,
+# langue)>_stt.json` — écriture atomique, jamais sur échec : une relance
+# (« Lancer » une seconde fois, un autre `n`, `llm:false`) ne repaie pas, et
+# la réponse le dit (`transcript: "stt:<f>:cache"`, sans `confirm` requis).
+# `llm:false` (I4) : heuristique seule, aucun appel au modèle. `text` et
+# `chapter_id` ensemble : 400 (M4). Durée sondée nulle : pas d'estimation
+# (M5, `ok:false` dit).
 _AUTOCLIPS_TEXT_MAX = 200_000
 _AUTOCLIPS_SEGS_MAX = 2000
+
+
+def _autoclips_stt_cle(p: Path, pid, lang) -> Path | None:
+    import hashlib
+    from app.services import montage_media as _MM
+    try:
+        st = p.stat()
+    except OSError:
+        return None
+    brut = "%s|%d|%d|%s|%s|stt" % (p.resolve(), st.st_size, st.st_mtime_ns,
+                                   pid or "", lang or "auto")
+    key = hashlib.sha1(brut.encode("utf-8")).hexdigest()[:20]
+    return _MM._cache_dir() / ("%s_stt.json" % key)
+
+
+def _autoclips_stt_lire(cle: Path | None) -> dict | None:
+    if cle is None or not cle.is_file():
+        return None
+    try:
+        v = json.loads(cle.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None                     # cache illisible : on refait
+    if not isinstance(v, dict) or not isinstance(v.get("words"), list) or not v["words"]:
+        return None
+    return v
+
+
+def _autoclips_stt_ecrire(cle: Path | None, res: dict) -> None:
+    from app.services import montage_media as _MM
+    words = res.get("words") if isinstance(res, dict) else None
+    if cle is None or not isinstance(words, list) or not words:
+        return
+    tmp = _MM._tmp_de(cle)
+    try:
+        tmp.write_text(json.dumps({"source": res.get("source"), "words": words,
+                                   "audio_duration_s": res.get("audio_duration_s"),
+                                   "end": res.get("end")}, ensure_ascii=False),
+                       encoding="utf-8")
+        _MM._ecrire(tmp, cle)
+    except OSError as e:
+        logger.warning(f"montage: cache de transcription non écrit — {e}")
+    finally:
+        if tmp.exists():
+            tmp.unlink(missing_ok=True)
 
 
 def _autoclips_str(v, nom: str, maxi: int) -> str:
@@ -2884,6 +2947,11 @@ async def montage_autoclips(request: Request):
     n = body.get("n", 4)
     if isinstance(n, bool) or not isinstance(n, (int, float)) or not 1 <= n <= 8 or n != int(n):
         raise HTTPException(400, "n hors bornes — un entier de 1 à 8.")
+    if text and chapter_id:             # M4 : deux textes, lequel ? on ne devine pas
+        raise HTTPException(400, "text ou chapter_id, pas les deux.")
+    use_llm = body.get("llm", True)     # I4 : « Classer avec l'IA » (défaut vrai)
+    if not isinstance(use_llm, bool):
+        raise HTTPException(400, "llm illisible — true ou false.")
     confirm = body.get("confirm") is True
     p = await _media_source(request, src, video=True)
     transcript = "align"
@@ -2909,20 +2977,31 @@ async def montage_autoclips(request: Request):
             est = T.estimate_transcription(dur, provider)
         except ValueError as e:
             raise HTTPException(400, str(e))
-        if not confirm or not est.get("ok"):
-            return {"ok": False, "estimate": est,
-                    "reason": est.get("reason") or "Transcription payante : "
-                              "confirmez le coût annoncé (confirm:true), ou "
-                              "donnez le texte connu (gratuit)."}
-        try:
-            res = await asyncio.to_thread(T.transcribe, p, provider=provider,
-                                          language=lang_stt)
-        except Exception as e:
-            raise HTTPException(502, f"Transcription impossible : {e}")
-        transcript = "stt:%s" % (res.get("source") or "?")
+        if dur <= 0:                    # M5 : on n'annonce pas un coût nul
+            return {"ok": False, "estimate": dict(est, ok=False),
+                    "reason": f"Durée de « {p.name} » illisible : aucune "
+                              f"estimation possible, rien n'est lancé."}
+        cle = _autoclips_stt_cle(p, est.get("provider"), lang_stt) if est.get("ok") else None
+        res = await asyncio.to_thread(_autoclips_stt_lire, cle) if cle else None
+        if res is not None:             # I1 : déjà payée, rendue gratuitement
+            transcript = "stt:%s:cache" % (res.get("source") or "?")
+        else:
+            if not confirm or not est.get("ok"):
+                return {"ok": False, "estimate": est,
+                        "reason": est.get("reason") or "Transcription payante : "
+                                  "confirmez le coût annoncé (confirm:true), ou "
+                                  "donnez le texte connu (gratuit)."}
+            try:
+                res = await asyncio.to_thread(T.transcribe, p, provider=provider,
+                                              language=lang_stt)
+            except Exception as e:
+                raise HTTPException(502, f"Transcription impossible : {e}")
+            await asyncio.to_thread(_autoclips_stt_ecrire, cle, res)
+            transcript = "stt:%s" % (res.get("source") or "?")
     words = res.get("words") or []
     wins = _autoclips.windows(words)
-    out = await asyncio.to_thread(_autoclips.score, wins, None, n, persona)
+    out = await asyncio.to_thread(_autoclips.score, wins, None if use_llm else False,
+                                  n, persona)
     return {"ok": True, "source": out["source"], "transcript": transcript,
             "words": len(words), "windows": len(wins),
             "duration": round(float(res.get("audio_duration_s") or res.get("end") or 0.0), 3),
@@ -2965,10 +3044,12 @@ async def montage_autoclips_create(request: Request):
     if not isinstance(src, dict):
         src = _src_query(src)
     sdur = await asyncio.to_thread(_probe_duration, p)
-    if sdur > 0:
-        if start >= sdur:
-            raise HTTPException(400, "Le clip commence après la fin de la source.")
-        end = min(end, sdur)
+    if sdur <= 0:                       # M1 : sans durée, aucune fenêtre n'est sûre
+        raise HTTPException(415, f"Durée de « {p.name} » illisible : projet non créé.")
+    end = min(end, sdur)
+    if end - start < 0.3:               # M1 : la garde APRÈS le bornage
+        raise HTTPException(400, "Le clip commence après la fin de la source "
+                                 "(ou en garde moins de 0,3 s).")
     dur = round(end - start, 3)
     titre = str(clip.get("title") or "").strip()[:48]
     label = (titre or p.stem)[:48]
@@ -3002,15 +3083,8 @@ async def montage_autoclips_create(request: Request):
     cur = _save_record({"name": name or titre or f"{p.stem} · auto-clip", "ratio": "9:16",
                         "duration": dur, "mix": {}, "clips": clips,
                         "tracks": _CLIENT_DEFAULT_TRACKS})
-    pid = f"m_{uuid4().hex[:8]}"
-    rec = dict(cur, id=pid, project_id=pid,
-               name=_project_name(name, titre or f"{p.stem} · auto-clip"))
-    async with _ecrit:
-        try:
-            await asyncio.to_thread(_write_json_atomic, _project_path(pid, create=True), rec)
-        except OSError as e:
-            raise HTTPException(500, f"Écriture du projet impossible : {e}")
-    return {"ok": True, "project_id": pid, **_project_meta(rec)}
+    rec = await _nouveau_projet(cur, name, titre or f"{p.stem} · auto-clip", courant=False)
+    return {"ok": True, "project_id": rec["id"], **_project_meta(rec)}
 
 
 def _f_or(v, d: float = 0.0) -> float:

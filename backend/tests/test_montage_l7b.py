@@ -1295,27 +1295,111 @@ check("d41_heuristique_deterministe_deux_appels_egaux_fenetre_et_liste",
       and all(isinstance(v, int) and 0 <= v <= 100 for v in _h(_wins)), None)
 
 # score : LLM factice
-_llm_sp = {"n": 0, "system": None, "max_tokens": None, "prompt": None}
+_llm_sp = {"n": 0, "system": None, "max_tokens": None, "prompt": None, "pick": None}
+_WI = {D(w).get("i"): w for w in _wins}
+
+
+def _cands(prompt):
+    """Les fenetres PROPOSEES au modele, lues dans le prompt : [(i, start, end)]
+    (revue du 24/09 : les candidats sont echantillonnes sur la duree, un faux
+    qui choisirait des i fixes tomberait hors de la liste)."""
+    return [(int(m.group(1)), float(m.group(2)), float(m.group(3)))
+            for m in re.finditer(r"^(\d+) \| ([\d.]+)–([\d.]+) \|", str(prompt), re.M)]
+
+
+def _deux_disjoints(prompt):
+    c = _cands(prompt)
+    if not c:
+        return None, None
+    a = c[0]
+    b = next((x for x in c if x[1] >= a[2]), None)
+    return a[0], (b[0] if b else None)
+
+
 def _fake(prompt, system, max_tokens):
     _llm_sp["n"] += 1; _llm_sp["system"] = system; _llm_sp["max_tokens"] = max_tokens; _llm_sp["prompt"] = prompt
-    return ('[{"i": 0, "score": 91, "title": "La marée", "hook": "Elle ne demande pas"},'
-            '{"i": 3, "score": 40, "title": "x", "hook": "y"}]', "fake")
-_res = D(W("score")(_wins, llm=_fake, n=3, persona="prophet"))
+    a, b = _deux_disjoints(prompt)
+    _llm_sp["pick"] = (a, b)
+    ent = [{"i": a, "score": 91, "title": "La marée", "hook": "Elle ne demande pas"},
+           {"i": b, "score": 40, "title": "x", "hook": "y"}]
+    return (_json4.dumps([e for e in ent if e["i"] is not None], ensure_ascii=False), "fake")
+_res = D(W("score")(_wins, llm=_fake, n=2, persona="prophet"))
 _cl = L(_res.get("clips"))
 check("d41_score_llm_tri_par_score_source_llm_fake",
       [c.get("score") for c in _cl] == [91, 40] and _res.get("source") == "llm:fake"
       and [c.get("title") for c in _cl] == ["La marée", "x"] and _cl[0].get("hook") == "Elle ne demande pas"
-      and _cl[0].get("start") == D(_wins[0] if _wins else {}).get("start"), (_res.get("source"), _cl[:1]))
+      and [c.get("origine") for c in _cl] == ["llm", "llm"] and _llm_sp["pick"][1] is not None
+      and _cl[0].get("start") == D(_wins[0] if _wins else {}).get("start"), (_res.get("source"), _cl[:1], _llm_sp["pick"]))
 check("d41_score_llm_consigne_json_strict_persona_max_tokens_800",
       _llm_sp["n"] == 1 and _llm_sp["max_tokens"] == 800 and "prophet" in str(_llm_sp["system"])
       and "JSON" in str(_llm_sp["system"]) and "0 | " in str(_llm_sp["prompt"]), _llm_sp)
-_fence = lambda p, s, m: ('```json\n[{"i": 1, "score": 77, "title": "", "hook": ""}]\n```', "fake")
-_rf = D(W("score")(_wins, llm=_fence, n=2))
+_res3 = D(W("score")(_wins, llm=_fake, n=3))
+_cl3 = L(_res3.get("clips"))
+check("d41_revue_llm_moins_de_n_complete_par_l_heuristique_disjointe_apres_le_modele",
+      [c.get("origine") for c in _cl3] == ["llm", "llm", "heuristique"] and [c["score"] for c in _cl3[:2]] == [91, 40]
+      and all(a["end"] <= b["start"] or a["start"] >= b["end"] for k, a in enumerate(_cl3) for b in _cl3[k + 1:]),
+      [(c.get("start"), c.get("end"), c.get("score"), c.get("origine")) for c in _cl3])
+# I2 : deux choix du modele qui se CHEVAUCHENT -> le moins bien note est ecarte
+def _chev(prompt, system, max_tokens):
+    c = _cands(prompt)
+    a = c[0]
+    b = next((x for x in c[1:] if x[1] < a[2]), None)
+    _llm_sp["chev"] = (a, b)
+    return ('[{"i": %d, "score": 80}, {"i": %d, "score": 95}]' % (a[0], b[0] if b else -1), "fake")
+_rc2 = D(W("score")(_wins, llm=_chev, n=2))
+_clc = L(_rc2.get("clips"))
+check("d41_revue_llm_choix_chevauchants_filtres_le_mieux_note_garde_complete_a_n",
+      _llm_sp.get("chev", (None, None))[1] is not None and len(_clc) == 2
+      and _clc[0].get("score") == 95 and _clc[0].get("i") == _llm_sp["chev"][1][0] and _clc[0].get("origine") == "llm"
+      and _clc[1].get("origine") == "heuristique"
+      and (_clc[1]["end"] <= _clc[0]["start"] or _clc[1]["start"] >= _clc[0]["end"]),
+      ([(c.get("i"), c.get("start"), c.get("end"), c.get("score"), c.get("origine")) for c in _clc], _llm_sp.get("chev")))
+def _fence(p, s, m):
+    a, _b = _deux_disjoints(p)
+    return ('```json\n[{"i": %s, "score": 77, "title": "", "hook": ""}]\n```' % a, "fake")
+_rf = D(W("score")(_wins, llm=_fence, n=1))
 _cf = L(_rf.get("clips"))
+_wf = _WI.get(_cf[0].get("i")) if _cf else None
 check("d41_score_llm_bloc_json_tolere_titre_et_accroche_vides_remplaces_par_le_texte",
       _rf.get("source") == "llm:fake" and [c.get("score") for c in _cf] == [77]
-      and _cf[0].get("title") and _cf[0].get("hook") and _cf[0]["title"].split()[0] in D(_wins[1] if len(_wins) > 1 else {}).get("text", ""),
+      and _cf[0].get("title") and _cf[0].get("hook") and _cf[0]["title"].split()[0] in D(_wf).get("text", "-"),
       _cf)
+# M2 / M3 : une entree fautive est ignoree SEULE
+def _fautives(p, s, m):
+    a, b = _deux_disjoints(p)
+    return ('[{"i": %s, "score": 1e999}, {"i": true, "score": 90}, {"i": "%s", "score": 90},'
+            ' {"i": %s, "score": true}, {"i": %s, "score": "90"}, {"i": %s.5, "score": 90},'
+            ' {"i": %s, "score": 66}]' % (a, a, a, a, a, b), "fake")
+_rfa = D(W("score")(_wins, llm=_fautives, n=1))
+check("d41_revue_score_infini_booleens_chaines_non_entiers_ignores_seuls_temoin_entree_valide",
+      _rfa.get("source") == "llm:fake" and [c.get("score") for c in L(_rfa.get("clips"))] == [66], _rfa.get("clips"))
+# I4 : llm=False -> heuristique sans appel
+_llm_sp["n"] = 0
+_rnl = D(W("score")(_wins, llm=False, n=2))
+check("d41_revue_llm_false_heuristique_sans_aucun_appel_temoin_meme_reponse_que_le_repli",
+      _rnl.get("source") == "heuristique" and _llm_sp["n"] == 0 and len(L(_rnl.get("clips"))) == 2
+      and _rnl == D(W("score")(_wins, llm=lambda p, s, m: ("pas du json", "fake"), n=2)), _rnl.get("source"))
+# C1 : une source de 1 800 s est examinee EN ENTIER
+# (une question chiffree TOUT A LA FIN : la meilleure fenetre heuristique est
+# la derniere — un plafond chronologique ne la verrait jamais)
+_w1800 = TS.align_known_text(TXT * 15 + " Qui veille encore à 3 heures ?", start=0.0, end=1800.0)["words"]
+_wl = L(W("windows")(_w1800))
+_llm_sp["prompt"] = None
+_r1800 = D(W("score")(_wl, llm=_fake, n=2))
+_c1800 = _cands(_llm_sp["prompt"])
+print("  (1 800 s : %d fenetres, fin max %s, %d candidats au modele de %s a %s)" % (
+    len(_wl), max((w["end"] for w in _wl), default=None), len(_c1800),
+    _c1800[0][1] if _c1800 else None, _c1800[-1][1] if _c1800 else None))
+check("d41_revue_source_1800_s_fenetres_jusqu_a_la_fin_candidats_repartis_sur_toute_la_duree",
+      len(_wl) > 400 and max(w["end"] for w in _wl) > 1500
+      and 30 <= len(_c1800) <= 60 and _c1800[0][1] < 60 and _c1800[-1][1] > 1500
+      and _r1800.get("source") == "llm:fake", (len(_wl), len(_c1800)))
+_h1800 = D(W("score")(_wl, llm=False, n=8))
+check("d41_revue_heuristique_voit_toute_la_source_huit_clips_disjoints_au_dela_de_352_s",
+      len(L(_h1800.get("clips"))) == 8 and _h1800["clips"][0]["start"] > 1500
+      and all(a["end"] <= b["start"] or a["start"] >= b["end"]
+              for k, a in enumerate(_h1800["clips"]) for b in _h1800["clips"][k + 1:]),
+      [(c["start"], c["end"]) for c in L(_h1800.get("clips"))])
 _bad = lambda p, s, m: ("pas du json", "fake")
 _res2 = D(W("score")(_wins, llm=_bad, n=3))
 _cl2 = L(_res2.get("clips"))
@@ -1429,11 +1513,17 @@ check("d41_route_texte_llm_par_defaut_consulte_muet_donc_heuristique_duree_de_la
       and abs(float(_ba.get("duration") or 0) - 120.0) < 0.5 and _ba.get("words", 0) > 100
       and all(0 <= c["start"] < c["end"] <= 120.5 for c in L(_ba.get("clips"))), (_ba.get("source"), _sp4["llm"], _ba.get("duration")))
 SUMM._chat_dispatch = lambda p, s, m: (_sp4.__setitem__("llm", _sp4["llm"] + 1)
-                                       or '[{"i": 2, "score": 88, "title": "T", "hook": "H"}]', "fake")
+                                       or '[{"i": %s, "score": 88, "title": "T", "hook": "H"}]'
+                                       % _deux_disjoints(p)[1], "fake")
 _rl = ACR({"src": {"file_path": AV}, "text": TXT, "n": 2, "persona": "prophet"})
 check("d41_route_llm_par_defaut_repond_source_llm",
-      _rl[0] == 200 and D(_rl[1]).get("source") == "llm:fake" and [c.get("score") for c in L(D(_rl[1]).get("clips"))] == [88]
+      _rl[0] == 200 and D(_rl[1]).get("source") == "llm:fake" and [c.get("score") for c in L(D(_rl[1]).get("clips"))][:1] == [88]
+      and [c.get("origine") for c in L(D(_rl[1]).get("clips"))] == ["llm", "heuristique"]
       and _sp4["llm"] == 2 and _sp4["transcribe"] == 0, (_rl, _sp4["llm"]))
+_rnl = ACR({"src": {"file_path": AV}, "text": TXT, "n": 2, "llm": False})
+check("d41_revue_route_llm_false_aucun_appel_au_modele_temoin_appele_juste_avant",
+      _rnl[0] == 200 and D(_rnl[1]).get("source") == "heuristique" and len(L(D(_rnl[1]).get("clips"))) == 2
+      and _sp4["llm"] == 2, (_rnl, _sp4["llm"]))
 SUMM._chat_dispatch = _sp_llm
 
 _rn = ACR({"src": {"file_path": AV}, "lang": "fr", "n": 3})
@@ -1452,6 +1542,36 @@ _rn4 = ACR({"src": {"file_path": AV}, "n": 2, "confirm": True, "lang": "auto"})
 check("d41_route_confirm_vrai_transcrit_une_fois_temoin_du_refus",
       _rn4[0] == 200 and D(_rn4[1]).get("ok") is True and D(_rn4[1]).get("transcript") == "stt:fake"
       and len(L(D(_rn4[1]).get("clips"))) == 2 and _sp4["transcribe"] == 1 and _sp4["estimate"] == 4, (_rn4, _sp4))
+# I1 : la transcription payee est EN CACHE — une relance ne repaie pas
+_stt_dir = pathlib.Path(TMP) / "outputs" / "montage_cache"
+_stt_n = sorted(x.name for x in _stt_dir.glob("*_stt.json"))
+_rn5 = ACR({"src": {"file_path": AV}, "n": 3, "confirm": True, "lang": "auto"})
+_rn6 = ACR({"src": {"file_path": AV}, "n": 1, "lang": "auto"})
+_rn7 = ACR({"src": {"file_path": AV}, "n": 1, "lang": "fr"})
+check("d41_revue_transcription_en_cache_relance_sans_transcribe_ni_confirm_temoin_autre_langue_refusee",
+      len(_stt_n) == 1 and not any(".tmp" in x for x in _stt_n)
+      and _rn5[0] == 200 and D(_rn5[1]).get("transcript") == "stt:fake:cache" and len(L(D(_rn5[1]).get("clips"))) == 3
+      and _rn6[0] == 200 and D(_rn6[1]).get("ok") is True and D(_rn6[1]).get("transcript") == "stt:fake:cache"
+      and _rn7[0] == 200 and D(_rn7[1]).get("ok") is False and _sp4["transcribe"] == 1,
+      (_stt_n, _rn5[0], D(_rn5[1]).get("transcript"), D(_rn6[1]).get("transcript"), D(_rn7[1]).get("ok"), _sp4["transcribe"]))
+_tr_ok = TS.transcribe
+_echecs = {"n": 0}
+def _tr_echec(*a, **k):
+    _echecs["n"] += 1
+    raise RuntimeError("HTTP 500")
+TS.transcribe = _tr_echec
+_rn8 = ACR({"src": {"file_path": AV}, "n": 1, "lang": "en", "confirm": True})
+TS.transcribe = _tr_ok
+check("d41_revue_transcription_en_echec_502_rien_en_cache",
+      _rn8[0] == 502 and _echecs["n"] == 1 and len(list(_stt_dir.glob("*_stt.json"))) == 1
+      and not any(".tmp" in x.name for x in _stt_dir.iterdir()), (_rn8, _echecs))
+_pd0 = MS._probe_duration
+MS._probe_duration = lambda p: 0.0
+_rn9 = ACR({"src": {"file_path": AV}, "n": 1, "lang": "de", "confirm": True})
+MS._probe_duration = _pd0
+check("d41_revue_duree_sondee_nulle_estimation_refusee_dite_sans_transcription",
+      _rn9[0] == 200 and D(_rn9[1]).get("ok") is False and D(D(_rn9[1]).get("estimate")).get("ok") is False
+      and "illisible" in str(D(_rn9[1]).get("reason")) and _sp4["transcribe"] == 1, _rn9)
 
 # chapitre : base TMP initialisee, un Chapter insere, route dans la MEME boucle
 async def _chapitre():
@@ -1472,22 +1592,24 @@ except Exception as _e:
 _al_avant = _sp4["align"]
 check("d41_route_chapitre_script_text_cale_gratuit_404_absent_400_vide",
       _ch[0][0] == 200 and D(_ch[0][1]).get("transcript") == "chapitre" and len(L(D(_ch[0][1]).get("clips"))) == 2
-      and _ch[1][0] == 404 and _ch[2][0] == 400 and _sp4["transcribe"] == 1 and _al_avant == 3, (_ch, _sp4))
+      and _ch[1][0] == 404 and _ch[2][0] == 400 and _sp4["transcribe"] == 1 and _al_avant == 4, (_ch, _sp4))
 
 _res_n = _sp4["resolve"]
 _bad4 = [ACR({"text": TXT, "n": 2}), ACR({"src": None, "n": 2}), ACR({"src": {"file_path": AV}, "n": 0}),
          ACR({"src": {"file_path": AV}, "n": 9}), ACR({"src": {"file_path": AV}, "n": 2.5}),
          ACR({"src": {"file_path": AV}, "n": "3"}), ACR({"src": {"file_path": AV}, "n": True}),
          ACR({"src": {"file_path": AV}, "text": 123}), ACR({"src": {"file_path": AV}, "lang": "francais"}),
-         ACR({"src": {"file_path": AV}, "persona": "p" * 61}), ACR({"src": {"file_path": AV}, "n": float("nan")})]
+         ACR({"src": {"file_path": AV}, "persona": "p" * 61}), ACR({"src": {"file_path": AV}, "n": float("nan")}),
+         ACR({"src": {"file_path": AV}, "text": TXT, "chapter_id": "ch_ac1"}),
+         ACR({"src": {"file_path": AV}, "text": TXT, "llm": "non"})]
 check("d41_route_400_parametres_avant_toute_resolution_temoin_bornes_permises",
-      [b[0] for b in _bad4] == [400] * 11 and _sp4["resolve"] == _res_n
+      [b[0] for b in _bad4] == [400] * 13 and _sp4["resolve"] == _res_n
       and ACR({"src": {"file_path": AV}, "text": TXT, "n": 8})[0] == 200 and _sp4["resolve"] == _res_n + 1,
       ([b[0] for b in _bad4], _sp4["resolve"] - _res_n))
 _r404 = ACR({"src": {"file_path": str(pathlib.Path(TMP) / "absent.mp4")}, "text": TXT, "n": 2})
 _r415 = ACR({"src": {"file_path": VX}, "text": TXT, "n": 2})
 check("d41_route_404_source_inconnue_415_non_video_sans_calage",
-      _r404[0] == 404 and _r415[0] == 415 and _sp4["align"] == 4, (_r404, _r415, _sp4["align"]))
+      _r404[0] == 404 and _r415[0] == 415 and _sp4["align"] == 5, (_r404, _r415, _sp4["align"]))
 
 # create : projet neuf relu par GET /projects/{pid}
 # le clip qui commence le PLUS TARD : un clip a start 0 ne prouverait aucun
@@ -1543,6 +1665,14 @@ check("d41_create_400_parametres_avant_toute_resolution_temoin",
 _c404 = ACC({"src": {"file_path": str(pathlib.Path(TMP) / "absent.mp4")}, "clip": {"start": 0, "end": 20}})
 _c415 = ACC({"src": {"file_path": VX}, "clip": {"start": 0, "end": 1}})
 _capres = ACC({"src": {"file_path": S2}, "clip": {"start": 5, "end": 9}})
+_cborne = ACC({"src": {"file_path": S2}, "clip": {"start": 2.8, "end": 9}})
+_MSpd = MS._probe_duration
+MS._probe_duration = lambda p: 0.0
+_c0dur = ACC({"src": {"file_path": S2}, "clip": {"start": 0, "end": 2}})
+MS._probe_duration = _MSpd
+check("d41_revue_garde_0_3_s_apres_bornage_de_end_et_duree_nulle_415",
+      _cborne[0] == 400 and _c0dur[0] == 415
+      and ACC({"src": {"file_path": S2}, "clip": {"start": 2.6, "end": 9}})[0] == 200, (_cborne, _c0dur))
 check("d41_create_404_415_et_400_debut_apres_la_fin_de_la_source",
       _c404[0] == 404 and _c415[0] == 415 and _capres[0] == 400, (_c404, _c415, _capres))
 
