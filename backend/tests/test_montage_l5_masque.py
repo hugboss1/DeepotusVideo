@@ -230,7 +230,25 @@ check("m1_soft_booleen_zero_inv_vrai_seulement_pour_True",
       and isinstance(_bi1, dict) and _bi1.get("inv") is False
       and isinstance(_biT, dict) and _biT.get("inv") is True,
       str((_bs, _bs2, _bi1, _biT)))
-_g1 = mask_graph(_m1, 320, 180, 25, "mk0") if isinstance(_m1, dict) else "ABSENT"
+# Revue T4 (24/09, point T4-4) : une CHAINE n'est lue que si elle est du decimal ASCII -- la MEME expression que la
+# regle des courbes (effects_engine._CURVE_NUM) : float() de Python accepte « 1_0 » (10) et les chiffres Unicode
+# (« ٠.٥ », « ０.５ ») que Number() de JS refuse (dzmRfNum) -> divergence avec la couche. Mesure avant correctif :
+# les chaines decimales ASCII (« 0.5 », « 0.5 » entoure de blancs, « 5e-1 », « .5 », « 5. ») sont LUES : gardees.
+_sA = [mask_of({"shape": "rect", "x": 0, "y": 0, "w": w, "h": .5}) for w in ("0.5", " 0.5 ", "5e-1", ".5", "+0.5")]
+_sR = [mask_of({"shape": "rect", "x": 0, "y": 0, "w": w, "h": .5}) for w in ("1_0", "٠.٥", "０.５", "0x1", "inf", "1e999")]
+_sS = [mask_of({"shape": "rect", "x": 0, "y": 0, "w": .5, "h": .5, "soft": s}) for s in ("1_0", "0.2")]
+_W5 = {"shape": "rect", "x": 0.0, "y": 0.0, "w": 0.5, "h": 0.5, "soft": 0.0, "inv": False}
+check("m1_chaines_decimal_ascii_lues_underscore_et_chiffres_unicode_refuses_soft_1_0_zero",
+      _sA == [_W5] * 5 and _sR == [None] * 6
+      and _sS == [_W5, dict(_W5, soft=0.2)], str((_sA, _sR, _sS)))
+try:
+    from app.services import mask_region as _mr_mod, effects_engine as _ee_mod
+    _mr_num = (getattr(getattr(_mr_mod, "_NUM", None), "pattern", None), getattr(_ee_mod, "_CURVE_NUM", None))
+except Exception as _e:
+    _mr_num = ("import", repr(_e))
+check("m1_expression_des_chaines_identique_a_celle_des_courbes",
+      isinstance(_mr_num[1], str) and len(_mr_num[1]) > 20 and _mr_num[0] == _mr_num[1], _mr_num)
+_g1 =mask_graph(_m1, 320, 180, 25, "mk0") if isinstance(_m1, dict) else "ABSENT"
 check("m1_mask_graph_geq_une_fois_trim_loop_gris_etiquette",
       isinstance(_g1, str) and _g1.startswith("color=c=black:s=320x180:r=25:d=1,format=gray,geq=lum='")
       and _g1.endswith(",trim=end_frame=1,loop=loop=-1:size=1:start=0[mk0]") and "hypot(" in _g1

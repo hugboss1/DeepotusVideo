@@ -1289,9 +1289,9 @@ var CM={type:"colormatch",y_gain:1.5},CMin=[{type:"grain"},{type:"colormatch",y_
 out.co_cm=[T.colorMatchPut(CMin,CM),T.colorMatchPut([{type:"grain"}],CM),T.colorMatchPut(null,{y_gain:2}),
   T.colorMatchPut(CMin,CM).filter(function(e){return e.type==="colormatch"}).length,CMin.length,T.colorMatchPut(CMin,CM)[1]!==CM];
 /* temps de source sous la tête : srcIn + (tête − début)·vitesse, vitesse lue comme le cadrage (0,25..4) ; hors plan -> milieu */
-var SK={start:2,end:6,srcIn:1,speed:2};
+var SK={tr:"v1",start:2,end:6,srcIn:1,speed:2};
 out.co_src=[T.srcTimeAt(SK,3),T.srcTimeAt(SK,2),T.srcTimeAt(SK,7),T.srcTimeAt(SK,1),T.srcTimeAt(SK,6),T.srcTimeAt(SK,NaN),
-  T.srcTimeAt({start:2,end:6,srcIn:1},4),T.srcTimeAt({start:0,end:4},1),T.srcTimeAt(null,1),T.srcTimeAt({start:2,end:6,srcIn:1,speed:10},3),
+  T.srcTimeAt({start:2,end:6,srcIn:1},4),T.srcTimeAt({start:0,end:4},1),T.srcTimeAt(null,1),T.srcTimeAt({tr:"v1",start:2,end:6,srcIn:1,speed:10},3),
   T.srcTimeAt({start:0,end:3,srcIn:.5},1/3)];
 /* revue T4 (24/09) : un effet couleur ÉTEINT (off vrai) ne fait pas partie du grade — ni emporté, ni réactivé à la pose ;
    témoins : un effet actif (off absent ou faux) passe, `off` retiré de la copie */
@@ -1305,6 +1305,22 @@ out.co_vec=(function(){var V=/*L5_VEC*/,dv=[];
   return [V.length,dv]})();
 /* revue T4 (24/09) : 30 masques rejoués contre mask_region.mask_of (appelé par le banc) */
 out.co_maskx=(/*L5_MASKS*/).map(function(m){return T.maskOf(m)});
+/* revue T4 (24/09, T4-1) : la pchip ÉPINGLÉE au 1e-6 (moyenne harmonique pondérée, borne 3·m0, remise à 0 au changement
+   de signe : chacune change au moins une valeur) ; « sans dépassement » : la première courbe reste dans [0, 0,5], monotone */
+out.co_eval_exact=(function(){var R=function(v){return Math.round(v*1e6)/1e6},mx=-1,mn=2,mono=!0,pv=-1,i,v;
+  for(i=0;i<=1000;i++){v=T.curveEval("0/0 0.1/0.45 1/0.5",i/1000);mx=Math.max(mx,v);mn=Math.min(mn,v);if(v<pv-1e-12)mono=!1;pv=v}
+  return [R(T.curveEval("0/0 0.1/0.45 1/0.5",.3)),R(T.curveEval("0/0.5 0.5/0.6 1/0.2",.1)),R(T.curveEval("0/0 0.1/0.45 1/0.5",.55)),
+    R(mx),R(mn),mono]})();
+/* T4-6 : dzmCurveEval ne lève JAMAIS (x lu par dzmRfNum, illisible -> 0) ; la fabrique = l'évaluation ; témoin « 0.3 » lu */
+out.co_eval_sur=(function(){var f=T.curveFn("0/0.2 0.1/0.45 1/0.5"),res=[];
+  [Symbol("s"),{valueOf:function(){throw new Error("x")}},null,void 0,"abc","0.3",.3].forEach(function(x){
+    try{res.push(Math.round(T.curveEval("0/0.2 0.1/0.45 1/0.5",x)*1e6)/1e6)}catch(e){res.push("leve")}});
+  return [res,f(.3)===T.curveEval("0/0.2 0.1/0.45 1/0.5",.3),f(.55)===T.curveEval("0/0.2 0.1/0.45 1/0.5",.55)]})();
+/* T4-5 : Math.hypot — un point énorme est ramené sur le cercle (x·x déborderait à l'infini et annulerait le point) */
+out.co_hypot=[T.wheelToRgb("gain",1e200,1e200,0),T.wheelToRgb("gain",Math.SQRT1_2,Math.SQRT1_2,0)];
+/* T4-7 : la vitesse ne compte que sur V1 (le rendu ne la lit que là, _v1_speed) ; témoin : V1 à vitesse 2 */
+out.co_src_v1=[T.srcTimeAt({tr:"v2",start:2,end:6,srcIn:1,speed:2},3),T.srcTimeAt({start:2,end:6,srcIn:1,speed:2},3),
+  T.srcTimeAt({tr:"v1",start:2,end:6,srcIn:1,speed:2},3),T.srcTimeAt({tr:"v1",start:2,end:6,srcIn:1,speed:"x"},3)];
 /* ── [37] L5 D-27 D-29 D-30 D-28 (24/09/2026, tâche 5) : le panneau Étalonnage — aides pures, puis le composant sous shim ── */
 /* la pile : le premier effet d'un type ; poser à la place du PREMIER de son type (les suivants gardés), sinon en queue */
 out.gp_fx=[T.fxOf([{type:"grain"},{type:"wheels",a:1},{type:"wheels",a:2}],"wheels"),T.fxOf(null,"wheels"),T.fxOf([{type:"grain"}],"curves"),
@@ -1523,6 +1539,9 @@ _L5_MASKS = [
     {"shape": "rect", "x": 0.33333333, "y": 0.66666666, "w": 0.33333334, "h": 0.33333334, "soft": 0.123456},
     {"shape": "rect", "x": 0.00005, "y": 0.99, "w": 0.5, "h": 0.5},
     {"shape": "ellipse", "x": 0.5, "y": 0.5, "w": 0.5, "h": 0.5, "soft": 0.25, "inv": "true"},
+    # revue T4 (24/09, T4-4) : float() de Python lisait « 1_0 » (10) et les chiffres Unicode ; Number() de JS non
+    {"shape": "rect", "x": 0, "y": 0, "w": "1_0", "h": 0.5},
+    {"shape": "rect", "x": 0, "y": 0, "w": 0.5, "h": "٠.٥", "soft": "1_0"},
 ]
 PROBE = PROBE.replace("/*L5_MASKS*/", json.dumps(_L5_MASKS))
 try:
@@ -3757,26 +3776,53 @@ check("co_paste_off_effet_eteint_ni_emporte_ni_reactive_a_la_pose_effet_actif_ga
 # (2) la regle UNIQUE des courbes : les 60 vecteurs partages rejoues sous node, 0 divergence (detail calcule AVANT).
 _cv = D.get("co_vec") if isinstance(D.get("co_vec"), list) and len(D.get("co_vec")) == 2 else [0, ["co_vec absent"]]
 _cv_dv = _cv[1] if isinstance(_cv[1], list) else ["co_vec illisible"]
-check("co_vec_regle_unique_des_courbes_les_60_vecteurs_partages_rejoues_zero_divergence",
-      len(_L5_VEC) == 60 and _cv[0] == 60 and _cv_dv == [], (len(_L5_VEC), _cv[0], _cv_dv))
+# revue T4 (24/09, T4-2) : 60 -> 61 vecteurs -- le DEMI EXACT au pair (0,0625 -> 0,062 ; 0,1875 -> 0,188, sortie de
+# curves_clean Python mesuree) : la mutation `(f%2?f+1:f)` -> `f+1` de dzmCoR rougit ici (pin realigne, pas affaibli)
+check("co_vec_regle_unique_des_courbes_les_61_vecteurs_partages_rejoues_zero_divergence_demi_exact_au_pair_present",
+      len(_L5_VEC) == 61 and _cv[0] == 61 and _cv_dv == []
+      and {"in": "0.0625/0.1875", "out": "0/0.188 0.062/0.188 1/0.188"} in _L5_VEC, (len(_L5_VEC), _cv[0], _cv_dv))
 # (3) trente masques croises avec mask_region.mask_of ; temoins : au moins dix valides ET dix refuses cote Python.
 _mx_js = D.get("co_maskx") if isinstance(D.get("co_maskx"), list) else []
 _mx_py = [_py_mask_of(m) for m in _L5_MASKS] if _py_mask_of else []
 _mx_dv = [(i, m, p, j) for i, (m, p, j) in enumerate(zip(_L5_MASKS, _mx_py, _mx_js)) if p != j]
 check("co_maskx_trente_masques_croises_avec_mask_of_python_zero_divergence_valides_et_refuses",
-      _py_mask_of is not None and len(_L5_MASKS) == 30 and len(_mx_py) == 30 and len(_mx_js) == 30 and _mx_dv == []
+      # revue T4 (24/09) : 30 -> 32 masques (« 1_0 », chiffres Unicode : refuses des deux cotes -- pin realigne)
+      _py_mask_of is not None and len(_L5_MASKS) == 32 and len(_mx_py) == 32 and len(_mx_js) == 32 and _mx_dv == []
       and sum(p is not None for p in _mx_py) >= 10 and sum(p is None for p in _mx_py) >= 10,
       (_py_mask_err, len(_mx_js), _mx_dv))
+# ── revue T4 (24/09/2026, second passage). T4-1 : la pchip EPINGLEE au 1e-6 -- moyenne arithmetique, retrait de la borne
+# 3*m0, retrait de la remise a 0 au changement de signe rougissent chacun (mutations rejouees) ; sans depassement.
+check("co_eval_exact_pchip_epinglee_au_1e_6_trois_valeurs_sans_depassement_monotone",
+      D.get("co_eval_exact") == [0.474259, 0.5488, 0.49169, 0.5, 0, True], D.get("co_eval_exact"))
+# T4-6 : jamais d'exception (Symbol, valueOf qui leve, null, absent, texte -> x = 0 -> 0,2) ; temoins « 0.3 » et 0,3 lus
+_ces = D.get("co_eval_sur") if isinstance(D.get("co_eval_sur"), list) and len(D.get("co_eval_sur")) == 3 else [None, None, None]
+check("co_eval_sur_ne_leve_jamais_illisible_vaut_zero_texte_decimal_lu_fabrique_egale_a_l_evaluation",
+      _ces[0] == [0.2, 0.2, 0.2, 0.2, 0.2, 0.473964, 0.473964] and _ces[1] is True and _ces[2] is True, _ces)
+# T4-5 : Math.hypot -- un point enorme ramene sur le cercle (egal au point unitaire a 45 degres)
+_chy = D.get("co_hypot") if isinstance(D.get("co_hypot"), list) and len(D.get("co_hypot")) == 2 else [None, None]
+check("co_hypot_point_enorme_ramene_sur_le_cercle_comme_le_point_unitaire",
+      isinstance(_chy[1], dict) and _chy[1] != {"r": 1, "g": 1, "b": 1} and _chy[0] == _chy[1], _chy)
+# T4-7 : la vitesse sur V1 seulement ; temoins : V1 vitesse 2 -> 3, V1 vitesse illisible -> 1
+check("co_src_v1_vitesse_lue_sur_v1_seulement_v2_et_sans_piste_a_vitesse_1",
+      D.get("co_src_v1") == [2, 2, 3, 2], D.get("co_src_v1"))
 _L5CO = {n: _corps(n) for n in ("dzmCoR", "dzmWheelToRgb", "dzmWheelFromRgb", "dzmWheelsSet", "dzmCurveTok", "dzmCurveClean",
-                                 "dzmCurveParse", "dzmCurveStr", "dzmCurveEval", "dzmMaskOf", "dzmGradeEffCopy", "dzmIsColorEff",
-                                 "dzmGradeTake", "dzmGradePaste", "dzmColorMatchPut", "dzmSrcTimeAt")}
+                                 "dzmCurveParse", "dzmCurveStr", "dzmCurveFn", "dzmCurveEval", "dzmMaskOf", "dzmGradeEffCopy",
+                                 "dzmIsColorEff", "dzmIsGradeEff", "dzmGradeTake", "dzmGradePaste", "dzmColorMatchPut",
+                                 "dzmSrcTimeAt")}
 _CO_EXP = ("colorTypes:DZM_COLOR_TYPES,wheelToRgb:dzmWheelToRgb,wheelFromRgb:dzmWheelFromRgb,wheelsSet:dzmWheelsSet,"
            "curveClean:dzmCurveClean,curveParse:dzmCurveParse,curveStr:dzmCurveStr,curveEval:dzmCurveEval,maskOf:dzmMaskOf,"
            "gradeTake:dzmGradeTake,gradePaste:dzmGradePaste,colorMatchPut:dzmColorMatchPut,srcTimeAt:dzmSrcTimeAt,")
 check("l5_co_coeur_pur_ni_r_ni_x_ni_reseau_ni_dom_ni_stockage_constantes_uniques_bornes_de_temps_reutilisees_exports_x1",
       all(len(c) > 40 for c in _L5CO.values())
-      and not any(re.search(r"\br\.jsx|\bx\.use|localStorage|sessionStorage|\bwindow\b|\bdocument\b|\bnavigator\b|fetch\(|setClips|pushHistory|style\.", c)
+      # revue T4 (24/09) : dzmIsGradeEff et dzmCurveFn entrent dans la garde ; les noms d'API du navigateur s'ajoutent
+      and not any(re.search(r"\br\.jsx|\bx\.use|localStorage|sessionStorage|\bwindow\b|\bdocument\b|\bnavigator\b|fetch\(|setClips|pushHistory|style\."
+                            r"|requestAnimationFrame|addEventListener|getContext|AbortController|\bURL\.", c)
                   for c in _L5CO.values())
+      and _L5CO["dzmCurveEval"].count("dzmCurveFn(pts)(x)") == 1 and _L5CO["dzmCurveFn"].count("dzmRfNum(x)") == 1
+      and _L5CO["dzmIsGradeEff"].count("dzmIsColorEff(e)&&!e.off") == 1
+      and all(_L5CO[n].count("Math.hypot(x,y)") == 1 and _L5CO[n].count("Math.sqrt") == 0 for n in ("dzmWheelToRgb", "dzmWheelFromRgb"))
+      and _L5CO["dzmSrcTimeAt"].count('clip.tr==="v1"?dzmRfSpeed(clip.speed):1') == 1
+      and _DT.count("curveFn:dzmCurveFn,") == 1
       and _SRCb.count('var DZM_COLOR_TYPES=Object.freeze(["grade","lut","grade_basic","wheels","curves","colormatch","huesat","monochrome"]);') == 1
       # les bornes de temps : la liste de dzmGradeCopy lue a l'APPEL (une dependance au chargement cassait le shim
       # node du banc bundle, L7_revue_I1, qui execute tout le code entre dzmKmImport et l'objet du contrat -- mesure 24/09)

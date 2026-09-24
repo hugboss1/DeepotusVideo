@@ -24,14 +24,24 @@ Mesures (24/09/2026, ffmpeg 9.0.1 = 8.1.1, 1280×720, 3 s) :
 from __future__ import annotations
 
 import math
+import re
 
 SHAPES = ("rect", "ellipse")
+#: Une CHAÎNE n'est lue que si elle est du décimal ASCII (exposant permis) :
+#: la MÊME expression que la règle des courbes (effects_engine._CURVE_NUM,
+#: épinglée égale par tests/test_montage_l5_masque.py). float() accepte
+#: « 1_0 » (10) et les chiffres Unicode (« ٠.٥ », « ０.５ ») que Number() de la
+#: couche refuse (dzmRfNum) : le banc croisé de 30 masques divergeait.
+_NUM = re.compile(r"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?")
 
 
 def _f(v):
     """float fini ou None. Un booléen n'est PAS un nombre (float(True) vaut
-    1.0 : un `x: false` passait pour 0) -> None, comme une valeur illisible."""
+    1.0 : un `x: false` passait pour 0) -> None, comme une valeur illisible.
+    Une chaîne : décimal ASCII seulement (`_NUM`, blancs d'entourage ôtés)."""
     if isinstance(v, bool):
+        return None
+    if isinstance(v, str) and not _NUM.fullmatch(v.strip()):
         return None
     try:
         x = float(v)

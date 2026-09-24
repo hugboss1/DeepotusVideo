@@ -21091,7 +21091,7 @@ function dzmWheelToRgb(kind,x,y,m){
   var b=DZM_WHEEL_B[kind],k=DZM_WHEEL_K[kind],o={};
   x=dzmRfNum(x);y=dzmRfNum(y);m=dzmRfNum(m);
   if(x===null)x=0;if(y===null)y=0;if(m===null)m=0;
-  var d=Math.sqrt(x*x+y*y);if(d>1){x/=d;y/=d}
+  var d=Math.hypot(x,y);if(d>1){x/=d;y/=d}
   ["r","g","b"].forEach(function(c,i){var a=DZM_WHEEL_ANG[i]*Math.PI/180,v=m+k*(x*Math.cos(a)+y*Math.sin(a));
     v=kind==="gamma"?Math.pow(2,v):kind==="gain"?1+v:v;
     o[c]=dzmCoR(Math.max(b[0],Math.min(b[1],v)),3)});
@@ -21104,7 +21104,7 @@ function dzmWheelFromRgb(kind,rgb){
   var m=(v[0]+v[1]+v[2])/3;
   v.forEach(function(w,i){var a=DZM_WHEEL_ANG[i]*Math.PI/180;x+=(w-m)*Math.cos(a);y+=(w-m)*Math.sin(a)});
   x=x*2/3/k;y=y*2/3/k;
-  var d=Math.sqrt(x*x+y*y);if(d>1){x/=d;y/=d}
+  var d=Math.hypot(x,y);if(d>1){x/=d;y/=d}
   return {x:dzmCoR(x,3),y:dzmCoR(y,3),m:dzmCoR(m,3)}}
 /* un NOUVEL effet wheels : celui donné s'il est déjà `wheels` (ses autres clés gardées), sinon un neuf */
 function dzmWheelsSet(eff,kind,x,y,m){
@@ -21140,12 +21140,11 @@ function dzmCurveParse(s){
 function dzmCurveStr(pts){
   if(!Array.isArray(pts))return DZM_CURVE_ID;
   return dzmCurveClean(pts.map(function(q){return Array.isArray(q)&&q.length===2?q[0]+"/"+q[1]:"?"}).join(" "))}
-/* y(x) par pchip ; pts = chaîne ou [[x, y], …] (repassés par la règle canonique) ; x hors [0, 1] -> extrémité */
-function dzmCurveEval(pts,x){
+/* la FABRIQUE pchip (revue T5, 24/09) : la courbe lue et ses pentes calculées UNE fois, puis une fonction x -> y
+   (le dessin échantillonne 101 points sans relire la chaîne) ; pts = chaîne ou [[x, y], …] (repassés par la règle
+   canonique) ; x lu par dzmRfNum (illisible -> 0 : jamais d'exception), hors [0, 1] -> extrémité */
+function dzmCurveFn(pts){
   var p=dzmCurveParse(typeof pts==="string"?pts:dzmCurveStr(pts)),n=p.length,h=[],d=[],m=[],i;
-  x=Number(x);if(x!==x)x=0;
-  if(x<=p[0][0])return p[0][1];
-  if(x>=p[n-1][0])return p[n-1][1];
   for(i=0;i<n-1;i++){h[i]=p[i+1][0]-p[i][0];d[i]=(p[i+1][1]-p[i][1])/h[i]}
   function bord(h0,h1,m0,m1){var e=((2*h0+h1)*m0-h0*m1)/(h0+h1);
     if(Math.sign(e)!==Math.sign(m0))return 0;
@@ -21155,10 +21154,16 @@ function dzmCurveEval(pts,x){
   else{for(i=1;i<n-1;i++){
       if(d[i-1]*d[i]>0){var w1=2*h[i]+h[i-1],w2=h[i]+2*h[i-1];m[i]=(w1+w2)/(w1/d[i-1]+w2/d[i])}else m[i]=0}
     m[0]=bord(h[0],h[1],d[0],d[1]);m[n-1]=bord(h[n-2],h[n-3],d[n-2],d[n-3])}
-  for(i=0;i<n-2&&x>=p[i+1][0];i++);
-  var t=(x-p[i][0])/h[i],t2=t*t,t3=t2*t;
-  var y=(2*t3-3*t2+1)*p[i][1]+(t3-2*t2+t)*h[i]*m[i]+(-2*t3+3*t2)*p[i+1][1]+(t3-t2)*h[i]*m[i+1];
-  return Math.max(0,Math.min(1,y))}
+  return function(x){var j;
+    x=dzmRfNum(x);if(x===null)x=0;
+    if(x<=p[0][0])return p[0][1];
+    if(x>=p[n-1][0])return p[n-1][1];
+    for(j=0;j<n-2&&x>=p[j+1][0];j++);
+    var t=(x-p[j][0])/h[j],t2=t*t,t3=t2*t;
+    var y=(2*t3-3*t2+1)*p[j][1]+(t3-2*t2+t)*h[j]*m[j]+(-2*t3+3*t2)*p[j+1][1]+(t3-t2)*h[j]*m[j+1];
+    return Math.max(0,Math.min(1,y))}}
+/* y(x) par pchip : la fabrique appliquée une fois */
+function dzmCurveEval(pts,x){return dzmCurveFn(pts)(x)}
 function dzmMaskOf(m){
   if(!m||typeof m!=="object"||Array.isArray(m)||DZM_MASK_SHAPES.indexOf(m.shape)<0)return null;
   var x=dzmRfNum(m.x),y=dzmRfNum(m.y),w=dzmRfNum(m.w),h=dzmRfNum(m.h),s=dzmRfNum(m.soft);
@@ -21202,10 +21207,11 @@ function dzmColorMatchPut(effects,eff){
   if(!pose)out.push(cp);
   return out}
 /* l'instant de SOURCE sous la tête : srcIn + (tête − début)·vitesse (vitesse lue par dzmRfSpeed : 0,25..4,
-   illisible -> 1), tête dans [début, fin[ ; hors plan ou illisible -> le milieu du plan ; arrondi au millième */
+   illisible -> 1 ; SUR V1 SEULEMENT — le rendu ne lit `speed` que sur V1, _v1_speed, revue T4 : ailleurs 1),
+   tête dans [début, fin[ ; hors plan ou illisible -> le milieu du plan ; arrondi au millième */
 function dzmSrcTimeAt(clip,head){
   if(!clip||typeof clip!=="object")return 0;
-  var a=dzmRfNum(clip.srcIn),s=dzmRfNum(clip.start),e=dzmRfNum(clip.end),sp=dzmRfSpeed(clip.speed),t=dzmRfNum(head);
+  var a=dzmRfNum(clip.srcIn),s=dzmRfNum(clip.start),e=dzmRfNum(clip.end),sp=clip.tr==="v1"?dzmRfSpeed(clip.speed):1,t=dzmRfNum(head);
   a=a===null?0:Math.max(0,a);
   if(s===null||e===null||!(e>s))return dzmCoR(a,3);
   if(t===null||t<s||t>=e)t=(s+e)/2;
@@ -21777,6 +21783,8 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   fxOf:dzmFxOf,fxPut:dzmFxPut,curveHit:dzmCurveHit,curveMove:dzmCurveMove,curveAdd:dzmCurveAdd,curveDel:dzmCurveDel,curveMid:dzmCurveMid,gradePrev:dzmGradePrev,matchBody:dzmMatchBody,frameBody:dzmFrameBody,gpSig:dzmGpSig,GradePanel:DzmGradePanel,MaskBox:DzmMaskBox,
   /* L5 D-31 D-32 (24/09/2026, tache 6) : scopes sous le lecteur, lightbox des plans, gestes partages du grade */
   scopesAt:dzmScopesAt,scopesBody:dzmScopesBody,scopesGet:dzmScopesGet,scopesSet:dzmScopesSet,SC_CLE:DZM_SC_CLE,lbPlans:dzmLbPlans,lbNext:dzmLbNext,LB_MAX:DZM_LB_MAX,gradeCopyDo:dzmGradeCopyDo,gradePasteDo:dzmGradePasteDo,gradeRead:dzmGpRead,Scopes:DzmScopes,Lightbox:DzmLightbox,
+  /* L5 revue T4 (24/09/2026) : la fabrique pchip (le dessin échantillonne sans relire la chaîne) */
+  curveFn:dzmCurveFn,
   DEFAULTS:DZM_DEFAULT_TRACKS};
 window.DzTracks=DzTracks;
 
