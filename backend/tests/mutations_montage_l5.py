@@ -6,6 +6,11 @@ et run-tests.ps1 ne le liste pas. Il se lance A LA MAIN, depuis backend/ :
 
     python tests/mutations_montage_l5.py            # toutes
     python tests/mutations_montage_l5.py 0 7 14     # celles-la
+    python tests/mutations_montage_l5.py --pre-vol  # le pre-vol seul
+
+PRE-VOL (revue finale, 24/09/2026) : avant toute mutation, `repatch_all.py
+--list` doit rendre `montage` PUIS `dzcout` (ordre = mtime des `.bak_*`) ;
+sinon sortie code 2, rien n'est mute.
 
 LU PAR CODE DE SORTIE, jamais par grep : 0 quand TOUTES les mutations sont
 ROUGES sur les lignes nommees ET sur le COMPTE declare (`N_ROUGES`, compare
@@ -357,8 +362,37 @@ def rouges(banc):
     return set(re.findall(r"^  FAIL  (\S+)", txt, re.M)), txt, erreur
 
 
+def pre_vol():
+    """PRE-VOL DE LA CHAINE (revue finale, 24/09/2026) : `repatch_all.py
+    --list` doit rendre `montage` PUIS `dzcout`, chacun avec son script.
+
+    L'ordre de la chaine est celui du MTIME des `.bak_*` (repatch_all.chain) :
+    des `.bak` copies sans leur date (copie simple, worktree neuf) peuvent
+    l'inverser ; alors `--from montage` ne rejoue plus `dzcout`, et la
+    restauration d'une mutation du PATCHER laisse le bundle MODIFIE (le
+    sha256 du `finally` accuse, mais apres coup). On refuse donc AVANT toute
+    mutation. Rend (ok, message)."""
+    r = subprocess.run([PY, "scripts/repatch_all.py", "--list"], capture_output=True,
+                       cwd=R, timeout=120)
+    txt = (r.stdout + r.stderr).decode("utf-8", "replace")
+    if r.returncode != 0:
+        return False, "repatch_all.py --list a rendu le code %d :\n%s" % (r.returncode, txt)
+    lignes = [l.split() for l in txt.splitlines() if l.strip()]
+    tags = [l[0] for l in lignes]
+    sans = [l[0] for l in lignes if len(l) < 2 or l[1] != "OK"]
+    if "montage" not in tags or "dzcout" not in tags:
+        return False, "chaine sans `montage` ou sans `dzcout` : %s" % tags
+    if tags.index("montage") > tags.index("dzcout"):
+        return False, ("chaine INVERSEE (mtime des .bak_*) : %s -- `dzcout` passe "
+                       "avant `montage` ; retablir le mtime des .bak avant toute "
+                       "mutation" % tags)
+    if sans:
+        return False, "maillon(s) sans script : %s" % sans
+    return True, "chaine %s : montage puis dzcout, OK" % " -> ".join(tags)
+
+
 def main():
-    seuls = sys.argv[1:]
+    seuls = [a for a in sys.argv[1:] if not a.startswith("--")]
     bilan = []
     for i, (banc, rel, old, new, attendus) in enumerate(M):
         if seuls and str(i) not in seuls:
@@ -425,4 +459,10 @@ def main():
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
+    ok_pv, msg_pv = pre_vol()
+    print("PRE-VOL : " + msg_pv)
+    if not ok_pv:
+        sys.exit(2)                               # AVANT toute mutation
+    if "--pre-vol" in sys.argv:                   # s'arreter apres le pre-vol
+        sys.exit(0)
     main()

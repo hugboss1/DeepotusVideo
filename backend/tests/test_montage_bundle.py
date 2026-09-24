@@ -19038,6 +19038,25 @@ check("L5_css_scopes_puce_dans_la_barre_en_tete_encart_dans_le_cadre_borne_40_po
       and "pointer-events:none" in _EB_CSS[_EB_CSS.find(".dzsvm .dzm-scimg{"):].split("}", 1)[0]
       and "pointer-events:auto" not in _EB_CSS[_EB_CSS.find(".dzsvm .dzm-scimg{"):].split("}", 1)[0]
       and _EB_CSS.count(".dzm-scimg{") == 1, _SC_CSS)
+# REVUE FINALE L5 (24/09/2026) : LA NOTE DU LECTEUR SOUS LA RANGEE. MESURE Playwright 1400 x 900 paysage, tiroir
+# Narration ferme : la note (style EN LIGNE absolute top:58 left:18 z 5, bloc conteneur `.dzsvm.svm-col` car la zone
+# est static) en (250, 124, 271 x 14) chevauchait la rangee .svm-playerbar remontee en tete (242, 114, 848 x 21) ;
+# apres : (242, 143, 271 x 14), sous la rangee (bas 135), le cadre descend (y 165) et ses timecodes avec lui.
+# REGLE EXACTE (hors commentaires, une fois) + TEMOINS : le style en ligne que la regle doit battre est TOUJOURS la
+# (sinon `!important` serait devenu inutile ou faux), dans la zone du lecteur, AVANT la scene ; et la rangee est
+# toujours en tete (order:-1), sans quoi « sous la rangee » ne vaudrait plus.
+_NOTE_R = ".dzsvm .svm-playerzone:not([data-side])>.svm-note{position:static!important;align-self:flex-start;margin:0}"
+_NOTE_B = BUNDLE.read_bytes().decode("utf-8-sig")
+_NOTE_L = 'note?r.jsx("div",{className:"svm-note",style:{position:"absolute",top:58,left:18,zIndex:5},children:note}):null'
+_NOTE_Z = _NOTE_B.find('r.jsxs("div",{className:"svm-playerzone"')
+_NOTE_S = _NOTE_B.find('r.jsx("div",{className:"svm-stage"', _NOTE_Z) if _NOTE_Z >= 0 else -1
+check("L5_revue_note_du_lecteur_dans_le_flux_sous_la_rangee_en_paysage",
+      _sansc(_EB_CSS).count(_NOTE_R) == 1
+      and _sansc(_EB_CSS).count(">.svm-note{") == 1
+      and _NOTE_B.count(_NOTE_L) == 1
+      and 0 <= _NOTE_Z < _NOTE_B.find(_NOTE_L) < _NOTE_S
+      and _sansc(_EB_CSS).count(".dzsvm .svm-playerzone:not([data-side]) .svm-playerbar{order:-1}") == 1,
+      [_sansc(_EB_CSS).count(_NOTE_R), _NOTE_B.count(_NOTE_L), _NOTE_Z, _NOTE_S])
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

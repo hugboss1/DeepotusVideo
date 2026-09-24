@@ -947,18 +947,23 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
    feuille amont. Le banc recalcule le débord à partir des valeurs LUES
    (`top`, les deux filets) et exige pied ≥ débord + 8 : aucun des deux
    nombres n'y est recopié.
-   DETTE NAVIGATEUR, DITE : tiroir Narration FERMÉ, la même bande de 19 px
-   tombe sur `.svm-playerbar` (dans `.svm-playerzone`, rembourrage 10 px)
-   — non mesurable sans écran. Si une puce s'y trouve, la parade serait
-   `top:-14px` sur l'onglet (écart à déclarer contre le §2.1) ; elle n'est
-   pas prise ici. La mesure à faire dans la console du navigateur, tiroir
-   Narration OUVERT :
+   DETTE NAVIGATEUR SOLDÉE — MESURÉ le 24/09/2026 (revue finale L5,
+   Playwright + Chrome 1400 × 900 paysage). La dette disait : tiroir
+   Narration FERMÉ, la même bande de 19 px tomberait sur `.svm-playerbar`.
+   PÉRIMÉ depuis 4bda880 : en paysage la rangée du lecteur est remontée EN
+   TÊTE de `.svm-playerzone` (order:-1, bloc D-31 plus bas) — mesurée en
+   (242, 114, 848 × 21), à 300 px au-dessus de l'onglet. Onglet OUTILS
+   replié mesuré en (246, 417, 121 × 21) : tiroir FERMÉ, il se pose sur le
+   bas de la zone (rembourrage 10 px et scène vide à gauche du cadre, qui
+   commence à x = 439) — `.svm-playerzone` sous ses trois points de sonde,
+   aucune puce ; tiroir OUVERT, sur `.svm-narr`, `t.top` 417 ≥ bas de la
+   note 220 (true). Barre OUTILS dépliée, l'onglet est sur sa propre barre
+   (`.dzm-tbgrip`, `.dzm-tbzone`). La parade `top:-14px` n'a pas lieu
+   d'être. Sonde de console conservée :
      var t=document.querySelector('.dzm-tbtab').getBoundingClientRect(),
          n=[...document.querySelectorAll('.svm-narr .svm-note')].pop()
            .getBoundingClientRect();
-     [t.top, n.bottom, t.top>=n.bottom]        // attendu : true
-   puis tiroir FERMÉ, la même contre `.svm-playerbar` (t.top contre le
-   `bottom` de son dernier enfant). */
+     [t.top, n.bottom, t.top>=n.bottom]        // attendu : true */
 .dzsvm .svm-narr{padding-bottom:27px}
 
 /* D-11 — la plage I/O sur la regle : bande ambre translucide, 4 px de haut,
@@ -1611,6 +1616,19 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
 .dzsvm .svm-frame>.dzm-scpop{position:absolute;top:34px;right:10px;z-index:6;display:flex;flex-direction:column;align-items:flex-end;gap:4px;max-width:calc(100% - 20px);pointer-events:none}
 .dzsvm .dzm-scimg{display:block;width:auto;height:auto;max-width:180px;max-height:180px;max-height:calc(min(100cqh, 100cqw / var(--svm-arw,.5625)) * .4);max-width:calc(min(100cqh * var(--svm-arw,.5625), 100cqw) * .4);border-radius:4px;border:1px solid #ffffff33;background:#000;pointer-events:none}
 .dzsvm .dzm-scmsg{font-family:var(--f-mono);font-size:10px;padding:2px 7px;border-radius:5px;background:#000000aa;color:#f2efe9;text-align:right}
+/* REVUE FINALE L5 (24/09/2026) — LA NOTE DU LECTEUR SOUS LA RANGÉE. Le bundle pose la note (`note`, ex. « Aucun grade
+   copié », Ctrl+Alt+V) en premier enfant de .svm-playerzone avec un style EN LIGNE `position:absolute; top:58px;
+   left:18px; z-index:5` ; la zone est `position:static` : le bloc conteneur est `.dzsvm.svm-col`, pas la zone.
+   MESURÉ Playwright 1400 × 900 paysage : note (250, 124, 271 × 14) ; tiroir Narration FERMÉ, la rangée .svm-playerbar
+   remontée en tête (order:-1, 4bda880) est en (242, 114, 848 × 21) → CHEVAUCHEMENT (la puce « source » passe sur le
+   texte) ; tiroir OUVERT, la note se pose sur l'en-tête « NARRATION » du tiroir, hors de la zone.
+   PARADE : en paysage la note rentre DANS LE FLUX de la zone (colonne flex) — `static` ignore top/left/z-index en
+   ligne, `!important` est le seul moyen de battre un style en ligne ; ordre 0 après la rangée (order:-1), avant la
+   scène : elle tombe SOUS la rangée, à 8 px (le `gap` de la zone), et la scène perd sa hauteur le temps de la note —
+   le cadre et ses timecodes descendent avec elle, aucun chevauchement possible, rangée repliée sur deux lignes
+   comprise. `align-self:flex-start` : la largeur du texte, pas celle de la zone ; `margin:0` : le `margin-top:10px`
+   de .svm-note doublerait le gap. Portrait (data-side, zone en rangée) : non touché. */
+.dzsvm .svm-playerzone:not([data-side])>.svm-note{position:static!important;align-self:flex-start;margin:0}
 .dzsvm .dzm-lbscrim{position:absolute;inset:0;z-index:19;background:rgba(0,0,0,.62);display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box}
 .dzsvm[data-svm-theme="light"] .dzm-lbscrim{background:rgba(23,21,18,.38)}
 .dzsvm .dzm-lb{background:var(--panel2);border:1px solid var(--stroke2);border-radius:12px;padding:12px;max-width:100%;max-height:100%;overflow:auto;box-sizing:border-box;box-shadow:0 10px 28px rgba(0,0,0,.55)}
