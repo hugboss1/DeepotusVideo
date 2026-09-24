@@ -17444,7 +17444,8 @@ check("L7d1_etat_diffSt_replie_en_queue_de_EB7_ETAT_apres_boMap_avant_stDzFin_un
       and s.count("diffSt") == 3 and src.count("diffSt") == 0
       # MESURE 24/09 : 543 useState dans le livre, 482 dans le .bak -- +61 par la chaine, dont celui-ci
       # L7 D-3b (tache 4-bis) : abSt ajoute le sien, 543 -> 544 ; L7 D-22 (tache 6) : dzNewTr du tiroir, 544 -> 545
-      and s.count("x.useState(") == 545 and (_bak.count("x.useState(") == 482 and _bak.count("diffSt") == 0 if _bak else False),
+      # L7-B D-34 (tache 7, 24/09/2026) : minNote + noteMsg du tiroir Medias (couche), 545 -> 547 (les trois epingles)
+      and s.count("x.useState(") == 547 and (_bak.count("x.useState(") == 482 and _bak.count("diffSt") == 0 if _bak else False),
       f"etat={s.count(nl(_L7D_ST))} ordre={(_iDfBo, _iDfSt, _iDfFin)} diffSt={s.count('diffSt')} useState={s.count('x.useState(')}")
 # revue 24/09 : un `diff` sans etat rend null -- jamais le popover generique
 _L7D_G = '    if(pop==="diff")return diffSt?r.jsx(DzTracks.DiffView,Object.assign({onClose:function(){setPop("")}},diffSt)):null;'
@@ -17559,7 +17560,7 @@ _L7G_ST = '  var stAb=x.useState({a:null,b:null,k:""}),abSt=stAb[0],setAbSt=stAb
 _iAbSt = s.find(nl(_L7G_ST))
 check("L7g_etat_abSt_replie_en_queue_de_EB7_ETAT_apres_diffSt_avant_stDzFin_useState_544",
       s.count(nl(_L7G_ST)) == 1 and _L7G_ST in P._EB7_ETAT and P._EB7_ETAT.endswith(_L7G_ST) and 0 < _iDfSt < _iAbSt < _iDfFin
-      and P._EB7_ETAT.count("DzTracks") == 4 and s.count("x.useState(") == 545 and (_bak.count("x.useState(") == 482 if _bak else False)
+      and P._EB7_ETAT.count("DzTracks") == 4 and s.count("x.useState(") == 547 and (_bak.count("x.useState(") == 482 if _bak else False)
       # MOT ENTIER (stabSt, tabSt… existent) : la declaration, abA (x2), abB (x2) = 5 ; setAbSt porte une majuscule ; x0 dans le .bak
       and len(re.findall(r"\babSt\b", s)) == 5 and (len(re.findall(r"\babSt\b", _bak)) == 0 if _bak else False)
       # la couche : aucun `abSt` entier (temoin : ses trois « dzmStabState » de L3 portent la sous-chaine)
@@ -17728,7 +17729,7 @@ check("L7f4_tiroir_etat_dzNewTr_branche_onNewTrack_avant_onChange_P16_intact_cas
       and s.count('r.jsx("input",{type:"checkbox",checked:dzNewTr,"aria-label":"Traduire dans une nouvelle piste",onChange:function(e){setDzNewTr(e.target.checked)}},"c")') == 1
       and s.count('className:"sub-trlang sub-trnew",title:"Coché : la traduction naît dans une nouvelle piste') == 1 and 0 < _iTg < _iNt < _iFn < _iTg + 1500
       and s.count('apres:dzOn.on?(dzNewTr?"Les "+dzTrN+" répliques traduites naissent dans une nouvelle piste S2, S3… — S1 reste intacte ; « Annuler » retire la piste et ses répliques.":DzTracks.subsTrTitle(dzTrN)):dzOn.pourquoi,') == 1
-      and len(re.findall(r"\bdzNewTr\b", s)) == 4 and s.count("setDzNewTr") == 2 and s.count("x.useState(") == 545
+      and len(re.findall(r"\bdzNewTr\b", s)) == 4 and s.count("setDzNewTr") == 2 and s.count("x.useState(") == 547
       and (_bak.count("dzNewTr") == 0 and _bak.count("sub-trnew") == 0 and _bak.count("onNewTrack") == 0 if _bak else False),
       f"ordre={(_iS9b, _iS9c, _iTrN)} case={(_iTg, _iNt, _iFn)} dzNewTr={len(re.findall(chr(92) + 'bdzNewTr' + chr(92) + 'b', s))} useState={s.count('x.useState(')}")
 # L7f4 (repli R_M24H) : l'hote passe onNewTrack -- subsNew puis svmTracksSet (historique) puis subsCopy sur setClips,
@@ -17965,6 +17966,106 @@ check("L7Bb_sous_node_verrou_pose_ou_clip_supprime_PENDANT_l_analyse_rien_n_est_
       and len((_BB.get("supprime") or {}).get("calls") or []) == 1 and (_BB.get("supprime") or {}).get("hist") == 0
       and (_BB.get("supprime") or {}).get("notes") == ["Analyse des changements de plan…", "Clip introuvable — rien à découper."],
       (_BB.get("verrou_pendant"), _BB.get("supprime")))
+
+print("\n[L7B] D-34 tache 7 : note etoile des rendus et chips de note du tiroir Medias (24/09/2026)")
+# ── L7-B D-34 (24/09/2026, tache 7). Tout le client vit dans la COUCHE (DzmMediaDrawer, dzmRatingNorm,
+# dzmRatingNext, DZM_NOTE_CHIPS) : AUCUNE section du patcher (191 ancres, inchange), aucune reference neuve au
+# contrat DzTracks (le tiroir appelle les fonctions de la couche par leur nom) -> SONDE dzcout 161 INCHANGEE.
+# Le miroir : les morceaux sont x1 dans la couche ET dans le bundle livre, x0 dans .bak_montage ; puis le TIROIR
+# DU BUNDLE LIVRE (extrait mot pour mot entre l'en-tete de la couche et `window.DzTracks=DzTracks;`) est JOUE sous
+# node avec des hooks et un reseau bouchonnes : clic d'etoile optimiste, PUT, retour arriere sur refus, chips.
+_L7BN_P = ['function dzmRatingNorm(v){', 'function dzmRatingNext(cur,clic){', 'var DZM_NOTE_CHIPS=[',
+           'ratingNorm:dzmRatingNorm,ratingNext:dzmRatingNext,', 'className:"svm-medstars",draggable:!0,',
+           'onClick:function(e){e.stopPropagation();e.preventDefault();noter(j,i)}',
+           '+(minNote>0?"&min_rating="+minNote:"")', 'fetch("/api/jobs/"+encodeURIComponent(jid)+"/rating",{method:"PUT",']
+check("L7Bn_morceaux_x1_couche_et_bundle_x0_bak_aucune_section_L7B_sonde_161",
+      all(src.count(t) == 1 and s.count(t) == 1 for t in _L7BN_P)
+      and (all(_bak.count(t) == 0 for t in _L7BN_P) and _bak.count("svm-medstar") == 0 if _bak else False)
+      and not any(t[0].startswith("L7B") for t in P.PATCHES)
+      and s.count("DzTracks") == 161 and _sonde.get("montage") == 161,
+      {t[:30]: (src.count(t), s.count(t)) for t in _L7BN_P})
+check("L7Bn_css_etoiles_et_message_de_note_x1_dans_la_feuille",
+      _EB_CSS.count(".dzsvm .svm-medstars{") == 1 and _EB_CSS.count(".dzsvm .svm-medstar{") == 1
+      and _EB_CSS.count(".dzsvm .svm-medstar[data-on]{") == 1 and _EB_CSS.count(".dzsvm .svm-mednotemsg{") == 1
+      # temoin : la rangee du tiroir (E-2) est toujours la
+      and _EB_CSS.count(".dzsvm .svm-medrow{") == 1,
+      [_EB_CSS.count(k) for k in (".dzsvm .svm-medstars{", ".dzsvm .svm-medstar{", ".dzsvm .svm-mednotemsg{")])
+_iN_d = s.find("/* ── Montage, couche window.DzTracks"); _iN_f = s.find("window.DzTracks=DzTracks;")
+_L7BN_LAYER = s[_iN_d:_iN_f + len("window.DzTracks=DzTracks;")].replace("\r\n", "\n") if 0 <= _iN_d < _iN_f else ""
+_L7BN_RT = "non joue"
+if len(_L7BN_LAYER) > 100000:
+    _L7BN_SHIM = ('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + _L7BN_LAYER + "\n" +
+        "var HS=[],HI=0,EFF=[];\n"
+        "function deps(a,b){if(!a||!b||a.length!==b.length)return !0;for(var i=0;i<a.length;i++)if(a[i]!==b[i])return !0;return !1}\n"
+        "var x={useState:function(v){var i=HI++;if(!(i in HS))HS[i]=v;return [HS[i],function(n){HS[i]=typeof n==='function'?n(HS[i]):n}]},\n"
+        "  useRef:function(v){var i=HI++;if(!(i in HS))HS[i]={current:v};return HS[i]},\n"
+        "  useEffect:function(f,d){var i=HI++;if(!(i in HS)||deps(HS[i],d)){HS[i]=d;EFF.push(f)}}};\n"
+        "var r={jsx:function(t,p){return {t:t,p:p||{}}},jsxs:function(t,p){return {t:t,p:p||{}}}};\n"
+        "var MODE='ok',CALLS=[];\n"
+        "var JOBS=[{job_id:'a',status:'done',video_path:'/o/a.mp4',title:'A',rating:0,provider:'seedance'},\n"
+        "  {job_id:'b',status:'done',video_path:'/o/b.mp4',title:'B',rating:4,provider:'seedance'}];\n"
+        "function rep(ok,st,d){return Promise.resolve({ok:ok,status:st,json:function(){return Promise.resolve(d)}})}\n"
+        "function fetch(u,o){CALLS.push([u,o&&o.method||'GET',o&&o.body?JSON.parse(o.body):null]);\n"
+        "  if(!o||!o.method)return rep(!0,200,JSON.parse(JSON.stringify(JOBS)));\n"
+        "  if(MODE==='net')return Promise.reject(new Error('panne'));\n"
+        "  return MODE==='ok'?rep(!0,200,{}):rep(!1,400,{detail:'rating doit être un entier de 0 à 5'})}\n"
+        "function pause(){return new Promise(function(z){setTimeout(z,20)})}\n"
+        "var O={open:!0,trId:'v1',exts:null,onAdd:function(){ADD++},onClose:function(){}},ADD=0,T;\n"
+        "function rend(){HI=0;T=DzmMediaDrawer(O);var e=EFF;EFF=[];e.forEach(function(f){f()});return T}\n"
+        "function tous(n,out){out=out||[];if(!n||typeof n!=='object')return out;if(Array.isArray(n)){n.forEach(function(k){tous(k,out)});return out}\n"
+        "  if(n.t){out.push(n);tous(n.p&&n.p.children,out)}return out}\n"
+        "function cls(c){return tous(T).filter(function(n){return n.p&&n.p.className===c})}\n"
+        "function etoiles(){return cls('svm-medrow').map(function(rw){return tous(rw.p.children).filter(function(n){return n.p.className==='svm-medstar'})\n"
+        "  .map(function(b){return b.p['data-on']===''?1:0}).reduce(function(a,b){return a+b},0)})}\n"
+        "function ev(){var e={sp:0,pd:0,stopPropagation:function(){e.sp++},preventDefault:function(){e.pd++}};return e}\n"
+        "function clic(row,i){var rw=cls('svm-medrow')[row],b=tous(rw.p.children).filter(function(n){return n.p.className==='svm-medstar'})[i-1];\n"
+        "  var e=ev();b.p.onClick(e);return e}\n"
+        "function msg(){var m=cls('svm-medst svm-mednotemsg');return m.length?m[0].p.children:null}\n"
+        "(async function(){var R={};rend();await pause();rend();\n"
+        "  R.charge=[CALLS.slice(),etoiles()];CALLS=[];\n"
+        "  var st=cls('svm-medstars')[0];R.span=[st.p.draggable,(function(){var e=ev();st.p.onDragStart(e);return [e.sp,e.pd]})()];\n"
+        "  R.titres=tous(cls('svm-medrow')[1].p.children).filter(function(n){return n.p.className==='svm-medstar'}).map(function(b){return b.p.title});\n"
+        "  MODE='ok';var e1=clic(0,3);rend();R.ok_opt=etoiles();await pause();rend();R.ok=[CALLS.slice(),etoiles(),msg(),e1.sp,e1.pd,ADD];CALLS=[];\n"
+        "  MODE='ko';clic(1,2);rend();R.ko_opt=etoiles();await pause();rend();R.ko=[CALLS.slice(),etoiles(),msg()];CALLS=[];\n"
+        "  MODE='ok';clic(0,3);rend();await pause();rend();R.zero=[CALLS.slice(),etoiles(),msg()];CALLS=[];\n"
+        "  MODE='net';clic(1,5);rend();await pause();rend();R.net=[etoiles(),msg()];CALLS=[];\n"
+        "  var ch=tous(T).filter(function(n){return n.t==='button'&&n.p.className==='svm-themechip'&&(n.p.children==='★ 3+'||n.p.children==='★ 5')});\n"
+        "  R.chips=ch.map(function(n){return [n.p.children,typeof n.p.title==='string'&&n.p.title.length>10,n.p['data-on']===void 0]});\n"
+        "  ch[0].p.onClick();rend();await pause();rend();R.f3=[CALLS.map(function(c){return c[0]}),\n"
+        "    tous(T).filter(function(n){return n.p.children==='★ 3+'})[0].p['data-on']];CALLS=[];\n"
+        "  tous(T).filter(function(n){return n.p.children==='★ 3+'})[0].p.onClick();rend();await pause();rend();R.f0=CALLS.map(function(c){return c[0]});\n"
+        "  console.log(JSON.stringify(R))})();\n")
+    _pBN = pathlib.Path(TMP) / "l7b_notes.js"; _pBN.write_text(_L7BN_SHIM, encoding="utf-8")
+    _rBN = NODE(["node", str(_pBN)], timeout=60)
+    try: _L7BN_RT = json.loads(_rBN.stdout.strip().splitlines()[-1]) if _rBN.returncode == 0 else ("rc=" + str(_rBN.returncode) + " " + (_rBN.stderr or "")[-400:])
+    except Exception as _e: _L7BN_RT = temoin(_e)
+_BN = _L7BN_RT if isinstance(_L7BN_RT, dict) else {}
+_BN_GET = "/api/jobs?limit=24&offset=0&video=1"
+check("L7Bn_sous_node_le_tiroir_du_bundle_charge_et_lit_la_note_du_serveur",
+      _BN.get("charge") == [[[_BN_GET, "GET", None]], [0, 4]], _L7BN_RT)
+check("L7Bn_sous_node_les_etoiles_annulent_leur_glisser_et_le_titre_dit_retirer_sur_l_etoile_courante",
+      _BN.get("span") == [True, [1, 1]]
+      and _BN.get("titres") == ["Noter 1 ★", "Noter 2 ★", "Noter 3 ★", "Retirer la note (4 ★)", "Noter 5 ★ — Good Take"],
+      (_BN.get("span"), _BN.get("titres")))
+check("L7Bn_sous_node_clic_optimiste_PUT_3_clic_arrete_a_l_etoile_rien_n_est_pose_sur_la_piste",
+      _BN.get("ok_opt") == [3, 4]
+      and _BN.get("ok") == [[["/api/jobs/a/rating", "PUT", {"rating": 3}]], [3, 4], None, 1, 1, 0],
+      (_BN.get("ok_opt"), _BN.get("ok")))
+check("L7Bn_sous_node_refus_400_remet_la_note_d_avant_et_le_dit",
+      # temoin : la note optimiste a bien ete posee (2) avant le retour arriere (4)
+      _BN.get("ko_opt") == [3, 2]
+      and _BN.get("ko") == [[["/api/jobs/b/rating", "PUT", {"rating": 2}]], [3, 4],
+                           "Note refusée : rating doit être un entier de 0 à 5 — note d'avant remise."],
+      (_BN.get("ko_opt"), _BN.get("ko")))
+check("L7Bn_sous_node_clic_sur_l_etoile_courante_envoie_0_et_efface_le_message",
+      _BN.get("zero") == [[["/api/jobs/a/rating", "PUT", {"rating": 0}]], [0, 4], None], _BN.get("zero"))
+check("L7Bn_sous_node_panne_reseau_remet_la_note_et_le_dit",
+      _BN.get("net") == [[0, 4], "Note refusée : panne — note d'avant remise."], _BN.get("net"))
+check("L7Bn_sous_node_chips_3_puis_5_titrees_eteintes_au_depart",
+      _BN.get("chips") == [["★ 3+", True, True], ["★ 5", True, True]], _BN.get("chips"))
+check("L7Bn_sous_node_chip_3_redemande_la_page_0_avec_min_rating_3_puis_la_retirer_redemande_sans",
+      _BN.get("f3") == [[_BN_GET + "&min_rating=3"], ""] and _BN.get("f0") == [_BN_GET],
+      (_BN.get("f3"), _BN.get("f0")))
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

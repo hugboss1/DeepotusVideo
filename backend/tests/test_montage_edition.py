@@ -1105,6 +1105,17 @@ out.ca_sans_src=ca(T.cutAt([{tr:"v1",id:"q",start:0,end:4}],"q",[2],{}));
 /* la moitié droite garde les autres champs du clip (label, src, fx) — comme la lame */
 out.ca_champs=(function(){var o=T.cutAt([Object.assign({},CA[0],{fx:["x"]})],"p",[3],{}).clips[1];return [o.label,o.src,o.fx]})();
 out.ca_pur=[JSON.stringify(CA)===_ca0,T.cutAt(CA,"p",[3],{}).clips!==CA,T.cutAt(CA,"p",[3],{}).clips[2]===CA[1]];
+/* ── [33] L7-B D-34 (24/09/2026) : la note étoile d'un rendu — dzmRatingNorm / dzmRatingNext purs ── */
+out.rn=[T.ratingNorm(0),T.ratingNorm(3),T.ratingNorm(5),T.ratingNorm(6),T.ratingNorm(-1),T.ratingNorm("3"),T.ratingNorm(3.5),
+  T.ratingNorm(!0),T.ratingNorm(null),T.ratingNorm(void 0),T.ratingNorm(NaN),T.ratingNorm(3.0)];
+/* l'étoile cliquée devient la note ; l'étoile COURANTE la retire (0) ; une note serveur illisible est lue 0 */
+out.rx=[T.ratingNext(0,3),T.ratingNext(3,3),T.ratingNext(3,5),T.ratingNext(5,1),T.ratingNext(1,1),T.ratingNext(null,4),T.ratingNext("3",3)];
+/* clic illisible (0, 6, "2", null) : la note courante, normalisée (9 → 0) */
+out.rx_bornes=[T.ratingNext(3,0),T.ratingNext(3,6),T.ratingNext(3,"2"),T.ratingNext(3,null),T.ratingNext(9,9),T.ratingNext(9,2)];
+/* une suite de clics sur la même ligne : 0 -3→ 3 -3→ 0 -5→ 5 -2→ 2 -2→ 0 */
+out.rx_suite=(function(){var v=0,s=[];[3,3,5,2,2].forEach(function(c){v=T.ratingNext(v,c);s.push(v)});return s})();
+/* les chips du tiroir : deux seuils, 3 puis 5, chacune avec un titre */
+out.rchips=typeof DZM_NOTE_CHIPS==="undefined"?null:DZM_NOTE_CHIPS.map(function(n){return [n[0],n[1],typeof n[2]==="string"&&n[2].length>10]});
 console.log(JSON.stringify(out));
 """
 # E-9 : svmRuler / svmPad2 sont des fonctions DU BUNDLE (meme portee module que
@@ -1370,7 +1381,9 @@ try:
                  "sst","sst_bornes","sn","sn2","sn_place","sb","sb_defaut","sb_neuf","sb_bascule","bid",
                  "sc","sc_clips","sc_memes","sc_ids","sc_bornes","sc_pur","rm","rm_s1","tp",
                  # L7-B D-42 (tache 2) : les DIX cles de la section [32].
-                 "ca","ca_vitesse","ca_ids","ca_ids_pris","ca_bords","ca_refus","ca_un","ca_sans_src","ca_champs","ca_pur"]
+                 "ca","ca_vitesse","ca_ids","ca_ids_pris","ca_bords","ca_refus","ca_un","ca_sans_src","ca_champs","ca_pur",
+                 # L7-B D-34 (tache 7) : les CINQ cles de la section [33].
+                 "rn","rx","rx_bornes","rx_suite","rchips"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -2993,6 +3006,57 @@ check("l7b_ca_coeur_pur_dzmUniqueId_x1_bord_par_constante_export_cutAt_x1",
       and _SRCb.count("var DZM_CUT_BORD=.05;") == 1
       and len(_DT) > 1000 and _DT.count("cutAt:dzmCutAt,") == 1 and _SRCb.count("cutAt:") == 1,
       (len(_L7BC), _L7BC.count("dzmUniqueId("), _L7BC.count("DZM_CUT_BORD"), _DT.count("cutAt:dzmCutAt,")))
+
+print("\n[33] L7-B D-34 : la note etoile d'un rendu — dzmRatingNorm / dzmRatingNext purs, etoiles et chips du tiroir (tache 7, 24/09/2026)")
+# ── L7-B D-34 (24/09/2026, tache 7, decision n°5 du plan). La note vit EN BASE (jobs.rating, PUT /api/jobs/{id}/rating,
+# GET /api/jobs?min_rating= : banc backend test_montage_l7b_notes.py). Ici le coeur PUR du client : ratingNorm lit ce que
+# le serveur rend (entier 0..5, tout le reste -> 0, MEME juge que la route qui refuse "3", 3.5, true) ; ratingNext : l'etoile
+# cliquee devient la note, l'etoile COURANTE la retire (0), un clic illisible rend la note courante.
+check("rn_norm_entier_0_5_sinon_0_chaine_flottant_bool_null_nan_hors_bornes",
+      D.get("rn") == [0, 3, 5, 0, 0, 0, 0, 0, 0, 0, 0, 3], D.get("rn"))
+check("rx_etoile_cliquee_devient_la_note_etoile_courante_la_retire",
+      D.get("rx") == [3, 0, 5, 1, 0, 4, 3], D.get("rx"))
+check("rx_bornes_clic_illisible_rend_la_note_courante_normalisee",
+      D.get("rx_bornes") == [3, 3, 3, 3, 0, 2], D.get("rx_bornes"))
+check("rx_suite_de_clics_3_3_5_2_2", D.get("rx_suite") == [3, 0, 5, 2, 0], D.get("rx_suite"))
+check("rchips_deux_seuils_3_puis_5_avec_titre",
+      D.get("rchips") == [[3, "★ 3+", True], [5, "★ 5", True]], D.get("rchips"))
+_L7N = {n: _corps(n) for n in ("dzmRatingNorm", "dzmRatingNext")}
+check("l7b_rn_coeur_pur_ni_r_ni_x_ni_reseau_export_x1",
+      all(len(c) > 60 for c in _L7N.values())
+      and not any(re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|fetch\(|setJobs", c) for c in _L7N.values())
+      and len(_DT) > 1000 and _DT.count("ratingNorm:dzmRatingNorm,ratingNext:dzmRatingNext,") == 1
+      and _SRCb.count("ratingNext:") == 1 and _SRCb.count("ratingNorm:") == 1,
+      ({n: len(c) for n, c in _L7N.items()}, _DT.count("ratingNext:dzmRatingNext")))
+# le TIROIR : cinq etoiles par ligne (clic qui n'atteint pas la ligne, glisser annule sur les etoiles), PUT optimiste avec
+# retour arriere garde par un compteur par rendu, chips qui passent min_rating au serveur et rechargent depuis la page 0.
+_DRW = _corps("DzmMediaDrawer")
+check("l7b_tiroir_etoiles_clic_arrete_a_l_etoile_et_glisser_annule_sur_les_etoiles",
+      len(_DRW) > 400 and _DRW.count('className:"svm-medstars",draggable:!0,') == 1
+      and _DRW.count("onDragStart:function(e){e.preventDefault();e.stopPropagation()}") == 1
+      and _DRW.count("onClick:function(e){e.stopPropagation();e.preventDefault();noter(j,i)}") == 1
+      and _DRW.count("[1,2,3,4,5].map(") == 1 and _DRW.count('className:"svm-medstar",') == 1
+      and _DRW.count('title:i===cur?"Retirer la note ("+i+" ★)":"Noter "+i+" ★"') == 1,
+      f"corps={len(_DRW)}")
+check("l7b_tiroir_note_optimiste_put_puis_retour_arriere_garde_par_compteur",
+      len(_DRW) > 400 and _DRW.count('fetch("/api/jobs/"+encodeURIComponent(jid)+"/rating",{method:"PUT",') == 1
+      and _DRW.count("apres=dzmRatingNext(avant,clic)") == 1 and _DRW.count("avant=dzmRatingNorm(j.rating)") == 1
+      and _DRW.find("pose(apres);") < _DRW.find('fetch("/api/jobs/"+encodeURIComponent(jid)')
+      and _DRW.count("noteSeq.current[jid]!==k)return;pose(avant);") == 1
+      and _DRW.count('setNoteMsg("Note refusée : "') == 1,
+      (_DRW.find("pose(apres);"), _DRW.find('fetch("/api/jobs/"+encodeURIComponent(jid)')))
+check("l7b_tiroir_chips_passent_min_rating_au_serveur_et_rechargent_page_0",
+      len(_DRW) > 400 and _DRW.count('+(minNote>0?"&min_rating="+minNote:"")') == 1
+      and _DRW.count("},[o.open?1:0,qServ,minNote]);") == 1 and _DRW.count("charge(0,qServ,!0)") == 1
+      and _DRW.count("DZM_NOTE_CHIPS.map(") == 1 and _DRW.count("setMinNote(minNote===n[0]?0:n[0])") == 1
+      # temoin : la requete de base garde limit/offset/video=1
+      and _DRW.count('"/api/jobs?limit="+DZM_MED_PAGE+"&offset="+off+"&video=1"') == 1,
+      f"corps={len(_DRW)}")
+# regle des hooks : les deux useState neufs et le useRef du compteur viennent AVANT le `return null` du tiroir ferme
+_iN7 = _DRW.find("x.useState(0),minNote="); _iN8 = _DRW.find('x.useState(""),noteMsg=');
+_iNr = _DRW.find("noteSeq=x.useRef({})"); _iNul2 = _DRW.find("return null")
+check("l7b_tiroir_hooks_de_la_note_avant_le_return_null",
+      0 <= _iN7 < _iNul2 and 0 <= _iN8 < _iNul2 and 0 <= _iNr < _iNul2, (_iN7, _iN8, _iNr, _iNul2))
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

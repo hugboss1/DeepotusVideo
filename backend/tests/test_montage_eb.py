@@ -238,8 +238,10 @@ check("eb_la_regle_servie_est_celle_appliquee_par_video_1",
       and jv is not None and "im1" not in {j.get("job_id") for j in jv}, jv3 and [j.get("job_id") for j in jv3])
 import inspect
 _sig = inspect.signature(PL.Pipeline.list_jobs)
-check("eb_pipeline_list_jobs_porte_les_cinq_parametres",
-      list(_sig.parameters) == ["limit", "offset", "providers", "q", "video_exts"], list(_sig.parameters))
+# L7-B D-34 (24/09/2026) : un sixieme parametre, `min_rating` (note minimale, filtre avant le limit ;
+# banc test_montage_l7b_notes.py) -- les cinq de E-2 restent en tete, dans le meme ordre.
+check("eb_pipeline_list_jobs_porte_les_cinq_parametres_plus_min_rating_de_D34",
+      list(_sig.parameters) == ["limit", "offset", "providers", "q", "video_exts", "min_rating"], list(_sig.parameters))
 
 c.__exit__(None, None, None)
 print(f"\n=== {ok} passed, {fail} failed ===")

@@ -6602,6 +6602,19 @@ function dzmMediaFiltre(jobs,f){var g=(f&&f.groupe)||"Tout",q=String((f&&f.q)||"
    manquée n'a pas été comptée, l'offset n'a pas avancé). Vignette : la première
    image de la bande (`/api/montage/strip … n=1`). Durée : `dzmDurTxt`,
    le formateur déjà partagé avec le transport (pas de second m:ss). */
+/* ── L7-B D-34 (24/09/2026) : LA NOTE ÉTOILE D'UN RENDU — deux fonctions PURES ──
+   La note vit EN BASE (colonne jobs.rating, `PUT /api/jobs/{id}/rating`,
+   0 = sans note ; `GET /api/jobs?min_rating=` filtre avant le limit).
+   ratingNorm : ce que le serveur rend (0..5 entier) ou 0 pour tout le reste
+   (null, "3", 3.5, true, hors bornes) — même juge que la route, qui refuse
+   ces valeurs. ratingNext : l'étoile cliquée devient la note, sauf l'étoile
+   COURANTE qui la retire (0) ; un clic illisible rend la note courante.
+   Les chips de filtre du tiroir : DZM_NOTE_CHIPS (seuil, libellé, titre). */
+function dzmRatingNorm(v){return typeof v==="number"&&v%1===0&&v>=0&&v<=5?v:0}
+function dzmRatingNext(cur,clic){var c=dzmRatingNorm(cur),k=dzmRatingNorm(clic);
+  if(!k)return c;return k===c?0:k}
+var DZM_NOTE_CHIPS=[[3,"★ 3+","Ne montrer que les rendus notés 3 ★ ou plus (filtré par le serveur)"],
+  [5,"★ 5","Ne montrer que les Good Take (5 ★, filtré par le serveur)"]];
 var DZM_MED_PAGE=24,DZM_MED_REPOS=250;
 function DzmMediaDrawer(o){
   o=o||{};
@@ -6611,12 +6624,16 @@ function DzmMediaDrawer(o){
   var s4=x.useState("Tout"),groupe=s4[0],setGroupe=s4[1];
   var s5=x.useState(""),q=s5[0],setQ=s5[1];
   var s6=x.useState(""),st=s6[0],setSt=s6[1];
-  var seq=x.useRef(0),vivant=x.useRef(!0);
+  /* L7-B D-34 : seuil de note (0 = tous) passé au serveur, et la phrase d'un refus de note */
+  var s7=x.useState(0),minNote=s7[0],setMinNote=s7[1];
+  var s8=x.useState(""),noteMsg=s8[0],setNoteMsg=s8[1];
+  var seq=x.useRef(0),vivant=x.useRef(!0),noteSeq=x.useRef({});
   x.useEffect(function(){vivant.current=!0;return function(){vivant.current=!1}},[]);
   var qServ=q.trim().length>=2?q.trim():"";
   var charge=function(off,qq,remplace){
     var n=++seq.current;setSt("…");
-    var u="/api/jobs?limit="+DZM_MED_PAGE+"&offset="+off+"&video=1"+(qq?"&q="+encodeURIComponent(qq):"");
+    var u="/api/jobs?limit="+DZM_MED_PAGE+"&offset="+off+"&video=1"+(qq?"&q="+encodeURIComponent(qq):"")
+      +(minNote>0?"&min_rating="+minNote:"");
     return fetch(u).then(function(res){if(!res.ok)throw new Error("HTTP "+res.status);return res.json()})
       .then(function(d){if(!vivant.current||n!==seq.current)return;
         var page=Array.isArray(d)?d:[];
@@ -6628,7 +6645,23 @@ function DzmMediaDrawer(o){
   x.useEffect(function(){
     if(!o.open)return;
     var t=setTimeout(function(){charge(0,qServ,!0)},qServ?DZM_MED_REPOS:0);
-    return function(){clearTimeout(t)}},[o.open?1:0,qServ]);
+    return function(){clearTimeout(t)}},[o.open?1:0,qServ,minNote]);
+  /* L7-B D-34 : noter un rendu. Mise à jour LOCALE d'abord (optimiste), puis
+     PUT ; un refus remet la note d'avant — seulement si aucune note plus
+     récente n'a été posée sur ce rendu entre-temps (compteur par job) — et
+     le dit. Ni pose sur la piste ni glisser : la ligne n'en voit rien. */
+  var noter=function(j,clic){var jid=String(j.job_id||"");if(!jid)return;
+    var avant=dzmRatingNorm(j.rating),apres=dzmRatingNext(avant,clic);if(apres===avant)return;
+    var k=(noteSeq.current[jid]||0)+1;noteSeq.current[jid]=k;
+    var pose=function(v){setJobs(function(prev){return prev.map(function(q2){
+      return q2&&q2.job_id===jid?Object.assign({},q2,{rating:v}):q2})})};
+    pose(apres);setNoteMsg("");
+    fetch("/api/jobs/"+encodeURIComponent(jid)+"/rating",{method:"PUT",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({rating:apres})})
+      .then(function(res){if(!res.ok)return res.json().catch(function(){return {}}).then(function(d){
+        throw new Error((d&&typeof d.detail==="string"&&d.detail)||("HTTP "+res.status))})})
+      .catch(function(e){if(!vivant.current||noteSeq.current[jid]!==k)return;pose(avant);
+        setNoteMsg("Note refusée : "+String((e&&e.message)||"erreur réseau")+" — note d'avant remise.")})};
   if(!o.open)return null;
   var vus=jobs.filter(function(j){return dzmIsVideoJob(j,o.exts)});
   var chips=dzmProvChips(vus),g=chips.indexOf(groupe)>=0?groupe:"Tout";
@@ -6646,7 +6679,17 @@ function DzmMediaDrawer(o){
           r.jsx("div",{className:"svm-medtitle",children:lbl}),
           r.jsxs("div",{className:"svm-medsub",children:[
             r.jsx("span",{children:j.duration_s>0?dzmDurTxt(j.duration_s):"—"}),
-            r.jsx("span",{className:"svm-themechip svm-medgrp",children:dzmProvGroupe(j.provider)})]})]})]},jid||lbl)};
+            r.jsx("span",{className:"svm-themechip svm-medgrp",children:dzmProvGroupe(j.provider)})]}),
+          /* L7-B D-34 : cinq étoiles. Le span est son propre point de glisser
+             (annulé) pour qu'un geste commencé sur une étoile ne tire pas la
+             ligne ; le clic d'une étoile n'atteint pas la ligne (pas de pose). */
+          r.jsx("span",{className:"svm-medstars",draggable:!0,
+            onDragStart:function(e){e.preventDefault();e.stopPropagation()},
+            children:[1,2,3,4,5].map(function(i){var cur=dzmRatingNorm(j.rating);
+              return r.jsx("button",{type:"button",className:"svm-medstar","data-on":i<=cur?"":void 0,
+                "aria-pressed":i<=cur,
+                title:i===cur?"Retirer la note ("+i+" ★)":"Noter "+i+" ★"+(i===5?" — Good Take":""),
+                onClick:function(e){e.stopPropagation();e.preventDefault();noter(j,i)},children:"★"},i)})})]})]},jid||lbl)};
   return r.jsxs("div",{className:"svm-meddrawer",children:[
     r.jsxs("div",{className:"svm-medhead",children:[
       r.jsx("div",{className:"svm-poptitle",children:"Médias — rendus vidéo"+(o.trId?" → "+o.trId:"")}),
@@ -6656,9 +6699,15 @@ function DzmMediaDrawer(o){
     r.jsx("div",{className:"svm-medchips",children:chips.map(function(c){
       return r.jsx("button",{className:"svm-themechip","data-on":c===g?"":void 0,
         onClick:function(){setGroupe(c)},children:c},c)})}),
+    /* L7-B D-34 : les chips de note — re-demandent la liste au serveur depuis la page 0 ; re-cliquer la chip active la retire */
+    r.jsx("div",{className:"svm-medchips svm-mednotes",children:DZM_NOTE_CHIPS.map(function(n){
+      return r.jsx("button",{type:"button",className:"svm-themechip","data-on":minNote===n[0]?"":void 0,
+        title:minNote===n[0]?"Retirer le filtre de note — tous les rendus":n[2],
+        onClick:function(){setMinNote(minNote===n[0]?0:n[0])},children:n[1]},n[0])})}),
     r.jsx("div",{className:"svm-medlist",children:liste.map(row)}),
+    noteMsg?r.jsx("div",{className:"svm-medst svm-mednotemsg",children:noteMsg}):null,
     st?r.jsx("div",{className:"svm-medst",children:st}):null,
-    !st&&!liste.length?r.jsx("div",{className:"svm-medst",children:vus.length?"Aucun rendu dans ce groupe.":"Aucun rendu vidéo terminé."}):null,
+    !st&&!liste.length?r.jsx("div",{className:"svm-medst",children:vus.length?"Aucun rendu dans ce groupe.":minNote?"Aucun rendu noté "+(minNote>=5?"5 ★":minNote+" ★ ou plus")+".":"Aucun rendu vidéo terminé."}):null,
     !fin?r.jsx("button",{className:"svm-secbtn svm-medplus",disabled:st==="…",
       title:"Charger les rendus suivants",
       onClick:function(){charge(offset,qServ,!1)},children:"Plus"}):null]})}
@@ -7362,6 +7411,8 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   subsTracks:dzmSubsTracks,subsNew:dzmSubsNew,subsBurn:dzmSubsBurn,subsBurnId:dzmSubsBurnId,subsCopy:dzmSubsCopy,
   /* L7-B D-42 (24/09/2026, tache 2) : decouper un clip aux changements de plan */
   cutAt:dzmCutAt,
+  /* L7-B D-34 (24/09/2026, tache 7) : la note etoile d'un rendu (tiroir Medias) */
+  ratingNorm:dzmRatingNorm,ratingNext:dzmRatingNext,
   /* E-13 / E-14 (lot E-C, tache 5) : la tete dans l'inspecteur, le trou selectionne et son ripple */
   teteTxt:dzmTeteTxt,trou:dzmTrou,trouRipple:dzmTrouRipple,
   DEFAULTS:DZM_DEFAULT_TRACKS};

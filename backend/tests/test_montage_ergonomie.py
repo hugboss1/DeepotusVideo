@@ -227,6 +227,10 @@ _TITRES_COUCHE = [
     # « Fermer » de la vue diff -- dans la COUCHE, donc ici et non dans _TITRES (ecart au plan, qui disait _TITRES +2)
     ':"Comparer « "+(p.name||"")+" » à la timeline courante (rien n\'est modifié)",',
     'title:"Fermer la comparaison (Échap)",onClick:function(){if(o.onClose)o.onClose()},children:"Fermer"',
+    # L7-B D-34 (24/09/2026, tache 7) : les cinq etoiles d'une ligne du tiroir Medias (l'etoile courante dit « retirer »)
+    # et les deux chips de note (la chip active dit « retirer le filtre ») -- classes hors audit R1, titrees quand meme
+    'title:i===cur?"Retirer la note ("+i+" ★)":"Noter "+i+" ★"+(i===5?" — Good Take":""),',
+    'title:minNote===n[0]?"Retirer le filtre de note — tous les rendus":n[2],',
 ]
 for t in _TITRES_COUCHE:
     check("R1_titre_couche_x1_" + re.sub(r"\W+", "_", t[6:40]).strip("_"),

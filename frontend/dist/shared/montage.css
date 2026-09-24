@@ -1350,6 +1350,13 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
 .dzsvm .svm-medgrp{cursor:default}
 .dzsvm .svm-medst{font-family:var(--f-mono);font-size:11px;color:var(--ink2);padding:4px 6px;flex:none}
 .dzsvm .svm-medplus{align-self:center;flex:none}
+/* L7-B D-34 (24/09/2026) : cinq étoiles par ligne du tiroir Médias (la note du rendu, en base) et les chips ★ 3+ / ★ 5 */
+.dzsvm .svm-medstars{display:flex;gap:0;flex:none;cursor:default}
+.dzsvm .svm-medstar{background:none;border:0;padding:0 1px;font-size:14px;line-height:1;cursor:pointer;color:var(--ink3)}
+.dzsvm .svm-medstar[data-on]{color:#f2c14e}
+.dzsvm .svm-medstar:hover{color:color-mix(in srgb,#f2c14e 70%,var(--ink))}
+.dzsvm .svm-medstar:focus-visible{outline:1px solid var(--accent);outline-offset:1px;border-radius:3px}
+.dzsvm .svm-mednotemsg{color:var(--ink)}
 /* E-5 (lot E-B, tache 4, 23/09/2026) : « Publier » grisé quand le projet n'a
    aucun rendu final mémorisé (aucune règle :disabled pour .svm-secbtn en amont) */
 .dzsvm .svm-secbtn:disabled{opacity:.45;cursor:not-allowed}
