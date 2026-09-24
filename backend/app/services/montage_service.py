@@ -3781,13 +3781,31 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
         # chromakey). Masque D-30 : maskedmerge gbrap à QUATRE plans (alpha
         # compris — mesuré 24/09/2026 : alphamerge + overlay rendait OPAQUE
         # la partie transparente d'un PNG dans le masque) ; le masque est
-        # calculé à la taille du rendu puis porté à celle de l'overlay par
-        # scale2ref. Sans effet : osrc/och historiques, octet pour octet.
+        # calculé DIRECTEMENT à la taille de l'overlay (fxw × fxh, exacte :
+        # _ov_fx_dims mesurée contre `scale` ; cover = w × h). Revue T2
+        # second tour : plus de scale2ref (DÉPRÉCIÉ, 8.1.1 et 9.0.1
+        # l'impriment). Sans effet : osrc/och historiques, octet pour octet.
         osrc = f"[{idx}:v]"
         oeff = o.get("effects")
+        if oeff and tf is not None:
+            # Chaîne transformée sans dimensions lisibles (ffprobe en échec) :
+            # la taille réelle de l'overlay est inconnue, et 16 effets du
+            # catalogue (pad, crop, hstack… sur ctx w/h) font tomber le graphe
+            # avec une taille fausse (mesuré 24/09/2026) → pile et masque
+            # ignorés, le rendu passe. Cover : taille w × h sans les dims.
+            try:
+                dok = int(o["dims"][0]) > 0 and int(o["dims"][1]) > 0
+            except (KeyError, TypeError, ValueError, IndexError):
+                dok = False
+            if not dok:
+                logger.warning(f"montage: dimensions de l'overlay {j} illisibles "
+                               f"— pile d'effets (et masque) ignorée")
+                oeff = None
         if oeff:
             from app.services import effects_engine as _fx2
-            fctx = {"w": fxw, "h": fxh, "dur": d, "fps": fps}
+            # fmt : l'enveloppe `_timed` (effets bornés t0/t1) travaille en
+            # gbrap — en yuv420p elle perdait alpha et chroma hors fenêtre.
+            fctx = {"w": fxw, "h": fxh, "dur": d, "fps": fps, "fmt": "gbrap"}
             parts.append(f"[{idx}:v]{och[:cut]}[ofi{j}]")
             # Revue T2 (mesuré 24/09/2026, ffmpeg 9.0.1) : 14 effets du
             # catalogue (vignette, bloom, vhs…) et toute enveloppe `_timed`
@@ -3797,20 +3815,32 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             # a pas ; chromakey en CRÉE) : les deux branches en gbrap, puis
             # blend c3_mode=multiply (c0..c2 : normal à opacité 1 = la pile
             # telle quelle). Pas de gris intermédiaire (piège de plage 235).
+            # Revue T2 second tour (mesuré 24/09/2026, 8.1.1 et 9.0.1) : la
+            # pile recevait l'alpha d'origine et le RENDAIT pour ~28 effets
+            # (grade_basic neutre, invert, curves, wheels…) → alpha AU CARRÉ
+            # (PNG rouge α=128 sur bleu : 128,0,124 → 62,0,189). La pile
+            # reçoit donc une copie OPAQUE (lutrgb=a=255) : alpha final =
+            # alpha d'origine pour 48/50 effets, chromakey juste. Écarts
+            # datés (24/09/2026, balayage des 50 effets × plein/borné ×
+            # masque, 8.1.1 et 9.0.1 : 200/200 rendus à 50 images) : `glitch`
+            # crée son propre alpha (multiplié, écart 48/255), `grain` s'écarte
+            # de 7/255. Coût (1080×1920, 300 images) : lutrgb ≈ +0,6 ms/image ;
+            # l'enveloppe `_timed` en gbrap ≈ 3 ms/image contre 1 en yuv420p.
             omk = _mr.mask_of(o.get("mask"))
             if omk:
                 parts.append(f"[ofi{j}]format=rgba,split[omo{j}][ome{j}]")
-                parts += _fx2.build_chain(oeff, f"ome{j}", f"omf{j}", f"ofe{j}", fctx)
+                parts.append(f"[ome{j}]lutrgb=a=255[oma{j}]")
+                parts += _fx2.build_chain(oeff, f"oma{j}", f"omf{j}", f"ofe{j}", fctx)
                 parts.append(f"[omo{j}]format=gbrap,split[omb{j}][omq{j}]")
                 parts.append(f"[omf{j}]format=gbrap[omg{j}]")
                 parts.append(f"[omg{j}][omq{j}]blend=c3_mode=multiply[omh{j}]")
-                parts.append(_mr.mask_graph(omk, w, h, fps, f"omk{j}m",
+                parts.append(_mr.mask_graph(omk, fxw, fxh, fps, f"omk{j}",
                                             planes="gbrap", loop=False))
-                parts.append(f"[omk{j}m][omh{j}]scale2ref[omk{j}][omr{j}]")
-                parts.append(f"[omb{j}][omr{j}][omk{j}]maskedmerge[ofx{j}]")
+                parts.append(f"[omb{j}][omh{j}][omk{j}]maskedmerge[ofx{j}]")
             else:
                 parts.append(f"[ofi{j}]format=rgba,split[ofo{j}][ofs{j}]")
-                parts += _fx2.build_chain(oeff, f"ofs{j}", f"ofq{j}", f"ofe{j}", fctx)
+                parts.append(f"[ofs{j}]lutrgb=a=255[ofa{j}]")
+                parts += _fx2.build_chain(oeff, f"ofa{j}", f"ofq{j}", f"ofe{j}", fctx)
                 parts.append(f"[ofq{j}]format=gbrap[ofg{j}]")
                 parts.append(f"[ofo{j}]format=gbrap[ofb{j}]")
                 parts.append(f"[ofg{j}][ofb{j}]blend=c3_mode=multiply[ofx{j}]")
@@ -4854,8 +4884,15 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                 # ABSENTES sans pile / masque valides (dict historique). La
                 # taille de la source est sondée pour le contexte des effets
                 # (voir _ov_fx_dims) seulement quand une pile est posée.
+                # Revue T2 second tour : une pile sans AUCUN type connu du
+                # moteur ne rend rien (build_chain → null) — ni clé, ni sonde
+                # ffprobe (la liste gardée reste entière quand un type l'est).
+                from app.services import effects_engine as _fxr
                 oeff = ([e for e in c["effects"] if isinstance(e, dict)]
                         if isinstance(c.get("effects"), list) else [])
+                if not any(isinstance(e.get("type"), str)
+                           and e["type"] in _fxr.EFFECTS for e in oeff):
+                    oeff = []
                 omk = _mr.mask_of(c.get("mask"))
                 if omk:
                     v2[-1]["mask"] = omk

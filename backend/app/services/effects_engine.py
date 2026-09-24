@@ -1143,8 +1143,15 @@ def _timed(eff, stmts, in_lbl, out_lbl, uid, ctx):
     # l'image d'origine, y compris quand l'effet est éteint. Les trois
     # chemins de rendu fournissent déjà du yuv420p ici (segments Montage,
     # régions et post-pass du Studio), donc rien n'est perdu.
-    return ([f"[{in_lbl}]format=yuv420p,split=2[{env}a][{env}b]"] + body +
-            [f"[{inner}]format=yuv420p[{inner}f]",
+    # L5 (revue T2, mesuré 24/09/2026) : un overlay V2 n'est PAS en yuv420p —
+    # il arrive en rgba (alpha du PNG). Forcé en yuv420p, il perdait son alpha
+    # et sa chroma HORS de la fenêtre (damier rouge/vert 2 px : écart RVB 77
+    # avant t0 et après t1). `ctx["fmt"]` porte le format de l'appelant (V2 :
+    # gbrap, que blend traite plan par plan, alpha compris, en mode normal) ;
+    # absent → yuv420p, chaîne OCTET POUR OCTET l'historique.
+    fmt = (ctx or {}).get("fmt") or "yuv420p"
+    return ([f"[{in_lbl}]format={fmt},split=2[{env}a][{env}b]"] + body +
+            [f"[{inner}]format={fmt}[{inner}f]",
              f"[{env}a]sendcmd=c='{cmds}'[{env}a2]",
              f"[{inner}f][{env}a2]{tag}=all_mode=normal:all_opacity=0[{out_lbl}]"])
 

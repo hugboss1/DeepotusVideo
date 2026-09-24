@@ -23,13 +23,22 @@ effets + masque : split / alphamerge / overlay=0:0:shortest=1.
 [4] Chaine V2 : sans effet, commande identique a 81bfde3 (cover, transforme,
 ombre, opacite, points) ; avec effets : pile rendue apres la mise a l'echelle,
 avant opacite/coins/rotation, `format=rgba` ensuite ; avec masque :
-maskedmerge gbrap + scale2ref.
+maskedmerge gbrap, masque calcule a la taille de l'overlay (revue T2 second
+tour : plus de scale2ref, deprecie) ; la pile recoit une copie OPAQUE
+(lutrgb=a=255 : sinon alpha AU CARRE) ; `_timed` au format de l'overlay
+(ctx fmt=gbrap), sans fmt octet pour octet 27b6b87 ; transforme sans dims ->
+pile ignoree + warning (M1).
 [5] Rendus reels V2 : effet `invert` visible sur l'overlay, ALPHA du PNG
 conserve jusqu'a l'overlay, masque V2 (cover et transforme), 50 images ;
 revue T2 : alpha restaure apres une pile qui le perd (vignette, invert borne
-t0/t1 via `_timed`) ou le cree (chromakey), avec et sans masque.
+t0/t1 via `_timed`) ou le cree (chromakey), avec et sans masque ; second
+tour, SANS PERTE (graphe rejoue en PNG) : PNG a zones alpha 128 / 0 / 255,
+grade_basic neutre, curves, invert (temoin = PNG inverse sans effet), avec
+et sans masque, +-3 ; invert borne sur damier 2 px, hors fenetre +-3.
 [6] Espion /render : `mask` (V1, V2) et `effects` (V2) lus et assainis ;
-masque invalide / pile vide -> cle ABSENTE (dict historique).
+masque invalide / pile vide -> cle ABSENTE (dict historique) ; espion
+_probe_dims : sonde seulement si un type connu (M3), sonde en echec -> rendu
+sans pile + warning (M1).
 
 L'ETAT VIDE DE CE BANC : avant l'implementation `app.services.mask_region`
 n'existe pas (A_MR rend des temoins "ABSENT"), la commande V1 ignore `mask`
@@ -383,8 +392,14 @@ INV = [{"type": "invert"}]
 _fc = FC(OVBUILD(effects=INV))
 check("v2_cover_effets_apres_fps_puis_format_rgba_puis_setpts",
       "[1:v]scale=64:64:force_original_aspect_ratio=increase,crop=64:64,setsar=1,fps=25[ofi0]" in _fc
-      and "[ofs0]negate[ofq0]" in _fc and "[ofx0]format=rgba,setpts=PTS-STARTPTS+1.0/TB[ov0]" in _fc
+      and "[ofa0]negate[ofq0]" in _fc and "[ofx0]format=rgba,setpts=PTS-STARTPTS+1.0/TB[ov0]" in _fc
       and "negate" not in FC(_eg["cover"][0]), _fc[-400:])
+# Revue T2 second tour (C1, mesure 24/09/2026) : la pile recevait l'alpha
+# d'origine et le RENDAIT (28 effets le conservent) -> blend multiply =
+# alpha AU CARRE (PNG a=128 : 128 -> 64). La pile recoit une copie OPAQUE.
+check("v2_pile_recoit_une_copie_opaque_lutrgb_a_255",
+      "[ofs0]lutrgb=a=255[ofa0]" in _fc and "[ofs0]negate" not in _fc and "lutrgb" not in FC(_eg["cover"][0]),
+      _fc[-600:])
 # Revue T2 (24/09/2026, ffmpeg 9.0.1) : 14 effets du catalogue et toute
 # enveloppe `_timed` (format=yuv420p) PERDAIENT l'alpha du PNG -> cadre noir
 # opaque. Alpha final = alpha d'ORIGINE x alpha de sortie de la pile : les
@@ -396,27 +411,96 @@ check("v2_alpha_restaure_split_origine_blend_c3_multiply_gbrap",
       "[ofi0]format=rgba,split[ofo0][ofs0]" in _fc and "[ofq0]format=gbrap[ofg0]" in _fc
       and "[ofo0]format=gbrap[ofb0]" in _fc and "[ofg0][ofb0]blend=c3_mode=multiply[ofx0]" in _fc
       and "blend=c3_mode" not in FC(_eg["cover"][0]), _fc[-600:])
-_fco = FC(OVBUILD(effects=INV, opacity=0.5, tf=dict(TFS, rotate=12.0, radius=20)))
+_fco = FC(OVBUILD(effects=INV, opacity=0.5, tf=dict(TFS, rotate=12.0, radius=20), dims=(64, 64)))
 _ip, _io, _ig, _ir = (_fco.find("negate"), _fco.find("colorchannelmixer=aa=0.5"), _fco.find("geq=r="),
                       _fco.find("rotate="))
 check("v2_transforme_effet_apres_echelle_avant_opacite_coins_rotation",
       "[1:v]scale=32:-2,setsar=1,fps=25,format=rgba[ofi0]" in _fco and 0 < _ip < _io < _ig < _ir
       and "[ofx0]format=rgba,colorchannelmixer=aa=0.5" in _fco, _fco[-600:])
-_fcp = FC(OVBUILD(effects=INV, motion_points=_cas["points"]["motion_points"]))
+_fcp = FC(OVBUILD(effects=INV, motion_points=_cas["points"]["motion_points"], dims=(64, 64)))
 check("v2_points_sendcmd_reste_en_tete_effet_avant_opacite_animee",
       _fcp.find("[1:v]sendcmd=c='") >= 0 and _fcp.find("[ofi0]") < _fcp.find("negate")
       < _fcp.find("colorchannelmixer@mpo0=aa=") and "[ofx0]format=rgba,colorchannelmixer@mpo0" in _fcp, _fcp[-500:])
+# Revue T2 second tour (I1) : scale2ref est DEPRECIE (8.1.1 et 9.0.1
+# l'impriment, mesure 24/09/2026) -> le masque est calcule DIRECTEMENT a la
+# taille de l'overlay (fxw x fxh : exacte, _ov_fx_dims mesuree contre scale ;
+# cover = w x h) ; plus de mise a l'echelle du masque du tout.
 _fcm = FC(OVBUILD(effects=INV, mask=ELL))
-check("v2_masque_maskedmerge_gbrap_scale2ref_image_unique",
-      "[ofi0]format=rgba,split[omo0][ome0]" in _fcm and "[ome0]negate[omf0]" in _fcm
+check("v2_masque_maskedmerge_gbrap_copie_opaque_masque_a_la_taille_de_l_overlay",
+      "[ofi0]format=rgba,split[omo0][ome0]" in _fcm and "[ome0]lutrgb=a=255[oma0]" in _fcm
+      and "[oma0]negate[omf0]" in _fcm
       and "[omo0]format=gbrap,split[omb0][omq0]" in _fcm and "[omf0]format=gbrap[omg0]" in _fcm
       and "[omg0][omq0]blend=c3_mode=multiply[omh0]" in _fcm
-      and "format=gbrap,geq=r='" in _fcm and ",trim=end_frame=1[omk0m]" in _fcm
-      and "[omk0m][omh0]scale2ref[omk0][omr0]" in _fcm and "[omb0][omr0][omk0]maskedmerge[ofx0]" in _fcm
+      and "color=c=black@0:s=64x64:r=25:d=1,format=gbrap,geq=r='" in _fcm and ",trim=end_frame=1[omk0]" in _fcm
+      and "[omb0][omh0][omk0]maskedmerge[ofx0]" in _fcm
+      and "scale2ref" not in _fcm and "rw:rh" not in _fcm
       and "loop=loop" not in _fcm and "maskedmerge" not in _fc, _fcm[-700:])
+_fcmt = FC(OVBUILD(effects=INV, mask=ELL, tf=dict(TFS), dims=(200, 100)))
+check("v2_masque_transforme_calcule_a_fxw_fxh_sans_scale2ref",
+      "color=c=black@0:s=32x16:r=25:d=1,format=gbrap,geq=r='" in _fcmt
+      and "[omb0][omh0][omk0]maskedmerge[ofx0]" in _fcmt and "scale2ref" not in _fcmt
+      and "s=64x64:r=25:d=1,format=gbrap" not in _fcmt, _fcmt[-700:])
 _fcd = FC(OVBUILD(effects=[{"type": "kaleido"}], tf=dict(TFS), dims=(200, 100)))
 check("v2_contexte_des_effets_taille_reelle_de_l_overlay_mise_a_l_echelle",
       "scale=16:8" in _fcd and "scale=32:32" not in _fcd, _fcd[-400:])
+
+# Revue T2 second tour (M1) : chaine TRANSFORMEE sans `dims` (ffprobe en
+# echec) -> la taille de l'overlay est inconnue, 16 effets du catalogue font
+# tomber le graphe (pad/crop/hstack sur ctx w/h faux) : pile (et masque)
+# ignores avec warning, commande = celle sans effet. Cover : la taille est
+# w x h quelles que soient les dims -> la pile reste (temoin).
+from loguru import logger as _LG                          # noqa: E402
+WARN = []
+_LG.add(lambda m: WARN.append(str(m)), level="WARNING")
+WARN.clear()
+_sans_dims = OVBUILD(effects=INV, mask=ELL, tf=dict(TFS))
+_w_sd = [x for x in WARN if "pile" in x and "dimensions" in x]
+check("m1_transforme_sans_dims_pile_ignoree_warning_commande_sans_effet",
+      _sans_dims.startswith("ffmpeg") and _sans_dims == OVBUILD(tf=dict(TFS)) and "negate" not in _sans_dims
+      and "maskedmerge" not in _sans_dims and len(_w_sd) == 1
+      and "negate" in OVBUILD(effects=INV, tf=dict(TFS), dims=(64, 64)), (FC(_sans_dims)[-300:], WARN))
+WARN.clear()
+_cov_sd = OVBUILD(effects=INV)
+check("m1_cover_sans_dims_pile_gardee_sans_warning",
+      "negate" in _cov_sd and not [x for x in WARN if "pile" in x], (FC(_cov_sd)[-200:], WARN))
+
+# Revue T2 second tour (I2) : `_timed` passait l'overlay V2 par yuv420p ->
+# hors fenetre, chroma sous-echantillonnee et alpha perdu. Le format de
+# l'enveloppe vient de ctx["fmt"] ; SANS fmt la chaine est OCTET POUR OCTET
+# celle de HEAD (V1, D-9, apercu, grading, template) — reference : le moteur
+# de 27b6b87 charge depuis git show.
+FXREF = None
+try:
+    _srcf = subprocess.run(["git", "show", "27b6b87:backend/app/services/effects_engine.py"],
+                           cwd=str(_REPO), capture_output=True, timeout=60).stdout
+    _reff = pathlib.Path(TMP) / "fx_ref_27b6b87.py"
+    _reff.write_bytes(_srcf)
+    _spf = importlib.util.spec_from_file_location("fx_ref_27b6b87", str(_reff))
+    FXREF = importlib.util.module_from_spec(_spf)
+    _spf.loader.exec_module(FXREF)
+except Exception as _e:
+    print("  (moteur 27b6b87 injoignable : %s)" % _e)
+from app.services import effects_engine as FXC            # noqa: E402
+_BORNES = [dict(e, t0=0.5, t1=1.5, fade_in=0.2) for e in
+           ({"type": "invert"}, {"type": "bloom"}, {"type": "vignette"}, {"type": "chromakey"},
+            {"type": "grade_basic", "exposure": 20}, {"type": "shake"}, {"type": "pixelate"}, {"type": "grain"})]
+_CTX = {"w": 320, "h": 180, "dur": 4.0, "fps": 25}
+_eqs = []
+for _e in _BORNES:
+    try:
+        _a, _b = FXREF.build_chain([_e], "i", "o", "u", dict(_CTX)), FXC.build_chain([_e], "i", "o", "u", dict(_CTX))
+    except Exception as _x:
+        _a, _b = ["REF"], [str(_x)]
+    _eqs.append(_a == _b and any("format=yuv420p,split=2" in s for s in _a))
+check("i2_sans_fmt_enveloppe_octet_pour_octet_27b6b87_huit_effets_bornes",
+      FXREF is not None and _eqs == [True] * 8, _eqs)
+_g = FXC.build_chain([_BORNES[0]], "i", "o", "u", dict(_CTX, fmt="gbrap"))
+check("i2_fmt_gbrap_enveloppe_sans_yuv420p",
+      "[i]format=gbrap,split=2[ue0enva][ue0envb]" in _g and "[ue0envw]format=gbrap[ue0envwf]" in _g
+      and not any("yuv420p" in s for s in _g), _g)
+_fct = FC(OVBUILD(effects=[dict(INV[0], t0=0.5, t1=1.0)], tf=dict(TFS), dims=(64, 64)))
+check("i2_v2_borne_enveloppe_en_gbrap", "format=gbrap,split=2[ofe0e0enva]" in _fct
+      and "format=yuv420p,split=2[ofe0e0env" not in _fct, _fct[-600:])
 
 print("\n[5] rendus reels V2 : effet visible, alpha conserve, masque")
 if not _FB or _Im is None:
@@ -504,6 +588,81 @@ else:
           OK50("vig_masque") and EST(BLEU, PA("vig_masque", 0.7, 1)) and EST(BLEU, PA("vig_masque", 0.7, 2))
           and EST(ROUGE, PA("vig_masque", 0.7, 4)), DET("vig_masque"))
 
+    # Revue T2 second tour (C1, I2) — mesures SANS PERTE : le graphe du
+    # service est rejoue avec une sortie PNG d'une seule image a t (-ss de
+    # sortie), jamais par l'encodeur (l'image x264 depend des images voisines).
+    def RAWF(ov, t, nom):
+        """Image RGB a t du graphe du service (V1 bleu + `ov`), ou le texte
+        de l'erreur (faute n°6 : jamais d'exception nue)."""
+        out = os.path.join(TMP, "raw_%s.mp4" % nom)
+        try:
+            cmd, _ = MS._build_montage_command([_v1b], [ov], [], None, w=320, h=180, fps=25, mix_db={},
+                                               ducking=False, duration_master=False, preview=True, out=out)
+            cmd = [str(x) for x in cmd]
+            i = cmd.index("-filter_complex")
+            png = os.path.join(TMP, "raw_%s_%s.png" % (nom, t))
+            r = subprocess.run([_FB, "-y", "-v", "error"] + cmd[1:i] + ["-filter_complex", cmd[i + 1], "-map",
+                                cmd[cmd.index("-map") + 1], "-ss", str(t), "-frames:v", "1", png],
+                               capture_output=True, text=True, timeout=120)
+            if r.returncode or not os.path.isfile(png):
+                return "rc=%s %s" % (r.returncode, (r.stderr or "")[-300:])
+            return _Im.open(png).convert("RGB")
+        except Exception as e:
+            return "%s: %s" % (type(e).__name__, e)
+
+    def DMAX(a, b, box):
+        """Ecart RGB max entre deux images sur la boite (x0, y0, x1, y1), -1 si
+        l'une manque."""
+        if isinstance(a, str) or isinstance(b, str):
+            return -1
+        return max(max(abs(p - q) for p, q in zip(a.getpixel((x, y)), b.getpixel((x, y))))
+                   for x in range(box[0], box[2]) for y in range(box[1], box[3]))
+
+    # PNG a TROIS zones d'alpha : 128 (gauche), 0 (milieu), 255 (droite).
+    def A3(col, nom):
+        p = str(pathlib.Path(TMP) / nom)
+        im = _Im.new("RGBA", (320, 180), (0, 0, 0, 0))
+        im.paste(col + (128,), (0, 0, 106, 180))
+        im.paste(col + (255,), (214, 0, 320, 180))
+        im.save(p)
+        return p
+    _A3 = A3((200, 60, 40), "a3.png")
+    _A3I = A3((55, 195, 215), "a3_inv.png")          # la meme, couleur inversee
+    _Z = {"a128": (20, 40, 86, 140), "a0": (126, 40, 194, 140), "a255": (234, 40, 300, 140)}
+    FULL = {"shape": "rect", "x": 0, "y": 0, "w": 1, "h": 1, "soft": 0}
+    GBN = [{"type": "grade_basic"}]
+    CRV = [{"type": "curves", "pts_m": "0/0 0.5/0.502 1/1"}]
+    _t = RAWF(OV(path=_A3), 0.7, "a3_sans")
+    _ti = RAWF(OV(path=_A3I), 0.7, "a3i_sans")
+    _zb = {k: DMAX(_t, _ti, b) for k, b in _Z.items()}
+    check("c1_temoins_a3_rendus_zone_a0_identique_zones_128_255_distinctes",
+          _zb.get("a0") == 0 and _zb.get("a128", 0) >= 40 and _zb.get("a255", 0) >= 100, (_zb, _t, _ti))
+    for _nom, _pile, _ref in (("grade_basic_neutre", GBN, _t), ("curves_quasi_neutre", CRV, _t),
+                              ("invert", INV, _ti)):
+        for _mq in (None, FULL):
+            _r = RAWF(OV(path=_A3, effects=_pile, **({"mask": _mq} if _mq else {})), 0.7,
+                      "a3_%s_%s" % (_nom, "m" if _mq else "n"))
+            _ec = {k: DMAX(_r, _ref, b) for k, b in _Z.items()}
+            check("c1_%s_%s_alpha_d_origine_128_0_255_egal_au_temoin_3" % (_nom, "masque" if _mq else "sans_masque"),
+                  all(0 <= v <= 3 for v in _ec.values()), (_ec, _r if isinstance(_r, str) else ""))
+
+    # I2 : invert borne 0.5..1.0 sur un DAMIER 2 px (alpha 255 / 128 / 0) :
+    # hors fenetre, l'overlay == temoin sans effet (+-3) ; dedans, inverse.
+    _DM = str(pathlib.Path(TMP) / "damier.png")
+    _dm = _Im.new("RGBA", (320, 180), (0, 0, 0, 0))
+    for _x in range(214):
+        for _y in range(180):
+            _dm.putpixel((_x, _y), ((255, 0, 0) if (_x // 2 + _y // 2) % 2 else (0, 255, 0))
+                         + (255 if _x < 106 else 128,))
+    _dm.save(_DM)
+    _BOX = (0, 0, 320, 180)
+    _ds = {t: RAWF(OV(path=_DM), t, "dm_sans") for t in (0.2, 0.7, 1.5)}
+    _dt = {t: RAWF(OV(path=_DM, effects=[dict(INV[0], t0=0.5, t1=1.0)]), t, "dm_tinv") for t in (0.2, 0.7, 1.5)}
+    _dx = {t: DMAX(_ds[t], _dt[t], _BOX) for t in _ds}
+    check("i2_invert_borne_damier_2px_hors_fenetre_egal_au_temoin_3_dedans_inverse",
+          0 <= _dx[0.2] <= 3 and 0 <= _dx[1.5] <= 3 and _dx[0.7] >= 200,
+          (_dx, [v for v in list(_ds.values()) + list(_dt.values()) if isinstance(v, str)][:2]))
+
 print("\n[6] espion /render : mask V1/V2 et effects V2 lus et assainis")
 _SRCR = GEN("src_r.mp4", "testsrc2=s=64x64:r=25", d=4) if _FB else V1F
 _PNGR = str(pathlib.Path(TMP) / "ovr.png")
@@ -552,6 +711,45 @@ check("r_masque_invalide_et_pile_vide_cles_absentes_dict_historique",
       isinstance(_a1.get("mask"), dict) and _st0 == 200 and "path" in _b1 and "path" in _b2
       and "mask" not in _b1 and "mask" not in _b2 and "effects" not in _b2 and "dims" not in _b2,
       (_st0, sorted(_b1), sorted(_b2)))
+
+# Revue T2 second tour (M1, M3) : espion sur _probe_dims.
+_vrai_dims = MS._probe_dims
+_sondes = []
+
+
+def _dims_espion(p):
+    _sondes.append(str(p))
+    return _vrai_dims(p)
+
+
+def RENDU_D(v2extra, dims_fn):
+    MS._probe_dims = dims_fn
+    try:
+        return RENDU({}, v2extra)
+    finally:
+        MS._probe_dims = _vrai_dims
+
+
+_sondes.clear()
+_s3a = RENDU_D({"effects": [{"type": "nope"}, {"type": "zz"}]}, _dims_espion)
+_n_inc = len([p for p in _sondes if p.endswith("ovr.png")])
+_sondes.clear()
+_s3b = RENDU_D({"effects": INV}, _dims_espion)
+_n_con = len([p for p in _sondes if p.endswith("ovr.png")])
+check("m3_dims_sondees_seulement_si_la_pile_porte_un_effet_connu",
+      _s3a[0] == 200 and _n_inc == 0 and "effects" not in _s3a[2] and "dims" not in _s3a[2]
+      and _s3b[0] == 200 and _n_con == 1 and tuple(_s3b[2].get("dims") or ()) == (64, 64),
+      (_s3a[0], _n_inc, sorted(_s3a[2]), _s3b[0], _n_con, _s3b[2].get("dims")))
+WARN.clear()
+_s1 = RENDU_D({"effects": INV, "mask": dict(ELL), "scale": 0.5}, lambda p: None)
+_cm1 = _cap.get("cmd") or ""
+_w1 = [x for x in WARN if "pile" in x and "dimensions" in x]
+_s1t = RENDU_D({"effects": INV, "scale": 0.5}, _vrai_dims)
+_cm1t = _cap.get("cmd") or ""
+check("m1_espion_sonde_en_echec_rendu_construit_sans_pile_et_warning",
+      _s1[0] == 200 and _cm1.startswith("ffmpeg") and "negate" not in _cm1 and "maskedmerge" not in _cm1
+      and len(_w1) == 1 and _s1t[0] == 200 and "negate" in _cm1t,
+      (_s1[0], _cm1[-300:], WARN, _s1t[0]))
 
 print(f"\n=== {ok} passed, {fail} failed ===")
 c.__exit__(None, None, None)
