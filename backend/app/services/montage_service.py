@@ -143,6 +143,7 @@ from sqlalchemy import func, or_, select
 
 from app.config import settings
 from app.models.schemas import JobStatus
+from app.services import autoclips as _autoclips
 from app.services import edl_export as _edl
 from app.services import reframe as _reframe
 from app.services import scenes as _scenes
@@ -2785,6 +2786,187 @@ async def montage_reframe(request: Request):
     except Exception as e:
         raise _media_http(e)
     return {"ok": True, **res}
+
+
+# D-41 (L7-B, 24/09/2026) — AUTO-CLIPS d'une source parlée. Deux routes :
+# `POST /autoclips` propose des extraits notés (service PUR `autoclips`),
+# `POST /autoclips/create` en fait un PROJET nommé. Paramètres jugés AVANT
+# toute résolution (400) ; source par `_media_source` (404 / 415 non vidéo).
+# LE TEXTE : fourni (`text`) ou celui d'un chapitre (`chapter_id` →
+# `Chapter.script_text`) → `align_to_audio` sur la source ELLE-MÊME (ffprobe
+# + silencedetect lisent la piste son d'un mp4 : aucune extraction, mesuré
+# par le banc [4] sur testsrc2+sine), gratuit. Sans texte : l'ESTIMATION
+# (`estimate_transcription`) revient `{ok:false, estimate}` tant que
+# `confirm` n'est pas `true` — puis `transcribe` (payant, synchrone : l'écran
+# attend la réponse, comme /reframe). Un `confirm` sans clé configurée rend
+# le même `{ok:false, estimate}` (estimate.ok false, `reason` lisible).
+_AUTOCLIPS_TEXT_MAX = 200_000
+_AUTOCLIPS_SEGS_MAX = 2000
+
+
+def _autoclips_str(v, nom: str, maxi: int) -> str:
+    if v is None:
+        return ""
+    if not isinstance(v, str) or len(v) > maxi:
+        raise HTTPException(400, f"{nom} illisible ou trop long.")
+    return v.strip()
+
+
+def _autoclips_src(v):
+    if not isinstance(v, (dict, str)) or not v:
+        raise HTTPException(400, "src illisible.")
+    return v
+
+
+@router.post("/autoclips")
+async def montage_autoclips(request: Request):
+    from app.services import transcribe_service as T
+    body = await _json_body(request)
+    src = _autoclips_src(body.get("src"))
+    text = _autoclips_str(body.get("text"), "text", _AUTOCLIPS_TEXT_MAX)
+    chapter_id = _autoclips_str(body.get("chapter_id"), "chapter_id", 36)
+    persona = _autoclips_str(body.get("persona"), "persona", 60) or None
+    lang_raw = _autoclips_str(body.get("lang"), "lang", 5).lower()
+    lang_stt = None if lang_raw in ("", "auto") else lang_raw
+    provider = _autoclips_str(body.get("provider"), "provider", 20) or None
+    n = body.get("n", 4)
+    if isinstance(n, bool) or not isinstance(n, (int, float)) or not 1 <= n <= 8 or n != int(n):
+        raise HTTPException(400, "n hors bornes — un entier de 1 à 8.")
+    confirm = body.get("confirm") is True
+    p = await _media_source(request, src, video=True)
+    transcript = "align"
+    if not text and chapter_id:
+        from app.services.storage import Chapter
+        async with async_session_factory() as session:
+            ch = await session.get(Chapter, chapter_id)
+        if ch is None:
+            raise HTTPException(404, "Chapitre introuvable.")
+        text = str(ch.script_text or "").strip()
+        if not text:
+            raise HTTPException(400, "Ce chapitre n'a pas de texte à caler.")
+        transcript = "chapitre"
+    if text:
+        try:
+            res = await asyncio.to_thread(T.align_to_audio, text, p, start=0.0,
+                                          lang=lang_stt or "fr")
+        except (ValueError, OSError) as e:
+            raise HTTPException(400, f"Calage impossible : {e}")
+    else:
+        dur = await asyncio.to_thread(_probe_duration, p)
+        try:
+            est = T.estimate_transcription(dur, provider)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        if not confirm or not est.get("ok"):
+            return {"ok": False, "estimate": est,
+                    "reason": est.get("reason") or "Transcription payante : "
+                              "confirmez le coût annoncé (confirm:true), ou "
+                              "donnez le texte connu (gratuit)."}
+        try:
+            res = await asyncio.to_thread(T.transcribe, p, provider=provider,
+                                          language=lang_stt)
+        except Exception as e:
+            raise HTTPException(502, f"Transcription impossible : {e}")
+        transcript = "stt:%s" % (res.get("source") or "?")
+    words = res.get("words") or []
+    wins = _autoclips.windows(words)
+    out = await asyncio.to_thread(_autoclips.score, wins, None, n, persona)
+    return {"ok": True, "source": out["source"], "transcript": transcript,
+            "words": len(words), "windows": len(wins),
+            "duration": round(float(res.get("audio_duration_s") or res.get("end") or 0.0), 3),
+            "clips": out["clips"]}
+
+
+def _autoclips_num(v, nom: str) -> float:
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        raise HTTPException(400, f"clip.{nom} illisible.")
+    if isinstance(v, bool) or not math.isfinite(f) or f < 0 or f > _SCENES_DUR_MAX * 6:
+        raise HTTPException(400, f"clip.{nom} hors bornes.")
+    return f
+
+
+@router.post("/autoclips/create")
+async def montage_autoclips_create(request: Request):
+    """{src, clip:{start, end, segments?, title?}, name?} → un PROJET NEUF
+    (V1 = la fenêtre, A1 « son du plan » si la source a du son, S1 = les
+    segments décalés de −start et coupés à [0, dur]) → `{ok, project_id, …}`.
+    Le projet est ÉCRIT, pas ouvert : la timeline courante n'est pas touchée
+    (l'écran l'ouvre ensuite par POST /projects/{pid}/open, geste E-1)."""
+    body = await _json_body(request)
+    src = _autoclips_src(body.get("src"))
+    clip = body.get("clip")
+    if not isinstance(clip, dict):
+        raise HTTPException(400, "clip illisible.")
+    start = _autoclips_num(clip.get("start"), "start")
+    end = _autoclips_num(clip.get("end"), "end")
+    if end - start < 0.3:
+        raise HTTPException(400, "clip trop court (end − start < 0,3 s).")
+    segs = clip.get("segments", [])
+    if not isinstance(segs, list) or len(segs) > _AUTOCLIPS_SEGS_MAX:
+        raise HTTPException(400, "clip.segments illisible ou trop long.")
+    name = body.get("name")
+    if name is not None and not isinstance(name, str):
+        raise HTTPException(400, "name illisible.")
+    p = await _media_source(request, src, video=True)
+    if not isinstance(src, dict):
+        src = _src_query(src)
+    sdur = await asyncio.to_thread(_probe_duration, p)
+    if sdur > 0:
+        if start >= sdur:
+            raise HTTPException(400, "Le clip commence après la fin de la source.")
+        end = min(end, sdur)
+    dur = round(end - start, 3)
+    titre = str(clip.get("title") or "").strip()[:48]
+    label = (titre or p.stem)[:48]
+    clips = [{"tr": "v1", "id": "v1_ac", "label": label, "src": src,
+              "srcIn": round(start, 3), "start": 0.0, "end": dur,
+              "transition": "cut", "transition_s": 0.0}]
+    if await asyncio.to_thread(_has_audio_stream, p):
+        clips.append({"tr": "a1", "id": "a1_ac", "label": f"{label[:40]} · son du plan",
+                      "src": src, "srcIn": round(start, 3), "start": 0.0, "end": dur})
+    k = 0
+    for sg in segs:
+        if not isinstance(sg, dict):
+            continue
+        a = max(0.0, _f_or(sg.get("start")) - start)
+        b = min(dur, _f_or(sg.get("end")) - start)
+        txt = str(sg.get("text") or "").strip()
+        if not txt or b - a < 0.05:
+            continue
+        k += 1
+        s1 = {"tr": "s1", "id": f"s1ac{k:04d}", "start": round(a, 3), "end": round(b, 3),
+              "text": txt, "label": txt if len(txt) <= 46 else txt[:45] + "…"}
+        ws = []
+        for w in sg.get("words") or []:
+            if not isinstance(w, dict) or not str(w.get("w") or "").strip():
+                continue
+            ws.append({"w": str(w["w"]), "start": round(min(max(_f_or(w.get("start")) - start, a), b), 3),
+                       "end": round(min(max(_f_or(w.get("end")) - start, a), b), 3)})
+        if ws:
+            s1["words"] = ws
+        clips.append(s1)
+    cur = _save_record({"name": name or titre or f"{p.stem} · auto-clip", "ratio": "9:16",
+                        "duration": dur, "mix": {}, "clips": clips,
+                        "tracks": _CLIENT_DEFAULT_TRACKS})
+    pid = f"m_{uuid4().hex[:8]}"
+    rec = dict(cur, id=pid, project_id=pid,
+               name=_project_name(name, titre or f"{p.stem} · auto-clip"))
+    async with _ecrit:
+        try:
+            await asyncio.to_thread(_write_json_atomic, _project_path(pid, create=True), rec)
+        except OSError as e:
+            raise HTTPException(500, f"Écriture du projet impossible : {e}")
+    return {"ok": True, "project_id": pid, **_project_meta(rec)}
+
+
+def _f_or(v, d: float = 0.0) -> float:
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return d
+    return f if math.isfinite(f) else d
 
 
 def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,

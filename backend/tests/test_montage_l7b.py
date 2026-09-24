@@ -1023,6 +1023,357 @@ check("d40_render_transmet_reframe_nettoye_dans_la_normalisation_v1_comme_dz",
       and _src_render.index('"dz": _dz_spec(c)') < _src_render.index('"reframe": _reframe_of(c)')
       < _src_render.index("v2 = []"), len(_src_render))
 
+# ══ [4] D-41 AUTO-CLIPS (backend) ═══════════════════════════════════════════
+# Service PUR `app.services.autoclips` : `windows(words, min_s, max_s,
+# step_s)`, `heuristic(win, persona)`, `score(wins, llm, n, persona)` ; routes
+# `POST /api/montage/autoclips` et `POST /api/montage/autoclips/create`.
+# AUCUN RESEAU : le LLM est un faux injecte (argument `llm`, puis
+# `summarizer._chat_dispatch` remplace pour la route) ; `transcribe` et
+# `estimate_transcription` sont remplaces par des espions qui comptent ;
+# `align_to_audio` est le VRAI, enveloppe d'un espion, sur une source
+# testsrc2 + sine de 120 s generee en TMP (le son d'un mp4 se lit sans
+# extraction : ffprobe + silencedetect).
+# Cas de la Tache 11 du plan du 03/09 (l.961-993) repris : fenetres bornees,
+# fenetres sur phrases, tri par score LLM, JSON casse -> heuristique a n
+# clips, heuristique deterministe, segments dans la fenetre.
+print("\n[4] D-41 auto-clips (backend)")
+import copy as _copy
+import json as _json4
+try:
+    from app.services import autoclips as AC               # noqa: E402
+except Exception as _e:                                    # faute n°6 : rougir, pas mourir
+    print("  (autoclips introuvable : %s)" % _e)
+    AC = None
+from app.services import transcribe_service as TS         # noqa: E402
+from app.services import summarizer as SUMM               # noqa: E402
+
+
+def W(nom):
+    f = getattr(AC, nom, None) if AC is not None else None
+    if f is None:
+        return lambda *a, **k: "ABSENT: %s" % nom
+    def g(*a, **k):
+        try:
+            return f(*a, **k)
+        except Exception as e:
+            return "%s: %s" % (type(e).__name__, e)
+    return g
+
+
+def L(v):
+    return v if isinstance(v, list) else []
+
+
+def D(v):
+    return v if isinstance(v, dict) else {}
+
+
+check("d41_le_service_autoclips_existe_avec_windows_heuristic_score",
+      AC is not None and all(callable(getattr(AC, n, None)) for n in ("windows", "heuristic", "score")),
+      "AC=%r" % (AC,))
+TXT = ("Sous la surface quelque chose remue. La marée ne demande pas la permission. Huit bras une seule volonté. "
+       "Le prophète des profondeurs a parlé. La houle porte déjà son nom. Personne ne dort cette nuit. ") * 6
+_words = TS.align_known_text(TXT, start=0.0, end=120.0)["words"]
+_words0 = _copy.deepcopy(_words)
+_wins = L(W("windows")(_words, min_s=15, max_s=60, step_s=5))
+_durs = [D(w).get("end", 0) - D(w).get("start", 0) for w in _wins]
+print("  (fenetres : %d, durees %s..%s)" % (len(_wins), min(_durs) if _durs else "-", max(_durs) if _durs else "-"))
+check("d41_fenetres_bornees_15_60",
+      len(_wins) >= 4 and all(15 - 1e-3 <= d <= 60 + 1e-3 for d in _durs), (len(_wins), _durs[:8]))
+check("d41_fenetres_sur_phrases",
+      len(_wins) >= 4 and all(str(D(w).get("text", "")).rstrip().endswith((".", "!", "?")) for w in _wins),
+      [D(w).get("text", "")[-20:] for w in _wins[:4]])
+_starts = sorted({D(w).get("start") for w in _wins})
+_keys = [(D(w).get("start"), D(w).get("end")) for w in _wins]
+check("d41_fenetres_debuts_glissent_d_au_moins_5_s_dedoublonnees_indexees",
+      len(_starts) >= 2 and all(b - a >= 5 - 1e-3 for a, b in zip(_starts, _starts[1:]))
+      and len(set(_keys)) == len(_keys) and [D(w).get("i") for w in _wins] == list(range(len(_wins)))
+      and all(isinstance(D(w).get("words"), list) and D(w)["words"] for w in _wins), (_starts[:6], len(_keys)))
+check("d41_fenetres_mots_de_la_fenetre_dans_ses_bornes",
+      len(_wins) >= 1 and all(D(w)["words"][0]["start"] == D(w)["start"] and D(w)["words"][-1]["end"] == D(w)["end"]
+                              for w in _wins if D(w).get("words")), None)
+_nopunct = TS.align_known_text(" ".join(["mot"] * 400), start=0.0, end=120.0)["words"]
+_wnp = L(W("windows")(_nopunct))
+check("d41_fenetres_texte_sans_ponctuation_coupe_aux_mots_encore_des_fenetres_bornees",
+      len(_wnp) >= 1 and all(15 - 1e-3 <= D(w)["end"] - D(w)["start"] <= 60 + 1e-3 for w in _wnp), len(_wnp))
+_court = TS.align_known_text("Une phrase. Deux phrases.", start=0.0, end=6.0)["words"]
+check("d41_fenetres_vide_si_trop_court_temoin_texte_long_non_vide",
+      W("windows")([]) == [] and W("windows")(_court) == [] and len(_wins) >= 4, (W("windows")(_court),))
+
+# heuristique : la formule, bornee, deterministe
+_h = W("heuristic")
+_wq = {"start": 0.0, "end": 20.0, "text": "Combien de bras ? 8 dans les abysses de Deepotus."}
+_wlong = {"start": 0.0, "end": 60.0, "text": "Rien de special ici."}
+_wplein = {"start": 0.0, "end": 20.0, "text": "Kraken Leviathan Poulpe Calmar Seiche Nautile " * 3 + "? 1 deepotus abysse marée prophète"}
+check("d41_heuristique_formule_40_plus_15_question_plus_10_chiffre_plus_5_par_mot_cle",
+      _h(_wq) == 75 and _h(_wlong) == 25 and _h({"start": 0, "end": 30, "text": "Le kraken dort."}, "Kraken") == 45
+      and _h({"start": 0, "end": 30, "text": "Le kraken dort."}) == 40,
+      (_h(_wq), _h(_wlong), _h({"start": 0, "end": 30, "text": "Le kraken dort."}, "Kraken")))
+check("d41_heuristique_bornee_a_100_temoin_sans_persona_sous_100",
+      _h(_wplein, "Kraken Leviathan Poulpe Calmar Seiche Nautile") == 100 and _h(_wplein) < 100,
+      (_h(_wplein, "Kraken Leviathan Poulpe Calmar Seiche Nautile"), _h(_wplein)))
+check("d41_heuristique_deterministe_deux_appels_egaux_fenetre_et_liste",
+      len(_wins) >= 4 and _h(_wins[0], "prophet") == _h(_wins[0], "prophet")
+      and _h(_wins) == _h(_wins) and isinstance(_h(_wins), list) and len(_h(_wins)) == len(_wins)
+      and all(isinstance(v, int) and 0 <= v <= 100 for v in _h(_wins)), None)
+
+# score : LLM factice
+_llm_sp = {"n": 0, "system": None, "max_tokens": None, "prompt": None}
+def _fake(prompt, system, max_tokens):
+    _llm_sp["n"] += 1; _llm_sp["system"] = system; _llm_sp["max_tokens"] = max_tokens; _llm_sp["prompt"] = prompt
+    return ('[{"i": 0, "score": 91, "title": "La marée", "hook": "Elle ne demande pas"},'
+            '{"i": 3, "score": 40, "title": "x", "hook": "y"}]', "fake")
+_res = D(W("score")(_wins, llm=_fake, n=3, persona="prophet"))
+_cl = L(_res.get("clips"))
+check("d41_score_llm_tri_par_score_source_llm_fake",
+      [c.get("score") for c in _cl] == [91, 40] and _res.get("source") == "llm:fake"
+      and [c.get("title") for c in _cl] == ["La marée", "x"] and _cl[0].get("hook") == "Elle ne demande pas"
+      and _cl[0].get("start") == D(_wins[0] if _wins else {}).get("start"), (_res.get("source"), _cl[:1]))
+check("d41_score_llm_consigne_json_strict_persona_max_tokens_800",
+      _llm_sp["n"] == 1 and _llm_sp["max_tokens"] == 800 and "prophet" in str(_llm_sp["system"])
+      and "JSON" in str(_llm_sp["system"]) and "0 | " in str(_llm_sp["prompt"]), _llm_sp)
+_fence = lambda p, s, m: ('```json\n[{"i": 1, "score": 77, "title": "", "hook": ""}]\n```', "fake")
+_rf = D(W("score")(_wins, llm=_fence, n=2))
+_cf = L(_rf.get("clips"))
+check("d41_score_llm_bloc_json_tolere_titre_et_accroche_vides_remplaces_par_le_texte",
+      _rf.get("source") == "llm:fake" and [c.get("score") for c in _cf] == [77]
+      and _cf[0].get("title") and _cf[0].get("hook") and _cf[0]["title"].split()[0] in D(_wins[1] if len(_wins) > 1 else {}).get("text", ""),
+      _cf)
+_bad = lambda p, s, m: ("pas du json", "fake")
+_res2 = D(W("score")(_wins, llm=_bad, n=3))
+_cl2 = L(_res2.get("clips"))
+check("d41_json_casse_repli_heuristique_n_clips",
+      _res2.get("source") == "heuristique" and len(_cl2) == 3, (_res2.get("source"), len(_cl2)))
+def _leve(p, s, m):
+    raise RuntimeError("reseau coupe")
+_repl = [D(W("score")(_wins, llm=f, n=2)).get("source") for f in
+         (lambda p, s, m: (None, ""), _leve, lambda p, s, m: ('[{"i": 9999, "score": 90}]', "fake"),
+          lambda p, s, m: ('[{"i": 0, "score": "beaucoup"}]', "fake"), lambda p, s, m: ('{"i": 0}', "fake"))]
+check("d41_none_exception_i_hors_fenetres_score_illisible_pas_une_liste_repli_heuristique",
+      _repl == ["heuristique"] * 5, _repl)
+check("d41_heuristique_score_deterministe_meme_reponse_deux_fois",
+      len(_cl2) == 3 and D(W("score")(_wins, llm=_bad, n=3)) == _res2, None)
+check("d41_heuristique_clips_disjoints_tries_par_score",
+      len(_cl2) == 3 and all(a["end"] <= b["start"] or a["start"] >= b["end"]
+                             for k, a in enumerate(_cl2) for b in _cl2[k + 1:])
+      and [c["score"] for c in _cl2] == sorted([c["score"] for c in _cl2], reverse=True), _cl2 and [(c["start"], c["end"], c["score"]) for c in _cl2])
+_c0 = _cl[0] if _cl else {}
+_sg = L(_c0.get("segments"))
+check("d41_clip_porte_segments_sous_titres_en_temps_source_dans_la_fenetre",
+      len(_sg) >= 2 and _sg[0]["start"] >= _c0["start"] - 1e-6 and _sg[-1]["end"] <= _c0["end"] + 1e-6
+      and all(s.get("text") and len(s["text"]) <= 30 and isinstance(s.get("words"), list) and s["words"] for s in _sg)
+      and " ".join(s["text"] for s in _sg) == D(_wins[0] if _wins else {}).get("text"), _sg[:2])
+check("d41_score_pur_mots_de_l_appelant_intacts",
+      _words == _words0 and len(_words) > 100, None)
+_nb = [len(L(D(W("score")(_wins, llm=_bad, n=v)).get("clips"))) for v in (0, 99, "x", 2)]
+check("d41_n_borne_1_a_8_illisible_4",
+      _nb == [1, 8, 4, 2], _nb)
+_llm_sp["n"] = 0
+_rv = D(W("score")([], llm=_fake, n=3))
+check("d41_score_sans_fenetre_rend_vide_heuristique_sans_appeler_le_llm_temoin_appele_avant",
+      _rv == {"clips": [], "source": "heuristique"} and _llm_sp["n"] == 0
+      and D(W("score")(_wins[:2], llm=_fake, n=3)).get("source") == "llm:fake" and _llm_sp["n"] == 1, (_rv, _llm_sp["n"]))
+
+# ── les routes : source AV de 120 s (testsrc2 + sine), espions, aucun reseau
+AV = str(pathlib.Path(TMP) / "parle.mp4")
+if _FB is not None:
+    subprocess.run([_FB, "-y", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc2=s=64x64:r=10:d=120",
+                    "-f", "lavfi", "-i", "sine=frequency=330:duration=120", "-c:v", "libx264",
+                    "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", AV],
+                   check=False, capture_output=True, timeout=120)
+check("d41_source_av_120_s_generee", os.path.isfile(AV) and os.path.getsize(AV) > 1000, _FB)
+
+
+def RQA(path, body):
+    from starlette.requests import Request as _R
+    raw = _json4.dumps(body).encode("utf-8")
+    async def rcv():
+        return {"type": "http.request", "body": raw, "more_body": False}
+    return _R({"type": "http", "method": "POST", "path": path, "query_string": b"",
+               "headers": [(b"content-type", b"application/json")], "client": ("127.0.0.1", 5000)}, rcv)
+
+
+async def _appel(nom, path, body):
+    f = A(nom, None)
+    if f is None:
+        return ("ABSENT", None)
+    try:
+        return (200, await f(RQA(path, body)))
+    except Exception as e:
+        return (getattr(e, "status_code", type(e).__name__), getattr(e, "detail", str(e)))
+
+
+def ACR(body):
+    return asyncio.run(_appel("montage_autoclips", "/api/montage/autoclips", body))
+
+
+def ACC(body):
+    return asyncio.run(_appel("montage_autoclips_create", "/api/montage/autoclips/create", body))
+
+
+_sp4 = {"transcribe": 0, "estimate": 0, "align": 0, "align_args": None, "resolve": 0, "llm": 0}
+_T0 = {k: getattr(TS, k) for k in ("transcribe", "estimate_transcription", "align_to_audio")}
+_EST = {"ok": True, "provider": "elevenlabs", "usd": 0.0134, "eta_s": 21, "duration_s": 120.0}
+_est_rend = [dict(_EST)]
+def _sp_transcribe(*a, **k):
+    _sp4["transcribe"] += 1
+    return {"ok": True, "source": "fake", "words": _copy.deepcopy(_words), "audio_duration_s": 120.0}
+def _sp_estimate(*a, **k):
+    _sp4["estimate"] += 1
+    return dict(_est_rend[0])
+def _sp_align(*a, **k):
+    _sp4["align"] += 1; _sp4["align_args"] = (a, k)
+    return _T0["align_to_audio"](*a, **k)
+TS.transcribe = _sp_transcribe
+TS.estimate_transcription = _sp_estimate
+TS.align_to_audio = _sp_align
+_rs0 = MS._resolve_src
+async def _sp_resolve(src):
+    _sp4["resolve"] += 1
+    return await _rs0(src)
+MS._resolve_src = _sp_resolve
+_cd0 = SUMM._chat_dispatch
+def _sp_llm(prompt, system, max_tokens):
+    _sp4["llm"] += 1
+    return (None, "")
+SUMM._chat_dispatch = _sp_llm
+
+_ra = ACR({"src": {"file_path": AV}, "text": TXT, "lang": "fr", "n": 3})
+_ba = D(_ra[1])
+print("  (route texte : %s, source %s, fenetres %s, clips %s)" % (_ra[0], _ba.get("source"), _ba.get("windows"),
+                                                                  [(c.get("start"), c.get("end"), c.get("score")) for c in L(_ba.get("clips"))]))
+check("d41_route_texte_fourni_cale_gratuit_sur_la_source_transcribe_jamais_appele",
+      _ra[0] == 200 and _ba.get("ok") is True and _ba.get("transcript") == "align" and len(L(_ba.get("clips"))) == 3
+      and _sp4["align"] == 1 and _sp4["transcribe"] == 0 and _sp4["estimate"] == 0
+      and _sp4["align_args"] is not None and str(_sp4["align_args"][0][1]) == AV
+      and _sp4["align_args"][1].get("start") == 0.0 and _sp4["align_args"][1].get("lang") == "fr", (_ra, _sp4))
+check("d41_route_texte_llm_par_defaut_consulte_muet_donc_heuristique_duree_de_la_source",
+      _ba.get("source") == "heuristique" and _sp4["llm"] == 1 and _ba.get("windows", 0) >= 4
+      and abs(float(_ba.get("duration") or 0) - 120.0) < 0.5 and _ba.get("words", 0) > 100
+      and all(0 <= c["start"] < c["end"] <= 120.5 for c in L(_ba.get("clips"))), (_ba.get("source"), _sp4["llm"], _ba.get("duration")))
+SUMM._chat_dispatch = lambda p, s, m: (_sp4.__setitem__("llm", _sp4["llm"] + 1)
+                                       or '[{"i": 2, "score": 88, "title": "T", "hook": "H"}]', "fake")
+_rl = ACR({"src": {"file_path": AV}, "text": TXT, "n": 2, "persona": "prophet"})
+check("d41_route_llm_par_defaut_repond_source_llm",
+      _rl[0] == 200 and D(_rl[1]).get("source") == "llm:fake" and [c.get("score") for c in L(D(_rl[1]).get("clips"))] == [88]
+      and _sp4["llm"] == 2 and _sp4["transcribe"] == 0, (_rl, _sp4["llm"]))
+SUMM._chat_dispatch = _sp_llm
+
+_rn = ACR({"src": {"file_path": AV}, "lang": "fr", "n": 3})
+_rn2 = ACR({"src": {"file_path": AV}, "n": 3, "confirm": "true"})
+check("d41_route_sans_texte_sans_confirm_ok_false_estimate_transcribe_jamais_appele",
+      _rn[0] == 200 and D(_rn[1]).get("ok") is False and D(_rn[1]).get("estimate") == _EST
+      and _rn2[0] == 200 and D(_rn2[1]).get("ok") is False and _sp4["estimate"] == 2 and _sp4["transcribe"] == 0,
+      (_rn, _rn2, _sp4))
+_est_rend[0] = {"ok": False, "provider": None, "usd": 0.0, "reason": "Aucune clé"}
+_rn3 = ACR({"src": {"file_path": AV}, "n": 3, "confirm": True})
+check("d41_route_confirm_sans_cle_ok_false_estimate_raison_transcribe_jamais_appele",
+      _rn3[0] == 200 and D(_rn3[1]).get("ok") is False and D(D(_rn3[1]).get("estimate")).get("ok") is False
+      and D(_rn3[1]).get("reason") == "Aucune clé" and _sp4["transcribe"] == 0 and _sp4["estimate"] == 3, (_rn3, _sp4))
+_est_rend[0] = dict(_EST)
+_rn4 = ACR({"src": {"file_path": AV}, "n": 2, "confirm": True, "lang": "auto"})
+check("d41_route_confirm_vrai_transcrit_une_fois_temoin_du_refus",
+      _rn4[0] == 200 and D(_rn4[1]).get("ok") is True and D(_rn4[1]).get("transcript") == "stt:fake"
+      and len(L(D(_rn4[1]).get("clips"))) == 2 and _sp4["transcribe"] == 1 and _sp4["estimate"] == 4, (_rn4, _sp4))
+
+# chapitre : base TMP initialisee, un Chapter insere, route dans la MEME boucle
+async def _chapitre():
+    from app.services.storage import init_db, Chapter, async_session_factory as _asf
+    await init_db()
+    async with _asf() as s:
+        s.add(Chapter(id="ch_ac1", title="Essai", script_text=TXT))
+        s.add(Chapter(id="ch_vide", title="Vide", script_text=""))
+        await s.commit()
+    a = await _appel("montage_autoclips", "/api/montage/autoclips", {"src": {"file_path": AV}, "chapter_id": "ch_ac1", "n": 2})
+    b = await _appel("montage_autoclips", "/api/montage/autoclips", {"src": {"file_path": AV}, "chapter_id": "ch_absent", "n": 2})
+    c = await _appel("montage_autoclips", "/api/montage/autoclips", {"src": {"file_path": AV}, "chapter_id": "ch_vide", "n": 2})
+    return a, b, c
+try:
+    _ch = asyncio.run(_chapitre())
+except Exception as _e:
+    _ch = (("ERR", str(_e)), ("ERR", None), ("ERR", None))
+_al_avant = _sp4["align"]
+check("d41_route_chapitre_script_text_cale_gratuit_404_absent_400_vide",
+      _ch[0][0] == 200 and D(_ch[0][1]).get("transcript") == "chapitre" and len(L(D(_ch[0][1]).get("clips"))) == 2
+      and _ch[1][0] == 404 and _ch[2][0] == 400 and _sp4["transcribe"] == 1 and _al_avant == 3, (_ch, _sp4))
+
+_res_n = _sp4["resolve"]
+_bad4 = [ACR({"text": TXT, "n": 2}), ACR({"src": None, "n": 2}), ACR({"src": {"file_path": AV}, "n": 0}),
+         ACR({"src": {"file_path": AV}, "n": 9}), ACR({"src": {"file_path": AV}, "n": 2.5}),
+         ACR({"src": {"file_path": AV}, "n": "3"}), ACR({"src": {"file_path": AV}, "n": True}),
+         ACR({"src": {"file_path": AV}, "text": 123}), ACR({"src": {"file_path": AV}, "lang": "francais"}),
+         ACR({"src": {"file_path": AV}, "persona": "p" * 61}), ACR({"src": {"file_path": AV}, "n": float("nan")})]
+check("d41_route_400_parametres_avant_toute_resolution_temoin_bornes_permises",
+      [b[0] for b in _bad4] == [400] * 11 and _sp4["resolve"] == _res_n
+      and ACR({"src": {"file_path": AV}, "text": TXT, "n": 8})[0] == 200 and _sp4["resolve"] == _res_n + 1,
+      ([b[0] for b in _bad4], _sp4["resolve"] - _res_n))
+_r404 = ACR({"src": {"file_path": str(pathlib.Path(TMP) / "absent.mp4")}, "text": TXT, "n": 2})
+_r415 = ACR({"src": {"file_path": VX}, "text": TXT, "n": 2})
+check("d41_route_404_source_inconnue_415_non_video_sans_calage",
+      _r404[0] == 404 and _r415[0] == 415 and _sp4["align"] == 4, (_r404, _r415, _sp4["align"]))
+
+# create : projet neuf relu par GET /projects/{pid}
+# le clip qui commence le PLUS TARD : un clip a start 0 ne prouverait aucun
+# decalage (mutation « sans −start » survivante le 24/09, clip 0,0 → 17,3)
+_clip = max(L(_ba.get("clips")), key=lambda c: c.get("start", 0), default={})
+check("d41_create_le_clip_choisi_commence_apres_0", D(_clip).get("start", 0) > 5, D(_clip).get("start"))
+_saved_avant = MS._load_saved()
+_rc = ACC({"src": {"file_path": AV}, "clip": _clip, "name": "Auto 1"})
+_pid = D(_rc[1]).get("project_id")
+try:
+    _proj = asyncio.run(MS.montage_project_read(_pid)) if _pid else {}
+except Exception as _e:
+    _proj = {"err": str(_e)}
+_pc = L(D(_proj).get("clips"))
+_v1 = [c for c in _pc if c.get("tr") == "v1"]
+_a1 = [c for c in _pc if c.get("tr") == "a1"]
+_s1 = [c for c in _pc if c.get("tr") == "s1"]
+_dur = round(D(_clip).get("end", 0) - D(_clip).get("start", 0), 3)
+_segs = L(D(_clip).get("segments"))
+check("d41_create_projet_neuf_relu_v1_fenetre_srcIn_start_0_end_dur",
+      _rc[0] == 200 and D(_rc[1]).get("ok") is True and isinstance(_pid, str) and _pid.startswith("m_")
+      and D(_rc[1]).get("id") == _pid and D(_proj).get("name") == "Auto 1" and len(_v1) == 1
+      and _v1[0].get("src") == {"file_path": AV} and _v1[0].get("srcIn") == round(_clip.get("start", -1), 3)
+      and _v1[0].get("start") == 0.0 and _v1[0].get("end") == _dur and _dur >= 15, (_rc, _v1))
+check("d41_create_a1_son_du_plan_meme_fenetre",
+      len(_a1) == 1 and _a1[0].get("src") == {"file_path": AV} and _a1[0].get("srcIn") == _v1[0].get("srcIn")
+      and _a1[0].get("end") == _dur and "son du plan" in str(_a1[0].get("label")) if _v1 else False, _a1)
+check("d41_create_s1_segments_decales_de_moins_start_dans_0_dur",
+      len(_s1) == len(_segs) >= 2 and abs(_s1[0]["start"] - round(_segs[0]["start"] - _clip["start"], 3)) <= 1e-3
+      and all(0 <= s["start"] < s["end"] <= _dur + 1e-6 and s.get("text") and s.get("label") for s in _s1)
+      and [s["text"] for s in _s1] == [s["text"] for s in _segs]
+      and all(0 <= w["start"] <= w["end"] <= _dur + 1e-6 for s in _s1 for w in L(s.get("words")))
+      and L(_s1[0].get("words")) and abs(_s1[0]["words"][0]["start"] - _s1[0]["start"]) <= 1e-3, _s1[:1])
+check("d41_create_pistes_par_defaut_et_courant_intouche",
+      [t.get("id") for t in L(D(_proj).get("tracks"))] == [t["id"] for t in MS._CLIENT_DEFAULT_TRACKS]
+      and MS._load_saved() == _saved_avant and MS._project_path(_pid).is_file() if _pid else False, None)
+_rm = ACC({"src": {"file_path": S2}, "clip": {"start": 0.5, "end": 9.0, "segments": [], "title": "Muet"}})
+_pm = asyncio.run(MS.montage_project_read(D(_rm[1]).get("project_id"))) if _rm[0] == 200 else {}
+_pmc = L(D(_pm).get("clips"))
+check("d41_create_source_muette_sans_a1_fin_bornee_a_la_source_nom_du_titre",
+      _rm[0] == 200 and [c.get("tr") for c in _pmc] == ["v1"] and _pmc[0].get("end") == 2.5
+      and D(_pm).get("name") == "Muet" and len(_a1) == 1, (_rm, _pmc))
+_res_n = _sp4["resolve"]
+_badc = [ACC({"clip": _clip}), ACC({"src": {"file_path": AV}}), ACC({"src": {"file_path": AV}, "clip": {"start": "x", "end": 20}}),
+         ACC({"src": {"file_path": AV}, "clip": {"start": 10, "end": 10.1}}),
+         ACC({"src": {"file_path": AV}, "clip": {"start": -1, "end": 10}}),
+         ACC({"src": {"file_path": AV}, "clip": {"start": 0, "end": 20, "segments": "abc"}}),
+         ACC({"src": {"file_path": AV}, "clip": {"start": 0, "end": 20}, "name": 12})]
+check("d41_create_400_parametres_avant_toute_resolution_temoin",
+      [b[0] for b in _badc] == [400] * 7 and _sp4["resolve"] == _res_n
+      and ACC({"src": {"file_path": AV}, "clip": {"start": 0, "end": 20}})[0] == 200 and _sp4["resolve"] == _res_n + 1,
+      ([b[0] for b in _badc], _sp4["resolve"] - _res_n))
+_c404 = ACC({"src": {"file_path": str(pathlib.Path(TMP) / "absent.mp4")}, "clip": {"start": 0, "end": 20}})
+_c415 = ACC({"src": {"file_path": VX}, "clip": {"start": 0, "end": 1}})
+_capres = ACC({"src": {"file_path": S2}, "clip": {"start": 5, "end": 9}})
+check("d41_create_404_415_et_400_debut_apres_la_fin_de_la_source",
+      _c404[0] == 404 and _c415[0] == 415 and _capres[0] == 400, (_c404, _c415, _capres))
+
+for _k, _v in _T0.items():
+    setattr(TS, _k, _v)
+MS._resolve_src = _rs0
+SUMM._chat_dispatch = _cd0
+
 print(f"\n=== {ok} passed, {fail} failed ===")
 shutil.rmtree(TMP, ignore_errors=True)
 sys.exit(1 if fail else 0)
