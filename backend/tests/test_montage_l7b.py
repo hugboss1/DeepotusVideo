@@ -954,8 +954,14 @@ _sui1 = CMD([V1D(reframe={"mode": "suivi", "points": [(0.0, 0.7)]})])
 # en python : if/lt/clip traduits), profondeur ~log2(n) ; la CHAINE de _mp_lerp_expr echoue a -22
 # au-dela de 93 points dans le crop (mesure ffmpeg 8.1.1 du 24/09/2026).
 def _eval_ff(expr, t):
-    return eval(expr.replace("if(", "if_("), {"__builtins__": {}},
-                {"if_": lambda c, a, b: a if c else b, "lt": lambda a, b: a < b, "t": t})
+    # cloture T8 (24/09/2026) -- FAUTE N°6 MESUREE par la mutation « _rf_lerp_expr en chaine » : l'analyseur
+    # python leve SyntaxError (« too many nested parentheses ») sur 240 niveaux et tuait le banc au lieu de le
+    # faire rougir. Toute erreur rend NaN : la comparaison echoue, la ligne ROUGIT.
+    try:
+        return eval(expr.replace("if(", "if_("), {"__builtins__": {}},
+                    {"if_": lambda c, a, b: a if c else b, "lt": lambda a, b: a < b, "t": t})
+    except (SyntaxError, RecursionError, MemoryError, ValueError, TypeError, NameError):
+        return float("nan")
 
 
 def _lerp_py(pts, t):
@@ -1823,6 +1829,22 @@ check("l7b_restes_edl_export_docstring_route_sonde_pour_les_deux_formats",
       "HANDLES" in _edoc and "que pour le FCPXML" not in _edoc and "140c3d5" in _edoc, len(_edoc))
 
 print("\n[9] L7-B cloture (T8, 24/09/2026) : verrou de transcription, estimation dans le 409, confirm gratuit")
+# D-37 -- TROU DE COUVERTURE MESURE par la mutation « EDL sans M2 » (survivante le 24/09/2026) : la fixture n'avait
+# de vitesse que sur un plan en FONDU ; la ligne M2 de la branche COUPE FRANCHE n'etait lue par aucune ligne. Un plan
+# coupe a x2 puis a x0,5 : M2 juste apres l'evenement (30 x 2 = 060.0, 30 x 0,5 = 015.0) ; temoin : x1 sans M2.
+_rec9 = {"name": "m2", "tracks": [{"id": "v1", "kind": "video"}], "clips": [
+    {"tr": "v1", "id": "c1", "label": "c1", "src": {"file_path": S1}, "srcIn": 0.5, "start": 0.0, "end": 1.0,
+     "transition": "cut", "speed": 2},
+    {"tr": "v1", "id": "c2", "label": "c2", "src": {"file_path": S1}, "srcIn": 0.0, "start": 1.0, "end": 2.0,
+     "transition": "cut", "speed": 0.5},
+    {"tr": "v1", "id": "c3", "label": "c3", "src": {"file_path": S1}, "srcIn": 0.0, "start": 2.0, "end": 2.5,
+     "transition": "cut"}]}
+_l9 = [l for l in str(X("to_edl")(_rec9, RES(), fps=30, meta=META(_rec9)) or "").splitlines() if l.strip()]
+_i9 = [i for i, l in enumerate(_l9) if re.match(r"^\d{3}  AX       V     C ", l)]
+check("l7b_cloture_edl_coupe_franche_a_vitesse_M2_juste_apres_l_evenement_060_et_015_temoin_x1_sans_M2",
+      len(_i9) == 3 and _l9[_i9[0] + 1] == "M2   AX       060.0                00:00:00:15"
+      and _l9[_i9[1] + 1] == "M2   AX       015.0                00:00:00:00"
+      and _l9[_i9[2] + 1].startswith("* FROM CLIP NAME:") and sum(1 for l in _l9 if l.startswith("M2   ")) == 2, _l9)
 # (a) L'ARGENT : une transcription payante deja EN COURS sur la meme cle de cache (source, taille, mtime, fournisseur,
 # langue) -> 409 « deja en cours », `transcribe` n'est PAS rappele. Deux appels CONCURRENTS dans la meme boucle : le
 # premier est bloque DANS transcribe (espion qui attend un evenement, dans le thread de to_thread) ; le second part
