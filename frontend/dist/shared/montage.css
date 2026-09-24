@@ -1504,3 +1504,11 @@ body.dzm-tbdrag, body.dzm-tbdrag *{cursor:grabbing !important;
 .dzsvm .svm-abrow{display:flex;gap:6px;align-items:center;margin-top:10px}
 .dzsvm .svm-abthumb{width:78px;height:44px;object-fit:cover;background:#111;border-radius:3px;flex:none}
 .dzsvm .svm-abbtn{padding:5px 4px;font-size:11px;flex:1 1 auto;min-width:0;white-space:nowrap}
+/* L7 D-22 (24/09/2026, tâche 6) : la piste de sous-titres GRAVÉE au rendu — data-burn sur .svm-track (posé par L7f2,
+   calculé par subsBurnId de la couche : s1 sans marque). Un liseré accent à gauche de la tête et « ◉ » après le nom ;
+   les autres pistes de sous-titres (à l'écran seulement, jamais gravées) ont leur nom atténué. Discret : rien ne bouge
+   en hauteur ni en largeur. Le :not() ne pèse que sur l'opacité du NOM — aucune règle du bundle n'écrit d'opacité sur
+   .svm-tname (mesuré, son-vfx-montage.css). */
+.dzsvm .svm-track[data-burn] .svm-thead{box-shadow:inset 3px 0 0 var(--accent)}
+.dzsvm .svm-track[data-burn] .svm-tname::after{content:" ◉";color:var(--accent);font-size:10px;vertical-align:1px}
+.dzsvm .svm-track[data-sub]:not([data-burn]) .svm-tname{opacity:.72}

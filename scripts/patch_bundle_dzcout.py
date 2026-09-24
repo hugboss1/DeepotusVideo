@@ -420,7 +420,10 @@ STABLE_PROBES = [
     # payload. Les dix autres sections L7e (inspecteur, renderPayload,
     # svmApplyTf, svmOvTfAt, signatures, geste, reset) et le bloc pur de la
     # couche (dzmOvExtra) n'en ajoutent aucune.
-    ("montage", "DzTracks", 151),
+    # L7 D-22 (24/09/2026, tache 6) : 151 -> 158 -- sept sites de CODE, aucun commentaire : menu de piste x3
+    # (subsBurnId, subsBurn, subsNew), subsPayload x1 (subsBurnId), hote du tiroir x2 (subsNew, subsCopy),
+    # rangee de piste x1 (subsBurnId pour data-burn).
+    ("montage", "DzTracks", 158),
 ]
 
 # ── L1 — le préambule, fonction PURE de la carte ────────────────────────────

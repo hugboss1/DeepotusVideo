@@ -2215,10 +2215,23 @@ function DzMontage(props){
       return Object.assign(base,{items:[
         {lbl:lk?"Déverrouiller":"Verrouiller",run:function(){svmTrackLock(id)}},
         {lbl:"Muet",off:!bus,run:function(){svmTrackMute(id)}},
-        {lbl:"Solo",off:!bus,run:function(){svmTrackSolo(id,!1)}},{sep:!0},
+        {lbl:"Solo",off:!bus,run:function(){svmTrackSolo(id,!1)}},{sep:!0}]
+        /* L7 D-22 (24/09/2026, tâche 6) : une piste de sous-titres — graver, exporter ses clips, nouvelle piste de langue */
+        .concat(trackKind(id)==="subs"?(function(){var bid=DzTracks.subsBurnId(ts),segs=cs.filter(function(k){return k.tr===id});
+          function dzSubsExp(fmt){var txt=fmt==="srt"?subsToSrt(segs,subsStyleNow()):fmt==="vtt"?subsToVtt(segs,subsStyleNow()):subsToTxt(segs);
+            if(!txt.trim()){fireNote("Rien à exporter — la piste "+(t.name||id)+" est vide.");return}
+            var base=String(proj.name||"sous-titres").replace(/[^\w\-. ]+/g,"_")+"-"+id;
+            fireNote(subsDownload(base+"."+fmt,txt,fmt==="vtt"?"text/vtt":fmt==="srt"?"application/x-subrip":"text/plain")?"Fichier "+base+"."+fmt+" écrit — local, sans compte.":"Téléchargement refusé par le navigateur.")}
+          return [{lbl:bid===id?"Gravée au rendu":"Graver cette piste au rendu",combo:bid===id?"gravée":"",off:bid===id,run:function(){svmTracksSet(DzTracks.subsBurn(ts,id));
+              fireNote("Piste "+(t.name||id)+" gravée au rendu — les autres pistes de sous-titres restent à l'écran seulement.")}},
+            {lbl:"Exporter .srt",off:!n,run:function(){dzSubsExp("srt")}},{lbl:"Exporter .vtt",off:!n,run:function(){dzSubsExp("vtt")}},{lbl:"Exporter .txt",off:!n,run:function(){dzSubsExp("txt")}},
+            {lbl:"Nouvelle piste de langue…",run:function(){var lg=window.prompt("Langue de la nouvelle piste de sous-titres (en, de, es…)","en");if(lg==null)return;
+              var r2=DzTracks.subsNew(ts,lg);svmTracksSet(r2.tracks);
+              fireNote("Piste "+r2.id.toUpperCase()+(String(lg).trim()?" ("+String(lg).trim()+")":"")+" ajoutée, vide — « Traduire vers » dans le tiroir Sous-titres, case « nouvelle piste », la remplit.")}},{sep:!0}]})():[])
+        .concat([
         {lbl:"Supprimer la piste",off:bs,run:function(){svmTracksSet(DzTracks.remove(ts,id));
           if(n)setClips(function(cs2){return (cs2||[]).filter(function(k){return k.tr!==id})});
-          fireNote("Piste "+(t.name||id)+" retirée"+(n?" avec "+n+" clip"+(n>1?"s":"")+" — annuler ramène les clips":"")+".")}}]})}
+          fireNote("Piste "+(t.name||id)+" retirée"+(n?" avec "+n+" clip"+(n>1?"s":"")+" — annuler ramène les clips":"")+".")}}])})}
     return null}
 
   /* ── applique une réponse /api/montage/project — Bibliothèque OU
@@ -4182,7 +4195,10 @@ function DzMontage(props){
   function subsPayload(){
     var d=subsLayer();
     if(!d)return void 0;
-    var segs=d.sort(subsSegsOf(clipsRef.current)).filter(function(s){
+    /* L7 D-22 (24/09/2026, tâche 6) : seule la piste de sous-titres marquée « gravée » part au rendu (s1 sans marque —
+       subsBurnId de la couche) ; l'éditeur, le verdict, la couverture et les emojis restent sur s1 (subsSegsOf, inchangé) */
+    var bid=DzTracks.subsBurnId(svmTracksOf(proj));
+    var segs=d.sort((clipsRef.current||[]).filter(function(c){return c.tr===bid})).filter(function(s){
       return !s.hidden&&String(s.text||"").trim()});
     if(!segs.length)return void 0;
     return {style:subsStyleNow(),
@@ -4248,7 +4264,11 @@ function DzMontage(props){
       onPlanFlag:subsPlanFlag,
       /* P13 — les pistes du projet, pour que le tiroir et la route
          visent la même piste de dialogue. */
-      srcTracks:svmTracksOf(proj)})}
+      srcTracks:svmTracksOf(proj),
+      /* L7 D-22 (24/09/2026) : la traduction « dans une nouvelle piste » — S<n> naît, ses répliques sont des clips neufs, S1 intacte */
+      onNewTrack:function(lang,segs){var r2=DzTracks.subsNew(svmTracksOf(proj),lang);svmTracksSet(r2.tracks);
+        setClips(function(cs){return DzTracks.subsCopy(cs,"s1",r2.id,segs)});setDirty(!0);
+        fireNote("Piste "+r2.id.toUpperCase()+" ("+lang+") créée avec "+(segs||[]).length+" répliques — S1 intacte ; clic droit sur la tête de "+r2.id.toUpperCase()+" pour la graver au rendu.")}})}
   /* LE karaoké : le mot prononcé se surligne dans le lecteur, à l'échelle
      réelle du canevas de rendu (l'aperçu ne ment pas sur la taille).
      Le tiroir ouvert, le même bloc devient MANIPULABLE : cadre de sélection,
@@ -6513,7 +6533,8 @@ function DzMontage(props){
                   pushHistory();svmMixSet(bus,busDb+d3)},
                 children:r.jsx("div",{className:"svm-thmixfill",
                   style:{width:svmMixW(busDb)+"%",background:"var("+SVM_MIX_COLORS[bus]+")"}})})},"fd"):null;
-            return r.jsxs("div",{className:"svm-track","data-sub":tr.id==="s1"?"":void 0,"data-soloexcl":soloExcl?"":void 0,style:{height:tr.h},children:[
+            /* L7 D-22 (24/09/2026) : data-sub par genre (S2… aussi), data-burn sur la piste que le rendu grave (s1 sans marque) */
+            return r.jsxs("div",{className:"svm-track","data-sub":trackKind(tr.id)==="subs"?"":void 0,"data-burn":trackKind(tr.id)==="subs"&&DzTracks.subsBurnId(svmTracksOf(proj))===tr.id?"":void 0,"data-soloexcl":soloExcl?"":void 0,style:{height:tr.h},children:[
               r.jsxs("div",{className:"svm-thead"+(bus?" svm-thead-a":""),onContextMenu:function(e){e.preventDefault();setDzMenu(dzMenuProps("track",{x:e.clientX,y:e.clientY,id:tr.id}))},children:
                 bus?[
                   r.jsxs("div",{className:"svm-tnamerow",children:[
@@ -12645,6 +12666,8 @@ const SubsDrawer=(props)=>{
     try{var dzV=localStorage.getItem("dz_subs_to");if(dzV)return dzV}catch(_e){}
     return DzTracks.subsTrDefaut(lang)}),dzTo=s9[0],setDzTo=s9[1];
   var s9b=x.useState({st:"?"}),dzTe=s9b[0],setDzTe=s9b[1];
+  /* L7 D-22 (24/09/2026) : traduire DANS UNE NOUVELLE PISTE S<n> — S1 reste intacte (hôte : onNewTrack) */
+  var s9c=x.useState(!1),dzNewTr=s9c[0],setDzNewTr=s9c[1];
   var dzTrN=segs.length,
       dzTrChars=segs.reduce(function(a,sg){return a+String(sg.text||"").length},0);
   x.useEffect(function(){
@@ -12681,7 +12704,8 @@ const SubsDrawer=(props)=>{
         var dzNext=DzTracks.subsTrApply(segs,(o.d&&o.d.segments)||[],subsLabelOf);
         if(!dzNext){note2("Réponse illisible : le compte des répliques "+
           "ne correspond pas — rien n'a été écrit.");return}
-        if(props.onChange)props.onChange(dzNext,!0);
+        if(dzNewTr&&props.onNewTrack)props.onNewTrack(dzTo,dzNext);
+        else if(props.onChange)props.onChange(dzNext,!0);
         note2(DzTracks.subsTrNote(dzNext.length,dzTo,SUBS_LANGS))},
       function(){setTrJob(null);
         note2("Traduction indisponible : POST /api/subtitles/translate "+
@@ -12972,6 +12996,10 @@ const SubsDrawer=(props)=>{
           children:SUBS_LANGS.filter(function(o){return o[0]!=="auto"})
             .map(function(o){
               return r.jsx("option",{value:o[0],children:o[1]},o[0])})},"s")]},"tg"),
+      /* L7 D-22 (24/09/2026) : traduire dans une nouvelle piste S<n> (S1 intacte) au lieu de réécrire S1 */
+      r.jsxs("label",{className:"sub-trlang sub-trnew",title:"Coché : la traduction naît dans une nouvelle piste de sous-titres S2, S3… (S1 reste intacte ; la piste gravée au rendu se choisit par clic droit sur sa tête). Décoché : S1 est réécrite.",children:[
+        r.jsx("input",{type:"checkbox",checked:dzNewTr,"aria-label":"Traduire dans une nouvelle piste",onChange:function(e){setDzNewTr(e.target.checked)}},"c"),
+        r.jsx("span",{className:"sub-trlangl",children:"nouvelle piste"},"l")]},"nt"),
       (function(){
         var dzOn=DzTracks.subsTrEnabled(dzTrN,dzTe,!!(trJob&&trJob.busy));
         return subsActBtn({fam:"fix",
@@ -12980,7 +13008,7 @@ const SubsDrawer=(props)=>{
           cost:trJob&&trJob.busy?"en cours…":dzTe.ok
             ?subsLangLab(dzTo)+" · "+(dzTe.provider||"LLM")+" · "+subsUsd(dzTe.usd)
             :(dzTe.st==="vide"?"aucune réplique":"coût indisponible"),
-          apres:dzOn.on?DzTracks.subsTrTitle(dzTrN):dzOn.pourquoi,
+          apres:dzOn.on?(dzNewTr?"Les "+dzTrN+" répliques traduites naissent dans une nouvelle piste S2, S3… — S1 reste intacte ; « Annuler » retire la piste et ses répliques.":DzTracks.subsTrTitle(dzTrN)):dzOn.pourquoi,
           onClick:dzTraduire,k:"trad"})})(),
       trJob&&trJob.busy
         ?r.jsx("span",{className:"sub-trstep",
@@ -13422,7 +13450,14 @@ function svmTracksFrom(raw){
    et `_tracks_meta` ignore la clé — mesuré. */
 function svmTracksPayload(proj){return svmTracksOf(proj).map(function(t){
   var o={id:t.id,kind:t.kind};if(t.bus)o.bus=t.bus;if(t.loop)o.loop=!0;
-  if(t.kind==="video"&&t.id!=="v1"&&t.type==="vidéo")o.type="vidéo";return o})}
+  if(t.kind==="video"&&t.id!=="v1"&&t.type==="vidéo")o.type="vidéo";
+  /* L7 D-22 (24/09/2026) — une piste de sous-titres emporte sa langue, sa marque
+     de gravure (jamais burn:false : l'absence vaut faux, comme loop) et, quand
+     elle porte une langue, son NOM — le seul de ces trois que l'habillage ne
+     sait pas reconstruire (« S2 en » redevenait « S2 » au rechargement). Le
+     backend range `tracks` tel quel et _tracks_meta ignore ces clés — mesuré. */
+  if(t.kind==="subs"){if(t.lang)o.lang=String(t.lang);if(t.burn)o.burn=!0;if(t.lang&&t.name)o.name=String(t.name)}
+  return o})}
 
 /* SVM_TRACK_BUS est un objet module-level du bloc sonvfx, LU à neuf endroits
    (mesuré : svmTrackMute, svmTrackSolo, quatre gardes de raccourci, le dépôt
@@ -20247,6 +20282,84 @@ function dzmOvExtra(c){
   var o=c&&typeof c==="object"?c:{},r=Number(o.radius),s=Number(o.shadow);
   r=isFinite(r)?Math.round(r):0;
   return {radius:Math.max(0,Math.min(DZM_OV_RADIUS_MAX,r)),shadow:isFinite(s)&&s>=.5?1:0}}
+/* ── L7 D-22 (24/09/2026) : pistes de sous-titres par langue, une seule gravée (pur) ──
+   Périmètre MINIMAL et daté (décision n°7 du plan L7-A) : une piste S2… est une
+   COPIE de S1 — traduite (le tiroir, case « dans une nouvelle piste ») ou vide
+   (menu de piste « Nouvelle piste de langue… ») ; ses répliques sont des clips
+   tr:"s2" ; l'ÉDITEUR reste sur S1 (S2 s'édite par retraduction, pas dans le
+   tiroir — écart daté). La piste subs marquée `burn:true` (UNE seule) est celle
+   que subsPayload() envoie ; sans marque, s1 — le comportement d'avant, à
+   l'octet près. Le genre se lit par dzmKindOf (initiale ou kind explicite),
+   jamais par une égalité avec "s1" : une piste s9 sans kind est une piste de
+   sous-titres, une « s1 » déclarée vidéo n'en est pas une.
+   · subsTracks(ts) — les identifiants des pistes subs, dans l'ordre.
+   · subsNew(ts, lang) → {tracks, id} : id "s<max+1>", nom "S<n> <lang>",
+     habillage dzmSkin, `lang` seulement si donnée ; posée APRÈS la dernière
+     piste subs (le groupe du bas), en fin de liste s'il n'y en a aucune.
+   · subsBurn(ts, id) — tableau NEUF, une seule `burn:true` ; les autres subs
+     portent `burn:false` (objets neufs), les pistes hors subs sont les MÊMES
+     objets ; id absent, inconnu ou hors genre → s1, sinon la première subs.
+   · subsBurnId(ts) — ce que le rendu grave : la marquée, sinon "s1" (même
+     sans aucune piste subs : la liste des clips filtre alors comme avant),
+     sinon la première subs quand s1 manque.
+   · subsCopy(clips, deTr, versTr, segments?) — segments donnés → clips neufs
+     {id "s<n>c<k>" unique par dzmUniqueId, tr:versTr, start, end, text,
+     label:text (46 car., « (vide) »), hidden si vrai} ; sans segments → copie
+     des clips de deTr (mêmes clés, id et tr neufs). Les autres clips sont les
+     MÊMES objets ; rien n'est retiré de la piste cible. */
+var DZM_SUBS_LABEL_MAX=46;
+function dzmSubsTracks(ts){
+  var out=[];(Array.isArray(ts)?ts:[]).forEach(function(t){
+    if(t&&t.id!=null&&dzmKindOf(t.id,t.kind)==="subs")out.push(String(t.id))});
+  return out}
+function dzmSubsNew(ts,lang){
+  var list=Array.isArray(ts)?ts.slice():[],n=1,at=list.length,lg=String(lang==null?"":lang).trim(),i,m;
+  for(i=0;i<list.length;i++){var t=list[i];
+    if(!t||t.id==null)continue;
+    m=/^s(\d+)$/.exec(String(t.id));
+    if(m&&+m[1]>=n)n=+m[1]+1;
+    if(dzmKindOf(t.id,t.kind)==="subs")at=i+1}
+  var id="s"+n,neuf=Object.assign(dzmSkin(id,"subs"),{name:"S"+n+(lg?" "+lg:""),kind:"subs"});
+  if(lg)neuf.lang=lg;
+  list.splice(at,0,neuf);
+  return {tracks:list,id:id}}
+function dzmSubsBurnId(ts){
+  var list=Array.isArray(ts)?ts:[],ids=dzmSubsTracks(list),i,t;
+  for(i=0;i<list.length;i++){t=list[i];
+    if(t&&t.burn&&t.id!=null&&dzmKindOf(t.id,t.kind)==="subs")return String(t.id)}
+  var d="s1";return (!ids.length||ids.indexOf(d)>=0)?d:ids[0]}
+function dzmSubsBurn(ts,id){
+  var list=Array.isArray(ts)?ts:[],ids=dzmSubsTracks(list);
+  var want=(id!=null&&ids.indexOf(String(id))>=0)?String(id):dzmSubsBurnId(list.map(function(t){
+    return t&&typeof t==="object"?Object.assign({},t,{burn:!1}):t}));
+  return list.map(function(t){
+    if(!t||t.id==null||dzmKindOf(t.id,t.kind)!=="subs")return t;
+    return Object.assign({},t,{burn:String(t.id)===want})})}
+function dzmSubsLabelOf(txt){
+  var t=String(txt==null?"":txt).replace(/\s+/g," ").trim();
+  if(!t)return "(vide)";
+  return t.length>DZM_SUBS_LABEL_MAX?t.slice(0,DZM_SUBS_LABEL_MAX-1)+"…":t}
+function dzmSubsCopy(clips,deTr,versTr,segments){
+  var cs=Array.isArray(clips)?clips.filter(function(c){return c&&typeof c==="object"}):[];
+  var vers=String(versTr==null?"":versTr),de=String(deTr==null?"":deTr);
+  if(!vers)return cs;
+  var depuisClips=!Array.isArray(segments);
+  var src=depuisClips?cs.filter(function(c){return c.tr===de}):segments;
+  var pool=cs.slice(),out=cs.slice(),k=0;
+  src.forEach(function(s){
+    if(!s||typeof s!=="object")return;
+    var st=Number(s.start),en=Number(s.end);
+    if(!isFinite(st))return;
+    st=Math.max(0,st);
+    en=isFinite(en)&&en>st?en:st+.1;
+    st=Math.round(st*1e3)/1e3;en=Math.round(en*1e3)/1e3;
+    var id=dzmUniqueId(pool,vers+"c"+(++k)),c;
+    if(depuisClips){c=Object.assign({},s,{id:id,tr:vers,start:st,end:en})}
+    else{var txt=String(s.text==null?"":s.text);
+      c={id:id,tr:vers,start:st,end:en,text:txt,label:dzmSubsLabelOf(txt)};
+      if(s.hidden)c.hidden=!0}
+    pool.push(c);out.push(c)});
+  return out}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,
@@ -20358,6 +20471,8 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   diff:dzmDiff,DiffView:DzmDiffView,diffTemps:dzmDiffTemps,
   abSecs:dzmAbSecs,abRollDit:dzmAbRollDit,
   ovExtra:dzmOvExtra,
+  /* L7 D-22 (24/09/2026, tache 6) : pistes de sous-titres par langue, une seule gravee */
+  subsTracks:dzmSubsTracks,subsNew:dzmSubsNew,subsBurn:dzmSubsBurn,subsBurnId:dzmSubsBurnId,subsCopy:dzmSubsCopy,
   /* E-13 / E-14 (lot E-C, tache 5) : la tete dans l'inspecteur, le trou selectionne et son ripple */
   teteTxt:dzmTeteTxt,trou:dzmTrou,trouRipple:dzmTrouRipple,
   DEFAULTS:DZM_DEFAULT_TRACKS};

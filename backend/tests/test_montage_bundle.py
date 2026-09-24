@@ -3476,10 +3476,11 @@ check("P13_l_hote_envoie_srcIn_et_les_clips_de_la_piste_de_dialogue",
       and s.count(nl('||c.tr===dzDial})')) == 1,
       f"subsSrcClips={_sc0} dzDial={_dd} filtre={_ft} srcIn={_si} subsNum={_sn}")
 check("P13_l_hote_passe_les_pistes_au_tiroir",
-      s.count(nl("srcTracks:svmTracksOf(proj)})}")) == 1
+      # L7 D-22 (T6, 24/09/2026) : la queue `srcTracks:…})}` est devenue `srcTracks:…,` + onNewTrack (repli R_M24H)
+      s.count(nl("srcTracks:svmTracksOf(proj),")) == 1 and s.count(nl("srcTracks:svmTracksOf(proj)})}")) == 0
       and s.count(nl("onPlanFlag:subsPlanFlag})}")) == 0
       and s.count(nl("onPlanFlag:subsPlanFlag,")) == 1,
-      f'neuf={s.count(nl("srcTracks:svmTracksOf(proj)})}"))} '
+      f'neuf={s.count(nl("srcTracks:svmTracksOf(proj),"))} '
       f'ancien={s.count(nl("onPlanFlag:subsPlanFlag})}"))}')
 # AUCUN confirm() : la pastille et l'infobulle sont la convention (banc
 # test_subs_regle_des_gestes). Conjoint : les dix sections existent.
@@ -14349,8 +14350,10 @@ check("D21_les_seize_appels_de_trackKind_sont_des_egalites",
       # « + » d'une piste VIDEO, `==="video"`, vers le tiroir Medias).
       # 23/09/2026 (E-6, lot E-C tache 2) : 31 -> 32, 29 -> 30. UNE de plus, une
       # EGALITE : « Effets… » du menu du clip est grise sur l'audio (`==="audio"`, R_EC1).
-      and s.count(nl("trackKind(")) == 32
-      and len(_TKAPP) == 30 and all(k in ("===", "!==") for k in _TKAPP)
+      # 24/09/2026 (L7 D-22, T6) : 32 -> 35, 30 -> 33. TROIS de plus, des EGALITES `==="subs"` :
+      # data-sub et data-burn de la rangee (L7f2, x2), les entrees de sous-titres du menu de piste (R_EC1, x1).
+      and s.count(nl("trackKind(")) == 35
+      and len(_TKAPP) == 33 and all(k in ("===", "!==") for k in _TKAPP)
       and s.count(nl("var rkd=trackKind(rk.tr);")) == 1
       and s.count(nl("if(rkd!==akd){")) == 1,
       f'bak={_bak.count(_nlb("trackKind(")) if _bak else "?"} '
@@ -15259,11 +15262,14 @@ check("DZ_le_patcher_porte_DZ1_DZ4_puis_KF1_KF5_puis_AJ2_AJ6_puis_EB1_EB8b_puis_
                                                           # L7 D-19 (T5 client, 24/09/2026) : ONZE sections en queue (svmOvTfAt,
                                                           # signatures, geste et reset mesures hors plan), sonde 150 -> 151
                                                           # (ovExtra dans svmOvTfOf, L7e2a)
-                                                          "L7e1", "L7e2a", "L7e2b", "L7e3", "L7e4a", "L7e4b", "L7e5", "L7e6", "L7e7a", "L7e7b", "L7e8"]
+                                                          "L7e1", "L7e2a", "L7e2b", "L7e3", "L7e4a", "L7e4b", "L7e5", "L7e6", "L7e7a", "L7e7b", "L7e8",
+                                                          # L7 D-22 (T6, 24/09/2026) : deux sections en queue, sonde 151 -> 158
+                                                          # (sept sites de code : menu x3, subsPayload x1, hote x2, rangee x1)
+                                                          "L7f1", "L7f2"]
       and all(_bak.count(_nlb(a)) == 1 and s.count(nl(r)) == 1
               and s.count(nl(a)) == (1 if a in r else 0)
               for _t, a, r in P.PATCHES[_DZ_I + 1:])
-      and _sonde.get("montage") == 151 and s.count("DzTracks") == 151
+      and _sonde.get("montage") == 158 and s.count("DzTracks") == 158
       if _bak else False,
       f"queue={_DZ_TAGS[_DZ_I + 1:]} sonde={_sonde.get('montage')} bundle={s.count('DzTracks')}")
 
@@ -16488,7 +16494,8 @@ check("EC1_clip_les_items_Couper_Supprimer_Remplacer_Effets_six_vitesses_Transit
       and _EC1.count('{lbl:"Effets…",off:trackKind(c.tr)==="audio",run:function(){setFxPick(!0)}}') == 1
       and _EC1.count('[.25,.5,.75,1,1.5,2].map(function(v){return {lbl:"Vitesse "+Math.round(v*100)+" %",combo:Math.abs(sp-v)<1e-6?"✓":"",off:!v1||!c.src||!c.src.job_id,run:function(){svmSetV1Speed(id,v)}}})') == 1
       and _EC1.count('{lbl:"Transition…",off:!g,run:function(){openTransPopAt(id,o.x)}}') == 1
-      and _EC1.count("{sep:!0}") == 3 and s.count("DzTracks.voisins(cs,c).g") == 1
+      # L7 D-22 (T6, 24/09/2026) : un quatrieme separateur, entre les entrees de sous-titres et « Supprimer la piste »
+      and _EC1.count("{sep:!0}") == 4 and s.count("DzTracks.voisins(cs,c).g") == 1
       and s.count("p<=c.start+.05||p>=c.end-.05") == 1   # temoin : la tolerance de blade
       and s.count("function svmSetV1Speed(id,v){") == 1 and s.count("function openTransPopAt(id,cx0){") == 1
       and s.count("function trackKind(trId){") == 1 and s.count("dzReplaceArm(") == 3 and s.count("function dzReplaceArm(sel){") == 1,
@@ -16580,16 +16587,18 @@ _EC_SONDE = _lire(ROOT / "scripts" / "patch_bundle_dzcout.py")
 # -> 146 (L7 D-39, T4, 24/09/2026 : diff dans le repli L7d1 de R_M14, DiffView dans le repli de R_L7C3).
 # -> 149 (L7 D-3b, T4-bis, 24/09/2026 : voisins + abSecs + roll dans la section neuve L7g1).
 # -> 150 (revue D-3b, 24/09/2026 : abRollDit dans abRoll, L7g1).
-check("EC_la_sonde_dzcout_compte_DzTracks_151",
+check("EC_la_sonde_dzcout_compte_DzTracks_158",
       # 24/09/2026 (L7 D-19 client, T5) : 150 -> 151, ovExtra dans svmOvTfOf (L7e2a)
-      _EC_SONDE.count('("montage", "DzTracks", 151),') == 1 and _EC_SONDE.count('("montage", "DzTracks", 150),') == 0
+      # 24/09/2026 (L7 D-22, T6) : 151 -> 158, sept sites de code (subsBurnId x3, subsBurn, subsNew x2, subsCopy)
+      _EC_SONDE.count('("montage", "DzTracks", 158),') == 1 and _EC_SONDE.count('("montage", "DzTracks", 151),') == 0
+      and _EC_SONDE.count('("montage", "DzTracks", 150),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 149),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 146),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 144),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 142),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 139),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 135),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 132),') == 0
       and _EC_SONDE.count('("montage", "DzTracks", 129),') == 0 and _EC_SONDE.count('("montage", "DzTracks", 128),') == 0
-      and _EC_SONDE.count('("montage", "DzTracks", 123),') == 0 and s.count("DzTracks") == 151,
+      and _EC_SONDE.count('("montage", "DzTracks", 123),') == 0 and s.count("DzTracks") == 158,
       f"sonde={_EC_SONDE.count(chr(40) + chr(34) + 'montage')} bundle={s.count('DzTracks')}")
 
 print("\n[EC] E-7 : les trois vues Medias · Montage · Livraison (lot E-C, tache 3)")
@@ -16987,7 +16996,8 @@ check("L4a_etat_dzDel_ref_api_effet_pop_et_dzDelSet_replies_dans_R_M16REF_apres_
       and s.count('"/api/montage/deliver-presets"') == 2 and s.count('fetch("/api/montage/deliver-presets")') == 1
       and s.count('fetch("/api/montage/deliver-presets",{method:"PUT"') == 1
       # window.prompt( : l'amont en porte NEUF (mesure .bak) -- ce lot en ajoute UN (dzSavePreset), dans R_M16REF
-      and s.count("function dzSavePreset(){") == 1 and s.count("window.prompt(") == 10 and P.R_M16REF.count("window.prompt(") == 1
+      # L7 D-22 (T6, 24/09/2026) : UN de plus (« Nouvelle piste de langue… », repli R_EC1) : 10 -> 11
+      and s.count("function dzSavePreset(){") == 1 and s.count("window.prompt(") == 11 and P.R_M16REF.count("window.prompt(") == 1 and P.R_EC1.count("window.prompt(") == 1
       # dzDelRef x4 : la declaration, la pose a chaque rendu, la lecture dans renderPayload (L4c2) et son commentaire ; dzDelSet x3 : la definition, onChange, dzSavePreset
       and _libre21("dzDelRef", s) == 4 and s.count("dzDelRef.current=dzDel;") == 1 and s.count("dzDelRef.current,{range:proj.range") == 1 and _libre21("dzDelSet", s) == 3
       # aucun id de preset en dur dans l'hote ni dans la couche : sans choix, rien n'est poste (banc croise T5)
@@ -17118,7 +17128,8 @@ check("L7a3_section_unique_en_queue_de_PATCHES_ancre_libre_1_0_1_remplacement_x1
       # 24/09/2026 (L7 D-8, T3) : L7c3 rejoint L7A en queue -- trois sections, L7a3 toujours la premiere
       # 24/09/2026 (L7 D-3b, T4-bis) : L7g1/L7g2 rejoignent L7A en queue -- cinq sections, L7a3 toujours la premiere
       # 24/09/2026 (L7 D-19 client, T5) : onze sections L7e en queue -- seize sections, L7a3 toujours la premiere
-      len(P.L7A) == 16 and len(_L7A3) == 1 and P.PATCHES[-16:] == P.L7A and P.PATCHES[-17] == P.L4[-1] and P.L7A[0] == _L7A3[0]
+      # L7 D-22 (tache 6) : deux sections L7f en queue, 16 -> 18
+      len(P.L7A) == 18 and len(_L7A3) == 1 and P.PATCHES[-18:] == P.L7A and P.PATCHES[-19] == P.L4[-1] and P.L7A[0] == _L7A3[0]
       # l'ancre (le commentaire) est CONSERVEE en queue du remplacement : x1 dans le livre
       and s.count(nl(_L7A3[0][1])) == 1 and s.count(nl(_L7A3[0][2])) == 1 and _L7A3[0][2].endswith(_L7A3[0][1])
       and (_bak.count(_nlb(_L7A3[0][1])) == 1 and _bak.count(_nlb(_L7A3[0][2])) == 0 if _bak else False)
@@ -17281,7 +17292,7 @@ check("L7b_la_couche_clipCopy_pisteCible_clipPaste_nocopy_exports_rubrique_Editi
           "clipCopy:dzmClipCopy,clipPaste:dzmClipPaste,", 'copy:"Édition",paste:"Édition",'))
       # 24/09/2026 (L7 D-8, T3) : L7c3 en queue ; (L7 D-3b, T4-bis) : L7g1/L7g2 -- cinq sections dans L7A, toujours une seule L7b
       # 24/09/2026 (L7 D-19 client, T5) : onze sections L7e en queue -- seize dans L7A, toujours une seule L7b
-      and len(P.L7A) == 16 and P.PATCHES[-16:] == P.L7A and sum(1 for _t in P.PATCHES if _t[0].startswith("L7b")) == 1
+      and len(P.L7A) == 18 and P.PATCHES[-18:] == P.L7A and sum(1 for _t in P.PATCHES if _t[0].startswith("L7b")) == 1
       and (_bak.count("dzmClipCopy") == 0 and _bak.count("dzmClipPaste") == 0 and _bak.count("DZM_CLIP_NOCOPY") == 0 if _bak else False),
       f"pures={[s.count(k) for k in ('function dzmClipCopy(c){', 'function dzmClipPaste(clips,payload,opts){')]} sections={[p[0] for p in P.PATCHES[-2:]]}")
 
@@ -17330,8 +17341,8 @@ _iBoFe = min([v for v in (s.find(nl("\n  var "), _iBoF + 1), s.find(nl("\n  func
 _BOP = s[_iBoF:_iBoFe] if 0 <= _iBoF < _iBoFe else ""
 check("L7c3_section_en_queue_ancre_libre_1_0_1_conservee_boringPopover_defini_avant_popover_et_delegue_par_sa_garde_avant_isR",
       # 24/09/2026 (L7 D-3b, T4-bis) : L7g1/L7g2 suivent -- L7c3 est l'antepenultieme
-      # 24/09/2026 (L7 D-19 client, T5) : onze sections L7e apres L7g2 -- L7c3 est a PATCHES[-14]
-      len(_L7C3) == 1 and P.PATCHES[-14] == _L7C3[0] and s.count(nl(_L7C3[0][1])) == 1 and s.count(nl(_L7C3[0][2])) == 1
+      # 24/09/2026 (L7 D-19 client, T5) : onze sections L7e apres L7g2 -- L7c3 est a PATCHES[-14] ; D-22 (T6) : deux L7f de plus, -16
+      len(_L7C3) == 1 and P.PATCHES[-16] == _L7C3[0] and s.count(nl(_L7C3[0][1])) == 1 and s.count(nl(_L7C3[0][2])) == 1
       and _L7C3[0][2].endswith('    if(pop==="boring")return boringPopover();') and _L7C3[0][1] in _L7C3[0][2]
       and 0 < _iBoF < _iBoG < _iBoD < _iBoR < _iBoD + 120 and s.count("function boringPopover(){") == 1 and s.count("boringPopover()") == 2
       and sum(1 for _t in P.PATCHES if _L7C3[0][1] in _t[2] and _t[0] != _L7C3[0][0]) == 0
@@ -17419,8 +17430,8 @@ check("L7d1_etat_diffSt_replie_en_queue_de_EB7_ETAT_apres_boMap_avant_stDzFin_un
       # x3 : la declaration, la garde (deux lectures) -- `setDiffSt` porte une majuscule, il ne compte pas
       and s.count("diffSt") == 3 and src.count("diffSt") == 0
       # MESURE 24/09 : 543 useState dans le livre, 482 dans le .bak -- +61 par la chaine, dont celui-ci
-      # L7 D-3b (tache 4-bis) : abSt ajoute le sien, 543 -> 544
-      and s.count("x.useState(") == 544 and (_bak.count("x.useState(") == 482 and _bak.count("diffSt") == 0 if _bak else False),
+      # L7 D-3b (tache 4-bis) : abSt ajoute le sien, 543 -> 544 ; L7 D-22 (tache 6) : dzNewTr du tiroir, 544 -> 545
+      and s.count("x.useState(") == 545 and (_bak.count("x.useState(") == 482 and _bak.count("diffSt") == 0 if _bak else False),
       f"etat={s.count(nl(_L7D_ST))} ordre={(_iDfBo, _iDfSt, _iDfFin)} diffSt={s.count('diffSt')} useState={s.count('x.useState(')}")
 # revue 24/09 : un `diff` sans etat rend null -- jamais le popover generique
 _L7D_G = '    if(pop==="diff")return diffSt?r.jsx(DzTracks.DiffView,Object.assign({onClose:function(){setPop("")}},diffSt)):null;'
@@ -17429,7 +17440,8 @@ check("L7d1_garde_diff_repliee_dans_R_L7C3_entre_la_garde_pop_et_la_branche_bori
       s.count(nl(_L7D_G)) == 1 and _L7D_G in P.R_L7C3 and 0 < _iBoG < _iDfG < _iBoD < _iBoR
       # L7 D-3b (tache 4-bis) : deux sections neuves L7g1/L7g2 en queue -- L7c3 n'est plus la derniere (3 -> 5)
       # L7 D-19 (tache 5, client) : onze sections L7e en queue (5 -> 16)
-      and len(_L7C3) == 1 and _L7C3[0] in P.PATCHES and len(P.L7A) == 16
+      # L7 D-22 (tache 6) : deux sections L7f en queue (16 -> 18)
+      and len(_L7C3) == 1 and _L7C3[0] in P.PATCHES and len(P.L7A) == 18
       and _L7C3[0][2].endswith('    if(pop==="boring")return boringPopover();') and s.count("DzTracks.DiffView") == 1
       and _BOP.count("DzTracks") == 0 and P.R_L7C3.count("DzTracks") == 1
       and (_bak.count('pop==="diff"') == 0 and _bak.count("DiffView") == 0 if _bak else False),
@@ -17475,8 +17487,8 @@ _iAbUse = s.find(nl("  x.useEffect(function(){\n    if(!dzAbK)")); _iAbRoll = s.
 _iAbOv = s.find("  /* ── ajout d'assets depuis la Bibliothèque, sur n'importe quelle piste ──")
 check("L7g1_section_neuve_ancre_fin_de_l_effet_transPop_1_0_1_calcul_effet_abRoll_avant_les_assets",
       # 24/09/2026, tache 5 (D-19 client) : les ONZE sections L7e suivent L7g2 en queue -- L7A passe de 5 a 16 et
-      # L7g1/L7g2 sont a PATCHES[-13]/[-12] ; la queue est mesuree par [L7] D-19
-      len(_L7G1) == 1 and len(_L7G2) == 1 and len(P.L7A) == 16 and P.PATCHES[-12] == _L7G2[0] and P.PATCHES[-13] == _L7G1[0]
+      # L7g1/L7g2 sont a PATCHES[-13]/[-12] ; la queue est mesuree par [L7] D-19 ; D-22 (T6) : deux L7f de plus, -15/-14
+      len(_L7G1) == 1 and len(_L7G2) == 1 and len(P.L7A) == 18 and P.PATCHES[-14] == _L7G2[0] and P.PATCHES[-15] == _L7G1[0]
       and s.count(nl(_L7G1[0][1])) == 1 and _L7G1[0][2].startswith(_L7G1[0][1])
       and 0 < _iAbEff < _iAbK < _iAbUse < _iAbRoll < _iAbOv < _iAbEff + 2600
       and (_bak.count(_nlb(_L7G1[0][1])) == 1 and _bak.count("dzAbK") == 0 and _bak.count("abRoll") == 0 and len(re.findall(r"\babSt\b", _bak)) == 0 if _bak else False),
@@ -17534,7 +17546,7 @@ _L7G_ST = '  var stAb=x.useState({a:null,b:null,k:""}),abSt=stAb[0],setAbSt=stAb
 _iAbSt = s.find(nl(_L7G_ST))
 check("L7g_etat_abSt_replie_en_queue_de_EB7_ETAT_apres_diffSt_avant_stDzFin_useState_544",
       s.count(nl(_L7G_ST)) == 1 and _L7G_ST in P._EB7_ETAT and P._EB7_ETAT.endswith(_L7G_ST) and 0 < _iDfSt < _iAbSt < _iDfFin
-      and P._EB7_ETAT.count("DzTracks") == 4 and s.count("x.useState(") == 544 and (_bak.count("x.useState(") == 482 if _bak else False)
+      and P._EB7_ETAT.count("DzTracks") == 4 and s.count("x.useState(") == 545 and (_bak.count("x.useState(") == 482 if _bak else False)
       # MOT ENTIER (stabSt, tabSt… existent) : la declaration, abA (x2), abB (x2) = 5 ; setAbSt porte une majuscule ; x0 dans le .bak
       and len(re.findall(r"\babSt\b", s)) == 5 and (len(re.findall(r"\babSt\b", _bak)) == 0 if _bak else False)
       # la couche : aucun `abSt` entier (temoin : ses trois « dzmStabState » de L3 portent la sous-chaine)
@@ -17562,7 +17574,8 @@ print("\n[L7] D-19 tache 5 (client) : coins arrondis et ombre portee d'un overla
 # payload voient la meme mesure. 176 -> 187 ancres ; sonde 150 -> 151 (DzTracks.ovExtra dans svmOvTfOf).
 _L7E = [t for t in P.L7A if t[0].startswith("L7e")]
 check("L7e_onze_sections_en_queue_ancres_1_0_1_dans_le_bak_remplacements_x1_dans_le_bundle_x0_dans_le_bak",
-      len(_L7E) == 11 and P.PATCHES[-11:] == _L7E and [t[0][:5] for t in _L7E] == ["L7e1-", "L7e2a", "L7e2b", "L7e3-", "L7e4a", "L7e4b", "L7e5-", "L7e6-", "L7e7a", "L7e7b", "L7e8-"]
+      # D-22 (T6) : deux sections L7f APRES les onze L7e -- la fenetre est [-13:-2]
+      len(_L7E) == 11 and P.PATCHES[-13:-2] == _L7E and [t[0][:5] for t in _L7E] == ["L7e1-", "L7e2a", "L7e2b", "L7e3-", "L7e4a", "L7e4b", "L7e5-", "L7e6-", "L7e7a", "L7e7b", "L7e8-"]
       # e1 et e8 CONTIENNENT leur ancre (ajout apres) ; les neuf autres la reecrivent (meme tete de ligne, 24 caracteres)
       and all(s.count(nl(t[2])) == 1 and t[1].lstrip()[:20] in t[2] for t in _L7E) and sum(t[1] in t[2] for t in _L7E) == 2
       and (all(_bak.count(_nlb(t[1])) == 1 and _bak.count(_nlb(t[2])) == 0 for t in _L7E) if _bak else False),
@@ -17632,6 +17645,122 @@ check("L7e_sous_node_un_rayon_seul_part_avec_scale_1_ombre_seule_aussi_zero_et_v
       # svmMpLerp est bouche a null (la statique gagne) : le point n'y change rien, radius/shadow SURVIVENT au rebati
       and _L7E_RT[6] == {"x": .5, "y": .5, "scale": 1, "rotate": 0, "radius": 20, "shadow": 1},
       f"bornes={(_iOvF, _iOvFe, _iOvX, _iOvXe, _iOvP, _iOvPe, _iOvA, _iOvAe)} rt={_L7E_RT}")
+
+print("\n[L7] D-22 tache 6 : pistes de sous-titres par langue, une seule gravee (24/09/2026)")
+# ── L7 D-22 (24/09/2026, tache 6). Perimetre MINIMAL et date (decision n°7) : S2… = copie de S1 (traduite par le
+# tiroir, case « nouvelle piste » -- replis R_M26A/R_M26B/R_M24H ; ou vide -- menu de piste, repli R_EC1) ; l'EDITEUR
+# reste sur S1. MESURES contre le plan : (1) subsSegsOf a HUIT appelants dans le .bak (+1 par la section ToolDock) --
+# seul subsPayload change (L7f1) ; (2) data-burn est CALCULE par subsBurnId (s1 sans marque doit se montrer gravee),
+# pas lu sur tr.burn ; (3) subsToSrt/Vtt/Txt/subsDownload sont dans le scope module (bloc subs, pas d'IIFE) ; (4) le
+# tiroir n'a ni setClips ni setProj : rappel onNewTrack par les props. 187 -> 189 ancres ; sonde 151 -> 158.
+_L7F = [t for t in P.L7A if t[0].startswith("L7f")]
+check("L7f_deux_sections_en_queue_ancres_libres_1_0_1_reecrites_x0_dans_le_bak",
+      len(_L7F) == 2 and P.PATCHES[-2:] == _L7F and [t[0] for t in _L7F] == ["L7f1-subsPayload-grave-la-piste-marquee", "L7f2-data-sub-par-genre-et-data-burn"]
+      and all(s.count(nl(t[2])) == 1 and s.count(nl(t[1])) == 0 and t[1] not in t[2] for t in _L7F)
+      and (all(_bak.count(_nlb(t[1])) == 1 and _bak.count(_nlb(t[2])) == 0 for t in _L7F) if _bak else False),
+      f"sections={[t[0] for t in _L7F]} bundle={[s.count(nl(t[2])) for t in _L7F]} bak={[_bak.count(_nlb(t[1])) for t in _L7F] if _bak else None}")
+# L7f1 : subsPayload lit la piste gravee (subsBurnId) et filtre les clips par c.tr===bid ; subsSegsOf n'y est plus
+# appele mais garde ses autres appelants (formule R − A sur la chaine) et son "s1" (temoin : c.tr==="s1" x1 = subsSegsOf)
+_iSpF = s.find("  function subsPayload(){"); _iSpB = s.find("var bid=DzTracks.subsBurnId(svmTracksOf(proj));"); _iSpS = s.find("segments:segs.map(function(s){", _iSpF)
+check("L7f1_subsPayload_bid_par_subsBurnId_filtre_c_tr_bid_subsSegsOf_intact_ailleurs_temoin_s1_x1",
+      s.count("var bid=DzTracks.subsBurnId(svmTracksOf(proj));") == 1 and s.count('d.sort((clipsRef.current||[]).filter(function(c){return c.tr===bid}))') == 1
+      and s.count("d.sort(subsSegsOf(clipsRef.current))") == 0 and (_bak.count("d.sort(subsSegsOf(clipsRef.current))") == 1 if _bak else False)
+      and 0 < _iSpF < _iSpB < _iSpS < _iSpF + 900
+      and s.count('c.tr==="s1"') == 1 and s.count(nl('    return (cs||[]).filter(function(c){return c.tr==="s1"})}')) == 1
+      and s.count("subsSegsOf(") == (_bak.count("subsSegsOf(") if _bak else -1) + sum(t[2].count("subsSegsOf(") - t[1].count("subsSegsOf(") for t in P.PATCHES)
+      and s.count("subsSegsOf(") == 8 and (_bak.count("subsSegsOf(") == 8 if _bak else False),
+      f"ordre={(_iSpF, _iSpB, _iSpS)} segsOf={s.count('subsSegsOf(')} s1={s.count(chr(99) + '.tr===' + chr(34) + 's1' + chr(34))}")
+# L7f2 : data-sub par GENRE, data-burn calcule ; tr.id==="s1" : bak − 1 (la rangee) + la couche (DzmTrackBtns x3)
+_k_s1 = 'tr.id==="s1"'
+check("L7f2_data_sub_par_trackKind_data_burn_par_subsBurnId_x1_tr_id_s1_bak_moins_1_plus_couche",
+      s.count('"data-sub":trackKind(tr.id)==="subs"?"":void 0,"data-burn":trackKind(tr.id)==="subs"&&DzTracks.subsBurnId(svmTracksOf(proj))===tr.id?"":void 0,') == 1
+      and s.count('"data-sub":') == 1 and s.count('"data-burn":') == 1 and s.count('"data-sub":tr.id==="s1"') == 0
+      and (_bak.count('"data-sub":tr.id==="s1"') == 1 and _bak.count("data-burn") == 0 if _bak else False)
+      and s.count(_k_s1) == (_bak.count(_k_s1) if _bak else -1) - 1 + src.count(_k_s1) and src.count(_k_s1) == 3,
+      f"data-burn={s.count(chr(34) + 'data-burn' + chr(34) + ':')} s1={s.count(_k_s1)} bak={_bak.count(_k_s1) if _bak else '?'} couche={src.count(_k_s1)}")
+# L7f3 (repli R_EC1) : cinq entrees + un separateur pour une piste de sous-titres (trackKind), x1 chacune, x0 dans le
+# .bak ; graver = svmTracksSet(subsBurn) (historique D-0) ; export par les fonctions locales du bloc subs, memes MIME
+# que doExport ; nouvelle piste par window.prompt (natif, date) puis subsNew + svmTracksSet ; « gravée » (pas « ✓ »)
+_iTk = s.find('    if(kind==="track"){'); _iTkC = s.find('.concat(trackKind(id)==="subs"?(function(){var bid=DzTracks.subsBurnId(ts),'); _iTkD = s.find('{lbl:"Supprimer la piste",off:bs,'); _iTkN = s.find("    return null}", _iTk)
+_L7F_MENU = ('"Graver cette piste au rendu"', '"Gravée au rendu"', 'lbl:"Exporter .srt"', 'lbl:"Exporter .vtt"', 'lbl:"Exporter .txt"', '"Nouvelle piste de langue…"',
+             'combo:bid===id?"gravée":""', "svmTracksSet(DzTracks.subsBurn(ts,id));", "var r2=DzTracks.subsNew(ts,lg);svmTracksSet(r2.tracks);",
+             'subsToSrt(segs,subsStyleNow()):fmt==="vtt"?subsToVtt(segs,subsStyleNow()):subsToTxt(segs)')
+_L7F_MIME = 'fmt==="vtt"?"text/vtt":fmt==="srt"?"application/x-subrip":"text/plain"'
+check("L7f3_menu_de_piste_subs_cinq_entrees_x1_x0_bak_graver_par_svmTracksSet_export_local_prompt_natif_sep_x4_coches_x5",
+      all(s.count(k) == 1 and P.R_EC1.count(k) == 1 and (_bak.count(k) == 0 if _bak else False) for k in _L7F_MENU)
+      # les types MIME sont CEUX de doExport (tiroir) : x2 dans le livre, x1 dans le .bak, x1 dans le repli
+      and s.count(_L7F_MIME) == 2 and P.R_EC1.count(_L7F_MIME) == 1 and (_bak.count(_L7F_MIME) == 1 if _bak else False)
+      and 0 < _iTk < _iTkC < _iTkD < _iTkN < _iTk + 4200 and P.R_EC1.count("{sep:!0}") == 4 and P.R_EC1.count('?"✓":""') == 5
+      and P.R_EC1.count("off:!n,run:function(){dzSubsExp(") == 3 and P.R_EC1.count("off:bid===id,") == 1
+      and s.count("window.prompt(") == (_bak.count("window.prompt(") if _bak else -1) + sum(t[2].count("window.prompt(") - t[1].count("window.prompt(") for t in P.PATCHES)
+      and s.count('subsDownload(base+"."+fmt,txt,') == 2 and (_bak.count('subsDownload(base+"."+fmt,txt,') == 1 if _bak else False)
+      and s.count("function subsToSrt(segs,style){") == 1 and s.count("function subsDownload(name,text,mime){") == 1
+      and s.count(nl('          fireNote("Piste "+(t.name||id)+" retirée"+(n?" avec "+n+" clip"+(n>1?"s":"")+" — annuler ramène les clips":"")+".")}}])})}')) == 1,
+      f"entrees={[s.count(k) for k in _L7F_MENU]} ordre={(_iTk, _iTkC, _iTkD, _iTkN)} sep={P.R_EC1.count(chr(123) + 'sep:!0' + chr(125))}")
+# L7f4 (replis R_M26A / R_M26B) : l'etat dzNewTr (un useState de plus : 545), la branche onNewTrack AVANT le
+# props.onChange pinne par P16 (x1, intact), la case (title E-12, aria-label) apres la cible « vers », l'infobulle
+# du bouton bascule ; dzNewTr en MOT ENTIER x4 (declaration, branche, checked, infobulle), setDzNewTr x2
+_iS9b = s.find("var s9b=x.useState("); _iS9c = s.find("var s9c=x.useState(!1),dzNewTr=s9c[0],setDzNewTr=s9c[1];"); _iTrN = s.find("var dzTrN=segs.length,")
+_iTg = s.find(nl('},"s")]},"tg"),')); _iNt = s.find(nl('r.jsx("span",{className:"sub-trlangl",children:"nouvelle piste"},"l")]},"nt"),')); _iFn = s.find("var dzOn=DzTracks.subsTrEnabled(")
+check("L7f4_tiroir_etat_dzNewTr_branche_onNewTrack_avant_onChange_P16_intact_case_title_aria_apres_vers_infobulle_useState_545",
+      s.count(nl("  var s9c=x.useState(!1),dzNewTr=s9c[0],setDzNewTr=s9c[1];")) == 1 and 0 < _iS9b < _iS9c < _iTrN < _iS9b + 400
+      and s.count(nl("        if(dzNewTr&&props.onNewTrack)props.onNewTrack(dzTo,dzNext);\n        else if(props.onChange)props.onChange(dzNext,!0);")) == 1
+      and s.count("if(props.onChange)props.onChange(dzNext,!0);") == 1
+      and s.count('r.jsx("input",{type:"checkbox",checked:dzNewTr,"aria-label":"Traduire dans une nouvelle piste",onChange:function(e){setDzNewTr(e.target.checked)}},"c")') == 1
+      and s.count('className:"sub-trlang sub-trnew",title:"Coché : la traduction naît dans une nouvelle piste') == 1 and 0 < _iTg < _iNt < _iFn < _iTg + 1500
+      and s.count('apres:dzOn.on?(dzNewTr?"Les "+dzTrN+" répliques traduites naissent dans une nouvelle piste S2, S3… — S1 reste intacte ; « Annuler » retire la piste et ses répliques.":DzTracks.subsTrTitle(dzTrN)):dzOn.pourquoi,') == 1
+      and len(re.findall(r"\bdzNewTr\b", s)) == 4 and s.count("setDzNewTr") == 2 and s.count("x.useState(") == 545
+      and (_bak.count("dzNewTr") == 0 and _bak.count("sub-trnew") == 0 and _bak.count("onNewTrack") == 0 if _bak else False),
+      f"ordre={(_iS9b, _iS9c, _iTrN)} case={(_iTg, _iNt, _iFn)} dzNewTr={len(re.findall(chr(92) + 'bdzNewTr' + chr(92) + 'b', s))} useState={s.count('x.useState(')}")
+# L7f4 (repli R_M24H) : l'hote passe onNewTrack -- subsNew puis svmTracksSet (historique) puis subsCopy sur setClips,
+# setDirty ; onNewTrack x4 dans le livre (prop, garde, appel, hote), x0 dans le .bak ; apres srcTracks, avant subsOverlay
+_iSt = s.find("      srcTracks:svmTracksOf(proj),"); _iOn = s.find("      onNewTrack:function(lang,segs){"); _iOv = s.find("  function subsOverlay(){")
+check("L7f4_hote_onNewTrack_subsNew_svmTracksSet_subsCopy_setClips_setDirty_x4_x0_bak_apres_srcTracks",
+      s.count('onNewTrack:function(lang,segs){var r2=DzTracks.subsNew(svmTracksOf(proj),lang);svmTracksSet(r2.tracks);') == 1
+      and s.count('setClips(function(cs){return DzTracks.subsCopy(cs,"s1",r2.id,segs)});setDirty(!0);') == 1
+      and s.count("onNewTrack") == 4 and 0 < _iSt < _iOn < _iOv < _iSt + 1400
+      and s.count("DzTracks.subsBurnId(") == 3 and s.count("DzTracks.subsBurn(") == 1 and s.count("DzTracks.subsNew(") == 2 and s.count("DzTracks.subsCopy(") == 1,
+      f"ordre={(_iSt, _iOn, _iOv)} onNewTrack={s.count('onNewTrack')} burnId={s.count('DzTracks.subsBurnId(')}")
+# la couche : cinq fonctions pures + export (le bundle porte la couche) ; la feuille : trois regles [data-burn] dans
+# montage.css seulement (x0 couche, x0 son-vfx) ; le :not() ne pese que sur l'opacite du nom -- aucune regle du bundle
+# n'ecrit d'opacite sur .svm-tname (mesure : la regle .svm-tname{…} de son-vfx-montage.css est sans opacity)
+_L7F_CSS = ('.dzsvm .svm-track[data-burn] .svm-thead{box-shadow:inset 3px 0 0 var(--accent)}',
+            '.dzsvm .svm-track[data-burn] .svm-tname::after{content:" ◉";color:var(--accent);font-size:10px;vertical-align:1px}',
+            '.dzsvm .svm-track[data-sub]:not([data-burn]) .svm-tname{opacity:.72}')
+_iTn = _L7_SV.find(".svm-tname{"); _iTnE = _L7_SV.find("}", _iTn)
+check("L7f_couche_cinq_fonctions_export_x1_css_trois_regles_data_burn_x1_montage_css_x0_couche_x0_son_vfx_tname_sans_opacity",
+      all(s.count("function " + f + "(") == 1 and src.count("function " + f + "(") == 1 for f in ("dzmSubsTracks", "dzmSubsNew", "dzmSubsBurnId", "dzmSubsBurn", "dzmSubsCopy"))
+      and s.count("subsTracks:dzmSubsTracks,subsNew:dzmSubsNew,subsBurn:dzmSubsBurn,subsBurnId:dzmSubsBurnId,subsCopy:dzmSubsCopy,") == 1
+      and all(_css.count(k) == 1 and src.count(k) == 0 and _L7_SV.count(k) == 0 for k in _L7F_CSS)
+      and _L7_SV.count("data-burn") == 0 and src.count("data-burn") == 0 and _css.count("data-burn") == 4
+      and 0 < _iTn < _iTnE and "opacity" not in _L7_SV[_iTn:_iTnE] and _L7_SV.count(".svm-pop") == 9
+      and (_bak.count("dzmSubs") == 0 if _bak else False),
+      f"css={[_css.count(k) for k in _L7F_CSS]} tname={_L7_SV[_iTn:_iTnE] if _iTn >= 0 else None}")
+# SOUS NODE, contre le bundle : dzmKindOf + dzmSubsTracks + dzmSubsBurnId (la couche) + le FILTRE de subsPayload extrait
+# tel quel -- sans marque, les clips de s1 partent ; s2 marquee, ceux de s2 ; une piste « s1 » declaree video n'est pas
+# gravee (la premiere subs l'est) ; aucune piste subs : le filtre garde s1 (comportement d'avant)
+_iKo = s.find("function dzmKindOf(id,kind){"); _iKoE = s.find("\nfunction ", _iKo + 1) if _iKo >= 0 else -1
+_iSt2 = s.find("function dzmSubsTracks(ts){"); _iSt2E = s.find("\nfunction ", _iSt2 + 1) if _iSt2 >= 0 else -1
+_iBi = s.find("function dzmSubsBurnId(ts){"); _iBiE = s.find("\nfunction ", _iBi + 1) if _iBi >= 0 else -1
+_L7F_FILTRE = '(clipsRef.current||[]).filter(function(c){return c.tr===bid})'
+_L7F_RT = None
+if 0 < _iKo < _iKoE and 0 < _iSt2 < _iSt2E and 0 < _iBi < _iBiE and s.count(_L7F_FILTRE) == 1:
+    _L7F_SHIM = (s[_iKo:_iKoE] + "\n" + s[_iSt2:_iSt2E] + "\n" + s[_iBi:_iBiE] + "\n"
+                 + "var DzTracks={subsBurnId:dzmSubsBurnId};function svmTracksOf(p){return p.tracks}\n"
+                 + "var CL=[{id:\"a\",tr:\"s1\",text:\"fr\"},{id:\"b\",tr:\"s2\",text:\"en\"},{id:\"c\",tr:\"v1\"}],clipsRef={current:CL};\n"
+                 + "function segsDe(proj){var bid=DzTracks.subsBurnId(svmTracksOf(proj));return " + _L7F_FILTRE + ".map(function(c){return c.id})}\n"
+                 + "var out=[segsDe({tracks:[{id:\"v1\"},{id:\"s1\",kind:\"subs\"},{id:\"s2\",kind:\"subs\"}]}),\n"
+                 + "  segsDe({tracks:[{id:\"v1\"},{id:\"s1\",kind:\"subs\",burn:!1},{id:\"s2\",kind:\"subs\",burn:!0}]}),\n"
+                 + "  segsDe({tracks:[{id:\"v1\"},{id:\"s1\",kind:\"video\"},{id:\"s2\",kind:\"subs\"}]}),\n"
+                 + "  segsDe({tracks:[{id:\"v1\"}]}),segsDe({tracks:null})];\n"
+                 + "console.log(JSON.stringify(out));\n").replace("\r\n", "\n")
+    _pF = pathlib.Path(TMP) / "l7_subs.js"; _pF.write_text(_L7F_SHIM, encoding="utf-8")
+    _rF = NODE(["node", str(_pF)], timeout=60)
+    try: _L7F_RT = json.loads(_rF.stdout) if _rF.returncode == 0 else ("rc=" + str(_rF.returncode) + " " + (_rF.stderr or "")[-300:])
+    except Exception as _e: _L7F_RT = temoin(_e)
+check("L7f_sous_node_sans_marque_s1_part_s2_marquee_s2_part_s1_video_la_premiere_subs_sans_subs_s1",
+      _L7F_RT == [["a"], ["b"], ["b"], ["a"], ["a"]],
+      f"bornes={(_iKo, _iKoE, _iSt2, _iSt2E, _iBi, _iBiE, s.count(_L7F_FILTRE))} rt={_L7F_RT}")
 
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont leve — voir les lignes « ---- » ci-dessus")

@@ -207,6 +207,9 @@ _TITRES = [
     # L7 D-19 (24/09/2026, tache 5, client) : le champ « Coins » et la case « Ombre portée » de l'inspecteur d'overlay
     'title:"Rayon des coins de l\'overlay en px du canvas (0 = coins droits, 200 au plus) — statique, les keyframes ne l\'animent pas",',
     'title:"Ombre portée sous l\'overlay (noir à 55 %, décalée de 6 px au rendu) — statique, retirée par « plein cadre »",',
+    # L7 D-22 (24/09/2026, tache 6) : la case « nouvelle piste » du tiroir de traduction (les cinq entrees du menu de
+    # piste portent title:it.lbl par DzmCtxMenu, deja audite)
+    'title:"Coché : la traduction naît dans une nouvelle piste de sous-titres S2, S3… (S1 reste intacte ; la piste gravée au rendu se choisit par clic droit sur sa tête). Décoché : S1 est réécrite.",',
 ]
 for t in _TITRES:
     check("R1_titre_pose_x1_" + re.sub(r"\W+", "_", t[6:40]).strip("_"),

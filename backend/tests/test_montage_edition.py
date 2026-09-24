@@ -1039,6 +1039,45 @@ out.ox_ombre=[T.ovExtra({shadow:!0}).shadow,T.ovExtra({shadow:"1"}).shadow,T.ovE
 /* entrées molles : null, chaîne, nombre → {0,0} ; toujours les deux clés et rien d'autre */
 out.ox_mou=[T.ovExtra(null),T.ovExtra("a"),T.ovExtra(7),Object.keys(T.ovExtra(OVX))];
 out.ox_pur=JSON.stringify(OVX)===_ovx0;
+/* ── [31] L7 D-22 (24/09/2026) : pistes de sous-titres par langue, une seule gravée — subsTracks/subsNew/subsBurn/subsBurnId/subsCopy purs ── */
+var TRS=[{id:"v1",kind:"video"},{id:"s1",kind:"subs"},{id:"a1",kind:"audio"}],_trs0=JSON.stringify(TRS);
+var CLS=[{id:"v1u1",tr:"v1",start:0,end:5},{id:"s1c1",tr:"s1",start:0,end:1,text:"Salut",label:"Salut"},
+  {id:"s1c2",tr:"s1",start:1,end:2.5,text:"Bonjour à tous",label:"Bonjour à tous",hidden:!0,words:[{t:1}]}],_cls0=JSON.stringify(CLS);
+out.sst=T.subsTracks(TRS);
+/* genre déduit de l'initiale sans kind, kind explicite gagne (x1 subs, s1 vidéo exclue) ; entrées molles */
+out.sst_bornes=[T.subsTracks([{id:"s9"},{id:"x1",kind:"subs"},{id:"v1"}]),T.subsTracks(null),T.subsTracks([null,{},{id:"s1",kind:"video"}])];
+out.sn=T.subsNew(TRS,"en");
+out.sn2=T.subsNew(out.sn.tracks,"de").id;
+/* la piste neuve suit la DERNIÈRE piste subs ; sans subs → s1 en fin ; trou d'identifiant : max+1 (s5 → s6) ;
+   langue blanche → ni lang ni suffixe ; liste molle → s1 seule */
+out.sn_place=[T.subsNew([{id:"v1"},{id:"s1"},{id:"a1"}],"en").tracks.map(function(t){return t.id}),T.subsNew([{id:"v1"}],"en").id,
+  T.subsNew([{id:"v1"},{id:"s5",kind:"subs"}],"en").id,T.subsNew(TRS," ").tracks[2],T.subsNew(null,"en").tracks.map(function(t){return t.id})];
+out.sb=T.subsBurn(out.sn.tracks,"s2");
+/* s1 par défaut : id absent, inconnu, ou d'une piste qui n'est pas de sous-titres */
+out.sb_defaut=[T.subsBurn(TRS,null),T.subsBurn(out.sn.tracks,"zz"),T.subsBurn(out.sn.tracks,"v1")].map(function(ts){return ts.map(function(t){return t.id+":"+(t.burn===void 0?"-":t.burn)})});
+/* tableau NEUF, pistes hors subs = les MÊMES objets, pistes subs = objets neufs ; la bascule retour ne laisse qu'une gravée */
+out.sb_neuf=(function(){var r2=T.subsBurn(out.sn.tracks,"s2");return [r2!==out.sn.tracks,r2[0]===out.sn.tracks[0],r2[1]!==out.sn.tracks[1],r2[3]===out.sn.tracks[3]]})();
+out.sb_bascule=T.subsBurn(out.sb,"s1").map(function(t){return t.id+":"+(t.burn===void 0?"-":t.burn)});
+/* la piste qui part au rendu : la marquée, sinon s1 (même sans marque, même sans aucune piste subs, même liste molle), sinon la première subs */
+out.bid=[T.subsBurnId(out.sb),T.subsBurnId(TRS),T.subsBurnId(out.sn.tracks),T.subsBurnId([{id:"v1"}]),T.subsBurnId(null),
+  T.subsBurnId([{id:"v1"},{id:"s3",kind:"subs"}]),T.subsBurnId([{id:"s1",burn:!0},{id:"s2",burn:!0}])];
+out.sc=T.subsCopy(CLS,"s1","s2",[{start:0,end:1,text:"Hi"},{start:1,end:2.5,text:"Hello everyone",hidden:!0}]);
+/* sans segments : copie des clips de s1 (hidden et words gardés, label gardé), ids s2c1/s2c2 ; les autres clips sont les MÊMES objets */
+out.sc_clips=T.subsCopy(CLS,"s1","s2");
+out.sc_memes=[out.sc[0]===CLS[0],out.sc[1]===CLS[1],out.sc[2]===CLS[2],out.sc_clips[0]===CLS[0]];
+/* ids uniques contre les clips déjà présents (s2c1 pris → s2c1_2) */
+out.sc_ids=T.subsCopy(CLS.concat([{id:"s2c1",tr:"s2",start:0,end:1,text:"x"}]),"s1","s2",[{start:0,end:1,text:"Hi"}]).map(function(c){return c.id});
+/* bornes : start illisible → ignoré, end ≤ start → start+0,1, null → ignoré, texte absent → "" et label « (vide) », label long tronqué (46) ;
+   clips mous → seulement les neufs ; piste cible vide → rien de neuf ; segments [] → rien de neuf ; deTr absente → rien de neuf */
+out.sc_bornes=[T.subsCopy(CLS,"s1","s2",[{start:"a",end:1,text:"x"},{start:2,end:1.5,text:"y"},null,{start:3,end:4},
+    {start:5,end:6,text:"aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeee"}]).slice(3),
+  T.subsCopy(null,"s1","s2",[{start:0,end:1,text:"z"}]),T.subsCopy(CLS,"s1","",[{start:0,end:1,text:"z"}]).length,
+  T.subsCopy(CLS,"s1","s2",[]).length,T.subsCopy(CLS,"s7","s2").length];
+out.sc_pur=[JSON.stringify(TRS)===_trs0,JSON.stringify(CLS)===_cls0,JSON.stringify(out.sn.tracks.slice(0,2).concat([out.sn.tracks[3]]))===_trs0];
+/* retrait : s2 se retire, s1 jamais (même liste rendue) ; le payload porte lang, burn et le nom d'une piste de langue, pas burn:false */
+out.rm=T.remove(out.sn.tracks,"s2").map(function(t){return t.id});
+out.rm_s1=T.remove(TRS,"s1")===TRS;
+out.tp=T.payload({tracks:out.sb});
 console.log(JSON.stringify(out));
 """
 # E-9 : svmRuler / svmPad2 sont des fonctions DU BUNDLE (meme portee module que
@@ -1299,7 +1338,10 @@ try:
                  # L7 D-3b (tache 4-bis) : les SEPT cles de la section [29].
                  "ab","ab_vitesse","ab_sans_srcin","ab_refus","ab_contact","ab_zero","ab_pur","abd",
                  # L7 D-19 (tache 5, client) : les CINQ cles de la section [30].
-                 "ox","ox_rayon","ox_ombre","ox_mou","ox_pur"]
+                 "ox","ox_rayon","ox_ombre","ox_mou","ox_pur",
+                 # L7 D-22 (tache 6) : les DIX-NEUF cles de la section [31].
+                 "sst","sst_bornes","sn","sn2","sn_place","sb","sb_defaut","sb_neuf","sb_bascule","bid",
+                 "sc","sc_clips","sc_memes","sc_ids","sc_bornes","sc_pur","rm","rm_s1","tp"]
     vide_absent = all(k not in vide_dv for k in vide_cles)
     # I8 (revue 21/09) : cette preuve n'etait qu'un `print` -- elle ne
     # POUVAIT pas rougir. Elle est maintenant une ASSERTION, et la source
@@ -2811,6 +2853,72 @@ check("l7e_coeur_pur_constante_DZM_OV_RADIUS_MAX_x2_export_ovExtra_x1",
       and _SRCb.count("DZM_OV_RADIUS_MAX") == 2 and _L7E.count("200") == 0
       and len(_DT) > 1000 and _DT.count("ovExtra:dzmOvExtra,") == 1 and _SRCb.count("ovExtra:") == 1,
       (len(_L7E), _SRCb.count("DZM_OV_RADIUS_MAX"), _DT.count("ovExtra:dzmOvExtra,")))
+
+print("\n[31] L7 D-22 : pistes de sous-titres par langue, une seule gravee — subsTracks/subsNew/subsBurn/subsBurnId/subsCopy purs (tache 6, 24/09/2026)")
+# ── L7 D-22 (24/09/2026, tache 6). Perimetre MINIMAL et date (decision n°7) : une piste S2… est une copie (traduite ou
+# vide) de S1 ; l'editeur reste sur S1 ; la piste subs marquee `burn:true` (UNE seule ; s1 sans marque par defaut) est
+# celle que subsPayload() envoie (subsBurnId). Le genre est lu par dzmKindOf (initiale ou kind explicite), jamais par
+# une egalite avec "s1". Toutes les fonctions rendent des tableaux NEUFS et ne mutent rien.
+_S2 = {"id": "s2", "name": "S2 en", "type": "sous-titres", "h": 44, "c": "--c-text", "mix": 11, "kind": "subs", "lang": "en"}
+check("sst_pistes_de_sous_titres_s1_seule", D.get("sst") == ["s1"], D.get("sst"))
+check("sst_bornes_initiale_ou_kind_explicite_s1_declaree_video_exclue_entrees_molles_vides",
+      D.get("sst_bornes") == [["s9", "x1"], [], []], D.get("sst_bornes"))
+check("sn_s2_habillee_par_dzmSkin_nommee_S2_en_avec_lang_id_rendu",
+      isinstance(D.get("sn"), dict) and D["sn"].get("id") == "s2" and isinstance(D["sn"].get("tracks"), list)
+      and len(D["sn"]["tracks"]) == 4 and D["sn"]["tracks"][2] == _S2, D.get("sn"))
+check("sn2_puis_s3", D.get("sn2") == "s3", D.get("sn2"))
+check("sn_place_apres_la_derniere_subs_s1_sans_subs_s6_apres_s5_langue_blanche_sans_lang_liste_molle_s1",
+      D.get("sn_place") == [["v1", "s1", "s2", "a1"], "s1", "s6",
+                            {"id": "s2", "name": "S2", "type": "sous-titres", "h": 44, "c": "--c-text", "mix": 11, "kind": "subs"}, ["s1"]],
+      D.get("sn_place"))
+check("sb_s2_gravee_s1_burn_false_les_autres_sans_cle",
+      isinstance(D.get("sb"), list) and [(t.get("id"), t.get("burn", "-")) for t in D["sb"]] == [("v1", "-"), ("s1", False), ("s2", True), ("a1", "-")],
+      D.get("sb"))
+check("sb_defaut_s1_gravee_pour_id_absent_inconnu_ou_hors_genre",
+      D.get("sb_defaut") == [["v1:-", "s1:true", "a1:-"], ["v1:-", "s1:true", "s2:false", "a1:-"], ["v1:-", "s1:true", "s2:false", "a1:-"]],
+      D.get("sb_defaut"))
+check("sb_neuf_tableau_neuf_pistes_hors_subs_memes_objets_pistes_subs_objets_neufs",
+      D.get("sb_neuf") == [True, True, True, True], D.get("sb_neuf"))
+check("sb_bascule_retour_une_seule_gravee", D.get("sb_bascule") == ["v1:-", "s1:true", "s2:false", "a1:-"], D.get("sb_bascule"))
+check("bid_la_marquee_sinon_s1_meme_sans_marque_sans_subs_ou_liste_molle_sinon_la_premiere_subs_deux_marquees_la_premiere",
+      D.get("bid") == ["s2", "s1", "s1", "s1", "s1", "s3", "s1"], D.get("bid"))
+check("sc_segments_donnes_deux_clips_neufs_s2c1_s2c2_label_egal_texte_hidden_garde",
+      isinstance(D.get("sc"), list) and len(D["sc"]) == 5
+      and D["sc"][3] == {"id": "s2c1", "tr": "s2", "start": 0, "end": 1, "text": "Hi", "label": "Hi"}
+      and D["sc"][4] == {"id": "s2c2", "tr": "s2", "start": 1, "end": 2.5, "text": "Hello everyone", "label": "Hello everyone", "hidden": True},
+      D.get("sc"))
+check("sc_clips_sans_segments_copie_des_clips_de_s1_hidden_words_label_gardes",
+      isinstance(D.get("sc_clips"), list) and len(D["sc_clips"]) == 5
+      and D["sc_clips"][3] == {"id": "s2c1", "tr": "s2", "start": 0, "end": 1, "text": "Salut", "label": "Salut"}
+      and D["sc_clips"][4] == {"id": "s2c2", "tr": "s2", "start": 1, "end": 2.5, "text": "Bonjour à tous", "label": "Bonjour à tous", "hidden": True, "words": [{"t": 1}]},
+      D.get("sc_clips"))
+check("sc_memes_les_autres_clips_sont_les_memes_objets", D.get("sc_memes") == [True] * 4, D.get("sc_memes"))
+check("sc_ids_uniques_contre_les_clips_presents_s2c1_pris_s2c1_2",
+      D.get("sc_ids") == ["v1u1", "s1c1", "s1c2", "s2c1", "s2c1_2"], D.get("sc_ids"))
+check("sc_bornes_start_illisible_ignore_end_borne_null_ignore_texte_absent_vide_label_tronque_clips_mous_cible_vide_segments_vides_deTr_absente",
+      D.get("sc_bornes") == [[{"id": "s2c1", "tr": "s2", "start": 2, "end": 2.1, "text": "y", "label": "y"},
+                             {"id": "s2c2", "tr": "s2", "start": 3, "end": 4, "text": "", "label": "(vide)"},
+                             {"id": "s2c3", "tr": "s2", "start": 5, "end": 6, "text": "aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeee",
+                              "label": "aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeee…"}],
+                            [{"id": "s2c1", "tr": "s2", "start": 0, "end": 1, "text": "z", "label": "z"}], 3, 3, 3],
+      D.get("sc_bornes"))
+check("sc_pur_ni_pistes_ni_clips_mutes_et_les_pistes_d_avant_intactes_dans_le_neuf", D.get("sc_pur") == [True, True, True], D.get("sc_pur"))
+check("rm_s2_se_retire_s1_jamais", D.get("rm") == ["v1", "s1", "a1"] and D.get("rm_s1") is True, (D.get("rm"), D.get("rm_s1")))
+check("tp_payload_porte_lang_burn_et_nom_de_la_piste_de_langue_jamais_burn_false",
+      D.get("tp") == [{"id": "v1", "kind": "video"}, {"id": "s1", "kind": "subs"},
+                      {"id": "s2", "kind": "subs", "lang": "en", "burn": True, "name": "S2 en"}, {"id": "a1", "kind": "audio"}],
+      D.get("tp"))
+_L7F = {n: _corps(n) for n in ("dzmSubsTracks", "dzmSubsNew", "dzmSubsBurn", "dzmSubsBurnId", "dzmSubsCopy")}
+check("l7f_coeur_pur_cinq_fonctions_genre_par_dzmKindOf_x0_egalite_s1_exports_x1_dzmRemove_intact",
+      all(len(c) > 80 and not re.search(r"\br\.jsx|\bx\.use|localStorage|\bwindow\b|\bdocument\b|fetch\(", c) for c in _L7F.values())
+      and all("dzmKindOf(" in _L7F[n] for n in ("dzmSubsTracks", "dzmSubsNew", "dzmSubsBurn", "dzmSubsBurnId"))
+      # aucune egalite avec "s1" dans les cinq corps : le repli de subsBurnId est la SEULE mention, en litteral de retour
+      and sum(c.count('"s1"') for c in _L7F.values()) == 1 and _L7F["dzmSubsBurnId"].count('"s1"') == 1
+      and _L7F["dzmSubsCopy"].count("dzmUniqueId(") == 1 and _L7F["dzmSubsNew"].count("dzmSkin(") == 1
+      and len(_DT) > 1000 and _DT.count("subsTracks:dzmSubsTracks,subsNew:dzmSubsNew,subsBurn:dzmSubsBurn,subsBurnId:dzmSubsBurnId,subsCopy:dzmSubsCopy,") == 1
+      and _SRCb.count("subsBurn:") == 1 and _SRCb.count('return (id==="v1"||id==="s1")?ts:ts.filter(function(t){return t.id!==id})}') == 1
+      and _SRCb.count('if(t.kind==="subs"){if(t.lang)o.lang=String(t.lang);if(t.burn)o.burn=!0;if(t.lang&&t.name)o.name=String(t.name)}') == 1,
+      ({n: len(c) for n, c in _L7F.items()}, _DT.count("subsBurn:dzmSubsBurn,"), sum(c.count('"s1"') for c in _L7F.values())))
 shutil.rmtree(TMP, ignore_errors=True)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

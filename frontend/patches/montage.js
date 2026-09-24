@@ -281,7 +281,14 @@ function svmTracksFrom(raw){
    et `_tracks_meta` ignore la clé — mesuré. */
 function svmTracksPayload(proj){return svmTracksOf(proj).map(function(t){
   var o={id:t.id,kind:t.kind};if(t.bus)o.bus=t.bus;if(t.loop)o.loop=!0;
-  if(t.kind==="video"&&t.id!=="v1"&&t.type==="vidéo")o.type="vidéo";return o})}
+  if(t.kind==="video"&&t.id!=="v1"&&t.type==="vidéo")o.type="vidéo";
+  /* L7 D-22 (24/09/2026) — une piste de sous-titres emporte sa langue, sa marque
+     de gravure (jamais burn:false : l'absence vaut faux, comme loop) et, quand
+     elle porte une langue, son NOM — le seul de ces trois que l'habillage ne
+     sait pas reconstruire (« S2 en » redevenait « S2 » au rechargement). Le
+     backend range `tracks` tel quel et _tracks_meta ignore ces clés — mesuré. */
+  if(t.kind==="subs"){if(t.lang)o.lang=String(t.lang);if(t.burn)o.burn=!0;if(t.lang&&t.name)o.name=String(t.name)}
+  return o})}
 
 /* SVM_TRACK_BUS est un objet module-level du bloc sonvfx, LU à neuf endroits
    (mesuré : svmTrackMute, svmTrackSolo, quatre gardes de raccourci, le dépôt
@@ -7106,6 +7113,84 @@ function dzmOvExtra(c){
   var o=c&&typeof c==="object"?c:{},r=Number(o.radius),s=Number(o.shadow);
   r=isFinite(r)?Math.round(r):0;
   return {radius:Math.max(0,Math.min(DZM_OV_RADIUS_MAX,r)),shadow:isFinite(s)&&s>=.5?1:0}}
+/* ── L7 D-22 (24/09/2026) : pistes de sous-titres par langue, une seule gravée (pur) ──
+   Périmètre MINIMAL et daté (décision n°7 du plan L7-A) : une piste S2… est une
+   COPIE de S1 — traduite (le tiroir, case « dans une nouvelle piste ») ou vide
+   (menu de piste « Nouvelle piste de langue… ») ; ses répliques sont des clips
+   tr:"s2" ; l'ÉDITEUR reste sur S1 (S2 s'édite par retraduction, pas dans le
+   tiroir — écart daté). La piste subs marquée `burn:true` (UNE seule) est celle
+   que subsPayload() envoie ; sans marque, s1 — le comportement d'avant, à
+   l'octet près. Le genre se lit par dzmKindOf (initiale ou kind explicite),
+   jamais par une égalité avec "s1" : une piste s9 sans kind est une piste de
+   sous-titres, une « s1 » déclarée vidéo n'en est pas une.
+   · subsTracks(ts) — les identifiants des pistes subs, dans l'ordre.
+   · subsNew(ts, lang) → {tracks, id} : id "s<max+1>", nom "S<n> <lang>",
+     habillage dzmSkin, `lang` seulement si donnée ; posée APRÈS la dernière
+     piste subs (le groupe du bas), en fin de liste s'il n'y en a aucune.
+   · subsBurn(ts, id) — tableau NEUF, une seule `burn:true` ; les autres subs
+     portent `burn:false` (objets neufs), les pistes hors subs sont les MÊMES
+     objets ; id absent, inconnu ou hors genre → s1, sinon la première subs.
+   · subsBurnId(ts) — ce que le rendu grave : la marquée, sinon "s1" (même
+     sans aucune piste subs : la liste des clips filtre alors comme avant),
+     sinon la première subs quand s1 manque.
+   · subsCopy(clips, deTr, versTr, segments?) — segments donnés → clips neufs
+     {id "s<n>c<k>" unique par dzmUniqueId, tr:versTr, start, end, text,
+     label:text (46 car., « (vide) »), hidden si vrai} ; sans segments → copie
+     des clips de deTr (mêmes clés, id et tr neufs). Les autres clips sont les
+     MÊMES objets ; rien n'est retiré de la piste cible. */
+var DZM_SUBS_LABEL_MAX=46;
+function dzmSubsTracks(ts){
+  var out=[];(Array.isArray(ts)?ts:[]).forEach(function(t){
+    if(t&&t.id!=null&&dzmKindOf(t.id,t.kind)==="subs")out.push(String(t.id))});
+  return out}
+function dzmSubsNew(ts,lang){
+  var list=Array.isArray(ts)?ts.slice():[],n=1,at=list.length,lg=String(lang==null?"":lang).trim(),i,m;
+  for(i=0;i<list.length;i++){var t=list[i];
+    if(!t||t.id==null)continue;
+    m=/^s(\d+)$/.exec(String(t.id));
+    if(m&&+m[1]>=n)n=+m[1]+1;
+    if(dzmKindOf(t.id,t.kind)==="subs")at=i+1}
+  var id="s"+n,neuf=Object.assign(dzmSkin(id,"subs"),{name:"S"+n+(lg?" "+lg:""),kind:"subs"});
+  if(lg)neuf.lang=lg;
+  list.splice(at,0,neuf);
+  return {tracks:list,id:id}}
+function dzmSubsBurnId(ts){
+  var list=Array.isArray(ts)?ts:[],ids=dzmSubsTracks(list),i,t;
+  for(i=0;i<list.length;i++){t=list[i];
+    if(t&&t.burn&&t.id!=null&&dzmKindOf(t.id,t.kind)==="subs")return String(t.id)}
+  var d="s1";return (!ids.length||ids.indexOf(d)>=0)?d:ids[0]}
+function dzmSubsBurn(ts,id){
+  var list=Array.isArray(ts)?ts:[],ids=dzmSubsTracks(list);
+  var want=(id!=null&&ids.indexOf(String(id))>=0)?String(id):dzmSubsBurnId(list.map(function(t){
+    return t&&typeof t==="object"?Object.assign({},t,{burn:!1}):t}));
+  return list.map(function(t){
+    if(!t||t.id==null||dzmKindOf(t.id,t.kind)!=="subs")return t;
+    return Object.assign({},t,{burn:String(t.id)===want})})}
+function dzmSubsLabelOf(txt){
+  var t=String(txt==null?"":txt).replace(/\s+/g," ").trim();
+  if(!t)return "(vide)";
+  return t.length>DZM_SUBS_LABEL_MAX?t.slice(0,DZM_SUBS_LABEL_MAX-1)+"…":t}
+function dzmSubsCopy(clips,deTr,versTr,segments){
+  var cs=Array.isArray(clips)?clips.filter(function(c){return c&&typeof c==="object"}):[];
+  var vers=String(versTr==null?"":versTr),de=String(deTr==null?"":deTr);
+  if(!vers)return cs;
+  var depuisClips=!Array.isArray(segments);
+  var src=depuisClips?cs.filter(function(c){return c.tr===de}):segments;
+  var pool=cs.slice(),out=cs.slice(),k=0;
+  src.forEach(function(s){
+    if(!s||typeof s!=="object")return;
+    var st=Number(s.start),en=Number(s.end);
+    if(!isFinite(st))return;
+    st=Math.max(0,st);
+    en=isFinite(en)&&en>st?en:st+.1;
+    st=Math.round(st*1e3)/1e3;en=Math.round(en*1e3)/1e3;
+    var id=dzmUniqueId(pool,vers+"c"+(++k)),c;
+    if(depuisClips){c=Object.assign({},s,{id:id,tr:vers,start:st,end:en})}
+    else{var txt=String(s.text==null?"":s.text);
+      c={id:id,tr:vers,start:st,end:en,text:txt,label:dzmSubsLabelOf(txt)};
+      if(s.hidden)c.hidden=!0}
+    pool.push(c);out.push(c)});
+  return out}
 var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   WordAnimChip:DzmWordAnimChip,EmojiBtn:DzmEmojiBtn,
   TextDrawer:DzmTextDrawer,rippleCut:dzmRippleCut,cutOpts:dzmCutOpts,withWords:dzmWithWords,
@@ -7217,6 +7302,8 @@ var DzTracks={ready:!0,TrackAdd:DzmTrackAdd,headBtns:dzmHeadBtns,
   diff:dzmDiff,DiffView:DzmDiffView,diffTemps:dzmDiffTemps,
   abSecs:dzmAbSecs,abRollDit:dzmAbRollDit,
   ovExtra:dzmOvExtra,
+  /* L7 D-22 (24/09/2026, tache 6) : pistes de sous-titres par langue, une seule gravee */
+  subsTracks:dzmSubsTracks,subsNew:dzmSubsNew,subsBurn:dzmSubsBurn,subsBurnId:dzmSubsBurnId,subsCopy:dzmSubsCopy,
   /* E-13 / E-14 (lot E-C, tache 5) : la tete dans l'inspecteur, le trou selectionne et son ripple */
   teteTxt:dzmTeteTxt,trou:dzmTrou,trouRipple:dzmTrouRipple,
   DEFAULTS:DZM_DEFAULT_TRACKS};

@@ -2813,7 +2813,16 @@ A_M24H = "onPlanFlag:subsPlanFlag})}"
 R_M24H = ("onPlanFlag:subsPlanFlag,\n"
           "      /* P13 — les pistes du projet, pour que le tiroir et la route\n"
           "         visent la même piste de dialogue. */\n"
-          "      srcTracks:svmTracksOf(proj)})}")
+          "      srcTracks:svmTracksOf(proj),\n"
+          # L7 D-22 (24/09/2026, tache 6) : REPLIE ici (cette queue de props est nee de CE remplacement) --
+          # la traduction « dans une nouvelle piste » : la piste S<n> nait (subsNew ; svmTracksSet = historique
+          # D-0, bus, projet, NON ENREGISTRE), ses repliques sont des clips neufs tr:"s<n>" (subsCopy), S1 intacte.
+          # `proj` est celui du rendu qui a monte le tiroir (ecart date : une piste ajoutee PENDANT la requete
+          # de traduction ne serait pas vue -- quelques secondes, pas de projRef dans le bundle, mesure).
+          "      /* L7 D-22 (24/09/2026) : la traduction « dans une nouvelle piste » — S<n> naît, ses répliques sont des clips neufs, S1 intacte */\n"
+          '      onNewTrack:function(lang,segs){var r2=DzTracks.subsNew(svmTracksOf(proj),lang);svmTracksSet(r2.tracks);\n'
+          '        setClips(function(cs){return DzTracks.subsCopy(cs,"s1",r2.id,segs)});setDirty(!0);\n'
+          '        fireNote("Piste "+r2.id.toUpperCase()+" ("+lang+") créée avec "+(segs||[]).length+" répliques — S1 intacte ; clic droit sur la tête de "+r2.id.toUpperCase()+" pour la graver au rendu.")}})}')
 # M24i — l'HÔTE envoie `srcIn` : sans lui, la route ne peut retrancher que
 # `start` et un clip ROGNÉ à gauche verrait ses répliques décalées de
 # `srcIn` (mesuré : `subsSrcClips` n'écrivait que id/tr/src/name/start/end).
@@ -3053,6 +3062,12 @@ R_M26A = (
     '    try{var dzV=localStorage.getItem("dz_subs_to");if(dzV)return dzV}catch(_e){}\n'
     "    return DzTracks.subsTrDefaut(lang)}),dzTo=s9[0],setDzTo=s9[1];\n"
     '  var s9b=x.useState({st:"?"}),dzTe=s9b[0],setDzTe=s9b[1];\n'
+    # L7 D-22 (24/09/2026, tache 6) : REPLIE ici (l'etat de traduction est ne de CE remplacement) -- la cible
+    # « dans une nouvelle piste » : cochee, le resultat part a l'hote par props.onNewTrack(cible, repliques)
+    # au lieu de props.onChange (S1 reecrite). Le tiroir n'a ni setClips ni setProj (bloc subs, mesure) :
+    # c'est un rappel par les props, pose par R_M24H. Un useState de plus (544 -> 545).
+    "  /* L7 D-22 (24/09/2026) : traduire DANS UNE NOUVELLE PISTE S<n> — S1 reste intacte (hôte : onNewTrack) */\n"
+    "  var s9c=x.useState(!1),dzNewTr=s9c[0],setDzNewTr=s9c[1];\n"
     "  var dzTrN=segs.length,\n"
     '      dzTrChars=segs.reduce(function(a,sg){return a+String(sg.text||"").length},0);\n'
     "  x.useEffect(function(){\n"
@@ -3089,7 +3104,8 @@ R_M26A = (
     "        var dzNext=DzTracks.subsTrApply(segs,(o.d&&o.d.segments)||[],subsLabelOf);\n"
     '        if(!dzNext){note2("Réponse illisible : le compte des répliques "+\n'
     "          \"ne correspond pas — rien n'a été écrit.\");return}\n"
-    "        if(props.onChange)props.onChange(dzNext,!0);\n"
+    "        if(dzNewTr&&props.onNewTrack)props.onNewTrack(dzTo,dzNext);\n"
+    "        else if(props.onChange)props.onChange(dzNext,!0);\n"
     "        note2(DzTracks.subsTrNote(dzNext.length,dzTo,SUBS_LANGS))},\n"
     "      function(){setTrJob(null);\n"
     '        note2("Traduction indisponible : POST /api/subtitles/translate "+\n'
@@ -3118,6 +3134,12 @@ R_M26B = (
     '          children:SUBS_LANGS.filter(function(o){return o[0]!=="auto"})\n'
     "            .map(function(o){\n"
     '              return r.jsx("option",{value:o[0],children:o[1]},o[0])})},"s")]},"tg"),\n'
+    # L7 D-22 (24/09/2026, tache 6) : la case « nouvelle piste » (title, E-12) apres la cible ; l'infobulle du
+    # bouton dit alors ce qui nait (S<n>) et ce que « Annuler » retire, a la place de subsTrTitle (S1 reecrite).
+    "      /* L7 D-22 (24/09/2026) : traduire dans une nouvelle piste S<n> (S1 intacte) au lieu de réécrire S1 */\n"
+    '      r.jsxs("label",{className:"sub-trlang sub-trnew",title:"Coché : la traduction naît dans une nouvelle piste de sous-titres S2, S3… (S1 reste intacte ; la piste gravée au rendu se choisit par clic droit sur sa tête). Décoché : S1 est réécrite.",children:[\n'
+    '        r.jsx("input",{type:"checkbox",checked:dzNewTr,"aria-label":"Traduire dans une nouvelle piste",onChange:function(e){setDzNewTr(e.target.checked)}},"c"),\n'
+    '        r.jsx("span",{className:"sub-trlangl",children:"nouvelle piste"},"l")]},"nt"),\n'
     "      (function(){\n"
     "        var dzOn=DzTracks.subsTrEnabled(dzTrN,dzTe,!!(trJob&&trJob.busy));\n"
     '        return subsActBtn({fam:"fix",\n'
@@ -3126,7 +3148,7 @@ R_M26B = (
     '          cost:trJob&&trJob.busy?"en cours…":dzTe.ok\n'
     '            ?subsLangLab(dzTo)+" · "+(dzTe.provider||"LLM")+" · "+subsUsd(dzTe.usd)\n'
     '            :(dzTe.st==="vide"?"aucune réplique":"coût indisponible"),\n'
-    "          apres:dzOn.on?DzTracks.subsTrTitle(dzTrN):dzOn.pourquoi,\n"
+    '          apres:dzOn.on?(dzNewTr?"Les "+dzTrN+" répliques traduites naissent dans une nouvelle piste S2, S3… — S1 reste intacte ; « Annuler » retire la piste et ses répliques.":DzTracks.subsTrTitle(dzTrN)):dzOn.pourquoi,\n'
     '          onClick:dzTraduire,k:"trad"})})(),')
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -4892,12 +4914,35 @@ R_EC1 = (A_EC1 + "\n"
          '      return Object.assign(base,{items:[\n'
          '        {lbl:lk?"Déverrouiller":"Verrouiller",run:function(){svmTrackLock(id)}},\n'
          '        {lbl:"Muet",off:!bus,run:function(){svmTrackMute(id)}},\n'
-         '        {lbl:"Solo",off:!bus,run:function(){svmTrackSolo(id,!1)}},{sep:!0},\n'
+         '        {lbl:"Solo",off:!bus,run:function(){svmTrackSolo(id,!1)}},{sep:!0}]\n'
+         # L7 D-22 (24/09/2026, tache 6) : REPLIE ici (le menu de piste est ne de CE remplacement, x0 dans
+         # .bak_montage) -- pour une piste de sous-titres (trackKind, pas une egalite avec s1) : « Graver cette
+         # piste au rendu » (svmTracksSet : historique D-0, bus, projet, NON ENREGISTRE ; « gravee » dans la
+         # colonne des combos quand c'est deja elle -- pas « ✓ », le banc E-10 pinne les cinq coches), l'export
+         # .srt/.vtt/.txt de SES clips par les fonctions locales du bloc subs (subsToSrt/Vtt/Txt + subsDownload,
+         # meme scope module -- T1 l'a mesure pour subsDownload ; nom <projet>-s<n>.<fmt>, memes types MIME que
+         # doExport du tiroir), « Nouvelle piste de langue… » (window.prompt NATIF -- ecart date : pas de
+         # dialogue maison dans le Montage ; la piste nait VIDE, « Traduire vers » + case « nouvelle piste »
+         # la remplit). Un separateur de plus : {sep:!0} 3 -> 4.
+         '        /* L7 D-22 (24/09/2026, tâche 6) : une piste de sous-titres — graver, exporter ses clips, nouvelle piste de langue */\n'
+         '        .concat(trackKind(id)==="subs"?(function(){var bid=DzTracks.subsBurnId(ts),segs=cs.filter(function(k){return k.tr===id});\n'
+         '          function dzSubsExp(fmt){var txt=fmt==="srt"?subsToSrt(segs,subsStyleNow()):fmt==="vtt"?subsToVtt(segs,subsStyleNow()):subsToTxt(segs);\n'
+         '            if(!txt.trim()){fireNote("Rien à exporter — la piste "+(t.name||id)+" est vide.");return}\n'
+         '            var base=String(proj.name||"sous-titres").replace(/[^\\w\\-. ]+/g,"_")+"-"+id;\n'
+         '            fireNote(subsDownload(base+"."+fmt,txt,fmt==="vtt"?"text/vtt":fmt==="srt"?"application/x-subrip":"text/plain")?"Fichier "+base+"."+fmt+" écrit — local, sans compte.":"Téléchargement refusé par le navigateur.")}\n'
+         '          return [{lbl:bid===id?"Gravée au rendu":"Graver cette piste au rendu",combo:bid===id?"gravée":"",off:bid===id,run:function(){svmTracksSet(DzTracks.subsBurn(ts,id));\n'
+         '              fireNote("Piste "+(t.name||id)+" gravée au rendu — les autres pistes de sous-titres restent à l\'écran seulement.")}},\n'
+         '            {lbl:"Exporter .srt",off:!n,run:function(){dzSubsExp("srt")}},{lbl:"Exporter .vtt",off:!n,run:function(){dzSubsExp("vtt")}},{lbl:"Exporter .txt",off:!n,run:function(){dzSubsExp("txt")}},\n'
+         '            {lbl:"Nouvelle piste de langue…",run:function(){var lg=window.prompt("Langue de la nouvelle piste de sous-titres (en, de, es…)","en");if(lg==null)return;\n'
+         '              var r2=DzTracks.subsNew(ts,lg);svmTracksSet(r2.tracks);\n'
+         '              fireNote("Piste "+r2.id.toUpperCase()+(String(lg).trim()?" ("+String(lg).trim()+")":"")+" ajoutée, vide — « Traduire vers » dans le tiroir Sous-titres, case « nouvelle piste », la remplit.")}},{sep:!0}]})():[])\n'
+         '        .concat([\n'
          '        {lbl:"Supprimer la piste",off:bs,run:function(){svmTracksSet(DzTracks.remove(ts,id));\n'
          '          if(n)setClips(function(cs2){return (cs2||[]).filter(function(k){return k.tr!==id})});\n'
-         '          fireNote("Piste "+(t.name||id)+" retirée"+(n?" avec "+n+" clip"+(n>1?"s":"")+" — annuler ramène les clips":"")+".")}}]})}\n'
+         '          fireNote("Piste "+(t.name||id)+" retirée"+(n?" avec "+n+" clip"+(n>1?"s":"")+" — annuler ramène les clips":"")+".")}}])})}\n'
          '    return null}')
-assert R_EC1.count("{sep:!0}") == 3 and R_EC1.count("dzmReplaceRef.current={") == 1
+# L7 D-22 (24/09/2026) : un quatrieme separateur, entre les entrees de sous-titres et « Supprimer la piste »
+assert R_EC1.count("{sep:!0}") == 4 and R_EC1.count("dzmReplaceRef.current={") == 1
 assert EC3_MENU in R_EB5A
 # EC2 : le bouton ☰ AVANT le titre « Montage » (ancre libre 1/0/1) ; le clic
 # sur le bouton pendant que le menu est ouvert tombe en fait sur le voile
@@ -5418,6 +5463,35 @@ assert R_L7E4B.count('el.style.borderRadius="";el.style.boxShadow=""') == 1 and 
 assert R_L7E6.count('+"|"+(ktf.radius||0)+"|"+(ktf.shadow||0)') == 1 and R_L7E7B.count('+"|"+(cur.radius||0)+"|"+(cur.shadow||0)') == 1
 assert R_L7E7A.count("radius:t0.radius||0,shadow:t0.shadow||0}") == 1 and R_L7E8.count("delete nk.radius;delete nk.shadow;") == 1
 assert sum(t[2].count("DzTracks") for t in _L7E) == 1
+# ══ L7 D-22 (24/09/2026, tache 6) — PISTES DE SOUS-TITRES PAR LANGUE, UNE SEULE GRAVEE ═
+# Perimetre MINIMAL et date (decision n°7) : une piste S2… est une copie de S1 (traduite par le tiroir, case
+# « nouvelle piste » -- replis R_M26A/R_M26B/R_M24H ; ou vide -- menu de piste, repli R_EC1) ; ses repliques sont
+# des clips tr:"s2" ; l'EDITEUR reste sur S1. MESURE : subsSegsOf (.bak:3540) a NEUF appelants (verdict,
+# couverture, emojis, tiroir, overlay, chip…) -- on ne change que subsPayload (L7f1) : la piste GRAVEE est
+# DzTracks.subsBurnId(pistes) (la marquee burn:true, sinon "s1" -- le comportement d'avant a l'octet pres).
+# L7f2 : data-sub par GENRE (trackKind, comme le plan) + data-burn CALCULE par subsBurnId et non lu sur tr.burn
+# (ecart au plan, date : sans marque, s1 est gravee et doit le montrer -- tr.burn est absent par defaut).
+# Les deux ancres sont LIBRES 1/0/1 dans .bak_montage ; les trois autres sites sont des replis (ancres nees de
+# remplacements). Backend : _tracks_meta accepte tout kind et ignore lang/burn/name (mesure, rien ne change).
+A_L7F1 = '    var segs=d.sort(subsSegsOf(clipsRef.current)).filter(function(s){'
+R_L7F1 = ('    /* L7 D-22 (24/09/2026, tâche 6) : seule la piste de sous-titres marquée « gravée » part au rendu (s1 sans marque —\n'
+          "       subsBurnId de la couche) ; l'éditeur, le verdict, la couverture et les emojis restent sur s1 (subsSegsOf, inchangé) */\n"
+          '    var bid=DzTracks.subsBurnId(svmTracksOf(proj));\n'
+          '    var segs=d.sort((clipsRef.current||[]).filter(function(c){return c.tr===bid})).filter(function(s){')
+A_L7F2 = '            return r.jsxs("div",{className:"svm-track","data-sub":tr.id==="s1"?"":void 0,'
+R_L7F2 = ('            /* L7 D-22 (24/09/2026) : data-sub par genre (S2… aussi), data-burn sur la piste que le rendu grave (s1 sans marque) */\n'
+          '            return r.jsxs("div",{className:"svm-track","data-sub":trackKind(tr.id)==="subs"?"":void 0,'
+          '"data-burn":trackKind(tr.id)==="subs"&&DzTracks.subsBurnId(svmTracksOf(proj))===tr.id?"":void 0,')
+L7A += [("L7f1-subsPayload-grave-la-piste-marquee", A_L7F1, R_L7F1),
+        ("L7f2-data-sub-par-genre-et-data-burn", A_L7F2, R_L7F2)]
+assert R_L7F1.count("DzTracks.subsBurnId(svmTracksOf(proj))") == 1 and R_L7F1.count("subsSegsOf(") == 0 and R_L7F1.count("subsSegsOf") == 1 and R_L7F1.count("c.tr===bid") == 1 and A_L7F1 not in R_L7F1
+assert R_L7F2.count('"data-burn":') == 1 and R_L7F2.count('trackKind(tr.id)==="subs"') == 2 and R_L7F2.count('tr.id==="s1"') == 0 and R_L7F2.count("DzTracks.subsBurnId(") == 1
+assert R_EC1.count("DzTracks.subsBurnId(ts)") == 1 and R_EC1.count("DzTracks.subsBurn(ts,id)") == 1 and R_EC1.count("DzTracks.subsNew(ts,lg)") == 1 and R_EC1.count("window.prompt(") == 1
+assert R_EC1.count('lbl:"Exporter .srt"') == 1 and R_EC1.count('lbl:"Exporter .vtt"') == 1 and R_EC1.count('lbl:"Exporter .txt"') == 1 and R_EC1.count('"Nouvelle piste de langue…"') == 1
+assert R_EC1.count('combo:bid===id?"gravée":""') == 1 and R_EC1.count("subsToSrt(") == 1 and R_EC1.count("subsToVtt(") == 1 and R_EC1.count("subsToTxt(") == 1 and R_EC1.count("subsDownload(") == 1
+assert R_M26A.count("x.useState(!1),dzNewTr=s9c[0],setDzNewTr=s9c[1];") == 1 and R_M26A.count("props.onNewTrack(dzTo,dzNext)") == 1 and R_M26A.count("if(props.onChange)props.onChange(dzNext,!0);") == 1
+assert R_M26B.count('"aria-label":"Traduire dans une nouvelle piste"') == 1 and R_M26B.count("sub-trnew") == 1 and R_M26B.count("dzNewTr?") == 1 and R_M26B.count("title:") == 2
+assert R_M24H.count("onNewTrack:function(lang,segs){") == 1 and R_M24H.count("DzTracks.subsNew(svmTracksOf(proj),lang)") == 1 and R_M24H.count('DzTracks.subsCopy(cs,"s1",r2.id,segs)') == 1
 assert R_L7G1.startswith(A_L7G1) and R_L7G1.count("svmThumb(") == 2 and R_L7G1.count("DzTracks.voisins(") == 1 and R_L7G1.count("DzTracks.abSecs(") == 1
 # revue 24/09 : abRollDit (quatrieme reference), trois fireNote (verrou, borne, partiel), rappel inscrit UNE fois (reg)
 assert R_L7G1.count("DzTracks.roll(") == 1 and R_L7G1.count("DzTracks.abRollDit(") == 1 and R_L7G1.count("DzTracks") == 4 and R_L7G1.count("fireNote(") == 3 and R_L7G1.count("},[dzAbK]);") == 1
